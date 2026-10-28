@@ -19,6 +19,7 @@ export default defineConfig({
           text: '指南',
           items: [
             { text: '设计哲学', link: '/guide/philosophy' },
+            { text: '视觉语言', link: '/guide/visual-language' },
             { text: '快速开始', link: '/guide/getting-started' },
             { text: '主题与 Token', link: '/guide/theming' },
           ],
@@ -38,6 +39,7 @@ export default defineConfig({
       // Docs always render the components from source.
       alias: [
         { find: /^dou-ui$/, replacement: r('../../packages/dou-ui/src/index.ts') },
+        { find: /^@dou-ui\/theme$/, replacement: r('../../packages/theme/src/index.ts') },
         { find: /^dou-ui\/style\.css$/, replacement: r('../../packages/theme/src/index.css') },
       ],
     },

@@ -4,7 +4,7 @@ layout: home
 hero:
   name: DouUI
   text: 为自己打造的 Vue 3 组件库
-  tagline: 结构与外观分离，Token 驱动，克制而完备。
+  tagline: 淡雅、克制。结构与外观分离，Token 驱动。
   actions:
     - theme: brand
       text: 设计哲学

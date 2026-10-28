@@ -1,61 +1,63 @@
 import type { ThemeTokens } from './types'
 
 /**
- * Draft light theme.
+ * Light theme.
  *
- * The visual direction of DouUI is not decided yet. These values are
- * deliberately plain placeholders that prove the token pipeline; expect
- * them to change.
+ * Ink on paper: the interface is built from near-black, white and a
+ * narrow band of warm-neutral grays. Hue is reserved for meaning
+ * (primary action, success, warning, danger) and is kept desaturated so
+ * it never shouts.
  */
 export const light: ThemeTokens = {
   color: {
-    primary: { DEFAULT: '#2f6bff', on: '#ffffff' },
-    neutral: { DEFAULT: '#3a3f47', on: '#ffffff' },
-    success: { DEFAULT: '#1f9d55', on: '#ffffff' },
-    warning: { DEFAULT: '#d98a00', on: '#ffffff' },
-    danger: { DEFAULT: '#e5484d', on: '#ffffff' },
+    neutral: { DEFAULT: '#171717', on: '#ffffff' },
+    primary: { DEFAULT: '#3b63c4', on: '#ffffff' },
+    success: { DEFAULT: '#3d8a5f', on: '#ffffff' },
+    warning: { DEFAULT: '#b7791f', on: '#ffffff' },
+    danger: { DEFAULT: '#c4463d', on: '#ffffff' },
     bg: {
-      canvas: '#f7f8fa',
+      canvas: '#fafafa',
       surface: '#ffffff',
-      muted: '#eef0f3',
+      muted: '#f2f2f2',
     },
     text: {
-      DEFAULT: '#1c1f24',
-      secondary: '#5b616b',
-      disabled: '#a4a9b1',
+      DEFAULT: '#171717',
+      secondary: '#5c5c5c',
+      tertiary: '#8f8f8f',
+      disabled: '#b5b5b5',
     },
     border: {
-      DEFAULT: '#dde1e6',
-      strong: '#b9bfc7',
+      subtle: '#f0f0f0',
+      DEFAULT: '#e6e6e6',
+      strong: '#d1d1d1',
     },
-    focus: '#2f6bff',
-    stateMix: '#000000',
+    focus: '#7d97d6',
   },
   font: {
     family:
-      'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif',
-    familyMono: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
-    size: { sm: '12px', md: '14px', lg: '16px' },
+      'system-ui, -apple-system, "Segoe UI", "Helvetica Neue", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif',
+    familyMono: 'ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
+    size: { sm: '13px', md: '14px', lg: '16px' },
     weight: { regular: '400', medium: '500', bold: '600' },
-    lineHeight: '1.5',
+    lineHeight: '1.6',
   },
   radius: {
     control: '6px',
-    container: '10px',
+    container: '12px',
     full: '9999px',
   },
   control: {
-    height: { sm: '28px', md: '34px', lg: '40px' },
-    paddingX: { sm: '10px', md: '14px', lg: '18px' },
+    height: { sm: '28px', md: '32px', lg: '40px' },
+    paddingX: { sm: '10px', md: '12px', lg: '16px' },
     gap: { sm: '4px', md: '6px', lg: '8px' },
   },
   shadow: {
-    sm: '0 1px 2px rgb(0 0 0 / 0.06)',
-    md: '0 4px 12px rgb(0 0 0 / 0.08)',
-    lg: '0 12px 32px rgb(0 0 0 / 0.12)',
+    sm: '0 1px 2px rgb(0 0 0 / 0.04)',
+    md: '0 1px 2px rgb(0 0 0 / 0.04), 0 4px 12px -2px rgb(0 0 0 / 0.06)',
+    lg: '0 2px 4px rgb(0 0 0 / 0.04), 0 16px 32px -8px rgb(0 0 0 / 0.1)',
   },
   motion: {
-    duration: { fast: '120ms', normal: '200ms' },
-    easing: 'cubic-bezier(0.2, 0, 0, 1)',
+    duration: { fast: '150ms', normal: '220ms' },
+    easing: 'cubic-bezier(0.25, 0.1, 0.25, 1)',
   },
 }

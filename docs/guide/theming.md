@@ -1,7 +1,7 @@
 # 主题与 Token
 
-DouUI 的视觉风格尚未定稿。当前内置的 `light` / `dark` 只是验证管线用的草稿值，**会变**。
-但 Token 的结构，也就是"组件能问主题要什么"，是稳定下来的部分。
+DouUI 内置 `light` 与 `dark` 两套主题，它们的取值与取舍见 [视觉语言](./visual-language)。
+本页介绍 Token 的结构，也就是"组件能问主题要什么"，以及如何定制。
 
 ## Token 从哪里来
 
@@ -49,7 +49,7 @@ Token 只是 CSS 变量，任何非 layer 的样式都能直接覆盖：
 import { defineTheme, light, themeToCss } from '@dou-ui/theme'
 
 const brand = defineTheme(light, {
-  color: { primary: { DEFAULT: '#7c3aed', on: '#ffffff' } },
+  color: { primary: { DEFAULT: '#6d5bd0', on: '#ffffff' } },
   radius: { control: '999px' },
 })
 
@@ -66,3 +66,20 @@ DouUI 的所有样式都放在级联层（cascade layers）中：
 ```
 
 不在任何 layer 中的业务样式天然优先级更高，覆盖组件样式时不需要堆选择器、也不需要 `!important`。
+
+::: tip 与全局重置样式共存
+如果页面里有**不在 layer 中**的全局重置（例如 `button { background: transparent; padding: 0 }`），
+它会盖过 DouUI 的组件样式。最好把这类重置也放进一个更早的 layer；做不到时，
+可以用 `revert-layer` 把相关属性交还给 DouUI：
+
+```css
+.dou-button {
+  padding: revert-layer;
+  border: revert-layer;
+  background-color: revert-layer;
+  color: revert-layer;
+  line-height: revert-layer;
+}
+```
+
+:::

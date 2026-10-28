@@ -1,34 +1,38 @@
 import { defineTheme } from './define'
 import { light } from './light'
 
-/** Draft dark theme. Only colors differ from the light theme. */
+/**
+ * Dark theme. Same restraint, inverted: off-white ink on a near-black
+ * page, with surfaces separated by hairline borders rather than shadow.
+ */
 export const dark = defineTheme(light, {
   color: {
-    primary: { DEFAULT: '#5b8cff', on: '#0b1020' },
-    neutral: { DEFAULT: '#d5d9df', on: '#16181c' },
-    success: { DEFAULT: '#3ccf7c', on: '#06140c' },
-    warning: { DEFAULT: '#f2b445', on: '#1a1200' },
-    danger: { DEFAULT: '#ff6b70', on: '#1c0607' },
+    neutral: { DEFAULT: '#ededed', on: '#0a0a0a' },
+    primary: { DEFAULT: '#6f8fdc', on: '#0a0a0a' },
+    success: { DEFAULT: '#5fae80', on: '#0a0a0a' },
+    warning: { DEFAULT: '#d69e45', on: '#0a0a0a' },
+    danger: { DEFAULT: '#e06c62', on: '#0a0a0a' },
     bg: {
-      canvas: '#101215',
-      surface: '#181b20',
-      muted: '#22262c',
+      canvas: '#0a0a0a',
+      surface: '#111111',
+      muted: '#1c1c1c',
     },
     text: {
-      DEFAULT: '#e8eaed',
-      secondary: '#a2a8b1',
-      disabled: '#5d636c',
+      DEFAULT: '#ededed',
+      secondary: '#a3a3a3',
+      tertiary: '#737373',
+      disabled: '#4d4d4d',
     },
     border: {
-      DEFAULT: '#2c3138',
-      strong: '#454c55',
+      subtle: '#1a1a1a',
+      DEFAULT: '#262626',
+      strong: '#3a3a3a',
     },
-    focus: '#5b8cff',
-    stateMix: '#ffffff',
+    focus: '#5a73b3',
   },
   shadow: {
-    sm: '0 1px 2px rgb(0 0 0 / 0.4)',
-    md: '0 4px 12px rgb(0 0 0 / 0.5)',
-    lg: '0 12px 32px rgb(0 0 0 / 0.6)',
+    sm: '0 1px 2px rgb(0 0 0 / 0.5)',
+    md: '0 1px 2px rgb(0 0 0 / 0.5), 0 4px 12px -2px rgb(0 0 0 / 0.5)',
+    lg: '0 2px 4px rgb(0 0 0 / 0.5), 0 16px 32px -8px rgb(0 0 0 / 0.7)',
   },
 })

@@ -9,5 +9,8 @@
     font-family: var(--dou-font-family);
     font-size: var(--dou-font-size-md);
     line-height: var(--dou-font-line-height);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
 }

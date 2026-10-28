@@ -24,6 +24,8 @@
     --dou-button-bg-active: transparent;
     --dou-button-fg: var(--dou-button-tone);
     --dou-button-border: transparent;
+    --dou-button-border-hover: var(--dou-button-border);
+    --dou-button-shadow: none;
 
     position: relative;
     display: inline-flex;
@@ -37,6 +39,7 @@
     border: 1px solid var(--dou-button-border);
     border-radius: var(--dou-button-radius);
     background-color: var(--dou-button-bg);
+    box-shadow: var(--dou-button-shadow);
     color: var(--dou-button-fg);
     font-family: inherit;
     font-size: var(--dou-button-font-size);
@@ -47,11 +50,12 @@
     cursor: pointer;
     user-select: none;
     -webkit-tap-highlight-color: transparent;
-    transition-property: background-color, border-color, color, box-shadow;
+    transition-property: background-color, border-color, color, box-shadow, transform;
     transition-duration: var(--dou-motion-duration-fast);
     transition-timing-function: var(--dou-motion-easing);
 
     &:hover {
+      border-color: var(--dou-button-border-hover);
       background-color: var(--dou-button-bg-hover);
     }
 
@@ -64,17 +68,22 @@
       outline-offset: 2px;
     }
 
+    &:active:not(:disabled, .is-loading) {
+      transform: translateY(0.5px);
+    }
+
     &:disabled,
     &.is-disabled,
     &.is-loading {
       --dou-button-bg-hover: var(--dou-button-bg);
       --dou-button-bg-active: var(--dou-button-bg);
+      --dou-button-border-hover: var(--dou-button-border);
     }
 
     &:disabled,
     &.is-disabled {
       cursor: not-allowed;
-      opacity: 0.5;
+      opacity: 0.45;
     }
 
     &.is-loading {
@@ -105,34 +114,54 @@
     --dou-button-tone-on: var(--dou-color-danger-on);
   }
 
-  /* variants */
+  /*
+   * variants
+   *
+   * Hover lightens a solid button towards the canvas instead of darkening
+   * it, which works for ink-on-paper and paper-on-ink alike.
+   */
   .dou-button--solid {
     --dou-button-bg: var(--dou-button-tone);
     --dou-button-bg-hover: color-mix(
       in oklab,
-      var(--dou-button-tone) 88%,
-      var(--dou-color-state-mix)
+      var(--dou-button-tone) 86%,
+      var(--dou-color-bg-canvas)
     );
     --dou-button-bg-active: color-mix(
       in oklab,
-      var(--dou-button-tone) 78%,
-      var(--dou-color-state-mix)
+      var(--dou-button-tone) 76%,
+      var(--dou-color-bg-canvas)
     );
     --dou-button-fg: var(--dou-button-tone-on);
   }
   .dou-button--soft {
-    --dou-button-bg: color-mix(in oklab, var(--dou-button-tone) 12%, transparent);
-    --dou-button-bg-hover: color-mix(in oklab, var(--dou-button-tone) 18%, transparent);
-    --dou-button-bg-active: color-mix(in oklab, var(--dou-button-tone) 24%, transparent);
+    --dou-button-bg: color-mix(in oklab, var(--dou-button-tone) 7%, transparent);
+    --dou-button-bg-hover: color-mix(in oklab, var(--dou-button-tone) 11%, transparent);
+    --dou-button-bg-active: color-mix(in oklab, var(--dou-button-tone) 15%, transparent);
   }
   .dou-button--outline {
-    --dou-button-border: color-mix(in oklab, var(--dou-button-tone) 45%, transparent);
-    --dou-button-bg-hover: color-mix(in oklab, var(--dou-button-tone) 8%, transparent);
-    --dou-button-bg-active: color-mix(in oklab, var(--dou-button-tone) 14%, transparent);
+    --dou-button-bg: var(--dou-color-bg-surface);
+    --dou-button-bg-hover: color-mix(
+      in oklab,
+      var(--dou-button-tone) 4%,
+      var(--dou-color-bg-surface)
+    );
+    --dou-button-bg-active: color-mix(
+      in oklab,
+      var(--dou-button-tone) 8%,
+      var(--dou-color-bg-surface)
+    );
+    --dou-button-border: color-mix(in oklab, var(--dou-button-tone) 14%, var(--dou-color-border));
+    --dou-button-border-hover: color-mix(
+      in oklab,
+      var(--dou-button-tone) 24%,
+      var(--dou-color-border)
+    );
+    --dou-button-shadow: var(--dou-shadow-sm);
   }
   .dou-button--ghost {
-    --dou-button-bg-hover: color-mix(in oklab, var(--dou-button-tone) 10%, transparent);
-    --dou-button-bg-active: color-mix(in oklab, var(--dou-button-tone) 16%, transparent);
+    --dou-button-bg-hover: color-mix(in oklab, var(--dou-button-tone) 6%, transparent);
+    --dou-button-bg-active: color-mix(in oklab, var(--dou-button-tone) 10%, transparent);
   }
 
   /* sizes */
@@ -153,16 +182,16 @@
     display: inline-flex;
     flex-shrink: 0;
     align-items: center;
-    font-size: 1.15em;
+    font-size: 1.1em;
   }
 
   .dou-button__spinner {
     width: 1em;
     height: 1em;
-    border: 2px solid currentColor;
+    border: 1.5px solid currentColor;
     border-right-color: transparent;
     border-radius: var(--dou-radius-full);
-    animation: dou-spin 0.7s linear infinite;
+    animation: dou-spin 0.8s linear infinite;
   }
 
   @media (prefers-reduced-motion: reduce) {

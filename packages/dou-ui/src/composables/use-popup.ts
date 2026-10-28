@@ -1,5 +1,5 @@
 import { computed, nextTick, onScopeDispose, ref, toValue, watch } from 'vue'
-import type { ComponentPublicInstance, MaybeRefOrGetter, Ref } from 'vue'
+import type { CSSProperties, ComponentPublicInstance, MaybeRefOrGetter, Ref } from 'vue'
 import { useZIndex } from '../components/config-provider/use-config'
 import { onlyChildElement } from '../utils/only-child'
 import { useFloating } from './use-floating'
@@ -130,7 +130,10 @@ export function usePopup(options: UsePopupOptions) {
     }
   })
 
-  const panelStyle = computed(() => ({ ...floating.style.value, zIndex: zIndex.value }))
+  const panelStyle = computed<CSSProperties>(() => ({
+    ...floating.style.value,
+    zIndex: zIndex.value,
+  }))
 
   return {
     triggerRef,

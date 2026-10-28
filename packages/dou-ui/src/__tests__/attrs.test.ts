@@ -39,6 +39,7 @@ const fields: Record<string, string> = {
   DouSwitch: 'button',
   DouInput: 'input',
   DouInputNumber: 'input',
+  DouAutocomplete: 'input',
   DouTextarea: 'textarea',
 }
 // render no element of their own

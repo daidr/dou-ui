@@ -1,0 +1,146 @@
+/*
+ * Timeline
+ *
+ * Small dots strung on a hairline. The dot is the only place a tone
+ * shows; the time sits above the content in the tertiary gray with
+ * tabular figures. Something still under way gets a hollow dot and a
+ * dashed line leading to it.
+ */
+@layer dou.components {
+  .dou-timeline {
+    --dou-timeline-dot-size: 10px;
+    --dou-timeline-rail-width: 16px;
+    --dou-timeline-first-line: 20px;
+    --dou-timeline-gap: 12px;
+    --dou-timeline-spacing: 16px;
+    --dou-timeline-line: var(--dou-color-border);
+
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    color: var(--dou-color-text);
+    font-size: var(--dou-font-size-md);
+    list-style: none;
+
+    &.is-reverse {
+      flex-direction: column-reverse;
+    }
+  }
+
+  .dou-timeline__item {
+    --dou-timeline-dot: var(--dou-color-border-strong);
+
+    position: relative;
+    display: flex;
+    gap: var(--dou-timeline-gap);
+    padding-bottom: var(--dou-timeline-spacing);
+
+    .dou-timeline:not(.is-reverse) > &:last-child,
+    .dou-timeline.is-reverse > &:first-child {
+      padding-bottom: 0;
+
+      & .dou-timeline__line {
+        display: none;
+      }
+    }
+  }
+
+  .dou-timeline--primary {
+    --dou-timeline-dot: var(--dou-color-primary);
+  }
+  .dou-timeline--success {
+    --dou-timeline-dot: var(--dou-color-success);
+  }
+  .dou-timeline--warning {
+    --dou-timeline-dot: var(--dou-color-warning);
+  }
+  .dou-timeline--danger {
+    --dou-timeline-dot: var(--dou-color-danger);
+  }
+
+  .dou-timeline__rail {
+    display: flex;
+    flex-shrink: 0;
+    justify-content: center;
+    width: var(--dou-timeline-rail-width);
+  }
+
+  .dou-timeline__dot {
+    box-sizing: border-box;
+    width: var(--dou-timeline-dot-size);
+    height: var(--dou-timeline-dot-size);
+    margin-top: calc((var(--dou-timeline-first-line) - var(--dou-timeline-dot-size)) / 2);
+    border-radius: var(--dou-radius-full);
+    background-color: var(--dou-timeline-dot);
+
+    .dou-timeline__item.is-pending > .dou-timeline__rail > & {
+      border: 2px solid var(--dou-timeline-dot);
+      background-color: var(--dou-color-bg-surface);
+    }
+
+    .dou-timeline__item.is-custom-dot > .dou-timeline__rail > & {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: var(--dou-timeline-rail-width);
+      height: var(--dou-timeline-rail-width);
+      margin-top: calc((var(--dou-timeline-first-line) - var(--dou-timeline-rail-width)) / 2);
+      border: 0;
+      background: none;
+      color: var(--dou-timeline-dot);
+
+      & > svg {
+        width: 100%;
+        height: 100%;
+      }
+    }
+  }
+
+  .dou-timeline--neutral.is-custom-dot {
+    --dou-timeline-dot: var(--dou-color-text-secondary);
+  }
+
+  .dou-timeline__line {
+    position: absolute;
+    top: calc((var(--dou-timeline-first-line) + var(--dou-timeline-dot-size)) / 2 + 4px);
+    /* reach to just above the next dot */
+    bottom: calc(4px - (var(--dou-timeline-first-line) - var(--dou-timeline-dot-size)) / 2);
+    /* measured from the item, so the line runs through its bottom spacing */
+    left: calc(var(--dou-timeline-rail-width) / 2 - 1px);
+    width: 0;
+    border-left: 1px solid var(--dou-timeline-line);
+  }
+
+  .dou-timeline:not(.is-reverse) > .dou-timeline__item:has(+ .is-pending) .dou-timeline__line,
+  .dou-timeline.is-reverse > .dou-timeline__item.is-pending .dou-timeline__line {
+    border-left-style: dashed;
+  }
+
+  .dou-timeline__body {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .dou-timeline__time {
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+    font-variant-numeric: tabular-nums;
+    line-height: var(--dou-timeline-first-line);
+  }
+
+  .dou-timeline__title {
+    color: var(--dou-color-text);
+    font-weight: var(--dou-font-weight-medium);
+    line-height: var(--dou-timeline-first-line);
+  }
+
+  .dou-timeline__content {
+    color: var(--dou-color-text-secondary);
+    line-height: var(--dou-font-line-height);
+  }
+}

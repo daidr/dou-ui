@@ -140,3 +140,31 @@
   margin: revert-layer;
   list-style: revert-layer;
 }
+
+/* Structure and navigation components: buttons and lists. */
+.dou-collapse__trigger,
+.dou-steps__main,
+.dou-menu__item {
+  padding: revert-layer;
+  border: revert-layer;
+  background-color: revert-layer;
+  color: revert-layer;
+  line-height: revert-layer;
+}
+
+.vp-doc a.dou-menu__item {
+  color: revert-layer;
+  font-weight: revert-layer;
+  text-decoration: revert-layer;
+}
+
+.vp-doc .dou-steps,
+.vp-doc .dou-steps li,
+.vp-doc .dou-timeline,
+.vp-doc .dou-timeline li,
+.vp-doc .dou-menu ul,
+.vp-doc .dou-menu li {
+  padding: revert-layer;
+  margin: revert-layer;
+  list-style: revert-layer;
+}

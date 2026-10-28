@@ -136,6 +136,16 @@ export interface Locale {
     /** Shown when nothing matches. */
     empty: string
   }
+  steps: {
+    /** Read after the title of a step that is done. */
+    finish: string
+    /** Read after the title of the current step. */
+    process: string
+    /** Read after the title of a step not reached yet. */
+    wait: string
+    /** Read after the title of a step that failed. */
+    error: string
+  }
   form: {
     /** Shown after the label of an optional field when `requiredMark` is `'optional'`. */
     optional: string

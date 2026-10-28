@@ -1,0 +1,244 @@
+/*
+ * Menu
+ *
+ * Navigation rows in the same quiet register as the tree: secondary text
+ * that turns ink on hover over a faint wash; the current page keeps a
+ * slightly deeper wash and medium weight. A submenu that holds the
+ * current page turns ink too, so the way back is visible when it is
+ * closed. Horizontally the rows sit on a hairline and the current one is
+ * underlined, like tabs.
+ */
+@layer dou.components {
+  .dou-menu {
+    --dou-menu-item-height: var(--dou-control-height-md);
+    --dou-menu-padding-x: 10px;
+    --dou-menu-gap: 8px;
+    --dou-menu-icon-size: 16px;
+    --dou-menu-indent: calc(var(--dou-menu-icon-size) + var(--dou-menu-gap));
+    --dou-menu-hover-bg: color-mix(in oklab, var(--dou-color-text) 4%, transparent);
+    --dou-menu-selected-bg: color-mix(in oklab, var(--dou-color-text) 7%, transparent);
+
+    min-width: 0;
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-md);
+  }
+
+  .dou-menu__list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .dou-menu__sub {
+    padding-top: 2px;
+  }
+
+  .dou-menu__item {
+    --dou-menu-level: 0;
+
+    display: flex;
+    align-items: center;
+    gap: var(--dou-menu-gap);
+    box-sizing: border-box;
+    width: 100%;
+    height: var(--dou-menu-item-height);
+    padding: 0 var(--dou-menu-padding-x);
+    padding-inline-start: calc(
+      var(--dou-menu-padding-x) + var(--dou-menu-level) * var(--dou-menu-indent)
+    );
+    border: 0;
+    border-radius: var(--dou-radius-control);
+    background-color: transparent;
+    color: inherit;
+    font: inherit;
+    line-height: 1;
+    text-align: start;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+    transition-property: background-color, color;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    &:hover:not(.is-disabled) {
+      background-color: var(--dou-menu-hover-bg);
+      color: var(--dou-color-text);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: -2px;
+    }
+
+    &.is-active {
+      color: var(--dou-color-text);
+    }
+
+    &.is-selected {
+      background-color: var(--dou-menu-selected-bg);
+      color: var(--dou-color-text);
+      font-weight: var(--dou-font-weight-medium);
+
+      &:hover {
+        background-color: var(--dou-menu-selected-bg);
+      }
+    }
+
+    &.is-disabled {
+      color: var(--dou-color-text-disabled);
+      cursor: not-allowed;
+    }
+  }
+
+  .dou-menu__icon {
+    flex-shrink: 0;
+    width: var(--dou-menu-icon-size);
+    height: var(--dou-menu-icon-size);
+  }
+
+  .dou-menu__initial {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--dou-menu-icon-size);
+    height: var(--dou-menu-icon-size);
+    font-size: 12px;
+    font-weight: var(--dou-font-weight-medium);
+  }
+
+  .dou-menu__label {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    overflow: clip;
+    overflow-clip-margin: 4px;
+    text-overflow: ellipsis;
+    text-box: trim-both cap alphabetic;
+  }
+
+  .dou-menu__arrow {
+    flex-shrink: 0;
+    width: 14px;
+    height: 14px;
+    color: var(--dou-color-text-tertiary);
+    transition: transform var(--dou-motion-duration-normal) var(--dou-motion-easing);
+
+    &.is-open {
+      transform: rotate(180deg);
+    }
+  }
+
+  .dou-menu__group + .dou-menu__group,
+  .dou-menu__entry + .dou-menu__group {
+    margin-top: 8px;
+  }
+
+  .dou-menu__group-label {
+    --dou-menu-level: 0;
+
+    padding: 8px var(--dou-menu-padding-x) 6px;
+    padding-inline-start: calc(
+      var(--dou-menu-padding-x) + var(--dou-menu-level) * var(--dou-menu-indent)
+    );
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+    line-height: 1;
+  }
+
+  .dou-menu__divider {
+    height: 1px;
+    margin: 6px var(--dou-menu-padding-x);
+    background-color: var(--dou-color-border-subtle);
+  }
+
+  /* collapsed: a column of square icon buttons */
+  .dou-menu.is-collapsed {
+    width: max-content;
+
+    & .dou-menu__item {
+      justify-content: center;
+      width: var(--dou-menu-item-height);
+      padding: 0;
+    }
+
+    & .dou-menu__divider {
+      margin: 6px 4px;
+    }
+
+    & .dou-menu__item.is-active {
+      background-color: var(--dou-menu-selected-bg);
+    }
+  }
+
+  /* horizontal: a row on a hairline, the current one underlined */
+  .dou-menu--horizontal {
+    border-bottom: 1px solid var(--dou-color-border);
+
+    & .dou-menu__list {
+      flex-direction: row;
+      align-items: center;
+      gap: 4px;
+      padding: 6px 0;
+    }
+
+    & .dou-menu__entry {
+      position: relative;
+    }
+
+    & .dou-menu__item {
+      width: auto;
+
+      &.is-selected {
+        background-color: transparent;
+
+        &:hover {
+          background-color: var(--dou-menu-hover-bg);
+        }
+      }
+
+      &.is-selected::after,
+      &.is-active::after {
+        position: absolute;
+        right: var(--dou-menu-padding-x);
+        bottom: -7px;
+        left: var(--dou-menu-padding-x);
+        height: 2px;
+        border-radius: 1px;
+        background-color: var(--dou-color-text);
+        content: '';
+      }
+    }
+
+    & .dou-menu__divider {
+      width: 1px;
+      height: 16px;
+      margin: 0 6px;
+      background-color: var(--dou-color-border);
+    }
+  }
+
+  /* inside a popup */
+  .dou-menu__popup-label {
+    padding: 8px 8px 4px;
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+    line-height: 1;
+    user-select: none;
+  }
+
+  .dou-menu__check {
+    width: 14px;
+    height: 14px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dou-menu__arrow {
+      transition: none;
+    }
+  }
+}

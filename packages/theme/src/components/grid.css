@@ -1,0 +1,122 @@
+/*
+ * Grid
+ *
+ * A plain CSS grid of equal columns. Column counts and spans may change
+ * with the viewport width: every breakpoint has its own custom property,
+ * and each one falls back to the next smaller breakpoint that is set.
+ * The properties are reset on every grid and cell, so nested grids never
+ * inherit their parent's layout.
+ *
+ * Breakpoints: sm 640px, md 768px, lg 1024px, xl 1280px.
+ */
+@layer dou.components {
+  .dou-grid {
+    --dou-grid-cols: initial;
+    --dou-grid-cols-sm: initial;
+    --dou-grid-cols-md: initial;
+    --dou-grid-cols-lg: initial;
+    --dou-grid-cols-xl: initial;
+    --dou-grid-min: initial;
+    --dou-grid-row-gap: var(--dou-space-md);
+    --dou-grid-column-gap: var(--dou-space-md);
+
+    display: grid;
+    grid-template-columns: repeat(var(--dou-grid-cols, 1), minmax(0, 1fr));
+    gap: var(--dou-grid-row-gap) var(--dou-grid-column-gap);
+    min-width: 0;
+
+    &.is-auto-fill {
+      grid-template-columns: repeat(auto-fill, minmax(min(var(--dou-grid-min), 100%), 1fr));
+    }
+  }
+
+  .dou-grid--align-start {
+    align-items: start;
+  }
+  .dou-grid--align-center {
+    align-items: center;
+  }
+  .dou-grid--align-end {
+    align-items: end;
+  }
+
+  .dou-grid__item {
+    --dou-grid-column: initial;
+    --dou-grid-column-sm: initial;
+    --dou-grid-column-md: initial;
+    --dou-grid-column-lg: initial;
+    --dou-grid-column-xl: initial;
+
+    grid-column: var(--dou-grid-column, auto);
+    min-width: 0;
+  }
+
+  @media (min-width: 640px) {
+    .dou-grid:not(.is-auto-fill) {
+      grid-template-columns: repeat(
+        var(--dou-grid-cols-sm, var(--dou-grid-cols, 1)),
+        minmax(0, 1fr)
+      );
+    }
+    .dou-grid__item {
+      grid-column: var(--dou-grid-column-sm, var(--dou-grid-column, auto));
+    }
+  }
+
+  @media (min-width: 768px) {
+    .dou-grid:not(.is-auto-fill) {
+      grid-template-columns: repeat(
+        var(--dou-grid-cols-md, var(--dou-grid-cols-sm, var(--dou-grid-cols, 1))),
+        minmax(0, 1fr)
+      );
+    }
+    .dou-grid__item {
+      grid-column: var(
+        --dou-grid-column-md,
+        var(--dou-grid-column-sm, var(--dou-grid-column, auto))
+      );
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .dou-grid:not(.is-auto-fill) {
+      grid-template-columns: repeat(
+        var(
+          --dou-grid-cols-lg,
+          var(--dou-grid-cols-md, var(--dou-grid-cols-sm, var(--dou-grid-cols, 1)))
+        ),
+        minmax(0, 1fr)
+      );
+    }
+    .dou-grid__item {
+      grid-column: var(
+        --dou-grid-column-lg,
+        var(--dou-grid-column-md, var(--dou-grid-column-sm, var(--dou-grid-column, auto)))
+      );
+    }
+  }
+
+  @media (min-width: 1280px) {
+    .dou-grid:not(.is-auto-fill) {
+      grid-template-columns: repeat(
+        var(
+          --dou-grid-cols-xl,
+          var(
+            --dou-grid-cols-lg,
+            var(--dou-grid-cols-md, var(--dou-grid-cols-sm, var(--dou-grid-cols, 1)))
+          )
+        ),
+        minmax(0, 1fr)
+      );
+    }
+    .dou-grid__item {
+      grid-column: var(
+        --dou-grid-column-xl,
+        var(
+          --dou-grid-column-lg,
+          var(--dou-grid-column-md, var(--dou-grid-column-sm, var(--dou-grid-column, auto)))
+        )
+      );
+    }
+  }
+}

@@ -86,6 +86,12 @@ export const zhCN: Locale = {
     placeholder: '输入命令或搜索…',
     empty: '没有匹配的结果',
   },
+  steps: {
+    finish: '已完成',
+    process: '进行中',
+    wait: '未开始',
+    error: '出错',
+  },
   form: {
     optional: '可选',
     required: '此项为必填项',

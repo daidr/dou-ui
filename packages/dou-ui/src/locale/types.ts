@@ -51,6 +51,10 @@ export interface Locale {
     empty: string
     /** Label of the clear button. */
     clear: string
+    /** Shown in the list while options load. */
+    loading: string
+    /** The option that creates a new value, with `{query}`. */
+    create: string
   }
   spinner: {
     /** Read by screen readers while a spinner shows. */
@@ -93,6 +97,12 @@ export interface Locale {
     selectAll: string
     /** Label of the checkbox that selects one row. */
     selectRow: string
+    /** Names the column of detail-row toggles. */
+    expand: string
+    /** Label of the toggle that opens a row's details or children. */
+    expandRow: string
+    /** Label of a column's resize handle, with `{column}`. */
+    resize: string
   }
   upload: {
     /** The button that opens the file picker. */

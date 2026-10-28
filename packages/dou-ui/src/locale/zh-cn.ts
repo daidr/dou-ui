@@ -31,6 +31,8 @@ export const zhCN: Locale = {
     placeholder: '请选择',
     empty: '无匹配项',
     clear: '清空',
+    loading: '加载中',
+    create: '创建“{query}”',
   },
   spinner: {
     loading: '加载中',
@@ -58,6 +60,9 @@ export const zhCN: Locale = {
   table: {
     selectAll: '选择全部',
     selectRow: '选择此行',
+    expand: '展开',
+    expandRow: '展开此行',
+    resize: '调整“{column}”列宽',
   },
   upload: {
     choose: '选择文件',

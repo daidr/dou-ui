@@ -46,7 +46,7 @@ import { DouButton } from 'dou-ui'
 样式同样可以按需引入。每个组件都有一个样式入口，里面是共用的基础样式（层级顺序、Token、基础层）加上这个组件以及它内部用到的组件的样式，按全量样式表里的顺序排好：
 
 ```ts
-import 'dou-ui/components/select/style' // 选择器 + 浮层 + 标签
+import 'dou-ui/components/select/style' // 选择器 + 浮层 + 标签 + 加载圈
 ```
 
 只想手动挑样式表时，先引入 `core.css`，再引入组件样式：

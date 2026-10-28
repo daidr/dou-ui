@@ -3,9 +3,11 @@
  *
  * The field is the shared picker field led by a swatch. The swatch, the
  * presets and the alpha track sit on a small checkerboard, so
- * transparency always reads. The panel is a saturation / brightness
- * square with thin hue and alpha tracks below; the thumbs are white
- * rings with a soft shadow that stand out on any color.
+ * transparency always reads. The panel picks with a saturation /
+ * brightness square, a hue / saturation wheel or one track per channel
+ * of a color space, over a text box that reads and takes any format.
+ * The thumbs are white rings with a soft shadow that stand out on any
+ * color.
  */
 @layer dou.components {
   .dou-color-picker {
@@ -23,6 +25,11 @@
     }
 
     &.is-text {
+      width: auto;
+      min-width: 160px;
+    }
+
+    &.is-text.is-hex {
       width: 160px;
     }
   }
@@ -68,6 +75,9 @@
   .dou-color-picker .dou-picker__value {
     font-family: var(--dou-font-family-mono);
     font-size: 0.93em;
+  }
+
+  .dou-color-picker.is-hex .dou-picker__value {
     text-transform: uppercase;
   }
 
@@ -83,8 +93,53 @@
     display: flex;
     flex-direction: column;
     gap: 12px;
-    width: 232px;
+    width: 256px;
     padding: 12px;
+  }
+
+  /* the switcher between panels, drawn like a small segmented control */
+  .dou-color-picker__tabs {
+    display: flex;
+    gap: 2px;
+    padding: 2px;
+    border-radius: var(--dou-radius-control);
+    background-color: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+  }
+
+  .dou-color-picker__tab {
+    flex: 1 1 0;
+    min-width: 0;
+    height: 24px;
+    padding: 0 6px;
+    border: 0;
+    border-radius: calc(var(--dou-radius-control) - 2px);
+    background: none;
+    color: var(--dou-color-text-secondary);
+    font: inherit;
+    font-size: var(--dou-font-size-sm);
+    white-space: nowrap;
+    cursor: pointer;
+    outline: none;
+    transition-property: color, background-color, box-shadow;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    &:hover {
+      color: var(--dou-color-text);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 0;
+    }
+
+    &.is-active {
+      background-color: var(--dou-color-bg-surface);
+      box-shadow:
+        0 0 0 1px color-mix(in oklab, var(--dou-color-text) 8%, transparent),
+        var(--dou-shadow-sm);
+      color: var(--dou-color-text);
+    }
   }
 
   .dou-color-picker__area {
@@ -101,6 +156,94 @@
     &:focus-visible {
       outline: 2px solid var(--dou-color-focus);
       outline-offset: 2px;
+    }
+  }
+
+  /* hue round the rim, white at the center, darkened as brightness drops */
+  .dou-color-picker__wheel {
+    position: relative;
+    align-self: center;
+    width: 184px;
+    height: 184px;
+    border-radius: var(--dou-radius-full);
+    background:
+      radial-gradient(closest-side, #fff, transparent),
+      conic-gradient(from 90deg, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00);
+    box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.06);
+    cursor: crosshair;
+    touch-action: none;
+    outline: none;
+
+    &::before {
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background-color: #000;
+      opacity: var(--dou-color-picker-dim, 0);
+      content: '';
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 2px;
+    }
+
+    & > .dou-color-picker__thumb {
+      top: auto;
+    }
+  }
+
+  /* the channel panel: a preview bar, then a labelled track and a number per channel */
+  .dou-color-picker__bar {
+    width: 100%;
+    height: 32px;
+    border-radius: var(--dou-radius-control);
+  }
+
+  .dou-color-picker__channels {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .dou-color-picker__channel {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    & > .dou-color-picker__track {
+      flex: 1 1 auto;
+    }
+  }
+
+  .dou-color-picker__label {
+    flex-shrink: 0;
+    width: 12px;
+    color: var(--dou-color-text-secondary);
+    font-family: var(--dou-font-family-mono);
+    font-size: var(--dou-font-size-sm);
+    text-align: center;
+  }
+
+  .dou-color-picker__number {
+    box-sizing: border-box;
+    flex-shrink: 0;
+    width: 52px;
+    height: 24px;
+    padding: 0 6px;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-control);
+    background-color: var(--dou-color-bg-surface);
+    color: var(--dou-color-text);
+    font-family: var(--dou-font-family-mono);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    outline: none;
+
+    &:focus {
+      border-color: color-mix(in oklab, var(--dou-color-focus) 70%, var(--dou-color-text));
+      box-shadow: 0 0 0 3px color-mix(in oklab, var(--dou-color-focus) 32%, transparent);
     }
   }
 
@@ -154,6 +297,10 @@
     );
   }
 
+  .dou-color-picker__value {
+    --dou-color-picker-track: linear-gradient(to right, #000, var(--dou-color-picker-bright));
+  }
+
   .dou-color-picker__alpha {
     --dou-color-picker-track:
       linear-gradient(to right, transparent, var(--dou-color-picker-opaque)),
@@ -185,23 +332,68 @@
     border-radius: var(--dou-radius-control);
   }
 
-  .dou-color-picker__text {
-    box-sizing: border-box;
-    width: 100%;
+  /* the format menu and the text box read as one control: `OKLCH ▾ 0.63 0.26 29` */
+  .dou-color-picker__entry {
+    display: flex;
     height: var(--dou-control-height-sm);
-    padding: 0 8px;
     border: 1px solid var(--dou-color-border);
     border-radius: var(--dou-radius-control);
     background-color: var(--dou-color-bg-surface);
-    color: var(--dou-color-text);
-    font-family: var(--dou-font-family-mono);
-    font-size: var(--dou-font-size-sm);
-    text-transform: uppercase;
-    outline: none;
+    transition-property: border-color, box-shadow;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
 
-    &:focus {
+    &:focus-within {
       border-color: color-mix(in oklab, var(--dou-color-focus) 70%, var(--dou-color-text));
       box-shadow: 0 0 0 3px color-mix(in oklab, var(--dou-color-focus) 32%, transparent);
+    }
+  }
+
+  .dou-color-picker__format {
+    flex-shrink: 0;
+    padding: 0 20px 0 8px;
+    border: 0;
+    border-right: 1px solid var(--dou-color-border-subtle);
+    border-radius: calc(var(--dou-radius-control) - 1px) 0 0 calc(var(--dou-radius-control) - 1px);
+    background:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23888' stroke-width='1.5'%3E%3Cpath d='M4.5 6.25L8 9.75l3.5-3.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+        no-repeat right 4px center / 12px,
+      color-mix(in oklab, var(--dou-color-text) 4%, transparent);
+    color: var(--dou-color-text-secondary);
+    font-family: var(--dou-font-family-mono);
+    font-size: 11px;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    appearance: none;
+    outline: none;
+
+    &:hover,
+    &:focus-visible {
+      color: var(--dou-color-text);
+    }
+
+    & option {
+      background-color: var(--dou-color-bg-surface);
+      color: var(--dou-color-text);
+    }
+  }
+
+  .dou-color-picker__text {
+    box-sizing: border-box;
+    flex: 1 1 auto;
+    width: 0;
+    min-width: 0;
+    padding: 0 8px;
+    border: 0;
+    border-radius: 0 calc(var(--dou-radius-control) - 1px) calc(var(--dou-radius-control) - 1px) 0;
+    background: none;
+    color: var(--dou-color-text);
+    font-family: var(--dou-font-family-mono);
+    font-size: 12px;
+    outline: none;
+
+    &.is-hex {
+      text-transform: uppercase;
     }
   }
 

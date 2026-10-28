@@ -198,12 +198,39 @@ export interface Locale {
     area: string
     /** Reads its value, with `{s}` and `{v}` in percent. */
     areaValue: string
-    hue: string
-    alpha: string
-    /** Names the text box with the hex value. */
-    hex: string
+    /** Names the hue and saturation wheel. */
+    wheel: string
+    /** Reads its value, with `{h}` in degrees and `{s}` in percent. */
+    wheelValue: string
+    /** Label the square and the wheel in the panel switcher. */
+    panelSquare: string
+    panelWheel: string
+    /** Names the panel switcher. */
+    panels: string
+    /** Names the text box with the color value. */
+    text: string
+    /** Names the format menu next to the text box. */
+    format: string
     presets: string
     clear: string
+    /* channels, naming the sliders */
+    hue: string
+    alpha: string
+    red: string
+    green: string
+    blue: string
+    saturation: string
+    /** HSL and Lab lightness. */
+    lightness: string
+    /** HSV value. */
+    brightness: string
+    whiteness: string
+    blackness: string
+    chroma: string
+    /** The green–red axis of Lab and Oklab. */
+    axisA: string
+    /** The blue–yellow axis of Lab and Oklab. */
+    axisB: string
   }
   transfer: {
     /** The heading of the left list. */

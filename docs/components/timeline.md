@@ -4,7 +4,7 @@
 import { XCircleIcon } from '@dou-ui/icons'
 </script>
 
-按时间串起一组事件。小圆点挂在一条细线上，语气色只用在圆点上；时间在内容上方，用三级灰色和等宽数字。还在进行中的事件是空心圆点，通向它的线是虚线。
+按时间串起一组事件。小圆点挂在一条细线上，语气色只用在圆点上；时间在内容上方，用三级灰色和等宽数字。还在进行中的事件是空心圆点，通向它的线是虚线；正在处理的事件，圆点换成旋转的加载图标。
 
 ## 基础用法
 
@@ -49,6 +49,27 @@ import { XCircleIcon } from '@dou-ui/icons'
 </DouTimelineItem>
 ```
 
+## 加载中
+
+`loading` 表示这一步正在处理：圆点换成旋转的加载图标，取同样的语气色，通向它的线是虚线。`pending` 是还没轮到，`loading` 是正在做。
+
+<div class="demo demo--column">
+  <DouTimeline>
+    <DouTimelineItem time="10:40" title="拉取代码" tone="success" />
+    <DouTimelineItem time="10:41" title="安装依赖" tone="success" />
+    <DouTimelineItem time="10:42" title="正在构建" tone="primary" loading>已用时 12 秒</DouTimelineItem>
+    <DouTimelineItem title="部署到上海节点" pending />
+  </DouTimeline>
+</div>
+
+```vue
+<DouTimeline>
+  <DouTimelineItem time="10:41" title="安装依赖" tone="success" />
+  <DouTimelineItem time="10:42" title="正在构建" tone="primary" loading>已用时 12 秒</DouTimelineItem>
+  <DouTimelineItem title="部署到上海节点" pending />
+</DouTimeline>
+```
+
 ## 倒序
 
 `reverse` 把最新的事件显示在最上面，事件仍按时间先后书写。
@@ -63,7 +84,7 @@ import { XCircleIcon } from '@dou-ui/icons'
 
 ## 读屏
 
-时间线是一个有序列表 `<ol>`，左侧的圆点与连线只是装饰（`aria-hidden`），含义写在时间、标题和内容里。
+时间线是一个有序列表 `<ol>`，左侧的圆点与连线只是装饰（`aria-hidden`），含义写在时间、标题和内容里。`loading` 的事件带 `aria-busy="true"`。
 
 ## API
 
@@ -75,12 +96,13 @@ import { XCircleIcon } from '@dou-ui/icons'
 
 ### TimelineItem Props
 
-| 名称      | 说明                               | 类型                                                           | 默认值      |
-| --------- | ---------------------------------- | -------------------------------------------------------------- | ----------- |
-| `time`    | 时间                               | `string`                                                       | —           |
-| `title`   | 标题，详情放在默认插槽             | `string`                                                       | —           |
-| `tone`    | 圆点的语气色                       | `'neutral' \| 'primary' \| 'success' \| 'warning' \| 'danger'` | `'neutral'` |
-| `pending` | 进行中：空心圆点，通向它的线为虚线 | `boolean`                                                      | `false`     |
+| 名称      | 说明                                         | 类型                                                           | 默认值      |
+| --------- | -------------------------------------------- | -------------------------------------------------------------- | ----------- |
+| `time`    | 时间                                         | `string`                                                       | —           |
+| `title`   | 标题，详情放在默认插槽                       | `string`                                                       | —           |
+| `tone`    | 圆点的语气色                                 | `'neutral' \| 'primary' \| 'success' \| 'warning' \| 'danger'` | `'neutral'` |
+| `pending` | 进行中：空心圆点，通向它的线为虚线           | `boolean`                                                      | `false`     |
+| `loading` | 正在处理：圆点换成加载图标，通向它的线为虚线 | `boolean`                                                      | `false`     |
 
 ### TimelineItem Slots
 

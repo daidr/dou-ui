@@ -383,6 +383,193 @@ body {
   background: var(--dou-color-success);
 }
 
+/* wide pages: the main column also takes the outline's place */
+
+.doc-body--wide {
+  grid-template-columns: var(--doc-sidebar-width) minmax(0, 1fr);
+}
+
+.doc-body--wide .doc-body__main {
+  max-width: none;
+}
+
+/* icon gallery */
+
+.icon-gallery__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 24px;
+  margin-top: 32px;
+}
+
+.icon-gallery__search {
+  flex: 1 1 280px;
+  max-width: 400px;
+}
+
+.icon-gallery__options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 24px;
+}
+
+.icon-gallery__stroke {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 200px;
+  color: var(--dou-color-text-secondary);
+  font-size: var(--dou-font-size-sm);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.icon-gallery__stroke > :last-child {
+  flex: 1;
+}
+
+.icon-gallery__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 16px;
+}
+
+.icon-gallery__count {
+  color: var(--dou-color-text-tertiary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.icon-gallery__summary {
+  margin: 16px 0 12px;
+  color: var(--dou-color-text-tertiary);
+  font-size: var(--dou-font-size-sm);
+}
+
+.icon-gallery__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  padding: 0;
+  margin: 0;
+  border-top: 1px solid var(--dou-color-border-subtle);
+  border-left: 1px solid var(--dou-color-border-subtle);
+  list-style: none;
+}
+
+.icon-gallery__grid > li {
+  border-right: 1px solid var(--dou-color-border-subtle);
+  border-bottom: 1px solid var(--dou-color-border-subtle);
+}
+
+.icon-gallery__cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  height: 112px;
+  padding: 16px 8px 12px;
+  border: 0;
+  background: none;
+  color: var(--dou-color-text);
+  cursor: pointer;
+  font: inherit;
+  transition: background-color var(--dou-motion-duration-fast) var(--dou-motion-easing);
+}
+
+.icon-gallery__cell:hover {
+  background: var(--dou-color-bg-muted);
+}
+
+.icon-gallery__cell:focus-visible {
+  position: relative;
+  outline: 2px solid var(--dou-color-focus);
+  outline-offset: -2px;
+}
+
+.icon-gallery__cell > svg {
+  flex-shrink: 0;
+}
+
+.icon-gallery__name {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--dou-color-text-tertiary);
+  font-size: 12px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.icon-gallery__cell:hover .icon-gallery__name {
+  color: var(--dou-color-text-secondary);
+}
+
+.icon-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.icon-detail__preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 160px;
+  border: 1px solid var(--dou-color-border-subtle);
+  border-radius: var(--dou-radius-container);
+  background-color: var(--dou-color-bg-muted);
+  background-image:
+    linear-gradient(var(--dou-color-border-subtle) 1px, transparent 1px),
+    linear-gradient(90deg, var(--dou-color-border-subtle) 1px, transparent 1px);
+  background-position: center;
+  background-size: 6px 6px;
+  color: var(--dou-color-text);
+}
+
+.icon-detail__sizes {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 24px;
+  color: var(--dou-color-text);
+}
+
+.icon-detail__tags {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.icon-detail__snippets {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.icon-detail__snippet {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 4px 4px 12px;
+  border-radius: var(--dou-radius-control);
+  background: var(--dou-color-bg-muted);
+  color: var(--dou-color-text);
+  font-family: var(--dou-font-family-mono);
+  font-size: 13px;
+}
+
+.icon-detail__snippet code {
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
 /* narrower screens */
 
 @media (max-width: 1279px) {

@@ -15,6 +15,8 @@ const route = useRoute()
 const { sidebar } = useDocs()
 
 const isHome = computed(() => frontmatter.value.layout === 'home')
+// A wide page (e.g. the icon gallery) takes the outline's column too.
+const wide = computed(() => frontmatter.value.wide === true)
 const hasSidebar = computed(
   () => !isHome.value && !page.value.isNotFound && sidebar.value.length > 0,
 )
@@ -33,7 +35,7 @@ watch(
     <DocHeader :has-sidebar="hasSidebar" @search="searching = true" @menu="drawer = true" />
     <DocNotFound v-if="page.isNotFound" />
     <DocHome v-else-if="isHome" />
-    <div v-else class="doc-body">
+    <div v-else class="doc-body" :class="{ 'doc-body--wide': wide }">
       <aside v-if="hasSidebar" class="doc-body__sidebar">
         <DocSidebar />
       </aside>
@@ -41,7 +43,7 @@ watch(
         <Content class="doc-content dou-prose" />
         <DocFooterNav />
       </main>
-      <DocOutline class="doc-body__outline" />
+      <DocOutline v-if="!wide" class="doc-body__outline" />
     </div>
     <DocSearch v-model:open="searching" />
     <DouDrawer v-model:open="drawer" placement="left" size="288px" title="目录">

@@ -17,6 +17,7 @@
 packages/
   dou-ui/        组件（结构与行为），对外发布的主包
   theme/         设计 Token 与全部样式（@dou-ui/theme）
+  icons/         线性图标库（dou-icons），可独立使用
 playground/      本地调试用的 Vite 应用
 docs/            文档站（VitePress）
 ```
@@ -37,7 +38,7 @@ bun run typecheck    # vue-tsc
 bun run test         # vitest
 bun run check        # 以上全部（CI 同款）
 
-bun run build        # 构建 @dou-ui/theme 与 dou-ui
+bun run build        # 构建 @dou-ui/theme、dou-ui 与 dou-icons
 ```
 
 ### 工具链
@@ -61,3 +62,10 @@ bun run build        # 构建 @dou-ui/theme 与 dou-ui
 2. `packages/theme/src/components/<name>.css`：只引用 `--dou-*` Token，写在 `@layer dou.components` 内，并在 `src/index.css` 中引入
 3. 在 `packages/dou-ui/src/components/index.ts` 与 `src/plugin.ts` 中注册
 4. 在 `docs/components/<name>.md` 编写文档并加入侧边栏
+
+### 新增图标
+
+1. 在 `packages/icons/icons/` 中添加 `<name>.json`（`label`、`categories`）与 `<name>.stroke.svg`
+2. `bun run gen` 校验并生成组件，图标会自动出现在文档站的图标库页面
+
+绘制规则见 [绘制规范](./docs/icons/design.md)。

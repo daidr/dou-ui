@@ -8,7 +8,8 @@
     "preview": "vitepress preview"
   },
   "dependencies": {
-    "dou-ui": "workspace:*"
+    "dou-ui": "workspace:*",
+    "dou-icons": "workspace:*"
   },
   "devDependencies": {
     "vitepress": "^1.6.4"

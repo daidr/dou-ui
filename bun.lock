@@ -21,6 +21,7 @@
     "docs": {
       "name": "@dou-ui/docs",
       "dependencies": {
+        "dou-icons": "workspace:*",
         "dou-ui": "workspace:*",
       },
       "devDependencies": {
@@ -33,6 +34,13 @@
       "dependencies": {
         "@dou-ui/theme": "workspace:*",
       },
+      "peerDependencies": {
+        "vue": "^3.5.0",
+      },
+    },
+    "packages/icons": {
+      "name": "dou-icons",
+      "version": "0.0.0",
       "peerDependencies": {
         "vue": "^3.5.0",
       },
@@ -424,6 +432,8 @@
     "detect-libc": ["detect-libc@2.1.2", "", {}, "sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ=="],
 
     "devlop": ["devlop@1.1.0", "", { "dependencies": { "dequal": "^2.0.0" } }, "sha512-RWmIqhcFf1lRYBvNmr7qTNuyCt/7/ns2jbpp1+PalgE/rDQcBT0fioSMUpJ93irlUhC5hrg4cYqe6U+0ImW0rA=="],
+
+    "dou-icons": ["dou-icons@workspace:packages/icons"],
 
     "dou-ui": ["dou-ui@workspace:packages/dou-ui"],
 

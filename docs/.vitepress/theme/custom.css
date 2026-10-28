@@ -91,11 +91,19 @@
   line-height: revert-layer;
 }
 
+/* The docs site gives every enabled button a pointer; these set their own. */
+button.dou-button,
+button.dou-pagination__item,
+button.dou-tabs__tab {
+  cursor: revert-layer;
+}
+
 .vp-doc a.dou-link {
   color: revert-layer;
   font-weight: revert-layer;
   text-decoration: revert-layer;
   text-underline-offset: revert-layer;
+  transition: revert-layer;
 }
 
 .vp-doc a.dou-card {
@@ -108,6 +116,7 @@
   color: revert-layer;
   font-weight: revert-layer;
   text-decoration: revert-layer;
+  transition: revert-layer;
 }
 
 /* The docs site styles every table in the content; hand ours back. */
@@ -126,8 +135,12 @@
   background-color: revert-layer;
   color: revert-layer;
   font-size: revert-layer;
+  font-weight: revert-layer;
   line-height: revert-layer;
+  text-align: revert-layer;
+  border-collapse: revert-layer;
   overflow: revert-layer;
+  transition: revert-layer;
 }
 
 .vp-doc .dou-breadcrumb ol,

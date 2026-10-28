@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ChevronRightIcon } from '@dou-ui/icons'
 import { computed, inject, ref, useId, watch } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { collapseKey } from './collapse'
@@ -39,18 +40,7 @@ function toggle() {
         :aria-disabled="disabled || undefined"
         @click="toggle"
       >
-        <svg
-          :class="ns.e('arrow')"
-          viewBox="0 0 16 16"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.5"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          aria-hidden="true"
-        >
-          <path d="M6 4l4 4-4 4" />
-        </svg>
+        <ChevronRightIcon :class="ns.e('arrow')" />
         <span :class="ns.e('title')">
           <slot name="title" :open="open">{{ title ?? value }}</slot>
         </span>

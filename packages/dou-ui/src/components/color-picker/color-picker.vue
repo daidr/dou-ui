@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ChevronDownIcon, CloseIcon } from '@dou-ui/icons'
 import { computed, ref, useId, useTemplateRef, watch } from 'vue'
 import { usePopup } from '../../composables/use-popup'
 import { useNamespace } from '../../utils/namespace'
@@ -220,21 +221,9 @@ defineExpose<ColorPickerExpose>({ focus, blur: () => fieldRef.value?.blur() })
         :aria-label="t('colorPicker.clear')"
         @click.stop="clear"
       >
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path d="M5 5l6 6M11 5l-6 6" stroke-linecap="round" />
-        </svg>
+        <CloseIcon />
       </button>
-      <svg
-        v-if="showText"
-        class="dou-picker__arrow"
-        viewBox="0 0 16 16"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.5"
-        aria-hidden="true"
-      >
-        <path d="M4.5 6.25L8 9.75l3.5-3.5" stroke-linecap="round" stroke-linejoin="round" />
-      </svg>
+      <ChevronDownIcon v-if="showText" class="dou-picker__arrow" />
     </div>
   </OnlyChild>
   <Teleport v-if="rendered" :to="teleport || 'body'" :disabled="teleport === false">

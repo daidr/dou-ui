@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { CheckIcon, ChevronDownIcon, CloseIcon } from '@dou-ui/icons'
 import { computed, nextTick, ref, useId, useTemplateRef, watch } from 'vue'
 import type { HTMLAttributes } from 'vue'
 import { usePopup } from '../../composables/use-popup'
@@ -332,20 +333,9 @@ defineExpose<SelectExpose>({ focus, blur: () => combobox()?.blur() })
         @mousedown.prevent
         @click="clear"
       >
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path d="M5 5l6 6M11 5l-6 6" stroke-linecap="round" />
-        </svg>
+        <CloseIcon />
       </button>
-      <svg
-        :class="ns.e('arrow')"
-        viewBox="0 0 16 16"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.5"
-        aria-hidden="true"
-      >
-        <path d="M4.5 6.25L8 9.75l3.5-3.5" stroke-linecap="round" stroke-linejoin="round" />
-      </svg>
+      <ChevronDownIcon :class="ns.e('arrow')" />
     </div>
   </OnlyChild>
   <Teleport v-if="rendered" :to="teleport || 'body'" :disabled="teleport === false">
@@ -387,17 +377,7 @@ defineExpose<SelectExpose>({ focus, blur: () => combobox()?.blur() })
                 {{ labelOf(option) }}
               </slot>
             </span>
-            <svg
-              v-if="isSelected(option)"
-              :class="ns.e('check')"
-              viewBox="0 0 16 16"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.75"
-              aria-hidden="true"
-            >
-              <path d="M3.5 8.5l3 3 6-7" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
+            <CheckIcon v-if="isSelected(option)" :class="ns.e('check')" />
           </li>
         </ul>
         <div v-if="!filtered.length" :class="ns.e('empty')">

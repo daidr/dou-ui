@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { ArrowDownIcon, ArrowUpIcon } from '@dou-ui/icons'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
 import { formatNumber } from './format'
@@ -47,21 +48,12 @@ const good = computed(() => {
     <div :class="ns.e('content')" :aria-busy="loading || undefined">
       <span v-if="loading" :class="ns.e('placeholder')" />
       <template v-else>
-        <svg
+        <component
+          :is="trend === 'up' ? ArrowUpIcon : ArrowDownIcon"
           v-if="trend"
           :class="[ns.e('trend'), ns.is(trend, true)]"
-          viewBox="0 0 16 16"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.75"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          role="img"
-          :aria-label="t(trend === 'up' ? 'statistic.up' : 'statistic.down')"
-        >
-          <path v-if="trend === 'up'" d="M8 13V3.5M4 7.5l4-4 4 4" />
-          <path v-else d="M8 3v9.5M4 8.5l4 4 4-4" />
-        </svg>
+          :label="t(trend === 'up' ? 'statistic.up' : 'statistic.down')"
+        />
         <span v-if="slots.prefix || prefix" :class="ns.e('prefix')">
           <slot name="prefix">{{ prefix }}</slot>
         </span>

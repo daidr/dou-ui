@@ -1,32 +1,14 @@
 import { h } from 'vue'
 
-/** Line icons drawn for the docs site, 16px grid, 1.5px strokes. */
-const icon =
-  (...paths: string[]) =>
-  () =>
-    h(
-      'svg',
-      {
-        viewBox: '0 0 16 16',
-        fill: 'none',
-        stroke: 'currentColor',
-        'stroke-width': 1.5,
-        'stroke-linecap': 'round',
-        'stroke-linejoin': 'round',
-      },
-      paths.map((d) => h('path', { d })),
-    )
-
-export const SearchIcon = icon('M7 11.5a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9Z', 'm10.5 10.5 3 3')
-export const SunIcon = icon(
-  'M8 10.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z',
-  'M8 1.5v1.25M8 13.25v1.25M1.5 8h1.25M13.25 8h1.25M3.4 3.4l.9.9M11.7 11.7l.9.9M3.4 12.6l.9-.9M11.7 4.3l.9-.9',
-)
-export const MoonIcon = icon('M13.5 9.6A5.75 5.75 0 0 1 6.4 2.5a5.75 5.75 0 1 0 7.1 7.1Z')
-export const MenuIcon = icon('M2.5 4.5h11M2.5 8h11M2.5 11.5h11')
-export const ArrowLeftIcon = icon('M12.5 8h-9M7 4.5 3.5 8 7 11.5')
-export const ArrowRightIcon = icon('M3.5 8h9M9 4.5l3.5 3.5L9 11.5')
-export const PageIcon = icon('M4 1.75h5.5L12.5 4.75v9.5H4Z', 'M9.25 1.75v3.25h3.25')
+// Interface icons come from the icon set; only the brand mark is drawn here.
+export {
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  MenuIcon,
+  MoonIcon,
+  SearchIcon,
+  SunIcon,
+} from '@dou-ui/icons'
 
 export const GitHubIcon = () =>
   h('svg', { viewBox: '0 0 16 16', fill: 'currentColor' }, [

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { UserIcon } from '@dou-ui/icons'
 import { computed, inject, ref, watch } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { avatarGroupKey } from './avatar'
@@ -73,17 +74,6 @@ const classes = computed(() => [
     />
     <slot v-else-if="slots.default" />
     <span v-else-if="initials" :class="ns.e('initials')" aria-hidden="true">{{ initials }}</span>
-    <svg
-      v-else
-      :class="ns.e('fallback')"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="1.5"
-      aria-hidden="true"
-    >
-      <circle cx="8" cy="6" r="2.75" />
-      <path d="M2.75 14c.6-2.6 2.75-4.25 5.25-4.25s4.65 1.65 5.25 4.25" stroke-linecap="round" />
-    </svg>
+    <UserIcon v-else :class="ns.e('fallback')" />
   </span>
 </template>

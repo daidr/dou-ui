@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ChevronRightIcon } from '@dou-ui/icons'
 import { computed, inject } from 'vue'
 import { DouSpinner } from '../spinner'
 import { treeContextKey } from './tree'
@@ -50,15 +51,7 @@ const classes = computed(() => [
       @click.stop="row.expandable ? tree.toggle(node) : tree.onRowClick(row)"
     >
       <DouSpinner v-if="loading" :size="12" />
-      <svg
-        v-else-if="row.expandable"
-        viewBox="0 0 16 16"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.5"
-      >
-        <path d="M6.25 4.5L9.75 8l-3.5 3.5" stroke-linecap="round" stroke-linejoin="round" />
-      </svg>
+      <ChevronRightIcon v-else-if="row.expandable" />
     </span>
     <span
       v-if="tree.props.checkable"

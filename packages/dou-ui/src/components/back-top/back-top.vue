@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ArrowUpIcon } from '@dou-ui/icons'
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { resolveScrollTarget, scrollTopOf } from '../../utils/scroll'
@@ -53,17 +54,7 @@ function onClick(event: MouseEvent) {
       @click="onClick"
     >
       <slot>
-        <svg
-          viewBox="0 0 16 16"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.5"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          aria-hidden="true"
-        >
-          <path d="M8 13V4M4 7.5L8 3.5l4 4M3.5 2h9" />
-        </svg>
+        <ArrowUpIcon />
       </slot>
     </button>
   </Transition>

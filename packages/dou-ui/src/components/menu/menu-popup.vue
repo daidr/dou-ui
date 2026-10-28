@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { CheckIcon } from '@dou-ui/icons'
 import { computed, inject } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { DouDropdown, DouDropdownItem } from '../dropdown'
@@ -53,18 +54,7 @@ function onSelect(key: MenuKey | undefined) {
           </template>
           {{ entry.item.label }}
           <template v-if="menu.selected.value === entry.item.key" #suffix>
-            <svg
-              :class="ns.e('check')"
-              viewBox="0 0 16 16"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M3.5 8.5l3 3 6-7" />
-            </svg>
+            <CheckIcon :class="ns.e('check')" />
           </template>
         </DouDropdownItem>
       </template>

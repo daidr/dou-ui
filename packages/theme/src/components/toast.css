@@ -103,8 +103,9 @@
     color: var(--dou-toast-tone);
 
     & > svg {
-      width: 16px;
-      height: 16px;
+      width: 1em;
+      height: 1em;
+      font-size: 16px;
     }
   }
 
@@ -160,8 +161,9 @@
     cursor: pointer;
 
     & > svg {
-      width: 14px;
-      height: 14px;
+      width: 1em;
+      height: 1em;
+      font-size: 14px;
     }
 
     &:hover {

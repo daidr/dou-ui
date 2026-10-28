@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { MinusIcon, PlusIcon } from '@dou-ui/icons'
 import { computed, onBeforeUnmount, ref, useAttrs, useTemplateRef, watch } from 'vue'
 import type { StyleValue } from 'vue'
 import { useNamespace } from '../../utils/namespace'
@@ -245,9 +246,7 @@ defineExpose<InputNumberExpose>({
         @pointerleave="stopRepeat"
         @pointercancel="stopRepeat"
       >
-        <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path d="M2.5 6h7" stroke-linecap="round" />
-        </svg>
+        <MinusIcon />
       </button>
       <button
         type="button"
@@ -260,9 +259,7 @@ defineExpose<InputNumberExpose>({
         @pointerleave="stopRepeat"
         @pointercancel="stopRepeat"
       >
-        <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path d="M2.5 6h7M6 2.5v7" stroke-linecap="round" />
-        </svg>
+        <PlusIcon />
       </button>
     </span>
   </span>

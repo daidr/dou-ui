@@ -173,8 +173,9 @@
     }
 
     & > svg {
-      width: 12px;
-      height: 12px;
+      width: 1em;
+      height: 1em;
+      font-size: 12px;
     }
 
     &:hover:not(:disabled) {

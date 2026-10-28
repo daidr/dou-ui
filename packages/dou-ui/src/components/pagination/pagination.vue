@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ChevronLeftIcon, ChevronRightIcon } from '@dou-ui/icons'
 import { computed, watch } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
@@ -85,15 +86,7 @@ const hidden = computed(() => props.hideOnSinglePage && count.value <= 1)
       :aria-label="t('pagination.prev')"
       @click="go(current - 1)"
     >
-      <svg
-        viewBox="0 0 16 16"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.5"
-        aria-hidden="true"
-      >
-        <path d="M10 3.5L5.5 8l4.5 4.5" stroke-linecap="round" stroke-linejoin="round" />
-      </svg>
+      <ChevronLeftIcon />
     </button>
     <span v-if="simple" :class="ns.e('simple')">
       <span :class="ns.e('current')">{{ current }}</span>
@@ -123,15 +116,7 @@ const hidden = computed(() => props.hideOnSinglePage && count.value <= 1)
       :aria-label="t('pagination.next')"
       @click="go(current + 1)"
     >
-      <svg
-        viewBox="0 0 16 16"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.5"
-        aria-hidden="true"
-      >
-        <path d="M6 3.5L10.5 8 6 12.5" stroke-linecap="round" stroke-linejoin="round" />
-      </svg>
+      <ChevronRightIcon />
     </button>
     <span v-if="sizeOptions.length" :class="ns.e('sizes')">
       <DouSelect

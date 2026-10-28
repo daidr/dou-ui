@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ChevronLeftIcon, ChevronRightIcon } from '@dou-ui/icons'
 import { computed, nextTick, ref, useId, useTemplateRef, watch } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
@@ -339,9 +340,7 @@ const classes = computed(() => [
               :aria-label="stepLabels[0]"
               @click="step(-1)"
             >
-              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M9.75 4.5L6.25 8l3.5 3.5" stroke-linecap="round" stroke-linejoin="round" />
-              </svg>
+              <ChevronLeftIcon />
             </button>
             <span v-else :class="ns.e('step-space')" />
             <button
@@ -360,13 +359,7 @@ const classes = computed(() => [
               :aria-label="stepLabels[1]"
               @click="step(1)"
             >
-              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path
-                  d="M6.25 4.5L9.75 8l-3.5 3.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
+              <ChevronRightIcon />
             </button>
             <span v-else :class="ns.e('step-space')" />
           </div>
@@ -422,9 +415,7 @@ const classes = computed(() => [
       <div v-else :class="ns.e('panel')">
         <div :class="ns.e('header')">
           <button type="button" :class="ns.e('step')" :aria-label="stepLabels[0]" @click="step(-1)">
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path d="M9.75 4.5L6.25 8l3.5 3.5" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
+            <ChevronLeftIcon />
           </button>
           <button
             v-if="view === 'month'"
@@ -445,9 +436,7 @@ const classes = computed(() => [
             {{ decade }} – {{ decade + 9 }}
           </span>
           <button type="button" :class="ns.e('step')" :aria-label="stepLabels[1]" @click="step(1)">
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path d="M6.25 4.5L9.75 8l-3.5 3.5" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
+            <ChevronRightIcon />
           </button>
         </div>
         <table

@@ -84,8 +84,9 @@
 
   .dou-collapse__arrow {
     flex-shrink: 0;
-    width: var(--dou-collapse-arrow-size);
-    height: var(--dou-collapse-arrow-size);
+    width: 1em;
+    height: 1em;
+    font-size: var(--dou-collapse-arrow-size);
     color: var(--dou-color-text-tertiary);
     transition:
       transform var(--dou-motion-duration-normal) var(--dou-motion-easing),

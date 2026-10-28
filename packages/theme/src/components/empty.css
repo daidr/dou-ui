@@ -44,8 +44,9 @@
     color: var(--dou-color-text-tertiary);
 
     & > svg {
-      width: var(--dou-empty-icon);
-      height: var(--dou-empty-icon);
+      width: 1em;
+      height: 1em;
+      font-size: var(--dou-empty-icon);
     }
   }
 

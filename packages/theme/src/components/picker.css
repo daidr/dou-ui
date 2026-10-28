@@ -93,8 +93,9 @@
 
   .dou-picker__icon {
     flex-shrink: 0;
-    width: 1.1em;
-    height: 1.1em;
+    width: 1em;
+    height: 1em;
+    font-size: 1.1em;
     color: var(--dou-color-text-tertiary);
   }
 
@@ -139,8 +140,9 @@
 
   .dou-picker__arrow {
     flex-shrink: 0;
-    width: 16px;
-    height: 16px;
+    width: 1em;
+    height: 1em;
+    font-size: 16px;
     color: var(--dou-color-text-tertiary);
     transition: transform var(--dou-motion-duration-fast) var(--dou-motion-easing);
 
@@ -165,8 +167,9 @@
     cursor: pointer;
 
     & > svg {
-      width: 0.8em;
-      height: 0.8em;
+      width: 1em;
+      height: 1em;
+      font-size: 0.8em;
     }
 
     &:hover {

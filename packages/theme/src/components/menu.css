@@ -123,8 +123,9 @@
 
   .dou-menu__arrow {
     flex-shrink: 0;
-    width: 14px;
-    height: 14px;
+    width: 1em;
+    height: 1em;
+    font-size: 14px;
     color: var(--dou-color-text-tertiary);
     transition: transform var(--dou-motion-duration-normal) var(--dou-motion-easing);
 
@@ -232,8 +233,9 @@
   }
 
   .dou-menu__check {
-    width: 14px;
-    height: 14px;
+    width: 1em;
+    height: 1em;
+    font-size: 14px;
   }
 
   @media (prefers-reduced-motion: reduce) {

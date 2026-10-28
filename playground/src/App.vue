@@ -11,6 +11,10 @@ import type {
   TableRowKey,
   TableSort,
   TagVariant,
+  TreeKey,
+  TreeNodeData,
+  UploadFile,
+  UploadRequest,
 } from 'dou-ui'
 
 const variants: ButtonVariant[] = ['solid', 'soft', 'outline', 'ghost']
@@ -122,6 +126,57 @@ function statusTone(status: string) {
   return status === '运行中' ? 'success' : status === '部署中' ? 'warning' : 'neutral'
 }
 
+const treeData: TreeNodeData[] = [
+  {
+    key: 'src',
+    label: 'src',
+    children: [
+      {
+        key: 'components',
+        label: 'components',
+        children: [
+          { key: 'button.vue', label: 'button.vue' },
+          { key: 'tree.vue', label: 'tree.vue' },
+          { key: 'upload.vue', label: 'upload.vue' },
+        ],
+      },
+      {
+        key: 'composables',
+        label: 'composables',
+        children: [{ key: 'use-layer.ts', label: 'use-layer.ts' }],
+      },
+      { key: 'index.ts', label: 'index.ts' },
+    ],
+  },
+  { key: 'docs', label: 'docs', children: [{ key: 'roadmap.md', label: 'roadmap.md' }] },
+  { key: 'package.json', label: 'package.json', disabled: true },
+]
+const treeExpanded = ref<TreeKey[]>(['src', 'components'])
+const treeSelected = ref<TreeKey | null>('tree.vue')
+const treeChecked = ref<TreeKey[]>(['components', 'roadmap.md'])
+const virtualRows = Array.from(
+  { length: 10000 },
+  (_, index) => `deploy-${String(index).padStart(5, '0')}`,
+)
+
+const uploadFiles = ref<UploadFile[]>([
+  { uid: 'spec', name: '设计规范.pdf', size: 1843200, status: 'success' },
+  { uid: 'cover', name: 'cover-fail.png', size: 238400, status: 'error' },
+  { uid: 'video', name: '演示录屏.mp4', size: 48_300_000, status: 'uploading', percent: 62 },
+])
+const fakeUpload: UploadRequest = ({ raw, onProgress, signal }) =>
+  new Promise((resolve, reject) => {
+    let percent = 0
+    const timer = setInterval(() => {
+      percent += 10 + Math.random() * 15
+      if (percent < 100) return onProgress(percent)
+      clearInterval(timer)
+      if (raw.name.includes('fail')) reject(new Error('rejected'))
+      else resolve({ ok: true })
+    }, 200)
+    signal.addEventListener('abort', () => clearInterval(timer))
+  })
+
 onMounted(() => {
   void settingsForm.value?.validate()
   void accountForm.value?.validate(['email', 'role'])
@@ -145,6 +200,45 @@ function simulate() {
         {{ theme === 'light' ? '深色' : '浅色' }}
       </DouButton>
     </header>
+
+    <section>
+      <h2>tree · upload · virtual list</h2>
+      <div class="complex">
+        <div class="card card--flat">
+          <div class="card__body">
+            <DouTree
+              v-model:expanded="treeExpanded"
+              v-model:selected="treeSelected"
+              v-model:checked="treeChecked"
+              :data="treeData"
+              checkable
+              guides
+              aria-label="文件"
+            />
+          </div>
+        </div>
+        <div>
+          <DouUpload
+            v-model="uploadFiles"
+            :request="fakeUpload"
+            dropzone
+            multiple
+            hint="支持任意文件，单个不超过 50 MB"
+          />
+        </div>
+        <div class="card card--flat">
+          <DouVirtualList :items="virtualRows" :item-size="32" :height="192">
+            <template #default="{ item, index }">
+              <div class="vrow">
+                <DouText mono size="sm">{{ item }}</DouText>
+                <DouText variant="tertiary" size="sm">#{{ index }}</DouText>
+              </div>
+            </template>
+          </DouVirtualList>
+        </div>
+        <DouUpload v-model="uploadFiles" :show-list="false" />
+      </div>
+    </section>
 
     <section>
       <h2>navigation · table</h2>
@@ -786,6 +880,25 @@ header.row {
   background: var(--dou-color-bg-surface);
   box-shadow: var(--dou-shadow-md);
   overflow: hidden;
+}
+.complex {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+.card--flat {
+  max-width: none;
+  box-shadow: none;
+}
+.vrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-sizing: border-box;
+  height: 100%;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--dou-color-border-subtle);
 }
 .card--wide {
   max-width: 560px;

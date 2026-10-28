@@ -1,0 +1,28 @@
+/*
+ * VirtualList
+ *
+ * Only the items near the viewport are in the page. A spacer as tall as
+ * every item together keeps the scrollbar honest, and each rendered item
+ * is placed at its own offset. The list draws no surface of its own.
+ */
+@layer dou.components {
+  .dou-virtual-list {
+    position: relative;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    outline: none;
+  }
+
+  .dou-virtual-list__spacer {
+    position: relative;
+    width: 100%;
+  }
+
+  .dou-virtual-list__item {
+    position: absolute;
+    top: 0;
+    left: 0;
+    box-sizing: border-box;
+    width: 100%;
+  }
+}

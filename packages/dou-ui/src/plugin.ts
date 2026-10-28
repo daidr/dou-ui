@@ -45,6 +45,9 @@ import {
   DouTextarea,
   DouToastViewport,
   DouTooltip,
+  DouTree,
+  DouUpload,
+  DouVirtualList,
 } from './components'
 import { provideGlobalConfig } from './components/config-provider/use-config'
 import type { GlobalConfig } from './components/config-provider/config-provider'
@@ -95,6 +98,9 @@ const components: Plugin[] = [
   DouTextarea,
   DouToastViewport,
   DouTooltip,
+  DouTree,
+  DouUpload,
+  DouVirtualList,
 ]
 
 /**

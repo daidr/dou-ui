@@ -57,6 +57,16 @@ export const en: Locale = {
     selectAll: 'Select all',
     selectRow: 'Select row',
   },
+  upload: {
+    choose: 'Choose file',
+    drop: 'Drop files here, or',
+    browse: 'browse',
+    list: 'Files',
+    remove: 'Remove',
+    retry: 'Retry',
+    uploading: 'Uploading',
+    error: 'Upload failed',
+  },
   form: {
     optional: 'optional',
     required: 'This field is required',

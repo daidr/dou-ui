@@ -186,6 +186,13 @@ function onFieldMousedown(event: MouseEvent) {
   else show()
 }
 
+// Pressing the panel between its buttons keeps focus where it was.
+function onPanelMousedown(event: MouseEvent) {
+  if (!(event.target as HTMLElement).closest('button, input, select, textarea, [tabindex]')) {
+    event.preventDefault()
+  }
+}
+
 function onFocusout(event: FocusEvent) {
   const next = event.relatedTarget
   if (next instanceof Node && (fieldRef.value?.contains(next) || panelRef.value?.contains(next))) {
@@ -317,6 +324,7 @@ defineExpose<TimePickerExpose>({
         :data-placement="placement"
         :data-dou-theme="theme"
         @keydown="onPanelKeydown"
+        @mousedown="onPanelMousedown"
         @focusout="onFocusout"
       >
         <div :class="ns.e('body')">

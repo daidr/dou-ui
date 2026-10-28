@@ -240,6 +240,15 @@ export interface Locale {
     /** Names the divider. */
     label: string
   }
+  anchor: {
+    /** Names the navigation. */
+    label: string
+  }
+  copyButton: {
+    copy: string
+    /** Said once the text is on the clipboard. */
+    copied: string
+  }
   form: {
     /** Shown after the label of an optional field when `requiredMark` is `'optional'`. */
     optional: string

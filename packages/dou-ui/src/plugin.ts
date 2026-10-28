@@ -2,6 +2,7 @@ import type { App, Plugin } from 'vue'
 import {
   DouAffix,
   DouAlert,
+  DouAnchor,
   DouAutocomplete,
   DouAvatar,
   DouAvatarGroup,
@@ -20,6 +21,7 @@ import {
   DouCommand,
   DouCommandDialog,
   DouConfigProvider,
+  DouCopyButton,
   DouDatePicker,
   DouDescriptions,
   DouDescriptionsItem,
@@ -81,6 +83,7 @@ import type { GlobalConfig } from './components/config-provider/config-provider'
 const components: Plugin[] = [
   DouAffix,
   DouAlert,
+  DouAnchor,
   DouAutocomplete,
   DouAvatar,
   DouAvatarGroup,
@@ -99,6 +102,7 @@ const components: Plugin[] = [
   DouCommand,
   DouCommandDialog,
   DouConfigProvider,
+  DouCopyButton,
   DouDatePicker,
   DouDescriptions,
   DouDescriptionsItem,

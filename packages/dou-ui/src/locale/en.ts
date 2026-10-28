@@ -162,6 +162,13 @@ export const en: Locale = {
   splitter: {
     label: 'Resize panes',
   },
+  anchor: {
+    label: 'On this page',
+  },
+  copyButton: {
+    copy: 'Copy',
+    copied: 'Copied',
+  },
   form: {
     optional: 'optional',
     required: 'This field is required',

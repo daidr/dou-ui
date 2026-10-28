@@ -205,3 +205,30 @@
 .vp-doc .dou-image-preview__image {
   max-width: revert-layer;
 }
+
+/* Docs-site dogfooding components: links, buttons and the prose sample. */
+.vp-doc a.dou-anchor__link {
+  color: revert-layer;
+  font-weight: revert-layer;
+  text-decoration: revert-layer;
+}
+
+.vp-doc .dou-anchor ul,
+.vp-doc .dou-anchor li {
+  padding: revert-layer;
+  margin: revert-layer;
+  list-style: revert-layer;
+}
+
+.dou-copy-button {
+  padding: revert-layer;
+  border: revert-layer;
+  background-color: revert-layer;
+  color: revert-layer;
+}
+
+.vp-doc
+  .dou-prose
+  :is(h1, h2, h3, h4, p, a, strong, ul, ol, li, blockquote, code, pre, table, tr, th, td, hr) {
+  all: revert-layer;
+}

@@ -35,6 +35,8 @@ export default defineConfig({
             { text: 'Icon 图标', link: '/components/icon' },
             { text: 'Text 文本', link: '/components/text' },
             { text: 'Link 链接', link: '/components/link' },
+            { text: 'Typography 排版', link: '/components/typography' },
+            { text: 'CopyButton 复制按钮', link: '/components/copy-button' },
           ],
         },
         {
@@ -117,6 +119,7 @@ export default defineConfig({
             { text: 'Menu 导航菜单', link: '/components/menu' },
             { text: 'Tabs 标签页', link: '/components/tabs' },
             { text: 'Steps 步骤条', link: '/components/steps' },
+            { text: 'Anchor 锚点导航', link: '/components/anchor' },
             { text: 'Breadcrumb 面包屑', link: '/components/breadcrumb' },
             { text: 'Pagination 分页', link: '/components/pagination' },
             { text: 'Command 命令面板', link: '/components/command' },

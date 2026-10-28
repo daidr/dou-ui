@@ -162,6 +162,13 @@ export const zhCN: Locale = {
   splitter: {
     label: '调整面板大小',
   },
+  anchor: {
+    label: '本页目录',
+  },
+  copyButton: {
+    copy: '复制',
+    copied: '已复制',
+  },
   form: {
     optional: '可选',
     required: '此项为必填项',

@@ -9,13 +9,17 @@ import {
   DouFormItem,
   DouIcon,
   DouInput,
+  DouInputNumber,
   DouLink,
   DouRadio,
   DouRadioGroup,
+  DouSegmentedControl,
+  DouSlider,
   DouSpace,
   DouSwitch,
   DouTag,
   DouText,
+  DouTextarea,
 } from './components'
 import { provideGlobalConfig } from './components/config-provider/use-config'
 import type { GlobalConfig } from './components/config-provider/config-provider'
@@ -30,13 +34,17 @@ const components: Plugin[] = [
   DouFormItem,
   DouIcon,
   DouInput,
+  DouInputNumber,
   DouLink,
   DouRadio,
   DouRadioGroup,
+  DouSegmentedControl,
+  DouSlider,
   DouSpace,
   DouSwitch,
   DouTag,
   DouText,
+  DouTextarea,
 ]
 
 /**

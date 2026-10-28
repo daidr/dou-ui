@@ -1,0 +1,207 @@
+/*
+ * InputNumber
+ *
+ * An input with a pair of step keys at its end. The keys sit inside the
+ * field's edge, split from the text and from each other by hairlines, and
+ * stay quiet ink until hovered. The number is set in tabular figures so
+ * digits keep their place while stepping.
+ */
+@layer dou.components {
+  .dou-input-number {
+    --dou-input-number-height: var(--dou-control-height-md);
+    --dou-input-number-padding-x: var(--dou-control-padding-x-md);
+    --dou-input-number-gap: var(--dou-control-gap-md);
+    --dou-input-number-font-size: var(--dou-font-size-md);
+    --dou-input-number-radius: var(--dou-radius-control);
+    /* each step key; with a 12px icon both offsets stay whole pixels */
+    --dou-input-number-step-width: 28px;
+
+    --dou-input-number-bg: var(--dou-color-bg-surface);
+    --dou-input-number-border: var(--dou-color-border);
+    --dou-input-number-border-hover: var(--dou-color-border-strong);
+    --dou-input-number-border-focus: color-mix(
+      in oklab,
+      var(--dou-color-focus) 70%,
+      var(--dou-color-text)
+    );
+    --dou-input-number-ring: color-mix(in oklab, var(--dou-color-focus) 32%, transparent);
+    --dou-input-number-shadow: var(--dou-shadow-sm);
+
+    display: inline-flex;
+    align-items: center;
+    gap: var(--dou-input-number-gap);
+    box-sizing: border-box;
+    width: 160px;
+    max-width: 100%;
+    height: var(--dou-input-number-height);
+    padding: 0 var(--dou-input-number-padding-x);
+    border: 1px solid var(--dou-input-number-border);
+    border-radius: var(--dou-input-number-radius);
+    background-color: var(--dou-input-number-bg);
+    box-shadow: var(--dou-input-number-shadow);
+    color: var(--dou-color-text);
+    font-size: var(--dou-input-number-font-size);
+    vertical-align: middle;
+    cursor: text;
+    transition-property: border-color, box-shadow, background-color;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    &.is-controls {
+      padding-right: 0;
+    }
+
+    &:hover {
+      border-color: var(--dou-input-number-border-hover);
+    }
+
+    &:focus-within {
+      border-color: var(--dou-input-number-border-focus);
+      box-shadow:
+        0 0 0 3px var(--dou-input-number-ring),
+        var(--dou-input-number-shadow);
+    }
+
+    &.is-invalid {
+      --dou-input-number-border: color-mix(
+        in oklab,
+        var(--dou-color-danger) 55%,
+        var(--dou-color-border)
+      );
+      --dou-input-number-border-hover: color-mix(
+        in oklab,
+        var(--dou-color-danger) 75%,
+        var(--dou-color-border)
+      );
+      --dou-input-number-border-focus: var(--dou-color-danger);
+      --dou-input-number-ring: color-mix(in oklab, var(--dou-color-danger) 18%, transparent);
+    }
+
+    &.is-readonly {
+      --dou-input-number-bg: color-mix(
+        in oklab,
+        var(--dou-color-bg-muted) 50%,
+        var(--dou-color-bg-surface)
+      );
+    }
+
+    &.is-disabled {
+      --dou-input-number-bg: var(--dou-color-bg-muted);
+      --dou-input-number-border-hover: var(--dou-input-number-border);
+      --dou-input-number-shadow: none;
+      color: var(--dou-color-text-disabled);
+      cursor: not-allowed;
+    }
+  }
+
+  .dou-input-number--sm {
+    --dou-input-number-height: var(--dou-control-height-sm);
+    --dou-input-number-padding-x: var(--dou-control-padding-x-sm);
+    --dou-input-number-gap: var(--dou-control-gap-sm);
+    --dou-input-number-font-size: var(--dou-font-size-sm);
+    --dou-input-number-step-width: 24px;
+  }
+  .dou-input-number--lg {
+    --dou-input-number-height: var(--dou-control-height-lg);
+    --dou-input-number-padding-x: var(--dou-control-padding-x-lg);
+    --dou-input-number-gap: var(--dou-control-gap-lg);
+    --dou-input-number-font-size: var(--dou-font-size-lg);
+    --dou-input-number-step-width: 36px;
+  }
+
+  .dou-input-number__native {
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-variant-numeric: tabular-nums;
+    line-height: normal;
+
+    &::placeholder {
+      color: var(--dou-color-text-tertiary);
+      opacity: 1;
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+    }
+  }
+
+  .dou-input-number__affix {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    color: var(--dou-color-text-tertiary);
+    white-space: nowrap;
+  }
+
+  .dou-input-number__controls {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-self: stretch;
+    border-left: 1px solid var(--dou-color-border);
+  }
+
+  .dou-input-number__step {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: var(--dou-input-number-step-width);
+    height: 100%;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    background-color: transparent;
+    color: var(--dou-color-text-secondary);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition-property: background-color, color;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    /* drawn inside, so both keys keep the same width and the icon stays centered */
+    & + & {
+      box-shadow: inset 1px 0 0 var(--dou-color-border-subtle);
+    }
+
+    & > svg {
+      width: 12px;
+      height: 12px;
+    }
+
+    &:hover:not(:disabled) {
+      background-color: color-mix(in oklab, var(--dou-color-text) 5%, transparent);
+      color: var(--dou-color-text);
+    }
+
+    &:active:not(:disabled) {
+      background-color: color-mix(in oklab, var(--dou-color-text) 9%, transparent);
+    }
+
+    &:disabled {
+      color: var(--dou-color-text-disabled);
+      cursor: not-allowed;
+    }
+  }
+
+  /* the last key follows the field's corner instead of poking out of it */
+  .dou-input-number__increase {
+    border-radius: 0 calc(var(--dou-input-number-radius) - 1px)
+      calc(var(--dou-input-number-radius) - 1px) 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dou-input-number,
+    .dou-input-number__step {
+      transition: none;
+    }
+  }
+}

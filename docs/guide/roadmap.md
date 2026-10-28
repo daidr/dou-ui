@@ -42,20 +42,20 @@
 | Radio / RadioGroup       | 表单     | ✅   | 原生 `name` 分组               |
 | Switch 开关              | 表单     | ✅   | `role="switch"`，加载中可聚焦  |
 
-## 第 2 批 · 表单进阶 🚧
+## 第 2 批 · 表单进阶 ✅
 
 先补一层**表单上下文**：`Form` / `FormItem` 负责标签、说明、校验信息与 `aria-describedby` 关联，并向内部控件下发 `size`、`disabled`、`invalid`。同时决定**全局配置**（`ConfigProvider`）的形态。
 
-上下文与全局配置已先行交付，其余控件基于它们实现，新控件一律通过 `useFormItem()` 接入表单。
+上下文与全局配置先行交付（#5），其余控件基于它们实现（#6），一律通过 `useFormItem()` 接入表单。已完成。
 
 | 组件                    | 状态 | 备注                                        |
 | ----------------------- | ---- | ------------------------------------------- |
 | Form / FormItem 表单    | ✅   | 内置规则 + 自定义校验，水平布局标签自动对齐 |
 | ConfigProvider 全局配置 | ✅   | 默认尺寸、语言包（`zhCN` / `en`）、浮层层级 |
-| Textarea 多行输入       | ⏳   | 自适应高度                                  |
-| InputNumber 数字输入    | ⏳   | 步进、精度、键盘                            |
-| Slider 滑块             | ⏳   |                                             |
-| SegmentedControl 分段   | ⏳   | Radio 的另一种外观                          |
+| Textarea 多行输入       | ✅   | 自适应高度、字数统计，单行与输入框等高      |
+| InputNumber 数字输入    | ✅   | 步进、精度、键盘、长按连续步进              |
+| Slider 滑块             | ✅   | 单值 / 范围、刻度、键盘                     |
+| SegmentedControl 分段   | ✅   | Radio 的另一种外观，选中块滑动              |
 
 ## 第 3 批 · 浮层与反馈
 

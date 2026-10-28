@@ -47,9 +47,13 @@ export default defineConfig({
           text: '表单',
           items: [
             { text: 'Input 输入框', link: '/components/input' },
+            { text: 'Textarea 多行输入', link: '/components/textarea' },
+            { text: 'InputNumber 数字输入', link: '/components/input-number' },
             { text: 'Checkbox 多选框', link: '/components/checkbox' },
             { text: 'Radio 单选框', link: '/components/radio' },
             { text: 'Switch 开关', link: '/components/switch' },
+            { text: 'Slider 滑块', link: '/components/slider' },
+            { text: 'SegmentedControl 分段控制器', link: '/components/segmented-control' },
             { text: 'Form 表单', link: '/components/form' },
           ],
         },

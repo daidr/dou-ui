@@ -14,9 +14,13 @@
 @import './components/form.css';
 @import './components/icon.css';
 @import './components/input.css';
+@import './components/input-number.css';
 @import './components/link.css';
 @import './components/radio.css';
+@import './components/segmented-control.css';
+@import './components/slider.css';
 @import './components/space.css';
 @import './components/switch.css';
 @import './components/tag.css';
 @import './components/text.css';
+@import './components/textarea.css';

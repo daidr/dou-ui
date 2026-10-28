@@ -8,6 +8,14 @@ export const en: Locale = {
   tag: {
     remove: 'Remove',
   },
+  inputNumber: {
+    increase: 'Increase',
+    decrease: 'Decrease',
+  },
+  slider: {
+    start: 'Start',
+    end: 'End',
+  },
   form: {
     optional: 'optional',
     required: 'This field is required',

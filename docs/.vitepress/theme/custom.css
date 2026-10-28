@@ -62,6 +62,9 @@
 .dou-tag__close,
 .dou-input__native,
 .dou-input__clear,
+.dou-input-number__native,
+.dou-input-number__step,
+.dou-textarea__native,
 .dou-switch__track {
   padding: revert-layer;
   border: revert-layer;

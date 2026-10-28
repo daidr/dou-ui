@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale, useZIndex } from '../config-provider/use-config'
 import { nextViewportId, removeToast, toastState } from './store'
@@ -61,10 +61,15 @@ watch(
   },
   { immediate: true },
 )
+
+// Toasts only ever come from the browser; rendering the viewport after
+// mount keeps server-rendered pages from expecting it on hydration.
+const mounted = ref(false)
+onMounted(() => (mounted.value = true))
 </script>
 
 <template>
-  <Teleport to="body">
+  <Teleport v-if="mounted" to="body">
     <section
       v-for="group in groups"
       :key="group.placement"

@@ -8,6 +8,8 @@ import { ref } from 'vue'
 export function useThemeScope(anchor: () => Node | null | undefined) {
   const theme = ref<string>()
   function sync() {
+    // Nothing to read while rendering on the server.
+    if (typeof document === 'undefined') return
     const node = anchor()
     const element = node instanceof Element ? node : node?.parentElement
     theme.value = element?.closest<HTMLElement>('[data-dou-theme]')?.dataset.douTheme

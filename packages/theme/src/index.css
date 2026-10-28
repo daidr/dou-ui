@@ -11,6 +11,7 @@
 @import './components/overlay.css';
 @import './components/affix.css';
 @import './components/alert.css';
+@import './components/anchor.css';
 @import './components/autocomplete.css';
 @import './components/avatar.css';
 @import './components/back-top.css';
@@ -23,6 +24,7 @@
 @import './components/collapse.css';
 @import './components/color-picker.css';
 @import './components/command.css';
+@import './components/copy-button.css';
 @import './components/date-picker.css';
 @import './components/descriptions.css';
 @import './components/dialog.css';
@@ -68,5 +70,6 @@
 @import './components/tooltip.css';
 @import './components/transfer.css';
 @import './components/tree.css';
+@import './components/typography.css';
 @import './components/upload.css';
 @import './components/virtual-list.css';

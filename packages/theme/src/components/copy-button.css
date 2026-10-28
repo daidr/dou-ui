@@ -1,0 +1,103 @@
+/*
+ * CopyButton
+ *
+ * A small square button with a copy glyph, quiet until hovered. Once the
+ * text is copied the glyph turns into a check in the success tone for a
+ * moment; nothing else moves.
+ */
+@layer dou.components {
+  .dou-copy-button {
+    --dou-copy-button-size: var(--dou-control-height-md);
+
+    position: relative;
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    box-sizing: border-box;
+    min-width: var(--dou-copy-button-size);
+    height: var(--dou-copy-button-size);
+    padding: 0;
+    margin: 0;
+    border: 1px solid transparent;
+    border-radius: var(--dou-radius-control);
+    background: transparent;
+    color: var(--dou-color-text-tertiary);
+    font: inherit;
+    font-size: var(--dou-font-size-sm);
+    cursor: pointer;
+    transition-property: color, background-color, border-color;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    &:hover:not(:disabled) {
+      background-color: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+      color: var(--dou-color-text);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 1px;
+    }
+
+    &:disabled {
+      color: var(--dou-color-text-disabled);
+      cursor: not-allowed;
+    }
+
+    &.is-copied,
+    &.is-copied:hover {
+      color: var(--dou-color-success);
+    }
+
+    &.is-labelled {
+      padding: 0 10px 0 8px;
+    }
+  }
+
+  .dou-copy-button--sm {
+    --dou-copy-button-size: var(--dou-control-height-sm);
+  }
+
+  .dou-copy-button--outline {
+    border-color: var(--dou-color-border);
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-sm);
+
+    &:hover:not(:disabled) {
+      border-color: var(--dou-color-border-strong);
+      background-color: var(--dou-color-bg-surface);
+    }
+  }
+
+  .dou-copy-button__icon {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+  }
+
+  .dou-copy-button--sm .dou-copy-button__icon {
+    width: 14px;
+    height: 14px;
+  }
+
+  .dou-copy-button__label {
+    text-box: trim-both cap alphabetic;
+  }
+
+  .dou-copy-button__status {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dou-copy-button {
+      transition: none;
+    }
+  }
+}

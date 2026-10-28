@@ -217,7 +217,8 @@ const fixedOffsets = computed(() => {
   }
   let end = 0
   const ends = props.columns.filter((column) => column.fixed === 'end')
-  for (const column of ends.toReversed()) {
+  for (let i = ends.length - 1; i >= 0; i--) {
+    const column = ends[i]!
     offsets.set(column.key, { side: 'end', offset: end, edge: column === ends[0] })
     end += numericWidth(column)
   }

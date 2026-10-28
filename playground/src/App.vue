@@ -61,6 +61,14 @@ const instance = reactive({
 })
 const view = ref('list')
 
+const popoverOpen = ref(false)
+const menuOpen = ref(false)
+const dialogOpen = ref(false)
+const drawerOpen = ref(false)
+const lastAction = ref('无')
+const inviteEmail = ref('')
+const inviteRole = ref('开发者')
+
 onMounted(() => {
   void settingsForm.value?.validate()
   void accountForm.value?.validate(['email', 'role'])
@@ -102,6 +110,71 @@ function simulate() {
           </div>
         </footer>
       </article>
+    </section>
+
+    <section>
+      <h2>overlays</h2>
+      <div class="row">
+        <DouTooltip content="复制部署地址">
+          <DouButton variant="outline" size="sm">悬停提示</DouButton>
+        </DouTooltip>
+        <DouPopover v-model:open="popoverOpen" title="删除这个分支？" :width="260">
+          <DouButton variant="outline" size="sm">气泡卡片</DouButton>
+          <template #content="{ close }">
+            <DouText as="p" variant="secondary" size="sm"
+              >关联的预览部署也会一并移除，此操作无法撤销。</DouText
+            >
+            <div class="row row--end" style="margin-top: 12px">
+              <DouButton variant="ghost" size="sm" @click="close">取消</DouButton>
+              <DouButton tone="danger" size="sm" @click="close">删除</DouButton>
+            </div>
+          </template>
+        </DouPopover>
+        <DouDropdown v-model:open="menuOpen" @select="(value) => (lastAction = String(value))">
+          <DouButton variant="outline" size="sm">更多操作</DouButton>
+          <template #menu>
+            <DouDropdownItem value="visit">
+              访问
+              <template #suffix>⌘O</template>
+            </DouDropdownItem>
+            <DouDropdownItem value="redeploy">重新部署</DouDropdownItem>
+            <DouDropdownItem value="promote" disabled>提升为生产环境</DouDropdownItem>
+            <DouDropdownItem value="logs">查看日志</DouDropdownItem>
+            <DouDropdownItem value="delete" tone="danger" divided>删除部署</DouDropdownItem>
+          </template>
+        </DouDropdown>
+        <DouButton variant="outline" size="sm" @click="dialogOpen = true">对话框</DouButton>
+        <DouButton variant="outline" size="sm" @click="drawerOpen = true">抽屉</DouButton>
+        <DouText variant="tertiary" size="sm">最近的操作：{{ lastAction }}</DouText>
+      </div>
+      <DouDialog v-model:open="dialogOpen" title="邀请成员">
+        <DouText as="p" variant="secondary"
+          >成员会收到一封邀请邮件，接受后即可访问这个项目。</DouText
+        >
+        <DouForm style="margin-top: 16px">
+          <DouFormItem label="邮箱">
+            <DouInput v-model="inviteEmail" placeholder="name@example.com" />
+          </DouFormItem>
+          <DouFormItem label="角色">
+            <DouSegmentedControl v-model="inviteRole" :options="['查看者', '开发者', '管理员']" />
+          </DouFormItem>
+        </DouForm>
+        <template #footer="{ close }">
+          <DouButton variant="outline" @click="close">取消</DouButton>
+          <DouButton @click="close">发送邀请</DouButton>
+        </template>
+      </DouDialog>
+      <DouDrawer v-model:open="drawerOpen" title="部署详情" :size="380">
+        <DouSpace direction="vertical" size="md" block>
+          <DouText variant="secondary">main · 39dc86b，3 分钟前由 daidr 触发。</DouText>
+          <DouDivider />
+          <DouText variant="secondary">构建耗时 42 秒，产物 1.2 MB，已分发到 18 个节点。</DouText>
+        </DouSpace>
+        <template #footer="{ close }">
+          <DouButton variant="outline" @click="close">关闭</DouButton>
+          <DouButton @click="close">访问</DouButton>
+        </template>
+      </DouDrawer>
     </section>
 
     <section>
@@ -444,6 +517,10 @@ body {
   margin: 0 auto;
   padding: 32px 24px;
 }
+.row--end {
+  justify-content: flex-end;
+}
+
 .row {
   display: flex;
   flex-wrap: wrap;

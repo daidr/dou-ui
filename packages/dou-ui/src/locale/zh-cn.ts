@@ -16,6 +16,12 @@ export const zhCN: Locale = {
     start: '起始值',
     end: '结束值',
   },
+  dialog: {
+    close: '关闭',
+  },
+  drawer: {
+    close: '关闭',
+  },
   form: {
     optional: '可选',
     required: '此项为必填项',

@@ -1,0 +1,96 @@
+/*
+ * Dropdown
+ *
+ * A menu is a popover with a list of rows. The highlighted row is a faint
+ * tint, the same for pointer and keyboard since both move focus. The
+ * corners are concentric: the menu's radius is the row's plus the inset.
+ */
+@layer dou.components {
+  .dou-dropdown {
+    --dou-dropdown-bg: light-dark(
+      var(--dou-color-bg-surface),
+      color-mix(in oklab, var(--dou-color-text) 4%, var(--dou-color-bg-surface))
+    );
+    --dou-dropdown-inset: 4px;
+    --dou-dropdown-item-height: var(--dou-control-height-md);
+    --dou-dropdown-item-radius: var(--dou-radius-control);
+    --dou-dropdown-item-active-bg: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+
+    min-width: 160px;
+    max-height: min(var(--dou-floating-available, 100vh), 400px);
+    padding: var(--dou-dropdown-inset);
+    overflow-y: auto;
+    border: 1px solid var(--dou-color-border);
+    border-radius: calc(var(--dou-dropdown-item-radius) + var(--dou-dropdown-inset));
+    background-color: var(--dou-dropdown-bg);
+    box-shadow: var(--dou-shadow-md);
+    color: var(--dou-color-text);
+    font-family: var(--dou-font-family);
+    font-size: var(--dou-font-size-md);
+    outline: none;
+  }
+
+  .dou-dropdown__item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-sizing: border-box;
+    height: var(--dou-dropdown-item-height);
+    padding: 0 8px;
+    border-radius: var(--dou-dropdown-item-radius);
+    color: var(--dou-color-text);
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+    outline: none;
+
+    &:focus {
+      background-color: var(--dou-dropdown-item-active-bg);
+    }
+
+    &.is-disabled {
+      color: var(--dou-color-text-disabled);
+      cursor: not-allowed;
+    }
+  }
+
+  .dou-dropdown--danger:not(.is-disabled) {
+    --dou-dropdown-item-active-bg: color-mix(in oklab, var(--dou-color-danger) 10%, transparent);
+    color: var(--dou-color-danger);
+
+    & .dou-dropdown__prefix {
+      color: inherit;
+    }
+  }
+
+  .dou-dropdown__label {
+    flex: 1 1 auto;
+    min-width: 0;
+    /* clip, not hide: the trimmed line box is shorter than CJK glyphs */
+    overflow: clip;
+    overflow-clip-margin: 4px;
+    text-overflow: ellipsis;
+    text-box: trim-both cap alphabetic;
+  }
+
+  .dou-dropdown__prefix,
+  .dou-dropdown__suffix {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    color: var(--dou-color-text-tertiary);
+  }
+
+  .dou-dropdown__suffix {
+    margin-left: 16px;
+    font-size: var(--dou-font-size-sm);
+    text-box: trim-both cap alphabetic;
+  }
+
+  .dou-dropdown__separator {
+    height: 1px;
+    margin: var(--dou-dropdown-inset) calc(var(--dou-dropdown-inset) * -1);
+    background-color: var(--dou-color-border);
+  }
+}

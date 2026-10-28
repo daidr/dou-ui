@@ -81,7 +81,7 @@ const locale: Locale = {
 
 ## 浮层层级
 
-`zIndex` 是浮层（提示、弹出层、对话框等）的起始层级，默认 `2000`。每打开一个浮层，层级在此基础上递增，后打开的总在上面。
+`zIndex` 是浮层（提示、弹出层、对话框等）的起始层级，默认 `2000`。每打开一个浮层，层级在此基础上递增，后打开的总在上面（见 [浮层](../guide/overlays#层级)）。
 
 ```vue
 <DouConfigProvider :z-index="3000">...</DouConfigProvider>

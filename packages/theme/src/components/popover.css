@@ -1,0 +1,42 @@
+/*
+ * Popover
+ *
+ * A small raised surface: hairline edge and the menu shadow. On dark
+ * themes the surface is lifted a step above the page, since shadows
+ * barely show on near-black.
+ */
+@layer dou.components {
+  .dou-popover {
+    --dou-popover-bg: light-dark(
+      var(--dou-color-bg-surface),
+      color-mix(in oklab, var(--dou-color-text) 4%, var(--dou-color-bg-surface))
+    );
+    --dou-popover-border: var(--dou-color-border);
+    --dou-popover-padding: 12px 14px;
+    --dou-popover-radius: var(--dou-radius-container);
+    --dou-popover-max-width: 360px;
+
+    max-width: min(var(--dou-popover-max-width), calc(100vw - 16px));
+    padding: var(--dou-popover-padding);
+    border: 1px solid var(--dou-popover-border);
+    border-radius: var(--dou-popover-radius);
+    background-color: var(--dou-popover-bg);
+    box-shadow: var(--dou-shadow-md);
+    color: var(--dou-color-text-secondary);
+    font-family: var(--dou-font-family);
+    font-size: var(--dou-font-size-md);
+    line-height: var(--dou-font-line-height);
+    outline: none;
+  }
+
+  .dou-popover__title {
+    margin-bottom: 6px;
+    color: var(--dou-color-text);
+    font-weight: var(--dou-font-weight-bold);
+    line-height: 1.5;
+  }
+
+  .dou-popover__content:empty {
+    display: none;
+  }
+}

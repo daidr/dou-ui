@@ -28,6 +28,14 @@ export interface Locale {
     /** Label of the upper thumb of a range. */
     end: string
   }
+  dialog: {
+    /** Label of the close button. */
+    close: string
+  }
+  drawer: {
+    /** Label of the close button. */
+    close: string
+  }
   form: {
     /** Shown after the label of an optional field when `requiredMark` is `'optional'`. */
     optional: string

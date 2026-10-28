@@ -1,0 +1,144 @@
+/*
+ * Drawer
+ *
+ * A panel sliding in from an edge of the viewport, drawn like a dialog
+ * that has been pushed against the wall: one hairline on its inner edge
+ * and the deepest shadow.
+ */
+@layer dou.components {
+  .dou-drawer {
+    --dou-drawer-mask: light-dark(rgb(0 0 0 / 0.32), rgb(0 0 0 / 0.64));
+    --dou-drawer-bg: light-dark(
+      var(--dou-color-bg-surface),
+      color-mix(in oklab, var(--dou-color-text) 3%, var(--dou-color-bg-surface))
+    );
+    --dou-drawer-padding: 20px;
+
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    overscroll-behavior: contain;
+    background-color: var(--dou-drawer-mask);
+  }
+
+  .dou-drawer__panel {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    border: 0 solid var(--dou-color-border);
+    background-color: var(--dou-drawer-bg);
+    box-shadow: var(--dou-shadow-lg);
+    color: var(--dou-color-text-secondary);
+    font-family: var(--dou-font-family);
+    font-size: var(--dou-font-size-md);
+    line-height: var(--dou-font-line-height);
+    outline: none;
+  }
+
+  .dou-drawer--left .dou-drawer__panel,
+  .dou-drawer--right .dou-drawer__panel {
+    top: 0;
+    bottom: 0;
+    width: var(--dou-drawer-size, 400px);
+    max-width: 100%;
+  }
+  .dou-drawer--top .dou-drawer__panel,
+  .dou-drawer--bottom .dou-drawer__panel {
+    right: 0;
+    left: 0;
+    height: var(--dou-drawer-size, 320px);
+    max-height: 100%;
+  }
+  .dou-drawer--right .dou-drawer__panel {
+    right: 0;
+    border-left-width: 1px;
+  }
+  .dou-drawer--left .dou-drawer__panel {
+    left: 0;
+    border-right-width: 1px;
+  }
+  .dou-drawer--top .dou-drawer__panel {
+    top: 0;
+    border-bottom-width: 1px;
+  }
+  .dou-drawer--bottom .dou-drawer__panel {
+    bottom: 0;
+    border-top-width: 1px;
+  }
+
+  .dou-drawer__header {
+    display: flex;
+    flex-shrink: 0;
+    align-items: flex-start;
+    gap: 12px;
+    padding: var(--dou-drawer-padding) var(--dou-drawer-padding) 0;
+  }
+
+  .dou-drawer__title {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    color: var(--dou-color-text);
+    font-size: var(--dou-font-size-lg);
+    font-weight: var(--dou-font-weight-bold);
+    line-height: 28px;
+    letter-spacing: normal;
+  }
+
+  .dou-drawer__body {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 12px var(--dou-drawer-padding) var(--dou-drawer-padding);
+    overflow: auto;
+    overflow-wrap: break-word;
+  }
+
+  .dou-drawer__footer {
+    display: flex;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px var(--dou-drawer-padding);
+    border-top: 1px solid var(--dou-color-border);
+    background-color: color-mix(in oklab, var(--dou-color-text) 2%, var(--dou-drawer-bg));
+  }
+
+  /* motion: the mask fades, the panel slides in from its edge */
+  .dou-drawer-enter-active,
+  .dou-drawer-leave-active,
+  .dou-drawer-enter-active .dou-drawer__panel,
+  .dou-drawer-leave-active .dou-drawer__panel {
+    transition-property: opacity, transform;
+    transition-duration: var(--dou-motion-duration-normal);
+    transition-timing-function: var(--dou-motion-easing);
+  }
+
+  .dou-drawer-enter-from,
+  .dou-drawer-leave-to {
+    opacity: 0;
+  }
+  .dou-drawer--right:is(.dou-drawer-enter-from, .dou-drawer-leave-to) .dou-drawer__panel {
+    transform: translateX(100%);
+  }
+  .dou-drawer--left:is(.dou-drawer-enter-from, .dou-drawer-leave-to) .dou-drawer__panel {
+    transform: translateX(-100%);
+  }
+  .dou-drawer--top:is(.dou-drawer-enter-from, .dou-drawer-leave-to) .dou-drawer__panel {
+    transform: translateY(-100%);
+  }
+  .dou-drawer--bottom:is(.dou-drawer-enter-from, .dou-drawer-leave-to) .dou-drawer__panel {
+    transform: translateY(100%);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dou-drawer-enter-from .dou-drawer__panel,
+    .dou-drawer-leave-to .dou-drawer__panel {
+      transform: none !important;
+    }
+  }
+}

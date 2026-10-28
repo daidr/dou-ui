@@ -1,0 +1,117 @@
+/*
+ * Alert
+ *
+ * A message that sits in the page. The tone colors the icon and lends a
+ * faint tint to the surface and its hairline edge; the text stays ink,
+ * so a row of alerts reads calm rather than loud.
+ */
+@layer dou.components {
+  .dou-alert {
+    --dou-alert-tone: var(--dou-color-text-secondary);
+    --dou-alert-bg: color-mix(in oklab, var(--dou-color-text) 3%, var(--dou-color-bg-surface));
+    --dou-alert-border: var(--dou-color-border);
+    --dou-alert-radius: calc(var(--dou-radius-control) + 2px);
+
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    box-sizing: border-box;
+    padding: 12px 14px;
+    border: 1px solid var(--dou-alert-border);
+    border-radius: var(--dou-alert-radius);
+    background-color: var(--dou-alert-bg);
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-md);
+    line-height: 1.5;
+  }
+
+  .dou-alert--primary,
+  .dou-alert--success,
+  .dou-alert--warning,
+  .dou-alert--danger {
+    --dou-alert-bg: color-mix(in oklab, var(--dou-alert-tone) 6%, var(--dou-color-bg-surface));
+    --dou-alert-border: color-mix(in oklab, var(--dou-alert-tone) 22%, var(--dou-color-border));
+  }
+  .dou-alert--primary {
+    --dou-alert-tone: var(--dou-color-primary);
+  }
+  .dou-alert--success {
+    --dou-alert-tone: var(--dou-color-success);
+  }
+  .dou-alert--warning {
+    --dou-alert-tone: var(--dou-color-warning);
+  }
+  .dou-alert--danger {
+    --dou-alert-tone: var(--dou-color-danger);
+  }
+
+  .dou-alert__icon {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    /* one line of text tall, so the icon centers on the first line */
+    height: 1.5em;
+    color: var(--dou-alert-tone);
+
+    & > svg {
+      width: 16px;
+      height: 16px;
+    }
+  }
+
+  .dou-alert__content {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .dou-alert__title {
+    color: var(--dou-color-text);
+    font-weight: var(--dou-font-weight-bold);
+  }
+
+  .dou-alert.is-titled .dou-alert__description {
+    margin-top: 2px;
+  }
+
+  .dou-alert__action {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 8px;
+    align-self: center;
+  }
+
+  .dou-alert__close {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    margin: -1px -6px -1px 0;
+    border: 0;
+    border-radius: var(--dou-radius-control);
+    background-color: transparent;
+    color: var(--dou-color-text-tertiary);
+    cursor: pointer;
+    transition-property: background-color, color;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    & > svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    &:hover {
+      background-color: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+      color: var(--dou-color-text);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 1px;
+    }
+  }
+}

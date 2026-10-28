@@ -1,0 +1,300 @@
+/*
+ * Select
+ *
+ * The field is drawn exactly like an input, so the two line up in a
+ * form; a chevron at the end says it opens. The list is a menu surface
+ * whose rows match dropdown items, with a check on the chosen ones.
+ */
+@layer dou.components {
+  .dou-select {
+    --dou-select-height: var(--dou-control-height-md);
+    --dou-select-padding-x: var(--dou-control-padding-x-md);
+    --dou-select-gap: var(--dou-control-gap-md);
+    --dou-select-font-size: var(--dou-font-size-md);
+    --dou-select-radius: var(--dou-radius-control);
+    /* the gap between a tag and the field's edge */
+    --dou-select-tag-inset: 3px;
+
+    --dou-select-bg: var(--dou-color-bg-surface);
+    --dou-select-border: var(--dou-color-border);
+    --dou-select-border-hover: var(--dou-color-border-strong);
+    --dou-select-border-focus: color-mix(
+      in oklab,
+      var(--dou-color-focus) 70%,
+      var(--dou-color-text)
+    );
+    --dou-select-ring: color-mix(in oklab, var(--dou-color-focus) 32%, transparent);
+    --dou-select-shadow: var(--dou-shadow-sm);
+
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--dou-select-gap);
+    box-sizing: border-box;
+    width: 100%;
+    min-height: var(--dou-select-height);
+    padding: 0 var(--dou-select-padding-x);
+    border: 1px solid var(--dou-select-border);
+    border-radius: var(--dou-select-radius);
+    background-color: var(--dou-select-bg);
+    box-shadow: var(--dou-select-shadow);
+    color: var(--dou-color-text);
+    font-size: var(--dou-select-font-size);
+    vertical-align: middle;
+    cursor: pointer;
+    outline: none;
+    user-select: none;
+    transition-property: border-color, box-shadow, background-color;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    &:hover {
+      border-color: var(--dou-select-border-hover);
+    }
+
+    &:focus-within,
+    &.is-open {
+      border-color: var(--dou-select-border-focus);
+      box-shadow:
+        0 0 0 3px var(--dou-select-ring),
+        var(--dou-select-shadow);
+    }
+
+    &.is-filterable {
+      cursor: text;
+    }
+
+    &.is-multiple.is-selected {
+      padding-left: var(--dou-select-tag-inset);
+    }
+
+    &.is-invalid {
+      --dou-select-border: color-mix(
+        in oklab,
+        var(--dou-color-danger) 55%,
+        var(--dou-color-border)
+      );
+      --dou-select-border-hover: color-mix(
+        in oklab,
+        var(--dou-color-danger) 75%,
+        var(--dou-color-border)
+      );
+      --dou-select-border-focus: var(--dou-color-danger);
+      --dou-select-ring: color-mix(in oklab, var(--dou-color-danger) 18%, transparent);
+    }
+
+    &.is-disabled {
+      --dou-select-bg: var(--dou-color-bg-muted);
+      --dou-select-border-hover: var(--dou-select-border);
+      --dou-select-shadow: none;
+      color: var(--dou-color-text-disabled);
+      cursor: not-allowed;
+    }
+  }
+
+  .dou-select--sm {
+    --dou-select-height: var(--dou-control-height-sm);
+    --dou-select-padding-x: var(--dou-control-padding-x-sm);
+    --dou-select-gap: var(--dou-control-gap-sm);
+    --dou-select-font-size: var(--dou-font-size-sm);
+  }
+  .dou-select--lg {
+    --dou-select-height: var(--dou-control-height-lg);
+    --dou-select-padding-x: var(--dou-control-padding-x-lg);
+    --dou-select-gap: var(--dou-control-gap-lg);
+    --dou-select-font-size: var(--dou-font-size-lg);
+    --dou-select-tag-inset: 5px;
+  }
+
+  .dou-select__prefix {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    color: var(--dou-color-text-tertiary);
+  }
+
+  .dou-select__selection {
+    display: flex;
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .dou-select.is-multiple .dou-select__selection {
+    padding: var(--dou-select-tag-inset) 0;
+  }
+
+  .dou-select__value,
+  .dou-select__placeholder {
+    flex: 1 1 auto;
+    min-width: 0;
+    /* clip, not hide: the trimmed line box is shorter than CJK glyphs */
+    overflow: clip;
+    overflow-clip-margin: 4px;
+    line-height: 1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-box: trim-both cap alphabetic;
+  }
+
+  .dou-select__placeholder {
+    color: var(--dou-color-text-tertiary);
+  }
+
+  .dou-select__input {
+    flex: 1 1 60px;
+    min-width: 60px;
+    height: calc(var(--dou-select-height) - 2px - var(--dou-select-tag-inset) * 2);
+    padding: 0;
+    margin: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    line-height: normal;
+
+    &::placeholder {
+      color: var(--dou-color-text-tertiary);
+      opacity: 1;
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+    }
+  }
+
+  .dou-select:not(.is-multiple) .dou-select__input {
+    height: calc(var(--dou-select-height) - 2px);
+  }
+
+  /* a chosen single value shows through the search box's placeholder until typing */
+  .dou-select.is-filterable.is-selected:not(.is-multiple, .is-disabled)
+    .dou-select__input::placeholder {
+    color: var(--dou-color-text);
+  }
+  .dou-select.is-filterable.is-selected.is-open:not(.is-multiple) .dou-select__input::placeholder {
+    color: var(--dou-color-text-tertiary);
+  }
+
+  .dou-select__arrow {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    color: var(--dou-color-text-tertiary);
+    transition: transform var(--dou-motion-duration-fast) var(--dou-motion-easing);
+  }
+
+  .dou-select.is-open .dou-select__arrow {
+    transform: rotate(180deg);
+  }
+
+  .dou-select__clear {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 1.15em;
+    height: 1.15em;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    border-radius: var(--dou-radius-full);
+    background-color: color-mix(in oklab, var(--dou-color-text) 10%, transparent);
+    color: var(--dou-color-text-secondary);
+    cursor: pointer;
+
+    & > svg {
+      width: 0.8em;
+      height: 0.8em;
+    }
+
+    &:hover {
+      background-color: color-mix(in oklab, var(--dou-color-text) 18%, transparent);
+      color: var(--dou-color-text);
+    }
+  }
+
+  /* the list */
+  .dou-select__menu {
+    --dou-select-menu-inset: 4px;
+
+    max-height: min(var(--dou-floating-available, 100vh), 280px);
+    padding: var(--dou-select-menu-inset);
+    overflow-y: auto;
+    border: 1px solid var(--dou-color-border);
+    border-radius: calc(var(--dou-radius-control) + var(--dou-select-menu-inset));
+    background-color: light-dark(
+      var(--dou-color-bg-surface),
+      color-mix(in oklab, var(--dou-color-text) 4%, var(--dou-color-bg-surface))
+    );
+    box-shadow: var(--dou-shadow-md);
+    color: var(--dou-color-text);
+    font-family: var(--dou-font-family);
+    font-size: var(--dou-font-size-md);
+  }
+
+  .dou-select__list {
+    padding: 0;
+    margin: 0;
+    list-style: none;
+  }
+
+  .dou-select__option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-sizing: border-box;
+    height: var(--dou-control-height-md);
+    padding: 0 8px;
+    border-radius: var(--dou-radius-control);
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+
+    &.is-active {
+      background-color: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+    }
+
+    &.is-selected {
+      font-weight: var(--dou-font-weight-medium);
+    }
+
+    &.is-disabled {
+      color: var(--dou-color-text-disabled);
+      cursor: not-allowed;
+    }
+  }
+
+  .dou-select__option-label {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: clip;
+    overflow-clip-margin: 4px;
+    text-overflow: ellipsis;
+    text-box: trim-both cap alphabetic;
+  }
+
+  .dou-select__check {
+    flex-shrink: 0;
+    width: 14px;
+    height: 14px;
+    color: var(--dou-color-text);
+  }
+
+  .dou-select__empty {
+    padding: 8px;
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+    text-align: center;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dou-select,
+    .dou-select__arrow {
+      transition: none;
+    }
+  }
+}

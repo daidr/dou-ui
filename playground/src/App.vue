@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref, useTemplateRef, watchEffect } from 'vue'
-import { en } from 'dou-ui'
+import { en, toast } from 'dou-ui'
 import type {
   ButtonSize,
   ButtonTone,
@@ -68,6 +68,17 @@ const drawerOpen = ref(false)
 const lastAction = ref('无')
 const inviteEmail = ref('')
 const inviteRole = ref('开发者')
+
+const regionOptions = [
+  { value: 'hk', label: '香港' },
+  { value: 'sg', label: '新加坡' },
+  { value: 'fra', label: '法兰克福' },
+  { value: 'iad', label: '弗吉尼亚', disabled: true },
+  { value: 'sfo', label: '旧金山' },
+]
+const selectRegion = ref<string | null>('hk')
+const selectChannels = ref(['邮件', 'Webhook'])
+const selectFramework = ref<string | null>(null)
 
 onMounted(() => {
   void settingsForm.value?.validate()
@@ -175,6 +186,91 @@ function simulate() {
           <DouButton @click="close">访问</DouButton>
         </template>
       </DouDrawer>
+    </section>
+
+    <section>
+      <h2>select · feedback</h2>
+      <article class="card card--wide">
+        <div class="card__body">
+          <DouSpace direction="vertical" size="lg" block>
+            <DouForm layout="horizontal">
+              <DouFormItem label="区域">
+                <DouSelect v-model="selectRegion" :options="regionOptions" clearable />
+              </DouFormItem>
+              <DouFormItem label="通知渠道">
+                <DouSelect
+                  v-model="selectChannels"
+                  multiple
+                  :options="['邮件', '短信', 'Webhook', 'Slack']"
+                />
+              </DouFormItem>
+              <DouFormItem label="框架">
+                <DouSelect
+                  v-model="selectFramework"
+                  filterable
+                  placeholder="搜索框架"
+                  :options="['Vue', 'Vite', 'Nuxt', 'VitePress', 'Astro', '静态站点']"
+                />
+              </DouFormItem>
+            </DouForm>
+            <DouAlert tone="success" title="部署完成"
+              >dou-ui.dev 已更新到 main · 39dc86b。</DouAlert
+            >
+            <DouAlert tone="warning" closable
+              >构建缓存将在 3 天后过期，过期后的首次构建会变慢。</DouAlert
+            >
+            <DouAlert tone="danger" title="构建失败">
+              类型检查未通过，详见构建日志。
+              <template #action
+                ><DouButton size="sm" variant="outline">查看日志</DouButton></template
+              >
+            </DouAlert>
+            <DouAlert>预览部署会在分支合并 30 天后自动清理。</DouAlert>
+            <div class="row">
+              <DouButton variant="outline" size="sm" @click="toast('链接已复制')">轻提示</DouButton>
+              <DouButton
+                variant="outline"
+                size="sm"
+                @click="toast.success('dou-ui.dev 已上线', { title: '部署完成' })"
+              >
+                成功
+              </DouButton>
+              <DouButton
+                variant="outline"
+                size="sm"
+                @click="
+                  toast({
+                    message: '已删除 3 个预览部署',
+                    action: { label: '撤销', onClick: () => {} },
+                  })
+                "
+              >
+                带操作
+              </DouButton>
+              <DouButton
+                variant="outline"
+                size="sm"
+                @click="toast.danger('网络连接已断开', { closable: true, duration: 0 })"
+              >
+                错误
+              </DouButton>
+            </div>
+            <div class="row">
+              <DouSpinner size="sm" />
+              <DouSpinner />
+              <DouSpinner size="lg" />
+              <DouText variant="secondary" size="sm">正在构建…</DouText>
+            </div>
+            <DouProgress :value="64" show-value />
+            <DouProgress :value="32" tone="primary" size="sm" />
+            <DouProgress tone="success" label="上传中" />
+            <div class="row" style="align-items: flex-start; flex-wrap: nowrap">
+              <DouSkeleton variant="circle" :width="40" />
+              <DouSkeleton :lines="3" style="flex: 1" />
+            </div>
+          </DouSpace>
+        </div>
+      </article>
     </section>
 
     <section>

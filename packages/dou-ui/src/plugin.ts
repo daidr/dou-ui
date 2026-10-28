@@ -1,5 +1,6 @@
 import type { App, Plugin } from 'vue'
 import {
+  DouAlert,
   DouButton,
   DouCheckbox,
   DouCheckboxGroup,
@@ -16,21 +17,27 @@ import {
   DouInputNumber,
   DouLink,
   DouPopover,
+  DouProgress,
   DouRadio,
   DouRadioGroup,
   DouSegmentedControl,
+  DouSelect,
+  DouSkeleton,
   DouSlider,
   DouSpace,
+  DouSpinner,
   DouSwitch,
   DouTag,
   DouText,
   DouTextarea,
+  DouToastViewport,
   DouTooltip,
 } from './components'
 import { provideGlobalConfig } from './components/config-provider/use-config'
 import type { GlobalConfig } from './components/config-provider/config-provider'
 
 const components: Plugin[] = [
+  DouAlert,
   DouButton,
   DouCheckbox,
   DouCheckboxGroup,
@@ -47,15 +54,20 @@ const components: Plugin[] = [
   DouInputNumber,
   DouLink,
   DouPopover,
+  DouProgress,
   DouRadio,
   DouRadioGroup,
   DouSegmentedControl,
+  DouSelect,
+  DouSkeleton,
   DouSlider,
   DouSpace,
+  DouSpinner,
   DouSwitch,
   DouTag,
   DouText,
   DouTextarea,
+  DouToastViewport,
   DouTooltip,
 ]
 

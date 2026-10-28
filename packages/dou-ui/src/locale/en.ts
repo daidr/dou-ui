@@ -16,10 +16,25 @@ export const en: Locale = {
     start: 'Start',
     end: 'End',
   },
+  alert: {
+    close: 'Close',
+  },
   dialog: {
     close: 'Close',
   },
   drawer: {
+    close: 'Close',
+  },
+  select: {
+    placeholder: 'Select',
+    empty: 'No matches',
+    clear: 'Clear',
+  },
+  spinner: {
+    loading: 'Loading',
+  },
+  toast: {
+    region: 'Notifications',
     close: 'Close',
   },
   form: {

@@ -1,0 +1,44 @@
+/*
+ * Spinner
+ *
+ * A thin ring with one open quarter, drawn in the current text color so
+ * it sits in a button, a line of text or on its own. Sizes are even so
+ * the ring turns around a whole pixel.
+ */
+@layer dou.components {
+  .dou-spinner {
+    --dou-spinner-size: 16px;
+    --dou-spinner-width: 1.5px;
+
+    display: inline-block;
+    flex-shrink: 0;
+    box-sizing: border-box;
+    width: var(--dou-spinner-size);
+    height: var(--dou-spinner-size);
+    border: var(--dou-spinner-width) solid currentColor;
+    border-right-color: transparent;
+    border-radius: var(--dou-radius-full);
+    vertical-align: middle;
+    animation: dou-spinner-turn 0.8s linear infinite;
+  }
+
+  .dou-spinner--sm {
+    --dou-spinner-size: 12px;
+  }
+  .dou-spinner--lg {
+    --dou-spinner-size: 20px;
+    --dou-spinner-width: 2px;
+  }
+
+  @keyframes dou-spinner-turn {
+    to {
+      transform: rotate(1turn);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dou-spinner {
+      animation-duration: 2s;
+    }
+  }
+}

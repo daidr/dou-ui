@@ -94,7 +94,9 @@
 /* The docs site gives every enabled button a pointer; these set their own. */
 button.dou-button,
 button.dou-pagination__item,
-button.dou-tabs__tab {
+button.dou-tabs__tab,
+button.dou-menu__item,
+button.dou-collapse__trigger {
   cursor: revert-layer;
 }
 

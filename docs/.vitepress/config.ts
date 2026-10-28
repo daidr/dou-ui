@@ -34,8 +34,19 @@ export default defineConfig({
     nav: [
       { text: '指南', link: '/guide/philosophy' },
       { text: '组件', link: '/components/button' },
+      { text: '图标', link: '/icons/' },
     ],
     sidebar: {
+      '/icons': [
+        {
+          text: '图标',
+          items: [
+            { text: '图标库', link: '/icons/' },
+            { text: '安装与使用', link: '/icons/usage' },
+            { text: '设计哲学与绘制规范', link: '/icons/design' },
+          ],
+        },
+      ],
       '/guide/': [
         {
           text: '指南',
@@ -163,6 +174,8 @@ export default defineConfig({
         { find: /^dou-ui$/, replacement: r('../../packages/dou-ui/src/index.ts') },
         { find: /^@dou-ui\/theme$/, replacement: r('../../packages/theme/src/index.ts') },
         { find: /^dou-ui\/style\.css$/, replacement: r('../../packages/theme/src/index.css') },
+        { find: /^@dou-ui\/icons$/, replacement: r('../../packages/icons/src/index.ts') },
+        { find: /^@dou-ui\/icons\/meta$/, replacement: r('../../packages/icons/src/meta.ts') },
       ],
     },
   },

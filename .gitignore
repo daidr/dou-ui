@@ -7,6 +7,7 @@ coverage
 
 # generated
 packages/theme/src/generated
+packages/icons/src/generated
 
 # docs
 docs/.vitepress/cache

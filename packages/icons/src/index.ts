@@ -1,0 +1,6 @@
+export * from './generated'
+export { createIcon } from './create-icon'
+export type { IconComponent } from './create-icon'
+export { categories } from './categories'
+export type { IconCategory } from './categories'
+export type { IconMeta, IconNode, IconProps, IconVariant } from './types'

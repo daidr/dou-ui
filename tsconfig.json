@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["bun", "vite/client"],
+    "paths": {
+      "dou-ui": ["./packages/dou-ui/src/index.ts"],
+      "@dou-ui/theme": ["./packages/theme/src/index.ts"]
+    }
+  },
+  "include": [
+    "packages/*/src",
+    "packages/*/scripts",
+    "packages/*/vite.config.ts",
+    "playground/src",
+    "playground/vite.config.ts",
+    "docs/.vitepress",
+    "vitest.config.ts"
+  ]
+}

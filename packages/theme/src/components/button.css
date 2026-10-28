@@ -1,0 +1,182 @@
+/*
+ * Button
+ *
+ * Every visual decision reads a token. Variants and tones only reassign
+ * the local `--dou-button-*` properties; the rules that paint the button
+ * are written once.
+ */
+@layer dou.components {
+  .dou-button {
+    /* tone: the color the variant is built from */
+    --dou-button-tone: var(--dou-color-neutral);
+    --dou-button-tone-on: var(--dou-color-neutral-on);
+
+    /* size */
+    --dou-button-height: var(--dou-control-height-md);
+    --dou-button-padding-x: var(--dou-control-padding-x-md);
+    --dou-button-gap: var(--dou-control-gap-md);
+    --dou-button-font-size: var(--dou-font-size-md);
+    --dou-button-radius: var(--dou-radius-control);
+
+    /* paint, assigned by the variant */
+    --dou-button-bg: transparent;
+    --dou-button-bg-hover: transparent;
+    --dou-button-bg-active: transparent;
+    --dou-button-fg: var(--dou-button-tone);
+    --dou-button-border: transparent;
+
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--dou-button-gap);
+    box-sizing: border-box;
+    height: var(--dou-button-height);
+    padding: 0 var(--dou-button-padding-x);
+    margin: 0;
+    border: 1px solid var(--dou-button-border);
+    border-radius: var(--dou-button-radius);
+    background-color: var(--dou-button-bg);
+    color: var(--dou-button-fg);
+    font-family: inherit;
+    font-size: var(--dou-button-font-size);
+    font-weight: var(--dou-font-weight-medium);
+    line-height: 1;
+    white-space: nowrap;
+    vertical-align: middle;
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    transition-property: background-color, border-color, color, box-shadow;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    &:hover {
+      background-color: var(--dou-button-bg-hover);
+    }
+
+    &:active {
+      background-color: var(--dou-button-bg-active);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 2px;
+    }
+
+    &:disabled,
+    &.is-disabled,
+    &.is-loading {
+      --dou-button-bg-hover: var(--dou-button-bg);
+      --dou-button-bg-active: var(--dou-button-bg);
+    }
+
+    &:disabled,
+    &.is-disabled {
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+
+    &.is-loading {
+      cursor: progress;
+    }
+
+    &.is-block {
+      display: flex;
+      width: 100%;
+    }
+  }
+
+  /* tones */
+  .dou-button--primary {
+    --dou-button-tone: var(--dou-color-primary);
+    --dou-button-tone-on: var(--dou-color-primary-on);
+  }
+  .dou-button--success {
+    --dou-button-tone: var(--dou-color-success);
+    --dou-button-tone-on: var(--dou-color-success-on);
+  }
+  .dou-button--warning {
+    --dou-button-tone: var(--dou-color-warning);
+    --dou-button-tone-on: var(--dou-color-warning-on);
+  }
+  .dou-button--danger {
+    --dou-button-tone: var(--dou-color-danger);
+    --dou-button-tone-on: var(--dou-color-danger-on);
+  }
+
+  /* variants */
+  .dou-button--solid {
+    --dou-button-bg: var(--dou-button-tone);
+    --dou-button-bg-hover: color-mix(
+      in oklab,
+      var(--dou-button-tone) 88%,
+      var(--dou-color-state-mix)
+    );
+    --dou-button-bg-active: color-mix(
+      in oklab,
+      var(--dou-button-tone) 78%,
+      var(--dou-color-state-mix)
+    );
+    --dou-button-fg: var(--dou-button-tone-on);
+  }
+  .dou-button--soft {
+    --dou-button-bg: color-mix(in oklab, var(--dou-button-tone) 12%, transparent);
+    --dou-button-bg-hover: color-mix(in oklab, var(--dou-button-tone) 18%, transparent);
+    --dou-button-bg-active: color-mix(in oklab, var(--dou-button-tone) 24%, transparent);
+  }
+  .dou-button--outline {
+    --dou-button-border: color-mix(in oklab, var(--dou-button-tone) 45%, transparent);
+    --dou-button-bg-hover: color-mix(in oklab, var(--dou-button-tone) 8%, transparent);
+    --dou-button-bg-active: color-mix(in oklab, var(--dou-button-tone) 14%, transparent);
+  }
+  .dou-button--ghost {
+    --dou-button-bg-hover: color-mix(in oklab, var(--dou-button-tone) 10%, transparent);
+    --dou-button-bg-active: color-mix(in oklab, var(--dou-button-tone) 16%, transparent);
+  }
+
+  /* sizes */
+  .dou-button--sm {
+    --dou-button-height: var(--dou-control-height-sm);
+    --dou-button-padding-x: var(--dou-control-padding-x-sm);
+    --dou-button-gap: var(--dou-control-gap-sm);
+    --dou-button-font-size: var(--dou-font-size-sm);
+  }
+  .dou-button--lg {
+    --dou-button-height: var(--dou-control-height-lg);
+    --dou-button-padding-x: var(--dou-control-padding-x-lg);
+    --dou-button-gap: var(--dou-control-gap-lg);
+    --dou-button-font-size: var(--dou-font-size-lg);
+  }
+
+  .dou-button__icon {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    font-size: 1.15em;
+  }
+
+  .dou-button__spinner {
+    width: 1em;
+    height: 1em;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: var(--dou-radius-full);
+    animation: dou-spin 0.7s linear infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dou-button {
+      transition: none;
+    }
+    .dou-button__spinner {
+      animation-duration: 2s;
+    }
+  }
+
+  @keyframes dou-spin {
+    to {
+      transform: rotate(1turn);
+    }
+  }
+}

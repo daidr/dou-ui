@@ -1,0 +1,16 @@
+{
+  "name": "@dou-ui/docs",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vitepress dev",
+    "build": "vitepress build",
+    "preview": "vitepress preview"
+  },
+  "dependencies": {
+    "dou-ui": "workspace:*"
+  },
+  "devDependencies": {
+    "vitepress": "^1.6.4"
+  }
+}

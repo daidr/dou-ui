@@ -1,0 +1,11 @@
+/*
+ * Full stylesheet: tokens + base + every component.
+ *
+ * All rules live in cascade layers, so any unlayered rule in the host app
+ * overrides DouUI without specificity fights.
+ */
+@layer dou.tokens, dou.base, dou.components;
+
+@import './generated/tokens.css';
+@import './base.css';
+@import './components/button.css';

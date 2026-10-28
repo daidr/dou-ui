@@ -1,0 +1,25 @@
+{
+  "name": "@dou-ui/theme",
+  "version": "0.0.0",
+  "description": "Design tokens and styles for DouUI",
+  "type": "module",
+  "sideEffects": [
+    "*.css"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./index.css": "./dist/index.css",
+    "./tokens.css": "./dist/tokens.css",
+    "./components/*.css": "./dist/components/*.css"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "gen": "bun scripts/gen.ts",
+    "build": "bun scripts/build.ts"
+  }
+}

@@ -1,6 +1,6 @@
 # Timeline 时间线
 
-按时间串起一组事件。小圆点挂在一条细线上，语气色只用在圆点上；时间在内容上方，用三级灰色和等宽数字。还在进行中的事件是空心圆点，通向它的线是虚线；正在处理的事件，圆点换成旋转的加载图标。
+按时间串起一组事件。小圆点挂在一条细线上，语气色只用在圆点上；时间在内容上方，用三级灰色和等宽数字。还在进行中的事件是空心圆点，通向它的线是虚线；当前这一步是实心圆点，外面一圈涟漪缓缓散开。
 
 ## 基础用法
 
@@ -45,15 +45,15 @@
 </DouTimelineItem>
 ```
 
-## 加载中
+## 当前步骤
 
-`loading` 表示这一步正在处理：圆点换成旋转的加载图标，取同样的语气色，通向它的线是虚线。`pending` 是还没轮到，`loading` 是正在做。
+`active` 标出流程走到的这一步：实心圆点，外面一圈同色的涟漪缓缓散开并淡出。`pending` 是还没轮到，`active` 是正在这一步。开启「减弱动态效果」时，涟漪换成一圈静止的光晕。
 
 <div class="demo demo--column">
   <DouTimeline>
     <DouTimelineItem time="10:40" title="拉取代码" tone="success" />
     <DouTimelineItem time="10:41" title="安装依赖" tone="success" />
-    <DouTimelineItem time="10:42" title="正在构建" tone="primary" loading>已用时 12 秒</DouTimelineItem>
+    <DouTimelineItem time="10:42" title="正在构建" tone="primary" active>已用时 12 秒</DouTimelineItem>
     <DouTimelineItem title="部署到上海节点" pending />
   </DouTimeline>
 </div>
@@ -61,7 +61,7 @@
 ```vue
 <DouTimeline>
   <DouTimelineItem time="10:41" title="安装依赖" tone="success" />
-  <DouTimelineItem time="10:42" title="正在构建" tone="primary" loading>已用时 12 秒</DouTimelineItem>
+  <DouTimelineItem time="10:42" title="正在构建" tone="primary" active>已用时 12 秒</DouTimelineItem>
   <DouTimelineItem title="部署到上海节点" pending />
 </DouTimeline>
 ```
@@ -80,7 +80,7 @@
 
 ## 读屏
 
-时间线是一个有序列表 `<ol>`，左侧的圆点与连线只是装饰（`aria-hidden`），含义写在时间、标题和内容里。`loading` 的事件带 `aria-busy="true"`。
+时间线是一个有序列表 `<ol>`，左侧的圆点与连线只是装饰（`aria-hidden`），含义写在时间、标题和内容里。`active` 的事件带 `aria-current="step"`。
 
 ## API
 
@@ -92,13 +92,13 @@
 
 ### TimelineItem Props
 
-| 名称      | 说明                                         | 类型                                                           | 默认值      |
-| --------- | -------------------------------------------- | -------------------------------------------------------------- | ----------- |
-| `time`    | 时间                                         | `string`                                                       | —           |
-| `title`   | 标题，详情放在默认插槽                       | `string`                                                       | —           |
-| `tone`    | 圆点的语气色                                 | `'neutral' \| 'primary' \| 'success' \| 'warning' \| 'danger'` | `'neutral'` |
-| `pending` | 进行中：空心圆点，通向它的线为虚线           | `boolean`                                                      | `false`     |
-| `loading` | 正在处理：圆点换成加载图标，通向它的线为虚线 | `boolean`                                                      | `false`     |
+| 名称      | 说明                                        | 类型                                                           | 默认值      |
+| --------- | ------------------------------------------- | -------------------------------------------------------------- | ----------- |
+| `time`    | 时间                                        | `string`                                                       | —           |
+| `title`   | 标题，详情放在默认插槽                      | `string`                                                       | —           |
+| `tone`    | 圆点的语气色                                | `'neutral' \| 'primary' \| 'success' \| 'warning' \| 'danger'` | `'neutral'` |
+| `pending` | 进行中：空心圆点，通向它的线为虚线          | `boolean`                                                      | `false`     |
+| `active`  | 当前步骤：实心圆点外加涟漪，替代 `dot` 插槽 | `boolean`                                                      | `false`     |
 
 ### TimelineItem Slots
 

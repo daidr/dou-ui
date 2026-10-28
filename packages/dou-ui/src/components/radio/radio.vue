@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, inject } from 'vue'
 import { useNamespace } from '../../utils/namespace'
+import { useFormDisabled, useFormSize } from '../form/use-form-item'
 import { radioGroupKey } from './radio'
 import type { RadioProps, RadioSlots, RadioValue } from './radio'
 
@@ -16,8 +17,9 @@ const ns = useNamespace('radio')
 const group = inject(radioGroupKey, undefined)
 
 const checked = computed(() => (group ? group.model.value : model.value) === props.value)
-const disabled = computed(() => props.disabled || !!group?.disabled.value)
-const size = computed(() => props.size ?? group?.size.value ?? 'md')
+const ownSize = useFormSize(() => props.size)
+const disabled = useFormDisabled(() => props.disabled || group?.disabled.value)
+const size = computed(() => props.size ?? group?.size.value ?? ownSize.value)
 const name = computed(() => group?.name.value ?? props.name)
 
 function onChange() {

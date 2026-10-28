@@ -50,11 +50,16 @@ export default defineConfig({
             { text: 'Checkbox 多选框', link: '/components/checkbox' },
             { text: 'Radio 单选框', link: '/components/radio' },
             { text: 'Switch 开关', link: '/components/switch' },
+            { text: 'Form 表单', link: '/components/form' },
           ],
         },
         {
           text: '数据展示',
           items: [{ text: 'Tag 标签', link: '/components/tag' }],
+        },
+        {
+          text: '配置',
+          items: [{ text: 'ConfigProvider 全局配置', link: '/components/config-provider' }],
         },
       ],
     },

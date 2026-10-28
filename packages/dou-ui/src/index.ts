@@ -1,6 +1,7 @@
 import { DouUI } from './plugin'
 
 export * from './components'
+export * from './locale'
 export { useNamespace, withInstall } from './utils'
 export type { Size, Tone, WithInstall } from './utils'
 export { DouUI }

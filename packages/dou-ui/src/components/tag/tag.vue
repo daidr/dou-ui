@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useNamespace } from '../../utils/namespace'
+import { useLocale } from '../config-provider/use-config'
+import { useFormSize } from '../form/use-form-item'
 import type { TagEmits, TagProps, TagSlots } from './tag'
 
 defineOptions({ name: 'DouTag' })
@@ -8,7 +10,6 @@ defineOptions({ name: 'DouTag' })
 const props = withDefaults(defineProps<TagProps>(), {
   variant: 'soft',
   tone: 'neutral',
-  size: 'md',
   closable: false,
   round: false,
 })
@@ -16,12 +17,14 @@ const emit = defineEmits<TagEmits>()
 const slots = defineSlots<TagSlots>()
 
 const ns = useNamespace('tag')
+const { t } = useLocale()
+const size = useFormSize(() => props.size)
 
 const classes = computed(() => [
   ns.b(),
   ns.m(props.variant),
   ns.m(props.tone),
-  ns.m(props.size),
+  ns.m(size.value),
   ns.is('round', props.round),
 ])
 </script>
@@ -36,7 +39,7 @@ const classes = computed(() => [
       v-if="closable"
       type="button"
       :class="ns.e('close')"
-      aria-label="移除"
+      :aria-label="t('tag.remove')"
       @click="emit('close', $event)"
     >
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">

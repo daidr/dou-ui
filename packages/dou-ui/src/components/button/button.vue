@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useNamespace } from '../../utils/namespace'
+import { useFormDisabled, useFormSize } from '../form/use-form-item'
 import type { ButtonEmits, ButtonProps, ButtonSlots } from './button'
 
 defineOptions({ name: 'DouButton' })
@@ -8,7 +9,6 @@ defineOptions({ name: 'DouButton' })
 const props = withDefaults(defineProps<ButtonProps>(), {
   variant: 'solid',
   tone: 'neutral',
-  size: 'md',
   disabled: false,
   loading: false,
   block: false,
@@ -19,13 +19,15 @@ const slots = defineSlots<ButtonSlots>()
 
 const ns = useNamespace('button')
 
-const inert = computed(() => props.disabled || props.loading)
+const size = useFormSize(() => props.size)
+const disabled = useFormDisabled(() => props.disabled)
+const inert = computed(() => disabled.value || props.loading)
 
 const classes = computed(() => [
   ns.b(),
   ns.m(props.variant),
   ns.m(props.tone),
-  ns.m(props.size),
+  ns.m(size.value),
   ns.is('loading', props.loading),
   ns.is('block', props.block),
 ])

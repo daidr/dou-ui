@@ -21,6 +21,14 @@ import App from './App.vue'
 createApp(App).use(DouUI).mount('#app')
 ```
 
+注册时可以传入应用级的默认配置，例如统一的尺寸与语言，详见 [全局配置](/components/config-provider)：
+
+```ts
+import DouUI, { en } from 'dou-ui'
+
+app.use(DouUI, { size: 'sm', locale: en })
+```
+
 ## 按需引入
 
 组件可以单独导入，打包工具会摇掉没有用到的部分：

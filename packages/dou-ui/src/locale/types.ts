@@ -1,0 +1,43 @@
+/**
+ * Every string DouUI renders on its own: labels read by screen readers
+ * and the default messages of form rules.
+ *
+ * Messages may contain `{name}` placeholders, filled in when the string
+ * is used.
+ */
+export interface Locale {
+  /** A BCP 47 language tag, e.g. `zh-CN`. */
+  name: string
+  input: {
+    /** Label of the clear button. */
+    clear: string
+  }
+  tag: {
+    /** Label of the remove button. */
+    remove: string
+  }
+  form: {
+    /** Shown after the label of an optional field when `requiredMark` is `'optional'`. */
+    optional: string
+    /** A required field is empty. */
+    required: string
+    /** A text is shorter than `{min}` characters. */
+    minLength: string
+    /** A text is longer than `{max}` characters. */
+    maxLength: string
+    /** Fewer than `{min}` items are chosen. */
+    minItems: string
+    /** More than `{max}` items are chosen. */
+    maxItems: string
+    /** A number is below `{min}`. */
+    min: string
+    /** A number is above `{max}`. */
+    max: string
+    /** The value does not match `pattern`. */
+    pattern: string
+    email: string
+    url: string
+    /** A custom validator failed without a message of its own. */
+    invalid: string
+  }
+}

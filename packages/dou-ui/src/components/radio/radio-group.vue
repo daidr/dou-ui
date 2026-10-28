@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, provide, toRef, useId } from 'vue'
+import { computed, provide, useId } from 'vue'
 import { useNamespace } from '../../utils/namespace'
+import { useFormDisabled, useFormItem, useFormSize } from '../form/use-form-item'
 import { radioGroupKey } from './radio'
 import type { RadioGroupProps, RadioGroupSlots, RadioValue } from './radio'
 
@@ -20,13 +21,18 @@ const ns = useNamespace('radio-group')
 const id = useId()
 const name = computed(() => props.name ?? `dou-radio-${id}`)
 
+const { formItem } = useFormItem()
+formItem?.markGroup()
+const disabled = useFormDisabled(() => props.disabled)
+
 provide(radioGroupKey, {
   model,
-  disabled: toRef(props, 'disabled'),
-  size: toRef(props, 'size'),
+  disabled,
+  size: useFormSize(() => props.size),
   name,
   select(value) {
     model.value = value
+    formItem?.trigger('change')
   },
 })
 
@@ -34,7 +40,16 @@ const classes = computed(() => [ns.b(), ns.m(props.direction)])
 </script>
 
 <template>
-  <div :class="classes" role="radiogroup" :aria-disabled="disabled || undefined">
+  <div
+    :id="formItem?.inputId"
+    :class="classes"
+    role="radiogroup"
+    :aria-disabled="disabled || undefined"
+    :aria-labelledby="formItem?.labelId"
+    :aria-describedby="formItem?.describedBy.value"
+    :aria-invalid="formItem?.invalid.value || undefined"
+    :aria-required="formItem?.required.value || undefined"
+  >
     <slot />
   </div>
 </template>

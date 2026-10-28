@@ -71,7 +71,8 @@
     box-sizing: border-box;
     width: 100%;
     height: 100%;
-    border: 1px solid var(--dou-color-border-strong);
+    /* inherited, so a surrounding form item can paint an error */
+    border: 1px solid var(--dou-radio-border, var(--dou-color-border-strong));
     border-radius: var(--dou-radius-full);
     background-color: var(--dou-color-bg-surface);
     box-shadow: var(--dou-shadow-sm);

@@ -12,6 +12,7 @@
       "import": "./dist/index.js"
     },
     "./index.css": "./dist/index.css",
+    "./core.css": "./dist/core.css",
     "./tokens.css": "./dist/tokens.css",
     "./components/*.css": "./dist/components/*.css"
   },

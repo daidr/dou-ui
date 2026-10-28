@@ -13,7 +13,7 @@ const dist = `${root}dist`
 await rm(dist, { recursive: true, force: true })
 await run(['bun', 'scripts/gen.ts'])
 
-const cssEntries = ['src/index.css', 'src/generated/tokens.css']
+const cssEntries = ['src/index.css', 'src/core.css', 'src/generated/tokens.css']
 for await (const file of new Glob('src/components/*.css').scan(root)) cssEntries.push(file)
 
 const css = await Bun.build({

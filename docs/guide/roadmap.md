@@ -78,7 +78,7 @@
 
 ## 第 4 批 · 数据展示与导航 ✅
 
-分两步交付：先是不依赖交互状态的展示类组件（Card、Avatar、Badge、Kbd、Empty、Descriptions，#9），再是带键盘交互的导航与表格（Tabs、Breadcrumb、Pagination、Table）。表格的空状态直接复用 Empty，分页的每页条数复用 Select。已完成。
+分两步交付：先是不依赖交互状态的展示类组件（Card、Avatar、Badge、Kbd、Empty、Descriptions），再是带键盘交互的导航与表格（Tabs、Breadcrumb、Pagination、Table）。表格的空状态直接复用 Empty，分页的每页条数复用 Select。两步合在一个 PR 里交付（#9），已完成。
 
 | 组件                  | 状态 | 备注                                           |
 | --------------------- | ---- | ---------------------------------------------- |

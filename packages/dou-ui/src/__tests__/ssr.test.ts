@@ -31,6 +31,7 @@ const props: Record<string, Record<string, unknown>> = {
   DouTooltip: { open: true, content: '提示' },
   DouTransfer: { data: [{ key: 1, label: 'A' }] },
   DouTree: { data: [{ key: 'a', label: 'A' }] },
+  DouTreeSelect: { data: [{ key: 'a', label: 'A' }], modelValue: 'a' },
   DouVirtualList: { items: [1, 2, 3], itemSize: 32 },
 }
 

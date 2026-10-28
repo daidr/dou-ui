@@ -16,7 +16,7 @@ describe('per-component style entries', () => {
   })
 
   it('pull in the stylesheets of what a component renders', () => {
-    expect(deps.get('select')).toEqual(['overlay', 'select', 'tag'])
+    expect(deps.get('select')).toEqual(['overlay', 'select', 'spinner', 'tag'])
     expect(deps.get('drawer')).toContain('dialog') // the shared close button
     expect(deps.get('table')).toEqual(expect.arrayContaining(['checkbox', 'empty', 'spinner']))
     expect(deps.get('dialog')).toEqual(expect.arrayContaining(['dialog-box', 'button', 'input']))

@@ -31,6 +31,8 @@ export const en: Locale = {
     placeholder: 'Select',
     empty: 'No matches',
     clear: 'Clear',
+    loading: 'Loading',
+    create: 'Create “{query}”',
   },
   spinner: {
     loading: 'Loading',
@@ -58,6 +60,9 @@ export const en: Locale = {
   table: {
     selectAll: 'Select all',
     selectRow: 'Select row',
+    expand: 'Expand',
+    expandRow: 'Expand row',
+    resize: 'Resize column {column}',
   },
   upload: {
     choose: 'Choose file',

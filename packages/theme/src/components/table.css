@@ -21,6 +21,8 @@
     position: relative;
     box-sizing: border-box;
     min-width: 0;
+    /* wide tables scroll inside the frame, even in a shrink-to-fit parent */
+    max-width: 100%;
     border: 1px solid var(--dou-color-border);
     border-radius: var(--dou-table-radius);
     background-color: var(--dou-table-bg);
@@ -54,7 +56,11 @@
     font-variant-numeric: tabular-nums;
   }
 
-  .dou-table__col-selection {
+  .dou-table.is-fixed-layout .dou-table__table {
+    table-layout: fixed;
+  }
+
+  .dou-table__col-utility {
     width: 40px;
   }
 
@@ -64,7 +70,7 @@
     padding: 6px var(--dou-table-cell-padding-x);
     border: 0;
     border-bottom: 1px solid var(--dou-table-divider);
-    background-color: transparent;
+    background-color: var(--dou-table-row-bg, transparent);
     text-align: start;
     vertical-align: middle;
 
@@ -101,7 +107,8 @@
     z-index: 1;
   }
 
-  .dou-table__selection {
+  .dou-table__selection,
+  .dou-table__expand {
     width: 40px;
     padding-right: 0;
     padding-left: var(--dou-table-cell-padding-x);
@@ -112,21 +119,29 @@
     border-bottom: 0;
   }
 
-  .dou-table.is-striped .dou-table__row:nth-child(even) {
-    background-color: var(--dou-table-head-bg);
+  /*
+   * Row tints are painted by the cells, opaque, so a fixed cell hides what
+   * scrolls under it and still follows the row.
+   */
+  .dou-table__row {
+    --dou-table-row-bg: var(--dou-table-bg);
+
+    & > .dou-table__cell {
+      transition: background-color var(--dou-motion-duration-fast) var(--dou-motion-easing);
+    }
+  }
+
+  .dou-table.is-striped .dou-table__row.is-even {
+    --dou-table-row-bg: var(--dou-table-head-bg);
   }
 
   .dou-table.is-hoverable .dou-table__row:hover {
-    background-color: var(--dou-table-row-hover);
+    --dou-table-row-bg: var(--dou-table-row-hover);
   }
 
   .dou-table__row.is-selected,
   .dou-table.is-hoverable .dou-table__row.is-selected:hover {
-    background-color: var(--dou-table-row-selected);
-  }
-
-  .dou-table__row {
-    transition: background-color var(--dou-motion-duration-fast) var(--dou-motion-easing);
+    --dou-table-row-bg: var(--dou-table-row-selected);
   }
 
   .dou-table.is-bordered .dou-table__cell + .dou-table__cell {
@@ -207,5 +222,226 @@
     align-items: center;
     justify-content: center;
     color: var(--dou-color-text-secondary);
+  }
+
+  /* fixed columns */
+  .dou-table__cell.is-fixed-start,
+  .dou-table__cell.is-fixed-end {
+    position: sticky;
+    z-index: 1;
+  }
+
+  .dou-table__head .dou-table__cell.is-fixed-start,
+  .dou-table__head .dou-table__cell.is-fixed-end {
+    z-index: 3;
+  }
+
+  .dou-table__foot .dou-table__cell.is-fixed-start,
+  .dou-table__foot .dou-table__cell.is-fixed-end {
+    z-index: 2;
+  }
+
+  /* a soft edge shows where content slides under the fixed columns */
+  .dou-table__cell.is-fixed-start-edge::after,
+  .dou-table__cell.is-fixed-end-edge::before {
+    position: absolute;
+    top: 0;
+    bottom: -1px;
+    width: 12px;
+    content: '';
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--dou-motion-duration-fast) var(--dou-motion-easing);
+  }
+
+  .dou-table__cell.is-fixed-start-edge::after {
+    inset-inline-end: -12px;
+    box-shadow: inset 10px 0 8px -8px var(--dou-table-fixed-shadow);
+  }
+
+  .dou-table__cell.is-fixed-end-edge::before {
+    inset-inline-start: -12px;
+    box-shadow: inset -10px 0 8px -8px var(--dou-table-fixed-shadow);
+  }
+
+  .dou-table {
+    --dou-table-fixed-shadow: light-dark(rgb(0 0 0 / 0.12), rgb(0 0 0 / 0.5));
+  }
+
+  .dou-table.is-shadow-start .dou-table__cell.is-fixed-start-edge::after,
+  .dou-table.is-shadow-end .dou-table__cell.is-fixed-end-edge::before {
+    opacity: 1;
+  }
+
+  /* detail rows and tree rows */
+  .dou-table__toggle {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: 0;
+    border-radius: calc(var(--dou-radius-control) - 2px);
+    background: transparent;
+    color: var(--dou-color-text-tertiary);
+    cursor: pointer;
+    vertical-align: middle;
+    transition-property: background-color, color;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    & > svg {
+      width: 1em;
+      height: 1em;
+      font-size: 14px;
+      transition: transform var(--dou-motion-duration-fast) var(--dou-motion-easing);
+    }
+
+    &.is-open > svg {
+      transform: rotate(90deg);
+    }
+
+    &:hover {
+      background-color: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+      color: var(--dou-color-text);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 0;
+    }
+  }
+
+  .dou-table__expand {
+    padding-right: 0;
+    line-height: 0;
+  }
+
+  .dou-table__tree {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 100%;
+    vertical-align: middle;
+  }
+
+  .dou-table__toggle-space {
+    flex-shrink: 0;
+    width: 20px;
+  }
+
+  .dou-table__tree-content {
+    min-width: 0;
+  }
+
+  .dou-table__cell.is-ellipsis .dou-table__tree-content {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .dou-table__detail {
+    padding: 16px var(--dou-table-cell-padding-x) 16px calc(var(--dou-table-cell-padding-x) + 26px);
+    border-bottom: 1px solid var(--dou-table-divider);
+    background-color: color-mix(in oklab, var(--dou-color-text) 1.5%, var(--dou-table-bg));
+    color: var(--dou-color-text-secondary);
+  }
+
+  .dou-table__body .dou-table__detail-row:last-child .dou-table__detail {
+    border-bottom: 0;
+  }
+
+  /* column resizing: a thin handle on the header edge */
+  /* sticky without an offset stays in place, and holds the handle */
+  .dou-table__head .dou-table__cell {
+    position: sticky;
+  }
+
+  .dou-table__resizer {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    inset-inline-end: -4px;
+    z-index: 1;
+    width: 8px;
+    cursor: col-resize;
+    touch-action: none;
+
+    &::after {
+      position: absolute;
+      top: 25%;
+      bottom: 25%;
+      left: 3px;
+      width: 2px;
+      border-radius: 1px;
+      background-color: transparent;
+      content: '';
+      transition: background-color var(--dou-motion-duration-fast) var(--dou-motion-easing);
+    }
+
+    &:hover::after,
+    &:active::after {
+      top: 0;
+      bottom: 0;
+      background-color: var(--dou-color-border-strong);
+    }
+
+    &:focus-visible {
+      outline: none;
+
+      &::after {
+        top: 0;
+        bottom: 0;
+        background-color: var(--dou-color-focus);
+      }
+    }
+  }
+
+  .dou-table__head .dou-table__cell:last-child .dou-table__resizer {
+    inset-inline-end: 0;
+  }
+
+  /* summary row */
+  .dou-table__foot .dou-table__cell {
+    border-top: 1px solid var(--dou-color-border);
+    border-bottom: 0;
+    background-color: var(--dou-table-head-bg);
+    color: var(--dou-color-text);
+    font-weight: var(--dou-font-weight-medium);
+  }
+
+  .dou-table.is-scroll .dou-table__foot .dou-table__cell {
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+  }
+
+  .dou-table.is-scroll .dou-table__foot .dou-table__cell.is-fixed-start,
+  .dou-table.is-scroll .dou-table__foot .dou-table__cell.is-fixed-end {
+    z-index: 3;
+  }
+
+  /* virtual rows stay exactly one row tall */
+  .dou-table.is-virtual .dou-table__body .dou-table__cell {
+    padding-top: 0;
+    padding-bottom: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dou-table__spacer > td {
+    padding: 0;
+    border: 0;
+  }
+
+  .dou-table__visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 }

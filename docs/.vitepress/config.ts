@@ -96,6 +96,7 @@ export default defineConfig({
             { text: 'Select 选择器', link: '/components/select' },
             { text: 'Autocomplete 自动补全', link: '/components/autocomplete' },
             { text: 'Cascader 级联选择', link: '/components/cascader' },
+            { text: 'TreeSelect 树选择', link: '/components/tree-select' },
             { text: 'DatePicker 日期选择', link: '/components/date-picker' },
             { text: 'TimePicker 时间选择', link: '/components/time-picker' },
             { text: 'ColorPicker 颜色选择', link: '/components/color-picker' },

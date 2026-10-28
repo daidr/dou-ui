@@ -1,0 +1,15 @@
+/*
+ * TreeSelect
+ *
+ * The field is a Select's, the list a compact Tree in the Select's
+ * floating panel, so choosing from a hierarchy feels like choosing from a list.
+ */
+@layer dou.components {
+  .dou-tree-select__menu {
+    max-height: min(var(--dou-floating-available, 100vh), 320px);
+
+    & > .dou-tree {
+      background-color: transparent;
+    }
+  }
+}

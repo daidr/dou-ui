@@ -287,6 +287,62 @@
     color: var(--dou-color-text);
   }
 
+  /* groups: a quiet label above their options, a hairline between groups */
+  .dou-select__section,
+  .dou-select__group {
+    padding: 0;
+    margin: 0;
+    list-style: none;
+  }
+
+  .dou-select__section + .dou-select__section:has(.dou-select__group-label) {
+    margin-top: 4px;
+    padding-top: 4px;
+    border-top: 1px solid var(--dou-color-border-subtle);
+  }
+
+  .dou-select__group-label {
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+    height: var(--dou-control-height-md);
+    padding: 0 8px;
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+    font-weight: var(--dou-font-weight-medium);
+    white-space: nowrap;
+    cursor: default;
+    user-select: none;
+  }
+
+  /* the option that turns the search text into a new value */
+  .dou-select__option.is-create {
+    color: var(--dou-color-text-secondary);
+  }
+
+  .dou-select__loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px;
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+  }
+
+  /* virtual: rows are placed absolutely inside a list as tall as all of them */
+  .dou-select__menu.is-virtual .dou-select__list {
+    position: relative;
+  }
+
+  .dou-select__menu.is-virtual .dou-select__option,
+  .dou-select__menu.is-virtual .dou-select__group-label {
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+  }
+
   .dou-select__empty {
     padding: 8px;
     color: var(--dou-color-text-tertiary);

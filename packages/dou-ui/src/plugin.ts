@@ -75,6 +75,7 @@ import {
   DouTooltip,
   DouTransfer,
   DouTree,
+  DouTreeSelect,
   DouUpload,
   DouVirtualList,
 } from './components'
@@ -157,6 +158,7 @@ const components: Plugin[] = [
   DouTooltip,
   DouTransfer,
   DouTree,
+  DouTreeSelect,
   DouUpload,
   DouVirtualList,
 ]

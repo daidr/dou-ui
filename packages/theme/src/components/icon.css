@@ -1,0 +1,41 @@
+/*
+ * Icon
+ *
+ * A sized box for any inline graphic. Color comes from `currentColor`, so
+ * an icon always matches the text around it.
+ */
+@layer dou.components {
+  .dou-icon {
+    --dou-icon-size: 1em;
+
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: var(--dou-icon-size);
+    height: var(--dou-icon-size);
+    line-height: 1;
+    vertical-align: -0.125em;
+
+    & > svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    &.is-spin {
+      animation: dou-spin 1s linear infinite;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dou-icon.is-spin {
+      animation-duration: 2.5s;
+    }
+  }
+
+  @keyframes dou-spin {
+    to {
+      transform: rotate(1turn);
+    }
+  }
+}

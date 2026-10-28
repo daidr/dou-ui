@@ -84,6 +84,7 @@
 | `--dou-radius-container`    | 12px           | 卡片、对话框等容器   |
 | `--dou-control-height-*`    | 28 / 32 / 40px | 同一行的控件高度对齐 |
 | `--dou-control-padding-x-*` | 10 / 12 / 16px |                      |
+| `--dou-space-*`             | 8 / 12 / 20px  | 相邻元素之间的间距   |
 
 圆角小而一致：控件 6px、容器 12px，容器的圆角大于其中的控件。
 

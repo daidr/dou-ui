@@ -52,6 +52,7 @@ export const light: ThemeTokens = {
     paddingX: { sm: '10px', md: '12px', lg: '16px' },
     gap: { sm: '4px', md: '6px', lg: '8px' },
   },
+  space: { sm: '8px', md: '12px', lg: '20px' },
   shadow: {
     sm: '0 1px 1px rgb(0 0 0 / 0.03), 0 1px 2px rgb(0 0 0 / 0.05)',
     md: '0 1px 2px rgb(0 0 0 / 0.04), 0 4px 12px -2px rgb(0 0 0 / 0.06)',

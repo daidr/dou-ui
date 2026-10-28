@@ -1,0 +1,151 @@
+/*
+ * Switch
+ *
+ * Off, the track is recessed into the page and the thumb is faded ink.
+ * On, the track fills with ink and takes the solid button's edge,
+ * highlight and shadow, and the thumb turns to paper.
+ */
+@layer dou.components {
+  .dou-switch {
+    --dou-switch-tone: var(--dou-color-neutral);
+    --dou-switch-tone-on: var(--dou-color-neutral-on);
+    --dou-switch-width: 36px;
+    --dou-switch-height: 20px;
+    --dou-switch-gap: var(--dou-space-sm);
+    --dou-switch-font-size: var(--dou-font-size-md);
+
+    /* the thumb leaves 2px between itself and the track's edge */
+    --dou-switch-thumb-size: calc(var(--dou-switch-height) - 6px);
+    --dou-switch-travel: calc(var(--dou-switch-width) - var(--dou-switch-height));
+
+    display: inline-flex;
+    align-items: center;
+    gap: var(--dou-switch-gap);
+    color: var(--dou-color-text);
+    font-size: var(--dou-switch-font-size);
+    line-height: 1.4;
+    vertical-align: middle;
+
+    &.is-disabled {
+      opacity: 0.45;
+    }
+  }
+
+  .dou-switch--sm {
+    --dou-switch-width: 28px;
+    --dou-switch-height: 16px;
+    --dou-switch-gap: 6px;
+    --dou-switch-font-size: var(--dou-font-size-sm);
+  }
+  .dou-switch--lg {
+    --dou-switch-width: 44px;
+    --dou-switch-height: 24px;
+    --dou-switch-gap: 10px;
+    --dou-switch-font-size: var(--dou-font-size-lg);
+  }
+
+  .dou-switch__track {
+    position: relative;
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    box-sizing: border-box;
+    width: var(--dou-switch-width);
+    height: var(--dou-switch-height);
+    padding: 2px;
+    margin: 0;
+    border: 1px solid color-mix(in oklab, var(--dou-color-text) 8%, var(--dou-color-border-strong));
+    border-radius: var(--dou-radius-full);
+    background-color: color-mix(in oklab, var(--dou-color-text) 7%, var(--dou-color-bg-surface));
+    box-shadow: inset 0 1px 2px color-mix(in oklab, var(--dou-color-edge) 8%, transparent);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition-property: background-color, border-color, box-shadow;
+    transition-duration: var(--dou-motion-duration-normal);
+    transition-timing-function: var(--dou-motion-easing);
+
+    &:hover {
+      border-color: color-mix(in oklab, var(--dou-color-text) 20%, var(--dou-color-border-strong));
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 2px;
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+    }
+  }
+
+  .dou-switch.is-loading .dou-switch__track {
+    cursor: progress;
+  }
+
+  .dou-switch__thumb {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--dou-switch-thumb-size);
+    height: var(--dou-switch-thumb-size);
+    border-radius: var(--dou-radius-full);
+    background-color: var(--dou-color-text-tertiary);
+    box-shadow: 0 1px 2px color-mix(in oklab, var(--dou-color-edge) 16%, transparent);
+    color: var(--dou-color-bg-surface);
+    transition-property: transform, background-color, box-shadow;
+    transition-duration: var(--dou-motion-duration-normal);
+    transition-timing-function: var(--dou-motion-easing);
+  }
+
+  .dou-switch.is-checked {
+    & .dou-switch__track {
+      border-color: color-mix(in oklab, var(--dou-switch-tone) 90%, var(--dou-color-edge));
+      background-color: var(--dou-switch-tone);
+      box-shadow:
+        var(--dou-shadow-highlight),
+        0 1px 2px color-mix(in oklab, var(--dou-switch-tone) 24%, transparent);
+    }
+
+    & .dou-switch__thumb {
+      background-color: var(--dou-switch-tone-on);
+      box-shadow: 0 1px 2px color-mix(in oklab, var(--dou-color-edge) 24%, transparent);
+      color: var(--dou-switch-tone);
+      transform: translateX(var(--dou-switch-travel));
+    }
+  }
+
+  .dou-switch__label {
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .dou-switch.is-disabled .dou-switch__label {
+    cursor: not-allowed;
+  }
+
+  .dou-switch__spinner {
+    width: 65%;
+    height: 65%;
+    box-sizing: border-box;
+    border: 1.5px solid currentColor;
+    border-right-color: transparent;
+    border-radius: var(--dou-radius-full);
+    animation: dou-spin 0.8s linear infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dou-switch__track,
+    .dou-switch__thumb {
+      transition: none;
+    }
+    .dou-switch__spinner {
+      animation-duration: 2s;
+    }
+  }
+
+  @keyframes dou-spin {
+    to {
+      transform: rotate(1turn);
+    }
+  }
+}

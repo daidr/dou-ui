@@ -1,0 +1,86 @@
+/*
+ * Text
+ *
+ * `variant` sets prominence, `tone` sets meaning. Neutral text reads the
+ * text tokens directly; toned text fades toward the page for the quieter
+ * variants, so every combination is defined.
+ */
+@layer dou.components {
+  .dou-text {
+    --dou-text-tone: var(--dou-color-text);
+
+    color: var(--dou-text-tone);
+
+    &.is-mono {
+      font-family: var(--dou-font-family-mono);
+      font-variant-numeric: tabular-nums;
+    }
+
+    &.is-truncate {
+      display: inline-block;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      vertical-align: bottom;
+    }
+
+    &.is-clamp {
+      display: -webkit-box;
+      overflow: hidden;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: var(--dou-text-lines);
+      line-clamp: var(--dou-text-lines);
+    }
+  }
+
+  /* tones */
+  .dou-text--primary {
+    --dou-text-tone: var(--dou-color-primary);
+  }
+  .dou-text--success {
+    --dou-text-tone: var(--dou-color-success);
+  }
+  .dou-text--warning {
+    --dou-text-tone: var(--dou-color-warning);
+  }
+  .dou-text--danger {
+    --dou-text-tone: var(--dou-color-danger);
+  }
+
+  /* variants */
+  .dou-text--secondary {
+    color: color-mix(in oklab, var(--dou-text-tone) 72%, var(--dou-color-bg-canvas));
+  }
+  .dou-text--tertiary {
+    color: color-mix(in oklab, var(--dou-text-tone) 52%, var(--dou-color-bg-canvas));
+  }
+  .dou-text--neutral.dou-text--secondary {
+    color: var(--dou-color-text-secondary);
+  }
+  .dou-text--neutral.dou-text--tertiary {
+    color: var(--dou-color-text-tertiary);
+  }
+
+  /* sizes */
+  .dou-text--sm {
+    font-size: var(--dou-font-size-sm);
+  }
+  .dou-text--md {
+    font-size: var(--dou-font-size-md);
+  }
+  .dou-text--lg {
+    font-size: var(--dou-font-size-lg);
+  }
+
+  /* weights */
+  .dou-text--regular {
+    font-weight: var(--dou-font-weight-regular);
+  }
+  .dou-text--medium {
+    font-weight: var(--dou-font-weight-medium);
+  }
+  .dou-text--bold {
+    font-weight: var(--dou-font-weight-bold);
+  }
+}

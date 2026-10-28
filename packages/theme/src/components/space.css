@@ -1,0 +1,66 @@
+/*
+ * Space
+ *
+ * Even gaps between neighbours, with nothing wrapped around them: items
+ * are laid out by the container's gap, never by margins.
+ */
+@layer dou.components {
+  .dou-space {
+    --dou-space-gap: var(--dou-space-md);
+
+    display: inline-flex;
+    gap: var(--dou-space-gap);
+    min-width: 0;
+
+    &.is-wrap {
+      flex-wrap: wrap;
+    }
+
+    &.is-block {
+      display: flex;
+    }
+  }
+
+  .dou-space--vertical {
+    flex-direction: column;
+  }
+
+  .dou-space--sm {
+    --dou-space-gap: var(--dou-space-sm);
+  }
+  .dou-space--md {
+    --dou-space-gap: var(--dou-space-md);
+  }
+  .dou-space--lg {
+    --dou-space-gap: var(--dou-space-lg);
+  }
+
+  .dou-space--align-start {
+    align-items: flex-start;
+  }
+  .dou-space--align-center {
+    align-items: center;
+  }
+  .dou-space--align-end {
+    align-items: flex-end;
+  }
+  .dou-space--align-baseline {
+    align-items: baseline;
+  }
+  .dou-space--align-stretch {
+    align-items: stretch;
+  }
+
+  .dou-space--justify-start {
+    justify-content: flex-start;
+  }
+  .dou-space--justify-center {
+    justify-content: center;
+  }
+  .dou-space--justify-end {
+    justify-content: flex-end;
+  }
+  .dou-space--justify-between {
+    justify-content: space-between;
+  }
+}

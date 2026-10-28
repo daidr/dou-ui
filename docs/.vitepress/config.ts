@@ -81,7 +81,15 @@ export default defineConfig({
         },
         {
           text: '数据展示',
-          items: [{ text: 'Tag 标签', link: '/components/tag' }],
+          items: [
+            { text: 'Card 卡片', link: '/components/card' },
+            { text: 'Avatar 头像', link: '/components/avatar' },
+            { text: 'Badge 徽标', link: '/components/badge' },
+            { text: 'Tag 标签', link: '/components/tag' },
+            { text: 'Kbd 键盘按键', link: '/components/kbd' },
+            { text: 'Empty 空状态', link: '/components/empty' },
+            { text: 'Descriptions 描述列表', link: '/components/descriptions' },
+          ],
         },
         {
           text: '配置',

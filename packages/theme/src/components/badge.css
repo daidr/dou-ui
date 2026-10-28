@@ -1,0 +1,89 @@
+/*
+ * Badge
+ *
+ * A count or a dot pinned to the corner of something. Ink by default,
+ * so a row of badges reads as information rather than alarm; a tone is
+ * for counts that mean something. A ring of the surface color cuts the
+ * badge out of whatever it sits on.
+ */
+@layer dou.components {
+  .dou-badge {
+    position: relative;
+    display: inline-flex;
+    flex-shrink: 0;
+    vertical-align: middle;
+  }
+
+  .dou-badge__mark {
+    --dou-badge-tone: var(--dou-color-neutral);
+    --dou-badge-tone-on: var(--dou-color-neutral-on);
+    --dou-badge-height: 16px;
+    --dou-badge-ring: var(--dou-color-bg-surface);
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    min-width: var(--dou-badge-height);
+    height: var(--dou-badge-height);
+    padding: 0 5px;
+    border-radius: var(--dou-radius-full);
+    background-color: var(--dou-badge-tone);
+    color: var(--dou-badge-tone-on);
+    font-family: var(--dou-font-family);
+    font-size: 11px;
+    font-weight: var(--dou-font-weight-medium);
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    white-space: nowrap;
+    vertical-align: middle;
+
+    &.is-dot {
+      --dou-badge-height: 8px;
+
+      min-width: 0;
+      width: var(--dou-badge-height);
+      padding: 0;
+    }
+  }
+
+  .dou-badge .dou-badge__mark {
+    position: absolute;
+    z-index: 1;
+    box-shadow: 0 0 0 2px var(--dou-badge-ring);
+  }
+
+  .dou-badge--top-end .dou-badge__mark {
+    top: 0;
+    right: 0;
+    transform: translate(50%, -50%);
+  }
+
+  .dou-badge--bottom-end .dou-badge__mark {
+    right: 0;
+    bottom: 0;
+    transform: translate(50%, 50%);
+  }
+
+  /* tones */
+  .dou-badge--primary {
+    --dou-badge-tone: var(--dou-color-primary);
+    --dou-badge-tone-on: var(--dou-color-primary-on);
+  }
+  .dou-badge--success {
+    --dou-badge-tone: var(--dou-color-success);
+    --dou-badge-tone-on: var(--dou-color-success-on);
+  }
+  .dou-badge--warning {
+    --dou-badge-tone: var(--dou-color-warning);
+    --dou-badge-tone-on: var(--dou-color-warning-on);
+  }
+  .dou-badge--danger {
+    --dou-badge-tone: var(--dou-color-danger);
+    --dou-badge-tone-on: var(--dou-color-danger-on);
+  }
+
+  .dou-badge__text {
+    text-box: trim-both cap alphabetic;
+  }
+}

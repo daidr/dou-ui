@@ -37,6 +37,9 @@ export const zhCN: Locale = {
     region: '通知',
     close: '关闭',
   },
+  empty: {
+    title: '暂无数据',
+  },
   form: {
     optional: '可选',
     required: '此项为必填项',

@@ -86,3 +86,9 @@
   text-decoration: revert-layer;
   text-underline-offset: revert-layer;
 }
+
+.vp-doc a.dou-card {
+  color: revert-layer;
+  font-weight: revert-layer;
+  text-decoration: revert-layer;
+}

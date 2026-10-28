@@ -105,6 +105,69 @@ function simulate() {
     </header>
 
     <section>
+      <h2>data display</h2>
+      <div class="grid">
+        <DouCard title="dou-ui.dev" description="最近一次部署于 3 分钟前完成，所有检查均已通过。">
+          <template #extra><DouTag tone="success" round size="sm">运行中</DouTag></template>
+          <DouDescriptions :columns="2">
+            <DouDescriptionsItem label="分支">main</DouDescriptionsItem>
+            <DouDescriptionsItem label="提交">39dc86b</DouDescriptionsItem>
+            <DouDescriptionsItem label="区域">香港</DouDescriptionsItem>
+            <DouDescriptionsItem label="耗时">42 秒</DouDescriptionsItem>
+          </DouDescriptions>
+          <template #footer>
+            <DouButton variant="ghost" size="sm">日志</DouButton>
+            <DouButton variant="outline" size="sm">回滚</DouButton>
+            <DouButton size="sm">访问</DouButton>
+          </template>
+        </DouCard>
+        <DouCard raised padding="none">
+          <DouEmpty title="还没有项目" description="从一个 Git 仓库导入，或从模板开始。">
+            <DouButton size="sm">导入仓库</DouButton>
+          </DouEmpty>
+        </DouCard>
+      </div>
+      <div class="row" style="margin-top: 16px">
+        <DouAvatarGroup :max="4">
+          <DouAvatar name="Ada Lovelace" />
+          <DouAvatar name="林小满" />
+          <DouAvatar name="Grace Hopper" />
+          <DouAvatar name="周以" />
+          <DouAvatar name="Alan Turing" />
+        </DouAvatarGroup>
+        <DouAvatar size="sm" name="Ada Lovelace" />
+        <DouAvatar size="lg" shape="square" name="Dou UI" />
+        <DouAvatar />
+        <DouBadge :value="5">
+          <DouButton variant="outline" size="sm">消息</DouButton>
+        </DouBadge>
+        <DouBadge :value="128" tone="danger">
+          <DouAvatar name="林小满" shape="square" />
+        </DouBadge>
+        <DouBadge dot tone="success" placement="bottom-end">
+          <DouAvatar name="Grace Hopper" />
+        </DouBadge>
+        <DouText variant="secondary">收件箱 <DouBadge :value="12" /></DouText>
+        <DouText variant="secondary">
+          搜索 <DouKbd size="sm">⌘</DouKbd> <DouKbd size="sm">K</DouKbd>
+        </DouText>
+        <DouKbd>Shift</DouKbd>
+        <DouKbd>Esc</DouKbd>
+      </div>
+      <div style="margin-top: 16px">
+        <DouDescriptions bordered layout="horizontal" :columns="2" :label-width="72">
+          <DouDescriptionsItem label="名称">edge-fn-hk</DouDescriptionsItem>
+          <DouDescriptionsItem label="副本">3</DouDescriptionsItem>
+          <DouDescriptionsItem label="规格">2 vCPU · 512 MB</DouDescriptionsItem>
+          <DouDescriptionsItem label="状态">运行中</DouDescriptionsItem>
+          <DouDescriptionsItem label="说明" span="fill"
+            >自动扩缩容的边缘函数，部署在离用户最近的节点。</DouDescriptionsItem
+          >
+        </DouDescriptions>
+      </div>
+    </section>
+
+    <section>
       <h2>composition</h2>
       <article class="card">
         <div class="card__body">
@@ -612,6 +675,11 @@ body {
   max-width: 880px;
   margin: 0 auto;
   padding: 32px 24px;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
 }
 .row--end {
   justify-content: flex-end;

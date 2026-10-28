@@ -58,6 +58,10 @@ export interface Locale {
     /** Label of the close button. */
     close: string
   }
+  empty: {
+    /** Headline of an empty state without a title or description of its own. */
+    title: string
+  }
   form: {
     /** Shown after the label of an optional field when `requiredMark` is `'optional'`. */
     optional: string

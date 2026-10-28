@@ -37,6 +37,9 @@ export const en: Locale = {
     region: 'Notifications',
     close: 'Close',
   },
+  empty: {
+    title: 'No data',
+  },
   form: {
     optional: 'optional',
     required: 'This field is required',

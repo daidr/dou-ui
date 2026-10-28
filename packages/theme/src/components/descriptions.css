@@ -1,0 +1,143 @@
+/*
+ * Descriptions
+ *
+ * Read-only fields of one record, laid out on a grid. Labels are small
+ * and quiet, values are ink. The bordered form turns the grid into a
+ * table: hairlines between cells, labels on a faint tint.
+ */
+@layer dou.components {
+  .dou-descriptions {
+    --dou-descriptions-columns: 3;
+    --dou-descriptions-label-width: 96px;
+    --dou-descriptions-gap-x: 24px;
+    --dou-descriptions-gap-y: 16px;
+    --dou-descriptions-cell-padding: 10px 14px;
+    --dou-descriptions-radius: calc(var(--dou-radius-control) + 2px);
+
+    color: var(--dou-color-text);
+    font-size: var(--dou-font-size-md);
+    line-height: 1.5;
+  }
+
+  .dou-descriptions__header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .dou-descriptions__title {
+    flex: 1 1 auto;
+    min-width: 0;
+    color: var(--dou-color-text);
+    font-size: var(--dou-font-size-md);
+    font-weight: var(--dou-font-weight-bold);
+  }
+
+  .dou-descriptions__extra {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .dou-descriptions__list {
+    display: grid;
+    grid-template-columns: repeat(var(--dou-descriptions-columns), minmax(0, 1fr));
+    gap: var(--dou-descriptions-gap-y) var(--dou-descriptions-gap-x);
+    margin: 0;
+  }
+
+  .dou-descriptions__item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .dou-descriptions__label {
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+  }
+
+  .dou-descriptions__content {
+    min-width: 0;
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+
+  /* horizontal: label beside the value */
+  .dou-descriptions--horizontal {
+    --dou-descriptions-gap-y: 10px;
+
+    & .dou-descriptions__item {
+      flex-direction: row;
+      align-items: baseline;
+      gap: 12px;
+    }
+
+    & .dou-descriptions__label {
+      flex-shrink: 0;
+      width: var(--dou-descriptions-label-width);
+      font-size: var(--dou-font-size-md);
+    }
+
+    & .dou-descriptions__content {
+      flex: 1 1 auto;
+    }
+  }
+
+  /* bordered: a table of cells */
+  .dou-descriptions.is-bordered {
+    & .dou-descriptions__body {
+      border: 1px solid var(--dou-color-border);
+      border-radius: var(--dou-descriptions-radius);
+      background-color: var(--dou-color-bg-surface);
+      overflow: hidden;
+    }
+
+    /* each cell draws its right and bottom hairline; the last ones are cut off */
+    & .dou-descriptions__list {
+      gap: 0;
+      margin: 0 -1px -1px 0;
+    }
+
+    & .dou-descriptions__item {
+      gap: 0;
+      border-right: 1px solid var(--dou-color-border-subtle);
+      border-bottom: 1px solid var(--dou-color-border-subtle);
+    }
+
+    & .dou-descriptions__label {
+      padding: var(--dou-descriptions-cell-padding);
+      padding-bottom: 0;
+    }
+
+    & .dou-descriptions__content {
+      padding: var(--dou-descriptions-cell-padding);
+      padding-top: 2px;
+    }
+  }
+
+  .dou-descriptions--horizontal.is-bordered {
+    & .dou-descriptions__item {
+      align-items: stretch;
+    }
+
+    & .dou-descriptions__label {
+      box-sizing: border-box;
+      padding: var(--dou-descriptions-cell-padding);
+      border-right: 1px solid var(--dou-color-border-subtle);
+      background-color: color-mix(
+        in oklab,
+        var(--dou-color-text) 2.5%,
+        var(--dou-color-bg-surface)
+      );
+      color: var(--dou-color-text-secondary);
+    }
+
+    & .dou-descriptions__content {
+      padding: var(--dou-descriptions-cell-padding);
+    }
+  }
+}

@@ -8,10 +8,10 @@ import { light } from './light'
 export const dark = defineTheme(light, {
   color: {
     neutral: { DEFAULT: '#ededed', on: '#0a0a0a' },
-    primary: { DEFAULT: '#6f8fdc', on: '#0a0a0a' },
-    success: { DEFAULT: '#5fae80', on: '#0a0a0a' },
-    warning: { DEFAULT: '#d69e45', on: '#0a0a0a' },
-    danger: { DEFAULT: '#e06c62', on: '#0a0a0a' },
+    primary: { DEFAULT: '#5a72cf', on: '#ffffff' },
+    success: { DEFAULT: '#3b9670', on: '#ffffff' },
+    warning: { DEFAULT: '#c18a3c', on: '#1a1206' },
+    danger: { DEFAULT: '#cc5a54', on: '#ffffff' },
     bg: {
       canvas: '#0a0a0a',
       surface: '#111111',
@@ -29,10 +29,12 @@ export const dark = defineTheme(light, {
       strong: '#3a3a3a',
     },
     focus: '#5a73b3',
+    edge: '#000000',
   },
   shadow: {
     sm: '0 1px 2px rgb(0 0 0 / 0.5)',
     md: '0 1px 2px rgb(0 0 0 / 0.5), 0 4px 12px -2px rgb(0 0 0 / 0.5)',
     lg: '0 2px 4px rgb(0 0 0 / 0.5), 0 16px 32px -8px rgb(0 0 0 / 0.7)',
+    highlight: 'inset 0 1px 0 rgb(255 255 255 / 0.1)',
   },
 })

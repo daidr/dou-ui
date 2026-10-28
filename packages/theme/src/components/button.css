@@ -26,6 +26,7 @@
     --dou-button-border: transparent;
     --dou-button-border-hover: var(--dou-button-border);
     --dou-button-shadow: none;
+    --dou-button-shadow-active: var(--dou-button-shadow);
 
     position: relative;
     display: inline-flex;
@@ -61,6 +62,7 @@
 
     &:active {
       background-color: var(--dou-button-bg-active);
+      box-shadow: var(--dou-button-shadow-active);
     }
 
     &:focus-visible {
@@ -78,12 +80,14 @@
       --dou-button-bg-hover: var(--dou-button-bg);
       --dou-button-bg-active: var(--dou-button-bg);
       --dou-button-border-hover: var(--dou-button-border);
+      --dou-button-shadow-active: var(--dou-button-shadow);
     }
 
     &:disabled,
     &.is-disabled {
       cursor: not-allowed;
       opacity: 0.45;
+      box-shadow: none;
     }
 
     &.is-loading {
@@ -117,27 +121,43 @@
   /*
    * variants
    *
-   * Hover lightens a solid button towards the canvas instead of darkening
-   * it, which works for ink-on-paper and paper-on-ink alike.
+   * Every variant except ghost has an edge. Filled variants get a border
+   * a shade deeper than their fill, an inner top highlight and a soft,
+   * tone-tinted drop shadow; together they read as a physical key rather
+   * than a flat block of color.
    */
   .dou-button--solid {
     --dou-button-bg: var(--dou-button-tone);
     --dou-button-bg-hover: color-mix(
       in oklab,
-      var(--dou-button-tone) 86%,
+      var(--dou-button-tone) 88%,
       var(--dou-color-bg-canvas)
+    );
+    --dou-button-bg-active: color-mix(in oklab, var(--dou-button-tone) 92%, var(--dou-color-edge));
+    --dou-button-fg: var(--dou-button-tone-on);
+    --dou-button-border: color-mix(in oklab, var(--dou-button-tone) 90%, var(--dou-color-edge));
+    --dou-button-shadow:
+      var(--dou-shadow-highlight),
+      0 1px 2px color-mix(in oklab, var(--dou-button-tone) 24%, transparent),
+      0 2px 6px -2px color-mix(in oklab, var(--dou-button-tone) 30%, transparent);
+    --dou-button-shadow-active: var(--dou-shadow-highlight);
+  }
+  .dou-button--soft {
+    --dou-button-bg: color-mix(in oklab, var(--dou-button-tone) 7%, var(--dou-color-bg-surface));
+    --dou-button-bg-hover: color-mix(
+      in oklab,
+      var(--dou-button-tone) 11%,
+      var(--dou-color-bg-surface)
     );
     --dou-button-bg-active: color-mix(
       in oklab,
-      var(--dou-button-tone) 76%,
-      var(--dou-color-bg-canvas)
+      var(--dou-button-tone) 15%,
+      var(--dou-color-bg-surface)
     );
-    --dou-button-fg: var(--dou-button-tone-on);
-  }
-  .dou-button--soft {
-    --dou-button-bg: color-mix(in oklab, var(--dou-button-tone) 7%, transparent);
-    --dou-button-bg-hover: color-mix(in oklab, var(--dou-button-tone) 11%, transparent);
-    --dou-button-bg-active: color-mix(in oklab, var(--dou-button-tone) 15%, transparent);
+    --dou-button-border: color-mix(in oklab, var(--dou-button-tone) 14%, transparent);
+    --dou-button-border-hover: color-mix(in oklab, var(--dou-button-tone) 22%, transparent);
+    --dou-button-shadow: var(--dou-shadow-sm);
+    --dou-button-shadow-active: none;
   }
   .dou-button--outline {
     --dou-button-bg: var(--dou-color-bg-surface);
@@ -151,13 +171,14 @@
       var(--dou-button-tone) 8%,
       var(--dou-color-bg-surface)
     );
-    --dou-button-border: color-mix(in oklab, var(--dou-button-tone) 14%, var(--dou-color-border));
+    --dou-button-border: color-mix(in oklab, var(--dou-button-tone) 16%, var(--dou-color-border));
     --dou-button-border-hover: color-mix(
       in oklab,
-      var(--dou-button-tone) 24%,
+      var(--dou-button-tone) 30%,
       var(--dou-color-border)
     );
     --dou-button-shadow: var(--dou-shadow-sm);
+    --dou-button-shadow-active: none;
   }
   .dou-button--ghost {
     --dou-button-bg-hover: color-mix(in oklab, var(--dou-button-tone) 6%, transparent);

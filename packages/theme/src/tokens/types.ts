@@ -50,6 +50,11 @@ export interface ThemeTokens {
     }
     /** Focus ring color. */
     focus: string
+    /**
+     * Mixed into a tone to draw the edge of filled controls, so a solid
+     * button reads as a pressed-in shape rather than a flat block.
+     */
+    edge: string
   }
 
   font: {
@@ -90,6 +95,8 @@ export interface ThemeTokens {
     md: string
     /** Dialogs and other overlays. */
     lg: string
+    /** Inner top light on filled controls, a hint of bevel. */
+    highlight: string
   }
 
   motion: {

@@ -11,10 +11,10 @@ import type { ThemeTokens } from './types'
 export const light: ThemeTokens = {
   color: {
     neutral: { DEFAULT: '#171717', on: '#ffffff' },
-    primary: { DEFAULT: '#3b63c4', on: '#ffffff' },
-    success: { DEFAULT: '#3d8a5f', on: '#ffffff' },
-    warning: { DEFAULT: '#b7791f', on: '#ffffff' },
-    danger: { DEFAULT: '#c4463d', on: '#ffffff' },
+    primary: { DEFAULT: '#3f56b5', on: '#ffffff' },
+    success: { DEFAULT: '#2e7d5b', on: '#ffffff' },
+    warning: { DEFAULT: '#9a6a1f', on: '#ffffff' },
+    danger: { DEFAULT: '#b2423e', on: '#ffffff' },
     bg: {
       canvas: '#fafafa',
       surface: '#ffffff',
@@ -31,7 +31,8 @@ export const light: ThemeTokens = {
       DEFAULT: '#e6e6e6',
       strong: '#d1d1d1',
     },
-    focus: '#7d97d6',
+    focus: '#8ea2dc',
+    edge: '#000000',
   },
   font: {
     family:
@@ -52,9 +53,10 @@ export const light: ThemeTokens = {
     gap: { sm: '4px', md: '6px', lg: '8px' },
   },
   shadow: {
-    sm: '0 1px 2px rgb(0 0 0 / 0.04)',
+    sm: '0 1px 1px rgb(0 0 0 / 0.03), 0 1px 2px rgb(0 0 0 / 0.05)',
     md: '0 1px 2px rgb(0 0 0 / 0.04), 0 4px 12px -2px rgb(0 0 0 / 0.06)',
     lg: '0 2px 4px rgb(0 0 0 / 0.04), 0 16px 32px -8px rgb(0 0 0 / 0.1)',
+    highlight: 'inset 0 1px 0 rgb(255 255 255 / 0.14)',
   },
   motion: {
     duration: { fast: '150ms', normal: '220ms' },

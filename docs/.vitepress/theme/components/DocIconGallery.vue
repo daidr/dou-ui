@@ -68,6 +68,11 @@ function svgSource() {
     svg.removeAttribute(name)
   }
   svg.setAttribute('stroke-width', '1.5')
+  for (const shape of svg.querySelectorAll('*')) {
+    shape.removeAttribute('vector-effect')
+    // dots carry their own, heavier width
+    if (shape.hasAttribute('stroke-width')) shape.setAttribute('stroke-width', '2.25')
+  }
   return svg.outerHTML
     .replace(/<!--.*?-->/g, '')
     .replace(/></g, '>\n  <')
@@ -91,7 +96,7 @@ function svgSource() {
       <div class="icon-gallery__options">
         <DouSegmentedControl v-model="size" :options="sizes" size="sm" aria-label="预览尺寸" />
         <label class="icon-gallery__stroke">
-          <span>线宽 {{ strokeWidth.toFixed(2) }}</span>
+          <span>线宽 {{ strokeWidth.toFixed(2) }}px</span>
           <DouSlider v-model="strokeWidth" :min="1" :max="2" :step="0.25" size="sm" />
         </label>
       </div>

@@ -35,7 +35,7 @@ import { SearchIcon, TrashIcon } from 'dou-icons'
   <DouText><SearchIcon /> 默认 1em，跟随字号</DouText>
   <SearchIcon :size="20" />
   <SearchIcon :size="24" />
-  <SearchIcon :size="32" :stroke-width="1" />
+  <SearchIcon :size="32" :stroke-width="1.25" />
   <DouText tone="success"><CheckCircleIcon :size="20" /></DouText>
   <DouText tone="danger"><TrashIcon :size="20" /></DouText>
 </div>
@@ -43,11 +43,11 @@ import { SearchIcon, TrashIcon } from 'dou-icons'
 ```vue
 <SearchIcon />
 <SearchIcon :size="24" />
-<SearchIcon :size="32" :stroke-width="1" />
+<SearchIcon :size="32" :stroke-width="1.25" />
 ```
 
 - `size` 默认 `1em`，图标与周围文字一样大；数字按像素处理，也可以传任意 CSS 长度。
-- `stroke-width` 以 16 网格为单位，默认 `1.5`。图标放大后线条随之按比例变粗，大尺寸展示时可以适当调细。
+- `stroke-width` 以**屏幕像素**为单位，默认 `1.5`。线宽不随图标尺寸缩放：16px 和 48px 的图标线一样细，这是 dou-icons 保持轻盈和一致的关键。
 - 颜色总是 `currentColor`，用 `color` 或外层文字颜色控制。
 
 ## 搭配 DouUI
@@ -117,7 +117,7 @@ categories.status // '状态'
 
 ## SVG 文件
 
-不使用 Vue 时，可以直接取用 SVG 源文件：
+不使用 Vue 时，可以直接取用 SVG 源文件。作为图片使用时线宽会随尺寸缩放（24px 时为 1.5px）：
 
 ```ts
 import searchUrl from 'dou-icons/svg/search.svg'
@@ -125,12 +125,15 @@ import searchUrl from 'dou-icons/svg/search.svg'
 
 ## 自定义图标
 
-`createIcon` 把同一网格上的图形变成与内置图标行为一致的组件，适合补充项目里独有的图标：
+`createIcon` 把 24 网格上的图形变成与内置图标行为一致的组件（恒定线宽、无障碍语义），适合补充项目里独有的图标。`['dot', { cx, cy }]` 画一个比线略重的点：
 
 ```ts
 import { createIcon } from 'dou-icons'
 
-export const DotIcon = createIcon('dot', [['circle', { cx: 8, cy: 8, r: 2.5 }]])
+export const TargetIcon = createIcon('target', [
+  ['circle', { cx: 12, cy: 12, r: 9 }],
+  ['dot', { cx: 12, cy: 12 }],
+])
 ```
 
 ## API
@@ -140,7 +143,7 @@ export const DotIcon = createIcon('dot', [['circle', { cx: 8, cy: 8, r: 2.5 }]])
 | 名称           | 说明                                   | 类型               | 默认值 |
 | -------------- | -------------------------------------- | ------------------ | ------ |
 | `size`         | 宽高，数字按像素处理                   | `number \| string` | `1em`  |
-| `stroke-width` | 线宽，以 16 网格为单位                 | `number \| string` | `1.5`  |
+| `stroke-width` | 线宽，单位为屏幕像素，不随尺寸缩放     | `number \| string` | `1.5`  |
 | `label`        | 可读名称；不提供时图标对读屏软件不可见 | `string`           | —      |
 
 `class`、`style` 与其他属性都会落到 `<svg>` 上。

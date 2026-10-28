@@ -27,7 +27,7 @@ describe('dou-icons', () => {
     const Icon = components[component] as typeof SearchIcon
     const svg = mount(Icon).find('svg')
     expect(svg.attributes()).toMatchObject({
-      viewBox: '0 0 16 16',
+      viewBox: '0 0 24 24',
       fill: 'none',
       stroke: 'currentColor',
       'stroke-linecap': 'round',
@@ -64,8 +64,22 @@ describe('dou-icons', () => {
     expect(wrapper.attributes('data-x')).toBe('1')
   })
 
+  it('keeps the line width in screen pixels at every size', () => {
+    const wrapper = mount(SearchIcon, { props: { size: 48 } })
+    for (const shape of wrapper.findAll('circle, path')) {
+      expect(shape.attributes('vector-effect')).toBe('non-scaling-stroke')
+    }
+  })
+
+  it('draws dots a little heavier than lines', () => {
+    const Dot = createIcon('my-dot', [['dot', { cx: 12, cy: 8 }]])
+    const path = mount(Dot, { props: { strokeWidth: 2 } }).find('path')
+    expect(path.attributes('d')).toBe('M12 8h.01')
+    expect(path.attributes('stroke-width')).toBe('3')
+  })
+
   it('makes custom icons with createIcon', () => {
-    const Dot = createIcon('my-dot', [['circle', { cx: 8, cy: 8, r: 2 }]])
+    const Dot = createIcon('my-dot', [['circle', { cx: 12, cy: 12, r: 2 }]])
     expect(Dot.name).toBe('MyDotIcon')
     expect(mount(Dot).find('circle').attributes('r')).toBe('2')
   })

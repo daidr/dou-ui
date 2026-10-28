@@ -27,7 +27,7 @@ const shapes: Record<string, string[]> = {
 
 /** The attributes every source file must carry on its root, so it previews as drawn. */
 const rootAttrs = {
-  viewBox: '0 0 16 16',
+  viewBox: '0 0 24 24',
   fill: 'none',
   stroke: 'currentColor',
   'stroke-width': '1.5',
@@ -66,8 +66,17 @@ function parseSvg(file: string, svg: string): Node[] {
       fail(file, `<${tag}> is not allowed; use ${Object.keys(shapes).join(', ')}`)
       return ''
     }
+    const shape = parseAttrs(body)
+    // A dot is a zero-length line: `<path class="dot" d="M12 8h.01" />`.
+    if (shape.class === 'dot') {
+      const at = tag === 'path' && shape.d?.match(/^M(-?[\d.]+)[ ,](-?[\d.]+)h\.01$/)
+      if (!at || Object.keys(shape).length !== 2)
+        fail(file, 'a dot is <path class="dot" d="Mx yh.01" />')
+      else nodes.push(['dot', { cx: Number(at[1]), cy: Number(at[2]) }])
+      return ''
+    }
     const node: Node = [tag, {}]
-    for (const [key, value] of Object.entries(parseAttrs(body))) {
+    for (const [key, value] of Object.entries(shape)) {
       if (!allowed.includes(key))
         fail(file, `<${tag}> may not set ${key}; style comes from the root`)
       else node[1][key] = /^-?\d*\.?\d+$/.test(value) ? Number(value) : value

@@ -43,7 +43,7 @@ export default defineConfig({
           items: [
             { text: '图标库', link: '/icons/' },
             { text: '安装与使用', link: '/icons/usage' },
-            { text: '绘制规范', link: '/icons/design' },
+            { text: '设计哲学与绘制规范', link: '/icons/design' },
           ],
         },
       ],

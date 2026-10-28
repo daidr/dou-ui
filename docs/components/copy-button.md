@@ -72,7 +72,7 @@
   border-radius: var(--dou-radius-container);
   background-color: color-mix(in oklab, var(--dou-color-text) 2.5%, var(--dou-color-bg-surface));
 }
-.vp-doc .copy-demo code {
+.copy-demo code {
   padding: 0;
   background: none;
   font-size: 14px;

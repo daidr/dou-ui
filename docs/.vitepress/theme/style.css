@@ -1,0 +1,451 @@
+/*
+ * The docs site is built from DouUI itself: the chrome is DouUI components,
+ * the page content is `.dou-prose`, and everything here only lays them out.
+ * All colours come from DouUI tokens, so the dark switch is one attribute.
+ */
+
+/* page */
+
+html {
+  scroll-padding-top: 88px;
+}
+
+body {
+  margin: 0;
+}
+
+.doc-layout {
+  --doc-header-height: 64px;
+  --doc-sidebar-width: 264px;
+  --doc-outline-width: 200px;
+
+  min-height: 100vh;
+}
+
+.doc-skip {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 100;
+  padding: 6px 12px;
+  border-radius: var(--dou-radius-control);
+  background-color: var(--dou-color-bg-surface);
+  box-shadow: var(--dou-shadow-md);
+  transform: translateY(-200%);
+}
+
+.doc-skip:focus-visible {
+  transform: none;
+}
+
+/* header */
+
+.doc-header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  height: var(--doc-header-height);
+  border-bottom: 1px solid var(--dou-color-border-subtle);
+  background-color: color-mix(in oklab, var(--dou-color-bg-canvas) 86%, transparent);
+  backdrop-filter: saturate(1.6) blur(12px);
+}
+
+.doc-header__inner {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  height: 100%;
+  max-width: 1440px;
+  padding: 0 32px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.doc-header__logo {
+  color: var(--dou-color-text);
+  font-size: 18px;
+  font-weight: var(--dou-font-weight-bold);
+  letter-spacing: -0.01em;
+  text-decoration: none;
+}
+
+.doc-header__nav {
+  flex: 1;
+  border-bottom: 0;
+}
+
+.doc-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.doc-header__search {
+  min-width: 168px;
+  margin-right: 8px;
+  color: var(--dou-color-text-tertiary);
+}
+
+.doc-header__search .dou-button__label {
+  flex: 1;
+  text-align: left;
+}
+
+.doc-header__keys {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.doc-header__menu {
+  display: none;
+  margin-left: -8px;
+}
+
+/* Square, icon-only buttons and links in the header. */
+.doc-icon-button.dou-button {
+  width: 32px;
+  padding-inline: 0;
+}
+
+.doc-icon-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--dou-radius-control);
+  color: var(--dou-color-text-secondary);
+  transition: color var(--dou-motion-duration-fast) var(--dou-motion-easing);
+}
+
+.doc-icon-link:hover {
+  color: var(--dou-color-text);
+}
+
+.doc-icon-link:focus-visible {
+  outline: 2px solid var(--dou-color-focus);
+  outline-offset: 2px;
+}
+
+/* body: sidebar, page, outline */
+
+.doc-body {
+  display: grid;
+  grid-template-columns: var(--doc-sidebar-width) minmax(0, 1fr) var(--doc-outline-width);
+  gap: 48px;
+  max-width: 1440px;
+  padding: 0 32px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.doc-body__sidebar {
+  position: sticky;
+  top: var(--doc-header-height);
+  height: calc(100vh - var(--doc-header-height));
+  padding: 24px 0 48px;
+  margin-left: -12px;
+  overflow-y: auto;
+  box-sizing: border-box;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.doc-body__main {
+  min-width: 0;
+  max-width: 768px;
+  padding: 40px 0 96px;
+  outline: none;
+}
+
+.doc-body__outline {
+  position: sticky;
+  top: var(--doc-header-height);
+  align-self: start;
+  max-height: calc(100vh - var(--doc-header-height));
+  padding: 40px 0;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+.doc-outline__title {
+  margin: 0 0 12px;
+  color: var(--dou-color-text);
+  font-size: var(--dou-font-size-sm);
+  font-weight: var(--dou-font-weight-medium);
+}
+
+/* previous / next */
+
+.doc-pager {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 64px;
+}
+
+.doc-pager__link {
+  text-decoration: none;
+}
+
+.doc-pager__link--next {
+  text-align: right;
+}
+
+.doc-pager__hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--dou-color-text-tertiary);
+  font-size: var(--dou-font-size-sm);
+}
+
+.doc-pager__link--next .doc-pager__hint {
+  justify-content: flex-end;
+}
+
+.doc-pager__title {
+  display: block;
+  margin-top: 4px;
+  color: var(--dou-color-text);
+  font-weight: var(--dou-font-weight-medium);
+}
+
+/* home and 404 */
+
+.doc-home {
+  max-width: 1152px;
+  padding: 96px 32px 128px;
+  margin: 0 auto;
+}
+
+.doc-home__hero {
+  max-width: 720px;
+  margin-bottom: 80px;
+}
+
+.doc-home__name {
+  margin: 0;
+  color: var(--dou-color-text);
+  font-size: 56px;
+  font-weight: var(--dou-font-weight-bold);
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+.doc-home__text {
+  margin: 16px 0 0;
+  color: var(--dou-color-text);
+  font-size: 32px;
+  font-weight: var(--dou-font-weight-medium);
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+
+.doc-home__tagline {
+  margin: 20px 0 36px;
+  color: var(--dou-color-text-secondary);
+  font-size: 18px;
+  line-height: 1.7;
+}
+
+.doc-not-found {
+  display: grid;
+  place-items: center;
+  min-height: calc(100vh - 64px);
+  padding: 32px;
+  box-sizing: border-box;
+}
+
+/* content: headings, code blocks, tips */
+
+.doc-content .header-anchor {
+  margin-left: 8px;
+  color: var(--dou-color-text-tertiary);
+  font-weight: var(--dou-font-weight-regular);
+  text-decoration: none;
+  opacity: 0;
+  transition: opacity var(--dou-motion-duration-fast) var(--dou-motion-easing);
+}
+
+.doc-content .header-anchor::before {
+  content: '#';
+}
+
+.doc-content :is(h1, h2, h3, h4):hover .header-anchor,
+.doc-content .header-anchor:focus-visible {
+  opacity: 1;
+}
+
+.doc-code {
+  position: relative;
+  margin: 20px 0;
+}
+
+.doc-code pre {
+  margin: 0;
+}
+
+/* The site's own copy button gives way to DouUI's; the language label
+   would sit on top of long lines. */
+.doc-code button.copy,
+.doc-code .lang {
+  display: none;
+}
+
+.doc-code__copy {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  opacity: 0;
+  transition: opacity var(--dou-motion-duration-fast) var(--dou-motion-easing);
+}
+
+.doc-code:hover .doc-code__copy,
+.doc-code__copy:focus-visible,
+.doc-code__copy.is-copied {
+  opacity: 1;
+}
+
+.doc-code .shiki span {
+  color: var(--shiki-light);
+}
+
+[data-dou-theme='dark'] .doc-code .shiki span {
+  color: var(--shiki-dark);
+}
+
+.doc-content .custom-block {
+  padding: 12px 16px;
+  margin: 20px 0;
+  border: 1px solid color-mix(in oklab, var(--doc-tone) 24%, var(--dou-color-border-subtle));
+  border-radius: var(--dou-radius-container);
+  background-color: color-mix(in oklab, var(--doc-tone) 6%, var(--dou-color-bg-surface));
+  font-size: 15px;
+}
+
+.doc-content .custom-block.tip {
+  --doc-tone: var(--dou-color-primary);
+}
+
+.doc-content .custom-block.warning {
+  --doc-tone: var(--dou-color-warning);
+}
+
+.doc-content .custom-block.danger {
+  --doc-tone: var(--dou-color-danger);
+}
+
+.doc-content .custom-block p {
+  margin: 4px 0 0;
+}
+
+.doc-content .custom-block p.custom-block-title {
+  margin: 0;
+  color: var(--dou-color-text);
+  font-weight: var(--dou-font-weight-medium);
+}
+
+.doc-content .custom-block > :last-child {
+  margin-bottom: 0;
+}
+
+/* live demos */
+
+.demo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 24px;
+  margin: 16px 0;
+  border: 1px solid var(--dou-color-border-subtle);
+  border-radius: var(--dou-radius-container);
+  color: var(--dou-color-text);
+  font-size: var(--dou-font-size-md);
+  line-height: var(--dou-font-line-height);
+}
+
+.demo--column {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.dot--success {
+  background: var(--dou-color-success);
+}
+
+/* narrower screens */
+
+@media (max-width: 1279px) {
+  .doc-body {
+    grid-template-columns: var(--doc-sidebar-width) minmax(0, 1fr);
+  }
+
+  .doc-body__outline {
+    display: none;
+  }
+}
+
+@media (max-width: 959px) {
+  .doc-header__inner,
+  .doc-body {
+    padding: 0 16px;
+  }
+
+  .doc-header__inner {
+    gap: 12px;
+  }
+
+  .doc-header__menu {
+    display: inline-flex;
+  }
+
+  .doc-header__nav {
+    display: none;
+  }
+
+  .doc-header__actions {
+    margin-left: auto;
+  }
+
+  .doc-header__search {
+    min-width: 0;
+  }
+
+  .doc-header__keys {
+    display: none;
+  }
+
+  .doc-body {
+    display: block;
+  }
+
+  .doc-body__sidebar {
+    display: none;
+  }
+
+  .doc-body__main {
+    padding-top: 32px;
+  }
+
+  .doc-home {
+    padding: 64px 16px 96px;
+  }
+
+  .doc-home__name {
+    font-size: 40px;
+  }
+
+  .doc-home__text {
+    font-size: 24px;
+  }
+}

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, inject } from 'vue'
 import { useNamespace } from '../../utils/namespace'
+import { useFormDisabled, useFormItem, useFormSize } from '../form/use-form-item'
 import { checkboxGroupKey } from './checkbox'
 import type { CheckboxProps, CheckboxSlots } from './checkbox'
 
@@ -15,19 +16,23 @@ const slots = defineSlots<CheckboxSlots>()
 
 const ns = useNamespace('checkbox')
 const group = inject(checkboxGroupKey, undefined)
+// Inside a group, the group speaks to the form item for every box.
+const formItem = group ? undefined : useFormItem().formItem
+const ownSize = useFormSize(() => props.size)
 
 const inGroup = computed(() => !!group && props.value !== undefined)
 const checked = computed(() =>
   inGroup.value ? group!.model.value.includes(props.value!) : model.value,
 )
-const disabled = computed(() => props.disabled || !!group?.disabled.value)
-const size = computed(() => props.size ?? group?.size.value ?? 'md')
+const disabled = useFormDisabled(() => props.disabled || group?.disabled.value)
+const size = computed(() => props.size ?? group?.size.value ?? ownSize.value)
 const name = computed(() => props.name ?? group?.name.value)
 
 function onChange(event: Event) {
   const next = (event.target as HTMLInputElement).checked
   if (inGroup.value) group!.toggle(props.value!, next)
   else model.value = next
+  formItem?.trigger('change')
 }
 
 const classes = computed(() => [
@@ -43,6 +48,7 @@ const classes = computed(() => [
   <label :class="classes">
     <span :class="ns.e('control')">
       <input
+        :id="formItem?.inputId"
         type="checkbox"
         :class="ns.e('native')"
         :checked="checked"
@@ -50,6 +56,9 @@ const classes = computed(() => [
         :disabled="disabled"
         :name="name"
         :value="value"
+        :aria-describedby="formItem?.describedBy.value"
+        :aria-invalid="formItem?.invalid.value || undefined"
+        :aria-required="formItem?.required.value || undefined"
         @change="onChange"
       />
       <span :class="ns.e('indicator')" aria-hidden="true">

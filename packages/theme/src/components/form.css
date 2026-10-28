@@ -1,0 +1,202 @@
+/*
+ * Form
+ *
+ * A form is quiet structure around the controls: medium-weight labels,
+ * supporting text in the secondary ink, and errors in the danger tone.
+ * The horizontal layout is a grid whose items share its columns, so
+ * labels line up at the width of the longest one without guessing a
+ * fixed width.
+ */
+@layer dou.components {
+  .dou-form {
+    /* space between items */
+    --dou-form-gap: var(--dou-space-lg);
+    /* space between a label and its field, beside or above it */
+    --dou-form-label-gap: 16px;
+    --dou-form-label-width: max-content;
+
+    display: flex;
+    flex-direction: column;
+    gap: var(--dou-form-gap);
+    min-width: 0;
+    margin: 0;
+  }
+
+  /* The form's gap already spaces a divider between items. */
+  .dou-form > .dou-divider {
+    margin-block: 0;
+  }
+
+  .dou-form--horizontal {
+    display: grid;
+    grid-template-columns: var(--dou-form-label-width) minmax(0, 1fr);
+    align-items: start;
+    column-gap: var(--dou-form-label-gap);
+    row-gap: var(--dou-form-gap);
+  }
+
+  .dou-form--inline {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: var(--dou-space-md) var(--dou-space-lg);
+  }
+
+  .dou-form-item {
+    --dou-form-item-control-height: var(--dou-control-height-md);
+    --dou-form-item-label-size: var(--dou-font-size-sm);
+    --dou-form-item-message-size: var(--dou-font-size-sm);
+    --dou-form-item-message-gap: 8px;
+    --dou-form-item-label-color: var(--dou-color-text);
+    --dou-form-item-help-color: var(--dou-color-text-secondary);
+    --dou-form-item-error-color: var(--dou-color-danger);
+
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+
+    &.is-error {
+      --dou-checkbox-border: color-mix(
+        in oklab,
+        var(--dou-color-danger) 60%,
+        var(--dou-color-border-strong)
+      );
+      --dou-radio-border: var(--dou-checkbox-border);
+    }
+  }
+
+  .dou-form-item--sm {
+    --dou-form-item-control-height: var(--dou-control-height-sm);
+  }
+  .dou-form-item--lg {
+    --dou-form-item-control-height: var(--dou-control-height-lg);
+    --dou-form-item-label-size: var(--dou-font-size-md);
+  }
+
+  .dou-form-item__label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--dou-form-item-label-color);
+    font-size: var(--dou-form-item-label-size);
+    font-weight: var(--dou-font-weight-medium);
+    line-height: 1.4;
+  }
+
+  /*
+   * Center on the cap height instead of the font's ascent and descent,
+   * which vary by platform and by the fallback font that draws CJK text.
+   */
+  .dou-form-item__label-text,
+  .dou-form-item__asterisk,
+  .dou-form-item__optional,
+  .dou-form-item__help,
+  .dou-form-item__error {
+    text-box: trim-both cap alphabetic;
+  }
+
+  .dou-form-item__label-text {
+    min-width: 0;
+  }
+
+  .dou-form-item__asterisk {
+    color: var(--dou-form-item-error-color);
+  }
+
+  .dou-form-item__optional {
+    color: var(--dou-color-text-tertiary);
+    font-weight: var(--dou-font-weight-regular);
+  }
+
+  .dou-form-item__body {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .dou-form-item__control {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--dou-space-sm);
+    min-width: 0;
+  }
+
+  .dou-form-item__help,
+  .dou-form-item__error {
+    margin-top: var(--dou-form-item-message-gap);
+    font-size: var(--dou-form-item-message-size);
+    line-height: 1.4;
+  }
+
+  .dou-form-item__help {
+    color: var(--dou-form-item-help-color);
+  }
+
+  .dou-form-item__error {
+    color: var(--dou-form-item-error-color);
+    animation: dou-form-item-error-in var(--dou-motion-duration-normal) var(--dou-motion-easing);
+  }
+
+  @keyframes dou-form-item-error-in {
+    from {
+      opacity: 0;
+      transform: translateY(-2px);
+    }
+  }
+
+  /* Beside the field, the label and the first row of the field share a line. */
+  .dou-form--horizontal,
+  .dou-form--inline {
+    & .dou-form-item__label {
+      min-height: var(--dou-form-item-control-height);
+      white-space: nowrap;
+    }
+
+    & .dou-form-item__control {
+      min-height: var(--dou-form-item-control-height);
+    }
+  }
+
+  .dou-form--horizontal > .dou-divider {
+    grid-column: 1 / -1;
+  }
+
+  .dou-form--horizontal .dou-form-item {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: subgrid;
+    align-items: start;
+
+    & .dou-form-item__body {
+      grid-column: 2;
+    }
+
+    &.is-fixed-label {
+      grid-template-columns: var(--dou-form-label-width) minmax(0, 1fr);
+      column-gap: var(--dou-form-label-gap);
+
+      & .dou-form-item__label {
+        white-space: normal;
+      }
+    }
+  }
+
+  .dou-form--label-end .dou-form-item__label {
+    justify-content: flex-end;
+    text-align: end;
+  }
+
+  .dou-form--inline .dou-form-item {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: var(--dou-space-md);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dou-form-item__error {
+      animation: none;
+    }
+  }
+}

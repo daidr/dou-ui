@@ -53,7 +53,7 @@ export interface CheckboxGroupSlots {
 export interface CheckboxGroupContext {
   model: Readonly<Ref<CheckboxValue[]>>
   disabled: Readonly<Ref<boolean>>
-  size: Readonly<Ref<CheckboxSize | undefined>>
+  size: Readonly<Ref<CheckboxSize>>
   name: Readonly<Ref<string | undefined>>
   toggle: (value: CheckboxValue, checked: boolean) => void
 }

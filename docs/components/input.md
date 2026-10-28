@@ -54,7 +54,7 @@ const price = ref('')
 
 ## 可清空
 
-`clearable` 在有内容且可编辑时显示清空按钮；清空后焦点回到输入框，并触发 `clear`。
+`clearable` 在有内容且可编辑时显示清空按钮；清空后焦点回到输入框，并触发 `clear`。清空按钮的读屏标签来自 [全局配置](./config-provider) 的语言包。
 
 ## 状态
 
@@ -70,21 +70,21 @@ const price = ref('')
 <DouInput v-model="name" disabled />
 ```
 
-`invalid` 会设置 `aria-invalid`，描边与聚焦光晕切换为危险语气。
+`invalid` 会设置 `aria-invalid`，描边与聚焦光晕切换为危险语气。放在 [表单项](./form) 中时，校验失败会自动进入无效状态，并关联标签与错误信息。
 
 ## API
 
 ### Props
 
-| 名称         | 说明                   | 类型                                                                        | 默认值   |
-| ------------ | ---------------------- | --------------------------------------------------------------------------- | -------- |
-| `modelValue` | 绑定值，配合 `v-model` | `string`                                                                    | `''`     |
-| `size`       | 尺寸                   | `'sm' \| 'md' \| 'lg'`                                                      | `'md'`   |
-| `type`       | 原生 `type`            | `'text' \| 'password' \| 'email' \| 'url' \| 'tel' \| 'search' \| 'number'` | `'text'` |
-| `disabled`   | 禁用                   | `boolean`                                                                   | `false`  |
-| `readonly`   | 只读                   | `boolean`                                                                   | `false`  |
-| `invalid`    | 标记为无效             | `boolean`                                                                   | `false`  |
-| `clearable`  | 有内容时显示清空按钮   | `boolean`                                                                   | `false`  |
+| 名称         | 说明                       | 类型                                                                        | 默认值   |
+| ------------ | -------------------------- | --------------------------------------------------------------------------- | -------- |
+| `modelValue` | 绑定值，配合 `v-model`     | `string`                                                                    | `''`     |
+| `size`       | 尺寸，默认取表单或全局配置 | `'sm' \| 'md' \| 'lg'`                                                      | `'md'`   |
+| `type`       | 原生 `type`                | `'text' \| 'password' \| 'email' \| 'url' \| 'tel' \| 'search' \| 'number'` | `'text'` |
+| `disabled`   | 禁用                       | `boolean`                                                                   | `false`  |
+| `readonly`   | 只读                       | `boolean`                                                                   | `false`  |
+| `invalid`    | 标记为无效                 | `boolean`                                                                   | `false`  |
+| `clearable`  | 有内容时显示清空按钮       | `boolean`                                                                   | `false`  |
 
 ### Events
 

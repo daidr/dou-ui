@@ -47,7 +47,7 @@ export interface RadioGroupSlots {
 export interface RadioGroupContext {
   model: Readonly<Ref<RadioValue | undefined>>
   disabled: Readonly<Ref<boolean>>
-  size: Readonly<Ref<RadioSize | undefined>>
+  size: Readonly<Ref<RadioSize>>
   name: Readonly<Ref<string>>
   select: (value: RadioValue) => void
 }

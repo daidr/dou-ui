@@ -1,6 +1,14 @@
 <script setup lang="ts">
-import { ref, watchEffect } from 'vue'
-import type { ButtonSize, ButtonTone, ButtonVariant, TagVariant } from 'dou-ui'
+import { onMounted, reactive, ref, useTemplateRef, watchEffect } from 'vue'
+import { en } from 'dou-ui'
+import type {
+  ButtonSize,
+  ButtonTone,
+  ButtonVariant,
+  FormInstance,
+  FormRules,
+  TagVariant,
+} from 'dou-ui'
 
 const variants: ButtonVariant[] = ['solid', 'soft', 'outline', 'ghost']
 const tones: ButtonTone[] = ['neutral', 'primary', 'success', 'warning', 'danger']
@@ -13,13 +21,39 @@ const theme = ref<'light' | 'dark'>(
 )
 const loading = ref(false)
 
-const projectName = ref('dou-ui')
-const domain = ref('')
-const framework = ref('vue')
-const previews = ref(true)
-const protect = ref(false)
-const notify = ref<string[]>(['deploy'])
+const settingsForm = useTemplateRef<FormInstance>('settingsForm')
+const settings = reactive({
+  name: 'dou-ui',
+  domain: 'dou ui.dev',
+  framework: 'vue',
+  previews: true,
+  protect: false,
+  notify: ['deploy'],
+})
+const settingsRules: FormRules = {
+  name: [{ required: true }, { pattern: /^[\da-z-]+$/, message: '只能包含小写字母、数字和连字符' }],
+  domain: {
+    pattern: /^[\da-z.-]+\.[a-z]{2,}$/i,
+    message: '域名格式不正确',
+  },
+  notify: { type: 'array', min: 1 },
+}
 const keywords = ref(['vue', 'bun', 'tokens'])
+
+const account = reactive({ email: '', password: '', role: '', agree: false })
+const accountRules: FormRules = {
+  email: [{ required: true }, { type: 'email' }],
+  password: [{ required: true }, { min: 8 }],
+  role: { required: true, message: '请选择一个角色' },
+  agree: { required: true, message: '需要同意服务条款' },
+}
+const accountForm = useTemplateRef<FormInstance>('accountForm')
+const filters = reactive({ keyword: '', status: 'all' })
+
+onMounted(() => {
+  void settingsForm.value?.validate()
+  void accountForm.value?.validate(['email', 'role'])
+})
 
 watchEffect(() => {
   document.documentElement.dataset.douTheme = theme.value
@@ -74,31 +108,26 @@ function simulate() {
               </DouText>
             </div>
 
-            <label class="field">
-              <DouText size="sm" weight="medium">项目名称</DouText>
-              <DouInput v-model="projectName" clearable />
-            </label>
+            <DouForm ref="settingsForm" :model="settings" :rules="settingsRules">
+              <DouFormItem label="项目名称" prop="name" help="只能包含小写字母、数字和连字符">
+                <DouInput v-model="settings.name" clearable />
+              </DouFormItem>
 
-            <label class="field">
-              <DouText size="sm" weight="medium">自定义域名</DouText>
-              <DouInput v-model="domain" placeholder="example.com" invalid>
-                <template #prefix>https://</template>
-              </DouInput>
-              <DouText size="sm" tone="danger">域名尚未完成解析验证</DouText>
-            </label>
+              <DouFormItem label="自定义域名" prop="domain">
+                <DouInput v-model="settings.domain" placeholder="example.com">
+                  <template #prefix>https://</template>
+                </DouInput>
+              </DouFormItem>
 
-            <div class="field">
-              <DouText size="sm" weight="medium">框架</DouText>
-              <DouRadioGroup v-model="framework">
-                <DouRadio value="vue">Vue</DouRadio>
-                <DouRadio value="vite">Vite</DouRadio>
-                <DouRadio value="static">静态站点</DouRadio>
-              </DouRadioGroup>
-            </div>
+              <DouFormItem label="框架" prop="framework">
+                <DouRadioGroup v-model="settings.framework">
+                  <DouRadio value="vue">Vue</DouRadio>
+                  <DouRadio value="vite">Vite</DouRadio>
+                  <DouRadio value="static">静态站点</DouRadio>
+                </DouRadioGroup>
+              </DouFormItem>
 
-            <div class="field">
-              <DouText size="sm" weight="medium">关键词</DouText>
-              <DouSpace size="sm" wrap>
+              <DouFormItem label="关键词">
                 <DouTag
                   v-for="word in keywords"
                   :key="word"
@@ -107,20 +136,24 @@ function simulate() {
                 >
                   {{ word }}
                 </DouTag>
-              </DouSpace>
-            </div>
+              </DouFormItem>
 
-            <DouDivider align="start">部署</DouDivider>
+              <DouDivider align="start">部署</DouDivider>
 
-            <DouSpace direction="vertical" size="sm">
-              <DouSwitch v-model="previews">为每个分支生成预览</DouSwitch>
-              <DouSwitch v-model="protect">预览需要登录访问</DouSwitch>
-            </DouSpace>
+              <DouFormItem>
+                <DouSpace direction="vertical" size="sm">
+                  <DouSwitch v-model="settings.previews">为每个分支生成预览</DouSwitch>
+                  <DouSwitch v-model="settings.protect">预览需要登录访问</DouSwitch>
+                </DouSpace>
+              </DouFormItem>
 
-            <DouCheckboxGroup v-model="notify" direction="vertical">
-              <DouCheckbox value="deploy">部署成功时通知我</DouCheckbox>
-              <DouCheckbox value="fail">部署失败时通知我</DouCheckbox>
-            </DouCheckboxGroup>
+              <DouFormItem label="通知" prop="notify">
+                <DouCheckboxGroup v-model="settings.notify" direction="vertical">
+                  <DouCheckbox value="deploy">部署成功时通知我</DouCheckbox>
+                  <DouCheckbox value="fail">部署失败时通知我</DouCheckbox>
+                </DouCheckboxGroup>
+              </DouFormItem>
+            </DouForm>
           </DouSpace>
         </div>
         <footer class="card__footer">
@@ -132,11 +165,80 @@ function simulate() {
             <DouText mono variant="tertiary" size="sm">main · abc86a0</DouText>
           </DouSpace>
           <DouSpace size="sm">
-            <DouButton variant="ghost" size="sm">取消</DouButton>
-            <DouButton size="sm">保存</DouButton>
+            <DouButton variant="ghost" size="sm" @click="settingsForm?.resetFields()">
+              重置
+            </DouButton>
+            <DouButton size="sm" @click="settingsForm?.validate()">保存</DouButton>
           </DouSpace>
         </footer>
       </article>
+    </section>
+
+    <section>
+      <h2>form · horizontal</h2>
+      <article class="card card--wide">
+        <div class="card__body">
+          <DouForm
+            ref="accountForm"
+            :model="account"
+            :rules="accountRules"
+            layout="horizontal"
+            label-align="end"
+            required-mark="optional"
+          >
+            <DouFormItem label="邮箱" prop="email">
+              <DouInput v-model="account.email" placeholder="you@example.com" />
+            </DouFormItem>
+            <DouFormItem label="密码" prop="password" help="至少 8 位">
+              <DouInput v-model="account.password" type="password" />
+            </DouFormItem>
+            <DouFormItem label="显示名称" prop="nickname">
+              <DouInput placeholder="默认使用邮箱前缀" />
+            </DouFormItem>
+            <DouFormItem label="角色" prop="role">
+              <DouRadioGroup v-model="account.role">
+                <DouRadio value="dev">开发</DouRadio>
+                <DouRadio value="design">设计</DouRadio>
+                <DouRadio value="pm">产品</DouRadio>
+              </DouRadioGroup>
+            </DouFormItem>
+            <DouFormItem prop="agree">
+              <DouCheckbox v-model="account.agree">我已阅读并同意服务条款</DouCheckbox>
+            </DouFormItem>
+            <DouFormItem>
+              <DouButton native-type="submit">创建账号</DouButton>
+              <DouButton native-type="reset" variant="ghost">重置</DouButton>
+            </DouFormItem>
+          </DouForm>
+        </div>
+      </article>
+    </section>
+
+    <section>
+      <h2>form · inline + config provider</h2>
+      <DouConfigProvider size="sm" :locale="en">
+        <DouForm :model="filters" layout="inline">
+          <DouFormItem label="Keyword">
+            <DouInput
+              v-model="filters.keyword"
+              clearable
+              placeholder="Search"
+              style="width: 200px"
+            />
+          </DouFormItem>
+          <DouFormItem label="Status">
+            <DouRadioGroup v-model="filters.status">
+              <DouRadio value="all">All</DouRadio>
+              <DouRadio value="ready">Ready</DouRadio>
+              <DouRadio value="failed">Failed</DouRadio>
+            </DouRadioGroup>
+          </DouFormItem>
+          <DouFormItem>
+            <DouButton variant="outline">Filter</DouButton>
+            <DouTag closable>branch: main</DouTag>
+          </DouFormItem>
+        </DouForm>
+      </DouConfigProvider>
     </section>
 
     <section>
@@ -270,11 +372,6 @@ header.row {
 }
 .card__body {
   padding: 20px 24px;
-}
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
 }
 .dot {
   width: 6px;

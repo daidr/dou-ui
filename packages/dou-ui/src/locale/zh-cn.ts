@@ -8,6 +8,14 @@ export const zhCN: Locale = {
   tag: {
     remove: '移除',
   },
+  inputNumber: {
+    increase: '增加',
+    decrease: '减少',
+  },
+  slider: {
+    start: '起始值',
+    end: '结束值',
+  },
   form: {
     optional: '可选',
     required: '此项为必填项',

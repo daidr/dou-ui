@@ -50,6 +50,17 @@ const accountRules: FormRules = {
 const accountForm = useTemplateRef<FormInstance>('accountForm')
 const filters = reactive({ keyword: '', status: 'all' })
 
+const instance = reactive({
+  description: '自动扩缩容的边缘函数，部署在离用户最近的节点。',
+  replicas: 3,
+  memory: 512,
+  budget: 120.5,
+  cpu: 40,
+  hours: [9, 18] as [number, number],
+  region: 'hk',
+})
+const view = ref('list')
+
 onMounted(() => {
   void settingsForm.value?.validate()
   void accountForm.value?.validate(['email', 'role'])
@@ -239,6 +250,89 @@ function simulate() {
           </DouFormItem>
         </DouForm>
       </DouConfigProvider>
+    </section>
+
+    <section>
+      <h2>form · advanced</h2>
+      <article class="card card--wide">
+        <div class="card__body">
+          <DouForm :model="instance">
+            <DouFormItem label="区域">
+              <DouSegmentedControl
+                v-model="instance.region"
+                block
+                :options="[
+                  { value: 'hk', label: '香港' },
+                  { value: 'sg', label: '新加坡' },
+                  { value: 'fra', label: '法兰克福' },
+                  { value: 'iad', label: '弗吉尼亚', disabled: true },
+                ]"
+              />
+            </DouFormItem>
+            <DouFormItem label="描述" help="会显示在项目列表中">
+              <DouTextarea
+                v-model="instance.description"
+                :autosize="{ minRows: 2, maxRows: 5 }"
+                show-count
+                maxlength="80"
+              />
+            </DouFormItem>
+            <DouSpace size="md" block>
+              <DouFormItem label="副本数">
+                <DouInputNumber v-model="instance.replicas" :min="1" :max="10" />
+              </DouFormItem>
+              <DouFormItem label="内存">
+                <DouInputNumber v-model="instance.memory" :min="128" :max="4096" :step="128">
+                  <template #suffix>MB</template>
+                </DouInputNumber>
+              </DouFormItem>
+              <DouFormItem label="月预算">
+                <DouInputNumber v-model="instance.budget" :min="0" :precision="2" :controls="false">
+                  <template #prefix>¥</template>
+                </DouInputNumber>
+              </DouFormItem>
+            </DouSpace>
+            <DouFormItem label="CPU 上限" :help="`${instance.cpu}%`">
+              <DouSlider
+                v-model="instance.cpu"
+                :step="5"
+                :marks="{ 0: '0%', 50: '50%', 100: '100%' }"
+                :format-value="(v: number) => `${v}%`"
+              />
+            </DouFormItem>
+            <DouFormItem
+              label="维护时段"
+              :help="`${instance.hours[0]}:00 – ${instance.hours[1]}:00`"
+            >
+              <DouSlider v-model="instance.hours" range :max="24" />
+            </DouFormItem>
+          </DouForm>
+        </div>
+      </article>
+    </section>
+
+    <section>
+      <h2>segmented · sizes</h2>
+      <DouSpace direction="vertical" size="md">
+        <DouSpace v-for="size in sizes" :key="size" size="sm">
+          <DouSegmentedControl
+            v-model="view"
+            :size="size"
+            :options="[
+              { value: 'list', label: '列表' },
+              { value: 'board', label: '看板' },
+              { value: 'timeline', label: '时间线' },
+            ]"
+          />
+          <DouInputNumber :size="size" :model-value="8" />
+          <DouButton :size="size" variant="outline">应用</DouButton>
+        </DouSpace>
+        <DouSpace size="sm">
+          <DouSegmentedControl disabled model-value="日" :options="['日', '周', '月']" />
+          <DouInputNumber disabled :model-value="8" />
+          <DouSlider disabled :model-value="30" style="width: 160px" />
+        </DouSpace>
+      </DouSpace>
     </section>
 
     <section>

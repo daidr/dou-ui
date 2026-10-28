@@ -1,0 +1,141 @@
+/*
+ * Textarea
+ *
+ * The multi-line sibling of the input: the same surface, edge, shadow and
+ * focus ring. Line heights are whole pixels and the vertical padding is
+ * picked so that a single row is exactly as tall as an input of the same
+ * size.
+ */
+@layer dou.components {
+  .dou-textarea {
+    --dou-textarea-line-height: 22px;
+    --dou-textarea-padding-y: 4px;
+    --dou-textarea-padding-x: var(--dou-control-padding-x-md);
+    --dou-textarea-font-size: var(--dou-font-size-md);
+    --dou-textarea-radius: var(--dou-radius-control);
+
+    --dou-textarea-bg: var(--dou-color-bg-surface);
+    --dou-textarea-border: var(--dou-color-border);
+    --dou-textarea-border-hover: var(--dou-color-border-strong);
+    --dou-textarea-border-focus: color-mix(
+      in oklab,
+      var(--dou-color-focus) 70%,
+      var(--dou-color-text)
+    );
+    --dou-textarea-ring: color-mix(in oklab, var(--dou-color-focus) 32%, transparent);
+    --dou-textarea-shadow: var(--dou-shadow-sm);
+
+    display: inline-flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    width: 100%;
+    border: 1px solid var(--dou-textarea-border);
+    border-radius: var(--dou-textarea-radius);
+    background-color: var(--dou-textarea-bg);
+    box-shadow: var(--dou-textarea-shadow);
+    color: var(--dou-color-text);
+    font-size: var(--dou-textarea-font-size);
+    vertical-align: top;
+    cursor: text;
+    transition-property: border-color, box-shadow, background-color;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    &:hover {
+      border-color: var(--dou-textarea-border-hover);
+    }
+
+    &:focus-within {
+      border-color: var(--dou-textarea-border-focus);
+      box-shadow:
+        0 0 0 3px var(--dou-textarea-ring),
+        var(--dou-textarea-shadow);
+    }
+
+    &.is-invalid {
+      --dou-textarea-border: color-mix(
+        in oklab,
+        var(--dou-color-danger) 55%,
+        var(--dou-color-border)
+      );
+      --dou-textarea-border-hover: color-mix(
+        in oklab,
+        var(--dou-color-danger) 75%,
+        var(--dou-color-border)
+      );
+      --dou-textarea-border-focus: var(--dou-color-danger);
+      --dou-textarea-ring: color-mix(in oklab, var(--dou-color-danger) 18%, transparent);
+    }
+
+    &.is-readonly {
+      --dou-textarea-bg: color-mix(
+        in oklab,
+        var(--dou-color-bg-muted) 50%,
+        var(--dou-color-bg-surface)
+      );
+    }
+
+    &.is-disabled {
+      --dou-textarea-bg: var(--dou-color-bg-muted);
+      --dou-textarea-border-hover: var(--dou-textarea-border);
+      --dou-textarea-shadow: none;
+      color: var(--dou-color-text-disabled);
+      cursor: not-allowed;
+    }
+  }
+
+  .dou-textarea--sm {
+    --dou-textarea-line-height: 20px;
+    --dou-textarea-padding-y: 3px;
+    --dou-textarea-padding-x: var(--dou-control-padding-x-sm);
+    --dou-textarea-font-size: var(--dou-font-size-sm);
+  }
+  .dou-textarea--lg {
+    --dou-textarea-line-height: 26px;
+    --dou-textarea-padding-y: 6px;
+    --dou-textarea-padding-x: var(--dou-control-padding-x-lg);
+    --dou-textarea-font-size: var(--dou-font-size-lg);
+  }
+
+  .dou-textarea__native {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    min-height: calc(var(--dou-textarea-line-height) + 2 * var(--dou-textarea-padding-y));
+    padding: var(--dou-textarea-padding-y) var(--dou-textarea-padding-x);
+    margin: 0;
+    border: 0;
+    border-radius: inherit;
+    outline: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    line-height: var(--dou-textarea-line-height);
+
+    &::placeholder {
+      color: var(--dou-color-text-tertiary);
+      opacity: 1;
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+    }
+  }
+
+  .dou-textarea__count {
+    align-self: flex-end;
+    padding: 0 var(--dou-textarea-padding-x) var(--dou-textarea-padding-y);
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+    font-variant-numeric: tabular-nums;
+    line-height: 20px;
+    user-select: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dou-textarea {
+      transition: none;
+    }
+  }
+}

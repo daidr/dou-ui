@@ -16,6 +16,18 @@ export interface Locale {
     /** Label of the remove button. */
     remove: string
   }
+  inputNumber: {
+    /** Label of the button that steps the value up. */
+    increase: string
+    /** Label of the button that steps the value down. */
+    decrease: string
+  }
+  slider: {
+    /** Label of the lower thumb of a range. */
+    start: string
+    /** Label of the upper thumb of a range. */
+    end: string
+  }
   form: {
     /** Shown after the label of an optional field when `requiredMark` is `'optional'`. */
     optional: string

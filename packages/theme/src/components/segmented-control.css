@@ -1,0 +1,181 @@
+/*
+ * SegmentedControl
+ *
+ * A radio group drawn as one recessed track. The selected option is a
+ * raised block with a hairline edge and a resting shadow that slides to
+ * its place. The control is exactly as tall as a button of its size.
+ */
+@layer dou.components {
+  .dou-segmented-control {
+    --dou-segmented-control-height: var(--dou-control-height-md);
+    --dou-segmented-control-padding-x: var(--dou-control-padding-x-md);
+    --dou-segmented-control-font-size: var(--dou-font-size-md);
+    --dou-segmented-control-radius: var(--dou-radius-control);
+    /* the gap between the track's edge and the block */
+    --dou-segmented-control-inset: 2px;
+
+    --dou-segmented-control-bg: color-mix(
+      in oklab,
+      var(--dou-color-text) 6%,
+      var(--dou-color-bg-surface)
+    );
+    /* the block is paper on light themes and a lifted gray on dark ones */
+    --dou-segmented-control-indicator-bg: light-dark(
+      var(--dou-color-bg-surface),
+      color-mix(in oklab, var(--dou-color-text) 12%, var(--dou-color-bg-surface))
+    );
+
+    position: relative;
+    display: inline-flex;
+    align-items: stretch;
+    box-sizing: border-box;
+    max-width: 100%;
+    height: var(--dou-segmented-control-height);
+    padding: var(--dou-segmented-control-inset);
+    border: 1px solid color-mix(in oklab, var(--dou-color-text) 4%, var(--dou-color-border));
+    border-radius: var(--dou-segmented-control-radius);
+    background-color: var(--dou-segmented-control-bg);
+    box-shadow: inset 0 1px 1px color-mix(in oklab, var(--dou-color-edge) 5%, transparent);
+    font-size: var(--dou-segmented-control-font-size);
+    vertical-align: middle;
+    isolation: isolate;
+
+    &.is-block {
+      display: flex;
+      width: 100%;
+
+      & .dou-segmented-control__item {
+        flex: 1 1 0;
+        min-width: 0;
+      }
+    }
+
+    &.is-disabled {
+      opacity: 0.45;
+    }
+  }
+
+  .dou-segmented-control--sm {
+    --dou-segmented-control-height: var(--dou-control-height-sm);
+    --dou-segmented-control-padding-x: var(--dou-control-padding-x-sm);
+    --dou-segmented-control-font-size: var(--dou-font-size-sm);
+  }
+  .dou-segmented-control--lg {
+    --dou-segmented-control-height: var(--dou-control-height-lg);
+    --dou-segmented-control-padding-x: var(--dou-control-padding-x-lg);
+    --dou-segmented-control-font-size: var(--dou-font-size-lg);
+    --dou-segmented-control-inset: 3px;
+  }
+
+  .dou-segmented-control__indicator {
+    position: absolute;
+    top: var(--dou-segmented-control-inset);
+    bottom: var(--dou-segmented-control-inset);
+    left: 0;
+    z-index: -1;
+    box-sizing: border-box;
+    border: 1px solid color-mix(in oklab, var(--dou-color-text) 6%, var(--dou-color-border));
+    border-radius: calc(var(--dou-segmented-control-radius) - var(--dou-segmented-control-inset));
+    background-color: var(--dou-segmented-control-indicator-bg);
+    box-shadow:
+      0 1px 2px color-mix(in oklab, var(--dou-color-edge) 10%, transparent),
+      var(--dou-shadow-sm);
+  }
+
+  .dou-segmented-control.is-settled .dou-segmented-control__indicator {
+    transition-property: transform, width;
+    transition-duration: var(--dou-motion-duration-normal);
+    transition-timing-function: var(--dou-motion-easing);
+  }
+
+  .dou-segmented-control__item {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    padding: 0 var(--dou-segmented-control-padding-x);
+    border-radius: calc(var(--dou-segmented-control-radius) - var(--dou-segmented-control-inset));
+    color: var(--dou-color-text-secondary);
+    font-weight: var(--dou-font-weight-medium);
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    transition-property: color;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    &:hover:not(.is-disabled, .is-checked) {
+      color: var(--dou-color-text);
+    }
+
+    &.is-checked {
+      color: var(--dou-color-text);
+    }
+
+    &.is-disabled {
+      color: var(--dou-color-text-disabled);
+      cursor: not-allowed;
+    }
+
+    /* a hairline between two unselected neighbours */
+    & + &::before {
+      position: absolute;
+      top: 25%;
+      bottom: 25%;
+      left: 0;
+      width: 1px;
+      background-color: color-mix(in oklab, var(--dou-color-text) 10%, transparent);
+      transition: opacity var(--dou-motion-duration-fast) var(--dou-motion-easing);
+      content: '';
+    }
+
+    &.is-checked::before,
+    &.is-checked + &::before {
+      opacity: 0;
+    }
+  }
+
+  .dou-segmented-control.is-disabled .dou-segmented-control__item {
+    cursor: not-allowed;
+  }
+
+  .dou-segmented-control__native {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    opacity: 0;
+  }
+
+  .dou-segmented-control__item:has(.dou-segmented-control__native:focus-visible) {
+    outline: 2px solid var(--dou-color-focus);
+    outline-offset: 1px;
+  }
+
+  .dou-segmented-control__label {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--dou-control-gap-md);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    /*
+     * Center on the cap height instead of the font's ascent and descent,
+     * which vary by platform and by the fallback font that draws CJK text.
+     */
+    text-box: trim-both cap alphabetic;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dou-segmented-control.is-settled .dou-segmented-control__indicator,
+    .dou-segmented-control__item {
+      transition: none;
+    }
+  }
+}

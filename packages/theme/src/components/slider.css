@@ -1,0 +1,196 @@
+/*
+ * Slider
+ *
+ * A recessed groove, the same as a switch that is off, filled with ink up
+ * to the value. The thumb is a small raised surface with a hairline edge
+ * and a resting shadow, like an outlined button. The slider is as tall as
+ * a control of its size, so it lines up with inputs in a form row.
+ *
+ * Rail and thumb sizes are even and centered with whole-pixel offsets.
+ */
+@layer dou.components {
+  .dou-slider {
+    --dou-slider-tone: var(--dou-color-neutral);
+    --dou-slider-height: var(--dou-control-height-md);
+    --dou-slider-rail-size: 4px;
+    --dou-slider-thumb-size: 16px;
+    --dou-slider-rail-bg: color-mix(
+      in oklab,
+      var(--dou-color-text) 9%,
+      var(--dou-color-bg-surface)
+    );
+    --dou-slider-thumb-bg: var(--dou-color-bg-surface);
+    --dou-slider-thumb-border: var(--dou-color-border-strong);
+    --dou-slider-ring: color-mix(in oklab, var(--dou-color-focus) 32%, transparent);
+
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    box-sizing: border-box;
+    width: 100%;
+    min-height: var(--dou-slider-height);
+    /* room for half a thumb at each end */
+    padding: 0 calc(var(--dou-slider-thumb-size) / 2);
+    touch-action: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+
+    &.is-invalid {
+      --dou-slider-tone: var(--dou-color-danger);
+      --dou-slider-thumb-border: color-mix(
+        in oklab,
+        var(--dou-color-danger) 60%,
+        var(--dou-color-border-strong)
+      );
+      --dou-slider-ring: color-mix(in oklab, var(--dou-color-danger) 18%, transparent);
+    }
+
+    &.is-disabled {
+      opacity: 0.45;
+    }
+
+    &.is-marked {
+      padding-bottom: 22px;
+    }
+  }
+
+  .dou-slider--sm {
+    --dou-slider-height: var(--dou-control-height-sm);
+    --dou-slider-thumb-size: 14px;
+  }
+  .dou-slider--lg {
+    --dou-slider-height: var(--dou-control-height-lg);
+    --dou-slider-rail-size: 6px;
+    --dou-slider-thumb-size: 20px;
+  }
+
+  .dou-slider__rail {
+    position: relative;
+    height: var(--dou-slider-rail-size);
+    border-radius: var(--dou-radius-full);
+    background-color: var(--dou-slider-rail-bg);
+    box-shadow: inset 0 1px 1px color-mix(in oklab, var(--dou-color-edge) 8%, transparent);
+    cursor: pointer;
+
+    /* widen the area that catches the pointer without changing the look */
+    &::before {
+      position: absolute;
+      inset: calc((var(--dou-slider-thumb-size) - var(--dou-slider-rail-size)) / -2) 0;
+      content: '';
+    }
+  }
+
+  .dou-slider.is-disabled .dou-slider__rail {
+    cursor: not-allowed;
+  }
+
+  .dou-slider__fill {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    border-radius: inherit;
+    background-color: var(--dou-slider-tone);
+    transition-property: left, width, background-color;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+  }
+
+  .dou-slider__dot {
+    position: absolute;
+    top: 0;
+    width: var(--dou-slider-rail-size);
+    height: var(--dou-slider-rail-size);
+    margin-left: calc(var(--dou-slider-rail-size) / -2);
+    border-radius: var(--dou-radius-full);
+    background-color: color-mix(in oklab, var(--dou-color-text) 22%, var(--dou-color-bg-surface));
+
+    &.is-active {
+      background-color: color-mix(
+        in oklab,
+        var(--dou-color-bg-surface) 55%,
+        var(--dou-slider-tone)
+      );
+    }
+  }
+
+  .dou-slider__thumb {
+    position: absolute;
+    top: 50%;
+    box-sizing: border-box;
+    width: var(--dou-slider-thumb-size);
+    height: var(--dou-slider-thumb-size);
+    margin: calc(var(--dou-slider-thumb-size) / -2) 0 0 calc(var(--dou-slider-thumb-size) / -2);
+    border: 1px solid var(--dou-slider-thumb-border);
+    border-radius: var(--dou-radius-full);
+    background-color: var(--dou-slider-thumb-bg);
+    box-shadow:
+      0 1px 2px color-mix(in oklab, var(--dou-color-edge) 14%, transparent),
+      var(--dou-shadow-sm);
+    outline: none;
+    cursor: grab;
+    transition-property: left, border-color, box-shadow;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    &:hover {
+      border-color: color-mix(in oklab, var(--dou-slider-tone) 45%, var(--dou-color-border-strong));
+    }
+
+    &:focus-visible {
+      border-color: color-mix(in oklab, var(--dou-slider-tone) 60%, var(--dou-color-border-strong));
+      box-shadow:
+        0 0 0 3px var(--dou-slider-ring),
+        var(--dou-shadow-sm);
+    }
+
+    &:focus-visible,
+    &.is-active {
+      z-index: 1;
+    }
+  }
+
+  .dou-slider.is-dragging {
+    & .dou-slider__rail,
+    & .dou-slider__thumb {
+      cursor: grabbing;
+    }
+
+    /* follow the pointer exactly while dragging */
+    & .dou-slider__fill,
+    & .dou-slider__thumb {
+      transition-property: border-color, box-shadow;
+    }
+  }
+
+  .dou-slider.is-disabled .dou-slider__thumb {
+    border-color: var(--dou-slider-thumb-border);
+    cursor: not-allowed;
+  }
+
+  .dou-slider__marks {
+    position: relative;
+    height: 0;
+  }
+
+  .dou-slider__mark {
+    position: absolute;
+    top: 10px;
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+    line-height: 1;
+    white-space: nowrap;
+    text-box: trim-both cap alphabetic;
+    transform: translateX(-50%);
+
+    &.is-active {
+      color: var(--dou-color-text-secondary);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dou-slider__fill,
+    .dou-slider__thumb {
+      transition: none;
+    }
+  }
+}

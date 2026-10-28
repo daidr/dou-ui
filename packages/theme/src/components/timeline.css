@@ -12,7 +12,7 @@
     --dou-timeline-rail-width: 16px;
     --dou-timeline-first-line: 20px;
     --dou-timeline-gap: 12px;
-    --dou-timeline-spacing: 20px;
+    --dou-timeline-spacing: 16px;
     --dou-timeline-line: var(--dou-color-border);
 
     display: flex;
@@ -61,7 +61,6 @@
   }
 
   .dou-timeline__rail {
-    position: relative;
     display: flex;
     flex-shrink: 0;
     justify-content: center;
@@ -108,7 +107,8 @@
     top: calc((var(--dou-timeline-first-line) + var(--dou-timeline-dot-size)) / 2 + 4px);
     /* reach to just above the next dot */
     bottom: calc(4px - (var(--dou-timeline-first-line) - var(--dou-timeline-dot-size)) / 2);
-    left: calc(50% - 1px);
+    /* measured from the item, so the line runs through its bottom spacing */
+    left: calc(var(--dou-timeline-rail-width) / 2 - 1px);
     width: 0;
     border-left: 1px solid var(--dou-timeline-line);
   }

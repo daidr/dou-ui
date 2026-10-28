@@ -1,0 +1,212 @@
+/*
+ * Tree
+ *
+ * Rows are quiet text, indented by level, with a small chevron that
+ * turns when a branch opens. Hover lays the faint wash of a ghost button
+ * under the row; the selected row keeps a slightly deeper one and turns
+ * medium weight. No surface, no borders: the tree sits in whatever
+ * container holds it. Guides, when on, are 1px hairlines.
+ */
+@layer dou.components {
+  .dou-tree {
+    --dou-tree-row-height: 28px;
+    --dou-tree-indent: 20px;
+    --dou-tree-padding-x: 4px;
+    --dou-tree-gap: 6px;
+    --dou-tree-font-size: var(--dou-font-size-md);
+    --dou-tree-hover-bg: color-mix(in oklab, var(--dou-color-text) 4%, transparent);
+    --dou-tree-selected-bg: color-mix(in oklab, var(--dou-color-text) 7%, transparent);
+    --dou-tree-guide: var(--dou-color-border);
+
+    position: relative;
+    color: var(--dou-color-text);
+    font-size: var(--dou-tree-font-size);
+    outline: none;
+    user-select: none;
+  }
+
+  .dou-tree--sm {
+    --dou-tree-row-height: 24px;
+    --dou-tree-indent: 18px;
+    --dou-tree-gap: 4px;
+    --dou-tree-font-size: var(--dou-font-size-sm);
+  }
+  .dou-tree--lg {
+    --dou-tree-row-height: 32px;
+    --dou-tree-indent: 22px;
+    --dou-tree-gap: 8px;
+    --dou-tree-font-size: var(--dou-font-size-lg);
+  }
+
+  .dou-tree__node {
+    display: flex;
+    align-items: center;
+    gap: var(--dou-tree-gap);
+    box-sizing: border-box;
+    height: var(--dou-tree-row-height);
+    padding: 0 var(--dou-tree-padding-x);
+    border-radius: var(--dou-radius-control);
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background-color var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    &:hover {
+      background-color: var(--dou-tree-hover-bg);
+    }
+
+    &.is-selected {
+      background-color: var(--dou-tree-selected-bg);
+      font-weight: var(--dou-font-weight-medium);
+    }
+
+    &.is-disabled {
+      color: var(--dou-color-text-disabled);
+      cursor: not-allowed;
+
+      &:hover {
+        background-color: transparent;
+      }
+    }
+  }
+
+  .dou-tree:not(.is-selectable) .dou-tree__node.is-selected {
+    background-color: transparent;
+    font-weight: inherit;
+  }
+
+  /* the active row shows a ring only while the tree has keyboard focus */
+  .dou-tree:focus-visible .dou-tree__node.is-active {
+    outline: 2px solid var(--dou-color-focus);
+    outline-offset: -2px;
+  }
+
+  .dou-tree__indent {
+    flex-shrink: 0;
+    align-self: stretch;
+    /* the gap after it is already part of each level */
+    width: calc(var(--dou-tree-level) * var(--dou-tree-indent) - var(--dou-tree-gap));
+    margin-right: 0;
+  }
+
+  /* a hairline under each ancestor's chevron */
+  .dou-tree.is-guides .dou-tree__indent {
+    background-image: repeating-linear-gradient(
+      to right,
+      transparent 0 7px,
+      var(--dou-tree-guide) 7px 8px,
+      transparent 8px var(--dou-tree-indent)
+    );
+  }
+
+  .dou-tree__toggle {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    color: var(--dou-color-text-tertiary);
+
+    & > svg {
+      width: 16px;
+      height: 16px;
+      transition: transform var(--dou-motion-duration-fast) var(--dou-motion-easing);
+    }
+
+    &:not(.is-leaf):hover {
+      color: var(--dou-color-text);
+    }
+  }
+
+  .dou-tree__node.is-expanded > .dou-tree__toggle > svg {
+    transform: rotate(90deg);
+  }
+
+  /* drawn like the checkbox control, without its native input */
+  .dou-tree__checkbox {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: 16px;
+    height: 16px;
+    border: 1px solid var(--dou-color-border-strong);
+    border-radius: calc(var(--dou-radius-control) - 2px);
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-sm);
+    color: var(--dou-color-neutral-on);
+    transition-property: background-color, border-color, box-shadow;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    & > svg {
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+    }
+
+    &.is-checked,
+    &.is-indeterminate {
+      border-color: color-mix(in oklab, var(--dou-color-neutral) 90%, var(--dou-color-edge));
+      background-color: var(--dou-color-neutral);
+      box-shadow:
+        var(--dou-shadow-highlight),
+        0 1px 2px color-mix(in oklab, var(--dou-color-neutral) 24%, transparent);
+
+      & > svg {
+        opacity: 1;
+      }
+    }
+  }
+
+  .dou-tree__node:hover:not(.is-disabled) .dou-tree__checkbox:not(.is-checked, .is-indeterminate) {
+    border-color: color-mix(in oklab, var(--dou-color-neutral) 45%, var(--dou-color-border-strong));
+  }
+
+  .dou-tree__node.is-disabled .dou-tree__checkbox {
+    opacity: 0.45;
+  }
+
+  .dou-tree--sm .dou-tree__checkbox {
+    width: 14px;
+    height: 14px;
+  }
+
+  .dou-tree__label {
+    display: inline-flex;
+    flex: 1 1 auto;
+    align-items: center;
+    gap: var(--dou-tree-gap);
+    min-width: 0;
+    overflow: clip;
+    overflow-clip-margin: 4px;
+    text-overflow: ellipsis;
+    text-box: trim-both cap alphabetic;
+  }
+
+  .dou-tree__match {
+    background: none;
+    color: inherit;
+    font-weight: var(--dou-font-weight-bold);
+    text-decoration: underline;
+    text-decoration-color: color-mix(in oklab, var(--dou-color-text) 35%, transparent);
+    text-underline-offset: 3px;
+  }
+
+  .dou-tree__empty {
+    padding: 12px 8px;
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+    text-align: center;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dou-tree__node,
+    .dou-tree__toggle > svg {
+      transition: none;
+    }
+  }
+}

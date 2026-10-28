@@ -1,0 +1,279 @@
+/*
+ * Upload
+ *
+ * By default the trigger is an outline button and the files form a quiet
+ * list beneath it: a small thumbnail, the name, the size and, while
+ * sending, a thin progress bar. The dropzone is a bare area with a
+ * dashed hairline; dragging files over it firms the edge up and lays a
+ * faint wash, without color. Only a failed file uses a tone.
+ */
+@layer dou.components {
+  .dou-upload {
+    --dou-upload-font-size: var(--dou-font-size-md);
+    --dou-upload-thumb: 32px;
+
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    width: 100%;
+    color: var(--dou-color-text);
+    font-size: var(--dou-upload-font-size);
+  }
+
+  .dou-upload--sm {
+    --dou-upload-font-size: var(--dou-font-size-sm);
+    --dou-upload-thumb: 28px;
+  }
+  .dou-upload--lg {
+    --dou-upload-font-size: var(--dou-font-size-lg);
+    --dou-upload-thumb: 40px;
+  }
+
+  .dou-upload__native {
+    display: none;
+  }
+
+  .dou-upload__trigger {
+    display: inline-flex;
+  }
+
+  .dou-upload__hint {
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+    line-height: 1.5;
+  }
+
+  /* the dropzone */
+  .dou-upload__zone {
+    --dou-upload-zone-border: var(--dou-color-border-strong);
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    box-sizing: border-box;
+    width: 100%;
+    padding: 28px 20px;
+    border: 1px dashed var(--dou-upload-zone-border);
+    border-radius: var(--dou-radius-container);
+    background-color: var(--dou-color-bg-surface);
+    text-align: center;
+    cursor: pointer;
+    outline: none;
+    transition-property: border-color, background-color, box-shadow;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    &:hover {
+      --dou-upload-zone-border: color-mix(
+        in oklab,
+        var(--dou-color-text) 40%,
+        var(--dou-color-border-strong)
+      );
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 2px;
+    }
+
+    &.is-dragging {
+      --dou-upload-zone-border: var(--dou-color-text-secondary);
+      border-style: solid;
+      background-color: color-mix(in oklab, var(--dou-color-text) 3%, var(--dou-color-bg-surface));
+    }
+  }
+
+  .dou-upload.is-disabled .dou-upload__zone {
+    background-color: var(--dou-color-bg-muted);
+    color: var(--dou-color-text-disabled);
+    cursor: not-allowed;
+
+    &:hover {
+      --dou-upload-zone-border: var(--dou-color-border-strong);
+    }
+  }
+
+  .dou-upload__zone-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: 40px;
+    height: 40px;
+    margin-bottom: 4px;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-control);
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-sm);
+    color: var(--dou-color-text-secondary);
+
+    & > svg {
+      width: 20px;
+      height: 20px;
+    }
+  }
+
+  .dou-upload__zone-text {
+    color: var(--dou-color-text-secondary);
+    line-height: 1.5;
+  }
+
+  .dou-upload__zone-link {
+    margin-left: 0.25em;
+    color: var(--dou-color-text);
+    font-weight: var(--dou-font-weight-medium);
+    text-decoration: underline;
+    text-decoration-color: color-mix(in oklab, var(--dou-color-text) 30%, transparent);
+    text-underline-offset: 3px;
+  }
+
+  /* the list */
+  .dou-upload__list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    box-sizing: border-box;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+    list-style: none;
+  }
+
+  .dou-upload__file {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-sizing: border-box;
+    min-height: calc(var(--dou-upload-thumb) + 12px);
+    padding: 6px 6px 6px 6px;
+    border-radius: var(--dou-radius-control);
+    transition: background-color var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    &:hover {
+      background-color: color-mix(in oklab, var(--dou-color-text) 4%, transparent);
+    }
+  }
+
+  .dou-upload__thumb {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: var(--dou-upload-thumb);
+    height: var(--dou-upload-thumb);
+    overflow: hidden;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-control);
+    background-color: var(--dou-color-bg-surface);
+    color: var(--dou-color-text-tertiary);
+
+    & > img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    & > svg {
+      width: 16px;
+      height: 16px;
+    }
+  }
+
+  .dou-upload__file.is-error .dou-upload__thumb {
+    border-color: color-mix(in oklab, var(--dou-color-danger) 40%, var(--dou-color-border));
+    color: var(--dou-color-danger);
+  }
+
+  .dou-upload__meta {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .dou-upload__name {
+    overflow: hidden;
+    line-height: 1.3;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    & > a {
+      color: inherit;
+      text-decoration: none;
+
+      &:hover {
+        text-decoration: underline;
+        text-decoration-color: color-mix(in oklab, var(--dou-color-text) 30%, transparent);
+        text-underline-offset: 3px;
+      }
+    }
+  }
+
+  .dou-upload__detail {
+    display: flex;
+    gap: 8px;
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.3;
+  }
+
+  .dou-upload__file.is-error .dou-upload__status {
+    color: var(--dou-color-danger);
+  }
+
+  .dou-upload__progress {
+    width: 100%;
+  }
+
+  .dou-upload__actions {
+    display: flex;
+    flex-shrink: 0;
+    gap: 2px;
+  }
+
+  .dou-upload__action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: 0;
+    border-radius: calc(var(--dou-radius-control) - 2px);
+    background: transparent;
+    color: var(--dou-color-text-tertiary);
+    cursor: pointer;
+
+    & > svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    &:hover:not(:disabled) {
+      background-color: color-mix(in oklab, var(--dou-color-text) 8%, transparent);
+      color: var(--dou-color-text);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 1px;
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+      opacity: 0.45;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dou-upload__zone,
+    .dou-upload__file {
+      transition: none;
+    }
+  }
+}

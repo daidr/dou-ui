@@ -90,6 +90,24 @@ export interface Locale {
     /** Label of the checkbox that selects one row. */
     selectRow: string
   }
+  upload: {
+    /** The button that opens the file picker. */
+    choose: string
+    /** The dropzone's prompt, followed by `browse`. */
+    drop: string
+    /** The part of the dropzone's prompt that reads as a link. */
+    browse: string
+    /** Names the list of files. */
+    list: string
+    /** Label of the remove button, followed by the file name. */
+    remove: string
+    /** Label of the retry button, followed by the file name. */
+    retry: string
+    /** Shown while a file is sent, followed by the percentage. */
+    uploading: string
+    /** Shown when a file failed to send. */
+    error: string
+  }
   form: {
     /** Shown after the label of an optional field when `requiredMark` is `'optional'`. */
     optional: string

@@ -57,6 +57,16 @@ export const zhCN: Locale = {
     selectAll: '选择全部',
     selectRow: '选择此行',
   },
+  upload: {
+    choose: '选择文件',
+    drop: '将文件拖到这里，或',
+    browse: '点击选择',
+    list: '文件列表',
+    remove: '移除',
+    retry: '重试',
+    uploading: '上传中',
+    error: '上传失败',
+  },
   form: {
     optional: '可选',
     required: '此项为必填项',

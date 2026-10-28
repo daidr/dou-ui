@@ -56,6 +56,7 @@ export default defineConfig({
             { text: 'Slider 滑块', link: '/components/slider' },
             { text: 'Select 选择器', link: '/components/select' },
             { text: 'SegmentedControl 分段控制器', link: '/components/segmented-control' },
+            { text: 'Upload 上传', link: '/components/upload' },
             { text: 'Form 表单', link: '/components/form' },
           ],
         },
@@ -90,6 +91,8 @@ export default defineConfig({
             { text: 'Empty 空状态', link: '/components/empty' },
             { text: 'Descriptions 描述列表', link: '/components/descriptions' },
             { text: 'Table 表格', link: '/components/table' },
+            { text: 'Tree 树', link: '/components/tree' },
+            { text: 'VirtualList 虚拟列表', link: '/components/virtual-list' },
           ],
         },
         {

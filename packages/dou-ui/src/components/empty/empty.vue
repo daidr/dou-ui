@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { InboxIcon } from '@dou-ui/icons'
 import { computed } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
@@ -22,16 +23,7 @@ const title = computed(() => {
   <div :class="[ns.b(), ns.m(size)]">
     <div :class="ns.e('icon')" aria-hidden="true">
       <slot name="icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path
-            d="M3.75 13.5l2.6-6.9A1.75 1.75 0 0 1 8 5.5h8a1.75 1.75 0 0 1 1.65 1.1l2.6 6.9"
-            stroke-linejoin="round"
-          />
-          <path
-            d="M3.75 13.5v3.75c0 .97.78 1.75 1.75 1.75h13c.97 0 1.75-.78 1.75-1.75V13.5h-4.5l-1 2h-5.5l-1-2z"
-            stroke-linejoin="round"
-          />
-        </svg>
+        <InboxIcon />
       </slot>
     </div>
     <div v-if="slots.title || title" :class="ns.e('title')">

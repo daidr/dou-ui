@@ -5,6 +5,7 @@
 浮层的通用行为见 [浮层](../guide/overlays)。
 
 <script setup>
+import { CopyIcon, EditIcon } from '@dou-ui/icons'
 import { ref } from 'vue'
 const last = ref('无')
 </script>
@@ -51,12 +52,12 @@ const last = ref('无')
     <DouButton variant="outline">编辑</DouButton>
     <template #menu>
       <DouDropdownItem>
-        <template #prefix><DouIcon><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="5" width="8" height="8" rx="1.5" /><path d="M3 10V4.5A1.5 1.5 0 0 1 4.5 3H10" stroke-linecap="round" /></svg></DouIcon></template>
+        <template #prefix><DouIcon><CopyIcon /></DouIcon></template>
         复制
         <template #suffix>⌘C</template>
       </DouDropdownItem>
       <DouDropdownItem>
-        <template #prefix><DouIcon><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 13h10M5 10l6.5-6.5 1.5 1.5L6.5 11.5H5z" stroke-linejoin="round" /></svg></DouIcon></template>
+        <template #prefix><DouIcon><EditIcon /></DouIcon></template>
         重命名
         <template #suffix>F2</template>
       </DouDropdownItem>
@@ -66,7 +67,7 @@ const last = ref('无')
 
 ```vue
 <DouDropdownItem>
-  <template #prefix><DouIcon>...</DouIcon></template>
+  <template #prefix><DouIcon><CopyIcon /></DouIcon></template>
   复制
   <template #suffix>⌘C</template>
 </DouDropdownItem>

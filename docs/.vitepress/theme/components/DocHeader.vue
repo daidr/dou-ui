@@ -2,7 +2,7 @@
 import { useData } from 'vitepress'
 import { computed, onMounted, ref } from 'vue'
 import type { MenuOption } from 'dou-ui'
-import { GitHubIcon, MenuIcon, MoonIcon, SearchIcon, SunIcon } from '../icons'
+import { MenuIcon, MoonIcon, RepositoryIcon, SearchIcon, SunIcon } from '../icons'
 import { useDocs } from '../use-docs'
 
 defineProps<{ hasSidebar: boolean }>()
@@ -77,9 +77,9 @@ const isMac = computed(() => mounted.value && /Mac|iPhone|iPad/.test(navigator.p
           :href="github"
           target="_blank"
           rel="noreferrer"
-          aria-label="GitHub"
+          aria-label="GitHub 仓库"
         >
-          <DouIcon :size="18"><GitHubIcon /></DouIcon>
+          <DouIcon :size="18"><RepositoryIcon /></DouIcon>
         </a>
       </div>
     </div>

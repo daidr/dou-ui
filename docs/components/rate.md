@@ -3,6 +3,7 @@
 用一排星星给出或展示一个分数。空星是一道细描边，填满的星默认是墨色，`tone="warning"` 换成暖色；半星是同一颗星裁掉一半，不用另画图形。
 
 <script setup>
+import { HeartIcon } from '@dou-ui/icons'
 import { ref } from 'vue'
 const score = ref(3)
 const half = ref(3.5)
@@ -47,7 +48,7 @@ const warm = ref(4)
   </DouRate>
   <DouRate v-model="warm">
     <template #icon>
-      <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 14s-5.5-3.3-5.5-7A3 3 0 0 1 8 5a3 3 0 0 1 5.5 2c0 3.7-5.5 7-5.5 7z" /></svg>
+      <HeartIcon />
     </template>
   </DouRate>
 </div>

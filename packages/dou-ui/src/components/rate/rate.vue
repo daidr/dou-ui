@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { StarIcon } from '@dou-ui/icons'
 import { computed, ref } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
@@ -132,26 +133,12 @@ const valueText = computed(() => t('rate.value', { value: model.value, max: prop
       >
         <span :class="ns.e('empty')">
           <slot name="icon" :index="index">
-            <svg viewBox="0 0 16 16" fill="currentColor">
-              <path
-                d="M8 1.6l1.9 4 4.3.5-3.2 3 .9 4.3L8 11.3l-3.9 2.1.9-4.3-3.2-3 4.3-.5z"
-                stroke="currentColor"
-                stroke-width="1"
-                stroke-linejoin="round"
-              />
-            </svg>
+            <StarIcon />
           </slot>
         </span>
         <span :class="ns.e('full')">
           <slot name="icon" :index="index">
-            <svg viewBox="0 0 16 16" fill="currentColor">
-              <path
-                d="M8 1.6l1.9 4 4.3.5-3.2 3 .9 4.3L8 11.3l-3.9 2.1.9-4.3-3.2-3 4.3-.5z"
-                stroke="currentColor"
-                stroke-width="1"
-                stroke-linejoin="round"
-              />
-            </svg>
+            <StarIcon />
           </slot>
         </span>
       </span>

@@ -122,8 +122,22 @@ icons/
 | `development`   | 开发 |
 | `maps`          | 地图 |
 | `weather`       | 天气 |
+| `editing`       | 编辑 |
+| `design`        | 设计 |
+| `animation`     | 动画 |
+| `network`       | 网络 |
+| `git`           | Git  |
+| `layout`        | 布局 |
+| `hierarchy`     | 层级 |
+| `search`        | 搜索 |
+| `security`      | 安全 |
+| `settings`      | 设置 |
+| `shapes`        | 形状 |
+| `ai`            | AI   |
 
-一个图标可以属于多个分类。需要新分类时，在 `packages/icons/src/categories.ts` 里补充。
+一个图标可以属于多个分类。同一族的图标共用骨架，只换内部符号：布局类都画在同一个 `18 × 16` 的框里，搜索类共用同一枚放大镜，Git 类的节点都是半径 2 的小圆，缓动曲线的两端都是半径 1.75 的锚点。
+
+需要新分类时，在 `packages/icons/src/categories.ts` 里补充。
 
 ## 变体
 

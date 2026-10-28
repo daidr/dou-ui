@@ -57,6 +57,7 @@
     "playground": {
       "name": "@dou-ui/playground",
       "dependencies": {
+        "@dou-ui/icons": "workspace:*",
         "dou-ui": "workspace:*",
       },
     },

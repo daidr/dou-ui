@@ -1,5 +1,9 @@
 # Timeline 时间线
 
+<script setup>
+import { XCircleIcon } from '@dou-ui/icons'
+</script>
+
 按时间串起一组事件。小圆点挂在一条细线上，语气色只用在圆点上；时间在内容上方，用三级灰色和等宽数字。还在进行中的事件是空心圆点，通向它的线是虚线。
 
 ## 基础用法
@@ -31,7 +35,7 @@
     <DouTimelineItem time="周二" title="配置域名" tone="warning">证书签发中，可能需要几分钟。</DouTimelineItem>
     <DouTimelineItem time="周三" title="部署失败" tone="danger">
       <template #dot>
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="6.25" /><path d="M6 6l4 4M10 6l-4 4" /></svg>
+        <XCircleIcon />
       </template>
       构建脚本退出码 1。
     </DouTimelineItem>
@@ -40,7 +44,7 @@
 
 ```vue
 <DouTimelineItem time="周三" title="部署失败" tone="danger">
-  <template #dot><svg>…</svg></template>
+  <template #dot><XCircleIcon /></template>
   构建脚本退出码 1。
 </DouTimelineItem>
 ```

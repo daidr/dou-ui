@@ -1,0 +1,229 @@
+/*
+ * Steps
+ *
+ * Numbered markers joined by hairlines. The current step is the only
+ * solid one, an ink disc; finished steps keep a quiet outlined check and
+ * the line behind them turns ink, so the progress reads at a glance.
+ * Failure is the one place hue appears.
+ */
+@layer dou.components {
+  .dou-steps {
+    --dou-steps-marker-size: 24px;
+    --dou-steps-marker-font-size: 12px;
+    --dou-steps-gap: 8px;
+    --dou-steps-line: var(--dou-color-border);
+    --dou-steps-line-done: color-mix(in oklab, var(--dou-color-text) 72%, transparent);
+
+    display: flex;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    color: var(--dou-color-text);
+    font-size: var(--dou-font-size-md);
+    list-style: none;
+  }
+
+  .dou-steps--sm {
+    --dou-steps-marker-size: 20px;
+    --dou-steps-marker-font-size: 11px;
+    --dou-steps-gap: 6px;
+    font-size: var(--dou-font-size-sm);
+  }
+
+  .dou-steps__item {
+    display: flex;
+    flex: 1 1 0;
+    min-width: 0;
+
+    &:last-child {
+      flex: 0 0 auto;
+    }
+  }
+
+  .dou-steps__main {
+    display: flex;
+    flex: 0 1 auto;
+    align-items: flex-start;
+    gap: var(--dou-steps-gap);
+    min-width: 0;
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: var(--dou-radius-control);
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: start;
+  }
+
+  button.dou-steps__main {
+    cursor: pointer;
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 2px;
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+    }
+
+    &:hover:not(:disabled) .dou-steps__title {
+      text-decoration: underline;
+      text-decoration-color: var(--dou-color-border-strong);
+      text-underline-offset: 3px;
+    }
+  }
+
+  .dou-steps__marker {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: var(--dou-steps-marker-size);
+    height: var(--dou-steps-marker-size);
+    border: 1px solid var(--dou-color-border-strong);
+    border-radius: var(--dou-radius-full);
+    background-color: var(--dou-color-bg-surface);
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-steps-marker-font-size);
+    font-weight: var(--dou-font-weight-medium);
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    transition-property: background-color, border-color, color;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    & svg {
+      width: 12px;
+      height: 12px;
+    }
+  }
+
+  .dou-steps__icon {
+    width: 14px;
+    height: 14px;
+  }
+
+  .dou-steps__number {
+    text-box: trim-both cap alphabetic;
+  }
+
+  .dou-steps__text {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    /* centre the first line of the title on the marker */
+    padding-top: calc((var(--dou-steps-marker-size) - 1lh) / 2);
+    line-height: 1.5;
+  }
+
+  .dou-steps__title {
+    color: var(--dou-color-text-secondary);
+    white-space: nowrap;
+  }
+
+  .dou-steps__status {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .dou-steps__description {
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+  }
+
+  .dou-steps__line {
+    flex: 1 1 auto;
+    min-width: 16px;
+    height: 1px;
+    margin: calc(var(--dou-steps-marker-size) / 2) 12px 0;
+    background-color: var(--dou-steps-line);
+  }
+
+  .dou-steps__item.is-finish .dou-steps__line {
+    background-color: var(--dou-steps-line-done);
+  }
+
+  /* finished: outlined check */
+  .dou-steps__item.is-finish {
+    & .dou-steps__marker {
+      border-color: var(--dou-steps-line-done);
+      color: var(--dou-color-text);
+    }
+    & .dou-steps__title {
+      color: var(--dou-color-text);
+    }
+  }
+
+  /* current: the one solid marker */
+  .dou-steps__item.is-process {
+    & .dou-steps__marker {
+      border-color: color-mix(in oklab, var(--dou-color-neutral) 80%, var(--dou-color-edge));
+      background-color: var(--dou-color-neutral);
+      box-shadow: var(--dou-shadow-highlight);
+      color: var(--dou-color-neutral-on);
+    }
+    & .dou-steps__title {
+      color: var(--dou-color-text);
+      font-weight: var(--dou-font-weight-medium);
+    }
+  }
+
+  .dou-steps__item.is-error {
+    & .dou-steps__marker {
+      border-color: color-mix(in oklab, var(--dou-color-danger) 50%, transparent);
+      background-color: color-mix(
+        in oklab,
+        var(--dou-color-danger) 8%,
+        var(--dou-color-bg-surface)
+      );
+      color: var(--dou-color-danger);
+    }
+    & .dou-steps__title {
+      color: var(--dou-color-danger);
+      font-weight: var(--dou-font-weight-medium);
+    }
+  }
+
+  .dou-steps__item.is-disabled .dou-steps__title {
+    color: var(--dou-color-text-disabled);
+  }
+
+  /* vertical: the line runs down from the marker, beside the text */
+  .dou-steps--vertical {
+    flex-direction: column;
+
+    & .dou-steps__item {
+      position: relative;
+      flex: 0 0 auto;
+      padding-bottom: 20px;
+
+      &:last-child {
+        padding-bottom: 0;
+      }
+    }
+
+    & .dou-steps__title {
+      white-space: normal;
+    }
+
+    & .dou-steps__line {
+      position: absolute;
+      top: calc(var(--dou-steps-marker-size) + 4px);
+      bottom: 4px;
+      left: calc(var(--dou-steps-marker-size) / 2);
+      width: 1px;
+      height: auto;
+      min-width: 0;
+      margin: 0;
+    }
+  }
+}

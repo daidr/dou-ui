@@ -42,6 +42,7 @@ export default defineConfig({
           items: [
             { text: 'Divider 分割线', link: '/components/divider' },
             { text: 'Space 间距', link: '/components/space' },
+            { text: 'Grid 栅格', link: '/components/grid' },
           ],
         },
         {
@@ -91,6 +92,8 @@ export default defineConfig({
             { text: 'Kbd 键盘按键', link: '/components/kbd' },
             { text: 'Empty 空状态', link: '/components/empty' },
             { text: 'Descriptions 描述列表', link: '/components/descriptions' },
+            { text: 'Collapse 折叠面板', link: '/components/collapse' },
+            { text: 'Timeline 时间线', link: '/components/timeline' },
             { text: 'Table 表格', link: '/components/table' },
             { text: 'Tree 树', link: '/components/tree' },
             { text: 'VirtualList 虚拟列表', link: '/components/virtual-list' },
@@ -99,7 +102,9 @@ export default defineConfig({
         {
           text: '导航',
           items: [
+            { text: 'Menu 导航菜单', link: '/components/menu' },
             { text: 'Tabs 标签页', link: '/components/tabs' },
+            { text: 'Steps 步骤条', link: '/components/steps' },
             { text: 'Breadcrumb 面包屑', link: '/components/breadcrumb' },
             { text: 'Pagination 分页', link: '/components/pagination' },
             { text: 'Command 命令面板', link: '/components/command' },

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, useTemplateRef, watchEffect } from 'vue'
+import { computed, h, onMounted, reactive, ref, useTemplateRef, watchEffect } from 'vue'
 import { en, toast } from 'dou-ui'
 import type {
   ButtonSize,
@@ -7,6 +7,7 @@ import type {
   ButtonVariant,
   FormInstance,
   FormRules,
+  MenuOption,
   CommandItem,
   DateRange,
   TableColumn,
@@ -18,6 +19,68 @@ import type {
   UploadFile,
   UploadRequest,
 } from 'dou-ui'
+
+const navIcon = (d: string) => () =>
+  h(
+    'svg',
+    {
+      viewBox: '0 0 16 16',
+      fill: 'none',
+      stroke: 'currentColor',
+      'stroke-width': 1.5,
+      'stroke-linecap': 'round',
+      'stroke-linejoin': 'round',
+    },
+    [h('path', { d })],
+  )
+const navItems: MenuOption[] = [
+  {
+    key: 'overview',
+    label: '概览',
+    icon: navIcon('M2.5 2.5h4.5v4.5h-4.5zM9 2.5h4.5v4.5H9zM2.5 9h4.5v4.5h-4.5zM9 9h4.5v4.5H9z'),
+  },
+  {
+    key: 'deployments',
+    label: '部署',
+    icon: navIcon('M8 2l5.5 3v6L8 14l-5.5-3V5zM8 8v6M8 8l5.5-3M8 8L2.5 5'),
+    children: [
+      { key: 'production', label: '生产环境' },
+      { key: 'preview', label: '预览环境' },
+      { key: 'rollback', label: '回滚记录', disabled: true },
+    ],
+  },
+  { key: 'logs', label: '日志', icon: navIcon('M3 3.5h10M3 6.5h10M3 9.5h6M3 12.5h8') },
+  {
+    type: 'group',
+    label: '设置',
+    children: [
+      {
+        key: 'domains',
+        label: '域名',
+        icon: navIcon(
+          'M8 2a6 6 0 1 0 0 12A6 6 0 0 0 8 2zM2 8h12M8 2c2 2 2 10 0 12M8 2c-2 2-2 10 0 12',
+        ),
+      },
+      {
+        key: 'members',
+        label: '成员',
+        icon: navIcon(
+          'M6 7.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM1.5 13.5c0-2.5 2-4 4.5-4s4.5 1.5 4.5 4M11 3a2.5 2.5 0 0 1 0 4.5M12.5 9.6c1.3.5 2 1.8 2 3.9',
+        ),
+      },
+    ],
+  },
+]
+const nav = ref('production')
+const navCollapsed = ref(false)
+const step = ref(1)
+const panels = ref(['build'])
+const deploySteps = [
+  { title: '拉取代码', description: '从 main 分支' },
+  { title: '构建', description: '安装依赖并打包' },
+  { title: '部署', description: '上传到边缘节点' },
+  { title: '完成' },
+]
 
 const variants: ButtonVariant[] = ['solid', 'soft', 'outline', 'ghost']
 const tones: ButtonTone[] = ['neutral', 'primary', 'success', 'warning', 'danger']
@@ -222,6 +285,49 @@ function simulate() {
         {{ theme === 'light' ? '深色' : '浅色' }}
       </DouButton>
     </header>
+
+    <section>
+      <h2>structure · navigation</h2>
+      <DouMenu v-model="nav" :items="navItems" mode="horizontal" />
+      <div class="nav-demo">
+        <DouMenu v-model="nav" :items="navItems" :collapsed="navCollapsed" class="nav-demo__menu" />
+        <div class="nav-demo__body">
+          <DouSteps v-model:current="step" :items="deploySteps" clickable />
+          <DouCollapse v-model="panels" bordered>
+            <DouCollapseItem value="build" title="构建设置">
+              构建命令 <code>bun run build</code>，输出目录 <code>dist</code>。
+              <template #extra>已覆盖</template>
+            </DouCollapseItem>
+            <DouCollapseItem value="env" title="环境变量"
+              >共 4 个变量，其中 1 个仅在生产环境可见。</DouCollapseItem
+            >
+            <DouCollapseItem value="danger" title="删除项目" disabled />
+          </DouCollapse>
+          <DouGrid :cols="{ base: 1, md: 2 }" gap="lg">
+            <DouTimeline>
+              <DouTimelineItem time="10:42" title="部署成功" tone="success"
+                >生产环境 · 耗时 38 秒</DouTimelineItem
+              >
+              <DouTimelineItem time="10:41" title="构建完成">产物 1.2 MB</DouTimelineItem>
+              <DouTimelineItem time="10:40" title="开始构建">由 daidr 推送触发</DouTimelineItem>
+              <DouTimelineItem title="等待审核" pending />
+            </DouTimeline>
+            <DouSteps
+              :items="deploySteps"
+              :current="2"
+              status="error"
+              direction="vertical"
+              size="sm"
+            />
+          </DouGrid>
+          <DouSpace>
+            <DouButton size="sm" variant="outline" @click="navCollapsed = !navCollapsed">
+              {{ navCollapsed ? '展开菜单' : '折叠菜单' }}
+            </DouButton>
+          </DouSpace>
+        </div>
+      </div>
+    </section>
 
     <section>
       <h2>date picker · command</h2>
@@ -992,6 +1098,27 @@ p {
   color: var(--dou-color-text-tertiary);
   font-family: var(--dou-font-family-mono);
   font-size: var(--dou-font-size-sm);
+}
+.nav-demo {
+  display: flex;
+  gap: 24px;
+  margin-top: 16px;
+}
+.nav-demo__menu {
+  flex-shrink: 0;
+  width: 200px;
+  padding-right: 16px;
+  border-right: 1px solid var(--dou-color-border);
+}
+.nav-demo__menu.is-collapsed {
+  width: auto;
+}
+.nav-demo__body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0;
 }
 h1 {
   margin: 0;

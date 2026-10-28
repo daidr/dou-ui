@@ -86,6 +86,12 @@ export const en: Locale = {
     placeholder: 'Type a command or search…',
     empty: 'No results',
   },
+  steps: {
+    finish: 'completed',
+    process: 'current',
+    wait: 'not started',
+    error: 'failed',
+  },
   form: {
     optional: 'optional',
     required: 'This field is required',

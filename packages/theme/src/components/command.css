@@ -1,0 +1,164 @@
+/*
+ * Command
+ *
+ * A search box over a list of actions. The box has no field around it:
+ * a magnifier, the text, and a hairline under it. Items are menu rows; the
+ * active one gets the faint wash, letters matching the search turn medium
+ * weight in full ink while the rest of the label stays secondary. Shortcuts
+ * sit at the end as small key caps. In a dialog the panel drops its own
+ * padding so the list runs to the edges.
+ */
+@layer dou.components {
+  .dou-command {
+    display: flex;
+    flex-direction: column;
+    color: var(--dou-color-text);
+    font-size: var(--dou-font-size-md);
+  }
+
+  .dou-command__search {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 48px;
+    padding: 0 16px;
+    border-bottom: 1px solid var(--dou-color-border);
+  }
+
+  .dou-command__prefix {
+    display: inline-flex;
+    flex-shrink: 0;
+    color: var(--dou-color-text-tertiary);
+
+    & svg {
+      width: 16px;
+      height: 16px;
+    }
+  }
+
+  .dou-command__input {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 100%;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-size: var(--dou-font-size-lg);
+
+    &::placeholder {
+      color: var(--dou-color-text-tertiary);
+      opacity: 1;
+    }
+  }
+
+  .dou-command__list {
+    padding: 6px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scroll-padding: 6px;
+  }
+
+  .dou-command__group + .dou-command__group {
+    padding-top: 4px;
+    margin-top: 4px;
+    border-top: 1px solid var(--dou-color-border-subtle);
+  }
+
+  .dou-command__group-label {
+    padding: 8px 10px 4px;
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+    line-height: 1.4;
+  }
+
+  .dou-command__item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-sizing: border-box;
+    height: 36px;
+    padding: 0 10px;
+    border-radius: var(--dou-radius-control);
+    color: var(--dou-color-text);
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+
+    &.is-active {
+      background-color: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+    }
+
+    &.is-disabled {
+      color: var(--dou-color-text-disabled);
+      cursor: not-allowed;
+    }
+  }
+
+  .dou-command__label {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: clip;
+    overflow-clip-margin: 4px;
+    text-overflow: ellipsis;
+    text-box: trim-both cap alphabetic;
+  }
+
+  /* while searching, the matched letters carry the label */
+  .dou-command__label:has(.dou-command__match) {
+    color: var(--dou-color-text-secondary);
+  }
+
+  .dou-command__match {
+    background: none;
+    color: var(--dou-color-text);
+    font-weight: var(--dou-font-weight-medium);
+  }
+
+  .dou-command__description {
+    flex: 1 1 auto;
+    min-width: 0;
+    /* clip, not hide: the trimmed line box is shorter than CJK glyphs */
+    overflow: clip;
+    overflow-clip-margin: 4px;
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+    text-overflow: ellipsis;
+    text-box: trim-both cap alphabetic;
+  }
+
+  .dou-command__shortcut {
+    display: inline-flex;
+    flex-shrink: 0;
+    gap: 4px;
+    margin-left: auto;
+  }
+
+  .dou-command__empty {
+    padding: 28px 12px;
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+    text-align: center;
+  }
+
+  .dou-command__footer {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 10px 16px;
+    border-top: 1px solid var(--dou-color-border);
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+  }
+
+  .dou-command-dialog {
+    overflow: hidden;
+
+    & > .dou-dialog__body {
+      padding: 0;
+    }
+  }
+}

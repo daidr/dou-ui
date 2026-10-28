@@ -7,6 +7,8 @@ import type {
   ButtonVariant,
   FormInstance,
   FormRules,
+  CommandItem,
+  DateRange,
   TableColumn,
   TableRowKey,
   TableSort,
@@ -126,6 +128,26 @@ function statusTone(status: string) {
   return status === '运行中' ? 'success' : status === '部署中' ? 'warning' : 'neutral'
 }
 
+const pickedDate = ref<string | null>('2026-10-28')
+const pickedMonth = ref<string | null>('2026-10')
+const pickedRange = ref<DateRange | null>(['2026-10-12', '2026-10-24'])
+const commandItems: CommandItem[] = [
+  { value: 'new', label: '新建项目', group: '操作', shortcut: ['⌘', 'N'] },
+  {
+    value: 'deploy',
+    label: '部署到生产环境',
+    group: '操作',
+    keywords: ['deploy'],
+    shortcut: ['⌘', 'D'],
+  },
+  { value: 'delete', label: '删除项目', group: '操作', disabled: true },
+  { value: 'deployments', label: 'Deployments', group: '导航', description: '部署记录' },
+  { value: 'settings', label: 'Settings', group: '导航', description: '域名、环境变量与权限' },
+  { value: 'docs', label: 'Documentation', group: '帮助' },
+]
+const commandQuery = ref('de')
+const commandOpen = ref(false)
+
 const treeData: TreeNodeData[] = [
   {
     key: 'src',
@@ -200,6 +222,26 @@ function simulate() {
         {{ theme === 'light' ? '深色' : '浅色' }}
       </DouButton>
     </header>
+
+    <section>
+      <h2>date picker · command</h2>
+      <div class="complex">
+        <div class="stack-col">
+          <DouSpace>
+            <DouDatePicker v-model="pickedDate" clearable style="width: 180px" />
+            <DouDatePicker v-model="pickedMonth" type="month" style="width: 140px" />
+          </DouSpace>
+          <DouDatePicker v-model="pickedRange" range style="width: 300px" />
+          <div class="card card--flat cal">
+            <DouCalendar v-model="pickedRange" range />
+          </div>
+        </div>
+        <div class="card card--flat">
+          <DouCommand v-model:query="commandQuery" :items="commandItems" />
+        </div>
+      </div>
+      <DouCommandDialog v-model:open="commandOpen" :items="commandItems" />
+    </section>
 
     <section>
       <h2>tree · upload · virtual list</h2>
@@ -886,6 +928,15 @@ header.row {
   grid-template-columns: 1fr 1fr;
   gap: 16px;
   align-items: start;
+}
+.stack-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.cal {
+  width: max-content;
+  padding: 12px;
 }
 .card--flat {
   max-width: none;

@@ -108,6 +108,34 @@ export interface Locale {
     /** Shown when a file failed to send. */
     error: string
   }
+  datePicker: {
+    /** Shown in an empty date field. */
+    placeholder: string
+    /** Shown in an empty month field. */
+    monthPlaceholder: string
+    /** Shown in an empty year field. */
+    yearPlaceholder: string
+    /** The start field of a range. */
+    start: string
+    /** The end field of a range. */
+    end: string
+    /** The button that picks today. */
+    today: string
+    /** Label of the clear button. */
+    clear: string
+    prevMonth: string
+    nextMonth: string
+    prevYear: string
+    nextYear: string
+    prevDecade: string
+    nextDecade: string
+  }
+  command: {
+    /** Shown in the empty search box, and names it. */
+    placeholder: string
+    /** Shown when nothing matches. */
+    empty: string
+  }
   form: {
     /** Shown after the label of an optional field when `requiredMark` is `'optional'`. */
     optional: string

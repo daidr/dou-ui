@@ -55,6 +55,7 @@ export default defineConfig({
             { text: 'Switch 开关', link: '/components/switch' },
             { text: 'Slider 滑块', link: '/components/slider' },
             { text: 'Select 选择器', link: '/components/select' },
+            { text: 'DatePicker 日期选择', link: '/components/date-picker' },
             { text: 'SegmentedControl 分段控制器', link: '/components/segmented-control' },
             { text: 'Upload 上传', link: '/components/upload' },
             { text: 'Form 表单', link: '/components/form' },
@@ -101,6 +102,7 @@ export default defineConfig({
             { text: 'Tabs 标签页', link: '/components/tabs' },
             { text: 'Breadcrumb 面包屑', link: '/components/breadcrumb' },
             { text: 'Pagination 分页', link: '/components/pagination' },
+            { text: 'Command 命令面板', link: '/components/command' },
           ],
         },
         {

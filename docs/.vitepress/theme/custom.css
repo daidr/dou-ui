@@ -76,7 +76,14 @@
 .dou-tabs__tab,
 .dou-breadcrumb__link,
 .dou-pagination__item,
-.dou-table__sorter {
+.dou-table__sorter,
+.dou-calendar__step,
+.dou-calendar__title,
+.dou-calendar__day,
+.dou-date-picker__input,
+.dou-date-picker__clear,
+.dou-command__input,
+.dou-upload__action {
   padding: revert-layer;
   border: revert-layer;
   background-color: revert-layer;
@@ -107,7 +114,11 @@
 .vp-doc .dou-table table,
 .vp-doc .dou-table tr,
 .vp-doc .dou-table th,
-.vp-doc .dou-table td {
+.vp-doc .dou-table td,
+.vp-doc .dou-calendar table,
+.vp-doc .dou-calendar tr,
+.vp-doc .dou-calendar th,
+.vp-doc .dou-calendar td {
   display: revert-layer;
   margin: revert-layer;
   padding: revert-layer;
@@ -122,7 +133,9 @@
 .vp-doc .dou-breadcrumb ol,
 .vp-doc .dou-breadcrumb li,
 .vp-doc .dou-pagination ul,
-.vp-doc .dou-pagination li {
+.vp-doc .dou-pagination li,
+.vp-doc .dou-upload ul,
+.vp-doc .dou-upload li {
   padding: revert-layer;
   margin: revert-layer;
   list-style: revert-layer;

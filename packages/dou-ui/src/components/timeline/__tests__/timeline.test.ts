@@ -39,4 +39,16 @@ describe('DouTimeline', () => {
     expect(wrapper.find('li').classes()).toContain('is-custom-dot')
     expect(wrapper.find('.dou-timeline__dot .my-icon').exists()).toBe(true)
   })
+
+  it('shows a spinner while loading, in place of a custom dot', () => {
+    const wrapper = mount(DouTimelineItem, {
+      props: { loading: true },
+      slots: { dot: () => h('svg', { class: 'my-icon' }) },
+    })
+    expect(wrapper.classes()).toContain('is-loading')
+    expect(wrapper.classes()).not.toContain('is-custom-dot')
+    expect(wrapper.attributes('aria-busy')).toBe('true')
+    expect(wrapper.find('.dou-timeline__dot svg').exists()).toBe(true)
+    expect(wrapper.find('.my-icon').exists()).toBe(false)
+  })
 })

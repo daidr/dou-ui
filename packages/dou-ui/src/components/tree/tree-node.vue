@@ -74,12 +74,12 @@ const classes = computed(() => [
         :checked="checked"
         :indeterminate="half"
       />
-      <template v-else>
+      <span v-else :class="ns.e('text')">
         <template v-for="(part, at) in tree.parts(node)" :key="at">
           <mark v-if="part.match" :class="ns.e('match')">{{ part.text }}</mark>
           <template v-else>{{ part.text }}</template>
         </template>
-      </template>
+      </span>
     </span>
   </div>
 </template>

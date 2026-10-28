@@ -1,5 +1,5 @@
 {
-  "name": "dou-icons",
+  "name": "@dou-ui/icons",
   "version": "0.0.0",
   "description": "A line icon set for Vue 3, drawn for DouUI",
   "type": "module",

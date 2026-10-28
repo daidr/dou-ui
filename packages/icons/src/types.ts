@@ -6,12 +6,11 @@ export type IconVariant = 'stroke'
 /**
  * One drawn shape on the 24 × 24 grid: an SVG element name and its geometry
  * attributes. `['dot', { cx, cy }]` draws a round dot slightly heavier than
- * the lines; a trailing `'fill'` also fills the shape, for tapered strokes.
+ * the lines.
  */
 export type IconNode = readonly (readonly [
   tag: string,
   attrs: Readonly<Record<string, number | string>>,
-  paint?: 'fill',
 ])[]
 
 export interface IconProps {
@@ -27,7 +26,7 @@ export interface IconProps {
 }
 
 export interface IconMeta {
-  /** Kebab-case name, also the file name under `dou-icons/svg/`. */
+  /** Kebab-case name, also the file name under `@dou-ui/icons/svg/`. */
   name: string
   /** The exported component, e.g. `SearchIcon`. */
   component: string

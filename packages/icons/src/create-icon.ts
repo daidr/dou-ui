@@ -56,7 +56,7 @@ export function createIcon(name: string, node: IconNode) {
             'aria-label': props.label || undefined,
             'aria-hidden': props.label ? undefined : 'true',
           },
-          node.map(([tag, attrs, paint]) =>
+          node.map(([tag, attrs]) =>
             tag === 'dot'
               ? h('path', {
                   d: `M${attrs.cx} ${attrs.cy}h.01`,
@@ -64,12 +64,7 @@ export function createIcon(name: string, node: IconNode) {
                   'vector-effect': 'non-scaling-stroke',
                 })
               : // The line width is in screen pixels, not grid units.
-                h(tag, {
-                  ...attrs,
-                  // Tapered strokes are filled outlines; the line still rounds their corners.
-                  fill: paint === 'fill' ? 'currentColor' : undefined,
-                  'vector-effect': 'non-scaling-stroke',
-                }),
+                h(tag, { ...attrs, 'vector-effect': 'non-scaling-stroke' }),
           ),
         )
     },

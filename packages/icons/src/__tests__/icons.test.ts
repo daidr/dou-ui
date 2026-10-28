@@ -6,7 +6,7 @@ import { SearchIcon, createIcon } from '../index'
 const components: Record<string, unknown> = { ...exports }
 import { categories, icons } from '../meta'
 
-describe('dou-icons', () => {
+describe('@dou-ui/icons', () => {
   it('exports a component for every icon in the metadata', () => {
     const names = Object.keys(components).filter((key) => /^[A-Z]\w*Icon$/.test(key))
     expect(new Set(names)).toEqual(new Set(icons.map((icon) => icon.component)))
@@ -90,16 +90,6 @@ describe('dou-icons', () => {
     expect((path.element as SVGElement).style.strokeWidth).toBe(
       'calc(var(--dou-icons-stroke) * 1.5)',
     )
-  })
-
-  it('fills tapered strokes', () => {
-    const Wedge = createIcon('my-wedge', [
-      ['path', { d: 'M4 12 20 10v4Z' }, 'fill'],
-      ['path', { d: 'M4 18h16' }],
-    ])
-    const [wedge, line] = mount(Wedge).findAll('path')
-    expect(wedge!.attributes('fill')).toBe('currentColor')
-    expect(line!.attributes('fill')).toBeUndefined()
   })
 
   it('makes custom icons with createIcon', () => {

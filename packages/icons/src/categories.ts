@@ -14,7 +14,6 @@ export const categories = {
   development: '开发',
   maps: '地图',
   weather: '天气',
-  brands: '品牌',
 } as const
 
 export type IconCategory = keyof typeof categories

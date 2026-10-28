@@ -1,4 +1,4 @@
-// Ship the source drawings as `dou-icons/svg/<name>.svg` for use outside Vue.
+// Ship the source drawings as `@dou-ui/icons/svg/<name>.svg` for use outside Vue.
 import { mkdir, readdir } from 'node:fs/promises'
 
 const source = new URL('../icons/', import.meta.url)
@@ -11,11 +11,6 @@ for (const file of await readdir(source)) {
   const [, name, variant] = match
   const target = variant === 'stroke' ? `${name}.svg` : `${name}-${variant}.svg`
   const svg = await Bun.file(new URL(file, source)).text()
-  // Dots are a little heavier than lines and tapered strokes are filled, as the components draw them.
-  await Bun.write(
-    new URL(target, outDir),
-    svg
-      .replaceAll('class="dot"', 'stroke-width="2.25"')
-      .replaceAll('class="fill"', 'fill="currentColor"'),
-  )
+  // Dots are drawn a little heavier than lines, as the components draw them.
+  await Bun.write(new URL(target, outDir), svg.replaceAll('class="dot"', 'stroke-width="2.25"'))
 }

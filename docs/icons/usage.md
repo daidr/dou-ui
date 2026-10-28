@@ -1,5 +1,5 @@
 <script setup>
-import { CheckCircleIcon, DownloadIcon, LoaderIcon, PlusIcon, SearchIcon, TrashIcon } from 'dou-icons'
+import { CheckCircleIcon, DownloadIcon, LoaderIcon, PlusIcon, SearchIcon, TrashIcon } from '@dou-ui/icons'
 </script>
 
 # 安装与使用
@@ -7,10 +7,10 @@ import { CheckCircleIcon, DownloadIcon, LoaderIcon, PlusIcon, SearchIcon, TrashI
 ## 安装
 
 ```sh
-bun add dou-icons
+bun add @dou-ui/icons
 ```
 
-`dou-icons` 只依赖 `vue`（≥ 3.5），与 `dou-ui` 互不依赖，版本号保持同步。
+`@dou-ui/icons` 只依赖 `vue`（≥ 3.5），与 `dou-ui` 互不依赖，版本号保持同步。
 
 ## 按需引入
 
@@ -18,7 +18,7 @@ bun add dou-icons
 
 ```vue
 <script setup lang="ts">
-import { SearchIcon, TrashIcon } from 'dou-icons'
+import { SearchIcon, TrashIcon } from '@dou-ui/icons'
 </script>
 
 <template>
@@ -90,10 +90,10 @@ import { SearchIcon, TrashIcon } from 'dou-icons'
 
 ## 元信息
 
-`dou-icons/meta` 单独导出全部图标的元信息，适合做图标选择器、搜索等。它与图标组件分开，引入图标时不会带上这份数据。
+`@dou-ui/icons/meta` 单独导出全部图标的元信息，适合做图标选择器、搜索等。它与图标组件分开，引入图标时不会带上这份数据。
 
 ```ts
-import { categories, icons } from 'dou-icons/meta'
+import { categories, icons } from '@dou-ui/icons/meta'
 
 icons[0]
 // {
@@ -120,15 +120,15 @@ categories.status // '状态'
 不使用 Vue 时，可以直接取用 SVG 源文件。作为图片使用时线宽会随尺寸缩放（24px 时为 1.5px）：
 
 ```ts
-import searchUrl from 'dou-icons/svg/search.svg'
+import searchUrl from '@dou-ui/icons/svg/search.svg'
 ```
 
 ## 自定义图标
 
-`createIcon` 把 24 网格上的图形变成与内置图标行为一致的组件（线宽补偿、无障碍语义），适合补充项目里独有的图标。`['dot', { cx, cy }]` 画一个比线略重的点，在图形后面加 `'fill'`（如 `['path', { d }, 'fill']`）会把它画成填充形状：
+`createIcon` 把 24 网格上的图形变成与内置图标行为一致的组件（线宽补偿、无障碍语义），适合补充项目里独有的图标。`['dot', { cx, cy }]` 画一个比线略重的点：
 
 ```ts
-import { createIcon } from 'dou-icons'
+import { createIcon } from '@dou-ui/icons'
 
 export const TargetIcon = createIcon('target', [
   ['circle', { cx: 12, cy: 12, r: 9 }],

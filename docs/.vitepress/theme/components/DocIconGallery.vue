@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, shallowRef, useTemplateRef } from 'vue'
 import type { Component } from 'vue'
-import * as exports from 'dou-icons'
-import { SearchIcon } from 'dou-icons'
-import { categories, icons } from 'dou-icons/meta'
-import type { IconCategory, IconMeta } from 'dou-icons/meta'
+import * as exports from '@dou-ui/icons'
+import { SearchIcon } from '@dou-ui/icons'
+import { categories, icons } from '@dou-ui/icons/meta'
+import type { IconCategory, IconMeta } from '@dou-ui/icons/meta'
 
 const registry: Record<string, Component> = { ...exports }
 const iconOf = (meta: IconMeta) => registry[meta.component]!
@@ -141,8 +141,11 @@ function svgSource() {
         </DouDescriptions>
         <div class="icon-detail__snippets">
           <div class="icon-detail__snippet">
-            <code>import { {{ active.component }} } from 'dou-icons'</code>
-            <DouCopyButton :text="`import { ${active.component} } from 'dou-icons'`" size="sm" />
+            <code>import { {{ active.component }} } from '@dou-ui/icons'</code>
+            <DouCopyButton
+              :text="`import { ${active.component} } from '@dou-ui/icons'`"
+              size="sm"
+            />
           </div>
           <div class="icon-detail__snippet">
             <code>&lt;{{ active.component }} /&gt;</code>

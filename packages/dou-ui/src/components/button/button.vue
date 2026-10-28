@@ -51,7 +51,7 @@ function onClick(event: MouseEvent) {
     <span v-else-if="slots.leading" :class="ns.e('icon')">
       <slot name="leading" />
     </span>
-    <slot />
+    <span v-if="slots.default" :class="ns.e('label')"><slot /></span>
     <span v-if="slots.trailing" :class="ns.e('icon')">
       <slot name="trailing" />
     </span>

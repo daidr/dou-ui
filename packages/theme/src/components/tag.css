@@ -96,7 +96,13 @@
   }
 
   .dou-tag__label {
-    overflow: hidden;
+    /*
+     * Center on the cap height instead of the font's ascent and descent,
+     * which vary by platform and by the fallback font that draws CJK text.
+     */
+    text-box: trim-both cap alphabetic;
+    /* clip sideways only, so the trimmed box never cuts the glyphs */
+    overflow-x: clip;
     text-overflow: ellipsis;
   }
 

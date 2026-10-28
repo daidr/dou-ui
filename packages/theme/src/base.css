@@ -1,0 +1,13 @@
+/*
+ * Minimal base layer. DouUI never restyles the host page on its own:
+ * only elements that opt in with `data-dou-theme` get themed defaults.
+ */
+@layer dou.base {
+  :where([data-dou-theme]) {
+    background-color: var(--dou-color-bg-canvas);
+    color: var(--dou-color-text);
+    font-family: var(--dou-font-family);
+    font-size: var(--dou-font-size-md);
+    line-height: var(--dou-font-line-height);
+  }
+}

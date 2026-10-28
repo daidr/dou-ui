@@ -10,6 +10,7 @@
     /* tone: the color the variant is built from */
     --dou-button-tone: var(--dou-color-neutral);
     --dou-button-tone-on: var(--dou-color-neutral-on);
+    --dou-button-tone-text: var(--dou-color-neutral-text);
 
     /* size */
     --dou-button-height: var(--dou-control-height-md);
@@ -24,7 +25,7 @@
     --dou-button-bg: transparent;
     --dou-button-bg-hover: transparent;
     --dou-button-bg-active: transparent;
-    --dou-button-fg: var(--dou-button-tone);
+    --dou-button-fg: var(--dou-button-tone-text);
     --dou-button-border: transparent;
     --dou-button-border-hover: var(--dou-button-border);
     --dou-button-shadow: none;
@@ -106,18 +107,22 @@
   .dou-button--primary {
     --dou-button-tone: var(--dou-color-primary);
     --dou-button-tone-on: var(--dou-color-primary-on);
+    --dou-button-tone-text: var(--dou-color-primary-text);
   }
   .dou-button--success {
     --dou-button-tone: var(--dou-color-success);
     --dou-button-tone-on: var(--dou-color-success-on);
+    --dou-button-tone-text: var(--dou-color-success-text);
   }
   .dou-button--warning {
     --dou-button-tone: var(--dou-color-warning);
     --dou-button-tone-on: var(--dou-color-warning-on);
+    --dou-button-tone-text: var(--dou-color-warning-text);
   }
   .dou-button--danger {
     --dou-button-tone: var(--dou-color-danger);
     --dou-button-tone-on: var(--dou-color-danger-on);
+    --dou-button-tone-text: var(--dou-color-danger-text);
   }
 
   /*

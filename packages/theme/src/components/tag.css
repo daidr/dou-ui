@@ -9,6 +9,7 @@
   .dou-tag {
     --dou-tag-tone: var(--dou-color-neutral);
     --dou-tag-tone-on: var(--dou-color-neutral-on);
+    --dou-tag-tone-text: var(--dou-color-neutral-text);
 
     --dou-tag-height: 24px;
     --dou-tag-padding-x: 8px;
@@ -17,7 +18,7 @@
     --dou-tag-radius: calc(var(--dou-radius-control) - 2px);
 
     --dou-tag-bg: transparent;
-    --dou-tag-fg: var(--dou-tag-tone);
+    --dou-tag-fg: var(--dou-tag-tone-text);
     --dou-tag-border: transparent;
     --dou-tag-shadow: none;
 
@@ -48,18 +49,22 @@
   .dou-tag--primary {
     --dou-tag-tone: var(--dou-color-primary);
     --dou-tag-tone-on: var(--dou-color-primary-on);
+    --dou-tag-tone-text: var(--dou-color-primary-text);
   }
   .dou-tag--success {
     --dou-tag-tone: var(--dou-color-success);
     --dou-tag-tone-on: var(--dou-color-success-on);
+    --dou-tag-tone-text: var(--dou-color-success-text);
   }
   .dou-tag--warning {
     --dou-tag-tone: var(--dou-color-warning);
     --dou-tag-tone-on: var(--dou-color-warning-on);
+    --dou-tag-tone-text: var(--dou-color-warning-text);
   }
   .dou-tag--danger {
     --dou-tag-tone: var(--dou-color-danger);
     --dou-tag-tone-on: var(--dou-color-danger-on);
+    --dou-tag-tone-text: var(--dou-color-danger-text);
   }
 
   /* variants */

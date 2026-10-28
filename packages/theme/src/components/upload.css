@@ -186,7 +186,7 @@
 
   .dou-upload__file.is-error .dou-upload__thumb {
     border-color: color-mix(in oklab, var(--dou-color-danger) 40%, var(--dou-color-border));
-    color: var(--dou-color-danger);
+    color: var(--dou-color-danger-text);
   }
 
   .dou-upload__meta {
@@ -225,7 +225,7 @@
   }
 
   .dou-upload__file.is-error .dou-upload__status {
-    color: var(--dou-color-danger);
+    color: var(--dou-color-danger-text);
   }
 
   .dou-upload__progress {

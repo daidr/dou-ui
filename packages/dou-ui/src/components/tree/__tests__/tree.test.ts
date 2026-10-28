@@ -208,6 +208,8 @@ describe('DouTree', () => {
     // 280 / 28 = 10 in view, 6 overscan
     expect(items()).toHaveLength(16)
     expect(items()[0]!.attributes('aria-setsize')).toBe('500')
+    // focus stays on the tree, never on the scroller inside it
+    expect(wrapper.get('.dou-virtual-list').attributes('tabindex')).toBeUndefined()
     wrapper.unmount()
   })
 })

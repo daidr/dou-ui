@@ -9,6 +9,8 @@
     --dou-radio-tone: var(--dou-color-neutral);
     --dou-radio-tone-on: var(--dou-color-neutral-on);
     --dou-radio-size: 16px;
+    /* even sizes keep the dot on whole pixels, so it stays perfectly round */
+    --dou-radio-dot: 6px;
     --dou-radio-gap: var(--dou-space-sm);
     --dou-radio-font-size: var(--dou-font-size-md);
 
@@ -32,11 +34,13 @@
 
   .dou-radio--sm {
     --dou-radio-size: 14px;
+    --dou-radio-dot: 4px;
     --dou-radio-gap: 6px;
     --dou-radio-font-size: var(--dou-font-size-sm);
   }
   .dou-radio--lg {
     --dou-radio-size: 18px;
+    --dou-radio-dot: 6px;
     --dou-radio-gap: 10px;
     --dou-radio-font-size: var(--dou-font-size-lg);
   }
@@ -99,8 +103,9 @@
   }
 
   .dou-radio__indicator::after {
-    width: 37.5%;
-    height: 37.5%;
+    flex-shrink: 0;
+    width: var(--dou-radio-dot);
+    height: var(--dou-radio-dot);
     border-radius: var(--dou-radius-full);
     background-color: currentColor;
     opacity: 0;

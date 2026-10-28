@@ -17,6 +17,8 @@
     /* the thumb leaves 2px between itself and the track's edge */
     --dou-switch-thumb-size: calc(var(--dou-switch-height) - 6px);
     --dou-switch-travel: calc(var(--dou-switch-width) - var(--dou-switch-height));
+    /* thumb and spinner are both even, so the spinner centers on whole pixels */
+    --dou-switch-spinner-size: 8px;
 
     display: inline-flex;
     align-items: center;
@@ -34,12 +36,14 @@
   .dou-switch--sm {
     --dou-switch-width: 28px;
     --dou-switch-height: 16px;
+    --dou-switch-spinner-size: 6px;
     --dou-switch-gap: 6px;
     --dou-switch-font-size: var(--dou-font-size-sm);
   }
   .dou-switch--lg {
     --dou-switch-width: 44px;
     --dou-switch-height: 24px;
+    --dou-switch-spinner-size: 10px;
     --dou-switch-gap: 10px;
     --dou-switch-font-size: var(--dou-font-size-lg);
   }
@@ -124,8 +128,9 @@
   }
 
   .dou-switch__spinner {
-    width: 65%;
-    height: 65%;
+    flex-shrink: 0;
+    width: var(--dou-switch-spinner-size);
+    height: var(--dou-switch-spinner-size);
     box-sizing: border-box;
     border: 1.5px solid currentColor;
     border-right-color: transparent;

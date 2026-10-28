@@ -38,11 +38,23 @@ describe('dou-icons', () => {
 
   it('follows the font size by default and takes a size', async () => {
     const wrapper = mount(SearchIcon)
+    const style = (wrapper.element as SVGElement).style
     expect(wrapper.attributes('width')).toBe('1em')
     expect(wrapper.attributes('height')).toBe('1em')
-    await wrapper.setProps({ size: 24, strokeWidth: 2 })
-    expect(wrapper.attributes('width')).toBe('24')
-    expect(wrapper.attributes('stroke-width')).toBe('2')
+    expect(style.fontSize).toBe('')
+    await wrapper.setProps({ size: 24 })
+    expect(style.fontSize).toBe('24px')
+    await wrapper.setProps({ size: '2rem' })
+    expect(style.fontSize).toBe('2rem')
+  })
+
+  it('tunes the line width to the size unless given one', async () => {
+    const wrapper = mount(SearchIcon)
+    const style = (wrapper.element as SVGElement).style
+    expect(style.getPropertyValue('--dou-icons-stroke')).toBe('calc(0.75px + 0.03125em)')
+    expect(style.strokeWidth).toBe('var(--dou-icons-stroke)')
+    await wrapper.setProps({ strokeWidth: 2 })
+    expect(style.getPropertyValue('--dou-icons-stroke')).toBe('2px')
   })
 
   it('is decoration unless given a label', async () => {
@@ -64,7 +76,7 @@ describe('dou-icons', () => {
     expect(wrapper.attributes('data-x')).toBe('1')
   })
 
-  it('keeps the line width in screen pixels at every size', () => {
+  it('draws the line width in screen pixels, not grid units', () => {
     const wrapper = mount(SearchIcon, { props: { size: 48 } })
     for (const shape of wrapper.findAll('circle, path')) {
       expect(shape.attributes('vector-effect')).toBe('non-scaling-stroke')
@@ -73,9 +85,11 @@ describe('dou-icons', () => {
 
   it('draws dots a little heavier than lines', () => {
     const Dot = createIcon('my-dot', [['dot', { cx: 12, cy: 8 }]])
-    const path = mount(Dot, { props: { strokeWidth: 2 } }).find('path')
+    const path = mount(Dot).find('path')
     expect(path.attributes('d')).toBe('M12 8h.01')
-    expect(path.attributes('stroke-width')).toBe('3')
+    expect((path.element as SVGElement).style.strokeWidth).toBe(
+      'calc(var(--dou-icons-stroke) * 1.5)',
+    )
   })
 
   it('makes custom icons with createIcon', () => {

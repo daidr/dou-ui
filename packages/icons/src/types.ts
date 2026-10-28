@@ -17,8 +17,8 @@ export interface IconProps {
   /** Width and height. A number is read as pixels. Defaults to `1em`, so the icon follows the font size. */
   size?: number | string
   /**
-   * Line width in CSS pixels. It stays the same at every size, so a 16px and
-   * a 48px icon read as one family.
+   * Line width; a number is in pixels. By default it follows the size
+   * optically: 1.25px at 16px, 1.5px at 24px, 2.25px at 48px.
    */
   strokeWidth?: number | string
   /** Accessible name. Without one the icon is decoration and hidden from assistive technology. */

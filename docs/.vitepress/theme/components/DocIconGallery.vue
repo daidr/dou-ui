@@ -10,10 +10,9 @@ const registry: Record<string, Component> = { ...exports }
 const iconOf = (meta: IconMeta) => registry[meta.component]!
 
 const query = ref('')
+/** One drawing at every size: the slider only previews it. */
+const size = ref(24)
 const category = ref<IconCategory | 'all'>('all')
-const size = ref<number | string>(24)
-const strokeWidth = ref(1.5)
-
 const counts = computed(() => {
   const map = new Map<string, number>()
   for (const icon of icons) {
@@ -45,13 +44,6 @@ const results = computed(() => {
   })
 })
 
-const sizes = [
-  { value: 16, label: '16' },
-  { value: 20, label: '20' },
-  { value: 24, label: '24' },
-  { value: 32, label: '32' },
-]
-
 const active = shallowRef<IconMeta>()
 const open = ref(false)
 function show(icon: IconMeta) {
@@ -67,11 +59,13 @@ function svgSource() {
   for (const name of ['width', 'height', 'aria-hidden', 'role', 'aria-label']) {
     svg.removeAttribute(name)
   }
+  svg.removeAttribute('style')
   svg.setAttribute('stroke-width', '1.5')
   for (const shape of svg.querySelectorAll('*')) {
     shape.removeAttribute('vector-effect')
-    // dots carry their own, heavier width
-    if (shape.hasAttribute('stroke-width')) shape.setAttribute('stroke-width', '2.25')
+    shape.removeAttribute('style')
+    // dots are a little heavier than lines
+    if (shape.getAttribute('d')?.endsWith('h.01')) shape.setAttribute('stroke-width', '2.25')
   }
   return svg.outerHTML
     .replace(/<!--.*?-->/g, '')
@@ -93,13 +87,10 @@ function svgSource() {
           ><DouIcon><SearchIcon /></DouIcon
         ></template>
       </DouInput>
-      <div class="icon-gallery__options">
-        <DouSegmentedControl v-model="size" :options="sizes" size="sm" aria-label="预览尺寸" />
-        <label class="icon-gallery__stroke">
-          <span>线宽 {{ strokeWidth.toFixed(2) }}px</span>
-          <DouSlider v-model="strokeWidth" :min="1" :max="2" :step="0.25" size="sm" />
-        </label>
-      </div>
+      <label class="icon-gallery__size">
+        <span>尺寸 {{ size }}px</span>
+        <DouSlider v-model="size" :min="12" :max="64" :step="2" size="sm" />
+      </label>
     </div>
 
     <div class="icon-gallery__filters" role="group" aria-label="分类">
@@ -118,10 +109,10 @@ function svgSource() {
 
     <p class="icon-gallery__summary" aria-live="polite">共 {{ results.length }} 个图标</p>
 
-    <ul v-if="results.length" class="icon-gallery__grid">
+    <ul v-if="results.length" class="icon-gallery__grid" :style="{ '--icon-size': `${size}px` }">
       <li v-for="icon in results" :key="icon.component">
         <button type="button" class="icon-gallery__cell" :title="icon.label" @click="show(icon)">
-          <component :is="iconOf(icon)" :size="size" :stroke-width="strokeWidth" />
+          <component :is="iconOf(icon)" :size="size" />
           <span class="icon-gallery__name">{{ icon.name }}</span>
         </button>
       </li>
@@ -131,10 +122,10 @@ function svgSource() {
     <DouDialog v-model:open="open" :title="active?.component" width="480px">
       <div v-if="active" class="icon-detail">
         <div ref="preview" class="icon-detail__preview">
-          <component :is="iconOf(active)" :size="96" :stroke-width="strokeWidth" />
+          <component :is="iconOf(active)" :size="96" />
         </div>
         <div class="icon-detail__sizes">
-          <component :is="iconOf(active)" v-for="n in [16, 20, 24, 32]" :key="n" :size="n" />
+          <component :is="iconOf(active)" v-for="n in [16, 24, 32, 48]" :key="n" :size="n" />
         </div>
         <DouDescriptions :columns="1" layout="horizontal" label-width="72px" bordered>
           <DouDescriptionsItem label="名称">{{ active.name }}</DouDescriptionsItem>

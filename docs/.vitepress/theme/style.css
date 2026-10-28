@@ -409,25 +409,18 @@ body {
   max-width: 400px;
 }
 
-.icon-gallery__options {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px 24px;
-}
-
-.icon-gallery__stroke {
+.icon-gallery__size {
   display: flex;
   align-items: center;
   gap: 12px;
-  width: 200px;
+  width: 240px;
   color: var(--dou-color-text-secondary);
   font-size: var(--dou-font-size-sm);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
-.icon-gallery__stroke > :last-child {
+.icon-gallery__size > :last-child {
   flex: 1;
 }
 
@@ -452,7 +445,7 @@ body {
 
 .icon-gallery__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(max(112px, calc(var(--icon-size) + 48px)), 1fr));
   padding: 0;
   margin: 0;
   border-top: 1px solid var(--dou-color-border-subtle);
@@ -472,7 +465,7 @@ body {
   justify-content: center;
   gap: 12px;
   width: 100%;
-  height: 112px;
+  min-height: 112px;
   padding: 16px 8px 12px;
   border: 0;
   background: none;

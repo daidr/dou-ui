@@ -8,6 +8,7 @@ import type {
   FormInstance,
   FormRules,
   MenuOption,
+  CascaderOption,
   CommandItem,
   DateRange,
   TableColumn,
@@ -81,6 +82,57 @@ const deploySteps = [
   { title: '部署', description: '上传到边缘节点' },
   { title: '完成' },
 ]
+
+const rating = ref(3.5)
+const framework = ref('')
+const frameworks = ['Vue', 'Vite', 'VitePress', 'Vitest', 'Nuxt', 'Pinia', 'Bun', 'oxlint']
+const city = ref<(string | number)[] | null>(['zhejiang', 'hangzhou', 'xihu'])
+const regions: CascaderOption[] = [
+  {
+    value: 'zhejiang',
+    label: '浙江',
+    children: [
+      {
+        value: 'hangzhou',
+        label: '杭州',
+        children: [
+          { value: 'xihu', label: '西湖区' },
+          { value: 'binjiang', label: '滨江区' },
+        ],
+      },
+      { value: 'ningbo', label: '宁波', children: [{ value: 'haishu', label: '海曙区' }] },
+    ],
+  },
+  {
+    value: 'guangdong',
+    label: '广东',
+    children: [
+      { value: 'shenzhen', label: '深圳', children: [{ value: 'nanshan', label: '南山区' }] },
+      { value: 'guangzhou', label: '广州', disabled: true },
+    ],
+  },
+]
+const time = ref('09:30')
+const timeRange = ref<[string, string]>(['09:00', '18:00'])
+const brand = ref('#3f56b5')
+const brandAlpha = ref('#2e7d5bcc')
+const presets = [
+  '#171717',
+  '#3f56b5',
+  '#2e7d5b',
+  '#9a6a1f',
+  '#b2423e',
+  '#7c5cbf',
+  '#2b8a9e',
+  '#e6e6e6',
+]
+const members = Array.from({ length: 40 }, (_, index) => ({
+  key: index + 1,
+  label: `成员 ${String(index + 1).padStart(2, '0')}`,
+  description: index % 3 === 0 ? '管理员' : undefined,
+  disabled: index === 4,
+}))
+const picked = ref([2, 3, 7])
 
 const variants: ButtonVariant[] = ['solid', 'soft', 'outline', 'ghost']
 const tones: ButtonTone[] = ['neutral', 'primary', 'success', 'warning', 'danger']
@@ -285,6 +337,31 @@ function simulate() {
         {{ theme === 'light' ? '深色' : '浅色' }}
       </DouButton>
     </header>
+
+    <section>
+      <h2>form · complete</h2>
+      <div class="form-complete">
+        <DouRate v-model="rating" allow-half clearable>
+          <template #default="{ value }">{{ value.toFixed(1) }}</template>
+        </DouRate>
+        <DouRate :model-value="4" tone="warning" readonly size="sm" />
+        <DouAutocomplete
+          v-model="framework"
+          :options="frameworks"
+          placeholder="搜索工具链"
+          clearable
+        />
+        <DouCascader v-model="city" :options="regions" clearable filterable />
+        <DouTimePicker v-model="time" clearable />
+        <DouTimePicker v-model="timeRange" range />
+        <DouSpace>
+          <DouColorPicker v-model="brand" :presets="presets" />
+          <DouColorPicker v-model="brandAlpha" show-alpha :presets="presets" />
+          <DouColorPicker v-model="brand" :show-text="false" />
+        </DouSpace>
+      </div>
+      <DouTransfer v-model="picked" :data="members" filterable :titles="['全部成员', '项目成员']" />
+    </section>
 
     <section>
       <h2>structure · navigation</h2>
@@ -1098,6 +1175,13 @@ p {
   color: var(--dou-color-text-tertiary);
   font-family: var(--dou-font-family-mono);
   font-size: var(--dou-font-size-sm);
+}
+.form-complete {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 320px));
+  gap: 16px 24px;
+  align-items: center;
+  margin-bottom: 24px;
 }
 .nav-demo {
   display: flex;

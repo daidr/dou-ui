@@ -1,0 +1,133 @@
+/*
+ * Collapse
+ *
+ * Rows of headers split by hairlines. A small chevron in front of each
+ * title turns a quarter when the item opens, and the panel slides open
+ * to its natural height; the content lines up with the title, not the
+ * chevron. `bordered` puts the rows in a framed container instead.
+ */
+@layer dou.components {
+  .dou-collapse {
+    --dou-collapse-padding-x: 0px;
+    --dou-collapse-header-padding-y: 12px;
+    --dou-collapse-arrow-size: 16px;
+    --dou-collapse-gap: 8px;
+    --dou-collapse-border: var(--dou-color-border);
+
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    color: var(--dou-color-text);
+    font-size: var(--dou-font-size-md);
+    line-height: var(--dou-font-line-height);
+
+    &.is-bordered {
+      --dou-collapse-padding-x: 16px;
+      overflow: hidden;
+      border: 1px solid var(--dou-collapse-border);
+      border-radius: var(--dou-radius-container);
+      background-color: var(--dou-color-bg-surface);
+    }
+  }
+
+  .dou-collapse__item {
+    border-bottom: 1px solid var(--dou-collapse-border);
+
+    .dou-collapse.is-bordered > &:last-child {
+      border-bottom: 0;
+    }
+  }
+
+  .dou-collapse__header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-right: var(--dou-collapse-padding-x);
+  }
+
+  .dou-collapse__trigger {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    gap: var(--dou-collapse-gap);
+    min-width: 0;
+    padding: var(--dou-collapse-header-padding-y) 0 var(--dou-collapse-header-padding-y)
+      var(--dou-collapse-padding-x);
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    font-weight: var(--dou-font-weight-medium);
+    line-height: 1;
+    text-align: start;
+    cursor: pointer;
+
+    &:focus-visible {
+      border-radius: var(--dou-radius-control);
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: -2px;
+    }
+
+    &:hover .dou-collapse__arrow {
+      color: var(--dou-color-text);
+    }
+
+    .dou-collapse__item.is-disabled & {
+      color: var(--dou-color-text-disabled);
+      cursor: not-allowed;
+
+      & .dou-collapse__arrow {
+        color: inherit;
+      }
+    }
+  }
+
+  .dou-collapse__arrow {
+    flex-shrink: 0;
+    width: var(--dou-collapse-arrow-size);
+    height: var(--dou-collapse-arrow-size);
+    color: var(--dou-color-text-tertiary);
+    transition:
+      transform var(--dou-motion-duration-normal) var(--dou-motion-easing),
+      color var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    .dou-collapse__item.is-open & {
+      transform: rotate(90deg);
+    }
+  }
+
+  .dou-collapse__title {
+    flex: 1 1 auto;
+    min-width: 0;
+    text-box: trim-both cap alphabetic;
+  }
+
+  .dou-collapse__extra {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 8px;
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+  }
+
+  .dou-collapse__content {
+    padding: 0 var(--dou-collapse-padding-x) 16px
+      calc(var(--dou-collapse-padding-x) + var(--dou-collapse-arrow-size) + var(--dou-collapse-gap));
+    color: var(--dou-color-text-secondary);
+  }
+
+  /* the height itself is animated from script, see CollapseTransition */
+  .dou-collapse-enter-active,
+  .dou-collapse-leave-active {
+    transition: height var(--dou-motion-duration-normal) var(--dou-motion-easing);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dou-collapse__arrow,
+    .dou-collapse-enter-active,
+    .dou-collapse-leave-active {
+      transition: none;
+    }
+  }
+}

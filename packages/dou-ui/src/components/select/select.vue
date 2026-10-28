@@ -9,7 +9,7 @@ import { useFormDisabled, useFormItem, useFormSize } from '../form/use-form-item
 import { DouTag } from '../tag'
 import type { SelectExpose, SelectOption, SelectProps, SelectSlots, SelectValue } from './select'
 
-defineOptions({ name: 'DouSelect' })
+defineOptions({ name: 'DouSelect', inheritAttrs: false })
 
 const props = withDefaults(defineProps<SelectProps>(), {
   multiple: false,
@@ -282,8 +282,8 @@ defineExpose<SelectExpose>({ focus, blur: () => combobox()?.blur() })
   <OnlyChild ref="triggerRef">
     <div
       ref="field"
+      v-bind="filterable ? $attrs : { ...$attrs, ...comboboxAttrs }"
       :class="classes"
-      v-bind="filterable ? {} : comboboxAttrs"
       :id="filterable ? undefined : formItem?.inputId"
       :aria-labelledby="filterable ? undefined : formItem?.labelId"
       :tabindex="filterable || disabled ? undefined : 0"

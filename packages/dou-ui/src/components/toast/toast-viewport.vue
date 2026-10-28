@@ -6,7 +6,7 @@ import { nextViewportId, removeToast, toastState } from './store'
 import ToastItem from './toast-item.vue'
 import type { ToastPlacement, ToastViewportProps } from './toast'
 
-defineOptions({ name: 'DouToastViewport' })
+defineOptions({ name: 'DouToastViewport', inheritAttrs: false })
 
 const props = withDefaults(defineProps<ToastViewportProps>(), { max: 5 })
 
@@ -68,6 +68,7 @@ watch(
     <section
       v-for="group in groups"
       :key="group.placement"
+      v-bind="$attrs"
       :class="[ns.b(), ns.m(group.placement)]"
       :style="{ zIndex }"
       :aria-label="t('toast.region')"

@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, inject } from 'vue'
+import { computed, inject, useAttrs } from 'vue'
+import type { StyleValue } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { useFormDisabled, useFormItem, useFormSize } from '../form/use-form-item'
 import { checkboxGroupKey } from './checkbox'
 import type { CheckboxProps, CheckboxSlots } from './checkbox'
 
-defineOptions({ name: 'DouCheckbox' })
+defineOptions({ name: 'DouCheckbox', inheritAttrs: false })
 
 const props = withDefaults(defineProps<CheckboxProps>(), {
   indeterminate: false,
@@ -35,6 +36,14 @@ function onChange(event: Event) {
   formItem?.trigger('change')
 }
 
+// `class` and `style` dress the control; every other attribute (id,
+// aria-*, data-*, listeners...) belongs to the native element.
+const attrs = useAttrs()
+const nativeAttrs = computed(() => {
+  const { class: _class, style: _style, ...rest } = attrs
+  return rest
+})
+
 const classes = computed(() => [
   ns.b(),
   ns.m(size.value),
@@ -45,7 +54,7 @@ const classes = computed(() => [
 </script>
 
 <template>
-  <label :class="classes">
+  <label :class="[classes, attrs.class]" :style="attrs.style as StyleValue">
     <span :class="ns.e('control')">
       <input
         :id="formItem?.inputId"
@@ -61,6 +70,7 @@ const classes = computed(() => [
         :aria-invalid="formItem?.invalid.value || undefined"
         :aria-required="formItem?.required.value || undefined"
         @change="onChange"
+        v-bind="nativeAttrs"
       />
       <span :class="ns.e('indicator')" aria-hidden="true">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">

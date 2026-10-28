@@ -4,7 +4,7 @@ import { useNamespace } from '../../utils/namespace'
 import { dropdownKey } from './dropdown'
 import type { DropdownItemProps, DropdownItemSlots } from './dropdown'
 
-defineOptions({ name: 'DouDropdownItem' })
+defineOptions({ name: 'DouDropdownItem', inheritAttrs: false })
 
 const props = withDefaults(defineProps<DropdownItemProps>(), {
   disabled: false,
@@ -39,6 +39,7 @@ function onPointerleave(event: PointerEvent) {
 <template>
   <div v-if="divided" role="separator" :class="ns.e('separator')" />
   <div
+    v-bind="$attrs"
     role="menuitem"
     tabindex="-1"
     :class="classes"

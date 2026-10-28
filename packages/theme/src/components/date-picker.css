@@ -1,0 +1,395 @@
+/*
+ * DatePicker and Calendar
+ *
+ * The field is drawn like an input, with a quiet calendar glyph in front;
+ * a range is two text boxes joined by an arrow inside one field. The
+ * calendar is a grid of plain numbers: today is marked by a short ink bar
+ * under the number, the chosen day becomes a solid ink key like a solid
+ * button, and the days between the ends of a range share one faint wash.
+ */
+@layer dou.components {
+  .dou-date-picker {
+    --dou-date-picker-height: var(--dou-control-height-md);
+    --dou-date-picker-padding-x: var(--dou-control-padding-x-md);
+    --dou-date-picker-gap: var(--dou-control-gap-md);
+    --dou-date-picker-font-size: var(--dou-font-size-md);
+    --dou-date-picker-bg: var(--dou-color-bg-surface);
+    --dou-date-picker-border: var(--dou-color-border);
+    --dou-date-picker-border-hover: var(--dou-color-border-strong);
+    --dou-date-picker-border-focus: color-mix(
+      in oklab,
+      var(--dou-color-focus) 70%,
+      var(--dou-color-text)
+    );
+    --dou-date-picker-ring: color-mix(in oklab, var(--dou-color-focus) 32%, transparent);
+    --dou-date-picker-shadow: var(--dou-shadow-sm);
+
+    display: inline-flex;
+    align-items: center;
+    gap: var(--dou-date-picker-gap);
+    box-sizing: border-box;
+    width: 100%;
+    height: var(--dou-date-picker-height);
+    padding: 0 var(--dou-date-picker-padding-x);
+    border: 1px solid var(--dou-date-picker-border);
+    border-radius: var(--dou-radius-control);
+    background-color: var(--dou-date-picker-bg);
+    box-shadow: var(--dou-date-picker-shadow);
+    color: var(--dou-color-text);
+    font-size: var(--dou-date-picker-font-size);
+    vertical-align: middle;
+    cursor: text;
+    transition-property: border-color, box-shadow, background-color;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    &:hover {
+      border-color: var(--dou-date-picker-border-hover);
+    }
+
+    &:focus-within,
+    &.is-open {
+      border-color: var(--dou-date-picker-border-focus);
+      box-shadow:
+        0 0 0 3px var(--dou-date-picker-ring),
+        var(--dou-date-picker-shadow);
+    }
+
+    &.is-invalid {
+      --dou-date-picker-border: color-mix(
+        in oklab,
+        var(--dou-color-danger) 55%,
+        var(--dou-color-border)
+      );
+      --dou-date-picker-border-hover: color-mix(
+        in oklab,
+        var(--dou-color-danger) 75%,
+        var(--dou-color-border)
+      );
+      --dou-date-picker-border-focus: var(--dou-color-danger);
+      --dou-date-picker-ring: color-mix(in oklab, var(--dou-color-danger) 18%, transparent);
+    }
+
+    &.is-disabled {
+      --dou-date-picker-bg: var(--dou-color-bg-muted);
+      --dou-date-picker-border-hover: var(--dou-date-picker-border);
+      --dou-date-picker-shadow: none;
+      color: var(--dou-color-text-disabled);
+      cursor: not-allowed;
+    }
+  }
+
+  .dou-date-picker--sm {
+    --dou-date-picker-height: var(--dou-control-height-sm);
+    --dou-date-picker-padding-x: var(--dou-control-padding-x-sm);
+    --dou-date-picker-gap: var(--dou-control-gap-sm);
+    --dou-date-picker-font-size: var(--dou-font-size-sm);
+  }
+  .dou-date-picker--lg {
+    --dou-date-picker-height: var(--dou-control-height-lg);
+    --dou-date-picker-padding-x: var(--dou-control-padding-x-lg);
+    --dou-date-picker-gap: var(--dou-control-gap-lg);
+    --dou-date-picker-font-size: var(--dou-font-size-lg);
+  }
+
+  .dou-date-picker__icon,
+  .dou-date-picker__separator {
+    flex-shrink: 0;
+    width: 1.1em;
+    height: 1.1em;
+    color: var(--dou-color-text-tertiary);
+  }
+
+  .dou-date-picker__input {
+    flex: 1 1 0;
+    min-width: 0;
+    height: calc(var(--dou-date-picker-height) - 2px);
+    padding: 0;
+    margin: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-variant-numeric: tabular-nums;
+
+    &::placeholder {
+      color: var(--dou-color-text-tertiary);
+      opacity: 1;
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+    }
+  }
+
+  .dou-date-picker.is-range .dou-date-picker__input {
+    text-align: center;
+  }
+
+  .dou-date-picker__clear {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 1.15em;
+    height: 1.15em;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    border-radius: var(--dou-radius-full);
+    background-color: color-mix(in oklab, var(--dou-color-text) 10%, transparent);
+    color: var(--dou-color-text-secondary);
+    cursor: pointer;
+
+    & > svg {
+      width: 0.8em;
+      height: 0.8em;
+    }
+
+    &:hover {
+      background-color: color-mix(in oklab, var(--dou-color-text) 18%, transparent);
+      color: var(--dou-color-text);
+    }
+  }
+
+  .dou-date-picker__panel {
+    padding: 8px;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-container);
+    background-color: light-dark(
+      var(--dou-color-bg-surface),
+      color-mix(in oklab, var(--dou-color-text) 4%, var(--dou-color-bg-surface))
+    );
+    box-shadow: var(--dou-shadow-md);
+    color: var(--dou-color-text);
+    font-family: var(--dou-font-family);
+    font-size: var(--dou-font-size-md);
+  }
+
+  /* the calendar */
+  .dou-calendar {
+    --dou-calendar-cell: 32px;
+    --dou-calendar-range-bg: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+
+    display: inline-flex;
+    flex-direction: column;
+    color: var(--dou-color-text);
+    font-size: var(--dou-font-size-md);
+    font-variant-numeric: tabular-nums;
+    user-select: none;
+  }
+
+  .dou-calendar__panels {
+    display: flex;
+    gap: 20px;
+  }
+
+  .dou-calendar__panel {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .dou-calendar__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 32px;
+  }
+
+  .dou-calendar__step,
+  .dou-calendar__step-space {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+  }
+
+  .dou-calendar__step,
+  .dou-calendar__title {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    border-radius: var(--dou-radius-control);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+
+    &:hover {
+      background-color: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 1px;
+    }
+  }
+
+  .dou-calendar__step {
+    color: var(--dou-color-text-secondary);
+
+    & > svg {
+      width: 16px;
+      height: 16px;
+    }
+  }
+
+  .dou-calendar__title {
+    height: 28px;
+    padding: 0 8px;
+    font-weight: var(--dou-font-weight-medium);
+    text-box: trim-both cap alphabetic;
+
+    &.is-static {
+      cursor: default;
+
+      &:hover {
+        background: transparent;
+      }
+    }
+  }
+
+  .dou-calendar__grid {
+    border-collapse: collapse;
+    border-spacing: 0;
+
+    & th {
+      width: var(--dou-calendar-cell);
+      height: 28px;
+      padding: 0;
+      color: var(--dou-color-text-tertiary);
+      font-size: var(--dou-font-size-sm);
+      font-weight: var(--dou-font-weight-regular);
+      text-align: center;
+    }
+
+    & td {
+      padding: 1px 0;
+    }
+  }
+
+  .dou-calendar__cell {
+    position: relative;
+    text-align: center;
+
+    /* the wash behind a range runs edge to edge across the row */
+    &.is-in-range::before,
+    &.is-range-start::before,
+    &.is-range-end::before {
+      position: absolute;
+      inset: 1px 0;
+      background-color: var(--dou-calendar-range-bg);
+      content: '';
+    }
+    &.is-range-start::before {
+      left: 50%;
+    }
+    &.is-range-end::before {
+      right: 50%;
+    }
+    &.is-range-start.is-range-end::before {
+      content: none;
+    }
+  }
+
+  .dou-calendar__day {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: var(--dou-calendar-cell);
+    height: var(--dou-calendar-cell);
+    padding: 0;
+    margin: 0;
+    border: 1px solid transparent;
+    border-radius: var(--dou-radius-control);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    line-height: 1;
+    cursor: pointer;
+    transition-property: background-color, border-color, color;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    &:hover:not(.is-selected, .is-disabled) {
+      background-color: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 1px;
+    }
+
+    /* today: a short ink bar under the number */
+    &.is-today::after {
+      position: absolute;
+      bottom: 5px;
+      left: 50%;
+      width: 10px;
+      height: 2px;
+      border-radius: 1px;
+      background-color: currentColor;
+      content: '';
+      translate: -50% 0;
+    }
+
+    &.is-selected {
+      border-color: color-mix(in oklab, var(--dou-color-neutral) 90%, var(--dou-color-edge));
+      background-color: var(--dou-color-neutral);
+      box-shadow:
+        var(--dou-shadow-highlight),
+        0 1px 2px color-mix(in oklab, var(--dou-color-neutral) 24%, transparent);
+      color: var(--dou-color-neutral-on);
+      font-weight: var(--dou-font-weight-medium);
+    }
+
+    &.is-disabled {
+      color: var(--dou-color-text-disabled);
+      cursor: not-allowed;
+      text-decoration: line-through;
+      text-decoration-color: color-mix(in oklab, var(--dou-color-text-disabled) 60%, transparent);
+    }
+  }
+
+  .dou-calendar__cell.is-outside > .dou-calendar__day:not(.is-selected) {
+    color: var(--dou-color-text-tertiary);
+  }
+
+  /* months and years: four wide cells a row */
+  .dou-calendar--month .dou-calendar__day,
+  .dou-calendar--year .dou-calendar__day {
+    width: 56px;
+    height: 36px;
+    margin: 4px 0;
+  }
+  .dou-calendar--month .dou-calendar__panel,
+  .dou-calendar--year .dou-calendar__panel {
+    min-width: calc(var(--dou-calendar-cell) * 7);
+  }
+  .dou-calendar--month .dou-calendar__grid,
+  .dou-calendar--year .dou-calendar__grid {
+    width: 100%;
+  }
+
+  .dou-calendar__footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 4px;
+    padding-top: 8px;
+    margin-top: 8px;
+    border-top: 1px solid var(--dou-color-border-subtle);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dou-date-picker,
+    .dou-calendar__day {
+      transition: none;
+    }
+  }
+}

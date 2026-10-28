@@ -16,6 +16,8 @@
 @import './components/button.css';
 @import './components/card.css';
 @import './components/checkbox.css';
+@import './components/command.css';
+@import './components/date-picker.css';
 @import './components/descriptions.css';
 @import './components/dialog.css';
 @import './components/divider.css';

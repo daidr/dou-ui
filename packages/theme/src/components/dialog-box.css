@@ -1,0 +1,82 @@
+/*
+ * Dialog box
+ *
+ * The dialogs opened by `dialog.alert()`, `confirm()` and `prompt()`: a
+ * heading, a line or two of text and the answers. A tone only adds an
+ * icon beside the heading; the confirm button turns red for `danger`.
+ */
+@layer dou.components {
+  .dou-dialog-box {
+    --dou-dialog-box-tone: var(--dou-color-text-secondary);
+  }
+
+  .dou-dialog-box--primary {
+    --dou-dialog-box-tone: var(--dou-color-primary);
+  }
+  .dou-dialog-box--success {
+    --dou-dialog-box-tone: var(--dou-color-success);
+  }
+  .dou-dialog-box--warning {
+    --dou-dialog-box-tone: var(--dou-color-warning);
+  }
+  .dou-dialog-box--danger {
+    --dou-dialog-box-tone: var(--dou-color-danger);
+  }
+
+  /* the box has no header row of its own: the heading sits with the text */
+  .dou-dialog-box .dou-dialog__body {
+    padding-top: var(--dou-dialog-padding);
+  }
+
+  .dou-dialog-box__main {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .dou-dialog-box__icon {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    height: 28px;
+    color: var(--dou-dialog-box-tone);
+
+    & > svg {
+      width: 1em;
+      height: 1em;
+      font-size: 20px;
+    }
+  }
+
+  .dou-dialog-box__text {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .dou-dialog-box__title {
+    color: var(--dou-color-text);
+    font-size: var(--dou-font-size-lg);
+    font-weight: var(--dou-font-weight-bold);
+    line-height: 28px;
+  }
+
+  .dou-dialog-box__content {
+    color: var(--dou-color-text-secondary);
+    overflow-wrap: break-word;
+
+    .dou-dialog-box__title + & {
+      margin-top: 4px;
+    }
+  }
+
+  .dou-dialog-box__field {
+    margin-top: 16px;
+  }
+
+  .dou-dialog-box__error {
+    margin-top: 6px;
+    color: var(--dou-color-danger);
+    font-size: var(--dou-font-size-sm);
+    line-height: 20px;
+  }
+}

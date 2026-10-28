@@ -21,6 +21,8 @@ export const en: Locale = {
   },
   dialog: {
     close: 'Close',
+    confirm: 'OK',
+    cancel: 'Cancel',
   },
   drawer: {
     close: 'Close',

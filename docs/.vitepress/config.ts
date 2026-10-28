@@ -8,6 +8,28 @@ export default defineConfig({
   title: 'DouUI',
   description: '一个为自己打造的 Vue 3 组件库',
   cleanUrls: true,
+  head: [
+    // Pick DouUI's theme before the first paint, the same way the site picks dark mode.
+    [
+      'script',
+      {},
+      `;(() => {
+        let mode = 'auto'
+        try { mode = localStorage.getItem('vitepress-theme-appearance') || 'auto' } catch {}
+        const dark = mode === 'dark' || (mode === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches)
+        document.documentElement.dataset.douTheme = dark ? 'dark' : 'light'
+      })()`,
+    ],
+  ],
+  // Header anchors stop below the sticky header.
+  scrollOffset: 88,
+  markdown: {
+    config(md) {
+      // Wrap code blocks so they get DouUI's copy button.
+      const fence = md.renderer.rules.fence!
+      md.renderer.rules.fence = (...args) => `<DocCode>${fence(...args)}</DocCode>`
+    },
+  },
   themeConfig: {
     nav: [
       { text: '指南', link: '/guide/philosophy' },

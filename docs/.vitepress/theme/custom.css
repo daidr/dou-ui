@@ -72,7 +72,11 @@
 .dou-toast__action,
 .dou-toast__close,
 .dou-select__input,
-.dou-select__clear {
+.dou-select__clear,
+.dou-tabs__tab,
+.dou-breadcrumb__link,
+.dou-pagination__item,
+.dou-table__sorter {
   padding: revert-layer;
   border: revert-layer;
   background-color: revert-layer;
@@ -91,4 +95,35 @@
   color: revert-layer;
   font-weight: revert-layer;
   text-decoration: revert-layer;
+}
+
+.vp-doc a.dou-breadcrumb__link {
+  color: revert-layer;
+  font-weight: revert-layer;
+  text-decoration: revert-layer;
+}
+
+/* The docs site styles every table in the content; hand ours back. */
+.vp-doc .dou-table table,
+.vp-doc .dou-table tr,
+.vp-doc .dou-table th,
+.vp-doc .dou-table td {
+  display: revert-layer;
+  margin: revert-layer;
+  padding: revert-layer;
+  border: revert-layer;
+  background-color: revert-layer;
+  color: revert-layer;
+  font-size: revert-layer;
+  line-height: revert-layer;
+  overflow: revert-layer;
+}
+
+.vp-doc .dou-breadcrumb ol,
+.vp-doc .dou-breadcrumb li,
+.vp-doc .dou-pagination ul,
+.vp-doc .dou-pagination li {
+  padding: revert-layer;
+  margin: revert-layer;
+  list-style: revert-layer;
 }

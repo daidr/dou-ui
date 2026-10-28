@@ -62,6 +62,34 @@ export interface Locale {
     /** Headline of an empty state without a title or description of its own. */
     title: string
   }
+  breadcrumb: {
+    /** Names the navigation landmark. */
+    label: string
+    /** Label of the ellipsis that expands a collapsed path. */
+    expand: string
+  }
+  pagination: {
+    /** Names the navigation landmark. */
+    label: string
+    /** Label of the previous page button. */
+    prev: string
+    /** Label of the next page button. */
+    next: string
+    /** Label of a page button, with `{page}`. */
+    page: string
+    /** The number of items, with `{total}`. */
+    total: string
+    /** An option of the page size select, with `{size}`. */
+    pageSize: string
+    /** Label of the page size select. */
+    pageSizeLabel: string
+  }
+  table: {
+    /** Label of the checkbox that selects every row. */
+    selectAll: string
+    /** Label of the checkbox that selects one row. */
+    selectRow: string
+  }
   form: {
     /** Shown after the label of an optional field when `requiredMark` is `'optional'`. */
     optional: string

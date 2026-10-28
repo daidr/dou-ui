@@ -1,0 +1,146 @@
+/*
+ * Tabs
+ *
+ * A row of quiet labels on a hairline. The selected tab turns ink and is
+ * marked by a short ink underline that slides between the tabs; hovering
+ * a tab lays a faint tint behind its label, the same as a ghost button.
+ */
+@layer dou.components {
+  .dou-tabs {
+    --dou-tabs-height: var(--dou-control-height-md);
+    --dou-tabs-padding-x: 10px;
+    --dou-tabs-font-size: var(--dou-font-size-md);
+    --dou-tabs-gap: 4px;
+    --dou-tabs-indicator: var(--dou-color-text);
+
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    color: var(--dou-color-text);
+    font-size: var(--dou-tabs-font-size);
+  }
+
+  .dou-tabs--sm {
+    --dou-tabs-height: var(--dou-control-height-sm);
+    --dou-tabs-padding-x: 8px;
+    --dou-tabs-font-size: var(--dou-font-size-sm);
+    --dou-tabs-gap: 2px;
+  }
+  .dou-tabs--lg {
+    --dou-tabs-height: var(--dou-control-height-lg);
+    --dou-tabs-padding-x: 12px;
+    --dou-tabs-font-size: var(--dou-font-size-lg);
+    --dou-tabs-gap: 6px;
+  }
+
+  .dou-tabs__header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid var(--dou-color-border);
+  }
+
+  .dou-tabs__list {
+    position: relative;
+    display: flex;
+    flex: 1 1 auto;
+    gap: var(--dou-tabs-gap);
+    min-width: 0;
+    /* room for the hover tint above and the underline below */
+    padding: 4px 0 6px;
+    margin-bottom: -1px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .dou-tabs__tab {
+    position: relative;
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    height: var(--dou-tabs-height);
+    padding: 0 var(--dou-tabs-padding-x);
+    border: 0;
+    border-radius: var(--dou-radius-control);
+    background-color: transparent;
+    color: var(--dou-color-text-secondary);
+    font: inherit;
+    font-weight: var(--dou-font-weight-medium);
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+    transition-property: background-color, color;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    &:hover:not(.is-disabled) {
+      background-color: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+      color: var(--dou-color-text);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: -2px;
+    }
+
+    &.is-selected {
+      color: var(--dou-color-text);
+    }
+
+    &.is-disabled {
+      color: var(--dou-color-text-disabled);
+      cursor: not-allowed;
+    }
+  }
+
+  .dou-tabs__label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    text-box: trim-both cap alphabetic;
+  }
+
+  .dou-tabs__indicator {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 2px;
+    border-radius: 1px;
+    background-color: var(--dou-tabs-indicator);
+    pointer-events: none;
+  }
+
+  .dou-tabs.is-settled .dou-tabs__indicator {
+    transition-property: transform, width;
+    transition-duration: var(--dou-motion-duration-normal);
+    transition-timing-function: var(--dou-motion-easing);
+  }
+
+  .dou-tabs__extra {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 8px;
+    padding-bottom: 2px;
+  }
+
+  .dou-tabs__panel {
+    padding-top: 16px;
+    color: var(--dou-color-text-secondary);
+    outline: none;
+
+    &:focus-visible {
+      border-radius: var(--dou-radius-control);
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 2px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dou-tabs.is-settled .dou-tabs__indicator {
+      transition: none;
+    }
+  }
+}

@@ -1,0 +1,211 @@
+/*
+ * Table
+ *
+ * Rows of one kind of record. The table sits in a hairline frame like a
+ * card; the header is small secondary text on a faint tint, rows are
+ * divided by the subtlest hairline. Hue never appears: a hovered row is
+ * a breath darker, a selected row a touch more.
+ */
+@layer dou.components {
+  .dou-table {
+    --dou-table-cell-height: 44px;
+    --dou-table-cell-padding-x: 14px;
+    --dou-table-font-size: var(--dou-font-size-md);
+    --dou-table-radius: var(--dou-radius-container);
+    --dou-table-bg: var(--dou-color-bg-surface);
+    --dou-table-head-bg: color-mix(in oklab, var(--dou-color-text) 2.5%, var(--dou-table-bg));
+    --dou-table-row-hover: color-mix(in oklab, var(--dou-color-text) 2.5%, var(--dou-table-bg));
+    --dou-table-row-selected: color-mix(in oklab, var(--dou-color-text) 4.5%, var(--dou-table-bg));
+    --dou-table-divider: var(--dou-color-border-subtle);
+
+    position: relative;
+    box-sizing: border-box;
+    min-width: 0;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-table-radius);
+    background-color: var(--dou-table-bg);
+    color: var(--dou-color-text);
+    font-size: var(--dou-table-font-size);
+    line-height: 1.5;
+    overflow: hidden;
+  }
+
+  .dou-table--sm {
+    --dou-table-cell-height: 36px;
+    --dou-table-cell-padding-x: 10px;
+    --dou-table-font-size: var(--dou-font-size-sm);
+  }
+  .dou-table--lg {
+    --dou-table-cell-height: 52px;
+    --dou-table-cell-padding-x: 16px;
+  }
+
+  .dou-table__wrapper {
+    overflow: auto;
+    overscroll-behavior-x: contain;
+  }
+
+  .dou-table__table {
+    width: 100%;
+    margin: 0;
+    border: 0;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .dou-table__col-selection {
+    width: 40px;
+  }
+
+  .dou-table__cell {
+    box-sizing: border-box;
+    height: var(--dou-table-cell-height);
+    padding: 6px var(--dou-table-cell-padding-x);
+    border: 0;
+    border-bottom: 1px solid var(--dou-table-divider);
+    background-color: transparent;
+    text-align: start;
+    vertical-align: middle;
+
+    &.is-center {
+      text-align: center;
+    }
+
+    &.is-end {
+      text-align: end;
+    }
+
+    &.is-ellipsis {
+      max-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+  .dou-table__head .dou-table__cell {
+    height: calc(var(--dou-table-cell-height) - 8px);
+    border-bottom-color: var(--dou-color-border);
+    background-color: var(--dou-table-head-bg);
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-sm);
+    font-weight: var(--dou-font-weight-medium);
+    white-space: nowrap;
+  }
+
+  /* pin the header while the body scrolls */
+  .dou-table.is-scroll .dou-table__head .dou-table__cell {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+
+  .dou-table__selection {
+    width: 40px;
+    padding-right: 0;
+    padding-left: var(--dou-table-cell-padding-x);
+    line-height: 0;
+  }
+
+  .dou-table__body .dou-table__row:last-child .dou-table__cell {
+    border-bottom: 0;
+  }
+
+  .dou-table.is-striped .dou-table__row:nth-child(even) {
+    background-color: var(--dou-table-head-bg);
+  }
+
+  .dou-table.is-hoverable .dou-table__row:hover {
+    background-color: var(--dou-table-row-hover);
+  }
+
+  .dou-table__row.is-selected,
+  .dou-table.is-hoverable .dou-table__row.is-selected:hover {
+    background-color: var(--dou-table-row-selected);
+  }
+
+  .dou-table__row {
+    transition: background-color var(--dou-motion-duration-fast) var(--dou-motion-easing);
+  }
+
+  .dou-table.is-bordered .dou-table__cell + .dou-table__cell {
+    border-left: 1px solid var(--dou-table-divider);
+  }
+
+  .dou-table.is-bordered .dou-table__head .dou-table__cell + .dou-table__cell {
+    border-left-color: var(--dou-color-border);
+  }
+
+  /* sorting */
+  .dou-table__sorter {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    max-width: 100%;
+    padding: 2px 4px;
+    margin: 0 -4px;
+    border: 0;
+    border-radius: calc(var(--dou-radius-control) - 2px);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    transition: color var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    &:hover,
+    &.is-sorted {
+      color: var(--dou-color-text);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 0;
+    }
+  }
+
+  .dou-table__cell.is-end .dou-table__sorter {
+    flex-direction: row-reverse;
+  }
+
+  .dou-table__title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .dou-table__sort-icon {
+    flex-shrink: 0;
+    width: 12px;
+    height: 12px;
+    color: var(--dou-color-text-disabled);
+  }
+
+  .dou-table__sort-icon.is-asc .dou-table__sort-asc,
+  .dou-table__sort-icon.is-desc .dou-table__sort-desc {
+    fill: var(--dou-color-text);
+  }
+
+  /* empty and loading */
+  .dou-table__empty {
+    padding: 0;
+    border: 0;
+  }
+
+  .dou-table.is-loading .dou-table__empty {
+    height: 120px;
+  }
+
+  .dou-table.is-loading .dou-table__body {
+    opacity: 0.5;
+  }
+
+  .dou-table__loading {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--dou-color-text-secondary);
+  }
+}

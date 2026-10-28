@@ -127,6 +127,7 @@ const regions = [
 | `clearable`   | 显示清空按钮                         | `boolean`                              | `false`          |
 | `placement`   | 列表首选的位置                       | `Placement`                            | `'bottom-start'` |
 | `teleport`    | 列表渲染到哪里；`false` 为原地渲染   | `string \| HTMLElement \| false`       | `'body'`         |
+| `ariaLabel`   | 没有可见标签时的读屏名称             | `string`                               | —                |
 
 `SelectValue` 为 `string | number | boolean`，`SelectOption` 为 `{ value: SelectValue; label?: string; disabled?: boolean }`。
 

@@ -40,6 +40,23 @@ export const en: Locale = {
   empty: {
     title: 'No data',
   },
+  breadcrumb: {
+    label: 'Breadcrumb',
+    expand: 'Show full path',
+  },
+  pagination: {
+    label: 'Pagination',
+    prev: 'Previous page',
+    next: 'Next page',
+    page: 'Page {page}',
+    total: '{total} items',
+    pageSize: '{size} / page',
+    pageSizeLabel: 'Items per page',
+  },
+  table: {
+    selectAll: 'Select all',
+    selectRow: 'Select row',
+  },
   form: {
     optional: 'optional',
     required: 'This field is required',

@@ -249,6 +249,7 @@ const comboboxAttrs = computed<HTMLAttributes>(() => ({
   'aria-invalid': invalid.value || undefined,
   'aria-required': formItem?.required.value || undefined,
   'aria-describedby': formItem?.describedBy.value,
+  'aria-label': props.ariaLabel,
 }))
 
 const singleLabel = computed(() =>

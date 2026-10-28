@@ -1,0 +1,86 @@
+/*
+ * Breadcrumb
+ *
+ * The path to the current page. Ancestors are quiet secondary text that
+ * turns ink on hover; the current page is ink and not a link. Separators
+ * are the faintest text on the page.
+ */
+@layer dou.components {
+  .dou-breadcrumb {
+    font-size: var(--dou-font-size-md);
+    line-height: 1.5;
+  }
+
+  .dou-breadcrumb__list {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    row-gap: 4px;
+    padding: 0;
+    margin: 0;
+    list-style: none;
+  }
+
+  .dou-breadcrumb__item {
+    display: inline-flex;
+    align-items: center;
+    min-width: 0;
+    margin: 0;
+  }
+
+  .dou-breadcrumb__separator {
+    display: inline-flex;
+    align-items: center;
+    margin: 0 8px;
+    color: var(--dou-color-text-disabled);
+    user-select: none;
+  }
+
+  .dou-breadcrumb__link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 4px;
+    margin: 0 -4px;
+    border: 0;
+    border-radius: calc(var(--dou-radius-control) - 2px);
+    background: transparent;
+    color: var(--dou-color-text-secondary);
+    font: inherit;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+    transition-property: background-color, color;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    &:hover {
+      color: var(--dou-color-text);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 0;
+    }
+
+    &.is-current {
+      color: var(--dou-color-text);
+      font-weight: var(--dou-font-weight-medium);
+      cursor: default;
+    }
+
+    &.is-disabled {
+      color: var(--dou-color-text-disabled);
+      cursor: not-allowed;
+    }
+  }
+
+  .dou-breadcrumb__ellipsis {
+    color: var(--dou-color-text-tertiary);
+    letter-spacing: 0.05em;
+
+    &:hover {
+      background-color: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+    }
+  }
+}

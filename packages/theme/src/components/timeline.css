@@ -4,7 +4,8 @@
  * Small dots strung on a hairline. The dot is the only place a tone
  * shows; the time sits above the content in the tertiary gray with
  * tabular figures. Something still under way gets a hollow dot and a
- * dashed line leading to it.
+ * dashed line leading to it; something being worked on right now turns
+ * its dot into a spinner.
  */
 @layer dou.components {
   .dou-timeline {
@@ -80,7 +81,8 @@
       background-color: var(--dou-color-bg-surface);
     }
 
-    .dou-timeline__item.is-custom-dot > .dou-timeline__rail > & {
+    .dou-timeline__item.is-custom-dot > .dou-timeline__rail > &,
+    .dou-timeline__item.is-loading > .dou-timeline__rail > & {
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -98,8 +100,18 @@
     }
   }
 
-  .dou-timeline--neutral.is-custom-dot {
+  .dou-timeline--neutral:is(.is-custom-dot, .is-loading) {
     --dou-timeline-dot: var(--dou-color-text-secondary);
+  }
+
+  .dou-timeline__item.is-loading > .dou-timeline__rail > .dou-timeline__dot > svg {
+    animation: dou-timeline-turn 0.8s linear infinite;
+  }
+
+  @keyframes dou-timeline-turn {
+    to {
+      transform: rotate(1turn);
+    }
   }
 
   .dou-timeline__line {
@@ -107,14 +119,17 @@
     top: calc((var(--dou-timeline-first-line) + var(--dou-timeline-dot-size)) / 2 + 4px);
     /* reach to just above the next dot */
     bottom: calc(4px - (var(--dou-timeline-first-line) - var(--dou-timeline-dot-size)) / 2);
-    /* measured from the item, so the line runs through its bottom spacing */
-    left: calc(var(--dou-timeline-rail-width) / 2 - 1px);
+    /* measured from the item, so the line runs through its bottom spacing;
+       half its own width back, so it runs through the middle of the dot */
+    left: calc(var(--dou-timeline-rail-width) / 2 - 0.5px);
     width: 0;
     border-left: 1px solid var(--dou-timeline-line);
   }
 
-  .dou-timeline:not(.is-reverse) > .dou-timeline__item:has(+ .is-pending) .dou-timeline__line,
-  .dou-timeline.is-reverse > .dou-timeline__item.is-pending .dou-timeline__line {
+  .dou-timeline:not(.is-reverse)
+    > .dou-timeline__item:has(+ :is(.is-pending, .is-loading))
+    .dou-timeline__line,
+  .dou-timeline.is-reverse > .dou-timeline__item:is(.is-pending, .is-loading) .dou-timeline__line {
     border-left-style: dashed;
   }
 
@@ -124,6 +139,12 @@
     flex-direction: column;
     gap: 2px;
     min-width: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dou-timeline__item.is-loading > .dou-timeline__rail > .dou-timeline__dot > svg {
+      animation-duration: 2s;
+    }
   }
 
   .dou-timeline__time {

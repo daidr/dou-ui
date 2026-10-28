@@ -29,9 +29,9 @@
 ## 尺寸
 
 <div class="demo">
-  <DouButton size="sm" tone="primary">sm</DouButton>
-  <DouButton size="md" tone="primary">md</DouButton>
-  <DouButton size="lg" tone="primary">lg</DouButton>
+  <DouButton size="sm">sm</DouButton>
+  <DouButton size="md">md</DouButton>
+  <DouButton size="lg">lg</DouButton>
 </div>
 
 ```vue
@@ -44,8 +44,8 @@
 禁用的按钮使用原生 `disabled`。
 
 <div class="demo">
-  <DouButton tone="primary" disabled>disabled</DouButton>
-  <DouButton tone="primary" loading>loading</DouButton>
+  <DouButton disabled>disabled</DouButton>
+  <DouButton loading>loading</DouButton>
 </div>
 
 ```vue

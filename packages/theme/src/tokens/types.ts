@@ -32,21 +32,29 @@ export interface ThemeTokens {
       muted: string
     }
     text: {
+      /** Headings and body copy. */
       DEFAULT: string
+      /** Supporting copy, labels, descriptions. */
       secondary: string
+      /** Placeholders, hints, meta information. */
+      tertiary: string
       disabled: string
     }
     border: {
+      /** Hairlines between areas, e.g. dividers and table rows. */
+      subtle: string
+      /** Outlines of controls and containers. */
       DEFAULT: string
+      /** Hovered outlines and emphasis. */
       strong: string
     }
     /** Focus ring color. */
     focus: string
     /**
-     * Mixed into a tone to derive hover / active states.
-     * Usually dark on light themes and light on dark themes.
+     * Mixed into a tone to draw the edge of filled controls, so a solid
+     * button reads as a pressed-in shape rather than a flat block.
      */
-    stateMix: string
+    edge: string
   }
 
   font: {
@@ -76,10 +84,19 @@ export interface ThemeTokens {
     gap: SizeScale
   }
 
+  /**
+   * Elevation. Hierarchy comes from surface and border first; shadows
+   * stay faint and are reserved for things that float above the page.
+   */
   shadow: {
+    /** Resting controls such as outlined buttons and inputs. */
     sm: string
+    /** Cards and menus. */
     md: string
+    /** Dialogs and other overlays. */
     lg: string
+    /** Inner top light on filled controls, a hint of bevel. */
+    highlight: string
   }
 
   motion: {

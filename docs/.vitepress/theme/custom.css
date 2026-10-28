@@ -183,3 +183,23 @@ button.dou-collapse__trigger {
   margin: revert-layer;
   list-style: revert-layer;
 }
+
+/* Form completion components: buttons and text boxes. */
+.dou-picker__input,
+.dou-picker__clear,
+.dou-color-picker__text,
+.dou-color-picker__preset {
+  padding: revert-layer;
+  border: revert-layer;
+  background-color: revert-layer;
+  color: revert-layer;
+  line-height: revert-layer;
+}
+
+.dou-autocomplete__list,
+.dou-time-picker__column,
+.dou-cascader__column {
+  padding: revert-layer;
+  margin: revert-layer;
+  list-style: revert-layer;
+}

@@ -9,7 +9,7 @@ import { ref } from 'vue'
 const rows = Array.from({ length: 10000 }, (_, index) => ({
   id: index,
   name: `deploy-${String(index).padStart(5, '0')}`,
-  region: ['香港', '新加坡', '东京', '法兰克福'][index % 4],
+  region: ['上海', '新加坡', '东京', '法兰克福'][index % 4],
 }))
 const list = ref()
 const target = ref(5000)

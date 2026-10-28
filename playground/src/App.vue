@@ -181,7 +181,7 @@ const instance = reactive({
   budget: 120.5,
   cpu: 40,
   hours: [9, 18] as [number, number],
-  region: 'hk',
+  region: 'sh',
 })
 const view = ref('list')
 
@@ -194,13 +194,13 @@ const inviteEmail = ref('')
 const inviteRole = ref('开发者')
 
 const regionOptions = [
-  { value: 'hk', label: '香港' },
+  { value: 'sh', label: '上海' },
   { value: 'sg', label: '新加坡' },
   { value: 'fra', label: '法兰克福' },
   { value: 'iad', label: '弗吉尼亚', disabled: true },
   { value: 'sfo', label: '旧金山' },
 ]
-const selectRegion = ref<string | null>('hk')
+const selectRegion = ref<string | null>('sh')
 const selectChannels = ref(['邮件', 'Webhook'])
 const selectFramework = ref<string | null>(null)
 
@@ -225,11 +225,11 @@ interface Instance {
   replicas: number
 }
 const instances: Instance[] = [
-  { id: 1, name: 'edge-fn-hk', region: '香港', status: '运行中', replicas: 3 },
+  { id: 1, name: 'edge-fn-sh', region: '上海', status: '运行中', replicas: 3 },
   { id: 2, name: 'api-sg', region: '新加坡', status: '运行中', replicas: 12 },
   { id: 3, name: 'cron-fra', region: '法兰克福', status: '已停止', replicas: 0 },
   { id: 4, name: 'image-iad', region: '弗吉尼亚', status: '部署中', replicas: 2 },
-  { id: 5, name: 'auth-hk', region: '香港', status: '运行中', replicas: 6 },
+  { id: 5, name: 'auth-sh', region: '上海', status: '运行中', replicas: 6 },
   { id: 6, name: 'mail-sg', region: '新加坡', status: '运行中', replicas: 1 },
 ]
 const tableSort = ref<TableSort | null>({ key: 'replicas', order: 'desc' })
@@ -586,7 +586,7 @@ function simulate() {
           <DouDescriptions :columns="2">
             <DouDescriptionsItem label="分支">main</DouDescriptionsItem>
             <DouDescriptionsItem label="提交">39dc86b</DouDescriptionsItem>
-            <DouDescriptionsItem label="区域">香港</DouDescriptionsItem>
+            <DouDescriptionsItem label="区域">上海</DouDescriptionsItem>
             <DouDescriptionsItem label="耗时">42 秒</DouDescriptionsItem>
           </DouDescriptions>
           <template #footer>
@@ -630,7 +630,7 @@ function simulate() {
       </div>
       <div style="margin-top: 16px">
         <DouDescriptions bordered layout="horizontal" :columns="2" :label-width="72">
-          <DouDescriptionsItem label="名称">edge-fn-hk</DouDescriptionsItem>
+          <DouDescriptionsItem label="名称">edge-fn-sh</DouDescriptionsItem>
           <DouDescriptionsItem label="副本">3</DouDescriptionsItem>
           <DouDescriptionsItem label="规格">2 vCPU · 512 MB</DouDescriptionsItem>
           <DouDescriptionsItem label="状态">运行中</DouDescriptionsItem>
@@ -968,7 +968,7 @@ function simulate() {
                 v-model="instance.region"
                 block
                 :options="[
-                  { value: 'hk', label: '香港' },
+                  { value: 'sh', label: '上海' },
                   { value: 'sg', label: '新加坡' },
                   { value: 'fra', label: '法兰克福' },
                   { value: 'iad', label: '弗吉尼亚', disabled: true },

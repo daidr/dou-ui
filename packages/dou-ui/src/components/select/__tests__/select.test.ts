@@ -8,7 +8,7 @@ afterEach(() => {
 })
 
 const options = [
-  { value: 'hk', label: '香港' },
+  { value: 'sh', label: '上海' },
   { value: 'sg', label: '新加坡' },
   { value: 'iad', label: '弗吉尼亚', disabled: true },
   { value: 'fra', label: 'Frankfurt' },
@@ -86,14 +86,14 @@ describe('DouSelect', () => {
   })
 
   it('collects several values as removable tags', async () => {
-    const wrapper = withModel({ multiple: true, modelValue: ['hk'] })
+    const wrapper = withModel({ multiple: true, modelValue: ['sh'] })
     await wrapper.get('[role="combobox"]').trigger('mousedown')
     expect(document.querySelector('[role="listbox"]')?.getAttribute('aria-multiselectable')).toBe(
       'true',
     )
     optionEls()[1]!.click()
     await nextTick()
-    expect(wrapper.props('modelValue')).toEqual(['hk', 'sg'])
+    expect(wrapper.props('modelValue')).toEqual(['sh', 'sg'])
     expect(wrapper.get('[role="combobox"]').attributes('aria-expanded')).toBe('true')
     optionEls()[0]!.click()
     await nextTick()
@@ -119,7 +119,7 @@ describe('DouSelect', () => {
   })
 
   it('clears the value', async () => {
-    const wrapper = withModel({ modelValue: 'hk', clearable: true })
+    const wrapper = withModel({ modelValue: 'sh', clearable: true })
     await wrapper.get('.dou-select__clear').trigger('click')
     expect(wrapper.props('modelValue')).toBeNull()
     expect(wrapper.emitted('clear')).toHaveLength(1)

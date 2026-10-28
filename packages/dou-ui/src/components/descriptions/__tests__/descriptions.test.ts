@@ -9,7 +9,7 @@ describe('DouDescriptions', () => {
       props: { title: '实例' },
       slots: {
         default: () => [
-          h(DouDescriptionsItem, { label: '区域' }, () => '香港'),
+          h(DouDescriptionsItem, { label: '区域' }, () => '上海'),
           h(DouDescriptionsItem, { label: '规格' }, () => '2 vCPU'),
         ],
       },
@@ -19,7 +19,7 @@ describe('DouDescriptions', () => {
     const labels = wrapper.findAll('dt').map((node) => node.text())
     const values = wrapper.findAll('dd').map((node) => node.text())
     expect(labels).toEqual(['区域', '规格'])
-    expect(values).toEqual(['香港', '2 vCPU'])
+    expect(values).toEqual(['上海', '2 vCPU'])
     expect(wrapper.attributes('style')).toContain('--dou-descriptions-columns: 3')
   })
 

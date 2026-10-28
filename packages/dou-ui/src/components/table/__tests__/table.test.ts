@@ -12,7 +12,7 @@ interface Row {
 }
 
 const data: Row[] = [
-  { id: 1, name: 'edge-fn-hk', region: '香港', replicas: 3 },
+  { id: 1, name: 'edge-fn-sh', region: '上海', replicas: 3 },
   { id: 2, name: 'api-sg', region: '新加坡', replicas: 12 },
   { id: 3, name: 'cron-fra', region: '法兰克福', replicas: 1 },
 ]
@@ -35,7 +35,7 @@ describe('DouTable', () => {
     const wrapper = mount(Table, { props: { data, columns } })
     expect(wrapper.findAll('th').map((th) => th.text())).toEqual(['名称', '区域', '副本'])
     expect(wrapper.findAll('th').every((th) => th.attributes('scope') === 'col')).toBe(true)
-    expect(cells(wrapper, 0)).toEqual(['edge-fn-hk', 'api-sg', 'cron-fra'])
+    expect(cells(wrapper, 0)).toEqual(['edge-fn-sh', 'api-sg', 'cron-fra'])
     expect(wrapper.findAll('tbody tr')[0]!.findAll('td')[2]!.classes()).toContain('is-end')
     expect(wrapper.classes()).toEqual(expect.arrayContaining(['dou-table', 'dou-table--md']))
   })
@@ -120,8 +120,8 @@ describe('DouTable', () => {
       },
       slots: { 'cell-name': ({ value }: { value: unknown }) => `[${String(value)}]` },
     })
-    expect(cells(wrapper, 0)[0]).toBe('[edge-fn-hk]')
-    expect(cells(wrapper, 1)[0]).toBe('edge-fn-hk@香港')
+    expect(cells(wrapper, 0)[0]).toBe('[edge-fn-sh]')
+    expect(cells(wrapper, 1)[0]).toBe('edge-fn-sh@上海')
     await wrapper.findAll('tbody tr')[1]!.trigger('click')
     expect(wrapper.emitted('rowClick')![0]![1]).toBe(1)
   })

@@ -11,6 +11,11 @@
     position: relative;
   }
 
+  /* Wrapped content is usually a card or a panel; `v-loading` follows its element. */
+  .dou-loading {
+    --dou-loading-radius: var(--dou-radius-container);
+  }
+
   .dou-loading__mask {
     --dou-loading-veil: color-mix(in oklab, var(--dou-color-bg-surface) 72%, transparent);
 
@@ -20,7 +25,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: inherit;
+    border-radius: var(--dou-loading-radius, inherit);
     background-color: var(--dou-loading-veil);
     color: var(--dou-color-text-secondary);
     cursor: progress;
@@ -29,6 +34,7 @@
       --dou-loading-veil: color-mix(in oklab, var(--dou-color-bg-canvas) 80%, transparent);
 
       position: fixed;
+      border-radius: 0;
       backdrop-filter: blur(2px);
     }
   }

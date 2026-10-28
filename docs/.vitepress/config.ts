@@ -122,6 +122,7 @@ export default defineConfig({
             { text: 'Alert 提示条', link: '/components/alert' },
             { text: 'Toast 轻提示', link: '/components/toast' },
             { text: 'Spinner 加载', link: '/components/spinner' },
+            { text: 'Loading 加载遮罩', link: '/components/loading' },
             { text: 'Progress 进度条', link: '/components/progress' },
             { text: 'Skeleton 骨架屏', link: '/components/skeleton' },
             { text: 'Result 结果', link: '/components/result' },

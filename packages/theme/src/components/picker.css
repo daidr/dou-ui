@@ -1,0 +1,198 @@
+/*
+ * Picker
+ *
+ * The field shared by the time, cascader and color pickers. It is drawn
+ * exactly like an input and a select, so all of them line up in a form;
+ * the panel it opens is a raised surface like the calendar's.
+ */
+@layer dou.components {
+  .dou-picker {
+    --dou-picker-height: var(--dou-control-height-md);
+    --dou-picker-padding-x: var(--dou-control-padding-x-md);
+    --dou-picker-gap: var(--dou-control-gap-md);
+    --dou-picker-font-size: var(--dou-font-size-md);
+    --dou-picker-bg: var(--dou-color-bg-surface);
+    --dou-picker-border: var(--dou-color-border);
+    --dou-picker-border-hover: var(--dou-color-border-strong);
+    --dou-picker-border-focus: color-mix(
+      in oklab,
+      var(--dou-color-focus) 70%,
+      var(--dou-color-text)
+    );
+    --dou-picker-ring: color-mix(in oklab, var(--dou-color-focus) 32%, transparent);
+    --dou-picker-shadow: var(--dou-shadow-sm);
+
+    display: inline-flex;
+    align-items: center;
+    gap: var(--dou-picker-gap);
+    box-sizing: border-box;
+    width: 100%;
+    height: var(--dou-picker-height);
+    padding: 0 var(--dou-picker-padding-x);
+    border: 1px solid var(--dou-picker-border);
+    border-radius: var(--dou-radius-control);
+    background-color: var(--dou-picker-bg);
+    box-shadow: var(--dou-picker-shadow);
+    color: var(--dou-color-text);
+    font-size: var(--dou-picker-font-size);
+    vertical-align: middle;
+    cursor: pointer;
+    outline: none;
+    transition-property: border-color, box-shadow, background-color;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    &:hover {
+      border-color: var(--dou-picker-border-hover);
+    }
+
+    &:focus-within,
+    &.is-open {
+      border-color: var(--dou-picker-border-focus);
+      box-shadow:
+        0 0 0 3px var(--dou-picker-ring),
+        var(--dou-picker-shadow);
+    }
+
+    &.is-invalid {
+      --dou-picker-border: color-mix(
+        in oklab,
+        var(--dou-color-danger) 55%,
+        var(--dou-color-border)
+      );
+      --dou-picker-border-hover: color-mix(
+        in oklab,
+        var(--dou-color-danger) 75%,
+        var(--dou-color-border)
+      );
+      --dou-picker-border-focus: var(--dou-color-danger);
+      --dou-picker-ring: color-mix(in oklab, var(--dou-color-danger) 18%, transparent);
+    }
+
+    &.is-disabled {
+      --dou-picker-bg: var(--dou-color-bg-muted);
+      --dou-picker-border-hover: var(--dou-picker-border);
+      --dou-picker-shadow: none;
+      color: var(--dou-color-text-disabled);
+      cursor: not-allowed;
+    }
+  }
+
+  .dou-picker--sm {
+    --dou-picker-height: var(--dou-control-height-sm);
+    --dou-picker-padding-x: var(--dou-control-padding-x-sm);
+    --dou-picker-gap: var(--dou-control-gap-sm);
+    --dou-picker-font-size: var(--dou-font-size-sm);
+  }
+  .dou-picker--lg {
+    --dou-picker-height: var(--dou-control-height-lg);
+    --dou-picker-padding-x: var(--dou-control-padding-x-lg);
+    --dou-picker-gap: var(--dou-control-gap-lg);
+    --dou-picker-font-size: var(--dou-font-size-lg);
+  }
+
+  .dou-picker__icon {
+    flex-shrink: 0;
+    width: 1.1em;
+    height: 1.1em;
+    color: var(--dou-color-text-tertiary);
+  }
+
+  .dou-picker__input {
+    flex: 1 1 0;
+    min-width: 0;
+    height: calc(var(--dou-picker-height) - 2px);
+    padding: 0;
+    margin: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-variant-numeric: tabular-nums;
+
+    &::placeholder {
+      color: var(--dou-color-text-tertiary);
+      opacity: 1;
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+    }
+  }
+
+  .dou-picker__value,
+  .dou-picker__placeholder {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: clip;
+    overflow-clip-margin: 4px;
+    line-height: 1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-box: trim-both cap alphabetic;
+  }
+
+  .dou-picker__placeholder {
+    color: var(--dou-color-text-tertiary);
+  }
+
+  .dou-picker__arrow {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    color: var(--dou-color-text-tertiary);
+    transition: transform var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    .dou-picker.is-open & {
+      transform: rotate(180deg);
+    }
+  }
+
+  .dou-picker__clear {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 1.15em;
+    height: 1.15em;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    border-radius: var(--dou-radius-full);
+    background-color: color-mix(in oklab, var(--dou-color-text) 10%, transparent);
+    color: var(--dou-color-text-secondary);
+    cursor: pointer;
+
+    & > svg {
+      width: 0.8em;
+      height: 0.8em;
+    }
+
+    &:hover {
+      background-color: color-mix(in oklab, var(--dou-color-text) 18%, transparent);
+      color: var(--dou-color-text);
+    }
+  }
+
+  .dou-picker-panel {
+    box-sizing: border-box;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-container);
+    background-color: light-dark(
+      var(--dou-color-bg-surface),
+      color-mix(in oklab, var(--dou-color-text) 4%, var(--dou-color-bg-surface))
+    );
+    box-shadow: var(--dou-shadow-md);
+    color: var(--dou-color-text);
+    font-family: var(--dou-font-family);
+    font-size: var(--dou-font-size-md);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dou-picker,
+    .dou-picker__arrow {
+      transition: none;
+    }
+  }
+}

@@ -1,0 +1,108 @@
+/*
+ * TimePicker
+ *
+ * The field is the shared picker field with a clock glyph. The panel is
+ * a row of narrow scrolling columns of two-digit numbers; the chosen
+ * number becomes a solid ink key, the same as the chosen day of the
+ * calendar, and scrolls to the top of its column.
+ */
+@layer dou.components {
+  .dou-time-picker.is-range .dou-time-picker__input {
+    text-align: center;
+  }
+
+  .dou-time-picker__separator {
+    flex-shrink: 0;
+    width: 1.1em;
+    height: 1.1em;
+    color: var(--dou-color-text-tertiary);
+  }
+
+  .dou-time-picker__panel {
+    --dou-time-picker-cell: 32px;
+    --dou-time-picker-rows: 7;
+
+    padding: 4px;
+  }
+
+  .dou-time-picker__body {
+    display: flex;
+    gap: 4px;
+  }
+
+  .dou-time-picker__columns + .dou-time-picker__columns {
+    padding-left: 4px;
+    border-left: 1px solid var(--dou-color-border-subtle);
+  }
+
+  .dou-time-picker__caption {
+    padding: 6px 8px 4px;
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+    line-height: 1;
+  }
+
+  .dou-time-picker__grid {
+    display: flex;
+  }
+
+  .dou-time-picker__column {
+    /* the offset parent of its cells, for scrolling the chosen one to the top */
+    position: relative;
+    width: 52px;
+    height: calc(var(--dou-time-picker-cell) * var(--dou-time-picker-rows));
+    margin: 0;
+    /* room to scroll the last number to the top */
+    padding: 4px 4px calc(var(--dou-time-picker-cell) * (var(--dou-time-picker-rows) - 1)) 4px;
+    overflow-y: auto;
+    box-sizing: border-box;
+    list-style: none;
+    scrollbar-width: none;
+    border-radius: var(--dou-radius-control);
+    outline: none;
+
+    & + & {
+      border-left: 1px solid var(--dou-color-border-subtle);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: -2px;
+    }
+  }
+
+  .dou-time-picker__cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: var(--dou-time-picker-cell);
+    border-radius: var(--dou-radius-control);
+    color: var(--dou-color-text-secondary);
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    &:hover {
+      background-color: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+      color: var(--dou-color-text);
+    }
+
+    &.is-selected {
+      background-color: var(--dou-color-neutral);
+      box-shadow: var(--dou-shadow-highlight);
+      color: var(--dou-color-neutral-on);
+      font-weight: var(--dou-font-weight-medium);
+    }
+  }
+
+  .dou-time-picker__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 4px 2px;
+    margin-top: 4px;
+    border-top: 1px solid var(--dou-color-border-subtle);
+  }
+}

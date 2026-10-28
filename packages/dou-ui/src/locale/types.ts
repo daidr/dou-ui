@@ -146,6 +146,68 @@ export interface Locale {
     /** Read after the title of a step that failed. */
     error: string
   }
+  rate: {
+    /** Read as the value of the stars, with `{value}` and `{max}`. */
+    value: string
+  }
+  autocomplete: {
+    /** Shown while suggestions are fetched. */
+    loading: string
+  }
+  timePicker: {
+    placeholder: string
+    /** The start field of a range. */
+    start: string
+    /** The end field of a range. */
+    end: string
+    /** Names the hour column. */
+    hour: string
+    minute: string
+    second: string
+    /** The button that picks the current time. */
+    now: string
+    /** The button that closes the panel. */
+    confirm: string
+    /** Label of the clear button. */
+    clear: string
+  }
+  cascader: {
+    placeholder: string
+    /** Shown when nothing matches, or a level is empty. */
+    empty: string
+    clear: string
+  }
+  colorPicker: {
+    /** Shown in an empty field, and names the panel. */
+    placeholder: string
+    /** Names the saturation and brightness square. */
+    area: string
+    /** Reads its value, with `{s}` and `{v}` in percent. */
+    areaValue: string
+    hue: string
+    alpha: string
+    /** Names the text box with the hex value. */
+    hex: string
+    presets: string
+    clear: string
+  }
+  transfer: {
+    /** The heading of the left list. */
+    source: string
+    /** The heading of the right list. */
+    target: string
+    search: string
+    /** An empty list. */
+    empty: string
+    /** A search that found nothing. */
+    noMatch: string
+    /** Label of the select-all box. */
+    selectAll: string
+    /** Checked of total, with `{checked}` and `{total}`. */
+    count: string
+    toTarget: string
+    toSource: string
+  }
   form: {
     /** Shown after the label of an optional field when `requiredMark` is `'optional'`. */
     optional: string

@@ -1,0 +1,107 @@
+/*
+ * Rate
+ *
+ * A row of stars. Empty stars are a pale wash of ink, filled ones ink
+ * (or the warm tone); a half star is the same glyph clipped, so the two
+ * halves always line up. Hovering previews the score.
+ */
+@layer dou.components {
+  .dou-rate {
+    --dou-rate-size: 20px;
+    --dou-rate-gap: 4px;
+    --dou-rate-color: var(--dou-color-text);
+    --dou-rate-empty: color-mix(in oklab, var(--dou-color-text) 12%, transparent);
+
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    vertical-align: middle;
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-md);
+  }
+
+  .dou-rate--sm {
+    --dou-rate-size: 16px;
+    --dou-rate-gap: 2px;
+    font-size: var(--dou-font-size-sm);
+  }
+  .dou-rate--lg {
+    --dou-rate-size: 24px;
+    --dou-rate-gap: 6px;
+    font-size: var(--dou-font-size-lg);
+  }
+
+  .dou-rate--warning {
+    --dou-rate-color: var(--dou-color-warning);
+    --dou-rate-empty: color-mix(in oklab, var(--dou-color-warning) 16%, transparent);
+  }
+
+  .dou-rate__stars {
+    display: inline-flex;
+    gap: var(--dou-rate-gap);
+    border-radius: var(--dou-radius-control);
+    outline: none;
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 2px;
+    }
+  }
+
+  .dou-rate__star {
+    position: relative;
+    display: inline-flex;
+    width: var(--dou-rate-size);
+    height: var(--dou-rate-size);
+    cursor: pointer;
+    transition: transform var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    &.is-hovered {
+      transform: scale(1.08);
+    }
+
+    & svg {
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  .dou-rate__empty,
+  .dou-rate__full {
+    position: absolute;
+    inset: 0;
+    display: inline-flex;
+  }
+
+  .dou-rate__empty {
+    color: var(--dou-rate-empty);
+  }
+
+  .dou-rate__full {
+    color: var(--dou-rate-color);
+    clip-path: inset(0 calc((1 - var(--dou-rate-fill)) * 100%) 0 0);
+  }
+
+  .dou-rate.is-readonly .dou-rate__star,
+  .dou-rate.is-disabled .dou-rate__star {
+    cursor: default;
+    transform: none;
+  }
+
+  .dou-rate.is-disabled {
+    --dou-rate-color: var(--dou-color-text-disabled);
+    cursor: not-allowed;
+  }
+
+  .dou-rate__text {
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    text-box: trim-both cap alphabetic;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dou-rate__star {
+      transition: none;
+    }
+  }
+}

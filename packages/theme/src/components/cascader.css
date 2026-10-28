@@ -1,0 +1,102 @@
+/*
+ * Cascader
+ *
+ * The shared picker field; the panel is a row of columns divided by
+ * hairlines. Rows match the select's: the open branch keeps a faint wash
+ * so the way down stays visible, and the chosen path is set in medium
+ * weight with a check on its last option.
+ */
+@layer dou.components {
+  .dou-cascader .dou-picker__input.is-has-value::placeholder {
+    color: var(--dou-color-text);
+  }
+  .dou-cascader.is-open .dou-picker__input.is-has-value::placeholder {
+    color: var(--dou-color-text-tertiary);
+  }
+
+  .dou-cascader__panel {
+    display: flex;
+    max-width: calc(100vw - 16px);
+    overflow-x: auto;
+  }
+
+  .dou-cascader__columns {
+    display: flex;
+  }
+
+  .dou-cascader__column {
+    box-sizing: border-box;
+    min-width: 160px;
+    max-height: min(var(--dou-floating-available, 100vh), 280px);
+    padding: 4px;
+    margin: 0;
+    overflow-y: auto;
+    list-style: none;
+
+    & + & {
+      border-left: 1px solid var(--dou-color-border-subtle);
+    }
+  }
+
+  .dou-cascader__matches {
+    min-width: 240px;
+  }
+
+  .dou-cascader__option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-sizing: border-box;
+    height: var(--dou-control-height-md);
+    padding: 0 8px;
+    border-radius: var(--dou-radius-control);
+    color: var(--dou-color-text);
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+
+    &.is-expanded {
+      background-color: color-mix(in oklab, var(--dou-color-text) 4%, transparent);
+    }
+
+    &.is-active {
+      background-color: color-mix(in oklab, var(--dou-color-text) 7%, transparent);
+    }
+
+    &.is-selected {
+      font-weight: var(--dou-font-weight-medium);
+    }
+
+    &.is-disabled {
+      color: var(--dou-color-text-disabled);
+      cursor: not-allowed;
+    }
+  }
+
+  .dou-cascader__label {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: clip;
+    overflow-clip-margin: 4px;
+    text-overflow: ellipsis;
+    text-box: trim-both cap alphabetic;
+  }
+
+  .dou-cascader__suffix {
+    flex-shrink: 0;
+    width: 14px;
+    height: 14px;
+    color: var(--dou-color-text-tertiary);
+  }
+
+  .dou-cascader__check {
+    color: var(--dou-color-text);
+  }
+
+  .dou-cascader__empty {
+    padding: 8px;
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+    text-align: center;
+  }
+}

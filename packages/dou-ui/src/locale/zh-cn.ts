@@ -135,6 +135,33 @@ export const zhCN: Locale = {
     toTarget: '移到右侧',
     toSource: '移到左侧',
   },
+  popconfirm: {
+    confirm: '确定',
+    cancel: '取消',
+  },
+  statistic: {
+    up: '上升',
+    down: '下降',
+  },
+  image: {
+    preview: '查看大图',
+    error: '图片加载失败',
+    prev: '上一张',
+    next: '下一张',
+    close: '关闭',
+    zoomIn: '放大',
+    zoomOut: '缩小',
+    rotateLeft: '向左旋转',
+    rotateRight: '向右旋转',
+    reset: '还原',
+    counter: '{index} / {total}',
+  },
+  backTop: {
+    label: '回到顶部',
+  },
+  splitter: {
+    label: '调整面板大小',
+  },
   form: {
     optional: '可选',
     required: '此项为必填项',

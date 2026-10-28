@@ -43,6 +43,8 @@ export default defineConfig({
             { text: 'Divider 分割线', link: '/components/divider' },
             { text: 'Space 间距', link: '/components/space' },
             { text: 'Grid 栅格', link: '/components/grid' },
+            { text: 'Splitter 分割面板', link: '/components/splitter' },
+            { text: 'Affix 固钉', link: '/components/affix' },
           ],
         },
         {
@@ -76,6 +78,7 @@ export default defineConfig({
             { text: 'Dropdown 下拉菜单', link: '/components/dropdown' },
             { text: 'Dialog 对话框', link: '/components/dialog' },
             { text: 'Drawer 抽屉', link: '/components/drawer' },
+            { text: 'Popconfirm 气泡确认', link: '/components/popconfirm' },
           ],
         },
         {
@@ -86,6 +89,7 @@ export default defineConfig({
             { text: 'Spinner 加载', link: '/components/spinner' },
             { text: 'Progress 进度条', link: '/components/progress' },
             { text: 'Skeleton 骨架屏', link: '/components/skeleton' },
+            { text: 'Result 结果', link: '/components/result' },
           ],
         },
         {
@@ -97,6 +101,8 @@ export default defineConfig({
             { text: 'Tag 标签', link: '/components/tag' },
             { text: 'Kbd 键盘按键', link: '/components/kbd' },
             { text: 'Empty 空状态', link: '/components/empty' },
+            { text: 'Statistic 统计数值', link: '/components/statistic' },
+            { text: 'Image 图片', link: '/components/image' },
             { text: 'Descriptions 描述列表', link: '/components/descriptions' },
             { text: 'Collapse 折叠面板', link: '/components/collapse' },
             { text: 'Timeline 时间线', link: '/components/timeline' },
@@ -114,6 +120,7 @@ export default defineConfig({
             { text: 'Breadcrumb 面包屑', link: '/components/breadcrumb' },
             { text: 'Pagination 分页', link: '/components/pagination' },
             { text: 'Command 命令面板', link: '/components/command' },
+            { text: 'BackTop 回到顶部', link: '/components/back-top' },
           ],
         },
         {

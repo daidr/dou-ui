@@ -67,7 +67,12 @@
 .dou-textarea__native,
 .dou-switch__track,
 .dou-dialog__close,
-.dou-drawer__close {
+.dou-drawer__close,
+.dou-alert__close,
+.dou-toast__action,
+.dou-toast__close,
+.dou-select__input,
+.dou-select__clear {
   padding: revert-layer;
   border: revert-layer;
   background-color: revert-layer;

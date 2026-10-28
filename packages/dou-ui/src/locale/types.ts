@@ -28,11 +28,33 @@ export interface Locale {
     /** Label of the upper thumb of a range. */
     end: string
   }
+  alert: {
+    /** Label of the close button. */
+    close: string
+  }
   dialog: {
     /** Label of the close button. */
     close: string
   }
   drawer: {
+    /** Label of the close button. */
+    close: string
+  }
+  select: {
+    /** Shown in an empty select without a `placeholder`. */
+    placeholder: string
+    /** Shown when no option matches the search. */
+    empty: string
+    /** Label of the clear button. */
+    clear: string
+  }
+  spinner: {
+    /** Read by screen readers while a spinner shows. */
+    loading: string
+  }
+  toast: {
+    /** Names the region that holds the toasts. */
+    region: string
     /** Label of the close button. */
     close: string
   }

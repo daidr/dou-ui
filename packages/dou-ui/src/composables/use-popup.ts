@@ -21,6 +21,8 @@ export interface UsePopupOptions {
   showDelay?: MaybeRefOrGetter<number>
   /** Delay before closing once the pointer leaves, in ms. */
   hideDelay?: MaybeRefOrGetter<number>
+  /** Close on a press outside. Defaults to on for `click` and `focus` triggers. */
+  closeOnOutside?: MaybeRefOrGetter<boolean>
 }
 
 /**
@@ -94,7 +96,10 @@ export function usePopup(options: UsePopupOptions) {
     elements: () => [reference(), panelRef.value],
     onEscape: dismiss,
     onOutside: () => {
-      if (triggers.value.has('click') || triggers.value.has('focus')) hide()
+      const close =
+        toValue(options.closeOnOutside) ??
+        (triggers.value.has('click') || triggers.value.has('focus'))
+      if (close) hide()
     },
   })
 

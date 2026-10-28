@@ -1,0 +1,80 @@
+/*
+ * Skeleton
+ *
+ * Placeholders in the same faint tint as recessed tracks. Text lines are
+ * as tall as a line of body copy's x-height band and spaced like real
+ * lines, so content replaces them without a jump.
+ */
+@layer dou.components {
+  .dou-skeleton {
+    --dou-skeleton-bg: color-mix(in oklab, var(--dou-color-text) 7%, transparent);
+    --dou-skeleton-shine: color-mix(in oklab, var(--dou-color-text) 4%, transparent);
+    --dou-skeleton-radius: 4px;
+
+    display: flex;
+    flex-direction: column;
+    gap: calc(1em * var(--dou-font-line-height) - 10px);
+    width: var(--dou-skeleton-width, 100%);
+    max-width: 100%;
+    vertical-align: middle;
+  }
+
+  .dou-skeleton__item {
+    display: block;
+    height: var(--dou-skeleton-height, 10px);
+    border-radius: var(--dou-skeleton-radius);
+    background-color: var(--dou-skeleton-bg);
+  }
+
+  .dou-skeleton--text {
+    padding: calc((1em * var(--dou-font-line-height) - 10px) / 2) 0;
+
+    & .dou-skeleton__item:last-child:not(:first-child) {
+      width: 60%;
+    }
+  }
+
+  .dou-skeleton--rect .dou-skeleton__item {
+    height: var(--dou-skeleton-height, 96px);
+    border-radius: var(--dou-radius-control);
+  }
+
+  .dou-skeleton--circle {
+    display: inline-flex;
+    width: var(--dou-skeleton-width, 40px);
+
+    & .dou-skeleton__item {
+      width: 100%;
+      height: var(--dou-skeleton-height, 40px);
+      border-radius: var(--dou-radius-full);
+    }
+  }
+
+  .dou-skeleton.is-animated .dou-skeleton__item {
+    background-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      var(--dou-skeleton-shine) 50%,
+      transparent 100%
+    );
+    background-repeat: no-repeat;
+    background-size: 200% 100%;
+    animation: dou-skeleton-sweep 1.6s ease-in-out infinite;
+  }
+
+  @keyframes dou-skeleton-sweep {
+    from {
+      background-position: 150% 0;
+    }
+    to {
+      background-position: -50% 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dou-skeleton.is-animated .dou-skeleton__item {
+      animation: none;
+      background-image: none;
+    }
+  }
+}

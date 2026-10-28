@@ -1,0 +1,91 @@
+/*
+ * Progress
+ *
+ * A recessed track, kept to a faint tint, with a solid bar in the tone.
+ * The bar moves by transform so it never reflows. Without a value it
+ * becomes a short segment gliding across the track.
+ */
+@layer dou.components {
+  .dou-progress {
+    --dou-progress-tone: var(--dou-color-neutral);
+    --dou-progress-height: 6px;
+    --dou-progress-track: color-mix(in oklab, var(--dou-color-text) 8%, transparent);
+
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .dou-progress--sm {
+    --dou-progress-height: 4px;
+  }
+  .dou-progress--lg {
+    --dou-progress-height: 8px;
+  }
+
+  .dou-progress--primary {
+    --dou-progress-tone: var(--dou-color-primary);
+  }
+  .dou-progress--success {
+    --dou-progress-tone: var(--dou-color-success);
+  }
+  .dou-progress--warning {
+    --dou-progress-tone: var(--dou-color-warning);
+  }
+  .dou-progress--danger {
+    --dou-progress-tone: var(--dou-color-danger);
+  }
+
+  .dou-progress__track {
+    position: relative;
+    flex: 1 1 auto;
+    height: var(--dou-progress-height);
+    overflow: hidden;
+    border-radius: var(--dou-radius-full);
+    background-color: var(--dou-progress-track);
+  }
+
+  .dou-progress__bar {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background-color: var(--dou-progress-tone);
+    transform: translateX(-100%);
+    transition: transform var(--dou-motion-duration-normal) var(--dou-motion-easing);
+  }
+
+  .dou-progress.is-indeterminate .dou-progress__bar {
+    right: auto;
+    width: 40%;
+    animation: dou-progress-glide 1.4s var(--dou-motion-easing) infinite;
+  }
+
+  .dou-progress__value {
+    flex-shrink: 0;
+    min-width: 3ch;
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-sm);
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    text-align: right;
+  }
+
+  @keyframes dou-progress-glide {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(250%);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dou-progress__bar {
+      transition: none;
+    }
+    .dou-progress.is-indeterminate .dou-progress__bar {
+      animation-duration: 3s;
+    }
+  }
+}

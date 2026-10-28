@@ -54,6 +54,7 @@ export default defineConfig({
             { text: 'Radio 单选框', link: '/components/radio' },
             { text: 'Switch 开关', link: '/components/switch' },
             { text: 'Slider 滑块', link: '/components/slider' },
+            { text: 'Select 选择器', link: '/components/select' },
             { text: 'SegmentedControl 分段控制器', link: '/components/segmented-control' },
             { text: 'Form 表单', link: '/components/form' },
           ],
@@ -66,6 +67,16 @@ export default defineConfig({
             { text: 'Dropdown 下拉菜单', link: '/components/dropdown' },
             { text: 'Dialog 对话框', link: '/components/dialog' },
             { text: 'Drawer 抽屉', link: '/components/drawer' },
+          ],
+        },
+        {
+          text: '反馈',
+          items: [
+            { text: 'Alert 提示条', link: '/components/alert' },
+            { text: 'Toast 轻提示', link: '/components/toast' },
+            { text: 'Spinner 加载', link: '/components/spinner' },
+            { text: 'Progress 进度条', link: '/components/progress' },
+            { text: 'Skeleton 骨架屏', link: '/components/skeleton' },
           ],
         },
         {

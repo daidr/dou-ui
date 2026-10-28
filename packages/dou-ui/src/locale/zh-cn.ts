@@ -16,10 +16,25 @@ export const zhCN: Locale = {
     start: '起始值',
     end: '结束值',
   },
+  alert: {
+    close: '关闭',
+  },
   dialog: {
     close: '关闭',
   },
   drawer: {
+    close: '关闭',
+  },
+  select: {
+    placeholder: '请选择',
+    empty: '无匹配项',
+    clear: '清空',
+  },
+  spinner: {
+    loading: '加载中',
+  },
+  toast: {
+    region: '通知',
     close: '关闭',
   },
   form: {

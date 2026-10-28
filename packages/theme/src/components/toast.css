@@ -1,0 +1,205 @@
+/*
+ * Toast
+ *
+ * A short-lived note floating above the page: the raised surface of a
+ * popover with the deepest shadow, ink text and a tone-colored icon.
+ * Toasts stack in a column at one of six places on the screen.
+ */
+@layer dou.components {
+  .dou-toast {
+    position: fixed;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    width: min(380px, 100vw);
+    padding: 16px;
+    pointer-events: none;
+  }
+
+  .dou-toast--top,
+  .dou-toast--bottom {
+    left: 50%;
+    align-items: center;
+    transform: translateX(-50%);
+  }
+  .dou-toast--top,
+  .dou-toast--top-left,
+  .dou-toast--top-right {
+    top: 0;
+  }
+  .dou-toast--bottom,
+  .dou-toast--bottom-left,
+  .dou-toast--bottom-right {
+    bottom: 0;
+  }
+  .dou-toast--top-left,
+  .dou-toast--bottom-left {
+    left: 0;
+  }
+  .dou-toast--top-right,
+  .dou-toast--bottom-right {
+    right: 0;
+  }
+
+  .dou-toast__list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+    list-style: none;
+  }
+
+  /* the newest toast sits nearest the edge it comes from */
+  .dou-toast[class*='dou-toast--bottom'] .dou-toast__list {
+    flex-direction: column;
+  }
+  .dou-toast[class*='dou-toast--top'] .dou-toast__list {
+    flex-direction: column-reverse;
+  }
+
+  .dou-toast__item {
+    --dou-toast-tone: var(--dou-color-text-secondary);
+
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    box-sizing: border-box;
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-container);
+    background-color: light-dark(
+      var(--dou-color-bg-surface),
+      color-mix(in oklab, var(--dou-color-text) 5%, var(--dou-color-bg-surface))
+    );
+    box-shadow: var(--dou-shadow-lg);
+    color: var(--dou-color-text);
+    font-family: var(--dou-font-family);
+    font-size: var(--dou-font-size-md);
+    line-height: 1.5;
+    pointer-events: auto;
+  }
+
+  .dou-toast--primary {
+    --dou-toast-tone: var(--dou-color-primary);
+  }
+  .dou-toast--success {
+    --dou-toast-tone: var(--dou-color-success);
+  }
+  .dou-toast--warning {
+    --dou-toast-tone: var(--dou-color-warning);
+  }
+  .dou-toast--danger {
+    --dou-toast-tone: var(--dou-color-danger);
+  }
+
+  .dou-toast__icon {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    height: 1.5em;
+    color: var(--dou-toast-tone);
+
+    & > svg {
+      width: 16px;
+      height: 16px;
+    }
+  }
+
+  .dou-toast__content {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-wrap: break-word;
+  }
+
+  .dou-toast__title {
+    font-weight: var(--dou-font-weight-bold);
+  }
+
+  .dou-toast__title + .dou-toast__message {
+    color: var(--dou-color-text-secondary);
+  }
+
+  .dou-toast__action {
+    flex-shrink: 0;
+    align-self: center;
+    height: 24px;
+    padding: 0 8px;
+    margin: -2px 0;
+    border: 1px solid var(--dou-color-border);
+    border-radius: calc(var(--dou-radius-control) - 2px);
+    background-color: transparent;
+    color: var(--dou-color-text);
+    font: inherit;
+    font-size: var(--dou-font-size-sm);
+    font-weight: var(--dou-font-weight-medium);
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    &:hover {
+      background-color: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+    }
+  }
+
+  .dou-toast__close {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    margin: -1px -6px -1px 0;
+    border: 0;
+    border-radius: var(--dou-radius-control);
+    background-color: transparent;
+    color: var(--dou-color-text-tertiary);
+    cursor: pointer;
+
+    & > svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    &:hover {
+      background-color: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+      color: var(--dou-color-text);
+    }
+  }
+
+  .dou-toast__action:focus-visible,
+  .dou-toast__close:focus-visible {
+    outline: 2px solid var(--dou-color-focus);
+    outline-offset: 1px;
+  }
+
+  /* motion: in from the edge the stack hangs from, out by fading */
+  .dou-toast-enter-active,
+  .dou-toast-leave-active {
+    transition-property: opacity, transform;
+    transition-duration: var(--dou-motion-duration-normal);
+    transition-timing-function: var(--dou-motion-easing);
+  }
+  .dou-toast-enter-from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+  .dou-toast[class*='dou-toast--bottom'] .dou-toast-enter-from {
+    transform: translateY(8px) scale(0.98);
+  }
+  .dou-toast-leave-to {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dou-toast-enter-from,
+    .dou-toast-leave-to,
+    .dou-toast[class*='dou-toast--bottom'] .dou-toast-enter-from {
+      transform: none;
+    }
+  }
+}

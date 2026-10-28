@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { CloseIcon } from '@dou-ui/icons'
 import { computed, ref } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { toneIcon } from '../../utils/tone-icons'
@@ -51,9 +52,7 @@ function close(event: MouseEvent) {
       :aria-label="t('alert.close')"
       @click="close"
     >
-      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-        <path d="M4.5 4.5l7 7M11.5 4.5l-7 7" stroke-linecap="round" />
-      </svg>
+      <CloseIcon />
     </button>
   </div>
 </template>

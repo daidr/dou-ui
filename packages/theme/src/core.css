@@ -1,0 +1,9 @@
+/*
+ * What every component needs before its own stylesheet: the layer order,
+ * the tokens and the base layer. Load it once, then only the components
+ * you use (`components/<name>.css`), e.g. through `dou-ui/components/<name>/style`.
+ */
+@layer dou.tokens, dou.base, dou.components;
+
+@import './generated/tokens.css';
+@import './base.css';

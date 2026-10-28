@@ -18,6 +18,7 @@ const props: Record<string, Record<string, unknown>> = {
   DouDropdown: { items: [{ key: 'a', label: 'A' }] },
   DouImage: { src: 'a.png', preview: true },
   DouImagePreview: { open: true, images: ['a.png'] },
+  DouLoading: { loading: true, text: '加载中' },
   DouMenu: { items: [{ key: 'a', label: 'A', children: [{ key: 'b', label: 'B' }] }] },
   DouPagination: { total: 100 },
   DouPopover: { open: true, content: '内容' },

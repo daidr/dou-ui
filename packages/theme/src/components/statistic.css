@@ -61,8 +61,9 @@
   .dou-statistic__trend {
     flex-shrink: 0;
     align-self: center;
-    width: calc(var(--dou-statistic-value-size) * 0.64);
-    height: calc(var(--dou-statistic-value-size) * 0.64);
+    width: 1em;
+    height: 1em;
+    font-size: calc(var(--dou-statistic-value-size) * 0.64);
     color: var(--dou-statistic-trend);
   }
 

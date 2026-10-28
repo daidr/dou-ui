@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { CheckIcon, ChevronDownIcon, ChevronRightIcon, CloseIcon } from '@dou-ui/icons'
 import { computed, nextTick, reactive, ref, useId, useTemplateRef, watch } from 'vue'
 import type { HTMLAttributes } from 'vue'
 import { usePopup } from '../../composables/use-popup'
@@ -432,20 +433,9 @@ defineExpose<CascaderExpose>({ focus, blur: () => combobox()?.blur() })
         @mousedown.prevent
         @click="clear"
       >
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path d="M5 5l6 6M11 5l-6 6" stroke-linecap="round" />
-        </svg>
+        <CloseIcon />
       </button>
-      <svg
-        class="dou-picker__arrow"
-        viewBox="0 0 16 16"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.5"
-        aria-hidden="true"
-      >
-        <path d="M4.5 6.25L8 9.75l3.5-3.5" stroke-linecap="round" stroke-linejoin="round" />
-      </svg>
+      <ChevronDownIcon class="dou-picker__arrow" />
     </div>
   </OnlyChild>
   <Teleport v-if="rendered" :to="teleport || 'body'" :disabled="teleport === false">
@@ -520,32 +510,14 @@ defineExpose<CascaderExpose>({ focus, blur: () => combobox()?.blur() })
                 size="sm"
                 :class="ns.e('suffix')"
               />
-              <svg
+              <ChevronRightIcon
                 v-else-if="!isLeaf(option, [...column.path, option.value])"
                 :class="ns.e('suffix')"
-                viewBox="0 0 16 16"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.5"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M6 4l4 4-4 4" />
-              </svg>
-              <svg
+              />
+              <CheckIcon
                 v-else-if="isOnSelected([...column.path, option.value])"
                 :class="[ns.e('suffix'), ns.e('check')]"
-                viewBox="0 0 16 16"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.75"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M3.5 8.5l3 3 6-7" />
-              </svg>
+              />
             </li>
             <li
               v-if="!column.options.length && !loading.has(keyOf(column.path))"

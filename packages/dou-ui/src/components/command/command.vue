@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { SearchIcon } from '@dou-ui/icons'
 import { computed, nextTick, ref, useId, useTemplateRef, watch } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
@@ -149,10 +150,7 @@ const maxHeight = computed(() =>
     <div :class="ns.e('search')">
       <span :class="ns.e('prefix')" aria-hidden="true">
         <slot name="prefix">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-            <circle cx="7" cy="7" r="4.25" />
-            <path d="M10.25 10.25L13.5 13.5" stroke-linecap="round" />
-          </svg>
+          <SearchIcon />
         </slot>
       </span>
       <input

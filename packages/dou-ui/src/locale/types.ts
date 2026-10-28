@@ -35,6 +35,10 @@ export interface Locale {
   dialog: {
     /** Label of the close button. */
     close: string
+    /** Confirm button of `dialog.alert()`, `confirm()` and `prompt()`. */
+    confirm: string
+    /** Cancel button of `dialog.confirm()` and `prompt()`. */
+    cancel: string
   }
   drawer: {
     /** Label of the close button. */

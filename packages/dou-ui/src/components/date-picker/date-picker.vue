@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ArrowRightIcon, CalendarIcon, CloseIcon } from '@dou-ui/icons'
 import { computed, nextTick, ref, useId, useTemplateRef, watch } from 'vue'
 import type { InputHTMLAttributes } from 'vue'
 import { usePopup } from '../../composables/use-popup'
@@ -281,17 +282,7 @@ defineExpose<DatePickerExpose>({
       @mousedown="onFieldMousedown"
       @focusout="onFocusout"
     >
-      <svg
-        :class="ns.e('icon')"
-        viewBox="0 0 16 16"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.25"
-        aria-hidden="true"
-      >
-        <rect x="2.25" y="3.25" width="11.5" height="10.5" rx="2" />
-        <path d="M2.25 6.75h11.5M5.5 1.75v3M10.5 1.75v3" stroke-linecap="round" />
-      </svg>
+      <CalendarIcon :class="ns.e('icon')" />
       <input
         ref="start"
         v-model="texts[0]"
@@ -306,20 +297,7 @@ defineExpose<DatePickerExpose>({
         @keydown="onKeydown"
       />
       <template v-if="isRange">
-        <svg
-          :class="ns.e('separator')"
-          viewBox="0 0 16 16"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.25"
-          aria-hidden="true"
-        >
-          <path
-            d="M3 8h10m0 0L9.5 4.5M13 8l-3.5 3.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </svg>
+        <ArrowRightIcon :class="ns.e('separator')" />
         <input
           ref="end"
           v-model="texts[1]"
@@ -342,9 +320,7 @@ defineExpose<DatePickerExpose>({
         @mousedown.prevent
         @click="clear"
       >
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path d="M5 5l6 6M11 5l-6 6" stroke-linecap="round" />
-        </svg>
+        <CloseIcon />
       </button>
     </div>
   </OnlyChild>

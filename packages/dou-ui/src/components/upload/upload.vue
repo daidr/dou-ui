@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { CloseIcon, FileIcon, RotateCwIcon, UploadIcon } from '@dou-ui/icons'
 import { computed, onBeforeUnmount, ref, useId, useTemplateRef, watch } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
@@ -287,14 +288,7 @@ const classes = computed(() => [
       @drop="onDrop"
     >
       <span :class="ns.e('zone-icon')" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path
-            d="M12 15V4m0 0L7.5 8.5M12 4l4.5 4.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-          <path d="M4 14v3a3 3 0 003 3h10a3 3 0 003-3v-3" stroke-linecap="round" />
-        </svg>
+        <UploadIcon />
       </span>
       <span :class="ns.e('zone-text')">
         {{ t('upload.drop') }}<span :class="ns.e('zone-link')">{{ t('upload.browse') }}</span>
@@ -316,21 +310,7 @@ const classes = computed(() => [
             "
           >
             <template #leading>
-              <svg
-                width="1em"
-                height="1em"
-                viewBox="0 0 16 16"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.5"
-              >
-                <path
-                  d="M8 10.5V2.75m0 0L5 5.75m3-3l3 3"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-                <path d="M2.75 10v1.25a2 2 0 002 2h6.5a2 2 0 002-2V10" stroke-linecap="round" />
-              </svg>
+              <UploadIcon />
             </template>
             {{ t('upload.choose') }}
           </DouButton>
@@ -351,13 +331,7 @@ const classes = computed(() => [
         >
           <span :class="ns.e('thumb')" aria-hidden="true">
             <img v-if="isImage(file)" :src="file.url" alt="" />
-            <svg v-else viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25">
-              <path
-                d="M9.25 1.75H4.5a1.5 1.5 0 00-1.5 1.5v9.5a1.5 1.5 0 001.5 1.5h7a1.5 1.5 0 001.5-1.5V5.5L9.25 1.75z"
-                stroke-linejoin="round"
-              />
-              <path d="M9.25 1.75V5.5H13" stroke-linejoin="round" />
-            </svg>
+            <FileIcon v-else />
           </span>
           <span :class="ns.e('meta')">
             <span :class="ns.e('name')">
@@ -393,13 +367,7 @@ const classes = computed(() => [
               :disabled="disabled"
               @click="send(file.uid)"
             >
-              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path
-                  d="M13 8a5 5 0 11-1.46-3.54M13 3v2.5h-2.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
+              <RotateCwIcon />
             </button>
             <button
               type="button"
@@ -408,9 +376,7 @@ const classes = computed(() => [
               :disabled="disabled"
               @click="remove(file.uid)"
             >
-              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M5 5l6 6M11 5l-6 6" stroke-linecap="round" />
-              </svg>
+              <CloseIcon />
             </button>
           </span>
         </slot>

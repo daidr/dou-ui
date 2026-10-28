@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ImageIcon } from '@dou-ui/icons'
 import { computed, ref, watch } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
@@ -100,17 +101,7 @@ function onKeydown(event: KeyboardEvent) {
     </div>
     <div v-else-if="status === 'error'" :class="ns.e('error')">
       <slot name="error">
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.5"
-          aria-hidden="true"
-        >
-          <rect x="3.75" y="4.75" width="16.5" height="14.5" rx="2" />
-          <path d="M3.75 15.5l4.5-4.5 4 4 2.5-2.5 5.5 5.5" stroke-linejoin="round" />
-          <circle cx="15.5" cy="9" r="1.25" />
-        </svg>
+        <ImageIcon />
         <span v-if="alt" :class="ns.e('alt')">{{ alt }}</span>
         <span v-else :class="ns.e('sr')">{{ t('image.error') }}</span>
       </slot>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { CloseIcon } from '@dou-ui/icons'
 import { computed, nextTick, useAttrs, useTemplateRef } from 'vue'
 import type { StyleValue } from 'vue'
 import { useNamespace } from '../../utils/namespace'
@@ -110,9 +111,7 @@ defineExpose<InputExpose>({
       @mousedown.prevent
       @click="clear"
     >
-      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-        <path d="M5 5l6 6M11 5l-6 6" stroke-linecap="round" />
-      </svg>
+      <CloseIcon />
     </button>
     <span v-if="slots.suffix" :class="[ns.e('affix'), ns.e('suffix')]">
       <slot name="suffix" />

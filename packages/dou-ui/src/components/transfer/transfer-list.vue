@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { SearchIcon } from '@dou-ui/icons'
 import { computed, ref } from 'vue'
 import type { FunctionalComponent, VNode } from 'vue'
 import { useNamespace } from '../../utils/namespace'
@@ -88,18 +89,7 @@ function toggle(item: TransferItem, value: boolean) {
         :aria-label="`${title} ${t('transfer.search')}`"
       >
         <template #prefix>
-          <svg
-            viewBox="0 0 16 16"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-            width="14"
-            height="14"
-          >
-            <circle cx="7" cy="7" r="4.25" />
-            <path d="M10.25 10.25L13 13" />
-          </svg>
+          <SearchIcon />
         </template>
       </DouInput>
     </div>

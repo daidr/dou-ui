@@ -6,12 +6,12 @@
 
 <script setup>
 import { ref } from 'vue'
-const region = ref('hk')
+const region = ref('sh')
 const channels = ref(['邮件', 'Webhook'])
 const framework = ref(null)
 const empty = ref(null)
 const regions = [
-  { value: 'hk', label: '香港' },
+  { value: 'sh', label: '上海' },
   { value: 'sg', label: '新加坡' },
   { value: 'fra', label: '法兰克福' },
   { value: 'iad', label: '弗吉尼亚', disabled: true },
@@ -32,7 +32,7 @@ const regions = [
 <DouSelect
   v-model="region"
   :options="[
-    { value: 'hk', label: '香港' },
+    { value: 'sh', label: '上海' },
     { value: 'sg', label: '新加坡' },
     { value: 'iad', label: '弗吉尼亚', disabled: true },
   ]"

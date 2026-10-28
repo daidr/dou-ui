@@ -1,0 +1,67 @@
+/*
+ * Loading
+ *
+ * A veil of the surface color over content that is being fetched or
+ * saved, with the spinner in the middle. The content stays faintly
+ * visible underneath, so the layout does not jump when it lifts.
+ */
+@layer dou.components {
+  .dou-loading,
+  .dou-loading-parent {
+    position: relative;
+  }
+
+  /* Wrapped content is usually a card or a panel; `v-loading` follows its element. */
+  .dou-loading {
+    --dou-loading-radius: var(--dou-radius-container);
+  }
+
+  .dou-loading__mask {
+    --dou-loading-veil: color-mix(in oklab, var(--dou-color-bg-surface) 72%, transparent);
+
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--dou-loading-radius, inherit);
+    background-color: var(--dou-loading-veil);
+    color: var(--dou-color-text-secondary);
+    cursor: progress;
+
+    &.is-fullscreen {
+      --dou-loading-veil: color-mix(in oklab, var(--dou-color-bg-canvas) 80%, transparent);
+
+      position: fixed;
+      border-radius: 0;
+      backdrop-filter: blur(2px);
+    }
+  }
+
+  .dou-loading__content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    max-width: calc(100% - 32px);
+  }
+
+  .dou-loading__text {
+    color: var(--dou-color-text-secondary);
+    font-family: var(--dou-font-family);
+    font-size: var(--dou-font-size-sm);
+    line-height: 20px;
+    text-align: center;
+  }
+
+  .dou-loading-enter-active,
+  .dou-loading-leave-active {
+    transition: opacity var(--dou-motion-duration-normal) var(--dou-motion-easing);
+  }
+
+  .dou-loading-enter-from,
+  .dou-loading-leave-to {
+    opacity: 0;
+  }
+}

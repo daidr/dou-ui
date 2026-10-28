@@ -6,7 +6,7 @@
 import { ref } from 'vue'
 const view = ref('list')
 const range = ref('周')
-const region = ref('hk')
+const region = ref('sh')
 </script>
 
 ## 基础用法
@@ -53,7 +53,7 @@ const region = ref('hk')
     v-model="region"
     block
     :options="[
-      { value: 'hk', label: '香港' },
+      { value: 'sh', label: '上海' },
       { value: 'sg', label: '新加坡' },
       { value: 'fra', label: '法兰克福' },
       { value: 'iad', label: '弗吉尼亚', disabled: true },

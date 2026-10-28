@@ -1,4 +1,14 @@
 <script setup lang="ts">
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  CloseIcon,
+  MaximizeIcon,
+  RotateCcwIcon,
+  RotateCwIcon,
+  ZoomInIcon,
+  ZoomOutIcon,
+} from '@dou-ui/icons'
 import { computed, ref, useId, useTemplateRef, watch } from 'vue'
 import { useModal } from '../../composables/use-modal'
 import { useNamespace } from '../../utils/namespace'
@@ -182,9 +192,7 @@ const label = computed(() =>
           :aria-label="t('image.prev')"
           @click="go(-1)"
         >
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path d="M10 3.5L5.5 8l4.5 4.5" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
+          <ChevronLeftIcon />
         </button>
         <button
           v-if="count > 1"
@@ -194,15 +202,11 @@ const label = computed(() =>
           :aria-label="t('image.next')"
           @click="go(1)"
         >
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path d="M6 3.5L10.5 8 6 12.5" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
+          <ChevronRightIcon />
         </button>
 
         <button type="button" :class="ns.e('close')" :aria-label="t('image.close')" @click="close">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path d="M4 4l8 8M12 4l-8 8" stroke-linecap="round" />
-          </svg>
+          <CloseIcon />
         </button>
 
         <div :class="ns.e('toolbar')" role="toolbar" :aria-label="t('image.preview')">
@@ -214,10 +218,7 @@ const label = computed(() =>
             :aria-label="t('image.zoomOut')"
             @click="zoom(-1)"
           >
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-              <circle cx="7" cy="7" r="4.5" />
-              <path d="M5 7h4M10.5 10.5L14 14" stroke-linecap="round" />
-            </svg>
+            <ZoomOutIcon />
           </button>
           <span :class="ns.e('scale')" aria-live="polite">{{ Math.round(scale * 100) }}%</span>
           <button
@@ -227,10 +228,7 @@ const label = computed(() =>
             :aria-label="t('image.zoomIn')"
             @click="zoom(1)"
           >
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-              <circle cx="7" cy="7" r="4.5" />
-              <path d="M5 7h4M7 5v4M10.5 10.5L14 14" stroke-linecap="round" />
-            </svg>
+            <ZoomInIcon />
           </button>
           <span :class="ns.e('divider')" aria-hidden="true" />
           <button
@@ -239,13 +237,7 @@ const label = computed(() =>
             :aria-label="t('image.rotateLeft')"
             @click="turn(-90)"
           >
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path
-                d="M3.5 6.5A5 5 0 1 1 3 9.5M3.5 2.5v4h4"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
+            <RotateCcwIcon />
           </button>
           <button
             type="button"
@@ -253,22 +245,10 @@ const label = computed(() =>
             :aria-label="t('image.rotateRight')"
             @click="turn(90)"
           >
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path
-                d="M12.5 6.5A5 5 0 1 0 13 9.5M12.5 2.5v4h-4"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
+            <RotateCwIcon />
           </button>
           <button type="button" :class="ns.e('tool')" :aria-label="t('image.reset')" @click="reset">
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path
-                d="M2.5 6V2.5H6M13.5 6V2.5H10M2.5 10v3.5H6M13.5 10v3.5H10"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
+            <MaximizeIcon />
           </button>
         </div>
       </div>

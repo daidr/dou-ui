@@ -18,6 +18,7 @@ packages/
   dou-ui/        组件（结构与行为），对外发布的主包
   theme/         设计 Token 与全部样式（@dou-ui/theme）
   icons/         线性图标库（@dou-ui/icons），可独立使用
+  resolver/      按需自动导入的解析器（@dou-ui/resolver）
 playground/      本地调试用的 Vite 应用
 docs/            文档站（VitePress）
 ```
@@ -38,7 +39,7 @@ bun run typecheck    # vue-tsc
 bun run test         # vitest
 bun run check        # 以上全部（CI 同款）
 
-bun run build        # 构建 @dou-ui/theme、dou-ui 与 @dou-ui/icons
+bun run build        # 构建 @dou-ui/theme、@dou-ui/icons、dou-ui 与 @dou-ui/resolver
 ```
 
 ### 工具链

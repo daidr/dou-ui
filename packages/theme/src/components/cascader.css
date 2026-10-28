@@ -84,8 +84,9 @@
 
   .dou-cascader__suffix {
     flex-shrink: 0;
-    width: 14px;
-    height: 14px;
+    width: 1em;
+    height: 1em;
+    font-size: 14px;
     color: var(--dou-color-text-tertiary);
   }
 

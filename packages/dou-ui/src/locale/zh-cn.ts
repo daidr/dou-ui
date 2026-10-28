@@ -21,6 +21,8 @@ export const zhCN: Locale = {
   },
   dialog: {
     close: '关闭',
+    confirm: '确定',
+    cancel: '取消',
   },
   drawer: {
     close: '关闭',

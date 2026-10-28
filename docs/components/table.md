@@ -13,11 +13,11 @@ const columns = [
   { key: 'updated', title: '更新于', sortable: true, width: 160 },
 ]
 const rows = [
-  { id: 1, name: 'edge-fn-hk', region: '香港', status: '运行中', replicas: 3, updated: '2026-10-28 14:32' },
+  { id: 1, name: 'edge-fn-sh', region: '上海', status: '运行中', replicas: 3, updated: '2026-10-28 14:32' },
   { id: 2, name: 'api-sg', region: '新加坡', status: '运行中', replicas: 12, updated: '2026-10-28 09:15' },
   { id: 3, name: 'cron-fra', region: '法兰克福', status: '已停止', replicas: 0, updated: '2026-10-27 22:04' },
   { id: 4, name: 'image-iad', region: '弗吉尼亚', status: '部署中', replicas: 2, updated: '2026-10-28 15:01' },
-  { id: 5, name: 'auth-hk', region: '香港', status: '运行中', replicas: 6, updated: '2026-10-26 18:40' },
+  { id: 5, name: 'auth-sh', region: '上海', status: '运行中', replicas: 6, updated: '2026-10-26 18:40' },
 ]
 const tones = { 运行中: 'success', 已停止: 'neutral', 部署中: 'warning' }
 const sort = ref({ key: 'replicas', order: 'desc' })
@@ -27,7 +27,7 @@ const page = ref(1)
 const many = Array.from({ length: 23 }, (_, i) => ({
   id: i + 1,
   name: `worker-${String(i + 1).padStart(2, '0')}`,
-  region: ['香港', '新加坡', '法兰克福'][i % 3],
+  region: ['上海', '新加坡', '法兰克福'][i % 3],
   status: '运行中',
   replicas: (i * 7) % 13,
   updated: '2026-10-28',

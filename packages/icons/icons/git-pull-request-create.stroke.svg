@@ -2,8 +2,8 @@
   <circle cx="6" cy="5.5" r="2" />
   <circle cx="6" cy="18.5" r="2" />
   <path d="M6 7.5v9" />
-  <path d="M18 15v6" />
-  <path d="M15 18h6" />
+  <path d="M18 15.5v5" />
+  <path d="M15.5 18h5" />
   <path d="M18 11.5V9a3 3 0 0 0-3-3h-4" />
   <path d="m13 3.5-2.5 2.5L13 8.5" />
 </svg>

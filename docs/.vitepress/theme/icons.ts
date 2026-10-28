@@ -2,9 +2,9 @@
 export {
   ArrowLeftIcon,
   ArrowRightIcon,
+  GithubIcon,
   MenuIcon,
   MoonIcon,
-  RepositoryIcon,
   SearchIcon,
   SunIcon,
 } from '@dou-ui/icons'

@@ -11,6 +11,11 @@ for (const file of await readdir(source)) {
   const [, name, variant] = match
   const target = variant === 'stroke' ? `${name}.svg` : `${name}-${variant}.svg`
   const svg = await Bun.file(new URL(file, source)).text()
-  // Dots are drawn a little heavier than lines, as the components draw them.
-  await Bun.write(new URL(target, outDir), svg.replaceAll('class="dot"', 'stroke-width="2.25"'))
+  // Dots are a little heavier than lines and tapered strokes are filled, as the components draw them.
+  await Bun.write(
+    new URL(target, outDir),
+    svg
+      .replaceAll('class="dot"', 'stroke-width="2.25"')
+      .replaceAll('class="fill"', 'fill="currentColor"'),
+  )
 }

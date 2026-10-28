@@ -6,11 +6,12 @@ export type IconVariant = 'stroke'
 /**
  * One drawn shape on the 24 × 24 grid: an SVG element name and its geometry
  * attributes. `['dot', { cx, cy }]` draws a round dot slightly heavier than
- * the lines.
+ * the lines; a trailing `'fill'` also fills the shape, for tapered strokes.
  */
 export type IconNode = readonly (readonly [
   tag: string,
   attrs: Readonly<Record<string, number | string>>,
+  paint?: 'fill',
 ])[]
 
 export interface IconProps {

@@ -92,7 +92,7 @@ icons/
 }
 ```
 
-`search.stroke.svg` 是可以直接预览的完整 SVG，根元素的属性固定，内部只放 `path`、`circle`、`ellipse`、`rect`、`line`、`polyline`、`polygon`，且只写几何属性；点写成 `<path class="dot" d="Mx yh.01" />`：
+`search.stroke.svg` 是可以直接预览的完整 SVG，根元素的属性固定，内部只放 `path`、`circle`、`ellipse`、`rect`、`line`、`polyline`、`polygon`，且只写几何属性；点写成 `<path class="dot" d="Mx yh.01" />`，品牌图标里需要保留粗细变化的笔画可以加 `class="fill"` 画成填充形状：
 
 ```xml
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -132,6 +132,7 @@ icons/
 
 - **保留辨识特征，舍弃细节。** 只留下认出它所必需的结构，比如 Vue 的双层 V、React 的三条轨道、微信的两个气泡；渐变、多色与填充一律去掉，只用 `currentColor` 的线条表达。
 - **规则照旧。** 同样的 24 网格、光学线宽、圆头圆角和视觉尺寸；原本是实心块面的部分改为轮廓。
+- **粗细本身是特征时才保留。** 少数标志靠笔画的粗细变化被认出来，比如支付宝向右逐渐变粗的一撇、Claude 末端更宽的光芒、YouTube 实心的播放键。这些部分画成填充形状（`class="fill"`），外沿仍有同样的线条包住，所以端点和转角依旧是圆的。品牌之外的图标不使用填充。
 - **遮挡才断开。** 原标志里互相交叠的部分（X 的两笔、微信的两个气泡、OpenAI 的六个环）用“断开”表现前后关系，不额外制造断口。
 
 品牌标志的商标权归各自所有者，使用时请遵守对应品牌的使用规范。

@@ -92,6 +92,16 @@ describe('dou-icons', () => {
     )
   })
 
+  it('fills tapered strokes', () => {
+    const Wedge = createIcon('my-wedge', [
+      ['path', { d: 'M4 12 20 10v4Z' }, 'fill'],
+      ['path', { d: 'M4 18h16' }],
+    ])
+    const [wedge, line] = mount(Wedge).findAll('path')
+    expect(wedge!.attributes('fill')).toBe('currentColor')
+    expect(line!.attributes('fill')).toBeUndefined()
+  })
+
   it('makes custom icons with createIcon', () => {
     const Dot = createIcon('my-dot', [['circle', { cx: 12, cy: 12, r: 2 }]])
     expect(Dot.name).toBe('MyDotIcon')

@@ -47,7 +47,7 @@ function parseAttrs(text: string): Record<string, string> {
   return attrs
 }
 
-type Node = [string, Record<string, number | string>]
+type Node = [string, Record<string, number | string>, 'fill'?]
 
 function parseSvg(file: string, svg: string): Node[] {
   const match = svg.trim().match(/^<svg\b([^>]*)>([\s\S]*)<\/svg>$/)
@@ -76,7 +76,10 @@ function parseSvg(file: string, svg: string): Node[] {
       return ''
     }
     const node: Node = [tag, {}]
+    // A filled shape, for strokes whose taper is part of how a mark is recognised.
+    if (shape.class === 'fill') node.push('fill')
     for (const [key, value] of Object.entries(shape)) {
+      if (key === 'class' && value === 'fill') continue
       if (!allowed.includes(key))
         fail(file, `<${tag}> may not set ${key}; style comes from the root`)
       else node[1][key] = /^-?\d*\.?\d+$/.test(value) ? Number(value) : value

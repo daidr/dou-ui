@@ -125,7 +125,7 @@ import searchUrl from 'dou-icons/svg/search.svg'
 
 ## 自定义图标
 
-`createIcon` 把 24 网格上的图形变成与内置图标行为一致的组件（线宽补偿、无障碍语义），适合补充项目里独有的图标。`['dot', { cx, cy }]` 画一个比线略重的点：
+`createIcon` 把 24 网格上的图形变成与内置图标行为一致的组件（线宽补偿、无障碍语义），适合补充项目里独有的图标。`['dot', { cx, cy }]` 画一个比线略重的点，在图形后面加 `'fill'`（如 `['path', { d }, 'fill']`）会把它画成填充形状：
 
 ```ts
 import { createIcon } from 'dou-icons'

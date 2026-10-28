@@ -1,0 +1,82 @@
+/*
+ * Empty
+ *
+ * What fills a place that has nothing to show yet. A small line icon on
+ * a recessed tile, a short headline and, when it helps, a next step. No
+ * illustration: an empty state should be calm, not cute.
+ */
+@layer dou.components {
+  .dou-empty {
+    --dou-empty-tile: 48px;
+    --dou-empty-icon: 24px;
+    --dou-empty-padding: 40px 24px;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    box-sizing: border-box;
+    padding: var(--dou-empty-padding);
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-md);
+    line-height: 1.5;
+    text-align: center;
+  }
+
+  .dou-empty--sm {
+    --dou-empty-tile: 36px;
+    --dou-empty-icon: 18px;
+    --dou-empty-padding: 24px 16px;
+
+    font-size: var(--dou-font-size-sm);
+  }
+
+  .dou-empty__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: var(--dou-empty-tile);
+    height: var(--dou-empty-tile);
+    margin-bottom: 12px;
+    border: 1px solid var(--dou-color-border);
+    border-radius: calc(var(--dou-radius-control) + 4px);
+    background-color: color-mix(in oklab, var(--dou-color-text) 3%, var(--dou-color-bg-surface));
+    color: var(--dou-color-text-tertiary);
+
+    & > svg {
+      width: var(--dou-empty-icon);
+      height: var(--dou-empty-icon);
+    }
+  }
+
+  .dou-empty--sm .dou-empty__icon {
+    margin-bottom: 8px;
+    border-radius: var(--dou-radius-control);
+  }
+
+  .dou-empty__title {
+    color: var(--dou-color-text);
+    font-weight: var(--dou-font-weight-medium);
+  }
+
+  .dou-empty__description {
+    max-width: 36em;
+    color: var(--dou-color-text-tertiary);
+  }
+
+  .dou-empty__title + .dou-empty__description {
+    margin-top: 2px;
+  }
+
+  .dou-empty__actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 16px;
+  }
+
+  .dou-empty--sm .dou-empty__actions {
+    margin-top: 12px;
+  }
+}

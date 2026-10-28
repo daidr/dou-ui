@@ -32,6 +32,8 @@ export interface SelectProps {
   placement?: Placement
   /** Where to render the list; `false` keeps it in place. */
   teleport?: string | HTMLElement | false
+  /** Names a select that has no visible label, e.g. the page size of a pagination. */
+  ariaLabel?: string
 }
 
 export interface SelectEmits {

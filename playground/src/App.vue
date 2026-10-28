@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref, useTemplateRef, watchEffect } from 'vue'
+import { computed, onMounted, reactive, ref, useTemplateRef, watchEffect } from 'vue'
 import { en, toast } from 'dou-ui'
 import type {
   ButtonSize,
@@ -7,6 +7,9 @@ import type {
   ButtonVariant,
   FormInstance,
   FormRules,
+  TableColumn,
+  TableRowKey,
+  TableSort,
   TagVariant,
 } from 'dou-ui'
 
@@ -80,6 +83,45 @@ const selectRegion = ref<string | null>('hk')
 const selectChannels = ref(['邮件', 'Webhook'])
 const selectFramework = ref<string | null>(null)
 
+const crumbs = [
+  { label: '首页', href: '#' },
+  { label: '项目', href: '#' },
+  { label: 'dou-ui', href: '#' },
+  { label: '实例' },
+]
+const tab = ref('instances')
+const instanceColumns: TableColumn<Instance>[] = [
+  { key: 'name', title: '名称', sortable: true },
+  { key: 'region', title: '区域' },
+  { key: 'status', title: '状态' },
+  { key: 'replicas', title: '副本', align: 'end', sortable: true, width: 88 },
+]
+interface Instance {
+  id: number
+  name: string
+  region: string
+  status: string
+  replicas: number
+}
+const instances: Instance[] = [
+  { id: 1, name: 'edge-fn-hk', region: '香港', status: '运行中', replicas: 3 },
+  { id: 2, name: 'api-sg', region: '新加坡', status: '运行中', replicas: 12 },
+  { id: 3, name: 'cron-fra', region: '法兰克福', status: '已停止', replicas: 0 },
+  { id: 4, name: 'image-iad', region: '弗吉尼亚', status: '部署中', replicas: 2 },
+  { id: 5, name: 'auth-hk', region: '香港', status: '运行中', replicas: 6 },
+  { id: 6, name: 'mail-sg', region: '新加坡', status: '运行中', replicas: 1 },
+]
+const tableSort = ref<TableSort | null>({ key: 'replicas', order: 'desc' })
+const tableSelected = ref<TableRowKey[]>([2])
+const tablePage = ref(1)
+const pagedInstances = computed(() =>
+  instances.slice((tablePage.value - 1) * 4, tablePage.value * 4),
+)
+const bigPage = ref(7)
+function statusTone(status: string) {
+  return status === '运行中' ? 'success' : status === '部署中' ? 'warning' : 'neutral'
+}
+
 onMounted(() => {
   void settingsForm.value?.validate()
   void accountForm.value?.validate(['email', 'role'])
@@ -103,6 +145,109 @@ function simulate() {
         {{ theme === 'light' ? '深色' : '浅色' }}
       </DouButton>
     </header>
+
+    <section>
+      <h2>navigation · table</h2>
+      <DouBreadcrumb :items="crumbs" />
+      <DouTabs v-model="tab" style="margin-top: 16px">
+        <DouTabPanel value="instances">
+          <template #label>实例 <DouBadge :value="instances.length" /></template>
+          <DouTable
+            v-model:sort="tableSort"
+            v-model:selected="tableSelected"
+            :data="pagedInstances"
+            :columns="instanceColumns"
+            selectable
+          >
+            <template #cell-name="{ value }"
+              ><DouText mono>{{ value }}</DouText></template
+            >
+            <template #cell-status="{ value }">
+              <DouTag :tone="statusTone(String(value))" size="sm" round>{{ value }}</DouTag>
+            </template>
+          </DouTable>
+          <div class="row row--between" style="margin-top: 12px">
+            <DouText variant="tertiary" size="sm">已选 {{ tableSelected.length }} 项</DouText>
+            <DouPagination
+              v-model:page="tablePage"
+              :page-size="4"
+              :total="instances.length"
+              show-total
+            />
+          </div>
+        </DouTabPanel>
+        <DouTabPanel value="logs" label="日志">暂无日志。</DouTabPanel>
+        <DouTabPanel value="billing" label="账单" disabled />
+        <DouTabPanel value="settings" label="设置">设置</DouTabPanel>
+        <template #extra><DouButton size="sm" variant="outline">新建实例</DouButton></template>
+      </DouTabs>
+      <div style="margin-top: 16px">
+        <DouPagination v-model:page="bigPage" :total="500" :page-sizes="[10, 20, 50]" />
+      </div>
+    </section>
+
+    <section>
+      <h2>data display</h2>
+      <div class="grid">
+        <DouCard title="dou-ui.dev" description="最近一次部署于 3 分钟前完成，所有检查均已通过。">
+          <template #extra><DouTag tone="success" round size="sm">运行中</DouTag></template>
+          <DouDescriptions :columns="2">
+            <DouDescriptionsItem label="分支">main</DouDescriptionsItem>
+            <DouDescriptionsItem label="提交">39dc86b</DouDescriptionsItem>
+            <DouDescriptionsItem label="区域">香港</DouDescriptionsItem>
+            <DouDescriptionsItem label="耗时">42 秒</DouDescriptionsItem>
+          </DouDescriptions>
+          <template #footer>
+            <DouButton variant="ghost" size="sm">日志</DouButton>
+            <DouButton variant="outline" size="sm">回滚</DouButton>
+            <DouButton size="sm">访问</DouButton>
+          </template>
+        </DouCard>
+        <DouCard raised padding="none">
+          <DouEmpty title="还没有项目" description="从一个 Git 仓库导入，或从模板开始。">
+            <DouButton size="sm">导入仓库</DouButton>
+          </DouEmpty>
+        </DouCard>
+      </div>
+      <div class="row" style="margin-top: 16px">
+        <DouAvatarGroup :max="4">
+          <DouAvatar name="Ada Lovelace" />
+          <DouAvatar name="林小满" />
+          <DouAvatar name="Grace Hopper" />
+          <DouAvatar name="周以" />
+          <DouAvatar name="Alan Turing" />
+        </DouAvatarGroup>
+        <DouAvatar size="sm" name="Ada Lovelace" />
+        <DouAvatar size="lg" shape="square" name="Dou UI" />
+        <DouAvatar />
+        <DouBadge :value="5">
+          <DouButton variant="outline" size="sm">消息</DouButton>
+        </DouBadge>
+        <DouBadge :value="128" tone="danger">
+          <DouAvatar name="林小满" shape="square" />
+        </DouBadge>
+        <DouBadge dot tone="success" placement="bottom-end">
+          <DouAvatar name="Grace Hopper" />
+        </DouBadge>
+        <DouText variant="secondary">收件箱 <DouBadge :value="12" /></DouText>
+        <DouText variant="secondary">
+          搜索 <DouKbd size="sm">⌘</DouKbd> <DouKbd size="sm">K</DouKbd>
+        </DouText>
+        <DouKbd>Shift</DouKbd>
+        <DouKbd>Esc</DouKbd>
+      </div>
+      <div style="margin-top: 16px">
+        <DouDescriptions bordered layout="horizontal" :columns="2" :label-width="72">
+          <DouDescriptionsItem label="名称">edge-fn-hk</DouDescriptionsItem>
+          <DouDescriptionsItem label="副本">3</DouDescriptionsItem>
+          <DouDescriptionsItem label="规格">2 vCPU · 512 MB</DouDescriptionsItem>
+          <DouDescriptionsItem label="状态">运行中</DouDescriptionsItem>
+          <DouDescriptionsItem label="说明" span="fill"
+            >自动扩缩容的边缘函数，部署在离用户最近的节点。</DouDescriptionsItem
+          >
+        </DouDescriptions>
+      </div>
+    </section>
 
     <section>
       <h2>composition</h2>
@@ -612,6 +757,14 @@ body {
   max-width: 880px;
   margin: 0 auto;
   padding: 32px 24px;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.row--between {
+  justify-content: space-between;
 }
 .row--end {
   justify-content: flex-end;

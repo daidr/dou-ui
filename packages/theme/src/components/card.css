@@ -1,0 +1,134 @@
+/*
+ * Card
+ *
+ * A surface that groups related content. It is set apart by a hairline
+ * edge alone; a shadow is opt-in (`raised`), for cards that should read
+ * as lifted off the page. The footer sits on a faint tint under a
+ * hairline, so actions stay out of the way of the content.
+ */
+@layer dou.components {
+  .dou-card {
+    --dou-card-padding: 20px;
+    --dou-card-radius: var(--dou-radius-container);
+    --dou-card-bg: var(--dou-color-bg-surface);
+    --dou-card-border: var(--dou-color-border);
+    --dou-card-shadow: none;
+
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    min-width: 0;
+    border: 1px solid var(--dou-card-border);
+    border-radius: var(--dou-card-radius);
+    background-color: var(--dou-card-bg);
+    box-shadow: var(--dou-card-shadow);
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-md);
+    line-height: var(--dou-font-line-height);
+    text-decoration: none;
+    /* keeps the footer tint inside the rounded corners */
+    overflow: hidden;
+
+    &.is-raised {
+      --dou-card-shadow: var(--dou-shadow-md);
+    }
+
+    &.is-interactive {
+      cursor: pointer;
+      transition-property: border-color, box-shadow;
+      transition-duration: var(--dou-motion-duration-fast);
+      transition-timing-function: var(--dou-motion-easing);
+
+      &:hover {
+        --dou-card-border: var(--dou-color-border-strong);
+      }
+
+      &.is-raised:hover {
+        --dou-card-shadow: var(--dou-shadow-lg);
+      }
+
+      &:focus-visible {
+        outline: 2px solid var(--dou-color-focus);
+        outline-offset: 2px;
+      }
+    }
+  }
+
+  .dou-card--padding-none {
+    --dou-card-padding: 0px;
+  }
+  .dou-card--padding-sm {
+    --dou-card-padding: 12px;
+  }
+  .dou-card--padding-lg {
+    --dou-card-padding: 28px;
+  }
+
+  .dou-card__header {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: var(--dou-card-padding) var(--dou-card-padding) 0;
+
+    &:last-child {
+      padding-bottom: var(--dou-card-padding);
+    }
+  }
+
+  .dou-card__heading {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .dou-card__title {
+    color: var(--dou-color-text);
+    font-size: var(--dou-font-size-lg);
+    font-weight: var(--dou-font-weight-bold);
+    line-height: 1.4;
+  }
+
+  .dou-card__description {
+    margin-top: 2px;
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-md);
+  }
+
+  .dou-card__extra {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .dou-card__body {
+    flex: 1 1 auto;
+    padding: var(--dou-card-padding);
+  }
+
+  .dou-card__header + .dou-card__body {
+    padding-top: 12px;
+  }
+
+  .dou-card--padding-none .dou-card__header + .dou-card__body {
+    padding-top: 0;
+  }
+
+  .dou-card__footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px var(--dou-card-padding);
+    border-top: 1px solid var(--dou-color-border-subtle);
+    background-color: color-mix(in oklab, var(--dou-color-text) 2%, var(--dou-card-bg));
+  }
+
+  .dou-card--padding-none .dou-card__footer {
+    padding: 12px 16px;
+  }
+
+  .dou-card__header + .dou-card__footer {
+    margin-top: var(--dou-card-padding);
+  }
+}

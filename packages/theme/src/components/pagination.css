@@ -1,0 +1,136 @@
+/*
+ * Pagination
+ *
+ * Page numbers are ghost buttons; the current page is a raised surface,
+ * hairline edge and resting shadow, like the selection of a segmented
+ * control. Numbers are tabular so the row keeps its width as it pages.
+ */
+@layer dou.components {
+  .dou-pagination {
+    --dou-pagination-size: var(--dou-control-height-md);
+    --dou-pagination-font-size: var(--dou-font-size-md);
+    --dou-pagination-gap: 2px;
+
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--dou-pagination-gap);
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-pagination-font-size);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .dou-pagination--sm {
+    --dou-pagination-size: var(--dou-control-height-sm);
+    --dou-pagination-font-size: var(--dou-font-size-sm);
+  }
+  .dou-pagination--lg {
+    --dou-pagination-size: var(--dou-control-height-lg);
+    --dou-pagination-font-size: var(--dou-font-size-lg);
+    --dou-pagination-gap: 4px;
+  }
+
+  .dou-pagination__pages {
+    display: flex;
+    align-items: center;
+    gap: var(--dou-pagination-gap);
+    padding: 0;
+    margin: 0;
+    list-style: none;
+
+    & > li {
+      margin: 0;
+    }
+  }
+
+  .dou-pagination__item {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    min-width: var(--dou-pagination-size);
+    height: var(--dou-pagination-size);
+    padding: 0 6px;
+    border: 1px solid transparent;
+    border-radius: var(--dou-radius-control);
+    background-color: transparent;
+    color: inherit;
+    font: inherit;
+    line-height: 1;
+    cursor: pointer;
+    transition-property: background-color, border-color, color, box-shadow;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    &:hover:not(:disabled, .is-current) {
+      background-color: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+      color: var(--dou-color-text);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 1px;
+    }
+
+    &:disabled {
+      color: var(--dou-color-text-disabled);
+      cursor: not-allowed;
+    }
+
+    &.is-current {
+      border-color: var(--dou-color-border);
+      background-color: var(--dou-color-bg-surface);
+      box-shadow: var(--dou-shadow-sm);
+      color: var(--dou-color-text);
+      font-weight: var(--dou-font-weight-medium);
+      cursor: default;
+    }
+
+    & > svg {
+      width: 16px;
+      height: 16px;
+    }
+  }
+
+  .dou-pagination.is-disabled .dou-pagination__item.is-current {
+    color: var(--dou-color-text-disabled);
+    box-shadow: none;
+  }
+
+  .dou-pagination__number {
+    text-box: trim-both cap alphabetic;
+  }
+
+  .dou-pagination__ellipsis {
+    color: var(--dou-color-text-tertiary);
+    cursor: default;
+  }
+
+  .dou-pagination__simple {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 8px;
+  }
+
+  .dou-pagination__current {
+    color: var(--dou-color-text);
+    font-weight: var(--dou-font-weight-medium);
+  }
+
+  .dou-pagination__slash {
+    color: var(--dou-color-text-disabled);
+  }
+
+  .dou-pagination__total {
+    margin-right: 10px;
+    color: var(--dou-color-text-tertiary);
+  }
+
+  .dou-pagination__sizes {
+    display: inline-flex;
+    flex: none;
+    width: 7.5em;
+    margin-left: 10px;
+  }
+}

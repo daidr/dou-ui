@@ -20,6 +20,8 @@ export interface CheckboxProps {
   size?: CheckboxSize
   /** The native `name`. Inherits from the group. */
   name?: string
+  /** Names a box that has no visible label, e.g. one selecting a table row. */
+  ariaLabel?: string
 }
 
 export interface CheckboxEmits {

@@ -1,0 +1,43 @@
+/*
+ * Kbd
+ *
+ * A key on the keyboard, drawn as a small keycap: a hairline edge with a
+ * slightly heavier bottom, the way a real key catches shadow. Monospaced
+ * so a row of keys lines up.
+ */
+@layer dou.components {
+  .dou-kbd {
+    --dou-kbd-height: 20px;
+    --dou-kbd-padding-x: 5px;
+    --dou-kbd-font-size: 12px;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    min-width: var(--dou-kbd-height);
+    height: var(--dou-kbd-height);
+    padding: 0 var(--dou-kbd-padding-x);
+    border: 1px solid var(--dou-color-border);
+    border-radius: calc(var(--dou-radius-control) - 2px);
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: inset 0 -1px 0 var(--dou-color-border);
+    color: var(--dou-color-text-secondary);
+    font-family: var(--dou-font-family-mono);
+    font-size: var(--dou-kbd-font-size);
+    font-weight: var(--dou-font-weight-medium);
+    line-height: 1;
+    white-space: nowrap;
+    vertical-align: middle;
+  }
+
+  .dou-kbd--sm {
+    --dou-kbd-height: 18px;
+    --dou-kbd-padding-x: 4px;
+    --dou-kbd-font-size: 11px;
+  }
+
+  .dou-kbd__label {
+    text-box: trim-both cap alphabetic;
+  }
+}

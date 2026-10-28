@@ -56,6 +56,7 @@ const classes = computed(() => [
         :disabled="disabled"
         :name="name"
         :value="value"
+        :aria-label="ariaLabel"
         :aria-describedby="formItem?.describedBy.value"
         :aria-invalid="formItem?.invalid.value || undefined"
         :aria-required="formItem?.required.value || undefined"

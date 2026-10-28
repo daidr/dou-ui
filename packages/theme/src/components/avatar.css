@@ -1,0 +1,97 @@
+/*
+ * Avatar
+ *
+ * A person or an entity, as a picture or as initials on a faint tint.
+ * A hairline ring drawn inside the edge keeps a light photo from
+ * dissolving into a light page. In a group the avatars overlap, each
+ * cut out from its neighbour by a ring of the surface color.
+ */
+@layer dou.components {
+  .dou-avatar {
+    --dou-avatar-size: 32px;
+    --dou-avatar-font-size: 13px;
+    --dou-avatar-radius: var(--dou-radius-full);
+    --dou-avatar-bg: color-mix(in oklab, var(--dou-color-text) 7%, var(--dou-color-bg-surface));
+    --dou-avatar-fg: var(--dou-color-text-secondary);
+
+    position: relative;
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: var(--dou-avatar-size);
+    height: var(--dou-avatar-size);
+    border-radius: var(--dou-avatar-radius);
+    background-color: var(--dou-avatar-bg);
+    color: var(--dou-avatar-fg);
+    font-size: var(--dou-avatar-font-size);
+    font-weight: var(--dou-font-weight-medium);
+    line-height: 1;
+    vertical-align: middle;
+    overflow: hidden;
+    user-select: none;
+
+    /* the hairline ring, above the image */
+    &::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--dou-color-text) 9%, transparent);
+      pointer-events: none;
+    }
+  }
+
+  .dou-avatar--sm {
+    --dou-avatar-size: 24px;
+    --dou-avatar-font-size: 10px;
+  }
+  .dou-avatar--lg {
+    --dou-avatar-size: 40px;
+    --dou-avatar-font-size: 16px;
+  }
+
+  .dou-avatar--square {
+    --dou-avatar-radius: calc(var(--dou-avatar-size) / 4);
+  }
+
+  .dou-avatar__image {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .dou-avatar__initials {
+    text-box: trim-both cap alphabetic;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+
+  .dou-avatar__fallback {
+    width: 55%;
+    height: 55%;
+  }
+
+  .dou-avatar-group {
+    --dou-avatar-group-ring: var(--dou-color-bg-surface);
+
+    display: inline-flex;
+    align-items: center;
+    vertical-align: middle;
+
+    & > .dou-avatar {
+      box-shadow: 0 0 0 2px var(--dou-avatar-group-ring);
+    }
+
+    & > .dou-avatar + .dou-avatar {
+      margin-inline-start: calc(var(--dou-avatar-size) * -0.25);
+    }
+  }
+
+  .dou-avatar-group__rest {
+    --dou-avatar-bg: var(--dou-color-bg-muted);
+    --dou-avatar-fg: var(--dou-color-text-secondary);
+  }
+}

@@ -37,6 +37,26 @@ export const zhCN: Locale = {
     region: '通知',
     close: '关闭',
   },
+  empty: {
+    title: '暂无数据',
+  },
+  breadcrumb: {
+    label: '面包屑',
+    expand: '显示完整路径',
+  },
+  pagination: {
+    label: '分页',
+    prev: '上一页',
+    next: '下一页',
+    page: '第 {page} 页',
+    total: '共 {total} 条',
+    pageSize: '{size} 条/页',
+    pageSizeLabel: '每页条数',
+  },
+  table: {
+    selectAll: '选择全部',
+    selectRow: '选择此行',
+  },
   form: {
     optional: '可选',
     required: '此项为必填项',

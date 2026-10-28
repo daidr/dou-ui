@@ -65,14 +65,15 @@ const partly = computed(() => channels.value.length > 0 && channels.value.length
 
 ### Checkbox Props
 
-| 名称            | 说明                               | 类型                   | 默认值  |
-| --------------- | ---------------------------------- | ---------------------- | ------- |
-| `modelValue`    | 是否选中，配合 `v-model`；组内忽略 | `boolean`              | `false` |
-| `value`         | 在组中代表的值                     | `string \| number`     | —       |
-| `indeterminate` | 部分选中的外观                     | `boolean`              | `false` |
-| `disabled`      | 禁用                               | `boolean`              | `false` |
-| `size`          | 尺寸，默认继承组                   | `'sm' \| 'md' \| 'lg'` | `'md'`  |
-| `name`          | 原生 `name`，默认继承组            | `string`               | —       |
+| 名称            | 说明                                           | 类型                   | 默认值  |
+| --------------- | ---------------------------------------------- | ---------------------- | ------- |
+| `modelValue`    | 是否选中，配合 `v-model`；组内忽略             | `boolean`              | `false` |
+| `value`         | 在组中代表的值                                 | `string \| number`     | —       |
+| `indeterminate` | 部分选中的外观                                 | `boolean`              | `false` |
+| `disabled`      | 禁用                                           | `boolean`              | `false` |
+| `size`          | 尺寸，默认继承组                               | `'sm' \| 'md' \| 'lg'` | `'md'`  |
+| `name`          | 原生 `name`，默认继承组                        | `string`               | —       |
+| `ariaLabel`     | 没有可见标签时的读屏名称，如表格里选择一行的框 | `string`               | —       |
 
 ### CheckboxGroup Props
 

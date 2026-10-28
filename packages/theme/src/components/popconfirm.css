@@ -1,0 +1,64 @@
+/*
+ * Popconfirm
+ *
+ * A popover that asks before a quick action goes ahead: a toned icon
+ * beside the question, two small buttons at the bottom right. Only the
+ * icon carries the tone; a danger confirm also turns its button red.
+ */
+@layer dou.components {
+  .dou-popover.dou-popconfirm {
+    --dou-popconfirm-tone: var(--dou-color-warning);
+    --dou-popover-padding: 14px 14px 12px;
+    --dou-popover-max-width: 320px;
+  }
+
+  .dou-popconfirm--neutral {
+    --dou-popconfirm-tone: var(--dou-color-text-secondary);
+  }
+  .dou-popconfirm--danger {
+    --dou-popconfirm-tone: var(--dou-color-danger);
+  }
+
+  .dou-popconfirm__body {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .dou-popconfirm__icon {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    height: 1.5em;
+    color: var(--dou-popconfirm-tone);
+
+    & > svg {
+      width: 16px;
+      height: 16px;
+    }
+  }
+
+  .dou-popconfirm__text {
+    min-width: 0;
+  }
+
+  .dou-popconfirm__title {
+    color: var(--dou-color-text);
+    font-weight: var(--dou-font-weight-medium);
+    line-height: 1.5;
+  }
+
+  .dou-popconfirm__description {
+    margin-top: 2px;
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+    line-height: 1.5;
+  }
+
+  .dou-popconfirm__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+    margin-top: 12px;
+  }
+}

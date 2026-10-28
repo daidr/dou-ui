@@ -135,6 +135,33 @@ export const en: Locale = {
     toTarget: 'Move to the right',
     toSource: 'Move to the left',
   },
+  popconfirm: {
+    confirm: 'OK',
+    cancel: 'Cancel',
+  },
+  statistic: {
+    up: 'Up',
+    down: 'Down',
+  },
+  image: {
+    preview: 'View larger',
+    error: 'The image failed to load',
+    prev: 'Previous image',
+    next: 'Next image',
+    close: 'Close',
+    zoomIn: 'Zoom in',
+    zoomOut: 'Zoom out',
+    rotateLeft: 'Rotate left',
+    rotateRight: 'Rotate right',
+    reset: 'Reset',
+    counter: '{index} / {total}',
+  },
+  backTop: {
+    label: 'Back to top',
+  },
+  splitter: {
+    label: 'Resize panes',
+  },
   form: {
     optional: 'optional',
     required: 'This field is required',

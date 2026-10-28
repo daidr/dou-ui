@@ -1,0 +1,137 @@
+/*
+ * Splitter
+ *
+ * Two panes and a hairline between them. The line is all that shows;
+ * the area that takes the pointer is wider, and on hover, focus or drag
+ * a small grip appears on the line and the line darkens to the focus
+ * color while it moves.
+ */
+@layer dou.components {
+  .dou-splitter {
+    --dou-splitter-line: var(--dou-color-border);
+    --dou-splitter-hit: 9px;
+
+    display: grid;
+    box-sizing: border-box;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+
+    &.is-dragging {
+      user-select: none;
+    }
+  }
+
+  .dou-splitter--horizontal.is-dragging {
+    cursor: col-resize;
+  }
+  .dou-splitter--vertical.is-dragging {
+    cursor: row-resize;
+  }
+
+  .dou-splitter__pane {
+    min-width: 0;
+    min-height: 0;
+    overflow: auto;
+  }
+
+  .dou-splitter.is-collapsed .dou-splitter__pane.is-start {
+    visibility: hidden;
+  }
+
+  .dou-splitter__bar {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--dou-splitter-line);
+    outline: none;
+    touch-action: none;
+    transition: background-color var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    /* a wider, invisible area to grab */
+    &::before {
+      position: absolute;
+      content: '';
+    }
+
+    &:hover,
+    &:focus-visible {
+      --dou-splitter-line: var(--dou-color-border-strong);
+    }
+
+    &:focus-visible {
+      --dou-splitter-line: var(--dou-color-focus);
+    }
+  }
+
+  .dou-splitter.is-dragging .dou-splitter__bar {
+    --dou-splitter-line: var(--dou-color-focus);
+  }
+
+  .dou-splitter--horizontal > .dou-splitter__bar {
+    width: 1px;
+    cursor: col-resize;
+
+    &::before {
+      inset: 0 calc((var(--dou-splitter-hit) - 1px) / -2);
+    }
+  }
+
+  .dou-splitter--vertical > .dou-splitter__bar {
+    height: 1px;
+    cursor: row-resize;
+
+    &::before {
+      inset: calc((var(--dou-splitter-hit) - 1px) / -2) 0;
+    }
+  }
+
+  .dou-splitter.is-disabled > .dou-splitter__bar {
+    cursor: default;
+
+    &::before {
+      content: none;
+    }
+  }
+
+  /* the grip: a short pill centered on the line */
+  .dou-splitter__handle {
+    flex-shrink: 0;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-full);
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-sm);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--dou-motion-duration-fast) var(--dou-motion-easing);
+  }
+
+  .dou-splitter--horizontal .dou-splitter__handle {
+    width: 6px;
+    height: 24px;
+  }
+  .dou-splitter--vertical .dou-splitter__handle {
+    width: 24px;
+    height: 6px;
+  }
+
+  .dou-splitter__bar:hover .dou-splitter__handle,
+  .dou-splitter__bar:focus-visible .dou-splitter__handle,
+  .dou-splitter.is-dragging .dou-splitter__handle {
+    opacity: 1;
+  }
+
+  .dou-splitter.is-disabled .dou-splitter__handle {
+    display: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dou-splitter__bar,
+    .dou-splitter__handle {
+      transition: none;
+    }
+  }
+}

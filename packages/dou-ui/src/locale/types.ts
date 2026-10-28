@@ -208,6 +208,38 @@ export interface Locale {
     toTarget: string
     toSource: string
   }
+  popconfirm: {
+    confirm: string
+    cancel: string
+  }
+  statistic: {
+    /** Read for the arrow of a number that went up. */
+    up: string
+    down: string
+  }
+  image: {
+    /** Names the preview, and a previewable image without `alt`. */
+    preview: string
+    /** A picture that could not be loaded. */
+    error: string
+    prev: string
+    next: string
+    close: string
+    zoomIn: string
+    zoomOut: string
+    rotateLeft: string
+    rotateRight: string
+    reset: string
+    /** Which picture of how many, with `{index}` and `{total}`. */
+    counter: string
+  }
+  backTop: {
+    label: string
+  }
+  splitter: {
+    /** Names the divider. */
+    label: string
+  }
   form: {
     /** Shown after the label of an optional field when `requiredMark` is `'optional'`. */
     optional: string

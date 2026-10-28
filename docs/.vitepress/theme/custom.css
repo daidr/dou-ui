@@ -188,3 +188,20 @@
   margin: revert-layer;
   list-style: revert-layer;
 }
+
+/* Feedback and display components: buttons. */
+.dou-image-preview__nav,
+.dou-image-preview__close,
+.dou-image-preview__tool,
+.dou-back-top {
+  padding: revert-layer;
+  border: revert-layer;
+  background-color: revert-layer;
+  color: revert-layer;
+  line-height: revert-layer;
+}
+
+.vp-doc .dou-image__inner,
+.vp-doc .dou-image-preview__image {
+  max-width: revert-layer;
+}

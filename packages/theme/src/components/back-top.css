@@ -1,0 +1,63 @@
+/*
+ * BackTop
+ *
+ * A round floating button in the corner: the raised-surface hairline and
+ * a medium shadow, ink arrow. Fades and rises in once the page has been
+ * scrolled far enough to need it.
+ */
+@layer dou.components {
+  .dou-back-top {
+    position: fixed;
+    z-index: 10;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    min-width: 40px;
+    height: 40px;
+    padding: 0 12px;
+    margin: 0;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-full);
+    background-color: light-dark(
+      var(--dou-color-bg-surface),
+      color-mix(in oklab, var(--dou-color-text) 6%, var(--dou-color-bg-surface))
+    );
+    box-shadow: var(--dou-shadow-highlight), var(--dou-shadow-md);
+    color: var(--dou-color-text-secondary);
+    font: inherit;
+    font-size: var(--dou-font-size-sm);
+    cursor: pointer;
+    transition-property: color, border-color, background-color, opacity, translate;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    &:hover {
+      border-color: var(--dou-color-border-strong);
+      color: var(--dou-color-text);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 2px;
+    }
+
+    & > svg {
+      width: 16px;
+      height: 16px;
+      margin: 0 -2px;
+    }
+  }
+
+  .dou-back-top-enter-from,
+  .dou-back-top-leave-to {
+    opacity: 0;
+    translate: 0 8px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dou-back-top {
+      transition: none;
+    }
+  }
+}

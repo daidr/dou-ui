@@ -314,6 +314,16 @@ const fakeUpload: UploadRequest = ({ raw, onProgress, signal }) =>
     signal.addEventListener('abort', () => clearInterval(timer))
   })
 
+const statLoading = ref(true)
+setTimeout(() => (statLoading.value = false), 1500)
+const removeProject = () => new Promise<void>((resolve) => setTimeout(resolve, 1000))
+const split = ref(30)
+const tile = (hue: number) =>
+  `data:image/svg+xml,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="960" height="640"><defs><linearGradient id="g" x2="1" y2="1"><stop offset="0" stop-color="hsl(${hue} 30% 72%)"/><stop offset="1" stop-color="hsl(${hue + 40} 28% 38%)"/></linearGradient></defs><rect width="960" height="640" fill="url(#g)"/><circle cx="700" cy="200" r="90" fill="hsl(${hue} 40% 88%)" opacity=".7"/><path d="M0 520 L260 330 L460 480 L640 360 L960 560 V640 H0Z" fill="hsl(${hue + 20} 25% 28%)" opacity=".8"/></svg>`,
+  )}`
+const gallery = [210, 160, 25, 280].map(tile)
+
 onMounted(() => {
   void settingsForm.value?.validate()
   void accountForm.value?.validate(['email', 'role'])
@@ -337,6 +347,69 @@ function simulate() {
         {{ theme === 'light' ? '深色' : '浅色' }}
       </DouButton>
     </header>
+
+    <section>
+      <h2>feedback · display</h2>
+      <div class="stats">
+        <DouStatistic title="本月收入" :value="1284530.5" :precision="2" prefix="¥" trend="up">
+          <template #footer>比上月 +12.4%</template>
+        </DouStatistic>
+        <DouStatistic title="活跃用户" :value="38214" />
+        <DouStatistic title="平均响应" :value="182" suffix="ms" trend="up" :up-is-good="false">
+          <template #footer>比上周 +18ms</template>
+        </DouStatistic>
+        <DouStatistic title="转化率" :loading="statLoading" :value="4.62" suffix="%" />
+      </div>
+      <DouSpace>
+        <DouPopconfirm
+          title="删除这个项目？"
+          description="项目里的 12 个部署会一起删除，无法恢复。"
+          tone="danger"
+          confirm-text="删除"
+          @confirm="removeProject"
+        >
+          <DouButton tone="danger" variant="soft">删除项目</DouButton>
+        </DouPopconfirm>
+        <DouPopconfirm title="重新部署当前版本？" @confirm="() => {}">
+          <DouButton variant="outline">重新部署</DouButton>
+        </DouPopconfirm>
+      </DouSpace>
+      <div class="gallery">
+        <DouImage
+          v-for="(src, i) in gallery"
+          :key="i"
+          :src="src"
+          :alt="`示例图片 ${i + 1}`"
+          :width="120"
+          :height="80"
+          preview
+          :preview-list="gallery"
+        />
+        <DouImage src="/missing.png" alt="封面" :width="120" :height="80" />
+      </div>
+      <div class="split-demo">
+        <DouSplitter v-model="split" :min="20" :max="80" collapsible>
+          <template #start
+            ><div class="split-demo__pane">文件列表 · {{ split }}%</div></template
+          >
+          <template #end>
+            <DouSplitter direction="vertical" :model-value="60">
+              <template #start><div class="split-demo__pane">编辑器</div></template>
+              <template #end><div class="split-demo__pane">终端</div></template>
+            </DouSplitter>
+          </template>
+        </DouSplitter>
+      </div>
+      <DouResult
+        status="success"
+        title="部署成功"
+        description="新版本已经上线，旧版本保留 7 天，可以随时回滚。"
+      >
+        <DouButton variant="solid">查看部署</DouButton>
+        <DouButton variant="ghost">返回列表</DouButton>
+      </DouResult>
+      <DouBackTop :visibility-height="600" />
+    </section>
 
     <section>
       <h2>form · complete</h2>
@@ -1174,6 +1247,31 @@ p {
 .card__meta {
   color: var(--dou-color-text-tertiary);
   font-family: var(--dou-font-family-mono);
+  font-size: var(--dou-font-size-sm);
+}
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 40px;
+  margin-bottom: 24px;
+}
+.gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 24px 0;
+}
+.split-demo {
+  height: 240px;
+  border: 1px solid var(--dou-color-border);
+  border-radius: var(--dou-radius-container);
+  overflow: hidden;
+}
+.split-demo__pane {
+  height: 100%;
+  padding: 12px 16px;
+  box-sizing: border-box;
+  color: var(--dou-color-text-secondary);
   font-size: var(--dou-font-size-sm);
 }
 .form-complete {

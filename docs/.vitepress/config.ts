@@ -22,6 +22,7 @@ export default defineConfig({
             { text: '视觉语言', link: '/guide/visual-language' },
             { text: '快速开始', link: '/guide/getting-started' },
             { text: '主题与 Token', link: '/guide/theming' },
+            { text: '浮层', link: '/guide/overlays' },
             { text: '路线图', link: '/guide/roadmap' },
           ],
         },
@@ -55,6 +56,16 @@ export default defineConfig({
             { text: 'Slider 滑块', link: '/components/slider' },
             { text: 'SegmentedControl 分段控制器', link: '/components/segmented-control' },
             { text: 'Form 表单', link: '/components/form' },
+          ],
+        },
+        {
+          text: '浮层',
+          items: [
+            { text: 'Tooltip 文字提示', link: '/components/tooltip' },
+            { text: 'Popover 气泡卡片', link: '/components/popover' },
+            { text: 'Dropdown 下拉菜单', link: '/components/dropdown' },
+            { text: 'Dialog 对话框', link: '/components/dialog' },
+            { text: 'Drawer 抽屉', link: '/components/drawer' },
           ],
         },
         {

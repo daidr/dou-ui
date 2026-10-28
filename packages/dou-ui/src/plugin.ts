@@ -4,13 +4,18 @@ import {
   DouCheckbox,
   DouCheckboxGroup,
   DouConfigProvider,
+  DouDialog,
   DouDivider,
+  DouDrawer,
+  DouDropdown,
+  DouDropdownItem,
   DouForm,
   DouFormItem,
   DouIcon,
   DouInput,
   DouInputNumber,
   DouLink,
+  DouPopover,
   DouRadio,
   DouRadioGroup,
   DouSegmentedControl,
@@ -20,6 +25,7 @@ import {
   DouTag,
   DouText,
   DouTextarea,
+  DouTooltip,
 } from './components'
 import { provideGlobalConfig } from './components/config-provider/use-config'
 import type { GlobalConfig } from './components/config-provider/config-provider'
@@ -29,13 +35,18 @@ const components: Plugin[] = [
   DouCheckbox,
   DouCheckboxGroup,
   DouConfigProvider,
+  DouDialog,
   DouDivider,
+  DouDrawer,
+  DouDropdown,
+  DouDropdownItem,
   DouForm,
   DouFormItem,
   DouIcon,
   DouInput,
   DouInputNumber,
   DouLink,
+  DouPopover,
   DouRadio,
   DouRadioGroup,
   DouSegmentedControl,
@@ -45,6 +56,7 @@ const components: Plugin[] = [
   DouTag,
   DouText,
   DouTextarea,
+  DouTooltip,
 ]
 
 /**

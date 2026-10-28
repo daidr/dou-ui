@@ -1,0 +1,36 @@
+/*
+ * Tooltip
+ *
+ * A short label in ink. On light themes it is the darkest thing on the
+ * page, so it reads at a glance; on dark ones it is a lifted gray with a
+ * hairline edge instead of a glaring white block.
+ */
+@layer dou.components {
+  .dou-tooltip {
+    --dou-tooltip-bg: light-dark(
+      var(--dou-color-neutral),
+      color-mix(in oklab, var(--dou-color-text) 12%, var(--dou-color-bg-surface))
+    );
+    --dou-tooltip-color: light-dark(var(--dou-color-neutral-on), var(--dou-color-text));
+    --dou-tooltip-border: light-dark(
+      var(--dou-color-neutral),
+      color-mix(in oklab, var(--dou-color-text) 6%, var(--dou-color-border-strong))
+    );
+    --dou-tooltip-max-width: 280px;
+
+    max-width: var(--dou-tooltip-max-width);
+    padding: 8px 10px;
+    border: 1px solid var(--dou-tooltip-border);
+    border-radius: var(--dou-radius-control);
+    background-color: var(--dou-tooltip-bg);
+    box-shadow: var(--dou-shadow-md);
+    color: var(--dou-tooltip-color);
+    font-family: var(--dou-font-family);
+    font-size: var(--dou-font-size-sm);
+    line-height: 1.5;
+    overflow-wrap: break-word;
+    pointer-events: auto;
+    /* center on the cap height so CJK and Latin sit the same */
+    text-box: trim-both cap alphabetic;
+  }
+}

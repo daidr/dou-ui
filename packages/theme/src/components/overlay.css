@@ -1,0 +1,75 @@
+/*
+ * Overlay
+ *
+ * What every floating layer shares. A panel anchored to a trigger fades
+ * in while easing a few pixels away from it, growing from the corner it
+ * is attached to.
+ */
+@layer dou.components {
+  .dou-floating {
+    --dou-floating-shift-x: 0;
+    --dou-floating-shift-y: 0;
+    box-sizing: border-box;
+
+    &[data-placement^='top'] {
+      --dou-floating-shift-y: 4px;
+      transform-origin: bottom center;
+    }
+    &[data-placement^='bottom'] {
+      --dou-floating-shift-y: -4px;
+      transform-origin: top center;
+    }
+    &[data-placement^='left'] {
+      --dou-floating-shift-x: 4px;
+      transform-origin: center right;
+    }
+    &[data-placement^='right'] {
+      --dou-floating-shift-x: -4px;
+      transform-origin: center left;
+    }
+    &[data-placement='top-start'] {
+      transform-origin: bottom left;
+    }
+    &[data-placement='top-end'] {
+      transform-origin: bottom right;
+    }
+    &[data-placement='bottom-start'] {
+      transform-origin: top left;
+    }
+    &[data-placement='bottom-end'] {
+      transform-origin: top right;
+    }
+    &[data-placement='left-start'] {
+      transform-origin: top right;
+    }
+    &[data-placement='left-end'] {
+      transform-origin: bottom right;
+    }
+    &[data-placement='right-start'] {
+      transform-origin: top left;
+    }
+    &[data-placement='right-end'] {
+      transform-origin: bottom left;
+    }
+  }
+
+  .dou-floating-enter-active,
+  .dou-floating-leave-active {
+    transition-property: opacity, transform;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+  }
+
+  .dou-floating-enter-from,
+  .dou-floating-leave-to {
+    opacity: 0;
+    transform: translate(var(--dou-floating-shift-x), var(--dou-floating-shift-y)) scale(0.98);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dou-floating-enter-active,
+    .dou-floating-leave-active {
+      transition-property: opacity;
+    }
+  }
+}

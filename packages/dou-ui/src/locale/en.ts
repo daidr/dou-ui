@@ -16,6 +16,12 @@ export const en: Locale = {
     start: 'Start',
     end: 'End',
   },
+  dialog: {
+    close: 'Close',
+  },
+  drawer: {
+    close: 'Close',
+  },
   form: {
     optional: 'optional',
     required: 'This field is required',

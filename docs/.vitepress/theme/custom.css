@@ -65,7 +65,9 @@
 .dou-input-number__native,
 .dou-input-number__step,
 .dou-textarea__native,
-.dou-switch__track {
+.dou-switch__track,
+.dou-dialog__close,
+.dou-drawer__close {
   padding: revert-layer;
   border: revert-layer;
   background-color: revert-layer;

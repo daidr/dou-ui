@@ -1,0 +1,164 @@
+/*
+ * Dialog
+ *
+ * The page dims behind a single raised panel: hairline edge and the
+ * deepest shadow. Actions sit in a footer set off by a hairline and a
+ * faint tint, so the content above stays the focus.
+ */
+@layer dou.components {
+  .dou-dialog {
+    --dou-dialog-mask: light-dark(rgb(0 0 0 / 0.32), rgb(0 0 0 / 0.64));
+    --dou-dialog-bg: light-dark(
+      var(--dou-color-bg-surface),
+      color-mix(in oklab, var(--dou-color-text) 3%, var(--dou-color-bg-surface))
+    );
+    --dou-dialog-width: 480px;
+    --dou-dialog-top: 12vh;
+    --dou-dialog-radius: var(--dou-radius-container);
+    --dou-dialog-padding: 20px;
+
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    box-sizing: border-box;
+    padding: var(--dou-dialog-top) 16px 32px;
+    overflow: auto;
+    overscroll-behavior: contain;
+    background-color: var(--dou-dialog-mask);
+
+    &.is-centered {
+      align-items: center;
+      padding-top: 32px;
+    }
+  }
+
+  .dou-dialog__panel {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    width: var(--dou-dialog-width);
+    max-width: 100%;
+    margin: auto 0;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-dialog-radius);
+    background-color: var(--dou-dialog-bg);
+    box-shadow: var(--dou-shadow-lg);
+    color: var(--dou-color-text-secondary);
+    font-family: var(--dou-font-family);
+    font-size: var(--dou-font-size-md);
+    line-height: var(--dou-font-line-height);
+    outline: none;
+  }
+
+  .dou-dialog:not(.is-centered) .dou-dialog__panel {
+    margin-top: 0;
+  }
+
+  .dou-dialog__header {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: var(--dou-dialog-padding) var(--dou-dialog-padding) 0;
+  }
+
+  .dou-dialog__title {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    color: var(--dou-color-text);
+    font-size: var(--dou-font-size-lg);
+    font-weight: var(--dou-font-weight-bold);
+    line-height: 28px;
+    letter-spacing: normal;
+  }
+
+  .dou-dialog__close,
+  .dou-drawer__close {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    margin: 0 -6px 0 auto;
+    border: 0;
+    border-radius: var(--dou-radius-control);
+    background-color: transparent;
+    color: var(--dou-color-text-tertiary);
+    cursor: pointer;
+    transition-property: background-color, color;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    & > svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    &:hover {
+      background-color: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+      color: var(--dou-color-text);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 1px;
+    }
+  }
+
+  .dou-dialog__body {
+    padding: 8px var(--dou-dialog-padding) var(--dou-dialog-padding);
+    overflow-wrap: break-word;
+  }
+
+  .dou-dialog__header + .dou-dialog__body {
+    padding-top: 8px;
+  }
+
+  .dou-dialog__footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px var(--dou-dialog-padding);
+    border-top: 1px solid var(--dou-color-border);
+    border-radius: 0 0 calc(var(--dou-dialog-radius) - 1px) calc(var(--dou-dialog-radius) - 1px);
+    background-color: color-mix(in oklab, var(--dou-color-text) 2%, var(--dou-dialog-bg));
+  }
+
+  /* motion: the mask fades, the panel settles from slightly below */
+  .dou-dialog-enter-active,
+  .dou-dialog-leave-active,
+  .dou-dialog-enter-active .dou-dialog__panel,
+  .dou-dialog-leave-active .dou-dialog__panel {
+    transition-property: opacity, transform;
+    transition-duration: var(--dou-motion-duration-normal);
+    transition-timing-function: var(--dou-motion-easing);
+  }
+
+  .dou-dialog-enter-from,
+  .dou-dialog-leave-to {
+    opacity: 0;
+
+    & .dou-dialog__panel {
+      transform: translateY(8px) scale(0.98);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dou-dialog-enter-from .dou-dialog__panel,
+    .dou-dialog-leave-to .dou-dialog__panel {
+      transform: none;
+    }
+    .dou-dialog__close {
+      transition: none;
+    }
+  }
+}

@@ -181,11 +181,36 @@ function onFieldMousedown(event: MouseEvent) {
   else show()
 }
 
+// Pressing the panel between its buttons keeps focus where it was.
+function onPanelMousedown(event: MouseEvent) {
+  if (!(event.target as HTMLElement).closest('button, input, select, textarea, [tabindex]')) {
+    event.preventDefault()
+  }
+}
+
 function onFocusout(event: FocusEvent) {
   const next = event.relatedTarget
   if (next instanceof Node && (fieldRef.value?.contains(next) || panelRef.value?.contains(next))) {
     return
   }
+  // A button the calendar re-renders (a header that turns into another
+  // view) takes focus with it; that is not the user leaving.
+  const target = event.target
+  if (
+    !next &&
+    target instanceof Element &&
+    (!target.isConnected || panelRef.value?.contains(target))
+  ) {
+    void nextTick(() => {
+      if (target.isConnected) return leave()
+      if (!panelRef.value?.contains(document.activeElement)) calendarRef.value?.focus()
+    })
+    return
+  }
+  leave()
+}
+
+function leave() {
   commitTexts()
   hide()
   formItem?.trigger('blur')
@@ -336,6 +361,7 @@ defineExpose<DatePickerExpose>({
         :data-placement="placement"
         :data-dou-theme="theme"
         @keydown="onPanelKeydown"
+        @mousedown="onPanelMousedown"
         @focusout="onFocusout"
       >
         <DouCalendar

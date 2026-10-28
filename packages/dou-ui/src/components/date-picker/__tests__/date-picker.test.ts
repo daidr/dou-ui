@@ -152,6 +152,33 @@ describe('DouDatePicker', () => {
     wrapper.unmount()
   })
 
+  it('stays open while moving around inside the calendar', async () => {
+    const { wrapper } = make(DouDatePicker, { modelValue: '2026-10-08' })
+    const input = wrapper.get('input')
+    await wrapper.get('.dou-date-picker').trigger('mousedown')
+    const panel = document.getElementById(input.attributes('aria-controls')!)!
+    const next = panel.querySelectorAll<HTMLButtonElement>('.dou-calendar__step')[1]!
+    next.focus()
+    next.click()
+    await nextTick()
+    // the month changes but the arrow is the same button, still focused
+    expect(panel.querySelectorAll('.dou-calendar__step')[1]).toBe(next)
+    expect(document.activeElement).toBe(next)
+    // a button that goes away with its view drops focus without leaving
+    const title = panel.querySelector<HTMLButtonElement>('.dou-calendar__title')!
+    title.focus()
+    title.click()
+    title.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: null }))
+    await nextTick()
+    await nextTick()
+    expect(input.attributes('aria-expanded')).toBe('true')
+    // pressing between buttons keeps focus where it was
+    const press = new MouseEvent('mousedown', { bubbles: true, cancelable: true })
+    panel.dispatchEvent(press)
+    expect(press.defaultPrevented).toBe(true)
+    wrapper.unmount()
+  })
+
   it('takes a typed date on Enter and puts back nonsense', async () => {
     const { wrapper, value } = make(DouDatePicker, { modelValue: '2026-10-08', max: '2026-12-31' })
     const input = wrapper.get('input')

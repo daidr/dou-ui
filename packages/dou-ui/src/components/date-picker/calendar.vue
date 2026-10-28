@@ -330,7 +330,7 @@ const classes = computed(() => [
     <div ref="grid" :class="ns.e('panels')" @keydown="onGridKeydown">
       <!-- days -->
       <template v-if="view === 'date'">
-        <div v-for="(panel, index) in months" :key="panel.month" :class="ns.e('panel')">
+        <div v-for="(panel, index) in months" :key="index" :class="ns.e('panel')">
           <div :class="ns.e('header')">
             <button
               v-if="index === 0"
@@ -386,6 +386,7 @@ const classes = computed(() => [
                   :class="[
                     ns.e('cell'),
                     ns.is('outside', cell.outside),
+                    ns.is('hidden', cell.hidden),
                     ns.is('in-range', !cell.hidden && inRange(cell.date)),
                     ns.is('range-start', !cell.hidden && isEdge(cell.date, 0)),
                     ns.is('range-end', !cell.hidden && isEdge(cell.date, 1)),

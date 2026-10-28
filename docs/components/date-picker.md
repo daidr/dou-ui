@@ -69,7 +69,7 @@ const shortcut = ref(null)
 
 ## 可选范围
 
-`min` / `max` 限定最早和最晚（包含两端），`disabled-date` 排除单独的日子。不可选的日子是灰色的，并带一道删除线。
+`min` / `max` 限定最早和最晚（包含两端），`disabled-date` 排除单独的日子。不可选的日子会淡下去，比相邻月份的日子更浅，也点不动。
 
 <div class="demo">
   <DouDatePicker v-model="limited" min="2026-10-01" max="2026-11-30" :disabled-date="noWeekend" placeholder="十月至十一月的工作日" style="width: 240px" clearable />

@@ -1,0 +1,87 @@
+/*
+ * Link
+ *
+ * Links are ink, like the text around them. What marks them is a faint
+ * underline that deepens to full strength on hover.
+ */
+@layer dou.components {
+  .dou-link {
+    --dou-link-tone: var(--dou-color-text);
+    --dou-link-underline: color-mix(in oklab, var(--dou-link-tone) 28%, transparent);
+    --dou-link-underline-hover: var(--dou-link-tone);
+
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.25em;
+    color: var(--dou-link-tone);
+    font-weight: var(--dou-font-weight-medium);
+    text-decoration-line: none;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.25em;
+    cursor: pointer;
+    transition-property: color, text-decoration-color;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 2px;
+    }
+
+    &.is-disabled {
+      cursor: not-allowed;
+      opacity: 0.45;
+    }
+  }
+
+  .dou-link__label {
+    text-decoration-line: inherit;
+    text-decoration-color: inherit;
+    text-decoration-thickness: inherit;
+  }
+
+  .dou-link--underline-always {
+    text-decoration-line: underline;
+    text-decoration-color: var(--dou-link-underline);
+
+    &:hover:not(.is-disabled) {
+      text-decoration-color: var(--dou-link-underline-hover);
+    }
+  }
+  .dou-link--underline-hover:hover:not(.is-disabled) {
+    text-decoration-line: underline;
+    text-decoration-color: var(--dou-link-underline-hover);
+  }
+
+  /* tones */
+  .dou-link--primary {
+    --dou-link-tone: var(--dou-color-primary);
+  }
+  .dou-link--success {
+    --dou-link-tone: var(--dou-color-success);
+  }
+  .dou-link--warning {
+    --dou-link-tone: var(--dou-color-warning);
+  }
+  .dou-link--danger {
+    --dou-link-tone: var(--dou-color-danger);
+  }
+
+  .dou-link__icon {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-self: center;
+    font-size: 1em;
+  }
+
+  .dou-link__external {
+    width: 0.85em;
+    height: 0.85em;
+    opacity: 0.6;
+
+    & > svg {
+      width: 100%;
+      height: 100%;
+    }
+  }
+}

@@ -9,6 +9,23 @@
   margin: 16px 0;
 }
 
+.demo--column {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.dot--success {
+  background: var(--dou-color-success);
+}
+
 /* Keep the docs chrome in the same ink-on-paper language as the components. */
 :root {
   --vp-c-brand-1: #171717;
@@ -37,13 +54,25 @@
 }
 
 /*
- * The docs site resets <button> outside of any cascade layer, which beats
- * DouUI's layered styles. Hand those properties back to the layers.
+ * The docs site resets <button>, <input> and links outside of any cascade
+ * layer, which beats DouUI's layered styles. Hand those properties back to
+ * the layers.
  */
-.dou-button {
+.dou-button,
+.dou-tag__close,
+.dou-input__native,
+.dou-input__clear,
+.dou-switch__track {
   padding: revert-layer;
   border: revert-layer;
   background-color: revert-layer;
   color: revert-layer;
   line-height: revert-layer;
+}
+
+.vp-doc a.dou-link {
+  color: revert-layer;
+  font-weight: revert-layer;
+  text-decoration: revert-layer;
+  text-underline-offset: revert-layer;
 }

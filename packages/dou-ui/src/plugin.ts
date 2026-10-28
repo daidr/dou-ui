@@ -1,7 +1,35 @@
 import type { App, Plugin } from 'vue'
-import { DouButton } from './components'
+import {
+  DouButton,
+  DouCheckbox,
+  DouCheckboxGroup,
+  DouDivider,
+  DouIcon,
+  DouInput,
+  DouLink,
+  DouRadio,
+  DouRadioGroup,
+  DouSpace,
+  DouSwitch,
+  DouTag,
+  DouText,
+} from './components'
 
-const components: Plugin[] = [DouButton]
+const components: Plugin[] = [
+  DouButton,
+  DouCheckbox,
+  DouCheckboxGroup,
+  DouDivider,
+  DouIcon,
+  DouInput,
+  DouLink,
+  DouRadio,
+  DouRadioGroup,
+  DouSpace,
+  DouSwitch,
+  DouTag,
+  DouText,
+]
 
 /**
  * Register every component globally.

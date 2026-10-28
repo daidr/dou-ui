@@ -1,0 +1,166 @@
+/*
+ * Input
+ *
+ * The field is a surface sitting on the page: a hairline edge and a resting
+ * shadow, the same as an outlined button so the two line up in a row.
+ * Focus deepens the edge and adds a soft ring instead of a hard outline.
+ */
+@layer dou.components {
+  .dou-input {
+    --dou-input-height: var(--dou-control-height-md);
+    --dou-input-padding-x: var(--dou-control-padding-x-md);
+    --dou-input-gap: var(--dou-control-gap-md);
+    --dou-input-font-size: var(--dou-font-size-md);
+    --dou-input-radius: var(--dou-radius-control);
+
+    --dou-input-bg: var(--dou-color-bg-surface);
+    --dou-input-border: var(--dou-color-border);
+    --dou-input-border-hover: var(--dou-color-border-strong);
+    --dou-input-border-focus: color-mix(
+      in oklab,
+      var(--dou-color-focus) 70%,
+      var(--dou-color-text)
+    );
+    --dou-input-ring: color-mix(in oklab, var(--dou-color-focus) 32%, transparent);
+    --dou-input-shadow: var(--dou-shadow-sm);
+
+    display: inline-flex;
+    align-items: center;
+    gap: var(--dou-input-gap);
+    box-sizing: border-box;
+    width: 100%;
+    height: var(--dou-input-height);
+    padding: 0 var(--dou-input-padding-x);
+    border: 1px solid var(--dou-input-border);
+    border-radius: var(--dou-input-radius);
+    background-color: var(--dou-input-bg);
+    box-shadow: var(--dou-input-shadow);
+    color: var(--dou-color-text);
+    font-size: var(--dou-input-font-size);
+    vertical-align: middle;
+    cursor: text;
+    transition-property: border-color, box-shadow, background-color;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    &:hover {
+      border-color: var(--dou-input-border-hover);
+    }
+
+    &:focus-within {
+      border-color: var(--dou-input-border-focus);
+      box-shadow:
+        0 0 0 3px var(--dou-input-ring),
+        var(--dou-input-shadow);
+    }
+
+    &.is-invalid {
+      --dou-input-border: color-mix(in oklab, var(--dou-color-danger) 55%, var(--dou-color-border));
+      --dou-input-border-hover: color-mix(
+        in oklab,
+        var(--dou-color-danger) 75%,
+        var(--dou-color-border)
+      );
+      --dou-input-border-focus: var(--dou-color-danger);
+      --dou-input-ring: color-mix(in oklab, var(--dou-color-danger) 18%, transparent);
+    }
+
+    &.is-readonly {
+      --dou-input-bg: color-mix(
+        in oklab,
+        var(--dou-color-bg-muted) 50%,
+        var(--dou-color-bg-surface)
+      );
+    }
+
+    &.is-disabled {
+      --dou-input-bg: var(--dou-color-bg-muted);
+      --dou-input-border-hover: var(--dou-input-border);
+      --dou-input-shadow: none;
+      color: var(--dou-color-text-disabled);
+      cursor: not-allowed;
+    }
+  }
+
+  .dou-input__native {
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    line-height: normal;
+
+    &::placeholder {
+      color: var(--dou-color-text-tertiary);
+      opacity: 1;
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+    }
+  }
+
+  .dou-input__affix {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    color: var(--dou-color-text-tertiary);
+    white-space: nowrap;
+  }
+
+  .dou-input__clear {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 1.15em;
+    height: 1.15em;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    border-radius: var(--dou-radius-full);
+    background-color: color-mix(in oklab, var(--dou-color-text) 10%, transparent);
+    color: var(--dou-color-text-secondary);
+    cursor: pointer;
+    transition-property: background-color, color;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    & > svg {
+      width: 0.8em;
+      height: 0.8em;
+    }
+
+    &:hover {
+      background-color: color-mix(in oklab, var(--dou-color-text) 18%, transparent);
+      color: var(--dou-color-text);
+    }
+  }
+
+  /* sizes */
+  .dou-input--sm {
+    --dou-input-height: var(--dou-control-height-sm);
+    --dou-input-padding-x: var(--dou-control-padding-x-sm);
+    --dou-input-gap: var(--dou-control-gap-sm);
+    --dou-input-font-size: var(--dou-font-size-sm);
+  }
+  .dou-input--lg {
+    --dou-input-height: var(--dou-control-height-lg);
+    --dou-input-padding-x: var(--dou-control-padding-x-lg);
+    --dou-input-gap: var(--dou-control-gap-lg);
+    --dou-input-font-size: var(--dou-font-size-lg);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dou-input,
+    .dou-input__clear {
+      transition: none;
+    }
+  }
+}

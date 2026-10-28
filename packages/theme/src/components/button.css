@@ -199,6 +199,14 @@
     --dou-button-font-size: var(--dou-font-size-lg);
   }
 
+  .dou-button__label {
+    /*
+     * Center on the cap height instead of the font's ascent and descent,
+     * which vary by platform and by the fallback font that draws CJK text.
+     */
+    text-box: trim-both cap alphabetic;
+  }
+
   .dou-button__icon {
     display: inline-flex;
     flex-shrink: 0;

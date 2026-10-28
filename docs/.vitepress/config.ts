@@ -22,13 +22,39 @@ export default defineConfig({
             { text: '视觉语言', link: '/guide/visual-language' },
             { text: '快速开始', link: '/guide/getting-started' },
             { text: '主题与 Token', link: '/guide/theming' },
+            { text: '路线图', link: '/guide/roadmap' },
           ],
         },
       ],
       '/components/': [
         {
           text: '基础',
-          items: [{ text: 'Button 按钮', link: '/components/button' }],
+          items: [
+            { text: 'Button 按钮', link: '/components/button' },
+            { text: 'Icon 图标', link: '/components/icon' },
+            { text: 'Text 文本', link: '/components/text' },
+            { text: 'Link 链接', link: '/components/link' },
+          ],
+        },
+        {
+          text: '布局',
+          items: [
+            { text: 'Divider 分割线', link: '/components/divider' },
+            { text: 'Space 间距', link: '/components/space' },
+          ],
+        },
+        {
+          text: '表单',
+          items: [
+            { text: 'Input 输入框', link: '/components/input' },
+            { text: 'Checkbox 多选框', link: '/components/checkbox' },
+            { text: 'Radio 单选框', link: '/components/radio' },
+            { text: 'Switch 开关', link: '/components/switch' },
+          ],
+        },
+        {
+          text: '数据展示',
+          items: [{ text: 'Tag 标签', link: '/components/tag' }],
         },
       ],
     },

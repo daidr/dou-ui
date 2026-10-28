@@ -1,0 +1,52 @@
+<script setup lang="ts">
+import { computed, inject } from 'vue'
+import { useNamespace } from '../../utils/namespace'
+import { radioGroupKey } from './radio'
+import type { RadioProps, RadioSlots, RadioValue } from './radio'
+
+defineOptions({ name: 'DouRadio' })
+
+const props = withDefaults(defineProps<RadioProps>(), {
+  disabled: false,
+})
+const model = defineModel<RadioValue>()
+const slots = defineSlots<RadioSlots>()
+
+const ns = useNamespace('radio')
+const group = inject(radioGroupKey, undefined)
+
+const checked = computed(() => (group ? group.model.value : model.value) === props.value)
+const disabled = computed(() => props.disabled || !!group?.disabled.value)
+const size = computed(() => props.size ?? group?.size.value ?? 'md')
+const name = computed(() => group?.name.value ?? props.name)
+
+function onChange() {
+  if (group) group.select(props.value)
+  else model.value = props.value
+}
+
+const classes = computed(() => [
+  ns.b(),
+  ns.m(size.value),
+  ns.is('checked', checked.value),
+  ns.is('disabled', disabled.value),
+])
+</script>
+
+<template>
+  <label :class="classes">
+    <span :class="ns.e('control')">
+      <input
+        type="radio"
+        :class="ns.e('native')"
+        :checked="checked"
+        :disabled="disabled"
+        :name="name"
+        :value="typeof value === 'boolean' ? String(value) : value"
+        @change="onChange"
+      />
+      <span :class="ns.e('indicator')" aria-hidden="true" />
+    </span>
+    <span v-if="slots.default" :class="ns.e('label')"><slot /></span>
+  </label>
+</template>

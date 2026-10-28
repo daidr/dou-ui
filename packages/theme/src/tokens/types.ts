@@ -84,6 +84,9 @@ export interface ThemeTokens {
     gap: SizeScale
   }
 
+  /** Gaps between neighbouring elements, e.g. items in a row of buttons. */
+  space: SizeScale
+
   /**
    * Elevation. Hierarchy comes from surface and border first; shadows
    * stay faint and are reserved for things that float above the page.

@@ -1,6 +1,8 @@
+import type { Size, Tone } from '../../utils/types'
+
 export type ButtonVariant = 'solid' | 'soft' | 'outline' | 'ghost'
-export type ButtonTone = 'neutral' | 'primary' | 'success' | 'warning' | 'danger'
-export type ButtonSize = 'sm' | 'md' | 'lg'
+export type ButtonTone = Tone
+export type ButtonSize = Size
 
 export interface ButtonProps {
   /** How much visual weight the button carries. */

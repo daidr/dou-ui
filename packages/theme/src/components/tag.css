@@ -1,0 +1,151 @@
+/*
+ * Tag
+ *
+ * A small label for status and metadata. Tags sit beside content rather
+ * than act on it, so they are quieter than buttons: the soft variant is
+ * the default and the edges are finer.
+ */
+@layer dou.components {
+  .dou-tag {
+    --dou-tag-tone: var(--dou-color-neutral);
+    --dou-tag-tone-on: var(--dou-color-neutral-on);
+
+    --dou-tag-height: 24px;
+    --dou-tag-padding-x: 8px;
+    --dou-tag-gap: 4px;
+    --dou-tag-font-size: var(--dou-font-size-sm);
+    --dou-tag-radius: calc(var(--dou-radius-control) - 2px);
+
+    --dou-tag-bg: transparent;
+    --dou-tag-fg: var(--dou-tag-tone);
+    --dou-tag-border: transparent;
+    --dou-tag-shadow: none;
+
+    display: inline-flex;
+    align-items: center;
+    gap: var(--dou-tag-gap);
+    box-sizing: border-box;
+    height: var(--dou-tag-height);
+    max-width: 100%;
+    padding: 0 var(--dou-tag-padding-x);
+    border: 1px solid var(--dou-tag-border);
+    border-radius: var(--dou-tag-radius);
+    background-color: var(--dou-tag-bg);
+    box-shadow: var(--dou-tag-shadow);
+    color: var(--dou-tag-fg);
+    font-size: var(--dou-tag-font-size);
+    font-weight: var(--dou-font-weight-medium);
+    line-height: 1;
+    white-space: nowrap;
+    vertical-align: middle;
+
+    &.is-round {
+      --dou-tag-radius: var(--dou-radius-full);
+    }
+  }
+
+  /* tones */
+  .dou-tag--primary {
+    --dou-tag-tone: var(--dou-color-primary);
+    --dou-tag-tone-on: var(--dou-color-primary-on);
+  }
+  .dou-tag--success {
+    --dou-tag-tone: var(--dou-color-success);
+    --dou-tag-tone-on: var(--dou-color-success-on);
+  }
+  .dou-tag--warning {
+    --dou-tag-tone: var(--dou-color-warning);
+    --dou-tag-tone-on: var(--dou-color-warning-on);
+  }
+  .dou-tag--danger {
+    --dou-tag-tone: var(--dou-color-danger);
+    --dou-tag-tone-on: var(--dou-color-danger-on);
+  }
+
+  /* variants */
+  .dou-tag--soft {
+    --dou-tag-bg: color-mix(in oklab, var(--dou-tag-tone) 7%, var(--dou-color-bg-surface));
+    --dou-tag-border: color-mix(in oklab, var(--dou-tag-tone) 13%, transparent);
+  }
+  .dou-tag--outline {
+    --dou-tag-bg: var(--dou-color-bg-surface);
+    --dou-tag-border: color-mix(in oklab, var(--dou-tag-tone) 22%, var(--dou-color-border));
+    --dou-tag-shadow: var(--dou-shadow-sm);
+  }
+  .dou-tag--solid {
+    --dou-tag-bg: var(--dou-tag-tone);
+    --dou-tag-fg: var(--dou-tag-tone-on);
+    --dou-tag-border: color-mix(in oklab, var(--dou-tag-tone) 90%, var(--dou-color-edge));
+    --dou-tag-shadow:
+      var(--dou-shadow-highlight),
+      0 1px 2px color-mix(in oklab, var(--dou-tag-tone) 22%, transparent);
+  }
+
+  /* sizes */
+  .dou-tag--sm {
+    --dou-tag-height: 20px;
+    --dou-tag-padding-x: 6px;
+    --dou-tag-gap: 3px;
+    --dou-tag-font-size: calc(var(--dou-font-size-sm) - 1px);
+  }
+  .dou-tag--lg {
+    --dou-tag-height: 28px;
+    --dou-tag-padding-x: 10px;
+    --dou-tag-gap: 6px;
+    --dou-tag-font-size: var(--dou-font-size-md);
+  }
+
+  .dou-tag__label {
+    /*
+     * Center on the cap height instead of the font's ascent and descent,
+     * which vary by platform and by the fallback font that draws CJK text.
+     */
+    text-box: trim-both cap alphabetic;
+    /* clip sideways only, so the trimmed box never cuts the glyphs */
+    overflow-x: clip;
+    text-overflow: ellipsis;
+  }
+
+  .dou-tag__icon {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+  }
+
+  .dou-tag__close {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 1.15em;
+    height: 1.15em;
+    padding: 0;
+    margin: 0 calc(var(--dou-tag-gap) * -0.5) 0 0;
+    border: 0;
+    border-radius: calc(var(--dou-tag-radius) - 1px);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    opacity: 0.6;
+    cursor: pointer;
+    transition-property: background-color, opacity;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    & > svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    &:hover {
+      background-color: color-mix(in oklab, currentColor 14%, transparent);
+      opacity: 1;
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 1px;
+      opacity: 1;
+    }
+  }
+}

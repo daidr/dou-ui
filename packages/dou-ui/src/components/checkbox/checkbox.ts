@@ -1,0 +1,61 @@
+import type { InjectionKey, Ref } from 'vue'
+import type { Size } from '../../utils/types'
+
+export type CheckboxSize = Size
+export type CheckboxValue = string | number
+export type CheckboxGroupDirection = 'horizontal' | 'vertical'
+
+export interface CheckboxProps {
+  /** Whether the box is checked, bound with `v-model`. Ignored inside a group. */
+  modelValue?: boolean
+  /** The value this box contributes to a `DouCheckboxGroup`. */
+  value?: CheckboxValue
+  /**
+   * Show a dash instead of a check, for a box that stands for a partly
+   * selected list. Purely visual: clicking still toggles `modelValue`.
+   */
+  indeterminate?: boolean
+  disabled?: boolean
+  /** Inherits from the group, otherwise `md`. */
+  size?: CheckboxSize
+  /** The native `name`. Inherits from the group. */
+  name?: string
+}
+
+export interface CheckboxEmits {
+  'update:modelValue': [value: boolean]
+}
+
+export interface CheckboxSlots {
+  /** The label. Clicking it toggles the box. */
+  default?: () => unknown
+}
+
+export interface CheckboxGroupProps {
+  /** The values of the checked boxes, bound with `v-model`. */
+  modelValue?: CheckboxValue[]
+  /** Disable every box in the group. */
+  disabled?: boolean
+  size?: CheckboxSize
+  direction?: CheckboxGroupDirection
+  /** The native `name` given to every box. */
+  name?: string
+}
+
+export interface CheckboxGroupEmits {
+  'update:modelValue': [value: CheckboxValue[]]
+}
+
+export interface CheckboxGroupSlots {
+  default?: () => unknown
+}
+
+export interface CheckboxGroupContext {
+  model: Readonly<Ref<CheckboxValue[]>>
+  disabled: Readonly<Ref<boolean>>
+  size: Readonly<Ref<CheckboxSize | undefined>>
+  name: Readonly<Ref<string | undefined>>
+  toggle: (value: CheckboxValue, checked: boolean) => void
+}
+
+export const checkboxGroupKey: InjectionKey<CheckboxGroupContext> = Symbol('DouCheckboxGroup')

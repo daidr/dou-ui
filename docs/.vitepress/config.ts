@@ -31,7 +31,7 @@ export default defineConfig({
   themeConfig: {
     nav: [
       { text: '指南', link: '/guide/philosophy' },
-      { text: '组件', link: '/components/button' },
+      { text: '组件', link: '/components/overview' },
       { text: '区块', link: '/blocks/login' },
       { text: '图标', link: '/icons/' },
       { text: '集成', link: '/integrations/vite' },
@@ -88,6 +88,10 @@ export default defineConfig({
         },
       ],
       '/components/': [
+        {
+          text: '',
+          items: [{ text: '概览', link: '/components/overview' }],
+        },
         {
           text: '基础',
           items: [

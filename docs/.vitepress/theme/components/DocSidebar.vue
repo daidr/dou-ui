@@ -2,6 +2,7 @@
 import { computed, onMounted, useTemplateRef } from 'vue'
 import type { MenuOption } from 'dou-ui'
 import { normalize, useDocs } from '../use-docs'
+import type { NavLink } from '../use-docs'
 
 const emit = defineEmits<{ navigate: [] }>()
 const { path, sidebar } = useDocs()
@@ -16,16 +17,18 @@ onMounted(() => {
   box.scrollTop += offset - box.clientHeight / 3
 })
 
+const entry = (item: NavLink): MenuOption => ({
+  key: normalize(item.link),
+  label: item.text,
+  href: item.link,
+})
+// A group without a title (e.g. the overview) lists its pages on their own.
 const items = computed<MenuOption[]>(() =>
-  sidebar.value.map((group) => ({
-    type: 'group',
-    label: group.text,
-    children: group.items.map((item) => ({
-      key: normalize(item.link),
-      label: item.text,
-      href: item.link,
-    })),
-  })),
+  sidebar.value.flatMap((group) =>
+    group.text
+      ? [{ type: 'group', label: group.text, children: group.items.map(entry) }]
+      : group.items.map(entry),
+  ),
 )
 </script>
 

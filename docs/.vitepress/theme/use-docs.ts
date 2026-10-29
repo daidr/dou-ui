@@ -21,6 +21,8 @@ interface ThemeConfig {
 export const normalize = (path: string) =>
   path.replace(/(index)?\.html$/, '').replace(/\/$/, '') || '/'
 
+const sectionOf = (link: string) => link.split('/').slice(0, 2).join('/')
+
 /** The navigation shared by the header, the sidebar, search and the page footer. */
 export function useDocs() {
   const { theme } = useData<ThemeConfig>()
@@ -52,7 +54,9 @@ export function useDocs() {
         for (const item of group.items) {
           if (seen.has(item.link)) continue
           seen.add(item.link)
-          list.push({ ...item, group: group.text })
+          // An untitled group (the overview) is listed under its section.
+          const section = nav.value.find((entry) => sectionOf(entry.link) === sectionOf(item.link))
+          list.push({ ...item, group: group.text || (section?.text ?? '') })
         }
       }
     }

@@ -1,6 +1,6 @@
 # ConfigProvider 全局配置
 
-为一棵子树里的组件提供默认值：尺寸、语言与浮层层级。配置可以嵌套，内层没有设置的项沿用外层。
+为一棵子树里的组件提供默认值：尺寸、语言、浮层层级与位置，以及各组件的默认属性。配置可以嵌套，内层没有设置的项沿用外层。
 
 ## 默认尺寸
 
@@ -40,6 +40,34 @@ const locale: Locale = {
 <DouConfigProvider :z-index="3000">...</DouConfigProvider>
 ```
 
+## 组件默认属性
+
+`defaults` 按组件名设置默认属性，适合统一整个应用的写法，比如按钮默认用描边样式、表格默认带斑马纹。组件上直接写的属性总是优先。
+
+<DocDemo src="config-provider/defaults" />
+
+嵌套的配置按组件合并：内层只写 `{ DouButton: { tone: 'danger' } }` 时，外层设置的 `variant` 仍然生效。默认属性在组件创建时读取，之后修改配置不影响已经渲染的组件。
+
+```ts
+app.use(DouUI, {
+  defaults: {
+    DouButton: { variant: 'outline' },
+    DouTable: { stripe: true },
+    DouDialog: { destroyOnClose: true },
+  },
+})
+```
+
+`defaults` 的类型是 `ComponentDefaults`，每个组件的属性都有提示。
+
+## 浮层渲染位置
+
+浮层默认渲染到 `<body>`。`teleport` 可以给子树里所有浮层统一换一个容器，比如微前端里挂到子应用自己的根节点；传 `false` 则原地渲染。单个组件上写的 `teleport` 优先。
+
+```vue
+<DouConfigProvider teleport="#app">...</DouConfigProvider>
+```
+
 ## 应用级配置
 
 不想多包一层组件时，可以在注册插件时传入同样的配置：
@@ -70,11 +98,13 @@ provideGlobalConfig({ size: 'sm' })
 
 ### Props
 
-| 名称     | 说明           | 类型                   | 默认值 |
-| -------- | -------------- | ---------------------- | ------ |
-| `size`   | 组件的默认尺寸 | `'sm' \| 'md' \| 'lg'` | `'md'` |
-| `locale` | 语言包         | `Locale`               | `zhCN` |
-| `zIndex` | 浮层的起始层级 | `number`               | `2000` |
+| 名称       | 说明                                   | 类型                             | 默认值   |
+| ---------- | -------------------------------------- | -------------------------------- | -------- |
+| `size`     | 组件的默认尺寸                         | `'sm' \| 'md' \| 'lg'`           | `'md'`   |
+| `locale`   | 语言包                                 | `Locale`                         | `zhCN`   |
+| `zIndex`   | 浮层的起始层级                         | `number`                         | `2000`   |
+| `teleport` | 浮层的默认渲染位置，`false` 为原地渲染 | `string \| HTMLElement \| false` | `'body'` |
+| `defaults` | 各组件的默认属性                       | `ComponentDefaults`              | —        |
 
 ### Slots
 

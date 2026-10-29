@@ -6,7 +6,7 @@
 
 浮层默认通过 `Teleport` 渲染到 `<body>` 末尾，不会被祖先的 `overflow: hidden` 裁掉，也不受祖先 `z-index` 的层叠上下文限制。第一次打开时才渲染，之后保留（对话框与抽屉可以用 `destroy-on-close` 在关闭后卸载内容）。
 
-所有浮层组件都有 `teleport` 属性：传入选择器或元素可以换一个容器，传 `false` 则原地渲染。
+所有浮层组件都有 `teleport` 属性：传入选择器或元素可以换一个容器，传 `false` 则原地渲染。也可以用 [ConfigProvider](../components/config-provider#浮层渲染位置) 的 `teleport` 给一整棵子树统一设置。
 
 离开原来的子树会丢掉写在祖先上的 `data-dou-theme`，因此浮层打开时会读取声明处生效的主题，并应用到自身，因此在局部深色区域中弹出的菜单也是深色的。
 

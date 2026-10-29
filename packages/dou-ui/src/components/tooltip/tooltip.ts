@@ -16,6 +16,14 @@ export interface TooltipProps {
   hideDelay?: number
   /** The gap to the trigger, in px. */
   offset?: number
+  /** Follow the pointer while it moves over the trigger, instead of sitting by the trigger. */
+  followCursor?: boolean
+  /**
+   * Let the pointer move onto the tooltip without closing it, e.g. to select
+   * its text. Turn off so it closes as soon as the pointer leaves the
+   * trigger. Always off with `followCursor`.
+   */
+  interactive?: boolean
   /** Where to render the tooltip; `false` keeps it in place. */
   teleport?: string | HTMLElement | false
 }

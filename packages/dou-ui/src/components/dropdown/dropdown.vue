@@ -6,6 +6,7 @@ import { OnlyChild } from '../../utils/only-child'
 import { dropdownKey } from './dropdown'
 import { menuItems, useMenuKeys } from './menu-keys'
 import type { DropdownExpose, DropdownProps, DropdownSlots, DropdownValue } from './dropdown'
+import { useTeleport } from '../../utils/teleport'
 
 defineOptions({ name: 'DouDropdown', inheritAttrs: false })
 
@@ -18,8 +19,9 @@ const props = withDefaults(defineProps<DropdownProps>(), {
   showDelay: 100,
   hideDelay: 150,
   offset: 6,
-  teleport: 'body',
+  teleport: undefined,
 })
+const teleportTarget = useTeleport(() => props.teleport)
 const open = defineModel<boolean>('open', { default: false })
 const emit = defineEmits<{ select: [value: DropdownValue | undefined] }>()
 defineSlots<DropdownSlots>()
@@ -99,7 +101,7 @@ defineExpose<DropdownExpose>({ open: () => popup.show(), close: () => popup.hide
 
 <template>
   <OnlyChild ref="triggerRef" v-bind="triggerProps"><slot /></OnlyChild>
-  <Teleport v-if="rendered" :to="teleport || 'body'" :disabled="teleport === false">
+  <Teleport v-if="rendered" :to="teleportTarget.to" :disabled="teleportTarget.disabled">
     <Transition appear name="dou-floating">
       <div
         v-show="open"

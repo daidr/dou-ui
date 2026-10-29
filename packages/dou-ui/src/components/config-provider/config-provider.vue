@@ -4,10 +4,16 @@ import type { ConfigProviderProps, ConfigProviderSlots } from './config-provider
 
 defineOptions({ name: 'DouConfigProvider' })
 
-const props = defineProps<ConfigProviderProps>()
+const props = withDefaults(defineProps<ConfigProviderProps>(), { teleport: undefined })
 defineSlots<ConfigProviderSlots>()
 
-provideGlobalConfig(() => ({ size: props.size, locale: props.locale, zIndex: props.zIndex }))
+provideGlobalConfig(() => ({
+  size: props.size,
+  locale: props.locale,
+  zIndex: props.zIndex,
+  teleport: props.teleport,
+  defaults: props.defaults,
+}))
 </script>
 
 <template>

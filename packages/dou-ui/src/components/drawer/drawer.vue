@@ -5,6 +5,7 @@ import { useModal } from '../../composables/use-modal'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
 import type { DrawerExpose, DrawerProps, DrawerSlots } from './drawer'
+import { useTeleport } from '../../utils/teleport'
 
 defineOptions({ name: 'DouDrawer', inheritAttrs: false })
 
@@ -15,10 +16,11 @@ const props = withDefaults(defineProps<DrawerProps>(), {
   closeOnEscape: true,
   lockScroll: true,
   destroyOnClose: false,
-  teleport: 'body',
+  teleport: undefined,
   resizable: false,
   minSize: 200,
 })
+const teleportTarget = useTeleport(() => props.teleport)
 const open = defineModel<boolean>('open', { default: false })
 const emit = defineEmits<{
   'update:size': [size: number]
@@ -157,7 +159,7 @@ defineExpose<DrawerExpose>({ close })
 </script>
 
 <template>
-  <Teleport v-if="rendered" :to="teleport || 'body'" :disabled="teleport === false">
+  <Teleport v-if="rendered" :to="teleportTarget.to" :disabled="teleportTarget.disabled">
     <Transition appear name="dou-drawer" @after-enter="emit('opened')" @after-leave="onAfterLeave">
       <div
         v-show="open"

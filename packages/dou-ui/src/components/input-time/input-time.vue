@@ -18,7 +18,7 @@ withDefaults(defineProps<InputTimeProps>(), {
   invalid: false,
   clearable: false,
   placement: 'bottom-start',
-  teleport: 'body',
+  teleport: undefined,
 })
 const model = defineModel<TimeValue | TimeRange | null>()
 const emit = defineEmits<{ change: [value: TimeValue | TimeRange | null] }>()

@@ -33,4 +33,9 @@
     /* center on the cap height so CJK and Latin sit the same */
     text-box: trim-both cap alphabetic;
   }
+
+  /* not interactive: the pointer passes through to the page */
+  .dou-tooltip.is-static {
+    pointer-events: none;
+  }
 }

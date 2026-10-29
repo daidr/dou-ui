@@ -24,6 +24,14 @@
 
 <DocDemo src="tooltip/custom" />
 
+## 跟随鼠标与可否移入
+
+`follow-cursor` 让提示跟着鼠标走，而不是固定在触发元素旁边，适合图表、热区这类较大的区域。触屏上不跟随。
+
+提示默认可以移入，方便选中里面的文字；`interactive` 设为 `false` 后，鼠标离开触发元素就关闭，提示本身也不再挡住下面的内容。跟随鼠标时总是不可移入。
+
+<DocDemo src="tooltip/follow" />
+
 ## 键盘与读屏
 
 提示带有 `role="tooltip"`，显示期间触发元素的 `aria-describedby` 指向它，读屏会在读完触发元素后读出提示。`Esc` 关闭提示且不移动焦点。指针可以移到提示上而不让它消失。
@@ -32,16 +40,18 @@
 
 ### Props
 
-| 名称        | 说明                           | 类型                             | 默认值   |
-| ----------- | ------------------------------ | -------------------------------- | -------- |
-| `open`      | 是否显示，配合 `v-model:open`  | `boolean`                        | `false`  |
-| `content`   | 提示文字                       | `string`                         | —        |
-| `placement` | 首选的一侧                     | `Placement`                      | `'top'`  |
-| `disabled`  | 不再显示                       | `boolean`                        | `false`  |
-| `showDelay` | 指向后多久显示，毫秒           | `number`                         | `200`    |
-| `hideDelay` | 离开后多久隐藏，毫秒           | `number`                         | `100`    |
-| `offset`    | 与触发元素的间距，px           | `number`                         | `6`      |
-| `teleport`  | 渲染到哪里；`false` 为原地渲染 | `string \| HTMLElement \| false` | `'body'` |
+| 名称           | 说明                           | 类型                             | 默认值   |
+| -------------- | ------------------------------ | -------------------------------- | -------- |
+| `open`         | 是否显示，配合 `v-model:open`  | `boolean`                        | `false`  |
+| `content`      | 提示文字                       | `string`                         | —        |
+| `placement`    | 首选的一侧                     | `Placement`                      | `'top'`  |
+| `disabled`     | 不再显示                       | `boolean`                        | `false`  |
+| `showDelay`    | 指向后多久显示，毫秒           | `number`                         | `200`    |
+| `hideDelay`    | 离开后多久隐藏，毫秒           | `number`                         | `100`    |
+| `offset`       | 与触发元素的间距，px           | `number`                         | `6`      |
+| `followCursor` | 跟随鼠标                       | `boolean`                        | `false`  |
+| `interactive`  | 鼠标可以移入提示               | `boolean`                        | `true`   |
+| `teleport`     | 渲染到哪里；`false` 为原地渲染 | `string \| HTMLElement \| false` | `'body'` |
 
 `Placement` 为 `'top' | 'right' | 'bottom' | 'left'`，可加 `-start` / `-end`。
 

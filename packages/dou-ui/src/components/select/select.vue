@@ -17,6 +17,7 @@ import type {
   SelectSlots,
   SelectValue,
 } from './select'
+import { useTeleport } from '../../utils/teleport'
 
 defineOptions({ name: 'DouSelect', inheritAttrs: false })
 
@@ -27,13 +28,14 @@ const props = withDefaults(defineProps<SelectProps>(), {
   invalid: false,
   clearable: false,
   placement: 'bottom-start',
-  teleport: 'body',
+  teleport: undefined,
   remote: false,
   searchDelay: 300,
   loading: false,
   creatable: false,
   virtual: false,
 })
+const teleportTarget = useTeleport(() => props.teleport)
 const model = defineModel<SelectValue | SelectValue[] | null>()
 const emit = defineEmits<{
   change: [value: SelectValue | SelectValue[] | null]
@@ -539,7 +541,7 @@ defineExpose<SelectExpose>({ focus, blur: () => combobox()?.blur() })
       <ChevronDownIcon :class="ns.e('arrow')" />
     </div>
   </OnlyChild>
-  <Teleport v-if="rendered" :to="teleport || 'body'" :disabled="teleport === false">
+  <Teleport v-if="rendered" :to="teleportTarget.to" :disabled="teleportTarget.disabled">
     <Transition appear name="dou-floating">
       <div
         v-show="open"

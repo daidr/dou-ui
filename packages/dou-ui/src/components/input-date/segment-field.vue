@@ -27,6 +27,7 @@ import {
   typeDigit,
 } from './segments'
 import type { Fields, SegmentKind, SegmentType } from './segments'
+import { useTeleport } from '../../utils/teleport'
 
 type Value = string | [string, string] | null
 
@@ -63,9 +64,10 @@ const props = withDefaults(
     invalid: false,
     clearable: false,
     placement: 'bottom-start',
-    teleport: 'body',
+    teleport: undefined,
   },
 )
+const teleportTarget = useTeleport(() => props.teleport)
 const model = defineModel<Value>()
 const emit = defineEmits<{ change: [value: Value] }>()
 
@@ -688,7 +690,7 @@ defineExpose({
       </button>
     </div>
   </OnlyChild>
-  <Teleport v-if="picker && rendered" :to="teleport || 'body'" :disabled="teleport === false">
+  <Teleport v-if="picker && rendered" :to="teleportTarget.to" :disabled="teleportTarget.disabled">
     <Transition appear name="dou-floating">
       <div
         v-show="open"

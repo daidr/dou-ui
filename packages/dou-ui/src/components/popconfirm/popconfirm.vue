@@ -13,7 +13,7 @@ const props = withDefaults(defineProps<PopconfirmProps>(), {
   tone: 'warning',
   placement: 'top',
   disabled: false,
-  teleport: 'body',
+  teleport: undefined,
 })
 const open = defineModel<boolean>('open', { default: false })
 const emit = defineEmits<{ cancel: [] }>()

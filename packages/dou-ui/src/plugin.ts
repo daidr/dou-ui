@@ -14,6 +14,8 @@ import {
   DouCalendar,
   DouCalendarView,
   DouCard,
+  DouCarousel,
+  DouCarouselItem,
   DouCascader,
   DouChatArtifact,
   DouChatAttachments,
@@ -125,12 +127,14 @@ import {
   DouTimePicker,
   DouToastViewport,
   DouTooltip,
+  DouTour,
   DouTransfer,
   DouTree,
   DouTreeSelect,
   DouUpload,
   DouUser,
   DouVirtualList,
+  DouWatermark,
 } from './components'
 import { provideGlobalConfig } from './components/config-provider/use-config'
 import type { GlobalConfig } from './components/config-provider/config-provider'
@@ -150,6 +154,8 @@ const components: Plugin[] = [
   DouCalendar,
   DouCalendarView,
   DouCard,
+  DouCarousel,
+  DouCarouselItem,
   DouCascader,
   DouChatArtifact,
   DouChatAttachments,
@@ -261,12 +267,14 @@ const components: Plugin[] = [
   DouTimePicker,
   DouToastViewport,
   DouTooltip,
+  DouTour,
   DouTransfer,
   DouTree,
   DouTreeSelect,
   DouUpload,
   DouUser,
   DouVirtualList,
+  DouWatermark,
 ]
 
 /**

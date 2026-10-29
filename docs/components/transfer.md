@@ -14,6 +14,12 @@
 
 <DocDemo src="transfer/search-title" />
 
+## 右侧顺序
+
+`v-model` 的顺序就是右侧列表的顺序。`target-order` 决定移过去的条目放在哪里：`push`（默认）追加到末尾，`unshift` 插到开头，`original` 按 `data` 中的原顺序排列。
+
+<DocDemo src="transfer/target-order" />
+
 ## 大量数据
 
 列表建在 VirtualList 上，行高固定 32px，`height` 指定列表的高度（默认 240）。
@@ -32,15 +38,16 @@
 
 ### Transfer Props
 
-| 名称         | 说明                             | 类型                       | 默认值   |
-| ------------ | -------------------------------- | -------------------------- | -------- |
-| `data`       | 全部条目                         | `TransferItem[]`           | `[]`     |
-| `modelValue` | 右侧条目的 `key`，配合 `v-model` | `(string \| number)[]`     | `[]`     |
-| `titles`     | 两列的标题                       | `[string, string]`         | 语言包   |
-| `filterable` | 每列上方显示搜索框               | `boolean`                  | `false`  |
-| `filter`     | 条目与搜索文字的匹配方式         | `(item, query) => boolean` | 标签包含 |
-| `height`     | 列表高度（px）                   | `number`                   | `240`    |
-| `disabled`   | 禁用                             | `boolean`                  | `false`  |
+| 名称          | 说明                             | 类型                                | 默认值   |
+| ------------- | -------------------------------- | ----------------------------------- | -------- |
+| `data`        | 全部条目                         | `TransferItem[]`                    | `[]`     |
+| `modelValue`  | 右侧条目的 `key`，配合 `v-model` | `(string \| number)[]`              | `[]`     |
+| `titles`      | 两列的标题                       | `[string, string]`                  | 语言包   |
+| `filterable`  | 每列上方显示搜索框               | `boolean`                           | `false`  |
+| `targetOrder` | 移到右侧的条目放在哪里           | `'original' \| 'push' \| 'unshift'` | `'push'` |
+| `filter`      | 条目与搜索文字的匹配方式         | `(item, query) => boolean`          | 标签包含 |
+| `height`      | 列表高度（px）                   | `number`                            | `240`    |
+| `disabled`    | 禁用                             | `boolean`                           | `false`  |
 
 ### Transfer Events
 

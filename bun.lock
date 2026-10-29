@@ -22,6 +22,7 @@
       "name": "@dou-ui/docs",
       "dependencies": {
         "@dou-ui/icons": "workspace:*",
+        "@dou-ui/theme": "workspace:*",
         "dou-ui": "workspace:*",
       },
       "devDependencies": {

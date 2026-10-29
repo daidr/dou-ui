@@ -284,4 +284,62 @@
       transition: none;
     }
   }
+
+  /* the value bubble over a thumb, drawn like a tooltip */
+  .dou-slider__tooltip {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    padding: 2px 8px;
+    border: 1px solid
+      light-dark(
+        var(--dou-color-neutral),
+        color-mix(in oklab, var(--dou-color-text) 6%, var(--dou-color-border-strong))
+      );
+    border-radius: var(--dou-radius-control);
+    background-color: light-dark(
+      var(--dou-color-neutral),
+      color-mix(in oklab, var(--dou-color-text) 12%, var(--dou-color-bg-surface))
+    );
+    box-shadow: var(--dou-shadow-md);
+    color: light-dark(var(--dou-color-neutral-on), var(--dou-color-text));
+    font-size: var(--dou-font-size-sm);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.5;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    translate: -50% 4px;
+    transition-property: opacity, translate;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+  }
+
+  .dou-slider__thumb:hover > .dou-slider__tooltip,
+  .dou-slider__thumb:focus-visible > .dou-slider__tooltip,
+  .dou-slider__thumb.is-active > .dou-slider__tooltip,
+  .dou-slider__thumb.is-pinned > .dou-slider__tooltip {
+    opacity: 1;
+    translate: -50% 0;
+  }
+
+  .dou-slider.is-disabled .dou-slider__thumb:not(.is-pinned) > .dou-slider__tooltip {
+    opacity: 0;
+  }
+
+  /* vertical: the bubble sits to the left of the thumb */
+  .dou-slider.is-vertical .dou-slider__tooltip {
+    top: 50%;
+    right: calc(100% + 8px);
+    bottom: auto;
+    left: auto;
+    translate: -4px -50%;
+  }
+
+  .dou-slider.is-vertical .dou-slider__thumb:hover > .dou-slider__tooltip,
+  .dou-slider.is-vertical .dou-slider__thumb:focus-visible > .dou-slider__tooltip,
+  .dou-slider.is-vertical .dou-slider__thumb.is-active > .dou-slider__tooltip,
+  .dou-slider.is-vertical .dou-slider__thumb.is-pinned > .dou-slider__tooltip {
+    translate: 0 -50%;
+  }
 }

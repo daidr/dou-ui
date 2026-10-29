@@ -5,6 +5,7 @@ import { usePopup } from '../../composables/use-popup'
 import { useNamespace } from '../../utils/namespace'
 import { OnlyChild } from '../../utils/only-child'
 import type { PopoverExpose, PopoverProps, PopoverSlots } from './popover'
+import { useTeleport } from '../../utils/teleport'
 
 defineOptions({ name: 'DouPopover', inheritAttrs: false })
 
@@ -15,8 +16,9 @@ const props = withDefaults(defineProps<PopoverProps>(), {
   showDelay: 100,
   hideDelay: 150,
   offset: 8,
-  teleport: 'body',
+  teleport: undefined,
 })
+const teleportTarget = useTeleport(() => props.teleport)
 const open = defineModel<boolean>('open', { default: false })
 defineSlots<PopoverSlots>()
 const slots = useSlots()
@@ -80,7 +82,7 @@ defineExpose<PopoverExpose>({ open: () => popup.show(), close: () => popup.hide(
 
 <template>
   <OnlyChild ref="triggerRef" v-bind="triggerProps"><slot /></OnlyChild>
-  <Teleport v-if="rendered" :to="teleport || 'body'" :disabled="teleport === false">
+  <Teleport v-if="rendered" :to="teleportTarget.to" :disabled="teleportTarget.disabled">
     <Transition appear name="dou-floating">
       <div
         v-show="open"

@@ -10,11 +10,17 @@
     --dou-progress-tone: var(--dou-color-neutral);
     --dou-progress-height: 6px;
     --dou-progress-track: color-mix(in oklab, var(--dou-color-text) 8%, transparent);
+    --dou-progress-on: var(--dou-color-neutral-on);
 
     display: flex;
     align-items: center;
     gap: 10px;
     width: 100%;
+  }
+
+  /* a color of the user's own: white text reads on most saturated fills */
+  .dou-progress.is-custom {
+    --dou-progress-on: #ffffff;
   }
 
   .dou-progress--sm {
@@ -26,15 +32,19 @@
 
   .dou-progress--primary {
     --dou-progress-tone: var(--dou-color-primary);
+    --dou-progress-on: var(--dou-color-primary-on);
   }
   .dou-progress--success {
     --dou-progress-tone: var(--dou-color-success);
+    --dou-progress-on: var(--dou-color-success-on);
   }
   .dou-progress--warning {
     --dou-progress-tone: var(--dou-color-warning);
+    --dou-progress-on: var(--dou-color-warning-on);
   }
   .dou-progress--danger {
     --dou-progress-tone: var(--dou-color-danger);
+    --dou-progress-on: var(--dou-color-danger-on);
   }
 
   .dou-progress__track {
@@ -59,6 +69,32 @@
     right: auto;
     width: 40%;
     animation: dou-progress-glide 1.4s var(--dou-motion-easing) infinite;
+  }
+
+  /* the percentage inside a line bar */
+  .dou-progress.is-text-inside {
+    --dou-progress-height: 18px;
+  }
+
+  .dou-progress__inner {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    color: var(--dou-progress-on);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    white-space: nowrap;
+    translate: -100% 0;
+    transition: left var(--dou-motion-duration-normal) var(--dou-motion-easing);
+
+    &.is-outside {
+      color: var(--dou-color-text-secondary);
+      translate: 0 0;
+    }
   }
 
   .dou-progress__value {

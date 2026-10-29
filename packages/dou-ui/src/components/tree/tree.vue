@@ -39,6 +39,7 @@ const props = withDefaults(defineProps<TreeProps>(), {
   checkStrictly: false,
   defaultExpandAll: false,
   expandOnClick: false,
+  accordion: false,
   guides: false,
   draggable: false,
 })
@@ -240,7 +241,11 @@ function setChecked(node: TreeNodeData, value: boolean) {
 
 async function setExpanded(node: TreeNodeData, value: boolean) {
   if (isLeaf(node) || isExpanded(node) === value) return
-  const current = expandedModel.value ?? []
+  let current = expandedModel.value ?? []
+  if (value && props.accordion) {
+    const parent = index.value.get(node.key)?.parent ?? null
+    current = current.filter((key) => index.value.get(key)?.parent !== parent)
+  }
   expandedModel.value = value ? [...current, node.key] : current.filter((key) => key !== node.key)
   emit('expand', node, value)
   if (value && props.load && !childrenOf(node) && !loading.has(node.key)) {
@@ -363,7 +368,7 @@ function onKeydown(event: KeyboardEvent) {
     case '*': {
       // Open every sibling of the active row.
       event.preventDefault()
-      if (!row) return
+      if (!row || props.accordion) return
       const parent = index.value.get(row.key)?.parent ?? null
       for (const sibling of list) {
         if (index.value.get(sibling.key)?.parent === parent) void setExpanded(sibling.node, true)

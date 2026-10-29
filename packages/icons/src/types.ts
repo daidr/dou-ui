@@ -6,7 +6,7 @@ export type IconVariant = 'stroke'
 /**
  * One drawn shape on the 24 × 24 grid: an SVG element name and its geometry
  * attributes. `['dot', { cx, cy }]` draws a round dot slightly heavier than
- * the lines.
+ * the lines; `['fill', { d }]` draws a solid shape (the AI sparkle).
  */
 export type IconNode = readonly (readonly [
   tag: string,

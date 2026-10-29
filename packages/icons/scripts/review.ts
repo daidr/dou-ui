@@ -66,7 +66,7 @@ const css = `body{font-family:sans-serif;margin:12px;background:#fff;color:#111;
 .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.card{border:1px solid #ddd;border-radius:8px;padding:8px}
 .big{width:340px;height:340px;display:block}.big .g{stroke:#eee;stroke-width:.04}.big .g.m{stroke:#ddd}
 .big .k{fill:none;stroke:#9cf;stroke-width:.05}.big .pad{fill:none;stroke:#f9a;stroke-width:.05;stroke-dasharray:.3 .3}
-.big .ic *{stroke:#111;stroke-width:1.5px;stroke-linecap:round;stroke-linejoin:round;fill:none;opacity:.88}.big .ic .dot{stroke-width:2.25px}
+.big .ic *{stroke:#111;stroke-width:1.5px;stroke-linecap:round;stroke-linejoin:round;fill:none;opacity:.88}.big .ic .dot{stroke-width:2.25px}.big .ic .fill{fill:#111}
 .big .sk *{stroke:#e33;stroke-width:.06;fill:none}
 .row{display:flex;gap:10px;align-items:end;margin-top:6px}.row svg *{vector-effect:non-scaling-stroke}
 .t{font-size:14px;font-weight:600}.b{font-size:11px;color:#777}.b.bad{color:#d22;font-weight:600}`
@@ -79,10 +79,9 @@ async function card(name: string) {
   const body = await inner(name)
   const sizes = [16, 20, 24, 32, 48]
     .map((size) => {
-      const dotted = body.replaceAll(
-        'class="dot"',
-        `class="dot" style="stroke-width:${1.5 * stroke(size)}px"`,
-      )
+      const dotted = body
+        .replaceAll('class="dot"', `class="dot" style="stroke-width:${1.5 * stroke(size)}px"`)
+        .replaceAll('class="fill"', 'fill="currentColor"')
       return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="stroke-width:${stroke(size)}px">${dotted}</svg>`
     })
     .join('')

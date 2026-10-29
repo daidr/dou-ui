@@ -1,0 +1,117 @@
+/*
+ * Field group
+ *
+ * Controls set side by side share their edges: each one after the first
+ * slides back over its neighbor's border, and the corners where they
+ * meet go square, so the row reads as one control. The control under the
+ * pointer or holding focus rises above its neighbors, so its edge and
+ * focus ring are never cut by the next one's border.
+ *
+ * The rules name every child, not specific components, so anything with
+ * a bordered root joins in. Buttons and text keep their width; fields
+ * take the rest of the row.
+ */
+@layer dou.components {
+  .dou-field-group {
+    display: inline-flex;
+    align-items: stretch;
+    max-width: 100%;
+    vertical-align: middle;
+    isolation: isolate;
+
+    & > * {
+      position: relative;
+      flex: 1 1 auto;
+      width: auto;
+      min-width: 0;
+    }
+
+    & > :is(.dou-button, .dou-field-group-text) {
+      flex: 0 0 auto;
+    }
+
+    & > :hover {
+      z-index: 1;
+    }
+
+    & > :is(:focus-visible, :focus-within, .is-open) {
+      z-index: 2;
+    }
+
+    &.is-block {
+      display: flex;
+      width: 100%;
+    }
+  }
+
+  .dou-field-group--horizontal {
+    & > :not(:first-child) {
+      margin-inline-start: -1px;
+      border-start-start-radius: 0;
+      border-end-start-radius: 0;
+    }
+
+    & > :not(:last-child) {
+      border-start-end-radius: 0;
+      border-end-end-radius: 0;
+    }
+  }
+
+  .dou-field-group--vertical {
+    flex-direction: column;
+
+    & > * {
+      flex: 0 0 auto;
+    }
+
+    & > :not(:first-child) {
+      margin-block-start: -1px;
+      border-start-start-radius: 0;
+      border-start-end-radius: 0;
+    }
+
+    & > :not(:last-child) {
+      border-end-start-radius: 0;
+      border-end-end-radius: 0;
+    }
+  }
+
+  /* fixed text beside a field, e.g. `https://` or a unit */
+  .dou-field-group-text {
+    --dou-field-group-text-height: var(--dou-control-height-md);
+    --dou-field-group-text-padding-x: var(--dou-control-padding-x-md);
+    --dou-field-group-text-font-size: var(--dou-font-size-md);
+
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 6px;
+    box-sizing: border-box;
+    min-height: var(--dou-field-group-text-height);
+    padding: 0 var(--dou-field-group-text-padding-x);
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-control);
+    background-color: color-mix(in oklab, var(--dou-color-text) 4%, var(--dou-color-bg-surface));
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-field-group-text-font-size);
+    line-height: 1;
+    white-space: nowrap;
+
+    & > svg {
+      width: 1em;
+      height: 1em;
+    }
+  }
+
+  .dou-field-group-text--sm {
+    --dou-field-group-text-height: var(--dou-control-height-sm);
+    --dou-field-group-text-padding-x: var(--dou-control-padding-x-sm);
+    --dou-field-group-text-font-size: var(--dou-font-size-sm);
+  }
+
+  .dou-field-group-text--lg {
+    --dou-field-group-text-height: var(--dou-control-height-lg);
+    --dou-field-group-text-padding-x: var(--dou-control-padding-x-lg);
+    --dou-field-group-text-font-size: var(--dou-font-size-lg);
+  }
+}

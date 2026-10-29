@@ -17,7 +17,7 @@ import type {
   TreeSelectValue,
 } from './tree-select'
 
-defineOptions({ name: 'DouTreeSelect' })
+defineOptions({ name: 'DouTreeSelect', inheritAttrs: false })
 
 const props = withDefaults(defineProps<TreeSelectProps>(), {
   multiple: false,
@@ -291,7 +291,7 @@ defineExpose<TreeSelectExpose>({ focus, blur: () => combobox()?.blur() })
     <div
       ref="field"
       :class="classes"
-      v-bind="filterable ? {} : comboboxAttrs"
+      v-bind="filterable ? $attrs : { ...$attrs, ...comboboxAttrs }"
       :id="filterable ? undefined : formItem?.inputId"
       :aria-labelledby="filterable ? undefined : formItem?.labelId"
       :tabindex="filterable || disabled ? undefined : 0"

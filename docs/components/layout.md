@@ -6,6 +6,7 @@
 import { DashboardIcon, FolderIcon, SettingsIcon, UsersIcon } from '@dou-ui/icons'
 import { ref } from 'vue'
 const collapsed = ref(false)
+const narrow = ref(false)
 const current = ref('overview')
 const items = [
   { key: 'overview', label: '概览', icon: DashboardIcon },
@@ -76,6 +77,53 @@ const items = [
 </DouLayoutAside>
 ```
 
+## 窄屏时变成抽屉
+
+手机上没有地方并排放侧栏。给 `DouLayoutAside` 设 `breakpoint`（单位 px），视口窄于它时侧栏离开页面，改为从边上滑出的抽屉；在顶栏放一个 `DouLayoutAsideTrigger`，它只在抽屉模式下出现，点击打开抽屉。抽屉的开合也可以用 `v-model:open` 控制，`side="right"` 让它从右边滑出。
+
+默认插槽多了 `drawer` 与 `close` 两个参数：在抽屉里选完菜单项后调用 `close()` 收起抽屉。服务端渲染时不知道视口宽度，页面先按宽屏渲染，挂载后再切换。
+
+下面的开关把断点设得足够大，用来在宽屏上模拟窄屏：
+
+<div class="demo demo--column">
+  <DouSwitch v-model="narrow">模拟窄屏</DouSwitch>
+  <div style="width: 100%; overflow: hidden; border-radius: 8px">
+    <DouLayout style="height: 280px">
+      <DouLayoutHeader>
+        <DouLayoutAsideTrigger />
+        <DouText weight="medium">DouUI 控制台</DouText>
+      </DouLayoutHeader>
+      <DouLayout>
+        <DouLayoutAside :width="200" :breakpoint="narrow ? 100000 : 768">
+          <template #default="{ close }">
+            <DouMenu v-model="current" :items="items" @select="close" />
+          </template>
+        </DouLayoutAside>
+        <DouLayoutMain>
+          <DouText variant="secondary">{{ narrow ? '点左上角的按钮打开侧栏' : '宽屏下侧栏在页面里' }}</DouText>
+        </DouLayoutMain>
+      </DouLayout>
+    </DouLayout>
+  </div>
+</div>
+
+```vue
+<DouLayout>
+  <DouLayoutHeader>
+    <DouLayoutAsideTrigger />
+    DouUI 控制台
+  </DouLayoutHeader>
+  <DouLayout>
+    <DouLayoutAside :breakpoint="768">
+      <template #default="{ close }">
+        <DouMenu v-model="current" :items="items" @select="close" />
+      </template>
+    </DouLayoutAside>
+    <DouLayoutMain>…</DouLayoutMain>
+  </DouLayout>
+</DouLayout>
+```
+
 ## 吸顶
 
 整页滚动时，`DouLayoutHeader` 加 `sticky` 停在顶部；`DouLayoutAside` 加 `sticky` 则停在顶栏下方、占满剩下的视口高度，侧栏内容过长时自己滚动。两者在同一个外层 `DouLayout` 里时，侧栏会自动让出顶栏的高度。
@@ -104,23 +152,35 @@ const items = [
 
 ### LayoutAside Props
 
-| 名称                   | 说明                      | 类型               | 默认值  |
-| ---------------------- | ------------------------- | ------------------ | ------- |
-| `width`                | 展开时的宽度，数字为 px   | `number \| string` | `240`   |
-| `collapsedWidth`       | 收起时的宽度，数字为 px   | `number \| string` | `64`    |
-| `collapsed`（v-model） | 是否收起                  | `boolean`          | `false` |
-| `collapsible`          | 在底部显示收起 / 展开按钮 | `boolean`          | `false` |
-| `sticky`               | 停在（吸顶的）顶栏下方    | `boolean`          | `false` |
-| `bordered`             | 朝向主区一侧的分隔线      | `boolean`          | `true`  |
+| 名称                   | 说明                       | 类型                | 默认值   |
+| ---------------------- | -------------------------- | ------------------- | -------- |
+| `width`                | 展开时的宽度，数字为 px    | `number \| string`  | `240`    |
+| `collapsedWidth`       | 收起时的宽度，数字为 px    | `number \| string`  | `64`     |
+| `collapsed`（v-model） | 是否收起                   | `boolean`           | `false`  |
+| `collapsible`          | 在底部显示收起 / 展开按钮  | `boolean`           | `false`  |
+| `sticky`               | 停在（吸顶的）顶栏下方     | `boolean`           | `false`  |
+| `bordered`             | 朝向主区一侧的分隔线       | `boolean`           | `true`   |
+| `breakpoint`           | 视口窄于它（px）时变成抽屉 | `number`            | —        |
+| `side`                 | 抽屉从哪一边滑出           | `'left' \| 'right'` | `'left'` |
+| `open`（v-model）      | 抽屉模式下是否打开         | `boolean`           | `false`  |
 
 ### LayoutAside Slots
 
-| 名称      | 说明                           |
-| --------- | ------------------------------ |
-| `default` | 侧栏内容，参数 `{ collapsed }` |
-| `footer`  | 固定在底部的内容，参数同上     |
+| 名称      | 说明                                          |
+| --------- | --------------------------------------------- |
+| `default` | 侧栏内容，参数 `{ collapsed, drawer, close }` |
+| `footer`  | 固定在底部的内容，参数同上                    |
+
+### LayoutAsideTrigger Props
+
+只在同一个布局里有侧栏处于抽屉模式时显示，点击打开或关闭抽屉。
+
+| 名称   | 说明 | 类型                   | 默认值 |
+| ------ | ---- | ---------------------- | ------ |
+| `size` | 尺寸 | `'sm' \| 'md' \| 'lg'` | `'md'` |
 
 ### 键盘与读屏
 
 - 各部分渲染为对应的 HTML 地标元素，读屏可以按地标跳转。
 - 收起按钮的标签随状态在"收起侧栏"与"展开侧栏"之间切换，并带 `aria-expanded`。
+- 抽屉模式下侧栏是一个模态对话框，焦点被限制在里面，`Esc` 或点遮罩关闭；打开按钮带 `aria-expanded` 与 `aria-controls`。

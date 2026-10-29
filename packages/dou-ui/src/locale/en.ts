@@ -196,6 +196,19 @@ export const en: Locale = {
   layout: {
     collapse: 'Collapse sidebar',
     expand: 'Expand sidebar',
+    open: 'Open sidebar',
+  },
+  colorMode: {
+    label: 'Color mode',
+    light: 'Light',
+    dark: 'Dark',
+    system: 'System',
+    toDark: 'Switch to dark mode',
+    toLight: 'Switch to light mode',
+  },
+  listbox: {
+    search: 'Search',
+    empty: 'No matches',
   },
   inputOtp: {
     label: 'Verification code',

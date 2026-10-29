@@ -12,6 +12,8 @@ export interface SwitchProps {
    */
   loading?: boolean
   size?: SwitchSize
+  /** Names a switch that has no visible label. */
+  ariaLabel?: string
 }
 
 export interface SwitchEmits {

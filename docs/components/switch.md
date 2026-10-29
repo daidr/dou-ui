@@ -57,12 +57,13 @@ function toggleSync(value) {
 
 ### Props
 
-| 名称         | 说明                     | 类型                   | 默认值  |
-| ------------ | ------------------------ | ---------------------- | ------- |
-| `modelValue` | 是否打开，配合 `v-model` | `boolean`              | `false` |
-| `disabled`   | 禁用                     | `boolean`              | `false` |
-| `loading`    | 加载中，忽略操作但可聚焦 | `boolean`              | `false` |
-| `size`       | 尺寸                     | `'sm' \| 'md' \| 'lg'` | `'md'`  |
+| 名称         | 说明                       | 类型                   | 默认值  |
+| ------------ | -------------------------- | ---------------------- | ------- |
+| `modelValue` | 是否打开，配合 `v-model`   | `boolean`              | `false` |
+| `disabled`   | 禁用                       | `boolean`              | `false` |
+| `loading`    | 加载中，忽略操作但可聚焦   | `boolean`              | `false` |
+| `size`       | 尺寸                       | `'sm' \| 'md' \| 'lg'` | `'md'`  |
+| `ariaLabel`  | 没有可见标签时给读屏的名字 | `string`               | —       |
 
 ### Events
 

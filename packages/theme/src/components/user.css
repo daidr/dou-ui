@@ -1,0 +1,75 @@
+/*
+ * User
+ *
+ * An avatar with a name and a quieter second line beside it. The name
+ * carries the weight; the description steps down in size and color so
+ * the pair reads as one label, not two lines of equal standing. Long
+ * text ends in an ellipsis rather than pushing the row wider.
+ */
+@layer dou.components {
+  .dou-user {
+    --dou-user-gap: 10px;
+    --dou-user-name-size: var(--dou-font-size-md);
+    --dou-user-description-size: 12px;
+
+    display: inline-flex;
+    align-items: center;
+    gap: var(--dou-user-gap);
+    min-width: 0;
+    max-width: 100%;
+    color: var(--dou-color-text);
+    vertical-align: middle;
+  }
+
+  .dou-user--sm {
+    --dou-user-gap: 8px;
+    --dou-user-name-size: var(--dou-font-size-sm);
+    --dou-user-description-size: 12px;
+  }
+
+  .dou-user--lg {
+    --dou-user-gap: 12px;
+    --dou-user-name-size: var(--dou-font-size-lg);
+    --dou-user-description-size: var(--dou-font-size-sm);
+  }
+
+  .dou-user__text {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .dou-user__name,
+  .dou-user__description {
+    overflow: clip;
+    overflow-clip-margin: 4px;
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dou-user__name {
+    font-size: var(--dou-user-name-size);
+    font-weight: var(--dou-font-weight-medium);
+  }
+
+  .dou-user__description {
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-user-description-size);
+  }
+
+  /* a 24px avatar leaves little height for two lines */
+  .dou-user--sm .dou-user__text {
+    gap: 2px;
+  }
+
+  .dou-user__extra {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    margin-inline-start: auto;
+    color: var(--dou-color-text-tertiary);
+  }
+}

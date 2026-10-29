@@ -144,7 +144,7 @@ const labelOf = (id) => nodes.find((node) => node.id === id)?.label
     class="framed"
     :nodes="nodes"
     :edges="edges"
-    :height="208"
+    :height="236"
     size="sm"
     node-width="auto"
     selectable="multiple"

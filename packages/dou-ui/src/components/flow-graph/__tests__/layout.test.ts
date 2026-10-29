@@ -168,6 +168,30 @@ describe('layoutFlow', () => {
     )
   })
 
+  it('fans out symmetrically to tall nodes', () => {
+    for (const [upper, lower] of [
+      [56, 56],
+      [88, 88],
+      [32, 56],
+      [72, 32],
+    ]) {
+      const layout = layoutFlow(
+        [
+          size('a'),
+          { id: 'b', width: 80, height: upper!, anchor: 16 },
+          { id: 'c', width: 80, height: lower!, anchor: 16 },
+        ],
+        [
+          { from: 'a', to: 'b' },
+          { from: 'a', to: 'c' },
+        ],
+        options,
+      )
+      const row = (id: string) => layout.nodes.get(id)!.y + 16
+      expect(row('a') - row('b')).toBe(row('c') - row('a'))
+    }
+  })
+
   it('handles an empty graph', () => {
     const layout = layoutFlow([], [], options)
     expect(layout.width).toBe(0)

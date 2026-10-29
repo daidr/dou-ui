@@ -229,7 +229,12 @@ function place(layer: Item[], targets: number[], gap: (a: Item, b: Item) => numb
     const a = layer[i - 1]!
     const b = layer[i]!
     const span = a.height - a.anchor + gap(a, b) + b.anchor
-    offsets.push(offsets[i - 1]! + Math.max(1, Math.ceil(span / grid - 1e-6)))
+    let steps = Math.max(1, Math.ceil(span / grid - 1e-6))
+    // Nodes sit a whole pitch (two steps) apart, as two capsules do, so the
+    // middle of any two siblings is on the grid too and a source centred
+    // on them fans out symmetrically even when one of them is tall.
+    if (a.edge < 0 && b.edge < 0) steps += steps % 2
+    offsets.push(offsets[i - 1]! + steps)
   }
   const blocks: { sum: number; count: number }[] = []
   targets.forEach((t, i) => {

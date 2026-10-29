@@ -83,8 +83,7 @@
     justify-content: center;
     width: 40px;
     height: 40px;
-    /* concentric with the card: its radius minus the 8px gap */
-    border-radius: calc(var(--dou-radius-container) - 8px);
+    border-radius: 8px;
     background-color: var(--dou-color-bg-muted);
     color: var(--dou-color-text-secondary);
     font-size: 20px;

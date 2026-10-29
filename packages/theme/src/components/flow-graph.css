@@ -165,11 +165,6 @@
     }
   }
 
-  /* a toned description at the bottom of a card follows its corner */
-  .dou-flow-graph__node--card .dou-flow-graph__description.is-toned {
-    border-radius: max(2px, calc(var(--dou-flow-graph-card-radius) - 8px));
-  }
-
   .dou-flow-graph__main {
     display: flex;
     align-items: center;

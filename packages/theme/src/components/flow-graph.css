@@ -165,6 +165,11 @@
     }
   }
 
+  /* a toned description at the bottom of a card follows its corner */
+  .dou-flow-graph__node--card .dou-flow-graph__description.is-toned {
+    border-radius: max(2px, calc(var(--dou-flow-graph-card-radius) - 8px));
+  }
+
   .dou-flow-graph__main {
     display: flex;
     align-items: center;
@@ -374,8 +379,9 @@
   /* toolbar */
   .dou-flow-graph__toolbar {
     position: absolute;
-    top: 8px;
-    right: 8px;
+    /* close enough to the corner to stay concentric with the canvas */
+    top: 3px;
+    right: 3px;
     display: flex;
     align-items: center;
     gap: 2px;

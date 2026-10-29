@@ -109,6 +109,10 @@
     padding-inline-start: 3px;
   }
 
+  .dou-cascader__tags .dou-tag {
+    --dou-tag-radius: max(2px, calc(var(--dou-radius-control) - 4px));
+  }
+
   .dou-cascader__tags {
     display: flex;
     flex: 1 1 auto;

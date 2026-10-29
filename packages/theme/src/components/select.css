@@ -126,6 +126,11 @@
     padding: var(--dou-select-tag-inset) 0;
   }
 
+  /* tags sit concentric with the field: field radius minus the gap to its outer edge */
+  .dou-select.is-multiple .dou-tag {
+    --dou-tag-radius: max(2px, calc(var(--dou-select-radius) - var(--dou-select-tag-inset) - 1px));
+  }
+
   .dou-select__value,
   .dou-select__placeholder {
     flex: 1 1 auto;

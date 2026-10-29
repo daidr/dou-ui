@@ -131,7 +131,9 @@
     padding: var(--dou-input-tag-inset) 0;
   }
 
-  .dou-input-tag__tag {
+  .dou-input-tag .dou-input-tag__tag {
+    /* concentric with the field: field radius minus the gap to its outer edge */
+    --dou-tag-radius: max(2px, calc(var(--dou-radius-control) - var(--dou-input-tag-inset) - 1px));
     max-width: 100%;
     transition: box-shadow var(--dou-motion-duration-fast) var(--dou-motion-easing);
 

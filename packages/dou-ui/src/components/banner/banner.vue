@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { CloseIcon } from '@dou-ui/icons'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { toneIcon } from '../../utils/tone-icons'
 import { useLocale } from '../config-provider/use-config'
@@ -21,45 +21,14 @@ const slots = defineSlots<BannerSlots>()
 const ns = useNamespace('banner')
 const { t } = useLocale()
 
-const STORAGE_VALUE = 'closed'
-function read(key: string) {
-  try {
-    return localStorage.getItem(key) === STORAGE_VALUE
-  } catch {
-    return false
-  }
-}
-function write(key: string) {
-  try {
-    localStorage.setItem(key, STORAGE_VALUE)
-  } catch {
-    // storage can be unavailable, e.g. in a private window; the banner just closes
-  }
-}
-
 const inner = ref(true)
-const open = computed(() => props.open ?? inner.value)
-// Storage is only read in the browser, after hydration, so the server
-// and the client render the same banner first.
-const remembered = ref(false)
-onMounted(() => {
-  if (props.storageKey) remembered.value = read(props.storageKey)
-})
-watch(
-  () => props.storageKey,
-  (key) => (remembered.value = !!key && read(key)),
-)
-const visible = computed(() => open.value && !remembered.value)
+const visible = computed(() => props.open ?? inner.value)
 
 const hasTitle = computed(() => !!props.title || !!slots.title)
 const Icon = () => toneIcon(props.tone)
 
 function close(event: MouseEvent) {
   inner.value = false
-  if (props.storageKey) {
-    write(props.storageKey)
-    remembered.value = true
-  }
   emit('update:open', false)
   emit('close', event)
 }

@@ -1,9 +1,6 @@
 import { mount } from '@vue/test-utils'
-import { nextTick } from 'vue'
-import { afterEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { DouBanner } from '../../../index'
-
-afterEach(() => localStorage.clear())
 
 describe('DouBanner', () => {
   it('shows the tone icon, title, message and action', () => {
@@ -22,9 +19,9 @@ describe('DouBanner', () => {
     expect(wrapper.find('.dou-banner__close').exists()).toBe(false)
   })
 
-  it('closes, and remembers it under `storageKey`', async () => {
+  it('closes', async () => {
     const wrapper = mount(DouBanner, {
-      props: { closable: true, storageKey: 'notice-v2' },
+      props: { closable: true },
       slots: { default: () => '新版本已发布' },
     })
     expect(wrapper.attributes('aria-label')).toBe('公告')
@@ -32,14 +29,6 @@ describe('DouBanner', () => {
     expect(wrapper.find('.dou-banner').exists()).toBe(false)
     expect(wrapper.emitted('update:open')).toEqual([[false]])
     expect(wrapper.emitted('close')).toHaveLength(1)
-    expect(localStorage.getItem('notice-v2')).toBe('closed')
-
-    const again = mount(DouBanner, { props: { storageKey: 'notice-v2' } })
-    await nextTick()
-    expect(again.find('.dou-banner').exists()).toBe(false)
-    const other = mount(DouBanner, { props: { storageKey: 'notice-v3' } })
-    await nextTick()
-    expect(other.find('.dou-banner').exists()).toBe(true)
   })
 
   it('follows `v-model:open`', async () => {

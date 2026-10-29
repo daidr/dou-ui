@@ -14,11 +14,6 @@ export interface BannerProps {
   showIcon?: boolean
   /** Show a button that hides the banner. */
   closable?: boolean
-  /**
-   * Remember in `localStorage` under this key that the banner was closed,
-   * so it stays hidden on later visits. Change the key to show a new notice.
-   */
-  storageKey?: string
   /** Shown or not. Bound with `v-model:open`; defaults to shown. */
   open?: boolean
 }

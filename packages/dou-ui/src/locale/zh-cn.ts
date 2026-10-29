@@ -255,6 +255,14 @@ export const zhCN: Locale = {
   anchor: {
     label: '本页目录',
   },
+  calendarHeatmap: {
+    less: '少',
+    more: '多',
+    day: '{date}：{value}',
+  },
+  relativeTime: {
+    justNow: '刚刚',
+  },
   codeBlock: {
     expand: '展开全部 {count} 行',
     collapse: '收起',

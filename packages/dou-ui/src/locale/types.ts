@@ -389,6 +389,18 @@ export interface Locale {
     /** Names the navigation. */
     label: string
   }
+  calendarHeatmap: {
+    /** The light end of the legend. */
+    less: string
+    /** The dark end of the legend. */
+    more: string
+    /** Names a day and its value, with `{date}` and `{value}`. */
+    day: string
+  }
+  relativeTime: {
+    /** A moment less than a minute away. */
+    justNow: string
+  }
   codeBlock: {
     /** Unfolds a long block; `{count}` is the number of lines. */
     expand: string

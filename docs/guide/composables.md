@@ -16,6 +16,7 @@ DouUI 的组件建立在一组组合式函数上。下面这些已经导出，�
 | `useFormItem` / `useFormSize` / `useFormDisabled` | 让自己的控件接入表单：校验、尺寸与禁用                 | [Form](../components/form)                                         |
 | `useColorMode`                                    | 读取与切换亮 / 暗 / 跟随系统                           | [ColorMode](../components/color-mode)                              |
 | `useCountdown`                                    | 倒计时的剩余时间                                       | [Countdown](../components/countdown)                               |
+| `useNow`                                          | 当前时间，定时更新                                     | [RelativeTime](../components/relative-time#usenow)                 |
 | `useSortable`                                     | 给任意列表加上拖拽与键盘排序                           | [Sortable](../components/sortable)                                 |
 | `useDialog`                                       | 在组件里调用 `confirm` / `alert` / `prompt`            | [Dialog](../components/dialog)                                     |
 | `useReducedMotion` / `getMotionDuration`          | 让脚本驱动的动画遵循动效设置                           | [动效](./motion#在脚本中使用)                                      |

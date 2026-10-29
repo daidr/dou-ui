@@ -56,10 +56,22 @@ export interface DropdownItemProps {
   tone?: DropdownItemTone
   /** Draw a separator above the item. */
   divided?: boolean
+  /**
+   * Make the item a checkbox: it shows a check while `true` and toggles
+   * on click. Bound with `v-model:checked`.
+   */
+  checked?: boolean
+  /**
+   * A keyboard shortcut to show after the label, e.g. `mod+s`, written as
+   * in `useHotkey` and shown the way the platform writes it. It is only
+   * shown: bind the key yourself.
+   */
+  shortcut?: string
 }
 
 export interface DropdownItemEmits {
   click: [event: MouseEvent | KeyboardEvent]
+  'update:checked': [checked: boolean]
 }
 
 export interface DropdownItemSlots {
@@ -69,6 +81,28 @@ export interface DropdownItemSlots {
   /** After the label, e.g. a shortcut. */
   suffix?: () => unknown
 }
+
+export interface DropdownRadioGroupProps {
+  /** The value of the chosen item, bound with `v-model`. */
+  modelValue?: DropdownValue
+}
+
+export interface DropdownRadioGroupEmits {
+  'update:modelValue': [value: DropdownValue]
+}
+
+export interface DropdownRadioGroupSlots {
+  /** `DouDropdownItem`s with a `value`; the one matching `v-model` shows a dot. */
+  default?: () => unknown
+}
+
+export interface DropdownRadioGroupContext {
+  value: () => DropdownValue | undefined
+  pick: (value: DropdownValue) => void
+}
+
+export const dropdownRadioGroupKey: InjectionKey<DropdownRadioGroupContext> =
+  Symbol('DouDropdownRadioGroup')
 
 export interface DropdownSubProps {
   /** The item's text; the `title` slot replaces it. */
@@ -130,6 +164,18 @@ export interface DropdownContext {
   /** The pointer entered or left a submenu, which keeps a hover menu open. */
   hold: () => void
   release: () => void
+  /** Left or right out of the menu, when something such as a menubar handles that. */
+  move?: (direction: 1 | -1) => void
 }
 
 export const dropdownKey: InjectionKey<DropdownContext> = Symbol('DouDropdown')
+
+/**
+ * Provided by a component that owns dropdowns side by side, such as a
+ * menubar: `ArrowLeft` and `ArrowRight` inside a menu go to it.
+ */
+export interface DropdownHost {
+  move: (direction: 1 | -1) => void
+}
+
+export const dropdownHostKey: InjectionKey<DropdownHost> = Symbol('DouDropdownHost')

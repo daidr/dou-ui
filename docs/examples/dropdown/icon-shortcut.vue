@@ -6,19 +6,17 @@ import { CopyIcon, EditIcon } from '@dou-ui/icons'
   <DouDropdown>
     <DouButton variant="outline">编辑</DouButton>
     <template #menu>
-      <DouDropdownItem>
+      <DouDropdownItem shortcut="mod+c">
         <template #prefix>
           <DouIcon><CopyIcon /></DouIcon>
         </template>
         复制
-        <template #suffix>⌘C</template>
       </DouDropdownItem>
-      <DouDropdownItem>
+      <DouDropdownItem shortcut="f2">
         <template #prefix>
           <DouIcon><EditIcon /></DouIcon>
         </template>
         重命名
-        <template #suffix>F2</template>
       </DouDropdownItem>
     </template>
   </DouDropdown>

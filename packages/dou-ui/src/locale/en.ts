@@ -255,6 +255,14 @@ export const en: Locale = {
   anchor: {
     label: 'On this page',
   },
+  calendarHeatmap: {
+    less: 'Less',
+    more: 'More',
+    day: '{value} on {date}',
+  },
+  relativeTime: {
+    justNow: 'just now',
+  },
   codeBlock: {
     expand: 'Show all {count} lines',
     collapse: 'Show less',

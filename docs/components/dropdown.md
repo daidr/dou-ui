@@ -16,7 +16,7 @@
 
 ## 图标与快捷键
 
-`prefix` 插槽放在文字前（通常是图标），`suffix` 放在行尾（例如快捷键）。
+`prefix` 插槽放在文字前（通常是图标），`suffix` 放在行尾。快捷键用 `shortcut` 属性，写法与 `useHotkey` 相同，按平台显示（`mod+c` 在苹果设备上是 `⌘C`，其他平台是 `Ctrl+C`）。
 
 <DocDemo src="dropdown/icon-shortcut" />
 
@@ -33,6 +33,10 @@
 <DocDemo src="dropdown/submenu" />
 
 子菜单默认在右侧展开（`placement="right-start"`），空间不够时翻到左侧。[ContextMenu 右键菜单](./context-menu) 里同样可以使用。
+
+## 勾选项与单选项
+
+`v-model:checked` 让菜单项成为勾选项，`DouDropdownRadioGroup` 让一组菜单项成为单选项，示例见 [Menubar](./menubar#勾选项、单选项与快捷键)。
 
 ## 分裂按钮
 
@@ -88,12 +92,14 @@
 
 ### DropdownItem Props
 
-| 名称       | 说明                    | 类型                    | 默认值      |
-| ---------- | ----------------------- | ----------------------- | ----------- |
-| `value`    | 传给 `select` 的值      | `string \| number`      | —           |
-| `disabled` | 禁用                    | `boolean`               | `false`     |
-| `tone`     | `danger` 用于破坏性操作 | `'neutral' \| 'danger'` | `'neutral'` |
-| `divided`  | 上方画一条分隔线        | `boolean`               | `false`     |
+| 名称       | 说明                                               | 类型                    | 默认值      |
+| ---------- | -------------------------------------------------- | ----------------------- | ----------- |
+| `value`    | 传给 `select` 的值                                 | `string \| number`      | —           |
+| `disabled` | 禁用                                               | `boolean`               | `false`     |
+| `tone`     | `danger` 用于破坏性操作                            | `'neutral' \| 'danger'` | `'neutral'` |
+| `divided`  | 上方画一条分隔线                                   | `boolean`               | `false`     |
+| `checked`  | 勾选状态，配合 `v-model:checked`，设置后成为勾选项 | `boolean`               | —           |
+| `shortcut` | 在右侧显示的快捷键，如 `'mod+s'`，只负责显示       | `string`                | —           |
 
 ### DropdownItem Slots
 

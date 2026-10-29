@@ -21,6 +21,7 @@
 @import './components/banner.css';
 @import './components/breadcrumb.css';
 @import './components/button.css';
+@import './components/calendar-heatmap.css';
 @import './components/calendar-view.css';
 @import './components/card.css';
 @import './components/carousel.css';
@@ -28,6 +29,7 @@
 @import './components/checkbox.css';
 @import './components/check-tag.css';
 @import './components/code-block.css';
+@import './components/relative-time.css';
 @import './components/collapse.css';
 @import './components/color-panel.css';
 @import './components/color-picker.css';
@@ -65,6 +67,7 @@
 @import './components/marquee.css';
 @import './components/masonry.css';
 @import './components/menu.css';
+@import './components/menubar.css';
 @import './components/pagination.css';
 @import './components/page-header.css';
 @import './components/picker.css';

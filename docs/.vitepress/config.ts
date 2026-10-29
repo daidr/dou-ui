@@ -32,10 +32,21 @@ export default defineConfig({
     nav: [
       { text: '指南', link: '/guide/philosophy' },
       { text: '组件', link: '/components/button' },
+      { text: '区块', link: '/blocks/login' },
       { text: '图标', link: '/icons/' },
       { text: '集成', link: '/integrations/vite' },
     ],
     sidebar: {
+      '/blocks/': [
+        {
+          text: '区块',
+          items: [
+            { text: '登录页', link: '/blocks/login' },
+            { text: '设置页', link: '/blocks/settings' },
+            { text: '数据管理页', link: '/blocks/data' },
+          ],
+        },
+      ],
       '/icons': [
         {
           text: '图标',
@@ -175,6 +186,7 @@ export default defineConfig({
             { text: 'Empty 空状态', link: '/components/empty' },
             { text: 'Statistic 统计数值', link: '/components/statistic' },
             { text: 'Countdown 倒计时', link: '/components/countdown' },
+            { text: 'RelativeTime 相对时间', link: '/components/relative-time' },
             { text: 'Image 图片', link: '/components/image' },
             { text: 'Carousel 轮播', link: '/components/carousel' },
             { text: 'Marquee 跑马灯', link: '/components/marquee' },
@@ -185,6 +197,7 @@ export default defineConfig({
             { text: 'Timeline 时间线', link: '/components/timeline' },
             { text: 'FlowGraph 流程图', link: '/components/flow-graph' },
             { text: 'CalendarView 日历视图', link: '/components/calendar-view' },
+            { text: 'CalendarHeatmap 日历热力图', link: '/components/calendar-heatmap' },
             { text: 'Table 表格', link: '/components/table' },
             { text: 'Tree 树', link: '/components/tree' },
             { text: 'VirtualList 虚拟列表', link: '/components/virtual-list' },
@@ -196,6 +209,7 @@ export default defineConfig({
           text: '导航',
           items: [
             { text: 'Menu 导航菜单', link: '/components/menu' },
+            { text: 'Menubar 菜单栏', link: '/components/menubar' },
             { text: 'Tabs 标签页', link: '/components/tabs' },
             { text: 'Steps 步骤条', link: '/components/steps' },
             { text: 'Anchor 锚点导航', link: '/components/anchor' },

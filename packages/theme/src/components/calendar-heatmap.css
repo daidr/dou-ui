@@ -1,0 +1,99 @@
+/*
+ * CalendarHeatmap
+ *
+ * Days as small squares in week columns. Shades come from one tone mixed
+ * into the empty color, so every theme gets a matching ramp. The grid
+ * scrolls sideways when it is wider than its container.
+ */
+@layer dou.components {
+  .dou-calendar-heatmap {
+    --dou-calendar-heatmap-cell: 12px;
+    --dou-calendar-heatmap-gap: 2px;
+    --dou-calendar-heatmap-radius: 2px;
+    --dou-calendar-heatmap-empty: color-mix(in oklab, var(--dou-color-text) 7%, transparent);
+
+    display: grid;
+    /* one column as wide as the weeks, so the legend ends under the last one */
+    grid-template-columns: minmax(0, max-content);
+    gap: 8px;
+    min-width: 0;
+    color: var(--dou-color-text-tertiary);
+    font-family: var(--dou-font-family);
+    font-size: 12px;
+    line-height: 1;
+  }
+
+  .dou-calendar-heatmap__scroll {
+    min-width: 0;
+    /* room for the focus ring of the edge cells */
+    padding: 2px;
+    overflow-x: auto;
+  }
+
+  .dou-calendar-heatmap__grid {
+    display: grid;
+    grid-template-rows: auto repeat(7, var(--dou-calendar-heatmap-cell));
+    grid-template-columns: auto repeat(
+        var(--dou-calendar-heatmap-weeks),
+        var(--dou-calendar-heatmap-cell)
+      );
+    gap: var(--dou-calendar-heatmap-gap);
+    width: max-content;
+  }
+
+  .dou-calendar-heatmap__row {
+    display: contents;
+  }
+
+  .dou-calendar-heatmap__month {
+    grid-row: 1;
+    padding-bottom: 4px;
+    white-space: nowrap;
+  }
+
+  .dou-calendar-heatmap__weekday {
+    grid-column: 1;
+    align-self: center;
+    padding-inline-end: 6px;
+    white-space: nowrap;
+  }
+
+  .dou-calendar-heatmap__cell {
+    border-radius: var(--dou-calendar-heatmap-radius);
+    /* a hairline keeps light shades apart from the page */
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--dou-color-text) 4%, transparent);
+    cursor: pointer;
+    outline: none;
+
+    &.is-active {
+      box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--dou-color-text) 40%, transparent);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 1px;
+    }
+  }
+
+  .dou-calendar-heatmap__legend {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--dou-calendar-heatmap-gap);
+
+    & > :first-child {
+      margin-inline-end: 4px;
+    }
+
+    & > :last-child {
+      margin-inline-start: 4px;
+    }
+  }
+
+  .dou-calendar-heatmap__swatch {
+    width: var(--dou-calendar-heatmap-cell);
+    height: var(--dou-calendar-heatmap-cell);
+    border-radius: var(--dou-calendar-heatmap-radius);
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--dou-color-text) 4%, transparent);
+  }
+}

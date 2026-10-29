@@ -449,6 +449,16 @@ export interface Locale {
     more: string
     /** A day's label when it has events, with `{date}` and `{count}`. */
     dayWithEvents: string
+    /** Names of the views in the view switch. */
+    month: string
+    week: string
+    day: string
+    /** Heads the row of events without a time in the week and day views. */
+    allDay: string
+    prevWeek: string
+    nextWeek: string
+    prevDay: string
+    nextDay: string
   }
   infiniteScroll: {
     /** Shown at the end of the list while the next page loads. */

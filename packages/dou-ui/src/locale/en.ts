@@ -309,6 +309,14 @@ export const en: Locale = {
   calendarView: {
     more: '+{count} more',
     dayWithEvents: '{date}, {count} events',
+    month: 'Month',
+    week: 'Week',
+    day: 'Day',
+    allDay: 'All day',
+    prevWeek: 'Previous week',
+    nextWeek: 'Next week',
+    prevDay: 'Previous day',
+    nextDay: 'Next day',
   },
   infiniteScroll: {
     loading: 'Loading',

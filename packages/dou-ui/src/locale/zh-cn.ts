@@ -309,6 +309,14 @@ export const zhCN: Locale = {
   calendarView: {
     more: '还有 {count} 项',
     dayWithEvents: '{date}，{count} 项日程',
+    month: '月',
+    week: '周',
+    day: '日',
+    allDay: '全天',
+    prevWeek: '上一周',
+    nextWeek: '下一周',
+    prevDay: '前一天',
+    nextDay: '后一天',
   },
   infiniteScroll: {
     loading: '加载中',

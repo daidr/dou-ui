@@ -12,6 +12,13 @@
  * - shapes: the number of drawn shapes; past 30 a drawing is usually too busy
  *   (patterns such as the QR code or the heatmap are judged by eye).
  * - tones: the tone colors used; more than two is rarely needed.
+ * - drawn lines: icon-weight strokes outside icons from the set. Icons must
+ *   come from @dou-ui/icons through `icon()`, never be drawn by hand. Data
+ *   strokes that are not icons (a chart line, a spinner arc, a crop frame)
+ *   carry the `data` class and are left out.
+ *
+ * Each row also shows the component's first demo, so the drawing can be
+ * checked against the real thing.
  *
  * Needs the docs dev server (`bun run docs:dev`) and Playwright.
  *
@@ -40,6 +47,7 @@ interface Metric {
   height: number
   shapes: number
   tones: string[]
+  drawn: number
 }
 
 const toneClasses: Record<string, string> = {
@@ -57,7 +65,7 @@ const toneClasses: Record<string, string> = {
 }
 
 const browser = await chromium.launch()
-const page = await browser.newPage({ viewport: { width: 1180, height: 800 }, deviceScaleFactor: 2 })
+const page = await browser.newPage({ viewport: { width: 1400, height: 800 }, deviceScaleFactor: 2 })
 await page.goto(`${url}/components/overview`, { waitUntil: 'networkidle' })
 
 const metrics: Metric[] = await page.evaluate(
@@ -79,6 +87,9 @@ const metrics: Metric[] = await page.evaluate(
         height: box.height,
         shapes: [...shapes].filter((shape) => !shape.closest('defs')).length,
         tones: [...tones],
+        drawn: [...svg.querySelectorAll('.w15:not(.data), .w2:not(.data)')].filter(
+          (shape) => !shape.closest('.ico, [class^="ico-"]'),
+        ).length,
       }
     }),
   { tones: toneClasses },
@@ -100,17 +111,55 @@ const flags = (m: Metric) => {
   if (Math.hypot(dx, dy) > 8) list.push(`偏离中心 ${dx.toFixed(0)},${dy.toFixed(0)}`)
   if (m.shapes > 30) list.push(`图形较多 ${m.shapes}`)
   if (m.tones.length > 2) list.push(`语气色 ${m.tones.length} 种`)
+  if (m.drawn) list.push(`手画线条 ${m.drawn} 处，图标须用 icon()`)
   return list
 }
 
 const selected = only ? metrics.filter((m) => only.includes(m.name)) : metrics
 await mkdir(outDir, { recursive: true })
 
+// The first demo of each component page, as the reference for its drawing.
+const demos: Record<string, string> = {}
+const demoPage = await browser.newPage({
+  viewport: { width: 900, height: 800 },
+  deviceScaleFactor: 2,
+})
+for (const m of selected) {
+  await demoPage.goto(`${url}/components/${m.name}`, { waitUntil: 'networkidle' })
+  const stage = demoPage.locator('.doc-demo__stage').first()
+  if (await stage.count()) {
+    // crop to the demo content, so a small control is not lost in a wide stage
+    const clip = await stage.evaluate((el) => {
+      const outer = el.getBoundingClientRect()
+      let [left, top, right, bottom] = [outer.right, outer.bottom, outer.left, outer.top]
+      for (const child of el.querySelectorAll('*')) {
+        const r = child.getBoundingClientRect()
+        if (!r.width || !r.height) continue
+        left = Math.min(left, r.left)
+        top = Math.min(top, r.top)
+        right = Math.max(right, r.right)
+        bottom = Math.max(bottom, r.bottom)
+      }
+      if (right <= left) return null
+      left = Math.max(outer.left, left - 8)
+      top = Math.max(outer.top, top - 8)
+      right = Math.min(outer.right, right + 8)
+      bottom = Math.min(outer.bottom, bottom + 8)
+      return { x: left + scrollX, y: top + scrollY, width: right - left, height: bottom - top }
+    })
+    const shot = clip
+      ? await demoPage.screenshot({ clip, fullPage: true, animations: 'disabled' })
+      : await stage.screenshot({ animations: 'disabled' })
+    demos[m.name] = `data:image/png;base64,${shot.toString('base64')}`
+  }
+}
+await demoPage.close()
+
 // Lay each sheet out inside the docs page, so the drawings use the real theme.
 for (let start = 0; start < selected.length; start += perSheet) {
   const chunk = selected.slice(start, start + perSheet)
   await page.evaluate(
-    ({ rows, notes }) => {
+    ({ rows, notes, demos: refs }) => {
       document.querySelector('#review-sheet')?.remove()
       const sheet = document.createElement('div')
       sheet.id = 'review-sheet'
@@ -127,9 +176,12 @@ for (let start = 0; start < selected.length; start += perSheet) {
           `<div data-dou-theme="${theme}" style="background:var(--dou-color-bg-canvas);border:1px solid #ddd;border-radius:8px;overflow:hidden">` +
           `<svg class="doc-overview__art" viewBox="0 0 200 120" style="width:400px;border:0">${art}${guides}${box}</svg></div>`
         const card = `<div data-dou-theme="light" style="width:200px">${source.outerHTML}</div>`
+        const demo = refs[m.name]
+          ? `<img src="${refs[m.name]}" style="display:block;max-width:300px;max-height:240px;border:1px solid #ddd;border-radius:8px;background:#fff">`
+          : '<div style="color:#999">（无示例）</div>'
         const row = document.createElement('div')
         row.style.cssText =
-          'display:grid;grid-template-columns:400px 400px 200px;gap:12px;margin-bottom:20px;align-items:start'
+          'display:grid;grid-template-columns:400px 400px 200px 300px;gap:12px;margin-bottom:20px;align-items:start'
         row.innerHTML =
           `<div style="grid-column:1/-1;font-weight:600">${m.label} <span style="font-weight:400;color:#666">` +
           `${m.name} · 宽 ${Math.round((m.width / 200) * 100)}% 高 ${Math.round((m.height / 120) * 100)}% · ` +
@@ -137,16 +189,21 @@ for (let start = 0; start < selected.length; start += perSheet) {
           `${notes[m.name]!.length ? ` · <b style="color:#c4342b">${notes[m.name]!.join('，')}</b>` : ''}</span></div>` +
           big('light') +
           big('dark') +
-          card
+          card +
+          demo
         sheet.append(row)
       }
       document.body.append(sheet)
     },
-    { rows: chunk, notes: Object.fromEntries(chunk.map((m) => [m.name, flags(m)])) },
+    {
+      rows: chunk,
+      notes: Object.fromEntries(chunk.map((m) => [m.name, flags(m)])),
+      demos: Object.fromEntries(chunk.map((m) => [m.name, demos[m.name]])),
+    },
   )
   const sheet = page.locator('#review-sheet')
   const height = await sheet.evaluate((el) => el.scrollHeight)
-  await page.setViewportSize({ width: 1180, height })
+  await page.setViewportSize({ width: 1400, height })
   const index = String(start / perSheet + 1).padStart(2, '0')
   await sheet.screenshot({ path: resolve(outDir, `sheet-${index}.png`) })
 }

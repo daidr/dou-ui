@@ -28,6 +28,13 @@ const group = (transform: string, inner: string) => `<g transform="${transform}"
 const iconSources = import.meta.glob<string>(
   [
     '../../../packages/icons/icons/alert-circle.stroke.svg',
+    '../../../packages/icons/icons/alert-triangle.stroke.svg',
+    '../../../packages/icons/icons/arrow-up-right.stroke.svg',
+    '../../../packages/icons/icons/minus.stroke.svg',
+    '../../../packages/icons/icons/close.stroke.svg',
+    '../../../packages/icons/icons/check.stroke.svg',
+    '../../../packages/icons/icons/chevron-right.stroke.svg',
+    '../../../packages/icons/icons/chevron-down.stroke.svg',
     '../../../packages/icons/icons/arrow-left.stroke.svg',
     '../../../packages/icons/icons/arrow-up.stroke.svg',
     '../../../packages/icons/icons/bell.stroke.svg',
@@ -76,13 +83,16 @@ const button = (x: number, y: number, w: number, c = 'k', h = 24) => {
   return rect(x, y, w, h, c, 5) + bar(x + (w - lw) / 2, y + h / 2 - 2, lw, label)
 }
 const popup = (x: number, y: number, w: number, h: number) => rect(x, y, w, h, 'p f', 8)
-const chevronDown = (x: number, y: number, c = 'lk') => path(`M${x - 3} ${y - 1.5}l3 3l3 -3`, c)
-const chevronRight = (x: number, y: number, c = 'lk') => path(`M${x - 1.5} ${y - 3}l3 3l-3 3`, c)
-const check = (x: number, y: number, c = 'lk') => path(`M${x - 3.5} ${y}l2.5 2.5l4.5 -5`, c)
-const cross = (x: number, y: number, c = 'lk', s = 3) =>
-  path(`M${x - s} ${y - s}l${s * 2} ${s * 2}M${x + s} ${y - s}l${-s * 2} ${s * 2}`, c)
-const plus = (x: number, y: number, c = 'lk', s = 4) =>
-  path(`M${x - s} ${y}h${s * 2}M${x} ${y - s}v${s * 2}`, c)
+/** The line classes of the drawings, as the matching icon colors. */
+const iconTone = (c: string) =>
+  ({ lk: 'ico', lon: 'ico-on', ln: 'ico-3', la: 'ico-a', lg: 'ico-g', lw: 'ico-w' })[
+    c.split(' ')[0]!
+  ] ?? 'ico'
+const chevronDown = (x: number, y: number, c = 'lk') => icon('chevron-down', x, y, 12, iconTone(c))
+const chevronRight = (x: number, y: number, c = 'lk') =>
+  icon('chevron-right', x, y, 12, iconTone(c))
+const check = (x: number, y: number, c = 'lk') => icon('check', x, y, 13, iconTone(c))
+const cross = (x: number, y: number, c = 'lk', s = 3) => icon('close', x, y, s * 4, iconTone(c))
 /** Rows of text lines, one per width. */
 const lines = (x: number, y: number, widths: number[], gap = 10, c = 's') =>
   widths.map((w, i) => bar(x, y + i * gap, w, c)).join('')
@@ -97,7 +107,7 @@ const star = (cx: number, cy: number, r: number, c: string) => {
   return `<polygon points="${points.join(' ')}" class="${c} round"/>`
 }
 const spinner = (cx: number, cy: number, r: number) =>
-  circle(cx, cy, r, 'lb w2') + path(`M${cx} ${cy - r}a${r} ${r} 0 0 1 ${r} ${r}`, 'lk w2')
+  circle(cx, cy, r, 'lb w2 data') + path(`M${cx} ${cy - r}a${r} ${r} 0 0 1 ${r} ${r}`, 'lk w2 data')
 const image = (x: number, y: number, w: number, h: number, r = 6) =>
   rect(x, y, w, h, 'pm', r) +
   circle(x + w * 0.7, y + h * 0.3, Math.min(w, h) * 0.1, 'b') +
@@ -196,7 +206,7 @@ const arts: Record<string, string | ((id: string) => string)> = {
     bar(128, 48, 36) +
     bar(36, 62, 96) +
     bar(36, 84, 52, 'a') +
-    path('M93 91l6 -6M95 85h4v4', 'la w15'),
+    icon('arrow-up-right', 96, 86, 12, 'ico-a'),
   typography:
     text(44, 76, 'Aa', 'tx display', 'start') +
     bar(110, 44, 48, 'k', 6) +
@@ -299,8 +309,8 @@ const arts: Record<string, string | ((id: string) => string)> = {
   'input-number':
     rect(40, 40, 120, 40, 'p', 6) +
     path('M76 40v40M124 40v40', 'lb') +
-    path('M52 60h12', 'lk w15') +
-    plus(142, 60, 'lk w15', 6) +
+    icon('minus', 58, 60, 20) +
+    icon('plus', 142, 60, 20) +
     text(100, 66, '128', 'tx mono big'),
   'input-tag':
     rect(32, 32, 136, 56, 'ps', 6) +
@@ -528,7 +538,7 @@ const arts: Record<string, string | ((id: string) => string)> = {
     image(36, 18, 128, 84, 8) +
     `<rect x="36" y="18" width="128" height="84" rx="8" class="dim2" mask="url(#${id}-m)"/>` +
     rect(68, 32, 64, 56, 'lwhite') +
-    path('M68 40v-8h8M124 32h8v8M132 80v8h-8M76 88h-8v-8', 'lwhite w2') +
+    path('M68 40v-8h8M124 32h8v8M132 80v8h-8M76 88h-8v-8', 'lwhite w2 data') +
     path('M89.3 32v56M110.7 32v56M68 50.7h64M68 69.3h64', 'lwhite thin'),
   'field-group':
     rect(24, 42, 152, 36, 'p', 6) +
@@ -603,7 +613,7 @@ const arts: Record<string, string | ((id: string) => string)> = {
     rect(42, 14, 116, 58, 'p f', 8) +
     path('M94 72l6 6l6 -6', 'p lb') +
     rect(94, 70, 12, 3, 'p0s') +
-    icon('alert-circle', 58, 30, 14, 'ico-w') +
+    icon('alert-triangle', 58, 30, 14, 'ico-w') +
     bar(70, 28, 56, 'k') +
     button(92, 48, 26, 'p', 16) +
     button(122, 48, 26, 'k', 16),
@@ -642,8 +652,7 @@ const arts: Record<string, string | ((id: string) => string)> = {
     rect(48, 30, 104, 24, 'p', 6) +
     rect(40, 46, 120, 28, 'p f', 7) +
     rect(32, 66, 136, 34, 'p f', 8) +
-    circle(48, 83, 7, 'gs') +
-    check(48, 83, 'lg w15') +
+    icon('check-circle', 48, 83, 16, 'ico-g') +
     bar(62, 76, 52, 'k') +
     bar(62, 86, 76),
   spinner: spinner(60, 60, 10) + spinner(96, 60, 15) + spinner(144, 60, 22),
@@ -681,8 +690,7 @@ const arts: Record<string, string | ((id: string) => string)> = {
     rect(40, 72, 120, 8, 'sk', 4) +
     rect(40, 86, 92, 8, 'sk', 4),
   result:
-    circle(100, 36, 16, 'gs') +
-    path('M93 36l5 5l9 -10', 'lg w2') +
+    icon('check-circle', 100, 36, 32, 'ico-g') +
     bar(68, 62, 64, 'k', 6) +
     bar(56, 76, 88, 't') +
     button(64, 88, 34, 'p', 18) +
@@ -739,7 +747,7 @@ const arts: Record<string, string | ((id: string) => string)> = {
   statistic:
     bar(40, 30, 56, 't') +
     text(40, 68, '128,430', 'tx stat-lg', 'start') +
-    path('M42 86l4 -4l4 4M46 82v8', 'lg w15') +
+    icon('arrow-up', 46, 86, 12, 'ico-g') +
     bar(56, 84, 32, 'g') +
     bar(94, 84, 40, 'b'),
   countdown:
@@ -900,7 +908,7 @@ const arts: Record<string, string | ((id: string) => string)> = {
       bar(40, 26, 28, 't') +
       text(40, 52, '2,846', 'tx stat-sm', 'start') +
       `<path d="${line}V100H40Z" fill="url(#${id}-a)"/>` +
-      path(line, 'lk w15 join') +
+      path(line, 'lk w15 join data') +
       circle(160, 48, 3, 'k')
     )
   },
@@ -1122,7 +1130,7 @@ const arts: Record<string, string | ((id: string) => string)> = {
     bar(70, 50, 64, 't') +
     path('M70 52h64', 'ln') +
     circle(56, 72, 6, 'lb') +
-    path('M56 66a6 6 0 0 1 6 6', 'lk w15') +
+    path('M56 66a6 6 0 0 1 6 6', 'lk w15 data') +
     bar(70, 70, 56, 'k') +
     circle(56, 92, 6, 'p') +
     bar(70, 90, 44),
@@ -1169,7 +1177,7 @@ const arts: Record<string, string | ((id: string) => string)> = {
     chevronRight(150, 60),
   'chat-confirm':
     rect(32, 26, 136, 68, 'p', 10) +
-    icon('alert-circle', 48, 42, 14, 'ico-w') +
+    icon('alert-triangle', 48, 42, 14, 'ico-w') +
     bar(60, 40, 64, 'k') +
     rect(44, 52, 112, 14, 'm', 4) +
     bar(50, 57, 60, 't') +

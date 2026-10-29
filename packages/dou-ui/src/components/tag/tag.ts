@@ -11,6 +11,8 @@ export interface TagProps {
   size?: TagSize
   /** Show a remove button that emits `close`. */
   closable?: boolean
+  /** Label of the remove button, e.g. naming what it removes. */
+  closeLabel?: string
   /** Fully rounded ends, e.g. for counts and statuses. */
   round?: boolean
 }

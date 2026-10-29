@@ -1,0 +1,137 @@
+/*
+ * Scrollbar
+ *
+ * A thin thumb drawn over the content instead of the system bar, so a
+ * panel keeps its width and the bar matches either theme. It is quiet
+ * until wanted: it shows while the pointer is over the area or it
+ * scrolls, and thickens under the pointer to be easier to grab.
+ */
+@layer dou.components {
+  .dou-scrollbar {
+    --dou-scrollbar-size: 6px;
+    --dou-scrollbar-size-hover: 8px;
+    --dou-scrollbar-inset: 2px;
+    --dou-scrollbar-thumb: color-mix(in oklab, var(--dou-color-text) 24%, transparent);
+    --dou-scrollbar-thumb-hover: color-mix(in oklab, var(--dou-color-text) 40%, transparent);
+
+    position: relative;
+    box-sizing: border-box;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .dou-scrollbar__wrap {
+    box-sizing: border-box;
+    height: 100%;
+    overflow: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: -2px;
+    }
+  }
+
+  .dou-scrollbar:not(.is-fixed) .dou-scrollbar__wrap {
+    height: auto;
+  }
+
+  /* text wraps to the width; content that cannot wrap widens the view and scrolls */
+  .dou-scrollbar__view {
+    box-sizing: border-box;
+    width: fit-content;
+    min-width: 100%;
+  }
+
+  .dou-scrollbar__bar {
+    position: absolute;
+    z-index: 1;
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--dou-motion-duration-normal) var(--dou-motion-easing);
+
+    /* hidden, not removed, so the track can still be measured */
+    &.is-active {
+      visibility: visible;
+    }
+
+    &.is-vertical {
+      top: var(--dou-scrollbar-inset);
+      right: var(--dou-scrollbar-inset);
+      bottom: var(--dou-scrollbar-inset);
+      width: var(--dou-scrollbar-size-hover);
+    }
+
+    &.is-horizontal {
+      right: var(--dou-scrollbar-inset);
+      bottom: var(--dou-scrollbar-inset);
+      left: var(--dou-scrollbar-inset);
+      height: var(--dou-scrollbar-size-hover);
+    }
+  }
+
+  /* leave the corner free when both bars show */
+  .dou-scrollbar__bar.is-vertical.is-active ~ .dou-scrollbar__bar.is-horizontal {
+    right: calc(var(--dou-scrollbar-inset) * 2 + var(--dou-scrollbar-size-hover));
+  }
+
+  .dou-scrollbar:hover > .dou-scrollbar__bar,
+  .dou-scrollbar.is-scrolling > .dou-scrollbar__bar,
+  .dou-scrollbar.is-dragging > .dou-scrollbar__bar,
+  .dou-scrollbar.is-always > .dou-scrollbar__bar {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .dou-scrollbar__thumb {
+    position: absolute;
+    border-radius: var(--dou-radius-full);
+    background-color: var(--dou-scrollbar-thumb);
+    cursor: default;
+    touch-action: none;
+    transition-property: background-color, width, height;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+  }
+
+  .dou-scrollbar__bar.is-vertical .dou-scrollbar__thumb {
+    top: 0;
+    right: 0;
+    width: var(--dou-scrollbar-size);
+  }
+  .dou-scrollbar__bar.is-horizontal .dou-scrollbar__thumb {
+    bottom: 0;
+    left: 0;
+    height: var(--dou-scrollbar-size);
+  }
+
+  .dou-scrollbar__bar:hover .dou-scrollbar__thumb,
+  .dou-scrollbar.is-dragging .dou-scrollbar__thumb {
+    background-color: var(--dou-scrollbar-thumb-hover);
+  }
+  .dou-scrollbar__bar.is-vertical:hover .dou-scrollbar__thumb,
+  .dou-scrollbar.is-dragging .dou-scrollbar__bar.is-vertical .dou-scrollbar__thumb {
+    width: var(--dou-scrollbar-size-hover);
+  }
+  .dou-scrollbar__bar.is-horizontal:hover .dou-scrollbar__thumb,
+  .dou-scrollbar.is-dragging .dou-scrollbar__bar.is-horizontal .dou-scrollbar__thumb {
+    height: var(--dou-scrollbar-size-hover);
+  }
+
+  .dou-scrollbar.is-dragging {
+    user-select: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dou-scrollbar__bar,
+    .dou-scrollbar__thumb {
+      transition: none;
+    }
+  }
+}

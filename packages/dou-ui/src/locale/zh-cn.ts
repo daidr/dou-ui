@@ -193,6 +193,13 @@ export const zhCN: Locale = {
     copy: '复制',
     copied: '已复制',
   },
+  layout: {
+    collapse: '收起侧栏',
+    expand: '展开侧栏',
+  },
+  inputOtp: {
+    label: '验证码',
+  },
   form: {
     optional: '可选',
     required: '此项为必填项',

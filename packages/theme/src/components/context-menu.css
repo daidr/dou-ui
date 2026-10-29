@@ -1,0 +1,11 @@
+/*
+ * ContextMenu
+ *
+ * The same menu surface as a dropdown, opened at the pointer. Its items
+ * are dropdown items, so the two menus look and behave alike.
+ */
+@layer dou.components {
+  .dou-dropdown.dou-context-menu {
+    min-width: 180px;
+  }
+}

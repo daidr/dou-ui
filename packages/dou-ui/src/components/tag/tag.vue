@@ -40,7 +40,7 @@ const classes = computed(() => [
       v-if="closable"
       type="button"
       :class="ns.e('close')"
-      :aria-label="t('tag.remove')"
+      :aria-label="closeLabel ?? t('tag.remove')"
       @click="emit('close', $event)"
     >
       <CloseIcon />

@@ -1,0 +1,208 @@
+/*
+ * InputTag
+ *
+ * A text field that turns what is typed into tags. It is drawn like an
+ * input and grows a line at a time as tags wrap, the same as a select
+ * with several values, so the two read as one family in a form. The tag
+ * that the next Backspace removes is marked first, so nothing goes by
+ * accident.
+ */
+@layer dou.components {
+  .dou-input-tag {
+    --dou-input-tag-height: var(--dou-control-height-md);
+    --dou-input-tag-padding-x: var(--dou-control-padding-x-md);
+    --dou-input-tag-gap: var(--dou-control-gap-md);
+    --dou-input-tag-font-size: var(--dou-font-size-md);
+    /* the gap between a tag and the field's edge */
+    --dou-input-tag-inset: 3px;
+
+    --dou-input-tag-bg: var(--dou-color-bg-surface);
+    --dou-input-tag-border: var(--dou-color-border);
+    --dou-input-tag-border-hover: var(--dou-color-border-strong);
+    --dou-input-tag-border-focus: color-mix(
+      in oklab,
+      var(--dou-color-focus) 70%,
+      var(--dou-color-text)
+    );
+    --dou-input-tag-ring: color-mix(in oklab, var(--dou-color-focus) 32%, transparent);
+    --dou-input-tag-shadow: var(--dou-shadow-sm);
+
+    display: inline-flex;
+    align-items: center;
+    gap: var(--dou-input-tag-gap);
+    box-sizing: border-box;
+    width: 100%;
+    min-height: var(--dou-input-tag-height);
+    padding: 0 var(--dou-input-tag-padding-x);
+    border: 1px solid var(--dou-input-tag-border);
+    border-radius: var(--dou-radius-control);
+    background-color: var(--dou-input-tag-bg);
+    box-shadow: var(--dou-input-tag-shadow);
+    color: var(--dou-color-text);
+    font-size: var(--dou-input-tag-font-size);
+    vertical-align: middle;
+    cursor: text;
+    transition-property: border-color, box-shadow, background-color;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    &:hover {
+      border-color: var(--dou-input-tag-border-hover);
+    }
+
+    &:focus-within {
+      border-color: var(--dou-input-tag-border-focus);
+      box-shadow:
+        0 0 0 3px var(--dou-input-tag-ring),
+        var(--dou-input-tag-shadow);
+    }
+
+    &.is-filled {
+      padding-left: var(--dou-input-tag-inset);
+    }
+
+    &.is-invalid {
+      --dou-input-tag-border: color-mix(
+        in oklab,
+        var(--dou-color-danger) 55%,
+        var(--dou-color-border)
+      );
+      --dou-input-tag-border-hover: color-mix(
+        in oklab,
+        var(--dou-color-danger) 75%,
+        var(--dou-color-border)
+      );
+      --dou-input-tag-border-focus: var(--dou-color-danger);
+      --dou-input-tag-ring: color-mix(in oklab, var(--dou-color-danger) 18%, transparent);
+    }
+
+    &.is-readonly {
+      --dou-input-tag-bg: color-mix(
+        in oklab,
+        var(--dou-color-bg-muted) 50%,
+        var(--dou-color-bg-surface)
+      );
+    }
+
+    &.is-disabled {
+      --dou-input-tag-bg: var(--dou-color-bg-muted);
+      --dou-input-tag-border-hover: var(--dou-input-tag-border);
+      --dou-input-tag-shadow: none;
+      color: var(--dou-color-text-disabled);
+      cursor: not-allowed;
+    }
+  }
+
+  .dou-input-tag--sm {
+    --dou-input-tag-height: var(--dou-control-height-sm);
+    --dou-input-tag-padding-x: var(--dou-control-padding-x-sm);
+    --dou-input-tag-gap: var(--dou-control-gap-sm);
+    --dou-input-tag-font-size: var(--dou-font-size-sm);
+  }
+  .dou-input-tag--lg {
+    --dou-input-tag-height: var(--dou-control-height-lg);
+    --dou-input-tag-padding-x: var(--dou-control-padding-x-lg);
+    --dou-input-tag-gap: var(--dou-control-gap-lg);
+    --dou-input-tag-font-size: var(--dou-font-size-lg);
+    --dou-input-tag-inset: 5px;
+  }
+
+  .dou-input-tag__prefix {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    color: var(--dou-color-text-tertiary);
+  }
+
+  .dou-input-tag.is-filled .dou-input-tag__prefix {
+    padding-left: calc(var(--dou-input-tag-padding-x) - var(--dou-input-tag-inset));
+  }
+
+  .dou-input-tag__selection {
+    display: flex;
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .dou-input-tag.is-filled .dou-input-tag__selection {
+    padding: var(--dou-input-tag-inset) 0;
+  }
+
+  .dou-input-tag__tag {
+    max-width: 100%;
+    transition: box-shadow var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    &.is-pending {
+      box-shadow: 0 0 0 1px var(--dou-color-border-strong);
+    }
+  }
+
+  .dou-input-tag__input {
+    flex: 1 1 60px;
+    min-width: 60px;
+    height: calc(var(--dou-input-tag-height) - 2px);
+    padding: 0;
+    margin: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    line-height: normal;
+
+    &::placeholder {
+      color: var(--dou-color-text-tertiary);
+      opacity: 1;
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+    }
+  }
+
+  .dou-input-tag.is-filled .dou-input-tag__input {
+    height: calc(var(--dou-input-tag-height) - 2px - var(--dou-input-tag-inset) * 2);
+    padding-left: 4px;
+  }
+
+  .dou-input-tag__clear {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 1.15em;
+    height: 1.15em;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    border-radius: var(--dou-radius-full);
+    background-color: color-mix(in oklab, var(--dou-color-text) 10%, transparent);
+    color: var(--dou-color-text-secondary);
+    cursor: pointer;
+    transition-property: background-color, color;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    & > svg {
+      width: 1em;
+      height: 1em;
+      font-size: 0.8em;
+    }
+
+    &:hover {
+      background-color: color-mix(in oklab, var(--dou-color-text) 18%, transparent);
+      color: var(--dou-color-text);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dou-input-tag,
+    .dou-input-tag__tag,
+    .dou-input-tag__clear {
+      transition: none;
+    }
+  }
+}

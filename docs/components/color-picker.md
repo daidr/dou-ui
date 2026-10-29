@@ -15,9 +15,8 @@
 `format` 可以是 `hex`（默认）、`rgb`、`hsl`、`hsv`、`hwb`、`lab`、`lch`、`oklab` 或 `oklch`。写出来的都是 CSS Color 4 的空格写法，比如 `rgb(63 86 181)`、`oklch(0.55 0.15 255 / 0.5)`，可以直接用在样式里；`hsv()` 不是 CSS 格式，只是方便和设计工具对照。
 
 <DocDemo src="color-picker/format" />
-<DocDemo src="color-picker/format-2" />
 
-传进来的值可以是任意一种格式，旧的逗号写法（`rgba(63, 86, 181, 0.5)`）、百分比、`deg` / `turn` 等角度单位和 `none` 都认得；但用户一动手，写回去的就是 `format` 指定的格式。数值按格式保留合适的位数：`rgb` 取整，`hsl` 一类保留一位小数，`lab` / `lch` 两位，`oklab` / `oklch` 四位。
+传进来的值可以是任意一种格式，旧的逗号写法（`rgba(63, 86, 181, 0.5)`）、百分比、`deg` / `turn` 等角度单位和 `none` 都认得；但用户一动手，写回去的就是 `format` 指定的格式。上面切换格式时，输入框里的显示立即跟着变，`v-model` 的值要等挑过颜色才改写。数值按格式保留合适的位数：`rgb` 取整，`hsl` 一类保留一位小数，`lab` / `lch` 两位，`oklab` / `oklch` 四位。
 
 ## 取色面板
 

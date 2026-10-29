@@ -149,10 +149,20 @@
     border-radius: var(--dou-radius-full);
   }
 
+  /*
+   * The title line of a card sits where a capsule's middle is, so edges
+   * meet both at the same height: 1px border + 6px + half of a line that
+   * is 14px shorter than a capsule.
+   */
   .dou-flow-graph__node--card {
+    justify-content: flex-start;
     gap: 6px;
-    padding: 8px var(--dou-flow-graph-node-padding-x);
+    padding: 6px var(--dou-flow-graph-node-padding-x) 8px;
     border-radius: var(--dou-flow-graph-card-radius);
+
+    & > .dou-flow-graph__main {
+      height: calc(var(--dou-flow-graph-node-height) - 14px);
+    }
   }
 
   .dou-flow-graph__main {
@@ -160,8 +170,6 @@
     align-items: center;
     gap: var(--dou-flow-graph-node-gap);
     min-width: 0;
-    /* a card's first line is as tall as a pill's content */
-    min-height: calc(var(--dou-flow-graph-node-height) - 16px);
   }
 
   .dou-flow-graph__label {

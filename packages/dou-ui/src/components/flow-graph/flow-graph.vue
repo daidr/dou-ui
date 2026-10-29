@@ -87,8 +87,10 @@ function statusOf(node: FlowNode): FlowNodeStatus {
   return status
 }
 
+// A second line or a progress bar does not fit a capsule.
 const isCard = (node: FlowNode) =>
-  node.shape === 'card' || (node.shape !== 'pill' && node.description != null)
+  node.shape === 'card' ||
+  (node.shape !== 'pill' && (node.description != null || node.progress != null))
 
 // Measuring and layout -------------------------------------------------------
 
@@ -164,7 +166,12 @@ function measure() {
 
 const layout = computed(() =>
   layoutFlow(
-    props.nodes.map((node) => ({ id: node.id, ...(sizes.value.get(node.id) ?? estimate(node)) })),
+    props.nodes.map((node) => ({
+      id: node.id,
+      ...(sizes.value.get(node.id) ?? estimate(node)),
+      // Edges meet a card at its title line, level with a capsule's middle.
+      anchor: metric.value.height / 2,
+    })),
     dag.value.edges,
     {
       columnGap: props.columnGap ?? metric.value.columnGap,

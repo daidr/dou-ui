@@ -22,7 +22,7 @@
 
 ## 节点内容
 
-`icon` 放在标题前，`extra` 放在标题后，适合耗时、大小这类短数值。`progress`（0–100）在节点底部显示一条进度。标题放不下时会截断，`extra` 最多占一半宽度。
+`icon` 放在标题前，`extra` 放在标题后，适合耗时、大小这类短数值。`progress`（0–100）在节点底部显示一条进度，有进度的节点会变成卡片。标题放不下时会截断，`extra` 最多占一半宽度。
 
 <DocDemo src="flow-graph/content" />
 
@@ -30,7 +30,7 @@
 
 ## 卡片
 
-有 `description` 的节点会变成两行的卡片，第二行是说明文字。`descriptionTone` 给说明加上浅色底，用来提醒。`shape` 可以强制指定 `pill` 或 `card`。
+有 `description` 或 `progress` 的节点会变成卡片，说明文字在标题下面。卡片比单行节点高，连线对齐标题行。`descriptionTone` 给说明加上浅色底，用来提醒。`shape` 可以强制指定 `pill` 或 `card`。
 
 <DocDemo src="flow-graph/card" />
 

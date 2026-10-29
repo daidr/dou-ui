@@ -44,6 +44,20 @@ describe('DouFlowGraph', () => {
     )
   })
 
+  it('turns a node with progress into a card unless told otherwise', () => {
+    const wrapper = mount(DouFlowGraph, {
+      props: {
+        nodes: [
+          { id: 'a', label: 'A', progress: 50 },
+          { id: 'b', label: 'B', progress: 50, shape: 'pill' },
+        ],
+        edges: [],
+      },
+    })
+    expect(find(wrapper, 'A').classes()).toContain('dou-flow-graph__node--card')
+    expect(find(wrapper, 'B').classes()).toContain('dou-flow-graph__node--pill')
+  })
+
   it('turns a node with a description into a card', () => {
     const wrapper = mount(DouFlowGraph, {
       props: {

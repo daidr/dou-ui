@@ -147,6 +147,27 @@ describe('layoutFlow', () => {
     expect(long.path.match(/C/g)).toHaveLength(2)
   })
 
+  it('lines edges and rows up on the anchor of a tall node', () => {
+    const layout = layoutFlow(
+      [size('a'), { id: 'b', width: 80, height: 60, anchor: 16 }, size('c')],
+      [
+        { from: 'a', to: 'b' },
+        { from: 'b', to: 'c' },
+      ],
+      options,
+    )
+    const a = layout.nodes.get('a')!
+    const b = layout.nodes.get('b')!
+    const c = layout.nodes.get('c')!
+    // the title row of the tall node is level with its neighbours
+    expect(b.y + 16).toBe(a.y + 16)
+    expect(c.y).toBe(a.y)
+    for (const edge of layout.edges) expect(edge.path).not.toContain('C')
+    expect(layout.edges.find((e) => e.from === 'b')!.path).toMatch(
+      new RegExp(`^M\\S+ ${b.y + 16}H`),
+    )
+  })
+
   it('handles an empty graph', () => {
     const layout = layoutFlow([], [], options)
     expect(layout.width).toBe(0)

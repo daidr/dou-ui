@@ -10,7 +10,8 @@
  *    fewest crossings.
  * 4. Rows: every node is pulled towards its neighbours, then spread out
  *    in order with the least total movement (isotonic regression), with
- *    every centre on a row grid of half a node pitch. A fan sits
+ *    every node's anchor (the middle of its first line) on a row grid of
+ *    half a node pitch. A fan sits
  *    symmetrically around its source, and two rows are either level or
  *    a whole step apart, so no curve is a small wobble.
  */
@@ -19,6 +20,11 @@ export interface LayoutNode {
   id: string
   width: number
   height: number
+  /**
+   * Where edges meet the node and rows line up, from its top edge. Half
+   * the height by default; a tall node passes the middle of its first line.
+   */
+  anchor?: number
 }
 
 export interface LayoutEdge {
@@ -36,7 +42,7 @@ export interface LayoutOptions {
   /** Widen every node to the widest one in its column. */
   equalWidth?: boolean
   /**
-   * The row grid every centre snaps to, in px. Half the pitch of a
+   * The row grid every anchor snaps to, in px. Half the pitch of a
    * one-line node keeps fans symmetric and curves free of small wobbles.
    * Defaults to half the pitch of a 32px node, `(rowGap + 32) / 2`.
    */
@@ -74,8 +80,11 @@ interface Item {
   /** The edge index a waypoint belongs to; `-1` for real nodes. */
   edge: number
   height: number
+  /** From the top edge to the row the item lines up on. */
+  anchor: number
   preds: Item[]
   succs: Item[]
+  /** The row the item lines up on. */
   y: number
 }
 
@@ -209,7 +218,7 @@ function untangle(layers: Item[][]) {
 
 /**
  * Move the items of one column as close to their targets as possible,
- * keeping their order and the gaps between them, with every centre on
+ * keeping their order and the gaps between them, with every anchor on
  * the row grid. With `s` the offset of each item from the first, in grid
  * steps, `y - s` must not decrease: isotonic regression, solved by
  * pooling adjacent violators, then rounded to whole steps.
@@ -219,7 +228,7 @@ function place(layer: Item[], targets: number[], gap: (a: Item, b: Item) => numb
   for (let i = 1; i < layer.length; i++) {
     const a = layer[i - 1]!
     const b = layer[i]!
-    const span = (a.height + b.height) / 2 + gap(a, b)
+    const span = a.height - a.anchor + gap(a, b) + b.anchor
     offsets.push(offsets[i - 1]! + Math.max(1, Math.ceil(span / grid - 1e-6)))
   }
   const blocks: { sum: number; count: number }[] = []
@@ -262,14 +271,23 @@ export function layoutFlow(
   const items = new Map<string, Item>()
   const layers: Item[][] = Array.from({ length: count }, () => [])
   for (const id of ids) {
-    const item: Item = { id, edge: -1, height: byId.get(id)!.height, preds: [], succs: [], y: 0 }
+    const { height, anchor = height / 2 } = byId.get(id)!
+    const item: Item = { id, edge: -1, height, anchor, preds: [], succs: [], y: 0 }
     items.set(id, item)
     layers[column.get(id)!]!.push(item)
   }
   const chains: Item[][] = dag.edges.map((edge, e) => {
     const chain = [items.get(edge.from)!]
     for (let c = column.get(edge.from)! + 1; c < column.get(edge.to)!; c++) {
-      const waypoint: Item = { id: `${e}:${c}`, edge: e, height: 0, preds: [], succs: [], y: 0 }
+      const waypoint: Item = {
+        id: `${e}:${c}`,
+        edge: e,
+        height: 0,
+        anchor: 0,
+        preds: [],
+        succs: [],
+        y: 0,
+      }
       layers[c]!.push(waypoint)
       chain.push(waypoint)
     }
@@ -324,8 +342,8 @@ export function layoutFlow(
   let bottom = -Infinity
   for (const layer of ordered) {
     for (const item of layer) {
-      top = Math.min(top, item.y - item.height / 2)
-      bottom = Math.max(bottom, item.y + item.height / 2)
+      top = Math.min(top, item.y - item.anchor)
+      bottom = Math.max(bottom, item.y - item.anchor + item.height)
     }
   }
   if (!Number.isFinite(top)) top = bottom = 0
@@ -339,24 +357,25 @@ export function layoutFlow(
         id: item.id,
         column: c,
         x: left[c]!,
-        y: item.y - item.height / 2 - top,
+        y: item.y - item.anchor - top,
         width: equalWidth ? widths[c]! : node.width,
         height: node.height,
       })
     }
   })
 
+  const anchors = new Map([...items.values()].map((item) => [item.id, item.anchor]))
   const placedEdges = dag.edges.map((edge, e) => {
     const chain = chains[e]!
     const from = placed.get(edge.from)!
     const to = placed.get(edge.to)!
     // Points in order: leave `from`, cross every waypoint column, enter `to`.
-    const points: [number, number][] = [[from.x + from.width, from.y + from.height / 2]]
+    const points: [number, number][] = [[from.x + from.width, from.y + anchors.get(from.id)!]]
     for (const waypoint of chain.slice(1, -1)) {
       const c = Number(waypoint.id.split(':')[1])
       points.push([left[c]!, waypoint.y - top], [left[c]! + widths[c]!, waypoint.y - top])
     }
-    points.push([to.x, to.y + to.height / 2])
+    points.push([to.x, to.y + anchors.get(to.id)!])
     let path = `M${points[0]![0]} ${points[0]![1]}`
     for (let i = 1; i < points.length; i++) {
       const [x1, y1] = points[i - 1]!

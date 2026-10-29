@@ -21,7 +21,7 @@ export interface FlowNode {
   description?: string
   /** Tints the description, for a note that needs attention. */
   descriptionTone?: Tone
-  /** `card` lays the node out in two lines; by default only nodes with a description are cards. */
+  /** `card` lays the node out in lines; by default nodes with a description or progress are cards. */
   shape?: FlowNodeShape
   /** From 0 to 100. */
   progress?: number

@@ -38,6 +38,7 @@ import {
   DouCheckTagGroup,
   DouCollapse,
   DouCollapseItem,
+  DouCollapseTransition,
   DouColorModeButton,
   DouColorModeSelect,
   DouColorModeSwitch,
@@ -137,6 +138,7 @@ import {
   DouWatermark,
 } from './components'
 import { provideGlobalConfig } from './components/config-provider/use-config'
+import { setMotionMode } from './composables/use-motion'
 import type { GlobalConfig } from './components/config-provider/config-provider'
 
 const components: Plugin[] = [
@@ -178,6 +180,7 @@ const components: Plugin[] = [
   DouCheckTagGroup,
   DouCollapse,
   DouCollapseItem,
+  DouCollapseTransition,
   DouColorModeButton,
   DouColorModeSelect,
   DouColorModeSwitch,
@@ -295,5 +298,7 @@ export const DouUI: Plugin<[GlobalConfig?]> = {
   install(app: App, config?: GlobalConfig) {
     for (const component of components) app.use(component)
     if (config) provideGlobalConfig(config, app)
+    // popups render outside the app root, so motion is set on the page
+    if (config?.motion) setMotionMode(config.motion)
   },
 }

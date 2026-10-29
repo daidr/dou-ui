@@ -236,10 +236,4 @@
     height: 1em;
     font-size: 14px;
   }
-
-  @media (prefers-reduced-motion: reduce) {
-    .dou-menu__arrow {
-      transition: none;
-    }
-  }
 }

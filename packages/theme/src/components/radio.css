@@ -137,11 +137,4 @@
     flex-direction: column;
     flex-wrap: nowrap;
   }
-
-  @media (prefers-reduced-motion: reduce) {
-    .dou-radio__indicator,
-    .dou-radio__indicator::after {
-      transition: none;
-    }
-  }
 }

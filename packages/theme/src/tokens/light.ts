@@ -60,7 +60,14 @@ export const light: ThemeTokens = {
     highlight: 'inset 0 1px 0 rgb(255 255 255 / 0.14)',
   },
   motion: {
-    duration: { fast: '150ms', normal: '220ms' },
-    easing: 'cubic-bezier(0.25, 0.1, 0.25, 1)',
+    duration: { instant: '100ms', fast: '150ms', normal: '220ms', slow: '320ms' },
+    easing: {
+      DEFAULT: 'cubic-bezier(0.2, 0, 0, 1)',
+      enter: 'cubic-bezier(0.16, 1, 0.3, 1)',
+      exit: 'cubic-bezier(0.4, 0, 1, 1)',
+    },
+    distance: { sm: '4px', md: '8px' },
+    scale: '0.98',
+    loop: { spin: '0.8s', pulse: '1.6s', sweep: '2s' },
   },
 }

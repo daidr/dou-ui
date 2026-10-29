@@ -74,13 +74,17 @@
 
   .dou-chat-list-button-enter-active,
   .dou-chat-list-button-leave-active {
-    transition:
-      opacity var(--dou-motion-duration-normal) var(--dou-motion-easing),
-      translate var(--dou-motion-duration-normal) var(--dou-motion-easing);
+    transition-property: opacity, translate;
+    transition-duration: var(--dou-motion-duration-normal);
+    transition-timing-function: var(--dou-motion-easing-enter);
+  }
+  .dou-chat-list-button-leave-active {
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing-exit);
   }
   .dou-chat-list-button-enter-from,
   .dou-chat-list-button-leave-to {
     opacity: 0;
-    translate: -50% 8px;
+    translate: -50% var(--dou-motion-distance-md);
   }
 }

@@ -9,7 +9,7 @@
   .dou-shimmer {
     --dou-shimmer-base: var(--dou-color-text-tertiary);
     --dou-shimmer-highlight: var(--dou-color-text);
-    --dou-shimmer-duration: 2s;
+    --dou-shimmer-duration: var(--dou-motion-loop-sweep);
   }
 
   .dou-shimmer.is-active {
@@ -25,13 +25,19 @@
     background-clip: text;
     -webkit-background-clip: text;
     color: transparent;
-    animation: dou-shimmer-sweep var(--dou-shimmer-duration) linear infinite;
+    animation: dou-shimmer-sweep var(--dou-shimmer-duration) linear var(--dou-motion-loop-count);
+  }
 
-    @media (prefers-reduced-motion: reduce) {
+  /* reduced or no motion: the text rests in the base color */
+  @media (prefers-reduced-motion: reduce) {
+    :root:not([data-dou-motion]) .dou-shimmer.is-active {
       background-image: none;
       color: var(--dou-shimmer-base);
-      animation: none;
     }
+  }
+  :is([data-dou-motion='reduce'], [data-dou-motion='none']) .dou-shimmer.is-active {
+    background-image: none;
+    color: var(--dou-shimmer-base);
   }
 
   @keyframes dou-shimmer-sweep {

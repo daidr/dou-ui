@@ -181,12 +181,16 @@
 
   /* motion: the mask fades, the panel settles from slightly below */
   .dou-dialog-enter-active,
-  .dou-dialog-leave-active,
-  .dou-dialog-enter-active .dou-dialog__panel,
-  .dou-dialog-leave-active .dou-dialog__panel {
+  .dou-dialog-enter-active .dou-dialog__panel {
     transition-property: opacity, transform;
     transition-duration: var(--dou-motion-duration-normal);
-    transition-timing-function: var(--dou-motion-easing);
+    transition-timing-function: var(--dou-motion-easing-enter);
+  }
+  .dou-dialog-leave-active,
+  .dou-dialog-leave-active .dou-dialog__panel {
+    transition-property: opacity, transform;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing-exit);
   }
 
   .dou-dialog-enter-from,
@@ -194,17 +198,7 @@
     opacity: 0;
 
     & .dou-dialog__panel {
-      transform: translateY(8px) scale(0.98);
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .dou-dialog-enter-from .dou-dialog__panel,
-    .dou-dialog-leave-to .dou-dialog__panel {
-      transform: none;
-    }
-    .dou-dialog__close {
-      transition: none;
+      transform: translateY(var(--dou-motion-distance-md)) scale(var(--dou-motion-scale));
     }
   }
 }

@@ -50,15 +50,16 @@
     }
   }
 
+  .dou-back-top-enter-active {
+    transition-duration: var(--dou-motion-duration-normal);
+    transition-timing-function: var(--dou-motion-easing-enter);
+  }
+  .dou-back-top-leave-active {
+    transition-timing-function: var(--dou-motion-easing-exit);
+  }
   .dou-back-top-enter-from,
   .dou-back-top-leave-to {
     opacity: 0;
-    translate: 0 8px;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .dou-back-top {
-      transition: none;
-    }
+    translate: 0 var(--dou-motion-distance-md);
   }
 }

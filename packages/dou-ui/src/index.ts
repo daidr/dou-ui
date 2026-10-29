@@ -22,6 +22,13 @@ export type {
   UseLayerOptions,
   VirtualElement,
 } from './composables'
+export {
+  getMotionDuration,
+  setMotionMode,
+  useMotionMode,
+  useReducedMotion,
+} from './composables/use-motion'
+export type { MotionDuration, MotionMode } from './composables/use-motion'
 export { useNamespace, withInstall } from './utils'
 export type { Size, Tone, WithInstall } from './utils'
 export { DouUI }

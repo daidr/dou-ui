@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
+import { useReducedMotion } from '../../composables/use-motion'
 import { useNamespace } from '../../utils/namespace'
 import { isWindow, resolveScrollTarget, scrollTopOf, viewportOf } from '../../utils/scroll'
 import { useLocale } from '../config-provider/use-config'
@@ -18,6 +19,7 @@ const emit = defineEmits<{ change: [href: string]; click: [event: MouseEvent, it
 const slots = defineSlots<AnchorSlots>()
 
 const ns = useNamespace('anchor')
+const reducedMotion = useReducedMotion()
 const { t } = useLocale()
 const nav = useTemplateRef<HTMLElement>('nav')
 
@@ -102,10 +104,12 @@ function scrollTo(href: string) {
   const el = findTarget(href)
   if (!el || !area) return
   const distance = el.getBoundingClientRect().top - viewportOf(area).top - props.offset
-  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
   pinned = href
   setActive(href)
-  area.scrollTo({ top: scrollTopOf(area) + distance, behavior: reduce ? 'auto' : 'smooth' })
+  area.scrollTo({
+    top: scrollTopOf(area) + distance,
+    behavior: reducedMotion.value ? 'auto' : 'smooth',
+  })
   // A scroll that goes nowhere fires no event to release the pin.
   clearTimeout(release)
   release = setTimeout(() => (pinned = undefined), 1000)

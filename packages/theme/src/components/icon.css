@@ -25,13 +25,7 @@
     }
 
     &.is-spin {
-      animation: dou-spin 1s linear infinite;
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .dou-icon.is-spin {
-      animation-duration: 2.5s;
+      animation: dou-spin var(--dou-motion-loop-spin) linear infinite;
     }
   }
 

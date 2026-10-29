@@ -102,12 +102,46 @@ export interface ThemeTokens {
     highlight: string
   }
 
+  /**
+   * Motion. Things that appear decelerate into place, things that leave
+   * accelerate away and take less time. Distances stay small, and
+   * reduced-motion settings override these values page-wide.
+   */
   motion: {
     duration: {
+      /** Color and opacity feedback, and every fade under reduced motion. */
+      instant: string
+      /** Hover and press, small rotations, popups leaving. */
       fast: string
+      /** Popups and dialogs entering, disclosure, indicators moving. */
       normal: string
+      /** Panels that travel across the screen, such as drawers. */
+      slow: string
     }
-    easing: string
+    easing: {
+      /** Changes between two states of something already on screen. */
+      DEFAULT: string
+      /** Something appearing: fast start, gentle stop. */
+      enter: string
+      /** Something leaving: gentle start, fast finish. */
+      exit: string
+    }
+    /** How far things travel when entering or leaving. */
+    distance: {
+      sm: string
+      md: string
+    }
+    /** The scale things start from when they appear. */
+    scale: string
+    /** Periods of looping animations. */
+    loop: {
+      /** Spinners and indeterminate progress. */
+      spin: string
+      /** Breathing, blinking and typing dots. */
+      pulse: string
+      /** Placeholder sweeps and ripples. */
+      sweep: string
+    }
   }
 }
 

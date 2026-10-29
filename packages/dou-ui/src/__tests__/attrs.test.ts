@@ -61,7 +61,12 @@ const fields: Record<string, string> = {
   DouChatInput: 'textarea',
 }
 // render no element of their own, or only inside a parent that provides one
-const renderless = new Set(['DouConfigProvider', 'DouToastViewport', 'DouLayoutAsideTrigger'])
+const renderless = new Set([
+  'DouConfigProvider',
+  'DouToastViewport',
+  'DouLayoutAsideTrigger',
+  'DouCollapseTransition',
+])
 // open by a method rather than a prop
 const openers: Record<string, (vm: any) => void> = {
   DouContextMenu: (vm) => vm.open(10, 10),

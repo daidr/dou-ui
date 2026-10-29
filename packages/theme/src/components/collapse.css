@@ -119,16 +119,10 @@
   }
 
   /* the height itself is animated from script, see CollapseTransition */
-  .dou-collapse-enter-active,
-  .dou-collapse-leave-active {
+  .dou-collapse-enter-active {
     transition: height var(--dou-motion-duration-normal) var(--dou-motion-easing);
   }
-
-  @media (prefers-reduced-motion: reduce) {
-    .dou-collapse__arrow,
-    .dou-collapse-enter-active,
-    .dou-collapse-leave-active {
-      transition: none;
-    }
+  .dou-collapse-leave-active {
+    transition: height var(--dou-motion-duration-fast) var(--dou-motion-easing);
   }
 }

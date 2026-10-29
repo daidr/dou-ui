@@ -136,7 +136,8 @@
 
   .dou-form-item__error {
     color: var(--dou-form-item-error-color);
-    animation: dou-form-item-error-in var(--dou-motion-duration-normal) var(--dou-motion-easing);
+    animation: dou-form-item-error-in var(--dou-motion-duration-normal)
+      var(--dou-motion-easing-enter);
   }
 
   @keyframes dou-form-item-error-in {
@@ -192,11 +193,5 @@
     flex-direction: row;
     align-items: flex-start;
     gap: var(--dou-space-md);
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .dou-form-item__error {
-      animation: none;
-    }
   }
 }

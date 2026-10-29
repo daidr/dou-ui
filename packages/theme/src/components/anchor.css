@@ -69,10 +69,4 @@
     transition-duration: var(--dou-motion-duration-normal);
     transition-timing-function: var(--dou-motion-easing);
   }
-
-  @media (prefers-reduced-motion: reduce) {
-    .dou-anchor__marker {
-      transition: none;
-    }
-  }
 }

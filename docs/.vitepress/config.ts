@@ -65,6 +65,7 @@ export default defineConfig({
             { text: '主题与 Token', link: '/guide/theming' },
             { text: '浮层', link: '/guide/overlays' },
             { text: '组合式函数', link: '/guide/composables' },
+            { text: '动效', link: '/guide/motion' },
             { text: '路线图', link: '/guide/roadmap' },
           ],
         },

@@ -14,6 +14,12 @@
 
 <DocDemo src="collapse/accordion" column />
 
+## 自定义内容的展开动画
+
+`DouCollapseTransition` 是折叠面板和菜单使用的高度过渡，可以包裹自己的内容。内容用 `v-if` 或 `v-show` 控制显示。
+
+<DocDemo src="collapse/transition" column />
+
 ## 键盘与读屏
 
 每个标题是一个原生按钮，放在 `role="heading"` 里（层级由 `headingLevel` 决定，默认 3），带 `aria-expanded` 与 `aria-controls`。面板是 `role="region"`，通过 `aria-labelledby` 指回标题。`Tab` 在标题之间移动，`Enter` / `Space` 展开或收起。

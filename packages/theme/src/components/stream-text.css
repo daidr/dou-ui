@@ -23,11 +23,8 @@
     border-radius: 1px;
     background-color: var(--dou-stream-text-caret);
     vertical-align: -0.2em;
-    animation: dou-stream-text-blink 1s steps(1) infinite;
-
-    @media (prefers-reduced-motion: reduce) {
-      animation: none;
-    }
+    /* blinks like a text caret, not on a motion token */
+    animation: dou-stream-text-blink 1s steps(1) var(--dou-motion-loop-count);
   }
 
   @keyframes dou-stream-text-blink {

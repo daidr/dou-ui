@@ -8,12 +8,13 @@ defineOptions({ name: 'DouShimmer' })
 const props = withDefaults(defineProps<ShimmerProps>(), {
   as: 'span',
   active: true,
-  duration: 2,
 })
 defineSlots<ShimmerSlots>()
 
 const ns = useNamespace('shimmer')
-const style = computed(() => ({ '--dou-shimmer-duration': `${props.duration}s` }))
+const style = computed(() =>
+  props.duration === undefined ? undefined : { '--dou-shimmer-duration': `${props.duration}s` },
+)
 </script>
 
 <template>

@@ -217,12 +217,4 @@
       color: var(--dou-color-text);
     }
   }
-
-  @media (prefers-reduced-motion: reduce) {
-    .dou-input-date,
-    .dou-input-date__segment,
-    .dou-input-date__toggle {
-      transition: none;
-    }
-  }
 }

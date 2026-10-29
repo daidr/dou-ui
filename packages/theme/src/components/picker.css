@@ -190,11 +190,4 @@
     font-family: var(--dou-font-family);
     font-size: var(--dou-font-size-md);
   }
-
-  @media (prefers-reduced-motion: reduce) {
-    .dou-picker,
-    .dou-picker__arrow {
-      transition: none;
-    }
-  }
 }

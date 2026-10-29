@@ -485,11 +485,4 @@
     margin-top: 8px;
     border-top: 1px solid var(--dou-color-border-subtle);
   }
-
-  @media (prefers-reduced-motion: reduce) {
-    .dou-date-picker,
-    .dou-calendar__day {
-      transition: none;
-    }
-  }
 }

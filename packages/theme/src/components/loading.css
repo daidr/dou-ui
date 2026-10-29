@@ -55,9 +55,11 @@
     text-align: center;
   }
 
-  .dou-loading-enter-active,
+  .dou-loading-enter-active {
+    transition: opacity var(--dou-motion-duration-normal) var(--dou-motion-easing-enter);
+  }
   .dou-loading-leave-active {
-    transition: opacity var(--dou-motion-duration-normal) var(--dou-motion-easing);
+    transition: opacity var(--dou-motion-duration-fast) var(--dou-motion-easing-exit);
   }
 
   .dou-loading-enter-from,

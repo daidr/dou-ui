@@ -19,7 +19,7 @@
     border-right-color: transparent;
     border-radius: var(--dou-radius-full);
     vertical-align: middle;
-    animation: dou-spinner-turn 0.8s linear infinite;
+    animation: dou-spinner-turn var(--dou-motion-loop-spin) linear infinite;
   }
 
   .dou-spinner--sm {
@@ -33,12 +33,6 @@
   @keyframes dou-spinner-turn {
     to {
       transform: rotate(1turn);
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .dou-spinner {
-      animation-duration: 2s;
     }
   }
 }

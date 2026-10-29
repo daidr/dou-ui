@@ -1,6 +1,6 @@
 # 更新日志
 
-`dou-ui`、`@dou-ui/theme`、`@dou-ui/icons` 与 `@dou-ui/resolver` 使用同一个版本号，一起发布。
+`dou-ui`、`@dou-ui/theme`、`@dou-ui/icons`、`@dou-ui/resolver` 与 `@dou-ui/nuxt` 使用同一个版本号，一起发布。
 版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)；`1.0.0` 之前，次版本号（`0.x.0`）的变化可能包含不兼容的改动，会在这里单独标出。
 
 新的改动先记在「未发布」下，发布时由 `bun run release <版本号>` 改成对应版本。
@@ -32,4 +32,5 @@
 
 - `@dou-ui/icons`：配套的线性图标，可以单独使用
 - `@dou-ui/resolver`：配合按需组件插件，自动导入组件和它的样式入口
+- `@dou-ui/nuxt`：Nuxt 模块，组件、指令与函数自动导入，样式与配色模式开箱即用，支持服务端渲染
 - 组件从 `dou-ui` 具名导入；样式可以全量引入 `dou-ui/style.css`，也可以按组件引入 `dou-ui/components/<name>/style`

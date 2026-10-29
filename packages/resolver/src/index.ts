@@ -40,26 +40,32 @@ export interface DouUIResolverOptions {
   exclude?: RegExp | string[]
 }
 
-const styleOf = (dir: string, options: DouUIResolverOptions) =>
-  options.importStyle === false ? undefined : `dou-ui/components/${dir}/style`
+const styleOf = (dir: string | null, options: DouUIResolverOptions) =>
+  options.importStyle === false || dir === null ? undefined : `dou-ui/components/${dir}/style`
 
 const excluded = (name: string, exclude: DouUIResolverOptions['exclude']) =>
   exclude instanceof RegExp ? exclude.test(name) : !!exclude?.includes(name)
 
 const icons = new Set(iconNames)
 
-/** The functions of `dou-ui`, with the component whose styles they render. */
-const functions: Record<string, string> = {
+/**
+ * The functions of `dou-ui` worth importing automatically, with the
+ * directory of the style entry for what they render (`null` when they
+ * render nothing).
+ */
+export const functionDirs: Readonly<Record<string, string | null>> = {
   toast: 'toast',
   dialog: 'dialog',
   useDialog: 'dialog',
   vLoading: 'loading',
   vInfiniteScroll: 'infinite-scroll',
   useSortable: 'sortable',
+  useColorMode: null,
+  useCountdown: null,
 }
 
 /** The directives of `dou-ui`, by the name they are written with (`v-loading` → `Loading`). */
-const directives: Record<string, { name: string; dir: string }> = {
+export const directives: Readonly<Record<string, { name: string; dir: string }>> = {
   Loading: { name: 'vLoading', dir: 'loading' },
   InfiniteScroll: { name: 'vInfiniteScroll', dir: 'infinite-scroll' },
 }
@@ -91,7 +97,7 @@ export function DouUIResolver(options: DouUIResolverOptions = {}): ComponentReso
     resolvers.push({
       type: 'directive',
       resolve(name) {
-        const directive = directives[name]
+        const directive = Object.hasOwn(directives, name) ? directives[name] : undefined
         if (!directive || excluded(name, options.exclude)) return
         return {
           name: directive.name,
@@ -106,7 +112,8 @@ export function DouUIResolver(options: DouUIResolverOptions = {}): ComponentReso
 
 /**
  * Resolve the functions of DouUI (`toast`, `dialog`, `useDialog`,
- * `vLoading`, `vInfiniteScroll`, `useSortable`) for an auto-import plugin, with the styles of what they show.
+ * `vLoading`, `vInfiniteScroll`, `useSortable`, `useColorMode`,
+ * `useCountdown`) for an auto-import plugin, with the styles of what they show.
  *
  * ```ts
  * AutoImport({ resolvers: [DouUIApiResolver()] })
@@ -116,9 +123,8 @@ export function DouUIApiResolver(
   options: Pick<DouUIResolverOptions, 'importStyle' | 'exclude'> = {},
 ): ResolverFunction {
   return (name) => {
-    const dir = functions[name]
-    if (!dir || excluded(name, options.exclude)) return
-    return { name, from: 'dou-ui', sideEffects: styleOf(dir, options) }
+    if (!Object.hasOwn(functionDirs, name) || excluded(name, options.exclude)) return
+    return { name, from: 'dou-ui', sideEffects: styleOf(functionDirs[name]!, options) }
   }
 }
 

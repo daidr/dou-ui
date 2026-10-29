@@ -56,41 +56,9 @@ import '@dou-ui/theme/core.css'
 import '@dou-ui/theme/components/button.css'
 ```
 
-## 按需自动导入
+## 自动导入
 
-`@dou-ui/resolver` 让模板里用到的组件自动导入，连同它的样式入口，不用再手写 `import`。配合按需组件插件 `unplugin-vue-components` 与自动导入插件 `unplugin-auto-import` 使用：
-
-```sh
-bun add -d @dou-ui/resolver unplugin-vue-components unplugin-auto-import
-```
-
-```ts
-// vite.config.ts
-import AutoImport from 'unplugin-auto-import/vite'
-import Components from 'unplugin-vue-components/vite'
-import { DouUIApiResolver, DouUIResolver } from '@dou-ui/resolver'
-
-export default defineConfig({
-  plugins: [
-    vue(),
-    // toast()、dialog.confirm()、useDialog() 与 vLoading
-    AutoImport({ resolvers: [DouUIApiResolver()] }),
-    // <DouButton>、<DouSelect> 等组件，以及 v-loading 指令
-    Components({ resolvers: [DouUIResolver()] }),
-  ],
-})
-```
-
-之后模板里直接写 `<DouButton>` 即可，打包结果只包含用到的组件和它们的样式。
-
-| 选项          | 默认值  | 说明                                                                     |
-| ------------- | ------- | ------------------------------------------------------------------------ |
-| `importStyle` | `true`  | 同时导入组件的样式入口。已经全量引入 `dou-ui/style.css` 时设为 `false`   |
-| `directives`  | `true`  | 解析 `v-loading`                                                         |
-| `icons`       | `false` | 同时解析 `@dou-ui/icons` 的图标组件，如 `<SearchIcon />`（需要先安装它） |
-| `exclude`     | —       | 不解析的名字：正则或名字列表，例如应用自己也定义了同名组件               |
-
-`DouUIApiResolver` 接受 `importStyle` 与 `exclude` 两个选项。
+不想手写 `import` 时，Vite 应用可以用 `@dou-ui/resolver` 让模板里用到的组件连同样式自动导入，Nuxt 应用直接装 `@dou-ui/nuxt` 模块。详见 [Vite](/integrations/vite) 与 [Nuxt](/integrations/nuxt)。
 
 ## 开启主题
 

@@ -16,3 +16,8 @@ docs/.vitepress/dist
 
 # icon review sheets
 packages/icons/review
+
+# nuxt playground
+.nuxt
+.output
+.data

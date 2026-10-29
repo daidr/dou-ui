@@ -20,6 +20,28 @@ function setup(props: InputNumberProps = {}) {
   return { wrapper, input: wrapper.get('input') }
 }
 
+// The pad spans y 0..100, so its middle is at 50.
+function touch(wrapper: ReturnType<typeof setup>['wrapper']) {
+  const keys = wrapper.get('.dou-input-number__keys').element as HTMLElement
+  keys.getBoundingClientRect = () => ({ top: 0, height: 100 }) as DOMRect
+  const fire = (type: string, clientY: number) => {
+    keys.dispatchEvent(
+      Object.assign(new Event(type, { bubbles: true, cancelable: true }), {
+        pointerType: 'touch',
+        pointerId: 1,
+        button: 0,
+        clientY,
+      }),
+    )
+    return wrapper.vm.$nextTick()
+  }
+  return {
+    down: (y: number) => fire('pointerdown', y),
+    move: (y: number) => fire('pointermove', y),
+    up: (y: number) => fire('pointerup', y),
+  }
+}
+
 describe('DouInputNumber', () => {
   it('renders a spin button with the value', () => {
     const { input } = setup({ modelValue: 5, min: 0, max: 10 })
@@ -58,6 +80,71 @@ describe('DouInputNumber', () => {
     window.dispatchEvent(new Event('pointerup'))
     await vi.advanceTimersByTimeAsync(500)
     expect(wrapper.props('modelValue')).toBe(5)
+  })
+
+  describe('on touch', () => {
+    it('enlarges the keys on the first press without stepping', async () => {
+      const { wrapper } = setup({ modelValue: 5 })
+      const pad = touch(wrapper)
+      await pad.down(10)
+      expect(wrapper.classes()).toContain('is-expanded')
+      expect(wrapper.props('modelValue')).toBe(5)
+      await pad.up(10)
+      expect(wrapper.props('modelValue')).toBe(5)
+    })
+
+    it('steps while the finger slides onto a key and stays down', async () => {
+      vi.useFakeTimers()
+      const { wrapper } = setup({ modelValue: 5 })
+      const pad = touch(wrapper)
+      await pad.down(50)
+      await pad.move(20)
+      expect(wrapper.props('modelValue')).toBe(6)
+      await vi.advanceTimersByTimeAsync(400 + 50)
+      expect(wrapper.props('modelValue')).toBe(8)
+      // sliding to the other key reverses
+      await pad.move(80)
+      expect(wrapper.props('modelValue')).toBe(7)
+      await pad.up(80)
+      await vi.advanceTimersByTimeAsync(500)
+      expect(wrapper.props('modelValue')).toBe(7)
+    })
+
+    it('steps on taps once enlarged', async () => {
+      const { wrapper } = setup({ modelValue: 5 })
+      const pad = touch(wrapper)
+      await pad.down(10)
+      await pad.up(10)
+      await pad.down(10)
+      await pad.up(10)
+      expect(wrapper.props('modelValue')).toBe(6)
+      await pad.down(90)
+      await pad.up(90)
+      expect(wrapper.props('modelValue')).toBe(5)
+    })
+
+    it('shrinks back after a tap elsewhere or a pause', async () => {
+      vi.useFakeTimers()
+      const { wrapper } = setup({ modelValue: 5 })
+      const pad = touch(wrapper)
+      await pad.down(50)
+      await pad.up(50)
+      document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }))
+      await wrapper.vm.$nextTick()
+      expect(wrapper.classes()).not.toContain('is-expanded')
+      await pad.down(50)
+      await pad.up(50)
+      await vi.advanceTimersByTimeAsync(1900)
+      expect(wrapper.classes()).toContain('is-expanded')
+      await vi.advanceTimersByTimeAsync(200)
+      expect(wrapper.classes()).not.toContain('is-expanded')
+    })
+
+    it('does not enlarge when readonly', async () => {
+      const { wrapper } = setup({ modelValue: 5, readonly: true })
+      await touch(wrapper).down(10)
+      expect(wrapper.classes()).not.toContain('is-expanded')
+    })
   })
 
   it('steps with the keyboard', async () => {

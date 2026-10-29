@@ -133,7 +133,7 @@ export const zhCN: Locale = {
     progressValue: '进度 {value}%',
     dependsOn: '依赖 {list}',
     separator: '，',
-    legend: '节点图例',
+    legend: '图例',
     zoomIn: '放大',
     zoomOut: '缩小',
     fit: '适应画布',

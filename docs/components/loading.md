@@ -2,64 +2,17 @@
 
 在正在加载的内容上显示遮罩和加载图标。
 
-<script setup>
-import { ref } from 'vue'
-import { vLoading } from 'dou-ui'
-const loading = ref(true)
-const saving = ref(false)
-const page = ref(false)
-function save() {
-  saving.value = true
-  setTimeout(() => (saving.value = false), 1500)
-}
-function openPage() {
-  page.value = true
-  setTimeout(() => (page.value = false), 1500)
-}
-</script>
-
 ## 基础用法
 
 把要遮住的内容放进 `DouLoading`，用 `loading` 控制。`text` 是转圈下面的一行字，同时作为读屏标签。
 
-<div class="demo demo--column">
-  <DouSwitch v-model="loading">加载中</DouSwitch>
-  <DouLoading :loading="loading" text="正在加载部署记录">
-    <DouCard title="最近部署" style="width: 100%">
-      <DouText as="p" variant="secondary">dou-ui · main · 2 分钟前</DouText>
-      <DouText as="p" variant="secondary">dou-ui · feat/table · 1 小时前</DouText>
-      <DouText as="p" variant="secondary">dou-icons · main · 昨天</DouText>
-    </DouCard>
-  </DouLoading>
-</div>
-
-```vue
-<DouLoading :loading="loading" text="正在加载部署记录">
-  <DouCard title="最近部署">…</DouCard>
-</DouLoading>
-```
+<DocDemo src="loading/basic" column />
 
 ## 指令
 
 不想多包一层时，用 `v-loading` 直接盖在元素上。值可以是布尔值，也可以是带 `text`、`size`、`delay` 的对象。全量注册 DouUI 时指令已经注册好；按需使用时导入 `vLoading`。
 
-<div class="demo demo--column">
-  <DouButton variant="outline" :loading="saving" @click="save">保存</DouButton>
-  <DouCard v-loading="{ loading: saving, text: '正在保存' }" title="环境变量" style="width: 100%">
-    <DouText as="p" variant="secondary">DATABASE_URL、REDIS_URL 等 6 个变量</DouText>
-  </DouCard>
-</div>
-
-```vue
-<script setup lang="ts">
-import { vLoading } from 'dou-ui'
-</script>
-
-<template>
-  <DouCard v-loading="saving">…</DouCard>
-  <section v-loading="{ loading: saving, text: '正在保存' }">…</section>
-</template>
-```
+<DocDemo src="loading/directive" column />
 
 指令会给元素加上 `position: relative`（如果它原本是静态定位），并在遮罩显示期间设置 `aria-busy="true"`。
 
@@ -67,14 +20,7 @@ import { vLoading } from 'dou-ui'
 
 `fullscreen` 盖住整个窗口，层级在所有浮层之上，期间页面不能滚动。
 
-<div class="demo">
-  <DouButton variant="outline" @click="openPage">全屏加载 1.5 秒</DouButton>
-  <DouLoading :loading="page" fullscreen text="正在切换团队" />
-</div>
-
-```vue
-<DouLoading :loading="switching" fullscreen text="正在切换团队" />
-```
+<DocDemo src="loading/fullscreen" />
 
 ## 延迟显示
 

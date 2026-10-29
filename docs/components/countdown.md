@@ -2,45 +2,11 @@
 
 倒计时，用法与 [Statistic](./statistic) 相同，数值为剩余时间。
 
-<script setup>
-import { computed, ref } from 'vue'
-import { useCountdown } from 'dou-ui'
-const launch = ref(Date.now() + ((2 * 24 + 5) * 3600 + 42 * 60) * 1000)
-const sale = ref(Date.now() + 90 * 1000)
-const flash = ref(Date.now() + 30 * 1000)
-const ended = ref(false)
-const resendAt = ref(0)
-const { remaining, done } = useCountdown(resendAt)
-const seconds = computed(() => Math.ceil(remaining.value / 1000))
-function send() {
-  resendAt.value = Date.now() + 60 * 1000
-}
-function restart() {
-  sale.value = Date.now() + 90 * 1000
-  ended.value = false
-}
-</script>
-
 ## 基础用法
 
 `value` 是结束的时刻（毫秒时间戳或 `Date`）。`format` 默认 `HH:mm:ss`。
 
-<div class="demo" style="gap: 48px; align-items: flex-start">
-  <DouCountdown title="距离发布" :value="launch" format="D 天 HH:mm:ss" />
-  <DouCountdown title="限时优惠" :value="sale" format="mm:ss" @finish="ended = true">
-    <template #footer>
-      <DouLink v-if="ended" @click="restart">已结束，重新开始</DouLink>
-      <span v-else>结束后自动下架</span>
-    </template>
-  </DouCountdown>
-  <DouCountdown title="秒杀" :value="flash" format="ss.SS" suffix="秒" />
-</div>
-
-```vue
-<DouCountdown title="距离发布" :value="launch" format="D 天 HH:mm:ss" />
-<DouCountdown title="限时优惠" :value="sale" format="mm:ss" @finish="onFinish" />
-<DouCountdown title="秒杀" :value="flash" format="ss.SS" suffix="秒" />
-```
+<DocDemo src="countdown/basic" style="gap: 48px; align-items: flex-start" />
 
 ## 格式
 
@@ -59,23 +25,7 @@ function restart() {
 
 不需要统计数值的外观时，用组合式函数 `useCountdown` 自己渲染。最常见的就是"重新发送验证码"：
 
-<div class="demo">
-  <DouButton :disabled="!done" @click="send">
-    {{ done ? '发送验证码' : `${seconds} 秒后重新发送` }}
-  </DouButton>
-</div>
-
-```ts
-import { useCountdown } from 'dou-ui'
-
-const resendAt = ref(0)
-const { remaining, done } = useCountdown(resendAt)
-const seconds = computed(() => Math.ceil(remaining.value / 1000))
-
-function send() {
-  resendAt.value = Date.now() + 60 * 1000
-}
-```
+<DocDemo src="countdown/use-countdown" />
 
 `remaining` 是剩余毫秒数。默认每逢剩余时间的整秒更新一次，显示秒数时不会跳号；需要更细时传 `{ interval: 50 }`。`onFinish` 在归零时调用。
 

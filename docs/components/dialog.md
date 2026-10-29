@@ -4,148 +4,35 @@
 
 浮层的通用行为见 [浮层](../guide/overlays)。
 
-<script setup>
-import { ref } from 'vue'
-import { dialog, toast } from 'dou-ui'
-const basic = ref(false)
-const form = ref(false)
-const centered = ref(false)
-const guarded = ref(false)
-const email = ref('')
-const confirmLeave = () =>
-  dialog.confirm({ title: '放弃修改？', content: '有未保存的修改，关闭后会丢失。', tone: 'warning', confirmText: '放弃' })
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
-async function removeProject() {
-  const ok = await dialog.confirm({
-    title: '删除项目？',
-    content: '项目 dou-ui 的全部部署、域名与环境变量都会被永久删除，此操作无法撤销。',
-    tone: 'danger',
-    confirmText: '删除',
-    onConfirm: () => sleep(1200),
-  })
-  if (ok) toast.success('已删除')
-}
-const showAlert = () => dialog.alert({ title: '部署完成', content: 'dou-ui 已上线。', tone: 'success' })
-async function rename() {
-  const name = await dialog.prompt({
-    title: '重命名项目',
-    defaultValue: 'dou-ui',
-    placeholder: '项目名称',
-    validate: (value) => (/^[a-z0-9-]{3,}$/.test(value) ? true : '只能用小写字母、数字和连字符，至少 3 个字符'),
-  })
-  if (name !== null) toast(`已改名为 ${name}`)
-}
-</script>
-
 ## 基础用法
 
 用 `v-model:open` 控制开关。`footer` 插槽放操作，插槽参数里的 `close` 用来关闭。
 
-<div class="demo">
-  <DouButton variant="outline" @click="basic = true">删除项目</DouButton>
-  <DouDialog v-model:open="basic" title="删除项目？" :width="420">
-    <DouText as="p" variant="secondary">项目 dou-ui 的全部部署、域名与环境变量都会被永久删除，此操作无法撤销。</DouText>
-    <template #footer="{ close }">
-      <DouButton variant="outline" @click="close">取消</DouButton>
-      <DouButton tone="danger" @click="close">删除</DouButton>
-    </template>
-  </DouDialog>
-</div>
-
-```vue
-<DouButton variant="outline" @click="open = true">删除项目</DouButton>
-<DouDialog v-model:open="open" title="删除项目？" :width="420">
-  <DouText as="p" variant="secondary">项目 dou-ui 的全部部署……</DouText>
-  <template #footer="{ close }">
-    <DouButton variant="outline" @click="close">取消</DouButton>
-    <DouButton tone="danger" @click="close">删除</DouButton>
-  </template>
-</DouDialog>
-```
+<DocDemo src="dialog/basic" />
 
 ## 放入表单
 
 给第一个输入框加上 `autofocus`，打开时焦点直接落在它上面；否则落在面板本身，读屏先读出标题。
 
-<div class="demo">
-  <DouButton variant="outline" @click="form = true">邀请成员</DouButton>
-  <DouDialog v-model:open="form" title="邀请成员">
-    <DouForm>
-      <DouFormItem label="邮箱" help="成员会收到一封邀请邮件">
-        <DouInput v-model="email" placeholder="name@example.com" autofocus />
-      </DouFormItem>
-    </DouForm>
-    <template #footer="{ close }">
-      <DouButton variant="outline" @click="close">取消</DouButton>
-      <DouButton @click="close">发送邀请</DouButton>
-    </template>
-  </DouDialog>
-</div>
+<DocDemo src="dialog/form" />
 
 ## 垂直居中
 
 默认面板离视口顶部 12vh，内容变化时上沿不跳动。`centered` 让它垂直居中。
 
-<div class="demo">
-  <DouButton variant="outline" @click="centered = true">居中的对话框</DouButton>
-  <DouDialog v-model:open="centered" title="已复制" centered :width="360">
-    <DouText as="p" variant="secondary">部署地址已复制到剪贴板。</DouText>
-  </DouDialog>
-</div>
+<DocDemo src="dialog/centered" />
 
 ## 阻止关闭
 
 `before-close` 在关闭按钮、遮罩与 `Esc` 关闭前调用，返回 `false`（或解析为 `false` 的 Promise）则保持打开。`close-on-mask`、`close-on-escape` 可以分别关掉这两种关闭方式。
 
-<div class="demo">
-  <DouButton variant="outline" @click="guarded = true">编辑说明</DouButton>
-  <DouDialog v-model:open="guarded" title="编辑说明" :before-close="confirmLeave" :close-on-mask="false">
-    <DouTextarea placeholder="写点什么……" />
-  </DouDialog>
-</div>
-
-```vue
-<script setup lang="ts">
-import { dialog } from 'dou-ui'
-
-// 用下面的函数式确认来问一句
-const confirmLeave = () =>
-  dialog.confirm({ title: '放弃修改？', tone: 'warning', confirmText: '放弃' })
-</script>
-
-<DouDialog v-model:open="open" title="编辑说明" :before-close="confirmLeave" :close-on-mask="false">
-  <DouTextarea />
-</DouDialog>
-```
+<DocDemo src="dialog/prevent-close" />
 
 ## 函数式调用
 
 一次性的确认、提示和输入，不必写模板和开关状态：`dialog.confirm()`、`dialog.alert()` 与 `dialog.prompt()` 直接打开一个对话框，返回一个在用户作答后兑现的 Promise。
 
-<div class="demo">
-  <DouButton variant="outline" tone="danger" @click="removeProject">删除项目</DouButton>
-  <DouButton variant="outline" @click="showAlert">完成提示</DouButton>
-  <DouButton variant="outline" @click="rename">重命名</DouButton>
-</div>
-
-```ts
-import { dialog, toast } from 'dou-ui'
-
-// 确认：true 表示确定，false 表示取消（包括 Esc）
-if (await dialog.confirm({ title: '删除项目？', content: '此操作无法撤销。', tone: 'danger' })) {
-  await remove()
-}
-
-// 提示：只有一个按钮
-await dialog.alert({ title: '部署完成', tone: 'success' })
-
-// 输入：确定时得到输入的值，取消时得到 null
-const name = await dialog.prompt({
-  title: '重命名项目',
-  defaultValue: 'dou-ui',
-  validate: (value) => value.length >= 3 || '至少 3 个字符',
-})
-```
+<DocDemo src="dialog/function-call" />
 
 只传一个字符串时，它就是正文：`dialog.confirm('确定发布吗？')`。
 

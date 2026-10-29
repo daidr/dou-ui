@@ -2,26 +2,9 @@
 
 展示统计数值，适合仪表盘、数据概览等场景。
 
-<script setup>
-import { ref } from 'vue'
-const loading = ref(true)
-setTimeout(() => (loading.value = false), 2000)
-const duration = (seconds) => `${Math.floor(seconds / 60)} 分 ${seconds % 60} 秒`
-</script>
-
 ## 基础用法
 
-<div class="demo" style="gap: 48px">
-  <DouStatistic title="活跃用户" :value="38214" />
-  <DouStatistic title="本月收入" :value="1284530.5" :precision="2" prefix="¥" />
-  <DouStatistic title="存储用量" :value="72.4" suffix="GB" />
-</div>
-
-```vue
-<DouStatistic title="活跃用户" :value="38214" />
-<DouStatistic title="本月收入" :value="1284530.5" :precision="2" prefix="¥" />
-<DouStatistic title="存储用量" :value="72.4" suffix="GB" />
-```
+<DocDemo src="statistic/basic" style="gap: 48px" />
 
 数字按三位分组（`group-separator`，传 `''` 关闭），`precision` 固定小数位数并四舍五入。`value` 为 `null` 时显示"—"，传字符串则原样显示。
 
@@ -29,41 +12,13 @@ const duration = (seconds) => `${Math.floor(seconds / 60)} 分 ${seconds % 60} �
 
 `trend` 在数字前加一个箭头。默认"上升是好事"，上升为成功色、下降为危险色；对耗时、错误数这类越少越好的指标，设置 `:up-is-good="false"` 把颜色反过来。`footer` 插槽放在数字下方，适合写对比。
 
-<div class="demo" style="gap: 48px">
-  <DouStatistic title="本月收入" :value="1284530.5" :precision="2" prefix="¥" trend="up">
-    <template #footer>比上月 +12.4%</template>
-  </DouStatistic>
-  <DouStatistic title="平均响应" :value="182" suffix="ms" trend="up" :up-is-good="false">
-    <template #footer>比上周 +18ms</template>
-  </DouStatistic>
-  <DouStatistic title="错误数" :value="3" trend="down" :up-is-good="false">
-    <template #footer>比昨天 −9</template>
-  </DouStatistic>
-</div>
-
-```vue
-<DouStatistic title="平均响应" :value="182" suffix="ms" trend="up" :up-is-good="false">
-  <template #footer>比上周 +18ms</template>
-</DouStatistic>
-```
+<DocDemo src="statistic/trend" style="gap: 48px" />
 
 ## 自定义格式与加载
 
 `formatter` 把数字整个换成别的文字；`loading` 时用一条占位块代替数字，高度不变，数据回来时页面不跳。
 
-<div class="demo" style="gap: 48px">
-  <DouStatistic title="平均时长" :value="347" :formatter="duration" />
-  <DouStatistic title="转化率" :value="4.62" suffix="%" :loading="loading" />
-</div>
-
-```vue
-<DouStatistic
-  title="平均时长"
-  :value="347"
-  :formatter="(s) => `${Math.floor(s / 60)} 分 ${s % 60} 秒`"
-/>
-<DouStatistic title="转化率" :value="4.62" suffix="%" :loading="loading" />
-```
+<DocDemo src="statistic/format-loading" style="gap: 48px" />
 
 ## 大小
 

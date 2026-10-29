@@ -4,65 +4,19 @@
 
 ## 变体与语气
 
-<div class="demo">
-  <DouTag>soft</DouTag>
-  <DouTag variant="outline">outline</DouTag>
-  <DouTag variant="solid">solid</DouTag>
-</div>
+<DocDemo src="tag/variant" />
 
-<div class="demo">
-  <DouTag tone="primary">primary</DouTag>
-  <DouTag tone="success">success</DouTag>
-  <DouTag tone="warning">warning</DouTag>
-  <DouTag tone="danger">danger</DouTag>
-  <DouTag variant="outline" tone="success">outline</DouTag>
-  <DouTag variant="solid" tone="danger">solid</DouTag>
-</div>
-
-```vue
-<DouTag tone="success">已部署</DouTag>
-<DouTag variant="outline">beta</DouTag>
-```
+<DocDemo src="tag/variant-2" />
 
 ## 尺寸与圆角
 
-<div class="demo">
-  <DouTag size="sm">sm</DouTag>
-  <DouTag>md</DouTag>
-  <DouTag size="lg">lg</DouTag>
-  <DouTag round tone="primary">12</DouTag>
-  <DouTag round variant="outline">
-    <template #leading><span class="dot dot--success" /></template>
-    运行中
-  </DouTag>
-</div>
-
-```vue
-<DouTag round variant="outline">
-  <template #leading><StatusDot /></template>
-  运行中
-</DouTag>
-```
+<DocDemo src="tag/size-radius" />
 
 ## 可移除
 
 `closable` 显示一个移除按钮，点击时触发 `close`，由使用者决定是否真的移除。按钮的读屏标签来自 [全局配置](./config-provider) 的语言包。
 
-<script setup>
-import { ref } from 'vue'
-const tags = ref(['vue', 'bun', 'vite', 'css'])
-</script>
-
-<div class="demo">
-  <DouTag v-for="tag in tags" :key="tag" closable @close="tags = tags.filter((t) => t !== tag)">{{ tag }}</DouTag>
-  <DouButton v-if="tags.length < 4" variant="ghost" size="sm" @click="tags = ['vue', 'bun', 'vite', 'css']">重置</DouButton>
-</div>
-
-```vue
-<DouTag v-for="tag in tags" :key="tag" closable @close="remove(tag)">
-  {{ tag }}
-</DouTag>
-```
+<DocDemo src="tag/removable" />
 
 ## API
 

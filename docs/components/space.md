@@ -6,63 +6,25 @@
 
 ## 基础用法
 
-<div class="demo">
-  <DouSpace>
-    <DouButton variant="outline">取消</DouButton>
-    <DouButton>确认</DouButton>
-  </DouSpace>
-</div>
-
-```vue
-<DouSpace>
-  <DouButton variant="outline">取消</DouButton>
-  <DouButton>确认</DouButton>
-</DouSpace>
-```
+<DocDemo src="space/basic" />
 
 ## 间距
 
 `size` 使用间距 Token（`sm` 8px / `md` 12px / `lg` 20px），也可以传任意长度，数字按像素处理。
 
-<div class="demo demo--column">
-  <DouSpace size="sm"><DouTag>sm</DouTag><DouTag>sm</DouTag><DouTag>sm</DouTag></DouSpace>
-  <DouSpace size="lg"><DouTag>lg</DouTag><DouTag>lg</DouTag><DouTag>lg</DouTag></DouSpace>
-  <DouSpace :size="32"><DouTag>32</DouTag><DouTag>32</DouTag><DouTag>32</DouTag></DouSpace>
-</div>
+<DocDemo src="space/gap" column />
 
 ## 方向与对齐
 
 垂直方向时，子元素默认拉伸到相同宽度。
 
-<div class="demo">
-  <DouSpace direction="vertical" style="width: 240px">
-    <DouInput placeholder="邮箱" />
-    <DouInput placeholder="密码" type="password" />
-    <DouButton block>登录</DouButton>
-  </DouSpace>
-</div>
-
-```vue
-<DouSpace direction="vertical">
-  <DouInput placeholder="邮箱" />
-  <DouInput placeholder="密码" type="password" />
-  <DouButton block>登录</DouButton>
-</DouSpace>
-```
+<DocDemo src="space/direction" />
 
 ## 两端分布
 
 `block` 撑满容器，配合 `justify="between"` 做工具栏。
 
-<div class="demo">
-  <DouSpace block justify="between">
-    <DouText weight="medium">3 个项目</DouText>
-    <DouSpace size="sm">
-      <DouButton variant="ghost" size="sm">筛选</DouButton>
-      <DouButton size="sm">新建</DouButton>
-    </DouSpace>
-  </DouSpace>
-</div>
+<DocDemo src="space/space-between" />
 
 ## API
 

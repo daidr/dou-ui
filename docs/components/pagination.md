@@ -2,24 +2,9 @@
 
 数据较多时分页展示。
 
-<script setup>
-import { ref } from 'vue'
-const page = ref(1)
-const page2 = ref(6)
-const pageSize = ref(20)
-const page3 = ref(2)
-</script>
-
 ## 基础用法
 
-<div class="demo demo--column">
-  <DouPagination v-model:page="page" :total="95" />
-  <DouPagination v-model:page="page2" :total="500" />
-</div>
-
-```vue
-<DouPagination v-model:page="page" :total="95" />
-```
+<DocDemo src="pagination/basic" column />
 
 `siblings`（默认 1）是当前页两侧各显示几页，`boundaries`（默认 1）是首尾各固定显示几页，其余用省略号代替。
 
@@ -27,28 +12,11 @@ const page3 = ref(2)
 
 `show-total` 显示条目总数；传入 `page-sizes` 时显示每页条数的选择器。切换每页条数时会停在包含当前第一条的那一页。
 
-<div class="demo demo--column">
-  <DouPagination v-model:page="page2" v-model:page-size="pageSize" :total="500" show-total :page-sizes="[10, 20, 50, 100]" />
-</div>
-
-```vue
-<DouPagination
-  v-model:page="page"
-  v-model:page-size="pageSize"
-  :total="500"
-  show-total
-  :page-sizes="[10, 20, 50, 100]"
-/>
-```
+<DocDemo src="pagination/total-sizes" column />
 
 ## 简洁模式与尺寸
 
-<div class="demo demo--column">
-  <DouPagination v-model:page="page3" :total="95" simple />
-  <DouPagination v-model:page="page3" :total="95" size="sm" />
-  <DouPagination v-model:page="page3" :total="95" size="lg" />
-  <DouPagination :page="2" :total="95" disabled />
-</div>
+<DocDemo src="pagination/simple" column />
 
 ## 读屏
 

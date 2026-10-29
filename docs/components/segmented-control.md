@@ -2,91 +2,29 @@
 
 在几个互斥的选项中选择一个，适合切换视图、时间粒度这类立即生效的选择。
 
-<script setup>
-import { LayoutColumnsIcon, ListIcon } from '@dou-ui/icons'
-import { ref } from 'vue'
-const view = ref('list')
-const range = ref('周')
-const region = ref('sh')
-</script>
-
 ## 基础用法
 
-<div class="demo">
-  <DouSegmentedControl
-    v-model="view"
-    :options="[
-      { value: 'list', label: '列表' },
-      { value: 'board', label: '看板' },
-      { value: 'timeline', label: '时间线' },
-    ]"
-  />
-  <DouText variant="tertiary" size="sm">当前值：{{ view }}</DouText>
-</div>
-
-```vue
-<DouSegmentedControl
-  v-model="view"
-  :options="[
-    { value: 'list', label: '列表' },
-    { value: 'board', label: '看板' },
-    { value: 'timeline', label: '时间线' },
-  ]"
-/>
-```
+<DocDemo src="segmented-control/basic" />
 
 选项可以直接写成字符串或数字，此时它既是值也是标签：
 
-<div class="demo">
-  <DouSegmentedControl v-model="range" :options="['日', '周', '月', '年']" />
-</div>
-
-```vue
-<DouSegmentedControl v-model="range" :options="['日', '周', '月', '年']" />
-```
+<DocDemo src="segmented-control/basic-2" />
 
 ## 撑满宽度
 
 `block` 让控件撑满父元素，各选项平分宽度。
 
-<div class="demo demo--column" style="max-width: 420px">
-  <DouSegmentedControl
-    v-model="region"
-    block
-    :options="[
-      { value: 'sh', label: '上海' },
-      { value: 'sg', label: '新加坡' },
-      { value: 'fra', label: '法兰克福' },
-      { value: 'iad', label: '弗吉尼亚', disabled: true },
-    ]"
-  />
-</div>
+<DocDemo src="segmented-control/block" column style="max-width: 420px" />
 
 ## 自定义选项
 
 `option` 插槽替换每个选项的内容，例如加上图标。插槽参数为 `{ option, checked }`。
 
-<div class="demo">
-  <DouSegmentedControl v-model="view" :options="[{ value: 'list', label: '列表' }, { value: 'board', label: '看板' }]">
-    <template #option="{ option }">
-      <DouIcon v-if="option.value === 'list'"><ListIcon /></DouIcon>
-      <DouIcon v-else><LayoutColumnsIcon /></DouIcon>
-      {{ option.label }}
-    </template>
-  </DouSegmentedControl>
-</div>
+<DocDemo src="segmented-control/custom-option" />
 
 ## 尺寸与禁用
 
-<div class="demo demo--column">
-  <DouSpace v-for="size in ['sm', 'md', 'lg']" :key="size" size="sm">
-    <DouSegmentedControl v-model="range" :size="size" :options="['日', '周', '月']" />
-    <DouButton :size="size" variant="outline">导出</DouButton>
-  </DouSpace>
-  <DouSpace size="sm">
-    <DouSegmentedControl model-value="周" disabled :options="['日', '周', '月']" />
-  </DouSpace>
-</div>
+<DocDemo src="segmented-control/size-disabled" column />
 
 ## 键盘与读屏
 

@@ -2,55 +2,23 @@
 
 展示用户的头像、名字和简短说明，用于成员列表、评论、账户入口等位置。
 
-<script setup>
-import { MoreHorizontalIcon } from '@dou-ui/icons'
-</script>
-
 ## 基础用法
 
 `avatar` 传图片地址；没有图片时头像显示名字的首字。
 
-<div class="demo">
-  <DouUser name="陈晓" description="前端工程师" />
-  <DouUser name="Ada Lovelace" description="ada@example.com" />
-  <DouUser name="林青" />
-</div>
-
-```vue
-<DouUser name="陈晓" description="前端工程师" />
-<DouUser name="Ada Lovelace" description="ada@example.com" />
-```
+<DocDemo src="user/basic" />
 
 ## 尺寸
 
 `size` 同时决定头像和文字的大小：`sm` 配 24px 头像，`md` 配 32px，`lg` 配 40px。
 
-<div class="demo">
-  <DouUser v-for="size in ['sm', 'md', 'lg']" :key="size" :size="size" name="陈晓" description="前端工程师" />
-</div>
+<DocDemo src="user/size" />
 
 ## 头像设置与插槽
 
 `avatar` 也可以是 [Avatar](./avatar) 的属性对象，比如方形头像。`name`、`description`、`avatar` 插槽分别替换对应部分；默认插槽放在一行末尾，适合放操作按钮。
 
-<div class="demo demo--column" style="max-width: 320px">
-  <DouUser name="DouUI" description="组织 · 12 名成员" :avatar="{ shape: 'square' }" style="width: 100%">
-    <DouButton variant="ghost" size="sm" aria-label="更多">
-      <template #leading><MoreHorizontalIcon /></template>
-    </DouButton>
-  </DouUser>
-  <DouUser name="陈晓" style="width: 100%">
-    <template #description>
-      <DouLink href="#">@chenxiao</DouLink>
-    </template>
-  </DouUser>
-</div>
-
-```vue
-<DouUser name="DouUI" description="组织 · 12 名成员" :avatar="{ shape: 'square' }">
-  <DouButton variant="ghost" size="sm" aria-label="更多">…</DouButton>
-</DouUser>
-```
+<DocDemo src="user/avatar-slot" column style="max-width: 320px" />
 
 ## API
 

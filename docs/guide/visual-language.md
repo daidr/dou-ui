@@ -107,9 +107,4 @@ DouUI 的整体风格是**简洁、克制**：界面以接近黑色、白色和�
 
 ## 示例
 
-<div class="demo">
-  <DouButton>部署</DouButton>
-  <DouButton variant="outline">取消</DouButton>
-  <DouButton variant="ghost">了解更多</DouButton>
-  <DouButton variant="soft" tone="danger">删除项目</DouButton>
-</div>
+<DocDemo src="visual-language/example" />

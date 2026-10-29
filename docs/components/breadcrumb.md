@@ -2,55 +2,21 @@
 
 显示当前页面在层级结构中的位置，可以点击返回上级页面。
 
-<script setup>
-import { ChevronRightIcon } from '@dou-ui/icons'
-const items = [
-  { label: '首页', href: '#' },
-  { label: '项目', href: '#' },
-  { label: 'dou-ui', href: '#' },
-  { label: '部署', href: '#' },
-  { label: '39dc86b' },
-]
-</script>
-
 ## 基础用法
 
-<div class="demo">
-  <DouBreadcrumb :items="items" />
-</div>
-
-```vue
-<DouBreadcrumb
-  :items="[
-    { label: '首页', href: '/' },
-    { label: '项目', href: '/projects' },
-    { label: 'dou-ui', href: '/projects/dou-ui' },
-    { label: '部署', href: '/projects/dou-ui/deployments' },
-    { label: '39dc86b' },
-  ]"
-/>
-```
+<DocDemo src="breadcrumb/basic" />
 
 最后一项是当前页，带 `aria-current="page"`。有 `href` 的项渲染为链接；没有 `href` 的项渲染为按钮，点击时触发 `navigate`，由使用者决定怎么跳转。
 
 ## 分隔符
 
-<div class="demo demo--column">
-  <DouBreadcrumb :items="items" separator="›" />
-  <DouBreadcrumb :items="items">
-    <template #separator>
-      <ChevronRightIcon :size="14" />
-    </template>
-  </DouBreadcrumb>
-</div>
+<DocDemo src="breadcrumb/separator" column />
 
 ## 折叠
 
 路径太长时，`max-items` 只保留第一项和最后几项，中间折叠成一个省略号，点击后展开完整路径。
 
-<div class="demo">
-  <DouBreadcrumb :items="items" :max-items="3" />
-</div>
+<DocDemo src="breadcrumb/collapse" />
 
 ## 配合路由
 

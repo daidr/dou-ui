@@ -4,40 +4,11 @@
 
 浮层的通用行为见 [浮层](../guide/overlays)。
 
-<script setup>
-import { CopyIcon, EditIcon } from '@dou-ui/icons'
-import { ref } from 'vue'
-const last = ref('无')
-</script>
-
 ## 基础用法
 
 默认插槽是触发元素，`menu` 插槽放 `DouDropdownItem`。选中一项时触发 `select`，参数是该项的 `value`。
 
-<div class="demo">
-  <DouDropdown @select="(value) => (last = value)">
-    <DouButton variant="outline">更多操作</DouButton>
-    <template #menu>
-      <DouDropdownItem value="访问">访问</DouDropdownItem>
-      <DouDropdownItem value="重新部署">重新部署</DouDropdownItem>
-      <DouDropdownItem value="提升为生产环境" disabled>提升为生产环境</DouDropdownItem>
-      <DouDropdownItem value="删除部署" tone="danger" divided>删除部署</DouDropdownItem>
-    </template>
-  </DouDropdown>
-  <DouText variant="tertiary" size="sm">最近的操作：{{ last }}</DouText>
-</div>
-
-```vue
-<DouDropdown @select="onSelect">
-  <DouButton variant="outline">更多操作</DouButton>
-  <template #menu>
-    <DouDropdownItem value="visit">访问</DouDropdownItem>
-    <DouDropdownItem value="redeploy">重新部署</DouDropdownItem>
-    <DouDropdownItem value="promote" disabled>提升为生产环境</DouDropdownItem>
-    <DouDropdownItem value="delete" tone="danger" divided>删除部署</DouDropdownItem>
-  </template>
-</DouDropdown>
-```
+<DocDemo src="dropdown/basic" />
 
 - `disabled` 的项不可选，键盘导航会跳过它。
 - `tone="danger"` 用于破坏性操作。
@@ -47,46 +18,13 @@ const last = ref('无')
 
 `prefix` 插槽放在文字前（通常是图标），`suffix` 放在行尾（例如快捷键）。
 
-<div class="demo">
-  <DouDropdown>
-    <DouButton variant="outline">编辑</DouButton>
-    <template #menu>
-      <DouDropdownItem>
-        <template #prefix><DouIcon><CopyIcon /></DouIcon></template>
-        复制
-        <template #suffix>⌘C</template>
-      </DouDropdownItem>
-      <DouDropdownItem>
-        <template #prefix><DouIcon><EditIcon /></DouIcon></template>
-        重命名
-        <template #suffix>F2</template>
-      </DouDropdownItem>
-    </template>
-  </DouDropdown>
-</div>
-
-```vue
-<DouDropdownItem>
-  <template #prefix><DouIcon><CopyIcon /></DouIcon></template>
-  复制
-  <template #suffix>⌘C</template>
-</DouDropdownItem>
-```
+<DocDemo src="dropdown/icon-shortcut" />
 
 ## 触发方式与宽度
 
 `trigger="hover"` 指向即打开。`same-width` 让菜单至少与触发元素一样宽。选中后默认关闭，`:hide-on-select="false"` 可以保持打开。
 
-<div class="demo">
-  <DouDropdown trigger="hover" same-width>
-    <DouButton variant="outline" style="width: 180px">指向打开</DouButton>
-    <template #menu>
-      <DouDropdownItem>个人资料</DouDropdownItem>
-      <DouDropdownItem>团队设置</DouDropdownItem>
-      <DouDropdownItem divided>退出登录</DouDropdownItem>
-    </template>
-  </DouDropdown>
-</div>
+<DocDemo src="dropdown/trigger-width" />
 
 ## 键盘与读屏
 

@@ -2,37 +2,9 @@
 
 将一块区域分为两部分，拖动分隔线可以调整各部分的大小。
 
-<script setup>
-import { ref } from 'vue'
-const size = ref(30)
-const collapsed = ref(false)
-</script>
-
 ## 基础用法
 
-<div class="demo" style="padding: 0; height: 240px; overflow: hidden">
-  <DouSplitter v-model="size" :min="15" :max="70" collapsible v-model:collapsed="collapsed">
-    <template #start><div class="split-pane">文件列表 · {{ size }}%</div></template>
-    <template #end>
-      <DouSplitter direction="vertical" :model-value="65">
-        <template #start><div class="split-pane">编辑器</div></template>
-        <template #end><div class="split-pane">终端</div></template>
-      </DouSplitter>
-    </template>
-  </DouSplitter>
-</div>
-
-```vue
-<DouSplitter v-model="size" :min="15" :max="70" collapsible>
-  <template #start>文件列表</template>
-  <template #end>
-    <DouSplitter direction="vertical" :model-value="65">
-      <template #start>编辑器</template>
-      <template #end>终端</template>
-    </DouSplitter>
-  </template>
-</DouSplitter>
-```
+<DocDemo src="splitter/basic" style="padding: 0; height: 240px; overflow: hidden" />
 
 `v-model` 是第一个面板占的百分比。需要三栏或更多时，像上面这样嵌套。Splitter 会撑满父元素，记得给父元素一个高度。
 
@@ -89,13 +61,3 @@ const collapsed = ref(false)
 | ------- | ------------------------ |
 | `start` | 第一个面板（左边或上边） |
 | `end`   | 第二个面板（右边或下边） |
-
-<style>
-.split-pane {
-  box-sizing: border-box;
-  height: 100%;
-  padding: 12px 16px;
-  color: var(--dou-color-text-secondary);
-  font-size: 13px;
-}
-</style>

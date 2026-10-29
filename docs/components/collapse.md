@@ -2,29 +2,9 @@
 
 把内容收起到可以展开的标题下，适合常见问题、分组设置等较长的内容。
 
-<script setup>
-import { ref } from 'vue'
-const open = ref(['build'])
-const one = ref(['a'])
-</script>
-
 ## 基础用法
 
-<div class="demo demo--column">
-  <DouCollapse v-model="open">
-    <DouCollapseItem value="build" title="构建设置">构建命令 <code>bun run build</code>，输出目录 <code>dist</code>。</DouCollapseItem>
-    <DouCollapseItem value="env" title="环境变量">共 4 个变量，其中 1 个仅在生产环境可见。</DouCollapseItem>
-    <DouCollapseItem value="danger" title="删除项目" disabled>删除后无法恢复。</DouCollapseItem>
-  </DouCollapse>
-</div>
-
-```vue
-<DouCollapse v-model="open">
-  <DouCollapseItem value="build" title="构建设置">…</DouCollapseItem>
-  <DouCollapseItem value="env" title="环境变量">…</DouCollapseItem>
-  <DouCollapseItem value="danger" title="删除项目" disabled>…</DouCollapseItem>
-</DouCollapse>
-```
+<DocDemo src="collapse/basic" column />
 
 `v-model` 绑定展开项的 `value` 数组。面板内容在第一次展开时才渲染，之后收起也会保留。
 
@@ -32,25 +12,7 @@ const one = ref(['a'])
 
 `accordion` 让同一时间最多展开一项；`bordered` 把各项放进一个带细描边的容器。`extra` 插槽放在标题行末尾，不属于展开按钮。
 
-<div class="demo demo--column">
-  <DouCollapse v-model="one" accordion bordered>
-    <DouCollapseItem value="a" title="付款方式">
-      默认使用尾号 4242 的信用卡。
-      <template #extra>信用卡</template>
-    </DouCollapseItem>
-    <DouCollapseItem value="b" title="发票信息">发票抬头与税号。</DouCollapseItem>
-    <DouCollapseItem value="c" title="用量提醒">超过额度 80% 时发送邮件。</DouCollapseItem>
-  </DouCollapse>
-</div>
-
-```vue
-<DouCollapse v-model="open" accordion bordered>
-  <DouCollapseItem value="a" title="付款方式">
-    …
-    <template #extra>信用卡</template>
-  </DouCollapseItem>
-</DouCollapse>
-```
+<DocDemo src="collapse/accordion" column />
 
 ## 键盘与读屏
 

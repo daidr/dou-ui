@@ -1,86 +1,28 @@
 # Timeline 时间线
 
-<script setup>
-import { XCircleIcon } from '@dou-ui/icons'
-</script>
-
 按时间顺序展示一组事件。
 
 ## 基础用法
 
-<div class="demo demo--column">
-  <DouTimeline>
-    <DouTimelineItem time="10:42" title="部署成功" tone="success">生产环境 · 耗时 38 秒</DouTimelineItem>
-    <DouTimelineItem time="10:41" title="构建完成">产物 1.2 MB</DouTimelineItem>
-    <DouTimelineItem time="10:40" title="开始构建">由 daidr 推送触发</DouTimelineItem>
-    <DouTimelineItem title="等待审核" pending />
-  </DouTimeline>
-</div>
-
-```vue
-<DouTimeline>
-  <DouTimelineItem time="10:42" title="部署成功" tone="success">生产环境 · 耗时 38 秒</DouTimelineItem>
-  <DouTimelineItem time="10:41" title="构建完成">产物 1.2 MB</DouTimelineItem>
-  <DouTimelineItem title="等待审核" pending />
-</DouTimeline>
-```
+<DocDemo src="timeline/basic" column />
 
 ## 语气与自定义圆点
 
 `tone` 只给圆点上色。`dot` 插槽可以换成图标，图标取同样的语气色。
 
-<div class="demo demo--column">
-  <DouTimeline>
-    <DouTimelineItem time="周一" title="创建项目" tone="primary" />
-    <DouTimelineItem time="周二" title="配置域名" tone="warning">证书签发中，可能需要几分钟。</DouTimelineItem>
-    <DouTimelineItem time="周三" title="部署失败" tone="danger">
-      <template #dot>
-        <XCircleIcon />
-      </template>
-      构建脚本退出码 1。
-    </DouTimelineItem>
-  </DouTimeline>
-</div>
-
-```vue
-<DouTimelineItem time="周三" title="部署失败" tone="danger">
-  <template #dot><XCircleIcon /></template>
-  构建脚本退出码 1。
-</DouTimelineItem>
-```
+<DocDemo src="timeline/tone-dot" column />
 
 ## 当前步骤
 
 `active` 标出流程走到的这一步：实心圆点，外面一圈同色的涟漪缓缓散开并淡出。`pending` 是还没轮到，`active` 是正在这一步。开启「减弱动态效果」时，涟漪换成一圈静止的光晕。
 
-<div class="demo demo--column">
-  <DouTimeline>
-    <DouTimelineItem time="10:40" title="拉取代码" tone="success" />
-    <DouTimelineItem time="10:41" title="安装依赖" tone="success" />
-    <DouTimelineItem time="10:42" title="正在构建" tone="primary" active>已用时 12 秒</DouTimelineItem>
-    <DouTimelineItem title="部署到上海节点" pending />
-  </DouTimeline>
-</div>
-
-```vue
-<DouTimeline>
-  <DouTimelineItem time="10:41" title="安装依赖" tone="success" />
-  <DouTimelineItem time="10:42" title="正在构建" tone="primary" active>已用时 12 秒</DouTimelineItem>
-  <DouTimelineItem title="部署到上海节点" pending />
-</DouTimeline>
-```
+<DocDemo src="timeline/current" column />
 
 ## 倒序
 
 `reverse` 把最新的事件显示在最上面，事件仍按时间先后书写。
 
-<div class="demo demo--column">
-  <DouTimeline reverse>
-    <DouTimelineItem time="09:00" title="提交代码" />
-    <DouTimelineItem time="09:05" title="通过检查" tone="success" />
-    <DouTimelineItem title="等待合并" pending />
-  </DouTimeline>
-</div>
+<DocDemo src="timeline/reverse" column />
 
 ## 读屏
 

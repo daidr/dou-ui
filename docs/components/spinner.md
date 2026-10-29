@@ -6,22 +6,7 @@
 
 ## 基础用法
 
-<div class="demo">
-  <DouSpinner size="sm" />
-  <DouSpinner />
-  <DouSpinner size="lg" />
-  <DouSpinner :size="32" />
-  <DouSpace size="sm">
-    <DouSpinner size="sm" />
-    <DouText variant="secondary" size="sm">正在构建…</DouText>
-  </DouSpace>
-</div>
-
-```vue
-<DouSpinner />
-<DouSpinner size="lg" />
-<DouSpinner :size="32" />
-```
+<DocDemo src="spinner/basic" />
 
 ## 读屏
 

@@ -355,20 +355,20 @@
   }
 
   /*
-   * The badge is centred on the corner. A capsule has no corner, so there
-   * it sits on the curve at 45°, r(1 - 1/√2) in from the bounding box.
+   * The badge is centred on the corner of a card. A capsule has no corner,
+   * so there it sits a little in, just outside its curve.
    */
   .dou-flow-graph__corner {
-    --dou-flow-graph-corner-inset: calc(var(--dou-flow-graph-card-radius) * 0.2929);
     position: absolute;
-    top: var(--dou-flow-graph-corner-inset);
-    right: var(--dou-flow-graph-corner-inset);
+    top: 0;
+    right: 0;
     display: inline-flex;
     transform: translate(50%, -50%);
     cursor: default;
   }
   .dou-flow-graph__node--pill .dou-flow-graph__corner {
-    --dou-flow-graph-corner-inset: calc(var(--dou-flow-graph-node-height) * 0.1464);
+    top: 2px;
+    right: 2px;
   }
 
   /* toolbar */

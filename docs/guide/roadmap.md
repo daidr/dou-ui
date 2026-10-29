@@ -265,7 +265,7 @@ Popconfirm 直接建在 Popover 上，Result 与 Empty 共用一套图标画法�
 | InfiniteScroll 滚动加载 | ✅   | 组件带加载中 / 失败重试 / 没有更多的底部提示；另有 `v-infinite-scroll` 指令   |
 | Sortable 拖拽排序       | ✅   | 指针与键盘排序、拖拽手柄、网格、同组列表之间移动、边缘自动滚动；`useSortable` |
 | ImageCropper 图片裁剪   | ✅   | 固定裁剪框，拖动、滚轮 / 双指缩放、旋转，圆形遮罩，输出 Blob 或画布           |
-| Banner 公告条           | ✅   | 贴顶整行，浅色 / 实色，可关闭并记住                                           |
+| Banner 公告条           | ✅   | 贴顶整行，浅色 / 实色，可关闭                                                 |
 | CheckTag 可选标签       | ✅   | 单个切换与标签组，单选 / 多选，`aria-pressed`                                 |
 | Ellipsis 文本省略       | ✅   | 多行截断，末尾展开 / 收起，截断时悬停提示                                     |
 | ColorPanel 取色面板     | ✅   | 从 ColorPicker 拆出，可直接放在页面里                                         |

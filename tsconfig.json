@@ -16,6 +16,8 @@
     "packages/*/vite.config.ts",
     "playground/src",
     "playground/vite.config.ts",
+    "bench/src",
+    "bench/vite.config.ts",
     "docs/.vitepress",
     "vitest.config.ts"
   ]

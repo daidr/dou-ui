@@ -132,13 +132,20 @@ const selected = computed<SelectValue[]>(() => {
   if (props.multiple) return Array.isArray(value) ? value : []
   return value === null || value === undefined || Array.isArray(value) ? [] : [value]
 })
-const isSelected = (option: SelectOption) =>
-  selected.value.some((value) => same(value, option.value))
+// Looked up by identity, so long lists with many picks stay linear.
+const selectedSet = computed(() => new Set(selected.value.map(identity)))
+const isSelected = (option: SelectOption) => selectedSet.value.has(identity(option.value))
+const optionById = computed(() => {
+  const map = new Map<unknown, SelectOption>()
+  for (const option of options.value) {
+    const key = identity(option.value)
+    if (!map.has(key)) map.set(key, option)
+  }
+  return map
+})
 const selectedOptions = computed(() =>
   selected.value.map(
-    (value) =>
-      options.value.find((option) => same(option.value, value)) ??
-      seen.get(identity(value)) ?? { value },
+    (value) => optionById.value.get(identity(value)) ?? seen.get(identity(value)) ?? { value },
   ),
 )
 const atLimit = computed(
@@ -182,7 +189,8 @@ const filtered = computed<SelectOption[]>(() => [
   ...(createOption.value ? [createOption.value] : []),
   ...filteredSections.value.flatMap((section) => section.options),
 ])
-const indexOf = (option: SelectOption) => filtered.value.indexOf(option)
+const indexes = computed(() => new Map(filtered.value.map((option, index) => [option, index])))
+const indexOf = (option: SelectOption) => indexes.value.get(option) ?? -1
 
 // virtual list: every row (group label or option) is one option tall
 const ROW = 32

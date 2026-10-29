@@ -1,12 +1,14 @@
 <script setup lang="ts" generic="T">
 import {
   computed,
+  getCurrentInstance,
   nextTick,
   onBeforeUnmount,
   onMounted,
   reactive,
   ref,
   shallowRef,
+  toDisplayString,
   useId,
   useTemplateRef,
   watch,
@@ -28,6 +30,7 @@ import DouEmpty from '../empty/empty.vue'
 import DouPopover from '../popover/popover.vue'
 import DouSpinner from '../spinner/spinner.vue'
 import { useSortable } from '../sortable/use-sortable'
+import TableRow, { CellContent } from './table-row'
 import type {
   TableColumn,
   TableExpose,
@@ -461,19 +464,24 @@ function fixedClass(column: TableColumn<T>) {
 }
 
 /** The utility columns stick with the fixed start columns, side by side. */
-const utilityFixed = (position: number) =>
-  hasFixedStart.value
-    ? {
-        class: [
-          ns.is('fixed-start', true),
-          ns.is(
-            'fixed-start-edge',
-            position === utilityCount.value - 1 && !leaves.value.some((c) => c.fixed === 'start'),
-          ),
-        ],
-        style: { insetInlineStart: `${position * UTILITY_WIDTH}px` },
-      }
-    : { class: undefined, style: undefined }
+const utilityStyles = computed(() =>
+  Array.from({ length: utilityCount.value }, (_, position) =>
+    hasFixedStart.value
+      ? {
+          class: [
+            ns.is('fixed-start', true),
+            ns.is(
+              'fixed-start-edge',
+              position === utilityCount.value - 1 && !leaves.value.some((c) => c.fixed === 'start'),
+            ),
+          ],
+          style: { insetInlineStart: `${position * UTILITY_WIDTH}px` },
+        }
+      : { class: undefined, style: undefined },
+  ),
+)
+const noFixed = { class: undefined, style: undefined }
+const utilityFixed = (position: number) => utilityStyles.value[position] ?? noFixed
 
 // horizontal and vertical scrolling
 const wrapper = useTemplateRef<HTMLElement>('wrapper')
@@ -631,21 +639,67 @@ const classes = computed(() => [
 const alignClass = (column: TableColumn<T>) =>
   column.align && column.align !== 'start' && ns.is(column.align)
 
+/** The classes and styles of each column's body cells, the same on every row. */
+const cellMeta = computed(() =>
+  leaves.value.map((column, columnIndex) => ({
+    class: [
+      ns.e('cell'),
+      alignClass(column),
+      ns.is('ellipsis', !!column.ellipsis),
+      ns.is('edge', columnIndex === 0 && utilityCount.value === 0),
+      fixedClass(column),
+    ],
+    style: fixedStyle(column),
+  })),
+)
+
 const treeColumnKey = computed(() => (isTree.value ? leaves.value[0]?.key : undefined))
 
 /* body rows */
 
-function rowClassOf(item: FlatRow) {
+// Rows skip redrawing when their props stay the same. That is only safe
+// while the slots they render are the compiled, stable kind: any other
+// slots may have changed with the parent, so every row redraws then.
+const instance = getCurrentInstance()!
+let renderedVnode = instance.vnode
+let version = 0
+function slotVersion() {
+  if (instance.vnode !== renderedVnode) {
+    renderedVnode = instance.vnode
+    const own = instance.slots as { _?: number }
+    if (own._ !== 1 && Object.keys(own).length > 0) version++
+  }
+  return version
+}
+
+function rowClassOf(item: FlatRow, isSelected: boolean, isExpanded: boolean, isCurrent: boolean) {
   const extra =
     typeof props.rowClass === 'function' ? props.rowClass(item.row, item.index) : props.rowClass
   return [
     ns.e('row'),
     ns.is('even', item.index % 2 === 1),
-    ns.is('selected', hasSelection.value && selectedSet.value.has(item.key)),
-    ns.is('expanded', expandedSet.value.has(item.key)),
-    ns.is('current', props.highlightCurrent && currentKey.value === item.key),
+    ns.is('selected', isSelected),
+    ns.is('expanded', isExpanded),
+    ns.is('current', isCurrent),
     extra,
   ]
+}
+
+/** Whether a column's cells come from a slot rather than the plain value. */
+const hasCellSlot = (column: TableColumn<T>) => !!slots.cell || `cell-${column.key}` in slots
+
+/**
+ * A cell's content: its column's slot, the shared `cell` slot, or the value.
+ * Called from the row rather than through `<slot>`, so rows keep stable slots.
+ */
+function cellContent(item: FlatRow, column: TableColumn<T>) {
+  const scope = { row: item.row, column, value: valueOf(item.row, column), index: item.index }
+  const own = (slots as Record<string, ((scope: unknown) => unknown) | undefined>)[
+    `cell-${column.key}`
+  ]
+  if (own) return own(scope)
+  if (slots.cell) return slots.cell(scope)
+  return toDisplayString(scope.value ?? '')
 }
 
 function rowStyleOf(item: FlatRow): CSSProperties[] {
@@ -1012,13 +1066,35 @@ defineExpose<TableExpose>({
           <tr v-if="virtual && spacerBefore > 0" :class="ns.e('spacer')" aria-hidden="true">
             <td :colspan="span" :style="{ height: `${spacerBefore}px` }" />
           </tr>
-          <template v-for="(item, position) in visibleRows" :key="item.key">
+          <TableRow
+            v-for="(entry, at) in visibleRows"
+            :key="entry.key"
+            v-slot="{
+              item,
+              position,
+              selected: rowSelected,
+              expanded: rowExpanded,
+              current: rowCurrent,
+              loading: rowLoading,
+            }"
+            :row="entry.row"
+            :row-key="entry.key"
+            :level="entry.level"
+            :index="entry.index"
+            :parent="entry.parent"
+            :position="at"
+            :selected="hasSelection && selectedSet.has(entry.key)"
+            :expanded="expandedSet.has(entry.key)"
+            :current="highlightCurrent && currentKey === entry.key"
+            :loading="loadingRows.has(entry.key)"
+            :version="slotVersion()"
+          >
             <tr
-              :class="rowClassOf(item)"
+              :class="rowClassOf(item, rowSelected, rowExpanded, rowCurrent)"
               :style="rowStyleOf(item)"
               :data-row-key="item.key"
               :aria-rowindex="virtual ? item.index + 1 + headerDepth : undefined"
-              :aria-selected="highlightCurrent ? currentKey === item.key : undefined"
+              :aria-selected="highlightCurrent ? rowCurrent : undefined"
               v-bind="hasDrag ? sortable.itemAttrs(item.row, item.index) : undefined"
               @click="onRowClick(item, $event)"
               @dblclick="emit('rowDblclick', item.row, item.index, $event)"
@@ -1055,9 +1131,9 @@ defineExpose<TableExpose>({
                 <button
                   v-if="canExpand(item.row)"
                   type="button"
-                  :class="[ns.e('toggle'), ns.is('open', expandedSet.has(item.key))]"
-                  :aria-expanded="expandedSet.has(item.key)"
-                  :aria-controls="expandedSet.has(item.key) ? `${id}-${item.key}` : undefined"
+                  :class="[ns.e('toggle'), ns.is('open', rowExpanded)]"
+                  :aria-expanded="rowExpanded"
+                  :aria-controls="rowExpanded ? `${id}-${item.key}` : undefined"
                   :aria-label="t('table.expandRow')"
                   @click="toggleExpanded(item.key)"
                 >
@@ -1076,7 +1152,7 @@ defineExpose<TableExpose>({
                 @click.stop
               >
                 <DouCheckbox
-                  :model-value="selectedSet.has(item.key)"
+                  :model-value="rowSelected"
                   :disabled="!canSelect(item.row)"
                   size="sm"
                   :aria-label="t('table.selectRow')"
@@ -1085,26 +1161,24 @@ defineExpose<TableExpose>({
               </td>
               <template v-for="(column, columnIndex) in leaves" :key="column.key">
                 <td
-                  v-if="spanOf(position, columnIndex)[0] && spanOf(position, columnIndex)[1]"
+                  v-if="
+                    !spans || (spanOf(position, columnIndex)[0] && spanOf(position, columnIndex)[1])
+                  "
                   :rowspan="
-                    spanOf(position, columnIndex)[0] > 1
+                    spans && spanOf(position, columnIndex)[0] > 1
                       ? spanOf(position, columnIndex)[0]
                       : undefined
                   "
                   :colspan="
-                    spanOf(position, columnIndex)[1] > 1
+                    spans && spanOf(position, columnIndex)[1] > 1
                       ? spanOf(position, columnIndex)[1]
                       : undefined
                   "
                   :class="[
-                    ns.e('cell'),
-                    alignClass(column),
-                    ns.is('ellipsis', !!column.ellipsis),
-                    ns.is('spanned', spanOf(position, columnIndex)[0] > 1),
-                    ns.is('edge', columnIndex === 0 && utilityCount === 0),
-                    fixedClass(column),
+                    cellMeta[columnIndex]!.class,
+                    spans && ns.is('spanned', spanOf(position, columnIndex)[0] > 1),
                   ]"
-                  :style="fixedStyle(column)"
+                  :style="cellMeta[columnIndex]!.style"
                   @click="emit('cellClick', item.row, column, $event)"
                 >
                   <span
@@ -1117,69 +1191,44 @@ defineExpose<TableExpose>({
                       type="button"
                       :class="[
                         ns.e('toggle'),
-                        ns.is('open', expandedSet.has(item.key)),
-                        ns.is('loading', loadingRows.has(item.key)),
+                        ns.is('open', rowExpanded),
+                        ns.is('loading', rowLoading),
                       ]"
-                      :aria-expanded="expandedSet.has(item.key)"
-                      :aria-busy="loadingRows.has(item.key) || undefined"
+                      :aria-expanded="rowExpanded"
+                      :aria-busy="rowLoading || undefined"
                       :aria-label="t('table.expandRow')"
                       @click.stop="toggleTree(item)"
                     >
-                      <DouSpinner v-if="loadingRows.has(item.key)" size="sm" />
+                      <DouSpinner v-if="rowLoading" size="sm" />
                       <ChevronRightIcon v-else />
                     </button>
                     <span v-else :class="ns.e('toggle-space')" />
                     <span :class="ns.e('tree-content')">
-                      <slot
-                        :name="`cell-${column.key}`"
-                        :row="item.row"
-                        :column="column"
-                        :value="valueOf(item.row, column)"
-                        :index="item.index"
-                      >
-                        <slot
-                          name="cell"
-                          :row="item.row"
-                          :column="column"
-                          :value="valueOf(item.row, column)"
-                          :index="item.index"
-                        >
-                          {{ valueOf(item.row, column) ?? '' }}
-                        </slot>
-                      </slot>
+                      <CellContent
+                        v-if="hasCellSlot(column)"
+                        :render="() => cellContent(item, column)"
+                      />
+                      <template v-else>{{ valueOf(item.row, column) ?? '' }}</template>
                     </span>
                   </span>
-                  <slot
-                    v-else
-                    :name="`cell-${column.key}`"
-                    :row="item.row"
-                    :column="column"
-                    :value="valueOf(item.row, column)"
-                    :index="item.index"
-                  >
-                    <slot
-                      name="cell"
-                      :row="item.row"
-                      :column="column"
-                      :value="valueOf(item.row, column)"
-                      :index="item.index"
-                    >
-                      {{ valueOf(item.row, column) ?? '' }}
-                    </slot>
-                  </slot>
+                  <CellContent
+                    v-else-if="hasCellSlot(column)"
+                    :render="() => cellContent(item, column)"
+                  />
+                  <template v-else>{{ valueOf(item.row, column) ?? '' }}</template>
                 </td>
               </template>
             </tr>
             <tr
-              v-if="hasExpand && canExpand(item.row) && expandedSet.has(item.key)"
+              v-if="hasExpand && canExpand(item.row) && rowExpanded"
               :id="`${id}-${item.key}`"
               :class="ns.e('detail-row')"
             >
               <td :class="ns.e('detail')" :colspan="span">
-                <slot name="expand" :row="item.row" :index="item.index" />
+                <CellContent :render="() => slots.expand?.({ row: item.row, index: item.index })" />
               </td>
             </tr>
-          </template>
+          </TableRow>
           <tr v-if="virtual && spacerAfter > 0" :class="ns.e('spacer')" aria-hidden="true">
             <td :colspan="span" :style="{ height: `${spacerAfter}px` }" />
           </tr>

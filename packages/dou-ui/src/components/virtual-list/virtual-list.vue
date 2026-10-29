@@ -19,6 +19,8 @@ const props = withDefaults(defineProps<VirtualListProps<T>>(), {
 const emit = defineEmits<{ scroll: [event: Event]; endReached: [] }>()
 defineSlots<VirtualListSlots<T>>()
 
+// The list itself takes focus (tabindex 0) so the keyboard can scroll it.
+// A parent that manages focus on its own passes `:tabindex="null"`.
 const ns = useNamespace('virtual-list')
 const elRef = useTemplateRef<HTMLElement>('el')
 
@@ -122,7 +124,7 @@ defineExpose<VirtualListExpose>({ scrollToIndex, scrollTo, el: () => elRef.value
 </script>
 
 <template>
-  <div ref="el" :class="ns.b()" :style="style" @scroll="onScroll">
+  <div ref="el" tabindex="0" :class="ns.b()" :style="style" @scroll="onScroll">
     <div v-if="items.length" :class="ns.e('spacer')" :style="{ height: `${offsets.total}px` }">
       <div
         v-for="entry in visible"

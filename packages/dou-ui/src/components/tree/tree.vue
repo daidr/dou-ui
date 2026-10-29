@@ -456,6 +456,7 @@ const classes = computed(() => [
     <DouVirtualList
       v-if="height !== undefined"
       ref="list"
+      :tabindex="null"
       :class="ns.e('rows')"
       :items="rows"
       :item-size="rowHeight"

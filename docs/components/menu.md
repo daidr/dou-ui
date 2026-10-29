@@ -39,7 +39,7 @@
 
 ## 键盘与读屏
 
-菜单渲染为 `<nav>` 里的列表，属于网站导航而不是应用菜单，所以不使用 `menu` 角色；需要时给它加 `aria-label`。当前项带 `aria-current="page"`，子菜单的开关是带 `aria-expanded` 与 `aria-controls` 的按钮，分组是带名称的 `role="group"`。
+菜单渲染为 `<nav>` 里的列表，属于网站导航而不是应用菜单，所以不使用 `menu` 角色；需要时给它加 `aria-label`。当前项带 `aria-current="page"`，子菜单的开关是带 `aria-expanded` 与 `aria-controls` 的按钮，分组是带名称（`aria-label`）的子列表，分隔线只是装饰，对读屏隐藏。
 
 除了 `Tab`，竖向菜单里 `↑` `↓` 在可见的项之间移动，`Home` / `End` 跳到首尾，`→` 展开子菜单，`←` 收起或回到上一级；水平菜单里 `←` `→` 移动，`↓` 打开子菜单。
 

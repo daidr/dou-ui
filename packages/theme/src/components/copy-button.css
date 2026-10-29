@@ -48,7 +48,7 @@
 
     &.is-copied,
     &.is-copied:hover {
-      color: var(--dou-color-success);
+      color: var(--dou-color-success-text);
     }
 
     &.is-labelled {

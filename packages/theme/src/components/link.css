@@ -55,16 +55,16 @@
 
   /* tones */
   .dou-link--primary {
-    --dou-link-tone: var(--dou-color-primary);
+    --dou-link-tone: var(--dou-color-primary-text);
   }
   .dou-link--success {
-    --dou-link-tone: var(--dou-color-success);
+    --dou-link-tone: var(--dou-color-success-text);
   }
   .dou-link--warning {
-    --dou-link-tone: var(--dou-color-warning);
+    --dou-link-tone: var(--dou-color-warning-text);
   }
   .dou-link--danger {
-    --dou-link-tone: var(--dou-color-danger);
+    --dou-link-tone: var(--dou-color-danger-text);
   }
 
   .dou-link__icon {

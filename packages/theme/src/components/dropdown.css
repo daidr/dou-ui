@@ -57,7 +57,7 @@
 
   .dou-dropdown--danger:not(.is-disabled) {
     --dou-dropdown-item-active-bg: color-mix(in oklab, var(--dou-color-danger) 10%, transparent);
-    color: var(--dou-color-danger);
+    color: var(--dou-color-danger-text);
 
     & .dou-dropdown__prefix {
       color: inherit;

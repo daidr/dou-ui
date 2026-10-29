@@ -2,8 +2,8 @@
  * Text
  *
  * `variant` sets prominence, `tone` sets meaning. Neutral text reads the
- * text tokens directly; toned text fades toward the page for the quieter
- * variants, so every combination is defined.
+ * text tokens directly. Toned text keeps its tone in every variant: fading
+ * it toward the page would drop it below a readable contrast.
  */
 @layer dou.components {
   .dou-text {
@@ -36,25 +36,19 @@
 
   /* tones */
   .dou-text--primary {
-    --dou-text-tone: var(--dou-color-primary);
+    --dou-text-tone: var(--dou-color-primary-text);
   }
   .dou-text--success {
-    --dou-text-tone: var(--dou-color-success);
+    --dou-text-tone: var(--dou-color-success-text);
   }
   .dou-text--warning {
-    --dou-text-tone: var(--dou-color-warning);
+    --dou-text-tone: var(--dou-color-warning-text);
   }
   .dou-text--danger {
-    --dou-text-tone: var(--dou-color-danger);
+    --dou-text-tone: var(--dou-color-danger-text);
   }
 
   /* variants */
-  .dou-text--secondary {
-    color: color-mix(in oklab, var(--dou-text-tone) 72%, var(--dou-color-bg-canvas));
-  }
-  .dou-text--tertiary {
-    color: color-mix(in oklab, var(--dou-text-tone) 52%, var(--dou-color-bg-canvas));
-  }
   .dou-text--neutral.dou-text--secondary {
     color: var(--dou-color-text-secondary);
   }

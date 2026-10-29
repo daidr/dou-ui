@@ -684,7 +684,13 @@ defineExpose<TableExpose>({
 
 <template>
   <div :class="classes">
-    <div ref="wrapper" :class="ns.e('wrapper')" :style="wrapperStyle" @scroll="measureScroll">
+    <div
+      ref="wrapper"
+      :class="ns.e('wrapper')"
+      :style="wrapperStyle"
+      :tabindex="maxHeight === undefined ? undefined : 0"
+      @scroll="measureScroll"
+    >
       <table
         ref="table"
         :class="ns.e('table')"

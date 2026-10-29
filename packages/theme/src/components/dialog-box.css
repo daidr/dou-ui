@@ -75,7 +75,7 @@
 
   .dou-dialog-box__error {
     margin-top: 6px;
-    color: var(--dou-color-danger);
+    color: var(--dou-color-danger-text);
     font-size: var(--dou-font-size-sm);
     line-height: 20px;
   }

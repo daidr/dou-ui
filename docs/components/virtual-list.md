@@ -30,6 +30,8 @@
 
 列表只是滚动容器，语义由内容决定：做成列表时给容器 `role="list"`、条目 `role="listitem"`，并用 `aria-setsize` / `aria-posinset` 告诉读屏器总数和位置，因为页面里只有一部分条目。需要键盘逐项移动时，参考 [Tree](./tree) 的做法：焦点留在容器上，用 `aria-activedescendant` 指向当前项，移动前先 `scrollToIndex`。
 
+列表本身可以获得焦点（`tabindex="0"`），键盘用户能用方向键和翻页键滚动它。像 Tree 这样自己管理焦点的父组件，传入 `:tabindex="null"` 去掉它。
+
 ## API
 
 ### Props

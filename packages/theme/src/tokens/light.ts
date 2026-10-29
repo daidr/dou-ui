@@ -10,11 +10,11 @@ import type { ThemeTokens } from './types'
  */
 export const light: ThemeTokens = {
   color: {
-    neutral: { DEFAULT: '#171717', on: '#ffffff' },
-    primary: { DEFAULT: '#3f56b5', on: '#ffffff' },
-    success: { DEFAULT: '#2e7d5b', on: '#ffffff' },
-    warning: { DEFAULT: '#9a6a1f', on: '#ffffff' },
-    danger: { DEFAULT: '#b2423e', on: '#ffffff' },
+    neutral: { DEFAULT: '#171717', on: '#ffffff', text: '#171717' },
+    primary: { DEFAULT: '#3f56b5', on: '#ffffff', text: '#3f56b5' },
+    success: { DEFAULT: '#2e7d5b', on: '#ffffff', text: '#2c7756' },
+    warning: { DEFAULT: '#92651d', on: '#ffffff', text: '#8b5f1c' },
+    danger: { DEFAULT: '#b2423e', on: '#ffffff', text: '#b2423e' },
     bg: {
       canvas: '#fafafa',
       surface: '#ffffff',
@@ -23,7 +23,7 @@ export const light: ThemeTokens = {
     text: {
       DEFAULT: '#171717',
       secondary: '#5c5c5c',
-      tertiary: '#8f8f8f',
+      tertiary: '#737373',
       disabled: '#b5b5b5',
     },
     border: {
@@ -31,7 +31,7 @@ export const light: ThemeTokens = {
       DEFAULT: '#e6e6e6',
       strong: '#d1d1d1',
     },
-    focus: '#8ea2dc',
+    focus: '#6a82cf',
     edge: '#000000',
   },
   font: {

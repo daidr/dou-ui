@@ -49,7 +49,7 @@
     --dou-form-item-message-gap: 8px;
     --dou-form-item-label-color: var(--dou-color-text);
     --dou-form-item-help-color: var(--dou-color-text-secondary);
-    --dou-form-item-error-color: var(--dou-color-danger);
+    --dou-form-item-error-color: var(--dou-color-danger-text);
 
     display: flex;
     flex-direction: column;

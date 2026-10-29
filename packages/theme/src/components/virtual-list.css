@@ -13,6 +13,12 @@
     outline: none;
   }
 
+  /* inset, so the ring survives a parent that clips its overflow */
+  .dou-virtual-list:focus-visible {
+    outline: 2px solid var(--dou-color-focus);
+    outline-offset: -2px;
+  }
+
   .dou-virtual-list__spacer {
     position: relative;
     width: 100%;

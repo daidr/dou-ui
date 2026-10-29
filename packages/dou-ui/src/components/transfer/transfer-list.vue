@@ -99,7 +99,7 @@ function toggle(item: TransferItem, value: boolean) {
       :item-size="32"
       item-key="key"
       :height="height"
-      role="list"
+      :role="visible.length ? 'list' : undefined"
     >
       <template #default="{ item }">
         <div role="listitem" :class="ns.e('item')">

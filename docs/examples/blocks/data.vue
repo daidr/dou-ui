@@ -46,11 +46,11 @@ function resetFilters() {
 }
 
 const columns = [
-  { key: 'name', title: '服务' },
-  { key: 'region', title: '区域', width: 104 },
-  { key: 'status', title: '状态', width: 104 },
-  { key: 'replicas', title: '副本', align: 'end', width: 72 },
-  { key: 'updated', title: '更新于', width: 112 },
+  { key: 'name', title: '服务', minWidth: 140 },
+  { key: 'region', title: '区域', minWidth: 104 },
+  { key: 'status', title: '状态', minWidth: 104 },
+  { key: 'replicas', title: '副本', align: 'end', minWidth: 72 },
+  { key: 'updated', title: '更新于', minWidth: 112 },
   { key: 'actions', title: '', width: 56, align: 'end' },
 ]
 const selected = ref([])

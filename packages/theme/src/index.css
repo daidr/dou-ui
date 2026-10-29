@@ -21,6 +21,7 @@
 @import './components/banner.css';
 @import './components/breadcrumb.css';
 @import './components/button.css';
+@import './components/calendar-heatmap.css';
 @import './components/calendar-view.css';
 @import './components/card.css';
 @import './components/carousel.css';

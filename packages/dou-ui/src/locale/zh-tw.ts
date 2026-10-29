@@ -255,6 +255,11 @@ export const zhTW: Locale = {
   anchor: {
     label: '本頁目錄',
   },
+  calendarHeatmap: {
+    less: '少',
+    more: '多',
+    day: '{date}：{value}',
+  },
   relativeTime: {
     justNow: '剛剛',
   },

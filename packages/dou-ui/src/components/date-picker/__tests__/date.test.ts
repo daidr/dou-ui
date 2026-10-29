@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { addDays, addMonths, daysInMonth, inBounds, parseDate, weekday } from '../date'
+import {
+  addDays,
+  addMonths,
+  daysInMonth,
+  expand,
+  inBounds,
+  isoWeek,
+  parseDate,
+  weekday,
+} from '../date'
 
 describe('date helpers', () => {
   it('does calendar arithmetic on strings', () => {
@@ -27,5 +36,18 @@ describe('date helpers', () => {
     expect(inBounds('2026-10', '2026-10-15')).toBe(true)
     expect(inBounds('2026-09', '2026-10-15')).toBe(false)
     expect(inBounds('2027', undefined, '2026-12-31')).toBe(false)
+  })
+  it('names ISO weeks', () => {
+    expect(isoWeek('2026-10-28')).toBe('2026-W44')
+    // 2027-01-01 is a Friday, so it still belongs to the last week of 2026
+    expect(isoWeek('2027-01-01')).toBe('2026-W53')
+    expect(isoWeek('2024-12-30')).toBe('2025-W01')
+    expect(expand('2026-W44')).toBe('2026-10-26')
+    expect(expand('2025-W01')).toBe('2024-12-30')
+    expect(parseDate('2026-W44', 'week')).toBe('2026-W44')
+    expect(parseDate('2026 7', 'week')).toBe('2026-W07')
+    expect(parseDate('2025-W53', 'week')).toBeNull()
+    expect(inBounds('2026-W44', '2026-10-28')).toBe(true)
+    expect(inBounds('2026-W43', '2026-10-28')).toBe(false)
   })
 })

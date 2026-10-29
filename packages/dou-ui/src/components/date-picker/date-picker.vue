@@ -8,12 +8,16 @@ import { OnlyChild } from '../../utils/only-child'
 import { DouButton } from '../button'
 import { useLocale } from '../config-provider/use-config'
 import { useFormDisabled, useFormItem, useFormSize } from '../form/use-form-item'
+import { formatTime, now, parseTime } from '../time-picker/time'
+import type { TimeParts } from '../time-picker/time'
+import TimeColumns from '../time-picker/time-columns.vue'
 import DouCalendar from './calendar.vue'
 import { inBounds, parseDate, today } from './date'
 import type {
   CalendarExpose,
   DatePickerExpose,
   DatePickerProps,
+  DatePickerShortcut,
   DatePickerSlots,
   DateRange,
   DateValue,
@@ -25,6 +29,7 @@ defineOptions({ name: 'DouDatePicker', inheritAttrs: false })
 const props = withDefaults(defineProps<DatePickerProps>(), {
   type: 'date',
   range: false,
+  timeFormat: 'HH:mm',
   disabled: false,
   invalid: false,
   clearable: false,
@@ -47,7 +52,35 @@ const invalid = computed(() => props.invalid || !!formItem?.invalid.value)
 const id = `dou-date-picker-${useId()}`
 const panelId = `${id}-panel`
 
-const isRange = computed(() => props.range && props.type === 'date')
+const isDateTime = computed(() => props.type === 'datetime')
+const isRange = computed(() => props.range && (props.type === 'date' || isDateTime.value))
+// The calendar only ever picks the day of a `datetime`.
+const calendarType = computed(() => (props.type === 'datetime' ? 'date' : props.type))
+const seconds = computed(() => props.timeFormat === 'HH:mm:ss')
+
+/* a day with a time: `YYYY-MM-DD HH:mm(:ss)` */
+
+const dayOf = (value: string | undefined) => value?.slice(0, 10)
+const timeOf = (value: string | undefined) => (value ? parseTime(value.slice(11)) : null)
+const withTime = (day: string, time: TimeParts) => `${day} ${formatTime(time, props.timeFormat)}`
+
+function defaultTime(index: number): TimeParts {
+  const given = Array.isArray(props.defaultTime) ? props.defaultTime[index] : props.defaultTime
+  const parsed = given ? parseTime(given) : null
+  if (parsed) return parsed
+  return isRange.value && index === 1
+    ? { hour: 23, minute: 59, second: 59 }
+    : { hour: 0, minute: 0, second: 0 }
+}
+
+/** Read what was typed. A `datetime` is a day, then optionally a time after a space or `T`. */
+function parseAt(text: string, index: number) {
+  if (props.type !== 'datetime') return parseDate(text, props.type)
+  const [day = '', time] = text.trim().split(/\s*[\sT]\s*/)
+  const date = parseDate(day, 'date')
+  const parts = time === undefined ? defaultTime(index) : parseTime(time)
+  return date && parts ? withTime(date, parts) : null
+}
 
 /* the text in the fields, kept apart from the value while typing */
 
@@ -64,8 +97,10 @@ const syncTexts = () => {
 }
 watch([values, isRange], syncTexts, { immediate: true })
 
-const allowed = (value: string) =>
-  inBounds(value, props.min, props.max) && !(value.length === 10 && props.disabledDate?.(value))
+const allowed = (value: string) => {
+  const day = value.length > 10 ? value.slice(0, 10) : value
+  return inBounds(day, props.min, props.max) && !(day.length === 10 && props.disabledDate?.(day))
+}
 
 const same = (a: DateValue | DateRange | null | undefined, b: DateValue | DateRange | null) =>
   JSON.stringify(a ?? null) === JSON.stringify(b)
@@ -82,7 +117,7 @@ function commit(value: DateValue | DateRange | null) {
 
 /** Turn what was typed into a value, or put the old text back. */
 function commitTexts() {
-  const parsed = texts.value.map((text) => (text.trim() ? parseDate(text, props.type) : ''))
+  const parsed = texts.value.map((text, index) => (text.trim() ? parseAt(text, index) : ''))
   if (parsed.every((value) => value === '')) {
     if (values.value.length) commit(null)
     return
@@ -112,6 +147,7 @@ const fieldRef = useTemplateRef<HTMLElement>('field')
 
 function show() {
   if (disabled.value || open.value) return
+  draft.value = [...values.value]
   open.value = true
 }
 function hide() {
@@ -126,6 +162,56 @@ async function focusCalendar() {
   show()
   await nextTick()
   calendarRef.value?.focus()
+}
+
+/* a `datetime` is put together in the panel and committed on confirm */
+
+const draft = ref<string[]>([])
+const calendarValue = computed(() => {
+  if (!isDateTime.value) return model.value
+  if (!isRange.value) return dayOf(draft.value[0]) ?? null
+  const [start, end] = draft.value
+  return start && end ? ([dayOf(start)!, dayOf(end)!] as DateRange) : null
+})
+const draftTimes = computed(() =>
+  Array.from({ length: isRange.value ? 2 : 1 }, (_, index) => timeOf(draft.value[index])),
+)
+const ordered = (list: string[]) => (list[0]! <= list[1]! ? list : [list[1]!, list[0]!])
+const canConfirm = computed(() =>
+  isRange.value ? !!(draft.value[0] && draft.value[1]) : !!draft.value[0],
+)
+
+function onCalendarSelect(value: DateValue | DateRange) {
+  if (!isDateTime.value) return onSelect(value)
+  const days = Array.isArray(value) ? value : [value]
+  draft.value = days.map((day, index) =>
+    withTime(day, timeOf(draft.value[index]) ?? defaultTime(index)),
+  )
+}
+
+function onTimePick(index: number, time: TimeParts) {
+  const list = [...draft.value]
+  const day = dayOf(list[index]) ?? dayOf(list[0]) ?? today()
+  list[index] = withTime(day, time)
+  // a range whose start has a time but no end yet: the end starts on the same day
+  if (isRange.value && index === 0 && !list[1]) list[1] = withTime(day, defaultTime(1))
+  draft.value = list
+}
+
+function confirm() {
+  if (!canConfirm.value) return
+  const list = isRange.value ? ordered(draft.value) : draft.value
+  onSelect(isRange.value ? (list.slice(0, 2) as DateRange) : list[0]!)
+}
+
+function pickNow() {
+  const time = now()
+  onSelect(withTime(today(), { ...time, second: seconds.value ? time.second : 0 }))
+}
+
+function pickShortcut(shortcut: DatePickerShortcut) {
+  const value = typeof shortcut.value === 'function' ? shortcut.value() : shortcut.value
+  onSelect(Array.isArray(value) ? ([...value] as DateRange) : value)
 }
 
 function onSelect(value: DateValue | DateRange) {
@@ -143,7 +229,7 @@ function pick(value: DateValue | DateRange) {
 
 function onInput(index: number) {
   show()
-  const value = parseDate(texts.value[index] ?? '', props.type)
+  const value = parseAt(texts.value[index] ?? '', index)
   if (value) calendarRef.value?.show(value)
 }
 
@@ -232,12 +318,14 @@ const placeholders = computed(() => {
       props.endPlaceholder ?? t('datePicker.end'),
     ]
   }
-  const fallback =
-    props.type === 'year'
-      ? t('datePicker.yearPlaceholder')
-      : props.type === 'month'
-        ? t('datePicker.monthPlaceholder')
-        : t('datePicker.placeholder')
+  const fallbacks = {
+    date: t('datePicker.placeholder'),
+    datetime: t('datePicker.datetimePlaceholder'),
+    week: t('datePicker.weekPlaceholder'),
+    month: t('datePicker.monthPlaceholder'),
+    year: t('datePicker.yearPlaceholder'),
+  }
+  const fallback = fallbacks[props.type]
   return [props.placeholder ?? fallback]
 })
 
@@ -254,11 +342,13 @@ const inputAttrs = (index: number): InputHTMLAttributes => ({
 
 const showClear = computed(() => props.clearable && !disabled.value && values.value.length > 0)
 const showToday = computed(() => !isRange.value && props.type === 'date' && allowed(today()))
+const showNow = computed(() => isDateTime.value && !isRange.value && allowed(today()))
 
 const classes = computed(() => [
   ns.b(),
   ns.m(size.value),
   ns.is('range', isRange.value),
+  ns.is('datetime', isDateTime.value),
   ns.is('open', open.value),
   ns.is('disabled', disabled.value),
   ns.is('invalid', invalid.value),
@@ -340,26 +430,61 @@ defineExpose<DatePickerExpose>({
         @mousedown="onPanelMousedown"
         @focusout="onFocusout"
       >
-        <DouCalendar
-          ref="calendar"
-          :model-value="model"
-          :type="type"
-          :range="range"
-          :min="min"
-          :max="max"
-          :disabled-date="disabledDate"
-          :week-start="weekStart"
-          :panels="panels"
-          @select="onSelect"
-        >
-          <template v-if="slots.footer || showToday" #footer>
-            <slot name="footer" :pick="pick">
-              <DouButton variant="ghost" size="sm" @click="pick(today())">
-                {{ t('datePicker.today') }}
-              </DouButton>
-            </slot>
-          </template>
-        </DouCalendar>
+        <div :class="ns.e('body')">
+          <div v-if="shortcuts?.length" :class="ns.e('shortcuts')">
+            <button
+              v-for="shortcut in shortcuts"
+              :key="shortcut.label"
+              type="button"
+              :class="ns.e('shortcut')"
+              @click="pickShortcut(shortcut)"
+            >
+              {{ shortcut.label }}
+            </button>
+          </div>
+          <DouCalendar
+            ref="calendar"
+            :model-value="calendarValue"
+            :type="calendarType"
+            :range="isRange"
+            :min="min"
+            :max="max"
+            :disabled-date="disabledDate"
+            :week-start="weekStart"
+            :panels="panels"
+            @select="onCalendarSelect"
+          >
+            <template v-if="!isDateTime && (slots.footer || showToday)" #footer>
+              <slot name="footer" :pick="pick">
+                <DouButton variant="ghost" size="sm" @click="pick(today())">
+                  {{ t('datePicker.today') }}
+                </DouButton>
+              </slot>
+            </template>
+          </DouCalendar>
+          <div v-if="isDateTime" :class="[ns.e('times'), 'dou-time-picker__body']">
+            <TimeColumns
+              v-for="(time, index) in draftTimes"
+              :key="index"
+              :value="time"
+              :seconds="seconds"
+              :steps="[1, 1, 1]"
+              :label="
+                isRange ? t(index ? 'timePicker.end' : 'timePicker.start') : t('datePicker.time')
+              "
+              @pick="onTimePick(index, $event)"
+            />
+          </div>
+        </div>
+        <div v-if="isDateTime" :class="ns.e('footer')">
+          <slot name="footer" :pick="pick" />
+          <DouButton v-if="showNow" variant="ghost" size="sm" @click="pickNow">
+            {{ t('datePicker.now') }}
+          </DouButton>
+          <DouButton size="sm" :disabled="!canConfirm" @click="confirm">
+            {{ t('datePicker.confirm') }}
+          </DouButton>
+        </div>
       </div>
     </Transition>
   </Teleport>

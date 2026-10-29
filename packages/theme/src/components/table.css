@@ -103,7 +103,8 @@
   /* pin the header while the body scrolls */
   .dou-table.is-scroll .dou-table__head .dou-table__cell {
     position: sticky;
-    top: 0;
+    /* each header row of a grouped header sticks under the ones above it */
+    top: calc(var(--dou-table-head-level, 0) * (var(--dou-table-cell-height) - 8px));
     z-index: 1;
   }
 
@@ -460,5 +461,150 @@
     overflow: hidden;
     clip-path: inset(50%);
     white-space: nowrap;
+  }
+
+  /* grouped headers: every header cell is boxed, so a group reads as one span */
+  .dou-table.is-grouped .dou-table__head .dou-table__cell:not(.is-edge) {
+    border-left: 1px solid var(--dou-color-border);
+  }
+
+  .dou-table__group {
+    text-align: center;
+  }
+
+  .dou-table__head-content {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    max-width: 100%;
+    vertical-align: middle;
+  }
+
+  /* the filter button stays whole when the title is cut off */
+  .dou-table__filter-trigger {
+    flex-shrink: 0;
+  }
+
+  /* header filters */
+  .dou-table__filter-trigger {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: 0;
+    border-radius: calc(var(--dou-radius-control) - 2px);
+    background: transparent;
+    color: var(--dou-color-text-disabled);
+    cursor: pointer;
+    transition-property: background-color, color;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    & > svg {
+      width: 1em;
+      height: 1em;
+      font-size: 13px;
+    }
+
+    &:hover {
+      background-color: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+      color: var(--dou-color-text-secondary);
+    }
+
+    &.is-active {
+      color: var(--dou-color-text);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 0;
+    }
+  }
+
+  .dou-table__filter {
+    min-width: 140px;
+    margin: -4px;
+    font-size: var(--dou-font-size-sm);
+  }
+
+  .dou-table__filter-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-height: 240px;
+    padding: 4px;
+    overflow-y: auto;
+
+    & > .dou-checkbox {
+      padding: 4px;
+    }
+  }
+
+  .dou-table__filter-footer {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 4px 4px;
+    border-top: 1px solid var(--dou-color-border-subtle);
+  }
+
+  .dou-table__filter-option {
+    height: 28px;
+    padding: 0 8px;
+    margin: 0;
+    border: 0;
+    border-radius: var(--dou-radius-control);
+    background: transparent;
+    color: var(--dou-color-text-secondary);
+    font: inherit;
+    text-align: start;
+    white-space: nowrap;
+    cursor: pointer;
+
+    &:hover {
+      background-color: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+      color: var(--dou-color-text);
+    }
+
+    &.is-selected {
+      background-color: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+      color: var(--dou-color-text);
+      font-weight: var(--dou-font-weight-medium);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: -2px;
+    }
+  }
+
+  /* the current row: the selected tint, marked by an ink bar on its start edge */
+  .dou-table.is-highlight-current .dou-table__row {
+    cursor: pointer;
+  }
+
+  .dou-table__row.is-current,
+  .dou-table.is-hoverable .dou-table__row.is-current:hover {
+    --dou-table-row-bg: var(--dou-table-row-selected);
+
+    & > .dou-table__cell:first-child {
+      box-shadow: inset 2px 0 0 var(--dou-color-text);
+    }
+  }
+
+  /* a merged cell spans rows, so the hairline under the rows it covers comes back */
+  .dou-table__cell.is-spanned {
+    border-bottom: 1px solid var(--dou-table-divider);
+  }
+  /* rows under a merged cell start mid-row, so a bordered table draws its lines by column */
+  .dou-table.is-bordered.is-spanning .dou-table__body .dou-table__cell:not(.is-edge) {
+    border-left: 1px solid var(--dou-table-divider);
+  }
+
+  .dou-table__toggle.is-loading {
+    cursor: progress;
   }
 }

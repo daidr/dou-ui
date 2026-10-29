@@ -225,4 +225,98 @@ describe('DouDatePicker', () => {
     expect(value.value).toEqual(['2026-10-01', '2026-10-20'])
     wrapper.unmount()
   })
+  it('picks a whole week', async () => {
+    const { wrapper, value } = make(DouDatePicker, { modelValue: '2026-W44', type: 'week' })
+    await wrapper.get('.dou-date-picker').trigger('mousedown')
+    // the week is drawn from Monday to Sunday
+    expect(day('2026-10-26').classList).toContain('is-selected')
+    expect(day('2026-11-01').classList).toContain('is-selected')
+    expect(day('2026-10-28').parentElement!.classList).toContain('is-in-range')
+    day('2026-11-05').click()
+    await nextTick()
+    expect(value.value).toBe('2026-W45')
+    expect(wrapper.get('input').element.value).toBe('2026-W45')
+    wrapper.unmount()
+  })
+
+  it('puts a day and a time together and commits on confirm', async () => {
+    const { wrapper, value } = make(DouDatePicker, { type: 'datetime' })
+    const input = wrapper.get('input')
+    expect(input.attributes('placeholder')).toBe('选择日期时间')
+    await wrapper.get('.dou-date-picker').trigger('mousedown')
+    day('2026-10-15').click()
+    await nextTick()
+    // picking a day does not close the panel or commit yet
+    expect(input.attributes('aria-expanded')).toBe('true')
+    expect(value.value).toBeUndefined()
+    const hours = document.querySelectorAll('.dou-time-picker__column')[0]!
+    hours.querySelectorAll<HTMLElement>('li')[9]!.click()
+    await nextTick()
+    const minutes = document.querySelectorAll('.dou-time-picker__column')[1]!
+    minutes.querySelectorAll<HTMLElement>('li')[30]!.click()
+    await nextTick()
+    const buttons = [
+      ...document.querySelectorAll<HTMLButtonElement>('.dou-date-picker__footer button'),
+    ]
+    buttons.find((button) => button.textContent!.trim() === '确定')!.click()
+    await nextTick()
+    expect(value.value).toBe('2026-10-15 09:30')
+    expect(input.attributes('aria-expanded')).toBe('false')
+    wrapper.unmount()
+  })
+
+  it('types a day and a time, and fills in the default time', async () => {
+    const { wrapper, value } = make(DouDatePicker, {
+      type: 'datetime',
+      timeFormat: 'HH:mm:ss',
+      defaultTime: '08:00',
+    })
+    const input = wrapper.get('input')
+    await input.setValue('2026/10/3 14:5')
+    await input.trigger('keydown', { key: 'Enter' })
+    await input.trigger('keydown', { key: 'Enter' })
+    expect(value.value).toBe('2026-10-03 14:05:00')
+    await input.setValue('2026-10-04')
+    await input.trigger('keydown', { key: 'Enter' })
+    expect(value.value).toBe('2026-10-04 08:00:00')
+    wrapper.unmount()
+  })
+
+  it('ends a datetime range at the end of the day', async () => {
+    const { wrapper, value } = make(DouDatePicker, { type: 'datetime', range: true })
+    await wrapper.get('.dou-date-picker').trigger('mousedown')
+    day('2026-10-20').click()
+    await nextTick()
+    day('2026-10-05').click()
+    await nextTick()
+    expect(document.querySelectorAll('.dou-time-picker__columns')).toHaveLength(2)
+    const confirm = [
+      ...document.querySelectorAll<HTMLButtonElement>('.dou-date-picker__footer button'),
+    ].at(-1)!
+    confirm.click()
+    await nextTick()
+    expect(value.value).toEqual(['2026-10-05 00:00', '2026-10-20 23:59'])
+    wrapper.unmount()
+  })
+
+  it('picks a shortcut', async () => {
+    const { wrapper, value } = make(DouDatePicker, {
+      range: true,
+      shortcuts: [
+        { label: '十月', value: ['2026-10-01', '2026-10-31'] },
+        { label: '最近 7 天', value: () => ['2026-10-22', '2026-10-28'] },
+      ],
+    })
+    await wrapper.get('.dou-date-picker').trigger('mousedown')
+    const shortcuts = document.querySelectorAll<HTMLButtonElement>('.dou-date-picker__shortcut')
+    expect([...shortcuts].map((button) => button.textContent!.trim())).toEqual([
+      '十月',
+      '最近 7 天',
+    ])
+    shortcuts[1]!.click()
+    await nextTick()
+    expect(value.value).toEqual(['2026-10-22', '2026-10-28'])
+    expect(wrapper.get('input').attributes('aria-expanded')).toBe('false')
+    wrapper.unmount()
+  })
 })

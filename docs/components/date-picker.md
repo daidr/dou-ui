@@ -1,6 +1,6 @@
 # DatePicker 日期选择
 
-输入或挑选一个日期、月份、年份，或一段日期范围。字段和输入框画法一致，前面一个安静的日历图标；日历是一格格平铺的数字：今天在数字下方有一道短短的墨线，选中的那天变成实心墨色的按键，和实心按钮同一套描边与阴影；范围内的日子共享一层极淡的底色，首尾相连。
+输入或挑选一个日期、日期时间、周、月份、年份，或一段范围。字段和输入框画法一致，前面一个安静的日历图标；日历是一格格平铺的数字：今天在数字下方有一道短短的墨线，选中的那天变成实心墨色的按键，和实心按钮同一套描边与阴影；范围内的日子共享一层极淡的底色，首尾相连。
 
 <script setup>
 import { ref } from 'vue'
@@ -21,11 +21,20 @@ function lastDays(days) {
   return [f(start), f(end)]
 }
 const shortcut = ref(null)
+const datetime = ref('2026-10-28 14:30')
+const datetimeRange = ref(null)
+const week = ref('2026-W44')
+const presets = ref(null)
+const shortcuts = [
+  { label: '最近 7 天', value: () => lastDays(7) },
+  { label: '最近 30 天', value: () => lastDays(30) },
+  { label: '最近 90 天', value: () => lastDays(90) },
+]
 </script>
 
 ## 值的形式
 
-值是不带时间和时区的字符串：日期是 `YYYY-MM-DD`，月份是 `YYYY-MM`，年份是 `YYYY`，范围是 `[开始, 结束]`。日期选择处理的是"哪一天"，而不是某个时刻，字符串可以直接比较大小、直接提交给后端，不会因为时区差一天。需要 `Date` 时自己转换。
+值是不带时区的字符串：日期是 `YYYY-MM-DD`，日期时间是 `YYYY-MM-DD HH:mm`（或带秒），周是 ISO 周 `YYYY-Www`，月份是 `YYYY-MM`，年份是 `YYYY`，范围是 `[开始, 结束]`。处理的是"墙上的日历和时钟"，而不是某个时刻，字符串可以直接比较大小、直接提交给后端，不会因为时区差一天。需要 `Date` 时自己转换，日期时间用 `new Date(value.replace(' ', 'T'))` 按本地时间读出。
 
 ## 基础用法
 
@@ -52,6 +61,48 @@ const shortcut = ref(null)
 ```vue
 <DouDatePicker v-model="month" type="month" />
 <DouDatePicker v-model="year" type="year" />
+```
+
+## 日期时间
+
+`type="datetime"` 在日历右侧加一组时、分列。先点日子再调时间，或者反过来；面板不会因为点了日子就关闭，按"确定"才生效，"此刻"直接选中现在。`time-format="HH:mm:ss"` 带上秒。
+
+<div class="demo">
+  <DouDatePicker v-model="datetime" type="datetime" style="width: 220px" />
+  <DouText variant="tertiary" size="sm">{{ datetime }}</DouText>
+</div>
+
+```vue
+<DouDatePicker v-model="value" type="datetime" />
+<DouDatePicker v-model="value" type="datetime" time-format="HH:mm:ss" />
+```
+
+也可以直接输入 `2026-10-28 14:30`，日期和时间之间用空格或 `T`；只输入日期时，时间取 `default-time`。
+
+### 日期时间范围
+
+和 `range` 一起用时，开始和结束各有一组时间列。只点了日子没有调时间的话，开始取当天 00:00，结束取当天 23:59，按天筛选时正好覆盖首尾两天；用 `default-time` 传一对时间可以改掉。
+
+<div class="demo">
+  <DouDatePicker v-model="datetimeRange" type="datetime" range style="width: 360px" clearable />
+  <DouText variant="tertiary" size="sm">{{ datetimeRange?.join(' → ') }}</DouText>
+</div>
+
+```vue
+<DouDatePicker v-model="value" type="datetime" range />
+<DouDatePicker v-model="value" type="datetime" range :default-time="['09:00', '18:00']" />
+```
+
+## 周
+
+`type="week"` 选一整周，值为 ISO 周：周一开始，包含当年第一个周四的那一周是第 1 周，跨年的周归属于它的周四所在的年份。日历固定从周一开始，指向某一行时整行显示底色，点哪一天都选中它所在的周。可以输入 `2026-W44` 或 `2026 44`。
+
+<div class="demo">
+  <DouDatePicker v-model="week" type="week" style="width: 160px" />
+</div>
+
+```vue
+<DouDatePicker v-model="week" type="week" />
 ```
 
 ## 日期范围
@@ -87,7 +138,24 @@ const shortcut = ref(null)
 
 ## 快捷选项
 
-`footer` 插槽放在日历底部，参数 `pick(value)` 直接选中一个值并关闭。
+`shortcuts` 在日历左侧列出一组预设，点击即选中并关闭。`value` 可以是值本身，也可以是函数，在点击的那一刻才计算，"最近 7 天"这类相对今天的预设不会因为页面开得久而过期。
+
+<div class="demo">
+  <DouDatePicker v-model="presets" range :shortcuts="shortcuts" style="width: 280px" />
+</div>
+
+```vue
+<script setup>
+const shortcuts = [
+  { label: '最近 7 天', value: () => lastDays(7) },
+  { label: '最近 30 天', value: () => lastDays(30) },
+]
+</script>
+
+<DouDatePicker v-model="value" range :shortcuts="shortcuts" />
+```
+
+需要别的布局时，`footer` 插槽放在日历底部，参数 `pick(value)` 直接选中一个值并关闭。
 
 <div class="demo">
   <DouDatePicker v-model="shortcut" range style="width: 280px">
@@ -151,25 +219,28 @@ const shortcut = ref(null)
 
 ### DatePicker Props
 
-| 名称               | 说明                             | 类型                                 | 默认值           |
-| ------------------ | -------------------------------- | ------------------------------------ | ---------------- |
-| `modelValue`       | 值，配合 `v-model`               | `string \| [string, string] \| null` | —                |
-| `type`             | 选择日期、月份还是年份           | `'date' \| 'month' \| 'year'`        | `'date'`         |
-| `range`            | 选择一段日期                     | `boolean`                            | `false`          |
-| `min`              | 最早可选，包含                   | `string`                             | —                |
-| `max`              | 最晚可选，包含                   | `string`                             | —                |
-| `disabledDate`     | 排除某些日子                     | `(date: string) => boolean`          | —                |
-| `weekStart`        | 一周的第一天                     | `0 \| 1`                             | 按语言           |
-| `panels`           | 并排显示几个月                   | `1 \| 2`                             | 范围为 2，否则 1 |
-| `placeholder`      | 占位文字                         | `string`                             | 语言包           |
-| `startPlaceholder` | 范围开始的占位文字               | `string`                             | 语言包           |
-| `endPlaceholder`   | 范围结束的占位文字               | `string`                             | 语言包           |
-| `clearable`        | 显示清空按钮                     | `boolean`                            | `false`          |
-| `size`             | 尺寸，默认取表单或全局配置       | `'sm' \| 'md' \| 'lg'`               | `'md'`           |
-| `disabled`         | 禁用                             | `boolean`                            | `false`          |
-| `invalid`          | 标记为无效                       | `boolean`                            | `false`          |
-| `placement`        | 日历弹出的位置                   | `Placement`                          | `'bottom-start'` |
-| `teleport`         | 日历渲染到哪里，`false` 留在原处 | `string \| HTMLElement \| false`     | `'body'`         |
+| 名称               | 说明                                 | 类型                                                  | 默认值                 |
+| ------------------ | ------------------------------------ | ----------------------------------------------------- | ---------------------- |
+| `modelValue`       | 值，配合 `v-model`                   | `string \| [string, string] \| null`                  | —                      |
+| `type`             | 选择日期、日期时间、周、月份还是年份 | `'date' \| 'datetime' \| 'week' \| 'month' \| 'year'` | `'date'`               |
+| `range`            | 选择一段日期（或日期时间）           | `boolean`                                             | `false`                |
+| `timeFormat`       | 日期时间是否带秒                     | `'HH:mm' \| 'HH:mm:ss'`                               | `'HH:mm'`              |
+| `defaultTime`      | 只选了日子时取的时间；范围可传一对   | `string \| [string, string]`                          | 开始 00:00，结束 23:59 |
+| `shortcuts`        | 日历左侧的预设                       | `{ label: string; value: 值 \| (() => 值) }[]`        | —                      |
+| `min`              | 最早可选，包含                       | `string`                                              | —                      |
+| `max`              | 最晚可选，包含                       | `string`                                              | —                      |
+| `disabledDate`     | 排除某些日子                         | `(date: string) => boolean`                           | —                      |
+| `weekStart`        | 一周的第一天                         | `0 \| 1`                                              | 按语言                 |
+| `panels`           | 并排显示几个月                       | `1 \| 2`                                              | 范围为 2，否则 1       |
+| `placeholder`      | 占位文字                             | `string`                                              | 语言包                 |
+| `startPlaceholder` | 范围开始的占位文字                   | `string`                                              | 语言包                 |
+| `endPlaceholder`   | 范围结束的占位文字                   | `string`                                              | 语言包                 |
+| `clearable`        | 显示清空按钮                         | `boolean`                                             | `false`                |
+| `size`             | 尺寸，默认取表单或全局配置           | `'sm' \| 'md' \| 'lg'`                                | `'md'`                 |
+| `disabled`         | 禁用                                 | `boolean`                                             | `false`                |
+| `invalid`          | 标记为无效                           | `boolean`                                             | `false`                |
+| `placement`        | 日历弹出的位置                       | `Placement`                                           | `'bottom-start'`       |
+| `teleport`         | 日历渲染到哪里，`false` 留在原处     | `string \| HTMLElement \| false`                      | `'body'`               |
 
 ### DatePicker Events
 
@@ -187,4 +258,4 @@ const shortcut = ref(null)
 
 ### Calendar
 
-`DouCalendar` 接受 DatePicker 中 `modelValue`、`type`、`range`、`min`、`max`、`disabledDate`、`weekStart`、`panels` 这几项，触发 `update:modelValue` 与 `select`。插槽 `cell` 替换日期格里的数字（参数 `{ date, day }`），`footer` 放在底部。暴露 `focus()` 和 `show(value)`（翻到某个值所在的月份）。
+`DouCalendar` 接受 DatePicker 中 `modelValue`、`type`（不含 `datetime`）、`range`、`min`、`max`、`disabledDate`、`weekStart`、`panels` 这几项，触发 `update:modelValue` 与 `select`。插槽 `cell` 替换日期格里的数字（参数 `{ date, day }`），`footer` 放在底部。暴露 `focus()` 和 `show(value)`（翻到某个值所在的月份）。

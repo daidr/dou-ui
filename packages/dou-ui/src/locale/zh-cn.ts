@@ -63,6 +63,10 @@ export const zhCN: Locale = {
     expand: '展开',
     expandRow: '展开此行',
     resize: '调整“{column}”列宽',
+    filter: '筛选“{column}”',
+    filterReset: '重置',
+    filterConfirm: '筛选',
+    filterAll: '全部',
   },
   upload: {
     choose: '选择文件',
@@ -77,6 +81,11 @@ export const zhCN: Locale = {
   datePicker: {
     placeholder: '选择日期',
     monthPlaceholder: '选择月份',
+    datetimePlaceholder: '选择日期时间',
+    weekPlaceholder: '选择周',
+    time: '时间',
+    now: '此刻',
+    confirm: '确定',
     yearPlaceholder: '选择年份',
     start: '开始日期',
     end: '结束日期',

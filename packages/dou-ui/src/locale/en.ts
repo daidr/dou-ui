@@ -63,6 +63,10 @@ export const en: Locale = {
     expand: 'Expand',
     expandRow: 'Expand row',
     resize: 'Resize column {column}',
+    filter: 'Filter column {column}',
+    filterReset: 'Reset',
+    filterConfirm: 'Filter',
+    filterAll: 'All',
   },
   upload: {
     choose: 'Choose file',
@@ -77,6 +81,11 @@ export const en: Locale = {
   datePicker: {
     placeholder: 'Pick a date',
     monthPlaceholder: 'Pick a month',
+    datetimePlaceholder: 'Pick a date and time',
+    weekPlaceholder: 'Pick a week',
+    time: 'Time',
+    now: 'Now',
+    confirm: 'OK',
     yearPlaceholder: 'Pick a year',
     start: 'Start date',
     end: 'End date',

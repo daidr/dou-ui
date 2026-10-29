@@ -103,6 +103,12 @@ export interface Locale {
     expandRow: string
     /** Label of a column's resize handle, with `{column}`. */
     resize: string
+    /** Label of a column's filter button; `{column}` is its title. */
+    filter: string
+    filterReset: string
+    filterConfirm: string
+    /** The choice that clears a single-choice filter. */
+    filterAll: string
   }
   upload: {
     /** The button that opens the file picker. */
@@ -127,6 +133,14 @@ export interface Locale {
     placeholder: string
     /** Shown in an empty month field. */
     monthPlaceholder: string
+    datetimePlaceholder: string
+    weekPlaceholder: string
+    /** Names the time columns of a `datetime`. */
+    time: string
+    /** The button that picks this moment. */
+    now: string
+    /** The button that commits a `datetime`. */
+    confirm: string
     /** Shown in an empty year field. */
     yearPlaceholder: string
     /** The start field of a range. */

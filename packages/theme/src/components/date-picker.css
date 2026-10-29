@@ -170,6 +170,63 @@
     font-size: var(--dou-font-size-md);
   }
 
+  /* presets on the start side, the calendar, then the time of a `datetime` */
+  .dou-date-picker__body {
+    display: flex;
+    gap: 8px;
+  }
+
+  .dou-date-picker__shortcuts {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 96px;
+    padding-inline-end: 8px;
+    border-inline-end: 1px solid var(--dou-color-border-subtle);
+  }
+
+  .dou-date-picker__shortcut {
+    height: 28px;
+    padding: 0 8px;
+    margin: 0;
+    border: 0;
+    border-radius: var(--dou-radius-control);
+    background: transparent;
+    color: var(--dou-color-text-secondary);
+    font: inherit;
+    font-size: var(--dou-font-size-sm);
+    text-align: start;
+    white-space: nowrap;
+    cursor: pointer;
+
+    &:hover {
+      background-color: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+      color: var(--dou-color-text);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: -2px;
+    }
+  }
+
+  .dou-date-picker__times {
+    --dou-time-picker-cell: 32px;
+    --dou-time-picker-rows: 7;
+
+    padding-inline-start: 8px;
+    border-inline-start: 1px solid var(--dou-color-border-subtle);
+  }
+
+  .dou-date-picker__footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 4px;
+    padding-top: 8px;
+    margin-top: 8px;
+    border-top: 1px solid var(--dou-color-border-subtle);
+  }
+
   /* the calendar */
   .dou-calendar {
     --dou-calendar-cell: 32px;
@@ -399,6 +456,25 @@
   .dou-calendar--month .dou-calendar__grid,
   .dou-calendar--year .dou-calendar__grid {
     width: 100%;
+  }
+
+  /* picking a week: the whole row under the pointer takes the wash */
+  .dou-calendar.is-week tbody tr:hover > .dou-calendar__cell:not(.is-hidden)::before {
+    position: absolute;
+    inset: 1px 0;
+    background-color: var(--dou-calendar-range-bg);
+    content: '';
+  }
+  .dou-calendar.is-week .dou-calendar__day:hover:not(.is-selected, .is-disabled) {
+    background-color: transparent;
+  }
+  .dou-calendar.is-week tbody tr:hover > .dou-calendar__cell:first-child::before {
+    border-start-start-radius: var(--dou-radius-control);
+    border-end-start-radius: var(--dou-radius-control);
+  }
+  .dou-calendar.is-week tbody tr:hover > .dou-calendar__cell:last-child::before {
+    border-start-end-radius: var(--dou-radius-control);
+    border-end-end-radius: var(--dou-radius-control);
   }
 
   .dou-calendar__footer {

@@ -1,12 +1,13 @@
 /**
- * Calendar dates as plain strings: `YYYY-MM-DD`, `YYYY-MM` or `YYYY`.
+ * Calendar dates as plain strings: `YYYY-MM-DD`, `YYYY-Www` (an ISO
+ * week), `YYYY-MM` or `YYYY`.
  *
  * A date picker deals in days, not instants, so values never carry a time
  * or a time zone and compare correctly as strings. Arithmetic goes
  * through UTC, where every day is 24 hours long.
  */
 
-export type DateUnit = 'date' | 'month' | 'year'
+export type DateUnit = 'date' | 'week' | 'month' | 'year'
 
 const pad = (value: number, length = 2) => String(value).padStart(length, '0')
 
@@ -59,9 +60,30 @@ export function today() {
   return toDateString(now.getFullYear(), now.getMonth() + 1, now.getDate())
 }
 
+function ordinal(date: string) {
+  const { year } = parts(date)
+  return (utc(date).getTime() - utc(toDateString(year, 1, 1)).getTime()) / 86_400_000 + 1
+}
+
+/** The ISO week a day falls in, `YYYY-Www`: weeks start on Monday, and week 1 holds the year's first Thursday. */
+export function isoWeek(date: string) {
+  const thursday = addDays(date, 3 - ((weekday(date) + 6) % 7))
+  const week = Math.floor((ordinal(thursday) - 1) / 7) + 1
+  return `${thursday.slice(0, 4)}-W${pad(week)}`
+}
+
+/** The Monday of an ISO week. */
+export function weekMonday(week: string) {
+  const year = Number(week.slice(0, 4))
+  const number = Number(week.slice(6))
+  const january4 = toDateString(year, 1, 4)
+  return addDays(january4, -((weekday(january4) + 6) % 7) + (number - 1) * 7)
+}
+
 /** Cut a full date down to the unit a value is stored in. */
 export function truncate(date: string, unit: DateUnit) {
   if (unit === 'year') return date.slice(0, 4)
+  if (unit === 'week') return isoWeek(date)
   if (unit === 'month') return date.slice(0, 7)
   return date
 }
@@ -70,7 +92,8 @@ export function truncate(date: string, unit: DateUnit) {
 export function expand(value: string) {
   if (/^\d{4}$/.test(value)) return `${value}-01-01`
   if (/^\d{4}-\d{2}$/.test(value)) return `${value}-01`
-  return value
+  if (/^\d{4}-W\d{2}$/.test(value)) return weekMonday(value)
+  return value.slice(0, 10)
 }
 
 /**
@@ -78,6 +101,14 @@ export function expand(value: string) {
  * `/` or `.` between the parts and single-digit months and days.
  */
 export function parseDate(text: string, unit: DateUnit): string | null {
+  if (unit === 'week') {
+    const week = text.trim().match(/^(\d{4})\s*[-/.\s]?\s*[Ww]?(\d{1,2})$/)
+    if (!week) return null
+    const year = Number(week[1])
+    const number = Number(week[2])
+    const last = Number(isoWeek(toDateString(year, 12, 28)).slice(6))
+    return number >= 1 && number <= last ? `${pad(year, 4)}-W${pad(number)}` : null
+  }
   const match = text.trim().match(/^(\d{4})(?:[-/.](\d{1,2}))?(?:[-/.](\d{1,2}))?$/)
   if (!match) return null
   const year = Number(match[1])
@@ -99,6 +130,7 @@ export function inBounds(value: string, min?: string, max?: string) {
 
 export function unitOf(value: string): DateUnit {
   if (value.length === 4) return 'year'
+  if (value.length === 8) return 'week'
   if (value.length === 7) return 'month'
   return 'date'
 }

@@ -42,6 +42,12 @@
     font: inherit;
     text-align: left;
 
+    /* keep the arrow's room so the status lines up with expandable calls
+       and doesn't shift once a running call gets its result */
+    &:not(button) {
+      padding-inline-end: calc(12px + 14px + 8px);
+    }
+
     &:is(button) {
       cursor: pointer;
 

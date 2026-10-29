@@ -195,6 +195,7 @@
     --dou-carousel-dot: rgb(255 255 255 / 0.5);
     --dou-carousel-dot-active: #ffffff;
 
+    position: relative;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -205,6 +206,13 @@
     border: 0;
     background: none;
     cursor: pointer;
+
+    /* the bars are thin: the hit area reaches past them to 24px */
+    &::after {
+      content: '';
+      position: absolute;
+      inset: -4px 0;
+    }
 
     &::before {
       content: '';
@@ -258,6 +266,10 @@
   .dou-carousel--vertical.dou-carousel--indicators-inside .dou-carousel__indicator {
     width: 16px;
     height: 20px;
+
+    &::after {
+      inset: 0 -4px;
+    }
 
     &::before {
       width: 4px;

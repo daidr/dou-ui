@@ -169,6 +169,7 @@
   }
 
   .dou-input-tag__clear {
+    position: relative;
     display: inline-flex;
     flex-shrink: 0;
     align-items: center;
@@ -195,6 +196,13 @@
     &:hover {
       background-color: color-mix(in oklab, var(--dou-color-text) 18%, transparent);
       color: var(--dou-color-text);
+    }
+
+    /* a larger hit area than the small glyph, without changing the layout */
+    &::after {
+      content: '';
+      position: absolute;
+      inset: -4px;
     }
   }
 }

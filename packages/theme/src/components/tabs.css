@@ -242,7 +242,8 @@
     & > .dou-tabs__panel {
       flex: 1 1 auto;
       min-width: 0;
-      padding-top: 0;
+      /* the first line of the panel sits level with the first tab's label */
+      padding-top: max(0px, calc((var(--dou-tabs-height) - 1lh) / 2));
       padding-inline-start: 20px;
     }
   }

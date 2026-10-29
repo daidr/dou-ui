@@ -383,6 +383,36 @@ export interface Locale {
     /** Names the code field when nothing else labels it. */
     label: string
   }
+  inputDate: {
+    /** How a date is shown and typed. `YYYY`, `MM`, `DD` are the parts; text in `[]` is kept as it is. */
+    date: string
+    /** How a month is shown and typed. */
+    month: string
+    /** How a year is shown and typed. */
+    year: string
+    /** How a time is shown and typed. `HH` is a 24-hour hour, `hh` with `A` a 12-hour one. */
+    time: string
+    /** The same with seconds (`ss`). */
+    timeWithSeconds: string
+    /** Shown in each part while it is empty. */
+    placeholders: Record<
+      'year' | 'month' | 'day' | 'hour' | 'minute' | 'second' | 'meridiem',
+      string
+    >
+    /** Names each part for screen readers. */
+    labels: Record<'year' | 'month' | 'day' | 'hour' | 'minute' | 'second' | 'meridiem', string>
+    /** Before noon and after noon on a 12-hour clock. */
+    am: string
+    pm: string
+    /** Read for a part that is empty. */
+    empty: string
+    /** The button that opens the calendar. */
+    openCalendar: string
+    /** The button that opens the time panel. */
+    openTime: string
+    /** Label of the clear button. */
+    clear: string
+  }
   qrcode: {
     /** Names the code for screen readers, with `{value}`. */
     label: string

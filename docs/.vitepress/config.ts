@@ -103,6 +103,8 @@ export default defineConfig({
             { text: 'TreeSelect 树选择', link: '/components/tree-select' },
             { text: 'DatePicker 日期选择', link: '/components/date-picker' },
             { text: 'TimePicker 时间选择', link: '/components/time-picker' },
+            { text: 'InputDate 日期输入', link: '/components/input-date' },
+            { text: 'InputTime 时间输入', link: '/components/input-time' },
             { text: 'ColorPicker 颜色选择', link: '/components/color-picker' },
             { text: 'ColorPanel 取色面板', link: '/components/color-panel' },
             { text: 'Transfer 穿梭框', link: '/components/transfer' },

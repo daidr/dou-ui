@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ArrowRightIcon, ClockIcon, CloseIcon } from '@dou-ui/icons'
 import { computed, nextTick, ref, useId, useTemplateRef, watch } from 'vue'
 import type { InputHTMLAttributes } from 'vue'
 import { usePopup } from '../../composables/use-popup'
@@ -186,6 +187,13 @@ function onFieldMousedown(event: MouseEvent) {
   else show()
 }
 
+// Pressing the panel between its buttons keeps focus where it was.
+function onPanelMousedown(event: MouseEvent) {
+  if (!(event.target as HTMLElement).closest('button, input, select, textarea, [tabindex]')) {
+    event.preventDefault()
+  }
+}
+
 function onFocusout(event: FocusEvent) {
   const next = event.relatedTarget
   if (next instanceof Node && (fieldRef.value?.contains(next) || panelRef.value?.contains(next))) {
@@ -246,34 +254,9 @@ defineExpose<TimePickerExpose>({
       @mousedown="onFieldMousedown"
       @focusout="onFocusout"
     >
-      <svg
-        class="dou-picker__icon"
-        viewBox="0 0 16 16"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.25"
-        stroke-linecap="round"
-        aria-hidden="true"
-      >
-        <circle cx="8" cy="8" r="6" />
-        <path d="M8 4.75V8l2.25 1.5" stroke-linejoin="round" />
-      </svg>
+      <ClockIcon class="dou-picker__icon" />
       <template v-for="index in fields" :key="index">
-        <svg
-          v-if="index === 2"
-          :class="ns.e('separator')"
-          viewBox="0 0 16 16"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.25"
-          aria-hidden="true"
-        >
-          <path
-            d="M3 8h10m0 0L9.5 4.5M13 8l-3.5 3.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </svg>
+        <ArrowRightIcon v-if="index === 2" :class="ns.e('separator')" />
         <input
           v-model="texts[index - 1]"
           v-bind="inputAttrs(index - 1)"
@@ -298,14 +281,12 @@ defineExpose<TimePickerExpose>({
         @mousedown.prevent
         @click="clear"
       >
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path d="M5 5l6 6M11 5l-6 6" stroke-linecap="round" />
-        </svg>
+        <CloseIcon />
       </button>
     </div>
   </OnlyChild>
   <Teleport v-if="rendered" :to="teleport || 'body'" :disabled="teleport === false">
-    <Transition name="dou-floating">
+    <Transition appear name="dou-floating">
       <div
         v-show="open"
         :id="panelId"
@@ -317,6 +298,7 @@ defineExpose<TimePickerExpose>({
         :data-placement="placement"
         :data-dou-theme="theme"
         @keydown="onPanelKeydown"
+        @mousedown="onPanelMousedown"
         @focusout="onFocusout"
       >
         <div :class="ns.e('body')">

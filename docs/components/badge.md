@@ -1,34 +1,10 @@
 # Badge 徽标
 
-钉在某个东西角上的数字或圆点。默认是墨色，一排徽标读起来是"信息"而不是"警报"；只有当数字本身有含义时（比如错误数）才用语气色。徽标外圈有一道底色的描边，把它从下面的内容上"切"出来。
+显示在按钮、图标右上角的数字或圆点，用于提示未读消息或待处理事项。
 
 ## 计数
 
-<script setup>
-import { ref } from 'vue'
-const count = ref(5)
-</script>
-
-<div class="demo">
-  <DouBadge :value="count">
-    <DouButton variant="outline">消息</DouButton>
-  </DouBadge>
-  <DouBadge :value="128">
-    <DouAvatar name="Ada Lovelace" shape="square" />
-  </DouBadge>
-  <DouBadge :value="3" tone="danger">
-    <DouButton variant="outline">错误</DouButton>
-  </DouBadge>
-  <DouButton variant="ghost" size="sm" @click="count++">+1</DouButton>
-  <DouButton variant="ghost" size="sm" @click="count = 0">清零</DouButton>
-</div>
-
-```vue
-<DouBadge :value="count">
-  <DouButton variant="outline">消息</DouButton>
-</DouBadge>
-<DouBadge :value="3" tone="danger">…</DouBadge>
-```
+<DocDemo src="badge/count" />
 
 超过 `max`（默认 99）的数字显示为 `99+`。值为 `0` 时默认隐藏，`show-zero` 让它显示出来。
 
@@ -36,27 +12,13 @@ const count = ref(5)
 
 `dot` 只表示"有新东西"，不关心数量。
 
-<div class="demo">
-  <DouBadge dot>
-    <DouAvatar name="林小满" />
-  </DouBadge>
-  <DouBadge dot tone="success" placement="bottom-end">
-    <DouAvatar name="Grace Hopper" />
-  </DouBadge>
-  <DouBadge dot tone="primary">
-    <DouLink href="#圆点">更新日志</DouLink>
-  </DouBadge>
-</div>
+<DocDemo src="badge/dot" />
 
 ## 独立使用
 
 没有默认插槽时，徽标作为一个行内元素出现，适合放在菜单项、标签页的文字后面。
 
-<div class="demo">
-  <DouText>收件箱 <DouBadge :value="12" /></DouText>
-  <DouText>失败 <DouBadge :value="2" tone="danger" /></DouText>
-  <DouText>版本 <DouBadge value="new" tone="primary" /></DouText>
-</div>
+<DocDemo src="badge/standalone" />
 
 ## 读屏
 

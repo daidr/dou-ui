@@ -1,48 +1,28 @@
 # Link 链接
 
-跳转到另一个页面。链接与正文同为墨色，靠一条淡淡的下划线识别，悬停时下划线加深。
+跳转到其他页面的文字链接。
 
 ## 基础用法
 
-<div class="demo">
-  <DouLink href="#">查看文档</DouLink>
-  <DouLink href="#" tone="primary">primary</DouLink>
-  <DouLink href="#" tone="danger">danger</DouLink>
-</div>
-
-```vue
-<DouLink href="/docs">查看文档</DouLink>
-```
+<DocDemo src="link/basic" />
 
 ## 下划线
 
 `underline` 控制下划线何时出现：常驻（默认）、仅悬停、从不。
 
-<div class="demo">
-  <DouLink href="#">always</DouLink>
-  <DouLink href="#" underline="hover">hover</DouLink>
-  <DouLink href="#" underline="none">none</DouLink>
-</div>
+<DocDemo src="link/underline" />
 
 ## 外部链接
 
 `external` 会在新标签页打开，自动加上 `rel="noopener noreferrer"`，并在末尾标记一个箭头。
 
-<div class="demo">
-  <DouLink href="https://github.com/daidr/dou-ui" external>GitHub</DouLink>
-</div>
-
-```vue
-<DouLink href="https://github.com/daidr/dou-ui" external>GitHub</DouLink>
-```
+<DocDemo src="link/external" />
 
 ## 禁用
 
 禁用的链接会移除 `href`，既不能跟随也不能获得焦点，并带有 `aria-disabled`。
 
-<div class="demo">
-  <DouLink href="#" disabled>不可用</DouLink>
-</div>
+<DocDemo src="link/disabled" />
 
 ## 图标
 

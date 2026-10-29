@@ -1,43 +1,10 @@
 # Steps 步骤条
 
-把一个流程拆成几步，标出走到了哪里。编号圆点之间用细线相连；只有当前这一步是实心的墨色圆点，已完成的步骤是描边的对勾，身后的线也变成墨色，进度一眼可读。出错是唯一会出现颜色的地方。
-
-<script setup>
-import { ref } from 'vue'
-const current = ref(1)
-const items = [
-  { title: '拉取代码', description: '从 main 分支' },
-  { title: '构建', description: '安装依赖并打包' },
-  { title: '部署', description: '上传到边缘节点' },
-  { title: '完成' },
-]
-</script>
+把流程拆成几个步骤，并显示当前进行到哪一步。
 
 ## 基础用法
 
-<div class="demo demo--column">
-  <DouSteps :items="items" :current="current" />
-  <DouSpace>
-    <DouButton size="sm" variant="outline" :disabled="current === 0" @click="current--">上一步</DouButton>
-    <DouButton size="sm" :disabled="current === 3" @click="current++">下一步</DouButton>
-  </DouSpace>
-</div>
-
-```vue
-<script setup>
-const current = ref(1)
-const items = [
-  { title: '拉取代码', description: '从 main 分支' },
-  { title: '构建', description: '安装依赖并打包' },
-  { title: '部署', description: '上传到边缘节点' },
-  { title: '完成' },
-]
-</script>
-
-<template>
-  <DouSteps :items="items" :current="current" />
-</template>
-```
+<DocDemo src="steps/basic" column />
 
 `current` 之前的步骤是"已完成"，之后的是"未开始"。单个步骤可以用 `status` 自己指定状态。
 
@@ -45,27 +12,13 @@ const items = [
 
 `status` 改变当前这一步的状态，比如 `error`。`direction="vertical"` 竖向排列，适合放在侧边。
 
-<div class="demo">
-  <DouSteps :items="items" :current="2" status="error" direction="vertical" />
-  <DouSteps :items="items" :current="2" direction="vertical" size="sm" />
-</div>
-
-```vue
-<DouSteps :items="items" :current="2" status="error" direction="vertical" />
-<DouSteps :items="items" :current="2" direction="vertical" size="sm" />
-```
+<DocDemo src="steps/error-vertical" />
 
 ## 可点击
 
 `clickable` 让每一步变成按钮，点击跳到那一步，配合 `v-model:current`。禁用的步骤不能点。
 
-<div class="demo demo--column">
-  <DouSteps v-model:current="current" :items="items" clickable />
-</div>
-
-```vue
-<DouSteps v-model:current="current" :items="items" clickable />
-```
+<DocDemo src="steps/clickable" column />
 
 ## 键盘与读屏
 

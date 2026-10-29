@@ -1,24 +1,26 @@
-import DefaultTheme from 'vitepress/theme'
-import { useData } from 'vitepress'
 import type { Theme } from 'vitepress'
-import { watchEffect } from 'vue'
-import DouUI from 'dou-ui'
+import DouUI, { useColorMode } from 'dou-ui'
 import 'dou-ui/style.css'
-import './custom.css'
+import './style.css'
+import Layout from './Layout.vue'
+import DocCode from './components/DocCode.vue'
+import DocDemo from './components/DocDemo.vue'
+import DocIconGallery from './components/DocIconGallery.vue'
 import TokenSwatches from './components/TokenSwatches.vue'
 
 export default {
-  extends: DefaultTheme,
+  Layout,
   enhanceApp({ app }) {
     app.use(DouUI)
+    // Every fenced code block is wrapped in DocCode (see the markdown config).
+    app.component('DocCode', DocCode)
+    app.component('DocDemo', DocDemo)
     app.component('TokenSwatches', TokenSwatches)
+    app.component('DocIconGallery', DocIconGallery)
   },
   setup() {
-    // Keep DouUI's theme in sync with the docs site's dark mode switch.
-    const { isDark } = useData()
-    watchEffect(() => {
-      if (typeof document === 'undefined') return
-      document.documentElement.dataset.douTheme = isDark.value ? 'dark' : 'light'
-    })
+    // The head script applies the mode before the first paint; this keeps
+    // it in step with the color mode button and the system afterwards.
+    useColorMode()
   },
 } satisfies Theme

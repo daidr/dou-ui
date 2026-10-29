@@ -1,0 +1,11 @@
+/*
+ * Affix
+ *
+ * No look of its own: the content keeps its place in the flow until it
+ * would scroll past the edge, then pins there above the page.
+ */
+@layer dou.components {
+  .dou-affix__content.is-fixed {
+    z-index: 10;
+  }
+}

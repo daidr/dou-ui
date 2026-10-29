@@ -1,14 +1,6 @@
 # TimePicker 时间选择
 
-输入或挑选一天之内的时刻，或一段时间范围。字段和 DatePicker 是同一套画法；弹出层是几列并排的数字，选中的数字是实心墨色的按键，打开时自动滚到顶部。
-
-<script setup>
-import { ref } from 'vue'
-const time = ref('09:30')
-const seconds = ref('14:05:30')
-const range = ref(['09:00', '18:00'])
-const stepped = ref('10:00')
-</script>
+用于选择或输入时间，支持时间范围。
 
 ## 值的形式
 
@@ -16,16 +8,7 @@ const stepped = ref('10:00')
 
 ## 基础用法
 
-<div class="demo">
-  <DouTimePicker v-model="time" style="width: 140px" />
-  <DouTimePicker v-model="seconds" format="HH:mm:ss" style="width: 160px" />
-  <DouText variant="tertiary" size="sm">{{ time }} · {{ seconds }}</DouText>
-</div>
-
-```vue
-<DouTimePicker v-model="time" />
-<DouTimePicker v-model="time" format="HH:mm:ss" />
-```
+<DocDemo src="time-picker/basic" />
 
 点击某一列的数字会立即改动值，不用再确认；"此刻"选中当前时间，"确定"关闭弹出层。也可以直接输入：`9`、`9:5`、`09：30` 都能识别，按 `Enter` 或离开字段时生效，无法识别的输入会恢复成原来的值。
 
@@ -33,33 +16,17 @@ const stepped = ref('10:00')
 
 `range` 用两个输入框表示开始和结束，弹出层里左右各一组列。关闭时如果开始晚于结束，会自动交换。
 
-<div class="demo">
-  <DouTimePicker v-model="range" range clearable style="width: 240px" />
-</div>
-
-```vue
-<DouTimePicker v-model="range" range />
-```
+<DocDemo src="time-picker/time-range" />
 
 ## 步长
 
 `hour-step`、`minute-step`、`second-step` 让列里只出现整倍数；输入的值会就近落到步长上。
 
-<div class="demo">
-  <DouTimePicker v-model="stepped" :minute-step="15" style="width: 140px" />
-</div>
-
-```vue
-<DouTimePicker v-model="time" :minute-step="15" />
-```
+<DocDemo src="time-picker/step" />
 
 ## 尺寸与状态
 
-<div class="demo">
-  <DouTimePicker v-for="size in ['sm', 'md', 'lg']" :key="size" :size="size" :model-value="time" style="width: 130px" />
-  <DouTimePicker disabled :model-value="time" style="width: 130px" />
-  <DouTimePicker invalid style="width: 130px" />
-</div>
+<DocDemo src="time-picker/size-state" />
 
 ## 键盘与读屏
 

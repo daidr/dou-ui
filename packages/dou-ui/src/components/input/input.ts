@@ -14,6 +14,10 @@ export interface InputProps {
   clearable?: boolean
   /** The native `type`. */
   type?: 'text' | 'password' | 'email' | 'url' | 'tel' | 'search' | 'number'
+  /** With `type="password"`, a button that shows and hides the password. */
+  showPassword?: boolean
+  /** Show how many characters were typed, and the `maxlength` when one is set. */
+  showCount?: boolean
 }
 
 export interface InputEmits {

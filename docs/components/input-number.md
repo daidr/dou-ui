@@ -1,25 +1,10 @@
 # InputNumber 数字输入
 
-输入一个数字。外观与 [输入框](./input) 相同，末端多了一对步进键：它们收在输入框的描边之内，用细线与文字、与彼此隔开，平时是安静的墨色，悬停时才浮现底色。数字使用等宽数字字形，步进时各位不会左右跳动。
-
-<script setup>
-import { ref } from 'vue'
-const count = ref(3)
-const ratio = ref(0.5)
-const price = ref(99)
-const memory = ref(512)
-</script>
+输入数字，可以设置范围和步长。
 
 ## 基础用法
 
-<div class="demo">
-  <DouInputNumber v-model="count" :min="1" :max="10" />
-  <DouText variant="tertiary" size="sm">当前值：{{ count ?? 'null' }}</DouText>
-</div>
-
-```vue
-<DouInputNumber v-model="count" :min="1" :max="10" />
-```
+<DocDemo src="input-number/basic" />
 
 清空输入框得到 `null`。到达 `min` 或 `max` 时，对应的步进键会变为禁用。
 
@@ -27,35 +12,11 @@ const memory = ref(512)
 
 `step` 决定每次步进的量，小数步进不会出现浮点误差（`0.1 + 0.2` 得到 `0.3`）。`precision` 指定保留的小数位，输入和显示都会按它取整。
 
-<div class="demo">
-  <DouInputNumber v-model="ratio" :min="0" :max="1" :step="0.1" />
-  <DouInputNumber v-model="price" :precision="2" :step="0.5" />
-</div>
-
-```vue
-<DouInputNumber v-model="ratio" :min="0" :max="1" :step="0.1" />
-<DouInputNumber v-model="price" :precision="2" :step="0.5" />
-```
+<DocDemo src="input-number/step-precision" />
 
 ## 前缀与后缀
 
-<div class="demo">
-  <DouInputNumber v-model="memory" :min="128" :max="4096" :step="128">
-    <template #suffix>MB</template>
-  </DouInputNumber>
-  <DouInputNumber v-model="price" :precision="2" :controls="false">
-    <template #prefix>¥</template>
-  </DouInputNumber>
-</div>
-
-```vue
-<DouInputNumber v-model="memory" :step="128">
-  <template #suffix>MB</template>
-</DouInputNumber>
-<DouInputNumber v-model="price" :precision="2" :controls="false">
-  <template #prefix>¥</template>
-</DouInputNumber>
-```
+<DocDemo src="input-number/prefix-suffix" />
 
 `controls` 设为 `false` 时隐藏步进键，键盘步进仍然可用。
 
@@ -79,16 +40,7 @@ const memory = ref(512)
 
 ## 尺寸与状态
 
-<div class="demo demo--column">
-  <DouSpace size="sm"><DouInputNumber size="sm" :model-value="1" /><DouButton size="sm" variant="outline">应用</DouButton></DouSpace>
-  <DouSpace size="sm"><DouInputNumber :model-value="1" /><DouButton variant="outline">应用</DouButton></DouSpace>
-  <DouSpace size="sm"><DouInputNumber size="lg" :model-value="1" /><DouButton size="lg" variant="outline">应用</DouButton></DouSpace>
-  <DouSpace size="sm">
-    <DouInputNumber :model-value="5" invalid />
-    <DouInputNumber :model-value="5" readonly />
-    <DouInputNumber :model-value="5" disabled />
-  </DouSpace>
-</div>
+<DocDemo src="input-number/size-state" column />
 
 默认宽度为 `160px`，可以用 `style` 或 `class` 覆盖。
 

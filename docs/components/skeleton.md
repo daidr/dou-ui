@@ -1,46 +1,18 @@
 # Skeleton 骨架屏
 
-内容加载时的占位。颜色与凹进的轨道一样淡；文字行的间距与真实的行一致，内容替换上来时不会跳动。可以开启一道柔和的光扫过。
-
-<script setup>
-import { ref } from 'vue'
-const loading = ref(true)
-</script>
+在数据加载完成前，用占位图形表示内容的大致结构。
 
 ## 基础用法
 
 `variant` 可选 `text`（默认，按 `lines` 画几行，最后一行短一些）、`rect`（一块矩形）、`circle`（头像）。
 
-<div class="demo demo--column" style="max-width: 480px">
-  <DouSpace align="start" size="md" block>
-    <DouSkeleton variant="circle" :width="40" />
-    <DouSkeleton :lines="3" style="flex: 1" />
-  </DouSpace>
-  <DouSkeleton variant="rect" :height="120" />
-</div>
-
-```vue
-<DouSkeleton variant="circle" :width="40" />
-<DouSkeleton :lines="3" />
-<DouSkeleton variant="rect" :height="120" />
-```
+<DocDemo src="skeleton/basic" column style="max-width: 480px" />
 
 ## 加载完成后显示内容
 
 把真实内容放进默认插槽，`loading` 为 `false` 时显示它。
 
-<div class="demo demo--column" style="max-width: 480px">
-  <DouSwitch v-model="loading">加载中</DouSwitch>
-  <DouSkeleton :loading="loading" :lines="2">
-    <DouText as="p" variant="secondary">最近一次部署于 3 分钟前完成，所有检查均已通过。</DouText>
-  </DouSkeleton>
-</div>
-
-```vue
-<DouSkeleton :loading="loading" :lines="2">
-  <p>最近一次部署于 3 分钟前完成。</p>
-</DouSkeleton>
-```
+<DocDemo src="skeleton/loaded" column style="max-width: 480px" />
 
 ## 读屏
 

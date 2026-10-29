@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { CheckIcon, ChevronRightIcon, MinusIcon } from '@dou-ui/icons'
 import { computed, inject } from 'vue'
 import { DouSpinner } from '../spinner'
 import { treeContextKey } from './tree'
@@ -50,15 +51,7 @@ const classes = computed(() => [
       @click.stop="row.expandable ? tree.toggle(node) : tree.onRowClick(row)"
     >
       <DouSpinner v-if="loading" :size="12" />
-      <svg
-        v-else-if="row.expandable"
-        viewBox="0 0 16 16"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.5"
-      >
-        <path d="M6.25 4.5L9.75 8l-3.5 3.5" stroke-linecap="round" stroke-linejoin="round" />
-      </svg>
+      <ChevronRightIcon v-else-if="row.expandable" />
     </span>
     <span
       v-if="tree.props.checkable"
@@ -66,10 +59,8 @@ const classes = computed(() => [
       aria-hidden="true"
       @click.stop="tree.setChecked(node, !checked)"
     >
-      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-        <path v-if="half" d="M4.5 8h7" stroke-linecap="round" />
-        <path v-else d="M4 8.5l2.5 2.5L12 5.5" stroke-linecap="round" stroke-linejoin="round" />
-      </svg>
+      <MinusIcon v-if="half" :stroke-width="2" />
+      <CheckIcon v-else :stroke-width="2" />
     </span>
     <span :class="ns.e('label')">
       <slot
@@ -81,12 +72,12 @@ const classes = computed(() => [
         :checked="checked"
         :indeterminate="half"
       />
-      <template v-else>
+      <span v-else :class="ns.e('text')">
         <template v-for="(part, at) in tree.parts(node)" :key="at">
           <mark v-if="part.match" :class="ns.e('match')">{{ part.text }}</mark>
           <template v-else>{{ part.text }}</template>
         </template>
-      </template>
+      </span>
     </span>
   </div>
 </template>

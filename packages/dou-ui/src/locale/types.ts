@@ -8,9 +8,18 @@
 export interface Locale {
   /** A BCP 47 language tag, e.g. `zh-CN`. */
   name: string
+  tabs: {
+    /** Hint on the close button of a tab. */
+    close: string
+    /** The button that adds a tab. */
+    add: string
+  }
   input: {
     /** Label of the clear button. */
     clear: string
+    /** The button that reveals a password. */
+    showPassword: string
+    hidePassword: string
   }
   tag: {
     /** Label of the remove button. */
@@ -35,6 +44,10 @@ export interface Locale {
   dialog: {
     /** Label of the close button. */
     close: string
+    /** Confirm button of `dialog.alert()`, `confirm()` and `prompt()`. */
+    confirm: string
+    /** Cancel button of `dialog.confirm()` and `prompt()`. */
+    cancel: string
   }
   drawer: {
     /** Label of the close button. */
@@ -47,6 +60,10 @@ export interface Locale {
     empty: string
     /** Label of the clear button. */
     clear: string
+    /** Shown in the list while options load. */
+    loading: string
+    /** The option that creates a new value, with `{query}`. */
+    create: string
   }
   spinner: {
     /** Read by screen readers while a spinner shows. */
@@ -89,6 +106,18 @@ export interface Locale {
     selectAll: string
     /** Label of the checkbox that selects one row. */
     selectRow: string
+    /** Names the column of detail-row toggles. */
+    expand: string
+    /** Label of the toggle that opens a row's details or children. */
+    expandRow: string
+    /** Label of a column's resize handle, with `{column}`. */
+    resize: string
+    /** Label of a column's filter button; `{column}` is its title. */
+    filter: string
+    filterReset: string
+    filterConfirm: string
+    /** The choice that clears a single-choice filter. */
+    filterAll: string
   }
   upload: {
     /** The button that opens the file picker. */
@@ -103,6 +132,8 @@ export interface Locale {
     remove: string
     /** Label of the retry button, followed by the file name. */
     retry: string
+    /** The button that opens the preview of an image card. */
+    preview: string
     /** Shown while a file is sent, followed by the percentage. */
     uploading: string
     /** Shown when a file failed to send. */
@@ -113,6 +144,14 @@ export interface Locale {
     placeholder: string
     /** Shown in an empty month field. */
     monthPlaceholder: string
+    datetimePlaceholder: string
+    weekPlaceholder: string
+    /** Names the time columns of a `datetime`. */
+    time: string
+    /** The button that picks this moment. */
+    now: string
+    /** The button that commits a `datetime`. */
+    confirm: string
     /** Shown in an empty year field. */
     yearPlaceholder: string
     /** The start field of a range. */
@@ -184,12 +223,39 @@ export interface Locale {
     area: string
     /** Reads its value, with `{s}` and `{v}` in percent. */
     areaValue: string
-    hue: string
-    alpha: string
-    /** Names the text box with the hex value. */
-    hex: string
+    /** Names the hue and saturation wheel. */
+    wheel: string
+    /** Reads its value, with `{h}` in degrees and `{s}` in percent. */
+    wheelValue: string
+    /** Label the square and the wheel in the panel switcher. */
+    panelSquare: string
+    panelWheel: string
+    /** Names the panel switcher. */
+    panels: string
+    /** Names the text box with the color value. */
+    text: string
+    /** Names the format menu next to the text box. */
+    format: string
     presets: string
     clear: string
+    /* channels, naming the sliders */
+    hue: string
+    alpha: string
+    red: string
+    green: string
+    blue: string
+    saturation: string
+    /** HSL and Lab lightness. */
+    lightness: string
+    /** HSV value. */
+    brightness: string
+    whiteness: string
+    blackness: string
+    chroma: string
+    /** The green–red axis of Lab and Oklab. */
+    axisA: string
+    /** The blue–yellow axis of Lab and Oklab. */
+    axisB: string
   }
   transfer: {
     /** The heading of the left list. */
@@ -207,6 +273,97 @@ export interface Locale {
     count: string
     toTarget: string
     toSource: string
+  }
+  popconfirm: {
+    confirm: string
+    cancel: string
+  }
+  statistic: {
+    /** Read for the arrow of a number that went up. */
+    up: string
+    down: string
+  }
+  image: {
+    /** Names the preview, and a previewable image without `alt`. */
+    preview: string
+    /** A picture that could not be loaded. */
+    error: string
+    prev: string
+    next: string
+    close: string
+    zoomIn: string
+    zoomOut: string
+    rotateLeft: string
+    rotateRight: string
+    reset: string
+    /** Which picture of how many, with `{index}` and `{total}`. */
+    counter: string
+  }
+  pageHeader: {
+    /** The back button before the title. */
+    back: string
+  }
+  backTop: {
+    label: string
+  }
+  splitter: {
+    /** Names the divider. */
+    label: string
+  }
+  anchor: {
+    /** Names the navigation. */
+    label: string
+  }
+  copyButton: {
+    copy: string
+    /** Said once the text is on the clipboard. */
+    copied: string
+  }
+  layout: {
+    /** Label of the button that collapses an aside. */
+    collapse: string
+    /** Label of the button that expands a collapsed aside. */
+    expand: string
+    /** Label of the button that opens an aside shown as a drawer on narrow screens. */
+    open: string
+  }
+  colorMode: {
+    /** Names the color mode select. */
+    label: string
+    light: string
+    dark: string
+    /** Follow the system's preference. */
+    system: string
+    /** Label of the color mode button while the page is light. */
+    toDark: string
+    /** Label of the color mode button while the page is dark. */
+    toLight: string
+  }
+  listbox: {
+    /** Placeholder of the search box. */
+    search: string
+    /** Shown when no option matches. */
+    empty: string
+  }
+  inputOtp: {
+    /** Names the code field when nothing else labels it. */
+    label: string
+  }
+  qrcode: {
+    /** Names the code for screen readers, with `{value}`. */
+    label: string
+    /** Shown over an expired code. */
+    expired: string
+    /** The button that asks for a new code. */
+    refresh: string
+    /** Read while a code loads. */
+    loading: string
+  }
+  calendarView: {
+    /** Events that did not fit in a day, with `{count}`. */
+    more: string
+    /** A day's label when it has events, with `{date}` and `{count}`. */
+    dayWithEvents: string
   }
   form: {
     /** Shown after the label of an optional field when `requiredMark` is `'optional'`. */

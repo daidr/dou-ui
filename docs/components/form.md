@@ -1,116 +1,12 @@
 # Form 表单
 
-`DouForm` 与 `DouFormItem` 是包在控件外面的一层**表单上下文**：标签、说明、校验信息由表单项负责，并自动接到控件的读屏属性上；尺寸、禁用、无效状态从表单一路下发给 Input、Checkbox、Radio、Switch、Button。
-
-表单本身是安静的结构：中等字重的标签，次要墨色的说明，危险语气的错误信息。校验规则是内置的一小组声明式检查加自定义函数，不依赖第三方库。
-
-<script setup>
-import { reactive, ref } from 'vue'
-
-const account = reactive({ email: '', password: '', role: '', agree: false })
-const rules = {
-  email: [{ required: true }, { type: 'email' }],
-  password: [{ required: true }, { min: 8 }],
-  role: { required: true, message: '请选择一个角色' },
-  agree: { required: true, message: '需要同意服务条款' },
-}
-const submitted = ref('')
-function onSubmit(model) {
-  submitted.value = JSON.stringify(model)
-}
-
-const profile = reactive({ name: 'dou-ui', domain: '', notify: ['deploy'], previews: true })
-const profileRules = {
-  name: { required: true, pattern: /^[\da-z-]+$/, message: '只能包含小写字母、数字和连字符' },
-  notify: { type: 'array', min: 1 },
-}
-
-const filters = reactive({ keyword: '', status: 'all' })
-
-const signup = reactive({ username: '' })
-const taken = ['admin', 'root', 'daidr']
-const signupRules = {
-  username: [
-    { required: true },
-    {
-      validator: (value) =>
-        new Promise((resolve) =>
-          setTimeout(() => resolve(taken.includes(value) ? '用户名已被占用' : true), 400),
-        ),
-    },
-  ],
-}
-</script>
+组织表单中的控件，统一处理标签、说明、校验信息，以及尺寸、禁用等状态。
 
 ## 基础用法
 
 给 `DouForm` 传入 `model` 与 `rules`，给每个 `DouFormItem` 一个 `prop` 指向 `model` 中的字段。提交按钮使用 `native-type="submit"`，表单校验通过后触发 `submit`，否则触发 `invalid`，并把第一个出错的字段滚动到视野内、移交焦点。
 
-<div class="demo demo--column" style="max-width: 420px">
-  <DouForm :model="account" :rules="rules" @submit="onSubmit">
-    <DouFormItem label="邮箱" prop="email">
-      <DouInput v-model="account.email" placeholder="you@example.com" />
-    </DouFormItem>
-    <DouFormItem label="密码" prop="password" help="至少 8 个字符">
-      <DouInput v-model="account.password" type="password" />
-    </DouFormItem>
-    <DouFormItem label="角色" prop="role">
-      <DouRadioGroup v-model="account.role">
-        <DouRadio value="dev">开发</DouRadio>
-        <DouRadio value="design">设计</DouRadio>
-        <DouRadio value="pm">产品</DouRadio>
-      </DouRadioGroup>
-    </DouFormItem>
-    <DouFormItem prop="agree">
-      <DouCheckbox v-model="account.agree">我已阅读并同意服务条款</DouCheckbox>
-    </DouFormItem>
-    <DouFormItem>
-      <DouButton native-type="submit">创建账号</DouButton>
-      <DouButton native-type="reset" variant="ghost">重置</DouButton>
-    </DouFormItem>
-  </DouForm>
-  <DouText v-if="submitted" variant="tertiary" size="sm" mono>{{ submitted }}</DouText>
-</div>
-
-```vue
-<script setup lang="ts">
-import { reactive } from 'vue'
-import type { FormModel, FormRules } from 'dou-ui'
-
-const account = reactive({ email: '', password: '', role: '', agree: false })
-const rules: FormRules = {
-  email: [{ required: true }, { type: 'email' }],
-  password: [{ required: true }, { min: 8 }],
-  role: { required: true, message: '请选择一个角色' },
-  agree: { required: true, message: '需要同意服务条款' },
-}
-
-function onSubmit(model: FormModel) {
-  // 所有字段都已通过校验
-}
-</script>
-
-<template>
-  <DouForm :model="account" :rules="rules" @submit="onSubmit">
-    <DouFormItem label="邮箱" prop="email">
-      <DouInput v-model="account.email" />
-    </DouFormItem>
-    <DouFormItem label="密码" prop="password" help="至少 8 个字符">
-      <DouInput v-model="account.password" type="password" />
-    </DouFormItem>
-    <DouFormItem label="角色" prop="role">
-      <DouRadioGroup v-model="account.role">...</DouRadioGroup>
-    </DouFormItem>
-    <DouFormItem prop="agree">
-      <DouCheckbox v-model="account.agree">我已阅读并同意服务条款</DouCheckbox>
-    </DouFormItem>
-    <DouFormItem>
-      <DouButton native-type="submit">创建账号</DouButton>
-      <DouButton native-type="reset" variant="ghost">重置</DouButton>
-    </DouFormItem>
-  </DouForm>
-</template>
-```
+<DocDemo src="form/basic" column style="max-width: 420px" />
 
 `model` 请传入 `reactive` 对象（或 `ref` 的值），这样 `resetFields` 才能把字段写回初始值。表单渲染为原生 `<form novalidate>`：回车提交、`type="reset"` 重置都是浏览器自己的行为，浏览器自带的校验气泡则被关掉，由表单项统一展示错误。
 
@@ -144,22 +40,7 @@ function onSubmit(model: FormModel) {
 
 `validator` 返回 Promise 即可。同一字段连续触发多次校验时，只采纳最后一次的结果。
 
-<div class="demo demo--column" style="max-width: 420px">
-  <DouForm :model="signup" :rules="signupRules">
-    <DouFormItem label="用户名" prop="username" help="试试 admin">
-      <DouInput v-model="signup.username" />
-    </DouFormItem>
-  </DouForm>
-</div>
-
-```ts
-const rules: FormRules = {
-  username: [
-    { required: true },
-    { validator: async (value) => ((await isTaken(value)) ? '用户名已被占用' : true) },
-  ],
-}
-```
+<DocDemo src="form/async-validate" column style="max-width: 420px" />
 
 ### 来自服务端的错误
 
@@ -177,40 +58,7 @@ const rules: FormRules = {
 
 `layout="horizontal"` 时标签在左侧排成一列。表单是一个网格，所有表单项共享它的列，所以**标签列会自动取最长标签的宽度**，不需要猜一个固定的 `label-width`。没有标签的表单项（例如按钮行）自动与控件列对齐。
 
-<div class="demo demo--column" style="max-width: 520px">
-  <DouForm :model="profile" :rules="profileRules" layout="horizontal" label-align="end">
-    <DouFormItem label="项目名称" prop="name">
-      <DouInput v-model="profile.name" clearable />
-    </DouFormItem>
-    <DouFormItem label="自定义域名" prop="domain" help="解析生效后自动签发证书">
-      <DouInput v-model="profile.domain" placeholder="example.com">
-        <template #prefix>https://</template>
-      </DouInput>
-    </DouFormItem>
-    <DouFormItem label="预览">
-      <DouSwitch v-model="profile.previews">为每个分支生成预览</DouSwitch>
-    </DouFormItem>
-    <DouFormItem label="通知" prop="notify">
-      <DouCheckboxGroup v-model="profile.notify">
-        <DouCheckbox value="deploy">部署成功</DouCheckbox>
-        <DouCheckbox value="fail">部署失败</DouCheckbox>
-      </DouCheckboxGroup>
-    </DouFormItem>
-    <DouFormItem>
-      <DouButton native-type="submit">保存</DouButton>
-    </DouFormItem>
-  </DouForm>
-</div>
-
-```vue
-<DouForm :model="form" layout="horizontal" label-align="end">
-  <DouFormItem label="项目名称" prop="name">...</DouFormItem>
-  <DouFormItem label="自定义域名" prop="domain">...</DouFormItem>
-  <DouFormItem>
-    <DouButton native-type="submit">保存</DouButton>
-  </DouFormItem>
-</DouForm>
-```
+<DocDemo src="form/horizontal" column style="max-width: 520px" />
 
 标签与控件的第一行共享一条中线，无论控件是输入框、开关还是一组单选。需要固定宽度时，用表单或单个表单项的 `label-width`。自动对齐要求表单项是表单的直接子元素。
 
@@ -218,23 +66,7 @@ const rules: FormRules = {
 
 `layout="inline"` 让表单项排成一行，适合筛选栏。
 
-<div class="demo">
-  <DouForm :model="filters" layout="inline" size="sm">
-    <DouFormItem label="关键词">
-      <DouInput v-model="filters.keyword" clearable placeholder="搜索" style="width: 180px" />
-    </DouFormItem>
-    <DouFormItem label="状态">
-      <DouRadioGroup v-model="filters.status">
-        <DouRadio value="all">全部</DouRadio>
-        <DouRadio value="ready">就绪</DouRadio>
-        <DouRadio value="failed">失败</DouRadio>
-      </DouRadioGroup>
-    </DouFormItem>
-    <DouFormItem>
-      <DouButton variant="outline">筛选</DouButton>
-    </DouFormItem>
-  </DouForm>
-</div>
+<DocDemo src="form/inline" />
 
 ## 必填与可选标记
 

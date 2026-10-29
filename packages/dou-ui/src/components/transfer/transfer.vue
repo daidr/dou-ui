@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ChevronLeftIcon, ChevronRightIcon } from '@dou-ui/icons'
 import { computed, ref, watch } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { DouButton } from '../button'
@@ -97,16 +98,7 @@ const titles = computed<[string, string]>(
         :aria-label="t('transfer.toTarget')"
         @click="toTarget"
       >
-        <svg
-          viewBox="0 0 16 16"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.5"
-          width="14"
-          height="14"
-        >
-          <path d="M6 4l4 4-4 4" stroke-linecap="round" stroke-linejoin="round" />
-        </svg>
+        <ChevronRightIcon />
       </DouButton>
       <DouButton
         size="sm"
@@ -115,16 +107,7 @@ const titles = computed<[string, string]>(
         :aria-label="t('transfer.toSource')"
         @click="toSource"
       >
-        <svg
-          viewBox="0 0 16 16"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.5"
-          width="14"
-          height="14"
-        >
-          <path d="M10 4L6 8l4 4" stroke-linecap="round" stroke-linejoin="round" />
-        </svg>
+        <ChevronLeftIcon />
       </DouButton>
     </div>
     <TransferList

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ChevronDownIcon } from '@dou-ui/icons'
 import { computed, inject } from 'vue'
 import type { FunctionalComponent, VNode } from 'vue'
 import { useNamespace } from '../../utils/namespace'
@@ -69,18 +70,9 @@ function onClick(event: MouseEvent) {
       {{ item.label.slice(0, 1) }}
     </span>
     <span v-if="!iconOnly" :class="ns.e('label')"><Label /></span>
-    <svg
+    <ChevronDownIcon
       v-if="kind !== 'leaf' && !iconOnly"
       :class="[ns.e('arrow'), ns.is('open', expanded)]"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="1.5"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M4 6l4 4 4-4" />
-    </svg>
+    />
   </component>
 </template>

@@ -31,8 +31,9 @@
     color: var(--dou-color-text-tertiary);
 
     & svg {
-      width: 16px;
-      height: 16px;
+      width: 1em;
+      height: 1em;
+      font-size: 16px;
     }
   }
 
@@ -101,8 +102,7 @@
   .dou-command__label {
     flex: 0 1 auto;
     min-width: 0;
-    overflow: clip;
-    overflow-clip-margin: 4px;
+    overflow-x: clip;
     text-overflow: ellipsis;
     text-box: trim-both cap alphabetic;
   }
@@ -121,9 +121,8 @@
   .dou-command__description {
     flex: 1 1 auto;
     min-width: 0;
-    /* clip, not hide: the trimmed line box is shorter than CJK glyphs */
-    overflow: clip;
-    overflow-clip-margin: 4px;
+    /* clip inline only: glyphs overflow the trimmed line box vertically */
+    overflow-x: clip;
     color: var(--dou-color-text-tertiary);
     font-size: var(--dou-font-size-sm);
     text-overflow: ellipsis;

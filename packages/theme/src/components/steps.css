@@ -11,6 +11,8 @@
     --dou-steps-marker-size: 24px;
     --dou-steps-marker-font-size: 12px;
     --dou-steps-gap: 8px;
+    --dou-steps-line-gap: 12px;
+    --dou-steps-line-min: 16px;
     --dou-steps-line: var(--dou-color-border);
     --dou-steps-line-done: color-mix(in oklab, var(--dou-color-text) 72%, transparent);
 
@@ -27,13 +29,18 @@
     --dou-steps-marker-size: 20px;
     --dou-steps-marker-font-size: 11px;
     --dou-steps-gap: 6px;
+    --dou-steps-line-gap: 8px;
+    --dou-steps-line-min: 12px;
     font-size: var(--dou-font-size-sm);
   }
 
+  /*
+   * Items share the row evenly, but never shrink below their own label:
+   * when space runs short the hairline gives way, not the text.
+   */
   .dou-steps__item {
     display: flex;
     flex: 1 1 0;
-    min-width: 0;
 
     &:last-child {
       flex: 0 0 auto;
@@ -97,8 +104,9 @@
     transition-timing-function: var(--dou-motion-easing);
 
     & svg {
-      width: 12px;
-      height: 12px;
+      width: 1em;
+      height: 1em;
+      font-size: 12px;
     }
   }
 
@@ -142,9 +150,9 @@
 
   .dou-steps__line {
     flex: 1 1 auto;
-    min-width: 16px;
+    min-width: var(--dou-steps-line-min);
     height: 1px;
-    margin: calc(var(--dou-steps-marker-size) / 2) 12px 0;
+    margin: calc(var(--dou-steps-marker-size) / 2) var(--dou-steps-line-gap) 0;
     background-color: var(--dou-steps-line);
   }
 

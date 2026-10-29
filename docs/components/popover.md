@@ -1,65 +1,24 @@
 # Popover 气泡卡片
 
-点击一个元素，在旁边弹出一张小卡片，可以放标题、说明和操作。卡片是一块抬起的表面：细描边加菜单阴影。适合轻量的确认、补充信息或小表单；需要用户专心处理的内容请用 [对话框](./dialog)。
+点击元素后弹出的卡片，可以放置标题、说明和操作。
 
 浮层的通用行为见 [浮层](../guide/overlays)。
 
-<script setup>
-import { ref } from 'vue'
-const open = ref(false)
-</script>
-
 ## 基础用法
 
-<div class="demo">
-  <DouPopover title="部署保护" content="开启后，预览部署需要登录才能访问。">
-    <DouButton variant="outline">了解更多</DouButton>
-  </DouPopover>
-</div>
-
-```vue
-<DouPopover title="部署保护" content="开启后，预览部署需要登录才能访问。">
-  <DouButton variant="outline">了解更多</DouButton>
-</DouPopover>
-```
+<DocDemo src="popover/basic" />
 
 ## 放入操作
 
 `content` 插槽替换卡片内容，插槽参数里的 `close` 用来关闭卡片。也可以用 `v-model:open` 自己控制。
 
-<div class="demo">
-  <DouPopover v-model:open="open" title="删除这个分支？" :width="260">
-    <DouButton variant="outline" tone="danger">删除分支</DouButton>
-    <template #content="{ close }">
-      <DouText as="p" variant="secondary" size="sm">关联的预览部署也会一并移除，此操作无法撤销。</DouText>
-      <DouSpace size="sm" style="justify-content: flex-end; margin-top: 12px; width: 100%">
-        <DouButton variant="ghost" size="sm" @click="close">取消</DouButton>
-        <DouButton tone="danger" size="sm" @click="close">删除</DouButton>
-      </DouSpace>
-    </template>
-  </DouPopover>
-</div>
-
-```vue
-<DouPopover v-model:open="open" title="删除这个分支？" :width="260">
-  <DouButton variant="outline" tone="danger">删除分支</DouButton>
-  <template #content="{ close }">
-    <DouText as="p" variant="secondary" size="sm">关联的预览部署也会一并移除，此操作无法撤销。</DouText>
-    <DouButton variant="ghost" size="sm" @click="close">取消</DouButton>
-    <DouButton tone="danger" size="sm" @click="close">删除</DouButton>
-  </template>
-</DouPopover>
-```
+<DocDemo src="popover/action" />
 
 ## 触发方式
 
 `trigger` 为 `hover` 时指向即打开，指针可以从触发元素移到卡片上；`manual` 完全交给 `v-model:open`。
 
-<div class="demo">
-  <DouPopover trigger="hover" placement="right" content="指针移到卡片上，卡片不会消失。">
-    <DouButton variant="outline">指向打开</DouButton>
-  </DouPopover>
-</div>
+<DocDemo src="popover/trigger" />
 
 ## 键盘与读屏
 

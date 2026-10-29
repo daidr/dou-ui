@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ChevronLeftIcon, ChevronRightIcon } from '@dou-ui/icons'
 import { computed, nextTick, ref, useId, useTemplateRef, watch } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
@@ -8,6 +9,7 @@ import {
   daysInMonth,
   expand,
   inBounds,
+  isoWeek,
   parts,
   today,
   toDateString,
@@ -40,9 +42,13 @@ const id = `dou-calendar-${useId()}`
 
 const unit = computed<DateUnit>(() => props.type)
 const isRange = computed(() => props.range && unit.value === 'date')
+const isWeek = computed(() => unit.value === 'week')
 const panelCount = computed(() => props.panels ?? (isRange.value ? 2 : 1))
-const weekStart = computed(
-  () => props.weekStart ?? (locale.value.name.toLowerCase().startsWith('en') ? 0 : 1),
+// ISO weeks start on Monday, whatever the locale.
+const weekStart = computed(() =>
+  isWeek.value
+    ? 1
+    : (props.weekStart ?? (locale.value.name.toLowerCase().startsWith('en') ? 0 : 1)),
 )
 
 /* the value */
@@ -58,6 +64,11 @@ const pending = ref<string | null>(null)
 const hovered = ref<string | null>(null)
 
 const shownRange = computed<[string, string] | null>(() => {
+  // A week is drawn as a range from its Monday to its Sunday.
+  if (isWeek.value) {
+    const monday = values.value[0] && expand(values.value[0])
+    return monday ? [monday, addDays(monday, 6)] : null
+  }
   if (!isRange.value) return null
   if (pending.value) {
     const other = hovered.value ?? pending.value
@@ -80,13 +91,14 @@ function clamp(date: string) {
 
 /* where the calendar is looking */
 
-type View = DateUnit
-const view = ref<View>(unit.value)
+type View = 'date' | 'month' | 'year'
+const viewOf = (value: DateUnit): View => (value === 'week' ? 'date' : value)
+const view = ref<View>(viewOf(unit.value))
 const cursor = ref(clamp(values.value[0] ? expand(values.value[0]) : today()))
 // The first month shown; a range shows the next one beside it.
 const anchor = ref(cursor.value.slice(0, 7))
 
-watch(unit, (value) => (view.value = value))
+watch(unit, (value) => (view.value = viewOf(value)))
 watch(cursor, (date) => {
   const month = date.slice(0, 7)
   const last = addMonths(`${anchor.value}-01`, panelCount.value - 1).slice(0, 7)
@@ -187,6 +199,7 @@ const rowsOf = <T,>(cells: T[]) => [cells.slice(0, 4), cells.slice(4, 8), cells.
 const todayValue = today()
 const isSelected = (value: string) => {
   if (pending.value) return value === pending.value
+  if (isWeek.value && value.length === 10) return isEdge(value, 0) || isEdge(value, 1)
   return values.value.some((selected) => truncate(expand(selected), unitOf(value)) === value)
 }
 const inRange = (date: string) =>
@@ -205,6 +218,7 @@ function commit(value: DateValue | DateRange) {
 function pickDate(date: string) {
   if (isDisabled(date)) return
   cursor.value = date
+  if (isWeek.value) return commit(isoWeek(date))
   if (!isRange.value) return commit(date)
   if (!pending.value) {
     pending.value = date
@@ -321,6 +335,7 @@ const classes = computed(() => [
   ns.b(),
   ns.m(view.value),
   ns.is('range', isRange.value),
+  ns.is('week', isWeek.value),
   ns.is('picking', !!pending.value),
 ])
 </script>
@@ -330,7 +345,7 @@ const classes = computed(() => [
     <div ref="grid" :class="ns.e('panels')" @keydown="onGridKeydown">
       <!-- days -->
       <template v-if="view === 'date'">
-        <div v-for="(panel, index) in months" :key="panel.month" :class="ns.e('panel')">
+        <div v-for="(panel, index) in months" :key="index" :class="ns.e('panel')">
           <div :class="ns.e('header')">
             <button
               v-if="index === 0"
@@ -339,9 +354,7 @@ const classes = computed(() => [
               :aria-label="stepLabels[0]"
               @click="step(-1)"
             >
-              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M9.75 4.5L6.25 8l3.5 3.5" stroke-linecap="round" stroke-linejoin="round" />
-              </svg>
+              <ChevronLeftIcon />
             </button>
             <span v-else :class="ns.e('step-space')" />
             <button
@@ -360,13 +373,7 @@ const classes = computed(() => [
               :aria-label="stepLabels[1]"
               @click="step(1)"
             >
-              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path
-                  d="M6.25 4.5L9.75 8l-3.5 3.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
+              <ChevronRightIcon />
             </button>
             <span v-else :class="ns.e('step-space')" />
           </div>
@@ -386,6 +393,7 @@ const classes = computed(() => [
                   :class="[
                     ns.e('cell'),
                     ns.is('outside', cell.outside),
+                    ns.is('hidden', cell.hidden),
                     ns.is('in-range', !cell.hidden && inRange(cell.date)),
                     ns.is('range-start', !cell.hidden && isEdge(cell.date, 0)),
                     ns.is('range-end', !cell.hidden && isEdge(cell.date, 1)),
@@ -422,9 +430,7 @@ const classes = computed(() => [
       <div v-else :class="ns.e('panel')">
         <div :class="ns.e('header')">
           <button type="button" :class="ns.e('step')" :aria-label="stepLabels[0]" @click="step(-1)">
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path d="M9.75 4.5L6.25 8l3.5 3.5" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
+            <ChevronLeftIcon />
           </button>
           <button
             v-if="view === 'month'"
@@ -445,9 +451,7 @@ const classes = computed(() => [
             {{ decade }} – {{ decade + 9 }}
           </span>
           <button type="button" :class="ns.e('step')" :aria-label="stepLabels[1]" @click="step(1)">
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path d="M6.25 4.5L9.75 8l-3.5 3.5" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
+            <ChevronRightIcon />
           </button>
         </div>
         <table

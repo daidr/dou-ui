@@ -176,6 +176,8 @@ describe('DouTree', () => {
     await nextTick()
     expect(labels()).toEqual(['src', 'components', 'input.vue'])
     expect(wrapper.get('.dou-tree__match').text()).toBe('input')
+    // the highlight sits in one text run with the rest of the label
+    expect(wrapper.get('.dou-tree__match').element.parentElement!.className).toBe('dou-tree__text')
     wrapper.unmount()
 
     const none = make({ filter: 'nothing' })

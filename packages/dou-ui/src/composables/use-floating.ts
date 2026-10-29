@@ -92,6 +92,11 @@ export function computePosition(
   }
 }
 
+/** Anything with a box to sit next to, e.g. a point where the pointer was pressed. */
+export interface VirtualElement {
+  getBoundingClientRect: () => DOMRect
+}
+
 export interface UseFloatingOptions {
   open: MaybeRefOrGetter<boolean>
   placement: MaybeRefOrGetter<Placement>
@@ -105,7 +110,7 @@ export interface UseFloatingOptions {
  * recomputed on scroll, resize and when either element changes size.
  */
 export function useFloating(
-  reference: () => Element | null | undefined,
+  reference: () => Element | VirtualElement | null | undefined,
   floating: Ref<HTMLElement | null>,
   options: UseFloatingOptions,
 ) {
@@ -149,7 +154,7 @@ export function useFloating(
     if (typeof ResizeObserver !== 'undefined') {
       observer = new ResizeObserver(schedule)
       const anchor = reference()
-      if (anchor) observer.observe(anchor)
+      if (anchor instanceof Element) observer.observe(anchor)
       if (floating.value) observer.observe(floating.value)
     }
   }

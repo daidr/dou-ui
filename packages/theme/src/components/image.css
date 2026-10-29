@@ -1,0 +1,312 @@
+/*
+ * Image and ImagePreview
+ *
+ * An image sits in a box of its own size with the control radius and a
+ * faint inner hairline, so pale pictures keep an edge on a pale page.
+ * While loading the box is a quiet shimmer; a picture that fails leaves
+ * a line icon on a muted tile, never a broken-image glyph.
+ *
+ * The preview dims the page to near black whatever the theme, with the
+ * picture centered and a floating pill of tools at the bottom.
+ */
+@layer dou.components {
+  .dou-image {
+    --dou-image-radius: var(--dou-radius-control);
+    --dou-image-bg: color-mix(in oklab, var(--dou-color-text) 4%, var(--dou-color-bg-surface));
+
+    position: relative;
+    display: inline-block;
+    overflow: hidden;
+    box-sizing: border-box;
+    border-radius: var(--dou-image-radius);
+    background-color: var(--dou-image-bg);
+    vertical-align: middle;
+
+    /* the hairline sits above the picture */
+    &::after {
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--dou-color-text) 8%, transparent);
+      content: '';
+      pointer-events: none;
+    }
+
+    &.is-previewable {
+      cursor: zoom-in;
+
+      &:focus-visible {
+        outline: 2px solid var(--dou-color-focus);
+        outline-offset: 2px;
+      }
+    }
+  }
+
+  .dou-image__inner {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: var(--dou-image-fit, cover);
+    transition: opacity var(--dou-motion-duration-normal) var(--dou-motion-easing);
+  }
+
+  .dou-image.is-loading .dou-image__inner {
+    opacity: 0;
+  }
+
+  .dou-image__placeholder,
+  .dou-image__error {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px;
+  }
+
+  .dou-image__placeholder:empty {
+    background: linear-gradient(
+        100deg,
+        transparent 30%,
+        color-mix(in oklab, var(--dou-color-text) 5%, transparent) 50%,
+        transparent 70%
+      )
+      0 0 / 200% 100%;
+    animation: dou-image-shimmer 1.4s linear infinite;
+  }
+
+  .dou-image.is-error {
+    min-width: 48px;
+    min-height: 48px;
+  }
+
+  .dou-image__error {
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+    line-height: 1.4;
+    text-align: center;
+
+    & > svg {
+      flex-shrink: 0;
+      width: 1em;
+      height: 1em;
+      font-size: 24px;
+    }
+  }
+
+  .dou-image__alt {
+    display: -webkit-box;
+    max-width: 100%;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .dou-image__sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  @keyframes dou-image-shimmer {
+    from {
+      background-position: 100% 0;
+    }
+    to {
+      background-position: -100% 0;
+    }
+  }
+
+  /* the preview */
+  .dou-image-preview {
+    --dou-image-preview-chrome: rgb(255 255 255 / 0.1);
+    --dou-image-preview-chrome-hover: rgb(255 255 255 / 0.18);
+    --dou-image-preview-chrome-border: rgb(255 255 255 / 0.12);
+
+    position: fixed;
+    inset: 0;
+    color: rgb(255 255 255 / 0.92);
+    background-color: rgb(8 9 11 / 0.88);
+    font-family: var(--dou-font-family);
+    font-size: var(--dou-font-size-sm);
+    outline: none;
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+  }
+
+  .dou-image-preview__stage {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    padding: 56px 72px 80px;
+  }
+
+  .dou-image-preview__image {
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: 2px;
+    box-shadow: 0 16px 48px rgb(0 0 0 / 0.4);
+    transition: transform var(--dou-motion-duration-normal) var(--dou-motion-easing);
+    user-select: none;
+    touch-action: none;
+
+    &.is-movable {
+      cursor: grab;
+
+      &:active {
+        cursor: grabbing;
+        transition: none;
+      }
+    }
+  }
+
+  .dou-image-preview__error {
+    color: rgb(255 255 255 / 0.6);
+    font-size: var(--dou-font-size-md);
+  }
+
+  .dou-image-preview__nav,
+  .dou-image-preview__close,
+  .dou-image-preview__tool {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    transition: background-color var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    &:focus-visible {
+      outline: 2px solid rgb(255 255 255 / 0.8);
+      outline-offset: 2px;
+    }
+
+    &:disabled {
+      opacity: 0.32;
+      cursor: not-allowed;
+    }
+  }
+
+  .dou-image-preview__nav,
+  .dou-image-preview__close {
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--dou-image-preview-chrome-border);
+    border-radius: var(--dou-radius-full);
+    background-color: var(--dou-image-preview-chrome);
+
+    &:hover:not(:disabled) {
+      background-color: var(--dou-image-preview-chrome-hover);
+    }
+
+    & > svg {
+      width: 1em;
+      height: 1em;
+      font-size: 18px;
+    }
+  }
+
+  .dou-image-preview__nav {
+    top: 50%;
+    translate: 0 -50%;
+
+    &.is-prev {
+      left: 16px;
+    }
+    &.is-next {
+      right: 16px;
+    }
+  }
+
+  .dou-image-preview__close {
+    top: 16px;
+    right: 16px;
+  }
+
+  .dou-image-preview__toolbar {
+    position: absolute;
+    bottom: 24px;
+    left: 50%;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 4px;
+    border: 1px solid var(--dou-image-preview-chrome-border);
+    border-radius: var(--dou-radius-full);
+    background-color: rgb(30 31 34 / 0.86);
+    box-shadow: 0 8px 24px rgb(0 0 0 / 0.32);
+    translate: -50% 0;
+    white-space: nowrap;
+  }
+
+  .dou-image-preview__tool {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--dou-radius-full);
+    background: transparent;
+
+    &:hover:not(:disabled) {
+      background-color: var(--dou-image-preview-chrome-hover);
+    }
+
+    & > svg {
+      width: 1em;
+      height: 1em;
+      font-size: 16px;
+    }
+  }
+
+  .dou-image-preview__counter,
+  .dou-image-preview__scale {
+    min-width: 44px;
+    padding: 0 6px;
+    color: rgb(255 255 255 / 0.72);
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+  }
+
+  .dou-image-preview__counter {
+    padding-right: 10px;
+    margin-right: 4px;
+    border-right: 1px solid var(--dou-image-preview-chrome-border);
+  }
+
+  .dou-image-preview__divider {
+    width: 1px;
+    height: 16px;
+    margin: 0 4px;
+    background-color: var(--dou-image-preview-chrome-border);
+  }
+
+  .dou-image-preview-enter-active,
+  .dou-image-preview-leave-active {
+    transition: opacity var(--dou-motion-duration-normal) var(--dou-motion-easing);
+  }
+  .dou-image-preview-enter-from,
+  .dou-image-preview-leave-to {
+    opacity: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dou-image__placeholder:empty {
+      animation: none;
+    }
+    .dou-image__inner,
+    .dou-image-preview__image {
+      transition: none;
+    }
+  }
+}

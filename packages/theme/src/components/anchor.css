@@ -1,0 +1,78 @@
+/*
+ * Anchor
+ *
+ * A quiet list of the sections on the page, hung from a hairline rail.
+ * Links are secondary ink; the section in view turns full ink and a short
+ * ink bar slides along the rail to it. Deeper levels step in.
+ */
+@layer dou.components {
+  .dou-anchor {
+    --dou-anchor-indent: 12px;
+
+    position: relative;
+    font-size: var(--dou-font-size-sm);
+    line-height: 1.5;
+
+    /* the rail */
+    &::before {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      width: 1px;
+      background-color: var(--dou-color-border);
+      content: '';
+    }
+  }
+
+  .dou-anchor__list {
+    padding: 0;
+    margin: 0;
+    list-style: none;
+  }
+
+  .dou-anchor__link {
+    display: block;
+    padding: 4px 0 4px calc(12px + var(--dou-anchor-level, 0) * var(--dou-anchor-indent));
+    overflow-x: clip;
+    border-radius: var(--dou-radius-control);
+    color: var(--dou-color-text-tertiary);
+    text-decoration: none;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transition: color var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    &:hover {
+      color: var(--dou-color-text);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: -2px;
+    }
+
+    &.is-active {
+      color: var(--dou-color-text);
+      font-weight: var(--dou-font-weight-medium);
+    }
+  }
+
+  .dou-anchor__marker {
+    position: absolute;
+    top: 0;
+    left: -0.5px;
+    z-index: 1;
+    width: 2px;
+    border-radius: 1px;
+    background-color: var(--dou-color-text);
+    transition-property: transform, height;
+    transition-duration: var(--dou-motion-duration-normal);
+    transition-timing-function: var(--dou-motion-easing);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dou-anchor__marker {
+      transition: none;
+    }
+  }
+}

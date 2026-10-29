@@ -1,55 +1,20 @@
 # Radio 单选框
 
-在一组互斥的选项中选择一个。构造与多选框一致：选中时变成实心的墨色按键，中间是一个圆点。
-
-<script setup>
-import { ref } from 'vue'
-const plan = ref('pro')
-const region = ref('sh')
-</script>
+在一组互斥的选项中选择一个。
 
 ## 基础用法
 
 把选项放进 `DouRadioGroup`，`v-model` 是被选中选项的 `value`。组会为选项生成共享的 `name`，因此方向键切换、表单提交等行为都由浏览器原生处理。
 
-<div class="demo demo--column">
-  <DouRadioGroup v-model="plan">
-    <DouRadio value="hobby">个人版</DouRadio>
-    <DouRadio value="pro">专业版</DouRadio>
-    <DouRadio value="team">团队版</DouRadio>
-  </DouRadioGroup>
-  <DouText variant="tertiary" size="sm">当前：{{ plan }}</DouText>
-</div>
-
-```vue
-<DouRadioGroup v-model="plan">
-  <DouRadio value="hobby">个人版</DouRadio>
-  <DouRadio value="pro">专业版</DouRadio>
-  <DouRadio value="team">团队版</DouRadio>
-</DouRadioGroup>
-```
+<DocDemo src="radio/basic" column />
 
 ## 垂直排列
 
-<div class="demo">
-  <DouRadioGroup v-model="region" direction="vertical">
-    <DouRadio value="sh">华东（上海）</DouRadio>
-    <DouRadio value="sz">华南（深圳）</DouRadio>
-    <DouRadio value="bj" disabled>华北（北京）· 维护中</DouRadio>
-  </DouRadioGroup>
-</div>
+<DocDemo src="radio/vertical" />
 
 ## 尺寸与禁用
 
-<div class="demo">
-  <DouRadioGroup model-value="a" size="sm"><DouRadio value="a">sm</DouRadio></DouRadioGroup>
-  <DouRadioGroup model-value="a"><DouRadio value="a">md</DouRadio></DouRadioGroup>
-  <DouRadioGroup model-value="a" size="lg"><DouRadio value="a">lg</DouRadio></DouRadioGroup>
-  <DouRadioGroup model-value="a" disabled>
-    <DouRadio value="a">禁用且选中</DouRadio>
-    <DouRadio value="b">禁用</DouRadio>
-  </DouRadioGroup>
-</div>
+<DocDemo src="radio/size-disabled" />
 
 单个 `DouRadio` 也可以脱离组使用 `v-model`，此时需要自己给同一组选项设置相同的 `name`。
 

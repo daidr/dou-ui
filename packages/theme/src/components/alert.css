@@ -54,8 +54,9 @@
     color: var(--dou-alert-tone);
 
     & > svg {
-      width: 16px;
-      height: 16px;
+      width: 1em;
+      height: 1em;
+      font-size: 16px;
     }
   }
 
@@ -100,8 +101,9 @@
     transition-timing-function: var(--dou-motion-easing);
 
     & > svg {
-      width: 14px;
-      height: 14px;
+      width: 1em;
+      height: 1em;
+      font-size: 14px;
     }
 
     &:hover {

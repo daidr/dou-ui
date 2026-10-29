@@ -1,38 +1,22 @@
 # Empty 空状态
 
-填在"还什么都没有"的地方：一个放在凹进小方块里的线条图标，一句简短的标题，必要时给出下一步。不用插画——空状态应该平静，而不是讨巧。
+没有数据时显示的占位提示。
 
 ## 基础用法
 
-<div class="demo demo--column">
-  <DouEmpty />
-</div>
+<DocDemo src="empty/basic" column />
 
 不传标题和说明时，标题取语言包里的"暂无数据"。
 
 ## 标题、说明与操作
 
-<div class="demo demo--column">
-  <DouEmpty title="还没有项目" description="项目是部署的基本单位。从一个 Git 仓库导入，或从模板开始。">
-    <DouButton variant="outline" size="sm">从模板开始</DouButton>
-    <DouButton size="sm">导入仓库</DouButton>
-  </DouEmpty>
-</div>
-
-```vue
-<DouEmpty title="还没有项目" description="从一个 Git 仓库导入，或从模板开始。">
-  <DouButton variant="outline" size="sm">从模板开始</DouButton>
-  <DouButton size="sm">导入仓库</DouButton>
-</DouEmpty>
-```
+<DocDemo src="empty/title-description" column />
 
 ## 紧凑尺寸
 
 `size="sm"` 用在表格、列表、菜单里面。
 
-<div class="demo demo--column">
-  <DouEmpty size="sm" description="没有符合筛选条件的记录" />
-</div>
+<DocDemo src="empty/compact" column />
 
 ## API
 

@@ -1,0 +1,97 @@
+/*
+ * Statistic
+ *
+ * A labelled number. The label is small and quiet, the number large ink
+ * in tabular figures so a row of them lines up; decimals, prefix and
+ * suffix step down a size. A trend colors only its arrow, never the number.
+ */
+@layer dou.components {
+  .dou-statistic {
+    --dou-statistic-value-size: 28px;
+    --dou-statistic-trend: var(--dou-color-text-tertiary);
+
+    display: inline-flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+    color: var(--dou-color-text);
+  }
+
+  .dou-statistic.is-good {
+    --dou-statistic-trend: var(--dou-color-success);
+  }
+  .dou-statistic.is-bad {
+    --dou-statistic-trend: var(--dou-color-danger);
+  }
+
+  .dou-statistic__title {
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+    line-height: 1.4;
+  }
+
+  .dou-statistic__content {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    min-height: calc(var(--dou-statistic-value-size) * 1.2);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.2;
+  }
+
+  .dou-statistic__value {
+    font-size: var(--dou-statistic-value-size);
+    font-weight: var(--dou-font-weight-medium);
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+  }
+
+  .dou-statistic__decimal,
+  .dou-statistic__prefix,
+  .dou-statistic__suffix {
+    color: var(--dou-color-text-secondary);
+    font-size: max(var(--dou-font-size-md), calc(var(--dou-statistic-value-size) * 0.58));
+    font-weight: var(--dou-font-weight-regular);
+  }
+
+  .dou-statistic__decimal {
+    letter-spacing: 0;
+  }
+
+  .dou-statistic__trend {
+    flex-shrink: 0;
+    align-self: center;
+    width: 1em;
+    height: 1em;
+    font-size: calc(var(--dou-statistic-value-size) * 0.64);
+    color: var(--dou-statistic-trend);
+  }
+
+  .dou-statistic__placeholder {
+    display: inline-block;
+    align-self: center;
+    width: 6em;
+    height: calc(var(--dou-statistic-value-size) * 0.8);
+    border-radius: var(--dou-radius-control);
+    background-color: color-mix(in oklab, var(--dou-color-text) 7%, transparent);
+    animation: dou-statistic-pulse 1.6s ease-in-out infinite;
+  }
+
+  .dou-statistic__footer {
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+    line-height: 1.4;
+  }
+
+  @keyframes dou-statistic-pulse {
+    50% {
+      opacity: 0.5;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dou-statistic__placeholder {
+      animation: none;
+    }
+  }
+}

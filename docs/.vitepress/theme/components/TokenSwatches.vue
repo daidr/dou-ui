@@ -56,7 +56,7 @@ const label = (path: string) => cssVarName(path).replace('--dou-color-', '')
   display: flex;
   height: 56px;
   overflow: hidden;
-  border: 1px solid var(--vp-c-divider);
+  border: 1px solid var(--dou-color-border-subtle);
   border-radius: 8px;
 }
 .swatch__chip {
@@ -68,8 +68,8 @@ const label = (path: string) => cssVarName(path).replace('--dou-color-', '')
   font-weight: 500;
 }
 .swatch__value {
-  color: var(--vp-c-text-3);
-  font-family: var(--vp-font-family-mono);
+  color: var(--dou-color-text-tertiary);
+  font-family: var(--dou-font-family-mono);
   font-size: 11px;
 }
 </style>

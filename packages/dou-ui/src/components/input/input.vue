@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, nextTick, useAttrs, useTemplateRef } from 'vue'
+import { CloseIcon, EyeIcon, EyeOffIcon } from '@dou-ui/icons'
+import { computed, nextTick, ref, useAttrs, useTemplateRef } from 'vue'
 import type { StyleValue } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
@@ -14,6 +15,8 @@ const props = withDefaults(defineProps<InputProps>(), {
   invalid: false,
   clearable: false,
   type: 'text',
+  showPassword: false,
+  showCount: false,
 })
 const model = defineModel<string>({ default: '' })
 const emit = defineEmits<{ clear: [] }>()
@@ -43,6 +46,18 @@ const inputAttrs = computed(() => {
 })
 
 const inputRef = useTemplateRef<HTMLInputElement>('input')
+
+const revealed = ref(false)
+const nativeType = computed(() =>
+  props.type === 'password' && props.showPassword && revealed.value ? 'text' : props.type,
+)
+
+const maxLength = computed(() => {
+  const value = Number(attrs.maxlength ?? attrs.maxLength)
+  return Number.isFinite(value) && value > 0 ? value : undefined
+})
+// Count what a person sees as characters, so an emoji counts once.
+const count = computed(() => [...model.value].length)
 
 const showClear = computed(
   () => props.clearable && !disabled.value && !props.readonly && model.value !== '',
@@ -94,7 +109,7 @@ defineExpose<InputExpose>({
       v-model="model"
       v-bind="inputAttrs"
       :class="ns.e('native')"
-      :type="type"
+      :type="nativeType"
       :disabled="disabled"
       :readonly="readonly"
       :aria-invalid="invalid || undefined"
@@ -110,10 +125,24 @@ defineExpose<InputExpose>({
       @mousedown.prevent
       @click="clear"
     >
-      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-        <path d="M5 5l6 6M11 5l-6 6" stroke-linecap="round" />
-      </svg>
+      <CloseIcon />
     </button>
+    <button
+      v-if="type === 'password' && showPassword"
+      type="button"
+      :class="ns.e('reveal')"
+      :aria-label="t(revealed ? 'input.hidePassword' : 'input.showPassword')"
+      :aria-pressed="revealed"
+      :disabled="disabled"
+      @mousedown.prevent
+      @click="revealed = !revealed"
+    >
+      <EyeOffIcon v-if="revealed" />
+      <EyeIcon v-else />
+    </button>
+    <span v-if="showCount" :class="ns.e('count')" aria-hidden="true">
+      {{ maxLength ? `${count} / ${maxLength}` : count }}
+    </span>
     <span v-if="slots.suffix" :class="[ns.e('affix'), ns.e('suffix')]">
       <slot name="suffix" />
     </span>

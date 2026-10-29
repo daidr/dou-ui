@@ -7,7 +7,12 @@ coverage
 
 # generated
 packages/theme/src/generated
+packages/icons/src/generated
+packages/resolver/src/generated
 
 # docs
 docs/.vitepress/cache
 docs/.vitepress/dist
+
+# icon review sheets
+packages/icons/review

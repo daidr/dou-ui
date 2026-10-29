@@ -2,8 +2,14 @@ import type { Locale } from './types'
 
 export const zhCN: Locale = {
   name: 'zh-CN',
+  tabs: {
+    close: '关闭',
+    add: '新建标签页',
+  },
   input: {
     clear: '清空',
+    showPassword: '显示密码',
+    hidePassword: '隐藏密码',
   },
   tag: {
     remove: '移除',
@@ -21,6 +27,8 @@ export const zhCN: Locale = {
   },
   dialog: {
     close: '关闭',
+    confirm: '确定',
+    cancel: '取消',
   },
   drawer: {
     close: '关闭',
@@ -29,6 +37,8 @@ export const zhCN: Locale = {
     placeholder: '请选择',
     empty: '无匹配项',
     clear: '清空',
+    loading: '加载中',
+    create: '创建“{query}”',
   },
   spinner: {
     loading: '加载中',
@@ -56,6 +66,13 @@ export const zhCN: Locale = {
   table: {
     selectAll: '选择全部',
     selectRow: '选择此行',
+    expand: '展开',
+    expandRow: '展开此行',
+    resize: '调整“{column}”列宽',
+    filter: '筛选“{column}”',
+    filterReset: '重置',
+    filterConfirm: '筛选',
+    filterAll: '全部',
   },
   upload: {
     choose: '选择文件',
@@ -64,12 +81,18 @@ export const zhCN: Locale = {
     list: '文件列表',
     remove: '移除',
     retry: '重试',
+    preview: '预览',
     uploading: '上传中',
     error: '上传失败',
   },
   datePicker: {
     placeholder: '选择日期',
     monthPlaceholder: '选择月份',
+    datetimePlaceholder: '选择日期时间',
+    weekPlaceholder: '选择周',
+    time: '时间',
+    now: '此刻',
+    confirm: '确定',
     yearPlaceholder: '选择年份',
     start: '开始日期',
     end: '结束日期',
@@ -116,13 +139,30 @@ export const zhCN: Locale = {
   },
   colorPicker: {
     placeholder: '选择颜色',
-    area: '饱和度与亮度',
-    areaValue: '饱和度 {s}%，亮度 {v}%',
-    hue: '色相',
-    alpha: '透明度',
-    hex: '十六进制色值',
+    area: '饱和度与明度',
+    areaValue: '饱和度 {s}%，明度 {v}%',
+    wheel: '色相与饱和度',
+    wheelValue: '色相 {h}°，饱和度 {s}%',
+    panelSquare: '色板',
+    panelWheel: '色轮',
+    panels: '取色方式',
+    text: '色值',
+    format: '色值格式',
     presets: '预设颜色',
     clear: '清除',
+    hue: '色相',
+    alpha: '透明度',
+    red: '红',
+    green: '绿',
+    blue: '蓝',
+    saturation: '饱和度',
+    lightness: '亮度',
+    brightness: '明度',
+    whiteness: '白度',
+    blackness: '黑度',
+    chroma: '彩度',
+    axisA: 'a 轴（绿–红）',
+    axisB: 'b 轴（蓝–黄）',
   },
   transfer: {
     source: '待选',
@@ -134,6 +174,73 @@ export const zhCN: Locale = {
     count: '{checked} / {total}',
     toTarget: '移到右侧',
     toSource: '移到左侧',
+  },
+  popconfirm: {
+    confirm: '确定',
+    cancel: '取消',
+  },
+  statistic: {
+    up: '上升',
+    down: '下降',
+  },
+  image: {
+    preview: '查看大图',
+    error: '图片加载失败',
+    prev: '上一张',
+    next: '下一张',
+    close: '关闭',
+    zoomIn: '放大',
+    zoomOut: '缩小',
+    rotateLeft: '向左旋转',
+    rotateRight: '向右旋转',
+    reset: '还原',
+    counter: '{index} / {total}',
+  },
+  pageHeader: {
+    back: '返回',
+  },
+  backTop: {
+    label: '回到顶部',
+  },
+  splitter: {
+    label: '调整面板大小',
+  },
+  anchor: {
+    label: '本页目录',
+  },
+  copyButton: {
+    copy: '复制',
+    copied: '已复制',
+  },
+  layout: {
+    collapse: '收起侧栏',
+    expand: '展开侧栏',
+    open: '打开侧栏',
+  },
+  colorMode: {
+    label: '颜色模式',
+    light: '亮色',
+    dark: '暗色',
+    system: '跟随系统',
+    toDark: '切换到暗色模式',
+    toLight: '切换到亮色模式',
+  },
+  listbox: {
+    search: '搜索',
+    empty: '无匹配项',
+  },
+  inputOtp: {
+    label: '验证码',
+  },
+  qrcode: {
+    label: '二维码：{value}',
+    expired: '二维码已过期',
+    refresh: '刷新',
+    loading: '二维码加载中',
+  },
+  calendarView: {
+    more: '还有 {count} 项',
+    dayWithEvents: '{date}，{count} 项日程',
   },
   form: {
     optional: '可选',

@@ -5,7 +5,8 @@
  * a range is two text boxes joined by an arrow inside one field. The
  * calendar is a grid of plain numbers: today is marked by a short ink bar
  * under the number, the chosen day becomes a solid ink key like a solid
- * button, and the days between the ends of a range share one faint wash.
+ * button, the days between the ends of a range share one faint wash, and
+ * a day that cannot be picked simply fades.
  */
 @layer dou.components {
   .dou-date-picker {
@@ -95,8 +96,9 @@
   .dou-date-picker__icon,
   .dou-date-picker__separator {
     flex-shrink: 0;
-    width: 1.1em;
-    height: 1.1em;
+    width: 1em;
+    height: 1em;
+    font-size: 1.1em;
     color: var(--dou-color-text-tertiary);
   }
 
@@ -143,8 +145,9 @@
     cursor: pointer;
 
     & > svg {
-      width: 0.8em;
-      height: 0.8em;
+      width: 1em;
+      height: 1em;
+      font-size: 0.8em;
     }
 
     &:hover {
@@ -167,10 +170,68 @@
     font-size: var(--dou-font-size-md);
   }
 
+  /* presets on the start side, the calendar, then the time of a `datetime` */
+  .dou-date-picker__body {
+    display: flex;
+    gap: 8px;
+  }
+
+  .dou-date-picker__shortcuts {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 96px;
+    padding-inline-end: 8px;
+    border-inline-end: 1px solid var(--dou-color-border-subtle);
+  }
+
+  .dou-date-picker__shortcut {
+    height: 28px;
+    padding: 0 8px;
+    margin: 0;
+    border: 0;
+    border-radius: var(--dou-radius-control);
+    background: transparent;
+    color: var(--dou-color-text-secondary);
+    font: inherit;
+    font-size: var(--dou-font-size-sm);
+    text-align: start;
+    white-space: nowrap;
+    cursor: pointer;
+
+    &:hover {
+      background-color: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+      color: var(--dou-color-text);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: -2px;
+    }
+  }
+
+  .dou-date-picker__times {
+    --dou-time-picker-cell: 32px;
+    --dou-time-picker-rows: 7;
+
+    padding-inline-start: 8px;
+    border-inline-start: 1px solid var(--dou-color-border-subtle);
+  }
+
+  .dou-date-picker__footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 4px;
+    padding-top: 8px;
+    margin-top: 8px;
+    border-top: 1px solid var(--dou-color-border-subtle);
+  }
+
   /* the calendar */
   .dou-calendar {
     --dou-calendar-cell: 32px;
     --dou-calendar-range-bg: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+    --dou-calendar-range-edge: color-mix(in oklab, var(--dou-color-text) 28%, transparent);
 
     display: inline-flex;
     flex-direction: column;
@@ -233,8 +294,9 @@
     color: var(--dou-color-text-secondary);
 
     & > svg {
-      width: 16px;
-      height: 16px;
+      width: 1em;
+      height: 1em;
+      font-size: 16px;
     }
   }
 
@@ -276,7 +338,14 @@
     position: relative;
     text-align: center;
 
-    /* the wash behind a range runs edge to edge across the row */
+    /*
+     * The wash behind a range runs edge to edge across a row and is the
+     * only layer there: a day inside it never paints a second wash on
+     * hover. Each run of the wash ends in a cap with the key's radius,
+     * at the ends of the range, at the ends of a row and where the
+     * month stops, so the band reads as one shape and an end key sits
+     * exactly on top of its cap.
+     */
     &.is-in-range::before,
     &.is-range-start::before,
     &.is-range-end::before {
@@ -285,15 +354,28 @@
       background-color: var(--dou-calendar-range-bg);
       content: '';
     }
-    &.is-range-start::before {
-      left: 50%;
+    &.is-range-start::before,
+    &:first-child::before,
+    &.is-hidden + &::before {
+      border-start-start-radius: var(--dou-radius-control);
+      border-end-start-radius: var(--dou-radius-control);
     }
-    &.is-range-end::before {
-      right: 50%;
+    &.is-range-end::before,
+    &:last-child::before,
+    &:has(+ .is-hidden)::before {
+      border-start-end-radius: var(--dou-radius-control);
+      border-end-end-radius: var(--dou-radius-control);
     }
     &.is-range-start.is-range-end::before {
       content: none;
     }
+  }
+
+  /* inside the wash a hovered day is outlined, not darkened again */
+  .dou-calendar__cell:is(.is-in-range, .is-range-start, .is-range-end)
+    > .dou-calendar__day:hover:not(.is-selected, .is-disabled) {
+    border-color: var(--dou-calendar-range-edge);
+    background-color: transparent;
   }
 
   .dou-calendar__day {
@@ -352,12 +434,11 @@
     &.is-disabled {
       color: var(--dou-color-text-disabled);
       cursor: not-allowed;
-      text-decoration: line-through;
-      text-decoration-color: color-mix(in oklab, var(--dou-color-text-disabled) 60%, transparent);
     }
   }
 
-  .dou-calendar__cell.is-outside > .dou-calendar__day:not(.is-selected) {
+  /* days of the next and last month are quieter, a day that cannot be picked quieter still */
+  .dou-calendar__cell.is-outside > .dou-calendar__day:not(.is-selected, .is-disabled) {
     color: var(--dou-color-text-tertiary);
   }
 
@@ -375,6 +456,25 @@
   .dou-calendar--month .dou-calendar__grid,
   .dou-calendar--year .dou-calendar__grid {
     width: 100%;
+  }
+
+  /* picking a week: the whole row under the pointer takes the wash */
+  .dou-calendar.is-week tbody tr:hover > .dou-calendar__cell:not(.is-hidden)::before {
+    position: absolute;
+    inset: 1px 0;
+    background-color: var(--dou-calendar-range-bg);
+    content: '';
+  }
+  .dou-calendar.is-week .dou-calendar__day:hover:not(.is-selected, .is-disabled) {
+    background-color: transparent;
+  }
+  .dou-calendar.is-week tbody tr:hover > .dou-calendar__cell:first-child::before {
+    border-start-start-radius: var(--dou-radius-control);
+    border-end-start-radius: var(--dou-radius-control);
+  }
+  .dou-calendar.is-week tbody tr:hover > .dou-calendar__cell:last-child::before {
+    border-start-end-radius: var(--dou-radius-control);
+    border-end-end-radius: var(--dou-radius-control);
   }
 
   .dou-calendar__footer {

@@ -14,6 +14,8 @@
     /* size */
     --dou-button-height: var(--dou-control-height-md);
     --dou-button-padding-x: var(--dou-control-padding-x-md);
+    /* the side an icon sits on, see below */
+    --dou-button-padding-icon: 8px;
     --dou-button-gap: var(--dou-control-gap-md);
     --dou-button-font-size: var(--dou-font-size-md);
     --dou-button-radius: var(--dou-radius-control);
@@ -189,14 +191,34 @@
   .dou-button--sm {
     --dou-button-height: var(--dou-control-height-sm);
     --dou-button-padding-x: var(--dou-control-padding-x-sm);
+    --dou-button-padding-icon: 6px;
     --dou-button-gap: var(--dou-control-gap-sm);
     --dou-button-font-size: var(--dou-font-size-sm);
   }
   .dou-button--lg {
     --dou-button-height: var(--dou-control-height-lg);
     --dou-button-padding-x: var(--dou-control-padding-x-lg);
+    --dou-button-padding-icon: 12px;
     --dou-button-gap: var(--dou-control-gap-lg);
     --dou-button-font-size: var(--dou-font-size-lg);
+  }
+
+  /*
+   * An icon carries empty space inside its box and reads heavier than
+   * text, so with equal padding the icon side looks wider. Pull that side
+   * in to balance the button. Icon-only buttons keep their padding.
+   */
+  .dou-button:has(> .dou-button__icon + .dou-button__label) {
+    padding-left: var(--dou-button-padding-icon);
+  }
+  .dou-button:has(> .dou-button__label + .dou-button__icon) {
+    padding-right: var(--dou-button-padding-icon);
+  }
+
+  /* A button with only an icon is square. */
+  .dou-button.is-icon-only:not(.is-block) {
+    width: var(--dou-button-height);
+    padding-inline: 0;
   }
 
   .dou-button__label {

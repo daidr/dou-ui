@@ -39,4 +39,15 @@ describe('DouTimeline', () => {
     expect(wrapper.find('li').classes()).toContain('is-custom-dot')
     expect(wrapper.find('.dou-timeline__dot .my-icon').exists()).toBe(true)
   })
+
+  it('marks the current step, in place of a custom dot', () => {
+    const wrapper = mount(DouTimelineItem, {
+      props: { active: true },
+      slots: { dot: () => h('svg', { class: 'my-icon' }) },
+    })
+    expect(wrapper.classes()).toContain('is-active')
+    expect(wrapper.classes()).not.toContain('is-custom-dot')
+    expect(wrapper.attributes('aria-current')).toBe('step')
+    expect(wrapper.find('.my-icon').exists()).toBe(false)
+  })
 })

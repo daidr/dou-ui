@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, h, onMounted, reactive, ref, useTemplateRef, watchEffect } from 'vue'
+import { computed, onMounted, reactive, ref, useTemplateRef, watchEffect } from 'vue'
+import { CubeIcon, DashboardIcon, FileTextIcon, GlobeIcon, UsersIcon } from '@dou-ui/icons'
 import { en, toast } from 'dou-ui'
 import type {
   ButtonSize,
@@ -21,36 +22,23 @@ import type {
   UploadRequest,
 } from 'dou-ui'
 
-const navIcon = (d: string) => () =>
-  h(
-    'svg',
-    {
-      viewBox: '0 0 16 16',
-      fill: 'none',
-      stroke: 'currentColor',
-      'stroke-width': 1.5,
-      'stroke-linecap': 'round',
-      'stroke-linejoin': 'round',
-    },
-    [h('path', { d })],
-  )
 const navItems: MenuOption[] = [
   {
     key: 'overview',
     label: '概览',
-    icon: navIcon('M2.5 2.5h4.5v4.5h-4.5zM9 2.5h4.5v4.5H9zM2.5 9h4.5v4.5h-4.5zM9 9h4.5v4.5H9z'),
+    icon: DashboardIcon,
   },
   {
     key: 'deployments',
     label: '部署',
-    icon: navIcon('M8 2l5.5 3v6L8 14l-5.5-3V5zM8 8v6M8 8l5.5-3M8 8L2.5 5'),
+    icon: CubeIcon,
     children: [
       { key: 'production', label: '生产环境' },
       { key: 'preview', label: '预览环境' },
       { key: 'rollback', label: '回滚记录', disabled: true },
     ],
   },
-  { key: 'logs', label: '日志', icon: navIcon('M3 3.5h10M3 6.5h10M3 9.5h6M3 12.5h8') },
+  { key: 'logs', label: '日志', icon: FileTextIcon },
   {
     type: 'group',
     label: '设置',
@@ -58,16 +46,12 @@ const navItems: MenuOption[] = [
       {
         key: 'domains',
         label: '域名',
-        icon: navIcon(
-          'M8 2a6 6 0 1 0 0 12A6 6 0 0 0 8 2zM2 8h12M8 2c2 2 2 10 0 12M8 2c-2 2-2 10 0 12',
-        ),
+        icon: GlobeIcon,
       },
       {
         key: 'members',
         label: '成员',
-        icon: navIcon(
-          'M6 7.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM1.5 13.5c0-2.5 2-4 4.5-4s4.5 1.5 4.5 4M11 3a2.5 2.5 0 0 1 0 4.5M12.5 9.6c1.3.5 2 1.8 2 3.9',
-        ),
+        icon: UsersIcon,
       },
     ],
   },
@@ -181,7 +165,7 @@ const instance = reactive({
   budget: 120.5,
   cpu: 40,
   hours: [9, 18] as [number, number],
-  region: 'hk',
+  region: 'sh',
 })
 const view = ref('list')
 
@@ -194,13 +178,13 @@ const inviteEmail = ref('')
 const inviteRole = ref('开发者')
 
 const regionOptions = [
-  { value: 'hk', label: '香港' },
+  { value: 'sh', label: '上海' },
   { value: 'sg', label: '新加坡' },
   { value: 'fra', label: '法兰克福' },
   { value: 'iad', label: '弗吉尼亚', disabled: true },
   { value: 'sfo', label: '旧金山' },
 ]
-const selectRegion = ref<string | null>('hk')
+const selectRegion = ref<string | null>('sh')
 const selectChannels = ref(['邮件', 'Webhook'])
 const selectFramework = ref<string | null>(null)
 
@@ -225,11 +209,11 @@ interface Instance {
   replicas: number
 }
 const instances: Instance[] = [
-  { id: 1, name: 'edge-fn-hk', region: '香港', status: '运行中', replicas: 3 },
+  { id: 1, name: 'edge-fn-sh', region: '上海', status: '运行中', replicas: 3 },
   { id: 2, name: 'api-sg', region: '新加坡', status: '运行中', replicas: 12 },
   { id: 3, name: 'cron-fra', region: '法兰克福', status: '已停止', replicas: 0 },
   { id: 4, name: 'image-iad', region: '弗吉尼亚', status: '部署中', replicas: 2 },
-  { id: 5, name: 'auth-hk', region: '香港', status: '运行中', replicas: 6 },
+  { id: 5, name: 'auth-sh', region: '上海', status: '运行中', replicas: 6 },
   { id: 6, name: 'mail-sg', region: '新加坡', status: '运行中', replicas: 1 },
 ]
 const tableSort = ref<TableSort | null>({ key: 'replicas', order: 'desc' })
@@ -314,6 +298,16 @@ const fakeUpload: UploadRequest = ({ raw, onProgress, signal }) =>
     signal.addEventListener('abort', () => clearInterval(timer))
   })
 
+const statLoading = ref(true)
+setTimeout(() => (statLoading.value = false), 1500)
+const removeProject = () => new Promise<void>((resolve) => setTimeout(resolve, 1000))
+const split = ref(30)
+const tile = (hue: number) =>
+  `data:image/svg+xml,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="960" height="640"><defs><linearGradient id="g" x2="1" y2="1"><stop offset="0" stop-color="hsl(${hue} 30% 72%)"/><stop offset="1" stop-color="hsl(${hue + 40} 28% 38%)"/></linearGradient></defs><rect width="960" height="640" fill="url(#g)"/><circle cx="700" cy="200" r="90" fill="hsl(${hue} 40% 88%)" opacity=".7"/><path d="M0 520 L260 330 L460 480 L640 360 L960 560 V640 H0Z" fill="hsl(${hue + 20} 25% 28%)" opacity=".8"/></svg>`,
+  )}`
+const gallery = [210, 160, 25, 280].map(tile)
+
 onMounted(() => {
   void settingsForm.value?.validate()
   void accountForm.value?.validate(['email', 'role'])
@@ -337,6 +331,69 @@ function simulate() {
         {{ theme === 'light' ? '深色' : '浅色' }}
       </DouButton>
     </header>
+
+    <section>
+      <h2>feedback · display</h2>
+      <div class="stats">
+        <DouStatistic title="本月收入" :value="1284530.5" :precision="2" prefix="¥" trend="up">
+          <template #footer>比上月 +12.4%</template>
+        </DouStatistic>
+        <DouStatistic title="活跃用户" :value="38214" />
+        <DouStatistic title="平均响应" :value="182" suffix="ms" trend="up" :up-is-good="false">
+          <template #footer>比上周 +18ms</template>
+        </DouStatistic>
+        <DouStatistic title="转化率" :loading="statLoading" :value="4.62" suffix="%" />
+      </div>
+      <DouSpace>
+        <DouPopconfirm
+          title="删除这个项目？"
+          description="项目里的 12 个部署会一起删除，无法恢复。"
+          tone="danger"
+          confirm-text="删除"
+          @confirm="removeProject"
+        >
+          <DouButton tone="danger" variant="soft">删除项目</DouButton>
+        </DouPopconfirm>
+        <DouPopconfirm title="重新部署当前版本？" @confirm="() => {}">
+          <DouButton variant="outline">重新部署</DouButton>
+        </DouPopconfirm>
+      </DouSpace>
+      <div class="gallery">
+        <DouImage
+          v-for="(src, i) in gallery"
+          :key="i"
+          :src="src"
+          :alt="`示例图片 ${i + 1}`"
+          :width="120"
+          :height="80"
+          preview
+          :preview-list="gallery"
+        />
+        <DouImage src="/missing.png" alt="封面" :width="120" :height="80" />
+      </div>
+      <div class="split-demo">
+        <DouSplitter v-model="split" :min="20" :max="80" collapsible>
+          <template #start
+            ><div class="split-demo__pane">文件列表 · {{ split }}%</div></template
+          >
+          <template #end>
+            <DouSplitter direction="vertical" :model-value="60">
+              <template #start><div class="split-demo__pane">编辑器</div></template>
+              <template #end><div class="split-demo__pane">终端</div></template>
+            </DouSplitter>
+          </template>
+        </DouSplitter>
+      </div>
+      <DouResult
+        status="success"
+        title="部署成功"
+        description="新版本已经上线，旧版本保留 7 天，可以随时回滚。"
+      >
+        <DouButton variant="solid">查看部署</DouButton>
+        <DouButton variant="ghost">返回列表</DouButton>
+      </DouResult>
+      <DouBackTop :visibility-height="600" />
+    </section>
 
     <section>
       <h2>form · complete</h2>
@@ -513,7 +570,7 @@ function simulate() {
           <DouDescriptions :columns="2">
             <DouDescriptionsItem label="分支">main</DouDescriptionsItem>
             <DouDescriptionsItem label="提交">39dc86b</DouDescriptionsItem>
-            <DouDescriptionsItem label="区域">香港</DouDescriptionsItem>
+            <DouDescriptionsItem label="区域">上海</DouDescriptionsItem>
             <DouDescriptionsItem label="耗时">42 秒</DouDescriptionsItem>
           </DouDescriptions>
           <template #footer>
@@ -557,7 +614,7 @@ function simulate() {
       </div>
       <div style="margin-top: 16px">
         <DouDescriptions bordered layout="horizontal" :columns="2" :label-width="72">
-          <DouDescriptionsItem label="名称">edge-fn-hk</DouDescriptionsItem>
+          <DouDescriptionsItem label="名称">edge-fn-sh</DouDescriptionsItem>
           <DouDescriptionsItem label="副本">3</DouDescriptionsItem>
           <DouDescriptionsItem label="规格">2 vCPU · 512 MB</DouDescriptionsItem>
           <DouDescriptionsItem label="状态">运行中</DouDescriptionsItem>
@@ -895,7 +952,7 @@ function simulate() {
                 v-model="instance.region"
                 block
                 :options="[
-                  { value: 'hk', label: '香港' },
+                  { value: 'sh', label: '上海' },
                   { value: 'sg', label: '新加坡' },
                   { value: 'fra', label: '法兰克福' },
                   { value: 'iad', label: '弗吉尼亚', disabled: true },
@@ -1174,6 +1231,31 @@ p {
 .card__meta {
   color: var(--dou-color-text-tertiary);
   font-family: var(--dou-font-family-mono);
+  font-size: var(--dou-font-size-sm);
+}
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 40px;
+  margin-bottom: 24px;
+}
+.gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 24px 0;
+}
+.split-demo {
+  height: 240px;
+  border: 1px solid var(--dou-color-border);
+  border-radius: var(--dou-radius-container);
+  overflow: hidden;
+}
+.split-demo__pane {
+  height: 100%;
+  padding: 12px 16px;
+  box-sizing: border-box;
+  color: var(--dou-color-text-secondary);
   font-size: var(--dou-font-size-sm);
 }
 .form-complete {

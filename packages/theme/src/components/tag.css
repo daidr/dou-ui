@@ -106,6 +106,15 @@
     text-overflow: ellipsis;
   }
 
+  /*
+   * An icon at the start pulls that side in, as on buttons. Only icons:
+   * a status dot has no empty space around it, and round ends already
+   * curve in towards the content.
+   */
+  .dou-tag:not(.is-round):has(> .dou-tag__icon:first-child > svg) {
+    padding-left: calc(var(--dou-tag-padding-x) - 2px);
+  }
+
   .dou-tag__icon {
     display: inline-flex;
     flex-shrink: 0;

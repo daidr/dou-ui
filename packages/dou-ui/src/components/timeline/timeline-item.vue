@@ -8,20 +8,32 @@ defineOptions({ name: 'DouTimelineItem' })
 const props = withDefaults(defineProps<TimelineItemProps>(), {
   tone: 'neutral',
   pending: false,
+  active: false,
 })
 const slots = defineSlots<TimelineItemSlots>()
 
 const ns = useNamespace('timeline')
 const hasTime = computed(() => !!props.time || !!slots.time)
 const hasTitle = computed(() => !!props.title || !!slots.title)
+// The current step always shows the plain dot, so its ripple has a round edge to grow from.
+const customDot = computed(() => !props.active && !!slots.dot)
 </script>
 
 <template>
   <li
-    :class="[ns.e('item'), ns.m(tone), ns.is('pending', pending), ns.is('custom-dot', !!slots.dot)]"
+    :class="[
+      ns.e('item'),
+      ns.m(tone),
+      ns.is('pending', pending),
+      ns.is('active', active),
+      ns.is('custom-dot', customDot),
+    ]"
+    :aria-current="active ? 'step' : undefined"
   >
     <span :class="ns.e('rail')" aria-hidden="true">
-      <span :class="ns.e('dot')"><slot name="dot" /></span>
+      <span :class="ns.e('dot')">
+        <slot v-if="!active" name="dot" />
+      </span>
       <span :class="ns.e('line')" />
     </span>
     <div :class="ns.e('body')">

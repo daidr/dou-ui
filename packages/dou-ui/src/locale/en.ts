@@ -2,8 +2,14 @@ import type { Locale } from './types'
 
 export const en: Locale = {
   name: 'en',
+  tabs: {
+    close: 'Close',
+    add: 'New tab',
+  },
   input: {
     clear: 'Clear',
+    showPassword: 'Show password',
+    hidePassword: 'Hide password',
   },
   tag: {
     remove: 'Remove',
@@ -21,6 +27,8 @@ export const en: Locale = {
   },
   dialog: {
     close: 'Close',
+    confirm: 'OK',
+    cancel: 'Cancel',
   },
   drawer: {
     close: 'Close',
@@ -29,6 +37,8 @@ export const en: Locale = {
     placeholder: 'Select',
     empty: 'No matches',
     clear: 'Clear',
+    loading: 'Loading',
+    create: 'Create “{query}”',
   },
   spinner: {
     loading: 'Loading',
@@ -56,6 +66,13 @@ export const en: Locale = {
   table: {
     selectAll: 'Select all',
     selectRow: 'Select row',
+    expand: 'Expand',
+    expandRow: 'Expand row',
+    resize: 'Resize column {column}',
+    filter: 'Filter column {column}',
+    filterReset: 'Reset',
+    filterConfirm: 'Filter',
+    filterAll: 'All',
   },
   upload: {
     choose: 'Choose file',
@@ -64,12 +81,18 @@ export const en: Locale = {
     list: 'Files',
     remove: 'Remove',
     retry: 'Retry',
+    preview: 'Preview',
     uploading: 'Uploading',
     error: 'Upload failed',
   },
   datePicker: {
     placeholder: 'Pick a date',
     monthPlaceholder: 'Pick a month',
+    datetimePlaceholder: 'Pick a date and time',
+    weekPlaceholder: 'Pick a week',
+    time: 'Time',
+    now: 'Now',
+    confirm: 'OK',
     yearPlaceholder: 'Pick a year',
     start: 'Start date',
     end: 'End date',
@@ -118,11 +141,28 @@ export const en: Locale = {
     placeholder: 'Select color',
     area: 'Saturation and brightness',
     areaValue: 'Saturation {s}%, brightness {v}%',
-    hue: 'Hue',
-    alpha: 'Opacity',
-    hex: 'Hex value',
+    wheel: 'Hue and saturation',
+    wheelValue: 'Hue {h}°, saturation {s}%',
+    panelSquare: 'Square',
+    panelWheel: 'Wheel',
+    panels: 'Picker',
+    text: 'Color value',
+    format: 'Color format',
     presets: 'Preset colors',
     clear: 'Clear',
+    hue: 'Hue',
+    alpha: 'Opacity',
+    red: 'Red',
+    green: 'Green',
+    blue: 'Blue',
+    saturation: 'Saturation',
+    lightness: 'Lightness',
+    brightness: 'Brightness',
+    whiteness: 'Whiteness',
+    blackness: 'Blackness',
+    chroma: 'Chroma',
+    axisA: 'a axis (green–red)',
+    axisB: 'b axis (blue–yellow)',
   },
   transfer: {
     source: 'Available',
@@ -134,6 +174,73 @@ export const en: Locale = {
     count: '{checked} / {total}',
     toTarget: 'Move to the right',
     toSource: 'Move to the left',
+  },
+  popconfirm: {
+    confirm: 'OK',
+    cancel: 'Cancel',
+  },
+  statistic: {
+    up: 'Up',
+    down: 'Down',
+  },
+  image: {
+    preview: 'View larger',
+    error: 'The image failed to load',
+    prev: 'Previous image',
+    next: 'Next image',
+    close: 'Close',
+    zoomIn: 'Zoom in',
+    zoomOut: 'Zoom out',
+    rotateLeft: 'Rotate left',
+    rotateRight: 'Rotate right',
+    reset: 'Reset',
+    counter: '{index} / {total}',
+  },
+  pageHeader: {
+    back: 'Back',
+  },
+  backTop: {
+    label: 'Back to top',
+  },
+  splitter: {
+    label: 'Resize panes',
+  },
+  anchor: {
+    label: 'On this page',
+  },
+  copyButton: {
+    copy: 'Copy',
+    copied: 'Copied',
+  },
+  layout: {
+    collapse: 'Collapse sidebar',
+    expand: 'Expand sidebar',
+    open: 'Open sidebar',
+  },
+  colorMode: {
+    label: 'Color mode',
+    light: 'Light',
+    dark: 'Dark',
+    system: 'System',
+    toDark: 'Switch to dark mode',
+    toLight: 'Switch to light mode',
+  },
+  listbox: {
+    search: 'Search',
+    empty: 'No matches',
+  },
+  inputOtp: {
+    label: 'Verification code',
+  },
+  qrcode: {
+    label: 'QR code: {value}',
+    expired: 'QR code expired',
+    refresh: 'Refresh',
+    loading: 'Loading QR code',
+  },
+  calendarView: {
+    more: '+{count} more',
+    dayWithEvents: '{date}, {count} events',
   },
   form: {
     optional: 'optional',

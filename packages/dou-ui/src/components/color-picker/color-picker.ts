@@ -1,14 +1,34 @@
 import type { Placement } from '../../composables/use-floating'
 import type { Size } from '../../utils/types'
+import type { ColorFormat, ColorGamut, ColorSpace } from './color'
+
+export type { ColorFormat, ColorGamut, ColorSpace }
+
+/**
+ * How the panel picks a color: `square` is a saturation / brightness
+ * square with a hue track, `wheel` a hue / saturation wheel with a
+ * brightness track, and a color space name gives one slider per channel
+ * of that space.
+ */
+export type ColorPickerPanel = 'square' | 'wheel' | ColorSpace
 
 export interface ColorPickerProps {
-  /** A hex color, `#rrggbb`, or `#rrggbbaa` with `showAlpha`. Bound with `v-model`. */
+  /** The color, in any supported format. Bound with `v-model`. */
   modelValue?: string | null
+  /** The text format the picker writes back to `v-model`. */
+  format?: ColorFormat
+  /** How the panel picks a color. A list shows a switcher on top of the panel. */
+  panel?: ColorPickerPanel | ColorPickerPanel[]
+  /**
+   * `srgb` maps colors outside sRGB back into it; `none` lets the Lab
+   * formats and panels keep them, for wide gamut screens.
+   */
+  gamut?: ColorGamut
   /** Let the color be partly transparent. */
   showAlpha?: boolean
-  /** Colors offered as one-click swatches. */
+  /** Colors offered as one-click swatches, in any supported format. */
   presets?: string[]
-  /** Show the hex value next to the swatch in the field. */
+  /** Show the value next to the swatch in the field. */
   showText?: boolean
   placeholder?: string
   size?: Size

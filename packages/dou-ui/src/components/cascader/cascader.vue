@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { CheckIcon, ChevronDownIcon, ChevronRightIcon, CloseIcon } from '@dou-ui/icons'
 import { computed, nextTick, reactive, ref, useId, useTemplateRef, watch } from 'vue'
 import type { HTMLAttributes } from 'vue'
 import { usePopup } from '../../composables/use-popup'
@@ -6,7 +7,9 @@ import { useNamespace } from '../../utils/namespace'
 import { OnlyChild } from '../../utils/only-child'
 import { useLocale } from '../config-provider/use-config'
 import { useFormDisabled, useFormItem, useFormSize } from '../form/use-form-item'
+import DouCheckbox from '../checkbox/checkbox.vue'
 import { DouSpinner } from '../spinner'
+import { DouTag } from '../tag'
 import type {
   CascaderExpose,
   CascaderOption,
@@ -24,14 +27,21 @@ const props = withDefaults(defineProps<CascaderProps>(), {
   filterable: false,
   separator: ' / ',
   showLastOnly: false,
+  multiple: false,
+  checkStrictly: false,
   disabled: false,
   invalid: false,
   clearable: false,
   placement: 'bottom-start',
   teleport: 'body',
 })
-const model = defineModel<CascaderValue[] | null>()
-const emit = defineEmits<{ change: [value: CascaderValue[] | null, path: CascaderOption[]] }>()
+const model = defineModel<CascaderValue[] | CascaderValue[][] | null>()
+const emit = defineEmits<{
+  change: [
+    value: CascaderValue[] | CascaderValue[][] | null,
+    path: CascaderOption[] | CascaderOption[][],
+  ]
+}>()
 const slots = defineSlots<CascaderSlots>()
 
 const ns = useNamespace('cascader')
@@ -107,11 +117,74 @@ const columns = computed(() => {
 // The highlighted option, as a path of values. Focus stays in the field.
 const active = ref<CascaderValue[]>([])
 
-const selectedPath = computed(() => resolve(model.value ?? []))
-const isOnSelected = (path: CascaderValue[]) =>
-  !!model.value &&
-  path.length <= model.value.length &&
-  path.every((value, index) => model.value![index] === value)
+/** The single path, or nothing with `multiple`. */
+const single = computed<CascaderValue[]>(() =>
+  props.multiple || !model.value ? [] : (model.value as CascaderValue[]),
+)
+const selectedPath = computed(() => resolve(single.value))
+const isOnSelected = (path: CascaderValue[]) => {
+  if (props.multiple) return checkState(path) === 'on'
+  const value = single.value
+  return (
+    value.length > 0 &&
+    path.length <= value.length &&
+    path.every((item, index) => value[index] === item)
+  )
+}
+
+/* checking, with `multiple` */
+
+const checkedPaths = computed<CascaderValue[][]>(() =>
+  props.multiple && Array.isArray(model.value)
+    ? (model.value as unknown[]).filter((item): item is CascaderValue[] => Array.isArray(item))
+    : [],
+)
+const checkedKeys = computed(() => new Set(checkedPaths.value.map(keyOf)))
+const isUnder = (path: CascaderValue[], parent: CascaderValue[]) =>
+  path.length >= parent.length && parent.every((value, index) => path[index] === value)
+
+/** The paths a check of this option stands for: its leaves as far as they are known. */
+function leavesUnder(option: CascaderOption, path: CascaderValue[]): CascaderValue[][] {
+  const children = childrenOf(option, path)
+  if (isLeaf(option, path) || !children) return [path]
+  return children
+    .filter((child) => !child.disabled)
+    .flatMap((child) => leavesUnder(child, [...path, child.value]))
+}
+
+function checkState(path: CascaderValue[]): 'on' | 'off' | 'some' {
+  if (checkedKeys.value.has(keyOf(path))) return 'on'
+  if (props.checkStrictly) return 'off'
+  const option = resolve(path).at(-1)
+  if (!option || resolve(path).length !== path.length) return 'off'
+  const leaves = leavesUnder(option, path)
+  const count = leaves.filter((leaf) => checkedKeys.value.has(keyOf(leaf))).length
+  if (count && count === leaves.length && !isLeaf(option, path)) return 'on'
+  return checkedPaths.value.some((item) => item.length > path.length && isUnder(item, path))
+    ? 'some'
+    : 'off'
+}
+
+async function toggleCheck(option: CascaderOption, path: CascaderValue[]) {
+  if (option.disabled) return
+  const on = checkState(path) === 'on'
+  if (props.checkStrictly) {
+    commit(
+      on
+        ? checkedPaths.value.filter((item) => keyOf(item) !== keyOf(path))
+        : [...checkedPaths.value, path],
+    )
+    return
+  }
+  await ensure(option, path)
+  const rest = checkedPaths.value.filter((item) => !isUnder(item, path))
+  commit(on ? rest : [...rest, ...leavesUnder(option, path)])
+}
+
+function removePath(path: CascaderValue[]) {
+  if (disabled.value) return
+  commit(checkedPaths.value.filter((item) => keyOf(item) !== keyOf(path)))
+}
 
 /* search */
 
@@ -132,8 +205,8 @@ const matches = computed<Match[]>(() => {
       const keys = [...values, option.value]
       const label = path.map(labelOf).join(props.separator)
       const leaf = isLeaf(option, keys)
-      if ((leaf || props.changeOnSelect) && label.toLowerCase().includes(text))
-        result.push({ path, values: keys, label })
+      const pickable = leaf || props.changeOnSelect || (props.multiple && props.checkStrictly)
+      if (pickable && label.toLowerCase().includes(text)) result.push({ path, values: keys, label })
       const children = childrenOf(option, keys)
       if (children) walk(children, path, keys)
     }
@@ -161,7 +234,7 @@ const { triggerRef, panelRef, rendered, theme, placement, panelStyle } = popup
 function show() {
   if (disabled.value || open.value) return
   open.value = true
-  const chosen = model.value ?? []
+  const chosen = props.multiple ? (checkedPaths.value[0] ?? []) : single.value
   expanded.value = chosen.slice(0, -1)
   active.value = chosen.length ? [...chosen] : firstEnabled([])
 }
@@ -191,10 +264,12 @@ function firstEnabled(parent: CascaderValue[]) {
   return option ? [...parent, option.value] : []
 }
 
-function commit(values: CascaderValue[] | null) {
-  const path = values ? resolve(values) : []
+function commit(values: CascaderValue[] | CascaderValue[][] | null) {
   model.value = values
-  emit('change', values, path)
+  if (props.multiple) {
+    const list = (values ?? []) as CascaderValue[][]
+    emit('change', values, list.map(resolve))
+  } else emit('change', values, values ? resolve(values as CascaderValue[]) : [])
   formItem?.trigger('change')
 }
 
@@ -218,7 +293,11 @@ async function activate(option: CascaderOption, path: CascaderValue[], choose: b
 }
 
 function onOptionClick(option: CascaderOption, path: CascaderValue[]) {
-  void activate(option, path, true)
+  if (props.multiple && isLeaf(option, path)) {
+    active.value = path
+    expanded.value = path.slice(0, -1)
+    void toggleCheck(option, path)
+  } else void activate(option, path, !props.multiple)
 }
 function onOptionHover(option: CascaderOption, path: CascaderValue[]) {
   if (option.disabled) return
@@ -228,13 +307,14 @@ function onOptionHover(option: CascaderOption, path: CascaderValue[]) {
 
 function chooseMatch(match: Match | undefined) {
   if (!match) return
+  if (props.multiple) return void toggleCheck(match.path.at(-1)!, match.values)
   commit(match.values)
   hide()
   focus()
 }
 
 function clear() {
-  commit(null)
+  commit(props.multiple ? [] : null)
   hide()
   focus()
 }
@@ -325,7 +405,15 @@ function onKeydown(event: KeyboardEvent) {
       if (event.key === ' ' && props.filterable) return
       event.preventDefault()
       if (!open.value) show()
-      else void enter(true)
+      else if (props.multiple) {
+        const option = resolve(active.value).at(-1)
+        if (option && resolve(active.value).length === active.value.length)
+          void toggleCheck(option, [...active.value])
+      } else void enter(true)
+      return
+    case 'Backspace':
+      if (props.multiple && props.filterable && !query.value && checkedPaths.value.length)
+        removePath(checkedPaths.value.at(-1)!)
       return
     case 'Tab':
       hide()
@@ -350,6 +438,25 @@ function onBlur(event: FocusEvent) {
   hide()
   formItem?.trigger('blur')
 }
+
+const pathLabel = (path: CascaderOption[]) =>
+  props.showLastOnly ? labelOf(path.at(-1)!) : path.map(labelOf).join(props.separator)
+const tags = computed(() =>
+  checkedPaths.value.map((values) => {
+    const path = resolve(values)
+    return {
+      values,
+      label:
+        path.length === values.length ? pathLabel(path) : values.map(String).join(props.separator),
+    }
+  }),
+)
+const shownTags = computed(() =>
+  props.maxTagCount === undefined
+    ? tags.value
+    : tags.value.slice(0, Math.max(0, props.maxTagCount)),
+)
+const hiddenTags = computed(() => tags.value.slice(shownTags.value.length))
 
 const display = computed(() => {
   const path = selectedPath.value
@@ -381,6 +488,10 @@ const comboboxAttrs = computed<HTMLAttributes>(() => ({
 }))
 
 const showClear = computed(() => props.clearable && !disabled.value && !!model.value?.length)
+const inputPlaceholder = computed(() => {
+  if (props.multiple) return tags.value.length ? '' : placeholderText.value
+  return display.value || placeholderText.value
+})
 
 defineExpose<CascaderExpose>({ focus, blur: () => combobox()?.blur() })
 </script>
@@ -395,6 +506,8 @@ defineExpose<CascaderExpose>({ focus, blur: () => combobox()?.blur() })
         'dou-picker',
         `dou-picker--${size}`,
         ns.is('open', open),
+        ns.is('multiple', multiple),
+        ns.is('has-tags', tags.length > 0),
         ns.is('disabled', disabled),
         ns.is('invalid', invalid),
       ]"
@@ -405,8 +518,44 @@ defineExpose<CascaderExpose>({ focus, blur: () => combobox()?.blur() })
       @keydown="filterable ? undefined : onKeydown($event)"
       @focusout="onBlur"
     >
+      <div v-if="multiple" :class="ns.e('tags')">
+        <DouTag
+          v-for="tag in shownTags"
+          :key="keyOf(tag.values)"
+          :size="size"
+          :closable="!disabled"
+          @close="removePath(tag.values)"
+        >
+          {{ tag.label }}
+        </DouTag>
+        <DouTag
+          v-if="hiddenTags.length"
+          :size="size"
+          :class="ns.e('tag-more')"
+          :title="hiddenTags.map((tag) => tag.label).join('、')"
+        >
+          +{{ hiddenTags.length }}
+        </DouTag>
+        <input
+          v-if="filterable"
+          ref="input"
+          v-model="query"
+          v-bind="comboboxAttrs"
+          :id="formItem?.inputId"
+          class="dou-picker__input"
+          :class="ns.e('input')"
+          type="text"
+          autocomplete="off"
+          aria-autocomplete="list"
+          :placeholder="inputPlaceholder"
+          :disabled="disabled"
+          @input="show"
+          @keydown="onKeydown"
+        />
+        <span v-else-if="!tags.length" class="dou-picker__placeholder">{{ placeholderText }}</span>
+      </div>
       <input
-        v-if="filterable"
+        v-else-if="filterable"
         ref="input"
         v-model="query"
         v-bind="comboboxAttrs"
@@ -432,24 +581,13 @@ defineExpose<CascaderExpose>({ focus, blur: () => combobox()?.blur() })
         @mousedown.prevent
         @click="clear"
       >
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path d="M5 5l6 6M11 5l-6 6" stroke-linecap="round" />
-        </svg>
+        <CloseIcon />
       </button>
-      <svg
-        class="dou-picker__arrow"
-        viewBox="0 0 16 16"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.5"
-        aria-hidden="true"
-      >
-        <path d="M4.5 6.25L8 9.75l3.5-3.5" stroke-linecap="round" stroke-linejoin="round" />
-      </svg>
+      <ChevronDownIcon class="dou-picker__arrow" />
     </div>
   </OnlyChild>
   <Teleport v-if="rendered" :to="teleport || 'body'" :disabled="teleport === false">
-    <Transition name="dou-floating">
+    <Transition appear name="dou-floating">
       <div
         v-show="open"
         ref="panelRef"
@@ -470,11 +608,21 @@ defineExpose<CascaderExpose>({ focus, blur: () => combobox()?.blur() })
             :id="`${id}-match-${index}`"
             :key="keyOf(match.values)"
             role="option"
-            :aria-selected="index === activeMatch"
+            :aria-selected="multiple ? checkState(match.values) === 'on' : index === activeMatch"
             :class="[ns.e('option'), ns.is('active', index === activeMatch)]"
             @click="chooseMatch(match)"
             @mousemove="activeMatch = index"
           >
+            <DouCheckbox
+              v-if="multiple"
+              :model-value="checkState(match.values) === 'on'"
+              size="sm"
+              tabindex="-1"
+              aria-hidden="true"
+              :class="ns.e('checkbox')"
+              @click.stop
+              @update:model-value="chooseMatch(match)"
+            />
             <span :class="ns.e('label')">{{ match.label }}</span>
           </li>
           <li v-if="!matches.length" role="presentation" :class="ns.e('empty')">
@@ -488,6 +636,7 @@ defineExpose<CascaderExpose>({ focus, blur: () => combobox()?.blur() })
             :key="keyOf(column.path)"
             role="listbox"
             :class="ns.e('column')"
+            :aria-multiselectable="multiple || undefined"
             :aria-busy="loading.has(keyOf(column.path)) || undefined"
           >
             <li
@@ -512,6 +661,18 @@ defineExpose<CascaderExpose>({ focus, blur: () => combobox()?.blur() })
               @click="onOptionClick(option, [...column.path, option.value])"
               @mouseenter="onOptionHover(option, [...column.path, option.value])"
             >
+              <DouCheckbox
+                v-if="multiple"
+                :model-value="checkState([...column.path, option.value]) === 'on'"
+                :indeterminate="checkState([...column.path, option.value]) === 'some'"
+                :disabled="!!option.disabled"
+                size="sm"
+                tabindex="-1"
+                aria-hidden="true"
+                :class="ns.e('checkbox')"
+                @click.stop
+                @update:model-value="toggleCheck(option, [...column.path, option.value])"
+              />
               <span :class="ns.e('label')">
                 <slot name="option" :option="option" :level="level">{{ labelOf(option) }}</slot>
               </span>
@@ -520,32 +681,14 @@ defineExpose<CascaderExpose>({ focus, blur: () => combobox()?.blur() })
                 size="sm"
                 :class="ns.e('suffix')"
               />
-              <svg
+              <ChevronRightIcon
                 v-else-if="!isLeaf(option, [...column.path, option.value])"
                 :class="ns.e('suffix')"
-                viewBox="0 0 16 16"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.5"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M6 4l4 4-4 4" />
-              </svg>
-              <svg
-                v-else-if="isOnSelected([...column.path, option.value])"
+              />
+              <CheckIcon
+                v-else-if="!multiple && isOnSelected([...column.path, option.value])"
                 :class="[ns.e('suffix'), ns.e('check')]"
-                viewBox="0 0 16 16"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.75"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M3.5 8.5l3 3 6-7" />
-              </svg>
+              />
             </li>
             <li
               v-if="!column.options.length && !loading.has(keyOf(column.path))"

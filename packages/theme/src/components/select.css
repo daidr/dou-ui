@@ -130,9 +130,8 @@
   .dou-select__placeholder {
     flex: 1 1 auto;
     min-width: 0;
-    /* clip, not hide: the trimmed line box is shorter than CJK glyphs */
-    overflow: clip;
-    overflow-clip-margin: 4px;
+    /* clip inline only: glyphs overflow the trimmed line box vertically */
+    overflow-x: clip;
     line-height: 1;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -181,8 +180,9 @@
 
   .dou-select__arrow {
     flex-shrink: 0;
-    width: 16px;
-    height: 16px;
+    width: 1em;
+    height: 1em;
+    font-size: 16px;
     color: var(--dou-color-text-tertiary);
     transition: transform var(--dou-motion-duration-fast) var(--dou-motion-easing);
   }
@@ -207,8 +207,9 @@
     cursor: pointer;
 
     & > svg {
-      width: 0.8em;
-      height: 0.8em;
+      width: 1em;
+      height: 1em;
+      font-size: 0.8em;
     }
 
     &:hover {
@@ -271,17 +272,104 @@
   .dou-select__option-label {
     flex: 1 1 auto;
     min-width: 0;
-    overflow: clip;
-    overflow-clip-margin: 4px;
+    overflow-x: clip;
     text-overflow: ellipsis;
     text-box: trim-both cap alphabetic;
   }
 
   .dou-select__check {
     flex-shrink: 0;
-    width: 14px;
-    height: 14px;
+    width: 1em;
+    height: 1em;
+    font-size: 14px;
     color: var(--dou-color-text);
+  }
+
+  /* groups: a quiet label above their options, a hairline between groups */
+  .dou-select__section,
+  .dou-select__group {
+    padding: 0;
+    margin: 0;
+    list-style: none;
+  }
+
+  .dou-select__section + .dou-select__section:has(.dou-select__group-label) {
+    margin-top: 4px;
+    padding-top: 4px;
+    border-top: 1px solid var(--dou-color-border-subtle);
+  }
+
+  .dou-select__group-label {
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+    height: var(--dou-control-height-md);
+    padding: 0 8px;
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+    font-weight: var(--dou-font-weight-medium);
+    white-space: nowrap;
+    cursor: default;
+    user-select: none;
+  }
+
+  /* the option that turns the search text into a new value */
+  .dou-select__option.is-create {
+    color: var(--dou-color-text-secondary);
+  }
+
+  .dou-select__loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px;
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+  }
+
+  /* virtual: rows are placed absolutely inside a list as tall as all of them */
+  .dou-select__menu.is-virtual .dou-select__list {
+    position: relative;
+  }
+
+  .dou-select__menu.is-virtual .dou-select__option,
+  .dou-select__menu.is-virtual .dou-select__group-label {
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+  }
+
+  /* header and footer stay put while the options scroll between them */
+  .dou-select__header,
+  .dou-select__footer {
+    position: sticky;
+    z-index: 1;
+    padding: 4px 8px;
+    margin-inline: calc(var(--dou-select-menu-inset) * -1);
+    background-color: inherit;
+    font-size: var(--dou-font-size-sm);
+  }
+
+  .dou-select__header {
+    top: calc(var(--dou-select-menu-inset) * -1);
+    padding-bottom: 6px;
+    margin-top: calc(var(--dou-select-menu-inset) * -1);
+    margin-bottom: 4px;
+    border-bottom: 1px solid var(--dou-color-border-subtle);
+  }
+
+  .dou-select__footer {
+    bottom: calc(var(--dou-select-menu-inset) * -1);
+    padding-top: 6px;
+    margin-top: 4px;
+    margin-bottom: calc(var(--dou-select-menu-inset) * -1);
+    border-top: 1px solid var(--dou-color-border-subtle);
+  }
+
+  .dou-select__tag-more {
+    color: var(--dou-color-text-secondary);
   }
 
   .dou-select__empty {

@@ -21,6 +21,7 @@
     "docs": {
       "name": "@dou-ui/docs",
       "dependencies": {
+        "@dou-ui/icons": "workspace:*",
         "dou-ui": "workspace:*",
       },
       "devDependencies": {
@@ -31,11 +32,23 @@
       "name": "dou-ui",
       "version": "0.0.0",
       "dependencies": {
+        "@dou-ui/icons": "workspace:*",
         "@dou-ui/theme": "workspace:*",
       },
       "peerDependencies": {
         "vue": "^3.5.0",
       },
+    },
+    "packages/icons": {
+      "name": "@dou-ui/icons",
+      "version": "0.0.0",
+      "peerDependencies": {
+        "vue": "^3.5.0",
+      },
+    },
+    "packages/resolver": {
+      "name": "@dou-ui/resolver",
+      "version": "0.0.0",
     },
     "packages/theme": {
       "name": "@dou-ui/theme",
@@ -44,6 +57,7 @@
     "playground": {
       "name": "@dou-ui/playground",
       "dependencies": {
+        "@dou-ui/icons": "workspace:*",
         "dou-ui": "workspace:*",
       },
     },
@@ -101,7 +115,11 @@
 
     "@dou-ui/docs": ["@dou-ui/docs@workspace:docs"],
 
+    "@dou-ui/icons": ["@dou-ui/icons@workspace:packages/icons"],
+
     "@dou-ui/playground": ["@dou-ui/playground@workspace:playground"],
+
+    "@dou-ui/resolver": ["@dou-ui/resolver@workspace:packages/resolver"],
 
     "@dou-ui/theme": ["@dou-ui/theme@workspace:packages/theme"],
 

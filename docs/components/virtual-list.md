@@ -1,55 +1,14 @@
 # VirtualList 虚拟列表
 
-成千上万条数据时，只把视口附近的几十条放进页面。一个和所有条目一样高的占位撑起滚动条，渲染出来的条目各自放在自己的位置上，所以滚动条从不跳动。
+数据量很大时，只渲染可视区域附近的条目，滚动依然流畅。
 
 列表本身不画任何外观：没有底色、描边和内边距，外观交给放在里面的内容或外面的容器。
-
-<script setup>
-import { ref } from 'vue'
-const rows = Array.from({ length: 10000 }, (_, index) => ({
-  id: index,
-  name: `deploy-${String(index).padStart(5, '0')}`,
-  region: ['香港', '新加坡', '东京', '法兰克福'][index % 4],
-}))
-const list = ref()
-const target = ref(5000)
-const feed = ref(Array.from({ length: 30 }, (_, index) => `第 ${index + 1} 条`))
-const loading = ref(false)
-function more() {
-  if (loading.value || feed.value.length >= 120) return
-  loading.value = true
-  setTimeout(() => {
-    const start = feed.value.length
-    feed.value = [...feed.value, ...Array.from({ length: 30 }, (_, index) => `第 ${start + index + 1} 条`)]
-    loading.value = false
-  }, 600)
-}
-</script>
 
 ## 基础用法
 
 `items` 是数据，`item-size` 是每一项的高度（px），`height` 是视口高度。默认插槽拿到 `{ item, index }`。
 
-<div class="demo demo--column">
-  <DouCard padding="none">
-    <DouVirtualList :items="rows" :item-size="36" item-key="id" :height="288">
-      <template #default="{ item, index }">
-        <div class="vl-row">
-          <DouText mono>{{ item.name }}</DouText>
-          <DouText variant="tertiary" size="sm">{{ item.region }} · #{{ index }}</DouText>
-        </div>
-      </template>
-    </DouVirtualList>
-  </DouCard>
-</div>
-
-```vue
-<DouVirtualList :items="rows" :item-size="36" item-key="id" :height="288">
-  <template #default="{ item, index }">
-    <div class="row">{{ item.name }}</div>
-  </template>
-</DouVirtualList>
-```
+<DocDemo src="virtual-list/basic" column />
 
 高度需要事先知道，这样每一项的位置是算出来的，而不是滚到那里才量出来的，滚动条和跳转都是准的。高度不一的列表传一个函数：`:item-size="(item, index) => (item.group ? 28 : 36)"`。
 
@@ -59,37 +18,13 @@ function more() {
 
 `scrollToIndex(index, align)` 把某一项滚进视口。`align` 默认 `'nearest'`，已经可见时不动，否则只滚最少的距离；也可以是 `'start'`、`'center'`、`'end'`。
 
-<div class="demo demo--column">
-  <DouSpace>
-    <DouInputNumber v-model="target" :min="0" :max="9999" size="sm" />
-    <DouButton size="sm" variant="outline" @click="list.scrollToIndex(target, 'center')">跳转</DouButton>
-  </DouSpace>
-  <DouCard padding="none">
-    <DouVirtualList ref="list" :items="rows" :item-size="36" item-key="id" :height="216">
-      <template #default="{ item, index }">
-        <div class="vl-row" :class="{ 'vl-row--target': index === target }">
-          <DouText mono>{{ item.name }}</DouText>
-          <DouText variant="tertiary" size="sm">#{{ index }}</DouText>
-        </div>
-      </template>
-    </DouVirtualList>
-  </DouCard>
-</div>
+<DocDemo src="virtual-list/scroll-to" column />
 
 ## 滚动加载
 
 滚到距底部 `end-threshold`（默认 40px）以内时触发 `end-reached`，追加数据后列表变长，下一次到底会再次触发。
 
-<div class="demo demo--column">
-  <DouCard padding="none">
-    <DouVirtualList :items="feed" :item-size="36" :height="216" @end-reached="more">
-      <template #default="{ item }">
-        <div class="vl-row">{{ item }}</div>
-      </template>
-    </DouVirtualList>
-  </DouCard>
-  <DouText variant="tertiary" size="sm">已加载 {{ feed.length }} 条{{ loading ? '，加载中…' : '' }}</DouText>
-</div>
+<DocDemo src="virtual-list/infinite" column />
 
 ## 键盘与读屏
 
@@ -129,18 +64,3 @@ function more() {
 | `scrollToIndex` | 把某一项滚进视口   | `(index: number, align?: 'start' \| 'center' \| 'end' \| 'nearest') => void` |
 | `scrollTo`      | 滚到某个偏移（px） | `(offset: number) => void`                                                   |
 | `el`            | 滚动容器元素       | `() => HTMLElement \| null`                                                  |
-
-<style>
-.vl-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 100%;
-  padding: 0 16px;
-  border-bottom: 1px solid var(--dou-color-border-subtle);
-  box-sizing: border-box;
-}
-.vl-row--target {
-  background: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
-}
-</style>

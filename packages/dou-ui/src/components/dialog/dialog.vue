@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { CloseIcon } from '@dou-ui/icons'
 import { computed, ref, useId, useTemplateRef, watch } from 'vue'
 import { useModal } from '../../composables/use-modal'
 import { useNamespace } from '../../utils/namespace'
@@ -63,7 +64,7 @@ defineExpose<DialogExpose>({ close })
 
 <template>
   <Teleport v-if="rendered" :to="teleport || 'body'" :disabled="teleport === false">
-    <Transition name="dou-dialog" @after-enter="emit('opened')" @after-leave="onAfterLeave">
+    <Transition appear name="dou-dialog" @after-enter="emit('opened')" @after-leave="onAfterLeave">
       <div
         v-show="open"
         ref="root"
@@ -100,9 +101,7 @@ defineExpose<DialogExpose>({ close })
                 :aria-label="t('dialog.close')"
                 @click="close"
               >
-                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-                  <path d="M4 4l8 8M12 4l-8 8" stroke-linecap="round" />
-                </svg>
+                <CloseIcon />
               </button>
             </header>
             <div :class="ns.e('body')"><slot /></div>

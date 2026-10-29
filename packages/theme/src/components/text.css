@@ -19,7 +19,7 @@
     &.is-truncate {
       display: inline-block;
       max-width: 100%;
-      overflow: hidden;
+      overflow-x: clip;
       text-overflow: ellipsis;
       white-space: nowrap;
       vertical-align: bottom;

@@ -1,30 +1,10 @@
 # Descriptions 描述列表
 
-把一条记录的只读字段排在网格上。标签小而安静，值是墨色。加上 `bordered` 后网格变成一张表：单元格之间是细线，标签压在极淡的底色上。
+以列表形式展示多个字段，例如订单详情、用户资料。
 
 ## 基础用法
 
-<div class="demo demo--column">
-  <DouDescriptions title="实例">
-    <template #extra><DouButton variant="outline" size="sm">编辑</DouButton></template>
-    <DouDescriptionsItem label="名称">edge-fn-hk</DouDescriptionsItem>
-    <DouDescriptionsItem label="区域">香港</DouDescriptionsItem>
-    <DouDescriptionsItem label="状态"><DouTag tone="success" size="sm" round>运行中</DouTag></DouDescriptionsItem>
-    <DouDescriptionsItem label="规格">2 vCPU · 512 MB</DouDescriptionsItem>
-    <DouDescriptionsItem label="创建于">2026-10-28 14:32</DouDescriptionsItem>
-    <DouDescriptionsItem label="副本">3</DouDescriptionsItem>
-    <DouDescriptionsItem label="说明" span="fill">自动扩缩容的边缘函数，部署在离用户最近的节点。</DouDescriptionsItem>
-  </DouDescriptions>
-</div>
-
-```vue
-<DouDescriptions title="实例">
-  <template #extra><DouButton variant="outline" size="sm">编辑</DouButton></template>
-  <DouDescriptionsItem label="名称">edge-fn-hk</DouDescriptionsItem>
-  <DouDescriptionsItem label="区域">香港</DouDescriptionsItem>
-  <DouDescriptionsItem label="说明" span="fill">…</DouDescriptionsItem>
-</DouDescriptions>
-```
+<DocDemo src="descriptions/basic" column />
 
 `columns`（默认 3）决定一行放几项；`span` 让一项横跨几列，`span="fill"` 独占一整行。
 
@@ -32,31 +12,11 @@
 
 `layout="horizontal"` 把标签放在值的左边，标签宽度由 `label-width` 统一。
 
-<div class="demo demo--column">
-  <DouDescriptions layout="horizontal" :columns="2" :label-width="72">
-    <DouDescriptionsItem label="分支">main</DouDescriptionsItem>
-    <DouDescriptionsItem label="提交">39dc86b</DouDescriptionsItem>
-    <DouDescriptionsItem label="作者">daidr</DouDescriptionsItem>
-    <DouDescriptionsItem label="耗时">42 秒</DouDescriptionsItem>
-  </DouDescriptions>
-</div>
+<DocDemo src="descriptions/horizontal" column />
 
 ## 带边框
 
-<div class="demo demo--column">
-  <DouDescriptions bordered :columns="3">
-    <DouDescriptionsItem label="名称">edge-fn-hk</DouDescriptionsItem>
-    <DouDescriptionsItem label="区域">香港</DouDescriptionsItem>
-    <DouDescriptionsItem label="副本">3</DouDescriptionsItem>
-    <DouDescriptionsItem label="说明" span="fill">自动扩缩容的边缘函数，部署在离用户最近的节点。</DouDescriptionsItem>
-  </DouDescriptions>
-  <DouDescriptions bordered layout="horizontal" :columns="2">
-    <DouDescriptionsItem label="分支">main</DouDescriptionsItem>
-    <DouDescriptionsItem label="提交">39dc86b</DouDescriptionsItem>
-    <DouDescriptionsItem label="作者">daidr</DouDescriptionsItem>
-    <DouDescriptionsItem label="耗时">42 秒</DouDescriptionsItem>
-  </DouDescriptions>
-</div>
+<DocDemo src="descriptions/bordered" column />
 
 ## 语义
 

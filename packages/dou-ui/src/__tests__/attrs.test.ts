@@ -28,22 +28,40 @@ const required: Record<string, Record<string, unknown>> = {
   DouTooltip: { open: true, content: 'c' },
   DouPopover: { open: true },
   DouDropdown: { open: true },
+  DouPopconfirm: { open: true, title: 't' },
+  DouImagePreview: { open: true, images: ['a.png'] },
+  DouListbox: { options: ['a'] },
+  DouQrcode: { value: 'x' },
+  DouTreeSelect: { data: [] },
 }
 
 // floating components put attrs on the panel, not on the trigger
-const floating = new Set(['DouTooltip', 'DouPopover', 'DouDropdown'])
+const floating = new Set([
+  'DouTooltip',
+  'DouPopover',
+  'DouDropdown',
+  'DouPopconfirm',
+  'DouContextMenu',
+])
 // form controls keep class / style on the frame and the rest on the native control
 const fields: Record<string, string> = {
   DouCheckbox: 'input',
   DouRadio: 'input',
   DouSwitch: 'button',
+  DouColorModeSwitch: 'button',
+  DouInputOtp: 'input',
+  DouInputTag: 'input',
   DouInput: 'input',
   DouInputNumber: 'input',
   DouAutocomplete: 'input',
   DouTextarea: 'textarea',
 }
-// render no element of their own
-const renderless = new Set(['DouConfigProvider', 'DouToastViewport'])
+// render no element of their own, or only inside a parent that provides one
+const renderless = new Set(['DouConfigProvider', 'DouToastViewport', 'DouLayoutAsideTrigger'])
+// open by a method rather than a prop
+const openers: Record<string, (vm: any) => void> = {
+  DouContextMenu: (vm) => vm.open(10, 10),
+}
 
 const components = Object.entries(Dou).filter(
   ([name, value]) =>
@@ -56,7 +74,7 @@ const components = Object.entries(Dou).filter(
 
 describe('attribute passthrough', () => {
   it.each(components)('%s puts class, style and attributes on one element', async (name, comp) => {
-    mount(comp, {
+    const wrapper = mount(comp, {
       props: required[name] ?? {},
       attrs: probe,
       slots: floating.has(name)
@@ -64,6 +82,7 @@ describe('attribute passthrough', () => {
         : { default: () => 'x' },
       attachTo: document.body,
     })
+    openers[name]?.(wrapper.vm)
     await nextTick()
     await new Promise((resolve) => setTimeout(resolve, 0))
 

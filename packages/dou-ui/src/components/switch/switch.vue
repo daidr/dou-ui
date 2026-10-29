@@ -53,6 +53,7 @@ const classes = computed(() => [
       :aria-checked="model"
       :aria-busy="loading || undefined"
       :aria-labelledby="slots.default ? labelId : undefined"
+      :aria-label="slots.default ? undefined : ariaLabel"
       :aria-describedby="formItem?.describedBy.value"
       :aria-invalid="formItem?.invalid.value || undefined"
       :disabled="disabled"

@@ -4,70 +4,34 @@
 
 ## 变体与语气
 
-`variant` 决定按钮有多"重"，`tone` 决定这个操作意味着什么。两者正交，可以任意组合。
+`variant` 设置按钮的样式，`tone` 表示操作的语义，两者可以任意组合。
 
-<div class="demo">
-  <DouButton>solid</DouButton>
-  <DouButton variant="soft">soft</DouButton>
-  <DouButton variant="outline">outline</DouButton>
-  <DouButton variant="ghost">ghost</DouButton>
-</div>
+<DocDemo src="button/variant" />
 
-<div class="demo">
-  <DouButton tone="primary">primary</DouButton>
-  <DouButton tone="success">success</DouButton>
-  <DouButton tone="warning">warning</DouButton>
-  <DouButton tone="danger">danger</DouButton>
-  <DouButton variant="soft" tone="danger">删除</DouButton>
-</div>
-
-```vue
-<DouButton tone="primary">primary</DouButton>
-<DouButton variant="soft" tone="danger">删除</DouButton>
-```
+<DocDemo src="button/variant-2" />
 
 ## 尺寸
 
-<div class="demo">
-  <DouButton size="sm">sm</DouButton>
-  <DouButton size="md">md</DouButton>
-  <DouButton size="lg">lg</DouButton>
-</div>
-
-```vue
-<DouButton size="sm">sm</DouButton>
-```
+<DocDemo src="button/size" />
 
 ## 禁用与加载
 
 加载中的按钮会显示指示器并阻止点击，但**仍然可以获得焦点**，读屏软件会读到 `aria-busy`。
 禁用的按钮使用原生 `disabled`。
 
-<div class="demo">
-  <DouButton disabled>disabled</DouButton>
-  <DouButton loading>loading</DouButton>
-</div>
-
-```vue
-<DouButton disabled>disabled</DouButton>
-<DouButton loading>loading</DouButton>
-```
+<DocDemo src="button/disabled-loading" />
 
 ## 图标
 
-用 `leading` / `trailing` 插槽放置图标。加载时 `leading` 会被指示器替代。
+用 `leading` / `trailing` 插槽放置图标。加载时 `leading` 会被指示器替代。图标所在一侧的内边距比文字一侧小，让按钮两边看起来一样宽；只有图标的按钮不受影响。
 
-<div class="demo">
-  <DouButton variant="outline"><template #leading>＋</template>新建</DouButton>
-  <DouButton variant="ghost">下一步<template #trailing>→</template></DouButton>
-</div>
+<DocDemo src="button/icon" />
 
-```vue
-<DouButton variant="outline">
-  <template #leading><PlusIcon /></template>
-  新建
-</DouButton>
-```
+<DocDemo src="button/icon-2" />
+
+只放一个图标时，可以直接写在默认插槽里，按钮会变成正方形，图标居中。这种按钮没有可见文字，记得用 `aria-label` 说明它的作用。
+
+<DocDemo src="button/icon-only" />
 
 ## API
 
@@ -91,20 +55,21 @@
 
 ### Slots
 
-| 名称       | 说明         |
-| ---------- | ------------ |
-| `default`  | 按钮文字     |
-| `leading`  | 文字前的内容 |
-| `trailing` | 文字后的内容 |
+| 名称       | 说明                             |
+| ---------- | -------------------------------- |
+| `default`  | 按钮文字；只放图标时按钮为正方形 |
+| `leading`  | 文字前的内容                     |
+| `trailing` | 文字后的内容                     |
 
 ### CSS 变量
 
 组件内部变量，可在局部覆盖：
 
-| 变量                     | 说明               |
-| ------------------------ | ------------------ |
-| `--dou-button-tone`      | 基础色             |
-| `--dou-button-tone-on`   | 实心背景上的前景色 |
-| `--dou-button-height`    | 高度               |
-| `--dou-button-padding-x` | 水平内边距         |
-| `--dou-button-radius`    | 圆角               |
+| 变量                        | 说明                     |
+| --------------------------- | ------------------------ |
+| `--dou-button-tone`         | 基础色                   |
+| `--dou-button-tone-on`      | 实心背景上的前景色       |
+| `--dou-button-height`       | 高度                     |
+| `--dou-button-padding-x`    | 水平内边距               |
+| `--dou-button-padding-icon` | 图标所在一侧的水平内边距 |
+| `--dou-button-radius`       | 圆角                     |

@@ -4,6 +4,7 @@ import { usePopup } from '../../composables/use-popup'
 import { useNamespace } from '../../utils/namespace'
 import { OnlyChild } from '../../utils/only-child'
 import { dropdownKey } from './dropdown'
+import { menuItems, useMenuKeys } from './menu-keys'
 import type { DropdownExpose, DropdownProps, DropdownSlots, DropdownValue } from './dropdown'
 
 defineOptions({ name: 'DouDropdown', inheritAttrs: false })
@@ -38,10 +39,7 @@ const popup = usePopup({
 })
 const { triggerRef, panelRef, rendered, theme, placement, panelStyle, panelListeners } = popup
 
-const items = () =>
-  [...(panelRef.value?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])].filter(
-    (item) => item.getAttribute('aria-disabled') !== 'true',
-  )
+const items = () => menuItems(panelRef.value)
 
 async function openAndFocus(which: 'first' | 'last') {
   popup.show()
@@ -73,58 +71,14 @@ const triggerProps = computed(() =>
   }),
 )
 
-let typed = ''
-let typedTimer: ReturnType<typeof setTimeout> | undefined
-
-function onMenuKeydown(event: KeyboardEvent) {
-  const list = items()
-  const index = list.indexOf(document.activeElement as HTMLElement)
-  const focus = (next: number) => list[(next + list.length) % list.length]?.focus()
-
-  switch (event.key) {
-    case 'ArrowDown':
-      event.preventDefault()
-      focus(index + 1)
-      return
-    case 'ArrowUp':
-      event.preventDefault()
-      focus(index < 0 ? -1 : index - 1)
-      return
-    case 'Home':
-      event.preventDefault()
-      focus(0)
-      return
-    case 'End':
-      event.preventDefault()
-      focus(-1)
-      return
-    case 'Enter':
-    case ' ':
-      event.preventDefault()
-      list[index]?.click()
-      return
-    case 'Tab':
-      // Leave from the trigger so focus moves on from where the menu was opened.
-      ;(popup.reference() as HTMLElement | null)?.focus()
-      popup.hide()
-      return
-  }
-
-  // Typing jumps to the next item starting with the typed text.
-  if (event.key.length !== 1 || event.ctrlKey || event.metaKey || event.altKey) return
-  clearTimeout(typedTimer)
-  typed += event.key.toLowerCase()
-  typedTimer = setTimeout(() => (typed = ''), 500)
-  const ordered = [...list.slice(index + 1), ...list.slice(0, index + 1)]
-  const repeat = typed.length > 1 && [...typed].every((char) => char === typed[0])
-  const match = ordered.find((item) =>
-    item.textContent
-      ?.trim()
-      .toLowerCase()
-      .startsWith(repeat ? typed[0]! : typed),
-  )
-  match?.focus()
-}
+// Tab leaves from the trigger so focus moves on from where the menu was opened.
+const onMenuKeydown = useMenuKeys(
+  () => panelRef.value,
+  () => {
+    ;(popup.reference() as HTMLElement | null)?.focus()
+    popup.hide()
+  },
+)
 
 provide(dropdownKey, {
   select(value) {
@@ -139,7 +93,7 @@ defineExpose<DropdownExpose>({ open: () => popup.show(), close: () => popup.hide
 <template>
   <OnlyChild ref="triggerRef" v-bind="triggerProps"><slot /></OnlyChild>
   <Teleport v-if="rendered" :to="teleport || 'body'" :disabled="teleport === false">
-    <Transition name="dou-floating">
+    <Transition appear name="dou-floating">
       <div
         v-show="open"
         :id="id"

@@ -1,0 +1,11 @@
+/*
+ * Countdown
+ *
+ * A statistic whose number is a running time. Tabular figures keep the
+ * digits from shifting as they change.
+ */
+@layer dou.components {
+  .dou-statistic.dou-countdown .dou-statistic__value {
+    font-variant-numeric: tabular-nums;
+  }
+}

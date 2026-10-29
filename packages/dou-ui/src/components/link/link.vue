@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ArrowUpRightIcon } from '@dou-ui/icons'
 import { computed } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import type { LinkEmits, LinkProps, LinkSlots } from './link'
@@ -49,9 +50,7 @@ function onClick(event: MouseEvent) {
       <slot name="trailing" />
     </span>
     <span v-else-if="external" :class="[ns.e('icon'), ns.e('external')]" aria-hidden="true">
-      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-        <path d="M5.5 4.5h6v6M11.5 4.5l-7 7" stroke-linecap="round" stroke-linejoin="round" />
-      </svg>
+      <ArrowUpRightIcon />
     </span>
   </a>
 </template>

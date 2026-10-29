@@ -1,0 +1,102 @@
+import { mount } from '@vue/test-utils'
+import type { VueWrapper } from '@vue/test-utils'
+import { nextTick } from 'vue'
+import { describe, expect, it } from 'vitest'
+import { DouCalendarView } from '../../../index'
+
+function make(props: Record<string, unknown> = {}) {
+  const wrapper: VueWrapper = mount(DouCalendarView, {
+    props: {
+      modelValue: '2026-10-08',
+      'onUpdate:modelValue': (value: string | null | undefined) =>
+        wrapper.setProps({ modelValue: value }),
+      ...props,
+    },
+    attachTo: document.body,
+  })
+  return wrapper
+}
+
+const chosen = (wrapper: VueWrapper) => (wrapper.props() as { modelValue?: string }).modelValue
+
+const day = (wrapper: VueWrapper, date: string) => wrapper.get(`[data-date="${date}"]`)
+
+describe('DouCalendarView', () => {
+  it('lays out six weeks of the month, starting on Monday in Chinese', () => {
+    const wrapper = make()
+    expect(wrapper.get('.dou-calendar-view__title').text()).toBe('2026年10月')
+    const days = wrapper.findAll('[role="gridcell"]')
+    expect(days).toHaveLength(42)
+    expect(days[0]!.attributes('data-date')).toBe('2026-09-28')
+    expect(day(wrapper, '2026-09-30').classes()).toContain('is-outside')
+    expect(day(wrapper, '2026-10-08').attributes('aria-selected')).toBe('true')
+    expect(day(wrapper, '2026-10-08').attributes('tabindex')).toBe('0')
+    wrapper.unmount()
+  })
+
+  it('lists events by day, folding the rest', () => {
+    const wrapper = make({
+      maxEvents: 2,
+      events: [
+        { date: '2026-10-12', title: '评审' },
+        { date: '2026-10-12', title: '发版', tone: 'success' },
+        { date: '2026-10-12', title: '周会' },
+        { date: '2026-10-20', end: '2026-10-22', title: '出差', tone: 'warning' },
+      ],
+    })
+    const busy = day(wrapper, '2026-10-12')
+    expect(busy.findAll('.dou-calendar-view__event').map((event) => event.text())).toEqual([
+      '评审',
+      '发版',
+    ])
+    expect(busy.get('.dou-calendar-view__more').text()).toBe('还有 1 项')
+    expect(busy.attributes('aria-label')).toContain('3 项日程')
+
+    const span = ['2026-10-20', '2026-10-21', '2026-10-22'].map((date) =>
+      day(wrapper, date).get('.dou-calendar-view__event').classes(),
+    )
+    expect(span[0]).toContain('is-start')
+    expect(span[1]).not.toContain('is-start')
+    expect(span[1]).not.toContain('is-end')
+    expect(span[2]).toContain('is-end')
+    wrapper.unmount()
+  })
+
+  it('chooses a day and reports event clicks without choosing', async () => {
+    const wrapper = make({ events: [{ date: '2026-10-12', title: '评审' }] })
+    await day(wrapper, '2026-10-15').trigger('click')
+    expect(chosen(wrapper)).toBe('2026-10-15')
+    expect(wrapper.emitted('select')?.[0]).toEqual(['2026-10-15'])
+
+    await wrapper.get('.dou-calendar-view__event').trigger('click')
+    expect(wrapper.emitted('eventClick')?.[0]?.[0]).toMatchObject({ title: '评审' })
+    expect(chosen(wrapper)).toBe('2026-10-15')
+    wrapper.unmount()
+  })
+
+  it('moves with the keyboard and turns the month', async () => {
+    const wrapper = make()
+    const grid = wrapper.get('[role="grid"]')
+    await grid.trigger('keydown', { key: 'ArrowDown' })
+    await nextTick()
+    expect(document.activeElement?.getAttribute('data-date')).toBe('2026-10-15')
+    await grid.trigger('keydown', { key: 'PageDown' })
+    await nextTick()
+    expect(wrapper.get('.dou-calendar-view__title').text()).toBe('2026年11月')
+    expect(wrapper.emitted('update:month')?.at(-1)).toEqual(['2026-11'])
+    await grid.trigger('keydown', { key: 'Enter' })
+    expect(chosen(wrapper)).toBe('2026-11-15')
+
+    await wrapper.findAll('.dou-calendar-view__step')[0]!.trigger('click')
+    expect(wrapper.get('.dou-calendar-view__title').text()).toBe('2026年10月')
+    wrapper.unmount()
+  })
+
+  it('skips disabled days', async () => {
+    const wrapper = make({ disabledDate: (date: string) => date.endsWith('-16') })
+    await day(wrapper, '2026-10-16').trigger('click')
+    expect(chosen(wrapper)).toBe('2026-10-08')
+    expect(day(wrapper, '2026-10-16').attributes('aria-disabled')).toBe('true')
+    wrapper.unmount()
+  })
+})

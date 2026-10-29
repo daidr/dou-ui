@@ -1,24 +1,10 @@
 # Textarea 多行输入
 
-多行文本输入，是 [输入框](./input) 的多行版本：同样的表面、细描边、静止阴影和聚焦光晕。行高取整数像素，上下内边距按尺寸挑选，使**单行时恰好与同尺寸的输入框等高**。
-
-<script setup>
-import { ref } from 'vue'
-const bio = ref('')
-const note = ref('输入的内容越多，输入框就越高。\n超过最大行数后改为滚动。')
-const summary = ref('一个为自己打造的 Vue 3 组件库')
-</script>
+用于输入多行文本。
 
 ## 基础用法
 
-<div class="demo demo--column" style="max-width: 420px">
-  <DouTextarea v-model="bio" placeholder="介绍一下这个项目" />
-  <DouText variant="tertiary" size="sm">已输入 {{ bio.length }} 个字符</DouText>
-</div>
-
-```vue
-<DouTextarea v-model="bio" placeholder="介绍一下这个项目" />
-```
+<DocDemo src="textarea/basic" column style="max-width: 420px" />
 
 所有未声明为 prop 的属性（`placeholder`、`name`、`maxlength`、事件监听等）都会透传给原生 `<textarea>`；`class` 与 `style` 作用于外层的表面。
 
@@ -26,14 +12,7 @@ const summary = ref('一个为自己打造的 Vue 3 组件库')
 
 `autosize` 让输入框随内容增高。可以传入 `minRows` 与 `maxRows` 限定范围，超过最大行数后出现滚动条。开启后不再允许拖拽调整大小。
 
-<div class="demo demo--column" style="max-width: 420px">
-  <DouTextarea v-model="note" :autosize="{ minRows: 2, maxRows: 5 }" />
-</div>
-
-```vue
-<DouTextarea v-model="note" autosize />
-<DouTextarea v-model="note" :autosize="{ minRows: 2, maxRows: 5 }" />
-```
+<DocDemo src="textarea/autosize" column style="max-width: 420px" />
 
 输入框在隐藏状态下（如折叠面板里）无法测量，显示出来后可调用实例方法 `resizeToContent()` 重新计算。
 
@@ -41,32 +20,11 @@ const summary = ref('一个为自己打造的 Vue 3 组件库')
 
 `showCount` 在右下角显示已输入的字符数；同时设置了 `maxlength` 时显示为 `已输入 / 上限`。统计按用户看到的字符计数，一个 emoji 算一个。
 
-<div class="demo demo--column" style="max-width: 420px">
-  <DouTextarea v-model="summary" show-count maxlength="60" :rows="2" />
-</div>
-
-```vue
-<DouTextarea v-model="summary" show-count maxlength="60" />
-```
+<DocDemo src="textarea/word-count" column style="max-width: 420px" />
 
 ## 尺寸与状态
 
-<div class="demo demo--column" style="max-width: 420px">
-  <DouSpace size="sm" align="start" block>
-    <DouTextarea size="sm" :rows="1" placeholder="sm · 1 行" />
-    <DouInput size="sm" placeholder="sm 输入框" />
-  </DouSpace>
-  <DouTextarea model-value="内容格式不正确" invalid :rows="2" />
-  <DouTextarea model-value="只读内容" readonly :rows="2" />
-  <DouTextarea placeholder="禁用" disabled :rows="2" />
-</div>
-
-```vue
-<DouTextarea size="sm" :rows="1" />
-<DouTextarea v-model="text" invalid />
-<DouTextarea v-model="text" readonly />
-<DouTextarea v-model="text" disabled />
-```
+<DocDemo src="textarea/size-state" column style="max-width: 420px" />
 
 放在 [表单项](./form) 中时，多行输入会接收表单项的 `id` 与说明文字，在失焦时触发校验；出错后每次输入都会重新校验。
 

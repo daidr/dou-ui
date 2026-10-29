@@ -4,12 +4,12 @@
 
 > 早期阶段：骨架、视觉语言与第一批基础组件已就绪，后续计划见 [路线图](./docs/guide/roadmap.md)。
 
-- 淡雅、克制的视觉：黑白灰为主体，色彩只表达语义
-- 结构与外观分离：组件只消费语义 Token，主题可整体替换
-- 正交、克制的 API：`variant` × `tone` × `size`
-- 默认可访问、类型完备、支持按需引入
+- 以黑白灰为主的简洁风格，颜色只用于表达语义
+- 样式基于设计 Token，可以整体替换主题，也可以局部覆盖
+- 统一的 Props 约定：`variant`、`tone`、`size` 可以任意组合
+- 内置无障碍支持，提供完整的 TypeScript 类型，支持按需引入
 
-设计取舍见 [设计哲学](./docs/guide/philosophy.md)，视觉规范见 [视觉语言](./docs/guide/visual-language.md)。
+设计取舍见 [设计原则](./docs/guide/philosophy.md)，视觉规范见 [视觉语言](./docs/guide/visual-language.md)。
 
 ## 仓库结构
 
@@ -17,6 +17,8 @@
 packages/
   dou-ui/        组件（结构与行为），对外发布的主包
   theme/         设计 Token 与全部样式（@dou-ui/theme）
+  icons/         线性图标库（@dou-ui/icons），可独立使用
+  resolver/      按需自动导入的解析器（@dou-ui/resolver）
 playground/      本地调试用的 Vite 应用
 docs/            文档站（VitePress）
 ```
@@ -37,7 +39,7 @@ bun run typecheck    # vue-tsc
 bun run test         # vitest
 bun run check        # 以上全部（CI 同款）
 
-bun run build        # 构建 @dou-ui/theme 与 dou-ui
+bun run build        # 构建 @dou-ui/theme、@dou-ui/icons、dou-ui 与 @dou-ui/resolver
 ```
 
 ### 工具链
@@ -61,3 +63,10 @@ bun run build        # 构建 @dou-ui/theme 与 dou-ui
 2. `packages/theme/src/components/<name>.css`：只引用 `--dou-*` Token，写在 `@layer dou.components` 内，并在 `src/index.css` 中引入
 3. 在 `packages/dou-ui/src/components/index.ts` 与 `src/plugin.ts` 中注册
 4. 在 `docs/components/<name>.md` 编写文档并加入侧边栏
+
+### 新增图标
+
+1. 在 `packages/icons/icons/` 中添加 `<name>.json`（`label`、`categories`）与 `<name>.stroke.svg`
+2. `bun run gen` 校验并生成组件，图标会自动出现在文档站的图标库页面
+
+绘制规则见 [绘制规范](./docs/icons/design.md)。

@@ -9,6 +9,7 @@ const defaults: ResolvedGlobalConfig = {
   size: 'md',
   locale: zhCN,
   zIndex: 2000,
+  defaults: {},
 }
 
 function defined(config: GlobalConfig): GlobalConfig {
@@ -25,7 +26,19 @@ export function provideGlobalConfig(
   app?: App,
 ): ComputedRef<GlobalConfig> {
   const parent = !app && hasInjectionContext() ? inject(configProviderKey, undefined) : undefined
-  const merged = computed(() => ({ ...parent?.value, ...defined(toValue(config)) }))
+  const merged = computed(() => {
+    const own = defined(toValue(config))
+    const result: GlobalConfig = { ...parent?.value, ...own }
+    // component defaults merge per component, so a nested provider can add to them
+    if (parent?.value.defaults && own.defaults) {
+      const defaults: Record<string, object | undefined> = { ...parent.value.defaults }
+      for (const [name, props] of Object.entries(own.defaults as Record<string, object>)) {
+        defaults[name] = { ...defaults[name], ...props }
+      }
+      result.defaults = defaults as GlobalConfig['defaults']
+    }
+    return result
+  })
   if (app) app.provide(configProviderKey, merged)
   else provide(configProviderKey, merged)
   return merged

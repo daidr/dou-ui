@@ -18,7 +18,7 @@ const props = withDefaults(defineProps<InputDateProps>(), {
   invalid: false,
   clearable: false,
   placement: 'bottom-start',
-  teleport: 'body',
+  teleport: undefined,
 })
 const model = defineModel<DateValue | DateRange | null>()
 const emit = defineEmits<{ change: [value: DateValue | DateRange | null] }>()

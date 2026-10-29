@@ -10,6 +10,7 @@ import { useFormDisabled, useFormItem, useFormSize } from '../form/use-form-item
 import { formatColor, parseColor, toCss } from './color'
 import type { ColorFormat } from './color'
 import type { ColorPickerExpose, ColorPickerProps } from './color-picker'
+import { useTeleport } from '../../utils/teleport'
 
 defineOptions({ name: 'DouColorPicker', inheritAttrs: false })
 
@@ -24,8 +25,9 @@ const props = withDefaults(defineProps<ColorPickerProps>(), {
   invalid: false,
   clearable: false,
   placement: 'bottom-start',
-  teleport: 'body',
+  teleport: undefined,
 })
+const teleportTarget = useTeleport(() => props.teleport)
 const model = defineModel<string | null>()
 const emit = defineEmits<{ change: [value: string | null] }>()
 
@@ -180,7 +182,7 @@ defineExpose<ColorPickerExpose>({ focus, blur: () => fieldRef.value?.blur() })
       <ChevronDownIcon v-if="showText" class="dou-picker__arrow" />
     </div>
   </OnlyChild>
-  <Teleport v-if="rendered" :to="teleport || 'body'" :disabled="teleport === false">
+  <Teleport v-if="rendered" :to="teleportTarget.to" :disabled="teleportTarget.disabled">
     <Transition appear name="dou-floating">
       <div
         v-show="open"

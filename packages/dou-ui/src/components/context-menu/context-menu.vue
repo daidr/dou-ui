@@ -11,14 +11,16 @@ import { dropdownKey } from '../dropdown/dropdown'
 import type { DropdownValue } from '../dropdown/dropdown'
 import { useMenuKeys } from '../dropdown/menu-keys'
 import type { ContextMenuExpose, ContextMenuProps, ContextMenuSlots } from './context-menu'
+import { useTeleport } from '../../utils/teleport'
 
 defineOptions({ name: 'DouContextMenu', inheritAttrs: false })
 
 const props = withDefaults(defineProps<ContextMenuProps>(), {
   disabled: false,
   hideOnSelect: true,
-  teleport: 'body',
+  teleport: undefined,
 })
+const teleportTarget = useTeleport(() => props.teleport)
 const open = defineModel<boolean>('open', { default: false })
 const emit = defineEmits<{ select: [value: DropdownValue | undefined] }>()
 defineSlots<ContextMenuSlots>()
@@ -145,7 +147,7 @@ defineExpose<ContextMenuExpose>({ open: show, close: hide })
 
 <template>
   <OnlyChild ref="targetRef" @contextmenu="onContextmenu"><slot /></OnlyChild>
-  <Teleport v-if="rendered" :to="teleport || 'body'" :disabled="teleport === false">
+  <Teleport v-if="rendered" :to="teleportTarget.to" :disabled="teleportTarget.disabled">
     <Transition appear name="dou-floating">
       <div
         v-show="open"

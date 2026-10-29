@@ -54,6 +54,7 @@ export default defineConfig({
             { text: '快速开始', link: '/guide/getting-started' },
             { text: '主题与 Token', link: '/guide/theming' },
             { text: '浮层', link: '/guide/overlays' },
+            { text: '组合式函数', link: '/guide/composables' },
             { text: '路线图', link: '/guide/roadmap' },
           ],
         },

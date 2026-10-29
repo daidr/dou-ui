@@ -17,6 +17,7 @@ import type {
   CascaderSlots,
   CascaderValue,
 } from './cascader'
+import { useTeleport } from '../../utils/teleport'
 
 defineOptions({ name: 'DouCascader', inheritAttrs: false })
 
@@ -33,8 +34,9 @@ const props = withDefaults(defineProps<CascaderProps>(), {
   invalid: false,
   clearable: false,
   placement: 'bottom-start',
-  teleport: 'body',
+  teleport: undefined,
 })
+const teleportTarget = useTeleport(() => props.teleport)
 const model = defineModel<CascaderValue[] | CascaderValue[][] | null>()
 const emit = defineEmits<{
   change: [
@@ -586,7 +588,7 @@ defineExpose<CascaderExpose>({ focus, blur: () => combobox()?.blur() })
       <ChevronDownIcon class="dou-picker__arrow" />
     </div>
   </OnlyChild>
-  <Teleport v-if="rendered" :to="teleport || 'body'" :disabled="teleport === false">
+  <Teleport v-if="rendered" :to="teleportTarget.to" :disabled="teleportTarget.disabled">
     <Transition appear name="dou-floating">
       <div
         v-show="open"

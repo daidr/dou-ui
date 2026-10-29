@@ -22,6 +22,7 @@ import type {
   DateRange,
   DateValue,
 } from './date-picker'
+import { useTeleport } from '../../utils/teleport'
 
 // The calendar is a second root, so attributes go to the field by hand.
 defineOptions({ name: 'DouDatePicker', inheritAttrs: false })
@@ -34,8 +35,9 @@ const props = withDefaults(defineProps<DatePickerProps>(), {
   invalid: false,
   clearable: false,
   placement: 'bottom-start',
-  teleport: 'body',
+  teleport: undefined,
 })
+const teleportTarget = useTeleport(() => props.teleport)
 const model = defineModel<DateValue | DateRange | null>()
 const emit = defineEmits<{
   select: [value: DateValue | DateRange]
@@ -414,7 +416,7 @@ defineExpose<DatePickerExpose>({
       </button>
     </div>
   </OnlyChild>
-  <Teleport v-if="rendered" :to="teleport || 'body'" :disabled="teleport === false">
+  <Teleport v-if="rendered" :to="teleportTarget.to" :disabled="teleportTarget.disabled">
     <Transition appear name="dou-floating">
       <div
         v-show="open"

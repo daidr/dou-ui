@@ -5,6 +5,8 @@ import {
   DouButton,
   DouConfigProvider,
   DouInput,
+  DouPopover,
+  DouSwitch,
   DouTag,
   DouUI,
   en,
@@ -61,7 +63,7 @@ describe('DouConfigProvider', () => {
         default: () => h(DouConfigProvider, { locale: en }, () => h(Probe)),
       },
     })
-    expect(seen!.value).toEqual({ size: 'lg', locale: en, zIndex: 3000 })
+    expect(seen!.value).toEqual({ size: 'lg', locale: en, zIndex: 3000, defaults: {} })
   })
 
   it('accepts app-wide defaults through the plugin', () => {
@@ -86,5 +88,58 @@ describe('DouConfigProvider', () => {
     const second = next!()
     expect(first).toBeGreaterThan(5000)
     expect(second).toBe(first + 1)
+  })
+
+  it('fills in component defaults without beating props that were given', () => {
+    const wrapper = mount(DouConfigProvider, {
+      props: { defaults: { DouButton: { variant: 'outline', tone: 'primary' } } },
+      slots: {
+        default: () => [h(DouButton, () => 'a'), h(DouButton, { variant: 'ghost' }, () => 'b')],
+      },
+    })
+    const [first, second] = wrapper.findAll('.dou-button')
+    expect(first!.classes()).toEqual(
+      expect.arrayContaining(['dou-button--outline', 'dou-button--primary']),
+    )
+    expect(second!.classes()).toContain('dou-button--ghost')
+    expect(second!.classes()).toContain('dou-button--primary')
+  })
+
+  it('merges component defaults of nested providers', () => {
+    const wrapper = mount(DouConfigProvider, {
+      props: { defaults: { DouButton: { variant: 'outline' } } },
+      slots: {
+        default: () =>
+          h(DouConfigProvider, { defaults: { DouButton: { tone: 'danger' } } }, () =>
+            h(DouButton, () => 'a'),
+          ),
+      },
+    })
+    expect(wrapper.get('.dou-button').classes()).toEqual(
+      expect.arrayContaining(['dou-button--outline', 'dou-button--danger']),
+    )
+  })
+
+  it('keeps boolean props false when nothing is configured', () => {
+    const wrapper = mount(DouSwitch)
+    expect(wrapper.get('[role="switch"]').attributes('aria-checked')).toBe('false')
+    expect(wrapper.classes()).not.toContain('is-disabled')
+  })
+
+  it('renders floating layers into the configured container', async () => {
+    const host = document.createElement('div')
+    host.id = 'overlay-host'
+    document.body.append(host)
+    mount(DouConfigProvider, {
+      props: { teleport: '#overlay-host' },
+      slots: {
+        default: () =>
+          h(DouPopover, { open: true }, { default: () => h('button', 'a'), content: () => 'hi' }),
+      },
+      attachTo: document.body,
+    })
+    await new Promise((resolve) => setTimeout(resolve))
+    expect(host.querySelector('.dou-popover')).not.toBeNull()
+    host.remove()
   })
 })

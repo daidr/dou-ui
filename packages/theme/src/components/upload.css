@@ -165,7 +165,7 @@
     box-sizing: border-box;
     width: var(--dou-upload-thumb);
     height: var(--dou-upload-thumb);
-    overflow: hidden;
+    overflow-x: clip;
     border: 1px solid var(--dou-color-border);
     border-radius: var(--dou-radius-control);
     background-color: var(--dou-color-bg-surface);
@@ -198,7 +198,7 @@
   }
 
   .dou-upload__name {
-    overflow: hidden;
+    overflow-x: clip;
     line-height: 1.3;
     text-overflow: ellipsis;
     white-space: nowrap;

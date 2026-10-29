@@ -34,7 +34,7 @@
   .dou-anchor__link {
     display: block;
     padding: 4px 0 4px calc(12px + var(--dou-anchor-level, 0) * var(--dou-anchor-indent));
-    overflow: hidden;
+    overflow-x: clip;
     border-radius: var(--dou-radius-control);
     color: var(--dou-color-text-tertiary);
     text-decoration: none;

@@ -184,7 +184,7 @@
   }
 
   .dou-table__title {
-    overflow: hidden;
+    overflow-x: clip;
     text-overflow: ellipsis;
   }
 

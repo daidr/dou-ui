@@ -185,8 +185,7 @@
 
   .dou-listbox__label,
   .dou-listbox__description {
-    overflow: clip;
-    overflow-clip-margin: 4px;
+    overflow-x: clip;
     line-height: 1.25;
     text-overflow: ellipsis;
     white-space: nowrap;

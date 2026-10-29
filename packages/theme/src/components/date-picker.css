@@ -442,20 +442,37 @@
     color: var(--dou-color-text-tertiary);
   }
 
-  /* months and years: four wide cells a row */
-  .dou-calendar--month .dou-calendar__day,
-  .dou-calendar--year .dou-calendar__day {
-    width: 56px;
-    height: 36px;
-    margin: 4px 0;
+  /* months, quarters and years: four wide cells a row */
+  :is(.dou-calendar--month, .dou-calendar--quarter, .dou-calendar--year) {
+    & .dou-calendar__day {
+      width: 56px;
+      height: 36px;
+      margin: 4px 0;
+    }
+    & .dou-calendar__panel {
+      min-width: calc(var(--dou-calendar-cell) * 7);
+    }
+    & .dou-calendar__grid {
+      width: 100%;
+    }
+
+    /*
+     * A cell is wider than its key here, so the wash starts and ends
+     * under the middle of the end keys, which cover it with their own
+     * shape.
+     */
+    & .dou-calendar__cell:is(.is-in-range, .is-range-start, .is-range-end)::before {
+      inset-block: 5px;
+    }
+    & .dou-calendar__cell.is-range-start::before {
+      inset-inline-start: 50%;
+    }
+    & .dou-calendar__cell.is-range-end::before {
+      inset-inline-end: 50%;
+    }
   }
-  .dou-calendar--month .dou-calendar__panel,
-  .dou-calendar--year .dou-calendar__panel {
-    min-width: calc(var(--dou-calendar-cell) * 7);
-  }
-  .dou-calendar--month .dou-calendar__grid,
-  .dou-calendar--year .dou-calendar__grid {
-    width: 100%;
+  .dou-calendar--quarter .dou-calendar__day {
+    width: 64px;
   }
 
   /* picking a week: the whole row under the pointer takes the wash */

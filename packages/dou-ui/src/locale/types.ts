@@ -186,6 +186,12 @@ export interface Locale {
     confirm: string
     /** Shown in an empty year field. */
     yearPlaceholder: string
+    /** Shown in an empty quarter field. */
+    quarterPlaceholder: string
+    /** How a quarter is written in the field, e.g. `Q{quarter} {year}`. */
+    quarter: string
+    /** A quarter in the picker's grid, e.g. `Q{quarter}`. */
+    quarterCell: string
     /** The start field of a range. */
     start: string
     /** The end field of a range. */

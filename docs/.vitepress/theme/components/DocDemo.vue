@@ -65,9 +65,7 @@ function collapse() {
             @focus="prefetch"
             @click="toggle"
           >
-            <template #leading>
-              <DouIcon><CodeIcon /></DouIcon>
-            </template>
+            <CodeIcon />
           </DouButton>
         </DouTooltip>
       </div>

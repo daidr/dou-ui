@@ -1,7 +1,22 @@
 {
   "name": "@dou-ui/icons",
   "version": "0.0.0",
-  "description": "A line icon set for Vue 3, drawn for DouUI",
+  "description": "为 DouUI 绘制的 Vue 3 线性图标库，也可以单独使用",
+  "keywords": [
+    "vue",
+    "vue3",
+    "icons",
+    "svg"
+  ],
+  "license": "MIT",
+  "author": "daidr <daidr@daidr.me>",
+  "homepage": "https://github.com/daidr/dou-ui#readme",
+  "bugs": "https://github.com/daidr/dou-ui/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/daidr/dou-ui.git",
+    "directory": "packages/icons"
+  },
   "type": "module",
   "sideEffects": false,
   "main": "./dist/index.js",
@@ -16,7 +31,8 @@
       "types": "./dist/types/meta.d.ts",
       "import": "./dist/meta.js"
     },
-    "./svg/*": "./dist/svg/*"
+    "./svg/*": "./dist/svg/*",
+    "./package.json": "./package.json"
   },
   "files": [
     "dist"
@@ -28,5 +44,8 @@
   },
   "peerDependencies": {
     "vue": "^3.5.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

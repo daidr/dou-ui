@@ -13,7 +13,7 @@
 
 - **基础**：Button、Icon、Text、Ellipsis、Link、Typography、CopyButton
 - **布局**：Divider、Space、Grid、Splitter、Layout、Scrollbar、Affix
-- **表单**：Form / FormItem、Input、Textarea、InputNumber、InputTag、InputOTP、Checkbox、Radio、Switch、Slider、Rate、Select、Listbox、Autocomplete、Cascader、TreeSelect、DatePicker、TimePicker、ColorPicker、ColorPanel、Transfer、SegmentedControl、CheckTag、Upload、ImageCropper、FieldGroup
+- **表单**：Form / FormItem、Input、Textarea、InputNumber、InputTag、InputOTP、Checkbox、Radio、Switch、Slider、Rate、Select、Listbox、Autocomplete、Cascader、TreeSelect、DatePicker、TimePicker、InputDate、InputTime、ColorPicker、ColorPanel、Transfer、SegmentedControl、CheckTag、Upload、ImageCropper、FieldGroup
 - **浮层**：Tooltip、Popover、Dropdown、DropdownButton、ContextMenu、Dialog、Drawer、Popconfirm
 - **反馈**：Alert、Banner、Toast、Spinner、Loading、Progress、Skeleton、Result
 - **数据展示**：Card、Avatar、User、Badge、Tag、Kbd、Empty、Statistic、Countdown、Image、QRCode、Descriptions、Collapse、Timeline、FlowGraph、CalendarView、Table、Tree、VirtualList、InfiniteScroll、Sortable

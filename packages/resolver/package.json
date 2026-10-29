@@ -1,7 +1,22 @@
 {
   "name": "@dou-ui/resolver",
   "version": "0.0.0",
-  "description": "Resolve DouUI components, directives and functions for on-demand auto-import",
+  "description": "DouUI 的按需自动导入解析器：组件、指令、函数与样式入口",
+  "keywords": [
+    "vue",
+    "dou-ui",
+    "auto-import",
+    "resolver"
+  ],
+  "license": "MIT",
+  "author": "daidr <daidr@daidr.me>",
+  "homepage": "https://github.com/daidr/dou-ui#readme",
+  "bugs": "https://github.com/daidr/dou-ui/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/daidr/dou-ui.git",
+    "directory": "packages/resolver"
+  },
   "type": "module",
   "sideEffects": false,
   "main": "./dist/index.js",
@@ -11,7 +26,8 @@
     ".": {
       "types": "./dist/types/index.d.ts",
       "import": "./dist/index.js"
-    }
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "dist"
@@ -19,5 +35,8 @@
   "scripts": {
     "gen": "bun scripts/gen.ts",
     "build": "bun scripts/build.ts"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

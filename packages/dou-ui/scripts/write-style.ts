@@ -17,4 +17,6 @@ for (const [dir, sheets] of styleDeps()) {
   const target = new URL(`${dir}/`, dist)
   await mkdir(target, { recursive: true })
   await Bun.write(new URL('style.js', target), lines.join('\n'))
+  // side-effect only; the declaration keeps strict side-effect import checks happy
+  await Bun.write(new URL('style.d.ts', target), 'export {}\n')
 }

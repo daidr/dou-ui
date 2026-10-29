@@ -1,7 +1,24 @@
 {
   "name": "dou-ui",
   "version": "0.0.0",
-  "description": "A Vue 3 component library",
+  "description": "为自己打造的 Vue 3 组件库：简洁克制，样式与组件分离，内置无障碍支持",
+  "keywords": [
+    "vue",
+    "vue3",
+    "components",
+    "component-library",
+    "ui",
+    "design-tokens"
+  ],
+  "license": "MIT",
+  "author": "daidr <daidr@daidr.me>",
+  "homepage": "https://github.com/daidr/dou-ui#readme",
+  "bugs": "https://github.com/daidr/dou-ui/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/daidr/dou-ui.git",
+    "directory": "packages/dou-ui"
+  },
   "type": "module",
   "sideEffects": [
     "*.css",
@@ -16,8 +33,11 @@
       "import": "./dist/index.js"
     },
     "./style.css": "./dist/style.css",
-    "./components/*/style": "./dist/components/*/style.js",
-    "./*": "./*"
+    "./components/*/style": {
+      "types": "./dist/components/*/style.d.ts",
+      "import": "./dist/components/*/style.js"
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "dist"
@@ -31,5 +51,8 @@
   "dependencies": {
     "@dou-ui/icons": "workspace:*",
     "@dou-ui/theme": "workspace:*"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

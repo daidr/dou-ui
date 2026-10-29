@@ -22,6 +22,7 @@ const props: Record<string, Record<string, unknown>> = {
   DouMenu: { items: [{ key: 'a', label: 'A', children: [{ key: 'b', label: 'B' }] }] },
   DouPagination: { total: 100 },
   DouPopover: { open: true, content: '内容' },
+  DouQrcode: { value: 'https://ui.daidr.me', status: 'expired' },
   DouSegmentedControl: { options: ['a', 'b'] },
   DouSelect: { options: [{ value: 'a', label: 'A' }] },
   DouSteps: { items: [{ title: 'A' }] },

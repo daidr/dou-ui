@@ -18,6 +18,7 @@
 @import './components/badge.css';
 @import './components/breadcrumb.css';
 @import './components/button.css';
+@import './components/calendar-view.css';
 @import './components/card.css';
 @import './components/cascader.css';
 @import './components/checkbox.css';
@@ -47,11 +48,13 @@
 @import './components/link.css';
 @import './components/loading.css';
 @import './components/menu.css';
+@import './components/mention.css';
 @import './components/pagination.css';
 @import './components/picker.css';
 @import './components/popconfirm.css';
 @import './components/popover.css';
 @import './components/progress.css';
+@import './components/qrcode.css';
 @import './components/radio.css';
 @import './components/rate.css';
 @import './components/result.css';

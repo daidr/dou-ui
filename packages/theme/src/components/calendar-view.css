@@ -1,0 +1,259 @@
+/*
+ * CalendarView
+ *
+ * A month laid out as a sheet: hairlines between the days, the number in
+ * the corner and the day's events under it as quiet tinted bars in their
+ * tone, so a busy month still reads as a calm grid. Today's number sits
+ * in a solid ink disc, the chosen day takes a faint wash, and days of the
+ * neighbouring months fade.
+ */
+@layer dou.components {
+  .dou-calendar-view {
+    --dou-calendar-view-day-height: 112px;
+    --dou-calendar-view-line: var(--dou-color-border-subtle);
+
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+    color: var(--dou-color-text);
+    font-size: var(--dou-font-size-md);
+  }
+
+  .dou-calendar-view__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .dou-calendar-view__title {
+    margin: 0;
+    font-size: var(--dou-font-size-lg);
+    font-weight: var(--dou-font-weight-medium);
+    line-height: 1.4;
+  }
+
+  .dou-calendar-view__nav {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .dou-calendar-view__today,
+  .dou-calendar-view__step {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    height: var(--dou-control-height-sm);
+    padding: 0 10px;
+    margin: 0;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-control);
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-sm);
+    color: var(--dou-color-text);
+    font: inherit;
+    font-size: var(--dou-font-size-sm);
+    cursor: pointer;
+    transition-property: border-color, background-color;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    &:hover {
+      border-color: var(--dou-color-border-strong);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 1px;
+    }
+
+    & > svg {
+      width: 1em;
+      height: 1em;
+      font-size: 16px;
+    }
+  }
+
+  .dou-calendar-view__step {
+    width: var(--dou-control-height-sm);
+    padding: 0;
+  }
+
+  .dou-calendar-view__grid {
+    overflow: hidden;
+    border: 1px solid var(--dou-calendar-view-line);
+    border-radius: var(--dou-radius-container);
+    background-color: var(--dou-color-bg-surface);
+  }
+
+  .dou-calendar-view__weekdays,
+  .dou-calendar-view__week {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+
+  .dou-calendar-view__weekday {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--dou-calendar-view-line);
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+    text-align: end;
+  }
+
+  .dou-calendar-view__week + .dou-calendar-view__week {
+    border-top: 1px solid var(--dou-calendar-view-line);
+  }
+
+  .dou-calendar-view__day {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    box-sizing: border-box;
+    min-width: 0;
+    min-height: var(--dou-calendar-view-day-height);
+    padding: 6px;
+    outline: none;
+    cursor: pointer;
+    transition: background-color var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    & + & {
+      border-left: 1px solid var(--dou-calendar-view-line);
+    }
+
+    &:hover:not(.is-disabled) {
+      background-color: color-mix(in oklab, var(--dou-color-text) 3%, transparent);
+    }
+
+    &:focus-visible {
+      box-shadow: inset 0 0 0 2px var(--dou-color-focus);
+    }
+
+    &.is-selected {
+      background-color: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+    }
+
+    &.is-outside {
+      color: var(--dou-color-text-tertiary);
+    }
+
+    &.is-disabled {
+      color: var(--dou-color-text-disabled);
+      cursor: not-allowed;
+    }
+  }
+
+  .dou-calendar-view__number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    align-self: flex-end;
+    min-width: 24px;
+    height: 24px;
+    padding: 0 4px;
+    box-sizing: border-box;
+    border-radius: var(--dou-radius-full);
+    font-size: var(--dou-font-size-sm);
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+
+  .dou-calendar-view__day.is-today .dou-calendar-view__number {
+    background-color: var(--dou-color-neutral);
+    color: var(--dou-color-neutral-on);
+    font-weight: var(--dou-font-weight-medium);
+  }
+
+  .dou-calendar-view__content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .dou-calendar-view__event {
+    --dou-calendar-view-tone: var(--dou-color-primary);
+
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    height: 22px;
+    padding: 0 6px;
+    margin: 0;
+    overflow: hidden;
+    border: 0;
+    border-left: 2px solid var(--dou-calendar-view-tone);
+    border-radius: 4px;
+    background-color: color-mix(in oklab, var(--dou-calendar-view-tone) 10%, transparent);
+    color: color-mix(in oklab, var(--dou-calendar-view-tone) 70%, var(--dou-color-text));
+    font: inherit;
+    font-size: var(--dou-font-size-sm);
+    line-height: 22px;
+    text-align: start;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+
+    &:hover {
+      background-color: color-mix(in oklab, var(--dou-calendar-view-tone) 16%, transparent);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 1px;
+    }
+
+    /* a span runs on into the next day: no rounded ends in between */
+    &:not(.is-start) {
+      border-left-color: transparent;
+      border-start-start-radius: 0;
+      border-end-start-radius: 0;
+      margin-left: -6px;
+      width: calc(100% + 6px);
+    }
+    &:not(.is-end) {
+      border-start-end-radius: 0;
+      border-end-end-radius: 0;
+      margin-right: -6px;
+      width: calc(100% + 6px);
+    }
+    &:not(.is-start):not(.is-end) {
+      width: calc(100% + 12px);
+    }
+
+    /* the title shows where a span starts and again at the start of each row */
+    &.is-continued {
+      color: transparent;
+    }
+  }
+
+  .dou-calendar-view__event--neutral {
+    --dou-calendar-view-tone: var(--dou-color-neutral);
+  }
+  .dou-calendar-view__event--success {
+    --dou-calendar-view-tone: var(--dou-color-success);
+  }
+  .dou-calendar-view__event--warning {
+    --dou-calendar-view-tone: var(--dou-color-warning);
+  }
+  .dou-calendar-view__event--danger {
+    --dou-calendar-view-tone: var(--dou-color-danger);
+  }
+
+  .dou-calendar-view__more {
+    padding: 0 6px;
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dou-calendar-view__day,
+    .dou-calendar-view__today,
+    .dou-calendar-view__step {
+      transition: none;
+    }
+  }
+}

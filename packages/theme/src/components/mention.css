@@ -1,0 +1,13 @@
+/*
+ * Mention
+ *
+ * A textarea whose suggestions open at the caret. The list is the same
+ * menu as autocomplete's, so the two read as one family; it is only a
+ * little narrower to stay close to the text it completes.
+ */
+@layer dou.components {
+  .dou-autocomplete__menu.dou-mention__menu {
+    min-width: 200px;
+    max-width: 320px;
+  }
+}

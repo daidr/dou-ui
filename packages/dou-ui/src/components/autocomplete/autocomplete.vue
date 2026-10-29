@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, useId, useTemplateRef, watch } from 'vue'
 import { usePopup } from '../../composables/use-popup'
+import { splitHighlight } from '../../utils/highlight'
 import { useNamespace } from '../../utils/namespace'
 import { OnlyChild } from '../../utils/only-child'
 import { useLocale } from '../config-provider/use-config'
@@ -201,18 +202,9 @@ function onKeydown(event: KeyboardEvent) {
   }
 }
 
-/** The label split around the first match of the text. */
-function parts(option: AutocompleteOption) {
-  const label = labelOf(option)
-  const query = model.value.trim()
-  const at = props.highlight && query ? label.toLowerCase().indexOf(query.toLowerCase()) : -1
-  if (at < 0) return [{ text: label, match: false }]
-  return [
-    { text: label.slice(0, at), match: false },
-    { text: label.slice(at, at + query.length), match: true },
-    { text: label.slice(at + query.length), match: false },
-  ].filter((part) => part.text)
-}
+/** The label split around the matches of the text. */
+const parts = (option: AutocompleteOption) =>
+  splitHighlight(labelOf(option), props.highlight ? model.value : '')
 
 const inputAttrs = computed(() => ({
   role: 'combobox',

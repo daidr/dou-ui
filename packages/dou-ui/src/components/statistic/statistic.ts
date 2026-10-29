@@ -7,8 +7,9 @@ export interface StatisticProps {
   value?: number | string | null
   /** Digits after the decimal point. Leaves the number as it is when unset. */
   precision?: number
-  /** Put between groups of three digits. `''` turns grouping off. */
+  /** Put between groups of three digits. `''` turns grouping off. Defaults to the locale's. */
   groupSeparator?: string
+  /** Defaults to the locale's. */
   decimalSeparator?: string
   /** Text before the number, e.g. a currency sign. */
   prefix?: string

@@ -26,9 +26,7 @@ const slots = defineSlots<CalendarViewSlots>()
 const ns = useNamespace('calendar-view')
 const { t, locale } = useLocale()
 
-const weekStart = computed(
-  () => props.weekStart ?? (locale.value.name.toLowerCase().startsWith('en') ? 0 : 1),
-)
+const weekStart = computed(() => props.weekStart ?? locale.value.region.weekStart)
 const todayValue = today()
 
 /** The day the keyboard is on; its month is the one shown. */

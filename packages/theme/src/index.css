@@ -46,6 +46,7 @@
 @import './components/flow-graph.css';
 @import './components/form.css';
 @import './components/grid.css';
+@import './components/highlight.css';
 @import './components/icon.css';
 @import './components/image.css';
 @import './components/image-cropper.css';
@@ -60,6 +61,7 @@
 @import './components/listbox.css';
 @import './components/link.css';
 @import './components/loading.css';
+@import './components/marquee.css';
 @import './components/menu.css';
 @import './components/pagination.css';
 @import './components/page-header.css';
@@ -67,6 +69,7 @@
 @import './components/popconfirm.css';
 @import './components/popover.css';
 @import './components/progress.css';
+@import './components/progress-group.css';
 @import './components/qrcode.css';
 @import './components/radio.css';
 @import './components/rate.css';

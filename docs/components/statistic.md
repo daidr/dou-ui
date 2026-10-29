@@ -37,8 +37,8 @@
 | `title`            | 标签                         | `string`                    | —       |
 | `value`            | 数值；字符串原样显示         | `number \| string \| null`  | —       |
 | `precision`        | 小数位数                     | `number`                    | —       |
-| `groupSeparator`   | 千分位分隔符                 | `string`                    | `','`   |
-| `decimalSeparator` | 小数点                       | `string`                    | `'.'`   |
+| `groupSeparator`   | 千分位分隔符                 | `string`                    | 语言包  |
+| `decimalSeparator` | 小数点                       | `string`                    | 语言包  |
 | `prefix`           | 前缀                         | `string`                    | —       |
 | `suffix`           | 后缀                         | `string`                    | —       |
 | `trend`            | 趋势箭头                     | `'up' \| 'down'`            | —       |

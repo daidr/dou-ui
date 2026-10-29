@@ -1,0 +1,77 @@
+/*
+ * ProgressGroup
+ *
+ * Several parts share one track, the way Progress draws a single bar. A
+ * hairline of the surface color between parts keeps neighbours apart
+ * without outlining each one.
+ */
+@layer dou.components {
+  .dou-progress-group {
+    --dou-progress-group-height: 6px;
+    --dou-progress-group-track: color-mix(in oklab, var(--dou-color-text) 8%, transparent);
+    --dou-progress-group-neutral: color-mix(in oklab, var(--dou-color-text) 30%, transparent);
+
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .dou-progress-group--sm {
+    --dou-progress-group-height: 4px;
+  }
+  .dou-progress-group--lg {
+    --dou-progress-group-height: 8px;
+  }
+
+  .dou-progress-group__track {
+    display: flex;
+    height: var(--dou-progress-group-height);
+    overflow: hidden;
+    border-radius: var(--dou-radius-full);
+    background-color: var(--dou-progress-group-track);
+  }
+
+  .dou-progress-group__segment {
+    flex-shrink: 0;
+    height: 100%;
+    background-color: var(--dou-progress-group-color);
+    transition: width var(--dou-motion-duration-normal) var(--dou-motion-easing);
+  }
+  .dou-progress-group__segment + .dou-progress-group__segment {
+    box-shadow: inset 2px 0 0 var(--dou-color-bg-surface);
+  }
+
+  .dou-progress-group__legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: var(--dou-font-size-sm);
+    line-height: 20px;
+  }
+
+  .dou-progress-group__legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .dou-progress-group__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    background-color: var(--dou-progress-group-color);
+  }
+
+  .dou-progress-group__label {
+    color: var(--dou-color-text);
+  }
+
+  .dou-progress-group__value {
+    color: var(--dou-color-text-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+}

@@ -2,6 +2,16 @@ import type { Locale } from './types'
 
 export const en: Locale = {
   name: 'en',
+  region: {
+    weekStart: 0,
+    date: 'MM/DD/YYYY',
+    month: 'MM/YYYY',
+    year: 'YYYY',
+    time: 'hh:mm A',
+    timeWithSeconds: 'hh:mm:ss A',
+    groupSeparator: ',',
+    decimalSeparator: '.',
+  },
   tabs: {
     close: 'Close',
     add: 'New tab',
@@ -265,11 +275,6 @@ export const en: Locale = {
     label: 'Verification code',
   },
   inputDate: {
-    date: 'MM/DD/YYYY',
-    month: 'MM/YYYY',
-    year: 'YYYY',
-    time: 'hh:mm A',
-    timeWithSeconds: 'hh:mm:ss A',
     placeholders: {
       year: 'yyyy',
       month: 'mm',

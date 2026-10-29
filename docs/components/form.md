@@ -31,6 +31,7 @@
 | `min`/`max` | 文本按字符数、数组按项数、数字按大小                                         |
 | `pattern`   | 文本需要匹配的正则                                                           |
 | `validator` | 自定义检查，可以是 async。返回 `true` 或不返回为通过，返回字符串即为错误信息 |
+| `schema`    | 一个 Standard Schema，失败时取它的第一条信息，见下文                         |
 | `message`   | 替换默认错误信息                                                             |
 | `trigger`   | 限定在哪些事件上运行                                                         |
 
@@ -41,6 +42,25 @@
 `validator` 返回 Promise 即可。同一字段连续触发多次校验时，只采纳最后一次的结果。
 
 <DocDemo src="form/async-validate" column style="max-width: 420px" />
+
+### 使用 Standard Schema
+
+实现了 [Standard Schema](https://standardschema.dev) 规范的校验库（如 Zod、Valibot、ArkType）定义的 schema 可以直接使用，DouUI 只依赖这个规范接口，不依赖任何校验库。
+
+给 `DouForm` 传 `schema` 时，它检查整个 `model`，每个字段显示路径与自己 `prop` 相同（或位于其下）的第一条问题。根级别、没有路径的问题不会显示在任何字段上。
+
+<DocDemo src="form/schema" column style="max-width: 420px" />
+
+也可以只给某个字段一个 schema，直接放进 `rules` 即可，相当于 `{ schema }`。需要指定触发时机或改写信息时写成完整的规则：
+
+```ts
+const rules = {
+  name: v.pipe(v.string(), v.minLength(2, '至少 2 个字')),
+  email: { schema: v.pipe(v.string(), v.email()), trigger: 'blur', message: '邮箱格式不对' },
+}
+```
+
+schema 自己决定空值是否合法，必填标记则无法从 schema 推断，需要时在 `DouFormItem` 上加 `required`。
 
 ### 来自服务端的错误
 
@@ -116,6 +136,7 @@ const disabled = useFormDisabled(() => props.disabled)
 | --------------- | -------------------------------------- | ---------------------------------------- | ------------ |
 | `model`         | 表单数据                               | `Record<string, any>`                    | —            |
 | `rules`         | 按字段路径的校验规则                   | `FormRules`                              | —            |
+| `schema`        | 检查整个 `model` 的 Standard Schema    | `StandardSchemaV1`                       | —            |
 | `layout`        | 布局                                   | `'vertical' \| 'horizontal' \| 'inline'` | `'vertical'` |
 | `labelAlign`    | 水平布局中标签的对齐                   | `'start' \| 'end'`                       | `'start'`    |
 | `labelWidth`    | 水平布局中标签列的宽度，默认取最长标签 | `string \| number`                       | —            |

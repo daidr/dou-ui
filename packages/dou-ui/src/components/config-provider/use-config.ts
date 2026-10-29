@@ -52,7 +52,11 @@ export function useGlobalConfig(): ComputedRef<ResolvedGlobalConfig> {
 }
 
 type MessagePath<T> = {
-  [K in keyof T & string]: T[K] extends string ? K : `${K}.${MessagePath<T[K]>}`
+  [K in keyof T & string]: T[K] extends string
+    ? K
+    : T[K] extends object
+      ? `${K}.${MessagePath<T[K]>}`
+      : never
 }[keyof T & string]
 
 export type LocaleMessagePath = MessagePath<Locale>

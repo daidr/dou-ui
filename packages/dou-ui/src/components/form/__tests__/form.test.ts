@@ -1,6 +1,6 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { defineComponent, h, nextTick, reactive } from 'vue'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   DouButton,
   DouCheckbox,
@@ -124,6 +124,53 @@ describe('DouForm', () => {
     expect(items[2]!.get('[role="radiogroup"]').attributes('aria-invalid')).toBe('true')
     // The first invalid field takes focus.
     expect(document.activeElement).toBe(items[0]!.get('input').element)
+    wrapper.unmount()
+  })
+
+  it('checks the whole model against the form schema', async () => {
+    const { wrapper, form, items } = setup({
+      schema: {
+        '~standard': {
+          version: 1,
+          vendor: 'test',
+          validate: (value) => {
+            const model = value as { name: string; plan?: string }
+            const issues = []
+            if (!model.name) issues.push({ message: '请填写名称', path: ['name'] })
+            if (!model.plan) issues.push({ message: '请选择方案', path: [{ key: 'plan' }] })
+            return issues.length ? { issues } : { value }
+          },
+        },
+      },
+    })
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(form.emitted('invalid')?.[0]).toEqual([{ name: '请填写名称', plan: '请选择方案' }])
+    expect(items[0]!.get('.dou-form-item__error').text()).toBe('请填写名称')
+    expect(items[1]!.find('.dou-form-item__error').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('accepts schemas built as functions', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const callable = Object.assign(() => undefined, {
+      '~standard': {
+        version: 1 as const,
+        vendor: 'test',
+        validate: (value: unknown) => (value ? { value } : { issues: [{ message: '必填' }] }),
+      },
+    })
+    const model = reactive({ name: '' })
+    const wrapper = mount(() =>
+      h(DouForm, { model, schema: callable }, () =>
+        h(DouFormItem, { prop: 'name', rules: callable }, () => h(DouInput)),
+      ),
+    )
+    const result = await (wrapper.findComponent(DouForm).vm as unknown as FormInstance).validate()
+    expect(result.errors).toEqual({ name: '必填' })
+    expect(warn).not.toHaveBeenCalled()
+    warn.mockRestore()
     wrapper.unmount()
   })
 

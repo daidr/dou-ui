@@ -1,0 +1,89 @@
+/*
+ * ChatConfirm
+ *
+ * A request to act, waiting for the person's go-ahead. Framed like the
+ * other cards, with the buttons on the right of a footer; once answered
+ * it shrinks to its header and a short outcome.
+ */
+@layer dou.components {
+  .dou-chat-confirm {
+    overflow: hidden;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-container);
+    background-color: var(--dou-color-bg-surface);
+    color: var(--dou-color-text);
+    font-size: var(--dou-font-size-sm);
+    line-height: 20px;
+
+    &.is-pending {
+      border-color: var(--dou-color-border-strong);
+      box-shadow: var(--dou-shadow-sm);
+    }
+  }
+
+  .dou-chat-confirm__header {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .dou-chat-confirm__icon {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    height: 20px;
+    color: var(--dou-color-text-secondary);
+    font-size: 16px;
+
+    .dou-chat-confirm.is-danger & {
+      color: var(--dou-color-danger-text);
+    }
+  }
+
+  .dou-chat-confirm__text {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .dou-chat-confirm__title {
+    font-weight: var(--dou-font-weight-medium);
+  }
+
+  .dou-chat-confirm__description {
+    color: var(--dou-color-text-secondary);
+  }
+
+  .dou-chat-confirm__result {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 4px;
+    color: var(--dou-color-text-tertiary);
+
+    .dou-chat-confirm.is-approved & {
+      color: var(--dou-color-success-text);
+    }
+  }
+
+  .dou-chat-confirm__detail {
+    padding: 0 12px 12px 38px;
+
+    .dou-chat-confirm:not(.is-pending) & {
+      display: none;
+    }
+  }
+
+  .dou-chat-confirm__actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 10px 12px;
+    border-top: 1px solid var(--dou-color-border-subtle);
+    background-color: color-mix(in oklab, var(--dou-color-text) 2%, var(--dou-color-bg-surface));
+  }
+}

@@ -1,0 +1,44 @@
+import type { Component } from 'vue'
+
+export type ChatStepStatus = 'running' | 'done' | 'error'
+
+export interface ChatStep {
+  /** Unique within the list. Defaults to the position. */
+  key?: string | number
+  /** What the step does, e.g. "Searched the web". */
+  label: string
+  /** What it was about, e.g. the query or the file name, shown quieter after the label. */
+  detail?: string
+  /** Defaults to `done`. */
+  status?: ChatStepStatus
+  /** An icon component for the step. A neutral dot when omitted. */
+  icon?: Component
+}
+
+export interface ChatStepsProps {
+  /** The steps so far, in order. */
+  items?: ChatStep[]
+  /**
+   * The work is still going on. While it is, the summary line names the
+   * running step; afterwards it counts the steps. Defaults to whether any
+   * step is `running`.
+   */
+  running?: boolean
+  /** Replaces the summary line. */
+  title?: string
+  /** Expanded or not. Bound with `v-model:open`; folded by default. */
+  open?: boolean
+}
+
+export interface ChatStepsEmits {
+  'update:open': [open: boolean]
+}
+
+export interface ChatStepsSlots {
+  /** Replaces each step's text. */
+  step?: (props: { step: ChatStep; index: number }) => unknown
+  /** Content under each step, e.g. a tool call's result. */
+  detail?: (props: { step: ChatStep; index: number }) => unknown
+  /** Replaces the summary line. */
+  title?: (props: { running: boolean; count: number }) => unknown
+}

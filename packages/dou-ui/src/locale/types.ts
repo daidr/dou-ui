@@ -512,6 +512,37 @@ export interface Locale {
     remove: string
     uploading: string
     uploadError: string
+    /** Heads a task plan. */
+    plan: string
+    stepRunning: string
+    stepDone: string
+    stepError: string
+    /** Summary of steps still in progress, when no step names itself. */
+    working: string
+    /** Summary of `{count}` finished steps. */
+    stepsDone: string
+    /** Names the list of sources. */
+    sources: string
+    /** Names a citation, with `{index}` and `{title}`. */
+    citation: string
+    approve: string
+    allowAlways: string
+    deny: string
+    approved: string
+    denied: string
+    /** An artifact still being made. */
+    generating: string
+    generateError: string
+    /** The context meter's reading, with `{used}`, `{total}` and `{percent}`. */
+    context: string
+    /** Names the context meter. */
+    contextLabel: string
+    edit: string
+    cancel: string
+    /** Names the version switcher. */
+    versions: string
+    previousVersion: string
+    nextVersion: string
   }
   form: {
     /** Shown after the label of an optional field when `requiredMark` is `'optional'`. */

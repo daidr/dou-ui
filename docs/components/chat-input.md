@@ -12,7 +12,7 @@
 
 ## 生成中
 
-`loading` 为 `true` 时发送按钮变成停止按钮，点击触发 `stop`，此时按回车也不会再发送。
+`loading` 为 `true` 时发送按钮变成停止按钮，点击触发 `stop`。生成期间仍然可以继续输入，输入框里有内容时按钮会变回发送，按回车或点击都会触发 `submit`，可以由应用把这条消息排在当前回答之后。
 
 <DocDemo src="chat-input/loading" column />
 
@@ -23,6 +23,14 @@
 在输入框里粘贴文件，或把文件拖进来时，会触发 `attach`，参数是文件列表。只有附件没有文字也想允许发送时，用 `can-submit` 自己决定能否发送。
 
 <DocDemo src="chat-input/actions" column />
+
+## 命令与引用
+
+`commands` 是以 `/` 开头时弹出的命令菜单，选中后输入的 `/…` 会被删掉，并触发 `command`，应用可以据此切换模式，比如在 `header` 插槽里显示一个标签。`mentions` 是输入 `@` 后弹出的引用菜单，选中后会把输入的 `@…` 换成 `@值 ` 并触发 `mention`。
+
+菜单可以用上下方向键选择，回车或 Tab 确认，Esc 关闭。
+
+<DocDemo src="chat-input/commands" column />
 
 ## 发送快捷键
 
@@ -62,7 +70,18 @@
 | --------- | ----------------------------------------------------------------- |
 | `header`  | 文字上方，比如附件                                                |
 | `actions` | 底部左侧的工具按钮                                                |
+| `option`  | 替换菜单中每一项的内容，参数为 `{ option, trigger }`              |
 | `submit`  | 替换发送 / 停止按钮，参数为 `{ submit, stop, loading, disabled }` |
+
+### ChatInputOption
+
+| 名称          | 说明                                 | 类型        |
+| ------------- | ------------------------------------ | ----------- |
+| `value`       | 匹配和返回的值，引用时也是插入的文字 | `string`    |
+| `label`       | 菜单中显示的文字，默认为 `value`     | `string`    |
+| `description` | 文字后面的说明                       | `string`    |
+| `icon`        | 图标组件                             | `Component` |
+| `disabled`    | 禁用                                 | `boolean`   |
 
 ### Exposes
 

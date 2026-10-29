@@ -1,0 +1,145 @@
+/*
+ * ChatPlan
+ *
+ * The steps a model means to take, as a framed checklist. The header
+ * counts what is finished; the running step shimmers, finished ones are
+ * ticked and step back in color.
+ */
+@layer dou.components {
+  .dou-chat-plan {
+    overflow: hidden;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-container);
+    background-color: var(--dou-color-bg-surface);
+    color: var(--dou-color-text);
+    font-size: var(--dou-font-size-sm);
+    line-height: 20px;
+  }
+
+  .dou-chat-plan__header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-sizing: border-box;
+    width: 100%;
+    margin: 0;
+    padding: 10px 12px;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover {
+      background-color: color-mix(in oklab, var(--dou-color-text) 3%, transparent);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: -2px;
+      border-radius: var(--dou-radius-container);
+    }
+  }
+
+  .dou-chat-plan__icon {
+    flex: none;
+    color: var(--dou-color-text-tertiary);
+    font-size: 16px;
+  }
+
+  .dou-chat-plan__title {
+    flex: 1 1 auto;
+    font-weight: var(--dou-font-weight-medium);
+  }
+
+  .dou-chat-plan__count {
+    color: var(--dou-color-text-tertiary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .dou-chat-plan__arrow {
+    flex: none;
+    color: var(--dou-color-text-tertiary);
+    font-size: 14px;
+    transition: rotate var(--dou-motion-duration-normal) var(--dou-motion-easing);
+
+    .dou-chat-plan.is-open & {
+      rotate: 180deg;
+    }
+  }
+
+  .dou-chat-plan__panel {
+    transition: height var(--dou-motion-duration-normal) var(--dou-motion-easing);
+  }
+
+  .dou-chat-plan__list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 0;
+    padding: 0 12px 10px;
+    list-style: none;
+  }
+
+  .dou-chat-plan__item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 4px 0;
+  }
+
+  .dou-chat-plan__mark {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 20px;
+    color: var(--dou-color-text-tertiary);
+    font-size: 14px;
+
+    .dou-chat-plan__item.is-done & {
+      color: var(--dou-color-success-text);
+    }
+
+    .dou-chat-plan__item.is-error & {
+      color: var(--dou-color-danger-text);
+    }
+  }
+
+  .dou-chat-plan__dot {
+    box-sizing: border-box;
+    width: 12px;
+    height: 12px;
+    border: 1.5px solid var(--dou-color-border-strong);
+    border-radius: 50%;
+  }
+
+  .dou-chat-plan__text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .dou-chat-plan__label {
+    .dou-chat-plan__item.is-done &,
+    .dou-chat-plan__item.is-skipped & {
+      color: var(--dou-color-text-tertiary);
+    }
+
+    .dou-chat-plan__item.is-skipped & {
+      text-decoration: line-through;
+    }
+
+    .dou-chat-plan__item.is-running & {
+      font-weight: var(--dou-font-weight-medium);
+    }
+  }
+
+  .dou-chat-plan__description {
+    color: var(--dou-color-text-tertiary);
+    font-size: 12px;
+    line-height: 18px;
+  }
+}

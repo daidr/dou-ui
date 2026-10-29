@@ -21,6 +21,7 @@
     --dou-chat-input-radius: 16px;
     --dou-chat-input-line-height: 22px;
 
+    position: relative;
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -116,5 +117,65 @@
   .dou-chat-input__submit.dou-button {
     flex: none;
     border-radius: var(--dou-radius-full);
+  }
+
+  /* the `/` and `@` menu opens above the frame */
+  .dou-chat-input__menu {
+    position: absolute;
+    z-index: 1;
+    bottom: calc(100% + 6px);
+    left: 0;
+    box-sizing: border-box;
+    width: min(360px, 100%);
+    max-height: 280px;
+    margin: 0;
+    padding: 4px;
+    overflow-y: auto;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-container);
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-lg);
+    list-style: none;
+    cursor: default;
+  }
+
+  .dou-chat-input__option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    padding: 6px 8px;
+    border-radius: var(--dou-radius-control);
+    font-size: var(--dou-font-size-sm);
+    line-height: 20px;
+    cursor: pointer;
+
+    &.is-active {
+      background-color: var(--dou-color-bg-muted);
+    }
+
+    &.is-disabled {
+      color: var(--dou-color-text-disabled);
+      cursor: not-allowed;
+    }
+  }
+
+  .dou-chat-input__option-icon {
+    flex: none;
+    color: var(--dou-color-text-secondary);
+    font-size: 16px;
+  }
+
+  .dou-chat-input__option-label {
+    flex: none;
+    font-weight: var(--dou-font-weight-medium);
+  }
+
+  .dou-chat-input__option-description {
+    overflow-x: clip;
+    min-width: 0;
+    color: var(--dou-color-text-tertiary);
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }

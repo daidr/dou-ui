@@ -1,9 +1,9 @@
 <script setup>
 const nodes = [
-  { id: 'a', label: '需求澄清', status: 'process' },
-  { id: 'b', label: '技术方案', status: 'finish' },
-  { id: 'c', label: '开发', status: 'process' },
-  { id: 'd', label: '测试', status: 'process' },
+  { id: 'a', label: '选购材料', status: 'process' },
+  { id: 'b', label: '确定方案', status: 'finish' },
+  { id: 'c', label: '施工', status: 'process' },
+  { id: 'd', label: '验收', status: 'process' },
 ]
 const edges = [
   { from: 'a', to: 'c' },

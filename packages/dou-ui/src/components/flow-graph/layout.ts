@@ -10,7 +10,9 @@
  *    fewest crossings.
  * 4. Rows: every node is pulled towards its neighbours, then spread out
  *    in order with the least total movement (isotonic regression), with
- *    top edges on even pixels.
+ *    every centre on a row grid of half a node pitch. A fan sits
+ *    symmetrically around its source, and two rows are either level or
+ *    a whole step apart, so no curve is a small wobble.
  */
 
 export interface LayoutNode {
@@ -33,6 +35,12 @@ export interface LayoutOptions {
   edgeGap?: number
   /** Widen every node to the widest one in its column. */
   equalWidth?: boolean
+  /**
+   * The row grid every centre snaps to, in px. Half the pitch of a
+   * one-line node keeps fans symmetric and curves free of small wobbles.
+   * Defaults to half the pitch of a 32px node, `(rowGap + 32) / 2`.
+   */
+  grid?: number
 }
 
 export interface PlacedNode {
@@ -201,20 +209,22 @@ function untangle(layers: Item[][]) {
 
 /**
  * Move the items of one column as close to their targets as possible,
- * keeping their order and the gaps between them. With `s` the offset of
- * each item from the first, `y - s` must not decrease: isotonic
- * regression, solved by pooling adjacent violators.
+ * keeping their order and the gaps between them, with every centre on
+ * the row grid. With `s` the offset of each item from the first, in grid
+ * steps, `y - s` must not decrease: isotonic regression, solved by
+ * pooling adjacent violators, then rounded to whole steps.
  */
-function place(layer: Item[], targets: number[], gap: (a: Item, b: Item) => number) {
-  // Work on top edges, so even heights and gaps keep every top on even pixels.
+function place(layer: Item[], targets: number[], gap: (a: Item, b: Item) => number, grid: number) {
   const offsets: number[] = [0]
   for (let i = 1; i < layer.length; i++) {
     const a = layer[i - 1]!
-    offsets.push(offsets[i - 1]! + a.height + gap(a, layer[i]!))
+    const b = layer[i]!
+    const span = (a.height + b.height) / 2 + gap(a, b)
+    offsets.push(offsets[i - 1]! + Math.max(1, Math.ceil(span / grid - 1e-6)))
   }
   const blocks: { sum: number; count: number }[] = []
   targets.forEach((t, i) => {
-    blocks.push({ sum: t - layer[i]!.height / 2 - offsets[i]!, count: 1 })
+    blocks.push({ sum: t / grid - offsets[i]!, count: 1 })
     while (blocks.length > 1) {
       const last = blocks.at(-1)!
       const prev = blocks.at(-2)!
@@ -226,8 +236,8 @@ function place(layer: Item[], targets: number[], gap: (a: Item, b: Item) => numb
   })
   let i = 0
   for (const block of blocks) {
-    const z = Math.round(block.sum / block.count / 2) * 2
-    for (let k = 0; k < block.count; k++, i++) layer[i]!.y = z + offsets[i]! + layer[i]!.height / 2
+    const z = Math.round(block.sum / block.count)
+    for (let k = 0; k < block.count; k++, i++) layer[i]!.y = (z + offsets[i]!) * grid
   }
 }
 
@@ -241,6 +251,7 @@ export function layoutFlow(
   options: LayoutOptions,
 ): FlowLayout {
   const { columnGap, rowGap, edgeGap = 8, equalWidth = true } = options
+  const grid = options.grid ?? (rowGap + 32) / 2
   const byId = new Map(nodes.map((n) => [n.id, n]))
   const ids = [...byId.keys()]
   const dag = acyclic(ids, edges)
@@ -279,6 +290,7 @@ export function layoutFlow(
       layer,
       layer.map(() => 0),
       gap,
+      grid,
     )
   const relax = (layer: Item[], neighbours: (item: Item) => Item[]) =>
     place(
@@ -290,6 +302,7 @@ export function layoutFlow(
         ),
       ),
       gap,
+      grid,
     )
   for (let pass = 0; pass < 4; pass++) {
     for (const layer of ordered.slice(1)) relax(layer, (item) => item.preds)

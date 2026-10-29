@@ -105,13 +105,21 @@ function estimate(node: FlowNode) {
   return { width, height: isCard(node) ? height * 2 : height }
 }
 
-/** The layout size of an element, rounded up to even pixels so nodes never land on half pixels. */
+const roundUp = (value: number, step: number) => Math.ceil(value / step - 0.001) * step
+
+/**
+ * The layout size of an element: width rounded up to even pixels, height
+ * to a multiple of four, so centres on the row grid keep edges on whole,
+ * even pixels.
+ */
 function box(el: HTMLElement) {
+  // Fractional sizes, so a label a hair wider than a whole pixel is not cut
+  // off; the zoom is undone, as the canvas is scaled.
   const rect = el.getBoundingClientRect()
-  // Undo the zoom; offset sizes are unscaled but rounded down.
-  const scale = el.offsetWidth ? rect.width / el.offsetWidth : 1
-  const even = (value: number) => Math.ceil(value / scale / 2 - 0.005) * 2
-  return { width: even(rect.width), height: even(rect.height) }
+  return {
+    width: roundUp(rect.width / zoom.value, 2),
+    height: roundUp(rect.height / zoom.value, 4),
+  }
 }
 
 function measure() {
@@ -121,10 +129,11 @@ function measure() {
   for (const node of props.nodes) {
     const el = nodeEls.get(node.id)
     if (!el) continue
-    const previous = el.style.width
+    const { width: w, height: h } = el.style
     el.style.width = typeof props.nodeWidth === 'number' ? `${props.nodeWidth}px` : 'max-content'
+    el.style.height = ''
     natural.set(node.id, Math.min(box(el).width, props.maxNodeWidth))
-    el.style.width = previous
+    Object.assign(el.style, { width: w, height: h })
   }
   const columnWidth = new Map<number, number>()
   for (const [id, width] of natural) {
@@ -138,10 +147,11 @@ function measure() {
     // Not laid out, e.g. hidden or without a DOM: keep the estimate.
     if (!el || !own) continue
     const width = props.nodeWidth === 'column' ? columnWidth.get(column.get(node.id) ?? 0)! : own
-    const previous = el.style.width
+    const { width: w, height: h } = el.style
     el.style.width = `${width}px`
+    el.style.height = ''
     next.set(node.id, { width, height: box(el).height })
-    el.style.width = previous
+    Object.assign(el.style, { width: w, height: h })
   }
   const prev = sizes.value
   const same =
@@ -159,6 +169,8 @@ const layout = computed(() =>
     {
       columnGap: props.columnGap ?? metric.value.columnGap,
       rowGap: props.rowGap ?? metric.value.rowGap,
+      // Half the pitch of one-line nodes.
+      grid: (metric.value.height + (props.rowGap ?? metric.value.rowGap)) / 2,
       equalWidth: props.nodeWidth === 'column',
     },
   ),
@@ -413,9 +425,13 @@ onMounted(() => {
   } else if (rootRef.value) {
     viewport.value = { width: rootRef.value.clientWidth, height: rootRef.value.clientHeight }
   }
+  // Node widths are fixed once laid out, so a late web font would not
+  // resize them: measure again whenever fonts finish loading.
   document.fonts?.ready.then(measure)
+  document.fonts?.addEventListener?.('loadingdone', scheduleMeasure)
 })
 onBeforeUnmount(() => {
+  document.fonts?.removeEventListener?.('loadingdone', scheduleMeasure)
   rootObserver?.disconnect()
   nodeObserver?.disconnect()
   cancelAnimationFrame(frame)
@@ -575,6 +591,8 @@ function nodeStyle(node: FlowNode): CSSProperties {
     left: `${placed.x + PAD}px`,
     top: `${placed.y + PAD}px`,
     width: `${placed.width}px`,
+    // Cards fill their rounded-up height, content centred.
+    height: isCard(node) ? `${placed.height}px` : undefined,
     maxWidth: typeof props.nodeWidth === 'number' ? undefined : `${props.maxNodeWidth}px`,
   }
 }

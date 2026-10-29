@@ -1,27 +1,25 @@
 <script setup>
 const nodes = [
+  { id: 'outline', label: '拟定大纲', description: '五个小节，已过评审', status: 'finish' },
   {
-    id: 'ios',
-    label: 'iOS 开发',
-    extra: '12 人日',
-    description: '设计专项优化与体验问题修复',
-    descriptionTone: 'danger',
+    id: 'draft',
+    label: '撰写初稿',
+    extra: '6/7 节',
+    description: '还差“部署”一节',
+    descriptionTone: 'warning',
     status: 'process',
-    progress: 30,
+    progress: 80,
   },
-  {
-    id: 'contract',
-    label: '财务法务正式合同确认',
-    description: '金额确认后完善报价单并审批',
-    status: 'process',
-  },
-  { id: 'plan', label: '测试计划', description: '0 个用例', status: 'wait' },
-  { id: 'done', label: '准出', kind: 'milestone' },
+  { id: 'images', label: '准备配图', description: '截图 12 张', status: 'process' },
+  { id: 'review', label: '交叉审校', description: '戴兜负责' },
+  { id: 'publish', label: '发布', kind: 'milestone' },
 ]
 const edges = [
-  { from: 'ios', to: 'plan' },
-  { from: 'contract', to: 'plan' },
-  { from: 'plan', to: 'done' },
+  { from: 'outline', to: 'draft' },
+  { from: 'outline', to: 'images' },
+  { from: 'draft', to: 'review' },
+  { from: 'images', to: 'review' },
+  { from: 'review', to: 'publish' },
 ]
 </script>
 

@@ -98,9 +98,9 @@ describe('layoutFlow', () => {
     expect(Math.sign(a! - b!)).toBe(Math.sign(d! - c!))
   })
 
-  it('places every node on even pixels', () => {
+  it('puts every centre on the row grid and tops on even pixels', () => {
     const layout = layoutFlow(
-      [size('a'), { id: 'b', width: 80, height: 58 }, size('c'), size('d')],
+      [size('a'), { id: 'b', width: 80, height: 60 }, size('c'), size('d')],
       [
         { from: 'a', to: 'b' },
         { from: 'a', to: 'c' },
@@ -108,7 +108,43 @@ describe('layoutFlow', () => {
       ],
       options,
     )
-    for (const node of layout.nodes.values()) expect(node.y % 2).toBe(0)
+    const origin = layout.nodes.get('a')!
+    const centre = (id: string) => {
+      const node = layout.nodes.get(id)!
+      return node.y + node.height / 2 - (origin.y + origin.height / 2)
+    }
+    for (const node of layout.nodes.values()) {
+      expect(node.y % 2).toBe(0)
+      expect(Math.abs(centre(node.id) % 26)).toBe(0)
+    }
+  })
+
+  it('fans out symmetrically', () => {
+    const layout = layoutFlow(
+      ['a', 'b', 'c', 'd', 'e'].map((id) => size(id)),
+      ['b', 'c', 'd', 'e'].map((to) => ({ from: 'a', to })),
+      options,
+    )
+    const centre = (id: string) => layout.nodes.get(id)!.y + 16
+    expect(centre('b') + centre('e')).toBe(2 * centre('a'))
+    expect(centre('c') + centre('d')).toBe(2 * centre('a'))
+    expect(centre('c') - centre('b')).toBe(52)
+  })
+
+  it('keeps a long edge level when nothing is in its way', () => {
+    const layout = layoutFlow(
+      ['a', 'b', 'c', 'd'].map((id) => size(id)),
+      [
+        { from: 'a', to: 'b' },
+        { from: 'b', to: 'c' },
+        { from: 'c', to: 'd' },
+        { from: 'a', to: 'd' },
+      ],
+      options,
+    )
+    const long = layout.edges.find((e) => e.from === 'a' && e.to === 'd')!
+    // it bends once on the way out and once on the way in, straight in between
+    expect(long.path.match(/C/g)).toHaveLength(2)
   })
 
   it('handles an empty graph', () => {

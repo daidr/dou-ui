@@ -77,11 +77,7 @@ const steps = [{ title: '设计' }, { title: '开发' }, { title: '发布' }]
                 <DouProgress :value="72" size="sm" label="上传进度" />
               </template>
 
-              <DouUser
-                v-else-if="tile === 'user'"
-                name="戴兜"
-                description="前端工程师"
-              />
+              <DouUser v-else-if="tile === 'user'" name="戴兜" description="前端工程师" />
 
               <DouSegmentedControl
                 v-else-if="tile === 'segmented'"

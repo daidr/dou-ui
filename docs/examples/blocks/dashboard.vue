@@ -112,6 +112,7 @@ const columns = [
           class="dashboard__spark"
           :data="metric.data"
           :type="metric.type"
+          smooth
           :tone="metric.tone"
           width="100%"
           :height="40"
@@ -149,7 +150,15 @@ const columns = [
           <DouTag :tone="statuses[value].tone" size="sm">{{ statuses[value].label }}</DouTag>
         </template>
         <template #cell-requests="{ value }">
-          <DouSparkline :data="value" :min="0" :max="peak" type="area" :width="128" :height="24" />
+          <DouSparkline
+            :data="value"
+            :min="0"
+            :max="peak"
+            type="area"
+            smooth
+            :width="128"
+            :height="24"
+          />
         </template>
         <template #cell-updated="{ value }">
           <DouText variant="secondary"><DouRelativeTime :value="value" /></DouText>

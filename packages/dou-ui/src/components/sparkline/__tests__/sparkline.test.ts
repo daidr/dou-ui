@@ -58,11 +58,12 @@ describe('DouSparkline', () => {
 
   it('draws bars from zero', () => {
     const wrapper = mount(DouSparkline, { props: { data: [5, -5, 0], type: 'bar' } })
-    const rects = wrapper.findAll('rect')
-    expect(rects).toHaveLength(3)
-    expect(rects[0]!.attributes()).toMatchObject({ y: '0', height: '50' })
-    expect(rects[1]!.attributes()).toMatchObject({ y: '50', height: '50' })
-    expect(rects[2]!.attributes('height')).toBe('0')
+    const bars = wrapper.findAll('.dou-sparkline__bar')
+    expect(bars).toHaveLength(3)
+    expect(bars[0]!.attributes('style')).toContain('top: 0%; height: 50%')
+    expect(bars[1]!.attributes('style')).toContain('top: 50%; height: 50%')
+    expect(bars[1]!.classes()).toContain('is-down')
+    expect(bars[2]!.attributes('style')).toContain('height: 0%')
   })
 
   it('steps through values with the keyboard and shows them in a tooltip', async () => {

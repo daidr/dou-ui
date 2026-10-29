@@ -65,12 +65,13 @@
 
 ### CSS 变量
 
-| 变量                           | 说明                     |
-| ------------------------------ | ------------------------ |
-| `--dou-sparkline-stroke`       | 线宽，默认 1.5px         |
-| `--dou-sparkline-area-opacity` | 面积填充的浓度，默认 14% |
-| `--dou-sparkline-dot`          | 圆点直径，默认 5px       |
-| `--dou-sparkline-inset`        | 留给线条和圆点的内边距   |
+| 变量                         | 说明                     |
+| ---------------------------- | ------------------------ |
+| `--dou-sparkline-stroke`     | 线宽，默认 1.5px         |
+| `--dou-sparkline-area-top`   | 面积渐变顶部的颜色       |
+| `--dou-sparkline-bar-radius` | 柱子末端的圆角，默认 3px |
+| `--dou-sparkline-dot`        | 圆点直径，默认 5px       |
+| `--dou-sparkline-inset`      | 留给线条和圆点的内边距   |
 
 ### 键盘与读屏
 

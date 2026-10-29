@@ -194,6 +194,8 @@ export interface Bar {
   y: number
   width: number
   height: number
+  /** Grows down from zero, for a negative value. */
+  down: boolean
 }
 
 /**
@@ -207,7 +209,8 @@ export function bars(data: readonly Datum[], range: Domain, slots: number): Bar[
   const groups = Math.max(1, Math.min(length, Math.floor(slots)))
   const per = length / groups
   const slot = VIEW_WIDTH / groups
-  const gap = groups > 1 ? Math.min(slot * 0.25, VIEW_WIDTH * 0.02) : 0
+  // a clear gap keeps neighboring bars apart even when they are thin
+  const gap = groups > 1 ? slot * 0.3 : 0
   const zero = yOf(0, range)
   const result: Bar[] = []
   for (let group = 0; group < groups; group++) {
@@ -226,6 +229,7 @@ export function bars(data: readonly Datum[], range: Domain, slots: number): Bar[
       y: round(Math.min(y, zero)),
       width: round(slot - gap),
       height: round(Math.abs(zero - y)),
+      down: pick.value < 0,
     })
   }
   return result

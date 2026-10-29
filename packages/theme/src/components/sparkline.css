@@ -11,7 +11,12 @@
     --dou-sparkline-height: 32px;
     --dou-sparkline-inset: 3px;
     --dou-sparkline-stroke: 1.5px;
-    --dou-sparkline-area-opacity: 14%;
+    /* the top of the area fill; a little stronger on dark backgrounds */
+    --dou-sparkline-area-top: light-dark(
+      color-mix(in oklab, currentColor 22%, transparent),
+      color-mix(in oklab, currentColor 36%, transparent)
+    );
+    --dou-sparkline-bar-radius: 3px;
     --dou-sparkline-dot: 5px;
 
     display: inline-block;
@@ -62,17 +67,33 @@
     stroke-linejoin: round;
   }
 
-  .dou-sparkline__area {
-    fill: color-mix(in oklab, currentColor var(--dou-sparkline-area-opacity), transparent);
+  /* the fill fades out toward the bottom instead of sitting as a flat block */
+  .dou-sparkline__fill-top {
+    stop-color: var(--dou-sparkline-area-top);
+  }
+
+  .dou-sparkline__fill-bottom {
+    stop-color: currentColor;
+    stop-opacity: 0;
   }
 
   .dou-sparkline__bar {
-    fill: currentColor;
+    position: absolute;
+    background: currentColor;
+    /* rounded at the end away from zero; thin bars get at most half their width */
+    border-radius: min(var(--dou-sparkline-bar-radius), 50%)
+      min(var(--dou-sparkline-bar-radius), 50%) 0 0;
+    pointer-events: none;
     transition: opacity var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    &.is-down {
+      border-radius: 0 0 min(var(--dou-sparkline-bar-radius), 50%)
+        min(var(--dou-sparkline-bar-radius), 50%);
+    }
   }
 
   /* while one bar is read, the others step back */
-  .dou-sparkline__svg:has(.is-active) .dou-sparkline__bar:not(.is-active) {
+  .dou-sparkline__plot:has(.dou-sparkline__bar.is-active) .dou-sparkline__bar:not(.is-active) {
     opacity: 0.45;
   }
 

@@ -302,23 +302,31 @@ const tooltipText = computed(() => {
         aria-hidden="true"
         focusable="false"
       >
-        <path v-if="areaPath" :class="ns.e('area')" :d="areaPath" />
+        <defs v-if="areaPath">
+          <linearGradient :id="`${id}-fill`" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" :class="ns.e('fill-top')" />
+            <stop offset="1" :class="ns.e('fill-bottom')" />
+          </linearGradient>
+        </defs>
+        <path v-if="areaPath" :class="ns.e('area')" :d="areaPath" :fill="`url(#${id}-fill)`" />
         <path
           v-if="strokePath"
           :class="ns.e('line')"
           :d="strokePath"
           vector-effect="non-scaling-stroke"
         />
-        <rect
-          v-for="bar in barList"
-          :key="bar.index"
-          :class="[ns.e('bar'), ns.is('active', bar.index === active)]"
-          :x="bar.x"
-          :y="bar.y"
-          :width="bar.width"
-          :height="bar.height"
-        />
       </svg>
+      <span
+        v-for="bar in barList"
+        :key="bar.index"
+        :class="[ns.e('bar'), ns.is('active', bar.index === active), ns.is('down', bar.down)]"
+        :style="{
+          left: `${bar.x / 10}%`,
+          width: `${bar.width / 10}%`,
+          top: `${bar.y}%`,
+          height: `${bar.height}%`,
+        }"
+      />
       <span
         v-for="dot in lonely"
         :key="`${dot.x}`"

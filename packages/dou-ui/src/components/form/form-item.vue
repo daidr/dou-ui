@@ -2,6 +2,7 @@
 import {
   computed,
   inject,
+  nextTick,
   onBeforeUnmount,
   onMounted,
   provide,
@@ -9,6 +10,7 @@ import {
   toRaw,
   useId,
   useTemplateRef,
+  watch,
 } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
@@ -90,6 +92,24 @@ async function check(list: FormRule[]) {
 }
 
 const validate = () => check(rules.value)
+
+// While an error is shown, a change to the value made outside a control
+// (adding a row to a list, say) also rechecks it, so the error clears once
+// fixed. A control that already rechecked for the same change is not
+// repeated.
+watch(
+  () => (props.prop ? getPath(form?.model(), props.prop) : undefined),
+  () => {
+    if (!validationError.value) return
+    const before = run
+    void nextTick(() => {
+      if (run === before && validationError.value) {
+        void check(rulesFor(rules.value, 'change', true, true))
+      }
+    })
+  },
+  { deep: true, flush: 'sync' },
+)
 
 function trigger(event: FormTrigger, { lazy = false } = {}) {
   const list = rulesFor(rules.value, event, lazy, !!validationError.value)

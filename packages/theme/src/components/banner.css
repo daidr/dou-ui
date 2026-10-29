@@ -1,0 +1,175 @@
+/*
+ * Banner
+ *
+ * A full-width bar for a notice about the whole site, usually at the very
+ * top of the page. It has no rounded corners or side borders, only a
+ * hairline underneath; the message sits in the middle and the close
+ * button at the far end.
+ */
+@layer dou.components {
+  .dou-banner {
+    --dou-banner-tone: var(--dou-color-text-secondary);
+    --dou-banner-bg: color-mix(in oklab, var(--dou-color-text) 4%, var(--dou-color-bg-surface));
+    --dou-banner-fg: var(--dou-color-text);
+    --dou-banner-icon: var(--dou-banner-tone);
+    --dou-banner-border: var(--dou-color-border);
+
+    position: relative;
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 40px;
+    padding: 8px 48px;
+    border-bottom: 1px solid var(--dou-banner-border);
+    background-color: var(--dou-banner-bg);
+    color: var(--dou-banner-fg);
+    font-size: var(--dou-font-size-md);
+    line-height: 1.5;
+  }
+
+  .dou-banner--primary {
+    --dou-banner-tone: var(--dou-color-primary);
+  }
+  .dou-banner--success {
+    --dou-banner-tone: var(--dou-color-success);
+  }
+  .dou-banner--warning {
+    --dou-banner-tone: var(--dou-color-warning);
+  }
+  .dou-banner--danger {
+    --dou-banner-tone: var(--dou-color-danger);
+  }
+
+  .dou-banner--soft:not(.dou-banner--neutral) {
+    --dou-banner-bg: color-mix(in oklab, var(--dou-banner-tone) 7%, var(--dou-color-bg-surface));
+    --dou-banner-border: color-mix(in oklab, var(--dou-banner-tone) 20%, var(--dou-color-border));
+  }
+
+  .dou-banner--solid {
+    --dou-banner-bg: var(--dou-color-neutral);
+    --dou-banner-fg: var(--dou-color-neutral-on);
+    --dou-banner-icon: currentColor;
+    --dou-banner-border: transparent;
+  }
+  .dou-banner--solid.dou-banner--primary {
+    --dou-banner-bg: var(--dou-color-primary);
+    --dou-banner-fg: var(--dou-color-primary-on);
+  }
+  .dou-banner--solid.dou-banner--success {
+    --dou-banner-bg: var(--dou-color-success);
+    --dou-banner-fg: var(--dou-color-success-on);
+  }
+  .dou-banner--solid.dou-banner--warning {
+    --dou-banner-bg: var(--dou-color-warning);
+    --dou-banner-fg: var(--dou-color-warning-on);
+  }
+  .dou-banner--solid.dou-banner--danger {
+    --dou-banner-bg: var(--dou-color-danger);
+    --dou-banner-fg: var(--dou-color-danger-on);
+  }
+
+  .dou-banner__content {
+    display: flex;
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 8px 12px;
+    min-width: 0;
+  }
+
+  /* the icon and the text stay together when the action wraps */
+  .dou-banner__main {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .dou-banner__icon {
+    display: inline-flex;
+    flex-shrink: 0;
+    /* the text is trimmed to its cap height; center the icon on the first line */
+    margin-block: calc((1cap - 16px) / 2);
+    color: var(--dou-banner-icon);
+
+    & > svg {
+      width: 16px;
+      height: 16px;
+    }
+  }
+
+  .dou-banner__text {
+    min-width: 0;
+    margin: 0;
+    /* trim to the cap height, so CJK text centers on the icon and the action */
+    text-box: trim-both cap alphabetic;
+  }
+
+  .dou-banner__title {
+    margin-right: 8px;
+    font-weight: var(--dou-font-weight-bold);
+  }
+
+  .dou-banner__action {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* links in a solid bar take its text color */
+  .dou-banner--solid .dou-banner__action .dou-link,
+  .dou-banner--solid .dou-banner__text .dou-link {
+    --dou-link-tone: currentColor;
+  }
+
+  .dou-banner__close {
+    position: absolute;
+    top: 50%;
+    right: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--dou-radius-control);
+    background-color: transparent;
+    color: inherit;
+    opacity: 0.6;
+    cursor: pointer;
+    translate: 0 -50%;
+    transition-property: background-color, opacity;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    & > svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    &:hover {
+      background-color: color-mix(in oklab, currentColor 10%, transparent);
+      opacity: 1;
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 1px;
+      opacity: 1;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .dou-banner {
+      padding-inline: 16px 44px;
+    }
+
+    .dou-banner__content {
+      justify-content: flex-start;
+    }
+  }
+}

@@ -1,0 +1,164 @@
+/*
+ * Sortable
+ *
+ * The list brings no look of its own beyond the flow of its items; they
+ * are styled by what they hold. While dragging, the item keeps its place
+ * as a faint outline and a copy follows the pointer with a raised
+ * shadow. An item picked up with the keyboard gets a focus ring and a
+ * lift instead.
+ */
+@layer dou.components {
+  .dou-sortable {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 40px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .dou-sortable--horizontal {
+    flex-direction: row;
+    flex-wrap: nowrap;
+  }
+
+  .dou-sortable--grid {
+    flex-flow: row wrap;
+  }
+
+  .dou-sortable__item {
+    position: relative;
+    border-radius: var(--dou-radius-control);
+    outline: none;
+    cursor: grab;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+
+    &.is-handle {
+      cursor: auto;
+      user-select: auto;
+      -webkit-user-select: auto;
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 2px;
+    }
+
+    /* the empty place the dragged item will drop into */
+    &.is-dragging {
+      &::after {
+        position: absolute;
+        inset: 0;
+        border: 1px dashed var(--dou-color-border-strong);
+        border-radius: inherit;
+        background-color: color-mix(in oklab, var(--dou-color-text) 4%, var(--dou-color-bg-canvas));
+        content: '';
+      }
+
+      & > * {
+        visibility: hidden;
+      }
+    }
+
+    &.is-lifted {
+      z-index: 1;
+      box-shadow: var(--dou-shadow-md);
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 2px;
+      scale: 1.01;
+
+      &::after {
+        content: none;
+      }
+
+      & > * {
+        visibility: visible;
+      }
+    }
+  }
+
+  .dou-sortable.is-disabled > .dou-sortable__item {
+    cursor: auto;
+  }
+
+  .dou-sortable__empty {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    border: 1px dashed var(--dou-color-border);
+    border-radius: var(--dou-radius-control);
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-sm);
+  }
+
+  .dou-sortable__handle {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 24px;
+    padding: 0;
+    border: 0;
+    border-radius: calc(var(--dou-radius-control) - 2px);
+    background: none;
+    color: var(--dou-color-text-tertiary);
+    cursor: grab;
+    touch-action: none;
+
+    & > svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    &:hover {
+      background-color: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+      color: var(--dou-color-text);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 1px;
+    }
+  }
+
+  .dou-sortable-move {
+    transition: transform var(--dou-motion-duration-normal) var(--dou-motion-easing);
+  }
+
+  /* the copy that follows the pointer */
+  .dou-sortable-ghost {
+    box-shadow:
+      var(--dou-shadow-lg),
+      0 0 0 1px color-mix(in oklab, var(--dou-color-text) 8%, transparent);
+    opacity: 0.96;
+    cursor: grabbing;
+    rotate: 1deg;
+  }
+
+  .dou-sortable-dragging,
+  .dou-sortable-dragging * {
+    cursor: grabbing !important;
+    user-select: none !important;
+  }
+
+  .dou-sortable-live {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dou-sortable-move {
+      transition: none;
+    }
+  }
+}

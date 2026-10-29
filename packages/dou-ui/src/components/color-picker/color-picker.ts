@@ -1,16 +1,12 @@
 import type { Placement } from '../../composables/use-floating'
 import type { Size } from '../../utils/types'
+import type { ColorPanelMode } from '../color-panel/color-panel'
 import type { ColorFormat, ColorGamut, ColorSpace } from './color'
 
 export type { ColorFormat, ColorGamut, ColorSpace }
 
-/**
- * How the panel picks a color: `square` is a saturation / brightness
- * square with a hue track, `wheel` a hue / saturation wheel with a
- * brightness track, and a color space name gives one slider per channel
- * of that space.
- */
-export type ColorPickerPanel = 'square' | 'wheel' | ColorSpace
+/** How the panel picks a color; see `ColorPanelMode`. */
+export type ColorPickerPanel = ColorPanelMode
 
 export interface ColorPickerProps {
   /** The color, in any supported format. Bound with `v-model`. */

@@ -118,16 +118,16 @@ describe('DouColorPicker', () => {
     const wrapper = mountPicker({ modelValue: null, showAlpha: true, presets: ['rgb(46 125 91)'] })
     await wrapper.get('.dou-color-picker').trigger('click')
     expect(sliders()).toHaveLength(3)
-    const text = document.querySelector<HTMLInputElement>('.dou-color-picker__text input')!
+    const text = document.querySelector<HTMLInputElement>('.dou-color-panel__text input')!
     text.value = '#11223380'
     text.dispatchEvent(new Event('input'))
     text.dispatchEvent(new Event('change'))
     await nextTick()
     expect(wrapper.props('modelValue')).toBe('#11223380')
-    document.querySelector<HTMLElement>('.dou-color-picker__preset')!.click()
+    document.querySelector<HTMLElement>('.dou-color-panel__preset')!.click()
     await nextTick()
     expect(wrapper.props('modelValue')).toBe('#2e7d5b')
-    expect(document.querySelector('.dou-color-picker__preset')!.getAttribute('aria-pressed')).toBe(
+    expect(document.querySelector('.dou-color-panel__preset')!.getAttribute('aria-pressed')).toBe(
       'true',
     )
     wrapper.unmount()
@@ -147,7 +147,7 @@ describe('DouColorPicker', () => {
     const wrapper = mountPicker({ modelValue: '#ff0000' })
     await wrapper.get('.dou-color-picker').trigger('click')
     // the format menu is a select sharing an edge with the text box
-    const format = document.querySelector<HTMLElement>('.dou-color-picker__format')!
+    const format = document.querySelector<HTMLElement>('.dou-color-panel__format')!
     expect(format.closest('.dou-field-group')).not.toBeNull()
     format.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
     await nextTick()
@@ -164,7 +164,7 @@ describe('DouColorPicker', () => {
     )!
     rgb.click()
     await nextTick()
-    const text = document.querySelector<HTMLInputElement>('.dou-color-picker__text input')!
+    const text = document.querySelector<HTMLInputElement>('.dou-color-panel__text input')!
     expect(text.value).toBe('255 0 0')
     // the arguments alone are read in the menu's format
     text.value = '0 0 255'
@@ -182,7 +182,7 @@ describe('DouColorPicker', () => {
       panel: ['square', 'wheel', 'oklch'],
     })
     await wrapper.get('.dou-color-picker').trigger('click')
-    const tabs = [...document.querySelectorAll<HTMLElement>('.dou-color-picker__tab')]
+    const tabs = [...document.querySelectorAll<HTMLElement>('.dou-color-panel__tab')]
     expect(tabs.map((tab) => tab.textContent!.trim())).toEqual(['色板', '色轮', 'OKLCH'])
     tabs[2]!.click()
     await nextTick()
@@ -191,7 +191,7 @@ describe('DouColorPicker', () => {
     key(sliders()[0]!, { key: 'ArrowUp', shiftKey: true })
     await nextTick()
     expect(wrapper.props('modelValue')).toBe('oklch(0.7 0.1 250)')
-    const number = document.querySelectorAll<HTMLInputElement>('.dou-color-picker__number')[2]!
+    const number = document.querySelectorAll<HTMLInputElement>('.dou-color-panel__number')[2]!
     number.value = '120'
     number.dispatchEvent(new Event('change'))
     await nextTick()

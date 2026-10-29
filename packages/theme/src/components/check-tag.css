@@ -1,0 +1,135 @@
+/*
+ * CheckTag
+ *
+ * A tag that can be pressed to select it, for filters and choices that
+ * read better as a row of chips. An unselected tag is a plain outline;
+ * a selected one is filled with its tone, so the selection is clear in
+ * a long row at a glance.
+ */
+@layer dou.components {
+  .dou-check-tag {
+    --dou-check-tag-tone: var(--dou-color-neutral);
+    --dou-check-tag-tone-on: var(--dou-color-neutral-on);
+
+    --dou-check-tag-height: 28px;
+    --dou-check-tag-padding-x: 10px;
+    --dou-check-tag-gap: 4px;
+    --dou-check-tag-font-size: var(--dou-font-size-sm);
+    --dou-check-tag-radius: var(--dou-radius-control);
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--dou-check-tag-gap);
+    box-sizing: border-box;
+    height: var(--dou-check-tag-height);
+    max-width: 100%;
+    padding: 0 var(--dou-check-tag-padding-x);
+    margin: 0;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-check-tag-radius);
+    background-color: var(--dou-color-bg-surface);
+    color: var(--dou-color-text-secondary);
+    font: inherit;
+    font-size: var(--dou-check-tag-font-size);
+    font-weight: var(--dou-font-weight-medium);
+    line-height: 1;
+    white-space: nowrap;
+    vertical-align: middle;
+    cursor: pointer;
+    user-select: none;
+    transition-property: background-color, border-color, color, box-shadow;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    &:hover:not(.is-checked, .is-disabled) {
+      border-color: var(--dou-color-border-strong);
+      background-color: color-mix(in oklab, var(--dou-color-text) 3%, var(--dou-color-bg-surface));
+      color: var(--dou-color-text);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 1px;
+    }
+
+    &.is-checked {
+      border-color: color-mix(in oklab, var(--dou-check-tag-tone) 90%, var(--dou-color-edge));
+      background-color: var(--dou-check-tag-tone);
+      box-shadow:
+        var(--dou-shadow-highlight),
+        0 1px 2px color-mix(in oklab, var(--dou-check-tag-tone) 22%, transparent);
+      color: var(--dou-check-tag-tone-on);
+    }
+
+    &.is-round {
+      --dou-check-tag-radius: var(--dou-radius-full);
+    }
+
+    &.is-disabled {
+      color: var(--dou-color-text-disabled);
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    &.is-disabled.is-checked {
+      border-color: transparent;
+      background-color: color-mix(in oklab, var(--dou-color-text) 10%, var(--dou-color-bg-surface));
+    }
+  }
+
+  .dou-check-tag--primary {
+    --dou-check-tag-tone: var(--dou-color-primary);
+    --dou-check-tag-tone-on: var(--dou-color-primary-on);
+  }
+  .dou-check-tag--success {
+    --dou-check-tag-tone: var(--dou-color-success);
+    --dou-check-tag-tone-on: var(--dou-color-success-on);
+  }
+  .dou-check-tag--warning {
+    --dou-check-tag-tone: var(--dou-color-warning);
+    --dou-check-tag-tone-on: var(--dou-color-warning-on);
+  }
+  .dou-check-tag--danger {
+    --dou-check-tag-tone: var(--dou-color-danger);
+    --dou-check-tag-tone-on: var(--dou-color-danger-on);
+  }
+
+  .dou-check-tag--sm {
+    --dou-check-tag-height: 24px;
+    --dou-check-tag-padding-x: 8px;
+    --dou-check-tag-gap: 3px;
+    --dou-check-tag-font-size: calc(var(--dou-font-size-sm) - 1px);
+    --dou-check-tag-radius: calc(var(--dou-radius-control) - 2px);
+  }
+  .dou-check-tag--lg {
+    --dou-check-tag-height: 32px;
+    --dou-check-tag-padding-x: 12px;
+    --dou-check-tag-gap: 6px;
+    --dou-check-tag-font-size: var(--dou-font-size-md);
+  }
+
+  .dou-check-tag__label {
+    /* center on the cap height, as tags do; clip sideways only */
+    text-box: trim-both cap alphabetic;
+    overflow-x: clip;
+    text-overflow: ellipsis;
+  }
+
+  .dou-check-tag__icon {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+
+    & > svg {
+      width: 1.1em;
+      height: 1.1em;
+    }
+  }
+
+  .dou-check-tag-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}

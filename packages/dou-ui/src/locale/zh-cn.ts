@@ -200,6 +200,16 @@ export const zhCN: Locale = {
   inputOtp: {
     label: '验证码',
   },
+  qrcode: {
+    label: '二维码：{value}',
+    expired: '二维码已过期',
+    refresh: '刷新',
+    loading: '二维码加载中',
+  },
+  calendarView: {
+    more: '还有 {count} 项',
+    dayWithEvents: '{date}，{count} 项日程',
+  },
   form: {
     optional: '可选',
     required: '此项为必填项',

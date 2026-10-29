@@ -63,7 +63,13 @@ describe('DouConfigProvider', () => {
         default: () => h(DouConfigProvider, { locale: en }, () => h(Probe)),
       },
     })
-    expect(seen!.value).toEqual({ size: 'lg', locale: en, zIndex: 3000, defaults: {} })
+    expect(seen!.value).toEqual({
+      size: 'lg',
+      locale: en,
+      zIndex: 3000,
+      defaults: {},
+      motion: 'auto',
+    })
   })
 
   it('accepts app-wide defaults through the plugin', () => {

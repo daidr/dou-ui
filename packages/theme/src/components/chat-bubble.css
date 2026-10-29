@@ -153,17 +153,14 @@
       height: 6px;
       border-radius: 50%;
       background-color: var(--dou-color-text-tertiary);
-      animation: dou-chat-bubble-dot 1.2s ease-in-out infinite;
+      animation: dou-chat-bubble-dot var(--dou-motion-loop-pulse) ease-in-out
+        var(--dou-motion-loop-count);
 
       &:nth-child(2) {
-        animation-delay: 0.15s;
+        animation-delay: calc(var(--dou-motion-loop-pulse) / 8);
       }
       &:nth-child(3) {
-        animation-delay: 0.3s;
-      }
-
-      @media (prefers-reduced-motion: reduce) {
-        animation: none;
+        animation-delay: calc(var(--dou-motion-loop-pulse) / 4);
       }
     }
   }

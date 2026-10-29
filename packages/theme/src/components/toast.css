@@ -183,25 +183,21 @@
   .dou-toast-leave-active {
     transition-property: opacity, transform;
     transition-duration: var(--dou-motion-duration-normal);
-    transition-timing-function: var(--dou-motion-easing);
+    transition-timing-function: var(--dou-motion-easing-enter);
+  }
+  .dou-toast-leave-active {
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing-exit);
   }
   .dou-toast-enter-from {
     opacity: 0;
-    transform: translateY(-8px) scale(0.98);
+    transform: translateY(calc(-1 * var(--dou-motion-distance-md))) scale(var(--dou-motion-scale));
   }
   .dou-toast[class*='dou-toast--bottom'] .dou-toast-enter-from {
-    transform: translateY(8px) scale(0.98);
+    transform: translateY(var(--dou-motion-distance-md)) scale(var(--dou-motion-scale));
   }
   .dou-toast-leave-to {
     opacity: 0;
-    transform: scale(0.98);
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .dou-toast-enter-from,
-    .dou-toast-leave-to,
-    .dou-toast[class*='dou-toast--bottom'] .dou-toast-enter-from {
-      transform: none;
-    }
+    transform: scale(var(--dou-motion-scale));
   }
 }

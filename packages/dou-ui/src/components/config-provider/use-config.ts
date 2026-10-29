@@ -10,6 +10,7 @@ const defaults: ResolvedGlobalConfig = {
   locale: zhCN,
   zIndex: 2000,
   defaults: {},
+  motion: 'auto',
 }
 
 function defined(config: GlobalConfig): GlobalConfig {

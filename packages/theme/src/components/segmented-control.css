@@ -84,7 +84,7 @@
 
   .dou-segmented-control.is-settled .dou-segmented-control__indicator {
     transition-property: transform, width;
-    transition-duration: var(--dou-motion-duration-normal);
+    transition-duration: calc(var(--dou-motion-duration-normal) * var(--dou-motion-travel));
     transition-timing-function: var(--dou-motion-easing);
   }
 
@@ -170,12 +170,5 @@
      * which vary by platform and by the fallback font that draws CJK text.
      */
     text-box: trim-both cap alphabetic;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .dou-segmented-control.is-settled .dou-segmented-control__indicator,
-    .dou-segmented-control__item {
-      transition: none;
-    }
   }
 }

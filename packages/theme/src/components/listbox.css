@@ -210,10 +210,4 @@
     font-size: var(--dou-font-size-sm);
     text-align: center;
   }
-
-  @media (prefers-reduced-motion: reduce) {
-    .dou-listbox {
-      transition: none;
-    }
-  }
 }

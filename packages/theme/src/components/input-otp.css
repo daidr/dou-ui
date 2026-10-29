@@ -105,7 +105,8 @@
     width: 1px;
     height: 1.1em;
     background-color: var(--dou-color-text);
-    animation: dou-input-otp-blink 1.1s step-end infinite;
+    /* blinks like a text caret, not on a motion token */
+    animation: dou-input-otp-blink 1s step-end var(--dou-motion-loop-count);
   }
 
   .dou-input-otp__separator {
@@ -149,15 +150,6 @@
   @keyframes dou-input-otp-blink {
     50% {
       opacity: 0;
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .dou-input-otp__cell {
-      transition: none;
-    }
-    .dou-input-otp__caret {
-      animation: none;
     }
   }
 }

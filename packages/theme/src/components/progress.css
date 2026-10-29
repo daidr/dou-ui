@@ -68,7 +68,8 @@
   .dou-progress:not(.dou-progress--ring).is-indeterminate .dou-progress__bar {
     right: auto;
     width: 40%;
-    animation: dou-progress-glide 1.4s var(--dou-motion-easing) infinite;
+    animation: dou-progress-glide calc(var(--dou-motion-loop-spin) * 2) var(--dou-motion-easing)
+      infinite;
   }
 
   /* the percentage inside a line bar */
@@ -153,7 +154,7 @@
     }
 
     &.is-indeterminate .dou-progress__svg {
-      animation: dou-progress-spin 1s linear infinite;
+      animation: dou-progress-spin var(--dou-motion-loop-spin) linear infinite;
     }
 
     & .dou-progress__value {
@@ -184,18 +185,6 @@
     }
     to {
       transform: translateX(250%);
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .dou-progress__bar {
-      transition: none;
-    }
-    .dou-progress--ring.is-indeterminate .dou-progress__svg {
-      animation-duration: 3s;
-    }
-    .dou-progress:not(.dou-progress--ring).is-indeterminate .dou-progress__bar {
-      animation-duration: 3s;
     }
   }
 }

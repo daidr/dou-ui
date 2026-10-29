@@ -8,6 +8,7 @@
 
 @import './generated/tokens.css';
 @import './base.css';
+@import './motion.css';
 @import './components/overlay.css';
 @import './components/affix.css';
 @import './components/alert.css';

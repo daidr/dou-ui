@@ -175,11 +175,4 @@
     min-width: 0;
     padding: var(--dou-layout-main-padding, 24px);
   }
-
-  @media (prefers-reduced-motion: reduce) {
-    .dou-layout-aside,
-    .dou-layout-aside__toggle {
-      transition: none;
-    }
-  }
 }

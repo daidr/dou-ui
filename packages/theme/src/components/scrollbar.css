@@ -127,11 +127,4 @@
   .dou-scrollbar.is-dragging {
     user-select: none;
   }
-
-  @media (prefers-reduced-motion: reduce) {
-    .dou-scrollbar__bar,
-    .dou-scrollbar__thumb {
-      transition: none;
-    }
-  }
 }

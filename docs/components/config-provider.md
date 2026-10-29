@@ -64,9 +64,16 @@ app.use(DouUI, {
 
 浮层默认渲染到 `<body>`。`teleport` 可以给子树里所有浮层统一换一个容器，比如微前端里挂到子应用自己的根节点；传 `false` 则原地渲染。单个组件上写的 `teleport` 优先。
 
-```vue
+````vue
 <DouConfigProvider teleport="#app">...</DouConfigProvider>
-```
+
+## 动效
+
+`motion` 设置动画的模式：`auto` 跟随系统的“减少动态效果”设置，`reduce` 只保留短暂的淡入淡出，`none` 关闭全部动画。浮层渲染在 `<body>` 下，所以这个设置作用于整个页面，组件卸载后恢复原来的值（见 [动效](../guide/motion#减少与关闭动画)）。
+
+```vue
+<DouConfigProvider motion="reduce">...</DouConfigProvider>
+````
 
 ## 应用级配置
 
@@ -88,11 +95,12 @@ provideGlobalConfig({ size: 'sm' })
 
 ## 在自己的组件中读取
 
-| 函数                | 说明                                                    |
-| ------------------- | ------------------------------------------------------- |
-| `useGlobalConfig()` | 当前生效的配置，已填好默认值                            |
-| `useLocale()`       | 返回 `{ locale, t }`，`t('form.required')` 读取一条文案 |
-| `useZIndex()`       | 返回 `{ base, current, next }`，`next()` 取一个新的层级 |
+| 函数                 | 说明                                                    |
+| -------------------- | ------------------------------------------------------- |
+| `useGlobalConfig()`  | 当前生效的配置，已填好默认值                            |
+| `useLocale()`        | 返回 `{ locale, t }`，`t('form.required')` 读取一条文案 |
+| `useZIndex()`        | 返回 `{ base, current, next }`，`next()` 取一个新的层级 |
+| `useReducedMotion()` | 是否应减少动画，见 [动效](../guide/motion#在脚本中使用) |
 
 ## API
 
@@ -105,6 +113,7 @@ provideGlobalConfig({ size: 'sm' })
 | `zIndex`   | 浮层的起始层级                         | `number`                         | `2000`   |
 | `teleport` | 浮层的默认渲染位置，`false` 为原地渲染 | `string \| HTMLElement \| false` | `'body'` |
 | `defaults` | 各组件的默认属性                       | `ComponentDefaults`              | —        |
+| `motion`   | 动画模式                               | `'auto' \| 'reduce' \| 'none'`   | `'auto'` |
 
 ### Slots
 
@@ -112,4 +121,4 @@ provideGlobalConfig({ size: 'sm' })
 | --------- | -------- |
 | `default` | 子树内容 |
 
-`DouConfigProvider` 不渲染任何元素，只提供配置。
+`DouConfigProvider` 不渲染任何元素，只提供配置（`motion` 除外，它写在 `<html>` 上）。

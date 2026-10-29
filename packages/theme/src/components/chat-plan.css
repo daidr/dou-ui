@@ -69,10 +69,6 @@
     }
   }
 
-  .dou-chat-plan__panel {
-    transition: height var(--dou-motion-duration-normal) var(--dou-motion-easing);
-  }
-
   .dou-chat-plan__list {
     display: flex;
     flex-direction: column;

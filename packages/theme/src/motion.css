@@ -1,0 +1,134 @@
+/*
+ * Motion modes and shared transitions.
+ *
+ * Components take every duration, curve and distance from the motion
+ * tokens. Reduced motion is applied by overriding those tokens, so one rule
+ * covers every component:
+ *
+ * - `prefers-reduced-motion: reduce`, unless the page sets a mode itself;
+ * - `data-dou-motion="reduce"`: no travel or scaling, short fades only,
+ *   decorative loops stop and spinners slow down;
+ * - `data-dou-motion="none"`: no motion at all.
+ *
+ * The overrides are `!important` so they also win over custom themes,
+ * which set every token again.
+ */
+@layer dou.tokens {
+  :root {
+    /* how much of a long move to play: drawers sliding, items reordering */
+    --dou-motion-travel: 1;
+    /* repeat count of loops that only decorate: placeholder sweeps, breathing */
+    --dou-motion-loop-count: infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :where(:root:not([data-dou-motion]), :root:not([data-dou-motion]) *) {
+      --dou-motion-duration-fast: var(--dou-motion-duration-instant) !important;
+      --dou-motion-duration-normal: var(--dou-motion-duration-instant) !important;
+      --dou-motion-duration-slow: var(--dou-motion-duration-instant) !important;
+      --dou-motion-distance-sm: 0px !important;
+      --dou-motion-distance-md: 0px !important;
+      --dou-motion-scale: 1 !important;
+      --dou-motion-loop-spin: 2s !important;
+      --dou-motion-travel: 0 !important;
+      --dou-motion-loop-count: 0 !important;
+    }
+  }
+
+  :where([data-dou-motion='reduce'], [data-dou-motion='reduce'] *) {
+    --dou-motion-duration-fast: var(--dou-motion-duration-instant) !important;
+    --dou-motion-duration-normal: var(--dou-motion-duration-instant) !important;
+    --dou-motion-duration-slow: var(--dou-motion-duration-instant) !important;
+    --dou-motion-distance-sm: 0px !important;
+    --dou-motion-distance-md: 0px !important;
+    --dou-motion-scale: 1 !important;
+    --dou-motion-loop-spin: 2s !important;
+    --dou-motion-travel: 0 !important;
+    --dou-motion-loop-count: 0 !important;
+  }
+
+  :where([data-dou-motion='none'], [data-dou-motion='none'] *) {
+    --dou-motion-duration-instant: 0s !important;
+    --dou-motion-duration-fast: 0s !important;
+    --dou-motion-duration-normal: 0s !important;
+    --dou-motion-duration-slow: 0s !important;
+    --dou-motion-distance-sm: 0px !important;
+    --dou-motion-distance-md: 0px !important;
+    --dou-motion-scale: 1 !important;
+    --dou-motion-loop-spin: 0s !important;
+    --dou-motion-loop-pulse: 0s !important;
+    --dou-motion-loop-sweep: 0s !important;
+    --dou-motion-travel: 0 !important;
+    --dou-motion-loop-count: 0 !important;
+  }
+}
+
+/*
+ * Transitions for `<Transition name="…">`. They enter over `normal` with the
+ * `enter` curve and leave over `fast` with the `exit` curve.
+ *
+ * - `dou-fade`: opacity only;
+ * - `dou-zoom`: fades in from slightly smaller;
+ * - `dou-slide-up` / `-down` / `-left` / `-right`: fades in while moving a
+ *   short distance in that direction.
+ */
+@layer dou.components {
+  :is(
+    .dou-fade-enter-active,
+    .dou-zoom-enter-active,
+    .dou-slide-up-enter-active,
+    .dou-slide-down-enter-active,
+    .dou-slide-left-enter-active,
+    .dou-slide-right-enter-active
+  ) {
+    transition-property: opacity, transform;
+    transition-duration: var(--dou-motion-duration-normal);
+    transition-timing-function: var(--dou-motion-easing-enter);
+  }
+
+  :is(
+    .dou-fade-leave-active,
+    .dou-zoom-leave-active,
+    .dou-slide-up-leave-active,
+    .dou-slide-down-leave-active,
+    .dou-slide-left-leave-active,
+    .dou-slide-right-leave-active
+  ) {
+    transition-property: opacity, transform;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing-exit);
+  }
+
+  :is(
+    .dou-fade-enter-from,
+    .dou-fade-leave-to,
+    .dou-zoom-enter-from,
+    .dou-zoom-leave-to,
+    .dou-slide-up-enter-from,
+    .dou-slide-up-leave-to,
+    .dou-slide-down-enter-from,
+    .dou-slide-down-leave-to,
+    .dou-slide-left-enter-from,
+    .dou-slide-left-leave-to,
+    .dou-slide-right-enter-from,
+    .dou-slide-right-leave-to
+  ) {
+    opacity: 0;
+  }
+
+  :is(.dou-zoom-enter-from, .dou-zoom-leave-to) {
+    transform: scale(var(--dou-motion-scale));
+  }
+  :is(.dou-slide-up-enter-from, .dou-slide-up-leave-to) {
+    transform: translateY(var(--dou-motion-distance-md));
+  }
+  :is(.dou-slide-down-enter-from, .dou-slide-down-leave-to) {
+    transform: translateY(calc(-1 * var(--dou-motion-distance-md)));
+  }
+  :is(.dou-slide-left-enter-from, .dou-slide-left-leave-to) {
+    transform: translateX(var(--dou-motion-distance-md));
+  }
+  :is(.dou-slide-right-enter-from, .dou-slide-right-leave-to) {
+    transform: translateX(calc(-1 * var(--dou-motion-distance-md)));
+  }
+}

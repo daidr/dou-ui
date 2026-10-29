@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ArrowUpIcon } from '@dou-ui/icons'
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useReducedMotion } from '../../composables/use-motion'
 import { useNamespace } from '../../utils/namespace'
 import { resolveScrollTarget, scrollTopOf } from '../../utils/scroll'
 import { useLocale } from '../config-provider/use-config'
@@ -17,6 +18,7 @@ const emit = defineEmits<{ click: [event: MouseEvent] }>()
 defineSlots<BackTopSlots>()
 
 const ns = useNamespace('back-top')
+const reducedMotion = useReducedMotion()
 const { t } = useLocale()
 
 const visible = ref(false)
@@ -38,8 +40,7 @@ watch(() => props.visibilityHeight, update)
 
 function onClick(event: MouseEvent) {
   emit('click', event)
-  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-  target?.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' })
+  target?.scrollTo({ top: 0, behavior: reducedMotion.value ? 'auto' : 'smooth' })
 }
 </script>
 

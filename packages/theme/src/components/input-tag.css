@@ -197,12 +197,4 @@
       color: var(--dou-color-text);
     }
   }
-
-  @media (prefers-reduced-motion: reduce) {
-    .dou-input-tag,
-    .dou-input-tag__tag,
-    .dou-input-tag__clear {
-      transition: none;
-    }
-  }
 }

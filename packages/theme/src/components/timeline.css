@@ -117,7 +117,8 @@
       border-radius: inherit;
       background-color: var(--dou-timeline-dot);
       content: '';
-      animation: dou-timeline-ripple 2s cubic-bezier(0.2, 0.6, 0.4, 1) infinite;
+      animation: dou-timeline-ripple var(--dou-motion-loop-sweep) var(--dou-motion-easing-enter)
+        var(--dou-motion-loop-count);
     }
   }
 
@@ -157,13 +158,22 @@
     min-width: 0;
   }
 
+  /* reduced or no motion: a still halo instead of the ripple */
   @media (prefers-reduced-motion: reduce) {
-    /* a still halo instead of the ripple */
-    .dou-timeline__item.is-active > .dou-timeline__rail > .dou-timeline__dot::after {
+    :root:not([data-dou-motion])
+      .dou-timeline__item.is-active
+      > .dou-timeline__rail
+      > .dou-timeline__dot::after {
       opacity: 0.2;
       transform: scale(1.8);
-      animation: none;
     }
+  }
+  :is([data-dou-motion='reduce'], [data-dou-motion='none'])
+    .dou-timeline__item.is-active
+    > .dou-timeline__rail
+    > .dou-timeline__dot::after {
+    opacity: 0.2;
+    transform: scale(1.8);
   }
 
   .dou-timeline__time {

@@ -135,11 +135,4 @@
     flex-direction: column;
     flex-wrap: nowrap;
   }
-
-  @media (prefers-reduced-motion: reduce) {
-    .dou-checkbox__indicator,
-    .dou-checkbox__indicator > svg {
-      transition: none;
-    }
-  }
 }

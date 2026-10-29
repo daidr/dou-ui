@@ -24,6 +24,47 @@ const text = (x: number, y: number, value: string, c = 'tx', anchor = 'middle') 
   `<text x="${x}" y="${y}" text-anchor="${anchor}" class="${c}">${value}</text>`
 const group = (transform: string, inner: string) => `<g transform="${transform}">${inner}</g>`
 
+/** Icons come from @dou-ui/icons itself, so the drawings use the real set. */
+const iconSources = import.meta.glob<string>(
+  [
+    '../../../packages/icons/icons/alert-circle.stroke.svg',
+    '../../../packages/icons/icons/arrow-left.stroke.svg',
+    '../../../packages/icons/icons/arrow-up.stroke.svg',
+    '../../../packages/icons/icons/bell.stroke.svg',
+    '../../../packages/icons/icons/bold.stroke.svg',
+    '../../../packages/icons/icons/calendar.stroke.svg',
+    '../../../packages/icons/icons/check-circle.stroke.svg',
+    '../../../packages/icons/icons/clock.stroke.svg',
+    '../../../packages/icons/icons/cloud-upload.stroke.svg',
+    '../../../packages/icons/icons/code.stroke.svg',
+    '../../../packages/icons/icons/heading.stroke.svg',
+    '../../../packages/icons/icons/heart.stroke.svg',
+    '../../../packages/icons/icons/home.stroke.svg',
+    '../../../packages/icons/icons/inbox.stroke.svg',
+    '../../../packages/icons/icons/info.stroke.svg',
+    '../../../packages/icons/icons/italic.stroke.svg',
+    '../../../packages/icons/icons/list.stroke.svg',
+    '../../../packages/icons/icons/mail.stroke.svg',
+    '../../../packages/icons/icons/moon.stroke.svg',
+    '../../../packages/icons/icons/pin.stroke.svg',
+    '../../../packages/icons/icons/plus.stroke.svg',
+    '../../../packages/icons/icons/search.stroke.svg',
+    '../../../packages/icons/icons/settings.stroke.svg',
+    '../../../packages/icons/icons/sliders.stroke.svg',
+    '../../../packages/icons/icons/sparkle.stroke.svg',
+    '../../../packages/icons/icons/star.stroke.svg',
+    '../../../packages/icons/icons/sun.stroke.svg',
+    '../../../packages/icons/icons/underline.stroke.svg',
+  ],
+  { query: '?raw', import: 'default', eager: true },
+)
+/** An icon from the set, centered on (cx, cy) at `size` units. */
+const icon = (name: string, cx: number, cy: number, size: number, c = 'ico') => {
+  const source = iconSources[`../../../packages/icons/icons/${name}.stroke.svg`]!
+  const inner = source.replace(/^[\s\S]*?<svg[^>]*>|<\/svg>\s*$/g, '')
+  return `<g transform="translate(${cx - size / 2} ${cy - size / 2}) scale(${size / 24})" class="${c}">${inner}</g>`
+}
+
 /** An input-like box with a placeholder line. */
 const field = (x: number, y: number, w: number, h = 24, fill = w * 0.4, c = 'p') =>
   rect(x, y, w, h, c, 5) + (fill ? bar(x + 10, y + h / 2 - 2, fill) : '')
@@ -79,9 +120,13 @@ const hue = (id: string) =>
     .join('')}</linearGradient>`
 /** A QR code position marker. */
 const finder = (x: number, y: number) =>
-  rect(x, y, 21, 21, 'k', 3) +
-  rect(x + 3, y + 3, 15, 15, 'bg', 1.5) +
-  rect(x + 6, y + 6, 9, 9, 'k', 1)
+  rect(x, y, 28, 28, 'k', 4) +
+  rect(x + 4, y + 4, 20, 20, 'bg', 2) +
+  rect(x + 8, y + 8, 12, 12, 'k', 2)
+
+/** The position markers and their quiet edges in a 21 × 21 QR code. */
+const qrReserved = (row: number, col: number) =>
+  (row < 8 && col < 8) || (row < 8 && col > 12) || (row > 12 && col < 8)
 
 /** A tiny pseudo-random generator, so drawings stay the same between builds. */
 function random(seed: number) {
@@ -95,29 +140,26 @@ const arts: Record<string, string | ((id: string) => string)> = {
   // basics
   button:
     rect(36, 32, 72, 28, 'k', 6) +
-    plus(50, 46, 'lon w15', 4) +
+    icon('plus', 50, 46, 16, 'ico-on') +
     bar(60, 44, 36, 'on') +
     button(116, 32, 48, 'p', 28) +
     rect(36, 68, 56, 28, 'as', 6) +
     bar(50, 80, 28, 'a') +
     bar(104, 80, 24, 't') +
     rect(136, 68, 28, 28, 'p', 6) +
-    circle(149, 81, 4, 'lk w15') +
-    path('M152 84l3 3', 'lk w15'),
+    icon('search', 150, 82, 16),
   toggle:
     rect(36, 38, 128, 44, 'p', 8) +
     rect(40, 42, 36, 36, 'm', 5) +
-    text(58, 66.5, 'B', 'tx bold big') +
-    text(100, 66.5, 'I', 'tx2 italic big') +
-    text(142, 66.5, 'U', 'tx2 underline big'),
-  icon: group(
-    'translate(-6 0)',
-    path('M44 86v-24l24 -20l24 20v24z', 'lk w15 join') +
-      path('M60 86v-12h16v12', 'lk w15 join') +
-      star(124, 68, 16, 'lk w15') +
-      circle(160, 76, 6, 'lk w15') +
-      path('M164.5 80.5l4 4', 'lk w15'),
-  ),
+    icon('bold', 58, 60, 20) +
+    icon('italic', 100, 60, 20, 'ico-2') +
+    icon('underline', 142, 60, 20, 'ico-2'),
+  icon: [
+    ['home', 'search', 'heart', 'bell'],
+    ['star', 'settings', 'calendar', 'mail'],
+  ]
+    .flatMap((row, r) => row.map((name, i) => icon(name, 52 + i * 32, 44 + r * 32, 24)))
+    .join(''),
   text:
     bar(40, 38, 72, 'k', 6) +
     lines(40, 54, [120, 104], 10) +
@@ -197,9 +239,9 @@ const arts: Record<string, string | ((id: string) => string)> = {
   toolbar:
     rect(28, 40, 144, 40, 'p', 8) +
     rect(32, 44, 28, 32, 'm', 5) +
-    path('M41 54v12M51 54v12M41 60h10', 'lk w15') +
-    circle(78, 60, 5, 'lk w15') +
-    path('M103 55h14M103 60h14M103 65h9', 'lk w15') +
+    icon('heading', 46, 60, 18) +
+    icon('bold', 78, 60, 18, 'ico-2') +
+    icon('list', 110, 60, 18, 'ico-2') +
     path('M132 48v24', 'lb') +
     bar(140, 58, 16) +
     chevronDown(164, 60),
@@ -242,8 +284,7 @@ const arts: Record<string, string | ((id: string) => string)> = {
     lines(58, 52, [80, 64, 76, 52], 11) +
     rect(52, 26, 96, 18, 'p f', 5) +
     bar(60, 33, 40, 'k') +
-    circle(138, 33, 3.5, 'k') +
-    path('M138 36.5v4', 'lk w15'),
+    icon('pin', 138, 35, 14),
 
   // form
   input:
@@ -410,16 +451,14 @@ const arts: Record<string, string | ((id: string) => string)> = {
     text(95, 65.5, '10', 'tx mono mid') +
     text(110, 65.5, '/', 'tx3 mono mid') +
     text(125, 65.5, '29', 'tx mono mid') +
-    rect(152, 53, 12, 13, 'lk', 2) +
-    path('M152 57.5h12M155.5 51v4M160.5 51v4', 'lk'),
+    icon('calendar', 156, 60, 18),
   'input-time':
     rect(44, 42, 112, 36, 'ps', 6) +
     rect(54, 46, 28, 28, 'as', 4) +
     text(68, 66.5, '09', 'tx mono big') +
     text(86, 66, ':', 'tx3 mono big') +
     text(104, 66.5, '30', 'tx mono big') +
-    circle(138, 60, 7, 'lk') +
-    path('M138 56v4l3 2', 'lk'),
+    icon('clock', 138, 60, 18),
   'color-picker': (id) =>
     `<defs><linearGradient id="${id}-s"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#4a63c4"/></linearGradient><linearGradient id="${id}-v" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000"/></linearGradient>${hue(id)}</defs>` +
     rect(48, 14, 32, 24, 'ps', 5) +
@@ -479,8 +518,7 @@ const arts: Record<string, string | ((id: string) => string)> = {
     bar(124, 74, 20, 'on'),
   upload:
     rect(36, 16, 128, 54, 'pm dash', 8) +
-    path('M93 46h-6a7 7 0 0 1 0 -14a9 9 0 0 1 17 -2a7 7 0 0 1 3 16h-6', 'lk w15') +
-    path('M100 52v-14M95 42l5 -5l5 5', 'lk w15') +
+    icon('cloud-upload', 100, 43, 28) +
     rect(36, 78, 128, 26, 'p', 6) +
     rect(44, 85, 10, 12, 'lk', 2) +
     bar(62, 86, 48) +
@@ -566,9 +604,7 @@ const arts: Record<string, string | ((id: string) => string)> = {
     rect(42, 14, 116, 58, 'p f', 8) +
     path('M94 72l6 6l6 -6', 'p lb') +
     rect(94, 70, 12, 3, 'p0s') +
-    circle(58, 30, 6, 'ws') +
-    path('M58 27v3', 'lw w15') +
-    circle(58, 33, 0.6, 'lw w15') +
+    icon('alert-circle', 58, 30, 14, 'ico-w') +
     bar(70, 28, 56, 'k') +
     button(92, 48, 26, 'p', 16) +
     button(122, 48, 26, 'k', 16),
@@ -591,13 +627,10 @@ const arts: Record<string, string | ((id: string) => string)> = {
   // feedback
   alert:
     rect(32, 28, 136, 28, 'as', 6) +
-    circle(46, 42, 6, 'la w15') +
-    path('M46 41v4', 'la w15') +
-    circle(46, 38.5, 0.6, 'la w15') +
+    icon('info', 46, 42, 16, 'ico-a') +
     bar(58, 40, 64, 'a') +
     rect(32, 64, 136, 28, 'gs', 6) +
-    circle(46, 78, 6, 'lg w15') +
-    check(46, 78, 'lg w15') +
+    icon('check-circle', 46, 78, 16, 'ico-g') +
     bar(58, 76, 80, 'g'),
   banner:
     rect(28, 16, 144, 88, 'p', 8) +
@@ -680,7 +713,7 @@ const arts: Record<string, string | ((id: string) => string)> = {
     bar(90, 64, 48, 't'),
   badge:
     rect(40, 36, 48, 48, 'p', 10) +
-    path('M55 67v-7a9 9 0 0 1 18 0v7l2 2h-22z M61 72a3 3 0 0 0 6 0', 'lk w15 join') +
+    icon('bell', 64, 60, 26) +
     circle(87, 37, 8, 'r') +
     text(87, 41, '3', 'tx on-tone small') +
     avatar(132, 60, 24, 'm') +
@@ -703,11 +736,7 @@ const arts: Record<string, string | ((id: string) => string)> = {
         rect(30 + i * 50, 38, 40, 44, 'p kbd', 8) + text(50 + i * 50, 67, key, 'tx bigger'),
     )
     .join(''),
-  empty:
-    path('M70 50l9 -18h42l9 18v20a4 4 0 0 1 -4 4h-52a4 4 0 0 1 -4 -4z', 'm lk join') +
-    path('M70 50h17l4 7h18l4 -7h17', 'lk join') +
-    bar(76, 84, 48, 't') +
-    bar(56, 96, 88, 'b'),
+  empty: icon('inbox', 100, 50, 48) + bar(76, 84, 48, 't') + bar(56, 96, 88, 'b'),
   statistic:
     bar(40, 30, 56, 't') +
     text(40, 68, '128,430', 'tx stat-lg', 'start') +
@@ -755,15 +784,19 @@ const arts: Record<string, string | ((id: string) => string)> = {
       .join('') +
     '</g>',
   qrcode: () => {
-    const next = random(7)
-    let cells = ''
-    for (let row = 0; row < 11; row++) {
-      for (let col = 0; col < 11; col++) {
-        const inFinder = (row < 4 && col < 4) || (row < 4 && col > 6) || (row > 6 && col < 4)
-        if (!inFinder && next() > 0.52) cells += rect(62 + col * 7, 22 + row * 7, 6, 6, 'k', 1)
+    // A 21 × 21 code: three position markers, the timing lines and data.
+    const next = random(11)
+    const size = 4
+    let modules = ''
+    for (let row = 0; row < 21; row++) {
+      for (let col = 0; col < 21; col++) {
+        if (qrReserved(row, col)) continue
+        const timing = row === 6 || col === 6
+        const on = timing ? (row + col) % 2 === 0 : next() > 0.5
+        if (on) modules += `M${58 + col * size} ${18 + row * size}h${size}v${size}h${-size}z`
       }
     }
-    return finder(62, 22) + finder(111, 22) + finder(62, 71) + cells
+    return finder(58, 18) + finder(114, 18) + finder(58, 74) + `<path d="${modules}" class="k"/>`
   },
   watermark:
     rect(36, 18, 128, 84, 'p', 8) +
@@ -860,13 +893,18 @@ const arts: Record<string, string | ((id: string) => string)> = {
     }
     return cells + bar(29, 98, 28, 't')
   },
-  sparkline: (id) =>
-    `<defs><linearGradient id="${id}-a" x2="0" y2="1"><stop offset="0" class="stop-ink" stop-opacity=".16"/><stop offset="1" class="stop-ink" stop-opacity="0"/></linearGradient></defs>` +
-    bar(40, 26, 28, 't') +
-    text(40, 52, '2,846', 'tx stat-sm', 'start') +
-    `<path d="M40 92l12 -8l12 4l12 -12l12 6l12 -14l12 4l12 -16l12 8l12 -10v38h-120z" fill="url(#${id}-a)"/>` +
-    path('M40 92l12 -8l12 4l12 -12l12 6l12 -14l12 4l12 -16l12 8l12 -10', 'lk w15 join') +
-    circle(160, 54, 3, 'k'),
+  sparkline: (id) => {
+    const values = [94, 86, 90, 80, 84, 72, 76, 62, 66, 54, 48]
+    const line = values.map((y, i) => `${i ? 'L' : 'M'}${40 + i * 12} ${y}`).join('')
+    return (
+      `<defs><linearGradient id="${id}-a" x2="0" y2="1"><stop offset="0" class="stop-ink" stop-opacity=".16"/><stop offset="1" class="stop-ink" stop-opacity="0"/></linearGradient></defs>` +
+      bar(40, 26, 28, 't') +
+      text(40, 52, '2,846', 'tx stat-sm', 'start') +
+      `<path d="${line}V100H40Z" fill="url(#${id}-a)"/>` +
+      path(line, 'lk w15 join') +
+      circle(160, 48, 3, 'k')
+    )
+  },
   table:
     rect(24, 20, 152, 80, 'p', 8) +
     `<path d="M24 38v-10a8 8 0 0 1 8 -8h136a8 8 0 0 1 8 8v10z" class="m"/>` +
@@ -992,7 +1030,7 @@ const arts: Record<string, string | ((id: string) => string)> = {
     bar(36, 52, 72, 'b', 8) +
     lines(36, 72, [128, 112, 96], 10, 'b'),
   'page-header':
-    path('M40 46l-6 6l6 6M34 52h14', 'lk w15') +
+    icon('arrow-left', 40, 52, 20) +
     bar(58, 46, 44, 'k', 8) +
     bar(58, 64, 64, 't') +
     button(124, 44, 26, 'p', 18) +
@@ -1014,8 +1052,7 @@ const arts: Record<string, string | ((id: string) => string)> = {
     chevronRight(172, 60),
   command:
     rect(32, 14, 136, 92, 'p f', 10) +
-    circle(46, 30, 4, 'lk') +
-    path('M49 33l3 3', 'lk') +
+    icon('search', 46, 30, 16) +
     bar(58, 28, 40, 'k') +
     path('M32 44h136', 'lb') +
     bar(42, 52, 20, 't', 3) +
@@ -1029,7 +1066,7 @@ const arts: Record<string, string | ((id: string) => string)> = {
     rect(40, 14, 120, 92, 'p', 8) +
     lines(52, 26, [96, 80, 88, 64, 76], 12, 'b') +
     circle(136, 84, 12, 'p f') +
-    path('M131 86l5 -5l5 5M136 81v9', 'lk w15'),
+    icon('arrow-up', 136, 84, 16),
 
   // chat
   'chat-message':
@@ -1050,11 +1087,11 @@ const arts: Record<string, string | ((id: string) => string)> = {
   'chat-input':
     rect(28, 28, 144, 64, 'p f', 12) +
     bar(40, 42, 76) +
-    rect(40, 70, 14, 14, 'ln', 4) +
-    plus(47, 77, 'lk', 3) +
+    rect(38, 68, 18, 18, 'p', 5) +
+    icon('plus', 47, 77, 14) +
     bar(62, 75, 28, 't') +
     circle(152, 77, 9, 'k') +
-    path('M152 81v-8M148.5 76.5l3.5 -3.5l3.5 3.5', 'lon w15'),
+    icon('arrow-up', 152, 77, 14, 'ico-on'),
   'stream-text':
     lines(36, 34, [128, 116, 124], 13) +
     bar(36, 73, 44) +
@@ -1099,7 +1136,7 @@ const arts: Record<string, string | ((id: string) => string)> = {
   'chat-tool-call':
     rect(32, 18, 136, 84, 'p', 8) +
     rect(42, 28, 16, 16, 'm', 4) +
-    path('M48 33l-3 3l3 3M52 33l3 3l-3 3', 'lk') +
+    icon('code', 50, 36, 14) +
     bar(66, 34, 48, 'k') +
     circle(152, 36, 6, 'gs') +
     check(152, 36, 'lg') +
@@ -1133,9 +1170,7 @@ const arts: Record<string, string | ((id: string) => string)> = {
     chevronRight(150, 60),
   'chat-confirm':
     rect(32, 26, 136, 68, 'p', 10) +
-    circle(48, 42, 6, 'ws') +
-    path('M48 39v3', 'lw w15') +
-    circle(48, 45, 0.6, 'lw w15') +
+    icon('alert-circle', 48, 42, 14, 'ico-w') +
     bar(60, 40, 64, 'k') +
     rect(44, 52, 112, 14, 'm', 4) +
     bar(50, 57, 60, 't') +
@@ -1173,10 +1208,10 @@ const arts: Record<string, string | ((id: string) => string)> = {
     bar(104, 72, 56, 't') +
     bar(104, 82, 36, 'b'),
   shimmer: (id) =>
-    `<defs><linearGradient id="${id}-g" x1="30" x2="170" gradientUnits="userSpaceOnUse"><stop offset=".15" class="stop-t"/><stop offset=".5" class="stop-ink"/><stop offset=".85" class="stop-t"/></linearGradient></defs>` +
-    path('M44 44l1.8 4.2l4.2 1.8l-4.2 1.8l-1.8 4.2l-1.8 -4.2l-4.2 -1.8l4.2 -1.8z', 'k') +
-    `<text x="60" y="58" class="tx bigger" style="fill:url(#${id}-g)">正在思考…</text>` +
-    `<text x="60" y="80" class="tx mid" style="fill:url(#${id}-g)">搜索了 3 个网页</text>`,
+    `<defs><linearGradient id="${id}-g" x1="30" x2="170" gradientUnits="userSpaceOnUse"><stop offset=".3" class="stop-t"/><stop offset=".5" class="stop-ink"/><stop offset=".7" class="stop-t"/></linearGradient></defs>` +
+    icon('sparkle', 36, 52, 16, 'ico-solid') +
+    `<text x="50" y="59" class="tx bigger" style="fill:url(#${id}-g)">正在搜索资料</text>` +
+    `<text x="50" y="82" class="tx mid" style="fill:url(#${id}-g)">已阅读 3 个网页</text>`,
   'chat-bubble':
     avatar(40, 34, 10) +
     `<path d="M56 26h56a8 8 0 0 1 8 8v4a8 8 0 0 1 -8 8h-52a4 4 0 0 1 -4 -4z" class="m"/>` +
@@ -1190,9 +1225,7 @@ const arts: Record<string, string | ((id: string) => string)> = {
   'config-provider':
     rect(28, 14, 144, 92, 'pm dash', 10) +
     rect(36, 22, 60, 16, 'p', 4) +
-    path('M42 27h12M42 33h12', 'ln') +
-    circle(46, 27, 2, 'k') +
-    circle(51, 33, 2, 'k') +
+    icon('sliders', 48, 30, 13) +
     bar(60, 28, 28, 't') +
     button(40, 50, 48, 'k', 20) +
     field(96, 50, 64, 20, 28) +
@@ -1202,9 +1235,8 @@ const arts: Record<string, string | ((id: string) => string)> = {
   'color-mode':
     `<path d="M100 22h-64a8 8 0 0 0 -8 8v60a8 8 0 0 0 8 8h64z" class="light-frame"/>` +
     `<path d="M100 22h64a8 8 0 0 1 8 8v60a8 8 0 0 1 -8 8h-64z" class="dark-frame"/>` +
-    circle(52, 44, 7, 'sun') +
-    path('M52 31v3M52 54v3M39 44h3M62 44h3', 'sun-ray') +
-    path('M154 38a9 9 0 1 0 6 12a7 7 0 0 1 -6 -12z', 'moon') +
+    icon('sun', 52, 44, 26, 'ico-sun') +
+    icon('moon', 148, 44, 24, 'ico-moon') +
     bar(40, 70, 48, 'light-bar') +
     bar(40, 80, 32, 'light-bar') +
     bar(112, 70, 48, 'dark-bar') +

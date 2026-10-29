@@ -1231,6 +1231,60 @@ body {
   stroke-width: 5;
 }
 
+.doc-overview__art .ico,
+.doc-overview__art [class^='ico-'] {
+  fill: none;
+  stroke: var(--ov-ink);
+}
+
+.doc-overview__art .ico *,
+.doc-overview__art [class^='ico-'] * {
+  stroke-width: 1.5px;
+}
+
+.doc-overview__art .ico .dot,
+.doc-overview__art [class^='ico-'] .dot {
+  stroke-width: 2.25px;
+}
+
+.doc-overview__art .ico .fill,
+.doc-overview__art [class^='ico-'] .fill {
+  fill: currentColor;
+  stroke: none;
+}
+
+.doc-overview__art .ico-solid {
+  fill: var(--ov-ink);
+}
+
+.doc-overview__art .ico-on {
+  stroke: var(--ov-on);
+}
+
+.doc-overview__art .ico-2 {
+  stroke: var(--dou-color-text-secondary);
+}
+
+.doc-overview__art .ico-a {
+  stroke: var(--dou-color-primary);
+}
+
+.doc-overview__art .ico-g {
+  stroke: var(--dou-color-success);
+}
+
+.doc-overview__art .ico-w {
+  stroke: var(--dou-color-warning);
+}
+
+.doc-overview__art .ico-sun {
+  stroke: #171717;
+}
+
+.doc-overview__art .ico-moon {
+  stroke: #ededed;
+}
+
 .doc-overview__art .w15 {
   stroke-width: 1.5;
 }

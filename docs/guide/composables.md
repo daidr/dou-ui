@@ -19,6 +19,7 @@ DouUI 的组件建立在一组组合式函数上。下面这些已经导出，�
 | `useSortable`                                     | 给任意列表加上拖拽与键盘排序                           | [Sortable](../components/sortable)                                 |
 | `useDialog`                                       | 在组件里调用 `confirm` / `alert` / `prompt`            | [Dialog](../components/dialog)                                     |
 | `useReducedMotion` / `getMotionDuration`          | 让脚本驱动的动画遵循动效设置                           | [动效](./motion#在脚本中使用)                                      |
+| `useRovingFocus`                                  | 一组控件只占一个 `Tab` 位置，用方向键在其中移动        | [Toolbar](../components/toolbar#键盘与读屏)                        |
 | `useBreakpoints`                                  | 读取视口当前达到的断点                                 | [断点](./breakpoints#在脚本中使用)                                 |
 | `useClipboard`                                    | 复制文本，并在复制成功后的一段时间内给出 `copied`      | [下文](#useclipboard)                                              |
 

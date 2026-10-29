@@ -77,6 +77,7 @@ export default defineConfig({
           text: '基础',
           items: [
             { text: 'Button 按钮', link: '/components/button' },
+            { text: 'Toggle 切换按钮', link: '/components/toggle' },
             { text: 'Icon 图标', link: '/components/icon' },
             { text: 'Text 文本', link: '/components/text' },
             { text: 'Ellipsis 文本省略', link: '/components/ellipsis' },
@@ -91,6 +92,7 @@ export default defineConfig({
           items: [
             { text: 'Divider 分割线', link: '/components/divider' },
             { text: 'Space 间距', link: '/components/space' },
+            { text: 'Toolbar 工具栏', link: '/components/toolbar' },
             { text: 'Grid 栅格', link: '/components/grid' },
             { text: 'Masonry 瀑布流', link: '/components/masonry' },
             { text: 'Splitter 分割面板', link: '/components/splitter' },

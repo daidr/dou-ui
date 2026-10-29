@@ -95,6 +95,8 @@
 @import './components/textarea.css';
 @import './components/time-picker.css';
 @import './components/timeline.css';
+@import './components/toggle.css';
+@import './components/toolbar.css';
 @import './components/toast.css';
 @import './components/tooltip.css';
 @import './components/tour.css';

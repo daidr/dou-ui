@@ -16,6 +16,9 @@
     --dou-steps-line: var(--dou-color-border);
     --dou-steps-line-done: color-mix(in oklab, var(--dou-color-text) 72%, transparent);
 
+    /* holds the visually hidden status text, which would otherwise
+       escape a scrolling parent and widen the page */
+    position: relative;
     display: flex;
     min-width: 0;
     margin: 0;

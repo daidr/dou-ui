@@ -11,7 +11,7 @@
     <DouInputNumber size="lg" :model-value="1" />
     <DouButton size="lg" variant="outline">应用</DouButton>
   </DouSpace>
-  <DouSpace size="sm">
+  <DouSpace size="sm" wrap>
     <DouInputNumber :model-value="5" invalid />
     <DouInputNumber :model-value="5" readonly />
     <DouInputNumber :model-value="5" disabled />

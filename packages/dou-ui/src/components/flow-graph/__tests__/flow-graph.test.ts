@@ -195,6 +195,6 @@ describe('DouFlowGraphLegend', () => {
   it('lists everything without nodes', () => {
     const wrapper = mount(DouFlowGraphLegend)
     expect(wrapper.findAll('li')).toHaveLength(9)
-    expect(wrapper.find('.dou-flow-graph-legend__title').text()).toBe('节点图例')
+    expect(wrapper.find('.dou-flow-graph-legend__title').text()).toBe('图例')
   })
 })

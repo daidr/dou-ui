@@ -7,8 +7,9 @@ import {
   PieChartIcon,
   BarChartIcon,
   SendIcon,
-  SparkleIcon,
+  BellIcon,
 } from '@dou-ui/icons'
+import { ref } from 'vue'
 
 const nodes = [
   { id: 'orders', label: '拉取订单', icon: DatabaseIcon, extra: '1.2 GB', status: 'finish' },
@@ -42,6 +43,12 @@ const edges = [
   { from: 'category', to: 'report' },
   { from: 'report', to: 'push' },
 ]
+const watching = ref(new Set(['region']))
+function toggle(id) {
+  const next = new Set(watching.value)
+  if (!next.delete(id)) next.add(id)
+  watching.value = next
+}
 </script>
 
 <template>
@@ -49,17 +56,19 @@ const edges = [
     <template #corner="{ node }">
       <button
         type="button"
-        :class="['ai-button', { 'is-done': node.status === 'finish' }]"
-        :aria-label="`${node.label}：智能分析`"
+        :class="['bell', { 'is-on': watching.has(node.id) }]"
+        :aria-label="`${node.label}：完成时提醒我`"
+        :aria-pressed="watching.has(node.id)"
+        @click="toggle(node.id)"
       >
-        <SparkleIcon />
+        <BellIcon />
       </button>
     </template>
   </DouFlowGraph>
 </template>
 
 <style scoped>
-.ai-button {
+.bell {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -74,11 +83,11 @@ const edges = [
   cursor: pointer;
 }
 
-.ai-button.is-done {
-  color: var(--dou-color-success);
+.bell.is-on {
+  color: var(--dou-color-primary);
 }
 
-.ai-button svg {
+.bell svg {
   width: 12px;
   height: 12px;
 }

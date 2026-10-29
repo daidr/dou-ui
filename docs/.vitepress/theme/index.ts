@@ -1,6 +1,7 @@
 import type { Theme } from 'vitepress'
 import DouUI, { useColorMode } from 'dou-ui'
 import 'dou-ui/style.css'
+import '@dou-ui/editor/style.css'
 import './style.css'
 import Layout from './Layout.vue'
 import DocCode from './components/DocCode.vue'

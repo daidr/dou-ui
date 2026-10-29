@@ -8,6 +8,7 @@
     "preview": "vitepress preview"
   },
   "dependencies": {
+    "@dou-ui/editor": "workspace:*",
     "@dou-ui/icons": "workspace:*",
     "@dou-ui/theme": "workspace:*",
     "dou-ui": "workspace:*"

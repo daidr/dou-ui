@@ -16,7 +16,7 @@
 
 ## 搜索
 
-`filterable` 把字段变成输入框，输入时在所有完整路径里查找，结果是一列"浙江 / 杭州 / 滨江区"这样的路径。
+`filterable` 把字段变成输入框，输入时在所有完整路径里查找，结果是一列“浙江 / 杭州 / 滨江区”这样的路径。
 
 <DocDemo src="cascader/search" />
 
@@ -26,7 +26,7 @@
 
 <DocDemo src="cascader/multiple" />
 
-`check-strictly` 让每一级各自勾选，互不牵连，值里存的就是勾选的那些路径，适合"按省或按市都能选"的场景。`max-tag-count` 和 Select 一样，把多出的标签折叠成"+N"。
+`check-strictly` 让每一级各自勾选，互不牵连，值里存的就是勾选的那些路径，适合“按省或按市都能选”的场景。`max-tag-count` 和 Select 一样，把多出的标签折叠成“+N”。
 
 <DocDemo src="cascader/multiple-2" />
 

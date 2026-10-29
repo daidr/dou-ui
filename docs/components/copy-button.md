@@ -6,7 +6,7 @@
 
 <DocDemo src="copy-button/basic" />
 
-`variant` 可选 `ghost`（默认，放在代码块之类的容器里）和 `outline`。`show-label` 把"复制 / 已复制"写出来；否则文字只给读屏和悬停提示。
+`variant` 可选 `ghost`（默认，放在代码块之类的容器里）和 `outline`。`show-label` 把“复制 / 已复制”写出来；否则文字只给读屏和悬停提示。
 
 ## 放在代码块里
 
@@ -22,7 +22,7 @@
 
 ## 读屏
 
-按钮的名称是"复制"，成功后变成"已复制"，同时通过 `role="status"` 播报一次。
+按钮的名称是“复制”，成功后变成“已复制”，同时通过 `role="status"` 播报一次。
 
 ## API
 
@@ -36,7 +36,7 @@
 | `showLabel`   | 显示文字                     | `boolean`                                   | `false`   |
 | `size`        | 尺寸                         | `'sm' \| 'md'`                              | `'md'`    |
 | `variant`     | 外观                         | `'ghost' \| 'outline'`                      | `'ghost'` |
-| `duration`    | "已复制"状态持续多久（ms）   | `number`                                    | `2000`    |
+| `duration`    | “已复制”状态持续多久（ms）   | `number`                                    | `2000`    |
 | `disabled`    | 禁用                         | `boolean`                                   | `false`   |
 
 ### CopyButton Events

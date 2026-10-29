@@ -1,6 +1,6 @@
 # Nuxt
 
-`@dou-ui/nuxt` 是 DouUI 的 Nuxt 模块。装上之后，组件、指令和常用函数都能直接使用，样式和配色模式也一并处理好，服务端渲染开箱即用。需要 Nuxt 4。
+`@dou-ui/nuxt` 是 DouUI 的 Nuxt 模块。安装后可以直接使用组件、指令和常用函数，并自动处理样式和配色模式，支持服务端渲染。需要 Nuxt 4。
 
 ## 安装
 
@@ -38,7 +38,7 @@ function save() {
 - **指令**：注册 `v-loading` 与 `v-infinite-scroll`。
 - **函数**：自动导入 `toast`、`dialog`、`useDialog`、`useColorMode`、`useCountdown`、`useSortable`，以及 `vLoading`、`vInfiniteScroll`。
 - **样式**：默认引入全量样式表，也可以改成按组件引入。
-- **配色模式**：在 `<head>` 里放一段很小的脚本，页面在第一次绘制前就切到用户选过的明暗模式，不会先亮后暗地闪一下。
+- **配色模式**：在 `<head>` 里放一段很小的脚本，在页面首次绘制前应用用户选择的明暗模式，避免页面闪烁。
 
 ## 选项
 

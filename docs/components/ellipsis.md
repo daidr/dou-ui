@@ -12,7 +12,7 @@
 
 ## 展开与收起
 
-`expandable` 在最后一行末尾放一个"展开"按钮，展开后变为"收起"。按钮只在文字确实被截断时出现，容器宽度变化时会重新判断。用 `v-model:expanded` 可以读取或控制展开状态，`toggle` 插槽可以替换按钮文字。
+`expandable` 在最后一行末尾放一个“展开”按钮，展开后变为“收起”。按钮只在文字确实被截断时出现，容器宽度变化时会重新判断。用 `v-model:expanded` 可以读取或控制展开状态，`toggle` 插槽可以替换按钮文字。
 
 <DocDemo src="ellipsis/expandable" column />
 

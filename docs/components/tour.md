@@ -16,7 +16,7 @@
 
 <DocDemo src="tour/center" />
 
-DouTour 不记录用户是否看过引导。需要"只显示一次"时，在 `finish` 和 `close` 事件里自己保存状态，下次不再打开。
+DouTour 不记录用户是否看过引导。需要“只显示一次”时，在 `finish` 和 `close` 事件里自己保存状态，下次不再打开。
 
 ## 遮罩与关闭
 
@@ -43,7 +43,7 @@ DouTour 不记录用户是否看过引导。需要"只显示一次"时，在 `fi
 | `closeOnEscape` | 按 `Esc` 关闭                    | `boolean`                        | `true`     |
 | `placement`     | 卡片相对目标的默认位置           | `Placement`                      | `'bottom'` |
 | `padding`       | 亮区比目标向外多出的距离（px）   | `number`                         | `6`        |
-| `showProgress`  | 底部显示"当前 / 总数"            | `boolean`                        | `true`     |
+| `showProgress`  | 底部显示“当前 / 总数”            | `boolean`                        | `true`     |
 | `teleport`      | 渲染位置，`false` 为原地渲染     | `string \| HTMLElement \| false` | `'body'`   |
 
 ### TourStep
@@ -63,7 +63,7 @@ DouTour 不记录用户是否看过引导。需要"只显示一次"时，在 `fi
 | `update:open`    | 打开或关闭                               | `(open: boolean)`   |
 | `update:current` | 切换步骤                                 | `(current: number)` |
 | `change`         | 切换步骤                                 | `(current: number)` |
-| `finish`         | 在最后一步按下"完成"                     | —                   |
+| `finish`         | 在最后一步按下“完成”                     | —                   |
 | `close`          | 中途关闭：关闭按钮、`Esc` 或点击变暗区域 | —                   |
 
 ### Slots

@@ -12,7 +12,7 @@
 
 默认是模糊匹配：只要字母按顺序出现就算匹配，连续的、在词首的、在开头的字母得分更高，完整包含的子串得分最高。有搜索词时结果按得分排序，组跟着最好的那一项走；没有搜索词时保持原来的顺序。
 
-标签没有匹配时会再看 `description` 和 `keywords`，得分减半，所以试试输入"上线"或"release"。完全自定义时传 `filter(query, item)`，返回 `{ score, indices }` 或 `null`；`fuzzyMatch(text, query)` 也一并导出。
+标签没有匹配时会再看 `description` 和 `keywords`，得分减半，所以试试输入“上线”或“release”。完全自定义时传 `filter(query, item)`，返回 `{ score, indices }` 或 `null`；`fuzzyMatch(text, query)` 也一并导出。
 
 `shortcut` 只负责显示按键，不会绑定快捷键，真正的绑定由你决定。
 

@@ -67,4 +67,4 @@ const { size, modules } = encodeQr('https://ui.daidr.me', 'M')
 
 ### 读屏
 
-二维码是一张 `role="img"` 的图，标签为"二维码：" 加上编码的文字。
+二维码是一张 `role="img"` 的图，标签为“二维码：” 加上编码的文字。

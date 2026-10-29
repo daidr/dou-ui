@@ -28,7 +28,7 @@
 
 ## 子菜单
 
-`DouDropdownSub` 是一个带箭头的项，指向它稍等片刻或按 `→` 时在旁边展开子菜单，里面放 `DouDropdownItem`，也可以继续嵌套 `DouDropdownSub`。子菜单里选中的项同样触发外层的 `select`，并关闭整个菜单。文字用 `title` 或 `title` 插槽，图标放 `prefix` 插槽。
+`DouDropdownSub` 是一个带箭头的项，鼠标悬停片刻或按 `→` 时在旁边展开子菜单，里面放 `DouDropdownItem`，也可以继续嵌套 `DouDropdownSub`。子菜单里选中的项同样触发外层的 `select`，并关闭整个菜单。文字用 `title` 或 `title` 插槽，图标放 `prefix` 插槽。
 
 <DocDemo src="dropdown/submenu" />
 

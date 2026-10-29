@@ -28,7 +28,7 @@
 
 ## 键盘与读屏
 
-整排星星是一个 `role="slider"`，`aria-valuetext` 读出"3 星，共 5 星"。没有可见标签时用 `aria-label` 命名；在 `DouFormItem` 里会自动关联标签。
+整排星星是一个 `role="slider"`，`aria-valuetext` 读出“3 星，共 5 星”。没有可见标签时用 `aria-label` 命名；在 `DouFormItem` 里会自动关联标签。
 
 | 按键      | 行为                              |
 | --------- | --------------------------------- |

@@ -11,6 +11,7 @@ export default defineConfig({
       { find: /^dou-ui$/, replacement: r('./packages/dou-ui/src/index.ts') },
       { find: /^@dou-ui\/theme$/, replacement: r('./packages/theme/src/index.ts') },
       { find: /^@dou-ui\/icons$/, replacement: r('./packages/icons/src/index.ts') },
+      { find: /^@dou-ui\/editor$/, replacement: r('./packages/editor/src/index.ts') },
     ],
   },
   test: {

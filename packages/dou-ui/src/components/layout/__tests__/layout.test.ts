@@ -1,13 +1,19 @@
 import { mount } from '@vue/test-utils'
 import { h, nextTick } from 'vue'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   DouLayout,
   DouLayoutAside,
+  DouLayoutAsideTrigger,
   DouLayoutFooter,
   DouLayoutHeader,
   DouLayoutMain,
 } from '../../../index'
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+  document.body.innerHTML = ''
+})
 
 describe('DouLayout', () => {
   it('renders the page landmarks', () => {
@@ -66,5 +72,60 @@ describe('DouLayout', () => {
     expect(wrapper.find('.dou-layout-aside').attributes('style')).toContain(
       '--dou-layout-aside-top: 64px',
     )
+  })
+
+  it('turns the aside into a drawer below its breakpoint', async () => {
+    let narrow = true
+    const listeners = new Set<() => void>()
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      get matches() {
+        return query === '(max-width: 767.98px)' && narrow
+      },
+      addEventListener: (_: string, listener: () => void) => listeners.add(listener),
+      removeEventListener: (_: string, listener: () => void) => listeners.delete(listener),
+    }))
+    const wrapper = mount(DouLayout, {
+      slots: {
+        default: () => [
+          h(DouLayoutHeader, null, () => h(DouLayoutAsideTrigger)),
+          h(DouLayout, null, () => [
+            h(
+              DouLayoutAside,
+              { breakpoint: 768 },
+              {
+                default: ({ drawer, close }: { drawer: boolean; close: () => void }) =>
+                  h('button', { class: 'item', onClick: close }, drawer ? '抽屉' : '侧栏'),
+              },
+            ),
+            h(DouLayoutMain),
+          ]),
+        ],
+      },
+      attachTo: document.body,
+    })
+    await nextTick()
+    expect(wrapper.find('aside').exists()).toBe(false)
+    const trigger = wrapper.get('.dou-layout-aside-trigger')
+    expect(trigger.attributes('aria-label')).toBe('打开侧栏')
+    expect(trigger.attributes('aria-expanded')).toBe('false')
+
+    await trigger.trigger('click')
+    await nextTick()
+    const panel = document.querySelector<HTMLElement>('.dou-layout-aside-drawer')!
+    expect(panel.getAttribute('role')).toBe('dialog')
+    expect(panel.id).toBe(trigger.attributes('aria-controls'))
+    expect(trigger.attributes('aria-expanded')).toBe('true')
+    expect(panel.textContent).toContain('抽屉')
+
+    panel.querySelector<HTMLElement>('.item')!.click()
+    await nextTick()
+    expect(trigger.attributes('aria-expanded')).toBe('false')
+
+    narrow = false
+    for (const listener of listeners) listener()
+    await nextTick()
+    expect(wrapper.get('aside').text()).toBe('侧栏')
+    expect(wrapper.find('.dou-layout-aside-trigger').exists()).toBe(false)
+    wrapper.unmount()
   })
 })

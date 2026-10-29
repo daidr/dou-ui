@@ -32,6 +32,16 @@ function withModel(props: Record<string, unknown> = {}) {
 }
 
 describe('DouSelect', () => {
+  it('puts class and style on the field', () => {
+    const wrapper = mount(DouSelect, {
+      props: { options },
+      attrs: { class: 'narrow', style: 'width: 120px' },
+    })
+    const field = wrapper.get('.dou-select')
+    expect(field.classes()).toContain('narrow')
+    expect(field.attributes('style')).toContain('width: 120px')
+  })
+
   it('is a combobox that opens a listbox', async () => {
     const wrapper = withModel()
     const combobox = wrapper.get('[role="combobox"]')

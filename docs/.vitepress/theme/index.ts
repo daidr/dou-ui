@@ -1,7 +1,5 @@
-import { useData } from 'vitepress'
 import type { Theme } from 'vitepress'
-import { watchEffect } from 'vue'
-import DouUI from 'dou-ui'
+import DouUI, { useColorMode } from 'dou-ui'
 import 'dou-ui/style.css'
 import './style.css'
 import Layout from './Layout.vue'
@@ -19,12 +17,8 @@ export default {
     app.component('DocIconGallery', DocIconGallery)
   },
   setup() {
-    // The head script sets the theme before the first paint; this keeps it in
-    // step with the switch afterwards.
-    const { isDark } = useData()
-    watchEffect(() => {
-      if (typeof document === 'undefined') return
-      document.documentElement.dataset.douTheme = isDark.value ? 'dark' : 'light'
-    })
+    // The head script applies the mode before the first paint; this keeps
+    // it in step with the color mode button and the system afterwards.
+    useColorMode()
   },
 } satisfies Theme

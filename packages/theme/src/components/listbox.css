@@ -1,0 +1,220 @@
+/*
+ * Listbox
+ *
+ * A select's list laid out in the page: the same rows on a bordered
+ * surface with the field's edge and focus ring, so it sits in a form
+ * beside inputs. The active row only lights up while the list has focus,
+ * so a list at rest shows just what is chosen.
+ */
+@layer dou.components {
+  .dou-listbox {
+    --dou-listbox-inset: 4px;
+    --dou-listbox-row: var(--dou-control-height-md);
+    --dou-listbox-font-size: var(--dou-font-size-md);
+    --dou-listbox-border: var(--dou-color-border);
+
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    width: 100%;
+    border: 1px solid var(--dou-listbox-border);
+    border-radius: calc(var(--dou-radius-control) + var(--dou-listbox-inset));
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-sm);
+    color: var(--dou-color-text);
+    font-size: var(--dou-listbox-font-size);
+    transition-property: border-color, box-shadow;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    &:focus-within {
+      --dou-listbox-border: color-mix(in oklab, var(--dou-color-focus) 70%, var(--dou-color-text));
+      box-shadow:
+        0 0 0 3px color-mix(in oklab, var(--dou-color-focus) 32%, transparent),
+        var(--dou-shadow-sm);
+    }
+
+    &.is-invalid {
+      --dou-listbox-border: color-mix(
+        in oklab,
+        var(--dou-color-danger) 55%,
+        var(--dou-color-border)
+      );
+    }
+
+    &.is-disabled {
+      background-color: color-mix(in oklab, var(--dou-color-text) 3%, var(--dou-color-bg-surface));
+      color: var(--dou-color-text-disabled);
+      box-shadow: none;
+    }
+  }
+
+  .dou-listbox--sm {
+    --dou-listbox-row: var(--dou-control-height-sm);
+    --dou-listbox-font-size: var(--dou-font-size-sm);
+  }
+
+  .dou-listbox--lg {
+    --dou-listbox-row: var(--dou-control-height-lg);
+    --dou-listbox-font-size: var(--dou-font-size-lg);
+  }
+
+  .dou-listbox__search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: var(--dou-listbox-row);
+    padding: 0 12px;
+    border-bottom: 1px solid var(--dou-color-border-subtle);
+    color: var(--dou-color-text-tertiary);
+  }
+
+  .dou-listbox__search-icon {
+    flex-shrink: 0;
+    width: 1em;
+    height: 1em;
+  }
+
+  .dou-listbox__input {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 100%;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--dou-color-text);
+    font: inherit;
+
+    &::placeholder {
+      color: var(--dou-color-text-tertiary);
+      opacity: 1;
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+    }
+  }
+
+  .dou-listbox__list {
+    padding: var(--dou-listbox-inset);
+    margin: 0;
+    overflow-y: auto;
+    list-style: none;
+    outline: none;
+    overscroll-behavior: contain;
+  }
+
+  .dou-listbox__section,
+  .dou-listbox__group {
+    padding: 0;
+    margin: 0;
+    list-style: none;
+  }
+
+  .dou-listbox__section + .dou-listbox__section:has(.dou-listbox__group-label) {
+    margin-top: 4px;
+    padding-top: 4px;
+    border-top: 1px solid var(--dou-color-border-subtle);
+  }
+
+  .dou-listbox__group-label {
+    display: flex;
+    align-items: center;
+    height: var(--dou-listbox-row);
+    padding: 0 8px;
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+    font-weight: var(--dou-font-weight-medium);
+    user-select: none;
+  }
+
+  .dou-listbox__option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-sizing: border-box;
+    min-height: var(--dou-listbox-row);
+    padding: 6px 8px;
+    border-radius: var(--dou-radius-control);
+    cursor: pointer;
+    user-select: none;
+
+    &:hover,
+    .dou-listbox:focus-within &.is-active {
+      background-color: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+    }
+
+    &.is-selected {
+      font-weight: var(--dou-font-weight-medium);
+    }
+
+    &.is-disabled {
+      color: var(--dou-color-text-disabled);
+      cursor: not-allowed;
+
+      &:hover {
+        background-color: transparent;
+      }
+    }
+
+    .dou-listbox.is-disabled & {
+      cursor: not-allowed;
+
+      &:hover {
+        background-color: transparent;
+      }
+    }
+  }
+
+  .dou-listbox__icon {
+    flex-shrink: 0;
+    width: 1em;
+    height: 1em;
+    color: var(--dou-color-text-secondary);
+  }
+
+  .dou-listbox__text {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .dou-listbox__label,
+  .dou-listbox__description {
+    overflow: clip;
+    overflow-clip-margin: 4px;
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dou-listbox__description {
+    color: var(--dou-color-text-tertiary);
+    font-size: 12px;
+    font-weight: var(--dou-font-weight-regular);
+  }
+
+  .dou-listbox__check {
+    flex-shrink: 0;
+    width: 1em;
+    height: 1em;
+    color: var(--dou-color-text);
+  }
+
+  .dou-listbox__empty {
+    padding: 16px 12px;
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+    text-align: center;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dou-listbox {
+      transition: none;
+    }
+  }
+}

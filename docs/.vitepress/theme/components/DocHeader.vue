@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { useData } from 'vitepress'
 import { computed, onMounted, ref } from 'vue'
+import { useColorMode } from 'dou-ui'
 import type { MenuOption } from 'dou-ui'
-import { GithubIcon, MenuIcon, MoonIcon, SearchIcon, SunIcon } from '../icons'
+import { GithubIcon, MenuIcon, SearchIcon } from '../icons'
 import { useDocs } from '../use-docs'
 
 const emit = defineEmits<{ search: []; menu: [] }>()
 
-const { isDark, site } = useData()
+const { site } = useData()
+const { isDark } = useColorMode()
 const { path, nav, social } = useDocs()
 
 /** `/guide/philosophy` belongs to the `/guide/` section. */
@@ -58,16 +60,7 @@ const isMac = computed(() => mounted.value && /Mac|iPhone|iPad/.test(navigator.p
           </template>
         </DouButton>
         <DouTooltip :content="dark ? '切换到亮色' : '切换到暗色'">
-          <DouButton
-            class="doc-icon-button"
-            variant="ghost"
-            :aria-label="dark ? '切换到亮色' : '切换到暗色'"
-            @click="isDark = !isDark"
-          >
-            <template #leading>
-              <DouIcon><MoonIcon v-if="dark" /><SunIcon v-else /></DouIcon>
-            </template>
-          </DouButton>
+          <DouColorModeButton class="doc-icon-button" />
         </DouTooltip>
         <a
           v-if="github"

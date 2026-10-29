@@ -149,6 +149,26 @@
     }
   }
 
+  /*
+   * Below its breakpoint the aside opens as a drawer: the same body and
+   * footer on the page's canvas, edge to edge, with no header of its own.
+   */
+  .dou-layout-aside-drawer {
+    --dou-drawer-bg: var(--dou-color-bg-canvas);
+
+    & .dou-drawer__body {
+      display: flex;
+      flex-direction: column;
+      padding: 0;
+      overflow: hidden;
+    }
+  }
+
+  .dou-layout-aside-trigger {
+    width: var(--dou-button-height);
+    padding: 0;
+  }
+
   .dou-layout-main {
     flex: 1 1 auto;
     box-sizing: border-box;

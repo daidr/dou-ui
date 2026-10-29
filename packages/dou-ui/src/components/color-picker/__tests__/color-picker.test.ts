@@ -118,7 +118,7 @@ describe('DouColorPicker', () => {
     const wrapper = mountPicker({ modelValue: null, showAlpha: true, presets: ['rgb(46 125 91)'] })
     await wrapper.get('.dou-color-picker').trigger('click')
     expect(sliders()).toHaveLength(3)
-    const text = document.querySelector<HTMLInputElement>('.dou-color-picker__text')!
+    const text = document.querySelector<HTMLInputElement>('.dou-color-picker__text input')!
     text.value = '#11223380'
     text.dispatchEvent(new Event('input'))
     text.dispatchEvent(new Event('change'))
@@ -146,11 +146,25 @@ describe('DouColorPicker', () => {
   it('shows the text box in another format without changing the value format', async () => {
     const wrapper = mountPicker({ modelValue: '#ff0000' })
     await wrapper.get('.dou-color-picker').trigger('click')
-    const select = document.querySelector<HTMLSelectElement>('.dou-color-picker__format')!
-    select.value = 'rgb'
-    select.dispatchEvent(new Event('change'))
+    // the format menu is a select sharing an edge with the text box
+    const format = document.querySelector<HTMLElement>('.dou-color-picker__format')!
+    expect(format.closest('.dou-field-group')).not.toBeNull()
+    format.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
     await nextTick()
-    const text = document.querySelector<HTMLInputElement>('.dou-color-picker__text')!
+    expect(format.getAttribute('aria-expanded')).toBe('true')
+    // Escape closes the menu, not the picker around it
+    key(format, { key: 'Escape' })
+    await nextTick()
+    expect(format.getAttribute('aria-expanded')).toBe('false')
+    expect(wrapper.get('.dou-color-picker').attributes('aria-expanded')).toBe('true')
+    format.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
+    await nextTick()
+    const rgb = [...document.querySelectorAll<HTMLElement>('.dou-select__option')].find(
+      (option) => option.textContent?.trim() === 'RGB',
+    )!
+    rgb.click()
+    await nextTick()
+    const text = document.querySelector<HTMLInputElement>('.dou-color-picker__text input')!
     expect(text.value).toBe('255 0 0')
     // the arguments alone are read in the menu's format
     text.value = '0 0 255'

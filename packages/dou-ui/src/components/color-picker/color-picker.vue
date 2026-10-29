@@ -5,7 +5,10 @@ import { usePopup } from '../../composables/use-popup'
 import { useNamespace } from '../../utils/namespace'
 import { OnlyChild } from '../../utils/only-child'
 import { useLocale } from '../config-provider/use-config'
+import { DouFieldGroup } from '../field-group'
 import { useFormDisabled, useFormItem, useFormSize } from '../form/use-form-item'
+import DouInput from '../input/input.vue'
+import DouSelect from '../select/select.vue'
 import { ALPHA, CHANNELS, formatLabel } from './channels'
 import type { Channel } from './channels'
 import {
@@ -184,6 +187,8 @@ function onFieldKeydown(event: KeyboardEvent) {
 
 function onPanelKeydown(event: KeyboardEvent) {
   if (event.key !== 'Escape') return
+  // An open format menu takes Escape for itself.
+  if ((event.target as HTMLElement).closest('[aria-expanded="true"]')) return
   event.preventDefault()
   open.value = false
   focus()
@@ -306,6 +311,7 @@ function onChannelInput(event: Event, index: number, channel: Channel) {
 
 // The text box can show the color in any format; it starts at `format`.
 const textFormat = ref<ColorFormat>(props.format)
+const formatOptions = COLOR_FORMATS.map((format) => ({ value: format, label: formatLabel(format) }))
 watch(
   () => props.format,
   (format) => (textFormat.value = format),
@@ -626,30 +632,24 @@ defineExpose<ColorPickerExpose>({ focus, blur: () => fieldRef.value?.blur() })
           </span>
         </div>
 
-        <div :class="ns.e('entry')">
-          <span :class="ns.e('format-field')">
-            <select
-              v-model="textFormat"
-              :class="ns.e('format')"
-              :aria-label="t('colorPicker.format')"
-            >
-              <option v-for="item in COLOR_FORMATS" :key="item" :value="item">
-                {{ formatLabel(item) }}
-              </option>
-            </select>
-            <ChevronDownIcon :class="ns.e('format-arrow')" />
-          </span>
-          <input
+        <DouFieldGroup :class="ns.e('entry')" size="sm" block>
+          <DouSelect
+            :model-value="textFormat"
+            :class="ns.e('format')"
+            :options="formatOptions"
+            :aria-label="t('colorPicker.format')"
+            @update:model-value="textFormat = $event as ColorFormat"
+          />
+          <DouInput
             v-model="text"
             :class="[ns.e('text'), ns.is('hex', textFormat === 'hex')]"
-            type="text"
             spellcheck="false"
             autocomplete="off"
             :aria-label="t('colorPicker.text')"
             @change="onTextCommit"
             @keydown.enter.prevent="onTextCommit"
           />
-        </div>
+        </DouFieldGroup>
         <div
           v-if="presets.length"
           :class="ns.e('presets')"

@@ -196,6 +196,19 @@ export const zhCN: Locale = {
   layout: {
     collapse: '收起侧栏',
     expand: '展开侧栏',
+    open: '打开侧栏',
+  },
+  colorMode: {
+    label: '颜色模式',
+    light: '亮色',
+    dark: '暗色',
+    system: '跟随系统',
+    toDark: '切换到暗色模式',
+    toLight: '切换到亮色模式',
+  },
+  listbox: {
+    search: '搜索',
+    empty: '无匹配项',
   },
   inputOtp: {
     label: '验证码',

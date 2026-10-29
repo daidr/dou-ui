@@ -1,5 +1,6 @@
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitepress'
+import { colorModeScript } from '../../packages/dou-ui/src/components/color-mode/use-color-mode'
 
 const r = (path: string) => fileURLToPath(new URL(path, import.meta.url))
 
@@ -8,18 +9,11 @@ export default defineConfig({
   title: 'DouUI',
   description: '一个为自己打造的 Vue 3 组件库',
   cleanUrls: true,
+  // DouUI's own color mode drives the site, not VitePress's.
+  appearance: false,
   head: [
-    // Pick DouUI's theme before the first paint, the same way the site picks dark mode.
-    [
-      'script',
-      {},
-      `;(() => {
-        let mode = 'auto'
-        try { mode = localStorage.getItem('vitepress-theme-appearance') || 'auto' } catch {}
-        const dark = mode === 'dark' || (mode === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches)
-        document.documentElement.dataset.douTheme = dark ? 'dark' : 'light'
-      })()`,
-    ],
+    // Apply the remembered color mode before the first paint.
+    ['script', {}, colorModeScript()],
   ],
   // Header anchors stop below the sticky header.
   scrollOffset: 88,
@@ -98,6 +92,7 @@ export default defineConfig({
             { text: 'Slider 滑块', link: '/components/slider' },
             { text: 'Rate 评分', link: '/components/rate' },
             { text: 'Select 选择器', link: '/components/select' },
+            { text: 'Listbox 列表选择', link: '/components/listbox' },
             { text: 'Autocomplete 自动补全', link: '/components/autocomplete' },
             { text: 'Cascader 级联选择', link: '/components/cascader' },
             { text: 'TreeSelect 树选择', link: '/components/tree-select' },
@@ -107,6 +102,7 @@ export default defineConfig({
             { text: 'Transfer 穿梭框', link: '/components/transfer' },
             { text: 'SegmentedControl 分段控制器', link: '/components/segmented-control' },
             { text: 'Upload 上传', link: '/components/upload' },
+            { text: 'FieldGroup 组合', link: '/components/field-group' },
             { text: 'Form 表单', link: '/components/form' },
           ],
         },
@@ -139,6 +135,7 @@ export default defineConfig({
           items: [
             { text: 'Card 卡片', link: '/components/card' },
             { text: 'Avatar 头像', link: '/components/avatar' },
+            { text: 'User 用户', link: '/components/user' },
             { text: 'Badge 徽标', link: '/components/badge' },
             { text: 'Tag 标签', link: '/components/tag' },
             { text: 'Kbd 键盘按键', link: '/components/kbd' },
@@ -169,7 +166,10 @@ export default defineConfig({
         },
         {
           text: '配置',
-          items: [{ text: 'ConfigProvider 全局配置', link: '/components/config-provider' }],
+          items: [
+            { text: 'ConfigProvider 全局配置', link: '/components/config-provider' },
+            { text: 'ColorMode 颜色模式', link: '/components/color-mode' },
+          ],
         },
       ],
     },

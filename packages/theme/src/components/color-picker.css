@@ -332,81 +332,19 @@
     border-radius: var(--dou-radius-control);
   }
 
-  /* the format menu and the text box read as one control: `OKLCH ▾ 0.63 0.26 29` */
-  .dou-color-picker__entry {
-    display: flex;
-    height: var(--dou-control-height-sm);
-    border: 1px solid var(--dou-color-border);
-    border-radius: var(--dou-radius-control);
-    background-color: var(--dou-color-bg-surface);
-    transition-property: border-color, box-shadow;
-    transition-duration: var(--dou-motion-duration-fast);
-    transition-timing-function: var(--dou-motion-easing);
-
-    &:focus-within {
-      border-color: color-mix(in oklab, var(--dou-color-focus) 70%, var(--dou-color-text));
-      box-shadow: 0 0 0 3px color-mix(in oklab, var(--dou-color-focus) 32%, transparent);
-    }
+  /* the format menu and the text box share an edge: `OKLCH ▾ | 0.63 0.26 29` */
+  .dou-field-group > .dou-color-picker__format {
+    flex: 0 0 96px;
   }
 
-  .dou-color-picker__format-field {
-    position: relative;
-    display: flex;
-    flex-shrink: 0;
-  }
-
-  .dou-color-picker__format-arrow {
-    position: absolute;
-    top: 50%;
-    right: 5px;
-    font-size: 12px;
-    color: var(--dou-color-text-tertiary);
-    transform: translateY(-50%);
-    pointer-events: none;
-  }
-
-  .dou-color-picker__format {
-    padding: 0 20px 0 8px;
-    border: 0;
-    border-right: 1px solid var(--dou-color-border-subtle);
-    border-radius: calc(var(--dou-radius-control) - 1px) 0 0 calc(var(--dou-radius-control) - 1px);
-    background: color-mix(in oklab, var(--dou-color-text) 4%, transparent);
-    color: var(--dou-color-text-secondary);
-    font-family: var(--dou-font-family-mono);
-    font-size: 11px;
-    letter-spacing: 0.02em;
-    cursor: pointer;
-    appearance: none;
-    outline: none;
-
-    &:hover,
-    &:focus-visible {
-      color: var(--dou-color-text);
-    }
-
-    & option {
-      background-color: var(--dou-color-bg-surface);
-      color: var(--dou-color-text);
-    }
-  }
-
-  .dou-color-picker__text {
-    box-sizing: border-box;
-    flex: 1 1 auto;
-    width: 0;
-    min-width: 0;
-    padding: 0 8px;
-    border: 0;
-    border-radius: 0 calc(var(--dou-radius-control) - 1px) calc(var(--dou-radius-control) - 1px) 0;
-    background: none;
-    color: var(--dou-color-text);
+  .dou-color-picker__format .dou-select__value,
+  .dou-color-picker__text .dou-input__native {
     font-family: var(--dou-font-family-mono);
     font-size: 12px;
-    outline: none;
+  }
 
-    &.is-hex {
-      text-transform: uppercase;
-    }
+  .dou-color-picker__text.is-hex .dou-input__native {
+    text-transform: uppercase;
   }
 
   .dou-color-picker__presets {

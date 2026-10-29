@@ -295,6 +295,26 @@ export interface Locale {
     collapse: string
     /** Label of the button that expands a collapsed aside. */
     expand: string
+    /** Label of the button that opens an aside shown as a drawer on narrow screens. */
+    open: string
+  }
+  colorMode: {
+    /** Names the color mode select. */
+    label: string
+    light: string
+    dark: string
+    /** Follow the system's preference. */
+    system: string
+    /** Label of the color mode button while the page is light. */
+    toDark: string
+    /** Label of the color mode button while the page is dark. */
+    toLight: string
+  }
+  listbox: {
+    /** Placeholder of the search box. */
+    search: string
+    /** Shown when no option matches. */
+    empty: string
   }
   inputOtp: {
     /** Names the code field when nothing else labels it. */

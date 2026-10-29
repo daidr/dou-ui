@@ -53,4 +53,15 @@ describe('DouEllipsis', () => {
     expect(wrapper.find('.dou-ellipsis__toggle').exists()).toBe(false)
     expect(wrapper.get('.dou-ellipsis').classes()).not.toContain('is-truncated')
   })
+
+  it('only sets up a tooltip when `tooltip` is on', () => {
+    fakeText(100)
+    const plain = mount(DouEllipsis, { slots: { default: '上海' } })
+    expect(plain.findComponent({ name: 'DouTooltip' }).exists()).toBe(false)
+    const root = plain.get('.dou-ellipsis')
+    expect(root.attributes('disabled')).toBeUndefined()
+    expect(root.attributes('placement')).toBeUndefined()
+    const tipped = mount(DouEllipsis, { props: { tooltip: true }, slots: { default: '上海' } })
+    expect(tipped.findComponent({ name: 'DouTooltip' }).exists()).toBe(true)
+  })
 })

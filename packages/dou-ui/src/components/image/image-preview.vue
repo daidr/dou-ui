@@ -5,6 +5,7 @@ import {
   CloseIcon,
   DownloadIcon,
   FlipHorizontalIcon,
+  FlipVerticalIcon,
   MaximizeIcon,
   RotateCcwIcon,
   RotateCwIcon,
@@ -268,12 +269,12 @@ const label = computed(() =>
           </button>
           <button
             type="button"
-            :class="[ns.e('tool'), ns.e('flip-y')]"
+            :class="ns.e('tool')"
             :aria-label="t('image.flipVertical')"
             :aria-pressed="flip.y < 0"
             @click="mirror('y')"
           >
-            <FlipHorizontalIcon />
+            <FlipVerticalIcon />
           </button>
           <button type="button" :class="ns.e('tool')" :aria-label="t('image.reset')" @click="reset">
             <MaximizeIcon />

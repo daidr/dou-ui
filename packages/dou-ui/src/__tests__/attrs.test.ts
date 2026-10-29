@@ -33,6 +33,7 @@ const required: Record<string, Record<string, unknown>> = {
   DouListbox: { options: ['a'] },
   DouQrcode: { value: 'x' },
   DouTreeSelect: { data: [] },
+  DouFlowGraph: { nodes: [], edges: [] },
 }
 
 // floating components put attrs on the panel, not on the trigger

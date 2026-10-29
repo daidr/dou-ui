@@ -16,6 +16,15 @@ const props: Record<string, Record<string, unknown>> = {
   DouDialog: { open: true, title: '标题' },
   DouDrawer: { open: true, title: '标题' },
   DouDropdown: { items: [{ key: 'a', label: 'A' }] },
+  DouFlowGraph: {
+    nodes: [
+      { id: 'a', label: 'A' },
+      { id: 'b', label: 'B' },
+    ],
+    edges: [{ from: 'a', to: 'b' }],
+    zoomable: true,
+    legend: true,
+  },
   DouImage: { src: 'a.png', preview: true },
   DouImagePreview: { open: true, images: ['a.png'] },
   DouListbox: { options: ['a', { label: '组', options: ['b'] }], modelValue: 'a' },

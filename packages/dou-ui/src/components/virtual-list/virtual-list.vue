@@ -1,5 +1,15 @@
 <script setup lang="ts" generic="T">
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
+import {
+  computed,
+  onBeforeUnmount,
+  onMounted,
+  onUpdated,
+  ref,
+  shallowRef,
+  useTemplateRef,
+  watch,
+} from 'vue'
+import { useMeasuredSizes } from '../../composables/use-measured-sizes'
 import { useNamespace } from '../../utils/namespace'
 import { createOffsets } from './virtual-list'
 import type {
@@ -13,6 +23,8 @@ import type {
 defineOptions({ name: 'DouVirtualList' })
 
 const props = withDefaults(defineProps<VirtualListProps<T>>(), {
+  itemSize: undefined,
+  estimateSize: 40,
   overscan: 4,
   endThreshold: 40,
 })
@@ -24,17 +36,30 @@ defineSlots<VirtualListSlots<T>>()
 const ns = useNamespace('virtual-list')
 const elRef = useTemplateRef<HTMLElement>('el')
 
-const sizeOf = (index: number) => {
-  const { itemSize } = props
-  return typeof itemSize === 'function' ? itemSize(props.items[index]!, index) : itemSize
-}
-const offsets = computed(() => createOffsets(props.items.length, sizeOf))
+const sizeBy = (size: number | ((item: T, index: number) => number), index: number) =>
+  typeof size === 'function' ? size(props.items[index]!, index) : size
+
+// Without `itemSize`, heights come from the rendered items.
+const measured = computed(() => props.itemSize === undefined)
+const measuredSizes = useMeasuredSizes({
+  count: () => props.items.length,
+  keyOf: (index) => keyOf(props.items[index]!, index),
+  estimate: (index) => sizeBy(props.estimateSize, index),
+  container: () => elRef.value,
+})
+const fixedOffsets = computed(() =>
+  createOffsets(props.items.length, (index) => sizeBy(props.itemSize!, index)),
+)
+const offsets = computed(() => (measured.value ? measuredSizes.offsets.value : fixedOffsets.value))
+const sizeOf = (index: number) =>
+  measured.value ? undefined : `${sizeBy(props.itemSize!, index)}px`
+onUpdated(measuredSizes.prune)
 
 const scrollTop = ref(0)
 // The measured viewport, or the `height` prop until it can be measured.
-const measured = ref(0)
+const viewportSize = ref(0)
 const viewport = computed(
-  () => measured.value || (typeof props.height === 'number' ? props.height : 0),
+  () => viewportSize.value || (typeof props.height === 'number' ? props.height : 0),
 )
 
 const range = computed(() => {
@@ -74,6 +99,7 @@ let reachedEnd = false
 function onScroll(event: Event) {
   const el = event.currentTarget as HTMLElement
   scrollTop.value = el.scrollTop
+  remember(el)
   emit('scroll', event)
   const atEnd = el.scrollTop + el.clientHeight >= el.scrollHeight - props.endThreshold
   if (atEnd && !reachedEnd && props.items.length) emit('endReached')
@@ -85,13 +111,35 @@ watch(
   () => (reachedEnd = false),
 )
 
+// With measured items, items added or removed above the view keep the
+// first visible item where it was, e.g. earlier messages loaded on top.
+let anchor: { key: VirtualListKey; offset: number } | undefined
+function remember(el: HTMLElement) {
+  if (!measured.value || el.scrollTop <= 0 || !props.items.length) return (anchor = undefined)
+  const index = offsets.value.find(el.scrollTop)
+  anchor = {
+    key: keyOf(props.items[index]!, index),
+    offset: offsets.value.start(index) - el.scrollTop,
+  }
+}
+watch(
+  () => props.items,
+  (items) => {
+    const held = anchor
+    if (!held || !elRef.value) return
+    const index = items.findIndex((item, at) => keyOf(item, at) === held.key)
+    if (index >= 0) scrollTo(Math.max(0, offsets.value.start(index) - held.offset))
+  },
+  { flush: 'post' },
+)
+
 const observer = shallowRef<ResizeObserver>()
 onMounted(() => {
   const el = elRef.value
   if (!el) return
-  measured.value = el.clientHeight
+  viewportSize.value = el.clientHeight
   if (typeof ResizeObserver === 'undefined') return
-  observer.value = new ResizeObserver(() => (measured.value = el.clientHeight))
+  observer.value = new ResizeObserver(() => (viewportSize.value = el.clientHeight))
   observer.value.observe(el)
 })
 onBeforeUnmount(() => observer.value?.disconnect())
@@ -104,8 +152,13 @@ function scrollTo(offset: number) {
   scrollTop.value = el.scrollTop
 }
 
-function scrollToIndex(index: number, align: VirtualListAlign = 'nearest') {
+function scrollToIndex(index: number, align: VirtualListAlign = 'nearest', settle = 2) {
   if (index < 0 || index >= props.items.length) return
+  // Measured items land where estimated at first; once the items around
+  // the target are rendered and measured, aim again.
+  if (measured.value && settle > 0 && typeof requestAnimationFrame !== 'undefined') {
+    requestAnimationFrame(() => scrollToIndex(index, align, settle - 1))
+  }
   const { start } = offsets.value
   const top = start(index)
   const bottom = start(index + 1)
@@ -120,7 +173,11 @@ function scrollToIndex(index: number, align: VirtualListAlign = 'nearest') {
   if (target !== current) scrollTo(Math.max(0, target))
 }
 
-defineExpose<VirtualListExpose>({ scrollToIndex, scrollTo, el: () => elRef.value })
+defineExpose<VirtualListExpose>({
+  scrollToIndex: (index, align) => scrollToIndex(index, align),
+  scrollTo,
+  el: () => elRef.value,
+})
 </script>
 
 <template>
@@ -129,10 +186,14 @@ defineExpose<VirtualListExpose>({ scrollToIndex, scrollTo, el: () => elRef.value
       <div
         v-for="entry in visible"
         :key="entry.key"
+        :ref="
+          measured ? (el) => measuredSizes.track(el as Element, entry.key, entry.index) : undefined
+        "
         :class="ns.e('item')"
+        :data-index="entry.index"
         :style="{
           transform: `translateY(${offsets.start(entry.index)}px)`,
-          height: `${sizeOf(entry.index)}px`,
+          height: sizeOf(entry.index),
         }"
       >
         <slot :item="entry.item" :index="entry.index" />

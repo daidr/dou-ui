@@ -143,11 +143,12 @@ export interface TableProps<T = any> {
   /** Values for a summary row under the body, by column `key`, computed from all rows. */
   summary?: (rows: T[]) => Record<string, unknown>
   /**
-   * Render only the rows in view. Needs `maxHeight`; every row is
-   * `rowHeight` tall and stays on one line, and detail rows are not shown.
+   * Render only the rows in view. Needs `maxHeight`. Rows are measured once
+   * rendered, so they may wrap and show detail rows; with `rowHeight` every
+   * row is that tall and stays on one line instead.
    */
   virtual?: boolean
-  /** The height of every row in a virtual table, in px. Defaults to the size's row height. */
+  /** The height of every row in a virtual table, in px. Leave it out to measure rows. */
   rowHeight?: number
   /**
    * Merge body cells. Return how many rows and columns a cell covers, and

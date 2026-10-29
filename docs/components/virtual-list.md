@@ -10,7 +10,15 @@
 
 <DocDemo src="virtual-list/basic" column />
 
-高度需要事先知道，这样每一项的位置是算出来的，而不是滚到那里才量出来的，滚动条和跳转都是准的。高度不一的列表传一个函数：`:item-size="(item, index) => (item.group ? 28 : 36)"`。
+高度事先知道时，每一项的位置是算出来的，滚动条和跳转都是准的。高度不一但能算出来的列表传一个函数：`:item-size="(item, index) => (item.group ? 28 : 36)"`。
+
+## 高度不固定
+
+内容高度事先算不出来时（比如长短不一的文字），不传 `item-size`。还没渲染过的项按 `estimate-size` 估算，渲染后按实际高度计算，高度变化时也会更新。视口上方的项高度变化，或在列表前面插入数据时，看到的内容保持不动。
+
+<DocDemo src="virtual-list/measured" column />
+
+估算值越接近实际高度，滚动条越准。这种模式下 `scrollToIndex` 会在目标附近的项渲染出来后再校准一次位置。
 
 不传 `height` 时列表撑满父元素，父元素需要有确定的高度。
 
@@ -36,14 +44,15 @@
 
 ### Props
 
-| 名称           | 说明                                     | 类型                                                     | 默认值     |
-| -------------- | ---------------------------------------- | -------------------------------------------------------- | ---------- |
-| `items`        | 数据                                     | `T[]`                                                    | —          |
-| `itemSize`     | 每一项的高度（px），或按项返回高度的函数 | `number \| (item: T, index: number) => number`           | —          |
-| `itemKey`      | 唯一键所在的属性，或返回唯一键的函数     | `string \| (item: T, index: number) => string \| number` | 下标       |
-| `height`       | 视口高度，数字为 px                      | `number \| string`                                       | 撑满父元素 |
-| `overscan`     | 视口上下多渲染的条数                     | `number`                                                 | `4`        |
-| `endThreshold` | 距底部多少 px 算作到底                   | `number`                                                 | `40`       |
+| 名称           | 说明                                                                   | 类型                                                     | 默认值     |
+| -------------- | ---------------------------------------------------------------------- | -------------------------------------------------------- | ---------- |
+| `items`        | 数据                                                                   | `T[]`                                                    | —          |
+| `itemSize`     | 每一项的高度（px），或按项返回高度的函数；不传时按渲染后的实际高度计算 | `number \| (item: T, index: number) => number`           | —          |
+| `estimateSize` | 不传 `itemSize` 时，未渲染项的估算高度（px）                           | `number \| (item: T, index: number) => number`           | `40`       |
+| `itemKey`      | 唯一键所在的属性，或返回唯一键的函数                                   | `string \| (item: T, index: number) => string \| number` | 下标       |
+| `height`       | 视口高度，数字为 px                                                    | `number \| string`                                       | 撑满父元素 |
+| `overscan`     | 视口上下多渲染的条数                                                   | `number`                                                 | `4`        |
+| `endThreshold` | 距底部多少 px 算作到底                                                 | `number`                                                 | `40`       |
 
 ### Events
 

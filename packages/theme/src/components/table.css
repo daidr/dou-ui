@@ -449,7 +449,7 @@
   }
 
   /* virtual rows stay exactly one row tall */
-  .dou-table.is-virtual .dou-table__body .dou-table__cell {
+  .dou-table.is-fixed-rows .dou-table__body .dou-table__cell {
     padding-top: 0;
     padding-bottom: 0;
     overflow: hidden;

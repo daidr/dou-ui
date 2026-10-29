@@ -10,6 +10,7 @@ DouUI 的组件建立在一组组合式函数上。下面这些已经导出，�
 | `useLayer`                                        | 加入浮层栈，`Esc` 只关最上层，识别嵌套浮层的"点击外部" | [下文](#uselayer)                                                  |
 | `useFocusTrap`                                    | 把焦点限制在一个容器里，释放后焦点回到原处             | [下文](#usefocustrap)                                              |
 | `useScrollLock`                                   | 锁定页面滚动，多处同时锁定时按次数计算                 | [下文](#usescrolllock)                                             |
+| `useHotkey`                                       | 绑定快捷键，支持组合键与按键序列                       | [下文](#usehotkey)                                                 |
 | `useZIndex`                                       | 取一个比之前所有浮层都高的层级                         | [ConfigProvider](../components/config-provider#在自己的组件中读取) |
 | `useGlobalConfig` / `useLocale`                   | 读取全局配置与语言包                                   | [ConfigProvider](../components/config-provider#在自己的组件中读取) |
 | `useFormItem` / `useFormSize` / `useFormDisabled` | 让自己的控件接入表单：校验、尺寸与禁用                 | [Form](../components/form)                                         |
@@ -79,3 +80,21 @@ useScrollLock(() => open.value)
 ```
 
 为真时锁定页面滚动，并补上滚动条的宽度，页面不会左右跳动。多个组件同时锁定时按次数计算，全部释放后才恢复。
+
+## useHotkey
+
+```ts
+useHotkey(hotkeys, handler, { target, enabled, allowInInput, preventDefault, sequenceTimeout })
+```
+
+按下 `hotkeys` 中的任意一个时调用 `handler(event, hotkey)`。快捷键的写法：
+
+- 用 `+` 连接组合键，如 `mod+s`、`shift+/`，不区分大小写。`mod` 在 macOS 与 iOS 上是 <DouKbd size="sm">⌘</DouKbd>，在其他系统上是 <DouKbd size="sm">Ctrl</DouKbd>。
+- 用空格分隔按键序列，如 `g i` 表示先按 G 再按 I，两步之间默认最多间隔 1 秒（`sequenceTimeout`）。
+- 可以写 `esc`、`space`、`up` / `down` / `left` / `right` 等简称。
+
+默认监听整个页面，焦点在输入框、文本域、下拉框或可编辑区域时不触发，`allowInInput` 可以取消这个限制。匹配后默认调用 `preventDefault`。组件卸载时自动解绑，返回的函数可以提前解绑。
+
+<DocDemo src="composables/hotkey" />
+
+`formatHotkey(hotkey)` 按当前平台给出每个按键的名称，例如 `mod+k` 在 macOS 上是 `[['⌘', 'K']]`；直接显示时用 [Kbd](../components/kbd#快捷键) 的 `keys` 属性即可。`matchesHotkey(event, hotkey)` 判断一次按键是否匹配某个组合键。

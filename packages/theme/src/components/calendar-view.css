@@ -516,7 +516,7 @@
       height: 8px;
       border-radius: 50%;
       background-color: var(--dou-color-danger);
-      content: "";
+      content: '';
     }
   }
 }

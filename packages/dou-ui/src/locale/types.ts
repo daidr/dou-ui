@@ -48,10 +48,15 @@ export interface Locale {
     confirm: string
     /** Cancel button of `dialog.confirm()` and `prompt()`. */
     cancel: string
+    /** The button that fills the window with the dialog. */
+    fullscreen: string
+    exitFullscreen: string
   }
   drawer: {
     /** Label of the close button. */
     close: string
+    /** Label of the edge that resizes the drawer. */
+    resize: string
   }
   select: {
     /** Shown in an empty select without a `placeholder`. */
@@ -118,6 +123,10 @@ export interface Locale {
     filterConfirm: string
     /** The choice that clears a single-choice filter. */
     filterAll: string
+    /** Names the column of drag handles. */
+    drag: string
+    /** Label of a row's drag handle. */
+    dragRow: string
   }
   upload: {
     /** The button that opens the file picker. */
@@ -332,6 +341,11 @@ export interface Locale {
     reset: string
     /** Which picture of how many, with `{index}` and `{total}`. */
     counter: string
+    flipHorizontal: string
+    flipVertical: string
+    download: string
+    /** The zoom level, with `{value}` in percent. */
+    scale: string
   }
   pageHeader: {
     /** The back button before the title. */
@@ -417,6 +431,18 @@ export interface Locale {
   ellipsis: {
     expand: string
     collapse: string
+  }
+  tree: {
+    /** How to move a node with the keyboard, in a draggable tree. */
+    dragHint: string
+    /* read after a node moved, with `{label}` and `{target}` */
+    dropBefore: string
+    dropAfter: string
+    dropInside: string
+  }
+  dropdown: {
+    /** Label of the arrow half of a split button. */
+    more: string
   }
   sortable: {
     /** What a draggable item is, read as its role. */

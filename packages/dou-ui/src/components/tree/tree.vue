@@ -4,17 +4,30 @@ import {
   nextTick,
   provide,
   ref,
+  onBeforeUnmount,
   shallowReactive,
+  shallowRef,
   useId,
   useTemplateRef,
   watch,
 } from 'vue'
+import { announce } from '../../utils/announce'
 import { useNamespace } from '../../utils/namespace'
+import { getScrollParent, isWindow } from '../../utils/scroll'
 import { useLocale } from '../config-provider/use-config'
 import { useFormSize } from '../form/use-form-item'
 import { DouVirtualList } from '../virtual-list'
 import { treeContextKey, treeRowHeights } from './tree'
-import type { TreeExpose, TreeKey, TreeNodeData, TreeProps, TreeRow, TreeSlots } from './tree'
+import type {
+  TreeDropEvent,
+  TreeDropPosition,
+  TreeExpose,
+  TreeKey,
+  TreeNodeData,
+  TreeProps,
+  TreeRow,
+  TreeSlots,
+} from './tree'
 import TreeNode from './tree-node.vue'
 import type { VirtualListExpose } from '../virtual-list'
 
@@ -27,11 +40,14 @@ const props = withDefaults(defineProps<TreeProps>(), {
   defaultExpandAll: false,
   expandOnClick: false,
   guides: false,
+  draggable: false,
 })
 const expandedModel = defineModel<TreeKey[]>('expanded')
 const selectedModel = defineModel<TreeKey | null>('selected')
 const checkedModel = defineModel<TreeKey[]>('checked')
 const emit = defineEmits<{
+  'update:data': [data: TreeNodeData[]]
+  drop: [event: TreeDropEvent]
   select: [node: TreeNodeData]
   check: [node: TreeNodeData, checked: boolean]
   expand: [node: TreeNodeData, expanded: boolean]
@@ -302,6 +318,11 @@ function onKeydown(event: KeyboardEvent) {
   const row = list[at]
   const go = (to: number) => activate(list[Math.max(0, Math.min(list.length - 1, to))]?.key)
 
+  if (event.altKey && row && moveByKey(event.key, row.node)) {
+    event.preventDefault()
+    return
+  }
+
   switch (event.key) {
     case 'ArrowDown':
       event.preventDefault()
@@ -363,6 +384,7 @@ function onKeydown(event: KeyboardEvent) {
 }
 
 function onRowClick(row: TreeRow) {
+  if (dragged) return
   activeKey.value = row.key
   if (row.node.disabled) return
   if (props.selectable) select(row.node)
@@ -386,6 +408,261 @@ function parts(node: TreeNodeData) {
   ].filter((part) => part.text)
 }
 
+/* dragging: the new tree goes to `update:data` */
+
+const draggingKey = ref<TreeKey | null>(null)
+const dropAt = shallowRef<{ key: TreeKey; position: TreeDropPosition } | null>(null)
+const dragEnabled = computed(() => props.draggable && !query.value)
+
+const canDrag = (node: TreeNodeData) =>
+  dragEnabled.value && !node.disabled && (props.allowDrag?.(node) ?? true)
+
+function canDrop(node: TreeNodeData, target: TreeNodeData, position: TreeDropPosition) {
+  if (target.key === node.key || ancestors(target.key).includes(node.key)) return false
+  // A declared leaf takes no children, and an unloaded branch would lose
+  // what `load` brings.
+  if (position === 'inside' && (target.isLeaf || (props.load && !childrenOf(target)))) return false
+  return props.allowDrop?.(node, target, position) ?? true
+}
+
+const siblingsOf = (key: TreeKey) => {
+  const parent = index.value.get(key)?.parent ?? null
+  return parent === null ? props.data : (childrenOf(index.value.get(parent)!.node) ?? [])
+}
+
+/** The tree with `node` moved to `position` of `target`, copying only the branches that change. */
+function moved(node: TreeNodeData, target: TreeNodeData, position: TreeDropPosition) {
+  const strip = (nodes: TreeNodeData[]): TreeNodeData[] => {
+    let changed = false
+    const out: TreeNodeData[] = []
+    for (const current of nodes) {
+      if (current.key === node.key) {
+        changed = true
+        continue
+      }
+      const children = childrenOf(current)
+      const next = children && strip(children)
+      if (next !== children) {
+        changed = true
+        out.push({ ...current, children: next })
+      } else out.push(current)
+    }
+    return changed ? out : nodes
+  }
+  const insert = (nodes: TreeNodeData[]): TreeNodeData[] => {
+    const out: TreeNodeData[] = []
+    let changed = false
+    for (const current of nodes) {
+      if (current.key === target.key) {
+        changed = true
+        if (position === 'before') out.push(node, current)
+        else if (position === 'after') out.push(current, node)
+        else out.push({ ...current, children: [...(childrenOf(current) ?? []), node] })
+        continue
+      }
+      const children = childrenOf(current)
+      const next = children && insert(children)
+      if (next !== children) {
+        changed = true
+        out.push({ ...current, children: next })
+      } else out.push(current)
+    }
+    return changed ? out : nodes
+  }
+  return insert(strip(props.data))
+}
+
+function drop(node: TreeNodeData, target: TreeNodeData, position: TreeDropPosition) {
+  emit('update:data', moved(node, target, position))
+  emit('drop', { node, target, position })
+  if (position === 'inside') expand(target.key)
+}
+
+const dropMessage = (node: TreeNodeData, target: TreeNodeData, position: TreeDropPosition) =>
+  t(`tree.drop${position[0]!.toUpperCase()}${position.slice(1)}` as 'tree.dropBefore', {
+    label: labelOf(node),
+    target: labelOf(target),
+  })
+
+/** Alt and an arrow key: move among siblings, into the one above, or out of the parent. */
+function moveByKey(key: string, node: TreeNodeData) {
+  if (!canDrag(node)) return false
+  const siblings = siblingsOf(node.key)
+  const at = siblings.findIndex((sibling) => sibling.key === node.key)
+  const parent = index.value.get(node.key)?.parent ?? null
+  let target: TreeNodeData | undefined
+  let position: TreeDropPosition
+  if (key === 'ArrowUp') [target, position] = [siblings[at - 1], 'before']
+  else if (key === 'ArrowDown') [target, position] = [siblings[at + 1], 'after']
+  else if (key === 'ArrowRight') [target, position] = [siblings[at - 1], 'inside']
+  else if (key === 'ArrowLeft')
+    [target, position] = [parent === null ? undefined : index.value.get(parent)?.node, 'after']
+  else return false
+  if (target && canDrop(node, target, position)) {
+    drop(node, target, position)
+    announce(dropMessage(node, target, position))
+    activeKey.value = node.key
+    void reveal(node.key)
+  }
+  return true
+}
+
+const rowKeys = computed(() => new Map(rows.value.map((row) => [rowId(row.key), row])))
+
+/** Where the pointer would drop: the row under it, and which part of the row. */
+function dropTarget(node: TreeNodeData, x: number, y: number) {
+  const el = document.elementFromPoint(x, y)?.closest<HTMLElement>('[role="treeitem"]')
+  if (!el || !treeRef.value?.contains(el)) return null
+  const row = rowKeys.value.get(el.id)
+  if (!row) return null
+  const rect = el.getBoundingClientRect()
+  const ratio = (y - rect.top) / rect.height
+  const options: TreeDropPosition[] =
+    ratio < 0.25
+      ? ['before', 'inside']
+      : ratio > 0.75
+        ? ['after', 'inside']
+        : ['inside', ratio < 0.5 ? 'before' : 'after']
+  for (let position of options) {
+    let target = row.node
+    // Below an open branch is the top of its first child.
+    const first = row.expanded ? childrenOf(row.node)?.[0] : undefined
+    if (position === 'after' && first) [target, position] = [first, 'before']
+    if (canDrop(node, target, position)) return { key: target.key, position, node: target }
+  }
+  return null
+}
+
+let dragged = false
+let stopDrag: (() => void) | undefined
+
+/** What scrolls while a drag nears the edge: the virtual viewport, or the tree's scroll parent. */
+function dragScrollArea() {
+  const viewport =
+    props.height !== undefined
+      ? treeRef.value?.querySelector<HTMLElement>(`.${ns.e('rows')}`)
+      : null
+  return viewport ?? getScrollParent(treeRef.value)
+}
+
+// Once dragging, a touch must not scroll the page as well.
+function onDragTouchMove(event: TouchEvent) {
+  if (draggingKey.value !== null) event.preventDefault()
+}
+
+function onRowPointerdown(event: PointerEvent, row: TreeRow) {
+  if (event.button !== 0 || !canDrag(row.node)) return
+  // On touch a short press comes first, so a swipe still scrolls.
+  const press = event.pointerType === 'touch'
+  let ready = !press
+  const timer = press ? setTimeout(() => (ready = true), 250) : undefined
+  const rowEl = event.currentTarget as HTMLElement
+  const start = { x: event.clientX, y: event.clientY }
+  let pointer = start
+  let ghost: HTMLElement | undefined
+  let frame = 0
+  let hover: ReturnType<typeof setTimeout> | undefined
+  let hovered: TreeKey | null = null
+
+  const scroll = () => {
+    const target = dragScrollArea()
+    const box = isWindow(target)
+      ? { top: 0, bottom: window.innerHeight }
+      : target.getBoundingClientRect()
+    const EDGE = 32
+    const dy =
+      pointer.y - box.top < EDGE
+        ? -Math.ceil(((EDGE - (pointer.y - box.top)) / EDGE) * 10)
+        : box.bottom - pointer.y < EDGE
+          ? Math.ceil(((EDGE - (box.bottom - pointer.y)) / EDGE) * 10)
+          : 0
+    if (dy) {
+      target.scrollBy(0, dy)
+      update()
+    }
+    frame = requestAnimationFrame(scroll)
+  }
+
+  const update = () => {
+    const found = dropTarget(row.node, pointer.x, pointer.y)
+    dropAt.value = found && { key: found.key, position: found.position }
+    // Resting over a closed branch opens it.
+    const branch = found?.position === 'inside' && !isExpanded(found.node) ? found.node : null
+    if ((branch?.key ?? null) === hovered) return
+    clearTimeout(hover)
+    hovered = branch?.key ?? null
+    if (branch) hover = setTimeout(() => void setExpanded(branch, true), 600)
+  }
+
+  const begin = () => {
+    draggingKey.value = row.key
+    const label = rowEl.querySelector(`.${ns.e('label')}`)
+    ghost = document.createElement('div')
+    ghost.className = ns.e('ghost')
+    ghost.setAttribute('aria-hidden', 'true')
+    if (label) ghost.append(label.cloneNode(true))
+    const theme = rowEl.closest<HTMLElement>('[data-dou-theme]')?.dataset.douTheme
+    if (theme) ghost.dataset.douTheme = theme
+    document.body.append(ghost)
+    document.documentElement.classList.add('dou-sortable-dragging')
+    frame = requestAnimationFrame(scroll)
+  }
+
+  const onMove = (e: PointerEvent) => {
+    pointer = { x: e.clientX, y: e.clientY }
+    if (draggingKey.value === null) {
+      if (Math.hypot(e.clientX - start.x, e.clientY - start.y) <= 4) return
+      if (!ready) return stop()
+      begin()
+    }
+    e.preventDefault()
+    ghost!.style.translate = `${e.clientX + 12}px ${e.clientY + 8}px`
+    update()
+  }
+  const end = (commit: boolean) => {
+    stop()
+    const target = dropAt.value
+    const wasDragging = draggingKey.value !== null
+    draggingKey.value = null
+    dropAt.value = null
+    if (!wasDragging) return
+    // The click that ends a drag must not also select the row under it.
+    dragged = true
+    setTimeout(() => (dragged = false))
+    if (!commit || !target) return
+    drop(row.node, index.value.get(target.key)!.node, target.position)
+  }
+  const onUp = () => end(true)
+  const onCancel = () => end(false)
+  const onKey = (e: KeyboardEvent) => {
+    if (e.key !== 'Escape' || draggingKey.value === null) return
+    e.preventDefault()
+    e.stopPropagation()
+    end(false)
+  }
+  const stop = () => {
+    clearTimeout(timer)
+    clearTimeout(hover)
+    cancelAnimationFrame(frame)
+    ghost?.remove()
+    document.documentElement.classList.remove('dou-sortable-dragging')
+    window.removeEventListener('pointermove', onMove)
+    window.removeEventListener('pointerup', onUp)
+    window.removeEventListener('pointercancel', onCancel)
+    window.removeEventListener('keydown', onKey, true)
+    window.removeEventListener('touchmove', onDragTouchMove)
+    stopDrag = undefined
+  }
+  stopDrag = () => end(false)
+  window.addEventListener('pointermove', onMove)
+  window.addEventListener('pointerup', onUp)
+  window.addEventListener('pointercancel', onCancel)
+  window.addEventListener('keydown', onKey, true)
+  window.addEventListener('touchmove', onDragTouchMove, { passive: false })
+}
+
+onBeforeUnmount(() => stopDrag?.())
+
 /* exposed */
 
 function expand(...keys: TreeKey[]) {
@@ -398,8 +675,8 @@ function expand(...keys: TreeKey[]) {
   expandedModel.value = [...next]
 }
 function collapse(...keys: TreeKey[]) {
-  const drop = new Set(keys)
-  expandedModel.value = (expandedModel.value ?? []).filter((key) => !drop.has(key))
+  const closing = new Set(keys)
+  expandedModel.value = (expandedModel.value ?? []).filter((key) => !closing.has(key))
 }
 function scrollTo(key: TreeKey) {
   const next = new Set(expandedModel.value ?? [])
@@ -430,6 +707,10 @@ provide(treeContextKey, {
   toggle,
   setChecked,
   onRowClick,
+  draggingKey,
+  dropAt,
+  canDrag,
+  onRowPointerdown,
 })
 
 const rowHeight = computed(() => treeRowHeights[size.value])
@@ -438,6 +719,7 @@ const classes = computed(() => [
   ns.m(size.value),
   ns.is('guides', props.guides),
   ns.is('selectable', props.selectable),
+  ns.is('dragging', draggingKey.value !== null),
 ])
 </script>
 
@@ -450,6 +732,7 @@ const classes = computed(() => [
     :aria-label="ariaLabel"
     :aria-activedescendant="active !== null ? rowId(active) : undefined"
     :aria-multiselectable="checkable || undefined"
+    :aria-description="dragEnabled ? t('tree.dragHint') : undefined"
     @focus="onFocus"
     @keydown="onKeydown"
   >

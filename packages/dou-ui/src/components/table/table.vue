@@ -12,7 +12,13 @@ import {
   watch,
 } from 'vue'
 import type { CSSProperties } from 'vue'
-import { ChevronDownIcon, ChevronRightIcon, ChevronUpIcon, FilterIcon } from '@dou-ui/icons'
+import {
+  ChevronDownIcon,
+  ChevronRightIcon,
+  ChevronUpIcon,
+  FilterIcon,
+  GripVerticalIcon,
+} from '@dou-ui/icons'
 import { useNamespace } from '../../utils/namespace'
 import DouButton from '../button/button.vue'
 import { useLocale } from '../config-provider/use-config'
@@ -21,10 +27,12 @@ import DouCheckbox from '../checkbox/checkbox.vue'
 import DouEmpty from '../empty/empty.vue'
 import DouPopover from '../popover/popover.vue'
 import DouSpinner from '../spinner/spinner.vue'
+import { useSortable } from '../sortable/use-sortable'
 import type {
   TableColumn,
   TableExpose,
   TableProps,
+  TableRowDropEvent,
   TableRowKey,
   TableSlots,
   TableSort,
@@ -48,6 +56,7 @@ const props = withDefaults(defineProps<TableProps<T>>(), {
   manualFilter: false,
   highlightCurrent: false,
   hasChildrenKey: 'hasChildren',
+  draggable: false,
 })
 const selected = defineModel<TableRowKey[]>('selected', { default: () => [] })
 const sort = defineModel<TableSort | null>('sort', { default: null })
@@ -55,6 +64,8 @@ const expanded = defineModel<TableRowKey[]>('expanded', { default: () => [] })
 const filters = defineModel<Record<string, unknown[]>>('filters', { default: () => ({}) })
 const currentKey = defineModel<TableRowKey | null>('current', { default: null })
 const emit = defineEmits<{
+  'update:data': [data: T[]]
+  rowDrop: [event: TableRowDropEvent<T>]
   rowClick: [row: T, index: number, event: MouseEvent]
   rowDblclick: [row: T, index: number, event: MouseEvent]
   rowContextmenu: [row: T, index: number, event: MouseEvent]
@@ -288,7 +299,7 @@ const rows = computed<FlatRow[]>(() => {
       if (children && expandedSet.value.has(key)) walk(children, level + 1)
     }
   }
-  walk(props.data, 1)
+  walk(dragActive.value ? sortable.list.value : props.data, 1)
   return result
 })
 
@@ -334,7 +345,63 @@ function toggleRow(row: T, checked: boolean) {
 }
 
 const hasSelection = computed(() => props.selectable !== false)
-const utilityCount = computed(() => (hasExpand.value ? 1 : 0) + (hasSelection.value ? 1 : 0))
+const hasDrag = computed(() => props.draggable)
+const utilityCount = computed(
+  () => (hasDrag.value ? 1 : 0) + (hasExpand.value ? 1 : 0) + (hasSelection.value ? 1 : 0),
+)
+// the utility columns, in order: drag handle, detail toggle, checkbox
+const expandAt = computed(() => (hasDrag.value ? 1 : 0))
+const selectionAt = computed(() => expandAt.value + (hasExpand.value ? 1 : 0))
+
+/* dragging rows: reorders `data` as given, so not while sorted, filtered or a tree */
+
+const dragActive = computed(
+  () => hasDrag.value && !sorter.value && !passing.value && !isTree.value && !props.virtual,
+)
+const sortable = useSortable<T>({
+  items: computed({
+    get: () => props.data,
+    set: (value) => emit('update:data', value),
+  }),
+  key: keyOf,
+  handle: () => true,
+  disabled: () => !dragActive.value,
+  label: (_row, index) => t('sortable.position', { n: index + 1 }),
+  messages: () => ({
+    item: t('sortable.item'),
+    lifted: (label, position, total) => t('sortable.lifted', { label, position, total }),
+    moved: (label, position, total) => t('sortable.moved', { label, position, total }),
+    dropped: (label, position, total) => t('sortable.dropped', { label, position, total }),
+    canceled: (label) => t('sortable.canceled', { label }),
+  }),
+  ghost: rowGhost,
+  onSort: ({ item, oldIndex, newIndex }) => emit('rowDrop', { row: item, oldIndex, newIndex }),
+})
+
+/** A dragged row follows the pointer inside a one-row copy of the table, cells at their widths. */
+function rowGhost(tr: HTMLElement) {
+  const frame = document.createElement('div')
+  frame.className = classes.value
+    .filter((name): name is string => typeof name === 'string' && name.startsWith(ns.b()))
+    .join(' ')
+  frame.classList.add(ns.e('ghost'))
+  const table = document.createElement('table')
+  table.className = ns.e('table')
+  const body = document.createElement('tbody')
+  body.className = ns.e('body')
+  const row = tr.cloneNode(true) as HTMLElement
+  row.removeAttribute('data-dou-sortable-key')
+  row.classList.remove('is-dragging')
+  const cells = tr.children
+  ;[...row.children].forEach((cell, at) => {
+    const width = cells[at]?.getBoundingClientRect().width
+    if (width) (cell as HTMLElement).style.width = `${width}px`
+  })
+  body.append(row)
+  table.append(body)
+  frame.append(table)
+  return frame
+}
 const span = computed(() => leaves.value.length + utilityCount.value)
 
 // widths: resized columns keep their width in px
@@ -699,6 +766,7 @@ defineExpose<TableExpose>({
         :aria-rowcount="virtual ? rows.length + headerDepth : undefined"
       >
         <colgroup>
+          <col v-if="hasDrag" :class="ns.e('col-utility')" />
           <col v-if="hasExpand" :class="ns.e('col-utility')" />
           <col v-if="hasSelection" :class="ns.e('col-utility')" />
           <col
@@ -715,10 +783,24 @@ defineExpose<TableExpose>({
           >
             <template v-if="level === 0">
               <th
+                v-if="hasDrag"
+                :rowspan="headerDepth"
+                :class="[ns.e('cell'), ns.e('drag'), ns.is('edge', true), utilityFixed(0).class]"
+                :style="utilityFixed(0).style"
+                scope="col"
+              >
+                <span :class="ns.e('visually-hidden')">{{ t('table.drag') }}</span>
+              </th>
+              <th
                 v-if="hasExpand"
                 :rowspan="headerDepth"
-                :class="[ns.e('cell'), ns.e('expand'), ns.is('edge', true), utilityFixed(0).class]"
-                :style="utilityFixed(0).style"
+                :class="[
+                  ns.e('cell'),
+                  ns.e('expand'),
+                  ns.is('edge', !hasDrag),
+                  utilityFixed(expandAt).class,
+                ]"
+                :style="utilityFixed(expandAt).style"
                 scope="col"
               >
                 <span :class="ns.e('visually-hidden')">{{ t('table.expand') }}</span>
@@ -729,10 +811,10 @@ defineExpose<TableExpose>({
                 :class="[
                   ns.e('cell'),
                   ns.e('selection'),
-                  ns.is('edge', !hasExpand),
-                  utilityFixed(hasExpand ? 1 : 0).class,
+                  ns.is('edge', selectionAt === 0),
+                  utilityFixed(selectionAt).class,
                 ]"
-                :style="utilityFixed(hasExpand ? 1 : 0).style"
+                :style="utilityFixed(selectionAt).style"
                 scope="col"
               >
                 <DouCheckbox
@@ -913,7 +995,11 @@ defineExpose<TableExpose>({
             </template>
           </tr>
         </thead>
-        <tbody :class="ns.e('body')">
+        <tbody
+          :ref="(el) => (sortable.container.value = el as HTMLElement | null)"
+          :class="ns.e('body')"
+          v-bind="hasDrag ? sortable.listAttrs.value : undefined"
+        >
           <tr v-if="virtual && spacerBefore > 0" :class="ns.e('spacer')" aria-hidden="true">
             <td :colspan="span" :style="{ height: `${spacerBefore}px` }" />
           </tr>
@@ -924,14 +1010,37 @@ defineExpose<TableExpose>({
               :data-row-key="item.key"
               :aria-rowindex="virtual ? item.index + 1 + headerDepth : undefined"
               :aria-selected="highlightCurrent ? currentKey === item.key : undefined"
+              v-bind="hasDrag ? sortable.itemAttrs(item.row, item.index) : undefined"
               @click="onRowClick(item, $event)"
               @dblclick="emit('rowDblclick', item.row, item.index, $event)"
               @contextmenu="emit('rowContextmenu', item.row, item.index, $event)"
             >
               <td
-                v-if="hasExpand"
-                :class="[ns.e('cell'), ns.e('expand'), ns.is('edge', true), utilityFixed(0).class]"
+                v-if="hasDrag"
+                :class="[ns.e('cell'), ns.e('drag'), ns.is('edge', true), utilityFixed(0).class]"
                 :style="utilityFixed(0).style"
+                @click.stop
+              >
+                <button
+                  type="button"
+                  :class="ns.e('drag-handle')"
+                  data-dou-sortable-handle
+                  :disabled="!dragActive"
+                  :aria-label="t('table.dragRow')"
+                  :aria-description="t('sortable.hint')"
+                >
+                  <GripVerticalIcon />
+                </button>
+              </td>
+              <td
+                v-if="hasExpand"
+                :class="[
+                  ns.e('cell'),
+                  ns.e('expand'),
+                  ns.is('edge', !hasDrag),
+                  utilityFixed(expandAt).class,
+                ]"
+                :style="utilityFixed(expandAt).style"
                 @click.stop
               >
                 <button
@@ -951,10 +1060,10 @@ defineExpose<TableExpose>({
                 :class="[
                   ns.e('cell'),
                   ns.e('selection'),
-                  ns.is('edge', !hasExpand),
-                  utilityFixed(hasExpand ? 1 : 0).class,
+                  ns.is('edge', selectionAt === 0),
+                  utilityFixed(selectionAt).class,
                 ]"
-                :style="utilityFixed(hasExpand ? 1 : 0).style"
+                :style="utilityFixed(selectionAt).style"
                 @click.stop
               >
                 <DouCheckbox
@@ -1079,14 +1188,19 @@ defineExpose<TableExpose>({
             :aria-rowindex="virtual ? rows.length + 1 + headerDepth : undefined"
           >
             <td
-              v-if="hasExpand"
+              v-if="hasDrag"
               :class="[ns.e('cell'), utilityFixed(0).class]"
               :style="utilityFixed(0).style"
             />
             <td
+              v-if="hasExpand"
+              :class="[ns.e('cell'), utilityFixed(expandAt).class]"
+              :style="utilityFixed(expandAt).style"
+            />
+            <td
               v-if="hasSelection"
-              :class="[ns.e('cell'), utilityFixed(hasExpand ? 1 : 0).class]"
-              :style="utilityFixed(hasExpand ? 1 : 0).style"
+              :class="[ns.e('cell'), utilityFixed(selectionAt).class]"
+              :style="utilityFixed(selectionAt).style"
             />
             <td
               v-for="column in leaves"

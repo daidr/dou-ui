@@ -29,9 +29,12 @@ export const zhCN: Locale = {
     close: '关闭',
     confirm: '确定',
     cancel: '取消',
+    fullscreen: '全屏',
+    exitFullscreen: '退出全屏',
   },
   drawer: {
     close: '关闭',
+    resize: '拖动调整大小',
   },
   select: {
     placeholder: '请选择',
@@ -73,6 +76,8 @@ export const zhCN: Locale = {
     filterReset: '重置',
     filterConfirm: '筛选',
     filterAll: '全部',
+    drag: '排序',
+    dragRow: '拖动排序',
   },
   upload: {
     choose: '选择文件',
@@ -219,6 +224,10 @@ export const zhCN: Locale = {
     rotateRight: '向右旋转',
     reset: '还原',
     counter: '{index} / {total}',
+    flipHorizontal: '水平翻转',
+    flipVertical: '垂直翻转',
+    download: '下载',
+    scale: '{value}%',
   },
   pageHeader: {
     back: '返回',
@@ -279,6 +288,15 @@ export const zhCN: Locale = {
   ellipsis: {
     expand: '展开',
     collapse: '收起',
+  },
+  tree: {
+    dragHint: '按 Alt 加方向键移动节点',
+    dropBefore: '已将{label}移到{target}之前',
+    dropAfter: '已将{label}移到{target}之后',
+    dropInside: '已将{label}移入{target}',
+  },
+  dropdown: {
+    more: '更多操作',
   },
   sortable: {
     item: '可排序项',

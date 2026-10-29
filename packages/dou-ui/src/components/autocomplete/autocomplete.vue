@@ -125,7 +125,12 @@ const popup = usePopup({
 const { triggerRef, panelRef, rendered, theme, placement, panelStyle } = popup
 
 const active = ref(-1)
-watch(suggestions, () => (active.value = -1))
+// A parent that re-renders passes a new but equal list: only a different
+// list of suggestions clears the highlight.
+const suggestionsKey = computed(() =>
+  suggestions.value.map((option) => option.value).join('\u0000'),
+)
+watch(suggestionsKey, () => (active.value = -1))
 // Long lists render only the suggestions in view, with spacers for the rest.
 const ROW = 32
 const INSET = 4
@@ -158,7 +163,7 @@ watch(active, async (index) => {
   }
   menu.querySelector(`#${CSS.escape(optionId(index))}`)?.scrollIntoView?.({ block: 'nearest' })
 })
-watch(suggestions, () => {
+watch(suggestionsKey, () => {
   if (panelRef.value) panelRef.value.scrollTop = 0
   menuScroll.value = 0
 })

@@ -175,3 +175,19 @@ describe('DouSelect', () => {
     wrapper.unmount()
   })
 })
+
+describe('DouSelect highlight', () => {
+  it('keeps the highlight when the parent passes an equal list again', async () => {
+    const wrapper = withModel()
+    const combobox = wrapper.get('[role="combobox"]')
+    key(combobox.element, 'ArrowDown')
+    await nextTick()
+    key(combobox.element, 'ArrowDown')
+    await nextTick()
+    const second = optionEls()[1]!.id
+    expect(combobox.attributes('aria-activedescendant')).toBe(second)
+    await wrapper.setProps({ options: options.map((option) => ({ ...option })) })
+    expect(combobox.attributes('aria-activedescendant')).toBe(second)
+    wrapper.unmount()
+  })
+})

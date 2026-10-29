@@ -137,4 +137,17 @@ describe('DouCascader', () => {
     expect(wrapper.props('modelValue')).toEqual(['zj'])
     wrapper.unmount()
   })
+
+  it('keeps the search highlight when the parent passes equal options again', async () => {
+    const wrapper = make({ filterable: true })
+    const input = wrapper.get('input')
+    await input.trigger('focus')
+    await input.setValue('区')
+    await nextTick()
+    await input.trigger('keydown', { key: 'ArrowDown' })
+    await wrapper.setProps({ options: structuredClone(options) })
+    await input.trigger('keydown', { key: 'Enter' })
+    expect(wrapper.props('modelValue')).toEqual(['zj', 'hz', 'bj'])
+    wrapper.unmount()
+  })
 })

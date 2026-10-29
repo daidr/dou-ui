@@ -298,7 +298,11 @@ const matches = computed<Match[]>(() => {
 })
 const searching = computed(() => props.filterable && !!query.value.trim())
 const activeMatch = ref(-1)
-watch(matches, (list) => (activeMatch.value = list.length ? 0 : -1))
+// Only a different list of matches moves the highlight back to the top.
+watch(
+  () => matches.value.map((match) => match.values.map(String).join('\u0001')).join('\u0000'),
+  () => (activeMatch.value = matches.value.length ? 0 : -1),
+)
 
 /* the popup */
 

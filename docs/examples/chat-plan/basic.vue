@@ -1,5 +1,5 @@
 <script setup>
-import { onBeforeUnmount, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 
 const labels = ['读取需求文档', '列出要改的组件', '修改样式', '运行测试', '提交代码']
 const items = ref([])
@@ -18,7 +18,7 @@ function start() {
   }, 1200)
 }
 
-start()
+onMounted(start)
 onBeforeUnmount(() => clearInterval(timer))
 </script>
 

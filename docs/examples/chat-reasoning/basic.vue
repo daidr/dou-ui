@@ -1,5 +1,5 @@
 <script setup>
-import { onBeforeUnmount, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 
 const full =
   '用户想知道周末去哪儿骑车。先确认城市是上海，再看天气：周六多云，周日有雨，所以推荐周六。路线要平坦、车少，滨江步道比较合适。'
@@ -23,7 +23,7 @@ function start() {
   }, 150)
 }
 
-start()
+onMounted(start)
 onBeforeUnmount(() => clearInterval(timer))
 </script>
 

@@ -1,6 +1,6 @@
 <script setup>
 import { FileTextIcon, GlobeIcon, SearchIcon } from '@dou-ui/icons'
-import { onBeforeUnmount, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 
 const all = [
   { label: '搜索网页', detail: '上海 周末 展览', icon: SearchIcon },
@@ -22,7 +22,7 @@ function start() {
   }, 1200)
 }
 
-start()
+onMounted(start)
 onBeforeUnmount(() => clearInterval(timer))
 </script>
 

@@ -1,5 +1,5 @@
 <script setup>
-import { onBeforeUnmount, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 
 const full = '第一步：确定路线。\n第二步：查看天气。\n第三步：约上朋友。'
 
@@ -22,7 +22,7 @@ function start() {
   }, 200)
 }
 
-start()
+onMounted(start)
 onBeforeUnmount(() => clearInterval(timer))
 </script>
 

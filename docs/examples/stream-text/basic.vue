@@ -1,5 +1,5 @@
 <script setup>
-import { onBeforeUnmount, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 
 const full =
   '上海的秋天来得晚，十月底的梧桐还是绿的。\n周末可以沿着徐汇滨江骑一段，从龙美术馆到西岸美术馆大约四公里，路很平，适合慢慢骑。'
@@ -24,7 +24,7 @@ function start() {
   }, 180)
 }
 
-start()
+onMounted(start)
 onBeforeUnmount(() => clearInterval(timer))
 </script>
 

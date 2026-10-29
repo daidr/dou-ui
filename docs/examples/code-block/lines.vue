@@ -7,7 +7,7 @@ const highlight = (code, lang) =>
     lang,
     themes: { light: 'github-light', dark: 'github-dark' },
     defaultColor: false,
-    transformers: [transformerNotationDiff()],
+    transformers: [transformerNotationDiff({ matchAlgorithm: 'v3' })],
   })
 
 const code = `<template>

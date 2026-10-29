@@ -16,6 +16,11 @@ export interface TransferProps {
   modelValue?: TransferKey[]
   /** The headings of the two lists. Default to the locale's. */
   titles?: [source: string, target: string]
+  /**
+   * Where moved items go on the right: `push` after the ones there,
+   * `unshift` before them, `original` in the order of `data`.
+   */
+  targetOrder?: 'original' | 'push' | 'unshift'
   /** A search box above each list. */
   filterable?: boolean
   /** How an item matches the search. Defaults to its label containing the text. */

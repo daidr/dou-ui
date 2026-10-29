@@ -2,6 +2,10 @@
 
 触发一个操作。
 
+<script setup>
+import { ArrowRightIcon, PlusIcon } from '@dou-ui/icons'
+</script>
+
 ## 变体与语气
 
 `variant` 设置按钮的样式，`tone` 表示操作的语义，两者可以任意组合。
@@ -55,17 +59,28 @@
 
 ## 图标
 
-用 `leading` / `trailing` 插槽放置图标。加载时 `leading` 会被指示器替代。
+用 `leading` / `trailing` 插槽放置图标。加载时 `leading` 会被指示器替代。图标所在一侧的内边距比文字一侧小，让按钮两边看起来一样宽；只有图标的按钮不受影响。
 
 <div class="demo">
-  <DouButton variant="outline"><template #leading>＋</template>新建</DouButton>
-  <DouButton variant="ghost">下一步<template #trailing>→</template></DouButton>
+  <DouButton size="sm" variant="outline"><template #leading><PlusIcon /></template>新建</DouButton>
+  <DouButton variant="outline"><template #leading><PlusIcon /></template>新建</DouButton>
+  <DouButton size="lg" variant="outline"><template #leading><PlusIcon /></template>新建</DouButton>
+</div>
+
+<div class="demo">
+  <DouButton size="sm" variant="soft">下一步<template #trailing><ArrowRightIcon /></template></DouButton>
+  <DouButton variant="soft">下一步<template #trailing><ArrowRightIcon /></template></DouButton>
+  <DouButton size="lg" variant="soft">下一步<template #trailing><ArrowRightIcon /></template></DouButton>
 </div>
 
 ```vue
 <DouButton variant="outline">
   <template #leading><PlusIcon /></template>
   新建
+</DouButton>
+<DouButton variant="soft">
+  下一步
+  <template #trailing><ArrowRightIcon /></template>
 </DouButton>
 ```
 
@@ -101,10 +116,11 @@
 
 组件内部变量，可在局部覆盖：
 
-| 变量                     | 说明               |
-| ------------------------ | ------------------ |
-| `--dou-button-tone`      | 基础色             |
-| `--dou-button-tone-on`   | 实心背景上的前景色 |
-| `--dou-button-height`    | 高度               |
-| `--dou-button-padding-x` | 水平内边距         |
-| `--dou-button-radius`    | 圆角               |
+| 变量                        | 说明                     |
+| --------------------------- | ------------------------ |
+| `--dou-button-tone`         | 基础色                   |
+| `--dou-button-tone-on`      | 实心背景上的前景色       |
+| `--dou-button-height`       | 高度                     |
+| `--dou-button-padding-x`    | 水平内边距               |
+| `--dou-button-padding-icon` | 图标所在一侧的水平内边距 |
+| `--dou-button-radius`       | 圆角                     |

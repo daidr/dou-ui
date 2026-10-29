@@ -1,3 +1,4 @@
+import type { Breakpoint } from '@dou-ui/theme'
 import type { InjectionKey, Ref, ShallowRef } from 'vue'
 import type { Size } from '../../utils/types'
 
@@ -29,10 +30,11 @@ export interface LayoutAsideProps {
   /** A hairline on the side facing the main area. */
   bordered?: boolean
   /**
-   * Below this viewport width, in px, the aside leaves the page and opens
-   * as a drawer instead, from a `DouLayoutAsideTrigger` or `v-model:open`.
+   * Below this viewport width the aside leaves the page and opens as a
+   * drawer instead, from a `DouLayoutAsideTrigger` or `v-model:open`. A
+   * breakpoint name such as `'md'`, or a width in px.
    */
-  breakpoint?: number
+  breakpoint?: Breakpoint | number
   /** The edge the drawer slides in from on narrow screens. */
   side?: 'left' | 'right'
   /** Whether the drawer is open on narrow screens, bound with `v-model:open`. */

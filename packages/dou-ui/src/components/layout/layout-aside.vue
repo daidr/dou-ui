@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { breakpointWidth } from '../../composables/use-breakpoints'
 import { SidebarCollapseIcon, SidebarExpandIcon } from '@dou-ui/icons'
 import { computed, inject, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue'
 import { useNamespace } from '../../utils/namespace'
@@ -48,7 +49,7 @@ function listen() {
   query =
     props.breakpoint === undefined
       ? undefined
-      : window.matchMedia?.(`(max-width: ${props.breakpoint - 0.02}px)`)
+      : window.matchMedia?.(`(max-width: ${breakpointWidth(props.breakpoint) - 0.02}px)`)
   query?.addEventListener('change', sync)
   sync()
 }

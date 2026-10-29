@@ -227,7 +227,6 @@ export const en: Locale = {
     flipHorizontal: 'Flip horizontally',
     flipVertical: 'Flip vertically',
     download: 'Download',
-    scale: '{value}%',
   },
   pageHeader: {
     back: 'Back',

@@ -112,5 +112,6 @@ function onKeydown(event: KeyboardEvent) {
     v-model:open="previewOpen"
     v-model:index="previewAt"
     :images="previewImages"
+    :downloadable="downloadable"
   />
 </template>

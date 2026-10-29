@@ -344,8 +344,6 @@ export interface Locale {
     flipHorizontal: string
     flipVertical: string
     download: string
-    /** The zoom level, with `{value}` in percent. */
-    scale: string
   }
   pageHeader: {
     /** The back button before the title. */

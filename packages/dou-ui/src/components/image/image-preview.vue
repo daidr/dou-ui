@@ -3,6 +3,8 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   CloseIcon,
+  DownloadIcon,
+  FlipHorizontalIcon,
   MaximizeIcon,
   RotateCcwIcon,
   RotateCwIcon,
@@ -14,7 +16,7 @@ import { useModal } from '../../composables/use-modal'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
 import type { ImagePreviewProps } from './image'
-import { clampScale, normalizePreview, stepScale } from './preview'
+import { clampScale, downloadImage, normalizePreview, stepScale } from './preview'
 
 defineOptions({ name: 'DouImagePreview', inheritAttrs: false })
 
@@ -25,6 +27,7 @@ const props = withDefaults(defineProps<ImagePreviewProps>(), {
   maxScale: 4,
   closeOnMask: true,
   teleport: 'body',
+  downloadable: false,
 })
 const open = defineModel<boolean>('open', { default: false })
 const index = defineModel<number>('index', { default: 0 })
@@ -42,12 +45,14 @@ const current = computed(() => list.value[Math.min(index.value, count.value - 1)
 
 const scale = ref(1)
 const rotate = ref(0)
+const flip = ref({ x: 1, y: 1 })
 const offset = ref({ x: 0, y: 0 })
 const failed = ref(false)
 
 function reset() {
   scale.value = 1
   rotate.value = 0
+  flip.value = { x: 1, y: 1 }
   offset.value = { x: 0, y: 0 }
 }
 watch([index, open], () => {
@@ -60,6 +65,8 @@ function zoom(direction: 1 | -1) {
   if (scale.value <= 1) offset.value = { x: 0, y: 0 }
 }
 const turn = (by: number) => (rotate.value += by)
+// Mirrored along the screen's axes, whichever way the picture is turned.
+const mirror = (axis: 'x' | 'y') => (flip.value = { ...flip.value, [axis]: -flip.value[axis] })
 
 const canPrev = computed(() => count.value > 1 && (props.loop || index.value > 0))
 const canNext = computed(() => count.value > 1 && (props.loop || index.value < count.value - 1))
@@ -98,6 +105,8 @@ function onKeydown(event: KeyboardEvent) {
     '0': reset,
     r: () => turn(90),
     R: () => turn(-90),
+    h: () => mirror('x'),
+    v: () => mirror('y'),
   }
   const action = actions[event.key]
   if (!action) return
@@ -139,7 +148,8 @@ function onDblclick() {
 
 const transform = computed(
   () =>
-    `translate(${offset.value.x}px, ${offset.value.y}px) scale(${scale.value}) rotate(${rotate.value}deg)`,
+    `translate(${offset.value.x}px, ${offset.value.y}px) scale(${scale.value}) ` +
+    `scale(${flip.value.x}, ${flip.value.y}) rotate(${rotate.value}deg)`,
 )
 const label = computed(() =>
   count.value > 1
@@ -247,9 +257,38 @@ const label = computed(() =>
           >
             <RotateCwIcon />
           </button>
+          <button
+            type="button"
+            :class="ns.e('tool')"
+            :aria-label="t('image.flipHorizontal')"
+            :aria-pressed="flip.x < 0"
+            @click="mirror('x')"
+          >
+            <FlipHorizontalIcon />
+          </button>
+          <button
+            type="button"
+            :class="[ns.e('tool'), ns.e('flip-y')]"
+            :aria-label="t('image.flipVertical')"
+            :aria-pressed="flip.y < 0"
+            @click="mirror('y')"
+          >
+            <FlipHorizontalIcon />
+          </button>
           <button type="button" :class="ns.e('tool')" :aria-label="t('image.reset')" @click="reset">
             <MaximizeIcon />
           </button>
+          <template v-if="downloadable && current">
+            <span :class="ns.e('divider')" aria-hidden="true" />
+            <button
+              type="button"
+              :class="ns.e('tool')"
+              :aria-label="t('image.download')"
+              @click="downloadImage(current.src)"
+            >
+              <DownloadIcon />
+            </button>
+          </template>
         </div>
       </div>
     </Transition>

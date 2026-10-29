@@ -64,6 +64,9 @@ const offset = ref({ x: 0, y: 0 })
 const canDrag = computed(() => props.draggable && !fullscreen.value)
 watch(open, (value) => value && (offset.value = { x: 0, y: 0 }))
 
+const clamp = (value: number, [min, max]: readonly [number, number]) =>
+  Math.min(Math.max(value, min), max)
+
 let stopDrag: (() => void) | undefined
 function onHeaderPointerdown(event: PointerEvent) {
   if (!canDrag.value || event.button !== 0) return
@@ -78,8 +81,6 @@ function onHeaderPointerdown(event: PointerEvent) {
     x: [from.x - rect.left, from.x + Math.max(0, window.innerWidth - rect.right)],
     y: [from.y - rect.top, from.y + Math.max(0, window.innerHeight - rect.bottom)],
   } as const
-  const clamp = (value: number, [min, max]: readonly [number, number]) =>
-    Math.min(Math.max(value, min), max)
   const move = (e: PointerEvent) => {
     offset.value = {
       x: clamp(from.x + e.clientX - start.x, range.x),

@@ -270,6 +270,14 @@
     }
   }
 
+  /* a pressed flip stays tinted; the vertical one is the horizontal icon turned */
+  .dou-image-preview__tool[aria-pressed='true'] {
+    background-color: var(--dou-image-preview-chrome-hover);
+  }
+  .dou-image-preview__flip-y > svg {
+    rotate: 90deg;
+  }
+
   .dou-image-preview__counter,
   .dou-image-preview__scale {
     min-width: 44px;

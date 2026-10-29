@@ -227,7 +227,6 @@ export const zhCN: Locale = {
     flipHorizontal: '水平翻转',
     flipVertical: '垂直翻转',
     download: '下载',
-    scale: '{value}%',
   },
   pageHeader: {
     back: '返回',

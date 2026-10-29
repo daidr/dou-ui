@@ -2,164 +2,11 @@
 
 按依赖关系从左到右展示一组节点和它们之间的连线。
 
-<script setup>
-import { ref } from 'vue'
-import {
-  BarChartIcon,
-  ClipboardCheckIcon,
-  CodeIcon,
-  ListChecksIcon,
-  PackageIcon,
-  RocketIcon,
-  SparkleIcon,
-} from '@dou-ui/icons'
-
-const releaseNodes = [
-  { id: 'start', label: '开始', status: 'finish' },
-  { id: 'perf', label: '性能评估', status: 'process' },
-  { id: 'review', label: '技术方案评审及接口确认', status: 'finish', incomplete: true },
-  { id: 'security', label: '安全技术评审', status: 'process' },
-  { id: 'fe-est', label: '前端估分', status: 'finish' },
-  { id: 'be-est', label: '后端估分', status: 'finish' },
-  { id: 'fe-dev', label: '前端开发', status: 'finish' },
-  { id: 'be-dev', label: '后端开发', status: 'finish' },
-  { id: 'joint', label: '联调', status: 'finish' },
-  { id: 'pentest', label: '安全渗透测试' },
-  { id: 'intranet', label: '内网发布' },
-  { id: 'public', label: '外网发布' },
-  { id: 'launch', label: '全量上线', kind: 'milestone' },
-]
-const releaseEdges = [
-  { from: 'start', to: 'perf' },
-  { from: 'start', to: 'review' },
-  { from: 'review', to: 'security' },
-  { from: 'review', to: 'fe-est' },
-  { from: 'review', to: 'be-est' },
-  { from: 'perf', to: 'fe-dev' },
-  { from: 'fe-est', to: 'fe-dev' },
-  { from: 'be-est', to: 'be-dev' },
-  { from: 'fe-dev', to: 'joint' },
-  { from: 'be-dev', to: 'joint' },
-  { from: 'security', to: 'pentest' },
-  { from: 'joint', to: 'pentest' },
-  { from: 'joint', to: 'intranet' },
-  { from: 'joint', to: 'public' },
-  { from: 'intranet', to: 'launch' },
-  { from: 'public', to: 'launch' },
-]
-const owners = {
-  perf: '林晓峰',
-  security: '周启明',
-  pentest: '周启明',
-  intranet: '陈思远',
-  public: '陈思远',
-  launch: '林晓峰',
-}
-const current = ref('public')
-
-const pipelineNodes = [
-  { id: 'entry', label: '测试准入', icon: ClipboardCheckIcon, extra: '281.73M', status: 'finish' },
-  { id: 'gen', label: '用例物料生成', icon: PackageIcon, extra: '50.56M', status: 'finish' },
-  { id: 'check', label: '用例物料校验', icon: PackageIcon, extra: '5.87M', status: 'finish' },
-  { id: 'publish', label: '用例发布', icon: RocketIcon, extra: '19.26M', status: 'finish' },
-  {
-    id: 'api',
-    label: '接口增量自动化生成与执行',
-    icon: CodeIcon,
-    extra: '26.24M',
-    status: 'process',
-    progress: 64,
-  },
-  {
-    id: 'regress',
-    label: '接口回归自动化执行',
-    icon: CodeIcon,
-    extra: '38.11M',
-    status: 'process',
-    progress: 22,
-  },
-  { id: 'coverage', label: '增量代码测试覆盖率', icon: BarChartIcon },
-  { id: 'result', label: '测试执行结果', icon: ListChecksIcon },
-]
-const pipelineEdges = [
-  { from: 'entry', to: 'gen' },
-  { from: 'gen', to: 'check' },
-  { from: 'check', to: 'publish' },
-  { from: 'publish', to: 'api' },
-  { from: 'publish', to: 'regress' },
-  { from: 'api', to: 'coverage' },
-  { from: 'regress', to: 'coverage' },
-  { from: 'coverage', to: 'result' },
-]
-
-const cardNodes = [
-  {
-    id: 'ios',
-    label: 'iOS 开发',
-    extra: '12 人日',
-    description: '设计专项优化与体验问题修复',
-    descriptionTone: 'danger',
-    status: 'process',
-    progress: 30,
-  },
-  {
-    id: 'contract',
-    label: '财务法务正式合同确认',
-    description: '金额确认后完善报价单并审批',
-    status: 'process',
-  },
-  { id: 'plan', label: '测试计划', description: '0 个用例', status: 'wait' },
-  { id: 'done', label: '准出', kind: 'milestone' },
-]
-const cardEdges = [
-  { from: 'ios', to: 'plan' },
-  { from: 'contract', to: 'plan' },
-  { from: 'plan', to: 'done' },
-]
-
-const blockedNodes = [
-  { id: 'a', label: '需求澄清', status: 'process' },
-  { id: 'b', label: '技术方案', status: 'finish' },
-  { id: 'c', label: '开发', status: 'process' },
-  { id: 'd', label: '测试', status: 'process' },
-]
-const blockedEdges = [
-  { from: 'a', to: 'c' },
-  { from: 'b', to: 'c' },
-  { from: 'c', to: 'd' },
-]
-const zoom = ref(1)
-const graph = ref()
-</script>
-
 ## 基础用法
 
 `nodes` 是节点，`edges` 是连线，`from` 指向 `to`。节点按依赖深度分列，跨列的连线从节点之间的空隙穿过。
 
-<div class="demo">
-  <DouFlowGraph :nodes="releaseNodes" :edges="releaseEdges" />
-</div>
-
-```vue
-<script setup>
-const nodes = [
-  { id: 'start', label: '开始', status: 'finish' },
-  { id: 'perf', label: '性能评估', status: 'process' },
-  { id: 'review', label: '技术方案评审及接口确认', status: 'finish', incomplete: true },
-  // ...
-  { id: 'launch', label: '全量上线', kind: 'milestone' },
-]
-const edges = [
-  { from: 'start', to: 'perf' },
-  { from: 'start', to: 'review' },
-  // ...
-]
-</script>
-
-<template>
-  <DouFlowGraph :nodes="nodes" :edges="edges" />
-</template>
-```
+<DocDemo src="flow-graph/basic" />
 
 连线必须构成有向无环图。成环的那条连线会被忽略。
 
@@ -171,44 +18,13 @@ const edges = [
 
 `auto-blocked` 让组件自己推断：进行中的节点只要有前驱没完成，就显示为 `blocked`。
 
-<div class="demo">
-  <DouFlowGraph :nodes="blockedNodes" :edges="blockedEdges" auto-blocked legend />
-</div>
-
-```vue
-<DouFlowGraph :nodes="nodes" :edges="edges" auto-blocked legend />
-```
+<DocDemo src="flow-graph/status" />
 
 ## 节点内容
 
 `icon` 放在标题前，`extra` 放在标题后，适合耗时、大小这类短数值。`progress`（0–100）在节点底部显示一条进度。标题放不下时会截断，`extra` 最多占一半宽度。
 
-<div class="demo">
-  <DouFlowGraph :nodes="pipelineNodes" :edges="pipelineEdges" node-width="auto" />
-</div>
-
-```vue
-<script setup>
-import { CodeIcon, PackageIcon } from '@dou-ui/icons'
-
-const nodes = [
-  { id: 'gen', label: '用例物料生成', icon: PackageIcon, extra: '50.56M', status: 'finish' },
-  {
-    id: 'api',
-    label: '接口增量自动化生成与执行',
-    icon: CodeIcon,
-    extra: '26.24M',
-    status: 'process',
-    progress: 64,
-  },
-  // ...
-]
-</script>
-
-<template>
-  <DouFlowGraph :nodes="nodes" :edges="edges" node-width="auto" />
-</template>
-```
+<DocDemo src="flow-graph/content" />
 
 默认 `node-width="column"`，同一列的节点等宽；`auto` 让每个节点按内容决定宽度；传数字则所有节点固定宽度。
 
@@ -216,26 +32,7 @@ const nodes = [
 
 有 `description` 的节点会变成两行的卡片，第二行是说明文字。`descriptionTone` 给说明加上浅色底，用来提醒。`shape` 可以强制指定 `pill` 或 `card`。
 
-<div class="demo">
-  <DouFlowGraph :nodes="cardNodes" :edges="cardEdges" />
-</div>
-
-```vue
-<script setup>
-const nodes = [
-  {
-    id: 'ios',
-    label: 'iOS 开发',
-    extra: '12 人日',
-    description: '设计专项优化与体验问题修复',
-    descriptionTone: 'danger',
-    status: 'process',
-    progress: 30,
-  },
-  // ...
-]
-</script>
-```
+<DocDemo src="flow-graph/card" />
 
 ## 选中与悬停
 
@@ -245,30 +42,7 @@ const nodes = [
 
 `detail` 插槽的内容会在悬停时以弹出层显示。也可以监听 `node-enter` 和 `node-leave`，参数里有节点数据和节点元素，用来自己控制弹出层。
 
-<div class="demo demo--column">
-  <DouFlowGraph v-model:selected="current" :nodes="releaseNodes" :edges="releaseEdges">
-    <template #detail="{ node, status }">
-      <div style="display: flex; align-items: center; gap: 12px; min-width: 220px">
-        <strong style="flex: 1">{{ node.label }}</strong>
-        <DouTag :tone="{ finish: 'success', process: 'warning', error: 'danger' }[status] ?? 'neutral'" size="sm">
-          {{ { wait: '未开始', process: '进行中', finish: '已完成', error: '出错', blocked: '依赖项未完成' }[status] }}
-        </DouTag>
-        <DouUser v-if="owners[node.id]" :name="owners[node.id]" size="sm" />
-      </div>
-    </template>
-  </DouFlowGraph>
-  <DouText variant="secondary">选中：{{ current ?? '无' }}</DouText>
-</div>
-
-```vue
-<DouFlowGraph v-model:selected="current" :nodes="nodes" :edges="edges">
-  <template #detail="{ node, status }">
-    <strong>{{ node.label }}</strong>
-    <DouTag size="sm">{{ statusText[status] }}</DouTag>
-    <DouUser :name="owners[node.id]" size="sm" />
-  </template>
-</DouFlowGraph>
-```
+<DocDemo src="flow-graph/selection" column />
 
 ## 插槽
 
@@ -276,42 +50,7 @@ const nodes = [
 
 下面用 `corner` 在右上角放一个圆形按钮。点击它不会选中节点。
 
-<div class="demo">
-  <DouFlowGraph :nodes="pipelineNodes" :edges="pipelineEdges" node-width="auto">
-    <template #corner="{ node }">
-      <button
-        type="button"
-        :aria-label="`${node.label}：智能分析`"
-        :style="{
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: '20px',
-          height: '20px',
-          padding: 0,
-          border: '1px solid var(--dou-color-border)',
-          borderRadius: '50%',
-          background: 'var(--dou-color-bg-surface)',
-          boxShadow: 'var(--dou-shadow-sm)',
-          color: node.status === 'finish' ? 'var(--dou-color-success)' : 'var(--dou-color-text-tertiary)',
-          cursor: 'pointer',
-        }"
-      >
-        <SparkleIcon style="width: 12px; height: 12px" />
-      </button>
-    </template>
-  </DouFlowGraph>
-</div>
-
-```vue
-<DouFlowGraph :nodes="nodes" :edges="edges">
-  <template #corner="{ node }">
-    <button type="button" class="ai-button" :aria-label="`${node.label}：智能分析`">
-      <SparkleIcon />
-    </button>
-  </template>
-</DouFlowGraph>
-```
+<DocDemo src="flow-graph/corner" />
 
 ## 平移与缩放
 
@@ -319,43 +58,11 @@ const nodes = [
 
 `zoomable` 开启缩放：按住 Ctrl 或 ⌘ 滚动滚轮，或在触控板上捏合，右上角也会出现缩放按钮。缩放比例可以用 `v-model:zoom` 绑定。`height` 固定容器高度，默认和图一样高。`legend` 在工具栏加一个图例按钮。
 
-<div class="demo demo--column">
-  <DouFlowGraph
-    ref="graph"
-    v-model:zoom="zoom"
-    :nodes="releaseNodes"
-    :edges="releaseEdges"
-    :height="240"
-    zoomable
-    legend
-    style="border: 1px solid var(--dou-color-border); border-radius: var(--dou-radius-container); max-width: 560px"
-  />
-  <DouSpace>
-    <DouButton size="sm" variant="outline" @click="graph.fit()">适应画布</DouButton>
-    <DouButton size="sm" variant="outline" @click="graph.scrollToNode('launch')">定位到全量上线</DouButton>
-    <DouText variant="secondary">缩放：{{ Math.round(zoom * 100) }}%</DouText>
-  </DouSpace>
-</div>
-
-```vue
-<DouFlowGraph
-  ref="graph"
-  v-model:zoom="zoom"
-  :nodes="nodes"
-  :edges="edges"
-  :height="240"
-  zoomable
-  legend
-/>
-<DouButton @click="graph.fit()">适应画布</DouButton>
-<DouButton @click="graph.scrollToNode('launch')">定位到全量上线</DouButton>
-```
+<DocDemo src="flow-graph/zoom" column />
 
 图例也可以单独使用：`<DouFlowGraphLegend :nodes="nodes" />` 只列出这些节点用到的类型和状态，不传 `nodes` 则列出全部。
 
-<div class="demo">
-  <DouFlowGraphLegend />
-</div>
+<DocDemo src="flow-graph/legend" />
 
 ## 键盘与读屏
 

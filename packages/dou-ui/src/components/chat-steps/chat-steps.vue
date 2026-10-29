@@ -29,10 +29,10 @@ function toggle() {
   emit('update:open', inner.value)
 }
 
-// A backwards loop: the build target has no `findLast`.
+// the last running step; a loop, since `findLast` needs a newer lib than the build targets
 const current = computed(() => {
-  for (let index = props.items.length - 1; index >= 0; index--) {
-    if (props.items[index]!.status === 'running') return props.items[index]
+  for (let i = props.items.length - 1; i >= 0; i--) {
+    if (props.items[i]!.status === 'running') return props.items[i]
   }
   return undefined
 })

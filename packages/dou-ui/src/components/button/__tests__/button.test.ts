@@ -61,6 +61,41 @@ describe('DouButton', () => {
     expect(wrapper.text()).toBe('LLabelT')
   })
 
+  it('treats an icon in the default slot like a leading icon', () => {
+    const wrapper = mount(DouButton, { slots: { default: () => h('svg', { class: 'icon' }) } })
+    expect(wrapper.classes()).toContain('is-icon-only')
+    expect(wrapper.find('.dou-button__label').exists()).toBe(false)
+    expect(wrapper.find('.dou-button__icon .icon').exists()).toBe(true)
+  })
+
+  it('treats a component in the default slot as an icon', () => {
+    const Icon = { render: () => h('svg') }
+    const wrapper = mount(DouButton, { slots: { default: () => h(Icon) } })
+    expect(wrapper.classes()).toContain('is-icon-only')
+  })
+
+  it('keeps text, even wrapped in an element, as the label', () => {
+    const wrapper = mount(DouButton, {
+      slots: { default: () => [h('svg'), h('span', 'Save')] },
+    })
+    expect(wrapper.classes()).not.toContain('is-icon-only')
+    expect(wrapper.find('.dou-button__label').text()).toBe('Save')
+  })
+
+  it('is icon-only with just a leading icon, and keeps the spinner in its place', () => {
+    const wrapper = mount(DouButton, {
+      props: { loading: true },
+      slots: { default: () => h('svg', { class: 'icon' }) },
+    })
+    expect(wrapper.classes()).toContain('is-icon-only')
+    expect(wrapper.find('.dou-button__spinner').exists()).toBe(true)
+    expect(wrapper.find('.icon').exists()).toBe(false)
+    expect(mount(DouButton, { slots: { leading: () => h('svg') } }).classes()).toContain(
+      'is-icon-only',
+    )
+    expect(mount(DouButton, { slots: { default: 'Save' } }).classes()).not.toContain('is-icon-only')
+  })
+
   it('can be installed globally', () => {
     const app = createApp({})
     app.use(DouUI)

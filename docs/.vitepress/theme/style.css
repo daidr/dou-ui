@@ -642,8 +642,6 @@ body {
 }
 
 .doc-demo__toggle.dou-button {
-  width: 28px;
-  padding-inline: 0;
   color: var(--dou-color-text-tertiary);
 }
 

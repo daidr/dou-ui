@@ -215,6 +215,12 @@
     padding-right: var(--dou-button-padding-icon);
   }
 
+  /* A button with only an icon is square. */
+  .dou-button.is-icon-only:not(.is-block) {
+    width: var(--dou-button-height);
+    padding-inline: 0;
+  }
+
   .dou-button__label {
     /*
      * Center on the cap height instead of the font's ascent and descent,

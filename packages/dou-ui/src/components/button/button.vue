@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { Comment, Fragment, Text, computed, isVNode } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { useFormDisabled, useFormSize } from '../form/use-form-item'
 import type { ButtonEmits, ButtonProps, ButtonSlots } from './button'
@@ -32,6 +32,30 @@ const classes = computed(() => [
   ns.is('block', props.block),
 ])
 
+// An icon passed as the only content of the default slot goes where the
+// leading icon would, so it is centered and the button turns square.
+// Components and svg/img count as icons; anything with text does not.
+function hasText(nodes: unknown): boolean {
+  return (Array.isArray(nodes) ? nodes : [nodes]).some((node) => {
+    if (!isVNode(node)) return typeof node === 'string' && node.trim() !== ''
+    if (node.type === Comment) return false
+    if (node.type === Text) return String(node.children).trim() !== ''
+    if (
+      node.type === Fragment ||
+      (typeof node.type === 'string' && !['svg', 'img'].includes(node.type))
+    )
+      return hasText(node.children)
+    return false
+  })
+}
+
+// Read while rendering: slot content can change from one render to the next.
+function iconOnly() {
+  if (slots.trailing) return false
+  if (slots.default) return !slots.leading && !hasText(slots.default())
+  return !!(slots.leading || props.loading)
+}
+
 function onClick(event: MouseEvent) {
   if (inert.value) return
   emit('click', event)
@@ -40,7 +64,7 @@ function onClick(event: MouseEvent) {
 
 <template>
   <button
-    :class="classes"
+    :class="[classes, ns.is('icon-only', iconOnly())]"
     :type="nativeType"
     :disabled="disabled"
     :aria-disabled="loading || undefined"
@@ -53,7 +77,10 @@ function onClick(event: MouseEvent) {
     <span v-else-if="slots.leading" :class="ns.e('icon')">
       <slot name="leading" />
     </span>
-    <span v-if="slots.default" :class="ns.e('label')"><slot /></span>
+    <template v-if="slots.default">
+      <span v-if="!iconOnly()" :class="ns.e('label')"><slot /></span>
+      <span v-else-if="!loading" :class="ns.e('icon')"><slot /></span>
+    </template>
     <span v-if="slots.trailing" :class="ns.e('icon')">
       <slot name="trailing" />
     </span>

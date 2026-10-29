@@ -23,7 +23,8 @@
   ],
   "scripts": {
     "gen": "bun scripts/gen.ts",
-    "build": "bun scripts/gen.ts && vite build && vue-tsc -p tsconfig.build.json && bun scripts/copy-svg.ts"
+    "build": "bun scripts/gen.ts && vite build && vue-tsc -p tsconfig.build.json && bun scripts/copy-svg.ts",
+    "review": "bun scripts/review.ts"
   },
   "peerDependencies": {
     "vue": "^3.5.0"

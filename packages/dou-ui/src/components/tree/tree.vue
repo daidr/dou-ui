@@ -15,6 +15,7 @@ import { announce } from '../../utils/announce'
 import { splitHighlight } from '../../utils/highlight'
 import { useNamespace } from '../../utils/namespace'
 import { getScrollParent, isWindow } from '../../utils/scroll'
+import { VIRTUAL_THRESHOLD } from '../../utils/virtual'
 import { useLocale } from '../config-provider/use-config'
 import { useFormSize } from '../form/use-form-item'
 import { DouVirtualList } from '../virtual-list'
@@ -166,6 +167,18 @@ const rows = computed(() => {
   walk(props.data, 1)
   return list
 })
+// A fixed `height` always renders virtually; a `maxHeight` once the rows are many.
+const isVirtual = computed(
+  () =>
+    props.height !== undefined ||
+    (props.maxHeight !== undefined && rows.value.length > VIRTUAL_THRESHOLD),
+)
+const px = (value: number | string) => (typeof value === 'number' ? `${value}px` : value)
+const rowsStyle = computed(() =>
+  props.height === undefined && props.maxHeight !== undefined
+    ? { maxHeight: px(props.maxHeight), overflowY: 'auto' as const }
+    : undefined,
+)
 const rowIndex = computed(() => new Map(rows.value.map((row, at) => [row.key, at])))
 
 const labelOf = (node: TreeNodeData) => node.label ?? String(node.key)
@@ -291,7 +304,7 @@ async function reveal(key: TreeKey) {
   await nextTick()
   const at = rowIndex.value.get(key)
   if (at === undefined) return
-  if (props.height !== undefined) listRef.value?.scrollToIndex(at)
+  if (listRef.value) listRef.value.scrollToIndex(at)
   else
     treeRef.value?.querySelector(`#${CSS.escape(rowId(key))}`)?.scrollIntoView?.({
       block: 'nearest',
@@ -537,7 +550,7 @@ let stopDrag: (() => void) | undefined
 /** What scrolls while a drag nears the edge: the virtual viewport, or the tree's scroll parent. */
 function dragScrollArea() {
   const viewport =
-    props.height !== undefined
+    isVirtual.value || props.maxHeight !== undefined
       ? treeRef.value?.querySelector<HTMLElement>(`.${ns.e('rows')}`)
       : null
   return viewport ?? getScrollParent(treeRef.value)
@@ -735,7 +748,7 @@ const classes = computed(() => [
     @keydown="onKeydown"
   >
     <DouVirtualList
-      v-if="height !== undefined"
+      v-if="isVirtual"
       ref="list"
       :tabindex="null"
       :class="ns.e('rows')"
@@ -743,6 +756,7 @@ const classes = computed(() => [
       :item-size="rowHeight"
       item-key="key"
       :height="height"
+      :style="rowsStyle"
       :overscan="6"
     >
       <template #default="{ item }">
@@ -753,7 +767,7 @@ const classes = computed(() => [
         </TreeNode>
       </template>
     </DouVirtualList>
-    <div v-else :class="ns.e('rows')">
+    <div v-else :class="ns.e('rows')" :style="rowsStyle">
       <TreeNode v-for="row in rows" :key="row.key" :row="row">
         <template v-if="slots.node" #default="scope"><slot name="node" v-bind="scope" /></template>
       </TreeNode>

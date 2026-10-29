@@ -24,7 +24,8 @@ const props = withDefaults(defineProps<SegmentedControlProps>(), {
   disabled: false,
   block: false,
 })
-const model = defineModel<SegmentedControlValue>()
+// An explicit default stops Vue from reading a missing value as `false`.
+const model = defineModel<SegmentedControlValue | undefined>({ default: undefined })
 const emit = defineEmits<{ change: [value: SegmentedControlValue] }>()
 defineSlots<SegmentedControlSlots>()
 

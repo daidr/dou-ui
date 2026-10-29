@@ -76,6 +76,11 @@ export interface TreeProps {
   size?: TreeSize
   /** Render only the rows in view, inside a viewport of this height. A number is in px. */
   height?: number | string
+  /**
+   * Let the rows grow up to this height, then scroll. A number is in px.
+   * Past 100 rows only the rows in view are rendered.
+   */
+  maxHeight?: number | string
   /** Names the tree for screen readers when it has no visible label. */
   ariaLabel?: string
 }

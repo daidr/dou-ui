@@ -11,7 +11,8 @@ defineOptions({ name: 'DouRadio', inheritAttrs: false })
 const props = withDefaults(defineProps<RadioProps>(), {
   disabled: false,
 })
-const model = defineModel<RadioValue>()
+// An explicit default stops Vue from reading a missing value as `false`.
+const model = defineModel<RadioValue | undefined>({ default: undefined })
 const slots = defineSlots<RadioSlots>()
 
 const ns = useNamespace('radio')

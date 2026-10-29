@@ -136,6 +136,16 @@ export const cases: Record<string, Case> = {
     },
     act: (root) => mousedown(field(root, 'select')),
   },
+  'select-groups': {
+    render: (n) => {
+      const groups = Array.from({ length: 4 }, (_, g) => ({
+        label: `分组 ${g}`,
+        options: options(n / 4).map((o) => ({ value: `${g}-${o.value}`, label: o.label })),
+      }))
+      return () => h(DouSelect, { options: groups, teleport: false })
+    },
+    act: (root) => mousedown(field(root, 'select')),
+  },
   'select-virtual': {
     render: (n) => {
       const list = options(n)
@@ -248,6 +258,25 @@ export const cases: Record<string, Case> = {
     render: (n) => {
       const list = options(n)
       return () => h(DouListbox, { options: list, maxHeight: 300 })
+    },
+  },
+  'listbox-groups': {
+    render: (n) => {
+      const groups = Array.from({ length: 4 }, (_, g) => ({
+        label: `分组 ${g}`,
+        options: options(n / 4).map((o) => ({
+          value: `${g}-${o.value}`,
+          label: o.label,
+          description: o.value % 3 === 0 ? `说明 ${o.value}` : undefined,
+        })),
+      }))
+      return () => h(DouListbox, { options: groups, maxHeight: 300, filterable: true })
+    },
+  },
+  'command-groups': {
+    render: (n) => {
+      const items = options(n).map((o) => ({ ...o, group: `分组 ${o.value % 4}` }))
+      return () => h(DouCommand, { items, maxHeight: 300 })
     },
   },
   command: {

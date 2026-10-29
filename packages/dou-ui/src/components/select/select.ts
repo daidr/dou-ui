@@ -55,7 +55,10 @@ export interface SelectProps {
   loading?: boolean
   /** Offer what was typed as a new option when nothing matches it exactly. Implies `filterable`. */
   creatable?: boolean
-  /** Render only the options in view, for long lists. */
+  /**
+   * Render only the options in view. By default this turns on by itself
+   * past 100 options; pass `false` for options of differing heights.
+   */
   virtual?: boolean
   /** With `multiple`, show at most this many tags and fold the rest into a "+N" tag. */
   maxTagCount?: number

@@ -6,6 +6,11 @@
  */
 @layer dou.components {
   .dou-tree-select__menu {
+    /* the tree scrolls by itself, inside the panel's inset and border */
+    --dou-tree-select-list-max-height: calc(
+      min(var(--dou-floating-available, 100vh), 320px) - 2 * var(--dou-select-menu-inset, 4px) - 2px
+    );
+
     max-height: min(var(--dou-floating-available, 100vh), 320px);
 
     & > .dou-tree {

@@ -341,6 +341,10 @@
     left: 0;
   }
 
+  .dou-select__menu.is-virtual .dou-select__group-label.is-separated {
+    border-top: 1px solid var(--dou-color-border-subtle);
+  }
+
   /* header and footer stay put while the options scroll between them */
   .dou-select__header,
   .dou-select__footer {

@@ -1,0 +1,125 @@
+/*
+ * Sparkline
+ *
+ * The drawing is an SVG stretched to the box; the line keeps its width
+ * through `vector-effect`, and dots are HTML so they stay round. The inset
+ * leaves room for the stroke and dots at the edges.
+ */
+@layer dou.components {
+  .dou-sparkline {
+    --dou-sparkline-width: 120px;
+    --dou-sparkline-height: 32px;
+    --dou-sparkline-inset: 3px;
+    --dou-sparkline-stroke: 1.5px;
+    /* the top of the area fill; a little stronger on dark backgrounds */
+    --dou-sparkline-area-top: light-dark(
+      color-mix(in oklab, currentColor 22%, transparent),
+      color-mix(in oklab, currentColor 36%, transparent)
+    );
+    --dou-sparkline-bar-radius: 3px;
+    --dou-sparkline-dot: 5px;
+
+    display: inline-block;
+    box-sizing: border-box;
+    width: var(--dou-sparkline-width);
+    max-width: 100%;
+    height: var(--dou-sparkline-height);
+    padding: var(--dou-sparkline-inset);
+    color: var(--dou-sparkline-color);
+    vertical-align: middle;
+    border-radius: 2px;
+    outline: none;
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 2px;
+    }
+  }
+
+  .dou-sparkline--bar {
+    --dou-sparkline-inset: 0px;
+  }
+
+  .dou-sparkline__plot {
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+
+  .dou-sparkline.is-interactive .dou-sparkline__plot {
+    touch-action: pan-y;
+  }
+
+  .dou-sparkline__svg {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  .dou-sparkline__line {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: var(--dou-sparkline-stroke);
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  /* the fill fades out toward the bottom instead of sitting as a flat block */
+  .dou-sparkline__fill-top {
+    stop-color: var(--dou-sparkline-area-top);
+  }
+
+  .dou-sparkline__fill-bottom {
+    stop-color: currentColor;
+    stop-opacity: 0;
+  }
+
+  .dou-sparkline__bar {
+    position: absolute;
+    background: currentColor;
+    /* rounded at the end away from zero; thin bars get at most half their width */
+    border-radius: min(var(--dou-sparkline-bar-radius), 50%)
+      min(var(--dou-sparkline-bar-radius), 50%) 0 0;
+    pointer-events: none;
+    transition: opacity var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    &.is-down {
+      border-radius: 0 0 min(var(--dou-sparkline-bar-radius), 50%)
+        min(var(--dou-sparkline-bar-radius), 50%);
+    }
+  }
+
+  /* while one bar is read, the others step back */
+  .dou-sparkline__plot:has(.dou-sparkline__bar.is-active) .dou-sparkline__bar:not(.is-active) {
+    opacity: 0.45;
+  }
+
+  .dou-sparkline__dot,
+  .dou-sparkline__marker,
+  .dou-sparkline__point {
+    position: absolute;
+    width: var(--dou-sparkline-dot);
+    height: var(--dou-sparkline-dot);
+    background: currentColor;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+  }
+
+  .dou-sparkline__point {
+    --dou-sparkline-dot: 7px;
+    box-shadow: 0 0 0 2px var(--dou-color-bg-surface);
+  }
+
+  /* bars show themselves; the point only anchors the tooltip */
+  .dou-sparkline--bar .dou-sparkline__point {
+    visibility: hidden;
+  }
+
+  .dou-sparkline__tooltip {
+    font-variant-numeric: tabular-nums;
+  }
+}

@@ -260,6 +260,11 @@ export const zhCN: Locale = {
     more: '多',
     day: '{date}：{value}',
   },
+  sparkline: {
+    summary: '{count} 个数据，最低 {min}，最高 {max}，最新 {last}',
+    empty: '暂无数据',
+    point: '{label}：{value}',
+  },
   relativeTime: {
     justNow: '刚刚',
   },

@@ -397,6 +397,14 @@ export interface Locale {
     /** Names a day and its value, with `{date}` and `{value}`. */
     day: string
   }
+  sparkline: {
+    /** Describes the series, with `{count}`, `{min}`, `{max}` and `{last}`. */
+    summary: string
+    /** Names a series without values. */
+    empty: string
+    /** A labeled value, with `{label}` and `{value}`. */
+    point: string
+  }
   relativeTime: {
     /** A moment less than a minute away. */
     justNow: string

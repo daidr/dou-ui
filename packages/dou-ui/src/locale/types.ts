@@ -451,6 +451,32 @@ export interface Locale {
     /** The button that tries the failed load again. */
     retry: string
   }
+  carousel: {
+    /** Names a carousel that has no `label`. */
+    label: string
+    /** Names a slide, e.g. "2 / 5". */
+    slide: string
+    prev: string
+    next: string
+    /** An indicator button. */
+    goTo: string
+    /** The button that resumes autoplay. */
+    play: string
+    /** The button that pauses autoplay. */
+    pause: string
+  }
+  tour: {
+    /** Names a step that has no title. */
+    label: string
+    /** Progress, e.g. "2 / 5". */
+    progress: string
+    prev: string
+    next: string
+    /** The next button on the last step. */
+    finish: string
+    /** The close button. */
+    close: string
+  }
   banner: {
     /** Names a banner that has no title. */
     label: string

@@ -34,6 +34,7 @@ const props: Record<string, Record<string, unknown>> = {
   DouPopover: { open: true, content: '内容' },
   DouQrcode: { value: 'https://ui.daidr.me', status: 'expired' },
   DouWatermark: { content: '戴兜' },
+  DouCarousel: { autoplay: true },
   DouSegmentedControl: { options: ['a', 'b'] },
   DouSelect: { options: [{ value: 'a', label: 'A' }] },
   DouSortable: { modelValue: [{ id: 1 }, { id: 2 }] },

@@ -311,6 +311,23 @@ export const zhCN: Locale = {
     error: '加载失败',
     retry: '重试',
   },
+  carousel: {
+    label: '轮播',
+    slide: '第 {index} 张，共 {total} 张',
+    prev: '上一张',
+    next: '下一张',
+    goTo: '第 {index} 张',
+    play: '开始自动播放',
+    pause: '暂停自动播放',
+  },
+  tour: {
+    label: '引导',
+    progress: '{current} / {total}',
+    prev: '上一步',
+    next: '下一步',
+    finish: '完成',
+    close: '关闭引导',
+  },
   banner: {
     label: '公告',
     close: '关闭公告',

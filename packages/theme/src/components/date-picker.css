@@ -445,7 +445,7 @@
   /* months, quarters and years: four wide cells a row */
   :is(.dou-calendar--month, .dou-calendar--quarter, .dou-calendar--year) {
     & .dou-calendar__day {
-      width: 56px;
+      width: var(--dou-calendar-key);
       height: 36px;
       margin: 4px 0;
     }
@@ -456,23 +456,25 @@
       width: 100%;
     }
 
+    --dou-calendar-key: 56px;
+
     /*
-     * A cell is wider than its key here, so the wash starts and ends
-     * under the middle of the end keys, which cover it with their own
-     * shape.
+     * A cell is wider than its key here, so an end of the wash stops at
+     * the edge of its key with the key's radius, whether the key is
+     * picked or only hovered while picking the other end.
      */
     & .dou-calendar__cell:is(.is-in-range, .is-range-start, .is-range-end)::before {
       inset-block: 5px;
     }
     & .dou-calendar__cell.is-range-start::before {
-      inset-inline-start: 50%;
+      inset-inline-start: calc(50% - var(--dou-calendar-key) / 2);
     }
     & .dou-calendar__cell.is-range-end::before {
-      inset-inline-end: 50%;
+      inset-inline-end: calc(50% - var(--dou-calendar-key) / 2);
     }
   }
-  .dou-calendar--quarter .dou-calendar__day {
-    width: 64px;
+  .dou-calendar--quarter {
+    --dou-calendar-key: 64px;
   }
 
   /* picking a week: the whole row under the pointer takes the wash */

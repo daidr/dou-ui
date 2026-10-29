@@ -4,13 +4,14 @@ import { computed, ref, watch } from 'vue'
 import DocFooterNav from './components/DocFooterNav.vue'
 import DocHeader from './components/DocHeader.vue'
 import DocHome from './components/DocHome.vue'
+import DocMobileNav from './components/DocMobileNav.vue'
 import DocNotFound from './components/DocNotFound.vue'
 import DocOutline from './components/DocOutline.vue'
 import DocSearch from './components/DocSearch.vue'
 import DocSidebar from './components/DocSidebar.vue'
 import { useDocs } from './use-docs'
 
-const { frontmatter, page } = useData()
+const { frontmatter, page, site } = useData()
 const route = useRoute()
 const { sidebar } = useDocs()
 
@@ -32,7 +33,7 @@ watch(
 <template>
   <div class="doc-layout" :class="{ 'has-sidebar': hasSidebar }">
     <DouLink class="doc-skip" href="#main">跳到正文</DouLink>
-    <DocHeader :has-sidebar="hasSidebar" @search="searching = true" @menu="drawer = true" />
+    <DocHeader @search="searching = true" @menu="drawer = true" />
     <DocNotFound v-if="page.isNotFound" />
     <DocHome v-else-if="isHome" />
     <div v-else class="doc-body" :class="{ 'doc-body--wide': wide }">
@@ -46,8 +47,8 @@ watch(
       <DocOutline v-if="!wide" class="doc-body__outline" />
     </div>
     <DocSearch v-model:open="searching" />
-    <DouDrawer v-model:open="drawer" placement="left" size="288px" title="目录">
-      <DocSidebar @navigate="drawer = false" />
+    <DouDrawer v-model:open="drawer" placement="left" size="288px" :title="site.title">
+      <DocMobileNav :has-sidebar="hasSidebar" @navigate="drawer = false" />
     </DouDrawer>
   </div>
 </template>

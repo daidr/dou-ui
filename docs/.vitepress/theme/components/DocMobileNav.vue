@@ -1,0 +1,28 @@
+<script setup lang="ts">
+import { computed } from 'vue'
+import type { MenuOption } from 'dou-ui'
+import { useDocs } from '../use-docs'
+import DocSidebar from './DocSidebar.vue'
+
+defineProps<{ hasSidebar: boolean }>()
+const emit = defineEmits<{ navigate: [] }>()
+const { path, nav } = useDocs()
+
+/** `/guide/philosophy` belongs to the `/guide/` section. */
+const section = (link: string) => link.split('/').slice(0, 2).join('/')
+const items = computed<MenuOption[]>(() =>
+  nav.value.map((item) => ({ key: section(item.link), label: item.text, href: item.link })),
+)
+</script>
+
+<template>
+  <div class="doc-mobile-nav">
+    <nav class="doc-mobile-nav__sections" aria-label="主导航">
+      <DouMenu :items="items" :model-value="section(path)" @select="emit('navigate')" />
+    </nav>
+    <template v-if="hasSidebar">
+      <DouDivider class="doc-mobile-nav__divider" />
+      <DocSidebar @navigate="emit('navigate')" />
+    </template>
+  </div>
+</template>

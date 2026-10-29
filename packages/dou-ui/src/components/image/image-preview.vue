@@ -150,7 +150,7 @@ const label = computed(() =>
 
 <template>
   <Teleport v-if="rendered" :to="teleport || 'body'" :disabled="teleport === false">
-    <Transition name="dou-image-preview">
+    <Transition appear name="dou-image-preview">
       <div
         v-show="open"
         :id="id"

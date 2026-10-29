@@ -36,8 +36,7 @@ export function drawTile(options: MarkOptions): Tile | null {
     : 0
   const markWidth = Math.ceil(options.width ?? (options.image ? 120 : measured))
   const markHeight = Math.ceil(
-    options.height ??
-      (options.image ? 64 : options.lines.length * options.fontSize * LINE_HEIGHT),
+    options.height ?? (options.image ? 64 : options.lines.length * options.fontSize * LINE_HEIGHT),
   )
 
   const width = markWidth + options.gap[0]

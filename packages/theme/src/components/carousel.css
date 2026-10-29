@@ -244,7 +244,6 @@
   .dou-carousel--indicators-outside .dou-carousel__indicator {
     --dou-carousel-dot: var(--dou-color-border-strong);
     --dou-carousel-dot-active: var(--dou-color-text);
-
   }
 
   /* vertical carousels stack the indicators on the right */

@@ -29,6 +29,7 @@
       --dou-motion-distance-sm: 0px !important;
       --dou-motion-distance-md: 0px !important;
       --dou-motion-scale: 1 !important;
+      --dou-motion-easing-spring: var(--dou-motion-easing) !important;
       --dou-motion-loop-spin: 2s !important;
       --dou-motion-travel: 0 !important;
       --dou-motion-loop-count: 0 !important;
@@ -42,6 +43,7 @@
     --dou-motion-distance-sm: 0px !important;
     --dou-motion-distance-md: 0px !important;
     --dou-motion-scale: 1 !important;
+    --dou-motion-easing-spring: var(--dou-motion-easing) !important;
     --dou-motion-loop-spin: 2s !important;
     --dou-motion-travel: 0 !important;
     --dou-motion-loop-count: 0 !important;

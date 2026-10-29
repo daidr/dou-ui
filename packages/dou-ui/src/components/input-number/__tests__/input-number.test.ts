@@ -106,6 +106,8 @@ describe('DouInputNumber', () => {
       await pad.move(80)
       expect(wrapper.props('modelValue')).toBe(7)
       await pad.up(80)
+      // lifting ends the adjustment and shrinks the pad at once
+      expect(wrapper.classes()).not.toContain('is-expanded')
       await vi.advanceTimersByTimeAsync(500)
       expect(wrapper.props('modelValue')).toBe(7)
     })

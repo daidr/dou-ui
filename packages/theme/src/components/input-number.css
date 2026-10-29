@@ -184,8 +184,8 @@
     -webkit-touch-callout: none;
     transition-property:
       top, right, bottom, width, padding, gap, border-radius, background-color, box-shadow;
-    transition-duration: var(--dou-motion-duration-fast);
-    transition-timing-function: var(--dou-motion-easing-exit);
+    transition-duration: var(--dou-motion-duration-normal);
+    transition-timing-function: var(--dou-motion-easing);
   }
 
   .dou-input-number.is-expanded {
@@ -219,16 +219,17 @@
       box-shadow:
         inset 0 0 0 1px var(--dou-color-border),
         var(--dou-shadow-lg);
-      transition-duration: var(--dou-motion-duration-normal);
-      transition-timing-function: var(--dou-motion-easing-enter);
+      /* the pad answers a finger that is still on it, so it springs */
+      transition-duration: var(--dou-motion-duration-slow);
+      transition-timing-function: var(--dou-motion-easing-spring);
     }
 
     .dou-input-number__step {
       border-radius: var(--dou-input-number-key-radius);
       background-color: color-mix(in oklab, var(--dou-color-text) 4%, transparent);
       color: var(--dou-color-text);
-      transition-duration: var(--dou-motion-duration-normal);
-      transition-timing-function: var(--dou-motion-easing-enter);
+      transition-duration: var(--dou-motion-duration-slow);
+      transition-timing-function: var(--dou-motion-easing-spring);
 
       & + & {
         box-shadow: none;
@@ -236,11 +237,14 @@
 
       & > svg {
         font-size: 16px;
+        transition-duration: var(--dou-motion-duration-slow);
+        transition-timing-function: var(--dou-motion-easing-spring);
       }
 
       &:active:not(:disabled),
       &.is-held {
         background-color: color-mix(in oklab, var(--dou-color-text) 10%, transparent);
+        transform: scale(0.94);
       }
 
       &:disabled {
@@ -266,7 +270,7 @@
     color: var(--dou-color-text-secondary);
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
-    transition-property: background-color, color, border-radius, box-shadow;
+    transition-property: background-color, color, border-radius, box-shadow, transform;
     transition-duration: var(--dou-motion-duration-fast);
     transition-timing-function: var(--dou-motion-easing-exit);
 
@@ -280,7 +284,7 @@
       height: 1em;
       /* odd, so it sits on whole pixels in the odd-height half keys */
       font-size: var(--dou-input-number-icon-size);
-      transition: font-size var(--dou-motion-duration-normal) var(--dou-motion-easing-enter);
+      transition: font-size var(--dou-motion-duration-normal) var(--dou-motion-easing);
     }
 
     @media (hover: hover) {

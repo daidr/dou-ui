@@ -190,8 +190,9 @@ function onStepPointerdown(event: PointerEvent, count: number) {
 
 // On touch the keys are too small to aim at, so the first press only
 // enlarges them. Keeping the finger down and sliding onto a key steps
-// with it, and later taps step as usual. The pad shrinks back after a
-// tap elsewhere or a short pause.
+// with it, and the pad shrinks back as soon as that finger lifts. After a
+// plain press the pad stays, later taps step as usual, and it shrinks back
+// after a tap elsewhere or a short pause.
 const COLLAPSE_DELAY = 2000
 // How far a finger slides from where the pad opened before it counts.
 const SLIDE_THRESHOLD = 6
@@ -235,10 +236,12 @@ function onKeysPointerdown(event: PointerEvent) {
   expand()
   const startY = event.clientY
   let slid = !opened
+  let stepped = false
   const follow = (y: number) => {
     slid ||= Math.abs(y - startY) >= SLIDE_THRESHOLD
     const count = slid ? keyAt(y) : 0
     if (count === held.value) return
+    stepped ||= count !== 0
     if (count) startRepeat(count)
     else stopRepeat()
   }
@@ -252,6 +255,8 @@ function onKeysPointerdown(event: PointerEvent) {
     keys.removeEventListener('pointermove', move)
     keys.removeEventListener('pointerup', end)
     keys.removeEventListener('pointercancel', end)
+    // A press that opened the pad and slid to adjust is done when lifted.
+    if (opened && stepped) return collapse()
     clearTimeout(idle)
     idle = setTimeout(collapse, COLLAPSE_DELAY)
   }

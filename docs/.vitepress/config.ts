@@ -197,6 +197,7 @@ export default defineConfig({
           text: '导航',
           items: [
             { text: 'Menu 导航菜单', link: '/components/menu' },
+            { text: 'Menubar 菜单栏', link: '/components/menubar' },
             { text: 'Tabs 标签页', link: '/components/tabs' },
             { text: 'Steps 步骤条', link: '/components/steps' },
             { text: 'Anchor 锚点导航', link: '/components/anchor' },

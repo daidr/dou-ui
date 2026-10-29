@@ -1,0 +1,60 @@
+/*
+ * Menubar
+ *
+ * A row of quiet buttons, each opening a dropdown menu. The open menu's
+ * button keeps the tint, so the menu reads as hanging from it.
+ */
+@layer dou.components {
+  .dou-menubar {
+    --dou-menubar-height: var(--dou-control-height-sm);
+    --dou-menubar-padding-x: 10px;
+    --dou-menubar-active-bg: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .dou-menubar--md {
+    --dou-menubar-height: var(--dou-control-height-md);
+    --dou-menubar-padding-x: var(--dou-control-padding-x-sm);
+  }
+
+  .dou-menubar__trigger {
+    display: inline-flex;
+    align-items: center;
+    box-sizing: border-box;
+    height: var(--dou-menubar-height);
+    margin: 0;
+    padding: 0 var(--dou-menubar-padding-x);
+    border: 0;
+    border-radius: var(--dou-radius-control);
+    background-color: transparent;
+    color: var(--dou-color-text);
+    font: inherit;
+    font-size: var(--dou-font-size-md);
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color var(--dou-motion-duration-instant) var(--dou-motion-easing);
+
+    &:hover,
+    &.is-open {
+      background-color: var(--dou-menubar-active-bg);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 2px;
+    }
+
+    &.is-disabled {
+      color: var(--dou-color-text-disabled);
+      background-color: transparent;
+      cursor: not-allowed;
+    }
+  }
+}

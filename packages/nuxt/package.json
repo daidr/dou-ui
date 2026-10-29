@@ -1,0 +1,56 @@
+{
+  "name": "@dou-ui/nuxt",
+  "version": "0.0.0",
+  "description": "DouUI 的 Nuxt 模块：组件、指令与函数自动导入，样式与配色模式开箱即用，支持服务端渲染",
+  "keywords": [
+    "vue",
+    "nuxt",
+    "nuxt-module",
+    "dou-ui"
+  ],
+  "license": "MIT",
+  "author": "daidr <daidr@daidr.me>",
+  "homepage": "https://github.com/daidr/dou-ui#readme",
+  "bugs": "https://github.com/daidr/dou-ui/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/daidr/dou-ui.git",
+    "directory": "packages/nuxt"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/module.js",
+  "types": "./dist/types/module.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/types/module.d.ts",
+      "import": "./dist/module.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "bun scripts/build.ts",
+    "play": "nuxt dev playground",
+    "play:build": "nuxt build playground && nuxt preview playground"
+  },
+  "peerDependencies": {
+    "dou-ui": "workspace:*",
+    "nuxt": "^4.0.0"
+  },
+  "dependencies": {
+    "@dou-ui/resolver": "workspace:*",
+    "@nuxt/kit": "^4.0.0"
+  },
+  "devDependencies": {
+    "@dou-ui/icons": "workspace:*",
+    "@nuxt/schema": "^4.6.3",
+    "dou-ui": "workspace:*",
+    "nuxt": "^4.6.3"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

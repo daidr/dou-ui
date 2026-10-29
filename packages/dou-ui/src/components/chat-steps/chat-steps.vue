@@ -29,7 +29,13 @@ function toggle() {
   emit('update:open', inner.value)
 }
 
-const current = computed(() => props.items.findLast((step) => step.status === 'running'))
+// A backwards loop: the build target has no `findLast`.
+const current = computed(() => {
+  for (let index = props.items.length - 1; index >= 0; index--) {
+    if (props.items[index]!.status === 'running') return props.items[index]
+  }
+  return undefined
+})
 const running = computed(() => props.running ?? !!current.value)
 const summary = computed(() => {
   if (props.title) return props.title

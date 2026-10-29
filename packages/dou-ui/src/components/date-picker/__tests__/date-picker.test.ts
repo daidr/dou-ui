@@ -114,6 +114,31 @@ describe('DouCalendar', () => {
     wrapper.unmount()
   })
 
+  it('picks a quarter, and a range of months', async () => {
+    const quarter = make(DouCalendar, { type: 'quarter', modelValue: '2026-Q2' })
+    expect(quarter.wrapper.findAll('.dou-calendar__day').map((cell) => cell.text())).toEqual([
+      '1 季度',
+      '2 季度',
+      '3 季度',
+      '4 季度',
+    ])
+    expect(quarter.wrapper.get('[data-value="2026-Q2"]').classes()).toContain('is-selected')
+    expect(quarter.wrapper.get('[data-value="2026-Q4"]').classes()).toContain('is-today')
+    await quarter.wrapper.get('[data-value="2026-Q3"]').trigger('click')
+    expect(quarter.value.value).toBe('2026-Q3')
+    quarter.wrapper.unmount()
+
+    const { wrapper, value } = make(DouCalendar, { type: 'month', range: true })
+    await wrapper.get('[data-value="2026-08"]').trigger('click')
+    await wrapper.get('[data-value="2026-03"]').trigger('mouseenter')
+    expect(wrapper.get('[data-value="2026-05"]').element.parentElement!.className).toContain(
+      'is-in-range',
+    )
+    await wrapper.get('[data-value="2026-03"]').trigger('click')
+    expect(value.value).toEqual(['2026-03', '2026-08'])
+    wrapper.unmount()
+  })
+
   it('picks a range over two months', async () => {
     const { wrapper, value } = make(DouCalendar, { range: true })
     expect(wrapper.findAll('.dou-calendar__title').map((title) => title.text())).toEqual([
@@ -359,6 +384,30 @@ describe('DouDatePicker', () => {
     await input.trigger('keydown', { key: 'Enter' })
     expect(value.value).toBe('2026-10-03 14:05')
     wrapper.unmount()
+  })
+
+  it('writes and reads quarters as the locale does', async () => {
+    const { wrapper, value } = make(DouDatePicker, { type: 'quarter', modelValue: '2026-Q4' })
+    const input = wrapper.get('input')
+    expect(input.element.value).toBe('2026 年第 4 季度')
+    expect(input.attributes('placeholder')).toBe('选择季度')
+    await input.setValue('2027 年第 1 季度')
+    await input.trigger('keydown', { key: 'Enter' })
+    expect(value.value).toBe('2027-Q1')
+    await input.setValue('Q3 2026')
+    await input.trigger('keydown', { key: 'Enter' })
+    expect(value.value).toBe('2026-Q3')
+    wrapper.unmount()
+
+    const english = mount(
+      () =>
+        h(DouConfigProvider, { locale: en }, () =>
+          h(DouDatePicker, { modelValue: '2026-Q4', type: 'quarter' }),
+        ),
+      { attachTo: document.body },
+    )
+    expect(english.get('input').element.value).toBe('Q4 2026')
+    english.unmount()
   })
 
   it('follows the locale for the pattern and the first day of the week', async () => {

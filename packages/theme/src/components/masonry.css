@@ -1,0 +1,43 @@
+/*
+ * Masonry
+ *
+ * Before the items are measured they flow as a grid of equal columns.
+ * Once measured, each item is placed absolutely: its column sets the
+ * inline offset through custom properties, and its top comes from the
+ * heights of the items above it.
+ */
+@layer dou.components {
+  .dou-masonry {
+    --dou-masonry-cols: 1;
+    --dou-masonry-row-gap: var(--dou-space-md);
+    --dou-masonry-column-gap: var(--dou-space-md);
+    --dou-masonry-width: calc(
+      (100% - (var(--dou-masonry-cols) - 1) * var(--dou-masonry-column-gap)) /
+        var(--dou-masonry-cols)
+    );
+
+    display: grid;
+    grid-template-columns: repeat(var(--dou-masonry-cols), minmax(0, 1fr));
+    gap: var(--dou-masonry-row-gap) var(--dou-masonry-column-gap);
+    align-items: start;
+    min-width: 0;
+
+    &.is-placed {
+      position: relative;
+      display: block;
+    }
+  }
+
+  .dou-masonry__item {
+    min-width: 0;
+  }
+
+  .dou-masonry.is-placed > .dou-masonry__item {
+    position: absolute;
+    top: var(--dou-masonry-top, 0);
+    inset-inline-start: calc(
+      var(--dou-masonry-col, 0) * (var(--dou-masonry-width) + var(--dou-masonry-column-gap))
+    );
+    width: var(--dou-masonry-width);
+  }
+}

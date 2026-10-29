@@ -7,6 +7,9 @@ import {
   inBounds,
   isoWeek,
   parseDate,
+  quarterOf,
+  truncate,
+  unitOf,
   weekday,
 } from '../date'
 
@@ -29,6 +32,20 @@ describe('date helpers', () => {
     expect(parseDate('2026-7', 'month')).toBe('2026-07')
     expect(parseDate('2026', 'year')).toBe('2026')
     expect(parseDate('hello', 'date')).toBeNull()
+  })
+
+  it('handles quarters', () => {
+    expect(quarterOf('2026-10-28')).toBe('2026-Q4')
+    expect(truncate('2026-03-31', 'quarter')).toBe('2026-Q1')
+    expect(expand('2026-Q3')).toBe('2026-07-01')
+    expect(unitOf('2026-Q2')).toBe('quarter')
+    expect(unitOf('2026-02')).toBe('month')
+    expect(parseDate('2026-Q4', 'quarter')).toBe('2026-Q4')
+    expect(parseDate('2026 q2', 'quarter')).toBe('2026-Q2')
+    expect(parseDate('Q1 2027', 'quarter')).toBe('2027-Q1')
+    expect(parseDate('2026-Q5', 'quarter')).toBeNull()
+    expect(inBounds('2026-Q3', '2026-08-01')).toBe(true)
+    expect(inBounds('2026-Q2', '2026-08-01')).toBe(false)
   })
 
   it('checks bounds at the unit of the value', () => {

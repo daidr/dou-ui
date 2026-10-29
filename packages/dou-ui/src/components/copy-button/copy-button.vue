@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { CheckIcon, CopyIcon } from '@dou-ui/icons'
-import { computed, onBeforeUnmount, ref } from 'vue'
-import { copyText } from '../../utils/clipboard'
+import { computed } from 'vue'
+import { useClipboard } from '../../composables/use-clipboard'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
 import type { CopyButtonProps } from './copy-button'
@@ -21,19 +21,15 @@ const emit = defineEmits<{ copy: [text: string]; error: [error: unknown] }>()
 const ns = useNamespace('copy-button')
 const { t } = useLocale()
 
-const copied = ref(false)
-let timer: ReturnType<typeof setTimeout> | undefined
-onBeforeUnmount(() => clearTimeout(timer))
+const clipboard = useClipboard({ duration: () => props.duration })
+const copied = clipboard.copied
 
 async function copy() {
   if (props.disabled) return
   try {
     const text = typeof props.text === 'function' ? await props.text() : props.text
-    await copyText(text)
-    copied.value = true
+    await clipboard.copy(text)
     emit('copy', text)
-    clearTimeout(timer)
-    timer = setTimeout(() => (copied.value = false), props.duration)
   } catch (error) {
     emit('error', error)
   }

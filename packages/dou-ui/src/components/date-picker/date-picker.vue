@@ -56,7 +56,7 @@ const id = `dou-date-picker-${useId()}`
 const panelId = `${id}-panel`
 
 const isDateTime = computed(() => props.type === 'datetime')
-const isRange = computed(() => props.range && (props.type === 'date' || isDateTime.value))
+const isRange = computed(() => props.range && props.type !== 'week')
 // The calendar only ever picks the day of a `datetime`.
 const calendarType = computed(() => (props.type === 'datetime' ? 'date' : props.type))
 const seconds = computed(() => props.timeFormat === 'HH:mm:ss')
@@ -76,16 +76,22 @@ function defaultTime(index: number): TimeParts {
     : { hour: 0, minute: 0, second: 0 }
 }
 
-/* how the day is written in the field: `displayFormat`, else the locale's pattern; weeks stay ISO */
+/*
+ * how the day is written in the field: `displayFormat`, else the locale's
+ * pattern; weeks stay ISO, quarters follow the locale's text
+ */
 
 const pattern = computed(() => {
   const unit = calendarType.value
-  if (unit === 'week') return null
+  if (unit === 'week' || unit === 'quarter') return null
   const fromLocale = () => datePattern(locale.value.region[unit], unit)
   return (props.displayFormat ? datePattern(props.displayFormat, unit) : null) ?? fromLocale()
 })
 
 function display(value: string) {
+  if (props.type === 'quarter' && /^\d{4}-Q[1-4]$/.test(value)) {
+    return t('datePicker.quarter', { year: value.slice(0, 4), quarter: value[6]! })
+  }
   const parts = pattern.value
   if (!parts || !value) return value
   return formatWith(value.slice(0, 10), parts) + value.slice(10)
@@ -97,6 +103,7 @@ function display(value: string) {
  */
 function parseAt(text: string, index: number) {
   const parts = pattern.value
+  if (props.type === 'quarter') return parseQuarter(text)
   if (props.type !== 'datetime') {
     const read = parts && props.type !== 'week' && parseWith(text, parts, props.type)
     return read && !read.rest.trim() ? read.value : parseDate(text, props.type)
@@ -114,6 +121,24 @@ function parseAt(text: string, index: number) {
   }
   const clock = time === undefined ? defaultTime(index) : parseTime(time)
   return date && clock ? withTime(date, clock) : null
+}
+
+/** Read a quarter as the locale writes it, or as `2026-Q4`, `2026 Q4` or `Q4 2026`. */
+function parseQuarter(text: string) {
+  const source = t('datePicker.quarter')
+    .split(/(\{year\}|\{quarter\})/)
+    .map((piece) => {
+      if (piece === '{year}') return '(?<year>\\d{4})'
+      if (piece === '{quarter}') return '(?<quarter>[1-4])'
+      return piece
+        .trim()
+        .replace(/[$()*+.?[\\\]^{|}-]/g, '\\$&')
+        .replace(/\s+/g, '\\s*')
+    })
+    .join('\\s*')
+  const groups = new RegExp(`^\\s*${source}\\s*$`, 'i').exec(text)?.groups
+  if (groups?.year && groups.quarter) return `${groups.year}-Q${groups.quarter}`
+  return parseDate(text, 'quarter')
 }
 
 /* the text in the fields, kept apart from the value while typing */
@@ -359,6 +384,7 @@ const placeholders = computed(() => {
     datetime: t('datePicker.datetimePlaceholder'),
     week: t('datePicker.weekPlaceholder'),
     month: t('datePicker.monthPlaceholder'),
+    quarter: t('datePicker.quarterPlaceholder'),
     year: t('datePicker.yearPlaceholder'),
   }
   const fallback = fallbacks[props.type]

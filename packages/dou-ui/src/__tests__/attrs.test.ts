@@ -16,6 +16,7 @@ const required: Record<string, Record<string, unknown>> = {
   DouTabPanel: { name: 'a', label: 'A' },
   DouTree: { data: [] },
   DouVirtualList: { items: [], itemSize: 20 },
+  DouMasonry: { items: [] },
   DouTable: { data: [], columns: [] },
   DouDescriptionsItem: { label: 'x' },
   DouPagination: { total: 100 },

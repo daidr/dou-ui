@@ -323,4 +323,52 @@ describe('DouFormItem', () => {
       wrapper.get('input').attributes('id'),
     )
   })
+
+  it('keeps errors with their rows when a row is removed', async () => {
+    let id = 3
+    const model = reactive({
+      contacts: [
+        { id: 1, name: '' },
+        { id: 2, name: '戴兜' },
+        { id: 3, name: '' },
+      ],
+    })
+    const Root = defineComponent({
+      setup() {
+        return () =>
+          h(DouForm, { ref: 'form', model, rules: { contacts: { required: true } } }, () => [
+            ...model.contacts.map((contact, index) =>
+              h(
+                DouFormItem,
+                { key: contact.id, prop: `contacts.${index}.name`, required: true },
+                () =>
+                  h(DouInput, {
+                    modelValue: contact.name,
+                    'onUpdate:modelValue': (value: string) => (contact.name = value),
+                  }),
+              ),
+            ),
+            h(DouFormItem, { prop: 'contacts' }),
+          ])
+      },
+    })
+    const wrapper = mount(Root, { attachTo: document.body })
+    const form = wrapper.vm.$refs.form as FormInstance
+    const { errors } = await form.validate()
+    expect(Object.keys(errors)).toEqual(['contacts.0.name', 'contacts.2.name'])
+
+    model.contacts.splice(0, 1)
+    await flushPromises()
+    const items = wrapper.findAll('.dou-form-item')
+    expect(items.map((item) => item.classes().includes('is-error'))).toEqual([false, true, false])
+
+    // the list's own error clears as soon as a row is added back
+    model.contacts.splice(0)
+    await form.validate('contacts')
+    await flushPromises()
+    expect(wrapper.find('.dou-form-item.is-error').exists()).toBe(true)
+    model.contacts.push({ id: ++id, name: 'x' })
+    await flushPromises()
+    expect(wrapper.findAll('.dou-form-item.is-error')).toHaveLength(0)
+  })
 })

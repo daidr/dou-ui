@@ -4,9 +4,9 @@ import type { TimeFormat } from '../time-picker/time'
 import type { DateUnit } from './date'
 
 export type DatePickerSize = Size
-/** What the calendar picks: a day, a week, a month or a year. */
+/** What the calendar picks: a day, a week, a month, a quarter or a year. */
 export type CalendarType = DateUnit
-/** What is picked: a day, a day and a time, a week, a month or a year. */
+/** What is picked: a day, a day and a time, a week, a month, a quarter or a year. */
 export type DatePickerType = DateUnit | 'datetime'
 /** A single value, or `[start, end]` with `range`. */
 export type DateValue = string
@@ -17,11 +17,11 @@ export type WeekStart = 0 | 1
 export interface CalendarProps {
   /**
    * The chosen value, bound with `v-model`: `YYYY-MM-DD`, `YYYY-Www`,
-   * `YYYY-MM` or `YYYY` by `type`, or `[start, end]` with `range`.
+   * `YYYY-MM`, `YYYY-Qn` or `YYYY` by `type`, or `[start, end]` with `range`.
    */
   modelValue?: DateValue | DateRange | null
   type?: CalendarType
-  /** Pick a start and an end. Only for days (and a day with a time). */
+  /** Pick a start and an end. Not for weeks. */
   range?: boolean
   /** The earliest value that can be picked, inclusive. */
   min?: DateValue
@@ -74,7 +74,8 @@ export interface DatePickerProps extends Omit<CalendarProps, 'type'> {
    * How a day, month or year is shown and typed in the field, e.g.
    * `DD/MM/YYYY` or `YYYY[年]MM[月]`. Defaults to the locale's
    * `region` patterns. The value keeps its own format, and ISO text such
-   * as `2026-10-29` can always be typed. Weeks are always ISO.
+   * as `2026-10-29` can always be typed. Weeks are always ISO, and
+   * quarters follow the locale's `datePicker.quarter`.
    */
   displayFormat?: string
   /**

@@ -9,6 +9,7 @@ export default defineConfig({
   resolve: {
     alias: [
       { find: /^dou-ui$/, replacement: r('./packages/dou-ui/src/index.ts') },
+      { find: /^@dou-ui\/theme$/, replacement: r('./packages/theme/src/index.ts') },
       { find: /^@dou-ui\/icons$/, replacement: r('./packages/icons/src/index.ts') },
     ],
   },

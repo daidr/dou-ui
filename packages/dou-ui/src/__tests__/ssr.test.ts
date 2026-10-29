@@ -48,6 +48,7 @@ const props: Record<string, Record<string, unknown>> = {
   DouTree: { data: [{ key: 'a', label: 'A' }] },
   DouTreeSelect: { data: [{ key: 'a', label: 'A' }], modelValue: 'a' },
   DouVirtualList: { items: [1, 2, 3], itemSize: 32 },
+  DouMasonry: { items: [1, 2, 3] },
 }
 
 const components = (Object.entries(DouUI) as [string, unknown][]).filter(

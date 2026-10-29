@@ -163,7 +163,8 @@
     }
   }
 
-  @media (max-width: 640px) {
+  /* below the `sm` breakpoint */
+  @media (max-width: 639.98px) {
     .dou-banner {
       padding-inline: 16px 44px;
     }

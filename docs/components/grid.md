@@ -16,7 +16,7 @@
 
 ## 响应式
 
-`cols`、`span` 与 `start` 都可以写成按断点取值的对象。断点从小到大是 `sm` 640px、`md` 768px、`lg` 1024px、`xl` 1280px，每个断点从它的宽度起生效，`base` 用于最小的屏幕；没写的断点沿用比它小的那个。调整窗口宽度看效果。
+`cols`、`span` 与 `start` 都可以写成按断点取值的对象。使用的是全局统一的[断点](../guide/breakpoints)：`sm` 640px、`md` 768px、`lg` 1024px、`xl` 1280px，每个断点从它的宽度起生效，`base` 用于最小的屏幕；没写的断点沿用比它小的那个。调整窗口宽度看效果。
 
 <DocDemo src="grid/responsive" column />
 

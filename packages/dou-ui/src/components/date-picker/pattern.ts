@@ -8,7 +8,7 @@ import type { Part } from '../input-date/segments'
 import { parseDate } from './date'
 import type { DateUnit } from './date'
 
-type PatternUnit = Exclude<DateUnit, 'week'>
+type PatternUnit = Exclude<DateUnit, 'week' | 'quarter'>
 
 const NEEDS: Record<PatternUnit, string[]> = {
   date: ['year', 'month', 'day'],

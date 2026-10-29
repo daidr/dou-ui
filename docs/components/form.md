@@ -72,6 +72,18 @@ schema 自己决定空值是否合法，必填标记则无法从 schema 推断�
 </DouFormItem>
 ```
 
+## 动态增减字段
+
+列表中的每一项用带下标的路径作为 `prop`，例如 `contacts.0.name`。
+
+<DocDemo src="form/dynamic" column style="max-width: 520px" />
+
+- `v-for` 的 `key` 用每一行自己的 id，不要用下标。这样删除一行后，其余各行的输入框和错误信息会跟着自己的数据移动。
+- 行数不固定，规则写在 `DouFormItem` 的 `rules` 上，而不是表单的 `rules` 里。
+- 列表本身也可以有规则：给一个 `prop="contacts"` 的表单项写 `required`，空数组视为空。显示错误后，增删行会重新校验它。
+- 使用表单的 `schema` 时，数组项的问题路径同样写成 `contacts.0.email`，会显示在对应的字段上。
+- `resetFields` 只恢复已有字段的值，不会恢复删掉的行。需要时在 `reset` 事件里把列表还原。
+
 ## 布局
 
 ### 水平

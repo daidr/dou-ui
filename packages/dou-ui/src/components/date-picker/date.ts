@@ -1,13 +1,13 @@
 /**
  * Calendar dates as plain strings: `YYYY-MM-DD`, `YYYY-Www` (an ISO
- * week), `YYYY-MM` or `YYYY`.
+ * week), `YYYY-MM`, `YYYY-Qn` (a quarter) or `YYYY`.
  *
  * A date picker deals in days, not instants, so values never carry a time
  * or a time zone and compare correctly as strings. Arithmetic goes
  * through UTC, where every day is 24 hours long.
  */
 
-export type DateUnit = 'date' | 'week' | 'month' | 'year'
+export type DateUnit = 'date' | 'week' | 'month' | 'quarter' | 'year'
 
 const pad = (value: number, length = 2) => String(value).padStart(length, '0')
 
@@ -85,7 +85,13 @@ export function truncate(date: string, unit: DateUnit) {
   if (unit === 'year') return date.slice(0, 4)
   if (unit === 'week') return isoWeek(date)
   if (unit === 'month') return date.slice(0, 7)
+  if (unit === 'quarter') return quarterOf(date)
   return date
+}
+
+/** The quarter a day falls in, `YYYY-Qn`. */
+export function quarterOf(date: string) {
+  return `${date.slice(0, 4)}-Q${Math.ceil(parts(date).month / 3)}`
 }
 
 /** Fill a value of a coarser unit out to a full date: its first day. */
@@ -93,6 +99,9 @@ export function expand(value: string) {
   if (/^\d{4}$/.test(value)) return `${value}-01-01`
   if (/^\d{4}-\d{2}$/.test(value)) return `${value}-01`
   if (/^\d{4}-W\d{2}$/.test(value)) return weekMonday(value)
+  if (/^\d{4}-Q[1-4]$/.test(value)) {
+    return toDateString(Number(value.slice(0, 4)), Number(value[6]) * 3 - 2, 1)
+  }
   return value.slice(0, 10)
 }
 
@@ -101,6 +110,13 @@ export function expand(value: string) {
  * `/` or `.` between the parts and single-digit months and days.
  */
 export function parseDate(text: string, unit: DateUnit): string | null {
+  if (unit === 'quarter') {
+    const trimmed = text.trim()
+    const yearFirst = trimmed.match(/^(\d{4})\s*[-/.\s]?\s*[Qq]?([1-4])$/)
+    const quarterFirst = trimmed.match(/^[Qq]([1-4])\s*[-/.\s]?\s*(\d{4})$/)
+    if (yearFirst) return `${yearFirst[1]}-Q${yearFirst[2]}`
+    return quarterFirst ? `${quarterFirst[2]}-Q${quarterFirst[1]}` : null
+  }
   if (unit === 'week') {
     const week = text.trim().match(/^(\d{4})\s*[-/.\s]?\s*[Ww]?(\d{1,2})$/)
     if (!week) return null
@@ -131,6 +147,7 @@ export function inBounds(value: string, min?: string, max?: string) {
 export function unitOf(value: string): DateUnit {
   if (value.length === 4) return 'year'
   if (value.length === 8) return 'week'
+  if (value[5] === 'Q') return 'quarter'
   if (value.length === 7) return 'month'
   return 'date'
 }

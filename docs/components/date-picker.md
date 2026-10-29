@@ -1,10 +1,10 @@
 # DatePicker 日期选择
 
-用于选择或输入日期，支持日期时间、周、月份、年份和范围选择。
+用于选择或输入日期，支持日期时间、周、月份、季度、年份和范围选择。
 
 ## 值的形式
 
-值是不带时区的字符串：日期是 `YYYY-MM-DD`，日期时间是 `YYYY-MM-DD HH:mm`（或带秒），周是 ISO 周 `YYYY-Www`，月份是 `YYYY-MM`，年份是 `YYYY`，范围是 `[开始, 结束]`。处理的是"墙上的日历和时钟"，而不是某个时刻，字符串可以直接比较大小、直接提交给后端，不会因为时区差一天。需要 `Date` 时自己转换，日期时间用 `new Date(value.replace(' ', 'T'))` 按本地时间读出。
+值是不带时区的字符串：日期是 `YYYY-MM-DD`，日期时间是 `YYYY-MM-DD HH:mm`（或带秒），周是 ISO 周 `YYYY-Www`，月份是 `YYYY-MM`，季度是 `YYYY-Qn`，年份是 `YYYY`，范围是 `[开始, 结束]`。处理的是"墙上的日历和时钟"，而不是某个时刻，字符串可以直接比较大小、直接提交给后端，不会因为时区差一天。需要 `Date` 时自己转换，日期时间用 `new Date(value.replace(' ', 'T'))` 按本地时间读出。
 
 ## 基础用法
 
@@ -17,6 +17,12 @@
 `type` 为 `month` 或 `year` 时，日历直接从月份或年份开始。
 
 <DocDemo src="date-picker/month-year" />
+
+## 季度
+
+`type="quarter"` 选择季度，值为 `2026-Q4` 这样的形式。输入框中的写法来自语言包的 `datePicker.quarter`：中文显示为“2026 年第 4 季度”，英文显示为“Q4 2026”。输入时这种写法和 `2026-Q4`、`2026 Q4`、`Q4 2026` 都能识别。
+
+<DocDemo src="date-picker/quarter" />
 
 ## 日期时间
 
@@ -43,6 +49,8 @@
 `range` 用两个输入框表示开始和结束，日历并排显示两个月。第一次点击定下一端，移动时预览范围，第二次点击定下另一端，先后顺序不限。
 
 <DocDemo src="date-picker/date-range" />
+
+`range` 也可以和 `month`、`quarter`、`year` 一起使用，在对应的格子里选择开始和结束，周不支持范围。
 
 ## 可选范围
 
@@ -72,7 +80,7 @@
 
 ## 显示格式
 
-输入框里的写法默认来自语言包的 `region`：中文是 `YYYY-MM-DD`，英文是 `MM/DD/YYYY`。`display-format` 可以单独指定，`YYYY`、`MM`、`DD` 是年月日，`[]` 里的文字原样保留。格式只影响显示和输入，`v-model` 的值始终是 `YYYY-MM-DD` 这样的形式；输入 `2026-10-29` 这样的写法也总能识别。周始终使用 ISO 写法。
+输入框里的写法默认来自语言包的 `region`：中文是 `YYYY-MM-DD`，英文是 `MM/DD/YYYY`。`display-format` 可以单独指定，`YYYY`、`MM`、`DD` 是年月日，`[]` 里的文字原样保留。格式只影响显示和输入，`v-model` 的值始终是 `YYYY-MM-DD` 这样的形式；输入 `2026-10-29` 这样的写法也总能识别。周始终使用 ISO 写法，季度使用语言包的 `datePicker.quarter`。
 
 <DocDemo src="date-picker/display-format" />
 
@@ -95,35 +103,35 @@
 | `Shift` + `PageUp` / `PageDown` | 上一年 / 下一年       |
 | `Enter` `Space`                 | 选中                  |
 
-在月份和年份视图里，方向键按格移动，`PageUp` / `PageDown` 翻一年或十年。
+在月份、季度和年份视图里，方向键按格移动，`PageUp` / `PageDown` 翻一年或十年。
 
 ## API
 
 ### DatePicker Props
 
-| 名称               | 说明                                 | 类型                                                  | 默认值                 |
-| ------------------ | ------------------------------------ | ----------------------------------------------------- | ---------------------- |
-| `modelValue`       | 值，配合 `v-model`                   | `string \| [string, string] \| null`                  | —                      |
-| `type`             | 选择日期、日期时间、周、月份还是年份 | `'date' \| 'datetime' \| 'week' \| 'month' \| 'year'` | `'date'`               |
-| `range`            | 选择一段日期（或日期时间）           | `boolean`                                             | `false`                |
-| `timeFormat`       | 日期时间是否带秒                     | `'HH:mm' \| 'HH:mm:ss'`                               | `'HH:mm'`              |
-| `displayFormat`    | 输入框中日期的写法                   | `string`                                              | 语言包                 |
-| `defaultTime`      | 只选了日子时取的时间；范围可传一对   | `string \| [string, string]`                          | 开始 00:00，结束 23:59 |
-| `shortcuts`        | 日历左侧的预设                       | `{ label: string; value: 值 \| (() => 值) }[]`        | —                      |
-| `min`              | 最早可选，包含                       | `string`                                              | —                      |
-| `max`              | 最晚可选，包含                       | `string`                                              | —                      |
-| `disabledDate`     | 排除某些日子                         | `(date: string) => boolean`                           | —                      |
-| `weekStart`        | 一周的第一天                         | `0 \| 1`                                              | 语言包                 |
-| `panels`           | 并排显示几个月                       | `1 \| 2`                                              | 范围为 2，否则 1       |
-| `placeholder`      | 占位文字                             | `string`                                              | 语言包                 |
-| `startPlaceholder` | 范围开始的占位文字                   | `string`                                              | 语言包                 |
-| `endPlaceholder`   | 范围结束的占位文字                   | `string`                                              | 语言包                 |
-| `clearable`        | 显示清空按钮                         | `boolean`                                             | `false`                |
-| `size`             | 尺寸，默认取表单或全局配置           | `'sm' \| 'md' \| 'lg'`                                | `'md'`                 |
-| `disabled`         | 禁用                                 | `boolean`                                             | `false`                |
-| `invalid`          | 标记为无效                           | `boolean`                                             | `false`                |
-| `placement`        | 日历弹出的位置                       | `Placement`                                           | `'bottom-start'`       |
-| `teleport`         | 日历渲染到哪里，`false` 留在原处     | `string \| HTMLElement \| false`                      | `'body'`               |
+| 名称               | 说明                                       | 类型                                                               | 默认值                 |
+| ------------------ | ------------------------------------------ | ------------------------------------------------------------------ | ---------------------- |
+| `modelValue`       | 值，配合 `v-model`                         | `string \| [string, string] \| null`                               | —                      |
+| `type`             | 选择日期、日期时间、周、月份、季度还是年份 | `'date' \| 'datetime' \| 'week' \| 'month' \| 'quarter' \| 'year'` | `'date'`               |
+| `range`            | 选择一段时间，周不支持                     | `boolean`                                                          | `false`                |
+| `timeFormat`       | 日期时间是否带秒                           | `'HH:mm' \| 'HH:mm:ss'`                                            | `'HH:mm'`              |
+| `displayFormat`    | 输入框中日期的写法                         | `string`                                                           | 语言包                 |
+| `defaultTime`      | 只选了日子时取的时间；范围可传一对         | `string \| [string, string]`                                       | 开始 00:00，结束 23:59 |
+| `shortcuts`        | 日历左侧的预设                             | `{ label: string; value: 值 \| (() => 值) }[]`                     | —                      |
+| `min`              | 最早可选，包含                             | `string`                                                           | —                      |
+| `max`              | 最晚可选，包含                             | `string`                                                           | —                      |
+| `disabledDate`     | 排除某些日子                               | `(date: string) => boolean`                                        | —                      |
+| `weekStart`        | 一周的第一天                               | `0 \| 1`                                                           | 语言包                 |
+| `panels`           | 并排显示几个月                             | `1 \| 2`                                                           | 范围为 2，否则 1       |
+| `placeholder`      | 占位文字                                   | `string`                                                           | 语言包                 |
+| `startPlaceholder` | 范围开始的占位文字                         | `string`                                                           | 语言包                 |
+| `endPlaceholder`   | 范围结束的占位文字                         | `string`                                                           | 语言包                 |
+| `clearable`        | 显示清空按钮                               | `boolean`                                                          | `false`                |
+| `size`             | 尺寸，默认取表单或全局配置                 | `'sm' \| 'md' \| 'lg'`                                             | `'md'`                 |
+| `disabled`         | 禁用                                       | `boolean`                                                          | `false`                |
+| `invalid`          | 标记为无效                                 | `boolean`                                                          | `false`                |
+| `placement`        | 日历弹出的位置                             | `Placement`                                                        | `'bottom-start'`       |
+| `teleport`         | 日历渲染到哪里，`false` 留在原处           | `string \| HTMLElement \| false`                                   | `'body'`               |
 
 ### DatePicker Events
 

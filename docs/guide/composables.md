@@ -19,6 +19,8 @@ DouUI 的组件建立在一组组合式函数上。下面这些已经导出，�
 | `useSortable`                                     | 给任意列表加上拖拽与键盘排序                           | [Sortable](../components/sortable)                                 |
 | `useDialog`                                       | 在组件里调用 `confirm` / `alert` / `prompt`            | [Dialog](../components/dialog)                                     |
 | `useReducedMotion` / `getMotionDuration`          | 让脚本驱动的动画遵循动效设置                           | [动效](./motion#在脚本中使用)                                      |
+| `useBreakpoints`                                  | 读取视口当前达到的断点                                 | [断点](./breakpoints#在脚本中使用)                                 |
+| `useClipboard`                                    | 复制文本，并在复制成功后的一段时间内给出 `copied`      | [下文](#useclipboard)                                              |
 
 这些函数都要在 `setup` 中调用，组件卸载时自动清理监听。
 
@@ -98,3 +100,13 @@ useHotkey(hotkeys, handler, { target, enabled, allowInInput, preventDefault, seq
 <DocDemo src="composables/hotkey" />
 
 `formatHotkey(hotkey)` 按当前平台给出每个按键的名称，例如 `mod+k` 在 macOS 上是 `[['⌘', 'K']]`；直接显示时用 [Kbd](../components/kbd#快捷键) 的 `keys` 属性即可。`matchesHotkey(event, hotkey)` 判断一次按键是否匹配某个组合键。
+
+## useClipboard
+
+```ts
+const { copy, copied } = useClipboard({ duration: 2000 })
+```
+
+`copy(text)` 把文本写入剪贴板，优先使用异步剪贴板接口，接口不可用或被拒绝时改用隐藏的文本框复制，两种方式都失败时返回的 Promise 会被拒绝。复制成功后，`copied` 在 `duration` 毫秒内为 `true`，可以用来切换图标或文字。[CopyButton](../components/copy-button) 就是基于它实现的。
+
+<DocDemo src="composables/clipboard" />

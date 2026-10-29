@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { DouImagePreview } from '../../../index'
+import { DouImage, DouImagePreview } from '../../../index'
 import { downloadImage } from '../preview'
 
 afterEach(() => {
@@ -68,5 +68,19 @@ describe('DouImagePreview tools', () => {
     expect(link.href).toBe('https://example.com/a/b.jpg')
     expect(link.download).toBe('b.jpg')
     vi.unstubAllGlobals()
+  })
+})
+
+describe('DouImage hydration', () => {
+  it('picks up a picture that finished loading before it mounted', async () => {
+    const complete = vi.spyOn(HTMLImageElement.prototype, 'complete', 'get').mockReturnValue(true)
+    const width = vi.spyOn(HTMLImageElement.prototype, 'naturalWidth', 'get').mockReturnValue(960)
+    const wrapper = mount(DouImage, { props: { src: 'a.png', alt: '海', preview: true } })
+    await nextTick()
+    expect(wrapper.get('.dou-image').classes()).toContain('is-loaded')
+    expect(wrapper.get('.dou-image').attributes('role')).toBe('button')
+    expect(wrapper.emitted('load')).toHaveLength(1)
+    complete.mockRestore()
+    width.mockRestore()
   })
 })

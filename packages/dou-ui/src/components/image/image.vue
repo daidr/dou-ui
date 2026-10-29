@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ImageIcon } from '@dou-ui/icons'
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, useTemplateRef, watch } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
 import type { ImageProps, ImageSlots } from './image'
@@ -43,6 +43,14 @@ function onError(event: Event) {
   status.value = 'error'
   emit('error', event)
 }
+
+// A server-rendered picture can finish loading before the page hydrates,
+// so its `load` event is never heard: check whether it is already there.
+const inner = useTemplateRef<HTMLImageElement>('inner')
+onMounted(() => {
+  const img = inner.value
+  if (status.value === 'loading' && img?.complete && img.naturalWidth > 0) onLoad(new Event('load'))
+})
 
 const px = (value?: string | number) => (typeof value === 'number' ? `${value}px` : value)
 const style = computed(() => ({
@@ -88,6 +96,7 @@ function onKeydown(event: KeyboardEvent) {
   >
     <img
       v-if="current && status !== 'error'"
+      ref="inner"
       :class="ns.e('inner')"
       :src="current"
       :alt="alt ?? ''"

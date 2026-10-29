@@ -20,6 +20,7 @@ const props = withDefaults(defineProps<SliderProps>(), {
   invalid: false,
   vertical: false,
   showInput: false,
+  tooltip: false,
 })
 const model = defineModel<SliderValue>()
 const emit = defineEmits<{ change: [value: SliderValue] }>()
@@ -294,7 +295,7 @@ defineExpose<SliderExpose>({
           v-for="thumb in thumbs"
           :key="thumb.index"
           :id="thumb.index === 0 ? formItem?.inputId : undefined"
-          :class="[ns.e('thumb'), ns.is('active', active === thumb.index)]"
+          :class="[ns.e('thumb'), ns.is('active', active === thumb.index), ns.is('pinned', tooltip === 'always')]"
           :style="thumb.style"
           :data-index="thumb.index"
           role="slider"
@@ -310,7 +311,11 @@ defineExpose<SliderExpose>({
           :aria-disabled="disabled || undefined"
           :aria-invalid="invalid || undefined"
           @keydown="onKeydown($event, thumb.index)"
-        />
+        >
+          <span v-if="tooltip" :class="ns.e('tooltip')" aria-hidden="true">
+            {{ describe(thumb.value) ?? thumb.value }}
+          </span>
+        </div>
       </div>
       <div v-if="marks.length" :class="ns.e('marks')" aria-hidden="true">
         <span

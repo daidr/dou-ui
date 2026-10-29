@@ -18,9 +18,15 @@
 
 ## 步长与刻度
 
-`step` 决定可取的值；`marks` 在滑轨下方标注刻度，键为刻度所在的值。范围以内的刻度会加深。`formatValue` 决定读屏软件念出的文字。
+`step` 决定可取的值；`marks` 在滑轨下方标注刻度，键为刻度所在的值。范围以内的刻度会加深。`formatValue` 决定读屏软件念出的文字，也用于数值气泡。
 
 <DocDemo src="slider/step-marks" column style="max-width: 420px" />
+
+## 数值气泡
+
+`tooltip` 在滑块上方显示当前值：拖动、悬停或用键盘聚焦时出现。设为 `'always'` 则一直显示。气泡里的文字与读屏一样来自 `formatValue`。
+
+<DocDemo src="slider/tooltip" />
 
 ## 竖向
 
@@ -67,6 +73,7 @@
 | `vertical`    | 竖向，从下往上                           | `boolean`                    | `false` |
 | `height`      | 竖向时的长度，数字为 px                  | `number \| string`           | `200px` |
 | `showInput`   | 旁边放一个同步的数字输入框（单值）       | `boolean`                    | `false` |
+| `tooltip`     | 在滑块上方显示数值，`'always'` 一直显示  | `boolean \| 'always'`        | `false` |
 | `size`        | 尺寸，默认取表单或全局配置               | `'sm' \| 'md' \| 'lg'`       | `'md'`  |
 | `disabled`    | 禁用                                     | `boolean`                    | `false` |
 | `invalid`     | 标记为无效，填充改为危险语气             | `boolean`                    | `false` |

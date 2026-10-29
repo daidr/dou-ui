@@ -28,6 +28,12 @@ export interface SliderProps {
   vertical?: boolean
   /** The length of a vertical slider. A number is in px. */
   height?: number | string
+  /**
+   * Show the value in a bubble over the thumb: `true` while it is dragged,
+   * hovered or focused with the keyboard, `'always'` all the time. The text
+   * comes from `formatValue` when given.
+   */
+  tooltip?: boolean | 'always'
   /** Put a number input beside a single slider, kept in sync with it. */
   showInput?: boolean
 }

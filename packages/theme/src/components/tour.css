@@ -1,0 +1,144 @@
+/*
+ * Tour
+ *
+ * The page dims around the element being explained, which keeps a thin
+ * ring and stays usable; a card next to it carries the step. The card is
+ * a popover with a footer: progress on the left, the way on to the right.
+ */
+@layer dou.components {
+  .dou-tour {
+    --dou-tour-mask: rgb(0 0 0 / 0.48);
+    --dou-tour-bg: light-dark(
+      var(--dou-color-bg-surface),
+      color-mix(in oklab, var(--dou-color-text) 4%, var(--dou-color-bg-surface))
+    );
+    --dou-tour-width: 320px;
+  }
+
+  .dou-tour__mask {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+
+    & > path {
+      fill: var(--dou-tour-mask);
+      pointer-events: auto;
+      transition: d var(--dou-motion-duration-normal) var(--dou-motion-easing);
+    }
+  }
+
+  .dou-tour__ring {
+    position: fixed;
+    box-sizing: border-box;
+    border-radius: 8px;
+    box-shadow:
+      0 0 0 1px rgb(255 255 255 / 0.5),
+      0 0 0 4px color-mix(in oklab, var(--dou-color-focus) 40%, transparent);
+    pointer-events: none;
+    transition-property: top, left, width, height;
+    transition-duration: var(--dou-motion-duration-normal);
+    transition-timing-function: var(--dou-motion-easing);
+  }
+
+  .dou-tour__card {
+    box-sizing: border-box;
+    width: min(var(--dou-tour-width), calc(100vw - 16px));
+    padding: 14px 16px 12px;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-container);
+    background-color: var(--dou-tour-bg);
+    box-shadow: var(--dou-shadow-lg);
+    color: var(--dou-color-text-secondary);
+    font-family: var(--dou-font-family);
+    font-size: var(--dou-font-size-md);
+    line-height: var(--dou-font-line-height);
+    outline: none;
+  }
+
+  .dou-tour__header {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .dou-tour__title {
+    flex: 1 1 auto;
+    min-width: 0;
+    color: var(--dou-color-text);
+    font-weight: var(--dou-font-weight-bold);
+    line-height: 1.5;
+
+    &:empty {
+      display: none;
+    }
+  }
+
+  .dou-tour__close {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    margin: -2px -6px 0 auto;
+    padding: 0;
+    border: 0;
+    border-radius: var(--dou-radius-control);
+    background-color: transparent;
+    color: var(--dou-color-text-tertiary);
+    cursor: pointer;
+    transition-property: background-color, color;
+    transition-duration: var(--dou-motion-duration-fast);
+
+    & > svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    &:hover {
+      background-color: var(--dou-color-bg-muted);
+      color: var(--dou-color-text);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 1px;
+    }
+  }
+
+  .dou-tour__body {
+    margin-top: 4px;
+
+    &:empty {
+      display: none;
+    }
+  }
+
+  .dou-tour__footer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 14px;
+  }
+
+  .dou-tour__progress {
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .dou-tour__actions {
+    display: flex;
+    gap: 8px;
+    margin-left: auto;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dou-tour__ring,
+    .dou-tour__mask > path {
+      transition: none;
+    }
+  }
+}

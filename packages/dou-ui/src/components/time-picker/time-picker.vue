@@ -12,6 +12,7 @@ import { formatTime, now, parseTime, snap } from './time'
 import type { TimeParts } from './time'
 import type { TimePickerExpose, TimePickerProps, TimeRange, TimeValue } from './time-picker'
 import TimeColumns from './time-columns.vue'
+import { useTeleport } from '../../utils/teleport'
 
 // The panel is a second root, so attributes go to the field by hand.
 defineOptions({ name: 'DouTimePicker', inheritAttrs: false })
@@ -26,8 +27,9 @@ const props = withDefaults(defineProps<TimePickerProps>(), {
   invalid: false,
   clearable: false,
   placement: 'bottom-start',
-  teleport: 'body',
+  teleport: undefined,
 })
+const teleportTarget = useTeleport(() => props.teleport)
 const model = defineModel<TimeValue | TimeRange | null>()
 const emit = defineEmits<{ change: [value: TimeValue | TimeRange | null] }>()
 
@@ -285,7 +287,7 @@ defineExpose<TimePickerExpose>({
       </button>
     </div>
   </OnlyChild>
-  <Teleport v-if="rendered" :to="teleport || 'body'" :disabled="teleport === false">
+  <Teleport v-if="rendered" :to="teleportTarget.to" :disabled="teleportTarget.disabled">
     <Transition appear name="dou-floating">
       <div
         v-show="open"

@@ -16,6 +16,7 @@ import type {
   TreeSelectSlots,
   TreeSelectValue,
 } from './tree-select'
+import { useTeleport } from '../../utils/teleport'
 
 defineOptions({ name: 'DouTreeSelect', inheritAttrs: false })
 
@@ -29,8 +30,9 @@ const props = withDefaults(defineProps<TreeSelectProps>(), {
   invalid: false,
   clearable: false,
   placement: 'bottom-start',
-  teleport: 'body',
+  teleport: undefined,
 })
+const teleportTarget = useTeleport(() => props.teleport)
 const model = defineModel<TreeSelectValue>()
 const emit = defineEmits<{ change: [value: TreeSelectValue]; clear: [] }>()
 const slots = defineSlots<TreeSelectSlots>()
@@ -344,7 +346,7 @@ defineExpose<TreeSelectExpose>({ focus, blur: () => combobox()?.blur() })
       <ChevronDownIcon :class="sns.e('arrow')" />
     </div>
   </OnlyChild>
-  <Teleport v-if="rendered" :to="teleport || 'body'" :disabled="teleport === false">
+  <Teleport v-if="rendered" :to="teleportTarget.to" :disabled="teleportTarget.disabled">
     <Transition appear name="dou-floating">
       <div
         v-show="open"

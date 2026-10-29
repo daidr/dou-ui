@@ -15,6 +15,7 @@ import type {
   AutocompleteSlots,
   AutocompleteSource,
 } from './autocomplete'
+import { useTeleport } from '../../utils/teleport'
 
 // Attributes go to the input, which hands class and style to its frame.
 defineOptions({ name: 'DouAutocomplete', inheritAttrs: false })
@@ -29,8 +30,9 @@ const props = withDefaults(defineProps<AutocompleteProps>(), {
   invalid: false,
   clearable: false,
   placement: 'bottom-start',
-  teleport: 'body',
+  teleport: undefined,
 })
+const teleportTarget = useTeleport(() => props.teleport)
 const model = defineModel<string>({ default: '' })
 const emit = defineEmits<{ select: [option: AutocompleteOption] }>()
 const slots = defineSlots<AutocompleteSlots>()
@@ -249,7 +251,7 @@ defineExpose<AutocompleteExpose>({
       <template v-if="slots.prefix" #prefix><slot name="prefix" /></template>
     </DouInput>
   </OnlyChild>
-  <Teleport v-if="rendered" :to="teleport || 'body'" :disabled="teleport === false">
+  <Teleport v-if="rendered" :to="teleportTarget.to" :disabled="teleportTarget.disabled">
     <Transition appear name="dou-floating">
       <div
         v-show="open"

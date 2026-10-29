@@ -13,6 +13,7 @@ defineOptions({ name: 'DouTransfer' })
 const props = withDefaults(defineProps<TransferProps>(), {
   data: () => [],
   filterable: false,
+  targetOrder: 'push',
   height: 240,
   disabled: false,
 })
@@ -49,7 +50,12 @@ const movable = (keys: TransferKey[]) => keys.filter((key) => !byKey.value.get(k
 function toTarget() {
   const moved = movable(checkedSource.value)
   if (!moved.length) return
-  const value = [...model.value, ...moved]
+  let value: TransferKey[]
+  if (props.targetOrder === 'unshift') value = [...moved, ...model.value]
+  else if (props.targetOrder === 'original') {
+    const keys = new Set([...model.value, ...moved])
+    value = props.data.filter((item) => keys.has(item.key)).map((item) => item.key)
+  } else value = [...model.value, ...moved]
   model.value = value
   checkedSource.value = []
   emit('change', value, 'target', moved)

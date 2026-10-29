@@ -311,6 +311,23 @@ export const en: Locale = {
     error: 'Failed to load',
     retry: 'Retry',
   },
+  carousel: {
+    label: 'Carousel',
+    slide: '{index} of {total}',
+    prev: 'Previous slide',
+    next: 'Next slide',
+    goTo: 'Slide {index}',
+    play: 'Start autoplay',
+    pause: 'Pause autoplay',
+  },
+  tour: {
+    label: 'Tour',
+    progress: '{current} / {total}',
+    prev: 'Back',
+    next: 'Next',
+    finish: 'Done',
+    close: 'Close tour',
+  },
   banner: {
     label: 'Announcement',
     close: 'Dismiss',

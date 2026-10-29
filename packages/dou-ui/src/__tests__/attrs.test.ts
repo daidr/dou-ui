@@ -35,6 +35,7 @@ const required: Record<string, Record<string, unknown>> = {
   DouTreeSelect: { data: [] },
   DouFlowGraph: { nodes: [], edges: [] },
   DouSortable: { modelValue: [] },
+  DouTour: { open: true, steps: [{ title: 'a' }] },
 }
 
 // floating components put attrs on the panel, not on the trigger

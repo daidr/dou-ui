@@ -58,6 +58,33 @@ const brand = defineTheme(light, {
 const css = themeToCss(brand, '[data-dou-theme="brand"]')
 ```
 
+## 从品牌色生成
+
+只想换品牌色时，用 `createTheme` 传入颜色，会同时得到亮色和暗色两套主题。每个颜色会生成一组语气 Token：
+
+- `DEFAULT`：按钮等实心填充的颜色，尽量保持传入的颜色。
+- `on`：填充色上的文字，从白色和墨色中选一个读得清的。
+- `text`：在页面上当作文字使用的颜色。
+
+如果传入的颜色在某套主题里读不清，会在 OKLCH 里只调整明度，直到所有文字对比度都不低于 4.5:1，色相保持不变。焦点环的颜色由 `primary` 推出，对页面的对比度不低于 3:1。
+
+```ts
+import { createTheme, themeToCss } from '@dou-ui/theme'
+
+const { light, dark } = createTheme({ primary: '#7c3aed', danger: '#e11d48' })
+
+const css =
+  themeToCss(light, ':root, [data-dou-theme="light"]') + themeToCss(dark, '[data-dou-theme="dark"]')
+```
+
+下面换一个颜色试试，示例只把生成的颜色用在预览区域里：
+
+<DocDemo src="theming/create-theme" />
+
+没有传入的语气保持默认值。颜色接受 `#rrggbb`、`#rgb` 与 `rgb()` 写法。第二个参数可以换掉起点主题，比如 `createTheme({ primary }, { light: myLight, dark: myDark })`。
+
+只需要单个语气时可以用 `createTone(color, base)`，`base` 决定按亮色还是暗色处理。`contrastRatio(a, b)` 返回两个颜色的对比度，可以用来检查自己定义的 Token。
+
 ## 层叠顺序
 
 DouUI 的所有样式都放在级联层（cascade layers）中：

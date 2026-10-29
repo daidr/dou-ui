@@ -18,6 +18,7 @@ import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
 import type { ImagePreviewProps } from './image'
 import { clampScale, downloadImage, normalizePreview, stepScale } from './preview'
+import { useTeleport } from '../../utils/teleport'
 
 defineOptions({ name: 'DouImagePreview', inheritAttrs: false })
 
@@ -27,9 +28,10 @@ const props = withDefaults(defineProps<ImagePreviewProps>(), {
   minScale: 0.25,
   maxScale: 4,
   closeOnMask: true,
-  teleport: 'body',
+  teleport: undefined,
   downloadable: false,
 })
+const teleportTarget = useTeleport(() => props.teleport)
 const open = defineModel<boolean>('open', { default: false })
 const index = defineModel<number>('index', { default: 0 })
 const emit = defineEmits<{ close: [] }>()
@@ -160,7 +162,7 @@ const label = computed(() =>
 </script>
 
 <template>
-  <Teleport v-if="rendered" :to="teleport || 'body'" :disabled="teleport === false">
+  <Teleport v-if="rendered" :to="teleportTarget.to" :disabled="teleportTarget.disabled">
     <Transition appear name="dou-image-preview">
       <div
         v-show="open"

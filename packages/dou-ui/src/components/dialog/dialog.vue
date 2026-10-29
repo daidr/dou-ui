@@ -5,6 +5,7 @@ import { useModal } from '../../composables/use-modal'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
 import type { DialogExpose, DialogProps, DialogSlots } from './dialog'
+import { useTeleport } from '../../utils/teleport'
 
 defineOptions({ name: 'DouDialog', inheritAttrs: false })
 
@@ -15,10 +16,11 @@ const props = withDefaults(defineProps<DialogProps>(), {
   closeOnEscape: true,
   lockScroll: true,
   destroyOnClose: false,
-  teleport: 'body',
+  teleport: undefined,
   draggable: false,
   fullscreenable: false,
 })
+const teleportTarget = useTeleport(() => props.teleport)
 const open = defineModel<boolean>('open', { default: false })
 const fullscreen = defineModel<boolean>('fullscreen', { default: false })
 const emit = defineEmits<{ open: []; opened: []; close: []; closed: [] }>()
@@ -118,7 +120,7 @@ defineExpose<DialogExpose>({ close })
 </script>
 
 <template>
-  <Teleport v-if="rendered" :to="teleport || 'body'" :disabled="teleport === false">
+  <Teleport v-if="rendered" :to="teleportTarget.to" :disabled="teleportTarget.disabled">
     <Transition appear name="dou-dialog" @after-enter="emit('opened')" @after-leave="onAfterLeave">
       <div
         v-show="open"

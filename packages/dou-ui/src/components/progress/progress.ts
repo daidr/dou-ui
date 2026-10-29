@@ -19,8 +19,26 @@ export interface ProgressProps {
   strokeWidth?: number
   /** Show the percentage after the bar, or inside a ring. */
   showValue?: boolean
+  /**
+   * Put the percentage inside a line bar, which grows tall enough to hold
+   * it. Near the start, where the bar is too short, the text sits just
+   * after it.
+   */
+  textInside?: boolean
+  /**
+   * A color for the bar instead of `tone`: a CSS color, stops that change
+   * the color as the bar fills (each applies up to its `percent`), or a
+   * function of the percentage.
+   */
+  color?: string | ProgressColorStop[] | ((percent: number) => string)
   /** Names the bar for screen readers when there is no visible label. */
   label?: string
+}
+
+export interface ProgressColorStop {
+  /** The stop applies while the percentage is at most this. */
+  percent: number
+  color: string
 }
 
 export interface ProgressSlots {

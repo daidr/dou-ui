@@ -3,7 +3,7 @@ import type { CSSProperties, ComponentPublicInstance, MaybeRefOrGetter, Ref } fr
 import { useZIndex } from '../components/config-provider/use-config'
 import { onlyChildElement } from '../utils/only-child'
 import { useFloating } from './use-floating'
-import type { Placement } from './use-floating'
+import type { Placement, VirtualElement } from './use-floating'
 import { useLayer } from './use-layer'
 import { useThemeScope } from './use-theme-scope'
 
@@ -23,6 +23,8 @@ export interface UsePopupOptions {
   hideDelay?: MaybeRefOrGetter<number>
   /** Close on a press outside. Defaults to on for `click` and `focus` triggers. */
   closeOnOutside?: MaybeRefOrGetter<boolean>
+  /** What the panel is placed next to, when not the trigger itself (e.g. the pointer). */
+  anchor?: () => Element | VirtualElement | null | undefined
 }
 
 /**
@@ -84,7 +86,7 @@ export function usePopup(options: UsePopupOptions) {
     { immediate: true },
   )
 
-  const floating = useFloating(reference, panelRef, {
+  const floating = useFloating(() => options.anchor?.() ?? reference(), panelRef, {
     open,
     placement: options.placement,
     offset: options.offset,

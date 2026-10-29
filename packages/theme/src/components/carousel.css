@@ -1,0 +1,319 @@
+/*
+ * Carousel
+ *
+ * Slides sit side by side and move along together; the slide shown stays
+ * in the flow so the carousel takes its height, the others are laid over
+ * it. Arrows are small round buttons on the surface color, indicators are
+ * short bars: light ones over the slides, ink ones below them.
+ */
+@layer dou.components {
+  .dou-carousel {
+    --dou-carousel-arrow-size: 32px;
+    --dou-carousel-duration: 420ms;
+
+    position: relative;
+    border-radius: var(--dou-radius-container);
+    outline: none;
+  }
+
+  .dou-carousel__stage {
+    position: relative;
+    border-radius: inherit;
+  }
+
+  .dou-carousel__viewport {
+    position: relative;
+    overflow: hidden;
+    border-radius: inherit;
+    touch-action: pan-y;
+  }
+
+  .dou-carousel--vertical .dou-carousel__viewport {
+    touch-action: pan-x;
+  }
+
+  .dou-carousel.is-dragging .dou-carousel__viewport {
+    cursor: grabbing;
+    user-select: none;
+  }
+
+  .dou-carousel__item {
+    position: absolute;
+    inset: 0;
+    box-sizing: border-box;
+    transition-property: transform, opacity;
+    transition-duration: var(--dou-carousel-duration);
+    transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+
+    &.is-active {
+      position: relative;
+    }
+  }
+
+  /* a fixed height lays every slide over the viewport */
+  .dou-carousel.is-fixed .dou-carousel__item.is-active {
+    position: absolute;
+  }
+
+  .dou-carousel--fade .dou-carousel__item {
+    opacity: 0;
+
+    &.is-active {
+      opacity: 1;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dou-carousel__item {
+      transition-duration: 0s;
+    }
+  }
+
+  /* -------- arrows -------- */
+
+  .dou-carousel__arrow {
+    position: absolute;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: var(--dou-carousel-arrow-size);
+    height: var(--dou-carousel-arrow-size);
+    padding: 0;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-full);
+    background-color: color-mix(in oklab, var(--dou-color-bg-surface) 88%, transparent);
+    box-shadow: var(--dou-shadow-sm);
+    color: var(--dou-color-text);
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+    transition-property: opacity, background-color, border-color;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    & > svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    &:hover:not(:disabled) {
+      border-color: var(--dou-color-border-strong);
+      background-color: var(--dou-color-bg-surface);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 2px;
+    }
+
+    &:disabled {
+      color: var(--dou-color-text-disabled);
+      cursor: not-allowed;
+    }
+  }
+
+  .dou-carousel--horizontal .dou-carousel__arrow {
+    top: 50%;
+    translate: 0 -50%;
+  }
+  .dou-carousel--horizontal .dou-carousel__arrow--prev {
+    left: 12px;
+  }
+  .dou-carousel--horizontal .dou-carousel__arrow--next {
+    right: 12px;
+  }
+
+  .dou-carousel--vertical .dou-carousel__arrow {
+    left: 50%;
+    translate: -50% 0;
+  }
+  .dou-carousel--vertical .dou-carousel__arrow--prev {
+    top: 12px;
+  }
+  .dou-carousel--vertical .dou-carousel__arrow--next {
+    bottom: 12px;
+  }
+
+  /* hover: show while the pointer is over the carousel or focus is inside */
+  .dou-carousel--arrows-hover .dou-carousel__arrow {
+    opacity: 0;
+  }
+  .dou-carousel--arrows-hover:hover .dou-carousel__arrow,
+  .dou-carousel--arrows-hover:focus-within .dou-carousel__arrow {
+    opacity: 1;
+  }
+  .dou-carousel--arrows-hover .dou-carousel__arrow:disabled {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  @media (hover: none) {
+    .dou-carousel--arrows-hover .dou-carousel__arrow {
+      display: none;
+    }
+  }
+
+  /* -------- indicators -------- */
+
+  .dou-carousel__controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .dou-carousel--indicators-inside .dou-carousel__controls,
+  .dou-carousel--indicators-none .dou-carousel__controls {
+    position: absolute;
+    z-index: 1;
+    right: 0;
+    bottom: 12px;
+    left: 0;
+    pointer-events: none;
+
+    & > * {
+      pointer-events: auto;
+    }
+  }
+
+  .dou-carousel--indicators-outside .dou-carousel__controls {
+    padding-top: 12px;
+  }
+
+  .dou-carousel__indicators {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+
+  /* over the slides, the bars sit on a small dark chip so they read on any picture */
+  .dou-carousel--indicators-inside .dou-carousel__indicators {
+    height: 20px;
+    padding: 0 4px;
+    border-radius: var(--dou-radius-full);
+    background-color: rgb(0 0 0 / 0.24);
+    backdrop-filter: blur(8px);
+  }
+
+  .dou-carousel__indicator {
+    --dou-carousel-dot: rgb(255 255 255 / 0.5);
+    --dou-carousel-dot-active: #ffffff;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: 20px;
+    height: 16px;
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
+
+    &::before {
+      content: '';
+      width: 12px;
+      height: 4px;
+      border-radius: var(--dou-radius-full);
+      background-color: var(--dou-carousel-dot);
+      transition-property: width, background-color;
+      transition-duration: var(--dou-motion-duration-normal);
+      transition-timing-function: var(--dou-motion-easing);
+    }
+
+    &:hover::before {
+      background-color: color-mix(in oklab, var(--dou-carousel-dot-active) 75%, transparent);
+    }
+
+    &.is-active {
+      width: 28px;
+    }
+
+    &.is-active::before {
+      width: 20px;
+      background-color: var(--dou-carousel-dot-active);
+    }
+
+    &:focus-visible {
+      border-radius: var(--dou-radius-control);
+      outline: 2px solid var(--dou-color-focus);
+    }
+  }
+
+  .dou-carousel--indicators-outside .dou-carousel__indicator {
+    --dou-carousel-dot: var(--dou-color-border-strong);
+    --dou-carousel-dot-active: var(--dou-color-text);
+  }
+
+  /* vertical carousels stack the indicators on the right */
+  .dou-carousel--vertical.dou-carousel--indicators-inside .dou-carousel__controls {
+    top: 0;
+    right: 12px;
+    bottom: 0;
+    left: auto;
+    flex-direction: column;
+  }
+  .dou-carousel--vertical.dou-carousel--indicators-inside .dou-carousel__indicators {
+    flex-direction: column;
+    width: 20px;
+    height: auto;
+    padding: 4px 0;
+  }
+  .dou-carousel--vertical.dou-carousel--indicators-inside .dou-carousel__indicator {
+    width: 16px;
+    height: 20px;
+
+    &::before {
+      width: 4px;
+      height: 12px;
+    }
+    &.is-active {
+      width: 16px;
+      height: 28px;
+    }
+    &.is-active::before {
+      width: 4px;
+      height: 20px;
+    }
+  }
+
+  .dou-carousel__play {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--dou-radius-full);
+    background-color: rgb(0 0 0 / 0.32);
+    color: #ffffff;
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+
+    & > svg {
+      width: 12px;
+      height: 12px;
+    }
+
+    &:hover {
+      background-color: rgb(0 0 0 / 0.48);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 2px;
+    }
+  }
+
+  .dou-carousel--indicators-outside .dou-carousel__play {
+    background-color: transparent;
+    color: var(--dou-color-text-secondary);
+
+    &:hover {
+      background-color: var(--dou-color-bg-muted);
+      color: var(--dou-color-text);
+    }
+  }
+}

@@ -618,11 +618,21 @@ body {
   flex-direction: column;
 }
 
-/* The code toggle has a row of its own, so it never covers the demo. */
+/* The code toggle has a row of its own, so it never covers the demo.
+   The stage reaches 8px up under that row (see its top padding); the
+   row stays on top for the toggle and lets pointers through elsewhere. */
 .doc-demo__bar {
+  position: relative;
+  z-index: 1;
   display: flex;
   justify-content: flex-end;
+  margin-bottom: -8px;
   padding: 8px 8px 0;
+  pointer-events: none;
+}
+
+.doc-demo__bar > * {
+  pointer-events: auto;
 }
 
 .doc-demo__stage {
@@ -631,9 +641,11 @@ body {
   align-items: center;
   gap: 12px;
   /* Content that cannot shrink to a phone's width scrolls inside the
-     demo rather than widening the page. */
+     demo rather than widening the page. A horizontal scroller clips
+     vertically too, so the top padding leaves room for marks that sit
+     above their anchor, such as a badge on a button's corner. */
   overflow-x: auto;
-  padding: 4px 24px 24px;
+  padding: 12px 24px 24px;
   color: var(--dou-color-text);
   font-size: var(--dou-font-size-md);
   line-height: var(--dou-font-line-height);

@@ -64,7 +64,7 @@ defineExpose<DrawerExpose>({ close })
 
 <template>
   <Teleport v-if="rendered" :to="teleport || 'body'" :disabled="teleport === false">
-    <Transition name="dou-drawer" @after-enter="emit('opened')" @after-leave="onAfterLeave">
+    <Transition appear name="dou-drawer" @after-enter="emit('opened')" @after-leave="onAfterLeave">
       <div
         v-show="open"
         ref="root"

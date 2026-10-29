@@ -415,7 +415,7 @@ defineExpose<DatePickerExpose>({
     </div>
   </OnlyChild>
   <Teleport v-if="rendered" :to="teleport || 'body'" :disabled="teleport === false">
-    <Transition name="dou-floating">
+    <Transition appear name="dou-floating">
       <div
         v-show="open"
         :id="panelId"

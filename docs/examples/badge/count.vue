@@ -9,7 +9,7 @@ const count = ref(5)
     <DouButton variant="outline">消息</DouButton>
   </DouBadge>
   <DouBadge :value="128">
-    <DouAvatar name="Ada Lovelace" shape="square" />
+    <DouAvatar name="戴兜" shape="square" />
   </DouBadge>
   <DouBadge :value="3" tone="danger">
     <DouButton variant="outline">错误</DouButton>

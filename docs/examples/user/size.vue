@@ -3,7 +3,7 @@
     v-for="size in ['sm', 'md', 'lg']"
     :key="size"
     :size="size"
-    name="陈晓"
+    name="戴兜"
     description="前端工程师"
   />
 </template>

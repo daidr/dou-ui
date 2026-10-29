@@ -1,6 +1,6 @@
 <template>
   <DouBadge dot>
-    <DouAvatar name="林小满" />
+    <DouAvatar name="戴兜" />
   </DouBadge>
   <DouBadge dot tone="success" placement="bottom-end">
     <DouAvatar name="Grace Hopper" />

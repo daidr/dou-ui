@@ -79,9 +79,8 @@ const steps = [{ title: '设计' }, { title: '开发' }, { title: '发布' }]
 
               <DouUser
                 v-else-if="tile === 'user'"
-                name="林小满"
-                description="设计工程师"
-                :avatar="{ name: '林' }"
+                name="戴兜"
+                description="前端工程师"
               />
 
               <DouSegmentedControl

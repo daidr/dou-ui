@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, useId, watch } from 'vue'
+import { useReducedMotion } from '../../composables/use-motion'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
 import type { TimeParts } from './time'
@@ -16,6 +17,7 @@ const props = defineProps<{
 const emit = defineEmits<{ pick: [parts: TimeParts] }>()
 
 const ns = useNamespace('time-picker')
+const reducedMotion = useReducedMotion()
 const { t } = useLocale()
 const id = useId()
 
@@ -51,7 +53,10 @@ function align(smooth = false) {
     const column = columns.get(unit)
     const cell = column?.querySelector<HTMLElement>(`#${CSS.escape(cellId(unit, current(unit)))}`)
     if (column && cell)
-      column.scrollTo?.({ top: cell.offsetTop - 4, behavior: smooth ? 'smooth' : 'instant' })
+      column.scrollTo?.({
+        top: cell.offsetTop - 4,
+        behavior: smooth && !reducedMotion.value ? 'smooth' : 'instant',
+      })
   }
 }
 onMounted(align)

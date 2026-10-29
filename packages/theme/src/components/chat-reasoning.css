@@ -42,11 +42,8 @@
     font-size: 16px;
 
     .dou-chat-reasoning.is-thinking & {
-      animation: dou-chat-reasoning-breathe 1.6s ease-in-out infinite;
-
-      @media (prefers-reduced-motion: reduce) {
-        animation: none;
-      }
+      animation: dou-chat-reasoning-breathe var(--dou-motion-loop-pulse) ease-in-out
+        var(--dou-motion-loop-count);
     }
   }
 
@@ -65,10 +62,6 @@
     .dou-chat-reasoning.is-open & {
       rotate: 180deg;
     }
-  }
-
-  .dou-chat-reasoning__panel {
-    transition: height var(--dou-motion-duration-normal) var(--dou-motion-easing);
   }
 
   /* padding, not margin, so the folding height includes the gap */

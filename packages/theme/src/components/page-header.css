@@ -117,10 +117,4 @@
     color: var(--dou-color-text-secondary);
     line-height: 1.6;
   }
-
-  @media (prefers-reduced-motion: reduce) {
-    .dou-page-header__back {
-      transition: none;
-    }
-  }
 }

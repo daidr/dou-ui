@@ -3,7 +3,7 @@ import { resolve as resolvePath } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import * as DouUI from '../../../dou-ui/src/index'
 import * as Icons from '../../../icons/src/index'
-import { DouUIApiResolver, DouUIResolver, componentDirs } from '../index'
+import { DouUIApiResolver, DouUIResolver, componentDirs, functionDirs } from '../index'
 
 const [components, directives] = DouUIResolver()
 const resolve = (name: string) => components!.resolve(name)
@@ -73,9 +73,9 @@ describe('DouUIApiResolver', () => {
     })
     expect(resolveApi('dialog')?.sideEffects).toBe('dou-ui/components/dialog/style')
     expect(resolveApi('useDialog')?.name).toBe('useDialog')
+    expect(resolveApi('useColorMode')).toEqual({ name: 'useColorMode', from: 'dou-ui' })
     expect(resolveApi('ref')).toBeUndefined()
-    for (const name of ['toast', 'dialog', 'useDialog', 'vLoading']) {
-      expect(name in DouUI).toBe(true)
-    }
+    expect(resolveApi('constructor')).toBeUndefined()
+    for (const name of Object.keys(functionDirs)) expect(name in DouUI).toBe(true)
   })
 })

@@ -1,7 +1,8 @@
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { DouMarquee } from '../../../index'
+import { h } from 'vue'
+import { DouConfigProvider, DouMarquee } from '../../../index'
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -45,5 +46,17 @@ describe('DouMarquee', () => {
     )
     expect(wrapper.classes()).not.toContain('is-fade')
     expect(wrapper.classes()).not.toContain('is-pausable')
+  })
+
+  it('holds still and shows the content once with reduced motion', async () => {
+    sizes(200, 600)
+    const wrapper = mount(() =>
+      h(DouConfigProvider, { motion: 'reduce' }, () => h(DouMarquee, null, () => '公告')),
+    )
+    await nextTick()
+    const marquee = wrapper.get('.dou-marquee')
+    expect(marquee.classes()).toContain('is-still')
+    expect(marquee.classes()).not.toContain('is-ready')
+    expect(wrapper.findAll('.dou-marquee__content')).toHaveLength(1)
   })
 })

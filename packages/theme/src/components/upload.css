@@ -481,13 +481,4 @@
       cursor: not-allowed;
     }
   }
-
-  @media (prefers-reduced-motion: reduce) {
-    .dou-upload__zone,
-    .dou-upload__file,
-    .dou-upload__card-actions,
-    .dou-upload__card-trigger {
-      transition: none;
-    }
-  }
 }

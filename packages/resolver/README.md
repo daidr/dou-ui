@@ -6,6 +6,6 @@
 bun add -d @dou-ui/resolver unplugin-vue-components unplugin-auto-import
 ```
 
-配置方法见 [快速开始](https://github.com/daidr/dou-ui/blob/main/docs/guide/getting-started.md)。
+配置方法见 [Vite 集成](https://github.com/daidr/dou-ui/blob/main/docs/integrations/vite.md)。
 
 许可证：MIT

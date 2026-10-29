@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ArrowDownIcon } from '@dou-ui/icons'
 import { onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
+import { useReducedMotion } from '../../composables/use-motion'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
 import type { ChatListEmits, ChatListExpose, ChatListProps, ChatListSlots } from './chat-list'
@@ -16,6 +17,7 @@ const emit = defineEmits<ChatListEmits>()
 defineSlots<ChatListSlots>()
 
 const ns = useNamespace('chat-list')
+const reducedMotion = useReducedMotion()
 const { t } = useLocale()
 
 const viewportRef = useTemplateRef<HTMLElement>('viewport')
@@ -53,7 +55,7 @@ function onWheel(event: WheelEvent) {
   if (event.deltaY < 0) following = false
 }
 
-function scrollToBottom(behavior: ScrollBehavior = 'smooth') {
+function scrollToBottom(behavior: ScrollBehavior = reducedMotion.value ? 'auto' : 'smooth') {
   const el = viewportRef.value
   if (!el) return
   following = true

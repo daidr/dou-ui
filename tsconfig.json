@@ -6,7 +6,8 @@
       "dou-ui": ["./packages/dou-ui/src/index.ts"],
       "@dou-ui/theme": ["./packages/theme/src/index.ts"],
       "@dou-ui/icons": ["./packages/icons/src/index.ts"],
-      "@dou-ui/icons/meta": ["./packages/icons/src/meta.ts"]
+      "@dou-ui/icons/meta": ["./packages/icons/src/meta.ts"],
+      "@dou-ui/resolver": ["./packages/resolver/src/index.ts"]
     }
   },
   "include": [

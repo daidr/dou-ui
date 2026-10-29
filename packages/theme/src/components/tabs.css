@@ -114,7 +114,7 @@
 
   .dou-tabs.is-settled .dou-tabs__indicator {
     transition-property: transform, width;
-    transition-duration: var(--dou-motion-duration-normal);
+    transition-duration: calc(var(--dou-motion-duration-normal) * var(--dou-motion-travel));
     transition-timing-function: var(--dou-motion-easing);
   }
 
@@ -277,11 +277,5 @@
 
   .dou-tabs.is-settled.is-vertical .dou-tabs__indicator {
     transition-property: transform, height;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .dou-tabs.is-settled .dou-tabs__indicator {
-      transition: none;
-    }
   }
 }

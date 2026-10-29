@@ -41,7 +41,7 @@ import { DouSelect } from 'dou-ui'
 import 'dou-ui/components/select/style'
 ```
 
-也可以用 `@dou-ui/resolver` 配合按需组件插件自动导入，详见 [快速开始](./docs/guide/getting-started.md)。
+也可以用 `@dou-ui/resolver` 配合按需组件插件自动导入，详见 [Vite](./docs/integrations/vite.md)；Nuxt 应用用 `@dou-ui/nuxt`，详见 [Nuxt](./docs/integrations/nuxt.md)。
 
 ### 主题
 
@@ -61,8 +61,9 @@ Token 都是 CSS 变量，可以直接覆盖，也可以用 `@dou-ui/theme` 的 
 | `@dou-ui/theme`    | 设计 Token、主题 API 与全部样式 |
 | `@dou-ui/icons`    | 线性图标库，可以单独使用        |
 | `@dou-ui/resolver` | 按需自动导入的解析器            |
+| `@dou-ui/nuxt`     | Nuxt 模块                       |
 
-四个包使用同一个版本号，一起发布。
+五个包使用同一个版本号，一起发布。
 
 ## 仓库结构
 
@@ -72,6 +73,7 @@ packages/
   theme/         设计 Token 与全部样式（@dou-ui/theme）
   icons/         线性图标库（@dou-ui/icons），可独立使用
   resolver/      按需自动导入的解析器（@dou-ui/resolver）
+  nuxt/          Nuxt 模块（@dou-ui/nuxt），playground/ 是调试用的 Nuxt 应用
 playground/      本地调试用的 Vite 应用
 docs/            文档站（VitePress）
 ```
@@ -84,6 +86,7 @@ docs/            文档站（VitePress）
 bun install
 
 bun run dev          # 启动 playground
+bun run --filter @dou-ui/nuxt play   # 启动 Nuxt playground（先 bun run build）
 bun run docs:dev     # 启动文档站
 
 bun fmt              # 格式化（Bun 内置）
@@ -92,7 +95,7 @@ bun run typecheck    # vue-tsc
 bun run test         # vitest
 bun run check        # 以上全部（CI 同款）
 
-bun run build        # 构建 @dou-ui/theme、@dou-ui/icons、dou-ui 与 @dou-ui/resolver
+bun run build        # 构建全部五个包
 ```
 
 ### 工具链
@@ -126,11 +129,11 @@ bun run build        # 构建 @dou-ui/theme、@dou-ui/icons、dou-ui 与 @dou-ui
 
 ### 发布
 
-四个包使用同一个版本号。改动先记在 [更新日志](./CHANGELOG.md) 的「未发布」下，发布时：
+五个包使用同一个版本号。改动先记在 [更新日志](./CHANGELOG.md) 的「未发布」下，发布时：
 
 ```sh
-bun run release 0.1.0   # 同步四个包的版本号，并把「未发布」改成 0.1.0
+bun run release 0.1.0   # 同步五个包的版本号，并把「未发布」改成 0.1.0
 bun run check && bun run build
 ```
 
-确认无误后再手动提交、打标签，并按 `theme` → `icons` → `dou-ui` → `resolver` 的顺序在各自目录下执行 `bun publish`。
+确认无误后再手动提交、打标签，并按 `theme` → `icons` → `dou-ui` → `resolver` → `nuxt` 的顺序在各自目录下执行 `bun publish`。

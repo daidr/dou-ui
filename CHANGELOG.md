@@ -1,6 +1,6 @@
 # 更新日志
 
-`dou-ui`、`@dou-ui/theme`、`@dou-ui/icons` 与 `@dou-ui/resolver` 使用同一个版本号，一起发布。
+`dou-ui`、`@dou-ui/theme`、`@dou-ui/icons`、`@dou-ui/resolver` 与 `@dou-ui/nuxt` 使用同一个版本号，一起发布。
 版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)；`1.0.0` 之前，次版本号（`0.x.0`）的变化可能包含不兼容的改动，会在这里单独标出。
 
 新的改动先记在「未发布」下，发布时由 `bun run release <版本号>` 改成对应版本。
@@ -28,9 +28,11 @@
 - 设计 Token 由 TypeScript 定义并生成 CSS 变量，内置亮色与暗色主题，可用 `defineTheme` 与 `themeToCss` 定制，`createTheme` 从品牌色生成亮暗两套主题
 - 所有样式位于 `dou.tokens`、`dou.base`、`dou.components` 三个级联层中，页面上不在级联层里的样式总能覆盖
 - 语气色提供 `DEFAULT`、`on`、`text` 三个角色，文字对比度按 WCAG AA 取值
+- 统一的动效 Token（时长、进退场曲线、位移、循环周期），`dou-fade`、`dou-zoom`、`dou-slide-*` 过渡预设，`DouCollapseTransition`；`ConfigProvider` 的 `motion` 可减少或关闭动画，`useReducedMotion` 供脚本动画使用
 
 ### 图标与按需引入
 
 - `@dou-ui/icons`：配套的线性图标，可以单独使用
 - `@dou-ui/resolver`：配合按需组件插件，自动导入组件和它的样式入口
+- `@dou-ui/nuxt`：Nuxt 模块，组件、指令与函数自动导入，样式与配色模式开箱即用，支持服务端渲染
 - 组件从 `dou-ui` 具名导入；样式可以全量引入 `dou-ui/style.css`，也可以按组件引入 `dou-ui/components/<name>/style`

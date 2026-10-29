@@ -132,10 +132,4 @@
     line-height: 20px;
     user-select: none;
   }
-
-  @media (prefers-reduced-motion: reduce) {
-    .dou-textarea {
-      transition: none;
-    }
-  }
 }

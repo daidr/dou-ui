@@ -74,7 +74,8 @@
     height: calc(var(--dou-statistic-value-size) * 0.8);
     border-radius: var(--dou-radius-control);
     background-color: color-mix(in oklab, var(--dou-color-text) 7%, transparent);
-    animation: dou-statistic-pulse 1.6s ease-in-out infinite;
+    animation: dou-statistic-pulse var(--dou-motion-loop-pulse) ease-in-out
+      var(--dou-motion-loop-count);
   }
 
   .dou-statistic__footer {
@@ -86,12 +87,6 @@
   @keyframes dou-statistic-pulse {
     50% {
       opacity: 0.5;
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .dou-statistic__placeholder {
-      animation: none;
     }
   }
 }

@@ -127,11 +127,4 @@
   .dou-splitter.is-disabled .dou-splitter__handle {
     display: none;
   }
-
-  @media (prefers-reduced-motion: reduce) {
-    .dou-splitter__bar,
-    .dou-splitter__handle {
-      transition: none;
-    }
-  }
 }

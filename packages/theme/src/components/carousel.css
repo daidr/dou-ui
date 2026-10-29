@@ -9,7 +9,7 @@
 @layer dou.components {
   .dou-carousel {
     --dou-carousel-arrow-size: 32px;
-    --dou-carousel-duration: 420ms;
+    --dou-carousel-duration: var(--dou-motion-duration-slow);
 
     position: relative;
     border-radius: var(--dou-radius-container);
@@ -42,8 +42,9 @@
     inset: 0;
     box-sizing: border-box;
     transition-property: transform, opacity;
-    transition-duration: var(--dou-carousel-duration);
-    transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+    /* slides travel the full width, so reduced motion swaps them at once */
+    transition-duration: calc(var(--dou-carousel-duration) * var(--dou-motion-travel));
+    transition-timing-function: var(--dou-motion-easing);
 
     &.is-active {
       position: relative;
@@ -60,12 +61,6 @@
 
     &.is-active {
       opacity: 1;
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .dou-carousel__item {
-      transition-duration: 0s;
     }
   }
 

@@ -1,6 +1,7 @@
 import type { ComputedRef, GlobalComponents, InjectionKey } from 'vue'
 import type { Locale } from '../../locale/types'
 import type { Size } from '../../utils/types'
+import type { MotionMode } from '../../composables/use-motion'
 
 /** Defaults shared by every component below a provider or an app. */
 export interface GlobalConfig {
@@ -24,6 +25,13 @@ export interface GlobalConfig {
    * ```
    */
   defaults?: ComponentDefaults
+  /**
+   * How much the page animates: `auto` follows the system setting,
+   * `reduce` keeps only short fades, `none` turns animation off. It is
+   * applied to the whole page, since popups render outside the provider.
+   * Defaults to `auto`.
+   */
+  motion?: MotionMode
 }
 
 export interface ResolvedGlobalConfig {
@@ -32,6 +40,7 @@ export interface ResolvedGlobalConfig {
   zIndex: number
   teleport?: string | HTMLElement | false
   defaults: ComponentDefaults
+  motion: MotionMode
 }
 
 type PropsOf<T> = T extends abstract new (...args: never) => { $props: infer P }

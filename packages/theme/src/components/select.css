@@ -378,11 +378,4 @@
     font-size: var(--dou-font-size-sm);
     text-align: center;
   }
-
-  @media (prefers-reduced-motion: reduce) {
-    .dou-select,
-    .dou-select__arrow {
-      transition: none;
-    }
-  }
 }

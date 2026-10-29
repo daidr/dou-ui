@@ -517,12 +517,4 @@
       background-color: var(--dou-flow-graph-progress-fill);
     }
   }
-
-  @media (prefers-reduced-motion: reduce) {
-    .dou-flow-graph__node,
-    .dou-flow-graph__edge,
-    .dou-flow-graph__progress-bar {
-      transition: none;
-    }
-  }
 }

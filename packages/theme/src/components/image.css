@@ -74,7 +74,7 @@
         transparent 70%
       )
       0 0 / 200% 100%;
-    animation: dou-image-shimmer 1.4s linear infinite;
+    animation: dou-image-shimmer var(--dou-motion-loop-sweep) linear var(--dou-motion-loop-count);
   }
 
   .dou-image.is-error {
@@ -297,22 +297,14 @@
     background-color: var(--dou-image-preview-chrome-border);
   }
 
-  .dou-image-preview-enter-active,
+  .dou-image-preview-enter-active {
+    transition: opacity var(--dou-motion-duration-normal) var(--dou-motion-easing-enter);
+  }
   .dou-image-preview-leave-active {
-    transition: opacity var(--dou-motion-duration-normal) var(--dou-motion-easing);
+    transition: opacity var(--dou-motion-duration-fast) var(--dou-motion-easing-exit);
   }
   .dou-image-preview-enter-from,
   .dou-image-preview-leave-to {
     opacity: 0;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .dou-image__placeholder:empty {
-      animation: none;
-    }
-    .dou-image__inner,
-    .dou-image-preview__image {
-      transition: none;
-    }
   }
 }

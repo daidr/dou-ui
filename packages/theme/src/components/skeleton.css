@@ -68,7 +68,8 @@
     background-attachment: fixed;
     background-size: 60vw 100%;
     background-position: -60vw 0;
-    animation: dou-skeleton-sweep 2s ease-in-out infinite;
+    animation: dou-skeleton-sweep var(--dou-motion-loop-sweep) ease-in-out
+      var(--dou-motion-loop-count);
   }
 
   @keyframes dou-skeleton-sweep {
@@ -77,13 +78,6 @@
     }
     to {
       background-position: 100vw 0;
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .dou-skeleton.is-animated .dou-skeleton__item {
-      animation: none;
-      background-image: none;
     }
   }
 }

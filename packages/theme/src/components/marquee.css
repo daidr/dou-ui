@@ -71,20 +71,10 @@
     animation-play-state: paused;
   }
 
-  /* without motion: hold still and let the content scroll by hand */
-  @media (prefers-reduced-motion: reduce) {
-    .dou-marquee {
-      overflow: auto;
-    }
-    .dou-marquee.is-fade {
-      mask-image: none;
-    }
-    .dou-marquee.is-ready .dou-marquee__track {
-      animation: none;
-    }
-    .dou-marquee__content[aria-hidden='true'] {
-      display: none;
-    }
+  /* without motion: one copy, held still, scrolled by hand */
+  .dou-marquee.is-still {
+    overflow: auto;
+    mask-image: none;
   }
 
   @keyframes dou-marquee-x {

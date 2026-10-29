@@ -33,6 +33,7 @@ export default defineConfig({
       { text: '指南', link: '/guide/philosophy' },
       { text: '组件', link: '/components/button' },
       { text: '图标', link: '/icons/' },
+      { text: '集成', link: '/integrations/vite' },
     ],
     sidebar: {
       '/icons': [
@@ -42,6 +43,15 @@ export default defineConfig({
             { text: '图标库', link: '/icons/' },
             { text: '安装与使用', link: '/icons/usage' },
             { text: '设计规范', link: '/icons/design' },
+          ],
+        },
+      ],
+      '/integrations/': [
+        {
+          text: '集成',
+          items: [
+            { text: 'Vite', link: '/integrations/vite' },
+            { text: 'Nuxt', link: '/integrations/nuxt' },
           ],
         },
       ],
@@ -56,6 +66,7 @@ export default defineConfig({
             { text: '国际化', link: '/guide/i18n' },
             { text: '浮层', link: '/guide/overlays' },
             { text: '组合式函数', link: '/guide/composables' },
+            { text: '动效', link: '/guide/motion' },
             { text: '路线图', link: '/guide/roadmap' },
           ],
         },

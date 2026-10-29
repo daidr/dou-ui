@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useMotionMode } from '../../composables/use-motion'
 import { provideGlobalConfig } from './use-config'
 import type { ConfigProviderProps, ConfigProviderSlots } from './config-provider'
 
@@ -13,7 +14,9 @@ provideGlobalConfig(() => ({
   zIndex: props.zIndex,
   teleport: props.teleport,
   defaults: props.defaults,
+  motion: props.motion,
 }))
+useMotionMode(() => props.motion)
 </script>
 
 <template>

@@ -54,10 +54,6 @@
     }
   }
 
-  .dou-chat-steps__panel {
-    transition: height var(--dou-motion-duration-normal) var(--dou-motion-easing);
-  }
-
   .dou-chat-steps__list {
     margin: 0;
     padding: 8px 0 4px;

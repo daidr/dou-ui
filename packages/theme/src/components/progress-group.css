@@ -74,10 +74,4 @@
     color: var(--dou-color-text-secondary);
     font-variant-numeric: tabular-nums;
   }
-
-  @media (prefers-reduced-motion: reduce) {
-    .dou-progress-group__segment {
-      transition: none;
-    }
-  }
 }

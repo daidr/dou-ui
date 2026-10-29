@@ -198,11 +198,4 @@
     border-radius: 0 calc(var(--dou-input-number-radius) - 1px)
       calc(var(--dou-input-number-radius) - 1px) 0;
   }
-
-  @media (prefers-reduced-motion: reduce) {
-    .dou-input-number,
-    .dou-input-number__step {
-      transition: none;
-    }
-  }
 }

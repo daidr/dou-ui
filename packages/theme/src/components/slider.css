@@ -278,13 +278,6 @@
     }
   }
 
-  @media (prefers-reduced-motion: reduce) {
-    .dou-slider__fill,
-    .dou-slider__thumb {
-      transition: none;
-    }
-  }
-
   /* the value bubble over a thumb, drawn like a tooltip */
   .dou-slider__tooltip {
     position: absolute;

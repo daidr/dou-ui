@@ -248,12 +248,4 @@
     color: var(--dou-color-text-tertiary);
     font-size: var(--dou-font-size-sm);
   }
-
-  @media (prefers-reduced-motion: reduce) {
-    .dou-calendar-view__day,
-    .dou-calendar-view__today,
-    .dou-calendar-view__step {
-      transition: none;
-    }
-  }
 }

@@ -100,10 +100,4 @@
     line-height: 1;
     text-box: trim-both cap alphabetic;
   }
-
-  @media (prefers-reduced-motion: reduce) {
-    .dou-rate__star {
-      transition: none;
-    }
-  }
 }

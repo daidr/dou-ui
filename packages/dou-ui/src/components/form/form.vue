@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, provide } from 'vue'
+import { useReducedMotion } from '../../composables/use-motion'
 import { useNamespace } from '../../utils/namespace'
 import { formKey } from './form'
 import type { FormEmits, FormExpose, FormItemHandle, FormProps, FormSlots } from './form'
@@ -18,6 +19,7 @@ const emit = defineEmits<FormEmits>()
 defineSlots<FormSlots>()
 
 const ns = useNamespace('form')
+const reducedMotion = useReducedMotion()
 
 const items = new Set<FormItemHandle>()
 
@@ -69,7 +71,10 @@ function clearValidate(paths?: string | string[]) {
 
 function scrollToField(prop: string) {
   const [item] = pick(prop)
-  item?.el()?.scrollIntoView?.({ block: 'center', behavior: 'smooth' })
+  item?.el()?.scrollIntoView?.({
+    block: 'center',
+    behavior: reducedMotion.value ? 'auto' : 'smooth',
+  })
   item?.focus()
 }
 

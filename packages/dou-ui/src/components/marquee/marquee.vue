@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef } from 'vue'
+import { useReducedMotion } from '../../composables/use-motion'
 import { useNamespace } from '../../utils/namespace'
 import type { MarqueeProps, MarqueeSlots } from './marquee'
 
@@ -22,6 +23,8 @@ const rootRef = useTemplateRef<HTMLElement>('root')
 const contentRef = useTemplateRef<HTMLElement>('content')
 
 const vertical = computed(() => props.direction === 'vertical')
+// Without motion the content holds still and scrolls by hand, shown once.
+const still = useReducedMotion()
 // The size of one copy of the content, and of the visible box.
 const size = ref(0)
 const box = ref(0)
@@ -48,9 +51,11 @@ onBeforeUnmount(() => observer?.disconnect())
 // keep the box full the whole way.
 const distance = computed(() => size.value + props.gap)
 const copies = computed(() =>
-  size.value > 0 ? Math.max(1, Math.ceil((box.value + props.gap) / distance.value)) : 0,
+  size.value > 0 && !still.value
+    ? Math.max(1, Math.ceil((box.value + props.gap) / distance.value))
+    : 0,
 )
-const ready = computed(() => size.value > 0)
+const ready = computed(() => size.value > 0 && !still.value)
 
 const style = computed(() => ({
   '--dou-marquee-gap': `${props.gap}px`,
@@ -66,6 +71,7 @@ const style = computed(() => ({
       ns.b(),
       ns.m(direction),
       ns.is('ready', ready),
+      ns.is('still', still),
       ns.is('reverse', reverse),
       ns.is('paused', paused),
       ns.is('pausable', pauseOnHover),

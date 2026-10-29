@@ -247,16 +247,7 @@
     border: 1.5px solid currentColor;
     border-right-color: transparent;
     border-radius: var(--dou-radius-full);
-    animation: dou-spin 0.8s linear infinite;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .dou-button {
-      transition: none;
-    }
-    .dou-button__spinner {
-      animation-duration: 2s;
-    }
+    animation: dou-spin var(--dou-motion-loop-spin) linear infinite;
   }
 
   @keyframes dou-spin {

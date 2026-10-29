@@ -201,11 +201,4 @@
     --dou-input-gap: var(--dou-control-gap-lg);
     --dou-input-font-size: var(--dou-font-size-lg);
   }
-
-  @media (prefers-reduced-motion: reduce) {
-    .dou-input,
-    .dou-input__clear {
-      transition: none;
-    }
-  }
 }

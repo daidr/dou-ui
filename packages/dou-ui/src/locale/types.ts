@@ -389,6 +389,12 @@ export interface Locale {
     /** Names the navigation. */
     label: string
   }
+  codeBlock: {
+    /** Unfolds a long block; `{count}` is the number of lines. */
+    expand: string
+    /** Folds it again. */
+    collapse: string
+  }
   copyButton: {
     copy: string
     /** Said once the text is on the clipboard. */

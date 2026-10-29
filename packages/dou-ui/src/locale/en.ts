@@ -255,6 +255,10 @@ export const en: Locale = {
   anchor: {
     label: 'On this page',
   },
+  codeBlock: {
+    expand: 'Show all {count} lines',
+    collapse: 'Show less',
+  },
   copyButton: {
     copy: 'Copy',
     copied: 'Copied',

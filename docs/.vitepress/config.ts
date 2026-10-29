@@ -85,6 +85,7 @@ export default defineConfig({
             { text: 'Link 链接', link: '/components/link' },
             { text: 'Typography 排版', link: '/components/typography' },
             { text: 'CopyButton 复制按钮', link: '/components/copy-button' },
+            { text: 'CodeBlock 代码块', link: '/components/code-block' },
           ],
         },
         {

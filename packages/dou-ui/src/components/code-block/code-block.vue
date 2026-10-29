@@ -1,0 +1,123 @@
+<script setup lang="ts">
+import { computed, ref, shallowRef, useId, watchEffect } from 'vue'
+import { useNamespace } from '../../utils/namespace'
+import { useGlobalConfig, useLocale } from '../config-provider/use-config'
+import { DouCopyButton } from '../copy-button'
+import type { CodeBlockHighlighter, CodeBlockProps, CodeBlockSlots } from './code-block'
+import { htmlLines, parseLines, plainLines } from './lines'
+
+defineOptions({ name: 'DouCodeBlock' })
+
+const props = withDefaults(defineProps<CodeBlockProps>(), {
+  code: '',
+  lang: 'text',
+  lineNumbers: false,
+  startLine: 1,
+  wrap: false,
+  copyable: true,
+})
+const slots = defineSlots<CodeBlockSlots>()
+
+const ns = useNamespace('code-block')
+const { t } = useLocale()
+const config = useGlobalConfig()
+const bodyId = `dou-code-block-${useId()}`
+
+// A function prop cannot take its default from ConfigProvider the way
+// other props do, so the configured one is read here.
+const highlighter = computed<CodeBlockHighlighter | undefined>(
+  () =>
+    props.highlight ??
+    (config.value.defaults as { DouCodeBlock?: { highlight?: CodeBlockHighlighter } }).DouCodeBlock
+      ?.highlight,
+)
+
+const code = computed(() => props.code.replace(/\n$/, ''))
+
+/*
+ * Plain lines until the highlighter answers. A synchronous highlighter
+ * answers during setup, so server-rendered markup is already highlighted;
+ * an async one fills in after. Only the latest call may land.
+ */
+const lines = shallowRef<string[]>(plainLines(code.value))
+let run = 0
+watchEffect(() => {
+  const current = ++run
+  const source = code.value
+  const highlight = highlighter.value
+  lines.value = plainLines(source)
+  if (!highlight) return
+  const apply = (html: string) => {
+    if (current === run) lines.value = htmlLines(html)
+  }
+  try {
+    const result = highlight(source, props.lang)
+    if (typeof result === 'string') apply(result)
+    else void result.then(apply, () => {})
+  } catch {
+    // a highlighter that throws leaves the plain text
+  }
+})
+
+const marked = computed(() => parseLines(props.highlightLines))
+const rows = computed(() =>
+  lines.value.map((html, index) => {
+    const number = props.startLine + index
+    return { html, number, marked: marked.value.has(number) }
+  }),
+)
+
+const expanded = ref(false)
+const foldable = computed(() => props.maxLines !== undefined && rows.value.length > props.maxLines)
+const folded = computed(() => foldable.value && !expanded.value)
+
+const title = computed(() => props.filename ?? (props.lang === 'text' ? '' : props.lang))
+const hasHeader = computed(() => !!(slots.title || title.value || slots.actions))
+
+const classes = computed(() => [
+  ns.b(),
+  ns.is('wrap', props.wrap),
+  ns.is('numbered', props.lineNumbers),
+  ns.is('folded', folded.value),
+  ns.is('headless', !hasHeader.value),
+])
+</script>
+
+<template>
+  <div :class="classes" :style="foldable ? { '--dou-code-block-max-lines': maxLines } : undefined">
+    <div v-if="hasHeader" :class="ns.e('header')">
+      <span :class="ns.e('title')">
+        <slot name="title">{{ title }}</slot>
+      </span>
+      <span :class="ns.e('actions')">
+        <slot name="actions" />
+        <DouCopyButton v-if="copyable" :text="code" size="sm" />
+      </span>
+    </div>
+    <DouCopyButton v-else-if="copyable" :class="ns.e('copy')" :text="code" size="sm" />
+    <div :id="bodyId" :class="ns.e('body')" :data-lang="lang">
+      <code :class="ns.e('code')">
+        <span
+          v-for="row in rows"
+          :key="row.number"
+          :class="[ns.e('row'), ns.is('marked', row.marked)]"
+        >
+          <span v-if="lineNumbers" :class="ns.e('number')" aria-hidden="true">{{
+            row.number
+          }}</span>
+          <span :class="ns.e('line')" v-html="row.html" />
+        </span>
+      </code>
+    </div>
+    <button
+      v-if="foldable"
+      type="button"
+      :class="ns.e('toggle')"
+      :aria-expanded="expanded"
+      :aria-controls="bodyId"
+      @click="expanded = !expanded"
+    >
+      {{ expanded ? t('codeBlock.collapse') : t('codeBlock.expand', { count: rows.length }) }}
+    </button>
+  </div>
+</template>

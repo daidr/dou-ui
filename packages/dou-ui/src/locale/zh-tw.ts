@@ -255,6 +255,10 @@ export const zhTW: Locale = {
   anchor: {
     label: '本頁目錄',
   },
+  codeBlock: {
+    expand: '展開全部 {count} 行',
+    collapse: '收合',
+  },
   copyButton: {
     copy: '複製',
     copied: '已複製',

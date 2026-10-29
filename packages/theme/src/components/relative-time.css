@@ -1,0 +1,11 @@
+/*
+ * RelativeTime
+ *
+ * Inline text that reads like the copy around it. Tabular figures keep
+ * the width steady as the number changes.
+ */
+@layer dou.components {
+  .dou-relative-time {
+    font-variant-numeric: tabular-nums;
+  }
+}

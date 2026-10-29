@@ -255,6 +255,9 @@ export const zhCN: Locale = {
   anchor: {
     label: '本页目录',
   },
+  relativeTime: {
+    justNow: '刚刚',
+  },
   codeBlock: {
     expand: '展开全部 {count} 行',
     collapse: '收起',

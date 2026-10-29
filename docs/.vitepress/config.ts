@@ -175,6 +175,7 @@ export default defineConfig({
             { text: 'Empty 空状态', link: '/components/empty' },
             { text: 'Statistic 统计数值', link: '/components/statistic' },
             { text: 'Countdown 倒计时', link: '/components/countdown' },
+            { text: 'RelativeTime 相对时间', link: '/components/relative-time' },
             { text: 'Image 图片', link: '/components/image' },
             { text: 'Carousel 轮播', link: '/components/carousel' },
             { text: 'Marquee 跑马灯', link: '/components/marquee' },

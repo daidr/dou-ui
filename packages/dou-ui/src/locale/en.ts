@@ -255,6 +255,9 @@ export const en: Locale = {
   anchor: {
     label: 'On this page',
   },
+  relativeTime: {
+    justNow: 'just now',
+  },
   codeBlock: {
     expand: 'Show all {count} lines',
     collapse: 'Show less',

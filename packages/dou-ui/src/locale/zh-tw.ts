@@ -255,6 +255,9 @@ export const zhTW: Locale = {
   anchor: {
     label: '本頁目錄',
   },
+  relativeTime: {
+    justNow: '剛剛',
+  },
   codeBlock: {
     expand: '展開全部 {count} 行',
     collapse: '收合',

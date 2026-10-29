@@ -389,6 +389,10 @@ export interface Locale {
     /** Names the navigation. */
     label: string
   }
+  relativeTime: {
+    /** A moment less than a minute away. */
+    justNow: string
+  }
   codeBlock: {
     /** Unfolds a long block; `{count}` is the number of lines. */
     expand: string

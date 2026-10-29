@@ -14,15 +14,16 @@
 - **基础**：Button、Icon、Text、Ellipsis、Link、Typography、CopyButton
 - **布局**：Divider、Space、Grid、Splitter、Layout、Scrollbar、Affix
 - **表单**：Form / FormItem、Input、Textarea、InputNumber、InputTag、InputOTP、Checkbox、Radio、Switch、Slider、Rate、Select、Listbox、Autocomplete、Cascader、TreeSelect、DatePicker、TimePicker、InputDate、InputTime、ColorPicker、ColorPanel、Transfer、SegmentedControl、CheckTag、Upload、ImageCropper、FieldGroup
-- **浮层**：Tooltip、Popover、Dropdown、DropdownButton、ContextMenu、Dialog、Drawer、Popconfirm
+- **浮层**：Tooltip、Popover、Dropdown、DropdownButton、ContextMenu、Dialog、Drawer、Popconfirm、Tour
 - **反馈**：Alert、Banner、Toast、Spinner、Loading、Progress、Skeleton、Result
-- **数据展示**：Card、Avatar、User、Badge、Tag、Kbd、Empty、Statistic、Countdown、Image、QRCode、Descriptions、Collapse、Timeline、FlowGraph、CalendarView、Table、Tree、VirtualList、InfiniteScroll、Sortable
+- **数据展示**：Card、Avatar、User、Badge、Tag、Kbd、Empty、Statistic、Countdown、Image、Carousel、QRCode、Watermark、Descriptions、Collapse、Timeline、FlowGraph、CalendarView、Table、Tree、VirtualList、InfiniteScroll、Sortable
 - **导航**：Menu、Tabs、Steps、Anchor、Breadcrumb、PageHeader、Pagination、Command、BackTop
-- **配置**：ConfigProvider、ColorMode；内置 `zhCN` 与 `en` 语言包
+- **配置**：ConfigProvider（含组件默认属性与浮层渲染位置）、ColorMode；内置 `zhCN` 与 `en` 语言包
+- **组合式函数**：`useFloating`、`useLayer`、`useFocusTrap`、`useScrollLock` 等，可用于编写自己的浮层
 
 ### 主题
 
-- 设计 Token 由 TypeScript 定义并生成 CSS 变量，内置亮色与暗色主题，可用 `defineTheme` 与 `themeToCss` 定制
+- 设计 Token 由 TypeScript 定义并生成 CSS 变量，内置亮色与暗色主题，可用 `defineTheme` 与 `themeToCss` 定制，`createTheme` 从品牌色生成亮暗两套主题
 - 所有样式位于 `dou.tokens`、`dou.base`、`dou.components` 三个级联层中，页面上不在级联层里的样式总能覆盖
 - 语气色提供 `DEFAULT`、`on`、`text` 三个角色，文字对比度按 WCAG AA 取值
 

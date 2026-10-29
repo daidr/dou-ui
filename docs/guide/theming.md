@@ -77,6 +77,10 @@ const css =
   themeToCss(light, ':root, [data-dou-theme="light"]') + themeToCss(dark, '[data-dou-theme="dark"]')
 ```
 
+下面换一个颜色试试，示例只把生成的颜色用在预览区域里：
+
+<DocDemo src="theming/create-theme" />
+
 没有传入的语气保持默认值。颜色接受 `#rrggbb`、`#rgb` 与 `rgb()` 写法。第二个参数可以换掉起点主题，比如 `createTheme({ primary }, { light: myLight, dark: myDark })`。
 
 只需要单个语气时可以用 `createTone(color, base)`，`base` 决定按亮色还是暗色处理。`contrastRatio(a, b)` 返回两个颜色的对比度，可以用来检查自己定义的 Token。

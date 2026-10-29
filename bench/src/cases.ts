@@ -20,6 +20,9 @@ import {
   DouTimeline,
   DouTimelineItem,
   DouDatePicker,
+  DouVirtualList,
+  DouChatList,
+  DouChatBubble,
 } from 'dou-ui'
 
 export interface Case {
@@ -70,7 +73,76 @@ const rows = (n: number) =>
     return row
   })
 
+const sentence = '今天在上海讨论了组件库的虚拟滚动方案，'
+const messages = (n: number) =>
+  Array.from({ length: n }, (_, index) => ({
+    id: index,
+    role: index % 2 ? 'assistant' : 'user',
+    text: `#${index} ` + sentence.repeat(1 + ((index * 7) % 9)),
+  }))
+
 export const cases: Record<string, Case> = {
+  'virtual-measured': {
+    render: (n) => {
+      const items = messages(n)
+      return () =>
+        h(
+          DouVirtualList,
+          { items, itemKey: 'id', height: 400, style: 'width: 360px' },
+          {
+            default: ({ item }: any) =>
+              h('div', { style: 'padding: 8px; border-bottom: 1px solid #ddd' }, item.text),
+          },
+        )
+    },
+  },
+  'chat-items': {
+    render: (n) => {
+      const items = ref(messages(n))
+      ;(window as any).prepend = () => {
+        const first = items.value[0]!.id
+        items.value = [
+          ...messages(20).map((m) => ({ ...m, id: first - 20 + m.id })),
+          ...items.value,
+        ]
+      }
+      ;(window as any).append = () => {
+        const last = items.value.at(-1)!.id
+        items.value = [
+          ...items.value,
+          { id: last + 1, role: 'assistant', text: sentence.repeat(6) },
+        ]
+      }
+      return () =>
+        h(
+          DouChatList,
+          { items: items.value, itemKey: 'id', style: 'height: 500px; width: 480px' },
+          {
+            item: ({ item }: any) =>
+              h(
+                DouChatBubble,
+                { placement: item.role === 'user' ? 'end' : 'start' },
+                () => item.text,
+              ),
+          },
+        )
+    },
+  },
+  'chat-plain': {
+    render: (n) => {
+      const items = messages(n)
+      return () =>
+        h(DouChatList, { style: 'height: 500px; width: 480px' }, () =>
+          items.map((item) =>
+            h(
+              DouChatBubble,
+              { key: item.id, placement: item.role === 'user' ? 'end' : 'start' },
+              () => item.text,
+            ),
+          ),
+        )
+    },
+  },
   /* per-instance cost of plain components */
   button: {
     render: (n) => () =>
@@ -341,6 +413,37 @@ export const cases: Record<string, Case> = {
     render: (n) => {
       const data = rows(n)
       return () => h(DouTable, { data, columns, rowKey: 'id', virtual: true, maxHeight: 500 })
+    },
+  },
+  'table-virtual-measured': {
+    render: (n) => {
+      const data = Array.from({ length: n }, (_, index) => ({
+        id: index,
+        name: `订单 ${index}`,
+        note: sentence.repeat(1 + ((index * 5) % 4)),
+      }))
+      const expanded = ref<(string | number)[]>([3])
+      ;(window as any).expandRow = (key: number) => (expanded.value = [...expanded.value, key])
+      ;(window as any).collapseAll = () => (expanded.value = [])
+      return () =>
+        h(
+          DouTable,
+          {
+            data,
+            rowKey: 'id',
+            virtual: true,
+            maxHeight: 500,
+            style: 'width: 640px',
+            expandable: true,
+            columns: [
+              { key: 'name', title: '名称', width: 120 },
+              { key: 'note', title: '备注' },
+            ],
+            expanded: expanded.value,
+            'onUpdate:expanded': (value: (string | number)[]) => (expanded.value = value),
+          },
+          { expand: ({ row }: any) => h('div', { style: 'height: 120px' }, `详情：${row.name}`) },
+        )
     },
   },
   menu: {

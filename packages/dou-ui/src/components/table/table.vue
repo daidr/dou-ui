@@ -5,6 +5,7 @@ import {
   nextTick,
   onBeforeUnmount,
   onMounted,
+  onUpdated,
   reactive,
   ref,
   shallowRef,
@@ -21,6 +22,7 @@ import {
   FilterIcon,
   GripVerticalIcon,
 } from '@dou-ui/icons'
+import { useMeasuredSizes } from '../../composables/use-measured-sizes'
 import { useNamespace } from '../../utils/namespace'
 import DouButton from '../button/button.vue'
 import { useLocale } from '../config-provider/use-config'
@@ -29,6 +31,7 @@ import DouCheckbox from '../checkbox/checkbox.vue'
 import DouEmpty from '../empty/empty.vue'
 import DouPopover from '../popover/popover.vue'
 import DouSpinner from '../spinner/spinner.vue'
+import { createOffsets } from '../virtual-list/virtual-list'
 import { useSortable } from '../sortable/use-sortable'
 import TableRow, { CellContent } from './table-row'
 import type {
@@ -262,7 +265,9 @@ function ariaSort(column: TableColumn<T>) {
 // tree and detail rows
 const expandedSet = computed(() => new Set(expanded.value))
 const isTree = computed(() => props.data.some((row) => !!childrenOf(row) || isLazy(row)))
-const hasExpand = computed(() => props.expandable !== false && !props.virtual)
+const hasExpand = computed(
+  () => props.expandable !== false && (!props.virtual || props.rowHeight === undefined),
+)
 const canExpand = (row: T) =>
   typeof props.expandable === 'function' ? props.expandable(row) : !!props.expandable
 
@@ -513,9 +518,21 @@ onMounted(() => {
 })
 onBeforeUnmount(() => observer.value?.disconnect())
 
-// virtual rows: only those in view, with spacers standing in for the rest
+// virtual rows: only those in view, with spacers standing in for the rest.
+// Without `rowHeight`, rows are measured once rendered, detail rows included.
+const fixedRows = computed(() => props.virtual && props.rowHeight !== undefined)
 const rowHeight = computed(
   () => props.rowHeight ?? { sm: 36, md: 44, lg: 52 }[size.value as 'sm' | 'md' | 'lg'] ?? 44,
+)
+const rowSizes = useMeasuredSizes({
+  count: () => rows.value.length,
+  keyOf: (index) => rows.value[index]!.key,
+  estimate: () => rowHeight.value,
+  container: () => wrapper.value,
+})
+const fixedRowOffsets = computed(() => createOffsets(rows.value.length, () => rowHeight.value))
+const rowOffsets = computed(() =>
+  fixedRows.value ? fixedRowOffsets.value : rowSizes.offsets.value,
 )
 const OVERSCAN = 6
 const fallbackViewport = computed(() =>
@@ -523,17 +540,23 @@ const fallbackViewport = computed(() =>
 )
 const range = computed(() => {
   const count = rows.value.length
-  if (!props.virtual) return { from: 0, to: count }
-  const height = rowHeight.value
+  if (!props.virtual || !count) return { from: 0, to: count }
+  const { find } = rowOffsets.value
   const view = viewport.value || fallbackViewport.value
   return {
-    from: Math.max(0, Math.floor(scrollTop.value / height) - OVERSCAN),
-    to: Math.min(count, Math.ceil((scrollTop.value + view) / height) + OVERSCAN),
+    from: Math.max(0, find(scrollTop.value) - OVERSCAN),
+    to: Math.min(count, find(scrollTop.value + view) + 1 + OVERSCAN),
   }
 })
 const visibleRows = computed(() => rows.value.slice(range.value.from, range.value.to))
-const spacerBefore = computed(() => range.value.from * rowHeight.value)
-const spacerAfter = computed(() => (rows.value.length - range.value.to) * rowHeight.value)
+const spacerBefore = computed(() => rowOffsets.value.start(range.value.from))
+const spacerAfter = computed(() => rowOffsets.value.total - rowOffsets.value.start(range.value.to))
+const measuredRows = computed(() => props.virtual && !fixedRows.value)
+const trackRow = (el: unknown, item: FlatRow, position: number) =>
+  rowSizes.track(el as Element | null, item.key, range.value.from + position)
+// A closed detail row leaves its row shorter.
+onUpdated(rowSizes.prune)
+watch(expandedSet, () => void nextTick(rowSizes.prune))
 watch(
   () => props.data,
   () => {
@@ -629,6 +652,7 @@ const classes = computed(() => [
   ns.is('scroll', props.maxHeight !== undefined),
   ns.is('fixed-layout', fixedLayout.value),
   ns.is('virtual', props.virtual),
+  ns.is('fixed-rows', fixedRows.value),
   ns.is('grouped', grouped.value),
   ns.is('spanning', !!spans.value),
   ns.is('highlight-current', props.highlightCurrent),
@@ -706,7 +730,7 @@ function rowStyleOf(item: FlatRow): CSSProperties[] {
   const extra =
     typeof props.rowStyle === 'function' ? props.rowStyle(item.row, item.index) : props.rowStyle
   const list: CSSProperties[] = []
-  if (props.virtual) list.push({ height: `${rowHeight.value}px` })
+  if (fixedRows.value) list.push({ height: `${rowHeight.value}px` })
   if (extra) list.push(extra)
   return list
 }
@@ -784,8 +808,12 @@ async function scrollToRow(key: TableRowKey) {
   if (!el) return
   if (props.virtual) {
     const index = rows.value.findIndex((item) => item.key === key)
-    if (index >= 0) el.scrollTop = index * rowHeight.value
-    return
+    if (index < 0) return
+    el.scrollTop = rowOffsets.value.start(index)
+    measureScroll()
+    // Measured rows land where estimated; align on the rendered row.
+    if (fixedRows.value) return
+    await nextTick()
   }
   const row = [...el.querySelectorAll<HTMLElement>('tr[data-row-key]')].find(
     (tr) => tr.dataset.rowKey === String(key),
@@ -1090,6 +1118,7 @@ defineExpose<TableExpose>({
             :version="slotVersion()"
           >
             <tr
+              :ref="measuredRows ? (el) => trackRow(el, item, position) : undefined"
               :class="rowClassOf(item, rowSelected, rowExpanded, rowCurrent)"
               :style="rowStyleOf(item)"
               :data-row-key="item.key"
@@ -1222,6 +1251,7 @@ defineExpose<TableExpose>({
             <tr
               v-if="hasExpand && canExpand(item.row) && rowExpanded"
               :id="`${id}-${item.key}`"
+              :ref="measuredRows ? (el) => trackRow(el, item, position) : undefined"
               :class="ns.e('detail-row')"
             >
               <td :class="ns.e('detail')" :colspan="span">

@@ -1,6 +1,6 @@
 import { mount } from '@vue/test-utils'
-import { h } from 'vue'
-import { describe, expect, it } from 'vitest'
+import { h, nextTick, ref } from 'vue'
+import { describe, expect, it, vi } from 'vitest'
 import { DouConfigProvider, DouStatistic, zhCN } from '../../../index'
 import { formatNumber } from '../format'
 
@@ -81,5 +81,48 @@ describe('DouStatistic', () => {
     )
     expect(wrapper.get('.dou-statistic__value').text()).toContain('12 345,6')
     wrapper.unmount()
+  })
+
+  it('counts to a new value, rounded on the way', async () => {
+    vi.useFakeTimers({ toFake: ['requestAnimationFrame', 'cancelAnimationFrame', 'performance'] })
+    // jsdom does not resolve the theme's tokens
+    const style = vi
+      .spyOn(window, 'getComputedStyle')
+      .mockReturnValue({ getPropertyValue: () => '300ms' } as unknown as CSSStyleDeclaration)
+    const wrapper = mount(DouStatistic, { props: { value: 100, precision: 1, animated: true } })
+    const text = () => wrapper.get('.dou-statistic__value').text()
+    expect(text()).toBe('100.0')
+    await wrapper.setProps({ value: 200 })
+    expect(text()).toBe('100.0')
+    vi.advanceTimersByTime(100)
+    await nextTick()
+    const middle = Number(text())
+    expect(middle).toBeGreaterThan(100)
+    expect(middle).toBeLessThan(200)
+    expect(text()).toMatch(/^\d+\.\d$/)
+    vi.advanceTimersByTime(400)
+    await nextTick()
+    expect(text()).toBe('200.0')
+    vi.useRealTimers()
+    style.mockRestore()
+  })
+
+  it('jumps straight to the value without animated or with reduced motion', async () => {
+    const style = vi
+      .spyOn(window, 'getComputedStyle')
+      .mockReturnValue({ getPropertyValue: () => '300ms' } as unknown as CSSStyleDeclaration)
+    const plain = mount(DouStatistic, { props: { value: 1 } })
+    await plain.setProps({ value: 5 })
+    expect(plain.get('.dou-statistic__value').text()).toBe('5')
+
+    const count = ref(1)
+    const reduced = mount(DouConfigProvider, {
+      props: { motion: 'none' },
+      slots: { default: () => h(DouStatistic, { value: count.value, animated: true }) },
+    })
+    count.value = 9
+    await nextTick()
+    expect(reduced.get('.dou-statistic__value').text()).toBe('9')
+    style.mockRestore()
   })
 })

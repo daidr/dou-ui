@@ -20,6 +20,12 @@
 
 <DocDemo src="statistic/format-loading" style="gap: 48px" />
 
+## 数值过渡
+
+设置 `animated` 后，数值变化时会从旧值过渡到新值，过程中按 `precision`（未设置时按新值的小数位数）取整。首次渲染不播放过渡；减弱动效时直接显示新值。
+
+<DocDemo src="statistic/animated" style="gap: 48px; align-items: center" />
+
 ## 大小
 
 数字的字号来自 CSS 变量 `--dou-statistic-value-size`（默认 28px），前后缀和小数按比例缩小：
@@ -44,6 +50,7 @@
 | `trend`            | 趋势箭头                     | `'up' \| 'down'`            | —       |
 | `upIsGood`         | 上升是否是好事，决定箭头颜色 | `boolean`                   | `true`  |
 | `formatter`        | 自定义格式                   | `(value: number) => string` | —       |
+| `animated`         | 数值变化时从旧值过渡到新值   | `boolean`                   | `false` |
 | `loading`          | 显示占位块                   | `boolean`                   | `false` |
 
 ### Statistic Slots

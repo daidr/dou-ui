@@ -1,8 +1,18 @@
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitepress'
+import type { MarkdownOptions } from 'vitepress'
+import { demoCode } from './demo-code'
 import { colorModeScript } from '../../packages/dou-ui/src/components/color-mode/use-color-mode'
 
 const r = (path: string) => fileURLToPath(new URL(path, import.meta.url))
+
+const markdown: MarkdownOptions = {
+  config(md) {
+    // Wrap code blocks so they get DouUI's copy button.
+    const fence = md.renderer.rules.fence!
+    md.renderer.rules.fence = (...args) => `<DocCode>${fence(...args)}</DocCode>`
+  },
+}
 
 export default defineConfig({
   lang: 'zh-CN',
@@ -17,13 +27,7 @@ export default defineConfig({
   ],
   // Header anchors stop below the sticky header.
   scrollOffset: 88,
-  markdown: {
-    config(md) {
-      // Wrap code blocks so they get DouUI's copy button.
-      const fence = md.renderer.rules.fence!
-      md.renderer.rules.fence = (...args) => `<DocCode>${fence(...args)}</DocCode>`
-    },
-  },
+  markdown,
   themeConfig: {
     nav: [
       { text: '指南', link: '/guide/philosophy' },
@@ -179,6 +183,7 @@ export default defineConfig({
     socialLinks: [{ icon: 'github', link: 'https://github.com/daidr/dou-ui' }],
   },
   vite: {
+    plugins: [demoCode(r('..'), markdown)],
     resolve: {
       // Docs always render the components from source.
       alias: [

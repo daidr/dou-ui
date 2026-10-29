@@ -2,87 +2,32 @@
 
 触发一个操作。
 
-<script setup>
-import { ArrowRightIcon, PlusIcon } from '@dou-ui/icons'
-</script>
-
 ## 变体与语气
 
 `variant` 设置按钮的样式，`tone` 表示操作的语义，两者可以任意组合。
 
-<div class="demo">
-  <DouButton>solid</DouButton>
-  <DouButton variant="soft">soft</DouButton>
-  <DouButton variant="outline">outline</DouButton>
-  <DouButton variant="ghost">ghost</DouButton>
-</div>
+<DocDemo src="button/variant" />
 
-<div class="demo">
-  <DouButton tone="primary">primary</DouButton>
-  <DouButton tone="success">success</DouButton>
-  <DouButton tone="warning">warning</DouButton>
-  <DouButton tone="danger">danger</DouButton>
-  <DouButton variant="soft" tone="danger">删除</DouButton>
-</div>
-
-```vue
-<DouButton tone="primary">primary</DouButton>
-<DouButton variant="soft" tone="danger">删除</DouButton>
-```
+<DocDemo src="button/variant-2" />
 
 ## 尺寸
 
-<div class="demo">
-  <DouButton size="sm">sm</DouButton>
-  <DouButton size="md">md</DouButton>
-  <DouButton size="lg">lg</DouButton>
-</div>
-
-```vue
-<DouButton size="sm">sm</DouButton>
-```
+<DocDemo src="button/size" />
 
 ## 禁用与加载
 
 加载中的按钮会显示指示器并阻止点击，但**仍然可以获得焦点**，读屏软件会读到 `aria-busy`。
 禁用的按钮使用原生 `disabled`。
 
-<div class="demo">
-  <DouButton disabled>disabled</DouButton>
-  <DouButton loading>loading</DouButton>
-</div>
-
-```vue
-<DouButton disabled>disabled</DouButton>
-<DouButton loading>loading</DouButton>
-```
+<DocDemo src="button/disabled-loading" />
 
 ## 图标
 
 用 `leading` / `trailing` 插槽放置图标。加载时 `leading` 会被指示器替代。图标所在一侧的内边距比文字一侧小，让按钮两边看起来一样宽；只有图标的按钮不受影响。
 
-<div class="demo">
-  <DouButton size="sm" variant="outline"><template #leading><PlusIcon /></template>新建</DouButton>
-  <DouButton variant="outline"><template #leading><PlusIcon /></template>新建</DouButton>
-  <DouButton size="lg" variant="outline"><template #leading><PlusIcon /></template>新建</DouButton>
-</div>
+<DocDemo src="button/icon" />
 
-<div class="demo">
-  <DouButton size="sm" variant="soft">下一步<template #trailing><ArrowRightIcon /></template></DouButton>
-  <DouButton variant="soft">下一步<template #trailing><ArrowRightIcon /></template></DouButton>
-  <DouButton size="lg" variant="soft">下一步<template #trailing><ArrowRightIcon /></template></DouButton>
-</div>
-
-```vue
-<DouButton variant="outline">
-  <template #leading><PlusIcon /></template>
-  新建
-</DouButton>
-<DouButton variant="soft">
-  下一步
-  <template #trailing><ArrowRightIcon /></template>
-</DouButton>
-```
+<DocDemo src="button/icon-2" />
 
 ## API
 

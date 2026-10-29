@@ -4,32 +4,9 @@
 
 颜色写成什么文本、用什么方式去挑，是两件互不相干的事：`format` 决定 `v-model` 的格式，`panel` 决定面板的样子。比如可以用色轮挑色、存成 `oklch()`，也可以用 OKLCH 滑块挑色、存成十六进制。
 
-<script setup>
-import { ref } from 'vue'
-const color = ref('#3f56b5')
-const alpha = ref('#2e7d5bcc')
-const preset = ref('#a8572d')
-const presets = ['#1f2328', '#3f56b5', '#2e7d5b', '#a8572d', '#b23a48', '#7a4fb5', '#5c6670', '#c99a2e']
-const empty = ref(null)
-const formatted = ref('oklch(0.55 0.15 255)')
-const formats = ['hex', 'rgb', 'hsl', 'hsv', 'hwb', 'lab', 'lch', 'oklab', 'oklch']
-const fmt = ref('oklch')
-const wheel = ref('#3f56b5')
-const sliders = ref('oklch(0.62 0.14 160)')
-const multi = ref('#a8572d')
-const wide = ref('oklch(0.7 0.3 150)')
-</script>
-
 ## 基础用法
 
-<div class="demo">
-  <DouColorPicker v-model="color" />
-  <DouText variant="tertiary" size="sm">{{ color }}</DouText>
-</div>
-
-```vue
-<DouColorPicker v-model="color" />
-```
+<DocDemo src="color-picker/basic" />
 
 值是小写的十六进制色值 `#rrggbb`，字段里显示成大写，方便辨认。拖动时 `v-model` 实时更新，方便预览；弹出层关闭、颜色确实变了时才触发一次 `change`，适合在这里保存。
 
@@ -37,17 +14,8 @@ const wide = ref('oklch(0.7 0.3 150)')
 
 `format` 可以是 `hex`（默认）、`rgb`、`hsl`、`hsv`、`hwb`、`lab`、`lch`、`oklab` 或 `oklch`。写出来的都是 CSS Color 4 的空格写法，比如 `rgb(63 86 181)`、`oklch(0.55 0.15 255 / 0.5)`，可以直接用在样式里；`hsv()` 不是 CSS 格式，只是方便和设计工具对照。
 
-<div class="demo">
-  <DouSegmentedControl v-model="fmt" :options="formats" size="sm" />
-</div>
-<div class="demo">
-  <DouColorPicker v-model="formatted" :format="fmt" show-alpha />
-  <DouText variant="tertiary" size="sm">{{ formatted }}</DouText>
-</div>
-
-```vue
-<DouColorPicker v-model="color" format="oklch" />
-```
+<DocDemo src="color-picker/format" />
+<DocDemo src="color-picker/format-2" />
 
 传进来的值可以是任意一种格式，旧的逗号写法（`rgba(63, 86, 181, 0.5)`）、百分比、`deg` / `turn` 等角度单位和 `none` 都认得；但用户一动手，写回去的就是 `format` 指定的格式。数值按格式保留合适的位数：`rgb` 取整，`hsl` 一类保留一位小数，`lab` / `lch` 两位，`oklab` / `oklch` 四位。
 
@@ -59,25 +27,11 @@ const wide = ref('oklch(0.7 0.3 150)')
 - `wheel`：色轮，绕一圈是色相，离圆心越远越饱和，下面是明度条。
 - 一个色彩空间的名字，如 `rgb`、`hsl`、`hwb`、`lab`、`oklch`：这个空间的每个通道一条滑块。滑块的底色是"只动这一个通道"时颜色的走向，右边的数字可以直接输入。
 
-<div class="demo">
-  <DouColorPicker v-model="wheel" panel="wheel" />
-  <DouColorPicker v-model="sliders" panel="oklch" format="oklch" />
-</div>
-
-```vue
-<DouColorPicker v-model="color" panel="wheel" />
-<DouColorPicker v-model="color" panel="oklch" format="oklch" />
-```
+<DocDemo src="color-picker/panel" />
 
 传一个数组，面板顶上会出一排切换，按用户习惯挑：
 
-<div class="demo">
-  <DouColorPicker v-model="multi" :panel="['square', 'wheel', 'oklch', 'rgb']" show-alpha />
-</div>
-
-```vue
-<DouColorPicker v-model="color" :panel="['square', 'wheel', 'oklch', 'rgb']" />
-```
+<DocDemo src="color-picker/panel-2" />
 
 面板在自己的色彩空间里记住颜色，所以灰色的色相、被色域截掉的彩度都不会因为转换而跳走：把 OKLCH 的彩度拖到 0 再拖回来，色相还在原处。
 
@@ -90,48 +44,23 @@ const wide = ref('oklch(0.7 0.3 150)')
 
 `hex`、`rgb`、`hsl`、`hsv`、`hwb` 只能表示 sRGB，无论 `gamut` 怎么设都会映射。
 
-<div class="demo">
-  <DouColorPicker v-model="wide" panel="oklch" format="oklch" gamut="none" />
-  <DouText variant="tertiary" size="sm">{{ wide }}</DouText>
-</div>
-
-```vue
-<DouColorPicker v-model="color" panel="oklch" format="oklch" gamut="none" />
-```
+<DocDemo src="color-picker/gamut" />
 
 ## 透明度
 
 `show-alpha` 加上透明度条，值变成 `#rrggbbaa` 或 `rgb(… / 0.8)` 这样带透明度的写法（完全不透明时不写透明度）。色样下面垫一层棋盘格，半透明一眼可见。
 
-<div class="demo">
-  <DouColorPicker v-model="alpha" show-alpha />
-</div>
-
-```vue
-<DouColorPicker v-model="color" show-alpha />
-```
+<DocDemo src="color-picker/alpha" />
 
 ## 预设色与清空
 
 `presets` 在弹出层底部列出一排色样，点一下直接选中，预设色可以写成任意格式。`clearable` 允许清空，值变成 `null`；`show-text` 为 `false` 时字段只剩色样。
 
-<div class="demo">
-  <DouColorPicker v-model="preset" :presets="presets" />
-  <DouColorPicker v-model="empty" :presets="presets" clearable />
-  <DouColorPicker v-model="preset" :presets="presets" :show-text="false" />
-</div>
-
-```vue
-<DouColorPicker v-model="color" :presets="['#1f2328', '#3f56b5', '#2e7d5b']" clearable />
-```
+<DocDemo src="color-picker/presets" />
 
 ## 尺寸与状态
 
-<div class="demo">
-  <DouColorPicker v-for="size in ['sm', 'md', 'lg']" :key="size" :size="size" :model-value="color" />
-  <DouColorPicker disabled :model-value="color" />
-  <DouColorPicker invalid :model-value="null" />
-</div>
+<DocDemo src="color-picker/size-state" />
 
 ## 色值输入
 

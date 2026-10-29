@@ -4,51 +4,19 @@
 
 ## 基础用法
 
-<div class="demo demo--column">
-  <DouText variant="secondary">上方的内容</DouText>
-  <DouDivider />
-  <DouText variant="secondary">下方的内容</DouText>
-</div>
-
-```vue
-<DouDivider />
-```
+<DocDemo src="divider/basic" column />
 
 ## 带文字
 
 `align` 控制文字的位置。
 
-<div class="demo demo--column">
-  <DouDivider>或</DouDivider>
-  <DouDivider align="start">基本信息</DouDivider>
-  <DouDivider align="end" dashed>以上为预览</DouDivider>
-</div>
-
-```vue
-<DouDivider>或</DouDivider>
-<DouDivider align="start">基本信息</DouDivider>
-<DouDivider align="end" dashed>以上为预览</DouDivider>
-```
+<DocDemo src="divider/text" column />
 
 ## 垂直
 
 在一行中分隔内联内容。
 
-<div class="demo">
-  <span>
-    <DouLink href="#" underline="hover">编辑</DouLink>
-    <DouDivider direction="vertical" />
-    <DouLink href="#" underline="hover">复制</DouLink>
-    <DouDivider direction="vertical" />
-    <DouLink href="#" underline="hover" tone="danger">删除</DouLink>
-  </span>
-</div>
-
-```vue
-<DouLink>编辑</DouLink>
-<DouDivider direction="vertical" />
-<DouLink>复制</DouLink>
-```
+<DocDemo src="divider/vertical" />
 
 ## API
 

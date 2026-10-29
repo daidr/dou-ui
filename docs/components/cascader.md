@@ -2,55 +2,9 @@
 
 当选项具有层级关系时，可以通过级联选择器逐级查看并选择，例如省 / 市 / 区、部门 / 小组。
 
-<script setup>
-import { ref } from 'vue'
-const regions = [
-  {
-    value: 'zj',
-    label: '浙江',
-    children: [
-      { value: 'hz', label: '杭州', children: [{ value: 'xh', label: '西湖区' }, { value: 'bj', label: '滨江区' }, { value: 'yh', label: '余杭区' }] },
-      { value: 'nb', label: '宁波', children: [{ value: 'hs', label: '海曙区' }, { value: 'yz', label: '鄞州区' }] },
-      { value: 'wz', label: '温州', disabled: true },
-    ],
-  },
-  {
-    value: 'js',
-    label: '江苏',
-    children: [
-      { value: 'nj', label: '南京', children: [{ value: 'xw', label: '玄武区' }, { value: 'gl', label: '鼓楼区' }] },
-      { value: 'sz', label: '苏州', children: [{ value: 'gs', label: '姑苏区' }, { value: 'wz', label: '吴中区' }] },
-    ],
-  },
-  { value: 'sh', label: '上海', children: [{ value: 'pd', label: '浦东新区' }, { value: 'xh', label: '徐汇区' }] },
-]
-const region = ref(['zj', 'hz', 'xh'])
-const any = ref(null)
-const searched = ref(null)
-const lazy = ref(null)
-let id = 0
-const load = (option, path) =>
-  new Promise((resolve) =>
-    setTimeout(() => {
-      const level = path.length
-      resolve(Array.from({ length: 3 }, () => ({ value: ++id, label: `第 ${level + 1} 级 · ${id}`, leaf: level >= 2 })))
-    }, 500),
-  )
-const roots = [{ value: 'a', label: '分组 A' }, { value: 'b', label: '分组 B' }]
-const checked = ref([['zj', 'hz', 'xh'], ['zj', 'hz', 'bj']])
-const strict = ref([['js']])
-</script>
-
 ## 基础用法
 
-<div class="demo">
-  <DouCascader v-model="region" :options="regions" style="width: 260px" />
-  <DouText variant="tertiary" size="sm">{{ region }}</DouText>
-</div>
-
-```vue
-<DouCascader v-model="region" :options="regions" />
-```
+<DocDemo src="cascader/basic" />
 
 值是从第一级到最后一级的 `value` 数组。默认只有没有下级的选项可以选中，选中后关闭；字段里显示完整路径，用 `separator` 换分隔符，`show-last-only` 只显示最后一级。
 
@@ -58,68 +12,33 @@ const strict = ref([['js']])
 
 `change-on-select` 让每一级都可以作为结果：点击即选中，同时展开下一级。`expand-trigger="hover"` 让指针停在选项上就展开下一级。
 
-<div class="demo">
-  <DouCascader v-model="any" :options="regions" change-on-select expand-trigger="hover" clearable placeholder="地区（任意一级）" style="width: 260px" />
-</div>
-
-```vue
-<DouCascader v-model="value" :options="regions" change-on-select expand-trigger="hover" />
-```
+<DocDemo src="cascader/check-strictly" />
 
 ## 搜索
 
 `filterable` 把字段变成输入框，输入时在所有完整路径里查找，结果是一列"浙江 / 杭州 / 滨江区"这样的路径。
 
-<div class="demo">
-  <DouCascader v-model="searched" :options="regions" filterable placeholder="输入地区名称" style="width: 260px" />
-</div>
-
-```vue
-<DouCascader v-model="value" :options="regions" filterable />
-```
+<DocDemo src="cascader/search" />
 
 ## 多选
 
 `multiple` 给每个选项加一个复选框，选中的路径以标签显示在字段里，面板保持打开方便继续勾选。勾选一个分支等于勾选它下面所有的最后一级，值里存的是这些最后一级的路径；下级只勾了一部分时，分支的复选框显示为半选。点击最后一级的文字也能切换勾选，点击分支的文字只展开。懒加载时，勾选一个还没加载的分支会先加载它的下一级。
 
-<div class="demo">
-  <DouCascader v-model="checked" :options="regions" multiple clearable :max-tag-count="3" style="width: 360px" />
-</div>
-
-```vue
-<DouCascader v-model="paths" :options="regions" multiple :max-tag-count="3" />
-<!-- paths: [['zj', 'hz', 'xh'], ['zj', 'hz', 'bj']] -->
-```
+<DocDemo src="cascader/multiple" />
 
 `check-strictly` 让每一级各自勾选，互不牵连，值里存的就是勾选的那些路径，适合"按省或按市都能选"的场景。`max-tag-count` 和 Select 一样，把多出的标签折叠成"+N"。
 
-<div class="demo">
-  <DouCascader v-model="strict" :options="regions" multiple check-strictly show-last-only style="width: 360px" />
-</div>
-
-```vue
-<DouCascader v-model="paths" :options="regions" multiple check-strictly show-last-only />
-```
+<DocDemo src="cascader/multiple-2" />
 
 ## 懒加载
 
 `load(option, path)` 在某一项第一次展开时取它的下级，返回 Promise。加载中的选项末尾显示一个小转圈；`leaf: true` 的选项不会再加载。还没加载过的分支不参与搜索。
 
-<div class="demo">
-  <DouCascader v-model="lazy" :options="roots" :load="load" style="width: 260px" />
-</div>
-
-```vue
-<DouCascader v-model="value" :options="roots" :load="loadChildren" />
-```
+<DocDemo src="cascader/lazy" />
 
 ## 尺寸与状态
 
-<div class="demo">
-  <DouCascader v-for="size in ['sm', 'md', 'lg']" :key="size" :size="size" :options="regions" :model-value="['sh', 'pd']" style="width: 180px" />
-  <DouCascader disabled :options="regions" :model-value="['sh', 'pd']" style="width: 180px" />
-  <DouCascader invalid :options="regions" style="width: 180px" />
-</div>
+<DocDemo src="cascader/size-state" />
 
 ## 键盘与读屏
 

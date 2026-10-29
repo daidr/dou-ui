@@ -4,26 +4,11 @@
 
 ## 基础用法
 
-<div class="demo">
-  <DouKbd>⌘</DouKbd>
-  <DouKbd>K</DouKbd>
-  <DouKbd>Shift</DouKbd>
-  <DouKbd>Enter</DouKbd>
-  <DouKbd>Esc</DouKbd>
-  <DouKbd>↑</DouKbd>
-</div>
+<DocDemo src="kbd/basic" />
 
 组合键由多个按键拼出，连接符由使用者决定：
 
-<div class="demo">
-  <DouText variant="secondary">打开命令面板 <DouKbd size="sm">⌘</DouKbd> <DouKbd size="sm">K</DouKbd></DouText>
-  <DouText variant="secondary">保存 <DouKbd size="sm">Ctrl</DouKbd> + <DouKbd size="sm">S</DouKbd></DouText>
-</div>
-
-```vue
-<DouKbd size="sm">⌘</DouKbd>
-<DouKbd size="sm">K</DouKbd>
-```
+<DocDemo src="kbd/basic-2" />
 
 ## 尺寸
 

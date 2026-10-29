@@ -1,7 +1,3 @@
-<script setup>
-import { CheckCircleIcon, DownloadIcon, LoaderIcon, PlusIcon, SearchIcon, TrashIcon } from '@dou-ui/icons'
-</script>
-
 # 安装与使用
 
 ## 安装
@@ -31,20 +27,7 @@ import { SearchIcon, TrashIcon } from '@dou-ui/icons'
 
 ## 尺寸、线宽与颜色
 
-<div class="demo">
-  <DouText><SearchIcon /> 默认 1em，跟随字号</DouText>
-  <SearchIcon :size="20" />
-  <SearchIcon :size="24" />
-  <SearchIcon :size="32" :stroke-width="1.25" />
-  <DouText tone="success"><CheckCircleIcon :size="20" /></DouText>
-  <DouText tone="danger"><TrashIcon :size="20" /></DouText>
-</div>
-
-```vue
-<SearchIcon />
-<SearchIcon :size="24" />
-<SearchIcon :size="32" :stroke-width="1.25" />
-```
+<DocDemo src="icons-usage/size-color" />
 
 - `size` 默认 `1em`，图标与周围文字一样大；数字按像素处理，也可以传任意 CSS 长度。
 - 线宽默认随尺寸做光学补偿：16px 时 1.25px，24px 时 1.5px，48px 时 2.25px（`0.75px + 尺寸 / 32`）。传入 `stroke-width` 则固定为该像素值。补偿按图标的字号计算，放在 `DouIcon` 里时会自动使用 `DouIcon` 的尺寸。
@@ -54,31 +37,7 @@ import { SearchIcon, TrashIcon } from '@dou-ui/icons'
 
 图标组件可以直接放进 `DouIcon` 的插槽，由 `DouIcon` 负责尺寸、旋转与读屏语义；也可以放进按钮、输入框等组件的图标插槽。
 
-<div class="demo">
-  <DouButton>
-    <template #leading><DouIcon><PlusIcon /></DouIcon></template>
-    新建
-  </DouButton>
-  <DouButton variant="outline">
-    <template #leading><DouIcon><DownloadIcon /></DouIcon></template>
-    下载
-  </DouButton>
-  <DouInput placeholder="搜索" style="width: 200px">
-    <template #prefix><DouIcon><SearchIcon /></DouIcon></template>
-  </DouInput>
-  <DouIcon spin :size="18"><LoaderIcon /></DouIcon>
-</div>
-
-```vue
-<DouButton>
-  <template #leading>
-    <DouIcon><PlusIcon /></DouIcon>
-  </template>
-  新建
-</DouButton>
-
-<DouIcon spin><LoaderIcon /></DouIcon>
-```
+<DocDemo src="icons-usage/with-dou-ui" />
 
 ## 无障碍
 

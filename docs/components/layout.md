@@ -2,53 +2,11 @@
 
 用于搭建页面的基本结构，包括顶栏、侧栏、主区和页脚。
 
-<script setup>
-import { DashboardIcon, FolderIcon, SettingsIcon, UsersIcon } from '@dou-ui/icons'
-import { ref } from 'vue'
-const collapsed = ref(false)
-const narrow = ref(false)
-const current = ref('overview')
-const items = [
-  { key: 'overview', label: '概览', icon: DashboardIcon },
-  { key: 'projects', label: '项目', icon: FolderIcon },
-  { key: 'members', label: '成员', icon: UsersIcon },
-  { key: 'settings', label: '设置', icon: SettingsIcon },
-]
-</script>
-
 ## 基础用法
 
 `DouLayoutHeader`、`DouLayoutAside`、`DouLayoutMain`、`DouLayoutFooter` 分别渲染为 `<header>`、`<aside>`、`<main>` 与 `<footer>`，页面的地标随之而来。
 
-<div class="demo demo--column" style="padding: 0; overflow: hidden">
-  <DouLayout style="height: 360px">
-    <DouLayoutHeader>
-      <DouText weight="medium">DouUI 控制台</DouText>
-    </DouLayoutHeader>
-    <DouLayout>
-      <DouLayoutAside :width="200">
-        <DouMenu v-model="current" :items="items" />
-      </DouLayoutAside>
-      <DouLayoutMain>
-        <DouCard title="概览">主区放页面内容。</DouCard>
-      </DouLayoutMain>
-    </DouLayout>
-    <DouLayoutFooter>© 2026 DouUI</DouLayoutFooter>
-  </DouLayout>
-</div>
-
-```vue
-<DouLayout>
-  <DouLayoutHeader>DouUI 控制台</DouLayoutHeader>
-  <DouLayout>
-    <DouLayoutAside :width="200">
-      <DouMenu v-model="current" :items="items" />
-    </DouLayoutAside>
-    <DouLayoutMain>…</DouLayoutMain>
-  </DouLayout>
-  <DouLayoutFooter>© 2026 DouUI</DouLayoutFooter>
-</DouLayout>
-```
+<DocDemo src="layout/basic" column style="padding: 0; overflow: hidden" />
 
 侧栏写在主区后面时就在右侧，分隔线自动换到朝向主区的那一边。
 
@@ -56,26 +14,7 @@ const items = [
 
 `collapsible` 在侧栏底部放一个收起 / 展开按钮，状态用 `v-model:collapsed` 绑定；收起后宽度变为 `collapsed-width`（默认 64px）。默认插槽拿得到 `collapsed`，直接传给 [Menu](./menu) 的 `collapsed`，菜单就缩成一列图标。`footer` 插槽固定在内容下方，适合放账户信息。
 
-<div class="demo demo--column" style="padding: 0; overflow: hidden">
-  <DouLayout style="height: 320px">
-    <DouLayoutAside v-model:collapsed="collapsed" collapsible>
-      <template #default="{ collapsed }">
-        <DouMenu v-model="current" :items="items" :collapsed="collapsed" />
-      </template>
-    </DouLayoutAside>
-    <DouLayoutMain>
-      <DouText variant="secondary">侧栏{{ collapsed ? '已收起' : '已展开' }}</DouText>
-    </DouLayoutMain>
-  </DouLayout>
-</div>
-
-```vue
-<DouLayoutAside v-model:collapsed="collapsed" collapsible>
-  <template #default="{ collapsed }">
-    <DouMenu v-model="current" :items="items" :collapsed="collapsed" />
-  </template>
-</DouLayoutAside>
-```
+<DocDemo src="layout/collapsible-aside" column style="padding: 0; overflow: hidden" />
 
 ## 窄屏时变成抽屉
 
@@ -85,44 +24,7 @@ const items = [
 
 下面的开关把断点设得足够大，用来在宽屏上模拟窄屏：
 
-<div class="demo demo--column">
-  <DouSwitch v-model="narrow">模拟窄屏</DouSwitch>
-  <div style="width: 100%; overflow: hidden; border-radius: 8px">
-    <DouLayout style="height: 280px">
-      <DouLayoutHeader>
-        <DouLayoutAsideTrigger />
-        <DouText weight="medium">DouUI 控制台</DouText>
-      </DouLayoutHeader>
-      <DouLayout>
-        <DouLayoutAside :width="200" :breakpoint="narrow ? 100000 : 768">
-          <template #default="{ close }">
-            <DouMenu v-model="current" :items="items" @select="close" />
-          </template>
-        </DouLayoutAside>
-        <DouLayoutMain>
-          <DouText variant="secondary">{{ narrow ? '点左上角的按钮打开侧栏' : '宽屏下侧栏在页面里' }}</DouText>
-        </DouLayoutMain>
-      </DouLayout>
-    </DouLayout>
-  </div>
-</div>
-
-```vue
-<DouLayout>
-  <DouLayoutHeader>
-    <DouLayoutAsideTrigger />
-    DouUI 控制台
-  </DouLayoutHeader>
-  <DouLayout>
-    <DouLayoutAside :breakpoint="768">
-      <template #default="{ close }">
-        <DouMenu v-model="current" :items="items" @select="close" />
-      </template>
-    </DouLayoutAside>
-    <DouLayoutMain>…</DouLayoutMain>
-  </DouLayout>
-</DouLayout>
-```
+<DocDemo src="layout/drawer" column />
 
 ## 吸顶
 

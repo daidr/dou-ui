@@ -2,28 +2,11 @@
 
 替代浏览器原生滚动条，显示在内容上方，不占用内容宽度。
 
-<script setup>
-const rows = Array.from({ length: 30 }, (_, i) => `第 ${i + 1} 条通知 · 部署 #${1024 + i} 已完成`)
-const wide = Array.from({ length: 12 }, (_, i) => `列 ${i + 1}`)
-</script>
-
 ## 基础用法
 
 用 `height` 固定高度，内容超出时滚动。滚动区域可以用 <DouKbd>Tab</DouKbd> 聚焦，再用方向键滚动。
 
-<div class="demo">
-  <DouScrollbar :height="200" style="width: 320px; border: 1px solid var(--dou-color-border-subtle); border-radius: var(--dou-radius-control)">
-    <div style="padding: 8px 12px">
-      <DouText v-for="row in rows" :key="row" as="p" size="sm" variant="secondary" style="margin: 6px 0">{{ row }}</DouText>
-    </div>
-  </DouScrollbar>
-</div>
-
-```vue
-<DouScrollbar :height="200">
-  <p v-for="row in rows" :key="row">{{ row }}</p>
-</DouScrollbar>
-```
+<DocDemo src="scrollbar/basic" />
 
 ## 最大高度
 
@@ -37,19 +20,7 @@ const wide = Array.from({ length: 12 }, (_, i) => `列 ${i + 1}`)
 
 不能换行的内容会把区域撑宽，横向滚动条随之出现；两个方向都能滚动时，两根滚动条互不重叠。`always` 让滚动条一直显示。
 
-<div class="demo">
-  <DouScrollbar always style="width: 360px; border: 1px solid var(--dou-color-border-subtle); border-radius: var(--dou-radius-control)">
-    <div style="display: flex; gap: 8px; padding: 12px 12px 18px">
-      <DouTag v-for="item in wide" :key="item" size="lg">{{ item }}</DouTag>
-    </div>
-  </DouScrollbar>
-</div>
-
-```vue
-<DouScrollbar always>
-  <div style="display: flex; gap: 8px">…</div>
-</DouScrollbar>
-```
+<DocDemo src="scrollbar/scroll-x" />
 
 ## API
 

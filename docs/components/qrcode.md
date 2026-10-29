@@ -2,27 +2,9 @@
 
 把文本（通常是链接）生成二维码，不依赖第三方库。
 
-<script setup>
-import { ref } from 'vue'
-const text = ref('https://ui.daidr.me')
-const status = ref('expired')
-function refresh() {
-  status.value = 'loading'
-  setTimeout(() => (status.value = 'active'), 1200)
-}
-const logo = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#1f1f22"/><text x="16" y="22" font-family="system-ui" font-size="16" font-weight="700" text-anchor="middle" fill="#fff">D</text></svg>')
-</script>
-
 ## 基础用法
 
-<div class="demo">
-  <DouQrcode :value="text" />
-  <DouInput v-model="text" style="max-width: 280px" placeholder="输入文字或链接" />
-</div>
-
-```vue
-<DouQrcode value="https://ui.daidr.me" />
-```
+<DocDemo src="qrcode/basic" />
 
 `size` 是边长（像素），`margin` 是四周留白的模块数（默认 2，外面还有一圈内边距）。文字太长装不下时会抛出错误。
 
@@ -30,36 +12,19 @@ const logo = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.
 
 `level` 决定能容忍多少遮挡：`L` 约 7%、`M` 约 15%（默认）、`Q` 约 25%、`H` 约 30%。在相同尺寸还有余量时会自动提高等级。传 `icon` 在中间放一张图，此时自动使用 `H`。
 
-<div class="demo">
-  <DouQrcode value="https://ui.daidr.me" level="L" :size="120" />
-  <DouQrcode value="https://ui.daidr.me" level="H" :size="120" />
-  <DouQrcode value="https://ui.daidr.me" :icon="logo" :size="120" />
-</div>
-
-```vue
-<DouQrcode value="https://ui.daidr.me" level="H" :size="120" />
-<DouQrcode value="https://ui.daidr.me" icon="/logo.svg" :size="120" />
-```
+<DocDemo src="qrcode/level-icon" />
 
 ## 颜色
 
 `color` 与 `bg-color` 换颜色。换色时请保持足够的明暗对比，深色在前、浅色在后，否则有的扫码器认不出来。
 
-<div class="demo">
-  <DouQrcode value="https://ui.daidr.me" color="#1d4ed8" bg-color="#eff6ff" :size="120" />
-</div>
+<DocDemo src="qrcode/color" />
 
 ## 状态
 
 登录码这类会过期的二维码，用 `status` 盖一层磨砂：`expired` 显示提示和刷新按钮（触发 `refresh`），`loading` 显示加载圈。`status` 插槽可以换成自己的内容。
 
-<div class="demo">
-  <DouQrcode value="https://ui.daidr.me/login?t=8f2c" :status="status" expired-text="登录码已过期" @refresh="refresh" />
-</div>
-
-```vue
-<DouQrcode :value="loginUrl" :status="status" expired-text="登录码已过期" @refresh="refresh" />
-```
+<DocDemo src="qrcode/status" />
 
 ## 只要数据
 

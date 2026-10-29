@@ -1,9 +1,5 @@
 # Icon 图标
 
-<script setup>
-import { CheckCircleIcon, LoaderIcon, SearchIcon, SettingsIcon } from '@dou-ui/icons'
-</script>
-
 为任意内联图形提供统一的尺寸与无障碍语义。
 
 `dou-ui` 本身**不内置图标集**：图标通过默认插槽传入。组件库内部和本站的所有图标都来自配套的独立子包 [@dou-ui/icons](/icons/)，项目里独有的图形也可以用它的 `createIcon` 画成同样风格的组件。`DouIcon` 只负责三件事：尺寸、颜色跟随文字（`currentColor`）、读屏语义。
@@ -12,51 +8,17 @@ import { CheckCircleIcon, LoaderIcon, SearchIcon, SettingsIcon } from '@dou-ui/i
 
 默认尺寸为 `1em`，因此图标总是与周围文字一样大。
 
-<div class="demo">
-  <DouText>
-    <DouIcon>
-      <SearchIcon />
-    </DouIcon>
-    搜索
-  </DouText>
-  <DouText tone="success">
-    <DouIcon>
-      <CheckCircleIcon />
-    </DouIcon>
-    已通过
-  </DouText>
-</div>
-
-```vue
-<script setup>
-import { SearchIcon } from '@dou-ui/icons'
-</script>
-
-<template>
-  <DouIcon><SearchIcon /></DouIcon>
-</template>
-```
+<DocDemo src="icon/basic" />
 
 ## 尺寸
 
 `size` 接受数字（像素）或任意 CSS 长度。
 
-<div class="demo">
-  <DouIcon :size="14"><SettingsIcon /></DouIcon>
-  <DouIcon :size="20"><SettingsIcon /></DouIcon>
-  <DouIcon size="2em"><SettingsIcon /></DouIcon>
-</div>
-
-```vue
-<DouIcon :size="20"><SettingsIcon /></DouIcon>
-<DouIcon size="2em"><SettingsIcon /></DouIcon>
-```
+<DocDemo src="icon/size" />
 
 ## 旋转
 
-<div class="demo">
-  <DouIcon spin :size="18"><LoaderIcon /></DouIcon>
-</div>
+<DocDemo src="icon/rotate" />
 
 ## 无障碍
 

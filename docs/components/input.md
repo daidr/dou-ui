@@ -2,26 +2,9 @@
 
 单行文本输入框。
 
-<script setup>
-import { SearchIcon } from '@dou-ui/icons'
-import { ref } from 'vue'
-const text = ref('')
-const keyword = ref('dou-ui')
-const price = ref('')
-const password = ref('dou-ui-2026')
-const bio = ref('住在上海')
-</script>
-
 ## 基础用法
 
-<div class="demo">
-  <DouInput v-model="text" placeholder="项目名称" style="width: 240px" />
-  <DouText variant="tertiary" size="sm">当前值：{{ text || '（空）' }}</DouText>
-</div>
-
-```vue
-<DouInput v-model="name" placeholder="项目名称" />
-```
+<DocDemo src="input/basic" />
 
 所有未声明为 prop 的属性（`placeholder`、`name`、`autocomplete`、`maxlength`、事件监听等）都会透传给原生 `<input>`；`class` 与 `style` 则作用于外层的输入框表面。
 
@@ -29,31 +12,11 @@ const bio = ref('住在上海')
 
 与按钮共享控件高度 Token，同尺寸的输入框和按钮总是对齐的。
 
-<div class="demo demo--column">
-  <DouSpace size="sm"><DouInput size="sm" placeholder="sm" style="width: 200px" /><DouButton size="sm" variant="outline">搜索</DouButton></DouSpace>
-  <DouSpace size="sm"><DouInput placeholder="md" style="width: 200px" /><DouButton variant="outline">搜索</DouButton></DouSpace>
-  <DouSpace size="sm"><DouInput size="lg" placeholder="lg" style="width: 200px" /><DouButton size="lg" variant="outline">搜索</DouButton></DouSpace>
-</div>
+<DocDemo src="input/size" column />
 
 ## 前缀与后缀
 
-<div class="demo">
-  <DouInput v-model="keyword" clearable style="width: 240px">
-    <template #prefix>
-      <DouIcon><SearchIcon /></DouIcon>
-    </template>
-  </DouInput>
-  <DouInput v-model="price" placeholder="0.00" style="width: 160px">
-    <template #prefix>¥</template>
-    <template #suffix>元</template>
-  </DouInput>
-</div>
-
-```vue
-<DouInput v-model="keyword" clearable>
-  <template #prefix><SearchIcon /></template>
-</DouInput>
-```
+<DocDemo src="input/prefix-suffix" />
 
 ## 可清空
 
@@ -63,39 +26,17 @@ const bio = ref('住在上海')
 
 `type="password"` 加上 `show-password`，末尾多一个眼睛按钮，切换明文与密文。按钮是 `aria-pressed` 的开关，读屏标签随状态在“显示密码”和“隐藏密码”之间切换。
 
-<div class="demo">
-  <DouInput v-model="password" type="password" show-password style="width: 240px" />
-</div>
-
-```vue
-<DouInput v-model="password" type="password" show-password />
-```
+<DocDemo src="input/password" />
 
 ## 字数统计
 
 `show-count` 在末尾显示已输入的字数；同时设了原生 `maxlength` 时显示为“已输入 / 上限”。一个 emoji 算一个字。
 
-<div class="demo">
-  <DouInput v-model="bio" show-count maxlength="20" placeholder="一句话介绍" style="width: 240px" />
-</div>
-
-```vue
-<DouInput v-model="bio" show-count maxlength="20" />
-```
+<DocDemo src="input/word-count" />
 
 ## 状态
 
-<div class="demo demo--column" style="max-width: 280px">
-  <DouInput model-value="名称已被占用" invalid />
-  <DouInput model-value="只读内容" readonly />
-  <DouInput placeholder="禁用" disabled />
-</div>
-
-```vue
-<DouInput v-model="name" invalid />
-<DouInput v-model="name" readonly />
-<DouInput v-model="name" disabled />
-```
+<DocDemo src="input/status" column style="max-width: 280px" />
 
 `invalid` 会设置 `aria-invalid`，描边与聚焦光晕切换为危险语气。放在 [表单项](./form) 中时，校验失败会自动进入无效状态，并关联标签与错误信息。
 

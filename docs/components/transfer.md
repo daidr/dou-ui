@@ -2,29 +2,9 @@
 
 在两列之间移动条目，适合从大量选项中挑选出一部分。列表只渲染可见的行，数据量大时也不会卡顿。
 
-<script setup>
-import { ref } from 'vue'
-const people = Array.from({ length: 40 }, (_, i) => ({
-  key: i + 1,
-  label: `成员 ${String(i + 1).padStart(2, '0')}`,
-  description: ['设计', '前端', '后端', '产品'][i % 4],
-  disabled: i % 9 === 8,
-}))
-const chosen = ref([3, 7])
-const searchable = ref([])
-const many = Array.from({ length: 5000 }, (_, i) => ({ key: i, label: `条目 ${i + 1}` }))
-const manyChosen = ref([])
-</script>
-
 ## 基础用法
 
-<div class="demo">
-  <DouTransfer v-model="chosen" :data="people" />
-</div>
-
-```vue
-<DouTransfer v-model="chosen" :data="people" />
-```
+<DocDemo src="transfer/basic" />
 
 `data` 是全部条目 `{ key, label, description?, disabled? }`，`v-model` 是右侧条目的 `key` 数组，顺序就是右侧的顺序；新移过去的条目排在末尾。禁用的条目不能勾选，也不会被全选带上。
 
@@ -32,21 +12,13 @@ const manyChosen = ref([])
 
 `filterable` 在每一列上方加一个搜索框，默认按标签包含输入的文字匹配，`filter` 可以自定义。全选只作用于当前筛选出来的条目。`titles` 替换两列的标题。
 
-<div class="demo">
-  <DouTransfer v-model="searchable" :data="people" filterable :titles="['全部成员', '项目成员']" />
-</div>
-
-```vue
-<DouTransfer v-model="value" :data="people" filterable :titles="['全部成员', '项目成员']" />
-```
+<DocDemo src="transfer/search-title" />
 
 ## 大量数据
 
 列表建在 VirtualList 上，行高固定 32px，`height` 指定列表的高度（默认 240）。
 
-<div class="demo">
-  <DouTransfer v-model="manyChosen" :data="many" filterable :height="200" />
-</div>
+<DocDemo src="transfer/large-data" />
 
 ## 插槽
 

@@ -78,7 +78,6 @@ const statusText = computed(
       </span>
       <ChevronDownIcon v-if="expandable" :class="ns.e('arrow')" />
     </component>
-    <div v-if="slots.actions" :class="ns.e('actions')"><slot name="actions" /></div>
     <CollapseTransition>
       <div
         v-if="expandable"
@@ -107,5 +106,6 @@ const statusText = computed(
         </div>
       </div>
     </CollapseTransition>
+    <div v-if="slots.actions" :class="ns.e('actions')"><slot name="actions" /></div>
   </div>
 </template>

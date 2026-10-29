@@ -72,15 +72,17 @@ function close(event: MouseEvent) {
     :aria-label="title ?? t('banner.label')"
   >
     <div :class="ns.e('content')">
-      <span v-if="showIcon" :class="ns.e('icon')" aria-hidden="true">
-        <slot name="icon"><Icon /></slot>
-      </span>
-      <p :class="ns.e('text')">
-        <strong v-if="hasTitle" :class="ns.e('title')">
-          <slot name="title">{{ title }}</slot>
-        </strong>
-        <slot />
-      </p>
+      <div :class="ns.e('main')">
+        <span v-if="showIcon" :class="ns.e('icon')" aria-hidden="true">
+          <slot name="icon"><Icon /></slot>
+        </span>
+        <p :class="ns.e('text')">
+          <strong v-if="hasTitle" :class="ns.e('title')">
+            <slot name="title">{{ title }}</slot>
+          </strong>
+          <slot />
+        </p>
+      </div>
       <div v-if="slots.action" :class="ns.e('action')"><slot name="action" /></div>
     </div>
     <button

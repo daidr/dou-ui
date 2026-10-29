@@ -73,19 +73,25 @@
     display: flex;
     flex: 1 1 auto;
     flex-wrap: wrap;
-    align-items: flex-start;
+    align-items: center;
     justify-content: center;
-    gap: 4px 12px;
+    gap: 8px 12px;
+    min-width: 0;
+  }
+
+  /* the icon and the text stay together when the action wraps */
+  .dou-banner__main {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
     min-width: 0;
   }
 
   .dou-banner__icon {
     display: inline-flex;
     flex-shrink: 0;
-    align-items: center;
-    /* one line tall, so the icon centers on the first line */
-    height: 1.5em;
-    margin-right: -4px;
+    /* the text is trimmed to its cap height; center the icon on the first line */
+    margin-block: calc((1cap - 16px) / 2);
     color: var(--dou-banner-icon);
 
     & > svg {
@@ -97,6 +103,8 @@
   .dou-banner__text {
     min-width: 0;
     margin: 0;
+    /* trim to the cap height, so CJK text centers on the icon and the action */
+    text-box: trim-both cap alphabetic;
   }
 
   .dou-banner__title {
@@ -109,7 +117,6 @@
     flex-shrink: 0;
     align-items: center;
     gap: 8px;
-    min-height: 1.5em;
   }
 
   /* links in a solid bar take its text color */

@@ -29,10 +29,21 @@ export interface DrawerProps {
   beforeClose?: () => boolean | void | Promise<boolean | void>
   /** Where to render the drawer; `false` keeps it in place. */
   teleport?: string | HTMLElement | false
+  /**
+   * Let the inner edge be dragged to resize the drawer, also with the
+   * arrow keys. The new size in px goes to `update:size`.
+   */
+  resizable?: boolean
+  /** The smallest size when resizing, in px. */
+  minSize?: number
+  /** The largest size when resizing, in px. Defaults to the viewport less 48px. */
+  maxSize?: number
 }
 
 export interface DrawerEmits {
   'update:open': [open: boolean]
+  /** The drawer was resized, in px; bound with `v-model:size`. */
+  'update:size': [size: number]
   /** Opening started. */
   open: []
   /** The opening transition finished. */

@@ -83,8 +83,15 @@ export type TableRowClass<T = any> = string | ((row: T, index: number) => string
 export type TableRowStyle<T = any> =
   CSSProperties | ((row: T, index: number) => CSSProperties | undefined)
 
+/** A row dragged to a new place, with its positions in `data`. */
+export interface TableRowDropEvent<T = any> {
+  row: T
+  oldIndex: number
+  newIndex: number
+}
+
 export interface TableProps<T = any> {
-  /** The rows. */
+  /** The rows. Bind with `v-model:data` so dragging can reorder them. */
   data: T[]
   columns: TableColumn<T>[]
   /** A property of each row, or a function, that gives the row a unique key. */
@@ -162,9 +169,19 @@ export interface TableProps<T = any> {
   load?: (row: T) => Promise<T[]>
   /** The property that marks a row as having children to `load`. */
   hasChildrenKey?: string
+  /**
+   * Add a column of handles that drag rows to reorder `data`, also with
+   * the keyboard. The new order goes to `update:data`. Paused while the
+   * rows are sorted or filtered; not for trees or `virtual` tables.
+   */
+  draggable?: boolean
 }
 
 export interface TableEmits<T = any> {
+  /** The rows in their new order after a drag; bound with `v-model:data`. */
+  'update:data': [data: T[]]
+  /** A row was dragged to a new place. */
+  rowDrop: [event: TableRowDropEvent<T>]
   'update:selected': [keys: TableRowKey[]]
   'update:sort': [sort: TableSort | null]
   'update:expanded': [keys: TableRowKey[]]

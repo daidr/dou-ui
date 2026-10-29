@@ -19,6 +19,12 @@
 
 内容超出时，只有中间的内容区滚动，标题与底部操作保持可见。
 
+## 拖边调整大小
+
+`resizable` 让抽屉的内侧边缘可以拖动，改变宽度（上下抽屉为高度），范围由 `min-size`（默认 200px）和 `max-size`（默认视口减 48px）限定。新尺寸以 px 通过 `update:size` 传出，用 `v-model:size` 绑定即可记住。边缘也能用键盘聚焦：方向键每次 16px，按住 `Shift` 每次 64px，`Home` / `End` 到最小 / 最大。
+
+<DocDemo src="drawer/resizable" />
+
 ## 键盘与读屏
 
 与对话框相同：`role="dialog"`、`aria-modal="true"`，打开时焦点移入，`Tab` 在面板内循环，`Esc` 关闭后焦点回到打开前的元素。
@@ -27,23 +33,26 @@
 
 ### Props
 
-| 名称             | 说明                                | 类型                                                | 默认值    |
-| ---------------- | ----------------------------------- | --------------------------------------------------- | --------- |
-| `open`           | 是否打开，配合 `v-model:open`       | `boolean`                                           | `false`   |
-| `title`          | 标题，同时为抽屉命名                | `string`                                            | —         |
-| `placement`      | 从哪一边滑出                        | `'right' \| 'left' \| 'top' \| 'bottom'`            | `'right'` |
-| `size`           | 左右为宽度、上下为高度；数字为 px   | `string \| number`                                  | —         |
-| `closable`       | 显示右上角的关闭按钮                | `boolean`                                           | `true`    |
-| `closeOnMask`    | 点击遮罩关闭                        | `boolean`                                           | `true`    |
-| `closeOnEscape`  | 按 `Esc` 关闭                       | `boolean`                                           | `true`    |
-| `lockScroll`     | 打开期间锁定页面滚动                | `boolean`                                           | `true`    |
-| `destroyOnClose` | 关闭后卸载内容                      | `boolean`                                           | `false`   |
-| `beforeClose`    | 关闭前调用，返回 `false` 则保持打开 | `() => boolean \| void \| Promise<boolean \| void>` | —         |
-| `teleport`       | 渲染到哪里；`false` 为原地渲染      | `string \| HTMLElement \| false`                    | `'body'`  |
+| 名称             | 说明                                      | 类型                                                | 默认值    |
+| ---------------- | ----------------------------------------- | --------------------------------------------------- | --------- |
+| `open`           | 是否打开，配合 `v-model:open`             | `boolean`                                           | `false`   |
+| `title`          | 标题，同时为抽屉命名                      | `string`                                            | —         |
+| `placement`      | 从哪一边滑出                              | `'right' \| 'left' \| 'top' \| 'bottom'`            | `'right'` |
+| `size`           | 左右为宽度、上下为高度；数字为 px         | `string \| number`                                  | —         |
+| `closable`       | 显示右上角的关闭按钮                      | `boolean`                                           | `true`    |
+| `closeOnMask`    | 点击遮罩关闭                              | `boolean`                                           | `true`    |
+| `closeOnEscape`  | 按 `Esc` 关闭                             | `boolean`                                           | `true`    |
+| `lockScroll`     | 打开期间锁定页面滚动                      | `boolean`                                           | `true`    |
+| `destroyOnClose` | 关闭后卸载内容                            | `boolean`                                           | `false`   |
+| `beforeClose`    | 关闭前调用，返回 `false` 则保持打开       | `() => boolean \| void \| Promise<boolean \| void>` | —         |
+| `teleport`       | 渲染到哪里；`false` 为原地渲染            | `string \| HTMLElement \| false`                    | `'body'`  |
+| `resizable`      | 拖动内侧边缘调整大小，配合 `v-model:size` | `boolean`                                           | `false`   |
+| `minSize`        | 调整时的最小尺寸，px                      | `number`                                            | `200`     |
+| `maxSize`        | 调整时的最大尺寸，px                      | `number`                                            | 视口减 48 |
 
 ### Events
 
-`update:open`、`open`、`opened`、`close`、`closed`，含义同 [对话框](./dialog#events)。
+`update:open`、`open`、`opened`、`close`、`closed`，含义同 [对话框](./dialog#events)。另有 `update:size`，参数为调整后的尺寸（px）。
 
 ### Slots
 

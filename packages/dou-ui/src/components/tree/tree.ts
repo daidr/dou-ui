@@ -4,6 +4,16 @@ import type { Size } from '../../utils/types'
 
 export type TreeSize = Size
 export type TreeKey = string | number
+/** Where a dragged node lands: before or after `target`, or as its last child. */
+export type TreeDropPosition = 'before' | 'after' | 'inside'
+
+export interface TreeDropEvent {
+  /** The node that moved. */
+  node: TreeNodeData
+  /** The node it was dropped on. */
+  target: TreeNodeData
+  position: TreeDropPosition
+}
 
 export interface TreeNodeData {
   /** Unique across the whole tree. */
@@ -21,6 +31,7 @@ export interface TreeNodeData {
 }
 
 export interface TreeProps {
+  /** The nodes. Bind with `v-model:data` so dragging can move them. */
   data: TreeNodeData[]
   /** Keys of the open branches, bound with `v-model:expanded`. */
   expanded?: TreeKey[]
@@ -49,6 +60,16 @@ export interface TreeProps {
   filterMethod?: (query: string, node: TreeNodeData) => boolean
   /** Hairlines that join each child to its parent. */
   guides?: boolean
+  /**
+   * Let nodes be dragged before, after or into other nodes, by pointer
+   * or with Alt and the arrow keys. The new tree goes to
+   * `update:data`. Paused while `filter` is set.
+   */
+  draggable?: boolean
+  /** Whether a node can be picked up. */
+  allowDrag?: (node: TreeNodeData) => boolean
+  /** Whether `node` can land at `position` of `target`. */
+  allowDrop?: (node: TreeNodeData, target: TreeNodeData, position: TreeDropPosition) => boolean
   /** Row density. */
   size?: TreeSize
   /** Render only the rows in view, inside a viewport of this height. A number is in px. */
@@ -58,6 +79,10 @@ export interface TreeProps {
 }
 
 export interface TreeEmits {
+  /** The tree after a node was dragged; bound with `v-model:data`. */
+  'update:data': [data: TreeNodeData[]]
+  /** A node was dragged to a new place. */
+  drop: [event: TreeDropEvent]
   'update:expanded': [keys: TreeKey[]]
   'update:selected': [key: TreeKey | null]
   'update:checked': [keys: TreeKey[]]
@@ -125,6 +150,11 @@ export interface TreeContext {
   toggle: (node: TreeNodeData) => void
   setChecked: (node: TreeNodeData, value: boolean) => void
   onRowClick: (row: TreeRow) => void
+  /** The node being dragged, and where it would land. */
+  draggingKey: Readonly<Ref<TreeKey | null>>
+  dropAt: Readonly<Ref<{ key: TreeKey; position: TreeDropPosition } | null>>
+  canDrag: (node: TreeNodeData) => boolean
+  onRowPointerdown: (event: PointerEvent, row: TreeRow) => void
 }
 
 export const treeContextKey: InjectionKey<TreeContext> = Symbol('DouTree')

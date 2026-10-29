@@ -24,6 +24,12 @@ export interface SliderProps {
   marks?: SliderMarks
   /** Turn a value into the text read by screen readers, e.g. `(v) => \`${v}%\``. */
   formatValue?: (value: number) => string
+  /** Run the track bottom to top. */
+  vertical?: boolean
+  /** The length of a vertical slider. A number is in px. */
+  height?: number | string
+  /** Put a number input beside a single slider, kept in sync with it. */
+  showInput?: boolean
 }
 
 export interface SliderEmits {

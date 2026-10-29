@@ -83,8 +83,15 @@ const onMenuKeydown = useMenuKeys(
 provide(dropdownKey, {
   select(value) {
     emit('select', value)
-    if (props.hideOnSelect) popup.dismiss()
+    if (!props.hideOnSelect) return
+    // Focus may be in a submenu, outside the panel: it goes back to the trigger too.
+    const restore = !!(document.activeElement as HTMLElement | null)?.closest(`.${ns.b()}`)
+    popup.hide()
+    if (restore) (popup.reference() as HTMLElement | null)?.focus()
   },
+  opened: () => open.value,
+  hold: () => props.trigger === 'hover' && popup.show(),
+  release: () => props.trigger === 'hover' && popup.hide(props.hideDelay),
 })
 
 defineExpose<DropdownExpose>({ open: () => popup.show(), close: () => popup.hide() })

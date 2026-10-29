@@ -24,10 +24,17 @@ export interface DialogProps {
   beforeClose?: () => boolean | void | Promise<boolean | void>
   /** Where to render the dialog; `false` keeps it in place. */
   teleport?: string | HTMLElement | false
+  /** Let the panel be moved by dragging its header. It is back in place each time it opens. */
+  draggable?: boolean
+  /** Fill the viewport, bound with `v-model:fullscreen`. */
+  fullscreen?: boolean
+  /** Show a button in the header that toggles `fullscreen`. */
+  fullscreenable?: boolean
 }
 
 export interface DialogEmits {
   'update:open': [open: boolean]
+  'update:fullscreen': [fullscreen: boolean]
   /** Opening started. */
   open: []
   /** The opening transition finished. */

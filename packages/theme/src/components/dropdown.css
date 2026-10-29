@@ -92,4 +92,28 @@
     margin: var(--dou-dropdown-inset) calc(var(--dou-dropdown-inset) * -1);
     background-color: var(--dou-color-border);
   }
+
+  /* an item that opens a submenu keeps its highlight while the submenu is open */
+  .dou-dropdown__sub.is-open {
+    background-color: var(--dou-dropdown-item-active-bg);
+  }
+
+  .dou-dropdown__arrow {
+    margin-inline-end: -2px;
+
+    & > svg {
+      width: 14px;
+      height: 14px;
+    }
+  }
+
+  /* split button: the arrow half is square, and a solid one shows a seam */
+  .dou-dropdown-button__arrow {
+    aspect-ratio: 1;
+    padding-inline: 0;
+  }
+
+  .dou-dropdown-button > .dou-button--solid + .dou-dropdown-button__arrow {
+    border-inline-start-color: color-mix(in oklab, currentColor 28%, transparent);
+  }
 }

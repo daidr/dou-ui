@@ -25,6 +25,9 @@ const classes = computed(() => [
   ns.is('selected', selected.value),
   ns.is('disabled', !!node.value.disabled),
   ns.is('expanded', props.row.expanded),
+  ns.is('draggable', tree.canDrag(node.value)),
+  ns.is('dragging', tree.draggingKey.value === key.value),
+  tree.dropAt.value?.key === key.value && ns.is(`drop-${tree.dropAt.value.position}`),
 ])
 </script>
 
@@ -43,6 +46,7 @@ const classes = computed(() => [
     :aria-disabled="node.disabled || undefined"
     :aria-busy="loading || undefined"
     @click="tree.onRowClick(row)"
+    @pointerdown="tree.onRowPointerdown($event, row)"
   >
     <span v-if="row.level > 1" :class="ns.e('indent')" aria-hidden="true" />
     <span

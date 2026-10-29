@@ -203,6 +203,72 @@
     text-underline-offset: 3px;
   }
 
+  /* dragging */
+
+  .dou-tree__node.is-draggable {
+    position: relative;
+    touch-action: pan-y;
+  }
+
+  .dou-tree__node.is-dragging {
+    opacity: 0.4;
+  }
+
+  .dou-tree.is-dragging .dou-tree__node:hover {
+    background-color: transparent;
+  }
+
+  /* a line where the node would land, starting at the target's own indent */
+  .dou-tree__node.is-drop-before::before,
+  .dou-tree__node.is-drop-after::before {
+    position: absolute;
+    inset-inline: calc(var(--dou-tree-level) * var(--dou-tree-indent) + var(--dou-tree-padding-x))
+      var(--dou-tree-padding-x);
+    height: 2px;
+    border-radius: 1px;
+    background-color: var(--dou-color-primary);
+    content: '';
+    pointer-events: none;
+  }
+  .dou-tree__node.is-drop-before::before {
+    top: -1px;
+  }
+  .dou-tree__node.is-drop-after::before {
+    bottom: -1px;
+  }
+
+  .dou-tree__node.is-drop-inside {
+    background-color: color-mix(in oklab, var(--dou-color-primary) 10%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--dou-color-primary) 55%, transparent);
+  }
+
+  /* the label that follows the pointer */
+  .dou-tree__ghost {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+    max-width: 240px;
+    height: 28px;
+    padding: 0 10px;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-control);
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-md);
+    color: var(--dou-color-text);
+    font-family: var(--dou-font-family);
+    font-size: var(--dou-font-size-sm);
+    white-space: nowrap;
+    pointer-events: none;
+
+    & > .dou-tree__label {
+      gap: 6px;
+    }
+  }
+
   .dou-tree__empty {
     padding: 12px 8px;
     color: var(--dou-color-text-tertiary);

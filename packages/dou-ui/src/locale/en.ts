@@ -29,9 +29,12 @@ export const en: Locale = {
     close: 'Close',
     confirm: 'OK',
     cancel: 'Cancel',
+    fullscreen: 'Fullscreen',
+    exitFullscreen: 'Exit fullscreen',
   },
   drawer: {
     close: 'Close',
+    resize: 'Drag to resize',
   },
   select: {
     placeholder: 'Select',
@@ -73,6 +76,8 @@ export const en: Locale = {
     filterReset: 'Reset',
     filterConfirm: 'Filter',
     filterAll: 'All',
+    drag: 'Order',
+    dragRow: 'Drag to reorder',
   },
   upload: {
     choose: 'Choose file',
@@ -219,6 +224,9 @@ export const en: Locale = {
     rotateRight: 'Rotate right',
     reset: 'Reset',
     counter: '{index} / {total}',
+    flipHorizontal: 'Flip horizontally',
+    flipVertical: 'Flip vertically',
+    download: 'Download',
   },
   pageHeader: {
     back: 'Back',
@@ -310,6 +318,15 @@ export const en: Locale = {
   ellipsis: {
     expand: 'More',
     collapse: 'Less',
+  },
+  tree: {
+    dragHint: 'Press Alt with the arrow keys to move a node',
+    dropBefore: 'Moved {label} before {target}',
+    dropAfter: 'Moved {label} after {target}',
+    dropInside: 'Moved {label} into {target}',
+  },
+  dropdown: {
+    more: 'More actions',
   },
   sortable: {
     item: 'sortable item',

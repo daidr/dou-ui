@@ -13,6 +13,7 @@ import {
   useGlobalConfig,
   useZIndex,
   zhCN,
+  zhTW,
 } from '../../../index'
 
 describe('DouConfigProvider', () => {
@@ -42,6 +43,18 @@ describe('DouConfigProvider', () => {
     })
     expect(wrapper.get('.dou-input__clear').attributes('aria-label')).toBe('Clear')
     expect(wrapper.get('.dou-tag__close').attributes('aria-label')).toBe('Remove')
+  })
+
+  it('ships language packs with the same entries', () => {
+    const keys = (value: unknown, prefix = ''): string[] =>
+      value && typeof value === 'object'
+        ? Object.entries(value).flatMap(([key, child]) => keys(child, `${prefix}${key}.`))
+        : [prefix]
+    // oxlint-disable-next-line unicorn/no-array-sort -- sorts a copy
+    const sorted = (pack: object) => keys(pack).sort()
+    expect(sorted(zhTW)).toEqual(sorted(zhCN))
+    expect(sorted(en)).toEqual(sorted(zhCN))
+    expect(zhTW.region.weekStart).toBe(0)
   })
 
   it('defaults to Chinese', () => {

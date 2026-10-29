@@ -257,7 +257,7 @@ function setEdge(field: number, type: SegmentType, end: boolean) {
   sync()
 }
 
-const separators = /[\s\-/.:：,，年月日时分秒]/
+const separators = /[\s\-/.:：,，年月日时時分秒]/
 
 function input(field: number, type: SegmentType, char: string, el: HTMLElement) {
   if (type === 'meridiem') {

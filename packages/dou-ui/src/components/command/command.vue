@@ -82,8 +82,13 @@ function move(from: number, step: 1 | -1) {
 }
 const first = () => move(-1, 1)
 
+// A parent that re-renders passes a new but equal list: only a different
+// list of items moves the highlight back to the top.
+const flatKey = computed(() =>
+  flat.value.map((entry) => `${typeof entry.item.value}:${entry.item.value}`).join('\u0000'),
+)
 watch(
-  flat,
+  flatKey,
   () => {
     active.value = -1
     first()
@@ -106,7 +111,7 @@ const groupWindows = computed(() =>
     return { ...view, entries: group.entries.slice(view.from, view.to) }
   }),
 )
-watch(groups, () => {
+watch(flatKey, () => {
   if (listRef.value) listRef.value.scrollTop = 0
 })
 

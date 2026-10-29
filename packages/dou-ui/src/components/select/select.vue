@@ -294,9 +294,15 @@ watch(open, (value) => {
   if (!value) query.value = ''
   else if (props.remote) emit('search', query.value)
 })
-watch(filtered, () => {
-  if (open.value) edge('first')
-})
+// A parent that re-renders passes a new but equal list: only a different
+// list of options moves the highlight back to the top.
+watch(
+  () => filtered.value.map((option) => identity(option.value)),
+  (next, prev) => {
+    if (next.length === prev.length && next.every((value, index) => value === prev[index])) return
+    if (open.value) edge('first')
+  },
+)
 watch(active, async (index) => {
   await nextTick()
   const menu = panelRef.value

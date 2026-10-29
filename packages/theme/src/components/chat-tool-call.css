@@ -1,0 +1,154 @@
+/*
+ * ChatToolCall
+ *
+ * A small framed card for one call the model made: the tool, how it is
+ * going, and, when opened, what went in and what came out in monospace.
+ * Only the status carries color.
+ */
+@layer dou.components {
+  .dou-chat-tool-call {
+    --dou-chat-tool-call-status: var(--dou-color-text-secondary);
+
+    overflow: hidden;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-container);
+    background-color: var(--dou-color-bg-surface);
+    color: var(--dou-color-text);
+    font-size: var(--dou-font-size-sm);
+    line-height: 20px;
+  }
+
+  .dou-chat-tool-call--pending {
+    --dou-chat-tool-call-status: var(--dou-color-warning-text);
+  }
+  .dou-chat-tool-call--success {
+    --dou-chat-tool-call-status: var(--dou-color-success-text);
+  }
+  .dou-chat-tool-call--error {
+    --dou-chat-tool-call-status: var(--dou-color-danger-text);
+  }
+
+  .dou-chat-tool-call__header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-sizing: border-box;
+    width: 100%;
+    margin: 0;
+    padding: 8px 12px;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+
+    &:is(button) {
+      cursor: pointer;
+
+      &:hover {
+        background-color: color-mix(in oklab, var(--dou-color-text) 3%, transparent);
+      }
+
+      &:focus-visible {
+        outline: 2px solid var(--dou-color-focus);
+        outline-offset: -2px;
+        border-radius: var(--dou-radius-container);
+      }
+    }
+  }
+
+  .dou-chat-tool-call__icon {
+    display: inline-flex;
+    flex: none;
+    color: var(--dou-color-text-tertiary);
+    font-size: 16px;
+  }
+
+  .dou-chat-tool-call__title {
+    flex: 1 1 auto;
+    overflow-x: clip;
+    min-width: 0;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dou-chat-tool-call__name {
+    font-family: var(--dou-font-family-mono);
+    font-size: 12px;
+  }
+
+  .dou-chat-tool-call__status {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 4px;
+    color: var(--dou-chat-tool-call-status);
+
+    & > svg {
+      font-size: 14px;
+    }
+  }
+
+  .dou-chat-tool-call__arrow {
+    flex: none;
+    color: var(--dou-color-text-tertiary);
+    font-size: 14px;
+    transition: rotate var(--dou-motion-duration-normal) var(--dou-motion-easing);
+
+    .dou-chat-tool-call.is-open & {
+      rotate: 180deg;
+    }
+  }
+
+  .dou-chat-tool-call__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 0 12px 10px 36px;
+  }
+
+  .dou-chat-tool-call__panel {
+    border-top: 1px solid var(--dou-color-border-subtle);
+    transition: height var(--dou-motion-duration-normal) var(--dou-motion-easing);
+  }
+
+  .dou-chat-tool-call__body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .dou-chat-tool-call__section {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .dou-chat-tool-call__label {
+    margin: 0;
+    color: var(--dou-color-text-tertiary);
+    font-size: 12px;
+    font-weight: var(--dou-font-weight-medium);
+    line-height: 16px;
+  }
+
+  .dou-chat-tool-call__code {
+    overflow: auto;
+    max-height: 240px;
+    margin: 0;
+    padding: 8px 10px;
+    border-radius: var(--dou-radius-control);
+    background-color: var(--dou-color-bg-muted);
+    color: var(--dou-color-text-secondary);
+    font-family: var(--dou-font-family-mono);
+    font-size: 12px;
+    line-height: 18px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+
+    &.is-error {
+      color: var(--dou-color-danger-text);
+    }
+  }
+}

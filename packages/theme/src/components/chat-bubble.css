@@ -1,0 +1,183 @@
+/*
+ * ChatBubble
+ *
+ * One message in a conversation. The other party's messages sit at the
+ * start, the reader's own at the end in a tinted bubble; system notices
+ * are a small centered line. `plain` drops the bubble so long answers
+ * read like a page.
+ */
+@layer dou.components {
+  .dou-chat-bubble {
+    --dou-chat-bubble-bg: color-mix(
+      in oklab,
+      var(--dou-color-text) 5%,
+      var(--dou-color-bg-surface)
+    );
+    --dou-chat-bubble-fg: var(--dou-color-text);
+    --dou-chat-bubble-border: transparent;
+    --dou-chat-bubble-radius: var(--dou-radius-container);
+    --dou-chat-bubble-padding: 8px 14px;
+    --dou-chat-bubble-max-width: 80%;
+
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    min-width: 0;
+    color: var(--dou-color-text);
+    font-size: var(--dou-font-size-md);
+    line-height: var(--dou-font-line-height);
+  }
+
+  .dou-chat-bubble--end {
+    flex-direction: row-reverse;
+  }
+
+  .dou-chat-bubble--outlined {
+    --dou-chat-bubble-bg: var(--dou-color-bg-surface);
+    --dou-chat-bubble-border: var(--dou-color-border);
+  }
+
+  .dou-chat-bubble--plain {
+    --dou-chat-bubble-bg: transparent;
+    --dou-chat-bubble-padding: 0;
+    --dou-chat-bubble-max-width: 100%;
+  }
+
+  .dou-chat-bubble__avatar {
+    flex: none;
+  }
+
+  .dou-chat-bubble__body {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    min-width: 0;
+
+    .dou-chat-bubble--end > & {
+      align-items: flex-end;
+    }
+  }
+
+  .dou-chat-bubble__header {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-size: var(--dou-font-size-sm);
+    line-height: 20px;
+  }
+
+  .dou-chat-bubble__name {
+    color: var(--dou-color-text-secondary);
+    font-weight: var(--dou-font-weight-medium);
+  }
+
+  .dou-chat-bubble__time {
+    color: var(--dou-color-text-tertiary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .dou-chat-bubble__content {
+    box-sizing: border-box;
+    max-width: var(--dou-chat-bubble-max-width);
+    min-width: 0;
+    padding: var(--dou-chat-bubble-padding);
+    border: 1px solid var(--dou-chat-bubble-border);
+    border-radius: var(--dou-chat-bubble-radius);
+    background-color: var(--dou-chat-bubble-bg);
+    color: var(--dou-chat-bubble-fg);
+    overflow-wrap: anywhere;
+
+    .dou-chat-bubble--plain > .dou-chat-bubble__body > & {
+      width: 100%;
+      border: 0;
+    }
+
+    /* an avatar of 32px and a line of 22px meet in the middle */
+    .dou-chat-bubble--plain.is-with-avatar:not(:has(.dou-chat-bubble__header)) & {
+      padding-top: 5px;
+    }
+  }
+
+  .dou-chat-bubble__text {
+    white-space: pre-wrap;
+  }
+
+  .dou-chat-bubble__footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px;
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+
+    /* quiet icon buttons, so the actions never outweigh the message */
+    & > .dou-button--ghost:not(:hover, :focus-visible) {
+      color: inherit;
+    }
+  }
+
+  /* system notice: a small line in the middle, no avatar */
+  .dou-chat-bubble--center {
+    justify-content: center;
+
+    & > .dou-chat-bubble__body {
+      flex: 0 1 auto;
+      align-items: center;
+    }
+
+    & .dou-chat-bubble__content {
+      --dou-chat-bubble-max-width: 100%;
+      padding: 2px 12px;
+      border-radius: var(--dou-radius-full);
+      color: var(--dou-color-text-secondary);
+      font-size: var(--dou-font-size-sm);
+      text-align: center;
+    }
+
+    &.dou-chat-bubble--plain .dou-chat-bubble__content {
+      padding: 0;
+    }
+  }
+
+  .dou-chat-bubble__dots {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: calc(1em * var(--dou-font-line-height));
+    vertical-align: top;
+
+    & > i {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: var(--dou-color-text-tertiary);
+      animation: dou-chat-bubble-dot 1.2s ease-in-out infinite;
+
+      &:nth-child(2) {
+        animation-delay: 0.15s;
+      }
+      &:nth-child(3) {
+        animation-delay: 0.3s;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        animation: none;
+      }
+    }
+  }
+
+  @keyframes dou-chat-bubble-dot {
+    0%,
+    60%,
+    100% {
+      opacity: 0.4;
+      transform: translateY(0);
+    }
+    30% {
+      opacity: 1;
+      transform: translateY(-3px);
+    }
+  }
+}

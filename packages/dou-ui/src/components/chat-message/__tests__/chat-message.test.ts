@@ -1,0 +1,113 @@
+import { mount } from '@vue/test-utils'
+import { h } from 'vue'
+import { describe, expect, it } from 'vitest'
+import { DouChatMessage } from '../../../index'
+import { messageText } from '../chat-message'
+
+describe('DouChatMessage', () => {
+  it('renders each kind of part in order', () => {
+    const wrapper = mount(DouChatMessage, {
+      props: {
+        parts: [
+          { type: 'reasoning', text: '想一想', duration: 3 },
+          { type: 'steps', items: [{ label: '搜索网页' }] },
+          { type: 'plan', items: [{ label: '查天气', status: 'done' }] },
+          { type: 'tool', name: 'get_weather' },
+          { type: 'text', text: '周六适合骑车。' },
+          { type: 'sources', items: [{ title: '天气', url: 'https://weather.example.com' }] },
+          { type: 'artifact', title: '计划.md' },
+          { type: 'confirm', title: '发送邮件？', detail: 'to: 戴兜' },
+          { type: 'chart', data: [1, 2] },
+        ],
+      },
+      slots: {
+        part: ({ part }: { part: { type: string } }) => h('i', { class: 'custom' }, part.type),
+      },
+    })
+    const content = wrapper.get('.dou-chat-message__content')
+    const blocks = content.element.children
+    expect([...blocks].map((el) => el.className.split(' ')[0])).toEqual([
+      'dou-chat-reasoning',
+      'dou-chat-steps',
+      'dou-chat-plan',
+      'dou-chat-tool-call',
+      'dou-stream-text',
+      'dou-chat-sources',
+      'dou-chat-artifact',
+      'dou-chat-confirm',
+      'custom',
+    ])
+    expect(wrapper.get('.dou-chat-message__code').text()).toBe('to: 戴兜')
+  })
+
+  it('forwards confirmations and artifacts', async () => {
+    const confirm = { type: 'confirm' as const, id: 1, title: '删除？' }
+    const artifact = { type: 'artifact' as const, id: 'a', title: '计划.md' }
+    const wrapper = mount(DouChatMessage, { props: { parts: [confirm, artifact] } })
+    await wrapper.findAll('.dou-chat-confirm__actions button').at(-1)!.trigger('click')
+    expect(wrapper.emitted('confirm')).toEqual([[confirm, 'approve']])
+    await wrapper.get('.dou-chat-artifact__main').trigger('click')
+    expect(wrapper.emitted('artifact')).toEqual([[artifact]])
+  })
+
+  it('hides the actions while busy', async () => {
+    const wrapper = mount(DouChatMessage, {
+      props: { parts: [{ type: 'text', text: '生成中', streaming: true }] },
+    })
+    expect(wrapper.find('.dou-chat-message__actions').exists()).toBe(false)
+    expect(wrapper.attributes('aria-busy')).toBe('true')
+    await wrapper.setProps({ parts: [{ type: 'text', text: '好了' }] })
+    expect(wrapper.find('.dou-chat-message__actions .dou-copy-button').exists()).toBe(true)
+  })
+
+  it('shows the waiting dots while pending', () => {
+    const wrapper = mount(DouChatMessage, { props: { pending: true } })
+    expect(wrapper.get('.dou-chat-message__pending').attributes('aria-label')).toBe('正在回复')
+  })
+
+  it('switches versions', async () => {
+    const wrapper = mount(DouChatMessage, { props: { content: '第三版', versions: 3 } })
+    expect(wrapper.get('.dou-chat-message__version').text()).toBe('3 / 3')
+    const [prev, next] = wrapper.findAll('.dou-chat-message__versions button')
+    expect(next!.attributes('disabled')).toBeDefined()
+    await prev!.trigger('click')
+    expect(wrapper.emitted('update:version')).toEqual([[2]])
+    expect(wrapper.get('.dou-chat-message__version').text()).toBe('2 / 3')
+  })
+
+  it('edits the person’s message in place', async () => {
+    const wrapper = mount(DouChatMessage, {
+      props: { sender: 'user', content: '周六去哪', editable: true },
+      attachTo: document.body,
+    })
+    expect(wrapper.classes()).toContain('dou-chat-message--user')
+    await wrapper.get('.dou-chat-message__actions button[aria-label="编辑"]').trigger('click')
+    const editor = wrapper.get('textarea')
+    expect((editor.element as HTMLTextAreaElement).value).toBe('周六去哪')
+    await editor.setValue('周日去哪')
+    await editor.trigger('keydown', { key: 'Enter' })
+    expect(wrapper.emitted('edit')).toEqual([['周日去哪']])
+    expect(wrapper.find('textarea').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('puts the person’s files above the bubble', () => {
+    const wrapper = mount(DouChatMessage, {
+      props: {
+        sender: 'user',
+        parts: [
+          { type: 'files', files: [{ uid: '1', name: 'a.pdf' }] },
+          { type: 'text', text: '看看这个' },
+        ],
+      },
+    })
+    expect(wrapper.find('.dou-chat-message__files .dou-chat-attachments').exists()).toBe(true)
+    expect(wrapper.get('.dou-chat-message__content').text()).toBe('看看这个')
+  })
+
+  it('joins the text parts for copying', () => {
+    expect(
+      messageText([{ type: 'text', text: 'a' }, { type: 'tool' }, { type: 'text', text: 'b' }]),
+    ).toBe('a\n\nb')
+  })
+})

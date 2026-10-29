@@ -1,0 +1,135 @@
+/*
+ * ChatSuggestions
+ *
+ * Prompts to start from. Chips are small framed pills that wrap; cards
+ * are roomier tiles in a grid with a second line. Both lift to a muted
+ * fill on hover, never to color.
+ */
+@layer dou.components {
+  .dou-chat-suggestions {
+    --dou-chat-suggestions-columns: auto-fill;
+    --dou-chat-suggestions-min: 200px;
+
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+    color: var(--dou-color-text);
+    font-size: var(--dou-font-size-md);
+  }
+
+  .dou-chat-suggestions__title {
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+    line-height: 20px;
+  }
+
+  .dou-chat-suggestions__list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+
+    .dou-chat-suggestions--card > & {
+      display: grid;
+      grid-template-columns: repeat(
+        var(--dou-chat-suggestions-columns),
+        minmax(min(var(--dou-chat-suggestions-min), 100%), 1fr)
+      );
+    }
+
+    .dou-chat-suggestions--card.is-columns > & {
+      grid-template-columns: repeat(var(--dou-chat-suggestions-columns), minmax(0, 1fr));
+    }
+
+    & > li {
+      display: flex;
+      min-width: 0;
+    }
+  }
+
+  .dou-chat-suggestions__item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    box-sizing: border-box;
+    min-width: 0;
+    height: 32px;
+    margin: 0;
+    padding: 0 12px;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-full);
+    background-color: var(--dou-color-bg-surface);
+    color: inherit;
+    font: inherit;
+    font-size: var(--dou-font-size-sm);
+    text-align: left;
+    cursor: pointer;
+    transition-property: background-color, border-color;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    &:hover:not(:disabled) {
+      border-color: var(--dou-color-border-strong);
+      background-color: color-mix(in oklab, var(--dou-color-text) 4%, var(--dou-color-bg-surface));
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 2px;
+    }
+
+    &:disabled {
+      color: var(--dou-color-text-disabled);
+      cursor: not-allowed;
+    }
+
+    .dou-chat-suggestions--card & {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+      width: 100%;
+      height: auto;
+      padding: 12px 14px;
+      border-radius: var(--dou-radius-container);
+      font-size: var(--dou-font-size-md);
+    }
+  }
+
+  .dou-chat-suggestions__icon {
+    flex: none;
+    color: var(--dou-color-text-secondary);
+    font-size: 16px;
+
+    .dou-chat-suggestions--card & {
+      font-size: 18px;
+    }
+  }
+
+  .dou-chat-suggestions__text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .dou-chat-suggestions__label {
+    overflow-x: clip;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    .dou-chat-suggestions--card & {
+      font-weight: var(--dou-font-weight-medium);
+      line-height: 22px;
+      white-space: normal;
+    }
+  }
+
+  .dou-chat-suggestions__description {
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+    line-height: 20px;
+  }
+}

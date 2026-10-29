@@ -13,6 +13,12 @@
     overflow: hidden;
   }
 
+  /* The copies never widen the box: in a shrink-to-fit parent they would
+     each make room for more. */
+  .dou-marquee--horizontal {
+    contain: inline-size;
+  }
+
   .dou-marquee--vertical {
     flex-direction: column;
   }

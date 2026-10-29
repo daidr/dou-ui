@@ -8,7 +8,7 @@ const shown = ref(true)
 
 <template>
   <div style="display: flex; flex-direction: column; gap: 16px">
-    <DouSpace size="sm">
+    <DouSpace size="sm" wrap>
       <DouSegmentedControl v-model="preset" :options="presets" size="sm" />
       <DouButton size="sm" variant="outline" @click="shown = !shown">
         {{ shown ? '隐藏' : '显示' }}

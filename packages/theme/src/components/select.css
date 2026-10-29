@@ -130,9 +130,8 @@
   .dou-select__placeholder {
     flex: 1 1 auto;
     min-width: 0;
-    /* clip, not hide: the trimmed line box is shorter than CJK glyphs */
-    overflow: clip;
-    overflow-clip-margin: 4px;
+    /* clip inline only: glyphs overflow the trimmed line box vertically */
+    overflow-x: clip;
     line-height: 1;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -273,8 +272,7 @@
   .dou-select__option-label {
     flex: 1 1 auto;
     min-width: 0;
-    overflow: clip;
-    overflow-clip-margin: 4px;
+    overflow-x: clip;
     text-overflow: ellipsis;
     text-box: trim-both cap alphabetic;
   }

@@ -82,8 +82,7 @@
 
   .dou-transfer__label {
     min-width: 0;
-    overflow: clip;
-    overflow-clip-margin: 4px;
+    overflow-x: clip;
     text-overflow: ellipsis;
     white-space: nowrap;
   }

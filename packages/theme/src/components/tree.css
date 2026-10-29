@@ -182,8 +182,7 @@
     align-items: center;
     gap: var(--dou-tree-gap);
     min-width: 0;
-    overflow: clip;
-    overflow-clip-margin: 4px;
+    overflow-x: clip;
     text-overflow: ellipsis;
     text-box: trim-both cap alphabetic;
   }
@@ -191,8 +190,7 @@
   /* one inline run, so the label's flex gap never splits a highlighted word */
   .dou-tree__text {
     min-width: 0;
-    overflow: clip;
-    overflow-clip-margin: 4px;
+    overflow-x: clip;
     text-overflow: ellipsis;
   }
 

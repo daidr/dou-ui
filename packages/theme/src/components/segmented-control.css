@@ -163,7 +163,7 @@
     align-items: center;
     gap: var(--dou-control-gap-md);
     min-width: 0;
-    overflow: hidden;
+    overflow-x: clip;
     text-overflow: ellipsis;
     /*
      * Center on the cap height instead of the font's ascent and descent,

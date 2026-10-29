@@ -213,6 +213,16 @@ export const en: Locale = {
   inputOtp: {
     label: 'Verification code',
   },
+  qrcode: {
+    label: 'QR code: {value}',
+    expired: 'QR code expired',
+    refresh: 'Refresh',
+    loading: 'Loading QR code',
+  },
+  calendarView: {
+    more: '+{count} more',
+    dayWithEvents: '{date}, {count} events',
+  },
   form: {
     optional: 'optional',
     required: 'This field is required',

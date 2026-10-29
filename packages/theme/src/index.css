@@ -19,6 +19,7 @@
 @import './components/badge.css';
 @import './components/breadcrumb.css';
 @import './components/button.css';
+@import './components/calendar-view.css';
 @import './components/card.css';
 @import './components/cascader.css';
 @import './components/checkbox.css';
@@ -55,6 +56,7 @@
 @import './components/popconfirm.css';
 @import './components/popover.css';
 @import './components/progress.css';
+@import './components/qrcode.css';
 @import './components/radio.css';
 @import './components/rate.css';
 @import './components/result.css';

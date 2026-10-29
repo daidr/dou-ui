@@ -320,6 +320,22 @@ export interface Locale {
     /** Names the code field when nothing else labels it. */
     label: string
   }
+  qrcode: {
+    /** Names the code for screen readers, with `{value}`. */
+    label: string
+    /** Shown over an expired code. */
+    expired: string
+    /** The button that asks for a new code. */
+    refresh: string
+    /** Read while a code loads. */
+    loading: string
+  }
+  calendarView: {
+    /** Events that did not fit in a day, with `{count}`. */
+    more: string
+    /** A day's label when it has events, with `{date}` and `{count}`. */
+    dayWithEvents: string
+  }
   form: {
     /** Shown after the label of an optional field when `requiredMark` is `'optional'`. */
     optional: string

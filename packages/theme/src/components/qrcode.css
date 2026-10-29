@@ -1,0 +1,101 @@
+/*
+ * QRCode
+ *
+ * Square modules on a plain field. The code stays dark on light in both
+ * themes, since not every scanner reads an inverted code; in the dark
+ * theme it reads as a small white card. Its edge is a hairline frame; an
+ * expired or loading code is covered by a frosted layer that keeps the
+ * pattern faintly visible.
+ */
+@layer dou.components {
+  .dou-qrcode {
+    --dou-qrcode-ink: var(--dou-qrcode-color, oklch(0.2 0 0));
+    --dou-qrcode-paper: var(--dou-qrcode-bg, #fff);
+
+    position: relative;
+    display: inline-flex;
+    box-sizing: content-box;
+    width: var(--dou-qrcode-size);
+    height: var(--dou-qrcode-size);
+    padding: 8px;
+    overflow: hidden;
+    border: 1px solid var(--dou-color-border-subtle);
+    border-radius: var(--dou-radius-container);
+    background-color: var(--dou-qrcode-paper);
+    vertical-align: middle;
+  }
+
+  .dou-qrcode__svg {
+    display: block;
+  }
+
+  .dou-qrcode__bg {
+    fill: var(--dou-qrcode-paper);
+  }
+
+  .dou-qrcode__modules {
+    fill: var(--dou-qrcode-ink);
+  }
+
+  .dou-qrcode__icon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    box-sizing: border-box;
+    padding: 3px;
+    border-radius: 6px;
+    background-color: var(--dou-qrcode-paper);
+    object-fit: contain;
+    translate: -50% -50%;
+  }
+
+  .dou-qrcode__cover {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background-color: color-mix(in oklab, var(--dou-qrcode-paper) 86%, transparent);
+    backdrop-filter: blur(2px);
+    color: var(--dou-qrcode-ink);
+    font-size: var(--dou-font-size-sm);
+    text-align: center;
+  }
+
+  .dou-qrcode__expired {
+    color: color-mix(in oklab, var(--dou-qrcode-ink) 70%, var(--dou-qrcode-paper));
+  }
+
+  .dou-qrcode__refresh {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: var(--dou-control-height-sm);
+    padding: 0 10px;
+    margin: 0;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-control);
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-sm);
+    color: var(--dou-color-text);
+    font: inherit;
+    cursor: pointer;
+
+    &:hover {
+      border-color: var(--dou-color-border-strong);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 1px;
+    }
+
+    & > svg {
+      width: 1em;
+      height: 1em;
+      font-size: 14px;
+    }
+  }
+}

@@ -63,6 +63,7 @@ const sort = defineModel<TableSort | null>('sort', { default: null })
 const expanded = defineModel<TableRowKey[]>('expanded', { default: () => [] })
 const filters = defineModel<Record<string, unknown[]>>('filters', { default: () => ({}) })
 const currentKey = defineModel<TableRowKey | null>('current', { default: null })
+const columnKeys = defineModel<string[] | undefined>('columnKeys', { default: undefined })
 const emit = defineEmits<{
   'update:data': [data: T[]]
   rowDrop: [event: TableRowDropEvent<T>]
@@ -112,6 +113,14 @@ const isLazy = (row: T) =>
 
 /* columns: groups only have a header, the columns under them show the data */
 
+/** The top-level columns to show, in the order `columnKeys` gives. */
+const shown = computed(() => {
+  const keys = columnKeys.value
+  if (!keys) return props.columns
+  const byKey = new Map(props.columns.map((column) => [column.key, column]))
+  return keys.flatMap((key) => byKey.get(key) ?? [])
+})
+
 const leaves = computed(() => {
   const result: TableColumn<T>[] = []
   const walk = (list: TableColumn<T>[], fixed: TableColumn<T>['fixed']) => {
@@ -120,7 +129,7 @@ const leaves = computed(() => {
       else result.push(fixed && !column.fixed ? { ...column, fixed } : column)
     }
   }
-  walk(props.columns, undefined)
+  walk(shown.value, undefined)
   return result
 })
 
@@ -138,7 +147,7 @@ interface HeaderCell {
 
 const depthOf = (column: TableColumn<T>): number =>
   column.children?.length ? 1 + Math.max(...column.children.map(depthOf)) : 1
-const headerDepth = computed(() => Math.max(1, ...props.columns.map(depthOf)))
+const headerDepth = computed(() => Math.max(1, ...shown.value.map(depthOf)))
 const grouped = computed(() => headerDepth.value > 1)
 
 const headerRows = computed(() => {
@@ -162,7 +171,7 @@ const headerRows = computed(() => {
       })
     }
   }
-  walk(props.columns, 0)
+  walk(shown.value, 0)
   return rows
 })
 

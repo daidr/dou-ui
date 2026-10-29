@@ -20,7 +20,11 @@ describe('DouKbd', () => {
     const platform = vi.spyOn(navigator, 'platform', 'get').mockReturnValue('MacIntel')
     const wrapper = mount(DouKbd, { props: { keys: 'mod+shift+p' } })
     await nextTick()
-    expect(wrapper.findAll('.dou-kbd__step .dou-kbd').map((key) => key.text())).toEqual(['⇧', '⌘', 'P'])
+    expect(wrapper.findAll('.dou-kbd__step .dou-kbd').map((key) => key.text())).toEqual([
+      '⇧',
+      '⌘',
+      'P',
+    ])
     platform.mockReturnValue('Win32')
     const other = mount(DouKbd, { props: { keys: 'g i' } })
     await nextTick()

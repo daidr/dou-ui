@@ -70,9 +70,15 @@
 
 <DocDemo src="date-picker/size-state" />
 
+## 显示格式
+
+输入框里的写法默认来自语言包的 `region`：中文是 `YYYY-MM-DD`，英文是 `MM/DD/YYYY`。`display-format` 可以单独指定，`YYYY`、`MM`、`DD` 是年月日，`[]` 里的文字原样保留。格式只影响显示和输入，`v-model` 的值始终是 `YYYY-MM-DD` 这样的形式；输入 `2026-10-29` 这样的写法也总能识别。周始终使用 ISO 写法。
+
+<DocDemo src="date-picker/display-format" />
+
 ## 一周的第一天
 
-默认按语言决定：英文从周日开始，其他语言从周一开始。`week-start` 可以指定 `0`（周日）或 `1`（周一）。星期与月份的名称来自浏览器的 `Intl`，跟随语言包的 `name`，不需要另外翻译。
+默认取语言包的 `region.weekStart`：`zhCN` 从周一开始，`en` 从周日开始。`week-start` 可以指定 `0`（周日）或 `1`（周一）。星期与月份的名称来自浏览器的 `Intl`，跟随语言包的 `name`，不需要另外翻译。
 
 ## 键盘与读屏
 
@@ -101,12 +107,13 @@
 | `type`             | 选择日期、日期时间、周、月份还是年份 | `'date' \| 'datetime' \| 'week' \| 'month' \| 'year'` | `'date'`               |
 | `range`            | 选择一段日期（或日期时间）           | `boolean`                                             | `false`                |
 | `timeFormat`       | 日期时间是否带秒                     | `'HH:mm' \| 'HH:mm:ss'`                               | `'HH:mm'`              |
+| `displayFormat`    | 输入框中日期的写法                   | `string`                                              | 语言包                 |
 | `defaultTime`      | 只选了日子时取的时间；范围可传一对   | `string \| [string, string]`                          | 开始 00:00，结束 23:59 |
 | `shortcuts`        | 日历左侧的预设                       | `{ label: string; value: 值 \| (() => 值) }[]`        | —                      |
 | `min`              | 最早可选，包含                       | `string`                                              | —                      |
 | `max`              | 最晚可选，包含                       | `string`                                              | —                      |
 | `disabledDate`     | 排除某些日子                         | `(date: string) => boolean`                           | —                      |
-| `weekStart`        | 一周的第一天                         | `0 \| 1`                                              | 按语言                 |
+| `weekStart`        | 一周的第一天                         | `0 \| 1`                                              | 语言包                 |
 | `panels`           | 并排显示几个月                       | `1 \| 2`                                              | 范围为 2，否则 1       |
 | `placeholder`      | 占位文字                             | `string`                                              | 语言包                 |
 | `startPlaceholder` | 范围开始的占位文字                   | `string`                                              | 语言包                 |

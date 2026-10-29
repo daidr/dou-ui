@@ -1,5 +1,6 @@
 import type { LocaleMessagePath, TranslateParams } from '../config-provider/use-config'
-import type { FormModel, FormRule, FormTrigger } from './form'
+import type { FormModel, FormRule, FormRuleItem, FormTrigger } from './form'
+import { isStandardSchema, schemaIssues } from './standard-schema'
 
 type Translate = (path: LocaleMessagePath, params?: TranslateParams) => string
 
@@ -9,6 +10,11 @@ const URL_LIKE = /^[a-z][\d+.a-z-]*:\/\/\S+$/i
 export function toArray<T>(value: T | T[] | undefined): T[] {
   if (value === undefined) return []
   return Array.isArray(value) ? value : [value]
+}
+
+/** Turn a bare schema into `{ schema }`, so the rest only deals with rules. */
+export function toRules(value: FormRuleItem | FormRuleItem[] | undefined): FormRule[] {
+  return toArray(value).map((rule) => (isStandardSchema(rule) ? { schema: rule } : rule))
 }
 
 /** `undefined`, `null`, blank text, an empty list and `false` count as empty. */
@@ -99,6 +105,15 @@ async function checkRule(
     if (rule.pattern && typeof value === 'string') {
       rule.pattern.lastIndex = 0
       if (!rule.pattern.test(value)) return rule.message ?? t('form.pattern')
+    }
+  }
+
+  if (rule.schema) {
+    try {
+      const [issue] = await schemaIssues(rule.schema, value)
+      if (issue) return rule.message ?? issue.message
+    } catch (error) {
+      return (error instanceof Error && error.message) || rule.message || t('form.invalid')
     }
   }
 

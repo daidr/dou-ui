@@ -13,6 +13,7 @@ import type { TimeParts } from '../time-picker/time'
 import TimeColumns from '../time-picker/time-columns.vue'
 import DouCalendar from './calendar.vue'
 import { inBounds, parseDate, today } from './date'
+import { datePattern, formatWith, parseWith } from './pattern'
 import type {
   CalendarExpose,
   DatePickerExpose,
@@ -46,7 +47,7 @@ const emit = defineEmits<{
 const slots = defineSlots<DatePickerSlots>()
 
 const ns = useNamespace('date-picker')
-const { t } = useLocale()
+const { t, locale } = useLocale()
 const { formItem } = useFormItem()
 const size = useFormSize(() => props.size)
 const disabled = useFormDisabled(() => props.disabled)
@@ -75,13 +76,44 @@ function defaultTime(index: number): TimeParts {
     : { hour: 0, minute: 0, second: 0 }
 }
 
-/** Read what was typed. A `datetime` is a day, then optionally a time after a space or `T`. */
+/* how the day is written in the field: `displayFormat`, else the locale's pattern; weeks stay ISO */
+
+const pattern = computed(() => {
+  const unit = calendarType.value
+  if (unit === 'week') return null
+  const fromLocale = () => datePattern(locale.value.region[unit], unit)
+  return (props.displayFormat ? datePattern(props.displayFormat, unit) : null) ?? fromLocale()
+})
+
+function display(value: string) {
+  const parts = pattern.value
+  if (!parts || !value) return value
+  return formatWith(value.slice(0, 10), parts) + value.slice(10)
+}
+
+/**
+ * Read what was typed, through the pattern or as ISO. A `datetime` is a
+ * day, then optionally a time after a space or `T`.
+ */
 function parseAt(text: string, index: number) {
-  if (props.type !== 'datetime') return parseDate(text, props.type)
-  const [day = '', time] = text.trim().split(/\s*[\sT]\s*/)
-  const date = parseDate(day, 'date')
-  const parts = time === undefined ? defaultTime(index) : parseTime(time)
-  return date && parts ? withTime(date, parts) : null
+  const parts = pattern.value
+  if (props.type !== 'datetime') {
+    const read = parts && props.type !== 'week' && parseWith(text, parts, props.type)
+    return read && !read.rest.trim() ? read.value : parseDate(text, props.type)
+  }
+  let date: string | null
+  let time: string | undefined
+  const read = parts && parseWith(text, parts, 'date')
+  if (read) {
+    date = read.value
+    time = read.rest.trim().replace(/^T\s*/i, '') || undefined
+  } else {
+    const [day = '', rest] = text.trim().split(/\s*[\sT]\s*/)
+    date = parseDate(day, 'date')
+    time = rest
+  }
+  const clock = time === undefined ? defaultTime(index) : parseTime(time)
+  return date && clock ? withTime(date, clock) : null
 }
 
 /* the text in the fields, kept apart from the value while typing */
@@ -94,10 +126,10 @@ const values = computed<string[]>(() => {
 const texts = ref<string[]>([])
 const syncTexts = () => {
   texts.value = isRange.value
-    ? [values.value[0] ?? '', values.value[1] ?? '']
-    : [values.value[0] ?? '']
+    ? [display(values.value[0] ?? ''), display(values.value[1] ?? '')]
+    : [display(values.value[0] ?? '')]
 }
-watch([values, isRange], syncTexts, { immediate: true })
+watch([values, isRange, pattern], syncTexts, { immediate: true })
 
 const allowed = (value: string) => {
   const day = value.length > 10 ? value.slice(0, 10) : value
@@ -114,7 +146,9 @@ function commit(value: DateValue | DateRange | null) {
   formItem?.trigger('change')
   // A bound value only arrives on the next render; show it now.
   texts.value =
-    value === null ? texts.value.map(() => '') : Array.isArray(value) ? [...value] : [value]
+    value === null
+      ? texts.value.map(() => '')
+      : (Array.isArray(value) ? value : [value]).map(display)
 }
 
 /** Turn what was typed into a value, or put the old text back. */

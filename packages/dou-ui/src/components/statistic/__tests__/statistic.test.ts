@@ -1,6 +1,7 @@
 import { mount } from '@vue/test-utils'
+import { h } from 'vue'
 import { describe, expect, it } from 'vitest'
-import { DouStatistic } from '../../../index'
+import { DouConfigProvider, DouStatistic, zhCN } from '../../../index'
 import { formatNumber } from '../format'
 
 const opts = { groupSeparator: ',', decimalSeparator: '.' }
@@ -68,5 +69,17 @@ describe('DouStatistic', () => {
     expect(wrapper.find('.dou-statistic__placeholder').exists()).toBe(true)
     expect(wrapper.find('.dou-statistic__value').exists()).toBe(false)
     expect(wrapper.find('.dou-statistic__content').attributes('aria-busy')).toBe('true')
+  })
+
+  it('takes its separators from the locale', () => {
+    const locale = {
+      ...zhCN,
+      region: { ...zhCN.region, groupSeparator: ' ', decimalSeparator: ',' },
+    }
+    const wrapper = mount(() =>
+      h(DouConfigProvider, { locale }, () => h(DouStatistic, { value: 12345.6, precision: 1 })),
+    )
+    expect(wrapper.get('.dou-statistic__value').text()).toContain('12 345,6')
+    wrapper.unmount()
   })
 })

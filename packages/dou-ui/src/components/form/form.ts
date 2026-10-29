@@ -1,5 +1,6 @@
 import type { ComputedRef, InjectionKey, Ref } from 'vue'
 import type { Size } from '../../utils/types'
+import type { StandardSchemaV1 } from './standard-schema'
 
 /**
  * - `vertical`: the label sits above its field.
@@ -42,6 +43,12 @@ export interface FormRule {
     value: unknown,
     model: FormModel,
   ) => FormValidatorResult | Promise<FormValidatorResult>
+  /**
+   * A schema the value must pass, e.g. one from a validation library that
+   * implements Standard Schema. Fails with the schema's first message.
+   * Runs even when the value is empty, so the schema decides about that.
+   */
+  schema?: FormSchema
   /** Replaces the default message. */
   message?: string
   /**
@@ -52,8 +59,21 @@ export interface FormRule {
   trigger?: FormTrigger | FormTrigger[]
 }
 
+/**
+ * A Standard Schema. Some libraries build schemas as functions, so a
+ * callable one is accepted too.
+ */
+export type FormSchema = StandardSchemaV1 | CallableSchema
+
+export interface CallableSchema extends StandardSchemaV1 {
+  (...args: any[]): unknown
+}
+
+/** A rule, or a schema on its own as shorthand for `{ schema }`. */
+export type FormRuleItem = FormRule | FormSchema
+
 /** Rules by field path, e.g. `name` or `address.city`. */
-export type FormRules = Record<string, FormRule | FormRule[]>
+export type FormRules = Record<string, FormRuleItem | FormRuleItem[]>
 /** The first failing message by field path. */
 export type FormErrors = Record<string, string>
 
@@ -66,6 +86,11 @@ export interface FormProps {
   /** The object the fields write to. Pass a reactive object so `resetFields` can restore values. */
   model?: FormModel
   rules?: FormRules
+  /**
+   * A schema for the whole `model`. Each field shows the first issue whose
+   * path is its `prop` (or lies inside it), next to its own rules.
+   */
+  schema?: FormSchema
   layout?: FormLayout
   labelAlign?: FormLabelAlign
   /** Width of the label column in the horizontal layout. Defaults to the widest label. */
@@ -108,7 +133,7 @@ export interface FormItemProps {
   /** Path of the value in the form's `model`, e.g. `name` or `address.city`. Needed for validation. */
   prop?: string
   /** Added to the form's rules for this field. */
-  rules?: FormRule | FormRule[]
+  rules?: FormRuleItem | FormRuleItem[]
   /** Shorthand for a `required` rule. */
   required?: boolean
   /** A hint shown below the field. Replaced by the error while there is one. */
@@ -148,6 +173,7 @@ export interface FormItemHandle {
 export interface FormContext {
   model: () => FormModel | undefined
   rules: () => FormRules | undefined
+  schema: () => FormSchema | undefined
   layout: ComputedRef<FormLayout>
   size: ComputedRef<Size | undefined>
   disabled: ComputedRef<boolean>

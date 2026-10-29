@@ -1,0 +1,100 @@
+/*
+ * Marquee
+ *
+ * The content and its copies sit in one track that slides by exactly one
+ * copy and gap per loop, so the seam never shows. Edges fade through a
+ * mask rather than an overlay, so any background shows through.
+ */
+@layer dou.components {
+  .dou-marquee {
+    --dou-marquee-fade: 48px;
+
+    display: flex;
+    overflow: hidden;
+  }
+
+  .dou-marquee--vertical {
+    flex-direction: column;
+  }
+
+  .dou-marquee.is-fade {
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      #000 var(--dou-marquee-fade),
+      #000 calc(100% - var(--dou-marquee-fade)),
+      transparent
+    );
+  }
+  .dou-marquee--vertical.is-fade {
+    mask-image: linear-gradient(
+      to bottom,
+      transparent,
+      #000 var(--dou-marquee-fade),
+      #000 calc(100% - var(--dou-marquee-fade)),
+      transparent
+    );
+  }
+
+  .dou-marquee__track {
+    display: flex;
+    flex-shrink: 0;
+    gap: var(--dou-marquee-gap);
+  }
+  .dou-marquee--vertical .dou-marquee__track {
+    flex-direction: column;
+  }
+
+  .dou-marquee__content {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: var(--dou-marquee-gap);
+  }
+  .dou-marquee--vertical .dou-marquee__content {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .dou-marquee.is-ready .dou-marquee__track {
+    animation: dou-marquee-x var(--dou-marquee-duration) linear infinite;
+  }
+  .dou-marquee--vertical.is-ready .dou-marquee__track {
+    animation-name: dou-marquee-y;
+  }
+  .dou-marquee.is-reverse .dou-marquee__track {
+    animation-direction: reverse;
+  }
+  .dou-marquee.is-paused .dou-marquee__track,
+  .dou-marquee.is-pausable:hover .dou-marquee__track,
+  .dou-marquee.is-pausable:focus-within .dou-marquee__track {
+    animation-play-state: paused;
+  }
+
+  /* without motion: hold still and let the content scroll by hand */
+  @media (prefers-reduced-motion: reduce) {
+    .dou-marquee {
+      overflow: auto;
+    }
+    .dou-marquee.is-fade {
+      mask-image: none;
+    }
+    .dou-marquee.is-ready .dou-marquee__track {
+      animation: none;
+    }
+    .dou-marquee__content[aria-hidden='true'] {
+      display: none;
+    }
+  }
+
+  @keyframes dou-marquee-x {
+    to {
+      transform: translateX(calc(-1 * var(--dou-marquee-distance)));
+    }
+  }
+  @keyframes dou-marquee-y {
+    to {
+      transform: translateY(calc(-1 * var(--dou-marquee-distance)));
+    }
+  }
+}

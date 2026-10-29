@@ -9,22 +9,24 @@ import type { StatisticProps, StatisticSlots } from './statistic'
 defineOptions({ name: 'DouStatistic' })
 
 const props = withDefaults(defineProps<StatisticProps>(), {
-  groupSeparator: ',',
-  decimalSeparator: '.',
   upIsGood: true,
   loading: false,
 })
 const slots = defineSlots<StatisticSlots>()
 
 const ns = useNamespace('statistic')
-const { t } = useLocale()
+const { t, locale } = useLocale()
 
 const parts = computed(() => {
   const { value } = props
   if (value === null || value === undefined || value === '') return { text: '—' }
   if (typeof value === 'string') return { text: value }
   if (props.formatter) return { text: props.formatter(value) }
-  return formatNumber(value, props)
+  return formatNumber(value, {
+    precision: props.precision,
+    groupSeparator: props.groupSeparator ?? locale.value.region.groupSeparator,
+    decimalSeparator: props.decimalSeparator ?? locale.value.region.decimalSeparator,
+  })
 })
 
 const good = computed(() => {

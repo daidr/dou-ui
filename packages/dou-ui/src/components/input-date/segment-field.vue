@@ -85,13 +85,13 @@ const count = computed(() => (props.range ? 2 : 1))
 /* the pattern */
 
 const parts = computed(() => {
-  const time = t(props.seconds ? 'inputDate.timeWithSeconds' : 'inputDate.time')
+  const time = t(props.seconds ? 'region.timeWithSeconds' : 'region.time')
   const fallback =
     props.kind === 'time'
       ? time
       : props.kind === 'datetime'
-        ? `${t('inputDate.date')} ${time}`
-        : t(`inputDate.${props.kind}`)
+        ? `${t('region.date')} ${time}`
+        : t(`region.${props.kind}`)
   const given = props.displayFormat ? parsePattern(props.displayFormat) : null
   return given && fitsKind(given, props.kind, props.seconds) ? given : parsePattern(fallback)
 })

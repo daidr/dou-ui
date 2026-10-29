@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
-import { DouCalendar, DouDatePicker } from '../../../index'
+import { DouCalendar, DouConfigProvider, DouDatePicker, en } from '../../../index'
 import type { DateRange } from '../../../index'
 
 type Value = string | DateRange | null | undefined
@@ -317,6 +317,63 @@ describe('DouDatePicker', () => {
     await nextTick()
     expect(value.value).toEqual(['2026-10-22', '2026-10-28'])
     expect(wrapper.get('input').attributes('aria-expanded')).toBe('false')
+    wrapper.unmount()
+  })
+
+  it('shows and reads the day through a display format', async () => {
+    const { wrapper, value } = make(DouDatePicker, {
+      modelValue: '2026-10-08',
+      displayFormat: 'DD.MM.YYYY',
+    })
+    const input = wrapper.get('input')
+    expect(input.element.value).toBe('08.10.2026')
+    await input.setValue('2.11.2026')
+    await input.trigger('keydown', { key: 'Enter' })
+    expect(value.value).toBe('2026-11-02')
+    expect(input.element.value).toBe('02.11.2026')
+    // ISO text still works
+    await input.setValue('2026-12-01')
+    await input.trigger('keydown', { key: 'Enter' })
+    expect(value.value).toBe('2026-12-01')
+    wrapper.unmount()
+  })
+
+  it('writes a month and a datetime through a display format', async () => {
+    const month = make(DouDatePicker, {
+      type: 'month',
+      modelValue: '2026-10',
+      displayFormat: 'YYYY[年]MM[月]',
+    })
+    expect(month.wrapper.get('input').element.value).toBe('2026年10月')
+    month.wrapper.unmount()
+
+    const { wrapper, value } = make(DouDatePicker, {
+      type: 'datetime',
+      modelValue: '2026-10-08 09:30',
+      displayFormat: 'DD/MM/YYYY',
+    })
+    const input = wrapper.get('input')
+    expect(input.element.value).toBe('08/10/2026 09:30')
+    await input.setValue('03/10/2026 14:05')
+    await input.trigger('keydown', { key: 'Enter' })
+    await input.trigger('keydown', { key: 'Enter' })
+    expect(value.value).toBe('2026-10-03 14:05')
+    wrapper.unmount()
+  })
+
+  it('follows the locale for the pattern and the first day of the week', async () => {
+    const wrapper = mount(
+      () =>
+        h(DouConfigProvider, { locale: en }, () => [
+          h(DouDatePicker, { modelValue: '2026-10-08' }),
+          h(DouCalendar, { modelValue: '2026-10-08' }),
+        ]),
+      { attachTo: document.body },
+    )
+    expect(wrapper.get('input').element.value).toBe('10/08/2026')
+    // October 2026 starts on a Thursday: four days of September lead a Sunday-first grid
+    const first = wrapper.get('.dou-calendar [data-value]')
+    expect(first.attributes('data-value')).toBe('2026-09-27')
     wrapper.unmount()
   })
 })

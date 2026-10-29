@@ -29,7 +29,7 @@ export interface CalendarProps {
   max?: DateValue
   /** Rule out single days, e.g. weekends. Receives `YYYY-MM-DD`. */
   disabledDate?: (date: string) => boolean
-  /** The first day of the week. Defaults to Sunday for English and Monday otherwise. */
+  /** The first day of the week. Defaults to the locale's `region.weekStart`. */
   weekStart?: WeekStart
   /** Months shown side by side. Defaults to 2 for a range, 1 otherwise. */
   panels?: 1 | 2
@@ -70,6 +70,13 @@ export interface DatePickerProps extends Omit<CalendarProps, 'type'> {
   type?: DatePickerType
   /** Whether a `datetime` carries seconds. */
   timeFormat?: TimeFormat
+  /**
+   * How a day, month or year is shown and typed in the field, e.g.
+   * `DD/MM/YYYY` or `YYYY[年]MM[月]`. Defaults to the locale's
+   * `region` patterns. The value keeps its own format, and ISO text such
+   * as `2026-10-29` can always be typed. Weeks are always ISO.
+   */
+  displayFormat?: string
   /**
    * The time a `datetime` gets when a day is picked before a time, as
    * `HH:mm` or `HH:mm:ss`; a pair for a range. Defaults to the start of

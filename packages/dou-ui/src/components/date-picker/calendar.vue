@@ -46,9 +46,7 @@ const isWeek = computed(() => unit.value === 'week')
 const panelCount = computed(() => props.panels ?? (isRange.value ? 2 : 1))
 // ISO weeks start on Monday, whatever the locale.
 const weekStart = computed(() =>
-  isWeek.value
-    ? 1
-    : (props.weekStart ?? (locale.value.name.toLowerCase().startsWith('en') ? 0 : 1)),
+  isWeek.value ? 1 : (props.weekStart ?? locale.value.region.weekStart),
 )
 
 /* the value */

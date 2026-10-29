@@ -9,6 +9,8 @@ export default DouForm
 export { formItemKey, formKey } from './form'
 export { useFormDisabled, useFormItem, useFormSize } from './use-form-item'
 export type * from './form'
+export { isStandardSchema } from './standard-schema'
+export type { StandardSchemaV1 } from './standard-schema'
 export type FormInstance = InstanceType<typeof Form>
 export type FormItemInstance = InstanceType<typeof FormItem>
 

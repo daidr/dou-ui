@@ -12,6 +12,7 @@ import {
   watch,
 } from 'vue'
 import { announce } from '../../utils/announce'
+import { splitHighlight } from '../../utils/highlight'
 import { useNamespace } from '../../utils/namespace'
 import { getScrollParent, isWindow } from '../../utils/scroll'
 import { useLocale } from '../config-provider/use-config'
@@ -402,15 +403,7 @@ function onRowClick(row: TreeRow) {
 /* the label, with the filter's match picked out */
 
 function parts(node: TreeNodeData) {
-  const label = labelOf(node)
-  const text = query.value
-  const at = text && !props.filterMethod ? label.toLowerCase().indexOf(text.toLowerCase()) : -1
-  if (at < 0) return [{ text: label, match: false }]
-  return [
-    { text: label.slice(0, at), match: false },
-    { text: label.slice(at, at + text.length), match: true },
-    { text: label.slice(at + text.length), match: false },
-  ].filter((part) => part.text)
+  return splitHighlight(labelOf(node), props.filterMethod ? '' : query.value)
 }
 
 /* dragging: the new tree goes to `update:data` */

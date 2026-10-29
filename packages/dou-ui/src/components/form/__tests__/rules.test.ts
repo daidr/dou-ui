@@ -2,7 +2,26 @@ import { describe, expect, it } from 'vitest'
 import { translate } from '../../config-provider/use-config'
 import { zhCN } from '../../../locale'
 import type { FormRule } from '../form'
-import { getPath, isEmpty, rulesFor, setPath, validateValue } from '../rules'
+import { getPath, isEmpty, rulesFor, setPath, toRules, validateValue } from '../rules'
+import type { StandardSchemaV1 } from '../standard-schema'
+
+/** A tiny schema in the Standard Schema shape, as a validation library would build. */
+function schema(
+  check: (value: unknown) => string | null,
+  { async = false, path }: { async?: boolean; path?: PropertyKey[] } = {},
+): StandardSchemaV1 {
+  return {
+    '~standard': {
+      version: 1,
+      vendor: 'test',
+      validate(value) {
+        const message = check(value)
+        const result = message ? { issues: [{ message, path }] } : { value }
+        return async ? Promise.resolve(result) : result
+      },
+    },
+  }
+}
 
 const t = (path: Parameters<typeof translate>[1], params?: Record<string, string | number>) =>
   translate(zhCN, path, params)
@@ -85,5 +104,22 @@ describe('form rules', () => {
     expect(getPath(model, 'a.x.y')).toBeUndefined()
     setPath(model, 'a.b.0', 9)
     expect(model.a.b[0]).toBe(9)
+  })
+
+  it('runs Standard Schema rules, sync or async', async () => {
+    const short = schema((value) => (String(value).length < 3 ? '至少 3 个字' : null))
+    const taken = schema((value) => (value === '戴兜' ? '名称已被占用' : null), { async: true })
+    expect(await check('ab', { schema: short })).toBe('至少 3 个字')
+    expect(await check('abc', { schema: short })).toBeNull()
+    expect(await check('戴兜', { schema: taken })).toBe('名称已被占用')
+    expect(await check('ab', { schema: short, message: '太短了' })).toBe('太短了')
+    // a schema decides about empty values itself
+    expect(await check('', { schema: short })).toBe('至少 3 个字')
+  })
+
+  it('takes a bare schema as a rule', () => {
+    const short = schema(() => null)
+    expect(toRules(short)).toEqual([{ schema: short }])
+    expect(toRules([{ required: true }, short])).toEqual([{ required: true }, { schema: short }])
   })
 })

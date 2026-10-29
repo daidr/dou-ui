@@ -2,6 +2,16 @@ import type { Locale } from './types'
 
 export const zhCN: Locale = {
   name: 'zh-CN',
+  region: {
+    weekStart: 1,
+    date: 'YYYY-MM-DD',
+    month: 'YYYY-MM',
+    year: 'YYYY',
+    time: 'HH:mm',
+    timeWithSeconds: 'HH:mm:ss',
+    groupSeparator: ',',
+    decimalSeparator: '.',
+  },
   tabs: {
     close: '关闭',
     add: '新建标签页',
@@ -265,11 +275,6 @@ export const zhCN: Locale = {
     label: '验证码',
   },
   inputDate: {
-    date: 'YYYY-MM-DD',
-    month: 'YYYY-MM',
-    year: 'YYYY',
-    time: 'HH:mm',
-    timeWithSeconds: 'HH:mm:ss',
     placeholders: {
       year: '年',
       month: '月',

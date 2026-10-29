@@ -8,6 +8,25 @@
 export interface Locale {
   /** A BCP 47 language tag, e.g. `zh-CN`. */
   name: string
+  /** How dates and numbers are written where this language is used. */
+  region: {
+    /** The first day of the week: `0` is Sunday, `1` Monday. */
+    weekStart: 0 | 1
+    /** How a date is shown and typed. `YYYY`, `MM`, `DD` are the parts; text in `[]` is kept as it is. */
+    date: string
+    /** How a month is shown and typed. */
+    month: string
+    /** How a year is shown and typed. */
+    year: string
+    /** How a time is shown and typed. `HH` is a 24-hour hour, `hh` with `A` a 12-hour one. */
+    time: string
+    /** The same with seconds (`ss`). */
+    timeWithSeconds: string
+    /** Put between groups of three digits. */
+    groupSeparator: string
+    /** Put before the fraction of a number. */
+    decimalSeparator: string
+  }
   tabs: {
     /** Hint on the close button of a tab. */
     close: string
@@ -396,16 +415,6 @@ export interface Locale {
     label: string
   }
   inputDate: {
-    /** How a date is shown and typed. `YYYY`, `MM`, `DD` are the parts; text in `[]` is kept as it is. */
-    date: string
-    /** How a month is shown and typed. */
-    month: string
-    /** How a year is shown and typed. */
-    year: string
-    /** How a time is shown and typed. `HH` is a 24-hour hour, `hh` with `A` a 12-hour one. */
-    time: string
-    /** The same with seconds (`ss`). */
-    timeWithSeconds: string
     /** Shown in each part while it is empty. */
     placeholders: Record<
       'year' | 'month' | 'day' | 'hour' | 'minute' | 'second' | 'meridiem',

@@ -260,6 +260,11 @@ export const en: Locale = {
     more: 'More',
     day: '{value} on {date}',
   },
+  sparkline: {
+    summary: '{count} values, low {min}, high {max}, latest {last}',
+    empty: 'No data',
+    point: '{label}: {value}',
+  },
   relativeTime: {
     justNow: 'just now',
   },

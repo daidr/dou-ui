@@ -198,6 +198,7 @@ export default defineConfig({
             { text: 'FlowGraph 流程图', link: '/components/flow-graph' },
             { text: 'CalendarView 日历视图', link: '/components/calendar-view' },
             { text: 'CalendarHeatmap 日历热力图', link: '/components/calendar-heatmap' },
+            { text: 'Sparkline 迷你图', link: '/components/sparkline' },
             { text: 'Table 表格', link: '/components/table' },
             { text: 'Tree 树', link: '/components/tree' },
             { text: 'VirtualList 虚拟列表', link: '/components/virtual-list' },

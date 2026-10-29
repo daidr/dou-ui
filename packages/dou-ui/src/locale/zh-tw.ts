@@ -260,6 +260,11 @@ export const zhTW: Locale = {
     more: '多',
     day: '{date}：{value}',
   },
+  sparkline: {
+    summary: '{count} 筆資料，最低 {min}，最高 {max}，最新 {last}',
+    empty: '暫無資料',
+    point: '{label}：{value}',
+  },
   relativeTime: {
     justNow: '剛剛',
   },

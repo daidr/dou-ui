@@ -563,6 +563,12 @@ body {
   white-space: nowrap;
 }
 
+/* mobile navigation drawer */
+
+.doc-mobile-nav__divider.dou-divider {
+  margin: 12px 0;
+}
+
 /* narrower screens */
 
 @media (max-width: 1279px) {

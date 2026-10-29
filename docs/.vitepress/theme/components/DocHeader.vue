@@ -5,7 +5,6 @@ import type { MenuOption } from 'dou-ui'
 import { GithubIcon, MenuIcon, MoonIcon, SearchIcon, SunIcon } from '../icons'
 import { useDocs } from '../use-docs'
 
-defineProps<{ hasSidebar: boolean }>()
 const emit = defineEmits<{ search: []; menu: [] }>()
 
 const { isDark, site } = useData()
@@ -29,10 +28,9 @@ const isMac = computed(() => mounted.value && /Mac|iPhone|iPad/.test(navigator.p
   <header class="doc-header">
     <div class="doc-header__inner">
       <DouButton
-        v-if="hasSidebar"
         class="doc-header__menu doc-icon-button"
         variant="ghost"
-        aria-label="打开目录"
+        aria-label="打开导航"
         @click="emit('menu')"
       >
         <template #leading

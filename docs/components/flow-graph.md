@@ -64,6 +64,12 @@
 
 <DocDemo src="flow-graph/legend" />
 
+## 综合示例
+
+一个 App 发版流程，用上了上面的所有特性：图标、附加信息、进度、卡片说明、未完成标记、里程碑、`auto-blocked`、多选、悬停详情、`corner` 评论数、工具栏里的"关键路径"开关（切换连线的 `active` 和 `muted`），以及缩放和图例。"复盘"节点设为 `disabled`，不能选中。
+
+<DocDemo src="flow-graph/complex" column />
+
 ## 键盘与读屏
 
 每个节点都是一个按钮，可选择时带 `aria-pressed`。节点的读屏文字包含名称、类型、状态、进度和它依赖的节点，比如"确认议程，进行中，依赖 预订场地，邀请嘉宾"，不靠颜色传达状态。

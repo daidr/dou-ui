@@ -87,6 +87,9 @@ function statusOf(node: FlowNode): FlowNodeStatus {
   return status
 }
 
+// The legend lists the statuses as shown, after `autoBlocked`.
+const shownNodes = computed(() => props.nodes.map((node) => ({ ...node, status: statusOf(node) })))
+
 // A second line or a progress bar does not fit a capsule.
 const isCard = (node: FlowNode) =>
   node.shape === 'card' ||
@@ -421,6 +424,8 @@ watch(
 let rootObserver: ResizeObserver | undefined
 onMounted(() => {
   measure()
+  // Known right away, so a parent's onMounted can already call fit().
+  viewport.value = { width: rootRef.value!.clientWidth, height: rootRef.value!.clientHeight }
   if (typeof ResizeObserver !== 'undefined') {
     rootObserver = new ResizeObserver(([entry]) => {
       const { width, height } = entry!.contentRect
@@ -429,8 +434,6 @@ onMounted(() => {
     rootObserver.observe(rootRef.value!)
     nodeObserver = new ResizeObserver(scheduleMeasure)
     for (const el of nodeEls.values()) nodeObserver.observe(el)
-  } else if (rootRef.value) {
-    viewport.value = { width: rootRef.value.clientWidth, height: rootRef.value.clientHeight }
   }
   // Node widths are fixed once laid out, so a late web font would not
   // resize them: measure again whenever fonts finish loading.
@@ -787,7 +790,7 @@ defineExpose<FlowGraphExpose>({ scrollToNode, fit, zoomTo, resetView, relayout: 
         </button>
         <template #content>
           <slot name="legend">
-            <DouFlowGraphLegend :nodes="nodes" />
+            <DouFlowGraphLegend :nodes="shownNodes" />
           </slot>
         </template>
       </DouPopover>

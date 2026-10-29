@@ -30,13 +30,13 @@
 
 ## 拖动与全屏
 
-`draggable` 后按住标题栏可以拖动面板，面板不会被拖出视口，每次打开都回到原位。`fullscreenable` 在标题栏右侧加一个切换全屏的按钮，全屏状态用 `v-model:fullscreen` 绑定，也可以直接传 `fullscreen` 让对话框一打开就是全屏。全屏时内容区单独滚动，拖动暂停。
+`draggable` 后按住标题栏可以拖动面板，面板不会被拖出视口，每次打开都回到原位。`fullscreenable` 在标题栏右侧加一个切换全屏的按钮，全屏状态用 `v-model:fullscreen` 绑定，也可以直接传 `fullscreen` 让对话框打开时即为全屏。全屏时内容区单独滚动，拖动暂停。
 
 <DocDemo src="dialog/draggable" />
 
 ## 函数式调用
 
-一次性的确认、提示和输入，不必写模板和开关状态：`dialog.confirm()`、`dialog.alert()` 与 `dialog.prompt()` 直接打开一个对话框，返回一个在用户作答后兑现的 Promise。
+一次性的确认、提示和输入，不需要编写模板和维护打开状态：`dialog.confirm()`、`dialog.alert()` 与 `dialog.prompt()` 直接打开一个对话框，返回一个在用户作答后兑现的 Promise。
 
 <DocDemo src="dialog/function-call" />
 
@@ -57,7 +57,7 @@ await dialog.confirm({
 
 ### 语气与焦点
 
-`tone` 只在标题旁加一个语气图标；`danger` 还会把确定按钮染成红色，并让焦点先落在“取消”上，误按 `Enter` 也不会执行危险操作。其他情况焦点落在"确定"，`prompt` 落在输入框。
+`tone` 只在标题旁加一个语气图标；`danger` 还会把确定按钮染成红色，并让焦点先落在“取消”上，误按 `Enter` 也不会执行危险操作。其他情况焦点落在“确定”，`prompt` 落在输入框。
 
 ### 使用应用的配置
 
@@ -123,13 +123,13 @@ const dialog = useDialog()
 
 | 名称                      | 说明                               | 返回                      |
 | ------------------------- | ---------------------------------- | ------------------------- |
-| `dialog.confirm(options)` | 确认对话框，"确定" + "取消"        | `Promise<boolean>`        |
-| `dialog.alert(options)`   | 提示对话框，只有"确定"             | `Promise<void>`           |
+| `dialog.confirm(options)` | 确认对话框，“确定” + “取消”        | `Promise<boolean>`        |
+| `dialog.alert(options)`   | 提示对话框，只有“确定”             | `Promise<void>`           |
 | `dialog.prompt(options)`  | 输入对话框                         | `Promise<string \| null>` |
-| `dialog.closeAll()`       | 以"取消"关闭所有函数式打开的对话框 | —                         |
+| `dialog.closeAll()`       | 以“取消”关闭所有函数式打开的对话框 | —                         |
 | `useDialog()`             | 绑定当前组件所在应用的同一套方法   | `DialogApi`               |
 
-返回的 Promise 上还有 `close()`，以"取消"关闭这一个对话框。
+返回的 Promise 上还有 `close()`，以“取消”关闭这一个对话框。
 
 ### 函数的选项
 

@@ -38,7 +38,7 @@
 
 ## 懒加载
 
-传入 `load` 后，没有 `children` 的节点被视为"还没加载"，第一次展开时调用 `load(node)` 取回子节点，期间箭头换成加载指示。已知没有子节点的传 `isLeaf: true`。加载失败时分支收起并触发 `load-error`，下次展开会重新加载。
+传入 `load` 后，没有 `children` 的节点被视为“还没加载”，第一次展开时调用 `load(node)` 取回子节点，期间箭头换成加载指示。已知没有子节点的传 `isLeaf: true`。加载失败时分支收起并触发 `load-error`，下次展开会重新加载。
 
 <DocDemo src="tree/lazy" column />
 
@@ -48,7 +48,7 @@
 
 `draggable` 让节点可以拖到另一个节点之前、之后或里面（成为它的最后一个子节点）。拖动时目标行显示一条横线或高亮，停在收起的分支上一会儿会自动展开。松开后新的树通过 `update:data` 传出，所以 `data` 要用 `v-model:data` 绑定；同时触发 `drop`，参数为 `{ node, target, position }`。
 
-`allow-drag` 决定节点能否被拿起，`allow-drop` 决定能否放到某个位置。标了 `isLeaf` 的节点和还没加载的懒加载分支不接受放入，节点也不能放进自己的子孙里。设置了 `filter` 时拖拽暂停。下面的"更新日志"不能拖动。
+`allow-drag` 决定节点能否被拿起，`allow-drop` 决定能否放到某个位置。标了 `isLeaf` 的节点和还没加载的懒加载分支不接受放入，节点也不能放进自己的子孙里。设置了 `filter` 时拖拽暂停。下面的“更新日志”不能拖动。
 
 <DocDemo src="tree/draggable" column />
 
@@ -74,7 +74,7 @@
 
 ## 键盘与读屏
 
-容器是 `role="tree"`，每行是 `role="treeitem"`，带 `aria-level`、`aria-setsize`、`aria-posinset`，分支带 `aria-expanded`，可选中时带 `aria-selected`，可勾选时带 `aria-checked`（部分勾选为 `mixed`）。行是平铺渲染的，层级完全由这些属性表达，因此虚拟滚动时读屏器也能读出"第 3 层，共 50 项中的第 12 项"。
+容器是 `role="tree"`，每行是 `role="treeitem"`，带 `aria-level`、`aria-setsize`、`aria-posinset`，分支带 `aria-expanded`，可选中时带 `aria-selected`，可勾选时带 `aria-checked`（部分勾选为 `mixed`）。行是平铺渲染的，层级完全由这些属性表达，因此虚拟滚动时读屏器也能读出“第 3 层，共 50 项中的第 12 项”。
 
 焦点始终在树上，当前行通过 `aria-activedescendant` 指出，只在键盘聚焦时画出焦点环。
 

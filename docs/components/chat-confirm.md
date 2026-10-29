@@ -12,7 +12,7 @@
 
 ## 危险操作
 
-`danger` 时允许按钮使用危险色，`approve-text` 和 `deny-text` 可以换成更具体的文字，比如"删除"。
+`danger` 时允许按钮使用危险色，`approve-text` 和 `deny-text` 可以换成更具体的文字，比如“删除”。
 
 <DocDemo src="chat-confirm/danger" column />
 
@@ -25,7 +25,7 @@
 | `title`       | 要确认的事         | `string`                              | —           |
 | `description` | 补充说明           | `string`                              | —           |
 | `status`      | 状态               | `'pending' \| 'approved' \| 'denied'` | `'pending'` |
-| `allowAlways` | 显示"总是允许"按钮 | `boolean`                             | `false`     |
+| `allowAlways` | 显示“总是允许”按钮 | `boolean`                             | `false`     |
 | `danger`      | 允许按钮使用危险色 | `boolean`                             | `false`     |
 | `approveText` | 允许按钮的文字     | `string`                              | `允许`      |
 | `denyText`    | 拒绝按钮的文字     | `string`                              | `拒绝`      |

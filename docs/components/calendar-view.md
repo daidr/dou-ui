@@ -6,13 +6,13 @@
 
 ## 基础用法
 
-`events` 是一组 `{ date, title, tone? }`，`end` 让一件事跨几天，跨天的标签首尾相连。每天最多列 `max-events`（默认 3）项，其余折成"还有 N 项"。点日子触发 `select` 并更新 `v-model`，点日程触发 `event-click`。
+`events` 是一组 `{ date, title, tone? }`，`end` 让一件事跨几天，跨天的标签首尾相连。每天最多列 `max-events`（默认 3）项，其余折成“还有 N 项”。点日子触发 `select` 并更新 `v-model`，点日程触发 `event-click`。
 
 <DocDemo src="calendar-view/basic" column />
 
 ## 周视图与日视图
 
-`view` 切换月、周、日三种视图，配合 `v-model:view` 使用；传入 `views` 时在导航旁显示切换按钮。周视图和日视图沿纵向时间轴排布：带 `time`（与可选的 `endTime`）的日程按时段放置，时间重叠的并排显示；没有时间的日程放在顶部的"全天"一行。今天的列里有一条当前时间线。
+`view` 切换月、周、日三种视图，配合 `v-model:view` 使用；传入 `views` 时在导航旁显示切换按钮。周视图和日视图沿纵向时间轴排布：带 `time`（与可选的 `endTime`）的日程按时段放置，时间重叠的并排显示；没有时间的日程放在顶部的“全天”一行。今天的列里有一条当前时间线。
 
 `hours` 设置时间轴覆盖的时段，`scroll-time` 是打开时滚动到的时间。点击时间轴上的空白处触发 `time-click`，带上日期和取整到半小时的时间，可以用来新建日程。
 
@@ -73,4 +73,4 @@
 - 月份是一个 `role="grid"`，只有当前日子在 Tab 顺序里：方向键按天、按周移动，<DouKbd>Home</DouKbd> / <DouKbd>End</DouKbd> 到本周首尾，<DouKbd>PageUp</DouKbd> / <DouKbd>PageDown</DouKbd> 翻月（加 <DouKbd>Shift</DouKbd> 翻年），<DouKbd>Enter</DouKbd> 选中。
 - 当前日子里的日程可以用 <DouKbd>Tab</DouKbd> 进入。
 - 周视图和日视图的表头日期可以用 <DouKbd>←</DouKbd> / <DouKbd>→</DouKbd> 移动；每件带时间的日程读作标题加起止时间。
-- 每个日子读作完整日期，有日程时加上"N 项日程"；今天带 `aria-current="date"`，月份标题变化时会被读出。
+- 每个日子读作完整日期，有日程时加上“N 项日程”；今天带 `aria-current="date"`，月份标题变化时会被读出。

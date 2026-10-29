@@ -12,7 +12,7 @@
 
 ## 可清空与占位
 
-`clearable` 在有值时显示清空按钮，清空后值为 `null`。`placeholder` 默认取语言包里的"请选择"。
+`clearable` 在有值时显示清空按钮，清空后值为 `null`。`placeholder` 默认取语言包里的“请选择”。
 
 <DocDemo src="select/clearable" column style="max-width: 360px" />
 
@@ -24,7 +24,7 @@
 
 ## 可搜索
 
-`filterable` 把字段变成输入框，输入的文字按标签筛选选项。没有匹配时显示 `empty` 插槽或语言包里的"无匹配项"。多选时，搜索框为空按 `Backspace` 会移除最后一个标签。
+`filterable` 把字段变成输入框，输入的文字按标签筛选选项。没有匹配时显示 `empty` 插槽或语言包里的“无匹配项”。多选时，搜索框为空按 `Backspace` 会移除最后一个标签。
 
 <DocDemo src="select/filterable" column style="max-width: 360px" />
 
@@ -42,7 +42,7 @@
 
 ## 可创建
 
-`creatable` 在输入的文字没有完全匹配的选项时，把它作为第一项"创建“…”"提供出来；选中后它就成为一个普通选项，并触发 `create`。适合标签这类可以随手新增的值。
+`creatable` 在输入的文字没有完全匹配的选项时，把它作为第一项“创建‘…’”提供出来；选中后它就成为一个普通选项，并触发 `create`。适合标签这类可以随手新增的值。
 
 <DocDemo src="select/creatable" style="max-width: 360px" />
 
@@ -54,7 +54,7 @@
 
 ## 折叠标签与数量上限
 
-选得多时字段会被撑高。`max-tag-count` 只显示前几个标签，其余折叠成一个"+N"，指向它能看到被折叠的是哪几项。`multiple-limit` 限定最多选几项，到上限后没选中的项变灰，已选的仍可取消。
+选得多时字段会被撑高。`max-tag-count` 只显示前几个标签，其余折叠成一个“+N”，指向它能看到被折叠的是哪几项。`multiple-limit` 限定最多选几项，到上限后没选中的项变灰，已选的仍可取消。
 
 <DocDemo src="select/collapse-tags" />
 
@@ -66,7 +66,7 @@
 
 ## 头部与底部
 
-`header`、`footer` 插槽放在列表上下，滚动选项时它们不动，适合放"全选"或"新建"。`tag` 插槽替换多选的标签（参数 `{ option, remove }`），`label` 插槽替换单选时字段里的文字（参数 `{ option }`）。
+`header`、`footer` 插槽放在列表上下，滚动选项时它们不动，适合放“全选”或“新建”。`tag` 插槽替换多选的标签（参数 `{ option, remove }`），`label` 插槽替换单选时字段里的文字（参数 `{ option }`）。
 
 <DocDemo src="select/header-footer" />
 
@@ -98,7 +98,7 @@
 
 放在 [表单项](./form) 中时，可搜索的选择器由 `<label for>` 命名，其余由 `aria-labelledby` 命名。
 
-分组用 `role="group"` 包住组内选项，并由组名命名。虚拟滚动时每个选项带 `aria-setsize` 与 `aria-posinset`，读屏仍能报出"第几项，共几项"。远程加载中的提示是 `role="status"`。
+分组用 `role="group"` 包住组内选项，并由组名命名。虚拟滚动时每个选项带 `aria-setsize` 与 `aria-posinset`，读屏仍能报出“第几项，共几项”。远程加载中的提示是 `role="status"`。
 
 ## API
 
@@ -123,7 +123,7 @@
 | `loading`       | 列表里显示加载中                                               | `boolean`                                                   | `false`          |
 | `creatable`     | 没有完全匹配时，把输入的文字作为新选项；隐含 `filterable`      | `boolean`                                                   | `false`          |
 | `virtual`       | 只渲染看得见的选项；不传时超过 100 个选项自动开启              | `boolean`                                                   | —                |
-| `maxTagCount`   | 多选时最多显示几个标签，其余折叠成"+N"                         | `number`                                                    | —                |
+| `maxTagCount`   | 多选时最多显示几个标签，其余折叠成“+N”                         | `number`                                                    | —                |
 | `multipleLimit` | 多选时最多选几项                                               | `number`                                                    | —                |
 | `valueKey`      | 值为对象时，用来区分它们的属性                                 | `string`                                                    | —                |
 

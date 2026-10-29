@@ -18,7 +18,7 @@
 
 ## 窄屏时变成抽屉
 
-手机上没有地方并排放侧栏。给 `DouLayoutAside` 设 `breakpoint`（[断点](../guide/breakpoints)名称如 `'md'`，或以 px 为单位的数字），视口窄于它时侧栏离开页面，改为从边上滑出的抽屉；在顶栏放一个 `DouLayoutAsideTrigger`，它只在抽屉模式下出现，点击打开抽屉。抽屉的开合也可以用 `v-model:open` 控制，`side="right"` 让它从右边滑出。
+窄屏上没有足够的空间并排显示侧栏。给 `DouLayoutAside` 设 `breakpoint`（[断点](../guide/breakpoints)名称如 `'md'`，或以 px 为单位的数字），视口窄于它时侧栏隐藏，改为从边缘滑出的抽屉；在顶栏放一个 `DouLayoutAsideTrigger`，它只在抽屉模式下出现，点击打开抽屉。抽屉的开合也可以用 `v-model:open` 控制，`side="right"` 让它从右边滑出。
 
 默认插槽多了 `drawer` 与 `close` 两个参数：在抽屉里选完菜单项后调用 `close()` 收起抽屉。服务端渲染时不知道视口宽度，页面先按宽屏渲染，挂载后再切换。
 
@@ -84,5 +84,5 @@
 ### 键盘与读屏
 
 - 各部分渲染为对应的 HTML 地标元素，读屏可以按地标跳转。
-- 收起按钮的标签随状态在"收起侧栏"与"展开侧栏"之间切换，并带 `aria-expanded`。
+- 收起按钮的标签随状态在“收起侧栏”与“展开侧栏”之间切换，并带 `aria-expanded`。
 - 抽屉模式下侧栏是一个模态对话框，焦点被限制在里面，`Esc` 或点遮罩关闭；打开按钮带 `aria-expanded` 与 `aria-controls`。

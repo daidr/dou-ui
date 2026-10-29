@@ -16,7 +16,7 @@
 
 ## 右侧顺序
 
-`v-model` 的顺序就是右侧列表的顺序。`target-order` 决定移过去的条目放在哪里：`push`（默认）追加到末尾，`unshift` 插到开头，`original` 按 `data` 中的原顺序排列。
+`v-model` 的顺序与右侧列表的顺序一致。`target-order` 决定移过去的条目放在哪里：`push`（默认）追加到末尾，`unshift` 插到开头，`original` 按 `data` 中的原顺序排列。
 
 <DocDemo src="transfer/target-order" />
 
@@ -28,11 +28,11 @@
 
 ## 插槽
 
-`item` 自定义每一行的标签（参数 `{ item, direction }`），`footer` 放在每一列的底部（参数 `{ direction }`），例如放一个"重置"按钮。
+`item` 自定义每一行的标签（参数 `{ item, direction }`），`footer` 放在每一列的底部（参数 `{ direction }`），例如放一个“重置”按钮。
 
 ## 键盘与读屏
 
-每一列是一个带名称的 `<section>`，条目是普通的复选框，可以用 `Tab` 和 `Space` 操作；列表本身可以滚动聚焦。移动按钮在没有勾选时禁用，并带有"移到右侧""移到左侧"的名称。
+每一列是一个带名称的 `<section>`，条目是普通的复选框，可以用 `Tab` 和 `Space` 操作；列表本身可以滚动聚焦。移动按钮在没有勾选时禁用，并带有“移到右侧”“移到左侧”的名称。
 
 ## API
 

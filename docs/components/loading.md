@@ -32,7 +32,7 @@
 
 ## 读屏
 
-遮罩里的转圈带 `role="status"`，标签取 `text`，没有时取语言包里的"加载中"；被遮住的容器带 `aria-busy="true"`。
+遮罩里的转圈带 `role="status"`，标签取 `text`，没有时取语言包里的“加载中”；被遮住的容器带 `aria-busy="true"`。
 
 ## API
 

@@ -35,7 +35,7 @@
 | `message`   | 替换默认错误信息                                                             |
 | `trigger`   | 限定在哪些事件上运行                                                         |
 
-除 `required` 与 `validator` 外，内置检查只看有值的字段，所以可选字段可以留空。`false` 视为空，适合"必须勾选同意"这类开关。默认错误信息来自 [全局配置](./config-provider) 中的语言包。
+除 `required` 与 `validator` 外，内置检查只看有值的字段，所以可选字段可以留空。`false` 视为空，适合“必须勾选同意”这类开关。默认错误信息来自 [全局配置](./config-provider) 中的语言包。
 
 ### 异步校验
 
@@ -102,7 +102,7 @@ schema 自己决定空值是否合法，必填标记则无法从 schema 推断�
 
 ## 必填与可选标记
 
-默认在必填字段的标签后显示星号。当表单里大多数字段都是必填时，`required-mark="optional"` 改为只给可选字段标上"可选"，信息更少，也更准确；`false` 则什么都不标。
+默认在必填字段的标签后显示星号。当表单里大多数字段都是必填时，`required-mark="optional"` 改为只给可选字段标上“可选”，信息更少，也更准确；`false` 则什么都不标。
 
 ```vue
 <DouForm required-mark="optional">...</DouForm>

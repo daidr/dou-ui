@@ -6,11 +6,11 @@
 
 <DocDemo src="statistic/basic" style="gap: 48px" />
 
-数字按三位分组（`group-separator`，传 `''` 关闭），`precision` 固定小数位数并四舍五入。`value` 为 `null` 时显示"—"，传字符串则原样显示。
+数字按三位分组（`group-separator`，传 `''` 关闭），`precision` 固定小数位数并四舍五入。`value` 为 `null` 时显示“—”，传字符串则原样显示。
 
 ## 趋势
 
-`trend` 在数字前加一个箭头。默认"上升是好事"，上升为成功色、下降为危险色；对耗时、错误数这类越少越好的指标，设置 `:up-is-good="false"` 把颜色反过来。`footer` 插槽放在数字下方，适合写对比。
+`trend` 在数字前加一个箭头。默认“上升是好事”，上升为成功色、下降为危险色；对耗时、错误数这类越少越好的指标，设置 `:up-is-good="false"` 把颜色反过来。`footer` 插槽放在数字下方，适合写对比。
 
 <DocDemo src="statistic/trend" style="gap: 48px" />
 

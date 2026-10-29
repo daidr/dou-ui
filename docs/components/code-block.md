@@ -6,7 +6,7 @@
 
 `code` 传入代码，`lang` 指定语言。有 `filename` 或 `lang` 时显示标题栏，复制按钮在标题栏右侧；没有标题栏时，复制按钮在鼠标移入时出现在右上角。`copyable` 设为 `false` 可以去掉复制按钮。
 
-CodeBlock 本身不带语法高亮，通过 `highlight` 接入高亮工具。`highlight` 的写法与 [shiki](https://shiki.style) 的 `codeToHtml` 一致：接收代码和语言，返回 HTML，可以是 Promise。
+CodeBlock 本身不带语法高亮，通过 `highlight` 接入高亮工具。`highlight` 的写法与 [Shiki](https://shiki.style) 的 `codeToHtml` 一致：接收代码和语言，返回 HTML，可以是 Promise。
 
 <DocDemo src="code-block/basic" column />
 
@@ -21,10 +21,10 @@ const highlight = (code: string, lang: string) =>
   })
 ```
 
-- 使用 `themes` 同时指定亮色和暗色主题，并设置 `defaultColor: false`。shiki 会把两套颜色写成 `--shiki-light` 和 `--shiki-dark`，CodeBlock 按所在主题的亮暗选用，切换主题时不需要重新高亮。
-- shiki 生成的背景色不会使用，代码块的背景由主题决定。
+- 使用 `themes` 同时指定亮色和暗色主题，并设置 `defaultColor: false`。Shiki 会把两套颜色写成 `--shiki-light` 和 `--shiki-dark`，CodeBlock 按所在主题的亮暗选用，切换主题时不需要重新高亮。
+- Shiki 生成的背景色不会使用，代码块的背景由主题决定。
 - 其他高亮工具也可以使用，只要返回的 HTML 每行是一个 `<span class="line">`，行与行之间用换行分隔，外面可以带 `<pre><code>`，也可以不带。
-- `highlight` 返回 Promise 时，结果出来之前先显示没有高亮的代码。返回字符串时（例如 shiki 的 `createHighlighterCoreSync`），服务端渲染的结果就已经是高亮过的。
+- `highlight` 返回 Promise 时，结果出来之前先显示没有高亮的代码。返回字符串时（例如 Shiki 的 `createHighlighterCoreSync`），服务端渲染的结果就已经是高亮过的。
 
 ## 全局设置
 
@@ -42,7 +42,7 @@ app.use(DouUI, {
 
 `line-numbers` 显示行号，`start-line` 设置第一行的行号。`highlight-lines` 标出指定的行，写成数组 `[1, 3]` 或字符串 `'1,3-5'`，按显示的行号计算。
 
-也可以使用 shiki 的注释标记：`transformerNotationHighlight` 生成的 `// [!code highlight]` 行同样会被标出，`transformerNotationDiff` 生成的 `// [!code ++]`、`// [!code --]` 行分别显示为新增和删除。
+也可以使用 Shiki 的注释标记：`transformerNotationHighlight` 生成的 `// [!code highlight]` 行同样会被标出，`transformerNotationDiff` 生成的 `// [!code ++]`、`// [!code --]` 行分别显示为新增和删除。
 
 <DocDemo src="code-block/lines" column />
 
@@ -67,7 +67,7 @@ app.use(DouUI, {
 | `code`           | 代码                                             | `string`                                                    | `''`            |
 | `lang`           | 语言，传给 `highlight`，没有文件名时显示在标题栏 | `string`                                                    | `'text'`        |
 | `filename`       | 标题栏中的文件名                                 | `string`                                                    | —               |
-| `highlight`      | 高亮函数，写法同 shiki 的 `codeToHtml`           | `(code: string, lang: string) => string \| Promise<string>` | 全局 `defaults` |
+| `highlight`      | 高亮函数，写法同 Shiki 的 `codeToHtml`           | `(code: string, lang: string) => string \| Promise<string>` | 全局 `defaults` |
 | `lineNumbers`    | 显示行号                                         | `boolean`                                                   | `false`         |
 | `startLine`      | 第一行的行号                                     | `number`                                                    | `1`             |
 | `highlightLines` | 标出的行                                         | `number[] \| string`                                        | —               |

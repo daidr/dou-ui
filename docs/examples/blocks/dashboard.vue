@@ -57,7 +57,10 @@ start.setMonth(start.getMonth() - 5, 1)
 let seed = 3
 const random = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646
 const deployDays = []
-for (let day = new Date(start); day <= end; day.setDate(day.getDate() + 1)) {
+const total = Math.round((end - start) / 86_400_000)
+for (let i = 0; i <= total; i++) {
+  const day = new Date(start)
+  day.setDate(start.getDate() + i)
   // 周末很少部署
   const weekend = day.getDay() === 0 || day.getDay() === 6
   if (random() > (weekend ? 0.85 : 0.3))

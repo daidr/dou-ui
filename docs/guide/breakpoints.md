@@ -32,6 +32,7 @@
 目前使用断点的组件：
 
 - [Grid](../components/grid)：`cols`、`span`、`start` 按断点取值。
+- [Masonry](../components/masonry)：`columns` 按断点取值。
 - [Layout](../components/layout)：`DouLayoutAside` 的 `breakpoint` 可以写断点名称，视口窄于它时侧栏变成抽屉。
 - [Banner](../components/banner)：窄于 `sm` 时减小左右内边距，内容改为靠左排列。
 

@@ -92,6 +92,7 @@ export default defineConfig({
             { text: 'Divider 分割线', link: '/components/divider' },
             { text: 'Space 间距', link: '/components/space' },
             { text: 'Grid 栅格', link: '/components/grid' },
+            { text: 'Masonry 瀑布流', link: '/components/masonry' },
             { text: 'Splitter 分割面板', link: '/components/splitter' },
             { text: 'Layout 布局', link: '/components/layout' },
             { text: 'Scrollbar 滚动条', link: '/components/scrollbar' },

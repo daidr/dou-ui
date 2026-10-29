@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, useTemplateRef, watch } from 'vue'
+import { useHotkey } from '../../composables/use-hotkey'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
 import { DouDialog } from '../dialog'
@@ -24,33 +25,11 @@ const ns = useNamespace('command-dialog')
 const { t } = useLocale()
 const commandRef = useTemplateRef<CommandExpose>('command')
 
-/** Whether a key press is the hotkey, e.g. `mod+k` or `shift+/`. */
-function matches(event: KeyboardEvent, hotkey: string) {
-  const keys = hotkey.toLowerCase().split('+')
-  const key = keys.pop()
-  const apple = typeof navigator !== 'undefined' && /mac|iphone|ipad/i.test(navigator.platform)
-  const wanted = {
-    meta: keys.includes('meta') || (apple && keys.includes('mod')),
-    ctrl: keys.includes('ctrl') || (!apple && keys.includes('mod')),
-    alt: keys.includes('alt'),
-    shift: keys.includes('shift'),
-  }
-  return (
-    event.key.toLowerCase() === key &&
-    event.metaKey === wanted.meta &&
-    event.ctrlKey === wanted.ctrl &&
-    event.altKey === wanted.alt &&
-    event.shiftKey === wanted.shift
-  )
-}
-
-function onKeydown(event: KeyboardEvent) {
-  if (!props.hotkey || event.isComposing || !matches(event, props.hotkey)) return
-  event.preventDefault()
-  open.value = !open.value
-}
-onMounted(() => document.addEventListener('keydown', onKeydown))
-onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
+useHotkey(
+  () => props.hotkey,
+  () => (open.value = !open.value),
+  { allowInInput: true },
+)
 
 // Each opening starts from an empty search.
 watch(open, async (value) => {

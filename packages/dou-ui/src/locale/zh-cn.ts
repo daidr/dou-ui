@@ -91,7 +91,9 @@ export const zhCN: Locale = {
   },
   upload: {
     choose: '选择文件',
+    chooseFolder: '选择文件夹',
     drop: '将文件拖到这里，或',
+    dropFolder: '将文件夹拖到这里，或',
     browse: '点击选择',
     list: '文件列表',
     remove: '移除',
@@ -309,6 +311,14 @@ export const zhCN: Locale = {
   calendarView: {
     more: '还有 {count} 项',
     dayWithEvents: '{date}，{count} 项日程',
+    month: '月',
+    week: '周',
+    day: '日',
+    allDay: '全天',
+    prevWeek: '上一周',
+    nextWeek: '下一周',
+    prevDay: '前一天',
+    nextDay: '后一天',
   },
   infiniteScroll: {
     loading: '加载中',

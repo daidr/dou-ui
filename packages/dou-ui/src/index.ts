@@ -29,6 +29,15 @@ export {
   useReducedMotion,
 } from './composables/use-motion'
 export type { MotionDuration, MotionMode } from './composables/use-motion'
+export {
+  formatHotkey,
+  isApplePlatform,
+  matchesHotkey,
+  parseHotkey,
+  useApplePlatform,
+  useHotkey,
+} from './composables/use-hotkey'
+export type { UseHotkeyOptions } from './composables/use-hotkey'
 export { useNamespace, withInstall } from './utils'
 export type { Size, Tone, WithInstall } from './utils'
 export { DouUI }

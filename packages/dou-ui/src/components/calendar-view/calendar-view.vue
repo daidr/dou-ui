@@ -4,23 +4,34 @@ import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
 import { addDays, addMonths, parts, today, toDateString, weekday } from '../date-picker/date'
+import { DouSegmentedControl } from '../segmented-control'
 import type {
   CalendarDay,
   CalendarEvent,
   CalendarViewExpose,
+  CalendarViewMode,
   CalendarViewProps,
   CalendarViewSlots,
 } from './calendar-view'
+import TimeGrid from './time-grid.vue'
+import { toMinutes } from './time-layout'
 
 defineOptions({ name: 'DouCalendarView' })
 
 const props = withDefaults(defineProps<CalendarViewProps>(), {
   events: () => [],
   maxEvents: 3,
+  hours: () => [0, 24],
+  scrollTime: '08:00',
 })
 const model = defineModel<string | null>()
 const month = defineModel<string>('month')
-const emit = defineEmits<{ select: [date: string]; eventClick: [event: CalendarEvent] }>()
+const view = defineModel<CalendarViewMode>('view', { default: 'month' })
+const emit = defineEmits<{
+  select: [date: string]
+  eventClick: [event: CalendarEvent]
+  timeClick: [slot: { date: string; time: string }]
+}>()
 const slots = defineSlots<CalendarViewSlots>()
 
 const ns = useNamespace('calendar-view')
@@ -52,10 +63,20 @@ const asDate = (date: string) => {
 const formatter = (options: Intl.DateTimeFormatOptions) =>
   new Intl.DateTimeFormat(locale.value.name, { timeZone: 'UTC', ...options })
 
-const title = computed(() =>
-  formatter({ year: 'numeric', month: 'long' }).format(asDate(`${shown.value}-01`)),
-)
 const fullDate = computed(() => formatter({ dateStyle: 'full' }))
+const title = computed(() => {
+  if (view.value === 'day') return fullDate.value.format(asDate(cursor.value))
+  if (view.value === 'week') {
+    // Composed by hand: some locales fall back to all-numeric dates in formatRange.
+    const first = weekDays.value[0]!.date
+    const last = weekDays.value.at(-1)!.date
+    const full = formatter({ year: 'numeric', month: 'short', day: 'numeric' })
+    const end =
+      first.slice(0, 4) === last.slice(0, 4) ? formatter({ month: 'short', day: 'numeric' }) : full
+    return `${full.format(asDate(first))} – ${end.format(asDate(last))}`
+  }
+  return formatter({ year: 'numeric', month: 'long' }).format(asDate(`${shown.value}-01`))
+})
 const weekdays = computed(() => {
   const short = formatter({ weekday: 'short' })
   const long = formatter({ weekday: 'long' })
@@ -66,7 +87,12 @@ const weekdays = computed(() => {
   })
 })
 
-/** Events by day, a span listed on every day it covers. */
+const startOf = (event: CalendarEvent) => toMinutes(event.time) ?? -1
+
+/**
+ * Events by day, a span listed on every day it covers: all-day events
+ * first, in the order given, then timed ones by start time.
+ */
 const byDay = computed(() => {
   const map = new Map<string, CalendarEvent[]>()
   for (const event of props.events) {
@@ -78,6 +104,8 @@ const byDay = computed(() => {
       date = addDays(date, 1)
     }
   }
+  // oxlint-disable-next-line unicorn/no-array-sort -- sorts the lists built above
+  for (const list of map.values()) list.sort((a, b) => startOf(a) - startOf(b))
   return map
 })
 
@@ -101,7 +129,32 @@ const weeks = computed<CalendarDay[][]>(() => {
   )
 })
 
-const keyOf = (event: CalendarEvent) => event.key ?? `${event.date}:${event.title}`
+const dayOf = (date: string): CalendarDay => ({
+  date,
+  day: parts(date).day,
+  outside: false,
+  today: date === todayValue,
+  selected: date === model.value,
+  disabled: !!props.disabledDate?.(date),
+  events: byDay.value.get(date) ?? [],
+})
+
+/** The days on the time axis: the cursor's week, or the cursor alone. */
+const weekDays = computed<CalendarDay[]>(() => {
+  if (view.value === 'day') return [dayOf(cursor.value)]
+  const start = addDays(cursor.value, -((weekday(cursor.value) - weekStart.value + 7) % 7))
+  return Array.from({ length: 7 }, (_, index) => dayOf(addDays(start, index)))
+})
+
+const viewOptions = computed(() =>
+  (props.views ?? []).map((value) => ({ value, label: t(`calendarView.${value}`) })),
+)
+
+/** A timed event in a month cell starts with its time. */
+const monthTime = (event: CalendarEvent) => (event.time ? event.time.slice(0, 5) : '')
+
+const keyOf = (event: CalendarEvent) =>
+  event.key ?? `${event.date}:${event.time ?? ''}:${event.title}`
 const isStart = (event: CalendarEvent, date: string) => event.date === date
 /** Whether the day opens a row, where a running span shows its title again. */
 const weekStarts = (date: string) => (weekday(date) - weekStart.value + 7) % 7 === 0
@@ -111,9 +164,11 @@ const isEnd = (event: CalendarEvent, date: string) => (event.end ?? event.date) 
 
 const gridRef = useTemplateRef<HTMLElement>('grid')
 
+const rootRef = useTemplateRef<HTMLElement>('root')
+
 async function focusCursor() {
   await nextTick()
-  gridRef.value
+  ;(gridRef.value ?? rootRef.value)
     ?.querySelector<HTMLElement>(`[data-date="${cursor.value}"]`)
     ?.focus({ preventScroll: true })
 }
@@ -126,11 +181,35 @@ function choose(day: CalendarDay) {
 }
 
 function step(direction: 1 | -1) {
-  cursor.value = addMonths(cursor.value, direction)
+  if (view.value === 'week') cursor.value = addDays(cursor.value, direction * 7)
+  else if (view.value === 'day') cursor.value = addDays(cursor.value, direction)
+  else cursor.value = addMonths(cursor.value, direction)
 }
+
+const stepLabels = computed(() =>
+  view.value === 'week'
+    ? [t('calendarView.prevWeek'), t('calendarView.nextWeek')]
+    : view.value === 'day'
+      ? [t('calendarView.prevDay'), t('calendarView.nextDay')]
+      : [t('datePicker.prevMonth'), t('datePicker.nextMonth')],
+)
 
 function goToday() {
   cursor.value = todayValue
+}
+
+/** Left and right move between the days at the head of the week view. */
+function onTimeKeydown(event: KeyboardEvent) {
+  if (view.value !== 'week' || !(event.target as HTMLElement).dataset.date) return
+  const moves: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1 }
+  const move = moves[event.key]
+  if (!move) return
+  event.preventDefault()
+  const days = weekDays.value
+  const index = days.findIndex((day) => day.date === cursor.value) + move
+  if (index < 0 || index >= days.length) return
+  cursor.value = days[index]!.date
+  void focusCursor()
 }
 
 function onKeydown(event: KeyboardEvent) {
@@ -174,33 +253,52 @@ defineExpose<CalendarViewExpose>({
 </script>
 
 <template>
-  <div :class="ns.b()">
+  <div ref="root" :class="[ns.b(), ns.m(view)]">
     <div :class="ns.e('header')">
       <h2 :class="ns.e('title')" aria-live="polite">{{ title }}</h2>
       <div :class="ns.e('nav')">
         <slot name="extra" />
+        <DouSegmentedControl
+          v-if="viewOptions.length > 1"
+          v-model="view"
+          :options="viewOptions"
+          size="sm"
+        />
         <button type="button" :class="ns.e('today')" @click="goToday">
           {{ t('datePicker.today') }}
         </button>
-        <button
-          type="button"
-          :class="ns.e('step')"
-          :aria-label="t('datePicker.prevMonth')"
-          @click="step(-1)"
-        >
+        <button type="button" :class="ns.e('step')" :aria-label="stepLabels[0]" @click="step(-1)">
           <ChevronLeftIcon />
         </button>
-        <button
-          type="button"
-          :class="ns.e('step')"
-          :aria-label="t('datePicker.nextMonth')"
-          @click="step(1)"
-        >
+        <button type="button" :class="ns.e('step')" :aria-label="stepLabels[1]" @click="step(1)">
           <ChevronRightIcon />
         </button>
       </div>
     </div>
-    <div ref="grid" role="grid" :class="ns.e('grid')" :aria-label="title" @keydown="onKeydown">
+    <TimeGrid
+      v-if="view !== 'month'"
+      :days="weekDays"
+      :hours="hours"
+      :scroll-time="scrollTime"
+      :cursor="cursor"
+      :as-date="asDate"
+      @choose="choose"
+      @event-click="emit('eventClick', $event)"
+      @time-click="emit('timeClick', $event)"
+      @keydown="onTimeKeydown"
+    >
+      <template v-if="slots.event" #event="scope">
+        <slot name="event" v-bind="scope" />
+      </template>
+    </TimeGrid>
+    <div
+      v-else
+      ref="grid"
+      role="grid"
+      :class="ns.e('grid')"
+      :aria-label="title"
+      @keydown="onKeydown"
+    >
       <div role="row" :class="ns.e('weekdays')">
         <div
           v-for="weekdayName in weekdays"
@@ -250,7 +348,12 @@ defineExpose<CalendarViewExpose>({
                 :title="event.title"
                 @click.stop="emit('eventClick', event)"
               >
-                <slot name="event" :event="event" :day="day">{{ event.title }}</slot>
+                <slot name="event" :event="event" :day="day"
+                  ><span v-if="monthTime(event)" :class="ns.e('event-clock')">{{
+                    monthTime(event)
+                  }}</span
+                  >{{ event.title }}</slot
+                >
               </button>
               <span v-if="day.events.length > maxEvents" :class="ns.e('more')">
                 {{ t('calendarView.more', { count: day.events.length - maxEvents }) }}

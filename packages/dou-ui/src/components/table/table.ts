@@ -94,6 +94,12 @@ export interface TableProps<T = any> {
   /** The rows. Bind with `v-model:data` so dragging can reorder them. */
   data: T[]
   columns: TableColumn<T>[]
+  /**
+   * The keys of the top-level columns to show, in order. Bind with
+   * `v-model:column-keys` to let people hide and reorder columns; leave it
+   * unset to show every column as given.
+   */
+  columnKeys?: string[]
   /** A property of each row, or a function, that gives the row a unique key. */
   rowKey?: string | ((row: T) => TableRowKey)
   /** Row density. */
@@ -187,6 +193,7 @@ export interface TableEmits<T = any> {
   'update:expanded': [keys: TableRowKey[]]
   'update:filters': [filters: Record<string, unknown[]>]
   'update:current': [key: TableRowKey | null]
+  'update:columnKeys': [keys: string[] | undefined]
   /** A row was clicked. */
   rowClick: [row: T, index: number, event: MouseEvent]
   rowDblclick: [row: T, index: number, event: MouseEvent]

@@ -91,7 +91,9 @@ export const en: Locale = {
   },
   upload: {
     choose: 'Choose file',
+    chooseFolder: 'Choose folder',
     drop: 'Drop files here, or',
+    dropFolder: 'Drop a folder here, or',
     browse: 'browse',
     list: 'Files',
     remove: 'Remove',
@@ -309,6 +311,14 @@ export const en: Locale = {
   calendarView: {
     more: '+{count} more',
     dayWithEvents: '{date}, {count} events',
+    month: 'Month',
+    week: 'Week',
+    day: 'Day',
+    allDay: 'All day',
+    prevWeek: 'Previous week',
+    nextWeek: 'Next week',
+    prevDay: 'Previous day',
+    nextDay: 'Next day',
   },
   infiniteScroll: {
     loading: 'Loading',

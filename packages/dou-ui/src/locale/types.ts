@@ -150,8 +150,12 @@ export interface Locale {
   upload: {
     /** The button that opens the file picker. */
     choose: string
+    /** The button's text for `directory`. */
+    chooseFolder: string
     /** The dropzone's prompt, followed by `browse`. */
     drop: string
+    /** The dropzone's prompt for `directory`, followed by `browse`. */
+    dropFolder: string
     /** The part of the dropzone's prompt that reads as a link. */
     browse: string
     /** Names the list of files. */
@@ -449,6 +453,16 @@ export interface Locale {
     more: string
     /** A day's label when it has events, with `{date}` and `{count}`. */
     dayWithEvents: string
+    /** Names of the views in the view switch. */
+    month: string
+    week: string
+    day: string
+    /** Heads the row of events without a time in the week and day views. */
+    allDay: string
+    prevWeek: string
+    nextWeek: string
+    prevDay: string
+    nextDay: string
   }
   infiniteScroll: {
     /** Shown at the end of the list while the next page loads. */

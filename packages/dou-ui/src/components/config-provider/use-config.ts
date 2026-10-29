@@ -31,11 +31,11 @@ export function provideGlobalConfig(
     const result: GlobalConfig = { ...parent?.value, ...own }
     // component defaults merge per component, so a nested provider can add to them
     if (parent?.value.defaults && own.defaults) {
-      const defaults: Record<string, object | undefined> = { ...parent.value.defaults }
+      const perComponent: Record<string, object | undefined> = { ...parent.value.defaults }
       for (const [name, props] of Object.entries(own.defaults as Record<string, object>)) {
-        defaults[name] = { ...defaults[name], ...props }
+        perComponent[name] = { ...perComponent[name], ...props }
       }
-      result.defaults = defaults as GlobalConfig['defaults']
+      result.defaults = perComponent as GlobalConfig['defaults']
     }
     return result
   })

@@ -1,14 +1,18 @@
 <script setup>
-import { ArrowRightIcon, PlusIcon } from '@dou-ui/icons'
+import { PlusIcon } from '@dou-ui/icons'
 </script>
 
 <template>
+  <DouButton size="sm" variant="outline">
+    <template #leading><PlusIcon /></template>
+    新建
+  </DouButton>
   <DouButton variant="outline">
     <template #leading><PlusIcon /></template>
     新建
   </DouButton>
-  <DouButton variant="ghost">
-    下一步
-    <template #trailing><ArrowRightIcon /></template>
+  <DouButton size="lg" variant="outline">
+    <template #leading><PlusIcon /></template>
+    新建
   </DouButton>
 </template>

@@ -12,6 +12,12 @@
 
 <DocDemo src="tag/size-radius" />
 
+## 图标
+
+`leading` 插槽放置图标，图标一侧的内边距会略微收窄。
+
+<DocDemo src="tag/icon" />
+
 ## 可移除
 
 `closable` 显示一个移除按钮，点击时触发 `close`，由使用者决定是否真的移除。按钮的读屏标签来自 [全局配置](./config-provider) 的语言包。

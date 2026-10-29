@@ -20,9 +20,6 @@ import {
 import { createContentNode, type BlockProps } from './model'
 import type { ContentType } from './schema'
 
-/** Block types that continue themselves when you press `Enter`. */
-const CONTINUING = new Set(['bulletItem', 'numberedItem', 'checkItem'])
-
 const newBlock = (schema: Schema, content: PMNode, children?: Fragment) =>
   schema.nodes.block!.create(
     { id: null },
@@ -41,8 +38,9 @@ function cursorBlock(state: EditorState) {
 
 /**
  * Turn every block the selection touches into `type`. Text formatting is
- * dropped when it can't be kept (in a code block); a divider replaces the
- * content and adds an empty paragraph after it to keep typing in.
+ * dropped when it can't be kept (in a code block); a type without text
+ * (a divider, an embed) replaces the content and adds an empty paragraph
+ * after it to keep typing in.
  */
 export function setBlockType(type: ContentType, props: BlockProps = {}): Command {
   return (state, dispatch) => {
@@ -53,7 +51,8 @@ export function setBlockType(type: ContentType, props: BlockProps = {}): Command
     if (!nodeType) return false
     if (!dispatch) return true
     const tr = state.tr
-    if (type === 'divider') {
+    const attrs = createContentNode(schema, type, props).attrs
+    if (!nodeType.isTextblock) {
       const blocks = blocksIn(range)
       const last = blocks.at(-1)!
       // last first, so earlier positions stay valid
@@ -62,7 +61,7 @@ export function setBlockType(type: ContentType, props: BlockProps = {}): Command
         tr.replaceWith(
           block.contentPos,
           block.contentPos + block.content.nodeSize,
-          schema.nodes.divider!.create(),
+          nodeType.create(attrs),
         )
       }
       const after = tr.mapping.map(last.pos + last.node.nodeSize)
@@ -71,7 +70,6 @@ export function setBlockType(type: ContentType, props: BlockProps = {}): Command
       dispatch(tr.scrollIntoView())
       return true
     }
-    const attrs = createContentNode(schema, type, props).attrs
     for (const block of blocksIn(range)) {
       const from = tr.mapping.map(block.contentPos)
       const content = tr.doc.nodeAt(from)!
@@ -127,7 +125,7 @@ export const splitBlock: Command = (state, dispatch) => {
   const type = content.type.name
 
   if (content.content.size === 0) {
-    if (type !== 'paragraph' && type !== 'codeBlock') {
+    if (type !== 'paragraph' && !content.type.spec.code) {
       if (dispatch)
         dispatch(tr.setBlockType($from.pos, $from.pos, schema.nodes.paragraph!).scrollIntoView())
       return true
@@ -137,8 +135,9 @@ export const splitBlock: Command = (state, dispatch) => {
 
   if (!dispatch) return true
   const offset = $from.parentOffset
-  const nextType = CONTINUING.has(type) ? type : 'paragraph'
-  const nextAttrs = type === 'checkItem' ? { checked: false } : null
+  // lists continue themselves (with their default attributes: a to-do starts unticked)
+  const nextType = content.type.spec.continues ? type : 'paragraph'
+  const nextAttrs = null
   const contentEnd = info.contentPos + content.nodeSize - 1
 
   // at the very start of a non-empty block: open an empty block above it

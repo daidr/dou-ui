@@ -5,6 +5,7 @@ import { Plugin, type EditorState } from 'prosemirror-state'
 import type { EditorView } from 'prosemirror-view'
 import {
   computed,
+  getCurrentInstance,
   onBeforeUnmount,
   onMounted,
   provide,
@@ -12,13 +13,17 @@ import {
   toRaw,
   useTemplateRef,
   watch,
+  type Component,
 } from 'vue'
 import BlockHandle from './components/block-handle.vue'
 import BubbleToolbar from './components/bubble-toolbar.vue'
 import SlashMenu from './components/slash-menu.vue'
 import { createEditorView, getBlocks, replaceBlocks, runCommand, setEditable } from './core/editor'
 import type { Block, PartialBlock } from './core/model'
+import { resolveExtensions } from './core/extension'
 import { slashPlugin, type SlashState } from './core/slash'
+import { vueNodeView } from './define-block'
+import { starterKit } from './extensions/starter-kit'
 import { editorKey, type EditorEmits, type EditorExpose, type EditorProps } from './editor'
 import { useEditorMessages } from './locale'
 
@@ -26,6 +31,7 @@ defineOptions({ name: 'DouEditor' })
 
 const props = withDefaults(defineProps<EditorProps>(), {
   modelValue: undefined,
+  extensions: undefined,
   readonly: false,
   placeholder: undefined,
   messages: undefined,
@@ -38,6 +44,15 @@ const props = withDefaults(defineProps<EditorProps>(), {
 })
 const emit = defineEmits<EditorEmits>()
 
+// read once: changing the schema of a live editor would invalidate its document
+const kit = resolveExtensions(props.extensions ?? [starterKit()])
+const appContext = getCurrentInstance()?.appContext ?? null
+const componentViews = Object.fromEntries(
+  Object.entries(kit.schema.nodes)
+    .filter(([, type]) => type.spec.component)
+    .map(([name, type]) => [name, vueNodeView(type.spec.component as Component, appContext)]),
+)
+
 const ns = useNamespace('editor')
 const messages = useEditorMessages(() => props.messages)
 const root = useTemplateRef<HTMLElement>('root')
@@ -48,7 +63,7 @@ const focused = shallowRef(false)
 const dragging = shallowRef(false)
 const editable = computed(() => !props.readonly)
 
-provide(editorKey, { view, state, focused, dragging, editable, messages, root })
+provide(editorKey, { view, state, focused, dragging, editable, messages, root, kit })
 
 const slash = shallowRef<SlashState | null>(null)
 const slashMenu = useTemplateRef<InstanceType<typeof SlashMenu>>('slashMenu')
@@ -80,6 +95,8 @@ const openLinks = new Plugin({
 onMounted(() => {
   const instance = createEditorView({
     element: mount.value!,
+    kit,
+    nodeViews: componentViews,
     blocks: props.modelValue,
     editable: editable.value,
     placeholder: {

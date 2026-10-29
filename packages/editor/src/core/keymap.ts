@@ -1,7 +1,6 @@
-import { chainCommands, deleteSelection, selectAll, toggleMark } from 'prosemirror-commands'
+import { chainCommands, deleteSelection, selectAll } from 'prosemirror-commands'
 import { redo, undo } from 'prosemirror-history'
 import { keymap } from 'prosemirror-keymap'
-import type { Schema } from 'prosemirror-model'
 import type { Command, Plugin } from 'prosemirror-state'
 import { selectCurrentBlocks } from './block-selection'
 import {
@@ -32,8 +31,8 @@ const indentCode: Command = (state, dispatch) => {
   return true
 }
 
-export function editorKeymap(schema: Schema, options: KeymapOptions = {}): Plugin {
-  const marks = schema.marks
+/** The keys every editor has; marks and block types bring their own. */
+export function editorKeymap(options: KeymapOptions = {}): Plugin {
   const undoCommand = options.undo ?? undo
   const redoCommand = options.redo ?? redo
   return keymap({
@@ -52,19 +51,7 @@ export function editorKeymap(schema: Schema, options: KeymapOptions = {}): Plugi
     'Mod-Shift-z': redoCommand,
     'Mod-y': redoCommand,
 
-    'Mod-b': toggleMark(marks.bold!),
-    'Mod-i': toggleMark(marks.italic!),
-    'Mod-u': toggleMark(marks.underline!),
-    'Mod-Shift-s': toggleMark(marks.strike!),
-    'Mod-e': toggleMark(marks.code!),
-
     'Mod-Alt-0': setBlockType('paragraph'),
-    'Mod-Alt-1': setBlockType('heading', { level: 1 }),
-    'Mod-Alt-2': setBlockType('heading', { level: 2 }),
-    'Mod-Alt-3': setBlockType('heading', { level: 3 }),
-    'Mod-Shift-7': setBlockType('numberedItem'),
-    'Mod-Shift-8': setBlockType('bulletItem'),
-    'Mod-Shift-9': setBlockType('checkItem'),
 
     'Mod-d': duplicateBlocks,
     'Mod-Shift-ArrowUp': moveBlocks(-1),

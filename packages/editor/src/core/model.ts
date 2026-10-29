@@ -1,4 +1,4 @@
-import type { Mark, Node as PMNode, Schema } from 'prosemirror-model'
+import type { Mark, NodeType, Node as PMNode, Schema } from 'prosemirror-model'
 import type { ContentType, MarkType } from './schema'
 
 /** A run of text with its formatting. */
@@ -18,6 +18,7 @@ export interface BreakContent {
 
 export type InlineContent = TextContent | BreakContent
 
+/** A block's attributes: those of the built-in types, and any an extension declares. */
 export interface BlockProps {
   /** Heading level, `1` to `3`. */
   level?: number
@@ -25,6 +26,7 @@ export interface BlockProps {
   checked?: boolean
   /** The language of a code block. */
   language?: string
+  [name: string]: unknown
 }
 
 /** One block of the document, as `v-model` reads and writes it. */
@@ -47,7 +49,13 @@ export interface PartialBlock {
   children?: PartialBlock[]
 }
 
-const MARK_ORDER: MarkType[] = ['bold', 'italic', 'underline', 'strike', 'code']
+const MARK_ORDER: string[] = ['bold', 'italic', 'underline', 'strike', 'code']
+
+/** Built-in marks in a fixed order, then the others by name. */
+const markRank = (name: string) => {
+  const index = MARK_ORDER.indexOf(name)
+  return index < 0 ? MARK_ORDER.length : index
+}
 
 /** A random id; UUIDs keep blocks created at the same time on two devices apart. */
 export function createId(): string {
@@ -75,9 +83,9 @@ function inlineOf(node: PMNode): InlineContent[] {
     if (!child.isText) return
     const marks = child.marks
       .map((mark) => mark.type.name)
-      .filter((name): name is MarkType => (MARK_ORDER as string[]).includes(name))
+      .filter((name): name is MarkType => name !== 'link')
       // oxlint-disable-next-line unicorn/no-array-sort -- sorts the filtered copy
-      .sort((a, b) => MARK_ORDER.indexOf(a) - MARK_ORDER.indexOf(b))
+      .sort((a, b) => markRank(a) - markRank(b) || a.localeCompare(b))
     const link = child.marks.find((mark) => mark.type.name === 'link')?.attrs.href as
       string | undefined
     const item: TextContent = { type: 'text', text: child.text ?? '' }
@@ -96,18 +104,7 @@ function inlineOf(node: PMNode): InlineContent[] {
   return result
 }
 
-function propsOf(content: PMNode): BlockProps {
-  switch (content.type.name) {
-    case 'heading':
-      return { level: content.attrs.level as number }
-    case 'checkItem':
-      return { checked: content.attrs.checked as boolean }
-    case 'codeBlock':
-      return { language: content.attrs.language as string }
-    default:
-      return {}
-  }
-}
+const propsOf = (content: PMNode): BlockProps => ({ ...content.attrs })
 
 export function blockFromNode(node: PMNode): Block {
   const content = node.firstChild!
@@ -118,7 +115,7 @@ export function blockFromNode(node: PMNode): Block {
     id: node.attrs.id as string,
     type: content.type.name as ContentType,
     props: propsOf(content),
-    content: content.type.name === 'codeBlock' ? codeText(content) : inlineOf(content),
+    content: content.type.spec.code ? codeText(content) : inlineOf(content),
     children,
   }
 }
@@ -141,7 +138,7 @@ function marksFor(schema: Schema, item: TextContent): Mark[] {
     const type = schema.marks[name]
     if (type) marks.push(type.create())
   }
-  if (item.link) marks.push(schema.marks.link!.create({ href: item.link }))
+  if (item.link && schema.marks.link) marks.push(schema.marks.link.create({ href: item.link }))
   return marks
 }
 
@@ -160,17 +157,18 @@ function inlineNodes(schema: Schema, content: PartialBlock['content'], code: boo
   return nodes
 }
 
-function contentAttrs(type: ContentType, props: BlockProps = {}) {
-  switch (type) {
-    case 'heading':
-      return { level: Math.min(3, Math.max(1, props.level ?? 1)) }
-    case 'checkItem':
-      return { checked: !!props.checked }
-    case 'codeBlock':
-      return { language: props.language ?? '' }
-    default:
-      return null
+/**
+ * The attributes a content type declares, taken from `props` where given.
+ * A spec's `normalizeProps` can clamp them, e.g. a heading's level.
+ */
+function contentAttrs(type: NodeType, props: BlockProps = {}) {
+  const attrs: Record<string, unknown> = {}
+  for (const name of Object.keys(type.spec.attrs ?? {})) {
+    if (props[name] !== undefined) attrs[name] = props[name]
   }
+  const normalize = type.spec.normalizeProps as
+    ((attrs: Record<string, unknown>) => Record<string, unknown>) | undefined
+  return normalize ? normalize(attrs) : attrs
 }
 
 export function createContentNode(
@@ -179,12 +177,12 @@ export function createContentNode(
   props?: BlockProps,
   content?: PartialBlock['content'],
 ): PMNode {
-  const nodeType = schema.nodes[type] ?? schema.nodes.paragraph!
-  if (nodeType.isAtom) return nodeType.create()
-  return nodeType.create(
-    contentAttrs(type, props),
-    inlineNodes(schema, content, type === 'codeBlock'),
-  )
+  const nodeType = schema.nodes[type]?.isInGroup('blockContent')
+    ? schema.nodes[type]!
+    : schema.nodes.paragraph!
+  const attrs = contentAttrs(nodeType, props)
+  if (nodeType.isAtom || !nodeType.inlineContent) return nodeType.create(attrs)
+  return nodeType.create(attrs, inlineNodes(schema, content, !!nodeType.spec.code))
 }
 
 export function nodeFromBlock(schema: Schema, block: PartialBlock): PMNode {

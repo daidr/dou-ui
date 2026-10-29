@@ -12,11 +12,14 @@ import { Schema, type DOMOutputSpec, type MarkSpec, type NodeSpec } from 'prosem
  *         └─ block#id
  *            └─ checkItem "Nested"
  *
- * Every piece of state lives in node attributes (never in a node view),
- * so a collaborative binding can sync it like any other change.
+ * The frame (doc, block, group, paragraph, text, line break) is fixed;
+ * every other content type and mark comes from an extension. Every piece
+ * of state lives in node attributes (never in a node view), so a
+ * collaborative binding can sync it like any other change.
  */
 
-const block = (type: string, extra: Record<string, string> = {}): DOMOutputSpec => [
+/** The DOM of a content node: `div.dou-editor__content--<type>[data-content-type]`. */
+export const contentDOM = (type: string, extra: Record<string, string> = {}): DOMOutputSpec => [
   'div',
   {
     class: `dou-editor__content dou-editor__content--${type}`,
@@ -26,16 +29,16 @@ const block = (type: string, extra: Record<string, string> = {}): DOMOutputSpec 
   0,
 ]
 
-const textBlock = (type: string, spec: Partial<NodeSpec> = {}): NodeSpec => ({
-  group: 'blockContent',
+/** A content type holding formatted text, parsed back from its own DOM. */
+export const textBlock = (type: string, spec: Partial<NodeSpec> = {}): NodeSpec => ({
   content: 'inline*',
   defining: true,
   parseDOM: [{ tag: `div[data-content-type="${type}"]` }],
-  toDOM: () => block(type),
+  toDOM: () => contentDOM(type),
   ...spec,
 })
 
-export const nodes: Record<string, NodeSpec> = {
+const frame: Record<string, NodeSpec> = {
   doc: { content: 'block+' },
 
   block: {
@@ -58,87 +61,12 @@ export const nodes: Record<string, NodeSpec> = {
   },
 
   paragraph: textBlock('paragraph', {
+    group: 'blockContent',
     parseDOM: [{ tag: 'div[data-content-type="paragraph"]' }, { tag: 'p' }],
   }),
+}
 
-  heading: textBlock('heading', {
-    attrs: { level: { default: 1 } },
-    parseDOM: [1, 2, 3, 4, 5, 6].map((level) => ({
-      tag: `h${level}`,
-      attrs: { level: Math.min(level, 3) },
-    })),
-    toDOM: (node) => [
-      `h${node.attrs.level}`,
-      { class: 'dou-editor__content dou-editor__content--heading', 'data-content-type': 'heading' },
-      0,
-    ],
-  }),
-
-  bulletItem: textBlock('bulletItem', {
-    parseDOM: [{ tag: 'div[data-content-type="bulletItem"]' }, { tag: 'ul > li' }],
-  }),
-  numberedItem: textBlock('numberedItem', {
-    parseDOM: [{ tag: 'div[data-content-type="numberedItem"]' }, { tag: 'ol > li' }],
-  }),
-
-  checkItem: textBlock('checkItem', {
-    attrs: { checked: { default: false } },
-    parseDOM: [
-      {
-        tag: 'div[data-content-type="checkItem"]',
-        getAttrs: (dom) => ({ checked: (dom as HTMLElement).dataset.checked === 'true' }),
-      },
-    ],
-    toDOM: (node) => block('checkItem', { 'data-checked': String(node.attrs.checked) }),
-  }),
-
-  quote: textBlock('quote', {
-    parseDOM: [{ tag: 'div[data-content-type="quote"]' }, { tag: 'blockquote' }],
-    toDOM: () => [
-      'blockquote',
-      { class: 'dou-editor__content dou-editor__content--quote', 'data-content-type': 'quote' },
-      0,
-    ],
-  }),
-
-  codeBlock: {
-    group: 'blockContent',
-    content: 'text*',
-    marks: '',
-    code: true,
-    defining: true,
-    attrs: { language: { default: '' } },
-    parseDOM: [
-      {
-        tag: 'pre',
-        preserveWhitespace: 'full',
-        getAttrs: (dom) => ({ language: (dom as HTMLElement).dataset.language ?? '' }),
-      },
-    ],
-    toDOM: (node) => [
-      'pre',
-      {
-        class: 'dou-editor__content dou-editor__content--codeBlock',
-        'data-content-type': 'codeBlock',
-        'data-language': node.attrs.language,
-        spellcheck: 'false',
-      },
-      ['code', 0],
-    ],
-  },
-
-  divider: {
-    group: 'blockContent',
-    atom: true,
-    selectable: true,
-    parseDOM: [{ tag: 'hr' }],
-    toDOM: () => [
-      'div',
-      { class: 'dou-editor__content dou-editor__content--divider', 'data-content-type': 'divider' },
-      ['hr'],
-    ],
-  },
-
+const inlineFrame: Record<string, NodeSpec> = {
   text: { group: 'inline' },
 
   hardBreak: {
@@ -152,71 +80,38 @@ export const nodes: Record<string, NodeSpec> = {
   },
 }
 
-export const marks: Record<string, MarkSpec> = {
-  bold: {
-    parseDOM: [
-      { tag: 'strong' },
-      { tag: 'b', getAttrs: (dom) => (dom as HTMLElement).style.fontWeight !== 'normal' && null },
-      {
-        style: 'font-weight',
-        getAttrs: (value) => /^(bold(er)?|[6-9]\d{2})$/.test(value as string) && null,
-      },
-    ],
-    toDOM: () => ['strong', 0],
-  },
-  italic: {
-    parseDOM: [{ tag: 'i' }, { tag: 'em' }, { style: 'font-style=italic' }],
-    toDOM: () => ['em', 0],
-  },
-  underline: {
-    parseDOM: [{ tag: 'u' }, { style: 'text-decoration=underline' }],
-    toDOM: () => ['u', 0],
-  },
-  strike: {
-    parseDOM: [{ tag: 's' }, { tag: 'del' }, { style: 'text-decoration=line-through' }],
-    toDOM: () => ['s', 0],
-  },
-  code: {
-    excludes: '_',
-    parseDOM: [{ tag: 'code' }],
-    toDOM: () => ['code', { class: 'dou-editor__inline-code' }, 0],
-  },
-  link: {
-    attrs: { href: {} },
-    inclusive: false,
-    parseDOM: [
-      {
-        tag: 'a[href]',
-        getAttrs: (dom) => {
-          const href = (dom as HTMLElement).getAttribute('href') ?? ''
-          return isSafeHref(href) ? { href } : false
-        },
-      },
-    ],
-    toDOM: (mark) => [
-      'a',
-      {
-        href: isSafeHref(mark.attrs.href as string) ? mark.attrs.href : null,
-        rel: 'noopener noreferrer nofollow',
-        class: 'dou-editor__link',
-      },
-      0,
-    ],
-  },
+export interface SchemaParts {
+  blocks: Record<string, NodeSpec>
+  inlines: Record<string, NodeSpec>
+  marks: Record<string, MarkSpec>
+}
+
+/** The schema for a set of extensions' blocks, inline nodes and marks. */
+export function createSchema({ blocks, inlines, marks }: SchemaParts): Schema {
+  const nodes: Record<string, NodeSpec> = { ...frame }
+  for (const [name, spec] of Object.entries(blocks)) {
+    if (name in nodes) throw new Error(`[@dou-ui/editor] "${name}" is a built-in node`)
+    nodes[name] = { ...spec, group: spec.group ? `blockContent ${spec.group}` : 'blockContent' }
+  }
+  Object.assign(nodes, inlineFrame)
+  for (const [name, spec] of Object.entries(inlines)) {
+    if (name in nodes) throw new Error(`[@dou-ui/editor] "${name}" is a built-in node`)
+    nodes[name] = { inline: true, ...spec, group: spec.group ? `inline ${spec.group}` : 'inline' }
+  }
+  return new Schema({ nodes, marks })
 }
 
 /** Links may only point to web pages, mail, phone numbers or relative paths. */
 export function isSafeHref(href: string): boolean {
   // browsers ignore whitespace and control characters inside the scheme
   // eslint-disable-next-line no-control-regex
-  const value = href.replace(/[\u0000-\u0020]/g, '')
+  const value = href.replace(/[\u0000- ]/g, '')
   const scheme = /^([a-z][a-z0-9+.-]*):/i.exec(value)?.[1]?.toLowerCase()
   return !scheme || ['http', 'https', 'mailto', 'tel'].includes(scheme)
 }
 
-export const schema = new Schema({ nodes, marks })
-
-export type ContentType =
+/** The content types that come with `starterKit`; extensions add more. */
+export type BuiltinContentType =
   | 'paragraph'
   | 'heading'
   | 'bulletItem'
@@ -226,4 +121,8 @@ export type ContentType =
   | 'codeBlock'
   | 'divider'
 
-export type MarkType = 'bold' | 'italic' | 'underline' | 'strike' | 'code'
+export type ContentType = BuiltinContentType | (string & {})
+
+export type BuiltinMarkType = 'bold' | 'italic' | 'underline' | 'strike' | 'code'
+
+export type MarkType = BuiltinMarkType | (string & {})

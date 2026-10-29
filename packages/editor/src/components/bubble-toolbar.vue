@@ -1,15 +1,5 @@
 <script setup lang="ts">
-import {
-  BoldIcon,
-  CheckIcon,
-  ChevronDownIcon,
-  CodeIcon,
-  ItalicIcon,
-  LinkIcon,
-  StrikethroughIcon,
-  UnderlineIcon,
-  UnlinkIcon,
-} from '@dou-ui/icons'
+import { CheckIcon, ChevronDownIcon, LinkIcon, UnlinkIcon } from '@dou-ui/icons'
 import {
   DouButton,
   DouDropdown,
@@ -38,15 +28,16 @@ import {
   useTemplateRef,
   watch,
 } from 'vue'
-import { blockOptions, isCurrent, type BlockOption } from '../catalog'
+import { isCurrent } from '../catalog'
+import { labelOf, type BlockOption } from '../core/extension'
 import { getBlockSelection } from '../core/block-selection'
 import { blockAround } from '../core/blocks'
 import { setBlockType } from '../core/commands'
 import { blockFromNode } from '../core/model'
-import { isSafeHref, schema, type MarkType } from '../core/schema'
+import { isSafeHref } from '../core/schema'
 import { editorKey } from '../editor'
 
-const { view, state, focused, dragging, messages } = inject(editorKey)!
+const { view, state, focused, dragging, messages, kit } = inject(editorKey)!
 const panel = useTemplateRef<HTMLElement>('panel')
 
 // while the pointer is down the selection is still being made
@@ -121,41 +112,33 @@ onBeforeUnmount(() => {
 
 /* marks */
 
-const marks: {
-  type: MarkType
-  icon: unknown
-  key: 'bold' | 'italic' | 'underline' | 'strike' | 'code'
-  hotkey: string
-}[] = [
-  { type: 'bold', icon: BoldIcon, key: 'bold', hotkey: 'mod+b' },
-  { type: 'italic', icon: ItalicIcon, key: 'italic', hotkey: 'mod+i' },
-  { type: 'underline', icon: UnderlineIcon, key: 'underline', hotkey: 'mod+u' },
-  { type: 'strike', icon: StrikethroughIcon, key: 'strike', hotkey: 'mod+shift+s' },
-  { type: 'code', icon: CodeIcon, key: 'code', hotkey: 'mod+e' },
-]
+const schema = kit.schema
+const marks = kit.formats.filter((format) => schema.marks[format.mark])
 
 const active = computed<ToggleValue[]>(() => {
   const current = state.value
   if (!current) return []
   const { from, to } = current.selection
   return marks
-    .filter((mark) => current.doc.rangeHasMark(from, to, schema.marks[mark.type]!))
-    .map((mark) => mark.type)
+    .filter((mark) => current.doc.rangeHasMark(from, to, schema.marks[mark.mark]!))
+    .map((mark) => mark.mark)
 })
 
 function onMarks(value: ToggleValue | ToggleValue[] | null) {
   const pressed = Array.isArray(value) ? value : []
   const changed = marks.find(
-    (mark) => pressed.includes(mark.type) !== active.value.includes(mark.type),
+    (mark) => pressed.includes(mark.mark) !== active.value.includes(mark.mark),
   )
   const current = view.value
   if (!changed || !current) return
-  toggleMark(schema.marks[changed.type]!)(current.state, current.dispatch)
+  toggleMark(schema.marks[changed.mark]!)(current.state, current.dispatch)
 }
 
 /* turning the block into another type */
 
-const turnOptions = blockOptions.filter((option) => option.type !== 'divider')
+const turnOptions = kit.blockOptions.filter(
+  (option) => !!kit.schema.nodes[option.type]?.isTextblock,
+)
 const currentBlock = computed(() => {
   const current = state.value
   const info = current && blockAround(current.selection.$from)
@@ -177,14 +160,14 @@ function turnInto(option: BlockOption) {
 
 /* links */
 
-const linkMark = schema.marks.link!
+const linkMark = schema.marks.link
 const currentHref = computed(() => {
   const current = state.value
   if (!current) return ''
   const { from, to } = current.selection
   let found = ''
   current.doc.nodesBetween(from, to, (node) => {
-    const mark = linkMark.isInSet(node.marks)
+    const mark = linkMark?.isInSet(node.marks)
     if (mark) found ||= mark.attrs.href as string
   })
   return found
@@ -193,7 +176,7 @@ const currentHref = computed(() => {
 /** `Mod+K` and the link button: edit the link of the selected text. */
 function editLink(): boolean {
   const current = view.value
-  if (!current || !formattable.value) return false
+  if (!current || !linkMark || !formattable.value) return false
   const { from, to } = current.state.selection
   linking.value = { from, to }
   href.value = currentHref.value
@@ -211,7 +194,7 @@ function normalise(value: string): string {
 function applyLink() {
   const current = view.value
   const range = linking.value
-  if (!current || !range) return
+  if (!current || !range || !linkMark) return
   const value = normalise(href.value)
   const tr = current.state.tr.removeMark(range.from, range.to, linkMark)
   if (value && isSafeHref(value)) tr.addMark(range.from, range.to, linkMark.create({ href: value }))
@@ -301,7 +284,7 @@ defineExpose({ editLink })
       <DouToolbar v-else size="sm" :aria-label="messages.formatting">
         <DouDropdown v-model:open="menuOpen" placement="bottom-start" class="dou-editor-menu">
           <DouButton size="sm" variant="ghost" class="dou-editor-bubble__type">
-            {{ currentOption ? messages.types[currentOption.key] : messages.turnInto }}
+            {{ currentOption ? labelOf(currentOption.label, messages) : messages.turnInto }}
             <template #trailing><ChevronDownIcon /></template>
           </DouButton>
           <template #menu>
@@ -311,31 +294,33 @@ defineExpose({ editLink })
               @click="turnInto(option)"
             >
               <template #prefix><component :is="option.icon" /></template>
-              {{ messages.types[option.key] }}
+              {{ labelOf(option.label, messages) }}
               <template v-if="option === currentOption" #suffix><CheckIcon /></template>
             </DouDropdownItem>
           </template>
         </DouDropdown>
-        <DouToolbarSeparator />
+        <DouToolbarSeparator v-if="marks.length" />
         <DouToggleGroup
+          v-if="marks.length"
           type="multiple"
           :model-value="active"
           :aria-label="messages.formatting"
           @update:model-value="onMarks"
         >
-          <DouTooltip v-for="mark in marks" :key="mark.type" placement="bottom">
-            <DouToggle :value="mark.type" :aria-label="messages[mark.key]">
+          <DouTooltip v-for="mark in marks" :key="mark.mark" placement="bottom">
+            <DouToggle :value="mark.mark" :aria-label="labelOf(mark.label, messages)">
               <component :is="mark.icon" />
             </DouToggle>
             <template #content>
               <span class="dou-editor-bubble__tip"
-                >{{ messages[mark.key] }} <DouKbd size="sm" :keys="mark.hotkey"
+                >{{ labelOf(mark.label, messages) }}
+                <DouKbd v-if="mark.hotkey" size="sm" :keys="mark.hotkey"
               /></span>
             </template>
           </DouTooltip>
         </DouToggleGroup>
-        <DouToolbarSeparator />
-        <DouTooltip placement="bottom">
+        <DouToolbarSeparator v-if="linkMark" />
+        <DouTooltip v-if="linkMark" placement="bottom">
           <DouToggle
             :pressed="!!currentHref"
             :aria-label="messages.link"

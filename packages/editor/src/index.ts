@@ -1,5 +1,6 @@
 import { withInstall } from 'dou-ui'
 import Editor from './editor.vue'
+import type { EditorContent } from './define-block'
 
 export const DouEditor = withInstall(Editor)
 export default DouEditor
@@ -7,8 +8,32 @@ export default DouEditor
 export type { EditorContext, EditorEmits, EditorExpose, EditorProps } from './editor'
 export { editorLocales, useEditorMessages } from './locale'
 export type { EditorMessages } from './locale'
-export { blockOptions, filterOptions } from './catalog'
-export type { BlockOption } from './catalog'
+export { filterOptions } from './catalog'
+export { defineExtension, labelOf, resolveExtensions } from './core/extension'
+export type {
+  BlockOption,
+  EditorExtension,
+  ExtensionContext,
+  FormatOption,
+  HistoryProvider,
+  Label,
+  ResolvedExtensions,
+} from './core/extension'
+export {
+  codeBlock,
+  divider,
+  formatting,
+  heading,
+  link,
+  lists,
+  paragraph,
+  quote,
+  starterKit,
+} from './extensions/starter-kit'
+export type { StarterKitOptions } from './extensions/starter-kit'
+export { defineBlock, EditorContent, vueNodeView } from './define-block'
+export type { BlockViewProps, DefineBlockOptions } from './define-block'
+export { atomInputRule, blockInputRule, markInputRule } from './core/input-rules'
 export type {
   Block,
   BlockProps,
@@ -18,8 +43,8 @@ export type {
   TextContent,
 } from './core/model'
 export { blocksToDoc, createId, docToBlocks } from './core/model'
-export type { ContentType, MarkType } from './core/schema'
-export { isSafeHref, schema } from './core/schema'
+export type { BuiltinContentType, ContentType, MarkType } from './core/schema'
+export { contentDOM, createSchema, isSafeHref, textBlock } from './core/schema'
 export {
   duplicateBlocks,
   insertBlockAfter,
@@ -35,5 +60,6 @@ export { isRemote } from './core/plugins'
 declare module 'vue' {
   export interface GlobalComponents {
     DouEditor: typeof DouEditor
+    DouEditorContent: typeof EditorContent
   }
 }

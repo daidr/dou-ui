@@ -1,20 +1,21 @@
 <script setup lang="ts">
 import { useFloating, useZIndex, type VirtualElement } from 'dou-ui'
 import { computed, inject, nextTick, shallowRef, useId, useTemplateRef, watch } from 'vue'
-import { blockOptions, filterOptions, type BlockOption } from '../catalog'
+import { filterOptions } from '../catalog'
+import { labelOf, type BlockOption } from '../core/extension'
 import { insertBlockAfter, setBlockType } from '../core/commands'
 import { slashKey, type SlashState } from '../core/slash'
 import { editorKey } from '../editor'
 
 const props = defineProps<{ slash: SlashState | null }>()
 
-const { view, messages } = inject(editorKey)!
+const { view, messages, kit } = inject(editorKey)!
 const id = `dou-editor-slash-${useId()}`
 const panel = useTemplateRef<HTMLElement>('panel')
 const active = shallowRef(0)
 
 const options = computed(() =>
-  props.slash ? filterOptions(blockOptions, props.slash.query, messages.value) : [],
+  props.slash ? filterOptions(kit.blockOptions, props.slash.query, messages.value) : [],
 )
 const open = computed(() => !!props.slash)
 
@@ -139,8 +140,10 @@ defineExpose({ onKey })
       >
         <span class="dou-editor-slash__icon"><component :is="option.icon" /></span>
         <span class="dou-editor-slash__text">
-          <span class="dou-editor-slash__label">{{ messages.types[option.key] }}</span>
-          <span class="dou-editor-slash__hint">{{ messages.hints[option.key] }}</span>
+          <span class="dou-editor-slash__label">{{ labelOf(option.label, messages) }}</span>
+          <span v-if="option.hint" class="dou-editor-slash__hint">{{
+            labelOf(option.hint, messages)
+          }}</span>
         </span>
         <kbd v-if="option.shortcut" class="dou-editor-slash__shortcut">{{ option.shortcut }}</kbd>
       </div>

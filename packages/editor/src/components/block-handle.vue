@@ -19,7 +19,8 @@ import {
   useTemplateRef,
   watch,
 } from 'vue'
-import { blockOptions, isCurrent, type BlockOption } from '../catalog'
+import { isCurrent } from '../catalog'
+import { labelOf, type BlockOption } from '../core/extension'
 import {
   blockSelectionKey,
   blockSelectionRange,
@@ -40,7 +41,7 @@ import { slashKey } from '../core/slash'
 import { blockElementOf, contentAt, firstLine, scrollParent } from '../dom'
 import { editorKey } from '../editor'
 
-const { view, state, messages, root, dragging } = inject(editorKey)!
+const { view, state, messages, root, dragging, kit } = inject(editorKey)!
 
 /** The block the handle is next to, by id. */
 const hovered = shallowRef<string | null>(null)
@@ -181,7 +182,9 @@ function add(event: MouseEvent) {
 
 /* the block menu */
 
-const turnOptions = blockOptions.filter((option) => option.type !== 'divider')
+const turnOptions = kit.blockOptions.filter(
+  (option) => !!kit.schema.nodes[option.type]?.isTextblock,
+)
 const current = computed(() => {
   const info = target.value
   return info ? blockFromNode(info.node) : null
@@ -438,7 +441,7 @@ watch(menuOpen, (value) => {
             @click="turnInto(option)"
           >
             <template #prefix><component :is="option.icon" /></template>
-            {{ messages.types[option.key] }}
+            {{ labelOf(option.label, messages) }}
             <template v-if="current && isCurrent(option, current.type, current.props)" #suffix>
               <CheckIcon />
             </template>

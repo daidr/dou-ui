@@ -1,6 +1,7 @@
 import type { EditorState, Command, Plugin } from 'prosemirror-state'
 import type { EditorView } from 'prosemirror-view'
 import type { ComputedRef, InjectionKey, ShallowRef } from 'vue'
+import type { EditorExtension, ResolvedExtensions } from './core/extension'
 import type { Block, PartialBlock } from './core/model'
 import type { EditorMessages } from './locale'
 
@@ -11,6 +12,11 @@ export interface EditorProps {
    * `v-model` out and read changes from the `change` event.
    */
   modelValue?: PartialBlock[]
+  /**
+   * Blocks, marks, shortcuts and menu entries. Defaults to `[starterKit()]`;
+   * read once, when the editor mounts.
+   */
+  extensions?: (EditorExtension | EditorExtension[])[]
   /** Show the document without editing it. Links stay clickable. */
   readonly?: boolean
   /** The hint in the empty block under the cursor. */
@@ -64,6 +70,8 @@ export interface EditorContext {
   dragging: ShallowRef<boolean>
   editable: ComputedRef<boolean>
   messages: ComputedRef<EditorMessages>
+  /** What the extensions contribute: schema, menu entries, toolbar toggles. */
+  kit: ResolvedExtensions
   /** The element the overlays are positioned against. */
   root: ShallowRef<HTMLElement | null>
 }

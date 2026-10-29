@@ -1,0 +1,30 @@
+import type { EditorExtension } from '../core/extension'
+import { codeBlock, divider, heading, paragraph, quote } from './blocks'
+import { formatting, link } from './formatting'
+import { lists } from './lists'
+
+export interface StarterKitOptions {
+  heading?: boolean
+  lists?: boolean
+  quote?: boolean
+  codeBlock?: boolean
+  divider?: boolean
+  formatting?: boolean
+  link?: boolean
+}
+
+/**
+ * The built-in blocks and formatting. Pass `false` for any part to leave
+ * it out, e.g. `starterKit({ codeBlock: false })`.
+ */
+export function starterKit(options: StarterKitOptions = {}): EditorExtension[] {
+  const parts = { heading, lists, quote, codeBlock, divider, formatting, link }
+  return [
+    paragraph,
+    ...Object.entries(parts)
+      .filter(([name]) => options[name as keyof StarterKitOptions] !== false)
+      .map(([, extension]) => extension),
+  ]
+}
+
+export { codeBlock, divider, formatting, heading, link, lists, paragraph, quote }

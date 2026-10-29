@@ -65,24 +65,25 @@ function reset() {
 
 ## 协同编辑
 
-编辑器的内核按协同编辑的要求设计：块 id 使用随机 UUID，块的状态（例如待办是否完成）都保存在文档里，撤销记录可以替换。基于 Yjs 的协同扩展会在后续版本提供，届时通过 `plugins`、`history`、`undo` 和 `redo` 接入，不需要改动已有的文档数据。
+编辑器的内核按协同编辑的要求设计：块 id 使用随机 UUID，块的状态（例如待办是否完成）都保存在文档里，撤销记录可以替换。基于 Yjs 的协同扩展会在后续版本提供，作为一个[扩展](./extensions)接入，替换内置的撤销记录，不需要改动已有的文档数据。
 
 ## API
 
 ### Props
 
-| 名称          | 说明                                      | 类型                      | 默认值   |
-| ------------- | ----------------------------------------- | ------------------------- | -------- |
-| `modelValue`  | 文档内容，用 `v-model` 绑定               | `PartialBlock[]`          | —        |
-| `readonly`    | 只读                                      | `boolean`                 | `false`  |
-| `placeholder` | 光标所在空块里的提示文字                  | `string`                  | 跟随语言 |
-| `label`       | 编辑区域的无障碍名称                      | `string`                  | —        |
-| `autofocus`   | 挂载后获得焦点                            | `boolean`                 | `false`  |
-| `messages`    | 替换内置文字，例如块类型的名称            | `Partial<EditorMessages>` | —        |
-| `plugins`     | 额外的 ProseMirror 插件，排在内置插件之前 | `Plugin[]`                | —        |
-| `history`     | 使用内置的撤销记录，协同编辑时关闭        | `boolean`                 | `true`   |
-| `undo`        | 替换撤销命令                              | `Command`                 | —        |
-| `redo`        | 替换重做命令                              | `Command`                 | —        |
+| 名称          | 说明                                               | 类型                      | 默认值           |
+| ------------- | -------------------------------------------------- | ------------------------- | ---------------- |
+| `modelValue`  | 文档内容，用 `v-model` 绑定                        | `PartialBlock[]`          | —                |
+| `readonly`    | 只读                                               | `boolean`                 | `false`          |
+| `placeholder` | 光标所在空块里的提示文字                           | `string`                  | 跟随语言         |
+| `label`       | 编辑区域的无障碍名称                               | `string`                  | —                |
+| `autofocus`   | 挂载后获得焦点                                     | `boolean`                 | `false`          |
+| `messages`    | 替换内置文字，例如块类型的名称                     | `Partial<EditorMessages>` | —                |
+| `extensions`  | 使用的扩展，见[扩展](./extensions)，只在创建时读取 | `EditorExtension[]`       | `[starterKit()]` |
+| `plugins`     | 额外的 ProseMirror 插件，排在内置插件之前          | `Plugin[]`                | —                |
+| `history`     | 使用内置的撤销记录，协同编辑时关闭                 | `boolean`                 | `true`           |
+| `undo`        | 替换撤销命令                                       | `Command`                 | —                |
+| `redo`        | 替换重做命令                                       | `Command`                 | —                |
 
 ### Events
 

@@ -5,6 +5,8 @@ import { getBlockSelection, selectBlocks } from '../block-selection'
 import { findBlockById, siblingRangeBetween } from '../blocks'
 import { moveRangeTo } from '../commands'
 import { createEditorView, getBlocks } from '../editor'
+import { resolveExtensions } from '../extension'
+import { starterKit } from '../../extensions/starter-kit'
 import type { PartialBlock } from '../model'
 import { getSlash, slashPlugin } from '../slash'
 import { p, shape } from './helpers'
@@ -21,6 +23,7 @@ function mount(blocks: PartialBlock[]) {
   document.body.append(element)
   view = createEditorView({
     element,
+    kit: resolveExtensions([starterKit()]),
     blocks,
     placeholder: { text: () => '', heading: () => '', empty: () => '' },
     plugins: [slashPlugin({ onChange: () => {}, onKey: () => false })],

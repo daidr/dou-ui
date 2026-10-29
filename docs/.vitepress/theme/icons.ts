@@ -1,2 +1,17 @@
 // Every icon on the site comes from the icon set.
-export { ArrowLeftIcon, ArrowRightIcon, GithubIcon, MenuIcon, SearchIcon } from '@dou-ui/icons'
+export {
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  BellIcon,
+  CalendarDaysIcon,
+  CloudUploadIcon,
+  CodeIcon,
+  FocusIcon,
+  GitBranchIcon,
+  GithubIcon,
+  LayersIcon,
+  MenuIcon,
+  SearchIcon,
+  SparklesIcon,
+  Volume1Icon,
+} from '@dou-ui/icons'

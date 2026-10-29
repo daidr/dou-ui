@@ -1,0 +1,514 @@
+/*
+ * FlowGraph
+ *
+ * Nodes are quiet capsules on hairline curves. Status lives in a small
+ * dot, so a busy graph still reads as ink on paper; hue appears only for
+ * meaning (done, in progress, failed) and for the selected node. Hovering
+ * a node keeps its upstream and downstream chain and fades the rest.
+ */
+@layer dou.components {
+  /* shared with the legend, which renders in a popover */
+  .dou-flow-graph,
+  .dou-flow-graph-legend {
+    --dou-flow-graph-node-bg: var(--dou-color-bg-surface);
+    --dou-flow-graph-status-wait: var(--dou-color-text-disabled);
+    --dou-flow-graph-status-process: var(--dou-color-warning);
+    --dou-flow-graph-status-finish: var(--dou-color-success);
+    --dou-flow-graph-status-error: var(--dou-color-danger);
+    --dou-flow-graph-status-blocked: var(--dou-color-warning);
+    --dou-flow-graph-marker: var(--dou-color-danger);
+    --dou-flow-graph-progress-track: color-mix(in oklab, var(--dou-color-text) 8%, transparent);
+    --dou-flow-graph-progress-fill: var(--dou-color-primary);
+  }
+
+  .dou-flow-graph {
+    --dou-flow-graph-node-height: 32px;
+    --dou-flow-graph-node-padding-x: 12px;
+    --dou-flow-graph-node-gap: 8px;
+    --dou-flow-graph-font-size: var(--dou-font-size-md);
+    --dou-flow-graph-node-border: var(--dou-color-border);
+    --dou-flow-graph-node-border-hover: var(--dou-color-border-strong);
+    --dou-flow-graph-node-shadow: var(--dou-shadow-sm);
+    --dou-flow-graph-node-shadow-hover: var(--dou-shadow-md);
+    --dou-flow-graph-card-radius: calc(var(--dou-radius-control) + 4px);
+    --dou-flow-graph-edge: var(--dou-color-border-strong);
+    --dou-flow-graph-edge-active: color-mix(in oklab, var(--dou-color-text) 56%, transparent);
+    --dou-flow-graph-selected: var(--dou-color-primary);
+    --dou-flow-graph-dim-opacity: 0.4;
+
+    position: relative;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    color: var(--dou-color-text);
+    font-size: var(--dou-flow-graph-font-size);
+    line-height: var(--dou-font-line-height);
+
+    &.is-pannable {
+      cursor: grab;
+    }
+    &.is-dragging,
+    &.is-dragging .dou-flow-graph__node {
+      cursor: grabbing;
+    }
+  }
+
+  .dou-flow-graph--sm {
+    --dou-flow-graph-node-height: 28px;
+    --dou-flow-graph-node-padding-x: 10px;
+    --dou-flow-graph-node-gap: 6px;
+    --dou-flow-graph-font-size: var(--dou-font-size-sm);
+  }
+  .dou-flow-graph--lg {
+    --dou-flow-graph-node-height: 40px;
+    --dou-flow-graph-node-padding-x: 16px;
+    --dou-flow-graph-font-size: var(--dou-font-size-lg);
+  }
+
+  .dou-flow-graph__canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform-origin: 0 0;
+  }
+
+  .dou-flow-graph__edges {
+    position: absolute;
+    inset: 0;
+    overflow: visible;
+    pointer-events: none;
+  }
+
+  .dou-flow-graph__edge {
+    fill: none;
+    stroke: var(--dou-flow-graph-edge);
+    stroke-width: 1px;
+    vector-effect: non-scaling-stroke;
+    transition-property: stroke, opacity;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    &.is-active {
+      stroke: var(--dou-flow-graph-edge-active);
+    }
+    &.is-muted {
+      stroke-dasharray: 4 3;
+    }
+    &.is-dimmed {
+      opacity: var(--dou-flow-graph-dim-opacity);
+    }
+  }
+
+  /* nodes */
+  .dou-flow-graph__node {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    box-sizing: border-box;
+    border: 1px solid var(--dou-flow-graph-node-border);
+    background-color: var(--dou-flow-graph-node-bg);
+    box-shadow: var(--dou-flow-graph-node-shadow);
+    color: var(--dou-color-text);
+    outline: none;
+    user-select: none;
+    transition-property: border-color, box-shadow, opacity;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    &.is-selectable {
+      cursor: pointer;
+    }
+    &:hover,
+    &.is-hovered {
+      border-color: var(--dou-flow-graph-node-border-hover);
+      box-shadow: var(--dou-flow-graph-node-shadow-hover);
+    }
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 2px;
+    }
+    &.is-selected {
+      border-color: var(--dou-flow-graph-selected);
+      box-shadow:
+        0 0 0 3px color-mix(in oklab, var(--dou-flow-graph-selected) 14%, transparent),
+        var(--dou-flow-graph-node-shadow);
+    }
+    &.is-dimmed {
+      opacity: var(--dou-flow-graph-dim-opacity);
+    }
+    &.is-disabled {
+      cursor: not-allowed;
+    }
+  }
+
+  .dou-flow-graph__node--pill {
+    height: var(--dou-flow-graph-node-height);
+    padding: 0 var(--dou-flow-graph-node-padding-x);
+    border-radius: var(--dou-radius-full);
+  }
+
+  .dou-flow-graph__node--card {
+    gap: 6px;
+    padding: 8px var(--dou-flow-graph-node-padding-x);
+    border-radius: var(--dou-flow-graph-card-radius);
+  }
+
+  .dou-flow-graph__main {
+    display: flex;
+    align-items: center;
+    gap: var(--dou-flow-graph-node-gap);
+    min-width: 0;
+    /* a card's first line is as tall as a pill's content */
+    min-height: calc(var(--dou-flow-graph-node-height) - 16px);
+  }
+
+  .dou-flow-graph__label {
+    flex: 1 1 auto;
+    min-width: 0;
+    /* clip inline only: glyphs overflow the trimmed line box vertically */
+    overflow-x: clip;
+    font-weight: var(--dou-font-weight-medium);
+    line-height: 1;
+    text-overflow: ellipsis;
+    text-box: trim-both cap alphabetic;
+    white-space: nowrap;
+  }
+
+  .dou-flow-graph__node.is-wait .dou-flow-graph__label {
+    color: var(--dou-color-text-tertiary);
+  }
+
+  .dou-flow-graph__icon {
+    display: inline-flex;
+    flex-shrink: 0;
+    color: var(--dou-color-text-secondary);
+
+    & svg {
+      width: 16px;
+      height: 16px;
+    }
+  }
+
+  .dou-flow-graph__extra {
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 50%;
+    padding: 4px 6px;
+    overflow-x: clip;
+    border-radius: var(--dou-radius-full);
+    background-color: var(--dou-color-bg-muted);
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-sm);
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    text-overflow: ellipsis;
+    text-box: trim-both cap alphabetic;
+    white-space: nowrap;
+  }
+
+  /* a capsule's tag sits on the right end, not against the label */
+  .dou-flow-graph__node--pill .dou-flow-graph__extra {
+    margin-right: calc(8px - var(--dou-flow-graph-node-padding-x));
+  }
+
+  .dou-flow-graph__description {
+    --dou-flow-graph-description-tone: var(--dou-color-neutral);
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+
+    &.is-toned {
+      align-self: flex-start;
+      max-width: 100%;
+      box-sizing: border-box;
+      padding: 2px 6px;
+      border-radius: calc(var(--dou-radius-control) - 2px);
+      background-color: color-mix(
+        in oklab,
+        var(--dou-flow-graph-description-tone) 8%,
+        var(--dou-color-bg-surface)
+      );
+      color: color-mix(in oklab, var(--dou-flow-graph-description-tone) 86%, var(--dou-color-text));
+    }
+  }
+  .dou-flow-graph__description--primary {
+    --dou-flow-graph-description-tone: var(--dou-color-primary);
+  }
+  .dou-flow-graph__description--success {
+    --dou-flow-graph-description-tone: var(--dou-color-success);
+  }
+  .dou-flow-graph__description--warning {
+    --dou-flow-graph-description-tone: var(--dou-color-warning);
+  }
+  .dou-flow-graph__description--danger {
+    --dou-flow-graph-description-tone: var(--dou-color-danger);
+  }
+
+  /* status */
+  .dou-flow-graph__dot {
+    --dou-flow-graph-status: var(--dou-flow-graph-status-wait);
+    flex-shrink: 0;
+    box-sizing: border-box;
+    width: 8px;
+    height: 8px;
+    border-radius: var(--dou-radius-full);
+    background-color: var(--dou-flow-graph-status);
+
+    &.is-blocked {
+      border: 1.5px solid var(--dou-flow-graph-status);
+      background-color: color-mix(in oklab, var(--dou-flow-graph-status) 18%, transparent);
+    }
+  }
+
+  .dou-flow-graph__milestone {
+    --dou-flow-graph-status: var(--dou-flow-graph-status-wait);
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    margin-left: -4px;
+    border-radius: var(--dou-radius-full);
+    background-color: var(--dou-flow-graph-status);
+    color: var(--dou-color-bg-surface);
+
+    & svg {
+      width: 10px;
+      height: 10px;
+      stroke-width: 2.5px;
+    }
+
+    &.is-wait {
+      background-color: var(--dou-color-text-tertiary);
+    }
+    &.is-blocked {
+      box-shadow: inset 0 0 0 1.5px var(--dou-flow-graph-status);
+      background-color: color-mix(in oklab, var(--dou-flow-graph-status) 18%, transparent);
+      color: var(--dou-flow-graph-status);
+    }
+  }
+
+  :is(.dou-flow-graph__dot, .dou-flow-graph__milestone) {
+    &.is-process {
+      --dou-flow-graph-status: var(--dou-flow-graph-status-process);
+    }
+    &.is-finish {
+      --dou-flow-graph-status: var(--dou-flow-graph-status-finish);
+    }
+    &.is-error {
+      --dou-flow-graph-status: var(--dou-flow-graph-status-error);
+    }
+    &.is-blocked {
+      --dou-flow-graph-status: var(--dou-flow-graph-status-blocked);
+    }
+  }
+
+  /* progress: a hairline along a capsule's bottom, a bar under a card's content */
+  .dou-flow-graph__progress {
+    overflow: hidden;
+    background-color: var(--dou-flow-graph-progress-track);
+  }
+  .dou-flow-graph__progress-bar {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background-color: var(--dou-flow-graph-progress-fill);
+    transition: width var(--dou-motion-duration-normal) var(--dou-motion-easing);
+  }
+  .dou-flow-graph__node--pill .dou-flow-graph__progress {
+    position: absolute;
+    right: calc(var(--dou-flow-graph-node-height) / 2);
+    bottom: 3px;
+    left: calc(var(--dou-flow-graph-node-height) / 2);
+    height: 2px;
+    border-radius: var(--dou-radius-full);
+  }
+  .dou-flow-graph__node--card .dou-flow-graph__progress {
+    height: 4px;
+    margin-top: 2px;
+    border-radius: var(--dou-radius-full);
+  }
+
+  /* unfinished sub-tasks: a notch straddling the right edge */
+  .dou-flow-graph__marker {
+    position: absolute;
+    top: 50%;
+    right: -3px;
+    width: 4px;
+    height: 12px;
+    border-radius: var(--dou-radius-full);
+    background-color: var(--dou-flow-graph-marker);
+    box-shadow: 0 0 0 2px var(--dou-flow-graph-node-bg);
+    transform: translateY(-50%);
+  }
+
+  .dou-flow-graph__corner {
+    position: absolute;
+    top: -10px;
+    right: -6px;
+    display: inline-flex;
+    cursor: default;
+  }
+  .dou-flow-graph__node--pill .dou-flow-graph__corner {
+    right: 6px;
+  }
+
+  /* toolbar */
+  .dou-flow-graph__toolbar {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid var(--dou-color-border);
+    border-radius: calc(var(--dou-radius-control) + 2px);
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-sm);
+    cursor: default;
+  }
+
+  .dou-flow-graph__tool {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    min-width: 24px;
+    height: 24px;
+    padding: 0 4px;
+    border: 0;
+    border-radius: var(--dou-radius-control);
+    background: none;
+    color: var(--dou-color-text-secondary);
+    font: inherit;
+    font-size: var(--dou-font-size-sm);
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+    transition: background-color var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    & svg {
+      width: 16px;
+      height: 16px;
+    }
+    &:hover:not(:disabled) {
+      background-color: var(--dou-color-bg-muted);
+      color: var(--dou-color-text);
+    }
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 0;
+    }
+    &:disabled {
+      color: var(--dou-color-text-disabled);
+      cursor: not-allowed;
+    }
+  }
+
+  .dou-flow-graph__zoom {
+    min-width: 44px;
+  }
+
+  .dou-flow-graph__empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--dou-color-text-tertiary);
+  }
+
+  /* legend */
+  .dou-flow-graph-legend {
+    min-width: 240px;
+    color: var(--dou-color-text);
+    font-size: var(--dou-font-size-md);
+  }
+
+  .dou-flow-graph-legend__title {
+    margin-bottom: 10px;
+    font-weight: var(--dou-font-weight-bold);
+  }
+
+  .dou-flow-graph-legend__list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 20px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .dou-flow-graph-legend__item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .dou-flow-graph-legend__swatch {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 16px;
+
+    & .dou-flow-graph__milestone {
+      margin-left: 0;
+    }
+  }
+
+  .dou-flow-graph-legend__label {
+    color: var(--dou-color-text-secondary);
+    line-height: 1;
+    text-box: trim-both cap alphabetic;
+    white-space: nowrap;
+  }
+
+  .dou-flow-graph-legend__task {
+    box-sizing: border-box;
+    width: 16px;
+    height: 16px;
+    border: 1px solid var(--dou-color-border-strong);
+    border-radius: var(--dou-radius-full);
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-sm);
+  }
+
+  .dou-flow-graph-legend__incomplete {
+    width: 4px;
+    height: 12px;
+    border-radius: var(--dou-radius-full);
+    background-color: var(--dou-flow-graph-marker);
+  }
+
+  .dou-flow-graph-legend__progress {
+    position: relative;
+    width: 24px;
+    height: 4px;
+    overflow: hidden;
+    border-radius: var(--dou-radius-full);
+    background-color: var(--dou-flow-graph-progress-track);
+
+    &::before {
+      content: '';
+      position: absolute;
+      inset: 0 50% 0 0;
+      border-radius: inherit;
+      background-color: var(--dou-flow-graph-progress-fill);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dou-flow-graph__node,
+    .dou-flow-graph__edge,
+    .dou-flow-graph__progress-bar {
+      transition: none;
+    }
+  }
+}

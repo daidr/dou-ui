@@ -185,6 +185,40 @@ export interface Locale {
     /** Read after the title of a step that failed. */
     error: string
   }
+  flowGraph: {
+    /** Names the graph when nothing else labels it. */
+    label: string
+    status: {
+      wait: string
+      process: string
+      finish: string
+      error: string
+      /** In progress while something it depends on is not finished. */
+      blocked: string
+    }
+    kind: {
+      task: string
+      milestone: string
+    }
+    /** A node with unfinished sub-tasks. */
+    incomplete: string
+    /** The legend entry for the progress bar. */
+    progress: string
+    /** Read for a node's progress, with `{value}`. */
+    progressValue: string
+    /** Read for what a node depends on, with `{list}`. */
+    dependsOn: string
+    /** Joins the parts of a node's screen reader label, and the names in `{list}`. */
+    separator: string
+    /** Title of the legend, also the label of its button. */
+    legend: string
+    zoomIn: string
+    zoomOut: string
+    /** The button that shows the whole graph. */
+    fit: string
+    /** The current zoom, with `{value}` in percent. */
+    zoomLevel: string
+  }
   rate: {
     /** Read as the value of the stars, with `{value}` and `{max}`. */
     value: string

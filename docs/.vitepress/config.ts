@@ -147,6 +147,7 @@ export default defineConfig({
             { text: 'Descriptions 描述列表', link: '/components/descriptions' },
             { text: 'Collapse 折叠面板', link: '/components/collapse' },
             { text: 'Timeline 时间线', link: '/components/timeline' },
+            { text: 'FlowGraph 流程图', link: '/components/flow-graph' },
             { text: 'CalendarView 日历视图', link: '/components/calendar-view' },
             { text: 'Table 表格', link: '/components/table' },
             { text: 'Tree 树', link: '/components/tree' },

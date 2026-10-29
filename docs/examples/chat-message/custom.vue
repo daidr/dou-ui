@@ -55,6 +55,7 @@ function pieces(text) {
 <style scoped>
 .forecast {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 

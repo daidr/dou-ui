@@ -4,8 +4,8 @@
  * Small dots strung on a hairline. The dot is the only place a tone
  * shows; the time sits above the content in the tertiary gray with
  * tabular figures. Something still under way gets a hollow dot and a
- * dashed line leading to it; something being worked on right now turns
- * its dot into a spinner.
+ * dashed line leading to it; the current step keeps a solid dot with a
+ * slow ripple spreading from it.
  */
 @layer dou.components {
   .dou-timeline {
@@ -81,8 +81,7 @@
       background-color: var(--dou-color-bg-surface);
     }
 
-    .dou-timeline__item.is-custom-dot > .dou-timeline__rail > &,
-    .dou-timeline__item.is-loading > .dou-timeline__rail > & {
+    .dou-timeline__item.is-custom-dot > .dou-timeline__rail > & {
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -100,17 +99,36 @@
     }
   }
 
-  .dou-timeline--neutral:is(.is-custom-dot, .is-loading) {
+  .dou-timeline--neutral.is-custom-dot {
     --dou-timeline-dot: var(--dou-color-text-secondary);
   }
 
-  .dou-timeline__item.is-loading > .dou-timeline__rail > .dou-timeline__dot > svg {
-    animation: dou-timeline-turn 0.8s linear infinite;
+  /* the current step: ink when neutral, so the gray resting dot never reads as "now" */
+  .dou-timeline--neutral.is-active {
+    --dou-timeline-dot: var(--dou-color-text);
   }
 
-  @keyframes dou-timeline-turn {
+  .dou-timeline__item.is-active > .dou-timeline__rail > .dou-timeline__dot {
+    position: relative;
+
+    &::after {
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background-color: var(--dou-timeline-dot);
+      content: '';
+      animation: dou-timeline-ripple 2s cubic-bezier(0.2, 0.6, 0.4, 1) infinite;
+    }
+  }
+
+  @keyframes dou-timeline-ripple {
+    from {
+      opacity: 0.4;
+      transform: scale(1);
+    }
     to {
-      transform: rotate(1turn);
+      opacity: 0;
+      transform: scale(2.6);
     }
   }
 
@@ -126,10 +144,8 @@
     border-left: 1px solid var(--dou-timeline-line);
   }
 
-  .dou-timeline:not(.is-reverse)
-    > .dou-timeline__item:has(+ :is(.is-pending, .is-loading))
-    .dou-timeline__line,
-  .dou-timeline.is-reverse > .dou-timeline__item:is(.is-pending, .is-loading) .dou-timeline__line {
+  .dou-timeline:not(.is-reverse) > .dou-timeline__item:has(+ .is-pending) .dou-timeline__line,
+  .dou-timeline.is-reverse > .dou-timeline__item.is-pending .dou-timeline__line {
     border-left-style: dashed;
   }
 
@@ -142,8 +158,11 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .dou-timeline__item.is-loading > .dou-timeline__rail > .dou-timeline__dot > svg {
-      animation-duration: 2s;
+    /* a still halo instead of the ripple */
+    .dou-timeline__item.is-active > .dou-timeline__rail > .dou-timeline__dot::after {
+      opacity: 0.2;
+      transform: scale(1.8);
+      animation: none;
     }
   }
 

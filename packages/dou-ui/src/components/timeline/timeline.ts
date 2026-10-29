@@ -21,8 +21,8 @@ export interface TimelineItemProps {
   tone?: TimelineItemTone
   /** Still under way: a hollow dot, and a dashed line leading to it. */
   pending?: boolean
-  /** Being worked on right now: the dot turns into a spinner, and the line leading to it is dashed. */
-  loading?: boolean
+  /** The current step: a solid dot with a ripple spreading from it. Takes the place of a custom dot. */
+  active?: boolean
 }
 
 export interface TimelineItemSlots {

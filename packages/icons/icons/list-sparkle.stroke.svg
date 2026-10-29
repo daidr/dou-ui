@@ -1,9 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-  <path class="dot" d="M4.5 6.5h.01" />
-  <path d="M9 6.5h11" />
-  <path class="dot" d="M4.5 12h.01" />
-  <path d="M9 12h11" />
-  <path class="dot" d="M4.5 17.5h.01" />
-  <path d="M9 17.5h4" />
+  <path d="M4 6.5h16" />
+  <path d="M4 12h9" />
+  <path d="M4 17.5h7" />
   <path class="fill" d="M18 14.5Q18.48 17.02 21 17.5Q18.48 17.98 18 20.5Q17.52 17.98 15 17.5Q17.52 17.02 18 14.5Z" />
 </svg>

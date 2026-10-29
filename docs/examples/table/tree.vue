@@ -19,8 +19,8 @@ const treeRows = [
         owner: '平台组',
         cost: 2600,
         children: [
-          { id: 'pg', name: 'PostgreSQL 主库', owner: '小林', cost: 1800 },
-          { id: 'redis', name: 'Redis 缓存', owner: '小林', cost: 800 },
+          { id: 'pg', name: 'PostgreSQL 主库', owner: '戴兜', cost: 1800 },
+          { id: 'redis', name: 'Redis 缓存', owner: '戴兜', cost: 800 },
         ],
       },
       { id: 'cdn', name: '内容分发', owner: '阿周', cost: 1600 },

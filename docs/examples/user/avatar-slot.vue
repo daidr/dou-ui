@@ -15,9 +15,9 @@ import { MoreHorizontalIcon } from '@dou-ui/icons'
       </template>
     </DouButton>
   </DouUser>
-  <DouUser name="陈晓" style="width: 100%">
+  <DouUser name="戴兜" style="width: 100%">
     <template #description>
-      <DouLink href="#">@chenxiao</DouLink>
+      <DouLink href="#">@daidr</DouLink>
     </template>
   </DouUser>
 </template>

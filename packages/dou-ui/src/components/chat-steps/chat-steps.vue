@@ -29,7 +29,13 @@ function toggle() {
   emit('update:open', inner.value)
 }
 
-const current = computed(() => props.items.findLast((step) => step.status === 'running'))
+// the last running step; a loop, since `findLast` needs a newer lib than the build targets
+const current = computed(() => {
+  for (let i = props.items.length - 1; i >= 0; i--) {
+    if (props.items[i]!.status === 'running') return props.items[i]
+  }
+  return undefined
+})
 const running = computed(() => props.running ?? !!current.value)
 const summary = computed(() => {
   if (props.title) return props.title

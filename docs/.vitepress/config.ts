@@ -46,6 +46,7 @@ export default defineConfig({
             { text: '数据管理页', link: '/blocks/data' },
             { text: '仪表盘', link: '/blocks/dashboard' },
             { text: 'AI 对话页', link: '/blocks/chat' },
+            { text: '错误页', link: '/blocks/errors' },
           ],
         },
       ],

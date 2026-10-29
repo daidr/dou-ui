@@ -2,58 +2,27 @@
 
 按位输入验证码，每位一个格子。底层是原生输入框，短信验证码自动填充、粘贴和读屏都与普通输入框一致。
 
-<script setup>
-import { ref } from 'vue'
-const code = ref('')
-const done = ref('')
-const pin = ref('')
-const invite = ref('')
-</script>
-
 ## 基础用法
 
 默认 6 位数字，只接受数字，其他字符直接忽略；填满时触发 `complete`。粘贴一整段（比如"482 913"）会自动去掉空格填进去。
 
-<div class="demo demo--column">
-  <DouInputOtp v-model="code" @complete="(value) => (done = value)" />
-  <DouText size="sm" variant="tertiary">已输入：{{ code || '—' }}　完成：{{ done || '—' }}</DouText>
-</div>
-
-```vue
-<DouInputOtp v-model="code" @complete="verify" />
-```
+<DocDemo src="input-otp/basic" column />
 
 ## 分组与遮盖
 
 `separator` 在第几位之后留一道间隔（可以传数组），默认画一条短横线，也可以用 `separator` 插槽换成别的；`mask` 把字符显示成圆点。
 
-<div class="demo demo--column">
-  <DouInputOtp v-model="pin" :length="6" :separator="3" mask />
-</div>
-
-```vue
-<DouInputOtp v-model="pin" :separator="3" mask />
-```
+<DocDemo src="input-otp/group-overlay" column />
 
 ## 字母与数字
 
 `type="alphanumeric"` 接受字母和数字，`type="text"` 接受任意非空白字符。
 
-<div class="demo demo--column">
-  <DouInputOtp v-model="invite" type="alphanumeric" :length="8" :separator="4" size="sm" />
-</div>
-
-```vue
-<DouInputOtp v-model="invite" type="alphanumeric" :length="8" :separator="4" size="sm" />
-```
+<DocDemo src="input-otp/charset" column />
 
 ## 尺寸与状态
 
-<div class="demo demo--column">
-  <DouInputOtp :length="4" size="lg" model-value="20" />
-  <DouInputOtp :length="4" invalid model-value="1234" />
-  <DouInputOtp :length="4" disabled model-value="12" />
-</div>
+<DocDemo src="input-otp/size-state" column />
 
 ## API
 

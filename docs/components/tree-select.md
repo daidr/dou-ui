@@ -2,73 +2,33 @@
 
 从下拉的树形结构中选择，例如部门、分类、目录。
 
-<script setup>
-import { ref } from 'vue'
-const org = [
-  {
-    key: 'eng',
-    label: '研发中心',
-    children: [
-      { key: 'fe', label: '前端组', children: [{ key: 'web', label: '官网' }, { key: 'console', label: '控制台' }] },
-      { key: 'be', label: '后端组', children: [{ key: 'api', label: '开放接口' }, { key: 'infra', label: '基础设施' }] },
-    ],
-  },
-  { key: 'design', label: '设计部', children: [{ key: 'brand', label: '品牌' }, { key: 'product', label: '产品设计' }] },
-  { key: 'ops', label: '运营部' },
-]
-const team = ref('console')
-const leaf = ref(null)
-const teams = ref(['fe', 'web', 'console', 'brand'])
-const strict = ref(['eng', 'brand'])
-const found = ref(null)
-</script>
-
 ## 基础用法
 
 `data` 与 Tree 相同：`{ key, label, children }`。选中一个节点后列表关闭，字段显示它的标签。
 
-<div class="demo" style="max-width: 360px">
-  <DouTreeSelect v-model="team" :data="org" default-expand-all clearable />
-</div>
-
-```vue
-<DouTreeSelect v-model="team" :data="org" default-expand-all clearable />
-```
+<DocDemo src="tree-select/basic" style="max-width: 360px" />
 
 ## 只能选叶子
 
 `leaf-only` 让分支只负责展开收起，只有最末一级可以选中。
 
-<div class="demo" style="max-width: 360px">
-  <DouTreeSelect v-model="leaf" :data="org" leaf-only placeholder="选择具体的组" />
-</div>
+<DocDemo src="tree-select/leaf-only" style="max-width: 360px" />
 
 ## 多选
 
 `multiple` 给每一行加上复选框。默认勾选是级联的：勾一个分支等于勾上它下面所有节点；一个分支下的节点全被勾上时，字段里只显示这个分支一个标签，删掉它就取消下面所有节点。`v-model` 里始终是全部勾选的 key。
 
-<div class="demo" style="max-width: 420px">
-  <DouTreeSelect v-model="teams" :data="org" multiple default-expand-all />
-</div>
+<DocDemo src="tree-select/multiple" style="max-width: 420px" />
 
 `check-strictly` 让每个节点单独勾选，互不影响：
 
-<div class="demo" style="max-width: 420px">
-  <DouTreeSelect v-model="strict" :data="org" multiple check-strictly default-expand-all />
-</div>
-
-```vue
-<DouTreeSelect v-model="teams" :data="org" multiple />
-<DouTreeSelect v-model="teams" :data="org" multiple check-strictly />
-```
+<DocDemo src="tree-select/multiple-2" style="max-width: 420px" />
 
 ## 可搜索
 
 `filterable` 让字段可以输入，树只留下匹配的节点和它们的上级，并自动展开。
 
-<div class="demo" style="max-width: 360px">
-  <DouTreeSelect v-model="found" :data="org" filterable placeholder="搜索部门" />
-</div>
+<DocDemo src="tree-select/filterable" style="max-width: 360px" />
 
 ## 懒加载与大数据
 

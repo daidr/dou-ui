@@ -2,25 +2,9 @@
 
 图片容器，提供加载中和加载失败的状态。
 
-<script setup>
-const tile = (hue) =>
-  `data:image/svg+xml,${encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="960" height="640"><defs><linearGradient id="g" x2="1" y2="1"><stop offset="0" stop-color="hsl(${hue} 30% 72%)"/><stop offset="1" stop-color="hsl(${hue + 40} 28% 38%)"/></linearGradient></defs><rect width="960" height="640" fill="url(#g)"/><circle cx="700" cy="200" r="90" fill="hsl(${hue} 40% 88%)" opacity=".7"/><path d="M0 520 L260 330 L460 480 L640 360 L960 560 V640 H0Z" fill="hsl(${hue + 20} 25% 28%)" opacity=".8"/></svg>`,
-  )}`
-const gallery = [210, 160, 25, 280].map(tile)
-const one = gallery[0]
-</script>
-
 ## 基础用法
 
-<div class="demo">
-  <DouImage :src="one" alt="远山与月亮" :width="180" :height="120" />
-  <DouImage :src="one" alt="远山与月亮" :width="120" :height="120" fit="contain" />
-</div>
-
-```vue
-<DouImage src="/cover.jpg" alt="远山与月亮" :width="180" :height="120" />
-```
+<DocDemo src="image/basic" />
 
 `width` / `height` 决定盒子大小（数字为 px），`fit` 决定图片如何填满盒子，对应 CSS 的 `object-fit`，默认 `cover`。`lazy` 使用浏览器原生的 `loading="lazy"`，图片接近视口时才加载。
 
@@ -28,14 +12,7 @@ const one = gallery[0]
 
 `fallback` 是 `src` 失败后再试一次的地址；仍然失败时显示错误状态，有 `alt` 就把它写出来。`error` 插槽可以换成别的内容，`placeholder` 插槽替换加载中的微光。
 
-<div class="demo">
-  <DouImage src="/not-found.png" alt="项目封面" :width="180" :height="120" />
-  <DouImage src="/not-found.png" :fallback="one" alt="项目封面" :width="180" :height="120" />
-</div>
-
-```vue
-<DouImage src="/cover.jpg" fallback="/cover-default.png" alt="项目封面" />
-```
+<DocDemo src="image/error" />
 
 ## 预览
 
@@ -43,21 +20,7 @@ const one = gallery[0]
 
 `preview-list` 传入一组图片后，预览里可以左右切换；每张图在列表里的位置按地址自动找到，也可以用 `preview-index` 指定。`preview-src` 指定一张更大的原图。
 
-<div class="demo">
-  <DouImage v-for="(src, i) in gallery" :key="i" :src="src" :alt="`示例图片 ${i + 1}`" :width="120" :height="80" preview :preview-list="gallery" />
-</div>
-
-```vue
-<DouImage
-  v-for="src in photos"
-  :key="src"
-  :src="src"
-  :width="120"
-  :height="80"
-  preview
-  :preview-list="photos"
-/>
-```
+<DocDemo src="image/preview" />
 
 ## 单独使用预览
 

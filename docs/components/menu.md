@@ -2,66 +2,11 @@
 
 应用的导航菜单，可以用作侧边栏或顶部导航。
 
-<script setup>
-import { CubeIcon, DashboardIcon, FileTextIcon, GlobeIcon, UsersIcon } from '@dou-ui/icons'
-import { ref } from 'vue'
-const items = [
-  { key: 'overview', label: '概览', icon: DashboardIcon },
-  {
-    key: 'deployments',
-    label: '部署',
-    icon: CubeIcon,
-    children: [
-      { key: 'production', label: '生产环境' },
-      { key: 'preview', label: '预览环境' },
-      { key: 'rollback', label: '回滚记录', disabled: true },
-    ],
-  },
-  { key: 'logs', label: '日志', icon: FileTextIcon },
-  {
-    type: 'group',
-    label: '设置',
-    children: [
-      { key: 'domains', label: '域名', icon: GlobeIcon },
-      { key: 'members', label: '成员', icon: UsersIcon },
-    ],
-  },
-]
-const current = ref('production')
-const collapsed = ref(false)
-</script>
-
 ## 侧边导航
 
 菜单由 `items` 数据驱动。带 `children` 的项是子菜单，在原地展开；`type: 'group'` 是带标题的分组，`type: 'divider'` 是分隔线。`v-model` 绑定当前项的 `key`；没有绑定 `v-model:expanded` 时，当前项所在的子菜单一开始就是展开的。
 
-<div class="demo">
-  <DouMenu v-model="current" :items="items" style="width: 220px" />
-</div>
-
-```vue
-<script setup>
-const items = [
-  { key: 'overview', label: '概览', icon: OverviewIcon },
-  {
-    key: 'deployments',
-    label: '部署',
-    icon: DeployIcon,
-    children: [
-      { key: 'production', label: '生产环境' },
-      { key: 'preview', label: '预览环境' },
-      { key: 'rollback', label: '回滚记录', disabled: true },
-    ],
-  },
-  { type: 'group', label: '设置', children: [/* … */] },
-]
-const current = ref('production')
-</script>
-
-<template>
-  <DouMenu v-model="current" :items="items" />
-</template>
-```
+<DocDemo src="menu/side-nav" />
 
 项上写 `href` 时渲染为链接；配合路由时通常不写 `href`，而是在 `select` 事件里跳转。`accordion` 让同一层最多展开一个子菜单。
 
@@ -69,26 +14,13 @@ const current = ref('production')
 
 `collapsed` 把菜单收成一列图标：叶子项悬停时用文字提示显示名称，子菜单改为向右弹出。没有图标的项显示名称的首字。
 
-<div class="demo">
-  <DouMenu v-model="current" :items="items" :collapsed="collapsed" :style="{ width: collapsed ? 'auto' : '220px' }" />
-  <DouButton size="sm" variant="outline" @click="collapsed = !collapsed">{{ collapsed ? '展开' : '折叠' }}</DouButton>
-</div>
-
-```vue
-<DouMenu v-model="current" :items="items" :collapsed="collapsed" />
-```
+<DocDemo src="menu/collapse" />
 
 ## 水平
 
 `mode="horizontal"` 横向排列，当前项（或包含当前项的子菜单）带下划线，样式与标签页一致。子菜单向下弹出；分组在横排里只留一道竖线分隔。
 
-<div class="demo demo--column">
-  <DouMenu v-model="current" :items="items" mode="horizontal" />
-</div>
-
-```vue
-<DouMenu v-model="current" :items="items" mode="horizontal" />
-```
+<DocDemo src="menu/horizontal" column />
 
 弹出的子菜单直接复用 [Dropdown](./dropdown)：更深一层的子菜单和分组都摊平成带小标题的一段，当前项后面带一个对勾。
 

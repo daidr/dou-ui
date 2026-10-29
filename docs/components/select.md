@@ -4,249 +4,83 @@
 
 列表的定位、层级与关闭行为见 [浮层](../guide/overlays)。
 
-<script setup>
-import { ref } from 'vue'
-const region = ref('sh')
-const channels = ref(['邮件', 'Webhook'])
-const framework = ref(null)
-const empty = ref(null)
-const regions = [
-  { value: 'sh', label: '上海' },
-  { value: 'sg', label: '新加坡' },
-  { value: 'fra', label: '法兰克福' },
-  { value: 'iad', label: '弗吉尼亚', disabled: true },
-  { value: 'sfo', label: '旧金山' },
-]
-const grouped = [
-  { label: '亚太', options: [{ value: 'sh', label: '上海' }, { value: 'sg', label: '新加坡' }, { value: 'syd', label: '悉尼' }] },
-  { label: '欧洲', options: [{ value: 'fra', label: '法兰克福' }, { value: 'lhr', label: '伦敦' }] },
-  { label: '美洲（即将开放）', disabled: true, options: [{ value: 'iad', label: '弗吉尼亚' }] },
-]
-const groupedValue = ref('sg')
-const packages = ['dou-ui', '@dou-ui/theme', '@dou-ui/icons', '@dou-ui/resolver', 'vue', 'vue-router', 'pinia', 'vite', 'vitest', 'vitepress', 'typescript', 'oxlint']
-const remoteOptions = ref([])
-const remoteLoading = ref(false)
-const remoteValue = ref(null)
-let remoteTimer
-function search(query) {
-  remoteLoading.value = true
-  clearTimeout(remoteTimer)
-  remoteTimer = setTimeout(() => {
-    const text = query.trim().toLowerCase()
-    remoteOptions.value = packages.filter((name) => name.includes(text)).map((name) => ({ value: name, label: name }))
-    remoteLoading.value = false
-  }, 600)
-}
-const labels = ref(['bug'])
-const users = Array.from({ length: 5000 }, (_, i) => ({ value: i + 1, label: `用户 ${String(i + 1).padStart(4, '0')}` }))
-const user = ref(4321)
-const many = ref(['sh', 'sg', 'fra', 'iad'])
-const limited = ref(['sh'])
-const people = [
-  { value: { id: 1, name: '小林', team: '平台组' }, label: '小林' },
-  { value: { id: 2, name: '阿周', team: '业务组' }, label: '阿周' },
-  { value: { id: 3, name: '小陈', team: '业务组' }, label: '小陈' },
-]
-const owner = ref({ id: 2, name: '阿周', team: '业务组' })
-const picked = ref(['sh'])
-const allValues = regions.filter((option) => !option.disabled).map((option) => option.value)
-const toggleAllRegions = (checked) => (picked.value = checked ? [...allValues] : [])
-</script>
-
 ## 基础用法
 
 `options` 是选项列表，字符串或数字同时作为值和标签；对象形式为 `{ value, label, disabled }`。
 
-<div class="demo demo--column" style="max-width: 360px">
-  <DouSelect v-model="region" :options="regions" />
-  <DouText variant="tertiary" size="sm">当前值：{{ region }}</DouText>
-</div>
-
-```vue
-<DouSelect
-  v-model="region"
-  :options="[
-    { value: 'sh', label: '上海' },
-    { value: 'sg', label: '新加坡' },
-    { value: 'iad', label: '弗吉尼亚', disabled: true },
-  ]"
-/>
-```
+<DocDemo src="select/basic" column style="max-width: 360px" />
 
 ## 可清空与占位
 
 `clearable` 在有值时显示清空按钮，清空后值为 `null`。`placeholder` 默认取语言包里的"请选择"。
 
-<div class="demo demo--column" style="max-width: 360px">
-  <DouSelect v-model="empty" :options="regions" clearable placeholder="选择部署区域" />
-</div>
+<DocDemo src="select/clearable" column style="max-width: 360px" />
 
 ## 多选
 
 `multiple` 时值是数组，选中的项显示为可移除的标签；列表在选择后保持打开。
 
-<div class="demo demo--column" style="max-width: 360px">
-  <DouSelect v-model="channels" multiple :options="['邮件', '短信', 'Webhook', 'Slack']" />
-</div>
-
-```vue
-<DouSelect v-model="channels" multiple :options="['邮件', '短信', 'Webhook', 'Slack']" />
-```
+<DocDemo src="select/multiple" column style="max-width: 360px" />
 
 ## 可搜索
 
 `filterable` 把字段变成输入框，输入的文字按标签筛选选项。没有匹配时显示 `empty` 插槽或语言包里的"无匹配项"。多选时，搜索框为空按 `Backspace` 会移除最后一个标签。
 
-<div class="demo demo--column" style="max-width: 360px">
-  <DouSelect v-model="framework" filterable clearable placeholder="搜索框架" :options="['Vue', 'Vite', 'Nuxt', 'VitePress', 'Astro', '静态站点']" />
-</div>
-
-```vue
-<DouSelect v-model="framework" filterable placeholder="搜索框架" :options="frameworks" />
-```
+<DocDemo src="select/filterable" column style="max-width: 360px" />
 
 ## 分组
 
 选项可以放进 `{ label, options }` 分组，组名是一行淡色的小字，组与组之间一条细线。分组上的 `disabled` 禁用组里的所有选项。
 
-<div class="demo" style="max-width: 360px">
-  <DouSelect v-model="groupedValue" :options="grouped" />
-</div>
-
-```ts
-const options = [
-  {
-    label: '亚太',
-    options: [
-      { value: 'sh', label: '上海' },
-      { value: 'sg', label: '新加坡' },
-    ],
-  },
-  { label: '欧洲', options: [{ value: 'fra', label: '法兰克福' }] },
-  { label: '美洲（即将开放）', disabled: true, options: ['iad'] },
-]
-```
+<DocDemo src="select/group" style="max-width: 360px" />
 
 ## 远程搜索
 
 `remote` 把搜索交给你：输入停顿 `search-delay`（默认 300ms）后触发 `search`，打开时也会触发一次；把结果换进 `options` 即可，组件不再自己筛选。请求期间设 `loading`，列表里显示加载中。已经选中的值即使不在新结果里，也会记得它的标签。
 
-<div class="demo" style="max-width: 360px">
-  <DouSelect v-model="remoteValue" :options="remoteOptions" :loading="remoteLoading" remote clearable placeholder="搜索 npm 包" @search="search" />
-</div>
-
-```vue
-<DouSelect
-  v-model="pkg"
-  :options="results"
-  :loading="loading"
-  remote
-  @search="
-    async (query) => {
-      loading = true
-      results = await api.search(query)
-      loading = false
-    }
-  "
-/>
-```
+<DocDemo src="select/remote" style="max-width: 360px" />
 
 ## 可创建
 
 `creatable` 在输入的文字没有完全匹配的选项时，把它作为第一项"创建“…”"提供出来；选中后它就成为一个普通选项，并触发 `create`。适合标签这类可以随手新增的值。
 
-<div class="demo" style="max-width: 360px">
-  <DouSelect v-model="labels" :options="['bug', 'docs', 'feature', 'perf']" multiple creatable placeholder="添加标签" />
-</div>
-
-```vue
-<DouSelect v-model="labels" :options="['bug', 'docs', 'feature']" multiple creatable />
-```
+<DocDemo src="select/creatable" style="max-width: 360px" />
 
 ## 虚拟滚动
 
 选项成千上万时打开 `virtual`，列表只渲染看得见的那些；键盘移动时会自动滚到当前项。下面是五千个选项。
 
-<div class="demo" style="max-width: 360px">
-  <DouSelect v-model="user" :options="users" virtual filterable />
-</div>
-
-```vue
-<DouSelect v-model="user" :options="users" virtual filterable />
-```
+<DocDemo src="select/virtual" style="max-width: 360px" />
 
 ## 折叠标签与数量上限
 
 选得多时字段会被撑高。`max-tag-count` 只显示前几个标签，其余折叠成一个"+N"，指向它能看到被折叠的是哪几项。`multiple-limit` 限定最多选几项，到上限后没选中的项变灰，已选的仍可取消。
 
-<div class="demo">
-  <DouSelect v-model="many" :options="regions" multiple :max-tag-count="2" style="width: 260px" />
-  <DouSelect v-model="limited" :options="regions" multiple :multiple-limit="2" placeholder="最多两项" style="width: 260px" />
-</div>
-
-```vue
-<DouSelect v-model="value" :options="options" multiple :max-tag-count="2" />
-<DouSelect v-model="value" :options="options" multiple :multiple-limit="2" />
-```
+<DocDemo src="select/collapse-tags" />
 
 ## 对象作为值
 
 值可以是对象，此时用 `value-key` 指定哪个属性用来区分它们。这样从接口拿回的新对象和选项里的对象虽然不是同一个，也能对上。
 
-<div class="demo">
-  <DouSelect v-model="owner" :options="people" value-key="id" style="width: 200px" />
-  <DouText variant="tertiary" size="sm">{{ JSON.stringify(owner) }}</DouText>
-</div>
-
-```vue
-<DouSelect v-model="owner" :options="people" value-key="id" />
-```
+<DocDemo src="select/object-value" />
 
 ## 头部与底部
 
 `header`、`footer` 插槽放在列表上下，滚动选项时它们不动，适合放"全选"或"新建"。`tag` 插槽替换多选的标签（参数 `{ option, remove }`），`label` 插槽替换单选时字段里的文字（参数 `{ option }`）。
 
-<div class="demo">
-  <DouSelect v-model="picked" :options="regions" multiple :max-tag-count="2" style="width: 260px">
-    <template #header>
-      <DouCheckbox size="sm" :model-value="picked.length === allValues.length" :indeterminate="picked.length > 0 && picked.length < allValues.length" @update:model-value="toggleAllRegions">全选</DouCheckbox>
-    </template>
-    <template #footer>
-      <DouText variant="tertiary" size="sm">已选 {{ picked.length }} / {{ allValues.length }}</DouText>
-    </template>
-  </DouSelect>
-</div>
-
-```vue
-<DouSelect v-model="picked" :options="options" multiple>
-  <template #header>
-    <DouCheckbox :model-value="allChecked" @update:model-value="toggleAll">全选</DouCheckbox>
-  </template>
-</DouSelect>
-```
+<DocDemo src="select/header-footer" />
 
 ## 尺寸、禁用与表单
 
 尺寸、禁用与校验状态与输入框一致，也会从 [表单](./form) 继承。
 
-<div class="demo demo--column" style="max-width: 360px">
-  <DouSelect v-for="size in ['sm', 'md', 'lg']" :key="size" v-model="region" :size="size" :options="regions" />
-  <DouSelect v-model="region" disabled :options="regions" />
-  <DouSelect v-model="empty" invalid :options="regions" />
-</div>
+<DocDemo src="select/size-disabled" column style="max-width: 360px" />
 
 ## 自定义选项
 
 `option` 插槽替换每个选项的内容，参数为 `{ option, selected }`。
 
-<div class="demo demo--column" style="max-width: 360px">
-  <DouSelect v-model="region" :options="regions">
-    <template #option="{ option }">
-      {{ option.label }}
-      <DouText variant="tertiary" size="sm" style="margin-left: 6px">{{ option.value }}</DouText>
-    </template>
-  </DouSelect>
-</div>
+<DocDemo src="select/custom-option" column style="max-width: 360px" />
 
 ## 键盘与读屏
 

@@ -4,17 +4,7 @@
 
 ## 基础用法
 
-<div class="demo">
-  <DouAffix :offset-top="72">
-    <DouButton variant="outline">钉在顶部下方 72px</DouButton>
-  </DouAffix>
-</div>
-
-```vue
-<DouAffix :offset-top="72">
-  <DouButton variant="outline">钉在顶部下方 72px</DouButton>
-</DouAffix>
-```
+<DocDemo src="affix/basic" />
 
 向下滚动这一页，按钮会在距离顶部 72px（文档站导航栏的高度）处停住。
 

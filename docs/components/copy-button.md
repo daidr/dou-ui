@@ -4,28 +4,13 @@
 
 ## 基础用法
 
-<div class="demo">
-  <DouCopyButton text="bun add dou-ui" />
-  <DouCopyButton text="bun add dou-ui" variant="outline" />
-  <DouCopyButton text="bun add dou-ui" size="sm" />
-  <DouCopyButton text="bun add dou-ui" show-label variant="outline" />
-</div>
-
-```vue
-<DouCopyButton text="bun add dou-ui" />
-<DouCopyButton text="bun add dou-ui" show-label variant="outline" />
-```
+<DocDemo src="copy-button/basic" />
 
 `variant` 可选 `ghost`（默认，放在代码块之类的容器里）和 `outline`。`show-label` 把"复制 / 已复制"写出来；否则文字只给读屏和悬停提示。
 
 ## 放在代码块里
 
-<div class="demo" style="display: block">
-  <div class="copy-demo">
-    <code>bun add dou-ui</code>
-    <DouCopyButton text="bun add dou-ui" size="sm" />
-  </div>
-</div>
+<DocDemo src="copy-button/code-block" style="display: block" />
 
 `text` 也可以是函数（可以返回 Promise），在按下时才读取，例如复制代码块当前显示的内容：
 
@@ -60,21 +45,3 @@
 | ------- | -------- | ------------------ |
 | `copy`  | 复制成功 | `(text: string)`   |
 | `error` | 复制失败 | `(error: unknown)` |
-
-<style>
-.copy-demo {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  max-width: 360px;
-  padding: 6px 6px 6px 16px;
-  border: 1px solid var(--dou-color-border-subtle);
-  border-radius: var(--dou-radius-container);
-  background-color: color-mix(in oklab, var(--dou-color-text) 2.5%, var(--dou-color-bg-surface));
-}
-.copy-demo code {
-  padding: 0;
-  background: none;
-  font-size: 14px;
-}
-</style>

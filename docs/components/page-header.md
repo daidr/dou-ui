@@ -2,21 +2,9 @@
 
 用于页面顶部，展示返回链接、标题和页面级操作。
 
-<script setup>
-import { ref } from 'vue'
-const backs = ref(0)
-</script>
-
 ## 基础用法
 
-<div class="demo demo--column">
-  <DouPageHeader title="订单详情" subtitle="SH-20261029-0042" @back="backs++" />
-  <DouText size="sm" variant="tertiary">点了 {{ backs }} 次返回</DouText>
-</div>
-
-```vue
-<DouPageHeader title="订单详情" subtitle="SH-20261029-0042" @back="router.back()" />
-```
+<DocDemo src="page-header/basic" column />
 
 组件只发出 `back`，回到哪里由你决定：`router.back()`、跳到列表页，或者先确认有没有未保存的修改。`back-text` 改按钮文字，`icon` 插槽换掉箭头，`:show-back="false"` 去掉返回按钮。
 
@@ -24,29 +12,7 @@ const backs = ref(0)
 
 `breadcrumb` 插槽在标题行上方，`extra` 插槽在标题行末尾，默认插槽在标题行下方，可以放说明、描述列表或一排统计数值。
 
-<div class="demo demo--column">
-  <DouPageHeader title="上海研发中心" subtitle="进行中" style="width: 100%">
-    <template #breadcrumb>
-      <DouBreadcrumb :items="[{ label: '首页', href: '#' }, { label: '项目', href: '#' }, { label: '上海研发中心' }]" />
-    </template>
-    <template #extra>
-      <DouButton variant="outline" size="sm">编辑</DouButton>
-      <DouButton variant="solid" size="sm">发布</DouButton>
-    </template>
-    园区二期的装修与搬迁，预计 12 月完成。
-  </DouPageHeader>
-</div>
-
-```vue
-<DouPageHeader title="上海研发中心" subtitle="进行中">
-  <template #breadcrumb><DouBreadcrumb :items="items" /></template>
-  <template #extra>
-    <DouButton variant="outline" size="sm">编辑</DouButton>
-    <DouButton variant="solid" size="sm">发布</DouButton>
-  </template>
-  园区二期的装修与搬迁，预计 12 月完成。
-</DouPageHeader>
-```
+<DocDemo src="page-header/breadcrumb" column />
 
 ## 读屏
 

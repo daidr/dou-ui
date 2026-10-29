@@ -2,67 +2,23 @@
 
 直接展示在页面中的选项列表，适合选项不多、希望一次看到全部选项的场景，例如设置页、侧栏筛选。
 
-<script setup>
-import { CloudIcon, DatabaseIcon, GlobeIcon, ServerIcon } from '@dou-ui/icons'
-import { ref } from 'vue'
-const region = ref('sh')
-const regions = [
-  { value: 'sh', label: '上海', description: '华东 2 · 延迟最低' },
-  { value: 'bj', label: '北京', description: '华北 2' },
-  { value: 'sg', label: '新加坡', description: '亚太东南 1' },
-  { value: 'fra', label: '法兰克福', description: '欧洲中部 1', disabled: true },
-]
-const services = ref(['compute', 'storage'])
-const serviceOptions = [
-  { value: 'compute', label: '云服务器', icon: ServerIcon },
-  { value: 'storage', label: '对象存储', icon: CloudIcon },
-  { value: 'database', label: '数据库', icon: DatabaseIcon },
-  { value: 'cdn', label: '内容分发', icon: GlobeIcon },
-]
-const city = ref(null)
-const cities = [
-  { label: '华东', options: ['上海', '杭州', '南京', '苏州', '合肥'] },
-  { label: '华北', options: ['北京', '天津', '石家庄', '太原'] },
-  { label: '华南', options: ['广州', '深圳', '厦门', '南宁'] },
-]
-</script>
-
 ## 基础用法
 
 选项与 Select 的写法相同：字符串、数字，或带 `value`、`label` 的对象。对象还可以带 `description` 显示第二行。
 
-<div class="demo">
-  <DouListbox v-model="region" :options="regions" aria-label="区域" style="width: 280px" />
-</div>
-
-```vue
-<DouListbox v-model="region" :options="regions" aria-label="区域" />
-```
+<DocDemo src="listbox/basic" />
 
 ## 多选与图标
 
 `multiple` 时点一下切换一项，`v-model` 是数组。选项的 `icon` 放在文字前面。
 
-<div class="demo">
-  <DouListbox v-model="services" :options="serviceOptions" multiple aria-label="服务" style="width: 240px" />
-  <DouText variant="secondary">已选：{{ services.join('、') || '无' }}</DouText>
-</div>
-
-```vue
-<DouListbox v-model="services" :options="serviceOptions" multiple aria-label="服务" />
-```
+<DocDemo src="listbox/multiple-icon" />
 
 ## 分组、搜索与限高
 
 分组的写法也与 Select 相同。`filterable` 在列表上方放一个搜索框，同时匹配标签与说明；`max-height` 限制列表高度，超出后列表内部滚动。
 
-<div class="demo">
-  <DouListbox v-model="city" :options="cities" filterable :max-height="240" aria-label="城市" style="width: 240px" />
-</div>
-
-```vue
-<DouListbox v-model="city" :options="cities" filterable :max-height="240" aria-label="城市" />
-```
+<DocDemo src="listbox/group-search" />
 
 ## API
 

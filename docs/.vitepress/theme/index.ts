@@ -4,6 +4,7 @@ import 'dou-ui/style.css'
 import './style.css'
 import Layout from './Layout.vue'
 import DocCode from './components/DocCode.vue'
+import DocDemo from './components/DocDemo.vue'
 import DocIconGallery from './components/DocIconGallery.vue'
 import TokenSwatches from './components/TokenSwatches.vue'
 
@@ -13,6 +14,7 @@ export default {
     app.use(DouUI)
     // Every fenced code block is wrapped in DocCode (see the markdown config).
     app.component('DocCode', DocCode)
+    app.component('DocDemo', DocDemo)
     app.component('TokenSwatches', TokenSwatches)
     app.component('DocIconGallery', DocIconGallery)
   },

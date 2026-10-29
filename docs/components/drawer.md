@@ -4,41 +4,9 @@
 
 除了位置与尺寸，抽屉的属性、事件与插槽和对话框一致。浮层的通用行为见 [浮层](../guide/overlays)。
 
-<script setup>
-import { ref } from 'vue'
-const open = ref(false)
-const placement = ref('right')
-const show = (value) => {
-  placement.value = value
-  open.value = true
-}
-</script>
-
 ## 基础用法
 
-<div class="demo">
-  <DouButton v-for="value in ['right', 'left', 'top', 'bottom']" :key="value" variant="outline" @click="show(value)">{{ value }}</DouButton>
-  <DouDrawer v-model:open="open" :placement="placement" title="部署详情">
-    <DouSpace direction="vertical" block>
-      <DouText variant="secondary">main · 39dc86b，3 分钟前由 daidr 触发。</DouText>
-      <DouText variant="secondary">构建耗时 42 秒，产物 1.2 MB，已分发到 18 个节点。</DouText>
-    </DouSpace>
-    <template #footer="{ close }">
-      <DouButton variant="outline" @click="close">关闭</DouButton>
-      <DouButton @click="close">访问</DouButton>
-    </template>
-  </DouDrawer>
-</div>
-
-```vue
-<DouDrawer v-model:open="open" placement="right" title="部署详情">
-  <DouText variant="secondary">main · 39dc86b，3 分钟前由 daidr 触发。</DouText>
-  <template #footer="{ close }">
-    <DouButton variant="outline" @click="close">关闭</DouButton>
-    <DouButton @click="close">访问</DouButton>
-  </template>
-</DouDrawer>
-```
+<DocDemo src="drawer/basic" />
 
 ## 尺寸
 

@@ -2,24 +2,9 @@
 
 拖动滑块，在一段范围内选择一个值或一个区间。
 
-<script setup>
-import { ref } from 'vue'
-const volume = ref(40)
-const hours = ref([9, 18])
-const temperature = ref(24)
-const quality = ref(75)
-</script>
-
 ## 基础用法
 
-<div class="demo demo--column" style="max-width: 420px">
-  <DouSlider v-model="volume" aria-label="音量" />
-  <DouText variant="tertiary" size="sm">当前值：{{ volume }}</DouText>
-</div>
-
-```vue
-<DouSlider v-model="volume" aria-label="音量" />
-```
+<DocDemo src="slider/basic" column style="max-width: 420px" />
 
 不在 [表单项](./form) 里时，用 `aria-label` 或 `aria-labelledby` 为滑块命名，它们会落在滑块本身（`role="slider"`）上。
 
@@ -27,14 +12,7 @@ const quality = ref(75)
 
 `range` 显示两枚滑块，`v-model` 绑定 `[起点, 终点]`。两枚滑块不会越过彼此；重叠时朝哪边拖就由哪一枚接手。
 
-<div class="demo demo--column" style="max-width: 420px">
-  <DouSlider v-model="hours" range :max="24" />
-  <DouText variant="tertiary" size="sm">{{ hours[0] }}:00 – {{ hours[1] }}:00</DouText>
-</div>
-
-```vue
-<DouSlider v-model="hours" range :max="24" />
-```
+<DocDemo src="slider/range" column style="max-width: 420px" />
 
 两枚滑块的读屏标签（"起始值" / "结束值"）来自 [全局配置](./config-provider) 的语言包。
 
@@ -42,28 +20,7 @@ const quality = ref(75)
 
 `step` 决定可取的值；`marks` 在滑轨下方标注刻度，键为刻度所在的值。范围以内的刻度会加深。`formatValue` 决定读屏软件念出的文字。
 
-<div class="demo demo--column" style="max-width: 420px">
-  <DouSlider
-    v-model="temperature"
-    :min="16"
-    :max="32"
-    :step="2"
-    :marks="{ 16: '16°C', 24: '24°C', 32: '32°C' }"
-    :format-value="(v) => `${v} 摄氏度`"
-    aria-label="温度"
-  />
-</div>
-
-```vue
-<DouSlider
-  v-model="temperature"
-  :min="16"
-  :max="32"
-  :step="2"
-  :marks="{ 16: '16°C', 24: '24°C', 32: '32°C' }"
-  :format-value="(v) => `${v} 摄氏度`"
-/>
-```
+<DocDemo src="slider/step-marks" column style="max-width: 420px" />
 
 ## 键盘与指针
 
@@ -80,13 +37,7 @@ const quality = ref(75)
 
 ## 尺寸与状态
 
-<div class="demo demo--column" style="max-width: 420px">
-  <DouSlider v-model="quality" size="sm" aria-label="sm" />
-  <DouSlider v-model="quality" aria-label="md" />
-  <DouSlider v-model="quality" size="lg" aria-label="lg" />
-  <DouSlider :model-value="60" invalid aria-label="无效" />
-  <DouSlider :model-value="30" disabled aria-label="禁用" />
-</div>
+<DocDemo src="slider/size-state" column style="max-width: 420px" />
 
 ## API
 

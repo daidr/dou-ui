@@ -2,64 +2,17 @@
 
 为一棵子树里的组件提供默认值：尺寸、语言与浮层层级。配置可以嵌套，内层没有设置的项沿用外层。
 
-<script setup>
-import { ref } from 'vue'
-import { en } from 'dou-ui'
-const keyword = ref('dou-ui')
-</script>
-
 ## 默认尺寸
 
 组件没有设置 `size` 时，依次取表单的尺寸、最近的全局配置，最后是 `md`。
 
-<div class="demo demo--column">
-  <DouConfigProvider size="sm">
-    <DouSpace size="sm">
-      <DouInput placeholder="sm" style="width: 200px" />
-      <DouButton variant="outline">搜索</DouButton>
-      <DouTag>标签</DouTag>
-    </DouSpace>
-  </DouConfigProvider>
-  <DouConfigProvider size="lg">
-    <DouSpace size="sm">
-      <DouInput placeholder="lg" style="width: 200px" />
-      <DouButton variant="outline">搜索</DouButton>
-      <DouTag>标签</DouTag>
-    </DouSpace>
-  </DouConfigProvider>
-</div>
-
-```vue
-<DouConfigProvider size="sm">
-  <DouInput />
-  <DouButton>搜索</DouButton>
-</DouConfigProvider>
-```
+<DocDemo src="config-provider/default-size" column />
 
 ## 国际化
 
 组件自己渲染的文字（清空、移除按钮的读屏标签，表单的默认错误信息与"可选"标记）都来自语言包。DouUI 内置 `zhCN`（默认）与 `en`。
 
-<div class="demo">
-  <DouConfigProvider :locale="en">
-    <DouSpace size="sm">
-      <DouInput v-model="keyword" clearable style="width: 200px" />
-      <DouTag closable>closable</DouTag>
-    </DouSpace>
-  </DouConfigProvider>
-</div>
-
-```vue
-<script setup lang="ts">
-import { en } from 'dou-ui'
-</script>
-
-<template>
-  <DouConfigProvider :locale="en">
-    <App />
-  </DouConfigProvider>
-</template>
-```
+<DocDemo src="config-provider/i18n" />
 
 上例中清空与移除按钮的 `aria-label` 分别是 "Clear" 与 "Remove"。
 

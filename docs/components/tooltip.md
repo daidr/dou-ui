@@ -8,20 +8,7 @@
 
 默认插槽是触发元素，`content` 是提示文字。指向后稍等片刻出现，键盘聚焦时立即出现。
 
-<div class="demo">
-  <DouTooltip content="复制部署地址">
-    <DouButton variant="outline">复制</DouButton>
-  </DouTooltip>
-  <DouTooltip content="最近一次部署于 3 分钟前完成">
-    <DouText variant="secondary" tabindex="0">3 分钟前</DouText>
-  </DouTooltip>
-</div>
-
-```vue
-<DouTooltip content="复制部署地址">
-  <DouButton variant="outline">复制</DouButton>
-</DouTooltip>
-```
+<DocDemo src="tooltip/basic" />
 
 触发元素不需要额外的包裹：属性与事件直接加在插槽的第一个元素上。插槽里只是一段文字时，会包一层 `<span>`。
 
@@ -29,29 +16,13 @@
 
 `placement` 是首选的一侧，放不下时自动翻到对侧。
 
-<div class="demo">
-  <DouTooltip v-for="placement in ['top', 'bottom', 'left', 'right', 'top-start', 'bottom-end']" :key="placement" :content="placement" :placement="placement">
-    <DouButton variant="outline" size="sm">{{ placement }}</DouButton>
-  </DouTooltip>
-</div>
+<DocDemo src="tooltip/placement" />
 
 ## 自定义内容
 
 `content` 插槽可以放更丰富的内容，例如快捷键。
 
-<div class="demo">
-  <DouTooltip>
-    <DouButton variant="outline">保存</DouButton>
-    <template #content>保存草稿 <span style="opacity: 0.6">⌘S</span></template>
-  </DouTooltip>
-</div>
-
-```vue
-<DouTooltip>
-  <DouButton variant="outline">保存</DouButton>
-  <template #content>保存草稿 <span style="opacity: 0.6">⌘S</span></template>
-</DouTooltip>
-```
+<DocDemo src="tooltip/custom" />
 
 ## 键盘与读屏
 

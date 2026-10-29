@@ -605,37 +605,105 @@ body {
   margin-bottom: 0;
 }
 
-/* live demos */
+/* live demos: docs/examples/*.vue shown by DocDemo */
 
-.demo {
+.doc-demo {
+  margin: 16px 0;
+  border: 1px solid var(--dou-color-border-subtle);
+  border-radius: var(--dou-radius-container);
+}
+
+.doc-demo__preview {
+  display: flex;
+  flex-direction: column;
+}
+
+/* The code toggle has a row of its own, so it never covers the demo. */
+.doc-demo__bar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 8px 0;
+}
+
+.doc-demo__stage {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 12px;
-  padding: 24px;
-  margin: 16px 0;
-  border: 1px solid var(--dou-color-border-subtle);
-  border-radius: var(--dou-radius-container);
+  padding: 4px 24px 24px;
   color: var(--dou-color-text);
   font-size: var(--dou-font-size-md);
   line-height: var(--dou-font-line-height);
 }
 
-.demo--column {
+.doc-demo__stage--column {
   flex-direction: column;
   align-items: stretch;
 }
 
-.dot {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
+.doc-demo__toggle.dou-button {
+  color: var(--dou-color-text-tertiary);
 }
 
-.dot--success {
-  background: var(--dou-color-success);
+.doc-demo__toggle.dou-button:hover,
+.doc-demo.is-open .doc-demo__toggle.dou-button {
+  color: var(--dou-color-text);
+}
+
+.doc-demo__source {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--dou-motion-duration-normal) var(--dou-motion-easing);
+}
+
+.doc-demo.is-open .doc-demo__source {
+  grid-template-rows: 1fr;
+}
+
+.doc-demo__code {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.doc-demo__code .doc-code {
+  margin: 0;
+  border-top: 1px solid var(--dou-color-border-subtle);
+}
+
+.doc-demo__code .doc-code pre {
+  border: 0;
+  border-radius: 0;
+}
+
+.doc-demo__collapse {
+  display: block;
+  width: 100%;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-top: 1px solid var(--dou-color-border-subtle);
+  border-radius: 0 0 var(--dou-radius-container) var(--dou-radius-container);
+  background: transparent;
+  color: var(--dou-color-text-tertiary);
+  font: inherit;
+  font-size: var(--dou-font-size-sm);
+  cursor: pointer;
+  transition: color var(--dou-motion-duration-fast) var(--dou-motion-easing);
+}
+
+.doc-demo__collapse:hover {
+  color: var(--dou-color-text);
+}
+
+.doc-demo__collapse:focus-visible {
+  outline: 2px solid var(--dou-color-focus);
+  outline-offset: -2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .doc-demo__source {
+    transition: none;
+  }
 }
 
 /* wide pages: the main column also takes the outline's place */

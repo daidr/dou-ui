@@ -2,32 +2,9 @@
 
 输入框的输入建议。和 Select 不同，它的值就是输入框中的文字，不选择建议也可以提交任意内容。
 
-<script setup>
-import { ref } from 'vue'
-const framework = ref('')
-const frameworks = ['Vue', 'Vite', 'VitePress', 'Vitest', 'Nuxt', 'Pinia', 'Bun', 'oxlint']
-const email = ref('')
-const domains = ['qq.com', '163.com', 'gmail.com', 'outlook.com']
-const emailSuggest = (query) => {
-  if (!query || query.includes('@') && query.split('@')[1].length > 0 && domains.some((d) => d === query.split('@')[1])) return []
-  const [name, host = ''] = query.split('@')
-  return domains.filter((d) => d.startsWith(host)).map((d) => `${name}@${d}`)
-}
-const city = ref('')
-const cities = ['北京', '上海', '广州', '深圳', '杭州', '成都', '南京', '武汉', '西安', '苏州']
-const search = (query) =>
-  new Promise((resolve) => setTimeout(() => resolve(cities.filter((c) => c.includes(query)).map((c) => ({ value: c, description: '城市' }))), 400))
-</script>
-
 ## 基础用法
 
-<div class="demo">
-  <DouAutocomplete v-model="framework" :options="frameworks" placeholder="喜欢的工具" style="width: 240px" />
-</div>
-
-```vue
-<DouAutocomplete v-model="value" :options="['Vue', 'Vite', 'VitePress']" />
-```
+<DocDemo src="autocomplete/basic" />
 
 建议按输入的文字过滤（不区分大小写），命中的部分加粗标出。选项可以是字符串，也可以是 `{ value, label, description, disabled }`。`filter` 传函数自定义匹配，传 `false` 则总是显示全部建议。
 
@@ -35,25 +12,13 @@ const search = (query) =>
 
 `fetch` 根据当前文字返回建议，可以是普通函数，也可以返回 Promise。下面的例子在 `@` 后面补全邮箱域名：
 
-<div class="demo">
-  <DouAutocomplete v-model="email" :fetch="emailSuggest" :debounce="0" :min-length="1" :highlight="false" placeholder="邮箱" style="width: 240px" />
-</div>
-
-```vue
-<DouAutocomplete v-model="email" :fetch="suggest" :debounce="0" :min-length="1" />
-```
+<DocDemo src="autocomplete/generate" />
 
 ## 异步建议
 
 请求在停止输入 `debounce` 毫秒后发出（默认 200）；先发出的请求如果晚回来，结果会被丢弃，列表不会闪回旧内容。等待时列表里显示"加载中…"。
 
-<div class="demo">
-  <DouAutocomplete v-model="city" :fetch="search" :min-length="1" placeholder="城市" clearable style="width: 240px" />
-</div>
-
-```vue
-<DouAutocomplete v-model="city" :fetch="(query) => api.searchCities(query)" :min-length="1" />
-```
+<DocDemo src="autocomplete/async" />
 
 ## 插槽
 

@@ -2,31 +2,9 @@
 
 在按钮旁边问一句"确定吗？"，适合删除、撤销这类一步就能完成、但做了需要先想一下的操作。它建在 Popover 上：问题前面一个带语气色的图标，下面两个小按钮；只有图标带颜色，`tone="danger"` 时确认按钮也变成危险色。
 
-<script setup>
-import { ref } from 'vue'
-const removed = ref(0)
-const remove = () => new Promise((resolve) => setTimeout(() => { removed.value++; resolve() }, 1000))
-let tries = 0
-const flaky = () => new Promise((resolve, reject) => setTimeout(() => (++tries % 2 ? reject() : resolve()), 800))
-</script>
-
 ## 基础用法
 
-<div class="demo">
-  <DouPopconfirm title="重新部署当前版本？" description="大约需要两分钟，期间旧版本继续服务。">
-    <DouButton variant="outline">重新部署</DouButton>
-  </DouPopconfirm>
-</div>
-
-```vue
-<DouPopconfirm
-  title="重新部署当前版本？"
-  description="大约需要两分钟，期间旧版本继续服务。"
-  @confirm="redeploy"
->
-  <DouButton variant="outline">重新部署</DouButton>
-</DouPopconfirm>
-```
+<DocDemo src="popconfirm/basic" />
 
 默认插槽是触发元素，点击打开。打开后焦点落在"取消"上：直接按 `Enter` 得到的是安全的那个答案。
 
@@ -34,26 +12,7 @@ const flaky = () => new Promise((resolve, reject) => setTimeout(() => (++tries %
 
 `tone="danger"` 用于无法撤销的操作。`@confirm` 的处理函数可以返回 Promise：等待期间确认按钮显示加载状态，成功后关闭；失败（Promise 被拒绝）时保持打开，可以再试一次。
 
-<div class="demo">
-  <DouPopconfirm title="删除这个项目？" description="项目里的部署会一起删除，无法恢复。" tone="danger" confirm-text="删除" @confirm="remove">
-    <DouButton tone="danger" variant="soft">删除项目</DouButton>
-  </DouPopconfirm>
-  <DouPopconfirm title="同步到远端？" description="这个示例每隔一次会失败。" @confirm="flaky">
-    <DouButton variant="outline">同步</DouButton>
-  </DouPopconfirm>
-  <DouText variant="tertiary" size="sm">已删除 {{ removed }} 次</DouText>
-</div>
-
-```vue
-<DouPopconfirm
-  title="删除这个项目？"
-  tone="danger"
-  confirm-text="删除"
-  @confirm="() => api.remove(id)"
->
-  <DouButton tone="danger" variant="soft">删除项目</DouButton>
-</DouPopconfirm>
-```
+<DocDemo src="popconfirm/async-confirm" />
 
 ## 语气
 

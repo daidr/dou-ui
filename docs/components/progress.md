@@ -2,44 +2,21 @@
 
 展示任务的完成进度。
 
-<script setup>
-import { ref } from 'vue'
-const value = ref(64)
-</script>
-
 ## 基础用法
 
-<div class="demo demo--column" style="max-width: 420px">
-  <DouProgress :value="value" show-value />
-  <DouSlider v-model="value" />
-</div>
-
-```vue
-<DouProgress :value="64" show-value />
-```
+<DocDemo src="progress/basic" column style="max-width: 420px" />
 
 `max` 默认 `100`；超出范围的值会被限制在轨道内。
 
 ## 语气与粗细
 
-<div class="demo demo--column" style="max-width: 420px">
-  <DouProgress :value="72" tone="primary" size="sm" />
-  <DouProgress :value="72" tone="success" />
-  <DouProgress :value="72" tone="warning" size="lg" />
-  <DouProgress :value="72" tone="danger" size="lg" />
-</div>
+<DocDemo src="progress/tone-weight" column style="max-width: 420px" />
 
 ## 不确定进度
 
 不传 `value` 时进度条变为不确定状态。
 
-<div class="demo demo--column" style="max-width: 420px">
-  <DouProgress label="上传中" />
-</div>
-
-```vue
-<DouProgress label="上传中" />
-```
+<DocDemo src="progress/indeterminate" column style="max-width: 420px" />
 
 ## 读屏
 

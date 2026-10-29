@@ -4,68 +4,23 @@
 
 本页的按钮会直接切换整个文档站。
 
-<script setup>
-import { useColorMode } from 'dou-ui'
-const { mode } = useColorMode()
-const modes = [
-  { value: 'light', label: '亮色' },
-  { value: 'dark', label: '暗色' },
-  { value: 'system', label: '跟随系统' },
-]
-</script>
-
 ## 切换按钮
 
 `DouColorModeButton` 是一个只有图标的按钮，在亮色与暗色之间切换，图标与读屏标签随当前模式变化。适合放在顶栏。
 
-<div class="demo">
-  <DouColorModeButton />
-  <DouColorModeButton variant="outline" />
-  <DouColorModeButton size="sm" />
-</div>
-
-```vue
-<DouColorModeButton />
-```
+<DocDemo src="color-mode/toggle-button" />
 
 ## 开关与下拉
 
 `DouColorModeSwitch` 打开即暗色；`DouColorModeSelect` 多一个"跟随系统"，适合设置页。
 
-<div class="demo">
-  <DouColorModeSwitch>暗色模式</DouColorModeSwitch>
-  <DouColorModeSelect style="width: 160px" />
-</div>
-
-```vue
-<DouColorModeSwitch>暗色模式</DouColorModeSwitch>
-<DouColorModeSelect style="width: 160px" />
-```
+<DocDemo src="color-mode/switch-dropdown" />
 
 ## 自己组合
 
 `useColorMode()` 返回的 `mode` 可读可写，配合任意组件就能做出自己的切换方式，比如分段控制器：
 
-<div class="demo">
-  <DouSegmentedControl v-model="mode" :options="modes" />
-</div>
-
-```vue
-<script setup>
-import { useColorMode } from 'dou-ui'
-
-const { mode } = useColorMode()
-const modes = [
-  { value: 'light', label: '亮色' },
-  { value: 'dark', label: '暗色' },
-  { value: 'system', label: '跟随系统' },
-]
-</script>
-
-<template>
-  <DouSegmentedControl v-model="mode" :options="modes" />
-</template>
-```
+<DocDemo src="color-mode/compose" />
 
 ## 首屏不闪烁
 

@@ -2,45 +2,11 @@
 
 通过搜索快速查找并执行操作。
 
-<script setup>
-import { ref } from 'vue'
-const items = [
-  { value: 'new', label: '新建项目', group: '操作', shortcut: ['⌘', 'N'] },
-  { value: 'deploy', label: '部署到生产环境', group: '操作', keywords: ['deploy', 'release', '上线'], shortcut: ['⌘', 'D'] },
-  { value: 'invite', label: '邀请成员', group: '操作' },
-  { value: 'delete', label: '删除项目', group: '操作', disabled: true },
-  { value: 'overview', label: 'Overview', group: '导航', description: '项目概览' },
-  { value: 'deployments', label: 'Deployments', group: '导航', description: '部署记录' },
-  { value: 'settings', label: 'Settings', group: '导航', description: '域名、环境变量与权限' },
-  { value: 'docs', label: 'Documentation', group: '帮助' },
-  { value: 'shortcuts', label: '键盘快捷键', group: '帮助', shortcut: ['?'] },
-]
-const last = ref('—')
-const open = ref(false)
-</script>
-
 ## 基础用法
 
 `items` 是命令列表，每一项有唯一的 `value` 和显示的 `label`；`group` 相同的项列在同一个组名下。选中时触发 `select`，参数是那一项。
 
-<div class="demo demo--column">
-  <DouCard padding="none" style="max-width: 520px">
-    <DouCommand :items="items" @select="last = $event.label" />
-  </DouCard>
-  <DouText variant="tertiary" size="sm">上次执行：{{ last }}</DouText>
-</div>
-
-```vue
-<DouCommand :items="items" @select="run" />
-```
-
-```ts
-const items: CommandItem[] = [
-  { value: 'new', label: '新建项目', group: '操作', shortcut: ['⌘', 'N'] },
-  { value: 'deploy', label: '部署到生产环境', group: '操作', keywords: ['deploy', '上线'] },
-  { value: 'settings', label: 'Settings', group: '导航', description: '域名、环境变量与权限' },
-]
-```
+<DocDemo src="command/basic" column />
 
 ## 搜索与排序
 
@@ -54,23 +20,7 @@ const items: CommandItem[] = [
 
 `DouCommandDialog` 把它放进一个模态对话框，按 `⌘K`（Windows / Linux 上是 `Ctrl+K`）在任何地方打开或关闭，选中后自动关闭。每次打开都从空的搜索开始，焦点在搜索框里。
 
-<div class="demo">
-  <DouButton variant="outline" @click="open = true">
-    打开命令面板 <template #trailing><DouKbd size="sm">⌘</DouKbd><DouKbd size="sm">K</DouKbd></template>
-  </DouButton>
-  <DouText variant="tertiary" size="sm">上次执行：{{ last }}</DouText>
-  <DouCommandDialog v-model:open="open" :items="items" @select="last = $event.label">
-    <template #footer>
-      <span><DouKbd size="sm">↑</DouKbd> <DouKbd size="sm">↓</DouKbd> 移动</span>
-      <span><DouKbd size="sm">Enter</DouKbd> 执行</span>
-      <span><DouKbd size="sm">Esc</DouKbd> 关闭</span>
-    </template>
-  </DouCommandDialog>
-</div>
-
-```vue
-<DouCommandDialog v-model:open="open" :items="items" @select="run" />
-```
+<DocDemo src="command/dialog" />
 
 `hotkey` 改成别的组合，如 `"mod+p"`、`"shift+/"`；`mod` 在苹果系统上是 `⌘`，其他系统上是 `Ctrl`。传 `false` 不绑定。页面上只放一个命令面板对话框，否则同一个快捷键会被响应多次。
 

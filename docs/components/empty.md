@@ -4,35 +4,19 @@
 
 ## 基础用法
 
-<div class="demo demo--column">
-  <DouEmpty />
-</div>
+<DocDemo src="empty/basic" column />
 
 不传标题和说明时，标题取语言包里的"暂无数据"。
 
 ## 标题、说明与操作
 
-<div class="demo demo--column">
-  <DouEmpty title="还没有项目" description="项目是部署的基本单位。从一个 Git 仓库导入，或从模板开始。">
-    <DouButton variant="outline" size="sm">从模板开始</DouButton>
-    <DouButton size="sm">导入仓库</DouButton>
-  </DouEmpty>
-</div>
-
-```vue
-<DouEmpty title="还没有项目" description="从一个 Git 仓库导入，或从模板开始。">
-  <DouButton variant="outline" size="sm">从模板开始</DouButton>
-  <DouButton size="sm">导入仓库</DouButton>
-</DouEmpty>
-```
+<DocDemo src="empty/title-description" column />
 
 ## 紧凑尺寸
 
 `size="sm"` 用在表格、列表、菜单里面。
 
-<div class="demo demo--column">
-  <DouEmpty size="sm" description="没有符合筛选条件的记录" />
-</div>
+<DocDemo src="empty/compact" column />
 
 ## API
 

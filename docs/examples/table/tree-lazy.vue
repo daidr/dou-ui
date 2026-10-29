@@ -19,7 +19,7 @@ const loadChildren = (row) =>
           {
             id: `${row.id}-1`,
             name: `${row.name} 一区`,
-            owner: '小林',
+            owner: '戴兜',
             cost: Math.round(row.cost * 0.6),
           },
           {

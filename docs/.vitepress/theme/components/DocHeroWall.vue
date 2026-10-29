@@ -79,9 +79,9 @@ const steps = [{ title: '设计' }, { title: '开发' }, { title: '发布' }]
 
               <DouUser
                 v-else-if="tile === 'user'"
-                name="林小满"
-                description="设计工程师"
-                :avatar="{ name: '林' }"
+                name="戴兜"
+                description="前端工程师"
+                avatar="https://avatars.githubusercontent.com/u/18638914?s=96"
               />
 
               <DouSegmentedControl
@@ -129,7 +129,7 @@ const steps = [{ title: '设计' }, { title: '开发' }, { title: '发布' }]
 
               <div v-else-if="tile === 'avatars'" class="doc-wall__row">
                 <DouAvatarGroup :max="4" size="sm">
-                  <DouAvatar name="陈" />
+                  <DouAvatar name="戴兜" />
                   <DouAvatar name="周" />
                   <DouAvatar name="吴" />
                   <DouAvatar name="郑" />

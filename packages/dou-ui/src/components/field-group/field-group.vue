@@ -18,11 +18,7 @@ provide(fieldGroupKey, { size: computed(() => props.size) })
 </script>
 
 <template>
-  <div
-    role="group"
-    :class="[ns.b(), ns.m(orientation), ns.is('block', block)]"
-    :aria-orientation="orientation === 'vertical' ? 'vertical' : undefined"
-  >
+  <div role="group" :class="[ns.b(), ns.m(orientation), ns.is('block', block)]">
     <slot />
   </div>
 </template>

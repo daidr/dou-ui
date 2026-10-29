@@ -29,7 +29,9 @@ describe('DouFieldGroup', () => {
       props: { size: 'sm', orientation: 'vertical' },
       slots: { default: () => [h(DouButton, { size: 'lg' }, () => '上'), h(DouButton)] },
     })
-    expect(wrapper.attributes('aria-orientation')).toBe('vertical')
+    // `group` has no orientation in ARIA; the layout is visual only
+    expect(wrapper.attributes('aria-orientation')).toBeUndefined()
+    expect(wrapper.classes()).toContain('dou-field-group--vertical')
     const [first, second] = wrapper.findAll('.dou-button')
     expect(first!.classes()).toContain('dou-button--lg')
     expect(second!.classes()).toContain('dou-button--sm')

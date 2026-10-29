@@ -369,7 +369,7 @@
   }
 
   .dou-upload__card-error {
-    color: var(--dou-color-danger);
+    color: var(--dou-color-danger-text);
   }
 
   .dou-upload__card-actions {

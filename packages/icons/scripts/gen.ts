@@ -75,6 +75,13 @@ function parseSvg(file: string, svg: string): Node[] {
       else nodes.push(['dot', { cx: Number(at[1]), cy: Number(at[2]) }])
       return ''
     }
+    // A solid shape (only the AI sparkle for now): `<path class="fill" d="…" />`.
+    if (shape.class === 'fill') {
+      if (tag !== 'path' || !shape.d || Object.keys(shape).length !== 2)
+        fail(file, 'a solid shape is <path class="fill" d="…" />')
+      else nodes.push(['fill', { d: shape.d }])
+      return ''
+    }
     const node: Node = [tag, {}]
     for (const [key, value] of Object.entries(shape)) {
       if (!allowed.includes(key))

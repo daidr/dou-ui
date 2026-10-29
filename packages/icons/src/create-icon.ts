@@ -63,8 +63,15 @@ export function createIcon(name: string, node: IconNode) {
                   style: { strokeWidth: DOT_STROKE },
                   'vector-effect': 'non-scaling-stroke',
                 })
-              : // The line width is in screen pixels, not grid units.
-                h(tag, { ...attrs, 'vector-effect': 'non-scaling-stroke' }),
+              : tag === 'fill'
+                ? // Filled and outlined, so its corners round off like the lines.
+                  h('path', {
+                    d: attrs.d,
+                    fill: 'currentColor',
+                    'vector-effect': 'non-scaling-stroke',
+                  })
+                : // The line width is in screen pixels, not grid units.
+                  h(tag, { ...attrs, 'vector-effect': 'non-scaling-stroke' }),
           ),
         )
     },

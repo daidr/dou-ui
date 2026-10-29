@@ -57,6 +57,12 @@ describe('@dou-ui/icons', () => {
     expect(style.getPropertyValue('--dou-icons-stroke')).toBe('2px')
   })
 
+  it('draws solid shapes filled', () => {
+    const Icon = createIcon('solid', [['fill', { d: 'M12 3 21 12 12 21 3 12Z' }]])
+    const path = mount(Icon).find('path')
+    expect(path.attributes()).toMatchObject({ d: 'M12 3 21 12 12 21 3 12Z', fill: 'currentColor' })
+  })
+
   it('is decoration unless given a label', async () => {
     const wrapper = mount(SearchIcon)
     expect(wrapper.attributes('aria-hidden')).toBe('true')

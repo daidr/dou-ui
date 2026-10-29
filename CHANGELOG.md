@@ -18,6 +18,7 @@
 - **反馈**：Alert、Banner、Toast、Spinner、Loading、Progress、Skeleton、Result
 - **数据展示**：Card、Avatar、User、Badge、Tag、Kbd、Empty、Statistic、Countdown、Image、QRCode、Descriptions、Collapse、Timeline、FlowGraph、CalendarView、Table、Tree、VirtualList、InfiniteScroll、Sortable
 - **导航**：Menu、Tabs、Steps、Anchor、Breadcrumb、PageHeader、Pagination、Command、BackTop
+- **AI 对话**：ChatBubble、ChatList、ChatInput、StreamText、ChatReasoning、ChatToolCall、ChatSuggestions、ChatAttachments、Shimmer
 - **配置**：ConfigProvider、ColorMode；内置 `zhCN` 与 `en` 语言包
 
 ### 主题

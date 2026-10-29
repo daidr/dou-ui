@@ -1,0 +1,38 @@
+/*
+ * StreamText
+ *
+ * Text that is still being written. Plain text keeps its line breaks; a
+ * thin caret blinks after the last character until the stream ends.
+ */
+@layer dou.components {
+  .dou-stream-text {
+    --dou-stream-text-caret: currentColor;
+
+    overflow-wrap: anywhere;
+
+    &.is-plain {
+      white-space: pre-wrap;
+    }
+  }
+
+  .dou-stream-text__caret {
+    display: inline-block;
+    width: 2px;
+    height: 1.1em;
+    margin-left: 2px;
+    border-radius: 1px;
+    background-color: var(--dou-stream-text-caret);
+    vertical-align: -0.2em;
+    animation: dou-stream-text-blink 1s steps(1) infinite;
+
+    @media (prefers-reduced-motion: reduce) {
+      animation: none;
+    }
+  }
+
+  @keyframes dou-stream-text-blink {
+    50% {
+      opacity: 0;
+    }
+  }
+}

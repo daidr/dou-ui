@@ -97,3 +97,12 @@
 @import './components/upload.css';
 @import './components/virtual-list.css';
 @import './components/field-group.css';
+@import './components/shimmer.css';
+@import './components/stream-text.css';
+@import './components/chat-bubble.css';
+@import './components/chat-list.css';
+@import './components/chat-input.css';
+@import './components/chat-reasoning.css';
+@import './components/chat-tool-call.css';
+@import './components/chat-suggestions.css';
+@import './components/chat-attachments.css';

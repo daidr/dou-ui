@@ -180,6 +180,21 @@ export default defineConfig({
           ],
         },
         {
+          text: 'AI 对话',
+          items: [
+            { text: '概览', link: '/components/chat' },
+            { text: 'ChatBubble 消息气泡', link: '/components/chat-bubble' },
+            { text: 'ChatList 消息列表', link: '/components/chat-list' },
+            { text: 'ChatInput 对话输入框', link: '/components/chat-input' },
+            { text: 'StreamText 流式文字', link: '/components/stream-text' },
+            { text: 'ChatReasoning 思考过程', link: '/components/chat-reasoning' },
+            { text: 'ChatToolCall 工具调用', link: '/components/chat-tool-call' },
+            { text: 'ChatSuggestions 提示建议', link: '/components/chat-suggestions' },
+            { text: 'ChatAttachments 附件列表', link: '/components/chat-attachments' },
+            { text: 'Shimmer 微光文字', link: '/components/shimmer' },
+          ],
+        },
+        {
           text: '配置',
           items: [
             { text: 'ConfigProvider 全局配置', link: '/components/config-provider' },

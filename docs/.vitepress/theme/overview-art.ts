@@ -93,20 +93,31 @@ function random(seed: number) {
 
 const arts: Record<string, string | ((id: string) => string)> = {
   // basics
-  button: button(36, 48, 60) + button(104, 48, 60, 'p'),
+  button:
+    rect(36, 32, 72, 28, 'k', 6) +
+    plus(50, 46, 'lon w15', 4) +
+    bar(60, 44, 36, 'on') +
+    button(116, 32, 48, 'p', 28) +
+    rect(36, 68, 56, 28, 'as', 6) +
+    bar(50, 80, 28, 'a') +
+    bar(104, 80, 24, 't') +
+    rect(136, 68, 28, 28, 'p', 6) +
+    circle(149, 81, 4, 'lk w15') +
+    path('M152 84l3 3', 'lk w15'),
   toggle:
-    rect(52, 44, 96, 32, 'p', 7) +
-    rect(56, 48, 28, 24, 'm', 5) +
-    text(70, 65, 'B', 'tx bold') +
-    text(100, 65, 'I', 'tx2 italic') +
-    text(130, 65, 'U', 'tx2 underline'),
-  icon:
-    [0, 1, 2, 3].map((i) => rect(36 + i * 34, 44, 28, 28, i === 1 ? 'pm' : 'p', 6)).join('') +
-    circle(49, 57, 5, 'lk w15') +
-    path('M53 61l3 3', 'lk w15') +
-    path('M78 63v-6l6 -5l6 5v6z', 'lk w15 join') +
-    star(118, 58, 7, 'lk w15') +
-    plus(152, 58, 'lk w15', 6),
+    rect(36, 38, 128, 44, 'p', 8) +
+    rect(40, 42, 36, 36, 'm', 5) +
+    text(58, 66.5, 'B', 'tx bold big') +
+    text(100, 66.5, 'I', 'tx2 italic big') +
+    text(142, 66.5, 'U', 'tx2 underline big'),
+  icon: group(
+    'translate(-6 0)',
+    path('M44 86v-24l24 -20l24 20v24z', 'lk w15 join') +
+      path('M60 86v-12h16v12', 'lk w15 join') +
+      star(124, 68, 16, 'lk w15') +
+      circle(160, 76, 6, 'lk w15') +
+      path('M164.5 80.5l4 4', 'lk w15'),
+  ),
   text:
     bar(40, 38, 72, 'k', 6) +
     lines(40, 54, [120, 104], 10) +
@@ -114,32 +125,50 @@ const arts: Record<string, string | ((id: string) => string)> = {
     bar(80, 78, 36, 'g') +
     bar(120, 78, 36, 'r'),
   ellipsis:
-    rect(36, 46, 128, 28, 'p', 6) +
-    bar(48, 58, 80) +
-    circle(136, 60, 1.6, 't') +
-    circle(142, 60, 1.6, 't') +
-    circle(148, 60, 1.6, 't'),
+    rect(32, 30, 136, 26, 'p', 6) +
+    bar(44, 41, 92) +
+    circle(144, 43, 1.6, 't') +
+    circle(150, 43, 1.6, 't') +
+    circle(156, 43, 1.6, 't') +
+    rect(32, 64, 136, 34, 'p', 6) +
+    bar(44, 73, 112) +
+    bar(44, 85, 72) +
+    circle(122, 87, 1.6, 't') +
+    circle(128, 87, 1.6, 't') +
+    circle(134, 87, 1.6, 't'),
   highlight:
-    rect(78, 46, 40, 12, 'ws', 3) +
-    bar(40, 50, 32) +
-    bar(82, 50, 32, 'w') +
-    bar(124, 50, 36) +
-    lines(40, 66, [120, 84], 10),
+    bar(40, 36, 30) +
+    rect(74, 32, 40, 12, 'ws', 3) +
+    bar(78, 36, 32, 'w') +
+    bar(118, 36, 42) +
+    bar(40, 50, 120) +
+    bar(40, 64, 56) +
+    rect(100, 60, 36, 12, 'ws', 3) +
+    bar(104, 64, 28, 'w') +
+    bar(140, 64, 20) +
+    bar(40, 78, 84),
   link:
-    bar(52, 50, 76, 'a') +
-    path('M52 60h76', 'la') +
-    path('M138 58l8 -8M140 50h6v6', 'la w15') +
-    lines(52, 72, [96], 10),
+    bar(36, 34, 128) +
+    bar(36, 48, 40) +
+    bar(80, 48, 44, 'a') +
+    path('M80 56h44', 'la') +
+    bar(128, 48, 36) +
+    bar(36, 62, 96) +
+    bar(36, 84, 52, 'a') +
+    path('M93 91l6 -6M95 85h4v4', 'la w15'),
   typography:
     text(44, 76, 'Aa', 'tx display', 'start') +
     bar(110, 44, 48, 'k', 6) +
     lines(110, 58, [52, 44, 50], 9),
   'copy-button':
-    rect(32, 46, 136, 28, 'pm', 6) +
-    bar(44, 58, 72, 't') +
-    rect(138, 50, 20, 20, 'p', 5) +
-    rect(144, 56, 8, 9, 'lk', 1.5) +
-    path('M146 56v-2h7v9h-1', 'lk'),
+    rect(28, 52, 144, 36, 'pm', 6) +
+    bar(40, 68, 24, 't') +
+    bar(68, 68, 52) +
+    rect(138, 58, 24, 24, 'p', 5) +
+    check(150, 70, 'lk w15') +
+    rect(122, 22, 56, 22, 'k f', 6) +
+    path('M145 44l5 5l5 -5z', 'k') +
+    text(150, 37, '已复制', 'tx on-text small'),
   'code-block':
     rect(30, 26, 140, 68, 'pm', 8) +
     [0, 1, 2, 3, 4].map((i) => bar(40, 38 + i * 10, 6, 'b')).join('') +
@@ -159,21 +188,21 @@ const arts: Record<string, string | ((id: string) => string)> = {
     bar(90, 58, 20, 't') +
     lines(40, 80, [120, 70], 10),
   space:
-    rect(36, 44, 36, 32, 'pm', 6) +
-    rect(82, 44, 36, 32, 'pm', 6) +
-    rect(128, 44, 36, 32, 'pm', 6) +
-    rect(72, 44, 10, 32, 'as') +
-    rect(118, 44, 10, 32, 'as') +
-    path('M74 86h6M120 86h6', 'la'),
+    rect(32, 40, 36, 36, 'pm', 6) +
+    rect(82, 40, 36, 36, 'pm', 6) +
+    rect(132, 40, 36, 36, 'pm', 6) +
+    rect(68, 40, 14, 36, 'as') +
+    rect(118, 40, 14, 36, 'as') +
+    path('M68 86h14M68 83v6M82 83v6M118 86h14M118 83v6M132 83v6', 'la'),
   toolbar:
-    rect(32, 44, 136, 32, 'p', 8) +
-    [0, 1, 2].map((i) => rect(38 + i * 24, 48, 20, 24, i === 0 ? 'm' : 'p0', 5)).join('') +
-    path('M45 56v8M53 56v8M45 60h8', 'lk w15') +
-    circle(72, 60, 4, 'lk w15') +
-    path('M90 56h8M90 60h8M90 64h5', 'lk w15') +
-    path('M114 52v16', 'lb') +
-    bar(122, 58, 20) +
-    chevronDown(152, 60),
+    rect(28, 40, 144, 40, 'p', 8) +
+    rect(32, 44, 28, 32, 'm', 5) +
+    path('M41 54v12M51 54v12M41 60h10', 'lk w15') +
+    circle(78, 60, 5, 'lk w15') +
+    path('M103 55h14M103 60h14M103 65h9', 'lk w15') +
+    path('M132 48v24', 'lb') +
+    bar(140, 58, 16) +
+    chevronDown(164, 60),
   grid:
     rect(32, 28, 136, 18, 'pm', 4) +
     rect(32, 51, 66, 18, 'pm', 4) +
@@ -213,73 +242,77 @@ const arts: Record<string, string | ((id: string) => string)> = {
     lines(58, 52, [80, 64, 76, 52], 11) +
     rect(52, 26, 96, 18, 'p f', 5) +
     bar(60, 33, 40, 'k') +
-    path('M136 31l4 4M138 29l5 5l-3 1l-3 3l-1 -1l-3 -3l3 -3z', 'lk join'),
+    circle(138, 33, 3.5, 'k') +
+    path('M138 36.5v4', 'lk w15'),
 
   // form
   input:
-    bar(44, 38, 28, 't') +
-    rect(44, 48, 112, 28, 'ps', 6) +
-    bar(54, 60, 44, 'k') +
-    path('M102 55v14', 'lk'),
+    bar(36, 30, 32, 't') +
+    rect(36, 40, 128, 32, 'ps', 6) +
+    bar(48, 54, 52, 'k') +
+    path('M104 48v20', 'lk') +
+    bar(36, 82, 72),
   textarea:
     rect(40, 28, 120, 64, 'p', 6) +
     lines(50, 40, [92, 100, 64], 11) +
     path('M151 85l4 -4M146 85l9 -9', 'ln'),
   'input-number':
-    rect(52, 46, 96, 28, 'p', 6) +
-    path('M76 46v28M124 46v28', 'lb') +
-    path('M59 60h10', 'lk w15') +
-    plus(136, 60, 'lk w15', 5) +
-    text(100, 64.5, '128', 'tx mono'),
+    rect(40, 40, 120, 40, 'p', 6) +
+    path('M76 40v40M124 40v40', 'lb') +
+    path('M52 60h12', 'lk w15') +
+    plus(142, 60, 'lk w15', 6) +
+    text(100, 66, '128', 'tx mono big'),
   'input-tag':
-    rect(32, 46, 136, 28, 'ps', 6) +
-    rect(38, 51, 40, 18, 'm', 4) +
-    bar(44, 58, 18, 't') +
-    cross(70, 60, 'ln', 2) +
-    rect(82, 51, 44, 18, 'm', 4) +
-    bar(88, 58, 22, 't') +
-    cross(118, 60, 'ln', 2) +
-    path('M132 54v12', 'lk'),
+    rect(32, 32, 136, 56, 'ps', 6) +
+    rect(38, 38, 44, 20, 'm', 4) +
+    bar(44, 46, 22, 't') +
+    cross(74, 48, 'ln', 2) +
+    rect(86, 38, 52, 20, 'm', 4) +
+    bar(92, 46, 30, 't') +
+    cross(130, 48, 'ln', 2) +
+    rect(38, 62, 36, 20, 'm', 4) +
+    bar(44, 70, 14, 't') +
+    cross(66, 72, 'ln', 2) +
+    path('M80 65v14', 'lk'),
   'input-otp': [0, 1, 2, 3, 4, 5]
     .map((i) => {
-      const x = 37 + i * 22
-      const c = i === 3 ? 'ps la' : 'p'
+      const x = 25 + i * 26
       return (
-        rect(x, 46, 18, 28, c, 5) +
-        (i < 3 ? text(x + 9, 64.5, String([4, 8, 1][i]), 'tx mono') : '') +
-        (i === 3 ? path(`M${x + 9} 54v12`, 'lk') : '')
+        rect(x, 42, 20, 36, i === 3 ? 'ps la' : 'p', 5) +
+        (i < 3 ? text(x + 10, 66.5, String([4, 8, 1][i]), 'tx mono big') : '') +
+        (i === 3 ? path(`M${x + 10} 52v16`, 'lk') : '')
       )
     })
     .join(''),
   checkbox: [0, 1, 2]
     .map((i) => {
-      const y = 36 + i * 20
+      const y = 30 + i * 26
       const on = i !== 1
       return (
-        rect(56, y, 14, 14, on ? 'k' : 'p', 4) +
-        (on ? check(63, y + 7, 'lon w15') : '') +
-        bar(80, y + 5, [56, 44, 64][i]!)
+        rect(52, y, 16, 16, on ? 'k' : 'ps', 4) +
+        (on ? check(60, y + 8, 'lon w15') : '') +
+        bar(80, y + 6, [64, 52, 72][i]!)
       )
     })
     .join(''),
   radio: [0, 1, 2]
     .map((i) => {
-      const y = 43 + i * 20
+      const y = 38 + i * 26
       const on = i === 0
       return (
-        circle(63, y, 7, on ? 'k' : 'p') +
-        (on ? circle(63, y, 2.5, 'on') : '') +
-        bar(80, y - 2, [52, 64, 40][i]!)
+        circle(60, y, 8, on ? 'k' : 'ps') +
+        (on ? circle(60, y, 3, 'on') : '') +
+        bar(80, y - 2, [56, 68, 44][i]!)
       )
     })
     .join(''),
   switch:
-    bar(48, 44, 52) +
-    rect(124, 39, 28, 16, 'k', 8) +
-    circle(144, 47, 6, 'on') +
-    bar(48, 72, 40) +
-    rect(124, 67, 28, 16, 'm lb', 8) +
-    circle(132, 75, 6, 'p f'),
+    bar(44, 44, 52) +
+    rect(120, 36, 36, 20, 'k', 10) +
+    circle(146, 46, 7, 'on') +
+    bar(44, 76, 40) +
+    rect(120, 68, 36, 20, 'b', 10) +
+    circle(130, 78, 7, 'p f'),
   slider:
     bar(36, 44, 128, 'b') +
     bar(36, 44, 76, 'k') +
@@ -288,9 +321,7 @@ const arts: Record<string, string | ((id: string) => string)> = {
     bar(64, 78, 60, 'k') +
     circle(64, 80, 6, 'p f') +
     circle(124, 80, 6, 'p f'),
-  rate:
-    [0, 1, 2, 3, 4].map((i) => star(52 + i * 24, 58, 10, i < 3 ? 'k' : 'b')).join('') +
-    bar(84, 80, 32, 't'),
+  rate: [0, 1, 2, 3, 4].map((i) => star(44 + i * 28, 61, 14, i < 3 ? 'k' : 'b')).join(''),
   select:
     field(48, 22, 104, 26, 40, 'ps') +
     chevronDown(140, 35) +
@@ -372,23 +403,23 @@ const arts: Record<string, string | ((id: string) => string)> = {
       )
       .join(''),
   'input-date':
-    rect(36, 46, 128, 28, 'ps', 6) +
-    rect(84, 50, 22, 20, 'as', 4) +
-    text(62, 64.5, '2026', 'tx mono') +
-    text(95, 64.5, '10', 'tx mono') +
-    text(119, 64.5, '29', 'tx mono') +
-    text(81, 64.5, '/', 'tx3 mono') +
-    text(108, 64.5, '/', 'tx3 mono') +
-    rect(144, 54, 12, 12, 'lk', 2) +
-    path('M144 58h12', 'lk'),
+    rect(28, 42, 144, 36, 'ps', 6) +
+    rect(83, 47, 24, 26, 'as', 4) +
+    text(56, 65.5, '2026', 'tx mono mid') +
+    text(80, 65.5, '/', 'tx3 mono mid') +
+    text(95, 65.5, '10', 'tx mono mid') +
+    text(110, 65.5, '/', 'tx3 mono mid') +
+    text(125, 65.5, '29', 'tx mono mid') +
+    rect(152, 53, 12, 13, 'lk', 2) +
+    path('M152 57.5h12M155.5 51v4M160.5 51v4', 'lk'),
   'input-time':
-    rect(52, 46, 96, 28, 'ps', 6) +
-    rect(64, 50, 22, 20, 'as', 4) +
-    text(75, 64.5, '09', 'tx mono') +
-    text(89, 64, ':', 'tx3 mono') +
-    text(103, 64.5, '30', 'tx mono') +
-    circle(134, 60, 6, 'lk') +
-    path('M134 57v3l2 2', 'lk'),
+    rect(44, 42, 112, 36, 'ps', 6) +
+    rect(54, 46, 28, 28, 'as', 4) +
+    text(68, 66.5, '09', 'tx mono big') +
+    text(86, 66, ':', 'tx3 mono big') +
+    text(104, 66.5, '30', 'tx mono big') +
+    circle(138, 60, 7, 'lk') +
+    path('M138 56v4l3 2', 'lk'),
   'color-picker': (id) =>
     `<defs><linearGradient id="${id}-s"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#4a63c4"/></linearGradient><linearGradient id="${id}-v" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000"/></linearGradient>${hue(id)}</defs>` +
     rect(48, 14, 32, 24, 'ps', 5) +
@@ -414,9 +445,11 @@ const arts: Record<string, string | ((id: string) => string)> = {
     [0, 1, 2, 3]
       .map(
         (i) =>
-          rect(34, 34 + i * 14, 8, 8, i === 1 ? 'k' : 'p', 2) +
+          rect(34, 34 + i * 14, 8, 8, i === 1 ? 'k' : 'ps', 2) +
           bar(48, 36 + i * 14, [26, 30, 22, 28][i]!) +
-          (i < 2 ? rect(122, 34 + i * 14, 8, 8, 'p', 2) + bar(136, 36 + i * 14, [28, 22][i]!) : ''),
+          (i < 2
+            ? rect(122, 34 + i * 14, 8, 8, 'ps', 2) + bar(136, 36 + i * 14, [28, 22][i]!)
+            : ''),
       )
       .join('') +
     check(38, 52, 'lon') +
@@ -425,23 +458,25 @@ const arts: Record<string, string | ((id: string) => string)> = {
     rect(92, 62, 16, 16, 'p', 4) +
     path('M101.5 67l-3 3l3 3', 'ln'),
   'segmented-control':
-    rect(32, 46, 136, 28, 'm', 7) +
-    rect(36, 50, 42, 20, 'p f', 5) +
-    bar(46, 58, 22, 'k') +
-    bar(89, 58, 22, 't') +
-    bar(134, 58, 22, 't') +
-    path('M123 54v12', 'lb'),
+    rect(28, 42, 144, 36, 'm', 8) +
+    rect(32, 46, 46, 28, 'p f', 6) +
+    bar(43, 58, 24, 'k') +
+    bar(88, 58, 24, 't') +
+    bar(136, 58, 24, 't') +
+    path('M124 50v20', 'lb'),
   'check-tag':
-    rect(34, 40, 40, 20, 'k', 10) +
-    bar(44, 48, 20, 'on') +
-    rect(80, 40, 48, 20, 'p', 10) +
-    bar(90, 48, 28) +
-    rect(134, 40, 32, 20, 'p', 10) +
-    bar(142, 48, 16) +
+    rect(34, 40, 48, 20, 'k', 10) +
+    check(46, 50, 'lon') +
+    bar(54, 48, 20, 'on') +
+    rect(88, 40, 44, 20, 'p', 10) +
+    bar(98, 48, 24) +
+    rect(138, 40, 30, 20, 'p', 10) +
+    bar(146, 48, 14) +
     rect(54, 66, 44, 20, 'p', 10) +
     bar(64, 74, 24) +
-    rect(104, 66, 44, 20, 'k', 10) +
-    bar(114, 74, 24, 'on'),
+    rect(104, 66, 48, 20, 'k', 10) +
+    check(116, 76, 'lon') +
+    bar(124, 74, 20, 'on'),
   upload:
     rect(36, 16, 128, 54, 'pm dash', 8) +
     path('M93 46h-6a7 7 0 0 1 0 -14a9 9 0 0 1 17 -2a7 7 0 0 1 3 16h-6', 'lk w15') +
@@ -455,42 +490,42 @@ const arts: Record<string, string | ((id: string) => string)> = {
     `<defs><mask id="${id}-m"><rect width="200" height="120" fill="#fff"/><rect x="68" y="32" width="64" height="56" fill="#000"/></mask></defs>` +
     image(36, 18, 128, 84, 8) +
     `<rect x="36" y="18" width="128" height="84" rx="8" class="dim2" mask="url(#${id}-m)"/>` +
-    rect(68, 32, 64, 56, 'lon') +
-    path('M68 40v-8h8M124 32h8v8M132 80v8h-8M76 88h-8v-8', 'lon w2') +
-    path('M89.3 32v56M110.7 32v56M68 50.7h64M68 69.3h64', 'lon thin'),
+    rect(68, 32, 64, 56, 'lwhite') +
+    path('M68 40v-8h8M124 32h8v8M132 80v8h-8M76 88h-8v-8', 'lwhite w2') +
+    path('M89.3 32v56M110.7 32v56M68 50.7h64M68 69.3h64', 'lwhite thin'),
   'field-group':
-    rect(28, 46, 144, 28, 'p', 6) +
-    rect(28, 46, 44, 28, 'm', 6) +
-    rect(64, 46, 8, 28, 'm') +
-    path('M72 46v28', 'lb') +
-    bar(36, 58, 18, 't') +
+    rect(24, 42, 152, 36, 'p', 6) +
+    rect(24, 42, 48, 36, 'm', 6) +
+    rect(64, 42, 8, 36, 'm') +
+    path('M72 42v36', 'lb') +
+    bar(34, 58, 18, 't') +
     chevronDown(62, 60) +
-    bar(82, 58, 40) +
-    rect(132, 46, 40, 28, 'k', 6) +
-    rect(132, 46, 8, 28, 'k') +
-    bar(142, 58, 20, 'on'),
+    bar(82, 58, 44) +
+    rect(132, 42, 44, 36, 'k', 6) +
+    rect(132, 42, 8, 36, 'k') +
+    bar(144, 58, 20, 'on'),
   form:
-    bar(48, 18, 24, 't') +
-    field(48, 26, 104, 22, 48) +
-    bar(48, 56, 24, 't') +
-    field(48, 64, 104, 22, 36) +
-    button(48, 94, 44, 'k', 20) +
-    button(98, 94, 44, 'p', 20),
+    bar(36, 28, 24, 't') +
+    field(68, 18, 96, 24, 40) +
+    bar(36, 60, 20, 't') +
+    field(68, 50, 96, 24, 32) +
+    button(68, 84, 44, 'k', 22) +
+    button(118, 84, 44, 'p', 22),
 
   // overlays
   tooltip:
-    button(70, 68, 60, 'p') +
-    rect(64, 28, 72, 26, 'k f', 6) +
-    path('M95 54l5 5l5 -5z', 'k') +
-    bar(76, 39, 48, 'on'),
+    button(68, 72, 64, 'p', 26) +
+    rect(52, 26, 96, 30, 'k f', 6) +
+    path('M95 56l5 5l5 -5z', 'k') +
+    bar(66, 39, 68, 'on'),
   popover:
     button(70, 84, 60, 'p', 22) +
     rect(46, 14, 108, 58, 'p f', 8) +
     path('M94 72l6 6l6 -6', 'p lb') +
     rect(94, 70, 12, 3, 'p0s') +
     bar(58, 26, 40, 'k') +
-    lines(58, 40, [80, 64], 10) +
-    button(118, 50, 28, 'k', 16),
+    lines(58, 40, [56, 44], 10) +
+    button(114, 50, 32, 'k', 16),
   dropdown:
     rect(52, 14, 64, 24, 'p', 5) +
     bar(62, 24, 26, 'k') +
@@ -579,7 +614,7 @@ const arts: Record<string, string | ((id: string) => string)> = {
     check(48, 83, 'lg w15') +
     bar(62, 76, 52, 'k') +
     bar(62, 86, 76),
-  spinner: spinner(100, 60, 18),
+  spinner: spinner(60, 60, 10) + spinner(96, 60, 15) + spinner(144, 60, 22),
   loading:
     rect(36, 18, 128, 84, 'p', 8) +
     lines(48, 30, [96, 80, 104, 72, 88], 13, 'b') +
@@ -591,18 +626,22 @@ const arts: Record<string, string | ((id: string) => string)> = {
     bar(40, 58, 120, 'b', 6) +
     bar(40, 58, 120, 'g', 6) +
     bar(40, 82, 120, 'b', 6) +
-    bar(40, 82, 44, 'a', 6),
-  'progress-group':
-    rect(32, 48, 136, 10, 'b', 5) +
-    `<path d="M37 48h43v10h-43a5 5 0 0 1 0 -10z" class="a"/>` +
-    rect(82, 48, 32, 10, 'g') +
-    rect(116, 48, 20, 10, 'w') +
-    circle(38, 76, 3, 'a') +
-    bar(45, 74, 22) +
-    circle(80, 76, 3, 'g') +
-    bar(87, 74, 22) +
-    circle(122, 76, 3, 'w') +
-    bar(129, 74, 22),
+    bar(40, 82, 44, 'k', 6),
+  'progress-group': group(
+    'translate(0 6)',
+    bar(32, 30, 48, 'k') +
+      bar(140, 30, 28, 't') +
+      rect(32, 44, 136, 12, 'b', 6) +
+      `<path d="M38 44h42v12h-42a6 6 0 0 1 0 -12z" class="a"/>` +
+      rect(82, 44, 32, 12, 'g') +
+      rect(116, 44, 20, 12, 'w') +
+      circle(38, 76, 3, 'a') +
+      bar(45, 74, 22) +
+      circle(80, 76, 3, 'g') +
+      bar(87, 74, 22) +
+      circle(122, 76, 3, 'w') +
+      bar(129, 74, 22),
+  ),
   skeleton:
     circle(54, 44, 14, 'sk') +
     rect(76, 34, 68, 8, 'sk', 4) +
@@ -610,11 +649,12 @@ const arts: Record<string, string | ((id: string) => string)> = {
     rect(40, 72, 120, 8, 'sk', 4) +
     rect(40, 86, 92, 8, 'sk', 4),
   result:
-    circle(100, 42, 16, 'gs') +
-    path('M93 42l5 5l9 -10', 'lg w2') +
-    bar(76, 68, 48, 'k', 6) +
-    bar(84, 80, 32, 't') +
-    button(80, 92, 40, 'k', 18),
+    circle(100, 36, 16, 'gs') +
+    path('M93 36l5 5l9 -10', 'lg w2') +
+    bar(68, 62, 64, 'k', 6) +
+    bar(56, 76, 88, 't') +
+    button(64, 88, 34, 'p', 18) +
+    button(102, 88, 34, 'k', 18),
 
   // data display
   card:
@@ -624,50 +664,56 @@ const arts: Record<string, string | ((id: string) => string)> = {
     lines(56, 54, [88, 72, 80], 10) +
     button(116, 84, 30, 'p', 14),
   avatar:
-    avatar(72, 60, 18) +
-    circle(100, 60, 19, 'bg') +
-    circle(100, 60, 18, 'k') +
-    text(100, 66, '戴', 'tx on-text big') +
-    circle(128, 60, 19, 'bg') +
-    avatar(128, 60, 18, 'pm'),
+    avatar(56, 60, 20) +
+    circle(86, 60, 21.5, 'bg') +
+    circle(86, 60, 20, 'k') +
+    text(86, 66, '戴', 'tx on-text mid') +
+    circle(116, 60, 21.5, 'bg') +
+    avatar(116, 60, 20, 'pm') +
+    circle(146, 60, 21.5, 'bg') +
+    circle(146, 60, 20, 'm') +
+    text(146, 64.5, '+3', 'tx2 small'),
   user:
-    avatar(64, 60, 18) +
-    circle(77, 73, 4.5, 'g ring2') +
-    bar(92, 50, 52, 'k', 6) +
-    bar(92, 64, 40, 't'),
+    avatar(56, 60, 22) +
+    circle(71, 75, 5, 'g ring2') +
+    bar(90, 48, 64, 'k', 7) +
+    bar(90, 64, 48, 't'),
   badge:
-    rect(56, 44, 32, 32, 'p', 8) +
-    path('M66 64v-5a6 6 0 0 1 12 0v5l2 2h-16z M70 68a2 2 0 0 0 4 0', 'lk w15 join') +
-    circle(87, 45, 7, 'r') +
-    text(87, 48.5, '3', 'tx on-tone small') +
-    button(108, 48, 44, 'p') +
-    circle(152, 48, 4, 'r ring2'),
+    rect(40, 36, 48, 48, 'p', 10) +
+    path('M55 67v-7a9 9 0 0 1 18 0v7l2 2h-22z M61 72a3 3 0 0 0 6 0', 'lk w15 join') +
+    circle(87, 37, 8, 'r') +
+    text(87, 41, '3', 'tx on-tone small') +
+    avatar(132, 60, 24, 'm') +
+    circle(149, 43, 5, 'r ring2'),
   tag:
-    rect(36, 40, 40, 18, 'as', 5) +
-    bar(44, 47, 24, 'a') +
-    rect(82, 40, 48, 18, 'gs', 5) +
-    bar(90, 47, 32, 'g') +
-    rect(136, 40, 28, 18, 'm', 5) +
-    bar(142, 47, 16, 't') +
-    rect(54, 64, 44, 18, 'p', 5) +
-    bar(62, 71, 28) +
-    rect(104, 64, 40, 18, 'rs', 5) +
-    bar(112, 71, 24, 'r'),
-  kbd:
-    rect(58, 42, 36, 36, 'p kbd', 7) +
-    text(76, 66, '⌘', 'tx big') +
-    text(104, 65, '+', 'tx3') +
-    rect(114, 42, 36, 36, 'p kbd', 7) +
-    text(132, 66, 'K', 'tx big'),
+    rect(34, 40, 40, 20, 'm', 5) +
+    bar(42, 48, 24, 't') +
+    rect(80, 40, 48, 20, 'as', 5) +
+    bar(88, 48, 32, 'a') +
+    rect(134, 40, 32, 20, 'p', 5) +
+    bar(141, 48, 18) +
+    rect(52, 66, 50, 20, 'gs', 5) +
+    bar(60, 74, 24, 'g') +
+    cross(93, 76, 'lg', 2) +
+    rect(108, 66, 40, 20, 'p', 5) +
+    bar(116, 74, 24),
+  kbd: ['⌘', '⇧', 'K']
+    .map(
+      (key, i) =>
+        rect(30 + i * 50, 38, 40, 44, 'p kbd', 8) + text(50 + i * 50, 67, key, 'tx bigger'),
+    )
+    .join(''),
   empty:
-    path('M76 52l8 -16h32l8 16v20a4 4 0 0 1 -4 4h-40a4 4 0 0 1 -4 -4z', 'm lk join') +
-    path('M76 52h14l3 6h14l3 -6h14', 'lk join') +
-    bar(80, 88, 40, 't'),
+    path('M70 50l9 -18h42l9 18v20a4 4 0 0 1 -4 4h-52a4 4 0 0 1 -4 -4z', 'm lk join') +
+    path('M70 50h17l4 7h18l4 -7h17', 'lk join') +
+    bar(76, 84, 48, 't') +
+    bar(56, 96, 88, 'b'),
   statistic:
-    bar(48, 30, 40, 't') +
-    text(48, 66, '128,430', 'tx stat', 'start') +
-    path('M50 84l4 -4l4 4M54 80v8', 'lg w15') +
-    bar(64, 82, 32, 'g'),
+    bar(40, 30, 56, 't') +
+    text(40, 68, '128,430', 'tx stat-lg', 'start') +
+    path('M42 86l4 -4l4 4M46 82v8', 'lg w15') +
+    bar(56, 84, 32, 'g') +
+    bar(94, 84, 40, 'b'),
   countdown:
     ['02', '45', '18']
       .map(
@@ -678,9 +724,18 @@ const arts: Record<string, string | ((id: string) => string)> = {
     text(78, 66, ':', 'tx3 big') +
     text(122, 66, ':', 'tx3 big'),
   'relative-time':
-    circle(64, 60, 14, 'lk w15') +
-    path('M64 52v8l5 4', 'lk w15') +
-    text(88, 65, '3 分钟前', 'tx big', 'start'),
+    rect(32, 24, 136, 72, 'p', 8) +
+    path('M32 48h136M32 72h136', 'lb') +
+    [0, 1, 2]
+      .map((i) => {
+        const y = 36 + i * 24
+        return (
+          circle(46, y, 6, 'm') +
+          bar(58, y - 2, [48, 32, 40][i]!) +
+          text(158, y + 4, ['刚刚', '3 分钟前', '昨天'][i]!, 'tx3 small', 'end')
+        )
+      })
+      .join(''),
   image: image(44, 20, 112, 80, 8),
   carousel:
     rect(20, 28, 28, 60, 'pm', 6) +
@@ -692,11 +747,11 @@ const arts: Record<string, string | ((id: string) => string)> = {
   marquee: (id) =>
     `<defs><linearGradient id="${id}-f"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".2" stop-color="#fff"/><stop offset=".8" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient><mask id="${id}-m"><rect x="20" width="160" height="120" fill="url(#${id}-f)"/></mask></defs>` +
     `<g mask="url(#${id}-m)">` +
-    [0, 1, 2, 3, 4]
-      .map((i) => rect(4 + i * 44, 34, 38, 20, 'p', 10) + bar(14 + i * 44, 42, 18))
+    [0, 1, 2, 3]
+      .map((i) => rect(16 + i * 42, 34, 38, 20, 'p', 10) + bar(26 + i * 42, 42, 18))
       .join('') +
-    [0, 1, 2, 3, 4]
-      .map((i) => rect(-14 + i * 44, 64, 38, 20, 'p', 10) + bar(-4 + i * 44, 72, 18))
+    [0, 1, 2]
+      .map((i) => rect(37 + i * 42, 64, 38, 20, 'p', 10) + bar(47 + i * 42, 72, 18))
       .join('') +
     '</g>',
   qrcode: () => {
@@ -705,27 +760,26 @@ const arts: Record<string, string | ((id: string) => string)> = {
     for (let row = 0; row < 11; row++) {
       for (let col = 0; col < 11; col++) {
         const inFinder = (row < 4 && col < 4) || (row < 4 && col > 6) || (row > 6 && col < 4)
-        if (!inFinder && next() > 0.52) cells += rect(67 + col * 6, 27 + row * 6, 5, 5, 'k', 1)
+        if (!inFinder && next() > 0.52) cells += rect(62 + col * 7, 22 + row * 7, 6, 6, 'k', 1)
       }
     }
-    return finder(67, 27) + finder(112, 27) + finder(67, 72) + cells
+    return finder(62, 22) + finder(111, 22) + finder(62, 71) + cells
   },
-  watermark: (id) =>
-    `<defs><clipPath id="${id}-c"><rect x="36" y="18" width="128" height="84" rx="8"/></clipPath></defs>` +
+  watermark:
     rect(36, 18, 128, 84, 'p', 8) +
-    `<g clip-path="url(#${id}-c)">` +
-    group(
-      'rotate(-20 100 60)',
-      [0, 1, 2]
-        .map((row) =>
-          [0, 1, 2]
-            .map((col) => bar(32 + col * 52 + (row % 2) * 24, 34 + row * 24, 30, 'mark'))
-            .join(''),
-        )
-        .join(''),
-    ) +
-    '</g>' +
-    lines(48, 30, [72, 96, 60], 30, 's'),
+    [
+      [48, 44],
+      [88, 44],
+      [128, 44],
+      [68, 68],
+      [108, 68],
+      [48, 92],
+      [88, 92],
+      [128, 92],
+    ]
+      .map(([x, y]) => path(`M${x} ${y}l24 -10`, 'mk'))
+      .join('') +
+    lines(48, 30, [72, 96, 60], 28),
   descriptions:
     rect(28, 24, 144, 72, 'p', 8) +
     path('M28 48h144M28 72h144M100 24v72', 'lb') +
@@ -754,12 +808,12 @@ const arts: Record<string, string | ((id: string) => string)> = {
     circle(62, 60, 4, 's') +
     circle(62, 92, 7, 'as') +
     circle(62, 92, 4, 'a') +
-    bar(76, 22, 56, 'k') +
-    bar(76, 31, 36, 't') +
-    bar(76, 54, 48, 'k') +
-    bar(76, 63, 40, 't') +
-    bar(76, 86, 60, 'k') +
-    bar(76, 95, 32, 't'),
+    bar(76, 22, 80, 'k') +
+    bar(76, 31, 48, 't') +
+    bar(76, 54, 72, 'k') +
+    bar(76, 63, 56, 't') +
+    bar(76, 86, 84, 'k') +
+    bar(76, 95, 44, 't'),
   'flow-graph':
     path(
       'M62 60c14 0 14 -24 28 -24M62 60c14 0 14 24 28 24M118 36c14 0 14 24 28 24M118 84c14 0 14 -24 28 -24',
@@ -787,10 +841,10 @@ const arts: Record<string, string | ((id: string) => string)> = {
       cells +
       rect(52, 44, 52, 7, 'as', 2) +
       rect(52, 44, 2, 7, 'a') +
-      rect(114, 62, 32, 7, 'gs', 2) +
-      rect(114, 62, 2, 7, 'g') +
-      rect(31, 80, 40, 7, 'ws', 2) +
-      rect(31, 80, 2, 7, 'w') +
+      rect(114, 62, 32, 7, 'm', 2) +
+      rect(114, 62, 2, 7, 'k') +
+      rect(31, 80, 40, 7, 'm', 2) +
+      rect(31, 80, 2, 7, 't') +
       circle(120, 76, 7, 'k') +
       circle(120, 76, 1.4, 'on')
     )
@@ -812,7 +866,7 @@ const arts: Record<string, string | ((id: string) => string)> = {
     text(40, 52, '2,846', 'tx stat-sm', 'start') +
     `<path d="M40 92l12 -8l12 4l12 -12l12 6l12 -14l12 4l12 -16l12 8l12 -10v38h-120z" fill="url(#${id}-a)"/>` +
     path('M40 92l12 -8l12 4l12 -12l12 6l12 -14l12 4l12 -16l12 8l12 -10', 'lk w15 join') +
-    circle(160, 64, 3, 'k'),
+    circle(160, 54, 3, 'k'),
   table:
     rect(24, 20, 152, 80, 'p', 8) +
     `<path d="M24 38v-10a8 8 0 0 1 8 -8h136a8 8 0 0 1 8 8v10z" class="m"/>` +
@@ -840,12 +894,12 @@ const arts: Record<string, string | ((id: string) => string)> = {
     chevronRight(68, 90) +
     bar(76, 88, 48),
   'virtual-list':
-    lines(52, 10, [72, 56], 10, 'b') +
-    rect(44, 30, 112, 60, 'p', 8) +
+    lines(52, 14, [72, 56], 8, 'b') +
+    rect(44, 32, 112, 56, 'p', 8) +
     [0, 1, 2, 3]
-      .map((i) => bar(56, 40 + i * 12, [72, 56, 64, 48][i]!) + bar(136, 40 + i * 12, 10, 't'))
+      .map((i) => bar(56, 42 + i * 11, [72, 56, 64, 48][i]!) + bar(136, 42 + i * 11, 10, 't'))
       .join('') +
-    lines(52, 98, [64, 72], 10, 'b'),
+    lines(52, 94, [64, 72], 8, 'b'),
   'infinite-scroll':
     rect(48, 14, 104, 92, 'p', 8) +
     [0, 1, 2, 3]
@@ -921,20 +975,22 @@ const arts: Record<string, string | ((id: string) => string)> = {
     bar(88, 72, 24, 'k') +
     bar(140, 72, 24, 't'),
   anchor:
-    path('M60 24v72', 'lb') +
-    rect(59, 44, 2, 16, 'k', 1) +
-    bar(72, 26, 48) +
-    bar(72, 50, 56, 'k') +
-    bar(84, 66, 40) +
-    bar(84, 82, 32) +
-    bar(72, 98, 44),
+    path('M56 24v72', 'lb') +
+    rect(55, 44, 2, 16, 'k', 1) +
+    bar(68, 26, 72) +
+    bar(68, 50, 88, 'k') +
+    bar(80, 66, 64) +
+    bar(80, 82, 52) +
+    bar(68, 98, 60),
   breadcrumb:
-    path('M34 63v-5l5 -4l5 4v5z', 'ln join') +
-    bar(50, 58, 24) +
-    text(84, 64, '/', 'tx3') +
-    bar(94, 58, 28) +
-    text(132, 64, '/', 'tx3') +
-    bar(142, 58, 24, 'k'),
+    path('M36 39v-5l5 -4l5 4v5z', 'ln join') +
+    bar(52, 32, 24) +
+    text(84, 38, '/', 'tx3') +
+    bar(92, 32, 28) +
+    text(128, 38, '/', 'tx3') +
+    bar(136, 32, 28, 'k') +
+    bar(36, 52, 72, 'b', 8) +
+    lines(36, 72, [128, 112, 96], 10, 'b'),
   'page-header':
     path('M40 46l-6 6l6 6M34 52h14', 'lk w15') +
     bar(58, 46, 44, 'k', 8) +
@@ -943,18 +999,19 @@ const arts: Record<string, string | ((id: string) => string)> = {
     button(154, 44, 26, 'k', 18) +
     path('M28 82h152', 'lb'),
   pagination:
-    path('M39.5 57l-3 3l3 3', 'ln') +
+    bar(24, 58, 28, 't') +
+    path('M63.5 57l-3 3l3 3', 'ln') +
     ['1', '2', '3', '…', '9']
       .map((value, i) => {
-        const x = 52 + i * 22
+        const x = 76 + i * 20
         const active = i === 1
         return (
-          (active ? rect(x - 10, 49, 20, 22, 'k', 5) : '') +
+          (active ? rect(x - 10, 48, 20, 24, 'k', 5) : '') +
           text(x, 64, value, active ? 'tx on-text small' : 'tx2 small')
         )
       })
       .join('') +
-    chevronRight(162, 60),
+    chevronRight(172, 60),
   command:
     rect(32, 14, 136, 92, 'p f', 10) +
     circle(46, 30, 4, 'lk') +
@@ -999,19 +1056,25 @@ const arts: Record<string, string | ((id: string) => string)> = {
     circle(152, 77, 9, 'k') +
     path('M152 81v-8M148.5 76.5l3.5 -3.5l3.5 3.5', 'lon w15'),
   'stream-text':
-    lines(36, 34, [128, 116, 124], 13) + bar(36, 73, 64) + rect(104, 70, 6, 10, 'k', 1),
-  'chat-steps':
+    lines(36, 34, [128, 116, 124], 13) +
+    bar(36, 73, 44) +
+    bar(84, 73, 14, 'b') +
+    bar(102, 73, 10, 'm') +
+    rect(118, 69, 6, 12, 'k', 1),
+  'chat-steps': group(
+    'translate(10 0)',
     bar(40, 22, 72, 't') +
-    chevronDown(120, 24, 'ln') +
-    path('M46 40v52', 'lb') +
-    [0, 1, 2]
-      .map(
-        (i) =>
-          circle(46, 42 + i * 22, 5, 'gs') +
-          check(46, 42 + i * 22, 'lg') +
-          bar(60, 40 + i * 22, [64, 80, 52][i]!),
-      )
-      .join(''),
+      chevronDown(120, 24, 'ln') +
+      path('M46 40v52', 'lb') +
+      [0, 1, 2]
+        .map(
+          (i) =>
+            circle(46, 42 + i * 22, 5, 'gs') +
+            check(46, 42 + i * 22, 'lg') +
+            bar(60, 40 + i * 22, [64, 80, 52][i]!),
+        )
+        .join(''),
+  ),
   'chat-plan':
     rect(40, 14, 120, 92, 'p', 8) +
     circle(56, 32, 6, 'k') +
@@ -1091,27 +1154,29 @@ const arts: Record<string, string | ((id: string) => string)> = {
     .join(''),
   'chat-attachments': [0, 1, 2]
     .map((i) => {
-      const x = 30 + i * 48
+      const x = 22 + i * 54
       const tone = ['rs', 'm', 'm'][i]!
       const ink = ['r', 't', 't'][i]!
       return (
-        rect(x, 40, 44, 40, 'p', 7) +
-        rect(x + 6, 46, 14, 16, tone, 3) +
-        bar(x + 9, 52, 8, ink, 3) +
-        bar(x + 6, 68, 30) +
-        bar(x + 6, 74, 18, 't', 2)
+        rect(x, 34, 48, 52, 'p', 7) +
+        rect(x + 8, 42, 16, 18, tone, 3) +
+        bar(x + 11, 49, 10, ink, 3) +
+        bar(x + 8, 68, 32) +
+        bar(x + 8, 76, 20, 't', 3)
       )
     })
     .join(''),
   'chat-context-meter':
-    circle(70, 60, 16, 'lb w4') +
-    path('M70 44a16 16 0 1 1 -15.2 21', 'lk w4') +
-    text(98, 58, '62%', 'tx big', 'start') +
-    bar(98, 68, 40, 't'),
+    circle(66, 60, 24, 'ln w4') +
+    path('M66 36a24 24 0 1 1 -16.4 41.5', 'lk w4') +
+    text(104, 60, '62%', 'tx stat', 'start') +
+    bar(104, 72, 56, 't') +
+    bar(104, 82, 36, 'b'),
   shimmer: (id) =>
-    `<defs><linearGradient id="${id}-g" x1="40" x2="160" gradientUnits="userSpaceOnUse"><stop offset=".2" class="stop-mute"/><stop offset=".5" class="stop-t"/><stop offset=".8" class="stop-mute"/></linearGradient></defs>` +
-    `<rect x="40" y="52" width="120" height="6" rx="3" fill="url(#${id}-g)"/>` +
-    `<rect x="40" y="66" width="80" height="6" rx="3" fill="url(#${id}-g)"/>`,
+    `<defs><linearGradient id="${id}-g" x1="30" x2="170" gradientUnits="userSpaceOnUse"><stop offset=".15" class="stop-t"/><stop offset=".5" class="stop-ink"/><stop offset=".85" class="stop-t"/></linearGradient></defs>` +
+    path('M44 44l1.8 4.2l4.2 1.8l-4.2 1.8l-1.8 4.2l-1.8 -4.2l-4.2 -1.8l4.2 -1.8z', 'k') +
+    `<text x="60" y="58" class="tx bigger" style="fill:url(#${id}-g)">正在思考…</text>` +
+    `<text x="60" y="80" class="tx mid" style="fill:url(#${id}-g)">搜索了 3 个网页</text>`,
   'chat-bubble':
     avatar(40, 34, 10) +
     `<path d="M56 26h56a8 8 0 0 1 8 8v4a8 8 0 0 1 -8 8h-52a4 4 0 0 1 -4 -4z" class="m"/>` +
@@ -1124,13 +1189,16 @@ const arts: Record<string, string | ((id: string) => string)> = {
   // config
   'config-provider':
     rect(28, 14, 144, 92, 'pm dash', 10) +
-    rect(36, 22, 54, 14, 'p', 4) +
-    bar(42, 27, 30, 't') +
+    rect(36, 22, 60, 16, 'p', 4) +
+    path('M42 27h12M42 33h12', 'ln') +
+    circle(46, 27, 2, 'k') +
+    circle(51, 33, 2, 'k') +
+    bar(60, 28, 28, 't') +
     button(40, 50, 48, 'k', 20) +
     field(96, 50, 64, 20, 28) +
     rect(40, 80, 24, 14, 'k', 7) +
     circle(57, 87, 5, 'on') +
-    lines(72, 82, [56], 10),
+    lines(72, 85, [56], 10),
   'color-mode':
     `<path d="M100 22h-64a8 8 0 0 0 -8 8v60a8 8 0 0 0 8 8h64z" class="light-frame"/>` +
     `<path d="M100 22h64a8 8 0 0 1 8 8v60a8 8 0 0 1 -8 8h-64z" class="dark-frame"/>` +

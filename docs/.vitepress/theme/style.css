@@ -1219,6 +1219,18 @@ body {
 .doc-overview__art .ps.la {
   stroke: var(--dou-color-primary);
 }
+.doc-overview__art .lwhite {
+  fill: none;
+  stroke: #fff;
+}
+
+.doc-overview__art .mk {
+  fill: none;
+  stroke: var(--ov-ink);
+  stroke-opacity: 0.08;
+  stroke-width: 5;
+}
+
 .doc-overview__art .w15 {
   stroke-width: 1.5;
 }
@@ -1254,7 +1266,7 @@ body {
   fill: color-mix(in oklab, var(--ov-ink) 7%, transparent);
 }
 .doc-overview__art .dim2 {
-  fill: color-mix(in oklab, var(--ov-ink) 18%, transparent);
+  fill: rgb(0 0 0 / 0.32);
 }
 .doc-overview__art .dim3 {
   fill: color-mix(in oklab, var(--ov-ink) 10%, transparent);
@@ -1361,6 +1373,14 @@ body {
 .doc-overview__art .big {
   font-size: 18px;
 }
+.doc-overview__art .mid {
+  font-size: 16px;
+}
+
+.doc-overview__art .bigger {
+  font-size: 20px;
+}
+
 .doc-overview__art .small {
   font-size: 11px;
 }
@@ -1376,6 +1396,12 @@ body {
   font-weight: var(--dou-font-weight-bold);
   font-variant-numeric: tabular-nums;
 }
+.doc-overview__art .stat-lg {
+  font-size: 30px;
+  font-weight: var(--dou-font-weight-bold);
+  font-variant-numeric: tabular-nums;
+}
+
 .doc-overview__art .stat-sm {
   font-size: 20px;
   font-weight: var(--dou-font-weight-bold);

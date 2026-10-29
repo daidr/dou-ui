@@ -52,6 +52,7 @@
 @import './components/input.css';
 @import './components/input-otp.css';
 @import './components/input-tag.css';
+@import './components/input-date.css';
 @import './components/kbd.css';
 @import './components/layout.css';
 @import './components/listbox.css';

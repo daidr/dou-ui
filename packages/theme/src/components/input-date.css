@@ -1,0 +1,228 @@
+/*
+ * InputDate and InputTime
+ *
+ * Drawn like the date picker's field. Each part of the value is a small
+ * box of its own width; the part being edited takes a faint focus wash,
+ * an empty part shows its name in the placeholder tone, and the literal
+ * text between parts stays in the tertiary tone.
+ */
+@layer dou.components {
+  .dou-input-date {
+    --dou-input-date-height: var(--dou-control-height-md);
+    --dou-input-date-padding-x: var(--dou-control-padding-x-md);
+    --dou-input-date-gap: var(--dou-control-gap-md);
+    --dou-input-date-font-size: var(--dou-font-size-md);
+    --dou-input-date-bg: var(--dou-color-bg-surface);
+    --dou-input-date-border: var(--dou-color-border);
+    --dou-input-date-border-hover: var(--dou-color-border-strong);
+    --dou-input-date-border-focus: color-mix(
+      in oklab,
+      var(--dou-color-focus) 70%,
+      var(--dou-color-text)
+    );
+    --dou-input-date-ring: color-mix(in oklab, var(--dou-color-focus) 32%, transparent);
+    --dou-input-date-shadow: var(--dou-shadow-sm);
+    --dou-input-date-segment-active: color-mix(in oklab, var(--dou-color-focus) 20%, transparent);
+
+    display: inline-flex;
+    align-items: center;
+    gap: var(--dou-input-date-gap);
+    box-sizing: border-box;
+    width: 100%;
+    height: var(--dou-input-date-height);
+    padding: 0 var(--dou-input-date-padding-x);
+    border: 1px solid var(--dou-input-date-border);
+    border-radius: var(--dou-radius-control);
+    background-color: var(--dou-input-date-bg);
+    box-shadow: var(--dou-input-date-shadow);
+    color: var(--dou-color-text);
+    font-size: var(--dou-input-date-font-size);
+    vertical-align: middle;
+    cursor: text;
+    transition-property: border-color, box-shadow, background-color;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    &:hover {
+      border-color: var(--dou-input-date-border-hover);
+    }
+
+    &:focus-within,
+    &.is-open {
+      border-color: var(--dou-input-date-border-focus);
+      box-shadow:
+        0 0 0 3px var(--dou-input-date-ring),
+        var(--dou-input-date-shadow);
+    }
+
+    &.is-invalid {
+      --dou-input-date-border: color-mix(
+        in oklab,
+        var(--dou-color-danger) 55%,
+        var(--dou-color-border)
+      );
+      --dou-input-date-border-hover: color-mix(
+        in oklab,
+        var(--dou-color-danger) 75%,
+        var(--dou-color-border)
+      );
+      --dou-input-date-border-focus: var(--dou-color-danger);
+      --dou-input-date-ring: color-mix(in oklab, var(--dou-color-danger) 18%, transparent);
+      --dou-input-date-segment-active: color-mix(
+        in oklab,
+        var(--dou-color-danger) 16%,
+        transparent
+      );
+    }
+
+    &.is-disabled {
+      --dou-input-date-bg: var(--dou-color-bg-muted);
+      --dou-input-date-border-hover: var(--dou-input-date-border);
+      --dou-input-date-shadow: none;
+      color: var(--dou-color-text-disabled);
+      cursor: not-allowed;
+    }
+  }
+
+  .dou-input-date--sm {
+    --dou-input-date-height: var(--dou-control-height-sm);
+    --dou-input-date-padding-x: var(--dou-control-padding-x-sm);
+    --dou-input-date-gap: var(--dou-control-gap-sm);
+    --dou-input-date-font-size: var(--dou-font-size-sm);
+  }
+  .dou-input-date--lg {
+    --dou-input-date-height: var(--dou-control-height-lg);
+    --dou-input-date-padding-x: var(--dou-control-padding-x-lg);
+    --dou-input-date-gap: var(--dou-control-gap-lg);
+    --dou-input-date-font-size: var(--dou-font-size-lg);
+  }
+
+  .dou-input-date__icon,
+  .dou-input-date__separator {
+    flex-shrink: 0;
+    width: 1em;
+    height: 1em;
+    font-size: 1.1em;
+    color: var(--dou-color-text-tertiary);
+  }
+
+  /* with `picker` the glyph is the button that opens the panel */
+  .dou-input-date__toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: content-box;
+    padding: 2px;
+    margin: -2px;
+    border: 0;
+    border-radius: var(--dou-radius-control);
+    background: transparent;
+    cursor: pointer;
+    transition: color var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    & > svg {
+      width: 1em;
+      height: 1em;
+    }
+
+    &:hover:not(:disabled),
+    .dou-input-date.is-open & {
+      color: var(--dou-color-text);
+    }
+
+    &:disabled {
+      cursor: inherit;
+    }
+  }
+
+  .dou-input-date__value {
+    display: inline-flex;
+    flex: 1 1 auto;
+    align-items: center;
+    min-width: 0;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .dou-input-date.is-range .dou-input-date__value {
+    flex-basis: 0;
+    justify-content: center;
+  }
+
+  .dou-input-date__literal {
+    color: var(--dou-color-text-tertiary);
+    line-height: 1;
+    white-space: pre;
+  }
+
+  .dou-input-date__segment {
+    box-sizing: content-box;
+    min-width: 2ch;
+    padding: 4px 1px;
+    border-radius: 4px;
+    outline: none;
+    caret-color: transparent;
+    line-height: 1;
+    text-align: center;
+    text-box: trim-both cap alphabetic;
+    transition: background-color var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    &:focus {
+      background-color: var(--dou-input-date-segment-active);
+    }
+
+    &.is-placeholder {
+      color: var(--dou-color-text-tertiary);
+    }
+
+    .dou-input-date.is-disabled & {
+      cursor: not-allowed;
+    }
+  }
+
+  .dou-input-date__segment.dou-input-date--year {
+    min-width: 4ch;
+  }
+
+  /* an empty part is as wide as its name, so `年-月-日` stays together */
+  .dou-input-date__segment.is-placeholder,
+  .dou-input-date__segment.dou-input-date--meridiem {
+    min-width: auto;
+    padding-inline: 2px;
+  }
+
+  .dou-input-date__clear {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 1.15em;
+    height: 1.15em;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    border-radius: var(--dou-radius-full);
+    background-color: color-mix(in oklab, var(--dou-color-text) 10%, transparent);
+    color: var(--dou-color-text-secondary);
+    cursor: pointer;
+
+    & > svg {
+      width: 1em;
+      height: 1em;
+      font-size: 0.8em;
+    }
+
+    &:hover {
+      background-color: color-mix(in oklab, var(--dou-color-text) 18%, transparent);
+      color: var(--dou-color-text);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dou-input-date,
+    .dou-input-date__segment,
+    .dou-input-date__toggle {
+      transition: none;
+    }
+  }
+}

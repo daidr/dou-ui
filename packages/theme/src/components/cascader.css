@@ -99,4 +99,37 @@
     font-size: var(--dou-font-size-sm);
     text-align: center;
   }
+
+  /* multiple: the field grows to hold a tag per checked path */
+  .dou-cascader.is-multiple {
+    height: auto;
+    min-height: var(--dou-picker-height);
+  }
+  .dou-cascader.is-multiple.is-has-tags {
+    padding-inline-start: 3px;
+  }
+
+  .dou-cascader__tags {
+    display: flex;
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    padding: 3px 0;
+  }
+
+  .dou-cascader .dou-cascader__input {
+    flex: 1 1 60px;
+    min-width: 60px;
+    height: calc(var(--dou-picker-height) - 8px);
+  }
+
+  .dou-cascader__tag-more {
+    color: var(--dou-color-text-secondary);
+  }
+
+  .dou-cascader__checkbox {
+    flex-shrink: 0;
+  }
 }

@@ -15,7 +15,7 @@ import type { TabPanelProps, TabPanelSlots } from './tabs'
 
 defineOptions({ name: 'DouTabPanel' })
 
-const props = withDefaults(defineProps<TabPanelProps>(), { disabled: false })
+const props = withDefaults(defineProps<TabPanelProps>(), { disabled: false, closable: undefined })
 const slots = defineSlots<TabPanelSlots>()
 
 const ns = useNamespace('tabs')

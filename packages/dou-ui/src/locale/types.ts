@@ -8,9 +8,18 @@
 export interface Locale {
   /** A BCP 47 language tag, e.g. `zh-CN`. */
   name: string
+  tabs: {
+    /** Hint on the close button of a tab. */
+    close: string
+    /** The button that adds a tab. */
+    add: string
+  }
   input: {
     /** Label of the clear button. */
     clear: string
+    /** The button that reveals a password. */
+    showPassword: string
+    hidePassword: string
   }
   tag: {
     /** Label of the remove button. */
@@ -103,6 +112,12 @@ export interface Locale {
     expandRow: string
     /** Label of a column's resize handle, with `{column}`. */
     resize: string
+    /** Label of a column's filter button; `{column}` is its title. */
+    filter: string
+    filterReset: string
+    filterConfirm: string
+    /** The choice that clears a single-choice filter. */
+    filterAll: string
   }
   upload: {
     /** The button that opens the file picker. */
@@ -117,6 +132,8 @@ export interface Locale {
     remove: string
     /** Label of the retry button, followed by the file name. */
     retry: string
+    /** The button that opens the preview of an image card. */
+    preview: string
     /** Shown while a file is sent, followed by the percentage. */
     uploading: string
     /** Shown when a file failed to send. */
@@ -127,6 +144,14 @@ export interface Locale {
     placeholder: string
     /** Shown in an empty month field. */
     monthPlaceholder: string
+    datetimePlaceholder: string
+    weekPlaceholder: string
+    /** Names the time columns of a `datetime`. */
+    time: string
+    /** The button that picks this moment. */
+    now: string
+    /** The button that commits a `datetime`. */
+    confirm: string
     /** Shown in an empty year field. */
     yearPlaceholder: string
     /** The start field of a range. */
@@ -273,6 +298,10 @@ export interface Locale {
     reset: string
     /** Which picture of how many, with `{index}` and `{total}`. */
     counter: string
+  }
+  pageHeader: {
+    /** The back button before the title. */
+    back: string
   }
   backTop: {
     label: string

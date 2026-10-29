@@ -1,10 +1,13 @@
 import type { Placement } from '../../composables/use-floating'
 import type { Size } from '../../utils/types'
+import type { TimeFormat } from '../time-picker/time'
 import type { DateUnit } from './date'
 
 export type DatePickerSize = Size
-/** What is picked: a day, a month or a year. */
-export type DatePickerType = DateUnit
+/** What the calendar picks: a day, a week, a month or a year. */
+export type CalendarType = DateUnit
+/** What is picked: a day, a day and a time, a week, a month or a year. */
+export type DatePickerType = DateUnit | 'datetime'
 /** A single value, or `[start, end]` with `range`. */
 export type DateValue = string
 export type DateRange = [DateValue, DateValue]
@@ -13,12 +16,12 @@ export type WeekStart = 0 | 1
 
 export interface CalendarProps {
   /**
-   * The chosen value, bound with `v-model`: `YYYY-MM-DD`, `YYYY-MM` or
-   * `YYYY` by `type`, or `[start, end]` with `range`.
+   * The chosen value, bound with `v-model`: `YYYY-MM-DD`, `YYYY-Www`,
+   * `YYYY-MM` or `YYYY` by `type`, or `[start, end]` with `range`.
    */
   modelValue?: DateValue | DateRange | null
-  type?: DatePickerType
-  /** Pick a start and an end. Only for days. */
+  type?: CalendarType
+  /** Pick a start and an end. Only for days (and a day with a time). */
   range?: boolean
   /** The earliest value that can be picked, inclusive. */
   min?: DateValue
@@ -52,7 +55,29 @@ export interface CalendarExpose {
   show: (value: DateValue) => void
 }
 
-export interface DatePickerProps extends CalendarProps {
+/** A preset in the list beside the calendar. */
+export interface DatePickerShortcut {
+  label: string
+  /** The value it picks; a function is called at the moment of the click. */
+  value: DateValue | DateRange | (() => DateValue | DateRange)
+}
+
+export interface DatePickerProps extends Omit<CalendarProps, 'type'> {
+  /**
+   * `datetime` adds a time to the day: `YYYY-MM-DD HH:mm`, or
+   * `YYYY-MM-DD HH:mm:ss` with `timeFormat`.
+   */
+  type?: DatePickerType
+  /** Whether a `datetime` carries seconds. */
+  timeFormat?: TimeFormat
+  /**
+   * The time a `datetime` gets when a day is picked before a time, as
+   * `HH:mm` or `HH:mm:ss`; a pair for a range. Defaults to the start of
+   * the day, and the end of the day for the end of a range.
+   */
+  defaultTime?: string | [string, string]
+  /** Presets listed beside the calendar, such as "last 7 days". */
+  shortcuts?: DatePickerShortcut[]
   /** Shown while empty. Defaults to the locale's. */
   placeholder?: string
   /** Placeholders of the two fields of a range. */

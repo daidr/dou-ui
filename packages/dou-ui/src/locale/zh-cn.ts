@@ -2,8 +2,14 @@ import type { Locale } from './types'
 
 export const zhCN: Locale = {
   name: 'zh-CN',
+  tabs: {
+    close: '关闭',
+    add: '新建标签页',
+  },
   input: {
     clear: '清空',
+    showPassword: '显示密码',
+    hidePassword: '隐藏密码',
   },
   tag: {
     remove: '移除',
@@ -63,6 +69,10 @@ export const zhCN: Locale = {
     expand: '展开',
     expandRow: '展开此行',
     resize: '调整“{column}”列宽',
+    filter: '筛选“{column}”',
+    filterReset: '重置',
+    filterConfirm: '筛选',
+    filterAll: '全部',
   },
   upload: {
     choose: '选择文件',
@@ -71,12 +81,18 @@ export const zhCN: Locale = {
     list: '文件列表',
     remove: '移除',
     retry: '重试',
+    preview: '预览',
     uploading: '上传中',
     error: '上传失败',
   },
   datePicker: {
     placeholder: '选择日期',
     monthPlaceholder: '选择月份',
+    datetimePlaceholder: '选择日期时间',
+    weekPlaceholder: '选择周',
+    time: '时间',
+    now: '此刻',
+    confirm: '确定',
     yearPlaceholder: '选择年份',
     start: '开始日期',
     end: '结束日期',
@@ -179,6 +195,9 @@ export const zhCN: Locale = {
     rotateRight: '向右旋转',
     reset: '还原',
     counter: '{index} / {total}',
+  },
+  pageHeader: {
+    back: '返回',
   },
   backTop: {
     label: '回到顶部',

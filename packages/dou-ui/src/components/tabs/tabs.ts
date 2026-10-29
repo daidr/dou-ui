@@ -4,6 +4,8 @@ import type { Size } from '../../utils/types'
 export type TabsValue = string | number
 export type TabsSize = Size
 export type TabsActivation = 'auto' | 'manual'
+/** Where the tab list sits: above the panels, or beside them on the start or end side. */
+export type TabsPlacement = 'top' | 'start' | 'end'
 
 export interface TabsProps {
   /** The value of the selected panel, bound with `v-model`. Defaults to the first enabled panel. */
@@ -14,12 +16,26 @@ export interface TabsProps {
    * waits for `Enter` or `Space`, for panels that are slow to render.
    */
   activation?: TabsActivation
+  placement?: TabsPlacement
+  /** Give every tab a close button that emits `remove`. A panel's own `closable` wins. */
+  closable?: boolean
+  /** Put a button after the tabs that emits `add`. */
+  addable?: boolean
+  /**
+   * Called before another tab is selected. Return `false`, or a promise of
+   * `false`, to stay on the current one, e.g. while a form has unsaved changes.
+   */
+  beforeLeave?: (next: TabsValue, current: TabsValue | undefined) => boolean | Promise<boolean>
 }
 
 export interface TabsEmits {
   'update:modelValue': [value: TabsValue]
   /** The user picked another tab. */
   change: [value: TabsValue]
+  /** The close button of a tab was pressed, or `Delete` on a closable tab. Remove its panel. */
+  remove: [value: TabsValue]
+  /** The add button was pressed. */
+  add: []
 }
 
 export interface TabsSlots {
@@ -34,6 +50,8 @@ export interface TabPanelProps {
   /** The text of the tab. */
   label?: string
   disabled?: boolean
+  /** Show a close button on this tab, overriding the tabs' `closable`. */
+  closable?: boolean
 }
 
 export interface TabPanelSlots {

@@ -40,6 +40,17 @@ function search(query) {
 const labels = ref(['bug'])
 const users = Array.from({ length: 5000 }, (_, i) => ({ value: i + 1, label: `用户 ${String(i + 1).padStart(4, '0')}` }))
 const user = ref(4321)
+const many = ref(['sh', 'sg', 'fra', 'iad'])
+const limited = ref(['sh'])
+const people = [
+  { value: { id: 1, name: '小林', team: '平台组' }, label: '小林' },
+  { value: { id: 2, name: '阿周', team: '业务组' }, label: '阿周' },
+  { value: { id: 3, name: '小陈', team: '业务组' }, label: '小陈' },
+]
+const owner = ref({ id: 2, name: '阿周', team: '业务组' })
+const picked = ref(['sh'])
+const allValues = regions.filter((option) => !option.disabled).map((option) => option.value)
+const toggleAllRegions = (checked) => (picked.value = checked ? [...allValues] : [])
 </script>
 
 ## 基础用法
@@ -164,6 +175,56 @@ const options = [
 <DouSelect v-model="user" :options="users" virtual filterable />
 ```
 
+## 折叠标签与数量上限
+
+选得多时字段会被撑高。`max-tag-count` 只显示前几个标签，其余折叠成一个"+N"，指向它能看到被折叠的是哪几项。`multiple-limit` 限定最多选几项，到上限后没选中的项变灰，已选的仍可取消。
+
+<div class="demo">
+  <DouSelect v-model="many" :options="regions" multiple :max-tag-count="2" style="width: 260px" />
+  <DouSelect v-model="limited" :options="regions" multiple :multiple-limit="2" placeholder="最多两项" style="width: 260px" />
+</div>
+
+```vue
+<DouSelect v-model="value" :options="options" multiple :max-tag-count="2" />
+<DouSelect v-model="value" :options="options" multiple :multiple-limit="2" />
+```
+
+## 对象作为值
+
+值可以是对象，此时用 `value-key` 指定哪个属性用来区分它们。这样从接口拿回的新对象和选项里的对象虽然不是同一个，也能对上。
+
+<div class="demo">
+  <DouSelect v-model="owner" :options="people" value-key="id" style="width: 200px" />
+  <DouText variant="tertiary" size="sm">{{ JSON.stringify(owner) }}</DouText>
+</div>
+
+```vue
+<DouSelect v-model="owner" :options="people" value-key="id" />
+```
+
+## 头部与底部
+
+`header`、`footer` 插槽放在列表上下，滚动选项时它们不动，适合放"全选"或"新建"。`tag` 插槽替换多选的标签（参数 `{ option, remove }`），`label` 插槽替换单选时字段里的文字（参数 `{ option }`）。
+
+<div class="demo">
+  <DouSelect v-model="picked" :options="regions" multiple :max-tag-count="2" style="width: 260px">
+    <template #header>
+      <DouCheckbox size="sm" :model-value="picked.length === allValues.length" :indeterminate="picked.length > 0 && picked.length < allValues.length" @update:model-value="toggleAllRegions">全选</DouCheckbox>
+    </template>
+    <template #footer>
+      <DouText variant="tertiary" size="sm">已选 {{ picked.length }} / {{ allValues.length }}</DouText>
+    </template>
+  </DouSelect>
+</div>
+
+```vue
+<DouSelect v-model="picked" :options="options" multiple>
+  <template #header>
+    <DouCheckbox :model-value="allChecked" @update:model-value="toggleAll">全选</DouCheckbox>
+  </template>
+</DouSelect>
+```
+
 ## 尺寸、禁用与表单
 
 尺寸、禁用与校验状态与输入框一致，也会从 [表单](./form) 继承。
@@ -209,27 +270,30 @@ const options = [
 
 ### Props
 
-| 名称          | 说明                                                           | 类型                                                        | 默认值           |
-| ------------- | -------------------------------------------------------------- | ----------------------------------------------------------- | ---------------- |
-| `modelValue`  | 选中值，多选时为数组，配合 `v-model`                           | `SelectValue \| SelectValue[] \| null`                      | —                |
-| `options`     | 选项；字符串或数字同时作为值和标签；可以分组                   | `(SelectOption \| SelectOptionGroup \| string \| number)[]` | —                |
-| `multiple`    | 多选                                                           | `boolean`                                                   | `false`          |
-| `filterable`  | 输入文字筛选选项                                               | `boolean`                                                   | `false`          |
-| `placeholder` | 未选择时的提示                                                 | `string`                                                    | 语言包           |
-| `size`        | 尺寸，默认取表单或全局配置                                     | `'sm' \| 'md' \| 'lg'`                                      | `'md'`           |
-| `disabled`    | 禁用                                                           | `boolean`                                                   | `false`          |
-| `invalid`     | 无效状态                                                       | `boolean`                                                   | `false`          |
-| `clearable`   | 显示清空按钮                                                   | `boolean`                                                   | `false`          |
-| `placement`   | 列表首选的位置                                                 | `Placement`                                                 | `'bottom-start'` |
-| `teleport`    | 列表渲染到哪里；`false` 为原地渲染                             | `string \| HTMLElement \| false`                            | `'body'`         |
-| `ariaLabel`   | 没有可见标签时的读屏名称                                       | `string`                                                    | —                |
-| `remote`      | 远程搜索：输入时触发 `search`，不在本地筛选；隐含 `filterable` | `boolean`                                                   | `false`          |
-| `searchDelay` | 输入停顿多久后触发 `search`，毫秒                              | `number`                                                    | `300`            |
-| `loading`     | 列表里显示加载中                                               | `boolean`                                                   | `false`          |
-| `creatable`   | 没有完全匹配时，把输入的文字作为新选项；隐含 `filterable`      | `boolean`                                                   | `false`          |
-| `virtual`     | 只渲染看得见的选项                                             | `boolean`                                                   | `false`          |
+| 名称            | 说明                                                           | 类型                                                        | 默认值           |
+| --------------- | -------------------------------------------------------------- | ----------------------------------------------------------- | ---------------- |
+| `modelValue`    | 选中值，多选时为数组，配合 `v-model`                           | `SelectValue \| SelectValue[] \| null`                      | —                |
+| `options`       | 选项；字符串或数字同时作为值和标签；可以分组                   | `(SelectOption \| SelectOptionGroup \| string \| number)[]` | —                |
+| `multiple`      | 多选                                                           | `boolean`                                                   | `false`          |
+| `filterable`    | 输入文字筛选选项                                               | `boolean`                                                   | `false`          |
+| `placeholder`   | 未选择时的提示                                                 | `string`                                                    | 语言包           |
+| `size`          | 尺寸，默认取表单或全局配置                                     | `'sm' \| 'md' \| 'lg'`                                      | `'md'`           |
+| `disabled`      | 禁用                                                           | `boolean`                                                   | `false`          |
+| `invalid`       | 无效状态                                                       | `boolean`                                                   | `false`          |
+| `clearable`     | 显示清空按钮                                                   | `boolean`                                                   | `false`          |
+| `placement`     | 列表首选的位置                                                 | `Placement`                                                 | `'bottom-start'` |
+| `teleport`      | 列表渲染到哪里；`false` 为原地渲染                             | `string \| HTMLElement \| false`                            | `'body'`         |
+| `ariaLabel`     | 没有可见标签时的读屏名称                                       | `string`                                                    | —                |
+| `remote`        | 远程搜索：输入时触发 `search`，不在本地筛选；隐含 `filterable` | `boolean`                                                   | `false`          |
+| `searchDelay`   | 输入停顿多久后触发 `search`，毫秒                              | `number`                                                    | `300`            |
+| `loading`       | 列表里显示加载中                                               | `boolean`                                                   | `false`          |
+| `creatable`     | 没有完全匹配时，把输入的文字作为新选项；隐含 `filterable`      | `boolean`                                                   | `false`          |
+| `virtual`       | 只渲染看得见的选项                                             | `boolean`                                                   | `false`          |
+| `maxTagCount`   | 多选时最多显示几个标签，其余折叠成"+N"                         | `number`                                                    | —                |
+| `multipleLimit` | 多选时最多选几项                                               | `number`                                                    | —                |
+| `valueKey`      | 值为对象时，用来区分它们的属性                                 | `string`                                                    | —                |
 
-`SelectValue` 为 `string | number | boolean`，`SelectOption` 为 `{ value: SelectValue; label?: string; disabled?: boolean }`，`SelectOptionGroup` 为 `{ label: string; options: (SelectOption | string | number)[]; disabled?: boolean }`。
+`SelectValue` 为 `string | number | boolean | object`（对象需要 `valueKey`），`SelectOption` 为 `{ value: SelectValue; label?: string; disabled?: boolean }`，`SelectOptionGroup` 为 `{ label: string; options: (SelectOption | string | number)[]; disabled?: boolean }`。
 
 ### Events
 
@@ -240,14 +304,20 @@ const options = [
 | `clear`             | 按下清空按钮                             | —                                               |
 | `search`            | 远程搜索的文字变化（停顿后），以及打开时 | `(query: string)`                               |
 | `create`            | 从输入的文字创建了新选项                 | `(value: string)`                               |
+| `visibleChange`     | 列表打开或关闭                           | `(open: boolean)`                               |
+| `removeTag`         | 移除了多选的一个标签                     | `(value: SelectValue)`                          |
 
 ### Slots
 
-| 名称     | 说明                                    |
-| -------- | --------------------------------------- |
-| `prefix` | 字段内、值之前的内容，通常是图标        |
-| `option` | 选项内容，参数为 `{ option, selected }` |
-| `empty`  | 没有匹配项时显示                        |
+| 名称     | 说明                                        |
+| -------- | ------------------------------------------- |
+| `prefix` | 字段内、值之前的内容，通常是图标            |
+| `option` | 选项内容，参数为 `{ option, selected }`     |
+| `empty`  | 没有匹配项时显示                            |
+| `header` | 列表上方，不随选项滚动                      |
+| `footer` | 列表下方，不随选项滚动                      |
+| `tag`    | 多选的每个标签，参数为 `{ option, remove }` |
+| `label`  | 单选时字段里的文字，参数为 `{ option }`     |
 
 ### 方法
 

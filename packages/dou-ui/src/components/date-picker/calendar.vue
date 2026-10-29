@@ -9,6 +9,7 @@ import {
   daysInMonth,
   expand,
   inBounds,
+  isoWeek,
   parts,
   today,
   toDateString,
@@ -41,9 +42,13 @@ const id = `dou-calendar-${useId()}`
 
 const unit = computed<DateUnit>(() => props.type)
 const isRange = computed(() => props.range && unit.value === 'date')
+const isWeek = computed(() => unit.value === 'week')
 const panelCount = computed(() => props.panels ?? (isRange.value ? 2 : 1))
-const weekStart = computed(
-  () => props.weekStart ?? (locale.value.name.toLowerCase().startsWith('en') ? 0 : 1),
+// ISO weeks start on Monday, whatever the locale.
+const weekStart = computed(() =>
+  isWeek.value
+    ? 1
+    : (props.weekStart ?? (locale.value.name.toLowerCase().startsWith('en') ? 0 : 1)),
 )
 
 /* the value */
@@ -59,6 +64,11 @@ const pending = ref<string | null>(null)
 const hovered = ref<string | null>(null)
 
 const shownRange = computed<[string, string] | null>(() => {
+  // A week is drawn as a range from its Monday to its Sunday.
+  if (isWeek.value) {
+    const monday = values.value[0] && expand(values.value[0])
+    return monday ? [monday, addDays(monday, 6)] : null
+  }
   if (!isRange.value) return null
   if (pending.value) {
     const other = hovered.value ?? pending.value
@@ -81,13 +91,14 @@ function clamp(date: string) {
 
 /* where the calendar is looking */
 
-type View = DateUnit
-const view = ref<View>(unit.value)
+type View = 'date' | 'month' | 'year'
+const viewOf = (value: DateUnit): View => (value === 'week' ? 'date' : value)
+const view = ref<View>(viewOf(unit.value))
 const cursor = ref(clamp(values.value[0] ? expand(values.value[0]) : today()))
 // The first month shown; a range shows the next one beside it.
 const anchor = ref(cursor.value.slice(0, 7))
 
-watch(unit, (value) => (view.value = value))
+watch(unit, (value) => (view.value = viewOf(value)))
 watch(cursor, (date) => {
   const month = date.slice(0, 7)
   const last = addMonths(`${anchor.value}-01`, panelCount.value - 1).slice(0, 7)
@@ -188,6 +199,7 @@ const rowsOf = <T,>(cells: T[]) => [cells.slice(0, 4), cells.slice(4, 8), cells.
 const todayValue = today()
 const isSelected = (value: string) => {
   if (pending.value) return value === pending.value
+  if (isWeek.value && value.length === 10) return isEdge(value, 0) || isEdge(value, 1)
   return values.value.some((selected) => truncate(expand(selected), unitOf(value)) === value)
 }
 const inRange = (date: string) =>
@@ -206,6 +218,7 @@ function commit(value: DateValue | DateRange) {
 function pickDate(date: string) {
   if (isDisabled(date)) return
   cursor.value = date
+  if (isWeek.value) return commit(isoWeek(date))
   if (!isRange.value) return commit(date)
   if (!pending.value) {
     pending.value = date
@@ -322,6 +335,7 @@ const classes = computed(() => [
   ns.b(),
   ns.m(view.value),
   ns.is('range', isRange.value),
+  ns.is('week', isWeek.value),
   ns.is('picking', !!pending.value),
 ])
 </script>

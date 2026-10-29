@@ -52,6 +52,7 @@
 @import './components/loading.css';
 @import './components/menu.css';
 @import './components/pagination.css';
+@import './components/page-header.css';
 @import './components/picker.css';
 @import './components/popconfirm.css';
 @import './components/popover.css';

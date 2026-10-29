@@ -40,6 +40,8 @@ const emit = defineEmits<{
   clear: []
   search: [query: string]
   create: [value: string]
+  visibleChange: [open: boolean]
+  removeTag: [value: SelectValue]
 }>()
 const slots = defineSlots<SelectSlots>()
 
@@ -99,15 +101,26 @@ const sections = computed<Section[]>(() => {
   return result
 })
 const options = computed(() => sections.value.flatMap((section) => section.options))
-const labelOf = (option: SelectOption) => option.label ?? String(option.value)
+const labelOf = (option: SelectOption) =>
+  option.label ??
+  (typeof option.value === 'object' ? String(identity(option.value)) : String(option.value))
+
+/** What tells values apart: the `valueKey` of an object, otherwise the value itself. */
+function identity(value: SelectValue): unknown {
+  return props.valueKey && value !== null && typeof value === 'object'
+    ? (value as Record<string, unknown>)[props.valueKey]
+    : value
+}
+const same = (a: SelectValue | null | undefined, b: SelectValue | null | undefined) =>
+  a === b || (a != null && b != null && identity(a) === identity(b))
 
 // Remember every option seen, so a value chosen from earlier remote
 // results keeps its label after the options change.
-const seen = new Map<SelectValue, SelectOption>()
+const seen = new Map<unknown, SelectOption>()
 watch(
   options,
   (list) => {
-    for (const option of list) seen.set(option.value, option)
+    for (const option of list) seen.set(identity(option.value), option)
   },
   { immediate: true },
 )
@@ -117,13 +130,29 @@ const selected = computed<SelectValue[]>(() => {
   if (props.multiple) return Array.isArray(value) ? value : []
   return value === null || value === undefined || Array.isArray(value) ? [] : [value]
 })
-const isSelected = (option: SelectOption) => selected.value.includes(option.value)
+const isSelected = (option: SelectOption) =>
+  selected.value.some((value) => same(value, option.value))
 const selectedOptions = computed(() =>
   selected.value.map(
     (value) =>
-      options.value.find((option) => option.value === value) ?? seen.get(value) ?? { value },
+      options.value.find((option) => same(option.value, value)) ??
+      seen.get(identity(value)) ?? { value },
   ),
 )
+const atLimit = computed(
+  () => props.multiple && !!props.multipleLimit && selected.value.length >= props.multipleLimit,
+)
+/** Disabled, or out of reach because the limit is met. */
+const unavailable = (option: SelectOption) =>
+  !!option.disabled || (atLimit.value && !isSelected(option))
+
+// tags shown in the field, and how many more fold into "+N"
+const shownTags = computed(() =>
+  props.maxTagCount === undefined
+    ? selectedOptions.value
+    : selectedOptions.value.slice(0, Math.max(0, props.maxTagCount)),
+)
+const hiddenTags = computed(() => selectedOptions.value.slice(shownTags.value.length))
 const hasValue = computed(() => selected.value.length > 0)
 
 const query = ref('')
@@ -140,7 +169,7 @@ const filteredSections = computed<Section[]>(() => {
 const createOption = computed<SelectOption | undefined>(() => {
   const text = query.value.trim()
   if (!props.creatable || !text) return undefined
-  if (options.value.some((option) => labelOf(option) === text || option.value === text)) {
+  if (options.value.some((option) => labelOf(option) === text || same(option.value, text))) {
     return undefined
   }
   return { value: text, label: t('select.create', { query: text }) }
@@ -173,7 +202,12 @@ const rows = computed<Row[]>(() => {
       })
     }
     for (const option of section.options) {
-      result.push({ kind: 'option', key: String(option.value), option, index: indexOf(option) })
+      result.push({
+        kind: 'option',
+        key: String(identity(option.value)),
+        option,
+        index: indexOf(option),
+      })
     }
   }
   return result
@@ -200,7 +234,7 @@ const { triggerRef, panelRef, rendered, theme, placement, panelStyle } = popup
 // The highlighted option. Focus stays in the field; the list follows
 // through `aria-activedescendant`.
 const active = ref(-1)
-const enabled = (index: number) => !!filtered.value[index] && !filtered.value[index]!.disabled
+const enabled = (index: number) => !!filtered.value[index] && !unavailable(filtered.value[index]!)
 
 function move(from: number, step: 1 | -1) {
   const count = filtered.value.length
@@ -238,6 +272,7 @@ watch(query, (text) => {
 onBeforeUnmount(() => clearTimeout(searchTimer))
 
 watch(open, (value) => {
+  emit('visibleChange', value)
   if (!value) query.value = ''
   else if (props.remote) emit('search', query.value)
 })
@@ -273,7 +308,7 @@ function commit(value: SelectValue | SelectValue[] | null) {
 }
 
 function choose(option: SelectOption | undefined) {
-  if (!option || option.disabled) return
+  if (!option || unavailable(option)) return
   if (option === createOption.value) {
     const value = String(option.value)
     option = { value, label: value }
@@ -282,20 +317,22 @@ function choose(option: SelectOption | undefined) {
     emit('create', value)
   }
   if (props.multiple) {
-    const values = isSelected(option)
-      ? selected.value.filter((value) => value !== option.value)
-      : [...selected.value, option.value]
+    const chosen = option
+    const values = isSelected(chosen)
+      ? selected.value.filter((value) => !same(value, chosen.value))
+      : [...selected.value, chosen.value]
     commit(values)
     query.value = ''
   } else {
-    if (option.value !== model.value) commit(option.value)
+    if (!same(option.value, model.value as SelectValue | null | undefined)) commit(option.value)
     hide()
   }
 }
 
 function remove(value: SelectValue) {
   if (disabled.value) return
-  commit(selected.value.filter((item) => item !== value))
+  commit(selected.value.filter((item) => !same(item, value)))
+  emit('removeTag', value)
 }
 
 function clear() {
@@ -447,15 +484,25 @@ defineExpose<SelectExpose>({ focus, blur: () => combobox()?.blur() })
       <span v-if="slots.prefix" :class="ns.e('prefix')"><slot name="prefix" /></span>
       <div :class="ns.e('selection')">
         <template v-if="multiple">
+          <template v-for="option in shownTags" :key="String(identity(option.value))">
+            <slot name="tag" :option="option" :remove="() => remove(option.value)">
+              <DouTag
+                :size="tagSize"
+                :closable="!disabled"
+                :class="ns.e('tag')"
+                @close="remove(option.value)"
+              >
+                {{ labelOf(option) }}
+              </DouTag>
+            </slot>
+          </template>
           <DouTag
-            v-for="option in selectedOptions"
-            :key="String(option.value)"
+            v-if="hiddenTags.length"
             :size="tagSize"
-            :closable="!disabled"
-            :class="ns.e('tag')"
-            @close="remove(option.value)"
+            :class="[ns.e('tag'), ns.e('tag-more')]"
+            :title="hiddenTags.map(labelOf).join('、')"
           >
-            {{ labelOf(option) }}
+            +{{ hiddenTags.length }}
           </DouTag>
         </template>
         <input
@@ -473,7 +520,9 @@ defineExpose<SelectExpose>({ focus, blur: () => combobox()?.blur() })
           @input="onInput"
           @keydown="onKeydown"
         />
-        <span v-else-if="!multiple && hasValue" :class="ns.e('value')">{{ singleLabel }}</span>
+        <span v-else-if="!multiple && hasValue" :class="ns.e('value')">
+          <slot name="label" :option="selectedOptions[0]!">{{ singleLabel }}</slot>
+        </span>
         <span v-else-if="!hasValue" :class="ns.e('placeholder')">{{ placeholderText }}</span>
       </div>
       <button
@@ -502,6 +551,7 @@ defineExpose<SelectExpose>({ focus, blur: () => combobox()?.blur() })
         @mousedown.prevent
         @scroll="virtual && (menuScroll = ($event.target as HTMLElement).scrollTop)"
       >
+        <div v-if="slots.header" :class="ns.e('header')"><slot name="header" /></div>
         <div v-if="loading" :class="ns.e('loading')" role="status">
           <DouSpinner size="sm" :label="t('select.loading')" />
           <span aria-hidden="true">{{ t('select.loading') }}</span>
@@ -529,19 +579,19 @@ defineExpose<SelectExpose>({ focus, blur: () => combobox()?.blur() })
               :id="optionId(row.index)"
               role="option"
               :aria-selected="isSelected(row.option)"
-              :aria-disabled="row.option.disabled || undefined"
+              :aria-disabled="unavailable(row.option) || undefined"
               :aria-setsize="filtered.length"
               :aria-posinset="row.index + 1"
               :class="[
                 ns.e('option'),
                 ns.is('active', row.index === active),
                 ns.is('selected', isSelected(row.option)),
-                ns.is('disabled', !!row.option.disabled),
+                ns.is('disabled', unavailable(row.option)),
                 ns.is('create', row.option === createOption),
               ]"
               :style="{ transform: `translateY(${(virtualRange.from + offset) * ROW}px)` }"
               @click="choose(row.option)"
-              @mousemove="!row.option.disabled && (active = row.index)"
+              @mousemove="!unavailable(row.option) && (active = row.index)"
             >
               <span :class="ns.e('option-label')">
                 <slot name="option" :option="row.option" :selected="isSelected(row.option)">
@@ -593,18 +643,18 @@ defineExpose<SelectExpose>({ focus, blur: () => combobox()?.blur() })
               <li
                 v-for="option in section.options"
                 :id="optionId(indexOf(option))"
-                :key="String(option.value)"
+                :key="String(identity(option.value))"
                 role="option"
                 :aria-selected="isSelected(option)"
-                :aria-disabled="option.disabled || undefined"
+                :aria-disabled="unavailable(option) || undefined"
                 :class="[
                   ns.e('option'),
                   ns.is('active', indexOf(option) === active),
                   ns.is('selected', isSelected(option)),
-                  ns.is('disabled', !!option.disabled),
+                  ns.is('disabled', unavailable(option)),
                 ]"
                 @click="choose(option)"
-                @mousemove="!option.disabled && (active = indexOf(option))"
+                @mousemove="!unavailable(option) && (active = indexOf(option))"
               >
                 <span :class="ns.e('option-label')">
                   <slot name="option" :option="option" :selected="isSelected(option)">
@@ -619,6 +669,7 @@ defineExpose<SelectExpose>({ focus, blur: () => combobox()?.blur() })
         <div v-if="!loading && !filtered.length" :class="ns.e('empty')">
           <slot name="empty">{{ t('select.empty') }}</slot>
         </div>
+        <div v-if="slots.footer" :class="ns.e('footer')"><slot name="footer" /></div>
       </div>
     </Transition>
   </Teleport>

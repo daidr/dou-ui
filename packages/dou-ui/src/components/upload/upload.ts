@@ -2,6 +2,8 @@ import type { Size } from '../../utils/types'
 
 export type UploadSize = Size
 export type UploadStatus = 'ready' | 'uploading' | 'success' | 'error'
+/** `text` lists files in rows; `picture-card` lays them out as square cards, with the trigger as the last card. */
+export type UploadListType = 'text' | 'picture-card'
 /** Why a file was turned away before it was added. */
 export type UploadRejectReason = 'type' | 'size'
 
@@ -67,6 +69,9 @@ export interface UploadProps {
   beforeUpload?: (file: File) => boolean | File | void | Promise<boolean | File | void>
   /** Show the list of files under the trigger. */
   showList?: boolean
+  listType?: UploadListType
+  /** In a `picture-card` list, open images in a preview when their card is pressed. */
+  preview?: boolean
   size?: UploadSize
 }
 
@@ -81,6 +86,8 @@ export interface UploadEmits {
   success: [file: UploadFile, response: unknown]
   error: [file: UploadFile, error: unknown]
   remove: [file: UploadFile]
+  /** The preview of a card was opened. */
+  preview: [file: UploadFile]
 }
 
 export interface UploadSlots {

@@ -273,9 +273,220 @@
     }
   }
 
+  /* picture cards: square tiles in a row, the trigger is the last tile */
+  .dou-upload.is-cards {
+    --dou-upload-card-size: 104px;
+  }
+  .dou-upload--sm.is-cards {
+    --dou-upload-card-size: 80px;
+  }
+  .dou-upload--lg.is-cards {
+    --dou-upload-card-size: 128px;
+  }
+
+  .dou-upload__cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 0;
+    margin: 0;
+    list-style: none;
+  }
+
+  .dou-upload__card,
+  .dou-upload__card-slot {
+    position: relative;
+    box-sizing: border-box;
+    width: var(--dou-upload-card-size);
+    height: var(--dou-upload-card-size);
+    border-radius: calc(var(--dou-radius-control) + 2px);
+  }
+
+  .dou-upload__card {
+    overflow: hidden;
+    border: 1px solid var(--dou-color-border);
+    background-color: var(--dou-color-bg-muted);
+    box-shadow: var(--dou-shadow-sm);
+
+    &.is-error {
+      border-color: color-mix(in oklab, var(--dou-color-danger) 55%, var(--dou-color-border));
+    }
+  }
+
+  .dou-upload__card-image {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .dou-upload__card-file {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-sizing: border-box;
+    height: 100%;
+    padding: 8px;
+    color: var(--dou-color-text-tertiary);
+
+    & > svg {
+      width: 24px;
+      height: 24px;
+    }
+  }
+
+  .dou-upload__card-name {
+    max-width: 100%;
+    overflow-x: clip;
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-sm);
+    line-height: 1.3;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dou-upload__card-progress,
+  .dou-upload__card-error {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px;
+    background-color: color-mix(in oklab, var(--dou-color-bg-surface) 82%, transparent);
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-sm);
+    font-variant-numeric: tabular-nums;
+    backdrop-filter: blur(2px);
+
+    & .dou-progress {
+      width: 100%;
+    }
+  }
+
+  .dou-upload__card-error {
+    color: var(--dou-color-danger);
+  }
+
+  .dou-upload__card-actions {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    background-color: color-mix(in oklab, black 45%, transparent);
+    opacity: 0;
+    transition: opacity var(--dou-motion-duration-fast) var(--dou-motion-easing);
+  }
+
+  .dou-upload__card:hover .dou-upload__card-actions,
+  .dou-upload__card-actions:focus-within {
+    opacity: 1;
+  }
+
+  /* an upload in flight keeps its progress readable, only remove sits in the corner */
+  .dou-upload__card.is-uploading .dou-upload__card-actions {
+    inset: 4px 4px auto auto;
+    background: transparent;
+  }
+
+  .dou-upload__card-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--dou-radius-control);
+    background: transparent;
+    color: white;
+    cursor: pointer;
+
+    & > svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    &:hover:not(:disabled) {
+      background-color: color-mix(in oklab, white 18%, transparent);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 0;
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+  }
+
+  .dou-upload__card.is-uploading .dou-upload__card-action {
+    width: 22px;
+    height: 22px;
+    color: var(--dou-color-text-secondary);
+
+    &:hover:not(:disabled) {
+      background-color: color-mix(in oklab, var(--dou-color-text) 8%, transparent);
+    }
+  }
+
+  .dou-upload__card-trigger {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-sizing: border-box;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: 1px dashed var(--dou-color-border-strong);
+    border-radius: inherit;
+    background-color: var(--dou-color-bg-surface);
+    color: var(--dou-color-text-secondary);
+    font: inherit;
+    font-size: var(--dou-font-size-sm);
+    cursor: pointer;
+    transition-property: border-color, color, background-color;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    & > svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    &:hover:not(:disabled) {
+      border-color: var(--dou-color-text-tertiary);
+      background-color: color-mix(in oklab, var(--dou-color-text) 3%, var(--dou-color-bg-surface));
+      color: var(--dou-color-text);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 2px;
+    }
+
+    &:disabled {
+      background-color: var(--dou-color-bg-muted);
+      color: var(--dou-color-text-disabled);
+      cursor: not-allowed;
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .dou-upload__zone,
-    .dou-upload__file {
+    .dou-upload__file,
+    .dou-upload__card-actions,
+    .dou-upload__card-trigger {
       transition: none;
     }
   }

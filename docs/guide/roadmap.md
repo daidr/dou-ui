@@ -217,6 +217,21 @@ Popconfirm 直接建在 Popover 上，Result 与 Empty 共用一套图标画法�
 | Listbox 列表选择   | ✅   | 单选 / 多选、分组、搜索、限高，完整键盘操作与首字母跳转                                     |
 | Layout 窄屏抽屉    | ✅   | 侧栏在断点以下变成抽屉，`DouLayoutAsideTrigger` 打开                                        |
 
+## 第 15 批 · 日期、表格与选择器补强 ✅
+
+不再加新组件，而是把常用组件的能力补深：日期时间一起选，表格能分组表头、合并单元格、按列筛选，选择器能折叠标签、选对象值，再加上一个页头。已完成（#31）。
+
+| 组件 / 能力         | 状态 | 备注                                                                                                 |
+| ------------------- | ---- | ---------------------------------------------------------------------------------------------------- |
+| DatePicker 日期时间 | ✅   | `datetime` / 日期时间范围、按周选择（ISO 周）、`shortcuts` 快捷选项、`defaultTime`                   |
+| Table 进阶          | ✅   | 多级表头、`spanMethod` 合并单元格、列筛选、当前行高亮与行样式、懒加载子行、行 / 单元格事件与实例方法 |
+| Select 进阶         | ✅   | `maxTagCount` 折叠、`multipleLimit`、`valueKey` 对象值、header / footer / tag / label 插槽           |
+| Cascader 多选       | ✅   | `multiple`、`checkStrictly`、标签折叠                                                                |
+| Input               | ✅   | `showPassword` 明文切换、`showCount` 字数统计                                                        |
+| Tabs                | ✅   | 可关闭、可新增、竖排（`placement`）、`beforeLeave`                                                   |
+| Upload 照片墙       | ✅   | `listType="picture-card"`，悬停预览 / 删除，上传中进度遮罩                                           |
+| PageHeader 页头     | ✅   | 返回、标题与副标题、面包屑 / 操作 / 内容插槽                                                         |
+
 ## 横向事项
 
 - **国际化**：组件自己渲染的文字一律放进语言包（`Locale`），通过 `ConfigProvider` 或 `app.use(DouUI, { locale })` 替换。新组件引入新文案时，同时补齐 `zhCN` 与 `en`。

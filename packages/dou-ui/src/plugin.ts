@@ -114,6 +114,7 @@ import {
   DouUpload,
   DouUser,
   DouVirtualList,
+  DouWatermark,
 } from './components'
 import { provideGlobalConfig } from './components/config-provider/use-config'
 import type { GlobalConfig } from './components/config-provider/config-provider'
@@ -233,6 +234,7 @@ const components: Plugin[] = [
   DouUpload,
   DouUser,
   DouVirtualList,
+  DouWatermark,
 ]
 
 /**

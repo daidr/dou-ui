@@ -97,4 +97,5 @@
 @import './components/typography.css';
 @import './components/upload.css';
 @import './components/virtual-list.css';
+@import './components/watermark.css';
 @import './components/field-group.css';

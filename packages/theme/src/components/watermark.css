@@ -1,0 +1,40 @@
+/*
+ * Watermark
+ *
+ * A layer of repeated marks over its content. Text marks are a mask
+ * filled with the layer color, so they follow the theme; image marks are
+ * drawn as they are. The layer never takes the pointer.
+ */
+@layer dou.components {
+  .dou-watermark {
+    --dou-watermark-color: var(--dou-color-text);
+
+    position: relative;
+  }
+
+  .dou-watermark__layer {
+    position: absolute;
+    inset: 0;
+    background-color: var(--dou-watermark-color);
+    background-repeat: repeat;
+    mask-repeat: repeat;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  /* an image mark is its own color; without a drawn tile, show nothing */
+  .dou-watermark__layer.is-image,
+  .dou-watermark__layer:not([style*='mask-image']) {
+    background-color: transparent;
+  }
+
+  .dou-watermark.is-fullscreen > .dou-watermark__layer {
+    position: fixed;
+  }
+
+  @media print {
+    .dou-watermark__layer {
+      print-color-adjust: exact;
+    }
+  }
+}

@@ -127,6 +127,7 @@ export default defineConfig({
             { text: 'Dialog 对话框', link: '/components/dialog' },
             { text: 'Drawer 抽屉', link: '/components/drawer' },
             { text: 'Popconfirm 气泡确认', link: '/components/popconfirm' },
+            { text: 'Tour 漫游引导', link: '/components/tour' },
           ],
         },
         {
@@ -155,7 +156,9 @@ export default defineConfig({
             { text: 'Statistic 统计数值', link: '/components/statistic' },
             { text: 'Countdown 倒计时', link: '/components/countdown' },
             { text: 'Image 图片', link: '/components/image' },
+            { text: 'Carousel 轮播', link: '/components/carousel' },
             { text: 'QRCode 二维码', link: '/components/qrcode' },
+            { text: 'Watermark 水印', link: '/components/watermark' },
             { text: 'Descriptions 描述列表', link: '/components/descriptions' },
             { text: 'Collapse 折叠面板', link: '/components/collapse' },
             { text: 'Timeline 时间线', link: '/components/timeline' },

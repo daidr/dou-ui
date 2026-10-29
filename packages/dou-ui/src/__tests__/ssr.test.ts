@@ -33,6 +33,7 @@ const props: Record<string, Record<string, unknown>> = {
   DouPagination: { total: 100 },
   DouPopover: { open: true, content: '内容' },
   DouQrcode: { value: 'https://ui.daidr.me', status: 'expired' },
+  DouWatermark: { content: '戴兜' },
   DouSegmentedControl: { options: ['a', 'b'] },
   DouSelect: { options: [{ value: 'a', label: 'A' }] },
   DouSortable: { modelValue: [{ id: 1 }, { id: 2 }] },

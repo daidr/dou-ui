@@ -29,13 +29,15 @@ const collapsed = ref(false)
 </script>
 
 <template>
-  <DouMenu
-    v-model="current"
-    :items="items"
-    :collapsed="collapsed"
-    :style="{ width: collapsed ? 'auto' : '220px' }"
-  />
-  <DouButton size="sm" variant="outline" @click="collapsed = !collapsed">
-    {{ collapsed ? '展开' : '折叠' }}
-  </DouButton>
+  <div style="display: flex; flex-direction: column; gap: 12px; align-items: flex-start">
+    <DouButton size="sm" variant="outline" @click="collapsed = !collapsed">
+      {{ collapsed ? '展开' : '折叠' }}
+    </DouButton>
+    <DouMenu
+      v-model="current"
+      :items="items"
+      :collapsed="collapsed"
+      :style="{ width: collapsed ? 'auto' : '220px' }"
+    />
+  </div>
 </template>

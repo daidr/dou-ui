@@ -373,6 +373,7 @@ defineExpose<TreeSelectExpose>({ focus, blur: () => combobox()?.blur() })
           :load="load"
           :filter="filterable ? query : undefined"
           :height="height"
+          :max-height="height === undefined ? 'var(--dou-tree-select-list-max-height)' : undefined"
           :aria-label="ariaLabel"
           :aria-labelledby="formItem?.labelId"
           size="sm"

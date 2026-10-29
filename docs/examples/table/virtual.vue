@@ -14,5 +14,20 @@ const hugeColumns = [
 </script>
 
 <template>
-  <DouTable :data="huge" :columns="hugeColumns" virtual :max-height="360" size="sm" striped />
+  <DouTable
+    :data="huge"
+    :columns="hugeColumns"
+    row-key="id"
+    virtual
+    expandable
+    :max-height="360"
+    size="sm"
+    striped
+  >
+    <template #expand="{ row }">
+      <DouText variant="secondary" size="sm">
+        {{ row.name }} 在{{ row.region }}运行了 {{ row.duration }}，日志保留 7 天。
+      </DouText>
+    </template>
+  </DouTable>
 </template>

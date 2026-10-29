@@ -38,6 +38,11 @@ export interface AutocompleteProps {
   clearable?: boolean
   placement?: Placement
   teleport?: string | HTMLElement | false
+  /**
+   * Render only the suggestions in view. By default this turns on by itself
+   * past 100 suggestions; pass `false` for suggestions of differing heights.
+   */
+  virtual?: boolean
 }
 
 export interface AutocompleteEmits {

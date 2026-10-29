@@ -192,6 +192,7 @@
   }
 
   .dou-select__clear {
+    position: relative;
     display: inline-flex;
     flex-shrink: 0;
     align-items: center;
@@ -215,6 +216,13 @@
     &:hover {
       background-color: color-mix(in oklab, var(--dou-color-text) 18%, transparent);
       color: var(--dou-color-text);
+    }
+
+    /* a larger hit area than the small glyph, without changing the layout */
+    &::after {
+      content: '';
+      position: absolute;
+      inset: -4px;
     }
   }
 
@@ -339,6 +347,10 @@
     top: 0;
     right: 0;
     left: 0;
+  }
+
+  .dou-select__menu.is-virtual .dou-select__group-label.is-separated {
+    border-top: 1px solid var(--dou-color-border-subtle);
   }
 
   /* header and footer stay put while the options scroll between them */

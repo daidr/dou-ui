@@ -374,8 +374,9 @@
   /* toolbar */
   .dou-flow-graph__toolbar {
     position: absolute;
-    top: 8px;
-    right: 8px;
+    /* close enough to the corner to stay concentric with the canvas */
+    top: 3px;
+    right: 3px;
     display: flex;
     align-items: center;
     gap: 2px;

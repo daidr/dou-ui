@@ -128,12 +128,12 @@ const asDate = (date: string) => {
 }
 
 const weekdays = computed(() => {
-  const short = formatter({ weekday: 'short' })
+  const narrow = formatter({ weekday: 'narrow' })
   const long = formatter({ weekday: 'long' })
   // 2024-01-07 is a Sunday.
   return Array.from({ length: 7 }, (_, index) => {
     const date = asDate(toDateString(2024, 1, 7 + ((weekStart.value + index) % 7)))
-    return { short: short.format(date), long: long.format(date) }
+    return { short: narrow.format(date), long: long.format(date) }
   })
 })
 

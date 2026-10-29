@@ -40,6 +40,10 @@
 
 <DocDemo src="cascader/size-state" />
 
+## 大量选项
+
+某一列超过 100 个选项时，这一列只渲染看得见的选项。列宽跟着滚动到的最宽选项变宽，不会来回跳动。
+
 ## 键盘与读屏
 
 字段是 `role="combobox"`（开启 `filterable` 时是其中的输入框），每一列是一个 `role="listbox"`；有下级的选项带 `aria-expanded`，高亮的选项通过 `aria-activedescendant` 告诉读屏，焦点始终留在字段上。

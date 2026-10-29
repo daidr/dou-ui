@@ -84,9 +84,11 @@
 
 ## 虚拟滚动
 
-上千行时打开 `virtual`，只渲染看得见的那些行。需要 `max-height`；每一行都是 `row-height` 高（默认取当前尺寸的行高）并且只显示一行，展开行在虚拟模式下不显示。下面是一万行。
+上千行时打开 `virtual`，只渲染看得见的那些行，需要 `max-height`。行高按渲染后的实际高度计算，所以单元格可以换行，也可以有展开行。下面是一万行。
 
 <DocDemo src="table/virtual" column />
+
+传入 `row-height` 时，每一行都是这个高度，内容只显示一行，超出部分省略，也不显示展开行。行高固定时滚动条始终准确，适合数据密集、每行内容长度相近的表格。
 
 ## 多级表头
 
@@ -158,41 +160,41 @@
 
 ### Props
 
-| 名称                    | 说明                                          | 类型                                                                                                  | 默认值          |
-| ----------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------- | --------------- |
-| `data`                  | 行                                            | `T[]`                                                                                                 | —               |
-| `columns`               | 列                                            | `TableColumn<T>[]`                                                                                    | —               |
-| `columnKeys`（v-model） | 显示的顶层列及其顺序                          | `string[]`                                                                                            | 全部列          |
-| `rowKey`                | 行的唯一键：属性名或函数                      | `string \| ((row: T) => key)`                                                                         | `'id'`          |
-| `size`                  | 行高密度                                      | `'sm' \| 'md' \| 'lg'`                                                                                | `'md'`          |
-| `bordered`              | 列之间也画细线                                | `boolean`                                                                                             | `false`         |
-| `striped`               | 隔行加底色                                    | `boolean`                                                                                             | `false`         |
-| `hoverable`             | 悬停的行加深                                  | `boolean`                                                                                             | `true`          |
-| `maxHeight`             | 最大高度，超出后滚动、表头固定；数字为像素    | `number \| string`                                                                                    | —               |
-| `loading`               | 加载中                                        | `boolean`                                                                                             | `false`         |
-| `emptyText`             | 空状态文字，默认取语言包的"暂无数据"          | `string`                                                                                              | —               |
-| `selectable`            | 加一列多选框；函数决定哪些行可选              | `boolean \| ((row: T) => boolean)`                                                                    | `false`         |
-| `selected`              | 选中行的 key，`v-model:selected`              | `(string \| number)[]`                                                                                | `[]`            |
-| `sort`                  | 排序，`v-model:sort`                          | `{ key: string; order: 'asc' \| 'desc' } \| null`                                                     | `null`          |
-| `manualSort`            | 不改动 `data` 的顺序，只报告 `sort`           | `boolean`                                                                                             | `false`         |
-| `expandable`            | 加一列展开按钮；函数决定哪些行可展开          | `boolean \| ((row: T) => boolean)`                                                                    | `false`         |
-| `expanded`              | 展开的行（详情与树形），`v-model:expanded`    | `(string \| number)[]`                                                                                | `[]`            |
-| `childrenKey`           | 子行所在的属性                                | `string`                                                                                              | `'children'`    |
-| `indent`                | 树形每一层的缩进，像素                        | `number`                                                                                              | `16`            |
-| `resizable`             | 所有列都可拖动调整宽度                        | `boolean`                                                                                             | `false`         |
-| `summary`               | 合计行的值，按列 `key`                        | `(rows: T[]) => Record<string, unknown>`                                                              | —               |
-| `virtual`               | 只渲染看得见的行，需要 `maxHeight`            | `boolean`                                                                                             | `false`         |
-| `rowHeight`             | 虚拟滚动时每一行的高度，像素                  | `number`                                                                                              | 当前尺寸的行高  |
-| `spanMethod`            | 合并单元格，返回占几行几列                    | `(ctx: { row, column, rowIndex, columnIndex }) => [number, number] \| { rowspan?, colspan? } \| void` | —               |
-| `filters`               | 各列选中的筛选值，`v-model:filters`           | `Record<string, unknown[]>`                                                                           | `{}`            |
-| `manualFilter`          | 不过滤 `data`，只报告 `filters`               | `boolean`                                                                                             | `false`         |
-| `highlightCurrent`      | 点击的行成为当前行                            | `boolean`                                                                                             | `false`         |
-| `current`               | 当前行的 key，`v-model:current`               | `string \| number \| null`                                                                            | `null`          |
-| `rowClass`              | 行的类名                                      | `string \| ((row: T, index: number) => string)`                                                       | —               |
-| `rowStyle`              | 行的样式                                      | `CSSProperties \| ((row: T, index: number) => CSSProperties)`                                         | —               |
-| `load`                  | 树形懒加载：第一次展开时取子行                | `(row: T) => Promise<T[]>`                                                                            | —               |
-| `draggable`             | 加一列拖动手柄，拖拽排序，配合 `v-model:data` | `boolean`                                                                                             | `false`         |
-| `hasChildrenKey`        | 标记"有子行待加载"的属性                      | `string`                                                                                              | `'hasChildren'` |
+| 名称                    | 说明                                                   | 类型                                                                                                  | 默认值          |
+| ----------------------- | ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- | --------------- |
+| `data`                  | 行                                                     | `T[]`                                                                                                 | —               |
+| `columns`               | 列                                                     | `TableColumn<T>[]`                                                                                    | —               |
+| `columnKeys`（v-model） | 显示的顶层列及其顺序                                   | `string[]`                                                                                            | 全部列          |
+| `rowKey`                | 行的唯一键：属性名或函数                               | `string \| ((row: T) => key)`                                                                         | `'id'`          |
+| `size`                  | 行高密度                                               | `'sm' \| 'md' \| 'lg'`                                                                                | `'md'`          |
+| `bordered`              | 列之间也画细线                                         | `boolean`                                                                                             | `false`         |
+| `striped`               | 隔行加底色                                             | `boolean`                                                                                             | `false`         |
+| `hoverable`             | 悬停的行加深                                           | `boolean`                                                                                             | `true`          |
+| `maxHeight`             | 最大高度，超出后滚动、表头固定；数字为像素             | `number \| string`                                                                                    | —               |
+| `loading`               | 加载中                                                 | `boolean`                                                                                             | `false`         |
+| `emptyText`             | 空状态文字，默认取语言包的"暂无数据"                   | `string`                                                                                              | —               |
+| `selectable`            | 加一列多选框；函数决定哪些行可选                       | `boolean \| ((row: T) => boolean)`                                                                    | `false`         |
+| `selected`              | 选中行的 key，`v-model:selected`                       | `(string \| number)[]`                                                                                | `[]`            |
+| `sort`                  | 排序，`v-model:sort`                                   | `{ key: string; order: 'asc' \| 'desc' } \| null`                                                     | `null`          |
+| `manualSort`            | 不改动 `data` 的顺序，只报告 `sort`                    | `boolean`                                                                                             | `false`         |
+| `expandable`            | 加一列展开按钮；函数决定哪些行可展开                   | `boolean \| ((row: T) => boolean)`                                                                    | `false`         |
+| `expanded`              | 展开的行（详情与树形），`v-model:expanded`             | `(string \| number)[]`                                                                                | `[]`            |
+| `childrenKey`           | 子行所在的属性                                         | `string`                                                                                              | `'children'`    |
+| `indent`                | 树形每一层的缩进，像素                                 | `number`                                                                                              | `16`            |
+| `resizable`             | 所有列都可拖动调整宽度                                 | `boolean`                                                                                             | `false`         |
+| `summary`               | 合计行的值，按列 `key`                                 | `(rows: T[]) => Record<string, unknown>`                                                              | —               |
+| `virtual`               | 只渲染看得见的行，需要 `maxHeight`                     | `boolean`                                                                                             | `false`         |
+| `rowHeight`             | 虚拟滚动时每一行固定的高度，像素；不传时按实际高度计算 | `number`                                                                                              | —               |
+| `spanMethod`            | 合并单元格，返回占几行几列                             | `(ctx: { row, column, rowIndex, columnIndex }) => [number, number] \| { rowspan?, colspan? } \| void` | —               |
+| `filters`               | 各列选中的筛选值，`v-model:filters`                    | `Record<string, unknown[]>`                                                                           | `{}`            |
+| `manualFilter`          | 不过滤 `data`，只报告 `filters`                        | `boolean`                                                                                             | `false`         |
+| `highlightCurrent`      | 点击的行成为当前行                                     | `boolean`                                                                                             | `false`         |
+| `current`               | 当前行的 key，`v-model:current`                        | `string \| number \| null`                                                                            | `null`          |
+| `rowClass`              | 行的类名                                               | `string \| ((row: T, index: number) => string)`                                                       | —               |
+| `rowStyle`              | 行的样式                                               | `CSSProperties \| ((row: T, index: number) => CSSProperties)`                                         | —               |
+| `load`                  | 树形懒加载：第一次展开时取子行                         | `(row: T) => Promise<T[]>`                                                                            | —               |
+| `draggable`             | 加一列拖动手柄，拖拽排序，配合 `v-model:data`          | `boolean`                                                                                             | `false`         |
+| `hasChildrenKey`        | 标记"有子行待加载"的属性                               | `string`                                                                                              | `'hasChildren'` |
 
 ### TableColumn
 

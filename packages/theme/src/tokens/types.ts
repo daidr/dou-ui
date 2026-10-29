@@ -125,6 +125,11 @@ export interface ThemeTokens {
       enter: string
       /** Something leaving: gentle start, fast finish. */
       exit: string
+      /**
+       * Overshoots and settles back. Only for direct manipulation, where
+       * the element answers a finger or pointer that is still on it.
+       */
+      spring: string
     }
     /** How far things travel when entering or leaving. */
     distance: {

@@ -16,7 +16,7 @@
 
 ## 分组、搜索与限高
 
-分组的写法也与 Select 相同。`filterable` 在列表上方放一个搜索框，同时匹配标签与说明；`max-height` 限制列表高度，超出后列表内部滚动。
+分组的写法也与 Select 相同。`filterable` 在列表上方放一个搜索框，同时匹配标签与说明；`max-height` 限制列表高度，超出后列表内部滚动。设了 `max-height` 且选项超过 100 个时，列表只渲染看得见的选项；带说明的选项会自动按更高的行计算，自定义了高度不一的选项时传 `:virtual="false"`。
 
 <DocDemo src="listbox/group-search" />
 
@@ -24,16 +24,17 @@
 
 ### Props
 
-| 名称                    | 说明                                       | 类型                                                          | 默认值  |
-| ----------------------- | ------------------------------------------ | ------------------------------------------------------------- | ------- |
-| `modelValue`（v-model） | 选中的值，多选时为数组                     | `ListboxValue \| ListboxValue[] \| null`                      | —       |
-| `options`               | 选项，字符串与数字同时作值与标签；可以分组 | `(ListboxOption \| ListboxOptionGroup \| string \| number)[]` | —       |
-| `multiple`              | 多选，点一下切换一项                       | `boolean`                                                     | `false` |
-| `filterable`            | 列表上方显示搜索框                         | `boolean`                                                     | `false` |
-| `size`                  | 尺寸                                       | `'sm' \| 'md' \| 'lg'`                                        | `'md'`  |
-| `disabled`              | 禁用                                       | `boolean`                                                     | `false` |
-| `maxHeight`             | 列表最大高度，超出后滚动；数字为 px        | `number \| string`                                            | —       |
-| `ariaLabel`             | 没有可见标签时给读屏的名字                 | `string`                                                      | —       |
+| 名称                    | 说明                                                                 | 类型                                                          | 默认值  |
+| ----------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------- | ------- |
+| `modelValue`（v-model） | 选中的值，多选时为数组                                               | `ListboxValue \| ListboxValue[] \| null`                      | —       |
+| `options`               | 选项，字符串与数字同时作值与标签；可以分组                           | `(ListboxOption \| ListboxOptionGroup \| string \| number)[]` | —       |
+| `multiple`              | 多选，点一下切换一项                                                 | `boolean`                                                     | `false` |
+| `filterable`            | 列表上方显示搜索框                                                   | `boolean`                                                     | `false` |
+| `size`                  | 尺寸                                                                 | `'sm' \| 'md' \| 'lg'`                                        | `'md'`  |
+| `disabled`              | 禁用                                                                 | `boolean`                                                     | `false` |
+| `maxHeight`             | 列表最大高度，超出后滚动；数字为 px                                  | `number \| string`                                            | —       |
+| `virtual`               | 设了 `maxHeight` 时只渲染看得见的选项；不传时超过 100 个选项自动开启 | `boolean`                                                     | —       |
+| `ariaLabel`             | 没有可见标签时给读屏的名字                                           | `string`                                                      | —       |
 
 `ListboxOption` 为 `{ value, label?, description?, icon?, disabled? }`，`ListboxOptionGroup` 为 `{ label, options, disabled? }`。
 

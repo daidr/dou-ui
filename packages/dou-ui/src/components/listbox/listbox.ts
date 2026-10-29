@@ -36,6 +36,11 @@ export interface ListboxProps {
   disabled?: boolean
   /** The most the list grows to before it scrolls; a number is in px. */
   maxHeight?: number | string
+  /**
+   * With `maxHeight`, render only the options in view. By default this turns
+   * on by itself past 100 options; pass `false` for options of differing heights.
+   */
+  virtual?: boolean
   /** Names a listbox that has no visible label. */
   ariaLabel?: string
 }

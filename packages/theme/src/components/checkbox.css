@@ -89,6 +89,12 @@
     outline-offset: 2px;
   }
 
+  /* faded to 45%, an empty box needs a fill to still read as a box */
+  .dou-checkbox.is-disabled:not(.is-checked, .is-indeterminate) .dou-checkbox__indicator {
+    background-color: var(--dou-color-bg-muted);
+    box-shadow: none;
+  }
+
   .dou-checkbox.is-checked .dou-checkbox__indicator,
   .dou-checkbox.is-indeterminate .dou-checkbox__indicator {
     border-color: color-mix(in oklab, var(--dou-checkbox-tone) 90%, var(--dou-color-edge));

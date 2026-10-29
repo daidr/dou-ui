@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, onUpdated, ref, useTemplateRef, w
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
 import DouTooltip from '../tooltip/tooltip.vue'
+import type { FunctionalComponent } from 'vue'
 import type { EllipsisExpose, EllipsisProps, EllipsisSlots } from './ellipsis'
 
 defineOptions({ name: 'DouEllipsis', inheritAttrs: false })
@@ -17,6 +18,10 @@ const props = withDefaults(defineProps<EllipsisProps>(), {
 })
 const emit = defineEmits<{ 'update:expanded': [expanded: boolean] }>()
 const slots = defineSlots<EllipsisSlots>()
+
+// Without `tooltip`, skip the tooltip's popup machinery altogether.
+const Passthrough: FunctionalComponent = (_, context) => context.slots.default?.()
+Passthrough.inheritAttrs = false
 
 const ns = useNamespace('ellipsis')
 const { t } = useLocale()
@@ -68,7 +73,11 @@ defineExpose<EllipsisExpose>({
 </script>
 
 <template>
-  <DouTooltip :disabled="!showTooltip" :placement="tooltipPlacement">
+  <component
+    :is="tooltip ? DouTooltip : Passthrough"
+    :disabled="!showTooltip"
+    :placement="tooltipPlacement"
+  >
     <component
       :is="as"
       v-bind="$attrs"
@@ -98,5 +107,5 @@ defineExpose<EllipsisExpose>({
     <template #content>
       <slot name="tooltip"><slot /></slot>
     </template>
-  </DouTooltip>
+  </component>
 </template>

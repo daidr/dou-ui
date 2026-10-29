@@ -4,6 +4,7 @@ import { computed, nextTick, reactive, ref, useId, useTemplateRef, watch } from 
 import type { HTMLAttributes } from 'vue'
 import { usePopup } from '../../composables/use-popup'
 import { useNamespace } from '../../utils/namespace'
+import { shouldVirtualize, visibleWindow } from '../../utils/virtual'
 import { OnlyChild } from '../../utils/only-child'
 import { useLocale } from '../config-provider/use-config'
 import { useFormDisabled, useFormItem, useFormSize } from '../form/use-form-item'
@@ -154,17 +155,32 @@ function leavesUnder(option: CascaderOption, path: CascaderValue[]): CascaderVal
     .flatMap((child) => leavesUnder(child, [...path, child.value]))
 }
 
-function checkState(path: CascaderValue[]): 'on' | 'off' | 'some' {
-  if (checkedKeys.value.has(keyOf(path))) return 'on'
+// Every proper prefix of a checked path, so "partly checked" is one lookup.
+const checkedPrefixes = computed(() => {
+  const set = new Set<string>()
+  for (const path of checkedPaths.value) {
+    for (let length = 1; length < path.length; length++) set.add(keyOf(path.slice(0, length)))
+  }
+  return set
+})
+
+/** The check state of an option already resolved from `path`. */
+function stateOf(option: CascaderOption, path: CascaderValue[], key = keyOf(path)) {
+  if (checkedKeys.value.has(key)) return 'on'
   if (props.checkStrictly) return 'off'
-  const option = resolve(path).at(-1)
-  if (!option || resolve(path).length !== path.length) return 'off'
+  if (!checkedPrefixes.value.has(key)) return 'off'
   const leaves = leavesUnder(option, path)
   const count = leaves.filter((leaf) => checkedKeys.value.has(keyOf(leaf))).length
   if (count && count === leaves.length && !isLeaf(option, path)) return 'on'
-  return checkedPaths.value.some((item) => item.length > path.length && isUnder(item, path))
-    ? 'some'
-    : 'off'
+  return 'some'
+}
+
+function checkState(path: CascaderValue[]): 'on' | 'off' | 'some' {
+  if (checkedKeys.value.has(keyOf(path))) return 'on'
+  const chain = resolve(path)
+  const option = chain.at(-1)
+  if (!option || chain.length !== path.length) return 'off'
+  return stateOf(option, path)
 }
 
 async function toggleCheck(option: CascaderOption, path: CascaderValue[]) {
@@ -187,6 +203,70 @@ function removePath(path: CascaderValue[]) {
   if (disabled.value) return
   commit(checkedPaths.value.filter((item) => keyOf(item) !== keyOf(path)))
 }
+
+/* what each open column shows, worked out once per change rather than per render */
+
+interface Row {
+  index: number
+  option: CascaderOption
+  path: CascaderValue[]
+  key: string
+  id: string
+  leaf: boolean
+  state: 'on' | 'off' | 'some'
+  selected: boolean
+}
+const columnRows = computed(() =>
+  columns.value.map((column) =>
+    column.options.map((option, index): Row => {
+      const path = [...column.path, option.value]
+      const key = keyOf(path)
+      const state = props.multiple ? stateOf(option, path, key) : 'off'
+      return {
+        index,
+        option,
+        path,
+        key,
+        id: optionId(path),
+        leaf: isLeaf(option, path),
+        state,
+        selected: props.multiple ? state === 'on' : isOnSelected(path),
+      }
+    }),
+  ),
+)
+const activeKey = computed(() => keyOf(active.value))
+
+// Long columns render only the options in view, with spacers for the rest.
+const ROW = 32
+const VIEWPORT = 280
+const INSET = 4
+const columnScroll = ref<number[]>([])
+const isVirtualColumn = (level: number) =>
+  shouldVirtualize(undefined, columnRows.value[level]?.length ?? 0)
+function columnWindow(level: number) {
+  const list = columnRows.value[level] ?? []
+  if (!isVirtualColumn(level)) return { rows: list, before: 0, after: 0 }
+  const scrollTop = Math.max(0, (columnScroll.value[level] ?? 0) - INSET)
+  const { from, to } = visibleWindow(list.length, scrollTop, VIEWPORT, ROW)
+  return { rows: list.slice(from, to), before: from * ROW, after: (list.length - to) * ROW }
+}
+// A virtual column sizes to the widest options rendered so far, so it
+// does not jitter as different options scroll into view.
+function onColumnScroll(level: number, event: Event) {
+  const el = event.target as HTMLElement
+  columnScroll.value[level] = el.scrollTop
+  if (isVirtualColumn(level)) {
+    void nextTick(() => {
+      el.style.minWidth = `${Math.max(parseFloat(el.style.minWidth) || 0, el.offsetWidth)}px`
+    })
+  }
+}
+const windows = computed(() => columnRows.value.map((_, level) => columnWindow(level)))
+watch(
+  () => columns.value.map((column) => keyOf(column.path)).join('\u0001'),
+  () => (columnScroll.value = columnScroll.value.slice(0, columns.value.length)),
+)
 
 /* search */
 
@@ -250,6 +330,21 @@ watch(open, (value) => {
 
 watch(active, async (path) => {
   await nextTick()
+  const level = path.length - 1
+  if (level >= 0 && isVirtualColumn(level)) {
+    // The option may not be rendered: scroll its column by its row instead.
+    const column = panelRef.value?.querySelector<HTMLElement>(`#${CSS.escape(listboxId(level))}`)
+    const at = columnRows.value[level]!.findIndex((row) => row.key === keyOf(path))
+    if (!column || at < 0) return
+    const top = at * ROW + INSET
+    let target = column.scrollTop
+    if (top < target) target = top - INSET
+    else if (top + ROW > target + column.clientHeight)
+      target = top + ROW - column.clientHeight + INSET
+    column.scrollTop = Math.max(0, target)
+    columnScroll.value[level] = column.scrollTop
+    return
+  }
   panelRef.value?.querySelector(`#${CSS.escape(optionId(path))}`)?.scrollIntoView?.({
     block: 'nearest',
   })
@@ -610,14 +705,16 @@ defineExpose<CascaderExpose>({ focus, blur: () => combobox()?.blur() })
             :id="`${id}-match-${index}`"
             :key="keyOf(match.values)"
             role="option"
-            :aria-selected="multiple ? checkState(match.values) === 'on' : index === activeMatch"
+            :aria-selected="
+              multiple ? stateOf(match.path.at(-1)!, match.values) === 'on' : index === activeMatch
+            "
             :class="[ns.e('option'), ns.is('active', index === activeMatch)]"
             @click="chooseMatch(match)"
             @mousemove="activeMatch = index"
           >
             <DouCheckbox
               v-if="multiple"
-              :model-value="checkState(match.values) === 'on'"
+              :model-value="stateOf(match.path.at(-1)!, match.values) === 'on'"
               size="sm"
               tabindex="-1"
               aria-hidden="true"
@@ -640,58 +737,68 @@ defineExpose<CascaderExpose>({ focus, blur: () => combobox()?.blur() })
             :class="ns.e('column')"
             :aria-multiselectable="multiple || undefined"
             :aria-busy="loading.has(keyOf(column.path)) || undefined"
+            @scroll="onColumnScroll(level, $event)"
           >
             <li
-              v-for="option in column.options"
-              :id="optionId([...column.path, option.value])"
+              v-if="windows[level]!.before"
+              role="presentation"
+              :style="{ height: `${windows[level]!.before}px` }"
+            />
+            <li
+              v-for="{ index, option, path, key, id: rowId, leaf, state, selected } in windows[
+                level
+              ]!.rows"
+              :id="rowId"
               :key="String(option.value)"
               role="option"
-              :aria-selected="isOnSelected([...column.path, option.value])"
-              :aria-disabled="option.disabled || undefined"
-              :aria-expanded="
-                isLeaf(option, [...column.path, option.value])
-                  ? undefined
-                  : expanded[level] === option.value
+              :aria-selected="selected"
+              :aria-setsize="
+                windows[level]!.rows.length < columnRows[level]!.length
+                  ? columnRows[level]!.length
+                  : undefined
               "
+              :aria-posinset="
+                windows[level]!.rows.length < columnRows[level]!.length ? index + 1 : undefined
+              "
+              :aria-disabled="option.disabled || undefined"
+              :aria-expanded="leaf ? undefined : expanded[level] === option.value"
               :class="[
                 ns.e('option'),
-                ns.is('active', keyOf(active) === keyOf([...column.path, option.value])),
+                ns.is('active', activeKey === key),
                 ns.is('expanded', expanded[level] === option.value),
-                ns.is('selected', isOnSelected([...column.path, option.value])),
+                ns.is('selected', selected),
                 ns.is('disabled', !!option.disabled),
               ]"
-              @click="onOptionClick(option, [...column.path, option.value])"
-              @mouseenter="onOptionHover(option, [...column.path, option.value])"
+              @click="onOptionClick(option, path)"
+              @mouseenter="onOptionHover(option, path)"
             >
               <DouCheckbox
                 v-if="multiple"
-                :model-value="checkState([...column.path, option.value]) === 'on'"
-                :indeterminate="checkState([...column.path, option.value]) === 'some'"
+                :model-value="state === 'on'"
+                :indeterminate="state === 'some'"
                 :disabled="!!option.disabled"
                 size="sm"
                 tabindex="-1"
                 aria-hidden="true"
                 :class="ns.e('checkbox')"
                 @click.stop
-                @update:model-value="toggleCheck(option, [...column.path, option.value])"
+                @update:model-value="toggleCheck(option, path)"
               />
               <span :class="ns.e('label')">
                 <slot name="option" :option="option" :level="level">{{ labelOf(option) }}</slot>
               </span>
-              <DouSpinner
-                v-if="loading.has(keyOf([...column.path, option.value]))"
-                size="sm"
-                :class="ns.e('suffix')"
-              />
-              <ChevronRightIcon
-                v-else-if="!isLeaf(option, [...column.path, option.value])"
-                :class="ns.e('suffix')"
-              />
+              <DouSpinner v-if="loading.has(key)" size="sm" :class="ns.e('suffix')" />
+              <ChevronRightIcon v-else-if="!leaf" :class="ns.e('suffix')" />
               <CheckIcon
-                v-else-if="!multiple && isOnSelected([...column.path, option.value])"
+                v-else-if="!multiple && selected"
                 :class="[ns.e('suffix'), ns.e('check')]"
               />
             </li>
+            <li
+              v-if="windows[level]!.after"
+              role="presentation"
+              :style="{ height: `${windows[level]!.after}px` }"
+            />
             <li
               v-if="!column.options.length && !loading.has(keyOf(column.path))"
               role="presentation"

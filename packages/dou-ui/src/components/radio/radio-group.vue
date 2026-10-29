@@ -11,7 +11,8 @@ const props = withDefaults(defineProps<RadioGroupProps>(), {
   disabled: false,
   direction: 'horizontal',
 })
-const model = defineModel<RadioValue>()
+// An explicit default stops Vue from reading a missing value as `false`.
+const model = defineModel<RadioValue | undefined>({ default: undefined })
 defineSlots<RadioGroupSlots>()
 
 const ns = useNamespace('radio-group')

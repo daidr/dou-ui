@@ -193,6 +193,13 @@ export const en: Locale = {
     copy: 'Copy',
     copied: 'Copied',
   },
+  layout: {
+    collapse: 'Collapse sidebar',
+    expand: 'Expand sidebar',
+  },
+  inputOtp: {
+    label: 'Verification code',
+  },
   form: {
     optional: 'optional',
     required: 'This field is required',

@@ -290,6 +290,16 @@ export interface Locale {
     /** Said once the text is on the clipboard. */
     copied: string
   }
+  layout: {
+    /** Label of the button that collapses an aside. */
+    collapse: string
+    /** Label of the button that expands a collapsed aside. */
+    expand: string
+  }
+  inputOtp: {
+    /** Names the code field when nothing else labels it. */
+    label: string
+  }
   form: {
     /** Shown after the label of an optional field when `requiredMark` is `'optional'`. */
     optional: string

@@ -1,0 +1,165 @@
+/*
+ * Layout
+ *
+ * The frame of an application page. Nothing here is decorated: the
+ * header and aside are the canvas itself, set off from the main area by
+ * a hairline, so the content keeps the only surfaces on the page. A
+ * layout holding an aside runs its children in a row, otherwise in a
+ * column, so headers, asides and nested layouts combine freely.
+ */
+@layer dou.components {
+  .dou-layout {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    box-sizing: border-box;
+    min-width: 0;
+    min-height: 0;
+    color: var(--dou-color-text);
+  }
+
+  .dou-layout:has(> .dou-layout-aside) {
+    flex-direction: row;
+  }
+
+  .dou-layout-header,
+  .dou-layout-footer {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: var(--dou-space-md);
+    box-sizing: border-box;
+    padding: 0 var(--dou-layout-padding-x, 20px);
+    background-color: var(--dou-color-bg-canvas);
+  }
+
+  .dou-layout-header {
+    height: var(--dou-layout-header-height);
+
+    &.is-bordered {
+      border-bottom: 1px solid var(--dou-color-border-subtle);
+    }
+
+    &.is-sticky {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+  }
+
+  .dou-layout-footer {
+    min-height: 48px;
+    border-top: 1px solid var(--dou-color-border-subtle);
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+  }
+
+  .dou-layout-aside {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    box-sizing: border-box;
+    width: var(--dou-layout-aside-width);
+    background-color: var(--dou-color-bg-canvas);
+    transition: width var(--dou-motion-duration-normal) var(--dou-motion-easing);
+
+    /*
+     * The hairline faces the main area, whichever side the aside is on.
+     * Drawn as an inset shadow, not a border, so it takes no width and
+     * collapsed content centers on whole pixels.
+     */
+    &.is-bordered {
+      box-shadow: inset -1px 0 0 var(--dou-color-border-subtle);
+    }
+    &.is-bordered:not(:first-child):last-child {
+      box-shadow: inset 1px 0 0 var(--dou-color-border-subtle);
+    }
+
+    &.is-sticky {
+      position: sticky;
+      top: var(--dou-layout-aside-top, 0px);
+      align-self: flex-start;
+      height: calc(100vh - var(--dou-layout-aside-top, 0px));
+      height: calc(100dvh - var(--dou-layout-aside-top, 0px));
+    }
+  }
+
+  .dou-layout-aside__body {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+    padding: 8px;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .dou-layout-aside__footer {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px;
+    border-top: 1px solid var(--dou-color-border-subtle);
+  }
+
+  .dou-layout-aside__toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    align-self: flex-start;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    border-radius: var(--dou-radius-control);
+    background-color: transparent;
+    color: var(--dou-color-text-tertiary);
+    cursor: pointer;
+    transition-property: background-color, color;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    & > svg {
+      width: 1em;
+      height: 1em;
+      font-size: 16px;
+    }
+
+    &:hover {
+      background-color: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+      color: var(--dou-color-text);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 1px;
+    }
+  }
+
+  /* collapsed, the content is a narrow column of icons: center it */
+  .dou-layout-aside.is-collapsed {
+    & .dou-layout-aside__body,
+    & .dou-layout-aside__footer {
+      align-items: center;
+    }
+
+    & .dou-layout-aside__toggle {
+      align-self: center;
+    }
+  }
+
+  .dou-layout-main {
+    flex: 1 1 auto;
+    box-sizing: border-box;
+    min-width: 0;
+    padding: var(--dou-layout-main-padding, 24px);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dou-layout-aside,
+    .dou-layout-aside__toggle {
+      transition: none;
+    }
+  }
+}

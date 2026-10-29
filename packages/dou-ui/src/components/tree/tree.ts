@@ -50,6 +50,8 @@ export interface TreeProps {
   checkStrictly?: boolean
   /** Open every branch on first render, unless `expanded` is bound. */
   defaultExpandAll?: boolean
+  /** Keep at most one branch open among siblings: opening one closes the others. */
+  accordion?: boolean
   /** Clicking a branch row also opens or closes it. */
   expandOnClick?: boolean
   /** Fetch the children of a node the first time it opens. */

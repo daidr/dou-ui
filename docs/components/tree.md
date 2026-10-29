@@ -16,6 +16,12 @@
 
 <DocDemo src="tree/guide-line" column />
 
+## 手风琴
+
+`accordion` 让同一层级同时只展开一个分支，展开一个时其他的自动收起，适合做文档、设置页的侧边目录。配合 `v-model:selected` 高亮当前节点。
+
+<DocDemo src="tree/accordion" />
+
 ## 勾选
 
 `checkable` 在每行前加一个复选框，勾选结果用 `v-model:checked` 绑定。默认会级联：勾选分支会勾选它下面的所有节点（禁用的节点保持原状），分支的子节点全部勾选时它自己也算勾选，部分勾选时显示为短横。`check-strictly` 关闭级联，每个节点各自独立。
@@ -99,6 +105,7 @@
 | `checkStrictly`    | 勾选不级联                              | `boolean`                                                              | `false`              |
 | `defaultExpandAll` | 首次渲染时展开全部                      | `boolean`                                                              | `false`              |
 | `expandOnClick`    | 点击分支行时同时展开或收起              | `boolean`                                                              | `false`              |
+| `accordion`        | 同一层级只展开一个分支                  | `boolean`                                                              | `false`              |
 | `load`             | 首次展开时取回子节点                    | `(node: TreeNodeData) => Promise<TreeNodeData[]>`                      | —                    |
 | `filter`           | 只显示匹配的节点及其祖先                | `string`                                                               | —                    |
 | `filterMethod`     | 自定义匹配规则                          | `(query: string, node: TreeNodeData) => boolean`                       | 标签包含，忽略大小写 |

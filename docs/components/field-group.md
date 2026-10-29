@@ -48,5 +48,5 @@
 
 ### 键盘与读屏
 
-- 组合渲染为 `role="group"`，纵向时带 `aria-orientation="vertical"`；需要名字时给它 `aria-label`。
+- 组合渲染为 `role="group"`；需要名字时给它 `aria-label`。纵向排列只是视觉上的，`group` 没有方向属性。
 - 里面每个控件保持自己的键盘行为，Tab 依次经过。

@@ -149,7 +149,7 @@ function onKeydown(event: KeyboardEvent) {
       <MenuList v-if="!popups" :options="items" :level="0" />
       <template v-else>
         <template v-for="(option, index) in topLevel" :key="isItem(option) ? option.key : index">
-          <li v-if="isDivider(option)" role="separator" :class="ns.e('divider')" />
+          <li v-if="isDivider(option)" :class="ns.e('divider')" aria-hidden="true" />
           <li v-else-if="isItem(option)" :class="ns.e('entry')">
             <MenuPopup
               v-if="option.children?.length"

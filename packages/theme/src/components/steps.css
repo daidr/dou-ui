@@ -193,10 +193,10 @@
         var(--dou-color-danger) 8%,
         var(--dou-color-bg-surface)
       );
-      color: var(--dou-color-danger);
+      color: var(--dou-color-danger-text);
     }
     & .dou-steps__title {
-      color: var(--dou-color-danger);
+      color: var(--dou-color-danger-text);
       font-weight: var(--dou-font-weight-medium);
     }
   }

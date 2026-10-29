@@ -7,11 +7,11 @@ import { light } from './light'
  */
 export const dark = defineTheme(light, {
   color: {
-    neutral: { DEFAULT: '#ededed', on: '#0a0a0a' },
-    primary: { DEFAULT: '#5a72cf', on: '#ffffff' },
-    success: { DEFAULT: '#3b9670', on: '#ffffff' },
-    warning: { DEFAULT: '#c18a3c', on: '#1a1206' },
-    danger: { DEFAULT: '#cc5a54', on: '#ffffff' },
+    neutral: { DEFAULT: '#ededed', on: '#0a0a0a', text: '#ededed' },
+    primary: { DEFAULT: '#4c66cb', on: '#ffffff', text: '#768ad7' },
+    success: { DEFAULT: '#2f8060', on: '#ffffff', text: '#42a87d' },
+    warning: { DEFAULT: '#c18a3c', on: '#1a1206', text: '#c99852' },
+    danger: { DEFAULT: '#c5453e', on: '#ffffff', text: '#d4746f' },
     bg: {
       canvas: '#0a0a0a',
       surface: '#111111',
@@ -20,7 +20,7 @@ export const dark = defineTheme(light, {
     text: {
       DEFAULT: '#ededed',
       secondary: '#a3a3a3',
-      tertiary: '#737373',
+      tertiary: '#858585',
       disabled: '#4d4d4d',
     },
     border: {

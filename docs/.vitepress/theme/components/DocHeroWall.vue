@@ -77,7 +77,12 @@ const steps = [{ title: '设计' }, { title: '开发' }, { title: '发布' }]
                 <DouProgress :value="72" size="sm" label="上传进度" />
               </template>
 
-              <DouUser v-else-if="tile === 'user'" name="戴兜" description="前端工程师" />
+              <DouUser
+                v-else-if="tile === 'user'"
+                name="戴兜"
+                description="前端工程师"
+                avatar="https://avatars.githubusercontent.com/u/18638914?s=96"
+              />
 
               <DouSegmentedControl
                 v-else-if="tile === 'segmented'"
@@ -124,7 +129,7 @@ const steps = [{ title: '设计' }, { title: '开发' }, { title: '发布' }]
 
               <div v-else-if="tile === 'avatars'" class="doc-wall__row">
                 <DouAvatarGroup :max="4" size="sm">
-                  <DouAvatar name="陈" />
+                  <DouAvatar name="戴兜" />
                   <DouAvatar name="周" />
                   <DouAvatar name="吴" />
                   <DouAvatar name="郑" />

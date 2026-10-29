@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, useId } from 'vue'
+import { computed, useAttrs, useId } from 'vue'
+import type { StyleValue } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { useFormDisabled, useFormItem, useFormSize } from '../form/use-form-item'
 import type { SwitchProps, SwitchSlots } from './switch'
 
-defineOptions({ name: 'DouSwitch' })
+defineOptions({ name: 'DouSwitch', inheritAttrs: false })
 
 const props = withDefaults(defineProps<SwitchProps>(), {
   disabled: false,
@@ -25,6 +26,14 @@ function toggle() {
   formItem?.trigger('change')
 }
 
+// `class` and `style` dress the control; every other attribute (id,
+// aria-*, data-*, listeners...) belongs to the native element.
+const attrs = useAttrs()
+const nativeAttrs = computed(() => {
+  const { class: _class, style: _style, ...rest } = attrs
+  return rest
+})
+
 const classes = computed(() => [
   ns.b(),
   ns.m(size.value),
@@ -35,7 +44,7 @@ const classes = computed(() => [
 </script>
 
 <template>
-  <span :class="classes">
+  <span :class="[classes, attrs.class]" :style="attrs.style as StyleValue">
     <button
       type="button"
       role="switch"
@@ -49,6 +58,7 @@ const classes = computed(() => [
       :aria-invalid="formItem?.invalid.value || undefined"
       :disabled="disabled"
       @click="toggle"
+      v-bind="nativeAttrs"
     >
       <span :class="ns.e('thumb')">
         <span v-if="loading" :class="ns.e('spinner')" aria-hidden="true" />

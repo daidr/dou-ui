@@ -116,6 +116,13 @@ export interface ToneTokens {
   DEFAULT: string
   /** Foreground (text / icon) color used on a solid `DEFAULT` background. */
   on: string
+  /**
+   * The tone used as text on the page or on a faint tint of itself (soft
+   * buttons and tags, links, toned text). Usually `DEFAULT`; dark themes
+   * lighten it, because one color cannot both carry white text and read
+   * as text on a dark page.
+   */
+  text: string
 }
 
 export interface SizeScale {

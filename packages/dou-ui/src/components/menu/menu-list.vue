@@ -16,7 +16,7 @@ const menu = inject(menuKey)!
 
 <template>
   <template v-for="(option, index) in options" :key="'key' in option ? option.key : index">
-    <li v-if="isDivider(option)" role="separator" :class="ns.e('divider')" />
+    <li v-if="isDivider(option)" :class="ns.e('divider')" aria-hidden="true" />
     <li v-else-if="isGroup(option)" :class="ns.e('group')">
       <div
         :class="ns.e('group-label')"
@@ -25,7 +25,7 @@ const menu = inject(menuKey)!
       >
         {{ option.label }}
       </div>
-      <ul :class="ns.e('list')" role="group" :aria-label="option.label">
+      <ul :class="ns.e('list')" :aria-label="option.label">
         <DouMenuList :options="option.children" :level="level" />
       </ul>
     </li>

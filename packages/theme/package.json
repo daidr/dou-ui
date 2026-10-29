@@ -1,7 +1,22 @@
 {
   "name": "@dou-ui/theme",
   "version": "0.0.0",
-  "description": "Design tokens and styles for DouUI",
+  "description": "DouUI 的设计 Token、主题 API 与样式",
+  "keywords": [
+    "vue",
+    "design-tokens",
+    "css",
+    "theme"
+  ],
+  "license": "MIT",
+  "author": "daidr <daidr@daidr.me>",
+  "homepage": "https://github.com/daidr/dou-ui#readme",
+  "bugs": "https://github.com/daidr/dou-ui/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/daidr/dou-ui.git",
+    "directory": "packages/theme"
+  },
   "type": "module",
   "sideEffects": [
     "*.css"
@@ -14,7 +29,8 @@
     "./index.css": "./dist/index.css",
     "./core.css": "./dist/core.css",
     "./tokens.css": "./dist/tokens.css",
-    "./components/*.css": "./dist/components/*.css"
+    "./components/*.css": "./dist/components/*.css",
+    "./package.json": "./package.json"
   },
   "files": [
     "dist"
@@ -22,5 +38,10 @@
   "scripts": {
     "gen": "bun scripts/gen.ts",
     "build": "bun scripts/build.ts"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "publishConfig": {
+    "access": "public"
   }
 }

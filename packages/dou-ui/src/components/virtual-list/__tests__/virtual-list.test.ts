@@ -38,6 +38,12 @@ describe('DouVirtualList', () => {
     wrapper.unmount()
   })
 
+  it('takes focus so the keyboard can scroll it', () => {
+    const wrapper = make()
+    expect(wrapper.attributes('tabindex')).toBe('0')
+    wrapper.unmount()
+  })
+
   it('follows the scroll position', async () => {
     const wrapper = make()
     const el = wrapper.element as HTMLElement

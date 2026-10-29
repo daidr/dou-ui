@@ -62,8 +62,8 @@ describe('DouMenu', () => {
   it('renders a navigation landmark with groups and dividers', () => {
     const { wrapper } = make()
     expect(wrapper.element.tagName).toBe('NAV')
-    expect(wrapper.find('[role="group"]').attributes('aria-label')).toBe('账户')
-    expect(wrapper.findAll('[role="separator"]')).toHaveLength(1)
+    expect(wrapper.find('ul[aria-label]').attributes('aria-label')).toBe('账户')
+    expect(wrapper.findAll('.dou-menu__divider[aria-hidden="true"]')).toHaveLength(1)
     expect(item(wrapper, '文档').element.tagName).toBe('A')
     expect(item(wrapper, '文档').attributes('href')).toBe('https://example.com/docs')
     expect(item(wrapper, '首页').element.tagName).toBe('BUTTON')

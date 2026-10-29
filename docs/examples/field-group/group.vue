@@ -9,12 +9,12 @@ import { MinusIcon, PlusIcon } from '@dou-ui/icons'
     <DouButton variant="outline">月</DouButton>
   </DouFieldGroup>
   <DouFieldGroup>
-    <DouButton variant="outline">
+    <DouButton variant="outline" aria-label="减少">
       <template #leading>
         <MinusIcon />
       </template>
     </DouButton>
-    <DouButton variant="outline">
+    <DouButton variant="outline" aria-label="增加">
       <template #leading>
         <PlusIcon />
       </template>

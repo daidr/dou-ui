@@ -83,7 +83,8 @@
   }
 
   .dou-image__error {
-    color: var(--dou-color-text-tertiary);
+    /* secondary, not tertiary: it sits on the tinted placeholder */
+    color: var(--dou-color-text-secondary);
     font-size: var(--dou-font-size-sm);
     line-height: 1.4;
     text-align: center;

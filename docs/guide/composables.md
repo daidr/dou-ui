@@ -97,7 +97,7 @@ useHotkey(hotkeys, handler, { target, enabled, allowInInput, preventDefault, seq
 - 用空格分隔按键序列，如 `g i` 表示先按 G 再按 I，两步之间默认最多间隔 1 秒（`sequenceTimeout`）。
 - 可以写 `esc`、`space`、`up` / `down` / `left` / `right` 等简称。
 
-默认监听整个页面，焦点在输入框、文本域、下拉框或可编辑区域时不触发，`allowInInput` 可以取消这个限制。匹配后默认调用 `preventDefault`。组件卸载时自动解绑，返回的函数可以提前解绑。
+默认监听整个页面，焦点在输入框、文本域、下拉框或可编辑区域时不触发，`allowInInput` 可以取消这个限制。已经被其他处理函数调用过 `preventDefault` 的按键不会触发，例如编辑器里自己处理的快捷键。匹配后默认调用 `preventDefault`。组件卸载时自动解绑，返回的函数可以提前解绑。
 
 <DocDemo src="composables/hotkey" />
 

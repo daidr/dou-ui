@@ -6,6 +6,27 @@
 import { ref } from 'vue'
 const tab = ref('overview')
 const tab2 = ref('deployments')
+const tab3 = ref('sh')
+const tab4 = ref('profile')
+const tab5 = ref('draft')
+const pages = ref([
+  { value: 'sh', label: '上海' },
+  { value: 'bj', label: '北京' },
+  { value: 'sz', label: '深圳' },
+])
+let next = 1
+function addPage() {
+  const value = `new-${next}`
+  pages.value.push({ value, label: `新页面 ${next++}` })
+  tab3.value = value
+}
+function removePage(value) {
+  const index = pages.value.findIndex((page) => page.value === value)
+  pages.value.splice(index, 1)
+  if (tab3.value === value) tab3.value = pages.value[Math.max(0, index - 1)]?.value
+}
+const saved = ref(false)
+const confirmLeave = () => saved.value || window.confirm('草稿还没保存，确定离开吗？')
 </script>
 
 ## 基础用法
@@ -59,6 +80,75 @@ const tab2 = ref('deployments')
 </DouTabs>
 ```
 
+## 可关闭与新增
+
+`closable` 给每个标签加一个关闭按钮，`addable` 在标签行末尾加一个新增按钮。组件只发出 `remove` 和 `add`，增删面板由你来做，这样关闭前可以先确认、新建时可以先起名。面板自己的 `closable` 优先，适合让某个标签常驻。
+
+<div class="demo demo--column">
+  <DouTabs v-model="tab3" closable addable @remove="removePage" @add="addPage">
+    <DouTabPanel v-for="page in pages" :key="page.value" :value="page.value" :label="page.label">{{ page.label }}的内容。</DouTabPanel>
+  </DouTabs>
+</div>
+
+```vue
+<script setup lang="ts">
+const pages = ref([
+  { value: 'sh', label: '上海' },
+  { value: 'bj', label: '北京' },
+])
+function removePage(value: string) {
+  const index = pages.value.findIndex((page) => page.value === value)
+  pages.value.splice(index, 1)
+  if (tab.value === value) tab.value = pages.value[Math.max(0, index - 1)]?.value
+}
+</script>
+
+<template>
+  <DouTabs v-model="tab" closable addable @remove="removePage" @add="addPage">
+    <DouTabPanel v-for="page in pages" :key="page.value" :value="page.value" :label="page.label">
+      …
+    </DouTabPanel>
+  </DouTabs>
+</template>
+```
+
+关闭按钮不在 `Tab` 顺序里（标签本身已经是按钮，里面不能再放按钮）；焦点在可关闭的标签上时按 `Delete` 或 `Backspace` 关闭它，标签通过 `aria-keyshortcuts` 告诉读屏这个快捷键。
+
+## 竖排
+
+`placement="start"` 把标签竖排在面板左侧，`"end"` 放在右侧。指示线移到标签列的边上，方向键改为 `↑` `↓`。
+
+<div class="demo demo--column">
+  <DouTabs v-model="tab4" placement="start">
+    <DouTabPanel value="profile" label="个人资料">头像、昵称与所在城市。</DouTabPanel>
+    <DouTabPanel value="security" label="账号安全">密码、两步验证与登录设备。</DouTabPanel>
+    <DouTabPanel value="notify" label="通知">邮件与站内信的推送规则。</DouTabPanel>
+  </DouTabs>
+</div>
+
+```vue
+<DouTabs v-model="tab" placement="start">…</DouTabs>
+```
+
+## 离开前确认
+
+`before-leave` 在切换前调用，参数是要去的值和当前的值；返回 `false`（或 resolve 为 `false`）就留在当前标签。
+
+<div class="demo demo--column">
+  <DouCheckbox v-model="saved">草稿已保存</DouCheckbox>
+  <DouTabs v-model="tab5" :before-leave="confirmLeave">
+    <DouTabPanel value="draft" label="草稿">还没保存的草稿。</DouTabPanel>
+    <DouTabPanel value="preview" label="预览">预览效果。</DouTabPanel>
+  </DouTabs>
+</div>
+
+```vue
+<DouTabs
+  v-model="tab"
+  :before-leave="() => saved || confirm('草稿还没保存，确定离开吗？')"
+>…</DouTabs>
+```
+
 ## 尺寸
 
 <div class="demo demo--column">
@@ -71,7 +161,7 @@ const tab2 = ref('deployments')
 
 ## 键盘与读屏
 
-标签行带 `role="tablist"`，每个标签是 `role="tab"` 的按钮，通过 `aria-controls` 指向自己的 `role="tabpanel"` 面板。只有选中的标签在 `Tab` 顺序里；`←` `→` 在标签之间移动并跳过禁用项，到头后回绕，`Home` / `End` 跳到首尾。
+标签行带 `role="tablist"`，每个标签是 `role="tab"` 的按钮，通过 `aria-controls` 指向自己的 `role="tabpanel"` 面板。只有选中的标签在 `Tab` 顺序里；`←` `→` 在标签之间移动并跳过禁用项，到头后回绕，`Home` / `End` 跳到首尾；竖排时方向键是 `↑` `↓`，标签行带 `aria-orientation="vertical"`。
 
 默认 `activation="auto"`：方向键移到哪个标签就立即选中它。面板渲染较慢时用 `activation="manual"`，方向键只移动焦点，按 `Enter` 或 `Space` 才选中。
 
@@ -79,18 +169,24 @@ const tab2 = ref('deployments')
 
 ### Tabs Props
 
-| 名称         | 说明                                 | 类型                   | 默认值         |
-| ------------ | ------------------------------------ | ---------------------- | -------------- |
-| `modelValue` | 选中面板的值，配合 `v-model`         | `string \| number`     | 第一个可用面板 |
-| `size`       | 尺寸，默认取表单或全局配置           | `'sm' \| 'md' \| 'lg'` | `'md'`         |
-| `activation` | 方向键移到标签时立即选中，还是等确认 | `'auto' \| 'manual'`   | `'auto'`       |
+| 名称          | 说明                                 | 类型                                             | 默认值         |
+| ------------- | ------------------------------------ | ------------------------------------------------ | -------------- |
+| `modelValue`  | 选中面板的值，配合 `v-model`         | `string \| number`                               | 第一个可用面板 |
+| `size`        | 尺寸，默认取表单或全局配置           | `'sm' \| 'md' \| 'lg'`                           | `'md'`         |
+| `activation`  | 方向键移到标签时立即选中，还是等确认 | `'auto' \| 'manual'`                             | `'auto'`       |
+| `placement`   | 标签的位置                           | `'top' \| 'start' \| 'end'`                      | `'top'`        |
+| `closable`    | 每个标签显示关闭按钮                 | `boolean`                                        | `false`        |
+| `addable`     | 标签行末尾显示新增按钮               | `boolean`                                        | `false`        |
+| `beforeLeave` | 切换前调用，返回 `false` 时不切换    | `(next, current) => boolean \| Promise<boolean>` | —              |
 
 ### Tabs Events
 
-| 名称                | 说明               | 参数                        |
-| ------------------- | ------------------ | --------------------------- |
-| `update:modelValue` | 选中的面板变化     | `(value: string \| number)` |
-| `change`            | 用户选了另一个标签 | `(value: string \| number)` |
+| 名称                | 说明                                        | 参数                        |
+| ------------------- | ------------------------------------------- | --------------------------- |
+| `update:modelValue` | 选中的面板变化                              | `(value: string \| number)` |
+| `change`            | 用户选了另一个标签                          | `(value: string \| number)` |
+| `remove`            | 点击关闭按钮，或在可关闭的标签上按 `Delete` | `(value: string \| number)` |
+| `add`               | 点击新增按钮                                | —                           |
 
 ### Tabs Slots
 
@@ -101,11 +197,12 @@ const tab2 = ref('deployments')
 
 ### TabPanel Props
 
-| 名称       | 说明     | 类型               | 默认值  |
-| ---------- | -------- | ------------------ | ------- |
-| `value`    | 面板的值 | `string \| number` | —       |
-| `label`    | 标签文字 | `string`           | `value` |
-| `disabled` | 禁用     | `boolean`          | `false` |
+| 名称       | 说明                                  | 类型               | 默认值  |
+| ---------- | ------------------------------------- | ------------------ | ------- |
+| `value`    | 面板的值                              | `string \| number` | —       |
+| `label`    | 标签文字                              | `string`           | `value` |
+| `disabled` | 禁用                                  | `boolean`          | `false` |
+| `closable` | 显示关闭按钮，覆盖 Tabs 的 `closable` | `boolean`          | —       |
 
 ### TabPanel Slots
 

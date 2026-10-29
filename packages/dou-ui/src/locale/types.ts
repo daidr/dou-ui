@@ -8,9 +8,18 @@
 export interface Locale {
   /** A BCP 47 language tag, e.g. `zh-CN`. */
   name: string
+  tabs: {
+    /** Hint on the close button of a tab. */
+    close: string
+    /** The button that adds a tab. */
+    add: string
+  }
   input: {
     /** Label of the clear button. */
     clear: string
+    /** The button that reveals a password. */
+    showPassword: string
+    hidePassword: string
   }
   tag: {
     /** Label of the remove button. */
@@ -123,6 +132,8 @@ export interface Locale {
     remove: string
     /** Label of the retry button, followed by the file name. */
     retry: string
+    /** The button that opens the preview of an image card. */
+    preview: string
     /** Shown while a file is sent, followed by the percentage. */
     uploading: string
     /** Shown when a file failed to send. */
@@ -287,6 +298,10 @@ export interface Locale {
     reset: string
     /** Which picture of how many, with `{index}` and `{total}`. */
     counter: string
+  }
+  pageHeader: {
+    /** The back button before the title. */
+    back: string
   }
   backTop: {
     label: string

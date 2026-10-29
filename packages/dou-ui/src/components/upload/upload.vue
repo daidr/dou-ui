@@ -1,10 +1,19 @@
 <script setup lang="ts">
-import { CloseIcon, FileIcon, RotateCwIcon, UploadIcon } from '@dou-ui/icons'
+import {
+  CloseIcon,
+  FileIcon,
+  PlusIcon,
+  RotateCwIcon,
+  TrashIcon,
+  UploadIcon,
+  ZoomInIcon,
+} from '@dou-ui/icons'
 import { computed, onBeforeUnmount, ref, useId, useTemplateRef, watch } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
 import { useFormDisabled, useFormItem, useFormSize } from '../form/use-form-item'
 import { DouButton } from '../button'
+import DouImagePreview from '../image/image-preview.vue'
 import { DouProgress } from '../progress'
 import { formatFileSize, matchesAccept } from './upload'
 import type { UploadExpose, UploadFile, UploadProps, UploadSlots } from './upload'
@@ -12,6 +21,8 @@ import type { UploadExpose, UploadFile, UploadProps, UploadSlots } from './uploa
 defineOptions({ name: 'DouUpload' })
 
 const props = withDefaults(defineProps<UploadProps>(), {
+  listType: 'text',
+  preview: true,
   multiple: false,
   disabled: false,
   dropzone: false,
@@ -26,6 +37,7 @@ const emit = defineEmits<{
   success: [file: UploadFile, response: unknown]
   error: [file: UploadFile, error: unknown]
   remove: [file: UploadFile]
+  preview: [file: UploadFile]
 }>()
 const slots = defineSlots<UploadSlots>()
 
@@ -247,11 +259,26 @@ defineExpose<UploadExpose>({ open, submit, abort, retry: (uid) => void send(uid)
 const hasHint = computed(() => !!slots.hint || !!props.hint)
 const full = computed(() => props.maxCount !== undefined && files.value.length >= props.maxCount)
 
+const isCards = computed(() => props.listType === 'picture-card')
+
+// the preview of a picture-card list steps through its images
+const previewOpen = ref(false)
+const previewIndex = ref(0)
+const images = computed(() => files.value.filter(isImage))
+function openPreview(file: UploadFile) {
+  if (!isImage(file)) return
+  emit('preview', file)
+  if (!props.preview) return
+  previewIndex.value = images.value.indexOf(file)
+  previewOpen.value = true
+}
+
 const classes = computed(() => [
   ns.b(),
   ns.m(size.value),
   ns.is('disabled', disabled.value),
   ns.is('dropzone', props.dropzone),
+  ns.is('cards', isCards.value),
 ])
 </script>
 
@@ -297,7 +324,7 @@ const classes = computed(() => [
         <slot name="hint">{{ hint }}</slot>
       </span>
     </div>
-    <template v-else>
+    <template v-else-if="!isCards">
       <span :class="ns.e('trigger')" @click="open">
         <slot>
           <DouButton
@@ -321,7 +348,94 @@ const classes = computed(() => [
       </span>
     </template>
 
-    <ul v-if="showList && files.length" :class="ns.e('list')" :aria-label="t('upload.list')">
+    <ul v-if="isCards" :class="ns.e('cards')" :aria-label="t('upload.list')">
+      <li
+        v-for="file in files"
+        :key="file.uid"
+        :class="[ns.e('card'), ns.is(file.status), ns.is('image', isImage(file))]"
+      >
+        <slot
+          name="file"
+          :file="file"
+          :remove="() => remove(file.uid)"
+          :retry="() => send(file.uid)"
+        >
+          <img v-if="isImage(file)" :class="ns.e('card-image')" :src="file.url" :alt="file.name" />
+          <span v-else :class="ns.e('card-file')">
+            <FileIcon />
+            <span :class="ns.e('card-name')">{{ file.name }}</span>
+          </span>
+          <span
+            v-if="file.status === 'uploading'"
+            :class="ns.e('card-progress')"
+            aria-live="polite"
+          >
+            <span>{{ statusText(file) }}</span>
+            <DouProgress :value="file.percent ?? 0" size="sm" :label="file.name" />
+          </span>
+          <span v-else-if="file.status === 'error'" :class="ns.e('card-error')" aria-live="polite">
+            {{ statusText(file) }}
+          </span>
+          <span :class="ns.e('card-actions')">
+            <button
+              v-if="isImage(file) && file.status !== 'uploading'"
+              type="button"
+              :class="ns.e('card-action')"
+              :aria-label="`${t('upload.preview')} ${file.name}`"
+              @click="openPreview(file)"
+            >
+              <ZoomInIcon />
+            </button>
+            <button
+              v-if="file.status === 'error' && request"
+              type="button"
+              :class="ns.e('card-action')"
+              :aria-label="`${t('upload.retry')} ${file.name}`"
+              :disabled="disabled"
+              @click="send(file.uid)"
+            >
+              <RotateCwIcon />
+            </button>
+            <button
+              type="button"
+              :class="ns.e('card-action')"
+              :aria-label="`${t('upload.remove')} ${file.name}`"
+              :disabled="disabled"
+              @click="remove(file.uid)"
+            >
+              <TrashIcon />
+            </button>
+          </span>
+        </slot>
+      </li>
+      <li v-if="!full && !dropzone" :class="ns.e('card-slot')" @click="open">
+        <slot>
+          <button
+            type="button"
+            :class="ns.e('card-trigger')"
+            :disabled="disabled"
+            :aria-describedby="
+              [hasHint ? hintId : '', formItem?.describedBy.value ?? ''].join(' ').trim() ||
+              undefined
+            "
+          >
+            <PlusIcon />
+            <span>{{ t('upload.choose') }}</span>
+          </button>
+        </slot>
+      </li>
+    </ul>
+    <span v-if="isCards && hasHint && !dropzone" :id="hintId" :class="ns.e('hint')">
+      <slot name="hint">{{ hint }}</slot>
+    </span>
+    <DouImagePreview
+      v-if="isCards && preview"
+      v-model:open="previewOpen"
+      v-model:index="previewIndex"
+      :images="images.map((file) => ({ src: file.url!, alt: file.name }))"
+    />
+
+    <ul v-else-if="showList && files.length" :class="ns.e('list')" :aria-label="t('upload.list')">
       <li v-for="file in files" :key="file.uid" :class="[ns.e('file'), ns.is(file.status)]">
         <slot
           name="file"

@@ -2,8 +2,14 @@ import type { Locale } from './types'
 
 export const zhCN: Locale = {
   name: 'zh-CN',
+  tabs: {
+    close: '关闭',
+    add: '新建标签页',
+  },
   input: {
     clear: '清空',
+    showPassword: '显示密码',
+    hidePassword: '隐藏密码',
   },
   tag: {
     remove: '移除',
@@ -75,6 +81,7 @@ export const zhCN: Locale = {
     list: '文件列表',
     remove: '移除',
     retry: '重试',
+    preview: '预览',
     uploading: '上传中',
     error: '上传失败',
   },
@@ -188,6 +195,9 @@ export const zhCN: Locale = {
     rotateRight: '向右旋转',
     reset: '还原',
     counter: '{index} / {total}',
+  },
+  pageHeader: {
+    back: '返回',
   },
   backTop: {
     label: '回到顶部',

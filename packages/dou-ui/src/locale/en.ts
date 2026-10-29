@@ -2,8 +2,14 @@ import type { Locale } from './types'
 
 export const en: Locale = {
   name: 'en',
+  tabs: {
+    close: 'Close',
+    add: 'New tab',
+  },
   input: {
     clear: 'Clear',
+    showPassword: 'Show password',
+    hidePassword: 'Hide password',
   },
   tag: {
     remove: 'Remove',
@@ -75,6 +81,7 @@ export const en: Locale = {
     list: 'Files',
     remove: 'Remove',
     retry: 'Retry',
+    preview: 'Preview',
     uploading: 'Uploading',
     error: 'Upload failed',
   },
@@ -188,6 +195,9 @@ export const en: Locale = {
     rotateRight: 'Rotate right',
     reset: 'Reset',
     counter: '{index} / {total}',
+  },
+  pageHeader: {
+    back: 'Back',
   },
   backTop: {
     label: 'Back to top',

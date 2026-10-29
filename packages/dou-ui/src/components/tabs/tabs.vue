@@ -13,7 +13,9 @@ import {
   useTemplateRef,
   watch,
 } from 'vue'
+import { CloseIcon, PlusIcon } from '@dou-ui/icons'
 import { useNamespace } from '../../utils/namespace'
+import { useLocale } from '../config-provider/use-config'
 import { useFormSize } from '../form/use-form-item'
 import { tabsKey } from './tabs'
 import type { FunctionalComponent, VNode } from 'vue'
@@ -21,13 +23,20 @@ import type { TabPanelEntry, TabsProps, TabsSlots, TabsValue } from './tabs'
 
 defineOptions({ name: 'DouTabs' })
 
-const props = withDefaults(defineProps<TabsProps>(), { activation: 'auto' })
+const props = withDefaults(defineProps<TabsProps>(), {
+  activation: 'auto',
+  placement: 'top',
+  closable: false,
+  addable: false,
+})
 const model = defineModel<TabsValue>()
-const emit = defineEmits<{ change: [value: TabsValue] }>()
+const emit = defineEmits<{ change: [value: TabsValue]; remove: [value: TabsValue]; add: [] }>()
 const slots = defineSlots<TabsSlots>()
 
 const ns = useNamespace('tabs')
+const { t } = useLocale()
 const id = useId()
+const vertical = computed(() => props.placement !== 'top')
 const size = useFormSize(() => props.size)
 
 const panels = shallowRef<TabPanelEntry[]>([])
@@ -68,10 +77,19 @@ provide(tabsKey, {
   reorder,
 })
 
-function select(entry: TabPanelEntry) {
+async function select(entry: TabPanelEntry) {
   if (entry.props.disabled || entry.props.value === selected.value) return
-  model.value = entry.props.value
-  emit('change', entry.props.value)
+  const next = entry.props.value
+  if (props.beforeLeave && !(await props.beforeLeave(next, selected.value))) return
+  model.value = next
+  emit('change', next)
+}
+
+const isClosable = (entry: TabPanelEntry) =>
+  !entry.props.disabled && (entry.props.closable ?? props.closable)
+
+function remove(entry: TabPanelEntry) {
+  if (isClosable(entry)) emit('remove', entry.props.value)
 }
 
 const listRef = useTemplateRef<HTMLElement>('list')
@@ -98,13 +116,20 @@ function onKeydown(event: KeyboardEvent, entry: TabPanelEntry) {
   const enabled = panels.value.filter((panel) => !panel.props.disabled)
   const index = enabled.indexOf(entry)
   let target: TabPanelEntry | undefined
+  const [prev, next] = vertical.value ? ['ArrowUp', 'ArrowDown'] : ['ArrowLeft', 'ArrowRight']
   switch (event.key) {
-    case 'ArrowRight':
+    case next:
       target = enabled[(index + 1) % enabled.length]
       break
-    case 'ArrowLeft':
+    case prev:
       target = enabled[(index - 1 + enabled.length) % enabled.length]
       break
+    case 'Delete':
+    case 'Backspace':
+      if (!isClosable(entry)) return
+      event.preventDefault()
+      remove(entry)
+      return
     case 'Home':
       target = enabled[0]
       break
@@ -114,7 +139,7 @@ function onKeydown(event: KeyboardEvent, entry: TabPanelEntry) {
     case 'Enter':
     case ' ':
       event.preventDefault()
-      select(entry)
+      void select(entry)
       return
     default:
       return
@@ -122,12 +147,12 @@ function onKeydown(event: KeyboardEvent, entry: TabPanelEntry) {
   if (!target) return
   event.preventDefault()
   tabElement(target)?.focus()
-  if (props.activation === 'auto') select(target)
+  if (props.activation === 'auto') void select(target)
 }
 
 // The underline slides between the tabs. It is measured from the
 // selected tab, like the selection of a segmented control.
-const indicator = ref<{ left: number; width: number } | null>(null)
+const indicator = ref<{ left: number; top: number; width: number; height: number } | null>(null)
 const settled = ref(false)
 
 function measure() {
@@ -138,7 +163,12 @@ function measure() {
     indicator.value = null
     return
   }
-  indicator.value = { left: tab.offsetLeft, width: tab.offsetWidth }
+  indicator.value = {
+    left: tab.offsetLeft,
+    top: tab.offsetTop,
+    width: tab.offsetWidth,
+    height: tab.offsetHeight,
+  }
 }
 
 let observer: ResizeObserver | undefined
@@ -151,19 +181,34 @@ onMounted(() => {
   }
 })
 onBeforeUnmount(() => observer?.disconnect())
-watch([selected, panels, size], () => nextTick(measure))
+watch([selected, panels, size, () => props.placement], () => nextTick(measure))
 
-const indicatorStyle = computed(() =>
-  indicator.value
-    ? { transform: `translateX(${indicator.value.left}px)`, width: `${indicator.value.width}px` }
-    : { display: 'none' },
-)
+const indicatorStyle = computed(() => {
+  const box = indicator.value
+  if (!box) return { display: 'none' }
+  return vertical.value
+    ? { transform: `translateY(${box.top}px)`, height: `${box.height}px` }
+    : { transform: `translateX(${box.left}px)`, width: `${box.width}px` }
+})
 </script>
 
 <template>
-  <div :class="[ns.b(), ns.m(size), ns.is('settled', settled)]">
+  <div
+    :class="[
+      ns.b(),
+      ns.m(size),
+      ns.is('settled', settled),
+      ns.is('vertical', vertical),
+      vertical && ns.is(`placement-${placement}`, true),
+    ]"
+  >
     <div :class="ns.e('header')">
-      <div ref="list" :class="ns.e('list')" role="tablist" aria-orientation="horizontal">
+      <div
+        ref="list"
+        :class="ns.e('list')"
+        role="tablist"
+        :aria-orientation="vertical ? 'vertical' : 'horizontal'"
+      >
         <button
           v-for="entry in panels"
           :id="tabId(entry.props.value)"
@@ -175,20 +220,41 @@ const indicatorStyle = computed(() =>
             ns.e('tab'),
             ns.is('selected', entry.props.value === selected),
             ns.is('disabled', !!entry.props.disabled),
+            ns.is('closable', isClosable(entry)),
           ]"
           :aria-selected="entry.props.value === selected"
           :aria-controls="panelId(entry.props.value)"
           :aria-disabled="entry.props.disabled || undefined"
           :tabindex="entry.props.value === selected ? 0 : -1"
+          :aria-keyshortcuts="isClosable(entry) ? 'Delete' : undefined"
           @click="select(entry)"
           @keydown="onKeydown($event, entry)"
         >
           <span :class="ns.e('label')">
             <TabLabel :entry="entry" :selected="entry.props.value === selected" />
           </span>
+          <!-- not a button of its own: a tab cannot hold one; `Delete` closes it from the keyboard -->
+          <span
+            v-if="isClosable(entry)"
+            :class="ns.e('close')"
+            :title="t('tabs.close')"
+            aria-hidden="true"
+            @click.stop="remove(entry)"
+          >
+            <CloseIcon />
+          </span>
         </button>
         <span :class="ns.e('indicator')" :style="indicatorStyle" aria-hidden="true" />
       </div>
+      <button
+        v-if="addable"
+        type="button"
+        :class="ns.e('add')"
+        :aria-label="t('tabs.add')"
+        @click="emit('add')"
+      >
+        <PlusIcon />
+      </button>
       <div v-if="slots.extra" :class="ns.e('extra')">
         <slot name="extra" />
       </div>

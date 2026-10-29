@@ -8,6 +8,8 @@ import { ref } from 'vue'
 const text = ref('')
 const keyword = ref('dou-ui')
 const price = ref('')
+const password = ref('dou-ui-2026')
+const bio = ref('住在上海')
 </script>
 
 ## 基础用法
@@ -57,6 +59,30 @@ const price = ref('')
 
 `clearable` 在有内容且可编辑时显示清空按钮；清空后焦点回到输入框，并触发 `clear`。清空按钮的读屏标签来自 [全局配置](./config-provider) 的语言包。
 
+## 密码
+
+`type="password"` 加上 `show-password`，末尾多一个眼睛按钮，切换明文与密文。按钮是 `aria-pressed` 的开关，读屏标签随状态在“显示密码”和“隐藏密码”之间切换。
+
+<div class="demo">
+  <DouInput v-model="password" type="password" show-password style="width: 240px" />
+</div>
+
+```vue
+<DouInput v-model="password" type="password" show-password />
+```
+
+## 字数统计
+
+`show-count` 在末尾显示已输入的字数；同时设了原生 `maxlength` 时显示为“已输入 / 上限”。一个 emoji 算一个字。
+
+<div class="demo">
+  <DouInput v-model="bio" show-count maxlength="20" placeholder="一句话介绍" style="width: 240px" />
+</div>
+
+```vue
+<DouInput v-model="bio" show-count maxlength="20" />
+```
+
 ## 状态
 
 <div class="demo demo--column" style="max-width: 280px">
@@ -77,15 +103,17 @@ const price = ref('')
 
 ### Props
 
-| 名称         | 说明                       | 类型                                                                        | 默认值   |
-| ------------ | -------------------------- | --------------------------------------------------------------------------- | -------- |
-| `modelValue` | 绑定值，配合 `v-model`     | `string`                                                                    | `''`     |
-| `size`       | 尺寸，默认取表单或全局配置 | `'sm' \| 'md' \| 'lg'`                                                      | `'md'`   |
-| `type`       | 原生 `type`                | `'text' \| 'password' \| 'email' \| 'url' \| 'tel' \| 'search' \| 'number'` | `'text'` |
-| `disabled`   | 禁用                       | `boolean`                                                                   | `false`  |
-| `readonly`   | 只读                       | `boolean`                                                                   | `false`  |
-| `invalid`    | 标记为无效                 | `boolean`                                                                   | `false`  |
-| `clearable`  | 有内容时显示清空按钮       | `boolean`                                                                   | `false`  |
+| 名称           | 说明                                | 类型                                                                        | 默认值   |
+| -------------- | ----------------------------------- | --------------------------------------------------------------------------- | -------- |
+| `modelValue`   | 绑定值，配合 `v-model`              | `string`                                                                    | `''`     |
+| `size`         | 尺寸，默认取表单或全局配置          | `'sm' \| 'md' \| 'lg'`                                                      | `'md'`   |
+| `type`         | 原生 `type`                         | `'text' \| 'password' \| 'email' \| 'url' \| 'tel' \| 'search' \| 'number'` | `'text'` |
+| `disabled`     | 禁用                                | `boolean`                                                                   | `false`  |
+| `readonly`     | 只读                                | `boolean`                                                                   | `false`  |
+| `invalid`      | 标记为无效                          | `boolean`                                                                   | `false`  |
+| `clearable`    | 有内容时显示清空按钮                | `boolean`                                                                   | `false`  |
+| `showPassword` | 密码框显示明文切换按钮              | `boolean`                                                                   | `false`  |
+| `showCount`    | 显示字数，有 `maxlength` 时显示上限 | `boolean`                                                                   | `false`  |
 
 ### Events
 

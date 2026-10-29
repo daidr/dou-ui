@@ -161,6 +161,7 @@ export default defineConfig({
             { text: 'Steps 步骤条', link: '/components/steps' },
             { text: 'Anchor 锚点导航', link: '/components/anchor' },
             { text: 'Breadcrumb 面包屑', link: '/components/breadcrumb' },
+            { text: 'PageHeader 页头', link: '/components/page-header' },
             { text: 'Pagination 分页', link: '/components/pagination' },
             { text: 'Command 命令面板', link: '/components/command' },
             { text: 'BackTop 回到顶部', link: '/components/back-top' },

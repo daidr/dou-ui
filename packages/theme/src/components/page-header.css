@@ -1,0 +1,126 @@
+/*
+ * PageHeader
+ *
+ * The top of a page: an optional breadcrumb, then a row with a quiet back
+ * link, a hairline, the title and its subtitle, and actions at the end.
+ * No surface of its own, so it sits on whatever the page is.
+ */
+@layer dou.components {
+  .dou-page-header {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+    color: var(--dou-color-text);
+    font-size: var(--dou-font-size-md);
+  }
+
+  .dou-page-header__main {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px 16px;
+    min-width: 0;
+  }
+
+  .dou-page-header__heading {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  .dou-page-header__back {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 6px;
+    height: var(--dou-control-height-sm);
+    padding: 0 8px;
+    margin-inline-start: -8px;
+    border: 0;
+    border-radius: var(--dou-radius-control);
+    background: transparent;
+    color: var(--dou-color-text-secondary);
+    font: inherit;
+    line-height: 1;
+    cursor: pointer;
+    transition-property: background-color, color;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    &:hover {
+      background-color: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+      color: var(--dou-color-text);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 0;
+    }
+  }
+
+  .dou-page-header__back-icon {
+    display: inline-flex;
+
+    & > svg {
+      width: 16px;
+      height: 16px;
+    }
+  }
+
+  .dou-page-header__back-text {
+    text-box: trim-both cap alphabetic;
+  }
+
+  .dou-page-header__divider {
+    flex-shrink: 0;
+    width: 1px;
+    height: 16px;
+    background-color: var(--dou-color-border);
+  }
+
+  .dou-page-header__title {
+    min-width: 0;
+    margin: 0;
+    /* clip inline only: glyphs overflow the line box vertically */
+    overflow-x: clip;
+    color: var(--dou-color-text);
+    font-size: 20px;
+    font-weight: var(--dou-font-weight-bold);
+    line-height: 1.4;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dou-page-header__subtitle {
+    flex-shrink: 1;
+    min-width: 0;
+    overflow-x: clip;
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-md);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dou-page-header__extra {
+    display: flex;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .dou-page-header__content {
+    color: var(--dou-color-text-secondary);
+    line-height: 1.6;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dou-page-header__back {
+      transition: none;
+    }
+  }
+}

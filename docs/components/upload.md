@@ -28,6 +28,16 @@ const files = ref([
   { uid: 'b', name: 'avatar-fail.png', size: 238400, status: 'error' },
 ])
 const images = ref([])
+const tile = (hue) =>
+  `data:image/svg+xml,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="480" height="480"><defs><linearGradient id="g" x2="1" y2="1"><stop offset="0" stop-color="hsl(${hue} 30% 72%)"/><stop offset="1" stop-color="hsl(${hue + 40} 28% 38%)"/></linearGradient></defs><rect width="480" height="480" fill="url(#g)"/><circle cx="340" cy="140" r="56" fill="hsl(${hue} 40% 88%)" opacity=".7"/><path d="M0 400 L130 250 L240 360 L330 280 L480 420 V480 H0Z" fill="hsl(${hue + 20} 25% 28%)" opacity=".8"/></svg>`,
+  )}`
+const photos = ref([
+  { uid: 'p1', name: '外滩.svg', size: 182400, type: 'image/svg+xml', status: 'success', url: tile(210) },
+  { uid: 'p2', name: '武康路.svg', size: 204800, type: 'image/svg+xml', status: 'success', url: tile(25) },
+  { uid: 'p3', name: '会议纪要.pdf', size: 92160, type: 'application/pdf', status: 'success' },
+  { uid: 'p4', name: '陆家嘴.svg', size: 160000, type: 'image/svg+xml', status: 'uploading', percent: 46, url: tile(160) },
+])
 const manual = ref([])
 const upload = ref()
 </script>
@@ -63,6 +73,27 @@ const request: UploadRequest = async ({ raw, onProgress, signal }) => {
 `request` 收到 `{ file, raw, onProgress, signal }`：用 `onProgress(0–100)` 报告进度，`signal` 会在文件被移除或调用 `abort()` 时中止。它 resolve 的值存进文件的 `response`，reject 的值存进 `error`，失败的文件可以点重试按钮重新发送。
 
 `fetch` 不会报告上传进度，进度条会停在 0 直到完成；用 `XMLHttpRequest` 的 `upload.onprogress` 可以拿到真实进度。
+
+## 照片墙
+
+`list-type="picture-card"` 把文件排成一排方块，选择按钮是最后一块。悬停在图片上会出现预览和删除按钮，预览用 [Image](./image) 的大图查看，可以在所有图片之间切换；发送中的文件盖一层进度，失败的文件描边带上危险色。到了 `max-count` 时选择块自动隐藏。
+
+<div class="demo demo--column">
+  <DouUpload v-model="photos" list-type="picture-card" accept="image/*" multiple :max-count="8" :request="fakeRequest" />
+</div>
+
+```vue
+<DouUpload
+  v-model="files"
+  list-type="picture-card"
+  accept="image/*"
+  multiple
+  :max-count="8"
+  :request="request"
+/>
+```
+
+`preview` 事件在打开预览时触发；设 `:preview="false"` 就只发事件，不打开内置预览，方便换成自己的查看方式。
 
 ## 拖拽上传
 
@@ -127,21 +158,23 @@ const request: UploadRequest = async ({ raw, onProgress, signal }) => {
 
 ### Props
 
-| 名称           | 说明                          | 类型                                                    | 默认值  |
-| -------------- | ----------------------------- | ------------------------------------------------------- | ------- |
-| `modelValue`   | 文件列表，配合 `v-model`      | `UploadFile[]`                                          | `[]`    |
-| `request`      | 发送一个文件                  | `(options: UploadRequestOptions) => Promise<unknown>`   | —       |
-| `autoUpload`   | 选中后立即发送                | `boolean`                                               | `true`  |
-| `accept`       | 允许的类型，如 `image/*,.pdf` | `string`                                                | —       |
-| `multiple`     | 允许多个文件                  | `boolean`                                               | `false` |
-| `maxSize`      | 单个文件最大字节数            | `number`                                                | —       |
-| `maxCount`     | 最多文件数                    | `number`                                                | —       |
-| `beforeUpload` | 加入列表前调用                | `(file: File) => boolean \| File \| void \| Promise<…>` | —       |
-| `dropzone`     | 使用拖拽区域代替按钮          | `boolean`                                               | `false` |
-| `hint`         | 触发器下方的说明              | `string`                                                | —       |
-| `showList`     | 显示文件列表                  | `boolean`                                               | `true`  |
-| `disabled`     | 禁用                          | `boolean`                                               | `false` |
-| `size`         | 尺寸，默认取表单或全局配置    | `'sm' \| 'md' \| 'lg'`                                  | `'md'`  |
+| 名称           | 说明                           | 类型                                                    | 默认值   |
+| -------------- | ------------------------------ | ------------------------------------------------------- | -------- |
+| `modelValue`   | 文件列表，配合 `v-model`       | `UploadFile[]`                                          | `[]`     |
+| `request`      | 发送一个文件                   | `(options: UploadRequestOptions) => Promise<unknown>`   | —        |
+| `autoUpload`   | 选中后立即发送                 | `boolean`                                               | `true`   |
+| `accept`       | 允许的类型，如 `image/*,.pdf`  | `string`                                                | —        |
+| `multiple`     | 允许多个文件                   | `boolean`                                               | `false`  |
+| `maxSize`      | 单个文件最大字节数             | `number`                                                | —        |
+| `maxCount`     | 最多文件数                     | `number`                                                | —        |
+| `beforeUpload` | 加入列表前调用                 | `(file: File) => boolean \| File \| void \| Promise<…>` | —        |
+| `dropzone`     | 使用拖拽区域代替按钮           | `boolean`                                               | `false`  |
+| `hint`         | 触发器下方的说明               | `string`                                                | —        |
+| `showList`     | 显示文件列表                   | `boolean`                                               | `true`   |
+| `listType`     | 列表样式：文件行，或照片墙方块 | `'text' \| 'picture-card'`                              | `'text'` |
+| `preview`      | 照片墙里点预览时打开大图       | `boolean`                                               | `true`   |
+| `disabled`     | 禁用                           | `boolean`                                               | `false`  |
+| `size`         | 尺寸，默认取表单或全局配置     | `'sm' \| 'md' \| 'lg'`                                  | `'md'`   |
 
 ### UploadFile
 
@@ -169,6 +202,7 @@ const request: UploadRequest = async ({ raw, onProgress, signal }) => {
 | `success`           | 发送成功                          | `(file: UploadFile, response: unknown)`  |
 | `error`             | 发送失败                          | `(file: UploadFile, error: unknown)`     |
 | `remove`            | 用户移除了文件                    | `(file: UploadFile)`                     |
+| `preview`           | 照片墙里点了预览                  | `(file: UploadFile)`                     |
 
 ### Slots
 

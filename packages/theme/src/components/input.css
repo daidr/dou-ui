@@ -114,6 +114,50 @@
     white-space: nowrap;
   }
 
+  .dou-input__reveal {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 1.4em;
+    height: 1.4em;
+    padding: 0;
+    margin: 0 -0.2em;
+    border: 0;
+    border-radius: calc(var(--dou-radius-control) - 2px);
+    background: transparent;
+    color: var(--dou-color-text-tertiary);
+    cursor: pointer;
+    transition: color var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    & > svg {
+      width: 1em;
+      height: 1em;
+    }
+
+    &:hover {
+      color: var(--dou-color-text);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 0;
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+    }
+  }
+
+  .dou-input__count {
+    flex-shrink: 0;
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    user-select: none;
+  }
+
   .dou-input__clear {
     display: inline-flex;
     flex-shrink: 0;

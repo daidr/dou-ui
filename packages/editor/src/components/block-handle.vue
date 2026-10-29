@@ -8,9 +8,17 @@ import {
   PlusIcon,
   TrashIcon,
 } from '@dou-ui/icons'
-import { DouDropdown, DouDropdownItem, DouDropdownSub } from 'dou-ui'
+import { DouDropdown, DouDropdownItem, DouDropdownSub, useLayer } from 'dou-ui'
 import { TextSelection } from 'prosemirror-state'
-import { computed, inject, onBeforeUnmount, onMounted, shallowRef, watch } from 'vue'
+import {
+  computed,
+  inject,
+  onBeforeUnmount,
+  onMounted,
+  shallowRef,
+  useTemplateRef,
+  watch,
+} from 'vue'
 import { blockOptions, isCurrent, type BlockOption } from '../catalog'
 import {
   blockSelectionKey,
@@ -38,6 +46,15 @@ const { view, state, messages, root, dragging } = inject(editorKey)!
 const hovered = shallowRef<string | null>(null)
 const position = shallowRef<{ top: number; left: number; height: number } | null>(null)
 const menuOpen = shallowRef(false)
+const handle = useTemplateRef<HTMLElement>('handle')
+
+// The menu opens by hand (a press on the grip may become a drag), so this
+// layer closes it on a press anywhere outside the handle and the menu.
+useLayer({
+  open: menuOpen,
+  elements: () => [handle.value],
+  onOutside: () => (menuOpen.value = false),
+})
 const drop = shallowRef<{ pos: number; top: number; left: number; width: number } | null>(null)
 // typing hides the handle until the pointer moves again
 const resting = shallowRef(false)
@@ -214,6 +231,37 @@ let start: { x: number; y: number; pointer: number } | null = null
 let range: SiblingRange | null = null
 let scroller: HTMLElement | null = null
 let scrollFrame = 0
+/** A copy of the dragged blocks that follows the pointer. */
+let ghost: HTMLElement | null = null
+
+function showGhost(moving: SiblingRange) {
+  const instance = view.value
+  const host = root.value
+  if (!instance || !host) return
+  ghost = document.createElement('div')
+  ghost.className = 'dou-editor__surface dou-editor__ghost'
+  ghost.setAttribute('aria-hidden', 'true')
+  let width = 0
+  for (const block of blocksIn(moving)) {
+    const element = instance.nodeDOM(block.pos) as HTMLElement | null
+    if (!element) continue
+    width = Math.max(width, element.getBoundingClientRect().width)
+    const copy = element.cloneNode(true) as HTMLElement
+    copy.classList.remove('is-selected')
+    for (const node of [copy, ...copy.querySelectorAll('[id], .is-selected')]) {
+      node.removeAttribute('id')
+      node.classList.remove('is-selected')
+    }
+    ghost.append(copy)
+  }
+  ghost.style.width = `${Math.min(width, 360)}px`
+  host.append(ghost)
+  moveGhost()
+}
+
+function moveGhost() {
+  if (ghost) ghost.style.transform = `translate(${lastX + 12}px, ${lastY + 12}px)`
+}
 
 function onGripDown(event: PointerEvent) {
   if (event.button !== 0) return
@@ -232,14 +280,17 @@ function onGripMove(event: PointerEvent) {
     dragging.value = true
     scroller = root.value && scrollParent(root.value)
     window.addEventListener('keydown', onDragKey, true)
+    showGhost(range)
     autoScroll()
   }
+  moveGhost()
   updateDrop()
 }
 
 function onGripUp(event: PointerEvent) {
   if (!start || event.pointerId !== start.pointer) return
   if (dragging.value) finishDrag()
+  else if (menuOpen.value) menuOpen.value = false
   else {
     selectTarget()
     menuOpen.value = true
@@ -322,6 +373,8 @@ function stopDrag() {
   drop.value = null
   range = null
   start = null
+  ghost?.remove()
+  ghost = null
   if (scrollFrame) cancelAnimationFrame(scrollFrame)
   scrollFrame = 0
   window.removeEventListener('keydown', onDragKey, true)
@@ -335,6 +388,7 @@ watch(menuOpen, (value) => {
 <template>
   <div
     v-show="visible"
+    ref="handle"
     class="dou-editor__handle"
     :style="
       position

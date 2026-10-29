@@ -417,6 +417,29 @@
     touch-action: none;
   }
 
+  /* the copy of the dragged blocks next to the pointer */
+  .dou-editor__ghost {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 2000;
+    box-sizing: border-box;
+    max-height: 160px;
+    padding: 6px 12px;
+    overflow: hidden;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-control);
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-md);
+    opacity: 0.88;
+    pointer-events: none;
+
+    /* headings start at the top, without their margin */
+    & > .dou-editor__block:first-child > .dou-editor__content {
+      margin-top: 0;
+    }
+  }
+
   .dou-editor__drop {
     position: absolute;
     height: 2px;

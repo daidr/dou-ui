@@ -21,6 +21,7 @@
     "docs": {
       "name": "@dou-ui/docs",
       "dependencies": {
+        "@dou-ui/editor": "workspace:*",
         "@dou-ui/icons": "workspace:*",
         "@dou-ui/theme": "workspace:*",
         "dou-ui": "workspace:*",
@@ -48,14 +49,14 @@
       "version": "0.0.0",
       "dependencies": {
         "@dou-ui/icons": "workspace:*",
-        "prosemirror-commands": "1.7.2",
-        "prosemirror-history": "1.5.1",
-        "prosemirror-inputrules": "1.5.1",
-        "prosemirror-keymap": "1.2.3",
-        "prosemirror-model": "1.25.12",
-        "prosemirror-state": "1.4.4",
-        "prosemirror-transform": "1.12.4",
-        "prosemirror-view": "1.42.8",
+        "prosemirror-commands": "^1.7.2",
+        "prosemirror-history": "^1.5.1",
+        "prosemirror-inputrules": "^1.5.1",
+        "prosemirror-keymap": "^1.2.3",
+        "prosemirror-model": "^1.25.12",
+        "prosemirror-state": "^1.4.4",
+        "prosemirror-transform": "^1.12.4",
+        "prosemirror-view": "^1.42.8",
       },
       "peerDependencies": {
         "dou-ui": "workspace:*",

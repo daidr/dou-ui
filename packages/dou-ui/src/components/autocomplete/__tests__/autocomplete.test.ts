@@ -84,3 +84,26 @@ describe('DouAutocomplete', () => {
     wrapper.unmount()
   })
 })
+
+describe('DouAutocomplete highlight', () => {
+  it('keeps the highlight when the parent passes an equal list again', async () => {
+    const wrapper = mount(DouAutocomplete, {
+      props: {
+        modelValue: '',
+        options: ['Vue', 'Vite', 'VitePress'],
+        'onUpdate:modelValue': (v: string) => wrapper.setProps({ modelValue: v }),
+      },
+      attachTo: document.body,
+    })
+    const input = wrapper.get('input')
+    await input.trigger('focus')
+    await input.setValue('vi')
+    await input.trigger('keydown', { key: 'ArrowDown' })
+    await input.trigger('keydown', { key: 'ArrowDown' })
+    const second = document.querySelectorAll('[role="option"]')[1]!.id
+    expect(input.attributes('aria-activedescendant')).toBe(second)
+    await wrapper.setProps({ options: ['Vue', 'Vite', 'VitePress'] })
+    expect(input.attributes('aria-activedescendant')).toBe(second)
+    wrapper.unmount()
+  })
+})

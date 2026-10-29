@@ -88,7 +88,19 @@ function readToken() {
   const el = textareaRef.value
   if (!el) return
   const next = findToken(model.value, el.selectionStart ?? model.value.length)
-  if (next?.start !== token.value?.start) dismissed.value = null
+  const current = token.value
+  // keyup and click re-read the caret after every key, arrows included: an
+  // unchanged token must keep its identity or the menu resets its highlight.
+  if (
+    next &&
+    current &&
+    next.trigger === current.trigger &&
+    next.start === current.start &&
+    next.end === current.end &&
+    next.query === current.query
+  )
+    return
+  if (next?.start !== current?.start) dismissed.value = null
   token.value = next
 }
 
@@ -104,8 +116,35 @@ const options = computed<ChatInputOption[]>(() => {
   )
 })
 const menuOpen = computed(() => !disabled.value && options.value.length > 0)
-watch(options, () => (active.value = 0))
+// Only a different list moves the highlight back to the first usable option.
+const firstEnabled = () =>
+  Math.max(
+    0,
+    options.value.findIndex((option) => !option.disabled),
+  )
+watch(
+  () =>
+    menuOpen.value
+      ? `${token.value?.trigger}${options.value.map((option) => option.value).join('\u0000')}`
+      : '',
+  () => (active.value = firstEnabled()),
+)
+
+function move(step: 1 | -1) {
+  const list = options.value
+  for (let offset = 1; offset <= list.length; offset++) {
+    const index = (((active.value + step * offset) % list.length) + list.length) % list.length
+    if (!list[index]!.disabled) {
+      active.value = index
+      return
+    }
+  }
+}
 const optionId = (index: number) => `${id}-option-${index}`
+watch(active, async (index) => {
+  await nextTick()
+  document.getElementById(optionId(index))?.scrollIntoView?.({ block: 'nearest' })
+})
 
 function pick(option: ChatInputOption) {
   const current = token.value
@@ -132,10 +171,9 @@ function pick(option: ChatInputOption) {
 
 function onMenuKeydown(event: KeyboardEvent): boolean {
   if (!menuOpen.value) return false
-  const count = options.value.length
   if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
     event.preventDefault()
-    active.value = (active.value + (event.key === 'ArrowDown' ? 1 : count - 1)) % count
+    move(event.key === 'ArrowDown' ? 1 : -1)
     return true
   }
   if ((event.key === 'Enter' || event.key === 'Tab') && !event.isComposing) {
@@ -270,7 +308,7 @@ defineExpose<ChatInputExpose>({
         ]"
         :aria-selected="index === active"
         :aria-disabled="option.disabled || undefined"
-        @mouseenter="active = index"
+        @mouseenter="!option.disabled && (active = index)"
         @click="pick(option)"
       >
         <slot name="option" :option="option" :trigger="token!.trigger">

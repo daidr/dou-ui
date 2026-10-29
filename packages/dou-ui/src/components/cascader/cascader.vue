@@ -4,6 +4,7 @@ import { computed, nextTick, reactive, ref, useId, useTemplateRef, watch } from 
 import type { HTMLAttributes } from 'vue'
 import { usePopup } from '../../composables/use-popup'
 import { useNamespace } from '../../utils/namespace'
+import { shouldVirtualize, visibleWindow } from '../../utils/virtual'
 import { OnlyChild } from '../../utils/only-child'
 import { useLocale } from '../config-provider/use-config'
 import { useFormDisabled, useFormItem, useFormSize } from '../form/use-form-item'
@@ -206,6 +207,7 @@ function removePath(path: CascaderValue[]) {
 /* what each open column shows, worked out once per change rather than per render */
 
 interface Row {
+  index: number
   option: CascaderOption
   path: CascaderValue[]
   key: string
@@ -216,11 +218,12 @@ interface Row {
 }
 const columnRows = computed(() =>
   columns.value.map((column) =>
-    column.options.map((option): Row => {
+    column.options.map((option, index): Row => {
       const path = [...column.path, option.value]
       const key = keyOf(path)
       const state = props.multiple ? stateOf(option, path, key) : 'off'
       return {
+        index,
         option,
         path,
         key,
@@ -233,6 +236,37 @@ const columnRows = computed(() =>
   ),
 )
 const activeKey = computed(() => keyOf(active.value))
+
+// Long columns render only the options in view, with spacers for the rest.
+const ROW = 32
+const VIEWPORT = 280
+const INSET = 4
+const columnScroll = ref<number[]>([])
+const isVirtualColumn = (level: number) =>
+  shouldVirtualize(undefined, columnRows.value[level]?.length ?? 0)
+function columnWindow(level: number) {
+  const list = columnRows.value[level] ?? []
+  if (!isVirtualColumn(level)) return { rows: list, before: 0, after: 0 }
+  const scrollTop = Math.max(0, (columnScroll.value[level] ?? 0) - INSET)
+  const { from, to } = visibleWindow(list.length, scrollTop, VIEWPORT, ROW)
+  return { rows: list.slice(from, to), before: from * ROW, after: (list.length - to) * ROW }
+}
+// A virtual column sizes to the widest options rendered so far, so it
+// does not jitter as different options scroll into view.
+function onColumnScroll(level: number, event: Event) {
+  const el = event.target as HTMLElement
+  columnScroll.value[level] = el.scrollTop
+  if (isVirtualColumn(level)) {
+    void nextTick(() => {
+      el.style.minWidth = `${Math.max(parseFloat(el.style.minWidth) || 0, el.offsetWidth)}px`
+    })
+  }
+}
+const windows = computed(() => columnRows.value.map((_, level) => columnWindow(level)))
+watch(
+  () => columns.value.map((column) => keyOf(column.path)).join('\u0001'),
+  () => (columnScroll.value = columnScroll.value.slice(0, columns.value.length)),
+)
 
 /* search */
 
@@ -296,6 +330,21 @@ watch(open, (value) => {
 
 watch(active, async (path) => {
   await nextTick()
+  const level = path.length - 1
+  if (level >= 0 && isVirtualColumn(level)) {
+    // The option may not be rendered: scroll its column by its row instead.
+    const column = panelRef.value?.querySelector<HTMLElement>(`#${CSS.escape(listboxId(level))}`)
+    const at = columnRows.value[level]!.findIndex((row) => row.key === keyOf(path))
+    if (!column || at < 0) return
+    const top = at * ROW + INSET
+    let target = column.scrollTop
+    if (top < target) target = top - INSET
+    else if (top + ROW > target + column.clientHeight)
+      target = top + ROW - column.clientHeight + INSET
+    column.scrollTop = Math.max(0, target)
+    columnScroll.value[level] = column.scrollTop
+    return
+  }
   panelRef.value?.querySelector(`#${CSS.escape(optionId(path))}`)?.scrollIntoView?.({
     block: 'nearest',
   })
@@ -688,13 +737,29 @@ defineExpose<CascaderExpose>({ focus, blur: () => combobox()?.blur() })
             :class="ns.e('column')"
             :aria-multiselectable="multiple || undefined"
             :aria-busy="loading.has(keyOf(column.path)) || undefined"
+            @scroll="onColumnScroll(level, $event)"
           >
             <li
-              v-for="{ option, path, key, id: rowId, leaf, state, selected } in columnRows[level]"
+              v-if="windows[level]!.before"
+              role="presentation"
+              :style="{ height: `${windows[level]!.before}px` }"
+            />
+            <li
+              v-for="{ index, option, path, key, id: rowId, leaf, state, selected } in windows[
+                level
+              ]!.rows"
               :id="rowId"
               :key="String(option.value)"
               role="option"
               :aria-selected="selected"
+              :aria-setsize="
+                windows[level]!.rows.length < columnRows[level]!.length
+                  ? columnRows[level]!.length
+                  : undefined
+              "
+              :aria-posinset="
+                windows[level]!.rows.length < columnRows[level]!.length ? index + 1 : undefined
+              "
               :aria-disabled="option.disabled || undefined"
               :aria-expanded="leaf ? undefined : expanded[level] === option.value"
               :class="[
@@ -729,6 +794,11 @@ defineExpose<CascaderExpose>({ focus, blur: () => combobox()?.blur() })
                 :class="[ns.e('suffix'), ns.e('check')]"
               />
             </li>
+            <li
+              v-if="windows[level]!.after"
+              role="presentation"
+              :style="{ height: `${windows[level]!.after}px` }"
+            />
             <li
               v-if="!column.options.length && !loading.has(keyOf(column.path))"
               role="presentation"

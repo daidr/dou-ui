@@ -32,7 +32,7 @@
 
 ## 懒加载与大数据
 
-`load` 与 Tree 相同，节点第一次展开时再取子节点；`height` 让树只渲染看得见的行。
+`load` 与 Tree 相同，节点第一次展开时再取子节点。展开后超过 100 行时，下拉里只渲染看得见的行；`height` 可以把树固定成一个高度。
 
 ```vue
 <DouTreeSelect v-model="dir" :data="roots" :load="loadChildren" :height="280" />

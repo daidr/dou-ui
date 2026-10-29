@@ -48,7 +48,7 @@
 
 ## 虚拟滚动
 
-选项成千上万时打开 `virtual`，列表只渲染看得见的那些；键盘移动时会自动滚到当前项。下面是五千个选项。
+选项超过 100 个时，列表自动只渲染看得见的那些，键盘移动时会自动滚到当前项。虚拟滚动要求每个选项一样高：用 `option` 插槽做了高度不一的选项时，传 `:virtual="false"` 关掉。下面是五千个选项。
 
 <DocDemo src="select/virtual" style="max-width: 360px" />
 
@@ -122,7 +122,7 @@
 | `searchDelay`   | 输入停顿多久后触发 `search`，毫秒                              | `number`                                                    | `300`            |
 | `loading`       | 列表里显示加载中                                               | `boolean`                                                   | `false`          |
 | `creatable`     | 没有完全匹配时，把输入的文字作为新选项；隐含 `filterable`      | `boolean`                                                   | `false`          |
-| `virtual`       | 只渲染看得见的选项                                             | `boolean`                                                   | `false`          |
+| `virtual`       | 只渲染看得见的选项；不传时超过 100 个选项自动开启              | `boolean`                                                   | —                |
 | `maxTagCount`   | 多选时最多显示几个标签，其余折叠成"+N"                         | `number`                                                    | —                |
 | `multipleLimit` | 多选时最多选几项                                               | `number`                                                    | —                |
 | `valueKey`      | 值为对象时，用来区分它们的属性                                 | `string`                                                    | —                |

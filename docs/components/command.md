@@ -38,16 +38,17 @@
 
 ### Command Props
 
-| 名称          | 说明                         | 类型                                                         | 默认值   |
-| ------------- | ---------------------------- | ------------------------------------------------------------ | -------- |
-| `items`       | 命令                         | `CommandItem[]`                                              | —        |
-| `query`       | 搜索词，配合 `v-model:query` | `string`                                                     | `''`     |
-| `placeholder` | 搜索框占位文字               | `string`                                                     | 语言包   |
-| `emptyText`   | 无结果时的文字               | `string`                                                     | 语言包   |
-| `filter`      | 自定义匹配与打分             | `(query: string, item: CommandItem) => CommandMatch \| null` | 模糊匹配 |
-| `loop`        | 方向键到头后回绕             | `boolean`                                                    | `true`   |
-| `maxHeight`   | 列表最大高度，数字为 px      | `number \| string`                                           | `320`    |
-| `ariaLabel`   | 搜索框与列表的名称           | `string`                                                     | 占位文字 |
+| 名称          | 说明                                          | 类型                                                         | 默认值   |
+| ------------- | --------------------------------------------- | ------------------------------------------------------------ | -------- |
+| `items`       | 命令                                          | `CommandItem[]`                                              | —        |
+| `query`       | 搜索词，配合 `v-model:query`                  | `string`                                                     | `''`     |
+| `placeholder` | 搜索框占位文字                                | `string`                                                     | 语言包   |
+| `emptyText`   | 无结果时的文字                                | `string`                                                     | 语言包   |
+| `filter`      | 自定义匹配与打分                              | `(query: string, item: CommandItem) => CommandMatch \| null` | 模糊匹配 |
+| `loop`        | 方向键到头后回绕                              | `boolean`                                                    | `true`   |
+| `maxHeight`   | 列表最大高度，数字为 px                       | `number \| string`                                           | `320`    |
+| `virtual`     | 只渲染看得见的条目；不传时超过 100 条自动开启 | `boolean`                                                    | —        |
+| `ariaLabel`   | 搜索框与列表的名称                            | `string`                                                     | 占位文字 |
 
 ### CommandDialog Props
 

@@ -63,6 +63,7 @@ export default defineConfig({
             { text: '视觉语言', link: '/guide/visual-language' },
             { text: '快速开始', link: '/guide/getting-started' },
             { text: '主题与 Token', link: '/guide/theming' },
+            { text: '主题编辑器', link: '/guide/theme-editor' },
             { text: '国际化', link: '/guide/i18n' },
             { text: '浮层', link: '/guide/overlays' },
             { text: '组合式函数', link: '/guide/composables' },

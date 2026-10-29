@@ -81,6 +81,8 @@ const css =
 
 <DocDemo src="theming/create-theme" />
 
+想同时调整中性色、圆角和字号，可以用 [主题编辑器](./theme-editor)。
+
 没有传入的语气保持默认值。颜色接受 `#rrggbb`、`#rgb` 与 `rgb()` 写法。第二个参数可以换掉起点主题，比如 `createTheme({ primary }, { light: myLight, dark: myDark })`。
 
 只需要单个语气时可以用 `createTone(color, base)`，`base` 决定按亮色还是暗色处理。`contrastRatio(a, b)` 返回两个颜色的对比度，可以用来检查自己定义的 Token。

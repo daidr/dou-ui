@@ -18,7 +18,7 @@
 
 ```vue
 <DouBackTop>
-  <svg>…</svg>
+  <ArrowUpIcon />
   顶部
 </DouBackTop>
 ```

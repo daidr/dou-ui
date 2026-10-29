@@ -73,6 +73,21 @@
 
 只有一种颜色：`currentColor`。不填充面，不使用透明度和渐变；图标的颜色永远跟随文字。
 
+## 评审
+
+新增或修改图标后，逐个生成评审图再提交：
+
+```sh
+cd packages/icons
+bun run review search,filter        # 指定图标
+bun run review --category layout    # 一个分类
+bun run review --all --out review   # 全部
+```
+
+每个图标会放大画在 24 网格上，叠加关键线、`3 ~ 21` 安全区和笔画中心线，下面是 16 / 20 / 24 / 32 / 48 五档实际渲染。装有 Playwright 时还会截图并测量包围盒：越过 `3 ~ 21` 的会提示（横长、竖长和特殊外形可以到 `2.5 ~ 21.5`），超出 `2.5 ~ 21.5` 的一定要改。
+
+逐个检查：外形是否贴合基准框、平行笔画间距是否够 4 格、断开是否合规、相邻笔画是否粘连、同族图标是否共用骨架、16px 下是否还认得出。
+
 ## 文件结构
 
 每个图标由同名的两个文件组成，放在 `packages/icons/icons/`：
@@ -122,8 +137,22 @@ icons/
 | `development`   | 开发 |
 | `maps`          | 地图 |
 | `weather`       | 天气 |
+| `editing`       | 编辑 |
+| `design`        | 设计 |
+| `animation`     | 动画 |
+| `network`       | 网络 |
+| `git`           | Git  |
+| `layout`        | 布局 |
+| `hierarchy`     | 层级 |
+| `search`        | 搜索 |
+| `security`      | 安全 |
+| `settings`      | 设置 |
+| `shapes`        | 形状 |
+| `ai`            | AI   |
 
-一个图标可以属于多个分类。需要新分类时，在 `packages/icons/src/categories.ts` 里补充。
+一个图标可以属于多个分类。同一族的图标共用骨架，只换内部符号：布局类都画在同一个 `18 × 16` 的框里，搜索类共用同一枚放大镜，Git 类的节点都是半径 2 的小圆，缓动曲线的两端都是半径 1.75 的锚点。
+
+需要新分类时，在 `packages/icons/src/categories.ts` 里补充。
 
 ## 变体
 

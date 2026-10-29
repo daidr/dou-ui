@@ -1,8 +1,12 @@
 # Icon 图标
 
+<script setup>
+import { CheckCircleIcon, LoaderIcon, SearchIcon, SettingsIcon } from '@dou-ui/icons'
+</script>
+
 为任意内联图形提供统一的尺寸与无障碍语义。
 
-`dou-ui` 本身**不内置图标集**：图标通过默认插槽传入，可以是手写的 `<svg>`，也可以是图标组件。配套的线性图标见独立子包 [@dou-ui/icons](/icons/)。`DouIcon` 只负责三件事：尺寸、颜色跟随文字（`currentColor`）、读屏语义。
+`dou-ui` 本身**不内置图标集**：图标通过默认插槽传入。组件库内部和本站的所有图标都来自配套的独立子包 [@dou-ui/icons](/icons/)，项目里独有的图形也可以用它的 `createIcon` 画成同样风格的组件。`DouIcon` 只负责三件事：尺寸、颜色跟随文字（`currentColor`）、读屏语义。
 
 ## 基础用法
 
@@ -11,22 +15,26 @@
 <div class="demo">
   <DouText>
     <DouIcon>
-      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5" /><path d="M10.5 10.5L14 14" stroke-linecap="round" /></svg>
+      <SearchIcon />
     </DouIcon>
     搜索
   </DouText>
   <DouText tone="success">
     <DouIcon>
-      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3.5 8.5l3 3 6-7" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      <CheckCircleIcon />
     </DouIcon>
     已通过
   </DouText>
 </div>
 
 ```vue
-<DouIcon>
-  <svg viewBox="0 0 16 16">...</svg>
-</DouIcon>
+<script setup>
+import { SearchIcon } from '@dou-ui/icons'
+</script>
+
+<template>
+  <DouIcon><SearchIcon /></DouIcon>
+</template>
 ```
 
 ## 尺寸
@@ -34,20 +42,20 @@
 `size` 接受数字（像素）或任意 CSS 长度。
 
 <div class="demo">
-  <DouIcon :size="14"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6" /></svg></DouIcon>
-  <DouIcon :size="20"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6" /></svg></DouIcon>
-  <DouIcon size="2em"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6" /></svg></DouIcon>
+  <DouIcon :size="14"><SettingsIcon /></DouIcon>
+  <DouIcon :size="20"><SettingsIcon /></DouIcon>
+  <DouIcon size="2em"><SettingsIcon /></DouIcon>
 </div>
 
 ```vue
-<DouIcon :size="20">...</DouIcon>
-<DouIcon size="2em">...</DouIcon>
+<DouIcon :size="20"><SettingsIcon /></DouIcon>
+<DouIcon size="2em"><SettingsIcon /></DouIcon>
 ```
 
 ## 旋转
 
 <div class="demo">
-  <DouIcon spin :size="18"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2a6 6 0 1 0 6 6" stroke-linecap="round" /></svg></DouIcon>
+  <DouIcon spin :size="18"><LoaderIcon /></DouIcon>
 </div>
 
 ## 无障碍
@@ -55,7 +63,7 @@
 图标默认被视为装饰，带有 `aria-hidden="true"`。当图标本身就是唯一的信息来源时（例如没有文字的按钮），用 `label` 给它一个可读的名字，它会变成 `role="img"`。
 
 ```vue
-<DouIcon label="设置">...</DouIcon>
+<DouIcon label="设置"><SettingsIcon /></DouIcon>
 ```
 
 ## API
@@ -70,9 +78,9 @@
 
 ### Slots
 
-| 名称      | 说明                     |
-| --------- | ------------------------ |
-| `default` | 图形本身，通常是 `<svg>` |
+| 名称      | 说明                                      |
+| --------- | ----------------------------------------- |
+| `default` | 图形本身，通常是 @dou-ui/icons 的图标组件 |
 
 ### CSS 变量
 

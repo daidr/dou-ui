@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { CheckIcon, MinusIcon } from '@dou-ui/icons'
 import { computed, inject } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { useFormDisabled, useFormItem, useFormSize } from '../form/use-form-item'
@@ -63,10 +64,8 @@ const classes = computed(() => [
         @change="onChange"
       />
       <span :class="ns.e('indicator')" aria-hidden="true">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-          <path v-if="indeterminate" d="M4.5 8h7" stroke-linecap="round" />
-          <path v-else d="M4 8.5l2.5 2.5L12 5.5" stroke-linecap="round" stroke-linejoin="round" />
-        </svg>
+        <MinusIcon v-if="indeterminate" :stroke-width="2" />
+        <CheckIcon v-else :stroke-width="2" />
       </span>
     </span>
     <span v-if="slots.default" :class="ns.e('label')"><slot /></span>

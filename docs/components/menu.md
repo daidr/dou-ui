@@ -3,28 +3,27 @@
 应用的侧边栏或顶部导航。行的样式和树一致：二级灰色的文字，悬停变墨色并铺一层极淡的底色；当前页面的底色稍深，字重加粗。收起的子菜单如果包含当前页面，它自己的文字也是墨色，回去的路始终看得见。
 
 <script setup>
-import { h, ref } from 'vue'
-const icon = (d) => () =>
-  h('svg', { viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', 'stroke-width': 1.5, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, [h('path', { d })])
+import { CubeIcon, DashboardIcon, FileTextIcon, GlobeIcon, UsersIcon } from '@dou-ui/icons'
+import { ref } from 'vue'
 const items = [
-  { key: 'overview', label: '概览', icon: icon('M2.5 2.5h4.5v4.5h-4.5zM9 2.5h4.5v4.5H9zM2.5 9h4.5v4.5h-4.5zM9 9h4.5v4.5H9z') },
+  { key: 'overview', label: '概览', icon: DashboardIcon },
   {
     key: 'deployments',
     label: '部署',
-    icon: icon('M8 2l5.5 3v6L8 14l-5.5-3V5zM8 8v6M8 8l5.5-3M8 8L2.5 5'),
+    icon: CubeIcon,
     children: [
       { key: 'production', label: '生产环境' },
       { key: 'preview', label: '预览环境' },
       { key: 'rollback', label: '回滚记录', disabled: true },
     ],
   },
-  { key: 'logs', label: '日志', icon: icon('M3 3.5h10M3 6.5h10M3 9.5h6M3 12.5h8') },
+  { key: 'logs', label: '日志', icon: FileTextIcon },
   {
     type: 'group',
     label: '设置',
     children: [
-      { key: 'domains', label: '域名', icon: icon('M8 2a6 6 0 1 0 0 12A6 6 0 0 0 8 2zM2 8h12M8 2c2 2 2 10 0 12M8 2c-2 2-2 10 0 12') },
-      { key: 'members', label: '成员', icon: icon('M6 7.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM1.5 13.5c0-2.5 2-4 4.5-4s4.5 1.5 4.5 4') },
+      { key: 'domains', label: '域名', icon: GlobeIcon },
+      { key: 'members', label: '成员', icon: UsersIcon },
     ],
   },
 ]

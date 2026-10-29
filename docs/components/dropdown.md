@@ -122,17 +122,17 @@
 
 ### DropdownButton Props
 
-| 名称           | 说明                     | 类型                               | 默认值         |
-| -------------- | ------------------------ | ---------------------------------- | -------------- |
-| `open`         | 菜单是否打开，`v-model:open` | `boolean`                      | `false`        |
-| `variant`      | 外观                     | `'solid' \| 'soft' \| 'outline'`   | `'outline'`    |
-| `tone`         | 语气色                   | `Tone`                             | —              |
-| `size`         | 尺寸                     | `'sm' \| 'md' \| 'lg'`             | `'md'`         |
-| `disabled`     | 两半都禁用               | `boolean`                          | `false`        |
-| `loading`      | 主按钮显示加载           | `boolean`                          | `false`        |
-| `placement`    | 菜单首选的一侧           | `Placement`                        | `'bottom-end'` |
-| `trigger`      | 箭头的打开方式           | `'click' \| 'hover'`               | `'click'`      |
-| `hideOnSelect` | 选中后关闭               | `boolean`                          | `true`         |
+| 名称           | 说明                         | 类型                             | 默认值         |
+| -------------- | ---------------------------- | -------------------------------- | -------------- |
+| `open`         | 菜单是否打开，`v-model:open` | `boolean`                        | `false`        |
+| `variant`      | 外观                         | `'solid' \| 'soft' \| 'outline'` | `'outline'`    |
+| `tone`         | 语气色                       | `Tone`                           | —              |
+| `size`         | 尺寸                         | `'sm' \| 'md' \| 'lg'`           | `'md'`         |
+| `disabled`     | 两半都禁用                   | `boolean`                        | `false`        |
+| `loading`      | 主按钮显示加载               | `boolean`                        | `false`        |
+| `placement`    | 菜单首选的一侧               | `Placement`                      | `'bottom-end'` |
+| `trigger`      | 箭头的打开方式               | `'click' \| 'hover'`             | `'click'`      |
+| `hideOnSelect` | 选中后关闭                   | `boolean`                        | `true`         |
 
 ### DropdownButton Events
 

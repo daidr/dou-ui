@@ -38,17 +38,17 @@
 
 ### Props
 
-| 名称        | 说明                       | 类型                   | 默认值      |
-| ----------- | -------------------------- | ---------------------- | ----------- |
-| `value`     | 当前值；不传则为不确定状态 | `number`               | —           |
-| `max`       | 最大值                     | `number`               | `100`       |
-| `tone`      | 语气                       | `Tone`                 | `'neutral'` |
-| `type`      | 条形、圆环或仪表盘         | `'line' \| 'circle' \| 'dashboard'` | `'line'` |
-| `size`      | 粗细：4 / 6 / 8px          | `'sm' \| 'md' \| 'lg'` | `'md'`      |
-| `width`     | 圆环直径，px               | `number`               | `96`        |
-| `strokeWidth` | 圆环粗细，px，优先于 `size` | `number`            | —           |
-| `showValue` | 在末尾（圆环为中间）显示百分比 | `boolean`          | `false`     |
-| `label`     | 读屏标签                   | `string`               | —           |
+| 名称          | 说明                           | 类型                                | 默认值      |
+| ------------- | ------------------------------ | ----------------------------------- | ----------- |
+| `value`       | 当前值；不传则为不确定状态     | `number`                            | —           |
+| `max`         | 最大值                         | `number`                            | `100`       |
+| `tone`        | 语气                           | `Tone`                              | `'neutral'` |
+| `type`        | 条形、圆环或仪表盘             | `'line' \| 'circle' \| 'dashboard'` | `'line'`    |
+| `size`        | 粗细：4 / 6 / 8px              | `'sm' \| 'md' \| 'lg'`              | `'md'`      |
+| `width`       | 圆环直径，px                   | `number`                            | `96`        |
+| `strokeWidth` | 圆环粗细，px，优先于 `size`    | `number`                            | —           |
+| `showValue`   | 在末尾（圆环为中间）显示百分比 | `boolean`                           | `false`     |
+| `label`       | 读屏标签                       | `string`                            | —           |
 
 ### Slots
 

@@ -17,7 +17,9 @@ const value = ref(64)
   </div>
   <div class="row">
     <DouButton size="sm" variant="outline" @click="value = Math.max(0, value - 10)">-10</DouButton>
-    <DouButton size="sm" variant="outline" @click="value = Math.min(100, value + 10)">+10</DouButton>
+    <DouButton size="sm" variant="outline" @click="value = Math.min(100, value + 10)"
+      >+10</DouButton
+    >
   </div>
 </template>
 

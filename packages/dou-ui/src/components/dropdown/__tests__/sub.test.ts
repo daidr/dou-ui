@@ -105,7 +105,9 @@ describe('DouDropdownButton', () => {
       attachTo: document.body,
     })
     const [main, arrow] = wrapper.findAll('button')
-    expect(wrapper.classes()).toEqual(expect.arrayContaining(['dou-field-group', 'dou-dropdown-button']))
+    expect(wrapper.classes()).toEqual(
+      expect.arrayContaining(['dou-field-group', 'dou-dropdown-button']),
+    )
     await main!.trigger('click')
     expect(wrapper.emitted('click')).toHaveLength(1)
     expect(arrow!.attributes('aria-label')).toBe('更多操作')

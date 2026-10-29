@@ -22,6 +22,18 @@
 
 <DocDemo src="slider/step-marks" column style="max-width: 420px" />
 
+## 竖向
+
+`vertical` 让轨道从下往上排列，`height` 设置长度（默认 200px）。范围选择和刻度同样可用，刻度标签显示在轨道右侧。
+
+<DocDemo src="slider/vertical" />
+
+## 带输入框
+
+`show-input` 在右侧放一个 [InputNumber](./input-number)，两边同步：拖动时输入框跟着变，输入确认后滑块跳过去，超出范围或不在步长上的值会被修正。只用于单值滑块。
+
+<DocDemo src="slider/with-input" column />
+
 ## 键盘与指针
 
 | 操作                  | 行为                           |
@@ -52,6 +64,9 @@
 | `step`        | 步长，可取的值为 `min` 加步长的整数倍    | `number`                     | `1`     |
 | `marks`       | 刻度标签，键为刻度所在的值               | `Record<number, string>`     | —       |
 | `formatValue` | 读屏软件念出的文字                       | `(value: number) => string`  | —       |
+| `vertical`    | 竖向，从下往上                           | `boolean`                    | `false` |
+| `height`      | 竖向时的长度，数字为 px                  | `number \| string`           | `200px` |
+| `showInput`   | 旁边放一个同步的数字输入框（单值）       | `boolean`                    | `false` |
 | `size`        | 尺寸，默认取表单或全局配置               | `'sm' \| 'md' \| 'lg'`       | `'md'`  |
 | `disabled`    | 禁用                                     | `boolean`                    | `false` |
 | `invalid`     | 标记为无效，填充改为危险语气             | `boolean`                    | `false` |

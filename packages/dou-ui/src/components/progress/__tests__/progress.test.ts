@@ -26,15 +26,17 @@ describe('DouProgress', () => {
   })
 })
 
-describe('DouProgress rings', () => {
-  const dash = (wrapper: ReturnType<typeof mount>, at: number) =>
-    wrapper.findAll('circle')[at]!.attributes('stroke-dasharray')!.split(' ').map(Number)
+const dash = (wrapper: ReturnType<typeof mount>, at: number) =>
+  wrapper.findAll('circle')[at]!.attributes('stroke-dasharray')!.split(' ').map(Number)
 
+describe('DouProgress rings', () => {
   it('draws a circle sized by width, filled to the percentage', () => {
     const wrapper = mount(DouProgress, {
       props: { type: 'circle', value: 25, width: 100, size: 'md', showValue: true },
     })
-    expect(wrapper.classes()).toEqual(expect.arrayContaining(['dou-progress--ring', 'dou-progress--circle']))
+    expect(wrapper.classes()).toEqual(
+      expect.arrayContaining(['dou-progress--ring', 'dou-progress--circle']),
+    )
     expect(wrapper.attributes('style')).toContain('width: 100px')
     const [track, length] = dash(wrapper, 0)
     expect(track).toBeCloseTo(length!)
@@ -44,7 +46,9 @@ describe('DouProgress rings', () => {
   })
 
   it('leaves a quarter open for a dashboard, and starts at its left end', () => {
-    const wrapper = mount(DouProgress, { props: { type: 'dashboard', value: 100, strokeWidth: 10 } })
+    const wrapper = mount(DouProgress, {
+      props: { type: 'dashboard', value: 100, strokeWidth: 10 },
+    })
     const [track, length] = dash(wrapper, 0)
     expect(track).toBeCloseTo(length! * 0.75)
     expect(dash(wrapper, 1)[0]).toBeCloseTo(length! * 0.75)

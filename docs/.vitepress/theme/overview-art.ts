@@ -55,6 +55,7 @@ const iconSources = import.meta.glob<string>(
     '../../../packages/icons/icons/star.stroke.svg',
     '../../../packages/icons/icons/sun.stroke.svg',
     '../../../packages/icons/icons/underline.stroke.svg',
+    '../../../packages/icons/icons/user.stroke.svg',
   ],
   { query: '?raw', import: 'default', eager: true },
 )
@@ -86,9 +87,7 @@ const plus = (x: number, y: number, c = 'lk', s = 4) =>
 const lines = (x: number, y: number, widths: number[], gap = 10, c = 's') =>
   widths.map((w, i) => bar(x, y + i * gap, w, c)).join('')
 const avatar = (cx: number, cy: number, r: number, c = 'm') =>
-  circle(cx, cy, r, c) +
-  circle(cx, cy - r * 0.18, r * 0.34, 's') +
-  path(`M${cx - r * 0.6} ${cy + r * 0.62}a${r * 0.6} ${r * 0.5} 0 0 1 ${r * 1.2} 0`, 'ln w15')
+  circle(cx, cy, r, c) + icon('user', cx, cy + r * 0.06, r * 1.3, 'ico-3')
 const star = (cx: number, cy: number, r: number, c: string) => {
   const points = Array.from({ length: 10 }, (_, i) => {
     const angle = (Math.PI / 5) * i - Math.PI / 2

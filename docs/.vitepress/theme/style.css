@@ -1257,6 +1257,10 @@ body {
   fill: var(--ov-ink);
 }
 
+.doc-overview__art .ico-3 {
+  stroke: var(--dou-color-text-tertiary);
+}
+
 .doc-overview__art .ico-on {
   stroke: var(--ov-on);
 }

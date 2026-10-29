@@ -104,7 +104,7 @@
 
 ## 筛选
 
-给列加上 `filters`，表头会出现一个漏斗按钮，点开是一组选项。默认可以多选，勾好后按"筛选"生效；`filter-multiple` 为 `false` 时只能选一项，点一下立即生效。选中的值按列 `key` 放在 `v-model:filters` 里，漏斗变成墨色表示这一列正在筛选。
+给列加上 `filters`，表头会出现一个漏斗按钮，点开是一组选项。默认可以多选，勾好后按“筛选”生效；`filter-multiple` 为 `false` 时只能选一项，点一下立即生效。选中的值按列 `key` 放在 `v-model:filters` 里，漏斗变成墨色表示这一列正在筛选。
 
 一行要在每个正在筛选的列上都通过才显示；在一列上，通过任意一个选中的值即可。默认比较单元格的值，`filter-method(value, row)` 可以自己判断。树形数据里，子行通过时它的上级也会保留。
 
@@ -114,7 +114,7 @@
 
 ## 当前行与行事件
 
-`highlight-current` 让点击的行成为当前行，绑定在 `v-model:current` 上；当前行用选中行的底色，起始边多一道深色竖线，适合主从表这类"选中一行看详情"的场景。`row-class`、`row-style` 给行加类名和样式，可以是值，也可以是 `(row, index) => …` 函数。
+`highlight-current` 让点击的行成为当前行，绑定在 `v-model:current` 上；当前行用选中行的底色，起始边多一道深色竖线，适合主从表这类“选中一行看详情”的场景。`row-class`、`row-style` 给行加类名和样式，可以是值，也可以是 `(row, index) => …` 函数。
 
 除了 `rowClick`，还有 `rowDblclick`、`rowContextmenu`（配合 ContextMenu 做右键菜单）和 `cellClick`（多了列）。
 
@@ -144,15 +144,15 @@
 
 ## 实例方法
 
-`v-model` 已经能控制选中、展开、排序和筛选，实例方法是给"按一下按钮做某事"准备的快捷方式：`toggleRowSelection(key, selected?)`、`clearSelection()`、`toggleRowExpansion(key, expanded?)`、`clearSort()`、`clearFilters(key?)`、`setCurrent(key)`，以及 `scrollToRow(key)`（先展开它的上级再滚过去，虚拟滚动也可以）和 `scrollTo(top)`。
+`v-model` 已经能控制选中、展开、排序和筛选，实例方法是给“按一下按钮做某事”准备的快捷方式：`toggleRowSelection(key, selected?)`、`clearSelection()`、`toggleRowExpansion(key, expanded?)`、`clearSort()`、`clearFilters(key?)`、`setCurrent(key)`，以及 `scrollToRow(key)`（先展开它的上级再滚过去，虚拟滚动也可以）和 `scrollTo(top)`。
 
 <DocDemo src="table/methods" column />
 
-选中是按 `key` 记录的：翻页后不在当前 `data` 里的已选行仍然保留在 `v-model:selected` 中，"全选"也只影响当前能看到的行。
+选中是按 `key` 记录的：翻页后不在当前 `data` 里的已选行仍然保留在 `v-model:selected` 中，“全选”也只影响当前能看到的行。
 
 ## 读屏
 
-表头单元格带 `scope="col"`；可排序的列在 `<th>` 上用 `aria-sort` 标明当前方向，排序的开关是表头里的按钮。选择框各自有读屏名称（"选择全部""选择此行"，来自语言包）。加载中时表格带 `aria-busy`。
+表头单元格带 `scope="col"`；可排序的列在 `<th>` 上用 `aria-sort` 标明当前方向，排序的开关是表头里的按钮。选择框各自有读屏名称（“选择全部”“选择此行”，来自语言包）。加载中时表格带 `aria-busy`。
 
 展开按钮带 `aria-expanded`，详情行的按钮还用 `aria-controls` 指向详情行。列宽手柄是可聚焦的 `role="separator"`，用 `aria-valuenow` 报告当前宽度。虚拟滚动时表格带 `aria-rowcount`，每一行带 `aria-rowindex`，读屏仍能知道总行数与当前位置。
 
@@ -172,7 +172,7 @@
 | `hoverable`             | 悬停的行加深                                           | `boolean`                                                                                             | `true`          |
 | `maxHeight`             | 最大高度，超出后滚动、表头固定；数字为像素             | `number \| string`                                                                                    | —               |
 | `loading`               | 加载中                                                 | `boolean`                                                                                             | `false`         |
-| `emptyText`             | 空状态文字，默认取语言包的"暂无数据"                   | `string`                                                                                              | —               |
+| `emptyText`             | 空状态文字，默认取语言包的“暂无数据”                   | `string`                                                                                              | —               |
 | `selectable`            | 加一列多选框；函数决定哪些行可选                       | `boolean \| ((row: T) => boolean)`                                                                    | `false`         |
 | `selected`              | 选中行的 key，`v-model:selected`                       | `(string \| number)[]`                                                                                | `[]`            |
 | `sort`                  | 排序，`v-model:sort`                                   | `{ key: string; order: 'asc' \| 'desc' } \| null`                                                     | `null`          |
@@ -194,7 +194,7 @@
 | `rowStyle`              | 行的样式                                               | `CSSProperties \| ((row: T, index: number) => CSSProperties)`                                         | —               |
 | `load`                  | 树形懒加载：第一次展开时取子行                         | `(row: T) => Promise<T[]>`                                                                            | —               |
 | `draggable`             | 加一列拖动手柄，拖拽排序，配合 `v-model:data`          | `boolean`                                                                                             | `false`         |
-| `hasChildrenKey`        | 标记"有子行待加载"的属性                               | `string`                                                                                              | `'hasChildren'` |
+| `hasChildrenKey`        | 标记“有子行待加载”的属性                               | `string`                                                                                              | `'hasChildren'` |
 
 ### TableColumn
 

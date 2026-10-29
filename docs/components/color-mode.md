@@ -12,7 +12,7 @@
 
 ## 开关与下拉
 
-`DouColorModeSwitch` 打开即暗色；`DouColorModeSelect` 多一个"跟随系统"，适合设置页。
+`DouColorModeSwitch` 打开即暗色；`DouColorModeSelect` 多一个“跟随系统”，适合设置页。
 
 <DocDemo src="color-mode/switch-dropdown" />
 
@@ -33,7 +33,7 @@ import { colorModeScript } from 'dou-ui'
 useHead({ script: [{ innerHTML: colorModeScript() }] })
 ```
 
-服务端不知道读者的模式，所以三个组件在挂载前都按"未知"渲染（按钮不画图标、开关关着、下拉显示"跟随系统"），挂载后再显示真实状态，避免水合不一致。
+服务端不知道读者的模式，所以三个组件在挂载前都按“未知”渲染（按钮不画图标、开关关着、下拉显示“跟随系统”），挂载后再显示真实状态，避免水合不一致。
 
 ## 选项
 
@@ -93,6 +93,6 @@ useColorMode({ storageKey: 'my-app-theme', initial: 'dark' })
 
 ### 键盘与读屏
 
-- 按钮的标签是将要切换到的模式："切换到暗色模式" / "切换到亮色模式"。
-- 开关的 `aria-checked` 表示是否暗色；有可见标签时由标签命名，没有时名为"暗色"。
-- 下拉名为"颜色模式"，键盘操作同 [Select](./select)。
+- 按钮的标签是将要切换到的模式：“切换到暗色模式” / “切换到亮色模式”。
+- 开关的 `aria-checked` 表示是否暗色；有可见标签时由标签命名，没有时名为“暗色”。
+- 下拉名为“颜色模式”，键盘操作同 [Select](./select)。

@@ -23,7 +23,7 @@
 
 ## useCountdown
 
-不需要统计数值的外观时，用组合式函数 `useCountdown` 自己渲染。最常见的就是"重新发送验证码"：
+不需要统计数值的外观时，用组合式函数 `useCountdown` 自己渲染。最常见的就是“重新发送验证码”：
 
 <DocDemo src="countdown/use-countdown" />
 

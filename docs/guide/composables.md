@@ -7,7 +7,7 @@ DouUI 的组件建立在一组组合式函数上。下面这些已经导出，�
 | 函数                                              | 用途                                                   | 说明                                                               |
 | ------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------ |
 | `useFloating`                                     | 让一个元素贴着另一个元素定位，空间不够时翻到另一侧     | [下文](#usefloating)                                               |
-| `useLayer`                                        | 加入浮层栈，`Esc` 只关最上层，识别嵌套浮层的"点击外部" | [下文](#uselayer)                                                  |
+| `useLayer`                                        | 加入浮层栈，`Esc` 只关最上层，识别嵌套浮层的“点击外部” | [下文](#uselayer)                                                  |
 | `useFocusTrap`                                    | 把焦点限制在一个容器里，释放后焦点回到原处             | [下文](#usefocustrap)                                              |
 | `useScrollLock`                                   | 锁定页面滚动，多处同时锁定时按次数计算                 | [下文](#usescrolllock)                                             |
 | `useHotkey`                                       | 绑定快捷键，支持组合键与按键序列                       | [下文](#usehotkey)                                                 |
@@ -28,7 +28,7 @@ DouUI 的组件建立在一组组合式函数上。下面这些已经导出，�
 
 ## 自己写一个浮层
 
-把前四个函数组合起来，就是一个和内置浮层行为一致的面板：
+组合前四个函数，可以实现一个与内置浮层行为一致的面板：
 
 <DocDemo src="composables/floating" />
 
@@ -70,7 +70,7 @@ const layer = useLayer({ open, elements, onEscape, onOutside })
 useFocusTrap(container, { active, contains, initialFocus })
 ```
 
-`active` 为真时，焦点限制在 `container` 中：`Tab` 在首尾之间循环，跑出去的焦点会被拉回来。释放后焦点回到打开前所在的元素。
+`active` 为真时，焦点限制在 `container` 中：`Tab` 在首尾之间循环，焦点移出容器时会被移回。释放后焦点回到打开前所在的元素。
 
 - `initialFocus`：打开后先聚焦的元素，默认取带 `autofocus` 的元素，再取第一个可聚焦元素。
 - `contains`：判断节点是否算在里面。传 `layer.contains` 可以让子浮层里的元素也能获得焦点。
@@ -109,6 +109,6 @@ useHotkey(hotkeys, handler, { target, enabled, allowInInput, preventDefault, seq
 const { copy, copied } = useClipboard({ duration: 2000 })
 ```
 
-`copy(text)` 把文本写入剪贴板，优先使用异步剪贴板接口，接口不可用或被拒绝时改用隐藏的文本框复制，两种方式都失败时返回的 Promise 会被拒绝。复制成功后，`copied` 在 `duration` 毫秒内为 `true`，可以用来切换图标或文字。[CopyButton](../components/copy-button) 就是基于它实现的。
+`copy(text)` 把文本写入剪贴板，优先使用异步剪贴板接口，接口不可用或被拒绝时改用隐藏的文本框复制，两种方式都失败时返回的 Promise 会被拒绝。复制成功后，`copied` 在 `duration` 毫秒内为 `true`，可以用来切换图标或文字。[CopyButton](../components/copy-button) 也是基于它实现的。
 
 <DocDemo src="composables/clipboard" />

@@ -35,7 +35,7 @@
 | `Home` / `End`    | 移到最前 / 最后            |
 | `Esc`             | 取消移动，放回原处         |
 
-拿起、移动、放下和取消都会通过一个 `aria-live` 区域读出位置，比如"已拿起整理设计稿，当前位置 1，共 4 项"。项的名称默认是"第 n 项"，用 `item-label` 换成更有意义的名字。键盘只在同一个列表内移动。
+拿起、移动、放下和取消都会通过一个 `aria-live` 区域读出位置，比如“已拿起整理设计稿，当前位置 1，共 4 项”。项的名称默认是“第 n 项”，用 `item-label` 换成更有意义的名字。键盘只在同一个列表内移动。
 
 触屏上直接按住整项会先判断是否在滚动页面，按住约 250 毫秒后才开始拖动；手柄可以立即拖动。拖到滚动容器或窗口的边缘时会自动滚动。
 
@@ -66,7 +66,7 @@ const { container, list, listAttrs, itemAttrs } = useSortable({
 | `animation`  | 拖动时其他项滑动让位             | `boolean`                              | `true`       |
 | `tag`        | 列表元素                         | `string`                               | `'div'`      |
 | `itemTag`    | 每一项的元素                     | `string`                               | `'div'`      |
-| `itemLabel`  | 读屏时项的名称                   | `(item: T, index: number) => string`   | "第 n 项"    |
+| `itemLabel`  | 读屏时项的名称                   | `(item: T, index: number) => string`   | “第 n 项”    |
 
 ### Sortable Events
 
@@ -88,4 +88,4 @@ const { container, list, listAttrs, itemAttrs } = useSortable({
 
 | 名称    | 说明           | 类型     | 默认值     |
 | ------- | -------------- | -------- | ---------- |
-| `label` | 手柄的读屏名称 | `string` | "拖动排序" |
+| `label` | 手柄的读屏名称 | `string` | “拖动排序” |

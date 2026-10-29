@@ -14,7 +14,7 @@
 
 <DocDemo src="slider/range" column style="max-width: 420px" />
 
-两枚滑块的读屏标签（"起始值" / "结束值"）来自 [全局配置](./config-provider) 的语言包。
+两枚滑块的读屏标签（“起始值” / “结束值”）来自 [全局配置](./config-provider) 的语言包。
 
 ## 步长与刻度
 

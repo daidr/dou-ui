@@ -75,7 +75,7 @@
 
 ## 键盘与读屏
 
-按钮和拖拽区域都可以用 `Tab` 聚焦、用 `Enter` / `Space` 打开文件选择；原生的 `<input type="file">` 隐藏且不在 `Tab` 顺序里。`hint` 通过 `aria-describedby` 关联到触发器。列表的移除和重试按钮带上文件名作为标签（"移除 项目说明.pdf"），上传状态的文字在 `aria-live` 区域里，进度条带 `role="progressbar"`。
+按钮和拖拽区域都可以用 `Tab` 聚焦、用 `Enter` / `Space` 打开文件选择；原生的 `<input type="file">` 隐藏且不在 `Tab` 顺序里。`hint` 通过 `aria-describedby` 关联到触发器。列表的移除和重试按钮带上文件名作为标签（“移除 项目说明.pdf”），上传状态的文字在 `aria-live` 区域里，进度条带 `role="progressbar"`。
 
 ## API
 

@@ -8,28 +8,29 @@
 - **短而快**：常规交互不超过 300ms，悬停和按下的反馈在 150ms 以内，不让用户等待动画结束。
 - **进场减速，退场加速**：出现时先快后慢，停稳在最终位置；消失时先慢后快，并且比进场更短，不挡住下一步操作。
 - **从触发处出现**：浮层朝触发元素的方向展开，抽屉从所在的边滑入，折叠内容沿内容方向展开。方向固定，可以预期。
-- **幅度克制**：位移只有 4px 和 8px 两档，缩放只从 0.98 开始，没有回弹和过冲。
+- **幅度克制**：位移只有 4px 和 8px 两档，缩放只从 0.98 开始，没有回弹和过冲。唯一的例外是直接操作：手指或指针仍按在元素上时，元素可以用 `spring` 曲线带一点回弹，比如数字输入框在触摸时放大的按键面板。
 - **距离越远，时长越长**：跨越整个屏幕的抽屉用较长的时长，但不超过 320ms。
 - **可以打断**：动画进行中再次操作，会从当前状态直接过渡到新状态。
 - **遵循减少动态效果设置**：系统开启后，只保留短暂的淡入淡出，加载指示放慢，装饰性的循环动画停止。
 
 ## 动效 Token
 
-| Token                           | 默认值                          | 用途                                   |
-| ------------------------------- | ------------------------------- | -------------------------------------- |
-| `--dou-motion-duration-instant` | `100ms`                         | 颜色与透明度反馈，减少动效时的淡入淡出 |
-| `--dou-motion-duration-fast`    | `150ms`                         | 悬停、按下、小图标旋转、浮层退场       |
-| `--dou-motion-duration-normal`  | `220ms`                         | 浮层与对话框进场、折叠展开、指示条移动 |
-| `--dou-motion-duration-slow`    | `320ms`                         | 抽屉等跨越屏幕的面板                   |
-| `--dou-motion-easing`           | `cubic-bezier(0.2, 0, 0, 1)`    | 同一元素在两种状态之间的变化           |
-| `--dou-motion-easing-enter`     | `cubic-bezier(0.16, 1, 0.3, 1)` | 元素出现                               |
-| `--dou-motion-easing-exit`      | `cubic-bezier(0.4, 0, 1, 1)`    | 元素消失                               |
-| `--dou-motion-distance-sm`      | `4px`                           | 浮层进出场的位移                       |
-| `--dou-motion-distance-md`      | `8px`                           | 对话框、轻提示等的位移                 |
-| `--dou-motion-scale`            | `0.98`                          | 进场时的起始缩放                       |
-| `--dou-motion-loop-spin`        | `0.8s`                          | 加载图标旋转一圈                       |
-| `--dou-motion-loop-pulse`       | `1.6s`                          | 呼吸、闪烁、输入中的圆点               |
-| `--dou-motion-loop-sweep`       | `2s`                            | 骨架屏扫光、涟漪                       |
+| Token                           | 默认值                              | 用途                                                   |
+| ------------------------------- | ----------------------------------- | ------------------------------------------------------ |
+| `--dou-motion-duration-instant` | `100ms`                             | 颜色与透明度反馈，减少动效时的淡入淡出                 |
+| `--dou-motion-duration-fast`    | `150ms`                             | 悬停、按下、小图标旋转、浮层退场                       |
+| `--dou-motion-duration-normal`  | `220ms`                             | 浮层与对话框进场、折叠展开、指示条移动                 |
+| `--dou-motion-duration-slow`    | `320ms`                             | 抽屉等跨越屏幕的面板                                   |
+| `--dou-motion-easing`           | `cubic-bezier(0.2, 0, 0, 1)`        | 同一元素在两种状态之间的变化                           |
+| `--dou-motion-easing-enter`     | `cubic-bezier(0.16, 1, 0.3, 1)`     | 元素出现                                               |
+| `--dou-motion-easing-exit`      | `cubic-bezier(0.4, 0, 1, 1)`        | 元素消失                                               |
+| `--dou-motion-easing-spring`    | 过冲约 14% 后回稳的 `linear()` 曲线 | 直接操作时的回弹，减少动效时变为 `--dou-motion-easing` |
+| `--dou-motion-distance-sm`      | `4px`                               | 浮层进出场的位移                                       |
+| `--dou-motion-distance-md`      | `8px`                               | 对话框、轻提示等的位移                                 |
+| `--dou-motion-scale`            | `0.98`                              | 进场时的起始缩放                                       |
+| `--dou-motion-loop-spin`        | `0.8s`                              | 加载图标旋转一圈                                       |
+| `--dou-motion-loop-pulse`       | `1.6s`                              | 呼吸、闪烁、输入中的圆点                               |
+| `--dou-motion-loop-sweep`       | `2s`                                | 骨架屏扫光、涟漪                                       |
 
 和其他 Token 一样，可以用 CSS 变量或 `defineTheme` 覆盖（见 [主题与 Token](./theming)）：
 

@@ -152,23 +152,25 @@ function onKeydown(event: KeyboardEvent) {
   }
 }
 
-// Holding a step button repeats the step, slowly at first.
+// Holding a step key repeats the step, slowly at first.
 let timer: ReturnType<typeof setTimeout> | undefined
+// The key being held: 1 for increase, -1 for decrease, 0 for none.
+const held = ref(0)
 
 function stopRepeat() {
   clearTimeout(timer)
   timer = undefined
+  held.value = 0
 }
 
-function startRepeat(event: PointerEvent, count: number) {
-  if (event.button !== 0) return
+function startRepeat(count: number) {
   stopRepeat()
+  if (!(count > 0 ? canIncrease.value : canDecrease.value)) return
+  held.value = count
   stepBy(count)
-  // A button that reaches the limit turns disabled and may never see the
-  // pointer go up, so listen on the window and stop at the limit too.
-  window.addEventListener('pointerup', stopRepeat, { once: true })
   const repeat = (delay: number) => {
     timer = setTimeout(() => {
+      // A key that reaches the limit turns disabled, so stop there.
       if (!(count > 0 ? canIncrease.value : canDecrease.value)) return stopRepeat()
       stepBy(count)
       repeat(50)
@@ -177,7 +179,95 @@ function startRepeat(event: PointerEvent, count: number) {
   repeat(400)
 }
 
-onBeforeUnmount(stopRepeat)
+function onStepPointerdown(event: PointerEvent, count: number) {
+  // Touch goes through the key pad below.
+  if (event.pointerType === 'touch' || event.button !== 0) return
+  startRepeat(count)
+  // The pointer may come up over a key that turned disabled, so listen
+  // on the window.
+  window.addEventListener('pointerup', stopRepeat, { once: true })
+}
+
+// On touch the keys are too small to aim at, so the first press only
+// enlarges them. Keeping the finger down and sliding onto a key steps
+// with it, and the pad shrinks back as soon as that finger lifts. After a
+// plain press the pad stays, later taps step as usual, and it shrinks back
+// after a tap elsewhere or a short pause.
+const COLLAPSE_DELAY = 2000
+// How far a finger slides from where the pad opened before it counts.
+const SLIDE_THRESHOLD = 6
+
+const keysRef = useTemplateRef<HTMLElement>('keys')
+const expanded = ref(false)
+let idle: ReturnType<typeof setTimeout> | undefined
+
+function onOutsidePointerdown(event: PointerEvent) {
+  if (!keysRef.value?.contains(event.target as Node)) collapse()
+}
+
+function expand() {
+  clearTimeout(idle)
+  if (expanded.value) return
+  expanded.value = true
+  document.addEventListener('pointerdown', onOutsidePointerdown, true)
+}
+
+function collapse() {
+  clearTimeout(idle)
+  stopRepeat()
+  expanded.value = false
+  document.removeEventListener('pointerdown', onOutsidePointerdown, true)
+}
+
+/** The key under a finger at `y`: 1 above the middle, -1 below, 0 on the seam. */
+function keyAt(y: number) {
+  const box = keysRef.value!.getBoundingClientRect()
+  const middle = box.top + box.height / 2
+  return Math.abs(y - middle) <= 2 ? 0 : y < middle ? 1 : -1
+}
+
+function onKeysPointerdown(event: PointerEvent) {
+  if (event.pointerType !== 'touch' || !editable.value) return
+  // Keep the keyboard closed and the page still while the finger is down.
+  event.preventDefault()
+  const keys = event.currentTarget as HTMLElement
+  keys.setPointerCapture?.(event.pointerId)
+  const opened = !expanded.value
+  expand()
+  const startY = event.clientY
+  let slid = !opened
+  let stepped = false
+  const follow = (y: number) => {
+    slid ||= Math.abs(y - startY) >= SLIDE_THRESHOLD
+    const count = slid ? keyAt(y) : 0
+    if (count === held.value) return
+    stepped ||= count !== 0
+    if (count) startRepeat(count)
+    else stopRepeat()
+  }
+  follow(startY)
+  const move = (e: PointerEvent) => {
+    if (e.pointerId === event.pointerId) follow(e.clientY)
+  }
+  const end = (e: PointerEvent) => {
+    if (e.pointerId !== event.pointerId) return
+    stopRepeat()
+    keys.removeEventListener('pointermove', move)
+    keys.removeEventListener('pointerup', end)
+    keys.removeEventListener('pointercancel', end)
+    // A press that opened the pad and slid to adjust is done when lifted.
+    if (opened && stepped) return collapse()
+    clearTimeout(idle)
+    idle = setTimeout(collapse, COLLAPSE_DELAY)
+  }
+  keys.addEventListener('pointermove', move)
+  keys.addEventListener('pointerup', end)
+  keys.addEventListener('pointercancel', end)
+}
+
+watch(editable, (value) => value || collapse())
+
+onBeforeUnmount(collapse)
 
 function onMousedown(event: MouseEvent) {
   const target = event.target as HTMLElement
@@ -193,6 +283,7 @@ const classes = computed(() => [
   ns.is('readonly', props.readonly),
   ns.is('invalid', invalid.value),
   ns.is('controls', props.controls),
+  ns.is('expanded', expanded.value),
   attrs.class,
 ])
 
@@ -235,32 +326,34 @@ defineExpose<InputNumberExpose>({
       <slot name="suffix" />
     </span>
     <span v-if="controls" :class="ns.e('controls')">
-      <button
-        type="button"
-        tabindex="-1"
-        :class="[ns.e('step'), ns.e('decrease')]"
-        :aria-label="t('inputNumber.decrease')"
-        :disabled="!canDecrease"
-        @mousedown.prevent
-        @pointerdown="startRepeat($event, -1)"
-        @pointerleave="stopRepeat"
-        @pointercancel="stopRepeat"
-      >
-        <MinusIcon />
-      </button>
-      <button
-        type="button"
-        tabindex="-1"
-        :class="[ns.e('step'), ns.e('increase')]"
-        :aria-label="t('inputNumber.increase')"
-        :disabled="!canIncrease"
-        @mousedown.prevent
-        @pointerdown="startRepeat($event, 1)"
-        @pointerleave="stopRepeat"
-        @pointercancel="stopRepeat"
-      >
-        <PlusIcon />
-      </button>
+      <span ref="keys" :class="ns.e('keys')" @pointerdown="onKeysPointerdown">
+        <button
+          type="button"
+          tabindex="-1"
+          :class="[ns.e('step'), ns.e('increase'), ns.is('held', held === 1)]"
+          :aria-label="t('inputNumber.increase')"
+          :disabled="!canIncrease"
+          @mousedown.prevent
+          @pointerdown="onStepPointerdown($event, 1)"
+          @pointerleave="$event.pointerType === 'touch' || stopRepeat()"
+          @pointercancel="stopRepeat"
+        >
+          <PlusIcon />
+        </button>
+        <button
+          type="button"
+          tabindex="-1"
+          :class="[ns.e('step'), ns.e('decrease'), ns.is('held', held === -1)]"
+          :aria-label="t('inputNumber.decrease')"
+          :disabled="!canDecrease"
+          @mousedown.prevent
+          @pointerdown="onStepPointerdown($event, -1)"
+          @pointerleave="$event.pointerType === 'touch' || stopRepeat()"
+          @pointercancel="stopRepeat"
+        >
+          <MinusIcon />
+        </button>
+      </span>
     </span>
   </span>
 </template>

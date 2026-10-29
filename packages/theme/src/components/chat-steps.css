@@ -1,0 +1,140 @@
+/*
+ * ChatSteps
+ *
+ * The work behind an answer, folded into one quiet line: the running
+ * step shimmers there, and afterwards it counts the steps. Opened, the
+ * steps hang from a thin vertical rule, each with a small mark.
+ */
+@layer dou.components {
+  .dou-chat-steps {
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-md);
+    line-height: var(--dou-font-line-height);
+  }
+
+  .dou-chat-steps__header {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 100%;
+    margin: 0;
+    padding: 2px 0;
+    border: 0;
+    border-radius: var(--dou-radius-control);
+    background: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    transition: color var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    &:hover {
+      color: var(--dou-color-text);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 2px;
+    }
+  }
+
+  .dou-chat-steps__title {
+    overflow-x: clip;
+    min-width: 0;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dou-chat-steps__arrow {
+    flex: none;
+    font-size: 14px;
+    transition: rotate var(--dou-motion-duration-normal) var(--dou-motion-easing);
+
+    .dou-chat-steps.is-open & {
+      rotate: 180deg;
+    }
+  }
+
+  .dou-chat-steps__panel {
+    transition: height var(--dou-motion-duration-normal) var(--dou-motion-easing);
+  }
+
+  .dou-chat-steps__list {
+    margin: 0;
+    padding: 8px 0 4px;
+    list-style: none;
+    font-size: var(--dou-font-size-sm);
+    line-height: 20px;
+  }
+
+  .dou-chat-steps__step {
+    position: relative;
+    display: flex;
+    gap: 10px;
+    padding-bottom: 10px;
+
+    /* the rule that joins one mark to the next */
+    &:not(:last-child)::before {
+      content: '';
+      position: absolute;
+      top: 22px;
+      bottom: 0;
+      left: 7.5px;
+      width: 1px;
+      background-color: var(--dou-color-border);
+    }
+
+    &:last-child {
+      padding-bottom: 0;
+    }
+  }
+
+  .dou-chat-steps__mark {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 20px;
+    color: var(--dou-color-text-tertiary);
+    font-size: 14px;
+
+    .dou-chat-steps__step.is-error & {
+      color: var(--dou-color-danger-text);
+    }
+  }
+
+  .dou-chat-steps__dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: var(--dou-color-border-strong);
+  }
+
+  .dou-chat-steps__body {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .dou-chat-steps__line {
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: 6px;
+    min-width: 0;
+  }
+
+  .dou-chat-steps__label {
+    color: var(--dou-color-text-secondary);
+  }
+
+  .dou-chat-steps__detail {
+    overflow-x: clip;
+    min-width: 0;
+    color: var(--dou-color-text-tertiary);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dou-chat-steps__extra {
+    margin-top: 6px;
+  }
+}

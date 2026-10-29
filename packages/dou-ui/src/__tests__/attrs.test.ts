@@ -58,6 +58,7 @@ const fields: Record<string, string> = {
   DouInputNumber: 'input',
   DouAutocomplete: 'input',
   DouTextarea: 'textarea',
+  DouChatInput: 'textarea',
 }
 // render no element of their own, or only inside a parent that provides one
 const renderless = new Set(['DouConfigProvider', 'DouToastViewport', 'DouLayoutAsideTrigger'])

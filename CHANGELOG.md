@@ -18,6 +18,7 @@
 - **反馈**：Alert、Banner、Toast、Spinner、Loading、Progress、Skeleton、Result
 - **数据展示**：Card、Avatar、User、Badge、Tag、Kbd、Empty、Statistic、Countdown、Image、Carousel、QRCode、Watermark、Descriptions、Collapse、Timeline、FlowGraph、CalendarView、Table、Tree、VirtualList、InfiniteScroll、Sortable
 - **导航**：Menu、Tabs、Steps、Anchor、Breadcrumb、PageHeader、Pagination、Command、BackTop
+- **AI 对话**：ChatMessage、ChatList、ChatInput、StreamText、ChatSteps、ChatPlan、ChatReasoning、ChatToolCall、ChatSources、ChatCitation、ChatArtifact、ChatConfirm、ChatSuggestions、ChatAttachments、ChatContextMeter、Shimmer、ChatBubble
 - **配置**：ConfigProvider（含组件默认属性与浮层渲染位置）、ColorMode；内置 `zhCN` 与 `en` 语言包
 - **组合式函数**：`useFloating`、`useLayer`、`useFocusTrap`、`useScrollLock` 等，可用于编写自己的浮层
 

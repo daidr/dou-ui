@@ -1,0 +1,45 @@
+/** `pending` waits for the person to allow the call; the rest follow the run. */
+export type ChatToolCallStatus = 'pending' | 'running' | 'success' | 'error'
+
+export interface ChatToolCallProps {
+  /** The tool's name, e.g. `search_web`. */
+  name?: string
+  /** A readable line shown instead of the name, e.g. "Searching the web". */
+  title?: string
+  status?: ChatToolCallStatus
+  /** What the tool was called with. Objects are shown as formatted JSON. */
+  input?: unknown
+  /** What it returned, or the error. Objects are shown as formatted JSON. */
+  output?: unknown
+  /** Expanded or not. Bound with `v-model:open`. */
+  open?: boolean
+}
+
+export interface ChatToolCallEmits {
+  'update:open': [open: boolean]
+}
+
+export interface ChatToolCallSlots {
+  /** Replaces the tool icon. */
+  icon?: () => unknown
+  /** Replaces the title. */
+  title?: () => unknown
+  /** Replaces the input section. */
+  input?: () => unknown
+  /** Replaces the output section. */
+  output?: () => unknown
+  /** Extra content in the panel, after the output. */
+  default?: () => unknown
+  /** Under the header, always visible: e.g. allow / deny buttons for a `pending` call. */
+  actions?: () => unknown
+}
+
+/** Show a value the way a person reads it: strings as they are, the rest as JSON. */
+export function formatToolValue(value: unknown): string {
+  if (typeof value === 'string') return value
+  try {
+    return JSON.stringify(value, null, 2) ?? String(value)
+  } catch {
+    return String(value)
+  }
+}

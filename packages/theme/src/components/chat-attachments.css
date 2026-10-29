@@ -1,0 +1,170 @@
+/*
+ * ChatAttachments
+ *
+ * Files going along with a message. Each is a framed tile: images as a
+ * square thumbnail, other files as an icon with the name and size. A
+ * hairline under the tile fills while uploading; the remove button
+ * appears in the corner on hover or focus.
+ */
+@layer dou.components {
+  .dou-chat-attachments {
+    --dou-chat-attachments-size: 56px;
+    --dou-chat-attachments-width: 220px;
+
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    color: var(--dou-color-text);
+    font-size: var(--dou-font-size-sm);
+  }
+
+  .dou-chat-attachments__item {
+    position: relative;
+    display: flex;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .dou-chat-attachments__main {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-sizing: border-box;
+    width: var(--dou-chat-attachments-width);
+    max-width: 100%;
+    height: var(--dou-chat-attachments-size);
+    margin: 0;
+    padding: 7px 12px 7px 7px;
+    overflow: hidden;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-container);
+    background-color: var(--dou-color-bg-surface);
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    &:hover {
+      border-color: var(--dou-color-border-strong);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 2px;
+    }
+
+    .dou-chat-attachments__item.is-thumb > & {
+      width: var(--dou-chat-attachments-size);
+      padding: 0;
+    }
+
+    .dou-chat-attachments__item.is-error > & {
+      border-color: color-mix(in oklab, var(--dou-color-danger) 45%, var(--dou-color-border));
+    }
+  }
+
+  .dou-chat-attachments__image {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .dou-chat-attachments__icon {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    background-color: var(--dou-color-bg-muted);
+    color: var(--dou-color-text-secondary);
+    font-size: 20px;
+  }
+
+  .dou-chat-attachments__meta {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .dou-chat-attachments__name {
+    overflow-x: clip;
+    font-weight: var(--dou-font-weight-medium);
+    line-height: 20px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dou-chat-attachments__detail {
+    overflow-x: clip;
+    color: var(--dou-color-text-tertiary);
+    font-size: 12px;
+    line-height: 16px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    .dou-chat-attachments__item.is-error & {
+      color: var(--dou-color-danger-text);
+    }
+  }
+
+  .dou-chat-attachments__progress {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 2px;
+    background-color: var(--dou-color-border);
+
+    & > span {
+      display: block;
+      height: 100%;
+      background-color: var(--dou-color-primary);
+      transition: width var(--dou-motion-duration-normal) var(--dou-motion-easing);
+    }
+  }
+
+  .dou-chat-attachments__remove {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    margin: 0;
+    padding: 0;
+    border: 2px solid var(--dou-color-bg-surface);
+    border-radius: var(--dou-radius-full);
+    background-color: var(--dou-color-neutral);
+    color: var(--dou-color-neutral-on);
+    font-size: 12px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    .dou-chat-attachments__item:hover > &,
+    .dou-chat-attachments__item:focus-within > &,
+    &:focus-visible {
+      opacity: 1;
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 1px;
+    }
+
+    @media (hover: none) {
+      opacity: 1;
+    }
+  }
+}

@@ -1,0 +1,113 @@
+/*
+ * ChatArtifact
+ *
+ * Something the model made, as a card in the conversation: an icon
+ * tile, the name and a short line. Pressing it opens the artifact,
+ * usually in a side panel; the card that is open there is outlined.
+ */
+@layer dou.components {
+  .dou-chat-artifact {
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+    max-width: 420px;
+    min-width: 0;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-container);
+    background-color: var(--dou-color-bg-surface);
+    color: var(--dou-color-text);
+    font-size: var(--dou-font-size-sm);
+    line-height: 20px;
+    transition:
+      border-color var(--dou-motion-duration-fast) var(--dou-motion-easing),
+      box-shadow var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    &:hover {
+      border-color: var(--dou-color-border-strong);
+    }
+
+    &.is-active {
+      border-color: var(--dou-color-text);
+      box-shadow: 0 0 0 1px var(--dou-color-text);
+    }
+  }
+
+  .dou-chat-artifact__main {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    margin: 0;
+    padding: 10px 12px 10px 10px;
+    border: 0;
+    border-radius: inherit;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 2px;
+    }
+  }
+
+  .dou-chat-artifact__icon {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    background-color: var(--dou-color-bg-muted);
+    color: var(--dou-color-text-secondary);
+    font-size: 20px;
+  }
+
+  .dou-chat-artifact__text {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .dou-chat-artifact__title {
+    overflow-x: clip;
+    font-weight: var(--dou-font-weight-medium);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dou-chat-artifact__description {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    overflow-x: clip;
+    color: var(--dou-color-text-tertiary);
+    font-size: 12px;
+    line-height: 18px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    .dou-chat-artifact.is-error & {
+      color: var(--dou-color-danger-text);
+    }
+  }
+
+  .dou-chat-artifact__arrow {
+    flex: none;
+    color: var(--dou-color-text-tertiary);
+    font-size: 16px;
+  }
+
+  .dou-chat-artifact__actions {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 4px;
+    padding-right: 8px;
+  }
+}

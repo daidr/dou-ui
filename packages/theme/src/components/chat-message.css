@@ -1,0 +1,213 @@
+/*
+ * ChatMessage
+ *
+ * One turn of the conversation made of parts. The person's turn is a
+ * tinted bubble on the right; the assistant's runs full width with no
+ * bubble or avatar, its parts stacked with even gaps, like a page.
+ * Actions sit underneath: always for the assistant, on hover for the
+ * person.
+ */
+@layer dou.components {
+  .dou-chat-message {
+    --dou-chat-message-gap: 12px;
+    --dou-chat-message-bubble: color-mix(
+      in oklab,
+      var(--dou-color-text) 5%,
+      var(--dou-color-bg-surface)
+    );
+
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    min-width: 0;
+    color: var(--dou-color-text);
+    font-size: var(--dou-font-size-md);
+    line-height: var(--dou-font-line-height);
+  }
+
+  /* actions sit beside the bubble, so the hidden row adds no height between turns */
+  .dou-chat-message--user {
+    display: grid;
+    grid-template-columns: minmax(20%, 1fr) minmax(0, max-content);
+    gap: 0 4px;
+    justify-items: end;
+
+    & > * {
+      grid-row: 2;
+      grid-column: 1 / -1;
+    }
+
+    & > .dou-chat-message__files {
+      grid-row: 1;
+      margin-bottom: 6px;
+    }
+  }
+
+  .dou-chat-message--system {
+    align-items: center;
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+  }
+
+  .dou-chat-message__content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--dou-chat-message-gap);
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    overflow-wrap: anywhere;
+
+    .dou-chat-message--user > & {
+      grid-column: 2;
+      width: auto;
+      max-width: 100%;
+      padding: 8px 14px;
+      border-radius: var(--dou-radius-container);
+      background-color: var(--dou-chat-message-bubble);
+    }
+
+    .dou-chat-message--system > & {
+      width: auto;
+      text-align: center;
+    }
+  }
+
+  .dou-chat-message__files {
+    display: flex;
+    justify-content: flex-end;
+    max-width: 80%;
+  }
+
+  .dou-chat-message__code {
+    overflow: auto;
+    max-height: 240px;
+    margin: 0;
+    padding: 8px 10px;
+    border-radius: var(--dou-radius-control);
+    background-color: var(--dou-color-bg-muted);
+    color: var(--dou-color-text-secondary);
+    font-family: var(--dou-font-family-mono);
+    font-size: 12px;
+    line-height: 18px;
+    white-space: pre-wrap;
+  }
+
+  .dou-chat-message__pending {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: calc(1em * var(--dou-font-line-height));
+
+    & > i {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: var(--dou-color-text-tertiary);
+      animation: dou-chat-message-dot 1.2s ease-in-out infinite;
+
+      &:nth-child(2) {
+        animation-delay: 0.15s;
+      }
+      &:nth-child(3) {
+        animation-delay: 0.3s;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        animation: none;
+      }
+    }
+  }
+
+  .dou-chat-message__actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    margin-left: -6px;
+    color: var(--dou-color-text-tertiary);
+
+    & > .dou-button--ghost:not(:hover, :focus-visible),
+    & .dou-chat-message__versions > .dou-button--ghost:not(:hover, :focus-visible) {
+      color: inherit;
+    }
+
+    .dou-chat-message--user > & {
+      grid-column: 1;
+      align-self: end;
+      margin-left: 0;
+      opacity: 0;
+      transition: opacity var(--dou-motion-duration-fast) var(--dou-motion-easing);
+    }
+
+    .dou-chat-message--user:hover > &,
+    .dou-chat-message--user > &:focus-within {
+      opacity: 1;
+    }
+
+    @media (hover: none) {
+      .dou-chat-message--user > & {
+        opacity: 1;
+      }
+    }
+  }
+
+  .dou-chat-message__versions {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .dou-chat-message__version {
+    min-width: 32px;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+  }
+
+  .dou-chat-message__editor {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    box-sizing: border-box;
+    width: min(100%, 560px);
+    padding: 10px 12px;
+    border: 1px solid var(--dou-color-border-strong);
+    border-radius: var(--dou-radius-container);
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--dou-color-focus) 24%, transparent);
+  }
+
+  .dou-chat-message__editor-native {
+    box-sizing: border-box;
+    width: 100%;
+    max-height: 240px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    outline: none;
+    background: none;
+    color: inherit;
+    font: inherit;
+    line-height: 22px;
+    resize: none;
+  }
+
+  .dou-chat-message__editor-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  @keyframes dou-chat-message-dot {
+    0%,
+    60%,
+    100% {
+      opacity: 0.4;
+      transform: translateY(0);
+    }
+    30% {
+      opacity: 1;
+      transform: translateY(-3px);
+    }
+  }
+}

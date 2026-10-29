@@ -528,6 +528,72 @@ export interface Locale {
     /** The image failed to load. */
     error: string
   }
+  chat: {
+    /** Names the message list. */
+    messages: string
+    /** The button that scrolls the message list back to the end. */
+    scrollToBottom: string
+    /** Read for the dots of a reply on its way. */
+    loading: string
+    /** The prompt of an empty chat input. */
+    placeholder: string
+    send: string
+    /** Stops a reply being generated. */
+    stop: string
+    /** Reasoning still in progress. */
+    thinking: string
+    /** Reasoning whose duration is not known. */
+    reasoning: string
+    /** Reasoning that took `{seconds}` seconds. */
+    thoughtSeconds: string
+    /** Reasoning that took `{minutes}` minutes and `{seconds}` seconds. */
+    thoughtMinutes: string
+    toolPending: string
+    toolRunning: string
+    toolSuccess: string
+    toolError: string
+    /** Heads what a tool was called with. */
+    toolInput: string
+    /** Heads what a tool returned. */
+    toolOutput: string
+    /** Names the list of attachments. */
+    attachments: string
+    /** Removes an attachment; followed by its name. */
+    remove: string
+    uploading: string
+    uploadError: string
+    /** Heads a task plan. */
+    plan: string
+    stepRunning: string
+    stepDone: string
+    stepError: string
+    /** Summary of steps still in progress, when no step names itself. */
+    working: string
+    /** Summary of `{count}` finished steps. */
+    stepsDone: string
+    /** Names the list of sources. */
+    sources: string
+    /** Names a citation, with `{index}` and `{title}`. */
+    citation: string
+    approve: string
+    allowAlways: string
+    deny: string
+    approved: string
+    denied: string
+    /** An artifact still being made. */
+    generating: string
+    generateError: string
+    /** The context meter's reading, with `{used}`, `{total}` and `{percent}`. */
+    context: string
+    /** Names the context meter. */
+    contextLabel: string
+    edit: string
+    cancel: string
+    /** Names the version switcher. */
+    versions: string
+    previousVersion: string
+    nextVersion: string
+  }
   form: {
     /** Shown after the label of an optional field when `requiredMark` is `'optional'`. */
     optional: string

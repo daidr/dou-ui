@@ -1,0 +1,98 @@
+/*
+ * ChatReasoning
+ *
+ * The model's thinking, folded under a quiet line. While it thinks the
+ * line shimmers and the sparkle breathes; afterwards it says how long it
+ * took. The text hangs from a thin rule, a step back from the answer.
+ */
+@layer dou.components {
+  .dou-chat-reasoning {
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-md);
+    line-height: var(--dou-font-line-height);
+  }
+
+  .dou-chat-reasoning__trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 100%;
+    margin: 0;
+    padding: 2px 0;
+    border: 0;
+    border-radius: var(--dou-radius-control);
+    background: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    transition: color var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    &:hover {
+      color: var(--dou-color-text);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 2px;
+    }
+  }
+
+  .dou-chat-reasoning__icon {
+    flex: none;
+    font-size: 16px;
+
+    .dou-chat-reasoning.is-thinking & {
+      animation: dou-chat-reasoning-breathe 1.6s ease-in-out infinite;
+
+      @media (prefers-reduced-motion: reduce) {
+        animation: none;
+      }
+    }
+  }
+
+  .dou-chat-reasoning__title {
+    overflow-x: clip;
+    min-width: 0;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dou-chat-reasoning__arrow {
+    flex: none;
+    font-size: 14px;
+    transition: rotate var(--dou-motion-duration-normal) var(--dou-motion-easing);
+
+    .dou-chat-reasoning.is-open & {
+      rotate: 180deg;
+    }
+  }
+
+  .dou-chat-reasoning__panel {
+    transition: height var(--dou-motion-duration-normal) var(--dou-motion-easing);
+  }
+
+  /* padding, not margin, so the folding height includes the gap */
+  .dou-chat-reasoning__content {
+    padding: 8px 0 4px 7px;
+  }
+
+  .dou-chat-reasoning__text {
+    padding-left: 15px;
+    border-left: 2px solid var(--dou-color-border);
+    font-size: var(--dou-font-size-sm);
+    line-height: 22px;
+    white-space: pre-wrap;
+  }
+
+  @keyframes dou-chat-reasoning-breathe {
+    0%,
+    100% {
+      opacity: 1;
+      scale: 1;
+    }
+    50% {
+      opacity: 0.5;
+      scale: 0.85;
+    }
+  }
+}

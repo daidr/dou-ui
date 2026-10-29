@@ -1,0 +1,173 @@
+/*
+ * ChatSources & ChatCitation
+ *
+ * Where an answer came from. Sources line up as small pills with a
+ * number, the site and the page title; a citation is a tiny numbered
+ * tag inside the text that previews its source on hover.
+ */
+@layer dou.components {
+  .dou-chat-sources {
+    min-width: 0;
+    color: var(--dou-color-text);
+    font-size: 12px;
+    line-height: 16px;
+  }
+
+  .dou-chat-sources__list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .dou-chat-sources__item {
+    display: flex;
+    min-width: 0;
+    max-width: 260px;
+  }
+
+  .dou-chat-sources__link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    box-sizing: border-box;
+    min-width: 0;
+    height: 28px;
+    margin: 0;
+    padding: 0 10px 0 4px;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-full);
+    background-color: var(--dou-color-bg-surface);
+    color: inherit;
+    font: inherit;
+    text-decoration: none;
+    cursor: pointer;
+    transition: border-color var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    &:is(span) {
+      cursor: default;
+    }
+
+    &:hover:not(span) {
+      border-color: var(--dou-color-border-strong);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 2px;
+    }
+  }
+
+  .dou-chat-sources__more {
+    padding: 0 10px;
+    color: var(--dou-color-text-secondary);
+  }
+
+  .dou-chat-sources__index {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    border-radius: var(--dou-radius-full);
+    background-color: var(--dou-color-bg-muted);
+    color: var(--dou-color-text-secondary);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .dou-chat-sources__favicon {
+    flex: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    color: var(--dou-color-text-tertiary);
+    font-size: 14px;
+  }
+
+  .dou-chat-sources__site {
+    flex: none;
+    color: var(--dou-color-text-secondary);
+  }
+
+  .dou-chat-sources__title {
+    overflow-x: clip;
+    min-width: 0;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dou-chat-citation {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    min-width: 16px;
+    height: 16px;
+    margin: 0 2px;
+    padding: 0 4px;
+    border-radius: var(--dou-radius-full);
+    background-color: var(--dou-color-bg-muted);
+    color: var(--dou-color-text-secondary);
+    font-size: 10px;
+    font-weight: var(--dou-font-weight-medium);
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    text-decoration: none;
+    vertical-align: 0.15em;
+    cursor: pointer;
+    transition:
+      background-color var(--dou-motion-duration-fast) var(--dou-motion-easing),
+      color var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    &:hover,
+    &:focus-visible {
+      background-color: var(--dou-color-neutral);
+      color: var(--dou-color-neutral-on);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 1px;
+    }
+  }
+
+  .dou-chat-citation__popover .dou-popover__content {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .dou-chat-citation__site {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--dou-color-text-tertiary);
+    font-size: 12px;
+    line-height: 16px;
+  }
+
+  .dou-chat-citation__favicon {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    font-size: 14px;
+  }
+
+  .dou-chat-citation__title {
+    color: var(--dou-color-text);
+    font-weight: var(--dou-font-weight-medium);
+  }
+
+  .dou-chat-citation__description {
+    display: -webkit-box;
+    overflow: hidden;
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-sm);
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+  }
+}

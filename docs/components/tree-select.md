@@ -1,6 +1,6 @@
 # TreeSelect 树选择
 
-从一棵树里选：部门、分类、目录。字段就是 [Select](./select) 的字段，展开后是一棵紧凑的 [Tree](./tree)，放在同样的浮层表面里。
+从下拉的树形结构中选择，例如部门、分类、目录。
 
 <script setup>
 import { ref } from 'vue'

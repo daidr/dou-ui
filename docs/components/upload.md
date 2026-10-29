@@ -1,8 +1,8 @@
 # Upload 上传
 
-选择或拖入文件，交给你提供的 `request` 发送，并在下方列出每个文件的进度和结果。DouUI 不带任何网络代码：用 `fetch`、对象存储的 SDK 还是别的方式发送，由 `request` 决定。
+点击或拖入文件上传。DouUI 不包含网络请求代码，上传方式由你提供的 `request` 函数决定。
 
-默认是一个描边按钮，文件列表是一组安静的行：缩略图、文件名、大小，发送时下方一条细进度条。只有失败的文件会用到语气色。
+默认是一个描边按钮。文件列表每行显示缩略图、文件名和大小，上传时下方显示进度条，只有失败的文件会使用语气色。
 
 <script setup>
 import { ref } from 'vue'
@@ -97,7 +97,7 @@ const request: UploadRequest = async ({ raw, onProgress, signal }) => {
 
 ## 拖拽上传
 
-`dropzone` 换成一块可以拖入文件的区域，点击或按 `Enter` / `Space` 同样打开文件选择。拖着文件经过时，虚线变成实线并铺一层极淡的底色。
+`dropzone` 换成一块可以拖入文件的区域，点击或按 `Enter` / `Space` 同样打开文件选择。拖着文件经过时，虚线变为实线，并显示浅色背景。
 
 <div class="demo demo--column">
   <DouUpload v-model="images" :request="fakeRequest" dropzone multiple accept="image/*" hint="支持 PNG、JPG、WebP" />

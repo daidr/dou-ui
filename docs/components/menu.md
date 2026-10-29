@@ -1,6 +1,6 @@
 # Menu 导航菜单
 
-应用的侧边栏或顶部导航。行的样式和树一致：二级灰色的文字，悬停变墨色并铺一层极淡的底色；当前页面的底色稍深，字重加粗。收起的子菜单如果包含当前页面，它自己的文字也是墨色，回去的路始终看得见。
+应用的导航菜单，可以用作侧边栏或顶部导航。
 
 <script setup>
 import { CubeIcon, DashboardIcon, FileTextIcon, GlobeIcon, UsersIcon } from '@dou-ui/icons'
@@ -80,7 +80,7 @@ const current = ref('production')
 
 ## 水平
 
-`mode="horizontal"` 排成一行，压在一道细线上，当前项（或包含当前项的子菜单）带墨色下划线，和标签页一致。子菜单向下弹出；分组在横排里只留一道竖线分隔。
+`mode="horizontal"` 横向排列，当前项（或包含当前项的子菜单）带下划线，样式与标签页一致。子菜单向下弹出；分组在横排里只留一道竖线分隔。
 
 <div class="demo demo--column">
   <DouMenu v-model="current" :items="items" mode="horizontal" />

@@ -4,12 +4,12 @@
 
 > 早期阶段：骨架、视觉语言与第一批基础组件已就绪，后续计划见 [路线图](./docs/guide/roadmap.md)。
 
-- 淡雅、克制的视觉：黑白灰为主体，色彩只表达语义
-- 结构与外观分离：组件只消费语义 Token，主题可整体替换
-- 正交、克制的 API：`variant` × `tone` × `size`
-- 默认可访问、类型完备、支持按需引入
+- 以黑白灰为主的简洁风格，颜色只用于表达语义
+- 样式基于设计 Token，可以整体替换主题，也可以局部覆盖
+- 统一的 Props 约定：`variant`、`tone`、`size` 可以任意组合
+- 内置无障碍支持，提供完整的 TypeScript 类型，支持按需引入
 
-设计取舍见 [设计哲学](./docs/guide/philosophy.md)，视觉规范见 [视觉语言](./docs/guide/visual-language.md)。
+设计取舍见 [设计原则](./docs/guide/philosophy.md)，视觉规范见 [视觉语言](./docs/guide/visual-language.md)。
 
 ## 仓库结构
 

@@ -1,6 +1,6 @@
 # Card 卡片
 
-把一组相关内容收拢在一块表面上。卡片默认只靠一圈细描边与页面分开，没有阴影；需要"浮起来"的卡片再加 `raised`。底部操作栏压在一道细线和一层极淡的底色上，不和正文争注意力。
+把一组相关内容放在同一个容器中。
 
 ## 基础用法
 
@@ -27,18 +27,18 @@
 </DouCard>
 ```
 
-## 浮起与可点击
+## 阴影与可点击
 
-`raised` 加一层柔和的阴影，用于需要从页面上浮起的卡片。`interactive` 让整张卡片成为一个可点击目标：悬停时描边加深（浮起的卡片阴影也会加深），配合 `as="a"` 渲染为链接。
+`raised` 为卡片添加阴影，用于需要更突出的卡片。`interactive` 让整张卡片成为一个可点击目标：悬停时描边加深（带阴影的卡片阴影也会加深），配合 `as="a"` 渲染为链接。
 
 <div class="demo">
   <DouCard style="width: 220px" title="平铺" description="只有细描边" />
-  <DouCard style="width: 220px" raised title="浮起" description="描边加一层阴影" />
-  <DouCard style="width: 220px" interactive as="a" href="#浮起与可点击" title="可点击" description="悬停时描边加深" />
+  <DouCard style="width: 220px" raised title="带阴影" description="描边加阴影" />
+  <DouCard style="width: 220px" interactive as="a" href="#阴影与可点击" title="可点击" description="悬停时描边加深" />
 </div>
 
 ```vue
-<DouCard raised title="浮起" />
+<DouCard raised title="带阴影" />
 <DouCard interactive as="a" href="/projects/dou-ui" title="dou-ui" />
 ```
 

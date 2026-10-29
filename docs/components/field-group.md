@@ -1,6 +1,6 @@
 # FieldGroup 组合
 
-把几个按钮或输入控件拼成一个整体：相邻的边框重叠成一条，相接处的圆角变成直角，看起来是一个控件。悬停或聚焦的那一个会浮到邻居上面，边框和焦点环不会被下一个盖住。组合不改变里面控件的行为，按钮还是按钮、选择器还是选择器。
+将多个按钮或输入控件组合为一个整体，相邻的边框会合并，连接处的圆角变为直角。
 
 <script setup>
 import { CopyIcon, MinusIcon, PlusIcon, SearchIcon } from '@dou-ui/icons'

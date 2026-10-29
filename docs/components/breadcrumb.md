@@ -1,6 +1,6 @@
 # Breadcrumb 面包屑
 
-当前页面在层级里的位置。上级是安静的次要文字，悬停时变成墨色；当前页是墨色，不是链接。分隔符是页面上最淡的文字。
+显示当前页面在层级结构中的位置，可以点击返回上级页面。
 
 <script setup>
 import { ChevronRightIcon } from '@dou-ui/icons'

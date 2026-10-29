@@ -6,6 +6,7 @@ import Layout from './Layout.vue'
 import DocCode from './components/DocCode.vue'
 import DocDemo from './components/DocDemo.vue'
 import DocIconGallery from './components/DocIconGallery.vue'
+import DocThemeEditor from './components/DocThemeEditor.vue'
 import TokenSwatches from './components/TokenSwatches.vue'
 
 export default {
@@ -17,6 +18,7 @@ export default {
     app.component('DocDemo', DocDemo)
     app.component('TokenSwatches', TokenSwatches)
     app.component('DocIconGallery', DocIconGallery)
+    app.component('DocThemeEditor', DocThemeEditor)
   },
   setup() {
     // The head script applies the mode before the first paint; this keeps

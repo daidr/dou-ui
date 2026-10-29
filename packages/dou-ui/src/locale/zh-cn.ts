@@ -255,6 +255,10 @@ export const zhCN: Locale = {
   anchor: {
     label: '本页目录',
   },
+  codeBlock: {
+    expand: '展开全部 {count} 行',
+    collapse: '收起',
+  },
   copyButton: {
     copy: '复制',
     copied: '已复制',

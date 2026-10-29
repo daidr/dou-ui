@@ -63,6 +63,7 @@ export default defineConfig({
             { text: '视觉语言', link: '/guide/visual-language' },
             { text: '快速开始', link: '/guide/getting-started' },
             { text: '主题与 Token', link: '/guide/theming' },
+            { text: '主题编辑器', link: '/guide/theme-editor' },
             { text: '国际化', link: '/guide/i18n' },
             { text: '浮层', link: '/guide/overlays' },
             { text: '组合式函数', link: '/guide/composables' },
@@ -77,6 +78,7 @@ export default defineConfig({
           text: '基础',
           items: [
             { text: 'Button 按钮', link: '/components/button' },
+            { text: 'Toggle 切换按钮', link: '/components/toggle' },
             { text: 'Icon 图标', link: '/components/icon' },
             { text: 'Text 文本', link: '/components/text' },
             { text: 'Ellipsis 文本省略', link: '/components/ellipsis' },
@@ -84,6 +86,7 @@ export default defineConfig({
             { text: 'Link 链接', link: '/components/link' },
             { text: 'Typography 排版', link: '/components/typography' },
             { text: 'CopyButton 复制按钮', link: '/components/copy-button' },
+            { text: 'CodeBlock 代码块', link: '/components/code-block' },
           ],
         },
         {
@@ -91,6 +94,7 @@ export default defineConfig({
           items: [
             { text: 'Divider 分割线', link: '/components/divider' },
             { text: 'Space 间距', link: '/components/space' },
+            { text: 'Toolbar 工具栏', link: '/components/toolbar' },
             { text: 'Grid 栅格', link: '/components/grid' },
             { text: 'Masonry 瀑布流', link: '/components/masonry' },
             { text: 'Splitter 分割面板', link: '/components/splitter' },

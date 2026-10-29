@@ -27,6 +27,7 @@
 @import './components/cascader.css';
 @import './components/checkbox.css';
 @import './components/check-tag.css';
+@import './components/code-block.css';
 @import './components/collapse.css';
 @import './components/color-panel.css';
 @import './components/color-picker.css';
@@ -95,6 +96,8 @@
 @import './components/textarea.css';
 @import './components/time-picker.css';
 @import './components/timeline.css';
+@import './components/toggle.css';
+@import './components/toolbar.css';
 @import './components/toast.css';
 @import './components/tooltip.css';
 @import './components/tour.css';

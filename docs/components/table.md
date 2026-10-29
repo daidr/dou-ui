@@ -14,6 +14,12 @@
 
 <DocDemo src="table/custom-cell" column />
 
+## 行内编辑
+
+在 `cell-<key>` 插槽里按行切换显示内容和输入控件。下面的示例把编辑中的值放在单独的草稿对象里，用 `DouForm` 包住表格做校验：点“保存”或在输入框中按 `Enter` 提交表单，校验通过后才写回行数据，点“取消”直接丢弃草稿。
+
+<DocDemo src="table/editable" column />
+
 ## 排序
 
 列上的 `sortable` 让表头可以点击排序：升序 → 降序 → 不排序。`true` 按单元格的值比较：数字按大小，文字按页面语言并把其中的数字按数值排（`node-2` 在 `node-10` 前面）；也可以传一个比较两行的函数。当前的排序用 `v-model:sort` 绑定。

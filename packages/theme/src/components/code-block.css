@@ -1,0 +1,201 @@
+/*
+ * Code block
+ *
+ * A muted panel with a hairline edge. Rows are blocks, so whitespace
+ * between them in the markup never shows; each line keeps its own
+ * spaces. Highlighted tokens follow shiki's dual-theme properties
+ * (`--shiki-light` / `--shiki-dark`) through `light-dark()`, which reads
+ * the color scheme of the nearest theme, so a light block inside a dark
+ * page stays right. Marked lines take a quiet wash and an ink bar.
+ */
+@layer dou.components {
+  .dou-code-block {
+    --dou-code-block-bg: var(--dou-color-bg-muted);
+    --dou-code-block-font-size: var(--dou-font-size-sm);
+    --dou-code-block-line-height: 1.7;
+    --dou-code-block-padding-x: 16px;
+    --dou-code-block-padding-y: 12px;
+    --dou-code-block-mark: color-mix(in oklab, var(--dou-color-text) 5%, transparent);
+
+    position: relative;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-container);
+    background-color: var(--dou-code-block-bg);
+    color: var(--dou-color-text);
+    font-size: var(--dou-code-block-font-size);
+  }
+
+  .dou-code-block__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 36px;
+    padding: 2px 6px 2px var(--dou-code-block-padding-x);
+    box-sizing: border-box;
+    border-bottom: 1px solid var(--dou-color-border);
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-sm);
+  }
+
+  .dou-code-block__title {
+    min-width: 0;
+    overflow-x: clip;
+    font-family: var(--dou-font-family-mono);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dou-code-block__actions {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 2px;
+  }
+
+  /* without a header the copy button floats in the corner, shown on hover or focus */
+  .dou-code-block__copy {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    z-index: 1;
+    opacity: 0;
+    transition: opacity var(--dou-motion-duration-fast) var(--dou-motion-easing);
+  }
+  .dou-code-block:is(:hover, :focus-within) > .dou-code-block__copy,
+  .dou-code-block__copy.is-copied {
+    opacity: 1;
+  }
+  @media (hover: none) {
+    .dou-code-block__copy {
+      opacity: 1;
+    }
+  }
+
+  .dou-code-block__body {
+    overflow-x: auto;
+    padding-block: var(--dou-code-block-padding-y);
+  }
+
+  .dou-code-block__code {
+    display: block;
+    min-width: max-content;
+    font-family: var(--dou-font-family-mono);
+    line-height: var(--dou-code-block-line-height);
+  }
+
+  .dou-code-block__row {
+    position: relative;
+    display: flex;
+    padding-inline: var(--dou-code-block-padding-x);
+
+    /* marked by `highlight-lines`, or by shiki's `// [!code highlight]` */
+    &:is(.is-marked, :has(.line.highlighted)) {
+      background-color: var(--dou-code-block-mark);
+    }
+    &:is(.is-marked, :has(.line.highlighted))::before {
+      position: absolute;
+      inset-block: 0;
+      inset-inline-start: 0;
+      width: 2px;
+      background-color: var(--dou-color-text-tertiary);
+      content: '';
+    }
+  }
+
+  /* lines marked by shiki's `// [!code ++]` and `// [!code --]` */
+  .dou-code-block__row:has(.line.diff.add) {
+    background-color: color-mix(in oklab, var(--dou-color-success) 12%, transparent);
+  }
+  .dou-code-block__row:has(.line.diff.remove) {
+    background-color: color-mix(in oklab, var(--dou-color-danger) 10%, transparent);
+
+    & .dou-code-block__line {
+      opacity: 0.7;
+    }
+  }
+  .dou-code-block__row:has(.line.diff)::before {
+    position: absolute;
+    inset-inline-start: 4px;
+    color: var(--dou-color-text-tertiary);
+    content: '+';
+    user-select: none;
+  }
+  .dou-code-block__row:has(.line.diff.remove)::before {
+    content: '−';
+  }
+
+  .dou-code-block__number {
+    flex: none;
+    min-width: 2ch;
+    margin-inline-end: 16px;
+    color: var(--dou-color-text-tertiary);
+    text-align: end;
+    user-select: none;
+  }
+
+  .dou-code-block__line {
+    flex: 1 0 auto;
+    white-space: pre;
+
+    /* an empty line keeps its height */
+    & > .line:empty::before {
+      content: '\200b';
+    }
+
+    & span {
+      color: var(--shiki-light, inherit);
+      color: light-dark(var(--shiki-light, inherit), var(--shiki-dark, inherit));
+      font-style: var(--shiki-light-font-style, inherit);
+      font-weight: var(--shiki-light-font-weight, inherit);
+    }
+  }
+
+  .dou-code-block.is-wrap {
+    & .dou-code-block__code {
+      min-width: 0;
+    }
+    & .dou-code-block__line {
+      flex-shrink: 1;
+      min-width: 0;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+  }
+
+  /* folded: show the first lines, fading out into the expand button */
+  .dou-code-block.is-folded .dou-code-block__body {
+    max-height: calc(
+      var(--dou-code-block-max-lines) * var(--dou-code-block-line-height) * 1em +
+        var(--dou-code-block-padding-y)
+    );
+    overflow-y: hidden;
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 40px), transparent);
+  }
+
+  .dou-code-block__toggle {
+    display: block;
+    width: 100%;
+    padding: 6px;
+    margin: 0;
+    border: 0;
+    border-top: 1px solid var(--dou-color-border);
+    background: transparent;
+    color: var(--dou-color-text-secondary);
+    font: inherit;
+    font-size: var(--dou-font-size-sm);
+    cursor: pointer;
+
+    &:hover {
+      color: var(--dou-color-text);
+    }
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: -2px;
+    }
+  }
+}

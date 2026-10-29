@@ -1,0 +1,47 @@
+/*
+ * Toggle
+ *
+ * A toggle is a button that stays down. Pressed, it takes the quiet wash
+ * a ghost button shows while held, plus full-strength text, so a row of
+ * toggles reads which are on without any of them shouting.
+ */
+@layer dou.components {
+  .dou-toggle {
+    --dou-button-fg: var(--dou-color-text-secondary);
+
+    &:hover:not(:disabled) {
+      --dou-button-fg: var(--dou-color-text);
+    }
+
+    &.is-pressed {
+      --dou-button-fg: var(--dou-color-text);
+      --dou-button-bg: color-mix(in oklab, var(--dou-color-text) 9%, transparent);
+      --dou-button-bg-hover: color-mix(in oklab, var(--dou-color-text) 12%, transparent);
+      --dou-button-bg-active: color-mix(in oklab, var(--dou-color-text) 14%, transparent);
+    }
+  }
+
+  .dou-toggle--outline.is-pressed {
+    --dou-button-bg: color-mix(in oklab, var(--dou-color-text) 7%, var(--dou-color-bg-surface));
+    --dou-button-bg-hover: color-mix(
+      in oklab,
+      var(--dou-color-text) 10%,
+      var(--dou-color-bg-surface)
+    );
+    --dou-button-border: color-mix(in oklab, var(--dou-color-text) 22%, var(--dou-color-border));
+    --dou-button-border-hover: var(--dou-button-border);
+    --dou-button-shadow: none;
+  }
+
+  .dou-toggle-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    vertical-align: middle;
+  }
+
+  .dou-toggle-group--vertical {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

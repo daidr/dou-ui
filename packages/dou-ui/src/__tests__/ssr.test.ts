@@ -35,6 +35,7 @@ const props: Record<string, Record<string, unknown>> = {
   DouQrcode: { value: 'https://ui.daidr.me', status: 'expired' },
   DouSegmentedControl: { options: ['a', 'b'] },
   DouSelect: { options: [{ value: 'a', label: 'A' }] },
+  DouSortable: { modelValue: [{ id: 1 }, { id: 2 }] },
   DouSteps: { items: [{ title: 'A' }] },
   DouTable: { columns: [{ key: 'a', title: 'A' }], data: [{ a: 1 }] },
   DouTabs: { items: [{ key: 'a', label: 'A' }] },

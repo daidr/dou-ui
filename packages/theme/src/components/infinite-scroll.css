@@ -1,0 +1,45 @@
+/*
+ * InfiniteScroll
+ *
+ * The list, then a footer line that says what is happening at the end:
+ * loading, failed with a way to try again, or nothing more. The footer
+ * takes no room while there is nothing to say.
+ */
+@layer dou.components {
+  .dou-infinite-scroll__footer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 12px 0;
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-sm);
+    line-height: 20px;
+
+    &:empty {
+      padding: 0;
+    }
+  }
+
+  .dou-infinite-scroll__retry {
+    padding: 0;
+    border: 0;
+    border-radius: 2px;
+    background: none;
+    color: var(--dou-color-text);
+    font: inherit;
+    text-decoration: underline;
+    text-decoration-color: color-mix(in oklab, currentColor 35%, transparent);
+    text-underline-offset: 3px;
+    cursor: pointer;
+
+    &:hover {
+      text-decoration-color: currentColor;
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 2px;
+    }
+  }
+}

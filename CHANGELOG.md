@@ -11,12 +11,12 @@
 
 ### 组件
 
-- **基础**：Button、Icon、Text、Link、Typography、CopyButton
+- **基础**：Button、Icon、Text、Ellipsis、Link、Typography、CopyButton
 - **布局**：Divider、Space、Grid、Splitter、Layout、Scrollbar、Affix
-- **表单**：Form / FormItem、Input、Textarea、InputNumber、InputTag、InputOTP、Checkbox、Radio、Switch、Slider、Rate、Select、Listbox、Autocomplete、Cascader、TreeSelect、DatePicker、TimePicker、ColorPicker、Transfer、SegmentedControl、Upload、FieldGroup
+- **表单**：Form / FormItem、Input、Textarea、InputNumber、InputTag、InputOTP、Checkbox、Radio、Switch、Slider、Rate、Select、Listbox、Autocomplete、Cascader、TreeSelect、DatePicker、TimePicker、ColorPicker、ColorPanel、Transfer、SegmentedControl、CheckTag、Upload、ImageCropper、FieldGroup
 - **浮层**：Tooltip、Popover、Dropdown、ContextMenu、Dialog、Drawer、Popconfirm
-- **反馈**：Alert、Toast、Spinner、Loading、Progress、Skeleton、Result
-- **数据展示**：Card、Avatar、User、Badge、Tag、Kbd、Empty、Statistic、Countdown、Image、QRCode、Descriptions、Collapse、Timeline、CalendarView、Table、Tree、VirtualList
+- **反馈**：Alert、Banner、Toast、Spinner、Loading、Progress、Skeleton、Result
+- **数据展示**：Card、Avatar、User、Badge、Tag、Kbd、Empty、Statistic、Countdown、Image、QRCode、Descriptions、Collapse、Timeline、FlowGraph、CalendarView、Table、Tree、VirtualList、InfiniteScroll、Sortable
 - **导航**：Menu、Tabs、Steps、Anchor、Breadcrumb、PageHeader、Pagination、Command、BackTop
 - **配置**：ConfigProvider、ColorMode；内置 `zhCN` 与 `en` 语言包
 

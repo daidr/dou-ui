@@ -17,13 +17,16 @@
 @import './components/user.css';
 @import './components/back-top.css';
 @import './components/badge.css';
+@import './components/banner.css';
 @import './components/breadcrumb.css';
 @import './components/button.css';
 @import './components/calendar-view.css';
 @import './components/card.css';
 @import './components/cascader.css';
 @import './components/checkbox.css';
+@import './components/check-tag.css';
 @import './components/collapse.css';
+@import './components/color-panel.css';
 @import './components/color-picker.css';
 @import './components/color-mode.css';
 @import './components/command.css';
@@ -34,6 +37,7 @@
 @import './components/dialog-box.css';
 @import './components/divider.css';
 @import './components/drawer.css';
+@import './components/ellipsis.css';
 @import './components/dropdown.css';
 @import './components/context-menu.css';
 @import './components/empty.css';
@@ -42,6 +46,8 @@
 @import './components/grid.css';
 @import './components/icon.css';
 @import './components/image.css';
+@import './components/image-cropper.css';
+@import './components/infinite-scroll.css';
 @import './components/input-number.css';
 @import './components/input.css';
 @import './components/input-otp.css';
@@ -67,6 +73,7 @@
 @import './components/select.css';
 @import './components/skeleton.css';
 @import './components/slider.css';
+@import './components/sortable.css';
 @import './components/space.css';
 @import './components/spinner.css';
 @import './components/splitter.css';

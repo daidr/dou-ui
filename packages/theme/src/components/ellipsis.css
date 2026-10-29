@@ -1,0 +1,62 @@
+/*
+ * Ellipsis
+ *
+ * Text cut off after a number of lines. When it can expand, the button
+ * floats at the end of the last visible line: an empty float as tall as
+ * the box minus one line pushes it down there, so it follows the
+ * ellipsis instead of taking a line of its own.
+ */
+@layer dou.components {
+  .dou-ellipsis {
+    /* a flex box gives the text a definite height for the float below */
+    display: flex;
+    min-width: 0;
+  }
+
+  .dou-ellipsis__text {
+    display: -webkit-box;
+    min-width: 0;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: var(--dou-ellipsis-lines, 1);
+    line-clamp: var(--dou-ellipsis-lines, 1);
+    overflow-wrap: anywhere;
+  }
+
+  .dou-ellipsis.is-expanded .dou-ellipsis__text {
+    display: block;
+    -webkit-line-clamp: unset;
+    line-clamp: none;
+  }
+
+  .dou-ellipsis.is-expandable .dou-ellipsis__text::before {
+    float: right;
+    height: calc(100% - 1lh);
+    content: '';
+  }
+
+  .dou-ellipsis__toggle {
+    position: relative;
+    float: right;
+    clear: both;
+    padding: 0;
+    margin-left: 8px;
+    border: 0;
+    border-radius: 2px;
+    background: none;
+    color: var(--dou-color-primary-text);
+    font: inherit;
+    line-height: inherit;
+    cursor: pointer;
+
+    &:hover {
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 1px;
+    }
+  }
+}

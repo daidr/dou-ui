@@ -399,6 +399,55 @@ export interface Locale {
     /** A day's label when it has events, with `{date}` and `{count}`. */
     dayWithEvents: string
   }
+  infiniteScroll: {
+    /** Shown at the end of the list while the next page loads. */
+    loading: string
+    /** Shown at the end once there is nothing more to load. */
+    finished: string
+    /** Shown at the end after a load failed. */
+    error: string
+    /** The button that tries the failed load again. */
+    retry: string
+  }
+  banner: {
+    /** Names a banner that has no title. */
+    label: string
+    close: string
+  }
+  ellipsis: {
+    expand: string
+    collapse: string
+  }
+  sortable: {
+    /** What a draggable item is, read as its role. */
+    item: string
+    /** Names an item by its position, with `{n}`. */
+    position: string
+    /** How to move an item with the keyboard. */
+    hint: string
+    /** Names a drag handle. */
+    handle: string
+    /* read while moving an item, with `{label}`, `{position}` and `{total}` */
+    lifted: string
+    moved: string
+    dropped: string
+    /** The move was undone, with `{label}`. */
+    canceled: string
+  }
+  imageCropper: {
+    /** Names the cropping area. */
+    label: string
+    /** How to move and zoom the image with the keyboard. */
+    hint: string
+    zoom: string
+    zoomIn: string
+    zoomOut: string
+    rotateLeft: string
+    rotateRight: string
+    reset: string
+    /** The image failed to load. */
+    error: string
+  }
   form: {
     /** Shown after the label of an optional field when `requiredMark` is `'optional'`. */
     optional: string

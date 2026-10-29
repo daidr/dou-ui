@@ -24,7 +24,7 @@ export interface DouUIResolverOptions {
    */
   importStyle?: boolean
   /**
-   * Resolve `v-loading` too.
+   * Resolve `v-loading` and `v-infinite-scroll` too.
    *
    * @default true
    */
@@ -54,15 +54,18 @@ const functions: Record<string, string> = {
   dialog: 'dialog',
   useDialog: 'dialog',
   vLoading: 'loading',
+  vInfiniteScroll: 'infinite-scroll',
+  useSortable: 'sortable',
 }
 
 /** The directives of `dou-ui`, by the name they are written with (`v-loading` → `Loading`). */
 const directives: Record<string, { name: string; dir: string }> = {
   Loading: { name: 'vLoading', dir: 'loading' },
+  InfiniteScroll: { name: 'vInfiniteScroll', dir: 'infinite-scroll' },
 }
 
 /**
- * Resolve DouUI components (and `v-loading`) as they are used in templates,
+ * Resolve DouUI components (and the directives) as they are used in templates,
  * for an on-demand components plugin.
  *
  * ```ts
@@ -103,7 +106,7 @@ export function DouUIResolver(options: DouUIResolverOptions = {}): ComponentReso
 
 /**
  * Resolve the functions of DouUI (`toast`, `dialog`, `useDialog`,
- * `vLoading`) for an auto-import plugin, with the styles of what they show.
+ * `vLoading`, `vInfiniteScroll`, `useSortable`) for an auto-import plugin, with the styles of what they show.
  *
  * ```ts
  * AutoImport({ resolvers: [DouUIApiResolver()] })

@@ -91,7 +91,9 @@ export const en: Locale = {
   },
   upload: {
     choose: 'Choose file',
+    chooseFolder: 'Choose folder',
     drop: 'Drop files here, or',
+    dropFolder: 'Drop a folder here, or',
     browse: 'browse',
     list: 'Files',
     remove: 'Remove',

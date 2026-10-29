@@ -150,8 +150,12 @@ export interface Locale {
   upload: {
     /** The button that opens the file picker. */
     choose: string
+    /** The button's text for `directory`. */
+    chooseFolder: string
     /** The dropzone's prompt, followed by `browse`. */
     drop: string
+    /** The dropzone's prompt for `directory`, followed by `browse`. */
+    dropFolder: string
     /** The part of the dropzone's prompt that reads as a link. */
     browse: string
     /** Names the list of files. */

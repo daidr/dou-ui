@@ -30,6 +30,18 @@
 
 图片会生成本地预览作为缩略图，文件移除或组件卸载时释放。
 
+## 粘贴上传
+
+`paste-target` 让粘贴的图片或文件直接加入列表。设为 `true` 时在上传组件获得焦点后粘贴；也可以传 CSS 选择器或元素指定其他区域，传 `'document'` 则在整个页面生效。剪贴板里只有文字时不做处理。
+
+<DocDemo src="upload/paste" column />
+
+## 上传文件夹
+
+`directory` 让选择框改为选择文件夹，文件夹里的所有文件都会加入列表，拖入的文件夹也会逐层读取。每个文件带上 `path`，即它在文件夹中的相对路径，列表中显示这个路径。
+
+<DocDemo src="upload/directory" column />
+
 ## 手动发送
 
 `auto-upload` 为 `false` 时文件先停在列表里，调用 `submit()` 才发送所有未发送和失败的文件。没有传 `request` 时文件也一直停在列表里，适合放进表单和其他字段一起提交。
@@ -80,6 +92,8 @@
 | `maxCount`     | 最多文件数                     | `number`                                                | —        |
 | `beforeUpload` | 加入列表前调用                 | `(file: File) => boolean \| File \| void \| Promise<…>` | —        |
 | `dropzone`     | 使用拖拽区域代替按钮           | `boolean`                                               | `false`  |
+| `directory`    | 选择文件夹，保留相对路径       | `boolean`                                               | `false`  |
+| `pasteTarget`  | 在哪里粘贴可以加入文件         | `boolean \| string \| HTMLElement`                      | `false`  |
 | `hint`         | 触发器下方的说明               | `string`                                                | —        |
 | `showList`     | 显示文件列表                   | `boolean`                                               | `true`   |
 | `listType`     | 列表样式：文件行，或照片墙方块 | `'text' \| 'picture-card'`                              | `'text'` |
@@ -89,18 +103,19 @@
 
 ### UploadFile
 
-| 名称       | 说明                                 | 类型                                             |
-| ---------- | ------------------------------------ | ------------------------------------------------ |
-| `uid`      | 列表内唯一                           | `string`                                         |
-| `name`     | 文件名                               | `string`                                         |
-| `size`     | 字节数                               | `number`                                         |
-| `type`     | MIME 类型                            | `string`                                         |
-| `status`   | 状态                                 | `'ready' \| 'uploading' \| 'success' \| 'error'` |
-| `percent`  | 进度，0–100                          | `number`                                         |
-| `raw`      | 选中的文件，服务器上已有的文件没有它 | `File`                                           |
-| `url`      | 图片的本地预览，或服务器给的链接     | `string`                                         |
-| `response` | `request` resolve 的值               | `unknown`                                        |
-| `error`    | `request` reject 的值                | `unknown`                                        |
+| 名称       | 说明                                   | 类型                                             |
+| ---------- | -------------------------------------- | ------------------------------------------------ |
+| `uid`      | 列表内唯一                             | `string`                                         |
+| `name`     | 文件名                                 | `string`                                         |
+| `path`     | 在文件夹中的相对路径，来自 `directory` | `string`                                         |
+| `size`     | 字节数                                 | `number`                                         |
+| `type`     | MIME 类型                              | `string`                                         |
+| `status`   | 状态                                   | `'ready' \| 'uploading' \| 'success' \| 'error'` |
+| `percent`  | 进度，0–100                            | `number`                                         |
+| `raw`      | 选中的文件，服务器上已有的文件没有它   | `File`                                           |
+| `url`      | 图片的本地预览，或服务器给的链接       | `string`                                         |
+| `response` | `request` resolve 的值                 | `unknown`                                        |
+| `error`    | `request` reject 的值                  | `unknown`                                        |
 
 ### Events
 

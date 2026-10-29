@@ -91,7 +91,9 @@ export const zhCN: Locale = {
   },
   upload: {
     choose: '选择文件',
+    chooseFolder: '选择文件夹',
     drop: '将文件拖到这里，或',
+    dropFolder: '将文件夹拖到这里，或',
     browse: '点击选择',
     list: '文件列表',
     remove: '移除',

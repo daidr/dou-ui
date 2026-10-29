@@ -194,3 +194,79 @@ describe('DouUpload', () => {
     wrapper.unmount()
   })
 })
+
+describe('DouUpload folders and pasting', () => {
+  const inFolder = (name: string, path: string) => {
+    const picked = file(name)
+    Object.defineProperty(picked, 'webkitRelativePath', { value: path })
+    return picked
+  }
+
+  it('picks a whole folder and keeps the paths', async () => {
+    const { wrapper, files, pick } = make({ directory: true })
+    const input = wrapper.get('input[type="file"]')
+    expect(input.attributes('webkitdirectory')).toBe('')
+    expect((input.element as HTMLInputElement).multiple).toBe(true)
+    await pick(inFolder('a.txt', 'notes/a.txt'), inFolder('b.txt', 'notes/2026/b.txt'))
+    expect(files.value.map((item) => item.path)).toEqual(['notes/a.txt', 'notes/2026/b.txt'])
+    expect(wrapper.text()).toContain('notes/2026/b.txt')
+    wrapper.unmount()
+  })
+
+  it('reads dropped folders', async () => {
+    const { wrapper, files } = make({ directory: true, dropzone: true })
+    const fileEntry = (name: string, fullPath: string) => ({
+      isFile: true,
+      isDirectory: false,
+      fullPath,
+      file: (done: (value: File) => void) => done(file(name)),
+    })
+    let handed = false
+    const folder = {
+      isFile: false,
+      isDirectory: true,
+      fullPath: '/docs',
+      createReader: () => ({
+        readEntries: (done: (value: unknown[]) => void) => {
+          done(
+            handed
+              ? []
+              : [fileEntry('a.txt', '/docs/a.txt'), fileEntry('b.txt', '/docs/sub/b.txt')],
+          )
+          handed = true
+        },
+      }),
+    }
+    await wrapper.get('.dou-upload__zone').trigger('drop', {
+      dataTransfer: { files: [], items: [{ webkitGetAsEntry: () => folder }] },
+    })
+    await flush()
+    await flush()
+    expect(files.value.map((item) => item.path)).toEqual(['docs/a.txt', 'docs/sub/b.txt'])
+    wrapper.unmount()
+  })
+
+  it('adds pasted files where asked, and leaves pasted text alone', async () => {
+    const area = document.createElement('div')
+    area.id = 'paste-area'
+    document.body.append(area)
+    const { wrapper, files } = make({ pasteTarget: '#paste-area', multiple: true })
+    const paste = (target: EventTarget, pasted: File[]) => {
+      const event = new Event('paste', { bubbles: true, cancelable: true })
+      Object.defineProperty(event, 'clipboardData', { value: { files: pasted } })
+      target.dispatchEvent(event)
+      return event
+    }
+    expect(paste(area, []).defaultPrevented).toBe(false)
+    const event = paste(area, [file('shot.png', 10, 'image/png')])
+    expect(event.defaultPrevented).toBe(true)
+    await flush()
+    expect(files.value.map((item) => item.name)).toEqual(['shot.png'])
+
+    paste(document.body, [file('other.png', 10, 'image/png')])
+    await flush()
+    expect(files.value).toHaveLength(1)
+    wrapper.unmount()
+    area.remove()
+  })
+})

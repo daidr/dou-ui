@@ -33,7 +33,7 @@ defineOptions({ name: 'DouSparkline' })
 const props = withDefaults(defineProps<SparklineProps>(), {
   data: () => [],
   type: 'line',
-  tone: 'primary',
+  tone: 'neutral',
   markers: () => [],
   interactive: true,
 })
@@ -279,7 +279,9 @@ const tooltipText = computed(() => {
     :style="{
       width: length(width),
       height: length(height),
-      '--dou-sparkline-color': `var(--dou-color-${tone})`,
+      // neutral reads as a gray, so that colored sparklines stand out next to it
+      '--dou-sparkline-color':
+        tone === 'neutral' ? 'var(--dou-color-text-secondary)' : `var(--dou-color-${tone})`,
     }"
     :aria-label="summary"
     :aria-describedby="activeDatum ? id : undefined"

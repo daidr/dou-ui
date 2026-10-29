@@ -4,7 +4,7 @@
 
 ## 基础用法
 
-`data` 是一组数值。`type` 可以是 `line`（默认）、`area` 或 `bar`，颜色由 `tone` 决定。`smooth` 把折线画成曲线，`markers` 用圆点标出第一个点（`first`）、最后一个点（`last`）、最低点（`min`）和最高点（`max`）。
+`data` 是一组数值。`type` 可以是 `line`（默认）、`area` 或 `bar`。颜色默认是中性色，`tone` 用在颜色有含义的时候，例如用 `danger` 表示错误数。`smooth` 把折线画成曲线，`markers` 用圆点标出第一个点（`first`）、最后一个点（`last`）、最低点（`min`）和最高点（`max`）。
 
 <DocDemo src="sparkline/basic" />
 
@@ -46,7 +46,7 @@
 | `data`        | 数值，从左到右               | `(number \| null \| { value: number \| null; label?: string })[]` | `[]`        |
 | `type`        | 图的类型                     | `'line' \| 'area' \| 'bar'`                                       | `'line'`    |
 | `smooth`      | 画成曲线                     | `boolean`                                                         | `false`     |
-| `tone`        | 颜色                         | `Tone`                                                            | `'primary'` |
+| `tone`        | 颜色                         | `Tone`                                                            | `'neutral'` |
 | `width`       | 宽度，数字按 px 计算         | `number \| string`                                                | `120`       |
 | `height`      | 高度，数字按 px 计算         | `number \| string`                                                | `32`        |
 | `min`         | 底部对应的数值               | `number`                                                          | 最低值      |

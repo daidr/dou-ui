@@ -32,7 +32,7 @@
 
     &:focus-visible {
       outline: 2px solid var(--dou-color-focus);
-      outline-offset: 1px;
+      outline-offset: 2px;
     }
   }
 

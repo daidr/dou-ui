@@ -123,7 +123,12 @@ const columns = [
 
     <div class="dashboard__row">
       <DouCard title="部署日历" description="最近半年每天的部署次数" class="dashboard__calendar">
-        <DouCalendarHeatmap :data="deployDays" :start="format(start)" :end="format(end)" />
+        <DouCalendarHeatmap
+          tone="neutral"
+          :data="deployDays"
+          :start="format(start)"
+          :end="format(end)"
+        />
       </DouCard>
       <DouCard title="最近动态">
         <DouTimeline>

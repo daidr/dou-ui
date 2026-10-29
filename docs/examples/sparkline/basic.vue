@@ -12,7 +12,7 @@ const errors = [3, 1, 0, 4, 2, 6, 1, 0, 2, 5, 1, 3]
     </div>
     <div>
       <DouText size="sm" variant="secondary">响应时间</DouText>
-      <DouSparkline :data="latency" type="area" tone="success" smooth />
+      <DouSparkline :data="latency" type="area" smooth />
     </div>
     <div>
       <DouText size="sm" variant="secondary">错误数</DouText>

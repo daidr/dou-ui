@@ -11,6 +11,7 @@ export interface SparklineProps {
   type?: 'line' | 'area' | 'bar'
   /** Smooth the line without passing above or below any point. */
   smooth?: boolean
+  /** Defaults to `neutral`; a tone is for when the color means something. */
   tone?: Tone
   /** Width, a number in px or any CSS length. */
   width?: number | string

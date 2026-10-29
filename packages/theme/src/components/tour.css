@@ -25,7 +25,8 @@
     & > path {
       fill: var(--dou-tour-mask);
       pointer-events: auto;
-      transition: d var(--dou-motion-duration-normal) var(--dou-motion-easing);
+      transition: d calc(var(--dou-motion-duration-normal) * var(--dou-motion-travel))
+        var(--dou-motion-easing);
     }
   }
 
@@ -38,7 +39,7 @@
       0 0 0 4px color-mix(in oklab, var(--dou-color-focus) 40%, transparent);
     pointer-events: none;
     transition-property: top, left, width, height;
-    transition-duration: var(--dou-motion-duration-normal);
+    transition-duration: calc(var(--dou-motion-duration-normal) * var(--dou-motion-travel));
     transition-timing-function: var(--dou-motion-easing);
   }
 
@@ -133,12 +134,5 @@
     display: flex;
     gap: 8px;
     margin-left: auto;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .dou-tour__ring,
-    .dou-tour__mask > path {
-      transition: none;
-    }
   }
 }

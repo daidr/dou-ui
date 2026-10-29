@@ -19,6 +19,7 @@ import {
   useId,
   watch,
 } from 'vue'
+import { useReducedMotion } from '../../composables/use-motion'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
 import { carouselKey } from './carousel'
@@ -178,7 +179,7 @@ const hovered = ref(false)
 const focused = ref(false)
 const stopped = ref(false)
 const hidden = ref(false)
-const reduced = ref(false)
+const reduced = useReducedMotion()
 const playing = computed(
   () =>
     props.autoplay &&
@@ -205,18 +206,12 @@ watch(
   { flush: 'post' },
 )
 
-let motion: MediaQueryList | undefined
-const onMotion = () => (reduced.value = !!motion?.matches)
 const onVisibility = () => (hidden.value = document.visibilityState === 'hidden')
 onMounted(() => {
-  motion = window.matchMedia?.('(prefers-reduced-motion: reduce)')
-  onMotion()
-  motion?.addEventListener?.('change', onMotion)
   document.addEventListener('visibilitychange', onVisibility)
 })
 onBeforeUnmount(() => {
   clearTimeout(timer)
-  motion?.removeEventListener?.('change', onMotion)
   document.removeEventListener('visibilitychange', onVisibility)
 })
 

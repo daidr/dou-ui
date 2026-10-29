@@ -3,7 +3,14 @@ import { describe, expect, it } from 'vitest'
 import { DouTree } from '../../../index'
 
 const data = [
-  { key: 'a', label: '设计', children: [{ key: 'a1', label: '图标', children: [{ key: 'a1x', label: 'x' }] }, { key: 'a2', label: '配色', children: [{ key: 'a2x', label: 'y' }] }] },
+  {
+    key: 'a',
+    label: '设计',
+    children: [
+      { key: 'a1', label: '图标', children: [{ key: 'a1x', label: 'x' }] },
+      { key: 'a2', label: '配色', children: [{ key: 'a2x', label: 'y' }] },
+    ],
+  },
   { key: 'b', label: '开发', children: [{ key: 'b1', label: '组件' }] },
 ]
 

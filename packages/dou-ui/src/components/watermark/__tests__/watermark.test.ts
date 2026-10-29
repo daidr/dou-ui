@@ -3,7 +3,7 @@ import { nextTick } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DouWatermark } from '../../../index'
 
-const fillText = vi.fn()
+const fillText = vi.fn<(text: string, x: number, y: number) => void>()
 
 beforeEach(() => {
   fillText.mockClear()

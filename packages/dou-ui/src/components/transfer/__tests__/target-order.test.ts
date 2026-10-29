@@ -9,7 +9,7 @@ const data = [
   { key: 4, label: '丁' },
 ]
 
-async function move(targetOrder: string) {
+async function move(targetOrder: 'original' | 'push' | 'unshift') {
   const wrapper = mount(DouTransfer, {
     props: { data, modelValue: [4, 2], targetOrder },
     attachTo: document.body,

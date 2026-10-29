@@ -68,8 +68,8 @@ function loadImage(src: string) {
     const image = new Image()
     image.crossOrigin = 'anonymous'
     image.referrerPolicy = 'no-referrer'
-    image.onload = () => resolve(image)
-    image.onerror = reject
+    image.addEventListener('load', () => resolve(image), { once: true })
+    image.addEventListener('error', reject, { once: true })
     image.src = src
   })
 }

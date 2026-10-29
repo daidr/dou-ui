@@ -5,7 +5,12 @@ import { DouSlider } from '../../../index'
 describe('DouSlider tooltip', () => {
   it('puts the formatted value over each thumb', () => {
     const wrapper = mount(DouSlider, {
-      props: { modelValue: [20, 60], range: true, tooltip: true, formatValue: (v: number) => `${v}%` },
+      props: {
+        modelValue: [20, 60],
+        range: true,
+        tooltip: true,
+        formatValue: (v: number) => `${v}%`,
+      },
     })
     const bubbles = wrapper.findAll('.dou-slider__tooltip')
     expect(bubbles.map((b) => b.text())).toEqual(['20%', '60%'])

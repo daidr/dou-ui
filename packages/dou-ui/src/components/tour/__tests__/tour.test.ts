@@ -32,6 +32,7 @@ async function open(props: Record<string, unknown> = {}) {
 }
 
 const card = () => document.querySelector<HTMLElement>('.dou-tour__card')!
+const mask = () => document.querySelector('.dou-tour__mask path')!
 
 describe('DouTour', () => {
   it('points at the target with a hole in the mask', async () => {
@@ -89,7 +90,6 @@ describe('DouTour', () => {
 
   it('closes on the mask only when asked', async () => {
     const wrapper = await open()
-    const mask = () => document.querySelector('.dou-tour__mask path')!
     mask().dispatchEvent(new MouseEvent('click', { bubbles: true }))
     expect(wrapper.emitted('close')).toBeUndefined()
     await wrapper.setProps({ closeOnMask: true })

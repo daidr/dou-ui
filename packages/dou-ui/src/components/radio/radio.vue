@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, inject } from 'vue'
+import { computed, inject, useAttrs } from 'vue'
+import type { StyleValue } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { useFormDisabled, useFormSize } from '../form/use-form-item'
 import { radioGroupKey } from './radio'
 import type { RadioProps, RadioSlots, RadioValue } from './radio'
 
-defineOptions({ name: 'DouRadio' })
+defineOptions({ name: 'DouRadio', inheritAttrs: false })
 
 const props = withDefaults(defineProps<RadioProps>(), {
   disabled: false,
@@ -27,6 +28,14 @@ function onChange() {
   else model.value = props.value
 }
 
+// `class` and `style` dress the control; every other attribute (id,
+// aria-*, data-*, listeners...) belongs to the native element.
+const attrs = useAttrs()
+const nativeAttrs = computed(() => {
+  const { class: _class, style: _style, ...rest } = attrs
+  return rest
+})
+
 const classes = computed(() => [
   ns.b(),
   ns.m(size.value),
@@ -36,7 +45,7 @@ const classes = computed(() => [
 </script>
 
 <template>
-  <label :class="classes">
+  <label :class="[classes, attrs.class]" :style="attrs.style as StyleValue">
     <span :class="ns.e('control')">
       <input
         type="radio"
@@ -46,6 +55,7 @@ const classes = computed(() => [
         :name="name"
         :value="typeof value === 'boolean' ? String(value) : value"
         @change="onChange"
+        v-bind="nativeAttrs"
       />
       <span :class="ns.e('indicator')" aria-hidden="true" />
     </span>

@@ -3,6 +3,7 @@
 单行文本输入。输入框是放在页面上的一块表面：细描边加静止阴影，与 outline 按钮同高同质，可以并排对齐。聚焦时描边加深，外面浮现一圈柔和的光晕，而不是生硬的轮廓线。
 
 <script setup>
+import { SearchIcon } from '@dou-ui/icons'
 import { ref } from 'vue'
 const text = ref('')
 const keyword = ref('dou-ui')
@@ -37,7 +38,7 @@ const price = ref('')
 <div class="demo">
   <DouInput v-model="keyword" clearable style="width: 240px">
     <template #prefix>
-      <DouIcon><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5" /><path d="M10.5 10.5L14 14" stroke-linecap="round" /></svg></DouIcon>
+      <DouIcon><SearchIcon /></DouIcon>
     </template>
   </DouInput>
   <DouInput v-model="price" placeholder="0.00" style="width: 160px">

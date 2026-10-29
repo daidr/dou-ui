@@ -3,6 +3,7 @@
 展示有层级的数据：文件、组织架构、分类。行是安静的文字，按层级缩进，前面一个小箭头，展开时转向下方。悬停时行下铺一层极淡的底色，选中的行底色稍深、字重变为 medium。树本身没有底色和描边，放在哪个容器里就是哪个容器的样子。
 
 <script setup>
+import { FileIcon, FolderIcon } from '@dou-ui/icons'
 import { ref } from 'vue'
 
 const files = [
@@ -166,8 +167,8 @@ function load(node: TreeNodeData) {
   <DouTree :data="files" :default-expand-all="true" aria-label="文件">
     <template #node="{ node, expanded }">
       <DouIcon :size="14" style="color: var(--dou-color-text-tertiary)">
-        <svg v-if="node.children" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25"><path d="M1.75 4.25a1 1 0 011-1h3.5l1.5 1.5h5.5a1 1 0 011 1v6.5a1 1 0 01-1 1H2.75a1 1 0 01-1-1v-8z" stroke-linejoin="round"/></svg>
-        <svg v-else viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25"><path d="M9.25 1.75H4.5a1.5 1.5 0 00-1.5 1.5v9.5a1.5 1.5 0 001.5 1.5h7a1.5 1.5 0 001.5-1.5V5.5L9.25 1.75z" stroke-linejoin="round"/><path d="M9.25 1.75V5.5H13" stroke-linejoin="round"/></svg>
+        <FolderIcon v-if="node.children" />
+        <FileIcon v-else />
       </DouIcon>
       <span>{{ node.label }}</span>
       <DouText v-if="node.children" variant="tertiary" size="sm">{{ node.children.length }}</DouText>

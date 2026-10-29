@@ -188,16 +188,33 @@
     text-overflow: ellipsis;
   }
 
+  /* Two chevrons stacked into one mark; the active one turns ink. */
   .dou-table__sort-icon {
+    position: relative;
     flex-shrink: 0;
     width: 12px;
-    height: 12px;
+    height: 14px;
     color: var(--dou-color-text-disabled);
+
+    & > svg {
+      position: absolute;
+      left: 0;
+      font-size: 12px;
+      transition: color var(--dou-motion-duration-fast) var(--dou-motion-easing);
+    }
+  }
+
+  .dou-table__sort-asc {
+    top: -2px;
+  }
+
+  .dou-table__sort-desc {
+    top: 4px;
   }
 
   .dou-table__sort-icon.is-asc .dou-table__sort-asc,
   .dou-table__sort-icon.is-desc .dou-table__sort-desc {
-    fill: var(--dou-color-text);
+    color: var(--dou-color-text);
   }
 
   /* empty and loading */

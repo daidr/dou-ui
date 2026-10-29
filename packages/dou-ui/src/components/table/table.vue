@@ -12,7 +12,7 @@ import {
   watch,
 } from 'vue'
 import type { CSSProperties } from 'vue'
-import { ChevronRightIcon } from '@dou-ui/icons'
+import { ChevronDownIcon, ChevronRightIcon, ChevronUpIcon } from '@dou-ui/icons'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
 import { useFormSize } from '../form/use-form-item'
@@ -480,15 +480,13 @@ const rowStyle = computed(() => (props.virtual ? { height: `${rowHeight.value}px
                     <slot name="header" :column="column">{{ column.title }}</slot>
                   </slot>
                 </span>
-                <svg
+                <span
                   :class="[ns.e('sort-icon'), sort?.key === column.key && ns.is(sort.order)]"
-                  viewBox="0 0 16 16"
-                  fill="currentColor"
                   aria-hidden="true"
                 >
-                  <path :class="ns.e('sort-asc')" d="M8 3.5l3 3.5H5z" />
-                  <path :class="ns.e('sort-desc')" d="M8 12.5L5 9h6z" />
-                </svg>
+                  <ChevronUpIcon :class="ns.e('sort-asc')" />
+                  <ChevronDownIcon :class="ns.e('sort-desc')" />
+                </span>
               </button>
               <span v-else :class="ns.e('title')">
                 <slot :name="`header-${column.key}`" :column="column">

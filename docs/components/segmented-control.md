@@ -3,6 +3,7 @@
 在几个互斥的选项里选一个，是 [单选框组](./radio) 的另一种外观：所有选项排在一道凹进的轨道里，选中的那一段是一块凸起的表面——细描边加静止阴影——并在选项之间滑动。它与同尺寸的按钮等高，适合切换视图、时间粒度这类"立即生效"的选择。
 
 <script setup>
+import { LayoutColumnsIcon, ListIcon } from '@dou-ui/icons'
 import { ref } from 'vue'
 const view = ref('list')
 const range = ref('周')
@@ -68,8 +69,8 @@ const region = ref('sh')
 <div class="demo">
   <DouSegmentedControl v-model="view" :options="[{ value: 'list', label: '列表' }, { value: 'board', label: '看板' }]">
     <template #option="{ option }">
-      <DouIcon v-if="option.value === 'list'"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4h10M3 8h10M3 12h10" stroke-linecap="round" /></svg></DouIcon>
-      <DouIcon v-else><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2.5" y="3" width="4" height="10" rx="1" /><rect x="9.5" y="3" width="4" height="6" rx="1" /></svg></DouIcon>
+      <DouIcon v-if="option.value === 'list'"><ListIcon /></DouIcon>
+      <DouIcon v-else><LayoutColumnsIcon /></DouIcon>
       {{ option.label }}
     </template>
   </DouSegmentedControl>

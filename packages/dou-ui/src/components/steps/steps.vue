@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { CheckIcon, CloseIcon } from '@dou-ui/icons'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
 import type { StepItem, StepStatus, StepsProps, StepsSlots } from './steps'
@@ -50,27 +51,8 @@ function go(item: StepItem, index: number) {
       >
         <span :class="ns.e('marker')" aria-hidden="true">
           <component :is="item.icon" v-if="item.icon" :class="ns.e('icon')" />
-          <svg
-            v-else-if="statusOf(item, index) === 'finish'"
-            viewBox="0 0 16 16"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M3.5 8.5l3 3 6-7" />
-          </svg>
-          <svg
-            v-else-if="statusOf(item, index) === 'error'"
-            viewBox="0 0 16 16"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-          >
-            <path d="M5 5l6 6M11 5l-6 6" />
-          </svg>
+          <CheckIcon v-else-if="statusOf(item, index) === 'finish'" :stroke-width="1.75" />
+          <CloseIcon v-else-if="statusOf(item, index) === 'error'" :stroke-width="1.75" />
           <span v-else :class="ns.e('number')">{{ index + 1 }}</span>
         </span>
         <span :class="ns.e('text')">

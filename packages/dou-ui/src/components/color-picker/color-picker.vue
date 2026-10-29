@@ -627,15 +627,18 @@ defineExpose<ColorPickerExpose>({ focus, blur: () => fieldRef.value?.blur() })
         </div>
 
         <div :class="ns.e('entry')">
-          <select
-            v-model="textFormat"
-            :class="ns.e('format')"
-            :aria-label="t('colorPicker.format')"
-          >
-            <option v-for="item in COLOR_FORMATS" :key="item" :value="item">
-              {{ formatLabel(item) }}
-            </option>
-          </select>
+          <span :class="ns.e('format-field')">
+            <select
+              v-model="textFormat"
+              :class="ns.e('format')"
+              :aria-label="t('colorPicker.format')"
+            >
+              <option v-for="item in COLOR_FORMATS" :key="item" :value="item">
+                {{ formatLabel(item) }}
+              </option>
+            </select>
+            <ChevronDownIcon :class="ns.e('format-arrow')" />
+          </span>
           <input
             v-model="text"
             :class="[ns.e('text'), ns.is('hex', textFormat === 'hex')]"

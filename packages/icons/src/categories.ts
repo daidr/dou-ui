@@ -14,6 +14,18 @@ export const categories = {
   development: '开发',
   maps: '地图',
   weather: '天气',
+  editing: '编辑',
+  design: '设计',
+  animation: '动画',
+  network: '网络',
+  git: 'Git',
+  layout: '布局',
+  hierarchy: '层级',
+  search: '搜索',
+  security: '安全',
+  settings: '设置',
+  shapes: '形状',
+  ai: 'AI',
 } as const
 
 export type IconCategory = keyof typeof categories

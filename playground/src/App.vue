@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, h, onMounted, reactive, ref, useTemplateRef, watchEffect } from 'vue'
+import { computed, onMounted, reactive, ref, useTemplateRef, watchEffect } from 'vue'
+import { CubeIcon, DashboardIcon, FileTextIcon, GlobeIcon, UsersIcon } from '@dou-ui/icons'
 import { en, toast } from 'dou-ui'
 import type {
   ButtonSize,
@@ -21,36 +22,23 @@ import type {
   UploadRequest,
 } from 'dou-ui'
 
-const navIcon = (d: string) => () =>
-  h(
-    'svg',
-    {
-      viewBox: '0 0 16 16',
-      fill: 'none',
-      stroke: 'currentColor',
-      'stroke-width': 1.5,
-      'stroke-linecap': 'round',
-      'stroke-linejoin': 'round',
-    },
-    [h('path', { d })],
-  )
 const navItems: MenuOption[] = [
   {
     key: 'overview',
     label: '概览',
-    icon: navIcon('M2.5 2.5h4.5v4.5h-4.5zM9 2.5h4.5v4.5H9zM2.5 9h4.5v4.5h-4.5zM9 9h4.5v4.5H9z'),
+    icon: DashboardIcon,
   },
   {
     key: 'deployments',
     label: '部署',
-    icon: navIcon('M8 2l5.5 3v6L8 14l-5.5-3V5zM8 8v6M8 8l5.5-3M8 8L2.5 5'),
+    icon: CubeIcon,
     children: [
       { key: 'production', label: '生产环境' },
       { key: 'preview', label: '预览环境' },
       { key: 'rollback', label: '回滚记录', disabled: true },
     ],
   },
-  { key: 'logs', label: '日志', icon: navIcon('M3 3.5h10M3 6.5h10M3 9.5h6M3 12.5h8') },
+  { key: 'logs', label: '日志', icon: FileTextIcon },
   {
     type: 'group',
     label: '设置',
@@ -58,16 +46,12 @@ const navItems: MenuOption[] = [
       {
         key: 'domains',
         label: '域名',
-        icon: navIcon(
-          'M8 2a6 6 0 1 0 0 12A6 6 0 0 0 8 2zM2 8h12M8 2c2 2 2 10 0 12M8 2c-2 2-2 10 0 12',
-        ),
+        icon: GlobeIcon,
       },
       {
         key: 'members',
         label: '成员',
-        icon: navIcon(
-          'M6 7.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM1.5 13.5c0-2.5 2-4 4.5-4s4.5 1.5 4.5 4M11 3a2.5 2.5 0 0 1 0 4.5M12.5 9.6c1.3.5 2 1.8 2 3.9',
-        ),
+        icon: UsersIcon,
       },
     ],
   },

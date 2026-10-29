@@ -3,6 +3,7 @@
 当前页面在层级里的位置。上级是安静的次要文字，悬停时变成墨色；当前页是墨色，不是链接。分隔符是页面上最淡的文字。
 
 <script setup>
+import { ChevronRightIcon } from '@dou-ui/icons'
 const items = [
   { label: '首页', href: '#' },
   { label: '项目', href: '#' },
@@ -38,7 +39,7 @@ const items = [
   <DouBreadcrumb :items="items" separator="›" />
   <DouBreadcrumb :items="items">
     <template #separator>
-      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 3.5L10.5 8 6 12.5" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      <ChevronRightIcon :size="14" />
     </template>
   </DouBreadcrumb>
 </div>

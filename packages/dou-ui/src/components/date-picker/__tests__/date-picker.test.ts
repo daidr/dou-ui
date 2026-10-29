@@ -43,7 +43,7 @@ describe('DouCalendar', () => {
     const { wrapper } = make(DouCalendar, { modelValue: '2026-10-08' })
     expect(wrapper.get('.dou-calendar__title').text()).toBe('2026年10月')
     const headers = wrapper.findAll('th').map((th) => th.text())
-    expect(headers[0]).toBe('周一')
+    expect(headers[0]).toBe('一')
     // Monday first: October 2026 starts on a Thursday, so the grid opens on 9-28
     expect(wrapper.findAll('[data-value]')[0]!.attributes('data-value')).toBe('2026-09-28')
     expect(wrapper.findAll('[data-value]')).toHaveLength(42)

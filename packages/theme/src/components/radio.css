@@ -91,6 +91,12 @@
     outline-offset: 2px;
   }
 
+  /* faded to 45%, an empty circle needs a fill to still read as one */
+  .dou-radio.is-disabled:not(.is-checked) .dou-radio__indicator {
+    background-color: var(--dou-color-bg-muted);
+    box-shadow: none;
+  }
+
   .dou-radio.is-checked .dou-radio__indicator {
     border-color: color-mix(in oklab, var(--dou-radio-tone) 90%, var(--dou-color-edge));
     background-color: var(--dou-radio-tone);

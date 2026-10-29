@@ -65,12 +65,10 @@
       --dou-input-ring: color-mix(in oklab, var(--dou-color-danger) 18%, transparent);
     }
 
+    /* read-only keeps the plain surface so it never passes for disabled;
+       only the resting shadow goes, since it can't be typed into */
     &.is-readonly {
-      --dou-input-bg: color-mix(
-        in oklab,
-        var(--dou-color-bg-muted) 50%,
-        var(--dou-color-bg-surface)
-      );
+      --dou-input-shadow: none;
     }
 
     &.is-disabled {
@@ -115,6 +113,7 @@
   }
 
   .dou-input__reveal {
+    position: relative;
     display: inline-flex;
     flex-shrink: 0;
     align-items: center;
@@ -147,6 +146,13 @@
     &:disabled {
       cursor: not-allowed;
     }
+
+    /* a larger hit area than the small glyph, without changing the layout */
+    &::after {
+      content: '';
+      position: absolute;
+      inset: -4px;
+    }
   }
 
   .dou-input__count {
@@ -159,6 +165,7 @@
   }
 
   .dou-input__clear {
+    position: relative;
     display: inline-flex;
     flex-shrink: 0;
     align-items: center;
@@ -185,6 +192,13 @@
     &:hover {
       background-color: color-mix(in oklab, var(--dou-color-text) 18%, transparent);
       color: var(--dou-color-text);
+    }
+
+    /* a larger hit area than the small glyph, without changing the layout */
+    &::after {
+      content: '';
+      position: absolute;
+      inset: -4px;
     }
   }
 

@@ -26,6 +26,8 @@ export const categories = {
   settings: '设置',
   shapes: '形状',
   ai: 'AI',
+  commerce: '电商',
+  charts: '图表',
 } as const
 
 export type IconCategory = keyof typeof categories

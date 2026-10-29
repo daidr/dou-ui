@@ -32,10 +32,21 @@ export default defineConfig({
     nav: [
       { text: '指南', link: '/guide/philosophy' },
       { text: '组件', link: '/components/button' },
+      { text: '区块', link: '/blocks/login' },
       { text: '图标', link: '/icons/' },
       { text: '集成', link: '/integrations/vite' },
     ],
     sidebar: {
+      '/blocks/': [
+        {
+          text: '区块',
+          items: [
+            { text: '登录页', link: '/blocks/login' },
+            { text: '设置页', link: '/blocks/settings' },
+            { text: '数据管理页', link: '/blocks/data' },
+          ],
+        },
+      ],
       '/icons': [
         {
           text: '图标',

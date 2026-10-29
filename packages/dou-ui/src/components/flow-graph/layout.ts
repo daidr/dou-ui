@@ -180,7 +180,7 @@ function untangle(layers: Item[][]) {
   let current = best.map((layer) => [...layer])
   for (let pass = 0; pass < 8 && bestCount > 0; pass++) {
     const down = pass % 2 === 0
-    const indices = down ? [...current.keys()] : [...current.keys()].toReversed()
+    const indices = Array.from(current, (_, i) => (down ? i : current.length - 1 - i))
     for (const i of indices.slice(1)) {
       const ref = current[down ? i - 1 : i + 1]!
       const position = new Map(ref.map((item, j) => [item, j]))
@@ -293,7 +293,7 @@ export function layoutFlow(
     )
   for (let pass = 0; pass < 4; pass++) {
     for (const layer of ordered.slice(1)) relax(layer, (item) => item.preds)
-    for (const layer of ordered.slice(0, -1).toReversed()) relax(layer, (item) => item.succs)
+    for (let i = ordered.length - 2; i >= 0; i--) relax(ordered[i]!, (item) => item.succs)
   }
   for (const layer of ordered) relax(layer, (item) => [...item.preds, ...item.succs])
 

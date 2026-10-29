@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { computed, ref, useAttrs, useTemplateRef } from 'vue'
+import { computed, provide, ref, useAttrs, useTemplateRef } from 'vue'
 import type { StyleValue } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
+import { formItemKey } from '../form/form'
+import type { FormItemContext } from '../form/form'
 import { useFormDisabled, useFormItem, useFormSize } from '../form/use-form-item'
+import DouInputNumber from '../input-number/input-number.vue'
 import type { SliderExpose, SliderProps, SliderValue } from './slider'
 
 defineOptions({ name: 'DouSlider', inheritAttrs: false })
@@ -15,6 +18,8 @@ const props = withDefaults(defineProps<SliderProps>(), {
   step: 1,
   disabled: false,
   invalid: false,
+  vertical: false,
+  showInput: false,
 })
 const model = defineModel<SliderValue>()
 const emit = defineEmits<{ change: [value: SliderValue] }>()
@@ -27,6 +32,8 @@ formItem?.markGroup()
 const size = useFormSize(() => props.size)
 const disabled = useFormDisabled(() => props.disabled)
 const invalid = computed(() => props.invalid || !!formItem?.invalid.value)
+// The number input is part of the slider, not a second field of the form item.
+provide(formItemKey, undefined as unknown as FormItemContext)
 
 // `aria-label` and `aria-labelledby` name the thumb of a single slider;
 // everything else dresses the root.
@@ -67,11 +74,16 @@ const values = computed<number[]>(() => {
 const span = computed(() => props.max - props.min || 1)
 const percent = (value: number) => ((value - props.min) / span.value) * 100
 
+/** Where along the track: from the left, or from the bottom when vertical. */
+const along = (at: number) => (props.vertical ? { bottom: `${at}%` } : { left: `${at}%` })
+
 const fillStyle = computed(() => {
   const [first = props.min, second] = values.value
   const start = second === undefined ? 0 : percent(first)
   const end = percent(second ?? first)
-  return { left: `${start}%`, width: `${end - start}%` }
+  return props.vertical
+    ? { bottom: `${start}%`, height: `${end - start}%` }
+    : { left: `${start}%`, width: `${end - start}%` }
 })
 
 const marks = computed(() => {
@@ -100,17 +112,22 @@ function bounds(index: number): [number, number] {
   return index === 0 ? [props.min, second] : [first, props.max]
 }
 
+// The value last set, as a bound model only updates once the parent re-renders.
+let latest: SliderValue | undefined
+
 function set(index: number, value: number) {
   const next = [...values.value]
   next[index] = snap(value, ...bounds(index))
   if (next[index] === values.value[index] && model.value !== undefined) return false
-  model.value = props.range ? [next[0]!, next[1]!] : next[0]!
+  latest = props.range ? [next[0]!, next[1]!] : next[0]!
+  model.value = latest
   return true
 }
 
 function commit() {
-  if (model.value === undefined) return
-  emit('change', model.value)
+  const value = latest ?? model.value
+  if (value === undefined) return
+  emit('change', value)
   formItem?.trigger('change')
 }
 
@@ -119,11 +136,13 @@ function commit() {
 const active = ref<number | null>(null)
 let moved = false
 
-function valueAt(clientX: number) {
+function valueAt(event: PointerEvent) {
   const rect = railRef.value?.getBoundingClientRect()
-  if (!rect || rect.width === 0) return props.min
-  const ratio = Math.min(Math.max((clientX - rect.left) / rect.width, 0), 1)
-  return props.min + ratio * span.value
+  if (!rect) return props.min
+  const ratio = props.vertical
+    ? rect.height && (rect.bottom - event.clientY) / rect.height
+    : rect.width && (event.clientX - rect.left) / rect.width
+  return props.min + Math.min(Math.max(ratio, 0), 1) * span.value
 }
 
 function nearest(value: number) {
@@ -136,7 +155,7 @@ function nearest(value: number) {
 function onPointerdown(event: PointerEvent) {
   if (disabled.value || event.button !== 0) return
   event.preventDefault()
-  const value = valueAt(event.clientX)
+  const value = valueAt(event)
   const thumb = (event.target as HTMLElement).closest<HTMLElement>('[data-index]')
   const index = thumb ? Number(thumb.dataset.index) : nearest(value)
   active.value = index
@@ -148,7 +167,7 @@ function onPointerdown(event: PointerEvent) {
 
 function onPointermove(event: PointerEvent) {
   if (active.value === null) return
-  const value = valueAt(event.clientX)
+  const value = valueAt(event)
   // Two thumbs on the same spot: the one that can go where the pointer
   // heads takes over.
   const [first, second] = values.value
@@ -189,6 +208,11 @@ const groupLabelledBy = computed(
   () => (attrs['aria-labelledby'] as string | undefined) ?? formItem?.labelId,
 )
 
+function onInput(value: number | null) {
+  if (value === null || Number.isNaN(value)) return
+  if (set(0, value)) commit()
+}
+
 const describe = (value: number) => (props.formatValue ? props.formatValue(value) : undefined)
 
 const thumbs = computed(() =>
@@ -197,7 +221,7 @@ const thumbs = computed(() =>
     return {
       value,
       index,
-      style: { left: `${percent(value)}%` },
+      style: along(percent(value)),
       min: lower,
       max: upper,
       label: props.range
@@ -214,6 +238,8 @@ const classes = computed(() => [
   ns.b(),
   ns.m(size.value),
   ns.is('range', props.range),
+  ns.is('vertical', props.vertical),
+  ns.is('with-input', props.showInput && !props.range),
   ns.is('disabled', disabled.value),
   ns.is('invalid', invalid.value),
   ns.is('dragging', active.value !== null),
@@ -237,58 +263,79 @@ defineExpose<SliderExpose>({
   <div
     v-bind="rootAttrs"
     :class="classes"
-    :style="attrs.style as StyleValue"
+    :style="[
+      vertical && height !== undefined
+        ? { height: typeof height === 'number' ? `${height}px` : height }
+        : undefined,
+      attrs.style as StyleValue,
+    ]"
     :role="range ? 'group' : undefined"
     :aria-labelledby="range ? groupLabelledBy : undefined"
   >
-    <div
-      ref="rail"
-      :class="ns.e('rail')"
-      @pointerdown="onPointerdown"
-      @pointermove="onPointermove"
-      @pointerup="onPointerup"
-      @pointercancel="onPointerup"
-      @lostpointercapture="onPointerup"
-    >
-      <div :class="ns.e('fill')" :style="fillStyle" />
-      <span
-        v-for="mark in innerMarks"
-        :key="mark.value"
-        :class="[ns.e('dot'), ns.is('active', inFill(mark.value))]"
-        :style="{ left: `${percent(mark.value)}%` }"
-        aria-hidden="true"
-      />
+    <div :class="ns.e('body')">
       <div
-        v-for="thumb in thumbs"
-        :key="thumb.index"
-        :id="thumb.index === 0 ? formItem?.inputId : undefined"
-        :class="[ns.e('thumb'), ns.is('active', active === thumb.index)]"
-        :style="thumb.style"
-        :data-index="thumb.index"
-        role="slider"
-        :tabindex="disabled ? -1 : 0"
-        aria-orientation="horizontal"
-        :aria-valuenow="thumb.value"
-        :aria-valuemin="thumb.min"
-        :aria-valuemax="thumb.max"
-        :aria-valuetext="describe(thumb.value)"
-        :aria-label="thumb.label"
-        :aria-labelledby="thumb.labelledBy"
-        :aria-describedby="formItem?.describedBy.value"
-        :aria-disabled="disabled || undefined"
-        :aria-invalid="invalid || undefined"
-        @keydown="onKeydown($event, thumb.index)"
-      />
-    </div>
-    <div v-if="marks.length" :class="ns.e('marks')" aria-hidden="true">
-      <span
-        v-for="mark in marks"
-        :key="mark.value"
-        :class="[ns.e('mark'), ns.is('active', inFill(mark.value))]"
-        :style="{ left: `${percent(mark.value)}%` }"
+        ref="rail"
+        :class="ns.e('rail')"
+        @pointerdown="onPointerdown"
+        @pointermove="onPointermove"
+        @pointerup="onPointerup"
+        @pointercancel="onPointerup"
+        @lostpointercapture="onPointerup"
       >
-        {{ mark.label }}
-      </span>
+        <div :class="ns.e('fill')" :style="fillStyle" />
+        <span
+          v-for="mark in innerMarks"
+          :key="mark.value"
+          :class="[ns.e('dot'), ns.is('active', inFill(mark.value))]"
+          :style="along(percent(mark.value))"
+          aria-hidden="true"
+        />
+        <div
+          v-for="thumb in thumbs"
+          :key="thumb.index"
+          :id="thumb.index === 0 ? formItem?.inputId : undefined"
+          :class="[ns.e('thumb'), ns.is('active', active === thumb.index)]"
+          :style="thumb.style"
+          :data-index="thumb.index"
+          role="slider"
+          :tabindex="disabled ? -1 : 0"
+          :aria-orientation="vertical ? 'vertical' : 'horizontal'"
+          :aria-valuenow="thumb.value"
+          :aria-valuemin="thumb.min"
+          :aria-valuemax="thumb.max"
+          :aria-valuetext="describe(thumb.value)"
+          :aria-label="thumb.label"
+          :aria-labelledby="thumb.labelledBy"
+          :aria-describedby="formItem?.describedBy.value"
+          :aria-disabled="disabled || undefined"
+          :aria-invalid="invalid || undefined"
+          @keydown="onKeydown($event, thumb.index)"
+        />
+      </div>
+      <div v-if="marks.length" :class="ns.e('marks')" aria-hidden="true">
+        <span
+          v-for="mark in marks"
+          :key="mark.value"
+          :class="[ns.e('mark'), ns.is('active', inFill(mark.value))]"
+          :style="along(percent(mark.value))"
+        >
+          {{ mark.label }}
+        </span>
+      </div>
     </div>
+    <DouInputNumber
+      v-if="showInput && !range"
+      :class="ns.e('input')"
+      :model-value="values[0]"
+      :min="min"
+      :max="max"
+      :step="step"
+      :size="size"
+      :disabled="disabled"
+      :invalid="invalid"
+      :aria-label="thumbs[0]?.label"
+      :aria-labelledby="thumbs[0]?.labelledBy"
+      @update:model-value="onInput"
+    />
   </div>
 </template>

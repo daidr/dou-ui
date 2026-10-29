@@ -115,6 +115,7 @@
     z-index: 1;
   }
 
+  .dou-table__drag,
   .dou-table__selection,
   .dou-table__expand {
     width: 40px;
@@ -459,6 +460,73 @@
   .dou-table__spacer > td {
     padding: 0;
     border: 0;
+  }
+
+  /* dragging rows */
+
+  .dou-table__drag-handle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 24px;
+    margin-inline-start: -4px;
+    padding: 0;
+    border: 0;
+    border-radius: calc(var(--dou-radius-control) - 2px);
+    background: none;
+    color: var(--dou-color-text-tertiary);
+    cursor: grab;
+    touch-action: none;
+
+    & > svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    &:hover:not(:disabled) {
+      background-color: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+      color: var(--dou-color-text);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 1px;
+    }
+
+    &:disabled {
+      color: var(--dou-color-text-disabled);
+      cursor: not-allowed;
+    }
+  }
+
+  /* the empty place the dragged row will drop into */
+  .dou-table__row.is-dragging > .dou-table__cell {
+    background-color: color-mix(in oklab, var(--dou-color-text) 4%, var(--dou-table-bg));
+    color: transparent;
+
+    & > * {
+      visibility: hidden;
+    }
+  }
+
+  /* picked up with the keyboard */
+  .dou-table__row.is-lifted > .dou-table__cell {
+    background-color: var(--dou-table-row-selected);
+    box-shadow:
+      inset 0 2px 0 -1px var(--dou-color-focus),
+      inset 0 -2px 0 -1px var(--dou-color-focus);
+  }
+
+  /* the one-row copy that follows the pointer */
+  .dou-table__ghost {
+    box-shadow: var(--dou-shadow-lg);
+    rotate: 0.5deg;
+    cursor: grabbing;
+
+    & .dou-table__cell {
+      border-bottom: 0;
+    }
   }
 
   .dou-table__visually-hidden {

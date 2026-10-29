@@ -28,6 +28,8 @@ export interface ImageProps {
   previewList?: PreviewSource
   /** Where in `previewList` this image is. Defaults to the entry with the same source. */
   previewIndex?: number
+  /** Show a download button in the preview. */
+  downloadable?: boolean
 }
 
 export interface ImageEmits {
@@ -55,6 +57,11 @@ export interface ImagePreviewProps {
   /** Close when the dark area around the picture is clicked. */
   closeOnMask?: boolean
   teleport?: string | HTMLElement | false
+  /**
+   * Show a download button. Pictures from another origin download only
+   * when it allows it (CORS); otherwise they open in a new tab.
+   */
+  downloadable?: boolean
 }
 
 export interface ImagePreviewEmits {

@@ -1,5 +1,6 @@
 import { computed, nextTick, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 import type { ComputedRef, Ref } from 'vue'
+import { announce } from '../../utils/announce'
 import { getScrollParent, isWindow } from '../../utils/scroll'
 
 export type SortableDirection = 'vertical' | 'horizontal' | 'grid'
@@ -35,6 +36,8 @@ export interface UseSortableOptions<T> {
   /** Names an item in what screen readers hear. */
   label?: (item: T, index: number) => string
   messages: () => SortableMessages
+  /** Builds the copy that follows the pointer from the item's element. Defaults to a deep clone. */
+  ghost?: (el: HTMLElement) => HTMLElement
   /** An item moved within this list. */
   onSort?: (event: SortableMoveEvent<T>) => void
   /** An item came in from another list of the group. */
@@ -220,7 +223,7 @@ export function useSortable<T>(options: UseSortableOptions<T>) {
   function makeGhost(el: HTMLElement, event: PointerEvent) {
     const rect = el.getBoundingClientRect()
     offset = { x: event.clientX - rect.left, y: event.clientY - rect.top }
-    const clone = el.cloneNode(true) as HTMLElement
+    const clone = options.ghost?.(el) ?? (el.cloneNode(true) as HTMLElement)
     clone.removeAttribute('id')
     clone.removeAttribute(ITEM)
     clone.classList.remove('is-dragging')
@@ -466,21 +469,6 @@ export function useSortable<T>(options: UseSortableOptions<T>) {
   }
 
   return { container, list, dragging, announcement, listAttrs, itemAttrs }
-}
-
-let region: HTMLElement | undefined
-/** Read a message out through one live region shared by every list. */
-function announce(text: string) {
-  if (!region?.isConnected) {
-    region = document.createElement('div')
-    region.className = 'dou-sortable-live'
-    region.setAttribute('aria-live', 'assertive')
-    region.setAttribute('aria-atomic', 'true')
-    document.body.append(region)
-  }
-  // Clear first, so the same message twice is read twice.
-  region.textContent = ''
-  requestAnimationFrame(() => region && (region.textContent = text))
 }
 
 function getComputedStyleScrolls(el: HTMLElement) {

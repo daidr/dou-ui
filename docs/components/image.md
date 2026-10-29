@@ -16,11 +16,13 @@
 
 ## 预览
 
-`preview` 让图片可以点击放大。预览把页面压暗到接近黑色（不论亮暗主题），图片居中，底部一条浮动的工具栏：缩放、旋转、还原。放大后可以拖动；滚轮缩放，双击在 100% 和 200% 之间切换。
+`preview` 让图片可以点击放大。预览把页面压暗到接近黑色（不论亮暗主题），图片居中，底部一条浮动的工具栏：缩放（显示当前比例）、旋转、水平与垂直翻转、还原。放大后可以拖动；滚轮缩放，双击在 100% 和 200% 之间切换。
 
 `preview-list` 传入一组图片后，预览里可以左右切换；每张图在列表里的位置按地址自动找到，也可以用 `preview-index` 指定。`preview-src` 指定一张更大的原图。
 
 <DocDemo src="image/preview" />
+
+`downloadable` 在工具栏末尾加一个下载按钮，文件名取图片地址的最后一段。其他域名的图片只有在对方允许跨域时才能直接下载，否则会在新标签页中打开。
 
 ## 单独使用预览
 
@@ -41,6 +43,7 @@
 | `+` `-` | 放大 / 缩小            |
 | `0`     | 还原                   |
 | `R`     | 向右旋转，`Shift` 向左 |
+| `H` `V` | 水平翻转 / 垂直翻转    |
 | `Esc`   | 关闭                   |
 
 ## API
@@ -60,6 +63,7 @@
 | `previewSrc`   | 预览用的大图                    | `string`                                                   | `src`      |
 | `previewList`  | 预览里可以切换的一组图片        | `(string \| { src, alt? })[]`                              | —          |
 | `previewIndex` | 这张图在 `previewList` 中的位置 | `number`                                                   | 按地址查找 |
+| `downloadable` | 预览中显示下载按钮              | `boolean`                                                  | `false`    |
 
 ### Image Events
 
@@ -77,15 +81,16 @@
 
 ### ImagePreview Props
 
-| 名称          | 说明                           | 类型                             | 默认值   |
-| ------------- | ------------------------------ | -------------------------------- | -------- |
-| `open`        | 是否打开，配合 `v-model:open`  | `boolean`                        | `false`  |
-| `images`      | 图片                           | `(string \| { src, alt? })[]`    | `[]`     |
-| `index`       | 当前图片，配合 `v-model:index` | `number`                         | `0`      |
-| `loop`        | 首尾相接                       | `boolean`                        | `false`  |
-| `minScale`    | 最小缩放                       | `number`                         | `0.25`   |
-| `maxScale`    | 最大缩放                       | `number`                         | `4`      |
-| `closeOnMask` | 点击图片周围的暗处关闭         | `boolean`                        | `true`   |
-| `teleport`    | 渲染到哪里                     | `string \| HTMLElement \| false` | `'body'` |
+| 名称           | 说明                           | 类型                             | 默认值   |
+| -------------- | ------------------------------ | -------------------------------- | -------- |
+| `open`         | 是否打开，配合 `v-model:open`  | `boolean`                        | `false`  |
+| `images`       | 图片                           | `(string \| { src, alt? })[]`    | `[]`     |
+| `index`        | 当前图片，配合 `v-model:index` | `number`                         | `0`      |
+| `loop`         | 首尾相接                       | `boolean`                        | `false`  |
+| `minScale`     | 最小缩放                       | `number`                         | `0.25`   |
+| `maxScale`     | 最大缩放                       | `number`                         | `4`      |
+| `closeOnMask`  | 点击图片周围的暗处关闭         | `boolean`                        | `true`   |
+| `downloadable` | 显示下载按钮                   | `boolean`                        | `false`  |
+| `teleport`     | 渲染到哪里                     | `string \| HTMLElement \| false` | `'body'` |
 
 ImagePreview 触发 `update:open`、`update:index` 与 `close`。

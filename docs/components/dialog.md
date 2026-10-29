@@ -28,6 +28,12 @@
 
 <DocDemo src="dialog/prevent-close" />
 
+## 拖动与全屏
+
+`draggable` 后按住标题栏可以拖动面板，面板不会被拖出视口，每次打开都回到原位。`fullscreenable` 在标题栏右侧加一个切换全屏的按钮，全屏状态用 `v-model:fullscreen` 绑定，也可以直接传 `fullscreen` 让对话框一打开就是全屏。全屏时内容区单独滚动，拖动暂停。
+
+<DocDemo src="dialog/draggable" />
+
 ## 函数式调用
 
 一次性的确认、提示和输入，不必写模板和开关状态：`dialog.confirm()`、`dialog.alert()` 与 `dialog.prompt()` 直接打开一个对话框，返回一个在用户作答后兑现的 Promise。
@@ -84,16 +90,20 @@ const dialog = useDialog()
 | `destroyOnClose` | 关闭后卸载内容                      | `boolean`                                           | `false`  |
 | `beforeClose`    | 关闭前调用，返回 `false` 则保持打开 | `() => boolean \| void \| Promise<boolean \| void>` | —        |
 | `teleport`       | 渲染到哪里；`false` 为原地渲染      | `string \| HTMLElement \| false`                    | `'body'` |
+| `draggable`      | 按住标题栏拖动面板                  | `boolean`                                           | `false`  |
+| `fullscreen`     | 全屏，配合 `v-model:fullscreen`     | `boolean`                                           | `false`  |
+| `fullscreenable` | 标题栏显示全屏切换按钮              | `boolean`                                           | `false`  |
 
 ### Events
 
-| 名称          | 说明         |
-| ------------- | ------------ |
-| `update:open` | 打开状态变化 |
-| `open`        | 开始打开     |
-| `opened`      | 打开动画结束 |
-| `close`       | 开始关闭     |
-| `closed`      | 关闭动画结束 |
+| 名称                | 说明         |
+| ------------------- | ------------ |
+| `update:open`       | 打开状态变化 |
+| `update:fullscreen` | 全屏状态变化 |
+| `open`              | 开始打开     |
+| `opened`            | 打开动画结束 |
+| `close`             | 开始关闭     |
+| `closed`            | 关闭动画结束 |
 
 ### Slots
 

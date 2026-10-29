@@ -67,6 +67,89 @@
     border-top-width: 1px;
   }
 
+  /* the inner edge, wide enough to grab; a line shows on hover and focus */
+  .dou-drawer__resizer {
+    position: absolute;
+    z-index: 1;
+    outline: none;
+    touch-action: none;
+
+    &::after {
+      position: absolute;
+      background-color: transparent;
+      content: '';
+      transition: background-color var(--dou-motion-duration-fast) var(--dou-motion-easing);
+    }
+
+    &:hover::after,
+    &:focus-visible::after {
+      background-color: color-mix(in oklab, var(--dou-color-text) 24%, transparent);
+    }
+
+    &:focus-visible::after {
+      background-color: var(--dou-color-focus);
+    }
+  }
+
+  .dou-drawer--left .dou-drawer__resizer,
+  .dou-drawer--right .dou-drawer__resizer {
+    top: 0;
+    bottom: 0;
+    width: 8px;
+    cursor: col-resize;
+
+    &::after {
+      top: 0;
+      bottom: 0;
+      left: 3px;
+      width: 2px;
+    }
+  }
+  .dou-drawer--right .dou-drawer__resizer {
+    left: -5px;
+  }
+  .dou-drawer--left .dou-drawer__resizer {
+    right: -5px;
+  }
+
+  .dou-drawer--top .dou-drawer__resizer,
+  .dou-drawer--bottom .dou-drawer__resizer {
+    right: 0;
+    left: 0;
+    height: 8px;
+    cursor: row-resize;
+
+    &::after {
+      top: 3px;
+      right: 0;
+      left: 0;
+      height: 2px;
+    }
+  }
+  .dou-drawer--bottom .dou-drawer__resizer {
+    top: -5px;
+  }
+  .dou-drawer--top .dou-drawer__resizer {
+    bottom: -5px;
+  }
+
+  .dou-drawer-resizing,
+  .dou-drawer-resizing * {
+    user-select: none !important;
+  }
+  .dou-drawer-resizing--left,
+  .dou-drawer-resizing--left *,
+  .dou-drawer-resizing--right,
+  .dou-drawer-resizing--right * {
+    cursor: col-resize !important;
+  }
+  .dou-drawer-resizing--top,
+  .dou-drawer-resizing--top *,
+  .dou-drawer-resizing--bottom,
+  .dou-drawer-resizing--bottom * {
+    cursor: row-resize !important;
+  }
+
   .dou-drawer__header {
     display: flex;
     flex-shrink: 0;

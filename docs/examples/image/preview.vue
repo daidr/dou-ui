@@ -15,6 +15,7 @@ const gallery = [210, 160, 25, 280].map(tile)
     :width="120"
     :height="80"
     preview
+    downloadable
     :preview-list="gallery"
   />
 </template>

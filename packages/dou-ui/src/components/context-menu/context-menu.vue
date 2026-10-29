@@ -76,7 +76,9 @@ function hide() {
 }
 
 function dismiss() {
-  const back = !!panelRef.value?.contains(document.activeElement)
+  // Focus in a submenu counts as in the menu too.
+  const active = document.activeElement as HTMLElement | null
+  const back = !!(panelRef.value?.contains(active) || active?.closest('.dou-dropdown--sub'))
   hide()
   if (back) (restore ?? (target() as HTMLElement | null))?.focus()
 }
@@ -131,6 +133,9 @@ provide(dropdownKey, {
     emit('select', value)
     if (props.hideOnSelect) dismiss()
   },
+  opened: () => open.value,
+  hold: () => {},
+  release: () => {},
 })
 
 const panelStyle = computed(() => ({ ...floating.style.value, zIndex: zIndex.value }))

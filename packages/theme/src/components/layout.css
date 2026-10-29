@@ -63,13 +63,16 @@
     background-color: var(--dou-color-bg-canvas);
     transition: width var(--dou-motion-duration-normal) var(--dou-motion-easing);
 
-    /* the hairline faces the main area, whichever side the aside is on */
+    /*
+     * The hairline faces the main area, whichever side the aside is on.
+     * Drawn as an inset shadow, not a border, so it takes no width and
+     * collapsed content centers on whole pixels.
+     */
     &.is-bordered {
-      border-right: 1px solid var(--dou-color-border-subtle);
+      box-shadow: inset -1px 0 0 var(--dou-color-border-subtle);
     }
     &.is-bordered:not(:first-child):last-child {
-      border-right: 0;
-      border-left: 1px solid var(--dou-color-border-subtle);
+      box-shadow: inset 1px 0 0 var(--dou-color-border-subtle);
     }
 
     &.is-sticky {
@@ -82,7 +85,9 @@
   }
 
   .dou-layout-aside__body {
+    display: flex;
     flex: 1 1 auto;
+    flex-direction: column;
     min-height: 0;
     padding: 8px;
     overflow-x: hidden;
@@ -129,6 +134,18 @@
     &:focus-visible {
       outline: 2px solid var(--dou-color-focus);
       outline-offset: 1px;
+    }
+  }
+
+  /* collapsed, the content is a narrow column of icons: center it */
+  .dou-layout-aside.is-collapsed {
+    & .dou-layout-aside__body,
+    & .dou-layout-aside__footer {
+      align-items: center;
+    }
+
+    & .dou-layout-aside__toggle {
+      align-self: center;
     }
   }
 

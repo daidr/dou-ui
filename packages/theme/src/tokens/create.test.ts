@@ -53,6 +53,6 @@ describe('createTheme', () => {
   it('parses hex and rgb()', () => {
     expect(parseColor('#fff')).toEqual([1, 1, 1])
     expect(parseColor('rgb(255 0 0)')).toEqual([1, 0, 0])
-    expect(() => parseColor('red')).toThrow()
+    expect(() => parseColor('red')).toThrow('unsupported color')
   })
 })

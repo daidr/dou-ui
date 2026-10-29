@@ -130,7 +130,8 @@ function adjust(color: Oklch, direction: 1 | -1, ok: (rgb: Rgb) => boolean): Okl
 }
 
 function contrast(a: Rgb, b: Rgb): number {
-  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x) as [number, number]
+  const hi = Math.max(luminance(a), luminance(b))
+  const lo = Math.min(luminance(a), luminance(b))
   return (hi + 0.05) / (lo + 0.05)
 }
 

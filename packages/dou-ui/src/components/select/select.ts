@@ -1,7 +1,8 @@
 import type { Placement } from '../../composables/use-floating'
 import type { Size } from '../../utils/types'
 
-export type SelectValue = string | number | boolean
+/** Objects need `valueKey` to tell them apart. */
+export type SelectValue = string | number | boolean | Record<string, any>
 export type SelectSize = Size
 
 export interface SelectOption {
@@ -56,6 +57,12 @@ export interface SelectProps {
   creatable?: boolean
   /** Render only the options in view, for long lists. */
   virtual?: boolean
+  /** With `multiple`, show at most this many tags and fold the rest into a "+N" tag. */
+  maxTagCount?: number
+  /** With `multiple`, how many options can be chosen at most. */
+  multipleLimit?: number
+  /** The property that identifies object values, so equal objects match. */
+  valueKey?: string
 }
 
 export interface SelectEmits {
@@ -68,6 +75,10 @@ export interface SelectEmits {
   search: [query: string]
   /** A new option was created from the search text in a `creatable` select. */
   create: [value: string]
+  /** The list opened or closed. */
+  visibleChange: [open: boolean]
+  /** A tag was removed from a `multiple` select. */
+  removeTag: [value: SelectValue]
 }
 
 export interface SelectSlots {
@@ -77,6 +88,14 @@ export interface SelectSlots {
   option?: (props: { option: SelectOption; selected: boolean }) => unknown
   /** Shown when no option matches. */
   empty?: () => unknown
+  /** Above the options, e.g. a "select all" checkbox. */
+  header?: () => unknown
+  /** Under the options, e.g. a button that adds one. */
+  footer?: () => unknown
+  /** Each tag of a `multiple` select. */
+  tag?: (props: { option: SelectOption; remove: () => void }) => unknown
+  /** The chosen option in the field of a single select. */
+  label?: (props: { option: SelectOption }) => unknown
 }
 
 export interface SelectExpose {

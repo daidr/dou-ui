@@ -14,8 +14,11 @@ export interface CascaderOption {
 }
 
 export interface CascaderProps {
-  /** The path of values from the top level down, bound with `v-model`. */
-  modelValue?: CascaderValue[] | null
+  /**
+   * The path of values from the top level down, bound with `v-model`.
+   * With `multiple`, an array of paths.
+   */
+  modelValue?: CascaderValue[] | CascaderValue[][] | null
   options?: CascaderOption[]
   /** Load the children of an option the first time it opens. */
   load?: (option: CascaderOption, path: CascaderOption[]) => Promise<CascaderOption[]>
@@ -29,6 +32,16 @@ export interface CascaderProps {
   separator?: string
   /** Show only the last label in the field. */
   showLastOnly?: boolean
+  /**
+   * Check any number of options. Checking a branch checks every option
+   * under it, and the value holds the paths of the checked last-level
+   * options; a branch not loaded yet stands for all of its own.
+   */
+  multiple?: boolean
+  /** With `multiple`, check every option on its own, branches included. */
+  checkStrictly?: boolean
+  /** With `multiple`, show at most this many tags and fold the rest into a "+N" tag. */
+  maxTagCount?: number
   placeholder?: string
   size?: Size
   disabled?: boolean
@@ -39,8 +52,12 @@ export interface CascaderProps {
 }
 
 export interface CascaderEmits {
-  'update:modelValue': [value: CascaderValue[] | null]
-  change: [value: CascaderValue[] | null, path: CascaderOption[]]
+  'update:modelValue': [value: CascaderValue[] | CascaderValue[][] | null]
+  /** The options along the path, or along each path with `multiple`. */
+  change: [
+    value: CascaderValue[] | CascaderValue[][] | null,
+    path: CascaderOption[] | CascaderOption[][],
+  ]
 }
 
 export interface CascaderSlots {

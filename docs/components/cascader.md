@@ -37,6 +37,8 @@ const load = (option, path) =>
     }, 500),
   )
 const roots = [{ value: 'a', label: '分组 A' }, { value: 'b', label: '分组 B' }]
+const checked = ref([['zj', 'hz', 'xh'], ['zj', 'hz', 'bj']])
+const strict = ref([['js']])
 </script>
 
 ## 基础用法
@@ -76,6 +78,29 @@ const roots = [{ value: 'a', label: '分组 A' }, { value: 'b', label: '分组 B
 <DouCascader v-model="value" :options="regions" filterable />
 ```
 
+## 多选
+
+`multiple` 给每个选项加一个复选框，选中的路径以标签显示在字段里，面板保持打开方便继续勾选。勾选一个分支等于勾选它下面所有的最后一级，值里存的是这些最后一级的路径；下级只勾了一部分时，分支的复选框显示为半选。点击最后一级的文字也能切换勾选，点击分支的文字只展开。懒加载时，勾选一个还没加载的分支会先加载它的下一级。
+
+<div class="demo">
+  <DouCascader v-model="checked" :options="regions" multiple clearable :max-tag-count="3" style="width: 360px" />
+</div>
+
+```vue
+<DouCascader v-model="paths" :options="regions" multiple :max-tag-count="3" />
+<!-- paths: [['zj', 'hz', 'xh'], ['zj', 'hz', 'bj']] -->
+```
+
+`check-strictly` 让每一级各自勾选，互不牵连，值里存的就是勾选的那些路径，适合"按省或按市都能选"的场景。`max-tag-count` 和 Select 一样，把多出的标签折叠成"+N"。
+
+<div class="demo">
+  <DouCascader v-model="strict" :options="regions" multiple check-strictly show-last-only style="width: 360px" />
+</div>
+
+```vue
+<DouCascader v-model="paths" :options="regions" multiple check-strictly show-last-only />
+```
+
 ## 懒加载
 
 `load(option, path)` 在某一项第一次展开时取它的下级，返回 Promise。加载中的选项末尾显示一个小转圈；`leaf: true` 的选项不会再加载。还没加载过的分支不参与搜索。
@@ -113,32 +138,35 @@ const roots = [{ value: 'a', label: '分组 A' }, { value: 'b', label: '分组 B
 
 ### Cascader Props
 
-| 名称             | 说明                         | 类型                                          | 默认值           |
-| ---------------- | ---------------------------- | --------------------------------------------- | ---------------- |
-| `modelValue`     | 路径，配合 `v-model`         | `(string \| number)[] \| null`                | —                |
-| `options`        | 选项树                       | `CascaderOption[]`                            | `[]`             |
-| `load`           | 第一次展开时加载下级         | `(option, path) => Promise<CascaderOption[]>` | —                |
-| `changeOnSelect` | 每一级都可以选中             | `boolean`                                     | `false`          |
-| `expandTrigger`  | 展开下一级的方式             | `'click' \| 'hover'`                          | `'click'`        |
-| `filterable`     | 可搜索完整路径               | `boolean`                                     | `false`          |
-| `separator`      | 字段里路径的分隔符           | `string`                                      | `' / '`          |
-| `showLastOnly`   | 字段里只显示最后一级         | `boolean`                                     | `false`          |
-| `placeholder`    | 占位文字                     | `string`                                      | 语言包           |
-| `clearable`      | 显示清空按钮                 | `boolean`                                     | `false`          |
-| `size`           | 尺寸，默认取表单或全局配置   | `'sm' \| 'md' \| 'lg'`                        | `'md'`           |
-| `disabled`       | 禁用                         | `boolean`                                     | `false`          |
-| `invalid`        | 标记为无效                   | `boolean`                                     | `false`          |
-| `placement`      | 弹出的位置                   | `Placement`                                   | `'bottom-start'` |
-| `teleport`       | 渲染到哪里，`false` 留在原处 | `string \| HTMLElement \| false`              | `'body'`         |
+| 名称             | 说明                                     | 类型                                           | 默认值           |
+| ---------------- | ---------------------------------------- | ---------------------------------------------- | ---------------- |
+| `modelValue`     | 路径，配合 `v-model`；多选时为路径的数组 | `CascaderValue[] \| CascaderValue[][] \| null` | —                |
+| `options`        | 选项树                                   | `CascaderOption[]`                             | `[]`             |
+| `load`           | 第一次展开时加载下级                     | `(option, path) => Promise<CascaderOption[]>`  | —                |
+| `changeOnSelect` | 每一级都可以选中                         | `boolean`                                      | `false`          |
+| `expandTrigger`  | 展开下一级的方式                         | `'click' \| 'hover'`                           | `'click'`        |
+| `filterable`     | 可搜索完整路径                           | `boolean`                                      | `false`          |
+| `separator`      | 字段里路径的分隔符                       | `string`                                       | `' / '`          |
+| `showLastOnly`   | 字段里只显示最后一级                     | `boolean`                                      | `false`          |
+| `multiple`       | 多选                                     | `boolean`                                      | `false`          |
+| `checkStrictly`  | 多选时每一级各自勾选                     | `boolean`                                      | `false`          |
+| `maxTagCount`    | 多选时最多显示几个标签                   | `number`                                       | —                |
+| `placeholder`    | 占位文字                                 | `string`                                       | 语言包           |
+| `clearable`      | 显示清空按钮                             | `boolean`                                      | `false`          |
+| `size`           | 尺寸，默认取表单或全局配置               | `'sm' \| 'md' \| 'lg'`                         | `'md'`           |
+| `disabled`       | 禁用                                     | `boolean`                                      | `false`          |
+| `invalid`        | 标记为无效                               | `boolean`                                      | `false`          |
+| `placement`      | 弹出的位置                               | `Placement`                                    | `'bottom-start'` |
+| `teleport`       | 渲染到哪里，`false` 留在原处             | `string \| HTMLElement \| false`               | `'body'`         |
 
 `CascaderOption` 为 `{ value, label?, disabled?, children?, leaf? }`。
 
 ### Cascader Events
 
-| 名称                | 说明           | 参数                               |
-| ------------------- | -------------- | ---------------------------------- |
-| `update:modelValue` | 值变化         | `(value: CascaderValue[] \| null)` |
-| `change`            | 用户选中或清空 | `(value, path: CascaderOption[])`  |
+| 名称                | 说明           | 参数                                                                            |
+| ------------------- | -------------- | ------------------------------------------------------------------------------- |
+| `update:modelValue` | 值变化         | `(value: CascaderValue[] \| null)`                                              |
+| `change`            | 用户选中或清空 | `(value, path: CascaderOption[] \| CascaderOption[][])`，多选时为每条路径的选项 |
 
 ### Cascader Slots
 

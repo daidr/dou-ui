@@ -252,11 +252,21 @@
     font-size: var(--dou-font-size-sm);
   }
 
-  /* a timed event in a month cell leads with its start time */
+  /* a timed event in a month cell leads with its start time, unless the cell is too narrow for both */
+  .dou-calendar-view__event:has(> .dou-calendar-view__event-clock) {
+    container-type: inline-size;
+  }
+
   .dou-calendar-view__event-clock {
     margin-inline-end: 4px;
     font-variant-numeric: tabular-nums;
     opacity: 0.75;
+  }
+
+  @container (width < 120px) {
+    .dou-calendar-view__event-clock {
+      display: none;
+    }
   }
 
   /*

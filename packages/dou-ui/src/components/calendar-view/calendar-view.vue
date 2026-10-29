@@ -14,6 +14,7 @@ import type {
   CalendarViewSlots,
 } from './calendar-view'
 import TimeGrid from './time-grid.vue'
+import { toMinutes } from './time-layout'
 
 defineOptions({ name: 'DouCalendarView' })
 
@@ -86,7 +87,12 @@ const weekdays = computed(() => {
   })
 })
 
-/** Events by day, a span listed on every day it covers. */
+const startOf = (event: CalendarEvent) => toMinutes(event.time) ?? -1
+
+/**
+ * Events by day, a span listed on every day it covers: all-day events
+ * first, in the order given, then timed ones by start time.
+ */
 const byDay = computed(() => {
   const map = new Map<string, CalendarEvent[]>()
   for (const event of props.events) {
@@ -98,6 +104,8 @@ const byDay = computed(() => {
       date = addDays(date, 1)
     }
   }
+  // oxlint-disable-next-line unicorn/no-array-sort -- sorts the lists built above
+  for (const list of map.values()) list.sort((a, b) => startOf(a) - startOf(b))
   return map
 })
 

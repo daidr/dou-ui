@@ -350,6 +350,19 @@ Popconfirm 直接建在 Popover 上，Result 与 Empty 共用一套图标画法�
 | ProgressGroup 分段进度  | ✅   | 一条进度条中按占比显示多段，图例与悬停提示                            |
 | Highlight 关键词高亮    | ✅   | 多关键词、整词匹配；Autocomplete 与 Tree 的筛选高亮改为同一套切分逻辑 |
 
+## 第 21 批 · 日程、快捷键与几项常用能力 ✅
+
+CalendarView 补上按时间排布的视图，再补几个写应用时常要自己实现的能力。
+
+| 组件 / 能力                 | 状态 | 备注                                                                                         |
+| --------------------------- | ---- | -------------------------------------------------------------------------------------------- |
+| CalendarView 周视图与日视图 | ✅   | `v-model:view`；纵向时间轴，重叠的日程并排，全天一行，当前时间线，`hours` 设置时段           |
+| `useHotkey` 快捷键          | ✅   | `mod` 按平台取 ⌘ 或 Ctrl，组合键与按键序列，输入时不触发，卸载自动解绑；CommandDialog 改用它 |
+| Kbd `keys`                  | ✅   | 按平台显示同一个快捷键                                                                       |
+| Table 列的显示与顺序        | ✅   | `v-model:column-keys`；文档示例用 Popover、Checkbox、Sortable 拼出列设置面板                 |
+| Statistic 数值过渡          | ✅   | `animated`，按精度取整，减弱动效时直接跳变                                                   |
+| Upload 粘贴与文件夹         | ✅   | `paste-target` 粘贴加入文件；`directory` 选择或拖入文件夹，保留相对路径                      |
+
 ## 横向事项
 
 - **国际化**：组件自己渲染的文字一律放进语言包（`Locale`），通过 `ConfigProvider` 或 `app.use(DouUI, { locale })` 替换。新组件引入新文案时，同时补齐 `zhCN` 与 `en`。

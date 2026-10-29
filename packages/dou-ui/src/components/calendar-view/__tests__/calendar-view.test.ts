@@ -152,4 +152,19 @@ describe('DouCalendarView', () => {
     expect(wrapper.findAll('.dou-calendar-view__step')[1]!.attributes('aria-label')).toBe('后一天')
     wrapper.unmount()
   })
+
+  it('lists all-day events first, then timed ones by start time', () => {
+    const wrapper = make({
+      events: [
+        { date: '2026-10-12', time: '16:00', title: '晚' },
+        { date: '2026-10-12', time: '09:00', title: '早' },
+        { date: '2026-10-12', title: '全天' },
+      ],
+    })
+    const titles = day(wrapper, '2026-10-12')
+      .findAll('.dou-calendar-view__event')
+      .map((event) => event.text())
+    expect(titles).toEqual(['全天', '09:00早', '16:00晚'])
+    wrapper.unmount()
+  })
 })

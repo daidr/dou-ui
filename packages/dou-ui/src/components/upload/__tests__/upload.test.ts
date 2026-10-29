@@ -195,13 +195,25 @@ describe('DouUpload', () => {
   })
 })
 
-describe('DouUpload folders and pasting', () => {
-  const inFolder = (name: string, path: string) => {
-    const picked = file(name)
-    Object.defineProperty(picked, 'webkitRelativePath', { value: path })
-    return picked
-  }
+const inFolder = (name: string, path: string) => {
+  const picked = file(name)
+  Object.defineProperty(picked, 'webkitRelativePath', { value: path })
+  return picked
+}
+const fileEntry = (name: string, fullPath: string) => ({
+  isFile: true,
+  isDirectory: false,
+  fullPath,
+  file: (done: (value: File) => void) => done(file(name)),
+})
+const paste = (target: EventTarget, pasted: File[]) => {
+  const event = new Event('paste', { bubbles: true, cancelable: true })
+  Object.defineProperty(event, 'clipboardData', { value: { files: pasted } })
+  target.dispatchEvent(event)
+  return event
+}
 
+describe('DouUpload folders and pasting', () => {
   it('picks a whole folder and keeps the paths', async () => {
     const { wrapper, files, pick } = make({ directory: true })
     const input = wrapper.get('input[type="file"]')
@@ -215,12 +227,6 @@ describe('DouUpload folders and pasting', () => {
 
   it('reads dropped folders', async () => {
     const { wrapper, files } = make({ directory: true, dropzone: true })
-    const fileEntry = (name: string, fullPath: string) => ({
-      isFile: true,
-      isDirectory: false,
-      fullPath,
-      file: (done: (value: File) => void) => done(file(name)),
-    })
     let handed = false
     const folder = {
       isFile: false,
@@ -251,12 +257,6 @@ describe('DouUpload folders and pasting', () => {
     area.id = 'paste-area'
     document.body.append(area)
     const { wrapper, files } = make({ pasteTarget: '#paste-area', multiple: true })
-    const paste = (target: EventTarget, pasted: File[]) => {
-      const event = new Event('paste', { bubbles: true, cancelable: true })
-      Object.defineProperty(event, 'clipboardData', { value: { files: pasted } })
-      target.dispatchEvent(event)
-      return event
-    }
     expect(paste(area, []).defaultPrevented).toBe(false)
     const event = paste(area, [file('shot.png', 10, 'image/png')])
     expect(event.defaultPrevented).toBe(true)

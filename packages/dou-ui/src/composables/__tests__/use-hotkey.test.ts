@@ -11,7 +11,7 @@ const press = (key: string, init: KeyboardEventInit = {}, target: EventTarget = 
 }
 
 function host(hotkeys: string | string[], options?: UseHotkeyOptions) {
-  const handler = vi.fn()
+  const handler = vi.fn<(event: KeyboardEvent, hotkey: string) => void>()
   const wrapper = mount(
     defineComponent({
       setup() {

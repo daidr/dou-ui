@@ -74,7 +74,7 @@ export function parseHotkey(hotkey: string): string[][] {
 
 function toCombo(keys: string[], apple: boolean): Combo {
   const modifiers = keys.filter((key) => MODIFIERS.includes(key))
-  const key = keys.find((key) => !MODIFIERS.includes(key)) ?? ''
+  const key = keys.find((name) => !MODIFIERS.includes(name)) ?? ''
   return {
     key,
     meta: modifiers.includes('meta') || (apple && modifiers.includes('mod')),

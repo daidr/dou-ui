@@ -354,15 +354,21 @@
     transform: translateY(-50%);
   }
 
+  /*
+   * The badge is centred on the corner. A capsule has no corner, so there
+   * it sits on the curve at 45°, r(1 - 1/√2) in from the bounding box.
+   */
   .dou-flow-graph__corner {
+    --dou-flow-graph-corner-inset: calc(var(--dou-flow-graph-card-radius) * 0.2929);
     position: absolute;
-    top: -10px;
-    right: -6px;
+    top: var(--dou-flow-graph-corner-inset);
+    right: var(--dou-flow-graph-corner-inset);
     display: inline-flex;
+    transform: translate(50%, -50%);
     cursor: default;
   }
   .dou-flow-graph__node--pill .dou-flow-graph__corner {
-    right: 6px;
+    --dou-flow-graph-corner-inset: calc(var(--dou-flow-graph-node-height) * 0.1464);
   }
 
   /* toolbar */

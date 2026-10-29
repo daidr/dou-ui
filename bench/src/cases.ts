@@ -86,9 +86,14 @@ export const cases: Record<string, Case> = {
     render: (n) => {
       const items = messages(n)
       return () =>
-        h(DouVirtualList, { items, itemKey: 'id', height: 400, style: 'width: 360px' }, {
-          default: ({ item }: any) => h('div', { style: 'padding: 8px; border-bottom: 1px solid #ddd' }, item.text),
-        })
+        h(
+          DouVirtualList,
+          { items, itemKey: 'id', height: 400, style: 'width: 360px' },
+          {
+            default: ({ item }: any) =>
+              h('div', { style: 'padding: 8px; border-bottom: 1px solid #ddd' }, item.text),
+          },
+        )
     },
   },
   'chat-items': {
@@ -96,17 +101,31 @@ export const cases: Record<string, Case> = {
       const items = ref(messages(n))
       ;(window as any).prepend = () => {
         const first = items.value[0]!.id
-        items.value = [...messages(20).map((m) => ({ ...m, id: first - 20 + m.id })), ...items.value]
+        items.value = [
+          ...messages(20).map((m) => ({ ...m, id: first - 20 + m.id })),
+          ...items.value,
+        ]
       }
       ;(window as any).append = () => {
         const last = items.value.at(-1)!.id
-        items.value = [...items.value, { id: last + 1, role: 'assistant', text: sentence.repeat(6) }]
+        items.value = [
+          ...items.value,
+          { id: last + 1, role: 'assistant', text: sentence.repeat(6) },
+        ]
       }
       return () =>
-        h(DouChatList, { items: items.value, itemKey: 'id', style: 'height: 500px; width: 480px' }, {
-          item: ({ item }: any) =>
-            h(DouChatBubble, { placement: item.role === 'user' ? 'end' : 'start' }, () => item.text),
-        })
+        h(
+          DouChatList,
+          { items: items.value, itemKey: 'id', style: 'height: 500px; width: 480px' },
+          {
+            item: ({ item }: any) =>
+              h(
+                DouChatBubble,
+                { placement: item.role === 'user' ? 'end' : 'start' },
+                () => item.text,
+              ),
+          },
+        )
     },
   },
   'chat-plain': {
@@ -115,7 +134,11 @@ export const cases: Record<string, Case> = {
       return () =>
         h(DouChatList, { style: 'height: 500px; width: 480px' }, () =>
           items.map((item) =>
-            h(DouChatBubble, { key: item.id, placement: item.role === 'user' ? 'end' : 'start' }, () => item.text),
+            h(
+              DouChatBubble,
+              { key: item.id, placement: item.role === 'user' ? 'end' : 'start' },
+              () => item.text,
+            ),
           ),
         )
     },

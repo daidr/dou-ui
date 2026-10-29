@@ -30,12 +30,17 @@ function loadEarlier() {
 <template>
   <DouChatList class="list" :items="messages" item-key="id" @top-reached="loadEarlier">
     <template #item="{ item }">
-      <DouChatBubble :placement="item.mine ? 'end' : 'start'" :variant="item.mine ? 'filled' : 'plain'">
+      <DouChatBubble
+        :placement="item.mine ? 'end' : 'start'"
+        :variant="item.mine ? 'filled' : 'plain'"
+      >
         {{ item.text }}
       </DouChatBubble>
     </template>
   </DouChatList>
-  <DouText variant="tertiary" size="sm">共 {{ messages.length }} 条，滚到顶部会加载更早的 50 条。</DouText>
+  <DouText variant="tertiary" size="sm"
+    >共 {{ messages.length }} 条，滚到顶部会加载更早的 50 条。</DouText
+  >
 </template>
 
 <style scoped>

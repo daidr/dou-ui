@@ -1,6 +1,6 @@
 # Progress 进度条
 
-一条凹进的轨道（只是淡淡的底色）上一根实心的进度条。进度条用 `transform` 移动，不会引起重排。不知道进度时，变成一小段在轨道上滑动的条。
+展示任务的完成进度。
 
 <script setup>
 import { ref } from 'vue'

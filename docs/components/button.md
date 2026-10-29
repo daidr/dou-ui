@@ -4,7 +4,7 @@
 
 ## 变体与语气
 
-`variant` 决定按钮有多"重"，`tone` 决定这个操作意味着什么。两者正交，可以任意组合。
+`variant` 设置按钮的样式，`tone` 表示操作的语义，两者可以任意组合。
 
 <div class="demo">
   <DouButton>solid</DouButton>

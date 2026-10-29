@@ -1,6 +1,6 @@
 # Table 表格
 
-一组同类记录。表格像卡片一样放在一圈细描边里；表头是压在极淡底色上的小号次要文字，行与行之间是最淡的细线。表格里不出现色相：悬停的行深一点点，选中的行再深一点点。
+展示多条结构相同的数据，支持排序、筛选、多选、展开行、树形数据和虚拟滚动等功能。
 
 <script setup>
 import { computed, ref } from 'vue'
@@ -240,7 +240,7 @@ const methodsSelected = ref([])
 
 ## 排序
 
-列上的 `sortable` 让表头可以点击排序：升序 → 降序 → 不排序。`true` 按单元格的值比较——数字按大小，文字按页面语言并把其中的数字按数值排（`node-2` 在 `node-10` 前面）；也可以传一个比较两行的函数。当前的排序用 `v-model:sort` 绑定。
+列上的 `sortable` 让表头可以点击排序：升序 → 降序 → 不排序。`true` 按单元格的值比较：数字按大小，文字按页面语言并把其中的数字按数值排（`node-2` 在 `node-10` 前面）；也可以传一个比较两行的函数。当前的排序用 `v-model:sort` 绑定。
 
 <div class="demo demo--column">
   <DouTable v-model:sort="sort" :data="rows" :columns="columns" />
@@ -467,7 +467,7 @@ const columns = [
 
 ## 当前行与行事件
 
-`highlight-current` 让点击的行成为当前行，绑定在 `v-model:current` 上；当前行用选中行的底色，起始边多一道墨线，适合主从表这类"选中一行看详情"的场景。`row-class`、`row-style` 给行加类名和样式，可以是值，也可以是 `(row, index) => …` 函数。
+`highlight-current` 让点击的行成为当前行，绑定在 `v-model:current` 上；当前行用选中行的底色，起始边多一道深色竖线，适合主从表这类"选中一行看详情"的场景。`row-class`、`row-style` 给行加类名和样式，可以是值，也可以是 `(row, index) => …` 函数。
 
 除了 `rowClick`，还有 `rowDblclick`、`rowContextmenu`（配合 ContextMenu 做右键菜单）和 `cellClick`（多了列）。
 

@@ -1,6 +1,6 @@
 # Countdown 倒计时
 
-一个在走的 [Statistic](./statistic)：标签、前后缀和插槽都一样，数字换成剩余时间，等宽数字让跳动时位数不晃。
+倒计时，用法与 [Statistic](./statistic) 相同，数值为剩余时间。
 
 <script setup>
 import { computed, ref } from 'vue'

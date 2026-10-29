@@ -1,6 +1,6 @@
 # Input 输入框
 
-单行文本输入。输入框是放在页面上的一块表面：细描边加静止阴影，与 outline 按钮同高同质，可以并排对齐。聚焦时描边加深，外面浮现一圈柔和的光晕，而不是生硬的轮廓线。
+单行文本输入框。
 
 <script setup>
 import { SearchIcon } from '@dou-ui/icons'

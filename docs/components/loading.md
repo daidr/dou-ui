@@ -1,6 +1,6 @@
 # Loading 加载遮罩
 
-内容正在获取或保存时，在它上面盖一层半透明的表面色，中间放一个 [Spinner](./spinner)。内容仍隐约可见，遮罩撤掉时布局不会跳动。
+在正在加载的内容上显示遮罩和加载图标。
 
 <script setup>
 import { ref } from 'vue'

@@ -1,6 +1,6 @@
 # Rate 评分
 
-用一排星星给出或展示一个分数。空星是一道细描边，填满的星默认是墨色，`tone="warning"` 换成暖色；半星是同一颗星裁掉一半，不用另画图形。
+用星星给出或展示评分。
 
 <script setup>
 import { HeartIcon } from '@dou-ui/icons'

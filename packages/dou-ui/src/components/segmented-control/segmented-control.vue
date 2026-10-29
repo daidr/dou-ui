@@ -55,8 +55,24 @@ function select(option: SegmentedControlOption) {
 
 // The selection is a raised block that slides between the options. Its
 // box is measured from the selected option, unrounded, so it covers the
-// option exactly even when `block` shares out fractional widths.
+// option exactly even when `block` shares out fractional widths. Layout
+// sizes are used instead of screen boxes, so a scaled or rotated ancestor
+// does not shift it.
 const rootRef = useTemplateRef<HTMLElement>('root')
+
+function layoutWidth(element: HTMLElement) {
+  const style = getComputedStyle(element)
+  const width = Number.parseFloat(style.width)
+  if (Number.isNaN(width)) return element.offsetWidth
+  if (style.boxSizing === 'border-box') return width
+  return (
+    width +
+    Number.parseFloat(style.paddingLeft) +
+    Number.parseFloat(style.paddingRight) +
+    Number.parseFloat(style.borderLeftWidth) +
+    Number.parseFloat(style.borderRightWidth)
+  )
+}
 const indicator = ref<{ left: number; width: number } | null>(null)
 // No slide for the first placement, only for later changes.
 const settled = ref(false)
@@ -64,14 +80,16 @@ const settled = ref(false)
 function measure() {
   const root = rootRef.value
   const index = options.value.findIndex((option) => option.value === model.value)
-  const item = index < 0 ? null : root?.querySelectorAll<HTMLElement>(`.${ns.e('item')}`)[index]
+  const items = root ? [...root.querySelectorAll<HTMLElement>(`.${ns.e('item')}`)] : []
+  const item = index < 0 ? undefined : items[index]
   if (!root || !item) {
     indicator.value = null
     return
   }
-  const rootBox = root.getBoundingClientRect()
-  const itemBox = item.getBoundingClientRect()
-  indicator.value = { left: itemBox.left - rootBox.left - root.clientLeft, width: itemBox.width }
+  // The options sit side by side from the padding edge.
+  let left = Number.parseFloat(getComputedStyle(root).paddingLeft) || 0
+  for (const before of items.slice(0, index)) left += layoutWidth(before)
+  indicator.value = { left, width: layoutWidth(item) }
 }
 
 let observer: ResizeObserver | undefined

@@ -37,7 +37,7 @@ export default defineConfig({
           items: [
             { text: '图标库', link: '/icons/' },
             { text: '安装与使用', link: '/icons/usage' },
-            { text: '设计哲学与绘制规范', link: '/icons/design' },
+            { text: '设计规范', link: '/icons/design' },
           ],
         },
       ],
@@ -45,7 +45,7 @@ export default defineConfig({
         {
           text: '指南',
           items: [
-            { text: '设计哲学', link: '/guide/philosophy' },
+            { text: '设计原则', link: '/guide/philosophy' },
             { text: '视觉语言', link: '/guide/visual-language' },
             { text: '快速开始', link: '/guide/getting-started' },
             { text: '主题与 Token', link: '/guide/theming' },

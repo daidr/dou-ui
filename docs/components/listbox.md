@@ -1,6 +1,6 @@
 # Listbox 列表选择
 
-直接铺在页面里的选项列表，不用先点开。行的样子与 [Select](./select) 弹出的列表一致，外面是和输入框一样的边框与焦点环，放进表单里能和其他控件对齐。适合选项不多、希望一眼看全的场景，比如设置页、侧栏筛选。
+直接展示在页面中的选项列表，适合选项不多、希望一次看到全部选项的场景，例如设置页、侧栏筛选。
 
 <script setup>
 import { CloudIcon, DatabaseIcon, GlobeIcon, ServerIcon } from '@dou-ui/icons'

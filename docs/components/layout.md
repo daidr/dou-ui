@@ -1,6 +1,6 @@
 # Layout 布局
 
-应用页面的骨架：顶栏、侧栏、主区与页脚。这几块本身不做装饰，用的就是页面底色，只靠一条细线和主区分开，让表面与阴影都留给内容。含有侧栏的 `DouLayout` 横向排列，其余纵向排列，所以嵌套一层就能组合出常见的后台结构。
+用于搭建页面的基本结构，包括顶栏、侧栏、主区和页脚。
 
 <script setup>
 import { DashboardIcon, FolderIcon, SettingsIcon, UsersIcon } from '@dou-ui/icons'

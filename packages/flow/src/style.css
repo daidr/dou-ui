@@ -1,0 +1,403 @@
+/*
+ * Flow editor
+ *
+ * A quiet sheet of dotted paper. Nodes are cards with a hairline edge and
+ * a resting shadow; edges are hairline curves that stay 1px at any zoom.
+ * Hue only marks what is selected, the guides while dragging, and a
+ * node's status.
+ */
+@layer dou.components {
+  .dou-flow-editor {
+    --dou-flow-editor-dot: color-mix(in oklab, var(--dou-color-text) 16%, transparent);
+    --dou-flow-editor-node-bg: var(--dou-color-bg-surface);
+    --dou-flow-editor-node-border: var(--dou-color-border);
+    --dou-flow-editor-node-border-hover: var(--dou-color-border-strong);
+    --dou-flow-editor-node-radius: var(--dou-radius-container);
+    --dou-flow-editor-edge: var(--dou-color-border-strong);
+    --dou-flow-editor-edge-hover: var(--dou-color-text-tertiary);
+    --dou-flow-editor-selected: var(--dou-color-primary);
+    --dou-flow-editor-guide: var(--dou-color-primary);
+    --dou-flow-editor-port: var(--dou-color-text-tertiary);
+    --dou-flow-editor-status-wait: var(--dou-color-text-disabled);
+    --dou-flow-editor-status-process: var(--dou-color-warning);
+    --dou-flow-editor-status-finish: var(--dou-color-success);
+    --dou-flow-editor-status-error: var(--dou-color-danger);
+
+    position: relative;
+    box-sizing: border-box;
+    width: 100%;
+    height: 480px;
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-container);
+    background-color: var(--dou-color-bg-canvas);
+    background-image: radial-gradient(circle, var(--dou-flow-editor-dot) 1px, transparent 1px);
+    color: var(--dou-color-text);
+    font-family: var(--dou-font-family);
+    font-size: var(--dou-font-size-md);
+    line-height: var(--dou-font-line-height);
+    /* every gesture is handled here, including pinch and pan on touch screens */
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    outline: none;
+    cursor: default;
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 2px;
+    }
+    &.is-space {
+      cursor: grab;
+    }
+    &.is-panning,
+    &.is-panning *,
+    &.is-dragging,
+    &.is-dragging * {
+      cursor: grabbing;
+    }
+  }
+
+  .dou-flow-editor__layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform-origin: 0 0;
+  }
+
+  .dou-flow-editor__edges,
+  .dou-flow-editor__guides {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 1px;
+    height: 1px;
+    overflow: visible;
+    pointer-events: none;
+  }
+
+  .dou-flow-editor__edge {
+    fill: none;
+    stroke: var(--dou-flow-editor-edge);
+    stroke-width: 1px;
+    vector-effect: non-scaling-stroke;
+    transition: stroke var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    &.is-selected {
+      stroke: var(--dou-flow-editor-selected);
+      stroke-width: 2px;
+    }
+  }
+
+  /* a wide, invisible stroke so thin edges are easy to hit */
+  .dou-flow-editor__edge-hit {
+    fill: none;
+    stroke: transparent;
+    stroke-width: 12px;
+    vector-effect: non-scaling-stroke;
+    pointer-events: stroke;
+    cursor: pointer;
+
+    &:hover + .dou-flow-editor__edge:not(.is-selected) {
+      stroke: var(--dou-flow-editor-edge-hover);
+    }
+  }
+
+  .dou-flow-editor__guides line {
+    stroke: var(--dou-flow-editor-guide);
+    stroke-width: 1px;
+    vector-effect: non-scaling-stroke;
+  }
+
+  /* nodes */
+  .dou-flow-editor__node {
+    position: absolute;
+    top: 0;
+    left: 0;
+    box-sizing: border-box;
+    border: 1px solid var(--dou-flow-editor-node-border);
+    border-radius: var(--dou-flow-editor-node-radius);
+    background-color: var(--dou-flow-editor-node-bg);
+    box-shadow: var(--dou-shadow-sm);
+    outline: none;
+    transition-property: border-color, box-shadow;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    &:hover {
+      border-color: var(--dou-flow-editor-node-border-hover);
+    }
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 2px;
+    }
+    &.is-selected {
+      border-color: var(--dou-flow-editor-selected);
+      box-shadow:
+        0 0 0 3px color-mix(in oklab, var(--dou-flow-editor-selected) 14%, transparent),
+        var(--dou-shadow-sm);
+    }
+    &.is-dragging {
+      z-index: 1;
+      box-shadow: var(--dou-shadow-md);
+    }
+    &.is-selected.is-dragging {
+      box-shadow:
+        0 0 0 3px color-mix(in oklab, var(--dou-flow-editor-selected) 14%, transparent),
+        var(--dou-shadow-md);
+    }
+    /* form controls inside a node can be selected and typed in */
+    & :is(input, textarea, [contenteditable='true']) {
+      user-select: text;
+      -webkit-user-select: text;
+    }
+  }
+
+  /* ports: a small ring centred on the node's edge, filled once connected */
+  .dou-flow-port {
+    position: absolute;
+    z-index: 1;
+    box-sizing: border-box;
+    width: 8px;
+    height: 8px;
+    border: 1px solid var(--dou-flow-editor-port);
+    border-radius: var(--dou-radius-full);
+    background-color: var(--dou-flow-editor-node-bg);
+
+    &.is-connected {
+      background-color: var(--dou-flow-editor-port);
+    }
+    /* 0.5px more to sit on the middle of the node's 1px border */
+    &.is-left {
+      top: 50%;
+      left: 0;
+      transform: translate(calc(-50% - 0.5px), -50%);
+    }
+    &.is-right {
+      top: 50%;
+      left: 100%;
+      transform: translate(calc(-50% + 0.5px), -50%);
+    }
+    &.is-top {
+      top: 0;
+      left: 50%;
+      transform: translate(-50%, calc(-50% - 0.5px));
+    }
+    &.is-bottom {
+      top: 100%;
+      left: 50%;
+      transform: translate(-50%, calc(-50% + 0.5px));
+    }
+  }
+
+  .dou-flow-editor__marquee {
+    position: absolute;
+    top: 0;
+    left: 0;
+    box-sizing: border-box;
+    border: 1px solid var(--dou-flow-editor-selected);
+    border-radius: 2px;
+    background-color: color-mix(in oklab, var(--dou-flow-editor-selected) 8%, transparent);
+    pointer-events: none;
+  }
+
+  .dou-flow-editor__panels {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+
+    & > * {
+      pointer-events: auto;
+    }
+  }
+
+  .dou-flow-editor__end,
+  .dou-flow-editor__live {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /* the default node */
+  .dou-flow-default-node {
+    width: 208px;
+  }
+  /* a node with a stored width fills it */
+  .dou-flow-editor__node.is-sized > .dou-flow-default-node {
+    width: auto;
+  }
+
+  .dou-flow-default-node__head {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-sizing: border-box;
+    min-height: 44px;
+    padding: 0 12px;
+  }
+
+  .dou-flow-default-node__icon {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: var(--dou-radius-control);
+    background-color: var(--dou-color-bg-muted);
+    color: var(--dou-color-text-secondary);
+
+    & svg {
+      width: 16px;
+      height: 16px;
+    }
+  }
+
+  .dou-flow-default-node__title {
+    flex: 1;
+    min-width: 0;
+    overflow-x: clip;
+    font-weight: var(--dou-font-weight-medium);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-box: trim-both cap alphabetic;
+  }
+
+  .dou-flow-default-node__status {
+    flex: none;
+    width: 8px;
+    height: 8px;
+    border-radius: var(--dou-radius-full);
+    background-color: var(--dou-flow-editor-status-wait);
+
+    &.is-process {
+      background-color: var(--dou-flow-editor-status-process);
+    }
+    &.is-finish {
+      background-color: var(--dou-flow-editor-status-finish);
+    }
+    &.is-error {
+      background-color: var(--dou-flow-editor-status-error);
+    }
+  }
+
+  .dou-flow-default-node__description {
+    margin: -4px 0 0;
+    padding: 0 12px 12px;
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-sm);
+    line-height: 20px;
+  }
+
+  .dou-flow-default-node__ports {
+    /* 3px, so the 1px line above keeps the node an even height */
+    padding: 3px 0 4px;
+    border-top: 1px solid var(--dou-color-border-subtle);
+  }
+
+  .dou-flow-default-node__row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+    height: 28px;
+    padding: 0 12px;
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-sm);
+  }
+
+  .dou-flow-default-node__port {
+    min-width: 0;
+    overflow-x: clip;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-box: trim-both cap alphabetic;
+
+    &.is-output {
+      margin-left: auto;
+      text-align: right;
+    }
+  }
+
+  /* controls */
+  .dou-flow-controls {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid var(--dou-color-border);
+    border-radius: calc(var(--dou-radius-control) + 2px);
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-sm);
+
+    &.is-top-left {
+      top: 12px;
+      left: 12px;
+    }
+    &.is-top-right {
+      top: 12px;
+      right: 12px;
+    }
+    &.is-bottom-left {
+      bottom: 12px;
+      left: 12px;
+    }
+    &.is-bottom-right {
+      right: 12px;
+      bottom: 12px;
+    }
+  }
+
+  .dou-flow-controls__button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    min-width: 28px;
+    height: 28px;
+    padding: 0 6px;
+    border: 0;
+    border-radius: var(--dou-radius-control);
+    background: none;
+    color: var(--dou-color-text-secondary);
+    font: inherit;
+    font-size: var(--dou-font-size-sm);
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+    transition: background-color var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    & svg {
+      width: 16px;
+      height: 16px;
+    }
+    &:hover:not(:disabled) {
+      background-color: var(--dou-color-bg-muted);
+      color: var(--dou-color-text);
+    }
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 0;
+    }
+    &:disabled {
+      color: var(--dou-color-text-disabled);
+      cursor: default;
+    }
+  }
+
+  .dou-flow-controls__zoom {
+    min-width: 48px;
+  }
+
+  .dou-flow-controls__divider {
+    width: 1px;
+    height: 16px;
+    margin: 0 2px;
+    background-color: var(--dou-color-border);
+  }
+}

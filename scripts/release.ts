@@ -13,7 +13,7 @@ if (!version || !/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(version)) {
 
 const root = new URL('../', import.meta.url).pathname
 // in publish order: each package only depends on the ones before it
-const packages = ['theme', 'icons', 'dou-ui', 'editor', 'resolver', 'nuxt']
+const packages = ['theme', 'icons', 'dou-ui', 'editor', 'flow', 'resolver', 'nuxt']
 
 const changelog = Bun.file(`${root}CHANGELOG.md`)
 const text = await changelog.text()

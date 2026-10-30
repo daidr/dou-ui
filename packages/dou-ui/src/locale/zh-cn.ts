@@ -136,7 +136,7 @@ export const zhCN: Locale = {
     error: '出错',
   },
   nodeGraph: {
-    label: '流程图',
+    label: '节点图',
     status: {
       wait: '未开始',
       process: '进行中',

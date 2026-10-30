@@ -1,4 +1,4 @@
-# NodeGraph 流程图
+# NodeGraph 节点图
 
 按依赖关系从左到右展示一组节点和它们之间的连线。
 
@@ -102,7 +102,7 @@ NodeGraph 只用来展示。需要拖动节点、连线编辑时，用[流程编
 | `max-zoom`       | 最大缩放比例                                 | `number`                          | `2`        |
 | `legend`         | 在工具栏显示图例按钮                         | `boolean`                         | `false`    |
 | `height`         | 容器高度，数字单位为 px                      | `string \| number`                | 和图一样高 |
-| `label`          | 读屏用的名称                                 | `string`                          | `'流程图'` |
+| `label`          | 读屏用的名称                                 | `string`                          | `'节点图'` |
 
 ### GraphNode
 

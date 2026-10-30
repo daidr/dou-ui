@@ -33,7 +33,7 @@ describe('DouNodeGraph', () => {
       find(wrapper, '开发').find('.dou-node-graph__progress-bar').attributes('style'),
     ).toContain('width: 40%')
     expect(wrapper.attributes('role')).toBe('group')
-    expect(wrapper.attributes('aria-label')).toBe('流程图')
+    expect(wrapper.attributes('aria-label')).toBe('节点图')
   })
 
   it('describes each node for screen readers', () => {

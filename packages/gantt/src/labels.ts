@@ -15,7 +15,8 @@ export function unitLabel(unit: TimeUnit, at: number, m: GanttMessages, dayWidth
     case 'year':
       return format(m.year, { year: p.year })
     case 'half':
-      return m.halves[p.month > 6 ? 1 : 0]
+      // a half year narrower than its name keeps only its gridline
+      return dayWidth * 181 >= 56 ? m.halves[p.month > 6 ? 1 : 0] : ''
     case 'quarter':
       return format(m.quarter, { quarter: Math.ceil(p.month / 3) })
     case 'month':

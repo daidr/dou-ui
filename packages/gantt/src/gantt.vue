@@ -183,7 +183,8 @@ function scrollToTime(at: number, offset = 48) {
 const FIT_MAX = 64
 
 function fit() {
-  const width = viewWidth.value
+  // worked out from the root, so a table about to step aside doesn't count
+  const width = showTable.value ? viewWidth.value : rootWidth.value
   if (!width) return
   const days = Math.max(1, (content.value.end - content.value.start) / MINUTES_PER_DAY)
   dayWidth.value = Math.min(FIT_MAX, Math.max(DAY_WIDTH_RANGE[0], (width - 96) / days))
@@ -195,8 +196,8 @@ onMounted(() => {
   scrollToTime(content.value.start)
 })
 
-watch(viewWidth, (width) => {
-  if (!fitPending || !width) return
+watch([rootWidth, viewWidth], ([outer, inner]) => {
+  if (!fitPending || !outer || !inner) return
   fitPending = false
   fit()
 })

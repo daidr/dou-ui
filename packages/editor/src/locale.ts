@@ -61,6 +61,7 @@ export interface EditorMessages {
     change: string
     tones: { info: string; tip: string; warning: string; danger: string }
   }
+  mention: { label: string; searching: string; noResults: string }
   noResults: string
   addBlock: string
   dragHandle: string
@@ -130,6 +131,7 @@ const zhCN: EditorMessages = {
   },
   codeBlock: { language: '语言', plainText: '纯文本' },
   toggle: { expand: '展开', collapse: '收起' },
+  mention: { label: '提及', searching: '正在搜索', noResults: '没有找到' },
   callout: {
     change: '点击更换',
     tones: { info: '说明', tip: '提示', warning: '注意', danger: '警告' },
@@ -202,6 +204,7 @@ const zhTW: EditorMessages = {
   },
   codeBlock: { language: '語言', plainText: '純文字' },
   toggle: { expand: '展開', collapse: '收合' },
+  mention: { label: '提及', searching: '正在搜尋', noResults: '沒有找到' },
   callout: {
     change: '點擊更換',
     tones: { info: '說明', tip: '提示', warning: '注意', danger: '警告' },
@@ -274,6 +277,7 @@ const en: EditorMessages = {
   },
   codeBlock: { language: 'Language', plainText: 'Plain text' },
   toggle: { expand: 'Expand', collapse: 'Collapse' },
+  mention: { label: 'Mention', searching: 'Searching', noResults: 'No one found' },
   callout: {
     change: 'click to change',
     tones: { info: 'Info', tip: 'Tip', warning: 'Warning', danger: 'Danger' },

@@ -84,6 +84,11 @@ export interface EditorExtension {
   blockOptions?: BlockOption[]
   /** Toggles for the formatting toolbar. */
   formats?: FormatOption[]
+  /**
+   * Components rendered next to the editing area while it is editable,
+   * e.g. a popup of suggestions. They can call `useEditorContext()`.
+   */
+  overlays?: Component[]
 }
 
 /** Declare an extension; only gives it a type. */
@@ -99,6 +104,7 @@ export interface ResolvedExtensions {
   nodeViews: Record<string, NodeViewConstructor>
   blockOptions: BlockOption[]
   formats: FormatOption[]
+  overlays: Component[]
   inputRules: InputRule[]
   keymaps: Record<string, Command>[]
   plugins: Plugin[]
@@ -166,6 +172,7 @@ export function resolveExtensions(
     nodeViews: Object.assign({}, ...extensions.map((extension) => extension.nodeViews ?? {})),
     blockOptions: extensions.flatMap((extension) => extension.blockOptions ?? []),
     formats: extensions.flatMap((extension) => extension.formats ?? []),
+    overlays: extensions.flatMap((extension) => extension.overlays ?? []),
     inputRules: extensions.flatMap((extension) => extension.inputRules?.(context) ?? []),
     keymaps: extensions.flatMap((extension) =>
       extension.keymap ? [extension.keymap(context)] : [],

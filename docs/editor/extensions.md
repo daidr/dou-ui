@@ -129,6 +129,7 @@ export const highlight = defineExtension({
 | `externalDocument` | 文档保存在编辑器之外（例如协同编辑的共享文档），`v-model` 只同步输出 | `boolean`                              |
 | `blockOptions`     | 块菜单和“转换为”菜单中的选项                                         | `BlockOption[]`                        |
 | `formats`          | 格式工具栏中的按钮                                                   | `FormatOption[]`                       |
+| `overlays`         | 可编辑时渲染在编辑区域旁的组件，例如提及的候选列表                   | `Component[]`                          |
 
 `context` 里有根据全部扩展生成的 `schema`。
 

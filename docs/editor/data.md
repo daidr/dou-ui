@@ -64,12 +64,15 @@ const blocks: PartialBlock[] = [
 
 ```ts
 type InlineContent =
-  { type: 'text'; text: string; marks?: MarkType[]; link?: string } | { type: 'break' }
+  | { type: 'text'; text: string; marks?: MarkType[]; link?: string }
+  | { type: 'break' }
+  | { type: 'inline'; name: string; props: Record<string, unknown> }
 ```
 
 - `marks` 是文字的格式，可选 `'bold'`、`'italic'`、`'underline'`、`'strike'`、`'code'`，按这个顺序排列。
 - `link` 是链接地址，只接受 `http`、`https`、`mailto`、`tel` 和相对地址，其他协议（例如 `javascript:`）会被忽略。
 - `{ type: 'break' }` 是块内换行，用 `Shift+Enter` 输入。
+- `{ type: 'inline' }` 是扩展提供的行内节点，`name` 是节点名称，`props` 是它的属性，例如[提及](./mention)。没有添加对应扩展时，这样的片段会被忽略。
 - 格式和链接都相同的相邻片段会合并成一个。
 
 代码块里的文字不带格式，换行直接写在 `text` 里。分隔线没有文字，`content` 为空数组。

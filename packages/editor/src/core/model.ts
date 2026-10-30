@@ -16,7 +16,15 @@ export interface BreakContent {
   type: 'break'
 }
 
-export type InlineContent = TextContent | BreakContent
+/** An inline node an extension adds, e.g. a mention. */
+export interface InlineNodeContent {
+  type: 'inline'
+  /** The node's name, e.g. `mention`. */
+  name: string
+  props: Record<string, unknown>
+}
+
+export type InlineContent = TextContent | BreakContent | InlineNodeContent
 
 /** A block's attributes: those of the built-in types, and any an extension declares. */
 export interface BlockProps {
@@ -82,7 +90,10 @@ function inlineOf(node: PMNode): InlineContent[] {
       result.push({ type: 'break' })
       return
     }
-    if (!child.isText) return
+    if (!child.isText) {
+      result.push({ type: 'inline', name: child.type.name, props: { ...child.attrs } })
+      return
+    }
     const marks = child.marks
       .map((mark) => mark.type.name)
       .filter((name): name is MarkType => name !== 'link')
@@ -152,6 +163,10 @@ function inlineNodes(schema: Schema, content: PartialBlock['content'], code: boo
   for (const item of items) {
     if (item.type === 'break') {
       nodes.push(code ? schema.text('\n') : schema.nodes.hardBreak!.create())
+    } else if (item.type === 'inline') {
+      // an inline node whose extension is missing is left out
+      const type = schema.nodes[item.name]
+      if (type?.isInline && !code) nodes.push(type.create(item.props))
     } else if (item.text) {
       nodes.push(schema.text(item.text, code ? [] : marksFor(schema, item)))
     }

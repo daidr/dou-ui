@@ -39,6 +39,7 @@
 - `@dou-ui/editor` 的 `image` 扩展：图片块，支持上传、粘贴、拖入与链接嵌入，可以调整宽度并填写说明文字
 - `@dou-ui/editor` 的代码块支持语法高亮（与 CodeBlock 使用同一个高亮函数）、选择语言和复制代码
 - `@dou-ui/editor` 新增折叠块与提示块
+- `@dou-ui/editor` 的 `mention` 扩展：输入 `@` 搜索并提及某人，搜索可以是异步的
 - `@dou-ui/resolver`：配合按需组件插件，自动导入组件和它的样式入口
 - `@dou-ui/nuxt`：Nuxt 模块，组件、指令与函数自动导入，样式与配色模式开箱即用，支持服务端渲染
 - 组件从 `dou-ui` 具名导入；样式可以全量引入 `dou-ui/style.css`，也可以按组件引入 `dou-ui/components/<name>/style`

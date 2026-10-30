@@ -197,6 +197,7 @@ defineExpose<EditorExpose>({
       <BlockHandle />
       <SlashMenu ref="slashMenu" :slash="slash" />
       <BubbleToolbar ref="bubble" />
+      <component :is="overlay" v-for="(overlay, index) in kit.overlays" :key="index" />
     </template>
   </div>
 </template>

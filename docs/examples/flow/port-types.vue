@@ -4,10 +4,10 @@ import { ref } from 'vue'
 
 const portTypes = {
   exec: { label: '执行', shape: 'triangle', edgeWidth: 2 },
-  table: { label: '表格', color: 'primary' },
-  number: { label: '数字', color: 'success' },
+  table: { label: '表格', shape: 'square' },
+  number: { label: '数字', shape: 'diamond' },
   // 文字端口也接受数字
-  text: { label: '文字', color: 'warning', accepts: ['number'] },
+  text: { label: '文字', accepts: ['number'] },
 }
 
 const run = (kind, id = kind === 'input' ? 'run' : 'then') => ({

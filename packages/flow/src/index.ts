@@ -19,7 +19,7 @@ export type {
   PortState,
 } from './context'
 export { flowLocales, useFlowMessages } from './locale'
-export type { FlowMessages } from './locale'
+export type { FlowMessages, FlowMessagesOverride } from './locale'
 export { defaultNode } from './components/default-node'
 export type { DefaultNodeData } from './components/default-node'
 export { defineNodeType, labelOf, portSide, portsOf } from './core/node-types'
@@ -41,12 +41,19 @@ export type {
 export { applySteps, compactSteps, Transaction } from './core/transaction'
 export type { FlowStep, TransactionMeta } from './core/transaction'
 export { FlowHistory } from './core/history'
-export { canJoin, primaryType, reaches, typesMatch } from './core/connect'
+export {
+  canJoin,
+  displacedEdges,
+  joinRefusal,
+  primaryType,
+  reaches,
+  typesMatch,
+} from './core/connect'
 export type {
   ConnectOptions,
   FlowConnection,
+  JoinRefusal,
   PortShape,
-  PortTone,
   PortTypes,
   PortTypeSpec,
 } from './core/connect'

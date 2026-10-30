@@ -36,10 +36,10 @@ const selected = defineModel<string | string[] | null>('selected', { default: nu
 const zoom = defineModel<number>('zoom', { default: 1 })
 const hovered = defineModel<string | null>('hovered', { default: null })
 const emit = defineEmits<{
-  'node-click': [node: GraphNode, event: MouseEvent]
-  'node-dblclick': [node: GraphNode, event: MouseEvent]
-  'node-enter': [node: GraphNode, el: HTMLElement]
-  'node-leave': [node: GraphNode, el: HTMLElement]
+  nodeClick: [node: GraphNode, event: MouseEvent]
+  nodeDblclick: [node: GraphNode, event: MouseEvent]
+  nodeEnter: [node: GraphNode, el: HTMLElement]
+  nodeLeave: [node: GraphNode, el: HTMLElement]
 }>()
 const slots = defineSlots<NodeGraphSlots>()
 
@@ -502,15 +502,15 @@ const edgeInChain = (from: string, to: string) =>
 
 function onEnter(node: GraphNode, event: PointerEvent) {
   hovered.value = node.id
-  emit('node-enter', node, event.currentTarget as HTMLElement)
+  emit('nodeEnter', node, event.currentTarget as HTMLElement)
 }
 function onLeave(node: GraphNode, event: PointerEvent) {
   if (hovered.value === node.id) hovered.value = null
-  emit('node-leave', node, event.currentTarget as HTMLElement)
+  emit('nodeLeave', node, event.currentTarget as HTMLElement)
 }
 function onClick(node: GraphNode, event: MouseEvent) {
   select(node)
-  emit('node-click', node, event)
+  emit('nodeClick', node, event)
 }
 
 // Keyboard ------------------------------------------------------------------
@@ -658,7 +658,7 @@ defineExpose<NodeGraphExpose>({ scrollToNode, fit, zoomTo, resetView, relayout: 
     :class="classes"
     :style="rootStyle"
     role="group"
-    :aria-label="label ?? t('nodeGraph.label')"
+    :aria-label="ariaLabel ?? t('nodeGraph.label')"
     @wheel="onWheel"
     @scroll="onScroll"
     @pointerdown="onPointerDown"
@@ -692,7 +692,7 @@ defineExpose<NodeGraphExpose>({ scrollToNode, fit, zoomTo, resetView, relayout: 
           :aria-pressed="selectable ? selectedIds.has(node.id) : undefined"
           :aria-disabled="node.disabled || undefined"
           @click="onClick(node, $event)"
-          @dblclick="emit('node-dblclick', node, $event)"
+          @dblclick="emit('nodeDblclick', node, $event)"
           @pointerenter="onEnter(node, $event)"
           @pointerleave="onLeave(node, $event)"
           @focus="focused = node.id"

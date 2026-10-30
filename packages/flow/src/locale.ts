@@ -26,6 +26,17 @@ export interface FlowMessages {
   /** While connecting from the keyboard; `{node}` and `{port}` are names. */
   connectTo: string
   noTarget: string
+  /** `{count}` edges no longer fit their ports. */
+  stale: string
+  /** Why an edge was refused, announced when it is dropped. */
+  refused: {
+    direction: string
+    self: string
+    type: string
+    duplicate: string
+    cycle: string
+    custom: string
+  }
   status: { wait: string; process: string; finish: string; error: string }
 }
 
@@ -48,6 +59,15 @@ const zhCN: FlowMessages = {
   connected: '已连接',
   connectTo: '连接到 {node} 的 {port}，方向键换一个，Enter 确认',
   noTarget: '没有可以连接的端口',
+  stale: '{count} 条连线的端口类型已经对不上',
+  refused: {
+    direction: '只能从输出连到输入',
+    self: '不能连到同一个节点',
+    type: '端口类型不匹配',
+    duplicate: '这两个端口已经连上了',
+    cycle: '这样会连成环',
+    custom: '不能连到这个端口',
+  },
   status: { wait: '等待', process: '运行中', finish: '已完成', error: '失败' },
 }
 
@@ -70,6 +90,15 @@ const zhTW: FlowMessages = {
   connected: '已連接',
   connectTo: '連接到 {node} 的 {port}，方向鍵換一個，Enter 確認',
   noTarget: '沒有可以連接的連接埠',
+  stale: '{count} 條連線的連接埠類型已經對不上',
+  refused: {
+    direction: '只能從輸出連到輸入',
+    self: '不能連到同一個節點',
+    type: '連接埠類型不符',
+    duplicate: '這兩個連接埠已經連上了',
+    cycle: '這樣會連成環',
+    custom: '不能連到這個連接埠',
+  },
   status: { wait: '等待', process: '執行中', finish: '已完成', error: '失敗' },
 }
 
@@ -93,6 +122,15 @@ const en: FlowMessages = {
   connected: 'Connected',
   connectTo: 'Connect to {port} of {node}; arrow keys pick another, Enter confirms',
   noTarget: 'No port to connect to',
+  stale: '{count} edges no longer match their ports',
+  refused: {
+    direction: 'Edges go from an output to an input',
+    self: 'A node can’t connect to itself',
+    type: 'The port types don’t match',
+    duplicate: 'These ports are already connected',
+    cycle: 'This would make a cycle',
+    custom: 'Can’t connect to this port',
+  },
   status: { wait: 'Waiting', process: 'Running', finish: 'Done', error: 'Failed' },
 }
 
@@ -102,18 +140,30 @@ export const flowLocales: Record<string, FlowMessages> = {
   en,
 }
 
+/** Texts to change; nested groups are merged, so only the ones given are replaced. */
+export type FlowMessagesOverride = {
+  [K in keyof FlowMessages]?: FlowMessages[K] extends string ? string : Partial<FlowMessages[K]>
+}
+
 /**
  * The flow editor's texts, picked by the name of DouUI's current locale.
  * Pass `messages` to override any of them.
  */
-export function useFlowMessages(override?: MaybeRefOrGetter<Partial<FlowMessages> | undefined>) {
+export function useFlowMessages(override?: MaybeRefOrGetter<FlowMessagesOverride | undefined>) {
   const { locale } = useLocale()
   return computed<FlowMessages>(() => {
     const name = locale.value.name
     const base =
       flowLocales[name] ?? flowLocales[name.split('-')[0]!] ?? (name.startsWith('zh') ? zhCN : en)
     const extra = toValue(override)
-    return extra ? { ...base, ...extra } : base
+    if (!extra) return base
+    const out = { ...base } as Record<string, unknown>
+    for (const [key, value] of Object.entries(extra)) {
+      if (value === undefined) continue
+      const own = out[key]
+      out[key] = typeof own === 'object' && own ? { ...own, ...(value as object) } : value
+    }
+    return out as unknown as FlowMessages
   })
 }
 

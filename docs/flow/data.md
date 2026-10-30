@@ -83,4 +83,4 @@ editor.value?.transact((tr) => {
 })
 ```
 
-事务提供 `addNode`、`removeNode`（连同它的连线）、`updateNode`、`moveNode`、`updateData`、`addEdge`、`removeEdge`、`updateEdge`。`change` 事件会带上这个事务，里面的 `steps` 是这次修改的全部步骤，`inverse` 是撤销它的步骤。
+事务提供 `addNode`、`removeNode`（连同它的连线）、`updateNode`、`moveNode`、`updateData`、`addEdge`、`removeEdge`、`updateEdge`。`transaction` 事件会带上这个事务，里面的 `steps` 是这次修改的全部步骤，`inverse` 是撤销它的步骤。

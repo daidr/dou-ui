@@ -53,7 +53,10 @@ export interface FlowPortSpec {
   label?: string
   /** What the port carries. Two ports connect when they share a type, or either is `'any'`. */
   dataType?: string | string[]
-  /** The most edges the port takes. Inputs take one by default, outputs any number. */
+  /**
+   * The most edges the port takes. Inputs take one by default, outputs any
+   * number. A new edge on a full port replaces its oldest edge.
+   */
   max?: number
 }
 

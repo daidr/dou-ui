@@ -151,7 +151,7 @@ const labelOf = (id) => nodes.find((node) => node.id === id)?.label
     auto-blocked
     zoomable
     legend
-    label="App 2.0 发布流程"
+    aria-label="App 2.0 发布流程"
   >
     <template #toolbar>
       <button

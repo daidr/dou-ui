@@ -71,7 +71,7 @@ export interface NodeGraphProps {
   /** The height of the box; a number is in px. Fits the graph by default. */
   height?: string | number
   /** Names the graph for screen readers. */
-  label?: string
+  ariaLabel?: string
 }
 
 export interface GraphNodeSlotProps {
@@ -85,11 +85,11 @@ export interface NodeGraphEmits {
   'update:selected': [value: string | string[] | null]
   'update:zoom': [value: number]
   'update:hovered': [value: string | null]
-  'node-click': [node: GraphNode, event: MouseEvent]
-  'node-dblclick': [node: GraphNode, event: MouseEvent]
+  nodeClick: [node: GraphNode, event: MouseEvent]
+  nodeDblclick: [node: GraphNode, event: MouseEvent]
   /** The pointer entered a node; `el` is the node, e.g. to anchor a popover. */
-  'node-enter': [node: GraphNode, el: HTMLElement]
-  'node-leave': [node: GraphNode, el: HTMLElement]
+  nodeEnter: [node: GraphNode, el: HTMLElement]
+  nodeLeave: [node: GraphNode, el: HTMLElement]
 }
 
 export interface NodeGraphSlots {

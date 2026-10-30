@@ -71,7 +71,7 @@ const doc = ref({
 </script>
 
 <template>
-  <DouFlowEditor v-model="doc" fit-view label="问答流程">
+  <DouFlowEditor v-model="doc" fit-view aria-label="问答流程">
     <DouFlowControls />
   </DouFlowEditor>
 </template>

@@ -42,7 +42,7 @@ NodeGraph 只用来展示。需要拖动节点、连线编辑时，用[流程编
 
 悬停节点时，它的上下游链路保持原样，其余部分变淡。`highlight="selected"` 改为高亮选中节点的链路，`none` 关闭高亮。
 
-`detail` 插槽的内容会在悬停时以弹出层显示。也可以监听 `node-enter` 和 `node-leave`，参数里有节点数据和节点元素，用来自己控制弹出层。
+`detail` 插槽的内容会在悬停时以弹出层显示。也可以监听 `nodeEnter` 和 `nodeLeave`，参数里有节点数据和节点元素，用来自己控制弹出层。
 
 <DocDemo src="node-graph/selection" column />
 
@@ -102,7 +102,7 @@ NodeGraph 只用来展示。需要拖动节点、连线编辑时，用[流程编
 | `max-zoom`       | 最大缩放比例                                 | `number`                          | `2`        |
 | `legend`         | 在工具栏显示图例按钮                         | `boolean`                         | `false`    |
 | `height`         | 容器高度，数字单位为 px                      | `string \| number`                | 和图一样高 |
-| `label`          | 读屏用的名称                                 | `string`                          | `'节点图'` |
+| `aria-label`     | 读屏用的名称                                 | `string`                          | `'节点图'` |
 
 ### GraphNode
 
@@ -135,10 +135,10 @@ NodeGraph 只用来展示。需要拖动节点、连线编辑时，用[流程编
 
 | 名称             | 说明                                   | 参数                                   |
 | ---------------- | -------------------------------------- | -------------------------------------- |
-| `node-click`     | 点击节点                               | `(node: GraphNode, event: MouseEvent)` |
-| `node-dblclick`  | 双击节点                               | `(node: GraphNode, event: MouseEvent)` |
-| `node-enter`     | 指针移入节点                           | `(node: GraphNode, el: HTMLElement)`   |
-| `node-leave`     | 指针移出节点                           | `(node: GraphNode, el: HTMLElement)`   |
+| `nodeClick`      | 点击节点                               | `(node: GraphNode, event: MouseEvent)` |
+| `nodeDblclick`   | 双击节点                               | `(node: GraphNode, event: MouseEvent)` |
+| `nodeEnter`      | 指针移入节点                           | `(node: GraphNode, el: HTMLElement)`   |
+| `nodeLeave`      | 指针移出节点                           | `(node: GraphNode, el: HTMLElement)`   |
 | `update:hovered` | 悬停的节点变化，可用 `v-model:hovered` | `(id: string \| null)`                 |
 
 ### Slots

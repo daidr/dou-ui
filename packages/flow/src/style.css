@@ -55,6 +55,10 @@
     &.is-connecting * {
       cursor: crosshair;
     }
+    &.is-refused,
+    &.is-refused * {
+      cursor: not-allowed;
+    }
     &.is-panning,
     &.is-panning *,
     &.is-dragging,
@@ -91,6 +95,11 @@
     &.is-selected {
       stroke: var(--dou-flow-editor-selected);
       stroke-width: calc(var(--dou-flow-editor-edge-width, 1px) + 1px);
+    }
+    /* its ports no longer match */
+    &.is-stale {
+      stroke: var(--dou-color-danger);
+      stroke-dasharray: 4 3;
     }
     /* the edge being drawn */
     &.is-preview {
@@ -243,6 +252,12 @@
       background-color: var(--dou-flow-editor-selected);
       box-shadow: 0 0 0 4px color-mix(in oklab, var(--dou-flow-editor-selected) 20%, transparent);
       scale: 1.25;
+    }
+    /* under the pointer, but can't take the edge */
+    &.is-refused {
+      opacity: 1;
+      border-color: var(--dou-color-danger);
+      box-shadow: 0 0 0 3px color-mix(in oklab, var(--dou-color-danger) 16%, transparent);
     }
     &.is-triangle.is-candidate {
       background: none;
@@ -485,4 +500,8 @@
     margin: 0 2px;
     background-color: var(--dou-color-border);
   }
+}
+
+.dou-flow-editor.is-refused .dou-flow-editor__edge.is-preview {
+  stroke: var(--dou-color-danger);
 }

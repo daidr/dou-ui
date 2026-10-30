@@ -421,7 +421,7 @@ const percent = computed(() => Math.round(zoom.value * 100))
         :max="Math.max(maxZoom, 1)"
         :step="0.01"
         :disabled="!interactive"
-        :format-value="() => `${percent}%`"
+        :format="() => `${percent}%`"
         :aria-label="t('imageCropper.zoom')"
         @update:model-value="onSlider"
         @change="emitChange"

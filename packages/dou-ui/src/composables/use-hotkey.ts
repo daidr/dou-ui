@@ -1,6 +1,6 @@
-import { isComposing } from '../utils/keyboard'
 import { onMounted, onScopeDispose, ref, toValue, watch } from 'vue'
 import type { MaybeRefOrGetter, Ref } from 'vue'
+import { isComposing } from '../utils/keyboard'
 
 /*
  * A hotkey is written as keys joined by `+`, e.g. `mod+k` or `shift+/`. A

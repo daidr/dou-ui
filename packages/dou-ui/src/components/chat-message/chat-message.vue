@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { isComposing } from '../../utils/keyboard'
 import { ChevronLeftIcon, ChevronRightIcon, EditIcon } from '@dou-ui/icons'
 import { computed, nextTick, ref, useTemplateRef } from 'vue'
+import { isComposing } from '../../utils/keyboard'
 import { useNamespace } from '../../utils/namespace'
 import { DouButton } from '../button'
 import DouChatArtifact from '../chat-artifact/chat-artifact.vue'

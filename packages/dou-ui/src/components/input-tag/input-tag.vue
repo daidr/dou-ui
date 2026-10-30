@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { isComposing } from '../../utils/keyboard'
 import { CloseIcon } from '@dou-ui/icons'
 import { computed, nextTick, ref, useAttrs, useTemplateRef } from 'vue'
 import type { StyleValue } from 'vue'
+import { isComposing } from '../../utils/keyboard'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
 import { useFormDisabled, useFormItem, useFormSize } from '../form/use-form-item'

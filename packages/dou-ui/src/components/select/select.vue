@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { isComposing } from '../../utils/keyboard'
 import { CheckIcon, ChevronDownIcon, CloseIcon } from '@dou-ui/icons'
 import { computed, nextTick, onBeforeUnmount, ref, useId, useTemplateRef, watch } from 'vue'
 import type { HTMLAttributes } from 'vue'
 import { usePopup } from '../../composables/use-popup'
+import { isComposing } from '../../utils/keyboard'
 import { useNamespace } from '../../utils/namespace'
 import { shouldVirtualize } from '../../utils/virtual'
 import { OnlyChild } from '../../utils/only-child'

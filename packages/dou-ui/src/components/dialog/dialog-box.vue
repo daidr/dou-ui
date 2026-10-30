@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { isComposing } from '../../utils/keyboard'
 import { computed, ref, useId } from 'vue'
+import { isComposing } from '../../utils/keyboard'
 import { useNamespace } from '../../utils/namespace'
 import { toneIcon } from '../../utils/tone-icons'
 import { DouButton } from '../button'

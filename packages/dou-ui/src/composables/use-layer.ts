@@ -1,6 +1,6 @@
-import { isComposing } from '../utils/keyboard'
 import { inject, onScopeDispose, provide, toValue, watch } from 'vue'
 import type { InjectionKey, MaybeRefOrGetter } from 'vue'
+import { isComposing } from '../utils/keyboard'
 
 /**
  * A floating layer: anything drawn above the page that can be dismissed.

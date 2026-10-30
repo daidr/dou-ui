@@ -21,6 +21,7 @@ export type {
   ResolvedExtensions,
 } from './core/extension'
 export {
+  callout,
   codeBlock,
   divider,
   formatting,
@@ -30,7 +31,9 @@ export {
   paragraph,
   quote,
   starterKit,
+  toggle,
 } from './extensions/starter-kit'
+export type { CalloutTone } from './extensions/callout'
 export type { StarterKitOptions } from './extensions/starter-kit'
 export { defineBlock, EditorContent, vueNodeView } from './define-block'
 export { defaultLanguages } from './extensions/code-block'

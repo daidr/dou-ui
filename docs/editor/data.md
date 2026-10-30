@@ -41,16 +41,18 @@ const blocks: PartialBlock[] = [
 
 ## 块的类型
 
-| `type`         | 说明     | `props`                              |
-| -------------- | -------- | ------------------------------------ |
-| `paragraph`    | 正文     | —                                    |
-| `heading`      | 标题     | `level`：`1`、`2` 或 `3`             |
-| `bulletItem`   | 无序列表 | —                                    |
-| `numberedItem` | 有序列表 | —                                    |
-| `checkItem`    | 待办事项 | `checked`：是否完成                  |
-| `quote`        | 引用     | —                                    |
-| `codeBlock`    | 代码     | `language`：语言名称，默认为空字符串 |
-| `divider`      | 分隔线   | —                                    |
+| `type`         | 说明     | `props`                                                   |
+| -------------- | -------- | --------------------------------------------------------- |
+| `paragraph`    | 正文     | —                                                         |
+| `heading`      | 标题     | `level`：`1`、`2` 或 `3`                                  |
+| `bulletItem`   | 无序列表 | —                                                         |
+| `numberedItem` | 有序列表 | —                                                         |
+| `checkItem`    | 待办事项 | `checked`：是否完成                                       |
+| `quote`        | 引用     | —                                                         |
+| `codeBlock`    | 代码     | `language`：语言名称，默认为空字符串                      |
+| `divider`      | 分隔线   | —                                                         |
+| `toggle`       | 折叠块   | —                                                         |
+| `callout`      | 提示块   | `tone`：`info`、`tip`、`warning` 或 `danger`，默认 `info` |
 
 通过[扩展](./extensions)增加的块类型也使用同样的格式，`props` 由扩展定义。
 

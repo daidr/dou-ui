@@ -23,7 +23,7 @@ const CalloutView = defineComponent({
 })
 
 const callout = defineBlock({
-  type: 'callout',
+  type: 'note',
   props: { tone: 'neutral' },
   component: CalloutView,
 })
@@ -54,12 +54,12 @@ describe('defineBlock', () => {
   it('stores its props in the document, with defaults', () => {
     const { schema } = resolveExtensions([starterKit(), callout])
     const doc = blocksToDoc(schema, [
-      { id: 'a', type: 'callout', content: 'Hi' },
-      { id: 'b', type: 'callout', props: { tone: 'warning' } },
+      { id: 'a', type: 'note', content: 'Hi' },
+      { id: 'b', type: 'note', props: { tone: 'warning' } },
     ])
     expect(docToBlocks(doc).map((block) => [block.type, block.props])).toEqual([
-      ['callout', { tone: 'neutral' }],
-      ['callout', { tone: 'warning' }],
+      ['note', { tone: 'neutral' }],
+      ['note', { tone: 'warning' }],
     ])
   })
 
@@ -68,7 +68,7 @@ describe('defineBlock', () => {
       attachTo: document.body,
       props: {
         extensions: [starterKit(), callout],
-        modelValue: [{ id: 'a', type: 'callout', content: 'Hello' }],
+        modelValue: [{ id: 'a', type: 'note', content: 'Hello' }],
       },
     })
     await nextTick()

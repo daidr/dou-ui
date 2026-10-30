@@ -18,6 +18,8 @@ export interface EditorMessages {
     codeBlock: string
     divider: string
     image: string
+    toggle: string
+    callout: string
   }
   /** Short descriptions in the slash menu. */
   hints: {
@@ -32,6 +34,8 @@ export interface EditorMessages {
     codeBlock: string
     divider: string
     image: string
+    toggle: string
+    callout: string
   }
   /** The image block. */
   image: {
@@ -50,6 +54,12 @@ export interface EditorMessages {
     /** The language picker's name. */
     language: string
     plainText: string
+  }
+  toggle: { expand: string; collapse: string }
+  callout: {
+    /** Said after the tone on the icon button. */
+    change: string
+    tones: { info: string; tip: string; warning: string; danger: string }
   }
   noResults: string
   addBlock: string
@@ -89,6 +99,8 @@ const zhCN: EditorMessages = {
     codeBlock: '代码',
     divider: '分隔线',
     image: '图片',
+    toggle: '折叠块',
+    callout: '提示块',
   },
   hints: {
     paragraph: '普通的文字',
@@ -102,6 +114,8 @@ const zhCN: EditorMessages = {
     codeBlock: '等宽显示代码',
     divider: '分隔上下内容',
     image: '上传或嵌入一张图片',
+    toggle: '可以展开和收起的内容',
+    callout: '带图标的醒目说明',
   },
   image: {
     empty: '添加一张图片',
@@ -115,6 +129,11 @@ const zhCN: EditorMessages = {
     resize: '拖动调整宽度',
   },
   codeBlock: { language: '语言', plainText: '纯文本' },
+  toggle: { expand: '展开', collapse: '收起' },
+  callout: {
+    change: '点击更换',
+    tones: { info: '说明', tip: '提示', warning: '注意', danger: '警告' },
+  },
   noResults: '没有匹配的块',
   addBlock: '在下方添加块',
   dragHandle: '拖动以移动，点击打开菜单',
@@ -152,6 +171,8 @@ const zhTW: EditorMessages = {
     codeBlock: '程式碼',
     divider: '分隔線',
     image: '圖片',
+    toggle: '摺疊區塊',
+    callout: '提示區塊',
   },
   hints: {
     paragraph: '一般的文字',
@@ -165,6 +186,8 @@ const zhTW: EditorMessages = {
     codeBlock: '等寬顯示程式碼',
     divider: '分隔上下內容',
     image: '上傳或嵌入一張圖片',
+    toggle: '可以展開和收合的內容',
+    callout: '帶圖示的醒目說明',
   },
   image: {
     empty: '新增一張圖片',
@@ -178,6 +201,11 @@ const zhTW: EditorMessages = {
     resize: '拖曳調整寬度',
   },
   codeBlock: { language: '語言', plainText: '純文字' },
+  toggle: { expand: '展開', collapse: '收合' },
+  callout: {
+    change: '點擊更換',
+    tones: { info: '說明', tip: '提示', warning: '注意', danger: '警告' },
+  },
   noResults: '沒有符合的區塊',
   addBlock: '在下方新增區塊',
   dragHandle: '拖曳以移動，點擊開啟選單',
@@ -215,6 +243,8 @@ const en: EditorMessages = {
     codeBlock: 'Code',
     divider: 'Divider',
     image: 'Image',
+    toggle: 'Toggle',
+    callout: 'Callout',
   },
   hints: {
     paragraph: 'Plain text',
@@ -228,6 +258,8 @@ const en: EditorMessages = {
     codeBlock: 'Code in a monospace font',
     divider: 'Separate sections',
     image: 'Upload or embed an image',
+    toggle: 'Content that can be shown or hidden',
+    callout: 'A note that stands out, with an icon',
   },
   image: {
     empty: 'Add an image',
@@ -241,6 +273,11 @@ const en: EditorMessages = {
     resize: 'Drag to resize',
   },
   codeBlock: { language: 'Language', plainText: 'Plain text' },
+  toggle: { expand: 'Expand', collapse: 'Collapse' },
+  callout: {
+    change: 'click to change',
+    tones: { info: 'Info', tip: 'Tip', warning: 'Warning', danger: 'Danger' },
+  },
   noResults: 'No matching blocks',
   addBlock: 'Add a block below',
   dragHandle: 'Drag to move, click for the menu',

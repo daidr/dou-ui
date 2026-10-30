@@ -1,8 +1,10 @@
 import type { EditorExtension } from '../core/extension'
 import { divider, heading, paragraph, quote } from './blocks'
+import { callout } from './callout'
 import { codeBlock, type CodeBlockOptions } from './code-block'
 import { formatting, link } from './formatting'
 import { lists } from './lists'
+import { toggle } from './toggle'
 
 export interface StarterKitOptions {
   heading?: boolean
@@ -11,6 +13,8 @@ export interface StarterKitOptions {
   /** Options for the code block, e.g. its highlighter, or `false` to leave it out. */
   codeBlock?: boolean | CodeBlockOptions
   divider?: boolean
+  toggle?: boolean
+  callout?: boolean
   formatting?: boolean
   link?: boolean
 }
@@ -27,6 +31,8 @@ export function starterKit(options: StarterKitOptions = {}): EditorExtension[] {
     quote,
     codeBlock: codeBlock(typeof code === 'object' ? code : {}),
     divider,
+    toggle,
+    callout,
     formatting,
     link,
   }
@@ -38,4 +44,4 @@ export function starterKit(options: StarterKitOptions = {}): EditorExtension[] {
   ]
 }
 
-export { codeBlock, divider, formatting, heading, link, lists, paragraph, quote }
+export { callout, codeBlock, divider, formatting, heading, link, lists, paragraph, quote, toggle }

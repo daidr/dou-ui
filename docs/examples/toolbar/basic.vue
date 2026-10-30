@@ -61,6 +61,7 @@ const heading = ref('p')
 <style scoped>
 .editor-toolbar {
   width: 100%;
+  box-sizing: border-box;
   padding: 6px;
   border: 1px solid var(--dou-color-border);
   border-radius: var(--dou-radius-container);

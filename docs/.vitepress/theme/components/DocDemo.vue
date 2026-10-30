@@ -1,5 +1,14 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, ref, shallowRef, useId, useTemplateRef } from 'vue'
+import {
+  computed,
+  defineAsyncComponent,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  shallowRef,
+  useId,
+  useTemplateRef,
+} from 'vue'
 import type { Component } from 'vue'
 import { CodeIcon } from '../icons'
 
@@ -41,6 +50,44 @@ async function toggle() {
   open.value = !open.value
 }
 
+// The stage lets its content spill out, so badges, shadows, focus rings
+// and anything that grows on hover stay whole. Only a demo too wide for
+// its box, which would otherwise widen the page on a phone, turns into a
+// horizontal scroller; a scroller clips on both axes, so it stays the
+// exception rather than the rule.
+const stage = useTemplateRef<HTMLElement>('stage')
+const scrolls = ref(false)
+let resize: ResizeObserver | undefined
+let mutate: MutationObserver | undefined
+
+function measure() {
+  const el = stage.value
+  if (el) scrolls.value = el.scrollWidth > el.clientWidth + 1
+}
+
+function watchChildren() {
+  const el = stage.value
+  if (!el || !resize) return
+  resize.disconnect()
+  resize.observe(el)
+  for (const child of el.children) resize.observe(child)
+}
+
+onMounted(() => {
+  resize = new ResizeObserver(measure)
+  mutate = new MutationObserver(() => {
+    watchChildren()
+    measure()
+  })
+  if (stage.value) mutate.observe(stage.value, { childList: true })
+  watchChildren()
+})
+
+onBeforeUnmount(() => {
+  resize?.disconnect()
+  mutate?.disconnect()
+})
+
 function collapse() {
   open.value = false
   // Keep the demo in view after a long source folds away.
@@ -70,8 +117,9 @@ function collapse() {
         </DouTooltip>
       </div>
       <div
+        ref="stage"
         class="doc-demo__stage"
-        :class="[$attrs.class, { 'doc-demo__stage--column': column }]"
+        :class="[$attrs.class, { 'doc-demo__stage--column': column, 'is-scrollable': scrolls }]"
         :style="$attrs.style as string"
       >
         <component :is="demo" v-if="demo" />

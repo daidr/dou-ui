@@ -267,6 +267,7 @@ onBeforeUnmount(stop)
 <style scoped>
 .chat-page {
   width: 100%;
+  box-sizing: border-box;
   height: 600px;
   overflow: hidden;
   border: 1px solid var(--dou-color-border);

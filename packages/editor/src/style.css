@@ -4,7 +4,8 @@
  * A document reads like a page, not a form: no box around it, text at
  * reading size with generous leading. Blocks stack with a few pixels
  * between them and nest by indenting. The handle sits in the gutter on
- * the left of the hovered block. Selected blocks take a faint tint, the
+ * the left of the hovered block; on touch screens, a narrower gutter holds
+ * only the grip, next to the block with the cursor. Selected blocks take a faint tint, the
  * same in light and dark; the drop line during a drag is the focus color.
  */
 @layer dou.components {
@@ -36,13 +37,9 @@
       --dou-editor-gutter: 0px;
     }
 
-    /* touch screens have no hover: no handle, and no gutter for it */
+    /* touch screens: only the grip, in a narrower gutter */
     @media (pointer: coarse) {
-      --dou-editor-gutter: 0px;
-
-      & .dou-editor__handle {
-        display: none;
-      }
+      --dou-editor-gutter: 32px;
     }
 
     &.is-dragging,
@@ -613,9 +610,35 @@
   }
 
   .dou-editor__grip {
+    position: relative;
     width: 18px;
     cursor: grab;
     touch-action: none;
+  }
+
+  @media (pointer: coarse) {
+    .dou-editor__handle {
+      transform: translateX(calc(-100% - 4px));
+    }
+
+    /* new blocks come from Enter and the slash menu */
+    .dou-editor__add {
+      display: none;
+    }
+
+    .dou-editor__grip {
+      width: 24px;
+      height: max(28px, var(--dou-editor-line, 28px));
+      -webkit-touch-callout: none;
+      user-select: none;
+
+      /* fingers need more room than the grip shows */
+      &::before {
+        content: '';
+        position: absolute;
+        inset: -8px -4px;
+      }
+    }
   }
 
   /* the copy of the dragged blocks next to the pointer */

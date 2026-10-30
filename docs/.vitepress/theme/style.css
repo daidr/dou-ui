@@ -1495,3 +1495,10 @@ body {
     padding: 2px 12px 10px;
   }
 }
+
+/* On phones a whole flow only fits at a small zoom; a shorter canvas wastes less room. */
+@media (max-width: 640px) {
+  .doc-demo .dou-flow-editor:not([style*='height']) {
+    height: 280px;
+  }
+}

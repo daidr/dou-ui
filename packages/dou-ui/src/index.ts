@@ -22,6 +22,12 @@ export type {
   UseLayerOptions,
   VirtualElement,
 } from './composables'
+export { useElementSize, useIntersection, useResizeObserver } from './composables/use-element-size'
+export type {
+  UseElementSizeOptions,
+  UseIntersectionOptions,
+  UseResizeObserverOptions,
+} from './composables/use-element-size'
 export {
   getMotionDuration,
   setMotionMode,

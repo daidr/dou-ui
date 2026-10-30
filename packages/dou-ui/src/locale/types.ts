@@ -76,6 +76,12 @@ export interface Locale {
     close: string
     /** Label of the edge that resizes the drawer. */
     resize: string
+    /** Label of the handle that moves the drawer to its next snap point. */
+    snap: string
+  }
+  editable: {
+    /** Read after the text, saying how to start editing it. */
+    hint: string
   }
   select: {
     /** Shown in an empty select without a `placeholder`. */

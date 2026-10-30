@@ -1,0 +1,86 @@
+# 文档数据
+
+编辑器的内容是一份普通的 JSON，可以直接保存和读取。节点和连线都有自己的 `id`，连线通过 `id` 引用节点和端口。
+
+<DocDemo src="flow/data" column />
+
+## 节点
+
+```ts
+interface FlowNode {
+  id: string
+  /** 节点类型，不写时为 'default' */
+  type?: string
+  /** 左上角在画布上的位置，单位 px */
+  x: number
+  y: number
+  /** 只有需要固定尺寸的节点才写，否则由内容决定 */
+  width?: number
+  height?: number
+  /** 节点自己的数据，交给节点类型的组件渲染 */
+  data?: Record<string, unknown>
+  /** 锁定后不能移动和删除 */
+  locked?: boolean
+}
+```
+
+## 连线
+
+```ts
+interface FlowEdge {
+  id: string
+  source: { node: string; port?: string }
+  target: { node: string; port?: string }
+  label?: string
+  data?: Record<string, unknown>
+}
+```
+
+不写 `port` 时，连线从源节点右侧中间出发，连到目标节点左侧中间。
+
+## 端口
+
+端口由节点类型声明，不存进文档。默认节点从 `data.inputs` 和 `data.outputs` 读取端口：
+
+```ts
+interface FlowPortSpec {
+  id: string
+  /** 输入接收连线，输出发出连线 */
+  kind: 'input' | 'output'
+  /** 所在的边，输入默认在左，输出默认在右 */
+  side?: 'left' | 'right' | 'top' | 'bottom'
+  label?: string
+  /** 端口传递的数据类型 */
+  dataType?: string | string[]
+  /** 最多连几条线，输入默认 1，输出不限 */
+  max?: number
+}
+```
+
+## 默认节点
+
+没有写 `type` 的节点用默认节点渲染，它读取 `data` 里的这些字段：
+
+| 字段                 | 说明                                   | 类型                                         |
+| -------------------- | -------------------------------------- | -------------------------------------------- |
+| `label`              | 标题                                   | `string`                                     |
+| `description`        | 标题下的说明                           | `string`                                     |
+| `icon`               | 标题前的图标，建议用 `markRaw` 包一层  | `Component`                                  |
+| `status`             | 右上角的状态点                         | `'wait' \| 'process' \| 'finish' \| 'error'` |
+| `inputs` / `outputs` | 端口，每个端口一行，输入在左、输出在右 | `{ id, label?, dataType?, max? }[]`          |
+
+只有一个输入和一个输出且都没有名字时，端口放在标题这一行。
+
+## 修改文档
+
+用户的每次操作都会生成一个新的文档对象并通过 `v-model` 更新，原来的对象不会被修改。代码里修改时，可以直接替换 `v-model` 绑定的数据，也可以通过 `transact` 修改，这样修改会进入撤销记录：
+
+```ts
+editor.value?.transact((tr) => {
+  tr.addNode({ id: 'c', x: 600, y: 0, data: { label: '发布' } })
+  tr.addEdge({ id: 'e2', source: { node: 'b' }, target: { node: 'c' } })
+  tr.updateData('a', { status: 'finish' })
+})
+```
+
+事务提供 `addNode`、`removeNode`（连同它的连线）、`updateNode`、`moveNode`、`updateData`、`addEdge`、`removeEdge`、`updateEdge`。`change` 事件会带上这个事务，里面的 `steps` 是这次修改的全部步骤，`inverse` 是撤销它的步骤。

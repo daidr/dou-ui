@@ -10,6 +10,7 @@ import {
   watch,
 } from 'vue'
 import { usePopup } from '../../composables/use-popup'
+import { useElementSize } from '../../composables/use-element-size'
 import { useNamespace } from '../../utils/namespace'
 import { useTeleport } from '../../utils/teleport'
 import { useLocale } from '../config-provider/use-config'
@@ -65,17 +66,8 @@ const text = (value: number) =>
 // The drawn width, for thinning long series; a guess until it is measured.
 const plotRef = useTemplateRef<HTMLElement>('plot')
 const measured = ref(typeof props.width === 'number' ? props.width : 120)
-let observer: ResizeObserver | undefined
-onMounted(() => {
-  const plot = plotRef.value
-  if (!plot || typeof ResizeObserver === 'undefined') return
-  measured.value = plot.clientWidth || measured.value
-  observer = new ResizeObserver(([entry]) => {
-    if (entry) measured.value = entry.contentRect.width || measured.value
-  })
-  observer.observe(plot)
-})
-onBeforeUnmount(() => observer?.disconnect())
+const plotSize = useElementSize(plotRef)
+watch(plotSize.width, (width) => (measured.value = width || measured.value))
 
 const lines = computed(() => {
   if (props.type === 'bar') return []

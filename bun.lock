@@ -22,6 +22,7 @@
       "name": "@dou-ui/docs",
       "dependencies": {
         "@dou-ui/editor": "workspace:*",
+        "@dou-ui/flow": "workspace:*",
         "@dou-ui/icons": "workspace:*",
         "@dou-ui/theme": "workspace:*",
         "dou-ui": "workspace:*",
@@ -77,6 +78,17 @@
         "markdown-it",
         "yjs",
       ],
+    },
+    "packages/flow": {
+      "name": "@dou-ui/flow",
+      "version": "0.0.0",
+      "dependencies": {
+        "@dou-ui/icons": "workspace:*",
+      },
+      "peerDependencies": {
+        "dou-ui": "workspace:*",
+        "vue": "^3.5.0",
+      },
     },
     "packages/icons": {
       "name": "@dou-ui/icons",
@@ -227,6 +239,8 @@
     "@dou-ui/docs": ["@dou-ui/docs@workspace:docs"],
 
     "@dou-ui/editor": ["@dou-ui/editor@workspace:packages/editor"],
+
+    "@dou-ui/flow": ["@dou-ui/flow@workspace:packages/flow"],
 
     "@dou-ui/icons": ["@dou-ui/icons@workspace:packages/icons"],
 

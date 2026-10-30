@@ -23,6 +23,8 @@ DouUI 的组件建立在一组组合式函数上。下面这些已经导出，�
 | `useRovingFocus`                                  | 一组控件只占一个 `Tab` 位置，用方向键在其中移动        | [Toolbar](../components/toolbar#键盘与读屏)                        |
 | `useBreakpoints`                                  | 读取视口当前达到的断点                                 | [断点](./breakpoints#在脚本中使用)                                 |
 | `useClipboard`                                    | 复制文本，并在复制成功后的一段时间内给出 `copied`      | [下文](#useclipboard)                                              |
+| `useElementSize` / `useResizeObserver`            | 读取元素尺寸，或在尺寸变化时执行回调                   | [下文](#useelementsize)                                            |
+| `useIntersection`                                 | 元素是否出现在视口或滚动容器中                         | [下文](#useintersection)                                           |
 
 这些函数都要在 `setup` 中调用，组件卸载时自动清理监听。
 
@@ -112,3 +114,28 @@ const { copy, copied } = useClipboard({ duration: 2000 })
 `copy(text)` 把文本写入剪贴板，优先使用异步剪贴板接口，接口不可用或被拒绝时改用隐藏的文本框复制，两种方式都失败时返回的 Promise 会被拒绝。复制成功后，`copied` 在 `duration` 毫秒内为 `true`，可以用来切换图标或文字。[CopyButton](../components/copy-button) 也是基于它实现的。
 
 <DocDemo src="composables/clipboard" />
+
+## useElementSize
+
+```ts
+const { width, height } = useElementSize(el, { box: 'content-box' })
+```
+
+`width`、`height` 是元素当前的尺寸（px），挂载后先测量一次，之后随尺寸变化更新。`box` 可选 `content-box`（默认，不含内边距和边框）和 `border-box`。`initial` 设置测量前以及服务端渲染时的值。
+
+只需要在尺寸变化时做点什么，用 `useResizeObserver(target, callback)`。`target` 可以返回一个元素或一组元素，返回新的元素时会自动改为监听新元素。Sparkline、Ellipsis、Marquee 都用它们测量。
+
+<DocDemo src="composables/element-size" />
+
+## useIntersection
+
+```ts
+const { isIntersecting, ratio, entry } = useIntersection(el, {
+  rootMargin: '200px 0px',
+  once: true,
+})
+```
+
+元素进入视口时 `isIntersecting` 为 `true`，`ratio` 是可见部分的比例。`root` 换成某个滚动容器，`rootMargin` 扩大或缩小判定范围（写法同 CSS 的 `margin`），`threshold` 设置在哪些可见比例时更新。`root`、`rootMargin`、`threshold` 都可以传 ref 或 getter，变化后会重新监听。`once` 在第一次可见后停止监听，适合只需要触发一次的场景，例如进入视口后再加载图片或数据。
+
+<DocDemo src="composables/intersection" />

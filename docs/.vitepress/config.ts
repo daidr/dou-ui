@@ -34,6 +34,7 @@ export default defineConfig({
       { text: '组件', link: '/components/overview' },
       { text: '区块', link: '/blocks/login' },
       { text: '编辑器', link: '/editor/' },
+      { text: '流程编辑器', link: '/flow/' },
       { text: '图标', link: '/icons/' },
       { text: '集成', link: '/integrations/vite' },
     ],
@@ -48,6 +49,8 @@ export default defineConfig({
             { text: '仪表盘', link: '/blocks/dashboard' },
             { text: 'AI 对话页', link: '/blocks/chat' },
             { text: '错误页', link: '/blocks/errors' },
+            { text: '看板', link: '/blocks/kanban' },
+            { text: '文件管理', link: '/blocks/files' },
           ],
         },
       ],
@@ -66,6 +69,16 @@ export default defineConfig({
             { text: '表格', link: '/editor/table' },
             { text: '导入与导出', link: '/editor/import-export' },
             { text: '协同编辑', link: '/editor/collaboration' },
+          ],
+        },
+      ],
+      '/flow': [
+        {
+          text: '流程编辑器',
+          items: [
+            { text: '概览', link: '/flow/' },
+            { text: '文档数据', link: '/flow/data' },
+            { text: '自定义节点', link: '/flow/custom-nodes' },
           ],
         },
       ],
@@ -145,6 +158,7 @@ export default defineConfig({
           items: [
             { text: 'Input 输入框', link: '/components/input' },
             { text: 'Textarea 多行输入', link: '/components/textarea' },
+            { text: 'Editable 行内编辑', link: '/components/editable' },
             { text: 'InputNumber 数字输入', link: '/components/input-number' },
             { text: 'InputTag 标签输入', link: '/components/input-tag' },
             { text: 'InputOTP 验证码输入', link: '/components/input-otp' },
@@ -302,6 +316,11 @@ export default defineConfig({
         {
           find: /^@dou-ui\/editor\/style\.css$/,
           replacement: r('../../packages/editor/src/style.css'),
+        },
+        { find: /^@dou-ui\/flow$/, replacement: r('../../packages/flow/src/index.ts') },
+        {
+          find: /^@dou-ui\/flow\/style\.css$/,
+          replacement: r('../../packages/flow/src/style.css'),
         },
       ],
     },

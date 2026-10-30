@@ -16,6 +16,7 @@ export default defineConfig({
         replacement: r('./packages/editor/src/collaboration/index.ts'),
       },
       { find: /^@dou-ui\/editor$/, replacement: r('./packages/editor/src/index.ts') },
+      { find: /^@dou-ui\/flow$/, replacement: r('./packages/flow/src/index.ts') },
     ],
   },
   test: {

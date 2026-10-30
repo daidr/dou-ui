@@ -1,0 +1,102 @@
+/*
+ * Editable
+ *
+ * Text that turns into a field in place. Both states keep the text where it
+ * was: the view gets a soft background on hover, the field draws its edge
+ * outside the text with the same padding, so nothing around it moves.
+ */
+@layer dou.components {
+  .dou-editable {
+    --dou-editable-padding-x: 6px;
+    --dou-editable-padding-y: 2px;
+    --dou-editable-radius: var(--dou-radius-control);
+    --dou-editable-hover-bg: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+    --dou-editable-border-focus: color-mix(
+      in oklab,
+      var(--dou-color-focus) 70%,
+      var(--dou-color-text)
+    );
+    --dou-editable-ring: color-mix(in oklab, var(--dou-color-focus) 32%, transparent);
+
+    display: block;
+    min-width: 0;
+    max-width: 100%;
+
+    &.is-invalid {
+      --dou-editable-border-focus: var(--dou-color-danger);
+      --dou-editable-ring: color-mix(in oklab, var(--dou-color-danger) 18%, transparent);
+    }
+  }
+
+  .dou-editable__view {
+    margin: calc(var(--dou-editable-padding-y) * -1) calc(var(--dou-editable-padding-x) * -1);
+    padding: var(--dou-editable-padding-y) var(--dou-editable-padding-x);
+    border-radius: var(--dou-editable-radius);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    cursor: text;
+    outline: none;
+    box-decoration-break: clone;
+    transition: background-color var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    &:hover {
+      background-color: var(--dou-editable-hover-bg);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 2px;
+    }
+
+    &.is-empty {
+      color: var(--dou-color-text-tertiary);
+    }
+
+    /* Without text or placeholder there is still something to click. */
+    &.is-blank {
+      display: inline-block;
+      min-width: 4em;
+      min-height: 1lh;
+      vertical-align: top;
+    }
+
+    .is-disabled > & {
+      cursor: default;
+
+      &:hover {
+        background-color: transparent;
+      }
+    }
+  }
+
+  .dou-editable__field {
+    display: block;
+    box-sizing: border-box;
+    width: calc(100% + var(--dou-editable-padding-x) * 2 + 2px);
+    margin: calc(var(--dou-editable-padding-y) * -1 - 1px)
+      calc(var(--dou-editable-padding-x) * -1 - 1px);
+    padding: var(--dou-editable-padding-y) var(--dou-editable-padding-x);
+    border: 1px solid var(--dou-editable-border-focus);
+    border-radius: var(--dou-editable-radius);
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: 0 0 0 3px var(--dou-editable-ring);
+    color: inherit;
+    font: inherit;
+    letter-spacing: inherit;
+    outline: none;
+    resize: none;
+    overflow: hidden;
+
+    &::placeholder {
+      color: var(--dou-color-text-tertiary);
+    }
+  }
+
+  .dou-editable__error {
+    margin-top: 6px;
+    color: var(--dou-color-danger-text);
+    font-size: var(--dou-font-size-sm);
+    font-weight: var(--dou-font-weight-regular);
+    line-height: var(--dou-font-line-height);
+  }
+}

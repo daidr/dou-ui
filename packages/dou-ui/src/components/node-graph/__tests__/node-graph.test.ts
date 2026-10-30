@@ -1,17 +1,17 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import { h } from 'vue'
-import { DouFlowGraph, DouFlowGraphLegend } from '../../../index'
-import type { FlowEdge, FlowNode } from '../flow-graph'
+import { DouNodeGraph, DouNodeGraphLegend } from '../../../index'
+import type { GraphEdge, GraphNode } from '../node-graph'
 
-const nodes: FlowNode[] = [
+const nodes: GraphNode[] = [
   { id: 'a', label: '需求', status: 'finish' },
   { id: 'b', label: '设计', status: 'process' },
   { id: 'c', label: '开发', status: 'process', progress: 40 },
   { id: 'd', label: '上线', kind: 'milestone', incomplete: true },
   { id: 'e', label: '旁支', disabled: true },
 ]
-const edges: FlowEdge[] = [
+const edges: GraphEdge[] = [
   { from: 'a', to: 'b' },
   { from: 'a', to: 'c' },
   { from: 'b', to: 'd' },
@@ -19,25 +19,25 @@ const edges: FlowEdge[] = [
 ]
 
 const find = (wrapper: ReturnType<typeof mount>, label: string) =>
-  wrapper.findAll('.dou-flow-graph__node').find((n) => n.text().includes(label))!
+  wrapper.findAll('.dou-node-graph__node').find((n) => n.text().includes(label))!
 
-describe('DouFlowGraph', () => {
+describe('DouNodeGraph', () => {
   it('renders nodes with their status, kind, progress and marker', () => {
-    const wrapper = mount(DouFlowGraph, { props: { nodes, edges } })
-    expect(wrapper.findAll('.dou-flow-graph__node')).toHaveLength(5)
-    expect(wrapper.findAll('.dou-flow-graph__edge')).toHaveLength(4)
+    const wrapper = mount(DouNodeGraph, { props: { nodes, edges } })
+    expect(wrapper.findAll('.dou-node-graph__node')).toHaveLength(5)
+    expect(wrapper.findAll('.dou-node-graph__edge')).toHaveLength(4)
     expect(find(wrapper, '需求').classes()).toContain('is-finish')
     expect(find(wrapper, '上线').classes()).toContain('is-milestone')
-    expect(find(wrapper, '上线').find('.dou-flow-graph__marker').exists()).toBe(true)
+    expect(find(wrapper, '上线').find('.dou-node-graph__marker').exists()).toBe(true)
     expect(
-      find(wrapper, '开发').find('.dou-flow-graph__progress-bar').attributes('style'),
+      find(wrapper, '开发').find('.dou-node-graph__progress-bar').attributes('style'),
     ).toContain('width: 40%')
     expect(wrapper.attributes('role')).toBe('group')
     expect(wrapper.attributes('aria-label')).toBe('流程图')
   })
 
   it('describes each node for screen readers', () => {
-    const wrapper = mount(DouFlowGraph, { props: { nodes, edges } })
+    const wrapper = mount(DouNodeGraph, { props: { nodes, edges } })
     expect(find(wrapper, '开发').attributes('aria-label')).toBe('开发，进行中，进度 40%，依赖 需求')
     expect(find(wrapper, '上线').attributes('aria-label')).toBe(
       '上线，里程碑，未开始，含未完成子任务，依赖 设计，开发',
@@ -45,7 +45,7 @@ describe('DouFlowGraph', () => {
   })
 
   it('turns a node with progress into a card unless told otherwise', () => {
-    const wrapper = mount(DouFlowGraph, {
+    const wrapper = mount(DouNodeGraph, {
       props: {
         nodes: [
           { id: 'a', label: 'A', progress: 50 },
@@ -54,26 +54,26 @@ describe('DouFlowGraph', () => {
         edges: [],
       },
     })
-    expect(find(wrapper, 'A').classes()).toContain('dou-flow-graph__node--card')
-    expect(find(wrapper, 'B').classes()).toContain('dou-flow-graph__node--pill')
+    expect(find(wrapper, 'A').classes()).toContain('dou-node-graph__node--card')
+    expect(find(wrapper, 'B').classes()).toContain('dou-node-graph__node--pill')
   })
 
   it('turns a node with a description into a card', () => {
-    const wrapper = mount(DouFlowGraph, {
+    const wrapper = mount(DouNodeGraph, {
       props: {
         nodes: [{ id: 'a', label: 'A', description: '说明', descriptionTone: 'danger' }],
         edges: [],
       },
     })
-    const node = wrapper.find('.dou-flow-graph__node')
-    expect(node.classes()).toContain('dou-flow-graph__node--card')
-    expect(node.find('.dou-flow-graph__description').classes()).toContain(
-      'dou-flow-graph__description--danger',
+    const node = wrapper.find('.dou-node-graph__node')
+    expect(node.classes()).toContain('dou-node-graph__node--card')
+    expect(node.find('.dou-node-graph__description').classes()).toContain(
+      'dou-node-graph__description--danger',
     )
   })
 
   it('works out blocked nodes', async () => {
-    const wrapper = mount(DouFlowGraph, {
+    const wrapper = mount(DouNodeGraph, {
       props: { nodes, edges: [...edges, { from: 'b', to: 'c' }] },
     })
     expect(find(wrapper, '开发').classes()).toContain('is-process')
@@ -84,7 +84,7 @@ describe('DouFlowGraph', () => {
   })
 
   it('selects one node, or several, but not a disabled one', async () => {
-    const wrapper = mount(DouFlowGraph, { props: { nodes, edges } })
+    const wrapper = mount(DouNodeGraph, { props: { nodes, edges } })
     await find(wrapper, '设计').trigger('click')
     expect(wrapper.emitted('update:selected')!.at(-1)).toEqual(['b'])
     expect(wrapper.emitted('node-click')).toHaveLength(1)
@@ -101,7 +101,7 @@ describe('DouFlowGraph', () => {
   })
 
   it('fades everything off the hovered chain', async () => {
-    const wrapper = mount(DouFlowGraph, { props: { nodes, edges } })
+    const wrapper = mount(DouNodeGraph, { props: { nodes, edges } })
     await find(wrapper, '设计').trigger('pointerenter')
     expect(wrapper.emitted('update:hovered')!.at(-1)).toEqual(['b'])
     expect(wrapper.emitted('node-enter')![0]![0]).toMatchObject({ id: 'b' })
@@ -109,14 +109,14 @@ describe('DouFlowGraph', () => {
     expect(find(wrapper, '开发').classes()).toContain('is-dimmed')
     expect(find(wrapper, '需求').classes()).not.toContain('is-dimmed')
     expect(find(wrapper, '上线').classes()).not.toContain('is-dimmed')
-    expect(wrapper.findAll('.dou-flow-graph__edge.is-active')).toHaveLength(2)
+    expect(wrapper.findAll('.dou-node-graph__edge.is-active')).toHaveLength(2)
 
     await wrapper.setProps({ highlight: 'none' })
     expect(wrapper.findAll('.is-dimmed')).toHaveLength(0)
   })
 
   it('moves focus along edges with the arrow keys', async () => {
-    const wrapper = mount(DouFlowGraph, { props: { nodes, edges }, attachTo: document.body })
+    const wrapper = mount(DouNodeGraph, { props: { nodes, edges }, attachTo: document.body })
     const tabbable = wrapper.findAll('[tabindex="0"]')
     expect(tabbable).toHaveLength(1)
     expect(tabbable[0]!.text()).toContain('需求')
@@ -133,19 +133,19 @@ describe('DouFlowGraph', () => {
   })
 
   it('fills the slots', () => {
-    const wrapper = mount(DouFlowGraph, {
+    const wrapper = mount(DouNodeGraph, {
       props: { nodes, edges },
       slots: {
-        label: ({ node }: { node: FlowNode }) => `#${node.label}`,
-        corner: ({ node }: { node: FlowNode }) => h('button', { class: 'ai' }, node.id),
+        label: ({ node }: { node: GraphNode }) => `#${node.label}`,
+        corner: ({ node }: { node: GraphNode }) => h('button', { class: 'ai' }, node.id),
       },
     })
     expect(find(wrapper, '#需求').exists()).toBe(true)
-    expect(wrapper.findAll('.dou-flow-graph__corner .ai')).toHaveLength(5)
+    expect(wrapper.findAll('.dou-node-graph__corner .ai')).toHaveLength(5)
   })
 
   it('does not select a node when its corner is pressed', async () => {
-    const wrapper = mount(DouFlowGraph, {
+    const wrapper = mount(DouNodeGraph, {
       props: { nodes, edges },
       slots: { corner: () => h('button', { class: 'ai' }) },
     })
@@ -154,10 +154,10 @@ describe('DouFlowGraph', () => {
   })
 
   it('zooms with the toolbar buttons only when zoomable', async () => {
-    const wrapper = mount(DouFlowGraph, { props: { nodes, edges } })
-    expect(wrapper.find('.dou-flow-graph__toolbar').exists()).toBe(false)
+    const wrapper = mount(DouNodeGraph, { props: { nodes, edges } })
+    expect(wrapper.find('.dou-node-graph__toolbar').exists()).toBe(false)
     await wrapper.setProps({ zoomable: true })
-    const tools = wrapper.findAll('.dou-flow-graph__tool')
+    const tools = wrapper.findAll('.dou-node-graph__tool')
     expect(tools.map((t) => t.attributes('aria-label'))).toEqual([
       '缩小',
       '缩放 100%',
@@ -167,20 +167,20 @@ describe('DouFlowGraph', () => {
     await tools[2]!.trigger('click')
     expect(wrapper.emitted('update:zoom')!.at(-1)).toEqual([1.25])
     await wrapper.setProps({ zoom: 2, maxZoom: 2 })
-    expect(wrapper.findAll('.dou-flow-graph__tool')[2]!.attributes('disabled')).toBeDefined()
+    expect(wrapper.findAll('.dou-node-graph__tool')[2]!.attributes('disabled')).toBeDefined()
   })
 
   it('ignores an edge that closes a cycle', () => {
-    const wrapper = mount(DouFlowGraph, {
+    const wrapper = mount(DouNodeGraph, {
       props: { nodes, edges: [...edges, { from: 'd', to: 'a' }] },
     })
-    expect(wrapper.findAll('.dou-flow-graph__edge')).toHaveLength(4)
+    expect(wrapper.findAll('.dou-node-graph__edge')).toHaveLength(4)
   })
 })
 
-describe('DouFlowGraphLegend', () => {
+describe('DouNodeGraphLegend', () => {
   it('lists what the nodes use', () => {
-    const wrapper = mount(DouFlowGraphLegend, { props: { nodes } })
+    const wrapper = mount(DouNodeGraphLegend, { props: { nodes } })
     expect(wrapper.findAll('li').map((li) => li.text())).toEqual([
       '节点',
       '里程碑',
@@ -193,8 +193,8 @@ describe('DouFlowGraphLegend', () => {
   })
 
   it('lists everything without nodes', () => {
-    const wrapper = mount(DouFlowGraphLegend)
+    const wrapper = mount(DouNodeGraphLegend)
     expect(wrapper.findAll('li')).toHaveLength(9)
-    expect(wrapper.find('.dou-flow-graph-legend__title').text()).toBe('图例')
+    expect(wrapper.find('.dou-node-graph-legend__title').text()).toBe('图例')
   })
 })

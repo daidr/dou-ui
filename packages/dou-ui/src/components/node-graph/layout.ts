@@ -65,7 +65,7 @@ export interface PlacedEdge {
   path: string
 }
 
-export interface FlowLayout {
+export interface GraphLayout {
   nodes: Map<string, PlacedNode>
   edges: PlacedEdge[]
   /** Edges left out because they would close a cycle. */
@@ -259,11 +259,11 @@ function mean(values: number[], fallback: number) {
   return values.length ? values.reduce((a, b) => a + b, 0) / values.length : fallback
 }
 
-export function layoutFlow(
+export function layoutGraph(
   nodes: LayoutNode[],
   edges: LayoutEdge[],
   options: LayoutOptions,
-): FlowLayout {
+): GraphLayout {
   const { columnGap, rowGap, edgeGap = 8, equalWidth = true } = options
   const grid = options.grid ?? (rowGap + 32) / 2
   const byId = new Map(nodes.map((n) => [n.id, n]))

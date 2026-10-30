@@ -135,7 +135,7 @@ export const zhTW: Locale = {
     wait: '未開始',
     error: '出錯',
   },
-  flowGraph: {
+  nodeGraph: {
     label: '流程圖',
     status: {
       wait: '未開始',

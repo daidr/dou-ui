@@ -223,7 +223,7 @@ export interface Locale {
     /** Read after the title of a step that failed. */
     error: string
   }
-  flowGraph: {
+  nodeGraph: {
     /** Names the graph when nothing else labels it. */
     label: string
     status: {

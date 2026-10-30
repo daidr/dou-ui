@@ -233,7 +233,7 @@ export default defineConfig({
             { text: 'Descriptions 描述列表', link: '/components/descriptions' },
             { text: 'Collapse 折叠面板', link: '/components/collapse' },
             { text: 'Timeline 时间线', link: '/components/timeline' },
-            { text: 'FlowGraph 流程图', link: '/components/flow-graph' },
+            { text: 'NodeGraph 流程图', link: '/components/node-graph' },
             { text: 'CalendarView 日历视图', link: '/components/calendar-view' },
             { text: 'CalendarHeatmap 日历热力图', link: '/components/calendar-heatmap' },
             { text: 'Sparkline 迷你图', link: '/components/sparkline' },

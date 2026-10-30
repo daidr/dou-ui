@@ -5,10 +5,12 @@ import {
   inlineNodes,
   inlineOf,
   type BlockProps,
+  type GridCell,
   type PartialTableCell,
   type PartialTableRow,
   type RowsSpec,
   type TableCell,
+  type TableGrid,
   type TableRow,
 } from '../../core/model'
 
@@ -52,25 +54,38 @@ export const isHeaderAt = (attrs: Record<string, unknown>, row: number, col: num
 
 /* table node ↔ rows */
 
-function readRows(node: PMNode): { props: BlockProps; rows: TableRow[] } {
-  const map = TableMap.get(node)
+/** The columns with their widths, which live on the cells. */
+function columnsOf(node: PMNode, map: TableMap): TableColumn[] {
   const columns = fitColumns(node.attrs.columns, map.width)
   const widths: (number | undefined)[] = []
+  for (let index = 0; index < map.map.length; index++) {
+    const col = index % map.width
+    if (widths[col] !== undefined) continue
+    const pos = map.map[index]!
+    const width = (node.nodeAt(pos)!.attrs.colwidth as number[] | null)?.[
+      col - map.findCell(pos).left
+    ]
+    if (width) widths[col] = width
+  }
+  return columns.map((column, index) =>
+    widths[index] ? { ...column, width: widths[index] } : column,
+  )
+}
+
+function readRows(node: PMNode): { props: BlockProps; rows: TableRow[] } {
+  const map = TableMap.get(node)
   const rows: TableRow[] = []
   for (let row = 0; row < map.height; row++) {
     const cells: TableCell[] = []
     for (let col = 0; col < map.width; col++) {
       const pos = map.map[row * map.width + col]!
       const rect = map.findCell(pos)
-      const cell = node.nodeAt(pos)!
-      const width = (cell.attrs.colwidth as number[] | null)?.[col - rect.left]
-      if (width && widths[col] === undefined) widths[col] = width
       if (rect.left !== col || rect.top !== row) {
         // covered by a merged cell
         cells.push({ content: [] })
         continue
       }
-      const item: TableCell = { content: inlineOf(cell) }
+      const item: TableCell = { content: inlineOf(node.nodeAt(pos)!) }
       if (rect.right - rect.left > 1) item.colspan = rect.right - rect.left
       if (rect.bottom - rect.top > 1) item.rowspan = rect.bottom - rect.top
       cells.push(item)
@@ -81,11 +96,36 @@ function readRows(node: PMNode): { props: BlockProps; rows: TableRow[] } {
     props: {
       headerRow: !!node.attrs.headerRow,
       headerColumn: !!node.attrs.headerColumn,
-      columns: columns.map((column, index) =>
-        widths[index] ? { ...column, width: widths[index] } : column,
-      ),
+      columns: columnsOf(node, map),
     },
     rows,
+  }
+}
+
+function gridOf(node: PMNode): TableGrid {
+  const map = TableMap.get(node)
+  const cells: GridCell[] = []
+  const seen = new Set<number>()
+  for (const pos of map.map) {
+    if (seen.has(pos)) continue
+    seen.add(pos)
+    const rect = map.findCell(pos)
+    cells.push({
+      row: rect.top,
+      col: rect.left,
+      rowspan: rect.bottom - rect.top,
+      colspan: rect.right - rect.left,
+      node: node.nodeAt(pos)!,
+      offset: pos,
+    })
+  }
+  const rows: string[] = []
+  node.forEach((row) => rows.push((row.attrs.id as string | null) ?? ''))
+  return {
+    props: { headerRow: !!node.attrs.headerRow, headerColumn: !!node.attrs.headerColumn },
+    columns: columnsOf(node, map),
+    rows,
+    cells,
   }
 }
 
@@ -144,7 +184,7 @@ function writeRows(type: NodeType, props: BlockProps, given: PartialTableRow[]):
   return type.create(attrs, rowNodes)
 }
 
-export const tableRows: RowsSpec = { read: readRows, write: writeRows }
+export const tableRows: RowsSpec = { read: readRows, write: writeRows, grid: gridOf }
 
 /* DOM */
 

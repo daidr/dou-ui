@@ -4,6 +4,7 @@ import { Decoration, DecorationSet } from 'prosemirror-view'
 import * as Y from 'yjs'
 import { blockAround, findBlockById } from '../core/blocks'
 import type { Binding, YBlock } from './binding'
+import { cellAt, cellStart } from './table'
 
 /** What the editor needs of a Yjs awareness instance (`y-protocols/awareness`). */
 export interface AwarenessLike {
@@ -18,7 +19,16 @@ export interface AwarenessLike {
 /** A place in the text: the block and a position in its text that follows edits. */
 interface Place {
   block: string
+  /** In a table: the cell, `row id:column id`. */
+  cell?: string
   position: unknown
+}
+
+/** The text a place points into: the block's own, or one of its table cells. */
+function textOf(binding: Binding, block: string, cell?: string): Y.Text | undefined {
+  const yblock = binding.map.get(block) as YBlock | undefined
+  if (!cell) return yblock?.get('text') as Y.Text | undefined
+  return (yblock?.get('cells') as Y.Map<Y.Text> | undefined)?.get(cell)
 }
 
 interface Cursor {
@@ -31,14 +41,19 @@ export function placeOf(binding: Binding, doc: PMNode, pos: number): Place | nul
   const info = blockAround(doc.resolve(pos))
   if (!info) return null
   const id = info.node.attrs.id as string
-  const yblock = binding.map.get(id)
-  const text = yblock?.get('text') as Y.Text | undefined
-  if (!text) return null
-  const offset = Math.max(0, Math.min(pos - info.contentPos - 1, text.length))
-  return {
-    block: id,
-    position: Y.relativePositionToJSON(Y.createRelativePositionFromTypeIndex(text, offset)),
+  let index = pos - info.contentPos - 1
+  let cell: string | undefined
+  if (info.content.type.spec.rows) {
+    const found = cellAt(info.content, index)
+    if (!found) return null
+    cell = found.key
+    index = found.index
   }
+  const text = textOf(binding, id, cell)
+  if (!text) return null
+  const offset = Math.max(0, Math.min(index, text.length))
+  const position = Y.relativePositionToJSON(Y.createRelativePositionFromTypeIndex(text, offset))
+  return cell ? { block: id, cell, position } : { block: id, position }
 }
 
 /** Back from a place to a document position, or `null` if its block is gone. */
@@ -49,12 +64,19 @@ export function positionOf(binding: Binding, doc: PMNode, place: Place): number 
     Y.createRelativePositionFromJSON(place.position),
     binding.map.doc!,
   )
-  const size = info.content.content.size
+  let start = info.contentPos + 1
+  let size = info.content.content.size
+  if (place.cell) {
+    const cell = info.content.type.spec.rows ? cellStart(info.content, place.cell) : null
+    if (!cell) return null
+    start += cell.offset
+    size = cell.size
+  }
   const offset =
-    absolute && (binding.map.get(place.block) as YBlock | undefined)?.get('text') === absolute.type
+    absolute && textOf(binding, place.block, place.cell) === absolute.type
       ? Math.min(absolute.index, size)
       : 0
-  return info.contentPos + 1 + offset
+  return start + offset
 }
 
 function cursorElement(user: { name: string; color: string }) {

@@ -41,6 +41,14 @@ function createDemo() {
     { type: 'checkItem', content: '订好周五晚上的车票' },
     { type: 'checkItem', content: '提前预约博物馆' },
     { type: 'checkItem', content: '带上充电宝和雨伞' },
+    {
+      type: 'table',
+      rows: [
+        { cells: ['时间', '安排', '负责'] },
+        { cells: ['周六上午', '博物馆', '戴兜'] },
+        { cells: ['周六下午', '外滩散步', '阿青'] },
+      ],
+    },
   ])
   Y.applyUpdate(second.doc, Y.encodeStateAsUpdate(first.doc))
 

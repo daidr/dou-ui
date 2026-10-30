@@ -41,6 +41,7 @@
 - `@dou-ui/editor` 新增折叠块与提示块
 - `@dou-ui/editor` 的 `mention` 扩展：输入 `@` 搜索并提及某人，搜索可以是异步的
 - `@dou-ui/editor` 新增表格：行列菜单、列宽、对齐、表头行与表头列、合并单元格，可以导入导出 HTML 与 Markdown
+- `@dou-ui/editor/collaboration` 支持表格：行、列、格子与合并单元格分开同步，移动行列和编辑格子不会互相覆盖，其他人的光标也会显示在格子里
 - `@dou-ui/editor` 支持导入导出 HTML 与 Markdown（`blocksToHTML`、`htmlToBlocks`，以及 `@dou-ui/editor/markdown`），写法由各扩展声明
 - `@dou-ui/resolver`：配合按需组件插件，自动导入组件和它的样式入口
 - `@dou-ui/nuxt`：Nuxt 模块，组件、指令与函数自动导入，样式与配色模式开箱即用，支持服务端渲染

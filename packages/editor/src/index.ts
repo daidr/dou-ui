@@ -39,6 +39,8 @@ export { defineBlock, EditorContent, vueNodeView } from './define-block'
 export { defaultLanguages } from './extensions/code-block'
 export type { CodeBlockOptions, CodeHighlighter, CodeLanguage } from './extensions/code-block'
 export { image, isSafeImageSrc, readAsDataUrl } from './extensions/image'
+export { mention } from './extensions/mention'
+export type { MentionItem, MentionOptions } from './extensions/mention'
 export type { ImageOptions, ImageUploader } from './extensions/image'
 export type { BlockViewProps, DefineBlockOptions } from './define-block'
 export { atomInputRule, blockInputRule, markInputRule } from './core/input-rules'
@@ -47,6 +49,7 @@ export type {
   BlockProps,
   BreakContent,
   InlineContent,
+  InlineNodeContent,
   PartialBlock,
   TextContent,
 } from './core/model'

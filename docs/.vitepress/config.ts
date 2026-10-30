@@ -62,6 +62,7 @@ export default defineConfig({
             { text: '代码块', link: '/editor/code-block' },
             { text: '折叠块与提示块', link: '/editor/toggle-callout' },
             { text: '图片', link: '/editor/image' },
+            { text: '提及', link: '/editor/mention' },
             { text: '协同编辑', link: '/editor/collaboration' },
           ],
         },

@@ -650,6 +650,53 @@
     pointer-events: none;
   }
 
+  /* mentions: in the text, and the suggestions */
+  .dou-editor__mention {
+    padding: 0 2px;
+    border-radius: 4px;
+    background-color: var(--dou-color-bg-muted);
+    color: var(--dou-color-text);
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .dou-editor-mention {
+    width: 240px;
+    max-height: min(var(--dou-floating-available, 100vh), 288px);
+  }
+
+  .dou-editor-mention__item {
+    gap: 10px;
+    height: auto;
+    padding: 6px 8px;
+
+    &:focus,
+    &.is-active {
+      background-color: var(--dou-dropdown-item-active-bg);
+    }
+  }
+
+  .dou-editor-mention__text {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .dou-editor-mention__label,
+  .dou-editor-mention__description {
+    overflow-x: clip;
+    text-box: trim-both cap alphabetic;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dou-editor-mention__description {
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+  }
+
   /* slash menu */
 
   .dou-editor-slash {

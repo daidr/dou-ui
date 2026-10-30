@@ -59,6 +59,7 @@ const stage = useTemplateRef<HTMLElement>('stage')
 const scrolls = ref(false)
 let resize: ResizeObserver | undefined
 let mutate: MutationObserver | undefined
+let frame = 0
 
 function measure() {
   const el = stage.value
@@ -76,16 +77,23 @@ function watchChildren() {
 onMounted(() => {
   resize = new ResizeObserver(measure)
   mutate = new MutationObserver(() => {
-    watchChildren()
-    measure()
+    if (frame) return
+    frame = requestAnimationFrame(() => {
+      frame = 0
+      watchChildren()
+      measure()
+    })
   })
-  if (stage.value) mutate.observe(stage.value, { childList: true })
+  // Content can also narrow without any observed box changing size, such
+  // as a menu folding items away, so changes deeper down measure too.
+  if (stage.value) mutate.observe(stage.value, { childList: true, subtree: true })
   watchChildren()
 })
 
 onBeforeUnmount(() => {
   resize?.disconnect()
   mutate?.disconnect()
+  cancelAnimationFrame(frame)
 })
 
 function collapse() {

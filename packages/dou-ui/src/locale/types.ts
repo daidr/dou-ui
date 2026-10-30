@@ -329,6 +329,10 @@ export interface Locale {
     /** The blue–yellow axis of Lab and Oklab. */
     axisB: string
   }
+  menu: {
+    /** Names the item that holds what a horizontal menu has no room for. */
+    more: string
+  }
   transfer: {
     /** The heading of the left list. */
     source: string

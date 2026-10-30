@@ -208,6 +208,9 @@ export const zhCN: Locale = {
     axisA: 'a 轴（绿–红）',
     axisB: 'b 轴（蓝–黄）',
   },
+  menu: {
+    more: '更多',
+  },
   transfer: {
     source: '待选',
     target: '已选',

@@ -12,7 +12,7 @@ const open = ref(false)
 
 <template>
   <DouConfigProvider :motion="mode">
-    <DouSpace size="sm">
+    <DouSpace size="sm" wrap>
       <DouSegmentedControl v-model="mode" :options="modes" size="sm" />
       <DouButton size="sm" variant="outline" @click="open = true">打开抽屉</DouButton>
       <DouSpinner />

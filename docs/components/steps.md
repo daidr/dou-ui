@@ -6,7 +6,7 @@
 
 <DocDemo src="steps/basic" column />
 
-`current` 之前的步骤是“已完成”，之后的是“未开始”。单个步骤可以用 `status` 自己指定状态。
+`current` 之前的步骤是“已完成”，之后的是“未开始”。单个步骤可以用 `status` 自己指定状态。手机上横排放不下时，可以像这个示例一样用 `useBreakpoints` 切到竖向。
 
 ## 出错与竖向
 

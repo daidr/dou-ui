@@ -6,9 +6,20 @@
  * search, and rows of checkboxes that take the hover wash of the tree.
  */
 @layer dou.components {
+  /* Side by side while both lists get their 200px; below that they stack,
+     the move buttons in a row between them with the arrows turned down.
+     The flex-basis trick below switches at --dou-transfer-stack; only the
+     arrows need a container query. */
   .dou-transfer {
+    --dou-transfer-stack: calc(2 * 200px + 2 * 12px + var(--dou-control-height-sm));
+
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
+    /* a definite width, so the switch reads the room it is given rather
+       than its own content in a shrink-to-fit parent such as a flex row */
+    box-sizing: border-box;
+    width: 100%;
     gap: 12px;
     min-width: 0;
     color: var(--dou-color-text);
@@ -17,9 +28,9 @@
 
   .dou-transfer__list {
     display: flex;
-    flex: 1 1 0;
+    flex: 1 1 calc((var(--dou-transfer-stack) - 100%) * 999);
     flex-direction: column;
-    min-width: 200px;
+    min-width: min(200px, 100%);
     overflow: hidden;
     border: 1px solid var(--dou-color-border);
     border-radius: var(--dou-radius-container);
@@ -114,8 +125,17 @@
 
   .dou-transfer__actions {
     display: flex;
-    flex-direction: column;
-    flex-shrink: 0;
+    flex: 0 1 calc((var(--dou-transfer-stack) - 100%) * 999);
+    flex-wrap: wrap;
+    justify-content: center;
     gap: 8px;
+    min-width: var(--dou-control-height-sm);
+    container-type: inline-size;
+  }
+
+  @container (min-width: 80px) {
+    .dou-transfer__actions .dou-button svg {
+      rotate: 90deg;
+    }
   }
 }

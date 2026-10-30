@@ -208,6 +208,9 @@ export const en: Locale = {
     axisA: 'a axis (green–red)',
     axisB: 'b axis (blue–yellow)',
   },
+  menu: {
+    more: 'More',
+  },
   transfer: {
     source: 'Available',
     target: 'Selected',

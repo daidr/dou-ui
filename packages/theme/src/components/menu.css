@@ -177,6 +177,10 @@
 
   /* horizontal: a row on a hairline, the current one underlined */
   .dou-menu--horizontal {
+    /* Fills its row, so its width never follows its own items: what does
+       not fit goes into the trailing "more" popup (see menu.vue). */
+    box-sizing: border-box;
+    width: 100%;
     border-bottom: 1px solid var(--dou-color-border);
 
     & .dou-menu__list {
@@ -184,6 +188,11 @@
       align-items: center;
       gap: 4px;
       padding: 6px 0;
+    }
+
+    & .dou-menu__entry,
+    & .dou-menu__divider {
+      flex-shrink: 0;
     }
 
     & .dou-menu__entry {

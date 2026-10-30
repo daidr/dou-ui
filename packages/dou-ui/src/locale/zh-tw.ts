@@ -208,6 +208,9 @@ export const zhTW: Locale = {
     axisA: 'a 軸（綠–紅）',
     axisB: 'b 軸（藍–黃）',
   },
+  menu: {
+    more: '更多',
+  },
   transfer: {
     source: '待選',
     target: '已選',

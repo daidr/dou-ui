@@ -1,5 +1,9 @@
 <script setup>
+import { useBreakpoints } from 'dou-ui'
 import { computed, reactive, ref, useTemplateRef } from 'vue'
+
+// the steps do not fit side by side on a phone
+const screen = useBreakpoints()
 
 const regions = [
   { value: '上海', label: '上海' },
@@ -54,6 +58,7 @@ function restart() {
 <template>
   <div class="wizard">
     <DouSteps
+      :direction="screen.sm ? 'horizontal' : 'vertical'"
       v-model:current="current"
       :items="items"
       :status="done ? 'finish' : undefined"

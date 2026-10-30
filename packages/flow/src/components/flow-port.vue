@@ -47,7 +47,7 @@ onBeforeUnmount(() => node?.unregisterPort(props.id, props.auto))
     aria-hidden="true"
   >
     <svg v-if="shape === 'triangle'" viewBox="0 0 10 10">
-      <path d="M2.5 1.5 8.5 5 2.5 8.5Z" />
+      <path d="M2 1.5 8 5 2 8.5Z" />
     </svg>
   </span>
 </template>

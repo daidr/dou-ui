@@ -2,6 +2,7 @@ import { inject, type ComputedRef, type InjectionKey, type Ref } from 'vue'
 import type { FlowMessages } from './locale'
 import type {
   FlowDocument,
+  FlowEndpoint,
   FlowNode,
   FlowPortSpec,
   FlowSelection,
@@ -10,6 +11,7 @@ import type {
   PortSide,
   Rect,
 } from './core/model'
+import type { FlowConnection, PortTypes, PortTypeSpec } from './core/connect'
 import type { NodeTypeSpec } from './core/node-types'
 import type { Transaction, TransactionMeta } from './core/transaction'
 
@@ -28,6 +30,12 @@ export interface FlowEditorProps {
   readonly?: boolean
   /** Scrolling pans the canvas; with Ctrl / ⌘ it zooms. Off, only Ctrl / ⌘ + scroll zooms. */
   panOnScroll?: boolean
+  /** Looks and connection rules of port types, by the name used in `dataType`. */
+  portTypes?: PortTypes
+  /** Refuse edges that would close a cycle. */
+  acyclic?: boolean
+  /** The last check before an edge is made; return `false` to refuse it. */
+  canConnect?: (connection: FlowConnection, doc: FlowDocument) => boolean
   /** Accessible name of the canvas. */
   label?: string
   messages?: Partial<FlowMessages>
@@ -43,6 +51,10 @@ export interface FlowEditorEmits {
   /** Clicking the empty canvas; `point` is in canvas coordinates. */
   'canvas-click': [point: Point, event: MouseEvent]
   'canvas-contextmenu': [point: Point, event: MouseEvent]
+  /** An edge was drawn, or moved to another port. */
+  connect: [edge: FlowDocument['edges'][number]]
+  /** A new edge was dropped on empty canvas; `point` is where, in canvas coordinates. */
+  'connect-end': [from: Required<FlowEndpoint>, point: Point, event: MouseEvent]
 }
 
 export interface FlowEditorExpose {
@@ -76,6 +88,9 @@ export interface NodeMetrics {
   ports: Map<string, PortAnchor>
 }
 
+/** How a port shows while an edge is being drawn. */
+export type PortState = 'active' | 'valid' | 'candidate'
+
 export interface FlowEditorContext {
   doc: Ref<FlowDocument>
   selection: Ref<FlowSelection>
@@ -93,6 +108,10 @@ export interface FlowEditorContext {
   zoomTo: FlowEditorExpose['zoomTo']
   zoomIn: () => void
   zoomOut: () => void
+  /** The registered type of a port, if any. */
+  portTypeOf: (port: FlowPortSpec) => PortTypeSpec | undefined
+  /** A port type's color as CSS. */
+  colorOf: (spec: PortTypeSpec | undefined) => string | undefined
 }
 
 export const flowEditorKey: InjectionKey<FlowEditorContext> = Symbol('dou-flow-editor')
@@ -109,6 +128,8 @@ export interface FlowNodeContext {
   ports: ComputedRef<FlowPortSpec[]>
   /** Port ids with at least one edge. */
   connected: ComputedRef<Set<string>>
+  /** While an edge is being drawn, how each port shows; `null` otherwise. */
+  portStates: ComputedRef<Map<string, PortState> | null>
   registerPort: (id: string, el: HTMLElement, auto?: boolean) => void
   unregisterPort: (id: string, auto?: boolean) => void
 }

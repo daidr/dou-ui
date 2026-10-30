@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { canJoin, reaches, typesMatch } from '../core/connect'
 import { bezierPath, snapBox } from '../core/geometry'
 import { FlowHistory } from '../core/history'
 import type { FlowDocument } from '../core/model'
@@ -165,5 +166,66 @@ describe('bezierPath', () => {
     expect(bezierPath({ x: 100, y: 0 }, 'right', { x: 0, y: 80 }, 'left')).toBe(
       'M100 0C150 0 -50 80 0 80',
     )
+  })
+})
+
+const graph = (): FlowDocument => ({
+  nodes: [
+    { id: 'a', x: 0, y: 0 },
+    { id: 'b', x: 200, y: 0 },
+    { id: 'c', x: 400, y: 0 },
+  ],
+  edges: [{ id: 'e1', source: { node: 'a', port: 'out' }, target: { node: 'b', port: 'in' } }],
+})
+const out = { id: 'out', kind: 'output' } as const
+const inp = { id: 'in', kind: 'input' } as const
+const join = (source: string, target: string) => ({
+  source: { node: source, port: 'out' },
+  target: { node: target, port: 'in' },
+})
+
+describe('connection rules', () => {
+  it('matches types in layers', () => {
+    expect(typesMatch(out, inp)).toBe(true)
+    expect(typesMatch({ ...out, dataType: 'number' }, inp)).toBe(true)
+    expect(typesMatch({ ...out, dataType: 'number' }, { ...inp, dataType: 'text' })).toBe(false)
+    expect(typesMatch({ ...out, dataType: 'number' }, { ...inp, dataType: 'any' })).toBe(true)
+    expect(
+      typesMatch({ ...out, dataType: 'number' }, { ...inp, dataType: ['text', 'number'] }),
+    ).toBe(true)
+    const portTypes = { text: { accepts: ['number'] } }
+    expect(
+      typesMatch({ ...out, dataType: 'number' }, { ...inp, dataType: 'text' }, portTypes),
+    ).toBe(true)
+    expect(
+      typesMatch({ ...out, dataType: 'text' }, { ...inp, dataType: 'number' }, portTypes),
+    ).toBe(false)
+  })
+
+  it('follows edges to find reachable nodes', () => {
+    expect(reaches(graph(), 'a', 'b')).toBe(true)
+    expect(reaches(graph(), 'b', 'a')).toBe(false)
+  })
+
+  it('checks direction, duplicates, limits, cycles and the custom rule', () => {
+    const ports = { source: out, target: inp }
+    expect(canJoin(graph(), join('b', 'c'), ports)).toBe(true)
+    expect(canJoin(graph(), join('b', 'c'), { source: inp, target: out })).toBe(false)
+    expect(canJoin(graph(), join('a', 'a'), ports)).toBe(false)
+    expect(canJoin(graph(), join('a', 'b'), ports)).toBe(false)
+    // An input that takes one edge accepts another, which replaces the first.
+    expect(canJoin(graph(), join('c', 'b'), ports)).toBe(true)
+    expect(canJoin(graph(), join('c', 'b'), { source: out, target: { ...inp, max: 2 } })).toBe(true)
+    const full = { ...graph(), edges: [...graph().edges, { id: 'e2', ...join('c', 'b') }] }
+    expect(canJoin(full, join('a', 'b'), { source: out, target: { ...inp, max: 2 } })).toBe(false)
+    expect(canJoin(graph(), join('a', 'c'), { source: { ...out, max: 1 }, target: inp })).toBe(
+      false,
+    )
+    expect(
+      canJoin(graph(), join('a', 'c'), { source: { ...out, max: 1 }, target: inp }, {}, 'e1'),
+    ).toBe(true)
+    expect(canJoin(graph(), join('b', 'a'), ports, { acyclic: true })).toBe(false)
+    expect(canJoin(graph(), join('b', 'a'), ports)).toBe(true)
+    expect(canJoin(graph(), join('b', 'c'), ports, { canConnect: () => false })).toBe(false)
   })
 })

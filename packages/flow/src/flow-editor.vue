@@ -23,6 +23,7 @@ import {
   type FlowEditorProps,
   type NodeMetrics,
   type PortAnchor,
+  type PortState,
 } from './context'
 import {
   bezierPath,
@@ -33,19 +34,24 @@ import {
   type Guide,
   type SnapLink,
 } from './core/geometry'
+import { canJoin, primaryType, type FlowConnection, type PortTypeSpec } from './core/connect'
 import { FlowHistory } from './core/history'
+import { readClipboard, writeClipboard } from './core/clipboard'
 import {
+  createId,
   emptyDocument,
   emptySelection,
   type FlowDocument,
   type FlowEdge,
+  type FlowEndpoint,
   type FlowNode,
+  type FlowPortSpec,
   type FlowSelection,
   type FlowViewport,
   type Point,
   type Rect,
 } from './core/model'
-import { portsOf, type NodeTypeSpec } from './core/node-types'
+import { labelOf, portsOf, type NodeTypeSpec } from './core/node-types'
 import { Transaction, type TransactionMeta } from './core/transaction'
 import { format, useFlowMessages } from './locale'
 
@@ -93,6 +99,22 @@ const types = computed(() => {
 })
 const specOf = (node: FlowNode) =>
   types.value.get(node.type ?? 'default') ?? types.value.get('default')
+
+function portSpec(end: FlowEndpoint) {
+  const node = nodeById.value.get(end.node)
+  if (!node || end.port == null) return undefined
+  return portsOf(specOf(node), node).find((port) => port.id === end.port)
+}
+
+const portTypeOf = (port: FlowPortSpec): PortTypeSpec | undefined => {
+  const type = primaryType(port)
+  return type ? props.portTypes?.[type] : undefined
+}
+
+const tones = new Set(['neutral', 'primary', 'success', 'warning', 'danger'])
+/** A port type's color as CSS: theme tones by name, anything else as is. */
+const colorOf = (spec: PortTypeSpec | undefined) =>
+  spec?.color ? (tones.has(spec.color) ? `var(--dou-color-${spec.color})` : spec.color) : undefined
 
 // Document and history ------------------------------------------------------------
 
@@ -209,18 +231,36 @@ function anchorOf(end: FlowEdge['source'], role: 'source' | 'target') {
 
 const edgePaths = computed(() => {
   const selected = new Set(selection.value.edges)
-  const out: { edge: FlowEdge; path: string; selected: boolean }[] = []
+  const moving = connecting.value?.edge
+  const out: { edge: FlowEdge; path: string; selected: boolean; style?: CSSProperties }[] = []
   for (const edge of doc.value.edges) {
+    if (edge.id === moving) continue
     const source = nodeById.value.get(edge.source.node)
     const target = nodeById.value.get(edge.target.node)
     if (!source || !target) continue
     const a = anchor(source, edge.source.port, 'source')
     const b = anchor(target, edge.target.port, 'target')
     if (!a || !b) continue
-    out.push({ edge, path: bezierPath(a, a.side, b, b.side), selected: selected.has(edge.id) })
+    out.push({
+      edge,
+      path: bezierPath(a, a.side, b, b.side),
+      selected: selected.has(edge.id),
+      style: edgeStyle(edge),
+    })
   }
   return out
 })
+
+function edgeStyle(edge: FlowEdge): CSSProperties | undefined {
+  const port = portSpec(edge.source)
+  const type = port && portTypeOf(port)
+  if (!type) return undefined
+  return {
+    '--dou-flow-editor-edge': colorOf(type),
+    '--dou-flow-editor-edge-width': type.edgeWidth ? `${type.edgeWidth}px` : undefined,
+    strokeDasharray: type.dashed ? '4 4' : undefined,
+  } as CSSProperties
+}
 
 /** Connected port ids, by node. */
 const connected = computed(() => {
@@ -238,6 +278,7 @@ const connected = computed(() => {
   return map
 })
 const none = new Set<string>()
+const noStates = new Map<string, PortState>()
 
 function describe(node: FlowNode) {
   const ports = portsOf(specOf(node), node)
@@ -437,6 +478,31 @@ type Gesture =
       group: string
       snap: boolean
     }
+  | {
+      kind: 'connect'
+      id: number
+      touch: boolean
+      /** The pressed node, selected on a plain click. */
+      node: string
+      start: Point
+      client: Point
+      started: boolean
+      link: Link
+    }
+
+/** An edge being drawn: one end stays, the other follows the pointer. */
+interface Link {
+  fixed: Required<FlowEndpoint>
+  /** Which end of the edge is moving. */
+  moving: 'source' | 'target'
+  /** An existing edge being moved to another port. */
+  edge?: string
+  /** Where the moving end is, in canvas coordinates. */
+  point: Point
+  candidate: Required<FlowEndpoint> | null
+  /** Ports the moving end may land on: port ids by node. */
+  valid: Map<string, Set<string>>
+}
 
 const gesture = shallowRef<Gesture | null>(null)
 const guides = shallowRef<Guide[]>([])
@@ -495,6 +561,25 @@ function onPointerDown(event: PointerEvent) {
     return
   }
   if (event.button !== 0) return
+
+  const portEl = target.closest<HTMLElement>('.dou-flow-port')
+  if (nodeEl && portEl && !props.readonly) {
+    const link = linkFrom({ node: nodeEl.dataset.nodeId!, port: portEl.dataset.port! })
+    if (link) {
+      gesture.value = {
+        kind: 'connect',
+        id: event.pointerId,
+        touch,
+        node: nodeEl.dataset.nodeId!,
+        start: client,
+        client,
+        started: false,
+        link,
+      }
+      capture(event.pointerId)
+      return
+    }
+  }
 
   if (nodeEl) {
     if (isInteractive(target)) return
@@ -614,7 +699,11 @@ function movePinch() {
   setViewport({ x: mid.x - cx * zoom, y: mid.y - cy * zoom, zoom })
 }
 
+/** Where the pointer is over the editor, for pasting under it. */
+let hover: Point | null = null
+
 function onPointerMove(event: PointerEvent) {
+  if (event.pointerType === 'mouse') hover = { x: event.clientX, y: event.clientY }
   if (event.pointerType === 'touch' && touches.has(event.pointerId)) {
     touches.set(event.pointerId, { x: event.clientX, y: event.clientY })
     if (pinch) {
@@ -638,6 +727,18 @@ function onPointerMove(event: PointerEvent) {
   } else if (g.kind === 'box') {
     g.client = client
     updateBox(g)
+    autoPan(client)
+  } else if (g.kind === 'connect') {
+    g.client = client
+    if (!g.started) {
+      if (
+        Math.hypot(client.x - g.start.x, client.y - g.start.y) <
+        THRESHOLD[g.touch ? 'touch' : 'mouse']
+      )
+        return
+      g.started = true
+    }
+    updateLink(g)
     autoPan(client)
   } else {
     g.client = client
@@ -728,14 +829,325 @@ function autoPan(client: Point) {
   if (!vx && !vy) return
   const step = () => {
     const g = gesture.value
-    if (!g || g.kind === 'pan' || (g.kind === 'drag' && !g.started)) return
+    if (!g || g.kind === 'pan' || ((g.kind === 'drag' || g.kind === 'connect') && !g.started))
+      return
     const { x, y, zoom } = viewport.value
     viewport.value = { x: x + vx, y: y + vy, zoom }
     if (g.kind === 'box') updateBox(g)
+    else if (g.kind === 'connect') updateLink(g)
     else moveDrag(g)
     autoPanFrame = requestAnimationFrame(step)
   }
   autoPanFrame = requestAnimationFrame(step)
+}
+
+// Connecting ---------------------------------------------------------------------
+
+const connectOptions = () => ({
+  portTypes: props.portTypes,
+  acyclic: props.acyclic,
+  canConnect: props.canConnect,
+})
+
+/**
+ * Starts an edge at a port. From an output, or an empty input, it draws a
+ * new edge; from an input that has an edge, it picks that edge up.
+ */
+function linkFrom(at: Required<FlowEndpoint>): Link | null {
+  const port = portSpec(at)
+  if (!port) return null
+  let link: Omit<Link, 'valid'>
+  let taken: FlowEdge | undefined
+  if (port.kind === 'input')
+    for (const e of doc.value.edges)
+      if (e.target.node === at.node && e.target.port === at.port) taken = e
+  if (taken && taken.source.port != null) {
+    link = {
+      fixed: taken.source as Required<FlowEndpoint>,
+      moving: 'target',
+      edge: taken.id,
+      point: anchorOf(at, 'target') ?? { x: 0, y: 0 },
+      candidate: at,
+    }
+  } else {
+    link = {
+      fixed: at,
+      moving: port.kind === 'output' ? 'target' : 'source',
+      point: anchorOf(at, port.kind === 'output' ? 'source' : 'target') ?? { x: 0, y: 0 },
+      candidate: null,
+    }
+  }
+  return { ...link, valid: validEnds(link) }
+}
+
+const connectionOf = (link: Pick<Link, 'fixed' | 'moving'>, end: Required<FlowEndpoint>) =>
+  (link.moving === 'target'
+    ? { source: link.fixed, target: end }
+    : { source: end, target: link.fixed }) as FlowConnection
+
+function validEnds(link: Pick<Link, 'fixed' | 'moving' | 'edge'>) {
+  const valid = new Map<string, Set<string>>()
+  const fixedPort = portSpec(link.fixed)
+  if (!fixedPort) return valid
+  const options = connectOptions()
+  for (const node of doc.value.nodes) {
+    const ids = new Set<string>()
+    for (const port of portsOf(specOf(node), node)) {
+      const connection = connectionOf(link, { node: node.id, port: port.id })
+      const ports =
+        link.moving === 'target'
+          ? { source: fixedPort, target: port }
+          : { source: port, target: fixedPort }
+      if (canJoin(toRaw(doc.value), connection, ports, options, link.edge)) ids.add(port.id)
+    }
+    if (ids.size) valid.set(node.id, ids)
+  }
+  return valid
+}
+
+/** How close, in screen px, the pointer must come to a port to snap to it. */
+const MAGNET = 24
+
+function updateLink(g: Extract<Gesture, { kind: 'connect' }>) {
+  const link = g.link
+  const point = toCanvas(g.client)
+  const radius = (g.touch ? MAGNET * 1.5 : MAGNET) / viewport.value.zoom
+  let best: { end: Required<FlowEndpoint>; d: number } | null = null
+  const consider = (node: string, port: string, limit: number) => {
+    const at = anchorOf({ node, port }, link.moving)
+    if (!at) return
+    const d = Math.hypot(at.x - point.x, at.y - point.y)
+    if (d <= limit && (!best || d < best.d)) best = { end: { node, port }, d }
+  }
+  for (const [node, ports] of link.valid) for (const port of ports) consider(node, port, radius)
+  // Dropping anywhere on a node picks its nearest free port.
+  if (!best) {
+    const over = document
+      .elementFromPoint(g.client.x, g.client.y)
+      ?.closest<HTMLElement>('[data-node-id]')?.dataset.nodeId
+    for (const port of (over && link.valid.get(over)) || []) consider(over!, port, Infinity)
+  }
+  g.link = {
+    ...link,
+    point,
+    candidate: (best as { end: Required<FlowEndpoint> } | null)?.end ?? null,
+  }
+  gesture.value = { ...g }
+}
+
+/** Adds the edge a link describes, replacing what it must. */
+function finishLink(link: Link, event?: MouseEvent) {
+  const { candidate } = link
+  if (!candidate) {
+    if (link.edge) {
+      // Dropping a picked-up edge on nothing removes it.
+      const id = link.edge
+      transact((tr) => tr.removeEdge(id))
+    } else if (event) {
+      emit('connect-end', link.fixed, link.point, event)
+    }
+    return
+  }
+  const connection = connectionOf(link, candidate)
+  const target = portSpec(connection.target)
+  const edge: FlowEdge = { id: createId('e'), source: connection.source, target: connection.target }
+  transact((tr) => {
+    if (link.edge) tr.removeEdge(link.edge)
+    if ((target?.max ?? 1) === 1) {
+      for (const old of tr.edgesOf(connection.target.node))
+        if (
+          old.target.node === connection.target.node &&
+          old.target.port === connection.target.port
+        )
+          tr.removeEdge(old.id)
+    }
+    tr.addEdge(edge)
+  })
+  emit('connect', edge)
+  announce(messages.value.connected)
+}
+
+/** What the canvas shows while an edge is being drawn, by mouse, touch or keyboard. */
+const connecting = computed<Link | null>(() => {
+  const g = gesture.value
+  if (g?.kind === 'connect' && g.started) return g.link
+  return keyLink.value
+})
+
+const previewPath = computed(() => {
+  const link = connecting.value
+  if (!link) return null
+  const fixedRole = link.moving === 'target' ? 'source' : 'target'
+  const a = anchorOf(link.fixed, fixedRole)
+  if (!a) return null
+  const c = link.candidate && anchorOf(link.candidate, link.moving)
+  const opposite = { left: 'right', right: 'left', top: 'bottom', bottom: 'top' } as const
+  const b = c ?? { ...link.point, side: opposite[a.side] }
+  return link.moving === 'target'
+    ? bezierPath(a, a.side, b, b.side)
+    : bezierPath(b, b.side, a, a.side)
+})
+
+/** How each port looks while connecting: by node, then port. */
+const portStates = computed(() => {
+  const link = connecting.value
+  if (!link) return null
+  const states = new Map<string, Map<string, PortState>>()
+  const set = (end: Required<FlowEndpoint>, state: PortState) => {
+    let ports = states.get(end.node)
+    if (!ports) states.set(end.node, (ports = new Map()))
+    ports.set(end.port, state)
+  }
+  for (const [node, ports] of link.valid) for (const port of ports) set({ node, port }, 'valid')
+  set(link.fixed, 'active')
+  if (link.candidate) set(link.candidate, 'candidate')
+  return states
+})
+
+// Connecting from the keyboard: C on a selected node, arrows pick the port.
+
+const keyLink = shallowRef<
+  (Link & { from: Required<FlowEndpoint>; options: Required<FlowEndpoint>[] }) | null
+>(null)
+
+/** Valid ends of a link, nearest first. */
+/** A port's anchor; nodes not measured yet fall back to their corner. */
+function place(end: Required<FlowEndpoint>, role: 'source' | 'target') {
+  return anchorOf(end, role) ?? nodeById.value.get(end.node) ?? { x: 0, y: 0 }
+}
+
+function rankEnds(link: Link) {
+  const at = place(link.fixed, link.moving === 'target' ? 'source' : 'target')
+  const ends: { end: Required<FlowEndpoint>; d: number }[] = []
+  for (const [node, ports] of link.valid)
+    for (const port of ports) {
+      const p = place({ node, port }, link.moving)
+      ends.push({ end: { node, port }, d: Math.hypot(p.x - at.x, p.y - at.y) })
+    }
+  // oxlint-disable-next-line unicorn/no-array-sort -- sorts a fresh list
+  return ends.sort((a, b) => a.d - b.d).map((e) => e.end)
+}
+
+function describeEnd(end: Required<FlowEndpoint>) {
+  const node = nodeById.value.get(end.node)
+  const port = portSpec(end)
+  const name = node ? labelOf(specOf(node), node) : end.node
+  return format(messages.value.connectTo, { node: name, port: port?.label ?? port?.id ?? '' })
+}
+
+/** Starts keyboard connecting from the next port of a node that has somewhere to go. */
+function startKeyLink(nodeId: string, after?: Required<FlowEndpoint>) {
+  const node = nodeById.value.get(nodeId)
+  if (!node) return false
+  // Outputs first: drawing a new edge is more common than moving one.
+  const all = portsOf(specOf(node), node)
+  const ports = [
+    ...all.filter((p) => p.kind === 'output'),
+    ...all.filter((p) => p.kind !== 'output'),
+  ]
+  const start = after ? ports.findIndex((p) => p.id === after.port) + 1 : 0
+  for (let i = 0; i < ports.length; i++) {
+    const port = ports[(start + i) % ports.length]!
+    const link = linkFrom({ node: nodeId, port: port.id })
+    if (!link) continue
+    const options = rankEnds(link)
+    if (!options.length) continue
+    const candidate = link.edge ? link.candidate : options[0]!
+    keyLink.value = { ...link, candidate, from: { node: nodeId, port: port.id }, options }
+    if (candidate) {
+      reveal(candidate.node)
+      announce(describeEnd(candidate))
+    }
+    return true
+  }
+  announce(messages.value.noTarget)
+  return false
+}
+
+function onKeyLink(event: KeyboardEvent) {
+  const link = keyLink.value!
+  const { options } = link
+  const index = link.candidate
+    ? options.findIndex((o) => o.node === link.candidate!.node && o.port === link.candidate!.port)
+    : -1
+  switch (event.key) {
+    case 'ArrowRight':
+    case 'ArrowDown':
+    case 'ArrowLeft':
+    case 'ArrowUp': {
+      const step = event.key === 'ArrowRight' || event.key === 'ArrowDown' ? 1 : -1
+      const candidate = options[(index + step + options.length) % options.length]!
+      keyLink.value = { ...link, candidate }
+      reveal(candidate.node)
+      announce(describeEnd(candidate))
+      break
+    }
+    case 'Tab':
+      startKeyLink(link.from.node, link.from)
+      break
+    case 'Enter':
+      keyLink.value = null
+      finishLink(link)
+      break
+    case 'Escape':
+      keyLink.value = null
+      break
+    default:
+      return
+  }
+  event.preventDefault()
+}
+
+// Clipboard ------------------------------------------------------------------------
+
+/** The selected nodes and the edges between them. */
+function copySelection(): FlowDocument | null {
+  const ids = new Set(selection.value.nodes)
+  if (!ids.size) return null
+  const raw = toRaw(doc.value)
+  return {
+    nodes: raw.nodes.filter((node) => ids.has(node.id)),
+    edges: raw.edges.filter((edge) => ids.has(edge.source.node) && ids.has(edge.target.node)),
+  }
+}
+
+let pastes = 0
+
+/** Adds a copy of `data` with new ids, at the pointer or next to the original. */
+function paste(data: FlowDocument, at?: Point | null) {
+  const bounds = boundsOf(
+    data.nodes.map((n) => ({ x: n.x, y: n.y, width: n.width ?? 0, height: n.height ?? 0 })),
+  )
+  if (!bounds) return
+  const step = (props.grid || 8) * 3
+  const shift = at
+    ? { x: Math.round(at.x - bounds.x), y: Math.round(at.y - bounds.y) }
+    : { x: step * ++pastes, y: step * pastes }
+  const ids = new Map(data.nodes.map((n) => [n.id, createId()]))
+  // Shallow copies: documents are never changed in place.
+  const nodes = data.nodes.map((n) => ({
+    ...n,
+    data: n.data && { ...n.data },
+    id: ids.get(n.id)!,
+    x: n.x + shift.x,
+    y: n.y + shift.y,
+    locked: undefined,
+  }))
+  transact((tr) => {
+    for (const node of nodes) tr.addNode(node)
+    for (const edge of data.edges) {
+      const source = ids.get(edge.source.node)
+      const target = ids.get(edge.target.node)
+      if (!source || !target) continue
+      tr.addEdge({
+        ...edge,
+        id: createId('e'),
+        source: { ...edge.source, node: source },
+        target: { ...edge.target, node: target },
+      })
+    }
+  })
+  setSelection({ nodes: nodes.map((n) => n.id), edges: [] })
 }
 
 function onPointerUp(event: PointerEvent) {
@@ -753,6 +1165,9 @@ function onPointerUp(event: PointerEvent) {
     if (g.kind === 'pan' && !g.moved) {
       if (!g.additive) setSelection(emptySelection())
       emit('canvas-click', toCanvas({ x: event.clientX, y: event.clientY }), event)
+    } else if (g.kind === 'connect') {
+      if (g.started) finishLink(g.link, event)
+      else setSelection({ nodes: [g.node], edges: [] })
     } else if (g.kind === 'drag' && !g.started && !g.held) {
       const node = nodeById.value.get(g.node)
       if (g.additive && g.wasSelected)
@@ -912,6 +1327,10 @@ function nudge(dx: number, dy: number) {
 function onKeydown(event: KeyboardEvent) {
   const target = event.target as Element
   if (isEditable(target) || inPanels(target)) return
+  // Keys typed into a node's own controls are theirs, Escape for their popups included.
+  const nodeEl = target.closest('[data-node-id]')
+  if (nodeEl && nodeEl !== target) return
+  if (keyLink.value) return onKeyLink(event)
   const mod = event.metaKey || event.ctrlKey
   const key = event.key.length === 1 ? event.key.toLowerCase() : event.key
   const onCanvas = target === root.value || !!(target as HTMLElement).dataset?.nodeId
@@ -923,7 +1342,22 @@ function onKeydown(event: KeyboardEvent) {
       else undo()
     } else if (key === 'y' && !props.readonly) redo()
     else if (key === 'a') setSelection({ nodes: doc.value.nodes.map((n) => n.id), edges: [] })
-    else if (key === '=' || key === '+') zoomIn()
+    else if (key === 'c' || key === 'x') {
+      const data = copySelection()
+      if (!data) return
+      writeClipboard(data)
+      pastes = 0
+      if (key === 'x' && !props.readonly) deleteSelection()
+    } else if (key === 'v' && !props.readonly) {
+      const data = readClipboard()
+      if (!data) return
+      paste(data, hover ? toCanvas(hover) : null)
+    } else if (key === 'd' && !props.readonly) {
+      const data = copySelection()
+      if (!data) return
+      pastes = 0
+      paste(data)
+    } else if (key === '=' || key === '+') zoomIn()
     else if (key === '-') zoomOut()
     else if (key === '0') zoomTo(1)
     else handled = false
@@ -985,6 +1419,10 @@ function onKeydown(event: KeyboardEvent) {
       if (!onCanvas) return
       spaceHeld.value = true
       break
+    case 'c':
+      if (props.readonly || selection.value.nodes.length !== 1) return
+      startKeyLink(selection.value.nodes[0]!)
+      break
     default:
       return
   }
@@ -1005,6 +1443,9 @@ function announce(text: string) {
 }
 
 // Lifecycle --------------------------------------------------------------------------
+
+// Popups opened from inside nodes follow them: they reposition on scroll.
+watch(viewport, () => root.value?.dispatchEvent(new Event('scroll')))
 
 onMounted(() => {
   root.value!.addEventListener('wheel', onWheel, { passive: false })
@@ -1038,6 +1479,7 @@ const classes = computed(() => ({
   'is-panning': panning.value,
   'is-space': spaceHeld.value,
   'is-dragging': !!dragging.value,
+  'is-connecting': !!connecting.value,
 }))
 
 provide(flowEditorKey, {
@@ -1057,6 +1499,8 @@ provide(flowEditorKey, {
   zoomTo,
   zoomIn,
   zoomOut,
+  portTypeOf,
+  colorOf,
 })
 
 const selectedNodes = computed(() => new Set(selection.value.nodes))
@@ -1099,6 +1543,7 @@ defineExpose<FlowEditorExpose>({
     @pointermove="onPointerMove"
     @pointerup="onPointerUp"
     @pointercancel="onPointerUp"
+    @pointerleave="hover = null"
     @dblclick="onDblclick"
     @contextmenu="onContextmenu"
     @keydown="onKeydown"
@@ -1111,10 +1556,12 @@ defineExpose<FlowEditorExpose>({
           <path class="dou-flow-editor__edge-hit" :d="item.path" />
           <path
             class="dou-flow-editor__edge"
+            :style="item.style"
             :class="{ 'is-selected': item.selected }"
             :d="item.path"
           />
         </g>
+        <path v-if="previewPath" class="dou-flow-editor__edge is-preview" :d="previewPath" />
       </svg>
       <NodeView
         v-for="node in doc.nodes"
@@ -1125,6 +1572,7 @@ defineExpose<FlowEditorExpose>({
         :readonly="readonly"
         :dragging="!!dragging?.has(node.id)"
         :connected="connected.get(node.id) ?? none"
+        :port-states="portStates ? (portStates.get(node.id) ?? noStates) : null"
         :role-description="messages.node"
         :description="describe(node)"
         @measure="onMeasure"

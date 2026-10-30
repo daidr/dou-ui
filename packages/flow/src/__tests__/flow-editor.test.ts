@@ -171,4 +171,34 @@ describe('DouFlowEditor', () => {
     expect(doc.value).toEqual(sample())
     wrapper.unmount()
   })
+
+  it('connects from the keyboard and announces the target', async () => {
+    const { wrapper, root, doc } = setup({ nodes: ['a'], edges: [] })
+    doc.value = { ...doc.value, edges: [] }
+    await nextTick()
+    await root.trigger('keydown', { key: 'c' })
+    expect(wrapper.find('[aria-live]').text()).toContain('写初稿')
+    await root.trigger('keydown', { key: 'Enter' })
+    expect(doc.value.edges).toHaveLength(1)
+    expect(doc.value.edges[0]).toMatchObject({
+      source: { node: 'a', port: 'out' },
+      target: { node: 'b', port: 'in' },
+    })
+    wrapper.unmount()
+  })
+
+  it('copies, pastes and duplicates nodes with the edges between them', async () => {
+    const { wrapper, root, doc, selection } = setup({ nodes: ['a', 'b'], edges: [] })
+    await root.trigger('keydown', { key: 'c', ctrlKey: true })
+    await root.trigger('keydown', { key: 'v', ctrlKey: true })
+    expect(doc.value.nodes).toHaveLength(5)
+    expect(doc.value.edges).toHaveLength(2)
+    const pasted = doc.value.nodes.slice(3)
+    expect(pasted.map((n) => n.data?.label)).toEqual(['收集素材', '写初稿'])
+    expect(pasted[0]).toMatchObject({ x: 24, y: 24 })
+    expect(selection.value.nodes).toEqual(pasted.map((n) => n.id))
+    await root.trigger('keydown', { key: 'd', ctrlKey: true })
+    expect(doc.value.nodes).toHaveLength(7)
+    wrapper.unmount()
+  })
 })

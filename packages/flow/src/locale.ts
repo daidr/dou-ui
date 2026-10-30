@@ -22,11 +22,15 @@ export interface FlowMessages {
   deleted: string
   undone: string
   redone: string
+  connected: string
+  /** While connecting from the keyboard; `{node}` and `{port}` are names. */
+  connectTo: string
+  noTarget: string
   status: { wait: string; process: string; finish: string; error: string }
 }
 
 const zhCN: FlowMessages = {
-  canvas: '流程画布。方向键移动选中的节点，Tab 在节点之间切换，Delete 删除。',
+  canvas: '流程画布。方向键移动选中的节点，Tab 在节点之间切换，C 从选中的节点连线，Delete 删除。',
   node: '节点',
   ports: '{inputs} 个输入，{outputs} 个输出，已连接 {connected} 条',
   input: '输入',
@@ -41,11 +45,14 @@ const zhCN: FlowMessages = {
   deleted: '已删除 {count} 项',
   undone: '已撤销',
   redone: '已重做',
+  connected: '已连接',
+  connectTo: '连接到 {node} 的 {port}，方向键换一个，Enter 确认',
+  noTarget: '没有可以连接的端口',
   status: { wait: '等待', process: '运行中', finish: '已完成', error: '失败' },
 }
 
 const zhTW: FlowMessages = {
-  canvas: '流程畫布。方向鍵移動選取的節點，Tab 在節點之間切換，Delete 刪除。',
+  canvas: '流程畫布。方向鍵移動選取的節點，Tab 在節點之間切換，C 從選取的節點連線，Delete 刪除。',
   node: '節點',
   ports: '{inputs} 個輸入，{outputs} 個輸出，已連接 {connected} 條',
   input: '輸入',
@@ -60,12 +67,15 @@ const zhTW: FlowMessages = {
   deleted: '已刪除 {count} 項',
   undone: '已復原',
   redone: '已重做',
+  connected: '已連接',
+  connectTo: '連接到 {node} 的 {port}，方向鍵換一個，Enter 確認',
+  noTarget: '沒有可以連接的連接埠',
   status: { wait: '等待', process: '執行中', finish: '已完成', error: '失敗' },
 }
 
 const en: FlowMessages = {
   canvas:
-    'Flow canvas. Arrow keys move the selected nodes, Tab moves between nodes, Delete removes.',
+    'Flow canvas. Arrow keys move the selected nodes, Tab moves between nodes, C draws an edge from the selected node, Delete removes.',
   node: 'node',
   ports: '{inputs} inputs, {outputs} outputs, {connected} connected',
   input: 'Input',
@@ -80,6 +90,9 @@ const en: FlowMessages = {
   deleted: '{count} deleted',
   undone: 'Undone',
   redone: 'Redone',
+  connected: 'Connected',
+  connectTo: 'Connect to {port} of {node}; arrow keys pick another, Enter confirms',
+  noTarget: 'No port to connect to',
   status: { wait: 'Waiting', process: 'Running', finish: 'Done', error: 'Failed' },
 }
 

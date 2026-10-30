@@ -16,6 +16,7 @@ export type {
   FlowEditorProps,
   NodeMetrics,
   PortAnchor,
+  PortState,
 } from './context'
 export { flowLocales, useFlowMessages } from './locale'
 export type { FlowMessages } from './locale'
@@ -40,6 +41,15 @@ export type {
 export { applySteps, compactSteps, Transaction } from './core/transaction'
 export type { FlowStep, TransactionMeta } from './core/transaction'
 export { FlowHistory } from './core/history'
+export { canJoin, primaryType, reaches, typesMatch } from './core/connect'
+export type {
+  ConnectOptions,
+  FlowConnection,
+  PortShape,
+  PortTone,
+  PortTypes,
+  PortTypeSpec,
+} from './core/connect'
 export { bezierPath, boundsOf, intersects, rectFrom, snapBox, snapTo } from './core/geometry'
 export type { Guide, SnapResult } from './core/geometry'
 

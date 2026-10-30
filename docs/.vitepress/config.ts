@@ -77,6 +77,7 @@ export default defineConfig({
             { text: '概览', link: '/flow/' },
             { text: '文档数据', link: '/flow/data' },
             { text: '自定义节点', link: '/flow/custom-nodes' },
+            { text: '端口类型与连接规则', link: '/flow/ports' },
           ],
         },
       ],

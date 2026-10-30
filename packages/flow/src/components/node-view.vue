@@ -10,7 +10,7 @@ import {
   watch,
 } from 'vue'
 import type { CSSProperties } from 'vue'
-import { flowNodeKey, type NodeMetrics, type PortAnchor } from '../context'
+import { flowNodeKey, type NodeMetrics, type PortAnchor, type PortState } from '../context'
 import type { FlowNode, FlowPortSpec, PortSide } from '../core/model'
 import { labelOf, portSide, portsOf, type NodeTypeSpec } from '../core/node-types'
 import DefaultNode from './default-node.vue'
@@ -23,6 +23,7 @@ const props = defineProps<{
   readonly: boolean
   dragging: boolean
   connected: Set<string>
+  portStates: Map<string, PortState> | null
   roleDescription: string
   /** Read out after the name, e.g. the port counts. */
   description: string
@@ -45,6 +46,7 @@ provide(flowNodeKey, {
   node: computed(() => props.node),
   ports,
   connected: computed(() => props.connected),
+  portStates: computed(() => props.portStates),
   registerPort(id, portEl, auto) {
     if (auto) autoPlaced.set(id, portEl)
     else {

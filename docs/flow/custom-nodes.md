@@ -37,9 +37,15 @@ const promptNode = defineNodeType({
 
 组件没有放置的端口，编辑器会沿着它所在的边均匀排开。
 
-## 节点里的控件
+## 节点里的表单
 
-输入框、按钮、链接等控件可以正常操作，不会触发节点拖动。其他元素也可以加上 `data-flow-nodrag` 属性，让在它上面按下时不拖动节点。
+节点里可以放任何表单组件。输入框、选择器、开关、按钮、链接等控件可以正常操作，不会触发节点拖动；其他元素可以加上 `data-flow-nodrag` 属性，在它上面按下时同样不拖动节点。节点里能滚动的区域会自己处理滚轮，滚到头之后才平移画布。
+
+把组件的值绑定到 `data`，修改时调用 `updateData`，修改就会进入文档和撤销记录。
+
+<DocDemo src="flow/form" column />
+
+<<< @/examples/flow/form-node.vue
 
 ## defineNodeType
 

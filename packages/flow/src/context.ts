@@ -12,11 +12,17 @@ import type {
   Rect,
 } from './core/model'
 import type { FlowConnection, PortTypes, PortTypeSpec } from './core/connect'
+import type { FlowExtension } from './core/extension'
 import type { NodeTypeSpec } from './core/node-types'
 import type { Transaction, TransactionMeta } from './core/transaction'
 
 export interface FlowEditorProps {
-  /** Registered node types; `default` is always available. */
+  /**
+   * What the editor is made of: node types, port types, rules, keys and
+   * layers. `flowKit()` by default.
+   */
+  extensions?: (FlowExtension | FlowExtension[])[]
+  /** Node types besides the extensions'; they win over an extension's type of the same name. */
   nodeTypes?: NodeTypeSpec<any>[]
   /** Grid step for snapping and arrow keys, in px. `0` turns snapping to the grid off. */
   grid?: number
@@ -86,6 +92,11 @@ export interface FlowEditorExpose {
   /** A node's measured box in canvas coordinates. */
   getNodeRect: (id: string) => Rect | null
   /**
+   * Lays nodes out in columns along their edges, as one undo step: the given
+   * ones, the selection when two or more nodes are selected, or all.
+   */
+  tidy: (ids?: string[]) => void
+  /**
    * Ids of edges whose ports no longer fit: a port is gone, or the types of
    * its two ends don't match any more. They are drawn red and dashed.
    */
@@ -129,6 +140,14 @@ export interface FlowEditorContext {
   portTypeOf: (port: FlowPortSpec) => PortTypeSpec | undefined
   /** A port type's color as CSS. */
   colorOf: (spec: PortTypeSpec | undefined) => string | undefined
+  getNodeRect: FlowEditorExpose['getNodeRect']
+  tidy: FlowEditorExpose['tidy']
+  centerNode: FlowEditorExpose['centerNode']
+  /** Says `text` to screen readers. */
+  announce: (text: string) => void
+  /** The editor's size on screen, in px. */
+  size: Ref<{ width: number; height: number }>
+  selectedNodes: ComputedRef<Set<string>>
 }
 
 export const flowEditorKey: InjectionKey<FlowEditorContext> = Symbol('dou-flow-editor')

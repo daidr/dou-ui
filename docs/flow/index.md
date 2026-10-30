@@ -2,7 +2,7 @@
 
 `@dou-ui/flow` 提供流程编辑器 `DouFlowEditor`：在一块可以平移、缩放的画布上摆放节点，节点之间用连线连接。适合编辑 AI 工作流、数据处理流程、自动化规则这类"节点 + 端口 + 连线"的图。
 
-编辑器只负责编辑和展示，不负责运行流程。节点的运行状态由你写进数据，编辑器负责画出来。
+编辑器只负责编辑和展示，不负责运行流程。节点的运行状态由你写进数据，编辑器负责画出来。完整的例子见区块 [AI 工作流](/blocks/ai-workflow)。
 
 只需要展示、不需要编辑时，用 `dou-ui` 里的 [NodeGraph](/components/node-graph) 就够了，它会自动排好节点的位置。
 
@@ -75,7 +75,20 @@ app.use(DouFlowEditor)
 
 ## 控制栏
 
-`DouFlowControls` 放在编辑器的默认插槽里，提供撤销、重做、缩放和适应画布。`placement` 决定它在哪个角，`:history="false"` 隐藏撤销和重做。
+`DouFlowControls` 放在编辑器的默认插槽里，提供撤销、重做、缩放、适应画布和整理。`placement` 决定它在哪个角，`:history="false"` 隐藏撤销和重做，`:tidy="false"` 隐藏整理。
+
+“整理”沿连线把节点排成一列一列：选中了两个以上的节点时只整理它们，否则整理全部。整理后节点群的左上角不动，锁定的节点不动，整个过程算作一步撤销；排好后超出视野时会缩放到能看到它们。也可以调用 `tidy()` 方法。
+
+## 小地图
+
+`DouFlowMinimap` 也放在默认插槽里，画出全部节点和当前看到的范围。点击或拖动小地图可以移动画布。
+
+```vue
+<DouFlowEditor v-model="doc">
+  <DouFlowControls />
+  <DouFlowMinimap />
+</DouFlowEditor>
+```
 
 默认插槽里的内容浮在画布上方，不会触发画布的拖动和缩放。自己写的面板可以用 `useFlowEditor()` 拿到编辑器的状态和方法。
 
@@ -92,6 +105,7 @@ app.use(DouFlowEditor)
 | `v-model`               | 文档数据                                                  | `FlowDocument`                           | `{ nodes: [], edges: [] }` |
 | `v-model:selection`     | 选中的节点和连线                                          | `FlowSelection`                          | `{ nodes: [], edges: [] }` |
 | `v-model:viewport`      | 画布的位置和缩放                                          | `FlowViewport`                           | `{ x: 0, y: 0, zoom: 1 }`  |
+| `extensions`            | 扩展，见[扩展](./extensions)                              | `(FlowExtension \| FlowExtension[])[]`   | `[flowKit()]`              |
 | `node-types`            | 节点类型，见[自定义节点](./custom-nodes)                  | `NodeTypeSpec[]`                         | —                          |
 | `grid`                  | 吸附网格和方向键的步长，`0` 关闭网格吸附                  | `number`                                 | `8`                        |
 | `guides`                | 拖动时与其他节点对齐、端口吸附                            | `boolean`                                | `true`                     |
@@ -127,6 +141,7 @@ app.use(DouFlowEditor)
 | `fit`                           | 显示全部节点，或指定的节点                                               | `(ids?: string[]) => void`                 |
 | `zoomTo` / `zoomIn` / `zoomOut` | 缩放                                                                     | —                                          |
 | `centerNode`                    | 把节点移到画布中央，不改变缩放                                           | `(id: string) => void`                     |
+| `tidy`                          | 整理节点，默认整理选中的（两个以上时）或全部，算作一步撤销               | `(ids?: string[]) => void`                 |
 | `toCanvas`                      | 屏幕坐标转画布坐标                                                       | `(point: Point) => Point`                  |
 | `getNodeRect`                   | 节点在画布上的位置和尺寸                                                 | `(id: string) => Rect \| null`             |
 | `staleEdges`                    | 端口已经对不上的连线，见[端口类型随数据变化](./ports#端口类型随数据变化) | `string[]`                                 |
@@ -138,3 +153,11 @@ app.use(DouFlowEditor)
 | ----------- | -------------- | -------------------------------------------------------------- | --------------- |
 | `placement` | 所在的角       | `'top-left' \| 'top-right' \| 'bottom-left' \| 'bottom-right'` | `'bottom-left'` |
 | `history`   | 显示撤销和重做 | `boolean`                                                      | `true`          |
+| `tidy`      | 显示整理按钮   | `boolean`                                                      | `true`          |
+
+### FlowMinimap 属性
+
+| 名称               | 说明       | 类型                                                           | 默认值           |
+| ------------------ | ---------- | -------------------------------------------------------------- | ---------------- |
+| `placement`        | 所在的角   | `'top-left' \| 'top-right' \| 'bottom-left' \| 'bottom-right'` | `'bottom-right'` |
+| `width` / `height` | 尺寸（px） | `number`                                                       | `200` / `136`    |

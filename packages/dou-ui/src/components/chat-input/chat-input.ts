@@ -49,6 +49,8 @@ export interface ChatInputProps {
    * one replaces the typed `@…` with `@value` and emits `mention`.
    */
   mentions?: ChatInputOption[]
+  /** Where to render the `/` and `@` menu; `false` keeps it in place. */
+  teleport?: string | HTMLElement | false
 }
 
 export interface ChatInputEmits {

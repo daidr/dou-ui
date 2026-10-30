@@ -120,22 +120,22 @@
     border-radius: var(--dou-radius-full);
   }
 
-  /* the `/` and `@` menu opens above the frame */
+  /* the `/` and `@` menu: a popup above the frame, as wide as it up to 360px */
   .dou-chat-input__menu {
-    position: absolute;
-    z-index: 1;
-    bottom: calc(100% + 6px);
-    left: 0;
+    --dou-chat-input-menu-inset: 4px;
     box-sizing: border-box;
-    width: min(360px, 100%);
-    max-height: 280px;
+    width: min(360px, var(--dou-chat-input-menu-width, 360px), calc(100vw - 16px));
+    max-height: min(var(--dou-floating-available, 100vh), 280px);
     margin: 0;
-    padding: 4px;
+    padding: var(--dou-chat-input-menu-inset);
     overflow-y: auto;
     border: 1px solid var(--dou-color-border);
-    border-radius: var(--dou-radius-container);
+    /* concentric with the options, like a dropdown menu */
+    border-radius: calc(var(--dou-radius-control) + var(--dou-chat-input-menu-inset));
     background-color: var(--dou-color-bg-surface);
-    box-shadow: var(--dou-shadow-lg);
+    color: var(--dou-color-text);
+    font-family: var(--dou-font-family);
+    box-shadow: var(--dou-shadow-md);
     list-style: none;
     cursor: default;
   }

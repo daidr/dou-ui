@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { DouEditor, starterKit } from '@dou-ui/editor'
-import { collaboration, fillFragment } from '@dou-ui/editor/collaboration'
+import { collaboration, fillMap } from '@dou-ui/editor/collaboration'
 import { DouSwitch } from 'dou-ui'
 import { onBeforeUnmount, ref } from 'vue'
 import { applyAwarenessUpdate, Awareness, encodeAwarenessUpdate } from 'y-protocols/awareness'
@@ -33,11 +33,12 @@ const [first, second] = clients as [
 ]
 
 // 文档第一次创建时写入初始内容，通常在服务器上完成
-fillFragment(first.doc.getXmlFragment('document'), [
+fillMap(first.doc.getMap('document'), [
   { type: 'heading', props: { level: 2 }, content: '上海周末出行计划' },
   { type: 'paragraph', content: '两个人一起改，各自的光标会显示在对方的编辑器里。' },
   { type: 'checkItem', content: '订好周五晚上的车票' },
   { type: 'checkItem', content: '提前预约博物馆' },
+  { type: 'checkItem', content: '带上充电宝和雨伞' },
 ])
 Y.applyUpdate(second.doc, Y.encodeStateAsUpdate(first.doc))
 
@@ -64,7 +65,7 @@ const editors = clients.map((client) => ({
   extensions: [
     starterKit(),
     collaboration({
-      fragment: client.doc.getXmlFragment('document'),
+      map: client.doc.getMap('document'),
       awareness: client.awareness,
       user: { name: client.name },
     }),

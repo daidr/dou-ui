@@ -1,30 +1,23 @@
-import type { Schema } from 'prosemirror-model'
-import {
-  prosemirrorToYXmlFragment,
-  redoCommand,
-  undoCommand,
-  yCursorPlugin,
-  ySyncPlugin,
-  yUndoPlugin,
-} from 'y-prosemirror'
-import type { Awareness } from 'y-protocols/awareness'
-import type * as Y from 'yjs'
+import { TextSelection, type Command } from 'prosemirror-state'
+import * as Y from 'yjs'
 import { defineExtension, resolveExtensions, type EditorExtension } from '../core/extension'
 import { blocksToDoc, type PartialBlock } from '../core/model'
 import { starterKit } from '../extensions/starter-kit'
+import { createBinding, syncPlugin, writeDoc, type YBlock } from './binding'
+import { cursorsPlugin, positionOf, type AwarenessLike } from './cursors'
 
 /** How the people editing together see each other. */
 export interface CollaborationUser {
   name: string
-  /** A 6-digit hex color, e.g. `#3b6ea8`. Picked from the client id when left out. */
+  /** The cursor color, any CSS color. Picked from the client id when left out. */
   color?: string
 }
 
 export interface CollaborationOptions {
-  /** Where the document lives, e.g. `ydoc.getXmlFragment('document')`. */
-  fragment: Y.XmlFragment
-  /** Shares cursors and selections. Without it, others' cursors are not shown. */
-  awareness?: Awareness
+  /** Where the document lives, e.g. `ydoc.getMap('document')`. */
+  map: Y.Map<unknown>
+  /** Shares cursors and selections (`y-protocols/awareness`). Without it, others' cursors are not shown. */
+  awareness?: AwarenessLike
   /** This user, shown at their cursor to the others. Needs `awareness`. */
   user?: CollaborationUser
 }
@@ -41,64 +34,67 @@ export const collaborationColors = [
   '#a83b55',
 ]
 
-function cursorElement(user: { name: string; color: string }) {
-  const cursor = document.createElement('span')
-  cursor.className = 'dou-editor__cursor'
-  cursor.style.setProperty('--dou-editor-cursor-color', user.color)
-  const label = document.createElement('span')
-  label.className = 'dou-editor__cursor-label'
-  label.textContent = user.name
-  // word joiners keep the caret from breaking the line around it
-  cursor.append('⁠', label, '⁠')
-  return cursor
-}
-
-const selectionAttrs = (user: { color: string }) => ({
-  class: 'dou-editor__remote-selection',
-  style: `--dou-editor-cursor-color: ${user.color}`,
-})
-
 /**
- * Edit together through a Yjs document. The document lives in `fragment`:
- * the editor's `v-model` only mirrors it and changes to `v-model` are not
+ * Edit together through a Yjs document. The document lives in `map`: the
+ * editor's `v-model` only mirrors it and changes to `v-model` are not
  * written back. Undo only takes back this user's own changes.
  */
 export function collaboration(options: CollaborationOptions): EditorExtension {
-  const { fragment, awareness, user } = options
+  const map = options.map as Y.Map<YBlock>
+  const { awareness, user } = options
   if (awareness && user) {
-    const color =
-      user.color ?? collaborationColors[fragment.doc!.clientID % collaborationColors.length]
+    const color = user.color ?? collaborationColors[map.doc!.clientID % collaborationColors.length]
     awareness.setLocalStateField('user', { name: user.name, color })
   }
+  const binding = createBinding(map)
+  const undoManager = new Y.UndoManager(map, {
+    trackedOrigins: new Set([binding.origin]),
+    captureTimeout: 500,
+  })
+  binding.stopCapturing = () => undoManager.stopCapturing()
+  // put the cursor back where it was when the change was made
+  undoManager.on('stack-item-added', (event: { stackItem: { meta: Map<string, unknown> } }) => {
+    if (!event.stackItem.meta.has('selection'))
+      event.stackItem.meta.set('selection', binding.selectionBefore ?? null)
+  })
+  undoManager.on('stack-item-popped', (event: { stackItem: { meta: Map<string, unknown> } }) => {
+    const view = binding.view
+    const place = event.stackItem.meta.get('selection') as Parameters<typeof positionOf>[2] | null
+    if (!view || !place) return
+    const pos = positionOf(binding, view.state.doc, place)
+    if (pos === null) return
+    view.dispatch(view.state.tr.setSelection(TextSelection.near(view.state.doc.resolve(pos))))
+  })
+  const run =
+    (action: 'undo' | 'redo'): Command =>
+    (_state, dispatch) => {
+      const stack = action === 'undo' ? undoManager.undoStack : undoManager.redoStack
+      if (!stack.length) return false
+      if (dispatch) undoManager[action]()
+      return true
+    }
+
   return defineExtension({
     name: 'collaboration',
     externalDocument: true,
-    plugins: () => [
-      ySyncPlugin(fragment),
-      ...(awareness
-        ? [
-            yCursorPlugin(awareness, {
-              cursorBuilder: cursorElement,
-              selectionBuilder: selectionAttrs,
-            }),
-          ]
-        : []),
-    ],
-    history: () => ({ plugins: [yUndoPlugin()], undo: undoCommand, redo: redoCommand }),
+    plugins: () => [syncPlugin(binding), ...(awareness ? [cursorsPlugin(binding, awareness)] : [])],
+    history: () => ({ plugins: [], undo: run('undo'), redo: run('redo') }),
   })
 }
 
 /**
- * Write blocks into an empty fragment, e.g. when a document that so far
- * was saved as blocks starts being edited together. Do it once, where the
+ * Write blocks into an empty map, e.g. when a document that so far was
+ * saved as blocks starts being edited together. Do it once, where the
  * document is created (often on the server): two clients filling the same
- * empty fragment at the same time would both add their copy.
+ * empty map at the same time would both add their copy.
  */
-export function fillFragment(
-  fragment: Y.XmlFragment,
+export function fillMap(
+  map: Y.Map<unknown>,
   blocks: PartialBlock[],
   extensions: (EditorExtension | EditorExtension[])[] = [starterKit()],
 ) {
-  const schema: Schema = resolveExtensions(extensions).schema
-  prosemirrorToYXmlFragment(blocksToDoc(schema, blocks), fragment)
+  const schema = resolveExtensions(extensions).schema
+  writeDoc(map as Y.Map<YBlock>, blocksToDoc(schema, blocks))
 }
+
+export type { AwarenessLike }

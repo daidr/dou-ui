@@ -45,6 +45,12 @@ export interface EditorMessages {
     caption: string
     resize: string
   }
+  /** The code block. */
+  codeBlock: {
+    /** The language picker's name. */
+    language: string
+    plainText: string
+  }
   noResults: string
   addBlock: string
   dragHandle: string
@@ -108,6 +114,7 @@ const zhCN: EditorMessages = {
     caption: '添加说明',
     resize: '拖动调整宽度',
   },
+  codeBlock: { language: '语言', plainText: '纯文本' },
   noResults: '没有匹配的块',
   addBlock: '在下方添加块',
   dragHandle: '拖动以移动，点击打开菜单',
@@ -170,6 +177,7 @@ const zhTW: EditorMessages = {
     caption: '新增說明',
     resize: '拖曳調整寬度',
   },
+  codeBlock: { language: '語言', plainText: '純文字' },
   noResults: '沒有符合的區塊',
   addBlock: '在下方新增區塊',
   dragHandle: '拖曳以移動，點擊開啟選單',
@@ -232,6 +240,7 @@ const en: EditorMessages = {
     caption: 'Add a caption',
     resize: 'Drag to resize',
   },
+  codeBlock: { language: 'Language', plainText: 'Plain text' },
   noResults: 'No matching blocks',
   addBlock: 'Add a block below',
   dragHandle: 'Drag to move, click for the menu',

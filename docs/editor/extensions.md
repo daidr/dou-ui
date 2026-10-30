@@ -19,15 +19,15 @@ const extensions = [starterKit({ codeBlock: false, divider: false })]
 </template>
 ```
 
-| 选项         | 包含的内容                           |
-| ------------ | ------------------------------------ |
-| `heading`    | 标题                                 |
-| `lists`      | 无序列表、有序列表、待办事项         |
-| `quote`      | 引用                                 |
-| `codeBlock`  | 代码块                               |
-| `divider`    | 分隔线                               |
-| `formatting` | 粗体、斜体、下划线、删除线、行内代码 |
-| `link`       | 链接                                 |
+| 选项         | 包含的内容                                  |
+| ------------ | ------------------------------------------- |
+| `heading`    | 标题                                        |
+| `lists`      | 无序列表、有序列表、待办事项                |
+| `quote`      | 引用                                        |
+| `codeBlock`  | 代码块，也可以传入[选项](./code-block#选项) |
+| `divider`    | 分隔线                                      |
+| `formatting` | 粗体、斜体、下划线、删除线、行内代码        |
+| `link`       | 链接                                        |
 
 正文（`paragraph`）始终保留。去掉的块类型不会出现在菜单里，对应的 Markdown 快捷输入和快捷键也不再生效。
 

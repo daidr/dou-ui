@@ -251,6 +251,86 @@
     }
   }
 
+  /* the code block's language picker and copy button, shown on hover */
+  .dou-editor__content--codeBlock.dou-editor__content--custom {
+    position: relative;
+  }
+
+  .dou-editor-code__pre {
+    margin: 0;
+    font: inherit;
+    white-space: inherit;
+
+    & > code {
+      display: block;
+      font: inherit;
+    }
+  }
+
+  .dou-editor-code__bar {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    border-radius: var(--dou-radius-control);
+    background-color: var(--dou-color-bg-muted);
+    font-family: var(--dou-font-family);
+    opacity: 0;
+    transition: opacity var(--dou-motion-duration-fast) var(--dou-motion-easing);
+  }
+
+  .dou-editor__content--codeBlock:hover > .dou-editor-code__bar,
+  .dou-editor-code__bar:focus-within,
+  .dou-editor-code__bar:has([aria-expanded='true']) {
+    opacity: 1;
+  }
+
+  .dou-editor-code__language {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    height: 24px;
+    padding: 0 4px 0 8px;
+    border: none;
+    border-radius: var(--dou-radius-control);
+    background: none;
+    color: var(--dou-color-text-secondary);
+    font: inherit;
+    font-size: var(--dou-font-size-sm);
+    cursor: pointer;
+
+    & > svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    &:hover,
+    &[aria-expanded='true'] {
+      background-color: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+      color: var(--dou-color-text);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: -2px;
+    }
+
+    &.is-static {
+      padding-inline: 8px;
+      cursor: default;
+    }
+  }
+
+  /* highlighted tokens, as in DouCodeBlock */
+  .dou-editor__token {
+    color: var(--shiki-light, inherit);
+    color: light-dark(var(--shiki-light, inherit), var(--shiki-dark, inherit));
+    font-style: var(--shiki-light-font-style, inherit);
+    font-weight: var(--shiki-light-font-weight, inherit);
+  }
+
   .dou-editor__content--divider {
     padding-block: 12px;
     cursor: default;

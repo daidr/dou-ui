@@ -1,7 +1,7 @@
 import type { EditorState, Command, Plugin } from 'prosemirror-state'
 import type { EditorView } from 'prosemirror-view'
 import { inject, type ComputedRef, type InjectionKey, type ShallowRef } from 'vue'
-import type { EditorExtension, ResolvedExtensions } from './core/extension'
+import type { EditorExtension, ResolvedEditorExtensions } from './core/extension'
 import type { Block, PartialBlock } from './core/model'
 import type { EditorMessages, EditorMessagesOverride } from './locale'
 
@@ -13,7 +13,7 @@ export interface EditorProps {
    */
   modelValue?: PartialBlock[]
   /**
-   * Blocks, marks, shortcuts and menu entries. Defaults to `[starterKit()]`;
+   * Blocks, marks, shortcuts and menu entries. Defaults to `[editorKit()]`;
    * read once, when the editor mounts.
    */
   extensions?: (EditorExtension | EditorExtension[])[]
@@ -75,7 +75,7 @@ export interface EditorContext {
   editable: ComputedRef<boolean>
   messages: ComputedRef<EditorMessages>
   /** What the extensions contribute: schema, menu entries, toolbar toggles. */
-  kit: ResolvedExtensions
+  kit: ResolvedEditorExtensions
   /** The element the overlays are positioned against. */
   root: ShallowRef<HTMLElement | null>
 }

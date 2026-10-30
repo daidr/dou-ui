@@ -1,17 +1,21 @@
-import { resolveExtensions, type EditorExtension, type ResolvedExtensions } from './extension'
+import {
+  resolveEditorExtensions,
+  type EditorExtension,
+  type ResolvedEditorExtensions,
+} from './extension'
 import type { Block, PartialBlock } from './model'
 import { writeHTML } from './output'
 import { parseHTML } from './prepare'
 
 export type ExtensionList = readonly (EditorExtension | EditorExtension[])[]
 
-const resolved = new WeakMap<ExtensionList, ResolvedExtensions>()
+const resolved = new WeakMap<ExtensionList, ResolvedEditorExtensions>()
 
 /** Resolve a list of extensions once; the same array gives the same result. */
-export function kitOf(extensions: ExtensionList): ResolvedExtensions {
+export function kitOf(extensions: ExtensionList): ResolvedEditorExtensions {
   let kit = resolved.get(extensions)
   if (!kit) {
-    kit = resolveExtensions(extensions)
+    kit = resolveEditorExtensions(extensions)
     resolved.set(extensions, kit)
   }
   return kit

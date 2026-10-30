@@ -7,10 +7,10 @@
 `blocksToHTML` 把块写成 HTML，`blocksToMarkdown` 把块写成 Markdown。两者都接收块和编辑器使用的扩展，不需要浏览器环境，可以在服务端运行。
 
 ```ts
-import { blocksToHTML, starterKit } from '@dou-ui/editor'
+import { blocksToHTML, editorKit } from '@dou-ui/editor'
 import { blocksToMarkdown } from '@dou-ui/editor/markdown'
 
-const extensions = [starterKit()]
+const extensions = [editorKit()]
 
 const html = blocksToHTML(blocks, extensions)
 const markdown = blocksToMarkdown(blocks, extensions)
@@ -76,9 +76,9 @@ Markdown 没有下划线、折叠块和提及，这些内容写成 HTML，读回
 扩展通过 `output` 声明写法，通过 `prepareHTML` 在读入前整理 HTML：
 
 ```ts
-import { blockElement, defineExtension, splitContainer, textBlock } from '@dou-ui/editor'
+import { blockElement, defineEditorExtension, splitContainer, textBlock } from '@dou-ui/editor'
 
-const note = defineExtension({
+const note = defineEditorExtension({
   name: 'note',
   blocks: {
     note: textBlock('note', {

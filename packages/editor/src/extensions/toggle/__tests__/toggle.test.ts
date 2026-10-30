@@ -6,11 +6,11 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { nextTick } from 'vue'
 import { findBlockById } from '../../../core/blocks'
 import { createEditorView } from '../../../core/editor'
-import { resolveExtensions } from '../../../core/extension'
+import { resolveEditorExtensions } from '../../../core/extension'
 import { docToBlocks, type PartialBlock } from '../../../core/model'
 import { cursor, shapeOf } from '../../../core/__tests__/helpers'
 import DouEditor from '../../../editor.vue'
-import { starterKit } from '../../starter-kit'
+import { editorKit } from '../../editor-kit'
 import { flipToggle, isToggleOpen } from '../state'
 
 let view: EditorView | undefined
@@ -25,7 +25,7 @@ function create(blocks: PartialBlock[]) {
   document.body.append(element)
   view = createEditorView({
     element,
-    kit: resolveExtensions([starterKit()]),
+    kit: resolveEditorExtensions([editorKit()]),
     blocks,
     placeholder: { text: () => '', heading: () => '', empty: () => '' },
   })
@@ -103,7 +103,7 @@ describe('toggle', () => {
   })
 
   it('reads <details> from pasted HTML', () => {
-    const { schema } = resolveExtensions([starterKit()])
+    const { schema } = resolveEditorExtensions([editorKit()])
     const element = document.createElement('div')
     element.innerHTML = '<details><summary>More</summary></details>'
     expect(docToBlocks(DOMParser.fromSchema(schema).parse(element))[0]).toMatchObject({
@@ -136,7 +136,7 @@ describe('callout', () => {
     await nextTick()
     expect(wrapper.find('.dou-editor-callout').classes()).toContain('is-warning')
     wrapper.unmount()
-    const { schema } = resolveExtensions([starterKit()])
+    const { schema } = resolveEditorExtensions([editorKit()])
     const element = document.createElement('div')
     element.innerHTML =
       '<div data-content-type="callout" data-tone="danger">A</div><div data-content-type="callout" data-tone="odd">B</div>'

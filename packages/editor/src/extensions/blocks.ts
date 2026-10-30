@@ -7,14 +7,14 @@ import {
   QuoteIcon,
 } from '@dou-ui/icons'
 import { setBlockType } from '../core/commands'
-import { defineExtension } from '../core/extension'
+import { defineEditorExtension } from '../core/extension'
 import { atomInputRule, blockInputRule } from '../core/input-rules'
 import { indentLines } from '../core/output'
 import { blockElement, splitContainer } from '../core/prepare'
 import { textBlock } from '../core/schema'
 
 /** The paragraph itself is part of the frame; this adds its menu entry and shortcut. */
-export const paragraph = defineExtension({
+export const paragraph = defineEditorExtension({
   name: 'paragraph',
   blockOptions: [
     {
@@ -33,7 +33,7 @@ const levelOf = (level: unknown) => Math.min(3, Math.max(1, Number(level) || 1))
 const headingIcons = { 1: Heading1Icon, 2: Heading2Icon, 3: Heading3Icon }
 
 /** Headings, levels 1 to 3. `# ` to `### ` turn a paragraph into one. */
-export const heading = defineExtension({
+export const heading = defineEditorExtension({
   name: 'heading',
   blocks: {
     heading: textBlock('heading', {
@@ -73,7 +73,7 @@ export const heading = defineExtension({
   ],
   keymap: () =>
     Object.fromEntries(
-      LEVELS.map((level) => [`Mod-Alt-${level}`, setBlockType('heading', { level })]),
+      LEVELS.map((level) => [`mod+alt+${level}`, setBlockType('heading', { level })]),
     ),
   blockOptions: LEVELS.map((level) => ({
     key: `heading${level}`,
@@ -88,7 +88,7 @@ export const heading = defineExtension({
 })
 
 /** A quotation. `> ` turns a paragraph into one. */
-export const quote = defineExtension({
+export const quote = defineEditorExtension({
   name: 'quote',
   blocks: {
     quote: textBlock('quote', {
@@ -132,7 +132,7 @@ export const quote = defineExtension({
 })
 
 /** A horizontal line. `---` in an empty paragraph. */
-export const divider = defineExtension({
+export const divider = defineEditorExtension({
   name: 'divider',
   blocks: {
     divider: {

@@ -118,11 +118,11 @@ function send(value) {
   loading.value = true
   void nextTick(() => list.value?.scrollToBottom())
 
-  const reply = reactive({ id: Date.now() + 1, sender: 'assistant', pending: true, parts: [] })
+  const reply = reactive({ id: Date.now() + 1, sender: 'assistant', loading: true, parts: [] })
   conversation.messages.push(reply)
   const full = `收到。关于“${value}”，我先列出要点，再逐条展开说明。这是一段模拟的回复，用来展示流式输出时消息列表和输入框的状态。`
   timer = setTimeout(() => {
-    reply.pending = false
+    reply.loading = false
     const part = reactive({ type: 'text', text: '', streaming: true })
     reply.parts.push(part)
     let index = 0
@@ -139,7 +139,7 @@ function finish() {
   clearInterval(timer)
   const reply = current.value?.messages.at(-1)
   if (reply?.sender === 'assistant') {
-    reply.pending = false
+    reply.loading = false
     for (const part of reply.parts) part.streaming = false
   }
   loading.value = false
@@ -228,7 +228,7 @@ onBeforeUnmount(stop)
               :key="message.id"
               :sender="message.sender"
               :parts="message.parts"
-              :pending="message.pending"
+              :loading="message.loading"
             />
           </DouChatList>
           <DouChatInput

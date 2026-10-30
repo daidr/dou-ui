@@ -1,5 +1,3 @@
-import type { Component } from 'vue'
-
 /** Picks the icon. */
 export type ChatArtifactKind = 'document' | 'code' | 'image' | 'web' | 'data' | 'file'
 export type ChatArtifactStatus = 'generating' | 'done' | 'error'
@@ -13,8 +11,6 @@ export interface ChatArtifactProps {
   status?: ChatArtifactStatus
   /** It is the one shown in the side panel now. */
   active?: boolean
-  /** An icon component in place of the kind's icon. */
-  icon?: Component
 }
 
 export interface ChatArtifactEmits {

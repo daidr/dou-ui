@@ -12,7 +12,7 @@
 
 ## 危险操作
 
-`danger` 时允许按钮使用危险色，`approve-text` 和 `deny-text` 可以换成更具体的文字，比如“删除”。
+`tone` 决定图标的颜色，`tone="danger"` 时允许按钮也使用危险色，`approve-text` 和 `deny-text` 可以换成更具体的文字，比如“删除”。
 
 <DocDemo src="chat-confirm/danger" column />
 
@@ -20,15 +20,15 @@
 
 ### Props
 
-| 名称          | 说明               | 类型                                  | 默认值      |
-| ------------- | ------------------ | ------------------------------------- | ----------- |
-| `title`       | 要确认的事         | `string`                              | —           |
-| `description` | 补充说明           | `string`                              | —           |
-| `status`      | 状态               | `'pending' \| 'approved' \| 'denied'` | `'pending'` |
-| `allowAlways` | 显示“总是允许”按钮 | `boolean`                             | `false`     |
-| `danger`      | 允许按钮使用危险色 | `boolean`                             | `false`     |
-| `approveText` | 允许按钮的文字     | `string`                              | `允许`      |
-| `denyText`    | 拒绝按钮的文字     | `string`                              | `拒绝`      |
+| 名称          | 说明                                    | 类型                                  | 默认值      |
+| ------------- | --------------------------------------- | ------------------------------------- | ----------- |
+| `title`       | 要确认的事                              | `string`                              | —           |
+| `description` | 补充说明                                | `string`                              | —           |
+| `status`      | 状态                                    | `'pending' \| 'approved' \| 'denied'` | `'pending'` |
+| `allowAlways` | 显示“总是允许”按钮                      | `boolean`                             | `false`     |
+| `tone`        | 图标颜色；`danger` 时允许按钮也是危险色 | `'neutral' \| 'warning' \| 'danger'`  | `'neutral'` |
+| `approveText` | 允许按钮的文字                          | `string`                              | `允许`      |
+| `denyText`    | 拒绝按钮的文字                          | `string`                              | `拒绝`      |
 
 ### Events
 

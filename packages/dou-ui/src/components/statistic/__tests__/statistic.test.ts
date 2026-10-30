@@ -55,12 +55,12 @@ describe('DouStatistic', () => {
     expect(wrapper.classes()).toContain('is-good')
   })
 
-  it('shows strings, a formatter and missing values as given', async () => {
+  it('shows strings, a format function and missing values as given', async () => {
     const wrapper = mount(DouStatistic, { props: { value: null } })
     expect(wrapper.find('.dou-statistic__value').text()).toBe('—')
     await wrapper.setProps({ value: 'N/A' })
     expect(wrapper.find('.dou-statistic__value').text()).toBe('N/A')
-    await wrapper.setProps({ value: 90, formatter: (v: number) => `${v / 60} 分钟` })
+    await wrapper.setProps({ value: 90, format: (v: number) => `${v / 60} 分钟` })
     expect(wrapper.find('.dou-statistic__value').text()).toBe('1.5 分钟')
   })
 

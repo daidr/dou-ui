@@ -25,7 +25,7 @@ export interface ChatListProps<T = any> {
 
 export interface ChatListEmits {
   /** Whether the list is at the bottom changed. */
-  'update:atBottom': [atBottom: boolean]
+  atBottomChange: [atBottom: boolean]
   /** Scrolled to the very top, e.g. to load earlier messages. */
   topReached: []
 }

@@ -31,7 +31,7 @@ defineOptions({ name: 'DouChatMessage' })
 
 const props = withDefaults(defineProps<ChatMessageProps>(), {
   sender: 'assistant',
-  pending: false,
+  loading: false,
   copyable: true,
   editable: false,
   versions: 1,
@@ -58,7 +58,7 @@ const text = computed(() => messageText(parts.value as { type: string; text?: un
 
 const busy = computed(
   () =>
-    props.pending ||
+    props.loading ||
     parts.value.some((part) => {
       const p = part as Record<string, unknown>
       return !!p.streaming || !!p.thinking || !!p.running || p.status === 'running'
@@ -145,7 +145,7 @@ const rest = (part: AnyPart) => {
 
 <template>
   <div
-    :class="[ns.b(), ns.m(sender), ns.is('pending', pending), ns.is('editing', editing)]"
+    :class="[ns.b(), ns.m(sender), ns.is('loading', loading), ns.is('editing', editing)]"
     :aria-busy="busy || undefined"
   >
     <div v-if="files.length && !editing" :class="ns.e('files')">
@@ -172,7 +172,7 @@ const rest = (part: AnyPart) => {
       </div>
     </div>
 
-    <div v-else-if="body.length || pending || slots.default" :class="ns.e('content')">
+    <div v-else-if="body.length || loading || slots.default" :class="ns.e('content')">
       <slot>
         <template v-for="(part, index) in body" :key="index">
           <DouStreamText
@@ -216,7 +216,7 @@ const rest = (part: AnyPart) => {
             :description="asConfirm(part).description"
             :status="asConfirm(part).status"
             :allow-always="asConfirm(part).allowAlways"
-            :danger="asConfirm(part).danger"
+            :tone="asConfirm(part).tone"
             @decide="emit('confirm', asConfirm(part), $event)"
           >
             <pre v-if="asConfirm(part).detail" :class="ns.e('code')">{{
@@ -231,7 +231,7 @@ const rest = (part: AnyPart) => {
           />
         </template>
       </slot>
-      <span v-if="pending" :class="ns.e('pending')" role="status" :aria-label="t('chat.loading')">
+      <span v-if="loading" :class="ns.e('loading')" role="status" :aria-label="t('chat.loading')">
         <i /><i /><i />
       </span>
     </div>

@@ -24,7 +24,7 @@ export interface EditorProps {
   /** Replace any of the built-in texts. */
   messages?: Partial<EditorMessages>
   /** The accessible name of the editing area. */
-  label?: string
+  ariaLabel?: string
   /** Focus the editor once it is mounted. */
   autofocus?: boolean
   /**

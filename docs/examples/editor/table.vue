@@ -30,5 +30,5 @@ const blocks = ref<PartialBlock[]>([
 </script>
 
 <template>
-  <DouEditor v-model="blocks" :extensions="extensions" label="门店周报" />
+  <DouEditor v-model="blocks" :extensions="extensions" aria-label="门店周报" />
 </template>

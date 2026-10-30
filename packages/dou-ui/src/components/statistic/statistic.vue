@@ -72,7 +72,7 @@ const parts = computed(() => {
   const value = counting.value ?? props.value
   if (value === null || value === undefined || value === '') return { text: '—' }
   if (typeof value === 'string') return { text: value }
-  if (props.formatter) return { text: props.formatter(value) }
+  if (props.format) return { text: props.format(value) }
   // while counting, keep as many decimals as the target so the width holds
   const target = props.value
   return formatNumber(value, {

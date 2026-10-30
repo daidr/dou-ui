@@ -11,7 +11,7 @@ defineOptions({ name: 'DouChatConfirm' })
 const props = withDefaults(defineProps<ChatConfirmProps>(), {
   status: 'pending',
   allowAlways: false,
-  danger: false,
+  tone: 'neutral',
 })
 const emit = defineEmits<ChatConfirmEmits>()
 const slots = defineSlots<ChatConfirmSlots>()
@@ -26,7 +26,7 @@ const pending = computed(() => props.status === 'pending')
 
 <template>
   <div
-    :class="[ns.b(), ns.is(status), ns.is('danger', danger)]"
+    :class="[ns.b(), ns.m(tone), ns.is(status)]"
     role="group"
     :aria-labelledby="hasTitle ? `${id}-title` : undefined"
   >
@@ -54,7 +54,11 @@ const pending = computed(() => props.status === 'pending')
       <DouButton v-if="allowAlways" size="sm" variant="outline" @click="emit('decide', 'always')">
         {{ t('chat.allowAlways') }}
       </DouButton>
-      <DouButton size="sm" :tone="danger ? 'danger' : 'neutral'" @click="emit('decide', 'approve')">
+      <DouButton
+        size="sm"
+        :tone="tone === 'danger' ? 'danger' : 'neutral'"
+        @click="emit('decide', 'approve')"
+      >
         {{ approveText ?? t('chat.approve') }}
       </DouButton>
     </div>

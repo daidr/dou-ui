@@ -67,3 +67,16 @@ Token 默认挂在 `:root` 上。给任意元素加上 `data-dou-theme` 即可�
 ```html
 <html data-dou-theme="dark"></html>
 ```
+
+## 类型检查
+
+组件的 props、事件和插槽都有类型。不过 Vue 默认把没有声明的属性当作普通 HTML 属性透传给根元素，所以 prop 名写错了（比如把 `tone` 写成 `type`）不会报错，只是悄悄不生效。建议在应用的 `tsconfig.json` 里打开下面两个选项，让 `vue-tsc` 和编辑器指出写错的 prop 和事件：
+
+```json
+{
+  "vueCompilerOptions": {
+    "checkUnknownProps": true,
+    "checkUnknownEvents": true
+  }
+}
+```

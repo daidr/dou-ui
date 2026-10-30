@@ -61,6 +61,22 @@
       border-color: var(--dou-color-primary);
     }
 
+    /* the radius keeps padding + edge + button radius, so the corners stay concentric */
+    &.dou-chat-input--sm {
+      --dou-chat-input-radius: 12px;
+      --dou-chat-input-line-height: 20px;
+      gap: 4px;
+      padding: 5px;
+      font-size: var(--dou-font-size-sm);
+    }
+
+    &.dou-chat-input--lg {
+      --dou-chat-input-radius: 18px;
+      --dou-chat-input-line-height: 24px;
+      padding: 11px;
+      font-size: var(--dou-font-size-lg);
+    }
+
     &.is-disabled {
       --dou-chat-input-bg: var(--dou-color-bg-muted);
       --dou-chat-input-border-hover: var(--dou-chat-input-border);

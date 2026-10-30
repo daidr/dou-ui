@@ -1,4 +1,5 @@
 import type { Component } from 'vue'
+import type { Size } from '../../utils/types'
 
 /** An entry of the `/` command or `@` mention menu. */
 export interface ChatInputOption {
@@ -29,6 +30,8 @@ export interface ChatInputProps {
    * so the app can queue the message.
    */
   loading?: boolean
+  /** Text size and padding; the corners and buttons follow. */
+  size?: Size
   disabled?: boolean
   /** Rows shown when empty. */
   minRows?: number

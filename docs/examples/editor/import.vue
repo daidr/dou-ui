@@ -34,5 +34,5 @@ onMounted(load)
 <template>
   <DouTextarea v-model="markdown" :rows="8" />
   <DouButton style="align-self: flex-start" @click="load">导入</DouButton>
-  <DouEditor v-model="blocks" :extensions="extensions" label="读书笔记" />
+  <DouEditor v-model="blocks" :extensions="extensions" aria-label="读书笔记" />
 </template>

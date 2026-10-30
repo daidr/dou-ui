@@ -38,7 +38,7 @@ const props = withDefaults(defineProps<EditorProps>(), {
   readonly: false,
   placeholder: undefined,
   messages: undefined,
-  label: undefined,
+  ariaLabel: undefined,
   autofocus: false,
   plugins: undefined,
   history: true,
@@ -129,7 +129,7 @@ onMounted(() => {
     redo: props.redo,
     attributes: () => {
       const attrs: Record<string, string> = {}
-      if (props.label) attrs['aria-label'] = props.label
+      if (props.ariaLabel) attrs['aria-label'] = props.ariaLabel
       if (props.readonly) attrs['aria-readonly'] = 'true'
       return attrs
     },

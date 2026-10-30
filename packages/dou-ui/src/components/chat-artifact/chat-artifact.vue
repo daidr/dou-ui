@@ -42,7 +42,7 @@ const icons: Record<ChatArtifactKind, Component> = {
   data: TableIcon,
   file: FileIcon,
 }
-const Icon = computed(() => props.icon ?? icons[props.kind])
+const Icon = computed(() => icons[props.kind])
 </script>
 
 <template>

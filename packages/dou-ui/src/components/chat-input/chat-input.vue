@@ -26,6 +26,7 @@ defineOptions({ name: 'DouChatInput', inheritAttrs: false })
 const props = withDefaults(defineProps<ChatInputProps>(), {
   submitOn: 'enter',
   loading: false,
+  size: 'md',
   disabled: false,
   minRows: 1,
   maxRows: 8,
@@ -42,6 +43,7 @@ const ns = useNamespace('chat-input')
 const id = useId()
 const { t } = useLocale()
 const disabled = useFormDisabled(() => props.disabled)
+const buttonSize = computed(() => (props.size === 'lg' ? 'md' : 'sm'))
 
 // `class` and `style` dress the frame, the rest goes to the textarea.
 const attrs = useAttrs()
@@ -305,6 +307,7 @@ defineExpose<ChatInputExpose>({
     ref="root"
     :class="[
       ns.b(),
+      ns.m(size),
       ns.is('disabled', disabled),
       ns.is('loading', loading),
       ns.is('dragging', dragging),
@@ -391,7 +394,7 @@ defineExpose<ChatInputExpose>({
         <DouButton
           v-if="stopping"
           :class="ns.e('submit')"
-          size="sm"
+          :size="buttonSize"
           :aria-label="t('chat.stop')"
           @click="stop"
         >
@@ -400,7 +403,7 @@ defineExpose<ChatInputExpose>({
         <DouButton
           v-else
           :class="ns.e('submit')"
-          size="sm"
+          :size="buttonSize"
           :disabled="!submittable"
           :aria-label="t('chat.send')"
           @click="submit"

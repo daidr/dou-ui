@@ -1,3 +1,5 @@
+/** `danger` also paints the allow button, for actions that delete or send. */
+export type ChatConfirmTone = 'neutral' | 'warning' | 'danger'
 export type ChatConfirmStatus = 'pending' | 'approved' | 'denied'
 /** What the person chose: once, every time from now on, or not at all. */
 export type ChatConfirmDecision = 'approve' | 'always' | 'deny'
@@ -11,8 +13,8 @@ export interface ChatConfirmProps {
   status?: ChatConfirmStatus
   /** Offer "Always allow" next to "Allow". */
   allowAlways?: boolean
-  /** Paint the allow button in the danger tone, for actions that delete or send. */
-  danger?: boolean
+  /** The icon's color; `danger` also paints the allow button. */
+  tone?: ChatConfirmTone
   /** Text of the allow button. Defaults to the locale's "Allow". */
   approveText?: string
   /** Text of the deny button. Defaults to the locale's "Deny". */

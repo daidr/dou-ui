@@ -105,7 +105,7 @@ onBeforeUnmount(() => {
     <div class="collab-demo__editors">
       <section v-for="editor in demo?.editors" :key="editor.name" class="collab-demo__pane">
         <div class="collab-demo__name">{{ editor.name }}</div>
-        <DouEditor :extensions="editor.extensions" :label="`${editor.name}的编辑器`" />
+        <DouEditor :extensions="editor.extensions" :aria-label="`${editor.name}的编辑器`" />
       </section>
     </div>
   </div>

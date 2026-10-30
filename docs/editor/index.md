@@ -76,7 +76,7 @@ function reset() {
 | `modelValue`  | 文档内容，用 `v-model` 绑定                        | `PartialBlock[]`          | —                |
 | `readonly`    | 只读                                               | `boolean`                 | `false`          |
 | `placeholder` | 光标所在空块里的提示文字                           | `string`                  | 跟随语言         |
-| `label`       | 编辑区域的无障碍名称                               | `string`                  | —                |
+| `ariaLabel`   | 编辑区域的无障碍名称                               | `string`                  | —                |
 | `autofocus`   | 挂载后获得焦点                                     | `boolean`                 | `false`          |
 | `messages`    | 替换内置文字，例如块类型的名称                     | `Partial<EditorMessages>` | —                |
 | `extensions`  | 使用的扩展，见[扩展](./extensions)，只在创建时读取 | `EditorExtension[]`       | `[starterKit()]` |

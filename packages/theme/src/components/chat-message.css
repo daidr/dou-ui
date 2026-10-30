@@ -94,7 +94,7 @@
     white-space: pre-wrap;
   }
 
-  .dou-chat-message__pending {
+  .dou-chat-message__loading {
     display: inline-flex;
     align-items: center;
     gap: 4px;

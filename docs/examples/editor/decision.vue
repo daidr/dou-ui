@@ -29,5 +29,5 @@ const blocks = ref([
 </script>
 
 <template>
-  <DouEditor v-model="blocks" :extensions="extensions" label="会议记录" />
+  <DouEditor v-model="blocks" :extensions="extensions" aria-label="会议记录" />
 </template>

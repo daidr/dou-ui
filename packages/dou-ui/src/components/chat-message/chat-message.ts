@@ -1,6 +1,10 @@
 import type { ChatArtifactKind, ChatArtifactStatus } from '../chat-artifact/chat-artifact'
 import type { ChatAttachment } from '../chat-attachments/chat-attachments'
-import type { ChatConfirmDecision, ChatConfirmStatus } from '../chat-confirm/chat-confirm'
+import type {
+  ChatConfirmDecision,
+  ChatConfirmStatus,
+  ChatConfirmTone,
+} from '../chat-confirm/chat-confirm'
 import type { ChatPlanItem } from '../chat-plan/chat-plan'
 import type { ChatSource } from '../chat-sources/chat-sources'
 import type { ChatStep } from '../chat-steps/chat-steps'
@@ -67,7 +71,7 @@ export interface ChatConfirmPart {
   description?: string
   status?: ChatConfirmStatus
   allowAlways?: boolean
-  danger?: boolean
+  tone?: ChatConfirmTone
   /** Shown as monospace detail, e.g. the command to run or a diff. */
   detail?: string
 }
@@ -98,8 +102,8 @@ export interface ChatMessageProps {
   parts?: (ChatMessagePart | ChatCustomPart)[]
   /** Shorthand for a message of one text part. */
   content?: string
-  /** No part has arrived yet: show the waiting indicator. */
-  pending?: boolean
+  /** No part has arrived yet: show the waiting dots, like ChatBubble's. */
+  loading?: boolean
   /** Show a copy button among the actions, copying the text parts. */
   copyable?: boolean
   /** Offer an edit button on the person's own messages; saving emits `edit`. */

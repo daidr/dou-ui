@@ -60,9 +60,9 @@ describe('DouChatMessage', () => {
     expect(wrapper.find('.dou-chat-message__actions .dou-copy-button').exists()).toBe(true)
   })
 
-  it('shows the waiting dots while pending', () => {
-    const wrapper = mount(DouChatMessage, { props: { pending: true } })
-    expect(wrapper.get('.dou-chat-message__pending').attributes('aria-label')).toBe('正在回复')
+  it('shows the waiting dots while loading', () => {
+    const wrapper = mount(DouChatMessage, { props: { loading: true } })
+    expect(wrapper.get('.dou-chat-message__loading').attributes('aria-label')).toBe('正在回复')
   })
 
   it('switches versions', async () => {

@@ -34,7 +34,7 @@
 
 ## 发送快捷键
 
-`submit-on="mod-enter"` 时回车换行，Ctrl / ⌘ + 回车发送，适合经常输入多行内容的场景。`min-rows` 和 `max-rows` 控制最少显示几行、最多增高到几行。
+`submit-on="mod-enter"` 时回车换行，Ctrl / ⌘ + 回车发送，适合经常输入多行内容的场景。`min-rows` 和 `max-rows` 控制最少显示几行、最多增高到几行。`size` 可选 `sm`、`md`、`lg`，放在侧边栏这类窄的地方时用 `sm`。
 
 <DocDemo src="chat-input/mod-enter" column />
 
@@ -48,6 +48,7 @@
 | `placeholder` | 占位文字                                     | `string`                         | 语言包中的提示 |
 | `submitOn`    | 发送的按键                                   | `'enter' \| 'mod-enter'`         | `'enter'`      |
 | `loading`     | 正在生成，发送按钮变成停止按钮               | `boolean`                        | `false`        |
+| `size`        | 文字大小与内边距，圆角和按钮随之变化         | `'sm' \| 'md' \| 'lg'`           | `'md'`         |
 | `disabled`    | 禁用                                         | `boolean`                        | `false`        |
 | `minRows`     | 最少显示的行数                               | `number`                         | `1`            |
 | `maxRows`     | 最多增高到的行数，超出后滚动                 | `number`                         | `8`            |

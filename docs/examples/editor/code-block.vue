@@ -32,5 +32,5 @@ export function byDate(stops: Stop[]) {
 </script>
 
 <template>
-  <DouEditor v-model="blocks" :extensions="extensions" label="代码示例" />
+  <DouEditor v-model="blocks" :extensions="extensions" aria-label="代码示例" />
 </template>

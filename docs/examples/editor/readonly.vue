@@ -19,5 +19,5 @@ const blocks = ref([
 
 <template>
   <DouSwitch v-model="readonly">只读</DouSwitch>
-  <DouEditor v-model="blocks" :readonly="readonly" label="周会纪要" />
+  <DouEditor v-model="blocks" :readonly="readonly" aria-label="周会纪要" />
 </template>

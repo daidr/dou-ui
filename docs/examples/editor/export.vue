@@ -36,7 +36,7 @@ const output = computed(() =>
 </script>
 
 <template>
-  <DouEditor v-model="blocks" :extensions="extensions" label="活动安排" />
+  <DouEditor v-model="blocks" :extensions="extensions" aria-label="活动安排" />
   <DouSegmentedControl
     v-model="format"
     :options="formats"

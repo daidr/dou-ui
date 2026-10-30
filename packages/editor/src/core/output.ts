@@ -12,11 +12,15 @@ export interface BlockOutputContext {
   children: string
   /** The block's position, from 1, among the siblings of the same type right before it. */
   index: number
+  /** Write other inline content (e.g. a table cell's) in the same format. */
+  inline: (content: InlineContent[]) => string
 }
 
 export interface MarkdownBlockContext extends BlockOutputContext {
   /** The block's text as HTML, for Markdown that holds HTML (e.g. `<summary>`). */
   html: string
+  /** Write other inline content as HTML. */
+  inlineHTML: (content: InlineContent[]) => string
 }
 
 /** How a block type is written as HTML and Markdown. */
@@ -69,16 +73,27 @@ function outputsOf(kit: ResolvedExtensions): Outputs {
 }
 
 /** Fill in what a partial block leaves out, so writers always get a whole block. */
+const toInline = (content: InlineContent[] | string): InlineContent[] =>
+  typeof content === 'string' ? (content ? [{ type: 'text', text: content }] : []) : content
+
 function complete(block: PartialBlock): Block {
-  const content = block.content ?? []
-  return {
+  const result: Block = {
     id: block.id ?? '',
     type: block.type ?? 'paragraph',
     props: block.props ?? {},
-    content:
-      typeof content === 'string' ? (content ? [{ type: 'text', text: content }] : []) : content,
+    content: toInline(block.content ?? []),
     children: (block.children ?? []).map(complete),
   }
+  if (block.rows)
+    result.rows = block.rows.map((row) => ({
+      id: row.id ?? '',
+      cells: row.cells.map((cell) =>
+        typeof cell === 'string'
+          ? { content: toInline(cell) }
+          : { ...cell, content: toInline(cell.content ?? []) },
+      ),
+    }))
+  return result
 }
 
 /* HTML */
@@ -133,6 +148,7 @@ function blocksHTML(blocks: Block[], outputs: Outputs, top = false): string {
       text: plainText(block.content),
       children: blocksHTML(block.children, outputs),
       index,
+      inline: (content) => inlineHTML(content, outputs),
     }
     result += output?.html
       ? output.html(block, context)
@@ -306,6 +322,8 @@ function blocksMarkdown(blocks: Block[], outputs: Outputs): string {
       text: plainText(block.content),
       children: blocksMarkdown(block.children, outputs),
       index,
+      inline: (content) => inlineMarkdown(content, outputs),
+      inlineHTML: (content) => inlineHTML(content, outputs),
     }
     const written = output?.markdown
       ? output.markdown(block, context)

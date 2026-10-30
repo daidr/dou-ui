@@ -82,16 +82,22 @@ const inlineFrame: Record<string, NodeSpec> = {
 
 export interface SchemaParts {
   blocks: Record<string, NodeSpec>
+  /** Nodes inside blocks, e.g. table rows and cells. */
+  nodes?: Record<string, NodeSpec>
   inlines: Record<string, NodeSpec>
   marks: Record<string, MarkSpec>
 }
 
 /** The schema for a set of extensions' blocks, inline nodes and marks. */
-export function createSchema({ blocks, inlines, marks }: SchemaParts): Schema {
+export function createSchema({ blocks, nodes: inner = {}, inlines, marks }: SchemaParts): Schema {
   const nodes: Record<string, NodeSpec> = { ...frame }
   for (const [name, spec] of Object.entries(blocks)) {
     if (name in nodes) throw new Error(`[@dou-ui/editor] "${name}" is a built-in node`)
     nodes[name] = { ...spec, group: spec.group ? `blockContent ${spec.group}` : 'blockContent' }
+  }
+  for (const [name, spec] of Object.entries(inner)) {
+    if (name in nodes) throw new Error(`[@dou-ui/editor] "${name}" is a built-in node`)
+    nodes[name] = spec
   }
   Object.assign(nodes, inlineFrame)
   for (const [name, spec] of Object.entries(inlines)) {
@@ -122,6 +128,7 @@ export type BuiltinContentType =
   | 'divider'
   | 'toggle'
   | 'callout'
+  | 'table'
 
 export type ContentType = BuiltinContentType | (string & {})
 

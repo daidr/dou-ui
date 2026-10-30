@@ -4,6 +4,7 @@ import { callout } from './callout'
 import { codeBlock, type CodeBlockOptions } from './code-block'
 import { formatting, link } from './formatting'
 import { lists } from './lists'
+import { table } from './table'
 import { toggle } from './toggle'
 
 export interface StarterKitOptions {
@@ -15,6 +16,7 @@ export interface StarterKitOptions {
   divider?: boolean
   toggle?: boolean
   callout?: boolean
+  table?: boolean
   formatting?: boolean
   link?: boolean
 }
@@ -33,6 +35,7 @@ export function starterKit(options: StarterKitOptions = {}): EditorExtension[] {
     divider,
     toggle,
     callout,
+    table,
     formatting,
     link,
   }
@@ -44,4 +47,16 @@ export function starterKit(options: StarterKitOptions = {}): EditorExtension[] {
   ]
 }
 
-export { callout, codeBlock, divider, formatting, heading, link, lists, paragraph, quote, toggle }
+export {
+  callout,
+  codeBlock,
+  divider,
+  formatting,
+  heading,
+  link,
+  lists,
+  paragraph,
+  quote,
+  table,
+  toggle,
+}

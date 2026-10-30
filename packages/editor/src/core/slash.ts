@@ -66,6 +66,8 @@ export function slashPlugin(options: SlashOptions): Plugin<SlashState | null> {
         if (!TRIGGERS.includes(text) || getSlash(view.state)) return false
         const $from = view.state.doc.resolve(from)
         if (!$from.parent.isTextblock || $from.parent.type.spec.code) return false
+        // not inside a block's inner text, e.g. a table cell
+        if ($from.node($from.depth - 1).type.name !== 'block') return false
         const before = $from.parent.textBetween(0, $from.parentOffset)
         // not right after a letter, digit or URL punctuation: `a/b`, `https://`
         if (/[\w:/.]$/.test(before)) return false

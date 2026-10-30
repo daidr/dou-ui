@@ -2,7 +2,7 @@ import { Fragment, Mark, type Node as PMNode, type Schema } from 'prosemirror-mo
 import { Plugin, PluginKey, type EditorState, type Transaction } from 'prosemirror-state'
 import type { EditorView } from 'prosemirror-view'
 import * as Y from 'yjs'
-import { createId } from '../core/model'
+import { createId, type RowsSpec } from '../core/model'
 import { placeOf } from './cursors'
 import { keptIndexes, keysBetween } from './order'
 
@@ -130,6 +130,18 @@ function contentFrom(yblock: YBlock, schema: Schema): PMNode {
   const attrs: Attributes = {}
   for (const attr of Object.keys(type.spec.attrs ?? {}))
     if (attr in props) attrs[attr] = props[attr]
+  if (type.spec.rows) {
+    // a table, kept whole for now
+    const body = yblock.get('body') as unknown[] | undefined
+    if (body) {
+      try {
+        return type.createChecked(attrs, Fragment.fromJSON(schema, body))
+      } catch {
+        // written by a different schema: start over below
+      }
+    }
+    return (type.spec.rows as RowsSpec).write(type, attrs, [])
+  }
   if (!type.inlineContent) return type.create(attrs)
   const text = yblock.get('text') as Y.Text | undefined
   const inline = text ? inlineFrom(text, schema, !!type.spec.code) : []
@@ -144,6 +156,7 @@ function writeContent(yblock: YBlock, content: PMNode) {
   const text = new Y.Text()
   yblock.set('text', text)
   if (content.inlineContent) insertInline(text, 0, content, 0, content.content.size)
+  if (content.type.spec.rows) yblock.set('body', content.content.toJSON())
 }
 
 /** Bring a stored block's type, props and text from `before` to `after`. */
@@ -155,6 +168,9 @@ function updateContent(yblock: YBlock, before: PMNode, after: PMNode) {
   }
   for (const name of Array.from(props.keys())) if (!(name in after.attrs)) props.delete(name)
 
+  if (after.type.spec.rows) {
+    if (!before.content.eq(after.content)) yblock.set('body', after.content.toJSON())
+  } else if (yblock.has('body')) yblock.delete('body')
   const text = yblock.get('text') as Y.Text
   if (!after.inlineContent) {
     if (text.length) text.delete(0, text.length)

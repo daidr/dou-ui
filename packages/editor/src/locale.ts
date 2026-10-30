@@ -20,6 +20,7 @@ export interface EditorMessages {
     image: string
     toggle: string
     callout: string
+    table: string
   }
   /** Short descriptions in the slash menu. */
   hints: {
@@ -36,6 +37,7 @@ export interface EditorMessages {
     image: string
     toggle: string
     callout: string
+    table: string
   }
   /** The image block. */
   image: {
@@ -62,6 +64,31 @@ export interface EditorMessages {
     tones: { info: string; tip: string; warning: string; danger: string }
   }
   mention: { label: string; searching: string; noResults: string }
+  /** The table: its row and column menus. */
+  table: {
+    row: string
+    column: string
+    insertAbove: string
+    insertBelow: string
+    insertLeft: string
+    insertRight: string
+    moveUp: string
+    moveDown: string
+    moveLeft: string
+    moveRight: string
+    deleteRow: string
+    deleteColumn: string
+    merge: string
+    split: string
+    clear: string
+    headerRow: string
+    headerColumn: string
+    alignLeft: string
+    alignCenter: string
+    alignRight: string
+    addRow: string
+    addColumn: string
+  }
   noResults: string
   addBlock: string
   dragHandle: string
@@ -102,6 +129,7 @@ const zhCN: EditorMessages = {
     image: '图片',
     toggle: '折叠块',
     callout: '提示块',
+    table: '表格',
   },
   hints: {
     paragraph: '普通的文字',
@@ -117,6 +145,7 @@ const zhCN: EditorMessages = {
     image: '上传或嵌入一张图片',
     toggle: '可以展开和收起的内容',
     callout: '带图标的醒目说明',
+    table: '插入一个表格',
   },
   image: {
     empty: '添加一张图片',
@@ -132,6 +161,30 @@ const zhCN: EditorMessages = {
   codeBlock: { language: '语言', plainText: '纯文本' },
   toggle: { expand: '展开', collapse: '收起' },
   mention: { label: '提及', searching: '正在搜索', noResults: '没有找到' },
+  table: {
+    row: '选择这一行',
+    column: '选择这一列',
+    insertAbove: '在上方插入行',
+    insertBelow: '在下方插入行',
+    insertLeft: '在左侧插入列',
+    insertRight: '在右侧插入列',
+    moveUp: '上移',
+    moveDown: '下移',
+    moveLeft: '左移',
+    moveRight: '右移',
+    deleteRow: '删除行',
+    deleteColumn: '删除列',
+    merge: '合并单元格',
+    split: '取消合并',
+    clear: '清空内容',
+    headerRow: '标题行',
+    headerColumn: '标题列',
+    alignLeft: '左对齐',
+    alignCenter: '居中',
+    alignRight: '右对齐',
+    addRow: '添加一行',
+    addColumn: '添加一列',
+  },
   callout: {
     change: '点击更换',
     tones: { info: '说明', tip: '提示', warning: '注意', danger: '警告' },
@@ -175,6 +228,7 @@ const zhTW: EditorMessages = {
     image: '圖片',
     toggle: '摺疊區塊',
     callout: '提示區塊',
+    table: '表格',
   },
   hints: {
     paragraph: '一般的文字',
@@ -190,6 +244,7 @@ const zhTW: EditorMessages = {
     image: '上傳或嵌入一張圖片',
     toggle: '可以展開和收合的內容',
     callout: '帶圖示的醒目說明',
+    table: '插入一個表格',
   },
   image: {
     empty: '新增一張圖片',
@@ -205,6 +260,30 @@ const zhTW: EditorMessages = {
   codeBlock: { language: '語言', plainText: '純文字' },
   toggle: { expand: '展開', collapse: '收合' },
   mention: { label: '提及', searching: '正在搜尋', noResults: '沒有找到' },
+  table: {
+    row: '選擇這一列',
+    column: '選擇這一欄',
+    insertAbove: '在上方插入列',
+    insertBelow: '在下方插入列',
+    insertLeft: '在左側插入欄',
+    insertRight: '在右側插入欄',
+    moveUp: '上移',
+    moveDown: '下移',
+    moveLeft: '左移',
+    moveRight: '右移',
+    deleteRow: '刪除列',
+    deleteColumn: '刪除欄',
+    merge: '合併儲存格',
+    split: '取消合併',
+    clear: '清除內容',
+    headerRow: '標題列',
+    headerColumn: '標題欄',
+    alignLeft: '靠左對齊',
+    alignCenter: '置中',
+    alignRight: '靠右對齊',
+    addRow: '新增一列',
+    addColumn: '新增一欄',
+  },
   callout: {
     change: '點擊更換',
     tones: { info: '說明', tip: '提示', warning: '注意', danger: '警告' },
@@ -248,6 +327,7 @@ const en: EditorMessages = {
     image: 'Image',
     toggle: 'Toggle',
     callout: 'Callout',
+    table: 'Table',
   },
   hints: {
     paragraph: 'Plain text',
@@ -263,6 +343,7 @@ const en: EditorMessages = {
     image: 'Upload or embed an image',
     toggle: 'Content that can be shown or hidden',
     callout: 'A note that stands out, with an icon',
+    table: 'A grid of rows and columns',
   },
   image: {
     empty: 'Add an image',
@@ -278,6 +359,30 @@ const en: EditorMessages = {
   codeBlock: { language: 'Language', plainText: 'Plain text' },
   toggle: { expand: 'Expand', collapse: 'Collapse' },
   mention: { label: 'Mention', searching: 'Searching', noResults: 'No one found' },
+  table: {
+    row: 'Select row',
+    column: 'Select column',
+    insertAbove: 'Insert row above',
+    insertBelow: 'Insert row below',
+    insertLeft: 'Insert column left',
+    insertRight: 'Insert column right',
+    moveUp: 'Move up',
+    moveDown: 'Move down',
+    moveLeft: 'Move left',
+    moveRight: 'Move right',
+    deleteRow: 'Delete row',
+    deleteColumn: 'Delete column',
+    merge: 'Merge cells',
+    split: 'Unmerge',
+    clear: 'Clear contents',
+    headerRow: 'Header row',
+    headerColumn: 'Header column',
+    alignLeft: 'Align left',
+    alignCenter: 'Align center',
+    alignRight: 'Align right',
+    addRow: 'Add a row',
+    addColumn: 'Add a column',
+  },
   callout: {
     change: 'click to change',
     tones: { info: 'Info', tip: 'Tip', warning: 'Warning', danger: 'Danger' },

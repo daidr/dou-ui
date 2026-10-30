@@ -51,18 +51,15 @@ export function setBlockType(type: ContentType, props: BlockProps = {}): Command
     if (!nodeType) return false
     if (!dispatch) return true
     const tr = state.tr
-    const attrs = createContentNode(schema, type, props).attrs
+    const created = createContentNode(schema, type, props)
+    const attrs = created.attrs
     if (!nodeType.isTextblock) {
       const blocks = blocksIn(range)
       const last = blocks.at(-1)!
       // last first, so earlier positions stay valid
       for (let index = blocks.length - 1; index >= 0; index--) {
         const block = blocks[index]!
-        tr.replaceWith(
-          block.contentPos,
-          block.contentPos + block.content.nodeSize,
-          nodeType.create(attrs),
-        )
+        tr.replaceWith(block.contentPos, block.contentPos + block.content.nodeSize, created)
       }
       const after = tr.mapping.map(last.pos + last.node.nodeSize)
       tr.insert(after, newBlock(schema, schema.nodes.paragraph!.create()))
@@ -73,6 +70,8 @@ export function setBlockType(type: ContentType, props: BlockProps = {}): Command
     for (const block of blocksIn(range)) {
       const from = tr.mapping.map(block.contentPos)
       const content = tr.doc.nodeAt(from)!
+      // a block holding other nodes (a table) can't become text
+      if (!content.isAtom && !content.inlineContent) continue
       if (content.isAtom) {
         tr.replaceWith(from, from + content.nodeSize, nodeType.create(attrs))
       } else {

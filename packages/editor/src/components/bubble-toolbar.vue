@@ -144,6 +144,11 @@ const currentBlock = computed(() => {
   const info = current && blockAround(current.selection.$from)
   return info ? blockFromNode(info.node) : null
 })
+// text inside a table cell keeps its cell; only whole blocks change type
+const turnable = computed(() => {
+  const $from = state.value?.selection.$from
+  return !!$from && $from.depth > 0 && $from.node($from.depth - 1).type.name === 'block'
+})
 const currentOption = computed(() => {
   const block = currentBlock.value
   return block
@@ -282,7 +287,12 @@ defineExpose({ editLink })
         </DouButton>
       </div>
       <DouToolbar v-else size="sm" :aria-label="messages.formatting">
-        <DouDropdown v-model:open="menuOpen" placement="bottom-start" class="dou-editor-menu">
+        <DouDropdown
+          v-if="turnable"
+          v-model:open="menuOpen"
+          placement="bottom-start"
+          class="dou-editor-menu"
+        >
           <DouButton size="sm" variant="ghost" class="dou-editor-bubble__type">
             {{ currentOption ? labelOf(currentOption.label, messages) : messages.turnInto }}
             <template #trailing><ChevronDownIcon /></template>
@@ -299,7 +309,7 @@ defineExpose({ editLink })
             </DouDropdownItem>
           </template>
         </DouDropdown>
-        <DouToolbarSeparator v-if="marks.length" />
+        <DouToolbarSeparator v-if="turnable && marks.length" />
         <DouToggleGroup
           v-if="marks.length"
           type="multiple"

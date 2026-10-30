@@ -97,11 +97,12 @@ export function createEditorView(options: CreateEditorOptions): EditorView {
       'aria-multiline': 'true',
       ...options.attributes?.(),
     }),
-    dispatchTransaction(tr) {
-      const next = view.state.apply(tr)
-      view.updateState(next)
-      if (tr.docChanged) options.onChange?.(view)
-      options.onUpdate?.(view)
+    // `this`, not `view`: plugins (e.g. collaboration) dispatch while the view is being created
+    dispatchTransaction(this: EditorView, tr) {
+      const next = this.state.apply(tr)
+      this.updateState(next)
+      if (tr.docChanged) options.onChange?.(this)
+      options.onUpdate?.(this)
     },
   })
   viewNodeViews.set(view, nodeViews)

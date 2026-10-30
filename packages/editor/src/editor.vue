@@ -97,7 +97,8 @@ onMounted(() => {
     element: mount.value!,
     kit,
     nodeViews: componentViews,
-    blocks: props.modelValue,
+    // with collaboration the document comes from the shared document
+    blocks: kit.externalDocument ? [] : props.modelValue,
     editable: editable.value,
     placeholder: {
       text: () => props.placeholder ?? messages.value.placeholder,
@@ -151,7 +152,7 @@ watch(
   () => props.modelValue,
   (value) => {
     const current = view.value
-    if (!current || !value || toRaw(value) === emitted) return
+    if (!current || !value || kit.externalDocument || toRaw(value) === emitted) return
     replaceBlocks(current, value)
   },
 )

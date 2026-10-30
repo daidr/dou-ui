@@ -59,6 +59,7 @@ export default defineConfig({
             { text: '文档数据', link: '/editor/data' },
             { text: '快捷操作', link: '/editor/shortcuts' },
             { text: '扩展', link: '/editor/extensions' },
+            { text: '协同编辑', link: '/editor/collaboration' },
           ],
         },
       ],
@@ -283,6 +284,10 @@ export default defineConfig({
         { find: /^dou-ui\/style\.css$/, replacement: r('../../packages/theme/src/index.css') },
         { find: /^@dou-ui\/icons$/, replacement: r('../../packages/icons/src/index.ts') },
         { find: /^@dou-ui\/icons\/meta$/, replacement: r('../../packages/icons/src/meta.ts') },
+        {
+          find: /^@dou-ui\/editor\/collaboration$/,
+          replacement: r('../../packages/editor/src/collaboration/index.ts'),
+        },
         { find: /^@dou-ui\/editor$/, replacement: r('../../packages/editor/src/index.ts') },
         {
           find: /^@dou-ui\/editor\/style\.css$/,

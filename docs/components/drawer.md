@@ -35,7 +35,7 @@
 
 ## 停靠点
 
-`snap-points` 设置抽屉可以停靠的几档尺寸，不大于 1 的数表示占视口的比例，大于 1 的数表示 px。设置后 `size` 不再生效。抽屉每次打开时停在最小的一档，拖动松手后停到最近的一档，从最小一档继续往下拖就会关闭。当前停在哪一档用 `v-model:snap` 读写，值是 `snap-points` 中的某一项；关闭后变为 `undefined`，打开前先赋值可以指定打开时停在哪一档。
+`snap-points` 设置抽屉可以停靠的几档尺寸，数字表示 px，`'40%'` 这样的百分比字符串表示占视口的比例，和 `size` 的写法一致。设置后 `size` 不再生效。抽屉每次打开时停在最小的一档，拖动松手后停到最近的一档，从最小一档继续往下拖就会关闭。当前停在哪一档用 `v-model:snap` 读写，值是 `snap-points` 中的某一项；关闭后变为 `undefined`，打开前先赋值可以指定打开时停在哪一档。
 
 尺寸随停靠点变化，所以底部操作在每一档都能看到。把手是一个按钮，点击切换到下一档，聚焦后用方向键调大或调小。
 
@@ -49,25 +49,25 @@
 
 ### Props
 
-| 名称             | 说明                                      | 类型                                                | 默认值    |
-| ---------------- | ----------------------------------------- | --------------------------------------------------- | --------- |
-| `open`           | 是否打开，配合 `v-model:open`             | `boolean`                                           | `false`   |
-| `title`          | 标题，同时为抽屉命名                      | `string`                                            | —         |
-| `placement`      | 从哪一边滑出                              | `'right' \| 'left' \| 'top' \| 'bottom'`            | `'right'` |
-| `size`           | 左右为宽度、上下为高度；数字为 px         | `string \| number`                                  | —         |
-| `closable`       | 显示右上角的关闭按钮                      | `boolean`                                           | `true`    |
-| `closeOnMask`    | 点击遮罩关闭                              | `boolean`                                           | `true`    |
-| `closeOnEscape`  | 按 `Esc` 关闭                             | `boolean`                                           | `true`    |
-| `lockScroll`     | 打开期间锁定页面滚动                      | `boolean`                                           | `true`    |
-| `destroyOnClose` | 关闭后卸载内容                            | `boolean`                                           | `false`   |
-| `beforeClose`    | 关闭前调用，返回 `false` 则保持打开       | `() => boolean \| void \| Promise<boolean \| void>` | —         |
-| `teleport`       | 渲染到哪里；`false` 为原地渲染            | `string \| HTMLElement \| false`                    | `'body'`  |
-| `resizable`      | 拖动内侧边缘调整大小，配合 `v-model:size` | `boolean`                                           | `false`   |
-| `minSize`        | 调整时的最小尺寸，px                      | `number`                                            | `200`     |
-| `maxSize`        | 调整时的最大尺寸，px                      | `number`                                            | 视口减 48 |
-| `swipeable`      | 向边缘拖动关闭                            | `boolean`                                           | `false`   |
-| `snapPoints`     | 停靠的几档尺寸；不大于 1 为视口比例       | `number[]`                                          | —         |
-| `snap`           | 当前停靠点，配合 `v-model:snap`           | `number`                                            | —         |
+| 名称             | 说明                                        | 类型                                                | 默认值    |
+| ---------------- | ------------------------------------------- | --------------------------------------------------- | --------- |
+| `open`           | 是否打开，配合 `v-model:open`               | `boolean`                                           | `false`   |
+| `title`          | 标题，同时为抽屉命名                        | `string`                                            | —         |
+| `placement`      | 从哪一边滑出                                | `'right' \| 'left' \| 'top' \| 'bottom'`            | `'right'` |
+| `size`           | 左右为宽度、上下为高度；数字为 px           | `string \| number`                                  | —         |
+| `closable`       | 显示右上角的关闭按钮                        | `boolean`                                           | `true`    |
+| `closeOnMask`    | 点击遮罩关闭                                | `boolean`                                           | `true`    |
+| `closeOnEscape`  | 按 `Esc` 关闭                               | `boolean`                                           | `true`    |
+| `lockScroll`     | 打开期间锁定页面滚动                        | `boolean`                                           | `true`    |
+| `destroyOnClose` | 关闭后卸载内容                              | `boolean`                                           | `false`   |
+| `beforeClose`    | 关闭前调用，返回 `false` 则保持打开         | `() => boolean \| void \| Promise<boolean \| void>` | —         |
+| `teleport`       | 渲染到哪里；`false` 为原地渲染              | `string \| HTMLElement \| false`                    | `'body'`  |
+| `resizable`      | 拖动内侧边缘调整大小，配合 `v-model:size`   | `boolean`                                           | `false`   |
+| `minSize`        | 调整时的最小尺寸，px                        | `number`                                            | `200`     |
+| `maxSize`        | 调整时的最大尺寸，px                        | `number`                                            | 视口减 48 |
+| `swipeable`      | 向边缘拖动关闭                              | `boolean`                                           | `false`   |
+| `snapPoints`     | 停靠的几档尺寸；数字为 px，百分比为视口比例 | `(number \| string)[]`                              | —         |
+| `snap`           | 当前停靠点，配合 `v-model:snap`             | `number \| string`                                  | —         |
 
 ### Events
 

@@ -256,7 +256,7 @@ const notEmpty = (value) => (value.trim() ? true : '名称不能为空')
       :placement="narrow ? 'bottom' : 'right'"
       :size="narrow ? undefined : 400"
       :swipeable="narrow"
-      :snap-points="narrow ? [0.6, 1] : undefined"
+      :snap-points="narrow ? ['60%', '100%'] : undefined"
       title="任务详情"
       @closed="openId = null"
     >

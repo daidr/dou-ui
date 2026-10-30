@@ -45,16 +45,19 @@ export interface DrawerProps {
    */
   swipeable?: boolean
   /**
-   * Sizes the drawer rests at, dragged between with `swipeable`. Up to 1 is
-   * a share of the viewport, above 1 is px. Replaces `size`.
+   * Sizes the drawer rests at, dragged between with `swipeable`: a number
+   * is px, a string such as `'40%'` a share of the viewport. Replaces `size`.
    */
-  snapPoints?: number[]
+  snapPoints?: DrawerSnapPoint[]
   /**
    * The snap point the drawer rests at, bound with `v-model:snap`. Set it
    * before opening to open at another point than the smallest.
    */
-  snap?: number
+  snap?: DrawerSnapPoint
 }
+
+/** A snap point: px as a number, or a share of the viewport such as `'40%'`. */
+export type DrawerSnapPoint = number | string
 
 export interface DrawerEmits {
   'update:open': [open: boolean]
@@ -64,7 +67,7 @@ export interface DrawerEmits {
    * The drawer moved to another snap point; bound with `v-model:snap`.
    * `undefined` once closed, so the next opening starts from the smallest.
    */
-  'update:snap': [snap: number | undefined]
+  'update:snap': [snap: DrawerSnapPoint | undefined]
   /** Opening started. */
   open: []
   /** The opening transition finished. */

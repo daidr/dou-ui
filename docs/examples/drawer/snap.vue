@@ -24,7 +24,7 @@ const stops = [
     placement="bottom"
     title="戴兜的出差行程"
     swipeable
-    :snap-points="[0.4, 0.9]"
+    :snap-points="['40%', '90%']"
   >
     <DouTimeline>
       <DouTimelineItem

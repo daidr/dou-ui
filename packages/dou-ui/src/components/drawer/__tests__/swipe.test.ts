@@ -101,17 +101,17 @@ const half = () => Math.round(window.innerHeight / 2)
 describe('DouDrawer snapPoints', () => {
   it('rests at the smallest snap point and moves to the nearest one on release', async () => {
     const wrapper = mount(DouDrawer, {
-      props: { open: true, placement: 'bottom', swipeable: true, snapPoints: [0.5, 1] },
+      props: { open: true, placement: 'bottom', swipeable: true, snapPoints: ['50%', '100%'] },
       attachTo: document.body,
     })
     await settle()
-    expect(wrapper.emitted('update:snap')).toEqual([[0.5]])
+    expect(wrapper.emitted('update:snap')).toEqual([['50%']])
     expect(panel().style.getPropertyValue('--dou-drawer-size')).toBe(`${half()}px`)
     // dragged up by a third of the viewport: closer to full height
     drag(handle(), 400, 400 - Math.round(window.innerHeight / 3))
     await settle()
-    expect(wrapper.emitted('update:snap')!.at(-1)).toEqual([1])
-    await wrapper.setProps({ snap: 1 })
+    expect(wrapper.emitted('update:snap')!.at(-1)).toEqual(['100%'])
+    await wrapper.setProps({ snap: '100%' })
     expect(panel().style.getPropertyValue('--dou-drawer-size')).toBe(`${window.innerHeight}px`)
     wrapper.unmount()
   })
@@ -122,7 +122,7 @@ describe('DouDrawer snapPoints', () => {
         open: true,
         placement: 'bottom',
         swipeable: true,
-        snapPoints: [240, 0.9],
+        snapPoints: [240, '90%'],
         snap: 240,
       },
       attachTo: document.body,
@@ -136,7 +136,12 @@ describe('DouDrawer snapPoints', () => {
 
   it('cycles snap points from the handle, and steps with the arrow keys', async () => {
     const wrapper = mount(DouDrawer, {
-      props: { open: true, placement: 'bottom', swipeable: true, snapPoints: [0.3, 0.6, 1] },
+      props: {
+        open: true,
+        placement: 'bottom',
+        swipeable: true,
+        snapPoints: ['30%', '60%', '100%'],
+      },
       attachTo: document.body,
     })
     await settle()
@@ -148,7 +153,7 @@ describe('DouDrawer snapPoints', () => {
     button.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }))
     button.click()
     button.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
-    expect(wrapper.emitted('update:snap')!.map(([v]) => v)).toEqual([0.3, 0.6, 1, 0.3])
+    expect(wrapper.emitted('update:snap')!.map(([v]) => v)).toEqual(['30%', '60%', '100%', '30%'])
     wrapper.unmount()
   })
 })

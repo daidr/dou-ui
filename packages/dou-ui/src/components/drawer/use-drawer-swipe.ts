@@ -1,13 +1,13 @@
 import { computed, onBeforeUnmount, onMounted, ref, type Ref } from 'vue'
-import type { DrawerPlacement } from './drawer'
+import type { DrawerPlacement, DrawerSnapPoint } from './drawer'
 
 interface SwipeOptions {
   panel: Readonly<Ref<HTMLElement | null>>
   enabled: () => boolean
   placement: () => DrawerPlacement
-  /** Snap points as given: up to 1 is a share of the viewport, above 1 px. */
-  snapPoints: () => number[] | undefined
-  snap: Ref<number | undefined>
+  /** Snap points as given: a number is px, `'40%'` a share of the viewport. */
+  snapPoints: () => DrawerSnapPoint[] | undefined
+  snap: Ref<DrawerSnapPoint | undefined>
   /** Ask to close; resolves to whether the drawer is closing. */
   requestClose: () => Promise<boolean>
 }
@@ -48,9 +48,11 @@ export function useDrawerSwipe(options: SwipeOptions) {
   })
   onBeforeUnmount(() => window.removeEventListener('resize', measure))
 
-  const resolve = (point: number) => {
+  const resolve = (point: DrawerSnapPoint) => {
+    if (typeof point === 'number') return Math.round(point)
     const length = horizontal.value ? viewport.value.width : viewport.value.height
-    return Math.round(point <= 1 ? point * length : point)
+    const value = Number.parseFloat(point)
+    return Math.round(point.trim().endsWith('%') ? (value / 100) * length : value)
   }
   /** Snap points, smallest first, with their size in px. */
   const snaps = computed(() =>

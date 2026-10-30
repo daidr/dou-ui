@@ -4,7 +4,7 @@ import { computed, onBeforeUnmount, ref, useId, useTemplateRef, watch } from 'vu
 import { useModal } from '../../composables/use-modal'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
-import type { DrawerExpose, DrawerProps, DrawerSlots } from './drawer'
+import type { DrawerExpose, DrawerProps, DrawerSlots, DrawerSnapPoint } from './drawer'
 import { useTeleport } from '../../utils/teleport'
 import { useDrawerSwipe } from './use-drawer-swipe'
 
@@ -25,7 +25,7 @@ const props = withDefaults(defineProps<DrawerProps>(), {
 })
 const teleportTarget = useTeleport(() => props.teleport)
 const open = defineModel<boolean>('open', { default: false })
-const snap = defineModel<number | undefined>('snap', { default: undefined })
+const snap = defineModel<DrawerSnapPoint | undefined>('snap', { default: undefined })
 const emit = defineEmits<{
   'update:size': [size: number]
   open: []

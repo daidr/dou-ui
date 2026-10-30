@@ -23,7 +23,7 @@ import {
   TrashIcon,
 } from '@dou-ui/icons'
 import { DouDropdown, DouDropdownItem, DouDropdownSub } from 'dou-ui'
-import type { Command } from 'prosemirror-state'
+import { TextSelection, type Command } from 'prosemirror-state'
 import { CellSelection, TableMap, addColumn, addRow, type Rect } from 'prosemirror-tables'
 import { computed, onBeforeUnmount, onMounted, shallowRef, watch } from 'vue'
 import { createId } from '../../core/model'
@@ -31,6 +31,7 @@ import { useEditorContext } from '../../editor'
 import {
   alignColumns,
   band,
+  boundaries,
   clearCells,
   deleteColumns,
   deleteRows,
@@ -39,6 +40,7 @@ import {
   insertRow,
   mergeCells,
   moveLines,
+  moveLinesTo,
   selectLines,
   splitMergedCell,
   tableAt,
@@ -61,7 +63,7 @@ const columnMenu = shallowRef(false)
 const rowMenu = shallowRef(false)
 const menuOpen = computed(() => columnMenu.value || rowMenu.value)
 // the cells toolbar stands in for the handles while cells are selected
-const barShown = computed(() => !!layout.value?.bar && !menuOpen.value)
+const barShown = computed(() => !!layout.value?.bar && !menuOpen.value && !dragging.value)
 
 function targetOf(cell: HTMLElement): Target | null {
   const current = view.value
@@ -188,7 +190,7 @@ function schedule() {
   if (frame) return
   frame = requestAnimationFrame(() => {
     frame = 0
-    if (!menuOpen.value) {
+    if (!menuOpen.value && !dragging.value) {
       const element = lastTarget instanceof Element ? lastTarget : null
       const cell = element?.closest<HTMLElement>('.dou-editor-table td, .dou-editor-table th')
       const inControls = element?.closest('.dou-editor-table-controls')
@@ -206,7 +208,7 @@ function track(event: PointerEvent) {
 }
 
 function leave() {
-  if (menuOpen.value) return
+  if (menuOpen.value || dragging.value) return
   lastTarget = null
   hovered.value = null
   schedule()
@@ -227,6 +229,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('scroll', onScroll, true)
   window.removeEventListener('resize', onScroll)
   if (frame) cancelAnimationFrame(frame)
+  endDrag(false)
 })
 
 watch([state, target], () => schedule())
@@ -253,13 +256,30 @@ function selectTarget(axis: 'row' | 'column') {
 }
 
 function openMenu(axis: 'row' | 'column') {
+  // the click that ends a drag
+  if (dragged) return
   selectTarget(axis)
   if (axis === 'row') rowMenu.value = true
   else columnMenu.value = true
 }
 
+/**
+ * Whole lines are selected to show what a menu or a drag is about; after
+ * it, the cursor goes into their first cell so the handles come back.
+ */
+function collapseLines() {
+  const current = view.value
+  const selection = current?.state.selection
+  if (!current || !(selection instanceof CellSelection)) return
+  if (!selection.isRowSelection() && !selection.isColSelection()) return
+  const $cell = current.state.doc.resolve(selection.$anchorCell.pos + 1)
+  current.dispatch(current.state.tr.setSelection(TextSelection.near($cell)))
+}
+
 watch(menuOpen, (open) => {
-  if (!open) schedule()
+  if (open) return
+  collapseLines()
+  schedule()
 })
 
 const can = (command: Command) => {
@@ -312,6 +332,184 @@ function addAtEnd(axis: 'row' | 'column') {
   current.dispatch(tr)
 }
 
+/* dragging rows and columns by their handle */
+
+interface Drag {
+  axis: 'row' | 'column'
+  tablePos: number
+  /** The lines that move: the target's, with any merged cells they belong to. */
+  start: number
+  end: number
+  x: number
+  y: number
+  /** Where they go: the line they go before, or `null` for where they are. */
+  to: number | null
+}
+
+let drag: Drag | null = null
+let dragged = false
+const dragging = shallowRef(false)
+const drop = shallowRef<{ axis: 'row' | 'column'; at: number } | null>(null)
+/** A copy of the dragged lines that follows the pointer. */
+let ghost: HTMLElement | null = null
+
+function onHandleDown(axis: 'row' | 'column', event: PointerEvent) {
+  const current = view.value
+  const at = target.value
+  if (event.button !== 0 || !current || !at || !current.editable) return
+  const map = TableMap.get(current.state.doc.nodeAt(at.pos)!)
+  const [from, to] = axis === 'row' ? [at.rect.top, at.rect.bottom] : [at.rect.left, at.rect.right]
+  const lines = band(map, axis, from, to)
+  drag = { axis, tablePos: at.pos, ...lines, x: event.clientX, y: event.clientY, to: null }
+  dragged = false
+  window.addEventListener('pointermove', onDragMove)
+  window.addEventListener('pointerup', onDragUp)
+  window.addEventListener('pointercancel', onDragCancel)
+}
+
+/** Each boundary a run can go to, and where it is (relative to the editor). */
+function cutPlaces(moving: Drag): { cut: number; at: number }[] {
+  const current = view.value
+  const host = root.value
+  const table = current?.state.doc.nodeAt(moving.tablePos)
+  const element = (current?.nodeDOM(moving.tablePos) as HTMLElement | null)?.querySelector('table')
+  if (!current || !host || !table || !element) return []
+  const box = host.getBoundingClientRect()
+  const tableBox = element.getBoundingClientRect()
+  const map = TableMap.get(table)
+  const places: { cut: number; at: number }[] = []
+  if (moving.axis === 'row') {
+    const tops: number[] = []
+    table.forEach((_row, offset) => {
+      const row = current.nodeDOM(moving.tablePos + 1 + offset) as HTMLElement | null
+      tops.push((row?.getBoundingClientRect().top ?? tableBox.top) - box.top)
+    })
+    for (const cut of boundaries(map, 'row'))
+      places.push({ cut, at: cut < map.height ? tops[cut]! : tableBox.bottom - box.top })
+    return places
+  }
+  for (const cut of boundaries(map, 'column')) {
+    if (cut === map.width) {
+      places.push({ cut, at: tableBox.right - box.left })
+      continue
+    }
+    // no merged cell crosses a boundary, so the first row has a cell starting there
+    let row = 0
+    while (row < map.height && map.findCell(map.map[row * map.width + cut]!).left !== cut) row++
+    const cell = cellElement(moving.tablePos, row, cut)
+    if (cell) places.push({ cut, at: cell.getBoundingClientRect().left - box.left })
+  }
+  return places
+}
+
+function showGhost(moving: Drag) {
+  const current = view.value
+  const host = root.value
+  const table = current?.state.doc.nodeAt(moving.tablePos)
+  const element = (current?.nodeDOM(moving.tablePos) as HTMLElement | null)?.querySelector('table')
+  if (!current || !host || !table || !element) return
+  const map = TableMap.get(table)
+  const copy = document.createElement('table')
+  copy.className = 'dou-editor-table'
+  const body = document.createElement('tbody')
+  copy.append(body)
+  let width = 0
+  const [rows, cols] =
+    moving.axis === 'row'
+      ? [
+          [moving.start, moving.end],
+          [0, map.width],
+        ]
+      : [
+          [0, map.height],
+          [moving.start, moving.end],
+        ]
+  for (let row = rows[0]!; row < rows[1]!; row++) {
+    const line = document.createElement('tr')
+    let lineWidth = 0
+    for (let col = cols[0]!; col < cols[1]!; col++) {
+      const rect = map.findCell(map.map[row * map.width + col]!)
+      if (rect.top !== row || rect.left !== col) continue
+      const cell = cellElement(moving.tablePos, row, col)
+      if (!cell) continue
+      const clone = cell.cloneNode(true) as HTMLElement
+      clone.classList.remove('selectedCell')
+      clone.style.width = `${cell.getBoundingClientRect().width}px`
+      lineWidth += cell.getBoundingClientRect().width
+      line.append(clone)
+    }
+    width = Math.max(width, lineWidth)
+    body.append(line)
+  }
+  ghost = document.createElement('div')
+  ghost.className = 'dou-editor__surface dou-editor__ghost dou-editor-table__ghost'
+  ghost.setAttribute('aria-hidden', 'true')
+  ghost.style.width = `${Math.min(width, 360) + 2}px`
+  ghost.append(copy)
+  host.append(ghost)
+}
+
+function onDragMove(event: PointerEvent) {
+  const moving = drag
+  if (!moving) return
+  if (!dragging.value) {
+    if (Math.hypot(event.clientX - moving.x, event.clientY - moving.y) < 4) return
+    dragging.value = true
+    dragged = true
+    columnMenu.value = false
+    rowMenu.value = false
+    const current = view.value
+    if (current)
+      current.dispatch(
+        selectLines(current.state.tr, moving.tablePos, moving.axis, moving.start, moving.end),
+      )
+    showGhost(moving)
+  }
+  if (ghost) ghost.style.transform = `translate(${event.clientX + 12}px, ${event.clientY + 12}px)`
+  const host = root.value
+  if (!host) return
+  const box = host.getBoundingClientRect()
+  const pointer = moving.axis === 'row' ? event.clientY - box.top : event.clientX - box.left
+  let best: { cut: number; at: number } | null = null
+  for (const place of cutPlaces(moving))
+    if (!best || Math.abs(place.at - pointer) < Math.abs(best.at - pointer)) best = place
+  // a boundary of the run itself leaves it where it is
+  if (!best || (best.cut >= moving.start && best.cut <= moving.end)) {
+    moving.to = null
+    drop.value = null
+    return
+  }
+  moving.to = best.cut
+  drop.value = { axis: moving.axis, at: best.at }
+}
+
+function onDragUp() {
+  endDrag(true)
+}
+
+function onDragCancel() {
+  endDrag(false)
+}
+
+function endDrag(apply: boolean) {
+  window.removeEventListener('pointermove', onDragMove)
+  window.removeEventListener('pointerup', onDragUp)
+  window.removeEventListener('pointercancel', onDragCancel)
+  const moving = drag
+  drag = null
+  ghost?.remove()
+  ghost = null
+  drop.value = null
+  if (!dragging.value) return
+  dragging.value = false
+  // the click that follows the drag isn't a click
+  setTimeout(() => (dragged = false))
+  if (apply && moving?.to !== null && moving)
+    run(moveLinesTo(moving.tablePos, moving.axis, moving.start, moving.end, moving.to))
+  collapseLines()
+  schedule()
+}
+
 const hasCellSelection = computed(() => {
   const selection = state.value?.selection
   return selection instanceof CellSelection && selection.$anchorCell.pos !== selection.$headCell.pos
@@ -341,6 +539,7 @@ const visible = computed(() => !!layout.value && !!target.value)
         }"
         :aria-label="messages.table.column"
         :title="messages.table.column"
+        @pointerdown="onHandleDown('column', $event)"
         @click="openMenu('column')"
       >
         <GripHorizontalIcon />
@@ -418,6 +617,7 @@ const visible = computed(() => !!layout.value && !!target.value)
         }"
         :aria-label="messages.table.row"
         :title="messages.table.row"
+        @pointerdown="onHandleDown('row', $event)"
         @click="openMenu('row')"
       >
         <GripVerticalIcon />
@@ -495,9 +695,29 @@ const visible = computed(() => !!layout.value && !!target.value)
       <PlusIcon />
     </button>
 
+    <!-- where dragged lines go -->
+    <div
+      v-if="drop"
+      class="dou-editor__drop"
+      :class="{ 'is-vertical': drop.axis === 'column' }"
+      :style="
+        drop.axis === 'row'
+          ? {
+              top: `${drop.at}px`,
+              left: `${layout.frame.left}px`,
+              width: `${Math.min(layout.table.left + layout.table.width, layout.frame.right) - layout.frame.left}px`,
+            }
+          : {
+              top: `${layout.table.top}px`,
+              left: `${drop.at}px`,
+              height: `${layout.table.height}px`,
+            }
+      "
+    />
+
     <!-- cells: merge, unmerge, clear -->
     <div
-      v-if="barShown && layout.bar"
+      v-if="barShown && layout.bar && !dragging"
       class="dou-editor-table__cells"
       :style="{ top: `${layout.bar.top}px`, left: `${layout.bar.left}px` }"
     >

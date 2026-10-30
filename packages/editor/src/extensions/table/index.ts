@@ -54,6 +54,7 @@ export {
   insertRow,
   mergeCells,
   moveLines,
+  moveLinesTo,
   splitMergedCell,
   toggleHeader,
 } from './commands'

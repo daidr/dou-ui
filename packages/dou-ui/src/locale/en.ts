@@ -136,7 +136,7 @@ export const en: Locale = {
     error: 'failed',
   },
   nodeGraph: {
-    label: 'Flow graph',
+    label: 'Node graph',
     status: {
       wait: 'Not started',
       process: 'In progress',

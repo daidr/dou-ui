@@ -106,4 +106,22 @@ describe('DouAutocomplete highlight', () => {
     expect(input.attributes('aria-activedescendant')).toBe(second)
     wrapper.unmount()
   })
+
+  it('leaves Enter to the input method while composing', async () => {
+    const wrapper = mount(DouAutocomplete, {
+      props: {
+        options: ['上海', '上海虹桥'],
+        'onUpdate:modelValue': (v: string) => wrapper.setProps({ modelValue: v }),
+      },
+      attachTo: document.body,
+    })
+    const input = wrapper.get('input')
+    await input.trigger('focus')
+    await input.setValue('上')
+    await input.trigger('keydown', { key: 'ArrowDown' })
+    await input.trigger('keydown', { key: 'Enter', isComposing: true })
+    await input.trigger('keydown', { key: 'Enter', keyCode: 229 })
+    expect(wrapper.props('modelValue')).toBe('上')
+    wrapper.unmount()
+  })
 })

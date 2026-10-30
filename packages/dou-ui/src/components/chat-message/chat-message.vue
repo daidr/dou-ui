@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isComposing } from '../../utils/keyboard'
 import { ChevronLeftIcon, ChevronRightIcon, EditIcon } from '@dou-ui/icons'
 import { computed, nextTick, ref, useTemplateRef } from 'vue'
 import { useNamespace } from '../../utils/namespace'
@@ -113,12 +114,7 @@ function onEditorKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape') {
     event.preventDefault()
     cancelEdit()
-  } else if (
-    event.key === 'Enter' &&
-    !event.shiftKey &&
-    !event.isComposing &&
-    event.keyCode !== 229
-  ) {
+  } else if (event.key === 'Enter' && !event.shiftKey && !isComposing(event)) {
     event.preventDefault()
     saveEdit()
   }

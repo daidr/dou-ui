@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isComposing } from '../../utils/keyboard'
 import { ChevronDownIcon, CloseIcon } from '@dou-ui/icons'
 import { computed, nextTick, ref, useId, useTemplateRef, watch } from 'vue'
 import type { HTMLAttributes } from 'vue'
@@ -191,7 +192,7 @@ function focusTree() {
 }
 
 function onKeydown(event: KeyboardEvent) {
-  if (disabled.value) return
+  if (disabled.value || isComposing(event)) return
   switch (event.key) {
     case 'ArrowDown':
       event.preventDefault()

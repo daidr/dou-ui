@@ -1,3 +1,4 @@
+import { isComposing } from 'dou-ui'
 import { Plugin, PluginKey, TextSelection, type EditorState } from 'prosemirror-state'
 import type { EditorView } from 'prosemirror-view'
 
@@ -117,7 +118,7 @@ export function mentionPlugin(): Plugin<MentionState | null> {
       },
       handleKeyDown(view, event) {
         const current = getMention(view.state)
-        if (!current || event.isComposing) return false
+        if (!current || isComposing(event)) return false
         const count = current.items.length
         switch (event.key) {
           case 'Escape':

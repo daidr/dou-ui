@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isComposing } from '../../utils/keyboard'
 import { SearchIcon } from '@dou-ui/icons'
 import { computed, nextTick, ref, useId, useTemplateRef, watch } from 'vue'
 import { GROUP_START, useGroupedWindow } from '../../composables/use-grouped-window'
@@ -139,7 +140,7 @@ function choose(index: number) {
 }
 
 function onKeydown(event: KeyboardEvent) {
-  if (event.isComposing) return
+  if (isComposing(event)) return
   switch (event.key) {
     case 'ArrowDown':
       event.preventDefault()

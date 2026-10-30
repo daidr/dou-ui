@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isComposing } from '../../utils/keyboard'
 import { ArrowUpIcon, StopIcon } from '@dou-ui/icons'
 import { computed, nextTick, onMounted, ref, useAttrs, useId, useTemplateRef, watch } from 'vue'
 import type { StyleValue } from 'vue'
@@ -176,7 +177,7 @@ function onMenuKeydown(event: KeyboardEvent): boolean {
     move(event.key === 'ArrowDown' ? 1 : -1)
     return true
   }
-  if ((event.key === 'Enter' || event.key === 'Tab') && !event.isComposing) {
+  if ((event.key === 'Enter' || event.key === 'Tab') && !isComposing(event)) {
     event.preventDefault()
     pick(options.value[active.value]!)
     return true
@@ -191,7 +192,7 @@ function onMenuKeydown(event: KeyboardEvent): boolean {
 
 function onKeydown(event: KeyboardEvent) {
   if (onMenuKeydown(event)) return
-  if (event.key !== 'Enter' || event.isComposing || event.keyCode === 229) return
+  if (event.key !== 'Enter' || isComposing(event)) return
   const mod = event.ctrlKey || event.metaKey
   const sends = props.submitOn === 'enter' ? !event.shiftKey && !mod : mod
   if (!sends) return

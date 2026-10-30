@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isComposing } from '../../utils/keyboard'
 import { CheckIcon, ChevronDownIcon, ChevronRightIcon, CloseIcon } from '@dou-ui/icons'
 import { computed, nextTick, reactive, ref, useId, useTemplateRef, watch } from 'vue'
 import type { HTMLAttributes } from 'vue'
@@ -457,7 +458,7 @@ async function enter(choose: boolean) {
 }
 
 function onKeydown(event: KeyboardEvent) {
-  if (disabled.value) return
+  if (disabled.value || isComposing(event)) return
   if (searching.value) {
     const count = matches.value.length
     switch (event.key) {

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isComposing } from '../../utils/keyboard'
 import { ArrowRightIcon, CalendarIcon, ClockIcon, CloseIcon } from '@dou-ui/icons'
 import { computed, nextTick, ref, useId, useTemplateRef, watch } from 'vue'
 import type { Placement } from '../../composables/use-floating'
@@ -370,7 +371,7 @@ function onKeydown(event: KeyboardEvent, field: number, type: SegmentType) {
 // here. Nothing is ever let into the text itself.
 function onBeforeinput(event: InputEvent, field: number, type: SegmentType) {
   event.preventDefault()
-  if (!editable.value || event.isComposing) return
+  if (!editable.value || isComposing(event)) return
   const el = event.currentTarget as HTMLElement
   if (event.inputType.startsWith('delete')) {
     erase(field, type, el, event.inputType !== 'deleteContentForward')

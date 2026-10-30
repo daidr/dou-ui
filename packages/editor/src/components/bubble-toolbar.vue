@@ -11,6 +11,7 @@ import {
   DouToolbar,
   DouToolbarSeparator,
   DouTooltip,
+  isComposing,
   useFloating,
   useZIndex,
   type ToggleValue,
@@ -225,7 +226,7 @@ function closeLink() {
 }
 
 function onLinkKey(event: KeyboardEvent) {
-  if (event.isComposing) return
+  if (isComposing(event)) return
   if (event.key === 'Enter') {
     event.preventDefault()
     applyLink()

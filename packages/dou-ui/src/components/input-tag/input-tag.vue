@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isComposing } from '../../utils/keyboard'
 import { CloseIcon } from '@dou-ui/icons'
 import { computed, nextTick, ref, useAttrs, useTemplateRef } from 'vue'
 import type { StyleValue } from 'vue'
@@ -125,7 +126,7 @@ function onPaste(event: ClipboardEvent) {
 }
 
 function onKeydown(event: KeyboardEvent) {
-  if (event.isComposing) return
+  if (isComposing(event)) return
   if (event.key === 'Enter') {
     event.preventDefault()
     commit()

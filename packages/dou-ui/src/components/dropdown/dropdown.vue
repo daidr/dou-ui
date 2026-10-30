@@ -38,6 +38,8 @@ const popup = usePopup({
   sameWidth: () => props.sameWidth,
   showDelay: () => props.showDelay,
   hideDelay: () => props.hideDelay,
+  // a menu closes on a press outside however it was opened, `manual` too
+  closeOnOutside: true,
 })
 const { triggerRef, panelRef, rendered, theme, placement, panelStyle, panelListeners } = popup
 

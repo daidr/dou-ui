@@ -94,6 +94,18 @@ describe('DouDropdown', () => {
     wrapper.unmount()
   })
 
+  it('closes on a press outside, also when opened by hand', async () => {
+    for (const trigger of ['click', 'manual']) {
+      const wrapper = withModel({ trigger, open: true })
+      await nextTick()
+      expect(items()).toHaveLength(4)
+      document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
+      await nextTick()
+      expect(wrapper.props('open')).toBe(false)
+      wrapper.unmount()
+    }
+  })
+
   it('closes on Escape and gives focus back to the trigger', async () => {
     const wrapper = withModel({ open: true })
     await nextTick()

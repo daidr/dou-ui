@@ -27,6 +27,7 @@ import { TextSelection, type Command } from 'prosemirror-state'
 import { CellSelection, TableMap, addColumn, addRow, type Rect } from 'prosemirror-tables'
 import { computed, onBeforeUnmount, onMounted, shallowRef, watch } from 'vue'
 import { createId } from '../../core/model'
+import { useMenuEscape } from '../../components/menu-escape'
 import { useEditorContext } from '../../editor'
 import {
   alignColumns,
@@ -62,8 +63,13 @@ const hovered = shallowRef<Target | null>(null)
 const columnMenu = shallowRef(false)
 const rowMenu = shallowRef(false)
 const menuOpen = computed(() => columnMenu.value || rowMenu.value)
-// the cells toolbar stands in for the handles while cells are selected
+useMenuEscape(menuOpen, () => {
+  columnMenu.value = false
+  rowMenu.value = false
+})
 const barShown = computed(() => !!layout.value?.bar && !menuOpen.value && !dragging.value)
+// the toolbar over selected cells stands in for the handles; a merged cell's goes below it
+const handlesHidden = computed(() => barShown.value && hasCellSelection.value)
 
 function targetOf(cell: HTMLElement): Target | null {
   const current = view.value
@@ -111,8 +117,11 @@ interface Layout {
   frame: { left: number; right: number }
   column: { left: number; width: number }
   row: { top: number; height: number }
-  /** Where the cell toolbar goes (its top centre): over selected cells, or a merged cell with the cursor. */
-  bar: { top: number; left: number } | null
+  /**
+   * Where the cell toolbar goes (its centre): above selected cells, or below
+   * the merged cell with the cursor.
+   */
+  bar: { top: number; left: number; below: boolean } | null
 }
 
 const layout = shallowRef<Layout | null>(null)
@@ -148,9 +157,13 @@ function measure() {
   if (boxes.length) {
     const left = Math.max(Math.min(...boxes.map((item) => item.left)), frameBox.left)
     const right = Math.min(Math.max(...boxes.map((item) => item.right)), frameBox.right)
+    const below = !(current.state.selection instanceof CellSelection)
     bar = {
-      top: Math.min(...boxes.map((item) => item.top)) - box.top,
+      top: below
+        ? Math.max(...boxes.map((item) => item.bottom)) - box.top
+        : Math.min(...boxes.map((item) => item.top)) - box.top,
       left: (left + right) / 2 - box.left,
+      below,
     }
   }
   layout.value = {
@@ -243,24 +256,16 @@ function run(command: Command) {
   current.focus()
 }
 
-/** Select the target's columns (or rows), whole runs with merged cells. */
-function selectTarget(axis: 'row' | 'column') {
+function openMenu(axis: 'row' | 'column', pressed: Drag) {
+  // the lines pressed on, even if the handles moved since
   const current = view.value
-  const at = target.value
-  if (!current || !at) return
-  const table = current.state.doc.nodeAt(at.pos)!
-  const map = TableMap.get(table)
-  const [from, to] = axis === 'row' ? [at.rect.top, at.rect.bottom] : [at.rect.left, at.rect.right]
-  const lines = band(map, axis, from, to)
-  current.dispatch(selectLines(current.state.tr, at.pos, axis, lines.start, lines.end))
-}
-
-function openMenu(axis: 'row' | 'column') {
-  // the click that ends a drag
-  if (dragged) return
-  selectTarget(axis)
-  if (axis === 'row') rowMenu.value = true
-  else columnMenu.value = true
+  if (!current) return
+  current.dispatch(
+    selectLines(current.state.tr, pressed.tablePos, axis, pressed.start, pressed.end),
+  )
+  // one menu at a time
+  rowMenu.value = axis === 'row'
+  columnMenu.value = axis === 'column'
 }
 
 /**
@@ -347,7 +352,6 @@ interface Drag {
 }
 
 let drag: Drag | null = null
-let dragged = false
 const dragging = shallowRef(false)
 const drop = shallowRef<{ axis: 'row' | 'column'; at: number } | null>(null)
 /** A copy of the dragged lines that follows the pointer. */
@@ -361,7 +365,6 @@ function onHandleDown(axis: 'row' | 'column', event: PointerEvent) {
   const [from, to] = axis === 'row' ? [at.rect.top, at.rect.bottom] : [at.rect.left, at.rect.right]
   const lines = band(map, axis, from, to)
   drag = { axis, tablePos: at.pos, ...lines, x: event.clientX, y: event.clientY, to: null }
-  dragged = false
   window.addEventListener('pointermove', onDragMove)
   window.addEventListener('pointerup', onDragUp)
   window.addEventListener('pointercancel', onDragCancel)
@@ -455,7 +458,6 @@ function onDragMove(event: PointerEvent) {
   if (!dragging.value) {
     if (Math.hypot(event.clientX - moving.x, event.clientY - moving.y) < 4) return
     dragging.value = true
-    dragged = true
     columnMenu.value = false
     rowMenu.value = false
     const current = view.value
@@ -500,10 +502,13 @@ function endDrag(apply: boolean) {
   ghost?.remove()
   ghost = null
   drop.value = null
-  if (!dragging.value) return
+  if (!dragging.value) {
+    // a press without a drag opens the menu; on release rather than on
+    // click, as the press may close another menu and move the handles
+    if (apply && moving) openMenu(moving.axis, moving)
+    return
+  }
   dragging.value = false
-  // the click that follows the drag isn't a click
-  setTimeout(() => (dragged = false))
   if (apply && moving?.to !== null && moving)
     run(moveLinesTo(moving.tablePos, moving.axis, moving.start, moving.end, moving.to))
   collapseLines()
@@ -530,7 +535,7 @@ const visible = computed(() => !!layout.value && !!target.value)
       <button
         type="button"
         tabindex="-1"
-        v-show="!barShown"
+        v-show="!handlesHidden"
         class="dou-editor-table__handle is-column"
         :class="{ 'is-active': columnMenu }"
         :style="{
@@ -540,7 +545,6 @@ const visible = computed(() => !!layout.value && !!target.value)
         :aria-label="messages.table.column"
         :title="messages.table.column"
         @pointerdown="onHandleDown('column', $event)"
-        @click="openMenu('column')"
       >
         <GripHorizontalIcon />
       </button>
@@ -608,7 +612,7 @@ const visible = computed(() => !!layout.value && !!target.value)
       <button
         type="button"
         tabindex="-1"
-        v-show="!barShown"
+        v-show="!handlesHidden"
         class="dou-editor-table__handle is-row"
         :class="{ 'is-active': rowMenu }"
         :style="{
@@ -618,7 +622,6 @@ const visible = computed(() => !!layout.value && !!target.value)
         :aria-label="messages.table.row"
         :title="messages.table.row"
         @pointerdown="onHandleDown('row', $event)"
-        @click="openMenu('row')"
       >
         <GripVerticalIcon />
       </button>
@@ -719,6 +722,7 @@ const visible = computed(() => !!layout.value && !!target.value)
     <div
       v-if="barShown && layout.bar && !dragging"
       class="dou-editor-table__cells"
+      :class="{ 'is-below': layout.bar.below }"
       :style="{ top: `${layout.bar.top}px`, left: `${layout.bar.left}px` }"
     >
       <button

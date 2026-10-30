@@ -38,12 +38,27 @@ export interface DrawerProps {
   minSize?: number
   /** The largest size when resizing, in px. Defaults to the viewport less 48px. */
   maxSize?: number
+  /**
+   * Let the drawer be dragged towards its edge to close, by touch anywhere
+   * on it or with a mouse on the header. Top and bottom drawers show a
+   * handle.
+   */
+  swipeable?: boolean
+  /**
+   * Sizes the drawer rests at, dragged between with `swipeable`. Up to 1 is
+   * a share of the viewport, above 1 is px. Replaces `size`.
+   */
+  snapPoints?: number[]
+  /** The snap point the drawer rests at, bound with `v-model:snap`. */
+  snap?: number
 }
 
 export interface DrawerEmits {
   'update:open': [open: boolean]
   /** The drawer was resized, in px; bound with `v-model:size`. */
   'update:size': [size: number]
+  /** The drawer moved to another snap point; bound with `v-model:snap`. */
+  'update:snap': [snap: number]
   /** Opening started. */
   open: []
   /** The opening transition finished. */

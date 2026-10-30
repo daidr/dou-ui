@@ -150,6 +150,71 @@
     cursor: row-resize !important;
   }
 
+  /*
+   * Swiping: the panel follows the pointer while dragged, then settles on
+   * where it was let go. Snap points change the size, so that the footer
+   * stays in view at every one.
+   */
+  .dou-drawer__panel.is-dragging {
+    user-select: none;
+  }
+  .dou-drawer__panel.is-settling {
+    transition-property: transform, width, height;
+    transition-duration: var(--dou-motion-duration-normal);
+    transition-timing-function: var(--dou-motion-easing-enter);
+  }
+
+  /* a short bar on the outer side of a top or bottom drawer */
+  .dou-drawer__handle {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 20px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: grab;
+    outline: none;
+    touch-action: none;
+
+    &::before {
+      width: 32px;
+      height: 4px;
+      border-radius: 2px;
+      background-color: color-mix(in oklab, var(--dou-color-text) 16%, transparent);
+      content: '';
+      transition: background-color var(--dou-motion-duration-fast) var(--dou-motion-easing);
+    }
+
+    &:hover::before {
+      background-color: color-mix(in oklab, var(--dou-color-text) 28%, transparent);
+    }
+
+    &:focus-visible::before {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 2px;
+    }
+  }
+  .dou-drawer__panel.is-dragging .dou-drawer__handle {
+    cursor: grabbing;
+  }
+  .dou-drawer--top .dou-drawer__handle {
+    order: 1;
+  }
+  /* with a handle the panel reads as a sheet, so its inner corners round */
+  .dou-drawer--bottom .dou-drawer__panel:has(> .dou-drawer__handle) {
+    border-radius: var(--dou-radius-container) var(--dou-radius-container) 0 0;
+  }
+  .dou-drawer--top .dou-drawer__panel:has(> .dou-drawer__handle) {
+    border-radius: 0 0 var(--dou-radius-container) var(--dou-radius-container);
+  }
+  .dou-drawer--bottom .dou-drawer__handle ~ .dou-drawer__header {
+    padding-top: 4px;
+  }
+
   .dou-drawer__header {
     display: flex;
     flex-shrink: 0;

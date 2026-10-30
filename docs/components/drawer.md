@@ -25,6 +25,22 @@
 
 <DocDemo src="drawer/resizable" />
 
+## 滑动关闭
+
+`swipeable` 让抽屉可以向它所在的边缘拖动来关闭：触摸时按住抽屉任意位置都可以，鼠标只能拖动标题栏或把手，以免影响选中文字。上下弹出的抽屉会显示一个把手。松手时按拖动距离和速度判断是关闭还是回到原位，关闭同样会经过 `beforeClose`。
+
+内容区可以滚动时，只有滚到顶（向下关闭时）以后继续拖动才会拖动抽屉。输入框、文本域里的拖动不会触发；其他不希望触发的元素加上 `data-dou-no-swipe` 属性。
+
+<DocDemo src="drawer/swipe" />
+
+## 停靠点
+
+`snap-points` 设置抽屉可以停靠的几档尺寸，不大于 1 的数表示占视口的比例，大于 1 的数表示 px。设置后 `size` 不再生效。抽屉打开时停在最小的一档，拖动松手后停到最近的一档，从最小一档继续往下拖就会关闭。当前停在哪一档用 `v-model:snap` 读写，值是 `snap-points` 中的某一项。
+
+尺寸随停靠点变化，所以底部操作在每一档都能看到。把手是一个按钮，点击切换到下一档，聚焦后用方向键调大或调小。
+
+<DocDemo src="drawer/snap" />
+
 ## 键盘与读屏
 
 与对话框相同：`role="dialog"`、`aria-modal="true"`，打开时焦点移入，`Tab` 在面板内循环，`Esc` 关闭后焦点回到打开前的元素。
@@ -49,10 +65,13 @@
 | `resizable`      | 拖动内侧边缘调整大小，配合 `v-model:size` | `boolean`                                           | `false`   |
 | `minSize`        | 调整时的最小尺寸，px                      | `number`                                            | `200`     |
 | `maxSize`        | 调整时的最大尺寸，px                      | `number`                                            | 视口减 48 |
+| `swipeable`      | 向边缘拖动关闭                            | `boolean`                                           | `false`   |
+| `snapPoints`     | 停靠的几档尺寸；不大于 1 为视口比例       | `number[]`                                          | —         |
+| `snap`           | 当前停靠点，配合 `v-model:snap`           | `number`                                            | —         |
 
 ### Events
 
-`update:open`、`open`、`opened`、`close`、`closed`，含义同 [对话框](./dialog#events)。另有 `update:size`，参数为调整后的尺寸（px）。
+`update:open`、`open`、`opened`、`close`、`closed`，含义同 [对话框](./dialog#events)。另有 `update:size`，参数为调整后的尺寸（px）；`update:snap`，参数为新的停靠点。
 
 ### Slots
 

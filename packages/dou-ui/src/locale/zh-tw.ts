@@ -45,6 +45,7 @@ export const zhTW: Locale = {
   drawer: {
     close: '關閉',
     resize: '拖曳調整大小',
+    snap: '切換高度',
   },
   select: {
     placeholder: '請選擇',

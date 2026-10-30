@@ -45,6 +45,7 @@ export const zhCN: Locale = {
   drawer: {
     close: '关闭',
     resize: '拖动调整大小',
+    snap: '切换高度',
   },
   select: {
     placeholder: '请选择',

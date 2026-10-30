@@ -45,6 +45,7 @@ export const en: Locale = {
   drawer: {
     close: 'Close',
     resize: 'Drag to resize',
+    snap: 'Change height',
   },
   select: {
     placeholder: 'Select',

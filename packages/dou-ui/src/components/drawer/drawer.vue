@@ -6,6 +6,7 @@ import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
 import type { DrawerExpose, DrawerProps, DrawerSlots } from './drawer'
 import { useTeleport } from '../../utils/teleport'
+import { useDrawerSwipe } from './use-drawer-swipe'
 
 defineOptions({ name: 'DouDrawer', inheritAttrs: false })
 
@@ -19,9 +20,12 @@ const props = withDefaults(defineProps<DrawerProps>(), {
   teleport: undefined,
   resizable: false,
   minSize: 200,
+  swipeable: false,
+  snapPoints: undefined,
 })
 const teleportTarget = useTeleport(() => props.teleport)
 const open = defineModel<boolean>('open', { default: false })
+const snap = defineModel<number | undefined>('snap', { default: undefined })
 const emit = defineEmits<{
   'update:size': [size: number]
   open: []
@@ -37,8 +41,9 @@ const id = `dou-drawer-${useId()}`
 const hasTitle = computed(() => !!props.title || !!slots.title)
 
 async function close() {
-  if (props.beforeClose && (await props.beforeClose()) === false) return
+  if (props.beforeClose && (await props.beforeClose()) === false) return false
   open.value = false
+  return true
 }
 
 const root = useTemplateRef<HTMLElement>('root')
@@ -61,6 +66,7 @@ watch(open, (value) => {
   else emit('close')
 })
 function onAfterLeave() {
+  swipe.reset()
   if (props.destroyOnClose) mounted.value = false
   emit('closed')
 }
@@ -150,12 +156,48 @@ function onResizeKey(event: KeyboardEvent) {
   setSize(next)
 }
 
+/* swiping towards the edge to close, and between snap points */
+
+const swipe = useDrawerSwipe({
+  panel,
+  enabled: () => props.swipeable,
+  placement: () => props.placement,
+  snapPoints: () => props.snapPoints,
+  snap,
+  requestClose: close,
+})
+// Each opening starts from the smallest snap point unless one is bound.
+watch(
+  open,
+  (value) => {
+    const first = swipe.snaps.value[0]
+    if (value && first && snap.value === undefined) snap.value = first.point
+  },
+  { immediate: true },
+)
+const showHandle = computed(
+  () => props.swipeable && (props.placement === 'top' || props.placement === 'bottom'),
+)
+function onHandleKey(event: KeyboardEvent) {
+  const bigger = props.placement === 'bottom' ? 'ArrowUp' : 'ArrowDown'
+  const smaller = props.placement === 'bottom' ? 'ArrowDown' : 'ArrowUp'
+  if (event.key === bigger) swipe.step(1)
+  else if (event.key === smaller) swipe.step(-1)
+  else return
+  event.preventDefault()
+}
+
 const size = computed(() => {
+  if (swipe.size.value !== null) return `${swipe.size.value}px`
   const value = resized.value ?? props.size
   return typeof value === 'number' ? `${value}px` : (value ?? undefined)
 })
 
-defineExpose<DrawerExpose>({ close })
+defineExpose<DrawerExpose>({
+  close: async () => {
+    await close()
+  },
+})
 </script>
 
 <template>
@@ -164,7 +206,7 @@ defineExpose<DrawerExpose>({ close })
       <div
         v-show="open"
         ref="root"
-        :class="[ns.b(), ns.m(placement)]"
+        :class="[ns.b(), ns.m(placement), swipe.hasSnaps.value && ns.m('snap')]"
         :style="{ zIndex }"
         :data-dou-theme="theme"
         v-bind="maskListeners"
@@ -175,12 +217,26 @@ defineExpose<DrawerExpose>({ close })
           aria-modal="true"
           tabindex="-1"
           :aria-labelledby="hasTitle ? `${id}-title` : undefined"
-          :class="ns.e('panel')"
-          :style="{ '--dou-drawer-size': size }"
+          :class="[
+            ns.e('panel'),
+            ns.is('dragging', swipe.dragging.value),
+            ns.is('settling', swipe.settling.value),
+          ]"
+          :style="{ '--dou-drawer-size': size, transform: swipe.transform.value }"
           v-bind="$attrs"
+          @pointerdown="swipe.onPointerdown"
         >
+          <button
+            v-if="showHandle && swipe.hasSnaps.value"
+            type="button"
+            :class="ns.e('handle')"
+            :aria-label="t('drawer.snap')"
+            @click="swipe.step(1, true)"
+            @keydown="onHandleKey"
+          />
+          <div v-else-if="showHandle" :class="ns.e('handle')" aria-hidden="true" />
           <div
-            v-if="resizable"
+            v-if="resizable && !swipe.hasSnaps.value"
             :class="ns.e('resizer')"
             role="separator"
             tabindex="0"

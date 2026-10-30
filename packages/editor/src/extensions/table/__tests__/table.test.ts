@@ -15,6 +15,7 @@ import {
   insertColumn,
   mergeCells,
   moveLines,
+  moveLinesTo,
   splitMergedCell,
   tableAt,
   toggleHeader,
@@ -210,6 +211,28 @@ describe('table editing', () => {
       { id: 'c', align: 'right' },
     ])
     expect(texts(block)[0]).toEqual(['人数', '城市', '备注'])
+  })
+
+  it('moves rows and columns to any boundary, as dragging does', () => {
+    const target = create()
+    const at = tableAt(target.state.doc.resolve(3))!.pos
+    expect(run(target, moveLinesTo(at, 'row', 0, 1, 3))).toBe(true)
+    expect(tableBlock(target).rows!.map((row) => row.id)).toEqual(['r2', 'r3', 'r1'])
+    // the moved row is selected
+    expect(target.state.selection).toBeInstanceOf(CellSelection)
+    expect(run(target, moveLinesTo(at, 'column', 2, 3, 0))).toBe(true)
+    expect((tableBlock(target).props.columns as { id: string }[]).map((c) => c.id)).toEqual([
+      'c',
+      'a',
+      'b',
+    ])
+    // onto itself, or across a merged cell: nothing to do
+    expect(run(target, moveLinesTo(at, 'row', 1, 2, 2))).toBe(false)
+    selectCells(target, [0, 0], [1, 0])
+    run(target, mergeCells)
+    expect(run(target, moveLinesTo(at, 'row', 2, 3, 1))).toBe(false)
+    expect(run(target, moveLinesTo(at, 'row', 2, 3, 0))).toBe(true)
+    expect(tableBlock(target).rows!.map((row) => row.id)).toEqual(['r1', 'r2', 'r3'])
   })
 
   it('aligns columns', () => {

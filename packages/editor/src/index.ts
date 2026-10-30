@@ -44,6 +44,7 @@ export {
   insertRow,
   mergeCells,
   moveLines,
+  moveLinesTo,
   splitMergedCell,
   toggleHeader,
 } from './extensions/table'

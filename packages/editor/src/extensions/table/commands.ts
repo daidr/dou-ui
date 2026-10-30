@@ -152,24 +152,49 @@ export function moveLines(axis: 'row' | 'column', direction: -1 | 1): Command {
     const rect = selectedRect(state)
     const [from, to] = axis === 'row' ? [rect.top, rect.bottom] : [rect.left, rect.right]
     const { start, end, cuts } = band(rect.map, axis, from, to)
-    const index = cuts.indexOf(direction < 0 ? start : end)
-    const other = cuts[index + direction]
+    const other = cuts[cuts.indexOf(direction < 0 ? start : end) + direction]
     if (other === undefined) return false
+    return moveLinesTo(rect.tableStart - 1, axis, start, end, other)(state, dispatch)
+  }
+}
+
+/**
+ * Move rows (or columns) `[start, end)` of the table at `tablePos` to the
+ * boundary `to`, given as the index of the line they go before. Both the
+ * run and `to` have to be on boundaries no merged cell crosses.
+ */
+export function moveLinesTo(
+  tablePos: number,
+  axis: 'row' | 'column',
+  start: number,
+  end: number,
+  to: number,
+): Command {
+  return (state, dispatch) => {
+    const table = state.doc.nodeAt(tablePos)
+    if (!table || table.type.spec.tableRole !== 'table') return false
+    const map = TableMap.get(table)
+    const cuts = boundaries(map, axis)
+    if (start >= end || !cuts.includes(start) || !cuts.includes(end) || !cuts.includes(to))
+      return false
+    if (to >= start && to <= end) return false
     if (dispatch) {
-      // the run swaps places with the neighbouring run
-      const [a, b, c] = direction < 0 ? [other, start, end] : [start, end, other]
-      const order = Array.from(
-        { length: axis === 'row' ? rect.map.height : rect.map.width },
-        (_, i) => i,
-      )
-      const moved = [
-        ...order.slice(0, a),
-        ...order.slice(b, c),
-        ...order.slice(a, b),
-        ...order.slice(c),
-      ]
-      const tablePos = rect.tableStart - 1
-      const read = tableRows.read(rect.table)
+      const order = Array.from({ length: axis === 'row' ? map.height : map.width }, (_, i) => i)
+      const moved =
+        to < start
+          ? [
+              ...order.slice(0, to),
+              ...order.slice(start, end),
+              ...order.slice(to, start),
+              ...order.slice(end),
+            ]
+          : [
+              ...order.slice(0, start),
+              ...order.slice(end, to),
+              ...order.slice(start, end),
+              ...order.slice(to),
+            ]
+      const read = tableRows.read(table)
       const columns = read.props.columns as unknown[]
       const rows =
         axis === 'row'
@@ -177,10 +202,10 @@ export function moveLines(axis: 'row' | 'column', direction: -1 | 1): Command {
           : read.rows.map((row) => ({ ...row, cells: moved.map((i) => row.cells[i]!) }))
       const props =
         axis === 'row' ? read.props : { ...read.props, columns: moved.map((i) => columns[i]) }
-      const table = tableRows.write(rect.table.type, props, rows)
-      const tr = state.tr.replaceWith(tablePos, tablePos + rect.table.nodeSize, table)
-      const shift = direction < 0 ? a - b : c - b
-      selectLines(tr, tablePos, axis, start + shift, end + shift)
+      const rebuilt = tableRows.write(table.type, props, rows)
+      const tr = state.tr.replaceWith(tablePos, tablePos + table.nodeSize, rebuilt)
+      const first = to < start ? to : to - (end - start)
+      selectLines(tr, tablePos, axis, first, first + end - start)
       dispatch(tr.scrollIntoView())
     }
     return true

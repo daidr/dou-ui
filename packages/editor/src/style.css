@@ -648,6 +648,14 @@
     border-radius: 1px;
     background-color: var(--dou-color-focus);
     pointer-events: none;
+
+    /* between table columns */
+    &.is-vertical {
+      width: 2px;
+      height: auto;
+      margin-top: 0;
+      margin-left: -1px;
+    }
   }
 
   /* mentions: in the text, and the suggestions */
@@ -852,6 +860,9 @@
     transition-duration: var(--dou-motion-duration-fast);
     transition-timing-function: var(--dou-motion-easing);
 
+    /* tap to open the menu, drag to move */
+    touch-action: none;
+
     &.is-column {
       width: 24px;
       height: 14px;
@@ -860,6 +871,29 @@
     &.is-row {
       width: 14px;
       height: 24px;
+    }
+
+    /* fingers need more room than the handle shows */
+    &::before {
+      content: '';
+      position: absolute;
+      inset: -4px;
+    }
+
+    @media (pointer: coarse) {
+      &.is-column {
+        width: 32px;
+        height: 18px;
+      }
+
+      &.is-row {
+        width: 18px;
+        height: 32px;
+      }
+
+      &::before {
+        inset: -10px;
+      }
     }
 
     & svg {
@@ -915,6 +949,36 @@
       background-color: var(--dou-editor-control-hover);
       color: var(--dou-color-text);
       opacity: 1;
+    }
+  }
+
+  @media (pointer: coarse) {
+    .dou-editor-table__add {
+      opacity: 1;
+
+      &.is-column {
+        width: 24px;
+      }
+
+      &.is-row {
+        height: 24px;
+      }
+    }
+
+    /* widths are set with a mouse only */
+    .dou-editor-table .column-resize-handle {
+      display: none;
+    }
+  }
+
+  /* the copy of dragged rows or columns */
+  .dou-editor-table__ghost {
+    padding: 0;
+    overflow: hidden;
+
+    & .dou-editor-table {
+      width: auto;
+      margin: 0;
     }
   }
 

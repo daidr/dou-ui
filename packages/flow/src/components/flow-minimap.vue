@@ -1,21 +1,16 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { useFlowEditor } from '../context'
+import { useFlowEditor, type FlowMinimapProps } from '../context'
 import { boundsOf } from '../core/geometry'
 import type { Point, Rect } from '../core/model'
 
 defineOptions({ name: 'DouFlowMinimap' })
 
-const props = withDefaults(
-  defineProps<{
-    /** Corner of the editor to sit in. */
-    placement?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
-    /** Size of the map in px. */
-    width?: number
-    height?: number
-  }>(),
-  { placement: 'bottom-right', width: 200, height: 136 },
-)
+const props = withDefaults(defineProps<FlowMinimapProps>(), {
+  placement: 'bottom-right',
+  width: 200,
+  height: 136,
+})
 
 const flow = useFlowEditor()
 const { messages } = flow

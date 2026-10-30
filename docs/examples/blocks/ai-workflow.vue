@@ -4,7 +4,6 @@ import {
   defineNodeType,
   DouFlowControls,
   DouFlowEditor,
-  DouFlowMinimap,
   flowKit,
   flowOrder,
   type FlowDocument,
@@ -25,8 +24,12 @@ const steps = defineFlowExtension({
       type,
       component: StepNode,
       ports: () => [
-        ...(kind.input ? [{ id: 'in', kind: 'input' as const }] : []),
-        ...kind.exits.map((exit) => ({ ...exit, kind: 'output' as const })),
+        ...(kind.input ? [{ id: 'in', kind: 'input' as const, side: 'top' as const }] : []),
+        ...kind.exits.map((exit) => ({
+          ...exit,
+          kind: 'output' as const,
+          side: 'bottom' as const,
+        })),
       ],
       defaults: kind.defaults,
       label: (node) => (node.data?.title as string) ?? kind.label,
@@ -55,15 +58,15 @@ const link = (from: string, to: string, port = 'out') => ({
 
 const doc = ref<FlowDocument>({
   nodes: [
-    step('start', 'start', 0, 64),
-    step('retrieve', 'retrieve', 240, 64),
-    step('llm', 'llm', 480, 64, {
+    step('start', 'start', 0, 0),
+    step('retrieve', 'retrieve', 0, 128),
+    step('llm', 'llm', 0, 256, {
       prompt:
         '根据下面的笔记回答问题，答不上来就直说。\n笔记：{{retrieve.passages}}\n问题：{{start.question}}',
     }),
-    step('branch', 'branch', 720, 64),
-    step('human', 'human', 960, 0),
-    step('reply', 'reply', 960, 144),
+    step('branch', 'branch', 0, 384),
+    step('human', 'human', -112, 544),
+    step('reply', 'reply', 112, 544),
   ],
   edges: [
     link('start', 'retrieve'),
@@ -117,13 +120,13 @@ function insert(field: string, token: string) {
   update({ [field]: value + token })
 }
 
-// Adding a step: placed right of the selected one, or in the middle of the view.
+// Adding a step: placed below the selected one, or in the middle of the view.
 function add(type: string) {
   const flow = editor.value!
   const anchor = selected.value && flow.getNodeRect(selected.value.id)
   const id = `${type}-${Date.now().toString(36)}`
   const at = anchor
-    ? { x: anchor.x + anchor.width + 48, y: anchor.y }
+    ? { x: anchor.x, y: anchor.y + anchor.height + 56 }
     : flow.toCanvas({ x: 240, y: 120 })
   flow.transact((tr) => {
     tr.addNode(step(id, type, Math.round(at.x / 8) * 8, Math.round(at.y / 8) * 8))
@@ -202,6 +205,7 @@ const inspectorOpen = computed({
         v-model="doc"
         v-model:selection="selection"
         :extensions="extensions"
+        direction="vertical"
         acyclic
         fit-view
         aria-label="客服问答流程"
@@ -210,7 +214,6 @@ const inspectorOpen = computed({
         @node-click="inspecting = true"
       >
         <DouFlowControls />
-        <DouFlowMinimap v-if="!narrow" />
       </DouFlowEditor>
       <aside v-if="!narrow" class="ai-workflow__inspector">
         <template v-if="selected && kind">
@@ -282,7 +285,7 @@ const inspectorOpen = computed({
 
 .ai-workflow__body {
   display: flex;
-  height: 520px;
+  height: 600px;
 }
 
 .ai-workflow__canvas {

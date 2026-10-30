@@ -197,8 +197,31 @@ describe('tidy', () => {
     expect(b!.y).toBe(a!.y)
     expect(b!.x).toBeGreaterThan(a!.x)
     expect(c).toMatchObject({ x: 40, y: 400 })
+    await nextTick()
+    expect(wrapper.find('[aria-live]').text()).toBe('已整理 1 个节点')
     ;(editor.vm as any).undo()
     expect(doc.value).toEqual(sample())
+    wrapper.unmount()
+  })
+
+  it('lays a vertical flow out top to bottom', async () => {
+    const doc = ref(sample())
+    const wrapper = mount(
+      defineComponent(
+        () => () =>
+          h(DouFlowEditor, {
+            modelValue: doc.value,
+            'onUpdate:modelValue': (value: FlowDocument) => (doc.value = value),
+            direction: 'vertical',
+          }),
+      ),
+      { attachTo: document.body },
+    )
+    ;(wrapper.findComponent(DouFlowEditor).vm as any).tidy()
+    await nextTick()
+    const [a, b] = doc.value.nodes
+    expect(b!.x).toBe(a!.x)
+    expect(b!.y).toBeGreaterThan(a!.y)
     wrapper.unmount()
   })
 

@@ -77,20 +77,15 @@ app.use(DouFlowEditor)
 
 `DouFlowControls` 放在编辑器的默认插槽里，提供撤销、重做、缩放、适应画布和整理。`placement` 决定它在哪个角，`:history="false"` 隐藏撤销和重做，`:tidy="false"` 隐藏整理。
 
-“整理”沿连线把节点排成一列一列：选中了两个以上的节点时只整理它们，否则整理全部。整理后节点群的左上角不动，锁定的节点不动，整个过程算作一步撤销；排好后超出视野时会缩放到能看到它们。也可以调用 `tidy()` 方法。
+“整理”沿连线按 `direction` 把节点一层一层排开：选中了两个以上的节点时只整理它们，否则整理全部。整理后节点群的左上角不动，锁定的节点不动，整个过程算作一步撤销，读屏会播报整理了几个节点；排好后超出视野时会缩放到能看到它们。也可以调用 `tidy()` 方法。
 
 ## 小地图
 
-`DouFlowMinimap` 也放在默认插槽里，画出全部节点和当前看到的范围。点击或拖动小地图可以移动画布。
+`DouFlowMinimap` 也放在默认插槽里，画出全部节点和当前看到的范围。点击或拖动小地图可以移动画布。流程比画布大很多时才需要它。
 
-```vue
-<DouFlowEditor v-model="doc">
-  <DouFlowControls />
-  <DouFlowMinimap />
-</DouFlowEditor>
-```
+<DocDemo src="flow/minimap" column />
 
-默认插槽里的内容浮在画布上方，不会触发画布的拖动和缩放。自己写的面板可以用 `useFlowEditor()` 拿到编辑器的状态和方法。
+适应画布和 `fit-view` 会给四角的面板留出位置，节点不会被控制栏或小地图挡住。
 
 ## 只读
 
@@ -100,25 +95,26 @@ app.use(DouFlowEditor)
 
 ### FlowEditor 属性
 
-| 名称                    | 说明                                                      | 类型                                     | 默认值                     |
-| ----------------------- | --------------------------------------------------------- | ---------------------------------------- | -------------------------- |
-| `v-model`               | 文档数据                                                  | `FlowDocument`                           | `{ nodes: [], edges: [] }` |
-| `v-model:selection`     | 选中的节点和连线                                          | `FlowSelection`                          | `{ nodes: [], edges: [] }` |
-| `v-model:viewport`      | 画布的位置和缩放                                          | `FlowViewport`                           | `{ x: 0, y: 0, zoom: 1 }`  |
-| `extensions`            | 扩展，见[扩展](./extensions)                              | `(FlowExtension \| FlowExtension[])[]`   | `[flowKit()]`              |
-| `node-types`            | 节点类型，见[自定义节点](./custom-nodes)                  | `NodeTypeSpec[]`                         | —                          |
-| `grid`                  | 吸附网格和方向键的步长，`0` 关闭网格吸附                  | `number`                                 | `8`                        |
-| `guides`                | 拖动时与其他节点对齐、端口吸附                            | `boolean`                                | `true`                     |
-| `min-zoom` / `max-zoom` | 缩放范围                                                  | `number`                                 | `0.1` / `4`                |
-| `fit-view`              | 节点测量完成后缩放到能看到全部节点                        | `boolean`                                | `false`                    |
-| `fit-min-zoom`          | `fit-view` 最多缩小到多少，`0` 表示总是显示全部           | `number`                                 | `0.5`                      |
-| `port-types`            | 端口类型的外观和连接规则，见[端口类型与连接规则](./ports) | `PortTypes`                              | —                          |
-| `acyclic`               | 不允许连出环                                              | `boolean`                                | `false`                    |
-| `can-connect`           | 连线前的最后一道检查，返回 `false` 或一段说明拒绝         | `(connection, doc) => boolean \| string` | —                          |
-| `readonly`              | 只读                                                      | `boolean`                                | `false`                    |
-| `pan-on-scroll`         | 滚轮平移画布；关闭后只有 `Ctrl` / `⌘` + 滚轮缩放          | `boolean`                                | `true`                     |
-| `aria-label`            | 画布的无障碍名称                                          | `string`                                 | —                          |
-| `messages`              | 覆盖编辑器的文案，只需写要改的部分                        | `FlowMessagesOverride`                   | —                          |
+| 名称                    | 说明                                                                   | 类型                                     | 默认值                     |
+| ----------------------- | ---------------------------------------------------------------------- | ---------------------------------------- | -------------------------- |
+| `v-model`               | 文档数据                                                               | `FlowDocument`                           | `{ nodes: [], edges: [] }` |
+| `v-model:selection`     | 选中的节点和连线                                                       | `FlowSelection`                          | `{ nodes: [], edges: [] }` |
+| `v-model:viewport`      | 画布的位置和缩放                                                       | `FlowViewport`                           | `{ x: 0, y: 0, zoom: 1 }`  |
+| `extensions`            | 扩展，见[扩展](./extensions)                                           | `(FlowExtension \| FlowExtension[])[]`   | `[flowKit()]`              |
+| `node-types`            | 节点类型，见[自定义节点](./custom-nodes)                               | `NodeTypeSpec[]`                         | —                          |
+| `grid`                  | 吸附网格和方向键的步长，`0` 关闭网格吸附                               | `number`                                 | `8`                        |
+| `guides`                | 拖动时与其他节点对齐、端口吸附                                         | `boolean`                                | `true`                     |
+| `min-zoom` / `max-zoom` | 缩放范围                                                               | `number`                                 | `0.1` / `4`                |
+| `direction`             | 流程的方向，“整理”按它排列：`horizontal` 从左到右，`vertical` 从上到下 | `'horizontal' \| 'vertical'`             | `'horizontal'`             |
+| `fit-view`              | 节点测量完成后缩放到能看到全部节点                                     | `boolean`                                | `false`                    |
+| `fit-min-zoom`          | `fit-view` 最多缩小到多少，`0` 表示总是显示全部                        | `number`                                 | `0.5`                      |
+| `port-types`            | 端口类型的外观和连接规则，见[端口类型与连接规则](./ports)              | `PortTypes`                              | —                          |
+| `acyclic`               | 不允许连出环                                                           | `boolean`                                | `false`                    |
+| `can-connect`           | 连线前的最后一道检查，返回 `false` 或一段说明拒绝                      | `(connection, doc) => boolean \| string` | —                          |
+| `readonly`              | 只读                                                                   | `boolean`                                | `false`                    |
+| `pan-on-scroll`         | 滚轮平移画布；关闭后只有 `Ctrl` / `⌘` + 滚轮缩放                       | `boolean`                                | `true`                     |
+| `aria-label`            | 画布的无障碍名称                                                       | `string`                                 | —                          |
+| `messages`              | 覆盖编辑器的文案，只需写要改的部分                                     | `FlowMessagesOverride`                   | —                          |
 
 ### FlowEditor 事件
 

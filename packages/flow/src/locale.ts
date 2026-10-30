@@ -22,6 +22,7 @@ export interface FlowMessages {
   controls: string
   /** Announcements; `{count}` is a number. */
   deleted: string
+  tidied: string
   undone: string
   redone: string
   connected: string
@@ -58,6 +59,7 @@ const zhCN: FlowMessages = {
   redo: '重做',
   controls: '画布控制',
   deleted: '已删除 {count} 项',
+  tidied: '已整理 {count} 个节点',
   undone: '已撤销',
   redone: '已重做',
   connected: '已连接',
@@ -91,6 +93,7 @@ const zhTW: FlowMessages = {
   redo: '重做',
   controls: '畫布控制',
   deleted: '已刪除 {count} 項',
+  tidied: '已整理 {count} 個節點',
   undone: '已復原',
   redone: '已重做',
   connected: '已連接',
@@ -125,6 +128,7 @@ const en: FlowMessages = {
   redo: 'Redo',
   controls: 'Canvas controls',
   deleted: '{count} deleted',
+  tidied: '{count} nodes tidied up',
   undone: 'Undone',
   redone: 'Redone',
   connected: 'Connected',

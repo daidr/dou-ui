@@ -25,14 +25,14 @@ const summary = computed(() =>
 
 <template>
   <div class="step-node">
+    <DouFlowPort v-if="kind.input" id="in" />
     <div class="step-node__head">
-      <DouFlowPort v-if="kind.input" id="in" />
       <span class="step-node__icon"><component :is="kind.icon" /></span>
       <span class="step-node__title">{{ data.title ?? kind.label }}</span>
       <span v-if="data.status" class="step-node__status" :class="`is-${data.status}`" />
-      <DouFlowPort v-if="kind.exits.length === 1" :id="kind.exits[0]!.id" />
     </div>
     <div class="step-node__summary">{{ summary }}</div>
+    <DouFlowPort v-if="kind.exits.length === 1" :id="kind.exits[0]!.id" />
     <div v-if="kind.exits.length > 1" class="step-node__exits">
       <div v-for="exit in kind.exits" :key="exit.id" class="step-node__exit">
         {{ exit.label }}
@@ -44,11 +44,11 @@ const summary = computed(() =>
 
 <style scoped>
 .step-node {
+  position: relative;
   width: 192px;
 }
 
 .step-node__head {
-  position: relative;
   display: flex;
   gap: 8px;
   align-items: center;
@@ -124,16 +124,20 @@ const summary = computed(() =>
 }
 
 .step-node__exits {
-  padding: 4px 0;
+  display: flex;
   border-top: 1px solid var(--dou-color-border-subtle);
 }
 
 .step-node__exit {
   position: relative;
-  padding: 0 12px;
+  flex: 1;
   color: var(--dou-color-text-secondary);
   font-size: var(--dou-font-size-sm);
-  line-height: 28px;
-  text-align: right;
+  line-height: 32px;
+  text-align: center;
+}
+
+.step-node__exit + .step-node__exit {
+  border-left: 1px solid var(--dou-color-border-subtle);
 }
 </style>

@@ -76,6 +76,7 @@ const props = withDefaults(defineProps<FlowEditorProps>(), {
   minZoom: 0.1,
   maxZoom: 4,
   fitView: false,
+  direction: 'horizontal',
   fitMinZoom: 0.5,
   readonly: false,
   panOnScroll: true,
@@ -440,43 +441,67 @@ function fit(ids?: string[], animate = true, floor = 0) {
   if (bounds) fitRect(bounds, animate, floor)
 }
 
+/**
+ * Room to leave above and below the nodes: the padding, or more where a
+ * panel (controls, minimap…) sits in a top or bottom corner, so fitted
+ * nodes don't end up under it.
+ */
+function fitInsets() {
+  const box = root.value!.getBoundingClientRect()
+  let top = FIT_PADDING
+  let bottom = FIT_PADDING
+  for (const panel of root.value!.querySelectorAll('.dou-flow-editor__panels > *')) {
+    const rect = panel.getBoundingClientRect()
+    if (!rect.height) continue
+    if (rect.top + rect.height / 2 < box.top + box.height / 2)
+      top = Math.max(top, rect.bottom - box.top + PANEL_GAP)
+    else bottom = Math.max(bottom, box.bottom - rect.top + PANEL_GAP)
+  }
+  return { top, bottom }
+}
+
+/** Room between a panel and the nodes fitted next to it. */
+const PANEL_GAP = 16
+
 function fitRect(bounds: Rect, animate: boolean, floor: number) {
   if (!root.value) return
   const width = root.value.clientWidth
   const height = root.value.clientHeight
+  const insets = fitInsets()
   const zoom = clampZoom(
     Math.max(
       Math.min(
         (width - FIT_PADDING * 2) / Math.max(1, bounds.width),
-        (height - FIT_PADDING * 2) / Math.max(1, bounds.height),
+        (height - insets.top - insets.bottom) / Math.max(1, bounds.height),
         1,
       ),
       Math.min(floor, 1),
     ),
   )
-  const offset = (room: number, size: number, start: number) =>
+  // Centres the nodes in the room between `before` and `after`, or starts them at `before` when they don't fit.
+  const offset = (room: number, size: number, start: number, before: number, after: number) =>
     Math.round(
-      size * zoom > room - FIT_PADDING * 2
-        ? FIT_PADDING - start * zoom
-        : (room - size * zoom) / 2 - start * zoom,
+      size * zoom > room - before - after
+        ? before - start * zoom
+        : before + (room - before - after - size * zoom) / 2 - start * zoom,
     )
   setViewport(
     {
-      x: offset(width, bounds.width, bounds.x),
-      y: offset(height, bounds.height, bounds.y),
+      x: offset(width, bounds.width, bounds.x, FIT_PADDING, FIT_PADDING),
+      y: offset(height, bounds.height, bounds.y, insets.top, insets.bottom),
       zoom,
     },
     animate,
   )
 }
 
-/** Room between columns and rows when tidying. */
-const TIDY_GAP = { column: 80, row: 40 }
+/** Room between ranks (along the flow) and between nodes in a rank when tidying. */
+const TIDY_GAP = { horizontal: { rank: 80, row: 40 }, vertical: { rank: 56, row: 40 } }
 
 /**
  * Lays the given nodes, or the selected ones when two or more are selected,
- * or all, out in columns along their edges, as one undo step. The group
- * keeps its top left corner; locked nodes stay put.
+ * or all, out in ranks along their edges in the flow's `direction`, as one
+ * undo step. The group keeps its top left corner; locked nodes stay put.
  */
 function tidy(ids?: string[]) {
   const chosen = new Set(
@@ -486,23 +511,29 @@ function tidy(ids?: string[]) {
   const nodes = doc.value.nodes.filter((node) => chosen.has(node.id))
   const bounds = boundsOf(nodes.map(rectOf))
   if (!bounds || nodes.length < 2) return
+  // A vertical flow is laid out as a horizontal one with x and y swapped.
+  const vertical = props.direction === 'vertical'
+  const gap = TIDY_GAP[vertical ? 'vertical' : 'horizontal']
+  const across = vertical ? (['top', 'bottom'] as const) : (['left', 'right'] as const)
   const layout = layoutGraph(
     nodes.map((node) => {
       const m = metrics.get(node.id)
       const rect = rectOf(node)
-      // Rows line up on the first side port, so edges between levelled ports run straight.
-      let row = rect.height / 2
+      const width = vertical ? rect.height : rect.width
+      const height = vertical ? rect.width : rect.height
+      // Ranks line up on the first port facing along the flow, so edges between levelled ports run straight.
+      let offset = height / 2
       for (const port of m?.ports.values() ?? [])
-        if (port.side === 'left' || port.side === 'right') {
-          row = port.y
+        if ((across as readonly string[]).includes(port.side)) {
+          offset = vertical ? port.x : port.y
           break
         }
-      return { id: node.id, width: rect.width, height: rect.height, anchor: row }
+      return { id: node.id, width, height, anchor: offset }
     }),
     doc.value.edges
       .filter((e) => chosen.has(e.source.node) && chosen.has(e.target.node))
       .map((e) => ({ from: e.source.node, to: e.target.node })),
-    { columnGap: TIDY_GAP.column, rowGap: TIDY_GAP.row, equalWidth: false, grid: props.grid || 8 },
+    { columnGap: gap.rank, rowGap: gap.row, equalWidth: false, grid: props.grid || 8 },
   )
   const snap = (v: number) => (props.grid ? Math.round(v / props.grid) * props.grid : Math.round(v))
   const origin = { x: snap(bounds.x), y: snap(bounds.y) }
@@ -511,13 +542,16 @@ function tidy(ids?: string[]) {
   for (const node of nodes) {
     const placed = layout.nodes.get(node.id)
     if (!placed || node.locked) continue
-    const to = { x: origin.x + snap(placed.x), y: origin.y + snap(placed.y) }
+    const x = vertical ? placed.y : placed.x
+    const y = vertical ? placed.x : placed.y
+    const to = { x: origin.x + snap(x), y: origin.y + snap(y) }
     if (to.x !== node.x || to.y !== node.y) moved.set(node.id, to)
   }
   if (!moved.size) return
   transact((tr) => {
     for (const [id, to] of moved) tr.moveNode(id, to.x, to.y)
   })
+  announce(format(messages.value.tidied, { count: moved.size }))
   animateTidy(from, moved)
   // A tidier layout can be wider or taller; bring it back into view if so.
   const after = boundsOf(

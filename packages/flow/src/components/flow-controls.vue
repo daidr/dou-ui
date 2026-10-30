@@ -8,22 +8,16 @@ import {
   ZoomOutIcon,
 } from '@dou-ui/icons'
 import { computed } from 'vue'
-import { useFlowEditor } from '../context'
+import { useFlowEditor, type FlowControlsProps } from '../context'
 import { format } from '../locale'
 
 defineOptions({ name: 'DouFlowControls' })
 
-const props = withDefaults(
-  defineProps<{
-    /** Corner of the editor to sit in. */
-    placement?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
-    /** Show undo and redo. */
-    history?: boolean
-    /** Show the tidy button, which lays the nodes out along their edges. */
-    tidy?: boolean
-  }>(),
-  { placement: 'bottom-left', history: true, tidy: true },
-)
+const props = withDefaults(defineProps<FlowControlsProps>(), {
+  placement: 'bottom-left',
+  history: true,
+  tidy: true,
+})
 
 const flow = useFlowEditor()
 const { messages } = flow

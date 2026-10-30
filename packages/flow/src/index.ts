@@ -12,10 +12,13 @@ export default DouFlowEditor
 
 export { useFlowEditor } from './context'
 export type {
+  FlowControlsProps,
   FlowEditorContext,
   FlowEditorEmits,
   FlowEditorExpose,
   FlowEditorProps,
+  FlowMinimapProps,
+  FlowPanelPlacement,
   NodeMetrics,
   PortAnchor,
   PortState,

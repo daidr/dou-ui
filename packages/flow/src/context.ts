@@ -16,6 +16,25 @@ import type { FlowExtension } from './core/extension'
 import type { NodeTypeSpec } from './core/node-types'
 import type { Transaction, TransactionMeta } from './core/transaction'
 
+export type FlowPanelPlacement = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+
+export interface FlowControlsProps {
+  /** Corner of the editor to sit in. */
+  placement?: FlowPanelPlacement
+  /** Show undo and redo. */
+  history?: boolean
+  /** Show the tidy button, which lays the nodes out along their edges. */
+  tidy?: boolean
+}
+
+export interface FlowMinimapProps {
+  /** Corner of the editor to sit in. */
+  placement?: FlowPanelPlacement
+  /** Size of the map in px. */
+  width?: number
+  height?: number
+}
+
 export interface FlowEditorProps {
   /**
    * What the editor is made of: node types, port types, rules, keys and
@@ -30,6 +49,11 @@ export interface FlowEditorProps {
   guides?: boolean
   minZoom?: number
   maxZoom?: number
+  /**
+   * Which way the flow runs: `horizontal` left to right, `vertical` top to
+   * bottom. Tidying lays nodes out this way.
+   */
+  direction?: 'horizontal' | 'vertical'
   /** Fit all nodes into view once they are measured. */
   fitView?: boolean
   /**

@@ -35,6 +35,7 @@ export default defineConfig({
       { text: '区块', link: '/blocks/login' },
       { text: '编辑器', link: '/editor/' },
       { text: '流程编辑器', link: '/flow/' },
+      { text: '甘特图', link: '/gantt/' },
       { text: '图标', link: '/icons/' },
       { text: '集成', link: '/integrations/vite' },
     ],
@@ -82,6 +83,15 @@ export default defineConfig({
             { text: '自定义节点', link: '/flow/custom-nodes' },
             { text: '端口类型与连接规则', link: '/flow/ports' },
             { text: '扩展', link: '/flow/extensions' },
+          ],
+        },
+      ],
+      '/gantt': [
+        {
+          text: '甘特图',
+          items: [
+            { text: '概览', link: '/gantt/' },
+            { text: '数据格式', link: '/gantt/data' },
           ],
         },
       ],
@@ -324,6 +334,11 @@ export default defineConfig({
         {
           find: /^@dou-ui\/flow\/style\.css$/,
           replacement: r('../../packages/flow/src/style.css'),
+        },
+        { find: /^@dou-ui\/gantt$/, replacement: r('../../packages/gantt/src/index.ts') },
+        {
+          find: /^@dou-ui\/gantt\/style\.css$/,
+          replacement: r('../../packages/gantt/src/style.css'),
         },
       ],
     },

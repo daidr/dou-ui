@@ -23,6 +23,7 @@
       "dependencies": {
         "@dou-ui/editor": "workspace:*",
         "@dou-ui/flow": "workspace:*",
+        "@dou-ui/gantt": "workspace:*",
         "@dou-ui/icons": "workspace:*",
         "@dou-ui/theme": "workspace:*",
         "dou-ui": "workspace:*",
@@ -81,6 +82,17 @@
     },
     "packages/flow": {
       "name": "@dou-ui/flow",
+      "version": "0.0.0",
+      "dependencies": {
+        "@dou-ui/icons": "workspace:*",
+      },
+      "peerDependencies": {
+        "dou-ui": "workspace:*",
+        "vue": "^3.5.0",
+      },
+    },
+    "packages/gantt": {
+      "name": "@dou-ui/gantt",
       "version": "0.0.0",
       "dependencies": {
         "@dou-ui/icons": "workspace:*",
@@ -241,6 +253,8 @@
     "@dou-ui/editor": ["@dou-ui/editor@workspace:packages/editor"],
 
     "@dou-ui/flow": ["@dou-ui/flow@workspace:packages/flow"],
+
+    "@dou-ui/gantt": ["@dou-ui/gantt@workspace:packages/gantt"],
 
     "@dou-ui/icons": ["@dou-ui/icons@workspace:packages/icons"],
 

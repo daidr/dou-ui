@@ -1,0 +1,52 @@
+# 甘特图
+
+`@dou-ui/gantt` 提供甘特图 `DouGantt`：左边是任务表格，右边是时间轴上的任务条，任务之间可以有依赖。适合做项目排期、迭代计划这类"任务 + 起止时间 + 前后关系"的展示和编辑。
+
+## 安装
+
+甘特图是单独的包，需要和 `dou-ui` 一起使用：
+
+```sh
+bun add dou-ui @dou-ui/gantt
+```
+
+引入样式，再注册组件：
+
+```ts
+import 'dou-ui/style.css'
+import '@dou-ui/gantt/style.css'
+import { DouGantt } from '@dou-ui/gantt'
+
+app.use(DouGantt)
+```
+
+## 基础用法
+
+`v-model:tasks` 绑定任务列表，`v-model:links` 绑定任务之间的依赖，格式见[数据格式](./data)。有子任务的任务是汇总任务，它的起止时间和进度由子任务算出；`type: 'milestone'` 的任务是里程碑，画成一个菱形。
+
+<DocDemo src="gantt/basic" column />
+
+## 时间刻度
+
+`v-model:scale` 切换时间刻度：`hour`、`day`、`week`、`month`、`quarter`、`year`。按住 `Ctrl` / `⌘` 滚动滚轮或在触控板上捏合可以连续缩放，缩放以指针所在的时间为中心，日宽跨过某一级的范围时自动换成那一级的表头，`scale` 也随之更新。
+
+<DocDemo src="gantt/scales" column />
+
+时间轴默认覆盖全部任务，两边各留出一屏的空白；滚动到任一端时会继续向外延伸，不需要设置范围。需要固定范围时传 `range`，如 `['2026-01-01', '2026-12-31']`。
+
+## 工作日历
+
+`calendar` 设置哪些天、哪些时段上班。周末和节假日在时间轴上画成浅色底纹，工期按工作日计算；时间精确到分钟的任务，工期按工作时段计算，显示为小时数。
+
+<DocDemo src="gantt/calendar" column />
+
+| 字段       | 说明                                            |
+| ---------- | ----------------------------------------------- |
+| `weekends` | 每周休息的日子，`0` 是周日，默认 `[0, 6]`       |
+| `holidays` | 额外的休息日，`YYYY-MM-DD`                      |
+| `workdays` | 调休上班的日子，优先于 `weekends`               |
+| `hours`    | 每个工作日的上班时段，默认 `['09:00', '18:00']` |
+
+## 窄屏
+
+宽度小于 520px 时表格自动收起，只显示时间轴，任务名显示在任务条旁边。也可以用 `:table="false"` 主动隐藏表格。

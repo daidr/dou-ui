@@ -267,7 +267,9 @@ describe('collaboration', () => {
     typeAt(b.view, 'a', 2, '-')
     line.online()
     expectSame(a.view, b.view)
-    expect(blocksOf(a.view)[0]!.content).toEqual([{ type: 'text', text: 'He-llo', marks: ['bold'] }])
+    expect(blocksOf(a.view)[0]!.content).toEqual([
+      { type: 'text', text: 'He-llo', marks: ['bold'] },
+    ])
   })
 
   it('syncs props, type changes and lifting', () => {

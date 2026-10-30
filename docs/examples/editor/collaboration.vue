@@ -2,7 +2,7 @@
 import { DouEditor, starterKit } from '@dou-ui/editor'
 import { collaboration, fillMap } from '@dou-ui/editor/collaboration'
 import { DouSwitch } from 'dou-ui'
-import { onBeforeUnmount, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
 import { applyAwarenessUpdate, Awareness, encodeAwarenessUpdate } from 'y-protocols/awareness'
 import * as Y from 'yjs'
 
@@ -26,54 +26,62 @@ function createClient(name: string) {
   return { name, doc, awareness }
 }
 
-const clients = [createClient('戴兜'), createClient('阿青')]
-const [first, second] = clients as [
-  ReturnType<typeof createClient>,
-  ReturnType<typeof createClient>,
-]
+// Yjs 的 Awareness 会启动定时器，所以只在浏览器里创建
+function createDemo() {
+  const clients = [createClient('戴兜'), createClient('阿青')]
+  const [first, second] = clients as [
+    ReturnType<typeof createClient>,
+    ReturnType<typeof createClient>,
+  ]
 
-// 文档第一次创建时写入初始内容，通常在服务器上完成
-fillMap(first.doc.getMap('document'), [
-  { type: 'heading', props: { level: 2 }, content: '上海周末出行计划' },
-  { type: 'paragraph', content: '两个人一起改，各自的光标会显示在对方的编辑器里。' },
-  { type: 'checkItem', content: '订好周五晚上的车票' },
-  { type: 'checkItem', content: '提前预约博物馆' },
-  { type: 'checkItem', content: '带上充电宝和雨伞' },
-])
-Y.applyUpdate(second.doc, Y.encodeStateAsUpdate(first.doc))
+  // 文档第一次创建时写入初始内容，通常在服务器上完成
+  fillMap(first.doc.getMap('document'), [
+    { type: 'heading', props: { level: 2 }, content: '上海周末出行计划' },
+    { type: 'paragraph', content: '两个人一起改，各自的光标会显示在对方的编辑器里。' },
+    { type: 'checkItem', content: '订好周五晚上的车票' },
+    { type: 'checkItem', content: '提前预约博物馆' },
+    { type: 'checkItem', content: '带上充电宝和雨伞' },
+  ])
+  Y.applyUpdate(second.doc, Y.encodeStateAsUpdate(first.doc))
 
-for (const from of clients) {
-  for (const to of clients) {
-    if (from === to) continue
-    from.doc.on('update', (update: Uint8Array, origin: unknown) => {
-      if (origin !== 'remote') send(() => Y.applyUpdate(to.doc, update, 'remote'))
-    })
-    from.awareness.on(
-      'update',
-      ({ added, updated, removed }: Record<string, number[]>, origin: unknown) => {
-        if (origin === 'remote') return
-        const changed = [...added!, ...updated!, ...removed!]
-        const update = encodeAwarenessUpdate(from.awareness, changed)
-        send(() => applyAwarenessUpdate(to.awareness, update, 'remote'))
-      },
-    )
+  for (const from of clients) {
+    for (const to of clients) {
+      if (from === to) continue
+      from.doc.on('update', (update: Uint8Array, origin: unknown) => {
+        if (origin !== 'remote') send(() => Y.applyUpdate(to.doc, update, 'remote'))
+      })
+      from.awareness.on(
+        'update',
+        ({ added, updated, removed }: Record<string, number[]>, origin: unknown) => {
+          if (origin === 'remote') return
+          const changed = [...added!, ...updated!, ...removed!]
+          const update = encodeAwarenessUpdate(from.awareness, changed)
+          send(() => applyAwarenessUpdate(to.awareness, update, 'remote'))
+        },
+      )
+    }
   }
+
+  const editors = clients.map((client) => ({
+    name: client.name,
+    extensions: [
+      starterKit(),
+      collaboration({
+        map: client.doc.getMap('document'),
+        awareness: client.awareness,
+        user: { name: client.name },
+      }),
+    ],
+  }))
+  return { clients, editors }
 }
 
-const editors = clients.map((client) => ({
-  name: client.name,
-  extensions: [
-    starterKit(),
-    collaboration({
-      map: client.doc.getMap('document'),
-      awareness: client.awareness,
-      user: { name: client.name },
-    }),
-  ],
-}))
+const demo = shallowRef<ReturnType<typeof createDemo> | null>(null)
+
+onMounted(() => (demo.value = createDemo()))
 
 onBeforeUnmount(() => {
-  for (const client of clients) {
+  for (const client of demo.value?.clients ?? []) {
     client.awareness.destroy()
     client.doc.destroy()
   }
@@ -87,7 +95,7 @@ onBeforeUnmount(() => {
       {{ online ? '已连接' : '已断开，修改会在重新连接后合并' }}
     </label>
     <div class="collab-demo__editors">
-      <section v-for="editor in editors" :key="editor.name" class="collab-demo__pane">
+      <section v-for="editor in demo?.editors" :key="editor.name" class="collab-demo__pane">
         <div class="collab-demo__name">{{ editor.name }}</div>
         <DouEditor :extensions="editor.extensions" :label="`${editor.name}的编辑器`" />
       </section>
@@ -113,6 +121,8 @@ onBeforeUnmount(() => {
 .collab-demo__editors {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  /* the editors are created after mounting */
+  min-height: 280px;
   gap: 16px;
 }
 

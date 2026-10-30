@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef } from 'vue'
 import { useReducedMotion } from '../../composables/use-motion'
+import { useResizeObserver } from '../../composables/use-element-size'
 import { useNamespace } from '../../utils/namespace'
 import type { MarqueeProps, MarqueeSlots } from './marquee'
 
@@ -37,15 +38,8 @@ function measure() {
   box.value = vertical.value ? root.clientHeight : root.clientWidth
 }
 
-let observer: ResizeObserver | undefined
-onMounted(() => {
-  measure()
-  if (typeof ResizeObserver === 'undefined') return
-  observer = new ResizeObserver(measure)
-  if (rootRef.value) observer.observe(rootRef.value)
-  if (contentRef.value) observer.observe(contentRef.value)
-})
-onBeforeUnmount(() => observer?.disconnect())
+onMounted(measure)
+useResizeObserver(() => [rootRef.value, contentRef.value], measure)
 
 // One loop moves the track by a copy and a gap; enough copies follow to
 // keep the box full the whole way.

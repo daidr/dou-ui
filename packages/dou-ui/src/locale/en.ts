@@ -45,6 +45,10 @@ export const en: Locale = {
   drawer: {
     close: 'Close',
     resize: 'Drag to resize',
+    snap: 'Change height',
+  },
+  editable: {
+    hint: 'Press Enter to edit',
   },
   select: {
     placeholder: 'Select',

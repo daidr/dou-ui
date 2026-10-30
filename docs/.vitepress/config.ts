@@ -49,6 +49,8 @@ export default defineConfig({
             { text: '仪表盘', link: '/blocks/dashboard' },
             { text: 'AI 对话页', link: '/blocks/chat' },
             { text: '错误页', link: '/blocks/errors' },
+            { text: '看板', link: '/blocks/kanban' },
+            { text: '文件管理', link: '/blocks/files' },
           ],
         },
       ],
@@ -156,6 +158,7 @@ export default defineConfig({
           items: [
             { text: 'Input 输入框', link: '/components/input' },
             { text: 'Textarea 多行输入', link: '/components/textarea' },
+            { text: 'Editable 行内编辑', link: '/components/editable' },
             { text: 'InputNumber 数字输入', link: '/components/input-number' },
             { text: 'InputTag 标签输入', link: '/components/input-tag' },
             { text: 'InputOTP 验证码输入', link: '/components/input-otp' },

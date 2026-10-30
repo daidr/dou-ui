@@ -1,5 +1,4 @@
 import {
-  CodeIcon,
   Heading1Icon,
   Heading2Icon,
   Heading3Icon,
@@ -96,49 +95,6 @@ export const quote = defineExtension({
       icon: QuoteIcon,
       keywords: ['quote', 'blockquote', 'yy', 'yinyong'],
       shortcut: '>',
-    },
-  ],
-})
-
-/** Code in a monospace font, without formatting. ` ``` ` at the start of a block. */
-export const codeBlock = defineExtension({
-  name: 'codeBlock',
-  blocks: {
-    codeBlock: {
-      content: 'text*',
-      marks: '',
-      code: true,
-      defining: true,
-      attrs: { language: { default: '' } },
-      parseDOM: [
-        {
-          tag: 'pre',
-          preserveWhitespace: 'full',
-          getAttrs: (dom) => ({ language: (dom as HTMLElement).dataset.language ?? '' }),
-        },
-      ],
-      toDOM: (node) => [
-        'pre',
-        {
-          class: 'dou-editor__content dou-editor__content--codeBlock',
-          'data-content-type': 'codeBlock',
-          'data-language': node.attrs.language,
-          spellcheck: 'false',
-        },
-        ['code', 0],
-      ],
-    },
-  },
-  inputRules: () => [blockInputRule(/^```$/, 'codeBlock')],
-  blockOptions: [
-    {
-      key: 'codeBlock',
-      type: 'codeBlock',
-      label: (m) => m.types.codeBlock,
-      hint: (m) => m.hints.codeBlock,
-      icon: CodeIcon,
-      keywords: ['code', 'pre', 'dm', 'daima'],
-      shortcut: '```',
     },
   ],
 })

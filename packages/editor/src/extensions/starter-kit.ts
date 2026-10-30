@@ -1,5 +1,6 @@
 import type { EditorExtension } from '../core/extension'
-import { codeBlock, divider, heading, paragraph, quote } from './blocks'
+import { divider, heading, paragraph, quote } from './blocks'
+import { codeBlock, type CodeBlockOptions } from './code-block'
 import { formatting, link } from './formatting'
 import { lists } from './lists'
 
@@ -7,7 +8,8 @@ export interface StarterKitOptions {
   heading?: boolean
   lists?: boolean
   quote?: boolean
-  codeBlock?: boolean
+  /** Options for the code block, e.g. its highlighter, or `false` to leave it out. */
+  codeBlock?: boolean | CodeBlockOptions
   divider?: boolean
   formatting?: boolean
   link?: boolean
@@ -18,7 +20,16 @@ export interface StarterKitOptions {
  * it out, e.g. `starterKit({ codeBlock: false })`.
  */
 export function starterKit(options: StarterKitOptions = {}): EditorExtension[] {
-  const parts = { heading, lists, quote, codeBlock, divider, formatting, link }
+  const code = options.codeBlock
+  const parts = {
+    heading,
+    lists,
+    quote,
+    codeBlock: codeBlock(typeof code === 'object' ? code : {}),
+    divider,
+    formatting,
+    link,
+  }
   return [
     paragraph,
     ...Object.entries(parts)

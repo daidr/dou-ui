@@ -33,6 +33,8 @@ export {
 } from './extensions/starter-kit'
 export type { StarterKitOptions } from './extensions/starter-kit'
 export { defineBlock, EditorContent, vueNodeView } from './define-block'
+export { defaultLanguages } from './extensions/code-block'
+export type { CodeBlockOptions, CodeHighlighter, CodeLanguage } from './extensions/code-block'
 export { image, isSafeImageSrc, readAsDataUrl } from './extensions/image'
 export type { ImageOptions, ImageUploader } from './extensions/image'
 export type { BlockViewProps, DefineBlockOptions } from './define-block'

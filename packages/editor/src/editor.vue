@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useNamespace } from 'dou-ui'
+import { useGlobalConfig, useNamespace } from 'dou-ui'
 import { keymap } from 'prosemirror-keymap'
 import { Plugin, type EditorState } from 'prosemirror-state'
 import type { EditorView } from 'prosemirror-view'
@@ -18,6 +18,7 @@ import {
 import BlockHandle from './components/block-handle.vue'
 import BubbleToolbar from './components/bubble-toolbar.vue'
 import SlashMenu from './components/slash-menu.vue'
+import { setFallbackHighlighter, type CodeHighlighter } from './core/highlight'
 import { createEditorView, getBlocks, replaceBlocks, runCommand, setEditable } from './core/editor'
 import type { Block, PartialBlock } from './core/model'
 import { resolveExtensions } from './core/extension'
@@ -49,6 +50,7 @@ const kit = resolveExtensions(props.extensions ?? [starterKit()])
 
 const ns = useNamespace('editor')
 const messages = useEditorMessages(() => props.messages)
+const config = useGlobalConfig()
 const root = useTemplateRef<HTMLElement>('root')
 const mount = useTemplateRef<HTMLElement>('mount')
 const view = shallowRef<EditorView | null>(null)
@@ -134,6 +136,14 @@ onMounted(() => {
   })
   view.value = instance
   state.value = instance.state
+  // code blocks without their own highlighter use the one DouCodeBlock uses
+  watch(
+    () =>
+      (config.value.defaults as { DouCodeBlock?: { highlight?: CodeHighlighter } }).DouCodeBlock
+        ?.highlight ?? null,
+    (highlight) => setFallbackHighlighter(instance, highlight),
+    { immediate: true },
+  )
   instance.dom.addEventListener('focus', onFocus)
   instance.dom.addEventListener('blur', onBlur)
   if (props.autofocus) instance.focus()

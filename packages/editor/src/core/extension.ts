@@ -6,7 +6,7 @@ import { parseHotkey } from 'dou-ui'
 import type { Component } from 'vue'
 import type { EditorMessages } from '../locale'
 import type { BlockProps } from './model'
-import type { ExtensionOutput } from './output'
+import type { EditorExtensionOutput } from './output'
 import { createSchema } from './schema'
 
 /** Text shown in a menu: fixed, or read from the editor's messages so it follows the locale. */
@@ -98,14 +98,14 @@ export interface EditorExtension {
   formats?: FormatOption[]
   /**
    * Components rendered next to the editing area while it is editable,
-   * e.g. a popup of suggestions. They can call `useEditorContext()`.
+   * e.g. a popup of suggestions. They can call `useEditor()`.
    */
   overlays?: Component[]
   /**
    * How the extension's blocks, inline nodes and marks are written as HTML
    * and Markdown (`blocksToHTML`, `blocksToMarkdown`).
    */
-  output?: ExtensionOutput
+  output?: EditorExtensionOutput
   /**
    * Rewrite HTML before it is read as blocks (when pasting, and in
    * `htmlToBlocks` and `markdownToBlocks`), e.g. turn a `<details>`

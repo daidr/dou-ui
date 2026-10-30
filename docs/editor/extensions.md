@@ -72,7 +72,7 @@ const extensions = [editorKit({ codeBlock: false, divider: false })]
 | `selected`    | 块被整体选中（点击没有文字的块时）     | `boolean`                                     |
 | `editable`    | 编辑器是否可编辑，只读时为 `false`     | `boolean`                                     |
 
-在块组件里调用 `useEditorContext()` 可以拿到编辑器的 `view`（ProseMirror 的 `EditorView`）和当前语言包的文案 `messages`。
+在块组件里调用 `useEditor()` 可以拿到编辑器的 `view`（ProseMirror 的 `EditorView`）和当前语言包的文案 `messages`。
 
 ## 编写扩展
 
@@ -130,7 +130,7 @@ export const highlight = defineEditorExtension({
 | `blockOptions`     | 块菜单和“转换为”菜单中的选项                                                                                 | `BlockOption[]`                        |
 | `formats`          | 格式工具栏中的按钮                                                                                           | `FormatOption[]`                       |
 | `overlays`         | 可编辑时渲染在编辑区域旁的组件，例如提及的候选列表                                                           | `Component[]`                          |
-| `output`           | 块、行内节点和文字格式写成 HTML 与 Markdown 的方式，见[导入与导出](./import-export)                          | `ExtensionOutput`                      |
+| `output`           | 块、行内节点和文字格式写成 HTML 与 Markdown 的方式，见[导入与导出](./import-export)                          | `EditorExtensionOutput`                |
 | `prepareHTML`      | 读入 HTML 前整理它（粘贴和导入时），见[导入与导出](./import-export)                                          | `(root: HTMLElement) => void`          |
 
 `context` 里有根据全部扩展生成的 `schema`。

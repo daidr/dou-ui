@@ -48,7 +48,7 @@ export interface MarkOutput {
 }
 
 /** What an extension contributes to `blocksToHTML` and `blocksToMarkdown`. */
-export interface ExtensionOutput {
+export interface EditorExtensionOutput {
   blocks?: Record<string, BlockOutput>
   inlines?: Record<string, InlineOutput>
   marks?: Record<string, MarkOutput>

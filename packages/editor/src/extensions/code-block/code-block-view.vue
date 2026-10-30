@@ -5,7 +5,7 @@ import { computed } from 'vue'
 import { findBlockById } from '../../core/blocks'
 import type { BlockProps } from '../../core/model'
 import { EditorContent } from '../../define-block'
-import { useEditorContext } from '../../editor'
+import { useEditor } from '../../editor'
 import type { CodeLanguage } from './languages'
 
 const props = defineProps<{
@@ -16,7 +16,7 @@ const props = defineProps<{
   languages: CodeLanguage[]
 }>()
 
-const { messages, view } = useEditorContext()
+const { messages, view } = useEditor()
 
 const language = computed(() => String(props.block.props.language ?? ''))
 // a language from elsewhere (pasted, or set in code) still shows by its name

@@ -83,9 +83,8 @@ export interface EditorContext {
 export const editorKey: InjectionKey<EditorContext> = Symbol('DouEditor')
 
 /** The editor around a block component, for its messages, state and view. */
-export function useEditorContext(): EditorContext {
+export function useEditor(): EditorContext {
   const context = inject(editorKey, null)
-  if (!context)
-    throw new Error('[@dou-ui/editor] useEditorContext() is only available inside the editor')
+  if (!context) throw new Error('[@dou-ui/editor] useEditor() is only available inside the editor')
   return context
 }

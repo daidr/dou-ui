@@ -5,7 +5,7 @@ import type { EditorContent } from './define-block'
 export const DouEditor = withInstall(Editor)
 export default DouEditor
 
-export { useEditorContext } from './editor'
+export { useEditor } from './editor'
 export type { EditorContext, EditorEmits, EditorExpose, EditorProps } from './editor'
 export { editorLocales, useEditorMessages } from './locale'
 export type { EditorMessages, EditorMessagesOverride } from './locale'
@@ -88,12 +88,12 @@ export {
 export { clearBlockSelection, getBlockSelection, selectBlocks } from './core/block-selection'
 export { isRemote } from './core/plugins'
 export { blocksToHTML, htmlToBlocks } from './core/convert'
-export type { ExtensionList } from './core/convert'
+export type { EditorExtensionList } from './core/convert'
 export { escapeHTML, escapeMarkdown, indentLines } from './core/output'
 export type {
   BlockOutput,
   BlockOutputContext,
-  ExtensionOutput,
+  EditorExtensionOutput,
   InlineOutput,
   MarkdownBlockContext,
   MarkOutput,

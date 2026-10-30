@@ -136,6 +136,6 @@ const { isIntersecting, ratio, entry } = useIntersection(el, {
 })
 ```
 
-元素进入视口时 `isIntersecting` 为 `true`，`ratio` 是可见部分的比例。`root` 换成某个滚动容器，`rootMargin` 扩大或缩小判定范围（写法同 CSS 的 `margin`），`threshold` 设置在哪些可见比例时更新。`once` 在第一次可见后停止监听，适合只需要触发一次的场景，例如进入视口后再加载图片或数据。
+元素进入视口时 `isIntersecting` 为 `true`，`ratio` 是可见部分的比例。`root` 换成某个滚动容器，`rootMargin` 扩大或缩小判定范围（写法同 CSS 的 `margin`），`threshold` 设置在哪些可见比例时更新。`root`、`rootMargin`、`threshold` 都可以传 ref 或 getter，变化后会重新监听。`once` 在第一次可见后停止监听，适合只需要触发一次的场景，例如进入视口后再加载图片或数据。
 
 <DocDemo src="composables/intersection" />

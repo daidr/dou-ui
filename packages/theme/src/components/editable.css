@@ -52,6 +52,14 @@
       color: var(--dou-color-text-tertiary);
     }
 
+    /* Without text or placeholder there is still something to click. */
+    &.is-blank {
+      display: inline-block;
+      min-width: 4em;
+      min-height: 1lh;
+      vertical-align: top;
+    }
+
     .is-disabled > & {
       cursor: default;
 
@@ -86,7 +94,7 @@
 
   .dou-editable__error {
     margin-top: 6px;
-    color: var(--dou-color-danger);
+    color: var(--dou-color-danger-text);
     font-size: var(--dou-font-size-sm);
     font-weight: var(--dou-font-weight-regular);
     line-height: var(--dou-font-line-height);

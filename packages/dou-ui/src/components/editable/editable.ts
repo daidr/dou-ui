@@ -25,7 +25,10 @@ export interface EditableProps {
   /** Select the whole text when the field opens. */
   selectOnEdit?: boolean
   maxlength?: number
+  /** Turns editing off; also follows a disabled form. */
   disabled?: boolean
+  /** Accessible name of the field, also read before the text. */
+  ariaLabel?: string
 }
 
 export interface EditableEmits {

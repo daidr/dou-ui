@@ -138,4 +138,31 @@ describe('DouEditable', () => {
     await view.trigger('keydown', { key: 'Enter' })
     expect(disabled.find('input').exists()).toBe(false)
   })
+
+  it('follows a disabled form', async () => {
+    const { DouForm } = await import('../../../index')
+    const wrapper = mount({
+      components: { DouForm, DouEditable },
+      template: '<DouForm disabled><DouEditable model-value="季度复盘" /></DouForm>',
+    })
+    await wrapper.get('.dou-editable__view').trigger('click')
+    expect(wrapper.find('input').exists()).toBe(false)
+    expect(wrapper.get('.dou-editable').classes()).toContain('is-disabled')
+  })
+
+  it('keeps class on the wrapper and passes other attributes to the field', async () => {
+    const wrapper = mount(DouEditable, {
+      props: { modelValue: '上海', ariaLabel: '城市', editing: true },
+      attrs: { class: 'extra', name: 'city', inputmode: 'text' },
+    })
+    await nextTick()
+    expect(wrapper.classes()).toContain('extra')
+    expect(wrapper.attributes('name')).toBeUndefined()
+    const input = wrapper.get('input')
+    expect(input.attributes('name')).toBe('city')
+    expect(input.attributes('inputmode')).toBe('text')
+    expect(input.attributes('aria-label')).toBe('城市')
+    await wrapper.setProps({ editing: false })
+    expect(wrapper.get('.dou-editable__view').attributes('aria-label')).toBe('城市, 上海')
+  })
 })

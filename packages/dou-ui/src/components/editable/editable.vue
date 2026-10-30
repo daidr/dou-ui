@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, useId, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, ref, useAttrs, useId, useTemplateRef, watch } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
-import type { EditableExpose, EditableProps, EditableSlots } from './editable'
+import { useFormDisabled } from '../form/use-form-item'
+import type { EditableEmits, EditableExpose, EditableProps, EditableSlots } from './editable'
 
-defineOptions({ name: 'DouEditable' })
+defineOptions({ name: 'DouEditable', inheritAttrs: false })
 
 const props = withDefaults(defineProps<EditableProps>(), {
   modelValue: '',
@@ -16,15 +17,32 @@ const props = withDefaults(defineProps<EditableProps>(), {
   selectOnEdit: true,
   maxlength: undefined,
   disabled: false,
+  ariaLabel: undefined,
 })
 const value = defineModel<string>({ default: '' })
 const editing = defineModel<boolean>('editing', { default: false })
-const emit = defineEmits<{ submit: [value: string]; cancel: [] }>()
+const emit = defineEmits<EditableEmits>()
 defineSlots<EditableSlots>()
 
 const ns = useNamespace('editable')
 const { t } = useLocale()
 const id = `dou-editable-${useId()}`
+const disabled = useFormDisabled(() => props.disabled)
+
+// `class`, `style` and listeners stay on the wrapper; other attributes
+// (name, inputmode, autocomplete...) belong to the field.
+const attrs = useAttrs()
+const rootAttrs = computed(() => {
+  const out: Record<string, unknown> = {}
+  for (const key in attrs)
+    if (key === 'class' || key === 'style' || /^on[A-Z]/.test(key)) out[key] = attrs[key]
+  return out
+})
+const fieldAttrs = computed(() => {
+  const out: Record<string, unknown> = {}
+  for (const key in attrs) if (!(key in rootAttrs.value)) out[key] = attrs[key]
+  return out
+})
 
 const draft = ref('')
 const error = ref<string | null>(null)
@@ -55,7 +73,7 @@ watch(
 )
 
 function edit() {
-  if (props.disabled) return
+  if (disabled.value) return
   editing.value = true
 }
 
@@ -128,6 +146,10 @@ function onViewKeydown(event: KeyboardEvent) {
 }
 
 const empty = computed(() => !value.value)
+// The view is named by its text; a label goes in front of it.
+const viewLabel = computed(() =>
+  props.ariaLabel ? `${props.ariaLabel}, ${value.value || props.placeholder || ''}` : undefined,
+)
 const invalid = computed(() => error.value !== null)
 
 defineExpose<EditableExpose>({ edit, submit: () => submit(), cancel: () => cancel() })
@@ -135,6 +157,7 @@ defineExpose<EditableExpose>({ edit, submit: () => submit(), cancel: () => cance
 
 <template>
   <div
+    v-bind="rootAttrs"
     :class="[
       ns.b(),
       ns.is('editing', editing),
@@ -151,6 +174,8 @@ defineExpose<EditableExpose>({ edit, submit: () => submit(), cancel: () => cance
         v-model="draft"
         :class="ns.e('field')"
         rows="1"
+        v-bind="fieldAttrs"
+        :aria-label="ariaLabel"
         :placeholder="placeholder"
         :maxlength="maxlength"
         :aria-invalid="invalid || undefined"
@@ -166,6 +191,8 @@ defineExpose<EditableExpose>({ edit, submit: () => submit(), cancel: () => cance
         v-model="draft"
         type="text"
         :class="ns.e('field')"
+        v-bind="fieldAttrs"
+        :aria-label="ariaLabel"
         :placeholder="placeholder"
         :maxlength="maxlength"
         :aria-invalid="invalid || undefined"
@@ -179,9 +206,10 @@ defineExpose<EditableExpose>({ edit, submit: () => submit(), cancel: () => cance
     <span
       v-else
       ref="view"
-      :class="[ns.e('view'), ns.is('empty', empty)]"
+      :class="[ns.e('view'), ns.is('empty', empty), ns.is('blank', empty && !placeholder)]"
       role="button"
       :tabindex="disabled ? undefined : 0"
+      :aria-label="viewLabel"
       :aria-disabled="disabled || undefined"
       :aria-description="disabled ? undefined : t('editable.hint')"
       @click="trigger === 'click' && edit()"

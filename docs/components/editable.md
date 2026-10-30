@@ -43,7 +43,10 @@
 | `validate`     | 保存前检查；返回 `false` 或错误信息时保持编辑 | `(value: string) => boolean \| string \| void \| Promise<…>` | —          |
 | `selectOnEdit` | 进入编辑时选中全部文字                        | `boolean`                                                    | `true`     |
 | `maxlength`    | 最大长度                                      | `number`                                                     | —          |
-| `disabled`     | 禁用                                          | `boolean`                                                    | `false`    |
+| `disabled`     | 禁用；放在禁用的表单里时同样禁用              | `boolean`                                                    | `false`    |
+| `ariaLabel`    | 输入框的无障碍名称，也会读在文字前面          | `string`                                                     | —          |
+
+`class` 和 `style` 作用在外层，其余属性（如 `name`、`inputmode`、`autocomplete`）传给编辑时的输入框。
 
 ### Events
 

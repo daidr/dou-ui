@@ -96,9 +96,9 @@ export interface UseIntersectionOptions {
   /** The scrolling ancestor to test against. Defaults to the viewport. */
   root?: MaybeRefOrGetter<Element | Document | null | undefined>
   /** Grows or shrinks the root's box, as in CSS: `'200px 0px'`. */
-  rootMargin?: string
+  rootMargin?: MaybeRefOrGetter<string | undefined>
   /** The visible shares at which to update, from 0 to 1. */
-  threshold?: number | number[]
+  threshold?: MaybeRefOrGetter<number | number[] | undefined>
   /** Stop watching after the element first becomes visible, e.g. to load something once. */
   once?: boolean
 }
@@ -124,8 +124,14 @@ export function useIntersection(
     observer = undefined
   }
   const stopWatch = watch(
-    () => [toValue(target), toValue(options.root)] as const,
-    ([el, root]) => {
+    () =>
+      [
+        toValue(target),
+        toValue(options.root),
+        toValue(options.rootMargin),
+        toValue(options.threshold),
+      ] as const,
+    ([el, root, rootMargin, threshold]) => {
       disconnect()
       if (done || !el || typeof IntersectionObserver === 'undefined') return
       observer = new IntersectionObserver(
@@ -137,7 +143,7 @@ export function useIntersection(
           ratio.value = last.intersectionRatio
           if (options.once && last.isIntersecting) stop()
         },
-        { root: root ?? null, rootMargin: options.rootMargin, threshold: options.threshold },
+        { root: root ?? null, rootMargin, threshold },
       )
       observer.observe(el)
     },

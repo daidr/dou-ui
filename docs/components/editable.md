@@ -46,7 +46,7 @@
 | `disabled`     | 禁用；放在禁用的表单里时同样禁用              | `boolean`                                                    | `false`    |
 | `ariaLabel`    | 输入框的无障碍名称，也会读在文字前面          | `string`                                                     | —          |
 
-`class` 和 `style` 作用在外层，其余属性（如 `name`、`inputmode`、`autocomplete`）传给编辑时的输入框。
+`class`、`style` 和 `data-*` 作用在外层，其余属性（如 `name`、`inputmode`、`autocomplete`）传给编辑时的输入框。
 
 ### Events
 

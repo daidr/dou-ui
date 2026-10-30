@@ -29,13 +29,15 @@ const { t } = useLocale()
 const id = `dou-editable-${useId()}`
 const disabled = useFormDisabled(() => props.disabled)
 
-// `class`, `style` and listeners stay on the wrapper; other attributes
-// (name, inputmode, autocomplete...) belong to the field.
+// `class`, `style`, `data-*` and listeners stay on the wrapper, which is
+// always there; other attributes (name, inputmode, autocomplete...) belong
+// to the field, which only exists while editing.
 const attrs = useAttrs()
 const rootAttrs = computed(() => {
   const out: Record<string, unknown> = {}
   for (const key in attrs)
-    if (key === 'class' || key === 'style' || /^on[A-Z]/.test(key)) out[key] = attrs[key]
+    if (key === 'class' || key === 'style' || key.startsWith('data-') || /^on[A-Z]/.test(key))
+      out[key] = attrs[key]
   return out
 })
 const fieldAttrs = computed(() => {

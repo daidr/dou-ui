@@ -8,7 +8,7 @@ export default DouEditor
 export { useEditorContext } from './editor'
 export type { EditorContext, EditorEmits, EditorExpose, EditorProps } from './editor'
 export { editorLocales, useEditorMessages } from './locale'
-export type { EditorMessages } from './locale'
+export type { EditorMessages, EditorMessagesOverride } from './locale'
 export { filterOptions } from './catalog'
 export { defineExtension, labelOf, resolveExtensions } from './core/extension'
 export type {

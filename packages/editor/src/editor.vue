@@ -49,6 +49,16 @@ const emit = defineEmits<EditorEmits>()
 
 // read once: changing the schema of a live editor would invalidate its document
 const kit = resolveExtensions(props.extensions ?? [starterKit()])
+// say so once, instead of silently keeping the old extensions
+const stopWatchingExtensions = watch(
+  () => props.extensions,
+  () => {
+    console.warn(
+      '[@dou-ui/editor] `extensions` changed after mount and is ignored: it is read once. Create the list once outside the template, or give the editor a new `key` to rebuild it.',
+    )
+    stopWatchingExtensions()
+  },
+)
 
 const ns = useNamespace('editor')
 const messages = useEditorMessages(() => props.messages)

@@ -418,9 +418,26 @@ export const editorLocales: Record<string, EditorMessages> = {
  * The editor's texts, picked by the name of DouUI's current locale.
  * Pass `messages` to override any of them.
  */
-export function useEditorMessages(
-  override?: MaybeRefOrGetter<Partial<EditorMessages> | undefined>,
-) {
+type DeepPartial<T> = { [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K] }
+
+/** Any part of the messages: a nested group can be given in part too. */
+export type EditorMessagesOverride = DeepPartial<EditorMessages>
+
+function merge<T>(base: T, extra: unknown): T {
+  if (!extra || typeof extra !== 'object') return (extra ?? base) as T
+  const result: Record<string, unknown> = { ...(base as Record<string, unknown>) }
+  for (const [key, value] of Object.entries(extra)) {
+    if (value === undefined) continue
+    const current = result[key]
+    result[key] =
+      current && typeof current === 'object' && typeof value === 'object'
+        ? merge(current, value)
+        : value
+  }
+  return result as T
+}
+
+export function useEditorMessages(override?: MaybeRefOrGetter<EditorMessagesOverride | undefined>) {
   const { locale } = useLocale()
   return computed<EditorMessages>(() => {
     const name = locale.value.name
@@ -429,6 +446,6 @@ export function useEditorMessages(
       editorLocales[name.split('-')[0]!] ??
       (name.startsWith('zh') ? zhCN : en)
     const extra = toValue(override)
-    return extra ? { ...base, ...extra } : base
+    return extra ? merge(base, extra) : base
   })
 }

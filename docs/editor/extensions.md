@@ -33,7 +33,7 @@ const extensions = [starterKit({ codeBlock: false, divider: false })]
 
 正文（`paragraph`）始终保留。去掉的块类型不会出现在菜单里，对应的 Markdown 快捷输入和快捷键也不再生效。
 
-`extensions` 只在创建编辑器时读取一次，之后修改不会生效。
+`extensions` 只在创建编辑器时读取一次，之后修改不会生效，开发时会在控制台提示一次。把列表定义在模板之外；确实需要换扩展时，给编辑器一个新的 `key` 重新创建。
 
 ## 自定义块
 

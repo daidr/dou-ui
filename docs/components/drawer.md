@@ -35,7 +35,7 @@
 
 ## 停靠点
 
-`snap-points` 设置抽屉可以停靠的几档尺寸，不大于 1 的数表示占视口的比例，大于 1 的数表示 px。设置后 `size` 不再生效。抽屉打开时停在最小的一档，拖动松手后停到最近的一档，从最小一档继续往下拖就会关闭。当前停在哪一档用 `v-model:snap` 读写，值是 `snap-points` 中的某一项。
+`snap-points` 设置抽屉可以停靠的几档尺寸，不大于 1 的数表示占视口的比例，大于 1 的数表示 px。设置后 `size` 不再生效。抽屉每次打开时停在最小的一档，拖动松手后停到最近的一档，从最小一档继续往下拖就会关闭。当前停在哪一档用 `v-model:snap` 读写，值是 `snap-points` 中的某一项；关闭后变为 `undefined`，打开前先赋值可以指定打开时停在哪一档。
 
 尺寸随停靠点变化，所以底部操作在每一档都能看到。把手是一个按钮，点击切换到下一档，聚焦后用方向键调大或调小。
 
@@ -71,7 +71,7 @@
 
 ### Events
 
-`update:open`、`open`、`opened`、`close`、`closed`，含义同 [对话框](./dialog#events)。另有 `update:size`，参数为调整后的尺寸（px）；`update:snap`，参数为新的停靠点。
+`update:open`、`open`、`opened`、`close`、`closed`，含义同 [对话框](./dialog#events)。另有 `update:size`，参数为调整后的尺寸（px）；`update:snap`，参数为新的停靠点，关闭后为 `undefined`。
 
 ### Slots
 

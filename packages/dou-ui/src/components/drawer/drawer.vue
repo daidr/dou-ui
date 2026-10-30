@@ -67,6 +67,8 @@ watch(open, (value) => {
 })
 function onAfterLeave() {
   swipe.reset()
+  // The next opening starts from the smallest snap point again.
+  if (swipe.hasSnaps.value) snap.value = undefined
   if (props.destroyOnClose) mounted.value = false
   emit('closed')
 }
@@ -166,7 +168,7 @@ const swipe = useDrawerSwipe({
   snap,
   requestClose: close,
 })
-// Each opening starts from the smallest snap point unless one is bound.
+// Each opening starts from the smallest snap point, unless one was set before.
 watch(
   open,
   (value) => {

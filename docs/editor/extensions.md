@@ -26,6 +26,8 @@ const extensions = [starterKit({ codeBlock: false, divider: false })]
 | `quote`      | 引用                                        |
 | `codeBlock`  | 代码块，也可以传入[选项](./code-block#选项) |
 | `divider`    | 分隔线                                      |
+| `toggle`     | 折叠块                                      |
+| `callout`    | 提示块                                      |
 | `formatting` | 粗体、斜体、下划线、删除线、行内代码        |
 | `link`       | 链接                                        |
 
@@ -35,13 +37,13 @@ const extensions = [starterKit({ codeBlock: false, divider: false })]
 
 ## 自定义块
 
-`defineBlock` 声明一种新的块类型，用 Vue 组件渲染。下面的提示框是一个自定义块：点击左侧图标切换类型，在块菜单里输入“提示框”可以插入新的提示框。
+`defineBlock` 声明一种新的块类型，用 Vue 组件渲染。下面的“决定”是一个自定义块：点击左侧的状态可以切换，在块菜单里输入“决定”可以插入新的块。
 
-<DocDemo src="editor/callout" column />
+<DocDemo src="editor/decision" column />
 
-提示框的组件：
+“决定”块的组件：
 
-<<< @/examples/editor/callout-block.vue
+<<< @/examples/editor/decision-block.vue
 
 组件里放一个 `<EditorContent />`，块的文字会显示在这里，可以像其他块一样编辑。组件里的其他部分不属于可编辑区域，按钮、输入框等可以正常使用。
 

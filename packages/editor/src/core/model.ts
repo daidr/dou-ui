@@ -26,6 +26,8 @@ export interface BlockProps {
   checked?: boolean
   /** The language of a code block. */
   language?: string
+  /** The tone of a callout: `info`, `tip`, `warning` or `danger`. */
+  tone?: string
   [name: string]: unknown
 }
 

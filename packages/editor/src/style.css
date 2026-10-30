@@ -251,6 +251,127 @@
     }
   }
 
+  /* toggle: a chevron in front of the title; closed, its children are hidden */
+  .dou-editor-toggle {
+    display: flex;
+    gap: 4px;
+  }
+
+  .dou-editor-toggle__control {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    height: calc(var(--dou-editor-line-height) * 1em);
+    margin-inline-start: -2px;
+    user-select: none;
+  }
+
+  .dou-editor-toggle__button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    border-radius: var(--dou-radius-control);
+    background: none;
+    color: var(--dou-color-text-tertiary);
+    cursor: pointer;
+
+    & > svg {
+      width: 16px;
+      height: 16px;
+      transition: rotate var(--dou-motion-duration-fast) var(--dou-motion-easing);
+    }
+
+    &.is-open > svg {
+      rotate: 90deg;
+    }
+
+    &:hover {
+      background-color: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+      color: var(--dou-color-text);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: -2px;
+    }
+  }
+
+  .dou-editor__block.is-collapsed > .dou-editor__group {
+    display: none;
+  }
+
+  /* callout: tinted by its tone, info stays neutral */
+  .dou-editor-callout {
+    --dou-editor-callout-tone: var(--dou-color-text-secondary);
+
+    display: flex;
+    gap: 8px;
+    margin-block: 2px;
+    padding: 8px 12px;
+    border: 1px solid
+      color-mix(in oklab, var(--dou-editor-callout-tone) 22%, var(--dou-color-border));
+    border-radius: var(--dou-radius-container);
+    background-color: color-mix(
+      in oklab,
+      var(--dou-editor-callout-tone) 6%,
+      var(--dou-color-bg-surface)
+    );
+
+    &.is-tip {
+      --dou-editor-callout-tone: var(--dou-color-success);
+    }
+    &.is-warning {
+      --dou-editor-callout-tone: var(--dou-color-warning);
+    }
+    &.is-danger {
+      --dou-editor-callout-tone: var(--dou-color-danger);
+    }
+  }
+
+  .dou-editor-callout__control {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    height: calc(var(--dou-editor-line-height) * 1em);
+    user-select: none;
+  }
+
+  .dou-editor-callout__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: none;
+    border-radius: var(--dou-radius-control);
+    background: none;
+    color: var(--dou-editor-callout-tone);
+
+    & > svg {
+      width: 16px;
+      height: 16px;
+    }
+  }
+
+  button.dou-editor-callout__icon {
+    cursor: pointer;
+
+    &:hover,
+    &[aria-expanded='true'] {
+      background-color: color-mix(in oklab, var(--dou-editor-callout-tone) 12%, transparent);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: -2px;
+    }
+  }
+
   /* the code block's language picker and copy button, shown on hover */
   .dou-editor__content--codeBlock.dou-editor__content--custom {
     position: relative;

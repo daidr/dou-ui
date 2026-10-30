@@ -60,6 +60,7 @@ export default defineConfig({
             { text: '快捷操作', link: '/editor/shortcuts' },
             { text: '扩展', link: '/editor/extensions' },
             { text: '代码块', link: '/editor/code-block' },
+            { text: '折叠块与提示块', link: '/editor/toggle-callout' },
             { text: '图片', link: '/editor/image' },
             { text: '协同编辑', link: '/editor/collaboration' },
           ],

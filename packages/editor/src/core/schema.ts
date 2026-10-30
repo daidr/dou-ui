@@ -120,6 +120,8 @@ export type BuiltinContentType =
   | 'quote'
   | 'codeBlock'
   | 'divider'
+  | 'toggle'
+  | 'callout'
 
 export type ContentType = BuiltinContentType | (string & {})
 

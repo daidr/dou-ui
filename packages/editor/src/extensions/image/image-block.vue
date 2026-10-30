@@ -3,7 +3,7 @@ import { ImageIcon, LinkIcon, UploadIcon } from '@dou-ui/icons'
 import { DouButton, DouInput, DouSpinner } from 'dou-ui'
 import { computed, onBeforeUnmount, shallowRef, useTemplateRef } from 'vue'
 import type { BlockProps } from '../../core/model'
-import { useEditorContext } from '../../editor'
+import { useEditor } from '../../editor'
 import { isSafeImageSrc, type Uploads } from './uploads'
 
 const props = defineProps<{
@@ -14,7 +14,7 @@ const props = defineProps<{
   uploads: Uploads
 }>()
 
-const { messages, view } = useEditorContext()
+const { messages, view } = useEditor()
 const text = computed(() => messages.value.image)
 
 const src = computed(() => {

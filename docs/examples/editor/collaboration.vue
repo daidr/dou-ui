@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { DouEditor, starterKit } from '@dou-ui/editor'
+import { DouEditor, editorKit } from '@dou-ui/editor'
 import { collaboration, fillMap } from '@dou-ui/editor/collaboration'
 import { DouSwitch } from 'dou-ui'
 import { onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
@@ -73,7 +73,7 @@ function createDemo() {
   const editors = clients.map((client) => ({
     name: client.name,
     extensions: [
-      starterKit(),
+      editorKit(),
       collaboration({
         map: client.doc.getMap('document'),
         awareness: client.awareness,

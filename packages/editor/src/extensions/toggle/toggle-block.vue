@@ -3,7 +3,7 @@ import { ChevronRightIcon } from '@dou-ui/icons'
 import { computed } from 'vue'
 import type { BlockProps } from '../../core/model'
 import { EditorContent } from '../../define-block'
-import { useEditorContext } from '../../editor'
+import { useEditor } from '../../editor'
 import { flipToggle, isToggleOpen } from './state'
 
 const props = defineProps<{
@@ -13,7 +13,7 @@ const props = defineProps<{
   editable: boolean
 }>()
 
-const { messages, state, view } = useEditorContext()
+const { messages, state, view } = useEditor()
 const open = computed(() => isToggleOpen(state.value, props.block.id))
 
 function flip() {

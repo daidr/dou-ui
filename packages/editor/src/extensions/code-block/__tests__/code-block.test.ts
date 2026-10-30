@@ -5,11 +5,11 @@ import type { EditorView } from 'prosemirror-view'
 import { afterEach, describe, expect, it } from 'vitest'
 import { h, nextTick } from 'vue'
 import { createEditorView } from '../../../core/editor'
-import { resolveExtensions } from '../../../core/extension'
+import { resolveEditorExtensions } from '../../../core/extension'
 import { readTokens, setFallbackHighlighter, type CodeHighlighter } from '../../../core/highlight'
 import { docToBlocks, type PartialBlock } from '../../../core/model'
 import DouEditor from '../../../editor.vue'
-import { starterKit } from '../../starter-kit'
+import { editorKit } from '../../editor-kit'
 
 const flush = async () => {
   for (let i = 0; i < 4; i++) await new Promise((resolve) => setTimeout(resolve, 0))
@@ -44,7 +44,7 @@ function create(blocks: PartialBlock[], highlight?: CodeHighlighter) {
   document.body.append(element)
   view = createEditorView({
     element,
-    kit: resolveExtensions([starterKit({ codeBlock: { highlight } })]),
+    kit: resolveEditorExtensions([editorKit({ codeBlock: { highlight } })]),
     blocks,
     placeholder: { text: () => '', heading: () => '', empty: () => '' },
   })
@@ -110,7 +110,7 @@ describe('code highlighting', () => {
   })
 
   it('reads the language from pasted code', () => {
-    const { schema } = resolveExtensions([starterKit()])
+    const { schema } = resolveEditorExtensions([editorKit()])
     const element = document.createElement('div')
     element.innerHTML = '<pre><code class="language-python">print(1)</code></pre>'
     const blocks = docToBlocks(DOMParser.fromSchema(schema).parse(element))

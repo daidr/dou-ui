@@ -1,5 +1,5 @@
 import MarkdownIt from 'markdown-it'
-import { kitOf, type ExtensionList } from '../core/convert'
+import { kitOf, type EditorExtensionList } from '../core/convert'
 import type { Block, PartialBlock } from '../core/model'
 import { writeMarkdown } from '../core/output'
 import { parseHTML } from '../core/prepare'
@@ -21,14 +21,14 @@ function render(markdown: string) {
 }
 
 /** Write blocks as Markdown (CommonMark with GitHub's extensions). Works without a browser. */
-export function blocksToMarkdown(blocks: PartialBlock[], extensions: ExtensionList): string {
+export function blocksToMarkdown(blocks: PartialBlock[], extensions: EditorExtensionList): string {
   return writeMarkdown(blocks, kitOf(extensions))
 }
 
 /** Read Markdown as blocks. Needs `DOMParser` (a browser, or a DOM library). */
 export function markdownToBlocks(
   markdown: string,
-  extensions: ExtensionList,
+  extensions: EditorExtensionList,
   options: MarkdownToBlocksOptions = {},
 ): Block[] {
   return parseHTML((options.render ?? render)(markdown), kitOf(extensions))

@@ -21,12 +21,12 @@ import SlashMenu from './components/slash-menu.vue'
 import { setFallbackHighlighter, type CodeHighlighter } from './core/highlight'
 import { createEditorView, getBlocks, replaceBlocks, runCommand, setEditable } from './core/editor'
 import type { Block, PartialBlock } from './core/model'
-import { resolveExtensions } from './core/extension'
+import { resolveEditorExtensions } from './core/extension'
 import { slashPlugin, type SlashState } from './core/slash'
 import { writeHTML } from './core/output'
 import { parseHTML } from './core/prepare'
 import { vueNodeView } from './define-block'
-import { starterKit } from './extensions/starter-kit'
+import { editorKit } from './extensions/editor-kit'
 import { editorKey, type EditorEmits, type EditorExpose, type EditorProps } from './editor'
 import { useEditorMessages } from './locale'
 
@@ -48,7 +48,7 @@ const props = withDefaults(defineProps<EditorProps>(), {
 const emit = defineEmits<EditorEmits>()
 
 // read once: changing the schema of a live editor would invalidate its document
-const kit = resolveExtensions(props.extensions ?? [starterKit()])
+const kit = resolveEditorExtensions(props.extensions ?? [editorKit()])
 // say so once, instead of silently keeping the old extensions
 const stopWatchingExtensions = watch(
   () => props.extensions,

@@ -4,14 +4,14 @@
 
 ## 内置扩展
 
-不传 `extensions` 时，编辑器使用 `starterKit()`，包含[文档数据](./data#块的类型)中列出的全部块类型、文字格式和链接。传入 `false` 可以去掉其中一部分：
+不传 `extensions` 时，编辑器使用 `editorKit()`，包含[文档数据](./data#块的类型)中列出的全部块类型、文字格式和链接。传入 `false` 可以去掉其中一部分：
 
 ```vue
 <script setup lang="ts">
-import { DouEditor, starterKit } from '@dou-ui/editor'
+import { DouEditor, editorKit } from '@dou-ui/editor'
 
 // 不需要代码块和分隔线
-const extensions = [starterKit({ codeBlock: false, divider: false })]
+const extensions = [editorKit({ codeBlock: false, divider: false })]
 </script>
 
 <template>
@@ -72,19 +72,19 @@ const extensions = [starterKit({ codeBlock: false, divider: false })]
 | `selected`    | 块被整体选中（点击没有文字的块时）     | `boolean`                                     |
 | `editable`    | 编辑器是否可编辑，只读时为 `false`     | `boolean`                                     |
 
-在块组件里调用 `useEditorContext()` 可以拿到编辑器的 `view`（ProseMirror 的 `EditorView`）和当前语言包的文案 `messages`。
+在块组件里调用 `useEditor()` 可以拿到编辑器的 `view`（ProseMirror 的 `EditorView`）和当前语言包的文案 `messages`。
 
 ## 编写扩展
 
-`defineExtension` 声明一个扩展。扩展可以只提供一部分内容，例如只加几个快捷键：
+`defineEditorExtension` 声明一个扩展。扩展可以只提供一部分内容，例如只加几个快捷键：
 
 ```ts
-import { defineExtension, setBlockType } from '@dou-ui/editor'
+import { defineEditorExtension, setBlockType } from '@dou-ui/editor'
 
-export const quoteShortcut = defineExtension({
+export const quoteShortcut = defineEditorExtension({
   name: 'quote-shortcut',
   keymap: () => ({
-    'Mod-Shift-.': setBlockType('quote'),
+    'mod+shift+.': setBlockType('quote'),
   }),
 })
 ```
@@ -92,11 +92,11 @@ export const quoteShortcut = defineExtension({
 也可以加一种文字格式，并在格式工具栏里显示：
 
 ```ts
-import { defineExtension, markInputRule } from '@dou-ui/editor'
+import { defineEditorExtension, markInputRule } from '@dou-ui/editor'
 import { BrushIcon } from '@dou-ui/icons'
 import { toggleMark } from 'prosemirror-commands'
 
-export const highlight = defineExtension({
+export const highlight = defineEditorExtension({
   name: 'highlight',
   marks: {
     highlight: {
@@ -105,7 +105,7 @@ export const highlight = defineExtension({
     },
   },
   inputRules: () => [markInputRule(/(?:^|[^=])(==([^=]+)==)$/, 'highlight')],
-  keymap: ({ schema }) => ({ 'Mod-Shift-h': toggleMark(schema.marks.highlight!) }),
+  keymap: ({ schema }) => ({ 'mod+shift+h': toggleMark(schema.marks.highlight!) }),
   formats: [{ mark: 'highlight', label: '高亮', icon: BrushIcon, hotkey: 'mod+shift+h' }],
 })
 ```
@@ -114,24 +114,24 @@ export const highlight = defineExtension({
 
 ### 扩展的字段
 
-| 名称               | 说明                                                                                | 类型                                   |
-| ------------------ | ----------------------------------------------------------------------------------- | -------------------------------------- |
-| `name`             | 扩展的名称，同一个扩展不能添加两次                                                  | `string`                               |
-| `priority`         | 优先级，默认为 `100`。数值大的先执行，快捷键冲突时它的生效                          | `number`                               |
-| `blocks`           | 新的块类型，键是类型名称，值是 ProseMirror 节点定义                                 | `Record<string, NodeSpec>`             |
-| `inlines`          | 新的行内节点，例如提及                                                              | `Record<string, NodeSpec>`             |
-| `marks`            | 新的文字格式                                                                        | `Record<string, MarkSpec>`             |
-| `nodeViews`        | ProseMirror 节点视图                                                                | `Record<string, NodeViewConstructor>`  |
-| `inputRules`       | 输入规则，例如 Markdown 快捷输入                                                    | `(context) => InputRule[]`             |
-| `keymap`           | 快捷键                                                                              | `(context) => Record<string, Command>` |
-| `plugins`          | ProseMirror 插件                                                                    | `(context) => Plugin[]`                |
-| `history`          | 替换内置的撤销记录，只能有一个扩展提供，协同编辑扩展会用到                          | `(context) => HistoryProvider`         |
-| `externalDocument` | 文档保存在编辑器之外（例如协同编辑的共享文档），`v-model` 只同步输出                | `boolean`                              |
-| `blockOptions`     | 块菜单和“转换为”菜单中的选项                                                        | `BlockOption[]`                        |
-| `formats`          | 格式工具栏中的按钮                                                                  | `FormatOption[]`                       |
-| `overlays`         | 可编辑时渲染在编辑区域旁的组件，例如提及的候选列表                                  | `Component[]`                          |
-| `output`           | 块、行内节点和文字格式写成 HTML 与 Markdown 的方式，见[导入与导出](./import-export) | `ExtensionOutput`                      |
-| `prepareHTML`      | 读入 HTML 前整理它（粘贴和导入时），见[导入与导出](./import-export)                 | `(root: HTMLElement) => void`          |
+| 名称               | 说明                                                                                                         | 类型                                   |
+| ------------------ | ------------------------------------------------------------------------------------------------------------ | -------------------------------------- |
+| `name`             | 扩展的名称，同一个扩展不能添加两次                                                                           | `string`                               |
+| `priority`         | 优先级，默认为 `100`。数值大的先执行，快捷键冲突时它的生效                                                   | `number`                               |
+| `blocks`           | 新的块类型，键是类型名称，值是 ProseMirror 节点定义                                                          | `Record<string, NodeSpec>`             |
+| `inlines`          | 新的行内节点，例如提及                                                                                       | `Record<string, NodeSpec>`             |
+| `marks`            | 新的文字格式                                                                                                 | `Record<string, MarkSpec>`             |
+| `nodeViews`        | ProseMirror 节点视图                                                                                         | `Record<string, NodeViewConstructor>`  |
+| `inputRules`       | 输入规则，例如 Markdown 快捷输入                                                                             | `(context) => InputRule[]`             |
+| `keymap`           | 快捷键，写法和 `useHotkey` 一样（如 `mod+shift+h`、`shift+tab`、`enter`）；命令返回 `false` 时交给下一个扩展 | `(context) => Record<string, Command>` |
+| `plugins`          | ProseMirror 插件                                                                                             | `(context) => Plugin[]`                |
+| `history`          | 替换内置的撤销记录，只能有一个扩展提供，协同编辑扩展会用到                                                   | `(context) => HistoryProvider`         |
+| `externalDocument` | 文档保存在编辑器之外（例如协同编辑的共享文档），`v-model` 只同步输出                                         | `boolean`                              |
+| `blockOptions`     | 块菜单和“转换为”菜单中的选项                                                                                 | `BlockOption[]`                        |
+| `formats`          | 格式工具栏中的按钮                                                                                           | `FormatOption[]`                       |
+| `overlays`         | 可编辑时渲染在编辑区域旁的组件，例如提及的候选列表                                                           | `Component[]`                          |
+| `output`           | 块、行内节点和文字格式写成 HTML 与 Markdown 的方式，见[导入与导出](./import-export)                          | `EditorExtensionOutput`                |
+| `prepareHTML`      | 读入 HTML 前整理它（粘贴和导入时），见[导入与导出](./import-export)                                          | `(root: HTMLElement) => void`          |
 
 `context` 里有根据全部扩展生成的 `schema`。
 

@@ -7,10 +7,10 @@ import { nextTick } from 'vue'
 import { mention, type MentionItem } from '..'
 import { findBlockById } from '../../../core/blocks'
 import { createEditorView } from '../../../core/editor'
-import { resolveExtensions } from '../../../core/extension'
+import { resolveEditorExtensions } from '../../../core/extension'
 import { blocksToDoc, docToBlocks, type Block } from '../../../core/model'
 import DouEditor from '../../../editor.vue'
-import { starterKit } from '../../starter-kit'
+import { editorKit } from '../../editor-kit'
 import { getMention, setMentionItems } from '../state'
 
 const people: MentionItem[] = [
@@ -32,7 +32,7 @@ function create(text = '') {
   document.body.append(element)
   view = createEditorView({
     element,
-    kit: resolveExtensions([starterKit(), mention({ search })]),
+    kit: resolveEditorExtensions([editorKit(), mention({ search })]),
     blocks: [{ id: 'a', content: text }],
     placeholder: { text: () => '', heading: () => '', empty: () => '' },
   })
@@ -93,7 +93,7 @@ describe('mention', () => {
   })
 
   it('round-trips through blocks and pasted HTML', () => {
-    const { schema } = resolveExtensions([starterKit(), mention({ search })])
+    const { schema } = resolveEditorExtensions([editorKit(), mention({ search })])
     const blocks = docToBlocks(
       blocksToDoc(schema, [
         { content: [{ type: 'inline', name: 'mention', props: { id: 'u1', label: '戴兜' } }] },
@@ -112,7 +112,7 @@ describe('mention', () => {
   })
 
   it('leaves out mentions when the extension is missing', () => {
-    const { schema } = resolveExtensions([starterKit()])
+    const { schema } = resolveEditorExtensions([editorKit()])
     const blocks = docToBlocks(
       blocksToDoc(schema, [
         {
@@ -134,7 +134,7 @@ describe('mention suggestions', () => {
       attachTo: document.body,
       props: {
         extensions: [
-          starterKit(),
+          editorKit(),
           mention({ search: () => new Promise<MentionItem[]>((resolve) => pending.push(resolve)) }),
         ],
         modelValue: [{ id: 'a', content: '' }],

@@ -9,10 +9,10 @@ import { collaboration, fillMap } from '..'
 import { findBlockById } from '../../core/blocks'
 import { liftBlocks, sinkBlocks, splitBlock } from '../../core/commands'
 import { createEditorView, getBlocks } from '../../core/editor'
-import { resolveExtensions } from '../../core/extension'
+import { resolveEditorExtensions } from '../../core/extension'
 import type { Block, PartialBlock } from '../../core/model'
 import DouEditor from '../../editor.vue'
-import { starterKit } from '../../extensions/starter-kit'
+import { editorKit } from '../../extensions/editor-kit'
 
 const views: EditorView[] = []
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0))
@@ -24,8 +24,8 @@ afterEach(async () => {
 
 /** A client: its own Y.Doc and an editor bound to it. */
 function client(doc = new Y.Doc(), awareness?: Awareness) {
-  const kit = resolveExtensions([
-    starterKit(),
+  const kit = resolveEditorExtensions([
+    editorKit(),
     collaboration({
       map: doc.getMap('document'),
       awareness,
@@ -355,7 +355,7 @@ describe('collaboration', () => {
     const wrapper = mount(DouEditor, {
       attachTo: document.body,
       props: {
-        extensions: [starterKit(), collaboration({ map: doc.getMap('document') })],
+        extensions: [editorKit(), collaboration({ map: doc.getMap('document') })],
         modelValue: [{ id: 'x', content: 'Ignored' }],
       },
     })

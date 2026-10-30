@@ -1,12 +1,12 @@
 import { BoldIcon, CodeIcon, ItalicIcon, StrikethroughIcon, UnderlineIcon } from '@dou-ui/icons'
 import { toggleMark } from 'prosemirror-commands'
 import type { Command } from 'prosemirror-state'
-import { defineExtension } from '../core/extension'
+import { defineEditorExtension } from '../core/extension'
 import { markInputRule } from '../core/input-rules'
 import { isSafeHref } from '../core/schema'
 
 /** Bold, italic, underline, strikethrough and inline code, with shortcuts and toolbar toggles. */
-export const formatting = defineExtension({
+export const formatting = defineEditorExtension({
   name: 'formatting',
   marks: {
     bold: {
@@ -57,11 +57,11 @@ export const formatting = defineExtension({
   keymap: ({ schema }) => {
     const toggle = (name: string): Command => toggleMark(schema.marks[name]!)
     return {
-      'Mod-b': toggle('bold'),
-      'Mod-i': toggle('italic'),
-      'Mod-u': toggle('underline'),
-      'Mod-Shift-s': toggle('strike'),
-      'Mod-e': toggle('code'),
+      'mod+b': toggle('bold'),
+      'mod+i': toggle('italic'),
+      'mod+u': toggle('underline'),
+      'mod+shift+s': toggle('strike'),
+      'mod+e': toggle('code'),
     }
   },
   formats: [
@@ -78,7 +78,7 @@ export const formatting = defineExtension({
  * the formatting toolbar edits them, and `Mod+K` opens the editor for the
  * selected text.
  */
-export const link = defineExtension({
+export const link = defineEditorExtension({
   name: 'link',
   marks: {
     link: {

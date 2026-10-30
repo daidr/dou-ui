@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { DouEditor, mention, starterKit, type MentionItem } from '@dou-ui/editor'
+import { DouEditor, mention, editorKit, type MentionItem } from '@dou-ui/editor'
 import { ref } from 'vue'
 
 const people: MentionItem[] = [
@@ -17,7 +17,7 @@ async function search(query: string) {
   return people.filter((person) => person.label.includes(query) || person.id.includes(text))
 }
 
-const extensions = [starterKit(), mention({ search })]
+const extensions = [editorKit(), mention({ search })]
 
 const blocks = ref([
   { type: 'heading', props: { level: 2 }, content: '首页改版评审' },

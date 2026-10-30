@@ -2,10 +2,11 @@ import type { InputRule } from 'prosemirror-inputrules'
 import type { MarkSpec, NodeSpec, Schema } from 'prosemirror-model'
 import type { Command, Plugin } from 'prosemirror-state'
 import type { NodeViewConstructor } from 'prosemirror-view'
+import { parseHotkey } from 'dou-ui'
 import type { Component } from 'vue'
 import type { EditorMessages } from '../locale'
 import type { BlockProps } from './model'
-import type { ExtensionOutput } from './output'
+import type { EditorExtensionOutput } from './output'
 import { createSchema } from './schema'
 
 /** Text shown in a menu: fixed, or read from the editor's messages so it follows the locale. */
@@ -40,7 +41,7 @@ export interface FormatOption {
   hotkey?: string
 }
 
-export interface ExtensionContext {
+export interface EditorExtensionContext {
   schema: Schema
 }
 
@@ -53,7 +54,7 @@ export interface HistoryProvider {
 
 /**
  * A piece of the editor: block types, marks, behaviour and menu entries.
- * The built-in blocks are extensions too (see `starterKit`).
+ * The built-in blocks are extensions too (see `editorKit`).
  */
 export interface EditorExtension {
   name: string
@@ -75,9 +76,14 @@ export interface EditorExtension {
   inlines?: Record<string, NodeSpec>
   marks?: Record<string, MarkSpec>
   nodeViews?: Record<string, NodeViewConstructor>
-  inputRules?: (context: ExtensionContext) => InputRule[]
-  keymap?: (context: ExtensionContext) => Record<string, Command>
-  plugins?: (context: ExtensionContext) => Plugin[]
+  inputRules?: (context: EditorExtensionContext) => InputRule[]
+  /**
+   * Keys, written as in `useHotkey` (e.g. `mod+shift+h`, `shift+tab`,
+   * `enter`), while the editor has focus. A command returning `false` lets
+   * the key through to the next extension.
+   */
+  keymap?: (context: EditorExtensionContext) => Record<string, Command>
+  plugins?: (context: EditorExtensionContext) => Plugin[]
   /**
    * The document lives outside the editor (e.g. in a Yjs document): the
    * initial `modelValue` and later outside changes to it are ignored, and
@@ -85,21 +91,21 @@ export interface EditorExtension {
    */
   externalDocument?: boolean
   /** Replace the built-in undo history. Only one extension may. */
-  history?: (context: ExtensionContext) => HistoryProvider
+  history?: (context: EditorExtensionContext) => HistoryProvider
   /** Entries for the slash menu and the “turn into” menus. */
   blockOptions?: BlockOption[]
   /** Toggles for the formatting toolbar. */
   formats?: FormatOption[]
   /**
    * Components rendered next to the editing area while it is editable,
-   * e.g. a popup of suggestions. They can call `useEditorContext()`.
+   * e.g. a popup of suggestions. They can call `useEditor()`.
    */
   overlays?: Component[]
   /**
    * How the extension's blocks, inline nodes and marks are written as HTML
    * and Markdown (`blocksToHTML`, `blocksToMarkdown`).
    */
-  output?: ExtensionOutput
+  output?: EditorExtensionOutput
   /**
    * Rewrite HTML before it is read as blocks (when pasting, and in
    * `htmlToBlocks` and `markdownToBlocks`), e.g. turn a `<details>`
@@ -110,15 +116,15 @@ export interface EditorExtension {
 }
 
 /** Declare an extension; only gives it a type. */
-export function defineExtension(extension: EditorExtension): EditorExtension {
+export function defineEditorExtension(extension: EditorExtension): EditorExtension {
   return extension
 }
 
 /** Everything the extensions contribute, gathered once per list of extensions. */
-export interface ResolvedExtensions {
+export interface ResolvedEditorExtensions {
   extensions: EditorExtension[]
   schema: Schema
-  context: ExtensionContext
+  context: EditorExtensionContext
   nodeViews: Record<string, NodeViewConstructor>
   blockOptions: BlockOption[]
   formats: FormatOption[]
@@ -129,6 +135,40 @@ export interface ResolvedExtensions {
   history: HistoryProvider | null
   externalDocument: boolean
 }
+
+const PM_KEYS: Record<string, string> = {
+  ' ': 'Space',
+  arrowup: 'ArrowUp',
+  arrowdown: 'ArrowDown',
+  arrowleft: 'ArrowLeft',
+  arrowright: 'ArrowRight',
+  pageup: 'PageUp',
+  pagedown: 'PageDown',
+}
+const PM_MODIFIERS: Record<string, string> = {
+  mod: 'Mod',
+  ctrl: 'Ctrl',
+  alt: 'Alt',
+  meta: 'Meta',
+  shift: 'Shift',
+}
+
+/** `mod+shift+h` → `Mod-Shift-h`, the way the ProseMirror keymap names keys. */
+export function toEditorKey(hotkey: string): string {
+  const steps = parseHotkey(hotkey)
+  if (steps.length !== 1)
+    throw new Error(`[@dou-ui/editor] key sequences aren't supported in a keymap: "${hotkey}"`)
+  const keys = steps[0]!
+  const modifiers = Object.keys(PM_MODIFIERS)
+    .filter((name) => keys.includes(name))
+    .map((name) => PM_MODIFIERS[name])
+  const key = keys.find((name) => !(name in PM_MODIFIERS)) ?? ''
+  const name = PM_KEYS[key] ?? (key.length > 1 ? key[0]!.toUpperCase() + key.slice(1) : key)
+  return [...modifiers, name].join('-')
+}
+
+const toEditorKeymap = (bindings: Record<string, Command>) =>
+  Object.fromEntries(Object.entries(bindings).map(([key, command]) => [toEditorKey(key), command]))
 
 function flatten(list: readonly (EditorExtension | EditorExtension[])[]): EditorExtension[] {
   const result: EditorExtension[] = []
@@ -153,9 +193,9 @@ function merge<T>(
 }
 
 /** Sort the extensions by priority, build the schema and collect what they add. */
-export function resolveExtensions(
+export function resolveEditorExtensions(
   list: readonly (EditorExtension | EditorExtension[])[],
-): ResolvedExtensions {
+): ResolvedEditorExtensions {
   const extensions = flatten(list)
     .map((extension, index) => ({ extension, index }))
     // oxlint-disable-next-line unicorn/no-array-sort -- sorts a fresh array
@@ -179,7 +219,7 @@ export function resolveExtensions(
     merge(marks, extension.marks, 'mark', extension.name)
   }
   const schema = createSchema({ blocks, nodes, inlines, marks })
-  const context: ExtensionContext = { schema }
+  const context: EditorExtensionContext = { schema }
 
   const providers = extensions.filter((extension) => extension.history)
   if (providers.length > 1)
@@ -195,7 +235,7 @@ export function resolveExtensions(
     overlays: extensions.flatMap((extension) => extension.overlays ?? []),
     inputRules: extensions.flatMap((extension) => extension.inputRules?.(context) ?? []),
     keymaps: extensions.flatMap((extension) =>
-      extension.keymap ? [extension.keymap(context)] : [],
+      extension.keymap ? [toEditorKeymap(extension.keymap(context))] : [],
     ),
     plugins: extensions.flatMap((extension) => extension.plugins?.(context) ?? []),
     history: providers[0]?.history?.(context) ?? null,

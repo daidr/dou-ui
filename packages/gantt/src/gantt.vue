@@ -74,8 +74,11 @@ const ppm = computed(() => dayWidth.value / MINUTES_PER_DAY)
 watch(level, (next) => {
   if (scale.value !== next.name) scale.value = next.name
 })
+// a picked level zooms around now when it is in view, else around the middle
 watch(scale, (name) => {
-  if (level.value.name !== name) zoomTo(levelByName(name).base)
+  if (level.value.name === name) return
+  const x = todayX.value == null ? null : todayX.value - scrollLeft.value
+  zoomTo(levelByName(name).base, x != null && x >= 0 && x <= viewWidth.value ? x : undefined)
 })
 
 const nowMs = useNow({ interval: 60_000 })

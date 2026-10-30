@@ -18,7 +18,7 @@ export interface ScaleLevel {
 
 /** From the widest days to the narrowest. */
 export const scaleLevels: readonly ScaleLevel[] = [
-  { name: 'hour', min: 288, base: 960, top: 'day', bottom: 'hour' },
+  { name: 'hour', min: 288, base: 1152, top: 'day', bottom: 'hour' },
   { name: 'day', min: 24, base: 40, top: 'month', bottom: 'day' },
   { name: 'week', min: 8, base: 16, top: 'month', bottom: 'week' },
   { name: 'month', min: 2, base: 4, top: 'year', bottom: 'month' },
@@ -39,7 +39,7 @@ export const levelOf = (dayWidth: number) =>
 /** Hours per header cell, so that labels have room. */
 export function hourStep(dayWidth: number) {
   const hour = dayWidth / 24
-  return [1, 2, 3, 4, 6, 12].find((step) => step * hour >= 40) ?? 12
+  return [1, 2, 3, 4, 6, 12].find((step) => step * hour >= 48) ?? 12
 }
 
 /** The step that drags and new dates snap to, in minutes. */

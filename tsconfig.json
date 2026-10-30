@@ -9,6 +9,7 @@
       "@dou-ui/icons/meta": ["./packages/icons/src/meta.ts"],
       "@dou-ui/editor": ["./packages/editor/src/index.ts"],
       "@dou-ui/editor/collaboration": ["./packages/editor/src/collaboration/index.ts"],
+      "@dou-ui/flow": ["./packages/flow/src/index.ts"],
       "@dou-ui/resolver": ["./packages/resolver/src/index.ts"]
     }
   },

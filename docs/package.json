@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@dou-ui/editor": "workspace:*",
+    "@dou-ui/flow": "workspace:*",
     "@dou-ui/icons": "workspace:*",
     "@dou-ui/theme": "workspace:*",
     "dou-ui": "workspace:*"

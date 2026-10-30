@@ -10,7 +10,7 @@
     --dou-gantt-header-bg: var(--dou-color-bg-canvas);
     --dou-gantt-line: var(--dou-color-border-subtle);
     --dou-gantt-line-strong: var(--dou-color-border);
-    --dou-gantt-off: color-mix(in oklab, var(--dou-color-text) 3%, transparent);
+    --dou-gantt-off: color-mix(in oklab, var(--dou-color-text) 5%, transparent);
     --dou-gantt-hover: color-mix(in oklab, var(--dou-color-text) 3%, transparent);
     --dou-gantt-selected: color-mix(in oklab, var(--dou-color-primary) 7%, transparent);
     --dou-gantt-link: color-mix(in oklab, var(--dou-color-text) 32%, transparent);
@@ -71,7 +71,7 @@
     &.is-center {
       justify-content: center;
     }
-    &.is-right {
+    &.is-end {
       justify-content: flex-end;
     }
   }
@@ -257,6 +257,10 @@
     text-box: trim-both cap alphabetic;
   }
 
+  .dou-gantt__cell.is-off {
+    color: var(--dou-color-text-tertiary);
+  }
+
   .dou-gantt__cell.is-now {
     color: var(--dou-gantt-today);
     font-weight: var(--dou-font-weight-medium);
@@ -277,6 +281,39 @@
     position: relative;
     background-image: linear-gradient(to top, var(--dou-gantt-line) 1px, transparent 1px);
     background-size: 100% var(--dou-gantt-row-height);
+  }
+
+  /* titles pinned to the left edge when the table is hidden */
+  .dou-gantt__row-titles {
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    width: 0;
+    height: 0;
+    overflow: visible;
+  }
+
+  .dou-gantt__row-title {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: flex;
+    align-items: center;
+    height: var(--dou-gantt-row-height);
+    padding: 0 12px;
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-sm);
+    white-space: nowrap;
+    pointer-events: none;
+    text-shadow:
+      0 0 2px var(--dou-color-bg-surface),
+      0 0 2px var(--dou-color-bg-surface),
+      0 0 4px var(--dou-color-bg-surface);
+
+    &.is-summary {
+      color: var(--dou-color-text);
+      font-weight: var(--dou-font-weight-medium);
+    }
   }
 
   .dou-gantt__off,

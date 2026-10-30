@@ -2,11 +2,14 @@
 import { DouGantt } from '@dou-ui/gantt'
 import { ref } from 'vue'
 
-// a week with a public holiday on Thursday and Friday, made up on Sunday
+// a holiday on Thursday and Friday, made up on a Sunday; a lunch break from 12 to 13
 const calendar = {
   holidays: ['2026-10-01', '2026-10-02'],
   workdays: ['2026-10-11'],
-  hours: ['09:00', '18:00'],
+  hours: [
+    ['09:00', '12:00'],
+    ['13:00', '18:00'],
+  ],
 }
 
 const tasks = ref([

@@ -4,18 +4,22 @@ import type { GanttScale } from './core/scale'
 import type { GanttRow } from './core/tree'
 import type { GanttMessagesOverride } from './locale'
 
-/** A column of the task table. */
+/** A column of the task table; written like a column of `DouTable`. */
 export interface GanttColumn {
   /**
-   * What it shows: `title`, `start`, `end`, `duration` and `progress` are
-   * built in; any other key reads the task's `data`.
+   * Identifies the column. `title`, `start`, `end`, `duration` and
+   * `progress` are built in; any other key reads the task's `data`, unless
+   * `value` is given.
    */
   key: string
   /** Header text; built-in columns have their own. */
-  label?: string
-  /** Width in px. A column without one takes the room left over. */
-  width?: number
-  align?: 'left' | 'center' | 'right'
+  title?: string
+  /** Reads the cell value from a task. */
+  value?: (task: GanttTask) => unknown
+  /** A number is in px. A column without one takes the room left over. */
+  width?: number | string
+  minWidth?: number | string
+  align?: 'start' | 'center' | 'end'
 }
 
 /** How a bar shows its task's title. */
@@ -26,7 +30,10 @@ export interface GanttProps {
   calendar?: GanttCalendar
   /** Columns of the task table. Defaults to title, start and duration. */
   columns?: GanttColumn[]
-  /** Show the task table beside the timeline. It hides itself below 640px. */
+  /**
+   * Show the task table beside the timeline. Below 520px it steps aside and
+   * the task titles show on the timeline.
+   */
   table?: boolean
   /** Starting width of the task table, in px. */
   tableWidth?: number
@@ -67,6 +74,8 @@ export interface GanttSlots {
 }
 
 export interface GanttExpose {
+  /** Picks the day width that fits all tasks into view and scrolls to the first one. */
+  fit: () => void
   /** Scrolls so that a date (or time) is near the left of the timeline. */
   scrollToDate: (date: string) => void
   /** Scrolls a task into view, rows and time. */

@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { DouGantt } from '../index'
 import type { GanttLink, GanttTask } from '../index'
@@ -90,14 +90,37 @@ describe('DouGantt', () => {
   })
 
   it('reads columns from data and hides the table on request', async () => {
-    const { wrapper } = setup({ columns: [{ key: 'title' }, { key: 'owner', label: '负责人' }] })
+    const { wrapper } = setup({
+      columns: [
+        { key: 'title' },
+        {
+          key: 'owner',
+          title: '负责人',
+          value: (task: GanttTask) => (task.id === 'a' ? '戴兜' : ''),
+        },
+      ],
+    })
     await nextTick()
     expect(wrapper.findAll('.dou-gantt__th').map((th) => th.text())).toEqual(['任务', '负责人'])
+    expect(wrapper.findAll('.dou-gantt__tr')[1]!.findAll('.dou-gantt__td')[1]!.text()).toBe('戴兜')
     wrapper.unmount()
     const hidden = setup({ table: false })
     await nextTick()
     expect(hidden.wrapper.find('.dou-gantt__table').exists()).toBe(false)
     expect(hidden.wrapper.findAll('.dou-gantt__bar').length).toBe(4)
     hidden.wrapper.unmount()
+  })
+
+  it('warns once about dates it can’t read', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const { wrapper, tasks } = setup()
+    tasks.value = [...tasks.value, { id: 'x', title: '手写', start: '2026-3-5' }]
+    await nextTick()
+    tasks.value = [...tasks.value]
+    await nextTick()
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(warn.mock.calls[0]![0]).toContain('"x"')
+    warn.mockRestore()
+    wrapper.unmount()
   })
 })

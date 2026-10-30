@@ -45,8 +45,12 @@ export interface GanttLink {
    * `ss` start to start; `ff` finish to finish; `sf` start to finish.
    */
   type?: GanttLinkType
-  /** Working days between the two ends; may be negative. */
-  lag?: number
+  /**
+   * Working time between the two ends; may be negative. A number counts
+   * working days; a string gives a unit: `'2d'` working days, `'4h'`
+   * working hours, `'30m'` working minutes.
+   */
+  lag?: number | string
 }
 
 /** Where a task sits in time, in minutes since the epoch. `end` is exclusive. */

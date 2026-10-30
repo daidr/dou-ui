@@ -14,7 +14,7 @@ import {
   type GanttScale,
   type TimeUnit,
 } from './core/scale'
-import { MINUTES_PER_DAY, dayStart, parseTime, wallClockNow } from './core/time'
+import { MINUTES_PER_DAY, dayIndex, dayStart, parseTime, wallClockNow } from './core/time'
 import { buildTree, type GanttRow } from './core/tree'
 import { dateLabel, durationLabel, endLabel, unitLabel } from './labels'
 import { format, useGanttMessages } from './locale'
@@ -32,7 +32,7 @@ const props = withDefaults(defineProps<GanttProps>(), {
 const tasks = defineModel<GanttTask[]>('tasks', { default: () => [] })
 const links = defineModel<GanttLink[]>('links', { default: () => [] })
 const selection = defineModel<string[]>('selection', { default: () => [] })
-const scale = defineModel<GanttScale>('scale', { default: 'day' })
+const scale = defineModel<GanttScale>('scale')
 const emit = defineEmits<GanttEmits>()
 defineSlots<GanttSlots>()
 
@@ -66,7 +66,9 @@ const selected = computed(() => new Set(selection.value))
 // Time axis -----------------------------------------------------------------------
 
 /** How wide a day is, in px; zooming changes it smoothly. */
-const dayWidth = ref(levelByName(scale.value).base)
+const dayWidth = ref(levelByName(scale.value ?? 'day').base)
+/** Without a `scale`, the first view picks the day width that fits the tasks. */
+let fitPending = scale.value == null
 const level = computed(() => levelOf(dayWidth.value))
 /** px per minute. */
 const ppm = computed(() => dayWidth.value / MINUTES_PER_DAY)
@@ -76,7 +78,7 @@ watch(level, (next) => {
 })
 // a picked level zooms around now when it is in view, else around the middle
 watch(scale, (name) => {
-  if (level.value.name === name) return
+  if (!name || level.value.name === name) return
   const x = todayX.value == null ? null : todayX.value - scrollLeft.value
   zoomTo(levelByName(name).base, x != null && x >= 0 && x <= viewWidth.value ? x : undefined)
 })
@@ -177,10 +179,48 @@ function scrollToTime(at: number, offset = 48) {
   scrollLeft.value = el.scrollLeft
 }
 
+/** The widest a day gets when fitting, so short plans don't zoom to hours. */
+const FIT_MAX = 64
+
+function fit() {
+  const width = viewWidth.value
+  if (!width) return
+  const days = Math.max(1, (content.value.end - content.value.start) / MINUTES_PER_DAY)
+  dayWidth.value = Math.min(FIT_MAX, Math.max(DAY_WIDTH_RANGE[0], (width - 96) / days))
+  scrollToTime(content.value.start)
+}
+
 onMounted(() => {
   measureScrollbar()
   scrollToTime(content.value.start)
 })
+
+watch(viewWidth, (width) => {
+  if (!fitPending || !width) return
+  fitPending = false
+  fit()
+})
+
+// Dates that can't be read leave a task unscheduled; say so once per task while developing.
+const warned = new Set<string>()
+watch(
+  tasks,
+  (list) => {
+    if (typeof process === 'undefined' || process.env.NODE_ENV === 'production') return
+    for (const task of list) {
+      for (const key of ['start', 'end'] as const) {
+        const text = task[key]
+        if (text == null || text === '' || parseTime(text) || warned.has(`${task.id}:${key}`))
+          continue
+        warned.add(`${task.id}:${key}`)
+        console.warn(
+          `[@dou-ui/gantt] task "${task.id}" has a ${key} that can't be read: "${text}". Use YYYY-MM-DD or YYYY-MM-DD HH:mm.`,
+        )
+      }
+    }
+  },
+  { immediate: true },
+)
 
 // Zoom ----------------------------------------------------------------------------
 
@@ -260,6 +300,22 @@ const shaded = computed(() => {
     width: (range.end - range.start) * ppm.value,
   }))
 })
+
+/**
+ * Without the table, rows whose bar is out of view (or that have none)
+ * show their title at the left edge of the timeline.
+ */
+const rowTitles = computed(() => {
+  if (showTable.value) return []
+  const from = origin.value + scrollLeft.value / ppm.value
+  const to = origin.value + (scrollLeft.value + viewWidth.value) / ppm.value
+  return visibleRows.value
+    .filter((row) => !row.span || row.span.end < from || row.span.start > to)
+    .map((row) => ({ row }))
+})
+
+/** Rows titled at the edge; their own side labels would only crowd it. */
+const titled = computed(() => new Set(rowTitles.value.map((item) => item.row.task.id)))
 
 const todayX = computed(() =>
   props.today && now.value >= extent.value.start && now.value <= extent.value.end
@@ -419,12 +475,16 @@ const columns = computed<GanttColumn[]>(
 )
 
 function headerOf(column: GanttColumn) {
-  if (column.label != null) return column.label
+  if (column.title != null) return column.title
   const builtIn = messages.value.columns as Record<string, string>
   return builtIn[column.key] ?? column.key
 }
 
 function cellText(row: GanttRow, column: GanttColumn) {
+  if (column.value) {
+    const value = column.value(row.task)
+    return value == null ? '' : String(value)
+  }
   const m = messages.value
   const span = row.span
   switch (column.key) {
@@ -451,8 +511,17 @@ function cellText(row: GanttRow, column: GanttColumn) {
   }
 }
 
-const columnStyle = (column: GanttColumn) =>
-  column.width ? { flex: `0 0 ${column.width}px`, width: `${column.width}px` } : { flex: '1 1 0' }
+const cssLength = (value: number | string | undefined) =>
+  typeof value === 'number' ? `${value}px` : value
+
+function columnStyle(column: GanttColumn) {
+  const width = cssLength(column.width)
+  return {
+    flex: width ? `0 0 ${width}` : '1 1 0',
+    width,
+    minWidth: cssLength(column.minWidth),
+  }
+}
 
 function toggle(row: GanttRow) {
   const id = row.task.id
@@ -512,7 +581,7 @@ function scrollToTask(id: string) {
   }
 }
 
-defineExpose<GanttExpose>({ scrollToDate, scrollToTask, zoomIn, zoomOut })
+defineExpose<GanttExpose>({ fit, scrollToDate, scrollToTask, zoomIn, zoomOut })
 
 const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * props.rowHeight}px)` })
 </script>
@@ -638,7 +707,10 @@ const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * prop
               v-for="cell in bottomCells"
               :key="cell.key"
               class="dou-gantt__cell"
-              :class="{ 'is-now': todayX != null && now >= cell.key && now < cell.end }"
+              :class="{
+                'is-now': todayX != null && now >= cell.key && now < cell.end,
+                'is-off': level.bottom === 'day' && !calendar.isWorkday(dayIndex(cell.key)),
+              }"
               :style="{ left: `${cell.left}px`, width: `${cell.width}px` }"
             >
               <span class="dou-gantt__cell-label">{{ cell.label }}</span>
@@ -651,6 +723,17 @@ const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * prop
           />
         </div>
         <div class="dou-gantt__body" :style="{ height: `${rows.length * rowHeight}px` }">
+          <div v-if="!showTable" class="dou-gantt__row-titles">
+            <span
+              v-for="item in rowTitles"
+              :key="item.row.task.id"
+              class="dou-gantt__row-title"
+              :class="{ 'is-summary': item.row.summary }"
+              :style="rowStyle(item.row)"
+            >
+              {{ item.row.task.title }}
+            </span>
+          </div>
           <div
             v-for="range in shaded"
             :key="range.key"
@@ -722,7 +805,7 @@ const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * prop
               </span>
             </div>
             <span
-              v-if="bar.label === 'outside'"
+              v-if="bar.label === 'outside' && !titled.has(bar.row.task.id)"
               class="dou-gantt__bar-side"
               :class="{ 'is-summary': bar.row.summary }"
               :style="{ left: `${bar.left + (bar.row.milestone ? 12 : bar.width + 8)}px` }"

@@ -28,7 +28,11 @@ interface GanttTask {
 - 只写日期 `2026-03-05`：按整天算。`end` 是最后一天，包含当天，`start: '2026-03-02', end: '2026-03-06'` 是五天。
 - 写到分钟 `2026-03-05 14:00`：`end` 是结束的那一刻，`start: '2026-03-05 14:00', end: '2026-03-05 16:30'` 是两个半小时。
 
-两种写法可以混用。时间按字面意思理解，不涉及时区：`09:00` 在任何时区都显示在 9 点的位置。
+两种写法可以混用，但要注意 `end` 的含义不同：`end: '2026-03-05'` 包含 3 月 5 日这一整天，而 `end: '2026-03-05 00:00'` 是 3 月 5 日零点，也就是 3 月 4 日结束，两者相差一天。
+
+带秒的写法（`2026-03-05 14:00:00`，DatePicker 开启秒时的值）也能读，秒会被忽略。其他写法（如 `2026-3-5`、`2026/03/05`）读不出来，任务会当作未排期；开发环境下控制台会提示是哪个任务的哪个字段。
+
+时间按字面意思理解，不涉及时区：`09:00` 在任何时区都显示在 9 点的位置。
 
 没有 `end` 时任务默认一天（只写日期时）或一小时（写到分钟时）。没有 `start` 的任务是未排期的，表格里照常显示，时间轴上不画任务条。
 
@@ -50,7 +54,7 @@ interface GanttLink {
   from: string // 前置任务
   to: string // 后续任务
   type?: 'fs' | 'ss' | 'ff' | 'sf'
-  lag?: number // 间隔的工作日数，可以为负
+  lag?: number | string // 间隔，可以为负
 }
 ```
 
@@ -61,18 +65,22 @@ interface GanttLink {
 | `ff`         | 前置任务完成后，后续任务才能完成 | 结束端 → 结束端             |
 | `sf`         | 前置任务开始后，后续任务才能完成 | 开始端 → 结束端             |
 
+`lag` 是两端之间的间隔，按工作时间计算：数字表示工作日，字符串可以带单位，`'2d'` 是两个工作日，`'4h'` 是四个工作小时，`'30m'` 是三十个工作分钟。
+
 连线从任务条的一端水平伸出，转直角进入另一个任务；两个任务挨得太近时，连线沿两行之间的缝隙绕回来。
 
 ## 列
 
-`columns` 设置表格的列。`title`、`start`、`end`、`duration`、`progress` 是内置列，其他 `key` 读取任务 `data` 里的同名字段。不设 `width` 的列分掉剩下的宽度。
+`columns` 设置表格的列，写法和 [Table](/components/table) 的列一致：`title` 是表头文字，`value` 从任务里取值，`width`、`minWidth` 可以是数字（px）或任意 CSS 长度，`align` 是 `start`、`center` 或 `end`。
+
+`key` 为 `title`、`start`、`end`、`duration`、`progress` 的是内置列，自带表头和格式；其他列没有 `value` 时读取任务 `data` 里与 `key` 同名的字段。不设 `width` 的列分掉剩下的宽度。
 
 ```ts
 const columns = [
   { key: 'title' },
-  { key: 'owner', label: '负责人', width: 80 },
+  { key: 'owner', title: '负责人', width: 80, value: (task) => task.data?.owner },
   { key: 'start', width: 96 },
-  { key: 'duration', width: 72, align: 'right' },
+  { key: 'duration', width: 72, align: 'end' },
 ]
 ```
 

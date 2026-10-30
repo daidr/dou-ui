@@ -1,20 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import {
-  buildTree,
-  formatTime,
-  levelOf,
-  offTime,
-  parseTime,
-  resolveCalendar,
-  roundedPath,
-  routeLink,
-  spanOf,
-  unitStart,
-  unitsBetween,
-  workdaysBetween,
-  workingMinutes,
-  writeSpan,
-} from '../index'
+import { offTime, resolveCalendar, workdaysBetween, workingMinutes } from '../core/calendar'
+import { roundedPath, routeLink } from '../core/geometry'
+import { linkRefusal, linkTypeOf, parseLag } from '../core/links'
+import { spanOf, writeSpan } from '../core/model'
+import { levelOf, unitStart, unitsBetween } from '../core/scale'
+import { formatTime, parseTime } from '../core/time'
+import { buildTree } from '../core/tree'
 
 const at = (text: string) => parseTime(text)!.at
 const DAY = 1440
@@ -23,6 +14,7 @@ describe('time', () => {
   it('reads dates and times to the minute, and refuses the rest', () => {
     expect(parseTime('2026-03-05')).toEqual({ at: at('2026-03-05 00:00'), dateOnly: true })
     expect(parseTime('2026-03-05 09:30')!.at - at('2026-03-05')).toBe(570)
+    expect(parseTime('2026-03-05 09:30:45')).toEqual(parseTime('2026-03-05 09:30'))
     expect(parseTime('2026-02-30')).toBeNull()
     expect(parseTime('2026-3-5')).toBeNull()
     expect(parseTime(undefined)).toBeNull()
@@ -97,6 +89,21 @@ describe('calendar', () => {
       (4 + 3) * 60,
     )
     expect(workingMinutes(calendar, at('2026-10-01 10:00'), at('2026-10-01 12:00'))).toBe(0)
+  })
+
+  it('leaves breaks out of working hours', () => {
+    const lunch = resolveCalendar({
+      hours: [
+        ['13:00', '18:00'],
+        ['09:00', '12:00'],
+      ],
+    })
+    expect(workingMinutes(lunch, at('2026-10-13 10:00'), at('2026-10-13 15:00'))).toBe(4 * 60)
+    expect(offTime(lunch, at('2026-10-13'), at('2026-10-14'), true)).toEqual([
+      { start: at('2026-10-13'), end: at('2026-10-13 09:00') },
+      { start: at('2026-10-13 12:00'), end: at('2026-10-13 13:00') },
+      { start: at('2026-10-13 18:00'), end: at('2026-10-14') },
+    ])
   })
 
   it('merges time off into stretches', () => {
@@ -210,5 +217,44 @@ describe('links', () => {
         4,
       ),
     ).toBe('M0 0 L2 0 Q4 0 4 2 L4 10')
+  })
+})
+
+describe('link rules', () => {
+  const tasks = new Map(
+    [
+      { id: 'p', title: '' },
+      { id: 'a', parent: 'p', title: '' },
+      { id: 'b', title: '' },
+      { id: 'c', title: '' },
+    ].map((task) => [task.id, task]),
+  )
+  const links = [
+    { id: '1', from: 'a', to: 'b' },
+    { id: '2', from: 'b', to: 'c' },
+  ]
+
+  it('refuses self, nested, duplicate and cyclic links', () => {
+    expect(linkRefusal(tasks, links, 'a', 'a')).toBe('self')
+    expect(linkRefusal(tasks, links, 'p', 'a')).toBe('nested')
+    expect(linkRefusal(tasks, links, 'b', 'a')).toBe('duplicate')
+    expect(linkRefusal(tasks, links, 'c', 'a')).toBe('cycle')
+    expect(linkRefusal(tasks, links, 'a', 'c')).toBeNull()
+  })
+
+  it('names the type by the ends joined', () => {
+    expect(linkTypeOf('end', 'start')).toBe('fs')
+    expect(linkTypeOf('start', 'start')).toBe('ss')
+    expect(linkTypeOf('end', 'end')).toBe('ff')
+    expect(linkTypeOf('start', 'end')).toBe('sf')
+  })
+
+  it('reads lags in days, hours and minutes', () => {
+    expect(parseLag(2)).toEqual({ amount: 2, unit: 'day' })
+    expect(parseLag('2d')).toEqual({ amount: 2, unit: 'day' })
+    expect(parseLag('4h')).toEqual({ amount: 240, unit: 'minute' })
+    expect(parseLag('-30m')).toEqual({ amount: -30, unit: 'minute' })
+    expect(parseLag(undefined)).toEqual({ amount: 0, unit: 'day' })
+    expect(parseLag('soon')).toBeNull()
   })
 })

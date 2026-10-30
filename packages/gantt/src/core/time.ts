@@ -8,7 +8,7 @@
 export const MINUTES_PER_HOUR = 60
 export const MINUTES_PER_DAY = 1440
 
-const PATTERN = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?$/
+const PATTERN = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::\d{2})?)?$/
 
 export interface ParsedTime {
   /** Minutes since the epoch. */
@@ -17,7 +17,10 @@ export interface ParsedTime {
   dateOnly: boolean
 }
 
-/** Reads `YYYY-MM-DD` or `YYYY-MM-DD HH:mm`; `null` for anything else. */
+/**
+ * Reads `YYYY-MM-DD` or `YYYY-MM-DD HH:mm`; seconds (`HH:mm:ss`) are
+ * accepted and dropped. `null` for anything else.
+ */
 export function parseTime(text: string | undefined | null): ParsedTime | null {
   const match = text ? PATTERN.exec(text.trim()) : null
   if (!match) return null

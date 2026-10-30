@@ -14,26 +14,16 @@ export type {
 } from './types'
 export { ganttLocales, useGanttMessages } from './locale'
 export type { GanttMessages, GanttMessagesOverride } from './locale'
-export { clampProgress, createId, spanOf, writeSpan } from './core/model'
+export { spanOf, writeSpan } from './core/model'
 export type { GanttData, GanttLink, GanttLinkType, GanttTask, TaskSpan } from './core/model'
-export { buildTree } from './core/tree'
-export type { GanttRow, GanttTree } from './core/tree'
-export { offTime, resolveCalendar, workdaysBetween, workingMinutes } from './core/calendar'
-export type { GanttCalendar, TimeRange, WorkCalendar } from './core/calendar'
-export {
-  levelByName,
-  levelOf,
-  nextUnit,
-  scaleLevels,
-  snapStep,
-  unitStart,
-  unitsBetween,
-} from './core/scale'
-export type { GanttScale, ScaleLevel, TimeUnit } from './core/scale'
-export { dayStart, formatDate, formatTime, fromParts, parseTime, partsOf } from './core/time'
-export type { ParsedTime, TimeParts } from './core/time'
-export { arrowPath, roundedPath, routeLink } from './core/geometry'
-export type { BarBox, LinkRoute, Point } from './core/geometry'
+export type { GanttRow } from './core/tree'
+export { resolveCalendar, workdaysBetween, workingMinutes } from './core/calendar'
+export type { GanttCalendar, WorkCalendar } from './core/calendar'
+export { parseLag } from './core/links'
+export type { GanttLag } from './core/links'
+export type { GanttScale } from './core/scale'
+export { formatTime, parseTime } from './core/time'
+export type { ParsedTime } from './core/time'
 
 declare module 'vue' {
   export interface GlobalComponents {

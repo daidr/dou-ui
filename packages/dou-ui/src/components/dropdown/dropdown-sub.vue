@@ -89,6 +89,10 @@ function onPanelKeydown(event: KeyboardEvent) {
     event.stopPropagation()
     return back()
   }
+  if (event.key === 'ArrowRight' && dropdown?.move) {
+    event.preventDefault()
+    return dropdown.move(1)
+  }
   onMenuKeydown(event)
 }
 

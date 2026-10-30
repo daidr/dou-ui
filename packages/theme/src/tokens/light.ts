@@ -65,6 +65,9 @@ export const light: ThemeTokens = {
       DEFAULT: 'cubic-bezier(0.2, 0, 0, 1)',
       enter: 'cubic-bezier(0.16, 1, 0.3, 1)',
       exit: 'cubic-bezier(0.4, 0, 1, 1)',
+      // a damped spring that overshoots by about 14% and settles
+      spring:
+        'linear(0, 0.192, 0.408, 0.616, 0.797, 0.94, 1.043, 1.107, 1.138, 1.145, 1.133, 1.111, 1.084, 1.057, 1.033, 1.013, 0.998, 0.989, 0.983, 0.982, 0.983, 0.985, 0.988, 0.992, 1)',
     },
     distance: { sm: '4px', md: '8px' },
     scale: '0.98',

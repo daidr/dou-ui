@@ -6,9 +6,12 @@ export interface VirtualListProps<T = any> {
   items: T[]
   /**
    * The height of each item in px, or a function giving it per item.
-   * Heights are known up front, so the scrollbar never jumps.
+   * Heights are known up front, so the scrollbar never jumps. Without it,
+   * items are measured once rendered.
    */
-  itemSize: number | ((item: T, index: number) => number)
+  itemSize?: number | ((item: T, index: number) => number)
+  /** Without `itemSize`, the height to assume for an item not rendered yet. */
+  estimateSize?: number | ((item: T, index: number) => number)
   /** A property of each item, or a function, that gives it a unique key. Defaults to the index. */
   itemKey?: string | ((item: T, index: number) => VirtualListKey)
   /** The height of the viewport. A number is in px. Without it the list fills its container. */

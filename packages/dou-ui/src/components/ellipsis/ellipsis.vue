@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, onUpdated, ref, useTemplateRef, watch } from 'vue'
+import { useResizeObserver } from '../../composables/use-element-size'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
 import DouTooltip from '../tooltip/tooltip.vue'
+import type { FunctionalComponent } from 'vue'
 import type { EllipsisExpose, EllipsisProps, EllipsisSlots } from './ellipsis'
 
 defineOptions({ name: 'DouEllipsis', inheritAttrs: false })
@@ -17,6 +19,10 @@ const props = withDefaults(defineProps<EllipsisProps>(), {
 })
 const emit = defineEmits<{ 'update:expanded': [expanded: boolean] }>()
 const slots = defineSlots<EllipsisSlots>()
+
+// Without `tooltip`, skip the tooltip's popup machinery altogether.
+const Passthrough: FunctionalComponent = (_, context) => context.slots.default?.()
+Passthrough.inheritAttrs = false
 
 const ns = useNamespace('ellipsis')
 const { t } = useLocale()
@@ -46,15 +52,9 @@ function measure() {
     : el.scrollHeight > el.clientHeight + 1
 }
 
-let observer: ResizeObserver | undefined
-onMounted(() => {
-  measure()
-  if (typeof ResizeObserver === 'undefined' || !textRef.value) return
-  observer = new ResizeObserver(() => measure())
-  observer.observe(textRef.value)
-})
+onMounted(measure)
+useResizeObserver(textRef, () => measure())
 onUpdated(measure)
-onBeforeUnmount(() => observer?.disconnect())
 watch(() => props.lines, measure, { flush: 'post' })
 
 const showToggle = computed(() => props.expandable && (truncated.value || expanded.value))
@@ -68,7 +68,11 @@ defineExpose<EllipsisExpose>({
 </script>
 
 <template>
-  <DouTooltip :disabled="!showTooltip" :placement="tooltipPlacement">
+  <component
+    :is="tooltip ? DouTooltip : Passthrough"
+    :disabled="!showTooltip"
+    :placement="tooltipPlacement"
+  >
     <component
       :is="as"
       v-bind="$attrs"
@@ -98,5 +102,5 @@ defineExpose<EllipsisExpose>({
     <template #content>
       <slot name="tooltip"><slot /></slot>
     </template>
-  </DouTooltip>
+  </component>
 </template>

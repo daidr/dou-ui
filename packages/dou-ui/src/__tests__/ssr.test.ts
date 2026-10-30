@@ -13,6 +13,7 @@ const props: Record<string, Record<string, unknown>> = {
   DouCommand: { items: [{ value: 'a', label: 'A' }] },
   DouCommandDialog: { items: [{ value: 'a', label: 'A' }], open: true },
   DouCopyButton: { text: 'npm i dou-ui' },
+  DouRelativeTime: { value: '2026-10-29T08:00:00Z', now: '2026-10-29T09:00:00Z' },
   DouDialog: { open: true, title: '标题' },
   DouDrawer: { open: true, title: '标题' },
   DouDropdown: { items: [{ key: 'a', label: 'A' }] },
@@ -48,6 +49,7 @@ const props: Record<string, Record<string, unknown>> = {
   DouTree: { data: [{ key: 'a', label: 'A' }] },
   DouTreeSelect: { data: [{ key: 'a', label: 'A' }], modelValue: 'a' },
   DouVirtualList: { items: [1, 2, 3], itemSize: 32 },
+  DouMasonry: { items: [1, 2, 3] },
 }
 
 const components = (Object.entries(DouUI) as [string, unknown][]).filter(

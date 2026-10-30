@@ -1,0 +1,86 @@
+{
+  "name": "@dou-ui/editor",
+  "version": "0.0.0",
+  "description": "DouUI 的块编辑器：基于 ProseMirror，文档由可拖动、可转换的块组成",
+  "keywords": [
+    "vue",
+    "vue3",
+    "editor",
+    "block-editor",
+    "rich-text",
+    "prosemirror"
+  ],
+  "license": "MIT",
+  "author": "daidr <daidr@daidr.me>",
+  "homepage": "https://github.com/daidr/dou-ui#readme",
+  "bugs": "https://github.com/daidr/dou-ui/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/daidr/dou-ui.git",
+    "directory": "packages/editor"
+  },
+  "type": "module",
+  "sideEffects": [
+    "*.css"
+  ],
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./collaboration": {
+      "types": "./dist/types/collaboration/index.d.ts",
+      "import": "./dist/collaboration/index.js"
+    },
+    "./markdown": {
+      "types": "./dist/types/markdown/index.d.ts",
+      "import": "./dist/markdown/index.js"
+    },
+    "./style.css": "./dist/style.css",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "vite build && vue-tsc -p tsconfig.build.json && bun scripts/build-style.ts"
+  },
+  "peerDependencies": {
+    "dou-ui": "workspace:*",
+    "vue": "^3.5.0",
+    "yjs": "^13.6.0",
+    "markdown-it": "^14.0.0"
+  },
+  "peerDependenciesMeta": {
+    "yjs": {
+      "optional": true
+    },
+    "markdown-it": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "@dou-ui/icons": "workspace:*",
+    "prosemirror-commands": "^1.7.2",
+    "prosemirror-history": "^1.5.1",
+    "prosemirror-inputrules": "^1.5.1",
+    "prosemirror-keymap": "^1.2.3",
+    "prosemirror-model": "^1.25.12",
+    "prosemirror-state": "^1.4.4",
+    "prosemirror-tables": "^1.8.5",
+    "prosemirror-transform": "^1.12.4",
+    "prosemirror-view": "^1.42.8"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "@types/markdown-it": "^14.1.2",
+    "markdown-it": "^14.1.0",
+    "y-protocols": "^1.0.7",
+    "yjs": "^13.6.33"
+  }
+}

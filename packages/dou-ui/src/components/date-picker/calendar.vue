@@ -11,6 +11,7 @@ import {
   inBounds,
   isoWeek,
   parts,
+  quarterOf,
   today,
   toDateString,
   truncate,
@@ -41,14 +42,12 @@ const { t, locale } = useLocale()
 const id = `dou-calendar-${useId()}`
 
 const unit = computed<DateUnit>(() => props.type)
-const isRange = computed(() => props.range && unit.value === 'date')
+const isRange = computed(() => props.range && unit.value !== 'week')
 const isWeek = computed(() => unit.value === 'week')
 const panelCount = computed(() => props.panels ?? (isRange.value ? 2 : 1))
 // ISO weeks start on Monday, whatever the locale.
 const weekStart = computed(() =>
-  isWeek.value
-    ? 1
-    : (props.weekStart ?? (locale.value.name.toLowerCase().startsWith('en') ? 0 : 1)),
+  isWeek.value ? 1 : (props.weekStart ?? locale.value.region.weekStart),
 )
 
 /* the value */
@@ -91,7 +90,7 @@ function clamp(date: string) {
 
 /* where the calendar is looking */
 
-type View = 'date' | 'month' | 'year'
+type View = 'date' | 'month' | 'quarter' | 'year'
 const viewOf = (value: DateUnit): View => (value === 'week' ? 'date' : value)
 const view = ref<View>(viewOf(unit.value))
 const cursor = ref(clamp(values.value[0] ? expand(values.value[0]) : today()))
@@ -129,12 +128,12 @@ const asDate = (date: string) => {
 }
 
 const weekdays = computed(() => {
-  const short = formatter({ weekday: 'short' })
+  const narrow = formatter({ weekday: 'narrow' })
   const long = formatter({ weekday: 'long' })
   // 2024-01-07 is a Sunday.
   return Array.from({ length: 7 }, (_, index) => {
     const date = asDate(toDateString(2024, 1, 7 + ((weekStart.value + index) % 7)))
-    return { short: short.format(date), long: long.format(date) }
+    return { short: narrow.format(date), long: long.format(date) }
   })
 })
 
@@ -185,6 +184,12 @@ const monthCells = computed(() =>
     return { value, label: monthName.value.format(asDate(`${value}-01`)) }
   }),
 )
+const quarterCells = computed(() =>
+  Array.from({ length: 4 }, (_, index) => ({
+    value: `${String(cursorYear.value).padStart(4, '0')}-Q${index + 1}`,
+    label: t('datePicker.quarterCell', { quarter: index + 1 }),
+  })),
+)
 const yearCells = computed(() =>
   Array.from({ length: 12 }, (_, index) => {
     const year = decade.value - 1 + index
@@ -205,6 +210,18 @@ const isSelected = (value: string) => {
 const inRange = (date: string) =>
   !!shownRange.value && date > shownRange.value[0] && date < shownRange.value[1]
 const isEdge = (date: string, edge: 0 | 1) => shownRange.value?.[edge] === date
+// Months, quarters and years show a range only in the grid of the picked unit.
+const rangeClasses = (value: string) =>
+  view.value === unit.value
+    ? [
+        ns.is('in-range', inRange(value)),
+        ns.is('range-start', isEdge(value, 0)),
+        ns.is('range-end', isEdge(value, 1)),
+      ]
+    : []
+const hover = (value: string) => {
+  if (pending.value) hovered.value = value
+}
 
 const activeValue = computed(() => truncate(cursor.value, view.value))
 
@@ -219,16 +236,21 @@ function pickDate(date: string) {
   if (isDisabled(date)) return
   cursor.value = date
   if (isWeek.value) return commit(isoWeek(date))
-  if (!isRange.value) return commit(date)
+  pickValue(date)
+}
+
+/** Commit a value of the picked unit, or one end of a range. */
+function pickValue(value: string) {
+  if (!isRange.value) return commit(value)
   if (!pending.value) {
-    pending.value = date
-    hovered.value = date
+    pending.value = value
+    hovered.value = value
     return
   }
   const start = pending.value
   pending.value = null
   hovered.value = null
-  commit(start <= date ? [start, date] : [date, start])
+  commit(start <= value ? [start, value] : [value, start])
 }
 
 function pickMonth(value: string) {
@@ -236,8 +258,14 @@ function pickMonth(value: string) {
   const { day } = parts(cursor.value)
   const { year, month } = parts(`${value}-01`)
   cursor.value = clamp(toDateString(year, month, Math.min(day, daysInMonth(year, month))))
-  if (unit.value === 'month') commit(value)
+  if (unit.value === 'month') pickValue(value)
   else void moveView('date')
+}
+
+function pickQuarter(value: string) {
+  if (isDisabled(value)) return
+  cursor.value = clamp(expand(value))
+  pickValue(value)
 }
 
 function pickYear(value: string) {
@@ -245,8 +273,8 @@ function pickYear(value: string) {
   const { month, day } = parts(cursor.value)
   const year = Number(value)
   cursor.value = clamp(toDateString(year, month, Math.min(day, daysInMonth(year, month))))
-  if (unit.value === 'year') commit(value)
-  else void moveView('month')
+  if (unit.value === 'year') pickValue(value)
+  else void moveView(unit.value === 'quarter' ? 'quarter' : 'month')
 }
 
 /* navigating */
@@ -275,14 +303,15 @@ function step(direction: 1 | -1) {
   if (view.value === 'date') {
     anchor.value = addMonths(`${anchor.value}-01`, direction).slice(0, 7)
     cursor.value = addMonths(cursor.value, direction)
-  } else if (view.value === 'month') cursor.value = addMonths(cursor.value, direction * 12)
-  else cursor.value = addMonths(cursor.value, direction * 120)
+  } else if (view.value === 'month' || view.value === 'quarter') {
+    cursor.value = addMonths(cursor.value, direction * 12)
+  } else cursor.value = addMonths(cursor.value, direction * 120)
 }
 
 const stepLabels = computed(() => {
   if (view.value === 'date') return [t('datePicker.prevMonth'), t('datePicker.nextMonth')]
-  if (view.value === 'month') return [t('datePicker.prevYear'), t('datePicker.nextYear')]
-  return [t('datePicker.prevDecade'), t('datePicker.nextDecade')]
+  if (view.value === 'year') return [t('datePicker.prevDecade'), t('datePicker.nextDecade')]
+  return [t('datePicker.prevYear'), t('datePicker.nextYear')]
 })
 
 function onGridKeydown(event: KeyboardEvent) {
@@ -302,6 +331,16 @@ function onGridKeydown(event: KeyboardEvent) {
       PageDown: () => page(1),
     }
     next = keys[event.key]?.()
+  } else if (view.value === 'quarter') {
+    const keys: Record<string, () => string> = {
+      ArrowLeft: () => addMonths(date, -3),
+      ArrowRight: () => addMonths(date, 3),
+      ArrowUp: () => addMonths(date, -12),
+      ArrowDown: () => addMonths(date, 12),
+      PageUp: () => addMonths(date, -12),
+      PageDown: () => addMonths(date, 12),
+    }
+    next = keys[event.key]?.()
   } else {
     const size = view.value === 'month' ? 1 : 12
     const keys: Record<string, () => string> = {
@@ -317,7 +356,7 @@ function onGridKeydown(event: KeyboardEvent) {
   if (next) {
     event.preventDefault()
     cursor.value = next
-    if (pending.value) hovered.value = next
+    if (pending.value) hovered.value = truncate(next, view.value)
     void focusActive()
     return
   }
@@ -325,6 +364,7 @@ function onGridKeydown(event: KeyboardEvent) {
     event.preventDefault()
     if (view.value === 'date') pickDate(cursor.value)
     else if (view.value === 'month') pickMonth(activeValue.value)
+    else if (view.value === 'quarter') pickQuarter(activeValue.value)
     else pickYear(activeValue.value)
   }
 }
@@ -433,7 +473,7 @@ const classes = computed(() => [
             <ChevronLeftIcon />
           </button>
           <button
-            v-if="view === 'month'"
+            v-if="view === 'month' || view === 'quarter'"
             :id="`${id}-title-0`"
             type="button"
             :class="ns.e('title')"
@@ -465,7 +505,7 @@ const classes = computed(() => [
                 <td
                   v-for="cell in row"
                   :key="cell.value"
-                  :class="ns.e('cell')"
+                  :class="[ns.e('cell'), ...rangeClasses(cell.value)]"
                   :aria-selected="isSelected(cell.value)"
                 >
                   <button
@@ -480,18 +520,48 @@ const classes = computed(() => [
                     ]"
                     :aria-disabled="isDisabled(cell.value) || undefined"
                     @click="pickMonth(cell.value)"
+                    @mouseenter="hover(cell.value)"
                   >
                     {{ cell.label }}
                   </button>
                 </td>
               </tr>
             </template>
+            <tr v-else-if="view === 'quarter'">
+              <td
+                v-for="cell in quarterCells"
+                :key="cell.value"
+                :class="[ns.e('cell'), ...rangeClasses(cell.value)]"
+                :aria-selected="isSelected(cell.value)"
+              >
+                <button
+                  type="button"
+                  :data-value="cell.value"
+                  :tabindex="cell.value === activeValue ? 0 : -1"
+                  :class="[
+                    ns.e('day'),
+                    ns.is('today', cell.value === quarterOf(todayValue)),
+                    ns.is('selected', isSelected(cell.value)),
+                    ns.is('disabled', isDisabled(cell.value)),
+                  ]"
+                  :aria-disabled="isDisabled(cell.value) || undefined"
+                  @click="pickQuarter(cell.value)"
+                  @mouseenter="hover(cell.value)"
+                >
+                  {{ cell.label }}
+                </button>
+              </td>
+            </tr>
             <template v-else>
               <tr v-for="(row, index) in rowsOf(yearCells)" :key="index">
                 <td
                   v-for="cell in row"
                   :key="cell.value"
-                  :class="[ns.e('cell'), ns.is('outside', cell.outside)]"
+                  :class="[
+                    ns.e('cell'),
+                    ns.is('outside', cell.outside),
+                    ...rangeClasses(cell.value),
+                  ]"
                   :aria-selected="isSelected(cell.value)"
                 >
                   <button
@@ -506,6 +576,7 @@ const classes = computed(() => [
                     ]"
                     :aria-disabled="isDisabled(cell.value) || undefined"
                     @click="pickYear(cell.value)"
+                    @mouseenter="hover(cell.value)"
                   >
                     {{ Number(cell.value) }}
                   </button>

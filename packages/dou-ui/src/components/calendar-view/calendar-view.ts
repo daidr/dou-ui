@@ -7,17 +7,35 @@ export interface CalendarEvent {
   date: string
   /** The last day of an event that spans several days. */
   end?: string
+  /**
+   * When it starts, `HH:mm`. Events with a time sit on the time axis of the
+   * week and day views; events without one are all-day events.
+   */
+  time?: string
+  /** When it ends, `HH:mm`, on the same day. Defaults to an hour after `time`. */
+  endTime?: string
   title: string
   tone?: Tone
 }
+
+/** A month as a grid of days, or a week or a day along a time axis. */
+export type CalendarViewMode = 'month' | 'week' | 'day'
 
 export interface CalendarViewProps {
   /** The chosen day, bound with `v-model`. */
   modelValue?: string | null
   /** The month shown, `YYYY-MM`, bound with `v-model:month`. Starts at the chosen day or today. */
   month?: string
+  /** What is shown, bound with `v-model:view`. */
+  view?: CalendarViewMode
+  /** Show a switch between these views beside the navigation. */
+  views?: CalendarViewMode[]
   /** `0` starts weeks on Sunday, `1` on Monday. Follows the locale when unset. */
   weekStart?: 0 | 1
+  /** The hours the time axis covers in the week and day views, e.g. `[8, 20]`. */
+  hours?: [number, number]
+  /** The time scrolled into view when the week or day view opens, `HH:mm`. */
+  scrollTime?: string
   /** Things to show in the days, e.g. a schedule. */
   events?: CalendarEvent[]
   /** The most events listed in a day before the rest fold into "+N". */
@@ -29,10 +47,13 @@ export interface CalendarViewProps {
 export interface CalendarViewEmits {
   'update:modelValue': [date: string]
   'update:month': [month: string]
+  'update:view': [view: CalendarViewMode]
   /** A day was chosen. */
   select: [date: string]
   /** An event was pressed. */
   eventClick: [event: CalendarEvent]
+  /** An empty spot on the time axis was pressed, rounded down to the half hour. */
+  timeClick: [slot: { date: string; time: string }]
 }
 
 export interface CalendarDay {
@@ -49,14 +70,14 @@ export interface CalendarDay {
 export interface CalendarViewSlots {
   /** Replaces what is under the day number. */
   cell?: (props: CalendarDay) => unknown
-  /** Replaces one event in a day. */
+  /** Replaces one event in a day, or on the time axis. */
   event?: (props: { event: CalendarEvent; day: CalendarDay }) => unknown
   /** Beside the month navigation, e.g. a view switch. */
   extra?: () => unknown
 }
 
 export interface CalendarViewExpose {
-  /** Show the month that holds `date`. */
+  /** Show the month, week or day that holds `date`. */
   show: (date: string) => void
   focus: () => void
 }

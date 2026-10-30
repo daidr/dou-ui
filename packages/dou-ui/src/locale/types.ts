@@ -8,6 +8,25 @@
 export interface Locale {
   /** A BCP 47 language tag, e.g. `zh-CN`. */
   name: string
+  /** How dates and numbers are written where this language is used. */
+  region: {
+    /** The first day of the week: `0` is Sunday, `1` Monday. */
+    weekStart: 0 | 1
+    /** How a date is shown and typed. `YYYY`, `MM`, `DD` are the parts; text in `[]` is kept as it is. */
+    date: string
+    /** How a month is shown and typed. */
+    month: string
+    /** How a year is shown and typed. */
+    year: string
+    /** How a time is shown and typed. `HH` is a 24-hour hour, `hh` with `A` a 12-hour one. */
+    time: string
+    /** The same with seconds (`ss`). */
+    timeWithSeconds: string
+    /** Put between groups of three digits. */
+    groupSeparator: string
+    /** Put before the fraction of a number. */
+    decimalSeparator: string
+  }
   tabs: {
     /** Hint on the close button of a tab. */
     close: string
@@ -57,6 +76,12 @@ export interface Locale {
     close: string
     /** Label of the edge that resizes the drawer. */
     resize: string
+    /** Label of the handle that moves the drawer to its next snap point. */
+    snap: string
+  }
+  editable: {
+    /** Read after the text, saying how to start editing it. */
+    hint: string
   }
   select: {
     /** Shown in an empty select without a `placeholder`. */
@@ -131,8 +156,12 @@ export interface Locale {
   upload: {
     /** The button that opens the file picker. */
     choose: string
+    /** The button's text for `directory`. */
+    chooseFolder: string
     /** The dropzone's prompt, followed by `browse`. */
     drop: string
+    /** The dropzone's prompt for `directory`, followed by `browse`. */
+    dropFolder: string
     /** The part of the dropzone's prompt that reads as a link. */
     browse: string
     /** Names the list of files. */
@@ -163,6 +192,12 @@ export interface Locale {
     confirm: string
     /** Shown in an empty year field. */
     yearPlaceholder: string
+    /** Shown in an empty quarter field. */
+    quarterPlaceholder: string
+    /** How a quarter is written in the field, e.g. `Q{quarter} {year}`. */
+    quarter: string
+    /** A quarter in the picker's grid, e.g. `Q{quarter}`. */
+    quarterCell: string
     /** The start field of a range. */
     start: string
     /** The end field of a range. */
@@ -300,6 +335,10 @@ export interface Locale {
     /** The blue–yellow axis of Lab and Oklab. */
     axisB: string
   }
+  menu: {
+    /** Names the item that holds what a horizontal menu has no room for. */
+    more: string
+  }
   transfer: {
     /** The heading of the left list. */
     source: string
@@ -360,6 +399,32 @@ export interface Locale {
     /** Names the navigation. */
     label: string
   }
+  calendarHeatmap: {
+    /** The light end of the legend. */
+    less: string
+    /** The dark end of the legend. */
+    more: string
+    /** Names a day and its value, with `{date}` and `{value}`. */
+    day: string
+  }
+  sparkline: {
+    /** Describes the series, with `{count}`, `{min}`, `{max}` and `{last}`. */
+    summary: string
+    /** Names a series without values. */
+    empty: string
+    /** A labeled value, with `{label}` and `{value}`. */
+    point: string
+  }
+  relativeTime: {
+    /** A moment less than a minute away. */
+    justNow: string
+  }
+  codeBlock: {
+    /** Unfolds a long block; `{count}` is the number of lines. */
+    expand: string
+    /** Folds it again. */
+    collapse: string
+  }
   copyButton: {
     copy: string
     /** Said once the text is on the clipboard. */
@@ -396,16 +461,6 @@ export interface Locale {
     label: string
   }
   inputDate: {
-    /** How a date is shown and typed. `YYYY`, `MM`, `DD` are the parts; text in `[]` is kept as it is. */
-    date: string
-    /** How a month is shown and typed. */
-    month: string
-    /** How a year is shown and typed. */
-    year: string
-    /** How a time is shown and typed. `HH` is a 24-hour hour, `hh` with `A` a 12-hour one. */
-    time: string
-    /** The same with seconds (`ss`). */
-    timeWithSeconds: string
     /** Shown in each part while it is empty. */
     placeholders: Record<
       'year' | 'month' | 'day' | 'hour' | 'minute' | 'second' | 'meridiem',
@@ -440,6 +495,16 @@ export interface Locale {
     more: string
     /** A day's label when it has events, with `{date}` and `{count}`. */
     dayWithEvents: string
+    /** Names of the views in the view switch. */
+    month: string
+    week: string
+    day: string
+    /** Heads the row of events without a time in the week and day views. */
+    allDay: string
+    prevWeek: string
+    nextWeek: string
+    prevDay: string
+    nextDay: string
   }
   infiniteScroll: {
     /** Shown at the end of the list while the next page loads. */

@@ -2,6 +2,16 @@ import type { Locale } from './types'
 
 export const zhCN: Locale = {
   name: 'zh-CN',
+  region: {
+    weekStart: 1,
+    date: 'YYYY-MM-DD',
+    month: 'YYYY-MM',
+    year: 'YYYY',
+    time: 'HH:mm',
+    timeWithSeconds: 'HH:mm:ss',
+    groupSeparator: ',',
+    decimalSeparator: '.',
+  },
   tabs: {
     close: '关闭',
     add: '新建标签页',
@@ -35,6 +45,10 @@ export const zhCN: Locale = {
   drawer: {
     close: '关闭',
     resize: '拖动调整大小',
+    snap: '切换高度',
+  },
+  editable: {
+    hint: '按 Enter 编辑',
   },
   select: {
     placeholder: '请选择',
@@ -81,7 +95,9 @@ export const zhCN: Locale = {
   },
   upload: {
     choose: '选择文件',
+    chooseFolder: '选择文件夹',
     drop: '将文件拖到这里，或',
+    dropFolder: '将文件夹拖到这里，或',
     browse: '点击选择',
     list: '文件列表',
     remove: '移除',
@@ -99,6 +115,9 @@ export const zhCN: Locale = {
     now: '此刻',
     confirm: '确定',
     yearPlaceholder: '选择年份',
+    quarterPlaceholder: '选择季度',
+    quarter: '{year} 年第 {quarter} 季度',
+    quarterCell: '{quarter} 季度',
     start: '开始日期',
     end: '结束日期',
     today: '今天',
@@ -193,6 +212,9 @@ export const zhCN: Locale = {
     axisA: 'a 轴（绿–红）',
     axisB: 'b 轴（蓝–黄）',
   },
+  menu: {
+    more: '更多',
+  },
   transfer: {
     source: '待选',
     target: '已选',
@@ -240,6 +262,23 @@ export const zhCN: Locale = {
   anchor: {
     label: '本页目录',
   },
+  calendarHeatmap: {
+    less: '少',
+    more: '多',
+    day: '{date}：{value}',
+  },
+  sparkline: {
+    summary: '{count} 个数据，最低 {min}，最高 {max}，最新 {last}',
+    empty: '暂无数据',
+    point: '{label}：{value}',
+  },
+  relativeTime: {
+    justNow: '刚刚',
+  },
+  codeBlock: {
+    expand: '展开全部 {count} 行',
+    collapse: '收起',
+  },
   copyButton: {
     copy: '复制',
     copied: '已复制',
@@ -265,11 +304,6 @@ export const zhCN: Locale = {
     label: '验证码',
   },
   inputDate: {
-    date: 'YYYY-MM-DD',
-    month: 'YYYY-MM',
-    year: 'YYYY',
-    time: 'HH:mm',
-    timeWithSeconds: 'HH:mm:ss',
     placeholders: {
       year: '年',
       month: '月',
@@ -304,6 +338,14 @@ export const zhCN: Locale = {
   calendarView: {
     more: '还有 {count} 项',
     dayWithEvents: '{date}，{count} 项日程',
+    month: '月',
+    week: '周',
+    day: '日',
+    allDay: '全天',
+    prevWeek: '上一周',
+    nextWeek: '下一周',
+    prevDay: '前一天',
+    nextDay: '后一天',
   },
   infiniteScroll: {
     loading: '加载中',

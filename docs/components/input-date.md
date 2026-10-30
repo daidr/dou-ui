@@ -62,7 +62,7 @@
 
 ## 读屏
 
-字段是 `role="group"`，每一段是 `role="spinbutton"`，带 `aria-valuenow`、`aria-valuemin`、`aria-valuemax` 和读出的文字 `aria-valuetext`，空的段读作"空"。段的名称来自语言包，范围时前面加上"开始日期""结束日期"。
+字段是 `role="group"`，每一段是 `role="spinbutton"`，带 `aria-valuenow`、`aria-valuemin`、`aria-valuemax` 和读出的文字 `aria-valuetext`，空的段读作“空”。段的名称来自语言包，范围时前面加上“开始日期”“结束日期”。
 
 ## API
 

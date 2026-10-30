@@ -1,0 +1,38 @@
+/*
+ * Toolbar
+ *
+ * A row of controls with a little air between them; separators split it
+ * into groups. The toolbar draws no frame of its own, so it can sit in a
+ * card header, above an editor or on its own surface.
+ */
+@layer dou.components {
+  .dou-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .dou-toolbar--vertical {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .dou-toolbar-separator {
+    flex: none;
+    align-self: center;
+    width: 1px;
+    height: 20px;
+    margin-inline: 4px;
+    background-color: var(--dou-color-border);
+  }
+
+  .dou-toolbar--vertical > .dou-toolbar-separator {
+    width: 20px;
+    height: 1px;
+    margin-block: 4px;
+    margin-inline: 0;
+  }
+}

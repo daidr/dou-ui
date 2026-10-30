@@ -127,6 +127,7 @@
   }
 
   .dou-tag__close {
+    position: relative;
     display: inline-flex;
     flex-shrink: 0;
     align-items: center;
@@ -160,6 +161,13 @@
       outline: 2px solid var(--dou-color-focus);
       outline-offset: 1px;
       opacity: 1;
+    }
+
+    /* a larger hit area than the small glyph, without changing the layout */
+    &::after {
+      content: '';
+      position: absolute;
+      inset: -4px;
     }
   }
 }

@@ -42,6 +42,12 @@
     font: inherit;
     text-align: left;
 
+    /* keep the arrow's room so the status lines up with expandable calls
+       and doesn't shift once a running call gets its result */
+    &:not(button) {
+      padding-inline-end: calc(12px + 14px + 8px);
+    }
+
     &:is(button) {
       cursor: pointer;
 
@@ -52,7 +58,7 @@
       &:focus-visible {
         outline: 2px solid var(--dou-color-focus);
         outline-offset: -2px;
-        border-radius: var(--dou-radius-container);
+        border-radius: calc(var(--dou-radius-container) - 2px);
       }
     }
   }
@@ -100,11 +106,16 @@
     }
   }
 
+  /* a footer like ChatConfirm's: below the details when open, split off
+     by a hairline so the header's hover stops at a clear edge */
   .dou-chat-tool-call__actions {
     display: flex;
     flex-wrap: wrap;
+    justify-content: flex-end;
     gap: 8px;
-    padding: 0 12px 10px 36px;
+    padding: 8px 12px;
+    border-top: 1px solid var(--dou-color-border-subtle);
+    background-color: color-mix(in oklab, var(--dou-color-text) 2%, var(--dou-color-bg-surface));
   }
 
   .dou-chat-tool-call__panel {

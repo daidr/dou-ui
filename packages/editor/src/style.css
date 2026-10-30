@@ -1,0 +1,1271 @@
+/*
+ * Editor
+ *
+ * A document reads like a page, not a form: no box around it, text at
+ * reading size with generous leading. Blocks stack with a few pixels
+ * between them and nest by indenting. The handle sits in the gutter on
+ * the left of the hovered block. Selected blocks take a faint tint, the
+ * same in light and dark; the drop line during a drag is the focus color.
+ */
+@layer dou.components {
+  .dou-editor {
+    --dou-editor-font-size: var(--dou-font-size-lg);
+    --dou-editor-line-height: 1.7;
+    /* room on the left for the handle of top-level blocks */
+    --dou-editor-gutter: 56px;
+    --dou-editor-indent: 24px;
+    --dou-editor-block-gap: 2px;
+    --dou-editor-selected: light-dark(
+      color-mix(in oklab, var(--dou-color-focus) 12%, transparent),
+      color-mix(in oklab, var(--dou-color-focus) 22%, transparent)
+    );
+    --dou-editor-control-hover: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+
+    position: relative;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    padding-inline-start: var(--dou-editor-gutter);
+    color: var(--dou-color-text);
+    font-family: var(--dou-font-family);
+    font-size: var(--dou-editor-font-size);
+    line-height: var(--dou-editor-line-height);
+    overflow-wrap: break-word;
+
+    &.is-readonly {
+      --dou-editor-gutter: 0px;
+    }
+
+    /* touch screens have no hover: no handle, and no gutter for it */
+    @media (pointer: coarse) {
+      --dou-editor-gutter: 0px;
+
+      & .dou-editor__handle {
+        display: none;
+      }
+    }
+
+    &.is-dragging,
+    &.is-dragging * {
+      cursor: grabbing;
+    }
+  }
+
+  .dou-editor__surface {
+    min-height: calc(var(--dou-editor-line-height) * 1em);
+    outline: none;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-variant-ligatures: none;
+  }
+
+  /* blocks */
+
+  .dou-editor__block {
+    position: relative;
+    border-radius: 4px;
+  }
+
+  .dou-editor__group {
+    padding-inline-start: var(--dou-editor-indent);
+  }
+
+  .dou-editor__content {
+    position: relative;
+    margin: 0;
+    padding-block: var(--dou-editor-block-gap);
+    font-size: 1em;
+    font-weight: inherit;
+    line-height: var(--dou-editor-line-height);
+  }
+
+  .dou-editor__content--heading {
+    --dou-editor-line-height: 1.4;
+    margin-top: 0.6em;
+    font-weight: var(--dou-font-weight-bold);
+    letter-spacing: -0.01em;
+
+    &:is(h1) {
+      margin-top: 0.8em;
+      font-size: 1.75em;
+    }
+    &:is(h2) {
+      font-size: 1.375em;
+    }
+    &:is(h3) {
+      font-size: 1.125em;
+    }
+  }
+
+  .dou-editor__surface > .dou-editor__block:first-child > .dou-editor__content--heading {
+    margin-top: 0;
+  }
+
+  /* lists: the marker sits in the indent in front of the text */
+  .dou-editor__content--bulletItem,
+  .dou-editor__content--numberedItem {
+    padding-inline-start: var(--dou-editor-indent);
+
+    &::before {
+      position: absolute;
+      inset-inline-start: 0;
+      width: var(--dou-editor-indent);
+    }
+  }
+
+  .dou-editor__content--bulletItem::before {
+    content: '';
+    top: calc(var(--dou-editor-block-gap) + var(--dou-editor-line-height) * 0.5em - 3px);
+    inset-inline-start: 7px;
+    width: 6px;
+    height: 6px;
+    box-sizing: border-box;
+    border-radius: 50%;
+    background-color: currentColor;
+    color: var(--dou-color-text-secondary);
+  }
+
+  /* one level in, the dot becomes a ring */
+  .dou-editor__group .dou-editor__content--bulletItem::before {
+    border: 1.5px solid currentColor;
+    background-color: transparent;
+  }
+
+  .dou-editor__content--numberedItem::before {
+    content: attr(data-index) '.';
+    top: var(--dou-editor-block-gap);
+    padding-inline-end: 6px;
+    box-sizing: border-box;
+    color: var(--dou-color-text-secondary);
+    font-variant-numeric: tabular-nums;
+    text-align: end;
+  }
+
+  .dou-editor__content--checkItem {
+    display: flex;
+    gap: 8px;
+  }
+
+  .dou-editor__check {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    height: calc(var(--dou-editor-line-height) * 1em);
+    user-select: none;
+  }
+
+  .dou-editor__checkbox {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--dou-color-border-strong);
+    border-radius: calc(var(--dou-radius-control) - 2px);
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-sm);
+    color: var(--dou-color-neutral-on);
+    cursor: pointer;
+    transition-property: background-color, border-color, box-shadow;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    & > svg {
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      transform: scale(0.6);
+      transition-property: opacity, transform;
+      transition-duration: var(--dou-motion-duration-fast);
+      transition-timing-function: var(--dou-motion-easing);
+    }
+
+    &:hover:not(:disabled) {
+      border-color: color-mix(
+        in oklab,
+        var(--dou-color-neutral) 45%,
+        var(--dou-color-border-strong)
+      );
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 2px;
+    }
+
+    &:disabled {
+      cursor: default;
+    }
+  }
+
+  .dou-editor__content--checkItem[data-checked='true'] {
+    & .dou-editor__checkbox {
+      border-color: color-mix(in oklab, var(--dou-color-neutral) 90%, var(--dou-color-edge));
+      background-color: var(--dou-color-neutral);
+      box-shadow:
+        var(--dou-shadow-highlight),
+        0 1px 2px color-mix(in oklab, var(--dou-color-neutral) 24%, transparent);
+
+      & > svg {
+        opacity: 1;
+        transform: none;
+      }
+    }
+
+    & .dou-editor__text {
+      color: var(--dou-color-text-tertiary);
+      text-decoration: line-through;
+      text-decoration-color: color-mix(in oklab, currentColor 60%, transparent);
+    }
+  }
+
+  .dou-editor__text {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .dou-editor__content--quote {
+    padding-inline-start: 14px;
+    box-shadow: inset 2px 0 0 var(--dou-color-border-strong);
+    color: var(--dou-color-text-secondary);
+  }
+
+  .dou-editor__content--codeBlock {
+    --dou-editor-line-height: 1.7;
+    margin-block: 4px;
+    padding: 12px 16px;
+    overflow-x: auto;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-container);
+    background-color: var(--dou-color-bg-muted);
+    font-family: var(--dou-font-family-mono);
+    font-size: var(--dou-font-size-sm);
+    tab-size: 2;
+    white-space: pre-wrap;
+
+    & > code {
+      font: inherit;
+    }
+  }
+
+  /* toggle: a chevron in front of the title; closed, its children are hidden */
+  .dou-editor-toggle {
+    display: flex;
+    gap: 4px;
+  }
+
+  .dou-editor-toggle__control {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    height: calc(var(--dou-editor-line-height) * 1em);
+    margin-inline-start: -2px;
+    user-select: none;
+  }
+
+  .dou-editor-toggle__button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    border-radius: var(--dou-radius-control);
+    background: none;
+    color: var(--dou-color-text-tertiary);
+    cursor: pointer;
+
+    & > svg {
+      width: 16px;
+      height: 16px;
+      transition: rotate var(--dou-motion-duration-fast) var(--dou-motion-easing);
+    }
+
+    &.is-open > svg {
+      rotate: 90deg;
+    }
+
+    &:hover {
+      background-color: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+      color: var(--dou-color-text);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: -2px;
+    }
+  }
+
+  .dou-editor__block.is-collapsed > .dou-editor__group {
+    display: none;
+  }
+
+  /* callout: tinted by its tone, info stays neutral */
+  .dou-editor-callout {
+    --dou-editor-callout-tone: var(--dou-color-text-secondary);
+
+    display: flex;
+    gap: 8px;
+    margin-block: 2px;
+    padding: 8px 12px;
+    border: 1px solid
+      color-mix(in oklab, var(--dou-editor-callout-tone) 22%, var(--dou-color-border));
+    border-radius: var(--dou-radius-container);
+    background-color: color-mix(
+      in oklab,
+      var(--dou-editor-callout-tone) 6%,
+      var(--dou-color-bg-surface)
+    );
+
+    &.is-tip {
+      --dou-editor-callout-tone: var(--dou-color-success);
+    }
+    &.is-warning {
+      --dou-editor-callout-tone: var(--dou-color-warning);
+    }
+    &.is-danger {
+      --dou-editor-callout-tone: var(--dou-color-danger);
+    }
+  }
+
+  .dou-editor-callout__control {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    height: calc(var(--dou-editor-line-height) * 1em);
+    user-select: none;
+  }
+
+  .dou-editor-callout__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: none;
+    border-radius: var(--dou-radius-control);
+    background: none;
+    color: var(--dou-editor-callout-tone);
+
+    & > svg {
+      width: 16px;
+      height: 16px;
+    }
+  }
+
+  button.dou-editor-callout__icon {
+    cursor: pointer;
+
+    &:hover,
+    &[aria-expanded='true'] {
+      background-color: color-mix(in oklab, var(--dou-editor-callout-tone) 12%, transparent);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: -2px;
+    }
+  }
+
+  /* the code block's language picker and copy button, shown on hover */
+  .dou-editor__content--codeBlock.dou-editor__content--custom {
+    position: relative;
+  }
+
+  .dou-editor-code__pre {
+    margin: 0;
+    font: inherit;
+    white-space: inherit;
+
+    & > code {
+      display: block;
+      font: inherit;
+    }
+  }
+
+  .dou-editor-code__bar {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    border-radius: var(--dou-radius-control);
+    background-color: var(--dou-color-bg-muted);
+    font-family: var(--dou-font-family);
+    opacity: 0;
+    transition: opacity var(--dou-motion-duration-fast) var(--dou-motion-easing);
+  }
+
+  .dou-editor__content--codeBlock:hover > .dou-editor-code__bar,
+  .dou-editor-code__bar:focus-within,
+  .dou-editor-code__bar:has([aria-expanded='true']) {
+    opacity: 1;
+  }
+
+  .dou-editor-code__language {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    height: 24px;
+    padding: 0 4px 0 8px;
+    border: none;
+    border-radius: var(--dou-radius-control);
+    background: none;
+    color: var(--dou-color-text-secondary);
+    font: inherit;
+    font-size: var(--dou-font-size-sm);
+    cursor: pointer;
+
+    & > svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    &:hover,
+    &[aria-expanded='true'] {
+      background-color: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+      color: var(--dou-color-text);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: -2px;
+    }
+
+    &.is-static {
+      padding-inline: 8px;
+      cursor: default;
+    }
+  }
+
+  /* highlighted tokens, as in DouCodeBlock */
+  .dou-editor__token {
+    color: var(--shiki-light, inherit);
+    color: light-dark(var(--shiki-light, inherit), var(--shiki-dark, inherit));
+    font-style: var(--shiki-light-font-style, inherit);
+    font-weight: var(--shiki-light-font-weight, inherit);
+  }
+
+  .dou-editor__content--divider {
+    padding-block: 12px;
+    cursor: default;
+
+    & > hr {
+      height: 1px;
+      margin: 0;
+      border: none;
+      background-color: var(--dou-color-border);
+    }
+
+    &.ProseMirror-selectednode > hr {
+      background-color: var(--dou-color-focus);
+    }
+  }
+
+  /* inline formatting */
+
+  .dou-editor__surface {
+    & strong {
+      font-weight: var(--dou-font-weight-bold);
+    }
+
+    & u {
+      text-underline-offset: 0.2em;
+    }
+
+    & s u,
+    & u s {
+      text-decoration: underline line-through;
+    }
+
+    & :not(pre) > code {
+      padding: 0.1em 0.3em;
+      border-radius: 4px;
+      background-color: var(--dou-color-bg-muted);
+      box-shadow: inset 0 0 0 1px var(--dou-color-border-subtle);
+      font-family: var(--dou-font-family-mono);
+      font-size: 0.875em;
+    }
+  }
+
+  .dou-editor__link {
+    color: inherit;
+    text-decoration: underline;
+    text-decoration-color: var(--dou-color-border-strong);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.2em;
+    transition: text-decoration-color var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    &:hover {
+      text-decoration-color: currentColor;
+    }
+  }
+
+  .dou-editor.is-readonly .dou-editor__link {
+    cursor: pointer;
+  }
+
+  /* hints in empty blocks */
+
+  .dou-editor__content.is-empty::after {
+    content: attr(data-placeholder);
+    position: absolute;
+    top: var(--dou-editor-block-gap);
+    inset-inline-start: 0;
+    color: var(--dou-color-text-tertiary);
+    pointer-events: none;
+    user-select: none;
+    white-space: nowrap;
+  }
+
+  .dou-editor__content--bulletItem.is-empty::after,
+  .dou-editor__content--numberedItem.is-empty::after {
+    inset-inline-start: var(--dou-editor-indent);
+  }
+
+  .dou-editor__content--checkItem.is-empty::after {
+    inset-inline-start: 24px;
+  }
+
+  .dou-editor__content--quote.is-empty::after {
+    inset-inline-start: 14px;
+  }
+
+  /* selected blocks */
+
+  .dou-editor__block.is-selected {
+    background-color: var(--dou-editor-selected);
+  }
+
+  /* neighbouring selected blocks read as one band */
+  .dou-editor__block.is-selected + .dou-editor__block.is-selected {
+    border-start-start-radius: 0;
+    border-start-end-radius: 0;
+  }
+
+  .dou-editor__block.is-selected:has(+ .dou-editor__block.is-selected) {
+    border-end-start-radius: 0;
+    border-end-end-radius: 0;
+  }
+
+  .dou-editor__block.is-selected .dou-editor__block.is-selected {
+    background-color: transparent;
+  }
+
+  .is-block-selecting {
+    caret-color: transparent;
+
+    & ::selection {
+      background-color: transparent;
+    }
+  }
+
+  .dou-editor.is-dragging .dou-editor__block.is-selected {
+    opacity: 0.45;
+  }
+
+  /* the handle: add a block, drag to move, click for the menu */
+
+  .dou-editor__handle {
+    position: absolute;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    height: var(--dou-editor-line, 24px);
+    transform: translateX(calc(-100% - 6px));
+  }
+
+  .dou-editor__handle-button {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 24px;
+    margin: 0;
+    padding: 0;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--dou-color-text-tertiary);
+    cursor: pointer;
+    transition-property: background-color, color;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    & > svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    &:hover,
+    &[aria-expanded='true'] {
+      background-color: var(--dou-editor-control-hover);
+      color: var(--dou-color-text-secondary);
+    }
+  }
+
+  .dou-editor__grip {
+    width: 18px;
+    cursor: grab;
+    touch-action: none;
+  }
+
+  /* the copy of the dragged blocks next to the pointer */
+  .dou-editor__ghost {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 2000;
+    box-sizing: border-box;
+    max-height: 160px;
+    padding: 6px 12px;
+    overflow: hidden;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-control);
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-md);
+    opacity: 0.88;
+    pointer-events: none;
+
+    /* headings start at the top, without their margin */
+    & > .dou-editor__block:first-child > .dou-editor__content {
+      margin-top: 0;
+    }
+  }
+
+  .dou-editor__drop {
+    position: absolute;
+    height: 2px;
+    margin-top: -1px;
+    border-radius: 1px;
+    background-color: var(--dou-color-focus);
+    pointer-events: none;
+
+    /* between table columns */
+    &.is-vertical {
+      width: 2px;
+      height: auto;
+      margin-top: 0;
+      margin-left: -1px;
+    }
+  }
+
+  /* mentions: in the text, and the suggestions */
+  .dou-editor__mention {
+    padding: 0 2px;
+    border-radius: 4px;
+    background-color: var(--dou-color-bg-muted);
+    color: var(--dou-color-text);
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .dou-editor-mention {
+    width: 240px;
+    max-height: min(var(--dou-floating-available, 100vh), 288px);
+  }
+
+  .dou-editor-mention__item {
+    gap: 10px;
+    height: auto;
+    padding: 6px 8px;
+
+    &:focus,
+    &.is-active {
+      background-color: var(--dou-dropdown-item-active-bg);
+    }
+  }
+
+  .dou-editor-mention__text {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .dou-editor-mention__label,
+  .dou-editor-mention__description {
+    overflow-x: clip;
+    text-box: trim-both cap alphabetic;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dou-editor-mention__description {
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+  }
+
+  /* slash menu */
+
+  .dou-editor-slash {
+    width: 288px;
+    max-height: min(var(--dou-floating-available, 100vh), 336px);
+  }
+
+  .dou-editor-slash__item {
+    gap: 10px;
+    height: auto;
+    padding: 6px 8px 6px 6px;
+
+    &:focus,
+    &.is-active {
+      background-color: var(--dou-dropdown-item-active-bg);
+    }
+  }
+
+  .dou-editor-slash__icon {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-control);
+    background-color: var(--dou-color-bg-surface);
+    color: var(--dou-color-text-secondary);
+
+    & > svg {
+      width: 18px;
+      height: 18px;
+    }
+  }
+
+  .dou-editor-slash__text {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .dou-editor-slash__label,
+  .dou-editor-slash__hint {
+    overflow-x: clip;
+    text-box: trim-both cap alphabetic;
+    text-overflow: ellipsis;
+  }
+
+  .dou-editor-slash__hint {
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+  }
+
+  .dou-editor-slash__shortcut {
+    flex: none;
+    color: var(--dou-color-text-tertiary);
+    font-family: var(--dou-font-family-mono);
+    font-size: var(--dou-font-size-sm);
+    text-box: trim-both cap alphabetic;
+  }
+
+  .dou-editor-slash__empty {
+    padding: 8px;
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+  }
+
+  /* table */
+
+  .dou-editor__content--table {
+    margin-block: 4px;
+    /* room for the column handles over the first row */
+    padding-block: 8px 4px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+
+  .dou-editor-table {
+    border-collapse: collapse;
+    table-layout: fixed;
+    font-size: inherit;
+    line-height: inherit;
+
+    & td,
+    & th {
+      position: relative;
+      box-sizing: border-box;
+      min-width: 48px;
+      padding: 6px 10px;
+      border: 1px solid var(--dou-color-border);
+      text-align: start;
+      vertical-align: top;
+      white-space: pre-wrap;
+    }
+
+    & th {
+      background-color: var(--dou-color-bg-muted);
+      font-weight: 600;
+    }
+
+    /* a cell selection, drawn over the cells instead of the text selection */
+    .ProseMirror-hideselection & *::selection {
+      background: transparent;
+    }
+
+    .ProseMirror-hideselection & {
+      caret-color: transparent;
+    }
+
+    & .selectedCell::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-color: var(--dou-editor-selected);
+      pointer-events: none;
+    }
+
+    & .column-resize-handle {
+      position: absolute;
+      inset-block: -1px;
+      inset-inline-end: -2px;
+      z-index: 1;
+      width: 3px;
+      background-color: var(--dou-color-focus);
+      pointer-events: none;
+    }
+  }
+
+  .dou-editor__surface.resize-cursor {
+    cursor: col-resize;
+  }
+
+  .dou-editor-table__handle {
+    position: absolute;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--dou-color-border);
+    border-radius: 4px;
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-sm);
+    color: var(--dou-color-text-tertiary);
+    cursor: pointer;
+    transform: translate(-50%, -50%);
+    transition-property: background-color, color;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    /* tap to open the menu, drag to move */
+    touch-action: none;
+
+    &.is-column {
+      width: 24px;
+      height: 14px;
+    }
+
+    &.is-row {
+      width: 14px;
+      height: 24px;
+    }
+
+    /* fingers need more room than the handle shows */
+    &::before {
+      content: '';
+      position: absolute;
+      inset: -4px;
+    }
+
+    @media (pointer: coarse) {
+      &.is-column {
+        width: 32px;
+        height: 18px;
+      }
+
+      &.is-row {
+        width: 18px;
+        height: 32px;
+      }
+
+      &::before {
+        inset: -10px;
+      }
+    }
+
+    & svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    &:hover,
+    &.is-active {
+      background-color: light-dark(
+        color-mix(in oklab, var(--dou-color-text) 6%, var(--dou-color-bg-surface)),
+        color-mix(in oklab, var(--dou-color-text) 12%, var(--dou-color-bg-surface))
+      );
+      color: var(--dou-color-text);
+    }
+  }
+
+  .dou-editor-table__add {
+    position: absolute;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    border: none;
+    border-radius: 4px;
+    background-color: transparent;
+    color: var(--dou-color-text-tertiary);
+    cursor: pointer;
+    opacity: 0.6;
+    transition-property: background-color, color, opacity;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    &.is-column {
+      width: 16px;
+      margin-inline-start: 4px;
+    }
+
+    &.is-row {
+      height: 16px;
+      margin-block-start: 4px;
+    }
+
+    & svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    &:hover {
+      background-color: var(--dou-editor-control-hover);
+      color: var(--dou-color-text);
+      opacity: 1;
+    }
+  }
+
+  @media (pointer: coarse) {
+    .dou-editor-table__add {
+      opacity: 1;
+
+      &.is-column {
+        width: 24px;
+      }
+
+      &.is-row {
+        height: 24px;
+      }
+    }
+
+    /* widths are set with a mouse only */
+    .dou-editor-table .column-resize-handle {
+      display: none;
+    }
+  }
+
+  /* the copy of dragged rows or columns */
+  .dou-editor-table__ghost {
+    padding: 0;
+    overflow: hidden;
+
+    & .dou-editor-table {
+      width: auto;
+      margin: 0;
+    }
+  }
+
+  .dou-editor-table__cells {
+    position: absolute;
+    z-index: 3;
+    display: flex;
+    gap: 2px;
+    padding: 3px;
+    border: 1px solid var(--dou-color-border);
+    border-radius: calc(var(--dou-radius-control) + 2px);
+    background-color: light-dark(
+      var(--dou-color-bg-surface),
+      color-mix(in oklab, var(--dou-color-text) 4%, var(--dou-color-bg-surface))
+    );
+    box-shadow: var(--dou-shadow-md);
+    font-size: var(--dou-font-size-sm);
+    line-height: normal;
+    white-space: nowrap;
+    transform: translate(-50%, calc(-100% - 6px));
+
+    &.is-below {
+      transform: translate(-50%, 6px);
+    }
+  }
+
+  .dou-editor-table__cells-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 26px;
+    margin: 0;
+    padding-inline: 8px;
+    border: none;
+    border-radius: var(--dou-radius-control);
+    background: transparent;
+    color: var(--dou-color-text);
+    font: inherit;
+    cursor: pointer;
+
+    & svg {
+      width: 14px;
+      height: 14px;
+      color: var(--dou-color-text-secondary);
+    }
+
+    &:hover:not(:disabled) {
+      background-color: var(--dou-editor-control-hover);
+    }
+
+    &:disabled {
+      color: var(--dou-color-text-tertiary);
+      cursor: default;
+    }
+  }
+
+  /* formatting toolbar over selected text */
+
+  .dou-editor-bubble {
+    padding: 4px;
+    border: 1px solid var(--dou-color-border);
+    border-radius: calc(var(--dou-radius-control) + 4px);
+    background-color: light-dark(
+      var(--dou-color-bg-surface),
+      color-mix(in oklab, var(--dou-color-text) 4%, var(--dou-color-bg-surface))
+    );
+    box-shadow: var(--dou-shadow-md);
+    color: var(--dou-color-text);
+    font-family: var(--dou-font-family);
+    font-size: var(--dou-font-size-md);
+    line-height: normal;
+  }
+
+  .dou-editor-bubble__type {
+    gap: 4px;
+
+    & svg {
+      color: var(--dou-color-text-tertiary);
+    }
+  }
+
+  .dou-editor-bubble__link {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+
+    & > .dou-input {
+      width: 240px;
+    }
+  }
+
+  .dou-editor-bubble__tip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* image */
+  .dou-editor__content--image {
+    padding-block: 6px;
+  }
+
+  .dou-editor-image__figure {
+    width: fit-content;
+    /* room for the caption under a small image */
+    min-width: min(100%, 240px);
+    max-width: 100%;
+    margin: 0 auto;
+  }
+
+  .dou-editor-image__frame {
+    position: relative;
+    width: fit-content;
+    max-width: 100%;
+    margin: 0 auto;
+    border-radius: var(--dou-radius-control);
+    line-height: 0;
+  }
+
+  .dou-editor-image__img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    border-radius: inherit;
+    outline: 1px solid color-mix(in oklab, var(--dou-color-text) 8%, transparent);
+    outline-offset: -1px;
+  }
+
+  .dou-editor-image__figure.is-sized .dou-editor-image__frame,
+  .dou-editor-image__figure.is-sized .dou-editor-image__img {
+    width: 100%;
+  }
+
+  .dou-editor-image.is-selected .dou-editor-image__img {
+    outline: 2px solid var(--dou-color-focus);
+    outline-offset: 2px;
+  }
+
+  .dou-editor-image__status {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-radius: inherit;
+    background-color: color-mix(in oklab, var(--dou-color-bg-surface) 72%, transparent);
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-md);
+    line-height: normal;
+
+    &.is-failed {
+      color: var(--dou-color-danger-text);
+    }
+  }
+
+  /* resize handles: short bars on both edges, shown on hover */
+  .dou-editor-image__handle {
+    position: absolute;
+    top: 50%;
+    width: 6px;
+    height: 40px;
+    max-height: 50%;
+    border: 1px solid color-mix(in oklab, var(--dou-color-bg-surface) 70%, transparent);
+    border-radius: var(--dou-radius-full);
+    background-color: color-mix(in oklab, var(--dou-color-text) 55%, transparent);
+    cursor: ew-resize;
+    opacity: 0;
+    transform: translateY(-50%);
+    transition: opacity var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    &.is-left {
+      left: 8px;
+    }
+    &.is-right {
+      right: 8px;
+    }
+  }
+
+  .dou-editor-image__frame:hover .dou-editor-image__handle,
+  .dou-editor-image.is-selected .dou-editor-image__handle {
+    opacity: 1;
+  }
+
+  .dou-editor-image__caption {
+    margin-top: 6px;
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-md);
+    line-height: 1.5;
+    text-align: center;
+  }
+
+  .dou-editor-image__caption-input {
+    width: 100%;
+    padding: 0;
+    border: none;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: inherit;
+    outline: none;
+
+    &::placeholder {
+      color: var(--dou-color-text-tertiary);
+    }
+    /* the placeholder only shows while the image is being worked on */
+    &:placeholder-shown:not(:focus) {
+      opacity: 0;
+    }
+  }
+
+  .dou-editor-image:hover .dou-editor-image__caption-input,
+  .dou-editor-image.is-selected .dou-editor-image__caption-input {
+    opacity: 1;
+  }
+
+  .dou-editor-image__empty {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-control);
+    background-color: color-mix(in oklab, var(--dou-color-text) 3%, var(--dou-color-bg-surface));
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-md);
+    line-height: normal;
+  }
+
+  .dou-editor-image.is-selected .dou-editor-image__empty {
+    outline: 2px solid var(--dou-color-focus);
+    outline-offset: 2px;
+  }
+
+  .dou-editor-image__empty-icon {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    color: var(--dou-color-text-tertiary);
+  }
+
+  .dou-editor-image__empty-text {
+    flex: 1 1 auto;
+  }
+
+  .dou-editor-image__actions,
+  .dou-editor-image__embed {
+    display: flex;
+    gap: 8px;
+  }
+
+  .dou-editor-image__embed {
+    flex: 1 1 240px;
+
+    & > .dou-input {
+      flex: 1 1 auto;
+    }
+  }
+
+  /* collaboration: the others' cursors and selections */
+  .dou-editor__cursor {
+    position: relative;
+    margin-inline: -1px;
+    border-inline-start: 2px solid var(--dou-editor-cursor-color);
+    pointer-events: none;
+    word-break: normal;
+  }
+
+  .dou-editor__cursor-label {
+    position: absolute;
+    bottom: 100%;
+    left: -2px;
+    padding: 0 6px;
+    border-radius: 4px 4px 4px 0;
+    background-color: var(--dou-editor-cursor-color);
+    color: #fff;
+    font-family: var(--dou-font-family);
+    font-size: 12px;
+    font-weight: normal;
+    font-style: normal;
+    line-height: 18px;
+    white-space: nowrap;
+    user-select: none;
+  }
+
+  .dou-editor__remote-selection {
+    background-color: color-mix(in oklab, var(--dou-editor-cursor-color) 20%, transparent);
+  }
+}

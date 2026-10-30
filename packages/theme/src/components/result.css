@@ -62,6 +62,8 @@
     max-width: 40em;
     margin-top: 6px;
     color: var(--dou-color-text-tertiary);
+    /* centered lines read badly with one character left on the last */
+    text-wrap: pretty;
   }
 
   .dou-result__actions {

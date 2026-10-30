@@ -63,6 +63,8 @@
   .dou-empty__description {
     max-width: 36em;
     color: var(--dou-color-text-tertiary);
+    /* centered lines read badly with one character left on the last */
+    text-wrap: pretty;
   }
 
   .dou-empty__title + .dou-empty__description {

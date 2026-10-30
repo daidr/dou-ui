@@ -1,6 +1,6 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { defineComponent, h, nextTick, reactive } from 'vue'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   DouButton,
   DouCheckbox,
@@ -124,6 +124,53 @@ describe('DouForm', () => {
     expect(items[2]!.get('[role="radiogroup"]').attributes('aria-invalid')).toBe('true')
     // The first invalid field takes focus.
     expect(document.activeElement).toBe(items[0]!.get('input').element)
+    wrapper.unmount()
+  })
+
+  it('checks the whole model against the form schema', async () => {
+    const { wrapper, form, items } = setup({
+      schema: {
+        '~standard': {
+          version: 1,
+          vendor: 'test',
+          validate: (value) => {
+            const model = value as { name: string; plan?: string }
+            const issues = []
+            if (!model.name) issues.push({ message: '请填写名称', path: ['name'] })
+            if (!model.plan) issues.push({ message: '请选择方案', path: [{ key: 'plan' }] })
+            return issues.length ? { issues } : { value }
+          },
+        },
+      },
+    })
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(form.emitted('invalid')?.[0]).toEqual([{ name: '请填写名称', plan: '请选择方案' }])
+    expect(items[0]!.get('.dou-form-item__error').text()).toBe('请填写名称')
+    expect(items[1]!.find('.dou-form-item__error').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('accepts schemas built as functions', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const callable = Object.assign(() => undefined, {
+      '~standard': {
+        version: 1 as const,
+        vendor: 'test',
+        validate: (value: unknown) => (value ? { value } : { issues: [{ message: '必填' }] }),
+      },
+    })
+    const model = reactive({ name: '' })
+    const wrapper = mount(() =>
+      h(DouForm, { model, schema: callable }, () =>
+        h(DouFormItem, { prop: 'name', rules: callable }, () => h(DouInput)),
+      ),
+    )
+    const result = await (wrapper.findComponent(DouForm).vm as unknown as FormInstance).validate()
+    expect(result.errors).toEqual({ name: '必填' })
+    expect(warn).not.toHaveBeenCalled()
+    warn.mockRestore()
     wrapper.unmount()
   })
 
@@ -275,5 +322,53 @@ describe('DouFormItem', () => {
     expect(wrapper.get('label.dou-form-item__label').attributes('for')).toBe(
       wrapper.get('input').attributes('id'),
     )
+  })
+
+  it('keeps errors with their rows when a row is removed', async () => {
+    let id = 3
+    const model = reactive({
+      contacts: [
+        { id: 1, name: '' },
+        { id: 2, name: '戴兜' },
+        { id: 3, name: '' },
+      ],
+    })
+    const Root = defineComponent({
+      setup() {
+        return () =>
+          h(DouForm, { ref: 'form', model, rules: { contacts: { required: true } } }, () => [
+            ...model.contacts.map((contact, index) =>
+              h(
+                DouFormItem,
+                { key: contact.id, prop: `contacts.${index}.name`, required: true },
+                () =>
+                  h(DouInput, {
+                    modelValue: contact.name,
+                    'onUpdate:modelValue': (value: string) => (contact.name = value),
+                  }),
+              ),
+            ),
+            h(DouFormItem, { prop: 'contacts' }),
+          ])
+      },
+    })
+    const wrapper = mount(Root, { attachTo: document.body })
+    const form = wrapper.vm.$refs.form as FormInstance
+    const { errors } = await form.validate()
+    expect(Object.keys(errors)).toEqual(['contacts.0.name', 'contacts.2.name'])
+
+    model.contacts.splice(0, 1)
+    await flushPromises()
+    const items = wrapper.findAll('.dou-form-item')
+    expect(items.map((item) => item.classes().includes('is-error'))).toEqual([false, true, false])
+
+    // the list's own error clears as soon as a row is added back
+    model.contacts.splice(0)
+    await form.validate('contacts')
+    await flushPromises()
+    expect(wrapper.find('.dou-form-item.is-error').exists()).toBe(true)
+    model.contacts.push({ id: ++id, name: 'x' })
+    await flushPromises()
+    expect(wrapper.findAll('.dou-form-item.is-error')).toHaveLength(0)
   })
 })

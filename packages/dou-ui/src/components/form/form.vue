@@ -26,6 +26,7 @@ const items = new Set<FormItemHandle>()
 provide(formKey, {
   model: () => props.model,
   rules: () => props.rules,
+  schema: () => props.schema,
   layout: computed(() => props.layout),
   size: computed(() => props.size),
   disabled: computed(() => props.disabled),

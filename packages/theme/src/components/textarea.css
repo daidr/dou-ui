@@ -67,12 +67,10 @@
       --dou-textarea-ring: color-mix(in oklab, var(--dou-color-danger) 18%, transparent);
     }
 
+    /* read-only keeps the plain surface so it never passes for disabled;
+       only the resting shadow goes, since it can't be typed into */
     &.is-readonly {
-      --dou-textarea-bg: color-mix(
-        in oklab,
-        var(--dou-color-bg-muted) 50%,
-        var(--dou-color-bg-surface)
-      );
+      --dou-textarea-shadow: none;
     }
 
     &.is-disabled {

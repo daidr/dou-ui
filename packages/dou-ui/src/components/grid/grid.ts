@@ -1,7 +1,8 @@
+import type { Breakpoint } from '@dou-ui/theme'
 import type { Size } from '../../utils/types'
 
 /** The viewport widths the responsive values switch at: 640, 768, 1024 and 1280px. */
-export type GridBreakpoint = 'sm' | 'md' | 'lg' | 'xl'
+export type GridBreakpoint = Breakpoint
 
 /**
  * A value that may change with the viewport width. Each breakpoint applies

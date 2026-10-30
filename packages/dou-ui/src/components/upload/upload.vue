@@ -8,7 +8,7 @@ import {
   UploadIcon,
   ZoomInIcon,
 } from '@dou-ui/icons'
-import { computed, onBeforeUnmount, ref, useId, useTemplateRef, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, useId, useTemplateRef, watch } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
 import { useFormDisabled, useFormItem, useFormSize } from '../form/use-form-item'
@@ -28,6 +28,8 @@ const props = withDefaults(defineProps<UploadProps>(), {
   dropzone: false,
   autoUpload: true,
   showList: true,
+  directory: false,
+  pasteTarget: false,
 })
 const model = defineModel<UploadFile[]>({ default: () => [] })
 const emit = defineEmits<{
@@ -50,6 +52,7 @@ const id = `dou-upload-${useId()}`
 const hintId = `${id}-hint`
 
 const inputRef = useTemplateRef<HTMLInputElement>('input')
+const rootRef = useTemplateRef<HTMLElement>('root')
 
 let seed = 0
 const nextUid = () => `${id}-${Date.now().toString(36)}-${seed++}`
@@ -84,9 +87,13 @@ function open() {
   inputRef.value?.click()
 }
 
+// Paths of files read out of dropped folders; picked ones carry `webkitRelativePath`.
+const folderPaths = new WeakMap<File, string>()
+const pathOf = (file: File) => folderPaths.get(file) || file.webkitRelativePath || undefined
+
 async function add(picked: File[]) {
   if (disabled.value || !picked.length) return
-  let chosen = props.multiple ? picked : picked.slice(0, 1)
+  let chosen = props.multiple || props.directory ? picked : picked.slice(0, 1)
 
   const accepted: File[] = []
   for (const file of chosen) {
@@ -98,7 +105,8 @@ async function add(picked: File[]) {
 
   // Without `multiple`, a new file replaces the old one.
   if (props.maxCount !== undefined) {
-    const room = Math.max(0, props.maxCount - (props.multiple ? files.value.length : 0))
+    const keeps = props.multiple || props.directory
+    const room = Math.max(0, props.maxCount - (keeps ? files.value.length : 0))
     if (chosen.length > room) {
       emit('exceed', chosen.slice(room))
       chosen = chosen.slice(0, room)
@@ -122,6 +130,7 @@ async function add(picked: File[]) {
     entries.push({
       uid,
       name: file.name,
+      path: pathOf(original),
       size: file.size,
       type: file.type,
       status: 'ready',
@@ -131,8 +140,9 @@ async function add(picked: File[]) {
   }
   if (!entries.length) return
 
-  if (!props.multiple) for (const file of files.value) release(file.uid)
-  commit([...(props.multiple ? files.value : []), ...entries])
+  const keeps = props.multiple || props.directory
+  if (!keeps) for (const file of files.value) release(file.uid)
+  commit([...(keeps ? files.value : []), ...entries])
   if (props.autoUpload) for (const entry of entries) void send(entry.uid)
 }
 
@@ -234,8 +244,71 @@ function onDrop(event: DragEvent) {
   event.preventDefault()
   depth = 0
   dragging.value = false
-  void add([...(event.dataTransfer?.files ?? [])])
+  const transfer = event.dataTransfer
+  // Entries must be taken while the event lasts; reading them comes after.
+  const entries = props.directory
+    ? [...(transfer?.items ?? [])]
+        .map((item) => item.webkitGetAsEntry?.())
+        .filter((entry) => !!entry)
+    : []
+  if (entries.length) void readEntries(entries).then(add)
+  else void add([...(transfer?.files ?? [])])
 }
+
+/** Every file under dropped entries, depth first, with its path inside the folder. */
+async function readEntries(entries: FileSystemEntry[]) {
+  const result: File[] = []
+  const visit = async (entry: FileSystemEntry) => {
+    if (entry.isFile) {
+      const file = await new Promise<File>((resolve, reject) =>
+        (entry as FileSystemFileEntry).file(resolve, reject),
+      )
+      folderPaths.set(file, entry.fullPath.replace(/^\//, ''))
+      result.push(file)
+    } else if (entry.isDirectory) {
+      const reader = (entry as FileSystemDirectoryEntry).createReader()
+      // a reader hands entries over in batches until it returns none
+      for (;;) {
+        const batch = await new Promise<FileSystemEntry[]>((resolve, reject) =>
+          reader.readEntries(resolve, reject),
+        )
+        if (!batch.length) break
+        for (const child of batch) await visit(child)
+      }
+    }
+  }
+  for (const entry of entries) await visit(entry).catch(() => {})
+  return result
+}
+
+/* pasting */
+
+function onPaste(event: Event) {
+  const pasted = [...((event as ClipboardEvent).clipboardData?.files ?? [])]
+  if (disabled.value || !pasted.length) return
+  event.preventDefault()
+  void add(pasted)
+}
+
+let pasteListener: EventTarget | null = null
+function bindPaste() {
+  pasteListener?.removeEventListener('paste', onPaste)
+  const target = props.pasteTarget
+  pasteListener =
+    target === true
+      ? rootRef.value
+      : target === 'document'
+        ? document
+        : typeof target === 'string'
+          ? document.querySelector(target)
+          : target || null
+  pasteListener?.addEventListener('paste', onPaste)
+}
+onMounted(() => {
+  bindPaste()
+  watch(() => props.pasteTarget, bindPaste)
+})
+onBeforeUnmount(() => pasteListener?.removeEventListener('paste', onPaste))
 
 function onZoneKeydown(event: KeyboardEvent) {
   if (event.key !== 'Enter' && event.key !== ' ') return
@@ -283,14 +356,15 @@ const classes = computed(() => [
 </script>
 
 <template>
-  <div :class="classes">
+  <div ref="root" :class="classes">
     <input
       :id="formItem?.inputId"
       ref="input"
       type="file"
       :class="ns.e('native')"
       :accept="accept"
-      :multiple="multiple"
+      :multiple="multiple || directory"
+      v-bind="directory ? { webkitdirectory: '' } : {}"
       :disabled="disabled"
       tabindex="-1"
       aria-hidden="true"
@@ -318,7 +392,8 @@ const classes = computed(() => [
         <UploadIcon />
       </span>
       <span :class="ns.e('zone-text')">
-        {{ t('upload.drop') }}<span :class="ns.e('zone-link')">{{ t('upload.browse') }}</span>
+        {{ t(directory ? 'upload.dropFolder' : 'upload.drop')
+        }}<span :class="ns.e('zone-link')">{{ t('upload.browse') }}</span>
       </span>
       <span v-if="hasHint" :id="hintId" :class="ns.e('hint')">
         <slot name="hint">{{ hint }}</slot>
@@ -339,7 +414,7 @@ const classes = computed(() => [
             <template #leading>
               <UploadIcon />
             </template>
-            {{ t('upload.choose') }}
+            {{ t(directory ? 'upload.chooseFolder' : 'upload.choose') }}
           </DouButton>
         </slot>
       </span>
@@ -420,7 +495,7 @@ const classes = computed(() => [
             "
           >
             <PlusIcon />
-            <span>{{ t('upload.choose') }}</span>
+            <span>{{ t(directory ? 'upload.chooseFolder' : 'upload.choose') }}</span>
           </button>
         </slot>
       </li>
@@ -454,9 +529,9 @@ const classes = computed(() => [
                 :href="file.url"
                 target="_blank"
                 rel="noopener noreferrer"
-                >{{ file.name }}</a
+                >{{ file.path ?? file.name }}</a
               >
-              <template v-else>{{ file.name }}</template>
+              <template v-else>{{ file.path ?? file.name }}</template>
             </span>
             <span :class="ns.e('detail')">
               <span v-if="file.size !== undefined">{{ formatFileSize(file.size) }}</span>

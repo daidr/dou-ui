@@ -13,13 +13,14 @@
     "dev": "bun run gen && bun run --filter @dou-ui/playground dev",
     "docs:dev": "bun run gen && bun run --filter @dou-ui/docs dev",
     "docs:build": "bun run gen && bun run --filter @dou-ui/docs build",
-    "build": "bun run --filter @dou-ui/theme build && bun run --filter @dou-ui/icons build && bun run --filter dou-ui build && bun run --filter @dou-ui/resolver build && bun run --filter @dou-ui/nuxt build",
+    "build": "bun run --filter @dou-ui/theme build && bun run --filter @dou-ui/icons build && bun run --filter dou-ui build && bun run --filter @dou-ui/editor build && bun run --filter @dou-ui/flow build && bun run --filter @dou-ui/resolver build && bun run --filter @dou-ui/nuxt build",
     "test": "bun run gen && vitest run",
     "test:watch": "vitest",
     "typecheck": "bun run gen && vue-tsc --noEmit",
     "lint": "oxlint --deny-warnings",
     "check": "bun fmt --check && bun run lint && bun run typecheck && bun run test",
-    "release": "bun scripts/release.ts"
+    "release": "bun scripts/release.ts",
+    "bench": "bun run gen && vite build bench && node bench/run.mjs"
   },
   "devDependencies": {
     "@types/bun": "^1.4.4",

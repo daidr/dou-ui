@@ -1,6 +1,19 @@
 <script setup lang="ts">
-import { computed, provide, ref, useId, watch } from 'vue'
+import { MoreHorizontalIcon } from '@dou-ui/icons'
+import {
+  computed,
+  markRaw,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  provide,
+  ref,
+  useId,
+  useTemplateRef,
+  watch,
+} from 'vue'
 import { useNamespace } from '../../utils/namespace'
+import { useLocale } from '../config-provider/use-config'
 import { DouTooltip } from '../tooltip'
 import { isDivider, isGroup, isItem, menuKey, pathTo } from './menu'
 import type { MenuItemOption, MenuKey, MenuOption, MenuProps, MenuSlots } from './menu'
@@ -39,7 +52,7 @@ function setExpanded(keys: MenuKey[]) {
 }
 
 const holdsSelected = (item: MenuItemOption) =>
-  model.value !== undefined && !!pathTo(props.items, model.value)?.includes(item.key)
+  model.value !== undefined && !!pathTo(item.children ?? [], model.value)
 
 provide(menuKey, {
   selected: computed(() => model.value),
@@ -80,6 +93,94 @@ const topLevel = computed(() => {
   add(props.items)
   return entries
 })
+
+// A horizontal menu keeps to one row: what does not fit moves into a
+// trailing "more" popup instead of spilling out or scrolling. The entry
+// widths are measured once with everything shown, then reused on resize.
+const { t } = useLocale()
+const nav = useTemplateRef<HTMLElement>('nav')
+const fit = ref(Infinity)
+const measuring = ref(false)
+let widths: number[] = []
+let moreWidth = 0
+let gap = 0
+
+const trim = (entries: MenuOption[]) => {
+  const out = [...entries]
+  while (out.length && isDivider(out[0]!)) out.shift()
+  while (out.length && isDivider(out.at(-1)!)) out.pop()
+  return out
+}
+const shown = computed(() =>
+  measuring.value || fit.value >= topLevel.value.length
+    ? topLevel.value
+    : trim(topLevel.value.slice(0, fit.value)),
+)
+const moreItem = (children: MenuOption[]): MenuItemOption => ({
+  key: '__more',
+  label: t('menu.more'),
+  icon: markRaw(MoreHorizontalIcon),
+  children,
+})
+const more = computed(() => {
+  // while measuring it is shown empty, only to take its width
+  if (measuring.value) return moreItem([])
+  const rest = trim(topLevel.value.slice(fit.value))
+  return rest.length ? moreItem(rest) : undefined
+})
+
+function layout() {
+  const el = nav.value
+  if (!el || !widths.length) return
+  const room = el.clientWidth
+  const total = (n: number) => widths.slice(0, n).reduce((sum, w) => sum + w, 0) + gap * (n - 1)
+  if (total(widths.length) <= room) {
+    fit.value = Infinity
+    return
+  }
+  let n = widths.length - 1
+  while (n > 0 && total(n) + gap + moreWidth > room) n--
+  fit.value = n
+}
+
+/** An element's width with its margins. */
+function outer(el: Element) {
+  const style = getComputedStyle(el)
+  return (
+    el.getBoundingClientRect().width + parseFloat(style.marginLeft) + parseFloat(style.marginRight)
+  )
+}
+
+async function measure() {
+  if (props.mode !== 'horizontal') return
+  measuring.value = true
+  await nextTick()
+  const list = nav.value?.firstElementChild as HTMLElement | null
+  if (list) {
+    const entries = [...list.children]
+    widths = entries.slice(0, -1).map(outer)
+    moreWidth = entries.length ? outer(entries.at(-1)!) : 0
+    gap = parseFloat(getComputedStyle(list).columnGap) || 0
+  }
+  measuring.value = false
+  layout()
+}
+
+let observer: ResizeObserver | undefined
+onMounted(() => {
+  if (typeof ResizeObserver === 'undefined') return
+  observer = new ResizeObserver(layout)
+  if (nav.value) observer.observe(nav.value)
+  measure()
+})
+onBeforeUnmount(() => observer?.disconnect())
+watch(
+  () => [props.mode, topLevel.value, t('menu.more')],
+  () => {
+    fit.value = Infinity
+    measure()
+  },
+)
 
 // Arrow keys move between the visible items of a vertical menu.
 function onKeydown(event: KeyboardEvent) {
@@ -141,6 +242,7 @@ function onKeydown(event: KeyboardEvent) {
 
 <template>
   <nav
+    ref="nav"
     :class="[ns.b(), ns.m(mode), ns.is('collapsed', collapsed && mode === 'vertical')]"
     data-dou-menu-root=""
     @keydown="onKeydown"
@@ -148,7 +250,10 @@ function onKeydown(event: KeyboardEvent) {
     <ul :class="ns.e('list')">
       <MenuList v-if="!popups" :options="items" :level="0" />
       <template v-else>
-        <template v-for="(option, index) in topLevel" :key="isItem(option) ? option.key : index">
+        <template
+          v-for="(option, index) in mode === 'horizontal' ? shown : topLevel"
+          :key="isItem(option) ? option.key : index"
+        >
           <li v-if="isDivider(option)" :class="ns.e('divider')" aria-hidden="true" />
           <li v-else-if="isItem(option)" :class="ns.e('entry')">
             <MenuPopup
@@ -167,6 +272,9 @@ function onKeydown(event: KeyboardEvent) {
             <MenuItem v-else :item="option" />
           </li>
         </template>
+        <li v-if="mode === 'horizontal' && more" :class="ns.e('entry')">
+          <MenuPopup :item="more" placement="bottom-start" icon-only />
+        </li>
       </template>
     </ul>
   </nav>

@@ -1,5 +1,9 @@
 <script setup>
+import { useBreakpoints } from 'dou-ui'
 import { ref } from 'vue'
+
+// four steps do not fit side by side on a phone
+const screen = useBreakpoints()
 
 const current = ref(1)
 const items = [
@@ -11,5 +15,10 @@ const items = [
 </script>
 
 <template>
-  <DouSteps v-model:current="current" :items="items" clickable />
+  <DouSteps
+    :direction="screen.sm ? 'horizontal' : 'vertical'"
+    v-model:current="current"
+    :items="items"
+    clickable
+  />
 </template>

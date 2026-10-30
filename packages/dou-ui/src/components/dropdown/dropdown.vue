@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed, mergeProps, nextTick, provide, useId } from 'vue'
+import { computed, inject, mergeProps, nextTick, provide, useId } from 'vue'
 import { usePopup } from '../../composables/use-popup'
 import { useNamespace } from '../../utils/namespace'
 import { OnlyChild } from '../../utils/only-child'
-import { dropdownKey } from './dropdown'
+import { dropdownHostKey, dropdownKey } from './dropdown'
 import { menuItems, useMenuKeys } from './menu-keys'
 import type { DropdownExpose, DropdownProps, DropdownSlots, DropdownValue } from './dropdown'
 import { useTeleport } from '../../utils/teleport'
@@ -38,6 +38,8 @@ const popup = usePopup({
   sameWidth: () => props.sameWidth,
   showDelay: () => props.showDelay,
   hideDelay: () => props.hideDelay,
+  // a menu closes on a press outside however it was opened, `manual` too
+  closeOnOutside: true,
 })
 const { triggerRef, panelRef, rendered, theme, placement, panelStyle, panelListeners } = popup
 
@@ -73,14 +75,24 @@ const triggerProps = computed(() =>
   }),
 )
 
+const host = inject(dropdownHostKey, null)
+
 // Tab leaves from the trigger so focus moves on from where the menu was opened.
-const onMenuKeydown = useMenuKeys(
+const onKeys = useMenuKeys(
   () => panelRef.value,
   () => {
     ;(popup.reference() as HTMLElement | null)?.focus()
     popup.hide()
   },
 )
+
+function onMenuKeydown(event: KeyboardEvent) {
+  if (host && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
+    event.preventDefault()
+    return host.move(event.key === 'ArrowRight' ? 1 : -1)
+  }
+  onKeys(event)
+}
 
 provide(dropdownKey, {
   select(value) {
@@ -94,6 +106,7 @@ provide(dropdownKey, {
   opened: () => open.value,
   hold: () => props.trigger === 'hover' && popup.show(),
   release: () => props.trigger === 'hover' && popup.hide(props.hideDelay),
+  move: host ? (direction) => host.move(direction) : undefined,
 })
 
 defineExpose<DropdownExpose>({ open: () => popup.show(), close: () => popup.hide() })

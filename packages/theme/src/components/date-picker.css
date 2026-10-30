@@ -130,6 +130,7 @@
   }
 
   .dou-date-picker__clear {
+    position: relative;
     display: inline-flex;
     flex-shrink: 0;
     align-items: center;
@@ -154,10 +155,18 @@
       background-color: color-mix(in oklab, var(--dou-color-text) 18%, transparent);
       color: var(--dou-color-text);
     }
+
+    /* a larger hit area than the small glyph, without changing the layout */
+    &::after {
+      content: '';
+      position: absolute;
+      inset: -4px;
+    }
   }
 
   .dou-date-picker__panel {
-    padding: 8px;
+    /* with the 1px edge, keys in the corners sit concentric with the 12px panel */
+    padding: 5px;
     border: 1px solid var(--dou-color-border);
     border-radius: var(--dou-radius-container);
     background-color: light-dark(
@@ -442,20 +451,39 @@
     color: var(--dou-color-text-tertiary);
   }
 
-  /* months and years: four wide cells a row */
-  .dou-calendar--month .dou-calendar__day,
-  .dou-calendar--year .dou-calendar__day {
-    width: 56px;
-    height: 36px;
-    margin: 4px 0;
+  /* months, quarters and years: four wide cells a row */
+  :is(.dou-calendar--month, .dou-calendar--quarter, .dou-calendar--year) {
+    & .dou-calendar__day {
+      width: var(--dou-calendar-key);
+      height: 36px;
+      margin: 4px 0;
+    }
+    & .dou-calendar__panel {
+      min-width: calc(var(--dou-calendar-cell) * 7);
+    }
+    & .dou-calendar__grid {
+      width: 100%;
+    }
+
+    --dou-calendar-key: 56px;
+
+    /*
+     * A cell is wider than its key here, so an end of the wash stops at
+     * the edge of its key with the key's radius, whether the key is
+     * picked or only hovered while picking the other end.
+     */
+    & .dou-calendar__cell:is(.is-in-range, .is-range-start, .is-range-end)::before {
+      inset-block: 5px;
+    }
+    & .dou-calendar__cell.is-range-start::before {
+      inset-inline-start: calc(50% - var(--dou-calendar-key) / 2);
+    }
+    & .dou-calendar__cell.is-range-end::before {
+      inset-inline-end: calc(50% - var(--dou-calendar-key) / 2);
+    }
   }
-  .dou-calendar--month .dou-calendar__panel,
-  .dou-calendar--year .dou-calendar__panel {
-    min-width: calc(var(--dou-calendar-cell) * 7);
-  }
-  .dou-calendar--month .dou-calendar__grid,
-  .dou-calendar--year .dou-calendar__grid {
-    width: 100%;
+  .dou-calendar--quarter {
+    --dou-calendar-key: 64px;
   }
 
   /* picking a week: the whole row under the pointer takes the wash */

@@ -1,12 +1,15 @@
 <script setup lang="ts" generic="T">
 import {
   computed,
+  getCurrentInstance,
   nextTick,
   onBeforeUnmount,
   onMounted,
+  onUpdated,
   reactive,
   ref,
   shallowRef,
+  toDisplayString,
   useId,
   useTemplateRef,
   watch,
@@ -19,6 +22,7 @@ import {
   FilterIcon,
   GripVerticalIcon,
 } from '@dou-ui/icons'
+import { useMeasuredSizes } from '../../composables/use-measured-sizes'
 import { useNamespace } from '../../utils/namespace'
 import DouButton from '../button/button.vue'
 import { useLocale } from '../config-provider/use-config'
@@ -27,7 +31,9 @@ import DouCheckbox from '../checkbox/checkbox.vue'
 import DouEmpty from '../empty/empty.vue'
 import DouPopover from '../popover/popover.vue'
 import DouSpinner from '../spinner/spinner.vue'
+import { createOffsets } from '../virtual-list/virtual-list'
 import { useSortable } from '../sortable/use-sortable'
+import TableRow, { CellContent } from './table-row'
 import type {
   TableColumn,
   TableExpose,
@@ -63,6 +69,7 @@ const sort = defineModel<TableSort | null>('sort', { default: null })
 const expanded = defineModel<TableRowKey[]>('expanded', { default: () => [] })
 const filters = defineModel<Record<string, unknown[]>>('filters', { default: () => ({}) })
 const currentKey = defineModel<TableRowKey | null>('current', { default: null })
+const columnKeys = defineModel<string[] | undefined>('columnKeys', { default: undefined })
 const emit = defineEmits<{
   'update:data': [data: T[]]
   rowDrop: [event: TableRowDropEvent<T>]
@@ -112,6 +119,14 @@ const isLazy = (row: T) =>
 
 /* columns: groups only have a header, the columns under them show the data */
 
+/** The top-level columns to show, in the order `columnKeys` gives. */
+const shown = computed(() => {
+  const keys = columnKeys.value
+  if (!keys) return props.columns
+  const byKey = new Map(props.columns.map((column) => [column.key, column]))
+  return keys.flatMap((key) => byKey.get(key) ?? [])
+})
+
 const leaves = computed(() => {
   const result: TableColumn<T>[] = []
   const walk = (list: TableColumn<T>[], fixed: TableColumn<T>['fixed']) => {
@@ -120,7 +135,7 @@ const leaves = computed(() => {
       else result.push(fixed && !column.fixed ? { ...column, fixed } : column)
     }
   }
-  walk(props.columns, undefined)
+  walk(shown.value, undefined)
   return result
 })
 
@@ -138,7 +153,7 @@ interface HeaderCell {
 
 const depthOf = (column: TableColumn<T>): number =>
   column.children?.length ? 1 + Math.max(...column.children.map(depthOf)) : 1
-const headerDepth = computed(() => Math.max(1, ...props.columns.map(depthOf)))
+const headerDepth = computed(() => Math.max(1, ...shown.value.map(depthOf)))
 const grouped = computed(() => headerDepth.value > 1)
 
 const headerRows = computed(() => {
@@ -162,7 +177,7 @@ const headerRows = computed(() => {
       })
     }
   }
-  walk(props.columns, 0)
+  walk(shown.value, 0)
   return rows
 })
 
@@ -250,7 +265,9 @@ function ariaSort(column: TableColumn<T>) {
 // tree and detail rows
 const expandedSet = computed(() => new Set(expanded.value))
 const isTree = computed(() => props.data.some((row) => !!childrenOf(row) || isLazy(row)))
-const hasExpand = computed(() => props.expandable !== false && !props.virtual)
+const hasExpand = computed(
+  () => props.expandable !== false && (!props.virtual || props.rowHeight === undefined),
+)
 const canExpand = (row: T) =>
   typeof props.expandable === 'function' ? props.expandable(row) : !!props.expandable
 
@@ -452,19 +469,24 @@ function fixedClass(column: TableColumn<T>) {
 }
 
 /** The utility columns stick with the fixed start columns, side by side. */
-const utilityFixed = (position: number) =>
-  hasFixedStart.value
-    ? {
-        class: [
-          ns.is('fixed-start', true),
-          ns.is(
-            'fixed-start-edge',
-            position === utilityCount.value - 1 && !leaves.value.some((c) => c.fixed === 'start'),
-          ),
-        ],
-        style: { insetInlineStart: `${position * UTILITY_WIDTH}px` },
-      }
-    : { class: undefined, style: undefined }
+const utilityStyles = computed(() =>
+  Array.from({ length: utilityCount.value }, (_, position) =>
+    hasFixedStart.value
+      ? {
+          class: [
+            ns.is('fixed-start', true),
+            ns.is(
+              'fixed-start-edge',
+              position === utilityCount.value - 1 && !leaves.value.some((c) => c.fixed === 'start'),
+            ),
+          ],
+          style: { insetInlineStart: `${position * UTILITY_WIDTH}px` },
+        }
+      : { class: undefined, style: undefined },
+  ),
+)
+const noFixed = { class: undefined, style: undefined }
+const utilityFixed = (position: number) => utilityStyles.value[position] ?? noFixed
 
 // horizontal and vertical scrolling
 const wrapper = useTemplateRef<HTMLElement>('wrapper')
@@ -496,9 +518,21 @@ onMounted(() => {
 })
 onBeforeUnmount(() => observer.value?.disconnect())
 
-// virtual rows: only those in view, with spacers standing in for the rest
+// virtual rows: only those in view, with spacers standing in for the rest.
+// Without `rowHeight`, rows are measured once rendered, detail rows included.
+const fixedRows = computed(() => props.virtual && props.rowHeight !== undefined)
 const rowHeight = computed(
   () => props.rowHeight ?? { sm: 36, md: 44, lg: 52 }[size.value as 'sm' | 'md' | 'lg'] ?? 44,
+)
+const rowSizes = useMeasuredSizes({
+  count: () => rows.value.length,
+  keyOf: (index) => rows.value[index]!.key,
+  estimate: () => rowHeight.value,
+  container: () => wrapper.value,
+})
+const fixedRowOffsets = computed(() => createOffsets(rows.value.length, () => rowHeight.value))
+const rowOffsets = computed(() =>
+  fixedRows.value ? fixedRowOffsets.value : rowSizes.offsets.value,
 )
 const OVERSCAN = 6
 const fallbackViewport = computed(() =>
@@ -506,17 +540,23 @@ const fallbackViewport = computed(() =>
 )
 const range = computed(() => {
   const count = rows.value.length
-  if (!props.virtual) return { from: 0, to: count }
-  const height = rowHeight.value
+  if (!props.virtual || !count) return { from: 0, to: count }
+  const { find } = rowOffsets.value
   const view = viewport.value || fallbackViewport.value
   return {
-    from: Math.max(0, Math.floor(scrollTop.value / height) - OVERSCAN),
-    to: Math.min(count, Math.ceil((scrollTop.value + view) / height) + OVERSCAN),
+    from: Math.max(0, find(scrollTop.value) - OVERSCAN),
+    to: Math.min(count, find(scrollTop.value + view) + 1 + OVERSCAN),
   }
 })
 const visibleRows = computed(() => rows.value.slice(range.value.from, range.value.to))
-const spacerBefore = computed(() => range.value.from * rowHeight.value)
-const spacerAfter = computed(() => (rows.value.length - range.value.to) * rowHeight.value)
+const spacerBefore = computed(() => rowOffsets.value.start(range.value.from))
+const spacerAfter = computed(() => rowOffsets.value.total - rowOffsets.value.start(range.value.to))
+const measuredRows = computed(() => props.virtual && !fixedRows.value)
+const trackRow = (el: unknown, item: FlatRow, position: number) =>
+  rowSizes.track(el as Element | null, item.key, range.value.from + position)
+// A closed detail row leaves its row shorter.
+onUpdated(rowSizes.prune)
+watch(expandedSet, () => void nextTick(rowSizes.prune))
 watch(
   () => props.data,
   () => {
@@ -612,6 +652,7 @@ const classes = computed(() => [
   ns.is('scroll', props.maxHeight !== undefined),
   ns.is('fixed-layout', fixedLayout.value),
   ns.is('virtual', props.virtual),
+  ns.is('fixed-rows', fixedRows.value),
   ns.is('grouped', grouped.value),
   ns.is('spanning', !!spans.value),
   ns.is('highlight-current', props.highlightCurrent),
@@ -622,28 +663,74 @@ const classes = computed(() => [
 const alignClass = (column: TableColumn<T>) =>
   column.align && column.align !== 'start' && ns.is(column.align)
 
+/** The classes and styles of each column's body cells, the same on every row. */
+const cellMeta = computed(() =>
+  leaves.value.map((column, columnIndex) => ({
+    class: [
+      ns.e('cell'),
+      alignClass(column),
+      ns.is('ellipsis', !!column.ellipsis),
+      ns.is('edge', columnIndex === 0 && utilityCount.value === 0),
+      fixedClass(column),
+    ],
+    style: fixedStyle(column),
+  })),
+)
+
 const treeColumnKey = computed(() => (isTree.value ? leaves.value[0]?.key : undefined))
 
 /* body rows */
 
-function rowClassOf(item: FlatRow) {
+// Rows skip redrawing when their props stay the same. That is only safe
+// while the slots they render are the compiled, stable kind: any other
+// slots may have changed with the parent, so every row redraws then.
+const instance = getCurrentInstance()!
+let renderedVnode = instance.vnode
+let version = 0
+function slotVersion() {
+  if (instance.vnode !== renderedVnode) {
+    renderedVnode = instance.vnode
+    const own = instance.slots as { _?: number }
+    if (own._ !== 1 && Object.keys(own).length > 0) version++
+  }
+  return version
+}
+
+function rowClassOf(item: FlatRow, isSelected: boolean, isExpanded: boolean, isCurrent: boolean) {
   const extra =
     typeof props.rowClass === 'function' ? props.rowClass(item.row, item.index) : props.rowClass
   return [
     ns.e('row'),
     ns.is('even', item.index % 2 === 1),
-    ns.is('selected', hasSelection.value && selectedSet.value.has(item.key)),
-    ns.is('expanded', expandedSet.value.has(item.key)),
-    ns.is('current', props.highlightCurrent && currentKey.value === item.key),
+    ns.is('selected', isSelected),
+    ns.is('expanded', isExpanded),
+    ns.is('current', isCurrent),
     extra,
   ]
+}
+
+/** Whether a column's cells come from a slot rather than the plain value. */
+const hasCellSlot = (column: TableColumn<T>) => !!slots.cell || `cell-${column.key}` in slots
+
+/**
+ * A cell's content: its column's slot, the shared `cell` slot, or the value.
+ * Called from the row rather than through `<slot>`, so rows keep stable slots.
+ */
+function cellContent(item: FlatRow, column: TableColumn<T>) {
+  const scope = { row: item.row, column, value: valueOf(item.row, column), index: item.index }
+  const own = (slots as Record<string, ((scope: unknown) => unknown) | undefined>)[
+    `cell-${column.key}`
+  ]
+  if (own) return own(scope)
+  if (slots.cell) return slots.cell(scope)
+  return toDisplayString(scope.value ?? '')
 }
 
 function rowStyleOf(item: FlatRow): CSSProperties[] {
   const extra =
     typeof props.rowStyle === 'function' ? props.rowStyle(item.row, item.index) : props.rowStyle
   const list: CSSProperties[] = []
-  if (props.virtual) list.push({ height: `${rowHeight.value}px` })
+  if (fixedRows.value) list.push({ height: `${rowHeight.value}px` })
   if (extra) list.push(extra)
   return list
 }
@@ -721,8 +808,12 @@ async function scrollToRow(key: TableRowKey) {
   if (!el) return
   if (props.virtual) {
     const index = rows.value.findIndex((item) => item.key === key)
-    if (index >= 0) el.scrollTop = index * rowHeight.value
-    return
+    if (index < 0) return
+    el.scrollTop = rowOffsets.value.start(index)
+    measureScroll()
+    // Measured rows land where estimated; align on the rendered row.
+    if (fixedRows.value) return
+    await nextTick()
   }
   const row = [...el.querySelectorAll<HTMLElement>('tr[data-row-key]')].find(
     (tr) => tr.dataset.rowKey === String(key),
@@ -1003,13 +1094,36 @@ defineExpose<TableExpose>({
           <tr v-if="virtual && spacerBefore > 0" :class="ns.e('spacer')" aria-hidden="true">
             <td :colspan="span" :style="{ height: `${spacerBefore}px` }" />
           </tr>
-          <template v-for="(item, position) in visibleRows" :key="item.key">
+          <TableRow
+            v-for="(entry, at) in visibleRows"
+            :key="entry.key"
+            v-slot="{
+              item,
+              position,
+              selected: rowSelected,
+              expanded: rowExpanded,
+              current: rowCurrent,
+              loading: rowLoading,
+            }"
+            :row="entry.row"
+            :row-key="entry.key"
+            :level="entry.level"
+            :index="entry.index"
+            :parent="entry.parent"
+            :position="at"
+            :selected="hasSelection && selectedSet.has(entry.key)"
+            :expanded="expandedSet.has(entry.key)"
+            :current="highlightCurrent && currentKey === entry.key"
+            :loading="loadingRows.has(entry.key)"
+            :version="slotVersion()"
+          >
             <tr
-              :class="rowClassOf(item)"
+              :ref="measuredRows ? (el) => trackRow(el, item, position) : undefined"
+              :class="rowClassOf(item, rowSelected, rowExpanded, rowCurrent)"
               :style="rowStyleOf(item)"
               :data-row-key="item.key"
               :aria-rowindex="virtual ? item.index + 1 + headerDepth : undefined"
-              :aria-selected="highlightCurrent ? currentKey === item.key : undefined"
+              :aria-selected="highlightCurrent ? rowCurrent : undefined"
               v-bind="hasDrag ? sortable.itemAttrs(item.row, item.index) : undefined"
               @click="onRowClick(item, $event)"
               @dblclick="emit('rowDblclick', item.row, item.index, $event)"
@@ -1046,9 +1160,9 @@ defineExpose<TableExpose>({
                 <button
                   v-if="canExpand(item.row)"
                   type="button"
-                  :class="[ns.e('toggle'), ns.is('open', expandedSet.has(item.key))]"
-                  :aria-expanded="expandedSet.has(item.key)"
-                  :aria-controls="expandedSet.has(item.key) ? `${id}-${item.key}` : undefined"
+                  :class="[ns.e('toggle'), ns.is('open', rowExpanded)]"
+                  :aria-expanded="rowExpanded"
+                  :aria-controls="rowExpanded ? `${id}-${item.key}` : undefined"
                   :aria-label="t('table.expandRow')"
                   @click="toggleExpanded(item.key)"
                 >
@@ -1067,7 +1181,7 @@ defineExpose<TableExpose>({
                 @click.stop
               >
                 <DouCheckbox
-                  :model-value="selectedSet.has(item.key)"
+                  :model-value="rowSelected"
                   :disabled="!canSelect(item.row)"
                   size="sm"
                   :aria-label="t('table.selectRow')"
@@ -1076,26 +1190,24 @@ defineExpose<TableExpose>({
               </td>
               <template v-for="(column, columnIndex) in leaves" :key="column.key">
                 <td
-                  v-if="spanOf(position, columnIndex)[0] && spanOf(position, columnIndex)[1]"
+                  v-if="
+                    !spans || (spanOf(position, columnIndex)[0] && spanOf(position, columnIndex)[1])
+                  "
                   :rowspan="
-                    spanOf(position, columnIndex)[0] > 1
+                    spans && spanOf(position, columnIndex)[0] > 1
                       ? spanOf(position, columnIndex)[0]
                       : undefined
                   "
                   :colspan="
-                    spanOf(position, columnIndex)[1] > 1
+                    spans && spanOf(position, columnIndex)[1] > 1
                       ? spanOf(position, columnIndex)[1]
                       : undefined
                   "
                   :class="[
-                    ns.e('cell'),
-                    alignClass(column),
-                    ns.is('ellipsis', !!column.ellipsis),
-                    ns.is('spanned', spanOf(position, columnIndex)[0] > 1),
-                    ns.is('edge', columnIndex === 0 && utilityCount === 0),
-                    fixedClass(column),
+                    cellMeta[columnIndex]!.class,
+                    spans && ns.is('spanned', spanOf(position, columnIndex)[0] > 1),
                   ]"
-                  :style="fixedStyle(column)"
+                  :style="cellMeta[columnIndex]!.style"
                   @click="emit('cellClick', item.row, column, $event)"
                 >
                   <span
@@ -1108,69 +1220,45 @@ defineExpose<TableExpose>({
                       type="button"
                       :class="[
                         ns.e('toggle'),
-                        ns.is('open', expandedSet.has(item.key)),
-                        ns.is('loading', loadingRows.has(item.key)),
+                        ns.is('open', rowExpanded),
+                        ns.is('loading', rowLoading),
                       ]"
-                      :aria-expanded="expandedSet.has(item.key)"
-                      :aria-busy="loadingRows.has(item.key) || undefined"
+                      :aria-expanded="rowExpanded"
+                      :aria-busy="rowLoading || undefined"
                       :aria-label="t('table.expandRow')"
                       @click.stop="toggleTree(item)"
                     >
-                      <DouSpinner v-if="loadingRows.has(item.key)" size="sm" />
+                      <DouSpinner v-if="rowLoading" size="sm" />
                       <ChevronRightIcon v-else />
                     </button>
                     <span v-else :class="ns.e('toggle-space')" />
                     <span :class="ns.e('tree-content')">
-                      <slot
-                        :name="`cell-${column.key}`"
-                        :row="item.row"
-                        :column="column"
-                        :value="valueOf(item.row, column)"
-                        :index="item.index"
-                      >
-                        <slot
-                          name="cell"
-                          :row="item.row"
-                          :column="column"
-                          :value="valueOf(item.row, column)"
-                          :index="item.index"
-                        >
-                          {{ valueOf(item.row, column) ?? '' }}
-                        </slot>
-                      </slot>
+                      <CellContent
+                        v-if="hasCellSlot(column)"
+                        :render="() => cellContent(item, column)"
+                      />
+                      <template v-else>{{ valueOf(item.row, column) ?? '' }}</template>
                     </span>
                   </span>
-                  <slot
-                    v-else
-                    :name="`cell-${column.key}`"
-                    :row="item.row"
-                    :column="column"
-                    :value="valueOf(item.row, column)"
-                    :index="item.index"
-                  >
-                    <slot
-                      name="cell"
-                      :row="item.row"
-                      :column="column"
-                      :value="valueOf(item.row, column)"
-                      :index="item.index"
-                    >
-                      {{ valueOf(item.row, column) ?? '' }}
-                    </slot>
-                  </slot>
+                  <CellContent
+                    v-else-if="hasCellSlot(column)"
+                    :render="() => cellContent(item, column)"
+                  />
+                  <template v-else>{{ valueOf(item.row, column) ?? '' }}</template>
                 </td>
               </template>
             </tr>
             <tr
-              v-if="hasExpand && canExpand(item.row) && expandedSet.has(item.key)"
+              v-if="hasExpand && canExpand(item.row) && rowExpanded"
               :id="`${id}-${item.key}`"
+              :ref="measuredRows ? (el) => trackRow(el, item, position) : undefined"
               :class="ns.e('detail-row')"
             >
               <td :class="ns.e('detail')" :colspan="span">
-                <slot name="expand" :row="item.row" :index="item.index" />
+                <CellContent :render="() => slots.expand?.({ row: item.row, index: item.index })" />
               </td>
             </tr>
-          </template>
+          </TableRow>
           <tr v-if="virtual && spacerAfter > 0" :class="ns.e('spacer')" aria-hidden="true">
             <td :colspan="span" :style="{ height: `${spacerAfter}px` }" />
           </tr>

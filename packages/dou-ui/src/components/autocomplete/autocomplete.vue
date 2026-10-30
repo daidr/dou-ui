@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, useId, useTemplateRef, watch } from 'vue'
 import { usePopup } from '../../composables/use-popup'
+import { splitHighlight } from '../../utils/highlight'
 import { useNamespace } from '../../utils/namespace'
+import { shouldVirtualize, visibleWindow } from '../../utils/virtual'
 import { OnlyChild } from '../../utils/only-child'
 import { useLocale } from '../config-provider/use-config'
 import { useFormDisabled } from '../form/use-form-item'
@@ -31,6 +33,7 @@ const props = withDefaults(defineProps<AutocompleteProps>(), {
   clearable: false,
   placement: 'bottom-start',
   teleport: undefined,
+  virtual: undefined,
 })
 const teleportTarget = useTeleport(() => props.teleport)
 const model = defineModel<string>({ default: '' })
@@ -122,12 +125,47 @@ const popup = usePopup({
 const { triggerRef, panelRef, rendered, theme, placement, panelStyle } = popup
 
 const active = ref(-1)
-watch(suggestions, () => (active.value = -1))
+// A parent that re-renders passes a new but equal list: only a different
+// list of suggestions clears the highlight.
+const suggestionsKey = computed(() =>
+  suggestions.value.map((option) => option.value).join('\u0000'),
+)
+watch(suggestionsKey, () => (active.value = -1))
+// Long lists render only the suggestions in view, with spacers for the rest.
+const ROW = 32
+const INSET = 4
+const menuScroll = ref(0)
+const isVirtual = computed(() => shouldVirtualize(props.virtual, suggestions.value.length))
+const view = computed(() => {
+  const list = suggestions.value
+  if (!isVirtual.value) return { from: 0, rows: list, before: 0, after: 0 }
+  const { from, to } = visibleWindow(list.length, Math.max(0, menuScroll.value - INSET), 280, ROW)
+  return { from, rows: list.slice(from, to), before: from * ROW, after: (list.length - to) * ROW }
+})
+function onMenuScroll(event: Event) {
+  if (isVirtual.value) menuScroll.value = (event.target as HTMLElement).scrollTop
+}
+
 watch(active, async (index) => {
   await nextTick()
-  panelRef.value?.querySelector(`#${CSS.escape(optionId(index))}`)?.scrollIntoView?.({
-    block: 'nearest',
-  })
+  const menu = panelRef.value
+  if (!menu) return
+  if (isVirtual.value) {
+    if (index < 0) return
+    // The option may not be rendered: scroll by its row instead.
+    const top = index * ROW + INSET
+    let target = menu.scrollTop
+    if (top < target) target = top - INSET
+    else if (top + ROW > target + menu.clientHeight) target = top + ROW - menu.clientHeight + INSET
+    menu.scrollTop = Math.max(0, target)
+    menuScroll.value = menu.scrollTop
+    return
+  }
+  menu.querySelector(`#${CSS.escape(optionId(index))}`)?.scrollIntoView?.({ block: 'nearest' })
+})
+watch(suggestionsKey, () => {
+  if (panelRef.value) panelRef.value.scrollTop = 0
+  menuScroll.value = 0
 })
 
 function move(step: 1 | -1) {
@@ -201,18 +239,9 @@ function onKeydown(event: KeyboardEvent) {
   }
 }
 
-/** The label split around the first match of the text. */
-function parts(option: AutocompleteOption) {
-  const label = labelOf(option)
-  const query = model.value.trim()
-  const at = props.highlight && query ? label.toLowerCase().indexOf(query.toLowerCase()) : -1
-  if (at < 0) return [{ text: label, match: false }]
-  return [
-    { text: label.slice(0, at), match: false },
-    { text: label.slice(at, at + query.length), match: true },
-    { text: label.slice(at + query.length), match: false },
-  ].filter((part) => part.text)
-}
+/** The label split around the matches of the text. */
+const parts = (option: AutocompleteOption) =>
+  splitHighlight(labelOf(option), props.highlight ? model.value : '')
 
 const inputAttrs = computed(() => ({
   role: 'combobox',
@@ -261,22 +290,26 @@ defineExpose<AutocompleteExpose>({
         :data-placement="placement"
         :data-dou-theme="theme"
         @mousedown.prevent
+        @scroll="onMenuScroll"
       >
         <ul :id="listboxId" role="listbox" :class="ns.e('list')" :aria-busy="loading || undefined">
+          <li v-if="view.before" role="presentation" :style="{ height: `${view.before}px` }" />
           <li
-            v-for="(option, index) in suggestions"
-            :id="optionId(index)"
+            v-for="(option, offset) in view.rows"
+            :id="optionId(view.from + offset)"
             :key="option.value"
             role="option"
-            :aria-selected="index === active"
+            :aria-selected="view.from + offset === active"
+            :aria-setsize="isVirtual ? suggestions.length : undefined"
+            :aria-posinset="isVirtual ? view.from + offset + 1 : undefined"
             :aria-disabled="option.disabled || undefined"
             :class="[
               ns.e('option'),
-              ns.is('active', index === active),
+              ns.is('active', view.from + offset === active),
               ns.is('disabled', !!option.disabled),
             ]"
             @click="choose(option)"
-            @mousemove="!option.disabled && (active = index)"
+            @mousemove="!option.disabled && (active = view.from + offset)"
           >
             <slot name="option" :option="option" :query="model">
               <span :class="ns.e('label')">
@@ -290,6 +323,7 @@ defineExpose<AutocompleteExpose>({
               </span>
             </slot>
           </li>
+          <li v-if="view.after" role="presentation" :style="{ height: `${view.after}px` }" />
         </ul>
         <div v-if="loading && !suggestions.length" :class="ns.e('status')">
           <DouSpinner size="sm" />

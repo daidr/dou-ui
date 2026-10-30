@@ -99,4 +99,72 @@ describe('DouCalendarView', () => {
     expect(day(wrapper, '2026-10-16').attributes('aria-disabled')).toBe('true')
     wrapper.unmount()
   })
+
+  it('shows a week on a time axis with an all-day row', async () => {
+    const wrapper = make({
+      view: 'week',
+      hours: [8, 20],
+      events: [
+        { date: '2026-10-06', end: '2026-10-07', title: '出差' },
+        { date: '2026-10-08', time: '10:00', endTime: '11:30', title: '评审' },
+        { date: '2026-10-08', time: '10:30', title: '同步' },
+      ],
+    })
+    expect(wrapper.get('.dou-calendar-view__title').text()).toBe('2026年10月5日 – 10月11日')
+    const heads = wrapper.findAll('.dou-calendar-view__column-head')
+    expect(heads).toHaveLength(7)
+    expect(heads[0]!.attributes('data-date')).toBe('2026-10-05')
+    expect(
+      wrapper.findAll('.dou-calendar-view__all-day-cell .dou-calendar-view__event'),
+    ).toHaveLength(2)
+
+    const timed = wrapper.findAll('.dou-calendar-view__timed')
+    expect(timed).toHaveLength(2)
+    expect(timed[0]!.attributes('aria-label')).toBe('评审, 10:00–11:30')
+    expect(timed[0]!.attributes('style')).toContain('--dou-calendar-view-from: 2')
+    expect(timed[1]!.attributes('style')).toContain('--dou-calendar-view-column: 1')
+
+    await timed[1]!.trigger('click')
+    expect(wrapper.emitted('eventClick')?.[0]?.[0]).toMatchObject({ title: '同步' })
+
+    const columns = wrapper.findAll('.dou-calendar-view__column')
+    await columns[3]!.trigger('click', { clientY: 100 })
+    expect(wrapper.emitted('timeClick')?.[0]).toEqual([{ date: '2026-10-08', time: '10:00' }])
+    wrapper.unmount()
+  })
+
+  it('steps by week or day and switches views', async () => {
+    const wrapper = make({
+      view: 'week',
+      views: ['month', 'week', 'day'],
+      'onUpdate:view': (value: string) => wrapper.setProps({ view: value }),
+    })
+    const [prev, next] = wrapper.findAll('.dou-calendar-view__step')
+    expect(prev!.attributes('aria-label')).toBe('上一周')
+    await next!.trigger('click')
+    expect(wrapper.find('[data-date="2026-10-12"]').exists()).toBe(true)
+
+    const options = wrapper.findAll('.dou-segmented-control input')
+    expect(wrapper.get('.dou-segmented-control').text()).toBe('月周日')
+    await options[2]!.setValue(true)
+    expect(wrapper.emitted('update:view')?.at(-1)).toEqual(['day'])
+    expect(wrapper.findAll('.dou-calendar-view__column-head')).toHaveLength(1)
+    expect(wrapper.findAll('.dou-calendar-view__step')[1]!.attributes('aria-label')).toBe('后一天')
+    wrapper.unmount()
+  })
+
+  it('lists all-day events first, then timed ones by start time', () => {
+    const wrapper = make({
+      events: [
+        { date: '2026-10-12', time: '16:00', title: '晚' },
+        { date: '2026-10-12', time: '09:00', title: '早' },
+        { date: '2026-10-12', title: '全天' },
+      ],
+    })
+    const titles = day(wrapper, '2026-10-12')
+      .findAll('.dou-calendar-view__event')
+      .map((event) => event.text())
+    expect(titles).toEqual(['全天', '09:00早', '16:00晚'])
+    wrapper.unmount()
+  })
 })

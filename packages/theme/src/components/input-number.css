@@ -1,9 +1,10 @@
 /*
  * InputNumber
  *
- * An input with a pair of step keys at its end. The keys sit inside the
- * field's edge, split from the text and from each other by hairlines, and
- * stay quiet ink until hovered. The number is set in tabular figures so
+ * An input with two step keys stacked at its end, each half the height.
+ * The keys sit inside the field's edge, split from the text and from each
+ * other by hairlines, and stay quiet ink until hovered. On touch they grow
+ * into a pad big enough for a finger. The number is set in tabular figures so
  * digits keep their place while stepping.
  */
 @layer dou.components {
@@ -13,8 +14,9 @@
     --dou-input-number-gap: var(--dou-control-gap-md);
     --dou-input-number-font-size: var(--dou-font-size-md);
     --dou-input-number-radius: var(--dou-radius-control);
-    /* each step key; with a 12px icon both offsets stay whole pixels */
-    --dou-input-number-step-width: 28px;
+    /* the stacked keys' column */
+    --dou-input-number-step-width: 24px;
+    --dou-input-number-icon-size: 11px;
 
     --dou-input-number-bg: var(--dou-color-bg-surface);
     --dou-input-number-border: var(--dou-color-border);
@@ -99,14 +101,16 @@
     --dou-input-number-padding-x: var(--dou-control-padding-x-sm);
     --dou-input-number-gap: var(--dou-control-gap-sm);
     --dou-input-number-font-size: var(--dou-font-size-sm);
-    --dou-input-number-step-width: 24px;
+    --dou-input-number-step-width: 20px;
+    --dou-input-number-icon-size: 9px;
   }
   .dou-input-number--lg {
     --dou-input-number-height: var(--dou-control-height-lg);
     --dou-input-number-padding-x: var(--dou-control-padding-x-lg);
     --dou-input-number-gap: var(--dou-control-gap-lg);
     --dou-input-number-font-size: var(--dou-font-size-lg);
-    --dou-input-number-step-width: 36px;
+    --dou-input-number-step-width: 28px;
+    --dou-input-number-icon-size: 13px;
   }
 
   .dou-input-number__native {
@@ -142,60 +146,173 @@
     white-space: nowrap;
   }
 
+  /* holds the keys' place in the row; the keys themselves sit on top */
   .dou-input-number__controls {
-    display: inline-flex;
+    position: relative;
     flex-shrink: 0;
     align-self: stretch;
+    width: var(--dou-input-number-step-width);
     border-left: 1px solid var(--dou-color-border);
+  }
+
+  /*
+   * The two keys stacked, each half the height. On touch they grow into
+   * a pad centered on the field's end. The pad's corner and the keys'
+   * corners share a center: key radius = pad radius - pad padding.
+   */
+  .dou-input-number__keys {
+    --dou-input-number-keys-radius: calc(var(--dou-input-number-radius) - 1px);
+    --dou-input-number-keys-padding: 0px;
+    --dou-input-number-key-radius: 0px;
+
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    box-sizing: border-box;
+    width: 100%;
+    padding: var(--dou-input-number-keys-padding);
+    border-radius: 0 var(--dou-input-number-keys-radius) var(--dou-input-number-keys-radius) 0;
+    background-color: transparent;
+    /* a finger slides across the keys instead of scrolling the page */
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    transition-property:
+      top, right, bottom, width, padding, gap, border-radius, background-color, box-shadow;
+    transition-duration: var(--dou-motion-duration-normal);
+    transition-timing-function: var(--dou-motion-easing);
+  }
+
+  .dou-input-number.is-expanded {
+    position: relative;
+    z-index: 10;
+
+    .dou-input-number__controls {
+      /* fixed for every size: a fingertip does not scale with the field */
+      --dou-input-number-key-size: 40px;
+      --dou-input-number-pad-width: 48px;
+      --dou-input-number-pad-height: calc(
+        2 * var(--dou-input-number-key-size) + 3 * var(--dou-input-number-keys-padding-open)
+      );
+      --dou-input-number-keys-padding-open: 4px;
+    }
+
+    .dou-input-number__keys {
+      --dou-input-number-keys-radius: var(--dou-radius-container);
+      --dou-input-number-keys-padding: var(--dou-input-number-keys-padding-open);
+      --dou-input-number-key-radius: calc(
+        var(--dou-radius-container) - var(--dou-input-number-keys-padding-open)
+      );
+
+      top: calc(50% - var(--dou-input-number-pad-height) / 2);
+      right: -1px;
+      bottom: calc(50% - var(--dou-input-number-pad-height) / 2);
+      gap: var(--dou-input-number-keys-padding-open);
+      width: var(--dou-input-number-pad-width);
+      border-radius: var(--dou-input-number-keys-radius);
+      background-color: var(--dou-color-bg-surface);
+      box-shadow:
+        inset 0 0 0 1px var(--dou-color-border),
+        var(--dou-shadow-lg);
+      /* the pad answers a finger that is still on it, so it springs */
+      transition-duration: var(--dou-motion-duration-slow);
+      transition-timing-function: var(--dou-motion-easing-spring);
+    }
+
+    .dou-input-number__step {
+      border-radius: var(--dou-input-number-key-radius);
+      background-color: color-mix(in oklab, var(--dou-color-text) 4%, transparent);
+      color: var(--dou-color-text);
+      transition-duration: var(--dou-motion-duration-slow);
+      transition-timing-function: var(--dou-motion-easing-spring);
+
+      & + & {
+        box-shadow: none;
+      }
+
+      & > svg {
+        font-size: 16px;
+        transition-duration: var(--dou-motion-duration-slow);
+        transition-timing-function: var(--dou-motion-easing-spring);
+      }
+
+      &:active:not(:disabled),
+      &.is-held {
+        background-color: color-mix(in oklab, var(--dou-color-text) 10%, transparent);
+        transform: scale(0.94);
+      }
+
+      &:disabled {
+        background-color: color-mix(in oklab, var(--dou-color-text) 2%, transparent);
+        color: var(--dou-color-text-disabled);
+      }
+    }
   }
 
   .dou-input-number__step {
     display: inline-flex;
+    flex: 1 1 0;
     align-items: center;
     justify-content: center;
     box-sizing: border-box;
-    width: var(--dou-input-number-step-width);
-    height: 100%;
+    width: 100%;
+    min-height: 0;
     padding: 0;
     margin: 0;
     border: 0;
+    border-radius: var(--dou-input-number-key-radius);
     background-color: transparent;
     color: var(--dou-color-text-secondary);
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
-    transition-property: background-color, color;
+    transition-property: background-color, color, border-radius, box-shadow, transform;
     transition-duration: var(--dou-motion-duration-fast);
-    transition-timing-function: var(--dou-motion-easing);
+    transition-timing-function: var(--dou-motion-easing-exit);
 
-    /* drawn inside, so both keys keep the same width and the icon stays centered */
+    /* drawn inside, so both keys keep the same height and the icon stays centered */
     & + & {
-      box-shadow: inset 1px 0 0 var(--dou-color-border-subtle);
+      box-shadow: inset 0 1px 0 var(--dou-color-border-subtle);
     }
 
     & > svg {
       width: 1em;
       height: 1em;
-      font-size: 12px;
+      /* odd, so it sits on whole pixels in the odd-height half keys */
+      font-size: var(--dou-input-number-icon-size);
+      transition: font-size var(--dou-motion-duration-normal) var(--dou-motion-easing);
     }
 
-    &:hover:not(:disabled) {
-      background-color: color-mix(in oklab, var(--dou-color-text) 5%, transparent);
-      color: var(--dou-color-text);
+    @media (hover: hover) {
+      &:hover:not(:disabled) {
+        background-color: color-mix(in oklab, var(--dou-color-text) 5%, transparent);
+        color: var(--dou-color-text);
+      }
     }
 
-    &:active:not(:disabled) {
+    &:active:not(:disabled),
+    &.is-held {
       background-color: color-mix(in oklab, var(--dou-color-text) 9%, transparent);
     }
 
+    /* presses fall through to the pad, which still opens on touch */
     &:disabled {
       color: var(--dou-color-text-disabled);
-      cursor: not-allowed;
+      pointer-events: none;
     }
   }
 
-  /* the last key follows the field's corner instead of poking out of it */
-  .dou-input-number__increase {
-    border-radius: 0 calc(var(--dou-input-number-radius) - 1px)
-      calc(var(--dou-input-number-radius) - 1px) 0;
+  /* collapsed, each key follows the field's corner on its own side */
+  .dou-input-number:not(.is-expanded) {
+    .dou-input-number__increase {
+      border-top-right-radius: var(--dou-input-number-keys-radius);
+    }
+    .dou-input-number__decrease {
+      border-bottom-right-radius: var(--dou-input-number-keys-radius);
+    }
   }
 }

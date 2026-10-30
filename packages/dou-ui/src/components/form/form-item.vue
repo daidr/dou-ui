@@ -2,6 +2,7 @@
 import {
   computed,
   inject,
+  nextTick,
   onBeforeUnmount,
   onMounted,
   provide,
@@ -9,6 +10,7 @@ import {
   toRaw,
   useId,
   useTemplateRef,
+  watch,
 } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
@@ -21,7 +23,8 @@ import type {
   FormRule,
   FormTrigger,
 } from './form'
-import { getPath, rulesFor, setPath, toArray, validateValue } from './rules'
+import { getPath, rulesFor, setPath, toRules, validateValue } from './rules'
+import { issuePath, schemaIssues } from './standard-schema'
 import { useFormSize } from './use-form-item'
 
 defineOptions({ name: 'DouFormItem' })
@@ -43,9 +46,28 @@ const messageId = `${id}-message`
 
 const rootRef = useTemplateRef<HTMLElement>('root')
 
+// The form's schema checks the whole model; this field keeps the first
+// issue that lands on it or inside it.
+function fromFormSchema(): FormRule[] {
+  const schema = form?.schema()
+  const prop = props.prop
+  if (!schema || !prop) return []
+  return [
+    {
+      async validator(_value, model) {
+        const issue = (await schemaIssues(schema, model)).find((item) => {
+          const path = issuePath(item)
+          return path === prop || path.startsWith(`${prop}.`)
+        })
+        return issue ? issue.message : true
+      },
+    },
+  ]
+}
+
 const rules = computed<FormRule[]>(() => {
-  const fromForm = props.prop ? toArray(form?.rules()?.[props.prop]) : []
-  const list = [...fromForm, ...toArray(props.rules)]
+  const fromForm = props.prop ? toRules(form?.rules()?.[props.prop]) : []
+  const list = [...fromForm, ...toRules(props.rules), ...fromFormSchema()]
   if (props.required && !list.some((rule) => rule.required)) list.unshift({ required: true })
   return list
 })
@@ -70,6 +92,24 @@ async function check(list: FormRule[]) {
 }
 
 const validate = () => check(rules.value)
+
+// While an error is shown, a change to the value made outside a control
+// (adding a row to a list, say) also rechecks it, so the error clears once
+// fixed. A control that already rechecked for the same change is not
+// repeated.
+watch(
+  () => (props.prop ? getPath(form?.model(), props.prop) : undefined),
+  () => {
+    if (!validationError.value) return
+    const before = run
+    void nextTick(() => {
+      if (run === before && validationError.value) {
+        void check(rulesFor(rules.value, 'change', true, true))
+      }
+    })
+  },
+  { deep: true, flush: 'sync' },
+)
 
 function trigger(event: FormTrigger, { lazy = false } = {}) {
   const list = rulesFor(rules.value, event, lazy, !!validationError.value)

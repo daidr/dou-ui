@@ -170,3 +170,42 @@ describe('DouTable virtual rows', () => {
     expect(spacers[0]!.attributes('style')).toContain(`height: ${(1000 - rows.length) * 44}px`)
   })
 })
+
+describe('DouTable column keys', () => {
+  it('shows the chosen columns in the given order', async () => {
+    const wrapper = mount(Table, { props: { columns, data, rowKey: 'id' } })
+    const titles = () => wrapper.findAll('thead th').map((cell) => cell.text())
+    expect(titles()).toEqual(['名称', '区域', 'CPU', '操作'])
+
+    await wrapper.setProps({ columnKeys: ['cpu', 'name', 'missing'] })
+    expect(titles()).toEqual(['CPU', '名称'])
+    expect(
+      bodyRows(wrapper)[0]!
+        .findAll('td')
+        .map((cell) => cell.text()),
+    ).toEqual(['2', 'b-api'])
+
+    await wrapper.setProps({ columnKeys: undefined })
+    expect(titles()).toHaveLength(4)
+  })
+
+  it('moves a header group as a whole', async () => {
+    const grouped = [
+      { key: 'name', title: '名称' },
+      {
+        key: 'spec',
+        title: '规格',
+        children: [
+          { key: 'region', title: '区域' },
+          { key: 'cpu', title: 'CPU' },
+        ],
+      },
+    ]
+    const wrapper = mount(Table, {
+      props: { columns: grouped, data, columnKeys: ['spec', 'name'] },
+    })
+    const rows = wrapper.findAll('thead tr')
+    expect(rows[0]!.findAll('th').map((cell) => cell.text())).toEqual(['规格', '名称'])
+    expect(rows[1]!.findAll('th').map((cell) => cell.text())).toEqual(['区域', 'CPU'])
+  })
+})

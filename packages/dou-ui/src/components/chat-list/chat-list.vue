@@ -1,6 +1,8 @@
-<script setup lang="ts">
+<script setup lang="ts" generic="T">
 import { ArrowDownIcon } from '@dou-ui/icons'
 import { onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
+import { DouVirtualList } from '../virtual-list'
+import type { VirtualListExpose } from '../virtual-list'
 import { useReducedMotion } from '../../composables/use-motion'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
@@ -8,20 +10,37 @@ import type { ChatListEmits, ChatListExpose, ChatListProps, ChatListSlots } from
 
 defineOptions({ name: 'DouChatList' })
 
-const props = withDefaults(defineProps<ChatListProps>(), {
+const props = withDefaults(defineProps<ChatListProps<T>>(), {
   autoScroll: true,
   threshold: 24,
   showScrollButton: true,
+  items: undefined,
+  itemKey: undefined,
+  estimateSize: 120,
 })
 const emit = defineEmits<ChatListEmits>()
-defineSlots<ChatListSlots>()
+defineSlots<ChatListSlots<T>>()
 
 const ns = useNamespace('chat-list')
 const reducedMotion = useReducedMotion()
 const { t } = useLocale()
 
-const viewportRef = useTemplateRef<HTMLElement>('viewport')
-const contentRef = useTemplateRef<HTMLElement>('content')
+const plainViewport = useTemplateRef<HTMLElement>('viewport')
+const plainContent = useTemplateRef<HTMLElement>('content')
+const listRef = useTemplateRef<VirtualListExpose>('list')
+// With `items`, the virtual list scrolls and its spacer holds the content.
+const viewportRef = {
+  get value() {
+    return props.items ? (listRef.value?.el() ?? null) : plainViewport.value
+  },
+}
+const contentRef = {
+  get value() {
+    return props.items
+      ? (viewportRef.value?.firstElementChild as HTMLElement | null | undefined)
+      : plainContent.value
+  },
+}
 
 const atBottom = ref(true)
 watch(atBottom, (value) => emit('update:atBottom', value))
@@ -79,10 +98,21 @@ onMounted(() => {
   follow()
   if (typeof ResizeObserver === 'undefined') return
   observer = new ResizeObserver(follow)
-  if (contentRef.value) observer.observe(contentRef.value)
+  observeContent()
   if (viewportRef.value) observer.observe(viewportRef.value)
 })
 onBeforeUnmount(() => observer?.disconnect())
+
+// A virtual list draws its content only once it has items.
+let observed: HTMLElement | null | undefined
+function observeContent() {
+  const content = contentRef.value
+  if (!observer || content === observed) return
+  if (observed) observer.unobserve(observed)
+  observed = content
+  if (content) observer.observe(content)
+}
+watch(() => props.items?.length, observeContent, { flush: 'post' })
 
 defineExpose<ChatListExpose>({
   get viewport() {
@@ -96,8 +126,25 @@ defineExpose<ChatListExpose>({
 </script>
 
 <template>
-  <div :class="[ns.b(), ns.is('at-bottom', atBottom)]">
+  <div :class="[ns.b(), ns.is('at-bottom', atBottom), ns.is('virtual', !!items)]">
+    <DouVirtualList
+      v-if="items"
+      ref="list"
+      :class="ns.e('viewport')"
+      :items="items"
+      :item-key="itemKey"
+      :estimate-size="estimateSize"
+      role="log"
+      :aria-label="t('chat.messages')"
+      @scroll.passive="onScroll"
+      @wheel.passive="onWheel"
+    >
+      <template #default="{ item, index }">
+        <slot name="item" :item="item" :index="index" />
+      </template>
+    </DouVirtualList>
     <div
+      v-else
       ref="viewport"
       :class="ns.e('viewport')"
       role="log"

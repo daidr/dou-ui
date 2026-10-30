@@ -31,16 +31,36 @@
 | `min`/`max` | 文本按字符数、数组按项数、数字按大小                                         |
 | `pattern`   | 文本需要匹配的正则                                                           |
 | `validator` | 自定义检查，可以是 async。返回 `true` 或不返回为通过，返回字符串即为错误信息 |
+| `schema`    | 一个 Standard Schema，失败时取它的第一条信息，见下文                         |
 | `message`   | 替换默认错误信息                                                             |
 | `trigger`   | 限定在哪些事件上运行                                                         |
 
-除 `required` 与 `validator` 外，内置检查只看有值的字段，所以可选字段可以留空。`false` 视为空，适合"必须勾选同意"这类开关。默认错误信息来自 [全局配置](./config-provider) 中的语言包。
+除 `required` 与 `validator` 外，内置检查只看有值的字段，所以可选字段可以留空。`false` 视为空，适合“必须勾选同意”这类开关。默认错误信息来自 [全局配置](./config-provider) 中的语言包。
 
 ### 异步校验
 
 `validator` 返回 Promise 即可。同一字段连续触发多次校验时，只采纳最后一次的结果。
 
 <DocDemo src="form/async-validate" column style="max-width: 420px" />
+
+### 使用 Standard Schema
+
+实现了 [Standard Schema](https://standardschema.dev) 规范的校验库（如 Zod、Valibot、ArkType）定义的 schema 可以直接使用，DouUI 只依赖这个规范接口，不依赖任何校验库。
+
+给 `DouForm` 传 `schema` 时，它检查整个 `model`，每个字段显示路径与自己 `prop` 相同（或位于其下）的第一条问题。根级别、没有路径的问题不会显示在任何字段上。
+
+<DocDemo src="form/schema" column style="max-width: 420px" />
+
+也可以只给某个字段一个 schema，直接放进 `rules` 即可，相当于 `{ schema }`。需要指定触发时机或改写信息时写成完整的规则：
+
+```ts
+const rules = {
+  name: v.pipe(v.string(), v.minLength(2, '至少 2 个字')),
+  email: { schema: v.pipe(v.string(), v.email()), trigger: 'blur', message: '邮箱格式不对' },
+}
+```
+
+schema 自己决定空值是否合法，必填标记则无法从 schema 推断，需要时在 `DouFormItem` 上加 `required`。
 
 ### 来自服务端的错误
 
@@ -51,6 +71,18 @@
   <DouInput v-model="form.domain" />
 </DouFormItem>
 ```
+
+## 动态增减字段
+
+列表中的每一项用带下标的路径作为 `prop`，例如 `contacts.0.name`。
+
+<DocDemo src="form/dynamic" column style="max-width: 520px" />
+
+- `v-for` 的 `key` 用每一行自己的 id，不要用下标。这样删除一行后，其余各行的输入框和错误信息会跟着自己的数据移动。
+- 行数不固定，规则写在 `DouFormItem` 的 `rules` 上，而不是表单的 `rules` 里。
+- 列表本身也可以有规则：给一个 `prop="contacts"` 的表单项写 `required`，空数组视为空。显示错误后，增删行会重新校验它。
+- 使用表单的 `schema` 时，数组项的问题路径同样写成 `contacts.0.email`，会显示在对应的字段上。
+- `resetFields` 只恢复已有字段的值，不会恢复删掉的行。需要时在 `reset` 事件里把列表还原。
 
 ## 布局
 
@@ -70,7 +102,7 @@
 
 ## 必填与可选标记
 
-默认在必填字段的标签后显示星号。当表单里大多数字段都是必填时，`required-mark="optional"` 改为只给可选字段标上"可选"，信息更少，也更准确；`false` 则什么都不标。
+默认在必填字段的标签后显示星号。当表单里大多数字段都是必填时，`required-mark="optional"` 改为只给可选字段标上“可选”，信息更少，也更准确；`false` 则什么都不标。
 
 ```vue
 <DouForm required-mark="optional">...</DouForm>
@@ -116,6 +148,7 @@ const disabled = useFormDisabled(() => props.disabled)
 | --------------- | -------------------------------------- | ---------------------------------------- | ------------ |
 | `model`         | 表单数据                               | `Record<string, any>`                    | —            |
 | `rules`         | 按字段路径的校验规则                   | `FormRules`                              | —            |
+| `schema`        | 检查整个 `model` 的 Standard Schema    | `StandardSchemaV1`                       | —            |
 | `layout`        | 布局                                   | `'vertical' \| 'horizontal' \| 'inline'` | `'vertical'` |
 | `labelAlign`    | 水平布局中标签的对齐                   | `'start' \| 'end'`                       | `'start'`    |
 | `labelWidth`    | 水平布局中标签列的宽度，默认取最长标签 | `string \| number`                       | —            |

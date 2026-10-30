@@ -6,7 +6,7 @@
 
 <DocDemo src="input-number/basic" />
 
-清空输入框得到 `null`。到达 `min` 或 `max` 时，对应的步进键会变为禁用。
+加减两个步进键上下叠放在输入框末端，各占一半高度。清空输入框得到 `null`。到达 `min` 或 `max` 时，对应的步进键会变为禁用。
 
 ## 步长与精度
 
@@ -35,6 +35,16 @@
 | `Home` / `End`        | 跳到 `min` / `max`       |
 | `Enter`               | 提交当前输入             |
 | 按住步进键            | 先停顿片刻，然后连续步进 |
+
+## 触摸操作
+
+步进键对手指来说太小，所以触摸时按下的第一下不会步进，而是把两个键放大成输入框末端上方的按键面板：
+
+- 手指按下后不松开，向上滑到加键或向下滑到减键，会立刻步进一次，停留时继续连续步进；滑回中间即停止。以这种方式调整时，松手后面板立即收回。
+- 面板放大后，再点按加键或减键就正常步进，按住同样连续步进。
+- 只按下没有滑动时，面板保持放大；点击面板以外的任何地方，或静置 2 秒没有操作，面板会收回原来的大小。
+
+面板的尺寸不随 `size` 变化，按键保持适合手指的大小。鼠标和触控笔不触发放大，直接步进。
 
 输入框带有 `role="spinbutton"` 与 `aria-valuenow`、`aria-valuemin`、`aria-valuemax`。步进键不进入 Tab 顺序（键盘直接用方向键），它们的读屏标签来自 [全局配置](./config-provider) 的语言包。
 
@@ -89,12 +99,13 @@
 
 ### CSS 变量
 
-| 变量                              | 说明         |
-| --------------------------------- | ------------ |
-| `--dou-input-number-height`       | 高度         |
-| `--dou-input-number-padding-x`    | 水平内边距   |
-| `--dou-input-number-step-width`   | 步进键宽度   |
-| `--dou-input-number-bg`           | 背景色       |
-| `--dou-input-number-border`       | 描边颜色     |
-| `--dou-input-number-border-focus` | 聚焦描边颜色 |
-| `--dou-input-number-ring`         | 聚焦光晕颜色 |
+| 变量                              | 说明           |
+| --------------------------------- | -------------- |
+| `--dou-input-number-height`       | 高度           |
+| `--dou-input-number-padding-x`    | 水平内边距     |
+| `--dou-input-number-step-width`   | 步进键宽度     |
+| `--dou-input-number-icon-size`    | 步进键图标尺寸 |
+| `--dou-input-number-bg`           | 背景色         |
+| `--dou-input-number-border`       | 描边颜色       |
+| `--dou-input-number-border-focus` | 聚焦描边颜色   |
+| `--dou-input-number-ring`         | 聚焦光晕颜色   |

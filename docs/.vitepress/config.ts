@@ -31,11 +31,57 @@ export default defineConfig({
   themeConfig: {
     nav: [
       { text: '指南', link: '/guide/philosophy' },
-      { text: '组件', link: '/components/button' },
+      { text: '组件', link: '/components/overview' },
+      { text: '区块', link: '/blocks/login' },
+      { text: '编辑器', link: '/editor/' },
+      { text: '流程编辑器', link: '/flow/' },
       { text: '图标', link: '/icons/' },
       { text: '集成', link: '/integrations/vite' },
     ],
     sidebar: {
+      '/blocks/': [
+        {
+          text: '区块',
+          items: [
+            { text: '登录页', link: '/blocks/login' },
+            { text: '设置页', link: '/blocks/settings' },
+            { text: '数据管理页', link: '/blocks/data' },
+            { text: '仪表盘', link: '/blocks/dashboard' },
+            { text: 'AI 对话页', link: '/blocks/chat' },
+            { text: '错误页', link: '/blocks/errors' },
+            { text: '看板', link: '/blocks/kanban' },
+            { text: '文件管理', link: '/blocks/files' },
+          ],
+        },
+      ],
+      '/editor': [
+        {
+          text: '块编辑器',
+          items: [
+            { text: '概览', link: '/editor/' },
+            { text: '文档数据', link: '/editor/data' },
+            { text: '快捷操作', link: '/editor/shortcuts' },
+            { text: '扩展', link: '/editor/extensions' },
+            { text: '代码块', link: '/editor/code-block' },
+            { text: '折叠块与提示块', link: '/editor/toggle-callout' },
+            { text: '图片', link: '/editor/image' },
+            { text: '提及', link: '/editor/mention' },
+            { text: '表格', link: '/editor/table' },
+            { text: '导入与导出', link: '/editor/import-export' },
+            { text: '协同编辑', link: '/editor/collaboration' },
+          ],
+        },
+      ],
+      '/flow': [
+        {
+          text: '流程编辑器',
+          items: [
+            { text: '概览', link: '/flow/' },
+            { text: '文档数据', link: '/flow/data' },
+            { text: '自定义节点', link: '/flow/custom-nodes' },
+          ],
+        },
+      ],
       '/icons': [
         {
           text: '图标',
@@ -63,24 +109,34 @@ export default defineConfig({
             { text: '视觉语言', link: '/guide/visual-language' },
             { text: '快速开始', link: '/guide/getting-started' },
             { text: '主题与 Token', link: '/guide/theming' },
+            { text: '主题编辑器', link: '/guide/theme-editor' },
+            { text: '国际化', link: '/guide/i18n' },
             { text: '浮层', link: '/guide/overlays' },
             { text: '组合式函数', link: '/guide/composables' },
             { text: '动效', link: '/guide/motion' },
+            { text: '断点', link: '/guide/breakpoints' },
             { text: '路线图', link: '/guide/roadmap' },
           ],
         },
       ],
       '/components/': [
         {
+          text: '',
+          items: [{ text: '概览', link: '/components/overview' }],
+        },
+        {
           text: '基础',
           items: [
             { text: 'Button 按钮', link: '/components/button' },
+            { text: 'Toggle 切换按钮', link: '/components/toggle' },
             { text: 'Icon 图标', link: '/components/icon' },
             { text: 'Text 文本', link: '/components/text' },
             { text: 'Ellipsis 文本省略', link: '/components/ellipsis' },
+            { text: 'Highlight 关键词高亮', link: '/components/highlight' },
             { text: 'Link 链接', link: '/components/link' },
             { text: 'Typography 排版', link: '/components/typography' },
             { text: 'CopyButton 复制按钮', link: '/components/copy-button' },
+            { text: 'CodeBlock 代码块', link: '/components/code-block' },
           ],
         },
         {
@@ -88,7 +144,9 @@ export default defineConfig({
           items: [
             { text: 'Divider 分割线', link: '/components/divider' },
             { text: 'Space 间距', link: '/components/space' },
+            { text: 'Toolbar 工具栏', link: '/components/toolbar' },
             { text: 'Grid 栅格', link: '/components/grid' },
+            { text: 'Masonry 瀑布流', link: '/components/masonry' },
             { text: 'Splitter 分割面板', link: '/components/splitter' },
             { text: 'Layout 布局', link: '/components/layout' },
             { text: 'Scrollbar 滚动条', link: '/components/scrollbar' },
@@ -100,6 +158,7 @@ export default defineConfig({
           items: [
             { text: 'Input 输入框', link: '/components/input' },
             { text: 'Textarea 多行输入', link: '/components/textarea' },
+            { text: 'Editable 行内编辑', link: '/components/editable' },
             { text: 'InputNumber 数字输入', link: '/components/input-number' },
             { text: 'InputTag 标签输入', link: '/components/input-tag' },
             { text: 'InputOTP 验证码输入', link: '/components/input-otp' },
@@ -150,6 +209,7 @@ export default defineConfig({
             { text: 'Spinner 加载', link: '/components/spinner' },
             { text: 'Loading 加载遮罩', link: '/components/loading' },
             { text: 'Progress 进度条', link: '/components/progress' },
+            { text: 'ProgressGroup 分段进度', link: '/components/progress-group' },
             { text: 'Skeleton 骨架屏', link: '/components/skeleton' },
             { text: 'Result 结果', link: '/components/result' },
           ],
@@ -166,8 +226,10 @@ export default defineConfig({
             { text: 'Empty 空状态', link: '/components/empty' },
             { text: 'Statistic 统计数值', link: '/components/statistic' },
             { text: 'Countdown 倒计时', link: '/components/countdown' },
+            { text: 'RelativeTime 相对时间', link: '/components/relative-time' },
             { text: 'Image 图片', link: '/components/image' },
             { text: 'Carousel 轮播', link: '/components/carousel' },
+            { text: 'Marquee 跑马灯', link: '/components/marquee' },
             { text: 'QRCode 二维码', link: '/components/qrcode' },
             { text: 'Watermark 水印', link: '/components/watermark' },
             { text: 'Descriptions 描述列表', link: '/components/descriptions' },
@@ -175,6 +237,8 @@ export default defineConfig({
             { text: 'Timeline 时间线', link: '/components/timeline' },
             { text: 'FlowGraph 流程图', link: '/components/flow-graph' },
             { text: 'CalendarView 日历视图', link: '/components/calendar-view' },
+            { text: 'CalendarHeatmap 日历热力图', link: '/components/calendar-heatmap' },
+            { text: 'Sparkline 迷你图', link: '/components/sparkline' },
             { text: 'Table 表格', link: '/components/table' },
             { text: 'Tree 树', link: '/components/tree' },
             { text: 'VirtualList 虚拟列表', link: '/components/virtual-list' },
@@ -186,6 +250,7 @@ export default defineConfig({
           text: '导航',
           items: [
             { text: 'Menu 导航菜单', link: '/components/menu' },
+            { text: 'Menubar 菜单栏', link: '/components/menubar' },
             { text: 'Tabs 标签页', link: '/components/tabs' },
             { text: 'Steps 步骤条', link: '/components/steps' },
             { text: 'Anchor 锚点导航', link: '/components/anchor' },
@@ -239,6 +304,24 @@ export default defineConfig({
         { find: /^dou-ui\/style\.css$/, replacement: r('../../packages/theme/src/index.css') },
         { find: /^@dou-ui\/icons$/, replacement: r('../../packages/icons/src/index.ts') },
         { find: /^@dou-ui\/icons\/meta$/, replacement: r('../../packages/icons/src/meta.ts') },
+        {
+          find: /^@dou-ui\/editor\/collaboration$/,
+          replacement: r('../../packages/editor/src/collaboration/index.ts'),
+        },
+        {
+          find: /^@dou-ui\/editor\/markdown$/,
+          replacement: r('../../packages/editor/src/markdown/index.ts'),
+        },
+        { find: /^@dou-ui\/editor$/, replacement: r('../../packages/editor/src/index.ts') },
+        {
+          find: /^@dou-ui\/editor\/style\.css$/,
+          replacement: r('../../packages/editor/src/style.css'),
+        },
+        { find: /^@dou-ui\/flow$/, replacement: r('../../packages/flow/src/index.ts') },
+        {
+          find: /^@dou-ui\/flow\/style\.css$/,
+          replacement: r('../../packages/flow/src/style.css'),
+        },
       ],
     },
   },

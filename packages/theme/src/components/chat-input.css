@@ -27,7 +27,8 @@
     gap: 8px;
     box-sizing: border-box;
     width: 100%;
-    padding: 12px;
+    /* with the 1px edge, control-radius buttons in the corners sit concentric */
+    padding: 9px;
     border: 1px solid var(--dou-chat-input-border);
     border-radius: var(--dou-chat-input-radius);
     background-color: var(--dou-chat-input-bg);

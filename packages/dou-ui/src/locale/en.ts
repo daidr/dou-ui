@@ -2,6 +2,16 @@ import type { Locale } from './types'
 
 export const en: Locale = {
   name: 'en',
+  region: {
+    weekStart: 0,
+    date: 'MM/DD/YYYY',
+    month: 'MM/YYYY',
+    year: 'YYYY',
+    time: 'hh:mm A',
+    timeWithSeconds: 'hh:mm:ss A',
+    groupSeparator: ',',
+    decimalSeparator: '.',
+  },
   tabs: {
     close: 'Close',
     add: 'New tab',
@@ -35,6 +45,10 @@ export const en: Locale = {
   drawer: {
     close: 'Close',
     resize: 'Drag to resize',
+    snap: 'Change height',
+  },
+  editable: {
+    hint: 'Press Enter to edit',
   },
   select: {
     placeholder: 'Select',
@@ -81,7 +95,9 @@ export const en: Locale = {
   },
   upload: {
     choose: 'Choose file',
+    chooseFolder: 'Choose folder',
     drop: 'Drop files here, or',
+    dropFolder: 'Drop a folder here, or',
     browse: 'browse',
     list: 'Files',
     remove: 'Remove',
@@ -99,6 +115,9 @@ export const en: Locale = {
     now: 'Now',
     confirm: 'OK',
     yearPlaceholder: 'Pick a year',
+    quarterPlaceholder: 'Pick a quarter',
+    quarter: 'Q{quarter} {year}',
+    quarterCell: 'Q{quarter}',
     start: 'Start date',
     end: 'End date',
     today: 'Today',
@@ -193,6 +212,9 @@ export const en: Locale = {
     axisA: 'a axis (green–red)',
     axisB: 'b axis (blue–yellow)',
   },
+  menu: {
+    more: 'More',
+  },
   transfer: {
     source: 'Available',
     target: 'Selected',
@@ -240,6 +262,23 @@ export const en: Locale = {
   anchor: {
     label: 'On this page',
   },
+  calendarHeatmap: {
+    less: 'Less',
+    more: 'More',
+    day: '{value} on {date}',
+  },
+  sparkline: {
+    summary: '{count} values, low {min}, high {max}, latest {last}',
+    empty: 'No data',
+    point: '{label}: {value}',
+  },
+  relativeTime: {
+    justNow: 'just now',
+  },
+  codeBlock: {
+    expand: 'Show all {count} lines',
+    collapse: 'Show less',
+  },
   copyButton: {
     copy: 'Copy',
     copied: 'Copied',
@@ -265,11 +304,6 @@ export const en: Locale = {
     label: 'Verification code',
   },
   inputDate: {
-    date: 'MM/DD/YYYY',
-    month: 'MM/YYYY',
-    year: 'YYYY',
-    time: 'hh:mm A',
-    timeWithSeconds: 'hh:mm:ss A',
     placeholders: {
       year: 'yyyy',
       month: 'mm',
@@ -304,6 +338,14 @@ export const en: Locale = {
   calendarView: {
     more: '+{count} more',
     dayWithEvents: '{date}, {count} events',
+    month: 'Month',
+    week: 'Week',
+    day: 'Day',
+    allDay: 'All day',
+    prevWeek: 'Previous week',
+    nextWeek: 'Next week',
+    prevDay: 'Previous day',
+    nextDay: 'Next day',
   },
   infiniteScroll: {
     loading: 'Loading',

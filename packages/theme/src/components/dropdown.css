@@ -87,6 +87,31 @@
     text-box: trim-both cap alphabetic;
   }
 
+  /* checkbox and radio items keep a column for the mark, so labels line up */
+  .dou-dropdown__indicator {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    margin-inline-end: -2px;
+    color: var(--dou-color-text);
+
+    & > svg {
+      width: 14px;
+      height: 14px;
+    }
+  }
+
+  .dou-dropdown__item.is-checked > .dou-dropdown__indicator--radio::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: currentColor;
+  }
+
   .dou-dropdown__separator {
     height: 1px;
     margin: var(--dou-dropdown-inset) calc(var(--dou-dropdown-inset) * -1);

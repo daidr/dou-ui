@@ -40,4 +40,20 @@
   .dou-kbd__label {
     text-box: trim-both cap alphabetic;
   }
+
+  /* keys from the `keys` prop: one cap per key, sequence steps a little apart */
+  .dou-kbd.is-group {
+    gap: 8px;
+    min-width: 0;
+    height: auto;
+    padding: 0;
+    border: 0;
+    background: none;
+    box-shadow: none;
+  }
+
+  .dou-kbd__step {
+    display: inline-flex;
+    gap: 3px;
+  }
 }

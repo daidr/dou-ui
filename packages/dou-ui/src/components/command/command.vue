@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { SearchIcon } from '@dou-ui/icons'
 import { computed, nextTick, ref, useId, useTemplateRef, watch } from 'vue'
+import { GROUP_START, useGroupedWindow } from '../../composables/use-grouped-window'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
 import { DouKbd } from '../kbd'
@@ -12,6 +13,7 @@ defineOptions({ name: 'DouCommand' })
 const props = withDefaults(defineProps<CommandProps>(), {
   loop: true,
   maxHeight: 320,
+  virtual: undefined,
 })
 const query = defineModel<string>('query', { default: '' })
 const emit = defineEmits<{ select: [item: CommandItem] }>()
@@ -80,8 +82,13 @@ function move(from: number, step: 1 | -1) {
 }
 const first = () => move(-1, 1)
 
+// A parent that re-renders passes a new but equal list: only a different
+// list of items moves the highlight back to the top.
+const flatKey = computed(() =>
+  flat.value.map((entry) => `${typeof entry.item.value}:${entry.item.value}`).join('\u0000'),
+)
 watch(
-  flat,
+  flatKey,
   () => {
     active.value = -1
     first()
@@ -90,7 +97,36 @@ watch(
 )
 
 const listRef = useTemplateRef<HTMLElement>('list')
+
+// Long lists render only the items in view; every item is one row tall.
+const windowing = useGroupedWindow({
+  container: () => listRef.value,
+  sizes: () => groups.value.map((group) => group.entries.length),
+  itemSize: () => 36,
+  virtual: () => props.virtual,
+})
+const groupWindows = computed(() =>
+  groups.value.map((group, at) => {
+    const view = windowing.windows.value[at]!
+    return { ...view, entries: group.entries.slice(view.from, view.to) }
+  }),
+)
+watch(flatKey, () => {
+  if (listRef.value) listRef.value.scrollTop = 0
+})
+
 watch(active, async (index) => {
+  if (windowing.enabled.value && index >= 0) {
+    // The item may not be rendered: scroll by its place in its group.
+    let at = index
+    for (const [group, { entries }] of groups.value.entries()) {
+      if (at < entries.length) {
+        windowing.scrollToItem(group, at)
+        break
+      }
+      at -= entries.length
+    }
+  }
   await nextTick()
   listRef.value?.querySelector(`#${CSS.escape(optionId(index))}`)?.scrollIntoView?.({
     block: 'nearest',
@@ -194,11 +230,19 @@ const maxHeight = computed(() =>
           {{ group.name }}
         </div>
         <div
-          v-for="entry in group.entries"
+          v-if="windowing.enabled.value"
+          role="presentation"
+          :[GROUP_START]="''"
+          :style="{ height: `${groupWindows[groupIndex]!.before}px` }"
+        />
+        <div
+          v-for="entry in groupWindows[groupIndex]!.entries"
           :id="optionId(entry.index)"
           :key="String(entry.item.value)"
           role="option"
           :aria-selected="entry.index === active"
+          :aria-setsize="windowing.enabled.value ? flat.length : undefined"
+          :aria-posinset="windowing.enabled.value ? entry.index + 1 : undefined"
           :aria-disabled="entry.item.disabled || undefined"
           :class="[
             ns.e('item'),
@@ -229,6 +273,11 @@ const maxHeight = computed(() =>
             </span>
           </slot>
         </div>
+        <div
+          v-if="windowing.enabled.value && groupWindows[groupIndex]!.after"
+          role="presentation"
+          :style="{ height: `${groupWindows[groupIndex]!.after}px` }"
+        />
       </div>
       <div v-if="!flat.length" :class="ns.e('empty')" role="presentation">
         <slot name="empty">{{ emptyText ?? t('command.empty') }}</slot>

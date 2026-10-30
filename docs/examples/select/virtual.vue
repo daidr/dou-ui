@@ -9,5 +9,5 @@ const user = ref(4321)
 </script>
 
 <template>
-  <DouSelect v-model="user" :options="users" virtual filterable />
+  <DouSelect v-model="user" :options="users" filterable />
 </template>

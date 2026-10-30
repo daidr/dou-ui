@@ -40,6 +40,11 @@ export interface CommandProps {
   loop?: boolean
   /** The height the list scrolls past. A number is in px. */
   maxHeight?: number | string
+  /**
+   * Render only the items in view. By default this turns on by itself past
+   * 100 items; pass `false` for items of differing heights.
+   */
+  virtual?: boolean
   /** Names the search box when there is no visible label. */
   ariaLabel?: string
 }

@@ -16,23 +16,27 @@
 
 ## 图标与快捷键
 
-`prefix` 插槽放在文字前（通常是图标），`suffix` 放在行尾（例如快捷键）。
+`prefix` 插槽放在文字前（通常是图标），`suffix` 放在行尾。快捷键用 `shortcut` 属性，写法与 `useHotkey` 相同，按平台显示（`mod+c` 在苹果设备上是 `⌘C`，其他平台是 `Ctrl+C`）。
 
 <DocDemo src="dropdown/icon-shortcut" />
 
 ## 触发方式与宽度
 
-`trigger="hover"` 指向即打开。`same-width` 让菜单至少与触发元素一样宽。选中后默认关闭，`:hide-on-select="false"` 可以保持打开。
+`trigger="hover"` 指向即打开，`trigger="manual"` 只由 `v-model:open` 打开。不论哪种方式，点击菜单以外的地方或按 `Esc` 都会关闭菜单。`same-width` 让菜单至少与触发元素一样宽。选中后默认关闭，`:hide-on-select="false"` 可以保持打开。
 
 <DocDemo src="dropdown/trigger-width" />
 
 ## 子菜单
 
-`DouDropdownSub` 是一个带箭头的项，指向它稍等片刻或按 `→` 时在旁边展开子菜单，里面放 `DouDropdownItem`，也可以继续嵌套 `DouDropdownSub`。子菜单里选中的项同样触发外层的 `select`，并关闭整个菜单。文字用 `title` 或 `title` 插槽，图标放 `prefix` 插槽。
+`DouDropdownSub` 是一个带箭头的项，鼠标悬停片刻或按 `→` 时在旁边展开子菜单，里面放 `DouDropdownItem`，也可以继续嵌套 `DouDropdownSub`。子菜单里选中的项同样触发外层的 `select`，并关闭整个菜单。文字用 `title` 或 `title` 插槽，图标放 `prefix` 插槽。
 
 <DocDemo src="dropdown/submenu" />
 
 子菜单默认在右侧展开（`placement="right-start"`），空间不够时翻到左侧。[ContextMenu 右键菜单](./context-menu) 里同样可以使用。
+
+## 勾选项与单选项
+
+`v-model:checked` 让菜单项成为勾选项，`DouDropdownRadioGroup` 让一组菜单项成为单选项，示例见 [Menubar](./menubar#勾选项、单选项与快捷键)。
 
 ## 分裂按钮
 
@@ -88,12 +92,14 @@
 
 ### DropdownItem Props
 
-| 名称       | 说明                    | 类型                    | 默认值      |
-| ---------- | ----------------------- | ----------------------- | ----------- |
-| `value`    | 传给 `select` 的值      | `string \| number`      | —           |
-| `disabled` | 禁用                    | `boolean`               | `false`     |
-| `tone`     | `danger` 用于破坏性操作 | `'neutral' \| 'danger'` | `'neutral'` |
-| `divided`  | 上方画一条分隔线        | `boolean`               | `false`     |
+| 名称       | 说明                                               | 类型                    | 默认值      |
+| ---------- | -------------------------------------------------- | ----------------------- | ----------- |
+| `value`    | 传给 `select` 的值                                 | `string \| number`      | —           |
+| `disabled` | 禁用                                               | `boolean`               | `false`     |
+| `tone`     | `danger` 用于破坏性操作                            | `'neutral' \| 'danger'` | `'neutral'` |
+| `divided`  | 上方画一条分隔线                                   | `boolean`               | `false`     |
+| `checked`  | 勾选状态，配合 `v-model:checked`，设置后成为勾选项 | `boolean`               | —           |
+| `shortcut` | 在右侧显示的快捷键，如 `'mod+s'`，只负责显示       | `string`                | —           |
 
 ### DropdownItem Slots
 

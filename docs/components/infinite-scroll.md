@@ -4,7 +4,7 @@
 
 ## 基础用法
 
-把列表放进 `DouInfiniteScroll`，`load` 返回一个 Promise，加载期间不会重复触发。数据取完后把 `finished` 设为 `true`，底部会显示"没有更多了"。
+把列表放进 `DouInfiniteScroll`，`load` 返回一个 Promise，加载期间不会重复触发。数据取完后把 `finished` 设为 `true`，底部会显示“没有更多了”。
 
 组件监听最近的滚动容器，没有时监听窗口；也可以用 `target` 指定。挂载时会先检查一次，第一页不够填满容器时会继续加载，直到填满或者 `finished`。
 
@@ -12,7 +12,7 @@
 
 ## 加载失败
 
-`load` 返回的 Promise 被拒绝时，底部显示"加载失败"和重试按钮，滚动不会再触发加载，直到重试。`error` 插槽可以替换这一行，插槽参数里有 `retry`。`immediate` 设为 `false` 时挂载后不检查，等用户滚动。
+`load` 返回的 Promise 被拒绝时，底部显示“加载失败”和重试按钮，滚动不会再触发加载，直到重试。`error` 插槽可以替换这一行，插槽参数里有 `retry`。`immediate` 设为 `false` 时挂载后不检查，等用户滚动。
 
 <DocDemo src="infinite-scroll/error" />
 
@@ -26,7 +26,7 @@
 
 ## 读屏
 
-底部一行带 `role="status"`，"加载中""没有更多了"会被读出；加载期间根元素带 `aria-busy="true"`。
+底部一行带 `role="status"`，“加载中”“没有更多了”会被读出；加载期间根元素带 `aria-busy="true"`。
 
 ## API
 
@@ -47,7 +47,7 @@
 | ---------- | ------------------------------------------- |
 | `default`  | 列表                                        |
 | `loading`  | 替换加载中的提示                            |
-| `finished` | 替换"没有更多了"                            |
+| `finished` | 替换“没有更多了”                            |
 | `error`    | 替换加载失败的提示，参数 `{ error, retry }` |
 
 ### Exposes

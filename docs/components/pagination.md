@@ -20,7 +20,7 @@
 
 ## 读屏
 
-外层是带 `aria-label` 的 `<nav>`；每个页码按钮的读屏名称是"第 n 页"，当前页带 `aria-current="page"`；上一页 / 下一页按钮在到头时禁用。省略号对读屏隐藏。所有文字都来自语言包。
+外层是带 `aria-label` 的 `<nav>`；每个页码按钮的读屏名称是“第 n 页”，当前页带 `aria-current="page"`；上一页 / 下一页按钮在到头时禁用。省略号对读屏隐藏。所有文字都来自语言包。
 
 ## API
 
@@ -34,7 +34,7 @@
 | `pageSizes`        | 可选的每页条数；不传不显示选择器    | `number[]`             | —       |
 | `siblings`         | 当前页两侧各显示几页                | `number`               | `1`     |
 | `boundaries`       | 首尾各固定显示几页                  | `number`               | `1`     |
-| `simple`           | 只显示"当前 / 总页数"               | `boolean`              | `false` |
+| `simple`           | 只显示“当前 / 总页数”               | `boolean`              | `false` |
 | `showTotal`        | 显示条目总数                        | `boolean`              | `false` |
 | `hideOnSinglePage` | 只有一页时不渲染                    | `boolean`              | `false` |
 | `disabled`         | 禁用                                | `boolean`              | `false` |

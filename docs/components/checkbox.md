@@ -1,6 +1,6 @@
 # Checkbox 多选框
 
-在一组选项中选择任意多个，或单独表示"是 / 否"。
+在一组选项中选择任意多个，或单独表示“是 / 否”。
 
 原生 `<input type="checkbox">` 始终保留在原位，点击、键盘与表单行为都由浏览器提供。选中后的样式与实心按钮一致。
 
@@ -14,7 +14,7 @@
 
 <DocDemo src="checkbox/group" column />
 
-`indeterminate` 只影响外观（并同步到原生元素，读屏软件会读作"部分选中"），点击仍然切换 `modelValue`。
+`indeterminate` 只影响外观（并同步到原生元素，读屏软件会读作“部分选中”），点击仍然切换 `modelValue`。
 
 ## 尺寸与禁用
 

@@ -9,7 +9,14 @@ export default defineConfig({
   resolve: {
     alias: [
       { find: /^dou-ui$/, replacement: r('./packages/dou-ui/src/index.ts') },
+      { find: /^@dou-ui\/theme$/, replacement: r('./packages/theme/src/index.ts') },
       { find: /^@dou-ui\/icons$/, replacement: r('./packages/icons/src/index.ts') },
+      {
+        find: /^@dou-ui\/editor\/collaboration$/,
+        replacement: r('./packages/editor/src/collaboration/index.ts'),
+      },
+      { find: /^@dou-ui\/editor$/, replacement: r('./packages/editor/src/index.ts') },
+      { find: /^@dou-ui\/flow$/, replacement: r('./packages/flow/src/index.ts') },
     ],
   },
   test: {

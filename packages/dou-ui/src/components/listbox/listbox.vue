@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { CheckIcon, SearchIcon } from '@dou-ui/icons'
-import { computed, nextTick, ref, useId, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, onUpdated, ref, useId, useTemplateRef, watch } from 'vue'
+import { GROUP_START, useGroupedWindow } from '../../composables/use-grouped-window'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
 import { useFormDisabled, useFormItem, useFormSize } from '../form/use-form-item'
@@ -19,8 +20,10 @@ const props = withDefaults(defineProps<ListboxProps>(), {
   multiple: false,
   filterable: false,
   disabled: false,
+  virtual: undefined,
 })
-const model = defineModel<ListboxValue | ListboxValue[] | null>()
+// An explicit default stops Vue from reading a missing value as `false`.
+const model = defineModel<ListboxValue | ListboxValue[] | null | undefined>({ default: undefined })
 const emit = defineEmits<{ change: [value: ListboxValue | ListboxValue[] | null] }>()
 const slots = defineSlots<ListboxSlots>()
 
@@ -102,7 +105,53 @@ watch(query, () => {
   active.value = flat.value.findIndex((option) => !option.disabled)
 })
 
+// Long lists render only the options in view. Options with a description
+// are taller; both heights are read from the page once rendered.
+const heights = ref({ plain: 0, described: 0 })
+const fallback = { sm: 28, md: 32, lg: 40 }
+const heightOf = (option: ListboxOption | undefined) => {
+  const described = !!option?.description
+  const measured = described ? heights.value.described : heights.value.plain
+  if (measured) return measured
+  const row = fallback[(size.value as keyof typeof fallback) ?? 'md'] ?? 32
+  return described ? row + 20 : row
+}
+const windowing = useGroupedWindow({
+  container: () => listRef.value,
+  sizes: () => filteredSections.value.map((section) => section.options.length),
+  itemSize: (group, index) => heightOf(filteredSections.value[group]!.options[index]),
+  virtual: () => (props.maxHeight === undefined ? false : props.virtual),
+})
+const sectionWindows = computed(() =>
+  filteredSections.value.map((section, group) => {
+    const view = windowing.windows.value[group]!
+    return { ...view, options: section.options.slice(view.from, view.to) }
+  }),
+)
+onUpdated(() => {
+  if (!windowing.enabled.value || !listRef.value) return
+  const next = { ...heights.value }
+  for (const option of listRef.value.querySelectorAll<HTMLElement>(`.${ns.e('option')}`)) {
+    const kind = option.querySelector(`.${ns.e('description')}`) ? 'described' : 'plain'
+    if (!next[kind]) next[kind] = option.offsetHeight
+  }
+  if (next.plain !== heights.value.plain || next.described !== heights.value.described) {
+    heights.value = next
+  }
+})
+
 function scrollToActive() {
+  if (windowing.enabled.value) {
+    // The option may not be rendered: scroll by its place in its group.
+    let index = active.value
+    for (const [group, section] of filteredSections.value.entries()) {
+      if (index < section.options.length) {
+        windowing.scrollToItem(group, index)
+        break
+      }
+      index -= section.options.length
+    }
+  }
   nextTick(() => {
     const element = listRef.value?.querySelector<HTMLElement>(
       `#${CSS.escape(optionId(active.value))}`,
@@ -271,7 +320,7 @@ defineExpose<ListboxExpose>({ focus })
       @focus="onFocus"
     >
       <li
-        v-for="section in filteredSections"
+        v-for="(section, group) in filteredSections"
         :key="section.key"
         role="presentation"
         :class="ns.e('section')"
@@ -290,10 +339,20 @@ defineExpose<ListboxExpose>({ focus })
           :aria-labelledby="section.label ? `${id}-${section.key}` : undefined"
         >
           <li
-            v-for="option in section.options"
+            v-if="windowing.enabled.value"
+            role="presentation"
+            :[GROUP_START]="''"
+            :style="{ height: `${sectionWindows[group]!.before}px` }"
+          />
+          <li
+            v-for="(option, offset) in sectionWindows[group]!.options"
             :id="optionId(indexOf(option))"
             :key="String(option.value)"
             role="option"
+            :aria-setsize="windowing.enabled.value ? section.options.length : undefined"
+            :aria-posinset="
+              windowing.enabled.value ? sectionWindows[group]!.from + offset + 1 : undefined
+            "
             :aria-selected="isSelected(option)"
             :aria-disabled="option.disabled || undefined"
             :class="[
@@ -317,6 +376,11 @@ defineExpose<ListboxExpose>({ focus })
             </slot>
             <CheckIcon v-if="isSelected(option)" :class="ns.e('check')" />
           </li>
+          <li
+            v-if="windowing.enabled.value && sectionWindows[group]!.after"
+            role="presentation"
+            :style="{ height: `${sectionWindows[group]!.after}px` }"
+          />
         </ul>
       </li>
     </ul>

@@ -106,3 +106,15 @@ describe('DouCommandDialog', () => {
     wrapper.unmount()
   })
 })
+
+describe('DouCommand highlight', () => {
+  it('keeps the highlight when the parent passes an equal list again', async () => {
+    const wrapper = mount(DouCommand, { props: { items }, attachTo: document.body })
+    const input = wrapper.get('input')
+    await input.trigger('keydown', { key: 'ArrowDown' })
+    const before = input.attributes('aria-activedescendant')
+    await wrapper.setProps({ items: items.map((item) => ({ ...item })) })
+    expect(input.attributes('aria-activedescendant')).toBe(before)
+    wrapper.unmount()
+  })
+})

@@ -5,14 +5,22 @@
   "scripts": {
     "dev": "vitepress dev",
     "build": "vitepress build",
-    "preview": "vitepress preview"
+    "preview": "vitepress preview",
+    "review-art": "bun scripts/review-art.ts"
   },
   "dependencies": {
+    "@dou-ui/editor": "workspace:*",
+    "@dou-ui/flow": "workspace:*",
     "@dou-ui/icons": "workspace:*",
     "@dou-ui/theme": "workspace:*",
     "dou-ui": "workspace:*"
   },
   "devDependencies": {
-    "vitepress": "^1.6.4"
+    "@shikijs/transformers": "2.5.0",
+    "shiki": "2.5.0",
+    "valibot": "1.5.0",
+    "vitepress": "^1.6.4",
+    "y-protocols": "1.0.7",
+    "yjs": "13.6.33"
   }
 }

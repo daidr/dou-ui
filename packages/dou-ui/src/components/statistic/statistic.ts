@@ -7,8 +7,9 @@ export interface StatisticProps {
   value?: number | string | null
   /** Digits after the decimal point. Leaves the number as it is when unset. */
   precision?: number
-  /** Put between groups of three digits. `''` turns grouping off. */
+  /** Put between groups of three digits. `''` turns grouping off. Defaults to the locale's. */
   groupSeparator?: string
+  /** Defaults to the locale's. */
   decimalSeparator?: string
   /** Text before the number, e.g. a currency sign. */
   prefix?: string
@@ -23,6 +24,12 @@ export interface StatisticProps {
   upIsGood?: boolean
   /** Turn the number into something else entirely, e.g. a duration. */
   formatter?: (value: number) => string
+  /**
+   * When the number changes, count from the old value to the new one,
+   * rounded to `precision` (or the new value's decimals) along the way.
+   * Jumps straight to the new value when motion is reduced.
+   */
+  animated?: boolean
   /** Show a placeholder bar in place of the number. */
   loading?: boolean
 }

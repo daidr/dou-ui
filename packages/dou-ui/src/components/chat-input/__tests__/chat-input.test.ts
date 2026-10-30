@@ -136,4 +136,114 @@ describe('DouChatInput', () => {
     await wrapper.trigger('drop', { dataTransfer: { files: [file], types: ['Files'] } })
     expect(wrapper.emitted('attach')).toEqual([[[file]]])
   })
+
+  describe('menu navigation', () => {
+    const commands = [
+      { value: 'summarize', label: '总结' },
+      { value: 'translate', label: '翻译' },
+      { value: 'archive', label: '归档', disabled: true },
+      { value: 'plan', label: '计划' },
+    ]
+
+    async function open() {
+      const wrapper = mount(DouChatInput, {
+        props: {
+          modelValue: '',
+          'onUpdate:modelValue': (value: unknown): void => {
+            void wrapper.setProps({ modelValue: value as string })
+          },
+          commands,
+        },
+        attachTo: document.body,
+      })
+      const textarea = wrapper.get('textarea')
+      await textarea.setValue('/')
+      ;(textarea.element as HTMLTextAreaElement).setSelectionRange(1, 1)
+      await textarea.trigger('keyup')
+      // A key press as the browser delivers it: keydown, then keyup.
+      const press = async (key: string) => {
+        await textarea.trigger('keydown', { key })
+        await textarea.trigger('keyup', { key })
+      }
+      const active = () =>
+        wrapper.findAll('[role="option"]').findIndex((o) => o.classes('is-active'))
+      return { wrapper, textarea, press, active }
+    }
+
+    it('moves down and up, and keeps the highlight through keyup', async () => {
+      const { wrapper, textarea, press, active } = await open()
+      expect(active()).toBe(0)
+      await press('ArrowDown')
+      expect(active()).toBe(1)
+      expect(textarea.attributes('aria-activedescendant')).toBe(
+        wrapper.findAll('[role="option"]')[1]!.attributes('id'),
+      )
+      await press('ArrowUp')
+      expect(active()).toBe(0)
+      wrapper.unmount()
+    })
+
+    it('skips disabled options and wraps at both ends', async () => {
+      const { wrapper, press, active } = await open()
+      await press('ArrowDown')
+      await press('ArrowDown')
+      expect(active()).toBe(3)
+      await press('ArrowDown')
+      expect(active()).toBe(0)
+      await press('ArrowUp')
+      expect(active()).toBe(3)
+      wrapper.unmount()
+    })
+
+    it('picks the highlighted option on Enter', async () => {
+      const { wrapper, press } = await open()
+      await press('ArrowDown')
+      await press('Enter')
+      expect(wrapper.emitted('command')).toEqual([[commands[1]]])
+      expect(wrapper.emitted('submit')).toBeUndefined()
+      wrapper.unmount()
+    })
+
+    it('closes on Escape and stays closed until the token changes', async () => {
+      const { wrapper, textarea, press } = await open()
+      await press('Escape')
+      expect(wrapper.find('[role="listbox"]').exists()).toBe(false)
+      await textarea.setValue('/t')
+      ;(textarea.element as HTMLTextAreaElement).setSelectionRange(2, 2)
+      await textarea.trigger('keyup')
+      expect(wrapper.find('[role="listbox"]').exists()).toBe(false)
+      wrapper.unmount()
+    })
+
+    it('follows the pointer but ignores disabled options', async () => {
+      const { wrapper, press, active } = await open()
+      const options = wrapper.findAll('[role="option"]')
+      await options[3]!.trigger('mouseenter')
+      expect(active()).toBe(3)
+      await options[2]!.trigger('mouseenter')
+      expect(active()).toBe(3)
+      await press('ArrowUp')
+      expect(active()).toBe(1)
+      wrapper.unmount()
+    })
+
+    it('starts again from the first option when the list changes', async () => {
+      const { wrapper, textarea, press, active } = await open()
+      await press('ArrowDown')
+      await textarea.setValue('/p')
+      ;(textarea.element as HTMLTextAreaElement).setSelectionRange(2, 2)
+      await textarea.trigger('keyup')
+      expect(wrapper.findAll('[role="option"]').map((o) => o.text())).toEqual(['/计划'])
+      expect(active()).toBe(0)
+      wrapper.unmount()
+    })
+
+    it('keeps the highlight when the parent passes an equal list again', async () => {
+      const { wrapper, press, active } = await open()
+      await press('ArrowDown')
+      await wrapper.setProps({ commands: commands.map((c) => ({ ...c })) })
+      expect(active()).toBe(1)
+      wrapper.unmount()
+    })
+  })
 })

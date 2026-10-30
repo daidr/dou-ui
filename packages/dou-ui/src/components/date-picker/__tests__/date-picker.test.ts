@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
-import { DouCalendar, DouDatePicker } from '../../../index'
+import { DouCalendar, DouConfigProvider, DouDatePicker, en } from '../../../index'
 import type { DateRange } from '../../../index'
 
 type Value = string | DateRange | null | undefined
@@ -43,7 +43,7 @@ describe('DouCalendar', () => {
     const { wrapper } = make(DouCalendar, { modelValue: '2026-10-08' })
     expect(wrapper.get('.dou-calendar__title').text()).toBe('2026年10月')
     const headers = wrapper.findAll('th').map((th) => th.text())
-    expect(headers[0]).toBe('周一')
+    expect(headers[0]).toBe('一')
     // Monday first: October 2026 starts on a Thursday, so the grid opens on 9-28
     expect(wrapper.findAll('[data-value]')[0]!.attributes('data-value')).toBe('2026-09-28')
     expect(wrapper.findAll('[data-value]')).toHaveLength(42)
@@ -111,6 +111,31 @@ describe('DouCalendar', () => {
     expect(wrapper.get('[data-value="2026-03"]').classes()).toContain('is-selected')
     await wrapper.get('[data-value="2026-07"]').trigger('click')
     expect(value.value).toBe('2026-07')
+    wrapper.unmount()
+  })
+
+  it('picks a quarter, and a range of months', async () => {
+    const quarter = make(DouCalendar, { type: 'quarter', modelValue: '2026-Q2' })
+    expect(quarter.wrapper.findAll('.dou-calendar__day').map((cell) => cell.text())).toEqual([
+      '1 季度',
+      '2 季度',
+      '3 季度',
+      '4 季度',
+    ])
+    expect(quarter.wrapper.get('[data-value="2026-Q2"]').classes()).toContain('is-selected')
+    expect(quarter.wrapper.get('[data-value="2026-Q4"]').classes()).toContain('is-today')
+    await quarter.wrapper.get('[data-value="2026-Q3"]').trigger('click')
+    expect(quarter.value.value).toBe('2026-Q3')
+    quarter.wrapper.unmount()
+
+    const { wrapper, value } = make(DouCalendar, { type: 'month', range: true })
+    await wrapper.get('[data-value="2026-08"]').trigger('click')
+    await wrapper.get('[data-value="2026-03"]').trigger('mouseenter')
+    expect(wrapper.get('[data-value="2026-05"]').element.parentElement!.className).toContain(
+      'is-in-range',
+    )
+    await wrapper.get('[data-value="2026-03"]').trigger('click')
+    expect(value.value).toEqual(['2026-03', '2026-08'])
     wrapper.unmount()
   })
 
@@ -317,6 +342,87 @@ describe('DouDatePicker', () => {
     await nextTick()
     expect(value.value).toEqual(['2026-10-22', '2026-10-28'])
     expect(wrapper.get('input').attributes('aria-expanded')).toBe('false')
+    wrapper.unmount()
+  })
+
+  it('shows and reads the day through a display format', async () => {
+    const { wrapper, value } = make(DouDatePicker, {
+      modelValue: '2026-10-08',
+      displayFormat: 'DD.MM.YYYY',
+    })
+    const input = wrapper.get('input')
+    expect(input.element.value).toBe('08.10.2026')
+    await input.setValue('2.11.2026')
+    await input.trigger('keydown', { key: 'Enter' })
+    expect(value.value).toBe('2026-11-02')
+    expect(input.element.value).toBe('02.11.2026')
+    // ISO text still works
+    await input.setValue('2026-12-01')
+    await input.trigger('keydown', { key: 'Enter' })
+    expect(value.value).toBe('2026-12-01')
+    wrapper.unmount()
+  })
+
+  it('writes a month and a datetime through a display format', async () => {
+    const month = make(DouDatePicker, {
+      type: 'month',
+      modelValue: '2026-10',
+      displayFormat: 'YYYY[年]MM[月]',
+    })
+    expect(month.wrapper.get('input').element.value).toBe('2026年10月')
+    month.wrapper.unmount()
+
+    const { wrapper, value } = make(DouDatePicker, {
+      type: 'datetime',
+      modelValue: '2026-10-08 09:30',
+      displayFormat: 'DD/MM/YYYY',
+    })
+    const input = wrapper.get('input')
+    expect(input.element.value).toBe('08/10/2026 09:30')
+    await input.setValue('03/10/2026 14:05')
+    await input.trigger('keydown', { key: 'Enter' })
+    await input.trigger('keydown', { key: 'Enter' })
+    expect(value.value).toBe('2026-10-03 14:05')
+    wrapper.unmount()
+  })
+
+  it('writes and reads quarters as the locale does', async () => {
+    const { wrapper, value } = make(DouDatePicker, { type: 'quarter', modelValue: '2026-Q4' })
+    const input = wrapper.get('input')
+    expect(input.element.value).toBe('2026 年第 4 季度')
+    expect(input.attributes('placeholder')).toBe('选择季度')
+    await input.setValue('2027 年第 1 季度')
+    await input.trigger('keydown', { key: 'Enter' })
+    expect(value.value).toBe('2027-Q1')
+    await input.setValue('Q3 2026')
+    await input.trigger('keydown', { key: 'Enter' })
+    expect(value.value).toBe('2026-Q3')
+    wrapper.unmount()
+
+    const english = mount(
+      () =>
+        h(DouConfigProvider, { locale: en }, () =>
+          h(DouDatePicker, { modelValue: '2026-Q4', type: 'quarter' }),
+        ),
+      { attachTo: document.body },
+    )
+    expect(english.get('input').element.value).toBe('Q4 2026')
+    english.unmount()
+  })
+
+  it('follows the locale for the pattern and the first day of the week', async () => {
+    const wrapper = mount(
+      () =>
+        h(DouConfigProvider, { locale: en }, () => [
+          h(DouDatePicker, { modelValue: '2026-10-08' }),
+          h(DouCalendar, { modelValue: '2026-10-08' }),
+        ]),
+      { attachTo: document.body },
+    )
+    expect(wrapper.get('input').element.value).toBe('10/08/2026')
+    // October 2026 starts on a Thursday: four days of September lead a Sunday-first grid
+    const first = wrapper.get('.dou-calendar [data-value]')
+    expect(first.attributes('data-value')).toBe('2026-09-27')
     wrapper.unmount()
   })
 })

@@ -4,6 +4,7 @@ import { computed, nextTick, onBeforeUnmount, ref, useId, useTemplateRef, watch 
 import type { HTMLAttributes } from 'vue'
 import { usePopup } from '../../composables/use-popup'
 import { useNamespace } from '../../utils/namespace'
+import { shouldVirtualize } from '../../utils/virtual'
 import { OnlyChild } from '../../utils/only-child'
 import { useLocale } from '../config-provider/use-config'
 import { useFormDisabled, useFormItem, useFormSize } from '../form/use-form-item'
@@ -33,10 +34,11 @@ const props = withDefaults(defineProps<SelectProps>(), {
   searchDelay: 300,
   loading: false,
   creatable: false,
-  virtual: false,
+  virtual: undefined,
 })
 const teleportTarget = useTeleport(() => props.teleport)
-const model = defineModel<SelectValue | SelectValue[] | null>()
+// An explicit default stops Vue from reading a missing value as `false`.
+const model = defineModel<SelectValue | SelectValue[] | null | undefined>({ default: undefined })
 const emit = defineEmits<{
   change: [value: SelectValue | SelectValue[] | null]
   clear: []
@@ -132,13 +134,20 @@ const selected = computed<SelectValue[]>(() => {
   if (props.multiple) return Array.isArray(value) ? value : []
   return value === null || value === undefined || Array.isArray(value) ? [] : [value]
 })
-const isSelected = (option: SelectOption) =>
-  selected.value.some((value) => same(value, option.value))
+// Looked up by identity, so long lists with many picks stay linear.
+const selectedSet = computed(() => new Set(selected.value.map(identity)))
+const isSelected = (option: SelectOption) => selectedSet.value.has(identity(option.value))
+const optionById = computed(() => {
+  const map = new Map<unknown, SelectOption>()
+  for (const option of options.value) {
+    const key = identity(option.value)
+    if (!map.has(key)) map.set(key, option)
+  }
+  return map
+})
 const selectedOptions = computed(() =>
   selected.value.map(
-    (value) =>
-      options.value.find((option) => same(option.value, value)) ??
-      seen.get(identity(value)) ?? { value },
+    (value) => optionById.value.get(identity(value)) ?? seen.get(identity(value)) ?? { value },
   ),
 )
 const atLimit = computed(
@@ -182,7 +191,8 @@ const filtered = computed<SelectOption[]>(() => [
   ...(createOption.value ? [createOption.value] : []),
   ...filteredSections.value.flatMap((section) => section.options),
 ])
-const indexOf = (option: SelectOption) => filtered.value.indexOf(option)
+const indexes = computed(() => new Map(filtered.value.map((option, index) => [option, index])))
+const indexOf = (option: SelectOption) => indexes.value.get(option) ?? -1
 
 // virtual list: every row (group label or option) is one option tall
 const ROW = 32
@@ -215,6 +225,7 @@ const rows = computed<Row[]>(() => {
   return result
 })
 const menuScroll = ref(0)
+const isVirtual = computed(() => shouldVirtualize(props.virtual, rows.value.length))
 const virtualRange = computed(() => {
   const from = Math.max(0, Math.floor(menuScroll.value / ROW) - 4)
   return { from, to: Math.min(rows.value.length, from + Math.ceil(280 / ROW) + 8) }
@@ -273,19 +284,30 @@ watch(query, (text) => {
 })
 onBeforeUnmount(() => clearTimeout(searchTimer))
 
+// Switching between full and virtual rendering keeps the scroll position.
+watch(isVirtual, () => {
+  void nextTick(() => (menuScroll.value = panelRef.value?.scrollTop ?? 0))
+})
+
 watch(open, (value) => {
   emit('visibleChange', value)
   if (!value) query.value = ''
   else if (props.remote) emit('search', query.value)
 })
-watch(filtered, () => {
-  if (open.value) edge('first')
-})
+// A parent that re-renders passes a new but equal list: only a different
+// list of options moves the highlight back to the top.
+watch(
+  () => filtered.value.map((option) => identity(option.value)),
+  (next, prev) => {
+    if (next.length === prev.length && next.every((value, index) => value === prev[index])) return
+    if (open.value) edge('first')
+  },
+)
 watch(active, async (index) => {
   await nextTick()
   const menu = panelRef.value
   if (!menu) return
-  if (props.virtual) {
+  if (isVirtual.value) {
     // The option may not be rendered yet: scroll by its row instead.
     const row = rows.value.findIndex((item) => item.kind === 'option' && item.index === index)
     if (row < 0) return
@@ -546,12 +568,12 @@ defineExpose<SelectExpose>({ focus, blur: () => combobox()?.blur() })
       <div
         v-show="open"
         ref="panelRef"
-        :class="[ns.e('menu'), 'dou-floating', ns.is('virtual', virtual)]"
+        :class="[ns.e('menu'), 'dou-floating', ns.is('virtual', isVirtual)]"
         :style="panelStyle"
         :data-placement="placement"
         :data-dou-theme="theme"
         @mousedown.prevent
-        @scroll="virtual && (menuScroll = ($event.target as HTMLElement).scrollTop)"
+        @scroll="isVirtual && (menuScroll = ($event.target as HTMLElement).scrollTop)"
       >
         <div v-if="slots.header" :class="ns.e('header')"><slot name="header" /></div>
         <div v-if="loading" :class="ns.e('loading')" role="status">
@@ -559,7 +581,7 @@ defineExpose<SelectExpose>({ focus, blur: () => combobox()?.blur() })
           <span aria-hidden="true">{{ t('select.loading') }}</span>
         </div>
         <ul
-          v-else-if="virtual"
+          v-else-if="isVirtual"
           :id="listboxId"
           role="listbox"
           :class="ns.e('list')"
@@ -571,7 +593,7 @@ defineExpose<SelectExpose>({ focus, blur: () => combobox()?.blur() })
             <li
               v-if="row.kind === 'group'"
               role="presentation"
-              :class="ns.e('group-label')"
+              :class="[ns.e('group-label'), ns.is('separated', virtualRange.from + offset > 0)]"
               :style="{ transform: `translateY(${(virtualRange.from + offset) * ROW}px)` }"
             >
               {{ row.label }}

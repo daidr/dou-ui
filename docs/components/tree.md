@@ -38,7 +38,7 @@
 
 ## 懒加载
 
-传入 `load` 后，没有 `children` 的节点被视为"还没加载"，第一次展开时调用 `load(node)` 取回子节点，期间箭头换成加载指示。已知没有子节点的传 `isLeaf: true`。加载失败时分支收起并触发 `load-error`，下次展开会重新加载。
+传入 `load` 后，没有 `children` 的节点被视为“还没加载”，第一次展开时调用 `load(node)` 取回子节点，期间箭头换成加载指示。已知没有子节点的传 `isLeaf: true`。加载失败时分支收起并触发 `load-error`，下次展开会重新加载。
 
 <DocDemo src="tree/lazy" column />
 
@@ -48,7 +48,7 @@
 
 `draggable` 让节点可以拖到另一个节点之前、之后或里面（成为它的最后一个子节点）。拖动时目标行显示一条横线或高亮，停在收起的分支上一会儿会自动展开。松开后新的树通过 `update:data` 传出，所以 `data` 要用 `v-model:data` 绑定；同时触发 `drop`，参数为 `{ node, target, position }`。
 
-`allow-drag` 决定节点能否被拿起，`allow-drop` 决定能否放到某个位置。标了 `isLeaf` 的节点和还没加载的懒加载分支不接受放入，节点也不能放进自己的子孙里。设置了 `filter` 时拖拽暂停。下面的"更新日志"不能拖动。
+`allow-drag` 决定节点能否被拿起，`allow-drop` 决定能否放到某个位置。标了 `isLeaf` 的节点和还没加载的懒加载分支不接受放入，节点也不能放进自己的子孙里。设置了 `filter` 时拖拽暂停。下面的“更新日志”不能拖动。
 
 <DocDemo src="tree/draggable" column />
 
@@ -56,7 +56,7 @@
 
 ## 大量节点
 
-传入 `height` 后只渲染视口附近的行，基于 [VirtualList](./virtual-list)。下面是 200 个分组、各 50 个条目，共一万多个节点。
+传入 `height` 后只渲染视口附近的行，基于 [VirtualList](./virtual-list)。也可以只传 `max-height`：树随内容变高，到这个高度后在内部滚动，行数超过 100 时同样只渲染看得见的行。下面是 200 个分组、各 50 个条目，共一万多个节点。
 
 <DocDemo src="tree/large-tree" column />
 
@@ -74,7 +74,7 @@
 
 ## 键盘与读屏
 
-容器是 `role="tree"`，每行是 `role="treeitem"`，带 `aria-level`、`aria-setsize`、`aria-posinset`，分支带 `aria-expanded`，可选中时带 `aria-selected`，可勾选时带 `aria-checked`（部分勾选为 `mixed`）。行是平铺渲染的，层级完全由这些属性表达，因此虚拟滚动时读屏器也能读出"第 3 层，共 50 项中的第 12 项"。
+容器是 `role="tree"`，每行是 `role="treeitem"`，带 `aria-level`、`aria-setsize`、`aria-posinset`，分支带 `aria-expanded`，可选中时带 `aria-selected`，可勾选时带 `aria-checked`（部分勾选为 `mixed`）。行是平铺渲染的，层级完全由这些属性表达，因此虚拟滚动时读屏器也能读出“第 3 层，共 50 项中的第 12 项”。
 
 焦点始终在树上，当前行通过 `aria-activedescendant` 指出，只在键盘聚焦时画出焦点环。
 
@@ -94,28 +94,29 @@
 
 ### Props
 
-| 名称               | 说明                                    | 类型                                                                   | 默认值               |
-| ------------------ | --------------------------------------- | ---------------------------------------------------------------------- | -------------------- |
-| `data`             | 节点，拖拽时配合 `v-model:data`         | `TreeNodeData[]`                                                       | —                    |
-| `expanded`         | 展开的分支，配合 `v-model:expanded`     | `(string \| number)[]`                                                 | —                    |
-| `selected`         | 选中的节点，配合 `v-model:selected`     | `string \| number \| null`                                             | —                    |
-| `checked`          | 勾选的节点，配合 `v-model:checked`      | `(string \| number)[]`                                                 | —                    |
-| `selectable`       | 点击行选中                              | `boolean`                                                              | `true`               |
-| `checkable`        | 每行加复选框                            | `boolean`                                                              | `false`              |
-| `checkStrictly`    | 勾选不级联                              | `boolean`                                                              | `false`              |
-| `defaultExpandAll` | 首次渲染时展开全部                      | `boolean`                                                              | `false`              |
-| `expandOnClick`    | 点击分支行时同时展开或收起              | `boolean`                                                              | `false`              |
-| `accordion`        | 同一层级只展开一个分支                  | `boolean`                                                              | `false`              |
-| `load`             | 首次展开时取回子节点                    | `(node: TreeNodeData) => Promise<TreeNodeData[]>`                      | —                    |
-| `filter`           | 只显示匹配的节点及其祖先                | `string`                                                               | —                    |
-| `filterMethod`     | 自定义匹配规则                          | `(query: string, node: TreeNodeData) => boolean`                       | 标签包含，忽略大小写 |
-| `draggable`        | 节点可拖拽                              | `boolean`                                                              | `false`              |
-| `allowDrag`        | 节点能否被拿起                          | `(node: TreeNodeData) => boolean`                                      | —                    |
-| `allowDrop`        | 节点能否放到目标的某个位置              | `(node, target, position: 'before' \| 'after' \| 'inside') => boolean` | —                    |
-| `guides`           | 层级引导线                              | `boolean`                                                              | `false`              |
-| `size`             | 行高，默认取表单或全局配置              | `'sm' \| 'md' \| 'lg'`                                                 | `'md'`               |
-| `height`           | 视口高度，传入后启用虚拟滚动，数字为 px | `number \| string`                                                     | —                    |
-| `ariaLabel`        | 没有可见标题时给读屏器的名称            | `string`                                                               | —                    |
+| 名称               | 说明                                                      | 类型                                                                   | 默认值               |
+| ------------------ | --------------------------------------------------------- | ---------------------------------------------------------------------- | -------------------- |
+| `data`             | 节点，拖拽时配合 `v-model:data`                           | `TreeNodeData[]`                                                       | —                    |
+| `expanded`         | 展开的分支，配合 `v-model:expanded`                       | `(string \| number)[]`                                                 | —                    |
+| `selected`         | 选中的节点，配合 `v-model:selected`                       | `string \| number \| null`                                             | —                    |
+| `checked`          | 勾选的节点，配合 `v-model:checked`                        | `(string \| number)[]`                                                 | —                    |
+| `selectable`       | 点击行选中                                                | `boolean`                                                              | `true`               |
+| `checkable`        | 每行加复选框                                              | `boolean`                                                              | `false`              |
+| `checkStrictly`    | 勾选不级联                                                | `boolean`                                                              | `false`              |
+| `defaultExpandAll` | 首次渲染时展开全部                                        | `boolean`                                                              | `false`              |
+| `expandOnClick`    | 点击分支行时同时展开或收起                                | `boolean`                                                              | `false`              |
+| `accordion`        | 同一层级只展开一个分支                                    | `boolean`                                                              | `false`              |
+| `load`             | 首次展开时取回子节点                                      | `(node: TreeNodeData) => Promise<TreeNodeData[]>`                      | —                    |
+| `filter`           | 只显示匹配的节点及其祖先                                  | `string`                                                               | —                    |
+| `filterMethod`     | 自定义匹配规则                                            | `(query: string, node: TreeNodeData) => boolean`                       | 标签包含，忽略大小写 |
+| `draggable`        | 节点可拖拽                                                | `boolean`                                                              | `false`              |
+| `allowDrag`        | 节点能否被拿起                                            | `(node: TreeNodeData) => boolean`                                      | —                    |
+| `allowDrop`        | 节点能否放到目标的某个位置                                | `(node, target, position: 'before' \| 'after' \| 'inside') => boolean` | —                    |
+| `guides`           | 层级引导线                                                | `boolean`                                                              | `false`              |
+| `size`             | 行高，默认取表单或全局配置                                | `'sm' \| 'md' \| 'lg'`                                                 | `'md'`               |
+| `height`           | 视口高度，传入后启用虚拟滚动，数字为 px                   | `number \| string`                                                     | —                    |
+| `maxHeight`        | 最大高度，超出后内部滚动；行数超过 100 时只渲染看得见的行 | `number \| string`                                                     | —                    |
+| `ariaLabel`        | 没有可见标题时给读屏器的名称                              | `string`                                                               | —                    |
 
 ### TreeNodeData
 

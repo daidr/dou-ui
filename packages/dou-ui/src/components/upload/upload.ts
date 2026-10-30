@@ -11,6 +11,8 @@ export interface UploadFile {
   /** Unique within the list. */
   uid: string
   name: string
+  /** Where the file sits inside a picked or dropped folder, e.g. `photos/2026/a.png`. */
+  path?: string
   /** In bytes. */
   size?: number
   /** The MIME type. */
@@ -67,6 +69,17 @@ export interface UploadProps {
    * `File` to add instead, e.g. a compressed image.
    */
   beforeUpload?: (file: File) => boolean | File | void | Promise<boolean | File | void>
+  /**
+   * Pick a whole folder instead of files; every file in it is added with
+   * its `path`. Dropped folders are read too.
+   */
+  directory?: boolean
+  /**
+   * Where pasting files or images adds them to the list: `true` for the
+   * upload itself, a CSS selector or an element for another area,
+   * `'document'` for the whole page. Pasting text is left alone.
+   */
+  pasteTarget?: boolean | string | HTMLElement
   /** Show the list of files under the trigger. */
   showList?: boolean
   listType?: UploadListType

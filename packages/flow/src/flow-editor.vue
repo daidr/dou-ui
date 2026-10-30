@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useReducedMotion, type Tone } from 'dou-ui'
+import { layoutGraph, matchesHotkey, useReducedMotion, type Tone } from 'dou-ui'
 import {
   computed,
   nextTick,
@@ -18,6 +18,7 @@ import NodeView from './components/node-view.vue'
 import { defaultNode } from './components/default-node'
 import {
   flowEditorKey,
+  type FlowEditorContext,
   type FlowEditorEmits,
   type FlowEditorExpose,
   type FlowEditorProps,
@@ -46,6 +47,8 @@ import {
 } from './core/connect'
 import { FlowHistory } from './core/history'
 import { flowOrder } from './core/order'
+import { resolveFlowExtensions } from './core/extension'
+import { flowKit } from './kit'
 import { readClipboard, writeClipboard } from './core/clipboard'
 import {
   createId,
@@ -73,6 +76,7 @@ const props = withDefaults(defineProps<FlowEditorProps>(), {
   minZoom: 0.1,
   maxZoom: 4,
   fitView: false,
+  direction: 'horizontal',
   fitMinZoom: 0.5,
   readonly: false,
   panOnScroll: true,
@@ -103,13 +107,19 @@ const same = (a: string[], b: string[]) => a.length === b.length && a.every((id,
 
 // Node types --------------------------------------------------------------------
 
+const resolved = computed(() => resolveFlowExtensions(props.extensions ?? flowKit()))
+
+// Types given as props add to the extensions' and win over them.
 const types = computed(() => {
-  const map = new Map<string, NodeTypeSpec>([['default', defaultNode as NodeTypeSpec]])
+  const map = new Map(resolved.value.nodeTypes)
   for (const spec of props.nodeTypes ?? []) map.set(spec.type, spec as NodeTypeSpec)
   return map
 })
+const portTypes = computed(() => ({ ...resolved.value.portTypes, ...props.portTypes }))
 const specOf = (node: FlowNode) =>
-  types.value.get(node.type ?? 'default') ?? types.value.get('default')
+  types.value.get(node.type ?? 'default') ??
+  types.value.get('default') ??
+  (defaultNode as NodeTypeSpec)
 
 function portSpec(end: FlowEndpoint) {
   const node = nodeById.value.get(end.node)
@@ -119,7 +129,7 @@ function portSpec(end: FlowEndpoint) {
 
 const portTypeOf = (port: FlowPortSpec): PortTypeSpec | undefined => {
   const type = primaryType(port)
-  return type ? props.portTypes?.[type] : undefined
+  return type ? portTypes.value[type] : undefined
 }
 
 const tones = new Set<string>([
@@ -203,7 +213,17 @@ function redo() {
 // Measuring ----------------------------------------------------------------------
 
 const metrics = shallowReactive(new Map<string, NodeMetrics>())
-const nodeById = computed(() => new Map(doc.value.nodes.map((node) => [node.id, node])))
+/** Where nodes are drawn while tidying animates them; their real place is already in `doc`. */
+const tween = shallowRef<Map<string, Point> | null>(null)
+const shownNodes = computed(() => {
+  const moving = tween.value
+  if (!moving) return doc.value.nodes
+  return doc.value.nodes.map((node) => {
+    const at = moving.get(node.id)
+    return at ? { ...node, x: at.x, y: at.y } : node
+  })
+})
+const nodeById = computed(() => new Map(shownNodes.value.map((node) => [node.id, node])))
 
 function onMeasure(id: string, value: NodeMetrics) {
   metrics.set(id, value)
@@ -261,7 +281,7 @@ const staleEdges = computed(() => {
     else if (
       a &&
       b &&
-      (a.kind !== 'output' || b.kind !== 'input' || !typesMatch(a, b, props.portTypes))
+      (a.kind !== 'output' || b.kind !== 'input' || !typesMatch(a, b, portTypes.value))
     )
       out.add(edge.id)
   }
@@ -416,36 +436,159 @@ const FIT_PADDING = 40
  * that; what still doesn't fit starts at the top left, to be panned to.
  */
 function fit(ids?: string[], animate = true, floor = 0) {
-  if (!root.value) return
   const nodes = ids ? ids.map((id) => nodeById.value.get(id)!).filter(Boolean) : doc.value.nodes
   const bounds = boundsOf(nodes.map(rectOf))
-  if (!bounds) return
+  if (bounds) fitRect(bounds, animate, floor)
+}
+
+/**
+ * Room to leave above and below the nodes: the padding, or more where a
+ * panel (controls, minimap…) sits in a top or bottom corner, so fitted
+ * nodes don't end up under it.
+ */
+function fitInsets() {
+  const box = root.value!.getBoundingClientRect()
+  let top = FIT_PADDING
+  let bottom = FIT_PADDING
+  for (const panel of root.value!.querySelectorAll('.dou-flow-editor__panels > *')) {
+    const rect = panel.getBoundingClientRect()
+    if (!rect.height) continue
+    if (rect.top + rect.height / 2 < box.top + box.height / 2)
+      top = Math.max(top, rect.bottom - box.top + PANEL_GAP)
+    else bottom = Math.max(bottom, box.bottom - rect.top + PANEL_GAP)
+  }
+  return { top, bottom }
+}
+
+/** Room between a panel and the nodes fitted next to it. */
+const PANEL_GAP = 16
+
+function fitRect(bounds: Rect, animate: boolean, floor: number) {
+  if (!root.value) return
   const width = root.value.clientWidth
   const height = root.value.clientHeight
+  const insets = fitInsets()
   const zoom = clampZoom(
     Math.max(
       Math.min(
         (width - FIT_PADDING * 2) / Math.max(1, bounds.width),
-        (height - FIT_PADDING * 2) / Math.max(1, bounds.height),
+        (height - insets.top - insets.bottom) / Math.max(1, bounds.height),
         1,
       ),
       Math.min(floor, 1),
     ),
   )
-  const offset = (room: number, size: number, start: number) =>
+  // Centres the nodes in the room between `before` and `after`, or starts them at `before` when they don't fit.
+  const offset = (room: number, size: number, start: number, before: number, after: number) =>
     Math.round(
-      size * zoom > room - FIT_PADDING * 2
-        ? FIT_PADDING - start * zoom
-        : (room - size * zoom) / 2 - start * zoom,
+      size * zoom > room - before - after
+        ? before - start * zoom
+        : before + (room - before - after - size * zoom) / 2 - start * zoom,
     )
   setViewport(
     {
-      x: offset(width, bounds.width, bounds.x),
-      y: offset(height, bounds.height, bounds.y),
+      x: offset(width, bounds.width, bounds.x, FIT_PADDING, FIT_PADDING),
+      y: offset(height, bounds.height, bounds.y, insets.top, insets.bottom),
       zoom,
     },
     animate,
   )
+}
+
+/** Room between ranks (along the flow) and between nodes in a rank when tidying. */
+const TIDY_GAP = { horizontal: { rank: 80, row: 40 }, vertical: { rank: 56, row: 40 } }
+
+/**
+ * Lays the given nodes, or the selected ones when two or more are selected,
+ * or all, out in ranks along their edges in the flow's `direction`, as one
+ * undo step. The group keeps its top left corner; locked nodes stay put.
+ */
+function tidy(ids?: string[]) {
+  const chosen = new Set(
+    ids ??
+      (selection.value.nodes.length > 1 ? selection.value.nodes : doc.value.nodes.map((n) => n.id)),
+  )
+  const nodes = doc.value.nodes.filter((node) => chosen.has(node.id))
+  const bounds = boundsOf(nodes.map(rectOf))
+  if (!bounds || nodes.length < 2) return
+  // A vertical flow is laid out as a horizontal one with x and y swapped.
+  const vertical = props.direction === 'vertical'
+  const gap = TIDY_GAP[vertical ? 'vertical' : 'horizontal']
+  const across = vertical ? (['top', 'bottom'] as const) : (['left', 'right'] as const)
+  const layout = layoutGraph(
+    nodes.map((node) => {
+      const m = metrics.get(node.id)
+      const rect = rectOf(node)
+      const width = vertical ? rect.height : rect.width
+      const height = vertical ? rect.width : rect.height
+      // Ranks line up on the first port facing along the flow, so edges between levelled ports run straight.
+      let offset = height / 2
+      for (const port of m?.ports.values() ?? [])
+        if ((across as readonly string[]).includes(port.side)) {
+          offset = vertical ? port.x : port.y
+          break
+        }
+      return { id: node.id, width, height, anchor: offset }
+    }),
+    doc.value.edges
+      .filter((e) => chosen.has(e.source.node) && chosen.has(e.target.node))
+      .map((e) => ({ from: e.source.node, to: e.target.node })),
+    { columnGap: gap.rank, rowGap: gap.row, equalWidth: false, grid: props.grid || 8 },
+  )
+  const snap = (v: number) => (props.grid ? Math.round(v / props.grid) * props.grid : Math.round(v))
+  const origin = { x: snap(bounds.x), y: snap(bounds.y) }
+  const from = new Map(nodes.map((node) => [node.id, { x: node.x, y: node.y }]))
+  const moved = new Map<string, Point>()
+  for (const node of nodes) {
+    const placed = layout.nodes.get(node.id)
+    if (!placed || node.locked) continue
+    const x = vertical ? placed.y : placed.x
+    const y = vertical ? placed.x : placed.y
+    const to = { x: origin.x + snap(x), y: origin.y + snap(y) }
+    if (to.x !== node.x || to.y !== node.y) moved.set(node.id, to)
+  }
+  if (!moved.size) return
+  transact((tr) => {
+    for (const [id, to] of moved) tr.moveNode(id, to.x, to.y)
+  })
+  announce(format(messages.value.tidied, { count: moved.size }))
+  animateTidy(from, moved)
+  // A tidier layout can be wider or taller; bring it back into view if so.
+  const after = boundsOf(
+    nodes.map((node) => ({ ...rectOf(node), ...(moved.get(node.id) ?? from.get(node.id)) })),
+  )!
+  const { x, y, zoom } = viewport.value
+  const { width, height } = size.value
+  const inView =
+    after.x * zoom + x >= 0 &&
+    after.y * zoom + y >= 0 &&
+    (after.x + after.width) * zoom + x <= width &&
+    (after.y + after.height) * zoom + y <= height
+  if (!inView) fitRect(after, true, props.fitMinZoom)
+}
+
+let tweenFrame = 0
+const easeOut = (t: number) => 1 - (1 - t) ** 3
+
+/** Glides moved nodes from where they were to where tidying put them. */
+function animateTidy(from: Map<string, Point>, to: Map<string, Point>) {
+  cancelAnimationFrame(tweenFrame)
+  if (reducedMotion.value || typeof requestAnimationFrame === 'undefined') return
+  const start = performance.now()
+  const duration = 220
+  const step = (now: number) => {
+    const t = Math.min(1, (now - start) / duration)
+    const k = easeOut(t)
+    const frame = new Map<string, Point>()
+    for (const [id, end] of to) {
+      const a = from.get(id)!
+      frame.set(id, { x: a.x + (end.x - a.x) * k, y: a.y + (end.y - a.y) * k })
+    }
+    tween.value = t < 1 ? frame : null
+    if (t < 1) tweenFrame = requestAnimationFrame(step)
+  }
+  tween.value = new Map(from)
+  tweenFrame = requestAnimationFrame(step)
 }
 
 function centerNode(id: string) {
@@ -917,10 +1060,23 @@ function autoPan(client: Point) {
 
 // Connecting ---------------------------------------------------------------------
 
+/** The prop's rule, then each extension's, in priority order; the first refusal wins. */
+const canConnect = computed(() => {
+  const rules = [...(props.canConnect ? [props.canConnect] : []), ...resolved.value.rules]
+  if (!rules.length) return undefined
+  return (connection: FlowConnection, current: FlowDocument) => {
+    for (const rule of rules) {
+      const verdict = rule(connection, current)
+      if (verdict !== true) return verdict
+    }
+    return true
+  }
+})
+
 const connectOptions = () => ({
-  portTypes: props.portTypes,
+  portTypes: portTypes.value,
   acyclic: props.acyclic,
-  canConnect: props.canConnect,
+  canConnect: canConnect.value,
 })
 
 /**
@@ -1225,6 +1381,7 @@ let pastes = 0
 
 /** Adds a copy of `data` with new ids, at the pointer or next to the original. */
 function paste(data: FlowDocument, at?: Point | null) {
+  for (const transform of resolved.value.pasteTransforms) data = transform(data, context)
   const bounds = boundsOf(
     data.nodes.map((n) => ({ x: n.x, y: n.y, width: n.width ?? 0, height: n.height ?? 0 })),
   )
@@ -1439,6 +1596,12 @@ function onKeydown(event: KeyboardEvent) {
   const nodeEl = target.closest('[data-node-id]')
   if (nodeEl && nodeEl !== target) return
   if (keyLink.value) return onKeyLink(event)
+  for (const keymap of keymaps.value)
+    for (const [hotkey, handler] of Object.entries(keymap))
+      if (matchesHotkey(event, hotkey) && handler(event) !== false) {
+        event.preventDefault()
+        return
+      }
   const mod = event.metaKey || event.ctrlKey
   const key = event.key.length === 1 ? event.key.toLowerCase() : event.key
   const onCanvas = target === root.value || !!(target as HTMLElement).dataset?.nodeId
@@ -1574,11 +1737,25 @@ function onClipboard(event: ClipboardEvent) {
 
 const clipboardEvents = ['copy', 'cut', 'paste'] as const
 
+/** The editor's size on screen, for the minimap. */
+const size = ref({ width: 0, height: 0 })
+let sizeObserver: ResizeObserver | undefined
+
 onMounted(() => {
+  const el = root.value!
+  size.value = { width: el.clientWidth, height: el.clientHeight }
+  if (typeof ResizeObserver !== 'undefined') {
+    sizeObserver = new ResizeObserver(() => {
+      size.value = { width: el.clientWidth, height: el.clientHeight }
+    })
+    sizeObserver.observe(el)
+  }
   root.value!.addEventListener('wheel', onWheel, { passive: false })
   for (const type of clipboardEvents) document.addEventListener(type, onClipboard)
 })
 onBeforeUnmount(() => {
+  sizeObserver?.disconnect()
+  cancelAnimationFrame(tweenFrame)
   for (const type of clipboardEvents) document.removeEventListener(type, onClipboard)
   root.value?.removeEventListener('wheel', onWheel)
   stopAnimation()
@@ -1612,7 +1789,7 @@ const classes = computed(() => ({
   'is-refused': !!connecting.value?.refused,
 }))
 
-provide(flowEditorKey, {
+const context: FlowEditorContext = {
   doc,
   selection,
   viewport,
@@ -1631,7 +1808,16 @@ provide(flowEditorKey, {
   zoomOut,
   portTypeOf,
   colorOf,
-})
+  getNodeRect,
+  tidy,
+  centerNode,
+  announce,
+  size,
+  selectedNodes: computed(() => new Set(selection.value.nodes)),
+}
+provide(flowEditorKey, context)
+
+const keymaps = computed(() => resolved.value.keymaps.map((keymap) => keymap(context)))
 
 const selectedNodes = computed(() => new Set(selection.value.nodes))
 
@@ -1656,6 +1842,7 @@ defineExpose<FlowEditorExpose>({
   centerNode,
   toCanvas,
   getNodeRect,
+  tidy,
   get staleEdges() {
     return [...staleEdges.value]
   },
@@ -1685,6 +1872,7 @@ defineExpose<FlowEditorExpose>({
     @blur.capture="spaceHeld = false"
   >
     <div class="dou-flow-editor__layer" :style="layerStyle">
+      <component :is="layer" v-for="(layer, i) in resolved.below" :key="`below-${i}`" />
       <svg class="dou-flow-editor__edges" aria-hidden="true">
         <g v-for="item in edgePaths" :key="item.edge.id" :data-edge-id="item.edge.id">
           <path class="dou-flow-editor__edge-hit" :d="item.path" />
@@ -1698,7 +1886,7 @@ defineExpose<FlowEditorExpose>({
         <path v-if="previewPath" class="dou-flow-editor__edge is-preview" :d="previewPath" />
       </svg>
       <NodeView
-        v-for="node in doc.nodes"
+        v-for="node in shownNodes"
         :key="node.id"
         :node="node"
         :spec="specOf(node)"
@@ -1712,6 +1900,7 @@ defineExpose<FlowEditorExpose>({
         @measure="onMeasure"
         @update="updateData"
       />
+      <component :is="layer" v-for="(layer, i) in resolved.above" :key="`above-${i}`" />
       <svg v-if="guides.length" class="dou-flow-editor__guides" aria-hidden="true">
         <line
           v-for="(guide, i) in guides"
@@ -1726,6 +1915,7 @@ defineExpose<FlowEditorExpose>({
     <div v-if="marquee" class="dou-flow-editor__marquee" :style="marquee" />
     <div class="dou-flow-editor__panels">
       <slot />
+      <component :is="overlay" v-for="(overlay, i) in resolved.overlays" :key="i" />
     </div>
     <span ref="end" class="dou-flow-editor__end" tabindex="-1" />
     <div class="dou-flow-editor__live" aria-live="polite">{{ live }}</div>

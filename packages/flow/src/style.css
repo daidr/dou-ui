@@ -429,6 +429,65 @@
   }
 
   /* controls */
+  .dou-flow-minimap {
+    position: absolute;
+    overflow: hidden;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-container);
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-sm);
+    line-height: 0;
+
+    &.is-top-left {
+      top: 12px;
+      left: 12px;
+    }
+    &.is-top-right {
+      top: 12px;
+      right: 12px;
+    }
+    &.is-bottom-left {
+      bottom: 12px;
+      left: 12px;
+    }
+    &.is-bottom-right {
+      right: 12px;
+      bottom: 12px;
+    }
+
+    & svg {
+      display: block;
+      cursor: pointer;
+      touch-action: none;
+    }
+    &.is-dragging svg {
+      cursor: grabbing;
+    }
+  }
+
+  .dou-flow-minimap__node {
+    fill: var(--dou-color-bg-muted);
+    stroke: var(--dou-color-border-strong);
+    stroke-width: 1px;
+    vector-effect: non-scaling-stroke;
+
+    &.is-selected {
+      fill: color-mix(in oklab, var(--dou-flow-editor-selected) 24%, var(--dou-color-bg-surface));
+      stroke: var(--dou-flow-editor-selected);
+    }
+  }
+
+  .dou-flow-minimap__shade {
+    fill: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+  }
+
+  .dou-flow-minimap__view {
+    fill: none;
+    stroke: var(--dou-color-text-tertiary);
+    stroke-width: 1px;
+    vector-effect: non-scaling-stroke;
+  }
+
   .dou-flow-controls {
     position: absolute;
     display: flex;

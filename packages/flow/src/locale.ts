@@ -15,11 +15,14 @@ export interface FlowMessages {
   /** `{value}` is the zoom in percent. */
   zoomLevel: string
   fit: string
+  tidy: string
+  minimap: string
   undo: string
   redo: string
   controls: string
   /** Announcements; `{count}` is a number. */
   deleted: string
+  tidied: string
   undone: string
   redone: string
   connected: string
@@ -50,10 +53,13 @@ const zhCN: FlowMessages = {
   zoomOut: '缩小',
   zoomLevel: '缩放 {value}%，点击恢复 100%',
   fit: '适应画布',
+  tidy: '整理',
+  minimap: '小地图，点击或拖动移动画布',
   undo: '撤销',
   redo: '重做',
   controls: '画布控制',
   deleted: '已删除 {count} 项',
+  tidied: '已整理 {count} 个节点',
   undone: '已撤销',
   redone: '已重做',
   connected: '已连接',
@@ -81,10 +87,13 @@ const zhTW: FlowMessages = {
   zoomOut: '縮小',
   zoomLevel: '縮放 {value}%，點擊恢復 100%',
   fit: '適應畫布',
+  tidy: '整理',
+  minimap: '小地圖，點擊或拖曳移動畫布',
   undo: '復原',
   redo: '重做',
   controls: '畫布控制',
   deleted: '已刪除 {count} 項',
+  tidied: '已整理 {count} 個節點',
   undone: '已復原',
   redone: '已重做',
   connected: '已連接',
@@ -113,10 +122,13 @@ const en: FlowMessages = {
   zoomOut: 'Zoom out',
   zoomLevel: 'Zoom {value}%, click to reset to 100%',
   fit: 'Fit to view',
+  tidy: 'Tidy up',
+  minimap: 'Minimap; click or drag to move the canvas',
   undo: 'Undo',
   redo: 'Redo',
   controls: 'Canvas controls',
   deleted: '{count} deleted',
+  tidied: '{count} nodes tidied up',
   undone: 'Undone',
   redone: 'Redone',
   connected: 'Connected',

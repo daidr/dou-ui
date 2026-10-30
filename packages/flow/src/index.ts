@@ -1,19 +1,24 @@
 import { withInstall } from 'dou-ui'
 import FlowEditor from './flow-editor.vue'
 import FlowControls from './components/flow-controls.vue'
+import FlowMinimap from './components/flow-minimap.vue'
 import FlowPortComponent from './components/flow-port.vue'
 
 export const DouFlowEditor = withInstall(FlowEditor)
 export const DouFlowControls = withInstall(FlowControls)
+export const DouFlowMinimap = withInstall(FlowMinimap)
 export const DouFlowPort = withInstall(FlowPortComponent)
 export default DouFlowEditor
 
 export { useFlowEditor } from './context'
 export type {
+  FlowControlsProps,
   FlowEditorContext,
   FlowEditorEmits,
   FlowEditorExpose,
   FlowEditorProps,
+  FlowMinimapProps,
+  FlowPanelPlacement,
   NodeMetrics,
   PortAnchor,
   PortState,
@@ -41,6 +46,15 @@ export type {
 export { applySteps, compactSteps, Transaction } from './core/transaction'
 export type { FlowStep, TransactionMeta } from './core/transaction'
 export { FlowHistory } from './core/history'
+export { defineFlowExtension, resolveFlowExtensions } from './core/extension'
+export type {
+  FlowExtension,
+  FlowExtensionContext,
+  FlowKeyHandler,
+  ResolvedFlowExtensions,
+} from './core/extension'
+export { flowKit } from './kit'
+export { flowOrder } from './core/order'
 export {
   canJoin,
   displacedEdges,
@@ -64,6 +78,7 @@ declare module 'vue' {
   export interface GlobalComponents {
     DouFlowEditor: typeof DouFlowEditor
     DouFlowControls: typeof DouFlowControls
+    DouFlowMinimap: typeof DouFlowMinimap
     DouFlowPort: typeof DouFlowPort
   }
 }

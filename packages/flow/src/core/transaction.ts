@@ -3,7 +3,7 @@ import type { FlowDocument, FlowEdge, FlowNode } from './model'
 /*
  * Every change to a document is a list of steps. Applying a step also
  * gives the step that undoes it, so history, collaboration and the
- * `change` event all work on the same small vocabulary.
+ * `transaction` event all work on the same small vocabulary.
  */
 
 type Patch<T> = { [K in keyof T]?: T[K] | undefined }
@@ -24,7 +24,7 @@ export interface TransactionMeta {
    * one, e.g. the frames of a drag or repeated arrow key nudges.
    */
   group?: string
-  /** Who made the change, passed on to the `change` event. */
+  /** Who made the change, passed on to the `transaction` event. */
   origin?: string
 }
 

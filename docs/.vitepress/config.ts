@@ -48,6 +48,7 @@ export default defineConfig({
             { text: '仪表盘', link: '/blocks/dashboard' },
             { text: 'AI 对话页', link: '/blocks/chat' },
             { text: '错误页', link: '/blocks/errors' },
+            { text: '看板', link: '/blocks/kanban' },
           ],
         },
       ],

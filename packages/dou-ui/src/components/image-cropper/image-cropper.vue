@@ -228,6 +228,8 @@ function onPointerDown(event: PointerEvent) {
   if (!interactive.value || (event.pointerType === 'mouse' && event.button !== 0)) return
   const el = event.currentTarget as HTMLElement
   el.setPointerCapture?.(event.pointerId)
+  // The first finger of a new touch: fingers still on record lifted unheard.
+  if (event.isPrimary) pointers.clear()
   pointers.set(event.pointerId, { x: event.clientX, y: event.clientY })
   moving.value = true
 }

@@ -206,7 +206,8 @@ const warned = new Set<string>()
 watch(
   tasks,
   (list) => {
-    if (typeof process === 'undefined' || process.env.NODE_ENV === 'production') return
+    // the app's bundler replaces this, as for Vue's own warnings
+    if (process.env.NODE_ENV === 'production') return
     for (const task of list) {
       for (const key of ['start', 'end'] as const) {
         const text = task[key]
@@ -313,6 +314,24 @@ const rowTitles = computed(() => {
     .filter((row) => !row.span || row.span.end < from || row.span.start > to)
     .map((row) => ({ row }))
 })
+
+/**
+ * Tasks with a link at their finishing end. Their side titles step further
+ * out, past where the line leaves or arrives, so the two don't run together.
+ */
+const linkedEnds = computed(() => {
+  const out = new Set<string>()
+  for (const link of links.value) {
+    const type = link.type ?? 'fs'
+    if (type === 'fs' || type === 'ff') out.add(link.from)
+    if (type === 'ff' || type === 'sf') out.add(link.to)
+  }
+  return out
+})
+
+/** Where a bar's side title starts, from the bar's left. */
+const sideOffset = (bar: Bar) =>
+  (bar.row.milestone ? 12 : bar.width + 8) + (linkedEnds.value.has(bar.row.task.id) ? 10 : 0)
 
 /** Rows titled at the edge; their own side labels would only crowd it. */
 const titled = computed(() => new Set(rowTitles.value.map((item) => item.row.task.id)))
@@ -808,7 +827,7 @@ const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * prop
               v-if="bar.label === 'outside' && !titled.has(bar.row.task.id)"
               class="dou-gantt__bar-side"
               :class="{ 'is-summary': bar.row.summary }"
-              :style="{ left: `${bar.left + (bar.row.milestone ? 12 : bar.width + 8)}px` }"
+              :style="{ left: `${bar.left + sideOffset(bar)}px` }"
             >
               <slot name="bar" :task="bar.row.task" :row="bar.row">{{ bar.row.task.title }}</slot>
             </span>

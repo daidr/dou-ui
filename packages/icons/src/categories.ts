@@ -29,6 +29,10 @@ export const categories = {
   commerce: '电商',
   charts: '图表',
   notes: '笔记',
+  business: '商务',
+  logistics: '物流',
+  buildings: '建筑',
+  education: '教育',
 } as const
 
 export type IconCategory = keyof typeof categories

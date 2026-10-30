@@ -59,6 +59,7 @@ export default defineConfig({
             { text: '文档数据', link: '/editor/data' },
             { text: '快捷操作', link: '/editor/shortcuts' },
             { text: '扩展', link: '/editor/extensions' },
+            { text: '图片', link: '/editor/image' },
             { text: '协同编辑', link: '/editor/collaboration' },
           ],
         },

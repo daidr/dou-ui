@@ -31,8 +31,16 @@ export function closeSlash(view: EditorView) {
 }
 
 export function slashPlugin(options: SlashOptions): Plugin<SlashState | null> {
+  let opening: number | null = null
   return new Plugin<SlashState | null>({
     key: slashKey,
+    appendTransaction(_trs, _old, state) {
+      if (opening === null) return null
+      const from = opening
+      opening = null
+      if (!TRIGGERS.includes(state.doc.textBetween(from, from + 1))) return null
+      return state.tr.setMeta(slashKey, { from, query: '' })
+    },
     state: {
       init: () => null,
       apply(tr, value, _old, state) {
@@ -61,9 +69,11 @@ export function slashPlugin(options: SlashOptions): Plugin<SlashState | null> {
         const before = $from.parent.textBetween(0, $from.parentOffset)
         // not right after a letter, digit or URL punctuation: `a/b`, `https://`
         if (/[\w:/.]$/.test(before)) return false
-        const tr = view.state.tr.insertText(text, from, to).setMeta(slashKey, { from, query: '' })
-        view.dispatch(tr)
-        return true
+        // let the browser type the `/` itself and open the menu once it is
+        // in: replacing the typed text redraws it, and a key pressed right
+        // after could land where the browser put the cursor meanwhile
+        opening = from
+        return false
       },
       handleKeyDown(view, event) {
         if (!getSlash(view.state)) return false

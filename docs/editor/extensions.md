@@ -63,12 +63,14 @@ const extensions = [starterKit({ codeBlock: false, divider: false })]
 
 ### 组件的 Props
 
-| 名称          | 说明                                   | 类型                              |
-| ------------- | -------------------------------------- | --------------------------------- |
-| `block`       | 块的类型和当前的 `props`               | `{ type: string; props: object }` |
-| `updateProps` | 修改块的 `props`，只需要传入改动的部分 | `(props: object) => void`         |
-| `selected`    | 块被整体选中（点击没有文字的块时）     | `boolean`                         |
-| `editable`    | 编辑器是否可编辑，只读时为 `false`     | `boolean`                         |
+| 名称          | 说明                                   | 类型                                          |
+| ------------- | -------------------------------------- | --------------------------------------------- |
+| `block`       | 块的 id、类型和当前的 `props`          | `{ id: string; type: string; props: object }` |
+| `updateProps` | 修改块的 `props`，只需要传入改动的部分 | `(props: object) => void`                     |
+| `selected`    | 块被整体选中（点击没有文字的块时）     | `boolean`                                     |
+| `editable`    | 编辑器是否可编辑，只读时为 `false`     | `boolean`                                     |
+
+在块组件里调用 `useEditorContext()` 可以拿到编辑器的 `view`（ProseMirror 的 `EditorView`）和当前语言包的文案 `messages`。
 
 ## 编写扩展
 

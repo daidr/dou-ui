@@ -46,12 +46,6 @@ const emit = defineEmits<EditorEmits>()
 
 // read once: changing the schema of a live editor would invalidate its document
 const kit = resolveExtensions(props.extensions ?? [starterKit()])
-const appContext = getCurrentInstance()?.appContext ?? null
-const componentViews = Object.fromEntries(
-  Object.entries(kit.schema.nodes)
-    .filter(([, type]) => type.spec.component)
-    .map(([name, type]) => [name, vueNodeView(type.spec.component as Component, appContext)]),
-)
 
 const ns = useNamespace('editor')
 const messages = useEditorMessages(() => props.messages)
@@ -63,7 +57,19 @@ const focused = shallowRef(false)
 const dragging = shallowRef(false)
 const editable = computed(() => !props.readonly)
 
-provide(editorKey, { view, state, focused, dragging, editable, messages, root, kit })
+const context = { view, state, focused, dragging, editable, messages, root, kit }
+provide(editorKey, context)
+
+// block components render outside this component's tree: hand them the context
+const appContext = getCurrentInstance()?.appContext ?? null
+const componentViews = Object.fromEntries(
+  Object.entries(kit.schema.nodes)
+    .filter(([, type]) => type.spec.component)
+    .map(([name, type]) => [
+      name,
+      vueNodeView(type.spec.component as Component, appContext, [[editorKey, context]]),
+    ]),
+)
 
 const slash = shallowRef<SlashState | null>(null)
 const slashMenu = useTemplateRef<InstanceType<typeof SlashMenu>>('slashMenu')

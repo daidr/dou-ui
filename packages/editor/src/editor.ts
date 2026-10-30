@@ -1,6 +1,6 @@
 import type { EditorState, Command, Plugin } from 'prosemirror-state'
 import type { EditorView } from 'prosemirror-view'
-import type { ComputedRef, InjectionKey, ShallowRef } from 'vue'
+import { inject, type ComputedRef, type InjectionKey, type ShallowRef } from 'vue'
 import type { EditorExtension, ResolvedExtensions } from './core/extension'
 import type { Block, PartialBlock } from './core/model'
 import type { EditorMessages } from './locale'
@@ -77,3 +77,11 @@ export interface EditorContext {
 }
 
 export const editorKey: InjectionKey<EditorContext> = Symbol('DouEditor')
+
+/** The editor around a block component, for its messages, state and view. */
+export function useEditorContext(): EditorContext {
+  const context = inject(editorKey, null)
+  if (!context)
+    throw new Error('[@dou-ui/editor] useEditorContext() is only available inside the editor')
+  return context
+}

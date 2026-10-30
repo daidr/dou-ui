@@ -49,6 +49,7 @@ export default defineConfig({
             { text: 'AI 对话页', link: '/blocks/chat' },
             { text: '错误页', link: '/blocks/errors' },
             { text: '看板', link: '/blocks/kanban' },
+            { text: '文件管理', link: '/blocks/files' },
           ],
         },
       ],

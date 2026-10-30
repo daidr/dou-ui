@@ -66,6 +66,11 @@ for (let i = 0; i <= total; i++) {
   if (random() > (weekend ? 0.85 : 0.3))
     deployDays.push({ date: format(day), value: Math.ceil(random() * 6) })
 }
+const deploySummary = [
+  { title: '部署天数', value: deployDays.length, suffix: '天' },
+  { title: '部署次数', value: sum(deployDays.map((day) => day.value)), suffix: '次' },
+  { title: '单日最多', value: Math.max(...deployDays.map((day) => day.value)), suffix: '次' },
+]
 
 /* 服务 */
 const now = Date.now()
@@ -75,8 +80,6 @@ const services = [
   { name: 'dou-image', region: '新加坡', status: 'deploying', requests: series(43, 24, 180, 50) },
   { name: 'dou-mail', region: '法兰克福', status: 'running', requests: series(44, 24, 60, 20) },
 ].map((service, i) => ({ ...service, updated: now - (i * 17 + 3) * 60_000 }))
-// 所有服务的迷你图共用一个刻度，高度才能互相比较
-const peak = Math.max(...services.flatMap((service) => service.requests))
 const statuses = {
   running: { label: '运行中', tone: 'success' },
   deploying: { label: '部署中', tone: 'warning' },
@@ -129,6 +132,15 @@ const columns = [
           :start="format(start)"
           :end="format(end)"
         />
+        <div class="dashboard__summary">
+          <DouStatistic
+            v-for="item in deploySummary"
+            :key="item.title"
+            :title="item.title"
+            :value="item.value"
+            :suffix="item.suffix"
+          />
+        </div>
       </DouCard>
       <DouCard title="最近动态">
         <DouTimeline>
@@ -155,15 +167,7 @@ const columns = [
           <DouTag :tone="statuses[value].tone" size="sm">{{ statuses[value].label }}</DouTag>
         </template>
         <template #cell-requests="{ value }">
-          <DouSparkline
-            :data="value"
-            :min="0"
-            :max="peak"
-            type="area"
-            smooth
-            :width="128"
-            :height="24"
-          />
+          <DouSparkline :data="value" type="area" smooth :width="128" :height="24" />
         </template>
         <template #cell-updated="{ value }">
           <DouText variant="secondary"><DouRelativeTime :value="value" /></DouText>
@@ -188,6 +192,17 @@ const columns = [
 .dashboard__spark {
   display: block;
   margin-top: 12px;
+}
+.dashboard__calendar {
+  --dou-calendar-heatmap-cell: 14px;
+}
+.dashboard__summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 32px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--dou-color-border-subtle);
 }
 .dashboard__row {
   display: grid;

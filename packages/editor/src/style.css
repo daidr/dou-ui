@@ -1255,9 +1255,11 @@
     padding: 0 6px;
     border-radius: 4px 4px 4px 0;
     background-color: var(--dou-editor-cursor-color);
-    color: #fff;
+    /* the collaborator's color is the app's: pick dark or light text by its lightness */
+    color: white;
+    color: oklch(from var(--dou-editor-cursor-color) clamp(0.2, (0.66 - l) * 100, 0.99) 0 0);
     font-family: var(--dou-font-family);
-    font-size: 12px;
+    font-size: var(--dou-font-size-sm);
     font-weight: normal;
     font-style: normal;
     line-height: 18px;

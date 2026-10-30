@@ -561,6 +561,169 @@
     gap: 6px;
   }
 
+  /* image */
+  .dou-editor__content--image {
+    padding-block: 6px;
+  }
+
+  .dou-editor-image__figure {
+    width: fit-content;
+    /* room for the caption under a small image */
+    min-width: min(100%, 240px);
+    max-width: 100%;
+    margin: 0 auto;
+  }
+
+  .dou-editor-image__frame {
+    position: relative;
+    width: fit-content;
+    max-width: 100%;
+    margin: 0 auto;
+    border-radius: var(--dou-radius-control);
+    line-height: 0;
+  }
+
+  .dou-editor-image__img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    border-radius: inherit;
+    outline: 1px solid color-mix(in oklab, var(--dou-color-text) 8%, transparent);
+    outline-offset: -1px;
+  }
+
+  .dou-editor-image__figure.is-sized .dou-editor-image__frame,
+  .dou-editor-image__figure.is-sized .dou-editor-image__img {
+    width: 100%;
+  }
+
+  .dou-editor-image.is-selected .dou-editor-image__img {
+    outline: 2px solid var(--dou-color-focus);
+    outline-offset: 2px;
+  }
+
+  .dou-editor-image__status {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-radius: inherit;
+    background-color: color-mix(in oklab, var(--dou-color-bg-surface) 72%, transparent);
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-md);
+    line-height: normal;
+
+    &.is-failed {
+      color: var(--dou-color-danger-text);
+    }
+  }
+
+  /* resize handles: short bars on both edges, shown on hover */
+  .dou-editor-image__handle {
+    position: absolute;
+    top: 50%;
+    width: 6px;
+    height: 40px;
+    max-height: 50%;
+    border: 1px solid color-mix(in oklab, var(--dou-color-bg-surface) 70%, transparent);
+    border-radius: var(--dou-radius-full);
+    background-color: color-mix(in oklab, var(--dou-color-text) 55%, transparent);
+    cursor: ew-resize;
+    opacity: 0;
+    transform: translateY(-50%);
+    transition: opacity var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    &.is-left {
+      left: 8px;
+    }
+    &.is-right {
+      right: 8px;
+    }
+  }
+
+  .dou-editor-image__frame:hover .dou-editor-image__handle,
+  .dou-editor-image.is-selected .dou-editor-image__handle {
+    opacity: 1;
+  }
+
+  .dou-editor-image__caption {
+    margin-top: 6px;
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-md);
+    line-height: 1.5;
+    text-align: center;
+  }
+
+  .dou-editor-image__caption-input {
+    width: 100%;
+    padding: 0;
+    border: none;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: inherit;
+    outline: none;
+
+    &::placeholder {
+      color: var(--dou-color-text-tertiary);
+    }
+    /* the placeholder only shows while the image is being worked on */
+    &:placeholder-shown:not(:focus) {
+      opacity: 0;
+    }
+  }
+
+  .dou-editor-image:hover .dou-editor-image__caption-input,
+  .dou-editor-image.is-selected .dou-editor-image__caption-input {
+    opacity: 1;
+  }
+
+  .dou-editor-image__empty {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-control);
+    background-color: color-mix(in oklab, var(--dou-color-text) 3%, var(--dou-color-bg-surface));
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-md);
+    line-height: normal;
+  }
+
+  .dou-editor-image.is-selected .dou-editor-image__empty {
+    outline: 2px solid var(--dou-color-focus);
+    outline-offset: 2px;
+  }
+
+  .dou-editor-image__empty-icon {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    color: var(--dou-color-text-tertiary);
+  }
+
+  .dou-editor-image__empty-text {
+    flex: 1 1 auto;
+  }
+
+  .dou-editor-image__actions,
+  .dou-editor-image__embed {
+    display: flex;
+    gap: 8px;
+  }
+
+  .dou-editor-image__embed {
+    flex: 1 1 240px;
+
+    & > .dou-input {
+      flex: 1 1 auto;
+    }
+  }
+
   /* collaboration: the others' cursors and selections */
   .dou-editor__cursor {
     position: relative;

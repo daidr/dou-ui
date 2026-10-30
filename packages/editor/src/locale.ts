@@ -17,6 +17,7 @@ export interface EditorMessages {
     quote: string
     codeBlock: string
     divider: string
+    image: string
   }
   /** Short descriptions in the slash menu. */
   hints: {
@@ -30,6 +31,19 @@ export interface EditorMessages {
     quote: string
     codeBlock: string
     divider: string
+    image: string
+  }
+  /** The image block. */
+  image: {
+    empty: string
+    upload: string
+    embed: string
+    urlPlaceholder: string
+    apply: string
+    uploading: string
+    failed: string
+    caption: string
+    resize: string
   }
   noResults: string
   addBlock: string
@@ -68,6 +82,7 @@ const zhCN: EditorMessages = {
     quote: '引用',
     codeBlock: '代码',
     divider: '分隔线',
+    image: '图片',
   },
   hints: {
     paragraph: '普通的文字',
@@ -80,6 +95,18 @@ const zhCN: EditorMessages = {
     quote: '引用一段话',
     codeBlock: '等宽显示代码',
     divider: '分隔上下内容',
+    image: '上传或嵌入一张图片',
+  },
+  image: {
+    empty: '添加一张图片',
+    upload: '上传',
+    embed: '嵌入链接',
+    urlPlaceholder: '粘贴图片链接',
+    apply: '确定',
+    uploading: '正在上传',
+    failed: '上传失败，请重试',
+    caption: '添加说明',
+    resize: '拖动调整宽度',
   },
   noResults: '没有匹配的块',
   addBlock: '在下方添加块',
@@ -117,6 +144,7 @@ const zhTW: EditorMessages = {
     quote: '引用',
     codeBlock: '程式碼',
     divider: '分隔線',
+    image: '圖片',
   },
   hints: {
     paragraph: '一般的文字',
@@ -129,6 +157,18 @@ const zhTW: EditorMessages = {
     quote: '引用一段話',
     codeBlock: '等寬顯示程式碼',
     divider: '分隔上下內容',
+    image: '上傳或嵌入一張圖片',
+  },
+  image: {
+    empty: '新增一張圖片',
+    upload: '上傳',
+    embed: '嵌入連結',
+    urlPlaceholder: '貼上圖片連結',
+    apply: '確定',
+    uploading: '正在上傳',
+    failed: '上傳失敗，請重試',
+    caption: '新增說明',
+    resize: '拖曳調整寬度',
   },
   noResults: '沒有符合的區塊',
   addBlock: '在下方新增區塊',
@@ -166,6 +206,7 @@ const en: EditorMessages = {
     quote: 'Quote',
     codeBlock: 'Code',
     divider: 'Divider',
+    image: 'Image',
   },
   hints: {
     paragraph: 'Plain text',
@@ -178,6 +219,18 @@ const en: EditorMessages = {
     quote: 'Quote someone',
     codeBlock: 'Code in a monospace font',
     divider: 'Separate sections',
+    image: 'Upload or embed an image',
+  },
+  image: {
+    empty: 'Add an image',
+    upload: 'Upload',
+    embed: 'Embed link',
+    urlPlaceholder: 'Paste the image link',
+    apply: 'Apply',
+    uploading: 'Uploading',
+    failed: 'Upload failed, try again',
+    caption: 'Add a caption',
+    resize: 'Drag to resize',
   },
   noResults: 'No matching blocks',
   addBlock: 'Add a block below',

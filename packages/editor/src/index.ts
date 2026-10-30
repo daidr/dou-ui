@@ -5,6 +5,7 @@ import type { EditorContent } from './define-block'
 export const DouEditor = withInstall(Editor)
 export default DouEditor
 
+export { useEditorContext } from './editor'
 export type { EditorContext, EditorEmits, EditorExpose, EditorProps } from './editor'
 export { editorLocales, useEditorMessages } from './locale'
 export type { EditorMessages } from './locale'
@@ -32,6 +33,8 @@ export {
 } from './extensions/starter-kit'
 export type { StarterKitOptions } from './extensions/starter-kit'
 export { defineBlock, EditorContent, vueNodeView } from './define-block'
+export { image, isSafeImageSrc, readAsDataUrl } from './extensions/image'
+export type { ImageOptions, ImageUploader } from './extensions/image'
 export type { BlockViewProps, DefineBlockOptions } from './define-block'
 export { atomInputRule, blockInputRule, markInputRule } from './core/input-rules'
 export type {

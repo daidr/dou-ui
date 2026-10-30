@@ -19,8 +19,8 @@ import type { BlockProps } from './core/model'
 
 /** What a block's Vue component receives. */
 export interface BlockViewProps {
-  /** The block's type and current props. */
-  block: { type: string; props: BlockProps }
+  /** The block's id, type and current props. */
+  block: { id: string; type: string; props: BlockProps }
   /** Change props; the change goes into the document, the undo history and collaboration. */
   updateProps: (props: BlockProps) => void
   /** The block is selected as a whole (a block without text was clicked). */
@@ -88,15 +88,22 @@ function readDataAttrs(dom: HTMLElement, names: string[]) {
 export function vueNodeView(
   component: Component,
   appContext: AppContext | null,
+  provides: [InjectionKey<unknown>, unknown][] = [],
 ): NodeViewConstructor {
   return (node, view, getPos) => {
+    // the id lives on the block around the content node
+    const idOf = () => {
+      const pos = getPos()
+      if (pos === undefined) return ''
+      return (view.state.doc.resolve(pos).parent.attrs.id as string | null) ?? ''
+    }
     const type = node.type.name
     const dom = document.createElement('div')
     dom.className = `dou-editor__content dou-editor__content--${type} dou-editor__content--custom`
     dom.dataset.contentType = type
     const contentElement = node.isTextblock ? document.createElement('div') : null
     const state = shallowReactive<BlockViewProps>({
-      block: { type, props: { ...node.attrs } },
+      block: { id: idOf(), type, props: { ...node.attrs } },
       selected: false,
       editable: view.editable,
       updateProps(props) {
@@ -110,6 +117,7 @@ export function vueNodeView(
     const Root = defineComponent({
       setup() {
         provide(contentKey, contentElement)
+        for (const [key, value] of provides) provide(key, value)
         return () => h(component, { ...state })
       },
     })
@@ -123,7 +131,7 @@ export function vueNodeView(
       update(next) {
         if (next.type !== current.type) return false
         current = next
-        state.block = { type, props: { ...next.attrs } }
+        state.block = { id: idOf(), type, props: { ...next.attrs } }
         state.editable = view.editable
         return true
       },
@@ -133,12 +141,15 @@ export function vueNodeView(
       deselectNode() {
         state.selected = false
       },
-      // the component's own controls handle their events; the editor gets the
-      // rest, so a click on a block without text still selects it
+      // the component's own controls (and anything marked `data-editor-control`)
+      // handle their events; the editor gets the rest, so a click on a block
+      // without text still selects it
       stopEvent: (event) => {
         const target = event.target as HTMLElement
         if (contentElement?.contains(target)) return false
-        return !!target.closest?.('input, textarea, select, button, a, [contenteditable="true"]')
+        return !!target.closest?.(
+          'input, textarea, select, button, a, [contenteditable="true"], [data-editor-control]',
+        )
       },
       ignoreMutation: (mutation) => !contentElement || !contentElement.contains(mutation.target),
       destroy() {

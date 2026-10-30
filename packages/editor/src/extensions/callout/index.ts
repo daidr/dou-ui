@@ -1,6 +1,7 @@
 import { StickyNoteIcon } from '@dou-ui/icons'
 import { defineExtension } from '../../core/extension'
 import CalloutBlock from './callout-block.vue'
+import { calloutOutput, prepareCallouts } from './html'
 import { calloutTones } from './tones'
 
 /** A callout: text in a tinted box with an icon; the icon picks the tone. */
@@ -32,6 +33,8 @@ export const callout = defineExtension({
       ],
     },
   },
+  output: { blocks: { callout: calloutOutput } },
+  prepareHTML: prepareCallouts,
   blockOptions: [
     {
       key: 'callout',

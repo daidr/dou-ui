@@ -35,6 +35,10 @@
       "types": "./dist/types/collaboration/index.d.ts",
       "import": "./dist/collaboration/index.js"
     },
+    "./markdown": {
+      "types": "./dist/types/markdown/index.d.ts",
+      "import": "./dist/markdown/index.js"
+    },
     "./style.css": "./dist/style.css",
     "./package.json": "./package.json"
   },
@@ -47,10 +51,14 @@
   "peerDependencies": {
     "dou-ui": "workspace:*",
     "vue": "^3.5.0",
-    "yjs": "^13.6.0"
+    "yjs": "^13.6.0",
+    "markdown-it": "^14.0.0"
   },
   "peerDependenciesMeta": {
     "yjs": {
+      "optional": true
+    },
+    "markdown-it": {
       "optional": true
     }
   },
@@ -69,6 +77,8 @@
     "access": "public"
   },
   "devDependencies": {
+    "@types/markdown-it": "^14.1.2",
+    "markdown-it": "^14.1.0",
     "y-protocols": "^1.0.7",
     "yjs": "^13.6.33"
   }

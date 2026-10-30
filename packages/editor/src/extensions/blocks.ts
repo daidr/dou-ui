@@ -9,6 +9,8 @@ import {
 import { setBlockType } from '../core/commands'
 import { defineExtension } from '../core/extension'
 import { atomInputRule, blockInputRule } from '../core/input-rules'
+import { indentLines } from '../core/output'
+import { blockElement, splitContainer } from '../core/prepare'
 import { textBlock } from '../core/schema'
 
 /** The paragraph itself is part of the frame; this adds its menu entry and shortcut. */
@@ -27,6 +29,7 @@ export const paragraph = defineExtension({
 })
 
 const LEVELS = [1, 2, 3] as const
+const levelOf = (level: unknown) => Math.min(3, Math.max(1, Number(level) || 1))
 const headingIcons = { 1: Heading1Icon, 2: Heading2Icon, 3: Heading3Icon }
 
 /** Headings, levels 1 to 3. `# ` to `### ` turn a paragraph into one. */
@@ -52,6 +55,18 @@ export const heading = defineExtension({
         0,
       ],
     }),
+  },
+  output: {
+    blocks: {
+      heading: {
+        html: (block, { content, children }) =>
+          `<h${levelOf(block.props.level)}>${content}</h${levelOf(block.props.level)}>${children}`,
+        markdown: (block, { content, children }) =>
+          [`${'#'.repeat(levelOf(block.props.level))} ${content}`.trimEnd(), children]
+            .filter(Boolean)
+            .join('\n\n'),
+      },
+    },
   },
   inputRules: () => [
     blockInputRule(/^(#{1,3})\s$/, 'heading', (match) => ({ level: match[1]!.length })),
@@ -85,6 +100,23 @@ export const quote = defineExtension({
       ],
     }),
   },
+  output: {
+    blocks: {
+      quote: {
+        html: (_block, { content, children }) =>
+          `<blockquote><p>${content}</p>${children}</blockquote>`,
+        markdown: (_block, { content, children }) =>
+          indentLines([content, children].filter(Boolean).join('\n\n'), '> ', '> '),
+      },
+    },
+  },
+  // a quote holds its first paragraph; what follows becomes its children
+  prepareHTML: (root) => {
+    for (const element of Array.from(root.querySelectorAll('blockquote'))) {
+      const { content, children } = splitContainer(element)
+      element.replaceWith(blockElement(element.ownerDocument, 'quote', content, children))
+    }
+  },
   inputRules: () => [blockInputRule(/^>\s$/, 'quote')],
   blockOptions: [
     {
@@ -115,6 +147,11 @@ export const divider = defineExtension({
         },
         ['hr'],
       ],
+    },
+  },
+  output: {
+    blocks: {
+      divider: { html: () => '<hr>', markdown: () => '---' },
     },
   },
   inputRules: () => [atomInputRule(/^(?:---|___|\*\*\*)$/, 'divider')],

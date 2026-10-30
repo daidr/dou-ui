@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, onUpdated, ref, useTemplateRef, watch } from 'vue'
+import { useResizeObserver } from '../../composables/use-element-size'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
 import DouTooltip from '../tooltip/tooltip.vue'
@@ -51,15 +52,9 @@ function measure() {
     : el.scrollHeight > el.clientHeight + 1
 }
 
-let observer: ResizeObserver | undefined
-onMounted(() => {
-  measure()
-  if (typeof ResizeObserver === 'undefined' || !textRef.value) return
-  observer = new ResizeObserver(() => measure())
-  observer.observe(textRef.value)
-})
+onMounted(measure)
+useResizeObserver(textRef, () => measure())
 onUpdated(measure)
-onBeforeUnmount(() => observer?.disconnect())
 watch(() => props.lines, measure, { flush: 'post' })
 
 const showToggle = computed(() => props.expandable && (truncated.value || expanded.value))

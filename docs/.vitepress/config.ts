@@ -145,6 +145,7 @@ export default defineConfig({
           items: [
             { text: 'Input 输入框', link: '/components/input' },
             { text: 'Textarea 多行输入', link: '/components/textarea' },
+            { text: 'Editable 行内编辑', link: '/components/editable' },
             { text: 'InputNumber 数字输入', link: '/components/input-number' },
             { text: 'InputTag 标签输入', link: '/components/input-tag' },
             { text: 'InputOTP 验证码输入', link: '/components/input-otp' },

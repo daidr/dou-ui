@@ -79,6 +79,10 @@ export interface Locale {
     /** Label of the handle that moves the drawer to its next snap point. */
     snap: string
   }
+  editable: {
+    /** Read after the text, saying how to start editing it. */
+    hint: string
+  }
   select: {
     /** Shown in an empty select without a `placeholder`. */
     placeholder: string

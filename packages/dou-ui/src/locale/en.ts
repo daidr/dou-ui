@@ -47,6 +47,9 @@ export const en: Locale = {
     resize: 'Drag to resize',
     snap: 'Change height',
   },
+  editable: {
+    hint: 'Press Enter to edit',
+  },
   select: {
     placeholder: 'Select',
     empty: 'No matches',

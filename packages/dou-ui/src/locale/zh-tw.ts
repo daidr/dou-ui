@@ -47,6 +47,9 @@ export const zhTW: Locale = {
     resize: '拖曳調整大小',
     snap: '切換高度',
   },
+  editable: {
+    hint: '按 Enter 編輯',
+  },
   select: {
     placeholder: '請選擇',
     empty: '沒有符合的項目',

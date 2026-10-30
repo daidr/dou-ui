@@ -306,6 +306,16 @@ const arts: Record<string, string | ((id: string) => string)> = {
     rect(40, 28, 120, 64, 'p', 6) +
     lines(50, 40, [92, 100, 64], 11) +
     path('M151 85l4 -4M146 85l9 -9', 'ln'),
+  editable:
+    bar(40, 24, 64) +
+    bar(140, 24, 24, 't') +
+    path('M32 38h136M32 82h136', 'lb') +
+    rect(32, 46, 96, 28, 'ps', 6) +
+    rect(40, 53, 72, 14, 'as', 3) +
+    bar(44, 58, 64, 'k') +
+    bar(140, 58, 24, 't') +
+    bar(40, 92, 52) +
+    bar(140, 92, 24, 't'),
   'input-number':
     rect(40, 40, 120, 40, 'p', 6) +
     path('M76 40v40M124 40v40', 'lb') +

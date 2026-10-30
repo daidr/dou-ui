@@ -33,6 +33,7 @@ export default defineConfig({
       { text: '指南', link: '/guide/philosophy' },
       { text: '组件', link: '/components/overview' },
       { text: '区块', link: '/blocks/login' },
+      { text: '编辑器', link: '/editor/' },
       { text: '图标', link: '/icons/' },
       { text: '集成', link: '/integrations/vite' },
     ],
@@ -47,6 +48,17 @@ export default defineConfig({
             { text: '仪表盘', link: '/blocks/dashboard' },
             { text: 'AI 对话页', link: '/blocks/chat' },
             { text: '错误页', link: '/blocks/errors' },
+          ],
+        },
+      ],
+      '/editor': [
+        {
+          text: '块编辑器',
+          items: [
+            { text: '概览', link: '/editor/' },
+            { text: '文档数据', link: '/editor/data' },
+            { text: '快捷操作', link: '/editor/shortcuts' },
+            { text: '扩展', link: '/editor/extensions' },
           ],
         },
       ],
@@ -271,6 +283,11 @@ export default defineConfig({
         { find: /^dou-ui\/style\.css$/, replacement: r('../../packages/theme/src/index.css') },
         { find: /^@dou-ui\/icons$/, replacement: r('../../packages/icons/src/index.ts') },
         { find: /^@dou-ui\/icons\/meta$/, replacement: r('../../packages/icons/src/meta.ts') },
+        { find: /^@dou-ui\/editor$/, replacement: r('../../packages/editor/src/index.ts') },
+        {
+          find: /^@dou-ui\/editor\/style\.css$/,
+          replacement: r('../../packages/editor/src/style.css'),
+        },
       ],
     },
   },

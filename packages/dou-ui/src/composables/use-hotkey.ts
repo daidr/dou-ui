@@ -165,6 +165,8 @@ export function useHotkey(
   function onKeydown(raw: Event) {
     const event = raw as KeyboardEvent
     if (toValue(options.enabled) === false || event.isComposing || event.key === undefined) return
+    // something closer to the target already handled the key, e.g. an editor's own shortcut
+    if (event.defaultPrevented) return
     if (!allowInInput && isTyping(event)) return
     // a bare modifier press never moves a sequence on or resets it
     if (['Meta', 'Control', 'Alt', 'Shift'].includes(event.key)) return

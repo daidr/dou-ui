@@ -1,0 +1,563 @@
+/*
+ * Editor
+ *
+ * A document reads like a page, not a form: no box around it, text at
+ * reading size with generous leading. Blocks stack with a few pixels
+ * between them and nest by indenting. The handle sits in the gutter on
+ * the left of the hovered block. Selected blocks take a faint tint, the
+ * same in light and dark; the drop line during a drag is the focus color.
+ */
+@layer dou.components {
+  .dou-editor {
+    --dou-editor-font-size: var(--dou-font-size-lg);
+    --dou-editor-line-height: 1.7;
+    /* room on the left for the handle of top-level blocks */
+    --dou-editor-gutter: 56px;
+    --dou-editor-indent: 24px;
+    --dou-editor-block-gap: 2px;
+    --dou-editor-selected: light-dark(
+      color-mix(in oklab, var(--dou-color-focus) 12%, transparent),
+      color-mix(in oklab, var(--dou-color-focus) 22%, transparent)
+    );
+    --dou-editor-control-hover: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+
+    position: relative;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    padding-inline-start: var(--dou-editor-gutter);
+    color: var(--dou-color-text);
+    font-family: var(--dou-font-family);
+    font-size: var(--dou-editor-font-size);
+    line-height: var(--dou-editor-line-height);
+    overflow-wrap: break-word;
+
+    &.is-readonly {
+      --dou-editor-gutter: 0px;
+    }
+
+    /* touch screens have no hover: no handle, and no gutter for it */
+    @media (pointer: coarse) {
+      --dou-editor-gutter: 0px;
+
+      & .dou-editor__handle {
+        display: none;
+      }
+    }
+
+    &.is-dragging,
+    &.is-dragging * {
+      cursor: grabbing;
+    }
+  }
+
+  .dou-editor__surface {
+    min-height: calc(var(--dou-editor-line-height) * 1em);
+    outline: none;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-variant-ligatures: none;
+  }
+
+  /* blocks */
+
+  .dou-editor__block {
+    position: relative;
+    border-radius: 4px;
+  }
+
+  .dou-editor__group {
+    padding-inline-start: var(--dou-editor-indent);
+  }
+
+  .dou-editor__content {
+    position: relative;
+    margin: 0;
+    padding-block: var(--dou-editor-block-gap);
+    font-size: 1em;
+    font-weight: inherit;
+    line-height: var(--dou-editor-line-height);
+  }
+
+  .dou-editor__content--heading {
+    --dou-editor-line-height: 1.4;
+    margin-top: 0.6em;
+    font-weight: var(--dou-font-weight-bold);
+    letter-spacing: -0.01em;
+
+    &:is(h1) {
+      margin-top: 0.8em;
+      font-size: 1.75em;
+    }
+    &:is(h2) {
+      font-size: 1.375em;
+    }
+    &:is(h3) {
+      font-size: 1.125em;
+    }
+  }
+
+  .dou-editor__surface > .dou-editor__block:first-child > .dou-editor__content--heading {
+    margin-top: 0;
+  }
+
+  /* lists: the marker sits in the indent in front of the text */
+  .dou-editor__content--bulletItem,
+  .dou-editor__content--numberedItem {
+    padding-inline-start: var(--dou-editor-indent);
+
+    &::before {
+      position: absolute;
+      inset-inline-start: 0;
+      width: var(--dou-editor-indent);
+    }
+  }
+
+  .dou-editor__content--bulletItem::before {
+    content: '';
+    top: calc(var(--dou-editor-block-gap) + var(--dou-editor-line-height) * 0.5em - 3px);
+    inset-inline-start: 7px;
+    width: 6px;
+    height: 6px;
+    box-sizing: border-box;
+    border-radius: 50%;
+    background-color: currentColor;
+    color: var(--dou-color-text-secondary);
+  }
+
+  /* one level in, the dot becomes a ring */
+  .dou-editor__group .dou-editor__content--bulletItem::before {
+    border: 1.5px solid currentColor;
+    background-color: transparent;
+  }
+
+  .dou-editor__content--numberedItem::before {
+    content: attr(data-index) '.';
+    top: var(--dou-editor-block-gap);
+    padding-inline-end: 6px;
+    box-sizing: border-box;
+    color: var(--dou-color-text-secondary);
+    font-variant-numeric: tabular-nums;
+    text-align: end;
+  }
+
+  .dou-editor__content--checkItem {
+    display: flex;
+    gap: 8px;
+  }
+
+  .dou-editor__check {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    height: calc(var(--dou-editor-line-height) * 1em);
+    user-select: none;
+  }
+
+  .dou-editor__checkbox {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--dou-color-border-strong);
+    border-radius: calc(var(--dou-radius-control) - 2px);
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-sm);
+    color: var(--dou-color-neutral-on);
+    cursor: pointer;
+    transition-property: background-color, border-color, box-shadow;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    & > svg {
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      transform: scale(0.6);
+      transition-property: opacity, transform;
+      transition-duration: var(--dou-motion-duration-fast);
+      transition-timing-function: var(--dou-motion-easing);
+    }
+
+    &:hover:not(:disabled) {
+      border-color: color-mix(
+        in oklab,
+        var(--dou-color-neutral) 45%,
+        var(--dou-color-border-strong)
+      );
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 2px;
+    }
+
+    &:disabled {
+      cursor: default;
+    }
+  }
+
+  .dou-editor__content--checkItem[data-checked='true'] {
+    & .dou-editor__checkbox {
+      border-color: color-mix(in oklab, var(--dou-color-neutral) 90%, var(--dou-color-edge));
+      background-color: var(--dou-color-neutral);
+      box-shadow:
+        var(--dou-shadow-highlight),
+        0 1px 2px color-mix(in oklab, var(--dou-color-neutral) 24%, transparent);
+
+      & > svg {
+        opacity: 1;
+        transform: none;
+      }
+    }
+
+    & .dou-editor__text {
+      color: var(--dou-color-text-tertiary);
+      text-decoration: line-through;
+      text-decoration-color: color-mix(in oklab, currentColor 60%, transparent);
+    }
+  }
+
+  .dou-editor__text {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .dou-editor__content--quote {
+    padding-inline-start: 14px;
+    box-shadow: inset 2px 0 0 var(--dou-color-border-strong);
+    color: var(--dou-color-text-secondary);
+  }
+
+  .dou-editor__content--codeBlock {
+    --dou-editor-line-height: 1.7;
+    margin-block: 4px;
+    padding: 12px 16px;
+    overflow-x: auto;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-container);
+    background-color: var(--dou-color-bg-muted);
+    font-family: var(--dou-font-family-mono);
+    font-size: var(--dou-font-size-sm);
+    tab-size: 2;
+    white-space: pre-wrap;
+
+    & > code {
+      font: inherit;
+    }
+  }
+
+  .dou-editor__content--divider {
+    padding-block: 12px;
+    cursor: default;
+
+    & > hr {
+      height: 1px;
+      margin: 0;
+      border: none;
+      background-color: var(--dou-color-border);
+    }
+
+    &.ProseMirror-selectednode > hr {
+      background-color: var(--dou-color-focus);
+    }
+  }
+
+  /* inline formatting */
+
+  .dou-editor__surface {
+    & strong {
+      font-weight: var(--dou-font-weight-bold);
+    }
+
+    & u {
+      text-underline-offset: 0.2em;
+    }
+
+    & s u,
+    & u s {
+      text-decoration: underline line-through;
+    }
+
+    & :not(pre) > code {
+      padding: 0.1em 0.3em;
+      border-radius: 4px;
+      background-color: var(--dou-color-bg-muted);
+      box-shadow: inset 0 0 0 1px var(--dou-color-border-subtle);
+      font-family: var(--dou-font-family-mono);
+      font-size: 0.875em;
+    }
+  }
+
+  .dou-editor__link {
+    color: inherit;
+    text-decoration: underline;
+    text-decoration-color: var(--dou-color-border-strong);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.2em;
+    transition: text-decoration-color var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    &:hover {
+      text-decoration-color: currentColor;
+    }
+  }
+
+  .dou-editor.is-readonly .dou-editor__link {
+    cursor: pointer;
+  }
+
+  /* hints in empty blocks */
+
+  .dou-editor__content.is-empty::after {
+    content: attr(data-placeholder);
+    position: absolute;
+    top: var(--dou-editor-block-gap);
+    inset-inline-start: 0;
+    color: var(--dou-color-text-tertiary);
+    pointer-events: none;
+    user-select: none;
+    white-space: nowrap;
+  }
+
+  .dou-editor__content--bulletItem.is-empty::after,
+  .dou-editor__content--numberedItem.is-empty::after {
+    inset-inline-start: var(--dou-editor-indent);
+  }
+
+  .dou-editor__content--checkItem.is-empty::after {
+    inset-inline-start: 24px;
+  }
+
+  .dou-editor__content--quote.is-empty::after {
+    inset-inline-start: 14px;
+  }
+
+  /* selected blocks */
+
+  .dou-editor__block.is-selected {
+    background-color: var(--dou-editor-selected);
+  }
+
+  /* neighbouring selected blocks read as one band */
+  .dou-editor__block.is-selected + .dou-editor__block.is-selected {
+    border-start-start-radius: 0;
+    border-start-end-radius: 0;
+  }
+
+  .dou-editor__block.is-selected:has(+ .dou-editor__block.is-selected) {
+    border-end-start-radius: 0;
+    border-end-end-radius: 0;
+  }
+
+  .dou-editor__block.is-selected .dou-editor__block.is-selected {
+    background-color: transparent;
+  }
+
+  .is-block-selecting {
+    caret-color: transparent;
+
+    & ::selection {
+      background-color: transparent;
+    }
+  }
+
+  .dou-editor.is-dragging .dou-editor__block.is-selected {
+    opacity: 0.45;
+  }
+
+  /* the handle: add a block, drag to move, click for the menu */
+
+  .dou-editor__handle {
+    position: absolute;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    height: var(--dou-editor-line, 24px);
+    transform: translateX(calc(-100% - 6px));
+  }
+
+  .dou-editor__handle-button {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 24px;
+    margin: 0;
+    padding: 0;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--dou-color-text-tertiary);
+    cursor: pointer;
+    transition-property: background-color, color;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    & > svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    &:hover,
+    &[aria-expanded='true'] {
+      background-color: var(--dou-editor-control-hover);
+      color: var(--dou-color-text-secondary);
+    }
+  }
+
+  .dou-editor__grip {
+    width: 18px;
+    cursor: grab;
+    touch-action: none;
+  }
+
+  /* the copy of the dragged blocks next to the pointer */
+  .dou-editor__ghost {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 2000;
+    box-sizing: border-box;
+    max-height: 160px;
+    padding: 6px 12px;
+    overflow: hidden;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-control);
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-md);
+    opacity: 0.88;
+    pointer-events: none;
+
+    /* headings start at the top, without their margin */
+    & > .dou-editor__block:first-child > .dou-editor__content {
+      margin-top: 0;
+    }
+  }
+
+  .dou-editor__drop {
+    position: absolute;
+    height: 2px;
+    margin-top: -1px;
+    border-radius: 1px;
+    background-color: var(--dou-color-focus);
+    pointer-events: none;
+  }
+
+  /* slash menu */
+
+  .dou-editor-slash {
+    width: 288px;
+    max-height: min(var(--dou-floating-available, 100vh), 336px);
+  }
+
+  .dou-editor-slash__item {
+    gap: 10px;
+    height: auto;
+    padding: 6px 8px 6px 6px;
+
+    &:focus,
+    &.is-active {
+      background-color: var(--dou-dropdown-item-active-bg);
+    }
+  }
+
+  .dou-editor-slash__icon {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-control);
+    background-color: var(--dou-color-bg-surface);
+    color: var(--dou-color-text-secondary);
+
+    & > svg {
+      width: 18px;
+      height: 18px;
+    }
+  }
+
+  .dou-editor-slash__text {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .dou-editor-slash__label,
+  .dou-editor-slash__hint {
+    overflow-x: clip;
+    text-box: trim-both cap alphabetic;
+    text-overflow: ellipsis;
+  }
+
+  .dou-editor-slash__hint {
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+  }
+
+  .dou-editor-slash__shortcut {
+    flex: none;
+    color: var(--dou-color-text-tertiary);
+    font-family: var(--dou-font-family-mono);
+    font-size: var(--dou-font-size-sm);
+    text-box: trim-both cap alphabetic;
+  }
+
+  .dou-editor-slash__empty {
+    padding: 8px;
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+  }
+
+  /* formatting toolbar over selected text */
+
+  .dou-editor-bubble {
+    padding: 4px;
+    border: 1px solid var(--dou-color-border);
+    border-radius: calc(var(--dou-radius-control) + 4px);
+    background-color: light-dark(
+      var(--dou-color-bg-surface),
+      color-mix(in oklab, var(--dou-color-text) 4%, var(--dou-color-bg-surface))
+    );
+    box-shadow: var(--dou-shadow-md);
+    color: var(--dou-color-text);
+    font-family: var(--dou-font-family);
+    font-size: var(--dou-font-size-md);
+    line-height: normal;
+  }
+
+  .dou-editor-bubble__type {
+    gap: 4px;
+
+    & svg {
+      color: var(--dou-color-text-tertiary);
+    }
+  }
+
+  .dou-editor-bubble__link {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+
+    & > .dou-input {
+      width: 240px;
+    }
+  }
+
+  .dou-editor-bubble__tip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+}

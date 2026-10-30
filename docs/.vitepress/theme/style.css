@@ -640,15 +640,18 @@ body {
   flex-wrap: wrap;
   align-items: center;
   gap: 12px;
-  /* Content that cannot shrink to a phone's width scrolls inside the
-     demo rather than widening the page. A horizontal scroller clips
-     vertically too, so the top padding leaves room for marks that sit
-     above their anchor, such as a badge on a button's corner. */
-  overflow-x: auto;
   padding: 12px 24px 24px;
   color: var(--dou-color-text);
   font-size: var(--dou-font-size-md);
   line-height: var(--dou-font-line-height);
+}
+
+/* Set by DocDemo only when the content cannot shrink to the stage's
+   width, so it scrolls inside the demo rather than widening the page.
+   A horizontal scroller clips vertically too; the top padding leaves
+   room for marks above their anchor, such as a badge on a corner. */
+.doc-demo__stage.is-scrollable {
+  overflow-x: auto;
 }
 
 .doc-demo__stage--column {

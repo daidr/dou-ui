@@ -25,6 +25,7 @@ function setup(extra: Record<string, unknown> = {}) {
           tasks: tasks.value,
           'onUpdate:tasks': (value: GanttTask[]) => (tasks.value = value),
           links: links.value,
+          'onUpdate:links': (value: GanttLink[]) => (links.value = value),
           selection: selection.value,
           'onUpdate:selection': (value: string[]) => (selection.value = value),
           ...extra,
@@ -32,8 +33,22 @@ function setup(extra: Record<string, unknown> = {}) {
     ),
     { attachTo: document.body },
   )
-  return { wrapper, tasks, selection }
+  return { wrapper, tasks, links, selection }
 }
+
+// happy-dom lays nothing out: the chart sits at 0 and a day is 40px wide
+const press = (el: Element, clientX: number) =>
+  el.dispatchEvent(
+    new PointerEvent('pointerdown', {
+      button: 0,
+      clientX,
+      clientY: 10,
+      pointerId: 1,
+      bubbles: true,
+    }),
+  )
+const pointer = (type: string, clientX: number) =>
+  window.dispatchEvent(new PointerEvent(type, { clientX, clientY: 10, pointerId: 1 }))
 
 describe('DouGantt', () => {
   it('renders the table with summaries worked out', async () => {
@@ -121,6 +136,77 @@ describe('DouGantt', () => {
     expect(warn).toHaveBeenCalledTimes(1)
     expect(warn.mock.calls[0]![0]).toContain('"x"')
     warn.mockRestore()
+    wrapper.unmount()
+  })
+
+  it('moves a bar by whole days, as one undo step', async () => {
+    const { wrapper, tasks } = setup()
+    await nextTick()
+    press(wrapper.find('.dou-gantt__bar[data-task="a"]').element, 100)
+    pointer('pointermove', 110)
+    pointer('pointermove', 183)
+    await nextTick()
+    // while dragging, the table already shows the new start
+    expect(wrapper.findAll('.dou-gantt__tr')[1]!.findAll('.dou-gantt__td')[1]!.text()).toBe(
+      '3月4日',
+    )
+    expect(tasks.value[1]!.start).toBe('2026-03-02')
+    pointer('pointerup', 183)
+    expect(tasks.value[1]).toMatchObject({ start: '2026-03-04', end: '2026-03-08' })
+    // undo right away, before the parent has rendered the change
+    const mod = /mac/i.test(navigator.platform) ? { metaKey: true } : { ctrlKey: true }
+    wrapper
+      .find('.dou-gantt')
+      .element.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', ...mod, bubbles: true }))
+    expect(tasks.value[1]).toMatchObject({ start: '2026-03-02', end: '2026-03-06' })
+    wrapper.unmount()
+  })
+
+  it('resizes the end and drags the progress', async () => {
+    const { wrapper, tasks } = setup()
+    await nextTick()
+    press(wrapper.find('[data-handle="end"]').element, 300)
+    pointer('pointermove', 340)
+    pointer('pointerup', 340)
+    expect(tasks.value[1]).toMatchObject({ start: '2026-03-02', end: '2026-03-07' })
+    await nextTick()
+    const bar = wrapper.find('.dou-gantt__bar[data-task="a"]').element as HTMLElement
+    // bar positions are in timeline px; the pointer is on screen
+    const left =
+      Number.parseFloat(bar.style.left) - wrapper.find('.dou-gantt__chart').element.scrollLeft
+    press(wrapper.find('[data-handle="progress"]').element, left + 60)
+    pointer('pointermove', left + 120)
+    pointer('pointerup', left + 120)
+    // 120 of 240px
+    expect(tasks.value[1]!.progress).toBe(0.5)
+    wrapper.unmount()
+  })
+
+  it('cancels a drag with Escape and ignores it when read-only', async () => {
+    const { wrapper, tasks } = setup()
+    await nextTick()
+    press(wrapper.find('.dou-gantt__bar[data-task="a"]').element, 100)
+    pointer('pointermove', 260)
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    pointer('pointerup', 260)
+    expect(tasks.value[1]!.start).toBe('2026-03-02')
+    wrapper.unmount()
+    const ro = setup({ readonly: true })
+    await nextTick()
+    expect(ro.wrapper.find('[data-handle]').exists()).toBe(false)
+    press(ro.wrapper.find('.dou-gantt__bar[data-task="a"]').element, 100)
+    pointer('pointermove', 260)
+    pointer('pointerup', 260)
+    expect(ro.tasks.value[1]!.start).toBe('2026-03-02')
+    ro.wrapper.unmount()
+  })
+
+  it('deletes a selected link with Delete', async () => {
+    const { wrapper, links } = setup()
+    await nextTick()
+    await wrapper.find('.dou-gantt__link').trigger('click')
+    await wrapper.find('.dou-gantt').trigger('keydown', { key: 'Delete' })
+    expect(links.value.map((link) => link.id)).toEqual(['l2'])
     wrapper.unmount()
   })
 })

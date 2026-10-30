@@ -1,6 +1,7 @@
 import type { GanttCalendar } from './core/calendar'
 import type { GanttLink, GanttTask } from './core/model'
 import type { GanttScale } from './core/scale'
+import type { GanttDocument, GanttTransaction, GanttTransactionMeta } from './core/transaction'
 import type { GanttRow } from './core/tree'
 import type { GanttMessagesOverride } from './locale'
 
@@ -53,6 +54,13 @@ export interface GanttProps {
   today?: boolean
   /** The first day of a week: `0` Sunday, `1` Monday. Defaults to the locale's. */
   weekStart?: 0 | 1
+  /** Show the plan without changing it: no dragging, no new links, no undo keys. */
+  readonly?: boolean
+  /**
+   * The last check before a link is made by dragging. Return `true` to
+   * allow it; anything else refuses it, and a string is shown as the reason.
+   */
+  canLink?: (link: Pick<GanttLink, 'from' | 'to' | 'type'>, doc: GanttDocument) => boolean | string
   /** Accessible name of the chart. */
   ariaLabel?: string
   /** Texts to change; only the ones given are replaced. */
@@ -60,6 +68,10 @@ export interface GanttProps {
 }
 
 export interface GanttEmits {
+  /** Every change to tasks or links, with its steps; sent after the `update:` events. */
+  transaction: [tr: GanttTransaction]
+  /** A link was drawn by dragging from one bar to another. */
+  link: [link: GanttLink]
   taskClick: [task: GanttTask, event: MouseEvent]
   taskDblclick: [task: GanttTask, event: MouseEvent]
   taskContextmenu: [task: GanttTask, event: MouseEvent]
@@ -74,6 +86,12 @@ export interface GanttSlots {
 }
 
 export interface GanttExpose {
+  /** Applies changes as one transaction, one undo step. */
+  transact: (fn: (tr: GanttTransaction) => void, meta?: GanttTransactionMeta) => GanttTransaction
+  undo: () => boolean
+  redo: () => boolean
+  readonly canUndo: boolean
+  readonly canRedo: boolean
   /** Picks the day width that fits all tasks into view and scrolls to the first one. */
   fit: () => void
   /** Scrolls so that a date (or time) is near the left of the timeline. */

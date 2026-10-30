@@ -1,15 +1,29 @@
 <script setup lang="ts">
 import { ChevronDownIcon, ChevronRightIcon } from '@dou-ui/icons'
-import { useElementSize, useLocale, useNow } from 'dou-ui'
-import { computed, onMounted, ref, toRaw, useTemplateRef, watch } from 'vue'
+import { matchesHotkey, useElementSize, useLocale, useNow } from 'dou-ui'
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  shallowRef,
+  toRaw,
+  useTemplateRef,
+  watch,
+} from 'vue'
 import { offTime, resolveCalendar } from './core/calendar'
 import { arrowPath, roundedPath, routeLink, type BarBox } from './core/geometry'
-import type { GanttLink, GanttTask } from './core/model'
+import { GanttHistory } from './core/history'
+import { linkRefusal, linkTypeOf, type GanttLinkRefusal } from './core/links'
+import { createId, writeSpan, type GanttLink, type GanttTask } from './core/model'
+import { GanttTransaction, type GanttDocument, type GanttTransactionMeta } from './core/transaction'
 import {
   DAY_WIDTH_RANGE,
   hourStep,
   levelByName,
   levelOf,
+  snapStep,
   unitsBetween,
   type GanttScale,
   type TimeUnit,
@@ -58,7 +72,88 @@ const { width: viewWidth, height: viewHeight } = useElementSize(chart)
 
 // Tasks ---------------------------------------------------------------------------
 
-const tree = computed(() => buildTree(tasks.value))
+// Document and history -------------------------------------------------------------
+
+const history = new GanttHistory()
+const canUndo = ref(false)
+const canRedo = ref(false)
+const syncHistory = () => {
+  canUndo.value = history.canUndo
+  canRedo.value = history.canRedo
+}
+const editable = computed(() => !props.readonly)
+
+/*
+ * A bound v-model only catches up when the parent renders, so changes made
+ * in the same tick (a drag, then undo) build on the latest commit instead.
+ */
+let latest: GanttDocument | null = null
+const docOf = (): GanttDocument =>
+  latest ?? { tasks: toRaw(tasks.value), links: toRaw(links.value) }
+
+function commit(tr: GanttTransaction) {
+  if (!latest) void nextTick(() => (latest = null))
+  latest = tr.doc
+  if (tr.touches('tasks')) tasks.value = tr.doc.tasks
+  if (tr.touches('links')) links.value = tr.doc.links
+  if (tr.touches('tasks')) {
+    const ids = new Set(tr.doc.tasks.map((task) => task.id))
+    const kept = selection.value.filter((id) => ids.has(id))
+    if (kept.length !== selection.value.length) selection.value = kept
+  }
+  if (selectedLink.value && !tr.doc.links.some((link) => link.id === selectedLink.value))
+    selectedLink.value = null
+  emit('transaction', tr)
+}
+
+/** Applies changes as one transaction, one undo step. */
+function transact(fn: (tr: GanttTransaction) => void, meta?: GanttTransactionMeta) {
+  const tr = new GanttTransaction(docOf())
+  if (meta) tr.setMeta(meta)
+  fn(tr)
+  if (!tr.changed) return tr
+  const before = selection.value
+  commit(tr)
+  history.record(tr, before, selection.value)
+  syncHistory()
+  return tr
+}
+
+function undo() {
+  const result = history.undo(docOf())
+  if (!result) return false
+  result.tr.setMeta({ origin: 'undo', history: false })
+  commit(result.tr)
+  selection.value = result.selection
+  syncHistory()
+  return true
+}
+
+function redo() {
+  const result = history.redo(docOf())
+  if (!result) return false
+  result.tr.setMeta({ origin: 'redo', history: false })
+  commit(result.tr)
+  selection.value = result.selection
+  syncHistory()
+  return true
+}
+
+const selectedLink = ref<string | null>(null)
+
+// While a bar is dragged, the chart shows the tasks as they would be after the drop.
+const drag = shallowRef<Drag | null>(null)
+const shown = computed(() => {
+  if (!drag.value?.started) return tasks.value
+  const changes = dragPreview.value
+  if (!changes) return tasks.value
+  return tasks.value.map((task) => {
+    const patch = changes.get(task.id)
+    return patch ? { ...task, ...patch } : task
+  })
+})
+
+const tree = computed(() => buildTree(shown.value))
 const rows = computed(() => tree.value.rows)
 const calendar = computed(() => resolveCalendar(props.calendar))
 const selected = computed(() => new Set(selection.value))
@@ -288,9 +383,9 @@ function cells(unit: TimeUnit, step = 1): HeaderCell[] {
   )
 }
 
-const step = computed(() => (level.value.bottom === 'hour' ? hourStep(dayWidth.value) : 1))
+const headerStep = computed(() => (level.value.bottom === 'hour' ? hourStep(dayWidth.value) : 1))
 const topCells = computed(() => cells(level.value.top))
-const bottomCells = computed(() => cells(level.value.bottom, step.value))
+const bottomCells = computed(() => cells(level.value.bottom, headerStep.value))
 
 /** Days off, shaded; at hour level the hours outside work too. */
 const shaded = computed(() => {
@@ -543,11 +638,11 @@ function columnStyle(column: GanttColumn) {
   }
 }
 
+// folding is a view change: it stays out of the undo history
 function toggle(row: GanttRow) {
-  const id = row.task.id
-  tasks.value = toRaw(tasks.value).map((task) =>
-    task.id === id ? { ...task, collapsed: !task.collapsed || undefined } : task,
-  )
+  transact((tr) => tr.updateTask(row.task.id, { collapsed: !row.task.collapsed || undefined }), {
+    history: false,
+  })
 }
 
 // Selection and events ------------------------------------------------------------
@@ -566,6 +661,8 @@ function select(task: GanttTask, event: MouseEvent) {
 }
 
 function onTaskClick(row: GanttRow, event: MouseEvent) {
+  if (dragged) return
+  selectedLink.value = null
   select(row.task, event)
   emit('taskClick', row.task, event)
 }
@@ -575,6 +672,402 @@ const highlightRows = computed(() =>
     (row) => selected.value.has(row.task.id) || hovered.value === row.task.id,
   ),
 )
+
+// Dragging ---------------------------------------------------------------------------
+
+type DragMode = 'move' | 'start' | 'end' | 'progress' | 'link' | 'draw'
+type End = 'start' | 'end'
+
+interface Drag {
+  mode: DragMode
+  /** The task pressed. */
+  id: string
+  pointerId: number
+  touch: boolean
+  /** Where the press was, in timeline px. */
+  x0: number
+  /** Where the pointer is now, in timeline px and on screen. */
+  x: number
+  clientX: number
+  clientY: number
+  /** Past the threshold: a drag, not a click. */
+  started: boolean
+  /** The tasks that move, with their spans when the drag began. */
+  spans: Map<string, { start: number; end: number; dateOnly: boolean }>
+  /** For `progress`: the bar's box when the drag began. */
+  box?: { left: number; width: number }
+  /** For `link`: the end it starts from, and what is under the pointer. */
+  from?: End
+  target?: { id: string; end: End; refusal: GanttLinkRefusal | null; reason?: string }
+  /** For `draw`: the row's y centre. */
+  y?: number
+}
+
+/** Movement in px before a press becomes a drag. */
+const THRESHOLD = { mouse: 3, touch: 6 }
+/** How long a finger rests on a bar before it picks it up, in ms. */
+const LONG_PRESS = 300
+/** How close to the edge a drag starts scrolling, in px. */
+const EDGE = 32
+
+/** The last drag ended a moment ago: swallow the click that follows it. */
+let dragged = false
+let pressTimer: ReturnType<typeof setTimeout> | undefined
+let frame = 0
+
+/** The step a drag snaps to for these spans: whole days when any is date-only. */
+function stepFor(spans: Iterable<{ dateOnly: boolean }>) {
+  const step = snapStep(dayWidth.value)
+  for (const span of spans) if (span.dateOnly) return Math.max(step, MINUTES_PER_DAY)
+  return step
+}
+
+const snap = (at: number, step: number) => Math.round(at / step) * step
+const task = (id: string) => tasks.value.find((item) => item.id === id)!
+/** Auto-scroll speed in px per frame, `gap` px from the edge. */
+const edgeSpeed = (gap: number) => (gap < EDGE ? Math.ceil(((EDGE - gap) / EDGE) * 16) : 0)
+
+/** The changes the current drag would make, by task id. */
+const dragPreview = computed<Map<string, Partial<GanttTask>> | null>(() => {
+  const d = drag.value
+  if (!d?.started) return null
+  const out = new Map<string, Partial<GanttTask>>()
+  const delta = (d.x - d.x0) / ppm.value
+  switch (d.mode) {
+    case 'move': {
+      const unit = stepFor(d.spans.values())
+      const first = d.spans.get(d.id) ?? d.spans.values().next().value!
+      const shift = snap(first.start + delta, unit) - first.start
+      for (const [id, span] of d.spans)
+        out.set(id, writeSpan(task(id), span.start + shift, span.end + shift))
+      break
+    }
+    case 'start':
+    case 'end': {
+      const span = d.spans.get(d.id)!
+      const unit = stepFor([span])
+      if (d.mode === 'start') {
+        const start = Math.min(snap(span.start + delta, unit), span.end - unit)
+        out.set(d.id, writeSpan(task(d.id), start, span.end))
+      } else {
+        const end = Math.max(snap(span.end + delta, unit), span.start + unit)
+        out.set(d.id, writeSpan(task(d.id), span.start, end))
+      }
+      break
+    }
+    case 'progress': {
+      const { left, width } = d.box!
+      const value = Math.round(Math.min(1, Math.max(0, (d.x - left) / width)) * 20) / 20
+      out.set(d.id, { progress: value })
+      break
+    }
+    case 'draw': {
+      const unit = Math.max(snapStep(dayWidth.value), MINUTES_PER_DAY)
+      const a = origin.value + Math.min(d.x0, d.x) / ppm.value
+      const b = origin.value + Math.max(d.x0, d.x) / ppm.value
+      const start = Math.floor(a / unit) * unit
+      const end = Math.max(start + unit, Math.ceil(b / unit) * unit)
+      out.set(d.id, writeSpan(task(d.id), start, end))
+      break
+    }
+    case 'link':
+      return null
+  }
+  return out
+})
+
+const contentX = (clientX: number) =>
+  clientX - chart.value!.getBoundingClientRect().left + chart.value!.scrollLeft
+
+/** The leaf tasks a drag on `row` moves: the row itself, its subtasks, or the whole selection. */
+function movers(row: GanttRow) {
+  const out = new Map<string, { start: number; end: number; dateOnly: boolean }>()
+  const add = (id: string) => {
+    const item = tree.value.byId.get(id)
+    if (!item || item.task.locked) return
+    if (item.summary) {
+      for (const child of tree.value.childrenOf.get(id) ?? []) add(child.id)
+    } else if (item.span) out.set(id, { ...item.span })
+  }
+  const ids = selected.value.has(row.task.id) ? selection.value : [row.task.id]
+  for (const id of ids) add(id)
+  return out
+}
+
+function startDrag(event: PointerEvent, row: GanttRow, mode: DragMode, from?: End) {
+  if (event.button !== 0 || !editable.value) return
+  const touch = event.pointerType === 'touch'
+  const x = contentX(event.clientX)
+  const d: Drag = {
+    mode,
+    id: row.task.id,
+    pointerId: event.pointerId,
+    touch,
+    x0: x,
+    x,
+    clientX: event.clientX,
+    clientY: event.clientY,
+    started: false,
+    spans: new Map(),
+    from,
+  }
+  if (mode === 'move') {
+    d.spans = movers(row)
+    if (!d.spans.size) return
+  } else if (mode === 'start' || mode === 'end') {
+    if (!row.span || row.task.locked) return
+    d.spans.set(row.task.id, { ...row.span })
+  } else if (mode === 'progress') {
+    if (!row.span || row.task.locked) return
+    d.box = {
+      left: xOf(row.span.start),
+      width: Math.max(1, (row.span.end - row.span.start) * ppm.value),
+    }
+  }
+  drag.value = d
+  window.addEventListener('pointermove', onDragMove)
+  window.addEventListener('pointerup', onDragEnd)
+  window.addEventListener('pointercancel', onDragCancel)
+  window.addEventListener('keydown', onDragKey, true)
+  // a finger picks a bar up after a short rest; moving sooner scrolls instead
+  if (touch && mode === 'move') {
+    pressTimer = setTimeout(() => {
+      if (drag.value !== d) return
+      begin(d)
+      navigator.vibrate?.(8)
+    }, LONG_PRESS)
+  }
+}
+
+function begin(d: Drag) {
+  d.started = true
+  window.addEventListener('touchmove', preventScroll, { passive: false })
+  frame = requestAnimationFrame(autoScroll)
+  drag.value = { ...d }
+}
+
+const preventScroll = (event: TouchEvent) => event.preventDefault()
+
+function onDragMove(event: PointerEvent) {
+  const d = drag.value
+  if (!d || event.pointerId !== d.pointerId) return
+  d.clientX = event.clientX
+  d.clientY = event.clientY
+  const x = contentX(event.clientX)
+  if (!d.started) {
+    const far = Math.abs(x - d.x0) > THRESHOLD[d.touch ? 'touch' : 'mouse']
+    if (!far) return
+    // a finger that moves before the long press scrolls the chart
+    if (d.touch && d.mode === 'move') return stopDrag()
+    begin(d)
+  }
+  update(drag.value!, x)
+}
+
+function update(d: Drag, x: number) {
+  const next = { ...d, x }
+  if (d.mode === 'link') next.target = linkTarget(d)
+  drag.value = next
+}
+
+/** The bar end under the pointer, and whether a link to it would be refused. */
+function linkTarget(d: Drag): Drag['target'] {
+  // look through lines and handles to the bar underneath
+  const el = document
+    .elementsFromPoint(d.clientX, d.clientY)
+    .find((item): item is HTMLElement => item instanceof HTMLElement && !!item.dataset.task)
+  const id = el?.dataset.task
+  if (!el || !id) return undefined
+  const rect = el.getBoundingClientRect()
+  const end: End = d.clientX < rect.left + rect.width / 2 ? 'start' : 'end'
+  let refusal = linkRefusal(new Map(tasks.value.map((t) => [t.id, t])), links.value, d.id, id)
+  let reason: string | undefined
+  if (refusal && refusal !== 'self' && refusal !== 'custom')
+    reason = messages.value.linkRefusals[refusal]
+  if (!refusal && props.canLink) {
+    const link = { from: d.id, to: id, type: linkTypeOf(d.from!, end) }
+    const answer = props.canLink(link, docOf())
+    if (answer !== true) {
+      refusal = 'custom'
+      if (typeof answer === 'string' && answer) reason = answer
+    }
+  }
+  return { id, end, refusal, reason }
+}
+
+// scroll while the pointer rests near an edge, and keep the drag under it
+function autoScroll() {
+  const d = drag.value
+  const el = chart.value
+  if (!d?.started || !el) return
+  const rect = el.getBoundingClientRect()
+  const dx = -edgeSpeed(d.clientX - rect.left) || edgeSpeed(rect.right - d.clientX)
+  const dy = -edgeSpeed(d.clientY - rect.top - HEADER) || edgeSpeed(rect.bottom - d.clientY)
+  if (dx || (dy && d.mode === 'link')) {
+    el.scrollLeft += dx
+    if (d.mode === 'link') el.scrollTop += dy
+    update(d, contentX(d.clientX))
+  }
+  frame = requestAnimationFrame(autoScroll)
+}
+
+function onDragEnd(event: PointerEvent) {
+  const d = drag.value
+  if (!d || event.pointerId !== d.pointerId) return
+  if (d.started) {
+    dragged = true
+    setTimeout(() => (dragged = false))
+    if (d.mode === 'link') finishLink(d)
+    else {
+      const changes = dragPreview.value
+      if (changes)
+        transact((tr) => {
+          for (const [id, patch] of changes) tr.updateTask(id, patch)
+        })
+    }
+  }
+  stopDrag()
+}
+
+function finishLink(d: Drag) {
+  const target = d.target
+  if (!target || target.refusal) return
+  const link: GanttLink = { id: createId(), from: d.id, to: target.id }
+  const type = linkTypeOf(d.from!, target.end)
+  if (type !== 'fs') link.type = type
+  transact((tr) => tr.addLink(link))
+  emit('link', link)
+}
+
+const onDragCancel = () => stopDrag()
+
+function onDragKey(event: KeyboardEvent) {
+  if (event.key !== 'Escape' || !drag.value) return
+  event.preventDefault()
+  event.stopPropagation()
+  if (drag.value.started) {
+    dragged = true
+    setTimeout(() => (dragged = false))
+  }
+  stopDrag()
+}
+
+function stopDrag() {
+  clearTimeout(pressTimer)
+  cancelAnimationFrame(frame)
+  window.removeEventListener('pointermove', onDragMove)
+  window.removeEventListener('pointerup', onDragEnd)
+  window.removeEventListener('pointercancel', onDragCancel)
+  window.removeEventListener('keydown', onDragKey, true)
+  window.removeEventListener('touchmove', preventScroll)
+  drag.value = null
+}
+
+onBeforeUnmount(stopDrag)
+
+function onBarDown(event: PointerEvent, row: GanttRow) {
+  const handle = (event.target as HTMLElement).closest<HTMLElement>('[data-handle]')?.dataset
+    .handle as DragMode | `link-${End}` | undefined
+  if (handle?.startsWith('link-')) {
+    event.stopPropagation()
+    return startDrag(event, row, 'link', handle.slice(5) as End)
+  }
+  if (handle) event.stopPropagation()
+  startDrag(event, row, (handle as DragMode) ?? 'move')
+}
+
+/** A press on an empty row of a task without dates draws its dates. */
+function onBodyDown(event: PointerEvent) {
+  if (
+    event.target !== event.currentTarget &&
+    !(event.target as HTMLElement).matches(
+      '.dou-gantt__off, .dou-gantt__gridline, .dou-gantt__row-highlight',
+    )
+  )
+    return
+  const y =
+    event.clientY - chart.value!.getBoundingClientRect().top - HEADER + chart.value!.scrollTop
+  const row = rows.value[Math.floor(y / props.rowHeight)]
+  if (!row || row.span || row.summary || row.task.locked) return
+  if (event.pointerType === 'touch') return
+  startDrag(event, row, 'draw')
+}
+
+/** The line drawn while linking: from the end it started at to the pointer or target. */
+const draftLink = computed(() => {
+  const d = drag.value
+  if (d?.mode !== 'link' || !d.started) return null
+  const row = tree.value.byId.get(d.id)
+  const box = row && boxOf(row)
+  if (!box) return null
+  const x = d.from === 'start' ? box.left : box.right
+  const rect = chart.value!.getBoundingClientRect()
+  const y = d.clientY - rect.top - HEADER + chart.value!.scrollTop
+  return {
+    d: `M${x} ${box.y} L${d.x} ${y}`,
+    refused: !!d.target?.refusal,
+  }
+})
+
+/** What a drag shows beside the pointer: new dates, or the progress. */
+/** Keeps a tip that starts left of the view inside it. */
+const tipLeft = (x: number) => Math.max(x, scrollLeft.value + 8)
+
+const dragTip = computed(() => {
+  const d = drag.value
+  if (!d?.started) return null
+  if (d.mode === 'link') {
+    // say why the bar under the pointer can't take the link
+    const target = d.target?.reason ? tree.value.byId.get(d.target.id) : undefined
+    if (!target?.span || target.index < 0) return null
+    return {
+      text: d.target!.reason!,
+      left: tipLeft(xOf(target.span.start)),
+      top: target.index * props.rowHeight,
+    }
+  }
+  const row = tree.value.byId.get(d.id)
+  if (!row?.span || row.index < 0) return null
+  const m = messages.value
+  const text =
+    d.mode === 'progress'
+      ? format(m.progressTip, { value: Math.round(row.progress * 100) })
+      : row.milestone
+        ? dateLabel(
+            row.span.start - (row.span.dateOnly ? MINUTES_PER_DAY / 2 : 0),
+            row.span.dateOnly,
+            m,
+          )
+        : format(m.rangeTip, {
+            start: dateLabel(row.span.start, row.span.dateOnly, m),
+            end: endLabel(row.span, m),
+            duration: durationLabel(row.span, calendar.value, m),
+          })
+  return { text, left: tipLeft(xOf(row.span.start)), top: row.index * props.rowHeight }
+})
+
+// Keys ----------------------------------------------------------------------------------
+
+function onKeydown(event: KeyboardEvent) {
+  if (
+    !editable.value ||
+    (event.target as HTMLElement).closest('input, textarea, [contenteditable]')
+  )
+    return
+  if (matchesHotkey(event, 'mod+z')) undo()
+  else if (matchesHotkey(event, 'mod+shift+z') || matchesHotkey(event, 'mod+y')) redo()
+  else if ((event.key === 'Delete' || event.key === 'Backspace') && selectedLink.value) {
+    const id = selectedLink.value
+    transact((tr) => tr.removeLink(id))
+  } else return
+  event.preventDefault()
+}
+
+function onLinkClick(link: GanttLink, event: MouseEvent) {
+  selectedLink.value = link.id
+  root.value?.focus({ preventScroll: true })
+  emit('linkClick', link, event)
+}
 
 // Exposed ---------------------------------------------------------------------------
 
@@ -601,7 +1094,22 @@ function scrollToTask(id: string) {
   }
 }
 
-defineExpose<GanttExpose>({ fit, scrollToDate, scrollToTask, zoomIn, zoomOut })
+defineExpose<GanttExpose>({
+  transact,
+  undo,
+  redo,
+  get canUndo() {
+    return canUndo.value
+  },
+  get canRedo() {
+    return canRedo.value
+  },
+  fit,
+  scrollToDate,
+  scrollToTask,
+  zoomIn,
+  zoomOut,
+})
 
 const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * props.rowHeight}px)` })
 </script>
@@ -610,10 +1118,17 @@ const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * prop
   <div
     ref="root"
     class="dou-gantt"
-    :class="{ 'is-narrow': narrow }"
+    :class="{
+      'is-narrow': narrow,
+      'is-editable': editable,
+      'is-dragging': drag?.started,
+      [`is-dragging-${drag?.mode}`]: drag?.started,
+    }"
     :style="{ '--dou-gantt-row-height': `${rowHeight}px` }"
     role="group"
+    tabindex="0"
     :aria-label="ariaLabel ?? messages.chart"
+    @keydown="onKeydown"
   >
     <div v-if="showTable" class="dou-gantt__table-pane" :style="{ width: `${tableSize}px` }">
       <div class="dou-gantt__table" role="treegrid" :aria-rowcount="rows.length">
@@ -742,7 +1257,11 @@ const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * prop
             :style="{ left: `${todayX}px` }"
           />
         </div>
-        <div class="dou-gantt__body" :style="{ height: `${rows.length * rowHeight}px` }">
+        <div
+          class="dou-gantt__body"
+          :style="{ height: `${rows.length * rowHeight}px` }"
+          @pointerdown="onBodyDown"
+        >
           <div v-if="!showTable" class="dou-gantt__row-titles">
             <span
               v-for="item in rowTitles"
@@ -779,18 +1298,31 @@ const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * prop
               v-for="item in linkPaths"
               :key="item.link.id"
               class="dou-gantt__link"
-              :class="{ 'is-related': selected.has(item.link.from) || selected.has(item.link.to) }"
-              @click="emit('linkClick', item.link, $event)"
+              :class="{
+                'is-related': selected.has(item.link.from) || selected.has(item.link.to),
+                'is-selected': selectedLink === item.link.id,
+              }"
+              @click="onLinkClick(item.link, $event)"
             >
               <path class="dou-gantt__link-hit" :d="item.d" />
               <path class="dou-gantt__link-line" :d="item.d" />
               <path class="dou-gantt__link-arrow" :d="item.arrow" />
             </g>
+            <path
+              v-if="draftLink"
+              class="dou-gantt__link-draft"
+              :class="{ 'is-refused': draftLink.refused }"
+              :d="draftLink.d"
+            />
           </svg>
           <div
             v-for="bar in bars"
             :key="bar.row.task.id"
             class="dou-gantt__bar-row"
+            :class="{
+              'is-selected': selected.has(bar.row.task.id),
+              'is-active': drag?.started && drag.id === bar.row.task.id,
+            }"
             :style="{ transform: `translateY(${bar.top}px)` }"
             @pointerenter="hovered = bar.row.task.id"
             @pointerleave="hovered = null"
@@ -803,14 +1335,19 @@ const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * prop
                   'is-summary': bar.row.summary,
                   'is-milestone': bar.row.milestone,
                   'is-selected': selected.has(bar.row.task.id),
+                  'is-locked': bar.row.task.locked,
+                  'is-link-target': drag?.target?.id === bar.row.task.id && !drag.target.refusal,
+                  'is-link-refused': drag?.target?.id === bar.row.task.id && !!drag.target.refusal,
                 },
               ]"
+              :data-task="bar.row.task.id"
               :style="{
                 left: `${bar.left}px`,
                 width: bar.row.milestone ? undefined : `${bar.width}px`,
               }"
               role="img"
               :aria-label="bar.aria"
+              @pointerdown="onBarDown($event, bar.row)"
               @click="onTaskClick(bar.row, $event)"
               @dblclick="emit('taskDblclick', bar.row.task, $event)"
               @contextmenu="emit('taskContextmenu', bar.row.task, $event)"
@@ -824,6 +1361,42 @@ const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * prop
                 <slot name="bar" :task="bar.row.task" :row="bar.row">{{ bar.row.task.title }}</slot>
               </span>
             </div>
+            <template v-if="editable && !bar.row.task.locked">
+              <template v-if="!bar.row.milestone && !bar.row.summary">
+                <span
+                  class="dou-gantt__handle is-start"
+                  data-handle="start"
+                  :style="{ left: `${bar.left}px` }"
+                  @pointerdown="onBarDown($event, bar.row)"
+                />
+                <span
+                  class="dou-gantt__handle is-end"
+                  data-handle="end"
+                  :style="{ left: `${bar.left + bar.width}px` }"
+                  @pointerdown="onBarDown($event, bar.row)"
+                />
+                <span
+                  class="dou-gantt__progress-handle"
+                  data-handle="progress"
+                  :style="{ left: `${bar.left + bar.width * bar.row.progress}px` }"
+                  @pointerdown="onBarDown($event, bar.row)"
+                />
+              </template>
+            </template>
+            <template v-if="editable">
+              <span
+                class="dou-gantt__dot is-start"
+                data-handle="link-start"
+                :style="{ left: `${bar.left - (bar.row.milestone ? 7 : 0)}px` }"
+                @pointerdown="onBarDown($event, bar.row)"
+              />
+              <span
+                class="dou-gantt__dot is-end"
+                data-handle="link-end"
+                :style="{ left: `${bar.left + (bar.row.milestone ? 7 : bar.width)}px` }"
+                @pointerdown="onBarDown($event, bar.row)"
+              />
+            </template>
             <span
               v-if="bar.label === 'outside' && !titled.has(bar.row.task.id)"
               class="dou-gantt__bar-side"
@@ -832,6 +1405,13 @@ const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * prop
             >
               <slot name="bar" :task="bar.row.task" :row="bar.row">{{ bar.row.task.title }}</slot>
             </span>
+          </div>
+          <div
+            v-if="dragTip"
+            class="dou-gantt__tip"
+            :style="{ transform: `translate(${dragTip.left}px, ${dragTip.top}px)` }"
+          >
+            {{ dragTip.text }}
           </div>
         </div>
       </div>

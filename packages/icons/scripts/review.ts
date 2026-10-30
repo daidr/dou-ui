@@ -2,9 +2,11 @@
 /**
  * Build review sheets for icons: each icon enlarged on the 24 grid with the
  * keylines, the 3–21 safe area and its centerline, plus the 16/20/24/32/48
- * renders. With Playwright available, the sheets are also screenshotted and
- * every icon's bounding box is measured: the body belongs in 3–21, and only
- * wide, tall or special shapes may reach 2.5–21.5.
+ * renders and the 16px render at 1× device pixels, enlarged. With Playwright
+ * available, the sheets are also screenshotted and every icon is measured
+ * (see review-page.js): the bounding box (3–21, wide/tall/special shapes up
+ * to 2.5–21.5), gaps under 3.5 between strokes that do not join, and ink
+ * against the set's median.
  *
  *   bun scripts/review.ts [names|--category <key>|--all] [--out <dir>] [--per <n>]
  */
@@ -69,11 +71,11 @@ const css = `body{font-family:sans-serif;margin:12px;background:#fff;color:#111;
 .big .ic *{stroke:#111;stroke-width:1.5px;stroke-linecap:round;stroke-linejoin:round;fill:none;opacity:.88}.big .ic .dot{stroke-width:2.25px}.big .ic .fill{fill:#111}
 .big .sk *{stroke:#e33;stroke-width:.06;fill:none}
 .row{display:flex;gap:10px;align-items:end;margin-top:6px}.row svg *{vector-effect:non-scaling-stroke}
+.big .gaps circle{fill:none;stroke-width:.12}.big .gaps .merge{stroke:#e22}.big .gaps .tight{stroke:#e90}
+.pixels{margin-top:6px;font-size:11px;color:#777;display:flex;gap:8px;align-items:end}.px{width:96px;height:96px;image-rendering:pixelated;border:1px solid #eee}
 .t{font-size:14px;font-weight:600}.b{font-size:11px;color:#777}.b.bad{color:#d22;font-weight:600}`
 
-const measure = `<script>window.boxes={};document.querySelectorAll('.card').forEach(c=>{const b=c.querySelector('.ic').getBBox();
-const r=b.x+b.width,d=b.y+b.height,out=b.x<2.49||b.y<2.49||r>21.51||d>21.51,edge=!out&&(b.x<2.98||b.y<2.98||r>21.02||d>21.02);window.boxes[c.dataset.name]={x:b.x,y:b.y,w:b.width,h:b.height,out,edge};
-const el=c.querySelector('.b');el.textContent='bbox x '+b.x.toFixed(2)+'–'+(b.x+b.width).toFixed(2)+'  y '+b.y.toFixed(2)+'–'+(b.y+b.height).toFixed(2)+'  ('+b.width.toFixed(2)+'×'+b.height.toFixed(2)+')'+(out?'  超出 2.5–21.5':edge?'  越过 3–21':'');if(out)el.classList.add('bad')})</script>`
+const measure = `<script>${await readFile(new URL('review-page.js', import.meta.url), 'utf8')}</script>`
 
 async function card(name: string) {
   const body = await inner(name)
@@ -85,7 +87,8 @@ async function card(name: string) {
       return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="stroke-width:${stroke(size)}px">${dotted}</svg>`
     })
     .join('')
-  return `<div class="card" data-name="${name}"><div class="t">${name} · ${metas[name]!.label}</div><svg class="big" viewBox="0 0 24 24">${grid}${keylines}<g class="ic">${body}</g><g class="sk">${body}</g></svg><div class="row">${sizes}</div><div class="b"></div></div>`
+  const attr = body.replaceAll('&', '&amp;').replaceAll('"', '&quot;')
+  return `<div class="card" data-name="${name}" data-body="${attr}"><div class="t">${name} · ${metas[name]!.label}</div><svg class="big" viewBox="0 0 24 24">${grid}${keylines}<g class="ic">${body}</g><g class="sk">${body}</g><g class="gaps"></g></svg><div class="row">${sizes}</div><div class="pixels"><span>16px · 1×</span></div><div class="b"></div></div>`
 }
 
 await mkdir(outDir, { recursive: true })
@@ -116,10 +119,20 @@ const browser = await chromium!.launch()
 const page = await browser.newPage({ deviceScaleFactor: 1.5 })
 const boxes: Record<
   string,
-  { x: number; y: number; w: number; h: number; out: boolean; edge: boolean }
+  {
+    x: number
+    y: number
+    w: number
+    h: number
+    out: boolean
+    edge: boolean
+    gaps: { d: number; x: number; y: number }[]
+    ink: number
+  }
 > = {}
 for (const sheet of sheets) {
   await page.goto(`file://${sheet}`)
+  await page.waitForFunction('window.done', undefined, { timeout: 0 })
   Object.assign(boxes, await page.evaluate('window.boxes'))
   await page.screenshot({ path: sheet.replace(/\.html$/, '.png'), fullPage: true })
 }
@@ -132,3 +145,21 @@ log(`${names.length} icons, ${sheets.length} sheets in ${outDir}`)
 // Wide, tall and special shapes may reach 2.5–21.5; anything further is a bug.
 if (edge.length) log(`Past 3–21 (fine only for wide/tall/special shapes): ${edge.join(', ')}`)
 if (outside.length) log(`Outside 2.5–21.5: ${outside.join(', ')}`)
+// Under 1.2 a joint misses (or the angle is too sharp); under 2.5 the strokes
+// merge at 16px; 2.5–3.5 leaves less than 1px of white.
+const gapList = (test: (d: number) => boolean) =>
+  names
+    .filter((name) => boxes[name]?.gaps.some((gap) => test(gap.d)))
+    .map((name) => {
+      const spots = boxes[name]!.gaps.filter((gap) => test(gap.d))
+      return `${name} (${spots.map((gap) => `${gap.d}@${gap.x},${gap.y}`).join(' ')})`
+    })
+const joints = gapList((d) => d < 1.2)
+const merged = gapList((d) => d >= 1.2 && d < 2.5)
+const tight = gapList((d) => d >= 2.5)
+if (joints.length) log(`Joints missing or too sharp (gap < 1.2):\n  ${joints.join('\n  ')}`)
+if (merged.length) log(`Strokes merging at 16px (gap 1.2–2.5):\n  ${merged.join('\n  ')}`)
+if (tight.length) log(`Tight at 16px (gap 2.5–3.5):\n  ${tight.join('\n  ')}`)
+const heavy = names.filter((name) => (boxes[name]?.ink ?? 0) > 1.45)
+if (heavy.length)
+  log(`Heavier than 1.45× the median ink: ${heavy.map((n) => `${n} ${boxes[n]!.ink}`).join(', ')}`)

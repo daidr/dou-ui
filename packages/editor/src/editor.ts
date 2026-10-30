@@ -56,6 +56,10 @@ export interface EditorExpose {
   getBlocks: () => Block[]
   /** Replace the document. The change does not go into the undo history. */
   setBlocks: (blocks: PartialBlock[]) => void
+  /** The current document as HTML, written by the extensions (see `blocksToHTML`). */
+  getHTML: () => string
+  /** Replace the document with HTML, read like pasted HTML. */
+  setHTML: (html: string) => void
   /** Run a ProseMirror command, e.g. one of the exported ones. */
   run: (command: Command) => boolean
 }

@@ -8,7 +8,11 @@ export default defineConfig({
     minify: false,
     sourcemap: true,
     lib: {
-      entry: { index: 'src/index.ts', 'collaboration/index': 'src/collaboration/index.ts' },
+      entry: {
+        index: 'src/index.ts',
+        'collaboration/index': 'src/collaboration/index.ts',
+        'markdown/index': 'src/markdown/index.ts',
+      },
       formats: ['es'],
     },
     rollupOptions: {
@@ -20,6 +24,7 @@ export default defineConfig({
         'yjs',
         /^y-prosemirror/,
         /^y-protocols/,
+        /^markdown-it/,
       ],
       output: {
         // keep the source module structure so bundlers can tree-shake per component

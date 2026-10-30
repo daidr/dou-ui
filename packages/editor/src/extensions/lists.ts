@@ -1,12 +1,12 @@
 import { ListIcon, ListOrderedIcon, ListTodoIcon } from '@dou-ui/icons'
 import type { NodeViewConstructor } from 'prosemirror-view'
-import { clipboardPlugin } from '../core/clipboard'
 import { setBlockType } from '../core/commands'
 import { defineExtension } from '../core/extension'
 import { blockInputRule } from '../core/input-rules'
 import { createId } from '../core/model'
 import { numberingPlugin } from '../core/plugins'
 import { contentDOM, textBlock } from '../core/schema'
+import { listItemMarkdown, prepareLists } from './list-html'
 
 const SVG = 'http://www.w3.org/2000/svg'
 
@@ -107,7 +107,29 @@ export const lists = defineExtension({
     }),
   },
   nodeViews: { checkItem: checkItemView },
-  plugins: () => [numberingPlugin(), clipboardPlugin()],
+  plugins: () => [numberingPlugin()],
+  prepareHTML: prepareLists,
+  output: {
+    blocks: {
+      bulletItem: {
+        group: 'ul',
+        html: (_block, { content, children }) => `<li>${content}${children}</li>`,
+        markdown: (_block, context) => listItemMarkdown('- ', context),
+      },
+      numberedItem: {
+        group: 'ol',
+        html: (_block, { content, children }) => `<li>${content}${children}</li>`,
+        markdown: (_block, context) => listItemMarkdown(`${context.index}. `, context),
+      },
+      checkItem: {
+        group: 'ul class="task-list"',
+        html: (block, { content, children }) =>
+          `<li><input type="checkbox" disabled${block.props.checked ? ' checked' : ''}> ${content}${children}</li>`,
+        markdown: (block, context) =>
+          listItemMarkdown(block.props.checked ? '- [x] ' : '- [ ] ', context),
+      },
+    },
+  },
   inputRules: () => [
     blockInputRule(/^[-*+]\s$/, 'bulletItem'),
     blockInputRule(/^1[.)]\s$/, 'numberedItem'),

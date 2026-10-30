@@ -1,4 +1,5 @@
 import { defineComponent, h } from 'vue'
+import { escapeHTML } from '../../core/output'
 import { defineExtension, type EditorExtension } from '../../core/extension'
 import MentionMenu from './mention-menu.vue'
 import { mentionPlugin, type MentionItem } from './state'
@@ -16,6 +17,9 @@ export interface MentionOptions {
  * and the chosen one goes into the text as a mention, kept in the
  * document as `{ type: 'inline', name: 'mention', props: { id, label } }`.
  */
+const mentionHTML = (props: Record<string, unknown>) =>
+  `<span data-mention="${escapeHTML(String(props.id ?? ''))}">@${escapeHTML(String(props.label ?? ''))}</span>`
+
 export function mention(options: MentionOptions): EditorExtension {
   const Menu = defineComponent({
     name: 'DouEditorMentionMenu',
@@ -46,6 +50,10 @@ export function mention(options: MentionOptions): EditorExtension {
           `@${node.attrs.label}`,
         ],
       },
+    },
+    output: {
+      // Markdown has no mention: the same HTML keeps the id when it is read back
+      inlines: { mention: { html: mentionHTML, markdown: mentionHTML } },
     },
     plugins: () => [mentionPlugin()],
     overlays: [Menu],

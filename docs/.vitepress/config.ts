@@ -63,6 +63,7 @@ export default defineConfig({
             { text: '折叠块与提示块', link: '/editor/toggle-callout' },
             { text: '图片', link: '/editor/image' },
             { text: '提及', link: '/editor/mention' },
+            { text: '导入与导出', link: '/editor/import-export' },
             { text: '协同编辑', link: '/editor/collaboration' },
           ],
         },
@@ -291,6 +292,10 @@ export default defineConfig({
         {
           find: /^@dou-ui\/editor\/collaboration$/,
           replacement: r('../../packages/editor/src/collaboration/index.ts'),
+        },
+        {
+          find: /^@dou-ui\/editor\/markdown$/,
+          replacement: r('../../packages/editor/src/markdown/index.ts'),
         },
         { find: /^@dou-ui\/editor$/, replacement: r('../../packages/editor/src/index.ts') },
         {

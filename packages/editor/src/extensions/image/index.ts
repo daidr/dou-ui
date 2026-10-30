@@ -2,6 +2,7 @@ import { ImageIcon } from '@dou-ui/icons'
 import { Plugin } from 'prosemirror-state'
 import { defineComponent, h } from 'vue'
 import type { EditorExtension } from '../../core/extension'
+import { escapeHTML, escapeMarkdown } from '../../core/output'
 import { defineBlock } from '../../define-block'
 import ImageBlock from './image-block.vue'
 import {
@@ -21,6 +22,12 @@ export interface ImageOptions {
   upload?: ImageUploader
 }
 
+/** A width in percent, as `blocksToHTML` writes it on the figure. */
+function widthOf(dom: HTMLElement): number | null {
+  const match = /^(\d+(?:\.\d+)?)%$/.exec(dom.style?.width ?? '')
+  return match ? Math.min(100, Math.max(20, Number(match[1]))) : null
+}
+
 const attrsOf = (dom: HTMLElement) => {
   const img = dom.tagName === 'IMG' ? (dom as HTMLImageElement) : dom.querySelector('img')
   const src = img?.getAttribute('src') ?? ''
@@ -28,7 +35,9 @@ const attrsOf = (dom: HTMLElement) => {
   return {
     src,
     alt: img?.getAttribute('alt') ?? '',
-    caption: dom.querySelector('figcaption')?.textContent?.trim() ?? '',
+    caption:
+      dom.querySelector('figcaption')?.textContent?.trim() ?? img?.getAttribute('title') ?? '',
+    width: widthOf(dom),
   }
 }
 
@@ -79,6 +88,39 @@ export function image(options: ImageOptions = {}): EditorExtension {
   })
   return {
     ...block,
+    output: {
+      blocks: {
+        image: {
+          html: (node, { children }) => {
+            const { src, alt, caption, width } = node.props
+            if (!src || !isSafeImageSrc(String(src))) return children
+            const style = width ? ` style="width: ${Number(width)}%"` : ''
+            const label = escapeHTML(String(alt || caption || ''))
+            const figcaption = caption
+              ? `<figcaption>${escapeHTML(String(caption))}</figcaption>`
+              : ''
+            return `<figure${style}><img src="${escapeHTML(String(src))}" alt="${label}">${figcaption}</figure>${children}`
+          },
+          markdown: (node, { children }) => {
+            const { src, alt, caption } = node.props
+            if (!src || !isSafeImageSrc(String(src))) return children
+            const label = escapeMarkdown(String(alt || caption || ''))
+            const title = caption ? ` "${String(caption).replace(/["\\]/g, '\\$&')}"` : ''
+            const address = /[\s()<>]/.test(String(src)) ? `<${String(src)}>` : String(src)
+            const written = `![${label}](${address}${title})`
+            return children ? `${written}\n\n${children}` : written
+          },
+        },
+      },
+    },
+    // Markdown puts an image inside a paragraph of its own
+    prepareHTML: (root) => {
+      for (const img of Array.from(root.querySelectorAll('p > img'))) {
+        const paragraph = img.parentElement!
+        if (paragraph.textContent?.trim() || paragraph.children.length > 1) continue
+        paragraph.replaceWith(img)
+      }
+    },
     plugins: () => [
       new Plugin({
         props: {

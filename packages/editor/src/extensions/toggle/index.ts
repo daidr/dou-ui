@@ -2,6 +2,7 @@ import { ChevronRightSquareIcon } from '@dou-ui/icons'
 import { TextSelection, type Command } from 'prosemirror-state'
 import { blockAround } from '../../core/blocks'
 import { defineExtension } from '../../core/extension'
+import { blockElement } from '../../core/prepare'
 import { flipToggle, isToggleOpen, togglePlugin } from './state'
 import ToggleBlock from './toggle-block.vue'
 
@@ -54,6 +55,26 @@ export const toggle = defineExtension({
         0,
       ],
     },
+  },
+  output: {
+    blocks: {
+      toggle: {
+        html: (_block, { content, children }) =>
+          `<details><summary>${content}</summary>${children}</details>`,
+        // Markdown has no toggle; GitHub and most renderers show `<details>`
+        markdown: (_block, { html, children }) =>
+          `<details>\n<summary>${html}</summary>\n\n${children ? `${children}\n\n` : ''}</details>`,
+      },
+    },
+  },
+  prepareHTML: (root) => {
+    for (const details of Array.from(root.querySelectorAll('details'))) {
+      const summary = details.querySelector(':scope > summary')
+      const content = summary ? Array.from(summary.childNodes) : []
+      summary?.remove()
+      const children = Array.from(details.childNodes)
+      details.replaceWith(blockElement(details.ownerDocument, 'toggle', content, children))
+    }
   },
   keymap: () => ({ Enter: enter }),
   plugins: () => [togglePlugin()],

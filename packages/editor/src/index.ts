@@ -67,6 +67,18 @@ export {
 } from './core/commands'
 export { clearBlockSelection, getBlockSelection, selectBlocks } from './core/block-selection'
 export { isRemote } from './core/plugins'
+export { blocksToHTML, htmlToBlocks } from './core/convert'
+export type { ExtensionList } from './core/convert'
+export { escapeHTML, escapeMarkdown, indentLines } from './core/output'
+export type {
+  BlockOutput,
+  BlockOutputContext,
+  ExtensionOutput,
+  InlineOutput,
+  MarkdownBlockContext,
+  MarkOutput,
+} from './core/output'
+export { blockElement, splitContainer } from './core/prepare'
 
 declare module 'vue' {
   export interface GlobalComponents {

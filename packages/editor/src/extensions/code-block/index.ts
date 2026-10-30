@@ -1,8 +1,10 @@
 import { CodeIcon } from '@dou-ui/icons'
+import { Fragment } from 'prosemirror-model'
 import { defineComponent, h } from 'vue'
 import { defineExtension, type EditorExtension } from '../../core/extension'
 import { highlightPlugin, type CodeHighlighter } from '../../core/highlight'
 import { blockInputRule } from '../../core/input-rules'
+import { escapeHTML } from '../../core/output'
 import CodeBlockView from './code-block-view.vue'
 import { defaultLanguages, toLanguage, type CodeLanguage } from './languages'
 
@@ -45,6 +47,11 @@ export function codeBlock(options: CodeBlockOptions = {}): EditorExtension {
             tag: 'pre',
             preserveWhitespace: 'full',
             getAttrs: (dom) => ({ language: languageOf(dom as HTMLElement) }),
+            // Markdown renderers end the code with a newline
+            getContent: (dom, schema) => {
+              const text = (dom.textContent ?? '').replace(/\r\n?/g, '\n').replace(/\n$/, '')
+              return text ? Fragment.from(schema.text(text)) : Fragment.empty
+            },
           },
         ],
         toDOM: (node) => [
@@ -57,6 +64,24 @@ export function codeBlock(options: CodeBlockOptions = {}): EditorExtension {
           },
           ['code', node.attrs.language ? { class: `language-${node.attrs.language}` } : {}, 0],
         ],
+      },
+    },
+    output: {
+      blocks: {
+        codeBlock: {
+          html: (block, { text, children }) => {
+            const language = String(block.props.language ?? '')
+            const attrs = language ? ` class="language-${escapeHTML(language)}"` : ''
+            return `<pre><code${attrs}>${escapeHTML(text)}</code></pre>${children}`
+          },
+          markdown: (block, { text, children }) => {
+            const longest = Math.max(0, ...(text.match(/^`{3,}/gm) ?? []).map((run) => run.length))
+            const fence = '`'.repeat(Math.max(3, longest + 1))
+            const language = String(block.props.language ?? '').replace(/\s/g, '')
+            const code = `${fence}${language}\n${text}${text ? '\n' : ''}${fence}`
+            return children ? `${code}\n\n${children}` : code
+          },
+        },
       },
     },
     inputRules: () => [blockInputRule(/^```$/, 'codeBlock')],

@@ -38,6 +38,16 @@ export const formatting = defineExtension({
       toDOM: () => ['code', { class: 'dou-editor__inline-code' }, 0],
     },
   },
+  output: {
+    marks: {
+      bold: { html: ['<strong>', '</strong>'], markdown: ['**', '**'] },
+      italic: { html: ['<em>', '</em>'], markdown: ['*', '*'] },
+      // Markdown has no underline; HTML is read back as one
+      underline: { html: ['<u>', '</u>'], markdown: ['<u>', '</u>'] },
+      strike: { html: ['<s>', '</s>'], markdown: ['~~', '~~'] },
+      code: { html: ['<code>', '</code>'] },
+    },
+  },
   inputRules: () => [
     markInputRule(/(?:^|[^*])(\*\*([^*\s](?:[^*]*[^*\s])?)\*\*)$/, 'bold'),
     markInputRule(/(?:^|[^*])(\*([^*\s](?:[^*]*[^*\s])?)\*)$/, 'italic'),

@@ -23,6 +23,8 @@ import { createEditorView, getBlocks, replaceBlocks, runCommand, setEditable } f
 import type { Block, PartialBlock } from './core/model'
 import { resolveExtensions } from './core/extension'
 import { slashPlugin, type SlashState } from './core/slash'
+import { writeHTML } from './core/output'
+import { parseHTML } from './core/prepare'
 import { vueNodeView } from './define-block'
 import { starterKit } from './extensions/starter-kit'
 import { editorKey, type EditorEmits, type EditorExpose, type EditorProps } from './editor'
@@ -183,6 +185,8 @@ defineExpose<EditorExpose>({
   blur: () => (view.value?.dom as HTMLElement | undefined)?.blur(),
   getBlocks: () => (view.value ? getBlocks(view.value) : []),
   setBlocks: (blocks: PartialBlock[]) => view.value && replaceBlocks(view.value, blocks),
+  getHTML: () => (view.value ? writeHTML(getBlocks(view.value), kit) : ''),
+  setHTML: (html: string) => view.value && replaceBlocks(view.value, parseHTML(html, kit)),
   run: (command) => (view.value ? runCommand(view.value, command) : false),
 })
 </script>

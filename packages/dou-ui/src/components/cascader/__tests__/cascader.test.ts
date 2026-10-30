@@ -150,4 +150,16 @@ describe('DouCascader', () => {
     expect(wrapper.props('modelValue')).toEqual(['zj', 'hz', 'bj'])
     wrapper.unmount()
   })
+
+  it('leaves Enter to the input method while composing', async () => {
+    const wrapper = make({ filterable: true })
+    const input = wrapper.get('input')
+    await input.trigger('focus')
+    await input.setValue('滨江')
+    await nextTick()
+    await input.trigger('keydown', { key: 'Enter', isComposing: true })
+    await input.trigger('keydown', { key: 'Enter', keyCode: 229 })
+    expect(wrapper.props('modelValue')).toBeNull()
+    wrapper.unmount()
+  })
 })

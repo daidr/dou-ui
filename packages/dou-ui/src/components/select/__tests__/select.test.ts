@@ -128,6 +128,20 @@ describe('DouSelect', () => {
     expect(document.querySelector('.dou-select__empty')?.textContent?.trim()).toBe('无匹配项')
   })
 
+  it('leaves Enter to the input method while composing', async () => {
+    const wrapper = withModel({ filterable: true })
+    const input = wrapper.get('input')
+    await input.setValue('上')
+    const compose = (init: KeyboardEventInit) =>
+      input.element.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true, ...init }),
+      )
+    compose({ isComposing: true })
+    compose({ keyCode: 229 })
+    await nextTick()
+    expect(wrapper.props('modelValue')).toBeNull()
+  })
+
   it('clears the value', async () => {
     const wrapper = withModel({ modelValue: 'sh', clearable: true })
     await wrapper.get('.dou-select__clear').trigger('click')

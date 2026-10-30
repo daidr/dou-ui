@@ -27,7 +27,7 @@ describe('DouChatList', () => {
 
     el.scrollTop = 400
     await wrapper.get('.dou-chat-list__viewport').trigger('scroll')
-    expect(wrapper.emitted('update:atBottom')).toEqual([[false]])
+    expect(wrapper.emitted('atBottomChange')).toEqual([[false]])
     const button = wrapper.get('.dou-chat-list__scroll-button')
     expect(button.attributes('aria-label')).toBe('回到底部')
 

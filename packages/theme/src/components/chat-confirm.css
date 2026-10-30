@@ -36,7 +36,11 @@
     color: var(--dou-color-text-secondary);
     font-size: 16px;
 
-    .dou-chat-confirm.is-danger & {
+    .dou-chat-confirm--warning & {
+      color: var(--dou-color-warning-text);
+    }
+
+    .dou-chat-confirm--danger & {
       color: var(--dou-color-danger-text);
     }
   }

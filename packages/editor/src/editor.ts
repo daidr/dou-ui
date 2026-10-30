@@ -3,7 +3,7 @@ import type { EditorView } from 'prosemirror-view'
 import { inject, type ComputedRef, type InjectionKey, type ShallowRef } from 'vue'
 import type { EditorExtension, ResolvedExtensions } from './core/extension'
 import type { Block, PartialBlock } from './core/model'
-import type { EditorMessages } from './locale'
+import type { EditorMessages, EditorMessagesOverride } from './locale'
 
 export interface EditorProps {
   /**
@@ -22,9 +22,9 @@ export interface EditorProps {
   /** The hint in the empty block under the cursor. */
   placeholder?: string
   /** Replace any of the built-in texts. */
-  messages?: Partial<EditorMessages>
+  messages?: EditorMessagesOverride
   /** The accessible name of the editing area. */
-  label?: string
+  ariaLabel?: string
   /** Focus the editor once it is mounted. */
   autofocus?: boolean
   /**

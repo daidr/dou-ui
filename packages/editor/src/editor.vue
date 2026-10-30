@@ -38,7 +38,7 @@ const props = withDefaults(defineProps<EditorProps>(), {
   readonly: false,
   placeholder: undefined,
   messages: undefined,
-  label: undefined,
+  ariaLabel: undefined,
   autofocus: false,
   plugins: undefined,
   history: true,
@@ -49,6 +49,16 @@ const emit = defineEmits<EditorEmits>()
 
 // read once: changing the schema of a live editor would invalidate its document
 const kit = resolveExtensions(props.extensions ?? [starterKit()])
+// say so once, instead of silently keeping the old extensions
+const stopWatchingExtensions = watch(
+  () => props.extensions,
+  () => {
+    console.warn(
+      '[@dou-ui/editor] `extensions` changed after mount and is ignored: it is read once. Create the list once outside the template, or give the editor a new `key` to rebuild it.',
+    )
+    stopWatchingExtensions()
+  },
+)
 
 const ns = useNamespace('editor')
 const messages = useEditorMessages(() => props.messages)
@@ -129,7 +139,7 @@ onMounted(() => {
     redo: props.redo,
     attributes: () => {
       const attrs: Record<string, string> = {}
-      if (props.label) attrs['aria-label'] = props.label
+      if (props.ariaLabel) attrs['aria-label'] = props.ariaLabel
       if (props.readonly) attrs['aria-readonly'] = 'true'
       return attrs
     },

@@ -3,6 +3,7 @@ import { CheckIcon, ChevronDownIcon, ChevronRightIcon, CloseIcon } from '@dou-ui
 import { computed, nextTick, reactive, ref, useId, useTemplateRef, watch } from 'vue'
 import type { HTMLAttributes } from 'vue'
 import { usePopup } from '../../composables/use-popup'
+import { isComposing } from '../../utils/keyboard'
 import { useNamespace } from '../../utils/namespace'
 import { shouldVirtualize, visibleWindow } from '../../utils/virtual'
 import { OnlyChild } from '../../utils/only-child'
@@ -457,7 +458,7 @@ async function enter(choose: boolean) {
 }
 
 function onKeydown(event: KeyboardEvent) {
-  if (disabled.value) return
+  if (disabled.value || isComposing(event)) return
   if (searching.value) {
     const count = matches.value.length
     switch (event.key) {

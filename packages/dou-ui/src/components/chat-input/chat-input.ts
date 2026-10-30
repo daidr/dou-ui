@@ -1,4 +1,5 @@
 import type { Component } from 'vue'
+import type { Size } from '../../utils/types'
 
 /** An entry of the `/` command or `@` mention menu. */
 export interface ChatInputOption {
@@ -29,6 +30,8 @@ export interface ChatInputProps {
    * so the app can queue the message.
    */
   loading?: boolean
+  /** Text size and padding; the corners and buttons follow. */
+  size?: Size
   disabled?: boolean
   /** Rows shown when empty. */
   minRows?: number
@@ -49,6 +52,8 @@ export interface ChatInputProps {
    * one replaces the typed `@…` with `@value` and emits `mention`.
    */
   mentions?: ChatInputOption[]
+  /** Where to render the `/` and `@` menu; `false` keeps it in place. */
+  teleport?: string | HTMLElement | false
 }
 
 export interface ChatInputEmits {

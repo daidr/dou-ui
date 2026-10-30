@@ -71,28 +71,28 @@ function reset() {
 
 ### Props
 
-| 名称          | 说明                                               | 类型                      | 默认值           |
-| ------------- | -------------------------------------------------- | ------------------------- | ---------------- |
-| `modelValue`  | 文档内容，用 `v-model` 绑定                        | `PartialBlock[]`          | —                |
-| `readonly`    | 只读                                               | `boolean`                 | `false`          |
-| `placeholder` | 光标所在空块里的提示文字                           | `string`                  | 跟随语言         |
-| `label`       | 编辑区域的无障碍名称                               | `string`                  | —                |
-| `autofocus`   | 挂载后获得焦点                                     | `boolean`                 | `false`          |
-| `messages`    | 替换内置文字，例如块类型的名称                     | `Partial<EditorMessages>` | —                |
-| `extensions`  | 使用的扩展，见[扩展](./extensions)，只在创建时读取 | `EditorExtension[]`       | `[starterKit()]` |
-| `plugins`     | 额外的 ProseMirror 插件，排在内置插件之前          | `Plugin[]`                | —                |
-| `history`     | 使用内置的撤销记录，使用自己的撤销方案时关闭       | `boolean`                 | `true`           |
-| `undo`        | 替换撤销命令                                       | `Command`                 | —                |
-| `redo`        | 替换重做命令                                       | `Command`                 | —                |
+| 名称          | 说明                                                                      | 类型                     | 默认值           |
+| ------------- | ------------------------------------------------------------------------- | ------------------------ | ---------------- |
+| `modelValue`  | 文档内容，用 `v-model` 绑定                                               | `PartialBlock[]`         | —                |
+| `readonly`    | 只读                                                                      | `boolean`                | `false`          |
+| `placeholder` | 光标所在空块里的提示文字                                                  | `string`                 | 跟随语言         |
+| `ariaLabel`   | 编辑区域的无障碍名称                                                      | `string`                 | —                |
+| `autofocus`   | 挂载后获得焦点                                                            | `boolean`                | `false`          |
+| `messages`    | 替换内置文字，只写要改的部分即可，例如 `{ types: { paragraph: '段落' } }` | `EditorMessagesOverride` | —                |
+| `extensions`  | 使用的扩展，见[扩展](./extensions)，只在创建时读取                        | `EditorExtension[]`      | `[starterKit()]` |
+| `plugins`     | 额外的 ProseMirror 插件，排在内置插件之前                                 | `Plugin[]`               | —                |
+| `history`     | 使用内置的撤销记录，使用自己的撤销方案时关闭                              | `boolean`                | `true`           |
+| `undo`        | 替换撤销命令                                                              | `Command`                | —                |
+| `redo`        | 替换重做命令                                                              | `Command`                | —                |
 
 ### Events
 
-| 名称                | 说明                          | 参数                  |
-| ------------------- | ----------------------------- | --------------------- |
-| `update:modelValue` | 文档修改后触发                | `(blocks: Block[])`   |
-| `change`            | 同上，不绑定 `v-model` 时使用 | `(blocks: Block[])`   |
-| `focus`             | 获得焦点                      | `(event: FocusEvent)` |
-| `blur`              | 失去焦点                      | `(event: FocusEvent)` |
+| 名称                | 说明                                                                                                             | 参数                  |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------- | --------------------- |
+| `update:modelValue` | 文档修改后触发                                                                                                   | `(blocks: Block[])`   |
+| `change`            | 同上，不绑定 `v-model` 时使用。和 `update:modelValue` 一样每次修改都会触发，不像表单控件的 `change` 那样等到失焦 | `(blocks: Block[])`   |
+| `focus`             | 获得焦点                                                                                                         | `(event: FocusEvent)` |
+| `blur`              | 失去焦点                                                                                                         | `(event: FocusEvent)` |
 
 ### 实例方法
 

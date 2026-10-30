@@ -132,11 +132,11 @@ function send(value) {
   loading.value = true
   // a new question always brings the reader back to the end
   void nextTick(() => list.value?.scrollToBottom())
-  const reply = reactive({ id: Date.now() + 1, sender: 'assistant', pending: true, parts: [] })
+  const reply = reactive({ id: Date.now() + 1, sender: 'assistant', loading: true, parts: [] })
   messages.value.push(reply)
   const steps = reactive({ type: 'steps', items: [] })
   later(() => {
-    reply.pending = false
+    reply.loading = false
     reply.parts.push(steps)
     steps.items.push({
       label: '搜索网页',
@@ -175,7 +175,7 @@ function stop() {
   timers.forEach((timer) => (clearTimeout(timer), clearInterval(timer)))
   timers = []
   const reply = messages.value.at(-1)
-  reply.pending = false
+  reply.loading = false
   for (const part of reply.parts) {
     if (part.streaming) part.streaming = false
     for (const step of part.items ?? []) if (step.status === 'running') step.status = 'done'
@@ -196,7 +196,7 @@ onBeforeUnmount(stop)
           :key="message.id"
           :sender="message.sender"
           :parts="message.parts"
-          :pending="message.pending"
+          :loading="message.loading"
           :versions="message.versions"
           :editable="message.sender === 'user'"
           @confirm="onConfirm"

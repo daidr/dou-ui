@@ -28,13 +28,13 @@
 
 `commands` 是以 `/` 开头时弹出的命令菜单，选中后输入的 `/…` 会被删掉，并触发 `command`，应用可以据此切换模式，比如在 `header` 插槽里显示一个标签。`mentions` 是输入 `@` 后弹出的引用菜单，选中后会把输入的 `@…` 换成 `@值 ` 并触发 `mention`。
 
-菜单可以用上下方向键选择，回车或 Tab 确认，Esc 关闭。
+菜单可以用上下方向键选择，回车或 Tab 确认，Esc 或点击外部关闭。菜单和其他[浮层](../guide/overlays)一样渲染在页面最上层，默认在输入框上方，空间不够时换到下方，不会被外层的 `overflow: hidden` 裁掉。
 
 <DocDemo src="chat-input/commands" column />
 
 ## 发送快捷键
 
-`submit-on="mod-enter"` 时回车换行，Ctrl / ⌘ + 回车发送，适合经常输入多行内容的场景。`min-rows` 和 `max-rows` 控制最少显示几行、最多增高到几行。
+`submit-on="mod-enter"` 时回车换行，Ctrl / ⌘ + 回车发送，适合经常输入多行内容的场景。`min-rows` 和 `max-rows` 控制最少显示几行、最多增高到几行。`size` 可选 `sm`、`md`、`lg`，放在侧边栏这类窄的地方时用 `sm`。
 
 <DocDemo src="chat-input/mod-enter" column />
 
@@ -42,27 +42,33 @@
 
 ### Props
 
-| 名称          | 说明                                 | 类型                     | 默认值         |
-| ------------- | ------------------------------------ | ------------------------ | -------------- |
-| `modelValue`  | 文字，配合 `v-model`                 | `string`                 | `''`           |
-| `placeholder` | 占位文字                             | `string`                 | 语言包中的提示 |
-| `submitOn`    | 发送的按键                           | `'enter' \| 'mod-enter'` | `'enter'`      |
-| `loading`     | 正在生成，发送按钮变成停止按钮       | `boolean`                | `false`        |
-| `disabled`    | 禁用                                 | `boolean`                | `false`        |
-| `minRows`     | 最少显示的行数                       | `number`                 | `1`            |
-| `maxRows`     | 最多增高到的行数，超出后滚动         | `number`                 | `8`            |
-| `canSubmit`   | 能否发送；不设置时文字非空白才能发送 | `boolean`                | —              |
+| 名称          | 说明                                         | 类型                             | 默认值         |
+| ------------- | -------------------------------------------- | -------------------------------- | -------------- |
+| `modelValue`  | 文字，配合 `v-model`                         | `string`                         | `''`           |
+| `placeholder` | 占位文字                                     | `string`                         | 语言包中的提示 |
+| `submitOn`    | 发送的按键                                   | `'enter' \| 'mod-enter'`         | `'enter'`      |
+| `loading`     | 正在生成，发送按钮变成停止按钮               | `boolean`                        | `false`        |
+| `size`        | 文字大小与内边距，圆角和按钮随之变化         | `'sm' \| 'md' \| 'lg'`           | `'md'`         |
+| `disabled`    | 禁用                                         | `boolean`                        | `false`        |
+| `minRows`     | 最少显示的行数                               | `number`                         | `1`            |
+| `maxRows`     | 最多增高到的行数，超出后滚动                 | `number`                         | `8`            |
+| `canSubmit`   | 能否发送；不设置时文字非空白才能发送         | `boolean`                        | —              |
+| `commands`    | 以 `/` 开头时弹出的命令                      | `ChatInputOption[]`              | `[]`           |
+| `mentions`    | 输入 `@` 后弹出的引用                        | `ChatInputOption[]`              | `[]`           |
+| `teleport`    | 命令与引用菜单渲染到哪里；`false` 为原地渲染 | `string \| HTMLElement \| false` | `'body'`       |
 
 其余属性会传给内部的 `<textarea>`，比如 `maxlength`、`autofocus`。
 
 ### Events
 
-| 名称                | 说明                     | 参数              |
-| ------------------- | ------------------------ | ----------------- |
-| `update:modelValue` | 文字变化                 | `(value: string)` |
-| `submit`            | 按下发送键或点击发送按钮 | `(value: string)` |
-| `stop`              | 生成中点击停止按钮       | —                 |
-| `attach`            | 粘贴或拖入了文件         | `(files: File[])` |
+| 名称                | 说明                     | 参数                        |
+| ------------------- | ------------------------ | --------------------------- |
+| `update:modelValue` | 文字变化                 | `(value: string)`           |
+| `submit`            | 按下发送键或点击发送按钮 | `(value: string)`           |
+| `stop`              | 生成中点击停止按钮       | —                           |
+| `command`           | 从 `/` 菜单选中了一项    | `(option: ChatInputOption)` |
+| `mention`           | 从 `@` 菜单选中了一项    | `(option: ChatInputOption)` |
+| `attach`            | 粘贴或拖入了文件         | `(files: File[])`           |
 
 ### Slots
 

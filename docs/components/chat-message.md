@@ -12,25 +12,25 @@
 
 ## 片段类型
 
-| `type`      | 渲染为                                | 主要字段                                                                  |
-| ----------- | ------------------------------------- | ------------------------------------------------------------------------- |
-| `text`      | [StreamText](./stream-text)           | `text`、`streaming`                                                       |
-| `reasoning` | [ChatReasoning](./chat-reasoning)     | `text`、`thinking`、`duration`                                            |
-| `tool`      | [ChatToolCall](./chat-tool-call)      | `name`、`title`、`status`、`input`、`output`                              |
-| `steps`     | [ChatSteps](./chat-steps)             | `items`、`running`、`title`                                               |
-| `plan`      | [ChatPlan](./chat-plan)               | `items`、`title`                                                          |
-| `sources`   | [ChatSources](./chat-sources)         | `items`                                                                   |
-| `files`     | [ChatAttachments](./chat-attachments) | `files`                                                                   |
-| `artifact`  | [ChatArtifact](./chat-artifact)       | `id`、`title`、`kind`、`description`、`status`、`active`                  |
-| `confirm`   | [ChatConfirm](./chat-confirm)         | `id`、`title`、`description`、`status`、`allowAlways`、`danger`、`detail` |
+| `type`      | 渲染为                                | 主要字段                                                                |
+| ----------- | ------------------------------------- | ----------------------------------------------------------------------- |
+| `text`      | [StreamText](./stream-text)           | `text`、`streaming`                                                     |
+| `reasoning` | [ChatReasoning](./chat-reasoning)     | `text`、`thinking`、`duration`                                          |
+| `tool`      | [ChatToolCall](./chat-tool-call)      | `name`、`title`、`status`、`input`、`output`                            |
+| `steps`     | [ChatSteps](./chat-steps)             | `items`、`running`、`title`                                             |
+| `plan`      | [ChatPlan](./chat-plan)               | `items`、`title`                                                        |
+| `sources`   | [ChatSources](./chat-sources)         | `items`                                                                 |
+| `files`     | [ChatAttachments](./chat-attachments) | `files`                                                                 |
+| `artifact`  | [ChatArtifact](./chat-artifact)       | `id`、`title`、`kind`、`description`、`status`、`active`                |
+| `confirm`   | [ChatConfirm](./chat-confirm)         | `id`、`title`、`description`、`status`、`allowAlways`、`tone`、`detail` |
 
 用户消息里的 `files` 片段显示在气泡上方。确认片段被回答时触发 `confirm`，产物卡片被点击时触发 `artifact`，参数里都有这个片段本身，可以用 `id` 区分。
 
 ## 生成中
 
-`pending` 表示还没有收到任何内容，显示三个跳动的圆点。有片段正在输出（`streaming`、`thinking`、`running` 或工具状态为 `running`）时，消息带 `aria-busy`，并且暂时不显示底部操作。
+`loading` 表示还没有收到任何内容，显示三个跳动的圆点。有片段正在输出（`streaming`、`thinking`、`running` 或工具状态为 `running`）时，消息带 `aria-busy`，并且暂时不显示底部操作。
 
-<DocDemo src="chat-message/pending" column />
+<DocDemo src="chat-message/loading" column />
 
 ## 操作
 
@@ -61,7 +61,7 @@
 | `sender`   | 发送方                                      | `'user' \| 'assistant' \| 'system'` | `'assistant'` |
 | `parts`    | 片段数组                                    | `ChatMessagePart[]`                 | —             |
 | `content`  | 只有一段文字时的简写                        | `string`                            | —             |
-| `pending`  | 还没有收到内容，显示等待圆点                | `boolean`                           | `false`       |
+| `loading`  | 还没有收到内容，显示等待圆点                | `boolean`                           | `false`       |
 | `copyable` | 显示复制按钮                                | `boolean`                           | `true`        |
 | `editable` | 用户消息显示编辑按钮                        | `boolean`                           | `false`       |
 | `versions` | 共有几个版本，大于 1 时显示切换器           | `number`                            | `1`           |

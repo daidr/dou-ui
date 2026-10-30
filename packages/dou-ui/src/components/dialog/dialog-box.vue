@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, useId } from 'vue'
+import { isComposing } from '../../utils/keyboard'
 import { useNamespace } from '../../utils/namespace'
 import { toneIcon } from '../../utils/tone-icons'
 import { DouButton } from '../button'
@@ -82,7 +83,7 @@ function clearError() {
 }
 
 function onEnter(event: KeyboardEvent) {
-  if (event.isComposing) return
+  if (isComposing(event)) return
   event.preventDefault()
   void confirm()
 }

@@ -7,6 +7,6 @@ const duration = (seconds) => `${Math.floor(seconds / 60)} 分 ${seconds % 60} �
 </script>
 
 <template>
-  <DouStatistic title="平均时长" :value="347" :formatter="duration" />
+  <DouStatistic title="平均时长" :value="347" :format="duration" />
   <DouStatistic title="转化率" :value="4.62" suffix="%" :loading="loading" />
 </template>

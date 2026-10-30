@@ -3,6 +3,7 @@ import { ChevronDownIcon, CloseIcon } from '@dou-ui/icons'
 import { computed, nextTick, ref, useId, useTemplateRef, watch } from 'vue'
 import type { HTMLAttributes } from 'vue'
 import { usePopup } from '../../composables/use-popup'
+import { isComposing } from '../../utils/keyboard'
 import { useNamespace } from '../../utils/namespace'
 import { OnlyChild } from '../../utils/only-child'
 import { useLocale } from '../config-provider/use-config'
@@ -191,7 +192,7 @@ function focusTree() {
 }
 
 function onKeydown(event: KeyboardEvent) {
-  if (disabled.value) return
+  if (disabled.value || isComposing(event)) return
   switch (event.key) {
     case 'ArrowDown':
       event.preventDefault()

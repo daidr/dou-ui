@@ -2,6 +2,7 @@
 import { CheckIcon, SearchIcon } from '@dou-ui/icons'
 import { computed, nextTick, onUpdated, ref, useId, useTemplateRef, watch } from 'vue'
 import { GROUP_START, useGroupedWindow } from '../../composables/use-grouped-window'
+import { isComposing } from '../../utils/keyboard'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
 import { useFormDisabled, useFormItem, useFormSize } from '../form/use-form-item'
@@ -217,7 +218,7 @@ function typeahead(char: string) {
 }
 
 function onKeydown(event: KeyboardEvent) {
-  if (disabled.value || event.isComposing) return
+  if (disabled.value || isComposing(event)) return
   const fromInput = event.target === inputRef.value
   switch (event.key) {
     case 'ArrowDown':

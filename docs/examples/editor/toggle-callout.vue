@@ -33,5 +33,5 @@ const blocks = ref([
 </script>
 
 <template>
-  <DouEditor v-model="blocks" label="出行须知" />
+  <DouEditor v-model="blocks" aria-label="出行须知" />
 </template>

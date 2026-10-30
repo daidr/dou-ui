@@ -2,9 +2,14 @@
 import { ArrowUpIcon, StopIcon } from '@dou-ui/icons'
 import { computed, nextTick, onMounted, ref, useAttrs, useId, useTemplateRef, watch } from 'vue'
 import type { StyleValue } from 'vue'
+import { useFloating } from '../../composables/use-floating'
+import { useLayer } from '../../composables/use-layer'
+import { useThemeScope } from '../../composables/use-theme-scope'
+import { isComposing } from '../../utils/keyboard'
 import { useNamespace } from '../../utils/namespace'
+import { useTeleport } from '../../utils/teleport'
 import { DouButton } from '../button'
-import { useLocale } from '../config-provider/use-config'
+import { useLocale, useZIndex } from '../config-provider/use-config'
 import { useFormDisabled } from '../form/use-form-item'
 import { findToken } from './chat-input'
 import type {
@@ -21,12 +26,14 @@ defineOptions({ name: 'DouChatInput', inheritAttrs: false })
 const props = withDefaults(defineProps<ChatInputProps>(), {
   submitOn: 'enter',
   loading: false,
+  size: 'md',
   disabled: false,
   minRows: 1,
   maxRows: 8,
   canSubmit: undefined,
   commands: () => [],
   mentions: () => [],
+  teleport: undefined,
 })
 const emit = defineEmits<ChatInputEmits>()
 const slots = defineSlots<ChatInputSlots>()
@@ -36,6 +43,7 @@ const ns = useNamespace('chat-input')
 const id = useId()
 const { t } = useLocale()
 const disabled = useFormDisabled(() => props.disabled)
+const buttonSize = computed(() => (props.size === 'lg' ? 'md' : 'sm'))
 
 // `class` and `style` dress the frame, the rest goes to the textarea.
 const attrs = useAttrs()
@@ -116,6 +124,42 @@ const options = computed<ChatInputOption[]>(() => {
   )
 })
 const menuOpen = computed(() => !disabled.value && options.value.length > 0)
+
+// The menu is a popup like any other: rendered on top of the page, above
+// the frame (or below it when there is no room), stacked over what opened
+// before and closed by a press outside. The focus stays in the textarea.
+const rootRef = useTemplateRef<HTMLElement>('root')
+const menuRef = useTemplateRef<HTMLElement>('menu')
+const teleportTarget = useTeleport(() => props.teleport)
+const { style: floatingStyle, placement: menuPlacement } = useFloating(
+  () => (menuOpen.value ? rootRef.value : null),
+  menuRef,
+  { open: menuOpen, placement: 'top-start', offset: 6 },
+)
+const { next: nextZIndex } = useZIndex()
+const menuZIndex = ref<number>()
+const menuWidth = ref<number>()
+// rendered the first time it opens, so the server output stays the same
+const menuRendered = ref(false)
+const { theme, sync: syncTheme } = useThemeScope(() => rootRef.value)
+watch(menuOpen, (value) => {
+  if (!value) return
+  menuRendered.value = true
+  menuZIndex.value = nextZIndex()
+  menuWidth.value = rootRef.value?.offsetWidth
+  syncTheme()
+})
+const menuStyle = computed(() => ({
+  ...floatingStyle.value,
+  zIndex: menuZIndex.value,
+  '--dou-chat-input-menu-width': menuWidth.value ? `${menuWidth.value}px` : undefined,
+}))
+useLayer({
+  open: menuOpen,
+  elements: () => [rootRef.value, menuRef.value],
+  onOutside: () => (token.value = null),
+  onEscape: () => (dismissed.value = token.value?.start ?? null),
+})
 // Only a different list moves the highlight back to the first usable option.
 const firstEnabled = () =>
   Math.max(
@@ -176,7 +220,7 @@ function onMenuKeydown(event: KeyboardEvent): boolean {
     move(event.key === 'ArrowDown' ? 1 : -1)
     return true
   }
-  if ((event.key === 'Enter' || event.key === 'Tab') && !event.isComposing) {
+  if ((event.key === 'Enter' || event.key === 'Tab') && !isComposing(event)) {
     event.preventDefault()
     pick(options.value[active.value]!)
     return true
@@ -191,7 +235,7 @@ function onMenuKeydown(event: KeyboardEvent): boolean {
 
 function onKeydown(event: KeyboardEvent) {
   if (onMenuKeydown(event)) return
-  if (event.key !== 'Enter' || event.isComposing || event.keyCode === 229) return
+  if (event.key !== 'Enter' || isComposing(event)) return
   const mod = event.ctrlKey || event.metaKey
   const sends = props.submitOn === 'enter' ? !event.shiftKey && !mod : mod
   if (!sends) return
@@ -260,8 +304,10 @@ defineExpose<ChatInputExpose>({
 
 <template>
   <div
+    ref="root"
     :class="[
       ns.b(),
+      ns.m(size),
       ns.is('disabled', disabled),
       ns.is('loading', loading),
       ns.is('dragging', dragging),
@@ -295,33 +341,47 @@ defineExpose<ChatInputExpose>({
       @blur="token = null"
       @paste="onPaste"
     />
-    <ul v-if="menuOpen" :id="`${id}-menu`" :class="ns.e('menu')" role="listbox" @mousedown.prevent>
-      <li
-        v-for="(option, index) in options"
-        :id="optionId(index)"
-        :key="option.value"
-        role="option"
-        :class="[
-          ns.e('option'),
-          ns.is('active', index === active),
-          ns.is('disabled', !!option.disabled),
-        ]"
-        :aria-selected="index === active"
-        :aria-disabled="option.disabled || undefined"
-        @mouseenter="!option.disabled && (active = index)"
-        @click="pick(option)"
-      >
-        <slot name="option" :option="option" :trigger="token!.trigger">
-          <component :is="option.icon" v-if="option.icon" :class="ns.e('option-icon')" />
-          <span :class="ns.e('option-label')">
-            {{ token?.trigger === '/' ? '/' : '@' }}{{ option.label ?? option.value }}
-          </span>
-          <span v-if="option.description" :class="ns.e('option-description')">
-            {{ option.description }}
-          </span>
-        </slot>
-      </li>
-    </ul>
+    <Teleport v-if="menuRendered" :to="teleportTarget.to" :disabled="teleportTarget.disabled">
+      <Transition name="dou-floating">
+        <ul
+          v-if="menuOpen"
+          :id="`${id}-menu`"
+          ref="menu"
+          :class="[ns.e('menu'), 'dou-floating']"
+          :style="menuStyle"
+          :data-placement="menuPlacement"
+          :data-dou-theme="theme"
+          role="listbox"
+          @mousedown.prevent
+        >
+          <li
+            v-for="(option, index) in options"
+            :id="optionId(index)"
+            :key="option.value"
+            role="option"
+            :class="[
+              ns.e('option'),
+              ns.is('active', index === active),
+              ns.is('disabled', !!option.disabled),
+            ]"
+            :aria-selected="index === active"
+            :aria-disabled="option.disabled || undefined"
+            @mouseenter="!option.disabled && (active = index)"
+            @click="pick(option)"
+          >
+            <slot name="option" :option="option" :trigger="token!.trigger">
+              <component :is="option.icon" v-if="option.icon" :class="ns.e('option-icon')" />
+              <span :class="ns.e('option-label')">
+                {{ token?.trigger === '/' ? '/' : '@' }}{{ option.label ?? option.value }}
+              </span>
+              <span v-if="option.description" :class="ns.e('option-description')">
+                {{ option.description }}
+              </span>
+            </slot>
+          </li>
+        </ul>
+      </Transition>
+    </Teleport>
     <div :class="ns.e('footer')">
       <div :class="ns.e('actions')"><slot name="actions" /></div>
       <slot
@@ -334,7 +394,7 @@ defineExpose<ChatInputExpose>({
         <DouButton
           v-if="stopping"
           :class="ns.e('submit')"
-          size="sm"
+          :size="buttonSize"
           :aria-label="t('chat.stop')"
           @click="stop"
         >
@@ -343,7 +403,7 @@ defineExpose<ChatInputExpose>({
         <DouButton
           v-else
           :class="ns.e('submit')"
-          size="sm"
+          :size="buttonSize"
           :disabled="!submittable"
           :aria-label="t('chat.send')"
           @click="submit"

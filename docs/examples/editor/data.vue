@@ -18,6 +18,6 @@ const json = computed(() => JSON.stringify(blocks.value, null, 2))
 </script>
 
 <template>
-  <DouEditor v-model="blocks" label="采购清单" />
+  <DouEditor v-model="blocks" aria-label="采购清单" />
   <DouCodeBlock :code="json" lang="json" :max-lines="16" />
 </template>

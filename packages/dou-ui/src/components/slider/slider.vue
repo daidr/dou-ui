@@ -214,7 +214,7 @@ function onInput(value: number | null) {
   if (set(0, value)) commit()
 }
 
-const describe = (value: number) => (props.formatValue ? props.formatValue(value) : undefined)
+const describe = (value: number) => (props.format ? props.format(value) : undefined)
 
 const thumbs = computed(() =>
   values.value.map((value, index) => {

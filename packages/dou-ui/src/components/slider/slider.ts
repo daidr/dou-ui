@@ -23,7 +23,7 @@ export interface SliderProps {
   /** Labels along the track. */
   marks?: SliderMarks
   /** Turn a value into the text read by screen readers, e.g. `(v) => \`${v}%\``. */
-  formatValue?: (value: number) => string
+  format?: (value: number) => string
   /** Run the track bottom to top. */
   vertical?: boolean
   /** The length of a vertical slider. A number is in px. */
@@ -31,7 +31,7 @@ export interface SliderProps {
   /**
    * Show the value in a bubble over the thumb: `true` while it is dragged,
    * hovered or focused with the keyboard, `'always'` all the time. The text
-   * comes from `formatValue` when given.
+   * comes from `format` when given.
    */
   tooltip?: boolean | 'always'
   /** Put a number input beside a single slider, kept in sync with it. */

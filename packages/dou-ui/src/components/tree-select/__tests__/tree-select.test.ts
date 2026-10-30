@@ -116,4 +116,15 @@ describe('DouTreeSelect', () => {
     expect(wrapper.props('modelValue')).toBeNull()
     expect(wrapper.emitted('clear')).toHaveLength(1)
   })
+
+  it('leaves keys to the input method while composing', async () => {
+    const wrapper = withModel({ filterable: true })
+    const input = wrapper.get('input')
+    await input.setValue('后')
+    await nextTick()
+    await input.trigger('keydown', { key: 'ArrowDown', isComposing: true })
+    await input.trigger('keydown', { key: 'Enter', isComposing: true })
+    await input.trigger('keydown', { key: 'Enter', keyCode: 229 })
+    expect(wrapper.props('modelValue')).toBeNull()
+  })
 })

@@ -987,7 +987,7 @@ function simulate() {
                 v-model="instance.cpu"
                 :step="5"
                 :marks="{ 0: '0%', 50: '50%', 100: '100%' }"
-                :format-value="(v: number) => `${v}%`"
+                :format="(v: number) => `${v}%`"
               />
             </DouFormItem>
             <DouFormItem

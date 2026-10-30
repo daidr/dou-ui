@@ -1,9 +1,10 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick } from 'vue'
 import { defineBlock, EditorContent } from '../../define-block'
 import DouEditor from '../../editor.vue'
 import { starterKit } from '../../extensions/starter-kit'
+import { useEditorMessages } from '../../locale'
 import { defineExtension, resolveExtensions } from '../extension'
 import { blocksToDoc, docToBlocks } from '../model'
 
@@ -80,6 +81,40 @@ describe('defineBlock', () => {
     const emitted = wrapper.emitted('update:modelValue')!.at(-1)![0] as { props: object }[]
     expect(emitted[0]!.props).toEqual({ tone: 'warning' })
     expect(wrapper.element.querySelector('.callout')!.getAttribute('data-tone')).toBe('warning')
+    wrapper.unmount()
+  })
+})
+
+describe('editor messages', () => {
+  it('merges a partial override into nested groups', () => {
+    let messages: ReturnType<typeof useEditorMessages> | undefined
+    mount(
+      defineComponent({
+        setup() {
+          messages = useEditorMessages({
+            types: { paragraph: '段落文字' },
+            callout: { tones: { tip: '窍门' } },
+          })
+          return () => null
+        },
+      }),
+    )
+    expect(messages!.value.types.paragraph).toBe('段落文字')
+    expect(messages!.value.types.heading1).toBe('一级标题')
+    expect(messages!.value.callout.tones.tip).toBe('窍门')
+    expect(messages!.value.callout.tones.info).toBeTruthy()
+    expect(messages!.value.callout.change).toBeTruthy()
+  })
+})
+
+describe('extensions prop', () => {
+  it('warns once when it changes after mount', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const wrapper = mount(DouEditor, { props: { extensions: [starterKit()] } })
+    await wrapper.setProps({ extensions: [starterKit()] })
+    await wrapper.setProps({ extensions: [starterKit()] })
+    expect(warn.mock.calls.filter(([m]) => String(m).includes('`extensions`'))).toHaveLength(1)
+    warn.mockRestore()
     wrapper.unmount()
   })
 })

@@ -2,6 +2,7 @@
 import { CloseIcon } from '@dou-ui/icons'
 import { computed, nextTick, ref, useAttrs, useTemplateRef } from 'vue'
 import type { StyleValue } from 'vue'
+import { isComposing } from '../../utils/keyboard'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
 import { useFormDisabled, useFormItem, useFormSize } from '../form/use-form-item'
@@ -125,7 +126,7 @@ function onPaste(event: ClipboardEvent) {
 }
 
 function onKeydown(event: KeyboardEvent) {
-  if (event.isComposing) return
+  if (isComposing(event)) return
   if (event.key === 'Enter') {
     event.preventDefault()
     commit()

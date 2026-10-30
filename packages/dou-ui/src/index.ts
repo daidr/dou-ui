@@ -55,6 +55,7 @@ export type { UseNowOptions } from './composables/use-now'
 export { breakpoints } from '@dou-ui/theme'
 export type { Breakpoint } from '@dou-ui/theme'
 export { useNamespace, withInstall } from './utils'
+export { isComposing } from './utils/keyboard'
 export type { Size, Tone, WithInstall } from './utils'
 export { DouUI }
 export default DouUI

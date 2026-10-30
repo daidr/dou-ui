@@ -1,4 +1,5 @@
 import { mount } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import { describe, expect, it } from 'vitest'
 import { DouChatInput } from '../../../index'
 import { findToken } from '../chat-input'
@@ -52,6 +53,7 @@ describe('DouChatInput', () => {
     const wrapper = mount(DouChatInput, {
       props: {
         modelValue: '',
+        teleport: false,
         'onUpdate:modelValue': (value: unknown): void => {
           void wrapper.setProps({ modelValue: value as string })
         },
@@ -81,6 +83,7 @@ describe('DouChatInput', () => {
     const wrapper = mount(DouChatInput, {
       props: {
         modelValue: '',
+        teleport: false,
         'onUpdate:modelValue': (value: unknown): void => {
           void wrapper.setProps({ modelValue: value as string })
         },
@@ -100,7 +103,7 @@ describe('DouChatInput', () => {
 
   it('closes the menu on Escape', async () => {
     const wrapper = mount(DouChatInput, {
-      props: { modelValue: '@', mentions: [{ value: '戴兜' }] },
+      props: { modelValue: '@', mentions: [{ value: '戴兜' }], teleport: false },
       attachTo: document.body,
     })
     const textarea = wrapper.get('textarea')
@@ -137,6 +140,26 @@ describe('DouChatInput', () => {
     expect(wrapper.emitted('attach')).toEqual([[[file]]])
   })
 
+  it('renders the menu on top of the page, so a clipping parent cannot hide it', async () => {
+    const wrapper = mount(DouChatInput, {
+      props: { modelValue: '', commands: [{ value: 'summarize', label: '总结' }] },
+      attachTo: document.body,
+    })
+    await wrapper.get('textarea').setValue('/')
+    await wrapper.get('textarea').trigger('keyup')
+    const menu = document.querySelector<HTMLElement>('.dou-chat-input__menu')!
+    expect(menu.closest('.dou-chat-input')).toBeNull()
+    expect(menu.style.position).toBe('fixed')
+    expect(Number(menu.style.zIndex)).toBeGreaterThan(0)
+    expect(wrapper.get('textarea').attributes('aria-controls')).toBe(menu.id)
+
+    // a press outside closes it
+    document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
+    await nextTick()
+    expect(document.querySelector('.dou-chat-input__menu')).toBeNull()
+    wrapper.unmount()
+  })
+
   describe('menu navigation', () => {
     const commands = [
       { value: 'summarize', label: '总结' },
@@ -149,6 +172,7 @@ describe('DouChatInput', () => {
       const wrapper = mount(DouChatInput, {
         props: {
           modelValue: '',
+          teleport: false,
           'onUpdate:modelValue': (value: unknown): void => {
             void wrapper.setProps({ modelValue: value as string })
           },

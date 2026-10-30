@@ -109,7 +109,7 @@ describe('DouSlider', () => {
     const { wrapper } = setup({
       modelValue: 50,
       marks: { 0: '0°C', 50: '50°C', 100: '100°C', 200: 'off the scale' },
-      formatValue: (value) => `${value}°C`,
+      format: (value) => `${value}°C`,
     })
     const marks = wrapper.findAll('.dou-slider__mark')
     expect(marks.map((mark) => mark.text())).toEqual(['0°C', '50°C', '100°C'])

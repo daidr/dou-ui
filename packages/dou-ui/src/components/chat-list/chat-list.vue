@@ -43,7 +43,7 @@ const contentRef = {
 }
 
 const atBottom = ref(true)
-watch(atBottom, (value) => emit('update:atBottom', value))
+watch(atBottom, (value) => emit('atBottomChange', value))
 
 // Following is a decision of the reader: scrolling up turns it off,
 // reaching the bottom turns it on again. Growing content alone never

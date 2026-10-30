@@ -31,5 +31,5 @@ const blocks = ref([
 </script>
 
 <template>
-  <DouEditor v-model="blocks" :extensions="extensions" label="游记" />
+  <DouEditor v-model="blocks" :extensions="extensions" aria-label="游记" />
 </template>

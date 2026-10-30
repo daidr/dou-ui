@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, useAttrs, useId, useTemplateRef, watch } from 'vue'
 import { useNamespace } from '../../utils/namespace'
+import { isComposing } from '../../utils/keyboard'
 import { useLocale } from '../config-provider/use-config'
 import { useFormDisabled } from '../form/use-form-item'
 import type { EditableEmits, EditableExpose, EditableProps, EditableSlots } from './editable'
@@ -116,7 +117,7 @@ async function cancel(refocus = false) {
 }
 
 function onKeydown(event: KeyboardEvent) {
-  if (event.isComposing || event.keyCode === 229) return
+  if (isComposing(event)) return
   if (event.key === 'Escape') {
     event.preventDefault()
     // Escape here ends the edit, not a dialog around it.

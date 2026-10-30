@@ -16,7 +16,7 @@
 
 ## 自定义格式与加载
 
-`formatter` 把数字整个换成别的文字；`loading` 时用一条占位块代替数字，高度不变，数据回来时页面不跳。
+`format` 把数字整个换成别的文字；`loading` 时用一条占位块代替数字，高度不变，数据回来时页面不跳。
 
 <DocDemo src="statistic/format-loading" style="gap: 48px" />
 
@@ -49,7 +49,7 @@
 | `suffix`           | 后缀                         | `string`                    | —       |
 | `trend`            | 趋势箭头                     | `'up' \| 'down'`            | —       |
 | `upIsGood`         | 上升是否是好事，决定箭头颜色 | `boolean`                   | `true`  |
-| `formatter`        | 自定义格式                   | `(value: number) => string` | —       |
+| `format`           | 自定义格式                   | `(value: number) => string` | —       |
 | `animated`         | 数值变化时从旧值过渡到新值   | `boolean`                   | `false` |
 | `loading`          | 显示占位块                   | `boolean`                   | `false` |
 

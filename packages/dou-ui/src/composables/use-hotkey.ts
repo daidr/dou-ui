@@ -1,5 +1,6 @@
 import { onMounted, onScopeDispose, ref, toValue, watch } from 'vue'
 import type { MaybeRefOrGetter, Ref } from 'vue'
+import { isComposing } from '../utils/keyboard'
 
 /*
  * A hotkey is written as keys joined by `+`, e.g. `mod+k` or `shift+/`. A
@@ -164,7 +165,7 @@ export function useHotkey(
 
   function onKeydown(raw: Event) {
     const event = raw as KeyboardEvent
-    if (toValue(options.enabled) === false || event.isComposing || event.key === undefined) return
+    if (toValue(options.enabled) === false || isComposing(event) || event.key === undefined) return
     // something closer to the target already handled the key, e.g. an editor's own shortcut
     if (event.defaultPrevented) return
     if (!allowInInput && isTyping(event)) return

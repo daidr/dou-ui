@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, ref, useId, useTemplateRef, watch } from 'vue'
 import { usePopup } from '../../composables/use-popup'
 import { splitHighlight } from '../../utils/highlight'
+import { isComposing } from '../../utils/keyboard'
 import { useNamespace } from '../../utils/namespace'
 import { shouldVirtualize, visibleWindow } from '../../utils/virtual'
 import { OnlyChild } from '../../utils/only-child'
@@ -210,7 +211,7 @@ function onBlur(event: FocusEvent) {
 }
 
 function onKeydown(event: KeyboardEvent) {
-  if (disabled.value) return
+  if (disabled.value || isComposing(event)) return
   switch (event.key) {
     case 'ArrowDown':
     case 'ArrowUp':

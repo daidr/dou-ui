@@ -1,3 +1,4 @@
+import { isComposing } from 'dou-ui'
 import { onScopeDispose, watch, type Ref } from 'vue'
 
 /**
@@ -7,7 +8,7 @@ import { onScopeDispose, watch, type Ref } from 'vue'
  */
 export function useMenuEscape(open: Ref<boolean>, close: () => void) {
   const onKeydown = (event: KeyboardEvent) => {
-    if (event.key !== 'Escape' || event.isComposing) return
+    if (event.key !== 'Escape' || isComposing(event)) return
     event.preventDefault()
     event.stopPropagation()
     close()

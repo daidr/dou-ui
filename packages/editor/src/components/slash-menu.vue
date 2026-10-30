@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useFloating, useLayer, useZIndex, type VirtualElement } from 'dou-ui'
+import { isComposing, useFloating, useLayer, useZIndex, type VirtualElement } from 'dou-ui'
 import { computed, inject, nextTick, shallowRef, useId, useTemplateRef, watch } from 'vue'
 import { filterOptions } from '../catalog'
 import { labelOf, type BlockOption } from '../core/extension'
@@ -96,7 +96,7 @@ function close() {
 
 /** Keys the editor passes on while the menu is open. */
 function onKey(event: KeyboardEvent): boolean {
-  if (event.isComposing) return false
+  if (isComposing(event)) return false
   const count = options.value.length
   switch (event.key) {
     case 'ArrowDown':

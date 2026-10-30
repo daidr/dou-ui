@@ -2,6 +2,7 @@
 import { SearchIcon } from '@dou-ui/icons'
 import { computed, nextTick, ref, useId, useTemplateRef, watch } from 'vue'
 import { GROUP_START, useGroupedWindow } from '../../composables/use-grouped-window'
+import { isComposing } from '../../utils/keyboard'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
 import { DouKbd } from '../kbd'
@@ -139,7 +140,7 @@ function choose(index: number) {
 }
 
 function onKeydown(event: KeyboardEvent) {
-  if (event.isComposing) return
+  if (isComposing(event)) return
   switch (event.key) {
     case 'ArrowDown':
       event.preventDefault()

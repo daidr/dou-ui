@@ -1,5 +1,6 @@
 import { inject, onScopeDispose, provide, toValue, watch } from 'vue'
 import type { InjectionKey, MaybeRefOrGetter } from 'vue'
+import { isComposing } from '../utils/keyboard'
 
 /**
  * A floating layer: anything drawn above the page that can be dismissed.
@@ -26,7 +27,7 @@ const stack: LayerEntry[] = []
 const layerKey: InjectionKey<Layer> = Symbol('DouLayer')
 
 function onKeydown(event: KeyboardEvent) {
-  if (event.key !== 'Escape' || event.isComposing || event.defaultPrevented) return
+  if (event.key !== 'Escape' || isComposing(event) || event.defaultPrevented) return
   const top = stack.at(-1)
   if (!top) return
   // The topmost layer owns Escape even when it chooses to stay open, so a

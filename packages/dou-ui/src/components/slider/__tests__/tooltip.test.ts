@@ -9,7 +9,7 @@ describe('DouSlider tooltip', () => {
         modelValue: [20, 60],
         range: true,
         tooltip: true,
-        formatValue: (v: number) => `${v}%`,
+        format: (v: number) => `${v}%`,
       },
     })
     const bubbles = wrapper.findAll('.dou-slider__tooltip')

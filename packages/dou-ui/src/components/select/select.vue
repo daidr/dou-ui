@@ -3,6 +3,7 @@ import { CheckIcon, ChevronDownIcon, CloseIcon } from '@dou-ui/icons'
 import { computed, nextTick, onBeforeUnmount, ref, useId, useTemplateRef, watch } from 'vue'
 import type { HTMLAttributes } from 'vue'
 import { usePopup } from '../../composables/use-popup'
+import { isComposing } from '../../utils/keyboard'
 import { useNamespace } from '../../utils/namespace'
 import { shouldVirtualize } from '../../utils/virtual'
 import { OnlyChild } from '../../utils/only-child'
@@ -377,7 +378,7 @@ let typed = ''
 let typedTimer: ReturnType<typeof setTimeout> | undefined
 
 function onKeydown(event: KeyboardEvent) {
-  if (disabled.value) return
+  if (disabled.value || isComposing(event)) return
   switch (event.key) {
     case 'ArrowDown':
     case 'ArrowUp':

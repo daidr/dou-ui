@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useFloating, useZIndex, type VirtualElement } from 'dou-ui'
+import { useFloating, useLayer, useZIndex, type VirtualElement } from 'dou-ui'
 import { computed, inject, nextTick, shallowRef, useId, useTemplateRef, watch } from 'vue'
 import { filterOptions } from '../catalog'
 import { labelOf, type BlockOption } from '../core/extension'
@@ -38,6 +38,13 @@ const { style, placement, update } = useFloating(() => (open.value ? anchor : nu
 const { next } = useZIndex()
 const zIndex = shallowRef(0)
 watch(open, (value) => value && (zIndex.value = next()), { immediate: true })
+// a press outside the editor and the menu closes it; inside, the cursor move does
+useLayer({
+  open,
+  elements: () => [panel.value, view.value?.dom],
+  onOutside: () => close(),
+  onEscape: () => close(),
+})
 
 watch(
   () => props.slash?.query,

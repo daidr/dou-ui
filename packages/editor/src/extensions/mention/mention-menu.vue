@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { DouAvatar, useFloating, useZIndex, type VirtualElement } from 'dou-ui'
+import { DouAvatar, useFloating, useLayer, useZIndex, type VirtualElement } from 'dou-ui'
 import { computed, nextTick, shallowRef, useId, useTemplateRef, watch } from 'vue'
 import { useEditorContext } from '../../editor'
 import {
   chooseMention,
+  closeMention,
   getMention,
   setMentionActive,
   setMentionItems,
@@ -40,6 +41,13 @@ const { style, placement, update } = useFloating(() => (open.value ? anchor : nu
 const { next } = useZIndex()
 const zIndex = shallowRef(0)
 watch(open, (value) => value && (zIndex.value = next()), { immediate: true })
+// a press outside the editor and the list closes it; inside, the cursor move does
+useLayer({
+  open,
+  elements: () => [panel.value, view.value?.dom],
+  onOutside: () => view.value && closeMention(view.value),
+  onEscape: () => view.value && closeMention(view.value),
+})
 
 // search again as the query changes; a slower, older answer never wins
 let run = 0

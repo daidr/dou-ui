@@ -8,17 +8,9 @@ import {
   PlusIcon,
   TrashIcon,
 } from '@dou-ui/icons'
-import { DouDropdown, DouDropdownItem, DouDropdownSub, useLayer } from 'dou-ui'
+import { DouDropdown, DouDropdownItem, DouDropdownSub } from 'dou-ui'
 import { TextSelection } from 'prosemirror-state'
-import {
-  computed,
-  inject,
-  onBeforeUnmount,
-  onMounted,
-  shallowRef,
-  useTemplateRef,
-  watch,
-} from 'vue'
+import { computed, inject, onBeforeUnmount, onMounted, shallowRef, watch } from 'vue'
 import { isCurrent } from '../catalog'
 import { labelOf, type BlockOption } from '../core/extension'
 import {
@@ -40,6 +32,7 @@ import { blockFromNode } from '../core/model'
 import { slashKey } from '../core/slash'
 import { blockElementOf, contentAt, firstLine, scrollParent } from '../dom'
 import { editorKey } from '../editor'
+import { useMenuEscape } from './menu-escape'
 
 const { view, state, messages, root, dragging, kit } = inject(editorKey)!
 
@@ -47,15 +40,8 @@ const { view, state, messages, root, dragging, kit } = inject(editorKey)!
 const hovered = shallowRef<string | null>(null)
 const position = shallowRef<{ top: number; left: number; height: number } | null>(null)
 const menuOpen = shallowRef(false)
-const handle = useTemplateRef<HTMLElement>('handle')
+useMenuEscape(menuOpen, () => (menuOpen.value = false))
 
-// The menu opens by hand (a press on the grip may become a drag), so this
-// layer closes it on a press anywhere outside the handle and the menu.
-useLayer({
-  open: menuOpen,
-  elements: () => [handle.value],
-  onOutside: () => (menuOpen.value = false),
-})
 const drop = shallowRef<{ pos: number; top: number; left: number; width: number } | null>(null)
 // typing hides the handle until the pointer moves again
 const resting = shallowRef(false)
@@ -391,7 +377,6 @@ watch(menuOpen, (value) => {
 <template>
   <div
     v-show="visible"
-    ref="handle"
     class="dou-editor__handle"
     :style="
       position

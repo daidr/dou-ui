@@ -72,6 +72,12 @@ export interface EditorExtension {
   inputRules?: (context: ExtensionContext) => InputRule[]
   keymap?: (context: ExtensionContext) => Record<string, Command>
   plugins?: (context: ExtensionContext) => Plugin[]
+  /**
+   * The document lives outside the editor (e.g. in a Yjs document): the
+   * initial `modelValue` and later outside changes to it are ignored, and
+   * `v-model` only mirrors the document.
+   */
+  externalDocument?: boolean
   /** Replace the built-in undo history. Only one extension may. */
   history?: (context: ExtensionContext) => HistoryProvider
   /** Entries for the slash menu and the “turn into” menus. */
@@ -97,6 +103,7 @@ export interface ResolvedExtensions {
   keymaps: Record<string, Command>[]
   plugins: Plugin[]
   history: HistoryProvider | null
+  externalDocument: boolean
 }
 
 function flatten(list: readonly (EditorExtension | EditorExtension[])[]): EditorExtension[] {
@@ -165,5 +172,6 @@ export function resolveExtensions(
     ),
     plugins: extensions.flatMap((extension) => extension.plugins?.(context) ?? []),
     history: providers[0]?.history?.(context) ?? null,
+    externalDocument: extensions.some((extension) => extension.externalDocument),
   }
 }

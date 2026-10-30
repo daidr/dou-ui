@@ -35,6 +35,7 @@
 
 - `@dou-ui/icons`：配套的线性图标，可以单独使用
 - `@dou-ui/editor`：块编辑器，文档由可以转换、拖动、嵌套的块组成，支持斜杠菜单、格式工具栏与 Markdown 快捷输入
+- `@dou-ui/editor/collaboration`：基于 Yjs 的协同编辑扩展，显示其他人的光标与选区，撤销只针对自己的修改
 - `@dou-ui/resolver`：配合按需组件插件，自动导入组件和它的样式入口
 - `@dou-ui/nuxt`：Nuxt 模块，组件、指令与函数自动导入，样式与配色模式开箱即用，支持服务端渲染
 - 组件从 `dou-ui` 具名导入；样式可以全量引入 `dou-ui/style.css`，也可以按组件引入 `dou-ui/components/<name>/style`

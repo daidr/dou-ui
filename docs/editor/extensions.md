@@ -110,20 +110,21 @@ export const highlight = defineExtension({
 
 ### 扩展的字段
 
-| 名称           | 说明                                                       | 类型                                   |
-| -------------- | ---------------------------------------------------------- | -------------------------------------- |
-| `name`         | 扩展的名称，同一个扩展不能添加两次                         | `string`                               |
-| `priority`     | 优先级，默认为 `100`。数值大的先执行，快捷键冲突时它的生效 | `number`                               |
-| `blocks`       | 新的块类型，键是类型名称，值是 ProseMirror 节点定义        | `Record<string, NodeSpec>`             |
-| `inlines`      | 新的行内节点，例如提及                                     | `Record<string, NodeSpec>`             |
-| `marks`        | 新的文字格式                                               | `Record<string, MarkSpec>`             |
-| `nodeViews`    | ProseMirror 节点视图                                       | `Record<string, NodeViewConstructor>`  |
-| `inputRules`   | 输入规则，例如 Markdown 快捷输入                           | `(context) => InputRule[]`             |
-| `keymap`       | 快捷键                                                     | `(context) => Record<string, Command>` |
-| `plugins`      | ProseMirror 插件                                           | `(context) => Plugin[]`                |
-| `history`      | 替换内置的撤销记录，只能有一个扩展提供，协同编辑扩展会用到 | `(context) => HistoryProvider`         |
-| `blockOptions` | 块菜单和“转换为”菜单中的选项                               | `BlockOption[]`                        |
-| `formats`      | 格式工具栏中的按钮                                         | `FormatOption[]`                       |
+| 名称               | 说明                                                                 | 类型                                   |
+| ------------------ | -------------------------------------------------------------------- | -------------------------------------- |
+| `name`             | 扩展的名称，同一个扩展不能添加两次                                   | `string`                               |
+| `priority`         | 优先级，默认为 `100`。数值大的先执行，快捷键冲突时它的生效           | `number`                               |
+| `blocks`           | 新的块类型，键是类型名称，值是 ProseMirror 节点定义                  | `Record<string, NodeSpec>`             |
+| `inlines`          | 新的行内节点，例如提及                                               | `Record<string, NodeSpec>`             |
+| `marks`            | 新的文字格式                                                         | `Record<string, MarkSpec>`             |
+| `nodeViews`        | ProseMirror 节点视图                                                 | `Record<string, NodeViewConstructor>`  |
+| `inputRules`       | 输入规则，例如 Markdown 快捷输入                                     | `(context) => InputRule[]`             |
+| `keymap`           | 快捷键                                                               | `(context) => Record<string, Command>` |
+| `plugins`          | ProseMirror 插件                                                     | `(context) => Plugin[]`                |
+| `history`          | 替换内置的撤销记录，只能有一个扩展提供，协同编辑扩展会用到           | `(context) => HistoryProvider`         |
+| `externalDocument` | 文档保存在编辑器之外（例如协同编辑的共享文档），`v-model` 只同步输出 | `boolean`                              |
+| `blockOptions`     | 块菜单和“转换为”菜单中的选项                                         | `BlockOption[]`                        |
+| `formats`          | 格式工具栏中的按钮                                                   | `FormatOption[]`                       |
 
 `context` 里有根据全部扩展生成的 `schema`。
 

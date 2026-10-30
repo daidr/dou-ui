@@ -560,4 +560,34 @@
     align-items: center;
     gap: 6px;
   }
+
+  /* collaboration: the others' cursors and selections */
+  .dou-editor__cursor {
+    position: relative;
+    margin-inline: -1px;
+    border-inline-start: 2px solid var(--dou-editor-cursor-color);
+    pointer-events: none;
+    word-break: normal;
+  }
+
+  .dou-editor__cursor-label {
+    position: absolute;
+    bottom: 100%;
+    left: -2px;
+    padding: 0 6px;
+    border-radius: 4px 4px 4px 0;
+    background-color: var(--dou-editor-cursor-color);
+    color: #fff;
+    font-family: var(--dou-font-family);
+    font-size: 12px;
+    font-weight: normal;
+    font-style: normal;
+    line-height: 18px;
+    white-space: nowrap;
+    user-select: none;
+  }
+
+  .dou-editor__remote-selection {
+    background-color: color-mix(in oklab, var(--dou-editor-cursor-color) 20%, transparent);
+  }
 }

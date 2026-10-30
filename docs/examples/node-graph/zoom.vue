@@ -1,4 +1,6 @@
 <script setup>
+import { ref } from 'vue'
+
 const nodes = [
   { id: 'topic', label: '确定主题', status: 'finish' },
   { id: 'venue', label: '预订场地', status: 'finish' },
@@ -26,8 +28,34 @@ const edges = [
   { from: 'rehearsal', to: 'day' },
   { from: 'promo', to: 'day' },
 ]
+const zoom = ref(1)
+const graph = ref()
 </script>
 
 <template>
-  <DouFlowGraph :nodes="nodes" :edges="edges" />
+  <DouNodeGraph
+    ref="graph"
+    v-model:zoom="zoom"
+    class="framed"
+    :nodes="nodes"
+    :edges="edges"
+    :height="240"
+    zoomable
+    legend
+  />
+  <DouSpace>
+    <DouButton size="sm" variant="outline" @click="graph.fit()">适应画布</DouButton>
+    <DouButton size="sm" variant="outline" @click="graph.scrollToNode('day')">
+      定位到读书会当天
+    </DouButton>
+    <DouText variant="secondary">缩放：{{ Math.round(zoom * 100) }}%</DouText>
+  </DouSpace>
 </template>
+
+<style scoped>
+.framed {
+  max-width: 560px;
+  border: 1px solid var(--dou-color-border);
+  border-radius: var(--dou-radius-container);
+}
+</style>

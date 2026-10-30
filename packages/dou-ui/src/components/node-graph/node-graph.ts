@@ -2,17 +2,17 @@ import type { Component } from 'vue'
 import type { Size, Tone } from '../../utils/types'
 
 /** `blocked` is in progress while something it depends on is not finished. */
-export type FlowNodeStatus = 'wait' | 'process' | 'finish' | 'error' | 'blocked'
+export type GraphNodeStatus = 'wait' | 'process' | 'finish' | 'error' | 'blocked'
 /** A `milestone` shows a flag in place of the status dot. */
-export type FlowNodeKind = 'task' | 'milestone'
-export type FlowNodeShape = 'pill' | 'card'
-export type FlowGraphSize = Size
+export type GraphNodeKind = 'task' | 'milestone'
+export type GraphNodeShape = 'pill' | 'card'
+export type NodeGraphSize = Size
 
-export interface FlowNode {
+export interface GraphNode {
   id: string
   label: string
-  kind?: FlowNodeKind
-  status?: FlowNodeStatus
+  kind?: GraphNodeKind
+  status?: GraphNodeStatus
   /** An icon before the label. */
   icon?: Component
   /** A short value after the label, e.g. a duration or a size. */
@@ -22,7 +22,7 @@ export interface FlowNode {
   /** Tints the description, for a note that needs attention. */
   descriptionTone?: Tone
   /** `card` lays the node out in lines; by default nodes with a description or progress are cards. */
-  shape?: FlowNodeShape
+  shape?: GraphNodeShape
   /** From 0 to 100. */
   progress?: number
   /** Some of its sub-tasks are not finished; marked on the right end. */
@@ -32,7 +32,7 @@ export interface FlowNode {
   [key: string]: unknown
 }
 
-export interface FlowEdge {
+export interface GraphEdge {
   from: string
   to: string
   /** `active` draws the edge in ink, e.g. for a critical path; `muted` fades it. */
@@ -40,22 +40,22 @@ export interface FlowEdge {
 }
 
 /** What hovering or selecting a node brings forward: its upstream and downstream chain. */
-export type FlowGraphHighlight = 'none' | 'hover' | 'selected'
+export type NodeGraphHighlight = 'none' | 'hover' | 'selected'
 
-export interface FlowGraphProps {
-  nodes: FlowNode[]
-  edges: FlowEdge[]
+export interface NodeGraphProps {
+  nodes: GraphNode[]
+  edges: GraphEdge[]
   /** The selected node, or nodes with `selectable: 'multiple'`; bound with `v-model:selected`. */
   selected?: string | string[] | null
   selectable?: boolean | 'multiple'
-  size?: FlowGraphSize
+  size?: NodeGraphSize
   /** `column` widens nodes to the widest in their column; a number fixes every node's width. */
   nodeWidth?: 'column' | 'auto' | number
   /** The widest a node grows to before its label is cut off, in px. */
   maxNodeWidth?: number
   columnGap?: number
   rowGap?: number
-  highlight?: FlowGraphHighlight
+  highlight?: NodeGraphHighlight
   /** Show `blocked` for nodes in progress while a predecessor is not finished. */
   autoBlocked?: boolean
   /** Drag, scroll or swipe to move around when the graph is larger than its box. */
@@ -71,40 +71,40 @@ export interface FlowGraphProps {
   /** The height of the box; a number is in px. Fits the graph by default. */
   height?: string | number
   /** Names the graph for screen readers. */
-  label?: string
+  ariaLabel?: string
 }
 
-export interface FlowNodeSlotProps {
-  node: FlowNode
-  status: FlowNodeStatus
+export interface GraphNodeSlotProps {
+  node: GraphNode
+  status: GraphNodeStatus
   selected: boolean
   hovered: boolean
 }
 
-export interface FlowGraphEmits {
+export interface NodeGraphEmits {
   'update:selected': [value: string | string[] | null]
   'update:zoom': [value: number]
   'update:hovered': [value: string | null]
-  'node-click': [node: FlowNode, event: MouseEvent]
-  'node-dblclick': [node: FlowNode, event: MouseEvent]
+  nodeClick: [node: GraphNode, event: MouseEvent]
+  nodeDblclick: [node: GraphNode, event: MouseEvent]
   /** The pointer entered a node; `el` is the node, e.g. to anchor a popover. */
-  'node-enter': [node: FlowNode, el: HTMLElement]
-  'node-leave': [node: FlowNode, el: HTMLElement]
+  nodeEnter: [node: GraphNode, el: HTMLElement]
+  nodeLeave: [node: GraphNode, el: HTMLElement]
 }
 
-export interface FlowGraphSlots {
+export interface NodeGraphSlots {
   /** Replaces everything inside a node; the frame, position and states stay. */
-  node?: (props: FlowNodeSlotProps) => unknown
+  node?: (props: GraphNodeSlotProps) => unknown
   /** Replaces the status dot. */
-  status?: (props: FlowNodeSlotProps) => unknown
-  icon?: (props: FlowNodeSlotProps) => unknown
-  label?: (props: FlowNodeSlotProps) => unknown
-  extra?: (props: FlowNodeSlotProps) => unknown
-  description?: (props: FlowNodeSlotProps) => unknown
+  status?: (props: GraphNodeSlotProps) => unknown
+  icon?: (props: GraphNodeSlotProps) => unknown
+  label?: (props: GraphNodeSlotProps) => unknown
+  extra?: (props: GraphNodeSlotProps) => unknown
+  description?: (props: GraphNodeSlotProps) => unknown
   /** A small round badge on the top right corner, e.g. a button. */
-  corner?: (props: FlowNodeSlotProps) => unknown
+  corner?: (props: GraphNodeSlotProps) => unknown
   /** Shown in a popover while hovering a node. */
-  detail?: (props: FlowNodeSlotProps) => unknown
+  detail?: (props: GraphNodeSlotProps) => unknown
   /** Extra buttons in the toolbar on the top right. */
   toolbar?: () => unknown
   /** Replaces the content of the legend popover. */
@@ -112,7 +112,7 @@ export interface FlowGraphSlots {
   empty?: () => unknown
 }
 
-export interface FlowGraphExpose {
+export interface NodeGraphExpose {
   /** Move the view so the node is in sight. */
   scrollToNode: (id: string) => void
   /** Show the whole graph: zooms out if zoomable, otherwise moves back to the start. */
@@ -123,16 +123,16 @@ export interface FlowGraphExpose {
   relayout: () => void
 }
 
-export interface FlowGraphLegendItem {
+export interface NodeGraphLegendItem {
   /** What the swatch shows. */
   type: 'kind' | 'status' | 'incomplete' | 'progress'
-  value?: FlowNodeKind | FlowNodeStatus
+  value?: GraphNodeKind | GraphNodeStatus
   label: string
 }
 
-export interface FlowGraphLegendProps {
+export interface NodeGraphLegendProps {
   /** Lists what these nodes use. Leave out to list everything. */
-  nodes?: FlowNode[]
-  items?: FlowGraphLegendItem[]
+  nodes?: GraphNode[]
+  items?: NodeGraphLegendItem[]
   title?: string
 }

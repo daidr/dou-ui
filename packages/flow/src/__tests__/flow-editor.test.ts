@@ -1,8 +1,14 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
-import { defineNodeType, DouFlowControls, DouFlowEditor, DouFlowPort } from '../index'
-import type { FlowDocument, FlowSelection } from '../index'
+import {
+  defineNodeType,
+  DouFlowControls,
+  DouFlowEditor,
+  DouFlowPort,
+  useFlowMessages,
+} from '../index'
+import type { FlowDocument, FlowMessages, FlowSelection } from '../index'
 
 const sample = (): FlowDocument => ({
   nodes: [
@@ -26,7 +32,7 @@ function setup(selected: FlowSelection = { nodes: [], edges: [] }) {
             'onUpdate:modelValue': (value: FlowDocument) => (doc.value = value),
             selection: selection.value,
             'onUpdate:selection': (value: FlowSelection) => (selection.value = value),
-            label: '写作流程',
+            ariaLabel: '写作流程',
           },
           () => h(DouFlowControls),
         ),
@@ -161,7 +167,7 @@ describe('DouFlowEditor', () => {
       props: {
         modelValue: doc.value,
         'onUpdate:modelValue': (value: FlowDocument) => (doc.value = value),
-        onChange: (tr) => changes.push(...tr.steps.map((s) => s.type)),
+        onTransaction: (tr) => changes.push(...tr.steps.map((s) => s.type)),
       },
     })
     wrapper.vm.transact((tr) => tr.removeNode('b'))
@@ -170,5 +176,86 @@ describe('DouFlowEditor', () => {
     wrapper.vm.undo()
     expect(doc.value).toEqual(sample())
     wrapper.unmount()
+  })
+
+  it('connects from the keyboard and announces the target', async () => {
+    const { wrapper, root, doc } = setup({ nodes: ['a'], edges: [] })
+    doc.value = { ...doc.value, edges: [] }
+    await nextTick()
+    await root.trigger('keydown', { key: 'c' })
+    expect(wrapper.find('[aria-live]').text()).toContain('写初稿')
+    await root.trigger('keydown', { key: 'Enter' })
+    expect(doc.value.edges).toHaveLength(1)
+    expect(doc.value.edges[0]).toMatchObject({
+      source: { node: 'a', port: 'out' },
+      target: { node: 'b', port: 'in' },
+    })
+    wrapper.unmount()
+  })
+
+  it('copies, pastes and duplicates nodes with the edges between them', async () => {
+    const { wrapper, root, doc, selection } = setup({ nodes: ['a', 'b'], edges: [] })
+    ;(root.element as HTMLElement).focus()
+    const clipboard = new DataTransfer()
+    document.dispatchEvent(new ClipboardEvent('copy', { clipboardData: clipboard }))
+    const text = clipboard.getData('text/plain')
+    expect(JSON.parse(text).nodes).toHaveLength(2)
+    document.dispatchEvent(new ClipboardEvent('paste', { clipboardData: clipboard }))
+    await nextTick()
+    expect(doc.value.nodes).toHaveLength(5)
+    expect(doc.value.edges).toHaveLength(2)
+    const pasted = doc.value.nodes.slice(3)
+    expect(pasted.map((n) => n.data?.label)).toEqual(['收集素材', '写初稿'])
+    expect(pasted[0]).toMatchObject({ x: 24, y: 24 })
+    expect(selection.value.nodes).toEqual(pasted.map((n) => n.id))
+    await root.trigger('keydown', { key: 'd', ctrlKey: true })
+    expect(doc.value.nodes).toHaveLength(7)
+    wrapper.unmount()
+  })
+
+  it('marks edges whose port types stopped matching, and removes them', async () => {
+    const Variable = defineNodeType<{ type: string }>({
+      type: 'variable',
+      ports: (node) => [{ id: 'value', kind: 'output', dataType: node.data!.type }],
+      component: defineComponent(() => () => h('div')),
+    })
+    const doc = ref<FlowDocument>({
+      nodes: [
+        { id: 'v', type: 'variable', x: 0, y: 0, data: { type: 'number' } },
+        { id: 'n', x: 300, y: 0, data: { inputs: [{ id: 'in', dataType: 'number' }] } },
+      ],
+      edges: [{ id: 'e', source: { node: 'v', port: 'value' }, target: { node: 'n', port: 'in' } }],
+    })
+    const wrapper = mount(DouFlowEditor, {
+      props: {
+        modelValue: doc.value,
+        'onUpdate:modelValue': (value: FlowDocument) => (doc.value = value),
+        nodeTypes: [Variable],
+      },
+    })
+    expect(wrapper.vm.staleEdges).toEqual([])
+    wrapper.vm.transact((tr) => tr.updateData('v', { type: 'text' }))
+    await wrapper.setProps({ modelValue: doc.value })
+    expect(wrapper.vm.staleEdges).toEqual(['e'])
+    await nextTick()
+    await nextTick()
+    expect(wrapper.find('[aria-live]').text()).toContain('1 条连线')
+    expect(wrapper.vm.removeStaleEdges()).toBe(1)
+    expect(doc.value.edges).toEqual([])
+    wrapper.unmount()
+  })
+
+  it('merges message overrides by group', () => {
+    let messages!: FlowMessages
+    mount(
+      defineComponent(() => {
+        const m = useFlowMessages({ node: '步骤', refused: { cycle: '不能绕回去' } })
+        messages = m.value
+        return () => h('div')
+      }),
+    )
+    expect(messages.node).toBe('步骤')
+    expect(messages.refused.cycle).toBe('不能绕回去')
+    expect(messages.refused.type).toBe('端口类型不匹配')
   })
 })

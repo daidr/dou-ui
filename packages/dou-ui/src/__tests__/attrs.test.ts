@@ -35,7 +35,7 @@ const required: Record<string, Record<string, unknown>> = {
   DouListbox: { options: ['a'] },
   DouQrcode: { value: 'x' },
   DouTreeSelect: { data: [] },
-  DouFlowGraph: { nodes: [], edges: [] },
+  DouNodeGraph: { nodes: [], edges: [] },
   DouSortable: { modelValue: [] },
   DouTour: { open: true, steps: [{ title: 'a' }] },
 }

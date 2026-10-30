@@ -136,7 +136,7 @@ const labelOf = (id) => nodes.find((node) => node.id === id)?.label
 </script>
 
 <template>
-  <DouFlowGraph
+  <DouNodeGraph
     ref="graph"
     v-model:selected="selected"
     v-model:hovered="hovered"
@@ -151,12 +151,12 @@ const labelOf = (id) => nodes.find((node) => node.id === id)?.label
     auto-blocked
     zoomable
     legend
-    label="App 2.0 发布流程"
+    aria-label="App 2.0 发布流程"
   >
     <template #toolbar>
       <button
         type="button"
-        class="dou-flow-graph__tool"
+        class="dou-node-graph__tool"
         :aria-pressed="onlyCritical"
         @click="onlyCritical = !onlyCritical"
       >
@@ -181,7 +181,7 @@ const labelOf = (id) => nodes.find((node) => node.id === id)?.label
         <DouText v-else variant="tertiary" size="sm">暂未分配负责人</DouText>
       </div>
     </template>
-  </DouFlowGraph>
+  </DouNodeGraph>
   <DouSpace wrap>
     <DouButton size="sm" variant="outline" @click="graph.fit()">
       <template #icon><MaximizeIcon /></template>

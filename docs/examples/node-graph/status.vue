@@ -13,5 +13,5 @@ const edges = [
 </script>
 
 <template>
-  <DouFlowGraph :nodes="nodes" :edges="edges" auto-blocked legend />
+  <DouNodeGraph :nodes="nodes" :edges="edges" auto-blocked legend />
 </template>

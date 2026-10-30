@@ -17,7 +17,7 @@ const props: Record<string, Record<string, unknown>> = {
   DouDialog: { open: true, title: '标题' },
   DouDrawer: { open: true, title: '标题' },
   DouDropdown: { items: [{ key: 'a', label: 'A' }] },
-  DouFlowGraph: {
+  DouNodeGraph: {
     nodes: [
       { id: 'a', label: 'A' },
       { id: 'b', label: 'B' },

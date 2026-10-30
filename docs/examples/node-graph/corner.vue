@@ -52,7 +52,7 @@ function toggle(id) {
 </script>
 
 <template>
-  <DouFlowGraph :nodes="nodes" :edges="edges" node-width="auto">
+  <DouNodeGraph :nodes="nodes" :edges="edges" node-width="auto">
     <template #corner="{ node }">
       <button
         type="button"
@@ -64,7 +64,7 @@ function toggle(id) {
         <BellIcon />
       </button>
     </template>
-  </DouFlowGraph>
+  </DouNodeGraph>
 </template>
 
 <style scoped>

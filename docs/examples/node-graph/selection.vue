@@ -28,34 +28,49 @@ const edges = [
   { from: 'rehearsal', to: 'day' },
   { from: 'promo', to: 'day' },
 ]
-const zoom = ref(1)
-const graph = ref()
+const owners = {
+  topic: '戴兜',
+  guests: '戴兜',
+  agenda: '戴兜',
+  books: '戴兜',
+  rehearsal: '戴兜',
+  day: '戴兜',
+}
+const statusText = {
+  wait: '未开始',
+  process: '进行中',
+  finish: '已完成',
+  error: '出错',
+  blocked: '依赖项未完成',
+}
+const statusTone = { finish: 'success', process: 'warning', error: 'danger', blocked: 'warning' }
+const current = ref('agenda')
 </script>
 
 <template>
-  <DouFlowGraph
-    ref="graph"
-    v-model:zoom="zoom"
-    class="framed"
-    :nodes="nodes"
-    :edges="edges"
-    :height="240"
-    zoomable
-    legend
-  />
-  <DouSpace>
-    <DouButton size="sm" variant="outline" @click="graph.fit()">适应画布</DouButton>
-    <DouButton size="sm" variant="outline" @click="graph.scrollToNode('day')">
-      定位到读书会当天
-    </DouButton>
-    <DouText variant="secondary">缩放：{{ Math.round(zoom * 100) }}%</DouText>
-  </DouSpace>
+  <DouNodeGraph v-model:selected="current" :nodes="nodes" :edges="edges">
+    <template #detail="{ node, status }">
+      <div class="detail">
+        <strong class="detail__title">{{ node.label }}</strong>
+        <DouTag :tone="statusTone[status] ?? 'neutral'" size="sm">
+          {{ statusText[status] }}
+        </DouTag>
+        <DouUser v-if="owners[node.id]" :name="owners[node.id]" size="sm" />
+      </div>
+    </template>
+  </DouNodeGraph>
+  <DouText variant="secondary">选中：{{ current ?? '无' }}</DouText>
 </template>
 
 <style scoped>
-.framed {
-  max-width: 560px;
-  border: 1px solid var(--dou-color-border);
-  border-radius: var(--dou-radius-container);
+.detail {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 220px;
+}
+
+.detail__title {
+  flex: 1;
 }
 </style>

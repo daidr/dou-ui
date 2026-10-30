@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { acyclic, layoutFlow, rank } from '../layout'
+import { acyclic, layoutGraph, rank } from '../layout'
 
 const size = (id: string, width = 80) => ({ id, width, height: 32 })
 const options = { columnGap: 56, rowGap: 20 }
 
-describe('layoutFlow', () => {
+describe('layoutGraph', () => {
   it('puts each node one column after its furthest predecessor', () => {
     const { order, edges } = acyclic(
       ['a', 'b', 'c', 'd'],
@@ -34,7 +34,7 @@ describe('layoutFlow', () => {
   })
 
   it('lays columns out left to right and centres a fan-out on its source', () => {
-    const layout = layoutFlow(
+    const layout = layoutGraph(
       [size('a'), size('b', 120), size('c')],
       [
         { from: 'a', to: 'b' },
@@ -54,7 +54,7 @@ describe('layoutFlow', () => {
   })
 
   it('keeps node widths with equalWidth off', () => {
-    const layout = layoutFlow(
+    const layout = layoutGraph(
       [size('a'), size('b', 120), size('c')],
       [
         { from: 'a', to: 'b' },
@@ -66,7 +66,7 @@ describe('layoutFlow', () => {
   })
 
   it('routes a long edge through the columns it crosses', () => {
-    const layout = layoutFlow(
+    const layout = layoutGraph(
       [size('a'), size('b'), size('c'), size('d')],
       [
         { from: 'a', to: 'b' },
@@ -86,7 +86,7 @@ describe('layoutFlow', () => {
   })
 
   it('avoids crossings where it can', () => {
-    const layout = layoutFlow(
+    const layout = layoutGraph(
       ['a', 'b', 'c', 'd'].map((id) => size(id)),
       [
         { from: 'a', to: 'd' },
@@ -99,7 +99,7 @@ describe('layoutFlow', () => {
   })
 
   it('puts every centre on the row grid and tops on even pixels', () => {
-    const layout = layoutFlow(
+    const layout = layoutGraph(
       [size('a'), { id: 'b', width: 80, height: 60 }, size('c'), size('d')],
       [
         { from: 'a', to: 'b' },
@@ -120,7 +120,7 @@ describe('layoutFlow', () => {
   })
 
   it('fans out symmetrically', () => {
-    const layout = layoutFlow(
+    const layout = layoutGraph(
       ['a', 'b', 'c', 'd', 'e'].map((id) => size(id)),
       ['b', 'c', 'd', 'e'].map((to) => ({ from: 'a', to })),
       options,
@@ -132,7 +132,7 @@ describe('layoutFlow', () => {
   })
 
   it('keeps a long edge level when nothing is in its way', () => {
-    const layout = layoutFlow(
+    const layout = layoutGraph(
       ['a', 'b', 'c', 'd'].map((id) => size(id)),
       [
         { from: 'a', to: 'b' },
@@ -148,7 +148,7 @@ describe('layoutFlow', () => {
   })
 
   it('lines edges and rows up on the anchor of a tall node', () => {
-    const layout = layoutFlow(
+    const layout = layoutGraph(
       [size('a'), { id: 'b', width: 80, height: 60, anchor: 16 }, size('c')],
       [
         { from: 'a', to: 'b' },
@@ -175,7 +175,7 @@ describe('layoutFlow', () => {
       [32, 56],
       [72, 32],
     ]) {
-      const layout = layoutFlow(
+      const layout = layoutGraph(
         [
           size('a'),
           { id: 'b', width: 80, height: upper!, anchor: 16 },
@@ -193,7 +193,7 @@ describe('layoutFlow', () => {
   })
 
   it('handles an empty graph', () => {
-    const layout = layoutFlow([], [], options)
+    const layout = layoutGraph([], [], options)
     expect(layout.width).toBe(0)
     expect(layout.height).toBe(0)
   })

@@ -44,5 +44,5 @@ const edges = [
 </script>
 
 <template>
-  <DouFlowGraph :nodes="nodes" :edges="edges" node-width="auto" />
+  <DouNodeGraph :nodes="nodes" :edges="edges" node-width="auto" />
 </template>

@@ -864,7 +864,7 @@ const arts: Record<string, string | ((id: string) => string)> = {
     bar(76, 63, 56, 't') +
     bar(76, 86, 84, 'k') +
     bar(76, 95, 44, 't'),
-  'flow-graph':
+  'node-graph':
     path(
       'M62 60c14 0 14 -24 28 -24M62 60c14 0 14 24 28 24M118 36c14 0 14 24 28 24M118 84c14 0 14 -24 28 -24',
       'ln',

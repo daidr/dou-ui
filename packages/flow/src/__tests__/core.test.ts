@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { canJoin, displacedEdges, joinRefusal, reaches, typesMatch } from '../core/connect'
+import { flowOrder } from '../core/order'
 import { bezierPath, snapBox } from '../core/geometry'
 import { FlowHistory } from '../core/history'
 import type { FlowDocument } from '../core/model'
@@ -165,5 +167,128 @@ describe('bezierPath', () => {
     expect(bezierPath({ x: 100, y: 0 }, 'right', { x: 0, y: 80 }, 'left')).toBe(
       'M100 0C150 0 -50 80 0 80',
     )
+  })
+})
+
+const graph = (): FlowDocument => ({
+  nodes: [
+    { id: 'a', x: 0, y: 0 },
+    { id: 'b', x: 200, y: 0 },
+    { id: 'c', x: 400, y: 0 },
+  ],
+  edges: [{ id: 'e1', source: { node: 'a', port: 'out' }, target: { node: 'b', port: 'in' } }],
+})
+const out = { id: 'out', kind: 'output' } as const
+const inp = { id: 'in', kind: 'input' } as const
+const join = (source: string, target: string) => ({
+  source: { node: source, port: 'out' },
+  target: { node: target, port: 'in' },
+})
+
+describe('connection rules', () => {
+  it('matches types in layers', () => {
+    expect(typesMatch(out, inp)).toBe(true)
+    expect(typesMatch({ ...out, dataType: 'number' }, inp)).toBe(true)
+    expect(typesMatch({ ...out, dataType: 'number' }, { ...inp, dataType: 'text' })).toBe(false)
+    expect(typesMatch({ ...out, dataType: 'number' }, { ...inp, dataType: 'any' })).toBe(true)
+    expect(
+      typesMatch({ ...out, dataType: 'number' }, { ...inp, dataType: ['text', 'number'] }),
+    ).toBe(true)
+    const portTypes = { text: { accepts: ['number'] } }
+    expect(
+      typesMatch({ ...out, dataType: 'number' }, { ...inp, dataType: 'text' }, portTypes),
+    ).toBe(true)
+    expect(
+      typesMatch({ ...out, dataType: 'text' }, { ...inp, dataType: 'number' }, portTypes),
+    ).toBe(false)
+  })
+
+  it('follows edges to find reachable nodes', () => {
+    expect(reaches(graph(), 'a', 'b')).toBe(true)
+    expect(reaches(graph(), 'b', 'a')).toBe(false)
+  })
+
+  it('says why a connection is refused', () => {
+    const ports = { source: out, target: inp }
+    expect(joinRefusal(graph(), join('b', 'c'), ports)).toBeNull()
+    expect(joinRefusal(graph(), join('b', 'c'), { source: inp, target: out })).toEqual({
+      reason: 'direction',
+    })
+    expect(joinRefusal(graph(), join('a', 'a'), ports)).toEqual({ reason: 'self' })
+    expect(joinRefusal(graph(), join('a', 'b'), ports)).toEqual({ reason: 'duplicate' })
+    expect(
+      joinRefusal(graph(), join('b', 'c'), {
+        source: { ...out, dataType: 'a' },
+        target: { ...inp, dataType: 'b' },
+      }),
+    ).toEqual({ reason: 'type' })
+    expect(joinRefusal(graph(), join('b', 'a'), ports, { acyclic: true })).toEqual({
+      reason: 'cycle',
+    })
+    expect(canJoin(graph(), join('b', 'a'), ports)).toBe(true)
+    expect(joinRefusal(graph(), join('b', 'c'), ports, { canConnect: () => false })).toEqual({
+      reason: 'custom',
+      message: undefined,
+    })
+    expect(joinRefusal(graph(), join('b', 'c'), ports, { canConnect: () => '只能连一次' })).toEqual(
+      {
+        reason: 'custom',
+        message: '只能连一次',
+      },
+    )
+    // A full port still takes the edge.
+    expect(canJoin(graph(), join('c', 'b'), ports)).toBe(true)
+  })
+
+  it('makes room on full ports by dropping their oldest edges', () => {
+    const ports = { source: out, target: inp }
+    expect(displacedEdges(graph(), join('c', 'b'), ports)).toEqual(['e1'])
+    expect(
+      displacedEdges(graph(), join('c', 'b'), { source: out, target: { ...inp, max: 2 } }),
+    ).toEqual([])
+    const full = { ...graph(), edges: [...graph().edges, { id: 'e2', ...join('c', 'b') }] }
+    expect(
+      displacedEdges(full, join('a', 'b'), { source: out, target: { ...inp, max: 2 } }),
+    ).toEqual(['e1'])
+    expect(
+      displacedEdges(graph(), join('a', 'c'), { source: { ...out, max: 1 }, target: inp }),
+    ).toEqual(['e1'])
+    // The edge being moved doesn't count.
+    expect(
+      displacedEdges(graph(), join('a', 'c'), { source: { ...out, max: 1 }, target: inp }, 'e1'),
+    ).toEqual([])
+  })
+})
+
+describe('flowOrder', () => {
+  it('follows the edges, then goes left to right', () => {
+    const order = flowOrder({
+      nodes: [
+        { id: 'tool', x: 300, y: -100 },
+        { id: 'start', x: 0, y: 100 },
+        { id: 'reply', x: 600, y: 0 },
+        { id: 'note', x: 100, y: 400 },
+      ],
+      edges: [
+        { id: '1', source: { node: 'start' }, target: { node: 'tool' } },
+        { id: '2', source: { node: 'tool' }, target: { node: 'reply' } },
+      ],
+    })
+    expect(order.map((n) => n.id)).toEqual(['start', 'note', 'tool', 'reply'])
+  })
+
+  it('puts nodes on a cycle last', () => {
+    const order = flowOrder({
+      nodes: [
+        { id: 'a', x: 0, y: 0 },
+        { id: 'b', x: 200, y: 0 },
+        { id: 'c', x: 400, y: 0 },
+      ],
+      edges: [
+        { id: '1', source: { node: 'b' }, target: { node: 'c' } },
+        { id: '2', source: { node: 'c' }, target: { node: 'b' } },
+      ],
+    })
+    expect(order.map((n) => n.id)).toEqual(['a', 'b', 'c'])
   })
 })

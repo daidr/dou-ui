@@ -1,7 +1,8 @@
 import { inject, type ComputedRef, type InjectionKey, type Ref } from 'vue'
-import type { FlowMessages } from './locale'
+import type { FlowMessages, FlowMessagesOverride } from './locale'
 import type {
   FlowDocument,
+  FlowEndpoint,
   FlowNode,
   FlowPortSpec,
   FlowSelection,
@@ -10,6 +11,7 @@ import type {
   PortSide,
   Rect,
 } from './core/model'
+import type { FlowConnection, PortTypes, PortTypeSpec } from './core/connect'
 import type { NodeTypeSpec } from './core/node-types'
 import type { Transaction, TransactionMeta } from './core/transaction'
 
@@ -24,25 +26,45 @@ export interface FlowEditorProps {
   maxZoom?: number
   /** Fit all nodes into view once they are measured. */
   fitView?: boolean
+  /**
+   * The furthest `fit-view` zooms out, so text stays readable; a larger flow
+   * starts at its top left and is panned to. `0` always fits everything.
+   */
+  fitMinZoom?: number
   /** View, select and pan, but not change anything. */
   readonly?: boolean
   /** Scrolling pans the canvas; with Ctrl / ⌘ it zooms. Off, only Ctrl / ⌘ + scroll zooms. */
   panOnScroll?: boolean
+  /** Looks and connection rules of port types, by the name used in `dataType`. */
+  portTypes?: PortTypes
+  /** Refuse edges that would close a cycle. */
+  acyclic?: boolean
+  /**
+   * The last check before an edge is made. Return `false` to refuse it, or a
+   * sentence saying why. Called for every port while an edge is dragged.
+   */
+  canConnect?: (connection: FlowConnection, doc: FlowDocument) => boolean | string
   /** Accessible name of the canvas. */
-  label?: string
-  messages?: Partial<FlowMessages>
+  ariaLabel?: string
+  /** Texts to change; only the ones given are replaced. */
+  messages?: FlowMessagesOverride
 }
 
 export interface FlowEditorEmits {
-  change: [tr: Transaction]
-  'node-click': [node: FlowNode, event: MouseEvent]
-  'node-dblclick': [node: FlowNode, event: MouseEvent]
-  'node-contextmenu': [node: FlowNode, event: MouseEvent]
-  'edge-click': [edge: FlowDocument['edges'][number], event: MouseEvent]
-  'edge-contextmenu': [edge: FlowDocument['edges'][number], event: MouseEvent]
+  /** Every change to the document, with its steps; `update:modelValue` follows. */
+  transaction: [tr: Transaction]
+  nodeClick: [node: FlowNode, event: MouseEvent]
+  nodeDblclick: [node: FlowNode, event: MouseEvent]
+  nodeContextmenu: [node: FlowNode, event: MouseEvent]
+  edgeClick: [edge: FlowDocument['edges'][number], event: MouseEvent]
+  edgeContextmenu: [edge: FlowDocument['edges'][number], event: MouseEvent]
   /** Clicking the empty canvas; `point` is in canvas coordinates. */
-  'canvas-click': [point: Point, event: MouseEvent]
-  'canvas-contextmenu': [point: Point, event: MouseEvent]
+  canvasClick: [point: Point, event: MouseEvent]
+  canvasContextmenu: [point: Point, event: MouseEvent]
+  /** An edge was drawn, or moved to another port. */
+  connect: [edge: FlowDocument['edges'][number]]
+  /** A new edge was dropped on empty canvas; `point` is where, in canvas coordinates. */
+  connectToCanvas: [from: Required<FlowEndpoint>, point: Point, event: MouseEvent]
 }
 
 export interface FlowEditorExpose {
@@ -63,6 +85,13 @@ export interface FlowEditorExpose {
   toCanvas: (point: Point) => Point
   /** A node's measured box in canvas coordinates. */
   getNodeRect: (id: string) => Rect | null
+  /**
+   * Ids of edges whose ports no longer fit: a port is gone, or the types of
+   * its two ends don't match any more. They are drawn red and dashed.
+   */
+  readonly staleEdges: string[]
+  /** Removes the stale edges as one undo step; returns how many. */
+  removeStaleEdges: () => number
 }
 
 /** Where a port's centre is, from its node's top left corner. */
@@ -75,6 +104,9 @@ export interface NodeMetrics {
   height: number
   ports: Map<string, PortAnchor>
 }
+
+/** How a port shows while an edge is being drawn. */
+export type PortState = 'active' | 'valid' | 'candidate' | 'refused'
 
 export interface FlowEditorContext {
   doc: Ref<FlowDocument>
@@ -93,6 +125,10 @@ export interface FlowEditorContext {
   zoomTo: FlowEditorExpose['zoomTo']
   zoomIn: () => void
   zoomOut: () => void
+  /** The registered type of a port, if any. */
+  portTypeOf: (port: FlowPortSpec) => PortTypeSpec | undefined
+  /** A port type's color as CSS. */
+  colorOf: (spec: PortTypeSpec | undefined) => string | undefined
 }
 
 export const flowEditorKey: InjectionKey<FlowEditorContext> = Symbol('dou-flow-editor')
@@ -109,6 +145,8 @@ export interface FlowNodeContext {
   ports: ComputedRef<FlowPortSpec[]>
   /** Port ids with at least one edge. */
   connected: ComputedRef<Set<string>>
+  /** While an edge is being drawn, how each port shows; `null` otherwise. */
+  portStates: ComputedRef<Map<string, PortState> | null>
   registerPort: (id: string, el: HTMLElement, auto?: boolean) => void
   unregisterPort: (id: string, auto?: boolean) => void
 }

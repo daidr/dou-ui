@@ -7,20 +7,20 @@ import { OnlyChild } from '../../utils/only-child'
 import { useLocale } from '../config-provider/use-config'
 import { useFormSize } from '../form/use-form-item'
 import { DouPopover } from '../popover'
-import DouFlowGraphLegend from './flow-graph-legend.vue'
-import { acyclic, layoutFlow, rank } from './layout'
+import DouNodeGraphLegend from './node-graph-legend.vue'
+import { acyclic, layoutGraph, rank } from './layout'
 import type {
-  FlowGraphExpose,
-  FlowGraphProps,
-  FlowGraphSlots,
-  FlowNode,
-  FlowNodeSlotProps,
-  FlowNodeStatus,
-} from './flow-graph'
+  NodeGraphExpose,
+  NodeGraphProps,
+  NodeGraphSlots,
+  GraphNode,
+  GraphNodeSlotProps,
+  GraphNodeStatus,
+} from './node-graph'
 
-defineOptions({ name: 'DouFlowGraph' })
+defineOptions({ name: 'DouNodeGraph' })
 
-const props = withDefaults(defineProps<FlowGraphProps>(), {
+const props = withDefaults(defineProps<NodeGraphProps>(), {
   selectable: true,
   nodeWidth: 'column',
   maxNodeWidth: 320,
@@ -36,14 +36,14 @@ const selected = defineModel<string | string[] | null>('selected', { default: nu
 const zoom = defineModel<number>('zoom', { default: 1 })
 const hovered = defineModel<string | null>('hovered', { default: null })
 const emit = defineEmits<{
-  'node-click': [node: FlowNode, event: MouseEvent]
-  'node-dblclick': [node: FlowNode, event: MouseEvent]
-  'node-enter': [node: FlowNode, el: HTMLElement]
-  'node-leave': [node: FlowNode, el: HTMLElement]
+  nodeClick: [node: GraphNode, event: MouseEvent]
+  nodeDblclick: [node: GraphNode, event: MouseEvent]
+  nodeEnter: [node: GraphNode, el: HTMLElement]
+  nodeLeave: [node: GraphNode, el: HTMLElement]
 }>()
-const slots = defineSlots<FlowGraphSlots>()
+const slots = defineSlots<NodeGraphSlots>()
 
-const ns = useNamespace('flow-graph')
+const ns = useNamespace('node-graph')
 const { t } = useLocale()
 const size = useFormSize(() => props.size)
 
@@ -76,7 +76,7 @@ const succs = computed(() => {
   return map
 })
 
-function statusOf(node: FlowNode): FlowNodeStatus {
+function statusOf(node: GraphNode): GraphNodeStatus {
   const status = node.status ?? 'wait'
   if (props.autoBlocked && status === 'process') {
     const waiting = preds.value
@@ -91,7 +91,7 @@ function statusOf(node: FlowNode): FlowNodeStatus {
 const shownNodes = computed(() => props.nodes.map((node) => ({ ...node, status: statusOf(node) })))
 
 // A second line or a progress bar does not fit a capsule.
-const isCard = (node: FlowNode) =>
+const isCard = (node: GraphNode) =>
   node.shape === 'card' ||
   (node.shape !== 'pill' && (node.description != null || node.progress != null))
 
@@ -100,7 +100,7 @@ const isCard = (node: FlowNode) =>
 const nodeEls = new Map<string, HTMLElement>()
 const sizes = shallowRef(new Map<string, { width: number; height: number }>())
 
-function estimate(node: FlowNode) {
+function estimate(node: GraphNode) {
   const { height, font } = metric.value
   const text = node.label.length + String(node.extra ?? '').length * 0.6
   const width =
@@ -168,7 +168,7 @@ function measure() {
 }
 
 const layout = computed(() =>
-  layoutFlow(
+  layoutGraph(
     props.nodes.map((node) => ({
       id: node.id,
       ...(sizes.value.get(node.id) ?? estimate(node)),
@@ -455,7 +455,7 @@ const selectedIds = computed(() => {
   return new Set(value == null ? [] : Array.isArray(value) ? value : [value])
 })
 
-function select(node: FlowNode) {
+function select(node: GraphNode) {
   if (!props.selectable || node.disabled) return
   if (props.selectable === 'multiple') {
     const current = [...selectedIds.value]
@@ -500,17 +500,17 @@ const edgeInChain = (from: string, to: string) =>
   ((chain.value.up.has(from) && chain.value.up.has(to)) ||
     (chain.value.down.has(from) && chain.value.down.has(to)))
 
-function onEnter(node: FlowNode, event: PointerEvent) {
+function onEnter(node: GraphNode, event: PointerEvent) {
   hovered.value = node.id
-  emit('node-enter', node, event.currentTarget as HTMLElement)
+  emit('nodeEnter', node, event.currentTarget as HTMLElement)
 }
-function onLeave(node: FlowNode, event: PointerEvent) {
+function onLeave(node: GraphNode, event: PointerEvent) {
   if (hovered.value === node.id) hovered.value = null
-  emit('node-leave', node, event.currentTarget as HTMLElement)
+  emit('nodeLeave', node, event.currentTarget as HTMLElement)
 }
-function onClick(node: FlowNode, event: MouseEvent) {
+function onClick(node: GraphNode, event: MouseEvent) {
   select(node)
-  emit('node-click', node, event)
+  emit('nodeClick', node, event)
 }
 
 // Keyboard ------------------------------------------------------------------
@@ -537,7 +537,7 @@ function nearest(ids: string[], from: string) {
   return best
 }
 
-function onKeydown(node: FlowNode, event: KeyboardEvent) {
+function onKeydown(node: GraphNode, event: KeyboardEvent) {
   const placed = layout.value.nodes.get(node.id)!
   const column = layout.value.columns[placed.column]!
   const index = column.indexOf(node.id)
@@ -572,7 +572,7 @@ function onKeydown(node: FlowNode, event: KeyboardEvent) {
 
 // Rendering -----------------------------------------------------------------
 
-function slotProps(node: FlowNode): FlowNodeSlotProps {
+function slotProps(node: GraphNode): GraphNodeSlotProps {
   return {
     node,
     status: statusOf(node),
@@ -581,20 +581,20 @@ function slotProps(node: FlowNode): FlowNodeSlotProps {
   }
 }
 
-function nodeLabel(node: FlowNode) {
-  const sep = t('flowGraph.separator')
+function nodeLabel(node: GraphNode) {
+  const sep = t('nodeGraph.separator')
   const parts = [node.label]
-  if (node.kind === 'milestone') parts.push(t('flowGraph.kind.milestone'))
-  parts.push(t(`flowGraph.status.${statusOf(node)}`))
+  if (node.kind === 'milestone') parts.push(t('nodeGraph.kind.milestone'))
+  parts.push(t(`nodeGraph.status.${statusOf(node)}`))
   if (node.progress != null)
-    parts.push(t('flowGraph.progressValue', { value: Math.round(node.progress) }))
-  if (node.incomplete) parts.push(t('flowGraph.incomplete'))
+    parts.push(t('nodeGraph.progressValue', { value: Math.round(node.progress) }))
+  if (node.incomplete) parts.push(t('nodeGraph.incomplete'))
   const deps = preds.value.get(node.id)!.map((id) => byId.value.get(id)!.label)
-  if (deps.length) parts.push(t('flowGraph.dependsOn', { list: deps.join(sep) }))
+  if (deps.length) parts.push(t('nodeGraph.dependsOn', { list: deps.join(sep) }))
   return parts.join(sep)
 }
 
-function nodeStyle(node: FlowNode): CSSProperties {
+function nodeStyle(node: GraphNode): CSSProperties {
   const placed = layout.value.nodes.get(node.id)
   if (!placed) return {}
   return {
@@ -607,7 +607,7 @@ function nodeStyle(node: FlowNode): CSSProperties {
   }
 }
 
-function nodeClasses(node: FlowNode) {
+function nodeClasses(node: GraphNode) {
   const status = statusOf(node)
   return [
     ns.e('node'),
@@ -622,7 +622,7 @@ function nodeClasses(node: FlowNode) {
   ]
 }
 
-const progressOf = (node: FlowNode) => Math.min(100, Math.max(0, Number(node.progress) || 0))
+const progressOf = (node: GraphNode) => Math.min(100, Math.max(0, Number(node.progress) || 0))
 
 const edges = computed(() =>
   layout.value.edges.map((edge, i) => {
@@ -649,7 +649,7 @@ const classes = computed(() => [
   ns.is('highlighting', !!chain.value),
 ])
 
-defineExpose<FlowGraphExpose>({ scrollToNode, fit, zoomTo, resetView, relayout: measure })
+defineExpose<NodeGraphExpose>({ scrollToNode, fit, zoomTo, resetView, relayout: measure })
 </script>
 
 <template>
@@ -658,7 +658,7 @@ defineExpose<FlowGraphExpose>({ scrollToNode, fit, zoomTo, resetView, relayout: 
     :class="classes"
     :style="rootStyle"
     role="group"
-    :aria-label="label ?? t('flowGraph.label')"
+    :aria-label="ariaLabel ?? t('nodeGraph.label')"
     @wheel="onWheel"
     @scroll="onScroll"
     @pointerdown="onPointerDown"
@@ -692,7 +692,7 @@ defineExpose<FlowGraphExpose>({ scrollToNode, fit, zoomTo, resetView, relayout: 
           :aria-pressed="selectable ? selectedIds.has(node.id) : undefined"
           :aria-disabled="node.disabled || undefined"
           @click="onClick(node, $event)"
-          @dblclick="emit('node-dblclick', node, $event)"
+          @dblclick="emit('nodeDblclick', node, $event)"
           @pointerenter="onEnter(node, $event)"
           @pointerleave="onLeave(node, $event)"
           @focus="focused = node.id"
@@ -727,7 +727,7 @@ defineExpose<FlowGraphExpose>({ scrollToNode, fit, zoomTo, resetView, relayout: 
               :class="[
                 ns.e('description'),
                 node.descriptionTone && ns.is('toned', true),
-                node.descriptionTone && `dou-flow-graph__description--${node.descriptionTone}`,
+                node.descriptionTone && `dou-node-graph__description--${node.descriptionTone}`,
               ]"
             >
               <slot name="description" v-bind="slotProps(node)">{{ node.description }}</slot>
@@ -758,7 +758,7 @@ defineExpose<FlowGraphExpose>({ scrollToNode, fit, zoomTo, resetView, relayout: 
           type="button"
           :class="ns.e('tool')"
           :disabled="zoom <= minZoom"
-          :aria-label="t('flowGraph.zoomOut')"
+          :aria-label="t('nodeGraph.zoomOut')"
           @click="zoomAt(zoom / 1.25)"
         >
           <ZoomOutIcon />
@@ -766,7 +766,7 @@ defineExpose<FlowGraphExpose>({ scrollToNode, fit, zoomTo, resetView, relayout: 
         <button
           type="button"
           :class="[ns.e('tool'), ns.e('zoom')]"
-          :aria-label="t('flowGraph.zoomLevel', { value: Math.round(zoom * 100) })"
+          :aria-label="t('nodeGraph.zoomLevel', { value: Math.round(zoom * 100) })"
           @click="resetView"
         >
           {{ Math.round(zoom * 100) }}%
@@ -775,22 +775,22 @@ defineExpose<FlowGraphExpose>({ scrollToNode, fit, zoomTo, resetView, relayout: 
           type="button"
           :class="ns.e('tool')"
           :disabled="zoom >= maxZoom"
-          :aria-label="t('flowGraph.zoomIn')"
+          :aria-label="t('nodeGraph.zoomIn')"
           @click="zoomAt(zoom * 1.25)"
         >
           <ZoomInIcon />
         </button>
-        <button type="button" :class="ns.e('tool')" :aria-label="t('flowGraph.fit')" @click="fit">
+        <button type="button" :class="ns.e('tool')" :aria-label="t('nodeGraph.fit')" @click="fit">
           <FocusIcon />
         </button>
       </template>
       <DouPopover v-if="legend" placement="bottom-end" trigger="click">
-        <button type="button" :class="ns.e('tool')" :aria-label="t('flowGraph.legend')">
+        <button type="button" :class="ns.e('tool')" :aria-label="t('nodeGraph.legend')">
           <InfoIcon />
         </button>
         <template #content>
           <slot name="legend">
-            <DouFlowGraphLegend :nodes="shownNodes" />
+            <DouNodeGraphLegend :nodes="shownNodes" />
           </slot>
         </template>
       </DouPopover>

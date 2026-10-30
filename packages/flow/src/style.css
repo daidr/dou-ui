@@ -51,6 +51,14 @@
     &.is-space {
       cursor: grab;
     }
+    &.is-connecting,
+    &.is-connecting * {
+      cursor: crosshair;
+    }
+    &.is-refused,
+    &.is-refused * {
+      cursor: not-allowed;
+    }
     &.is-panning,
     &.is-panning *,
     &.is-dragging,
@@ -80,13 +88,23 @@
   .dou-flow-editor__edge {
     fill: none;
     stroke: var(--dou-flow-editor-edge);
-    stroke-width: 1px;
+    stroke-width: var(--dou-flow-editor-edge-width, 1px);
     vector-effect: non-scaling-stroke;
     transition: stroke var(--dou-motion-duration-fast) var(--dou-motion-easing);
 
     &.is-selected {
       stroke: var(--dou-flow-editor-selected);
-      stroke-width: 2px;
+      stroke-width: calc(var(--dou-flow-editor-edge-width, 1px) + 1px);
+    }
+    /* its ports no longer match */
+    &.is-stale {
+      stroke: var(--dou-color-danger);
+      stroke-dasharray: 4 3;
+    }
+    /* the edge being drawn */
+    &.is-preview {
+      stroke: var(--dou-flow-editor-selected);
+      stroke-dasharray: 4 4;
     }
   }
 
@@ -156,38 +174,124 @@
 
   /* ports: a small ring centred on the node's edge, filled once connected */
   .dou-flow-port {
+    --dou-flow-port-color: var(--dou-flow-editor-port);
+
     position: absolute;
     z-index: 1;
     box-sizing: border-box;
     width: 8px;
     height: 8px;
-    border: 1px solid var(--dou-flow-editor-port);
+    border: 1px solid var(--dou-flow-port-color);
     border-radius: var(--dou-radius-full);
     background-color: var(--dou-flow-editor-node-bg);
+    cursor: crosshair;
+    transition-property: opacity, scale, box-shadow;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
 
-    &.is-connected {
-      background-color: var(--dou-flow-editor-port);
+    /* a bigger target than the dot, for pointers and fingers */
+    &::before {
+      position: absolute;
+      inset: -8px;
+      border-radius: inherit;
+      content: '';
+
+      @media (pointer: coarse) {
+        inset: -12px;
+      }
     }
-    /* 0.5px more to sit on the middle of the node's 1px border */
+    &.is-connected {
+      background-color: var(--dou-flow-port-color);
+    }
+    &.is-square {
+      border-radius: 2px;
+    }
+    &.is-diamond {
+      width: 8px;
+      height: 8px;
+      border-radius: 1px;
+      rotate: 45deg;
+    }
+    /* drawn as a filled or hollow arrow pointing along the flow */
+    &.is-triangle {
+      width: 10px;
+      height: 10px;
+      border: 0;
+      border-radius: 0;
+      background: none;
+
+      & svg {
+        display: block;
+        width: 100%;
+        height: 100%;
+        overflow: visible;
+        fill: var(--dou-flow-editor-node-bg);
+        stroke: var(--dou-flow-port-color);
+        stroke-linejoin: round;
+        stroke-width: 1px;
+      }
+      &.is-connected svg {
+        fill: var(--dou-flow-port-color);
+      }
+      &.is-top svg,
+      &.is-bottom svg {
+        rotate: 90deg;
+      }
+    }
+
+    /* while an edge is being drawn */
+    &.is-unavailable {
+      opacity: 0.32;
+    }
+    &.is-valid,
+    &.is-active {
+      box-shadow: 0 0 0 3px color-mix(in oklab, var(--dou-flow-editor-selected) 16%, transparent);
+    }
+    &.is-candidate {
+      border-color: var(--dou-flow-editor-selected);
+      background-color: var(--dou-flow-editor-selected);
+      box-shadow: 0 0 0 4px color-mix(in oklab, var(--dou-flow-editor-selected) 20%, transparent);
+      scale: 1.25;
+    }
+    /* under the pointer, but can't take the edge */
+    &.is-refused {
+      opacity: 1;
+      border-color: var(--dou-color-danger);
+      box-shadow: 0 0 0 3px color-mix(in oklab, var(--dou-color-danger) 16%, transparent);
+    }
+    &.is-triangle.is-candidate {
+      background: none;
+      box-shadow: none;
+
+      & svg {
+        fill: var(--dou-flow-editor-selected);
+        stroke: var(--dou-flow-editor-selected);
+      }
+    }
+    /*
+     * Centred on the middle of the node's 1px border. `translate` rather than
+     * `transform`, so the diamond's rotation and the candidate's scale turn
+     * and grow the port in place instead of moving it.
+     */
     &.is-left {
       top: 50%;
       left: 0;
-      transform: translate(calc(-50% - 0.5px), -50%);
+      translate: calc(-50% - 0.5px) -50%;
     }
     &.is-right {
       top: 50%;
       left: 100%;
-      transform: translate(calc(-50% + 0.5px), -50%);
+      translate: calc(-50% + 0.5px) -50%;
     }
     &.is-top {
       top: 0;
       left: 50%;
-      transform: translate(-50%, calc(-50% - 0.5px));
+      translate: -50% calc(-50% - 0.5px);
     }
     &.is-bottom {
       top: 100%;
       left: 50%;
-      transform: translate(-50%, calc(-50% + 0.5px));
+      translate: -50% calc(-50% + 0.5px);
     }
   }
 
@@ -400,4 +504,8 @@
     margin: 0 2px;
     background-color: var(--dou-color-border);
   }
+}
+
+.dou-flow-editor.is-refused .dou-flow-editor__edge.is-preview {
+  stroke: var(--dou-color-danger);
 }

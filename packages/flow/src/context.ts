@@ -1,4 +1,4 @@
-import { inject, type ComputedRef, type InjectionKey, type Ref } from 'vue'
+import { inject, type ComputedRef, type InjectionKey, type Ref, type ShallowRef } from 'vue'
 import type { FlowMessages, FlowMessagesOverride } from './locale'
 import type {
   FlowDocument,
@@ -13,8 +13,9 @@ import type {
 } from './core/model'
 import type { FlowConnection, PortTypes, PortTypeSpec } from './core/connect'
 import type { FlowExtension } from './core/extension'
+import type { FlowMenuTarget } from './core/menu'
 import type { NodeTypeSpec } from './core/node-types'
-import type { Transaction, TransactionMeta } from './core/transaction'
+import type { FlowTransaction, FlowTransactionMeta } from './core/transaction'
 
 export type FlowPanelPlacement = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
 
@@ -82,7 +83,7 @@ export interface FlowEditorProps {
 
 export interface FlowEditorEmits {
   /** Every change to the document, with its steps; `update:modelValue` follows. */
-  transaction: [tr: Transaction]
+  transaction: [tr: FlowTransaction]
   nodeClick: [node: FlowNode, event: MouseEvent]
   nodeDblclick: [node: FlowNode, event: MouseEvent]
   nodeContextmenu: [node: FlowNode, event: MouseEvent]
@@ -90,16 +91,24 @@ export interface FlowEditorEmits {
   edgeContextmenu: [edge: FlowDocument['edges'][number], event: MouseEvent]
   /** Clicking the empty canvas; `point` is in canvas coordinates. */
   canvasClick: [point: Point, event: MouseEvent]
+  /**
+   * Right click or long press on the empty canvas. The context menu events
+   * come before the editor's own menu; `event.preventDefault()` keeps it closed.
+   */
   canvasContextmenu: [point: Point, event: MouseEvent]
   /** An edge was drawn, or moved to another port. */
   connect: [edge: FlowDocument['edges'][number]]
-  /** A new edge was dropped on empty canvas; `point` is where, in canvas coordinates. */
+  /**
+   * A new edge was dropped on empty canvas; `point` is where, in canvas
+   * coordinates. The editor then offers the node types that can take the
+   * edge; `event.preventDefault()` handles it yourself instead.
+   */
   connectToCanvas: [from: Required<FlowEndpoint>, point: Point, event: MouseEvent]
 }
 
 export interface FlowEditorExpose {
   /** Applies changes as one transaction, one undo step. */
-  transact: (fn: (tr: Transaction) => void, meta?: TransactionMeta) => Transaction
+  transact: (fn: (tr: FlowTransaction) => void, meta?: FlowTransactionMeta) => FlowTransaction
   undo: () => boolean
   redo: () => boolean
   readonly canUndo: boolean
@@ -127,6 +136,41 @@ export interface FlowEditorExpose {
   readonly staleEdges: string[]
   /** Removes the stale edges as one undo step; returns how many. */
   removeStaleEdges: () => number
+  /**
+   * Adds a node of a type with its defaults and selects it, as one undo
+   * step; returns its id. See `FlowInsertOptions` for where it goes.
+   */
+  insertNode: (type: string, options?: FlowInsertOptions) => string | null
+  /**
+   * Starts dragging a new node of a type from `event`, a `pointerdown` on
+   * any element on the page; letting go over the canvas adds it there, and
+   * Escape cancels. The click that ends a drag is stopped. Returns `false`
+   * when nothing was started.
+   */
+  startInsertDrag: (type: string, event: PointerEvent) => boolean
+}
+
+export interface FlowEditorSlots {
+  /** Panels over the canvas, e.g. `DouFlowControls`. */
+  default?: () => unknown
+  /** What follows the pointer while a new node is dragged in. */
+  ghost?: (props: { spec: NodeTypeSpec; over: boolean }) => unknown
+  /** Replaces the list offered when an edge is dropped on the empty canvas. */
+  quickAdd?: (props: {
+    types: NodeTypeSpec[]
+    choose: (type: string) => void
+    close: () => void
+  }) => unknown
+}
+
+export interface FlowInsertOptions {
+  /**
+   * Where the node goes, in canvas coordinates: its centre, or with `from`,
+   * the port that takes the edge. Defaults to the middle of the view.
+   */
+  at?: Point
+  /** Connect the new node to this port, through the first port that can take it. */
+  from?: Required<FlowEndpoint>
 }
 
 /** Where a port's centre is, from its node's top left corner. */
@@ -172,6 +216,29 @@ export interface FlowEditorContext {
   /** The editor's size on screen, in px. */
   size: Ref<{ width: number; height: number }>
   selectedNodes: ComputedRef<Set<string>>
+  insertNode: FlowEditorExpose['insertNode']
+  /** Node types with a `palette` entry, in the order they were given. */
+  paletteTypes: ComputedRef<NodeTypeSpec[]>
+  startInsertDrag: FlowEditorExpose['startInsertDrag']
+  /** The editor's element. */
+  root: Readonly<ShallowRef<HTMLElement | null>>
+  /**
+   * Opens the context menu for a target at a point on screen; `false` when
+   * no extension has items for it. Pass the button that opens it as `from`,
+   * and pressing that button again closes it.
+   */
+  openMenu: (target: FlowMenuTarget, client: Point, from?: Element) => boolean
+  toCanvas: (point: Point) => Point
+  /** Copies the selected nodes to the clipboard; `false` when none are selected. */
+  copy: () => boolean
+  cut: () => boolean
+  /** Pastes what was copied, at `at` (canvas coordinates) or next to the original. */
+  paste: (at?: Point) => Promise<boolean>
+  /** Adds a copy of the selected nodes next to them. */
+  duplicate: () => void
+  /** Deletes the selected nodes and edges, except locked nodes. */
+  deleteSelection: () => void
+  selectAll: () => void
 }
 
 export const flowEditorKey: InjectionKey<FlowEditorContext> = Symbol('dou-flow-editor')

@@ -26,6 +26,21 @@ export interface NodeTypeSpec<Data extends FlowData = FlowData> {
   defaults?: () => Data
   /** The node's accessible name; `data.label` by default. */
   label?: (node: FlowNode<Data>) => string
+  /**
+   * How the type is offered in `DouFlowPalette` and in the list that opens
+   * when an edge is dropped on the empty canvas. Types without it aren't offered.
+   */
+  palette?: NodePaletteSpec
+}
+
+export interface NodePaletteSpec {
+  label: string
+  icon?: Component
+  /** Types with the same group are listed together under its name. */
+  group?: string
+  description?: string
+  /** Other words the search should find the type by. */
+  keywords?: string[]
 }
 
 /** Declares a node type, with the data type checked against its component. */

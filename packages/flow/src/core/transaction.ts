@@ -16,7 +16,7 @@ export type FlowStep =
   | { type: 'removeEdge'; id: string }
   | { type: 'updateEdge'; id: string; patch: Patch<FlowEdge> }
 
-export interface TransactionMeta {
+export interface FlowTransactionMeta {
   /** Keep out of the undo history, e.g. changes from another client. */
   history?: boolean
   /**
@@ -51,11 +51,11 @@ const sameValue = (a: unknown, b: unknown) => a === b
  * A batch of changes to a document. Steps apply as they are added, so
  * later calls see earlier ones; `doc` is the result.
  */
-export class Transaction {
+export class FlowTransaction {
   readonly steps: FlowStep[] = []
   /** The steps that undo this transaction, in the order to apply them. */
   readonly inverse: FlowStep[] = []
-  meta: TransactionMeta = {}
+  meta: FlowTransactionMeta = {}
   private nodes: FlowNode[]
   private edges: FlowEdge[]
   private copied = { nodes: false, edges: false }
@@ -87,7 +87,7 @@ export class Transaction {
     return this.edges.filter((edge) => edge.source.node === id || edge.target.node === id)
   }
 
-  setMeta(meta: TransactionMeta) {
+  setMeta(meta: FlowTransactionMeta) {
     Object.assign(this.meta, meta)
     return this
   }
@@ -207,8 +207,8 @@ function clampIndex(index: number | undefined, length: number) {
 }
 
 /** Applies steps to a document; steps that no longer apply are skipped. */
-export function applySteps(doc: FlowDocument, steps: readonly FlowStep[]) {
-  const tr = new Transaction(doc)
+export function applyFlowSteps(doc: FlowDocument, steps: readonly FlowStep[]) {
+  const tr = new FlowTransaction(doc)
   for (const step of steps) tr.step(step)
   return tr
 }
@@ -233,7 +233,7 @@ const targetOf = (step: FlowStep) => {
  * adds or removes it in between. Updates of different targets commute, so
  * the result applies the same as the original list.
  */
-export function compactSteps(steps: readonly FlowStep[]): FlowStep[] {
+export function compactFlowSteps(steps: readonly FlowStep[]): FlowStep[] {
   const out: (FlowStep | null)[] = []
   const lastUpdate = new Map<string, number>()
   for (const step of steps) {

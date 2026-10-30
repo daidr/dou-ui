@@ -563,6 +563,104 @@
     margin: 0 2px;
     background-color: var(--dou-color-border);
   }
+
+  .dou-flow-controls__button.is-active {
+    background-color: var(--dou-color-bg-muted);
+    color: var(--dou-color-text);
+  }
+
+  /* the toolbar over the selected nodes */
+  .dou-flow-toolbar {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid var(--dou-color-border);
+    border-radius: calc(var(--dou-radius-control) + 2px);
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-md);
+  }
+
+  /* the editor opens its menu at a point; the anchor only places it in the page */
+  .dou-flow-editor__menu-anchor {
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+  }
+
+  /* what follows the pointer while a new node is dragged in */
+  .dou-flow-editor__ghost {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 2147483647;
+    pointer-events: none;
+    translate: -50% -50%;
+    transition: opacity var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    &.is-outside {
+      opacity: 0.56;
+    }
+  }
+
+  .dou-flow-editor__ghost-card {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-sizing: border-box;
+    height: 36px;
+    padding: 0 12px 0 8px;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-container);
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-md);
+    color: var(--dou-color-text);
+    font-family: var(--dou-font-family);
+    font-size: var(--dou-font-size-sm);
+    white-space: nowrap;
+  }
+
+  .dou-flow-editor__ghost-icon,
+  .dou-flow-quick-add__icon {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: var(--dou-radius-control);
+    background-color: var(--dou-color-bg-muted);
+    color: var(--dou-color-text-secondary);
+
+    & svg {
+      width: 14px;
+      height: 14px;
+    }
+  }
+
+  /* the node types offered for an edge dropped on the canvas */
+  .dou-flow-quick-add {
+    width: 260px;
+    padding: 0;
+
+    &.is-custom {
+      width: auto;
+    }
+
+    & .dou-command__search {
+      height: 40px;
+      padding: 0 12px;
+    }
+    & .dou-command__item {
+      gap: 8px;
+    }
+    /* the name stays whole; the description gives way */
+    & .dou-command__label {
+      flex: none;
+    }
+  }
 }
 
 .dou-flow-editor.is-refused .dou-flow-editor__edge.is-preview {

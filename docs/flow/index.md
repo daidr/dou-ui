@@ -118,30 +118,32 @@ app.use(DouFlowEditor)
 
 ### FlowEditor 事件
 
-| 名称                                             | 说明                                                                                 | 参数                   |
-| ------------------------------------------------ | ------------------------------------------------------------------------------------ | ---------------------- |
-| `transaction`                                    | 每次修改文档时触发，包括撤销和重做，参数里有这次修改的每一步；要整份文档用 `v-model` | `(tr: Transaction)`    |
-| `nodeClick` / `nodeDblclick` / `nodeContextmenu` | 点击、双击、右键节点                                                                 | `(node, event)`        |
-| `edgeClick` / `edgeContextmenu`                  | 点击、右键连线                                                                       | `(edge, event)`        |
-| `canvasClick` / `canvasContextmenu`              | 点击、右键画布空白处，`point` 是画布坐标                                             | `(point, event)`       |
-| `connect`                                        | 连好一条线，包括改接                                                                 | `(edge)`               |
-| `connectToCanvas`                                | 新连线拖到空白处松开，`from` 是起点端口，`point` 是画布坐标                          | `(from, point, event)` |
+| 名称                                             | 说明                                                                                                                          | 参数                    |
+| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- | ----------------------- |
+| `transaction`                                    | 每次修改文档时触发，包括撤销和重做，参数里有这次修改的每一步；要整份文档用 `v-model`                                          | `(tr: FlowTransaction)` |
+| `nodeClick` / `nodeDblclick` / `nodeContextmenu` | 点击、双击、右键节点                                                                                                          | `(node, event)`         |
+| `edgeClick` / `edgeContextmenu`                  | 点击、右键连线                                                                                                                | `(edge, event)`         |
+| `canvasClick` / `canvasContextmenu`              | 点击、右键画布空白处，`point` 是画布坐标；右键事件里 `event.preventDefault()` 不打开内置菜单                                  | `(point, event)`        |
+| `connect`                                        | 连好一条线，包括改接                                                                                                          | `(edge)`                |
+| `connectToCanvas`                                | 新连线拖到空白处松开，`from` 是起点端口，`point` 是画布坐标；`event.preventDefault()` 不弹出节点列表，见[编辑交互](./editing) | `(from, point, event)`  |
 
 ### FlowEditor 方法
 
-| 名称                            | 说明                                                                     | 类型                                       |
-| ------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------ |
-| `transact`                      | 在一个事务里修改文档，算作一步撤销                                       | `(fn: (tr) => void, meta?) => Transaction` |
-| `undo` / `redo`                 | 撤销、重做                                                               | `() => boolean`                            |
-| `canUndo` / `canRedo`           | 能否撤销、重做                                                           | `boolean`                                  |
-| `fit`                           | 显示全部节点，或指定的节点                                               | `(ids?: string[]) => void`                 |
-| `zoomTo` / `zoomIn` / `zoomOut` | 缩放                                                                     | —                                          |
-| `centerNode`                    | 把节点移到画布中央，不改变缩放                                           | `(id: string) => void`                     |
-| `tidy`                          | 整理节点，默认整理选中的（两个以上时）或全部，算作一步撤销               | `(ids?: string[]) => void`                 |
-| `toCanvas`                      | 屏幕坐标转画布坐标                                                       | `(point: Point) => Point`                  |
-| `getNodeRect`                   | 节点在画布上的位置和尺寸                                                 | `(id: string) => Rect \| null`             |
-| `staleEdges`                    | 端口已经对不上的连线，见[端口类型随数据变化](./ports#端口类型随数据变化) | `string[]`                                 |
-| `removeStaleEdges`              | 删除这些连线，算作一步撤销，返回删除的条数                               | `() => number`                             |
+| 名称                            | 说明                                                                     | 类型                                           |
+| ------------------------------- | ------------------------------------------------------------------------ | ---------------------------------------------- |
+| `transact`                      | 在一个事务里修改文档，算作一步撤销                                       | `(fn: (tr) => void, meta?) => FlowTransaction` |
+| `undo` / `redo`                 | 撤销、重做                                                               | `() => boolean`                                |
+| `canUndo` / `canRedo`           | 能否撤销、重做                                                           | `boolean`                                      |
+| `fit`                           | 显示全部节点，或指定的节点                                               | `(ids?: string[]) => void`                     |
+| `zoomTo` / `zoomIn` / `zoomOut` | 缩放                                                                     | —                                              |
+| `centerNode`                    | 把节点移到画布中央，不改变缩放                                           | `(id: string) => void`                         |
+| `tidy`                          | 整理节点，默认整理选中的（两个以上时）或全部，算作一步撤销               | `(ids?: string[]) => void`                     |
+| `toCanvas`                      | 屏幕坐标转画布坐标                                                       | `(point: Point) => Point`                      |
+| `getNodeRect`                   | 节点在画布上的位置和尺寸                                                 | `(id: string) => Rect \| null`                 |
+| `staleEdges`                    | 端口已经对不上的连线，见[端口类型随数据变化](./ports#端口类型随数据变化) | `string[]`                                     |
+| `removeStaleEdges`              | 删除这些连线，算作一步撤销，返回删除的条数                               | `() => number`                                 |
+| `insertNode`                    | 新建一个节点并选中，见[用代码添加节点](./editing#用代码添加节点)         | `(type, options?) => string \| null`           |
+| `startInsertDrag`               | 从一次 `pointerdown` 开始拖入新节点，见[拖入节点](./editing#拖入节点)    | `(type, event) => boolean`                     |
 
 ### FlowControls 属性
 

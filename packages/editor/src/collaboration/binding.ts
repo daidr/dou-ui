@@ -1,10 +1,19 @@
-import { Fragment, Mark, type Node as PMNode, type Schema } from 'prosemirror-model'
-import { Plugin, PluginKey, type EditorState, type Transaction } from 'prosemirror-state'
+import { Fragment, type Node as PMNode, type ResolvedPos, type Schema } from 'prosemirror-model'
+import {
+  Plugin,
+  PluginKey,
+  TextSelection,
+  type EditorState,
+  type Transaction,
+} from 'prosemirror-state'
 import type { EditorView } from 'prosemirror-view'
 import * as Y from 'yjs'
-import { createId, type RowsSpec } from '../core/model'
+import { blockAround, findBlockById } from '../core/blocks'
+import { createId } from '../core/model'
 import { placeOf } from './cursors'
-import { keptIndexes, keysBetween } from './order'
+import { keysBetween, orderKeys } from './order'
+import { cellAt, cellStart, clearTable, readTable, writeTable } from './table'
+import { inlineFrom, insertInline, updateText, type Attributes } from './text'
 
 /*
  * How a document is stored in Yjs. Every block is one entry of a `Y.Map`,
@@ -19,6 +28,8 @@ import { keptIndexes, keysBetween } from './order'
  *     parent: string | null
  *     order: string
  *   }>
+ *
+ * Tables keep their rows, columns and cells in more entries; see `./table`.
  */
 
 export type YBlock = Y.Map<unknown>
@@ -57,70 +68,6 @@ function indexDoc(doc: PMNode): Index {
   return { blocks, children }
 }
 
-/* inline content ↔ Y.Text */
-
-type Attributes = Record<string, unknown>
-
-function markAttributes(marks: readonly Mark[], schema: Schema): Attributes {
-  // every mark is named, so `insert` doesn't inherit formatting from the left
-  const attributes: Attributes = {}
-  for (const name of Object.keys(schema.marks)) attributes[name] = null
-  for (const mark of marks)
-    attributes[mark.type.name] = Object.keys(mark.attrs).length ? { ...mark.attrs } : true
-  return attributes
-}
-
-interface Embed {
-  node: string
-  attrs?: Attributes
-}
-
-/** Write `content`'s inline nodes from `from` to `to` into `text` at `at`. */
-function insertInline(text: Y.Text, at: number, content: PMNode, from: number, to: number) {
-  const schema = content.type.schema
-  let offset = at
-  content.forEach((child, pos) => {
-    const start = Math.max(pos, from)
-    const end = Math.min(pos + child.nodeSize, to)
-    if (start >= end) return
-    if (child.isText) {
-      const piece = child.text!.slice(start - pos, end - pos)
-      text.insert(offset, piece, markAttributes(child.marks, schema))
-      offset += piece.length
-    } else {
-      const embed: Embed = { node: child.type.name }
-      if (Object.keys(child.attrs).length) embed.attrs = { ...child.attrs }
-      text.insertEmbed(offset, embed, markAttributes(child.marks, schema))
-      offset += 1
-    }
-  })
-}
-
-function marksFrom(attributes: Attributes | undefined, schema: Schema): Mark[] {
-  const marks: Mark[] = []
-  for (const [name, value] of Object.entries(attributes ?? {})) {
-    const type = schema.marks[name]
-    if (!type || value === null || value === undefined) continue
-    marks.push(type.create(value === true ? null : (value as Attributes)))
-  }
-  return Mark.setFrom(marks) as Mark[]
-}
-
-function inlineFrom(text: Y.Text, schema: Schema, code: boolean): PMNode[] {
-  const nodes: PMNode[] = []
-  for (const op of text.toDelta() as { insert: string | Embed; attributes?: Attributes }[]) {
-    if (typeof op.insert === 'string') {
-      if (op.insert)
-        nodes.push(schema.text(op.insert, code ? [] : marksFrom(op.attributes, schema)))
-    } else {
-      const type = schema.nodes[op.insert.node]
-      if (type?.isInline)
-        nodes.push(type.create(op.insert.attrs ?? null, null, marksFrom(op.attributes, schema)))
-    }
-  }
-  return nodes
-}
-
 /** The content node a stored block stands for. Unknown types become paragraphs. */
 function contentFrom(yblock: YBlock, schema: Schema): PMNode {
   const name = yblock.get('type') as string
@@ -130,18 +77,7 @@ function contentFrom(yblock: YBlock, schema: Schema): PMNode {
   const attrs: Attributes = {}
   for (const attr of Object.keys(type.spec.attrs ?? {}))
     if (attr in props) attrs[attr] = props[attr]
-  if (type.spec.rows) {
-    // a table, kept whole for now
-    const body = yblock.get('body') as unknown[] | undefined
-    if (body) {
-      try {
-        return type.createChecked(attrs, Fragment.fromJSON(schema, body))
-      } catch {
-        // written by a different schema: start over below
-      }
-    }
-    return (type.spec.rows as RowsSpec).write(type, attrs, [])
-  }
+  if (type.spec.rows) return readTable(yblock, type, attrs)
   if (!type.inlineContent) return type.create(attrs)
   const text = yblock.get('text') as Y.Text | undefined
   const inline = text ? inlineFrom(text, schema, !!type.spec.code) : []
@@ -150,56 +86,40 @@ function contentFrom(yblock: YBlock, schema: Schema): PMNode {
 
 function writeContent(yblock: YBlock, content: PMNode) {
   yblock.set('type', content.type.name)
+  const text = new Y.Text()
+  yblock.set('text', text)
+  if (content.type.spec.rows) {
+    writeTable(yblock, null, content)
+    return
+  }
   const props = new Y.Map<unknown>()
   for (const [name, value] of Object.entries(content.attrs)) props.set(name, value)
   yblock.set('props', props)
-  const text = new Y.Text()
-  yblock.set('text', text)
   if (content.inlineContent) insertInline(text, 0, content, 0, content.content.size)
-  if (content.type.spec.rows) yblock.set('body', content.content.toJSON())
 }
 
-/** Bring a stored block's type, props and text from `before` to `after`. */
-function updateContent(yblock: YBlock, before: PMNode, after: PMNode) {
+/**
+ * Bring a stored block's type, props and text from `before` to `after`.
+ * Returns whether the stored block holds more than `after` shows (see `writeTable`).
+ */
+function updateContent(yblock: YBlock, before: PMNode, after: PMNode): boolean {
   if (before.type !== after.type) yblock.set('type', after.type.name)
+  if (after.type.spec.rows)
+    return writeTable(yblock, before.type === after.type ? before : null, after)
+  clearTable(yblock)
   const props = yblock.get('props') as Y.Map<unknown>
   for (const [name, value] of Object.entries(after.attrs)) {
     if (JSON.stringify(props.get(name)) !== JSON.stringify(value)) props.set(name, value)
   }
   for (const name of Array.from(props.keys())) if (!(name in after.attrs)) props.delete(name)
 
-  if (after.type.spec.rows) {
-    if (!before.content.eq(after.content)) yblock.set('body', after.content.toJSON())
-  } else if (yblock.has('body')) yblock.delete('body')
   const text = yblock.get('text') as Y.Text
   if (!after.inlineContent) {
     if (text.length) text.delete(0, text.length)
-    return
+    return false
   }
-  const start = before.content.findDiffStart(after.content)
-  if (start === null) return
-  const end = before.content.findDiffEnd(after.content)!
-  // the ends can overlap the start when the change repeats nearby text
-  const overlap = start - Math.min(end.a, end.b)
-  if (overlap > 0) {
-    end.a += overlap
-    end.b += overlap
-  }
-  const sameText =
-    end.a - start === end.b - start &&
-    before.textBetween(start, end.a, '\n', '￼') === after.textBetween(start, end.b, '\n', '￼')
-  if (sameText) {
-    // only the formatting changed: keep the characters, so edits on them merge
-    const schema = after.type.schema
-    after.content.forEach((child, pos) => {
-      const from = Math.max(pos, start)
-      const to = Math.min(pos + child.nodeSize, end.b)
-      if (from < to) text.format(from, to - from, markAttributes(child.marks, schema))
-    })
-    return
-  }
-  if (end.a > start) text.delete(start, end.a - start)
-  if (end.b > start) insertInline(text, start, after, start, end.b)
+  updateText(text, before, after)
+  return false
 }
 
 /* the stored tree → document */
@@ -253,6 +173,36 @@ function placeAll(map: Y.Map<YBlock>): Map<string, string[]> {
     })
   }
   return children
+}
+
+/** Whether `$pos` is inside table structure below `depth`. */
+function inTable($pos: ResolvedPos, depth: number) {
+  for (let d = $pos.depth; d > depth; d--) if ($pos.node(d).type.spec.tableRole) return true
+  return false
+}
+
+/** A position as its table cell and offset in it, if it is in one. */
+function cellPlace(doc: PMNode, pos: number) {
+  const info = blockAround(doc.resolve(pos))
+  if (!info?.content.type.spec.rows) return null
+  const cell = cellAt(info.content, pos - info.contentPos - 1)
+  return cell && { block: info.node.attrs.id as string, ...cell }
+}
+
+/** Put a cursor that was in a replaced table back into its cell. */
+function keepCellSelection(state: EditorState, tr: Transaction) {
+  const { selection } = state
+  if (!(selection instanceof TextSelection)) return
+  const back = (pos: number) => {
+    const place = cellPlace(state.doc, pos)
+    if (!place) return null
+    const info = findBlockById(tr.doc, place.block)
+    const cell = info && cellStart(info.content, place.key)
+    return cell ? info.contentPos + 1 + cell.offset + Math.min(place.index, cell.size) : null
+  }
+  const anchor = back(selection.anchor)
+  const head = back(selection.head)
+  if (anchor !== null && head !== null) tr.setSelection(TextSelection.create(tr.doc, anchor, head))
 }
 
 /* the binding */
@@ -339,7 +289,19 @@ export function syncPlugin(binding: Binding): Plugin {
         end.a += overlap
         end.b += overlap
       }
-      const tr = view.state.tr.replace(start, end.a, next.slice(start, end.b))
+      let from = start
+      let to = end.a
+      const $from = doc.resolve(from)
+      const $to = doc.resolve(to)
+      const shared = $from.sharedDepth(to)
+      // a change across table cells or rows: swap them whole, a partial cut breaks the grid
+      if (!$from.node(shared).inlineContent && (inTable($from, shared) || inTable($to, shared))) {
+        if ($from.depth > shared) from = $from.before(shared + 1)
+        if ($to.depth > shared) to = $to.after(shared + 1)
+      }
+      const tail = doc.content.size - to
+      const tr = view.state.tr.replace(from, to, next.slice(from, next.content.size - tail))
+      if (to !== end.a || from !== start) keepCellSelection(view.state, tr)
       tr.setMeta(collaborationKey, { remote: true })
       tr.setMeta('remote', true)
       tr.setMeta('addToHistory', false)
@@ -349,7 +311,8 @@ export function syncPlugin(binding: Binding): Plugin {
   }
 
   /** Write the editor's changes since the last sync into the map. */
-  function writeMap(doc: PMNode, tracked: boolean) {
+  function writeMap(view: EditorView, tracked: boolean) {
+    const doc = view.state.doc
     const before = synced ?? indexDoc(doc)
     const after = indexDoc(doc)
     // moving, indenting or adding blocks is an undo step of its own
@@ -359,6 +322,8 @@ export function syncPlugin(binding: Binding): Plugin {
       if (!old || old.length !== ids.length || old.some((id, i) => ids[i] !== id)) structural = true
     }
     if (structural) binding.stopCapturing?.()
+    // blocks that hold more than the editor shows, to be read back
+    const stale: string[] = []
     ydoc.transact(
       () => {
         for (const [id, placed] of after.blocks) {
@@ -369,10 +334,10 @@ export function syncPlugin(binding: Binding): Plugin {
             map.set(id, created)
             writeContent(created, placed.content)
           } else if (old && old.content !== placed.content) {
-            updateContent(yblock, old.content, placed.content)
+            if (updateContent(yblock, old.content, placed.content)) stale.push(id)
           } else if (!old) {
             // stored, but not shown before (e.g. the empty placeholder came back)
-            updateContent(yblock, contentFrom(yblock, schema), placed.content)
+            if (updateContent(yblock, contentFrom(yblock, schema), placed.content)) stale.push(id)
           }
           cache.set(id, placed.content)
         }
@@ -394,32 +359,26 @@ export function syncPlugin(binding: Binding): Plugin {
             const order = yblock.get('order') as string | undefined
             return yblock.get('parent') === parent && order !== undefined ? order : null
           })
-          const kept = keptIndexes(keys)
-          let i = 0
-          while (i < ids.length) {
-            if (kept.has(i)) {
-              i++
-              continue
-            }
-            let j = i
-            while (j < ids.length && !kept.has(j)) j++
-            const low = i > 0 ? keys[i - 1]! : null
-            const high = j < ids.length ? keys[j]! : null
-            const fresh = keysBetween(low, high, j - i)
-            for (let k = i; k < j; k++) {
-              const yblock = map.get(ids[k]!)!
-              if (yblock.get('parent') !== parent) yblock.set('parent', parent)
-              yblock.set('order', fresh[k - i])
-              keys[k] = fresh[k - i]!
-            }
-            i = j
-          }
+          const next = orderKeys(keys)
+          ids.forEach((id, index) => {
+            if (keys[index] === next[index]) return
+            const yblock = map.get(id)!
+            if (yblock.get('parent') !== parent) yblock.set('parent', parent)
+            yblock.set('order', next[index])
+          })
         }
       },
       tracked ? binding.origin : binding.untracked,
     )
     if (structural) binding.stopCapturing?.()
     synced = after
+    if (stale.length) {
+      for (const id of stale) cache.delete(id)
+      // not from inside this update: show the rest once it is done
+      queueMicrotask(() => {
+        if (binding.view === view) readMap(view)
+      })
+    }
   }
 
   return new Plugin({
@@ -470,7 +429,7 @@ export function syncPlugin(binding: Binding): Plugin {
           }
           // read before writing: the map still holds the previous text
           binding.selectionBefore = placeOf(binding, previous.doc, previous.selection.head)
-          writeMap(current.state.doc, state.tracked)
+          writeMap(current, state.tracked)
         },
         destroy() {
           map.unobserveDeep(observer)

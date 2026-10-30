@@ -96,6 +96,31 @@ export interface PartialBlock {
 export interface RowsSpec {
   read: (node: PMNode) => { props: BlockProps; rows: TableRow[] }
   write: (type: NodeType, props: BlockProps, rows: PartialTableRow[]) => PMNode
+  /** The node as a grid of ids and cell nodes, for collaboration. */
+  grid: (node: PMNode) => TableGrid
+}
+
+/** A table node laid out by ids. */
+export interface TableGrid {
+  /** The props other than `columns`. */
+  props: BlockProps
+  /** Each column's id and its other fields (width, alignment). */
+  columns: { id: string; width?: number; align?: string }[]
+  /** Row ids, top to bottom. */
+  rows: string[]
+  /** The cells that are shown, merged ones by their top-left place. */
+  cells: GridCell[]
+}
+
+export interface GridCell {
+  row: number
+  col: number
+  rowspan: number
+  colspan: number
+  /** The cell node; its content is inline. */
+  node: PMNode
+  /** Where the cell starts, counted from the start of the table's content. */
+  offset: number
 }
 
 const MARK_ORDER: string[] = ['bold', 'italic', 'underline', 'strike', 'code']

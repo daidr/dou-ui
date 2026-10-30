@@ -64,3 +64,30 @@ export function keptIndexes(keys: (string | null)[]): Set<number> {
   }
   return kept
 }
+
+/**
+ * Order keys for items in their wanted order, given each one's current key
+ * (`null` when it has none). The longest run already in order keeps its
+ * keys; the others get fresh keys between their kept neighbours.
+ */
+export function orderKeys(keys: (string | null)[]): string[] {
+  const kept = keptIndexes(keys)
+  const result = keys.slice()
+  let i = 0
+  while (i < result.length) {
+    if (kept.has(i)) {
+      i++
+      continue
+    }
+    let j = i
+    while (j < result.length && !kept.has(j)) j++
+    const fresh = keysBetween(
+      i > 0 ? result[i - 1]! : null,
+      j < result.length ? result[j]! : null,
+      j - i,
+    )
+    for (let k = i; k < j; k++) result[k] = fresh[k - i]!
+    i = j
+  }
+  return result as string[]
+}

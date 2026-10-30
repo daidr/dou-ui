@@ -175,7 +175,7 @@ describe('Markdown', () => {
 
   it('leaves out what no extension reads', () => {
     const blocks = markdownToBlocks('<script>alert(1)</script>\n\n| a |\n| - |\n| b |\n', [
-      starterKit(),
+      starterKit({ table: false }),
     ])
     expect(blocks.map((item) => item.type)).toEqual(['paragraph'])
     expect(JSON.stringify(blocks)).not.toContain('alert')

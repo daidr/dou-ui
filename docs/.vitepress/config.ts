@@ -63,6 +63,7 @@ export default defineConfig({
             { text: '折叠块与提示块', link: '/editor/toggle-callout' },
             { text: '图片', link: '/editor/image' },
             { text: '提及', link: '/editor/mention' },
+            { text: '表格', link: '/editor/table' },
             { text: '导入与导出', link: '/editor/import-export' },
             { text: '协同编辑', link: '/editor/collaboration' },
           ],

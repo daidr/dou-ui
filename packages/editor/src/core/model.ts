@@ -39,6 +39,33 @@ export interface BlockProps {
   [name: string]: unknown
 }
 
+/** A table cell: formatted text, and how far it reaches when merged. */
+export interface TableCell {
+  content: InlineContent[]
+  /** Columns the cell spans, when more than one. */
+  colspan?: number
+  /** Rows the cell spans, when more than one. */
+  rowspan?: number
+}
+
+/** A table row: one cell for every column, including those a merged cell covers. */
+export interface TableRow {
+  /** Stable across edits, like a block's id. */
+  id: string
+  cells: TableCell[]
+}
+
+export interface PartialTableCell {
+  content?: InlineContent[] | string
+  colspan?: number
+  rowspan?: number
+}
+
+export interface PartialTableRow {
+  id?: string
+  cells: (PartialTableCell | string)[]
+}
+
 /** One block of the document, as `v-model` reads and writes it. */
 export interface Block {
   /** Stable across edits; a random UUID unless you provide your own. */
@@ -46,6 +73,8 @@ export interface Block {
   type: ContentType
   props: BlockProps
   content: InlineContent[]
+  /** The rows of a table; other blocks have none. */
+  rows?: TableRow[]
   children: Block[]
 }
 
@@ -56,7 +85,17 @@ export interface PartialBlock {
   props?: BlockProps
   /** Inline content, or plain text. */
   content?: InlineContent[] | string
+  rows?: PartialTableRow[]
   children?: PartialBlock[]
+}
+
+/**
+ * A content node spec field for blocks whose content is rows rather than
+ * text (a table): how to read them into a block and build them back.
+ */
+export interface RowsSpec {
+  read: (node: PMNode) => { props: BlockProps; rows: TableRow[] }
+  write: (type: NodeType, props: BlockProps, rows: PartialTableRow[]) => PMNode
 }
 
 const MARK_ORDER: string[] = ['bold', 'italic', 'underline', 'strike', 'code']
@@ -83,7 +122,7 @@ export function createId(): string {
 
 /* document → blocks */
 
-function inlineOf(node: PMNode): InlineContent[] {
+export function inlineOf(node: PMNode): InlineContent[] {
   const result: InlineContent[] = []
   node.forEach((child) => {
     if (child.type.name === 'hardBreak') {
@@ -124,6 +163,18 @@ export function blockFromNode(node: PMNode): Block {
   const group = node.childCount > 1 ? node.child(1) : null
   const children: Block[] = []
   group?.forEach((child) => children.push(blockFromNode(child)))
+  const rows = content.type.spec.rows as RowsSpec | undefined
+  if (rows) {
+    const read = rows.read(content)
+    return {
+      id: node.attrs.id as string,
+      type: content.type.name as ContentType,
+      props: read.props,
+      content: [],
+      rows: read.rows,
+      children,
+    }
+  }
   return {
     id: node.attrs.id as string,
     type: content.type.name as ContentType,
@@ -155,7 +206,11 @@ function marksFor(schema: Schema, item: TextContent): Mark[] {
   return marks
 }
 
-function inlineNodes(schema: Schema, content: PartialBlock['content'], code: boolean): PMNode[] {
+export function inlineNodes(
+  schema: Schema,
+  content: PartialBlock['content'],
+  code: boolean,
+): PMNode[] {
   if (content === undefined) return []
   const items: InlineContent[] =
     typeof content === 'string' ? [{ type: 'text', text: content }] : content
@@ -193,17 +248,26 @@ export function createContentNode(
   type: ContentType,
   props?: BlockProps,
   content?: PartialBlock['content'],
+  rows?: PartialTableRow[],
 ): PMNode {
   const nodeType = schema.nodes[type]?.isInGroup('blockContent')
     ? schema.nodes[type]!
     : schema.nodes.paragraph!
+  const rowsSpec = nodeType.spec.rows as RowsSpec | undefined
+  if (rowsSpec) return rowsSpec.write(nodeType, props ?? {}, rows ?? [])
   const attrs = contentAttrs(nodeType, props)
   if (nodeType.isAtom || !nodeType.inlineContent) return nodeType.create(attrs)
   return nodeType.create(attrs, inlineNodes(schema, content, !!nodeType.spec.code))
 }
 
 export function nodeFromBlock(schema: Schema, block: PartialBlock): PMNode {
-  const content = createContentNode(schema, block.type ?? 'paragraph', block.props, block.content)
+  const content = createContentNode(
+    schema,
+    block.type ?? 'paragraph',
+    block.props,
+    block.content,
+    block.rows,
+  )
   const children = (block.children ?? []).map((child) => nodeFromBlock(schema, child))
   const parts = children.length
     ? [content, schema.nodes.blockGroup!.create(null, children)]

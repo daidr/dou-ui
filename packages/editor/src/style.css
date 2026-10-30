@@ -768,6 +768,205 @@
     font-size: var(--dou-font-size-sm);
   }
 
+  /* table */
+
+  .dou-editor__content--table {
+    margin-block: 4px;
+    /* room for the column handles over the first row */
+    padding-block: 8px 4px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+
+  .dou-editor-table {
+    border-collapse: collapse;
+    table-layout: fixed;
+    font-size: inherit;
+    line-height: inherit;
+
+    & td,
+    & th {
+      position: relative;
+      box-sizing: border-box;
+      min-width: 48px;
+      padding: 6px 10px;
+      border: 1px solid var(--dou-color-border);
+      text-align: start;
+      vertical-align: top;
+      white-space: pre-wrap;
+    }
+
+    & th {
+      background-color: var(--dou-color-bg-muted);
+      font-weight: 600;
+    }
+
+    /* a cell selection, drawn over the cells instead of the text selection */
+    .ProseMirror-hideselection & *::selection {
+      background: transparent;
+    }
+
+    .ProseMirror-hideselection & {
+      caret-color: transparent;
+    }
+
+    & .selectedCell::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-color: var(--dou-editor-selected);
+      pointer-events: none;
+    }
+
+    & .column-resize-handle {
+      position: absolute;
+      inset-block: -1px;
+      inset-inline-end: -2px;
+      z-index: 1;
+      width: 3px;
+      background-color: var(--dou-color-focus);
+      pointer-events: none;
+    }
+  }
+
+  .dou-editor__surface.resize-cursor {
+    cursor: col-resize;
+  }
+
+  .dou-editor-table__handle {
+    position: absolute;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--dou-color-border);
+    border-radius: 4px;
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-sm);
+    color: var(--dou-color-text-tertiary);
+    cursor: pointer;
+    transform: translate(-50%, -50%);
+    transition-property: background-color, color;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    &.is-column {
+      width: 24px;
+      height: 14px;
+    }
+
+    &.is-row {
+      width: 14px;
+      height: 24px;
+    }
+
+    & svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    &:hover,
+    &.is-active {
+      background-color: light-dark(
+        color-mix(in oklab, var(--dou-color-text) 6%, var(--dou-color-bg-surface)),
+        color-mix(in oklab, var(--dou-color-text) 12%, var(--dou-color-bg-surface))
+      );
+      color: var(--dou-color-text);
+    }
+  }
+
+  .dou-editor-table__add {
+    position: absolute;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    border: none;
+    border-radius: 4px;
+    background-color: transparent;
+    color: var(--dou-color-text-tertiary);
+    cursor: pointer;
+    opacity: 0.6;
+    transition-property: background-color, color, opacity;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    &.is-column {
+      width: 16px;
+      margin-inline-start: 4px;
+    }
+
+    &.is-row {
+      height: 16px;
+      margin-block-start: 4px;
+    }
+
+    & svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    &:hover {
+      background-color: var(--dou-editor-control-hover);
+      color: var(--dou-color-text);
+      opacity: 1;
+    }
+  }
+
+  .dou-editor-table__cells {
+    position: absolute;
+    z-index: 3;
+    display: flex;
+    gap: 2px;
+    padding: 3px;
+    border: 1px solid var(--dou-color-border);
+    border-radius: calc(var(--dou-radius-control) + 2px);
+    background-color: light-dark(
+      var(--dou-color-bg-surface),
+      color-mix(in oklab, var(--dou-color-text) 4%, var(--dou-color-bg-surface))
+    );
+    box-shadow: var(--dou-shadow-md);
+    font-size: var(--dou-font-size-sm);
+    line-height: normal;
+    white-space: nowrap;
+    transform: translate(-50%, calc(-100% - 6px));
+  }
+
+  .dou-editor-table__cells-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 26px;
+    margin: 0;
+    padding-inline: 8px;
+    border: none;
+    border-radius: var(--dou-radius-control);
+    background: transparent;
+    color: var(--dou-color-text);
+    font: inherit;
+    cursor: pointer;
+
+    & svg {
+      width: 14px;
+      height: 14px;
+      color: var(--dou-color-text-secondary);
+    }
+
+    &:hover:not(:disabled) {
+      background-color: var(--dou-editor-control-hover);
+    }
+
+    &:disabled {
+      color: var(--dou-color-text-tertiary);
+      cursor: default;
+    }
+  }
+
   /* formatting toolbar over selected text */
 
   .dou-editor-bubble {

@@ -18,6 +18,8 @@ interface Block {
   props: BlockProps
   /** 块里的文字 */
   content: InlineContent[]
+  /** 表格的行，只有表格块有 */
+  rows?: TableRow[]
   /** 缩进在这个块下面的子块 */
   children: Block[]
 }
@@ -53,6 +55,7 @@ const blocks: PartialBlock[] = [
 | `divider`      | 分隔线   | —                                                         |
 | `toggle`       | 折叠块   | —                                                         |
 | `callout`      | 提示块   | `tone`：`info`、`tip`、`warning` 或 `danger`，默认 `info` |
+| `table`        | 表格     | 表头设置与列信息，内容在 `rows` 里，见[表格](./table)     |
 
 通过[扩展](./extensions)增加的块类型也使用同样的格式，`props` 由扩展定义。
 

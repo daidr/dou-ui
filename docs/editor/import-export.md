@@ -22,7 +22,7 @@ HTML 只包含语义标签，不带编辑器的类名，可以直接用于邮件
 
 ## 导入
 
-`htmlToBlocks` 和 `markdownToBlocks` 把 HTML 或 Markdown 读成块，规则与粘贴相同：只保留扩展认识的内容，其余的（例如 `<script>`、不安全的链接、没有对应扩展的表格）会被丢弃。块的 `id` 自动生成。
+`htmlToBlocks` 和 `markdownToBlocks` 把 HTML 或 Markdown 读成块，规则与粘贴相同：只保留扩展认识的内容，其余的（例如 `<script>`、不安全的链接、没有对应扩展的内容）会被丢弃。块的 `id` 自动生成。
 
 ```ts
 import { htmlToBlocks } from '@dou-ui/editor'
@@ -62,9 +62,10 @@ markdownToBlocks(text, extensions, { render: (markdown) => myParser.render(markd
 | 分隔线   | `<hr>`                                            | `---`                                   |
 | 图片     | `<figure>`、`<img>` 与 `<figcaption>`             | `![替代文字](地址 "说明文字")`          |
 | 提及     | `<span data-mention="id">`                        | 同 HTML                                 |
+| 表格     | `<table>`，表头用 `<thead>` 与 `<th>`             | GitHub 表格                             |
 | 文字格式 | `<strong>`、`<em>`、`<u>`、`<s>`、`<code>`、`<a>` | `**`、`*`、`<u>`、`~~`、`` ` ``、`[]()` |
 
-Markdown 没有下划线、折叠块和提及，这些内容写成 HTML，读回时仍能还原。提示块的语气对应 GitHub 的五种提示：`NOTE` 与 `IMPORTANT` 读作 `info`，`TIP` 读作 `tip`，`WARNING` 读作 `warning`，`CAUTION` 读作 `danger`。图片的宽度只写入 HTML。
+Markdown 没有下划线、折叠块和提及，这些内容写成 HTML，读回时仍能还原。提示块的语气对应 GitHub 的五种提示：`NOTE` 与 `IMPORTANT` 读作 `info`，`TIP` 读作 `tip`，`WARNING` 读作 `warning`，`CAUTION` 读作 `danger`。图片的宽度，表格的表头列、列宽和合并单元格只写入 HTML。
 
 段落、标题等块的子块在 HTML 和 Markdown 中没有对应的嵌套方式，会依次写在它的后面。
 

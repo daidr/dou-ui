@@ -31,9 +31,23 @@ export {
   paragraph,
   quote,
   starterKit,
+  table,
   toggle,
 } from './extensions/starter-kit'
 export type { CalloutTone } from './extensions/callout'
+export {
+  alignColumns,
+  clearCells,
+  deleteColumns,
+  deleteRows,
+  insertColumn,
+  insertRow,
+  mergeCells,
+  moveLines,
+  splitMergedCell,
+  toggleHeader,
+} from './extensions/table'
+export type { TableAlign, TableColumn } from './extensions/table'
 export type { StarterKitOptions } from './extensions/starter-kit'
 export { defineBlock, EditorContent, vueNodeView } from './define-block'
 export { defaultLanguages } from './extensions/code-block'
@@ -51,6 +65,11 @@ export type {
   InlineContent,
   InlineNodeContent,
   PartialBlock,
+  PartialTableCell,
+  PartialTableRow,
+  RowsSpec,
+  TableCell,
+  TableRow,
   TextContent,
 } from './core/model'
 export { blocksToDoc, createId, docToBlocks } from './core/model'

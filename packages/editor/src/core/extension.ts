@@ -66,6 +66,11 @@ export interface EditorExtension {
    * `component` (a Vue component that renders the block).
    */
   blocks?: Record<string, NodeSpec>
+  /**
+   * Nodes that only live inside the extension's blocks, e.g. a table's
+   * rows and cells. They join no group.
+   */
+  nodes?: Record<string, NodeSpec>
   /** Inline nodes, e.g. a mention. */
   inlines?: Record<string, NodeSpec>
   marks?: Record<string, MarkSpec>
@@ -161,6 +166,7 @@ export function resolveExtensions(
 
   const names = new Set<string>()
   const blocks: Record<string, NodeSpec> = {}
+  const nodes: Record<string, NodeSpec> = {}
   const inlines: Record<string, NodeSpec> = {}
   const marks: Record<string, MarkSpec> = {}
   for (const extension of extensions) {
@@ -168,10 +174,11 @@ export function resolveExtensions(
       throw new Error(`[@dou-ui/editor] the extension "${extension.name}" is added twice`)
     names.add(extension.name)
     merge(blocks, extension.blocks, 'block type', extension.name)
+    merge(nodes, extension.nodes, 'node', extension.name)
     merge(inlines, extension.inlines, 'inline node', extension.name)
     merge(marks, extension.marks, 'mark', extension.name)
   }
-  const schema = createSchema({ blocks, inlines, marks })
+  const schema = createSchema({ blocks, nodes, inlines, marks })
   const context: ExtensionContext = { schema }
 
   const providers = extensions.filter((extension) => extension.history)

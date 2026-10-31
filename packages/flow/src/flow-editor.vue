@@ -99,6 +99,8 @@ const root = useTemplateRef<HTMLElement>('root')
 /** Movement in screen px before a press becomes a drag. */
 const THRESHOLD = { mouse: 3, touch: 6 }
 const LONG_PRESS = 500
+/** How long a finger rests on a palette item before it picks the node up, in ms. */
+const PICK_UP = 300
 /** How close to the edge a drag starts scrolling the canvas, in px. */
 const EDGE = 24
 /** Auto-scroll speed in px per frame, at `d` px from the edge. */
@@ -2233,6 +2235,7 @@ const insertDrag = shallowRef<{
   /** Whether letting go here adds the node. */
   over: boolean
 } | null>(null)
+let pickUpTimer: ReturnType<typeof setTimeout> | undefined
 
 /** Whether a point on screen is on the canvas itself, not on a panel over it. */
 function onCanvasAt(client: Point) {
@@ -2258,18 +2261,31 @@ function startInsertDrag(type: string, event: PointerEvent) {
   window.addEventListener('pointerup', onInsertUp, true)
   window.addEventListener('pointercancel', onInsertUp, true)
   window.addEventListener('keydown', onInsertKey, true)
+  window.addEventListener('contextmenu', onInsertMenu, true)
+  // A finger that slides at once scrolls the palette; one that rests picks the node up.
+  if (event.pointerType === 'touch')
+    pickUpTimer = setTimeout(() => {
+      const d = insertDrag.value
+      if (d && !d.started) insertDrag.value = { ...d, started: true, over: onCanvasAt(d.client) }
+    }, PICK_UP)
   return true
+}
+
+// A long press would open the browser's menu for the source.
+function onInsertMenu(event: Event) {
+  event.preventDefault()
 }
 
 function onInsertMove(event: PointerEvent) {
   const d = insertDrag.value
   if (!d || d.id !== event.pointerId) return
   const client = { x: event.clientX, y: event.clientY }
-  if (
-    !d.started &&
-    Math.hypot(client.x - d.start.x, client.y - d.start.y) < THRESHOLD[d.touch ? 'touch' : 'mouse']
-  )
-    return
+  if (!d.started) {
+    const moved = Math.hypot(client.x - d.start.x, client.y - d.start.y)
+    if (moved < THRESHOLD[d.touch ? 'touch' : 'mouse']) return
+    // a finger that moves before the node is picked up is scrolling
+    if (d.touch) return stopInsertDrag()
+  }
   insertDrag.value = { ...d, client, started: true, over: onCanvasAt(client) }
 }
 
@@ -2295,6 +2311,8 @@ function onInsertKey(event: KeyboardEvent) {
 
 function stopInsertDrag() {
   insertDrag.value = null
+  clearTimeout(pickUpTimer)
+  window.removeEventListener('contextmenu', onInsertMenu, true)
   window.removeEventListener('pointermove', onInsertMove, true)
   window.removeEventListener('pointerup', onInsertUp, true)
   window.removeEventListener('pointercancel', onInsertUp, true)
@@ -2850,7 +2868,8 @@ const pointerListeners = [
 
 /** Keeps the page from scrolling while a finger drags or pinches in the editor. */
 function holdTouch(event: TouchEvent) {
-  if ((gesture.value?.touch || pinch) && event.cancelable) event.preventDefault()
+  const inserting = insertDrag.value?.touch && insertDrag.value.started
+  if ((gesture.value?.touch || pinch || inserting) && event.cancelable) event.preventDefault()
 }
 
 /** The editor's size on screen, for the minimap. */
@@ -2880,6 +2899,7 @@ onBeforeUnmount(() => {
   root.value?.removeEventListener('wheel', onWheel)
   for (const [type, fn] of pointerListeners) window.removeEventListener(type, fn, true)
   window.removeEventListener('touchmove', holdTouch)
+  stopInsertDrag()
   stopAnimation()
   endGesture()
 })
@@ -3031,7 +3051,23 @@ function teardownExtensions() {
   for (const cleanup of cleanups.splice(0)) cleanup()
   customHistory = null
 }
+let setUp = false
+let setupTimes: number[] = []
+let setupWarned = false
+/** An extension made in the template is new on every render, and set up again each time. */
+function warnRepeatedSetup() {
+  if (process.env.NODE_ENV === 'production' || setupWarned) return
+  const now = Date.now()
+  setupTimes = [...setupTimes.filter((time) => now - time < 1000), now]
+  if (setupTimes.length < 4) return
+  setupWarned = true
+  console.warn(
+    '[@dou-ui/flow] the extensions keep being set up again, which also clears undo each time. Create them once in <script setup> instead of in the template.',
+  )
+}
 function setupExtensions() {
+  if (setUp) warnRepeatedSetup()
+  setUp = true
   teardownExtensions()
   customHistory = resolved.value.history?.(context) ?? null
   for (const setup of resolved.value.setups) {

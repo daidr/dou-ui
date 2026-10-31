@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { defaultNode, defineFlowExtension, defineNodeType, DouFlowEditor, flowKit } from '../index'
 import type { FlowDocument, FlowEditorExpose, FlowExtension, FlowSelection } from '../index'
@@ -287,6 +287,41 @@ describe('startInsertDrag', () => {
     window.dispatchEvent(pointer('pointerup', 200, 120))
     await nextTick()
     expect(doc.value.nodes).toHaveLength(2)
+  })
+
+  it('picks a node up with a finger once it rests, and lets a quick slide scroll', async () => {
+    vi.useFakeTimers()
+    try {
+      const { editor, root, doc } = setup()
+      document.elementFromPoint = () => root.element
+      const touch = (type: string, x: number, y: number) => {
+        const event = pointer(type, x, y)
+        Object.defineProperty(event, 'pointerType', { value: 'touch' })
+        return event
+      }
+      // a slide right away scrolls the palette
+      editor.startInsertDrag('note', touch('pointerdown', 0, 0))
+      window.dispatchEvent(touch('pointermove', 0, 40))
+      vi.advanceTimersByTime(400)
+      window.dispatchEvent(touch('pointermove', 200, 120))
+      window.dispatchEvent(touch('pointerup', 200, 120))
+      await nextTick()
+      expect(doc.value.nodes).toHaveLength(2)
+      // resting picks it up
+      editor.startInsertDrag('note', touch('pointerdown', 0, 0))
+      vi.advanceTimersByTime(400)
+      await nextTick()
+      expect(document.body.querySelector('.dou-flow-editor__ghost')).not.toBeNull()
+      const menu = new Event('contextmenu', { cancelable: true })
+      window.dispatchEvent(menu)
+      expect(menu.defaultPrevented).toBe(true)
+      window.dispatchEvent(touch('pointermove', 200, 120))
+      window.dispatchEvent(touch('pointerup', 200, 120))
+      await nextTick()
+      expect(doc.value.nodes.map((n) => n.type)).toEqual([undefined, undefined, 'note'])
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('starts nothing for unknown types or while read only', () => {

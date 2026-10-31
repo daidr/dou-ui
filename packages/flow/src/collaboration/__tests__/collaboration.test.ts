@@ -1,5 +1,5 @@
 import { mount, type VueWrapper } from '@vue/test-utils'
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate } from 'y-protocols/awareness'
 import * as Y from 'yjs'
@@ -201,6 +201,21 @@ describe('collaboration', () => {
     await ticks()
     for (const side of [one, two]) expect(side.edgeIds()).toEqual(['ab'])
     expect(one.doc.getMap('edges').has('ac')).toBe(false)
+  })
+
+  it("warns once about data the others can't get", async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const { one } = await pair()
+      const icon = { name: 'Icon', render: () => null }
+      one.editor.value!.transact((tr) => tr.updateData('a', { icon }))
+      one.editor.value!.transact((tr) => tr.updateData('a', { icon, label: '读取周报' }))
+      const calls = warn.mock.calls.filter(([text]) => String(text).includes('data.icon'))
+      expect(calls).toHaveLength(1)
+      expect(String(calls[0]![0])).toContain('"a"')
+    } finally {
+      warn.mockRestore()
+    }
   })
 
   it('keeps folding a group to each person', async () => {

@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import {
   defineFlowExtension,
@@ -271,6 +271,37 @@ describe('extension lifecycle', () => {
     expect(setups).toBe(1)
     wrapper.unmount()
     expect(cleanups).toBe(1)
+  })
+})
+
+describe('extensions made in the template', () => {
+  it('warns once when they keep being set up again', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const doc = ref(sample())
+      const wrapper = mount(
+        defineComponent(
+          () => () =>
+            h(DouFlowEditor, {
+              modelValue: doc.value,
+              'onUpdate:modelValue': (value: FlowDocument) => (doc.value = value),
+              // a new extension on every render
+              extensions: [defineFlowExtension({ name: 'fresh', setup: () => {} })],
+            }),
+        ),
+        { attachTo: document.body },
+      )
+      for (let i = 0; i < 6; i++) {
+        doc.value = { ...doc.value }
+        await nextTick()
+      }
+      expect(
+        warn.mock.calls.filter(([text]) => String(text).includes('<script setup>')),
+      ).toHaveLength(1)
+      wrapper.unmount()
+    } finally {
+      warn.mockRestore()
+    }
   })
 })
 

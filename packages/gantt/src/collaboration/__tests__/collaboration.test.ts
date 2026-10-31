@@ -1,5 +1,5 @@
 import { mount, type VueWrapper } from '@vue/test-utils'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { Awareness } from 'y-protocols/awareness'
 import * as Y from 'yjs'
@@ -232,5 +232,26 @@ describe('collaboration', () => {
     const peer = one.wrapper.find('.dou-gantt__peer.is-selected')
     expect(peer.exists()).toBe(true)
     expect(peer.text()).toBe(`用户 ${other.clientID}`)
+  })
+
+  it('warns once about values the others would not get', () => {
+    const doc = new Y.Doc()
+    const tasks = doc.getMap<unknown>('tasks')
+    const links = doc.getMap<unknown>('links')
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const icon = { name: 'Icon', render: () => null }
+    fillMaps(
+      { tasks, links },
+      {
+        tasks: [
+          { id: 'x', title: '带图标', data: { icon } },
+          { id: 'y', title: '普通', data: { tags: ['a'], owner: { name: '戴兜' } } },
+        ],
+        links: [],
+      },
+    )
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(warn.mock.calls[0]![0]).toContain('data.icon.render')
+    warn.mockRestore()
   })
 })

@@ -844,6 +844,7 @@ export const cases: Record<string, Case> = {
   // A form of `n` fields of mixed types in sections of 10, two columns wide.
   'form-renderer': {
     render: (n) => formRenderer(n),
+    budget: { 1000: 16 },
     // Type into a field in the middle; only it should re-render.
     act: (root) => {
       const inputs = root.querySelectorAll<HTMLInputElement>('.dou-input input')
@@ -855,6 +856,7 @@ export const cases: Record<string, Case> = {
   // Typing in the middle group's one reruns only that group's expressions.
   'form-logic': {
     render: (n) => formLogic(n),
+    budget: { 1000: 40 },
     act: (root) => {
       const gate = logicGates[logicGates.length >> 1]
       input(root.querySelector<HTMLInputElement>(`[data-node="${gate}"] input`), '戴兜')
@@ -864,6 +866,7 @@ export const cases: Record<string, Case> = {
   // middle, which shows its settings.
   'form-builder': {
     render: (n) => formBuilder(n),
+    budget: { 1000: 200 },
     act: (root) => {
       const nodes = root.querySelectorAll<HTMLElement>('.dou-form-builder__node:not(.is-container)')
       nodes[nodes.length >> 1]?.click()
@@ -872,6 +875,7 @@ export const cases: Record<string, Case> = {
   // Changing the selected field's label: one transaction with its undo record.
   'form-builder-edit': {
     render: (n) => formBuilder(n),
+    budget: { 1000: 60 },
     prepare: (root) => {
       const nodes = root.querySelectorAll<HTMLElement>('.dou-form-builder__node:not(.is-container)')
       nodes[nodes.length >> 1]?.click()

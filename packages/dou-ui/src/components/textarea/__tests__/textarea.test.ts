@@ -1,6 +1,6 @@
 import { mount } from '@vue/test-utils'
-import { h } from 'vue'
-import { describe, expect, it } from 'vitest'
+import { h, nextTick } from 'vue'
+import { describe, expect, it, vi } from 'vitest'
 import { DouForm, DouFormItem, DouTextarea } from '../../../index'
 
 describe('DouTextarea', () => {
@@ -83,7 +83,41 @@ describe('DouTextarea', () => {
     expect(textarea.style.height).toBe('90px')
     expect(textarea.style.overflowY).toBe('auto')
     expect(wrapper.get('textarea').attributes('style')).toContain('resize: none')
+    // the rows go to the styles too, for browsers that size the field themselves
+    expect(wrapper.get('textarea').attributes('style')).toContain('--dou-textarea-max-rows: 4')
     wrapper.unmount()
+  })
+
+  it('fits the fields that mount together in one pass, reading their layout once', async () => {
+    // a browser that can not size fields by their content
+    vi.stubGlobal('CSS', { supports: () => false })
+    let reads = 0
+    const proto = HTMLTextAreaElement.prototype
+    const before = Object.getOwnPropertyDescriptor(proto, 'scrollHeight')
+    let collapsed = 0
+    Object.defineProperty(proto, 'scrollHeight', {
+      configurable: true,
+      get(this: HTMLTextAreaElement) {
+        reads++
+        // every field collapses before the first is read
+        if (this.style.height === 'auto') collapsed++
+        return 70
+      },
+    })
+    const wrapper = mount(
+      { render: () => [1, 2, 3].map(() => h(DouTextarea, { autosize: true, rows: 1 })) },
+      { attachTo: document.body },
+    )
+    await nextTick()
+    await Promise.resolve()
+    expect(reads).toBe(3)
+    expect(collapsed).toBe(3)
+    for (const textarea of wrapper.findAll('textarea'))
+      expect(textarea.element.style.height).toBe('70px')
+    wrapper.unmount()
+    if (before) Object.defineProperty(proto, 'scrollHeight', before)
+    else delete (proto as any).scrollHeight
+    vi.unstubAllGlobals()
   })
 
   it('takes its id and description from a form item', () => {

@@ -253,6 +253,26 @@ describe('steps', () => {
       .findIndex((step) => step.attributes('hidden') === undefined)
     expect(shown).toBe(0)
   })
+
+  it('takes focus to the page Next opens, and back to the first step on reset', async () => {
+    const wrapper = mount(DouFormRenderer, { props: { form: steps }, attachTo: document.body })
+    const vm = wrapper.vm as any
+    const pages = () => wrapper.findAll('.dou-form-renderer__step')
+    expect(pages()[1]!.attributes('aria-label')).toBe('第 2 步，共 2 步：地址')
+    vm.model.name = '戴兜'
+    await nextTick()
+    await wrapper.findAll('.dou-form-renderer__steps-footer button').at(-1)!.trigger('click')
+    await flush()
+    expect(document.activeElement).toBe(pages()[1]!.element)
+
+    vm.resetFields()
+    await flush()
+    expect(pages()[0]!.attributes('hidden')).toBeUndefined()
+    expect(vm.model.name).toBe('')
+    // The second step is not reached again until the first passes.
+    expect(wrapper.findAll('.dou-steps__item').at(1)!.classes()).toContain('is-disabled')
+    wrapper.unmount()
+  })
 })
 
 describe('tabs', () => {

@@ -8,6 +8,8 @@ export interface FormRendererMessages {
   /** Buttons of `steps`. */
   prev: string
   next: string
+  /** Names the page of `steps` that shows, read out when Back or Next goes to it: `{index}`, `{count}`, `{title}`. */
+  step: string
   /** The add button of a list, unless the list sets `addText`. */
   add: string
   /** The remove button of a list item, read out: `{index}` counts from 1. */
@@ -29,6 +31,7 @@ export interface FormRendererMessages {
 const zhCN: FormRendererMessages = {
   prev: '上一步',
   next: '下一步',
+  step: '第 {index} 步，共 {count} 步：{title}',
   add: '添加一项',
   remove: '删除第 {index} 项',
   move: '拖动第 {index} 项调整顺序',
@@ -64,6 +67,7 @@ const zhCN: FormRendererMessages = {
 const zhTW: FormRendererMessages = {
   prev: '上一步',
   next: '下一步',
+  step: '第 {index} 步，共 {count} 步：{title}',
   add: '新增一項',
   remove: '刪除第 {index} 項',
   move: '拖曳第 {index} 項調整順序',
@@ -99,6 +103,7 @@ const zhTW: FormRendererMessages = {
 const en: FormRendererMessages = {
   prev: 'Back',
   next: 'Next',
+  step: 'Step {index} of {count}: {title}',
   add: 'Add',
   remove: 'Remove item {index}',
   move: 'Drag item {index} to reorder',

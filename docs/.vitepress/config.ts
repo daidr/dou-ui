@@ -127,6 +127,8 @@ export default defineConfig({
             { text: '头脑风暴', link: '/blocks/brainstorm' },
             { text: '发布排期', link: '/blocks/release-plan' },
             { text: '会议室预约', link: '/blocks/room-booking' },
+            { text: '活动报名表', link: '/blocks/event-signup' },
+            { text: '设备报修单', link: '/blocks/repair-order' },
           ],
         },
       ],

@@ -16,7 +16,7 @@ import { formNodePlaces } from './core/transaction'
 import {
   itemToRule,
   logicScope,
-  logicScopeKey,
+  sameLogicScope,
   logicSettings,
   ruleSettings,
   ruleToItem,
@@ -154,12 +154,11 @@ const spanForm = memo(
 )
 
 // What the node's logic can read; kept as one object while the fields it lists stay the same.
-let lastScope: { key: string; scope: LogicScope } | undefined
+let lastScope: LogicScope | undefined
 const logic = computed(() => {
   const next = logicScope(state.document, node.value?.id, types.value, messages.value)
-  const key = logicScopeKey(next)
-  if (lastScope?.key !== key) lastScope = { key, scope: next }
-  return lastScope.scope
+  if (!lastScope || !sameLogicScope(lastScope, next)) lastScope = next
+  return lastScope
 })
 const holdsValue = computed(() => {
   const current = node.value

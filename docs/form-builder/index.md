@@ -35,6 +35,8 @@ app.use(DouFormBuilder)
 
 <DocDemo src="form-builder/basic" column />
 
+设计器和渲染器配合使用的完整页面见区块：[活动报名表](/blocks/event-signup)、[设备报修单](/blocks/repair-order)。
+
 ## 布局
 
 字段排在一个栅格里，默认 12 列，由描述的 `columns` 修改。每个节点的 `span` 是它占的列数，不写时占满一行。`span` 可以按宽度变化，写成 `{ sm: 6, lg: 4 }`，含义和 `DouGrid` 一样：每个断点从它的宽度开始生效，直到更大的断点接手，`base` 是最窄时的值。
@@ -75,6 +77,8 @@ app.use(DouFormBuilder)
 
 仓库的性能基准里有 `form-renderer`（按 10 个一组分组的混合字段）和 `form-handwritten`（同样的表单手写）两个用例。300 个字段时，渲染器比手写多用约 12% 的挂载时间；在其中一个字段里输入，脚本耗时约 1.5ms。
 
+设计器的用例是 `form-builder`（打开表单后选中一个字段）和 `form-builder-edit`（改选中字段的标签，包括事务和撤销记录）。画布只先画出最前面的字段，其余的在滚动到附近时才画，1000 个字段的表单滚动时保持 60 帧；结构树每一行是单独的组件，改一个字段只更新它那一行。这几个用例在持续集成里有时间上限，变慢数倍时检查会失败。
+
 ## API
 
 ### Props
@@ -112,7 +116,7 @@ app.use(DouFormBuilder)
 | ------------- | -------------------------------------------------------------- | ------------------------------------------------------------- |
 | model         | 字段写入的对象                                                 | `Record<string, any>`                                         |
 | validate      | 检查给定字段或全部字段，不会抛错                               | `(names?: string \| string[]) => Promise<FormValidateResult>` |
-| resetFields   | 恢复为初始值并清除错误                                         | `(names?: string \| string[]) => void`                        |
+| resetFields   | 恢复为初始值并清除错误；不传 `names` 时分步表单回到第一步      | `(names?: string \| string[]) => void`                        |
 | clearValidate | 清除错误                                                       | `(names?: string \| string[]) => void`                        |
 | scrollToField | 滚动到字段并聚焦                                               | `(name: string) => void`                                      |
 | reloadSource  | 重新加载一个或全部选项来源，见[联动与表达式](./logic#选项来源) | `(name?: string) => void`                                     |

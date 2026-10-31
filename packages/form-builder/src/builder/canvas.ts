@@ -162,6 +162,7 @@ export const FormBuilderCanvas = defineComponent({
       errorPaths: () => [],
       footer: () => null,
       footerOwner: () => undefined,
+      resets: () => 0,
     }
     provide(rendererKey, renderer)
     provide(scopeKey, rootScope)

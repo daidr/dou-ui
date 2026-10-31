@@ -193,14 +193,27 @@ provide(rendererKey, {
   errorPaths: () => errorPaths.value,
   footer: () => slots.default?.(),
   footerOwner: () => footerOwner.value,
+  resets: () => resets.value,
 })
+
+// Resetting the whole form, by `resetFields()` or a reset button, also
+// takes steps back to the first one.
+const resets = shallowRef(0)
+function resetFields(names?: string | string[]) {
+  formRef.value?.resetFields(names)
+  if (names === undefined) resets.value++
+}
+function onReset() {
+  resets.value++
+  emit('reset')
+}
 
 defineExpose<FormRendererExpose>({
   get model() {
     return model.value
   },
   validate,
-  resetFields: (names) => formRef.value?.resetFields(names),
+  resetFields,
   clearValidate: (names) => formRef.value?.clearValidate(names),
   scrollToField,
   reloadSource,
@@ -226,7 +239,7 @@ defineExpose<FormRendererExpose>({
     :scroll-to-error="false"
     @submit="emit('submit', getValues())"
     @invalid="onInvalid"
-    @reset="emit('reset')"
+    @reset="onReset"
   >
     <div class="dou-form-renderer__grid" :style="{ '--dou-form-columns': columns }">
       <FormNodeView

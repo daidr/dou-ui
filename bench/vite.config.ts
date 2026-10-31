@@ -30,6 +30,11 @@ export default defineConfig({
         replacement: r('../packages/code/src/style.css'),
       },
       { find: /^@dou-ui\/sheet$/, replacement: r('../packages/sheet/src/index.ts') },
+      { find: /^@dou-ui\/pivot$/, replacement: r('../packages/pivot/src/index.ts') },
+      {
+        find: /^@dou-ui\/pivot\/style\.css$/,
+        replacement: r('../packages/pivot/src/style.css'),
+      },
       {
         find: /^@dou-ui\/sheet\/style\.css$/,
         replacement: r('../packages/sheet/src/style.css'),

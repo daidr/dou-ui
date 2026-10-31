@@ -19,6 +19,7 @@ const groups = [
         link: '/form-builder/',
       },
       { key: 'code', name: '代码编辑器', label: '@dou-ui/code', link: '/code/' },
+      { key: 'pivot', name: '数据透视', label: '@dou-ui/pivot', link: '/pivot/' },
     ],
   },
   {

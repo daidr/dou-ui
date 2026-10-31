@@ -27,10 +27,20 @@ export interface NodeTypeSpec<Data extends FlowData = FlowData> {
   /** The node's accessible name; `data.label` by default. */
   label?: (node: FlowNode<Data>) => string
   /**
-   * How the type is offered in `DouFlowPalette` and in the list that opens
+   * How the type is offered by `paletteTypes` and in the list that opens
    * when an edge is dropped on the empty canvas. Types without it aren't offered.
    */
   palette?: NodePaletteSpec
+  /**
+   * Nodes dropped inside become its children (`parent`) and move with it;
+   * with `data.collapsed` they are hidden and their edges end on it.
+   * Containers are drawn under edges and other nodes.
+   */
+  container?: boolean
+  /** A handle on the selected node changes its stored `width` and `height`. */
+  resizable?: boolean | { minWidth?: number; minHeight?: number }
+  /** The `width` and `height` a new node starts with. */
+  size?: { width: number; height: number }
 }
 
 export interface NodePaletteSpec {

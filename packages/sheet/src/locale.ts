@@ -79,6 +79,29 @@ export interface SheetMessages {
   notDate: string
   notOption: string
   notChecked: string
+  /** The name a new sheet gets: `{n}` is a number. */
+  sheetName: string
+  /** The sheet tabs' accessible name. */
+  sheets: string
+  /** Read out when another sheet shows: `{name}`. */
+  sheetShown: string
+  addSheet: string
+  renameSheet: string
+  duplicateSheet: string
+  deleteSheet: string
+  moveSheetLeft: string
+  moveSheetRight: string
+  /** Read out after a sheet is added: `{name}`. */
+  sheetAdded: string
+  /** Read out after a sheet is deleted: `{name}`. */
+  sheetDeleted: string
+  /** Read out after a sheet moves: `{name}`, now `{index}` of `{count}`. */
+  sheetMoved: string
+  /** Shown when a new name is taken: `{name}`. */
+  sheetNameTaken: string
+  sheetNameEmpty: string
+  /** How to use the tabs with keys; read out when they get focus. */
+  sheetTabKeys: string
 }
 
 const zhCN: SheetMessages = {
@@ -137,6 +160,21 @@ const zhCN: SheetMessages = {
   notDate: '不是日期',
   notOption: '不在选项里',
   notChecked: '不是勾选值',
+  sheetName: '工作表{n}',
+  sheets: '工作表',
+  sheetShown: '工作表“{name}”',
+  addSheet: '新建工作表',
+  renameSheet: '重命名',
+  duplicateSheet: '创建副本',
+  deleteSheet: '删除',
+  moveSheetLeft: '向左移动',
+  moveSheetRight: '向右移动',
+  sheetAdded: '已新建工作表“{name}”',
+  sheetDeleted: '已删除工作表“{name}”',
+  sheetMoved: '“{name}”移到第 {index} 个，共 {count} 个',
+  sheetNameTaken: '已有名为“{name}”的工作表',
+  sheetNameEmpty: '名称不能为空',
+  sheetTabKeys: '左右方向键切换工作表，F2 重命名，Shift + F10 打开菜单',
 }
 
 const zhTW: SheetMessages = {
@@ -195,6 +233,21 @@ const zhTW: SheetMessages = {
   notDate: '不是日期',
   notOption: '不在選項裡',
   notChecked: '不是勾選值',
+  sheetName: '工作表{n}',
+  sheets: '工作表',
+  sheetShown: '工作表「{name}」',
+  addSheet: '新增工作表',
+  renameSheet: '重新命名',
+  duplicateSheet: '建立副本',
+  deleteSheet: '刪除',
+  moveSheetLeft: '向左移動',
+  moveSheetRight: '向右移動',
+  sheetAdded: '已新增工作表「{name}」',
+  sheetDeleted: '已刪除工作表「{name}」',
+  sheetMoved: '「{name}」移到第 {index} 個，共 {count} 個',
+  sheetNameTaken: '已有名為「{name}」的工作表',
+  sheetNameEmpty: '名稱不能為空',
+  sheetTabKeys: '左右方向鍵切換工作表，F2 重新命名，Shift + F10 開啟選單',
 }
 
 const en: SheetMessages = {
@@ -254,6 +307,21 @@ const en: SheetMessages = {
   notDate: 'Not a date',
   notOption: 'Not one of the options',
   notChecked: 'Not checked or unchecked',
+  sheetName: 'Sheet{n}',
+  sheets: 'Sheets',
+  sheetShown: 'Sheet “{name}”',
+  addSheet: 'Add sheet',
+  renameSheet: 'Rename',
+  duplicateSheet: 'Duplicate',
+  deleteSheet: 'Delete',
+  moveSheetLeft: 'Move left',
+  moveSheetRight: 'Move right',
+  sheetAdded: 'Added sheet “{name}”',
+  sheetDeleted: 'Deleted sheet “{name}”',
+  sheetMoved: '“{name}” moved to {index} of {count}',
+  sheetNameTaken: 'There is a sheet named “{name}” already',
+  sheetNameEmpty: "The name can't be empty",
+  sheetTabKeys: 'Left and right arrows switch sheets, F2 renames, Shift + F10 opens the menu',
 }
 
 export const sheetLocales: Record<string, SheetMessages> = {

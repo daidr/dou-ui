@@ -78,7 +78,13 @@ import {
   selectCell,
   type SheetSelection,
 } from './core/selection'
-import { SheetTransaction, type SheetAxisName, type SheetTransactionMeta } from './core/transaction'
+import {
+  SheetTransaction,
+  sheetKey,
+  type SheetAxisName,
+  type SheetRef,
+  type SheetTransactionMeta,
+} from './core/transaction'
 import SheetMenu from './components/sheet-menu.vue'
 import CellPanel from './components/cell-panel.vue'
 import { builtinCellTypes } from './cell-types'
@@ -86,8 +92,10 @@ import { sheetContextKey, type SheetContext } from './context'
 import { resolveCellType, type SheetCellType, type SheetResolvedType } from './core/cell-type'
 import { resolveSheetExtensions, type ResolvedSheetExtensions } from './core/extension'
 import { format, useSheetMessages } from './locale'
+import { sheetToCSV, type SheetCSVWriteOptions } from './core/csv'
 import type {
   SheetEmits,
+  SheetSlots,
   SheetExpose,
   SheetMenuContext,
   SheetMenuItem,
@@ -112,6 +120,7 @@ const props = withDefaults(defineProps<SheetProps>(), {
   extensions: () => [],
 })
 const emit = defineEmits<SheetEmits>()
+defineSlots<SheetSlots>()
 
 const messages = useSheetMessages(() => props.messages)
 const { locale } = useLocale()
@@ -718,7 +727,7 @@ function cellRect(point: SheetPoint) {
 
 const sheetSize = () => ({ rows: rowCount.value, cols: colCount.value })
 
-const view = (): SheetHistoryView => ({ sheet: sheetIndex.value, selection: selection.value })
+const view = (): SheetHistoryView => ({ sheet: sheetKey(sheet.value), selection: selection.value })
 
 function syncHistory() {
   canUndo.value = history.canUndo
@@ -726,11 +735,28 @@ function syncHistory() {
 }
 
 function apply(tr: SheetTransaction) {
+  const was = tr.before.sheets[sheetIndex.value]
   doc.value = tr.doc
   sent = tr.doc
   emit('update:modelValue', tr.doc)
   emit('transaction', tr)
+  if (was && tr.doc.sheets[sheetIndex.value] !== was) followSheet(tr, sheetKey(was))
 }
+
+/**
+ * Keeps the sheet shown after sheets were added, removed or moved: the same
+ * sheet where it went, or the one now in its place when it was removed.
+ */
+function followSheet(tr: SheetTransaction, key: string) {
+  const sheets = tr.doc.sheets
+  const at = sheets.findIndex((s) => sheetKey(s) === key)
+  if (at !== -1) return setSheet(at)
+  const removed = tr.steps.some((step) => step.type === 'removeSheet' && step.sheet === key)
+  if (removed) setSheet(Math.min(sheetIndex.value, sheets.length - 1))
+  // renamed: still the sheet shown, under another key
+  else renamed = true
+}
+let renamed = false
 
 function transact(
   run: (tr: SheetTransaction) => void,
@@ -759,7 +785,8 @@ function travel(direction: 'undo' | 'redo') {
   if (!result) return false
   result.tr.setMeta({ action: direction })
   apply(result.tr)
-  if (result.view.sheet !== sheetIndex.value) setSheet(result.view.sheet)
+  const at = doc.value.sheets.findIndex((s) => sheetKey(s) === result.view.sheet)
+  if (at !== -1) setSheet(at)
   setSelection(result.view.selection)
   scrollToPoint(result.view.selection.active)
   announce(messages.value[direction === 'undo' ? 'undone' : 'redone'])
@@ -771,6 +798,50 @@ function setSheet(index: number) {
   sheetState.value = index
   emit('update:activeSheet', index)
 }
+
+/** The index of a sheet, by index, `id` or name; `-1` when there is none. */
+function indexOfSheet(target: SheetRef) {
+  const sheets = doc.value.sheets
+  if (typeof target === 'number') return target >= 0 && target < sheets.length ? target : -1
+  return sheets.findIndex((s) => s.id === target || (s.id == null && s.name === target))
+}
+
+/** Shows a sheet, by index, `id` or name. */
+function showSheet(target: SheetRef) {
+  const at = indexOfSheet(target)
+  if (at === -1) return false
+  if (editing.value) commitEdit()
+  setSheet(at)
+  return true
+}
+
+/*
+ * Each sheet keeps where it was left, its selection and scroll, and gets
+ * them back when it shows again; a sheet not seen yet starts at A1.
+ */
+const sheetViews = new Map<string, { selection: SheetSelection; top: number; left: number }>()
+watch(
+  () => sheetKey(sheet.value),
+  (key, old) => {
+    if (renamed) {
+      renamed = false
+      return
+    }
+    sheetViews.set(old, { selection: selection.value, ...scroll.value })
+    if (editing.value) cancelEdit()
+    const back = sheetViews.get(key)
+    setSelection(back?.selection ?? selectCell({ row: 0, col: 0 }))
+    const top = back?.top ?? 0
+    const leftBy = back?.left ?? 0
+    scroll.value = { top, left: leftBy }
+    void nextTick(() => {
+      const el = viewport.value
+      if (!el) return
+      el.scrollTop = top
+      el.scrollLeft = leftBy
+    })
+  },
+)
 
 // Editing --------------------------------------------------------------------------------
 
@@ -838,7 +909,7 @@ function commitEdit(move?: SheetDirection) {
   const typed = e.sheet === sheetIndex.value ? typeAt(e.row, e.col) : undefined
   cancelEdit()
   const parsed = typed?.definition.parse?.(text, typed.setup) ?? parseInput(text)
-  const before = { sheet: e.sheet, selection: selection.value }
+  const before = { sheet: sheetKey(doc.value.sheets[e.sheet]!), selection: selection.value }
   if (move) moveActive(move)
   const changed = transact(
     (tr) => {
@@ -1158,6 +1229,14 @@ function onKeydown(event: KeyboardEvent) {
     if (event.shiftKey) return extend(arrow, mod)
     return moveActive(arrow, mod)
   }
+  // Ctrl + PageUp / PageDown: the sheet before or after
+  if (event.ctrlKey && !event.shiftKey && (key === 'PageUp' || key === 'PageDown')) {
+    event.preventDefault()
+    const at = sheetIndex.value + (key === 'PageUp' ? -1 : 1)
+    if (at < 0 || at >= doc.value.sheets.length) return
+    showSheet(at)
+    return announce(format(messages.value.sheetShown, { name: doc.value.sheets[at]!.name }))
+  }
   if (matchesHotkey(event, 'mod+z')) return done(event, travel('undo'))
   if (matchesHotkey(event, 'mod+shift+z') || matchesHotkey(event, 'mod+y'))
     return done(event, travel('redo'))
@@ -1418,10 +1497,10 @@ const rangeName = (b: SheetBounds) =>
 // Clipboard ------------------------------------------------------------------------------
 
 /** The range last copied or cut, outlined until it is pasted (cut), edited or Escape. */
-const clipMark = shallowRef<{ sheet: number; bounds: SheetBounds; cut: string | null } | null>(null)
+const clipMark = shallowRef<{ sheet: string; bounds: SheetBounds; cut: string | null } | null>(null)
 const clipRect = computed(() => {
   const mark = clipMark.value
-  return mark && mark.sheet === sheetIndex.value ? rangeRect(mark.bounds) : null
+  return mark && mark.sheet === sheetKey(sheet.value) ? rangeRect(mark.bounds) : null
 })
 
 /** The cells of a range as a clip, up to where the sheet has data. */
@@ -1469,17 +1548,24 @@ function takeClip(cut: boolean) {
   const height = clip.cells.length
   const width = clip.cells[0]?.length ?? 1
   const bounds = { top: b.top, left: b.left, bottom: b.top + height - 1, right: b.left + width - 1 }
-  clipMark.value = { sheet: sheetIndex.value, bounds, cut: id }
+  clipMark.value = { sheet: sheetKey(sheet.value), bounds, cut: id }
   announce(format(messages.value[cut ? 'cutDone' : 'copied'], { range: rangeName(bounds) }))
-  return formatClip(clip, {
-    locale: lang.value,
-    // as cell types show their values, such as 80% for 0.8
-    text: (input) => {
-      const cell = cellOf(input)
-      const typed = cell?.type ? resolveCellType(cell, doc.value, cellTypes.value) : undefined
-      return typed?.definition.format?.(valueOf(input), typed.setup)
-    },
-  })
+  return formatClip(clip, { locale: lang.value, text: typedText })
+}
+
+/** A cell's text as its type shows it, such as 80% for 0.8; `undefined` for a plain cell. */
+function typedText(input: SheetCellInput) {
+  const cell = cellOf(input)
+  const typed = cell?.type ? resolveCellType(cell, doc.value, cellTypes.value) : undefined
+  return typed?.definition.format?.(valueOf(input), typed.setup)
+}
+
+/** A sheet as CSV, with what its cells show. */
+function toCSV(options: SheetCSVWriteOptions & { sheet?: SheetRef } = {}) {
+  const { sheet: target, ...rest } = options
+  const data = doc.value.sheets[target == null ? sheetIndex.value : indexOfSheet(target)]
+  if (!data) throw new RangeError(`There is no sheet "${target}"`)
+  return sheetToCSV(data, { locale: lang.value, text: typedText, ...rest })
 }
 
 function onCopy(event: ClipboardEvent) {
@@ -2862,6 +2948,8 @@ const context: SheetContext = {
   scrollTo: (target) => scrollToTarget(target),
   edit: (target) => editTarget(target),
   focus: () => focusGrid(),
+  showSheet,
+  toCSV,
   announce,
 }
 provide(sheetContextKey, context)
@@ -2930,6 +3018,8 @@ defineExpose<SheetExpose>({
   scrollTo: scrollToTarget,
   edit: editTarget,
   focus: () => focusGrid(),
+  showSheet,
+  toCSV,
   copy: () => copyToClipboard(false),
   cut: () => copyToClipboard(true),
   paste: async (clip) => (clip ? paste(clip) : pasteFromClipboard()),
@@ -2938,7 +3028,6 @@ defineExpose<SheetExpose>({
 
 <template>
   <div
-    ref="root"
     class="dou-sheet"
     :class="{
       'is-focused': focused,
@@ -2953,326 +3042,333 @@ defineExpose<SheetExpose>({
       'is-resizing-row': (drag?.mode === 'resize' && drag.axis === 'row') || edgeHover === 'row',
       'is-moving': drag?.mode === 'move' && drag.started,
     }"
-    @keydown="onKeydown"
-    @copy="onCopy"
-    @cut="onCut"
-    @paste="onPaste"
   >
+    <slot name="header" />
     <div
-      ref="viewport"
-      class="dou-sheet__viewport"
-      role="grid"
-      tabindex="-1"
-      :aria-label="ariaLabel ?? messages.sheet"
-      :aria-rowcount="rowCount + (headers ? 1 : 0)"
-      :aria-colcount="colCount + (headers ? 1 : 0)"
-      :aria-readonly="readonly || undefined"
-      :aria-multiselectable="true"
-      :aria-activedescendant="activeId"
-      :aria-describedby="keysHint"
-      @scroll="onScroll"
-      @pointerdown="onPointerDown"
-      @click="onClick"
-      @dblclick="onDblClick"
-      @contextmenu="onContextMenu"
-      @pointermove="onHover"
-      @pointerleave="edgeHover = null"
-      @focus="focused = true"
-      @blur="focused = false"
+      ref="root"
+      class="dou-sheet__main"
+      @keydown="onKeydown"
+      @copy="onCopy"
+      @cut="onCut"
+      @paste="onPaste"
     >
       <div
-        class="dou-sheet__head"
-        role="rowgroup"
-        :style="`width:${totalWidth}px;height:${headerHeight + frozenHeight}px`"
+        ref="viewport"
+        class="dou-sheet__viewport"
+        role="grid"
+        tabindex="-1"
+        :aria-label="ariaLabel ?? messages.sheet"
+        :aria-rowcount="rowCount + (headers ? 1 : 0)"
+        :aria-colcount="colCount + (headers ? 1 : 0)"
+        :aria-readonly="readonly || undefined"
+        :aria-multiselectable="true"
+        :aria-activedescendant="activeId"
+        :aria-describedby="keysHint"
+        @scroll="onScroll"
+        @pointerdown="onPointerDown"
+        @click="onClick"
+        @dblclick="onDblClick"
+        @contextmenu="onContextMenu"
+        @pointermove="onHover"
+        @pointerleave="edgeHover = null"
+        @focus="focused = true"
+        @blur="focused = false"
       >
         <div
-          v-if="headers"
-          class="dou-sheet__row is-header"
-          role="row"
-          aria-rowindex="1"
-          :style="`width:${totalWidth}px;height:${headerHeight}px`"
-        >
-          <div
-            class="dou-sheet__corner"
-            role="columnheader"
-            :aria-label="messages.selectAll"
-            :style="`width:${headerWidth}px`"
-          />
-          <div
-            v-for="col in frozenColList"
-            :key="col"
-            class="dou-sheet__col-head is-frozen"
-            :class="{
-              'is-freeze-edge': col === frozen.cols - 1,
-              'is-marked': headerMarks.colsMarked.has(col),
-              'is-full': headerMarks.colsFull.has(col),
-              'is-after-hidden': col > 0 && cols.hidden(col - 1),
-            }"
-            role="columnheader"
-            :aria-colindex="col + 2"
-            :style="`width:${cols.size(col)}px;left:${headerWidth + cols.offset(col)}px`"
-          >
-            {{ columnName(col) }}
-          </div>
-          <div
-            v-for="col in bodyCols"
-            :key="col"
-            class="dou-sheet__col-head"
-            :class="{
-              'is-marked': headerMarks.colsMarked.has(col),
-              'is-full': headerMarks.colsFull.has(col),
-              'is-after-hidden': col > 0 && cols.hidden(col - 1),
-            }"
-            role="columnheader"
-            :aria-colindex="col + 2"
-            :style="`width:${cols.size(col)}px;left:${headerWidth + cols.offset(col)}px`"
-          >
-            {{ columnName(col) }}
-          </div>
-        </div>
-        <div
-          v-for="row in frozenRowList"
-          :key="row"
-          v-memo="[sheet.cells[row], memoBase, rowMarks(row), mergeKey(row)]"
-          class="dou-sheet__row is-frozen"
-          :class="{ 'is-freeze-edge': row === frozen.rows - 1 }"
-          role="row"
-          :aria-rowindex="row + (headers ? 2 : 1)"
-          :style="`width:${totalWidth}px;height:${rows.size(row)}px`"
+          class="dou-sheet__head"
+          role="rowgroup"
+          :style="`width:${totalWidth}px;height:${headerHeight + frozenHeight}px`"
         >
           <div
             v-if="headers"
-            class="dou-sheet__row-head"
-            :class="{
-              'is-marked': headerMarks.rowsMarked.has(row),
-              'is-full': headerMarks.rowsFull.has(row),
-              'is-after-hidden': row > 0 && rows.hidden(row - 1),
-            }"
-            role="rowheader"
-            :style="`width:${headerWidth}px`"
+            class="dou-sheet__row is-header"
+            role="row"
+            aria-rowindex="1"
+            :style="`width:${totalWidth}px;height:${headerHeight}px`"
           >
-            {{ row + 1 }}
+            <div
+              class="dou-sheet__corner"
+              role="columnheader"
+              :aria-label="messages.selectAll"
+              :style="`width:${headerWidth}px`"
+            />
+            <div
+              v-for="col in frozenColList"
+              :key="col"
+              class="dou-sheet__col-head is-frozen"
+              :class="{
+                'is-freeze-edge': col === frozen.cols - 1,
+                'is-marked': headerMarks.colsMarked.has(col),
+                'is-full': headerMarks.colsFull.has(col),
+                'is-after-hidden': col > 0 && cols.hidden(col - 1),
+              }"
+              role="columnheader"
+              :aria-colindex="col + 2"
+              :style="`width:${cols.size(col)}px;left:${headerWidth + cols.offset(col)}px`"
+            >
+              {{ columnName(col) }}
+            </div>
+            <div
+              v-for="col in bodyCols"
+              :key="col"
+              class="dou-sheet__col-head"
+              :class="{
+                'is-marked': headerMarks.colsMarked.has(col),
+                'is-full': headerMarks.colsFull.has(col),
+                'is-after-hidden': col > 0 && cols.hidden(col - 1),
+              }"
+              role="columnheader"
+              :aria-colindex="col + 2"
+              :style="`width:${cols.size(col)}px;left:${headerWidth + cols.offset(col)}px`"
+            >
+              {{ columnName(col) }}
+            </div>
           </div>
           <div
-            v-for="cell in rowCells(row, frozenColList)"
-            :id="cell.id"
-            :key="cell.key ?? cell.col"
-            :class="[cell.cls, 'is-frozen']"
-            role="gridcell"
-            :aria-colindex="cell.col + (headers ? 2 : 1)"
-            :aria-selected="cell.cls.includes('is-selected') || undefined"
-            :aria-hidden="cell.hidden || undefined"
-            :aria-rowspan="cell.rowspan"
-            :aria-colspan="cell.colspan"
-            :title="cell.problem"
-            :style="cell.css"
+            v-for="row in frozenRowList"
+            :key="row"
+            v-memo="[sheet.cells[row], memoBase, rowMarks(row), mergeKey(row)]"
+            class="dou-sheet__row is-frozen"
+            :class="{ 'is-freeze-edge': row === frozen.rows - 1 }"
+            role="row"
+            :aria-rowindex="row + (headers ? 2 : 1)"
+            :style="`width:${totalWidth}px;height:${rows.size(row)}px`"
           >
-            <template v-if="cell.render">
-              <span class="dou-sheet__content" aria-hidden="true">
-                <component :is="cell.render" v-bind="cell.props" />
-              </span>
-              <span class="dou-sheet__sr-only">{{ cell.label }}</span>
-            </template>
-            <span v-else class="dou-sheet__text">{{ cell.text }}</span>
-            <span v-if="cell.problem" class="dou-sheet__sr-only">（{{ cell.problem }}）</span>
-          </div>
-          <div
-            v-for="cell in rowCells(row, bodyCols)"
-            :id="cell.id"
-            :key="cell.key ?? cell.col"
-            :class="cell.cls"
-            role="gridcell"
-            :aria-colindex="cell.col + (headers ? 2 : 1)"
-            :aria-selected="cell.cls.includes('is-selected') || undefined"
-            :aria-hidden="cell.hidden || undefined"
-            :aria-rowspan="cell.rowspan"
-            :aria-colspan="cell.colspan"
-            :title="cell.problem"
-            :style="cell.css"
-          >
-            <template v-if="cell.render">
-              <span class="dou-sheet__content" aria-hidden="true">
-                <component :is="cell.render" v-bind="cell.props" />
-              </span>
-              <span class="dou-sheet__sr-only">{{ cell.label }}</span>
-            </template>
-            <span v-else class="dou-sheet__text">{{ cell.text }}</span>
-            <span v-if="cell.problem" class="dou-sheet__sr-only">（{{ cell.problem }}）</span>
+            <div
+              v-if="headers"
+              class="dou-sheet__row-head"
+              :class="{
+                'is-marked': headerMarks.rowsMarked.has(row),
+                'is-full': headerMarks.rowsFull.has(row),
+                'is-after-hidden': row > 0 && rows.hidden(row - 1),
+              }"
+              role="rowheader"
+              :style="`width:${headerWidth}px`"
+            >
+              {{ row + 1 }}
+            </div>
+            <div
+              v-for="cell in rowCells(row, frozenColList)"
+              :id="cell.id"
+              :key="cell.key ?? cell.col"
+              :class="[cell.cls, 'is-frozen']"
+              role="gridcell"
+              :aria-colindex="cell.col + (headers ? 2 : 1)"
+              :aria-selected="cell.cls.includes('is-selected') || undefined"
+              :aria-hidden="cell.hidden || undefined"
+              :aria-rowspan="cell.rowspan"
+              :aria-colspan="cell.colspan"
+              :title="cell.problem"
+              :style="cell.css"
+            >
+              <template v-if="cell.render">
+                <span class="dou-sheet__content" aria-hidden="true">
+                  <component :is="cell.render" v-bind="cell.props" />
+                </span>
+                <span class="dou-sheet__sr-only">{{ cell.label }}</span>
+              </template>
+              <span v-else class="dou-sheet__text">{{ cell.text }}</span>
+              <span v-if="cell.problem" class="dou-sheet__sr-only">（{{ cell.problem }}）</span>
+            </div>
+            <div
+              v-for="cell in rowCells(row, bodyCols)"
+              :id="cell.id"
+              :key="cell.key ?? cell.col"
+              :class="cell.cls"
+              role="gridcell"
+              :aria-colindex="cell.col + (headers ? 2 : 1)"
+              :aria-selected="cell.cls.includes('is-selected') || undefined"
+              :aria-hidden="cell.hidden || undefined"
+              :aria-rowspan="cell.rowspan"
+              :aria-colspan="cell.colspan"
+              :title="cell.problem"
+              :style="cell.css"
+            >
+              <template v-if="cell.render">
+                <span class="dou-sheet__content" aria-hidden="true">
+                  <component :is="cell.render" v-bind="cell.props" />
+                </span>
+                <span class="dou-sheet__sr-only">{{ cell.label }}</span>
+              </template>
+              <span v-else class="dou-sheet__text">{{ cell.text }}</span>
+              <span v-if="cell.problem" class="dou-sheet__sr-only">（{{ cell.problem }}）</span>
+            </div>
           </div>
         </div>
-      </div>
-      <div
-        class="dou-sheet__body"
-        role="rowgroup"
-        :style="`width:${totalWidth}px;height:${bodyHeight}px`"
-      >
         <div
-          v-for="row in bodyRows"
-          :key="row"
-          v-memo="[sheet.cells[row], memoBase, rowMarks(row), mergeKey(row)]"
-          class="dou-sheet__row"
-          role="row"
-          :aria-rowindex="row + (headers ? 2 : 1)"
-          :style="`width:${totalWidth}px;height:${rows.size(row)}px;top:${rows.offset(row) - frozenHeight}px`"
+          class="dou-sheet__body"
+          role="rowgroup"
+          :style="`width:${totalWidth}px;height:${bodyHeight}px`"
         >
           <div
-            v-if="headers"
-            class="dou-sheet__row-head"
-            :class="{
-              'is-marked': headerMarks.rowsMarked.has(row),
-              'is-full': headerMarks.rowsFull.has(row),
-              'is-after-hidden': row > 0 && rows.hidden(row - 1),
-            }"
-            role="rowheader"
-            :style="`width:${headerWidth}px`"
+            v-for="row in bodyRows"
+            :key="row"
+            v-memo="[sheet.cells[row], memoBase, rowMarks(row), mergeKey(row)]"
+            class="dou-sheet__row"
+            role="row"
+            :aria-rowindex="row + (headers ? 2 : 1)"
+            :style="`width:${totalWidth}px;height:${rows.size(row)}px;top:${rows.offset(row) - frozenHeight}px`"
           >
-            {{ row + 1 }}
-          </div>
-          <div
-            v-for="cell in rowCells(row, frozenColList)"
-            :id="cell.id"
-            :key="cell.key ?? cell.col"
-            :class="[cell.cls, 'is-frozen']"
-            role="gridcell"
-            :aria-colindex="cell.col + (headers ? 2 : 1)"
-            :aria-selected="cell.cls.includes('is-selected') || undefined"
-            :aria-hidden="cell.hidden || undefined"
-            :aria-rowspan="cell.rowspan"
-            :aria-colspan="cell.colspan"
-            :title="cell.problem"
-            :style="cell.css"
-          >
-            <template v-if="cell.render">
-              <span class="dou-sheet__content" aria-hidden="true">
-                <component :is="cell.render" v-bind="cell.props" />
-              </span>
-              <span class="dou-sheet__sr-only">{{ cell.label }}</span>
-            </template>
-            <span v-else class="dou-sheet__text">{{ cell.text }}</span>
-            <span v-if="cell.problem" class="dou-sheet__sr-only">（{{ cell.problem }}）</span>
-          </div>
-          <div
-            v-for="cell in rowCells(row, bodyCols)"
-            :id="cell.id"
-            :key="cell.key ?? cell.col"
-            :class="cell.cls"
-            role="gridcell"
-            :aria-colindex="cell.col + (headers ? 2 : 1)"
-            :aria-selected="cell.cls.includes('is-selected') || undefined"
-            :aria-hidden="cell.hidden || undefined"
-            :aria-rowspan="cell.rowspan"
-            :aria-colspan="cell.colspan"
-            :title="cell.problem"
-            :style="cell.css"
-          >
-            <template v-if="cell.render">
-              <span class="dou-sheet__content" aria-hidden="true">
-                <component :is="cell.render" v-bind="cell.props" />
-              </span>
-              <span class="dou-sheet__sr-only">{{ cell.label }}</span>
-            </template>
-            <span v-else class="dou-sheet__text">{{ cell.text }}</span>
-            <span v-if="cell.problem" class="dou-sheet__sr-only">（{{ cell.problem }}）</span>
+            <div
+              v-if="headers"
+              class="dou-sheet__row-head"
+              :class="{
+                'is-marked': headerMarks.rowsMarked.has(row),
+                'is-full': headerMarks.rowsFull.has(row),
+                'is-after-hidden': row > 0 && rows.hidden(row - 1),
+              }"
+              role="rowheader"
+              :style="`width:${headerWidth}px`"
+            >
+              {{ row + 1 }}
+            </div>
+            <div
+              v-for="cell in rowCells(row, frozenColList)"
+              :id="cell.id"
+              :key="cell.key ?? cell.col"
+              :class="[cell.cls, 'is-frozen']"
+              role="gridcell"
+              :aria-colindex="cell.col + (headers ? 2 : 1)"
+              :aria-selected="cell.cls.includes('is-selected') || undefined"
+              :aria-hidden="cell.hidden || undefined"
+              :aria-rowspan="cell.rowspan"
+              :aria-colspan="cell.colspan"
+              :title="cell.problem"
+              :style="cell.css"
+            >
+              <template v-if="cell.render">
+                <span class="dou-sheet__content" aria-hidden="true">
+                  <component :is="cell.render" v-bind="cell.props" />
+                </span>
+                <span class="dou-sheet__sr-only">{{ cell.label }}</span>
+              </template>
+              <span v-else class="dou-sheet__text">{{ cell.text }}</span>
+              <span v-if="cell.problem" class="dou-sheet__sr-only">（{{ cell.problem }}）</span>
+            </div>
+            <div
+              v-for="cell in rowCells(row, bodyCols)"
+              :id="cell.id"
+              :key="cell.key ?? cell.col"
+              :class="cell.cls"
+              role="gridcell"
+              :aria-colindex="cell.col + (headers ? 2 : 1)"
+              :aria-selected="cell.cls.includes('is-selected') || undefined"
+              :aria-hidden="cell.hidden || undefined"
+              :aria-rowspan="cell.rowspan"
+              :aria-colspan="cell.colspan"
+              :title="cell.problem"
+              :style="cell.css"
+            >
+              <template v-if="cell.render">
+                <span class="dou-sheet__content" aria-hidden="true">
+                  <component :is="cell.render" v-bind="cell.props" />
+                </span>
+                <span class="dou-sheet__sr-only">{{ cell.label }}</span>
+              </template>
+              <span v-else class="dou-sheet__text">{{ cell.text }}</span>
+              <span v-if="cell.problem" class="dou-sheet__sr-only">（{{ cell.problem }}）</span>
+            </div>
           </div>
         </div>
       </div>
+      <textarea
+        ref="editor"
+        class="dou-sheet__input"
+        :class="[editorClass, { 'is-open': editing }]"
+        :style="inputStyle"
+        :aria-label="editing ? format(messages.edit, { cell: formatCell(editing) }) : activeLabel"
+        :aria-expanded="panelType ? true : undefined"
+        :inputmode="panelType && editByTouch ? 'none' : undefined"
+        :aria-activedescendant="panel?.activeId ?? undefined"
+        :aria-describedby="keysHint"
+        :readonly="readonly"
+        autocomplete="off"
+        autocapitalize="off"
+        spellcheck="false"
+        rows="1"
+        @input="onInput"
+        @compositionstart="onCompositionStart"
+        @focus="focused = true"
+        @blur="onInputBlur"
+      />
+      <div
+        v-if="clipRect"
+        class="dou-sheet__mark"
+        :class="{ 'is-cut': clipMark?.cut }"
+        :style="rectStyle(clipRect)"
+        aria-hidden="true"
+      />
+      <div
+        v-if="fillPreview"
+        class="dou-sheet__mark is-fill"
+        :style="rectStyle(fillPreview)"
+        aria-hidden="true"
+      />
+      <div
+        v-if="fillClearRect"
+        class="dou-sheet__clearing"
+        :style="rectStyle(fillClearRect)"
+        aria-hidden="true"
+      />
+      <div
+        v-if="moveMark"
+        class="dou-sheet__guide"
+        :style="`left:${moveMark.x}px;top:${moveMark.y}px;width:${moveMark.width}px;height:${moveMark.height}px`"
+        aria-hidden="true"
+      />
+      <div
+        v-if="sizeMark"
+        class="dou-sheet__guide is-thin"
+        :style="`left:${sizeMark.x}px;top:${sizeMark.y}px;width:${sizeMark.width}px;height:${sizeMark.height}px`"
+        aria-hidden="true"
+      />
+      <div
+        v-if="fillRect"
+        class="dou-sheet__fill"
+        :class="{ 'is-dragging': fillTarget }"
+        :style="`left:${fillRect.x}px;top:${fillRect.y}px`"
+        :title="messages.fillHandle"
+        aria-hidden="true"
+        @pointerdown="onFillDown"
+        @dblclick.stop="fillDownToData"
+      />
+      <div
+        v-if="fillHint"
+        class="dou-sheet__fill-hint"
+        :class="{ 'is-flipped': fillHint.flip }"
+        :style="`left:${fillHint.x}px;top:${fillHint.y}px`"
+        aria-hidden="true"
+      >
+        {{ fillHint.text }}
+      </div>
+      <button
+        v-if="panelButton"
+        type="button"
+        class="dou-sheet__panel-button"
+        :style="`left:${panelButton.x}px;top:${panelButton.y}px`"
+        :aria-label="messages.openPanel"
+        tabindex="-1"
+        @pointerdown.stop.prevent
+        @click="openPanel"
+      >
+        <ChevronDownIcon />
+      </button>
+      <CellPanel
+        v-if="panelType"
+        ref="panel"
+        :resolved="panelType"
+        :value="editValue"
+        :text="editText"
+        :typed="editTyped"
+        :anchor="editor"
+        @pick="pickValue"
+      />
+      <component :is="overlay" v-for="(overlay, i) in resolved.overlays" :key="i" />
+      <div v-if="notice" class="dou-sheet__notice" role="status">{{ notice }}</div>
+      <SheetMenu ref="menu" v-model:open="menuOpen" :items="menuItems" @select="runMenuItem" />
+      <span :id="keysHint" class="dou-sheet__sr-only">{{ messages.keys }}</span>
+      <div class="dou-sheet__sr-only" aria-live="polite">{{ live }}</div>
     </div>
-    <textarea
-      ref="editor"
-      class="dou-sheet__input"
-      :class="[editorClass, { 'is-open': editing }]"
-      :style="inputStyle"
-      :aria-label="editing ? format(messages.edit, { cell: formatCell(editing) }) : activeLabel"
-      :aria-expanded="panelType ? true : undefined"
-      :inputmode="panelType && editByTouch ? 'none' : undefined"
-      :aria-activedescendant="panel?.activeId ?? undefined"
-      :aria-describedby="keysHint"
-      :readonly="readonly"
-      autocomplete="off"
-      autocapitalize="off"
-      spellcheck="false"
-      rows="1"
-      @input="onInput"
-      @compositionstart="onCompositionStart"
-      @focus="focused = true"
-      @blur="onInputBlur"
-    />
-    <div
-      v-if="clipRect"
-      class="dou-sheet__mark"
-      :class="{ 'is-cut': clipMark?.cut }"
-      :style="rectStyle(clipRect)"
-      aria-hidden="true"
-    />
-    <div
-      v-if="fillPreview"
-      class="dou-sheet__mark is-fill"
-      :style="rectStyle(fillPreview)"
-      aria-hidden="true"
-    />
-    <div
-      v-if="fillClearRect"
-      class="dou-sheet__clearing"
-      :style="rectStyle(fillClearRect)"
-      aria-hidden="true"
-    />
-    <div
-      v-if="moveMark"
-      class="dou-sheet__guide"
-      :style="`left:${moveMark.x}px;top:${moveMark.y}px;width:${moveMark.width}px;height:${moveMark.height}px`"
-      aria-hidden="true"
-    />
-    <div
-      v-if="sizeMark"
-      class="dou-sheet__guide is-thin"
-      :style="`left:${sizeMark.x}px;top:${sizeMark.y}px;width:${sizeMark.width}px;height:${sizeMark.height}px`"
-      aria-hidden="true"
-    />
-    <div
-      v-if="fillRect"
-      class="dou-sheet__fill"
-      :class="{ 'is-dragging': fillTarget }"
-      :style="`left:${fillRect.x}px;top:${fillRect.y}px`"
-      :title="messages.fillHandle"
-      aria-hidden="true"
-      @pointerdown="onFillDown"
-      @dblclick.stop="fillDownToData"
-    />
-    <div
-      v-if="fillHint"
-      class="dou-sheet__fill-hint"
-      :class="{ 'is-flipped': fillHint.flip }"
-      :style="`left:${fillHint.x}px;top:${fillHint.y}px`"
-      aria-hidden="true"
-    >
-      {{ fillHint.text }}
-    </div>
-    <button
-      v-if="panelButton"
-      type="button"
-      class="dou-sheet__panel-button"
-      :style="`left:${panelButton.x}px;top:${panelButton.y}px`"
-      :aria-label="messages.openPanel"
-      tabindex="-1"
-      @pointerdown.stop.prevent
-      @click="openPanel"
-    >
-      <ChevronDownIcon />
-    </button>
-    <CellPanel
-      v-if="panelType"
-      ref="panel"
-      :resolved="panelType"
-      :value="editValue"
-      :text="editText"
-      :typed="editTyped"
-      :anchor="editor"
-      @pick="pickValue"
-    />
-    <component :is="overlay" v-for="(overlay, i) in resolved.overlays" :key="i" />
-    <div v-if="notice" class="dou-sheet__notice" role="status">{{ notice }}</div>
-    <SheetMenu ref="menu" v-model:open="menuOpen" :items="menuItems" @select="runMenuItem" />
-    <span :id="keysHint" class="dou-sheet__sr-only">{{ messages.keys }}</span>
-    <div class="dou-sheet__sr-only" aria-live="polite">{{ live }}</div>
+    <slot name="footer" />
   </div>
 </template>

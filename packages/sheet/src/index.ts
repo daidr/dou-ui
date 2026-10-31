@@ -1,7 +1,9 @@
 import { withInstall } from 'dou-ui'
 import Sheet from './sheet.vue'
+import SheetTabs from './components/sheet-tabs.vue'
 
 export const DouSheet = withInstall(Sheet)
+export const DouSheetTabs = withInstall(SheetTabs)
 export default DouSheet
 
 export { useSheet, sheetContextKey } from './context'
@@ -23,6 +25,7 @@ export type {
 } from './core/cell-type'
 export type {
   SheetEmits,
+  SheetSlots,
   SheetExpose,
   SheetMenuContext,
   SheetMenuItem,
@@ -36,6 +39,8 @@ export {
   formatCell,
   formatRange,
   moveReferences,
+  dropReferences,
+  renameReferences,
   parseCell,
   parseRange,
   quoteSheet,
@@ -43,6 +48,8 @@ export {
   splitSheet,
 } from './core/address'
 export { formatClip, parseClip, parseTSV } from './core/clipboard'
+export { detectDelimiter, parseCSV, readCSV, sheetToCSV } from './core/csv'
+export type { SheetCSVReadOptions, SheetCSVWriteOptions } from './core/csv'
 export type { SheetClip, SheetClipFormat } from './core/clipboard'
 export { continueValues, fillContinues } from './core/fill'
 export type { SheetFillMode, SheetFillOptions } from './core/fill'
@@ -88,5 +95,6 @@ export type { SheetMessages } from './locale'
 declare module 'vue' {
   export interface GlobalComponents {
     DouSheet: typeof DouSheet
+    DouSheetTabs: typeof DouSheetTabs
   }
 }

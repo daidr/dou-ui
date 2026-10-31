@@ -1,10 +1,11 @@
 import type { Component } from 'vue'
 import type { SheetCellTarget, SheetRange } from './core/address'
 import type { SheetClip } from './core/clipboard'
+import type { SheetCSVWriteOptions } from './core/csv'
 import type { SheetExtension } from './core/extension'
 import type { SheetWorkbook } from './core/model'
 import type { SheetSelection } from './core/selection'
-import type { SheetTransaction, SheetTransactionMeta } from './core/transaction'
+import type { SheetRef, SheetTransaction, SheetTransactionMeta } from './core/transaction'
 import type { SheetMessages } from './locale'
 
 export interface SheetProps {
@@ -85,6 +86,15 @@ export interface SheetPasteEvent {
   preventDefault: () => void
 }
 
+/**
+ * Room above and below the grid, for a toolbar or the sheet tabs. What is
+ * put there can use `useSheet()`.
+ */
+export interface SheetSlots {
+  header?: () => unknown
+  footer?: () => unknown
+}
+
 export interface SheetEmits {
   'update:modelValue': [value: SheetWorkbook]
   'update:selection': [value: SheetSelection]
@@ -117,6 +127,16 @@ export interface SheetExpose {
   select: (target: string | SheetRange | SheetSelection) => void
   /** Scrolls a cell into view. */
   scrollTo: (cell: SheetCellTarget) => void
+  /**
+   * Shows a sheet, by index, `id` or name; returns `false` when there is
+   * no such sheet.
+   */
+  showSheet: (sheet: SheetRef) => boolean
+  /**
+   * The sheet shown (or `sheet`) as CSV, with the text its cells show, as
+   * their formats and cell types write it.
+   */
+  toCSV: (options?: SheetCSVWriteOptions & { sheet?: SheetRef }) => string
   /** Opens the editor on a cell, the active one by default. */
   edit: (cell?: SheetCellTarget) => void
   focus: () => void

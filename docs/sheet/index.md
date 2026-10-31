@@ -92,6 +92,7 @@ app.use(DouSheet)
 | `Ctrl` / `⌘` + `Shift` + `=`        | 选中整行（整列）时，在前面插入同样多的行（列） |
 | `Ctrl` / `⌘` + `-`                  | 选中整行（整列）时，删除它们                   |
 | 菜单键、`Shift` + `F10`             | 打开右键菜单                                   |
+| `Ctrl` + `Page Up` / `Page Down`    | 上一个、下一个工作表                           |
 | `Esc`                               | 取消复制的虚线框                               |
 
 读屏软件会播报当前单元格、选区大小和每次修改的结果。
@@ -126,41 +127,44 @@ sheet.value.transact((tr) => {
 
 每次修改，不论来自输入、撤销还是 `transact`，都会更新 `v-model` 并触发 `transaction` 事件。事件参数里的 `steps` 是这次修改的步骤，`inverse` 是撤销它的步骤，可以用来同步到服务端；另一端用 `applySheetSteps(doc, steps)` 应用。`meta.action` 说明修改的来源：
 
-| `action`                 | 来源                                     |
-| ------------------------ | ---------------------------------------- |
-| `input`                  | 在单元格里输入                           |
-| `paste`、`cut`           | 粘贴；粘贴剪切的内容（移动单元格）       |
-| `fill`、`clear`          | 填充柄、`Ctrl` + `D` / `R`；清空内容     |
-| `resize`、`hide`、`move` | 调整行高列宽；隐藏、取消隐藏；移动行列   |
-| `merge`                  | 合并、取消合并单元格                     |
-| `insert`、`delete`       | 插入、删除行列                           |
-| `undo`、`redo`           | 撤销、重做                               |
-| `api`                    | 组件实例的 `transact`，没有指定 `action` |
+| `action`                 | 来源                                         |
+| ------------------------ | -------------------------------------------- |
+| `input`                  | 在单元格里输入                               |
+| `paste`、`cut`           | 粘贴；粘贴剪切的内容（移动单元格）           |
+| `fill`、`clear`          | 填充柄、`Ctrl` + `D` / `R`；清空内容         |
+| `resize`、`hide`、`move` | 调整行高列宽；隐藏、取消隐藏；移动行列       |
+| `merge`                  | 合并、取消合并单元格                         |
+| `sheet`                  | 标签栏里新建、重命名、复制、移动、删除工作表 |
+| `insert`、`delete`       | 插入、删除行列                               |
+| `undo`、`redo`           | 撤销、重做                                   |
+| `api`                    | 组件实例的 `transact`，没有指定 `action`     |
 
-| 方法                                           | 说明                                                                                                                                                           |
-| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `getCell(cell)`                                | 读取单元格，包括这次事务里已经做的修改                                                                                                                         |
-| `setValue(cell, value)`                        | 写入值，保留样式和格式                                                                                                                                         |
-| `updateCell(cell, patch)`                      | 修改单元格的部分字段，值为 `undefined` 的字段会被删除                                                                                                          |
-| `setCell(cell, input)`                         | 整个替换单元格，`undefined` 清空                                                                                                                               |
-| `clearValues(range)`                           | 清空一片区域的值，保留样式                                                                                                                                     |
-| `setSize('row' \| 'col', i, px, sheet?)`       | 设置行高、列宽，`undefined` 恢复默认，`0` 隐藏                                                                                                                 |
-| `updateSheet(patch, sheet?)`                   | 修改工作表的名字、冻结、行列数                                                                                                                                 |
-| `setCells(cell, block)`                        | 以 `cell` 为左上角写入一块单元格（二维数组）                                                                                                                   |
-| `fill(from, to, { mode? })`                    | 用 `from` 的内容按填充柄的规则填满 `to`，`to` 要向一个方向延伸 `from`。`mode` 为 `auto`（默认，和拖动一样）、`series`（一个数字也逐个加一）或 `copy`（只复制） |
-| `insertRows(at, count?, sheet?)`、`insertCols` | 在 `at` 前插入空行（列），`at` 是序号或 `'5:6'`、`'C'` 这样的写法                                                                                              |
-| `deleteRows(at, count?, sheet?)`、`deleteCols` | 删除行（列）及其中的单元格和尺寸                                                                                                                               |
-| `moveRows(lines, to, sheet?)`、`moveCols`      | 把行（列）移到 `to` 之前，`to` 按移动前编号；`lines` 是序号、`'2:3'` 或 `{ from, count }`                                                                      |
-| `moveCells(range, cell)`                       | 把一块单元格移到以 `cell` 为左上角的位置，原位置清空                                                                                                           |
-| `mergeCells(range)`、`unmergeCells(range)`     | 合并区域，只保留左上角的内容；取消区域碰到的所有合并                                                                                                           |
-| `setStyle(name, style)`                        | 添加、修改或（传 `undefined`）删除一个命名样式                                                                                                                 |
-| `setMeta({ history, group, action })`          | `history: false` 不进入撤销记录；同一 `group` 的连续修改合并为一步；`action` 见上表                                                                            |
+| 方法                                                                                  | 说明                                                                                                                                                           |
+| ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `getCell(cell)`                                                                       | 读取单元格，包括这次事务里已经做的修改                                                                                                                         |
+| `setValue(cell, value)`                                                               | 写入值，保留样式和格式                                                                                                                                         |
+| `updateCell(cell, patch)`                                                             | 修改单元格的部分字段，值为 `undefined` 的字段会被删除                                                                                                          |
+| `setCell(cell, input)`                                                                | 整个替换单元格，`undefined` 清空                                                                                                                               |
+| `clearValues(range)`                                                                  | 清空一片区域的值，保留样式                                                                                                                                     |
+| `setSize('row' \| 'col', i, px, sheet?)`                                              | 设置行高、列宽，`undefined` 恢复默认，`0` 隐藏                                                                                                                 |
+| `updateSheet(patch, sheet?)`                                                          | 修改工作表的名字、冻结、行列数                                                                                                                                 |
+| `setCells(cell, block)`                                                               | 以 `cell` 为左上角写入一块单元格（二维数组）                                                                                                                   |
+| `fill(from, to, { mode? })`                                                           | 用 `from` 的内容按填充柄的规则填满 `to`，`to` 要向一个方向延伸 `from`。`mode` 为 `auto`（默认，和拖动一样）、`series`（一个数字也逐个加一）或 `copy`（只复制） |
+| `insertRows(at, count?, sheet?)`、`insertCols`                                        | 在 `at` 前插入空行（列），`at` 是序号或 `'5:6'`、`'C'` 这样的写法                                                                                              |
+| `deleteRows(at, count?, sheet?)`、`deleteCols`                                        | 删除行（列）及其中的单元格和尺寸                                                                                                                               |
+| `moveRows(lines, to, sheet?)`、`moveCols`                                             | 把行（列）移到 `to` 之前，`to` 按移动前编号；`lines` 是序号、`'2:3'` 或 `{ from, count }`                                                                      |
+| `moveCells(range, cell)`                                                              | 把一块单元格移到以 `cell` 为左上角的位置，原位置清空                                                                                                           |
+| `mergeCells(range)`、`unmergeCells(range)`                                            | 合并区域，只保留左上角的内容；取消区域碰到的所有合并                                                                                                           |
+| `addSheet(sheet?, index?)`、`removeSheet(sheet)`                                      | 新建、删除工作表，见[多个工作表](#多个工作表)                                                                                                                  |
+| `renameSheet(sheet, name)`、`moveSheet(sheet, index)`、`duplicateSheet(sheet, name?)` | 重命名、移动、复制工作表                                                                                                                                       |
+| `setStyle(name, style)`                                                               | 添加、修改或（传 `undefined`）删除一个命名样式                                                                                                                 |
+| `setMeta({ history, group, action })`                                                 | `history: false` 不进入撤销记录；同一 `group` 的连续修改合并为一步；`action` 见上表                                                                            |
 
 插入、删除和移动行列，以及移动单元格时，所有工作表里指向这些单元格的公式引用都会随之改写：插入行后 `=A5` 变成 `=A6`，区域 `A1:A5` 在中间插入一行后变成 `A1:A6`；删除被引用的单元格后引用变成 `#REF!`，区域只删除一部分时缩小。和复制不同，这时 `$A$1` 这样的固定引用也会跟着改。
 
 步骤里的工作表用 `id` 记录，没有 `id` 时用名字，所以在另一端应用时不受工作表顺序影响。
 
-组件实例上还有 `select('B2:C4')` 选中并滚动到区域（也可以是 `'B:B'`、`'3:3'`）、`scrollTo('H200')`、`edit('B2')` 打开编辑框和 `focus()`。
+组件实例上还有 `select('B2:C4')` 选中并滚动到区域（也可以是 `'B:B'`、`'3:3'`）、`scrollTo('H200')`、`edit('B2')` 打开编辑框、`focus()`、`showSheet(sheet)` 切换工作表和 `toCSV(options?)`。
 
 ## 复制与粘贴
 
@@ -295,6 +299,71 @@ const book = {
 <DocDemo src="sheet/types" column />
 
 要加自己的单元格类型，比如进度条、评分，见[扩展](./extensions)。
+
+## 多个工作表
+
+`modelValue.sheets` 里的每一项是一个工作表，`v-model:active-sheet` 是显示的工作表的序号。把 `DouSheetTabs` 放进 `footer` 插槽，表格下方会出现工作表标签：
+
+- 点标签切换工作表，`+` 在当前工作表后面新建一个。
+- 双击标签或按 `F2` 重命名，名字不能为空，也不能和别的工作表重名。
+- 右键（手机上点一下当前的标签）打开菜单，可以重命名、创建副本、左右移动和删除。
+- 拖动标签调整顺序，手机上按住一会儿再拖。
+- 标签获得焦点后，左右方向键切换工作表，`Home` / `End` 到第一个、最后一个，`Enter` 回到表格。
+
+这些操作都可以撤销，只读时只能切换。不需要 `+` 按钮时设置 `:addable="false"`。表格里按 `Ctrl` + `Page Up` / `Page Down` 也能切换工作表。每个工作表各自记住选区和滚动位置，切回来时恢复。
+
+<DocDemo src="sheet/sheets" column />
+
+`header` 插槽在表格上方，适合放工具栏。插槽里的组件可以用 `useSheet()` 读写表格，所以标签栏也可以照着 `DouSheetTabs` 自己做。
+
+在代码里管理工作表：
+
+```ts
+sheet.value.transact((tr) => {
+  tr.addSheet({ name: '十一月' }) // 加在最后，也可以传第二个参数指定位置
+  tr.addSheet({ name: tr.uniqueName('九月') }) // 名字被占用时自动编号，得到“九月 (2)”
+  tr.renameSheet('九月', '九月 上海')
+  tr.duplicateSheet('十月') // 名为“十月 (2)”，放在原工作表后面
+  tr.moveSheet('十一月', 0)
+  tr.removeSheet('汇总')
+})
+sheet.value.showSheet('十一月')
+```
+
+名字不能和已有的工作表重复，否则会抛出错误；`tr.uniqueName(name)` 返回一个没被占用的名字。`addSheet()` 不传名字时用 `Sheet1`、`Sheet2` 这样的名字，不随语言变化；标签栏的 `+` 按当前语言起名，比如“工作表3”。
+
+重命名后，所有公式里指向它的引用会改成新名字，比如 `=九月!B2` 变成 `='九月 上海'!B2`；删除后，指向它的引用变成 `#REF!`。工作簿至少保留一个工作表，删除最后一个时不做任何事。增删和移动工作表后，表格继续显示原来那一张；它被删除时显示原来位置上的那一张。
+
+## CSV
+
+`readCSV(text, options?)` 把 CSV 读成二维数组，可以直接作为工作表的 `cells`，比如 `tr.addSheet({ name, cells: readCSV(text) })`。数字、日期、百分比和 `TRUE` / `FALSE` 按输入时的规则识别，比如 `2026/3/5` 读成日期并保留写法；`007`、很长的卡号这类带前导零或超过 15 位的数字保持文字，以免丢失。以 `=` 开头的内容默认按文字读入（存成 `'=…`），不会变成公式。
+
+| 读取选项    | 说明                                                                                   | 默认值                               |
+| ----------- | -------------------------------------------------------------------------------------- | ------------------------------------ |
+| `delimiter` | 分隔符                                                                                 | 从内容判断：逗号、分号、制表符或竖线 |
+| `typed`     | 识别数字、日期等；`false` 时所有内容都是文字                                           | `true`                               |
+| `decimal`   | 小数点。`','` 时 `1,5` 读成 1.5、`1.280,5` 读成 1280.5；用分号分隔的文件通常是这种写法 | 分隔符是 `;` 时为 `','`，否则 `'.'`  |
+| `formulas`  | 以 `=` 开头的内容读成公式                                                              | `false`                              |
+
+组件实例的 `toCSV()` 把当前工作表写成 CSV，内容和单元格显示的一致（带格式，单元格类型按它自己的写法）。只到最后一个有数据的行和列，用 `range` 可以只导出一部分，`sheet` 指定别的工作表。导出的文件要给表格软件打开时，加上 `bom: true`，否则中文可能被当成其他编码。
+
+以 `=`、`+`、`-`、`@` 开头的文字在表格软件里打开时会被当成公式执行，这可能被用来插入恶意链接或命令。导出时默认在这样的文字前面加上 `'`，数字不受影响；`formatted: false` 时表格里的公式按原文写出，不加 `'`，可以用 `readCSV(text, { formulas: true })` 读回来。加上的 `'` 会留在文字里，所以导出的文件如果只是给 `readCSV` 原样读回，应设置 `escapeFormulas: false`。确定文件不会被表格软件打开时，可以设置 `escapeFormulas: false` 原样写出。
+
+<DocDemo src="sheet/csv" column />
+
+| 导出选项         | 说明                                                                                    | 默认值       |
+| ---------------- | --------------------------------------------------------------------------------------- | ------------ |
+| `delimiter`      | 分隔符                                                                                  | `','`        |
+| `range`          | 只导出这片区域，如 `'A1:D20'`、`'B:D'`                                                  | 有数据的部分 |
+| `formatted`      | 写单元格显示的文字；`false` 写存储的值（`1280`、`2026-03-05`、公式原文）                | `true`       |
+| `newline`        | 行之间的换行                                                                            | `'\r\n'`     |
+| `bom`            | 在开头加上字节顺序标记                                                                  | `false`      |
+| `escapeFormulas` | 在以 `=`、`+`、`-`、`@` 开头的文字前加 `'`                                              | `true`       |
+| `locale`         | 日期格式里星期等文字的语言（`toCSV` 用当前语言）                                        | —            |
+| `text`           | `(input) => string \| undefined`，自己决定单元格写出的文字，返回 `undefined` 时按格式写 | —            |
+| `sheet`          | 要导出的工作表，序号、`id` 或名字（仅 `toCSV`）                                         | 当前显示的   |
+
+不经过组件时，`sheetToCSV(sheetData, options)` 做同样的事，只是单元格类型按值本身写出（可以用 `text` 补上）。`parseCSV(text, delimiter?)` 只拆分字段，不识别类型；`detectDelimiter(text)` 返回判断出的分隔符。
 
 ## 冻结行列
 

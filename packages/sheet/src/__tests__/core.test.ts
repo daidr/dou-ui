@@ -276,7 +276,7 @@ describe('transactions', () => {
 describe('history', () => {
   it('undoes and redoes, merging groups', () => {
     const history = new SheetHistory()
-    const view = { sheet: 0, selection: selectCell({ row: 0, col: 0 }) }
+    const view = { sheet: 'Sheet1', selection: selectCell({ row: 0, col: 0 }) }
     let doc = book()
     for (const value of [4, 5]) {
       const tr = new SheetTransaction(doc).setValue('B2', value).setMeta({ group: 'typing' })

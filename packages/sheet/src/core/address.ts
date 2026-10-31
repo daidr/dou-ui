@@ -299,3 +299,20 @@ export function moveReferences(formula: string, here: string, sheet: string, map
     return writeRef(out, end(a, first, left), end(b, !first, !left), single, keep)
   })
 }
+
+/**
+ * A formula with its references to sheet `from` naming sheet `to`
+ * instead, as renaming a sheet does. References without a sheet stay as
+ * they are, also in a formula on the renamed sheet itself.
+ */
+export function renameReferences(formula: string, from: string, to: string) {
+  if (from === to) return formula
+  return eachRef(formula, (named, a, b, text) =>
+    named === from ? writeRef(to, a, b, a === b) : text,
+  )
+}
+
+/** A formula with its references to sheet `sheet`, which is gone, reading `#REF!`. */
+export function dropReferences(formula: string, sheet: string) {
+  return eachRef(formula, (named, _a, _b, text) => (named === sheet ? '#REF!' : text))
+}

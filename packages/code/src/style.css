@@ -1,0 +1,245 @@
+/*
+ * Code editor
+ *
+ * A quiet surface with a hairline edge, monospace lines on whole-pixel
+ * rows and line numbers in a muted column on the left. Hue only marks
+ * what is selected; the line with the cursor takes a faint wash. Every
+ * line is a block of fixed height, so drawing only the lines in view
+ * never shifts anything.
+ */
+@layer dou.components {
+  .dou-code-editor {
+    --dou-code-editor-font-size: var(--dou-font-size-sm);
+    --dou-code-editor-line-height: 20px;
+    --dou-code-editor-bg: var(--dou-color-bg-surface);
+    --dou-code-editor-gutter-bg: var(--dou-code-editor-bg);
+    --dou-code-editor-gutter-text: var(--dou-color-text-tertiary);
+    --dou-code-editor-border: var(--dou-color-border);
+    --dou-code-editor-border-focus: color-mix(
+      in oklab,
+      var(--dou-color-focus) 70%,
+      var(--dou-color-text)
+    );
+    --dou-code-editor-cursor: var(--dou-color-text);
+    --dou-code-editor-active-line: color-mix(in oklab, var(--dou-color-text) 4%, transparent);
+    --dou-code-editor-selection: color-mix(in oklab, var(--dou-color-primary) 20%, transparent);
+
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    min-height: calc(var(--dou-code-editor-line-height) + 18px);
+    overflow: hidden;
+    border: 1px solid var(--dou-code-editor-border);
+    border-radius: var(--dou-radius-container);
+    background-color: var(--dou-code-editor-bg);
+    color: var(--dou-color-text);
+    font-family: var(--dou-font-family-mono);
+    font-size: var(--dou-code-editor-font-size);
+    font-variant-ligatures: none;
+    line-height: var(--dou-code-editor-line-height);
+    transition: border-color var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    &.is-focused {
+      border-color: var(--dou-code-editor-border-focus);
+    }
+    &:not(.is-focused) {
+      --dou-code-editor-selection: color-mix(in oklab, var(--dou-color-text) 10%, transparent);
+    }
+    &.is-disabled {
+      color: var(--dou-color-text-disabled);
+      cursor: not-allowed;
+    }
+  }
+
+  .dou-code-editor__scroller {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    /* sideways only: a vertical swipe on an editor that doesn't scroll still scrolls the page */
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+  }
+
+  .dou-code-editor__sizer {
+    position: relative;
+    display: flex;
+    box-sizing: border-box;
+    width: max-content;
+    min-width: 100%;
+  }
+
+  .dou-code-editor__gutter {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    flex: none;
+    box-sizing: border-box;
+    width: var(--dou-code-editor-gutter);
+    background-color: var(--dou-code-editor-gutter-bg);
+    color: var(--dou-code-editor-gutter-text);
+    font-variant-numeric: tabular-nums;
+    cursor: default;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+  }
+
+  .dou-code-editor__numbers {
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    will-change: transform;
+  }
+
+  .dou-code-editor__number {
+    height: var(--dou-code-editor-line-height);
+    padding: 0 12px 0 16px;
+    text-align: right;
+
+    &.is-active {
+      color: var(--dou-color-text-secondary);
+    }
+  }
+
+  .dou-code-editor__content {
+    position: relative;
+    flex: 1 1 auto;
+    min-width: 0;
+    cursor: text;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+    .dou-code-editor.is-disabled & {
+      cursor: not-allowed;
+    }
+  }
+
+  .dou-code-editor__lines,
+  .dou-code-editor__selections,
+  .dou-code-editor__cursors {
+    position: absolute;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+  }
+
+  .dou-code-editor__lines {
+    right: 0;
+    will-change: transform;
+  }
+
+  .dou-code-editor__line {
+    box-sizing: border-box;
+    height: var(--dou-code-editor-line-height);
+    padding: 0 12px;
+    white-space: pre;
+    tab-size: var(--dou-code-editor-tab-size, 2);
+  }
+
+  /* text being composed by an input method, before it is confirmed */
+  .dou-code-editor__compose {
+    text-decoration: underline;
+    text-decoration-color: var(--dou-color-text-tertiary);
+    text-underline-offset: 3px;
+  }
+
+  .dou-code-editor__probe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    visibility: hidden;
+    white-space: pre;
+    pointer-events: none;
+  }
+
+  .dou-code-editor__active-line {
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    height: var(--dou-code-editor-line-height);
+    background-color: var(--dou-code-editor-active-line);
+    pointer-events: none;
+    .dou-code-editor:not(.is-focused) & {
+      background-color: transparent;
+    }
+  }
+
+  .dou-code-editor__selection {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: var(--dou-code-editor-line-height);
+    border-radius: 2px;
+    background-color: var(--dou-code-editor-selection);
+  }
+
+  .dou-code-editor__cursor {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 2px;
+    height: var(--dou-code-editor-line-height);
+    border-radius: 1px;
+    background-color: var(--dou-code-editor-cursor);
+    animation: dou-code-editor-blink 1.2s steps(1) 0.5s infinite;
+    .dou-code-editor.is-readonly & {
+      opacity: 0.4;
+      animation: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dou-code-editor__cursor {
+      animation: none;
+    }
+  }
+
+  .dou-code-editor__placeholder {
+    position: absolute;
+    top: 8px;
+    left: 12px;
+    color: var(--dou-color-text-tertiary);
+    white-space: pre;
+    pointer-events: none;
+  }
+
+  /* Where keys and input methods type; invisible, but its caret sits on the drawn cursor so candidate windows open there. */
+  .dou-code-editor__input {
+    position: absolute;
+    z-index: -1;
+    box-sizing: border-box;
+    width: calc(100% - 12px);
+    min-width: 1px;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    border: 0;
+    outline: none;
+    background: transparent;
+    color: transparent;
+    caret-color: transparent;
+    font: inherit;
+    font-size: max(var(--dou-font-size-input-min), var(--dou-code-editor-font-size));
+    line-height: inherit;
+    letter-spacing: inherit;
+    white-space: pre;
+    tab-size: var(--dou-code-editor-tab-size, 2);
+    resize: none;
+    pointer-events: none;
+    &::selection {
+      background: transparent;
+    }
+  }
+}
+
+@keyframes dou-code-editor-blink {
+  50% {
+    opacity: 0;
+  }
+}

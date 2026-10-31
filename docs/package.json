@@ -17,6 +17,7 @@
     "@dou-ui/icons": "workspace:*",
     "@dou-ui/pivot": "workspace:*",
     "@dou-ui/sheet": "workspace:*",
+    "@dou-ui/code": "workspace:*",
     "@dou-ui/theme": "workspace:*",
     "dou-ui": "workspace:*"
   },

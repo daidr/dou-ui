@@ -589,3 +589,19 @@ describe('DouSheet review fixes', () => {
     wrapper.unmount()
   })
 })
+
+describe('text starting with =', () => {
+  it("keeps '= as text, shown without the mark and edited with it", async () => {
+    const { wrapper, grid, type, key, cells, input } = setup()
+    grid.value!.select('C1')
+    await nextTick()
+    await type("'=abc")
+    await key('Enter')
+    expect(cells()[0]![2]).toBe("'=abc")
+    expect(wrapper.findAll('.dou-sheet__cell').some((cell) => cell.text() === '=abc')).toBe(true)
+    grid.value!.edit('C1')
+    await nextTick()
+    expect(input.value).toBe("'=abc")
+    wrapper.unmount()
+  })
+})

@@ -44,6 +44,8 @@ import { DouChart, DouChartAxis, DouChartBar, DouChartLine, DouChartScatter } fr
 import '@dou-ui/chart/style.css'
 import { DouFlowEditor, type FlowDocument } from '@dou-ui/flow'
 import '@dou-ui/flow/style.css'
+import { CodeText, DouCodeEditor, type CodeEditorExpose } from '@dou-ui/code'
+import '@dou-ui/code/style.css'
 import { DouSheet, type SheetExpose, type SheetWorkbook } from '@dou-ui/sheet'
 import '@dou-ui/sheet/style.css'
 import { DouPivot, type PivotCollapsed, type PivotConfig } from '@dou-ui/pivot'
@@ -729,6 +731,42 @@ export const cases: Record<string, Case> = {
     render: (n) => flowEditor(n, 0.2),
     act: (root) => wheel(root, 300, 200),
   },
+  // A code file of n lines bound as a string: open it, then scroll to the middle.
+  code: {
+    render: (n) => codeEditor(n, 'string'),
+    act: (root) => {
+      const scroller = root.querySelector('.dou-code-editor__scroller')!
+      scroller.scrollTop = scroller.scrollHeight / 2
+      scroller.dispatchEvent(new Event('scroll'))
+    },
+  },
+  // One frame of a wheel: only the lines coming into view are drawn.
+  'code-scroll-step': {
+    render: (n) => codeEditor(n, 'string'),
+    act: (root) => {
+      const scroller = root.querySelector('.dou-code-editor__scroller')!
+      scroller.scrollTop += 60
+      scroller.dispatchEvent(new Event('scroll'))
+    },
+  },
+  // One key typed in the middle, handing the whole string back through v-model.
+  'code-type': {
+    render: (n) => codeEditor(n, 'string'),
+    prepare: (root) => codeCursor(root, 1),
+    act: (root) => codeType(root, 'x'),
+  },
+  // The same key with v-model:doc: no string is joined.
+  'code-type-doc': {
+    render: (n) => codeEditor(n, 'doc'),
+    prepare: (root) => codeCursor(root, 1),
+    act: (root) => codeType(root, 'x'),
+  },
+  // One key typed at a thousand cursors at once.
+  'code-cursors': {
+    render: (n) => codeEditor(n, 'doc'),
+    prepare: (root) => codeCursor(root, 1000),
+    act: (root) => codeType(root, 'x'),
+  },
   // A sheet of n rows × 20 columns, every cell filled.
   sheet: {
     render: (n) => sheet(n),
@@ -836,6 +874,49 @@ function pivot(n: number) {
       collapsed: collapsed.value,
       maxHeight: 600,
     })
+}
+
+function codeEditor(n: number, bind: 'string' | 'doc') {
+  const source = Array.from(
+    { length: n },
+    (_, i) => `  const value${i} = compute(${i}, '第 ${i + 1} 行') // ${i % 7 ? '' : 'note'}`,
+  ).join('\n')
+  const code = ref(source)
+  const doc = shallowRef<CodeText | undefined>()
+  const editor = ref<CodeEditorExpose>()
+  ;(window as any).codeEditor = editor
+  return () =>
+    h(DouCodeEditor, {
+      ref: editor,
+      style: 'height: 600px',
+      ...(bind === 'string'
+        ? { modelValue: code.value, 'onUpdate:modelValue': (value: string) => (code.value = value) }
+        : {
+            doc: doc.value ?? CodeText.of(source),
+            'onUpdate:doc': (value: CodeText) => (doc.value = value),
+          }),
+    })
+}
+
+/** Puts `count` cursors on consecutive lines around the middle of the file. */
+function codeCursor(root: HTMLElement, count: number) {
+  const editor = (window as any).codeEditor.value as CodeEditorExpose
+  const { doc } = editor
+  const first = Math.max(1, (doc.lines >> 1) - (count >> 1))
+  const ranges = Array.from({ length: Math.min(count, doc.lines) }, (_, i) => {
+    const pos = doc.line(first + i).from + 8
+    return { anchor: pos, head: pos }
+  })
+  editor.select({ ranges, main: 0 })
+  root.querySelector('textarea')!.focus()
+}
+
+function codeType(root: HTMLElement, text: string) {
+  const textarea = root.querySelector('textarea')!
+  const at = textarea.selectionStart
+  textarea.value = textarea.value.slice(0, at) + text + textarea.value.slice(textarea.selectionEnd)
+  textarea.setSelectionRange(at + 1, at + 1)
+  textarea.dispatchEvent(new Event('input', { bubbles: true }))
 }
 
 function sheet(n: number, typed = false) {

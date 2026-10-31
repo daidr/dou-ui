@@ -11,12 +11,14 @@ import {
   watch,
 } from 'vue'
 import type { InjectionKey, PropType, VNode } from 'vue'
-import { DouButton, DouForm } from 'dou-ui'
+import { DouButton, DouDropdown, DouDropdownItem, DouForm } from 'dou-ui'
+import type { DropdownExpose } from 'dou-ui'
 import {
   ArrowDownIcon,
   ArrowUpIcon,
   CopyIcon,
   CornerLeftUpIcon,
+  MoreHorizontalIcon,
   PlusIcon,
   TrashIcon,
 } from '@dou-ui/icons'
@@ -535,41 +537,126 @@ function pagesBody(
   ])
 }
 
+/** One button of the selected node's action bar. */
+const actionButton = (
+  label: string,
+  icon: VNode,
+  onClick: (event: MouseEvent) => void,
+  disabled = false,
+) =>
+  h(
+    'button',
+    {
+      type: 'button',
+      class: 'dou-form-builder__action',
+      tabindex: -1,
+      disabled,
+      'aria-label': label,
+      title: label,
+      onClick,
+    },
+    icon,
+  )
+
 /** The buttons of the selected node; its type and name show in the inspector's header. */
 function actionBar(state: BuilderState, node: FormNode, title: string) {
   const messages = state.messages
   const place = formNodePlaces(state.document).get(node.id)
   const siblings = place?.parent ? place.parent.children.length : state.document.nodes.length
-  const button = (label: string, icon: VNode, run: () => void, disabled = false) =>
-    h(
-      'button',
-      {
-        type: 'button',
-        class: 'dou-form-builder__action',
-        tabindex: -1,
-        disabled,
-        'aria-label': label,
-        title: label,
-        onClick: (event: MouseEvent) => {
-          event.stopPropagation()
-          run()
-          state.canvas.value?.focus({ preventScroll: true })
-        },
-      },
-      icon,
-    )
-  return h('div', { class: 'dou-form-builder__actions', role: 'toolbar', 'aria-label': title }, [
+  const after = () => state.canvas.value?.focus({ preventScroll: true })
+  const actions = [
     place?.parent
-      ? button(messages.actions.parent, h(CornerLeftUpIcon), () => state.selectParent())
+      ? {
+          label: messages.actions.parent,
+          icon: CornerLeftUpIcon,
+          run: () => state.selectParent(),
+        }
       : null,
-    button(messages.actions.up, h(ArrowUpIcon), () => state.moveBy(-1, [node.id]), !place?.index),
-    button(
-      messages.actions.down,
-      h(ArrowDownIcon),
-      () => state.moveBy(1, [node.id]),
-      !place || place.index >= siblings - 1,
+    {
+      label: messages.actions.up,
+      icon: ArrowUpIcon,
+      run: () => state.moveBy(-1, [node.id]),
+      disabled: !place?.index,
+    },
+    {
+      label: messages.actions.down,
+      icon: ArrowDownIcon,
+      run: () => state.moveBy(1, [node.id]),
+      disabled: !place || place.index >= siblings - 1,
+    },
+    {
+      label: messages.actions.duplicate,
+      icon: CopyIcon,
+      run: () => state.duplicate([node.id]),
+    },
+    {
+      label: messages.actions.remove,
+      icon: TrashIcon,
+      run: () => state.remove([node.id]),
+      danger: true,
+    },
+  ].filter((action) => action !== null)
+  // A node too narrow for the row of buttons gets one button with a menu instead (see style.css).
+  let menu: DropdownExpose | null = null
+  const more = h(
+    DouDropdown,
+    {
+      ref: (instance: unknown) => (menu = instance as DropdownExpose | null),
+      placement: 'bottom-end',
+      // Closed by a choice, Escape or a press outside: the keys go on working on the canvas.
+      'onUpdate:open': (open: boolean) => {
+        if (!open) requestAnimationFrame(after)
+      },
+    },
+    {
+      default: () =>
+        h(
+          'button',
+          {
+            type: 'button',
+            class: 'dou-form-builder__action',
+            tabindex: -1,
+            'aria-label': messages.actions.more,
+            title: messages.actions.more,
+            onClick: (event: MouseEvent) => event.stopPropagation(),
+            // Escape closes the open menu only, rather than selecting the parent on the canvas.
+            onKeydown: (event: KeyboardEvent) => {
+              const target = event.currentTarget as HTMLElement
+              if (event.key !== 'Escape' || target.getAttribute('aria-expanded') !== 'true') return
+              event.stopPropagation()
+              menu?.close()
+            },
+          },
+          h(MoreHorizontalIcon),
+        ),
+      menu: () =>
+        actions.map((action) =>
+          h(
+            DouDropdownItem,
+            {
+              key: action.label,
+              disabled: action.disabled,
+              tone: action.danger ? 'danger' : 'neutral',
+              onClick: action.run,
+            },
+            { prefix: () => h(action.icon), default: () => action.label },
+          ),
+        ),
+    },
+  )
+  return h('div', { class: 'dou-form-builder__actions', role: 'toolbar', 'aria-label': title }, [
+    ...actions.map((action) =>
+      actionButton(
+        action.label,
+        h(action.icon),
+        (event) => {
+          event.stopPropagation()
+          action.run()
+          after()
+        },
+        action.disabled,
+      ),
     ),
-    button(messages.actions.duplicate, h(CopyIcon), () => state.duplicate([node.id])),
-    button(messages.actions.remove, h(TrashIcon), () => state.remove([node.id])),
+    h('span', { class: 'dou-form-builder__actions-more' }, more),
   ])
 }

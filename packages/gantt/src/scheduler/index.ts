@@ -5,10 +5,12 @@ export const DouScheduler = withInstall(Scheduler)
 export default DouScheduler
 
 export { groupByResource, loadSegments, packLanes } from './layout'
-export type { GanttResource, LoadSegment, SchedulerItem } from './layout'
+export type { SchedulerResource, SchedulerLoadSegment, SchedulerItem } from './layout'
 export type {
   SchedulerEmits,
   SchedulerExpose,
+  SchedulerMenuTarget,
+  SchedulerMove,
   SchedulerProps,
   SchedulerRange,
   SchedulerSlots,

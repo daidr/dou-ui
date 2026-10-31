@@ -6,6 +6,7 @@ import {
   hourStep,
   levelByName,
   levelOf,
+  unitStart,
   unitsBetween,
   type GanttScale,
   type TimeUnit,
@@ -155,7 +156,9 @@ export function useTimeAxis(o: TimeAxisOptions) {
   }
 
   function scrollToTime(at: number, offset = 48) {
-    viewStart.value = at - offset / ppm.value
+    // start the view on a whole header cell, so its label isn't cut at the edge
+    const target = at - offset / ppm.value
+    viewStart.value = unitStart(level.value.bottom, target, o.weekStart.value, headerStep.value)
     const el = o.chart.value
     if (!el) return
     el.scrollLeft = Math.round((viewStart.value - origin.value) * ppm.value)

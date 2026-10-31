@@ -2622,6 +2622,7 @@ const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * prop
       v-if="showTable"
       class="dou-gantt__divider"
       role="separator"
+      :aria-label="messages.resizeTable"
       tabindex="0"
       aria-orientation="vertical"
       :aria-valuenow="Math.round(tableSize)"

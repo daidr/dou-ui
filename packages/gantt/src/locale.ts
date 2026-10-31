@@ -39,6 +39,8 @@ export interface GanttMessages {
   linkRefusals: { nested: string; duplicate: string; cycle: string }
   /** Shown when `can-move` refuses without a reason. */
   moveRefused: string
+  /** The handle between the list and the timeline. */
+  resizeTable: string
   /** How to use the chart with keys; read out when it gets focus. */
   keys: string
   /** Read out: linking by keys (`{title}` is where it starts), what was done. */
@@ -99,12 +101,16 @@ export interface GanttMessages {
     unassigned: string
     /** How to use it with keys; read out when it gets focus. */
     keys: string
-    /** Read out for a task: `{title}`, `{resource}`, `{start}`, `{end}`. */
+    /** A task's dates: `{title}`, `{start}`, `{end}`, `{duration}`. */
+    task: string
+    /** Read out for a task: `{task}` (its dates, or the milestone text) and `{resource}`. */
     item: string
     /** Read out for a resource: `{title}`, `{count}` tasks. */
     row: string
     /** Added to a resource that takes more than it can at times: `{row}` is the rest. */
     overloaded: string
+    /** Beside an overloaded resource's name. */
+    overloadHint: string
     /** Read out after a task moved to another resource: `{title}`, `{resource}`. */
     moved: string
   }
@@ -143,6 +149,7 @@ const zhCN: GanttMessages = {
     cycle: '会形成循环依赖',
   },
   moveRefused: '不能移到这里',
+  resizeTable: '调整列表宽度',
   keys: '上下键选择任务，左右键收起或展开，空格选中；Alt 加左右键移动任务，Alt 加 Shift 加左右键调整结束时间；L 添加依赖；F2 重命名，菜单键打开菜单',
   linkMode: '从“{title}”添加依赖：上下键选择后续任务，Enter 确认，Esc 取消',
   linked: '已添加依赖：{from} → {to}',
@@ -180,10 +187,12 @@ const zhCN: GanttMessages = {
     name: '资源排期',
     resource: '资源',
     unassigned: '未分配',
-    keys: '方向键在任务之间移动，Alt 加左右方向键改时间，Alt 加上下方向键换资源，Delete 删除，Mod+Z 撤销',
-    item: '{title}，{resource}，{start} 至 {end}',
+    keys: '方向键在任务之间移动，Alt 加左右方向键改时间，Alt 加上下方向键换资源，菜单键打开菜单，Delete 删除，Mod+Z 撤销',
+    task: '{title}，{start}至{end}，{duration}',
+    item: '{task}，{resource}',
     row: '{title}，{count} 项',
     overloaded: '{row}，有时段超出可承担的数量',
+    overloadHint: '有时段超出可承担的数量',
     moved: '{title}已移到{resource}',
   },
 }
@@ -208,6 +217,7 @@ const zhTW: GanttMessages = {
     cycle: '會形成循環相依',
   },
   moveRefused: '不能移到這裡',
+  resizeTable: '調整列表寬度',
   keys: '上下鍵選擇任務，左右鍵收合或展開，空白鍵選取；Alt 加左右鍵移動任務，Alt 加 Shift 加左右鍵調整結束時間；L 新增相依；F2 重新命名，選單鍵開啟選單',
   linkMode: '從「{title}」新增相依：上下鍵選擇後續任務，Enter 確認，Esc 取消',
   linked: '已新增相依：{from} → {to}',
@@ -244,10 +254,12 @@ const zhTW: GanttMessages = {
     name: '資源排程',
     resource: '資源',
     unassigned: '未分配',
-    keys: '方向鍵在任務之間移動，Alt 加左右方向鍵改時間，Alt 加上下方向鍵換資源，Delete 刪除，Mod+Z 復原',
-    item: '{title}，{resource}，{start} 至 {end}',
+    keys: '方向鍵在任務之間移動，Alt 加左右方向鍵改時間，Alt 加上下方向鍵換資源，選單鍵開啟選單，Delete 刪除，Mod+Z 復原',
+    task: '{title}，{start}至{end}，{duration}',
+    item: '{task}，{resource}',
     row: '{title}，{count} 項',
     overloaded: '{row}，有時段超出可承擔的數量',
+    overloadHint: '有時段超出可承擔的數量',
     moved: '{title}已移到{resource}',
   },
 }
@@ -289,6 +301,7 @@ const en: GanttMessages = {
     cycle: 'This would make a loop',
   },
   moveRefused: 'Can’t move here',
+  resizeTable: 'Resize the list',
   keys: 'Up and Down pick a task, Left and Right fold, Space selects; Alt with Left or Right moves the task, Alt with Shift and Left or Right changes its end; L adds a dependency; F2 renames, the menu key opens the menu',
   linkMode:
     'Adding a dependency from “{title}”: pick the next task with Up and Down, Enter to confirm, Escape to cancel',
@@ -327,10 +340,12 @@ const en: GanttMessages = {
     name: 'Scheduler',
     resource: 'Resource',
     unassigned: 'Unassigned',
-    keys: 'Arrow keys move between tasks, Alt with left or right changes the time, Alt with up or down changes the resource, Delete removes, Mod+Z undoes',
-    item: '{title}, {resource}, {start} to {end}',
+    keys: 'Arrow keys move between tasks, Alt with left or right changes the time, Alt with up or down changes the resource, the menu key opens the menu, Delete removes, Mod+Z undoes',
+    task: '{title}, {start} to {end}, {duration}',
+    item: '{task}, {resource}',
     row: '{title}, {count} tasks',
     overloaded: '{row}, takes more than it can at times',
+    overloadHint: 'Takes more than it can at times',
     moved: '{title} moved to {resource}',
   },
 }

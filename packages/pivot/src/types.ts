@@ -28,10 +28,36 @@ export interface PivotProps<Row = Record<string, unknown>> {
   rowHeaderWidth?: number
   /** The width of each value column, in px. */
   columnWidth?: number
+  /**
+   * `compact` (the default) puts the row fields in one column as a tree, a
+   * group's total on its own line; `tabular` gives each row field a column
+   * and an open group's total a line after its children.
+   */
+  layout?: 'compact' | 'tabular'
+  /** Whether column widths can be dragged (and fitted with a double-click); `true` by default. */
+  resizable?: boolean
   /** Ways to sum up beside the built-in ones, by the name the config uses. */
   aggregators?: readonly PivotAggregator[]
   /** The table's accessible name. */
   ariaLabel?: string
+  /** Texts to override. */
+  messages?: PivotMessagesOverride
+}
+
+export interface PivotFieldsProps<Row = Record<string, unknown>> {
+  /** The same records as the table's; the panel reads them to list the fields and their values. */
+  data: readonly Row[]
+  /** The same fields as the table's. */
+  fields?: readonly PivotField<Row>[]
+  /** Which fields go where; bind the same config as the table's with `v-model:config`. */
+  config?: PivotConfig
+  /** Ways to sum up beside the built-in ones, offered in each value's menu. */
+  aggregators?: readonly PivotAggregator[]
+  /**
+   * Show the panel as a button that opens it in a drawer. `'auto'` (the
+   * default) does so on screens narrower than the `sm` breakpoint.
+   */
+  drawer?: boolean | 'auto'
   /** Texts to override. */
   messages?: PivotMessagesOverride
 }

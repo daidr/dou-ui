@@ -41,6 +41,7 @@ export function resolveConfig(
       field: source.field(spec.field),
       sort: spec.sort ?? 'asc',
       subtotal: spec.subtotal ?? true,
+      by: spec.by,
     }
   }
   const values: PivotResolvedValue[] = (config.values ?? []).map((item) => {
@@ -89,11 +90,11 @@ export function computePivot<Row>(
   const resolved = resolveConfig(src, config, options)
   const rowLevels: PivotLevel[] = resolved.rows.map((l) => ({
     ...l,
-    column: src.dimension(l.field.name),
+    column: src.dimension(l.field.name, l.by),
   }))
   const colLevels: PivotLevel[] = resolved.columns.map((l) => ({
     ...l,
-    column: src.dimension(l.field.name),
+    column: src.dimension(l.field.name, l.by),
   }))
   const n = source.length
   const rowTree = new PivotTreeBuilder(stride(rowLevels))
@@ -105,7 +106,10 @@ export function computePivot<Row>(
 
   const filters = Object.entries(config.filters ?? {}).flatMap(([name, filter]) => {
     if (!filter.include && !filter.exclude) return []
-    const column = src.dimension(name)
+    // without its own grouping, a filter takes the one the field has on an axis
+    const by =
+      filter.by ?? [...resolved.rows, ...resolved.columns].find((l) => l.field.name === name)?.by
+    const column = src.dimension(name, by)
     const allow = new Uint8Array(column.labels.length).fill(filter.include ? 0 : 1)
     for (const value of filter.include ?? []) {
       const code = column.find(value)

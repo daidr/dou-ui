@@ -32,6 +32,7 @@ export function makeOrders(count, seed = 2026) {
       month,
       amount: Math.round(cups * price * (0.8 + random() * 0.4) * 100) / 100,
       cups,
+      date: new Date(2026, month - 1, 1 + Math.floor(random() * 28)),
     }
   }
   return orders
@@ -45,6 +46,7 @@ export const fields = [
   { name: 'category', label: '品类' },
   { name: 'channel', label: '渠道' },
   { name: 'quarter', label: '季度' },
+  { name: 'date', label: '下单日期', type: 'date' },
   { name: 'month', label: '月份', format: (m) => `${m} 月` },
   {
     name: 'amount',

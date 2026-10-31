@@ -1,3 +1,5 @@
+@import './fields/fields.css';
+
 /*
  * Pivot table
  *
@@ -421,6 +423,118 @@
     align-items: center;
     justify-content: center;
     color: var(--dou-color-text-tertiary);
+    pointer-events: none;
+  }
+}
+
+/* the tabular layout, column widths */
+@layer dou.components {
+  .dou-pivot.is-tabular {
+    & .dou-pivot__row-head {
+      padding-right: 0;
+    }
+
+    & .dou-pivot__corner-line.is-rows {
+      padding-left: 0;
+    }
+
+    /* a group's line holds its total only while it is closed; open groups total on a line of their own */
+    & .dou-pivot__row.is-group:not(.is-subtotal) {
+      font-weight: inherit;
+    }
+  }
+
+  .dou-pivot__row.is-subtotal {
+    background-color: var(--dou-pivot-total-bg);
+    font-weight: var(--dou-font-weight-medium);
+
+    & > .dou-pivot__row-head,
+    & > .dou-pivot__value-head {
+      background-color: var(--dou-pivot-total-bg);
+    }
+  }
+
+  .dou-pivot__level {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 4px;
+    box-sizing: border-box;
+    height: 100%;
+    min-width: 0;
+    padding: 0 8px 0 12px;
+    overflow: hidden;
+
+    & + & {
+      border-left: 1px solid var(--dou-pivot-line);
+    }
+  }
+
+  .dou-pivot__corner-inline {
+    display: contents;
+  }
+
+  .dou-pivot__corner-field {
+    display: flex;
+    flex: none;
+    align-items: center;
+    box-sizing: border-box;
+    min-width: 0;
+    padding-left: 8px;
+    overflow: hidden;
+  }
+
+  /* the last field gives way to the values' name at the end of the line */
+  .dou-pivot__corner-field.is-last {
+    flex-shrink: 1;
+  }
+
+  .dou-pivot.is-tabular .dou-pivot__corner-values {
+    flex: none;
+    padding-right: 8px;
+  }
+
+  .dou-pivot__resize {
+    position: absolute;
+    top: 0;
+    right: -4px;
+    z-index: 3;
+    width: 8px;
+    height: 100%;
+    cursor: col-resize;
+    touch-action: none;
+
+    &::after {
+      position: absolute;
+      top: 6px;
+      bottom: 6px;
+      left: 3px;
+      width: 2px;
+      border-radius: 1px;
+      background-color: var(--dou-pivot-ring);
+      opacity: 0;
+      transition: opacity var(--dou-motion-duration-fast) var(--dou-motion-easing);
+      content: '';
+    }
+
+    &:focus-visible {
+      outline: none;
+    }
+
+    &:hover::after,
+    &:active::after,
+    &:focus-visible::after {
+      opacity: 1;
+    }
+  }
+
+  .dou-pivot__measure {
+    position: absolute;
+    top: 0;
+    left: 0;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    visibility: hidden;
     pointer-events: none;
   }
 }

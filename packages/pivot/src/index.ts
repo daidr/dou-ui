@@ -1,12 +1,21 @@
 import { withInstall } from 'dou-ui'
 import Pivot from './pivot.vue'
+import PivotFields from './fields/fields.vue'
 
 export const DouPivot = withInstall(Pivot)
+export const DouPivotFields = withInstall(PivotFields)
 export default DouPivot
 
-export type { PivotCellEvent, PivotEmits, PivotExpose, PivotProps } from './types'
+export type { PivotCellEvent, PivotEmits, PivotExpose, PivotFieldsProps, PivotProps } from './types'
 export type { PivotAxis } from './core/layout'
-export { computePivot, defineAggregator, PivotResult, PivotSource, PivotTree } from './engine'
+export {
+  bucketer,
+  computePivot,
+  defineAggregator,
+  PivotResult,
+  PivotSource,
+  PivotTree,
+} from './engine'
 export type {
   PivotAggregateName,
   PivotAggregator,
@@ -18,6 +27,7 @@ export type {
   PivotFieldType,
   PivotFilter,
   PivotFormat,
+  PivotGroupBy,
   PivotLevel,
   PivotPath,
   PivotResolvedField,
@@ -32,5 +42,6 @@ export type { PivotMessages, PivotMessagesOverride } from './locale'
 declare module 'vue' {
   export interface GlobalComponents {
     DouPivot: typeof DouPivot
+    DouPivotFields: typeof DouPivotFields
   }
 }

@@ -7,3 +7,5 @@ export type { PivotDimensionColumn, PivotResolvedField, PivotSourceOptions } fro
 export { PivotTree } from './tree'
 export type { PivotLevel } from './tree'
 export type * from './types'
+export { bucketer, DATE_PERIODS, isoWeek, readBucket, toDate } from './group'
+export type { PivotDatePeriod, PivotGroupBy } from './group'

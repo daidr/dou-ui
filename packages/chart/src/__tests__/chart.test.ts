@@ -68,6 +68,27 @@ describe('DouChart', () => {
     expect(wrapper.find('.dou-chart').attributes('aria-label')).toBe('图表。没有数据')
   })
 
+  it('shows a legend for more than one series, and reads years as written', async () => {
+    const years = [2019, 2025].map((year) => ({ year, a: 1, b: 2 }))
+    const wrapper = mount(DouChart, {
+      props: { data: years, x: 'year' },
+      slots: { default: () => [h(DouChartLine, { y: 'a' }), h(DouChartLine, { y: 'b' })] },
+      attachTo: document.body,
+    })
+    // happy-dom has no layout: give the chart a size
+    const root = wrapper.find('.dou-chart').element as HTMLElement
+    root.getBoundingClientRect = () => ({ width: 600, height: 300 }) as DOMRect
+    Object.defineProperty(root, 'clientWidth', { value: 600 })
+    Object.defineProperty(root, 'clientHeight', { value: 300 })
+    await wrapper.setProps({ height: 300 })
+    expect(wrapper.find('.dou-chart').attributes('aria-label')).toContain('横轴从 2019 到 2025')
+    await nextTick()
+    expect(wrapper.findAll('.dou-chart__legend').map((item) => item.text())).toEqual(['a', 'b'])
+    await wrapper.setProps({ legend: false })
+    expect(wrapper.findAll('.dou-chart__legend')).toHaveLength(0)
+    wrapper.unmount()
+  })
+
   it('warns when a part is used outside a chart', () => {
     const warn = console.warn
     const seen: string[] = []

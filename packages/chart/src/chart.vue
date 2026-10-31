@@ -13,7 +13,7 @@ import {
 } from 'vue'
 import { createColorResolver, observeTheme } from './core/colors'
 import { extent } from './core/data'
-import { numberFormatFull, timeFormatFull } from './core/format'
+import { numberFormatFull, numberTickFormat, timeFormatFull } from './core/format'
 import { layoutChart, type AxisConfig, type ChartAxisPosition } from './core/layout'
 import { buildModel, type SeriesInput } from './core/model'
 import { crisp, type Painter } from './core/painter'
@@ -27,6 +27,8 @@ defineOptions({ name: 'DouChart' })
 const props = withDefaults(defineProps<ChartProps>(), {
   data: () => [],
   height: 320,
+  // left out: shown when there is more than one series
+  legend: undefined,
 })
 defineSlots<ChartSlots>()
 
@@ -366,7 +368,11 @@ const label = computed(() => {
         const span = m0.x![1] - m0.x![0]
         return timeFormatFull(name, span < 2 * 86400e3 ? 'minute' : 'day')(value)
       }
-      return xFormat ? xFormat(value) : numberFormatFull(name)(value)
+      if (xFormat) return xFormat(value)
+      // whole numbers on the axis (years) read as the ticks show them
+      return m0.xIntegers
+        ? numberTickFormat(name, m0.x!, { years: true })(value)
+        : numberFormatFull(name)(value)
     }
     chart = format(m.range, { chart: m.chart, from: xText(m0.x[0]), to: xText(m0.x[1]) })
   }

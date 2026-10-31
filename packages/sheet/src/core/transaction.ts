@@ -1,10 +1,13 @@
 import {
   boundsOf,
+  columnIndex,
+  moveReferences,
   parseCell,
   shiftFormula,
   parseRange,
   splitSheet,
   type SheetBounds,
+  type SheetRefMap,
   type SheetPoint,
   type SheetRange,
 } from './address'
@@ -20,7 +23,7 @@ import {
   type SheetWorkbook,
   valueOf,
 } from './model'
-import { continueValues } from './fill'
+import { continueValues, type SheetFillMode } from './fill'
 
 /*
  * Every change to a workbook is a list of steps. Applying a step also gives
@@ -46,11 +49,36 @@ export type SheetRef = number | string
  */
 export type SheetCellAt = string | (SheetPoint & { sheet?: SheetRef })
 
-/** A range, written like a cell: `'A1:C4'`, `'表 2'!B:B`, a range or its bounds. */
-export type SheetRangeAt = string | SheetRange | SheetBounds
+/**
+ * A range, written like a cell: `'A1:C4'`, `'表 2'!B:B`, or a range or its
+ * bounds with an optional `sheet`.
+ */
+export type SheetRangeAt = string | ((SheetRange | SheetBounds) & { sheet?: SheetRef })
 
 /** Rows or columns. */
 export type SheetAxisName = 'row' | 'col'
+
+/**
+ * Rows or columns: a zero-based number, or as people write them, `'5'` or
+ * `'5:7'` for rows and `'C'` or `'B:C'` for columns.
+ */
+export type SheetLinesAt = number | string | { from: number; count: number }
+
+/** What made a change, as the `change` and `transaction` events tell it. */
+export type SheetAction =
+  | 'input'
+  | 'paste'
+  | 'cut'
+  | 'fill'
+  | 'clear'
+  | 'resize'
+  | 'move'
+  | 'insert'
+  | 'delete'
+  | 'hide'
+  | 'undo'
+  | 'redo'
+  | 'api'
 
 /** What a step calls a sheet: its `id`, or its name when it has none. */
 export const sheetKey = (sheet: SheetData) => sheet.id ?? sheet.name
@@ -103,6 +131,8 @@ export interface SheetTransactionMeta {
   group?: string
   /** Who made the change, passed on to the `transaction` event. */
   origin?: string
+  /** What the change was; the grid sets it, a change made in code is `api`. */
+  action?: SheetAction
 }
 
 /**
@@ -239,11 +269,11 @@ export class SheetTransaction {
    * Fills `to` from `from`, the cells it extends down, up, right or left:
    * each line of cells continues as the fill handle does (see
    * `continueValues`), with the styles and formats of the cells it repeats.
-   * Formulas are copied with their references moved along. `invert` swaps
-   * continuing and repeating, as Ctrl / ⌘ while dragging does; `copy` only
-   * repeats, as Ctrl+D does.
+   * Formulas are copied with their references moved along. `mode` is
+   * `auto` as dragging does, `series` to count a single number up too, or
+   * `copy` to only repeat, as Ctrl+D does.
    */
-  fill(from: SheetRangeAt, to: SheetRangeAt, options: { invert?: boolean; copy?: boolean } = {}) {
+  fill(from: SheetRangeAt, to: SheetRangeAt, options: { mode?: SheetFillMode } = {}) {
     const { index, bounds: s } = this.rangeAt(from)
     const t = this.rangeAt(to).bounds
     const vertical = t.left === s.left && t.right === s.right
@@ -270,9 +300,10 @@ export class SheetTransaction {
         return down ? { row: s.top + along, col: line } : { row: line, col: s.left + along }
       })
       const sources = points.map((p) => cells[p.row]?.[p.col] ?? undefined)
-      const values = options.copy
-        ? Array.from({ length: count }, (_, i) => valueOf(sources[i % length]))
-        : continueValues(sources.map(valueOf), count, options.invert, !forward)
+      const values = continueValues(sources.map(valueOf), count, {
+        mode: options.mode,
+        back: !forward,
+      })
       for (let i = 0; i < count; i++) {
         const k = i % length
         const origin = points[k]!
@@ -295,34 +326,96 @@ export class SheetTransaction {
     return this
   }
 
-  /** Adds empty rows before `index`. Frozen rows and the row count grow with them. */
-  insertRows(index: number, count = 1, sheet?: SheetRef) {
-    return this.insertLines('row', index, count, sheet)
+  /**
+   * Adds empty rows before `at`: `insertRows(4, 2)` or `insertRows('5:6')`
+   * both add two rows where row 5 was. Frozen rows and the row count grow
+   * with them, and formulas pointing below follow their cells.
+   */
+  insertRows(at: SheetLinesAt, count?: number, sheet?: SheetRef) {
+    const lines = linesOf('row', at, count)
+    return this.insertLines('row', lines.from, lines.count, sheet)
   }
 
-  /** Adds empty columns before `index`. Frozen columns and the column count grow with them. */
-  insertCols(index: number, count = 1, sheet?: SheetRef) {
-    return this.insertLines('col', index, count, sheet)
+  /** Adds empty columns before `at`, `insertCols('C')` or `insertCols(2)`. */
+  insertCols(at: SheetLinesAt, count?: number, sheet?: SheetRef) {
+    const lines = linesOf('col', at, count)
+    return this.insertLines('col', lines.from, lines.count, sheet)
   }
 
-  /** Removes rows from `index` on, with their cells and heights. */
-  deleteRows(index: number, count = 1, sheet?: SheetRef) {
-    return this.deleteLines('row', index, count, sheet)
+  /**
+   * Removes rows with their cells and heights: `deleteRows('5:7')` or
+   * `deleteRows(4, 3)`. Formulas pointing at them read `#REF!`.
+   */
+  deleteRows(at: SheetLinesAt, count?: number, sheet?: SheetRef) {
+    const lines = linesOf('row', at, count)
+    return this.deleteLines('row', lines.from, lines.count, sheet)
   }
 
-  /** Removes columns from `index` on, with their cells and widths. */
-  deleteCols(index: number, count = 1, sheet?: SheetRef) {
-    return this.deleteLines('col', index, count, sheet)
+  /** Removes columns with their cells and widths: `deleteCols('B:C')`. */
+  deleteCols(at: SheetLinesAt, count?: number, sheet?: SheetRef) {
+    const lines = linesOf('col', at, count)
+    return this.deleteLines('col', lines.from, lines.count, sheet)
   }
 
-  /** Moves rows from `from` to before row `to` (numbered as before the move). */
-  moveRows(from: number, count: number, to: number, sheet?: SheetRef) {
-    return this.moveLines('row', from, count, to, sheet)
+  /**
+   * Moves rows to before row `to`, numbered as before the move:
+   * `moveRows('2:3', '6')` puts rows 2 and 3 above what was row 6.
+   * Formulas pointing at them follow.
+   */
+  moveRows(lines: SheetLinesAt, to: number | string, sheet?: SheetRef) {
+    const { from, count } = linesOf('row', lines)
+    return this.moveLines('row', from, count, linesOf('row', to).from, sheet)
   }
 
-  /** Moves columns from `from` to before column `to` (numbered as before the move). */
-  moveCols(from: number, count: number, to: number, sheet?: SheetRef) {
-    return this.moveLines('col', from, count, to, sheet)
+  /** Moves columns to before column `to`: `moveCols('C', 'A')`. */
+  moveCols(lines: SheetLinesAt, to: number | string, sheet?: SheetRef) {
+    const { from, count } = linesOf('col', lines)
+    return this.moveLines('col', from, count, linesOf('col', to).from, sheet)
+  }
+
+  /**
+   * Moves a block of cells so its top left corner is at `to`, as cutting
+   * and pasting does: the cells at `from` empty, those at `to` are
+   * replaced, and formulas pointing at the block follow it.
+   */
+  moveCells(from: SheetRangeAt, to: SheetCellAt) {
+    const source = this.rangeAt(from)
+    const target = this.cellAt(to)
+    const b = source.bounds
+    const rows = target.row - b.top
+    const cols = target.col - b.left
+    if (rows === 0 && cols === 0 && source.index === target.index) return this
+    const cells = this.book.sheets[source.index]!.cells
+    const block = Array.from({ length: b.bottom - b.top + 1 }, (_, r) =>
+      Array.from({ length: b.right - b.left + 1 }, (_cell, c) => cells[b.top + r]?.[b.left + c]),
+    )
+    for (let r = b.top; r <= b.bottom; r++)
+      for (let c = b.left; c <= b.right; c++)
+        this.setCell({ sheet: source.index, row: r, col: c }, undefined)
+    this.setCells(target, block)
+    const dest: SheetBounds = {
+      top: target.row,
+      left: target.col,
+      bottom: b.bottom + rows,
+      right: b.right + cols,
+    }
+    const sourceName = this.book.sheets[source.index]!.name
+    const destName = this.book.sheets[target.index]!.name
+    const same = sourceName === destName
+    // references to the cells the block replaced lose them
+    this.rewriteReferences(destName, (r) => (inside(r, dest) && !(same && inside(r, b)) ? null : r))
+    // references to the block follow it
+    this.rewriteReferences(sourceName, (r) => {
+      if (!inside(r, b)) return r
+      const moved = {
+        top: r.top + rows,
+        left: r.left + cols,
+        bottom: r.bottom + rows,
+        right: r.right + cols,
+      }
+      return same ? moved : { sheet: destName, bounds: moved }
+    })
+    return this
   }
 
   private insertLines(axis: SheetAxisName, index: number, count: number, ref?: SheetRef) {
@@ -330,9 +423,14 @@ export class SheetTransaction {
     const at = this.mustIndex(ref)
     const sheet = this.book.sheets[at]!
     this.step({ type: 'insertLines', sheet: this.keyOf(at), axis, index, count })
-    return this.updateSheet(
+    this.updateSheet(
       linesPatch(sheet, axis, (n) => (n > index ? n + count : n), count),
       at,
+    )
+    const add = (n: number) => (n >= index ? n + count : n)
+    return this.rewriteReferences(
+      sheet.name,
+      lineMap(axis, (a, b) => [add(a), add(b)]),
     )
   }
 
@@ -343,13 +441,47 @@ export class SheetTransaction {
     this.step({ type: 'removeLines', sheet: this.keyOf(at), axis, index, count })
     // frozen lines that were removed are no longer frozen
     const left = (n: number) => n - Math.max(0, Math.min(n, index + count) - index)
-    return this.updateSheet(linesPatch(sheet, axis, left, -count), at)
+    this.updateSheet(linesPatch(sheet, axis, left, -count), at)
+    const end = index + count
+    return this.rewriteReferences(
+      sheet.name,
+      lineMap(axis, (a, b) => {
+        if (a >= index && b < end) return null
+        const first = a < index ? a : a >= end ? a - count : index
+        const last = b < index ? b : b >= end ? b - count : index - 1
+        return [first, last]
+      }),
+    )
   }
 
   private moveLines(axis: SheetAxisName, from: number, count: number, to: number, ref?: SheetRef) {
     if (count <= 0 || (to >= from && to <= from + count)) return this
     const at = this.mustIndex(ref)
-    return this.step({ type: 'moveLines', sheet: this.keyOf(at), axis, from, count, to })
+    this.step({ type: 'moveLines', sheet: this.keyOf(at), axis, from, count, to })
+    const place = movedIndex(from, count, to)
+    return this.rewriteReferences(
+      this.book.sheets[at]!.name,
+      lineMap(axis, (a, b) => {
+        const x = place(a)
+        const y = place(b)
+        return [Math.min(x, y), Math.max(x, y)]
+      }),
+    )
+  }
+
+  /** Rewrites the references to cells on sheet `name` in every formula of the workbook. */
+  private rewriteReferences(name: string, map: SheetRefMap) {
+    this.book.sheets.forEach((sheet, index) => {
+      sheet.cells.forEach((line, row) =>
+        line?.forEach((cell, col) => {
+          const value = typeof cell === 'object' ? cell?.value : cell
+          if (typeof value !== 'string' || !value.startsWith('=')) return
+          const next = moveReferences(value, sheet.name, name, map)
+          if (next !== value) this.setValue({ sheet: index, row, col }, next)
+        }),
+      )
+    })
+    return this
   }
 
   private mustIndex(ref: SheetRef = this.sheet) {
@@ -373,7 +505,7 @@ export class SheetTransaction {
   }
 
   private rangeAt(at: SheetRangeAt) {
-    let sheet: string | undefined
+    let sheet: SheetRef | undefined
     let bounds: SheetBounds
     if (typeof at === 'string') {
       const split = splitSheet(at)
@@ -381,7 +513,13 @@ export class SheetTransaction {
       const range = parseRange(split.ref)
       if (!range) throw new RangeError(`"${at}" isn't a range`)
       bounds = boundsOf(range)
-    } else bounds = 'start' in at ? boundsOf(at) : at
+    } else {
+      sheet = at.sheet
+      bounds =
+        'start' in at
+          ? boundsOf(at)
+          : { top: at.top, left: at.left, bottom: at.bottom, right: at.right }
+    }
     return { index: this.mustIndex(sheet), bounds }
   }
 
@@ -570,6 +708,46 @@ export class SheetTransaction {
       rows.add(row)
     }
     return own.cells[row]!
+  }
+}
+
+/** Whether `x` lies inside `y`. */
+const inside = (x: SheetBounds, y: SheetBounds) =>
+  x.top >= y.top && x.bottom <= y.bottom && x.left >= y.left && x.right <= y.right
+
+/** Rows or columns written as a number, `'5:7'` or `'B:C'`, as a first line and a count. */
+function linesOf(axis: SheetAxisName, at: SheetLinesAt, count?: number) {
+  if (typeof at === 'number') return { from: at, count: count ?? 1 }
+  if (typeof at === 'object') return at
+  const [a = '', b = a, extra] = at.replaceAll('$', '').trim().split(':')
+  const line = (text: string) =>
+    axis === 'row' ? (/^[1-9]\d*$/.test(text) ? Number(text) - 1 : -1) : columnIndex(text)
+  const first = line(a!)
+  const last = line(b)
+  if (extra != null || first < 0 || last < 0)
+    throw new RangeError(`"${at}" isn't ${axis === 'row' ? 'rows' : 'columns'}`)
+  return { from: Math.min(first, last), count: count ?? Math.abs(last - first) + 1 }
+}
+
+/**
+ * A reference map for a change to rows or columns: `span` gives a range's
+ * new first and last line on that axis, or `null` when they are gone.
+ * Whole rows are not touched by a change to columns, and so on.
+ */
+function lineMap(
+  axis: SheetAxisName,
+  span: (a: number, b: number) => [number, number] | null,
+): SheetRefMap {
+  return (b) => {
+    const [a, z] = axis === 'row' ? [b.top, b.bottom] : [b.left, b.right]
+    // whole columns for rows, whole rows for columns
+    if (a === 0 && z === Infinity) return b
+    const next = span(a, z === Infinity ? a : z)
+    if (!next) return null
+    const last = z === Infinity ? Infinity : next[1]
+    return axis === 'row'
+      ? { ...b, top: next[0], bottom: last }
+      : { ...b, left: next[0], right: last }
   }
 }
 

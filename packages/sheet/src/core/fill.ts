@@ -72,29 +72,54 @@ function trend(list: number[]) {
   return (i: number) => round(meanY + slope * (i - meanX))
 }
 
-/** Months between dates on the same day of the month, evenly; `null` otherwise. */
+/**
+ * Months between dates, evenly: on the same day of each month, or each on
+ * the last day of its month (`1-31`, `2-28` go on `3-31`, `4-30`). `null`
+ * otherwise.
+ */
 function monthStep(days: number[]) {
   const parts = days.map((day) => {
     const date = new Date(day * DAY)
-    return { month: date.getUTCFullYear() * 12 + date.getUTCMonth(), date: date.getUTCDate() }
+    const next = new Date((day + 1) * DAY)
+    return {
+      month: date.getUTCFullYear() * 12 + date.getUTCMonth(),
+      date: date.getUTCDate(),
+      last: next.getUTCDate() === 1,
+    }
   })
-  if (parts.some((part) => part.date !== parts[0]!.date)) return null
+  const sameDay = parts.every((part) => part.date === parts[0]!.date)
+  const lastDays = parts.every((part) => part.last)
+  if (!sameDay && !lastDays) return null
   const step = evenStep(parts.map((part) => part.month))
-  return step ? { step, first: parts[0]!.month, date: parts[0]!.date } : null
+  if (!step) return null
+  return { step, first: parts[0]!.month, date: sameDay ? parts[0]!.date : 31 }
 }
 
 /**
- * The `count` values that follow `values`. With `invert`, a run that would
- * continue repeats instead, and a single number counts up by one. `back`
- * says the values are in reverse (filling up or left), so a single value
- * counts down.
+ * How the fill handle fills: `auto` continues runs it recognises and
+ * copies a single number; `series` also counts a single number up by one;
+ * `copy` only repeats.
  */
+export type SheetFillMode = 'auto' | 'series' | 'copy'
+
+export interface SheetFillOptions {
+  /** @default 'auto' */
+  mode?: SheetFillMode
+  /**
+   * The values are in reverse, filling up or left: a single value counts
+   * down.
+   */
+  back?: boolean
+}
+
+/** The `count` values that follow `values`, as the fill handle continues them. */
 export function continueValues(
   values: readonly SheetValue[],
   count: number,
-  invert = false,
-  back = false,
-) {
+  options: SheetFillOptions = {},
+): SheetValue[] {
+  const { mode = 'auto', back = false } = options
+  const copy = mode === 'copy'
   const one = back ? -1 : 1
   const n = values.length
   const repeat = () => Array.from({ length: count }, (_, i) => values[(n + i) % n] ?? null)
@@ -107,17 +132,15 @@ export function continueValues(
   switch (first.kind) {
     case 'number': {
       const list = kinds.map((kind) => (kind as { n: number }).n)
-      // one number copies; Ctrl / ⌘ counts up instead
-      if (n === 1)
-        return invert
-          ? Array.from({ length: count }, (_, i) => round(list[0]! + one * (i + 1)))
-          : repeat()
-      if (invert) return repeat()
+      // one number copies, unless asked for a series
+      if (n === 1 && mode === 'series')
+        return Array.from({ length: count }, (_, i) => round(list[0]! + one * (i + 1)))
+      if (n === 1 || copy) return repeat()
       const at = trend(list)
       return Array.from({ length: count }, (_, i) => at(after(i)))
     }
     case 'date': {
-      if (invert) return repeat()
+      if (copy) return repeat()
       const days = kinds.map((kind) => (kind as { day: number }).day)
       // the same day of each month goes on by months, other even steps by days
       const months = n > 1 ? monthStep(days) : null
@@ -134,7 +157,7 @@ export function continueValues(
       return Array.from({ length: count }, (_, i) => dateText(days[n - 1]! + step * (i + 1)))
     }
     case 'time': {
-      if (invert) return repeat()
+      if (copy) return repeat()
       const minutes = kinds.map((kind) => (kind as { minute: number }).minute)
       const step = n === 1 ? 60 * one : evenStep(minutes)
       if (step == null) return repeat()
@@ -144,7 +167,7 @@ export function continueValues(
       })
     }
     case 'numbered': {
-      if (invert) return repeat()
+      if (copy) return repeat()
       const list = kinds as Extract<Kind, { kind: 'numbered' }>[]
       if (list.some((kind) => kind.before !== first.before || kind.after !== first.after))
         return repeat()
@@ -157,4 +180,13 @@ export function continueValues(
       })
     }
   }
+}
+
+/**
+ * Whether filling in `auto` mode continues the values rather than copying
+ * them. Ctrl / ⌘ while dragging the fill handle does the other.
+ */
+export function fillContinues(values: readonly SheetValue[]) {
+  const next = continueValues(values, values.length)
+  return next.some((value, i) => value !== values[i])
 }

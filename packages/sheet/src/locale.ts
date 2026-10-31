@@ -28,6 +28,8 @@ export interface SheetMessages {
   cut: string
   copy: string
   paste: string
+  insert: string
+  delete: string
   insertRowsAbove: string
   insertRowsBelow: string
   insertColsLeft: string
@@ -76,6 +78,8 @@ const zhCN: SheetMessages = {
   cut: '剪切',
   copy: '复制',
   paste: '粘贴',
+  insert: '插入',
+  delete: '删除',
   insertRowsAbove: '在上方插入 {count} 行',
   insertRowsBelow: '在下方插入 {count} 行',
   insertColsLeft: '在左侧插入 {count} 列',
@@ -118,6 +122,8 @@ const zhTW: SheetMessages = {
   cut: '剪下',
   copy: '複製',
   paste: '貼上',
+  insert: '插入',
+  delete: '刪除',
   insertRowsAbove: '在上方插入 {count} 列',
   insertRowsBelow: '在下方插入 {count} 列',
   insertColsLeft: '在左側插入 {count} 欄',
@@ -160,6 +166,8 @@ const en: SheetMessages = {
   cut: 'Cut',
   copy: 'Copy',
   paste: 'Paste',
+  insert: 'Insert',
+  delete: 'Delete',
   insertRowsAbove: 'Insert {count} rows above',
   insertRowsBelow: 'Insert {count} rows below',
   insertColsLeft: 'Insert {count} columns left',

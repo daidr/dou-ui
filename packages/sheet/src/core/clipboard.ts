@@ -52,7 +52,7 @@ function cssOf(style: SheetStyle | undefined, align: string | undefined) {
  * The clipboard's text and HTML for a block of cells. `locale` names the
  * language dates are shown in.
  */
-export function writeClip(clip: SheetClip, locale?: string) {
+export function formatClip(clip: SheetClip, locale?: string) {
   const styles = clip.styles ?? {}
   const text: string[] = []
   let rows = ''
@@ -172,7 +172,7 @@ function readTable(table: Element): SheetCellInput[][] {
  * the way typing them would, with formats such as `0%` they imply.
  * `null` when there is nothing to paste.
  */
-export function readClip(data: { html?: string; text?: string }): SheetClip | null {
+export function parseClip(data: { html?: string; text?: string }): SheetClip | null {
   if (data.html && typeof DOMParser !== 'undefined') {
     const page = new DOMParser().parseFromString(data.html, 'text/html')
     const marked = page.querySelector(`table[${MARK}]`)

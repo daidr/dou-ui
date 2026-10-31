@@ -1,18 +1,7 @@
 <script setup lang="ts">
-import { DouContextMenu, DouDropdownItem, DouIcon } from 'dou-ui'
-import { useTemplateRef, type Component } from 'vue'
-
-/** An item of the grid's menu. */
-export interface SheetMenuItem {
-  key: string
-  label: string
-  icon?: Component
-  shortcut?: string
-  tone?: 'neutral' | 'danger'
-  divided?: boolean
-  disabled?: boolean
-  run: () => void
-}
+import { DouContextMenu, DouDropdownItem, DouDropdownSub, DouIcon } from 'dou-ui'
+import { useTemplateRef } from 'vue'
+import type { SheetMenuItem } from '../types'
 
 defineProps<{ items: SheetMenuItem[] }>()
 const emit = defineEmits<{ select: [key: unknown] }>()
@@ -34,20 +23,45 @@ defineExpose({
   <DouContextMenu ref="menu" v-model:open="open" @select="emit('select', $event)">
     <span class="dou-sheet__menu-anchor" aria-hidden="true" />
     <template #menu>
-      <DouDropdownItem
-        v-for="item in items"
-        :key="item.key"
-        :value="item.key"
-        :disabled="item.disabled"
-        :tone="item.tone"
-        :divided="item.divided"
-        :shortcut="coarse() ? undefined : item.shortcut"
-      >
-        <template v-if="item.icon" #prefix>
-          <DouIcon><component :is="item.icon" /></DouIcon>
-        </template>
-        {{ item.label }}
-      </DouDropdownItem>
+      <template v-for="item in items" :key="item.key">
+        <DouDropdownSub
+          v-if="item.children?.length"
+          :title="item.label"
+          :disabled="item.disabled"
+          :divided="item.divided"
+        >
+          <template v-if="item.icon" #prefix>
+            <DouIcon><component :is="item.icon" /></DouIcon>
+          </template>
+          <DouDropdownItem
+            v-for="child in item.children"
+            :key="child.key"
+            :value="child.key"
+            :disabled="child.disabled"
+            :tone="child.tone"
+            :divided="child.divided"
+            :shortcut="coarse() ? undefined : child.shortcut"
+          >
+            <template v-if="child.icon" #prefix>
+              <DouIcon><component :is="child.icon" /></DouIcon>
+            </template>
+            {{ child.label }}
+          </DouDropdownItem>
+        </DouDropdownSub>
+        <DouDropdownItem
+          v-else
+          :value="item.key"
+          :disabled="item.disabled"
+          :tone="item.tone"
+          :divided="item.divided"
+          :shortcut="coarse() ? undefined : item.shortcut"
+        >
+          <template v-if="item.icon" #prefix>
+            <DouIcon><component :is="item.icon" /></DouIcon>
+          </template>
+          {{ item.label }}
+        </DouDropdownItem>
+      </template>
     </template>
   </DouContextMenu>
 </template>

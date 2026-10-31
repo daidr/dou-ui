@@ -16,12 +16,24 @@ import {
   EraserIcon,
   EyeIcon,
   EyeOffIcon,
+  PlusIcon,
   RowInsertBottomIcon,
   RowInsertTopIcon,
   RowRemoveIcon,
   ScissorsIcon,
+  TrashIcon,
 } from '@dou-ui/icons'
-import { computed, nextTick, onBeforeUnmount, ref, shallowRef, toRaw, useId, watch } from 'vue'
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  shallowRef,
+  toRaw,
+  useId,
+  watch,
+} from 'vue'
 import {
   boundsOf,
   columnName,
@@ -36,9 +48,10 @@ import {
   type SheetPoint,
   type SheetRange,
 } from './core/address'
-import { readClip, writeClip, type SheetClip } from './core/clipboard'
+import { formatClip, parseClip, type SheetClip } from './core/clipboard'
+import { fillContinues, type SheetFillMode } from './core/fill'
 import { SheetAxis } from './core/axis'
-import { alignOf, formatValue, inputText, parseInput } from './core/format'
+import { alignOf, fitNumber, formatValue, inputText, parseInput } from './core/format'
 import { SheetHistory, type SheetHistoryView } from './core/history'
 import {
   cellOf,
@@ -61,9 +74,16 @@ import {
   type SheetSelection,
 } from './core/selection'
 import { SheetTransaction, type SheetAxisName, type SheetTransactionMeta } from './core/transaction'
-import SheetMenu, { type SheetMenuItem } from './components/sheet-menu.vue'
+import SheetMenu from './components/sheet-menu.vue'
 import { format, useSheetMessages } from './locale'
-import type { SheetEmits, SheetExpose, SheetProps } from './types'
+import type {
+  SheetEmits,
+  SheetExpose,
+  SheetMenuContext,
+  SheetMenuItem,
+  SheetPasteEvent,
+  SheetProps,
+} from './types'
 
 defineOptions({ name: 'DouSheet' })
 
@@ -78,6 +98,7 @@ const props = withDefaults(defineProps<SheetProps>(), {
   historyDepth: 100,
   ariaLabel: undefined,
   messages: undefined,
+  menu: undefined,
 })
 const emit = defineEmits<SheetEmits>()
 
@@ -313,7 +334,33 @@ interface CellView {
   css: string
 }
 
-function cellView(row: number, col: number, line: SheetData['cells'][number]): CellView {
+/**
+ * The width of a digit in the grid's font, for fitting numbers into
+ * narrow cells; measured once the grid is in the page.
+ */
+const digitWidth = ref(0)
+
+function measureDigits() {
+  const el = root.value
+  const context = el && document.createElement('canvas').getContext('2d')
+  if (!el || !context) return
+  const font = getComputedStyle(el)
+  context.font = `${font.fontWeight} ${font.fontSize} ${font.fontFamily}`
+  digitWidth.value = context.measureText('0123456789').width / 10
+}
+
+onMounted(() => {
+  measureDigits()
+  // a web font that comes in later is wider or narrower
+  void document.fonts?.ready.then(measureDigits)
+})
+
+function cellView(
+  row: number,
+  col: number,
+  line: SheetData['cells'][number],
+  width: number,
+): CellView {
   const input = line?.[col]
   let cls = 'dou-sheet__cell'
   let css = ''
@@ -322,6 +369,9 @@ function cellView(row: number, col: number, line: SheetData['cells'][number]): C
     const cell = typeof input === 'object' ? input : null
     const value = cell ? cell.value : (input as SheetValue)
     text = formatValue(value, cell?.format, lang.value)
+    // a number without a format fits the cell, as far as its digits allow
+    if (typeof value === 'number' && !cell?.format && digitWidth.value)
+      text = fitNumber(value, Math.max(1, Math.floor((width - 16) / digitWidth.value)))
     const style = cell?.style ? styleCache.value.get(cell.style) : undefined
     if (style) {
       if (style.cls) cls += ` ${style.cls}`
@@ -348,8 +398,8 @@ function rowCells(row: number, list: number[]): CellView[] {
   const x0 = headerWidth.value
   const edgeCol = frozen.value.cols - 1
   return list.map((col) => {
-    const view = cellView(row, col, line)
     const width = axis.size(col)
+    const view = cellView(row, col, line, width)
     view.css = `width:${width}px;left:${x0 + axis.offset(col)}px;${view.css}`
     if (col === edgeCol) view.cls += ' is-freeze-edge'
     return view
@@ -369,6 +419,7 @@ const memoBase = computed(() => [
   frozenHeight.value,
   styleCache.value,
   lang.value,
+  digitWidth.value,
 ])
 
 /** The selection as it touches one row. */
@@ -455,7 +506,7 @@ function transact(
 ) {
   if (props.readonly) return null
   const tr = new SheetTransaction(doc.value, sheetIndex.value)
-  if (meta) tr.setMeta(meta)
+  tr.setMeta({ action: 'api', ...meta })
   run(tr)
   if (!tr.changed) return null
   if (!keepMark) clipMark.value = null
@@ -470,6 +521,7 @@ function travel(direction: 'undo' | 'redo') {
   const result = direction === 'undo' ? history.undo(doc.value) : history.redo(doc.value)
   syncHistory()
   if (!result) return false
+  result.tr.setMeta({ action: direction })
   apply(result.tr)
   if (result.view.sheet !== sheetIndex.value) setSheet(result.view.sheet)
   setSelection(result.view.selection)
@@ -539,7 +591,7 @@ function commitEdit(move?: SheetDirection) {
         format: old?.format ?? parsed.format,
       })
     },
-    undefined,
+    { action: 'input' },
     before,
   )
   if (changed) {
@@ -871,9 +923,12 @@ function selectLines(kind: 'row' | 'col') {
 function clearSelection() {
   if (props.readonly) return announce(messages.value.readonly)
   const ranges = selection.value.ranges
-  const cleared = transact((tr) => {
-    for (const range of ranges) tr.clearValues(boundsOf(range))
-  })
+  const cleared = transact(
+    (tr) => {
+      for (const range of ranges) tr.clearValues(boundsOf(range))
+    },
+    { action: 'clear' },
+  )
   if (cleared)
     announce(
       format(messages.value.cleared, {
@@ -1016,7 +1071,7 @@ function takeClip(cut: boolean) {
   const bounds = { top: b.top, left: b.left, bottom: b.top + height - 1, right: b.left + width - 1 }
   clipMark.value = { sheet: sheetIndex.value, bounds, cut: id }
   announce(format(messages.value[cut ? 'cutDone' : 'copied'], { range: rangeName(bounds) }))
-  return writeClip(clip, lang.value)
+  return formatClip(clip, lang.value)
 }
 
 function onCopy(event: ClipboardEvent) {
@@ -1039,7 +1094,7 @@ function onCut(event: ClipboardEvent) {
 function onPaste(event: ClipboardEvent) {
   if (editing.value || !event.clipboardData) return
   event.preventDefault()
-  const clip = readClip({
+  const clip = parseClip({
     html: event.clipboardData.getData('text/html'),
     text: event.clipboardData.getData('text/plain'),
   })
@@ -1077,7 +1132,7 @@ async function pasteFromClipboard() {
           text = await (await item.getType('text/plain')).text()
       }
     } else text = await navigator.clipboard.readText()
-    const clip = readClip({ html, text })
+    const clip = parseClip({ html, text })
     if (clip) paste(clip)
   } catch {
     const key = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘V' : 'Ctrl+V'
@@ -1102,40 +1157,61 @@ function styleNames(tr: SheetTransaction, styles: Record<string, SheetStyle> | u
   return names
 }
 
+/** Where a clip goes when pasted at the selection. */
+function pasteTargets(clip: SheetClip) {
+  const height = clip.cells.length
+  const width = Math.max(1, ...clip.cells.map((line) => line.length))
+  const b = lastBounds()
+  if (height === 1 && width === 1) return selection.value.ranges.map(boundsOf)
+  if ((b.bottom - b.top + 1) % height === 0 && (b.right - b.left + 1) % width === 0) return [b]
+  return [{ top: b.top, left: b.left, bottom: b.top + height - 1, right: b.left + width - 1 }]
+}
+
 /**
  * Pastes a clip at the selection. One cell fills every selected cell; a
  * block fills a range that is a whole number of copies of it; otherwise
- * it goes at the top left of the range. A cut moves its cells.
+ * it goes at the top left of the range. A cut moves its cells. The
+ * `paste` event comes first and may change the clip or stop the paste.
  */
-function paste(clip: SheetClip) {
+function paste(given: SheetClip) {
   if (props.readonly) return announce(messages.value.readonly)
+  if (!given.cells.length) return
+  const event: SheetPasteEvent = {
+    clip: given,
+    range: boundsRange(pasteTargets(given)[0]!),
+    defaultPrevented: false,
+    preventDefault() {
+      this.defaultPrevented = true
+    },
+  }
+  emit('paste', event)
+  if (event.defaultPrevented) return
+  const clip = event.clip
   const height = clip.cells.length
-  const width = Math.max(1, ...clip.cells.map((line) => line.length))
   if (!height) return
+  const width = Math.max(1, ...clip.cells.map((line) => line.length))
   const ours = clip.from != null
   const mark = clipMark.value
   const moving = clip.cut != null && mark?.cut === clip.cut ? mark : null
-  const b = lastBounds()
-  const targets: SheetBounds[] = []
-  if (height === 1 && width === 1) targets.push(...selection.value.ranges.map(boundsOf))
-  else if ((b.bottom - b.top + 1) % height === 0 && (b.right - b.left + 1) % width === 0)
-    targets.push(b)
-  else
-    targets.push({
-      top: b.top,
-      left: b.left,
-      bottom: b.top + height - 1,
-      right: b.left + width - 1,
-    })
+  const targets = moving
+    ? [
+        {
+          ...lastBounds(),
+          bottom: lastBounds().top + height - 1,
+          right: lastBounds().left + width - 1,
+        },
+      ]
+    : pasteTargets(clip)
   const changed = transact(
     (tr) => {
-      const names = styleNames(tr, clip.styles)
       if (moving) {
-        const m = moving.bounds
-        for (let r = m.top; r <= m.bottom; r++)
-          for (let c = m.left; c <= m.right; c++)
-            tr.setCell({ sheet: moving.sheet, row: r, col: c }, undefined)
+        // the cells themselves move, and formulas pointing at them follow
+        return void tr.moveCells(
+          { ...moving.bounds, sheet: moving.sheet },
+          { row: targets[0]!.top, col: targets[0]!.left },
+        )
       }
+      const names = styleNames(tr, clip.styles)
       for (const t of targets)
         for (let r = t.top; r <= t.bottom; r++)
           for (let c = t.left; c <= t.right; c++) {
@@ -1155,7 +1231,7 @@ function paste(clip: SheetClip) {
             }
             const cell = cellOf(input)
             let value = cell?.value
-            if (!moving && typeof value === 'string' && value.startsWith('='))
+            if (typeof value === 'string' && value.startsWith('='))
               value = shiftFormula(value, r - dr - clip.from!.row, c - dc - clip.from!.col)
             const style = cell?.style ? (names.get(cell.style) ?? cell.style) : undefined
             tr.setCell(
@@ -1164,22 +1240,22 @@ function paste(clip: SheetClip) {
             )
           }
     },
-    undefined,
+    { action: moving ? 'cut' : 'paste' },
     view(),
     !moving,
   )
   if (moving) clipMark.value = null
   const last = targets[targets.length - 1]!
   if (targets.length === 1)
-    setSelection({
-      active: { row: last.top, col: last.left },
-      ranges: [
-        { start: { row: last.top, col: last.left }, end: { row: last.bottom, col: last.right } },
-      ],
-    })
+    setSelection({ active: { row: last.top, col: last.left }, ranges: [boundsRange(last)] })
   scrollToPoint({ row: last.top, col: last.left })
   if (changed) announce(format(messages.value.pasted, { range: targets.map(rangeName).join(', ') }))
 }
+
+const boundsRange = (b: SheetBounds): SheetRange => ({
+  start: { row: b.top, col: b.left },
+  end: { row: b.bottom, col: b.right },
+})
 
 /** A short message over the grid, for what can't be read out alone. */
 const notice = ref('')
@@ -1209,37 +1285,107 @@ const fillPreview = computed(() => {
   const t = fillTarget.value
   return t ? rangeRect(t.bounds) : null
 })
+/** Whether Ctrl / ⌘ is held while dragging the fill handle. */
+const fillInvert = ref(false)
+
+/**
+ * What the last filled cell will show, beside the far corner of the fill,
+ * found by filling the first line in a transaction that is thrown away.
+ */
+const fillHint = computed(() => {
+  const target = fillTarget.value
+  if (!target || target.clear) return null
+  const b = lastBounds()
+  const t = target.bounds
+  if (t.top === b.top && t.bottom === b.bottom && t.left === b.left && t.right === b.right)
+    return null
+  const down = t.left === b.left && t.right === b.right
+  const one = (x: SheetBounds) => (down ? { ...x, right: x.left } : { ...x, bottom: x.top })
+  const end = down
+    ? { row: t.bottom > b.bottom ? t.bottom : t.top, col: b.left }
+    : { row: b.top, col: t.right > b.right ? t.right : t.left }
+  const tr = new SheetTransaction(doc.value, sheetIndex.value)
+  try {
+    tr.fill(one(b), one(t), { mode: fillMode(b, t, fillInvert.value) })
+  } catch {
+    return null
+  }
+  const input = tr.doc.sheets[sheetIndex.value]!.cells[end.row]?.[end.col]
+  const text = formatValue(valueOf(input), cellOf(input)?.format, lang.value)
+  const rect = rangeRect({ top: end.row, left: end.col, bottom: end.row, right: end.col })
+  if (!rect || !text) return null
+  // near the right edge it goes on the cell's left instead
+  const flip = rect.x + rect.width + 160 > viewWidth.value && rect.x > 160
+  return { text, flip, x: flip ? rect.x : rect.x + rect.width, y: rect.y + rect.height / 2 }
+})
+
 const fillClearRect = computed(() => {
   const t = fillTarget.value
   return t?.clear ? rangeRect(t.clear) : null
 })
 
-/** What dragging the fill handle to a cell would fill: the range grown one way, or shrunk. */
+/**
+ * How far from the selection's corner the handle was pressed, in px: a
+ * finger lands anywhere on its larger target, and the fill follows how
+ * the finger moves from there rather than where it first touched.
+ */
+let fillGrab = { x: 0, y: 0 }
+
+/** The way a fill drag is going, so the grid scrolls only that way. */
+let fillAxis: SheetAxisName | null = null
+
+/**
+ * What dragging the fill handle to a point would fill: the range grown the
+ * way the pointer went further past it, or shrunk when dragged back in.
+ */
 function fillTo(hit: Hit) {
   const b = lastBounds()
-  const r = Math.max(0, Math.min(rowCount.value - 1, hit.row))
-  const c = Math.max(0, Math.min(colCount.value - 1, hit.col))
-  const down = r > b.bottom ? r - b.bottom : r < b.top ? r - b.top : 0
-  const across = c > b.right ? c - b.right : c < b.left ? c - b.left : 0
-  if (down === 0 && across === 0) {
+  const x = hit.x - fillGrab.x
+  const y = hit.y - fillGrab.y
+  const r = rows.value.indexAt(y)
+  const c = cols.value.indexAt(x)
+  const top = rows.value.offset(b.top)
+  const bottom = rows.value.offset(b.bottom + 1)
+  const left = cols.value.offset(b.left)
+  const right = cols.value.offset(b.right + 1)
+  const outY = y > bottom ? y - bottom : y < top ? y - top : 0
+  const outX = x > right ? x - right : x < left ? x - left : 0
+  fillAxis = outY === 0 && outX === 0 ? null : Math.abs(outY) >= Math.abs(outX) ? 'row' : 'col'
+  if (outY === 0 && outX === 0) {
     // back inside: the cells past the pointer would be cleared
     const up = b.bottom - r
-    const left = b.right - c
-    if (up === 0 && left === 0) return { bounds: b, clear: null }
-    if (up * props.rowHeight >= left * props.colWidth)
-      return {
-        bounds: { ...b, bottom: r },
-        clear: { ...b, top: r + 1 },
-      }
-    return { bounds: { ...b, right: c }, clear: { ...b, left: c + 1 } }
+    const back = b.right - c
+    if (up === 0 && back === 0) return { bounds: b, clear: null }
+    if (bottom - y >= right - x)
+      return up === 0
+        ? { bounds: b, clear: null }
+        : { bounds: { ...b, bottom: r }, clear: { ...b, top: r + 1 } }
+    return back === 0
+      ? { bounds: b, clear: null }
+      : { bounds: { ...b, right: c }, clear: { ...b, left: c + 1 } }
   }
-  // the way the pointer went further, in px
-  if (Math.abs(down) * props.rowHeight >= Math.abs(across) * props.colWidth)
-    return {
-      bounds: down > 0 ? { ...b, bottom: r } : { ...b, top: r },
-      clear: null,
-    }
-  return { bounds: across > 0 ? { ...b, right: c } : { ...b, left: c }, clear: null }
+  if (Math.abs(outY) >= Math.abs(outX))
+    return { bounds: outY > 0 ? { ...b, bottom: r } : { ...b, top: r }, clear: null }
+  return { bounds: outX > 0 ? { ...b, right: c } : { ...b, left: c }, clear: null }
+}
+
+/**
+ * How dragging from `b` to `t` fills: as the fill handle does on its own,
+ * or with Ctrl / ⌘ held the other way, copying a run it would continue
+ * and counting up a number it would copy.
+ */
+function fillMode(b: SheetBounds, t: SheetBounds, invert: boolean): SheetFillMode {
+  if (!invert) return 'auto'
+  const down = t.left === b.left && t.right === b.right
+  const cells = sheet.value.cells
+  const [first, last] = down ? [b.left, b.right] : [b.top, b.bottom]
+  for (let line = first; line <= last; line++) {
+    const values = down
+      ? Array.from({ length: b.bottom - b.top + 1 }, (_, i) => valueOf(cells[b.top + i]?.[line]))
+      : Array.from({ length: b.right - b.left + 1 }, (_, i) => valueOf(cells[line]?.[b.left + i]))
+    if (fillContinues(values)) return 'copy'
+  }
+  return 'series'
 }
 
 /** Fills from the selection to `target`, or clears what was dragged back over. */
@@ -1248,10 +1394,10 @@ function finishFill(target: { bounds: SheetBounds; clear: SheetBounds | null }, 
   const t = target.bounds
   const same = t.top === b.top && t.bottom === b.bottom && t.left === b.left && t.right === b.right
   if (target.clear) {
-    if (transact((tr) => tr.clearValues(target.clear!)))
+    if (transact((tr) => tr.clearValues(target.clear!), { action: 'clear' }))
       announce(format(messages.value.cleared, { range: rangeName(target.clear) }))
   } else if (!same) {
-    if (transact((tr) => tr.fill(b, t, { invert })))
+    if (transact((tr) => tr.fill(b, t, { mode: fillMode(b, t, invert) }), { action: 'fill' }))
       announce(format(messages.value.filled, { range: rangeName(t) }))
   }
   const now = selection.value.active
@@ -1261,6 +1407,8 @@ function finishFill(target: { bounds: SheetBounds; clear: SheetBounds | null }, 
   })
 }
 
+const fillMeta = { action: 'fill' } as const
+
 /** Fills down (or right) from the first row (or column) of the selection, as Ctrl+D and Ctrl+R do. */
 function fillFromEdge(direction: 'down' | 'right') {
   const b = lastBounds()
@@ -1269,14 +1417,20 @@ function fillFromEdge(direction: 'down' | 'right') {
     if (b.top === 0) return
     // one row: copies the row above
     source.top = source.bottom = b.top - 1
-    return void transact((tr) => tr.fill(source, { ...b, top: b.top - 1 }, { copy: true }))
+    return void transact(
+      (tr) => tr.fill(source, { ...b, top: b.top - 1 }, { mode: 'copy' }),
+      fillMeta,
+    )
   }
   if (direction === 'right' && b.right === b.left) {
     if (b.left === 0) return
     source.left = source.right = b.left - 1
-    return void transact((tr) => tr.fill(source, { ...b, left: b.left - 1 }, { copy: true }))
+    return void transact(
+      (tr) => tr.fill(source, { ...b, left: b.left - 1 }, { mode: 'copy' }),
+      fillMeta,
+    )
   }
-  transact((tr) => tr.fill(source, b, { copy: true }))
+  transact((tr) => tr.fill(source, b, { mode: 'copy' }), fillMeta)
 }
 
 /** Double-clicking the fill handle fills down as far as the column beside it has data. */
@@ -1303,8 +1457,9 @@ function linesOf(axis: SheetAxisName) {
 function insertLines(axis: SheetAxisName, after: boolean) {
   const { from, count } = linesOf(axis)
   const at = after ? from + count : from
-  const changed = transact((tr) =>
-    axis === 'row' ? tr.insertRows(at, count) : tr.insertCols(at, count),
+  const changed = transact(
+    (tr) => (axis === 'row' ? tr.insertRows(at, count) : tr.insertCols(at, count)),
+    { action: 'insert' },
   )
   // the selection stays where it was, on the new rows (or columns) when they went before it
   if (!changed) return
@@ -1313,8 +1468,9 @@ function insertLines(axis: SheetAxisName, after: boolean) {
 
 function deleteLines(axis: SheetAxisName) {
   const { from, count } = linesOf(axis)
-  const changed = transact((tr) =>
-    axis === 'row' ? tr.deleteRows(from, count) : tr.deleteCols(from, count),
+  const changed = transact(
+    (tr) => (axis === 'row' ? tr.deleteRows(from, count) : tr.deleteCols(from, count)),
+    { action: 'delete' },
   )
   if (!changed) return
   const point = clampPoint(
@@ -1330,11 +1486,14 @@ function deleteLines(axis: SheetAxisName) {
 function setHidden(axis: SheetAxisName, hide: boolean) {
   const { from, count } = linesOf(axis)
   const axisNow = axis === 'row' ? rows.value : cols.value
-  transact((tr) => {
-    for (let i = from; i < from + count; i++)
-      if (hide) tr.setSize(axis, i, 0)
-      else if (axisNow.hidden(i)) tr.setSize(axis, i, undefined)
-  })
+  transact(
+    (tr) => {
+      for (let i = from; i < from + count; i++)
+        if (hide) tr.setSize(axis, i, 0)
+        else if (axisNow.hidden(i)) tr.setSize(axis, i, undefined)
+    },
+    { action: 'hide' },
+  )
 }
 
 /** Whether any of the selected rows (or columns) is hidden, or right beside them. */
@@ -1357,9 +1516,12 @@ function resizeLines(axis: SheetAxisName, index: number, size: number | undefine
       ? { from: b.top, to: b.bottom }
       : { from: b.left, to: b.right }
     : { from: index, to: index }
-  const changed = transact((tr) => {
-    for (let i = lines.from; i <= lines.to; i++) tr.setSize(axis, i, size)
-  })
+  const changed = transact(
+    (tr) => {
+      for (let i = lines.from; i <= lines.to; i++) tr.setSize(axis, i, size)
+    },
+    { action: 'resize' },
+  )
   if (changed && size) announce(format(messages.value.resized, { size }))
 }
 
@@ -1409,8 +1571,9 @@ function fitSize(axis: SheetAxisName, index: number): number | undefined {
 function moveSelectedLines(axis: SheetAxisName, to: number) {
   const { from, count } = linesOf(axis)
   if (to >= from && to <= from + count) return
-  const changed = transact((tr) =>
-    axis === 'row' ? tr.moveRows(from, count, to) : tr.moveCols(from, count, to),
+  const changed = transact(
+    (tr) => (axis === 'row' ? tr.moveRows({ from, count }, to) : tr.moveCols({ from, count }, to)),
+    { action: 'move' },
   )
   if (!changed) return
   const start = to > from ? to - count : to
@@ -1429,7 +1592,12 @@ const menu = ref<InstanceType<typeof SheetMenu>>()
 const menuOpen = ref(false)
 const menuItems = shallowRef<SheetMenuItem[]>([])
 
-function menuFor(area: Hit['area']): SheetMenuItem[] {
+/**
+ * The menu's items: the clipboard, then what fits where it opened. Whole
+ * rows (or columns) get only row (or column) operations; a cell gets both,
+ * grouped into submenus to keep the menu short.
+ */
+function menuFor(area: SheetMenuContext['area']): SheetMenuItem[] {
   const m = messages.value
   const items: SheetMenuItem[] = [
     {
@@ -1459,12 +1627,11 @@ function menuFor(area: Hit['area']): SheetMenuItem[] {
   if (props.readonly) return items.filter((item) => item.key === 'copy')
   const rowLines = linesOf('row')
   const colLines = linesOf('col')
-  const rowsItems: SheetMenuItem[] = [
+  const insertRows: SheetMenuItem[] = [
     {
       key: 'row-above',
       icon: RowInsertTopIcon,
       label: format(m.insertRowsAbove, { count: rowLines.count }),
-      divided: true,
       run: () => insertLines('row', false),
     },
     {
@@ -1474,12 +1641,11 @@ function menuFor(area: Hit['area']): SheetMenuItem[] {
       run: () => insertLines('row', true),
     },
   ]
-  const colsItems: SheetMenuItem[] = [
+  const insertCols: SheetMenuItem[] = [
     {
       key: 'col-left',
       icon: ColumnInsertLeftIcon,
       label: format(m.insertColsLeft, { count: colLines.count }),
-      divided: area === 'col',
       run: () => insertLines('col', false),
     },
     {
@@ -1489,23 +1655,32 @@ function menuFor(area: Hit['area']): SheetMenuItem[] {
       run: () => insertLines('col', true),
     },
   ]
-  const deleteRows: SheetMenuItem = {
-    key: 'row-delete',
-    icon: RowRemoveIcon,
-    label: format(m.deleteRows, { count: rowLines.count }),
-    tone: 'danger',
-    divided: true,
-    run: () => deleteLines('row'),
-  }
-  const deleteCols: SheetMenuItem = {
-    key: 'col-delete',
-    icon: ColumnRemoveIcon,
-    label: format(m.deleteCols, { count: colLines.count }),
-    tone: 'danger',
-    divided: area === 'col',
-    run: () => deleteLines('col'),
-  }
-  const lines = (axis: SheetAxisName): SheetMenuItem[] => {
+  // deleting every row (or column) would leave nothing: not offered
+  const deleteRows: SheetMenuItem[] =
+    rowLines.count >= rowCount.value
+      ? []
+      : [
+          {
+            key: 'row-delete',
+            icon: RowRemoveIcon,
+            label: format(m.deleteRows, { count: rowLines.count }),
+            tone: 'danger',
+            run: () => deleteLines('row'),
+          },
+        ]
+  const deleteCols: SheetMenuItem[] =
+    colLines.count >= colCount.value
+      ? []
+      : [
+          {
+            key: 'col-delete',
+            icon: ColumnRemoveIcon,
+            label: format(m.deleteCols, { count: colLines.count }),
+            tone: 'danger',
+            run: () => deleteLines('col'),
+          },
+        ]
+  const visibility = (axis: SheetAxisName): SheetMenuItem[] => {
     const count = axis === 'row' ? rowLines.count : colLines.count
     const out: SheetMenuItem[] = [
       {
@@ -1533,25 +1708,71 @@ function menuFor(area: Hit['area']): SheetMenuItem[] {
     divided: true,
     run: clearSelection,
   }
-  if (area === 'row') return [...items, ...rowsItems, deleteRows, ...lines('row'), clear]
-  if (area === 'col') return [...items, ...colsItems, deleteCols, ...lines('col'), clear]
+  if (area === 'row' || area === 'col') {
+    const lines = area === 'row' ? [...insertRows, ...deleteRows] : [...insertCols, ...deleteCols]
+    return [...items, ...dividedFirst(lines), ...visibility(area), clear]
+  }
+  const remove = [...deleteRows, ...deleteCols]
   return [
     ...items,
-    ...rowsItems,
-    ...colsItems,
-    deleteRows,
-    { ...deleteCols, divided: false },
+    {
+      key: 'insert',
+      label: m.insert,
+      icon: PlusIcon,
+      divided: true,
+      children: [...insertRows, ...dividedFirst(insertCols)],
+    },
+    ...(remove.length
+      ? [
+          {
+            key: 'delete',
+            label: m.delete,
+            icon: TrashIcon,
+            tone: 'danger',
+            children: remove,
+          } as const,
+        ]
+      : []),
     clear,
   ]
 }
 
-function openMenu(area: Hit['area'], x: number, y: number) {
-  menuItems.value = menuFor(area)
-  menu.value?.open(x, y)
+/** The items with a line above the first. */
+const dividedFirst = (list: SheetMenuItem[]) =>
+  list.map((item, i) => (i === 0 ? { ...item, divided: true } : item))
+
+/** Where the menu opens: whole rows or columns selected count as their header. */
+function menuArea(area: Hit['area']): SheetMenuContext['area'] {
+  if (area !== 'cell') return area
+  const b = lastBounds()
+  if (selection.value.ranges.length === 1 && inBounds(b, active.value.row, active.value.col)) {
+    const rowsAll = whole(b, 'row')
+    const colsAll = whole(b, 'col')
+    if (rowsAll && !colsAll) return 'row'
+    if (colsAll && !rowsAll) return 'col'
+    if (rowsAll && colsAll) return 'corner'
+  }
+  return 'cell'
+}
+
+function openMenu(at: Hit['area'], x: number, y: number) {
+  const area = menuArea(at)
+  const items = menuFor(area)
+  menuItems.value = props.menu
+    ? props.menu(items, { area, selection: selection.value, sheet: sheetIndex.value })
+    : items
+  if (menuItems.value.length) menu.value?.open(x, y)
 }
 
 function runMenuItem(key: unknown) {
-  menuItems.value.find((item) => item.key === key)?.run()
+  const find = (list: SheetMenuItem[]): SheetMenuItem | undefined => {
+    for (const item of list) {
+      if (item.key === key) return item
+      const child = item.children && find(item.children)
+      if (child) return child
+    }
+  }
+  find(menuItems.value)?.run?.()
   if (lastPointer !== 'touch') focusGrid()
 }
 
@@ -1769,6 +1990,13 @@ function onFillDown(event: PointerEvent) {
   event.preventDefault()
   event.stopPropagation()
   lastPointer = event.pointerType
+  const b = lastBounds()
+  const hit = hitAt(event.clientX, event.clientY)
+  fillGrab = {
+    x: hit.x - cols.value.offset(b.right + 1),
+    y: hit.y - rows.value.offset(b.bottom + 1),
+  }
+  fillAxis = null
   startDrag(event, { mode: 'fill', started: true })
   hold?.grab()
   fillTarget.value = null
@@ -1814,6 +2042,7 @@ function onPointerMove(event: PointerEvent) {
   if (!d || event.pointerId !== d.pointerId) return
   d.clientX = event.clientX
   d.clientY = event.clientY
+  if (d.mode === 'fill') fillInvert.value = event.ctrlKey || event.metaKey || event.altKey
   if (!d.started) {
     const far = Math.hypot(event.clientX - d.x0, event.clientY - d.y0)
     if (d.touch) {
@@ -1931,8 +2160,15 @@ function autoScroll() {
   const top = rect.top + el.clientTop + headerHeight.value + frozenHeight.value
   const right = rect.left + el.clientLeft + el.clientWidth
   const bottom = rect.top + el.clientTop + el.clientHeight
-  const across = d.mode !== 'row' && !(d.mode === 'move' && d.axis === 'row')
-  const along = d.mode !== 'col' && !(d.mode === 'move' && d.axis === 'col')
+  // a fill scrolls only the way it is going, not along an edge the finger passes near
+  const across =
+    d.mode === 'fill'
+      ? fillAxis === 'col'
+      : d.mode !== 'row' && !(d.mode === 'move' && d.axis === 'row')
+  const along =
+    d.mode === 'fill'
+      ? fillAxis === 'row'
+      : d.mode !== 'col' && !(d.mode === 'move' && d.axis === 'col')
   const dx = across ? edgeSpeed(right - d.clientX) || -edgeSpeed(d.clientX - left) : 0
   const dy = along ? edgeSpeed(bottom - d.clientY) || -edgeSpeed(d.clientY - top) : 0
   if (dx || dy) {
@@ -2052,9 +2288,12 @@ function autofit(axis: SheetAxisName, index: number) {
       ? [b.top, b.bottom]
       : [b.left, b.right]
     : [index, index]
-  transact((tr) => {
-    for (let i = from; i <= to; i++) tr.setSize(axis, i, fitSize(axis, i))
-  })
+  transact(
+    (tr) => {
+      for (let i = from; i <= to; i++) tr.setSize(axis, i, fitSize(axis, i))
+    },
+    { action: 'resize' },
+  )
 }
 
 /**
@@ -2377,6 +2616,15 @@ defineExpose<SheetExpose>({
       @pointerdown="onFillDown"
       @dblclick.stop="fillDownToData"
     />
+    <div
+      v-if="fillHint"
+      class="dou-sheet__fill-hint"
+      :class="{ 'is-flipped': fillHint.flip }"
+      :style="`left:${fillHint.x}px;top:${fillHint.y}px`"
+      aria-hidden="true"
+    >
+      {{ fillHint.text }}
+    </div>
     <div v-if="notice" class="dou-sheet__notice" role="status">{{ notice }}</div>
     <SheetMenu ref="menu" v-model:open="menuOpen" :items="menuItems" @select="runMenuItem" />
     <span :id="keysHint" class="dou-sheet__sr-only">{{ messages.keys }}</span>

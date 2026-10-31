@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { shiftFormula } from '../core/address'
-import { parseTSV, readClip, writeClip } from '../core/clipboard'
-import { continueValues } from '../core/fill'
+import { moveReferences, shiftFormula } from '../core/address'
+import { parseTSV, parseClip, formatClip } from '../core/clipboard'
+import { continueValues, fillContinues } from '../core/fill'
 import type { SheetWorkbook } from '../core/model'
 import { applySheetSteps, SheetTransaction } from '../core/transaction'
 
@@ -78,16 +78,32 @@ describe('rows and columns', () => {
 
   it('moves rows and columns either way', () => {
     const doc = book()
-    const down = new SheetTransaction(doc).moveRows(0, 1, 3)
+    const down = new SheetTransaction(doc).moveRows(0, 3)
     expect(cells(down).map((line) => line?.[0])).toEqual(['A2', 'A3', 'A1'])
     expect(down.doc.sheets[0]!.rowSizes).toEqual({ 0: 40 })
     expect(undo(down).sheets[0]!.cells).toEqual(doc.sheets[0]!.cells)
 
-    const left = new SheetTransaction(doc).moveCols(2, 1, 0)
+    const left = new SheetTransaction(doc).moveCols('C', 'A')
     expect(cells(left)[1]).toEqual(['C2', 'A2', 'B2'])
     expect(left.doc.sheets[0]!.colSizes).toEqual({ 0: 120 })
     expect(undo(left).sheets[0]!.cells).toEqual(doc.sheets[0]!.cells)
-    expect(new SheetTransaction(doc).moveRows(1, 1, 2).changed).toBe(false)
+    expect(new SheetTransaction(doc).moveRows(1, 2).changed).toBe(false)
+    const block = new SheetTransaction(doc).moveRows('1:2', '4')
+    expect(cells(block).map((line) => line?.[0])).toEqual(['A3', 'A1', 'A2'])
+  })
+
+  it('takes rows and columns as people write them', () => {
+    const doc = book()
+    expect(cells(new SheetTransaction(doc).deleteRows('2:3'))).toEqual([['A1', 'B1', 'C1']])
+    expect(cells(new SheetTransaction(doc).deleteCols('B:C'))[0]).toEqual(['A1'])
+    expect(cells(new SheetTransaction(doc).insertRows('2:3'))[3]).toEqual(['A2', 'B2', 'C2'])
+    expect(cells(new SheetTransaction(doc).insertCols('B'))[0]).toEqual([
+      'A1',
+      undefined,
+      'B1',
+      'C1',
+    ])
+    expect(() => new SheetTransaction(doc).deleteRows('B')).toThrow(RangeError)
   })
 
   it('writes blocks of cells', () => {
@@ -102,28 +118,36 @@ describe('rows and columns', () => {
 
 describe('fill', () => {
   it.each([
-    [[1], 3, false, [1, 1, 1]],
-    [[1], 3, true, [2, 3, 4]],
-    [[1, 3], 3, false, [5, 7, 9]],
-    [[0.1, 0.2], 2, false, [0.3, 0.4]],
-    [[1, 3], 2, true, [1, 3]],
-    [[1, 2, 4], 1, false, [5.33333333333333]],
-    [['2026-10-30'], 2, false, ['2026-10-31', '2026-11-01']],
-    [['2026-01-01', '2026-01-08'], 1, false, ['2026-01-15']],
-    [['2026-01-31', '2026-02-28'], 1, false, ['2026-03-28']],
-    [['2026-01-15', '2026-02-15'], 2, false, ['2026-03-15', '2026-04-15']],
-    [['2026-01-31', '2026-03-31'], 1, false, ['2026-05-31']],
-    [['23:00'], 2, false, ['00:00', '01:00']],
-    [['09:00', '09:30'], 2, false, ['10:00', '10:30']],
-    [['第 1 周'], 2, false, ['第 2 周', '第 3 周']],
-    [['A-008', 'A-010'], 1, false, ['A-012']],
-    [['第 1 周', '第 2 周'], 2, true, ['第 1 周', '第 2 周']],
-    [['上海', '北京'], 3, false, ['上海', '北京', '上海']],
-    [[1, '上海'], 2, false, [1, '上海']],
-    [['007'], 1, false, ['007']],
-    [[true], 1, false, [true]],
-  ] as const)('continues %j by %i (invert %s)', (values, count, invert, next) => {
-    expect(continueValues(values, count, invert)).toEqual(next)
+    [[1], 3, 'auto', [1, 1, 1]],
+    [[1], 3, 'series', [2, 3, 4]],
+    [[1, 3], 3, 'auto', [5, 7, 9]],
+    [[0.1, 0.2], 2, 'auto', [0.3, 0.4]],
+    [[1, 3], 2, 'copy', [1, 3]],
+    [[1, 2, 4], 1, 'auto', [5.33333333333333]],
+    [['2026-10-30'], 2, 'auto', ['2026-10-31', '2026-11-01']],
+    [['2026-01-01', '2026-01-08'], 1, 'auto', ['2026-01-15']],
+    [['2026-01-31', '2026-02-28'], 2, 'auto', ['2026-03-31', '2026-04-30']],
+    [['2026-02-28', '2026-03-28'], 1, 'auto', ['2026-04-28']],
+    [['2026-01-15', '2026-02-15'], 2, 'auto', ['2026-03-15', '2026-04-15']],
+    [['2026-01-31', '2026-03-31'], 1, 'auto', ['2026-05-31']],
+    [['23:00'], 2, 'auto', ['00:00', '01:00']],
+    [['09:00', '09:30'], 2, 'auto', ['10:00', '10:30']],
+    [['第 1 周'], 2, 'auto', ['第 2 周', '第 3 周']],
+    [['A-008', 'A-010'], 1, 'auto', ['A-012']],
+    [['第 1 周', '第 2 周'], 2, 'copy', ['第 1 周', '第 2 周']],
+    [['上海', '北京'], 3, 'auto', ['上海', '北京', '上海']],
+    [[1, '上海'], 2, 'auto', [1, '上海']],
+    [['007'], 1, 'auto', ['007']],
+    [[true], 1, 'series', [true]],
+  ] as const)('continues %j by %i (%s)', (values, count, mode, next) => {
+    expect(continueValues(values, count, { mode })).toEqual(next)
+  })
+
+  it('says whether it continues, for Ctrl to do the other', () => {
+    expect(fillContinues([1])).toBe(false)
+    expect(fillContinues([1, 2])).toBe(true)
+    expect(fillContinues(['第 1 周'])).toBe(true)
+    expect(fillContinues(['上海'])).toBe(false)
   })
 
   it('fills ranges with styles and moved formulas', () => {
@@ -174,9 +198,75 @@ describe('formulas', () => {
   })
 })
 
+const formulas = (): SheetWorkbook => ({
+  sheets: [
+    {
+      name: '表1',
+      cells: [
+        [1, 2, 3],
+        [4, 5, 6],
+        ['=A2+SUM(B1:B2)', '=$C$2*2', "='表2'!A1"],
+      ],
+    },
+    { name: '表2', cells: [['=表1!A2', "='表1'!B1:C2"]] },
+  ],
+})
+const insertAtRow2 = (b: { top: number; bottom: number; left: number; right: number }) =>
+  b.left === 0 && b.right === Infinity && b.top === 0 && b.bottom === Infinity
+    ? b
+    : {
+        ...b,
+        top: b.top >= 1 ? b.top + 1 : b.top,
+        bottom: b.bottom >= 1 ? b.bottom + 1 : b.bottom,
+      }
+
+const other = (tr: SheetTransaction) => tr.doc.sheets[1]!.cells[0]
+
+describe('references', () => {
+  it('follow inserted rows and columns', () => {
+    const rows = new SheetTransaction(formulas()).insertRows(1)
+    expect(cells(rows)[3]).toEqual(['=A3+SUM(B1:B3)', '=$C$3*2', "='表2'!A1"])
+    expect(other(rows)).toEqual(['=表1!A3', "='表1'!B1:C3"])
+    const cols = new SheetTransaction(formulas()).insertCols(0)
+    expect(cells(cols)[2]).toEqual([undefined, '=B2+SUM(C1:C2)', '=$D$2*2', "='表2'!A1"])
+    expect(undo(cols)).toEqual(formulas())
+  })
+
+  it('read #REF! when their cells are deleted', () => {
+    const tr = new SheetTransaction(formulas()).deleteRows(1)
+    expect(cells(tr)[1]).toEqual(['=#REF!+SUM(B1:B1)', '=#REF!*2', "='表2'!A1"])
+    expect(other(tr)).toEqual(['=表1!#REF!', "='表1'!B1:C1"])
+    expect(undo(tr)).toEqual(formulas())
+  })
+
+  it('follow moved rows', () => {
+    const tr = new SheetTransaction(formulas()).moveRows(1, 0)
+    expect(cells(tr)[2]).toEqual(['=A1+SUM(B1:B2)', '=$C$1*2', "='表2'!A1"])
+  })
+
+  it('follow cut cells', () => {
+    const tr = new SheetTransaction(formulas()).moveCells('A2:B2', 'A5')
+    expect(cells(tr)[1]).toEqual([undefined, undefined, 6])
+    expect(cells(tr)[4]).toEqual([4, 5])
+    expect(cells(tr)[2]![0]).toBe('=A5+SUM(B1:B2)')
+    expect(other(tr)![0]).toBe('=表1!A5')
+    expect(undo(tr).sheets[0]!.cells.slice(0, 3)).toEqual(formulas().sheets[0]!.cells)
+    expect(undo(tr).sheets[1]).toEqual(formulas().sheets[1])
+  })
+
+  it.each([
+    ['=A1:A3', '=A1:A4'],
+    ['=SUM(B:B)+SUM(2:3)', '=SUM(B:B)+SUM(3:4)'],
+    ['="A2"&A2', '="A2"&A3'],
+    ['=LOG10(A2)', '=LOG10(A3)'],
+  ])('rewrite %s', (formula, moved) => {
+    expect(moveReferences(formula, '表1', '表1', insertAtRow2)).toBe(moved)
+  })
+})
+
 describe('clipboard', () => {
   it('writes text and a table', () => {
-    const clip = writeClip({
+    const clip = formatClip({
       cells: [
         [{ value: 1200, format: '#,##0', style: 'b' }, '上海'],
         ['两行\n文字', 'a\tb'],
@@ -194,7 +284,7 @@ describe('clipboard', () => {
       styles: { b: { bold: true } },
       from: { row: 2, col: 1 },
     }
-    expect(readClip(writeClip(source))).toEqual(source)
+    expect(parseClip(formatClip(source))).toEqual(source)
   })
 
   it('reads tables from other programs', () => {
@@ -203,7 +293,7 @@ describe('clipboard', () => {
       <tr><td rowspan="2">键盘</td><td>1,200</td><td>12.5%</td></tr>
       <tr><td>2026/3/5</td><td><p>第一行</p><p>第二行</p></td></tr>
     </table><!--EndFragment--></body></html>`
-    expect(readClip({ html })!.cells).toEqual([
+    expect(parseClip({ html })!.cells).toEqual([
       ['物品', '数量', undefined],
       ['键盘', 1200, { value: 0.125, format: '0.0%' }],
       [undefined, { value: '2026-03-05', format: 'yyyy/m/d' }, '第一行\n第二行'],
@@ -216,7 +306,7 @@ describe('clipboard', () => {
       ['x\ny', 'say "hi"'],
       ['c'],
     ])
-    expect(readClip({ text: '12\t上海\n' })!.cells).toEqual([[12, '上海']])
-    expect(readClip({ text: '' })).toBeNull()
+    expect(parseClip({ text: '12\t上海\n' })!.cells).toEqual([[12, '上海']])
+    expect(parseClip({ text: '' })).toBeNull()
   })
 })

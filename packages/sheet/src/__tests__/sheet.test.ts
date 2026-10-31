@@ -2,7 +2,8 @@ import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { DouSheet, formatRange, type SheetSelection, type SheetWorkbook } from '../index'
-import type { SheetExpose } from '../types'
+import type { SheetTransaction } from '../core/transaction'
+import type { SheetExpose, SheetMenuContext, SheetMenuItem, SheetPasteEvent } from '../types'
 
 const sample = (): SheetWorkbook => ({
   styles: { head: { bold: true, fill: 'neutral' } },
@@ -241,6 +242,48 @@ describe('DouSheet', () => {
     await key('ArrowRight')
     await fire('paste')
     expect(cells()[1]).toEqual([undefined, 42, '显示器'])
+  })
+
+  it('lets the paste event change or stop the paste, and says what made each change', async () => {
+    const actions: (string | undefined)[] = []
+    const { grid, cells } = setup({
+      onPaste: (event: SheetPasteEvent) => {
+        if (event.clip.cells[0]![0] === '停') return event.preventDefault()
+        event.clip = { cells: [[String(event.clip.cells[0]![0]).toUpperCase()]] }
+      },
+      onTransaction: (tr: SheetTransaction) => actions.push(tr.meta.action),
+    })
+    grid.value!.select('C1')
+    grid.value!.paste({ cells: [['abc']] })
+    await nextTick()
+    expect(cells()[0]![2]).toBe('ABC')
+    grid.value!.paste({ cells: [['停']] })
+    await nextTick()
+    expect(cells()[0]![2]).toBe('ABC')
+    grid.value!.undo()
+    grid.value!.transact((tr) => tr.setValue('D1', 1))
+    expect(actions).toEqual(['paste', 'undo', 'api'])
+  })
+
+  it('offers column operations for whole columns, and lets the menu be changed', async () => {
+    const seen: { keys: string[]; area: string }[] = []
+    const { grid, key } = setup({
+      menu: (items: SheetMenuItem[], context: SheetMenuContext) => {
+        seen.push({ keys: items.map((item) => item.key), area: context.area })
+        return items.filter((item) => item.key !== 'cut')
+      },
+    })
+    grid.value!.select('B:B')
+    await nextTick()
+    await key('F10', { shiftKey: true })
+    expect(seen[0]!.area).toBe('col')
+    expect(seen[0]!.keys).toContain('col-left')
+    expect(seen[0]!.keys).not.toContain('row-above')
+    grid.value!.select('A1')
+    await nextTick()
+    await key('F10', { shiftKey: true })
+    expect(seen[1]!.area).toBe('cell')
+    expect(seen[1]!.keys).toEqual(['cut', 'copy', 'paste', 'insert', 'delete', 'clear'])
   })
 
   it('fills down with Ctrl+D and inserts rows with the keyboard', async () => {

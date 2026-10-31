@@ -1,3 +1,4 @@
+import type { Component } from 'vue'
 import type { SheetCellTarget, SheetRange } from './core/address'
 import type { SheetClip } from './core/clipboard'
 import type { SheetWorkbook } from './core/model'
@@ -28,14 +29,67 @@ export interface SheetProps {
   ariaLabel?: string
   /** Texts to change. */
   messages?: Partial<SheetMessages>
+  /**
+   * Changes the right-click menu: gets the items the grid would show and
+   * where the menu opened, and returns the items to show. Items can be
+   * removed, reordered, or added with a `run` of their own.
+   */
+  menu?: (items: SheetMenuItem[], context: SheetMenuContext) => SheetMenuItem[]
+}
+
+/** An item of the right-click menu. */
+export interface SheetMenuItem {
+  /** Unique within the menu. */
+  key: string
+  label: string
+  icon?: Component
+  /** The shortcut shown beside it, such as `mod+c`; hidden on touch screens. */
+  shortcut?: string
+  tone?: 'neutral' | 'danger'
+  /** A line above it. */
+  divided?: boolean
+  disabled?: boolean
+  /** Items shown in a submenu; an item with them has no `run`. */
+  children?: SheetMenuItem[]
+  run?: () => void
+}
+
+/** Where the menu opened. */
+export interface SheetMenuContext {
+  /**
+   * What was pressed: a cell, a column or row header, or the corner. A
+   * selection of whole columns or rows counts as their header.
+   */
+  area: 'cell' | 'col' | 'row' | 'corner'
+  /** The selection the menu acts on. */
+  selection: SheetSelection
+  /** The index of the sheet shown. */
+  sheet: number
+}
+
+/**
+ * The `paste` event, before anything is written. `clip` can be changed or
+ * replaced, and `preventDefault()` stops the paste.
+ */
+export interface SheetPasteEvent {
+  clip: SheetClip
+  /** Where the clip goes: the first range when one cell fills several. */
+  range: SheetRange
+  defaultPrevented: boolean
+  preventDefault: () => void
 }
 
 export interface SheetEmits {
   'update:modelValue': [value: SheetWorkbook]
   'update:selection': [value: SheetSelection]
   'update:activeSheet': [value: number]
-  /** Every change, after it is applied: undo, redo and edits alike. */
+  /**
+   * Every change, after it is applied: undo, redo and edits alike.
+   * `tr.meta.action` says what made it.
+   */
   transaction: [tr: SheetTransaction]
+  /** Before pasting: change what is pasted, or stop it. */
+  paste: [event: SheetPasteEvent]
 }
 
 export interface SheetExpose {
@@ -64,7 +118,7 @@ export interface SheetExpose {
   copy: () => Promise<void>
   cut: () => Promise<void>
   /**
-   * Pastes at the selection: the given cells (e.g. from `readClip`), or what
+   * Pastes at the selection: the given cells (e.g. from `parseClip`), or what
    * is on the system clipboard when the browser allows reading it.
    */
   paste: (clip?: SheetClip) => Promise<void>

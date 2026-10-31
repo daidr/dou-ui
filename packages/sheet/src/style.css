@@ -497,6 +497,45 @@
       margin: -8px 0 0 -8px;
       border-width: 2px;
       border-radius: 50%;
+
+      /* the finger's target is larger than the dot */
+      &::before {
+        position: absolute;
+        inset: -11px;
+        border-radius: 50%;
+        content: '';
+      }
+    }
+  }
+
+  /* what the last filled cell will show, while dragging the fill handle */
+  .dou-sheet__fill-hint {
+    position: absolute;
+    z-index: 5;
+    max-width: 240px;
+    margin-left: 8px;
+    padding: 2px 8px;
+    overflow: hidden;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-control);
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-md);
+    color: var(--dou-color-text);
+    font-size: var(--dou-font-size-sm);
+    line-height: var(--dou-font-line-height);
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    transform: translateY(-50%);
+    pointer-events: none;
+
+    /* clear of the finger on the handle */
+    @media (pointer: coarse) {
+      margin-left: 28px;
+    }
+
+    &.is-flipped {
+      margin-left: -8px;
+      transform: translate(-100%, -50%);
     }
   }
 

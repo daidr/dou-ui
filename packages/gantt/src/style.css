@@ -663,6 +663,40 @@
     }
   }
 
+  /* with a baseline, bars move up a little to make room for the plan under them */
+  .dou-gantt.has-baseline {
+    :is(.dou-gantt__bar-row, .dou-gantt__ghost, .dou-gantt__peer) {
+      translate: 0 -4px;
+    }
+  }
+
+  /* where the baseline had a task: a thin line under its bar */
+  .dou-gantt__baseline {
+    --dou-gantt-baseline: color-mix(
+      in oklab,
+      var(--dou-color-text) 24%,
+      var(--dou-color-bg-surface)
+    );
+
+    position: absolute;
+    top: calc((var(--dou-gantt-row-height) + var(--dou-gantt-bar-height)) / 2 - 2px);
+    left: 0;
+    z-index: 1;
+    height: 4px;
+    border-radius: 2px;
+    background-color: var(--dou-gantt-baseline);
+    pointer-events: none;
+
+    &.is-milestone {
+      top: calc((var(--dou-gantt-row-height) + var(--dou-gantt-bar-height)) / 2 - 4px);
+      width: 8px;
+      height: 8px;
+      margin-left: -4px;
+      border-radius: 1px;
+      /* turned 45deg in the inline transform, after moving it into place */
+    }
+  }
+
   /* where a drag would push a waiting task */
   .dou-gantt__ghost {
     position: absolute;
@@ -681,7 +715,7 @@
       height: 10px;
       margin-left: -5px;
       border-radius: 2px;
-      rotate: 45deg;
+      /* turned 45deg in the inline transform, after moving it into place */
     }
   }
 
@@ -1088,10 +1122,27 @@
     border-radius: var(--dou-radius-control);
     background-color: var(--dou-gantt-header-bg);
     color: var(--dou-gantt-marker-text);
+    box-sizing: border-box;
     font-size: 12px;
     white-space: nowrap;
     transform: translateX(4px);
     pointer-events: none;
+
+    /* may be cut short: the whole label shows on hover */
+    &.is-cut {
+      pointer-events: auto;
+    }
+    /* too close to the next marker: only the line shows, with room to hover */
+    &.is-crowded {
+      width: 12px;
+      padding: 0;
+      border-color: transparent;
+      background-color: transparent;
+
+      > .dou-gantt__marker-text {
+        display: none;
+      }
+    }
 
     /* the line runs on through the header to the label */
     &::before {
@@ -1108,6 +1159,13 @@
     }
   }
 
+  /* cut short where the next marker's label begins */
+  .dou-gantt__marker-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   /* scheduler: rows are resources, as tall as their lanes ------------------- */
 
   .dou-gantt.is-scheduler .dou-gantt__body {
@@ -1115,17 +1173,13 @@
   }
 
   /* without the table, a resource's name sits on its row as a small tag over the bars */
+  /* without the list, a resource's name sits in its own strip above the lanes */
   .is-scheduler .dou-gantt__row-title:not(.is-summary) {
-    top: calc((var(--dou-gantt-row-height) - 20px) / 2);
-    left: 8px;
-    height: 20px;
-    padding: 0 6px;
-    border: 1px solid var(--dou-gantt-line-strong);
-    border-radius: 4px;
-    background-color: var(--dou-color-bg-surface);
-    box-shadow: var(--dou-shadow-sm);
+    top: 2px;
+    gap: 6px;
+    height: 16px;
+    padding: 0 12px;
     font-size: 12px;
-    text-shadow: none;
   }
 
   .dou-gantt__lane-row {
@@ -1197,6 +1251,21 @@
 
     &.is-over {
       background-color: var(--dou-color-warning);
+    }
+  }
+
+  /* printed with the page: keep the colors, leave out what only works on screen.
+     print() lays out every row on its own pages */
+  @media print {
+    .dou-gantt {
+      print-color-adjust: exact;
+      -webkit-print-color-adjust: exact;
+    }
+    .dou-gantt__handle,
+    .dou-gantt__progress-handle,
+    .dou-gantt__tip,
+    .dou-gantt__divider {
+      display: none;
     }
   }
 }

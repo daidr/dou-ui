@@ -96,3 +96,38 @@ export function groupByResource(
   for (const entry of out.values()) entry.lanes = packLanes(entry.items)
   return out
 }
+
+/** Where a task would go: as `can-move` gets it, or a new booking. */
+export interface SchedulerPlace {
+  /** The task being moved; it never conflicts with itself. */
+  task?: GanttTask
+  resource?: string
+  start: string
+  end?: string
+}
+
+/**
+ * The first task on the same resource whose time overlaps `place`, or
+ * `undefined`. Tasks only touching end to start don't overlap; without a
+ * resource nothing conflicts.
+ */
+export function findConflict(
+  tasks: readonly GanttTask[],
+  place: SchedulerPlace,
+): GanttTask | undefined {
+  if (place.resource == null) return undefined
+  const own = spanOf({
+    id: '',
+    title: '',
+    type: place.task?.type,
+    start: place.start,
+    end: place.end,
+  })
+  if (!own) return undefined
+  const ownEnd = endOf(own)
+  return tasks.find((task) => {
+    if (task.resource !== place.resource || task.id === place.task?.id) return false
+    const span = spanOf(task)
+    return !!span && span.start < ownEnd && own.start < endOf(span)
+  })
+}

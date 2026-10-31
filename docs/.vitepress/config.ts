@@ -48,6 +48,7 @@ const flowSidebar = ecosystem('流程编辑器', [
   { text: '扩展', link: '/flow/extensions' },
   { text: '协同编辑', link: '/flow/collaboration' },
   { text: '白板', link: '/flow/whiteboard' },
+  { text: '导出图片', link: '/flow/export' },
   { text: '大型流程', link: '/flow/performance' },
 ])
 
@@ -59,6 +60,10 @@ const ganttSidebar = ecosystem('甘特图', [
   { text: '资源排期', link: '/gantt/scheduler' },
 ])
 
+const sheetSidebar = ecosystem('电子表格', [
+  { text: '介绍', link: '/sheet/' },
+  { text: '文档数据', link: '/sheet/data' },
+])
 const chartSidebar = ecosystem('图表', [{ text: '介绍', link: '/chart/' }])
 
 export default defineConfig({
@@ -80,11 +85,11 @@ export default defineConfig({
       { text: '指南', link: '/guide/philosophy' },
       { text: '组件', link: '/components/overview' },
       { text: '区块', link: '/blocks/login' },
-      // The editor, flow, gantt and chart packages keep their own paths.
+      // The editor, flow, gantt, sheet and chart packages keep their own paths.
       {
         text: '生态系统',
         link: '/ecosystem/',
-        activeMatch: '^/(ecosystem|editor|flow|gantt|chart)(/|$)',
+        activeMatch: '^/(ecosystem|editor|flow|gantt|sheet|chart)(/|$)',
       },
       { text: '图标', link: '/icons/' },
       { text: '集成', link: '/integrations/vite' },
@@ -103,6 +108,9 @@ export default defineConfig({
             { text: '看板', link: '/blocks/kanban' },
             { text: '文件管理', link: '/blocks/files' },
             { text: 'AI 工作流', link: '/blocks/ai-workflow' },
+            { text: '头脑风暴', link: '/blocks/brainstorm' },
+            { text: '发布排期', link: '/blocks/release-plan' },
+            { text: '会议室预约', link: '/blocks/room-booking' },
           ],
         },
       ],
@@ -117,6 +125,7 @@ export default defineConfig({
             { text: '块编辑器', link: '/editor/' },
             { text: '流程编辑器', link: '/flow/' },
             { text: '甘特图', link: '/gantt/' },
+            { text: '电子表格', link: '/sheet/' },
             { text: '图表', link: '/chart/' },
           ],
         },
@@ -124,6 +133,7 @@ export default defineConfig({
       '/editor': editorSidebar,
       '/flow': flowSidebar,
       '/gantt': ganttSidebar,
+      '/sheet': sheetSidebar,
       '/chart': chartSidebar,
       '/icons': [
         {
@@ -390,6 +400,11 @@ export default defineConfig({
         {
           find: /^@dou-ui\/gantt\/style\.css$/,
           replacement: r('../../packages/gantt/src/style.css'),
+        },
+        { find: /^@dou-ui\/sheet$/, replacement: r('../../packages/sheet/src/index.ts') },
+        {
+          find: /^@dou-ui\/sheet\/style\.css$/,
+          replacement: r('../../packages/sheet/src/style.css'),
         },
       ],
     },

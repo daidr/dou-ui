@@ -12,7 +12,7 @@ import {
   StickyNoteIcon,
   TypeIcon,
 } from '@dou-ui/icons'
-import { computed, type Component } from 'vue'
+import { computed, onBeforeUnmount, ref, useTemplateRef, watch, type Component } from 'vue'
 import { useFlowEditor } from '../context'
 import { format } from '../locale'
 import { pickImages } from './image'
@@ -65,42 +65,87 @@ const imageTitle = computed(() =>
 function insertImage() {
   pickImages(ctx)
 }
+
+// Too narrow for every tool: one row that scrolls sideways, faded at the
+// side with more, and the tool in hand kept in view.
+const el = useTemplateRef<HTMLElement>('el')
+const more = ref({ start: false, end: false })
+function measure() {
+  const box = el.value
+  if (!box) return
+  const left = Math.abs(box.scrollLeft)
+  const rest = box.scrollWidth - box.clientWidth - left
+  more.value = { start: left > 1, end: rest > 1 }
+}
+let observer: ResizeObserver | undefined
+watch(
+  el,
+  (box) => {
+    observer?.disconnect()
+    if (!box || typeof ResizeObserver === 'undefined') return
+    observer = new ResizeObserver(measure)
+    observer.observe(box)
+  },
+  { flush: 'post' },
+)
+onBeforeUnmount(() => observer?.disconnect())
+watch(
+  () => state.tool.value,
+  () => {
+    const box = el.value
+    const button = box?.querySelector<HTMLElement>('[aria-pressed="true"]')
+    if (!box || !button || box.scrollWidth <= box.clientWidth) return
+    const start = button.offsetLeft - 24
+    const end = button.offsetLeft + button.offsetWidth + 24 - box.clientWidth
+    if (box.scrollLeft > start) box.scrollLeft = start
+    else if (box.scrollLeft < end) box.scrollLeft = end
+  },
+  { flush: 'post' },
+)
 </script>
 
 <template>
   <div
     v-if="!ctx.readonly.value"
     class="dou-whiteboard-toolbar"
+    data-flow-overlay
     role="toolbar"
     :aria-label="t.tools"
   >
-    <template v-for="(group, i) in groups" :key="i">
-      <span v-if="i" class="dou-whiteboard-toolbar__divider" />
+    <div
+      ref="el"
+      class="dou-whiteboard-toolbar__scroll"
+      :class="{ 'has-more-start': more.start, 'has-more-end': more.end }"
+      @scroll.passive="measure"
+    >
+      <template v-for="(group, i) in groups" :key="i">
+        <span v-if="i" class="dou-whiteboard-toolbar__divider" />
+        <button
+          v-for="item in group"
+          :key="item.tool"
+          type="button"
+          class="dou-whiteboard-toolbar__button"
+          :class="{ 'is-locked': state.tool.value === item.tool && state.locked.value }"
+          :aria-pressed="state.tool.value === item.tool"
+          :aria-label="titleOf(item.tool)"
+          :title="titleOf(item.tool)"
+          @click="pick(item.tool, false)"
+          @dblclick="pick(item.tool, true)"
+        >
+          <component :is="item.tool === 'hand' && state.panning.value ? HandGrabIcon : item.icon" />
+        </button>
+      </template>
       <button
-        v-for="item in group"
-        :key="item.tool"
         type="button"
         class="dou-whiteboard-toolbar__button"
-        :class="{ 'is-locked': state.tool.value === item.tool && state.locked.value }"
-        :aria-pressed="state.tool.value === item.tool"
-        :aria-label="titleOf(item.tool)"
-        :title="titleOf(item.tool)"
-        @click="pick(item.tool, false)"
-        @dblclick="pick(item.tool, true)"
+        :class="{ 'is-busy': state.uploading.value > 0 }"
+        :aria-label="imageTitle"
+        :aria-busy="state.uploading.value > 0 || undefined"
+        :title="imageTitle"
+        @click="insertImage"
       >
-        <component :is="item.tool === 'hand' && state.panning.value ? HandGrabIcon : item.icon" />
+        <ImageIcon />
       </button>
-    </template>
-    <button
-      type="button"
-      class="dou-whiteboard-toolbar__button"
-      :class="{ 'is-busy': state.uploading.value > 0 }"
-      :aria-label="imageTitle"
-      :aria-busy="state.uploading.value > 0 || undefined"
-      :title="imageTitle"
-      @click="insertImage"
-    >
-      <ImageIcon />
-    </button>
+    </div>
   </div>
 </template>

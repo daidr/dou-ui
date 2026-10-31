@@ -38,6 +38,17 @@ interface GanttTask {
 
 没有 `end` 时任务默认一天（只写日期时）或一小时（写到分钟时）。没有 `start` 的任务是未排期的，表格里照常显示，时间轴上不画任务条。
 
+需要自己比较时间时，`spanOf(task)` 把任务换算成 `{ start, end, dateOnly }`，`start` 和 `end` 是分钟数，`end` 不包含在内（只写日期时是最后一天的次日零点），未排期的任务返回 `null`。`parseTime(text)` 读出 `{ at, dateOnly }`（读不出时是 `null`），`formatTime(minutes, dateOnly?)` 把分钟数写回字符串。
+
+```ts
+import { formatTime, spanOf } from '@dou-ui/gantt'
+
+const a = spanOf(taskA)
+const b = spanOf(taskB)
+const overlap = a && b && a.start < b.end && b.start < a.end
+formatTime(a.end) // '2026-03-07 00:00'
+```
+
 ### 汇总任务和里程碑
 
 有子任务的任务就是汇总任务。它的起止时间是子任务覆盖的范围，进度是子任务按时长加权的平均值，自己的 `start`、`end`、`progress` 不会被读取。点击表格里的箭头收起或展开子任务，结果写回任务的 `collapsed`。

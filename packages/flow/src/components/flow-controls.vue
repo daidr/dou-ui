@@ -29,6 +29,7 @@ const showHistory = computed(() => props.history && !flow.readonly.value)
 <template>
   <div
     class="dou-flow-controls"
+    data-flow-overlay
     :class="`is-${placement}`"
     role="toolbar"
     :aria-label="messages.controls"

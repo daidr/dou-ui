@@ -27,6 +27,7 @@ export default defineConfig({
         replacement: r('./packages/gantt/src/collaboration/index.ts'),
       },
       { find: /^@dou-ui\/gantt$/, replacement: r('./packages/gantt/src/index.ts') },
+      { find: /^@dou-ui\/sheet$/, replacement: r('./packages/sheet/src/index.ts') },
     ],
   },
   test: {

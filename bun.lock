@@ -21,10 +21,12 @@
     "docs": {
       "name": "@dou-ui/docs",
       "dependencies": {
+        "@dou-ui/chart": "workspace:*",
         "@dou-ui/editor": "workspace:*",
         "@dou-ui/flow": "workspace:*",
         "@dou-ui/gantt": "workspace:*",
         "@dou-ui/icons": "workspace:*",
+        "@dou-ui/sheet": "workspace:*",
         "@dou-ui/theme": "workspace:*",
         "dou-ui": "workspace:*",
       },
@@ -154,6 +156,14 @@
     "packages/resolver": {
       "name": "@dou-ui/resolver",
       "version": "0.0.0",
+    },
+    "packages/sheet": {
+      "name": "@dou-ui/sheet",
+      "version": "0.0.0",
+      "peerDependencies": {
+        "dou-ui": "workspace:*",
+        "vue": "^3.5.0",
+      },
     },
     "packages/theme": {
       "name": "@dou-ui/theme",
@@ -289,6 +299,8 @@
     "@dou-ui/playground": ["@dou-ui/playground@workspace:playground"],
 
     "@dou-ui/resolver": ["@dou-ui/resolver@workspace:packages/resolver"],
+
+    "@dou-ui/sheet": ["@dou-ui/sheet@workspace:packages/sheet"],
 
     "@dou-ui/theme": ["@dou-ui/theme@workspace:packages/theme"],
 

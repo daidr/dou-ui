@@ -62,7 +62,9 @@ const hasAllDay = computed(() => columns.value.some((column) => column.allDay.le
 
 const isStart = (event: CalendarEvent, date: string) => props.spans.get(event)!.from === date
 const isEnd = (event: CalendarEvent, date: string) => props.spans.get(event)!.to <= date
-const keyOf = (event: CalendarEvent) => event.id ?? `${event.start}:${event.title}`
+/** An event over several days is reached with Tab once, on the first day shown. */
+const tabindexOf = (event: CalendarEvent, date: string) =>
+  isStart(event, date) || date === props.days[0]?.date ? undefined : -1
 
 const placement = (start: number, end: number, column = 0, count = 1, span = 1) => ({
   '--dou-calendar-view-from': (Math.max(start, first.value * 60) - first.value * 60) / 60,
@@ -167,7 +169,7 @@ function onColumnClick(event: MouseEvent, day: CalendarDay) {
       <div v-for="(column, index) in columns" :key="column.day.date" :class="ns.e('all-day-cell')">
         <button
           v-for="event in column.allDay"
-          :key="keyOf(event)"
+          :key="event.id"
           type="button"
           :class="[
             ns.e('event'),
@@ -177,6 +179,7 @@ function onColumnClick(event: MouseEvent, day: CalendarDay) {
             ns.is('end', isEnd(event, column.day.date)),
           ]"
           :title="event.title"
+          :tabindex="tabindexOf(event, column.day.date)"
           @click="emit('eventClick', event)"
         >
           <slot name="event" :event="event" :day="column.day">{{ event.title }}</slot>
@@ -202,7 +205,7 @@ function onColumnClick(event: MouseEvent, day: CalendarDay) {
           ]"
           @click.self="onColumnClick($event, column.day)"
         >
-          <template v-for="item in column.timed" :key="keyOf(item.event)">
+          <template v-for="item in column.timed" :key="item.event.id">
             <button
               v-if="visible(item.start, item.end)"
               type="button"
@@ -219,6 +222,7 @@ function onColumnClick(event: MouseEvent, day: CalendarDay) {
               ]"
               :style="placement(item.start, item.end, item.column, item.columns, item.span)"
               :aria-label="eventLabel(item.event)"
+              :tabindex="tabindexOf(item.event, column.day.date)"
               @click="emit('eventClick', item.event)"
             >
               <slot name="event" :event="item.event" :day="column.day">

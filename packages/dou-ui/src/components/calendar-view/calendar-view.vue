@@ -109,7 +109,7 @@ watch(
       if (spans.value.has(event) || warned.has(event)) continue
       warned.add(event)
       console.warn(
-        `[dou-ui] CalendarView event "${event.title}" has a start that can't be read: "${event.start}". Use YYYY-MM-DD or YYYY-MM-DD HH:mm.`,
+        `[dou-ui] CalendarView event "${event.id}" has a start that can't be read: "${event.start}". Use YYYY-MM-DD or YYYY-MM-DD HH:mm.`,
       )
     }
   },
@@ -192,7 +192,6 @@ const monthTime = (event: CalendarEvent, date: string) => {
   return `${String(Math.floor(span.start / 60)).padStart(2, '0')}:${String(span.start % 60).padStart(2, '0')}`
 }
 
-const keyOf = (event: CalendarEvent) => event.id ?? `${event.start}:${event.title}`
 const isStart = (event: CalendarEvent, date: string) => spans.value.get(event)!.from === date
 /** Whether the day opens a row, where a running span shows its title again. */
 const weekStarts = (date: string) => (weekday(date) - weekStart.value + 7) % 7 === 0
@@ -374,7 +373,7 @@ defineExpose<CalendarViewExpose>({
             <slot name="cell" v-bind="day">
               <button
                 v-for="event in day.events.slice(0, maxEvents)"
-                :key="keyOf(event)"
+                :key="event.id"
                 type="button"
                 :tabindex="day.date === cursor ? 0 : -1"
                 :class="[

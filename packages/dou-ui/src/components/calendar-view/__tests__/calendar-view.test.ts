@@ -38,10 +38,10 @@ describe('DouCalendarView', () => {
     const wrapper = make({
       maxEvents: 2,
       events: [
-        { start: '2026-10-12', title: '评审' },
-        { start: '2026-10-12', title: '发版', tone: 'success' },
-        { start: '2026-10-12', title: '周会' },
-        { start: '2026-10-20', end: '2026-10-22', title: '出差', tone: 'warning' },
+        { id: 'e1', start: '2026-10-12', title: '评审' },
+        { id: 'e2', start: '2026-10-12', title: '发版', tone: 'success' },
+        { id: 'e3', start: '2026-10-12', title: '周会' },
+        { id: 'e4', start: '2026-10-20', end: '2026-10-22', title: '出差', tone: 'warning' },
       ],
     })
     const busy = day(wrapper, '2026-10-12')
@@ -63,7 +63,7 @@ describe('DouCalendarView', () => {
   })
 
   it('chooses a day and reports event clicks without choosing', async () => {
-    const wrapper = make({ events: [{ start: '2026-10-12', title: '评审' }] })
+    const wrapper = make({ events: [{ id: 'e5', start: '2026-10-12', title: '评审' }] })
     await day(wrapper, '2026-10-15').trigger('click')
     expect(chosen(wrapper)).toBe('2026-10-15')
     expect(wrapper.emitted('select')?.[0]).toEqual(['2026-10-15'])
@@ -105,9 +105,9 @@ describe('DouCalendarView', () => {
       view: 'week',
       hours: [8, 20],
       events: [
-        { start: '2026-10-06', end: '2026-10-07', title: '出差' },
-        { start: '2026-10-08 10:00', end: '2026-10-08 11:30', title: '评审' },
-        { start: '2026-10-08 10:30', title: '同步' },
+        { id: 'e6', start: '2026-10-06', end: '2026-10-07', title: '出差' },
+        { id: 'e7', start: '2026-10-08 10:00', end: '2026-10-08 11:30', title: '评审' },
+        { id: 'e8', start: '2026-10-08 10:30', title: '同步' },
       ],
     })
     expect(wrapper.get('.dou-calendar-view__title').text()).toBe('2026年10月5日 – 10月11日')
@@ -156,9 +156,9 @@ describe('DouCalendarView', () => {
   it('lists all-day events first, then timed ones by start time', () => {
     const wrapper = make({
       events: [
-        { start: '2026-10-12 16:00', title: '晚' },
-        { start: '2026-10-12 09:00', title: '早' },
-        { start: '2026-10-12', title: '全天' },
+        { id: 'e9', start: '2026-10-12 16:00', title: '晚' },
+        { id: 'e10', start: '2026-10-12 09:00', title: '早' },
+        { id: 'e11', start: '2026-10-12', title: '全天' },
       ],
     })
     const titles = day(wrapper, '2026-10-12')
@@ -171,12 +171,14 @@ describe('DouCalendarView', () => {
   it('cuts a timed event at midnight across the week view', () => {
     const wrapper = make({
       view: 'week',
-      events: [{ id: 1, start: '2026-10-09 22:00', end: '2026-10-10 02:00', title: '夜间发布' }],
+      events: [{ id: 'm1', start: '2026-10-09 22:00', end: '2026-10-10 02:00', title: '夜间发布' }],
     })
     const parts = wrapper.findAll('.dou-calendar-view__timed')
     expect(parts).toHaveLength(2)
     expect(parts[0]!.classes()).toContain('is-runs-on')
     expect(parts[1]!.classes()).toContain('is-from-before')
+    expect(parts[0]!.attributes('tabindex')).toBeUndefined()
+    expect(parts[1]!.attributes('tabindex')).toBe('-1')
     expect(parts[1]!.attributes('style')).toContain('--dou-calendar-view-from: 0')
     expect(parts[0]!.attributes('aria-label')).toContain('22:00 – ')
     wrapper.unmount()
@@ -184,7 +186,7 @@ describe('DouCalendarView', () => {
 
   it('warns about an event it cannot read', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    const wrapper = make({ events: [{ start: '2026/10/12', title: '评审' }] })
+    const wrapper = make({ events: [{ id: 'e12', start: '2026/10/12', title: '评审' }] })
     expect(warn).toHaveBeenCalledOnce()
     expect(warn.mock.calls[0]![0]).toContain('"2026/10/12"')
     expect(wrapper.findAll('.dou-calendar-view__event')).toHaveLength(0)

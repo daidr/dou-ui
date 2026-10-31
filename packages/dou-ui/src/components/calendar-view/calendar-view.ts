@@ -1,8 +1,7 @@
 import type { Tone } from '../../utils/types'
 
-export interface CalendarEvent {
-  /** Tells events apart. Defaults to the start and title. */
-  id?: string | number
+export interface CalendarEvent<Data extends Record<string, unknown> = Record<string, unknown>> {
+  id: string
   /**
    * `YYYY-MM-DD` for an all-day event, or `YYYY-MM-DD HH:mm` for one at a
    * time; timed events sit on the time axis of the week and day views.
@@ -16,6 +15,8 @@ export interface CalendarEvent {
   end?: string
   title: string
   tone?: Tone
+  /** Your own fields, e.g. a place or who attends. */
+  data?: Data
 }
 
 /** A month as a grid of days, or a week or a day along a time axis. */

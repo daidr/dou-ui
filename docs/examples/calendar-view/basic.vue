@@ -5,14 +5,14 @@ const date = ref('2026-10-29')
 const month = ref('2026-10')
 const last = ref('—')
 const events = [
-  { start: '2026-10-08', title: '第 11 批合并', tone: 'success' },
-  { start: '2026-10-12', title: '设计评审' },
-  { start: '2026-10-12', title: '图标复审', tone: 'neutral' },
-  { start: '2026-10-12', title: '周会', tone: 'neutral' },
-  { start: '2026-10-12', title: '发版前检查', tone: 'warning' },
-  { start: '2026-10-19', end: '2026-10-21', title: '上海出差', tone: 'warning' },
-  { start: '2026-10-29', title: '第 13 批开工' },
-  { start: '2026-10-30', title: '修复回归问题', tone: 'danger' },
+  { id: '1', start: '2026-10-08', title: '版本发布', tone: 'success' },
+  { id: '2', start: '2026-10-12', title: '设计评审' },
+  { id: '3', start: '2026-10-12', title: '图标复审', tone: 'neutral' },
+  { id: '4', start: '2026-10-12', title: '周会', tone: 'neutral' },
+  { id: '5', start: '2026-10-12', title: '发版前检查', tone: 'warning' },
+  { id: '6', start: '2026-10-19', end: '2026-10-21', title: '上海出差', tone: 'warning' },
+  { id: '7', start: '2026-10-29', title: '新功能开工' },
+  { id: '8', start: '2026-10-30', title: '修复回归问题', tone: 'danger' },
 ]
 </script>
 

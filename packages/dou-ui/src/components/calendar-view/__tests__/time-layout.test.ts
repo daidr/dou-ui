@@ -3,6 +3,7 @@ import { layoutDay, readMoment, segmentOn, spanOf, toMinutes } from '../time-lay
 
 const at = (time: string, endTime?: string, title = time) => {
   const event = {
+    id: title,
     start: `2026-10-28 ${time}`,
     end: endTime && `2026-10-28 ${endTime}`,
     title,
@@ -21,20 +22,27 @@ describe('spanOf', () => {
   })
 
   it('spans the days of an all-day event, ignoring an end before the start', () => {
-    expect(spanOf({ start: '2026-10-20', end: '2026-10-22', title: 'a' })).toMatchObject({
+    expect(spanOf({ start: '2026-10-20', end: '2026-10-22', id: 'a', title: 'a' })).toMatchObject({
       from: '2026-10-20',
       to: '2026-10-22',
       start: null,
     })
-    expect(spanOf({ start: '2026-10-20', end: '2026-10-18', title: 'a' })!.to).toBe('2026-10-20')
-    expect(spanOf({ start: '2026-10-20', end: '2026-10-22 00:00', title: 'a' })!.to).toBe(
+    expect(spanOf({ start: '2026-10-20', end: '2026-10-18', id: 'a', title: 'a' })!.to).toBe(
+      '2026-10-20',
+    )
+    expect(spanOf({ start: '2026-10-20', end: '2026-10-22 00:00', id: 'a', title: 'a' })!.to).toBe(
       '2026-10-21',
     )
-    expect(spanOf({ start: 'soon', title: 'a' })).toBeNull()
+    expect(spanOf({ start: 'soon', id: 'a', title: 'a' })).toBeNull()
   })
 
   it('cuts a timed event at midnight into one part per day', () => {
-    const span = spanOf({ start: '2026-10-28 22:00', end: '2026-10-30 08:00', title: 'a' })!
+    const span = spanOf({
+      start: '2026-10-28 22:00',
+      end: '2026-10-30 08:00',
+      id: 'a',
+      title: 'a',
+    })!
     expect([span.from, span.to, span.start, span.end]).toEqual([
       '2026-10-28',
       '2026-10-30',
@@ -47,11 +55,21 @@ describe('spanOf', () => {
   })
 
   it('ends at midnight on the same day, and an hour later by default', () => {
-    const midnight = spanOf({ start: '2026-10-28 22:00', end: '2026-10-29 00:00', title: 'a' })!
+    const midnight = spanOf({
+      start: '2026-10-28 22:00',
+      end: '2026-10-29 00:00',
+      id: 'a',
+      title: 'a',
+    })!
     expect([midnight.to, midnight.end]).toEqual(['2026-10-28', 1440])
-    const late = spanOf({ start: '2026-10-28 23:30', title: 'a' })!
+    const late = spanOf({ start: '2026-10-28 23:30', id: 'a', title: 'a' })!
     expect([late.to, late.end]).toEqual(['2026-10-29', 30])
-    const dateOnlyEnd = spanOf({ start: '2026-10-28 22:00', end: '2026-10-29', title: 'a' })!
+    const dateOnlyEnd = spanOf({
+      start: '2026-10-28 22:00',
+      end: '2026-10-29',
+      id: 'a',
+      title: 'a',
+    })!
     expect([dateOnlyEnd.to, dateOnlyEnd.end]).toEqual(['2026-10-29', 1440])
   })
 })

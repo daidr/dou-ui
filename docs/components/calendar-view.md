@@ -6,7 +6,7 @@
 
 ## 基础用法
 
-`events` 是一组 `{ start, title, tone? }`，`start` 写成 `YYYY-MM-DD`。`end` 写最后一天，让一件事跨几天，跨天的标签首尾相连。每天最多列 `max-events`（默认 3）项，其余折成“还有 N 项”。点日子触发 `select` 并更新 `v-model`，点日程触发 `event-click`。
+`events` 是一组 `{ id, start, title, tone? }`，`start` 写成 `YYYY-MM-DD`。`end` 写最后一天，让一件事跨几天，跨天的标签首尾相连。每天最多列 `max-events`（默认 3）项，其余折成“还有 N 项”。点日子触发 `select` 并更新 `v-model`，点日程触发 `event-click`。
 
 <DocDemo src="calendar-view/basic" column />
 
@@ -45,15 +45,16 @@
 
 `CalendarEvent` 的字段：
 
-| 名称    | 说明                                                                                                 | 类型               |
-| ------- | ---------------------------------------------------------------------------------------------------- | ------------------ |
-| `id`    | 区分日程，不填时用 `start` 加标题                                                                    | `string \| number` |
-| `start` | 开始，`YYYY-MM-DD` 是全天日程，`YYYY-MM-DD HH:mm` 是带时间的日程                                     | `string`           |
-| `end`   | 全天日程写最后一天 `YYYY-MM-DD`（包含这一天）；带时间的日程写结束的时刻 `YYYY-MM-DD HH:mm`，可以跨天 | `string`           |
-| `title` | 标题                                                                                                 | `string`           |
-| `tone`  | 色调                                                                                                 | `Tone`             |
+| 名称    | 说明                                                                                                 | 类型     |
+| ------- | ---------------------------------------------------------------------------------------------------- | -------- |
+| `id`    | 区分日程，各项不能重复                                                                               | `string` |
+| `start` | 开始，`YYYY-MM-DD` 是全天日程，`YYYY-MM-DD HH:mm` 是带时间的日程                                     | `string` |
+| `end`   | 全天日程写最后一天 `YYYY-MM-DD`（包含这一天）；带时间的日程写结束的时刻 `YYYY-MM-DD HH:mm`，可以跨天 | `string` |
+| `title` | 标题                                                                                                 | `string` |
+| `tone`  | 色调                                                                                                 | `Tone`   |
+| `data`  | 自己的字段，例如地点、参会人；`CalendarEvent<Data>` 可以指定它的类型                                 | `Data`   |
 
-写法与[甘特图](/gantt/data)的任务一致，同一份日程数据可以在两个组件之间直接使用。注意 `end` 只写日期时包含当天，写到分钟时是结束的那一刻：`'2026-10-05'` 表示 10 月 5 日整天，`'2026-10-05 00:00'` 是 10 月 4 日结束。读不出的 `start` 会让这项日程不显示，开发时会在控制台提示一次。
+写法与[甘特图](/gantt/data)的任务一致，同一份日程数据可以在两个组件之间直接使用。注意 `end` 只写日期时包含当天，写到分钟时是结束的那一刻：`'2026-10-05'` 表示 10 月 5 日整天，`'2026-10-05 00:00'` 是 10 月 4 日结束。`start` 只写日期而 `end` 写到分钟时，日历把它当作全天日程，显示到 `end` 那一天（`00:00` 则到前一天）；甘特图则按 `start` 当天 0 点到 `end` 的时刻计算。读不出的 `start` 会让这项日程不显示，开发时会在控制台提示一次。
 
 ### CalendarView Events
 
@@ -82,5 +83,5 @@
 
 - 月份是一个 `role="grid"`，只有当前日子在 Tab 顺序里：方向键按天、按周移动，<DouKbd>Home</DouKbd> / <DouKbd>End</DouKbd> 到本周首尾，<DouKbd>PageUp</DouKbd> / <DouKbd>PageDown</DouKbd> 翻月（加 <DouKbd>Shift</DouKbd> 翻年），<DouKbd>Enter</DouKbd> 选中。
 - 当前日子里的日程可以用 <DouKbd>Tab</DouKbd> 进入。
-- 周视图和日视图的表头日期可以用 <DouKbd>←</DouKbd> / <DouKbd>→</DouKbd> 移动；每件带时间的日程读作标题加起止时间，跨天的再加上起止日期。
+- 周视图和日视图的表头日期可以用 <DouKbd>←</DouKbd> / <DouKbd>→</DouKbd> 移动；每件带时间的日程读作标题加起止时间，跨天的再加上起止日期；跨几天的日程只在显示出来的第一天进入 Tab 顺序。
 - 每个日子读作完整日期，有日程时加上“N 项日程”；今天带 `aria-current="date"`，月份标题变化时会被读出。

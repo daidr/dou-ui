@@ -8,11 +8,14 @@ export default defineConfig({
     minify: false,
     sourcemap: true,
     lib: {
-      entry: { index: 'src/index.ts' },
+      entry: {
+        index: 'src/index.ts',
+        'collaboration/index': 'src/collaboration/index.ts',
+      },
       formats: ['es'],
     },
     rollupOptions: {
-      external: ['vue', 'dou-ui', /^@dou-ui\//],
+      external: ['vue', 'dou-ui', /^@dou-ui\//, 'yjs'],
       output: {
         // keep the source module structure so bundlers can tree-shake
         preserveModules: true,

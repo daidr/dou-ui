@@ -66,7 +66,10 @@ const sheetSidebar = ecosystem('电子表格', [
   { text: '公式', link: '/sheet/formulas' },
   { text: '扩展', link: '/sheet/extensions' },
 ])
-const codeSidebar = ecosystem('代码编辑器', [{ text: '介绍', link: '/code/' }])
+const codeSidebar = ecosystem('代码编辑器', [
+  { text: '介绍', link: '/code/' },
+  { text: '协同编辑', link: '/code/collaboration' },
+])
 const chartSidebar = ecosystem('图表', [{ text: '介绍', link: '/chart/' }])
 const pivotSidebar = ecosystem('数据透视', [{ text: '介绍', link: '/pivot/' }])
 const dashboardSidebar = ecosystem('仪表盘', [
@@ -476,6 +479,10 @@ export default defineConfig({
         {
           find: /^@dou-ui\/gantt\/style\.css$/,
           replacement: r('../../packages/gantt/src/style.css'),
+        },
+        {
+          find: /^@dou-ui\/code\/collaboration$/,
+          replacement: r('../../packages/code/src/collaboration/index.ts'),
         },
         { find: /^@dou-ui\/code$/, replacement: r('../../packages/code/src/index.ts') },
         {

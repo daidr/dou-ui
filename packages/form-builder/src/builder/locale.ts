@@ -27,6 +27,8 @@ export interface FormBuilderMessages {
   /** `side` names the pane, or the button that opens it, holding the fields and the outline. */
   panels: { side: string; fields: string; outline: string; settings: string }
   actions: {
+    /** A tooltip with the key that does the same; `{label}` and `{keys}`. */
+    withShortcut: string
     parent: string
     up: string
     down: string
@@ -69,6 +71,8 @@ export interface FormBuilderMessages {
   }
   /** The condition editor: rows of "field, how, value". */
   condition: {
+    /** A line of the canvas mark's tooltip: a setting and its expression. `{label}`, `{text}`. */
+    summary: string
     /** Names a row for screen readers, followed by its number. */
     row: string
     field: string
@@ -114,6 +118,8 @@ export interface FormBuilderMessages {
   /** The JSON of the form. */
   json: {
     title: string
+    /** Lays the text out again, two spaces a level. */
+    format: string
     file: string
     download: string
     copy: string
@@ -198,6 +204,7 @@ const zhCN: FormBuilderMessages = {
   canvas: { label: '表单画布', empty: '点击字段添加到这里' },
   panels: { side: '字段与结构', fields: '字段', outline: '结构', settings: '设置' },
   actions: {
+    withShortcut: '{label}（{keys}）',
     parent: '选中上一级',
     up: '上移',
     down: '下移',
@@ -230,6 +237,7 @@ const zhCN: FormBuilderMessages = {
     replaced: '已换成导入的表单',
   },
   condition: {
+    summary: '{label}：{text}',
     row: '条件',
     field: '字段',
     operator: '比较方式',
@@ -287,6 +295,7 @@ const zhCN: FormBuilderMessages = {
   },
   json: {
     title: '表单 JSON',
+    format: '格式化',
     file: '打开文件',
     download: '下载',
     copy: '复制',
@@ -471,6 +480,7 @@ const zhTW: FormBuilderMessages = {
   canvas: { label: '表單畫布', empty: '點選欄位新增到這裡' },
   panels: { side: '欄位與結構', fields: '欄位', outline: '結構', settings: '設定' },
   actions: {
+    withShortcut: '{label}（{keys}）',
     parent: '選取上一層',
     up: '上移',
     down: '下移',
@@ -503,6 +513,7 @@ const zhTW: FormBuilderMessages = {
     replaced: '已換成匯入的表單',
   },
   condition: {
+    summary: '{label}：{text}',
     row: '條件',
     field: '欄位',
     operator: '比較方式',
@@ -560,6 +571,7 @@ const zhTW: FormBuilderMessages = {
   },
   json: {
     title: '表單 JSON',
+    format: '格式化',
     file: '開啟檔案',
     download: '下載',
     copy: '複製',
@@ -749,6 +761,7 @@ const en: FormBuilderMessages = {
     settings: 'Settings',
   },
   actions: {
+    withShortcut: '{label} ({keys})',
     parent: 'Select parent',
     up: 'Move up',
     down: 'Move down',
@@ -781,6 +794,7 @@ const en: FormBuilderMessages = {
     replaced: 'Replaced with the imported form',
   },
   condition: {
+    summary: '{label}: {text}',
     row: 'Condition',
     field: 'Field',
     operator: 'Comparison',
@@ -838,6 +852,7 @@ const en: FormBuilderMessages = {
   },
   json: {
     title: 'Form JSON',
+    format: 'Format',
     file: 'Open file',
     download: 'Download',
     copy: 'Copy',

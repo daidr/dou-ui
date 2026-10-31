@@ -61,7 +61,7 @@ const problem = computed(() => {
   return formatMessage(words[found.code] ?? found.message, { text: found.text })
 })
 
-const input = () => root.value?.querySelector('input') ?? null
+const input = () => root.value?.querySelector('textarea') ?? null
 
 /** The completions of the last fetch, by the text each one makes. */
 let offered = new Map<string, Completion>()
@@ -107,6 +107,7 @@ async function onSelect(option: AutocompleteOption) {
       :fetch="fetch"
       :debounce="0"
       :highlight="false"
+      multiline
       :disabled="disabled"
       :invalid="!!problem"
       :placeholder="placeholder"

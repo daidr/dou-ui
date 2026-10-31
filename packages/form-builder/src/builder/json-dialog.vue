@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, shallowRef, useTemplateRef, watch } from 'vue'
 import { DouButton, DouDialog, DouTextarea } from 'dou-ui'
-import { CopyCheckIcon, CopyIcon, DownloadIcon, FileUpIcon } from '@dou-ui/icons'
-import { checkDocument, checkDocumentShape, documentPaths, migrateDocument } from '../core/check'
+import { CopyCheckIcon, CopyIcon, DownloadIcon, FileUpIcon, IndentIcon } from '@dou-ui/icons'
+import { checkDocument, checkDocumentShape, migrateDocument } from '../core/check'
 import type { DocumentProblem } from '../core/check'
 import type { FormDocument } from '../core/types'
 import { formatMessage } from '../locale'
@@ -74,48 +74,45 @@ const analysis = computed<{ document?: FormDocument; findings: Finding[] }>(() =
       ],
     }
   }
-  const shape = checkDocumentShape(data)
-  if (shape.length)
-    return {
-      findings: shape.map((problem) => ({
-        path: problem.path,
-        text:
-          (problem.code === 'required' ? words.shape.required : words.shape[problem.expected]) ??
-          problem.message,
-        blocking: true,
-      })),
-    }
+  // Problems of shape block applying, and are listed together with those of content.
+  const findings: Finding[] = checkDocumentShape(data).map((problem) => ({
+    path: problem.path,
+    text:
+      (problem.code === 'required' ? words.shape.required : words.shape[problem.expected]) ??
+      problem.message,
+    blocking: true,
+  }))
   let document: FormDocument
   try {
     document = migrateDocument(data)
   } catch {
+    if (data === null || typeof data !== 'object' || Array.isArray(data)) return { findings }
     const version = String((data as { version?: unknown }).version)
-    return {
-      findings: [
-        {
-          path: 'version',
-          text: formatMessage(words.problems.version!, { text: version }),
-          blocking: true,
-        },
-      ],
-    }
+    findings.push({
+      path: 'version',
+      text: formatMessage(words.problems.version!, { text: version }),
+      blocking: true,
+    })
+    return { findings }
   }
-  const paths = documentPaths(document)
-  const problems = checkDocument(document, {
-    fields: [...state.fields.values()],
-    functions: state.functionNames.value,
-  })
+  let problems: DocumentProblem[] = []
+  try {
+    problems = checkDocument(document, {
+      fields: [...state.fields.values()],
+      functions: state.functionNames.value,
+    })
+  } catch {
+    // Content too far off its shape to read; the shape problems say why.
+  }
   const expressionWords = state.messages.expression.problems
-  const findings = problems.map((problem) => {
-    const at = problem.nodeId ? (paths.get(problem.nodeId) ?? '') : ''
-    const path = problem.property ? `${at}.${problem.property}` : at
+  for (const problem of problems) {
     const own = problem.expression
     const said = own
       ? formatMessage(expressionWords[own.code] ?? own.message, { text: own.text })
       : formatMessage(words.problems[problem.code] ?? problem.message, { text: problem.text })
-    return { path, text: said, blocking: BLOCKING.has(problem.code) }
-  })
-  return { document, findings }
+    findings.push({ path: problem.path, text: said, blocking: BLOCKING.has(problem.code) })
+  }
+  return { document: findings.some((f) => f.blocking) ? undefined : document, findings }
 })
 
 const blocked = computed(() => analysis.value.findings.some((finding) => finding.blocking))
@@ -129,6 +126,21 @@ function apply() {
   if (!document || blocked.value) return
   state.replace(document)
   open.value = false
+}
+
+/** The text parsed, or `undefined` while it is not JSON. */
+const parsed = computed(() => {
+  try {
+    return { data: JSON.parse(draft.value) as unknown }
+  } catch {
+    return undefined
+  }
+})
+const formatted = computed(() =>
+  parsed.value ? JSON.stringify(parsed.value.data, null, 2) : undefined,
+)
+function format() {
+  if (formatted.value !== undefined) draft.value = formatted.value
 }
 
 const file = useTemplateRef<HTMLInputElement>('file')
@@ -207,6 +219,15 @@ function download() {
           aria-hidden="true"
           @change="onFile"
         />
+        <DouButton
+          size="sm"
+          variant="ghost"
+          :disabled="formatted === undefined || formatted === draft"
+          @click="format"
+        >
+          <template #leading><IndentIcon /></template>
+          {{ messages.format }}
+        </DouButton>
         <DouButton size="sm" variant="ghost" @click="file?.click()">
           <template #leading><FileUpIcon /></template>
           {{ messages.file }}

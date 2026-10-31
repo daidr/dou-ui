@@ -31,6 +31,7 @@ const requiredTools = defineFormBuilderExtension({
       key: 'required',
       label: '切换必填',
       icon: BadgeCheckIcon,
+      shortcut: 'alt+r',
       run: () =>
         toggleRequired(
           builder,
@@ -44,8 +45,9 @@ const requiredTools = defineFormBuilderExtension({
   toolbar: (builder) => [
     {
       key: 'required',
-      label: '切换必填（Alt + R）',
+      label: '切换必填',
       icon: BadgeCheckIcon,
+      shortcut: 'alt+r',
       disabled: !builder.selection.length,
       run: () => toggleRequired(builder, builder.selection),
     },

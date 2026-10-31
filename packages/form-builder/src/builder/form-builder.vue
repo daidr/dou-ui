@@ -10,7 +10,15 @@ import {
   useId,
   watch,
 } from 'vue'
-import { DouDrawer, DouPopover, DouTabPanel, DouTabs } from 'dou-ui'
+import {
+  ariaHotkey,
+  DouDrawer,
+  DouPopover,
+  DouTabPanel,
+  DouTabs,
+  formatHotkey,
+  useApplePlatform,
+} from 'dou-ui'
 import {
   BracesIcon,
   EyeIcon,
@@ -24,6 +32,8 @@ import { resolveFields } from '../fields/builtin'
 import { createBuilderState, builderKey } from './context'
 import type { FormBuilderMode } from './context'
 import { resolveFormBuilderExtensions } from './extension'
+import type { FormBuilderToolbarItem } from './extension'
+import { formatMessage } from '../locale'
 import FormBuilderJson from './json-dialog.vue'
 import FormBuilderPreview from './preview.vue'
 import { useFormBuilderMessages } from './locale'
@@ -77,6 +87,16 @@ provide(builderKey, state)
 
 const jsonOpen = ref(false)
 const toolbarItems = computed(() => extensions.value.toolbars.flatMap((toolbar) => toolbar(state)))
+
+// The key of a toolbar item goes in its tooltip, and to screen readers apart from its name.
+const apple = useApplePlatform()
+function toolTitle(item: FormBuilderToolbarItem) {
+  if (!item.shortcut) return item.label
+  const keys = formatHotkey(item.shortcut, apple.value)
+    .map((step) => step.join(apple.value ? '' : '+'))
+    .join(' ')
+  return formatMessage(messages.value.actions.withShortcut, { label: item.label, keys })
+}
 
 // Extensions start once the builder is mounted, and stop when it goes.
 const stops: (() => void)[] = []
@@ -276,7 +296,8 @@ defineExpose<FormBuilderExpose>({
               :disabled="item.disabled"
               :aria-pressed="item.pressed"
               :aria-label="item.icon ? item.label : undefined"
-              :title="item.label"
+              :aria-keyshortcuts="item.shortcut ? ariaHotkey(item.shortcut, apple) : undefined"
+              :title="toolTitle(item)"
               @click="item.run()"
             >
               <component :is="item.icon" v-if="item.icon" />

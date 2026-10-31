@@ -11,7 +11,7 @@ import {
   watch,
 } from 'vue'
 import type { InjectionKey, PropType, Ref, VNode } from 'vue'
-import { DouButton, DouContextMenu, DouDropdown, DouForm, holdPointer } from 'dou-ui'
+import { DouButton, DouContextMenu, DouDropdown, DouForm, DouTooltip, holdPointer } from 'dou-ui'
 import type { ContextMenuExpose, DropdownExpose } from 'dou-ui'
 import {
   ArrowDownIcon,
@@ -20,7 +20,9 @@ import {
   CornerLeftUpIcon,
   MoreHorizontalIcon,
   PlusIcon,
+  SigmaIcon,
   TrashIcon,
+  WorkflowIcon,
 } from '@dou-ui/icons'
 import { getPath, isContainer, isList, isPage, setPath } from '../core/document'
 import type {
@@ -424,6 +426,7 @@ const DesignNode = defineComponent({
     return () => {
       const node = props.node
       const title = nodeTitle(node, state.fields as Map<string, FormFieldType>, state.messages)
+      const logic = logicOf(state, node)
       let body: VNode
       if (isList(node)) body = listBody(state, node, props, renderer.messages())
       else if (node.type === 'tabs' || node.type === 'steps')
@@ -463,6 +466,7 @@ const DesignNode = defineComponent({
           'aria-selected': selected.value,
           'aria-expanded': isContainer(node) ? true : undefined,
           'aria-label': title,
+          'aria-description': logic?.text,
           'data-node': node.id,
           onClick: press,
           onContextmenu: (event: MouseEvent) => {
@@ -488,6 +492,7 @@ const DesignNode = defineComponent({
         },
         [
           body,
+          logic && !primary.value ? logicMark(logic) : null,
           primary.value ? actionBar(state, node, title) : null,
           primary.value && !isPage(node) ? resizeHandle(state, node, el) : null,
         ],
@@ -495,6 +500,47 @@ const DesignNode = defineComponent({
     }
   },
 })
+
+const LOGIC_KEYS = ['visibleWhen', 'disabledWhen', 'requiredWhen', 'formula'] as const
+
+/** The conditions and the formula a node has, as lines for a tooltip; none without them. */
+function logicOf(state: BuilderState, node: FormNode) {
+  const settings = state.messages.settings as Record<string, string>
+  const lines: string[] = []
+  let conditions = false
+  let formula = false
+  for (const key of LOGIC_KEYS) {
+    const text = (node as Partial<Record<(typeof LOGIC_KEYS)[number], string>>)[key]
+    if (!text?.trim()) continue
+    if (key === 'formula') formula = true
+    else conditions = true
+    lines.push(
+      formatMessage(state.messages.condition.summary, { label: settings[key] ?? key, text }),
+    )
+  }
+  return lines.length ? { lines, text: lines.join('; '), conditions, formula } : undefined
+}
+
+/** A mark in the node's corner when it has conditions or a formula, telling them on hover. */
+function logicMark(logic: NonNullable<ReturnType<typeof logicOf>>) {
+  return h(
+    DouTooltip,
+    { placement: 'top-end' },
+    {
+      default: () =>
+        h('span', { class: 'dou-form-builder__logic-mark', 'aria-hidden': 'true' }, [
+          logic.conditions ? h(WorkflowIcon) : null,
+          logic.formula ? h(SigmaIcon) : null,
+        ]),
+      content: () =>
+        h(
+          'span',
+          { class: 'dou-form-builder__logic-lines' },
+          logic.lines.map((line) => h('span', { key: line }, line)),
+        ),
+    },
+  )
+}
 
 type BodyProps = { columns: number; inset: number; level: number }
 

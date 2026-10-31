@@ -23,6 +23,12 @@ export interface FormBuilderToolbarItem {
   disabled?: boolean
   /** For a button that turns something on and off: whether it is on. */
   pressed?: boolean
+  /**
+   * The key that does the same, as a hotkey like `alt+r`: shown in the
+   * tooltip and given to screen readers as `aria-keyshortcuts`. It is only
+   * a hint; bind the key with `keymap`.
+   */
+  shortcut?: string
 }
 
 /** An item of a node's menu: its "more" button and the right-click menu. */
@@ -33,6 +39,8 @@ export interface FormBuilderMenuItem {
   run: () => void
   disabled?: boolean
   tone?: 'neutral' | 'danger'
+  /** The key that does the same, as a hotkey like `alt+r`, shown at the end of the item. */
+  shortcut?: string
 }
 
 /** A part of the inspector, under the built-in settings. */

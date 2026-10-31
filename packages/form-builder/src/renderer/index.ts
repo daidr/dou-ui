@@ -12,7 +12,7 @@ export type {
   FormOptionsLoader,
 } from './context'
 export { findFormulaCycles, findItemFormulaCycles } from '../core/formulas'
-export { checkDocument, checkDocumentShape, documentPaths, migrateDocument } from '../core/check'
+export { checkDocument, checkDocumentShape, migrateDocument } from '../core/check'
 export type { CheckDocumentOptions, DocumentProblem, DocumentShapeProblem } from '../core/check'
 export { emptyItem, fillValues, startValue, visibleValues } from '../core/values'
 export type { VisibleValuesOptions } from '../core/values'

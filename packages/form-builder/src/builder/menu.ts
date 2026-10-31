@@ -21,6 +21,8 @@ export interface NodeMenuEntry {
   run: () => void
   disabled?: boolean
   tone?: 'neutral' | 'danger'
+  /** The key that does the same, shown at the end of the item. */
+  shortcut?: string
   /** A line above it, between the built-in items and an extension's. */
   divided?: boolean
 }
@@ -43,6 +45,7 @@ export function nodeMenu(state: BuilderState, ids: readonly string[]): NodeMenuE
     entries.push({
       key: 'parent',
       label: messages.actions.parent,
+      shortcut: 'escape',
       icon: CornerLeftUpIcon,
       run: () => state.selectParent(),
     })
@@ -50,6 +53,7 @@ export function nodeMenu(state: BuilderState, ids: readonly string[]): NodeMenuE
     {
       key: 'up',
       label: messages.actions.up,
+      shortcut: 'mod+arrowup',
       icon: ArrowUpIcon,
       run: () => state.moveBy(-1, ids),
       disabled: !!one && !one.index,
@@ -57,6 +61,7 @@ export function nodeMenu(state: BuilderState, ids: readonly string[]): NodeMenuE
     {
       key: 'down',
       label: messages.actions.down,
+      shortcut: 'mod+arrowdown',
       icon: ArrowDownIcon,
       run: () => state.moveBy(1, ids),
       disabled: !!one && one.index >= siblings - 1,
@@ -64,6 +69,7 @@ export function nodeMenu(state: BuilderState, ids: readonly string[]): NodeMenuE
     {
       key: 'duplicate',
       label: messages.actions.duplicate,
+      shortcut: 'mod+d',
       icon: CopyIcon,
       run: () => state.duplicate(ids),
     },
@@ -72,12 +78,14 @@ export function nodeMenu(state: BuilderState, ids: readonly string[]): NodeMenuE
     entries.push({
       key: 'wrap',
       label: messages.actions.wrap,
+      shortcut: 'mod+g',
       icon: SquareDashedIcon,
       run: () => state.wrap(ids),
     })
   entries.push({
     key: 'remove',
     label: messages.actions.remove,
+    shortcut: 'delete',
     icon: TrashIcon,
     run: () => state.remove(ids),
     tone: 'danger',
@@ -98,6 +106,7 @@ export function menuItems(entries: readonly NodeMenuEntry[]): VNode[] {
         disabled: entry.disabled,
         tone: entry.tone ?? 'neutral',
         divided: entry.divided,
+        shortcut: entry.shortcut,
         onClick: entry.run,
       },
       { prefix: entry.icon ? () => h(entry.icon!) : undefined, default: () => entry.label },

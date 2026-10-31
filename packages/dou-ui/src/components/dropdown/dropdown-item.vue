@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { CheckIcon } from '@dou-ui/icons'
 import { computed, inject } from 'vue'
-import { formatHotkey, parseHotkey, useApplePlatform } from '../../composables/use-hotkey'
+import { ariaHotkey, formatHotkey, useApplePlatform } from '../../composables/use-hotkey'
 import { useNamespace } from '../../utils/namespace'
 import { dropdownKey, dropdownRadioGroupKey } from './dropdown'
 import type { DropdownItemProps, DropdownItemSlots } from './dropdown'
@@ -42,40 +42,9 @@ const shortcutText = computed(() =>
     : '',
 )
 
-const ARIA_KEYS: Record<string, string> = {
-  ctrl: 'Control',
-  meta: 'Meta',
-  alt: 'Alt',
-  shift: 'Shift',
-  ' ': 'Space',
-  enter: 'Enter',
-  escape: 'Escape',
-  backspace: 'Backspace',
-  delete: 'Delete',
-  tab: 'Tab',
-  arrowup: 'ArrowUp',
-  arrowdown: 'ArrowDown',
-  arrowleft: 'ArrowLeft',
-  arrowright: 'ArrowRight',
-  pageup: 'PageUp',
-  pagedown: 'PageDown',
-  home: 'Home',
-  end: 'End',
-}
-// `aria-keyshortcuts` has no way to write a sequence, so only single combinations get one
-const ariaShortcut = computed(() => {
-  const steps = props.shortcut ? parseHotkey(props.shortcut) : []
-  if (steps.length !== 1) return undefined
-  return steps[0]!
-    .map((key) =>
-      key === 'mod'
-        ? apple.value
-          ? 'Meta'
-          : 'Control'
-        : (ARIA_KEYS[key] ?? (key.length === 1 ? key.toUpperCase() : key)),
-    )
-    .join('+')
-})
+const ariaShortcut = computed(() =>
+  props.shortcut ? ariaHotkey(props.shortcut, apple.value) : undefined,
+)
 
 const classes = computed(() => [
   ns.e('item'),

@@ -5,7 +5,7 @@ import { CopyIcon } from '@dou-ui/icons'
 import {
   checkDocumentShape,
   defineFormBuilderExtension,
-  documentPaths,
+  checkDocument,
   DouFormBuilder,
   FormBuilderTransaction,
   resolveFormBuilderExtensions,
@@ -203,10 +203,25 @@ describe('checkDocumentShape', () => {
     expect(checkDocumentShape(sample())).toEqual([])
   })
 
-  it('gives the path of every node by id', () => {
-    const paths = documentPaths(sample())
-    expect(paths.get('phone')).toBe('nodes[0].children[1]')
-    expect(paths.get('guest')).toBe('nodes[3].children[0]')
+  it('gives each problem of checkDocument the path of the node at fault', () => {
+    const problems = checkDocument({
+      version: 1,
+      nodes: [
+        { id: 'a', type: 'input', name: 'a' },
+        { id: 'a', type: 'zzz', name: 'b' },
+        {
+          id: 's',
+          type: 'section',
+          children: [{ id: 'c', type: 'input', name: 'a', rules: [{ check: 'value > valuse.x' }] }],
+        },
+      ],
+    } as FormDocument)
+    expect(problems.map((p) => `${p.code} ${p.path}`)).toEqual([
+      'duplicate-id nodes[1]',
+      'unknown-type nodes[1]',
+      'expression nodes[2].children[0].rules[0].check',
+      'duplicate-name nodes[2].children[0]',
+    ])
   })
 })
 
@@ -276,7 +291,13 @@ describe('extensions', () => {
         'mod+d': () => false,
       }),
       toolbar: () => [
-        { key: 'hi', label: '打招呼', icon: CopyIcon, run: () => seen.push('toolbar') },
+        {
+          key: 'hi',
+          label: '打招呼',
+          icon: CopyIcon,
+          shortcut: 'alt+h',
+          run: () => seen.push('toolbar'),
+        },
       ],
       menu: (_context, nodes) => [
         {
@@ -308,7 +329,11 @@ describe('extensions', () => {
     expect(seen).toEqual(['key:city'])
     expect(form.value.nodes.filter((n) => n.type === 'select')).toHaveLength(2)
 
-    await wrapper.find('button[title="打招呼"]').trigger('click')
+    // The key is a hint apart from the name.
+    const hi = wrapper.find('button[aria-label="打招呼"]')
+    expect(hi.attributes('aria-keyshortcuts')).toBe('Alt+H')
+    expect(hi.attributes('title')).toBe('打招呼（Alt+H）')
+    await hi.trigger('click')
     expect(seen).toContain('toolbar')
 
     // The node's menu button shows at any width once an extension adds items.

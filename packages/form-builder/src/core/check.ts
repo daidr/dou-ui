@@ -29,6 +29,12 @@ export interface DocumentProblem {
     | 'formula-cycle'
   /** The node at fault; none for the document's own problems. */
   nodeId?: string
+  /**
+   * Where the problem is, as a path into the document, e.g.
+   * `nodes[1].children[0]` or `nodes[2].rules[0].check`; `version` for the
+   * version, and `''` for a problem of the whole.
+   */
+  path: string
   /** The property at fault, e.g. `visibleWhen`, for an expression. */
   property?: string
   /** The id, name, type or expression source at fault, for the editor's message. */
@@ -63,24 +69,31 @@ export function checkDocument(
   if (document.version !== 1)
     problems.push({
       code: 'version',
+      path: 'version',
       text: String(document.version),
       message: `Version ${String(document.version)} is not known`,
     })
   const types = resolveFields(options.fields)
   const ids = new Set<string>()
   const known = scopeNames(document.nodes)
+  /** Where each node is, by the node itself, so nodes that share an id each have their own. */
+  const paths = new Map<FormNode, string>()
 
   /** `itemFields`: the names an item of the list around the nodes has; none outside lists. */
   function visit(
     nodes: readonly FormNode[],
     parent: FormNode | undefined,
     itemFields: readonly string[],
+    at: string,
   ) {
-    for (const node of nodes) {
+    for (const [index, node] of nodes.entries()) {
+      const path = `${at}[${index}]`
+      paths.set(node, path)
       if (ids.has(node.id))
         problems.push({
           code: 'duplicate-id',
           nodeId: node.id,
+          path,
           text: node.id,
           message: `The id "${node.id}" is used twice`,
         })
@@ -91,6 +104,7 @@ export function checkDocument(
         problems.push({
           code: 'misplaced-page',
           nodeId: node.id,
+          path,
           text: node.id,
           message: 'A page belongs in tabs or steps',
         })
@@ -98,6 +112,7 @@ export function checkDocument(
         problems.push({
           code: 'not-a-page',
           nodeId: node.id,
+          path,
           text: node.id,
           message: 'Tabs and steps hold pages only',
         })
@@ -106,6 +121,7 @@ export function checkDocument(
         problems.push({
           code: 'empty',
           nodeId: node.id,
+          path,
           text: node.id,
           message: isList(node) ? 'The list has no fields' : `The ${node.type} have no pages`,
         })
@@ -113,6 +129,7 @@ export function checkDocument(
         problems.push({
           code: 'missing-name',
           nodeId: node.id,
+          path,
           text: node.id,
           message: 'The list has no name',
         })
@@ -123,6 +140,7 @@ export function checkDocument(
           problems.push({
             code: 'unknown-type',
             nodeId: node.id,
+            path,
             text: node.type,
             message: `There is no field type "${node.type}"`,
           })
@@ -130,6 +148,7 @@ export function checkDocument(
           problems.push({
             code: 'missing-name',
             nodeId: node.id,
+            path,
             text: node.id,
             message: 'The field has no name',
           })
@@ -140,8 +159,8 @@ export function checkDocument(
         (node as Partial<Record<(typeof EXPRESSIONS)[number], string>>)[key],
       ])
       if (isField(node) || isList(node))
-        (node.rules ?? []).forEach((rule, index) =>
-          expressions.push([`rules.${index}.check`, rule.check]),
+        (node.rules ?? []).forEach((rule, order) =>
+          expressions.push([`rules.${order}.check`, rule.check]),
         )
       if (isField(node) && node.source?.arg) expressions.push(['source.arg', node.source.arg])
       for (const [property, source] of expressions) {
@@ -155,6 +174,7 @@ export function checkDocument(
           problems.push({
             code: 'expression',
             nodeId: node.id,
+            path: `${path}.${property.replace(/\.(\d+)/g, '[$1]')}`,
             property,
             text: source,
             expression: problem,
@@ -162,20 +182,24 @@ export function checkDocument(
           })
       }
 
-      if (isList(node)) visit(node.children ?? [], node, scopeNames(node.children ?? []))
-      else if (isContainer(node)) visit(node.children ?? [], node, itemFields)
+      if (isList(node))
+        visit(node.children ?? [], node, scopeNames(node.children ?? []), `${path}.children`)
+      else if (isContainer(node)) visit(node.children ?? [], node, itemFields, `${path}.children`)
     }
   }
-  visit(document.nodes, undefined, [])
-  duplicateNames(document.nodes, problems)
+  visit(document.nodes, undefined, [], 'nodes')
+  duplicateNames(document.nodes, problems, paths)
 
-  const cycle = (names: string[], scope: readonly FormNode[]) =>
+  const cycle = (names: string[], scope: readonly FormNode[]) => {
+    const node = valueNodes(scope).find((each) => each.name === names[0])
     problems.push({
       code: 'formula-cycle',
-      nodeId: valueNodes(scope).find((node) => node.name === names[0])?.id,
+      nodeId: node?.id,
+      path: (node && paths.get(node)) ?? '',
       text: names.join(' → '),
       message: `The formulas read each other: ${names.join(' -> ')}`,
     })
+  }
   for (const names of findFormulaCycles(document)) cycle(names, document.nodes)
   for (const node of walkNodes(document.nodes))
     if (isList(node))
@@ -197,7 +221,11 @@ function scopeNames(nodes: readonly FormNode[]): string[] {
 }
 
 /** Names used twice within one scope. */
-function duplicateNames(nodes: readonly FormNode[], problems: DocumentProblem[]) {
+function duplicateNames(
+  nodes: readonly FormNode[],
+  problems: DocumentProblem[],
+  paths: ReadonlyMap<FormNode, string>,
+) {
   const scan = (list: readonly FormNode[], seen: Set<string>) => {
     for (const node of list) {
       const name = nameOf(node)
@@ -206,6 +234,7 @@ function duplicateNames(nodes: readonly FormNode[], problems: DocumentProblem[])
           problems.push({
             code: 'duplicate-name',
             nodeId: node.id,
+            path: paths.get(node) ?? '',
             text: name,
             message: `The name "${name}" is used twice`,
           })
@@ -384,17 +413,4 @@ export function checkDocumentShape(data: unknown): DocumentShapeProblem[] {
   if (data.nodes === undefined) add('nodes', 'required', 'array')
   if (Array.isArray(data.nodes)) data.nodes.forEach((each, index) => node(each, `nodes[${index}]`))
   return problems
-}
-
-/** The path of each node of a document, by id, in the form `checkDocumentShape` names them. */
-export function documentPaths(document: FormDocument): Map<string, string> {
-  const paths = new Map<string, string>()
-  const visit = (nodes: readonly FormNode[], path: string) =>
-    nodes.forEach((node, index) => {
-      const at = `${path}[${index}]`
-      if (!paths.has(node.id)) paths.set(node.id, at)
-      if (isContainer(node)) visit(node.children ?? [], `${at}.children`)
-    })
-  visit(document.nodes, 'nodes')
-  return paths
 }

@@ -36,6 +36,7 @@ export {
 } from './composables/use-motion'
 export type { MotionDuration, MotionMode } from './composables/use-motion'
 export {
+  ariaHotkey,
   formatHotkey,
   isApplePlatform,
   matchesHotkey,

@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { computed, ref, useId } from 'vue'
+import { ariaHotkey, useApplePlatform } from '../../composables/use-hotkey'
 import type { VirtualElement } from '../../composables/use-floating'
 import { usePopup } from '../../composables/use-popup'
 import { useNamespace } from '../../utils/namespace'
 import { OnlyChild } from '../../utils/only-child'
+import { DouKbd } from '../kbd'
 import type { TooltipProps, TooltipSlots } from './tooltip'
 import { useTeleport } from '../../utils/teleport'
 
@@ -61,10 +63,35 @@ function onPointermove(event: PointerEvent) {
 
 const interactive = computed(() => props.interactive && !props.followCursor)
 
+const apple = useApplePlatform()
+
+// A tap also sends mouseenter and focus, and phones send no mouseleave
+// until the next tap elsewhere, so the tip would stay up over the page.
+// Touch gets no tip, the same as a native title.
+let touch = false
+const notTouch = (handler?: (event: Event) => void) =>
+  handler && ((event: Event) => touch || handler(event))
+const leave = (handler?: (event: Event) => void) =>
+  handler &&
+  ((event: Event) => {
+    touch = false
+    handler(event)
+  })
+function onPointerType(event: PointerEvent) {
+  touch = event.pointerType === 'touch'
+}
+
 const triggerProps = computed(() => ({
   ...triggerListeners.value,
+  onMouseenter: notTouch(triggerListeners.value.onMouseenter),
+  onFocusin: notTouch(triggerListeners.value.onFocusin),
+  onMouseleave: leave(triggerListeners.value.onMouseleave),
+  onFocusout: leave(triggerListeners.value.onFocusout),
+  onPointerenter: onPointerType,
+  onPointerdown: onPointerType,
   onPointermove,
   'aria-describedby': open.value ? id : undefined,
+  ...(props.shortcut && { 'aria-keyshortcuts': ariaHotkey(props.shortcut, apple.value) }),
 }))
 </script>
 
@@ -83,7 +110,13 @@ const triggerProps = computed(() => ({
         :data-dou-theme="theme"
         v-bind="{ ...$attrs, ...(interactive ? panelListeners : {}) }"
       >
-        <slot name="content">{{ content }}</slot>
+        <span v-if="shortcut" :class="ns.e('shortcut')">
+          <span :class="ns.e('text')"
+            ><slot name="content">{{ content }}</slot></span
+          >
+          <DouKbd size="sm" :keys="shortcut" />
+        </span>
+        <slot v-else name="content">{{ content }}</slot>
       </div>
     </Transition>
   </Teleport>

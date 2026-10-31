@@ -12,9 +12,9 @@ import {
   StickyNoteIcon,
   TypeIcon,
 } from '@dou-ui/icons'
+import { DouTooltip } from 'dou-ui'
 import { computed, onBeforeUnmount, ref, useTemplateRef, watch, type Component } from 'vue'
 import { useFlowEditor } from '../context'
-import { format } from '../locale'
 import { pickImages } from './image'
 import { imageKey, whiteboardKeys, type WhiteboardTool } from './model'
 import { boardState } from './state'
@@ -48,9 +48,6 @@ const groups: { tool: WhiteboardTool; icon: Component }[][] = [
 /** Tools that go back to select after one use, unless kept with a double click. */
 const once = new Set<WhiteboardTool>(['rect', 'ellipse', 'diamond', 'sticky', 'text'])
 
-const titleOf = (tool: WhiteboardTool) =>
-  format(t.value.key, { tool: t.value[tool], key: whiteboardKeys[tool].toUpperCase() })
-
 // A click picks the tool for one use; a double click keeps it. Focus goes
 // back to the canvas, where the tool is used and its keys work.
 function pick(tool: WhiteboardTool, keep: boolean) {
@@ -59,9 +56,6 @@ function pick(tool: WhiteboardTool, keep: boolean) {
   ctx.root.value?.focus({ preventScroll: true })
 }
 
-const imageTitle = computed(() =>
-  format(t.value.key, { tool: t.value.image, key: imageKey.toUpperCase() }),
-)
 function insertImage() {
   pickImages(ctx)
 }
@@ -120,32 +114,40 @@ watch(
     >
       <template v-for="(group, i) in groups" :key="i">
         <span v-if="i" class="dou-whiteboard-toolbar__divider" />
-        <button
+        <DouTooltip
           v-for="item in group"
           :key="item.tool"
+          :content="t[item.tool]"
+          :shortcut="whiteboardKeys[item.tool]"
+          placement="bottom"
+        >
+          <button
+            type="button"
+            class="dou-whiteboard-toolbar__button"
+            :class="{ 'is-locked': state.tool.value === item.tool && state.locked.value }"
+            :aria-pressed="state.tool.value === item.tool"
+            :aria-label="t[item.tool]"
+            @click="pick(item.tool, false)"
+            @dblclick="pick(item.tool, true)"
+          >
+            <component
+              :is="item.tool === 'hand' && state.panning.value ? HandGrabIcon : item.icon"
+            />
+          </button>
+        </DouTooltip>
+      </template>
+      <DouTooltip :content="t.image" :shortcut="imageKey" placement="bottom">
+        <button
           type="button"
           class="dou-whiteboard-toolbar__button"
-          :class="{ 'is-locked': state.tool.value === item.tool && state.locked.value }"
-          :aria-pressed="state.tool.value === item.tool"
-          :aria-label="titleOf(item.tool)"
-          :title="titleOf(item.tool)"
-          @click="pick(item.tool, false)"
-          @dblclick="pick(item.tool, true)"
+          :class="{ 'is-busy': state.uploading.value > 0 }"
+          :aria-label="t.image"
+          :aria-busy="state.uploading.value > 0 || undefined"
+          @click="insertImage"
         >
-          <component :is="item.tool === 'hand' && state.panning.value ? HandGrabIcon : item.icon" />
+          <ImageIcon />
         </button>
-      </template>
-      <button
-        type="button"
-        class="dou-whiteboard-toolbar__button"
-        :class="{ 'is-busy': state.uploading.value > 0 }"
-        :aria-label="imageTitle"
-        :aria-busy="state.uploading.value > 0 || undefined"
-        :title="imageTitle"
-        @click="insertImage"
-      >
-        <ImageIcon />
-      </button>
+      </DouTooltip>
     </div>
   </div>
 </template>

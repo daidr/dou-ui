@@ -130,9 +130,7 @@
   }
 
   .dou-command__shortcut {
-    display: inline-flex;
     flex-shrink: 0;
-    gap: 4px;
     margin-left: auto;
   }
 

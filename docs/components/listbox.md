@@ -24,17 +24,19 @@
 
 ### Props
 
-| 名称                    | 说明                                                                 | 类型                                                          | 默认值  |
-| ----------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------- | ------- |
-| `modelValue`（v-model） | 选中的值，多选时为数组                                               | `ListboxValue \| ListboxValue[] \| null`                      | —       |
-| `options`               | 选项，字符串与数字同时作值与标签；可以分组                           | `(ListboxOption \| ListboxOptionGroup \| string \| number)[]` | —       |
-| `multiple`              | 多选，点一下切换一项                                                 | `boolean`                                                     | `false` |
-| `filterable`            | 列表上方显示搜索框                                                   | `boolean`                                                     | `false` |
-| `size`                  | 尺寸                                                                 | `'sm' \| 'md' \| 'lg'`                                        | `'md'`  |
-| `disabled`              | 禁用                                                                 | `boolean`                                                     | `false` |
-| `maxHeight`             | 列表最大高度，超出后滚动；数字为 px                                  | `number \| string`                                            | —       |
-| `virtual`               | 设了 `maxHeight` 时只渲染看得见的选项；不传时超过 100 个选项自动开启 | `boolean`                                                     | —       |
-| `ariaLabel`             | 没有可见标签时给读屏的名字                                           | `string`                                                      | —       |
+| 名称                    | 说明                                                                    | 类型                                                          | 默认值  |
+| ----------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------- | ------- |
+| `modelValue`（v-model） | 选中的值，多选时为数组                                                  | `ListboxValue \| ListboxValue[] \| null`                      | —       |
+| `options`               | 选项，字符串与数字同时作值与标签；可以分组                              | `(ListboxOption \| ListboxOptionGroup \| string \| number)[]` | —       |
+| `multiple`              | 多选，点一下切换一项                                                    | `boolean`                                                     | `false` |
+| `filterable`            | 列表上方显示搜索框                                                      | `boolean`                                                     | `false` |
+| `size`                  | 尺寸                                                                    | `'sm' \| 'md' \| 'lg'`                                        | `'md'`  |
+| `disabled`              | 禁用                                                                    | `boolean`                                                     | `false` |
+| `readonly`              | 只读：值照常显示、可以聚焦，但不能修改；Form 设置 `readonly` 时自动只读 | `boolean`                                                     | `false` |
+| `invalid`               | 标记为校验失败，边框显示危险色；在 FormItem 中校验失败时自动带上        | `boolean`                                                     | `false` |
+| `maxHeight`             | 列表最大高度，超出后滚动；数字为 px                                     | `number \| string`                                            | —       |
+| `virtual`               | 设了 `maxHeight` 时只渲染看得见的选项；不传时超过 100 个选项自动开启    | `boolean`                                                     | —       |
+| `ariaLabel`             | 没有可见标签时给读屏的名字                                              | `string`                                                      | —       |
 
 `ListboxOption` 为 `{ value, label?, description?, icon?, disabled? }`，`ListboxOptionGroup` 为 `{ label, options, disabled? }`。
 

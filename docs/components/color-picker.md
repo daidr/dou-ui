@@ -83,22 +83,23 @@
 
 ### ColorPicker Props
 
-| 名称          | 说明                                 | 类型                                     | 默认值           |
-| ------------- | ------------------------------------ | ---------------------------------------- | ---------------- |
-| `modelValue`  | 色值，任意支持的格式，配合 `v-model` | `string \| null`                         | —                |
-| `format`      | 写回 `v-model` 的格式                | `ColorFormat`                            | `'hex'`          |
-| `panel`       | 取色面板，数组时可以切换             | `ColorPickerPanel \| ColorPickerPanel[]` | `'square'`       |
-| `gamut`       | 超出 sRGB 的颜色如何处理             | `'srgb' \| 'none'`                       | `'srgb'`         |
-| `showAlpha`   | 可以调透明度                         | `boolean`                                | `false`          |
-| `presets`     | 预设色，任意支持的格式               | `string[]`                               | `[]`             |
-| `showText`    | 字段里显示色值                       | `boolean`                                | `true`           |
-| `placeholder` | 没有颜色时字段里的文字               | `string`                                 | 语言包           |
-| `clearable`   | 显示清空按钮                         | `boolean`                                | `false`          |
-| `size`        | 尺寸，默认取表单或全局配置           | `'sm' \| 'md' \| 'lg'`                   | `'md'`           |
-| `disabled`    | 禁用                                 | `boolean`                                | `false`          |
-| `invalid`     | 标记为无效                           | `boolean`                                | `false`          |
-| `placement`   | 弹出的位置                           | `Placement`                              | `'bottom-start'` |
-| `teleport`    | 渲染到哪里，`false` 留在原处         | `string \| HTMLElement \| false`         | `'body'`         |
+| 名称          | 说明                                                                    | 类型                                     | 默认值           |
+| ------------- | ----------------------------------------------------------------------- | ---------------------------------------- | ---------------- |
+| `modelValue`  | 色值，任意支持的格式，配合 `v-model`                                    | `string \| null`                         | —                |
+| `format`      | 写回 `v-model` 的格式                                                   | `ColorFormat`                            | `'hex'`          |
+| `panel`       | 取色面板，数组时可以切换                                                | `ColorPickerPanel \| ColorPickerPanel[]` | `'square'`       |
+| `gamut`       | 超出 sRGB 的颜色如何处理                                                | `'srgb' \| 'none'`                       | `'srgb'`         |
+| `showAlpha`   | 可以调透明度                                                            | `boolean`                                | `false`          |
+| `presets`     | 预设色，任意支持的格式                                                  | `string[]`                               | `[]`             |
+| `showText`    | 字段里显示色值                                                          | `boolean`                                | `true`           |
+| `placeholder` | 没有颜色时字段里的文字                                                  | `string`                                 | 语言包           |
+| `clearable`   | 显示清空按钮                                                            | `boolean`                                | `false`          |
+| `size`        | 尺寸，默认取表单或全局配置                                              | `'sm' \| 'md' \| 'lg'`                   | `'md'`           |
+| `disabled`    | 禁用                                                                    | `boolean`                                | `false`          |
+| `readonly`    | 只读：值照常显示、可以聚焦，但不能修改；Form 设置 `readonly` 时自动只读 | `boolean`                                | `false`          |
+| `invalid`     | 标记为无效                                                              | `boolean`                                | `false`          |
+| `placement`   | 弹出的位置                                                              | `Placement`                              | `'bottom-start'` |
+| `teleport`    | 渲染到哪里，`false` 留在原处                                            | `string \| HTMLElement \| false`         | `'body'`         |
 
 ### ColorPicker Events
 

@@ -171,4 +171,12 @@
      */
     text-box: trim-both cap alphabetic;
   }
+
+  .dou-segmented-control.is-readonly .dou-segmented-control__item {
+    cursor: default;
+  }
+
+  .dou-segmented-control.is-invalid {
+    border-color: color-mix(in oklab, var(--dou-color-danger) 60%, var(--dou-color-border-strong));
+  }
 }

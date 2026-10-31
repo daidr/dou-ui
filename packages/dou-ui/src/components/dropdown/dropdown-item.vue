@@ -94,7 +94,9 @@ function onPointerleave(event: PointerEvent) {
     /></span>
     <span v-if="slots.prefix" :class="ns.e('prefix')"><slot name="prefix" /></span>
     <span :class="ns.e('label')"><slot /></span>
-    <span v-if="slots.suffix || shortcut" :class="ns.e('suffix')"
+    <span
+      v-if="slots.suffix || shortcut"
+      :class="[ns.e('suffix'), !slots.suffix && ns.e('shortcut')]"
       ><slot name="suffix">{{ shortcutText }}</slot></span
     >
   </div>

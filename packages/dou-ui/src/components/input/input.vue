@@ -4,7 +4,7 @@ import { computed, nextTick, ref, useAttrs, useTemplateRef } from 'vue'
 import type { StyleValue } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
-import { useFormDisabled, useFormItem, useFormSize } from '../form/use-form-item'
+import { useFormDisabled, useFormItem, useFormReadonly, useFormSize } from '../form/use-form-item'
 import type { InputExpose, InputProps, InputSlots } from './input'
 
 defineOptions({ name: 'DouInput', inheritAttrs: false })
@@ -27,6 +27,7 @@ const { t } = useLocale()
 const { formItem } = useFormItem()
 const size = useFormSize(() => props.size)
 const disabled = useFormDisabled(() => props.disabled)
+const readonly = useFormReadonly(() => props.readonly)
 const invalid = computed(() => props.invalid || !!formItem?.invalid.value)
 
 // `class` and `style` dress the field; every other attribute (placeholder,
@@ -60,14 +61,14 @@ const maxLength = computed(() => {
 const count = computed(() => [...model.value].length)
 
 const showClear = computed(
-  () => props.clearable && !disabled.value && !props.readonly && model.value !== '',
+  () => props.clearable && !disabled.value && !readonly.value && model.value !== '',
 )
 
 const classes = computed(() => [
   ns.b(),
   ns.m(size.value),
   ns.is('disabled', disabled.value),
-  ns.is('readonly', props.readonly),
+  ns.is('readonly', readonly.value),
   ns.is('invalid', invalid.value),
   attrs.class,
 ])

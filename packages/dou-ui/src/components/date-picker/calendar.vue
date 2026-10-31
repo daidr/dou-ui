@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ChevronLeftIcon, ChevronRightIcon } from '@dou-ui/icons'
 import { computed, nextTick, ref, useId, useTemplateRef, watch } from 'vue'
+import { useNarrowViewport } from '../../utils/media'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
 import {
@@ -44,7 +45,9 @@ const id = `dou-calendar-${useId()}`
 const unit = computed<DateUnit>(() => props.type)
 const isRange = computed(() => props.range && unit.value !== 'week')
 const isWeek = computed(() => unit.value === 'week')
-const panelCount = computed(() => props.panels ?? (isRange.value ? 2 : 1))
+// Two months side by side do not fit on a phone: a range pages through one.
+const narrowViewport = useNarrowViewport()
+const panelCount = computed(() => props.panels ?? (isRange.value && !narrowViewport.value ? 2 : 1))
 // ISO weeks start on Monday, whatever the locale.
 const weekStart = computed(() =>
   isWeek.value ? 1 : (props.weekStart ?? locale.value.region.weekStart),

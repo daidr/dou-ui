@@ -184,6 +184,7 @@ export const en: Locale = {
     placeholder: 'Select',
     empty: 'No options',
     clear: 'Clear',
+    back: 'Back',
   },
   colorPicker: {
     placeholder: 'Select color',

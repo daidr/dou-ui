@@ -83,6 +83,14 @@
       --dou-select-ring: color-mix(in oklab, var(--dou-color-danger) 18%, transparent);
     }
 
+    /* read-only keeps the plain surface so it never passes for disabled;
+       the resting shadow goes and nothing reacts to hover */
+    &.is-readonly {
+      --dou-select-border-hover: var(--dou-select-border);
+      --dou-select-shadow: none;
+      cursor: default;
+    }
+
     &.is-disabled {
       --dou-select-bg: var(--dou-color-bg-muted);
       --dou-select-border-hover: var(--dou-select-border);
@@ -177,6 +185,11 @@
   }
   .dou-select.is-filterable.is-selected.is-open:not(.is-multiple) .dou-select__input::placeholder {
     color: var(--dou-color-text-tertiary);
+  }
+
+  /* nothing to open */
+  .dou-select.is-readonly .dou-select__arrow {
+    visibility: hidden;
   }
 
   .dou-select__arrow {

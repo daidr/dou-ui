@@ -7,7 +7,7 @@ import { isComposing } from '../../utils/keyboard'
 import { useNamespace } from '../../utils/namespace'
 import { OnlyChild } from '../../utils/only-child'
 import { useLocale } from '../config-provider/use-config'
-import { useFormDisabled, useFormItem, useFormSize } from '../form/use-form-item'
+import { useFormDisabled, useFormItem, useFormReadonly, useFormSize } from '../form/use-form-item'
 import { DouTag } from '../tag'
 import DouTree from '../tree/tree.vue'
 import type { TreeExpose, TreeKey, TreeNodeData } from '../tree/tree'
@@ -45,6 +45,9 @@ const { formItem } = useFormItem()
 if (!props.filterable) formItem?.markGroup()
 const size = useFormSize(() => props.size)
 const disabled = useFormDisabled(() => props.disabled)
+const readonly = useFormReadonly(() => props.readonly)
+// Read-only keeps the field focusable but never opens or changes it.
+const locked = computed(() => disabled.value || readonly.value)
 const invalid = computed(() => props.invalid || !!formItem?.invalid.value)
 
 const id = `dou-tree-select-${useId()}`
@@ -101,7 +104,7 @@ const popup = usePopup({
   open,
   trigger: 'manual',
   closeOnOutside: true,
-  disabled,
+  disabled: locked,
   placement: () => props.placement,
   offset: 4,
   sameWidth: true,
@@ -113,7 +116,7 @@ const expanded = ref<TreeKey[]>()
 const treeRef = useTemplateRef<TreeExpose>('tree')
 
 function show() {
-  if (disabled.value || open.value) return
+  if (locked.value || open.value) return
   open.value = true
   // Reveal the chosen node the first time round.
   void nextTick(() => {
@@ -152,7 +155,7 @@ function onChecked(value: TreeKey[] | undefined) {
 }
 
 function remove(key: TreeKey) {
-  if (disabled.value) return
+  if (locked.value) return
   // Removing a branch tag also unchecks what it stands for.
   const drop = new Set([key])
   if (!props.checkStrictly) {
@@ -192,7 +195,7 @@ function focusTree() {
 }
 
 function onKeydown(event: KeyboardEvent) {
-  if (disabled.value || isComposing(event)) return
+  if (locked.value || isComposing(event)) return
   switch (event.key) {
     case 'ArrowDown':
       event.preventDefault()
@@ -234,7 +237,7 @@ function onPanelKeydown(event: KeyboardEvent) {
 }
 
 function onFieldMousedown(event: MouseEvent) {
-  if (disabled.value) return
+  if (locked.value) return
   const target = event.target as HTMLElement
   if (target.closest('button')) return
   if (target !== inputRef.value) event.preventDefault()
@@ -258,6 +261,7 @@ const comboboxAttrs = computed<HTMLAttributes>(() => ({
   'aria-expanded': open.value,
   'aria-controls': rendered.value ? treeId : undefined,
   'aria-disabled': disabled.value || undefined,
+  'aria-readonly': readonly.value || undefined,
   'aria-invalid': invalid.value || undefined,
   'aria-required': formItem?.required.value || undefined,
   'aria-describedby': formItem?.describedBy.value,
@@ -272,7 +276,7 @@ const inputPlaceholder = computed(() => {
   if (props.multiple) return hasValue.value ? '' : placeholderText.value
   return singleLabel.value || placeholderText.value
 })
-const showClear = computed(() => props.clearable && !disabled.value && hasValue.value)
+const showClear = computed(() => props.clearable && !locked.value && hasValue.value)
 
 const classes = computed(() => [
   sns.b(),
@@ -282,6 +286,7 @@ const classes = computed(() => [
   sns.is('filterable', props.filterable),
   sns.is('open', open.value),
   sns.is('disabled', disabled.value),
+  sns.is('readonly', readonly.value),
   sns.is('invalid', invalid.value),
   sns.is('selected', hasValue.value),
 ])
@@ -309,7 +314,7 @@ defineExpose<TreeSelectExpose>({ focus, blur: () => combobox()?.blur() })
             v-for="key in tagKeys"
             :key="String(key)"
             :size="size"
-            :closable="!disabled"
+            :closable="!locked"
             :class="sns.e('tag')"
             @close="remove(key)"
           >
@@ -327,6 +332,7 @@ defineExpose<TreeSelectExpose>({ focus, blur: () => combobox()?.blur() })
           autocomplete="off"
           :placeholder="inputPlaceholder"
           :disabled="disabled"
+          :readonly="readonly"
           @input="show"
           @keydown="onKeydown"
         />

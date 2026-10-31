@@ -22,23 +22,26 @@
 
 ### Radio Props
 
-| 名称         | 说明                               | 类型                          | 默认值  |
-| ------------ | ---------------------------------- | ----------------------------- | ------- |
-| `value`      | 选项代表的值（必填）               | `string \| number \| boolean` | —       |
-| `modelValue` | 不在组中时的选中值，配合 `v-model` | `string \| number \| boolean` | —       |
-| `disabled`   | 禁用                               | `boolean`                     | `false` |
-| `size`       | 尺寸，默认继承组                   | `'sm' \| 'md' \| 'lg'`        | `'md'`  |
-| `name`       | 原生 `name`，组内使用组的名字      | `string`                      | —       |
+| 名称         | 说明                                                                    | 类型                          | 默认值  |
+| ------------ | ----------------------------------------------------------------------- | ----------------------------- | ------- |
+| `value`      | 选项代表的值（必填）                                                    | `string \| number \| boolean` | —       |
+| `modelValue` | 不在组中时的选中值，配合 `v-model`                                      | `string \| number \| boolean` | —       |
+| `disabled`   | 禁用                                                                    | `boolean`                     | `false` |
+| `readonly`   | 只读：值照常显示、可以聚焦，但不能修改；Form 设置 `readonly` 时自动只读 | `boolean`                     | `false` |
+| `size`       | 尺寸，默认继承组                                                        | `'sm' \| 'md' \| 'lg'`        | `'md'`  |
+| `name`       | 原生 `name`，组内使用组的名字                                           | `string`                      | —       |
 
 ### RadioGroup Props
 
-| 名称         | 说明                        | 类型                          | 默认值         |
-| ------------ | --------------------------- | ----------------------------- | -------------- |
-| `modelValue` | 选中值，配合 `v-model`      | `string \| number \| boolean` | —              |
-| `disabled`   | 禁用全部                    | `boolean`                     | `false`        |
-| `size`       | 尺寸                        | `'sm' \| 'md' \| 'lg'`        | —              |
-| `direction`  | 排列方向                    | `'horizontal' \| 'vertical'`  | `'horizontal'` |
-| `name`       | 原生 `name`，不传时自动生成 | `string`                      | —              |
+| 名称         | 说明                                                                    | 类型                          | 默认值         |
+| ------------ | ----------------------------------------------------------------------- | ----------------------------- | -------------- |
+| `modelValue` | 选中值，配合 `v-model`                                                  | `string \| number \| boolean` | —              |
+| `disabled`   | 禁用全部                                                                | `boolean`                     | `false`        |
+| `readonly`   | 只读：值照常显示、可以聚焦，但不能修改；Form 设置 `readonly` 时自动只读 | `boolean`                     | `false`        |
+| `invalid`    | 标记为校验失败，边框显示危险色；在 FormItem 中校验失败时自动带上        | `boolean`                     | `false`        |
+| `size`       | 尺寸                                                                    | `'sm' \| 'md' \| 'lg'`        | —              |
+| `direction`  | 排列方向                                                                | `'horizontal' \| 'vertical'`  | `'horizontal'` |
+| `name`       | 原生 `name`，不传时自动生成                                             | `string`                      | —              |
 
 ### Events
 

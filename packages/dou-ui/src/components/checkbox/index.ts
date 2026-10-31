@@ -8,7 +8,6 @@ export default DouCheckbox
 
 export { checkboxGroupKey } from './checkbox'
 export type * from './checkbox'
-export type CheckboxInstance = InstanceType<typeof Checkbox>
 export type CheckboxGroupInstance = InstanceType<typeof CheckboxGroup>
 
 declare module 'vue' {

@@ -69,6 +69,14 @@
       --dou-picker-ring: color-mix(in oklab, var(--dou-color-danger) 18%, transparent);
     }
 
+    /* read-only keeps the plain surface so it never passes for disabled;
+       the resting shadow goes and nothing reacts to hover */
+    &.is-readonly {
+      --dou-picker-border-hover: var(--dou-picker-border);
+      --dou-picker-shadow: none;
+      cursor: default;
+    }
+
     &.is-disabled {
       --dou-picker-bg: var(--dou-color-bg-muted);
       --dou-picker-border-hover: var(--dou-picker-border);
@@ -136,6 +144,11 @@
 
   .dou-picker__placeholder {
     color: var(--dou-color-text-tertiary);
+  }
+
+  /* nothing to open */
+  .dou-picker.is-readonly .dou-picker__arrow {
+    visibility: hidden;
   }
 
   .dou-picker__arrow {

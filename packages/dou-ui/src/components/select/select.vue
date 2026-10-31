@@ -8,7 +8,7 @@ import { useNamespace } from '../../utils/namespace'
 import { shouldVirtualize } from '../../utils/virtual'
 import { OnlyChild } from '../../utils/only-child'
 import { useLocale } from '../config-provider/use-config'
-import { useFormDisabled, useFormItem, useFormSize } from '../form/use-form-item'
+import { useFormDisabled, useFormItem, useFormReadonly, useFormSize } from '../form/use-form-item'
 import DouSpinner from '../spinner/spinner.vue'
 import { DouTag } from '../tag'
 import type {
@@ -59,6 +59,9 @@ const filterable = computed(() => props.filterable || props.remote || props.crea
 if (!filterable.value) formItem?.markGroup()
 const size = useFormSize(() => props.size)
 const disabled = useFormDisabled(() => props.disabled)
+const readonly = useFormReadonly(() => props.readonly)
+// Read-only keeps the field focusable but never opens or changes it.
+const locked = computed(() => disabled.value || readonly.value)
 const invalid = computed(() => props.invalid || !!formItem?.invalid.value)
 
 const id = `dou-select-${useId()}`
@@ -238,7 +241,7 @@ const popup = usePopup({
   open,
   trigger: 'manual',
   closeOnOutside: true,
-  disabled,
+  disabled: locked,
   placement: () => props.placement,
   offset: 4,
   sameWidth: true,
@@ -265,7 +268,7 @@ function edge(which: 'first' | 'last') {
 }
 
 function show() {
-  if (disabled.value || open.value) return
+  if (locked.value || open.value) return
   open.value = true
   const index = filtered.value.findIndex(isSelected)
   if (index >= 0 && enabled(index)) active.value = index
@@ -355,7 +358,7 @@ function choose(option: SelectOption | undefined) {
 }
 
 function remove(value: SelectValue) {
-  if (disabled.value) return
+  if (locked.value) return
   commit(selected.value.filter((item) => !same(item, value)))
   emit('removeTag', value)
 }
@@ -378,7 +381,7 @@ let typed = ''
 let typedTimer: ReturnType<typeof setTimeout> | undefined
 
 function onKeydown(event: KeyboardEvent) {
-  if (disabled.value || isComposing(event)) return
+  if (locked.value || isComposing(event)) return
   switch (event.key) {
     case 'ArrowDown':
     case 'ArrowUp':
@@ -436,7 +439,7 @@ function onInput() {
 // Pressing anywhere on the field toggles the list and keeps focus in it;
 // buttons inside (clear, tag removal) act on their own.
 function onFieldMousedown(event: MouseEvent) {
-  if (disabled.value) return
+  if (locked.value) return
   const target = event.target as HTMLElement
   if (target.closest('button')) return
   if (target !== inputRef.value) event.preventDefault()
@@ -461,6 +464,7 @@ const comboboxAttrs = computed<HTMLAttributes>(() => ({
   'aria-controls': rendered.value ? listboxId : undefined,
   'aria-activedescendant': open.value && active.value >= 0 ? optionId(active.value) : undefined,
   'aria-disabled': disabled.value || undefined,
+  'aria-readonly': readonly.value || undefined,
   'aria-invalid': invalid.value || undefined,
   'aria-required': formItem?.required.value || undefined,
   'aria-describedby': formItem?.describedBy.value,
@@ -476,7 +480,7 @@ const inputPlaceholder = computed(() => {
   return singleLabel.value || placeholderText.value
 })
 
-const showClear = computed(() => props.clearable && !disabled.value && hasValue.value)
+const showClear = computed(() => props.clearable && !locked.value && hasValue.value)
 const tagSize = computed(() => size.value)
 
 const classes = computed(() => [
@@ -486,6 +490,7 @@ const classes = computed(() => [
   ns.is('filterable', filterable.value),
   ns.is('open', open.value),
   ns.is('disabled', disabled.value),
+  ns.is('readonly', readonly.value),
   ns.is('invalid', invalid.value),
   ns.is('selected', hasValue.value),
 ])
@@ -513,7 +518,7 @@ defineExpose<SelectExpose>({ focus, blur: () => combobox()?.blur() })
             <slot name="tag" :option="option" :remove="() => remove(option.value)">
               <DouTag
                 :size="tagSize"
-                :closable="!disabled"
+                :closable="!locked"
                 :class="ns.e('tag')"
                 @close="remove(option.value)"
               >
@@ -542,6 +547,7 @@ defineExpose<SelectExpose>({ focus, blur: () => combobox()?.blur() })
           aria-autocomplete="list"
           :placeholder="inputPlaceholder"
           :disabled="disabled"
+          :readonly="readonly"
           @input="onInput"
           @keydown="onKeydown"
         />

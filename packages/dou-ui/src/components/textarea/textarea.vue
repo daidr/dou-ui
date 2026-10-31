@@ -2,7 +2,7 @@
 import { computed, nextTick, onMounted, useAttrs, useTemplateRef, watch } from 'vue'
 import type { StyleValue } from 'vue'
 import { useNamespace } from '../../utils/namespace'
-import { useFormDisabled, useFormItem, useFormSize } from '../form/use-form-item'
+import { useFormDisabled, useFormItem, useFormReadonly, useFormSize } from '../form/use-form-item'
 import type { TextareaExpose, TextareaProps } from './textarea'
 import { fit, fitLater, sizedByStyle } from './autosize'
 
@@ -23,6 +23,7 @@ const ns = useNamespace('textarea')
 const { formItem } = useFormItem()
 const size = useFormSize(() => props.size)
 const disabled = useFormDisabled(() => props.disabled)
+const readonly = useFormReadonly(() => props.readonly)
 const invalid = computed(() => props.invalid || !!formItem?.invalid.value)
 
 // As with the input: `class` and `style` dress the field, the rest goes
@@ -58,7 +59,7 @@ const classes = computed(() => [
   ns.b(),
   ns.m(size.value),
   ns.is('disabled', disabled.value),
-  ns.is('readonly', props.readonly),
+  ns.is('readonly', readonly.value),
   ns.is('invalid', invalid.value),
   ns.is('autosize', !!autosize.value),
   attrs.class,

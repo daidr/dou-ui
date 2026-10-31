@@ -335,4 +335,11 @@
   .dou-slider.is-vertical .dou-slider__thumb.is-pinned > .dou-slider__tooltip {
     translate: 0 -50%;
   }
+
+  .dou-slider.is-readonly {
+    & .dou-slider__rail,
+    & .dou-slider__thumb {
+      cursor: default;
+    }
+  }
 }

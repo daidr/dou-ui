@@ -43,23 +43,24 @@
 
 ### TimePicker Props
 
-| 名称               | 说明                         | 类型                                 | 默认值           |
-| ------------------ | ---------------------------- | ------------------------------------ | ---------------- |
-| `modelValue`       | 值，配合 `v-model`           | `string \| [string, string] \| null` | —                |
-| `format`           | 是否带秒                     | `'HH:mm' \| 'HH:mm:ss'`              | `'HH:mm'`        |
-| `range`            | 选择一段时间                 | `boolean`                            | `false`          |
-| `hourStep`         | 小时列的步长                 | `number`                             | `1`              |
-| `minuteStep`       | 分钟列的步长                 | `number`                             | `1`              |
-| `secondStep`       | 秒列的步长                   | `number`                             | `1`              |
-| `placeholder`      | 占位文字                     | `string`                             | 语言包           |
-| `startPlaceholder` | 范围开始的占位文字           | `string`                             | 语言包           |
-| `endPlaceholder`   | 范围结束的占位文字           | `string`                             | 语言包           |
-| `clearable`        | 显示清空按钮                 | `boolean`                            | `false`          |
-| `size`             | 尺寸，默认取表单或全局配置   | `'sm' \| 'md' \| 'lg'`               | `'md'`           |
-| `disabled`         | 禁用                         | `boolean`                            | `false`          |
-| `invalid`          | 标记为无效                   | `boolean`                            | `false`          |
-| `placement`        | 弹出的位置                   | `Placement`                          | `'bottom-start'` |
-| `teleport`         | 渲染到哪里，`false` 留在原处 | `string \| HTMLElement \| false`     | `'body'`         |
+| 名称               | 说明                                                                    | 类型                                 | 默认值           |
+| ------------------ | ----------------------------------------------------------------------- | ------------------------------------ | ---------------- |
+| `modelValue`       | 值，配合 `v-model`                                                      | `string \| [string, string] \| null` | —                |
+| `format`           | 是否带秒                                                                | `'HH:mm' \| 'HH:mm:ss'`              | `'HH:mm'`        |
+| `range`            | 选择一段时间                                                            | `boolean`                            | `false`          |
+| `hourStep`         | 小时列的步长                                                            | `number`                             | `1`              |
+| `minuteStep`       | 分钟列的步长                                                            | `number`                             | `1`              |
+| `secondStep`       | 秒列的步长                                                              | `number`                             | `1`              |
+| `placeholder`      | 占位文字                                                                | `string`                             | 语言包           |
+| `startPlaceholder` | 范围开始的占位文字                                                      | `string`                             | 语言包           |
+| `endPlaceholder`   | 范围结束的占位文字                                                      | `string`                             | 语言包           |
+| `clearable`        | 显示清空按钮                                                            | `boolean`                            | `false`          |
+| `size`             | 尺寸，默认取表单或全局配置                                              | `'sm' \| 'md' \| 'lg'`               | `'md'`           |
+| `disabled`         | 禁用                                                                    | `boolean`                            | `false`          |
+| `readonly`         | 只读：值照常显示、可以聚焦，但不能修改；Form 设置 `readonly` 时自动只读 | `boolean`                            | `false`          |
+| `invalid`          | 标记为无效                                                              | `boolean`                            | `false`          |
+| `placement`        | 弹出的位置                                                              | `Placement`                          | `'bottom-start'` |
+| `teleport`         | 渲染到哪里，`false` 留在原处                                            | `string \| HTMLElement \| false`     | `'body'`         |
 
 ### TimePicker Events
 

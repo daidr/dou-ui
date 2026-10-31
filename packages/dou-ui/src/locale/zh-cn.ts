@@ -184,6 +184,7 @@ export const zhCN: Locale = {
     placeholder: '请选择',
     empty: '无匹配选项',
     clear: '清除',
+    back: '返回上一级',
   },
   colorPicker: {
     placeholder: '选择颜色',

@@ -17,7 +17,8 @@ describe('DouCheckbox', () => {
     const wrapper = mount(DouCheckbox, {
       props: {
         modelValue: false,
-        'onUpdate:modelValue': (value: boolean) => wrapper.setProps({ modelValue: value }),
+        'onUpdate:modelValue': (value: unknown) =>
+          wrapper.setProps({ modelValue: value as boolean }),
       },
     })
     await wrapper.get('input').setValue(true)
@@ -62,6 +63,37 @@ const mountGroup = (initial: CheckboxValue[], groupProps: Record<string, unknown
   )
   return { wrapper, selected }
 }
+
+describe('DouCheckbox values', () => {
+  it('stands for checkedValue and uncheckedValue', async () => {
+    const wrapper = mount(DouCheckbox, {
+      props: {
+        modelValue: 'no',
+        checkedValue: 'yes',
+        uncheckedValue: 'no',
+        'onUpdate:modelValue': (value: unknown) =>
+          wrapper.setProps({ modelValue: value as string }),
+      },
+    })
+    expect(wrapper.get('input').element.checked).toBe(false)
+    await wrapper.get('input').setValue(true)
+    expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual(['yes'])
+    expect(wrapper.classes()).toContain('is-checked')
+    await wrapper.get('input').setValue(false)
+    expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual(['no'])
+  })
+
+  it('shows unchecked for a value that is neither', () => {
+    const wrapper = mount(DouCheckbox, { props: { modelValue: 2, checkedValue: 1 } })
+    expect(wrapper.get('input').element.checked).toBe(false)
+  })
+
+  it('works without v-model', async () => {
+    const wrapper = mount(DouCheckbox)
+    await wrapper.get('input').setValue(true)
+    expect(wrapper.classes()).toContain('is-checked')
+  })
+})
 
 describe('DouCheckboxGroup', () => {
   it('checks the boxes whose values are selected', () => {

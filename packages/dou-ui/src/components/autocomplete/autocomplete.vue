@@ -7,7 +7,7 @@ import { useNamespace } from '../../utils/namespace'
 import { shouldVirtualize, visibleWindow } from '../../utils/virtual'
 import { OnlyChild } from '../../utils/only-child'
 import { useLocale } from '../config-provider/use-config'
-import { useFormDisabled } from '../form/use-form-item'
+import { useFormDisabled, useFormReadonly } from '../form/use-form-item'
 import { DouInput } from '../input'
 import type { InputExpose } from '../input'
 import { DouTextarea } from '../textarea'
@@ -45,6 +45,8 @@ const slots = defineSlots<AutocompleteSlots>()
 const ns = useNamespace('autocomplete')
 const { t } = useLocale()
 const disabled = useFormDisabled(() => props.disabled)
+const readonly = useFormReadonly(() => props.readonly)
+const locked = computed(() => disabled.value || readonly.value)
 
 const id = `dou-autocomplete-${useId()}`
 const listboxId = `${id}-listbox`
@@ -111,7 +113,7 @@ const open = computed({
   get: () =>
     wanted.value &&
     focused.value &&
-    !disabled.value &&
+    !locked.value &&
     (loading.value || suggestions.value.length > 0 || (!!slots.empty && enough.value)),
   set: (value) => (wanted.value = value),
 })
@@ -119,7 +121,7 @@ const popup = usePopup({
   open,
   trigger: 'manual',
   closeOnOutside: true,
-  disabled,
+  disabled: locked,
   placement: () => props.placement,
   offset: 4,
   sameWidth: true,
@@ -218,7 +220,7 @@ function onBlur(event: FocusEvent) {
 }
 
 function onKeydown(event: KeyboardEvent) {
-  if (disabled.value || isComposing(event)) return
+  if (locked.value || isComposing(event)) return
   switch (event.key) {
     case 'ArrowDown':
     case 'ArrowUp':
@@ -279,6 +281,7 @@ defineExpose<AutocompleteExpose>({
       :class="[ns.b(), ns.is('multiline')]"
       :size="size"
       :disabled="disabled"
+      :readonly="readonly"
       :invalid="invalid"
       :placeholder="placeholder"
       :autosize="autosize"
@@ -295,6 +298,7 @@ defineExpose<AutocompleteExpose>({
       :class="ns.b()"
       :size="size"
       :disabled="disabled"
+      :readonly="readonly"
       :invalid="invalid"
       :clearable="clearable"
       :placeholder="placeholder"

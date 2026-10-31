@@ -10,7 +10,7 @@ import { useLocale } from '../config-provider/use-config'
 import DouCalendar from '../date-picker/calendar.vue'
 import { inBounds, parseDate } from '../date-picker/date'
 import type { CalendarExpose, DateRange, WeekStart } from '../date-picker/date-picker'
-import { useFormDisabled, useFormItem, useFormSize } from '../form/use-form-item'
+import { useFormDisabled, useFormItem, useFormReadonly, useFormSize } from '../form/use-form-item'
 import { formatTime, parseTime } from '../time-picker/time'
 import type { TimeParts } from '../time-picker/time'
 import TimeColumns from '../time-picker/time-columns.vue'
@@ -76,10 +76,11 @@ const { t } = useLocale()
 const { formItem } = useFormItem()
 const size = useFormSize(() => props.size)
 const disabled = useFormDisabled(() => props.disabled)
+const readonly = useFormReadonly(() => props.readonly)
 const panelId = `dou-input-date-${useId()}-panel`
 
 const isTime = computed(() => props.kind === 'time')
-const editable = computed(() => !disabled.value && !props.readonly)
+const editable = computed(() => !disabled.value && !readonly.value)
 const count = computed(() => (props.range ? 2 : 1))
 
 /* the pattern */
@@ -446,7 +447,7 @@ function hide() {
 }
 
 async function openPanel(focusPanel = false) {
-  if (disabled.value || props.readonly) return
+  if (disabled.value || readonly.value) return
   open.value = true
   if (!focusPanel) return
   await nextTick()
@@ -589,7 +590,7 @@ const classes = computed(() => [
   ns.is('range', props.range),
   ns.is('open', open.value),
   ns.is('disabled', disabled.value),
-  ns.is('readonly', props.readonly),
+  ns.is('readonly', readonly.value),
   ns.is('invalid', invalid.value),
 ])
 

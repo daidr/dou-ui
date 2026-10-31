@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, provide, useId } from 'vue'
 import { useNamespace } from '../../utils/namespace'
-import { useFormDisabled, useFormItem, useFormSize } from '../form/use-form-item'
+import { useFormDisabled, useFormItem, useFormReadonly, useFormSize } from '../form/use-form-item'
 import { radioGroupKey } from './radio'
 import type { RadioGroupProps, RadioGroupSlots, RadioValue } from './radio'
 
@@ -25,10 +25,13 @@ const name = computed(() => props.name ?? `dou-radio-${id}`)
 const { formItem } = useFormItem()
 formItem?.markGroup()
 const disabled = useFormDisabled(() => props.disabled)
+const readonly = useFormReadonly(() => props.readonly)
+const invalid = computed(() => props.invalid || !!formItem?.invalid.value)
 
 provide(radioGroupKey, {
   model,
   disabled,
+  readonly,
   size: useFormSize(() => props.size),
   name,
   select(value) {
@@ -37,7 +40,7 @@ provide(radioGroupKey, {
   },
 })
 
-const classes = computed(() => [ns.b(), ns.m(props.direction)])
+const classes = computed(() => [ns.b(), ns.m(props.direction), ns.is('invalid', invalid.value)])
 </script>
 
 <template>
@@ -48,7 +51,8 @@ const classes = computed(() => [ns.b(), ns.m(props.direction)])
     :aria-disabled="disabled || undefined"
     :aria-labelledby="formItem?.labelId"
     :aria-describedby="formItem?.describedBy.value"
-    :aria-invalid="formItem?.invalid.value || undefined"
+    :aria-invalid="invalid || undefined"
+    :aria-readonly="readonly || undefined"
     :aria-required="formItem?.required.value || undefined"
   >
     <slot />

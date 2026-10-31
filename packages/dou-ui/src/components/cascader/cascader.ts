@@ -45,6 +45,8 @@ export interface CascaderProps {
   placeholder?: string
   size?: Size
   disabled?: boolean
+  /** Show the value without letting it change: the field can still be focused and its text selected. */
+  readonly?: boolean
   invalid?: boolean
   clearable?: boolean
   placement?: Placement

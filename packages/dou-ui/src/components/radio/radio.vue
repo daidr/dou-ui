@@ -2,7 +2,7 @@
 import { computed, inject, useAttrs } from 'vue'
 import type { StyleValue } from 'vue'
 import { useNamespace } from '../../utils/namespace'
-import { useFormDisabled, useFormSize } from '../form/use-form-item'
+import { useFormDisabled, useFormReadonly, useFormSize } from '../form/use-form-item'
 import { radioGroupKey } from './radio'
 import type { RadioProps, RadioSlots, RadioValue } from './radio'
 
@@ -21,6 +21,15 @@ const group = inject(radioGroupKey, undefined)
 const checked = computed(() => (group ? group.model.value : model.value) === props.value)
 const ownSize = useFormSize(() => props.size)
 const disabled = useFormDisabled(() => props.disabled || group?.disabled.value)
+const readonly = useFormReadonly(() => props.readonly || group?.readonly.value)
+
+// A read-only option takes focus but cancels the click or arrow key that would pick it.
+function onClick(event: MouseEvent) {
+  if (readonly.value) event.preventDefault()
+}
+function onKeydown(event: KeyboardEvent) {
+  if (readonly.value && event.key.startsWith('Arrow')) event.preventDefault()
+}
 const size = computed(() => props.size ?? group?.size.value ?? ownSize.value)
 const name = computed(() => group?.name.value ?? props.name)
 
@@ -42,6 +51,7 @@ const classes = computed(() => [
   ns.m(size.value),
   ns.is('checked', checked.value),
   ns.is('disabled', disabled.value),
+  ns.is('readonly', readonly.value),
 ])
 </script>
 
@@ -55,6 +65,9 @@ const classes = computed(() => [
         :disabled="disabled"
         :name="name"
         :value="typeof value === 'boolean' ? String(value) : value"
+        :aria-readonly="readonly || undefined"
+        @click="onClick"
+        @keydown="onKeydown"
         @change="onChange"
         v-bind="nativeAttrs"
       />

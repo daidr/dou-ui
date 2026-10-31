@@ -31,7 +31,7 @@ export interface CalendarProps {
   disabledDate?: (date: string) => boolean
   /** The first day of the week. Defaults to the locale's `region.weekStart`. */
   weekStart?: WeekStart
-  /** Months shown side by side. Defaults to 2 for a range, 1 otherwise. */
+  /** Months shown side by side. Defaults to 2 for a range (1 below the `sm` breakpoint), 1 otherwise. */
   panels?: 1 | 2
 }
 
@@ -93,6 +93,8 @@ export interface DatePickerProps extends Omit<CalendarProps, 'type'> {
   endPlaceholder?: string
   size?: DatePickerSize
   disabled?: boolean
+  /** Show the value without letting it change: the field can still be focused and its text selected. */
+  readonly?: boolean
   /** Mark the value as invalid. Sets `aria-invalid` and paints the edge in the danger tone. */
   invalid?: boolean
   /** Show a button that clears the value. */

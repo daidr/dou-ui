@@ -86,6 +86,22 @@
     cursor: progress;
   }
 
+  .dou-switch.is-readonly {
+    & .dou-switch__track,
+    & .dou-switch__label {
+      cursor: default;
+    }
+
+    & .dou-switch__track:hover {
+      border-color: color-mix(in oklab, var(--dou-color-text) 8%, var(--dou-color-border-strong));
+    }
+  }
+
+  /* off: the edge turns danger; on, the filled track keeps its own edge */
+  .dou-switch.is-invalid:not(.is-checked) .dou-switch__track {
+    border-color: color-mix(in oklab, var(--dou-color-danger) 60%, var(--dou-color-border-strong));
+  }
+
   .dou-switch__thumb {
     display: inline-flex;
     align-items: center;

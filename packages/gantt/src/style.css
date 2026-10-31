@@ -1,0 +1,532 @@
+/*
+ * Gantt chart
+ *
+ * A table of tasks and a sheet of time, side by side. Bars are quiet
+ * neutral strips with a hairline edge; what is done fills them a shade
+ * deeper. Hue only marks a task's own tone, what is selected and today.
+ */
+@layer dou.components {
+  .dou-gantt {
+    --dou-gantt-header-bg: var(--dou-color-bg-canvas);
+    --dou-gantt-line: var(--dou-color-border-subtle);
+    --dou-gantt-line-strong: var(--dou-color-border);
+    --dou-gantt-off: color-mix(in oklab, var(--dou-color-text) 5%, transparent);
+    --dou-gantt-hover: color-mix(in oklab, var(--dou-color-text) 3%, transparent);
+    --dou-gantt-selected: color-mix(in oklab, var(--dou-color-primary) 7%, transparent);
+    --dou-gantt-link: color-mix(in oklab, var(--dou-color-text) 32%, transparent);
+    --dou-gantt-today: var(--dou-color-primary);
+    --dou-gantt-bar-height: 20px;
+
+    display: flex;
+    box-sizing: border-box;
+    width: 100%;
+    height: 480px;
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-container);
+    background-color: var(--dou-color-bg-surface);
+    color: var(--dou-color-text);
+    font-family: var(--dou-font-family);
+    font-size: var(--dou-font-size-md);
+    line-height: var(--dou-font-line-height);
+  }
+
+  /* table ------------------------------------------------------------------ */
+
+  .dou-gantt__table-pane {
+    display: flex;
+    flex: none;
+    min-width: 0;
+  }
+
+  .dou-gantt__table {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .dou-gantt__table-head {
+    display: flex;
+    flex: none;
+    box-sizing: border-box;
+    height: 56px;
+    border-bottom: 1px solid var(--dou-gantt-line-strong);
+    background-color: var(--dou-gantt-header-bg);
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-sm);
+    font-weight: var(--dou-font-weight-medium);
+  }
+
+  .dou-gantt__th,
+  .dou-gantt__td {
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+    min-width: 0;
+    padding: 0 12px;
+    white-space: nowrap;
+
+    &.is-center {
+      justify-content: center;
+    }
+    &.is-end {
+      justify-content: flex-end;
+    }
+  }
+
+  .dou-gantt__th.is-title {
+    min-width: 120px;
+  }
+
+  .dou-gantt__table-body {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    /* the timeline shows the scrollbar for both */
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+
+  .dou-gantt__table-rows {
+    position: relative;
+  }
+
+  .dou-gantt__tr {
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    display: flex;
+    height: var(--dou-gantt-row-height);
+    box-shadow: inset 0 -1px 0 var(--dou-gantt-line);
+    cursor: default;
+
+    &.is-hovered {
+      background-color: var(--dou-gantt-hover);
+    }
+    &.is-selected {
+      background-color: var(--dou-gantt-selected);
+    }
+    &.is-summary .dou-gantt__td.is-title {
+      font-weight: var(--dou-font-weight-medium);
+    }
+  }
+
+  .dou-gantt__td {
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-sm);
+
+    &.is-title {
+      min-width: 120px;
+      padding-left: 6px;
+      color: var(--dou-color-text);
+      font-size: var(--dou-font-size-md);
+    }
+  }
+
+  .dou-gantt__cell-text {
+    min-width: 0;
+    overflow-x: clip;
+    text-overflow: ellipsis;
+  }
+
+  .dou-gantt__indent {
+    flex: none;
+  }
+
+  .dou-gantt__toggle,
+  .dou-gantt__toggle-space {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    margin-right: 4px;
+  }
+
+  .dou-gantt__toggle {
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: none;
+    color: var(--dou-color-text-tertiary);
+    font-size: 14px;
+    cursor: pointer;
+
+    &:hover {
+      background-color: var(--dou-color-bg-muted);
+      color: var(--dou-color-text);
+    }
+  }
+
+  .dou-gantt__divider {
+    position: relative;
+    z-index: 3;
+    flex: none;
+    width: 1px;
+    background-color: var(--dou-gantt-line-strong);
+    outline: none;
+    touch-action: none;
+    cursor: col-resize;
+    transition: background-color var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    /* a wider, invisible area to grab */
+    &::before {
+      position: absolute;
+      inset: 0 -4px;
+      content: '';
+    }
+    &:hover,
+    &:focus-visible {
+      background-color: var(--dou-color-focus);
+    }
+  }
+
+  /* timeline --------------------------------------------------------------- */
+
+  .dou-gantt__chart {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+
+  .dou-gantt__canvas {
+    position: relative;
+    min-height: 100%;
+  }
+
+  .dou-gantt__header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    box-sizing: border-box;
+    height: 56px;
+    border-bottom: 1px solid var(--dou-gantt-line-strong);
+    background-color: var(--dou-gantt-header-bg);
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-sm);
+    white-space: nowrap;
+  }
+
+  .dou-gantt__tier {
+    position: relative;
+    height: 28px;
+    /* clip, not hidden: the labels stick inside the scrolling timeline */
+    overflow: clip;
+
+    &.is-top {
+      box-shadow: inset 0 -1px 0 var(--dou-gantt-line);
+      color: var(--dou-color-text);
+      font-weight: var(--dou-font-weight-medium);
+    }
+    &.is-bottom {
+      height: 27px;
+    }
+  }
+
+  .dou-gantt__cell {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+    box-shadow: inset 1px 0 0 var(--dou-gantt-line);
+
+    .is-bottom > & {
+      justify-content: center;
+    }
+  }
+
+  .dou-gantt__cell-label {
+    position: sticky;
+    left: 0;
+    padding: 0 8px;
+    overflow-x: clip;
+    text-overflow: ellipsis;
+    text-box: trim-both cap alphabetic;
+  }
+
+  .dou-gantt__cell.is-off {
+    color: var(--dou-color-text-tertiary);
+  }
+
+  .dou-gantt__cell.is-now {
+    color: var(--dou-gantt-today);
+    font-weight: var(--dou-font-weight-medium);
+  }
+
+  /* a small notch where the today line meets the header */
+  .dou-gantt__today-mark {
+    position: absolute;
+    bottom: -1px;
+    width: 8px;
+    height: 4px;
+    margin-left: -3.5px;
+    background-color: var(--dou-gantt-today);
+    clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  }
+
+  .dou-gantt__body {
+    position: relative;
+    background-image: linear-gradient(to top, var(--dou-gantt-line) 1px, transparent 1px);
+    background-size: 100% var(--dou-gantt-row-height);
+  }
+
+  /* titles pinned to the left edge when the table is hidden */
+  .dou-gantt__row-titles {
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    width: 0;
+    height: 0;
+    overflow: visible;
+  }
+
+  .dou-gantt__row-title {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: flex;
+    align-items: center;
+    height: var(--dou-gantt-row-height);
+    padding: 0 12px;
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-sm);
+    white-space: nowrap;
+    pointer-events: none;
+    text-shadow:
+      0 0 2px var(--dou-color-bg-surface),
+      0 0 2px var(--dou-color-bg-surface),
+      0 0 4px var(--dou-color-bg-surface);
+
+    &.is-summary {
+      color: var(--dou-color-text);
+      font-weight: var(--dou-font-weight-medium);
+    }
+  }
+
+  .dou-gantt__off,
+  .dou-gantt__gridline,
+  .dou-gantt__today {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    pointer-events: none;
+  }
+
+  .dou-gantt__off {
+    background-color: var(--dou-gantt-off);
+  }
+
+  .dou-gantt__gridline {
+    width: 1px;
+    background-color: var(--dou-gantt-line);
+  }
+
+  .dou-gantt__today {
+    z-index: 1;
+    width: 1px;
+    background-color: var(--dou-gantt-today);
+  }
+
+  .dou-gantt__row-highlight {
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    height: var(--dou-gantt-row-height);
+    background-color: var(--dou-gantt-hover);
+    pointer-events: none;
+
+    &.is-selected {
+      background-color: var(--dou-gantt-selected);
+    }
+  }
+
+  .dou-gantt__links {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1;
+    overflow: visible;
+    pointer-events: none;
+  }
+
+  .dou-gantt__link {
+    color: var(--dou-gantt-link);
+
+    &:hover,
+    &.is-related {
+      color: var(--dou-color-primary);
+    }
+  }
+
+  .dou-gantt__link-hit {
+    fill: none;
+    stroke: transparent;
+    stroke-width: 10px;
+    pointer-events: stroke;
+  }
+
+  .dou-gantt__link-line {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1px;
+  }
+
+  .dou-gantt__link-arrow {
+    fill: currentColor;
+  }
+
+  /* bars -------------------------------------------------------------------- */
+
+  .dou-gantt__bar-row {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 2;
+    height: var(--dou-gantt-row-height);
+  }
+
+  .dou-gantt__bar {
+    --dou-gantt-tone: var(--dou-color-text);
+
+    position: absolute;
+    top: calc((var(--dou-gantt-row-height) - var(--dou-gantt-bar-height)) / 2);
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+    height: var(--dou-gantt-bar-height);
+    /* clip, not hidden: the title sticks to the view's left edge on long bars */
+    overflow: clip;
+    border: 1px solid color-mix(in oklab, var(--dou-gantt-tone) 18%, var(--dou-color-bg-surface));
+    border-radius: 6px;
+    background-color: color-mix(in oklab, var(--dou-gantt-tone) 5%, var(--dou-color-bg-surface));
+    box-shadow: var(--dou-shadow-sm);
+    cursor: default;
+
+    &:hover {
+      border-color: color-mix(in oklab, var(--dou-gantt-tone) 34%, var(--dou-color-bg-surface));
+    }
+    &.is-selected {
+      border-color: var(--dou-color-primary);
+      box-shadow: 0 0 0 2px color-mix(in oklab, var(--dou-color-focus) 35%, transparent);
+    }
+
+    &.is-primary {
+      --dou-gantt-tone: var(--dou-color-primary);
+    }
+    &.is-success {
+      --dou-gantt-tone: var(--dou-color-success);
+    }
+    &.is-warning {
+      --dou-gantt-tone: var(--dou-color-warning);
+    }
+    &.is-danger {
+      --dou-gantt-tone: var(--dou-color-danger);
+    }
+  }
+
+  .dou-gantt__progress {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    background-color: color-mix(in oklab, var(--dou-gantt-tone) 12%, var(--dou-color-bg-surface));
+  }
+
+  .dou-gantt__bar-label {
+    position: sticky;
+    left: 0;
+    min-width: 0;
+    padding: 0 8px;
+    overflow-x: clip;
+    font-size: var(--dou-font-size-sm);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-box: trim-both cap alphabetic;
+  }
+
+  /* a summary is a bracket over the span of its children */
+  .dou-gantt__bar.is-summary {
+    top: calc((var(--dou-gantt-row-height) - 8px) / 2 - 2px);
+    height: 6px;
+    overflow: visible;
+    border: 0;
+    border-radius: 2px 2px 0 0;
+    background-color: color-mix(in oklab, var(--dou-gantt-tone) 40%, var(--dou-color-bg-surface));
+    box-shadow: none;
+
+    &::before,
+    &::after {
+      position: absolute;
+      top: 100%;
+      width: 6px;
+      height: 5px;
+      background-color: inherit;
+      content: '';
+    }
+    &::before {
+      left: 0;
+      clip-path: polygon(0 0, 100% 0, 0 100%);
+    }
+    &::after {
+      right: 0;
+      clip-path: polygon(0 0, 100% 0, 100% 100%);
+    }
+    &.is-selected {
+      background-color: var(--dou-color-primary);
+      box-shadow: none;
+    }
+  }
+
+  /* a milestone is a diamond centred on its moment */
+  .dou-gantt__bar.is-milestone {
+    top: calc((var(--dou-gantt-row-height) - 10px) / 2);
+    width: 10px;
+    height: 10px;
+    margin-left: -5px;
+    border-color: color-mix(in oklab, var(--dou-gantt-tone) 70%, var(--dou-color-bg-surface));
+    border-radius: 2px;
+    background-color: color-mix(in oklab, var(--dou-gantt-tone) 62%, var(--dou-color-bg-surface));
+    transform: rotate(45deg);
+
+    &.is-selected {
+      border-color: var(--dou-color-primary);
+      background-color: var(--dou-color-primary);
+    }
+  }
+
+  .dou-gantt__bar-side {
+    position: absolute;
+    top: 0;
+    display: flex;
+    align-items: center;
+    height: var(--dou-gantt-row-height);
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-sm);
+    white-space: nowrap;
+    pointer-events: none;
+    /* a halo in the page color keeps the title readable where a line runs under it */
+    text-shadow:
+      0 0 2px var(--dou-color-bg-surface),
+      0 0 2px var(--dou-color-bg-surface),
+      0 0 4px var(--dou-color-bg-surface);
+
+    &.is-summary {
+      color: var(--dou-color-text);
+      font-weight: var(--dou-font-weight-medium);
+    }
+  }
+}

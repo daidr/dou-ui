@@ -66,6 +66,8 @@ const edges = defineFlowExtension({ name: 'edges', edgeTypes: [elbow] })
 
 `route` 还可以返回一个 `handle`：`at` 是手柄的位置，`axis` 是它能移动的方向，`move(point)` 把指针的画布坐标换算成要写进 `edge.data` 的内容。选中连线时编辑器会画出这个手柄，拖动它就是一步撤销。内置的 `bezierEdge`、`stepEdge`、`straightEdge` 也可以直接拿来改。
 
+`route` 返回的 `marks` 是箭头这类附加的笔画：和连线用同一种颜色和粗细，但连线是虚线时它仍然是实线，导出图片时也一样。连线类型的 `style(edge)` 可以按 `edge.data` 给连线加样式，例如虚线；白板的[连接线](./whiteboard#连接线)用这两项实现线型和箭头。
+
 ## API
 
 ### FlowEdge
@@ -86,15 +88,17 @@ const edges = defineFlowExtension({ name: 'edges', edgeTypes: [elbow] })
 
 ### EdgeTypeSpec
 
-| 名称    | 说明                                                       | 类型                                   |
-| ------- | ---------------------------------------------------------- | -------------------------------------- |
-| `type`  | 类型名                                                     | `string`                               |
-| `route` | 两端之间的路径，`source`、`target` 带有 `x`、`y` 和 `side` | `(source, target, edge?) => EdgeRoute` |
+| 名称    | 说明                                                         | 类型                                   |
+| ------- | ------------------------------------------------------------ | -------------------------------------- |
+| `type`  | 类型名                                                       | `string`                               |
+| `route` | 两端之间的路径，`source`、`target` 带有 `x`、`y` 和 `side`   | `(source, target, edge?) => EdgeRoute` |
+| `style` | 连线自己的样式，例如 `strokeDasharray`，覆盖端口类型给的样式 | `(edge) => CSSProperties \| undefined` |
 
 ### EdgeRoute
 
-| 名称     | 说明                                     | 类型                                                       |
-| -------- | ---------------------------------------- | ---------------------------------------------------------- |
-| `path`   | SVG 路径                                 | `string`                                                   |
-| `label`  | 标签的中心                               | `Point`                                                    |
-| `handle` | 选中时显示的手柄，拖动它修改 `edge.data` | `{ at: Point; axis: 'x' \| 'y'; move: (point) => object }` |
+| 名称     | 说明                                                       | 类型                                                       |
+| -------- | ---------------------------------------------------------- | ---------------------------------------------------------- |
+| `path`   | SVG 路径                                                   | `string`                                                   |
+| `label`  | 标签的中心                                                 | `Point`                                                    |
+| `handle` | 选中时显示的手柄，拖动它修改 `edge.data`                   | `{ at: Point; axis: 'x' \| 'y'; move: (point) => object }` |
+| `marks`  | 用连线的描边画、但永远不画成虚线的部分，例如箭头；SVG 路径 | `string`                                                   |

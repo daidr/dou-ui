@@ -310,13 +310,75 @@ describe('keyboard and names', () => {
   })
 })
 
+const edge = (data: Record<string, unknown>) => ({
+  id: 'e',
+  type: 'connector',
+  source: { node: 'a' },
+  target: { node: 'b' },
+  data,
+})
+
 describe('connector', () => {
   it('runs straight from anchor to anchor and ends in an arrow', () => {
     const route = connectorEdge.route({ x: 0, y: 0, side: 'right' }, { x: 100, y: 0, side: 'left' })
-    expect(route.path.startsWith('M0 0L100 0M')).toBe(true)
-    // the arrow's two wings meet at the end
-    expect(route.path).toMatch(/M[\d.]+ -?[\d.]+L100 0L[\d.]+ -?[\d.]+$/)
+    expect(route.path).toBe('M0 0L100 0')
+    // the arrow's two wings meet at the end, drawn apart so dashes leave it whole
+    expect(route.marks).toMatch(/^M[\d.]+ -?[\d.]+L100 0L[\d.]+ -?[\d.]+$/)
     expect(route.label).toEqual({ x: 50, y: 0 })
+  })
+
+  it('takes a route, a dash and arrows from its data', () => {
+    const s = { x: 0, y: 0, side: 'right' } as const
+    const t = { x: 100, y: 60, side: 'left' } as const
+    const elbow = connectorEdge.route(s, t, edge({ route: 'elbow' }))
+    expect(elbow.path).not.toContain('C')
+    expect(elbow.handle?.axis).toBe('x')
+    // into the left side: the arrow points right, whatever the last run's slant
+    expect(elbow.marks).toBe('M91 55.65L100 60L91 64.35')
+    expect(connectorEdge.route(s, t, edge({ route: 'curve' })).path).toContain('C')
+    const both = connectorEdge.route(s, t, edge({ arrow: 'both' }))
+    expect(both.marks?.match(/M/g)).toHaveLength(2)
+    expect(connectorEdge.route(s, t, edge({ arrow: 'none' })).marks).toBeUndefined()
+    expect(connectorEdge.style!(edge({ dash: 'dotted' }))).toEqual({ strokeDasharray: '0 4' })
+    expect(connectorEdge.style!(edge({}))).toBeUndefined()
+  })
+
+  it('offers route, dash and arrows over the selected connectors', async () => {
+    const { root, flow, selection } = setup({
+      nodes: [
+        { id: 'a', type: 'shape', x: 0, y: 0, width: 100, height: 100, data: { shape: 'rect' } },
+        { id: 'b', type: 'shape', x: 300, y: 0, width: 100, height: 100, data: { shape: 'rect' } },
+      ],
+      edges: [
+        { id: 'e', source: { node: 'a', port: 'right' }, target: { node: 'b', port: 'left-in' } },
+      ],
+    })
+    await ticks()
+    selection.value = { nodes: [], edges: ['e'] }
+    await ticks()
+    const buttons = root.findAll('.dou-flow-toolbar button')
+    expect(buttons.map((b) => b.attributes('aria-label'))).toEqual([
+      '走向：直线',
+      '线型：实线',
+      '箭头：终点箭头',
+      '删除',
+    ])
+    await buttons[1]!.trigger('click')
+    await ticks()
+    const items = [...document.body.querySelectorAll<HTMLElement>('.dou-dropdown__item')]
+    expect(items.map((el) => [el.textContent!.trim(), el.getAttribute('aria-checked')])).toEqual([
+      ['实线', 'true'],
+      ['虚线', 'false'],
+      ['点线', 'false'],
+      ['点划线', 'false'],
+    ])
+    items[1]!.click()
+    await ticks()
+    expect(flow.value.edges[0]!.data).toEqual({ dash: 'dashed' })
+    expect(root.find('.dou-flow-editor__edge:not(.is-mark)').attributes('style')).toContain(
+      'stroke-dasharray: 6 5',
+    )
+    expect(root.find('.dou-flow-editor__edge.is-mark').exists()).toBe(true)
   })
 
   it('joins any two anchors, in either direction', async () => {

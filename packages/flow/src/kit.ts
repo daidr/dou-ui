@@ -138,10 +138,14 @@ const editMenu = defineFlowExtension({
   },
 })
 
-/** Duplicate, delete and the node menu, over the selected nodes. */
+/** Duplicate, delete and the node menu, over the selected nodes; delete over selected edges. */
 const editToolbar = defineFlowExtension({
   name: 'edit-toolbar',
   priority: 0,
+  edgeToolbarItems(ctx) {
+    const t = ctx.messages.value
+    return [{ key: 'delete', label: t.delete, icon: TrashIcon, run: ctx.deleteSelection }]
+  },
   toolbarItems(ctx, nodes) {
     const t = ctx.messages.value
     return [

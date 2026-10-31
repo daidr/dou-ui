@@ -18,6 +18,8 @@ export interface FlowMenuItem {
   tone?: 'danger'
   /** Draw a separator above the item. */
   divided?: boolean
+  /** Shows a check mark, e.g. on the option in use; read as a checked item. */
+  checked?: boolean
   run: () => void
 }
 

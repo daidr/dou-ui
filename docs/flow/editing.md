@@ -91,6 +91,8 @@ const runFromHere = defineFlowExtension({
 
 选中节点后，上方会出现一排按钮：复制一份、删除和打开节点菜单的“更多”。扩展用 `toolbarItems` 加按钮，拖动、连线和只读时不显示。不需要内置按钮时用 `flowKit({ toolbar: false })`。
 
+只选中连线时，工具栏出现在连线上方，内置一个删除按钮；扩展用 `edgeToolbarItems(ctx, edges)` 加按钮。一个按钮要给出几个选项时，在 `run` 里调用 `ctx.showMenu(items, point, button)`，在按钮下方弹出这些菜单项，用 `checked` 标出当前的选项；再点一次按钮会关上菜单。白板[连接线](./whiteboard#连接线)的走向、线型和箭头就是这样做的。
+
 ```ts
 const pin = defineFlowExtension({
   name: 'pin',
@@ -175,6 +177,7 @@ moveLayer(ctx, 'front') // 'front' | 'forward' | 'backward' | 'back'
 | `disabled` | 禁用                                                      | `boolean`    |
 | `tone`     | `'danger'` 表示危险操作                                   | `'danger'`   |
 | `divided`  | 上方画一条分隔线                                          | `boolean`    |
+| `checked`  | 显示勾选标记，比如当前选中的选项；读屏读作已勾选          | `boolean`    |
 | `run`      | 选中时调用                                                | `() => void` |
 
 ### FlowToolbarItem

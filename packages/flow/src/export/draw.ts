@@ -56,7 +56,7 @@ export interface DrawInput {
 }
 
 /** The points a path passes through or bends towards; the curve stays inside them. */
-function pathPoints(path: string) {
+export function pathPoints(path: string) {
   const numbers = path.match(/-?\d*\.?\d+(?:e[-+]?\d+)?/gi)?.map(Number) ?? []
   const out: { x: number; y: number }[] = []
   for (let i = 0; i + 1 < numbers.length; i += 2) out.push({ x: numbers[i]!, y: numbers[i + 1]! })
@@ -219,7 +219,15 @@ export function drawFlow(input: DrawInput, tools: DrawTools, root: HTMLElement) 
     for (const item of input.edges) {
       for (const p of pathPoints(item.route.path))
         bounds.add({ x: p.x, y: p.y, width: 0, height: 0 })
-      edgeParts.push(`<path d="${escapeXml(item.route.path)}" ${looks.of(item)}/>`)
+      const look = looks.of(item)
+      edgeParts.push(`<path d="${escapeXml(item.route.path)}" ${look}/>`)
+      // arrowheads and the like: the same stroke, never dashed
+      if (item.route.marks)
+        edgeParts.push(
+          `<path d="${escapeXml(item.route.marks)}" ${look.replace(/ stroke-dasharray="[^"]*"/, '')}/>`,
+        )
+      for (const p of pathPoints(item.route.marks ?? ''))
+        bounds.add({ x: p.x, y: p.y, width: 0, height: 0 })
       if (item.edge.label) {
         const label = drawLabel(tools, item.edge.label, item.route.label)
         labelParts.push(label.markup)

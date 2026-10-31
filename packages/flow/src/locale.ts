@@ -1,3 +1,4 @@
+import type { WhiteboardArrow, WhiteboardDash, WhiteboardRoute } from './whiteboard/model'
 import { useLocale } from 'dou-ui'
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 
@@ -137,6 +138,17 @@ export interface FlowMessages {
     unrotate: string
     /** `{degrees}` is the node's new turn. */
     turned: string
+    /** The connector buttons' names; `{value}` is the current choice. */
+    routeOf: string
+    dashOf: string
+    arrowOf: string
+    routes: Record<WhiteboardRoute, string>
+    dashes: Record<WhiteboardDash, string>
+    arrows: Record<WhiteboardArrow, string>
+    /** Announced after a choice; `{value}` is the new one. */
+    routeSet: string
+    dashSet: string
+    arrowSet: string
   }
 }
 
@@ -240,6 +252,15 @@ const zhCN: FlowMessages = {
     rotate: '顺时针旋转 90°',
     unrotate: '取消旋转',
     turned: '已旋转到 {degrees}°',
+    routeOf: '走向：{value}',
+    dashOf: '线型：{value}',
+    arrowOf: '箭头：{value}',
+    routes: { straight: '直线', elbow: '折线', curve: '曲线' },
+    dashes: { solid: '实线', dashed: '虚线', dotted: '点线', 'dash-dot': '点划线' },
+    arrows: { none: '无箭头', end: '终点箭头', both: '两端箭头' },
+    routeSet: '已改为{value}',
+    dashSet: '已改为{value}',
+    arrowSet: '已改为{value}',
   },
 }
 
@@ -343,6 +364,15 @@ const zhTW: FlowMessages = {
     rotate: '順時針旋轉 90°',
     unrotate: '取消旋轉',
     turned: '已旋轉到 {degrees}°',
+    routeOf: '走向：{value}',
+    dashOf: '線型：{value}',
+    arrowOf: '箭頭：{value}',
+    routes: { straight: '直線', elbow: '折線', curve: '曲線' },
+    dashes: { solid: '實線', dashed: '虛線', dotted: '點線', 'dash-dot': '點劃線' },
+    arrows: { none: '無箭頭', end: '終點箭頭', both: '兩端箭頭' },
+    routeSet: '已改為{value}',
+    dashSet: '已改為{value}',
+    arrowSet: '已改為{value}',
   },
 }
 
@@ -446,6 +476,15 @@ const en: FlowMessages = {
     rotate: 'Rotate 90° clockwise',
     unrotate: 'Reset rotation',
     turned: 'Rotated to {degrees}°',
+    routeOf: 'Route: {value}',
+    dashOf: 'Line: {value}',
+    arrowOf: 'Arrows: {value}',
+    routes: { straight: 'Straight', elbow: 'Elbow', curve: 'Curved' },
+    dashes: { solid: 'Solid', dashed: 'Dashed', dotted: 'Dotted', 'dash-dot': 'Dash-dot' },
+    arrows: { none: 'No arrows', end: 'Arrow at end', both: 'Arrows at both ends' },
+    routeSet: 'Changed to {value}',
+    dashSet: 'Changed to {value}',
+    arrowSet: 'Changed to {value}',
   },
 }
 

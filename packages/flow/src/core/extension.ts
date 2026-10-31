@@ -4,7 +4,7 @@ import type { FlowDrawContext } from '../export/context'
 import type { FlowConnection, PortTypes } from './connect'
 import type { EdgeTypeSpec } from './edge-types'
 import type { FlowMenuItem, FlowMenuTarget, FlowToolbarItem } from './menu'
-import type { FlowDocument, FlowNode, Point } from './model'
+import type { FlowDocument, FlowEdge, FlowNode, Point } from './model'
 import type { NodeTypeSpec } from './node-types'
 import type { FlowTransaction } from './transaction'
 
@@ -95,6 +95,8 @@ export interface FlowExtension {
   contextMenu?: (context: FlowExtensionContext, target: FlowMenuTarget) => FlowMenuItem[]
   /** Buttons for the toolbar that floats above the selected nodes. */
   toolbarItems?: (context: FlowExtensionContext, nodes: FlowNode[]) => FlowToolbarItem[]
+  /** Buttons for the toolbar that floats above the selected edges, when no node is selected. */
+  edgeToolbarItems?: (context: FlowExtensionContext, edges: FlowEdge[]) => FlowToolbarItem[]
   /**
    * Asked first when the canvas or a node is pressed with the main button or
    * one finger, in priority order. Return handlers to take the press over;
@@ -132,6 +134,7 @@ export interface ResolvedFlowExtensions {
   overlays: Component[]
   menus: NonNullable<FlowExtension['contextMenu']>[]
   toolbars: NonNullable<FlowExtension['toolbarItems']>[]
+  edgeToolbars: NonNullable<FlowExtension['edgeToolbarItems']>[]
   drawLayers: NonNullable<FlowExtension['drawLayer']>[]
   setups: NonNullable<FlowExtension['setup']>[]
   transactions: NonNullable<FlowExtension['transaction']>[]
@@ -209,6 +212,7 @@ export function resolveFlowExtensions(list: ExtensionList): ResolvedFlowExtensio
     menus: pick('contextMenu'),
     presses: pick('press'),
     toolbars: pick('toolbarItems'),
+    edgeToolbars: pick('edgeToolbarItems'),
     drawLayers: pick('drawLayer'),
     setups: pick('setup'),
     transactions: pick('transaction'),

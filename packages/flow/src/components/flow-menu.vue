@@ -30,6 +30,7 @@ defineExpose({
         :disabled="item.disabled"
         :tone="item.tone"
         :divided="item.divided"
+        :checked="item.checked"
         :shortcut="coarse() ? undefined : item.shortcut"
       >
         <template v-if="item.icon" #prefix>

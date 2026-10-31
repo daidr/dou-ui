@@ -75,6 +75,7 @@ import { format, useFlowMessages } from './locale'
 import { drawTools, type DrawTools, type FlowDrawContext } from './export/context'
 import {
   drawFlow,
+  pathPoints,
   readImage,
   svgToPng,
   type DrawEdge,
@@ -531,11 +532,13 @@ const edgePaths = computed(() => {
 function edgeStyle(edge: FlowEdge): CSSProperties | undefined {
   const port = portSpec(edge.source)
   const type = port && portTypeOf(port)
-  if (!type) return undefined
+  const own = edgeTypeOf(edge.type).style?.(edge)
+  if (!type) return own
   return {
     '--dou-flow-editor-edge': colorOf(type),
     '--dou-flow-editor-edge-width': type.edgeWidth ? `${type.edgeWidth}px` : undefined,
     strokeDasharray: type.dashed ? '4 4' : undefined,
+    ...own,
   } as CSSProperties
 }
 
@@ -2225,6 +2228,10 @@ watch(menuOpen, (open) => {
 })
 
 function openMenu(target: FlowMenuTarget, client: Point, from?: Element) {
+  return showMenu(itemsFor(target), client, from)
+}
+
+function showMenu(items: FlowMenuItem[], client: Point, from?: Element) {
   // The press on the button that opened the menu closed it: leave it closed.
   const press = menuPress
   menuPress = null
@@ -2236,7 +2243,6 @@ function openMenu(target: FlowMenuTarget, client: Point, from?: Element) {
     from.contains(press.target)
   )
     return false
-  const items = itemsFor(target)
   if (!items.length) return false
   menuItems.value = items
   menu.value?.open(client.x, client.y)
@@ -2252,19 +2258,29 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onMenuPress, t
 const toolbarItems = computed<FlowToolbarItem[][]>(() => {
   if (props.readonly || gesture.value || keyLink.value || quickAdd.value) return []
   const nodes = selection.value.nodes.flatMap((id) => nodeById.value.get(id) ?? [])
-  if (!nodes.length) return []
-  return resolved.value.toolbars.map((fn) => fn(context, nodes)).filter((list) => list.length)
+  if (nodes.length)
+    return resolved.value.toolbars.map((fn) => fn(context, nodes)).filter((list) => list.length)
+  const ids = new Set(selection.value.edges)
+  const edges = doc.value.edges.filter((edge) => ids.has(edge.id))
+  if (!edges.length) return []
+  return resolved.value.edgeToolbars.map((fn) => fn(context, edges)).filter((list) => list.length)
 })
 
 /** Where the toolbar floats: above the selected nodes, in screen px within the editor. */
 const toolbarAnchor = computed(() => {
+  const { nodes, edges } = selection.value
   const bounds = boundsOf(
-    selection.value.nodes.flatMap((id) => {
-      const node = nodeById.value.get(id)
-      if (!node) return []
-      const rect = rectOf(node)
-      return specOf(node).bounds?.(node, rect) ?? rect
-    }),
+    nodes.length
+      ? nodes.flatMap((id) => {
+          const node = nodeById.value.get(id)
+          if (!node) return []
+          const rect = rectOf(node)
+          return specOf(node).bounds?.(node, rect) ?? rect
+        })
+      : edgeRoutes.value
+          .filter((item) => edges.includes(item.edge.id))
+          .flatMap((item) => pathPoints(item.route.path))
+          .map((p) => ({ x: p.x, y: p.y, width: 0, height: 0 })),
   )
   if (!bounds) return null
   const { x, y, zoom } = viewport.value
@@ -2435,7 +2451,11 @@ function onPointerUp(event: PointerEvent) {
     } else if (g.kind === 'box' && g.touch && g.current === g.start) {
       // Holding the empty canvas and letting go without moving opens its menu.
       endGesture()
-      showMenu({ kind: 'canvas', point: g.start }, { x: event.clientX, y: event.clientY }, event)
+      menuFromPointer(
+        { kind: 'canvas', point: g.start },
+        { x: event.clientX, y: event.clientY },
+        event,
+      )
       return
     } else if (g.kind === 'connect') {
       if (g.started) finishLink(g.link, event)
@@ -2565,23 +2585,23 @@ function onContextmenu(event: MouseEvent) {
     emit('nodeContextmenu', node, event)
     if (event.defaultPrevented) return
     if (!selection.value.nodes.includes(node.id)) setSelection({ nodes: [node.id], edges: [] })
-    showMenu({ kind: 'node', node, point }, client, event)
+    menuFromPointer({ kind: 'node', node, point }, client, event)
   } else if (edgeEl) {
     const edge = doc.value.edges.find((e) => e.id === edgeEl.getAttribute('data-edge-id'))
     if (!edge) return
     emit('edgeContextmenu', edge, event)
     if (event.defaultPrevented) return
     if (!selection.value.edges.includes(edge.id)) setSelection({ nodes: [], edges: [edge.id] })
-    showMenu({ kind: 'edge', edge, point }, client, event)
+    menuFromPointer({ kind: 'edge', edge, point }, client, event)
   } else {
     emit('canvasContextmenu', point, event)
     if (event.defaultPrevented) return
-    showMenu({ kind: 'canvas', point }, client, event)
+    menuFromPointer({ kind: 'canvas', point }, client, event)
   }
 }
 
 /** Opens the menu for a pointer event, keeping the browser's own when there's nothing to show. */
-function showMenu(target: FlowMenuTarget, client: Point, event: Event) {
+function menuFromPointer(target: FlowMenuTarget, client: Point, event: Event) {
   if (target.kind === 'canvas' && event.type !== 'contextmenu') {
     // A long press: the app may want it for its own menu.
     const menuEvent = new MouseEvent('contextmenu', {
@@ -3132,6 +3152,7 @@ const context: FlowEditorContext = {
   gesturing,
   connectingPath: previewPath,
   openMenu,
+  showMenu,
   toCanvas,
   copy,
   cut,
@@ -3446,6 +3467,13 @@ defineExpose<FlowEditorExpose>({
               'is-animated': item.edge.animated,
             }"
             :d="item.route.path"
+          />
+          <path
+            v-if="item.route.marks"
+            class="dou-flow-editor__edge is-mark"
+            :style="item.style"
+            :class="{ 'is-selected': item.selected, 'is-stale': item.stale }"
+            :d="item.route.marks"
           />
         </g>
         <path v-if="previewPath" class="dou-flow-editor__edge is-preview" :d="previewPath" />

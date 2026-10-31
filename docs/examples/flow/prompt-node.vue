@@ -50,7 +50,8 @@ defineProps<{
   background: var(--dou-color-bg-canvas);
   color: inherit;
   font: inherit;
-  font-size: var(--dou-font-size-sm);
+  /* at least 16px on phones, so focusing it doesn't zoom the page */
+  font-size: max(var(--dou-font-size-input-min), var(--dou-font-size-sm));
   line-height: 20px;
   resize: none;
 }

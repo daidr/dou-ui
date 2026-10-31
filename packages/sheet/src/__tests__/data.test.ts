@@ -214,12 +214,12 @@ describe('DouSheet sorting and filtering', () => {
   })
 })
 
-const panel = (props: Record<string, unknown>) =>
+const panel = (props: { values: string[]; numeric?: boolean }) =>
   mount(FilterPanel, {
     props: {
       rule: undefined,
       sorted: undefined,
-      messages: sheetLocales['zh-CN'],
+      messages: sheetLocales['zh-CN']!,
       readonly: false,
       ...props,
     },

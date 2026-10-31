@@ -1,5 +1,5 @@
 import { mount, type VueWrapper } from '@vue/test-utils'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { h, nextTick, ref } from 'vue'
 import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate } from 'y-protocols/awareness'
 import * as Y from 'yjs'
@@ -54,7 +54,7 @@ function client(start: FormDocument, options: { awareness?: boolean; name?: stri
   const selection = ref<string[]>([])
   const extension = collaboration({
     nodes: doc.getMap('nodes'),
-    settings: doc.getMap('form'),
+    settings: doc.getMap('settings'),
     awareness,
     user: options.name ? { name: options.name } : undefined,
   })
@@ -109,14 +109,14 @@ describe('order keys', () => {
 describe('fillMaps and readMaps', () => {
   it('give back the form they were filled with', () => {
     const doc = new Y.Doc()
-    const maps = { nodes: doc.getMap('nodes'), settings: doc.getMap('form') }
+    const maps = { nodes: doc.getMap('nodes'), settings: doc.getMap('settings') }
     fillMaps(maps, START())
     expect(readMaps(maps).document).toEqual(START())
   })
 
   it('lifts nodes whose container is gone and breaks containers out of a loop', () => {
     const doc = new Y.Doc()
-    const maps = { nodes: doc.getMap('nodes'), settings: doc.getMap('form') }
+    const maps = { nodes: doc.getMap('nodes'), settings: doc.getMap('settings') }
     fillMaps(maps, {
       version: 1,
       nodes: [
@@ -261,5 +261,41 @@ describe('collaboration', () => {
     expect(node.classes()).toContain('is-marked')
     expect(node.find('.dou-form-builder__mark').text()).toBe('阿青')
     expect(a.wrapper.findAll('.dou-form-builder__node.is-marked')).toHaveLength(1)
+  })
+
+  it('warns in development about values others can not get, and extensions made on every render', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const { api } = client(START())
+    await flush()
+    api().dispatch(
+      api()
+        .transaction()
+        .update('name', { props: { format: () => '' } }),
+    )
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('"name" has props.format'))
+
+    // A list written in the template: a new extension on every render.
+    const doc = new Y.Doc()
+    const tick = ref(0)
+    const wrapper = mount(
+      {
+        render: () =>
+          h(DouFormBuilder, {
+            modelValue: START(),
+            'data-tick': tick.value,
+            extensions: [
+              collaboration({ nodes: doc.getMap('nodes'), settings: doc.getMap('settings') }),
+            ],
+          }),
+      },
+      { attachTo: document.body },
+    )
+    wrappers.push(wrapper)
+    for (let i = 0; i < 5; i++) {
+      tick.value++
+      await nextTick()
+    }
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('keep being set up again'))
+    warn.mockRestore()
   })
 })

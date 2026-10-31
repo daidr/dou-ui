@@ -29,7 +29,7 @@ const form = ref<FormDocument>({ version: 1, nodes: [] })
 const extensions = [
   collaboration({
     nodes: doc.getMap('nodes'),
-    settings: doc.getMap('form'),
+    settings: doc.getMap('settings'),
     awareness: provider.awareness,
     user: { name: '戴兜' },
   }),
@@ -41,7 +41,7 @@ const extensions = [
 </template>
 ```
 
-`collaboration()` 要在 `<script setup>` 里创建一次，不要直接写在模板的 `:extensions` 里，否则每次渲染都会得到一个新的扩展。
+`collaboration()` 要在 `<script setup>` 里创建一次，不要直接写在模板的 `:extensions` 里。写在模板里时每次渲染都会得到一个新的扩展，设计器会重新初始化它，撤销记录也会被清空；开发环境下这种情况会在控制台警告。
 
 设计器不负责网络传输。各端之间怎么同步共享文档由 Yjs 的 provider 决定，例如 `y-websocket`、`y-webrtc`，也可以自己实现。
 
@@ -55,14 +55,14 @@ const extensions = [
 
 - 设计器从共享文档读取表单，不读取 `v-model` 的初始值。共享文档还是空的时候例外，这时会把 `v-model` 里的表单写进去。
 - `v-model` 仍然会在每次修改后更新，包括其他人的修改，可以用来保存快照。从外部修改 `v-model` 不会写回共享文档，要修改请用 `dispatch` 或 `replace`。
-- 节点的每个键原样写进共享文档，只能放可以转成 JSON 的值。
+- 节点的每个键原样写进共享文档，只能放可以转成 JSON 的值，不能放组件或函数。自己这边仍然能看到，其他人那边就丢了，所以开发环境下写入这类值时会在控制台警告，并指出是哪个节点的哪个键。
 
 已有的表单开始协同编辑时，也可以用 `fillMaps` 把它写入空的共享文档：
 
 ```ts
 import { fillMaps } from '@dou-ui/form-builder/collaboration'
 
-fillMaps({ nodes: doc.getMap('nodes'), settings: doc.getMap('form') }, form)
+fillMaps({ nodes: doc.getMap('nodes'), settings: doc.getMap('settings') }, form)
 ```
 
 这一步通常在创建共享文档时在服务器上做一次。`readMaps` 反过来从共享文档读出表单，例如在服务器上保存快照。

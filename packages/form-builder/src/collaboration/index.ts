@@ -30,7 +30,7 @@ export interface CollaborationUser {
 export interface CollaborationOptions {
   /** Where the nodes live, e.g. `ydoc.getMap('nodes')`. */
   nodes: Y.Map<unknown>
-  /** Where the form's own settings live, e.g. `ydoc.getMap('form')`; in the same `Y.Doc` as `nodes`. */
+  /** Where the form's own settings live, e.g. `ydoc.getMap('settings')`; in the same `Y.Doc` as `nodes`. */
   settings: Y.Map<unknown>
   /** Shares what each person has selected (`y-protocols/awareness`). */
   awareness?: AwarenessLike
@@ -66,6 +66,40 @@ const same = (a: unknown, b: unknown) =>
   a === b ||
   (typeof a === 'object' && typeof b === 'object' && JSON.stringify(a) === JSON.stringify(b))
 
+/** Where in `value` something JSON can't carry sits, e.g. a component or a function. */
+function unshareable(value: unknown, path: string): string | null {
+  if (value === null || ['string', 'number', 'boolean', 'undefined'].includes(typeof value))
+    return null
+  if (typeof value !== 'object') return path
+  if (Array.isArray(value)) {
+    for (const [i, item] of value.entries()) {
+      const found = unshareable(item, `${path}[${i}]`)
+      if (found) return found
+    }
+    return null
+  }
+  const proto = Object.getPrototypeOf(value)
+  if (proto !== Object.prototype && proto !== null) return path
+  for (const [key, item] of Object.entries(value)) {
+    const found = unshareable(item, `${path}.${key}`)
+    if (found) return found
+  }
+  return null
+}
+
+const warned = new Set<string>()
+/** Others would get a broken copy of such a value while this builder shows it fine. */
+function warnUnshareable(id: string, key: string, value: unknown) {
+  // the app's bundler replaces this, as for Vue's own warnings
+  if (process.env.NODE_ENV === 'production') return
+  const path = unshareable(value, key)
+  if (!path || warned.has(`${id}:${path}`)) return
+  warned.add(`${id}:${path}`)
+  console.warn(
+    `[@dou-ui/form-builder] "${id}" has ${path}, which can't be shared: only JSON values reach the others. Store a name and look the component or function up where it is used.`,
+  )
+}
+
 /** Writes a node's keys besides its place, only those that changed; `keys` limits which. */
 function writeNode(map: Shared, node: FormNode, keys?: Set<string>) {
   const existing = map.get(node.id)
@@ -75,6 +109,7 @@ function writeNode(map: Shared, node: FormNode, keys?: Set<string>) {
   for (const [key, value] of Object.entries(item)) {
     if (key === 'id' || key === 'children' || value === undefined) continue
     if (keys && !fresh && !keys.has(key)) continue
+    warnUnshareable(node.id, key, value)
     // a new map can't be read before it is in the document
     if (fresh || !same(fields.get(key), value)) fields.set(key, value)
   }

@@ -54,7 +54,7 @@ function createDemo() {
 
   // 共享文档第一次创建时写入表单，通常在服务器上完成
   fillMaps(
-    { nodes: first.doc.getMap('nodes'), settings: first.doc.getMap('form') },
+    { nodes: first.doc.getMap('nodes'), settings: first.doc.getMap('settings') },
     {
       version: 1,
       nodes: [
@@ -101,7 +101,7 @@ function createDemo() {
     client.extensions = [
       collaboration({
         nodes: client.doc.getMap('nodes'),
-        settings: client.doc.getMap('form'),
+        settings: client.doc.getMap('settings'),
         awareness: client.awareness,
         user: { name: client.name, color: client.color },
       }),
@@ -168,5 +168,16 @@ onBeforeUnmount(() => {
 
 .form-collab__builder {
   --dou-form-builder-height: 480px;
+}
+
+/* a phone shows the canvas alone: no room to fill below the form */
+@media (max-width: 640px) {
+  .form-collab {
+    min-height: 840px;
+  }
+
+  .form-collab__builder {
+    --dou-form-builder-height: 380px;
+  }
 }
 </style>

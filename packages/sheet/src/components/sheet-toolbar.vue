@@ -162,8 +162,8 @@ const formats = computed<SheetFormatOption[]>(
     ],
 )
 /**
- * The option the cell's format is, or is with more or fewer decimals:
- * `¥#,##0.000` is still currency and `0.0%` still percent.
+ * The option the cell's format is, or is with other decimals or grouping:
+ * `¥#,##0.000` is still currency, `0.0%` still percent and `0.0` a number.
  */
 const formatShown = computed(() => {
   const current = cellFormat.value
@@ -175,7 +175,9 @@ const formatShown = computed(() => {
   )
 })
 const formatLabel = computed(() => formatShown.value?.label ?? m.value.formatCustom)
-const withoutDecimals = (pattern: string) => changeDecimals(pattern, null, -99)
+// the kind of a format: without decimals and grouping, so `0.00` is a number like `#,##0.00`
+const withoutDecimals = (pattern: string) =>
+  changeDecimals(pattern, null, -99)!.replace(/[#,](?=[#,0]*0)/g, '')
 const exampleOf = (option: SheetFormatOption) =>
   option.example == null ? '' : formatValue(option.example, option.format)
 

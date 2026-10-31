@@ -177,6 +177,17 @@ describe('DouSheetToolbar', () => {
     await nextTick()
     await button('增加小数位数').trigger('click')
     expect(button('数字格式：货币').exists()).toBe(true)
+    // a number without a format, given decimals, is a number
+    await button('数字格式：货币').trigger('click')
+    await nextTick()
+    ;(
+      [...document.querySelectorAll('.dou-sheet-toolbar__format-item')].find((el) =>
+        el.textContent?.includes('常规'),
+      ) as HTMLElement
+    ).click()
+    await nextTick()
+    await button('增加小数位数').trigger('click')
+    expect(button('数字格式：数字').exists()).toBe(true)
     wrapper.unmount()
   })
 

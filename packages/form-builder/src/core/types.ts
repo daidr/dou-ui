@@ -74,8 +74,9 @@ export interface FormFieldNode extends FormNodeBase {
   /**
    * Where the options come from, for a type with options such as `select`:
    * the name of a source given to the renderer's `sources`, and an
-   * expression for what to ask it, e.g. `{ name: 'cities', args: 'values.province' }`.
-   * Asked again when the result of `args` changes.
+   * expression for what to ask it, e.g. `{ name: 'cities', arg: 'values.province' }`.
+   * Asked again when the result of `arg` changes; a value the new options
+   * no longer offer is cleared, unless `keep` is set.
    */
   source?: FormOptionSource
   /** Checks the value must pass, besides `required`. */
@@ -99,8 +100,13 @@ export interface FormSectionNode extends FormNodeBase {
 export interface FormOptionSource {
   /** The key of the source in the renderer's `sources`. */
   name: string
-  /** An expression; its result is handed to the source. */
-  args?: string
+  /**
+   * An expression; its result is handed to the source. To hand over
+   * several values, make it a list: `[values.province, values.kind]`.
+   */
+  arg?: string
+  /** Keep the field's value when the options change and no longer offer it. */
+  keep?: boolean
 }
 
 /**

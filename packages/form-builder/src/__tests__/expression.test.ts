@@ -60,10 +60,39 @@ describe('expression values', () => {
     ['values.age < 18', { age: null }, false],
     ['values.end >= values.start', { start: '2026-10-01', end: '2026-10-31' }, true],
     ['values.price * values.count', { price: 12.5, count: 4 }, 50],
-    ['values.price * values.count', { price: 12.5, count: null }, 0],
+    ['values.price * values.count', { price: 12.5, count: null }, null],
     ['values.tags && len(values.tags)', { tags: [] }, []],
   ])('%s with %j → %j', (source, values, expected) => {
     expect(run(source, values)).toEqual(expected)
+  })
+
+  it('compares numbers with text that reads as the same number, as < and * do', () => {
+    const values = { qty: '3' }
+    expect(run('values.qty == 3', values)).toBe(true)
+    expect(run('values.qty != 3', values)).toBe(false)
+    expect(run('values.qty > 2', values)).toBe(true)
+    expect(run('values.qty * 2', values)).toBe(6)
+    expect(run('values.qty in [1, 3]', values)).toBe(true)
+    expect(run("values.qty == 'x'", values)).toBe(false)
+    expect(run("'' == 0")).toBe(false)
+  })
+
+  it('rids decimals of rounding noise', () => {
+    expect(run('0.1 * 3')).toBe(0.3)
+    expect(run('0.1 + 0.2')).toBe(0.3)
+    expect(run('sum([0.1, 0.2])')).toBe(0.3)
+    expect(run('1.1 - 1')).toBe(0.1)
+    expect(run('1234567.891 * 1000')).toBe(1234567891)
+    expect(run('123456789012 + 0.5')).toBe(123456789012.5)
+  })
+
+  it('leaves a product with an empty factor empty, and counts one empty term of a sum as 0', () => {
+    expect(run('values.a * values.b', {})).toBe(null)
+    expect(run('values.a * values.b', { a: 2 })).toBe(null)
+    expect(run('values.a / 2', { a: '' })).toBe(null)
+    expect(run('values.a + values.b', { a: '', b: null })).toBe(null)
+    expect(run('values.a - values.b', { a: 5 })).toBe(5)
+    expect(run('values.a + 1', {})).toBe(1)
   })
 
   it('reads the field’s own value', () => {
@@ -105,6 +134,8 @@ describe('expression functions', () => {
     ['round(-2.5)', -3],
     ['round(1234.5678, 1)', 1234.6],
     ['abs(-3)', 3],
+    ['round(null, 2)', null],
+    ['abs(null)', null],
     ["days('2026-10-01', '2026-10-31')", 30],
     ["days('2026-03-28', '2026-03-30')", 2],
     ["days('x', '2026-10-31')", null],
@@ -245,12 +276,21 @@ describe('expression analysis', () => {
   it('points at problems for an editor', () => {
     expect(
       checkExpression('values.a + values.contact.phone + values.b', { fields: ['a', 'contact'] }),
-    ).toEqual([{ code: 'unknown-field', message: 'There is no field "b"', start: 34, end: 42 }])
+    ).toEqual([
+      { code: 'unknown-field', message: 'There is no field "b"', text: 'b', start: 34, end: 42 },
+    ])
     expect(checkExpression('tax(values.a) + len(1)', { fields: ['a'] })).toEqual([
-      { code: 'unknown-function', message: 'There is no function "tax"', start: 0, end: 3 },
+      {
+        code: 'unknown-function',
+        message: 'There is no function "tax"',
+        text: 'tax',
+        start: 0,
+        end: 3,
+      },
     ])
     expect(checkExpression('tax(1)', { functions: ['tax'] })).toEqual([])
     expect(checkExpression('1 +')[0]?.code).toBe('unexpected-end')
+    expect(checkExpression('values.a = 1')[0]).toMatchObject({ code: 'assignment', text: '=' })
   })
 })
 

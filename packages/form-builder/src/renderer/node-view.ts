@@ -167,16 +167,19 @@ function fieldView(
     const source = field().source
     const prop = type.value?.optionsProp
     if (!source?.name || !prop || !visible.value) return undefined
-    let args: unknown = null
-    if (source.args) {
-      const expression = tryCompileExpression(source.args)
+    let arg: unknown = null
+    if (source.arg) {
+      const expression = tryCompileExpression(source.arg)
       if (expression)
-        args = expression.evaluate({ values: renderer.model(), functions: renderer.functions() })
+        arg = expression.evaluate({ values: renderer.model(), functions: renderer.functions() })
     }
-    return { name: source.name, prop, args, key: `${source.name}\u0000${JSON.stringify(args)}` }
+    const version = renderer.sourceVersion(source.name)
+    return { name: source.name, arg, key: `${source.name}\u0000${JSON.stringify(arg)}#${version}` }
   })
   const options = shallowRef<unknown[]>()
   const loading = shallowRef(false)
+  /** The request the shown options answer; a value is only fitted to options that replace others. */
+  let shown: string | undefined
   watch(
     () => request.value?.key,
     (_key, _old, onCleanup) => {
@@ -188,11 +191,14 @@ function fieldView(
       let stale = false
       onCleanup(() => (stale = true))
       loading.value = true
-      renderer.load(current.name, current.args).then(
+      renderer.load(current.name, current.arg).then(
         (list) => {
           if (stale) return
           options.value = list
           loading.value = false
+          const replaced = shown !== undefined && shown !== current.key
+          shown = current.key
+          if (replaced) fit(list)
         },
         () => {
           if (stale) return
@@ -203,6 +209,17 @@ function fieldView(
     },
     { immediate: true },
   )
+
+  /** Drop a value the new options no longer offer, e.g. a city of the province before. */
+  function fit(list: unknown[]) {
+    const node = field()
+    const fitValue = type.value?.fitValue
+    if (!fitValue || !node.name || node.source?.keep) return
+    const model = renderer.model()
+    const value = getPath(model, node.name)
+    const fitted = fitValue(value, list)
+    if (fitted !== value) setPath(model, node.name, fitted)
+  }
 
   const settings = computed(() => {
     const base = fieldProps(type.value, field())

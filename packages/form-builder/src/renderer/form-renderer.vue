@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, effectScope, provide, reactive, useTemplateRef, watch } from 'vue'
+import { computed, effectScope, provide, reactive, shallowRef, useTemplateRef, watch } from 'vue'
 import { DouForm } from 'dou-ui'
 import type { FormInstance, FormModel } from 'dou-ui'
 import { checkVersion, cloneValue, fieldNodes, getPath, setPath } from '../core/document'
@@ -100,30 +100,41 @@ watch(
   { immediate: true },
 )
 
-// Options from sources, kept per source and `args` for the renderer's
+// Options from sources, kept per source and `arg` for the renderer's
 // life; a failed call is forgotten so the next one tries again.
 const loaded = new Map<string, Promise<unknown[]>>()
+const versions = reactive<Record<string, number>>({})
+const everyVersion = shallowRef(0)
 watch(
   () => props.sources,
   () => loaded.clear(),
 )
-function load(name: string, args: unknown) {
-  const key = `${name}\u0000${JSON.stringify(args)}`
+function load(name: string, arg: unknown) {
+  const key = `${name}\u0000${JSON.stringify(arg)}`
   let result = loaded.get(key)
   if (!result) {
     const source = props.sources?.[name]
     result = source
       ? Promise.resolve()
-          .then(() => source(args))
+          .then(() => source(arg))
           .then((list) => (Array.isArray(list) ? list : []))
       : Promise.reject(new Error(`there is no source "${name}" in \`sources\``))
     result.catch((error: unknown) => {
-      loaded.delete(key)
+      if (loaded.get(key) === result) loaded.delete(key)
       console.warn(`[dou-ui] form option source "${name}" failed:`, error)
     })
     loaded.set(key, result)
   }
   return result
+}
+function reloadSource(name?: string) {
+  if (name === undefined) {
+    loaded.clear()
+    everyVersion.value++
+    return
+  }
+  for (const key of loaded.keys()) if (key.startsWith(`${name}\u0000`)) loaded.delete(key)
+  versions[name] = (versions[name] ?? 0) + 1
 }
 
 provide(rendererKey, {
@@ -133,6 +144,7 @@ provide(rendererKey, {
   changed: (name, value) => emit('change', name, value),
   functions: () => props.functions,
   load,
+  sourceVersion: (name) => everyVersion.value + (versions[name] ?? 0),
 })
 
 const formRef = useTemplateRef<FormInstance>('formRef')
@@ -144,6 +156,7 @@ defineExpose<FormRendererExpose>({
   resetFields: (names) => formRef.value?.resetFields(names),
   clearValidate: (names) => formRef.value?.clearValidate(names),
   scrollToField: (name) => formRef.value?.scrollToField(name),
+  reloadSource,
 })
 </script>
 

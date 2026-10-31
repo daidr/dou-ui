@@ -283,7 +283,7 @@ describe('check rules', () => {
 })
 
 describe('option sources', () => {
-  it('loads options with the args, again when they change, sharing calls', async () => {
+  it('loads options with the arg, again when they change, sharing calls', async () => {
     const cities = vi.fn<(province: string) => Promise<unknown[]>>(async (province) =>
       province === 'sh' ? [{ value: 'pd', label: '浦东' }] : [{ value: 'hz', label: '杭州' }],
     )
@@ -297,13 +297,13 @@ describe('option sources', () => {
             id: 'c',
             type: 'radio-group',
             name: 'city',
-            source: { name: 'cities', args: 'values.province' },
+            source: { name: 'cities', arg: 'values.province' },
           },
           {
             id: 'd',
             type: 'radio-group',
             name: 'city2',
-            source: { name: 'cities', args: 'values.province' },
+            source: { name: 'cities', arg: 'values.province' },
           },
         ]),
       },
@@ -335,7 +335,7 @@ describe('option sources', () => {
           list: (q: string) => new Promise<unknown[]>((resolve) => (resolvers[q] = resolve)),
         },
         form: doc([
-          { id: 'r', type: 'radio-group', name: 'r', source: { name: 'list', args: 'values.q' } },
+          { id: 'r', type: 'radio-group', name: 'r', source: { name: 'list', arg: 'values.q' } },
         ]),
       },
     })
@@ -363,7 +363,7 @@ describe('option sources', () => {
           },
         },
         form: doc([
-          { id: 'r', type: 'radio-group', name: 'r', source: { name: 'list', args: 'values.q' } },
+          { id: 'r', type: 'radio-group', name: 'r', source: { name: 'list', arg: 'values.q' } },
         ]),
       },
     })
@@ -392,5 +392,92 @@ describe('option sources', () => {
     await flush()
     expect(select.props('loading')).toBe(false)
     expect(select.props('options')).toEqual([{ value: 1, label: '一' }])
+  })
+
+  it('clears a value the new options no longer offer, unless the source keeps it', async () => {
+    const regions: Record<string, string[]> = {
+      上海: ['徐汇区', '浦东新区'],
+      浙江: ['杭州', '宁波'],
+    }
+    const model = reactive<Record<string, any>>({
+      province: '上海',
+      city: '徐汇区',
+      cities: ['徐汇区', '浦东新区'],
+      kept: '徐汇区',
+    })
+    mount(DouFormRenderer, {
+      props: {
+        model,
+        sources: { cities: (province: string) => [...(regions[province] ?? []), '共用'] },
+        form: doc([
+          {
+            id: 'c',
+            type: 'select',
+            name: 'city',
+            source: { name: 'cities', arg: 'values.province' },
+          },
+          {
+            id: 'm',
+            type: 'checkbox-group',
+            name: 'cities',
+            source: { name: 'cities', arg: 'values.province' },
+          },
+          {
+            id: 'k',
+            type: 'select',
+            name: 'kept',
+            source: { name: 'cities', arg: 'values.province', keep: true },
+          },
+        ]),
+      },
+    })
+    await flush()
+    // The first options leave a value as it is, e.g. one loaded with the record.
+    expect(model.city).toBe('徐汇区')
+    model.cities.push('共用')
+    model.province = '浙江'
+    await flush()
+    expect(model).toMatchObject({ city: null, cities: ['共用'], kept: '徐汇区' })
+  })
+
+  it('narrows a path to the levels the options still have', async () => {
+    const { fitPathToOptions, fitToOptions } = await import('../index')
+    const tree = [{ value: 'sh', children: [{ value: 'xh' }] }, { value: 'zj' }]
+    expect(fitPathToOptions(['sh', 'xh'], tree)).toEqual(['sh', 'xh'])
+    expect(fitPathToOptions(['sh', 'pd'], tree)).toBe(null)
+    expect(
+      fitPathToOptions(
+        [
+          ['sh', 'xh'],
+          ['zj', 'hz'],
+        ],
+        tree,
+      ),
+    ).toEqual([['sh', 'xh']])
+    expect(fitToOptions('a', [{ label: '组', options: ['a'] }])).toBe('a')
+    const same = ['a']
+    expect(fitToOptions(same, ['a', 'b'])).toBe(same)
+  })
+
+  it('loads again after reloadSource, for one source or all', async () => {
+    let round = 1
+    const list = vi.fn<() => string[]>(() => [`第 ${round} 次`])
+    const wrapper = mount(DouFormRenderer, {
+      props: {
+        sources: { list },
+        form: doc([{ id: 'r', type: 'radio-group', name: 'r', source: { name: 'list' } }]),
+      },
+    })
+    await flush()
+    expect(wrapper.find('[data-node="r"]').text()).toBe('第 1 次')
+    round = 2
+    ;(wrapper.vm as any).reloadSource('list')
+    await flush()
+    expect(wrapper.find('[data-node="r"]').text()).toBe('第 2 次')
+    round = 3
+    ;(wrapper.vm as any).reloadSource()
+    await flush()
+    expect(wrapper.find('[data-node="r"]').text()).toBe('第 3 次')
+    expect(list).toHaveBeenCalledTimes(3)
   })
 })

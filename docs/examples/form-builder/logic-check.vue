@@ -30,7 +30,7 @@ const form: FormDocument = {
       name: 'nights',
       label: '晚数',
       span: { sm: 6 },
-      formula: 'max(days(values.checkin, values.checkout), 0)',
+      formula: 'days(values.checkin, values.checkout)',
     },
     {
       id: 'guests',

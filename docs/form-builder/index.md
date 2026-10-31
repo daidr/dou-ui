@@ -105,10 +105,11 @@ app.use(DouFormRenderer)
 
 ### 实例方法
 
-| 名称          | 说明                             | 类型                                                          |
-| ------------- | -------------------------------- | ------------------------------------------------------------- |
-| model         | 字段写入的对象                   | `Record<string, any>`                                         |
-| validate      | 检查给定字段或全部字段，不会抛错 | `(names?: string \| string[]) => Promise<FormValidateResult>` |
-| resetFields   | 恢复为初始值并清除错误           | `(names?: string \| string[]) => void`                        |
-| clearValidate | 清除错误                         | `(names?: string \| string[]) => void`                        |
-| scrollToField | 滚动到字段并聚焦                 | `(name: string) => void`                                      |
+| 名称          | 说明                                                           | 类型                                                          |
+| ------------- | -------------------------------------------------------------- | ------------------------------------------------------------- |
+| model         | 字段写入的对象                                                 | `Record<string, any>`                                         |
+| validate      | 检查给定字段或全部字段，不会抛错                               | `(names?: string \| string[]) => Promise<FormValidateResult>` |
+| resetFields   | 恢复为初始值并清除错误                                         | `(names?: string \| string[]) => void`                        |
+| clearValidate | 清除错误                                                       | `(names?: string \| string[]) => void`                        |
+| scrollToField | 滚动到字段并聚焦                                               | `(name: string) => void`                                      |
+| reloadSource  | 重新加载一个或全部选项来源，见[联动与表达式](./logic#选项来源) | `(name?: string) => void`                                     |

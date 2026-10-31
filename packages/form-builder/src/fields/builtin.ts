@@ -17,6 +17,7 @@ import {
   DouUpload,
 } from 'dou-ui'
 import { defineFormField } from './define'
+import { fitPathToOptions, fitToOptions } from './options'
 import type { FormFieldType } from './define'
 import {
   AlertField,
@@ -46,6 +47,7 @@ export const builtinFields: FormFieldType<any>[] = [
   defineFormField({
     type: 'select',
     optionsProp: 'options',
+    fitValue: fitToOptions,
     component: DouSelect,
     defaultProps: { options: [] },
     empty: listWhen('multiple'),
@@ -54,12 +56,14 @@ export const builtinFields: FormFieldType<any>[] = [
     type: 'radio-group',
     component: RadioField,
     optionsProp: 'options',
+    fitValue: fitToOptions,
     empty: none,
   }),
   defineFormField({
     type: 'checkbox-group',
     component: CheckboxGroupField,
     optionsProp: 'options',
+    fitValue: fitToOptions,
     empty: list,
   }),
   defineFormField({ type: 'checkbox', component: CheckboxField, empty: () => false }),
@@ -68,6 +72,7 @@ export const builtinFields: FormFieldType<any>[] = [
     type: 'segmented-control',
     component: DouSegmentedControl,
     optionsProp: 'options',
+    fitValue: fitToOptions,
     defaultProps: { options: [] },
     empty: (props: { options?: FormOption[] }) => normalizeOptions(props.options)[0]?.value ?? null,
   }),
@@ -86,6 +91,7 @@ export const builtinFields: FormFieldType<any>[] = [
   defineFormField({
     type: 'cascader',
     optionsProp: 'options',
+    fitValue: fitPathToOptions,
     component: DouCascader,
     defaultProps: { options: [] },
     empty: none,
@@ -93,6 +99,7 @@ export const builtinFields: FormFieldType<any>[] = [
   defineFormField({
     type: 'tree-select',
     optionsProp: 'data',
+    fitValue: fitToOptions,
     component: DouTreeSelect,
     defaultProps: { data: [] },
     empty: listWhen('multiple'),

@@ -27,15 +27,16 @@ export interface FormRendererProps {
   functions?: Record<string, FormFunction>
   /**
    * Where options come from, by the name a node's `source` gives. A source
-   * gets the result of the node's `args` expression and returns the
+   * gets the result of the node's `arg` expression and returns the
    * options, or a promise of them. Results are kept for each name and
-   * `args`, so fields asking the same thing share one call.
+   * `arg`, so fields asking the same thing share one call. `reloadSource`
+   * forgets them, e.g. after the options changed on the server.
    */
   sources?: Record<string, FormOptionsLoader>
 }
 
-/** Loads the options of a field, given the result of its `source.args`. */
-export type FormOptionsLoader = (args: any) => unknown[] | Promise<unknown[]>
+/** Loads the options of a field, given the result of its `source.arg`. */
+export type FormOptionsLoader = (arg: any) => unknown[] | Promise<unknown[]>
 
 export interface FormRendererEmits {
   /** A field changed its value: its `name`, and the value it now holds. */
@@ -64,6 +65,8 @@ export interface FormRendererExpose {
   clearValidate: (names?: string | string[]) => void
   /** Scroll a field into view and focus it. */
   scrollToField: (name: string) => void
+  /** Forget the options loaded from a source, or from every source, and load them again. */
+  reloadSource: (name?: string) => void
 }
 
 /** What every node of a renderer reads. */
@@ -77,7 +80,9 @@ export interface RendererContext {
   /** The functions expressions can call besides the built-in ones. */
   functions: () => Record<string, FormFunction> | undefined
   /** The options from a source, shared by every field asking the same thing. */
-  load: (name: string, args: unknown) => Promise<unknown[]>
+  load: (name: string, arg: unknown) => Promise<unknown[]>
+  /** Bumped by `reloadSource`, so fields reading it load again. */
+  sourceVersion: (name: string) => number
 }
 
 export const rendererKey: InjectionKey<RendererContext> = Symbol('DouFormRenderer')

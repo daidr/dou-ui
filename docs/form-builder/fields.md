@@ -53,15 +53,16 @@ const chips = defineFormField<{ options: string[] }>({
 <DouFormRenderer :form="form" :fields="[chips]" />
 ```
 
-| 名称                   | 说明                                                                                                   |
-| ---------------------- | ------------------------------------------------------------------------------------------------------ |
-| `type`                 | 节点里 `type` 用的名字。和内置类型同名时替换内置的                                                     |
-| `label`                | 给搭建表单的人看的名称                                                                                 |
-| `kind`                 | `value`（默认）：存值，套上带标签、提示和校验的表单项；`display`：只展示                               |
-| `component`            | 渲染字段的组件，拿到 `modelValue` 和设置作为属性，触发 `update:modelValue`                             |
-| `defaultProps`         | 设置的默认值，节点的 `props` 覆盖在上面                                                                |
-| `empty(props)`         | 类型的空值，节点没有 `default` 时字段从它开始，默认 `null`                                             |
-| `toProps(props, node)` | 设置和组件属性不一致时，在这里转换成组件属性                                                           |
-| `optionsProp`          | 接收选项的属性名，如 `options`。设置后节点可以用 `source` 加载选项，见[联动与表达式](./logic#选项来源) |
+| 名称                       | 说明                                                                                                   |
+| -------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `type`                     | 节点里 `type` 用的名字。和内置类型同名时替换内置的                                                     |
+| `label`                    | 给搭建表单的人看的名称                                                                                 |
+| `kind`                     | `value`（默认）：存值，套上带标签、提示和校验的表单项；`display`：只展示                               |
+| `component`                | 渲染字段的组件，拿到 `modelValue` 和设置作为属性，触发 `update:modelValue`                             |
+| `defaultProps`             | 设置的默认值，节点的 `props` 覆盖在上面                                                                |
+| `empty(props)`             | 类型的空值，节点没有 `default` 时字段从它开始，默认 `null`                                             |
+| `toProps(props, node)`     | 设置和组件属性不一致时，在这里转换成组件属性                                                           |
+| `optionsProp`              | 接收选项的属性名，如 `options`。设置后节点可以用 `source` 加载选项，见[联动与表达式](./logic#选项来源) |
+| `fitValue(value, options)` | 选项变化后把旧值收窄到新选项提供的范围，见[联动与表达式](./logic#选项来源)                             |
 
 字段组件里调用 `useFormField()`，可以拿到正在渲染的 `node`、它的 `type` 和合并后的 `props`。字段组件不需要自己处理标签和错误信息，外层的表单项会处理；组件里的可聚焦元素会自动和标签关联（`dou-ui` 的输入控件都是这样做的，自己写的控件可以用 `useFormItem()` 拿到 `inputId`）。

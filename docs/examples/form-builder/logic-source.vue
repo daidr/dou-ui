@@ -20,7 +20,7 @@ const form: FormDocument = {
       label: '城市',
       span: { sm: 6 },
       visibleWhen: 'values.province',
-      source: { name: 'cities', args: 'values.province' },
+      source: { name: 'cities', arg: 'values.province' },
     },
   ],
 }

@@ -37,6 +37,12 @@ export interface FormFieldType<P extends FormFieldProps = FormFieldProps> {
    * come from a source (a node's `source`), e.g. `options` or `data`.
    */
   optionsProp?: string
+  /**
+   * Narrows a value to what new options offer, e.g. drops a city once the
+   * province changes. Called when a source loads different options; the
+   * value stays as it is when the type has none.
+   */
+  fitValue?: (value: unknown, options: readonly unknown[]) => unknown
   /** Turns the settings into the component's props, when they differ. */
   toProps?: (props: P, node: FormFieldNode) => Record<string, unknown>
 }

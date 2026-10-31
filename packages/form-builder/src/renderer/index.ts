@@ -16,6 +16,7 @@ export { builtinFields, resolveFields } from '../fields/builtin'
 export { defineFormField, fieldProps, useFormField } from '../fields/define'
 export type { FormFieldContext, FormFieldProps, FormFieldType } from '../fields/define'
 export { normalizeOptions } from '../fields/components'
+export { fitPathToOptions, fitToOptions } from '../fields/options'
 export type { FormOption } from '../fields/components'
 export {
   cloneValue,

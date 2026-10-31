@@ -2,7 +2,7 @@
 import { DouFormRenderer, type FormDocument } from '@dou-ui/form-builder'
 import { DouButton } from 'dou-ui'
 
-// 选“笔记本电脑”才出现“系统”；勾上发票后“抬头”变成必填；上门取件时“送修地址”不可填
+// 选“笔记本电脑”才出现“系统”；打开发票后“抬头”变成必填；发票寄到寄回地址时“发票地址”不用填
 const form: FormDocument = {
   version: 1,
   nodes: [
@@ -36,22 +36,34 @@ const form: FormDocument = {
       visibleWhen: "values.kind == 'other'",
       required: true,
     },
-    { id: 'pickup', type: 'switch', name: 'pickup', label: '上门取件', span: 6 },
-    { id: 'invoice', type: 'switch', name: 'invoice', label: '需要发票', span: 6 },
     {
       id: 'address',
       type: 'input',
       name: 'address',
-      label: '送修地址',
-      disabledWhen: 'values.pickup',
+      label: '寄回地址',
       props: { placeholder: '上海市徐汇区漕溪北路 88 号' },
     },
+    { id: 'invoice', type: 'switch', name: 'invoice', label: '需要发票' },
     {
       id: 'title',
       type: 'input',
       name: 'title',
       label: '发票抬头',
       requiredWhen: 'values.invoice',
+    },
+    {
+      id: 'same',
+      type: 'checkbox',
+      name: 'sameAddress',
+      default: true,
+      props: { text: '发票寄到寄回地址' },
+    },
+    {
+      id: 'invoiceAddress',
+      type: 'input',
+      name: 'invoiceAddress',
+      label: '发票地址',
+      disabledWhen: 'values.sameAddress',
     },
   ],
 }

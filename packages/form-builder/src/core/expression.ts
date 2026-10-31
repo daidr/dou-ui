@@ -498,6 +498,20 @@ function toNumber(value: unknown): number {
 }
 
 const finite = (value: number) => (Number.isFinite(value) ? value : null)
+
+/**
+ * A result of arithmetic, rid of the binary rounding noise that decimals
+ * pick up (`0.1 * 3` is `0.3`, not `0.30000000000000004`), or `null`
+ * when it is not a finite number.
+ */
+const tidy = (value: number) => {
+  if (!Number.isFinite(value)) return null
+  return Number.isInteger(value) ? value : Number(value.toPrecision(15))
+}
+
+/** Nothing, or blank text: what an untouched field holds. */
+const blank = (value: unknown) =>
+  value === null || value === undefined || (typeof value === 'string' && value.trim() === '')
 const text = (value: unknown) => (value === null || value === undefined ? '' : String(value))
 
 /** Text that reads as a number, e.g. what a text input holds. */
@@ -512,8 +526,19 @@ function compare(a: unknown, b: unknown): number | null {
   return null
 }
 
+/**
+ * `==` in an expression: equal by value, and a number equals text that
+ * reads as the same number, as `<` and `*` read it. A text input holding
+ * `3` equals `3`.
+ */
+function same(a: unknown, b: unknown): boolean {
+  if (typeof a === 'number' && numericText(b)) return a === Number(b)
+  if (typeof b === 'number' && numericText(a)) return Number(a) === b
+  return equalValues(a, b)
+}
+
 function contains(collection: unknown, item: unknown): boolean {
-  if (Array.isArray(collection)) return collection.some((entry) => equalValues(entry, item))
+  if (Array.isArray(collection)) return collection.some((entry) => same(entry, item))
   if (typeof collection === 'string')
     return item !== null && item !== undefined && collection.includes(text(item))
   if (collection !== null && typeof collection === 'object') {
@@ -524,21 +549,29 @@ function contains(collection: unknown, item: unknown): boolean {
 }
 
 function arithmetic(operator: BinaryOperator, a: unknown, b: unknown): unknown {
-  if (operator === '+') {
-    if (typeof a === 'string' || typeof b === 'string') return text(a) + text(b)
-    return finite(toNumber(a) + toNumber(b))
-  }
+  if (
+    operator === '+' &&
+    (typeof a === 'string' || typeof b === 'string') &&
+    !(blank(a) && blank(b))
+  )
+    return text(a) + text(b)
+  // A formula over fields not filled in yet stays empty instead of showing
+  // 0: a product with an unknown factor is unknown, and a sum is only
+  // unknown when every term is. One empty term of a sum counts as 0.
+  if (operator === '+' || operator === '-' ? blank(a) && blank(b) : blank(a) || blank(b))
+    return null
+  if (operator === '+') return tidy(toNumber(a) + toNumber(b))
   const x = toNumber(a)
   const y = toNumber(b)
   switch (operator) {
     case '-':
-      return finite(x - y)
+      return tidy(x - y)
     case '*':
-      return finite(x * y)
+      return tidy(x * y)
     case '/':
-      return finite(x / y)
+      return tidy(x / y)
     default:
-      return finite(x % y)
+      return tidy(x % y)
   }
 }
 
@@ -597,7 +630,7 @@ export const builtinFunctions: Readonly<Record<string, FormFunction>> = Object.f
     if (value === null || value === undefined || value === '') return null
     return finite(toNumber(value))
   },
-  sum: (...args: unknown[]) => numbersOf(args).reduce((total, n) => total + n, 0),
+  sum: (...args: unknown[]) => tidy(numbersOf(args).reduce((total, n) => total + n, 0)),
   min(...args: unknown[]) {
     const numbers = numbersOf(args)
     return numbers.length ? Math.min(...numbers) : null
@@ -607,6 +640,7 @@ export const builtinFunctions: Readonly<Record<string, FormFunction>> = Object.f
     return numbers.length ? Math.max(...numbers) : null
   },
   round(value: unknown, digits: unknown = 0) {
+    if (blank(value)) return null
     const number = toNumber(value)
     const places = Math.max(0, Math.min(10, Math.trunc(toNumber(digits))))
     if (!Number.isFinite(number)) return null
@@ -615,7 +649,7 @@ export const builtinFunctions: Readonly<Record<string, FormFunction>> = Object.f
     const shifted = Math.round(Number(`${Math.abs(number)}e${places}`))
     return sign * Number(`${shifted}e-${places}`)
   },
-  abs: (value: unknown) => finite(Math.abs(toNumber(value))),
+  abs: (value: unknown) => (blank(value) ? null : finite(Math.abs(toNumber(value)))),
   today(offset: unknown = 0) {
     const date = new Date()
     date.setDate(date.getDate() + Math.trunc(toNumber(offset)))
@@ -697,9 +731,9 @@ function compileNode(node: ExpressionNode): Run {
             return truthy(value) ? value : right(scope)
           }
         case '==':
-          return (scope) => equalValues(left(scope), right(scope))
+          return (scope) => same(left(scope), right(scope))
         case '!=':
-          return (scope) => !equalValues(left(scope), right(scope))
+          return (scope) => !same(left(scope), right(scope))
         case '<':
           return (scope) => (compare(left(scope), right(scope)) ?? Number.NaN) < 0
         case '<=':
@@ -877,8 +911,12 @@ export function evaluateExpression(source: string, scope: ExpressionScope): unkn
 }
 
 export interface ExpressionProblem {
+  /** What is wrong; an editor shows its own words for each code. */
   code: ExpressionErrorCode | 'unknown-field' | 'unknown-function'
+  /** An English description, for logs. */
   message: string
+  /** The source text at fault, e.g. the field path or function name, for the editor's message. */
+  text: string
   start: number
   end: number
 }
@@ -898,7 +936,7 @@ export function checkExpression(
     ast = compileExpression(source).ast
   } catch (error) {
     const { code, message, start, end } = error as ExpressionError
-    return [{ code, message, start, end }]
+    return [{ code, message, text: source.slice(start, end), start, end }]
   }
   const problems: ExpressionProblem[] = []
   const known = options.fields
@@ -912,6 +950,7 @@ export function checkExpression(
           problems.push({
             code: 'unknown-field',
             message: `There is no field "${path}"`,
+            text: path,
             start: node.start,
             end: node.end,
           })
@@ -927,6 +966,7 @@ export function checkExpression(
         problems.push({
           code: 'unknown-function',
           message: `There is no function "${node.name}"`,
+          text: node.name,
           start: node.start,
           end: node.start + node.name.length,
         })

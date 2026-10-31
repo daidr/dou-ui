@@ -285,3 +285,38 @@ export function findPlace(
     }
   return { x: 0, y: bottom }
 }
+
+/**
+ * The layout worked out for a grid of another width: positions and widths
+ * scaled by the ratio of the columns, then settled. On a single column the
+ * items are stacked in reading order (top to bottom, then left to right),
+ * each keeping its height.
+ */
+export function deriveLayout(
+  items: readonly GridItem[],
+  from: number,
+  options: GridLayoutOptions,
+): readonly GridItem[] {
+  const to = options.columns
+  if (from === to) return normalizeLayout(items, options)
+  if (to === 1) {
+    const order = items.map((_, i) => i)
+    order.sort((a, b) => items[a]!.y - items[b]!.y || items[a]!.x - items[b]!.x || a - b)
+    const out = items.slice()
+    let y = 0
+    for (const i of order) {
+      const item = fitItem({ ...items[i]!, x: 0, w: 1 }, 1)
+      out[i] = { ...item, y }
+      y += item.h
+    }
+    return out
+  }
+  const scale = to / from
+  const scaled = items.map((item) =>
+    fitItem(
+      { ...item, x: Math.floor(item.x * scale), w: Math.max(1, Math.round(item.w * scale)) },
+      to,
+    ),
+  )
+  return normalizeLayout(scaled, options)
+}

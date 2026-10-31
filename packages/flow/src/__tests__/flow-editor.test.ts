@@ -78,7 +78,7 @@ describe('DouFlowEditor', () => {
     node.append(editable)
     expect(selectstart(editable.firstChild!)).toBe(false)
     const output = document.createElement('pre')
-    output.dataset.flowNodrag = ''
+    output.dataset.douNodrag = ''
     output.textContent = '运行结果'
     node.append(output)
     expect(selectstart(output.firstChild!)).toBe(false)

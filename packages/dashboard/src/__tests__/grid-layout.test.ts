@@ -1,8 +1,8 @@
 import { mount } from '@vue/test-utils'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { h, nextTick, ref } from 'vue'
-import { DouGridLayout } from '..'
-import type { GridItem } from '..'
+import { DouGridLayout, DouGridLayoutHandle } from '..'
+import type { GridItem, GridLayouts } from '..'
 
 const start = (): GridItem[] => [
   { id: 'a', x: 0, y: 0, w: 6, h: 2 },
@@ -121,6 +121,11 @@ describe('DouGridLayout', () => {
     expect(onChange.mock.calls[0]![0]).toMatchObject({ id: 'a', reason: 'move' })
     expect(wrapper.find('.dou-grid-layout__placeholder').exists()).toBe(false)
     expect((a as HTMLElement).style.getPropertyValue('--dou-grid-dx')).toBe('')
+    // the outcome is read out, as it is for the keyboard
+    await new Promise((resolve) => requestAnimationFrame(resolve))
+    expect(wrapper.get('.dou-grid-layout__live').text()).toBe(
+      '已放下 a，第 7 列第 1 行，宽 6 列，高 2 行',
+    )
   })
 
   it('cancels a drag with Escape', async () => {
@@ -149,12 +154,40 @@ describe('DouGridLayout', () => {
     expect(items.value[2]).toMatchObject({ id: 'c', y: 3 })
   })
 
-  it('only starts a move from the handle when one is set', async () => {
-    const { wrapper } = setup({ handle: '.title' })
+  it('only starts a move from a DouGridLayoutHandle when handle is on', async () => {
+    const items = ref(start())
     const onStart = vi.fn<(...args: any[]) => void>()
-    await wrapper.setProps({ 'onDrag-start': onStart })
-    pointer('pointerdown', itemEl(wrapper, 'a').get('.card').element, 10, 10)
+    const wrapper = mount(DouGridLayout, {
+      attachTo: document.body,
+      props: { modelValue: items.value, editable: true, handle: true, 'onDrag-start': onStart },
+      slots: {
+        item: ({ item }: { item: GridItem }) =>
+          h('div', { class: 'card' }, [h(DouGridLayoutHandle, { class: 'title' }, () => item.id)]),
+      },
+    })
+    wrapper.element.getBoundingClientRect = () =>
+      ({ left: 0, top: 0, right: 944, bottom: 400, width: 944, height: 400, x: 0, y: 0 }) as DOMRect
+    expect(wrapper.classes()).toContain('has-handle')
+    pointer('pointerdown', wrapper.get('[data-grid-id="a"] .card').element, 10, 10)
     pointer('pointermove', window, 400, 10)
+    pointer('pointerup', window, 400, 10)
+    expect(onStart).not.toHaveBeenCalled()
+    pointer('pointerdown', wrapper.get('[data-grid-id="a"] .title').element, 10, 10)
+    pointer('pointermove', window, 400, 10)
+    expect(onStart).toHaveBeenCalledTimes(1)
+    pointer('pointerup', window, 400, 10)
+  })
+
+  it('skips presses on data-dou-nodrag parts', async () => {
+    const onStart = vi.fn<(...args: any[]) => void>()
+    const wrapper = mount(DouGridLayout, {
+      attachTo: document.body,
+      props: { modelValue: start(), editable: true, 'onDrag-start': onStart },
+      slots: { item: () => h('div', [h('span', { class: 'out', 'data-dou-nodrag': '' }, 'x')]) },
+    })
+    pointer('pointerdown', wrapper.get('[data-grid-id="a"] .out').element, 10, 10)
+    pointer('pointermove', window, 400, 10)
+    pointer('pointerup', window, 400, 10)
     expect(onStart).not.toHaveBeenCalled()
   })
 
@@ -218,5 +251,131 @@ describe('DouGridLayout', () => {
     key(l.element, 'Enter')
     await new Promise((resolve) => requestAnimationFrame(resolve))
     expect(wrapper.get('.dou-grid-layout__live').text()).toContain('已锁定')
+  })
+
+  it('adds an item dragged in from outside', async () => {
+    const { wrapper, items } = setup()
+    const onDrop = vi.fn<(...args: any[]) => void>()
+    await wrapper.setProps({ onDrop })
+    const source = document.createElement('button')
+    document.body.append(source)
+    const down = new PointerEvent('pointerdown', {
+      clientX: 2000,
+      clientY: 2000,
+      pointerId: 1,
+      pointerType: 'mouse',
+      isPrimary: true,
+    })
+    ;(wrapper.vm as any).startDrop(down, { id: 'new', w: 4, h: 2 }, { kind: 'note' })
+    pointer('pointermove', window, 1990, 1990)
+    // outside the grid: nothing to show
+    await nextTick()
+    expect(wrapper.find('.dou-grid-layout__placeholder').exists()).toBe(false)
+    // the middle of a 4 × 2 item over column 8, row 0
+    pointer('pointermove', window, 8 * 80 + 152, 88)
+    await nextTick()
+    expect(wrapper.find('.dou-grid-layout__placeholder').exists()).toBe(true)
+    pointer('pointerup', window, 8 * 80 + 152, 88)
+    await nextTick()
+    expect(items.value.find((item) => item.id === 'new')).toMatchObject({ x: 8, y: 0, w: 4, h: 2 })
+    expect(onDrop.mock.calls[0]![0]).toMatchObject({
+      item: { id: 'new', x: 8, y: 0 },
+      data: { kind: 'note' },
+      breakpoint: 'lg',
+    })
+  })
+})
+
+function place(wrapper: ReturnType<typeof setup>['wrapper'], id: string) {
+  const style = (itemEl(wrapper, id).element as HTMLElement).style
+  return ['x', 'y', 'w', 'h'].map((k) => Number(style.getPropertyValue(`--dou-grid-${k}`)))
+}
+
+describe('DouGridLayout breakpoints', () => {
+  let width = 0
+  const original = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth')
+  beforeAll(() => {
+    Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
+      configurable: true,
+      get() {
+        return (this as HTMLElement).classList.contains('dou-grid-layout') ? width : 0
+      },
+    })
+  })
+  afterAll(() => {
+    if (original) Object.defineProperty(HTMLElement.prototype, 'clientWidth', original)
+  })
+
+  it('works out narrower layouts from the widest', async () => {
+    width = 700
+    const { wrapper } = setup()
+    await nextTick()
+    expect((wrapper.vm as any).breakpoint).toBe('md')
+    expect(place(wrapper, 'b')).toEqual([3, 0, 3, 2])
+    expect(place(wrapper, 'c')).toEqual([0, 2, 6, 2])
+  })
+
+  it('stacks on one column, and resizes only the height there', async () => {
+    width = 390
+    const { wrapper } = setup()
+    await nextTick()
+    expect(place(wrapper, 'a')).toEqual([0, 0, 1, 2])
+    expect(place(wrapper, 'b')).toEqual([0, 2, 1, 2])
+    expect(place(wrapper, 'c')).toEqual([0, 4, 1, 2])
+    const edges = itemEl(wrapper, 'a')
+      .findAll('[data-grid-resize]')
+      .map((el) => el.attributes('data-grid-resize'))
+    expect(edges).toEqual(['s', 'se'])
+  })
+
+  it('keeps changes on a narrower breakpoint in v-model:layouts', async () => {
+    width = 390
+    const { wrapper, items } = setup()
+    const layouts = ref<GridLayouts>({})
+    await wrapper.setProps({
+      'onUpdate:layouts': (next: GridLayouts) => {
+        layouts.value = next
+        wrapper.setProps({ layouts: next })
+      },
+    })
+    await nextTick()
+    const c = itemEl(wrapper, 'c').element as HTMLElement
+    c.focus()
+    key(c, 'Enter')
+    key(c, 'ArrowUp')
+    key(c, 'Enter')
+    await nextTick()
+    expect(items.value).toEqual(start())
+    expect(layouts.value.sm).toEqual([
+      { id: 'a', x: 0, y: 0, w: 1, h: 2 },
+      { id: 'b', x: 0, y: 4, w: 1, h: 2 },
+      { id: 'c', x: 0, y: 2, w: 1, h: 2 },
+    ])
+    expect(place(wrapper, 'c')).toEqual([0, 2, 1, 2])
+  })
+
+  it('reads out the place in the list on one column', async () => {
+    width = 390
+    const { wrapper } = setup()
+    await nextTick()
+    const c = itemEl(wrapper, 'c').element as HTMLElement
+    // c is 80px wide on 390px; a row is 80px, plus 16px gaps
+    pointer('pointerdown', c, 10, 2 * 96 + 10)
+    pointer('pointermove', window, 10, 96 + 10)
+    pointer('pointermove', window, 10, 10)
+    await nextTick()
+    pointer('pointerup', window, 10, 10)
+    await nextTick()
+    await new Promise((resolve) => requestAnimationFrame(resolve))
+    const n = 1 + ['a', 'b'].filter((id) => place(wrapper, id)[1]! < place(wrapper, 'c')[1]!).length
+    expect(n).toBeLessThan(3)
+    expect(wrapper.get('.dou-grid-layout__live').text()).toBe(`已放下 c，第 ${n} 个，共 3 个`)
+  })
+
+  it('uses one number of columns at every width', async () => {
+    width = 390
+    const { wrapper } = setup({ columns: 12 })
+    await nextTick()
+    expect(place(wrapper, 'b')).toEqual([6, 0, 6, 2])
   })
 })

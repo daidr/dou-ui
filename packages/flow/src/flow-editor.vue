@@ -1142,13 +1142,13 @@ let pinch: { distance: number; mid: Point; origin: FlowViewport } | null = null
 
 /** Where people type or read: presses there don't drag, and text can be selected. */
 const FIELDS =
-  'input, textarea, [contenteditable]:not([contenteditable="false"]), [data-flow-nodrag]'
+  'input, textarea, [contenteditable]:not([contenteditable="false"]), [data-dou-nodrag]'
 const isInteractive = (el: Element) => !!el.closest(`${FIELDS}, select, button, a[href]`)
 const inPanels = (el: Element) => !!el.closest('.dou-flow-editor__panels > *')
 
 /**
  * No text selection starts on the canvas, only in fields and in parts of
- * nodes marked `data-flow-nodrag`.
+ * nodes marked `data-dou-nodrag`.
  * `user-select: none` says the same, but a user style or a browser
  * extension can turn selecting back on, and then every drag paints its way
  * across the nodes and panels.

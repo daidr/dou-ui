@@ -28,13 +28,13 @@ app.use(DouGridLayout)
 
 ## 基础用法
 
-网格默认分成 12 列。每一项用 `x`、`y` 给出左上角所在的列和行（从 0 开始），用 `w`、`h` 给出占几列、几行；`id` 用来区分各项。格子的内容写在 `#item` 插槽里，插槽内容会填满整个格子。
+每一项用 `x`、`y` 给出左上角所在的列和行（从 0 开始），用 `w`、`h` 给出占几列、几行；`id` 用来区分各项。网格默认按自身宽度分成 12、6 或 1 列（见[断点](#断点)），`v-model` 里写的是最宽时（12 列）的位置。格子的内容写在 `#item` 插槽里，插槽内容会填满整个格子。
 
 打开 `editable` 后，可以拖动格子换位置，拖动右下角改大小。拖动时其他格子会让开，虚线框标出松手后的位置：
 
 <DocDemo src="dashboard/basic" />
 
-`v-model` 只在一次拖动或缩放结束时更新一次，拖动过程中的位置只用来显示。同时触发 `change` 事件，参数里有新的布局、被拖动的项和原因（`move`、`resize` 或 `keyboard`），可以用来记录撤销或保存布局。
+`v-model` 只在一次拖动或缩放结束时更新一次，拖动过程中的位置只用来显示。同时触发 `change` 事件，参数里有新的布局、被拖动的项和原因（`move`、`resize`、`keyboard` 或 `drop`），可以用来记录撤销或保存布局。
 
 传入的布局如果有重叠、超出列数或者上方有空隙，组件会先整理好再显示，但不会因此更新 `v-model`。
 
@@ -42,11 +42,11 @@ app.use(DouGridLayout)
 
 ## 拖动把手
 
-默认按住格子的任意位置都能拖动。格子里有按钮、图表等需要点击或拖动的内容时，用 `handle` 指定一个选择器，只有按在匹配的元素上才开始拖动，比如格子的标题栏：
+默认按住格子的任意位置都能拖动。格子里有按钮、图表等需要点击或拖动的内容时，打开 `handle`，再把格子里的某一部分（比如标题栏）放进 `DouGridLayoutHandle`，只有按在这一部分上才开始拖动：
 
 <DocDemo src="dashboard/handle" />
 
-不论是否设置 `handle`，按在输入框、下拉框、可编辑区域上都不会开始拖动；其他元素加上 `data-grid-no-drag` 属性也会被跳过。
+`DouGridLayoutHandle` 默认渲染成 `div`，用 `as` 换成其他元素，比如 `header`。不论是否打开 `handle`，按在输入框、下拉框、可编辑区域上都不会开始拖动；其他元素加上 `data-dou-nodrag` 属性也会被跳过（流程编辑器的节点里用的是同一个属性）。
 
 ## 摆放方式
 
@@ -59,6 +59,35 @@ app.use(DouGridLayout)
 
 两种方式下，把格子拖到相邻格子上都会和它交换位置：被压住的格子先尝试移到拖动的格子原来所在的列，放不下时才往下让。
 
+## 断点
+
+列数随网格**自身**的宽度变化（不是窗口宽度），所以放在侧栏、对话框里也能得到合适的列数。默认网格宽度不小于 1024px 时 12 列，不小于 640px 时 6 列，更窄时 1 列：
+
+<DocDemo src="dashboard/responsive" />
+
+- `v-model` 保存最宽时的布局。较窄的断点默认由它推算：按列数比例缩放位置和宽度，再往上靠；只有 1 列时按从上到下、从左到右的顺序竖排，各项保持原来的高度。
+- 在较窄的断点上拖动或缩放后，这个断点的位置单独保存在 `v-model:layouts` 里（`{ md: [{ id, x, y, w, h }, …] }`），不影响最宽时的布局。清空某个断点就回到推算的布局；后来新加的格子在已保存的断点里按推算的位置出现。
+- 只有 1 列时只能上下换位置和改高度，右边的缩放把手会隐藏。
+- `columns` 和 `breakpoints` 可以换成自己的断点，名字随意，`breakpoints` 写每个断点生效的最小宽度。`columns` 写成一个数字时不分断点。
+- 当前断点可以从组件实例的 `breakpoint` 读到，变化时触发 `breakpoint-change`。服务端渲染和首次测量之前按最宽的断点显示。
+
+## 从外部拖入
+
+把列表、面板里的一项拖到网格上，就能新加一个格子。在这一项的 `pointerdown` 里调用组件实例的 `startDrop(event, item, data)`：`item` 给出新格子的 `id` 和大小，`data` 原样带到 `drop` 事件里。拖到网格上时显示落点，其他格子让开；松手后新格子加进 `v-model`，并触发 `drop`；在网格外松手或按 Esc 取消：
+
+<DocDemo src="dashboard/drop" />
+
+和拖动格子一样，鼠标移动几像素后开始，手指按住片刻后开始。在较窄的断点上拖入时，新格子在这个断点上放在松手的位置，在最宽的布局里放在第一个放得下的位置。
+
+拖动只能用指针完成，所以来源最好是按钮，同时支持点击添加，让键盘和读屏用户也能用：点击时用 `findPlace` 算出第一个放得下的位置，加进 `v-model` 后用 `focusItem` 把焦点移到新格子上。上面示例里的按钮就是这样做的：
+
+```ts
+const size = { w: 3, h: 2 }
+items.value = [...items.value, { id, ...size, ...findPlace(items.value, size, { columns: 12 }) }]
+await nextTick()
+grid.value.focusItem(id)
+```
+
 ## 尺寸限制与锁定
 
 每一项可以用 `minW`、`maxW`、`minH`、`maxH` 限制大小，拖动边角时不会超出。`locked: true` 的项不能移动和缩放，也不会被挤开，其他格子会绕过它：
@@ -69,7 +98,7 @@ app.use(DouGridLayout)
 
 ## 触屏
 
-在手机和平板上，手指按住格子片刻（约 0.4 秒）后才开始拖动，直接滑动仍然是滚动页面。右下角的缩放把手在触屏上始终显示，并且比鼠标下更大，按住就能拖动。
+在手机和平板上，手指按住格子片刻（约 0.4 秒）后才开始拖动，直接滑动仍然是滚动页面。右下角的缩放把手在触屏上始终显示，并且比鼠标下更大，按住就能拖动。手机上网格通常只有 1 列，格子从上到下排开，拖动只改变先后顺序。用指针拖动或缩放松手后，结果和键盘操作一样由读屏播报；只有 1 列时播报的是第几个，例如“已放下 新用户，第 1 个，共 5 个”。
 
 拖到可滚动区域的上下边缘时，区域会自动滚动，越靠近边缘滚得越快。
 
@@ -94,7 +123,7 @@ app.use(DouGridLayout)
 布局的计算是一组纯函数，从 `@dou-ui/dashboard/layout` 引入，可以在服务端、测试或自己的拖动交互里使用。它们不修改传入的数组，返回新的数组，顺序不变，没有移动的项保持原来的对象：
 
 ```ts
-import { findPlace, moveItem, normalizeLayout } from '@dou-ui/dashboard/layout'
+import { deriveLayout, findPlace, moveItem, normalizeLayout } from '@dou-ui/dashboard/layout'
 
 const options = { columns: 12, compact: 'vertical' } as const
 
@@ -106,6 +135,9 @@ const next = moveItem(items, 'a', { x: 6, y: 0 }, options)
 
 // 新加一个 4 × 2 的格子：找到第一个放得下的位置
 const place = findPlace(next, { w: 4, h: 2 }, options)
+
+// 推算 6 列时的布局
+const narrow = deriveLayout(next, 12, { columns: 6 })
 ```
 
 同样的输入总是得到同样的结果，多人同时编辑同一份布局时，各自算出的布局也一致。
@@ -114,19 +146,21 @@ const place = findPlace(next, { w: 4, h: 2 }, options)
 
 ### GridLayout Props
 
-| 名称          | 说明                                   | 类型                            | 默认值                |
-| ------------- | -------------------------------------- | ------------------------------- | --------------------- |
-| `model-value` | 各项的位置和大小，支持 `v-model`       | `GridItem[]`                    | `[]`                  |
-| `columns`     | 列数                                   | `number`                        | `12`                  |
-| `row-height`  | 行高（px）                             | `number`                        | `80`                  |
-| `gap`         | 间距（px）                             | `number \| [number, number]`    | `16`                  |
-| `compact`     | 自动往上靠，或者自由摆放               | `'vertical' \| false`           | `'vertical'`          |
-| `editable`    | 能否拖动和缩放                         | `boolean`                       | `false`               |
-| `handle`      | 开始拖动的部分的选择器，默认整个格子   | `string`                        | —                     |
-| `resize`      | 哪些边可以拖动改大小，`false` 时不能改 | `boolean \| GridResizeHandle[]` | `['e', 's', 'se']`    |
-| `item-label`  | 格子的读屏名称                         | `(item: GridItem) => string`    | 格子的 `id`           |
-| `label`       | 网格的读屏名称                         | `string`                        | 编辑时为 `'网格布局'` |
-| `messages`    | 替换语言包里的文字                     | `DashboardMessagesOverride`     | —                     |
+| 名称          | 说明                                             | 类型                               | 默认值                         |
+| ------------- | ------------------------------------------------ | ---------------------------------- | ------------------------------ |
+| `model-value` | 最宽时各项的位置和大小，支持 `v-model`           | `GridItem[]`                       | `[]`                           |
+| `layouts`     | 较窄断点上单独保存的位置，支持 `v-model:layouts` | `GridLayouts`                      | `{}`                           |
+| `columns`     | 列数，一个数字或每个断点一个                     | `number \| Record<string, number>` | `{ lg: 12, md: 6, sm: 1 }`     |
+| `breakpoints` | 每个断点生效的最小宽度（网格自身的宽度，px）     | `Record<string, number>`           | `{ lg: 1024, md: 640, sm: 0 }` |
+| `row-height`  | 行高（px）                                       | `number`                           | `80`                           |
+| `gap`         | 间距（px）                                       | `number \| [number, number]`       | `16`                           |
+| `compact`     | 自动往上靠，或者自由摆放                         | `'vertical' \| false`              | `'vertical'`                   |
+| `editable`    | 能否拖动和缩放                                   | `boolean`                          | `false`                        |
+| `handle`      | 只从 `DouGridLayoutHandle` 开始拖动              | `boolean`                          | `false`                        |
+| `resize`      | 哪些边可以拖动改大小，`false` 时不能改           | `boolean \| GridResizeHandle[]`    | `['e', 's', 'se']`             |
+| `item-label`  | 格子的读屏名称                                   | `(item: GridItem) => string`       | 格子的 `id`                    |
+| `label`       | 网格的读屏名称                                   | `string`                           | 编辑时为 `'网格布局'`          |
+| `messages`    | 替换语言包里的文字                               | `DashboardMessagesOverride`        | —                              |
 
 ### GridItem
 
@@ -141,12 +175,15 @@ const place = findPlace(next, { w: 4, h: 2 }, options)
 
 ### GridLayout Events
 
-| 名称                | 说明                             | 参数                               |
-| ------------------- | -------------------------------- | ---------------------------------- |
-| `update:modelValue` | 一次拖动、缩放或键盘移动结束时   | `GridItem[]`                       |
-| `change`            | 同上，带上原因                   | `{ items, id, reason }`            |
-| `drag-start`        | 开始拖动或缩放（包括用键盘拿起） | `{ id, kind: 'move' \| 'resize' }` |
-| `drag-end`          | 结束拖动或缩放                   | `{ id, kind, cancelled }`          |
+| 名称                | 说明                                   | 参数                                         |
+| ------------------- | -------------------------------------- | -------------------------------------------- |
+| `update:modelValue` | 一次拖动、缩放或键盘移动结束时         | `GridItem[]`                                 |
+| `update:layouts`    | 在较窄的断点上改动时                   | `GridLayouts`                                |
+| `change`            | 同上，带上原因和断点                   | `{ items, id, reason, breakpoint }`          |
+| `drop`              | 从外部拖入的格子放下后                 | `{ item, data, breakpoint }`                 |
+| `breakpoint-change` | 断点变化时                             | `string`                                     |
+| `drag-start`        | 开始拖动、缩放或拖入（包括用键盘拿起） | `{ id, kind: 'move' \| 'resize' \| 'drop' }` |
+| `drag-end`          | 结束拖动或缩放                         | `{ id, kind, cancelled }`                    |
 
 ### GridLayout Slots
 
@@ -157,10 +194,18 @@ const place = findPlace(next, { w: 4, h: 2 }, options)
 
 ### GridLayout Methods
 
-| 名称           | 说明                                             | 类型                                                    |
-| -------------- | ------------------------------------------------ | ------------------------------------------------------- |
-| `focusItem`    | 聚焦格子；不可编辑时聚焦格子里第一个可聚焦的元素 | `(id: string) => void`                                  |
-| `scrollToItem` | 把格子滚动到可见区域                             | `(id: string, options?: ScrollIntoViewOptions) => void` |
+| 名称           | 说明                                             | 类型                                                                |
+| -------------- | ------------------------------------------------ | ------------------------------------------------------------------- |
+| `focusItem`    | 聚焦格子；不可编辑时聚焦格子里第一个可聚焦的元素 | `(id: string) => void`                                              |
+| `scrollToItem` | 把格子滚动到可见区域                             | `(id: string, options?: ScrollIntoViewOptions) => void`             |
+| `startDrop`    | 从外部拖入一个新格子，在 `pointerdown` 里调用    | `(event: PointerEvent, item: GridDropItem, data?: unknown) => void` |
+| `breakpoint`   | 当前断点（只读）                                 | `string`                                                            |
+
+### GridLayoutHandle Props
+
+| 名称 | 说明       | 类型     | 默认值  |
+| ---- | ---------- | -------- | ------- |
+| `as` | 渲染的元素 | `string` | `'div'` |
 
 ### 布局函数
 
@@ -173,6 +218,7 @@ const place = findPlace(next, { w: 4, h: 2 }, options)
 | `moveItemBy`      | 按格移动，和方向键的效果相同             |
 | `resizeItemBy`    | 按格改变大小                             |
 | `findPlace`       | 找出能放下某个大小的第一个位置           |
+| `deriveLayout`    | 推算另一种列数下的布局                   |
 | `fitItem`         | 把一项的大小和位置限制在网格内           |
 | `layoutHeight`    | 布局占用的行数                           |
 | `overlaps`        | 两项是否重叠                             |

@@ -1,7 +1,10 @@
 <script setup lang="ts">
-import { holdPointer, type PointerHold } from 'dou-ui'
+import { holdPointer, useElementSize, type PointerHold } from 'dou-ui'
 import { computed, onBeforeUnmount, provide, ref, shallowRef, useId, useSlots, watch } from 'vue'
 import {
+  deriveLayout,
+  findPlace,
+  fitItem,
   layoutHeight,
   moveItem,
   moveItemBy,
@@ -14,7 +17,9 @@ import { format, useDashboardMessages } from '../locale'
 import GridItemView, { gridItemKey } from './grid-item'
 import type {
   GridChangeReason,
+  GridDropItem,
   GridItemSlotProps,
+  GridLayouts,
   GridLayoutEmits,
   GridLayoutExpose,
   GridLayoutProps,
@@ -23,20 +28,22 @@ import type {
 
 defineOptions({ name: 'DouGridLayout' })
 
-const props = withDefaults(defineProps<Omit<GridLayoutProps, 'modelValue'>>(), {
-  columns: 12,
+const props = withDefaults(defineProps<Omit<GridLayoutProps, 'modelValue' | 'layouts'>>(), {
+  columns: () => ({ lg: 12, md: 6, sm: 1 }),
+  breakpoints: () => ({ lg: 1024, md: 640, sm: 0 }),
   rowHeight: 80,
   gap: 16,
   compact: 'vertical',
   resize: true,
 })
-const emit = defineEmits<Omit<GridLayoutEmits, 'update:modelValue'>>()
+const emit = defineEmits<Omit<GridLayoutEmits, 'update:modelValue' | 'update:layouts'>>()
 defineSlots<{
   item?: (props: GridItemSlotProps) => unknown
   placeholder?: (props: { item: GridItem }) => unknown
 }>()
 
 const model = defineModel<GridItem[]>({ default: () => [] })
+const layouts = defineModel<GridLayouts>('layouts', { default: () => ({}) })
 const messages = useDashboardMessages(() => props.messages)
 const slots = useSlots()
 const hintId = `${useId()}-hint`
@@ -56,24 +63,77 @@ const EDGE_SPEED = 20
 const SETTLE = 320
 
 const root = ref<HTMLElement>()
-const options = computed<GridLayoutOptions>(() => ({
-  columns: Math.max(1, Math.round(props.columns)),
+
+// ---------------------------------------------------------------------------
+// Breakpoints: the grid's own width picks how many columns it has
+
+interface Tier {
+  name: string
+  min: number
+  columns: number
+}
+
+const tiers = computed<Tier[]>(() => {
+  const { columns, breakpoints } = props
+  if (typeof columns === 'number') return [{ name: 'default', min: 0, columns }]
+  const list = Object.entries(columns).map(([name, count]) => ({
+    name,
+    min: breakpoints[name] ?? 0,
+    columns: count,
+  }))
+  list.sort((a, b) => b.min - a.min)
+  return list
+})
+const { width: gridWidth } = useElementSize(root)
+const tier = computed(() => {
+  const list = tiers.value
+  // not measured yet (or on the server): the widest
+  if (!gridWidth.value) return list[0]!
+  return list.find((t) => gridWidth.value >= t.min) ?? list.at(-1)!
+})
+/** The widest breakpoint: the one `v-model` holds. */
+const isMain = computed(() => tier.value === tiers.value[0])
+const optionsOf = (t: Tier): GridLayoutOptions => ({
+  columns: Math.max(1, Math.round(t.columns)),
   compact: props.compact,
-}))
-const settled = computed(() => normalizeLayout(model.value, options.value))
+})
+const options = computed(() => optionsOf(tier.value))
+const mainLayout = computed(() => normalizeLayout(model.value, optionsOf(tiers.value[0]!)))
+const settled = computed<readonly GridItem[]>(() => {
+  if (isMain.value) return mainLayout.value
+  const main = mainLayout.value
+  const derived = deriveLayout(main, optionsOf(tiers.value[0]!).columns, options.value)
+  const saved = layouts.value[tier.value.name]
+  if (!saved?.length) return derived
+  const places = new Map(saved.map((place) => [place.id, place]))
+  return normalizeLayout(
+    main.map((item, i) => {
+      const place = places.get(item.id)
+      return place ? { ...item, x: place.x, y: place.y, w: place.w, h: place.h } : derived[i]!
+    }),
+    options.value,
+  )
+})
+watch(
+  () => tier.value.name,
+  (name, old) => old !== undefined && emit('breakpoint-change', name),
+)
 /** The layout while a move or resize is under way; shown instead of `settled`. */
 const preview = shallowRef<readonly GridItem[] | null>(null)
 const layout = computed(() => preview.value ?? settled.value)
 const gaps = computed<[number, number]>(() =>
   Array.isArray(props.gap) ? props.gap : [props.gap, props.gap],
 )
-const handles = computed<GridResizeHandle[]>(() =>
-  props.resize === false ? [] : props.resize === true ? ['e', 's', 'se'] : props.resize,
-)
+const handles = computed<GridResizeHandle[]>(() => {
+  const list: GridResizeHandle[] =
+    props.resize === false ? [] : props.resize === true ? ['e', 's', 'se'] : props.resize
+  // one column: only the height can change
+  return options.value.columns === 1 ? list.filter((edge) => edge !== 'e') : list
+})
 
 interface Session {
   id: string
-  kind: 'move' | 'resize'
+  kind: 'move' | 'resize' | 'drop'
   source: 'pointer' | 'keyboard'
   /** The layout when it started; pointer moves are always worked out from it. */
   base: readonly GridItem[]
@@ -102,6 +162,8 @@ interface PointerSession extends Session {
   height: number
   /** The cell or size last worked out, so pointer moves within one cell do nothing. */
   cell: string
+  /** For a drop: what `startDrop` was given. */
+  drop?: { item: GridDropItem; data: unknown }
 }
 
 const session = shallowRef<Session | PointerSession | null>(null)
@@ -110,10 +172,15 @@ let settleTimer: ReturnType<typeof setTimeout> | undefined
 
 const isPointer = (s: Session | null): s is PointerSession => s?.source === 'pointer'
 
-/** Items as drawn: the one under the pointer keeps its old place, and follows the pointer from there. */
+/**
+ * Items as drawn: the one under the pointer keeps its old place, and
+ * follows the pointer from there; one being dropped in shows only as the
+ * place it would take.
+ */
 const drawn = computed(() => {
   const s = session.value
   if (!isPointer(s)) return layout.value
+  if (s.kind === 'drop') return layout.value.filter((item) => item.id !== s.id)
   return layout.value.map((item) => (item.id === s.id ? s.item : item))
 })
 /** Where the item under the pointer would land. */
@@ -144,8 +211,14 @@ const cellStyle = (item: GridItem) => ({
 })
 
 const labelOf = (item: GridItem) => props.itemLabel?.(item) ?? item.id
-const positionText = (item: GridItem) =>
-  format(messages.value.position, { x: item.x + 1, y: item.y + 1, w: item.w, h: item.h })
+/** Where an item is, read out: its cell and size, or with one column its place in the list. */
+function positionText(item: GridItem, items: readonly GridItem[]) {
+  if (options.value.columns > 1)
+    return format(messages.value.position, { x: item.x + 1, y: item.y + 1, w: item.w, h: item.h })
+  let n = 1
+  for (const other of items) if (other.y < item.y) n++
+  return format(messages.value.order, { n, count: items.length })
+}
 
 // ---------------------------------------------------------------------------
 // Announcements
@@ -215,10 +288,33 @@ function neighbour(from: GridItem, dx: number, dy: number) {
 // Ending a move or resize
 
 function commit(next: readonly GridItem[] | null, s: Session, reason: GridChangeReason) {
-  if (!next || next.every((item, i) => item === s.base[i])) return false
-  const items = next.slice()
-  model.value = items
-  emit('change', { items, id: s.id, reason })
+  if (!next || (next.length === s.base.length && next.every((item, i) => item === s.base[i])))
+    return false
+  const breakpoint = tier.value.name
+  const drop = (s as PointerSession).drop
+  let added: GridItem | undefined
+  if (isMain.value) {
+    const items = next.slice()
+    added = drop && items.find((other) => other.id === s.id)
+    model.value = items
+    emit('change', { items, id: s.id, reason, breakpoint })
+  } else {
+    // a narrower breakpoint keeps its own places; a new item also joins the
+    // widest layout, in the first spot there that fits its own size
+    if (drop) {
+      const main = mainLayout.value
+      const wide = optionsOf(tiers.value[0]!)
+      const fitted = fitItem({ ...drop.item, x: 0, y: 0 }, wide.columns)
+      added = { ...fitted, ...findPlace(main, fitted, wide) }
+      model.value = [...main, added]
+    }
+    layouts.value = {
+      ...layouts.value,
+      [breakpoint]: next.map(({ id, x, y, w, h }) => ({ id, x, y, w, h })),
+    }
+    emit('change', { items: next.slice(), id: s.id, reason, breakpoint })
+  }
+  if (drop && added) emit('drop', { item: added, data: drop.data, breakpoint })
   return true
 }
 
@@ -236,17 +332,20 @@ function finish(keep: boolean) {
   session.value = null
   preview.value = null
   settle()
-  const changed = keep && commit(next, s, s.source === 'keyboard' ? 'keyboard' : s.kind)
-  emit('drag-end', { id: s.id, kind: s.kind, cancelled: !keep })
-  if (s.source === 'keyboard') {
-    const item = (changed ? next : s.base)?.find((other) => other.id === s.id) ?? s.item
-    const label = labelOf(item)
-    say(
-      keep
-        ? format(messages.value.dropped, { item: label, position: positionText(item) })
-        : format(messages.value.cancelled, { item: label }),
-    )
-  }
+  const reason = s.source === 'keyboard' ? 'keyboard' : s.kind
+  const changed = keep && commit(next, s, reason)
+  emit('drag-end', { id: s.id, kind: s.kind, cancelled: !keep || (s.kind === 'drop' && !changed) })
+  // the keyboard hears every outcome; the pointer only a change, or a drag
+  // undone (a new item that wasn't dropped has nowhere to go back to)
+  if (s.source !== 'keyboard' && (keep || s.kind === 'drop') && !changed) return
+  const items = (changed ? next : s.base) ?? s.base
+  const item = items.find((other) => other.id === s.id) ?? s.item
+  const label = labelOf(item)
+  say(
+    changed || (keep && s.source === 'keyboard')
+      ? format(messages.value.dropped, { item: label, position: positionText(item, items) })
+      : format(messages.value.cancelled, { item: label }),
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -256,10 +355,12 @@ interface Press {
   event: PointerEvent
   el: HTMLElement
   id: string
-  kind: 'move' | 'resize'
+  kind: 'move' | 'resize' | 'drop'
   edge: GridResizeHandle | null
   hold: PointerHold
   timer?: ReturnType<typeof setTimeout>
+  /** For a drop: the new item and its data. */
+  drop?: { item: GridDropItem; data: unknown }
 }
 
 let press: Press | null = null
@@ -267,7 +368,7 @@ let pointer = { x: 0, y: 0 }
 let frame = 0
 
 const NO_DRAG =
-  'input, textarea, select, [contenteditable=""], [contenteditable="true"], [data-grid-no-drag]'
+  'input, textarea, select, [contenteditable=""], [contenteditable="true"], [data-dou-nodrag]'
 
 function onPointerDown(event: PointerEvent) {
   if (!props.editable || session.value || press || !event.isPrimary) return
@@ -285,23 +386,45 @@ function onPointerDown(event: PointerEvent) {
     edge = handle.dataset.gridResize as GridResizeHandle
   } else {
     if (props.handle) {
-      const part = target.closest(props.handle)
-      if (!part || !el.contains(part)) return
+      const part = target.closest('[data-dou-grid-handle]')
+      if (!part || part.closest('[data-grid-id]') !== el) return
     }
     if (target.closest(NO_DRAG)) return
   }
-  press = { event, el, id, kind, edge, hold: holdPointer(event, root.value) }
+  listen({ event, el, id, kind, edge, hold: holdPointer(event, root.value) })
+}
+
+/** Follows a press until it becomes a drag (or a scroll, or nothing). */
+function listen(next: Press) {
+  const { event } = next
+  press = next
   pointer = { x: event.clientX, y: event.clientY }
   window.addEventListener('pointermove', onPointerMove)
   window.addEventListener('pointerup', onPointerUp)
   window.addEventListener('pointercancel', onPointerCancel)
-  if (kind === 'resize') {
+  if (next.kind === 'resize') {
     // a handle does nothing else, so there is nothing to wait for
     event.preventDefault()
     begin()
   } else if (event.pointerType !== 'mouse') {
-    press.timer = setTimeout(begin, HOLD_DELAY)
+    next.timer = setTimeout(begin, HOLD_DELAY)
   }
+}
+
+function startDrop(event: PointerEvent, item: GridDropItem, data?: unknown) {
+  if (!props.editable || session.value || press || !event.isPrimary || !root.value) return
+  if (event.pointerType === 'mouse' && event.button !== 0) return
+  // an id already on the grid would replace that item
+  if (settled.value.some((other) => other.id === item.id)) return
+  listen({
+    event,
+    el: root.value,
+    id: item.id,
+    kind: 'drop',
+    edge: null,
+    hold: holdPointer(event, root.value),
+    drop: { item, data },
+  })
 }
 
 function onPointerMove(event: PointerEvent) {
@@ -372,7 +495,9 @@ function begin() {
   const el = root.value
   if (!p || !el || session.value) return
   clearTimeout(p.timer)
-  const item = settled.value.find((other) => other.id === p.id)
+  const item = p.drop
+    ? fitItem({ ...p.drop.item, x: 0, y: 0 }, options.value.columns)
+    : settled.value.find((other) => other.id === p.id)
   if (!item) return dropPress()
   const rect = el.getBoundingClientRect()
   const [gx, gy] = gaps.value
@@ -389,8 +514,9 @@ function begin() {
     base: settled.value,
     item,
     el: p.el,
-    startX: p.event.clientX,
-    startY: p.event.clientY,
+    // a drop measures from the grid's corner, a move from where the press was
+    startX: p.drop ? rect.left : p.event.clientX,
+    startY: p.drop ? rect.top : p.event.clientY,
     scroller,
     scrollLeft: scroll.left,
     scrollTop: scroll.top,
@@ -403,6 +529,7 @@ function begin() {
     width: item.w * col + (item.w - 1) * gx,
     height: item.h * props.rowHeight + (item.h - 1) * gy,
     cell: '',
+    drop: p.drop,
   }
   preview.value = settled.value
   p.hold.grab()
@@ -451,6 +578,24 @@ function track() {
   const { columns } = options.value
   const [gx, gy] = gaps.value
   const item = s.item
+  if (s.kind === 'drop') {
+    // dx, dy: the pointer from the grid's corner; the item is held by its middle
+    const height = layoutHeight(s.base) * s.rowStep
+    const over =
+      dx > -s.colStep / 2 &&
+      dx < s.colStep * columns &&
+      dy > -s.rowStep / 2 &&
+      dy < height + s.rowStep * (item.h + 1)
+    const x = clamp(Math.round((dx - s.width / 2) / s.colStep), 0, columns - item.w)
+    const y = Math.max(0, Math.round((dy - s.height / 2) / s.rowStep))
+    const cell = over ? `${x},${y}` : 'out'
+    if (cell === s.cell) return
+    s.cell = cell
+    preview.value = over
+      ? moveItem([...s.base, { ...item, x, y }], s.id, { x, y }, options.value)
+      : s.base
+    return
+  }
   if (s.kind === 'move') {
     s.el.style.setProperty('--dou-grid-dx', `${dx}px`)
     s.el.style.setProperty('--dou-grid-dy', `${dy}px`)
@@ -520,7 +665,7 @@ function onKeyDown(event: KeyboardEvent) {
         : moveItemBy(current, id, arrow[0], arrow[1], options.value)
       preview.value = next
       const item = next.find((other) => other.id === id)
-      if (item) say(positionText(item))
+      if (item) say(positionText(item, next))
     } else if (event.key === 'Enter' || event.key === ' ') {
       finish(true)
     } else if (event.key === 'Escape') {
@@ -543,7 +688,12 @@ function onKeyDown(event: KeyboardEvent) {
     session.value = { id, kind: 'move', source: 'keyboard', base: settled.value, item }
     preview.value = settled.value
     emit('drag-start', { id, kind: 'move' })
-    say(format(messages.value.grabbed, { item: labelOf(item), position: positionText(item) }))
+    say(
+      format(messages.value.grabbed, {
+        item: labelOf(item),
+        position: positionText(item, settled.value),
+      }),
+    )
   } else if (arrow && !event.shiftKey && !event.altKey && !event.metaKey && !event.ctrlKey) {
     const next = neighbour(item, arrow[0], arrow[1])
     if (!next) return
@@ -579,6 +729,10 @@ onBeforeUnmount(() => {
 })
 
 defineExpose<GridLayoutExpose>({
+  startDrop,
+  get breakpoint() {
+    return tier.value.name
+  },
   focusItem(id) {
     const el = itemElement(id)
     if (!el) return
@@ -600,6 +754,7 @@ defineExpose<GridLayoutExpose>({
     class="dou-grid-layout"
     :class="{
       'is-editable': editable,
+      'has-handle': handle,
       'is-arranging': !!session || settling,
       'is-pointer-dragging': session?.source === 'pointer',
       'is-resizing': session?.kind === 'resize' && session.source === 'pointer',

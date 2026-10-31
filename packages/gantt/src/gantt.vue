@@ -9,7 +9,14 @@ import {
   PlusIcon,
   TrashIcon,
 } from '@dou-ui/icons'
-import { matchesHotkey, useElementSize, useLocale, useNow } from 'dou-ui'
+import {
+  holdPointer,
+  matchesHotkey,
+  useElementSize,
+  useLocale,
+  useNow,
+  type PointerHold,
+} from 'dou-ui'
 import {
   computed,
   nextTick,
@@ -1202,7 +1209,8 @@ function onRowDown(event: PointerEvent, row: GanttRow) {
     started: false,
   }
   rowDrag.value = d
-  if (d.touch) touchTarget = event.target
+  hold?.release()
+  hold = holdPointer(event, root.value)
   window.addEventListener('pointermove', onRowMove)
   window.addEventListener('pointerup', onRowUp)
   window.addEventListener('pointercancel', stopRowDrag)
@@ -1218,7 +1226,7 @@ function onRowDown(event: PointerEvent, row: GanttRow) {
 
 function beginRowDrag(d: RowDrag) {
   d.started = true
-  if (d.touch) holdTouch(d.pointerId)
+  hold?.grab()
   window.getSelection()?.removeAllRanges()
   rowFrame = requestAnimationFrame(rowAutoScroll)
   rowDrag.value = { ...d }
@@ -1299,7 +1307,8 @@ function stopRowDrag() {
   clearTimeout(rowTimer)
   rowTimer = undefined
   cancelAnimationFrame(rowFrame)
-  releaseTouch()
+  hold?.release()
+  hold = null
   window.removeEventListener('pointermove', onRowMove)
   window.removeEventListener('pointerup', onRowUp)
   window.removeEventListener('pointercancel', stopRowDrag)
@@ -1465,7 +1474,8 @@ function movers(row: GanttRow) {
 function startDrag(event: PointerEvent, row: GanttRow, mode: DragMode, from?: End) {
   if (event.button !== 0 || !editable.value) return
   const touch = event.pointerType === 'touch'
-  if (touch) touchTarget = event.target
+  hold?.release()
+  hold = holdPointer(event, root.value)
   const x = contentX(event.clientX)
   const d: Drag = {
     mode,
@@ -1510,26 +1520,26 @@ function startDrag(event: PointerEvent, row: GanttRow, mode: DragMode, from?: En
 
 function begin(d: Drag) {
   d.started = true
-  if (d.touch) holdTouch(d.pointerId)
+  hold?.grab()
   frame = requestAnimationFrame(autoScroll)
   drag.value = { ...d }
 }
 
 /*
- * Once a finger has picked up a bar or a row, it no longer scrolls. The
- * listener is on the chart from the start: one added during the touch
- * comes too late, as the browser has already decided the touch may scroll.
+ * A press on a bar or a row: once it turns into a drag, the touch stops
+ * scrolling and stays with the chart, also when the element under the
+ * finger is drawn anew (a bar's title steps outside a shrinking bar, a row
+ * scrolls out of the rendered window).
  */
+let hold: PointerHold | null = null
+
 function onTouchMove(event: TouchEvent) {
-  if (pinch && event.touches.length === 2) {
-    event.preventDefault()
-    const [a, b] = [event.touches[0]!, event.touches[1]!]
-    const rect = chart.value!.getBoundingClientRect()
-    const distance = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY)
-    zoomTo(pinch.dayWidth * (distance / pinch.distance), (a.clientX + b.clientX) / 2 - rect.left)
-    return
-  }
-  if (drag.value?.started || rowDrag.value?.started) event.preventDefault()
+  if (!pinch || event.touches.length !== 2) return
+  event.preventDefault()
+  const [a, b] = [event.touches[0]!, event.touches[1]!]
+  const rect = chart.value!.getBoundingClientRect()
+  const distance = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY)
+  zoomTo(pinch.dayWidth * (distance / pinch.distance), (a.clientX + b.clientX) / 2 - rect.left)
 }
 
 /** Two fingers on the timeline zoom it, as a held Ctrl and the wheel do. */
@@ -1566,32 +1576,6 @@ onBeforeUnmount(() => {
   el?.removeEventListener('touchend', onTouchEnd)
   el?.removeEventListener('touchcancel', onTouchEnd)
 })
-
-/** What the finger went down on: touch events keep going there for the rest of the touch. */
-let touchTarget: EventTarget | null = null
-let releaseTouch = () => {}
-
-/*
- * Keeps a finger with the chart once it has picked something up. The
- * element it went down on may be drawn anew while it moves (a bar's title
- * steps outside a shrinking bar), and a removed element no longer passes
- * events up: so the chart captures the pointer, and the element gets its
- * own listener that keeps the touch from scrolling.
- */
-function holdTouch(pointerId: number) {
-  releaseTouch()
-  const target = touchTarget
-  try {
-    root.value?.setPointerCapture(pointerId)
-  } catch {
-    // the pointer is already gone
-  }
-  target?.addEventListener('touchmove', onTouchMove as EventListener, { passive: false })
-  releaseTouch = () => {
-    target?.removeEventListener('touchmove', onTouchMove as EventListener)
-    releaseTouch = () => {}
-  }
-}
 
 function onDragMove(event: PointerEvent) {
   const d = drag.value
@@ -1770,7 +1754,8 @@ function onDragKey(event: KeyboardEvent) {
 function stopDrag() {
   clearTimeout(pressTimer)
   cancelAnimationFrame(frame)
-  releaseTouch()
+  hold?.release()
+  hold = null
   window.removeEventListener('pointermove', onDragMove)
   window.removeEventListener('pointerup', onDragEnd)
   window.removeEventListener('pointercancel', onDragCancel)

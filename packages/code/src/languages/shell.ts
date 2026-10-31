@@ -47,7 +47,7 @@ function readDouble(stream: CodeStream) {
 /** Shell scripts: Bash, sh and Zsh. */
 export const shell: CodeLanguage<ShellState> = defineCodeLanguage<ShellState>({
   name: 'shell',
-  aliases: ['sh', 'bash', 'zsh', 'shellscript', 'console'],
+  aliases: ['sh', 'bash', 'zsh', 'shellscript'],
   startState: () => ({ quote: null, command: true, heredoc: null }),
   copyState: (state) => ({ ...state }),
   sameState: (a, b) => a.quote === b.quote && a.command === b.command && a.heredoc === b.heredoc,

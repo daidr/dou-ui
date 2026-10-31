@@ -28,8 +28,11 @@ export interface ShikiLanguageOptions {
   brackets?: string
   autoClose?: string
   indentAfter?: RegExp
-  /** Changes how scopes map to token kinds; return `undefined` to use the built-in mapping. */
-  scope?: (scopes: readonly string[]) => CodeTokenType | null | undefined
+  /**
+   * The token kind (syntax color) for a token's scopes, outermost first;
+   * return `undefined` to use the built-in mapping (`tokenTypeOfScopes`).
+   */
+  tokenType?: (scopes: readonly string[]) => CodeTokenType | null | undefined
 }
 
 export interface ShikiState {
@@ -116,9 +119,9 @@ export function shikiLanguage(
   options: ShikiLanguageOptions = {},
 ): CodeLanguage<ShikiState> {
   const grammar = highlighter.getLanguage(language)
-  const typeOf = options.scope
+  const typeOf = options.tokenType
     ? (scopes: readonly string[]) => {
-        const own = options.scope!(scopes)
+        const own = options.tokenType!(scopes)
         return own === undefined ? tokenTypeOfScopes(scopes) : own
       }
     : tokenTypeOfScopes
@@ -148,9 +151,12 @@ export function shikiLanguage(
       for (let i = 0; i < line.ends.length; i++)
         if (line.ends[i]! > stream.pos) {
           stream.pos = Math.min(line.ends[i]!, stream.end)
+          // the line is read: the next one is read afresh, even with the same text
+          if (stream.pos >= stream.end) state.line = null
           return line.types[i]!
         }
       stream.skipToEnd()
+      state.line = null
       return null
     },
     blankLine(state) {

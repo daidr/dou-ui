@@ -97,7 +97,7 @@ describe('shikiLanguage', () => {
   })
 
   it('reads a Shiki grammar line by line, carrying its state', async () => {
-    const highlighter = await createHighlighter({ langs: ['rust'], themes: [] })
+    const highlighter = await createHighlighter({ langs: ['rust', 'python'], themes: [] })
     const rust = shikiLanguage(highlighter, 'rust', { comment: { line: '//' } })
     expect(rust.name).toBe('rust')
     expect(rust.comment.line).toBe('//')
@@ -113,6 +113,18 @@ describe('shikiLanguage', () => {
     const lines = new CodeHighlighter(rust, doc)
     expect(lineParts('y */', lines.line(3))[0]).toEqual(['y */', 'comment'])
     expect(lineParts('fn b() {}', lines.line(4))[0]).toEqual(['fn', 'keyword'])
+    // two lines with the same text are each read from their own start state
+    const python = shikiLanguage(highlighter, 'python')
+    const third = marked(python, '"""\n"""\nx = 1').split('\n')[2]
+    expect(third).not.toContain('[string:')
+    expect(third).toContain('[number:1]')
+    // a mapping of one's own goes first
+    const plain = shikiLanguage(highlighter, 'rust', {
+      tokenType: (scopes) =>
+        scopes.some((scope) => scope.startsWith('keyword')) ? null : undefined,
+    })
+    expect(marked(plain, 'fn main() {}')).not.toContain('[keyword:fn]')
+    expect(marked(plain, 'fn main() {}')).toContain('[function:main]')
     highlighter.dispose()
   })
 })

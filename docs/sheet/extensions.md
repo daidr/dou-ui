@@ -45,10 +45,23 @@ const extensions = [progress]
 | `keymap`      | 表格有焦点、没有在编辑单元格时的快捷键，写法和 `useHotkey` 一样；处理函数返回 `false` 表示没处理，交给下一个 | `(ctx) => Record<string, (event) => boolean \| void>` |
 | `contextMenu` | 右键菜单的项，排在内置项前面；`menu` 属性收到的菜单项里也包括它们                                            | `(ctx, menu: SheetMenuContext) => SheetMenuItem[]`    |
 | `overlays`    | 浮在表格上方的组件，不随表格滚动，可以用 `cellRect` 对准单元格                                               | `Component[]`                                         |
+| `history`     | 替换表格自带的撤销记录，多个扩展都有时用优先级最高的，见下文                                                 | `(ctx) => SheetHistoryHandler`                        |
 | `setup`       | 表格挂载后调用，可以返回一个函数，在卸载时调用                                                               | `(ctx) => void \| (() => void)`                       |
 | `transaction` | 表格里的每次修改和 `transact` 生效前按优先级调用，可以继续往里加步骤；撤销时加上的步骤一起撤销               | `(tr, ctx) => void`                                   |
 
 `ctx` 和组件里 `useSheet()` 拿到的是同一个对象。
+
+`history` 返回撤销和重做的实现，有它时表格不再记录自己的撤销步骤，撤销按钮、`Ctrl+Z` 和 `undo()` 都交给它。[协同编辑](./collaboration)用它只撤销自己的修改：
+
+```ts
+interface SheetHistoryHandler {
+  /** 没有可以撤销的修改时返回 false */
+  undo: () => boolean
+  redo: () => boolean
+  canUndo: () => boolean
+  canRedo: () => boolean
+}
+```
 
 ## 单元格类型
 
@@ -104,10 +117,12 @@ const Panel = defineComponent({
 | `doc`、`sheet`、`sheetIndex`                     | 工作簿、当前显示的工作表和它的序号                                                            |
 | `selection`、`active`                            | 选区和键盘所在的单元格                                                                        |
 | `readonly`、`messages`                           | 只读状态、当前语言的文案                                                                      |
+| `focused`                                        | 表格或单元格编辑框是否有键盘焦点                                                              |
 | `value(point)`、`result(point)`                  | 当前工作表里一个单元格的值（公式单元格是公式本身），和它的计算结果                            |
 | `forEachSelected(callback)`                      | 依次处理选中的每个单元格，合并单元格只算一次（左上角）                                        |
 | `cellType(point)`                                | 单元格的类型 `{ name, definition, setup }`，`definition` 是类型本身；普通单元格为 `undefined` |
 | `cellRect(point)`                                | 单元格（或它所在的合并单元格）现在画在哪，看不见时为 `null`                                   |
+| `rangeRect(bounds)`                              | 区域在视图里露出的部分画在哪，`cut` 标出被视图或冻结窗格挡住的边；完全看不见时为 `null`       |
 | `transact`、`undo`、`redo`、`canUndo`、`canRedo` | 修改与撤销，同组件实例                                                                        |
 | `select`、`scrollTo`、`edit`、`focus`            | 选择、滚动、编辑和聚焦，同组件实例                                                            |
 | `showSheet`、`toCSV`                             | 切换工作表、导出 CSV，同组件实例                                                              |
@@ -132,4 +147,4 @@ const Panel = defineComponent({
 | `attach(el)`                | 登记输入框：焦点移到它上面时编辑不结束，函数列表显示在它下方；返回取消登记的函数         |
 | `helpId`                    | 函数列表和参数提示的 id，用于 `aria-controls`                                            |
 
-`cellRect` 的坐标从表格左上角算起，包括列标和行号，已经减去滚动的距离，可以直接给浮层组件用 `position: absolute` 摆放。
+`cellRect` 和 `rangeRect` 的坐标从表格左上角算起，包括列标和行号，已经减去滚动的距离，可以直接给浮层组件用 `position: absolute` 摆放。

@@ -14,6 +14,15 @@ export type SheetExtensionContext = SheetContext
  */
 export type SheetKeyHandler = (event: KeyboardEvent) => boolean | void
 
+/** An undo history used instead of the grid's own, e.g. one that only takes back this user's changes. */
+export interface SheetHistoryHandler {
+  /** `false` when there was nothing to undo. */
+  undo: () => boolean
+  redo: () => boolean
+  canUndo: () => boolean
+  canRedo: () => boolean
+}
+
 /**
  * A piece of the sheet: cell types, keys, menu items, panels drawn over
  * the grid, and a say in every change.
@@ -41,6 +50,8 @@ export interface SheetExtension {
    * marks placed with `cellRect`. They can call `useSheet()`.
    */
   overlays?: Component[]
+  /** Replaces the grid's undo history; the first extension that has one wins. */
+  history?: (context: SheetExtensionContext) => SheetHistoryHandler
   /** Runs once the grid is mounted. Return a function to run when it unmounts. */
   setup?: (context: SheetExtensionContext) => void | (() => void)
   /**
@@ -66,6 +77,7 @@ export interface ResolvedSheetExtensions {
   setups: NonNullable<SheetExtension['setup']>[]
   transactions: NonNullable<SheetExtension['transaction']>[]
   overlays: Component[]
+  history?: SheetExtension['history']
 }
 
 type ExtensionList = readonly (SheetExtension | readonly SheetExtension[])[]
@@ -111,5 +123,6 @@ export function resolveSheetExtensions(list: ExtensionList = []): ResolvedSheetE
     setups: pick('setup'),
     transactions: pick('transaction'),
     overlays: extensions.flatMap((e) => e.overlays ?? []),
+    history: extensions.find((e) => e.history)?.history,
   }
 }

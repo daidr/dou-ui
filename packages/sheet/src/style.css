@@ -839,6 +839,80 @@
     }
   }
 
+  /* other people on the sheet: their selection, their cell and their name */
+  .dou-sheet__peers {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .dou-sheet__peer-range,
+  .dou-sheet__peer-cell {
+    --dou-sheet-peer: var(--dou-color-text-secondary);
+    position: absolute;
+    z-index: 4;
+    box-sizing: border-box;
+  }
+
+  .dou-sheet__peer-range {
+    border: 1px solid color-mix(in oklab, var(--dou-sheet-peer) 60%, transparent);
+    background-color: color-mix(in oklab, var(--dou-sheet-peer) 8%, transparent);
+  }
+
+  .dou-sheet__peer-cell {
+    border: 2px solid var(--dou-sheet-peer);
+
+    &.is-editing {
+      background-color: color-mix(in oklab, var(--dou-sheet-peer) 6%, transparent);
+    }
+  }
+
+  .dou-sheet__peer-name {
+    position: absolute;
+    right: -2px;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    max-width: 160px;
+    /* half the row's padding above and below the line: clear of the text on both sides */
+    height: 14px;
+    padding: 0 5px;
+    border-radius: 4px;
+    background-color: var(--dou-sheet-peer);
+    /* the collaborator's color is the app's: pick dark or light text by its lightness */
+    color: white;
+    color: oklch(from var(--dou-sheet-peer) clamp(0.2, (0.66 - l) * 100, 0.99) 0 0);
+    font-size: 11px;
+    line-height: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    /* on the grid line, not over the text of the cell beside it */
+    transform: translateY(-50%);
+    /* it steps aside a while after they stop moving; it stays while they edit */
+    animation: dou-sheet-peer-name var(--dou-motion-duration-fast) var(--dou-motion-easing) 3s
+      forwards;
+
+    .dou-sheet__peer-cell.is-editing & {
+      animation: none;
+    }
+
+    &.is-above {
+      top: -1px;
+    }
+
+    &.is-below {
+      top: calc(100% + 1px);
+    }
+  }
+
+  .dou-sheet__peer-icon {
+    flex: none;
+    width: 10px;
+    height: 10px;
+  }
+
   .dou-sheet__notice {
     position: absolute;
     bottom: 12px;
@@ -1749,5 +1823,12 @@
     padding: 16px 0;
     color: var(--dou-color-text-tertiary);
     text-align: center;
+  }
+}
+
+@keyframes dou-sheet-peer-name {
+  to {
+    opacity: 0;
+    visibility: hidden;
   }
 }

@@ -1,5 +1,5 @@
 import { inject, type ComputedRef, type InjectionKey, type Ref } from 'vue'
-import type { SheetPoint } from './core/address'
+import type { SheetBounds, SheetPoint } from './core/address'
 import type { SheetResolvedType } from './core/cell-type'
 import type { SheetData, SheetSortOrder, SheetStyle, SheetValue, SheetWorkbook } from './core/model'
 import type { SheetResult } from './formula/values'
@@ -16,6 +16,11 @@ export interface SheetRect {
   height: number
 }
 
+/** Where a range shows: its part in view, with the edges the view cuts off. */
+export interface SheetRangeRect extends SheetRect {
+  cut: { top: boolean; right: boolean; bottom: boolean; left: boolean }
+}
+
 /** The surrounding sheet, as `useSheet()` and extensions see it. */
 export interface SheetContext {
   /** The workbook, as of the last change. */
@@ -28,6 +33,8 @@ export interface SheetContext {
   /** The cell the keyboard is on. */
   active: ComputedRef<SheetPoint>
   readonly: ComputedRef<boolean>
+  /** Whether the grid or its cell editor has the keyboard focus. */
+  focused: Readonly<Ref<boolean>>
   messages: ComputedRef<SheetMessages>
   /**
    * Calls `callback` for each selected cell of the sheet shown, once each,
@@ -42,6 +49,11 @@ export interface SheetContext {
   cellType: (point: SheetPoint) => SheetResolvedType | undefined
   /** Where a cell (or the merged cell it is in) is drawn now; `null` while it is out of view. */
   cellRect: (point: SheetPoint) => SheetRect | null
+  /**
+   * Where the part of a range of the sheet shown that is in view is drawn
+   * now, past the frozen rows and columns too; `null` while none of it is.
+   */
+  rangeRect: (bounds: SheetBounds) => SheetRangeRect | null
   transact: SheetExpose['transact']
   undo: SheetExpose['undo']
   redo: SheetExpose['redo']
@@ -119,6 +131,11 @@ export interface SheetEditorContext {
 }
 
 export const sheetContextKey: InjectionKey<SheetContext> = Symbol('dou-sheet')
+
+/** Where a range shows: its part in view, with the edges the view cuts off. */
+export interface SheetRangeRect extends SheetRect {
+  cut: { top: boolean; right: boolean; bottom: boolean; left: boolean }
+}
 
 /** The surrounding sheet; for overlays, cell types' components and the grid's slots. */
 export function useSheet() {

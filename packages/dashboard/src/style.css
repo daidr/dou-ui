@@ -247,6 +247,24 @@
     cursor: inherit;
   }
 
+  /* filters this widget set, with buttons to clear them */
+  .dou-dashboard__links {
+    display: flex;
+    flex: 0 1 auto;
+    gap: 4px;
+    min-width: 0;
+    max-width: 60%;
+    overflow: hidden;
+
+    & .dou-tag {
+      min-width: 0;
+      max-width: 100%;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+  }
+
   .dou-dashboard__actions {
     display: flex;
     flex: none;
@@ -428,5 +446,57 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  /* the filter bar above a dashboard */
+  .dou-dashboard-filter {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 16px;
+  }
+
+  .dou-dashboard-filter__field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .dou-dashboard-filter__label {
+    flex: none;
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-sm);
+    white-space: nowrap;
+  }
+
+  .dou-dashboard-filter__control {
+    width: 144px;
+    min-width: 0;
+
+    &.is-range {
+      width: 232px;
+    }
+  }
+
+  .dou-dashboard-filter__clear {
+    margin-left: auto;
+  }
+
+  /* on a phone each field takes a row, its control the rest of it */
+  @media (max-width: 480px) {
+    .dou-dashboard-filter__field {
+      flex: 1 1 100%;
+    }
+
+    .dou-dashboard-filter__label {
+      width: 4em;
+    }
+
+    .dou-dashboard-filter__control,
+    .dou-dashboard-filter__control.is-range {
+      flex: 1 1 auto;
+      width: auto;
+    }
   }
 }

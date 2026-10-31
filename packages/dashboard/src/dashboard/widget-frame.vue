@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { MaximizeIcon, MoreHorizontalIcon } from '@dou-ui/icons'
-import { DouButton, DouDropdown, DouDropdownItem, DouEditable, DouTooltip } from 'dou-ui'
+import { DouButton, DouDropdown, DouDropdownItem, DouEditable, DouTag, DouTooltip } from 'dou-ui'
 import type { DropdownValue } from 'dou-ui'
 import { computed, inject, onBeforeUnmount, onMounted, ref } from 'vue'
 import GridLayoutHandle from '../grid/grid-handle.vue'
+import { format } from '../locale'
 import { frameContextKey } from './frame-context'
 import type { WidgetAction } from './frame-context'
 import { observersKey } from './observers'
@@ -19,6 +20,8 @@ const type = computed(() => widget.value && frame.type(widget.value))
 const title = computed(() => (widget.value ? frame.title(widget.value) : ''))
 const editing = computed(() => frame.editing())
 const messages = computed(() => frame.messages())
+/** The filters this widget set, each with a button to clear it. */
+const linked = computed(() => frame.linked(props.id))
 
 const renaming = ref(false)
 
@@ -74,6 +77,18 @@ function onSelect(value: DropdownValue | undefined) {
         @submit="(value) => frame.rename(id, value)"
       />
       <div v-else class="dou-dashboard__title">{{ title }}</div>
+      <div v-if="linked.length" class="dou-dashboard__links" data-dou-nodrag>
+        <DouTag
+          v-for="link in linked"
+          :key="link.key"
+          size="sm"
+          closable
+          :close-label="format(messages.clearFilter, { value: link.label })"
+          @close="frame.clearFilter(link.key)"
+        >
+          {{ format(messages.filteredBy, { value: link.label }) }}
+        </DouTag>
+      </div>
       <div class="dou-dashboard__actions" data-dou-nodrag>
         <DouDropdown v-if="editing" placement="bottom-end" @select="onSelect">
           <DouButton size="sm" variant="ghost" :aria-label="messages.widgetMenu">

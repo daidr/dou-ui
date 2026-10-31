@@ -252,3 +252,5 @@ const problems = checkDocument(doc, { widgets })
 | `setProps(patch, options?)`  | 合并进 `props`；`options.group` 让连续修改合并成一步撤销 |
 | `status`                     | 当前状态 `{ state, message?, retry? }`                   |
 | `setStatus(state, options?)` | 设为 `'ready'`、`'loading'`、`'error'` 或 `'empty'`      |
+
+数据和筛选相关的 `data`、`error`、`filters`、`setFilter`、`ownFilters`、`refresh` 见[数据与筛选](./data#usedashboardwidget)。

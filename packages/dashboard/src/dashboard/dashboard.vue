@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { LayoutGridPlusIcon } from '@dou-ui/icons'
 import { DouDialog, DouDrawer, DouEmpty, DouInput, matchesHotkey } from 'dou-ui'
 import {
   computed,
@@ -12,9 +13,17 @@ import {
   watch,
 } from 'vue'
 import { DashboardHistory } from '../core/history'
-import { applySteps, cloneJson, DashboardTransaction } from '../core/transaction'
+import { applySteps, cloneJson, DashboardTransaction, sameValue } from '../core/transaction'
 import type { DashboardStep, DashboardTransactionMeta } from '../core/transaction'
 import type { DashboardDocument, DashboardPlace, DashboardWidget } from '../core/types'
+import { dataContextKey } from '../data/context'
+import { filterText, isEmptyFilter } from '../data/filters'
+import { createSourceStore } from '../data/store'
+import type {
+  DashboardFilters,
+  DashboardLinkedFilter,
+  DashboardSetFilterOptions,
+} from '../data/types'
 import GridLayout from '../grid/grid-layout.vue'
 import { DEFAULT_BREAKPOINTS, DEFAULT_COLUMNS, gridTiers } from '../grid/tiers'
 import type { GridDropEvent, GridLayoutExpose, GridLayouts } from '../grid/types'
@@ -33,7 +42,7 @@ import type { WidgetAction } from './frame-context'
 
 defineOptions({ name: 'DouDashboard' })
 
-const props = withDefaults(defineProps<Omit<DashboardProps, 'modelValue'>>(), {
+const props = withDefaults(defineProps<Omit<DashboardProps, 'modelValue' | 'filters'>>(), {
   widgets: () => [],
   columns: () => DEFAULT_COLUMNS,
   breakpoints: () => DEFAULT_BREAKPOINTS,
@@ -41,8 +50,9 @@ const props = withDefaults(defineProps<Omit<DashboardProps, 'modelValue'>>(), {
   gap: 16,
   compact: 'vertical',
 })
-const emit = defineEmits<Omit<DashboardEmits, 'update:modelValue'>>()
+const emit = defineEmits<Omit<DashboardEmits, 'update:modelValue' | 'update:filters'>>()
 const model = defineModel<DashboardDocument>({ default: () => ({ version: 1, widgets: [] }) })
+const filters = defineModel<DashboardFilters>('filters', { default: () => ({}) })
 const messages = useDashboardMessages(() => props.messages)
 
 const grid = ref<GridLayoutExpose>()
@@ -464,6 +474,81 @@ provide(frameContextKey, {
   setProps,
   action: onAction,
   rename,
+  linked: (id) => linksByWidget.value.get(id) ?? NO_LINKS,
+  clearFilter: (key) => setFilter(undefined, key, undefined),
+})
+
+// ---------------------------------------------------------------------------
+// Data and filters
+
+const store = createSourceStore(() => props.sources)
+onBeforeUnmount(() => store.dispose())
+
+/** The filters set by widgets, by key: they apply to every widget but the one that set them. */
+const links = shallowRef(new Map<string, DashboardLinkedFilter>())
+const EMPTY_SET: ReadonlySet<string> = new Set()
+const NO_LINKS: DashboardLinkedFilter[] = []
+const linksByWidget = computed(() => {
+  const result = new Map<string, DashboardLinkedFilter[]>()
+  for (const link of links.value.values()) {
+    const list = result.get(link.widget)
+    if (list) list.push(link)
+    else result.set(link.widget, [link])
+  }
+  return result
+})
+const emittedByWidget = computed(() => {
+  const result = new Map<string, Set<string>>()
+  for (const [id, list] of linksByWidget.value)
+    result.set(id, new Set(list.map((link) => link.key)))
+  return result
+})
+
+function setFilter(
+  widget: string | undefined,
+  key: string,
+  value: unknown,
+  options: DashboardSetFilterOptions = {},
+) {
+  const next = { ...filters.value }
+  const nextLinks = new Map(links.value)
+  if (isEmptyFilter(value)) delete next[key]
+  else next[key] = value
+  if (widget && !isEmptyFilter(value) && widgetMap.value.has(widget))
+    nextLinks.set(key, { key, value, label: options.label ?? filterText(value), widget })
+  else nextLinks.delete(key)
+  links.value = nextLinks
+  filters.value = next
+}
+
+function clearFilters() {
+  links.value = new Map()
+  filters.value = {}
+}
+
+// a filter changed from outside (the filter bar, the app) is no longer the widget's
+watch(filters, (values) => {
+  let next: Map<string, DashboardLinkedFilter> | undefined
+  for (const [key, link] of links.value) {
+    if (sameValue(values[key], link.value)) continue
+    next ??= new Map(links.value)
+    next.delete(key)
+  }
+  if (next) links.value = next
+})
+
+// the filters of a widget that is removed go with it
+watch(widgetMap, (map) => {
+  for (const link of links.value.values())
+    if (!map.has(link.widget)) setFilter(undefined, link.key, undefined)
+})
+
+provide(dataContextKey, {
+  store,
+  filters: () => filters.value,
+  emitted: (id) => emittedByWidget.value.get(id) ?? EMPTY_SET,
+  linked: (id) => linksByWidget.value.get(id) ?? NO_LINKS,
+  setFilter,
 })
 
 // ---------------------------------------------------------------------------
@@ -586,6 +671,18 @@ defineExpose<DashboardExpose>({
   get editable() {
     return props.editable
   },
+  get document() {
+    return model.value
+  },
+  get filters() {
+    return filters.value
+  },
+  get linkedFilters() {
+    return [...links.value.values()]
+  },
+  setFilter: (key, value, options) => setFilter(undefined, key, value, options),
+  clearFilters,
+  refresh: (source) => store.reload(source),
 })
 </script>
 
@@ -627,7 +724,9 @@ defineExpose<DashboardExpose>({
       </template>
     </GridLayout>
     <div v-if="editable && !model.widgets.length" class="dou-dashboard__empty">
-      <DouEmpty size="sm" :title="messages.emptyTitle" :description="messages.emptyHint" />
+      <DouEmpty size="sm" :title="messages.emptyTitle" :description="messages.emptyHint">
+        <template #icon><LayoutGridPlusIcon /></template>
+      </DouEmpty>
     </div>
     <div class="dou-dashboard__live" aria-live="polite" aria-atomic="true">{{ live }}</div>
     <DouDrawer

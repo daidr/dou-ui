@@ -103,6 +103,8 @@ export default defineConfig({
             { text: '文件管理', link: '/blocks/files' },
             { text: 'AI 工作流', link: '/blocks/ai-workflow' },
             { text: '头脑风暴', link: '/blocks/brainstorm' },
+            { text: '发布排期', link: '/blocks/release-plan' },
+            { text: '会议室预约', link: '/blocks/room-booking' },
           ],
         },
       ],

@@ -22,6 +22,15 @@ export interface ChartMessages {
   hiddenSlices: string
   /** The summary of a chart that can be explored with the keys: `{summary}`. */
   keys: string
+  /** The same, for a chart that can also be zoomed: `{summary}`. */
+  zoomKeys: string
+  /** Read out after zooming with the keys: `{from}`, `{to}`. */
+  zoomed: string
+  /** Read out after going back to the whole chart. */
+  zoomReset: string
+  /** The range strip's handles. */
+  rangeStart: string
+  rangeEnd: string
   /** The chart with the range of its x axis: `{chart}`, `{from}`, `{to}`. */
   range: string
   /** The same, for a `horizontal` chart, whose x axis runs down the side. */
@@ -43,6 +52,11 @@ const zhCN: ChartMessages = {
   share: '{value}（{share}）',
   hiddenSlices: '已隐藏 {count} 项，占比只按显示的部分计算',
   keys: '{summary}。用方向键逐个查看数据',
+  zoomKeys: '{summary}。用方向键逐个查看数据，加号和减号缩放，0 复位',
+  zoomed: '显示 {from} 至 {to}',
+  zoomReset: '显示全部',
+  rangeStart: '区间起点',
+  rangeEnd: '区间终点',
   range: '{chart}，横轴从 {from} 到 {to}',
   rangeDown: '{chart}，纵轴从 {from} 到 {to}',
   summary: '{chart}。{series}',
@@ -60,6 +74,11 @@ const zhTW: ChartMessages = {
   share: '{value}（{share}）',
   hiddenSlices: '已隱藏 {count} 項，占比只按顯示的部分計算',
   keys: '{summary}。用方向鍵逐個查看資料',
+  zoomKeys: '{summary}。用方向鍵逐個查看資料，加號和減號縮放，0 復位',
+  zoomed: '顯示 {from} 至 {to}',
+  zoomReset: '顯示全部',
+  rangeStart: '區間起點',
+  rangeEnd: '區間終點',
   range: '{chart}，橫軸從 {from} 到 {to}',
   rangeDown: '{chart}，縱軸從 {from} 到 {to}',
   summary: '{chart}。{series}',
@@ -77,6 +96,11 @@ const en: ChartMessages = {
   share: '{value} ({share})',
   hiddenSlices: '{count} hidden; shares are of the slices shown',
   keys: '{summary}. Use the arrow keys to read each point',
+  zoomKeys: '{summary}. Use the arrow keys to read each point, plus and minus to zoom, 0 to reset',
+  zoomed: 'Showing {from} to {to}',
+  zoomReset: 'Showing all',
+  rangeStart: 'Range start',
+  rangeEnd: 'Range end',
   range: '{chart}, x from {from} to {to}',
   rangeDown: '{chart}, x from {from} to {to}',
   summary: '{chart}. {series}',

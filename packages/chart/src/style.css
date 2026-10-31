@@ -13,6 +13,7 @@
     --dou-chart-baseline: var(--dou-color-border-strong);
     --dou-chart-label: var(--dou-color-text-tertiary);
     --dou-chart-title: var(--dou-color-text-secondary);
+    --dou-chart-range-ink: var(--dou-color-text-tertiary);
 
     position: relative;
     box-sizing: border-box;
@@ -333,5 +334,111 @@
     overflow: hidden;
     clip-path: inset(50%);
     white-space: nowrap;
+  }
+
+  /* zoomed in: the plot can be dragged; with a brush (and nothing to zoom), it selects */
+  .dou-chart.is-zoomed {
+    cursor: grab;
+  }
+
+  .dou-chart.is-brushing {
+    cursor: crosshair;
+  }
+
+  /* the stretch selected, and the one being dragged */
+  .dou-chart__brush {
+    position: absolute;
+    top: 0;
+    left: 0;
+    box-sizing: border-box;
+    border: 1px solid color-mix(in oklab, var(--dou-color-text) 28%, transparent);
+    background-color: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+    pointer-events: none;
+  }
+
+  /* all of x, small, with the part shown between two handles */
+  .dou-chart__range {
+    position: absolute;
+    top: 0;
+    left: 0;
+    box-sizing: border-box;
+    border-radius: var(--dou-radius-control);
+    box-shadow: inset 0 0 0 1px var(--dou-color-border-subtle);
+    cursor: pointer;
+    touch-action: none;
+    user-select: none;
+  }
+
+  .dou-chart__range-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: block;
+    opacity: 0.56;
+  }
+
+  .dou-chart__range-shade,
+  .dou-chart__range-window,
+  .dou-chart__range-handle {
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+
+  /* the parts not shown, washed out */
+  .dou-chart__range-shade {
+    background-color: color-mix(in oklab, var(--dou-chart-surface) 64%, transparent);
+  }
+
+  .dou-chart__range-window {
+    box-sizing: border-box;
+    border-block: 1px solid var(--dou-chart-baseline);
+    background-color: color-mix(in oklab, var(--dou-color-text) 4%, transparent);
+    cursor: grab;
+
+    .is-vertical > & {
+      border-block: none;
+      border-inline: 1px solid var(--dou-chart-baseline);
+    }
+  }
+
+  .dou-chart__range-handle {
+    box-sizing: border-box;
+    width: 8px;
+    height: 20px;
+    margin: 6px 0 0 -4px;
+    border: 1px solid var(--dou-color-border-strong);
+    border-radius: 4px;
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-sm);
+    outline: none;
+    cursor: ew-resize;
+
+    /* a finger-sized place to press */
+    &::before {
+      position: absolute;
+      inset: -6px -8px;
+      content: '';
+    }
+
+    &:hover {
+      border-color: var(--dou-color-text-tertiary);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 2px;
+    }
+
+    .is-vertical > & {
+      width: 20px;
+      height: 8px;
+      margin: -4px 0 0 6px;
+      cursor: ns-resize;
+
+      &::before {
+        inset: -8px -6px;
+      }
+    }
   }
 }

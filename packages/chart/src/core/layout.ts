@@ -18,6 +18,7 @@ import {
 } from './scale'
 import type { ChartValueAxis } from './series'
 import { timeInterval, timeTicks } from './time'
+import { unitsOf, type Window } from './window'
 
 /** Where an axis is drawn. */
 export type ChartAxisPosition = 'bottom' | 'top' | 'left' | 'right'
@@ -69,6 +70,8 @@ export interface AxisLayout {
   labels: TickLabel[]
   grid: boolean
   title?: { text: string; left: number; top: number; align: 'start' | 'end' }
+  /** The whole domain, when zoomed in to part of it (`scale.domain`). */
+  full: [number, number]
 }
 
 export interface ChartLayout {
@@ -79,6 +82,8 @@ export interface ChartLayout {
   /** The value axes, by what they measure. */
   y: Partial<Record<ChartValueAxis, AxisLayout>>
   legend: LegendItem[]
+  /** Where the range strip goes: under the chart, or down its right side when horizontal. */
+  strip?: Rect
 }
 
 /** A legend entry, placed. */
@@ -103,6 +108,9 @@ const SWATCH = 12
 const SWATCH_GAP = 6
 const LEGEND_GAP = 16
 const LEGEND_ROW_GAP = 4
+/** The range strip's height (its width when horizontal), and the room before it. */
+export const STRIP = 32
+const STRIP_GAP = 12
 /** Wanted room between ticks, in px. */
 const X_TICK_SPACE = 64
 const Y_TICK_SPACE = 48
@@ -122,6 +130,14 @@ interface LayoutOptions {
   measure: (text: string) => number
   /** Names for a legend under the chart, or none. */
   legend?: string[]
+  /**
+   * The stretches shown when zoomed in: of x in the scale's numbers
+   * (category indices, ms), of the values in those of `y` (or `y2` when
+   * it is alone; `y2` follows `y`).
+   */
+  zoom?: { x?: Window | null; y?: Window | null }
+  /** Leave room for a range strip. */
+  strip?: boolean
 }
 
 const asNumber = (value: number | string | Date | undefined, kind: XKind | 'log') =>
@@ -142,10 +158,23 @@ export function layoutChart(options: LayoutOptions): ChartLayout {
   const legend = placeLegend(options.legend ?? [], width, measure)
   const legendHeight = legendRoom(legend)
   for (const item of legend) item.top += height - legendHeight + LABEL_GAP + 4
-  const layout = options.horizontal
-    ? layoutAcross(options, legendHeight)
-    : layoutUp(options, legendHeight)
-  return { ...layout, legend }
+  const room = options.strip ? STRIP + STRIP_GAP : 0
+  if (options.horizontal) {
+    // the strip down the right side, as tall as the plot
+    const layout = layoutAcross({ ...options, width: width - room }, legendHeight)
+    const { plot } = layout
+    const strip = room
+      ? { x: width - STRIP, y: plot.y, width: STRIP, height: plot.height }
+      : undefined
+    return { ...layout, width, legend, strip }
+  }
+  // the strip under the x axis, above the legend
+  const layout = layoutUp(options, legendHeight + room)
+  const { plot } = layout
+  const strip = room
+    ? { x: plot.x, y: height - legendHeight - STRIP, width: plot.width, height: STRIP }
+    : undefined
+  return { ...layout, legend, strip }
 }
 
 /** The height a legend takes under the chart, with the gap above it. */
@@ -165,15 +194,50 @@ function valueAxes(
   count: number,
   locale: string,
   length: number,
+  zoom?: Window | null,
 ): { y: ValueAxis | null; y2: ValueAxis | null } {
-  const y = axes.y ? valueAxis('y', axes.y, model, count, locale, length) : null
+  let y = axes.y ? valueAxis('y', axes.y, model, count, locale, length) : null
   let y2 = axes.y2 ? valueAxis('y2', axes.y2, model, count, locale, length) : null
   if (y && y2 && !axes.y2!.ticks && !y2.fixed && y.ticks.length > 1) {
     const both = alignZero(y, y2, axes.y!, axes.y2!, model, locale, length)
-    if (both) return both
-    y2 = alignTo(y2, y.ticks.length - 1, axes.y2!, model, locale, length)
+    if (both) ({ y, y2 } = both)
+    else y2 = alignTo(y2, y.ticks.length - 1, axes.y2!, model, locale, length)
   }
-  return { y, y2 }
+  const primary = y ?? y2
+  if (!zoom || !primary) return { y, y2 }
+  // the same part of each axis: y2 follows y
+  const units = unitsOf({ kind: primary.kind })
+  const [d0, d1] = primary.domain.map(units.to) as Window
+  const part: Window = [
+    (units.to(zoom[0]) - d0) / (d1 - d0 || 1),
+    (units.to(zoom[1]) - d0) / (d1 - d0 || 1),
+  ]
+  const zoomed = (axis: ValueAxis | null, config: AxisConfig | null) =>
+    axis && config ? zoomAxis(axis, part, count, config, locale) : null
+  return { y: zoomed(y, axes.y), y2: zoomed(y2, axes.y2) }
+}
+
+/** `axis` zoomed in to `part` of it (0 to 1 from its start), with ticks of its own. */
+function zoomAxis(
+  axis: ValueAxis,
+  part: Window,
+  count: number,
+  config: AxisConfig,
+  locale: string,
+): ValueAxis {
+  const units = unitsOf({ kind: axis.kind })
+  const [d0, d1] = axis.domain.map(units.to) as Window
+  const domain: Window = [
+    units.from(d0 + (d1 - d0) * part[0]),
+    units.from(d0 + (d1 - d0) * part[1]),
+  ]
+  const given = explicitTicks(config, axis.kind)
+  const ticks = given
+    ? given.filter((v) => v >= domain[0] && v <= domain[1])
+    : axis.kind === 'log'
+      ? logTicks(domain[0], domain[1], count)
+      : linearTicks(domain[0], domain[1], count)
+  return { ...axis, full: axis.domain, domain, ticks, texts: valueTexts(ticks, config, locale) }
 }
 
 /** The data span an axis has to show, with 0 when it starts at 0. */
@@ -252,7 +316,7 @@ function alignZero(
 
 /** x along the bottom, values up the left side (and the right). */
 function layoutUp(
-  { model, axes, width, height, locale, measure }: LayoutOptions,
+  { model, axes, width, height, locale, measure, zoom }: LayoutOptions,
   legendHeight: number,
 ): Omit<ChartLayout, 'legend'> {
   const xAxis = axes.x
@@ -268,7 +332,7 @@ function layoutUp(
 
   // value axes first: their labels decide how wide the plot is
   const yCount = Math.max(2, Math.floor(plotHeight / Y_TICK_SPACE))
-  const { y, y2 } = valueAxes(axes, model, yCount, locale, plotHeight)
+  const { y, y2 } = valueAxes(axes, model, yCount, locale, plotHeight, zoom?.y)
   const leftWidth = y && shown(axes.y) ? INSET + labelWidth(y.texts, measure) + LABEL_GAP : EDGE
   const rightWidth = y2 && shown(axes.y2) ? INSET + labelWidth(y2.texts, measure) + LABEL_GAP : EDGE
   const plot: Rect = {
@@ -293,6 +357,7 @@ function layoutUp(
       ticks: axis.ticks,
       labels,
       grid: config.grid,
+      full: axis.full ?? axis.domain,
       title:
         config.title && !config.hidden
           ? topTitle(config.title, axis.role === 'y2', width)
@@ -301,7 +366,8 @@ function layoutUp(
   }
 
   const along: [number, number] = [plot.x, plot.x + plot.width]
-  const scale = xScale(xAxis, model, along, Math.max(2, Math.floor(plot.width / X_TICK_SPACE)))
+  const count = Math.max(2, Math.floor(plot.width / X_TICK_SPACE))
+  const { scale, full } = xScale(xAxis, model, along, count, zoom?.x)
   const labelTop = plot.y + plot.height + LABEL_GAP
   let x: AxisLayout | undefined
   for (const { ticks, texts } of xTickChoices(
@@ -313,10 +379,10 @@ function layoutUp(
     locale,
   )) {
     const labels = placeAcross(ticks, texts, scale, labelTop, width, measure)
-    x = { position: xAxis.position, scale, ticks, labels, grid: xAxis.grid }
+    x = { position: xAxis.position, scale, ticks, labels, grid: xAxis.grid, full }
     if (fitAcross(labels)) break
   }
-  x ??= { position: xAxis.position, scale, ticks: [], labels: [], grid: xAxis.grid }
+  x ??= { position: xAxis.position, scale, ticks: [], labels: [], grid: xAxis.grid, full }
   if (!xShown) x.labels = []
   else if (xAxis.title) x.title = bottomTitle(xAxis.title, width, height, legendHeight)
 
@@ -328,7 +394,7 @@ function layoutUp(
  * the top): bars with long category names.
  */
 function layoutAcross(
-  { model, axes, width, height, locale, measure }: LayoutOptions,
+  { model, axes, width, height, locale, measure, zoom }: LayoutOptions,
   legendHeight: number,
 ): Omit<ChartLayout, 'legend'> {
   const xAxis = axes.x
@@ -349,7 +415,13 @@ function layoutAcross(
 
   // x first: its labels decide how far in the plot starts
   const down: [number, number] = [plotTop, plotBottom]
-  const scale = xScale(xAxis, model, down, Math.max(2, Math.floor(plotHeight / Y_TICK_SPACE)))
+  const { scale, full } = xScale(
+    xAxis,
+    model,
+    down,
+    Math.max(2, Math.floor(plotHeight / Y_TICK_SPACE)),
+    zoom?.x,
+  )
   let x: AxisLayout | undefined
   for (const { ticks, texts } of xTickChoices(
     xAxis,
@@ -360,10 +432,10 @@ function layoutAcross(
     locale,
   )) {
     const labels = placeDown(ticks, texts, scale, height, measure)
-    x = { position: xAxis.position, scale, ticks, labels, grid: xAxis.grid }
+    x = { position: xAxis.position, scale, ticks, labels, grid: xAxis.grid, full }
     if (fitDown(labels)) break
   }
-  x ??= { position: xAxis.position, scale, ticks: [], labels: [], grid: xAxis.grid }
+  x ??= { position: xAxis.position, scale, ticks: [], labels: [], grid: xAxis.grid, full }
   if (!xShown) x.labels = []
   // long names are cut short, so they can't squeeze the plot away
   const widest = Math.floor(width * SIDE_LABEL_SHARE)
@@ -393,10 +465,10 @@ function layoutAcross(
       y2: place(axes2.y2, plotTop - LABEL_GAP - LABEL_HEIGHT, y2Shown),
     }
   }
-  let values = valueAxes(axes, model, 2, locale, across)
+  let values = valueAxes(axes, model, 2, locale, across, zoom?.y)
   let placed = placeAll(values)
   for (let count = Math.max(2, Math.floor(across / X_TICK_SPACE)); count >= 2; count--) {
-    values = valueAxes(axes, model, count, locale, across)
+    values = valueAxes(axes, model, count, locale, across, zoom?.y)
     placed = placeAll(values)
     if ((!placed.y || fitAcross(placed.y.labels)) && (!placed.y2 || fitAcross(placed.y2.labels)))
       break
@@ -430,6 +502,7 @@ function layoutAcross(
       ticks: p.axis.ticks,
       labels: p.labels,
       grid: config.grid,
+      full: p.axis.full ?? p.axis.domain,
       title:
         config.title && !config.hidden
           ? role === 'y'
@@ -562,6 +635,8 @@ interface ValueAxis {
   texts: string[]
   /** Whether both ends were given, so it can't be aligned to another axis. */
   fixed: boolean
+  /** The whole domain, when zoomed in. */
+  full?: [number, number]
 }
 
 function valueScale(axis: ValueAxis, range: [number, number]): Scale {
@@ -666,6 +741,26 @@ function xScale(
   model: ChartModel,
   range: [number, number],
   count: number,
+  zoom?: Window | null,
+): { scale: Scale; full: [number, number] } {
+  const scale = wholeXScale(config, model, range, count)
+  const full = scale.domain
+  if (!zoom) return { scale, full }
+  // only the part zoomed in to, kept inside the whole
+  const lo = Math.max(full[0], Math.min(zoom[0], zoom[1]))
+  const hi = Math.min(full[1], Math.max(zoom[0], zoom[1]))
+  if (!(hi > lo)) return { scale, full }
+  const part = linearScale([lo, hi], range, scale.kind === 'time' ? 'time' : 'linear')
+  if (scale.kind !== 'category') return { scale: part, full }
+  const step = Math.abs(range[1] - range[0]) / (hi - lo)
+  return { scale: { ...part, kind: 'category', step, categories: scale.categories }, full }
+}
+
+function wholeXScale(
+  config: AxisConfig,
+  model: ChartModel,
+  range: [number, number],
+  count: number,
 ): Scale {
   const kind = model.xKind
   if (kind === 'category') return categoryScale(model.categories, range)
@@ -707,8 +802,12 @@ function* xTickChoices(
       config.format ? config.format(model.categories[value]) : (model.categories[value] ?? '')
     // every category when they fit, else every second, third…
     const count = model.categories.length
+    // zoomed in: the categories whose middle is shown, still every nth of all, so they don't jump while panning
+    const [lo, hi] = scale.domain
+    const shownTicks = (ticks: number[]) =>
+      lo <= -0.5 && hi >= count - 0.5 ? ticks : ticks.filter((i) => i >= lo && i <= hi)
     for (let every = 1; every <= Math.max(1, count); every++) {
-      const ticks = categoryTicks(count, every)
+      const ticks = shownTicks(categoryTicks(count, every))
       yield { ticks, texts: ticks.map(text) }
     }
     return

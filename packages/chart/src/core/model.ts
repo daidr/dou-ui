@@ -203,7 +203,7 @@ export function buildModel(
 
 const gaps = new WeakMap<Float64Array, number>()
 /** The smallest distance between two different values, or `NaN` with fewer than two. */
-function smallestGap(values: Float64Array): number {
+export function smallestGap(values: Float64Array): number {
   let gap = gaps.get(values)
   if (gap === undefined) {
     // typed arrays sort as numbers, NaN last

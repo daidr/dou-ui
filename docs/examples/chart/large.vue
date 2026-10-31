@@ -1,6 +1,6 @@
 <script setup>
 import { DouButton, DouSpace } from 'dou-ui'
-import { DouChart, DouChartAxis, DouChartLine } from '@dou-ui/chart'
+import { DouChart, DouChartAxis, DouChartLine, DouChartZoom } from '@dou-ui/chart'
 import { shallowRef } from 'vue'
 
 // 大数据放在 shallowRef 里：数组整体替换，不需要逐项响应
@@ -33,6 +33,7 @@ generate(100_000)
       <!-- 时间是毫秒数，用 type 把横轴指定为时间轴 -->
       <DouChartAxis for="x" type="time" />
       <DouChartLine y="value" name="读数" :line-width="1.5" />
+      <DouChartZoom />
     </DouChart>
   </div>
 </template>

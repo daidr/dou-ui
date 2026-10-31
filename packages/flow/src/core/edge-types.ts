@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'vue'
 import type { FlowData, FlowEdge, Point, PortSide } from './model'
 
 /** Where an edge leaves or enters a node: a point and the side it faces. */
@@ -16,12 +17,19 @@ export interface EdgeRoute {
    * pointer's canvas point into a patch for `edge.data`.
    */
   handle?: { at: Point; axis: 'x' | 'y'; move: (point: Point) => FlowData }
+  /**
+   * Marks drawn with the edge's stroke but never dashed, e.g. arrowheads:
+   * an SVG path in canvas coordinates.
+   */
+  marks?: string
 }
 
 export interface EdgeTypeSpec<Data extends FlowData = FlowData> {
   type: string
   /** The edge's path between two anchors. `edge` is absent while one is being drawn. */
   route: (source: EdgeAnchor, target: EdgeAnchor, edge?: FlowEdge<Data>) => EdgeRoute
+  /** The edge's own look, e.g. `strokeDasharray`, over what its port type gives it. */
+  style?: (edge: FlowEdge<Data>) => CSSProperties | undefined
 }
 
 /** Declares an edge type, with `edge.data` typed. */

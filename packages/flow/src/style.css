@@ -101,6 +101,11 @@
       stroke: var(--dou-color-danger);
       stroke-dasharray: 4 3;
     }
+    /* arrowheads and other marks are never dashed */
+    &.is-mark {
+      stroke-dasharray: none !important;
+      animation: none;
+    }
     /* the edge being drawn */
     &.is-preview {
       stroke: var(--dou-flow-editor-selected);
@@ -117,7 +122,7 @@
     pointer-events: stroke;
     cursor: pointer;
 
-    &:hover + .dou-flow-editor__edge:not(.is-selected) {
+    &:hover ~ .dou-flow-editor__edge:not(.is-selected) {
       stroke: var(--dou-flow-editor-edge-hover);
     }
   }
@@ -181,6 +186,8 @@
       min-width: 48px;
       max-width: none;
       overflow: visible;
+      /* the field and its hidden copy, both at least 16px on phones */
+      font-size: max(var(--dou-font-size-input-min, 0px), var(--dou-font-size-sm));
       cursor: text;
 
       /* a space more than the text, for the caret */
@@ -685,7 +692,7 @@
     background: var(--dou-color-bg-surface);
     color: var(--dou-color-text);
     font: inherit;
-    font-size: 13px;
+    font-size: max(var(--dou-font-size-input-min, 0px), 13px);
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -1250,7 +1257,7 @@
     padding: 12px 16px;
     overflow: hidden;
     font: inherit;
-    font-size: var(--dou-font-size-md);
+    font-size: max(var(--dou-font-size-input-min, 0px), var(--dou-font-size-md));
     line-height: 1.5;
     overflow-wrap: anywhere;
     text-align: center;

@@ -17,7 +17,7 @@ import type {
 import type { FlowConnection, PortTypes, PortTypeSpec } from './core/connect'
 import type { EdgeTypeSpec } from './core/edge-types'
 import type { FlowExtension } from './core/extension'
-import type { FlowMenuTarget } from './core/menu'
+import type { FlowMenuItem, FlowMenuTarget } from './core/menu'
 import type { NodeTypeSpec } from './core/node-types'
 import type { FlowTransaction, FlowTransactionMeta } from './core/transaction'
 
@@ -293,6 +293,18 @@ export interface FlowEditorContext {
    * and pressing that button again closes it.
    */
   openMenu: (target: FlowMenuTarget, client: Point, from?: Element) => boolean
+  /**
+   * Opens the editor's menu with these items, e.g. the choices behind a
+   * toolbar button; `from` works as in `openMenu`.
+   */
+  showMenu: (
+    items: FlowMenuItem[],
+    client: Point,
+    from?: Element,
+    options?: { focusChecked?: boolean },
+  ) => boolean
+  /** The element that opened the menu, while it is open, e.g. to mark a button expanded. */
+  menuFrom: Readonly<ShallowRef<Element | null>>
   toCanvas: (point: Point) => Point
   /** Copies the selected nodes to the clipboard; `false` when none are selected. */
   copy: () => boolean

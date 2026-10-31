@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, useTemplateRef, watch } from 'vue'
+import { computed, ref, shallowReactive, useTemplateRef, watch } from 'vue'
 import { useFlowEditor } from '../context'
 import type { FlowToolbarItem } from '../core/menu'
 
@@ -7,11 +7,28 @@ const props = defineProps<{
   /** Each extension's buttons, with a divider between them. */
   groups: FlowToolbarItem[][]
   /** The selection on screen, in px from the editor's top left. */
-  anchor: { x: number; top: number; bottom: number }
+  anchor: {
+    x: number
+    top: number
+    bottom: number
+    /** Boxes it should rather not cover, e.g. nodes beside selected edges, in the same px. */
+    avoid?: { left: number; top: number; right: number; bottom: number }[]
+  }
   size: { width: number; height: number }
 }>()
 
-const { messages, root } = useFlowEditor()
+const { messages, root, showMenu, menuFrom } = useFlowEditor()
+
+// A button with `menu` opens its choices under it; a click from the
+// keyboard (no pointer, `detail` 0) puts focus on the one in use.
+function press(item: FlowToolbarItem, event: MouseEvent) {
+  if (!item.menu) return item.run?.(event)
+  const button = event.currentTarget as HTMLElement
+  const box = button.getBoundingClientRect()
+  showMenu(item.menu(), { x: box.left, y: box.bottom + 4 }, button, {
+    focusChecked: event.detail === 0,
+  })
+}
 const el = useTemplateRef<HTMLElement>('el')
 const box = ref({ width: 0, height: 0 })
 
@@ -49,17 +66,32 @@ const style = computed(() => {
   const { anchor, size } = props
   const left = Math.min(Math.max(anchor.x - width / 2, GAP), size.width - width - GAP)
   const above = anchor.top - GAP - height
-  const covers = (top: number) =>
-    overlays().some(
+  const under = anchor.bottom + GAP
+  const boxes = [...overlays(), ...(anchor.avoid ?? [])]
+  const hits = (top: number) =>
+    boxes.filter(
       (o) => left < o.right && left + width > o.left && top < o.bottom && top + height > o.top,
     )
-  const below = above < GAP || covers(Math.max(above, GAP))
-  const top = below ? anchor.bottom + GAP : above
+  const fits = (top: number) => top >= GAP && top + height <= size.height - GAP && !hits(top).length
+  // Above, else below; when something is in the way, just past it.
+  const candidates = [above, under]
+  const over = hits(above)
+  if (over.length) candidates.push(Math.min(...over.map((o) => o.top)) - GAP - height)
+  const beneath = hits(under)
+  if (beneath.length) candidates.push(Math.max(...beneath.map((o) => o.bottom)) + GAP)
+  const top = candidates.find(fits) ?? (above >= GAP ? above : under)
   return {
     left: `${Math.round(left)}px`,
     top: `${Math.round(Math.min(Math.max(top, GAP), size.height - height - GAP))}px`,
   }
 })
+
+/** The buttons by key, to tell which one opened the menu. */
+const buttons = shallowReactive(new Map<string, Element>())
+function setButton(key: string, button: unknown) {
+  if (button instanceof Element) buttons.set(key, button)
+  else buttons.delete(key)
+}
 
 // The selection scrolled out of view: nothing to point at.
 const hidden = computed(
@@ -90,9 +122,12 @@ const hidden = computed(
         :class="{ 'is-active': item.active }"
         :disabled="item.disabled"
         :aria-label="item.label"
-        :aria-pressed="item.active ?? undefined"
+        :aria-pressed="item.menu ? undefined : (item.active ?? undefined)"
+        :aria-haspopup="item.menu ? 'menu' : undefined"
+        :aria-expanded="item.menu ? !!menuFrom && menuFrom === buttons.get(item.key) : undefined"
         :title="item.label"
-        @click="item.run($event)"
+        :ref="(button) => setButton(item.key, button)"
+        @click="press(item, $event)"
       >
         <component :is="item.icon" />
       </button>

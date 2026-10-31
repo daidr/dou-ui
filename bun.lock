@@ -24,6 +24,7 @@
         "@dou-ui/chart": "workspace:*",
         "@dou-ui/editor": "workspace:*",
         "@dou-ui/flow": "workspace:*",
+        "@dou-ui/form-builder": "workspace:*",
         "@dou-ui/gantt": "workspace:*",
         "@dou-ui/icons": "workspace:*",
         "@dou-ui/sheet": "workspace:*",
@@ -108,6 +109,14 @@
       "optionalPeers": [
         "yjs",
       ],
+    },
+    "packages/form-builder": {
+      "name": "@dou-ui/form-builder",
+      "version": "0.0.0",
+      "peerDependencies": {
+        "dou-ui": "workspace:*",
+        "vue": "^3.5.0",
+      },
     },
     "packages/gantt": {
       "name": "@dou-ui/gantt",
@@ -292,6 +301,8 @@
     "@dou-ui/editor": ["@dou-ui/editor@workspace:packages/editor"],
 
     "@dou-ui/flow": ["@dou-ui/flow@workspace:packages/flow"],
+
+    "@dou-ui/form-builder": ["@dou-ui/form-builder@workspace:packages/form-builder"],
 
     "@dou-ui/gantt": ["@dou-ui/gantt@workspace:packages/gantt"],
 

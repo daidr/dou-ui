@@ -3559,7 +3559,9 @@ defineExpose<FlowEditorExpose>({
         v-if="bend && !bend.edge.label && editingLabel !== bend.edge.id"
         class="dou-flow-editor__bend"
         :class="`is-${bend.handle.axis}`"
-        :style="{ transform: `translate(${bend.handle.at.x}px, ${bend.handle.at.y}px)` }"
+        :style="{
+          translate: `calc(${bend.handle.at.x}px - 50%) calc(${bend.handle.at.y}px - 50%)`,
+        }"
         aria-hidden="true"
       />
       <template v-for="node in drawnOthers" :key="node.id">

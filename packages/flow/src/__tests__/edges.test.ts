@@ -47,6 +47,12 @@ describe('edge types', () => {
     expect(bent.label.x).toBe(50)
   })
 
+  it('step: no handle when the ends line up', () => {
+    const route = stepEdge.route(at(0, 40, 'right'), at(200, 40, 'left'))
+    expect(route.handle).toBeUndefined()
+    expect(route.path).toBe('M0 40L200 40')
+  })
+
   it('step: turns with vertical ports', () => {
     const route = stepEdge.route(at(0, 0, 'bottom'), at(100, 200, 'top'))
     expect(route.handle).toMatchObject({ at: { x: 50, y: 100 }, axis: 'y' })
@@ -245,6 +251,11 @@ describe('edges in the editor', () => {
     await ticks()
     const handle = root.find('.dou-flow-editor__bend')
     expect(handle.exists()).toBe(true)
+    // Placed by translate, not transform: transform would sit inside the
+    // zoom-compensating scale and move the handle off the line when zoomed.
+    const style = (handle.element as HTMLElement).style
+    expect(style.transform).toBe('')
+    expect(style.translate).toMatch(/^calc\(/)
     handle.element.dispatchEvent(pointer('pointerdown', 100))
     root.element.dispatchEvent(pointer('pointermove', 140))
     await ticks()

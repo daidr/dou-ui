@@ -284,8 +284,11 @@ export function formatValue(
     return generalNumber(value)
   }
   if (format && isDateFormat(format)) return formatDate(value, format, locale) ?? value
-  return value
+  return textOf(value)
 }
+
+/** Text as it shows: `'=…` is text starting with `=`, shown without its mark. */
+export const textOf = (value: string) => (value.startsWith("'=") ? value.slice(1) : value)
 
 /**
  * A number without a format, in at most `chars` characters, for a cell
@@ -363,7 +366,8 @@ function readTime(h: string, m: string, s?: string) {
  */
 export function parseInput(text: string): SheetInput {
   if (text === '') return { value: null }
-  if (text.startsWith("'")) return { value: text.slice(1) }
+  // text that starts with `=` keeps its mark, so it isn't a formula
+  if (text.startsWith("'")) return { value: text.startsWith("'=") ? text : text.slice(1) }
   if (text.startsWith('=') && text.length > 1) return { value: text }
   const trimmed = text.trim()
   if (/^\S/.test(trimmed) && trimmed !== '.' && /\d/.test(trimmed)) {

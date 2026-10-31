@@ -96,7 +96,7 @@ const Panel = defineComponent({
 
 ## useSheet
 
-在扩展的钩子、浮层组件和单元格类型的组件里，`useSheet()` 返回当前表格的状态和操作：
+在扩展的钩子、浮层组件、单元格类型的组件和表格的 `header`、`footer` 插槽里，`useSheet()` 返回当前表格的状态和操作：
 
 | 名称                                             | 说明                                                                                          |
 | ------------------------------------------------ | --------------------------------------------------------------------------------------------- |
@@ -109,6 +109,7 @@ const Panel = defineComponent({
 | `cellRect(point)`                                | 单元格（或它所在的合并单元格）现在画在哪，看不见时为 `null`                                   |
 | `transact`、`undo`、`redo`、`canUndo`、`canRedo` | 修改与撤销，同组件实例                                                                        |
 | `select`、`scrollTo`、`edit`、`focus`            | 选择、滚动、编辑和聚焦，同组件实例                                                            |
+| `showSheet`、`toCSV`                             | 切换工作表、导出 CSV，同组件实例                                                              |
 | `announce(text)`                                 | 让读屏软件播报一段文字                                                                        |
 
 `cellRect` 的坐标从表格左上角算起，包括列标和行号，已经减去滚动的距离，可以直接给浮层组件用 `position: absolute` 摆放。

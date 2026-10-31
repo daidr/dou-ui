@@ -1,3 +1,4 @@
+import { parseCSV } from './csv'
 import { formatValue, parseInput } from './format'
 import { cellOf, valueOf, type SheetCellInput, type SheetStyle } from './model'
 
@@ -86,38 +87,7 @@ export function formatClip(clip: SheetClip, options: SheetClipFormat = {}) {
 
 /** Splits tab-separated text into rows of fields, reading quoted fields. */
 export function parseTSV(text: string): string[][] {
-  const rows: string[][] = []
-  let row: string[] = []
-  let field = ''
-  let quoted = false
-  let i = 0
-  // a field is quoted only when the quote starts it
-  const atStart = () => field === ''
-  for (; i < text.length; i++) {
-    const char = text[i]!
-    if (quoted) {
-      if (char === '"' && text[i + 1] === '"') {
-        field += '"'
-        i++
-      } else if (char === '"') quoted = false
-      else field += char
-    } else if (char === '"' && atStart()) quoted = true
-    else if (char === '\t') {
-      row.push(field)
-      field = ''
-    } else if (char === '\n' || char === '\r') {
-      if (char === '\r' && text[i + 1] === '\n') i++
-      row.push(field)
-      rows.push(row)
-      row = []
-      field = ''
-    } else field += char
-  }
-  if (field !== '' || row.length) {
-    row.push(field)
-    rows.push(row)
-  }
-  return rows
+  return parseCSV(text, '\t')
 }
 
 /** The text a table cell shows, with its line breaks. */

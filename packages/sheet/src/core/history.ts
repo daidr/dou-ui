@@ -9,7 +9,8 @@ import type { SheetSelection } from './selection'
 
 /** What an undo or redo puts back: the sheet and the selection that went with the change. */
 export interface SheetHistoryView {
-  sheet: number
+  /** The sheet's key (`id`, or its name), so it is found again after sheets move. */
+  sheet: string
   selection: SheetSelection
 }
 

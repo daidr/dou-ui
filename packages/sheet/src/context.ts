@@ -47,6 +47,8 @@ export interface SheetContext {
   scrollTo: SheetExpose['scrollTo']
   edit: SheetExpose['edit']
   focus: SheetExpose['focus']
+  showSheet: SheetExpose['showSheet']
+  toCSV: SheetExpose['toCSV']
   /** Says `text` to screen readers. */
   announce: (text: string) => void
 }

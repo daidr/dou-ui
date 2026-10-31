@@ -38,6 +38,8 @@
     font-family: var(--dou-font-family);
     font-size: var(--dou-font-size-sm);
     line-height: var(--dou-font-line-height);
+    display: flex;
+    flex-direction: column;
 
     &:not(.is-focused) {
       --dou-sheet-ring: color-mix(in oklab, var(--dou-color-text) 45%, transparent);
@@ -51,6 +53,14 @@
       user-select: none;
       -webkit-user-select: none;
     }
+  }
+
+  /* the grid, between what the header and footer slots hold */
+  .dou-sheet__main {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
   }
 
   .dou-sheet__viewport {
@@ -784,6 +794,170 @@
     height: 1px;
     overflow: hidden;
     clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /* Sheet tabs: a quiet strip under the grid, the sheet shown lifted onto the surface */
+  .dou-sheet-tabs {
+    position: relative;
+    display: flex;
+    flex: none;
+    align-items: flex-start;
+    gap: 4px;
+    min-width: 0;
+    height: 36px;
+    padding: 0 6px;
+    box-sizing: border-box;
+    border-top: 1px solid var(--dou-color-border);
+
+    @media (pointer: coarse) {
+      height: 42px;
+    }
+    background-color: var(--dou-sheet-header-bg);
+  }
+
+  .dou-sheet-tabs__add {
+    flex: none;
+    margin-top: 4px;
+  }
+
+  .dou-sheet-tabs__list {
+    display: flex;
+    flex: 1;
+    gap: 2px;
+    min-width: 0;
+    height: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+
+    &.has-more-start {
+      mask-image: linear-gradient(to right, transparent, #000 24px);
+    }
+    &.has-more-end {
+      mask-image: linear-gradient(to left, transparent, #000 24px);
+    }
+    &.has-more-start.has-more-end {
+      mask-image: linear-gradient(
+        to right,
+        transparent,
+        #000 24px,
+        #000 calc(100% - 24px),
+        transparent
+      );
+    }
+  }
+
+  .dou-sheet-tabs__tab {
+    position: relative;
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    box-sizing: border-box;
+    max-width: 200px;
+    height: 30px;
+    /* over the strip's top line, so the tab shown joins the grid */
+    margin-top: -1px;
+    padding: 0 12px;
+    border: 1px solid transparent;
+    border-top: 0;
+    border-radius: 0 0 var(--dou-radius-control) var(--dou-radius-control);
+    color: var(--dou-color-text-secondary);
+    cursor: pointer;
+    outline: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    transition-property: background-color, color;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    &:hover {
+      background-color: color-mix(in oklab, var(--dou-color-text) 5%, transparent);
+      color: var(--dou-color-text);
+    }
+
+    &.is-active {
+      border-color: var(--dou-color-border);
+      background-color: var(--dou-color-bg-surface);
+      color: var(--dou-color-text);
+      font-weight: 500;
+      box-shadow: 0 1px 2px color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+    }
+
+    &:focus-visible {
+      box-shadow: inset 0 0 0 2px var(--dou-color-primary);
+    }
+
+    &.is-dragging {
+      opacity: 0.4;
+    }
+
+    /* a finger gets a taller tab */
+    @media (pointer: coarse) {
+      height: 36px;
+    }
+
+    .is-readonly & {
+      cursor: default;
+    }
+  }
+
+  .dou-sheet-tabs__name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* the field takes the width of its text, through a hidden copy beside it */
+  .dou-sheet-tabs__size,
+  .dou-sheet-tabs__input {
+    min-width: 2em;
+    font: inherit;
+    font-size: max(var(--dou-font-size-input-min, 0px), 1em);
+    white-space: pre;
+  }
+
+  .dou-sheet-tabs__size {
+    visibility: hidden;
+    padding: 0 4px;
+  }
+
+  .dou-sheet-tabs__input {
+    position: absolute;
+    inset: 4px 8px;
+    width: calc(100% - 16px);
+    padding: 0 3px;
+    border: 1px solid var(--dou-color-primary);
+    border-radius: calc(var(--dou-radius-control) - 2px);
+    background-color: var(--dou-color-bg-surface);
+    color: var(--dou-color-text);
+    outline: none;
+    box-sizing: border-box;
+
+    &[aria-invalid] {
+      border-color: var(--dou-color-danger);
+    }
+  }
+
+  .dou-sheet-tabs__problem {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 8px;
+    z-index: 5;
+    padding: 4px 8px;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-control);
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-md);
+    color: var(--dou-color-danger-text);
+    font-size: var(--dou-font-size-sm);
     white-space: nowrap;
   }
 }

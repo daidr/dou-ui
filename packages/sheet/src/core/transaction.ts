@@ -6,6 +6,8 @@ import {
   parseCell,
   shiftFormula,
   parseRange,
+  dropReferences,
+  renameReferences,
   splitSheet,
   type SheetBounds,
   type SheetRefMap,
@@ -80,6 +82,7 @@ export type SheetAction =
   | 'delete'
   | 'hide'
   | 'merge'
+  | 'sheet'
   | 'undo'
   | 'redo'
   | 'api'
@@ -129,6 +132,11 @@ export type SheetStep =
       count: number
       to: number
     }
+  /** Adds a sheet at `index`, moving the ones from there on along. */
+  | { type: 'insertSheet'; index: number; data: SheetData }
+  | { type: 'removeSheet'; sheet: string }
+  /** Moves a sheet to `index`, counted after it is taken out. */
+  | { type: 'moveSheet'; sheet: string; index: number }
 
 export interface SheetTransactionMeta {
   /** Keep out of the undo history, e.g. a change from another client. */
@@ -154,8 +162,9 @@ export class SheetTransaction {
   private book: SheetWorkbook
   /** What this transaction has copied, so it copies each thing once. */
   private own = { book: false, sheets: false, styles: false, types: false }
-  private ownSheets = new Set<number>()
-  private ownRows = new Map<number, Set<number>>()
+  /** The sheets this transaction copied, and the rows it copied of each. */
+  private ownSheets = new WeakSet<SheetData>()
+  private ownRows = new WeakMap<SheetData, Set<number>>()
 
   constructor(
     readonly before: SheetWorkbook,
@@ -540,6 +549,107 @@ export class SheetTransaction {
     return this.updateSheet({ merges: kept.length ? kept : undefined }, index)
   }
 
+  /**
+   * Adds a sheet, at the end or at `index`. Its name must not be taken
+   * (`uniqueName` gives one that isn't); it is `Sheet1`, `Sheet2`… when
+   * left out, whatever the language. Returns the transaction; the new sheet
+   * is `tr.getSheet(name)`.
+   */
+  addSheet(sheet: Partial<SheetData> = {}, index = this.book.sheets.length) {
+    const name = sheet.name ?? this.freeName('Sheet')
+    this.checkName(name, sheet.id)
+    const data: SheetData = { ...sheet, name, cells: sheet.cells ?? [] }
+    return this.step({ type: 'insertSheet', index, data })
+  }
+
+  /**
+   * Removes a sheet. The last one stays: a workbook always has a sheet.
+   * Formulas on other sheets pointing at it read `#REF!`.
+   */
+  removeSheet(sheet: SheetRef = this.sheet) {
+    const index = this.mustIndex(sheet)
+    if (this.book.sheets.length < 2) return this
+    const { name } = this.book.sheets[index]!
+    this.step({ type: 'removeSheet', sheet: this.keyOf(index) })
+    return this.rewriteFormulas((formula) => dropReferences(formula, name))
+  }
+
+  /** Moves a sheet to `index`, counted among the sheets without it. */
+  moveSheet(sheet: SheetRef, index: number) {
+    return this.step({ type: 'moveSheet', sheet: this.keyOf(this.mustIndex(sheet)), index })
+  }
+
+  /** Renames a sheet; formulas naming it follow. The name must not be taken. */
+  renameSheet(sheet: SheetRef, name: string) {
+    const index = this.mustIndex(sheet)
+    const old = this.book.sheets[index]!
+    if (old.name === name) return this
+    this.checkName(name, old.id, index)
+    this.updateSheet({ name }, index)
+    return this.rewriteFormulas((formula) => renameReferences(formula, old.name, name))
+  }
+
+  /**
+   * Adds a copy of a sheet right after it, named `name` or the sheet's name
+   * with a number, such as `数据 (2)`. Formulas on the copy that name the
+   * sheet keep pointing at the original.
+   */
+  duplicateSheet(sheet: SheetRef = this.sheet, name?: string) {
+    const index = this.mustIndex(sheet)
+    const original = this.book.sheets[index]!
+    const { id: _id, ...source } = original
+    // the copy shares the rows: changing either from here on copies them first
+    this.ownSheets.delete(original)
+    this.ownRows.delete(original)
+    const next = name ?? this.uniqueName(source.name)
+    this.checkName(next)
+    return this.step({ type: 'insertSheet', index: index + 1, data: { ...source, name: next } })
+  }
+
+  /**
+   * `name` if no sheet has it, otherwise the name with the first free
+   * number: `门店 (2)`, `门店 (3)`…
+   */
+  uniqueName(name: string) {
+    const taken = new Set(this.book.sheets.map((sheet) => sheet.name))
+    if (!taken.has(name)) return name
+    let n = 2
+    while (taken.has(`${name} (${n})`)) n++
+    return `${name} (${n})`
+  }
+
+  /** Passes every formula of the workbook through `rewrite`. */
+  private rewriteFormulas(rewrite: (formula: string) => string) {
+    this.book.sheets.forEach((sheet, index) =>
+      sheet.cells.forEach((line, row) =>
+        line?.forEach((cell, col) => {
+          const value = typeof cell === 'object' ? cell?.value : cell
+          if (typeof value !== 'string' || !value.startsWith('=')) return
+          const next = rewrite(value)
+          if (next !== value) this.setValue({ sheet: index, row, col }, next)
+        }),
+      ),
+    )
+    return this
+  }
+
+  /** The first name `prefix` + a number, from the count of sheets on, that no sheet has. */
+  private freeName(prefix: string) {
+    const taken = new Set(this.book.sheets.map((sheet) => sheet.name))
+    let n = this.book.sheets.length + 1
+    while (taken.has(`${prefix}${n}`)) n++
+    return `${prefix}${n}`
+  }
+
+  private checkName(name: string, id?: string, self = -1) {
+    if (!name.trim()) throw new RangeError('A sheet needs a name')
+    this.book.sheets.forEach((sheet, i) => {
+      if (i === self) return
+      if (sheet.name === name) throw new RangeError(`There is a sheet "${name}" already`)
+      if (id != null && sheet.id === id) throw new RangeError(`There is a sheet "${id}" already`)
+    })
+  }
+
   /** Rewrites the references to cells on sheet `name` in every formula of the workbook. */
   private rewriteReferences(name: string, map: SheetRefMap) {
     this.book.sheets.forEach((sheet, index) => {
@@ -618,9 +728,31 @@ export class SheetTransaction {
       book.types = types
       return { type: 'setType', name: step.name, setup: old }
     }
+    if (step.type === 'insertSheet') {
+      const sheets = this.ownList()
+      const index = Math.max(0, Math.min(sheets.length, step.index))
+      sheets.splice(index, 0, step.data)
+      return { type: 'removeSheet', sheet: sheetKey(step.data) }
+    }
     const index = this.mustIndex(step.sheet)
     const sheet = this.book.sheets[index]!
     switch (step.type) {
+      case 'removeSheet': {
+        this.ownList().splice(index, 1)
+        // what the undo step keeps must not change, even if the sheet comes back
+        this.ownSheets.delete(sheet)
+        this.ownRows.delete(sheet)
+        return { type: 'insertSheet', index, data: sheet }
+      }
+      case 'moveSheet': {
+        const sheets = this.book.sheets
+        const to = Math.max(0, Math.min(sheets.length - 1, step.index))
+        if (to === index) return null
+        const list = this.ownList()
+        list.splice(index, 1)
+        list.splice(to, 0, sheet)
+        return { type: 'moveSheet', sheet: step.sheet, index }
+      }
       case 'setCell': {
         const { row, col } = step
         const cell = step.cell ?? undefined
@@ -676,7 +808,7 @@ export class SheetTransaction {
         own.cells.splice(at, 0, ...Array.from({ length: count }, (_, i) => fill?.[i] ?? null))
       }
       // rows moved: what was copied is now at other numbers
-      this.ownRows.delete(index)
+      this.ownRows.delete(own)
     } else {
       const length = Math.max(own.cells.length, fill?.length ?? 0)
       for (let r = 0; r < length; r++) {
@@ -699,7 +831,7 @@ export class SheetTransaction {
     let cells: (SheetRow | null)[] | undefined
     if (axis === 'row') {
       if (at < own.cells.length) cells = own.cells.splice(at, count).map((line) => line ?? null)
-      this.ownRows.delete(index)
+      this.ownRows.delete(own)
     } else {
       for (let r = 0; r < own.cells.length; r++) {
         const line = own.cells[r]
@@ -738,7 +870,7 @@ export class SheetTransaction {
     }
     if (axis === 'row') {
       own.cells = reorder(own.cells, null)
-      this.ownRows.delete(index)
+      this.ownRows.delete(own)
     } else
       for (let r = 0; r < own.cells.length; r++) {
         const line = own.cells[r]
@@ -766,25 +898,32 @@ export class SheetTransaction {
     return this.book
   }
 
-  private ownSheet(index: number) {
+  /** The list of sheets as an array this transaction may change. */
+  private ownList() {
     const book = this.ownBook()
     if (!this.own.sheets) {
       book.sheets = book.sheets.slice()
       this.own.sheets = true
     }
-    if (!this.ownSheets.has(index)) {
-      const sheet = book.sheets[index]!
-      book.sheets[index] = { ...sheet, cells: sheet.cells.slice() }
-      this.ownSheets.add(index)
+    return book.sheets
+  }
+
+  private ownSheet(index: number) {
+    const book = this.ownBook()
+    this.ownList()
+    let sheet = book.sheets[index]!
+    if (!this.ownSheets.has(sheet)) {
+      sheet = book.sheets[index] = { ...sheet, cells: sheet.cells.slice() }
+      this.ownSheets.add(sheet)
     }
-    return book.sheets[index]!
+    return sheet
   }
 
   /** The row as an array this transaction may change. */
   private row(sheet: number, row: number): SheetRow {
     const own = this.ownSheet(sheet)
-    let rows = this.ownRows.get(sheet)
-    if (!rows) this.ownRows.set(sheet, (rows = new Set()))
+    let rows = this.ownRows.get(own)
+    if (!rows) this.ownRows.set(own, (rows = new Set()))
     if (!rows.has(row)) {
       own.cells[row] = own.cells[row]?.slice() ?? []
       rows.add(row)

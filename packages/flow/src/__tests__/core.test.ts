@@ -4,7 +4,7 @@ import { flowOrder } from '../core/order'
 import { bezierPath, snapBox } from '../core/geometry'
 import { FlowHistory } from '../core/history'
 import type { FlowDocument } from '../core/model'
-import { applySteps, compactSteps, Transaction } from '../core/transaction'
+import { applyFlowSteps, compactFlowSteps, FlowTransaction } from '../core/transaction'
 
 const doc = (): FlowDocument => ({
   nodes: [
@@ -14,10 +14,10 @@ const doc = (): FlowDocument => ({
   edges: [{ id: 'e', source: { node: 'a' }, target: { node: 'b' } }],
 })
 
-describe('Transaction', () => {
+describe('FlowTransaction', () => {
   it('applies steps without touching the original document', () => {
     const before = doc()
-    const tr = new Transaction(before).moveNode('a', 10, 20).updateData('b', { label: 'B2' })
+    const tr = new FlowTransaction(before).moveNode('a', 10, 20).updateData('b', { label: 'B2' })
     expect(tr.doc.nodes[0]).toMatchObject({ x: 10, y: 20 })
     expect(tr.doc.nodes[1]!.data).toEqual({ label: 'B2' })
     expect(before.nodes[0]).toMatchObject({ x: 0, y: 0 })
@@ -25,36 +25,36 @@ describe('Transaction', () => {
   })
 
   it('removes the edges of a removed node', () => {
-    const tr = new Transaction(doc()).removeNode('a')
+    const tr = new FlowTransaction(doc()).removeNode('a')
     expect(tr.doc.nodes.map((n) => n.id)).toEqual(['b'])
     expect(tr.doc.edges).toEqual([])
   })
 
   it('inverts to the original document', () => {
     const before = doc()
-    const tr = new Transaction(before)
+    const tr = new FlowTransaction(before)
       .removeNode('a')
       .addNode({ id: 'c', x: 5, y: 5 })
       .updateNode('b', { width: 120 })
-    expect(applySteps(tr.doc, tr.inverse).doc).toEqual(before)
+    expect(applyFlowSteps(tr.doc, tr.inverse).doc).toEqual(before)
   })
 
   it('skips steps that change nothing', () => {
-    const tr = new Transaction(doc()).moveNode('a', 0, 0).removeNode('missing')
+    const tr = new FlowTransaction(doc()).moveNode('a', 0, 0).removeNode('missing')
     expect(tr.changed).toBe(false)
     expect(tr.doc).toBe(tr.before)
   })
 
   it('removes a key when patched with undefined', () => {
-    const tr = new Transaction(doc()).updateNode('a', { width: 100 })
-    const back = new Transaction(tr.doc).updateNode('a', { width: undefined })
+    const tr = new FlowTransaction(doc()).updateNode('a', { width: 100 })
+    const back = new FlowTransaction(tr.doc).updateNode('a', { width: undefined })
     expect('width' in back.doc.nodes[0]!).toBe(false)
   })
 })
 
-describe('compactSteps', () => {
+describe('compactFlowSteps', () => {
   it('folds updates of the same target', () => {
-    const steps = compactSteps([
+    const steps = compactFlowSteps([
       { type: 'updateNode', id: 'a', patch: { x: 1 } },
       { type: 'updateNode', id: 'b', patch: { x: 1 } },
       { type: 'updateNode', id: 'a', patch: { x: 2, y: 3 } },
@@ -66,7 +66,7 @@ describe('compactSteps', () => {
   })
 
   it('keeps updates apart across a removal', () => {
-    const steps = compactSteps([
+    const steps = compactFlowSteps([
       { type: 'updateNode', id: 'a', patch: { x: 1 } },
       { type: 'removeNode', id: 'a' },
       { type: 'updateNode', id: 'a', patch: { x: 2 } },
@@ -80,7 +80,7 @@ describe('FlowHistory', () => {
 
   it('undoes and redoes', () => {
     const history = new FlowHistory()
-    const tr = new Transaction(doc()).moveNode('a', 50, 50)
+    const tr = new FlowTransaction(doc()).moveNode('a', 50, 50)
     history.record(tr, none, { nodes: ['a'], edges: [] })
     const undone = history.undo(tr.doc)!
     expect(undone.tr.doc.nodes[0]).toMatchObject({ x: 0, y: 0 })
@@ -94,7 +94,7 @@ describe('FlowHistory', () => {
     const history = new FlowHistory()
     let current = doc()
     for (let i = 1; i <= 5; i++) {
-      const tr = new Transaction(current).setMeta({ group: 'drag' }).moveNode('a', i * 10, 0)
+      const tr = new FlowTransaction(current).setMeta({ group: 'drag' }).moveNode('a', i * 10, 0)
       history.record(tr, none, none, 1000 + i)
       current = tr.doc
     }
@@ -107,7 +107,7 @@ describe('FlowHistory', () => {
     const history = new FlowHistory()
     let current = doc()
     const move = (x: number, now: number) => {
-      const tr = new Transaction(current).setMeta({ group: 'nudge' }).moveNode('a', x, 0)
+      const tr = new FlowTransaction(current).setMeta({ group: 'nudge' }).moveNode('a', x, 0)
       history.record(tr, none, none, now)
       current = tr.doc
     }
@@ -124,7 +124,7 @@ describe('FlowHistory', () => {
   it('keeps changes marked history: false out', () => {
     const history = new FlowHistory()
     history.record(
-      new Transaction(doc()).setMeta({ history: false }).moveNode('a', 1, 1),
+      new FlowTransaction(doc()).setMeta({ history: false }).moveNode('a', 1, 1),
       none,
       none,
     )

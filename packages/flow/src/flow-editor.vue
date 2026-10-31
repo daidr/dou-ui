@@ -15,6 +15,9 @@ import {
 } from 'vue'
 import type { CSSProperties } from 'vue'
 import NodeView from './components/node-view.vue'
+import FlowMenu from './components/flow-menu.vue'
+import FlowQuickAdd from './components/flow-quick-add.vue'
+import FlowToolbar from './components/flow-toolbar.vue'
 import { defaultNode } from './components/default-node'
 import {
   flowEditorKey,
@@ -22,6 +25,8 @@ import {
   type FlowEditorEmits,
   type FlowEditorExpose,
   type FlowEditorProps,
+  type FlowEditorSlots,
+  type FlowInsertOptions,
   type NodeMetrics,
   type PortAnchor,
   type PortState,
@@ -49,6 +54,7 @@ import { FlowHistory } from './core/history'
 import { flowOrder } from './core/order'
 import { resolveFlowExtensions } from './core/extension'
 import { flowKit } from './kit'
+import type { FlowMenuItem, FlowMenuTarget, FlowToolbarItem } from './core/menu'
 import { readClipboard, writeClipboard } from './core/clipboard'
 import {
   createId,
@@ -65,7 +71,7 @@ import {
   type Rect,
 } from './core/model'
 import { labelOf, portsOf, type NodeTypeSpec } from './core/node-types'
-import { Transaction, type TransactionMeta } from './core/transaction'
+import { FlowTransaction, type FlowTransactionMeta } from './core/transaction'
 import { format, useFlowMessages } from './locale'
 
 defineOptions({ name: 'DouFlowEditor' })
@@ -87,6 +93,7 @@ const viewport = defineModel<FlowViewport>('viewport', {
   default: () => ({ x: 0, y: 0, zoom: 1 }),
 })
 const emit = defineEmits<FlowEditorEmits>()
+defineSlots<FlowEditorSlots>()
 
 const messages = useFlowMessages(() => props.messages)
 const reducedMotion = useReducedMotion()
@@ -169,15 +176,15 @@ function pruneSelection(next: FlowDocument, sel = selection.value): FlowSelectio
   }
 }
 
-function commit(tr: Transaction) {
+function commit(tr: FlowTransaction) {
   doc.value = tr.doc
   const removes = tr.steps.some((s) => s.type === 'removeNode' || s.type === 'removeEdge')
   if (removes) setSelection(pruneSelection(tr.doc))
   emit('transaction', tr)
 }
 
-function transact(fn: (tr: Transaction) => void, meta?: TransactionMeta) {
-  const tr = new Transaction(toRaw(doc.value))
+function transact(fn: (tr: FlowTransaction) => void, meta?: FlowTransactionMeta) {
+  const tr = new FlowTransaction(toRaw(doc.value))
   if (meta) tr.setMeta(meta)
   fn(tr)
   if (!tr.changed) return tr
@@ -227,7 +234,48 @@ const nodeById = computed(() => new Map(shownNodes.value.map((node) => [node.id,
 
 function onMeasure(id: string, value: NodeMetrics) {
   metrics.set(id, value)
+  const wait = pending.get(id)
+  if (!wait) return
+  pending.delete(id)
+  // Now that the node has a size: its centre, or the port taking the edge, goes on the point.
+  const port = wait.port ? value.ports.get(wait.port) : undefined
+  const vertical = props.direction === 'vertical'
+  // `start`: the point is where the node begins along the flow, centred across it.
+  const along = (v: number, size: number, flow: boolean) => (wait.start && flow ? v : v - size / 2)
+  let x = snapTo(port ? wait.at.x - port.x : along(wait.at.x, value.width, !vertical))
+  let y = snapTo(port ? wait.at.y - port.y : along(wait.at.y, value.height, vertical))
+  if (wait.avoid) {
+    // Step across the flow until the node covers no other.
+    const others = doc.value.nodes.flatMap((n) => (n.id === id ? [] : (getNodeRect(n.id) ?? [])))
+    const step = snapTo((vertical ? value.width : value.height) + 16)
+    const free = (px: number, py: number) =>
+      !others.some((r) =>
+        intersects({ x: px - 8, y: py - 8, width: value.width + 16, height: value.height + 16 }, r),
+      )
+    for (let i = 0; i < 40 && !free(x, y); i++) {
+      if (vertical) x += step
+      else y += step
+    }
+  }
+  const node = doc.value.nodes.find((n) => n.id === id)
+  if (node && (node.x !== x || node.y !== y))
+    transact((tr) => tr.moveNode(id, x, y), { group: wait.group })
+  void nextTick(() => {
+    // A node added near the edge is scrolled into view, and takes focus so keys act on it.
+    reveal(id)
+    if (wait.focus)
+      root.value
+        ?.querySelector<HTMLElement>(`[data-node-id="${CSS.escape(id)}"]`)
+        ?.focus({ preventScroll: true })
+  })
 }
+
+/** Nodes just added, waiting for their size to be placed: the point and the port to put on it. */
+const pending = new Map<
+  string,
+  { at: Point; port?: string; group: string; start?: boolean; avoid?: boolean; focus?: boolean }
+>()
+const snapTo = (v: number) => (props.grid ? Math.round(v / props.grid) * props.grid : Math.round(v))
 
 // Forget nodes that are gone.
 watch(nodeById, (nodes) => {
@@ -442,22 +490,32 @@ function fit(ids?: string[], animate = true, floor = 0) {
 }
 
 /**
- * Room to leave above and below the nodes: the padding, or more where a
- * panel (controls, minimap…) sits in a top or bottom corner, so fitted
- * nodes don't end up under it.
+ * Room to leave around the nodes: the padding, or more where a panel
+ * (controls, minimap…) sits in a corner, so fitted nodes don't end
+ * up under it. Each panel takes room on the side where it costs less: a
+ * wide one above or below, a tall one on the left or right.
  */
 function fitInsets() {
   const box = root.value!.getBoundingClientRect()
-  let top = FIT_PADDING
-  let bottom = FIT_PADDING
-  for (const panel of root.value!.querySelectorAll('.dou-flow-editor__panels > *')) {
+  const insets = { top: FIT_PADDING, bottom: FIT_PADDING, left: FIT_PADDING, right: FIT_PADDING }
+  for (const panel of root.value!.querySelectorAll(
+    '.dou-flow-editor__panels > :not(.dou-flow-toolbar)',
+  )) {
     const rect = panel.getBoundingClientRect()
     if (!rect.height) continue
-    if (rect.top + rect.height / 2 < box.top + box.height / 2)
-      top = Math.max(top, rect.bottom - box.top + PANEL_GAP)
-    else bottom = Math.max(bottom, box.bottom - rect.top + PANEL_GAP)
+    const upper = rect.top + rect.height / 2 < box.top + box.height / 2
+    const leftward = rect.left + rect.width / 2 < box.left + box.width / 2
+    const vertical = upper ? rect.bottom - box.top : box.bottom - rect.top
+    const horizontal = leftward ? rect.right - box.left : box.right - rect.left
+    if (vertical / box.height <= horizontal / box.width) {
+      const side = upper ? 'top' : 'bottom'
+      insets[side] = Math.max(insets[side], vertical + PANEL_GAP)
+    } else {
+      const side = leftward ? 'left' : 'right'
+      insets[side] = Math.max(insets[side], horizontal + PANEL_GAP)
+    }
   }
-  return { top, bottom }
+  return insets
 }
 
 /** Room between a panel and the nodes fitted next to it. */
@@ -471,7 +529,7 @@ function fitRect(bounds: Rect, animate: boolean, floor: number) {
   const zoom = clampZoom(
     Math.max(
       Math.min(
-        (width - FIT_PADDING * 2) / Math.max(1, bounds.width),
+        (width - insets.left - insets.right) / Math.max(1, bounds.width),
         (height - insets.top - insets.bottom) / Math.max(1, bounds.height),
         1,
       ),
@@ -487,7 +545,7 @@ function fitRect(bounds: Rect, animate: boolean, floor: number) {
     )
   setViewport(
     {
-      x: offset(width, bounds.width, bounds.x, FIT_PADDING, FIT_PADDING),
+      x: offset(width, bounds.width, bounds.x, insets.left, insets.right),
       y: offset(height, bounds.height, bounds.y, insets.top, insets.bottom),
       zoom,
     },
@@ -670,6 +728,7 @@ type Gesture =
   | {
       kind: 'box'
       id: number
+      touch: boolean
       start: Point
       current: Point
       client: Point
@@ -728,6 +787,8 @@ const spaceHeld = ref(false)
 let pressTimer = 0
 let dragCount = 0
 
+/** When a finger last went down, to tell a long press's own context menu event. */
+let lastTouch = 0
 /** Active touch points, for pinching. */
 const touches = new Map<number, Point>()
 let pinch: { distance: number; mid: Point; origin: FlowViewport } | null = null
@@ -758,6 +819,7 @@ function onPointerDown(event: PointerEvent) {
   stopAnimation()
   const touch = event.pointerType === 'touch'
   if (touch) {
+    lastTouch = Date.now()
     // The first finger of a new touch: any finger still on record lifted
     // where the editor didn't hear it (outside it, or taken by the browser).
     if (event.isPrimary) {
@@ -891,6 +953,7 @@ function startBox(event: PointerEvent, client: Point) {
   gesture.value = {
     kind: 'box',
     id: event.pointerId,
+    touch: event.pointerType === 'touch',
     start,
     current: start,
     client,
@@ -1220,6 +1283,15 @@ function finishLink(link: Link, event?: MouseEvent) {
       transact((tr) => tr.removeEdge(id))
     } else if (event) {
       emit('connectToCanvas', link.fixed, link.point, event)
+      if (!event.defaultPrevented && paletteTypes.value.length) {
+        quickAdd.value = {
+          link,
+          at: link.point,
+          client: { x: event.clientX, y: event.clientY },
+          types: typesTaking(link.fixed),
+          touch: (event as PointerEvent).pointerType === 'touch',
+        }
+      }
     }
     return
   }
@@ -1248,7 +1320,8 @@ const connecting = computed<Link | null>(() => {
 })
 
 const previewPath = computed(() => {
-  const link = connecting.value
+  // The dropped edge stays drawn while a node for its end is chosen.
+  const link = connecting.value ?? quickAdd.value?.link
   if (!link) return null
   const fixedRole = link.moving === 'target' ? 'source' : 'target'
   const a = anchorOf(link.fixed, fixedRole)
@@ -1425,6 +1498,341 @@ function paste(data: FlowDocument, at?: Point | null) {
   setSelection({ nodes: nodes.map((n) => n.id), edges: [] })
 }
 
+function duplicate() {
+  const data = copySelection()
+  if (!data || props.readonly) return
+  pastes = 0
+  paste(data)
+}
+
+function selectAll() {
+  setSelection({ nodes: doc.value.nodes.map((n) => n.id), edges: [] })
+}
+
+/** Copies the selection to the system clipboard, and keeps it for pasting from the menu. */
+function copy() {
+  const data = copySelection()
+  if (!data) return false
+  const text = writeClipboard(data)
+  pastes = 0
+  void navigator.clipboard?.writeText(text).catch(() => {})
+  return true
+}
+
+function cut() {
+  if (props.readonly || !copy()) return false
+  deleteSelection()
+  return true
+}
+
+/** Pastes from the system clipboard when the page may read it, or what was copied here. */
+async function pasteFromClipboard(at?: Point) {
+  if (props.readonly) return false
+  let text: string | null = null
+  try {
+    text = (await navigator.clipboard?.readText()) ?? null
+  } catch {
+    // Reading the clipboard wasn't allowed: fall back to what was copied here.
+  }
+  const data = readClipboard(text) ?? readClipboard()
+  if (!data) return false
+  paste(data, at ?? null)
+  return true
+}
+
+// Adding nodes ---------------------------------------------------------------------
+
+const paletteTypes = computed(() => [...types.value.values()].filter((spec) => spec.palette))
+
+/** A node of a type, not yet in the document. */
+function draft(spec: NodeTypeSpec): FlowNode {
+  return { id: createId(), type: spec.type, x: 0, y: 0, data: spec.defaults?.() ?? {} }
+}
+
+/** The first port of a new node that can take an edge from `from`, if any. */
+function takingPort(node: FlowNode, from: Required<FlowEndpoint>) {
+  const fromPort = portSpec(from)
+  if (!fromPort) return undefined
+  const spec = specOf(node)
+  const next = { nodes: [...doc.value.nodes, node], edges: doc.value.edges }
+  for (const port of portsOf(spec, node)) {
+    if (port.kind === fromPort.kind) continue
+    const end = { node: node.id, port: port.id }
+    const connection: FlowConnection =
+      fromPort.kind === 'output' ? { source: from, target: end } : { source: end, target: from }
+    const ports =
+      fromPort.kind === 'output'
+        ? { source: fromPort, target: port }
+        : { source: port, target: fromPort }
+    if (!joinRefusal(next, connection, ports, connectOptions())) return port
+  }
+  return undefined
+}
+
+/** Palette types a new node of which could take an edge from `from`. */
+function typesTaking(from: Required<FlowEndpoint>) {
+  return paletteTypes.value.filter((spec) => takingPort(draft(spec), from))
+}
+
+function insertNode(type: string, options: FlowInsertOptions = {}) {
+  const spec = types.value.get(type)
+  if (!spec || props.readonly) return null
+  const node = draft(spec)
+  let at = options.at
+  let from = options.from
+  let start = false
+  const after = !at && !from ? soleSelected() : undefined
+  if (after) {
+    // After the one selected node, connected to it when a port can take an edge from it.
+    const rect = getNodeRect(after.id)!
+    const vertical = props.direction === 'vertical'
+    const gap = TIDY_GAP[props.direction].rank
+    for (const out of portsOf(specOf(after), after)) {
+      const end = { node: after.id, port: out.id }
+      if (out.kind === 'output' && takingPort(node, end)) {
+        from = end
+        break
+      }
+    }
+    const fromAt = from && anchorOf(from, 'source')
+    at = vertical
+      ? { x: fromAt?.x ?? rect.x + rect.width / 2, y: rect.y + rect.height + gap }
+      : { x: rect.x + rect.width + gap, y: fromAt?.y ?? rect.y + rect.height / 2 }
+    start = true
+  }
+  // Without a point: the middle of the view.
+  at ??= toCanvas(clientCenter())
+  node.x = snapTo(at.x)
+  node.y = snapTo(at.y)
+  const port = from ? takingPort(node, from) : undefined
+  const group = `insert:${node.id}`
+  transact(
+    (tr) => {
+      tr.addNode(node)
+      if (from && port) {
+        const end = { node: node.id, port: port.id }
+        const fromPort = portSpec(from)!
+        tr.addEdge({
+          id: createId('e'),
+          source: fromPort.kind === 'output' ? from : end,
+          target: fromPort.kind === 'output' ? end : from,
+        })
+      }
+    },
+    { group },
+  )
+  pending.set(node.id, {
+    at,
+    port: port?.id,
+    group,
+    start,
+    avoid: !options.at,
+    focus: options.focus ?? true,
+  })
+  setSelection({ nodes: [node.id], edges: [] })
+  announce(format(messages.value.added, { node: labelOf(spec, node) }))
+  return node.id
+}
+
+/** The node selected on its own, if any. */
+function soleSelected() {
+  const { nodes, edges } = selection.value
+  return nodes.length === 1 && !edges.length ? nodeById.value.get(nodes[0]!) : undefined
+}
+
+/** The middle of the editor on screen. */
+function clientCenter(): Point {
+  const box = root.value!.getBoundingClientRect()
+  return { x: box.left + box.width / 2, y: box.top + box.height / 2 }
+}
+
+// Menus and the toolbar ----------------------------------------------------------------
+
+const menu = useTemplateRef<InstanceType<typeof FlowMenu>>('menu')
+const menuItems = shallowRef<FlowMenuItem[]>([])
+
+/** The extensions' items for a target, a separator between each extension's. */
+function itemsFor(target: FlowMenuTarget) {
+  const items: FlowMenuItem[] = []
+  for (const fn of resolved.value.menus) {
+    const list = fn(context, target)
+    list.forEach((item, i) =>
+      items.push(i === 0 && items.length ? { ...item, divided: true } : item),
+    )
+  }
+  return items
+}
+
+const menuOpen = ref(false)
+/** The last press while the menu was open, which closed it. */
+let menuPress: { target: EventTarget | null; at: number } | null = null
+const onMenuPress = (event: PointerEvent) => {
+  menuPress = { target: event.target, at: Date.now() }
+}
+watch(menuOpen, (open) => {
+  if (open) document.addEventListener('pointerdown', onMenuPress, true)
+  else document.removeEventListener('pointerdown', onMenuPress, true)
+})
+
+function openMenu(target: FlowMenuTarget, client: Point, from?: Element) {
+  // The press on the button that opened the menu closed it: leave it closed.
+  const press = menuPress
+  menuPress = null
+  if (
+    from &&
+    press &&
+    Date.now() - press.at < 500 &&
+    press.target instanceof Node &&
+    from.contains(press.target)
+  )
+    return false
+  const items = itemsFor(target)
+  if (!items.length) return false
+  menuItems.value = items
+  menu.value?.open(client.x, client.y)
+  return true
+}
+
+function runMenuItem(key: unknown) {
+  menuItems.value.find((item) => item.key === key)?.run()
+}
+
+onBeforeUnmount(() => document.removeEventListener('pointerdown', onMenuPress, true))
+
+const toolbarItems = computed<FlowToolbarItem[][]>(() => {
+  if (props.readonly || gesture.value || keyLink.value || quickAdd.value) return []
+  const nodes = selection.value.nodes.flatMap((id) => nodeById.value.get(id) ?? [])
+  if (!nodes.length) return []
+  return resolved.value.toolbars.map((fn) => fn(context, nodes)).filter((list) => list.length)
+})
+
+/** Where the toolbar floats: above the selected nodes, in screen px within the editor. */
+const toolbarAnchor = computed(() => {
+  const bounds = boundsOf(selection.value.nodes.flatMap((id) => getNodeRect(id) ?? []))
+  if (!bounds) return null
+  const { x, y, zoom } = viewport.value
+  return {
+    x: (bounds.x + bounds.width / 2) * zoom + x,
+    top: bounds.y * zoom + y,
+    bottom: (bounds.y + bounds.height) * zoom + y,
+  }
+})
+
+// Dropping an edge on the canvas offers the node types that can take it.
+const quickAdd = shallowRef<{
+  link: Link
+  at: Point
+  client: Point
+  types: NodeTypeSpec[]
+  touch: boolean
+} | null>(null)
+
+function chooseQuickAdd(type: string | null) {
+  const pendingAdd = quickAdd.value
+  quickAdd.value = null
+  if (!pendingAdd) return
+  if (type) insertNode(type, { at: pendingAdd.at, from: pendingAdd.link.fixed })
+  else root.value?.focus({ preventScroll: true })
+}
+
+// Dragging a new node in, from anywhere on the page --------------------------------
+
+const insertDrag = shallowRef<{
+  spec: NodeTypeSpec
+  id: number
+  touch: boolean
+  start: Point
+  client: Point
+  started: boolean
+  /** Whether letting go here adds the node. */
+  over: boolean
+} | null>(null)
+
+/** Whether a point on screen is on the canvas itself, not on a panel over it. */
+function onCanvasAt(client: Point) {
+  const el = document.elementFromPoint(client.x, client.y)
+  return !!root.value && !!el && root.value.contains(el) && !inPanels(el)
+}
+
+function startInsertDrag(type: string, event: PointerEvent) {
+  const spec = types.value.get(type)
+  if (!spec || props.readonly || event.button !== 0 || insertDrag.value) return false
+  const client = { x: event.clientX, y: event.clientY }
+  insertDrag.value = {
+    spec,
+    id: event.pointerId,
+    touch: event.pointerType === 'touch',
+    start: client,
+    client,
+    started: false,
+    over: false,
+  }
+  // The source may be anywhere, so the pointer is followed on the window.
+  window.addEventListener('pointermove', onInsertMove, true)
+  window.addEventListener('pointerup', onInsertUp, true)
+  window.addEventListener('pointercancel', onInsertUp, true)
+  window.addEventListener('keydown', onInsertKey, true)
+  return true
+}
+
+function onInsertMove(event: PointerEvent) {
+  const d = insertDrag.value
+  if (!d || d.id !== event.pointerId) return
+  const client = { x: event.clientX, y: event.clientY }
+  if (
+    !d.started &&
+    Math.hypot(client.x - d.start.x, client.y - d.start.y) < THRESHOLD[d.touch ? 'touch' : 'mouse']
+  )
+    return
+  insertDrag.value = { ...d, client, started: true, over: onCanvasAt(client) }
+}
+
+function onInsertUp(event: PointerEvent) {
+  const d = insertDrag.value
+  if (!d || d.id !== event.pointerId) return
+  stopInsertDrag()
+  if (!d.started) return
+  swallowClick()
+  const client = { x: event.clientX, y: event.clientY }
+  if (event.type === 'pointerup' && onCanvasAt(client))
+    insertNode(d.spec.type, { at: toCanvas(client) })
+}
+
+// Escape puts the node back.
+function onInsertKey(event: KeyboardEvent) {
+  if (event.key !== 'Escape' || !insertDrag.value) return
+  event.preventDefault()
+  event.stopPropagation()
+  if (insertDrag.value.started) swallowClick()
+  stopInsertDrag()
+}
+
+function stopInsertDrag() {
+  insertDrag.value = null
+  window.removeEventListener('pointermove', onInsertMove, true)
+  window.removeEventListener('pointerup', onInsertUp, true)
+  window.removeEventListener('pointercancel', onInsertUp, true)
+  window.removeEventListener('keydown', onInsertKey, true)
+}
+
+const stopEvent = (event: Event) => {
+  event.stopPropagation()
+  event.preventDefault()
+}
+
+/** The click that ends a drag isn't a click on the source: it doesn't add another node. */
+function swallowClick() {
+  window.addEventListener('click', stopEvent, { capture: true, once: true })
+  setTimeout(() => window.removeEventListener('click', stopEvent, true))
+}
+
+onBeforeUnmount(stopInsertDrag)
+
+const ghostStyle = computed(() => {
+  const d = insertDrag.value
+  return d ? { transform: `translate(${d.client.x}px, ${d.client.y}px)` } : undefined
+})
+
 function onPointerUp(event: PointerEvent) {
   if (event.pointerType === 'touch') {
     touches.delete(event.pointerId)
@@ -1440,6 +1848,11 @@ function onPointerUp(event: PointerEvent) {
     if (g.kind === 'pan' && !g.moved) {
       if (!g.additive) setSelection(emptySelection())
       emit('canvasClick', toCanvas({ x: event.clientX, y: event.clientY }), event)
+    } else if (g.kind === 'box' && g.touch && g.current === g.start) {
+      // Holding the empty canvas and letting go without moving opens its menu.
+      endGesture()
+      showMenu({ kind: 'canvas', point: g.start }, { x: event.clientX, y: event.clientY }, event)
+      return
     } else if (g.kind === 'connect') {
       if (g.started) finishLink(g.link, event)
       else setSelection({ nodes: [g.node], edges: [] })
@@ -1472,7 +1885,7 @@ function endGesture() {
 function cancelDrag() {
   const g = gesture.value
   if (g?.kind !== 'drag' || !g.started) return false
-  const tr = new Transaction(toRaw(doc.value)).setMeta({ history: false })
+  const tr = new FlowTransaction(toRaw(doc.value)).setMeta({ history: false })
   for (const [id, o] of g.origins) tr.moveNode(id, o.x, o.y)
   if (tr.changed) commit(tr)
   history.drop(g.group)
@@ -1484,6 +1897,7 @@ function cancelDrag() {
 function onWheel(event: WheelEvent) {
   const target = event.target as Element
   if (inPanels(target)) return
+  if (quickAdd.value) chooseQuickAdd(null)
   const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? root.value!.clientHeight : 1
   let dx = event.deltaX * unit
   let dy = event.deltaY * unit
@@ -1531,17 +1945,57 @@ function onDblclick(event: MouseEvent) {
 function onContextmenu(event: MouseEvent) {
   const target = event.target as Element
   if (inPanels(target)) return
+  // A long press: the editor handles holding itself.
+  if ((event as PointerEvent).pointerType === 'touch' || Date.now() - lastTouch < 1000) {
+    event.preventDefault()
+    return
+  }
+  // Fields inside nodes keep the browser's own menu.
+  if (isEditable(target)) return
   const nodeEl = target.closest<HTMLElement>('[data-node-id]')
   const edgeEl = target.closest<Element>('[data-edge-id]')
+  // From the keyboard there is no pointer: open by the focused node, or the middle.
+  const keyboard = event.button === -1 || (event.clientX === 0 && event.clientY === 0)
+  let client = { x: event.clientX, y: event.clientY }
+  if (keyboard) {
+    const box = (nodeEl ?? root.value!).getBoundingClientRect()
+    client = nodeEl ? { x: box.left, y: box.bottom } : clientCenter()
+  }
+  const point = toCanvas(client)
   if (nodeEl) {
     const node = nodeById.value.get(nodeEl.dataset.nodeId!)
-    if (node) emit('nodeContextmenu', node, event)
+    if (!node) return
+    emit('nodeContextmenu', node, event)
+    if (event.defaultPrevented) return
+    if (!selection.value.nodes.includes(node.id)) setSelection({ nodes: [node.id], edges: [] })
+    showMenu({ kind: 'node', node, point }, client, event)
   } else if (edgeEl) {
     const edge = doc.value.edges.find((e) => e.id === edgeEl.getAttribute('data-edge-id'))
-    if (edge) emit('edgeContextmenu', edge, event)
+    if (!edge) return
+    emit('edgeContextmenu', edge, event)
+    if (event.defaultPrevented) return
+    if (!selection.value.edges.includes(edge.id)) setSelection({ nodes: [], edges: [edge.id] })
+    showMenu({ kind: 'edge', edge, point }, client, event)
   } else {
-    emit('canvasContextmenu', toCanvas({ x: event.clientX, y: event.clientY }), event)
+    emit('canvasContextmenu', point, event)
+    if (event.defaultPrevented) return
+    showMenu({ kind: 'canvas', point }, client, event)
   }
+}
+
+/** Opens the menu for a pointer event, keeping the browser's own when there's nothing to show. */
+function showMenu(target: FlowMenuTarget, client: Point, event: Event) {
+  if (target.kind === 'canvas' && event.type !== 'contextmenu') {
+    // A long press: the app may want it for its own menu.
+    const menuEvent = new MouseEvent('contextmenu', {
+      cancelable: true,
+      clientX: client.x,
+      clientY: client.y,
+    })
+    emit('canvasContextmenu', target.point, menuEvent)
+    if (menuEvent.defaultPrevented) return
+  }
+  if (openMenu(target, client)) event.preventDefault()
 }
 
 // Keyboard ------------------------------------------------------------------------
@@ -1620,14 +2074,12 @@ function onKeydown(event: KeyboardEvent) {
       if (event.shiftKey) redo()
       else undo()
     } else if (key === 'y' && !props.readonly) redo()
-    else if (key === 'a') setSelection({ nodes: doc.value.nodes.map((n) => n.id), edges: [] })
+    else if (key === 'a') selectAll()
     // Copy, cut and paste come as clipboard events; see onClipboard.
     else if (key === 'c' || key === 'x' || key === 'v') return
     else if (key === 'd' && !props.readonly) {
-      const data = copySelection()
-      if (!data) return
-      pastes = 0
-      paste(data)
+      if (!selection.value.nodes.length) return
+      duplicate()
     } else if (key === '=' || key === '+') zoomIn()
     else if (key === '-') zoomOut()
     else if (key === '0') zoomTo(1)
@@ -1822,6 +2274,18 @@ const context: FlowEditorContext = {
   announce,
   size,
   selectedNodes: computed(() => new Set(selection.value.nodes)),
+  root,
+  insertNode,
+  paletteTypes,
+  startInsertDrag,
+  openMenu,
+  toCanvas,
+  copy,
+  cut,
+  paste: pasteFromClipboard,
+  duplicate,
+  deleteSelection,
+  selectAll,
 }
 provide(flowEditorKey, context)
 
@@ -1855,6 +2319,11 @@ defineExpose<FlowEditorExpose>({
     return [...staleEdges.value]
   },
   removeStaleEdges,
+  insertNode,
+  startInsertDrag,
+  get paletteTypes() {
+    return paletteTypes.value
+  },
 })
 </script>
 
@@ -1924,7 +2393,37 @@ defineExpose<FlowEditorExpose>({
     <div class="dou-flow-editor__panels">
       <slot />
       <component :is="overlay" v-for="(overlay, i) in resolved.overlays" :key="i" />
+      <FlowToolbar
+        v-if="toolbarItems.length && toolbarAnchor"
+        :groups="toolbarItems"
+        :anchor="toolbarAnchor"
+        :size="size"
+      />
     </div>
+    <FlowMenu ref="menu" v-model:open="menuOpen" :items="menuItems" @select="runMenuItem" />
+    <FlowQuickAdd :state="quickAdd" @choose="chooseQuickAdd">
+      <template v-if="$slots.quickAdd" #default="scope">
+        <slot name="quickAdd" v-bind="scope" />
+      </template>
+    </FlowQuickAdd>
+    <Teleport to="body">
+      <div
+        v-if="insertDrag?.started"
+        class="dou-flow-editor__ghost"
+        :class="{ 'is-outside': !insertDrag.over }"
+        :style="ghostStyle"
+        aria-hidden="true"
+      >
+        <slot name="ghost" :spec="insertDrag.spec" :over="insertDrag.over">
+          <span class="dou-flow-editor__ghost-card">
+            <span v-if="insertDrag.spec.palette?.icon" class="dou-flow-editor__ghost-icon">
+              <component :is="insertDrag.spec.palette.icon" />
+            </span>
+            {{ insertDrag.spec.palette?.label ?? insertDrag.spec.type }}
+          </span>
+        </slot>
+      </div>
+    </Teleport>
     <span ref="end" class="dou-flow-editor__end" tabindex="-1" />
     <div class="dou-flow-editor__live" aria-live="polite">{{ live }}</div>
   </div>

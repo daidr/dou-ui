@@ -20,12 +20,27 @@ export interface FlowMessages {
   undo: string
   redo: string
   controls: string
+  /** The context menu and the floating toolbar. */
+  menu: string
+  toolbar: string
+  copy: string
+  cut: string
+  paste: string
+  duplicate: string
+  delete: string
+  selectAll: string
+  more: string
+  /** The list offered when an edge is dropped on the canvas. */
+  search: string
+  noTypes: string
   /** Announcements; `{count}` is a number. */
   deleted: string
   tidied: string
   undone: string
   redone: string
   connected: string
+  /** `{node}` is the new node's name. */
+  added: string
   /** While connecting from the keyboard; `{node}` and `{port}` are names. */
   connectTo: string
   noTarget: string
@@ -58,11 +73,23 @@ const zhCN: FlowMessages = {
   undo: '撤销',
   redo: '重做',
   controls: '画布控制',
+  menu: '菜单',
+  toolbar: '选中节点的操作',
+  copy: '复制',
+  cut: '剪切',
+  paste: '粘贴',
+  duplicate: '复制一份',
+  delete: '删除',
+  selectAll: '全选',
+  more: '更多',
+  search: '搜索节点',
+  noTypes: '没有能接上的节点',
   deleted: '已删除 {count} 项',
   tidied: '已整理 {count} 个节点',
   undone: '已撤销',
   redone: '已重做',
   connected: '已连接',
+  added: '已添加{node}',
   connectTo: '连接到 {node} 的 {port}，方向键换一个，Enter 确认',
   noTarget: '没有可以连接的端口',
   stale: '{count} 条连线的端口类型已经对不上',
@@ -92,11 +119,23 @@ const zhTW: FlowMessages = {
   undo: '復原',
   redo: '重做',
   controls: '畫布控制',
+  menu: '選單',
+  toolbar: '選取節點的操作',
+  copy: '複製',
+  cut: '剪下',
+  paste: '貼上',
+  duplicate: '複製一份',
+  delete: '刪除',
+  selectAll: '全選',
+  more: '更多',
+  search: '搜尋節點',
+  noTypes: '沒有能接上的節點',
   deleted: '已刪除 {count} 項',
   tidied: '已整理 {count} 個節點',
   undone: '已復原',
   redone: '已重做',
   connected: '已連接',
+  added: '已新增{node}',
   connectTo: '連接到 {node} 的 {port}，方向鍵換一個，Enter 確認',
   noTarget: '沒有可以連接的連接埠',
   stale: '{count} 條連線的連接埠類型已經對不上',
@@ -127,11 +166,23 @@ const en: FlowMessages = {
   undo: 'Undo',
   redo: 'Redo',
   controls: 'Canvas controls',
+  menu: 'Menu',
+  toolbar: 'Selected node actions',
+  copy: 'Copy',
+  cut: 'Cut',
+  paste: 'Paste',
+  duplicate: 'Duplicate',
+  delete: 'Delete',
+  selectAll: 'Select all',
+  more: 'More',
+  search: 'Search nodes',
+  noTypes: 'No node can take this edge',
   deleted: '{count} deleted',
   tidied: '{count} nodes tidied up',
   undone: 'Undone',
   redone: 'Redone',
   connected: 'Connected',
+  added: 'Added {node}',
   connectTo: 'Connect to {port} of {node}; arrow keys pick another, Enter confirms',
   noTarget: 'No port to connect to',
   stale: '{count} edges no longer match their ports',
@@ -146,11 +197,7 @@ const en: FlowMessages = {
   status: { wait: 'Waiting', process: 'Running', finish: 'Done', error: 'Failed' },
 }
 
-export const flowLocales: Record<string, FlowMessages> = {
-  'zh-CN': zhCN,
-  'zh-TW': zhTW,
-  en,
-}
+export const flowLocales: Record<string, FlowMessages> = { 'zh-CN': zhCN, 'zh-TW': zhTW, en }
 
 /** Texts to change; nested groups are merged, so only the ones given are replaced. */
 export type FlowMessagesOverride = {

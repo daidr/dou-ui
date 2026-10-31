@@ -41,6 +41,8 @@ const extensions = [flowKit(), groups]
 | `transformPaste` | 粘贴前改写节点和连线，比如清掉运行状态                                                     | `(data, ctx) => FlowDocument`                         |
 | `layers`         | 画在画布坐标里的组件，`below` 在连线下方，`above` 在节点上方，跟着画布移动和缩放           | `{ below?: Component[], above?: Component[] }`        |
 | `overlays`       | 浮在编辑器上方的组件，不随画布移动，比如面板                                               | `Component[]`                                         |
+| `contextMenu`    | 右键菜单的项，见[右键菜单](./editing#右键菜单)                                             | `(ctx, target) => FlowMenuItem[]`                     |
+| `toolbarItems`   | 选中节点上方工具栏的按钮，见[工具栏](./editing#工具栏)                                     | `(ctx, nodes) => FlowToolbarItem[]`                   |
 
 `ctx` 和组件里 `useFlowEditor()` 拿到的是同一个对象。图层和浮层组件也可以调用 `useFlowEditor()`。
 

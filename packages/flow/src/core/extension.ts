@@ -1,7 +1,8 @@
 import type { Component } from 'vue'
 import type { FlowEditorContext } from '../context'
 import type { FlowConnection, PortTypes } from './connect'
-import type { FlowDocument } from './model'
+import type { FlowMenuItem, FlowMenuTarget, FlowToolbarItem } from './menu'
+import type { FlowDocument, FlowNode } from './model'
 import type { NodeTypeSpec } from './node-types'
 
 /** What an extension's hooks receive; the same as `useFlowEditor()`. */
@@ -44,6 +45,14 @@ export interface FlowExtension {
    * popup. They can call `useFlowEditor()`.
    */
   overlays?: Component[]
+  /**
+   * Items for the menu opened by a right click, a long press on the empty
+   * canvas, or the context menu key. Extensions' items follow each other
+   * in priority order; an empty list leaves them out.
+   */
+  contextMenu?: (context: FlowExtensionContext, target: FlowMenuTarget) => FlowMenuItem[]
+  /** Buttons for the toolbar that floats above the selected nodes. */
+  toolbarItems?: (context: FlowExtensionContext, nodes: FlowNode[]) => FlowToolbarItem[]
 }
 
 /** Declares an extension; only gives it a type. */
@@ -62,6 +71,8 @@ export interface ResolvedFlowExtensions {
   below: Component[]
   above: Component[]
   overlays: Component[]
+  menus: NonNullable<FlowExtension['contextMenu']>[]
+  toolbars: NonNullable<FlowExtension['toolbarItems']>[]
 }
 
 type ExtensionList = readonly (FlowExtension | readonly FlowExtension[])[]
@@ -121,5 +132,7 @@ export function resolveFlowExtensions(list: ExtensionList): ResolvedFlowExtensio
     below: extensions.flatMap((e) => e.layers?.below ?? []),
     above: extensions.flatMap((e) => e.layers?.above ?? []),
     overlays: extensions.flatMap((e) => e.overlays ?? []),
+    menus: pick('contextMenu'),
+    toolbars: pick('toolbarItems'),
   }
 }

@@ -29,7 +29,9 @@ const records = computed(() =>
   })),
 )
 const title = computed(() => {
-  const where = cell.value ? [...cell.value.row, ...cell.value.column].join(' · ') : ''
+  const where = cell.value
+    ? [...cell.value.labels.row, ...cell.value.labels.column].join(' · ')
+    : ''
   return `${where || '全部订单'}（${records.value.length} 笔）`
 })
 

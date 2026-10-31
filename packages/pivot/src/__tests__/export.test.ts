@@ -234,10 +234,15 @@ describe('selecting and copying', () => {
     expect(wrapper.findAll('.dou-pivot__cell.is-selected')).toHaveLength(4)
     expect(wrapper.findAll('[role="gridcell"][aria-selected="true"]')).toHaveLength(4)
     expect(view.attributes('aria-multiselectable')).toBe('true')
+    // read out once the range stops growing
+    await new Promise((done) => setTimeout(done, 450))
+    expect(wrapper.find('.dou-pivot__live').text()).toBe('已选中 2 行 2 列')
     const { event, data } = copyEvent()
     view.element.dispatchEvent(event)
     expect(event.defaultPrevented).toBe(true)
     expect(data.get('text/plain')).toBe('15\t20\n3\t7.5')
+    await new Promise((done) => setTimeout(done, 80))
+    expect(wrapper.find('.dou-pivot__live').text()).toBe('已复制 4 个格子')
     // DouSheet reads the numbers back as numbers
     const clip = parseClip({ html: data.get('text/html') })!
     const f = '#,##0.##'
@@ -338,5 +343,28 @@ describe('gridToHTML', () => {
     expect(html).toContain('<thead><tr><th colspan="2" class="is-head">a&#60;b</th></tr></thead>')
     expect(html).toContain('<th scope="row" class="is-label is-edge">x</th>')
     expect(html).not.toContain('data-dou-sheet')
+  })
+})
+
+describe('cell-click labels', () => {
+  it('gives the groups as the table writes them beside their values', async () => {
+    const clicks: { row: unknown[]; labels: { row: string[]; column: string[] } }[] = []
+    const dated = [
+      { day: new Date(2026, 0, 5), channel: '外卖', amount: 10 },
+      { day: new Date(2026, 1, 9), channel: '门店', amount: 4 },
+    ]
+    const wrapper = mount(DouPivot, {
+      props: {
+        data: dated,
+        fields: [{ name: 'day', type: 'date' }],
+        config: { rows: [{ field: 'day', by: 'month' }], columns: ['channel'], values: ['amount'] },
+        onCellClick: (cell: never) => clicks.push(cell),
+      },
+      attachTo: document.body,
+    })
+    await wrapper.findAll('.dou-pivot__body .dou-pivot__cell')[0]!.trigger('click')
+    expect(clicks[0]!.row).toEqual(['2026-01'])
+    expect(clicks[0]!.labels).toEqual({ row: ['2026年1月'], column: ['门店'] })
+    wrapper.unmount()
   })
 })

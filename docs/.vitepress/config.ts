@@ -119,6 +119,8 @@ export default defineConfig({
             { text: '经营看板', link: '/blocks/business' },
             { text: '实时监控', link: '/blocks/monitoring' },
             { text: '门店对比', link: '/blocks/compare' },
+            { text: '销售分析', link: '/blocks/sales-analysis' },
+            { text: '工单统计', link: '/blocks/ticket-stats' },
             { text: 'AI 对话页', link: '/blocks/chat' },
             { text: '错误页', link: '/blocks/errors' },
             { text: '看板', link: '/blocks/kanban' },

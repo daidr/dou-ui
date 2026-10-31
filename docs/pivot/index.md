@@ -8,6 +8,8 @@ wide: true
 
 透视表只用来分析数据，不修改传入的记录。汇总在内部按列读成紧凑的数字数组后进行，10 万条记录的分组汇总在几十毫秒内完成；只调整排序、展开折叠时不会重新汇总。
 
+几个完整页面的写法见区块中的[销售分析](../blocks/sales-analysis)和[工单统计](../blocks/ticket-stats)。
+
 ## 安装
 
 数据透视是单独的包，需要和 `dou-ui` 一起使用：
@@ -251,7 +253,7 @@ filters: {
 
 ## 查看明细
 
-点击一个数字（或用方向键选中后按 Enter）会触发 `cell-click`，参数里有这一格的行组、列组、值的序号和数值。`records()` 返回汇总进这一格的记录，`indices()` 返回它们在 `data` 里的下标。下面的例子在抽屉里用表格列出这些订单：
+点击一个数字（或用方向键选中后按 Enter）会触发 `cell-click`，参数里有这一格的行组、列组、值的序号和数值；`row` 和 `column` 是组的原始值（日期按月分组时是 `'2026-01'`），`labels` 是表格里写出的文字。`records()` 返回汇总进这一格的记录，`indices()` 返回它们在 `data` 里的下标。下面的例子在抽屉里用表格列出这些订单：
 
 <DocDemo src="pivot/details" />
 
@@ -474,14 +476,15 @@ result.get(east, result.columns.find(['Q1']), 1) // 华东 Q1 的第 2 个值
 
 ### PivotCellEvent
 
-| 名称         | 说明                                                         | 类型             |
-| ------------ | ------------------------------------------------------------ | ---------------- |
-| `row`        | 行组从外到内的组名，总计行为 `[]`                            | `unknown[]`      |
-| `column`     | 列组从外到内的组名，总计列为 `[]`                            | `unknown[]`      |
-| `valueIndex` | 值在 `config.values` 里的序号                                | `number`         |
-| `value`      | 格子里显示的数值（有 `show` 时是换算后的数），空格子为 `NaN` | `number`         |
-| `records`    | 汇总进这一格的记录                                           | `() => object[]` |
-| `indices`    | 这些记录在 `data` 里的下标                                   | `() => number[]` |
+| 名称         | 说明                                                                              | 类型                                  |
+| ------------ | --------------------------------------------------------------------------------- | ------------------------------------- |
+| `row`        | 行组从外到内的组名，总计行为 `[]`                                                 | `unknown[]`                           |
+| `column`     | 列组从外到内的组名，总计列为 `[]`                                                 | `unknown[]`                           |
+| `labels`     | 同样的行组和列组按表格里写出的文字，如 `{ row: ['2026年1月'], column: ['外卖'] }` | `{ row: string[], column: string[] }` |
+| `valueIndex` | 值在 `config.values` 里的序号                                                     | `number`                              |
+| `value`      | 格子里显示的数值（有 `show` 时是换算后的数），空格子为 `NaN`                      | `number`                              |
+| `records`    | 汇总进这一格的记录                                                                | `() => object[]`                      |
+| `indices`    | 这些记录在 `data` 里的下标                                                        | `() => number[]`                      |
 
 ### PivotConfig
 
@@ -524,17 +527,18 @@ result.get(east, result.columns.find(['Q1']), 1) // 华东 Q1 的第 2 个值
 
 ### CSS 变量
 
-| 变量                         | 说明                               |
-| ---------------------------- | ---------------------------------- |
-| `--dou-pivot-line`           | 格子之间的线                       |
-| `--dou-pivot-line-strong`    | 表头、行头的分隔线                 |
-| `--dou-pivot-head-bg`        | 表头和总计行的背景                 |
-| `--dou-pivot-total-bg`       | 合计列和总计列的背景               |
-| `--dou-pivot-ring`           | 键盘选中格子的边框颜色             |
-| `--dou-pivot-selected`       | 选中范围的底色                     |
-| `--dou-pivot-scale-strength` | 色阶最深时语气色的比例，默认 `28%` |
-| `--dou-pivot-bar-strength`   | 数据条语气色的比例，默认 `12%`     |
+| 变量                            | 说明                                     |
+| ------------------------------- | ---------------------------------------- |
+| `--dou-pivot-line`              | 格子之间的线                             |
+| `--dou-pivot-line-strong`       | 表头、行头的分隔线                       |
+| `--dou-pivot-head-bg`           | 表头和总计行的背景                       |
+| `--dou-pivot-total-bg`          | 合计列和总计列的背景                     |
+| `--dou-pivot-ring`              | 键盘选中格子的边框颜色                   |
+| `--dou-pivot-selected`          | 选中范围的底色                           |
+| `--dou-pivot-scale-strength`    | 色阶最深时语气色的比例，默认 `28%`       |
+| `--dou-pivot-bar-strength`      | 数据条语气色的比例，默认 `12%`           |
+| `--dou-pivot-bar-strength-dark` | 深色主题下数据条语气色的比例，默认 `24%` |
 
 ### 读屏
 
-表格是一个树形网格（`role="treegrid"`）：每行带有层级（`aria-level`），组所在的行带有展开状态（`aria-expanded`），排序中的表头带有 `aria-sort`。表格可以多选（`aria-multiselectable`），选中范围内的格子带有 `aria-selected`。用方向键移动时，读屏读出选中的格子。
+表格是一个树形网格（`role="treegrid"`）：每行带有层级（`aria-level`），组所在的行带有展开状态（`aria-expanded`），排序中的表头带有 `aria-sort`。表格可以多选（`aria-multiselectable`），选中范围内的格子带有 `aria-selected`。用方向键移动时，读屏读出选中的格子。选中一片格子、复制、展开或折叠一组时，表格通过一个隐藏的 `role="status"` 区域播报结果，比如“已选中 3 行 2 列”“已复制 6 个格子”。

@@ -16,6 +16,7 @@ export type {
   CodeGutter,
   CodeGutterMarker,
   CodePanel,
+  CodeWidget,
 } from './extension'
 export default DouCodeEditor
 

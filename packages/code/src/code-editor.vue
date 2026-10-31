@@ -4000,6 +4000,9 @@ const api: CodeExtensionContext = {
   get visible() {
     return { from: visibleFrom.value, to: visibleTo.value }
   },
+  get focused() {
+    return focused.value
+  },
   announce,
 }
 context = api

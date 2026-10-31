@@ -1,4 +1,5 @@
-import { h, ref, shallowRef } from 'vue'
+import { collaborationColors } from 'dou-ui'
+import { h, ref, shallowRef, watch } from 'vue'
 import * as Y from 'yjs'
 import type { CodeChangeSpec } from '../core/changes'
 import { type CodeSelection, mainRange } from '../core/selection'
@@ -37,17 +38,7 @@ export interface CollaborationOptions {
   user?: CollaborationUser
 }
 
-/** Deep, low-saturation colors that read on both light and dark surfaces. */
-export const collaborationColors = [
-  '#3b6ea8',
-  '#a8553b',
-  '#3b8a6e',
-  '#8a3b7a',
-  '#8a7a3b',
-  '#5b4fa8',
-  '#3b8a8a',
-  '#a83b55',
-]
+export { collaborationColors }
 
 /** What each person shares under the awareness field `code`: their selection, as positions that follow edits. */
 interface SharedSelection {
@@ -304,15 +295,21 @@ export function collaboration(options: CollaborationOptions): CodeExtension {
       text.observe(observer)
       awareness?.on('change', readPeers)
       readPeers()
-      shareSelection(ctx.selection)
+      // the cursor is shared only while this person is in the editor
+      const stop = watch(
+        () => ctx.focused,
+        (focused) => shareSelection(focused ? ctx.selection : null),
+        { immediate: true },
+      )
       return () => {
+        stop()
         text.unobserve(observer)
         awareness?.off('change', readPeers)
         shareSelection(null)
         if (context === ctx) context = null
       }
     },
-    update(result: CodeTransactionResult) {
+    update(result: CodeTransactionResult, ctx) {
       if (!result.meta[FROM_SHARED] && !result.changes.empty) {
         before = result.before.selection
         const list = result.changes.changes
@@ -325,7 +322,7 @@ export function collaboration(options: CollaborationOptions): CodeExtension {
           }
         }, origin)
       }
-      shareSelection(result.state.selection)
+      shareSelection(ctx.focused ? result.state.selection : null)
     },
     decorations: awareness ? decorations : undefined,
     history: () => history,

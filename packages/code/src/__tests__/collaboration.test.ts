@@ -153,6 +153,10 @@ describe('collaboration', () => {
     await nextTick()
     a.editor.value!.select(18, 23)
     await nextTick()
+    // not shared before they are in the editor
+    expect(b.wrapper.find('.dou-code-peer').exists()).toBe(false)
+    a.input.focus()
+    await nextTick()
     await nextTick()
     const peer = b.wrapper.find('.dou-code-peer')
     expect(peer.exists()).toBe(true)
@@ -171,6 +175,15 @@ describe('collaboration', () => {
     await nextTick()
     await nextTick()
     expect(b.wrapper.find('.dou-code-peer').classes()).toContain('is-below')
+    // gone when they leave the editor, back when they return
+    a.input.blur()
+    await nextTick()
+    await nextTick()
+    expect(b.wrapper.find('.dou-code-peer').exists()).toBe(false)
+    a.input.focus()
+    await nextTick()
+    await nextTick()
+    expect(b.wrapper.find('.dou-code-peer').exists()).toBe(true)
     // gone once the editor is
     a.wrapper.unmount()
     wrappers.splice(wrappers.indexOf(a.wrapper), 1)

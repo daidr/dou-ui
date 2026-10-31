@@ -61,7 +61,7 @@ const extensions = [
 
 ## 光标和选区
 
-`awareness` 是 `y-protocols/awareness` 的实例，provider 一般会提供，例如 `provider.awareness`。每个人的光标、选区（包括多光标）都通过它告诉其他人，位置会跟着文本的修改移动。不传 `awareness` 时只同步文本，不显示其他人的光标。
+`awareness` 是 `y-protocols/awareness` 的实例，provider 一般会提供，例如 `provider.awareness`。每个人的光标、选区（包括多光标）都通过它告诉其他人，位置会跟着文本的修改移动。只有在编辑器获得焦点时才会告诉其他人；点到编辑器外面后，其他人那边的光标随即消失，回来后再出现。不传 `awareness` 时只同步文本，不显示其他人的光标。
 
 `user` 是自己的名字和颜色，`color` 可以是任意 CSS 颜色，不填时按 Yjs 的客户端 id 从 `collaborationColors` 里选一个。这组颜色饱和度较低，在浅色和深色背景上都看得清；名字的文字颜色会按底色的明暗自动选深色或浅色。名字显示在光标上方，光标在第一行时显示在下方。
 
@@ -99,4 +99,4 @@ const extensions = [
 
 ### collaborationColors
 
-默认的光标颜色，一组 8 个 CSS 颜色。
+默认的光标颜色，一组 8 个 CSS 颜色。它和其他协同编辑的包用的是同一组，也可以从 `dou-ui` 引入。

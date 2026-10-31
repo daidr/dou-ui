@@ -13,4 +13,5 @@ export { contrastRatio, createTheme, createTone, parseColor } from './tokens/cre
 export type { CreateThemeOptions, ThemeColors } from './tokens/create'
 export { CSS_VAR_PREFIX, cssVarName, flattenTokens, themeToCss } from './tokens/css'
 export { breakpoints } from './breakpoints'
+export { collaborationColors } from './collaboration'
 export type { Breakpoint } from './breakpoints'

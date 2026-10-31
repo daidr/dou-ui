@@ -308,6 +308,8 @@ export interface CodeExtensionContext extends CodeEditorExpose {
   readonly visible: { readonly from: number; readonly to: number }
   /** The problems found now, by all linters and the `diagnostics` prop, in text order. */
   readonly diagnostics: readonly CodeDiagnostic[]
+  /** Whether the editor has focus; reading it in reactive code follows it. */
+  readonly focused: boolean
   /** Reads a message out to screen readers. */
   announce: (message: string) => void
 }

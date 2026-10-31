@@ -6,7 +6,7 @@
 
 ## 基础用法
 
-把 `whiteboardKit()` 加在 `flowKit()` 后面，再把 `edge-type` 设为 `connector`，新拉出的线就是连接线：
+把 `whiteboardKit()` 加在 `flowKit()` 后面就可以用了。它把没写 `type` 的连线默认画成连接线，编辑器的 `edge-type` 属性仍然可以改成别的：
 
 ```vue
 <script setup lang="ts">
@@ -19,7 +19,7 @@ const board = ref<FlowDocument>({ nodes: [], edges: [] })
 </script>
 
 <template>
-  <DouFlowEditor v-model="board" :extensions="extensions" edge-type="connector" />
+  <DouFlowEditor v-model="board" :extensions="extensions" />
 </template>
 ```
 
@@ -37,7 +37,7 @@ const board = ref<FlowDocument>({ nodes: [], edges: [] })
 | 便签     | S    | 放下后直接开始写字                                          |
 | 文字     | T    | 放下后直接开始写字，没写字就不留下                          |
 
-画完一个会回到选择工具。双击工具按钮可以一直保持这个工具，按钮下方会出现一个小点，按 Esc 或 V 回到选择。在触屏上，选了画图工具后单指按下就是画，不会滚动页面；选择工具下单指仍然是平移画布。
+画完一个会回到选择工具。用键盘时，选好工具后按 Enter 放一个默认大小的：选中了一个节点时放在它后面并连上，否则放在视野中间，都会避开已有的节点。点工具按钮后焦点回到画布，可以直接按键。双击工具按钮可以一直保持这个工具，按钮下方会出现一个小点，按 Esc 或 V 回到选择。在触屏上，选了画图工具后单指按下就是画，不会滚动页面；选择工具下单指仍然是平移画布。
 
 要用自己的工具栏，传入 `toolbar: false` 关掉内置的，再用 `tool` 和它共享当前工具：
 
@@ -52,21 +52,44 @@ const extensions = [flowKit(), whiteboardKit({ tool, toolbar: false })]
 
 ## 连接线
 
-鼠标移到形状或便签上，四边中点会出现锚点。从锚点拖出连接线，拖到另一个形状上任意位置松开，会接到离松手处最近的锚点上。形状移动时连接线跟着走。连接线是直线，终点带箭头，双击可以加文字。
+鼠标移到形状、便签或文字上，四边中点会出现锚点。从锚点拖出连接线，拖到另一个形状上任意位置松开，会接到离松手处最近的锚点上。形状移动时连接线跟着走。连接线是直线，终点带箭头，双击可以加文字。松手处的节点接不上时，读屏会提示没有可以连接的端口。
 
 ## 节点数据
 
 白板上的东西都是普通节点，`type` 和 `data` 如下：
 
-| 类型     | `data`                                                       | 说明                            |
-| -------- | ------------------------------------------------------------ | ------------------------------- |
-| `shape`  | `{ shape: 'rect' \| 'ellipse' \| 'diamond', text?, color? }` | 形状                            |
-| `sticky` | `{ text?, color? }`                                          | 便签，默认 `color` 是 `warning` |
-| `text`   | `{ text? }`                                                  | 文字，没有高度，随内容变高      |
+| 类型     | `data`                                                      | 说明                           |
+| -------- | ----------------------------------------------------------- | ------------------------------ |
+| `shape`  | `{ shape: 'rect' \| 'ellipse' \| 'diamond', text?, tone? }` | 形状                           |
+| `sticky` | `{ text?, tone? }`                                          | 便签，默认 `tone` 是 `warning` |
+| `text`   | `{ text? }`                                                 | 文字，没有高度，随内容变高     |
 
-`color` 取主题的语气色：`neutral`、`primary`、`success`、`warning`、`danger`。形状默认是 `neutral`，用正文颜色描边；其他颜色会给形状描边并淡淡地铺底，给便签铺底。
+`tone` 取主题的语气色：`neutral`、`primary`、`success`、`warning`、`danger`。形状默认是 `neutral`，用正文颜色描边；其他颜色会给形状描边并淡淡地铺底，给便签铺底。
 
-形状和便签的锚点是端口，四边各一个，id 是 `top`、`right`、`bottom`、`left`（作为起点）和 `top-in` 等（作为终点）。连接线的类型是 `connector`。
+锚点是端口。每条边上有两个：作为起点的 `top`、`right`、`bottom`、`left`，和作为终点的 `top-in`、`right-in`、`bottom-in`、`left-in`。在数据里写连线时，`source` 用前一种，`target` 用带 `-in` 的：
+
+```ts
+const board: FlowDocument = {
+  nodes: [
+    {
+      id: 'a',
+      type: 'shape',
+      x: 0,
+      y: 0,
+      width: 160,
+      height: 100,
+      data: { shape: 'rect', text: '出发' },
+    },
+    { id: 'b', type: 'sticky', x: 260, y: 0, width: 160, height: 160, data: { text: '带伞' } },
+  ],
+  edges: [
+    // 从 a 的右边连到 b 的左边
+    { id: 'e1', source: { node: 'a', port: 'right' }, target: { node: 'b', port: 'left-in' } },
+  ],
+}
+```
+
+读屏读到的名称跟着编辑器的语言，例如“矩形”“便签：带伞”。
 
 ## API
 
@@ -91,6 +114,6 @@ type WhiteboardTool = 'select' | 'hand' | 'rect' | 'ellipse' | 'diamond' | 'stic
 
 ### CSS 变量
 
-| 变量                   | 说明               |
-| ---------------------- | ------------------ |
-| `--dou-whiteboard-ink` | 形状和连接线的颜色 |
+| 变量                        | 说明               |
+| --------------------------- | ------------------ |
+| `--dou-flow-whiteboard-ink` | 形状和连接线的颜色 |

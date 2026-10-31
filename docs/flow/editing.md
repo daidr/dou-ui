@@ -117,6 +117,8 @@ const pin = defineFlowExtension({
 | `at`    | 节点中心的位置，画布坐标；和 `from` 一起时是接线端口的位置 | `Point`                  |
 | `from`  | 新节点连到这个端口，用新节点上第一个能接上的端口           | `Required<FlowEndpoint>` |
 | `focus` | 把焦点移到新节点，默认 `true`                              | `boolean`                |
+| `data`  | 合并到类型的 `defaults()` 上                               | `FlowData`               |
+| `size`  | 新节点的大小，不写时用类型的 `size`                        | `{ width?, height? }`    |
 
 ## API
 

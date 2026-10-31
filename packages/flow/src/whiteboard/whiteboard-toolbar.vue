@@ -39,10 +39,12 @@ const groups: { tool: WhiteboardTool; icon: Component }[][] = [
 const titleOf = (tool: WhiteboardTool) =>
   format(t.value.key, { tool: t.value[tool], key: whiteboardKeys[tool].toUpperCase() })
 
-// A click picks the tool for one use; a double click keeps it.
+// A click picks the tool for one use; a double click keeps it. Focus goes
+// back to the canvas, where the tool is used and its keys work.
 function pick(tool: WhiteboardTool, keep: boolean) {
   state.tool.value = tool
   state.locked.value = keep && tool !== 'select' && tool !== 'hand'
+  ctx.root.value?.focus({ preventScroll: true })
 }
 </script>
 

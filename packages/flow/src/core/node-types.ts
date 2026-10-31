@@ -1,4 +1,5 @@
 import type { Component } from 'vue'
+import type { FlowMessages } from '../locale'
 import type { FlowData, FlowNode, FlowPortSpec, PortSide } from './model'
 
 /** What a node type's component receives. */
@@ -24,8 +25,11 @@ export interface NodeTypeSpec<Data extends FlowData = FlowData> {
   ports?: FlowPortSpec[] | ((node: FlowNode<Data>) => FlowPortSpec[])
   /** Data for a new node of this type. */
   defaults?: () => Data
-  /** The node's accessible name; `data.label` by default. */
-  label?: (node: FlowNode<Data>) => string
+  /**
+   * The node's accessible name; `data.label` by default. `messages` are the
+   * editor's current strings, for names that follow the locale.
+   */
+  label?: (node: FlowNode<Data>, messages: FlowMessages) => string
   /**
    * How the type is offered by `paletteTypes` and in the list that opens
    * when an edge is dropped on the empty canvas. Types without it aren't offered.
@@ -75,8 +79,12 @@ export function portsOf(spec: NodeTypeSpec | undefined, node: FlowNode): FlowPor
   return typeof ports === 'function' ? ports(node) : ports
 }
 
-export function labelOf(spec: NodeTypeSpec | undefined, node: FlowNode): string {
-  if (spec?.label) return spec.label(node)
+export function labelOf(
+  spec: NodeTypeSpec | undefined,
+  node: FlowNode,
+  messages: FlowMessages,
+): string {
+  if (spec?.label) return spec.label(node, messages)
   const label = node.data?.label
   return typeof label === 'string' ? label : node.id
 }

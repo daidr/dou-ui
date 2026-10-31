@@ -2,7 +2,6 @@ export { connectorEdge, shapeNode, stickyNode, textNode, whiteboardKit } from '.
 export { whiteboardKeys } from './model'
 export type { WhiteboardKitOptions } from './kit'
 export type {
-  WhiteboardColor,
   WhiteboardShape,
   WhiteboardShapeData,
   WhiteboardShapeTool,

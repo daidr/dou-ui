@@ -54,6 +54,11 @@ export interface FlowExtension {
   nodeTypes?: NodeTypeSpec<any>[]
   /** Edge types, used by `edge.type`; `flowKit` brings `bezier`, `step` and `straight`. */
   edgeTypes?: EdgeTypeSpec<any>[]
+  /**
+   * The edge type of edges without a `type`, unless the editor's `edge-type`
+   * prop says otherwise. The last extension that sets it wins.
+   */
+  edgeType?: string
   /** Looks and connection rules of port types; see the `port-types` prop. */
   portTypes?: PortTypes
   /**
@@ -110,6 +115,7 @@ export interface ResolvedFlowExtensions {
   extensions: FlowExtension[]
   nodeTypes: Map<string, NodeTypeSpec>
   edgeTypes: Map<string, EdgeTypeSpec>
+  edgeType: string | undefined
   portTypes: PortTypes
   rules: NonNullable<FlowExtension['canConnect']>[]
   keymaps: NonNullable<FlowExtension['keymap']>[]
@@ -184,6 +190,7 @@ export function resolveFlowExtensions(list: ExtensionList): ResolvedFlowExtensio
     extensions,
     nodeTypes,
     edgeTypes,
+    edgeType: extensions.reduce<string | undefined>((type, e) => e.edgeType ?? type, undefined),
     portTypes,
     rules: pick('canConnect'),
     keymaps: pick('keymap'),

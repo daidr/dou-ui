@@ -55,7 +55,7 @@ const promptNode = defineNodeType({
 | `component` | 渲染节点内容的组件                                                                                | `Component`                                  |
 | `ports`     | 端口，固定的列表，或根据节点算出                                                                  | `FlowPortSpec[] \| (node) => FlowPortSpec[]` |
 | `defaults`  | 新节点的默认数据                                                                                  | `() => object`                               |
-| `label`     | 节点的无障碍名称，默认取 `data.label`                                                             | `(node) => string`                           |
+| `label`     | 节点的无障碍名称，默认取 `data.label`；`messages` 是编辑器当前语言的文案                          | `(node, messages) => string`                 |
 | `container` | 能装下其他节点，见[自定义分组](./groups#自定义分组)                                               | `boolean`                                    |
 | `resizable` | 选中时显示调整大小的手柄，可以给出最小尺寸                                                        | `boolean \| { minWidth?, minHeight? }`       |
 | `size`      | 新建时的宽高                                                                                      | `{ width: number, height: number }`          |

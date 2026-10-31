@@ -106,6 +106,8 @@ export interface FlowMessages {
     key: string
     /** Announced when a tool is picked; `{tool}` is its name. */
     picked: string
+    /** A node's name when it has text; `{kind}` is what it is, as `rect` or `sticky`. */
+    named: string
   }
 }
 
@@ -189,6 +191,7 @@ const zhCN: FlowMessages = {
     editText: '编辑文字',
     key: '{tool}（{key}）',
     picked: '已选择{tool}工具',
+    named: '{kind}：{text}',
   },
 }
 
@@ -272,6 +275,7 @@ const zhTW: FlowMessages = {
     editText: '編輯文字',
     key: '{tool}（{key}）',
     picked: '已選取{tool}工具',
+    named: '{kind}：{text}',
   },
 }
 
@@ -355,6 +359,7 @@ const en: FlowMessages = {
     editText: 'Edit text',
     key: '{tool} ({key})',
     picked: '{tool} tool',
+    named: '{kind}: {text}',
   },
 }
 

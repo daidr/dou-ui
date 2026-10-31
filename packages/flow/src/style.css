@@ -1044,7 +1044,7 @@
  */
 @layer dou.components {
   .dou-flow-editor {
-    --dou-whiteboard-ink: color-mix(in oklab, var(--dou-color-text) 72%, transparent);
+    --dou-flow-whiteboard-ink: color-mix(in oklab, var(--dou-color-text) 72%, transparent);
 
     &[data-board-tool='hand'],
     &[data-board-tool='hand'] .dou-flow-editor__node {
@@ -1112,7 +1112,7 @@
     height: 100%;
     overflow: visible;
     fill: var(--dou-color-bg-surface);
-    stroke: var(--dou-whiteboard-ink);
+    stroke: var(--dou-flow-whiteboard-ink);
     stroke-linejoin: round;
     stroke-width: 1.5px;
 
@@ -1197,7 +1197,7 @@
     stroke-linejoin: round;
 
     &:not(.is-selected) {
-      stroke: var(--dou-whiteboard-ink);
+      stroke: var(--dou-flow-whiteboard-ink);
       stroke-width: 1.5px;
     }
   }

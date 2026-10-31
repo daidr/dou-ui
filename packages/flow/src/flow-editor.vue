@@ -85,7 +85,7 @@ const props = withDefaults(defineProps<FlowEditorProps>(), {
   fitMinZoom: 0.5,
   readonly: false,
   panOnScroll: true,
-  edgeType: 'bezier',
+  edgeType: undefined,
   simpleZoom: 0.4,
 })
 const doc = defineModel<FlowDocument>({ default: emptyDocument })
@@ -131,8 +131,12 @@ const edgeTypes = computed(() => {
   for (const spec of props.edgeTypes ?? []) map.set(spec.type, spec as EdgeTypeSpec)
   return map
 })
+/** The type of edges without one: the prop, else the extensions', else bezier. */
+const defaultEdgeType = computed(() => props.edgeType ?? resolved.value.edgeType ?? 'bezier')
 const edgeTypeOf = (type?: string) =>
-  edgeTypes.value.get(type ?? props.edgeType) ?? edgeTypes.value.get(props.edgeType) ?? bezierEdge
+  edgeTypes.value.get(type ?? defaultEdgeType.value) ??
+  edgeTypes.value.get(defaultEdgeType.value) ??
+  bezierEdge
 const specOf = (node: FlowNode) =>
   types.value.get(node.type ?? 'default') ??
   types.value.get('default') ??
@@ -660,7 +664,9 @@ const degree = computed(() => {
 
 /** A node's name; a container without one goes by the word for a group. */
 function nameOf(node: FlowNode) {
-  return labelOf(specOf(node), node) || (isContainer(node) ? messages.value.group : '')
+  return (
+    labelOf(specOf(node), node, messages.value) || (isContainer(node) ? messages.value.group : '')
+  )
 }
 
 const roleOf = (node: FlowNode) => (isContainer(node) ? messages.value.group : messages.value.node)
@@ -1752,6 +1758,16 @@ function refusalText(refusal: JoinRefusal) {
   return messages.value.refused[refusal.reason]
 }
 
+/** Whether a link was let go over a node other than its own. */
+function overNode(link: Link) {
+  const { x, y } = link.point
+  return doc.value.nodes.some((node) => {
+    if (node.id === link.fixed.node || isContainer(node)) return false
+    const r = rectOf(node)
+    return x >= r.x && x <= r.x + r.width && y >= r.y && y <= r.y + r.height
+  })
+}
+
 /** Adds the edge a link describes, replacing what it must. */
 function finishLink(link: Link, event?: MouseEvent) {
   const { candidate } = link
@@ -1759,6 +1775,9 @@ function finishLink(link: Link, event?: MouseEvent) {
     if (link.refused) {
       // Dropped on a port that can't take it: say why, and leave things as they were.
       announce(refusalText(link.refused.refusal))
+    } else if (!link.edge && overNode(link)) {
+      // Dropped on a node with no port that can take it.
+      announce(messages.value.noTarget)
     } else if (link.edge) {
       // Dropping a picked-up edge on nothing removes it.
       const id = link.edge
@@ -1860,7 +1879,7 @@ function rankEnds(link: Link) {
 function describeEnd(end: Required<FlowEndpoint>) {
   const node = nodeById.value.get(end.node)
   const port = portSpec(end)
-  const name = node ? labelOf(specOf(node), node) : end.node
+  const name = node ? labelOf(specOf(node), node, messages.value) : end.node
   return format(messages.value.connectTo, { node: name, port: port?.label ?? port?.id ?? '' })
 }
 
@@ -2094,6 +2113,8 @@ function insertNode(type: string, options: FlowInsertOptions = {}) {
   const spec = types.value.get(type)
   if (!spec || props.readonly) return null
   const node = draft(spec)
+  if (options.data) node.data = { ...node.data, ...options.data }
+  if (options.size) Object.assign(node, options.size)
   let at = options.at
   let from = options.from
   let start = false
@@ -2149,7 +2170,7 @@ function insertNode(type: string, options: FlowInsertOptions = {}) {
     focus: options.focus ?? true,
   })
   setSelection({ nodes: [node.id], edges: [] })
-  announce(format(messages.value.added, { node: labelOf(spec, node) }))
+  announce(format(messages.value.added, { node: labelOf(spec, node, messages.value) }))
   return node.id
 }
 
@@ -3227,7 +3248,7 @@ defineExpose<FlowEditorExpose>({
         >
           <slot name="simple" :node="node">
             <span v-if="viewport.zoom >= TINY" class="dou-flow-editor__simple-label">{{
-              labelOf(specOf(node), node)
+              labelOf(specOf(node), node, messages)
             }}</span>
           </slot>
         </div>
@@ -3319,7 +3340,7 @@ defineExpose<FlowEditorExpose>({
         >
           <slot name="simple" :node="node">
             <span v-if="viewport.zoom >= TINY" class="dou-flow-editor__simple-label">{{
-              labelOf(specOf(node), node)
+              labelOf(specOf(node), node, messages)
             }}</span>
           </slot>
         </div>

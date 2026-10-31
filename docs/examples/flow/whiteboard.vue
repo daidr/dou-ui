@@ -32,7 +32,7 @@ const doc = ref<FlowDocument>({
       y: 40,
       width: 160,
       height: 96,
-      data: { shape: 'rect', text: '订周六上午的票', color: 'success' },
+      data: { shape: 'rect', text: '订周六上午的票', tone: 'success' },
     },
     {
       id: 'idea',
@@ -67,7 +67,6 @@ const doc = ref<FlowDocument>({
   <DouFlowEditor
     v-model="doc"
     :extensions="extensions"
-    edge-type="connector"
     fit-view
     aria-label="周末计划白板"
     style="height: 480px"

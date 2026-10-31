@@ -2,6 +2,7 @@ import type { FlowTree } from './core/groups'
 import { inject, type ComputedRef, type InjectionKey, type Ref, type ShallowRef } from 'vue'
 import type { FlowMessages, FlowMessagesOverride } from './locale'
 import type {
+  FlowData,
   FlowDocument,
   FlowEndpoint,
   FlowNode,
@@ -205,6 +206,10 @@ export interface FlowInsertOptions {
   from?: Required<FlowEndpoint>
   /** Move focus to the new node, so keys such as undo act on it. `true` by default. */
   focus?: boolean
+  /** Merged over the type's `defaults()`. */
+  data?: FlowData
+  /** The node's size instead of the type's `size`. */
+  size?: { width?: number; height?: number }
 }
 
 /** Where a port's centre is, from its node's top left corner. */

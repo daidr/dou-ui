@@ -1,9 +1,10 @@
 import { watch, type Ref } from 'vue'
+import type { FlowEditorContext } from '../context'
 import { defineFlowExtension, type FlowExtension } from '../core/extension'
 import { defineEdgeType } from '../core/edge-types'
-import { createId, type FlowNode, type Point, type Rect } from '../core/model'
+import { createId, type FlowData, type FlowNode, type Point, type Rect } from '../core/model'
 import { defineNodeType } from '../core/node-types'
-import { format } from '../locale'
+import { format, type FlowMessages } from '../locale'
 import BoardNode from './board-node.vue'
 import BoardDraft from './board-draft.vue'
 import WhiteboardToolbar from './whiteboard-toolbar.vue'
@@ -18,6 +19,10 @@ import {
 } from './model'
 import { boardState } from './state'
 
+/** "Rectangle: text", or just "Rectangle" while it has none. */
+const nameOf = (kind: string, text: string | undefined, t: FlowMessages) =>
+  text ? format(t.board.named, { kind, text }) : kind
+
 /** A rectangle, ellipse or diamond with centred text; `data.shape` says which. */
 export const shapeNode = defineNodeType<WhiteboardShapeData>({
   type: 'shape',
@@ -27,7 +32,7 @@ export const shapeNode = defineNodeType<WhiteboardShapeData>({
   resizable: { minWidth: 24, minHeight: 24 },
   size: { width: 160, height: 100 },
   defaults: () => ({ shape: 'rect' }),
-  label: (node) => node.data?.text || node.data?.shape || 'shape',
+  label: (node, t) => nameOf(t.board[node.data?.shape ?? 'rect'], node.data?.text, t),
 })
 
 /** A square note in a soft color. */
@@ -39,18 +44,19 @@ export const stickyNode = defineNodeType<WhiteboardStickyData>({
   resizable: { minWidth: 64, minHeight: 64 },
   size: { width: 160, height: 160 },
   defaults: () => ({}),
-  label: (node) => node.data?.text || 'sticky',
+  label: (node, t) => nameOf(t.board.sticky, node.data?.text, t),
 })
 
 /** Text on its own; it grows as it is typed. */
 export const textNode = defineNodeType<WhiteboardTextData>({
   type: 'text',
   component: BoardNode,
+  ports: anchorPorts,
   frame: false,
   resizable: { minWidth: 24, minHeight: 24 },
   size: { width: 200, height: 40 },
   defaults: () => ({}),
-  label: (node) => node.data?.text || 'text',
+  label: (node, t) => nameOf(t.board.text, node.data?.text, t),
 })
 
 const ARROW = { length: 10, spread: 0.45 }
@@ -78,13 +84,16 @@ export const connectorEdge = defineEdgeType({
   },
 })
 
-/** The node each drawing tool adds. */
+/** The node type and data each drawing tool adds. */
+function kindOf(tool: WhiteboardShapeTool): { type: string; data: FlowData } {
+  if (tool === 'sticky' || tool === 'text') return { type: tool, data: {} }
+  return { type: 'shape', data: { shape: tool } }
+}
+
 function nodeFor(tool: WhiteboardShapeTool, rect: Rect): FlowNode {
-  const base = { id: createId(), x: rect.x, y: rect.y, width: rect.width, height: rect.height }
-  if (tool === 'sticky') return { ...base, type: 'sticky', data: {} }
   // text grows with what is typed: it keeps no height
-  if (tool === 'text') return { ...base, height: undefined, type: 'text', data: {} }
-  return { ...base, type: 'shape', data: { shape: tool } }
+  const height = tool === 'text' ? undefined : rect.height
+  return { id: createId(), x: rect.x, y: rect.y, width: rect.width, height, ...kindOf(tool) }
 }
 
 const SIZES: Record<WhiteboardShapeTool, { width: number; height: number }> = {
@@ -93,6 +102,13 @@ const SIZES: Record<WhiteboardShapeTool, { width: number; height: number }> = {
   diamond: { width: 140, height: 120 },
   sticky: { width: 160, height: 160 },
   text: { width: 200, height: 40 },
+}
+
+/** After a tool put down a node: back to select unless kept, and notes and text open to be written in. */
+function added(ctx: FlowEditorContext, tool: WhiteboardShapeTool, id: string) {
+  const state = boardState(ctx)
+  if (!state.locked.value) state.tool.value = 'select'
+  if (tool === 'sticky' || tool === 'text') state.editing.value = id
 }
 
 export interface WhiteboardKitOptions {
@@ -114,6 +130,7 @@ export function whiteboardKit(options: WhiteboardKitOptions = {}): FlowExtension
     name: 'whiteboard',
     nodeTypes: [shapeNode, stickyNode, textNode],
     edgeTypes: [connectorEdge],
+    edgeType: 'connector',
     layers: { above: [BoardDraft] },
     overlays: options.toolbar === false ? [] : [WhiteboardToolbar],
 
@@ -182,9 +199,8 @@ export function whiteboardKit(options: WhiteboardKitOptions = {}): FlowExtension
         const node = nodeFor(tool, rect)
         ctx.transact((tr) => tr.addNode(node))
         ctx.selection.value = { nodes: [node.id], edges: [] }
-        if (!state.locked.value) state.tool.value = 'select'
-        // notes and text are put down to be written in
-        if (tool === 'sticky' || tool === 'text') state.editing.value = node.id
+        ctx.announce(format(ctx.messages.value.added, { node: ctx.messages.value.board[tool] }))
+        added(ctx, tool, node.id)
       }
       return {
         move(point, event) {
@@ -222,8 +238,22 @@ export function whiteboardKit(options: WhiteboardKitOptions = {}): FlowExtension
         keys[key] = pick(tool as WhiteboardTool)
       return {
         ...keys,
-        // Enter writes in the selected note or shape
         enter: () => {
+          if (ctx.readonly.value) return false
+          const tool = state.tool.value
+          // with a drawing tool, Enter puts one down: after the selected node, or mid-view
+          if (tool !== 'select' && tool !== 'hand') {
+            const { type, data } = kindOf(tool)
+            // text keeps no height, as when drawn
+            const size =
+              tool === 'text' ? { width: SIZES.text.width, height: undefined } : SIZES[tool]
+            // notes and text take focus in their own field
+            const writes = tool === 'sticky' || tool === 'text'
+            const id = ctx.insertNode(type, { data, size, focus: !writes })
+            if (id) added(ctx, tool, id)
+            return
+          }
+          // otherwise it writes in the selected note or shape
           const { nodes, edges } = ctx.selection.value
           if (nodes.length !== 1 || edges.length || ctx.readonly.value) return false
           const node = ctx.doc.value.nodes.find((n) => n.id === nodes[0])

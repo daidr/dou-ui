@@ -3,14 +3,15 @@ import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
 import DouFlowPort from '../components/flow-port.vue'
 import { useFlowEditor } from '../context'
 import type { NodeViewProps } from '../core/node-types'
-import { anchorSides, type WhiteboardColor, type WhiteboardShape } from './model'
+import type { Tone } from 'dou-ui'
+import { anchorSides, type WhiteboardShape } from './model'
 import { boardState } from './state'
 
 type BoardData = {
   [key: string]: unknown
   text?: string
   shape?: WhiteboardShape
-  color?: WhiteboardColor
+  tone?: Tone
 }
 
 const props = defineProps<NodeViewProps<BoardData>>()
@@ -22,8 +23,8 @@ const kind = computed(() =>
   props.node.type === 'sticky' ? 'sticky' : props.node.type === 'text' ? 'text' : 'shape',
 )
 const shape = computed<WhiteboardShape>(() => props.data.shape ?? 'rect')
-const color = computed<WhiteboardColor>(
-  () => props.data.color ?? (kind.value === 'sticky' ? 'warning' : 'neutral'),
+const tone = computed<Tone>(
+  () => props.data.tone ?? (kind.value === 'sticky' ? 'warning' : 'neutral'),
 )
 
 // drawn in the node's own units, half the 1.5px stroke in from the edge
@@ -94,7 +95,7 @@ function onKeydown(event: KeyboardEvent) {
     :class="[
       `is-${kind}`,
       kind === 'shape' && `is-${shape}`,
-      `is-${color}`,
+      `is-${tone}`,
       { 'is-editing': editing },
     ]"
     @dblclick.stop="edit"
@@ -133,7 +134,7 @@ function onKeydown(event: KeyboardEvent) {
       @pointerdown.stop
     />
     <div v-else class="dou-whiteboard-node__text">{{ data.text }}</div>
-    <div v-if="kind !== 'text'" class="dou-whiteboard-node__anchors">
+    <div class="dou-whiteboard-node__anchors">
       <template v-for="side in anchorSides" :key="side">
         <DouFlowPort :id="`${side}-in`" class="dou-whiteboard-node__anchor" />
         <DouFlowPort :id="side" class="dou-whiteboard-node__anchor" />

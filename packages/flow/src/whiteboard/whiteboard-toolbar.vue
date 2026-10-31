@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import {
+  BrushIcon,
   CircleIcon,
   CursorIcon,
   DiamondIcon,
+  EraserIcon,
   HandGrabIcon,
   HandIcon,
+  ImageIcon,
   SquareIcon,
   StickyNoteIcon,
   TypeIcon,
@@ -12,7 +15,8 @@ import {
 import { computed, type Component } from 'vue'
 import { useFlowEditor } from '../context'
 import { format } from '../locale'
-import { whiteboardKeys, type WhiteboardTool } from './model'
+import { pickImages } from './image'
+import { imageKey, whiteboardKeys, type WhiteboardTool } from './model'
 import { boardState } from './state'
 
 defineOptions({ name: 'DouWhiteboardToolbar' })
@@ -35,7 +39,14 @@ const groups: { tool: WhiteboardTool; icon: Component }[][] = [
     { tool: 'sticky', icon: StickyNoteIcon },
     { tool: 'text', icon: TypeIcon },
   ],
+  [
+    { tool: 'pen', icon: BrushIcon },
+    { tool: 'eraser', icon: EraserIcon },
+  ],
 ]
+
+/** Tools that go back to select after one use, unless kept with a double click. */
+const once = new Set<WhiteboardTool>(['rect', 'ellipse', 'diamond', 'sticky', 'text'])
 
 const titleOf = (tool: WhiteboardTool) =>
   format(t.value.key, { tool: t.value[tool], key: whiteboardKeys[tool].toUpperCase() })
@@ -44,8 +55,15 @@ const titleOf = (tool: WhiteboardTool) =>
 // back to the canvas, where the tool is used and its keys work.
 function pick(tool: WhiteboardTool, keep: boolean) {
   state.tool.value = tool
-  state.locked.value = keep && tool !== 'select' && tool !== 'hand'
+  state.locked.value = keep && once.has(tool)
   ctx.root.value?.focus({ preventScroll: true })
+}
+
+const imageTitle = computed(() =>
+  format(t.value.key, { tool: t.value.image, key: imageKey.toUpperCase() }),
+)
+function insertImage() {
+  pickImages(ctx, state.upload)
 }
 </script>
 
@@ -73,5 +91,16 @@ function pick(tool: WhiteboardTool, keep: boolean) {
         <component :is="item.tool === 'hand' && state.panning.value ? HandGrabIcon : item.icon" />
       </button>
     </template>
+    <button
+      type="button"
+      class="dou-whiteboard-toolbar__button"
+      :class="{ 'is-busy': state.uploading.value > 0 }"
+      :aria-label="imageTitle"
+      :aria-busy="state.uploading.value > 0 || undefined"
+      :title="imageTitle"
+      @click="insertImage"
+    >
+      <ImageIcon />
+    </button>
   </div>
 </template>

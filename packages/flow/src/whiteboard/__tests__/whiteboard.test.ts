@@ -1,7 +1,9 @@
 import { mount } from '@vue/test-utils'
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { connectorEdge, whiteboardKit, type WhiteboardTool } from '..'
+import { inkHit, inkOutline, strokeNode, turn } from '../ink'
+import { resizeTurned, snapAngle } from '../transform'
 import { defineFlowExtension, defineNodeType, DouFlowEditor, flowKit } from '../../index'
 import type { FlowDocument, FlowExtension, FlowSelection, FlowViewport } from '../../index'
 
@@ -365,5 +367,321 @@ describe('connector', () => {
     await ticks()
     expect(flow.value.edges).toHaveLength(0)
     expect(root.find('[aria-live]').text()).toBe('没有可以连接的端口')
+  })
+})
+
+const stroke = (id: string, y: number) =>
+  strokeNode(id, [
+    { x: 0, y, pressure: 0.5 },
+    { x: 100, y, pressure: 0.5 },
+  ])
+
+const card = (id: string, x: number, z?: number) => ({
+  id,
+  type: 'sticky',
+  x,
+  y: 0,
+  width: 100,
+  height: 100,
+  data: {},
+  ...(z === undefined ? {} : { z }),
+})
+
+const order = (root: {
+  findAll: (s: string) => { attributes: (n: string) => string | undefined }[]
+}) => root.findAll('.dou-flow-editor__node').map((n) => n.attributes('data-node-id'))
+
+describe('pen and eraser', () => {
+  it('draws a stroke that becomes an ink node, and keeps the pen', async () => {
+    const { root, tool, drag, flow } = setup()
+    await ticks()
+    tool.value = 'pen'
+    await ticks()
+    root.element.dispatchEvent(pointer('pointerdown', 100, 100))
+    root.element.dispatchEvent(pointer('pointermove', 140, 120))
+    await ticks()
+    // the stroke shows while it is drawn
+    expect(root.find('.dou-whiteboard-strokes__ink').attributes('d')).toMatch(/^M/)
+    root.element.dispatchEvent(pointer('pointermove', 180, 100))
+    root.element.dispatchEvent(pointer('pointerup', 180, 100))
+    await ticks()
+    expect(root.find('.dou-whiteboard-strokes').exists()).toBe(false)
+    expect(flow.value.nodes).toHaveLength(1)
+    const node = flow.value.nodes[0]!
+    expect(node.type).toBe('ink')
+    const data = node.data as { points: number[]; box: [number, number] }
+    expect(data.points.length % 3).toBe(0)
+    expect(data.box).toEqual([node.width, node.height])
+    // the box holds the stroke with room for its width
+    expect(node.x).toBeLessThan(100)
+    expect(node.x + node.width!).toBeGreaterThan(160)
+    expect(tool.value).toBe('pen')
+    expect(root.find('[aria-live]').text()).toBe('已添加笔迹')
+    await drag([300, 300], [340, 340])
+    expect(flow.value.nodes).toHaveLength(2)
+  })
+
+  it('erases the strokes it passes over once it lets go, and Escape keeps them', async () => {
+    const { root, tool, drag, flow } = setup({
+      nodes: [stroke('a', 50), stroke('b', 200)],
+      edges: [],
+    })
+    await ticks()
+    tool.value = 'eraser'
+    await ticks()
+    root.element.dispatchEvent(pointer('pointerdown', 50, 0))
+    root.element.dispatchEvent(pointer('pointermove', 50, 100))
+    await ticks()
+    expect(root.find('[data-node-id="a"] .dou-whiteboard-node').classes()).toContain('is-erasing')
+    root.element.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await ticks()
+    expect(flow.value.nodes).toHaveLength(2)
+    // a quick swipe straight across both
+    await drag([50, 0], [50, 260])
+    expect(flow.value.nodes).toHaveLength(0)
+    expect(root.find('[aria-live]').text()).toBe('已擦除 2 条笔迹')
+  })
+})
+
+describe('ink geometry', () => {
+  it('outlines a stroke with round ends, and a dot as a circle', () => {
+    const line = [
+      { x: 0, y: 0, pressure: 0.5 },
+      { x: 10, y: 0, pressure: 0.5 },
+      { x: 20, y: 0, pressure: 0.5 },
+    ]
+    const d = inkOutline(line, 4)
+    // along one side, round the end, back along the other, round the start
+    expect(d).toMatch(/^M0 2Q10 2 15 1\.?\d*|^M0 2/)
+    expect(d.match(/A2 2 0 0 0/g)).toHaveLength(2)
+    expect(inkOutline([{ x: 5, y: 5, pressure: 0.5 }], 4)).toBe(
+      'M3 5a2 2 0 1 0 4 0a2 2 0 1 0 -4 0Z',
+    )
+  })
+
+  it('hits a stroke near its line, also once it is stretched and turned', () => {
+    const node = strokeNode('s', [
+      { x: 0, y: 0, pressure: 0.5 },
+      { x: 100, y: 0, pressure: 0.5 },
+    ])
+    const y = node.y + node.height! / 2
+    expect(inkHit(node, { x: node.x + 50, y: y + 4 }, 2)).toBe(true)
+    expect(inkHit(node, { x: node.x + 50, y: y + 20 }, 2)).toBe(false)
+    const turned = { ...node, data: { ...node.data, rotation: 90 } }
+    const centre = { x: node.x + node.width! / 2, y }
+    expect(inkHit(turned, { x: centre.x, y: centre.y + 40 }, 2)).toBe(true)
+    expect(inkHit(turned, { x: centre.x + 40, y: centre.y }, 2)).toBe(false)
+  })
+})
+
+describe('turning', () => {
+  it('snaps to 15° with Shift, and to a right angle when close', () => {
+    expect(snapAngle(52, true)).toBe(45)
+    expect(snapAngle(88, false)).toBe(90)
+    expect(snapAngle(-30, false)).toBe(330)
+    expect(snapAngle(37, false)).toBe(37)
+  })
+
+  it('grows a turned node along its own sides, keeping the far corner', () => {
+    const start = { x: 0, y: 0, width: 100, height: 50 }
+    const next = resizeTurned(start, 90, { x: 0, y: 20 }, { width: 10, height: 10 })
+    // turned a quarter, dragging down widens it
+    expect(next.width).toBeCloseTo(120)
+    expect(next.height).toBeCloseTo(50)
+    const corner = (r: typeof start) =>
+      turn({ x: r.x, y: r.y }, { x: r.x + r.width / 2, y: r.y + r.height / 2 }, 90)
+    expect(corner(next).x).toBeCloseTo(corner(start).x)
+    expect(corner(next).y).toBeCloseTo(corner(start).y)
+  })
+
+  it('turns with the handle in one undo step; a turned node has its own corner handle', async () => {
+    const { root, flow, selection } = setup({
+      nodes: [
+        { id: 'a', type: 'shape', x: 0, y: 0, width: 100, height: 100, data: { shape: 'rect' } },
+      ],
+      edges: [],
+    })
+    await ticks()
+    selection.value = { nodes: ['a'], edges: [] }
+    await ticks()
+    expect(root.find('.dou-flow-editor__resize').exists()).toBe(true)
+    const handle = root.find('.dou-whiteboard-node__turn')
+    // the handle starts below the centre (50, 50); go round to its left
+    handle.element.dispatchEvent(pointer('pointerdown', 50, 124))
+    handle.element.dispatchEvent(pointer('pointermove', 0, 50))
+    await ticks()
+    expect(root.find('.dou-whiteboard-node').attributes('style')).toContain('rotate: 90deg')
+    expect(flow.value.nodes[0]!.data).not.toHaveProperty('rotation')
+    handle.element.dispatchEvent(pointer('pointerup', 0, 50))
+    await ticks()
+    expect(flow.value.nodes[0]!.data).toMatchObject({ rotation: 90 })
+    expect(root.find('[aria-live]').text()).toBe('已旋转到 90°')
+    expect(root.find('.dou-flow-editor__resize').exists()).toBe(false)
+    expect(root.find('.dou-whiteboard-node__corner').exists()).toBe(true)
+  })
+
+  it('lets Escape put a turn back', async () => {
+    const { root, flow, selection } = setup({
+      nodes: [{ id: 'a', type: 'sticky', x: 0, y: 0, width: 100, height: 100, data: {} }],
+      edges: [],
+    })
+    await ticks()
+    selection.value = { nodes: ['a'], edges: [] }
+    await ticks()
+    const handle = root.find('.dou-whiteboard-node__turn')
+    handle.element.dispatchEvent(pointer('pointerdown', 50, 124))
+    handle.element.dispatchEvent(pointer('pointermove', 0, 50))
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    handle.element.dispatchEvent(pointer('pointerup', 0, 50))
+    await ticks()
+    expect(flow.value.nodes[0]!.data).not.toHaveProperty('rotation')
+    expect(root.find('.dou-whiteboard-node').attributes('style') ?? '').not.toContain('rotate')
+  })
+})
+
+describe('layers', () => {
+  it('draws nodes by z, then in document order', async () => {
+    const { root } = setup({
+      nodes: [card('a', 0, 2), card('b', 50), card('c', 300, -1)],
+      edges: [],
+    })
+    await ticks()
+    expect(order(root)).toEqual(['c', 'b', 'a'])
+  })
+
+  it('moves the selection one step past what it overlaps, or to the top or bottom', async () => {
+    const { root, selection } = setup({
+      // a and b overlap; c is far off
+      nodes: [card('a', 0), card('b', 50), card('c', 400)],
+      edges: [],
+    })
+    await ticks()
+    selection.value = { nodes: ['a'], edges: [] }
+    await ticks()
+    const press = (k: string, shift = false) =>
+      root.element.dispatchEvent(
+        new KeyboardEvent('keydown', { key: k, ctrlKey: true, shiftKey: shift, bubbles: true }),
+      )
+    press(']')
+    await ticks()
+    // past b only: c doesn't overlap, so a stays under it
+    expect(order(root)).toEqual(['b', 'a', 'c'])
+    expect(root.find('[aria-live]').text()).toBe('上移一层')
+    press('[', true)
+    await ticks()
+    expect(order(root)).toEqual(['a', 'b', 'c'])
+    press('[', true)
+    await ticks()
+    // already at the bottom: nothing to undo
+    expect(root.find('[aria-live]').text()).toBe('置于底层')
+    press(']', true)
+    await ticks()
+    expect(order(root)).toEqual(['b', 'c', 'a'])
+  })
+
+  it('puts what is added on top, once nodes have a z', async () => {
+    const { flow, tool, drag } = setup({ nodes: [card('a', 0, 3)], edges: [] })
+    await ticks()
+    tool.value = 'rect'
+    await ticks()
+    await drag([500, 500])
+    expect(flow.value.nodes[1]!.z).toBe(4)
+  })
+})
+
+describe('images', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('adds dropped image files through the upload, at the drop point', async () => {
+    // an image that "loads" at 640 × 480
+    vi.stubGlobal(
+      'Image',
+      class extends EventTarget {
+        naturalWidth = 640
+        naturalHeight = 480
+        set src(_: string) {
+          queueMicrotask(() => this.dispatchEvent(new Event('load')))
+        }
+      },
+    )
+    const uploaded: string[] = []
+    const upload = async (file: File) => {
+      uploaded.push(file.name)
+      return `https://example.com/${encodeURIComponent(file.name)}`
+    }
+    const flow = ref<FlowDocument>({ nodes: [], edges: [] })
+    const wrapper = mount(
+      defineComponent(
+        () => () =>
+          h(DouFlowEditor, {
+            modelValue: flow.value,
+            'onUpdate:modelValue': (value: FlowDocument) => (flow.value = value),
+            extensions: [flowKit(), whiteboardKit({ upload })],
+          }),
+      ),
+      { attachTo: document.body },
+    )
+    mounted.push(wrapper)
+    await ticks()
+    const root = wrapper.find('.dou-flow-editor')
+    const files = [
+      new File(['x'], '展览海报.png', { type: 'image/png' }),
+      new File(['y'], 'notes.txt', { type: 'text/plain' }),
+    ]
+    const drop = new Event('drop', { bubbles: true, cancelable: true })
+    Object.defineProperties(drop, {
+      dataTransfer: { value: { files, types: ['Files'] } },
+      clientX: { value: 300 },
+      clientY: { value: 200 },
+    })
+    root.element.dispatchEvent(drop)
+    expect(drop.defaultPrevented).toBe(true)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    await ticks()
+    expect(uploaded).toEqual(['展览海报.png'])
+    expect(flow.value.nodes).toHaveLength(1)
+    // at most 320 on its longer side, keeping its shape
+    expect(flow.value.nodes[0]).toMatchObject({
+      type: 'image',
+      width: 320,
+      height: 240,
+      data: {
+        src: 'https://example.com/%E5%B1%95%E8%A7%88%E6%B5%B7%E6%8A%A5.png',
+        alt: '展览海报',
+      },
+    })
+    expect(root.find('.dou-whiteboard-node__image').attributes('alt')).toBe('展览海报')
+  })
+
+  it('says so when an upload fails', async () => {
+    const flow = ref<FlowDocument>({ nodes: [], edges: [] })
+    const wrapper = mount(
+      defineComponent(
+        () => () =>
+          h(DouFlowEditor, {
+            modelValue: flow.value,
+            'onUpdate:modelValue': (value: FlowDocument) => (flow.value = value),
+            extensions: [
+              flowKit(),
+              whiteboardKit({
+                upload: () => Promise.reject(new Error('offline')),
+              }),
+            ],
+          }),
+      ),
+      { attachTo: document.body },
+    )
+    mounted.push(wrapper)
+    await ticks()
+    const root = wrapper.find('.dou-flow-editor')
+    const drop = new Event('drop', { bubbles: true, cancelable: true })
+    Object.defineProperty(drop, 'dataTransfer', {
+      value: { files: [new File(['x'], 'a.png', { type: 'image/png' })], types: ['Files'] },
+    })
+    root.element.dispatchEvent(drop)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    await ticks()
+    expect(flow.value.nodes).toHaveLength(0)
+    expect(root.find('[aria-live]').text()).toBe('a.png 没能添加')
   })
 })

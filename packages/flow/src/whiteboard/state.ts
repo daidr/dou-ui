@@ -1,6 +1,8 @@
 import { ref, shallowRef, type Ref, type ShallowRef } from 'vue'
 import type { FlowEditorContext } from '../context'
-import type { Rect } from '../core/model'
+import type { Point, Rect } from '../core/model'
+import type { WhiteboardUpload } from './image'
+import type { InkPoint } from './ink'
 import type { WhiteboardShapeTool, WhiteboardTool } from './model'
 
 /** What the board's pieces share within one editor. */
@@ -14,6 +16,16 @@ export interface WhiteboardState {
   editing: ShallowRef<string | null>
   /** The box being drawn, with the tool drawing it. */
   draft: ShallowRef<(Rect & { tool: WhiteboardShapeTool }) | null>
+  /** The stroke being drawn with the pen, in canvas coordinates. */
+  ink: ShallowRef<InkPoint[] | null>
+  /** Strokes the eraser has touched, removed once it lets go. */
+  erasing: ShallowRef<ReadonlySet<string>>
+  /** Where the eraser is, while it is pressed. */
+  eraser: ShallowRef<Point | null>
+  /** Images being uploaded. */
+  uploading: Ref<number>
+  /** The kit's `upload` option. */
+  upload?: WhiteboardUpload
 }
 
 const states = new WeakMap<FlowEditorContext, WhiteboardState>()
@@ -28,6 +40,10 @@ export function boardState(context: FlowEditorContext): WhiteboardState {
       panning: ref(false),
       editing: shallowRef(null),
       draft: shallowRef(null),
+      ink: shallowRef(null),
+      erasing: shallowRef(new Set()),
+      eraser: shallowRef(null),
+      uploading: ref(0),
     }
     states.set(context, state)
   }

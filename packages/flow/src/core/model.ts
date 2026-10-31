@@ -24,6 +24,11 @@ export interface FlowNode<Data extends FlowData = FlowData> {
    * stay canvas coordinates; moving the container moves it along.
    */
   parent?: string
+  /**
+   * Stacking order among nodes that aren't containers: higher is drawn on
+   * top. Nodes without it count as `0`; equal ones keep the document order.
+   */
+  z?: number
 }
 
 export interface FlowEndpoint {

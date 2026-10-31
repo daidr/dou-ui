@@ -69,7 +69,7 @@ import {
   type Rect,
 } from './core/model'
 import { containerAt, FlowTree } from './core/groups'
-import { labelOf, portsOf, type NodeTypeSpec } from './core/node-types'
+import { labelOf, portsOf, resizeOf, type NodeTypeSpec } from './core/node-types'
 import { FlowTransaction, type FlowTransactionMeta } from './core/transaction'
 import { format, useFlowMessages } from './locale'
 
@@ -1202,10 +1202,9 @@ function onPointerDown(event: PointerEvent) {
   const resizeEl = target.closest('.dou-flow-editor__resize')
   if (resizeEl && nodeEl && !props.readonly) {
     const node = nodeById.value.get(nodeEl.dataset.nodeId!)
-    const resizable = node && specOf(node).resizable
-    if (node && resizable) {
+    const min = node && resizeOf(specOf(node), node)
+    if (node && min) {
       const rect = rectOf(node)
-      const min = typeof resizable === 'object' ? resizable : {}
       gesture.value = {
         kind: 'resize',
         id: event.pointerId,
@@ -2196,8 +2195,9 @@ function itemsFor(target: FlowMenuTarget) {
   const items: FlowMenuItem[] = []
   for (const fn of resolved.value.menus) {
     const list = fn(context, target)
+    // a separator between extensions, never above the first item
     list.forEach((item, i) =>
-      items.push(i === 0 && items.length ? { ...item, divided: true } : item),
+      items.push({ ...item, divided: !!items.length && (i === 0 || !!item.divided) }),
     )
   }
   return items
@@ -2742,12 +2742,11 @@ function nudge(dx: number, dy: number) {
 function resizeBy(dw: number, dh: number) {
   const nodes = selection.value.nodes.flatMap((id) => {
     const node = nodeById.value.get(id)
-    return node && specOf(node).resizable && !node.locked ? [node] : []
+    return node && resizeOf(specOf(node), node) && !node.locked ? [node] : []
   })
   if (!nodes.length) return false
   const sizes = nodes.map((node) => {
-    const resizable = specOf(node).resizable
-    const min = typeof resizable === 'object' ? resizable : {}
+    const min = resizeOf(specOf(node), node)!
     const rect = rectOf(node)
     return {
       node,
@@ -3051,7 +3050,14 @@ const drawnContainers = computed(() =>
     // oxlint-disable-next-line unicorn/no-array-sort -- sorts a fresh array
     .sort((a, b) => tree.value.depth(a.id) - tree.value.depth(b.id)),
 )
-const drawnOthers = computed(() => drawnNodes.value.filter((node) => !isContainer(node)))
+/** The other nodes, lowest `z` first; equal ones in document order. */
+const drawnOthers = computed(() => {
+  const others = drawnNodes.value.filter((node) => !isContainer(node))
+  if (!others.some((node) => node.z)) return others
+  const index = new Map(others.map((node, i) => [node.id, i]))
+  // oxlint-disable-next-line unicorn/no-array-sort -- sorts a fresh array
+  return others.sort((a, b) => (a.z ?? 0) - (b.z ?? 0) || index.get(a.id)! - index.get(b.id)!)
+})
 
 /** Zoomed out this far, measured nodes are drawn as plain boxes. */
 const simple = computed(() => viewport.value.zoom < props.simpleZoom)

@@ -108,6 +108,21 @@ export interface FlowMessages {
     picked: string
     /** A node's name when it has text; `{kind}` is what it is, as `rect` or `sticky`. */
     named: string
+    pen: string
+    eraser: string
+    /** The toolbar button that inserts an image. */
+    image: string
+    /** A pen stroke. */
+    ink: string
+    /** `{name}` is the file's name. */
+    imageFailed: string
+    /** `{count}` strokes were erased. */
+    erased: string
+    rotate: string
+    unrotate: string
+    /** `{degrees}` is the node's new turn. */
+    turned: string
+    layers: { front: string; forward: string; backward: string; back: string }
   }
 }
 
@@ -192,6 +207,16 @@ const zhCN: FlowMessages = {
     key: '{tool}（{key}）',
     picked: '已选择{tool}工具',
     named: '{kind}：{text}',
+    pen: '画笔',
+    eraser: '橡皮',
+    image: '图片',
+    ink: '笔迹',
+    imageFailed: '{name} 没能添加',
+    erased: '已擦除 {count} 条笔迹',
+    rotate: '顺时针旋转 90°',
+    unrotate: '取消旋转',
+    turned: '已旋转到 {degrees}°',
+    layers: { front: '置于顶层', forward: '上移一层', backward: '下移一层', back: '置于底层' },
   },
 }
 
@@ -276,6 +301,16 @@ const zhTW: FlowMessages = {
     key: '{tool}（{key}）',
     picked: '已選取{tool}工具',
     named: '{kind}：{text}',
+    pen: '畫筆',
+    eraser: '橡皮擦',
+    image: '圖片',
+    ink: '筆跡',
+    imageFailed: '{name} 未能新增',
+    erased: '已擦除 {count} 條筆跡',
+    rotate: '順時針旋轉 90°',
+    unrotate: '取消旋轉',
+    turned: '已旋轉到 {degrees}°',
+    layers: { front: '移到最上層', forward: '上移一層', backward: '下移一層', back: '移到最下層' },
   },
 }
 
@@ -360,6 +395,21 @@ const en: FlowMessages = {
     key: '{tool} ({key})',
     picked: '{tool} tool',
     named: '{kind}: {text}',
+    pen: 'Pen',
+    eraser: 'Eraser',
+    image: 'Image',
+    ink: 'Stroke',
+    imageFailed: '{name} could not be added',
+    erased: 'Erased {count} strokes',
+    rotate: 'Rotate 90° clockwise',
+    unrotate: 'Reset rotation',
+    turned: 'Rotated to {degrees}°',
+    layers: {
+      front: 'Bring to front',
+      forward: 'Bring forward',
+      backward: 'Send backward',
+      back: 'Send to back',
+    },
   },
 }
 

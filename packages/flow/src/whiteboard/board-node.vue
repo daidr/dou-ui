@@ -1,31 +1,79 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, ref, toRef, useTemplateRef, watch } from 'vue'
 import DouFlowPort from '../components/flow-port.vue'
 import { useFlowEditor } from '../context'
 import type { NodeViewProps } from '../core/node-types'
 import type { Tone } from 'dou-ui'
+import { inkOutline, INK_SIZE, unpack } from './ink'
 import { anchorSides, type WhiteboardShape } from './model'
 import { boardState } from './state'
+import { useTransformHandles } from './transform'
 
 type BoardData = {
   [key: string]: unknown
   text?: string
   shape?: WhiteboardShape
   tone?: Tone
+  rotation?: number
+  points?: number[]
+  box?: [number, number]
+  size?: number
+  src?: string
+  alt?: string
 }
+
+type Kind = 'shape' | 'sticky' | 'text' | 'ink' | 'image'
 
 const props = defineProps<NodeViewProps<BoardData>>()
 const ctx = useFlowEditor()
 const state = boardState(ctx)
 
-/** What the node is: one of the shapes, a sticky note or plain text. */
-const kind = computed(() =>
-  props.node.type === 'sticky' ? 'sticky' : props.node.type === 'text' ? 'text' : 'shape',
-)
+const KINDS: readonly Kind[] = ['sticky', 'text', 'ink', 'image']
+/** What the node is: one of the shapes, a note, text, a pen stroke or an image. */
+const kind = computed<Kind>(() => KINDS.find((k) => k === props.node.type) ?? 'shape')
 const shape = computed<WhiteboardShape>(() => props.data.shape ?? 'rect')
 const tone = computed<Tone>(
   () => props.data.tone ?? (kind.value === 'sticky' ? 'warning' : 'neutral'),
 )
+const writable = computed(() => ['shape', 'sticky', 'text'].includes(kind.value))
+
+const MIN: Record<Kind, number> = { shape: 24, sticky: 64, text: 24, ink: 8, image: 24 }
+const rotation = computed(() => props.data.rotation ?? 0)
+const { turning, sizing, startTurn, startResize } = useTransformHandles(
+  ctx,
+  toRef(props, 'node'),
+  rotation,
+  { width: MIN[kind.value], height: MIN[kind.value] },
+)
+/** The turn shown: the one being dragged, or the stored one. */
+const shownRotation = computed(() => turning.value ?? rotation.value)
+const transform = computed(() => {
+  const style: Record<string, string> = {}
+  if (shownRotation.value) style.rotate = `${shownRotation.value}deg`
+  const size = sizing.value
+  if (size) {
+    style.width = `${size.width}px`
+    style.height = `${size.height}px`
+    style.translate = `${size.x - props.node.x}px ${size.y - props.node.y}px`
+  }
+  return style
+})
+/** Handles show on the one selected node, while the select tool is in hand. */
+const handles = computed(
+  () =>
+    props.selected &&
+    !props.readonly &&
+    !editing.value &&
+    state.tool.value === 'select' &&
+    ctx.selection.value.nodes.length === 1,
+)
+
+const ink = computed(() =>
+  kind.value === 'ink' && props.data.points
+    ? inkOutline(unpack(props.data.points), props.data.size ?? INK_SIZE)
+    : '',
+)
+const erasing = computed(() => state.erasing.value.has(props.node.id))
 
 // drawn in the node's own units, half the 1.5px stroke in from the edge
 const box = computed(() => ({ w: props.node.width ?? 160, h: props.node.height ?? 100 }))
@@ -63,7 +111,7 @@ function fit() {
 watch(draft, () => void nextTick(fit))
 
 function edit() {
-  if (props.readonly) return
+  if (props.readonly || !writable.value) return
   state.editing.value = props.node.id
 }
 
@@ -96,8 +144,14 @@ function onKeydown(event: KeyboardEvent) {
       `is-${kind}`,
       kind === 'shape' && `is-${shape}`,
       `is-${tone}`,
-      { 'is-editing': editing },
+      {
+        'is-editing': editing,
+        'is-turned': !!shownRotation,
+        'is-selected': selected,
+        'is-erasing': erasing,
+      },
     ]"
+    :style="transform"
     @dblclick.stop="edit"
   >
     <svg
@@ -123,6 +177,23 @@ function onKeydown(event: KeyboardEvent) {
       />
       <polygon v-else :points="diamond" />
     </svg>
+    <svg
+      v-else-if="kind === 'ink' && data.box"
+      class="dou-whiteboard-node__ink"
+      :viewBox="`0 0 ${data.box[0]} ${data.box[1]}`"
+      preserveAspectRatio="none"
+      aria-hidden="true"
+    >
+      <path class="dou-whiteboard-node__ink-hit" :d="ink" />
+      <path :d="ink" />
+    </svg>
+    <img
+      v-else-if="kind === 'image'"
+      class="dou-whiteboard-node__image"
+      :src="data.src"
+      :alt="data.alt ?? ''"
+      draggable="false"
+    />
     <textarea
       v-if="editing"
       ref="field"
@@ -133,12 +204,27 @@ function onKeydown(event: KeyboardEvent) {
       @blur="finish"
       @pointerdown.stop
     />
-    <div v-else class="dou-whiteboard-node__text">{{ data.text }}</div>
-    <div class="dou-whiteboard-node__anchors">
+    <div v-else-if="writable" class="dou-whiteboard-node__text">{{ data.text }}</div>
+    <div v-if="kind !== 'ink'" class="dou-whiteboard-node__anchors">
       <template v-for="side in anchorSides" :key="side">
         <DouFlowPort :id="`${side}-in`" class="dou-whiteboard-node__anchor" />
         <DouFlowPort :id="side" class="dou-whiteboard-node__anchor" />
       </template>
     </div>
+    <template v-if="handles">
+      <span
+        class="dou-whiteboard-node__turn"
+        data-flow-nodrag
+        aria-hidden="true"
+        @pointerdown="startTurn"
+      />
+      <span
+        v-if="rotation"
+        class="dou-whiteboard-node__corner"
+        data-flow-nodrag
+        aria-hidden="true"
+        @pointerdown="startResize"
+      />
+    </template>
   </div>
 </template>

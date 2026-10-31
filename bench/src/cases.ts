@@ -1,4 +1,4 @@
-import { h, ref } from 'vue'
+import { h, ref, shallowRef } from 'vue'
 import type { VNode } from 'vue'
 import {
   DouButton,
@@ -33,6 +33,8 @@ import {
   type GanttTask,
 } from '@dou-ui/gantt'
 import '@dou-ui/gantt/style.css'
+import { DouChart, DouChartAxis, DouChartLine } from '@dou-ui/chart'
+import '@dou-ui/chart/style.css'
 import { DouFlowEditor, type FlowDocument } from '@dou-ui/flow'
 import '@dou-ui/flow/style.css'
 import { DouSheet, type SheetExpose, type SheetWorkbook } from '@dou-ui/sheet'
@@ -120,6 +122,32 @@ function plan(n: number) {
     if (place > 1) links.push({ id: `l${index}`, from: `t${index - 1}`, to: `t${index}` })
   }
   return { tasks, links }
+}
+
+const drawn = () =>
+  new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+
+function chartCase(n: number) {
+  let seed = 1
+  const points = () => {
+    const list = Array.from({ length: n })
+    let value = 50
+    for (let i = 0; i < n; i++) {
+      seed = (seed * 16807) % 2147483647
+      value += (seed / 2147483647 - 0.5) * 2
+      list[i] = { t: i * 1000, v: value }
+    }
+    return list
+  }
+  const data = shallowRef(points())
+  ;(window as any).chart = { data, points }
+  return () =>
+    h('div', { class: 'chart-frame', style: 'width: 1200px' }, [
+      h(DouChart, { data: data.value, x: 't', height: 400 }, () => [
+        h(DouChartAxis, { position: 'bottom', type: 'time' }),
+        h(DouChartLine, { y: 'v' }),
+      ]),
+    ])
 }
 
 function gantt(n: number, props: Record<string, unknown> = {}) {
@@ -533,6 +561,28 @@ export const cases: Record<string, Case> = {
         Array.from({ length: n }, () => h(DouDatePicker, { teleport: false })),
       ),
     act: (root) => mousedown(field(root, 'date-picker')),
+  },
+  // a time series of `n` points; the canvas is drawn in the next frame, so `act` waits for it
+  chart: {
+    render: (n) => chartCase(n),
+    // new data: read into columns again and drawn
+    prepare: () => {
+      const state = (window as any).chart
+      state.next = state.points()
+    },
+    act: async () => {
+      const { data, next } = (window as any).chart
+      data.value = next
+      await drawn()
+    },
+  },
+  'chart-resize': {
+    render: (n) => chartCase(n),
+    // the same data at another width: only laid out and drawn again
+    act: async (root) => {
+      root.querySelector<HTMLElement>('.chart-frame')!.style.width = '1000px'
+      await drawn()
+    },
   },
   gantt: {
     render: (n) => gantt(n),

@@ -30,6 +30,16 @@ export const dark = defineTheme(light, {
     },
     focus: '#5a73b3',
     edge: '#000000',
+    chart: {
+      1: '#d4d4d4',
+      2: '#8db4e7',
+      3: '#deb67f',
+      4: '#36908b',
+      5: '#e29ba0',
+      6: '#9480b8',
+      7: '#7ca573',
+      8: '#ab7055',
+    },
   },
   shadow: {
     sm: '0 1px 2px rgb(0 0 0 / 0.5)',

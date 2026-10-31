@@ -9,6 +9,7 @@
     "review-art": "bun scripts/review-art.ts"
   },
   "dependencies": {
+    "@dou-ui/chart": "workspace:*",
     "@dou-ui/editor": "workspace:*",
     "@dou-ui/flow": "workspace:*",
     "@dou-ui/gantt": "workspace:*",

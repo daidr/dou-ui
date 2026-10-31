@@ -5,7 +5,7 @@ import type { ThemeTokens } from '@dou-ui/theme'
 
 const props = defineProps<{
   /** Which group of `color` tokens to show. */
-  group: 'tone' | 'bg' | 'text' | 'border'
+  group: 'tone' | 'bg' | 'text' | 'border' | 'chart'
 }>()
 
 const tones = ['neutral', 'primary', 'success', 'warning', 'danger'] as const

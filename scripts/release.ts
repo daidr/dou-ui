@@ -21,6 +21,7 @@ const packages = [
   'flow',
   'gantt',
   'sheet',
+  'chart',
   'resolver',
   'nuxt',
 ]

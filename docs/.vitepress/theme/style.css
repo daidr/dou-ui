@@ -1214,6 +1214,16 @@ body {
   fill: none;
   stroke: var(--dou-color-primary);
 }
+.doc-overview__art .lc2 {
+  fill: none;
+  stroke: var(--dou-color-chart-2);
+}
+.doc-overview__art .ac1 {
+  fill: color-mix(in oklab, var(--dou-color-chart-1) 8%, transparent);
+}
+.doc-overview__art .c2 {
+  fill: var(--dou-color-chart-2);
+}
 .doc-overview__art .lg {
   fill: none;
   stroke: var(--dou-color-success);

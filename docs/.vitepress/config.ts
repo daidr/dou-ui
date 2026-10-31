@@ -64,6 +64,7 @@ const sheetSidebar = ecosystem('电子表格', [
   { text: '介绍', link: '/sheet/' },
   { text: '文档数据', link: '/sheet/data' },
 ])
+const chartSidebar = ecosystem('图表', [{ text: '介绍', link: '/chart/' }])
 
 export default defineConfig({
   lang: 'zh-CN',
@@ -84,11 +85,11 @@ export default defineConfig({
       { text: '指南', link: '/guide/philosophy' },
       { text: '组件', link: '/components/overview' },
       { text: '区块', link: '/blocks/login' },
-      // The editor, flow, gantt and sheet packages keep their own paths.
+      // The editor, flow, gantt, sheet and chart packages keep their own paths.
       {
         text: '生态系统',
         link: '/ecosystem/',
-        activeMatch: '^/(ecosystem|editor|flow|gantt|sheet)(/|$)',
+        activeMatch: '^/(ecosystem|editor|flow|gantt|sheet|chart)(/|$)',
       },
       { text: '图标', link: '/icons/' },
       { text: '集成', link: '/integrations/vite' },
@@ -125,6 +126,7 @@ export default defineConfig({
             { text: '流程编辑器', link: '/flow/' },
             { text: '甘特图', link: '/gantt/' },
             { text: '电子表格', link: '/sheet/' },
+            { text: '图表', link: '/chart/' },
           ],
         },
       ],
@@ -132,6 +134,7 @@ export default defineConfig({
       '/flow': flowSidebar,
       '/gantt': ganttSidebar,
       '/sheet': sheetSidebar,
+      '/chart': chartSidebar,
       '/icons': [
         {
           text: '图标',
@@ -387,6 +390,11 @@ export default defineConfig({
         {
           find: /^@dou-ui\/gantt\/collaboration$/,
           replacement: r('../../packages/gantt/src/collaboration/index.ts'),
+        },
+        { find: /^@dou-ui\/chart$/, replacement: r('../../packages/chart/src/index.ts') },
+        {
+          find: /^@dou-ui\/chart\/style\.css$/,
+          replacement: r('../../packages/chart/src/style.css'),
         },
         { find: /^@dou-ui\/gantt$/, replacement: r('../../packages/gantt/src/index.ts') },
         {

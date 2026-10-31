@@ -2416,7 +2416,23 @@ function teardownExtensions() {
   for (const cleanup of cleanups.splice(0)) cleanup()
   customHistory = null
 }
+let setUp = false
+let setupTimes: number[] = []
+let setupWarned = false
+/** An extension made in the template is new on every render, and set up again each time. */
+function warnRepeatedSetup() {
+  if (process.env.NODE_ENV === 'production' || setupWarned) return
+  const at = Date.now()
+  setupTimes = [...setupTimes.filter((time) => at - time < 1000), at]
+  if (setupTimes.length < 4) return
+  setupWarned = true
+  console.warn(
+    '[@dou-ui/gantt] the extensions keep being set up again, which also clears undo each time. Create them once in <script setup> instead of in the template.',
+  )
+}
 function setupExtensions() {
+  if (setUp) warnRepeatedSetup()
+  setUp = true
   teardownExtensions()
   customHistory = resolved.value.history?.(context) ?? null
   for (const setup of resolved.value.setups) {

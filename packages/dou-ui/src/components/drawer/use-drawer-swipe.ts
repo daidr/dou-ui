@@ -1,4 +1,5 @@
 import { computed, onBeforeUnmount, onMounted, ref, type Ref } from 'vue'
+import { holdPointer } from '../../utils/pointer'
 import type { DrawerPlacement, DrawerSnapPoint } from './drawer'
 
 interface SwipeOptions {
@@ -113,11 +114,6 @@ export function useDrawerSwipe(options: SwipeOptions) {
 
   let stop: (() => void) | undefined
 
-  // Touch scrolling starts on the first `touchmove`, so a drag cancels it there.
-  const touchmove = (e: TouchEvent) => {
-    if (dragging.value && e.cancelable) e.preventDefault()
-  }
-
   function onPointerdown(event: PointerEvent) {
     if (!options.enabled() || stop || settling.value) return
     if (event.pointerType === 'mouse' && event.button !== 0) return
@@ -141,6 +137,8 @@ export function useDrawerSwipe(options: SwipeOptions) {
     const startOffset = offset.value
     const scrollEl = scroller(target)
     let samples: { at: number; d: number }[] = []
+    // Touch scrolling starts on the first `touchmove`, so a drag stops it there.
+    const hold = holdPointer(event, options.panel.value)
 
     const move = (e: PointerEvent) => {
       if (e.pointerId !== event.pointerId) return
@@ -157,6 +155,7 @@ export function useDrawerSwipe(options: SwipeOptions) {
           if (!startOffset && !(largest && startSize < largest.size - 1)) return end()
         } else if (scrollEl && scrollerTakes(scrollEl, true)) return end()
         dragging.value = true
+        hold.grab()
         if (e.pointerType === 'mouse') options.panel.value?.setPointerCapture?.(e.pointerId)
       }
       e.preventDefault()
@@ -202,7 +201,7 @@ export function useDrawerSwipe(options: SwipeOptions) {
       window.removeEventListener('pointermove', move)
       window.removeEventListener('pointerup', up)
       window.removeEventListener('pointercancel', up)
-      options.panel.value?.removeEventListener('touchmove', touchmove)
+      hold.release()
       dragging.value = false
       stop = undefined
     }
@@ -210,7 +209,6 @@ export function useDrawerSwipe(options: SwipeOptions) {
     window.addEventListener('pointermove', move, { passive: false })
     window.addEventListener('pointerup', up)
     window.addEventListener('pointercancel', up)
-    options.panel.value?.addEventListener('touchmove', touchmove, { passive: false })
   }
 
   async function release(velocity: number, panelSize: number) {

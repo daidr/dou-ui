@@ -78,11 +78,17 @@ function startResize(event: PointerEvent, side: -1 | 1) {
       props.updateProps({ width: dragWidth.value })
     dragWidth.value = null
   }
+  const onCancel = () => {
+    stop?.()
+    dragWidth.value = null
+  }
   window.addEventListener('pointermove', onMove)
   window.addEventListener('pointerup', onUp)
+  window.addEventListener('pointercancel', onCancel)
   stop = () => {
     window.removeEventListener('pointermove', onMove)
     window.removeEventListener('pointerup', onUp)
+    window.removeEventListener('pointercancel', onCancel)
     stop = null
   }
 }

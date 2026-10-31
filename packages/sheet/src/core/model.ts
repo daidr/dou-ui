@@ -98,9 +98,18 @@ export type SheetConditionalFormat =
   | SheetConditionalBar
 
 interface SheetConditionalBase {
-  /** The cells, such as `'D2:D40'`. */
-  range: string
+  /**
+   * The cells, such as `'D2:D40'`, or several ranges taken as one, such as
+   * `['D2:D40', 'G2:G40']`.
+   */
+  range: SheetRuleRange
 }
+
+/**
+ * The cells of a rule: a range, or several ranges taken as one. A rule's
+ * formula is written for the top left cell of the first.
+ */
+export type SheetRuleRange = string | string[]
 
 /** A look: a style's name in the workbook's `styles`, or a style. */
 export type SheetConditionalStyle = string | SheetStyle
@@ -175,8 +184,8 @@ export interface SheetConditionalBar extends SheetConditionalBase {
 export type SheetValidation = SheetValidationList | SheetValidationWhen | SheetValidationFormula
 
 interface SheetValidationBase {
-  /** The cells, such as `'D2:D40'`. */
-  range: string
+  /** The cells, such as `'D2:D40'`, or several ranges, such as `['E2:E9', 'G2:J9']`. */
+  range: SheetRuleRange
   /**
    * Whether a typed value that doesn't fit is refused, `true` by default.
    * With `false` it is kept and marked. Pasted and filled values are always

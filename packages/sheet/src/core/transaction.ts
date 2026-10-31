@@ -26,6 +26,7 @@ import {
   type SheetFilter,
   type SheetFilterRule,
   type SheetRow,
+  type SheetRuleRange,
   type SheetStyle,
   type SheetTypeSetup,
   type SheetValidation,
@@ -35,9 +36,17 @@ import {
 } from './model'
 import { continueValues, type SheetFillMode } from './fill'
 import { mergesOf, overlaps } from './merge'
+import { rangesOf } from './conditional'
 import { sortRows, textCollator, type SheetSortKey } from './data'
 
 /** The lists of rules a sheet keeps, each rule with a `range`. */
+/** Throws when a rule's ranges aren't all ranges. */
+function checkRuleRange(range: SheetRuleRange) {
+  const texts = rangesOf(range)
+  if (!texts.length) throw new RangeError('A rule needs a range')
+  for (const text of texts) if (!parseRange(text)) throw new RangeError(`"${text}" isn't a range`)
+}
+
 type RuleKey = 'conditionalFormats' | 'validations'
 type RuleOf<K extends RuleKey> = K extends 'conditionalFormats'
   ? SheetConditionalFormat
@@ -523,15 +532,14 @@ export class SheetTransaction {
 
   private addRule<K extends RuleKey>(key: K, rule: RuleOf<K>, sheet: SheetRef) {
     const index = this.mustIndex(sheet)
-    if (!parseRange(rule.range)) throw new RangeError(`"${rule.range}" isn't a range`)
+    checkRuleRange(rule.range)
     const rules = (this.book.sheets[index]![key] ?? []) as RuleOf<K>[]
     return this.updateSheet({ [key]: [...rules, rule] }, index)
   }
 
   private setRules<K extends RuleKey>(key: K, rules: readonly RuleOf<K>[], sheet: SheetRef) {
     const index = this.mustIndex(sheet)
-    for (const rule of rules)
-      if (!parseRange(rule.range)) throw new RangeError(`"${rule.range}" isn't a range`)
+    for (const rule of rules) checkRuleRange(rule.range)
     return this.updateSheet({ [key]: rules.length ? [...rules] : undefined }, index)
   }
 
@@ -541,10 +549,12 @@ export class SheetTransaction {
     const rules = this.book.sheets[index]![key]
     if (!rules?.length) return this
     const kept = bounds
-      ? (rules as { range: string }[]).filter((rule) => {
-          const range = parseRange(rule.range)
-          return range && !overlaps(boundsOf(range), bounds)
-        })
+      ? (rules as { range: SheetRuleRange }[]).filter((rule) =>
+          rangesOf(rule.range).every((text) => {
+            const range = parseRange(text)
+            return range && !overlaps(boundsOf(range), bounds)
+          }),
+        )
       : []
     if (kept.length === rules.length) return this
     return this.updateSheet({ [key]: kept.length ? kept : undefined }, index)
@@ -722,15 +732,23 @@ export class SheetTransaction {
 
   /** Moves a sheet's rules with their cells; a rule goes when its cells do. */
   private moveRules(key: RuleKey, index: number, map: SheetRefMap) {
-    const rules = this.book.sheets[index]![key] as { range: string }[] | undefined
+    const rules = this.book.sheets[index]![key] as { range: SheetRuleRange }[] | undefined
     if (!rules?.length) return
-    const next: { range: string }[] = []
+    const next: { range: SheetRuleRange }[] = []
     for (const rule of rules) {
-      const range = parseRange(rule.range)
-      const moved = range && map(boundsOf(range))
-      if (!moved) continue
-      const text = rangeText('bounds' in moved ? moved.bounds : moved)
-      next.push(text === rule.range ? rule : { ...rule, range: text })
+      // each range moves on its own; the rule goes when all of them do
+      const texts: string[] = []
+      for (const text of rangesOf(rule.range)) {
+        const range = parseRange(text)
+        const moved = range && map(boundsOf(range))
+        if (moved) texts.push(rangeText('bounds' in moved ? moved.bounds : moved))
+      }
+      if (!texts.length) continue
+      const range = Array.isArray(rule.range) ? texts : texts[0]!
+      const same = Array.isArray(rule.range)
+        ? texts.length === rule.range.length && texts.every((t, i) => t === rule.range[i])
+        : range === rule.range
+      next.push(same ? rule : { ...rule, range })
     }
     if (next.length !== rules.length || next.some((rule, i) => rule !== rules[i]))
       this.updateSheet({ [key]: next.length ? next : undefined }, index)

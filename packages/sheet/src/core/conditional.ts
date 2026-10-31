@@ -1,7 +1,13 @@
 import type { Tone } from 'dou-ui'
 import { boundsOf, parseRange, shiftFormula, type SheetBounds } from './address'
 import { isEmptyValue, meetsCondition, textCollator } from './data'
-import type { SheetColor, SheetConditionalFormat, SheetConditionalStyle, SheetStyle } from './model'
+import type {
+  SheetColor,
+  SheetConditionalFormat,
+  SheetConditionalStyle,
+  SheetRuleRange,
+  SheetStyle,
+} from './model'
 
 /*
  * Conditional formats: which look each cell takes on from the rules of its
@@ -65,13 +71,21 @@ function mix(a: string, b: string, t: number) {
   return `color-mix(in oklab, ${b} ${p}%, ${a})`
 }
 
+/** A rule over one of its ranges; the ranges of a rule share its `group`. */
 interface Rule {
   format: SheetConditionalFormat
   bounds: SheetBounds
+  /** The cell its formula is written for. */
+  anchor: { row: number; col: number }
   style?: SheetStyle
-  /** What the rule read of its whole range, once. */
+  group: RuleGroup
+}
+
+interface RuleGroup {
+  areas: SheetBounds[]
+  /** What the rule read of all its ranges, once. */
   stats?: Stats
-  /** What the range's cells held when `stats` was read, as `cellStamp` gave it, row by row. */
+  /** What the ranges' cells held when `stats` was read, as `cellStamp` gave it, row by row. */
   stamps?: unknown[]
 }
 
@@ -85,14 +99,17 @@ const numberAt = (source: SheetLookSource, row: number, col: number) => {
   return typeof value === 'number' && Number.isFinite(value) ? value : null
 }
 
-function numbersIn(source: SheetLookSource, b: SheetBounds) {
-  const list = new Float64Array((b.bottom - b.top + 1) * (b.right - b.left + 1))
+function numbersIn(source: SheetLookSource, areas: readonly SheetBounds[]) {
+  let size = 0
+  for (const b of areas) size += (b.bottom - b.top + 1) * (b.right - b.left + 1)
+  const list = new Float64Array(size)
   let length = 0
-  for (let row = b.top; row <= b.bottom; row++)
-    for (let col = b.left; col <= b.right; col++) {
-      const n = numberAt(source, row, col)
-      if (n != null) list[length++] = n
-    }
+  for (const b of areas)
+    for (let row = b.top; row <= b.bottom; row++)
+      for (let col = b.left; col <= b.right; col++) {
+        const n = numberAt(source, row, col)
+        if (n != null) list[length++] = n
+      }
   return list.subarray(0, length)
 }
 
@@ -129,17 +146,18 @@ const keyOf = (source: SheetLookSource, row: number, col: number) =>
 
 function statsOf(rule: Rule, source: SheetLookSource): Stats {
   const f = rule.format
-  const b = rule.bounds
+  const { areas } = rule.group
   if ('duplicates' in f || 'unique' in f) {
     const counts = new Map<string, number>()
-    for (let row = b.top; row <= b.bottom; row++)
-      for (let col = b.left; col <= b.right; col++) {
-        const key = keyOf(source, row, col)
-        if (key) counts.set(key, (counts.get(key) ?? 0) + 1)
-      }
+    for (const b of areas)
+      for (let row = b.top; row <= b.bottom; row++)
+        for (let col = b.left; col <= b.right; col++) {
+          const key = keyOf(source, row, col)
+          if (key) counts.set(key, (counts.get(key) ?? 0) + 1)
+        }
     return { kind: 'counts', counts }
   }
-  const numbers = numbersIn(source, b)
+  const numbers = numbersIn(source, areas)
   if ('average' in f) {
     let sum = 0
     for (const n of numbers) sum += n
@@ -201,6 +219,8 @@ function addStyle(look: SheetStyle, extra: SheetStyle) {
 
 const sameBounds = (a: SheetBounds, b: SheetBounds) =>
   a.top === b.top && a.left === b.left && a.bottom === b.bottom && a.right === b.right
+const sameAreas = (a: readonly SheetBounds[], b: readonly SheetBounds[]) =>
+  a.length === b.length && a.every((area, i) => sameBounds(area, b[i]!))
 
 /** The bounds of a range, kept inside the sheet; `null` when it isn't a range. */
 export function boundsIn(text: string, size: { rows: number; cols: number }): SheetBounds | null {
@@ -213,6 +233,43 @@ export function boundsIn(text: string, size: { rows: number; cols: number }): Sh
     bottom: Math.min(b.bottom, size.rows - 1),
     right: Math.min(b.right, size.cols - 1),
   }
+}
+
+/** The ranges of a rule as a list. */
+export const rangesOf = (range: SheetRuleRange): readonly string[] =>
+  Array.isArray(range) ? range : [range]
+
+/** A rule's ranges as text, such as `'E2:E9, G2:J9'`. */
+export const ruleRangeText = (range: SheetRuleRange) => rangesOf(range).join(', ')
+
+/**
+ * Reads ranges written as text, separated by commas or spaces: one range
+ * as a string, several as a list; `null` when one of them isn't a range.
+ */
+export function readRuleRange(text: string): SheetRuleRange | null {
+  const texts = text
+    .toUpperCase()
+    .split(/[\s,，;；]+/)
+    .filter(Boolean)
+  if (!texts.length || texts.some((t) => !parseRange(t))) return null
+  return texts.length === 1 ? texts[0]! : texts
+}
+
+/**
+ * The bounds of a rule's ranges inside the sheet, leaving out those that
+ * aren't ranges or lie outside it, and the cell its formula is written for:
+ * the top left of the first range.
+ */
+export function areasIn(range: SheetRuleRange, size: { rows: number; cols: number }) {
+  const areas: SheetBounds[] = []
+  let anchor: { row: number; col: number } | undefined
+  for (const text of rangesOf(range)) {
+    const b = boundsIn(text, size)
+    if (!b) continue
+    anchor ??= { row: b.top, col: b.left }
+    if (b.top <= b.bottom && b.left <= b.right) areas.push(b)
+  }
+  return { areas, anchor: anchor ?? { row: 0, col: 0 } }
 }
 
 /**
@@ -236,29 +293,29 @@ export class SheetLooks {
   ) {
     this.collator = textCollator(source.lang)
     for (const format of formats ?? []) {
-      const bounds = boundsIn(format.range, source.size)
-      if (!bounds || bounds.top > bounds.bottom || bounds.left > bounds.right) continue
+      const { areas, anchor } = areasIn(format.range, source.size)
+      if (!areas.length) continue
       const style = 'style' in format ? styleOf(format.style, source.styles) : undefined
-      const rule: Rule = { format, bounds, style }
-      const old = previous?.rules.find((r) => r.format === format)
-      if (old?.stats && old.stamps && sameBounds(old.bounds, bounds) && this.sameCells(old)) {
-        rule.stats = old.stats
-        rule.stamps = old.stamps
+      const group: RuleGroup = { areas }
+      const old = previous?.rules.find((r) => r.format === format)?.group
+      if (old?.stats && old.stamps && sameAreas(old.areas, areas) && this.sameCells(old)) {
+        group.stats = old.stats
+        group.stamps = old.stamps
       }
-      this.rules.push(rule)
+      for (const bounds of areas) this.rules.push({ format, bounds, anchor, style, group })
     }
   }
 
-  /** Whether the cells of an old rule's range hold what they did. */
-  private sameCells(old: Rule) {
+  /** Whether the cells of an old rule's ranges hold what they did. */
+  private sameCells(old: RuleGroup) {
     const stamp = this.source.cellStamp
     if (!stamp) return false
     const stamps = old.stamps!
-    const b = old.bounds
     let i = 0
-    for (let row = b.top; row <= b.bottom; row++)
-      for (let col = b.left; col <= b.right; col++)
-        if (stamp(row, col) !== stamps[i++]) return false
+    for (const b of old.areas)
+      for (let row = b.top; row <= b.bottom; row++)
+        for (let col = b.left; col <= b.right; col++)
+          if (stamp(row, col) !== stamps[i++]) return false
     return true
   }
 
@@ -310,18 +367,19 @@ export class SheetLooks {
   }
 
   private stats(rule: Rule) {
-    if (!rule.stats) {
-      rule.stats = statsOf(rule, this.source)
+    const group = rule.group
+    if (!group.stats) {
+      group.stats = statsOf(rule, this.source)
       const stamp = this.source.cellStamp
       if (stamp) {
-        const b = rule.bounds
         const stamps: unknown[] = []
-        for (let row = b.top; row <= b.bottom; row++)
-          for (let col = b.left; col <= b.right; col++) stamps.push(stamp(row, col))
-        rule.stamps = stamps
+        for (const b of group.areas)
+          for (let row = b.top; row <= b.bottom; row++)
+            for (let col = b.left; col <= b.right; col++) stamps.push(stamp(row, col))
+        group.stamps = stamps
       }
     }
-    return rule.stats
+    return group.stats
   }
 
   private meets(rule: Rule, row: number, col: number): boolean {
@@ -330,7 +388,7 @@ export class SheetLooks {
     if ('when' in f)
       return meetsCondition(f.when, s.valueAt(row, col), s.textAt(row, col), this.collator)
     if ('formula' in f) {
-      const formula = shiftFormula(f.formula, row - rule.bounds.top, col - rule.bounds.left)
+      const formula = shiftFormula(f.formula, row - rule.anchor.row, col - rule.anchor.col)
       const result = s.evaluate(formula)
       return result === true || (typeof result === 'number' && result !== 0)
     }

@@ -87,6 +87,33 @@ describe('validation rules', () => {
   })
 })
 
+describe('rules over several ranges', () => {
+  it('checks every range, and moves or drops each one with its cells', () => {
+    const c = checksOf(
+      [
+        [-1, 0, 5],
+        [2, 0, -3],
+      ],
+      [{ range: ['A1:A2', 'C1:C2'], when: { op: 'ge', value: 0 } }],
+    )
+    expect([...c.broken()].map(({ row, col }) => [row, col])).toEqual([
+      [0, 0],
+      [1, 2],
+    ])
+    expect(c.ruleAt(0, 1)).toBeUndefined()
+
+    const tr = new SheetTransaction({ sheets: [{ name: '表', cells: [[1, 2, 3]] }] })
+      .addValidation({ range: ['A1:A9', 'C1:C9'], when: { op: 'ge', value: 0 } })
+      .insertCols(1, 1)
+    expect(tr.doc.sheets[0]!.validations![0]!.range).toEqual(['A1:A9', 'D1:D9'])
+    tr.deleteCols(0, 1)
+    expect(tr.doc.sheets[0]!.validations![0]!.range).toEqual(['C1:C9'])
+    expect(() => tr.addValidation({ range: ['A1', 'nope'], list: [] })).toThrow(
+      '"nope" isn\'t a range',
+    )
+  })
+})
+
 function setup() {
   const doc = ref<SheetWorkbook>({
     sheets: [
@@ -97,7 +124,11 @@ function setup() {
           ['南京', 4],
         ],
         validations: [
-          { range: 'A1:A3', list: ['上海', '杭州'], prompt: '选一个城市' },
+          {
+            range: 'A1:A3',
+            list: [{ value: '上海', tone: 'primary' }, '杭州'],
+            prompt: '选一个城市',
+          },
           { range: 'B1:B3', when: { op: 'between', value: 1, to: 5 }, integer: true },
         ],
       },
@@ -132,6 +163,31 @@ describe('DouSheet with validation', () => {
     expect(grid.value!.findInvalid()).toEqual([
       expect.objectContaining({ sheet: '表', cell: 'A2', message: '请从列表中选择' }),
     ])
+    wrapper.unmount()
+  })
+
+  it('shows options with a tone as tags', async () => {
+    const { wrapper, cell } = setup()
+    await nextTick()
+    expect(cell(0, 0).find('.dou-sheet__tag').classes()).toContain('dou-tag--primary')
+    // a value outside the list stays plain text
+    expect(cell(1, 0).find('.dou-sheet__tag').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('takes Alt + ↓ on any cell, so the page does not scroll', async () => {
+    const { wrapper, grid } = setup()
+    await nextTick()
+    grid.value!.select('B1') // not a list
+    await nextTick()
+    const press = new KeyboardEvent('keydown', {
+      key: 'ArrowDown',
+      altKey: true,
+      bubbles: true,
+      cancelable: true,
+    })
+    wrapper.find('textarea').element.dispatchEvent(press)
+    expect(press.defaultPrevented).toBe(true)
     wrapper.unmount()
   })
 

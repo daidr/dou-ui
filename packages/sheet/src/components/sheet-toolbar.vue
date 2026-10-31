@@ -57,7 +57,13 @@ import {
 import { useSheet } from '../context'
 import { boundsOf, columnName, formatRange, inBounds, parseRange } from '../core/address'
 import { alignOf, changeDecimals, formatValue } from '../core/format'
-import type { SheetConditionalFormat, SheetStyle, SheetValidation } from '../core/model'
+import { rangesOf, ruleRangeText } from '../core/conditional'
+import type {
+  SheetConditionalFormat,
+  SheetRuleRange,
+  SheetStyle,
+  SheetValidation,
+} from '../core/model'
 import FormatDialog from './format-dialog.vue'
 import FormatList from './format-list.vue'
 import ValidationDialog from './validation-dialog.vue'
@@ -306,18 +312,17 @@ function selectedRanges() {
   const size = { rows: data.rowCount ?? 1000, cols: data.colCount ?? 26 }
   return sheet.selection.value.ranges.map((range) => formatRange(range, size))
 }
-/** The range the active cell is in, which a new format starts with. */
-function activeRange() {
-  const { ranges } = sheet.selection.value
-  const { row, col } = active.value
-  const range =
-    ranges.find((r) => {
-      const b = boundsOf(r)
-      return row >= b.top && row <= b.bottom && col >= b.left && col <= b.right
-    }) ?? ranges[ranges.length - 1]
-  const data = sheet.sheet.value
-  return range ? formatRange(range, { rows: data.rowCount ?? 1000, cols: data.colCount ?? 26 }) : ''
+/** The selection as a rule's range, which a new rule starts with: one range, or several. */
+function selectedRange(): SheetRuleRange {
+  const ranges = selectedRanges()
+  return ranges.length === 1 ? ranges[0]! : ranges
 }
+/** Whether a rule's ranges hold a cell. */
+const ruleHolds = (range: SheetRuleRange, row: number, col: number) =>
+  rangesOf(range).some((text) => {
+    const r = parseRange(text)
+    return !!r && inBounds(boundsOf(r), row, col)
+  })
 
 function addFormats(list: SheetConditionalFormat[]) {
   if (!list.length) return
@@ -327,7 +332,9 @@ function addFormats(list: SheetConditionalFormat[]) {
     },
     { action: 'format' },
   )
-  sheet.announce(format(m.value.formats.added, { range: list.map((f) => f.range).join(', ') }))
+  sheet.announce(
+    format(m.value.formats.added, { range: list.map((f) => ruleRangeText(f.range)).join(', ') }),
+  )
   done()
 }
 
@@ -335,7 +342,7 @@ function addFormats(list: SheetConditionalFormat[]) {
 const HIGHLIGHTS = ['gt', 'lt', 'between', 'eq', 'contains', 'duplicates', 'formula'] as const
 const RANKS = ['top', 'bottom', 'above', 'below'] as const
 type FormatItem = (typeof HIGHLIGHTS)[number] | (typeof RANKS)[number]
-function startOf(item: FormatItem, range: string): SheetConditionalFormat {
+function startOf(item: FormatItem, range: SheetRuleRange): SheetConditionalFormat {
   const look = { ...LOOKS.danger }
   switch (item) {
     case 'duplicates':
@@ -360,7 +367,7 @@ const dialogOpen = ref(false)
 /** The rule being edited, by its place in the list; `-1` adds one. */
 const editing = ref(-1)
 function openFormat(item: FormatItem) {
-  dialogFormat.value = startOf(item, activeRange())
+  dialogFormat.value = startOf(item, selectedRange())
   dialogTitle.value = m.value.formats[item].replace(/…$/, '')
   editing.value = -1
   dialogOpen.value = true
@@ -391,12 +398,11 @@ const ruleIndex = ref(-1)
 /** Opens the rule of the active cell, or a new one for the selection. */
 function openValidation() {
   const { row, col } = active.value
-  ruleIndex.value = validations.value.findIndex((r) => {
-    const range = parseRange(r.range)
-    return !!range && inBounds(boundsOf(range), row, col)
-  })
+  ruleIndex.value = validations.value.findIndex((r) => ruleHolds(r.range, row, col))
   rule.value =
-    ruleIndex.value >= 0 ? validations.value[ruleIndex.value]! : { range: activeRange(), list: [] }
+    ruleIndex.value >= 0
+      ? validations.value[ruleIndex.value]!
+      : { range: selectedRange(), list: [] }
   ruleOpen.value = true
 }
 function applyValidation(next: SheetValidation) {
@@ -404,7 +410,7 @@ function applyValidation(next: SheetValidation) {
   if (ruleIndex.value >= 0) list[ruleIndex.value] = next
   else list.push(next)
   sheet.transact((tr) => tr.setValidations(list), { action: 'validation' })
-  sheet.announce(format(m.value.validation.added, { range: next.range }))
+  sheet.announce(format(m.value.validation.added, { range: ruleRangeText(next.range) }))
 }
 function removeValidation() {
   const gone = validations.value[ruleIndex.value]
@@ -412,7 +418,7 @@ function removeValidation() {
   sheet.transact((tr) => tr.setValidations(validations.value.filter((r) => r !== gone)), {
     action: 'validation',
   })
-  sheet.announce(format(m.value.validation.removed, { range: gone.range }))
+  sheet.announce(format(m.value.validation.removed, { range: ruleRangeText(gone.range) }))
 }
 
 const listOpen = ref(false)
@@ -435,10 +441,10 @@ function clearFormats(all: boolean) {
 }
 
 function addScale(colors: SheetScaleColors) {
-  addFormats(selectedRanges().map((range) => ({ range, scale: [...colors] as SheetScaleColors })))
+  addFormats([{ range: selectedRange(), scale: [...colors] as SheetScaleColors }])
 }
 function addBar(tone: Tone) {
-  addFormats(selectedRanges().map((range) => ({ range, bar: tone })))
+  addFormats([{ range: selectedRange(), bar: tone }])
 }
 
 // Merge and freeze ------------------------------------------------------------------------

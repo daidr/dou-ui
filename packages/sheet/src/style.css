@@ -495,6 +495,11 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
+  /* an option without a tone stays quieter than those with one */
+  .dou-sheet__tag.is-neutral {
+    --dou-tag-fg: var(--dou-color-text-secondary);
+    --dou-tag-border: var(--dou-color-border-subtle);
+  }
 
   .dou-sheet__cell {
     &.is-align-center > .dou-sheet__check,

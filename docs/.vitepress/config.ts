@@ -127,6 +127,8 @@ export default defineConfig({
             { text: '门店对比', link: '/blocks/compare' },
             { text: '销售分析', link: '/blocks/sales-analysis' },
             { text: '工单统计', link: '/blocks/ticket-stats' },
+            { text: '部门预算', link: '/blocks/budget' },
+            { text: '门店排班', link: '/blocks/shifts' },
             { text: 'AI 对话页', link: '/blocks/chat' },
             { text: '错误页', link: '/blocks/errors' },
             { text: '看板', link: '/blocks/kanban' },

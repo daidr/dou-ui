@@ -2,6 +2,7 @@
 import { ArrowDownIcon, ArrowUpIcon, PencilIcon, TrashIcon } from '@dou-ui/icons'
 import { DouButton, DouDialog, DouTooltip } from 'dou-ui'
 import { computed, useId } from 'vue'
+import { ruleRangeText } from '../core/conditional'
 import type { SheetConditionalFormat, SheetStyle, SheetValue } from '../core/model'
 import { format, type SheetMessages } from '../locale'
 import { formatSample } from './format-presets'
@@ -84,7 +85,7 @@ function remove(index: number) {
         >
         <span class="dou-sheet-formats__what">
           <span :id="`${uid}-${i}`" class="dou-sheet-formats__rule">{{ describe(f) }}</span>
-          <span class="dou-sheet-formats__range">{{ f.range }}</span>
+          <span class="dou-sheet-formats__range">{{ ruleRangeText(f.range) }}</span>
         </span>
         <span class="dou-sheet-formats__actions">
           <DouTooltip :content="m.edit">

@@ -90,7 +90,7 @@ defineExpose({
       <span
         v-else
         class="dou-tag dou-tag--soft dou-sheet__tag"
-        :class="option.tone && option.tone !== 'neutral' && `dou-tag--${option.tone}`"
+        :class="option.tone && option.tone !== 'neutral' ? `dou-tag--${option.tone}` : 'is-neutral'"
         >{{ option.label }}</span
       >
       <CheckIcon v-if="option.value === value" class="dou-sheet__option-check" />

@@ -152,6 +152,38 @@ const finance = defineSheetExtension({ name: 'finance', functions: [TAX] })
 | `serialOf(text)`、`dateText(serial)`  | 日期文字和天数（从 1899-12-30 算起）互相转换                     |
 | `SheetError.of(code)`、`isSheetError` | 得到错误值（比如 `SheetError.of('#N/A')`）、判断是不是错误值     |
 
+## 在表格之外读取结果
+
+页面上表格以外的地方（比如表格上方的合计数字）要用公式的结果时，用 `useSheetFormulas`。它对 `v-model` 绑定的同一个工作簿计算公式，在 `computed` 或模板里读取的结果会随表格的修改更新：
+
+```vue
+<script setup>
+import { DouSheet, useSheetFormulas } from '@dou-ui/sheet'
+import { computed, ref } from 'vue'
+
+const book = ref({ sheets: [{ name: '预算', cells: [[1200], [800], ['=SUM(A1:A2)']] }] })
+const formulas = useSheetFormulas(book)
+const total = computed(() => formulas.result(0, 'A3'))
+</script>
+
+<template>
+  <p>合计：{{ total }}</p>
+  <DouSheet v-model="book" @transaction="formulas.update" />
+</template>
+```
+
+把表格的 `transaction` 事件交给 `update` 后，每次修改只重新计算受影响的公式；不传时，工作簿每变化一次都全部重新计算，结果同样正确。从外部整个替换工作簿时也会全部重新计算。
+
+| 名称                               | 说明                                                               |
+| ---------------------------------- | ------------------------------------------------------------------ |
+| `useSheetFormulas(book, options?)` | `book` 是工作簿的 ref 或 getter；`options` 同 `SheetFormulaEngine` |
+| `result(sheet, cell)`              | 单元格的结果，参数同下方引擎的 `result`                            |
+| `evaluate(formula, sheet?)`        | 计算一个公式，不写进单元格                                         |
+| `update(tr)`                       | 交给它表格的 `transaction` 事件                                    |
+| `engine`                           | 下面的计算引擎                                                     |
+
+完整的例子见区块[部门预算](../blocks/budget)。
+
 ## 单独使用计算引擎
 
 不显示表格时，也可以用 `SheetFormulaEngine` 计算工作簿里的公式，比如在服务端生成报表：

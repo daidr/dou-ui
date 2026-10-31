@@ -11,6 +11,8 @@ export const DouSheetFormulaBar = withInstall(SheetFormulaBar)
 export default DouSheet
 
 export { useSheet, sheetContextKey } from './context'
+export { useSheetFormulas } from './formulas'
+export type { SheetFormulas } from './formulas'
 export type { SheetContext, SheetEditorContext, SheetRect } from './context'
 export { defineSheetExtension, resolveSheetExtensions } from './core/extension'
 export type {
@@ -90,6 +92,7 @@ export type {
   SheetFilterRule,
   SheetFreeze,
   SheetRow,
+  SheetRuleRange,
   SheetSelectOption,
   SheetSortOrder,
   SheetStyle,

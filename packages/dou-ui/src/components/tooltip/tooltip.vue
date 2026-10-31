@@ -111,9 +111,10 @@ const triggerProps = computed(() => ({
         v-bind="{ ...$attrs, ...(interactive ? panelListeners : {}) }"
       >
         <slot name="content">
-          <span v-if="shortcut" :class="ns.e('shortcut')"
-            >{{ content }}<DouKbd size="sm" :keys="shortcut"
-          /></span>
+          <span v-if="shortcut" :class="ns.e('shortcut')">
+            <span :class="ns.e('text')">{{ content }}</span>
+            <DouKbd size="sm" :keys="shortcut" />
+          </span>
           <template v-else>{{ content }}</template>
         </slot>
       </div>

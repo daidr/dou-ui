@@ -89,6 +89,9 @@ app.use(DouSheet)
 | `Delete` / `Backspace`              | 清空选中区域的值                               |
 | `Ctrl` / `⌘` + `C` / `X` / `V`      | 复制、剪切、粘贴                               |
 | `Ctrl` / `⌘` + `D` / `R`            | 向下、向右填充                                 |
+| `Ctrl` / `⌘` + `B` / `I` / `U`      | 加粗、斜体、下划线（按当前单元格切换）         |
+| `Ctrl` / `⌘` + `Shift` + `X`        | 删除线                                         |
+| `Ctrl` / `⌘` + `\`                  | 清除格式                                       |
 | `Ctrl` / `⌘` + `Shift` + `=`        | 选中整行（整列）时，在前面插入同样多的行（列） |
 | `Ctrl` / `⌘` + `-`                  | 选中整行（整列）时，删除它们                   |
 | 菜单键、`Shift` + `F10`             | 打开右键菜单                                   |
@@ -134,6 +137,7 @@ sheet.value.transact((tr) => {
 | `fill`、`clear`          | 填充柄、`Ctrl` + `D` / `R`；清空内容         |
 | `resize`、`hide`、`move` | 调整行高列宽；隐藏、取消隐藏；移动行列       |
 | `merge`                  | 合并、取消合并单元格                         |
+| `style`、`freeze`        | 工具栏或快捷键修改样式、格式；工具栏冻结行列 |
 | `sheet`                  | 标签栏里新建、重命名、复制、移动、删除工作表 |
 | `insert`、`delete`       | 插入、删除行列                               |
 | `undo`、`redo`           | 撤销、重做                                   |
@@ -157,6 +161,7 @@ sheet.value.transact((tr) => {
 | `mergeCells(range)`、`unmergeCells(range)`                                            | 合并区域，只保留左上角的内容；取消区域碰到的所有合并                                                                                                           |
 | `addSheet(sheet?, index?)`、`removeSheet(sheet)`                                      | 新建、删除工作表，见[多个工作表](#多个工作表)                                                                                                                  |
 | `renameSheet(sheet, name)`、`moveSheet(sheet, index)`、`duplicateSheet(sheet, name?)` | 重命名、移动、复制工作表                                                                                                                                       |
+| `styleCells(range, patch)`、`formatCells(range, format)`                              | 修改区域的样式、数字格式，见[改样式](#改样式)                                                                                                                  |
 | `setStyle(name, style)`                                                               | 添加、修改或（传 `undefined`）删除一个命名样式                                                                                                                 |
 | `setMeta({ history, group, action })`                                                 | `history: false` 不进入撤销记录；同一 `group` 的连续修改合并为一步；`action` 见上表                                                                            |
 
@@ -299,6 +304,52 @@ const book = {
 <DocDemo src="sheet/types" column />
 
 要加自己的单元格类型，比如进度条、评分，见[扩展](./extensions)。
+
+## 工具栏
+
+把 `DouSheetToolbar` 放进 `header` 插槽，表格上方会出现格式工具栏。按钮作用于选区，按下的状态跟着当前单元格（键盘所在的那一格）：
+
+- 撤销、重做。
+- 数字格式：常规、数字、百分比、货币、日期、时间、文本，旁边是两种小数位按钮。没有格式的数字按显示的位数开始加减。
+- 加粗、斜体、下划线、删除线。
+- 文字颜色和填充颜色：主题的五种语义色，会跟着暗色模式变化；“自定义颜色”可以选任意颜色，原样使用。
+- 水平对齐、垂直对齐和自动换行。没有设置对齐时，按下的是单元格本来的对齐方式，比如数字靠右。
+- 合并单元格：选区是合并单元格时按钮处于按下状态，再按一次取消合并。
+- 冻结：冻结首行、首列，或冻结到当前单元格所在的行、列。
+- 清除格式：去掉样式和数字格式，值不变。
+
+<DocDemo src="sheet/toolbar" column />
+
+用鼠标点按钮后，键盘仍在表格里，可以接着输入；用键盘在工具栏里操作时（`Tab` 进入，左右方向键移动），焦点留在工具栏。工具栏放不下时横向滚动。只读时按钮都不可用。
+
+`tools` 指定显示哪些按钮和顺序，`'|'` 是分隔线；`start`、`end` 插槽可以在前后加自己的按钮：
+
+```vue
+<DouSheetToolbar :tools="['undo', 'redo', '|', 'bold', 'italic', '|', 'color', 'fill']">
+  <template #end>
+    <DouButton variant="ghost" @click="exportCSV">导出</DouButton>
+  </template>
+</DouSheetToolbar>
+```
+
+可用的名字有 `undo`、`redo`、`format`、`decimals`、`bold`、`italic`、`underline`、`strike`、`color`、`fill`、`align`、`valign`、`wrap`、`merge`、`freeze`、`clear`。`formats` 替换数字格式菜单里的选项，每项是 `{ label, format, example? }`，`example` 是菜单里用这个格式显示的示例值。
+
+工具栏只用了 `useSheet()` 提供的方法，自己做工具栏时可以直接调用：`styleAt(cell)` 读取单元格的样式，`styleSelection(patch)` 修改选区的样式，`formatSelection(format)` 设置数字格式，`clearFormatting()`、`merge()`、`unmerge()`，见[扩展](./extensions)。
+
+### 改样式
+
+`tr.styleCells(range, patch)` 把 `patch` 叠加到区域里每个单元格原有的样式上，字段设为 `undefined`（或 `false`）表示去掉这一项，`patch` 为 `null` 时去掉整个样式。改完后看起来一样的单元格共用一个样式：`styles` 里有一样的就用它，没有就新建一个，名字是 `s1`、`s2` 这样的编号。所以给一列里样式各不相同的单元格加粗，每种原有样式各得到一个加粗的版本，不会每格存一份。
+
+```ts
+sheet.value.transact((tr) => {
+  tr.styleCells('A1:E1', { bold: true, fill: 'neutral' })
+  tr.styleCells('C:D', { align: 'right' }) // 整列，到工作表的最后一行为止
+  tr.formatCells('C2:D20', '¥#,##0.00')
+  tr.formatCells('C2:D20', (format, value) => changeDecimals(format, value, 1)) // 多一位小数
+})
+```
+
+`changeDecimals(format, value, by)` 返回多 `by` 位（为负时少）小数的格式，比如 `0.00` 变成 `0.000`、`0.0%` 变成 `0%`；`format` 为空时从 `value` 显示的位数开始。日期、时间和文本格式原样返回。
 
 ## 多个工作表
 

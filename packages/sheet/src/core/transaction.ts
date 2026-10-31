@@ -16,7 +16,9 @@ import {
 } from './address'
 import {
   cellOf,
+  colCountOf,
   compactCell,
+  rowCountOf,
   type SheetCell,
   type SheetCellInput,
   type SheetData,
@@ -44,6 +46,13 @@ type Patch<T> = { [K in keyof T]?: T[K] | undefined }
 
 /** The parts of a sheet set with `updateSheet`. */
 export type SheetPatch = Patch<Omit<SheetData, 'cells' | 'rowSizes' | 'colSizes'>>
+
+/** Changes to a style: fields to set, and fields set to `undefined` to take off. */
+export type SheetStylePatch = Patch<SheetStyle>
+
+/** A style written the same way whatever order its fields came in. */
+// oxlint-disable-next-line unicorn/no-array-sort -- sorts a fresh array
+const styleKey = (style: SheetStyle) => JSON.stringify(style, Object.keys(style).sort())
 
 /** A sheet: its index in the workbook, or its `id` or `name`. */
 export type SheetRef = number | string
@@ -82,6 +91,8 @@ export type SheetAction =
   | 'delete'
   | 'hide'
   | 'merge'
+  | 'style'
+  | 'freeze'
   | 'sheet'
   | 'undo'
   | 'redo'
@@ -156,8 +167,17 @@ export interface SheetTransactionMeta {
  */
 export class SheetTransaction {
   readonly steps: SheetStep[] = []
+  /** What undoes each step, in the order the steps were made. */
+  private undoing: SheetStep[] = []
+  private reversed: SheetStep[] | null = null
+
   /** The steps that undo this transaction, in the order to apply them. */
-  readonly inverse: SheetStep[] = []
+  get inverse(): readonly SheetStep[] {
+    // put in order when asked, as adding each to the front would take long for many steps
+    // oxlint-disable-next-line unicorn/no-array-reverse -- reverses a fresh copy
+    this.reversed ??= this.undoing.slice().reverse()
+    return this.reversed
+  }
   meta: SheetTransactionMeta = {}
   private book: SheetWorkbook
   /** What this transaction has copied, so it copies each thing once. */
@@ -211,7 +231,8 @@ export class SheetTransaction {
     const inverse = this.apply(step)
     if (inverse) {
       this.steps.push(step)
-      this.inverse.unshift(inverse)
+      this.undoing.push(inverse)
+      this.reversed = null
     }
     return this
   }
@@ -550,6 +571,68 @@ export class SheetTransaction {
   }
 
   /**
+   * Changes how the cells in a range look: each cell's style with `patch`
+   * laid over it, where a field set to `undefined` (or `false`) is taken
+   * off; `null` takes the whole style off. Cells that end up looking the
+   * same share one style: one in `styles` that matches, or a new one named
+   * `s1`, `s2`…. Whole columns and rows stop at the sheet's edge.
+   */
+  styleCells(at: SheetRangeAt, patch: SheetStylePatch | null) {
+    const { index, bounds } = this.rangeIn(at)
+    // a cell's style name → the name it changes to, worked out once per name
+    const next = new Map<string | undefined, string | undefined>()
+    for (let row = bounds.top; row <= bounds.bottom; row++)
+      for (let col = bounds.left; col <= bounds.right; col++) {
+        const point = { sheet: index, row, col }
+        const style = cellOf(this.getCell(point))?.style
+        if (!next.has(style)) next.set(style, this.styleFor(style, patch))
+        const name = next.get(style)
+        if (name !== style) this.updateCell(point, { style: name })
+      }
+    return this
+  }
+
+  /**
+   * Sets the number or date format of the cells in a range (`undefined`
+   * for none), or changes each with a function of its format and value,
+   * such as `(format, value) => changeDecimals(format, value, 1)`.
+   */
+  formatCells(
+    at: SheetRangeAt,
+    format:
+      string | undefined | ((format: string | undefined, value: SheetValue) => string | undefined),
+  ) {
+    const { index, bounds } = this.rangeIn(at)
+    for (let row = bounds.top; row <= bounds.bottom; row++)
+      for (let col = bounds.left; col <= bounds.right; col++) {
+        const point = { sheet: index, row, col }
+        const input = this.getCell(point)
+        const old = cellOf(input)?.format
+        const value = typeof format === 'function' ? format(old, valueOf(input)) : format
+        if ((value || undefined) !== old) this.updateCell(point, { format: value || undefined })
+      }
+    return this
+  }
+
+  /** The name of a style that looks like `name`'s with `patch` laid over it. */
+  private styleFor(name: string | undefined, patch: SheetStylePatch | null) {
+    const styles = this.book.styles ?? {}
+    const style: SheetStyle = {}
+    if (patch)
+      for (const [key, value] of Object.entries({ ...(name ? styles[name] : undefined), ...patch }))
+        if (value !== undefined && value !== false && value !== '')
+          (style as Record<string, unknown>)[key] = value
+    const key = styleKey(style)
+    if (key === '{}') return undefined
+    if (name && styles[name] && styleKey(styles[name]) === key) return name
+    for (const [other, look] of Object.entries(styles)) if (styleKey(look) === key) return other
+    let n = 1
+    while (styles[`s${n}`]) n++
+    this.setStyle(`s${n}`, style)
+    return `s${n}`
+  }
+
+  /**
    * Adds a sheet, at the end or at `index`. Its name must not be taken
    * (`uniqueName` gives one that isn't); it is `Sheet1`, `Sheet2`… when
    * left out, whatever the language. Returns the transaction; the new sheet
@@ -702,6 +785,21 @@ export class SheetTransaction {
           : { top: at.top, left: at.left, bottom: at.bottom, right: at.right }
     }
     return { index: this.mustIndex(sheet), bounds }
+  }
+
+  /** A range kept inside its sheet, so whole columns and rows end at its edge. */
+  private rangeIn(at: SheetRangeAt) {
+    const { index, bounds } = this.rangeAt(at)
+    const sheet = this.book.sheets[index]!
+    return {
+      index,
+      bounds: {
+        top: Math.max(0, bounds.top),
+        left: Math.max(0, bounds.left),
+        bottom: Math.min(rowCountOf(sheet) - 1, bounds.bottom),
+        right: Math.min(colCountOf(sheet) - 1, bounds.right),
+      },
+    }
   }
 
   /** Applies a step, returning the step that undoes it, or `null` when nothing changes. */

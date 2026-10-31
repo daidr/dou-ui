@@ -1,6 +1,6 @@
 import type { FormDocument } from '../core/types'
 import type { FormFieldType } from '../fields/define'
-import type { FormDesignerMessagesOverride } from './locale'
+import type { FormBuilderMessagesOverride } from './locale'
 import type { FormBuilderContext } from './context'
 import type { FormBuilderTransaction } from './core/transaction'
 
@@ -12,7 +12,7 @@ export interface FormBuilderProps {
   /** Field types besides the built-in ones, the same list the renderer gets. */
   fields?: FormFieldType<any>[]
   /** Replaces texts of the builder. */
-  messages?: FormDesignerMessagesOverride
+  messages?: FormBuilderMessagesOverride
 }
 
 export interface FormBuilderEmits {

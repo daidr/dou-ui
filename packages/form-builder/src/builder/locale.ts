@@ -3,7 +3,7 @@ import { computed, toValue } from 'vue'
 import type { MaybeRefOrGetter } from 'vue'
 
 /** The texts of the builder: its panels, actions, announcements and the settings of the built-in types. */
-export interface FormDesignerMessages {
+export interface FormBuilderMessages {
   /** Names of the built-in field types and of the containers, by type. */
   types: Record<string, string>
   /** Names of the palette's groups, by the `group` of a field type. */
@@ -24,7 +24,8 @@ export interface FormDesignerMessages {
     empty: string
   }
   /** The tabs of the side panel. */
-  panels: { fields: string; outline: string; settings: string }
+  /** `side` names the pane, or the button that opens it, holding the fields and the outline. */
+  panels: { side: string; fields: string; outline: string; settings: string }
   actions: {
     parent: string
     up: string
@@ -74,7 +75,7 @@ export interface FormDesignerMessages {
   }
 }
 
-const zhCN: FormDesignerMessages = {
+const zhCN: FormBuilderMessages = {
   types: {
     input: '单行文本',
     textarea: '多行文本',
@@ -108,7 +109,7 @@ const zhCN: FormDesignerMessages = {
   palette: { search: '搜索字段', empty: '没有匹配的字段', add: '添加{label}' },
   outline: { label: '表单结构', expand: '展开', collapse: '收起' },
   canvas: { label: '表单画布', empty: '点击字段添加到这里' },
-  panels: { fields: '字段', outline: '结构', settings: '设置' },
+  panels: { side: '字段与结构', fields: '字段', outline: '结构', settings: '设置' },
   actions: {
     parent: '选中上一级',
     up: '上移',
@@ -216,7 +217,7 @@ const zhCN: FormDesignerMessages = {
   errors: { name: '请填写字段名', taken: '字段名“{text}”已经用过了' },
 }
 
-const zhTW: FormDesignerMessages = {
+const zhTW: FormBuilderMessages = {
   types: {
     input: '單行文字',
     textarea: '多行文字',
@@ -250,7 +251,7 @@ const zhTW: FormDesignerMessages = {
   palette: { search: '搜尋欄位', empty: '沒有符合的欄位', add: '新增{label}' },
   outline: { label: '表單結構', expand: '展開', collapse: '收合' },
   canvas: { label: '表單畫布', empty: '點選欄位新增到這裡' },
-  panels: { fields: '欄位', outline: '結構', settings: '設定' },
+  panels: { side: '欄位與結構', fields: '欄位', outline: '結構', settings: '設定' },
   actions: {
     parent: '選取上一層',
     up: '上移',
@@ -358,7 +359,7 @@ const zhTW: FormDesignerMessages = {
   errors: { name: '請填寫欄位名稱', taken: '欄位名稱「{text}」已經用過了' },
 }
 
-const en: FormDesignerMessages = {
+const en: FormBuilderMessages = {
   types: {
     input: 'Short text',
     textarea: 'Long text',
@@ -392,7 +393,12 @@ const en: FormDesignerMessages = {
   palette: { search: 'Search fields', empty: 'No field matches', add: 'Add {label}' },
   outline: { label: 'Form outline', expand: 'Expand', collapse: 'Collapse' },
   canvas: { label: 'Form canvas', empty: 'Click a field to add it here' },
-  panels: { fields: 'Fields', outline: 'Outline', settings: 'Settings' },
+  panels: {
+    side: 'Fields and outline',
+    fields: 'Fields',
+    outline: 'Outline',
+    settings: 'Settings',
+  },
   actions: {
     parent: 'Select parent',
     up: 'Move up',
@@ -506,29 +512,29 @@ const en: FormDesignerMessages = {
   errors: { name: 'Give the field a name', taken: 'The name “{text}” is taken' },
 }
 
-export const formDesignerLocales: Record<string, FormDesignerMessages> = {
+export const formBuilderLocales: Record<string, FormBuilderMessages> = {
   'zh-CN': zhCN,
   'zh-TW': zhTW,
   en,
 }
 
 /** Texts to change; each group is merged, so only the texts given are replaced. */
-export type FormDesignerMessagesOverride = {
-  [K in keyof FormDesignerMessages]?: K extends 'choices'
+export type FormBuilderMessagesOverride = {
+  [K in keyof FormBuilderMessages]?: K extends 'choices'
     ? Record<string, Record<string, string>>
-    : Partial<FormDesignerMessages[K]>
+    : Partial<FormBuilderMessages[K]>
 }
 
 /** The builder's texts, picked by the name of DouUI's current locale. */
-export function useFormDesignerMessages(
-  override?: MaybeRefOrGetter<FormDesignerMessagesOverride | undefined>,
+export function useFormBuilderMessages(
+  override?: MaybeRefOrGetter<FormBuilderMessagesOverride | undefined>,
 ) {
   const { locale } = useLocale()
-  return computed<FormDesignerMessages>(() => {
+  return computed<FormBuilderMessages>(() => {
     const name = locale.value.name
     const base =
-      formDesignerLocales[name] ??
-      formDesignerLocales[name.split('-')[0]!] ??
+      formBuilderLocales[name] ??
+      formBuilderLocales[name.split('-')[0]!] ??
       (name.startsWith('zh') ? zhCN : en)
     const extra = toValue(override)
     if (!extra) return base
@@ -545,6 +551,6 @@ export function useFormDesignerMessages(
         merged[key] = choices
       } else merged[key] = { ...own, ...value }
     }
-    return merged as unknown as FormDesignerMessages
+    return merged as unknown as FormBuilderMessages
   })
 }

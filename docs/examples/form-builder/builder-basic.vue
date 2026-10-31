@@ -11,8 +11,8 @@ const form = ref<FormDocument>({
       type: 'section',
       title: '联系人',
       children: [
-        { id: 'name', type: 'input', name: 'name', label: '姓名', required: true, span: { sm: 6 } },
-        { id: 'phone', type: 'input', name: 'phone', label: '手机号', span: { sm: 6 } },
+        { id: 'name', type: 'input', name: 'name', label: '姓名', required: true, span: 6 },
+        { id: 'phone', type: 'input', name: 'phone', label: '手机号', span: 6 },
       ],
     },
     {

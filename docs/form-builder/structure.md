@@ -54,10 +54,10 @@
 | `expression`     | 表达式无法解析，或读了不存在的字段、函数   |
 | `formula-cycle`  | 公式互相引用                               |
 
-`message` 是给开发者看的英文说明。界面文字可以从 `useFormBuilderMessages()` 取，它按当前语言给出每个 `code` 的文字，`{text}` 换成问题的原文：
+`message` 是给开发者看的英文说明。界面文字可以从 `useFormRendererMessages()` 取，它按当前语言给出每个 `code` 的文字，`{text}` 换成问题的原文：
 
 ```ts
-const messages = useFormBuilderMessages()
+const messages = useFormRendererMessages()
 const text = formatMessage(messages.value.document[problem.code], { text: problem.text })
 ```
 
@@ -132,11 +132,11 @@ interface FormListNode {
 
 ### 渲染器
 
-| 名称       | 说明                                 | 类型                          |
-| ---------- | ------------------------------------ | ----------------------------- |
-| keepHidden | 属性，提交时保留隐藏字段的值         | `boolean`                     |
-| messages   | 属性，替换部分文字                   | `FormBuilderMessagesOverride` |
-| getValues  | 实例方法，取得和 `submit` 相同的拷贝 | `() => Record<string, any>`   |
+| 名称       | 说明                                 | 类型                           |
+| ---------- | ------------------------------------ | ------------------------------ |
+| keepHidden | 属性，提交时保留隐藏字段的值         | `boolean`                      |
+| messages   | 属性，替换部分文字                   | `FormRendererMessagesOverride` |
+| getValues  | 实例方法，取得和 `submit` 相同的拷贝 | `() => Record<string, any>`    |
 
 ### 工具函数
 
@@ -147,7 +147,7 @@ interface FormListNode {
 | `visibleValues(form, model, options?)`     | 去掉隐藏字段的值后的拷贝           |
 | `emptyItem(list, fields)`                  | 列表的一个新项，字段取各自的默认值 |
 | `findItemFormulaCycles(list)`              | 找出列表项里互相引用的公式         |
-| `useFormBuilderMessages(override?)`        | 当前语言的文字                     |
+| `useFormRendererMessages(override?)`       | 当前语言的文字                     |
 | `formatMessage(text, params)`              | 替换文字里的 `{name}`              |
 | `isTabs` / `isSteps` / `isPage` / `isList` | 判断节点种类                       |
 | `valueNodes(nodes)`                        | 存值的字段和列表，不进入列表的项   |

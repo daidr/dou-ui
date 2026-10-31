@@ -89,7 +89,7 @@ app.use(DouFormBuilder)
 | functions  | 表达式可以调用的函数，见[联动与表达式](./logic)                    | `Record<string, FormFunction>`      | —                |
 | sources    | 选项来源，见[联动与表达式](./logic)                                | `Record<string, FormOptionsLoader>` | —                |
 | keepHidden | 提交时保留隐藏字段的值，见[隐藏字段的值](./structure#隐藏字段的值) | `boolean`                           | `false`          |
-| messages   | 替换部分文字，见[文字](./structure#文字)                           | `FormBuilderMessagesOverride`       | —                |
+| messages   | 替换部分文字，见[文字](./structure#文字)                           | `FormRendererMessagesOverride`      | —                |
 
 ### 事件
 

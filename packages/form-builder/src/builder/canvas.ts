@@ -31,36 +31,36 @@ import type {
 } from '../core/types'
 import { startValue } from '../core/values'
 import type { FormFieldType } from '../fields/define'
-import { formatMessage, useFormBuilderMessages } from '../locale'
-import type { FormBuilderMessages } from '../locale'
+import { formatMessage, useFormRendererMessages } from '../locale'
+import type { FormRendererMessages } from '../locale'
 import { rendererKey, rootScope, scopeKey } from '../renderer/context'
 import type { NodeScope, RendererContext } from '../renderer/context'
 import { FormNodeView, nodeKey, spanStyle } from '../renderer/node-view'
 import { canvasOrder, useBuilderState } from './context'
 import type { BuilderState, BuilderView } from './context'
-import { placesOf } from './core/transaction'
-import { iconOf, labelOf, nodeTitle } from './settings'
+import { formNodePlaces } from './core/transaction'
+import { nodeTitle } from './settings'
+
+/**
+ * The key a node's value has on the canvas: made from its id, not its
+ * name, so a name being typed, left empty or used twice does not bind
+ * the field to another field's value.
+ */
+const previewKey = (node: FormNode) => `n_${node.id.replace(/\W/g, '_')}`
 
 /**
  * A field as the canvas draws it: always shown, enabled and editable in
- * look, with no options to load. Kept per node, so an untouched field is
- * not drawn again.
+ * look, with no options to load, and its value under `previewKey`. Kept
+ * per node, so an untouched field is not drawn again.
  */
 const designed = new WeakMap<FormFieldNode, FormFieldNode>()
 function designNode(node: FormFieldNode): FormFieldNode {
-  if (
-    !node.visibleWhen &&
-    !node.disabledWhen &&
-    !node.formula &&
-    !node.source &&
-    !node.requiredWhen
-  )
-    return node
   let result = designed.get(node)
   if (!result) {
     const rest: FormFieldNode = { ...node }
     for (const key of ['visibleWhen', 'disabledWhen', 'formula', 'source', 'requiredWhen'] as const)
       delete rest[key]
+    if ('name' in node) rest.name = previewKey(node)
     result = node.requiredWhen ? { ...rest, required: true } : rest
     designed.set(node, result)
   }
@@ -81,14 +81,14 @@ function useScratch(state: BuilderState) {
   ) {
     for (const node of nodes) {
       if (isList(node)) {
-        const path = prefix + node.name
+        const path = prefix + previewKey(node)
         const items = getPath(model, path)
         if (!Array.isArray(items) || !items.length || typeof items[0] !== 'object')
           setPath(model, path, [{}])
         sync(node.children, `${path}.0.`, types)
       } else if (isContainer(node)) sync(node.children, prefix, types)
-      else if (node.name) {
-        const path = prefix + node.name
+      else if ('name' in node) {
+        const path = prefix + previewKey(node)
         if (written.get(node) === path) continue
         const type = types.get(node.type)
         if (!type || type.kind === 'display') continue
@@ -126,7 +126,7 @@ export const FormBuilderCanvas = defineComponent({
   setup() {
     const state = useBuilderState()
     const scratch = useScratch(state)
-    const rendererMessages = useFormBuilderMessages()
+    const rendererMessages = useFormRendererMessages()
     const document = computed(() => state.document)
     const layout = computed(() => document.value.layout ?? 'vertical')
     const columns = computed(() => Math.max(1, Math.round(document.value.columns ?? 12)))
@@ -316,7 +316,7 @@ const DesignNode = defineComponent({
     // Fields inside a list read and write its one item on the canvas.
     if (isList(props.node)) {
       const outer = inject(scopeKey, rootScope)
-      const prefix = () => `${outer.prefix()}${(props.node as FormListNode).name}.0.`
+      const prefix = () => `${outer.prefix()}${previewKey(props.node)}.0.`
       const scope: NodeScope = {
         prefix,
         item: () => null,
@@ -414,7 +414,7 @@ function listBody(
   state: BuilderState,
   node: FormListNode,
   props: BodyProps,
-  messages: FormBuilderMessages,
+  messages: FormRendererMessages,
 ) {
   const columns = node.columns ?? props.columns
   return h('div', { class: 'dou-form-renderer__list' }, [
@@ -535,13 +535,11 @@ function pagesBody(
   ])
 }
 
-/** The buttons over the selected node, and its type. */
+/** The buttons of the selected node; its type and name show in the inspector's header. */
 function actionBar(state: BuilderState, node: FormNode, title: string) {
   const messages = state.messages
-  const place = placesOf(state.document).get(node.id)
+  const place = formNodePlaces(state.document).get(node.id)
   const siblings = place?.parent ? place.parent.children.length : state.document.nodes.length
-  const fields = state.fields as Map<string, FormFieldType>
-  const Icon = iconOf(node.type, fields.get(node.type))
   const button = (label: string, icon: VNode, run: () => void, disabled = false) =>
     h(
       'button',
@@ -560,23 +558,15 @@ function actionBar(state: BuilderState, node: FormNode, title: string) {
       },
       icon,
     )
-  const typeLabel = labelOf(node.type, fields.get(node.type), messages)
   return h('div', { class: 'dou-form-builder__actions', role: 'toolbar', 'aria-label': title }, [
-    h('span', { class: 'dou-form-builder__badge', 'aria-hidden': true }, [
-      h(Icon),
-      h('span', typeLabel),
-      title !== typeLabel && 'name' in node && node.name && node.name !== title
-        ? h('span', { class: 'dou-form-builder__badge-name' }, node.name)
-        : null,
-    ]),
     place?.parent
       ? button(messages.actions.parent, h(CornerLeftUpIcon), () => state.selectParent())
       : null,
-    button(messages.actions.up, h(ArrowUpIcon), () => state.move(-1, [node.id]), !place?.index),
+    button(messages.actions.up, h(ArrowUpIcon), () => state.moveBy(-1, [node.id]), !place?.index),
     button(
       messages.actions.down,
       h(ArrowDownIcon),
-      () => state.move(1, [node.id]),
+      () => state.moveBy(1, [node.id]),
       !place || place.index >= siblings - 1,
     ),
     button(messages.actions.duplicate, h(CopyIcon), () => state.duplicate([node.id])),

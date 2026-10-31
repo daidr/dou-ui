@@ -12,7 +12,7 @@ import { formatMessage } from '../locale'
 import FormRenderer from '../renderer/form-renderer.vue'
 import { useBuilderState } from './context'
 import { scopeOf } from './core/commands'
-import { placesOf } from './core/transaction'
+import { formNodePlaces } from './core/transaction'
 import {
   builtinSettings,
   documentSettings,
@@ -42,7 +42,9 @@ const inspectorFields = computed(() => new Map([...types.value, [spanField.type,
 
 const count = computed(() => state.selection.length)
 const node = computed(() => (count.value === 1 ? state.focused.value : undefined))
-const place = computed(() => (node.value ? placesOf(state.document).get(node.value.id) : undefined))
+const place = computed(() =>
+  node.value ? formNodePlaces(state.document).get(node.value.id) : undefined,
+)
 const spec = computed(() =>
   node.value && isField(node.value) ? types.value.get(node.value.type) : undefined,
 )
@@ -52,7 +54,7 @@ function gridColumns(id: string | undefined) {
   const document = state.document
   const own = Math.max(1, Math.round(document.columns ?? 12))
   if (!id) return own
-  const map = placesOf(document)
+  const map = formNodePlaces(document)
   let parent = map.get(id)?.parent
   while (parent) {
     if ('columns' in parent && parent.columns) return parent.columns
@@ -143,7 +145,7 @@ function update(id: string, patch: Record<string, unknown>) {
   tr.setMeta('group', `inspector:${id}:${Object.keys(patch).join(',')}`)
   tr.setMeta('origin', 'inspector')
   state.dispatch(tr)
-  return placesOf(state.document).get(id)?.node
+  return formNodePlaces(state.document).get(id)?.node
 }
 
 const nodeModel = useSettingsBinding({
@@ -229,7 +231,7 @@ const spanModel = useSettingsBinding({
 /** The other names of the scope the node's name is a key of. */
 function otherNames(current: FormNode) {
   const document = state.document
-  const scope = scopeOf(document, placesOf(document).get(current.id)?.parent?.id ?? null)
+  const scope = scopeOf(document, formNodePlaces(document).get(current.id)?.parent?.id ?? null)
   const names = new Set<string>()
   const visit = (nodes: readonly FormNode[]) => {
     for (const each of nodes) {
@@ -279,7 +281,7 @@ const heading = computed(() => {
 
 const holdsPages = computed(() => node.value?.type === 'tabs' || node.value?.type === 'steps')
 const canWrap = computed(() => {
-  const map = placesOf(state.document)
+  const map = formNodePlaces(state.document)
   const parents = new Set(state.selection.map((id) => map.get(id)?.parent?.id ?? null))
   return parents.size === 1 && !state.selection.some((id) => map.get(id)?.node.type === 'page')
 })

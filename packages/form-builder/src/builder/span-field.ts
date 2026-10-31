@@ -1,4 +1,4 @@
-import { computed, defineComponent, h } from 'vue'
+import { computed, defineComponent, h, useId } from 'vue'
 import type { PropType } from 'vue'
 import { DouCheckbox, DouInputNumber } from 'dou-ui'
 import type { FormResponsive } from '../core/types'
@@ -24,6 +24,7 @@ const SpanInput = defineComponent({
   emits: { 'update:modelValue': (_value: Span) => true },
   setup(props, { emit }) {
     const state = useBuilderState()
+    const labelId = `dou-form-builder-span-${useId()}`
     const responsive = computed(
       () => typeof props.modelValue === 'object' && props.modelValue !== null,
     )
@@ -94,18 +95,31 @@ const SpanInput = defineComponent({
               h('span', { class: 'dou-form-builder__span-label' }, `/ ${props.columns}`),
             ]),
           ]
-      return h('div', { class: 'dou-form-builder__span' }, [
-        ...rows,
-        h(
-          DouCheckbox,
-          {
-            modelValue: responsive.value,
-            disabled: props.disabled,
-            'onUpdate:modelValue': toggle,
-          },
-          () => messages.settings.spanResponsive,
-        ),
-      ])
+      return h(
+        'div',
+        { class: 'dou-form-builder__span', role: 'group', 'aria-labelledby': labelId },
+        [
+          h('div', { class: 'dou-form-builder__span-head' }, [
+            h(
+              'div',
+              { id: labelId, class: 'dou-form-item__label' },
+              h('span', { class: 'dou-form-item__label-text' }, messages.settings.span),
+            ),
+            h(
+              DouCheckbox,
+              {
+                modelValue: responsive.value,
+                disabled: props.disabled,
+                size: 'sm',
+                class: 'dou-form-builder__span-toggle',
+                'onUpdate:modelValue': toggle,
+              },
+              () => messages.settings.spanResponsive,
+            ),
+          ]),
+          ...rows,
+        ],
+      )
     }
   },
 })

@@ -9,20 +9,20 @@ import type {
   FormSectionNode,
 } from '../../core/types'
 import type { FormFieldType } from '../../fields/define'
-import type { FormDesignerMessages } from '../locale'
+import type { FormBuilderMessages } from '../locale'
 import { formatMessage } from '../../locale'
-import { canHold, placesOf } from './transaction'
+import { canContainFormNode, formNodePlaces } from './transaction'
 import type { FormBuilderTransaction } from './transaction'
 
 /** Where a new node goes: into a container (`null`: the top) at an index. */
-export interface FormInsertPlace {
+export interface FormBuilderInsertPlace {
   parent: string | null
   index: number
 }
 
 /** The list a node's name is a key of, or `null` for names at the top of the form. */
 export function scopeOf(document: FormDocument, parent: string | null): FormListNode | null {
-  const map = placesOf(document)
+  const map = formNodePlaces(document)
   let id = parent
   while (id !== null) {
     const place = map.get(id)
@@ -67,7 +67,7 @@ export function createNode(
   type: string,
   context: {
     fields: Map<string, FormFieldType>
-    messages: FormDesignerMessages
+    messages: FormBuilderMessages
     taken: ReadonlySet<string>
   },
 ): FormNode {
@@ -129,8 +129,8 @@ export function insertPlace(
   selection: readonly string[],
   type: string,
   shown: ShownPage,
-): FormInsertPlace {
-  const map = placesOf(document)
+): FormBuilderInsertPlace {
+  const map = formNodePlaces(document)
   const probe = { id: '', type, children: [] } as unknown as FormNode
   const last = selection[selection.length - 1]
   let place = last ? map.get(last) : undefined
@@ -140,10 +140,11 @@ export function insertPlace(
       const page = shown(target as FormContainerNode)
       if (page) target = page
     }
-    if (isContainer(target) && canHold(target, probe))
+    if (isContainer(target) && canContainFormNode(target, probe))
       return { parent: target.id, index: target.children.length }
     const parent = place.parent
-    if (canHold(parent, probe)) return { parent: parent?.id ?? null, index: place.index + 1 }
+    if (canContainFormNode(parent, probe))
+      return { parent: parent?.id ?? null, index: place.index + 1 }
     place = parent ? map.get(parent.id) : undefined
   }
   return { parent: null, index: document.nodes.length }
@@ -151,7 +152,7 @@ export function insertPlace(
 
 /** The selected nodes without the ones inside other selected nodes, in document order. */
 export function topmost(document: FormDocument, ids: readonly string[]): string[] {
-  const map = placesOf(document)
+  const map = formNodePlaces(document)
   const chosen = new Set(ids.filter((id) => map.has(id)))
   const result: string[] = []
   for (const node of walkNodes(document.nodes)) {
@@ -185,14 +186,14 @@ export function copyNode(node: FormNode, taken: Set<string>): FormNode {
 /** What the commands below read besides the document. */
 export interface CommandContext {
   fields: Map<string, FormFieldType>
-  messages: FormDesignerMessages
+  messages: FormBuilderMessages
 }
 
 /** Remove nodes; the node to select afterwards: the next one, else the one before, else the parent. */
 export function removeNodes(tr: FormBuilderTransaction, ids: readonly string[]) {
   const ids2 = topmost(tr.doc, ids)
   if (!ids2.length) return { removed: 0, next: undefined as string | undefined }
-  const map = placesOf(tr.doc)
+  const map = formNodePlaces(tr.doc)
   const last = map.get(ids2[ids2.length - 1]!)!
   const siblings = last.parent ? last.parent.children : tr.doc.nodes
   const gone = new Set(ids2)
@@ -214,7 +215,7 @@ export function removeNodes(tr: FormBuilderTransaction, ids: readonly string[]) 
 export function duplicateNodes(tr: FormBuilderTransaction, ids: readonly string[]) {
   const copies: string[] = []
   for (const id of topmost(tr.doc, ids)) {
-    const place = placesOf(tr.doc).get(id)
+    const place = formNodePlaces(tr.doc).get(id)
     if (!place) continue
     const parent = place.parent?.id ?? null
     const taken = namesIn(tr.doc, scopeOf(tr.doc, parent))
@@ -233,7 +234,7 @@ export function duplicateNodes(tr: FormBuilderTransaction, ids: readonly string[
 export function moveNodes(tr: FormBuilderTransaction, ids: readonly string[], delta: -1 | 1) {
   const chosen = topmost(tr.doc, ids)
   const byParent = new Map<string | null, number[]>()
-  const map = placesOf(tr.doc)
+  const map = formNodePlaces(tr.doc)
   for (const id of chosen) {
     const place = map.get(id)!
     const key = place.parent?.id ?? null
@@ -269,7 +270,7 @@ export function wrapNodes(
 ) {
   const chosen = topmost(tr.doc, ids)
   if (!chosen.length) return undefined
-  const map = placesOf(tr.doc)
+  const map = formNodePlaces(tr.doc)
   const first = map.get(chosen[0]!)!
   const parent = first.parent
   if (chosen.some((id) => map.get(id)!.parent !== parent || isPage(map.get(id)!.node)))

@@ -31,7 +31,7 @@ import { markRaw } from 'vue'
 import type { Component } from 'vue'
 import type { FormDocument, FormFieldNode, FormListNode, FormNode } from '../core/types'
 import type { FormFieldType } from '../fields/define'
-import type { FormDesignerMessages } from './locale'
+import type { FormBuilderMessages } from './locale'
 
 /** The palette groups in the order they are listed; groups of other names follow. */
 export const paletteGroups = ['input', 'choice', 'more', 'display', 'layout']
@@ -85,7 +85,7 @@ export function groupOf(type: string, spec?: FormFieldType): string {
 export function labelOf(
   type: string,
   spec: FormFieldType | undefined,
-  messages: FormDesignerMessages,
+  messages: FormBuilderMessages,
 ) {
   return spec?.label ?? messages.types[type] ?? type
 }
@@ -94,7 +94,7 @@ export function labelOf(
 export function nodeTitle(
   node: FormNode,
   fields: Map<string, FormFieldType>,
-  messages: FormDesignerMessages,
+  messages: FormBuilderMessages,
 ): string {
   const record = node as unknown as Record<string, unknown>
   const own = (record.label ?? record.title) as string | undefined
@@ -117,7 +117,7 @@ const number = (name: string, label: string, props: Setting = {}, extra: Setting
   field('input-number', name, label, { ...extra, props: { controls: false, ...props } })
 
 function choices(
-  messages: FormDesignerMessages,
+  messages: FormBuilderMessages,
   key: string,
   values: readonly (string | boolean)[],
 ): { value: string | boolean; label: string }[] {
@@ -126,7 +126,7 @@ function choices(
 }
 
 const segmented = (
-  messages: FormDesignerMessages,
+  messages: FormBuilderMessages,
   name: string,
   values: readonly string[],
   fallback: string,
@@ -139,7 +139,7 @@ const segmented = (
     ...extra,
   })
 
-function optionList(messages: FormDesignerMessages, name = 'options'): FormListNode {
+function optionList(messages: FormBuilderMessages, name = 'options'): FormListNode {
   const s = messages.settings
   return {
     id: `setting-${name}`,
@@ -155,7 +155,7 @@ function optionList(messages: FormDesignerMessages, name = 'options'): FormListN
 }
 
 /** Settings of the built-in types, edited in a node's `props`. */
-export function builtinSettings(type: string, messages: FormDesignerMessages): FormNode[] {
+export function builtinSettings(type: string, messages: FormBuilderMessages): FormNode[] {
   const s = messages.settings as Record<string, string>
   const placeholder = text('placeholder', s.placeholder!)
   const clearable = sw('clearable', s.clearable!)
@@ -284,7 +284,7 @@ export function builtinSettings(type: string, messages: FormDesignerMessages): F
 
 /** What the node-level settings of a node depend on. */
 export interface NodeSettingsContext {
-  messages: FormDesignerMessages
+  messages: FormBuilderMessages
   /** Columns of the grid the node sits on. */
   columns: number
   /** Whether the node sits in a list item, so its name is a key of the item. */
@@ -297,10 +297,13 @@ export interface NodeSettingsContext {
 export const SPAN_TYPE = 'dou-builder-span'
 
 function spanSetting(context: NodeSettingsContext): FormNode {
-  return field(SPAN_TYPE, 'span', context.messages.settings.span!, {
+  // The field draws its own label, with the "by form width" switch on the same row.
+  const node = field(SPAN_TYPE, 'span', '', {
     default: context.columns,
     props: { columns: context.columns },
-  })
+  }) as FormFieldNode
+  delete node.label
+  return node
 }
 
 /** The settings of a node itself, besides its type's: name, label, width and so on. */
@@ -372,7 +375,7 @@ export function nodeSettings(node: FormNode, context: NodeSettingsContext): Form
 }
 
 /** The settings of the document itself. */
-export function documentSettings(messages: FormDesignerMessages): FormNode[] {
+export function documentSettings(messages: FormBuilderMessages): FormNode[] {
   const s = messages.settings as Record<string, string>
   const horizontal = "values.layout == 'horizontal'"
   return [

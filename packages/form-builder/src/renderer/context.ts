@@ -1,6 +1,6 @@
 import type { Component, InjectionKey, VNode } from 'vue'
 import type { FormModel, FormRules, FormValidateResult } from 'dou-ui'
-import type { FormBuilderMessages, FormBuilderMessagesOverride } from '../locale'
+import type { FormRendererMessages, FormRendererMessagesOverride } from '../locale'
 import type { FormFieldType } from '../fields/define'
 import type { FormDocument, FormNode } from '../core/types'
 import type { FormFunction } from '../core/expression'
@@ -41,7 +41,7 @@ export interface FormRendererProps {
    */
   keepHidden?: boolean
   /** Replaces texts of the locale, e.g. the step buttons. */
-  messages?: FormBuilderMessagesOverride
+  messages?: FormRendererMessagesOverride
 }
 
 /** Loads the options of a field, given the result of its `source.arg`. */
@@ -100,7 +100,7 @@ export interface RendererContext {
   load: (name: string, arg: unknown) => Promise<unknown[]>
   /** Bumped by `reloadSource`, so fields reading it load again. */
   sourceVersion: (name: string) => number
-  messages: () => FormBuilderMessages
+  messages: () => FormRendererMessages
   validate: (names: string[]) => Promise<FormValidateResult>
   scrollToField: (name: string) => void
   /**

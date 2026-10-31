@@ -18,13 +18,17 @@ export type {
   FormBuilderSlots,
 } from './types'
 export { useFormBuilder } from './context'
-export type { FormBuilderContext, FormDispatchOptions, FormSelectMode } from './context'
+export type {
+  FormBuilderContext,
+  FormBuilderDispatchOptions,
+  FormBuilderSelectMode,
+} from './context'
 export {
   applyFormSteps,
-  canHold,
+  canContainFormNode,
   compactFormSteps,
   FormBuilderTransaction,
-  placesOf,
+  formNodePlaces,
 } from './core/transaction'
 export type {
   FormBuilderStep,
@@ -34,9 +38,9 @@ export type {
   FormNodePlace,
 } from './core/transaction'
 export { FormBuilderHistory } from './core/history'
-export type { FormInsertPlace } from './core/commands'
-export { formDesignerLocales, useFormDesignerMessages } from './locale'
-export type { FormDesignerMessages, FormDesignerMessagesOverride } from './locale'
+export type { FormBuilderInsertPlace } from './core/commands'
+export { formBuilderLocales, useFormBuilderMessages } from './locale'
+export type { FormBuilderMessages, FormBuilderMessagesOverride } from './locale'
 
 export type FormBuilderInstance = InstanceType<typeof FormBuilder>
 

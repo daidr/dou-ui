@@ -5,9 +5,9 @@ import { isContainer, isPage } from '../core/document'
 import type { FormContainerNode, FormDocument, FormNode, FormPageNode } from '../core/types'
 import type { FormFieldType } from '../fields/define'
 import { formatMessage } from '../locale'
-import type { FormDesignerMessages } from './locale'
+import type { FormBuilderMessages } from './locale'
 import { FormBuilderHistory } from './core/history'
-import { FormBuilderTransaction, placesOf } from './core/transaction'
+import { FormBuilderTransaction, formNodePlaces } from './core/transaction'
 import {
   createNode,
   duplicateNodes,
@@ -18,13 +18,13 @@ import {
   scopeOf,
   wrapNodes,
 } from './core/commands'
-import type { FormInsertPlace } from './core/commands'
+import type { FormBuilderInsertPlace } from './core/commands'
 import { labelOf } from './settings'
 
 /** How a click changes the selection: replace it, add or take away the node, or extend it. */
-export type FormSelectMode = 'replace' | 'toggle' | 'extend'
+export type FormBuilderSelectMode = 'replace' | 'toggle' | 'extend'
 
-export interface FormDispatchOptions {
+export interface FormBuilderDispatchOptions {
   /** The selection after the change. Defaults to the current one, without nodes that are gone. */
   selection?: readonly string[]
   /** Read out to screen readers once the change is made. */
@@ -42,28 +42,28 @@ export interface FormBuilderContext {
   readonly selection: readonly string[]
   /** Every field type, built-in and given. */
   readonly fields: ReadonlyMap<string, FormFieldType>
-  readonly messages: FormDesignerMessages
+  readonly messages: FormBuilderMessages
   readonly canUndo: boolean
   readonly canRedo: boolean
   /** A transaction on the document as it is now, to `dispatch`. */
   transaction: () => FormBuilderTransaction
   /** Make the changes of a transaction, as one undo step (or part of one, by `meta.group`). */
-  dispatch: (tr: FormBuilderTransaction, options?: FormDispatchOptions) => void
+  dispatch: (tr: FormBuilderTransaction, options?: FormBuilderDispatchOptions) => void
   /** Select nodes; `null` or `[]` selects the form itself. */
-  select: (ids: string | readonly string[] | null, mode?: FormSelectMode) => void
+  select: (ids: string | readonly string[] | null, mode?: FormBuilderSelectMode) => void
   /**
    * Add a new node of a type (a field type or `section`, `tabs`, `steps`,
    * `list`) and select it. It goes into the selected container, else
    * after the selected node, else at the end, unless `place` says where.
    * Returns its id.
    */
-  insert: (type: string, place?: FormInsertPlace) => string | undefined
+  add: (type: string, place?: FormBuilderInsertPlace) => string | undefined
   /** Delete nodes, the selected ones by default. */
   remove: (ids?: readonly string[]) => void
   /** Put a copy of each node after it, the selected ones by default, and select the copies. */
   duplicate: (ids?: readonly string[]) => void
   /** Move nodes, the selected ones by default, one place up (`-1`) or down (`1`). */
-  move: (delta: -1 | 1, ids?: readonly string[]) => void
+  moveBy: (delta: -1 | 1, ids?: readonly string[]) => void
   /** Put nodes of one container into a new section, the selected ones by default. */
   wrap: (ids?: readonly string[]) => void
   /** Add a page to tabs or steps (the selected ones, or the ones around the selection). */
@@ -126,7 +126,7 @@ export interface CreateBuilderOptions {
   document: () => FormDocument
   selection: () => readonly string[] | undefined
   fields: () => Map<string, FormFieldType>
-  messages: () => FormDesignerMessages
+  messages: () => FormBuilderMessages
   emitDocument: (document: FormDocument, tr: FormBuilderTransaction) => void
   emitSelection: (ids: string[]) => void
 }
@@ -158,7 +158,7 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
   })
 
   function setSelection(ids: readonly string[], emit = true) {
-    const map = placesOf(doc.value)
+    const map = formNodePlaces(doc.value)
     const seen = new Set<string>()
     const next = ids.filter((id) => map.has(id) && !seen.has(id) && seen.add(id))
     if (same(next, selection.value)) return
@@ -171,7 +171,7 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
   watch(
     [selection, doc],
     ([ids, document]) => {
-      const map = placesOf(document)
+      const map = formNodePlaces(document)
       for (const id of ids) {
         let place = map.get(id)
         while (place) {
@@ -193,7 +193,7 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
   const selected = computed(() => new Set(selection.value))
   const focused = computed(() => {
     const last = selection.value[selection.value.length - 1]
-    return last ? placesOf(doc.value).get(last)?.node : undefined
+    return last ? formNodePlaces(doc.value).get(last)?.node : undefined
   })
 
   function announce(text: string) {
@@ -205,7 +205,7 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
     return new FormBuilderTransaction(doc.value)
   }
 
-  function dispatch(tr: FormBuilderTransaction, dispatchOptions: FormDispatchOptions = {}) {
+  function dispatch(tr: FormBuilderTransaction, dispatchOptions: FormBuilderDispatchOptions = {}) {
     if (tr.before !== doc.value)
       throw new Error('[dou-ui] the transaction was made on another version of the form')
     const before = selection.value.slice()
@@ -221,7 +221,7 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
     if (dispatchOptions.announce) announce(dispatchOptions.announce)
   }
 
-  function select(ids: string | readonly string[] | null, mode: FormSelectMode = 'replace') {
+  function select(ids: string | readonly string[] | null, mode: FormBuilderSelectMode = 'replace') {
     const list = ids === null ? [] : typeof ids === 'string' ? [ids] : ids
     if (mode === 'replace') return setSelection(list)
     const current = selection.value
@@ -238,7 +238,7 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
   const context = () => ({ fields: options.fields(), messages: options.messages() })
   const target = (ids?: readonly string[]) => ids ?? selection.value
 
-  function insert(type: string, place?: FormInsertPlace) {
+  function add(type: string, place?: FormBuilderInsertPlace) {
     const document = doc.value
     const where = place ?? insertPlace(document, selection.value, type, shownPage)
     const node = createNode(type, {
@@ -275,11 +275,11 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
     })
   }
 
-  function move(delta: -1 | 1, ids?: readonly string[]) {
+  function moveBy(delta: -1 | 1, ids?: readonly string[]) {
     const tr = transaction()
     if (!moveNodes(tr, target(ids), delta)) return
     const last = target(ids)[target(ids).length - 1]
-    const place = last ? placesOf(tr.doc).get(last) : undefined
+    const place = last ? formNodePlaces(tr.doc).get(last) : undefined
     dispatch(tr, {
       announce: place
         ? formatMessage(options.messages().announce.moved, { index: place.index + 1 })
@@ -295,7 +295,7 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
   }
 
   function addPage(id?: string) {
-    const map = placesOf(doc.value)
+    const map = formNodePlaces(doc.value)
     let place = map.get(id ?? selection.value[selection.value.length - 1] ?? '')
     while (place && place.node.type !== 'tabs' && place.node.type !== 'steps')
       place = place.parent ? map.get(place.parent.id) : undefined
@@ -314,7 +314,7 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
 
   function parentOf(id: string | undefined) {
     if (!id) return undefined
-    return placesOf(doc.value).get(id)?.parent ?? undefined
+    return formNodePlaces(doc.value).get(id)?.parent ?? undefined
   }
 
   function selectParent() {
@@ -350,8 +350,8 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
     ['mod+g', () => wrap()],
     ['delete', () => remove()],
     ['backspace', () => remove()],
-    ['mod+arrowup', () => move(-1)],
-    ['mod+arrowdown', () => move(1)],
+    ['mod+arrowup', () => moveBy(-1)],
+    ['mod+arrowdown', () => moveBy(1)],
     ['arrowup', (view) => step(view, -1, false)],
     ['arrowdown', (view) => step(view, 1, false)],
     ['shift+arrowup', (view) => step(view, -1, true)],
@@ -389,7 +389,7 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
   function inward(view: BuilderView) {
     const last = selection.value[selection.value.length - 1]
     if (!last || view.expand?.(last)) return
-    const node = placesOf(doc.value).get(last)?.node
+    const node = formNodePlaces(doc.value).get(last)?.node
     if (!node || !isContainer(node)) return
     const first = node.children[0]
     if (!first) return
@@ -438,10 +438,10 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
     transaction,
     dispatch,
     select,
-    insert,
+    add,
     remove,
     duplicate,
-    move,
+    moveBy,
     wrap,
     addPage,
     selectParent,

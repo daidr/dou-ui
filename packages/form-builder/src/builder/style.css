@@ -125,6 +125,38 @@
     height: 28px;
   }
 
+  /* Opens the fields and the outline when the builder is too narrow to show them beside the canvas. */
+  .dou-form-builder__tool.dou-form-builder__side-toggle {
+    display: none;
+    gap: 6px;
+    width: auto;
+    padding-inline: 6px 8px;
+    margin-inline-end: 6px;
+    color: var(--dou-color-text);
+    font-size: var(--dou-font-size-sm);
+
+    & > span {
+      text-box: trim-both cap alphabetic;
+    }
+  }
+
+  .dou-popover.dou-form-builder__side-popover {
+    --dou-popover-padding: 0;
+
+    display: flex;
+    flex-direction: column;
+    width: 280px;
+    height: min(560px, 70vh);
+    overflow: hidden;
+
+    & > .dou-popover__content {
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      min-height: 0;
+    }
+  }
+
   /* On touch, small buttons take a 40px press around them. */
   @media (pointer: coarse) {
     .dou-form-builder__tool,
@@ -293,17 +325,20 @@
     text-align: center;
   }
 
-  /* The selected node's type and buttons, on its top edge. */
+  /*
+   * The selected node's buttons, in its top right corner: over the end
+   * of the node's own label row, never over the row above.
+   */
   .dou-form-builder__actions {
     position: absolute;
     z-index: 2;
-    inset-block-end: calc(100% + var(--dou-form-builder-outset) - 1px);
-    inset-inline-end: calc(var(--dou-form-builder-outset) * -1);
+    inset-block-start: calc(var(--dou-form-builder-outset) * -1 + 3px);
+    inset-inline-end: calc(var(--dou-form-builder-outset) * -1 + 3px);
     display: flex;
     gap: 2px;
     align-items: center;
     box-sizing: border-box;
-    height: 30px;
+    height: 26px;
     padding: 2px;
     border: 1px solid var(--dou-color-border);
     border-radius: var(--dou-radius-control);
@@ -312,38 +347,9 @@
     white-space: nowrap;
   }
 
-  .dou-form-builder__badge {
-    display: inline-flex;
-    gap: 4px;
-    align-items: center;
-    height: 24px;
-    padding-inline: 6px 8px;
-    margin-inline-end: 2px;
-    border-radius: 4px;
-    background: color-mix(in oklab, var(--dou-form-builder-selected) 10%, transparent);
-    color: var(--dou-color-primary-text);
-    font-size: var(--dou-font-size-sm);
-    font-weight: var(--dou-font-weight-medium);
-
-    & > svg {
-      width: 14px;
-      height: 14px;
-    }
-
-    & > span {
-      text-box: trim-both cap alphabetic;
-    }
-  }
-
-  .dou-form-builder__badge-name {
-    color: var(--dou-color-text-secondary);
-    font-family: var(--dou-font-family-mono);
-    font-weight: var(--dou-font-weight-regular);
-  }
-
   .dou-form-builder__action {
-    width: 24px;
-    height: 24px;
+    width: 20px;
+    height: 20px;
 
     & > svg {
       width: 14px;
@@ -729,6 +735,21 @@
     width: 100%;
   }
 
+  /* The width's label and the "by form width" switch share the label row. */
+  .dou-form-builder__span-head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px var(--dou-space-md);
+    align-items: center;
+    justify-content: space-between;
+    margin-block-end: calc(8px - var(--dou-space-sm));
+  }
+
+  .dou-form-builder__span-toggle {
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-sm);
+  }
+
   .dou-form-builder__span-row {
     display: flex;
     gap: var(--dou-space-sm);
@@ -766,29 +787,39 @@
     }
   }
 
-  /* Narrow builders stack the panes; the canvas keeps a usable height. */
+  /*
+   * Narrower builders keep the canvas beside the settings; the fields and
+   * the outline open from the toolbar instead.
+   */
   @container dou-form-builder (width < 860px) {
     .dou-form-builder__layout {
-      grid-template-columns: minmax(0, 1fr);
-      grid-template-rows: 240px 480px auto;
-      height: auto;
+      grid-template-columns: minmax(0, 1fr) 248px;
     }
 
-    .dou-form-builder__side,
-    .dou-form-builder__side.dou-form-builder__side--end {
-      border-inline: 0;
+    .dou-form-builder__side:not(.dou-form-builder__side--end) {
+      display: none;
     }
 
-    .dou-form-builder__side:first-child {
-      border-bottom: 1px solid var(--dou-color-border);
-    }
-
-    .dou-form-builder__side--end {
-      border-top: 1px solid var(--dou-color-border);
+    .dou-form-builder__tool.dou-form-builder__side-toggle {
+      display: inline-flex;
     }
 
     .dou-form-builder__paper {
       padding-inline: var(--dou-space-lg);
+    }
+  }
+
+  /* Narrow builders stack the canvas and the settings; the canvas keeps a usable height. */
+  @container dou-form-builder (width < 560px) {
+    .dou-form-builder__layout {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: 480px auto;
+      height: auto;
+    }
+
+    .dou-form-builder__side.dou-form-builder__side--end {
+      border-inline: 0;
+      border-top: 1px solid var(--dou-color-border);
     }
   }
 }

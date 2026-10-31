@@ -6,7 +6,7 @@ import {
   DouFormBuilder,
   FormBuilderHistory,
   FormBuilderTransaction,
-  placesOf,
+  formNodePlaces,
 } from '../index'
 import type { FormBuilderExpose, FormDocument, FormNode, FormSectionNode } from '../index'
 import {
@@ -16,7 +16,7 @@ import {
   removeNodes,
   wrapNodes,
 } from '../builder/core/commands'
-import { formDesignerLocales } from '../builder/locale'
+import { formBuilderLocales } from '../builder/locale'
 import { resolveFields } from '../fields/builtin'
 
 const doc = (nodes: FormNode[]): FormDocument => ({ version: 1, nodes })
@@ -43,7 +43,7 @@ const sample = () =>
     { id: 'city', type: 'select', name: 'city', label: '城市', props: { options: ['上海'] } },
   ])
 
-const context = { fields: resolveFields(), messages: formDesignerLocales['zh-CN']! }
+const context = { fields: resolveFields(), messages: formBuilderLocales['zh-CN']! }
 
 describe('FormBuilderTransaction', () => {
   it('copies only the nodes on the way to a change', () => {
@@ -57,9 +57,9 @@ describe('FormBuilderTransaction', () => {
     expect((after.nodes[0] as FormSectionNode).children[0]).toBe(
       (before.nodes[0] as FormSectionNode).children[0],
     )
-    expect(placesOf(after).get('phone')!.node).toMatchObject({ label: '电话' })
+    expect(formNodePlaces(after).get('phone')!.node).toMatchObject({ label: '电话' })
     // the document handed in stays as it was
-    expect(placesOf(before).get('phone')!.node).toMatchObject({ label: '手机号' })
+    expect(formNodePlaces(before).get('phone')!.node).toMatchObject({ label: '手机号' })
   })
 
   it('undoes every kind of step with its inverse', () => {
@@ -77,7 +77,7 @@ describe('FormBuilderTransaction', () => {
       'name',
       'mail',
     ])
-    expect(placesOf(after).get('name')!.node).not.toHaveProperty('label')
+    expect(formNodePlaces(after).get('name')!.node).not.toHaveProperty('label')
     const back = applyFormSteps(after, tr.inverse).doc
     expect(back).toEqual(before)
   })
@@ -88,6 +88,29 @@ describe('FormBuilderTransaction', () => {
     expect(() => tr.insert({ id: 'name', type: 'input' })).toThrow(/already/)
     expect(() => tr.insert({ id: 'x', type: 'input' }, 'name')).toThrow(/holds no other/)
     expect(() => tr.remove('nope')).toThrow(/no node/)
+  })
+
+  it('keeps pages in tabs and steps, and only pages there', () => {
+    const tabs = doc([
+      { id: 't', type: 'tabs', children: [{ id: 'p', type: 'page', title: '一', children: [] }] },
+      { id: 'f', type: 'input', name: 'f' },
+    ])
+    const tr = new FormBuilderTransaction(tabs)
+    expect(() => tr.insert({ id: 'x', type: 'input' }, 't')).toThrow(/holds only pages/)
+    expect(() => tr.move('f', 't', 0)).toThrow(/holds only pages/)
+    expect(() => tr.insert({ id: 'q', type: 'page', children: [] } as FormNode)).toThrow(
+      /only go in tabs or steps/,
+    )
+    expect(() => tr.move('p', null, 0)).toThrow(/only go in tabs or steps/)
+    expect(tr.changed).toBe(false)
+    tr.insert({ id: 'q', type: 'page', children: [] } as FormNode, 't').move('f', 'q', 0)
+    expect(formNodePlaces(tr.doc).get('f')!.parent!.id).toBe('q')
+  })
+
+  it('does not update the keys that steps change', () => {
+    const tr = new FormBuilderTransaction(sample())
+    for (const key of ['id', 'type', 'children'])
+      expect(() => tr.update('s', { [key]: 'x' })).toThrow(/cannot be updated/)
   })
 })
 
@@ -106,10 +129,10 @@ describe('FormBuilderHistory', () => {
       current = tr.doc
     }
     const undone = history.undo(current)!
-    expect(placesOf(undone.tr.doc).get('name')!.node).toMatchObject({ label: '姓名' })
+    expect(formNodePlaces(undone.tr.doc).get('name')!.node).toMatchObject({ label: '姓名' })
     expect(history.canUndo).toBe(false)
     const redone = history.redo(undone.tr.doc)!
-    expect(placesOf(redone.tr.doc).get('name')!.node).toMatchObject({ label: '姓名全称' })
+    expect(formNodePlaces(redone.tr.doc).get('name')!.node).toMatchObject({ label: '姓名全称' })
   })
 })
 
@@ -141,13 +164,13 @@ describe('builder commands', () => {
   it('duplicates with new ids and free names', () => {
     const tr = new FormBuilderTransaction(sample())
     const [copy] = duplicateNodes(tr, ['name'])
-    const node = placesOf(tr.doc).get(copy!)!
+    const node = formNodePlaces(tr.doc).get(copy!)!
     expect(node.index).toBe(1)
     expect(node.node).toMatchObject({ type: 'input', name: 'name1', label: '姓名' })
     const [section] = duplicateNodes(tr, ['s'])
-    const ids = [...placesOf(tr.doc).keys()]
+    const ids = [...formNodePlaces(tr.doc).keys()]
     expect(new Set(ids).size).toBe(ids.length)
-    expect(placesOf(tr.doc).get(section!)!.index).toBe(1)
+    expect(formNodePlaces(tr.doc).get(section!)!.index).toBe(1)
   })
 
   it('moves a selection one place and keeps its shape at the edge', () => {
@@ -160,7 +183,7 @@ describe('builder commands', () => {
   it('wraps nodes of one container into a section', () => {
     const tr = new FormBuilderTransaction(sample())
     const id = wrapNodes(tr, ['phone', 'name'], context)!
-    const section = placesOf(tr.doc).get(id)!.node as FormSectionNode
+    const section = formNodePlaces(tr.doc).get(id)!.node as FormSectionNode
     expect(section.children.map((node) => node.id)).toEqual(['name', 'phone'])
     expect(wrapNodes(new FormBuilderTransaction(sample()), ['name', 'city'], context)).toBe(
       undefined,
@@ -214,7 +237,7 @@ describe('DouFormBuilder', () => {
     const tree = wrapper.find('[role="tree"].dou-form-builder__tree')
     await tree.trigger('keydown', { key: 'Delete' })
     await flush()
-    expect([...placesOf(form.value).keys()]).toEqual(['s', 'name'])
+    expect([...formNodePlaces(form.value).keys()]).toEqual(['s', 'name'])
     expect(selected.value).toEqual(['s'])
     await tree.trigger('keydown', { key: 'z', code: 'KeyZ', ctrlKey: true })
     await flush()
@@ -247,18 +270,18 @@ describe('DouFormBuilder', () => {
       .find((input) => (input.element as HTMLInputElement).value === '姓名')!
     await label.setValue('真实姓名')
     await flush()
-    expect(placesOf(form.value).get('name')!.node).toMatchObject({ label: '真实姓名' })
+    expect(formNodePlaces(form.value).get('name')!.node).toMatchObject({ label: '真实姓名' })
     // clearing a setting removes it from the node
     await label.setValue('')
     await flush()
-    expect(placesOf(form.value).get('name')!.node).not.toHaveProperty('label')
+    expect(formNodePlaces(form.value).get('name')!.node).not.toHaveProperty('label')
     wrapper.unmount()
   })
 
   it('takes a new document from outside and starts a new history', async () => {
     const { wrapper, form, api } = setup()
     await flush()
-    api().insert('input')
+    api().add('input')
     expect(api().canUndo).toBe(true)
     form.value = doc([{ id: 'only', type: 'input', name: 'only' }])
     await flush()

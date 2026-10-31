@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed, provide, ref, useId } from 'vue'
-import { DouTabPanel, DouTabs } from 'dou-ui'
-import { RedoIcon, UndoIcon } from '@dou-ui/icons'
+import { computed, provide, ref, useId, watch } from 'vue'
+import { DouPopover, DouTabPanel, DouTabs } from 'dou-ui'
+import { PanelLeftIcon, RedoIcon, UndoIcon } from '@dou-ui/icons'
 import { resolveFields } from '../fields/builtin'
 import { createBuilderState, builderKey } from './context'
-import { useFormDesignerMessages } from './locale'
+import { useFormBuilderMessages } from './locale'
 import { FormBuilderCanvas } from './canvas'
 import FormBuilderInspector from './inspector.vue'
 import FormBuilderOutline from './outline.vue'
@@ -23,7 +23,7 @@ const emit = defineEmits<FormBuilderEmits>()
 defineSlots<FormBuilderSlots>()
 
 const fields = computed(() => resolveFields(props.fields))
-const messages = useFormDesignerMessages(() => props.messages)
+const messages = useFormBuilderMessages(() => props.messages)
 
 const state = createBuilderState({
   uid: `dou-form-builder-${useId()}`,
@@ -40,15 +40,22 @@ const state = createBuilderState({
 provide(builderKey, state)
 
 const side = ref<'fields' | 'outline'>('fields')
+// On narrow builders the fields and the outline open from the toolbar,
+// and close once a node is added or picked, so the canvas shows it.
+const sideOpen = ref(false)
+watch(
+  () => state.selection,
+  () => (sideOpen.value = false),
+)
 
 const {
   transaction,
   dispatch,
   select,
-  insert,
+  add,
   remove,
   duplicate,
-  move,
+  moveBy,
   wrap,
   addPage,
   selectParent,
@@ -78,10 +85,10 @@ defineExpose<FormBuilderExpose>({
   transaction,
   dispatch,
   select,
-  insert,
+  add,
   remove,
   duplicate,
-  move,
+  moveBy,
   wrap,
   addPage,
   selectParent,
@@ -95,7 +102,7 @@ defineExpose<FormBuilderExpose>({
   <div class="dou-form-builder">
     <slot>
       <div class="dou-form-builder__layout">
-        <aside class="dou-form-builder__side">
+        <aside class="dou-form-builder__side" :aria-label="messages.panels.side">
           <DouTabs v-model="side" size="sm" class="dou-form-builder__side-tabs">
             <DouTabPanel value="fields" :label="messages.panels.fields">
               <FormBuilderPalette />
@@ -107,6 +114,27 @@ defineExpose<FormBuilderExpose>({
         </aside>
         <div class="dou-form-builder__main">
           <div class="dou-form-builder__toolbar" role="toolbar">
+            <DouPopover
+              v-model:open="sideOpen"
+              placement="bottom-start"
+              :aria-label="messages.panels.side"
+              class="dou-form-builder__side-popover"
+            >
+              <button type="button" class="dou-form-builder__tool dou-form-builder__side-toggle">
+                <PanelLeftIcon />
+                <span>{{ messages.panels.fields }}</span>
+              </button>
+              <template #content>
+                <DouTabs v-model="side" size="sm" class="dou-form-builder__side-tabs">
+                  <DouTabPanel value="fields" :label="messages.panels.fields">
+                    <FormBuilderPalette />
+                  </DouTabPanel>
+                  <DouTabPanel value="outline" :label="messages.panels.outline">
+                    <FormBuilderOutline />
+                  </DouTabPanel>
+                </DouTabs>
+              </template>
+            </DouPopover>
             <button
               type="button"
               class="dou-form-builder__tool"

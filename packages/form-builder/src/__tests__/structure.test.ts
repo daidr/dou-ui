@@ -8,7 +8,7 @@ import {
   evaluateExpression,
   findItemFormulaCycles,
   migrateDocument,
-  useFormBuilderMessages,
+  useFormRendererMessages,
   visibleValues,
 } from '../index'
 import type { FormDocument, FormListNode } from '../index'
@@ -428,9 +428,9 @@ describe('checkDocument', () => {
 
 describe('messages', () => {
   it('follows the locale and takes overrides', () => {
-    let texts: ReturnType<typeof useFormBuilderMessages> | undefined
+    let texts: ReturnType<typeof useFormRendererMessages> | undefined
     const Probe = defineComponent(() => {
-      texts = useFormBuilderMessages({ next: 'Continue', document: { version: 'v{text}?' } })
+      texts = useFormRendererMessages({ next: 'Continue', document: { version: 'v{text}?' } })
       return () => null
     })
     mount(DouConfigProvider, { props: { locale: en }, slots: { default: () => h(Probe) } })

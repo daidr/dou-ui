@@ -80,7 +80,7 @@ const groups = computed(() => {
             class="dou-form-builder__palette-item"
             :data-type="entry.type"
             :aria-label="formatMessage(state.messages.palette.add, { label: entry.label })"
-            @click="state.insert(entry.type)"
+            @click="state.add(entry.type)"
           >
             <component :is="entry.icon" class="dou-form-builder__palette-icon" />
             <span class="dou-form-builder__palette-label">{{ entry.label }}</span>

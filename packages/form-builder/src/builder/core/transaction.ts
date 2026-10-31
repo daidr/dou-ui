@@ -11,7 +11,7 @@ export type FormDocumentPatch = {
 
 /**
  * Keys of a node to set; `undefined` removes the key. `id`, `type` and
- * `children` change through the other steps.
+ * `children` cannot be set: insert, remove and move nodes instead.
  */
 export type FormNodePatch = Record<string, unknown>
 
@@ -49,14 +49,14 @@ export interface FormNodePlace {
   depth: number
 }
 
-const places = new WeakMap<FormDocument, Map<string, FormNodePlace>>()
+const placeCache = new WeakMap<FormDocument, Map<string, FormNodePlace>>()
 
 /**
  * Where every node of a document sits, by id. Worked out once per
  * document object, which a transaction replaces on every change.
  */
-export function placesOf(document: FormDocument): Map<string, FormNodePlace> {
-  let map = places.get(document)
+export function formNodePlaces(document: FormDocument): Map<string, FormNodePlace> {
+  let map = placeCache.get(document)
   if (map) return map
   map = new Map()
   const visit = (nodes: readonly FormNode[], parent: FormContainerNode | null, depth: number) => {
@@ -66,7 +66,7 @@ export function placesOf(document: FormDocument): Map<string, FormNodePlace> {
     })
   }
   visit(document.nodes, null, 1)
-  places.set(document, map)
+  placeCache.set(document, map)
   return map
 }
 
@@ -76,7 +76,10 @@ const PROTECTED = new Set(['id', 'type', 'children'])
 function patched(node: FormNode, patch: FormNodePatch): FormNode {
   const next: Record<string, unknown> = { ...node }
   for (const [key, value] of Object.entries(patch)) {
-    if (PROTECTED.has(key)) continue
+    if (PROTECTED.has(key))
+      throw new Error(
+        `[dou-ui] "${key}" of a node cannot be updated: insert, remove or move nodes instead`,
+      )
     if (value === undefined) delete next[key]
     else next[key] = value
   }
@@ -87,7 +90,7 @@ function patched(node: FormNode, patch: FormNodePatch): FormNode {
 function previous(node: FormNode, patch: FormNodePatch): FormNodePatch {
   const record = node as unknown as Record<string, unknown>
   const back: FormNodePatch = {}
-  for (const key of Object.keys(patch)) if (!PROTECTED.has(key)) back[key] = record[key]
+  for (const key of Object.keys(patch)) back[key] = record[key]
   return back
 }
 
@@ -101,7 +104,7 @@ function withChildren(
   change: (children: FormNode[]) => FormNode[],
 ): FormDocument {
   if (parent === null) return { ...document, nodes: change(document.nodes.slice()) }
-  let place = placesOf(document).get(parent)
+  let place = formNodePlaces(document).get(parent)
   if (!place) throw new Error(`[dou-ui] there is no node "${parent}" in the form`)
   if (!isContainer(place.node))
     throw new Error(`[dou-ui] the node "${parent}" holds no other nodes`)
@@ -120,25 +123,42 @@ function withChildren(
     const children = container.children.slice()
     children[place.index] = replaced
     replaced = { ...container, children } as FormContainerNode
-    place = placesOf(document).get(container.id)
+    place = formNodePlaces(document).get(container.id)
   }
   return document
 }
 
 function replaceNode(document: FormDocument, id: string, node: FormNode): FormDocument {
-  const place = placesOf(document).get(id)!
+  const place = formNodePlaces(document).get(id)!
   return withChildren(document, place.parent?.id ?? null, (children) => {
     children[place.index] = node
     return children
   })
 }
 
-/** Whether `parent` can hold `node`: pages go in tabs and steps, and only pages do. */
-export function canHold(parent: FormNode | null, node: FormNode): boolean {
+/**
+ * Whether a container (`null`: the top of the form) can hold `node`:
+ * pages go in tabs and steps, and only pages do.
+ */
+export function canContainFormNode(parent: FormNode | null, node: FormNode): boolean {
   const holdsPages = parent?.type === 'tabs' || parent?.type === 'steps'
   if (holdsPages) return isPage(node)
   if (isPage(node)) return false
   return parent === null || isContainer(parent)
+}
+
+/** Throw unless `parent` can hold `node`. */
+function checkPlace(map: Map<string, FormNodePlace>, parent: string | null, node: FormNode) {
+  const holder = parent === null ? null : map.get(parent)?.node
+  // A missing parent, or one that holds nothing, is reported when its children are changed.
+  if (holder === undefined || (holder && !isContainer(holder))) return
+  if (canContainFormNode(holder, node)) return
+  const where = holder ? `"${holder.id}" (${holder.type})` : 'the top of the form'
+  throw new Error(
+    isPage(node)
+      ? `[dou-ui] the page "${node.id}" can only go in tabs or steps, not in ${where}`
+      : `[dou-ui] ${where} holds only pages, not "${node.id}" (${node.type})`,
+  )
 }
 
 /** Apply one step; the step that undoes it, and the new document. */
@@ -146,7 +166,7 @@ function applyStep(
   document: FormDocument,
   step: FormBuilderStep,
 ): [document: FormDocument, inverse: FormBuilderStep] {
-  const map = placesOf(document)
+  const map = formNodePlaces(document)
   switch (step.type) {
     case 'insert': {
       if (map.has(step.node.id))
@@ -154,6 +174,7 @@ function applyStep(
       for (const node of walkNodes([step.node]))
         if (node !== step.node && map.has(node.id))
           throw new Error(`[dou-ui] the form already has a node "${node.id}"`)
+      checkPlace(map, step.parent, step.node)
       const next = withChildren(document, step.parent, (children) => {
         children.splice(clampIndex(step.index, children.length), 0, step.node)
         return children
@@ -191,6 +212,7 @@ function applyStep(
           up = up.parent ? map.get(up.parent.id) : undefined
         }
       }
+      checkPlace(map, step.parent, place.node)
       const from = place.parent?.id ?? null
       const removed = withChildren(document, from, (children) => {
         children.splice(place.index, 1)

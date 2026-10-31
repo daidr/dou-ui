@@ -6,7 +6,7 @@ import type { FormNode } from '../core/types'
 import type { FormFieldType } from '../fields/define'
 import { useBuilderState } from './context'
 import type { BuilderView } from './context'
-import { placesOf } from './core/transaction'
+import { formNodePlaces } from './core/transaction'
 import { iconOf, labelOf, nodeTitle } from './settings'
 
 defineOptions({ name: 'DouFormBuilderOutline' })
@@ -41,7 +41,7 @@ const rows = computed(() => {
 watch(
   () => state.selection,
   (ids) => {
-    const map = placesOf(state.document)
+    const map = formNodePlaces(state.document)
     for (const id of ids) {
       let parent = map.get(id)?.parent
       while (parent) {
@@ -61,7 +61,7 @@ const view: BuilderView = {
     return true
   },
   collapse: (id) => {
-    const node = placesOf(state.document).get(id)?.node
+    const node = formNodePlaces(state.document).get(id)?.node
     if (!node || !isContainer(node) || !node.children.length || folded.has(id)) return false
     folded.add(id)
     return true

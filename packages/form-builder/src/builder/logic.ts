@@ -85,6 +85,40 @@ function optionsOf(node: FormFieldNode, type: FormFieldType | undefined) {
     }))
 }
 
+/**
+ * The target of one field, kept per node: a change to one field of a large
+ * form makes a new object only for that field, so scopes built before and
+ * after can be told apart without comparing their contents.
+ */
+const targetCache = new WeakMap<
+  FormNode,
+  {
+    scope: string
+    fields: ReadonlyMap<string, FormFieldType>
+    messages: FormBuilderMessages
+    target: LogicTarget | null
+  }
+>()
+function fieldTarget(
+  node: FormFieldNode,
+  scope: 'values' | 'item',
+  fields: ReadonlyMap<string, FormFieldType>,
+  messages: FormBuilderMessages,
+): LogicTarget | null {
+  const cached = targetCache.get(node)
+  if (cached && cached.scope === scope && cached.fields === fields && cached.messages === messages)
+    return cached.target
+  const type = fields.get(node.type)
+  let target: LogicTarget | null = null
+  if (type?.kind !== 'display') {
+    const kind = kindOf(node, type)
+    target = { scope, path: node.name!, label: nodeTitle(node, fields, messages), kind }
+    if (kind === 'choice' || kind === 'choices') target.options = optionsOf(node, type)
+  }
+  targetCache.set(node, { scope, fields, messages, target })
+  return target
+}
+
 /** The value nodes of one scope, groups and pages included, lists as one value. */
 function scopeTargets(
   nodes: readonly FormNode[],
@@ -104,17 +138,8 @@ function scopeTargets(
       continue
     }
     if (!isField(node) || !node.name) continue
-    const type = fields.get(node.type)
-    if (type?.kind === 'display') continue
-    const kind = kindOf(node, type)
-    const target: LogicTarget = {
-      scope,
-      path: node.name,
-      label: nodeTitle(node, fields, messages),
-      kind,
-    }
-    if (kind === 'choice' || kind === 'choices') target.options = optionsOf(node, type)
-    out.push(target)
+    const target = fieldTarget(node, scope, fields, messages)
+    if (target) out.push(target)
   }
   return out
 }
@@ -143,9 +168,15 @@ export function logicScope(
   return { targets: [...items, ...targets], names: paths, itemNames: items.map((t) => t.path) }
 }
 
-/** A key that changes only when the scope does, so settings forms built on it are kept. */
-export function logicScopeKey(scope: LogicScope): string {
-  return JSON.stringify(scope.targets)
+/** Whether two scopes hold the same targets, so settings forms built on the first are kept. */
+export function sameLogicScope(a: LogicScope, b: LogicScope): boolean {
+  return (
+    a.targets.length === b.targets.length &&
+    a.targets.every((target, index) => {
+      const other = b.targets[index]!
+      return target === other || JSON.stringify(target) === JSON.stringify(other)
+    })
+  )
 }
 
 // Settings of logic and checks -----------------------------------------------------

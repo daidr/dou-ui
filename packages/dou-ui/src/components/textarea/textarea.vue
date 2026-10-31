@@ -4,6 +4,7 @@ import type { StyleValue } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { useFormDisabled, useFormItem, useFormSize } from '../form/use-form-item'
 import type { TextareaExpose, TextareaProps } from './textarea'
+import { fit, fitLater, sizedByStyle } from './autosize'
 
 defineOptions({ name: 'DouTextarea', inheritAttrs: false })
 
@@ -63,28 +64,44 @@ const classes = computed(() => [
   attrs.class,
 ])
 
-const nativeStyle = computed(() => ({ resize: autosize.value ? 'none' : props.resize }))
+const nativeStyle = computed((): StyleValue => {
+  const range = autosize.value
+  if (!range) return { resize: props.resize }
+  return {
+    resize: 'none' as const,
+    '--dou-textarea-min-rows': range.minRows,
+    '--dou-textarea-max-rows': range.maxRows,
+  }
+})
 
-function resizeToContent() {
+function measure() {
   const el = textareaRef.value
   const range = autosize.value
-  if (!el || !range) return
+  if (!el || !range || !el.isConnected) return null
   const style = getComputedStyle(el)
   const lineHeight = Number.parseFloat(style.lineHeight) || 20
-  const padding = Number.parseFloat(style.paddingTop) + Number.parseFloat(style.paddingBottom)
+  const padding =
+    (Number.parseFloat(style.paddingTop) || 0) + (Number.parseFloat(style.paddingBottom) || 0)
   const min = range.minRows * lineHeight + padding
   const max = range.maxRows ? range.maxRows * lineHeight + padding : Infinity
-
-  // Collapse first, so the scroll height reports the content and not the
-  // height the field had before.
-  el.style.height = 'auto'
-  const content = el.scrollHeight
-  el.style.height = `${Math.min(Math.max(content, min), max)}px`
-  el.style.overflowY = content > max ? 'auto' : 'hidden'
+  return { el, min, max }
 }
 
-watch([model, autosize], () => nextTick(resizeToContent), { deep: true })
-onMounted(resizeToContent)
+function resizeToContent() {
+  const field = measure()
+  if (field) fit([field])
+}
+
+// Where the browser sizes fields to their content, the styles do it all.
+// Elsewhere the fields that open together, as in a panel of them, are
+// fitted together, reading the layout once instead of once per field.
+const schedule = () => {
+  if (!sizedByStyle()) fitLater(measure)
+}
+watch([model, () => autosize.value?.minRows, () => autosize.value?.maxRows], () =>
+  nextTick(schedule),
+)
+onMounted(schedule)
 
 function onMousedown(event: MouseEvent) {
   if (event.target === textareaRef.value) return

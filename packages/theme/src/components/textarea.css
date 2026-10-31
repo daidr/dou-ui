@@ -122,6 +122,23 @@
     }
   }
 
+  /* Growing with the content: done by the browser where it can, else by
+     the component, between the least and most rows it was given. */
+  @supports (field-sizing: content) {
+    .dou-textarea.is-autosize > .dou-textarea__native {
+      field-sizing: content;
+      min-height: calc(
+        var(--dou-textarea-min-rows, 1) * var(--dou-textarea-line-height) + 2 *
+          var(--dou-textarea-padding-y)
+      );
+      max-height: calc(
+        var(--dou-textarea-max-rows, 1000) * var(--dou-textarea-line-height) + 2 *
+          var(--dou-textarea-padding-y)
+      );
+      overflow-y: auto;
+    }
+  }
+
   .dou-textarea__count {
     align-self: flex-end;
     padding: 0 var(--dou-textarea-padding-x) var(--dou-textarea-padding-y);

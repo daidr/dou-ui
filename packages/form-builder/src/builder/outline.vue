@@ -1,13 +1,11 @@
 <script setup lang="ts">
 import { computed, shallowReactive, watch } from 'vue'
-import { ChevronRightIcon } from '@dou-ui/icons'
 import { isContainer } from '../core/document'
 import type { FormNode } from '../core/types'
-import type { FormFieldType } from '../fields/define'
 import { useBuilderState } from './context'
 import type { BuilderView } from './context'
 import { formNodePlaces } from './core/transaction'
-import { iconOf, labelOf, nodeTitle } from './settings'
+import OutlineRow from './outline-row.vue'
 
 defineOptions({ name: 'DouFormBuilderOutline' })
 
@@ -77,23 +75,10 @@ function press(event: MouseEvent, id: string) {
   state.pick(id, event, view)
 }
 
-const types = computed(() => state.fields as Map<string, FormFieldType>)
 const active = computed(() => {
   const last = state.selection[state.selection.length - 1]
   return last ? state.domId(last, 'outline') : undefined
 })
-
-/** The extensions' marks of a node, as dots in their colors. */
-function marksOf(node: FormNode) {
-  return state.extensions().marks.flatMap((marks) => marks(state, node))
-}
-
-function secondary(node: FormNode) {
-  const type = labelOf(node.type, types.value.get(node.type), state.messages)
-  const title = nodeTitle(node, types.value, state.messages)
-  if (title === type) return 'name' in node && node.name && node.name !== title ? node.name : ''
-  return 'name' in node && node.name && node.name !== title ? node.name : type
-}
 </script>
 
 <template>
@@ -106,52 +91,19 @@ function secondary(node: FormNode) {
     :aria-activedescendant="active"
     @keydown="state.keydown($event, view)"
   >
-    <div
+    <OutlineRow
       v-for="row in rows"
-      :id="state.domId(row.node.id, 'outline')"
       :key="row.node.id"
-      class="dou-form-builder__outline-row"
-      :class="{ 'is-selected': state.selected.value.has(row.node.id) }"
-      role="treeitem"
-      :aria-level="row.level"
-      :aria-posinset="row.position"
-      :aria-setsize="row.size"
-      :aria-selected="state.selected.value.has(row.node.id)"
-      :aria-expanded="row.container ? !folded.has(row.node.id) : undefined"
-      :style="{ '--dou-form-builder-level': row.level - 1 }"
-      @click="press($event, row.node.id)"
-    >
-      <button
-        v-if="row.container"
-        type="button"
-        tabindex="-1"
-        class="dou-form-builder__outline-toggle"
-        :class="{ 'is-open': !folded.has(row.node.id) }"
-        :aria-label="
-          folded.has(row.node.id) ? state.messages.outline.expand : state.messages.outline.collapse
-        "
-        @click.stop="toggle(row.node.id)"
-      >
-        <ChevronRightIcon />
-      </button>
-      <span v-else class="dou-form-builder__outline-spacer" />
-      <component
-        :is="iconOf(row.node.type, types.get(row.node.type))"
-        class="dou-form-builder__outline-icon"
-      />
-      <span class="dou-form-builder__outline-title">{{
-        nodeTitle(row.node, types, state.messages)
-      }}</span>
-      <span class="dou-form-builder__outline-name">{{ secondary(row.node) }}</span>
-      <span
-        v-for="mark in marksOf(row.node)"
-        :key="mark.key"
-        class="dou-form-builder__outline-mark"
-        :style="mark.color ? { '--dou-form-builder-mark': mark.color } : undefined"
-        :title="mark.label"
-        aria-hidden="true"
-      />
-    </div>
+      :node="row.node"
+      :level="row.level"
+      :position="row.position"
+      :size="row.size"
+      :container="row.container"
+      :open="row.container && !folded.has(row.node.id)"
+      :selected="state.selected.value.has(row.node.id)"
+      @press="press($event, row.node.id)"
+      @toggle="toggle(row.node.id)"
+    />
     <div v-if="!rows.length" class="dou-form-builder__outline-empty">
       {{ state.messages.canvas.empty }}
     </div>

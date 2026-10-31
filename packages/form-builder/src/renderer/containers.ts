@@ -169,12 +169,26 @@ export function stepsView(
     return index < 0 ? 0 : index
   })
   watch(current, () => (failed.value = false))
+  watch(renderer.resets, () => {
+    chosen.value = undefined
+    reached.value = 0
+    failed.value = false
+  })
 
   function go(index: number) {
     const target = pages.value[index]
     if (!target) return
     chosen.value = target.id
     reached.value = Math.max(reached.value, index)
+  }
+
+  // Back and Next take focus to the page they open, which names its step:
+  // the button pressed may be gone, and a screen reader hears where it is.
+  const stepEls = new Map<string, HTMLElement>()
+  function turn(index: number) {
+    go(index)
+    const id = pages.value[index]?.id
+    if (id) void nextTick(() => stepEls.get(id)?.focus({ preventScroll: true }))
   }
 
   async function next() {
@@ -190,7 +204,7 @@ export function stepsView(
         if (first) renderer.scrollToField(first)
         return
       }
-      go(current.value + 1)
+      turn(current.value + 1)
     } finally {
       checking.value = false
     }
@@ -219,7 +233,7 @@ export function stepsView(
       footer.push(
         h(
           DouButton,
-          { key: 'prev', variant: 'outline', onClick: () => go(index - 1) },
+          { key: 'prev', variant: 'outline', onClick: () => turn(index - 1) },
           () => messages.prev,
         ),
       )
@@ -245,7 +259,22 @@ export function stepsView(
       ...list.map((node, at) =>
         h(
           'div',
-          { key: node.id, class: 'dou-form-renderer__step', hidden: at !== index || undefined },
+          {
+            key: node.id,
+            ref: (el: unknown) => {
+              if (el) stepEls.set(node.id, el as HTMLElement)
+              else stepEls.delete(node.id)
+            },
+            class: 'dou-form-renderer__step',
+            hidden: at !== index || undefined,
+            role: 'group',
+            tabindex: -1,
+            'aria-label': formatMessage(messages.step, {
+              index: at + 1,
+              count: list.length,
+              title: node.title ?? '',
+            }),
+          },
           [pageOf(kit, node, props)],
         ),
       ),

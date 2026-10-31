@@ -155,6 +155,11 @@
     display: none;
   }
 
+  /* takes focus from Back and Next only to name the step to a screen reader */
+  .dou-form-renderer__step:focus {
+    outline: none;
+  }
+
   .dou-form-renderer__steps-footer {
     display: flex;
     flex-wrap: wrap;

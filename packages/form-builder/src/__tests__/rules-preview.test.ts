@@ -23,7 +23,7 @@ import { parseCondition, printCondition } from '../builder/condition'
 import { completeExpression } from '../builder/completion'
 import { replaceDocument } from '../builder/core/commands'
 import { formBuilderLocales } from '../builder/locale'
-import { itemToRule, logicScope, ruleToItem } from '../builder/logic'
+import { itemToRule, logicScope, ruleToItem, sameLogicScope } from '../builder/logic'
 import { resolveFields } from '../fields/builtin'
 
 const doc = (nodes: FormNode[]): FormDocument => ({ version: 1, nodes })
@@ -153,6 +153,23 @@ describe('logic settings', () => {
     const inside = logicScope(sample(), 'guest', fields, messages)
     expect(inside.itemNames).toEqual(['name'])
     expect(inside.targets[0]).toMatchObject({ scope: 'item', path: 'name' })
+  })
+
+  it('keeps the targets of untouched fields, so a scope is compared cheaply', () => {
+    const fields = resolveFields()
+    const before = sample()
+    const first = logicScope(before, 'city', fields, messages)
+    // Change one field, sharing the rest, as a transaction does.
+    const after = { ...before, nodes: before.nodes.map((node) => node) }
+    const at = after.nodes.findIndex((node) => node.id === 'vip')
+    after.nodes[at] = { ...after.nodes[at]!, help: '只是说明' } as FormNode
+    const second = logicScope(after, 'city', fields, messages)
+    expect(second.targets[0]).toBe(first.targets[0])
+    expect(second.targets[3]).not.toBe(first.targets[3])
+    // Help is not part of a target: the scope is the same.
+    expect(sameLogicScope(first, second)).toBe(true)
+    after.nodes[at] = { ...after.nodes[at]!, label: 'VIP' } as FormNode
+    expect(sameLogicScope(first, logicScope(after, 'city', fields, messages))).toBe(false)
   })
 
   it('turns rules into rows of the editor and back, keeping only the keys of their kind', () => {

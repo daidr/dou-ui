@@ -74,7 +74,10 @@ export interface FormRendererExpose {
   readonly model: FormModel
   /** Check the given fields, or every field. Never rejects. */
   validate: (names?: string | string[]) => Promise<FormValidateResult>
-  /** Restore the given fields, or every field, to their starting values and clear their errors. */
+  /**
+   * Restore the given fields, or every field, to their starting values and
+   * clear their errors. Resetting every field also goes back to the first step.
+   */
   resetFields: (names?: string | string[]) => void
   /** Clear the errors of the given fields, or every field. */
   clearValidate: (names?: string | string[]) => void
@@ -116,6 +119,8 @@ export interface RendererContext {
   footer: () => unknown
   /** The id of the steps that show the default slot, if the form is a series of steps. */
   footerOwner: () => string | undefined
+  /** Counts the times the whole form was reset, so steps go back to the first one. */
+  resets: () => number
 }
 
 /** Where a node sits: inside a list item, its fields' paths start with the item's. */

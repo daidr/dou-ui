@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { GanttHistory } from '../core/history'
+import type { GanttTask } from '../core/model'
 import { parseTime } from '../core/time'
+import { buildTree } from '../core/tree'
 import {
   applyGanttSteps,
   compactSteps,
@@ -88,5 +90,49 @@ describe('GanttHistory', () => {
     expect(history.canUndo).toBe(false)
     current = history.redo(current)!.tr.doc
     expect(current.tasks[1]!.progress).toBe(0.2)
+  })
+})
+
+const nested = (): GanttTask[] => [
+  { id: 'p', title: 'P' },
+  { id: 'a', title: 'A', parent: 'p' },
+  { id: 'b', title: 'B', parent: 'p' },
+  { id: 'c', title: 'C' },
+]
+const childOrder = (state: GanttDocument, parent?: string) =>
+  buildTree(state.tasks)
+    .childrenOf.get(parent)
+    ?.map((task) => task.id)
+
+describe('moveTask', () => {
+  it('moves among siblings, giving keys to siblings that had none', () => {
+    const tr = new GanttTransaction({ tasks: nested(), links: [] }).moveTask('b', 'p', 0)
+    expect(childOrder(tr.doc, 'p')).toEqual(['b', 'a'])
+    // now they have keys: the next move only rewrites one task
+    const next = new GanttTransaction(tr.doc).moveTask('a', 'p', 0)
+    expect(next.steps).toHaveLength(1)
+    expect(childOrder(next.doc, 'p')).toEqual(['a', 'b'])
+  })
+
+  it('moves under another parent and out to the top', () => {
+    let state: GanttDocument = { tasks: nested(), links: [] }
+    state = new GanttTransaction(state).moveTask('c', 'a').doc
+    expect(childOrder(state, 'a')).toEqual(['c'])
+    state = new GanttTransaction(state).moveTask('a', undefined, 1).doc
+    expect(childOrder(state)).toEqual(['p', 'a'])
+    expect(state.tasks.find((task) => task.id === 'a')!.parent).toBeUndefined()
+  })
+
+  it('refuses a move into itself and drops links to the new parents', () => {
+    const state: GanttDocument = {
+      tasks: nested(),
+      links: [
+        { id: 'l1', from: 'c', to: 'a' },
+        { id: 'l2', from: 'b', to: 'c' },
+      ],
+    }
+    expect(new GanttTransaction(state).moveTask('p', 'a').changed).toBe(false)
+    const tr = new GanttTransaction(state).moveTask('c', 'a')
+    expect(tr.doc.links.map((link) => link.id)).toEqual(['l2'])
   })
 })

@@ -1,5 +1,7 @@
 import { writeSpan, type GanttLink, type GanttTask } from './model'
+import { isOrderKey, orderBetween, orderKeys } from './order'
 import { MINUTES_PER_DAY, parseTime } from './time'
+import { buildTree } from './tree'
 
 /*
  * Every change to the tasks and links is a list of steps. Applying a step
@@ -151,6 +153,57 @@ export class GanttTransaction {
     const task = this.getTask(id)
     if (!task) return this
     return this.updateTask(id, writeSpan(task, minutesOf(start, false), minutesOf(end, true)))
+  }
+
+  /**
+   * Moves a task, with its subtasks, under `parent` (or to the top level)
+   * at `index` among its new siblings, the end by default. Only the task's
+   * `parent` and `order` change, unless its new siblings have no room
+   * between them: then they all get new `order` keys. Links between the
+   * task's subtasks and its new parents go, since a task can't depend on
+   * its own parent. A move into the task itself is ignored.
+   */
+  moveTask(id: string, parent: string | undefined, index?: number) {
+    if (!this.getTask(id)) return this
+    if (parent != null && !this.getTask(parent)) return this
+    const ancestors = new Set<string>()
+    for (let up = parent; up != null && !ancestors.has(up); up = this.getTask(up)?.parent) {
+      if (up === id) return this
+      ancestors.add(up)
+    }
+    const tree = buildTree(this.tasks)
+    const siblings = (tree.childrenOf.get(parent) ?? []).filter((task) => task.id !== id)
+    const at = clampIndex(index, siblings.length)
+    const keys = siblings.map((task) => task.order)
+    const ordered = keys.every(
+      (key, i) => key != null && isOrderKey(key) && (i === 0 || keys[i - 1]! < key),
+    )
+    let order: string
+    if (ordered) order = orderBetween(keys[at - 1], keys[at])
+    else {
+      const fresh = orderKeys(siblings.length + 1)
+      order = fresh[at]!
+      siblings.forEach((task, i) => this.updateTask(task.id, { order: fresh[i < at ? i : i + 1] }))
+    }
+    this.updateTask(id, { parent, order })
+
+    // the task and everything under it
+    const moved = new Set([id])
+    const stack = [id]
+    while (stack.length) {
+      for (const child of tree.childrenOf.get(stack.pop()) ?? []) {
+        moved.add(child.id)
+        stack.push(child.id)
+      }
+    }
+    for (const link of this.links.slice()) {
+      if (
+        (moved.has(link.from) && ancestors.has(link.to)) ||
+        (moved.has(link.to) && ancestors.has(link.from))
+      )
+        this.removeLink(link.id)
+    }
+    return this
   }
 
   /** Merges `patch` into the task's `data`. */

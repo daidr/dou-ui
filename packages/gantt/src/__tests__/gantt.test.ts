@@ -51,6 +51,12 @@ const press = (el: Element, clientX: number) =>
 const pointer = (type: string, clientX: number) =>
   window.dispatchEvent(new PointerEvent(type, { clientX, clientY: 10, pointerId: 1 }))
 
+// a pointer on a table row, at a height in px
+const at = (type: string, y: number, el: EventTarget = window) =>
+  el.dispatchEvent(
+    new PointerEvent(type, { button: 0, clientX: 40, clientY: y, pointerId: 2, bubbles: true }),
+  )
+
 // each press in its own tick, as from a person: the bound v-model catches up in between
 const pressKey = async (el: Element, key: string, init: KeyboardEventInit = {}) => {
   el.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, ...init }))
@@ -371,6 +377,93 @@ describe('DouGantt', () => {
     // back to back from start to finish: everything is critical
     expect(wrapper.findAll('.dou-gantt__bar.is-critical')).toHaveLength(3)
     expect(wrapper.findAll('.dou-gantt__link.is-critical')).toHaveLength(2)
+    wrapper.unmount()
+  })
+  it('moves rows by dragging: between rows, or inside one', async () => {
+    const { wrapper, tasks } = setup()
+    await nextTick()
+    const rowAt = (id: string) => wrapper.find(`.dou-gantt__tr[data-row="${id}"]`).element
+    // the milestone, dropped on the top edge of 设计 (row 1)
+    at('pointerdown', 3 * 36 + 18, rowAt('m'))
+    at('pointermove', 100)
+    at('pointermove', 36 + 4)
+    await nextTick()
+    expect(wrapper.find('.dou-gantt__drop-line').exists()).toBe(true)
+    at('pointerup', 36 + 4)
+    await nextTick()
+    expect(wrapper.findAll('.dou-gantt__tr').map((row) => row.attributes('data-row'))).toEqual([
+      'p',
+      'm',
+      'a',
+      'b',
+    ])
+    // 开发 dropped on the middle of 设计: its subtask
+    at('pointerdown', 3 * 36 + 18, rowAt('b'))
+    at('pointermove', 100)
+    at('pointermove', 2 * 36 + 18)
+    await nextTick()
+    expect(wrapper.find('.dou-gantt__tr.is-drop-inside').attributes('data-row')).toBe('a')
+    at('pointerup', 2 * 36 + 18)
+    expect(tasks.value.find((task) => task.id === 'b')!.parent).toBe('a')
+    wrapper.unmount()
+  })
+
+  it('edits cells, indents with keys and adds tasks from the last row', async () => {
+    const { wrapper, tasks } = setup()
+    await nextTick()
+    const root = wrapper.find('.dou-gantt').element
+    for (const key of ['ArrowDown', 'ArrowDown', 'ArrowDown']) await pressKey(root, key)
+    await pressKey(root, 'F2')
+    const input = wrapper.find<HTMLInputElement>('.dou-gantt__editor-input')
+    expect(input.element.value).toBe('开发')
+    await input.setValue('开发与联调')
+    await input.trigger('keydown', { key: 'Enter' })
+    expect(tasks.value[2]!.title).toBe('开发与联调')
+    // the duration cell: seven working days from Monday
+    await wrapper.findAll('.dou-gantt__tr')[2]!.findAll('.dou-gantt__td')[2]!.trigger('dblclick')
+    const days = wrapper.find<HTMLInputElement>('.dou-gantt__editor-input')
+    await days.setValue('7')
+    await days.trigger('keydown', { key: 'Enter' })
+    expect(tasks.value[2]).toMatchObject({ start: '2026-03-09', end: '2026-03-17' })
+    // a summary's dates can't be edited
+    await wrapper.findAll('.dou-gantt__tr')[0]!.findAll('.dou-gantt__td')[1]!.trigger('dblclick')
+    expect(wrapper.find('.dou-gantt__editor').exists()).toBe(false)
+
+    await pressKey(root, ']', { ctrlKey: true, metaKey: /mac/i.test(navigator.platform) })
+    expect(tasks.value.find((task) => task.id === 'b')!.parent).toBe('a')
+    await pressKey(root, '[', { ctrlKey: true, metaKey: /mac/i.test(navigator.platform) })
+    expect(tasks.value.find((task) => task.id === 'b')!.parent).toBe('p')
+
+    await wrapper.find('.dou-gantt__add').trigger('click')
+    const add = wrapper.find<HTMLInputElement>('.dou-gantt__add-row input')
+    await add.setValue('复盘')
+    await add.trigger('keydown', { key: 'Enter' })
+    expect(tasks.value.at(-1)).toMatchObject({ title: '复盘' })
+    expect(tasks.value.at(-1)!.parent).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('opens a menu with the extensions’ items before the built-in ones', async () => {
+    const run = vi.fn<(id: string) => void>()
+    const extension = defineGanttExtension({
+      name: 'details',
+      contextMenu: (_, target) =>
+        target.kind === 'task'
+          ? [{ key: 'details', label: '详情', run: () => run(target.task.id) }]
+          : [],
+    })
+    const { wrapper } = setup({ extensions: [extension] })
+    await nextTick()
+    await wrapper.find('.dou-gantt__bar[data-task="a"]').trigger('contextmenu')
+    await nextTick()
+    await nextTick()
+    const items = [...document.querySelectorAll('[role="menuitem"]')].map((el) =>
+      el.textContent?.trim(),
+    )
+    expect(items[0]).toBe('详情')
+    expect(items.some((text) => text?.startsWith('删除任务'))).toBe(true)
+    ;(document.querySelector('[role="menuitem"]') as HTMLElement).click()
+    expect(run).toHaveBeenCalledWith('a')
     wrapper.unmount()
   })
 })

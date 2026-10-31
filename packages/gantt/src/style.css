@@ -55,6 +55,9 @@
     &.is-dragging-link * {
       cursor: crosshair;
     }
+    &.is-dragging-row * {
+      cursor: grabbing;
+    }
   }
 
   /* table ------------------------------------------------------------------ */
@@ -193,6 +196,132 @@
       background-color: var(--dou-color-bg-muted);
       color: var(--dou-color-text);
     }
+  }
+
+  /* a row being dragged, and the row it would go inside */
+  .dou-gantt__tr.is-moving {
+    opacity: 0.45;
+  }
+  .dou-gantt__tr.is-drop-inside {
+    background-color: var(--dou-gantt-selected);
+    box-shadow:
+      inset 0 0 0 1px var(--dou-color-primary),
+      inset 0 -1px 0 var(--dou-gantt-line);
+  }
+
+  /* where a dragged row would go, at the level it would take */
+  .dou-gantt__drop-line {
+    position: absolute;
+    top: -1px;
+    right: 8px;
+    z-index: 2;
+    height: 2px;
+    border-radius: 1px;
+    background-color: var(--dou-color-primary);
+    pointer-events: none;
+  }
+
+  .dou-gantt__add-row {
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    display: flex;
+    height: var(--dou-gantt-row-height);
+  }
+
+  .dou-gantt__add {
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+    height: 24px;
+    padding: 0 6px;
+    margin-left: -6px;
+    border: 0;
+    border-radius: var(--dou-radius-control);
+    background: none;
+    color: var(--dou-color-text-tertiary);
+    font: inherit;
+    font-size: var(--dou-font-size-sm);
+    cursor: pointer;
+
+    > svg {
+      font-size: 14px;
+    }
+    &:hover {
+      background-color: var(--dou-color-bg-muted);
+      color: var(--dou-color-text);
+    }
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 1px;
+    }
+  }
+
+  /* the field that edits a cell, filling it */
+  .dou-gantt__editor {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    min-width: 0;
+
+    > * {
+      flex: 1;
+      min-width: 0;
+    }
+
+    /* a date needs more room than its cell: it lies over the next ones */
+    &.is-date,
+    &.is-datetime {
+      position: absolute;
+      top: 50%;
+      left: 6px;
+      z-index: 3;
+      width: 156px;
+      transform: translateY(-50%);
+    }
+    &.is-datetime {
+      width: 208px;
+    }
+  }
+
+  .dou-gantt__td {
+    position: relative;
+  }
+
+  .is-editable .dou-gantt__tr {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .dou-gantt__editor-input {
+    box-sizing: border-box;
+    width: 100%;
+    height: 26px;
+    padding: 0 6px;
+    margin-left: -7px;
+    border: 1px solid var(--dou-color-border-strong, var(--dou-color-border));
+    border-radius: var(--dou-radius-control);
+    outline: none;
+    background-color: var(--dou-color-bg-surface);
+    color: var(--dou-color-text);
+    font: inherit;
+    font-size: inherit;
+
+    &:focus {
+      border-color: var(--dou-color-primary);
+      box-shadow: 0 0 0 2px color-mix(in oklab, var(--dou-color-focus) 30%, transparent);
+    }
+    &::placeholder {
+      color: var(--dou-color-text-tertiary);
+    }
+  }
+
+  .dou-gantt__menu-anchor {
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
   }
 
   .dou-gantt__divider {

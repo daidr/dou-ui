@@ -24,6 +24,12 @@ export interface GanttColumn {
   width?: number | string
   minWidth?: number | string
   align?: 'start' | 'center' | 'end'
+  /**
+   * Double-click (or F2 for the title) to edit. Built-in columns are
+   * editable unless this is `false`; other columns only when it is `true`,
+   * and they write the text to the task's `data`.
+   */
+  editable?: boolean
 }
 
 /** A vertical line across the timeline, such as a release day or a freeze. */
@@ -79,6 +85,13 @@ export interface GanttProps {
    * the tasks that wait on a moved task later, in the same undo step.
    */
   scheduling?: 'manual' | 'auto'
+  /** Show a row below the table for adding tasks; only while editable. */
+  addRow?: boolean
+  /**
+   * The built-in context menu items: rename, add, indent, remove. Turn off
+   * to keep only the extensions' items, or no menu at all.
+   */
+  menu?: boolean
   /** Highlight the critical path: the tasks with no slack, and the links that drive them. */
   critical?: boolean
   /** Show the plan without changing it: no dragging, no new links, no undo keys. */
@@ -113,6 +126,8 @@ export interface GanttEmits {
   taskDblclick: [task: GanttTask, event: MouseEvent]
   taskContextmenu: [task: GanttTask, event: MouseEvent]
   linkClick: [link: GanttLink, event: MouseEvent]
+  /** Sent before the menu opens; `event.preventDefault()` keeps it closed. */
+  linkContextmenu: [link: GanttLink, event: MouseEvent]
 }
 
 export interface GanttSlots {
@@ -136,6 +151,17 @@ export interface GanttExpose {
    * what moved. Only pushes tasks later, unless `pull` is set.
    */
   schedule: (options?: { pull?: boolean }) => GanttSchedule
+  /** Starts editing a cell of the table, the title by default; `false` when it can't be edited. */
+  editCell: (id: string, key?: string) => boolean
+  /**
+   * Adds a task named with `messages.newTask` after another one, or as its
+   * last subtask, and starts editing its title. Returns its id.
+   */
+  insertTask: (near: string | null, where?: 'after' | 'inside') => string
+  /** Makes a task the last subtask of the one above it. */
+  indentTask: (id: string) => boolean
+  /** Moves a task out of its parent, to just after it. */
+  outdentTask: (id: string) => boolean
   /** Picks the day width that fits all tasks into view and scrolls to the first one. */
   fit: () => void
   /** Scrolls so that a date (or time) is near the left of the timeline. */

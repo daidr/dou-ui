@@ -36,7 +36,7 @@ function canLink(link: Pick<GanttLink, 'to'>) {
 </script>
 
 <template>
-  <DouSpace align="center">
+  <DouSpace align="center" wrap>
     <DouButton
       variant="outline"
       size="sm"
@@ -55,7 +55,7 @@ function canLink(link: Pick<GanttLink, 'to'>) {
     /></DouButton>
     <DouSwitch v-model="readonly">只读</DouSwitch>
     <DouText variant="secondary" size="sm"
-      >“技术分享”还没排期，在它那一行的时间轴上拖动试试</DouText
+      >双击单元格修改，右键打开菜单；“技术分享”还没排期，在它那一行的时间轴上拖动试试</DouText
     >
   </DouSpace>
   <DouGantt

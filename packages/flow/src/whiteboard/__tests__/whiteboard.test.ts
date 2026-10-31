@@ -2,8 +2,8 @@ import { mount } from '@vue/test-utils'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { connectorEdge, whiteboardKit, type WhiteboardTool } from '..'
-import { inkHit, inkOutline, strokeNode, turn } from '../ink'
-import { resizeTurned, snapAngle } from '../transform'
+import { fitInk, inkHit, inkOutline, strokeNode, turn, unpack } from '../ink'
+import { resizeBox, snapAngle } from '../transform'
 import { defineFlowExtension, defineNodeType, DouFlowEditor, flowKit } from '../../index'
 import type { FlowDocument, FlowExtension, FlowSelection, FlowViewport } from '../../index'
 
@@ -568,6 +568,28 @@ describe('pen and eraser', () => {
 })
 
 describe('ink geometry', () => {
+  it('stretches a stroke by its points, so its line keeps its thickness', () => {
+    const node = strokeNode('s', [
+      { x: 0, y: 0, pressure: 0.5 },
+      { x: 100, y: 100, pressure: 0.5 },
+    ])
+    const points = unpack(node.data!.points)
+    const [w, height] = node.data!.box
+    const taller = fitInk(points, node.data!.box, w, height * 3)
+    // the room for the pen's width stays the same at both ends
+    expect(taller[0]!.y).toBeCloseTo(points[0]!.y)
+    expect(height * 3 - taller[1]!.y).toBeCloseTo(height - points[1]!.y)
+    expect(taller[0]!.x).toBeCloseTo(points[0]!.x)
+    // the outline's thickness comes from the pen, not the stretch
+    const flat = strokeNode('f', [
+      { x: 0, y: 0, pressure: 0.5 },
+      { x: 100, y: 0, pressure: 0.5 },
+    ])
+    const [fw, fh] = flat.data!.box
+    const fitted = fitInk(unpack(flat.data!.points), flat.data!.box, fw, fh * 4)
+    expect(fitted[0]!.y).toBeCloseTo((fh * 4) / 2)
+  })
+
   it('outlines a stroke with round ends, and a dot as a circle', () => {
     const line = [
       { x: 0, y: 0, pressure: 0.5 },
@@ -598,6 +620,106 @@ describe('ink geometry', () => {
   })
 })
 
+const at = (root: ReturnType<typeof setup>['root'], handle: string) =>
+  root.find(`[data-handle="${handle}"]`)
+
+describe('resize handles', () => {
+  it('has four corners and four sides on a shape, only corners on an image', async () => {
+    const { root, selection } = setup({
+      nodes: [
+        { id: 'a', type: 'shape', x: 0, y: 0, width: 100, height: 100, data: { shape: 'rect' } },
+        { id: 'b', type: 'image', x: 200, y: 0, width: 100, height: 50, data: { src: 'a.png' } },
+      ],
+      edges: [],
+    })
+    await ticks()
+    selection.value = { nodes: ['a'], edges: [] }
+    await ticks()
+    expect(root.findAll('.dou-whiteboard-node__corner')).toHaveLength(4)
+    expect(root.findAll('.dou-whiteboard-node__side')).toHaveLength(4)
+    selection.value = { nodes: ['b'], edges: [] }
+    await ticks()
+    expect(root.findAll('.dou-whiteboard-node__corner')).toHaveLength(4)
+    expect(root.findAll('.dou-whiteboard-node__side')).toHaveLength(0)
+    // with more than one node selected, no node shows handles of its own
+    selection.value = { nodes: ['a', 'b'], edges: [] }
+    await ticks()
+    expect(root.findAll('[data-handle]')).toHaveLength(0)
+  })
+
+  it('drags the top left corner, keeping the bottom right in one undo step', async () => {
+    const { root, flow, selection } = setup({
+      nodes: [
+        { id: 'a', type: 'shape', x: 0, y: 0, width: 100, height: 100, data: { shape: 'rect' } },
+      ],
+      edges: [],
+    })
+    await ticks()
+    selection.value = { nodes: ['a'], edges: [] }
+    await ticks()
+    const handle = at(root, '-1,-1').element
+    handle.dispatchEvent(pointer('pointerdown', 0, 0))
+    handle.dispatchEvent(pointer('pointermove', -20, -30))
+    handle.dispatchEvent(pointer('pointerup', -20, -30))
+    await ticks()
+    expect(flow.value.nodes[0]).toMatchObject({ x: -20, y: -30, width: 120, height: 130 })
+  })
+
+  it('keeps an image in proportion, and lets Shift stretch it', async () => {
+    const { root, flow, selection } = setup({
+      nodes: [
+        { id: 'a', type: 'image', x: 0, y: 0, width: 100, height: 50, data: { src: 'a.png' } },
+      ],
+      edges: [],
+    })
+    await ticks()
+    selection.value = { nodes: ['a'], edges: [] }
+    await ticks()
+    let handle = at(root, '1,1').element
+    handle.dispatchEvent(pointer('pointerdown', 100, 50))
+    handle.dispatchEvent(pointer('pointermove', 200, 50))
+    handle.dispatchEvent(pointer('pointerup', 200, 50))
+    await ticks()
+    expect(flow.value.nodes[0]).toMatchObject({ width: 200, height: 100 })
+    handle = at(root, '1,1').element
+    handle.dispatchEvent(pointer('pointerdown', 200, 100))
+    handle.dispatchEvent(pointer('pointermove', 200, 40, { shiftKey: true }))
+    handle.dispatchEvent(pointer('pointerup', 200, 40, { shiftKey: true }))
+    await ticks()
+    expect(flow.value.nodes[0]).toMatchObject({ width: 200, height: 40 })
+  })
+
+  it('only widens text, turned or not, and keeps no height', async () => {
+    const { root, flow, selection } = setup({
+      nodes: [
+        {
+          id: 't',
+          type: 'text',
+          x: 0,
+          y: 0,
+          width: 100,
+          height: 80,
+          data: { text: '戴兜', rotation: 30 },
+        },
+      ],
+      edges: [],
+    })
+    await ticks()
+    selection.value = { nodes: ['t'], edges: [] }
+    await ticks()
+    expect(root.findAll('.dou-whiteboard-node__corner')).toHaveLength(4)
+    expect(root.findAll('.dou-whiteboard-node__side')).toHaveLength(2)
+    const handle = at(root, '1,1').element
+    handle.dispatchEvent(pointer('pointerdown', 0, 0))
+    handle.dispatchEvent(pointer('pointermove', 40, 60))
+    handle.dispatchEvent(pointer('pointerup', 40, 60))
+    await ticks()
+    const node = flow.value.nodes[0]!
+    expect(node.width).toBeGreaterThan(100)
+    expect(node.height).toBeUndefined()
+  })
+})
+
 describe('turning', () => {
   it('snaps to 15° with Shift, and to a right angle when close', () => {
     expect(snapAngle(52, true)).toBe(45)
@@ -608,7 +730,8 @@ describe('turning', () => {
 
   it('grows a turned node along its own sides, keeping the far corner', () => {
     const start = { x: 0, y: 0, width: 100, height: 50 }
-    const next = resizeTurned(start, 90, { x: 0, y: 20 }, { width: 10, height: 10 })
+    const min = { width: 10, height: 10 }
+    const next = resizeBox(start, 90, { x: 1, y: 1 }, { x: 0, y: 20 }, min)
     // turned a quarter, dragging down widens it
     expect(next.width).toBeCloseTo(120)
     expect(next.height).toBeCloseTo(50)
@@ -616,6 +739,38 @@ describe('turning', () => {
       turn({ x: r.x, y: r.y }, { x: r.x + r.width / 2, y: r.y + r.height / 2 }, 90)
     expect(corner(next).x).toBeCloseTo(corner(start).x)
     expect(corner(next).y).toBeCloseTo(corner(start).y)
+  })
+
+  it('resizes from any corner or side, keeping what is across from it', () => {
+    const start = { x: 0, y: 0, width: 100, height: 50 }
+    const min = { width: 10, height: 10 }
+    // the top left corner: the bottom right stays
+    expect(resizeBox(start, 0, { x: -1, y: -1 }, { x: -20, y: -10 }, min)).toEqual({
+      x: -20,
+      y: -10,
+      width: 120,
+      height: 60,
+    })
+    // the left side: only the width changes, the right side stays
+    expect(resizeBox(start, 0, { x: -1, y: 0 }, { x: 30, y: 40 }, min)).toEqual({
+      x: 30,
+      y: 0,
+      width: 70,
+      height: 50,
+    })
+    // never below the least size
+    expect(resizeBox(start, 0, { x: 1, y: 0 }, { x: -500, y: 0 }, min).width).toBe(10)
+  })
+
+  it('keeps the proportions from a corner when asked', () => {
+    const start = { x: 0, y: 0, width: 100, height: 50 }
+    const min = { width: 24, height: 24 }
+    const wider = resizeBox(start, 0, { x: 1, y: 1 }, { x: 100, y: 0 }, min, true)
+    expect(wider).toEqual({ x: 0, y: 0, width: 200, height: 100 })
+    // shrinking stops where the shorter side reaches its least size
+    const small = resizeBox(start, 0, { x: 1, y: 1 }, { x: -90, y: -45 }, min, true)
+    expect(small.height).toBeCloseTo(24)
+    expect(small.width).toBeCloseTo(48)
   })
 
   it('turns with the handle in one undo step; a turned node has its own corner handle', async () => {

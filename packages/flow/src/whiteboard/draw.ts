@@ -1,6 +1,6 @@
 import type { FlowNode } from '../core/model'
 import type { FlowDrawContext } from '../export/context'
-import { inkOutline, INK_SIZE, unpack } from './ink'
+import { fitInk, inkOutline, INK_SIZE, unpack } from './ink'
 import type { WhiteboardNodeData, WhiteboardShape } from './model'
 
 const px = (value: string, fallback: number) => {
@@ -51,14 +51,9 @@ export function drawBoardNode(node: FlowNode<WhiteboardNodeData>, draw: FlowDraw
     )
   } else if (kind === 'ink' && data.points && data.box) {
     const s = draw.style(nodeClass, 'dou-whiteboard-node__ink')
-    const sx = w / (data.box[0] || 1)
-    const sy = h / (data.box[1] || 1)
-    const d = inkOutline(unpack(data.points), data.size ?? INK_SIZE)
-    const scale =
-      sx === 1 && sy === 1
-        ? ''
-        : ` transform="scale(${Math.round(sx * 1000) / 1000} ${Math.round(sy * 1000) / 1000})"`
-    parts.push(`<path d="${d}" fill="${draw.color(s.fill)}"${scale}/>`)
+    const size = data.size ?? INK_SIZE
+    const d = inkOutline(fitInk(unpack(data.points), data.box, w, h, size), size)
+    parts.push(`<path d="${d}" fill="${draw.color(s.fill)}"/>`)
   } else if (kind === 'image' && data.src) {
     const s = draw.style(nodeClass, 'dou-whiteboard-node__image')
     parts.push(

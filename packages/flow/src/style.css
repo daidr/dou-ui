@@ -1094,9 +1094,15 @@
       pointer-events: auto;
     }
   }
-  /* a turned node draws its own outline, turned with it */
-  .dou-flow-editor__node.is-bare.is-selected:has(.dou-whiteboard-node.is-turned) {
+  /* a node being turned, or turned, draws its own outline, turned with it */
+  .dou-flow-editor__node.is-bare.is-selected:has(
+      > .dou-whiteboard-node:is(.is-turned, .is-turning)
+    ) {
     outline: none;
+  }
+  /* board nodes have their own resize handles, which turn with them */
+  .dou-flow-editor__node:has(> .dou-whiteboard-node) > .dou-flow-editor__resize {
+    display: none;
   }
 
   .dou-whiteboard-node {
@@ -1140,9 +1146,20 @@
   }
 
   .dou-whiteboard-node {
-    &.is-turned.is-selected {
-      outline: calc(1px / var(--dou-flow-editor-zoom, 1)) solid var(--dou-flow-editor-selected);
-      outline-offset: calc(4px / var(--dou-flow-editor-zoom, 1));
+    /*
+     * the same outline as an upright node's, corners rounded alike: drawn
+     * as a frame, since an outline only rounds with the box's own corners
+     */
+    &:is(.is-turned, .is-turning).is-selected::after {
+      --dou-whiteboard-ring: calc(5px / var(--dou-flow-editor-zoom, 1));
+
+      content: '';
+      position: absolute;
+      inset: calc(var(--dou-whiteboard-ring) * -1);
+      box-sizing: border-box;
+      border: calc(1px / var(--dou-flow-editor-zoom, 1)) solid var(--dou-flow-editor-selected);
+      border-radius: calc(var(--dou-flow-editor-node-radius) + var(--dou-whiteboard-ring));
+      pointer-events: none;
     }
     &.is-erasing {
       opacity: 0.3;
@@ -1173,8 +1190,12 @@
     pointer-events: stroke;
   }
 
+  /* fills the node's box whatever the picture's own size */
   .dou-whiteboard-node__image {
+    position: absolute;
+    inset: 0;
     display: block;
+    box-sizing: border-box;
     width: 100%;
     height: 100%;
     border-radius: 4px;
@@ -1196,7 +1217,7 @@
     }
   }
 
-  /* the turn handle below the node, and the corner handle of a turned node */
+  /* the turn handle below the node, and the resize handles on its corners */
   .dou-whiteboard-node__turn,
   .dou-whiteboard-node__corner {
     position: absolute;
@@ -1217,6 +1238,10 @@
       content: '';
       position: absolute;
       inset: -8px;
+
+      @media (pointer: coarse) {
+        inset: -15px;
+      }
     }
   }
   /* below the node, clear of the toolbar that floats above it */
@@ -1227,12 +1252,34 @@
     cursor: grab;
     translate: -50% 50%;
   }
+  /* placed by left and top on the corner, centred on it */
   .dou-whiteboard-node__corner {
-    right: 0;
-    bottom: 0;
     border-radius: 3px;
-    cursor: nwse-resize;
-    translate: 50% 50%;
+    translate: -50% -50%;
+  }
+  /* a side: an unseen strip along it, centred on the line */
+  .dou-whiteboard-node__side {
+    position: absolute;
+    pointer-events: auto;
+    touch-action: none;
+    translate: -50% -50%;
+
+    &.is-x {
+      width: calc(8px / var(--dou-flow-editor-zoom, 1));
+      height: calc(100% - 20px / var(--dou-flow-editor-zoom, 1));
+    }
+    &.is-y {
+      width: calc(100% - 20px / var(--dou-flow-editor-zoom, 1));
+      height: calc(8px / var(--dou-flow-editor-zoom, 1));
+    }
+    @media (pointer: coarse) {
+      &.is-x {
+        width: calc(16px / var(--dou-flow-editor-zoom, 1));
+      }
+      &.is-y {
+        height: calc(16px / var(--dou-flow-editor-zoom, 1));
+      }
+    }
   }
 
   .dou-whiteboard-node__shape {
@@ -1305,6 +1352,8 @@
   .dou-whiteboard-node__anchors {
     position: absolute;
     inset: 0;
+    /* its ports over the resize strips along the sides */
+    z-index: 1;
     pointer-events: none;
 
     & .dou-flow-port {

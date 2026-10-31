@@ -5,10 +5,10 @@ import DouFlowPort from '../components/flow-port.vue'
 import { useFlowEditor } from '../context'
 import type { NodeViewProps } from '../core/node-types'
 import type { Tone } from 'dou-ui'
-import { inkOutline, INK_SIZE, unpack } from './ink'
+import { fitInk, inkOutline, INK_SIZE, unpack } from './ink'
 import { anchorSides, type WhiteboardShape } from './model'
 import { boardState } from './state'
-import { useTransformHandles } from './transform'
+import { RESIZE_HANDLES, useTransformHandles, type ResizeHandle } from './transform'
 
 type BoardData = {
   [key: string]: unknown
@@ -59,6 +59,35 @@ const transform = computed(() => {
   }
   return style
 })
+/**
+ * The resize handles: an image keeps its proportions, from its corners; text
+ * only widens, so it has no top or bottom side; the rest has every corner
+ * and side.
+ */
+const resizeHandles = computed(() =>
+  kind.value === 'image'
+    ? RESIZE_HANDLES.filter((h) => h.x && h.y)
+    : kind.value === 'text'
+      ? RESIZE_HANDLES.filter((h) => h.x)
+      : RESIZE_HANDLES,
+)
+const CURSORS = ['ew-resize', 'nwse-resize', 'ns-resize', 'nesw-resize'] as const
+/** The resize cursor along a handle's way out, turned with the node. */
+function cursorOf(handle: ResizeHandle) {
+  // text only widens, from a corner too
+  if (kind.value === 'text') handle = { x: handle.x, y: 0 }
+  const degrees = (Math.atan2(handle.y, handle.x) * 180) / Math.PI + shownRotation.value
+  return CURSORS[((Math.round(degrees / 45) % 4) + 4) % 4]
+}
+function onResize(event: PointerEvent, handle: ResizeHandle) {
+  startResize(event, handle, {
+    keepRatio: kind.value === 'image',
+    widthOnly: kind.value === 'text',
+  })
+}
+/** Where a handle sits on the box: `-1` is the start, `1` the end. */
+const place = (v: -1 | 0 | 1) => `${(v + 1) * 50}%`
+
 /** Handles show on the one selected node, while the select tool is in hand. */
 const handles = computed(
   () =>
@@ -69,17 +98,23 @@ const handles = computed(
     ctx.selection.value.nodes.length === 1,
 )
 
-const ink = computed(() =>
-  kind.value === 'ink' && props.data.points
-    ? inkOutline(unpack(props.data.points), props.data.size ?? INK_SIZE)
-    : '',
-)
+/** The stroke fitted to the box shown, so stretching it keeps its thickness. */
+const ink = computed(() => {
+  const { points, box: inkBox } = props.data
+  if (kind.value !== 'ink' || !points || !inkBox) return ''
+  const size = props.data.size ?? INK_SIZE
+  return inkOutline(fitInk(unpack(points), inkBox, shown.value.w, shown.value.h, size), size)
+})
 const erasing = computed(() => state.erasing.value.has(props.node.id))
 
 // drawn in the node's own units, half the 1.5px stroke in from the edge
 const box = computed(() => ({ w: props.node.width ?? 160, h: props.node.height ?? 100 }))
+/** The size shown: the one being dragged to, or the stored one. */
+const shown = computed(() =>
+  sizing.value ? { w: sizing.value.width, h: sizing.value.height } : box.value,
+)
 const diamond = computed(() => {
-  const { w, h } = box.value
+  const { w, h } = shown.value
   const i = 1
   return `${w / 2},${i} ${w - i},${h / 2} ${w / 2},${h - i} ${i},${h / 2}`
 })
@@ -177,6 +212,7 @@ function onKeydown(event: KeyboardEvent) {
       {
         'is-editing': editing,
         'is-turned': !!shownRotation,
+        'is-turning': turning !== null,
         'is-selected': selected,
         'is-erasing': erasing,
       },
@@ -187,31 +223,30 @@ function onKeydown(event: KeyboardEvent) {
     <svg
       v-if="kind === 'shape'"
       class="dou-whiteboard-node__shape"
-      :viewBox="`0 0 ${box.w} ${box.h}`"
+      :viewBox="`0 0 ${shown.w} ${shown.h}`"
       aria-hidden="true"
     >
       <rect
         v-if="shape === 'rect'"
         x="0.75"
         y="0.75"
-        :width="Math.max(0, box.w - 1.5)"
-        :height="Math.max(0, box.h - 1.5)"
+        :width="Math.max(0, shown.w - 1.5)"
+        :height="Math.max(0, shown.h - 1.5)"
         rx="8"
       />
       <ellipse
         v-else-if="shape === 'ellipse'"
-        :cx="box.w / 2"
-        :cy="box.h / 2"
-        :rx="Math.max(0, box.w / 2 - 0.75)"
-        :ry="Math.max(0, box.h / 2 - 0.75)"
+        :cx="shown.w / 2"
+        :cy="shown.h / 2"
+        :rx="Math.max(0, shown.w / 2 - 0.75)"
+        :ry="Math.max(0, shown.h / 2 - 0.75)"
       />
       <polygon v-else :points="diamond" />
     </svg>
     <svg
       v-else-if="kind === 'ink' && data.box"
       class="dou-whiteboard-node__ink"
-      :viewBox="`0 0 ${data.box[0]} ${data.box[1]}`"
-      preserveAspectRatio="none"
+      :viewBox="`0 0 ${shown.w} ${shown.h}`"
       aria-hidden="true"
     >
       <path class="dou-whiteboard-node__ink-hit" :d="ink" />
@@ -264,11 +299,18 @@ function onKeydown(event: KeyboardEvent) {
         @pointerdown="startTurn"
       />
       <span
-        v-if="rotation"
-        class="dou-whiteboard-node__corner"
+        v-for="handle in resizeHandles"
+        :key="`${handle.x},${handle.y}`"
+        :class="
+          handle.x && handle.y
+            ? 'dou-whiteboard-node__corner'
+            : ['dou-whiteboard-node__side', handle.x ? 'is-x' : 'is-y']
+        "
+        :style="{ left: place(handle.x), top: place(handle.y), cursor: cursorOf(handle) }"
+        :data-handle="`${handle.x},${handle.y}`"
         data-dou-nodrag
         aria-hidden="true"
-        @pointerdown="startResize"
+        @pointerdown="onResize($event, handle)"
       />
     </template>
   </div>

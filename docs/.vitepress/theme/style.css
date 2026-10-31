@@ -6,8 +6,11 @@
 
 /* page */
 
+/* Stop iOS Safari from inflating long paragraphs (most visible in landscape). */
 html {
   scroll-padding-top: 88px;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {

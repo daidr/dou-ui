@@ -438,6 +438,11 @@
     display: contents;
   }
 
+  /* a formula that comes to an error, such as #DIV/0! */
+  .dou-sheet__cell.is-error {
+    color: var(--dou-color-danger-text);
+  }
+
   /* a value that doesn't fit its cell's type: a small mark in the corner */
   .dou-sheet__cell.is-invalid::after {
     position: absolute;

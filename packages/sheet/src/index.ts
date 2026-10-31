@@ -96,6 +96,12 @@ export type {
   SheetStylePatch,
   SheetTransactionMeta,
 } from './core/transaction'
+export { criteriaOf, defineSheetFunction, numbersOf, scalarOf } from './formula/functions'
+export { compareValues, dateText, serialOf, toBoolean, toNumber, toText } from './formula/values'
+export type { SheetFunction, SheetFunctionContext } from './formula/functions'
+export { isSheetError, SheetError } from './formula/error'
+export type { SheetErrorCode } from './formula/error'
+export type { SheetArg, SheetRangeArg, SheetResult } from './formula/values'
 export { sheetLocales, useSheetMessages } from './locale'
 export type { SheetMessages } from './locale'
 

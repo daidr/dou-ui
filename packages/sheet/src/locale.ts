@@ -1,5 +1,6 @@
 import { useLocale } from 'dou-ui'
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
+import type { SheetErrorCode } from './formula/error'
 
 export interface SheetMessages {
   /** The grid's accessible name when none is given. */
@@ -79,6 +80,8 @@ export interface SheetMessages {
   notDate: string
   notOption: string
   notChecked: string
+  /** Why a formula gives an error value, shown on hover and read out. */
+  errors: Record<SheetErrorCode, string>
   /** The name a new sheet gets: `{n}` is a number. */
   sheetName: string
   /** The sheet tabs' accessible name. */
@@ -212,6 +215,17 @@ const zhCN: SheetMessages = {
   notDate: '不是日期',
   notOption: '不在选项里',
   notChecked: '不是勾选值',
+  errors: {
+    '#DIV/0!': '除以 0',
+    '#N/A': '没有找到',
+    '#NAME?': '没有这个函数',
+    '#NULL!': '区域没有交集',
+    '#NUM!': '数字超出范围',
+    '#REF!': '引用的单元格或工作表不存在',
+    '#VALUE!': '值的类型不对',
+    '#CYCLE!': '公式引用了自己',
+    '#ERROR!': '公式写法有误',
+  },
   sheetName: '工作表{n}',
   sheets: '工作表',
   sheetShown: '工作表“{name}”',
@@ -331,6 +345,17 @@ const zhTW: SheetMessages = {
   notDate: '不是日期',
   notOption: '不在選項裡',
   notChecked: '不是勾選值',
+  errors: {
+    '#DIV/0!': '除以 0',
+    '#N/A': '沒有找到',
+    '#NAME?': '沒有這個函數',
+    '#NULL!': '範圍沒有交集',
+    '#NUM!': '數字超出範圍',
+    '#REF!': '參照的儲存格或工作表不存在',
+    '#VALUE!': '值的類型不對',
+    '#CYCLE!': '公式參照了自己',
+    '#ERROR!': '公式寫法有誤',
+  },
   sheetName: '工作表{n}',
   sheets: '工作表',
   sheetShown: '工作表「{name}」',
@@ -451,6 +476,17 @@ const en: SheetMessages = {
   notDate: 'Not a date',
   notOption: 'Not one of the options',
   notChecked: 'Not checked or unchecked',
+  errors: {
+    '#DIV/0!': 'Divided by zero',
+    '#N/A': 'Nothing was found',
+    '#NAME?': 'There is no such function',
+    '#NULL!': "The ranges don't meet",
+    '#NUM!': 'A number is out of range',
+    '#REF!': 'A cell or sheet it refers to is gone',
+    '#VALUE!': 'A value of the wrong kind',
+    '#CYCLE!': 'The formula depends on itself',
+    '#ERROR!': 'The formula is written wrong',
+  },
   sheetName: 'Sheet{n}',
   sheets: 'Sheets',
   sheetShown: 'Sheet “{name}”',
@@ -532,10 +568,13 @@ export function useSheetMessages(override?: MaybeRefOrGetter<Partial<SheetMessag
       sheetLocales[name] ?? sheetLocales[name.split('-')[0]!] ?? (name.startsWith('zh') ? zhCN : en)
     const extra = toValue(override)
     if (!extra) return base
-    const out = { ...base }
-    for (const [key, value] of Object.entries(extra))
-      if (value !== undefined) out[key as keyof SheetMessages] = value
-    return out
+    const out: Record<string, unknown> = { ...base }
+    for (const [key, value] of Object.entries(extra)) {
+      if (value === undefined) continue
+      // the error reasons can be given one by one
+      out[key] = key === 'errors' ? { ...base.errors, ...(value as object) } : value
+    }
+    return out as unknown as SheetMessages
   })
 }
 

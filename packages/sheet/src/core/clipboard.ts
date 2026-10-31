@@ -1,6 +1,7 @@
 import { parseCSV } from './csv'
 import { formatValue, parseInput } from './format'
-import { cellOf, valueOf, type SheetCellInput, type SheetStyle } from './model'
+import { cellOf, valueOf, type SheetCellInput, type SheetStyle, type SheetValue } from './model'
+import { shownValue, type SheetResult } from '../formula/values'
 
 /*
  * Copying cells out as text and as a table, and reading them back from
@@ -53,23 +54,31 @@ function cssOf(style: SheetStyle | undefined, align: string | undefined) {
 export interface SheetClipFormat {
   /** The language dates are shown in. */
   locale?: string
-  /** A cell's text, e.g. as its cell type shows it; `undefined` uses its format. */
-  text?: (input: SheetCellInput) => string | undefined
+  /**
+   * What a formula comes to, by its row and column in the clip, e.g. from
+   * `SheetFormulaEngine.result`; the formula itself by default.
+   */
+  result?: (row: number, col: number) => SheetResult
+  /**
+   * A cell's text, e.g. as its cell type shows it; `undefined` uses its
+   * format. `value` is its value, or its formula's result.
+   */
+  text?: (input: SheetCellInput, value: SheetValue) => string | undefined
 }
 
 /** The clipboard's text and HTML for a block of cells, with the text as the cells show it. */
 export function formatClip(clip: SheetClip, options: SheetClipFormat = {}) {
-  const { locale, text: textOf } = options
+  const { locale, text: textOf, result } = options
   const styles = clip.styles ?? {}
   const text: string[] = []
   let rows = ''
-  for (const line of clip.cells) {
+  for (const [row, line] of clip.cells.entries()) {
     const fields: string[] = []
     let cols = ''
-    for (const input of line) {
+    for (const [col, input] of line.entries()) {
       const cell = cellOf(input)
-      const value = valueOf(input)
-      const shown = textOf?.(input) ?? formatValue(value, cell?.format, locale)
+      const value = shownValue(valueOf(input), result, row, col)
+      const shown = textOf?.(input, value) ?? formatValue(value, cell?.format, locale)
       fields.push(tsvField(shown))
       const style = cell?.style ? styles[cell.style] : undefined
       const css = cssOf(style, typeof value === 'number' ? 'right' : undefined)

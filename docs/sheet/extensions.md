@@ -41,6 +41,7 @@ const extensions = [progress]
 | `name`        | 扩展的名字                                                                                                   | `string`                                              |
 | `priority`    | 优先级，越大越先处理按键和钩子，默认 `100`                                                                   | `number`                                              |
 | `cellTypes`   | 单元格类型，见下文；和内置类型同名时替换内置的，多个扩展同名时用优先级高的                                   | `SheetCellType[]`                                     |
+| `functions`   | 公式里可以调用的函数，见[自定义函数](./formulas#自定义函数)；和内置函数同名时替换内置的                      | `SheetFunction[]`                                     |
 | `keymap`      | 表格有焦点、没有在编辑单元格时的快捷键，写法和 `useHotkey` 一样；处理函数返回 `false` 表示没处理，交给下一个 | `(ctx) => Record<string, (event) => boolean \| void>` |
 | `contextMenu` | 右键菜单的项，排在内置项前面；`menu` 属性收到的菜单项里也包括它们                                            | `(ctx, menu: SheetMenuContext) => SheetMenuItem[]`    |
 | `overlays`    | 浮在表格上方的组件，不随表格滚动，可以用 `cellRect` 对准单元格                                               | `Component[]`                                         |
@@ -103,7 +104,7 @@ const Panel = defineComponent({
 | `doc`、`sheet`、`sheetIndex`                     | 工作簿、当前显示的工作表和它的序号                                                            |
 | `selection`、`active`                            | 选区和键盘所在的单元格                                                                        |
 | `readonly`、`messages`                           | 只读状态、当前语言的文案                                                                      |
-| `value(point)`                                   | 当前工作表里一个单元格的值                                                                    |
+| `value(point)`、`result(point)`                  | 当前工作表里一个单元格的值（公式单元格是公式本身），和它的计算结果                            |
 | `forEachSelected(callback)`                      | 依次处理选中的每个单元格，合并单元格只算一次（左上角）                                        |
 | `cellType(point)`                                | 单元格的类型 `{ name, definition, setup }`，`definition` 是类型本身；普通单元格为 `undefined` |
 | `cellRect(point)`                                | 单元格（或它所在的合并单元格）现在画在哪，看不见时为 `null`                                   |

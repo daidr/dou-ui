@@ -411,7 +411,10 @@
   .dou-gantt__cell-label {
     position: sticky;
     left: 0;
-    padding: 0 8px;
+    /* block padding keeps glyphs inside the clip edge: Safari clips a sticky
+       label on both axes at its trimmed box, even with overflow-x only */
+    margin-block: -4px;
+    padding: 4px 8px;
     overflow-x: clip;
     text-overflow: ellipsis;
     text-box: trim-both cap alphabetic;
@@ -682,7 +685,9 @@
     position: sticky;
     left: 0;
     min-width: 0;
-    padding: 0 8px;
+    /* same block padding as the header labels, see .dou-gantt__cell-label */
+    margin-block: -4px;
+    padding: 4px 8px;
     overflow-x: clip;
     font-size: var(--dou-font-size-sm);
     text-overflow: ellipsis;

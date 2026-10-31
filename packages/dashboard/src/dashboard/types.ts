@@ -1,8 +1,4 @@
-import type {
-  DashboardStep,
-  DashboardTransaction,
-  DashboardTransactionMeta,
-} from '../core/transaction'
+import type { DashboardTransaction } from '../core/transaction'
 import type { DashboardDocument, DashboardPlace } from '../core/types'
 import type { GridCompact } from '../layout/types'
 import type { DashboardMessagesOverride } from '../locale'
@@ -54,8 +50,10 @@ export interface DashboardAddOptions {
 }
 
 export interface DashboardExpose {
-  /** Applies steps as one change; returns it. */
-  dispatch: (steps: DashboardStep[], meta?: DashboardTransactionMeta) => DashboardTransaction
+  /** A transaction on the document as it is now: add, remove and update widgets, then `dispatch` it. */
+  transaction: () => DashboardTransaction
+  /** Makes the changes of a transaction, as one undo step (or part of one, by `meta.group`). */
+  dispatch: (tr: DashboardTransaction) => void
   undo: () => boolean
   redo: () => boolean
   readonly canUndo: boolean

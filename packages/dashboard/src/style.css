@@ -253,6 +253,19 @@
     align-items: center;
     gap: 2px;
     color: var(--dou-color-text-tertiary);
+
+    /* on touch screens the 28px buttons take taps from about 40px around */
+    @media (pointer: coarse) {
+      & .dou-button {
+        position: relative;
+
+        &::after {
+          position: absolute;
+          inset: -6px;
+          content: '';
+        }
+      }
+    }
   }
 
   .dou-dashboard__body {

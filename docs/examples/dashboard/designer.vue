@@ -46,10 +46,7 @@ const doc = ref({
 <template>
   <div class="demo">
     <div class="bar">
-      <label class="switch">
-        <DouSwitch v-model="editing" size="sm" />
-        编辑
-      </label>
+      <DouSwitch v-model="editing" class="switch" size="sm">编辑</DouSwitch>
       <template v-if="editing">
         <DouTooltip content="撤销" shortcut="mod+z">
           <DouButton
@@ -105,11 +102,7 @@ const doc = ref({
   min-height: 32px;
 }
 .switch {
-  display: flex;
-  align-items: center;
-  gap: 8px;
   margin-right: 8px;
-  font-size: var(--dou-font-size-sm);
 }
 .body {
   display: flex;

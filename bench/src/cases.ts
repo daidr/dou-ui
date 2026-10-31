@@ -1132,7 +1132,7 @@ export const cases: Record<string, Case> = {
     act: () => {
       const api = (window as any).dashboardApi as DashboardExpose
       const value = ((window as any).dashboardValue = ((window as any).dashboardValue ?? 0) + 1)
-      api.dispatch([{ type: 'update', id: 'w0', patch: { props: { value } } }])
+      api.dispatch(api.transaction().update('w0', { props: { value } }))
       return nextTick()
     },
     frames: 20,

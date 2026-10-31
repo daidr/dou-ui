@@ -19,10 +19,9 @@ export type {
 export type { DashboardDocument, DashboardPlace, DashboardWidget } from './core/types'
 export { checkDocument, isDashboardPlace, migrateDocument } from './core/document'
 export type { CheckDocumentOptions, DocumentProblem } from './core/document'
-export { applySteps, sameValue } from './core/transaction'
+export { applySteps, DashboardTransaction, sameValue } from './core/transaction'
 export type {
   DashboardStep,
-  DashboardTransaction,
   DashboardTransactionMeta,
   DashboardWidgetPatch,
 } from './core/transaction'

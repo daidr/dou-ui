@@ -108,6 +108,10 @@ try {
 
 加载状态在 120ms 之后才出现，很快完成的请求不会闪一下；旧内容在加载时仍然可见，只是变淡。`error` 传了 `retry` 时显示“重试”按钮。
 
+下面左边的格子第一次取数会失败，点“重试”后成功；右边的格子没有数据，显示空态：
+
+<DocDemo src="dashboard/status" />
+
 ## 添加格子
 
 `DouDashboardPalette` 列出注册的格子类型，`for` 指向仪表盘的组件实例。列表里的每一项都是按钮：拖到仪表盘上放在松手的位置，点击或按 Enter 放到第一个空位，然后焦点移到新格子上，键盘和读屏用户也能添加。不在编辑模式时按钮不可用。
@@ -151,18 +155,20 @@ Mod 在 macOS 上是 ⌘，在其他系统上是 Ctrl。焦点在输入框里时
 
 实例的 `undo()`、`redo()` 以及 `canUndo`、`canRedo` 可以用来做工具栏按钮，示例里的撤销、重做就是这样做的。
 
-要在代码里修改文档，可以直接给 `v-model` 赋一份新文档，但这样会清空撤销记录。想让修改也能撤销，用 `dispatch` 提交修改步骤：
+要在代码里修改文档，可以直接给 `v-model` 赋一份新文档，但这样会清空撤销记录。想让修改也能撤销，用 `transaction()` 拿到一个事务，在上面添加、删除、修改格子，再交给 `dispatch`，和表单设计器的写法一样：
 
 ```ts
-dashboard.value.dispatch([
-  { type: 'update', id: 'orders', patch: { title: '本周订单' } },
-  { type: 'remove', id: 'memo' },
-])
+const tr = dashboard.value.transaction()
+tr.update('orders', { title: '本周订单' }).remove('memo')
+tr.setMeta('origin', 'toolbar')
+dashboard.value.dispatch(tr)
 ```
 
-步骤有三种：`add`（`widget`、`index`）、`remove`（`id`）、`update`（`id`、`patch`，`patch` 里值为 `undefined` 的键会被删掉，`id` 和 `type` 不能改）。每次修改都会触发 `change`，带着这次的步骤 `steps`、撤销它的步骤 `inverse` 和来源 `meta.origin`。
+事务的方法有 `add(widget, index?)`、`remove(id)`、`update(id, patch)`：`patch` 里值为 `undefined` 的键会被删掉，`id` 和 `type` 不能改；什么都没改变的步骤会被忽略。一个事务算作一次修改、一步撤销；`meta.group` 相同且间隔不到一秒的修改合并成一步。事务必须基于当前文档创建，文档已经变了再提交会报错。
 
-`applySteps(doc, steps)` 是同一套逻辑的纯函数版本，可以在服务端或测试里使用。
+每次修改都会触发 `change`，参数就是这个事务：修改后的文档 `doc`、步骤 `steps`、撤销它的步骤 `inverse` 和 `meta`（其中 `origin` 是来源，例如 `layout`、`settings`、`drop`）。
+
+`applySteps(doc, steps)` 一次应用一组步骤并返回事务，不经过组件，可以在服务端或测试里使用，也可以重放保存下来的 `steps`。
 
 ## 检查与迁移
 
@@ -192,7 +198,7 @@ const problems = checkDocument(doc, { widgets })
 | `gap`         | 格子之间的间距（px），或 `[横向, 纵向]`   | `number \| [number, number]`       | `16`                           |
 | `compact`     | `'vertical'` 自动往上靠，`false` 自由摆放 | `'vertical' \| false`              | `'vertical'`                   |
 | `label`       | 仪表盘的无障碍名称                        | `string`                           | —                              |
-| `messages`    | 覆盖内置文案                              | `Partial<DashboardMessages>`       | —                              |
+| `messages`    | 替换语言包里的文字                        | `DashboardMessagesOverride`        | —                              |
 | `create-id`   | 生成新格子的 id                           | `(type: string) => string`         | 类型加几个随机字母             |
 
 ### Dashboard Events
@@ -206,7 +212,8 @@ const problems = checkDocument(doc, { widgets })
 
 | 名称                       | 说明                                                     |
 | -------------------------- | -------------------------------------------------------- |
-| `dispatch(steps, meta?)`   | 提交一组修改步骤，算作一次修改                           |
+| `transaction()`            | 基于当前文档创建事务                                     |
+| `dispatch(tr)`             | 提交事务，算作一次修改                                   |
 | `undo()` / `redo()`        | 撤销、重做，没有可做的时返回 `false`                     |
 | `canUndo` / `canRedo`      | 能否撤销、重做                                           |
 | `addWidget(type, options)` | 添加格子，`options` 可给 `at`、`title`、`props`、`focus` |

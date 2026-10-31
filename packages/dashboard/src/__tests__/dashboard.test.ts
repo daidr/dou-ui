@@ -95,6 +95,23 @@ describe('DouDashboard', () => {
     expect(api.canRedo).toBe(true)
   })
 
+  it('dispatches a transaction as one change and one undo step', async () => {
+    const { model, api, onChange } = setup()
+    const tr = api.transaction()
+    tr.update('a', { title: '本周订单' }).remove('b')
+    tr.setMeta('origin', 'toolbar')
+    api.dispatch(tr)
+    await nextTick()
+    expect(model.value.widgets.map((w) => w.id)).toEqual(['a'])
+    expect(model.value.widgets[0]!.title).toBe('本周订单')
+    expect(onChange).toHaveBeenCalledTimes(1)
+    expect(onChange.mock.calls[0]![0].meta.origin).toBe('toolbar')
+    expect(() => api.dispatch(tr)).toThrow('another version')
+    api.undo()
+    await nextTick()
+    expect(model.value.widgets.map((w) => w.title)).toEqual(['订单', undefined])
+  })
+
   it('adds a widget in the first free spot, with the default props', async () => {
     const { model, api, onChange } = setup()
     const id = api.addWidget('stat')

@@ -12,7 +12,7 @@ import {
   watch,
 } from 'vue'
 import { DashboardHistory } from '../core/history'
-import { applySteps, cloneJson } from '../core/transaction'
+import { applySteps, cloneJson, DashboardTransaction } from '../core/transaction'
 import type { DashboardStep, DashboardTransactionMeta } from '../core/transaction'
 import type { DashboardDocument, DashboardPlace, DashboardWidget } from '../core/types'
 import GridLayout from '../grid/grid-layout.vue'
@@ -88,18 +88,31 @@ watch(model, (doc) => {
   historyVersion.value++
 })
 
-function commit(tr: ReturnType<typeof applySteps>) {
+function commit(tr: DashboardTransaction) {
   emitted = toRaw(tr.doc)
   model.value = tr.doc
   emit('change', tr)
 }
 
-function dispatch(steps: DashboardStep[], meta: DashboardTransactionMeta = {}) {
-  const tr = applySteps(model.value, steps, meta)
-  if (!tr.changed) return tr
+/** A transaction on the document as it is now, to `dispatch`. */
+function transaction() {
+  return new DashboardTransaction(model.value)
+}
+
+/** Makes the changes of a transaction, as one undo step (or part of one, by `meta.group`). */
+function dispatch(tr: DashboardTransaction) {
+  if (toRaw(tr.before) !== toRaw(model.value))
+    throw new Error('[dou-ui] the transaction was made on another version of the dashboard')
+  if (!tr.changed) return
   history.record(tr)
   historyVersion.value++
   commit(tr)
+}
+
+/** Steps made into a transaction and dispatched, for the dashboard's own changes. */
+function run(steps: DashboardStep[], meta: DashboardTransactionMeta) {
+  const tr = applySteps(model.value, steps, meta)
+  dispatch(tr)
   return tr
 }
 
@@ -232,7 +245,7 @@ function flush() {
         steps.push({ type: 'add', widget: newWidget(id, type, place), index: doc.widgets.length })
     }
   }
-  const tr = dispatch(steps, { origin: drop ? 'drop' : 'layout' })
+  const tr = run(steps, { origin: drop ? 'drop' : 'layout' })
   if (drop && tr.changed) {
     const widget = widgetMap.value.get(drop.id)
     if (widget) say(format(messages.value.added, { item: titleOf(widget) }))
@@ -306,7 +319,7 @@ function addWidget(typeName: string, options: DashboardAddOptions = {}) {
   const id = newId(typeName)
   const { place, steps } = placeNew({ id, x: 0, y: 0, ...limitsOf(type) }, options.at)
   const widget = newWidget(id, type, { [main.value.name]: place }, options)
-  dispatch([{ type: 'add', widget, index: model.value.widgets.length }, ...steps], {
+  run([{ type: 'add', widget, index: model.value.widgets.length }, ...steps], {
     origin: 'api',
   })
   say(format(messages.value.added, { item: titleOf(widget) }))
@@ -334,7 +347,7 @@ function addCopy(source: DashboardWidget, near?: GridItem) {
   const index = near
     ? model.value.widgets.findIndex((other) => other.id === near.id) + 1
     : model.value.widgets.length
-  dispatch([{ type: 'add', widget, index }, ...steps], { origin: 'copy' })
+  run([{ type: 'add', widget, index }, ...steps], { origin: 'copy' })
   say(format(messages.value.added, { item: titleOf(widget) }))
   void nextTick(() => focusWidget(id))
   return id
@@ -355,7 +368,7 @@ function removeWidget(id: string) {
   const neighbour = list[index + 1] ?? list[index - 1]
   if (settingsId.value === id) settingsId.value = undefined
   if (fullscreenId.value === id) fullscreenId.value = undefined
-  dispatch([{ type: 'remove', id }], { origin: 'api' })
+  run([{ type: 'remove', id }], { origin: 'api' })
   say(format(messages.value.removed, { item: titleOf(widget) }))
   if (hadFocus) void nextTick(() => (neighbour ? focusWidget(neighbour.id) : root.value?.focus()))
 }
@@ -382,14 +395,14 @@ function labelOf(item: GridItem) {
 function setProps(id: string, patch: Record<string, unknown>, options: { group?: string } = {}) {
   const widget = widgetMap.value.get(id)
   if (!widget) return
-  dispatch([{ type: 'update', id, patch: { props: { ...widget.props, ...patch } } }], {
+  run([{ type: 'update', id, patch: { props: { ...widget.props, ...patch } } }], {
     origin: 'widget',
     group: options.group,
   })
 }
 
 function rename(id: string, title: string) {
-  dispatch([{ type: 'update', id, patch: { title: title.trim() || undefined } }], {
+  run([{ type: 'update', id, patch: { title: title.trim() || undefined } }], {
     origin: 'title',
   })
 }
@@ -547,6 +560,7 @@ const minHeight = computed(() => {
 })
 
 defineExpose<DashboardExpose>({
+  transaction,
   dispatch,
   undo,
   redo,
@@ -633,7 +647,7 @@ defineExpose<DashboardExpose>({
             :placeholder="typeOf(settingsWidget)?.label ?? settingsWidget.type"
             @update:model-value="
               (value) =>
-                dispatch(
+                run(
                   [
                     {
                       type: 'update',
@@ -653,7 +667,7 @@ defineExpose<DashboardExpose>({
           :set-props="setProps"
           @update:props="
             (value) =>
-              dispatch([{ type: 'update', id: settingsWidget!.id, patch: { props: value } }], {
+              run([{ type: 'update', id: settingsWidget!.id, patch: { props: value } }], {
                 origin: 'settings',
                 group: `props:${settingsWidget!.id}`,
               })

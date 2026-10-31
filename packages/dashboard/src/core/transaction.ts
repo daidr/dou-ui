@@ -25,18 +25,6 @@ export interface DashboardTransactionMeta {
   [key: string]: unknown
 }
 
-export interface DashboardTransaction {
-  /** The document before. */
-  before: DashboardDocument
-  /** The document after; the same object as `before` when nothing changed. */
-  doc: DashboardDocument
-  steps: DashboardStep[]
-  /** Steps that undo `steps`, in the order to apply them. */
-  inverse: DashboardStep[]
-  meta: DashboardTransactionMeta
-  readonly changed: boolean
-}
-
 const PROTECTED = new Set(['id', 'type'])
 
 /** Deep equality of JSON values; key order doesn't matter. */
@@ -51,68 +39,129 @@ export function sameValue(a: unknown, b: unknown): boolean {
   )
 }
 
+/** Applies one step: the new document and the step that undoes it, or `null` when it changes nothing. */
+function applyStep(
+  document: DashboardDocument,
+  step: DashboardStep,
+): [DashboardDocument, DashboardStep, DashboardStep] | null {
+  const widgets = document.widgets
+  const indexOf = (id: string) => widgets.findIndex((widget) => widget.id === id)
+  if (step.type === 'add') {
+    if (indexOf(step.widget.id) >= 0) return null
+    const index = Math.max(0, Math.min(widgets.length, step.index))
+    const next = [...widgets.slice(0, index), step.widget, ...widgets.slice(index)]
+    return [
+      { ...document, widgets: next },
+      { ...step, index },
+      { type: 'remove', id: step.widget.id },
+    ]
+  }
+  const index = indexOf(step.id)
+  if (index < 0) return null
+  const widget = widgets[index]!
+  if (step.type === 'remove') {
+    const next = [...widgets.slice(0, index), ...widgets.slice(index + 1)]
+    return [{ ...document, widgets: next }, step, { type: 'add', widget, index }]
+  }
+  const old = widget as unknown as Record<string, unknown>
+  const changed: Record<string, unknown> = { ...old }
+  const patch: Record<string, unknown> = {}
+  const undo: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(step.patch)) {
+    if (PROTECTED.has(key)) throw new Error(`A widget's "${key}" cannot be changed`)
+    if (sameValue(old[key], value)) continue
+    patch[key] = value
+    undo[key] = old[key]
+    if (value === undefined) delete changed[key]
+    else changed[key] = value
+  }
+  if (!Object.keys(patch).length) return null
+  const next = widgets.slice()
+  next[index] = changed as unknown as DashboardWidget
+  return [
+    { ...document, widgets: next },
+    { type: 'update', id: step.id, patch: patch as DashboardWidgetPatch },
+    { type: 'update', id: step.id, patch: undo as DashboardWidgetPatch },
+  ]
+}
+
 /**
- * Applies steps to a document, giving a new document (unchanged widgets are
- * kept as they are) and the steps that undo them. A step on a widget that
- * isn't there, a patch that changes nothing, or an add of an id already in
- * use is skipped.
+ * Changes to a dashboard, made step by step and then handed to the
+ * dashboard's `dispatch` as one change (one undo step). A step that changes
+ * nothing (a widget that isn't there, a patch to the same values, an id
+ * already in use) is left out.
+ *
+ * ```ts
+ * const tr = dashboard.value.transaction()
+ * tr.update('orders', { title: '本周订单' }).remove('memo')
+ * dashboard.value.dispatch(tr)
+ * ```
+ */
+export class DashboardTransaction {
+  /** The document after the steps so far. */
+  doc: DashboardDocument
+  readonly steps: DashboardStep[] = []
+  /** The steps that undo the ones so far, last one first. */
+  readonly inverse: DashboardStep[] = []
+  readonly meta: DashboardTransactionMeta = {}
+
+  constructor(
+    /** The document the transaction starts from. */
+    readonly before: DashboardDocument,
+  ) {
+    this.doc = before
+  }
+
+  /** Whether any step was made. */
+  get changed() {
+    return this.steps.length > 0
+  }
+
+  /** Apply a step as it is. */
+  step(step: DashboardStep) {
+    const result = applyStep(this.doc, step)
+    if (!result) return this
+    this.doc = result[0]
+    this.steps.push(result[1])
+    this.inverse.unshift(result[2])
+    return this
+  }
+
+  /** Put a widget into the document at `index` (the end by default). */
+  add(widget: DashboardWidget, index = Infinity) {
+    return this.step({ type: 'add', widget, index })
+  }
+
+  /** Take a widget out. */
+  remove(id: string) {
+    return this.step({ type: 'remove', id })
+  }
+
+  /** Set keys of a widget, e.g. `{ title }`, `{ props }` or `{ place }`; `undefined` removes a key. */
+  update(id: string, patch: DashboardWidgetPatch) {
+    return this.step({ type: 'update', id, patch })
+  }
+
+  setMeta(key: string, value: unknown) {
+    this.meta[key] = value
+    return this
+  }
+}
+
+/**
+ * Applies steps to a document in one go, giving the transaction: its `doc`
+ * (unchanged widgets are kept as they are) and the `inverse` steps that
+ * undo it. For the server, tests, or saved steps.
  */
 export function applySteps(
   document: DashboardDocument,
   steps: readonly DashboardStep[],
   meta: DashboardTransactionMeta = {},
 ): DashboardTransaction {
-  let widgets = document.widgets
-  const done: DashboardStep[] = []
-  const inverse: DashboardStep[] = []
-  const indexOf = (id: string) => widgets.findIndex((widget) => widget.id === id)
-  for (const step of steps) {
-    if (step.type === 'add') {
-      if (indexOf(step.widget.id) >= 0) continue
-      const index = Math.max(0, Math.min(widgets.length, step.index))
-      widgets = [...widgets.slice(0, index), step.widget, ...widgets.slice(index)]
-      done.push({ ...step, index })
-      inverse.unshift({ type: 'remove', id: step.widget.id })
-    } else if (step.type === 'remove') {
-      const index = indexOf(step.id)
-      if (index < 0) continue
-      const widget = widgets[index]!
-      widgets = [...widgets.slice(0, index), ...widgets.slice(index + 1)]
-      done.push(step)
-      inverse.unshift({ type: 'add', widget, index })
-    } else {
-      const index = indexOf(step.id)
-      if (index < 0) continue
-      const widget = widgets[index]! as unknown as Record<string, unknown>
-      const next: Record<string, unknown> = { ...widget }
-      const patch: Record<string, unknown> = {}
-      const undo: Record<string, unknown> = {}
-      for (const [key, value] of Object.entries(step.patch)) {
-        if (PROTECTED.has(key)) throw new Error(`A widget's "${key}" cannot be changed`)
-        if (sameValue(widget[key], value)) continue
-        patch[key] = value
-        undo[key] = widget[key]
-        if (value === undefined) delete next[key]
-        else next[key] = value
-      }
-      if (!Object.keys(patch).length) continue
-      widgets = widgets.slice()
-      widgets[index] = next as unknown as DashboardWidget
-      done.push({ type: 'update', id: step.id, patch: patch as DashboardWidgetPatch })
-      inverse.unshift({ type: 'update', id: step.id, patch: undo as DashboardWidgetPatch })
-    }
-  }
-  const doc = done.length ? { ...document, widgets } : document
-  return {
-    before: document,
-    doc,
-    steps: done,
-    inverse,
-    meta,
-    get changed() {
-      return done.length > 0
-    },
-  }
+  const tr = new DashboardTransaction(document)
+  Object.assign(tr.meta, meta)
+  for (const step of steps) tr.step(step)
+  return tr
 }
 
 /** A deep copy of a JSON value (also of a reactive one). */

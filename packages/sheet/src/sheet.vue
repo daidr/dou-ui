@@ -59,7 +59,7 @@ import { mergesOf } from './core/merge'
 import { alignOf, fitNumber, formatValue, inputText, parseInput } from './core/format'
 import { SheetHistory, type SheetHistoryView } from './core/history'
 import { SheetFormulaEngine } from './formula/engine'
-import { isSheetError } from './formula/error'
+import { isSheetError, type SheetErrorCode } from './formula/error'
 import { shownValue } from './formula/values'
 import {
   cellOf,
@@ -536,7 +536,10 @@ function cellView(
       : error
         ? 'center'
         : (typed?.definition.align ?? alignOf(value))
-    if (error) cls += ' is-error'
+    if (error) {
+      cls += ' is-error'
+      problem = messages.value.errors[value as SheetErrorCode]
+    }
     if (align !== 'left') cls += ` is-align-${align}`
     if (typed) {
       const { definition, setup } = typed
@@ -776,7 +779,7 @@ function syncHistory() {
 
 function apply(tr: SheetTransaction) {
   const was = tr.before.sheets[sheetIndex.value]
-  engine.update(tr.doc, tr.steps, tr.before)
+  engine.update(tr)
   doc.value = tr.doc
   sent = tr.doc
   emit('update:modelValue', tr.doc)

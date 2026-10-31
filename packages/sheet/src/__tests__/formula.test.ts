@@ -13,7 +13,10 @@ import {
 } from '../index'
 import {
   defineSheetFunction,
+  isSheetError,
   numbersOf,
+  scalarOf,
+  toNumber,
   parseFormula,
   SheetError,
   SheetFormulaEngine,
@@ -244,6 +247,11 @@ describe('SheetFormulaEngine', () => {
     expect(engine.result('total', 0, 1)).toBe(300)
     expect(engine.result(0, 0, 0)).toBe(10)
     expect(engine.result(0, 5, 5)).toBe(null)
+    // a cell by name or as a point
+    expect(engine.result(0, 'B2')).toBe(70)
+    expect(engine.result('total', { row: 0, col: 1 })).toBe(300)
+    expect(engine.isFormula(0, 'C1')).toBe(true)
+    expect(engine.isFormula(0, 0, 0)).toBe(false)
   })
 
   it('forgets only what depends on a change', () => {
@@ -256,7 +264,7 @@ describe('SheetFormulaEngine', () => {
     const tr = applySheetSteps(before, [
       { type: 'setCell', sheet: '明细', row: 0, col: 1, cell: 5 },
     ])
-    engine.update(tr.doc, tr.steps, before)
+    engine.update(tr)
     expect(engine.result(0, 0, 2)).toBe(15)
     expect(engine.result(0, 1, 1)).toBe(40)
     expect(engine.result('total', 0, 1)).toBe(150)
@@ -269,7 +277,7 @@ describe('SheetFormulaEngine', () => {
     const next = applySheetSteps(tr.doc, [
       { type: 'setCell', sheet: '明细', row: 3, col: 3, cell: 1 },
     ])
-    engine.update(next.doc, next.steps, tr.doc)
+    engine.update(next)
     expect(engine.rowVersion(0, 0)).toBe(quiet)
   })
 
@@ -281,13 +289,13 @@ describe('SheetFormulaEngine', () => {
       { type: 'setCell', sheet: '明细', row: 0, col: 2, cell: '=A1*3' },
       { type: 'setCell', sheet: '明细', row: 0, col: 0, cell: 2 },
     ])
-    engine.update(tr.doc, tr.steps, before)
+    engine.update(tr)
     expect(engine.result(0, 0, 2)).toBe(6)
     expect(engine.result(0, 1, 0)).toBe(12)
     const plain = applySheetSteps(tr.doc, [
       { type: 'setCell', sheet: '明细', row: 0, col: 2, cell: 1 },
     ])
-    engine.update(plain.doc, plain.steps, tr.doc)
+    engine.update(plain)
     expect(engine.result(0, 1, 0)).toBe(2)
   })
 
@@ -296,11 +304,11 @@ describe('SheetFormulaEngine', () => {
     const engine = new SheetFormulaEngine(before)
     expect(engine.result(0, 1, 1)).toBe(70)
     const tr = new SheetTransaction(before).insertRows(0, 1)
-    engine.update(tr.doc, tr.steps, before)
+    engine.update(tr)
     // the formulas moved down a row and now point at the rows they moved to
     expect(engine.result(0, 2, 1)).toBe(70)
     const outside: SheetWorkbook = { sheets: [{ name: '新', cells: [[1, '=A1+1']] }] }
-    engine.update(outside, [], tr.doc)
+    engine.update({ doc: outside, steps: [], before: { sheets: [] } })
     expect(engine.result(0, 0, 1)).toBe(2)
   })
 
@@ -315,7 +323,7 @@ describe('SheetFormulaEngine', () => {
     expect(show(engine.result(0, 0, 3))).toBe('#CYCLE!')
     // breaking the loop works it out again
     const tr = applySheetSteps(doc, [{ type: 'setCell', sheet: '表', row: 0, col: 0, cell: 1 }])
-    engine.update(tr.doc, tr.steps, doc)
+    engine.update(tr)
     expect(engine.result(0, 0, 1)).toBe(2)
     expect(engine.result(0, 0, 2)).toBe(1)
   })
@@ -335,7 +343,7 @@ describe('SheetFormulaEngine', () => {
     expect(engine.evaluate('=SUM(A:A)')).toBe((n * (n + 1)) / 2)
     expect(engine.result(0, n - 1, 0)).toBe(n)
     const tr = applySheetSteps(doc, [{ type: 'setCell', sheet: '链', row: 0, col: 0, cell: 100 }])
-    engine.update(tr.doc, tr.steps, doc)
+    engine.update(tr)
     expect(engine.result(0, n - 1, 0)).toBe(n + 99)
   })
 
@@ -346,7 +354,7 @@ describe('SheetFormulaEngine', () => {
     expect(engine.result(0, 0, 0)).toBe('2026-10-01')
     day = 2
     const tr = applySheetSteps(doc, [{ type: 'setCell', sheet: '表', row: 5, col: 5, cell: 1 }])
-    engine.update(tr.doc, tr.steps, doc)
+    engine.update(tr)
     expect(engine.result(0, 0, 0)).toBe('2026-10-02')
   })
 
@@ -365,6 +373,31 @@ describe('SheetFormulaEngine', () => {
     expect(engine.result(0, 0, 1)).toBeCloseTo(6)
     expect(show(engine.result(0, 0, 2))).toBe('#VALUE!')
     expect(engine.hasFunction('tax')).toBe(true)
+  })
+
+  it('takes arguments by position, as the docs show', () => {
+    const TAX = defineSheetFunction({
+      name: 'TAX',
+      minArgs: 1,
+      maxArgs: 2,
+      run: ([amountArg, rateArg]) => {
+        const amount = toNumber(scalarOf(amountArg!))
+        const rate = rateArg === undefined ? 0.06 : toNumber(scalarOf(rateArg))
+        if (isSheetError(amount)) return amount
+        if (isSheetError(rate)) return rate
+        return amount * (1 + rate)
+      },
+    })
+    const doc: SheetWorkbook = {
+      sheets: [
+        { name: '表', cells: [[100, '=TAX(A1)', '=TAX(,0.1)', '=TAX(F1,0.1)', '=TAX("x")']] },
+      ],
+    }
+    const engine = new SheetFormulaEngine(doc, { functions: [TAX] })
+    expect(engine.result(0, 'B1')).toBeCloseTo(106)
+    expect(engine.result(0, 'C1')).toBe(0)
+    expect(engine.result(0, 'D1')).toBe(0)
+    expect(show(engine.result(0, 'E1'))).toBe('#VALUE!')
   })
 
   it('writes results into CSV', () => {
@@ -413,11 +446,15 @@ describe('DouSheet with formulas', () => {
     const { wrapper, texts } = setup()
     await nextTick()
     expect(texts().slice(0, 3)).toEqual(['1,280', '640', '1920'])
-    const error = wrapper.findAll('.dou-sheet__cell').find((cell) => cell.text() === '#DIV/0!')!
+    const error = wrapper.find('.dou-sheet__cell.is-error')
+    expect(error.find('.dou-sheet__text').text()).toBe('#DIV/0!')
     expect(error.classes()).toContain('is-error')
     expect(error.classes()).toContain('is-align-center')
-    expect(texts()).toContain('#ERROR!')
-    expect(texts()).toContain('#NAME?')
+    // why, on hover and for screen readers
+    expect(error.attributes('title')).toBe('除以 0')
+    // the reason is read out after the error value
+    expect(texts()).toContain('#ERROR!（公式写法有误）')
+    expect(texts()).toContain('#NAME?（没有这个函数）')
     wrapper.unmount()
   })
 
@@ -447,7 +484,8 @@ describe('DouSheet with formulas', () => {
     const { wrapper, texts } = setup([extension])
     await nextTick()
     expect(texts()).toContain('1280')
-    expect(texts()).not.toContain('#NAME?')
+    expect(wrapper.find('.is-error').exists()).toBe(true)
+    expect(texts()).not.toContain('#NAME?（没有这个函数）')
     wrapper.unmount()
   })
 })

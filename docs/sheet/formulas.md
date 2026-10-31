@@ -38,7 +38,7 @@
 
 ## 错误值
 
-公式出错时，单元格显示错误值，用红色文字居中显示。引用了出错的单元格时，错误会一直传下去，可以用 `IFERROR` 换成别的值。
+公式出错时，单元格显示错误值，用红色文字居中显示；鼠标悬停时显示原因，读屏软件也会读出原因，原因的文字可以用 `messages.errors` 逐个修改。引用了出错的单元格时，错误会一直传下去，可以用 `IFERROR` 换成别的值。
 
 | 错误值    | 原因                                           |
 | --------- | ---------------------------------------------- |
@@ -84,18 +84,25 @@
 `defineSheetFunction` 定义一个函数，放进扩展的 `functions` 里：
 
 ```ts
-import { defineSheetExtension, defineSheetFunction, isSheetError } from '@dou-ui/sheet'
-import { numbersOf } from '@dou-ui/sheet/formula'
+import {
+  defineSheetExtension,
+  defineSheetFunction,
+  isSheetError,
+  scalarOf,
+  toNumber,
+} from '@dou-ui/sheet'
 
 // 含税价：TAX(金额, 税率)，税率默认 6%
 const TAX = defineSheetFunction({
   name: 'TAX',
   minArgs: 1,
   maxArgs: 2,
-  run: (args) => {
-    const numbers = numbersOf(args)
-    if (isSheetError(numbers)) return numbers
-    const [amount = 0, rate = 0.06] = numbers
+  run: ([amountArg, rateArg]) => {
+    // 按位置取参数：空单元格和省略的参数当作 0
+    const amount = toNumber(scalarOf(amountArg!))
+    const rate = rateArg === undefined ? 0.06 : toNumber(scalarOf(rateArg))
+    if (isSheetError(amount)) return amount
+    if (isSheetError(rate)) return rate
     return amount * (1 + rate)
   },
 })
@@ -114,17 +121,17 @@ const finance = defineSheetExtension({ name: 'finance', functions: [TAX] })
 
 参数是区域时收到 `SheetRangeArg`：`rows`、`cols` 是大小，`at(row, col)` 取其中一格（从 0 开始），`entries()` 依次给出有内容的格子 `[row, col, value]`，跳过空格子，所以整列 `A:A` 也只遍历有数据的部分。`ctx.now` 是这次计算的时间，`ctx.locale` 是表格的语言。`run` 抛出异常时结果是 `#VALUE!`。
 
-`@dou-ui/sheet/formula` 里还有处理参数的工具：
+处理参数的工具都可以从 `@dou-ui/sheet` 导入。参数各有含义时按位置用 `scalarOf` 和 `toNumber` 取值；`numbersOf` 把所有参数里的数字收在一起，跳过空单元格，适合 `SUM` 这样不在乎参数位置的函数。
 
-| 名称                                  | 说明                                                         |
-| ------------------------------------- | ------------------------------------------------------------ |
-| `numbersOf(args)`                     | 参数里所有的数字，规则同 `SUM`；遇到错误值时返回它           |
-| `scalarOf(arg)`                       | 一个值：一格的区域取那一格，更大的区域得到 `#VALUE!`         |
-| `toNumber`、`toText`、`toBoolean`     | 按公式的规则转换，不能转换时返回 `#VALUE!`                   |
-| `compareValues(a, b)`                 | 按公式的规则比较两个值，返回负数、`0` 或正数                 |
-| `criteriaOf(criteria)`                | 把 `SUMIF` 那样的条件变成判断函数 `(value) => boolean`       |
-| `serialOf(text)`、`dateText(serial)`  | 日期文字和天数（从 1899-12-30 算起）互相转换                 |
-| `SheetError.of(code)`、`isSheetError` | 得到错误值（比如 `SheetError.of('#N/A')`）、判断是不是错误值 |
+| 名称                                  | 说明                                                             |
+| ------------------------------------- | ---------------------------------------------------------------- |
+| `numbersOf(args)`                     | 参数里所有的数字，规则同 `SUM`，跳过空单元格；遇到错误值时返回它 |
+| `scalarOf(arg)`                       | 一个值：一格的区域取那一格，更大的区域得到 `#VALUE!`             |
+| `toNumber`、`toText`、`toBoolean`     | 按公式的规则转换，不能转换时返回 `#VALUE!`                       |
+| `compareValues(a, b)`                 | 按公式的规则比较两个值，返回负数、`0` 或正数                     |
+| `criteriaOf(criteria)`                | 把 `SUMIF` 那样的条件变成判断函数 `(value) => boolean`           |
+| `serialOf(text)`、`dateText(serial)`  | 日期文字和天数（从 1899-12-30 算起）互相转换                     |
+| `SheetError.of(code)`、`isSheetError` | 得到错误值（比如 `SheetError.of('#N/A')`）、判断是不是错误值     |
 
 ## 单独使用计算引擎
 
@@ -135,23 +142,31 @@ import { SheetTransaction } from '@dou-ui/sheet'
 import { SheetFormulaEngine } from '@dou-ui/sheet/formula'
 
 const engine = new SheetFormulaEngine(book, { functions: [TAX] })
-engine.result(0, 6, 3) // 第一个工作表 D7 的结果
+engine.result(0, 'D7') // 第一个工作表 D7 的结果
 engine.evaluate('=SUM(D2:D5)/4') // 不写进单元格，直接算一个公式
 
-// 修改后告诉引擎改了什么，只重新计算受影响的公式
-const tr = new SheetTransaction(book).setValue('B2', 1500)
-engine.update(tr.doc, tr.steps, book)
+// 修改后把事务交给引擎，只重新计算受影响的公式
+const tr = new SheetTransaction(engine.doc).setValue('B2', 1500)
+engine.update(tr)
 ```
 
-| 名称                                     | 说明                                                                                              |
-| ---------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `new SheetFormulaEngine(doc?, options?)` | 选项有 `functions`（追加的函数）、`locale`（`TEXT` 用的语言）、`now`（`TODAY` 用的时间）          |
-| `result(sheet, row, col)`                | 单元格的结果：公式的计算结果，或者单元格的值。`sheet` 是工作表的序号或 `id`（没有 `id` 时是名字） |
-| `evaluate(formula, sheet?)`              | 在某个工作表上计算一个公式，不保留结果                                                            |
-| `update(doc, steps, before?)`            | 修改之后调用；`before` 不是引擎上次见到的工作簿时整个重新计算                                     |
-| `load(doc)`                              | 换成另一个工作簿，所有结果重新计算                                                                |
-| `rowVersion(sheet, row)`                 | 这一行的结果最后一次变化的编号，可以用来判断是否需要重绘                                          |
+| 名称                                     | 说明                                                                                                                                                            |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `new SheetFormulaEngine(doc?, options?)` | 选项有 `functions`（追加的函数）、`locale`（`TEXT` 用的语言）、`now`（`TODAY` 用的时间）                                                                        |
+| `result(sheet, cell)`                    | 单元格的结果：公式的计算结果，或者单元格的值。`sheet` 是工作表的序号或 `id`（没有 `id` 时是名字）；`cell` 写 `'D7'`、`{ row, col }`，或者分成行号和列号两个参数 |
+| `isFormula(sheet, cell)`                 | 单元格是不是公式，参数同 `result`                                                                                                                               |
+| `evaluate(formula, sheet?)`              | 在某个工作表上计算一个公式，不保留结果                                                                                                                          |
+| `update(tr)`                             | 修改之后调用，传入事务（或同样带 `doc`、`steps`、`before` 的对象）；事务不是基于引擎现有的工作簿时整个重新计算                                                  |
+| `load(doc)`                              | 换成另一个工作簿，所有结果重新计算                                                                                                                              |
+| `doc`                                    | 引擎现有的工作簿                                                                                                                                                |
+| `hasFunction(name)`                      | 有没有这个函数，内置的或追加的                                                                                                                                  |
+| `rowVersion(sheet, row)`                 | 这一行的结果最后一次变化的编号，可以用来判断是否需要重绘                                                                                                        |
 
 `parseFormula(text)` 把公式读成语法树，写法有误时抛出 `SheetFormulaSyntaxError`（带出错的位置 `at`）；`referencesOf(node)` 列出其中所有的引用。
 
-`sheetToCSV` 和 `formatClip` 的 `result` 选项接收 `(row, col) => 结果`，传入 `engine.result` 后导出的就是计算结果。
+`sheetToCSV` 和 `formatClip` 的 `result` 选项给出公式单元格的结果，有了它导出的就是计算结果。它收到行号和列号：`sheetToCSV` 里是在工作表中的位置，`formatClip` 里是在剪贴块中的位置（从 0 开始），需要自己加上剪贴块左上角的位置：
+
+```ts
+const csv = sheetToCSV(book.sheets[0], { result: (row, col) => engine.result(0, row, col) })
+const clip = formatClip(cells, { result: (row, col) => engine.result(0, top + row, left + col) })
+```

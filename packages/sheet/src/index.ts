@@ -96,7 +96,8 @@ export type {
   SheetStylePatch,
   SheetTransactionMeta,
 } from './core/transaction'
-export { defineSheetFunction } from './formula/functions'
+export { criteriaOf, defineSheetFunction, numbersOf, scalarOf } from './formula/functions'
+export { compareValues, dateText, serialOf, toBoolean, toNumber, toText } from './formula/values'
 export type { SheetFunction, SheetFunctionContext } from './formula/functions'
 export { isSheetError, SheetError } from './formula/error'
 export type { SheetErrorCode } from './formula/error'

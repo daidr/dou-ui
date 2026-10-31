@@ -1,4 +1,5 @@
 import { rowCountOf, colCountOf, valueOf, type SheetData, type SheetWorkbook } from '../core/model'
+import { parseCell, type SheetCellTarget, type SheetPoint } from '../core/address'
 import { sheetKey, type SheetStep } from '../core/transaction'
 import { CYCLE, isSheetError, NAME, REF, SheetError, SYNTAX, VALUE, DIV0, NUM } from './error'
 import {
@@ -91,6 +92,19 @@ export interface SheetFormulaEngineOptions {
   now?: () => Date
 }
 
+/** A change for `update`: a `SheetTransaction` is one. */
+export interface SheetFormulaChange {
+  /** The workbook after the change. */
+  readonly doc: SheetWorkbook
+  /** What changed. */
+  readonly steps: readonly SheetStep[]
+  /** The workbook before it: when it isn't the one the engine has, it starts over. */
+  readonly before: SheetWorkbook
+}
+
+const pointOf = (at: SheetCellTarget | number, col?: number): SheetPoint | null =>
+  typeof at === 'number' ? { row: at, col: col ?? 0 } : typeof at === 'string' ? parseCell(at) : at
+
 const SYNTAX_NODE: SheetFormulaNode = { type: 'error', code: '#ERROR!' }
 
 /**
@@ -109,7 +123,12 @@ export class SheetFormulaEngine {
   private now: () => Date
   /** The formulas the one running needed but had no results for. */
   private missing: Formula[] = []
-  doc: SheetWorkbook = { sheets: [] }
+  private current: SheetWorkbook = { sheets: [] }
+
+  /** The workbook it has. */
+  get doc() {
+    return this.current
+  }
 
   constructor(doc?: SheetWorkbook, options: SheetFormulaEngineOptions = {}) {
     for (const fn of builtinFunctions) this.functions.set(fn.name.toUpperCase(), fn)
@@ -126,7 +145,7 @@ export class SheetFormulaEngine {
 
   /** Starts over with a workbook: every result is worked out again when asked for. */
   load(doc: SheetWorkbook) {
-    this.doc = doc
+    this.current = doc
     this.slots.clear()
     this.byName.clear()
     this.volatiles.clear()
@@ -162,14 +181,15 @@ export class SheetFormulaEngine {
   }
 
   /**
-   * Catches up with a change: `doc` is the workbook after it, `steps` what
-   * changed. Changes to cells forget only the results depending on them;
-   * rows, columns or sheets added, removed, moved or renamed start over.
-   * Without `steps`, or after a workbook it didn't see, it starts over too.
+   * Catches up with a change, such as a `SheetTransaction`: changes to
+   * cells forget only the results depending on them; rows, columns or
+   * sheets added, removed, moved or renamed start over, and so does a
+   * change made to a workbook other than the one it has.
    */
-  update(doc: SheetWorkbook, steps?: readonly SheetStep[], before?: SheetWorkbook) {
-    if (!steps || (before && before !== this.doc) || steps.some(restructures)) return this.load(doc)
-    this.doc = doc
+  update(change: SheetFormulaChange) {
+    const { doc, steps, before } = change
+    if (before !== this.doc || steps.some(restructures)) return this.load(doc)
+    this.current = doc
     for (const data of doc.sheets) {
       const slot = this.slots.get(sheetKey(data))
       if (!slot) return this.load(doc)
@@ -195,12 +215,16 @@ export class SheetFormulaEngine {
   /**
    * What a cell comes to: its formula's result, or its value (`'=…` text
    * without its `'`, empty text as nothing). `sheet` is a sheet's key
-   * (its `id`, or its name) or index.
+   * (its `id`, or its name) or index; the cell is a name such as `'D7'`, a
+   * point, or a row and a column.
    */
-  result(sheet: string | number, row: number, col: number): SheetResult {
+  result(sheet: string | number, cell: SheetCellTarget): SheetResult
+  result(sheet: string | number, row: number, col: number): SheetResult
+  result(sheet: string | number, at: SheetCellTarget | number, col?: number): SheetResult {
     const slot = this.slotOf(sheet)
-    if (!slot) return REF
-    return this.read(slot, row, col, true)
+    const point = pointOf(at, col)
+    if (!slot || !point) return REF
+    return this.read(slot, point.row, point.col, true)
   }
 
   /**
@@ -211,9 +235,12 @@ export class SheetFormulaEngine {
     return this.slotOf(sheet)?.versions.get(row) ?? this.epoch
   }
 
-  /** Whether a cell holds a formula. */
-  isFormula(sheet: string | number, row: number, col: number) {
-    return !!this.slotOf(sheet)?.formulas.has(row * WIDTH + col)
+  /** Whether a cell holds a formula; the cell as in `result`. */
+  isFormula(sheet: string | number, cell: SheetCellTarget): boolean
+  isFormula(sheet: string | number, row: number, col: number): boolean
+  isFormula(sheet: string | number, at: SheetCellTarget | number, col?: number) {
+    const point = pointOf(at, col)
+    return !!point && !!this.slotOf(sheet)?.formulas.has(point.row * WIDTH + point.col)
   }
 
   /** Works out a formula as if it were in a cell, without keeping it, e.g. for a preview while typing. */

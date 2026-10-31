@@ -3,7 +3,7 @@
  * them out over a workbook, and add functions.
  */
 export { SheetFormulaEngine } from './engine'
-export type { SheetFormulaEngineOptions } from './engine'
+export type { SheetFormulaChange, SheetFormulaEngineOptions } from './engine'
 export { ERROR_CODES, isSheetError, SheetError } from './error'
 export type { SheetErrorCode } from './error'
 export { builtinFunctions, criteriaOf, defineSheetFunction, numbersOf, scalarOf } from './functions'

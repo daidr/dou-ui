@@ -12,7 +12,7 @@ const book = ref<SheetWorkbook>({
   sheets: [
     {
       name: '门店销售',
-      colSizes: { 0: 92, 1: 64, 2: 56, 3: 88, 4: 88, 5: 72, 6: 76 },
+      colSizes: { 0: 92, 1: 80, 2: 56, 3: 88, 4: 88, 5: 72, 6: 76 },
       cells: [
         [
           { value: '门店', style: 'head' },

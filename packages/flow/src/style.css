@@ -259,6 +259,7 @@
     background: var(--dou-color-bg-surface);
     box-shadow: var(--dou-shadow-sm);
     cursor: ew-resize;
+    scale: calc(1 / var(--dou-flow-editor-zoom, 1));
 
     &.is-y {
       width: 16px;
@@ -516,6 +517,8 @@
     background: var(--dou-color-bg-surface);
     box-shadow: var(--dou-shadow-sm);
     cursor: nwse-resize;
+    /* the same size on screen at any zoom */
+    scale: calc(1 / var(--dou-flow-editor-zoom, 1));
 
     /* a larger target for fingers */
     &::before {

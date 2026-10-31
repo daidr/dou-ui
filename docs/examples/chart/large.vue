@@ -4,6 +4,8 @@ import { DouChart, DouChartAxis, DouChartLine, DouChartRange, DouChartZoom } fro
 import { onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue'
 
 const count = shallowRef(1_000_000)
+// 读数保留 1 位小数
+const oneDecimal = (value) => value.toFixed(1)
 // 按列给数据：每个字段一个 Float64Array，读取时直接复制，不必逐行读取
 const data = shallowRef(null)
 
@@ -51,6 +53,7 @@ watch(count, (n) => data.value && generate(n))
     <DouChart :data="data ?? []" x="time" :height="280">
       <!-- 时间是毫秒数，用 type 把横轴指定为时间轴 -->
       <DouChartAxis for="x" type="time" />
+      <DouChartAxis for="y" :format="oneDecimal" />
       <DouChartLine y="value" name="读数" :line-width="1.5" />
       <DouChartZoom />
       <DouChartRange />

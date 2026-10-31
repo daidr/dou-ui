@@ -22,6 +22,9 @@ function tick() {
   rows.value = next
 }
 
+// 温度保留 1 位小数，带上单位
+const celsius = (t) => `${t.toFixed(1)} ℃`
+
 const running = shallowRef(true)
 let timer = 0
 const play = () => {
@@ -45,7 +48,9 @@ onBeforeUnmount(pause)
     </DouSpace>
     <DouChart :data="rows" x="time" :height="240">
       <DouChartAxis for="x" type="time" />
-      <DouChartLine y="value" name="上海机房温度（℃）" :line-width="1.5" />
+      <!-- 刻度和提示框里的数值都按 format 显示 -->
+      <DouChartAxis for="y" :format="celsius" />
+      <DouChartLine y="value" name="上海机房温度" :line-width="1.5" />
     </DouChart>
   </div>
 </template>

@@ -131,6 +131,10 @@ export const defaultKeymap: readonly CodeKeyBinding[] = [
   { key: 'ctrl+shift+]', mac: 'mod+alt+]', run: cmd.unfoldCode },
   { key: 'f8', run: cmd.nextDiagnostic, shift: cmd.previousDiagnostic },
   { key: 'mod+.', run: cmd.showFixes },
+  { key: 'ctrl+space', run: cmd.startCompletion },
+  { key: 'mod+i', run: cmd.showHover },
+  // Tried before indenting: inside a snippet, Tab goes to its next place.
+  { key: 'tab', run: cmd.nextSnippetField, shift: cmd.previousSnippetField },
   { key: 'mod+shift+l', run: cmd.selectAllOccurrences },
   { key: 'ctrl+alt+arrowup', mac: 'mod+alt+arrowup', run: cmd.addCursorAbove },
   { key: 'ctrl+alt+arrowdown', mac: 'mod+alt+arrowdown', run: cmd.addCursorBelow },

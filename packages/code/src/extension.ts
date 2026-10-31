@@ -106,6 +106,75 @@ export interface CodePanel {
   render: () => VNodeChild
 }
 
+/** What a completion is, shown as its icon. */
+export type CodeCompletionKind =
+  | 'keyword'
+  | 'function'
+  | 'method'
+  | 'variable'
+  | 'property'
+  | 'constant'
+  | 'class'
+  | 'type'
+  | 'module'
+  | 'snippet'
+  | 'text'
+
+/** One entry of the completion list. */
+export interface CodeCompletion {
+  /** Shown, and matched against what was typed. */
+  label: string
+  kind?: CodeCompletionKind
+  /** Short, after the label, e.g. a type. */
+  detail?: string
+  /** Longer, beside the list while this entry is picked. */
+  info?: string
+  /** What goes into the text, if not the label. */
+  insert?: string
+  /** Inserted as a snippet instead: `${1:name}` places to fill in, Tab to the next, `$0` where it ends. */
+  snippet?: string
+  /** Moves the entry up (positive) or down among equally good matches. */
+  boost?: number
+}
+
+/** What a completion source is asked with. */
+export interface CodeCompletionRequest {
+  /** The cursor. */
+  pos: number
+  /** The word right before the cursor, by the language's word characters; empty when there is none. */
+  word: { from: number; to: number; text: string }
+  /** Asked for with `Ctrl` + `Space` rather than by typing. */
+  explicit: boolean
+  /** Aborted when the answer is no longer wanted, so a slow source can stop. */
+  signal: AbortSignal
+}
+
+/** What a completion source answers: entries to put in place of `from`–cursor. */
+export interface CodeCompletionResult {
+  from: number
+  options: CodeCompletion[]
+}
+
+/** Text shown on hover, or with the cursor on it from the keyboard. */
+export interface CodeHoverResult {
+  /** What it is about, `from`–`to`; defaults to the word under the pointer. */
+  from?: number
+  to?: number
+  /** Plain text, or a render function for anything else. */
+  content: string | (() => VNodeChild)
+}
+
+/** The parameters of the call the cursor is in. */
+export interface CodeSignatureResult {
+  /** The whole signature, e.g. `slice(start, end)`. */
+  label: string
+  /** Each parameter as `[from, to]` in `label`. */
+  params: Array<[number, number]>
+  /** Which parameter the cursor is at, from 0. */
+  active: number
+  info?: string
+}
+
 export interface CodeExtension {
   name: string
   /** Higher runs first: its keys and hooks come before others. Defaults to 100. */
@@ -137,6 +206,25 @@ export interface CodeExtension {
   lint?: (
     context: CodeExtensionContext,
   ) => CodeDiagnostic[] | null | undefined | Promise<CodeDiagnostic[] | null | undefined>
+  /**
+   * Offers completions while typing (after a word character or one of
+   * `completionTriggers`) and on `Ctrl` + `Space`. Answers from every
+   * extension are put in one list; a Promise is waited for, and dropped
+   * when the text has moved on.
+   */
+  completion?: (
+    request: CodeCompletionRequest,
+    context: CodeExtensionContext,
+  ) => CodeCompletionResult | null | undefined | Promise<CodeCompletionResult | null | undefined>
+  /** Characters that ask for completions when typed, such as `.`. */
+  completionTriggers?: string[]
+  /** Text about position `pos`, shown on hover and with `Mod` + `I`. */
+  hover?: (
+    pos: number,
+    context: CodeExtensionContext,
+  ) => CodeHoverResult | null | undefined | Promise<CodeHoverResult | null | undefined>
+  /** The parameters of the call around the cursor, shown while typing its arguments. */
+  signature?: (pos: number, context: CodeExtensionContext) => CodeSignatureResult | null | undefined
   /**
    * Sees every change before it is applied, in priority order, and may add
    * to it (positions are in the text before the change). Undo, redo and new

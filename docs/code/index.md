@@ -206,6 +206,8 @@ replacementFor(doc, matches[0], query) // 'const a'
 | `Ctrl` + `Alt` + `↑` / `↓`，Apple 上 `⌥` + `⌘`       | 在上一行 / 下一行加一个光标                       |
 | `Mod` + `F`，`Mod` + `H`（Apple 上 `⌥` + `⌘` + `F`） | 打开查找 / 替换                                   |
 | `F3` 或 `Mod` + `G`，加 `Shift` 反向                 | 跳到下一个 / 上一个匹配                           |
+| `Ctrl` + `Space`                                     | 打开补全（需要扩展提供补全）                      |
+| `Mod` + `I`                                          | 显示光标处的说明                                  |
 
 编辑器里 `Tab` 用来缩进。只用键盘时，先按 `Esc` 再按 `Tab`，焦点就会移到页面上的下一个元素。
 
@@ -363,6 +365,29 @@ const keys = [
 问题有两个来源：`diagnostics` 属性，以及扩展的 `lint`。`lint` 在编辑器挂载时运行，之后在文字停止变化一小会儿后再运行；返回的是 Promise 时，如果结果回来时文字又改过了，这次结果会被丢掉，等下一次运行。两次运行之间，已经找到的问题会跟着修改移动。从 `diagnostics` 属性传入的问题也一样，直到传入新的数组。
 
 `F8` / `Shift` + `F8` 跳到下一个 / 上一个问题并显示说明，读屏会读出行号和内容；`Mod` + `.` 显示光标处问题的修复办法，用上下键选择，`Enter` 执行，`Esc` 关闭。触屏上点一下有问题的文字就会显示说明。
+
+### 补全与提示
+
+扩展的 `completion`、`hover`、`signature` 分别提供补全列表、悬停说明和参数提示：
+
+| 名称                 | 说明                                                                                                            |
+| -------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `completion`         | 输入时调用，参数是 `{ pos, word, explicit, signal }`，返回 `{ from, options }` 或 `null`，可以返回 Promise      |
+| `completionTriggers` | 输入这些字符后也弹出补全，比如 `['.']`                                                                          |
+| `hover`              | 鼠标停在文字上，或按 `Mod` + `I` 时调用，参数是位置，返回 `{ from?, to?, content }` 或 `null`，可以返回 Promise |
+| `signature`          | 光标移动或输入 `(`、`,` 时调用，返回 `{ label, params, active, info? }` 或 `null`                               |
+
+`word` 是光标前的词（`{ from, to, text }`）。`from` 是补全替换的起点，从 `from` 到光标的文字用来筛选和排序 `options`：开头一致的排在前面，其次是按词首字母匹配的，比如 `gebi` 能找到 `getElementById`。继续输入时编辑器直接用已有的结果重新筛选，同时再调用一次 `completion`；新结果回来之前文字又变了，旧的结果会被丢掉，`signal` 也会中止。
+
+补全项是 `{ label, kind?, detail?, info?, insert?, snippet?, boost? }`。`kind` 决定前面的图标，可以是 `keyword`、`function`、`method`、`variable`、`property`、`constant`、`class`、`type`、`module`、`snippet`、`text`；`detail` 显示在右侧，`info` 显示在列表底部；`insert` 是实际插入的文字，默认等于 `label`；`boost` 用来调整排序。
+
+`snippet` 是带占位的片段：`${1:name}` 是第 1 个占位，里面预先填着 `name`；再次出现的 `$1` 和它同步填写；`$0` 是最后光标停下的地方。片段里的换行会带上当前行的缩进，制表符按编辑器的缩进方式写出。插入后选中第一个占位，`Tab` / `Shift` + `Tab` 在占位之间前后跳转，同号的占位会一起选中、一起修改；到 `$0` 或按 `Esc` 后结束。
+
+补全列表打开时，`↑` `↓` 选择，`PageUp` / `PageDown` 一次移动多项，`Enter` 或 `Tab` 插入，`Esc` 关闭；`Ctrl` + `Space` 主动打开补全。读屏会读出选中的项。
+
+`hover` 的 `content` 可以是文字，也可以是返回 VNode 的函数；它和这里的问题显示在同一个说明框里，在上面。`signature` 的 `params` 是各个参数在 `label` 里的 `[from, to]`，`active` 是正在填写的参数，会加粗显示。
+
+<DocDemo src="code/completion" column />
 
 ## 大文件
 

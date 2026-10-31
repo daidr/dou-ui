@@ -15,7 +15,13 @@ export type {
   CodeExtensionContext,
   CodeGutter,
   CodeGutterMarker,
+  CodeCompletion,
+  CodeCompletionKind,
+  CodeCompletionRequest,
+  CodeCompletionResult,
+  CodeHoverResult,
   CodePanel,
+  CodeSignatureResult,
   CodeWidget,
 } from './extension'
 export default DouCodeEditor
@@ -83,7 +89,7 @@ export type { HtmlState } from './languages/html'
 export { createMarkdown, markdown } from './languages/markdown'
 export type { MarkdownOptions, MarkdownState } from './languages/markdown'
 export type { CodeKeyBinding, CodeKeymap } from './core/keymap'
-export type { CodeDiagnosticControl, CodeSearchControl } from './core/commands'
+export type { CodeAssistControl, CodeDiagnosticControl, CodeSearchControl } from './core/commands'
 export { matchAfter, queryRegExp, replacementFor, searchText } from './core/search'
 export type { CodeMatch, CodeSearchQuery, CodeSearchResult } from './core/search'
 export { codeLocales } from './locale'

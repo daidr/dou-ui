@@ -1,11 +1,59 @@
 import { describe, expect, it } from 'vitest'
-import { layoutDay, toMinutes } from '../time-layout'
+import { layoutDay, readMoment, segmentOn, spanOf, toMinutes } from '../time-layout'
 
-const at = (time: string, endTime?: string, title = time) => ({
-  date: '2026-10-28',
-  time,
-  endTime,
-  title,
+const at = (time: string, endTime?: string, title = time) => {
+  const event = {
+    start: `2026-10-28 ${time}`,
+    end: endTime && `2026-10-28 ${endTime}`,
+    title,
+  }
+  return { event, ...segmentOn(spanOf(event)!, '2026-10-28') }
+}
+
+describe('spanOf', () => {
+  it('reads dates and times, rejecting anything else', () => {
+    expect(readMoment('2026-10-28')).toEqual({ date: '2026-10-28', minutes: null })
+    expect(readMoment('2026-10-28 09:30')).toEqual({ date: '2026-10-28', minutes: 570 })
+    expect(readMoment('2026-10-28T09:30:15')).toEqual({ date: '2026-10-28', minutes: 570 })
+    expect(readMoment('2026-02-30')).toBeNull()
+    expect(readMoment('2026-10-28 24:00')).toBeNull()
+    expect(readMoment('10/28')).toBeNull()
+  })
+
+  it('spans the days of an all-day event, ignoring an end before the start', () => {
+    expect(spanOf({ start: '2026-10-20', end: '2026-10-22', title: 'a' })).toMatchObject({
+      from: '2026-10-20',
+      to: '2026-10-22',
+      start: null,
+    })
+    expect(spanOf({ start: '2026-10-20', end: '2026-10-18', title: 'a' })!.to).toBe('2026-10-20')
+    expect(spanOf({ start: '2026-10-20', end: '2026-10-22 00:00', title: 'a' })!.to).toBe(
+      '2026-10-21',
+    )
+    expect(spanOf({ start: 'soon', title: 'a' })).toBeNull()
+  })
+
+  it('cuts a timed event at midnight into one part per day', () => {
+    const span = spanOf({ start: '2026-10-28 22:00', end: '2026-10-30 08:00', title: 'a' })!
+    expect([span.from, span.to, span.start, span.end]).toEqual([
+      '2026-10-28',
+      '2026-10-30',
+      1320,
+      480,
+    ])
+    expect(segmentOn(span, '2026-10-28')).toEqual({ start: 1320, end: 1440 })
+    expect(segmentOn(span, '2026-10-29')).toEqual({ start: 0, end: 1440 })
+    expect(segmentOn(span, '2026-10-30')).toEqual({ start: 0, end: 480 })
+  })
+
+  it('ends at midnight on the same day, and an hour later by default', () => {
+    const midnight = spanOf({ start: '2026-10-28 22:00', end: '2026-10-29 00:00', title: 'a' })!
+    expect([midnight.to, midnight.end]).toEqual(['2026-10-28', 1440])
+    const late = spanOf({ start: '2026-10-28 23:30', title: 'a' })!
+    expect([late.to, late.end]).toEqual(['2026-10-29', 30])
+    const dateOnlyEnd = spanOf({ start: '2026-10-28 22:00', end: '2026-10-29', title: 'a' })!
+    expect([dateOnlyEnd.to, dateOnlyEnd.end]).toEqual(['2026-10-29', 1440])
+  })
 })
 
 describe('layoutDay', () => {

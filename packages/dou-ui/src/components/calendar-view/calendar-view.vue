@@ -14,7 +14,8 @@ import type {
   CalendarViewSlots,
 } from './calendar-view'
 import TimeGrid from './time-grid.vue'
-import { toMinutes } from './time-layout'
+import { segmentOn, spanOf } from './time-layout'
+import type { EventSpan } from './time-layout'
 
 defineOptions({ name: 'DouCalendarView' })
 
@@ -30,7 +31,7 @@ const view = defineModel<CalendarViewMode>('view', { default: 'month' })
 const emit = defineEmits<{
   select: [date: string]
   eventClick: [event: CalendarEvent]
-  timeClick: [slot: { date: string; time: string }]
+  timeClick: [start: string]
 }>()
 const slots = defineSlots<CalendarViewSlots>()
 
@@ -87,25 +88,59 @@ const weekdays = computed(() => {
   })
 })
 
-const startOf = (event: CalendarEvent) => toMinutes(event.time) ?? -1
+/** Where each event falls; events whose `start` can't be read are left out. */
+const spans = computed(() => {
+  const map = new Map<CalendarEvent, EventSpan>()
+  for (const event of props.events) {
+    const span = spanOf(event)
+    if (span) map.set(event, span)
+  }
+  return map
+})
+
+// Events that can't be read are left out; say so once per event while developing.
+const warned = new WeakSet<CalendarEvent>()
+watch(
+  () => props.events,
+  (list) => {
+    // the app's bundler replaces this, as for Vue's own warnings
+    if (process.env.NODE_ENV === 'production') return
+    for (const event of list) {
+      if (spans.value.has(event) || warned.has(event)) continue
+      warned.add(event)
+      console.warn(
+        `[dou-ui] CalendarView event "${event.title}" has a start that can't be read: "${event.start}". Use YYYY-MM-DD or YYYY-MM-DD HH:mm.`,
+      )
+    }
+  },
+  { immediate: true },
+)
 
 /**
- * Events by day, a span listed on every day it covers: all-day events
- * first, in the order given, then timed ones by start time.
+ * Events that run over several days first, so their bars tend to line up
+ * from day to day, then the other all-day ones, then timed ones by when
+ * they start on the day.
  */
+const startOn = (event: CalendarEvent, date: string) => {
+  const span = spans.value.get(event)!
+  if (span.from !== span.to) return -2
+  return span.start === null ? -1 : segmentOn(span, date).start
+}
+
+/** Events by day, a span listed on every day it covers. */
 const byDay = computed(() => {
   const map = new Map<string, CalendarEvent[]>()
-  for (const event of props.events) {
-    const end = event.end && event.end > event.date ? event.end : event.date
-    for (let date = event.date, guard = 0; date <= end && guard < 366; guard++) {
+  for (const span of spans.value.values()) {
+    for (let date = span.from, guard = 0; date <= span.to && guard < 366; guard++) {
       const list = map.get(date) ?? []
-      list.push(event)
+      list.push(span.event)
       map.set(date, list)
       date = addDays(date, 1)
     }
   }
-  // oxlint-disable-next-line unicorn/no-array-sort -- sorts the lists built above
-  for (const list of map.values()) list.sort((a, b) => startOf(a) - startOf(b))
+  for (const [date, list] of map)
+    // oxlint-disable-next-line unicorn/no-array-sort -- sorts the lists built above
+    list.sort((a, b) => startOn(a, date) - startOn(b, date))
   return map
 })
 
@@ -150,15 +185,18 @@ const viewOptions = computed(() =>
   (props.views ?? []).map((value) => ({ value, label: t(`calendarView.${value}`) })),
 )
 
-/** A timed event in a month cell starts with its time. */
-const monthTime = (event: CalendarEvent) => (event.time ? event.time.slice(0, 5) : '')
+/** A timed event starts with its time in a month cell, on its first day. */
+const monthTime = (event: CalendarEvent, date: string) => {
+  const span = spans.value.get(event)!
+  if (span.start === null || span.from !== date) return ''
+  return `${String(Math.floor(span.start / 60)).padStart(2, '0')}:${String(span.start % 60).padStart(2, '0')}`
+}
 
-const keyOf = (event: CalendarEvent) =>
-  event.key ?? `${event.date}:${event.time ?? ''}:${event.title}`
-const isStart = (event: CalendarEvent, date: string) => event.date === date
+const keyOf = (event: CalendarEvent) => event.id ?? `${event.start}:${event.title}`
+const isStart = (event: CalendarEvent, date: string) => spans.value.get(event)!.from === date
 /** Whether the day opens a row, where a running span shows its title again. */
 const weekStarts = (date: string) => (weekday(date) - weekStart.value + 7) % 7 === 0
-const isEnd = (event: CalendarEvent, date: string) => (event.end ?? event.date) <= date
+const isEnd = (event: CalendarEvent, date: string) => spans.value.get(event)!.to <= date
 
 /* choosing and moving */
 
@@ -278,6 +316,7 @@ defineExpose<CalendarViewExpose>({
     <TimeGrid
       v-if="view !== 'month'"
       :days="weekDays"
+      :spans="spans"
       :hours="hours"
       :scroll-time="scrollTime"
       :cursor="cursor"
@@ -349,8 +388,8 @@ defineExpose<CalendarViewExpose>({
                 @click.stop="emit('eventClick', event)"
               >
                 <slot name="event" :event="event" :day="day"
-                  ><span v-if="monthTime(event)" :class="ns.e('event-clock')">{{
-                    monthTime(event)
+                  ><span v-if="monthTime(event, day.date)" :class="ns.e('event-clock')">{{
+                    monthTime(event, day.date)
                   }}</span
                   >{{ event.title }}</slot
                 >

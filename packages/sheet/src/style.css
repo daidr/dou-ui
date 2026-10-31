@@ -189,9 +189,11 @@
     white-space: pre;
     cursor: cell;
 
+    /* each its own layer, so the ring and marks inside stay under the frozen cells */
     &:not(.is-frozen) {
       position: absolute;
       top: 0;
+      z-index: 0;
     }
     &.is-frozen {
       position: sticky;

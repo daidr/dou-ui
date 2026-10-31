@@ -42,6 +42,18 @@ export interface CodeCommandTarget {
   readonly search?: CodeSearchControl
   /** The editor's folding, when it folds. */
   readonly folding?: CodeFoldControl
+  /** The problems found in the text, when there are any to go through. */
+  readonly diagnostics?: CodeDiagnosticControl
+}
+
+/** What commands can do with the problems found in the text. */
+export interface CodeDiagnosticControl {
+  /** Moves the cursor to the next problem and shows it; `false` when there are none. */
+  next(): boolean
+  /** Moves the cursor to the previous problem and shows it; `false` when there are none. */
+  previous(): boolean
+  /** Shows the problems at the cursor with their fixes, to pick one by keyboard; `false` when there are none. */
+  showFixes(): boolean
 }
 
 /** What commands can do with folds. Lines are counted from 1; without one, the main cursor's line. */
@@ -865,3 +877,9 @@ export const foldAll: CodeCommand = (target) => !!target.folding?.foldAll()
 
 /** Unfolds everything. */
 export const unfoldAll: CodeCommand = (target) => !!target.folding?.unfoldAll()
+
+export const nextDiagnostic: CodeCommand = (target) => !!target.diagnostics?.next()
+
+export const previousDiagnostic: CodeCommand = (target) => !!target.diagnostics?.previous()
+
+export const showFixes: CodeCommand = (target) => !!target.diagnostics?.showFixes()

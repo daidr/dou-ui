@@ -1,5 +1,12 @@
 <script setup lang="ts">
-import { ChevronDownIcon, ChevronRightIcon } from '@dou-ui/icons'
+import {
+  AlertTriangleIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  InfoIcon,
+  LightbulbIcon,
+  XCircleIcon,
+} from '@dou-ui/icons'
 import { holdPointer, isApplePlatform, isComposing, useNamespace, useZIndex } from 'dou-ui'
 import {
   computed,
@@ -8,6 +15,7 @@ import {
   nextTick,
   onBeforeUnmount,
   onMounted,
+  provide,
   ref,
   shallowRef,
   toRaw,
@@ -26,7 +34,13 @@ import {
 } from './core/commands'
 import { type CodeFold, foldEndAt, hiddenLines } from './core/folding'
 import { CodeHistory } from './core/history'
-import { buildKeymap, defaultKeymap, eventKey } from './core/keymap'
+import {
+  type CodeKeyBinding,
+  buildKeymap,
+  defaultKeymap,
+  eventKey,
+  keymapBindings,
+} from './core/keymap'
 import {
   type CodeRange,
   type CodeSelection,
@@ -55,6 +69,17 @@ import {
 import { CodeHighlighter } from './language/highlighter'
 import { format, useCodeMessages } from './locale'
 import CodeKeys from './code-keys.vue'
+import {
+  CODE_EDITOR_KEY,
+  type CodeDecoration,
+  type CodeDiagnostic,
+  type CodeDiagnosticSeverity,
+  type CodeExtension,
+  type CodeExtensionContext,
+  type CodeGutterMarker,
+  type CodePanel,
+} from './extension'
+import RenderPart from './render-part'
 import SearchPanel from './search-panel.vue'
 import { type CodeLineTokens, type CodeTokenType, lineParts, tokenTypes } from './language/language'
 import type { CodeEditorEmits, CodeEditorExpose, CodeEditorProps } from './types'
@@ -166,6 +191,9 @@ const menuOpen = ref(false)
 const touchDrag = ref(false)
 
 function dispatch(tr: CodeTransaction): CodeTransactionResult | null {
+  const { action } = tr.meta
+  if (action !== 'undo' && action !== 'redo' && action !== 'external')
+    for (const extension of extensions.value) extension.transaction?.(tr, context)
   const result = tr.resolve()
   const before = state.value
   if (result.changes.empty && sameSelection(result.state.selection, before.selection)) {
@@ -181,9 +209,12 @@ function dispatch(tr: CodeTransaction): CodeTransactionResult | null {
     mapMatches(result.changes)
     updateWrap(before.doc, result.state.doc, result.changes)
     mapFolds(result.changes, result.state.doc)
+    mapDiagnostics(result.changes, result.state.doc)
+    scheduleLint()
   }
   state.value = markRaw(result.state)
   revealFolds()
+  problemBox.value = null
   // The toolbar is for the selection it opened on; typing also puts away the handle under a lone cursor.
   menuOpen.value = false
   if (!result.changes.empty) caretHandle.value = false
@@ -201,6 +232,113 @@ function dispatch(tr: CodeTransaction): CodeTransactionResult | null {
 }
 
 const transaction = () => new CodeTransaction(state.value)
+
+// ---------------------------------------------------------------- extensions
+
+/** The extensions, highest priority first. */
+const extensions = computed<CodeExtension[]>(() =>
+  // oxlint-disable-next-line unicorn/no-array-sort -- sorts a fresh array
+  (props.extensions ?? []).slice().sort((a, b) => (b.priority ?? 100) - (a.priority ?? 100)),
+)
+/** What extensions see; the same object as the instance, made once the instance is. */
+let context: CodeExtensionContext
+
+/** Problems by who found them (`prop` for the prop, else the extension's name), moved with every edit. */
+const diagnosticSets = shallowRef(new Map<string, CodeDiagnostic[]>())
+const SEVERITY_RANK: Record<CodeDiagnosticSeverity, number> = {
+  error: 0,
+  warning: 1,
+  info: 2,
+  hint: 3,
+}
+
+const diagnostics = computed<readonly CodeDiagnostic[]>(() => {
+  const all: CodeDiagnostic[] = []
+  for (const list of diagnosticSets.value.values()) all.push(...list)
+  // oxlint-disable-next-line unicorn/no-array-sort -- sorts a fresh array
+  return all.sort(
+    (a, b) => a.from - b.from || SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity],
+  )
+})
+
+function setDiagnostics(key: string, list: readonly CodeDiagnostic[] | null | undefined) {
+  const length = doc.value.length
+  const next = new Map(diagnosticSets.value)
+  const clean = (list ?? []).map((d) => {
+    const from = Math.max(0, Math.min(length, Math.min(d.from, d.to)))
+    return { ...d, from, to: Math.max(from, Math.min(length, Math.max(d.from, d.to))) }
+  })
+  if (clean.length) next.set(key, clean)
+  else if (!next.has(key)) return
+  else next.delete(key)
+  diagnosticSets.value = next
+}
+
+/** Moves the problems along with an edit; one whose text was all deleted shrinks to where it was. */
+function mapDiagnostics(changes: ChangeSet, after: CodeText) {
+  if (!diagnosticSets.value.size) return
+  const next = new Map<string, CodeDiagnostic[]>()
+  for (const [key, list] of diagnosticSets.value)
+    next.set(
+      key,
+      list.map((d) => {
+        const from = Math.min(after.length, changes.mapPos(d.from, 1))
+        return { ...d, from, to: Math.max(from, Math.min(after.length, changes.mapPos(d.to, -1))) }
+      }),
+    )
+  diagnosticSets.value = next
+}
+
+watch(
+  () => props.diagnostics,
+  (list) => setDiagnostics('prop', list),
+  { immediate: true },
+)
+
+/** Runs the linters a moment after the text stops changing. */
+const LINT_DELAY = 300
+let lintTimer = 0
+const linting = computed(() => extensions.value.some((extension) => extension.lint))
+
+function runLint() {
+  clearTimeout(lintTimer)
+  const text = doc.value
+  for (const extension of extensions.value) {
+    if (!extension.lint) continue
+    let found: ReturnType<NonNullable<CodeExtension['lint']>>
+    try {
+      found = extension.lint(context)
+    } catch (error) {
+      console.error(`[DouCodeEditor] ${extension.name}: lint failed`, error)
+      continue
+    }
+    // A linter that answers at once is shown at once, without a frame of old problems.
+    if (!found || !('then' in found)) {
+      setDiagnostics(extension.name, found)
+      continue
+    }
+    Promise.resolve(found)
+      .then((list) => {
+        // Found in a text that has changed since: the next run follows.
+        if (doc.value === text) setDiagnostics(extension.name, list)
+      })
+      .catch((error: unknown) =>
+        console.error(`[DouCodeEditor] ${extension.name}: lint failed`, error),
+      )
+  }
+}
+
+function scheduleLint() {
+  if (!linting.value || !mounted.value) return
+  clearTimeout(lintTimer)
+  lintTimer = window.setTimeout(runLint, LINT_DELAY)
+}
+
+watch(extensions, (next, before) => {
+  // A linter that went away takes its problems with it.
+  for (const gone of before ?? []) if (!next.includes(gone)) setDiagnostics(gone.name, [])
+  if (mounted.value) runLint()
+})
 
 function transact(build: (tr: CodeTransaction) => void, meta?: CodeTransactionMeta) {
   const tr = transaction()
@@ -250,6 +388,9 @@ function receive(next: string, given?: CodeText) {
   highlighter?.update(result.state.doc, result.changes)
   updateWrap(result.before.doc, result.state.doc, result.changes)
   mapFolds(result.changes, result.state.doc)
+  mapDiagnostics(result.changes, result.state.doc)
+  problemBox.value = null
+  scheduleLint()
   state.value = markRaw(result.state)
   mapMatches(result.changes)
   menuOpen.value = false
@@ -482,12 +623,77 @@ function spans(n: number, text: string, from: number, to: number, tail = 0) {
   return out
 }
 
+const SEVERITY_ICON = {
+  error: XCircleIcon,
+  warning: AlertTriangleIcon,
+  info: InfoIcon,
+  hint: LightbulbIcon,
+} as const
+
+/** Columns left of the line numbers: the problems' column, then the extensions' own. */
+const gutterColumns = computed(() => {
+  const columns: Array<{
+    name: string
+    width: number
+    markers: () => CodeGutterMarker[]
+    onPress?: (line: number, event: PointerEvent) => void
+  }> = []
+  // Kept while anything may report problems, so the text doesn't jump when the first one comes.
+  if (props.diagnostics !== undefined || linting.value || diagnostics.value.length)
+    columns.push({ name: 'problems', width: 16, markers: problemMarkers })
+  for (const extension of extensions.value)
+    for (const gutter of extension.gutters ?? [])
+      columns.push({
+        name: gutter.name,
+        width: gutter.width ?? 16,
+        markers: () => gutter.markers(context),
+        onPress: gutter.onPress && ((line, event) => gutter.onPress!(line, event, context)),
+      })
+  return columns
+})
+const gutterCells = computed(() =>
+  gutterColumns.value.reduce((sum, column) => sum + column.width, 0),
+)
+
+/** The worst problem on each line in view, as a marker. */
+function problemMarkers(): CodeGutterMarker[] {
+  const text = doc.value
+  const first = visibleFrom.value
+  const last = visibleTo.value
+  const end = text.line(last).to
+  const worst = new Map<number, CodeDiagnostic>()
+  for (const problem of diagnostics.value) {
+    if (problem.from > end) break
+    const n = text.lineAt(problem.from).number
+    if (n < first) continue
+    const had = worst.get(n)
+    if (!had || SEVERITY_RANK[problem.severity] < SEVERITY_RANK[had.severity]) worst.set(n, problem)
+  }
+  const m = messages.value
+  return [...worst].map(([line, problem]) => ({
+    line,
+    icon: SEVERITY_ICON[problem.severity],
+    class: `dou-code-editor__problem-icon is-${problem.severity}`,
+    title: `${m[problem.severity]}：${problem.message}`,
+  }))
+}
+
+/** The markers of each column, by line, for the lines in view. */
+const gutterMarkers = computed(() =>
+  gutterColumns.value.map((column) => {
+    const byLine = new Map<number, CodeGutterMarker>()
+    for (const marker of column.markers()) byLine.set(marker.line, marker)
+    return byLine
+  }),
+)
+
 const gutterWidth = computed(() => {
-  if (!props.lineNumbers && !props.foldable) return 0
+  const cells = gutterCells.value
+  if (!props.lineNumbers && !props.foldable && !cells) return 0
   void metrics.value
   const digits = Math.max(2, String(doc.value.lines).length)
   const numbers = props.lineNumbers ? Math.ceil(digits * measure.cell) + 28 : 12
-  return numbers + (props.foldable ? 14 : 0)
+  return cells + numbers + (props.foldable ? 14 : 0)
 })
 
 const contentWidth = computed(() => {
@@ -675,6 +881,9 @@ const composing = ref(false)
 /** What the input method shows while composing: a replacement of the text, drawn but not applied yet. */
 const preview = shallowRef<{ from: number; to: number; insert: string } | null>(null)
 
+/** A class over part of a line, `from`–`to` in the line, with a title shown on hover. */
+type Mark = [from: number, to: number, cls: string, title?: string]
+
 interface Row {
   n: number
   text: string
@@ -686,6 +895,12 @@ interface Row {
   tokens: CodeLineTokens | null
   /** Set on the line being composed: the text drawn before, inside and after the composition. */
   compose?: [before: string, insert: string, after: string]
+  /** Classes on parts of the line, from decorations and problems: `[from, to, class, title]` in the line. */
+  marks?: Mark[]
+  /** The same, as one string, to tell when they changed. */
+  marksKey?: string
+  /** Classes on the whole line, from decorations. */
+  lineClass?: string
 }
 
 const rows = computed<Row[]>(() => {
@@ -694,12 +909,25 @@ const rows = computed<Row[]>(() => {
   const line = p ? doc.value.lineAt(p.from) : null
   const tokensOf = syntaxLines(visibleFrom.value, visibleTo.value)
   const starts = new Set(hidden.value.map(([from]) => from - 1))
+  const { marks, lineClasses } = lineDecorations.value
   return texts.map((text, i) => {
     const n = numbers[i]!
     const tokens = tokensOf(n)
     const wrapped = wrapOf(text)
     const folded = starts.has(n)
-    if (!p || n !== line!.number) return { n, text, tokens, wrapped, folded }
+    if (!p || n !== line!.number) {
+      const own = marks.get(n)
+      return {
+        n,
+        text,
+        tokens,
+        wrapped,
+        folded,
+        marks: own,
+        marksKey: own?.map((m) => m.join(',')).join(';'),
+        lineClass: lineClasses.get(n),
+      }
+    }
     const col = p.from - line!.from
     const end = p.to <= line!.to ? p.to - line!.from : col
     return {
@@ -711,6 +939,63 @@ const rows = computed<Row[]>(() => {
       compose: [text.slice(0, col), p.insert, text.slice(end)],
     }
   })
+})
+
+/** What extensions decorate, asked for while drawing. */
+const decorations = computed<CodeDecoration[]>(() => {
+  const out: CodeDecoration[] = []
+  for (const extension of extensions.value)
+    if (extension.decorations) out.push(...extension.decorations(context))
+  return out
+})
+
+/** Decorations and problems on the lines in view, cut to each line. */
+const lineDecorations = computed(() => {
+  const marks = new Map<number, Mark[]>()
+  const lineClasses = new Map<number, string>()
+  const list = decorations.value
+  const problems = diagnostics.value
+  if (!list.length && !problems.length) return { marks, lineClasses }
+  const text = doc.value
+  const first = visibleFrom.value
+  const last = visibleTo.value
+  const start = text.line(first).from
+  const end = text.line(last).to
+  const mark = (from: number, to: number, cls: string, title?: string) => {
+    if (to < start || from > end || to <= from) return
+    const a = text.lineAt(Math.max(from, start))
+    const b = text.lineAt(Math.min(to, end))
+    for (let n = a.number; n <= b.number; n++) {
+      const line = n === a.number ? a : n === b.number ? b : text.line(n)
+      const x = Math.max(from, line.from) - line.from
+      const y = Math.min(to, line.to) - line.from
+      if (y <= x) continue
+      const own = marks.get(n)
+      const item: Mark = title ? [x, y, cls, title] : [x, y, cls]
+      if (own) own.push(item)
+      else marks.set(n, [item])
+    }
+  }
+  for (const item of list) {
+    if (item.type === 'line') {
+      if (item.line < first || item.line > last) continue
+      const had = lineClasses.get(item.line)
+      lineClasses.set(item.line, had ? `${had} ${item.class}` : item.class)
+    } else mark(item.from, item.to, item.class, item.title)
+  }
+  for (const problem of problems) {
+    if (problem.from > end) break
+    let { from, to } = problem
+    // An empty range marks the character after it, or the one before at the end of a line.
+    if (from === to) {
+      const line = text.lineAt(from)
+      if (from < line.to) to = line.from + moveCluster(line.text, from - line.from, 1)
+      else if (from > line.from) from = line.from + moveCluster(line.text, from - line.from, -1)
+      else continue
+    }
+    mark(from, to, `dou-code-editor__problem is-${problem.severity}`)
+  }
+  return { marks, lineClasses }
 })
 
 // ---------------------------------------------------------------- syntax
@@ -792,19 +1077,59 @@ function languageAt(pos: number) {
   return hl.languageAt(line.number)
 }
 
-const partsOf = (row: Row) => lineParts(row.text, row.tokens)
+/** A piece of a line, with the classes it is drawn with and the title of a mark over it. */
+type Part = [text: string, cls: string | null, title?: string]
+
+/** A line cut where its tokens and marks start and end, each piece with its classes. */
+function partsOf(row: Row): Part[] {
+  const base = lineParts(row.text, row.tokens)
+  const marks = row.marks
+  if (!marks?.length) return base.map(([text, type]) => [text, type && `dou-syntax-${type}`])
+  const cuts = new Set<number>([0, row.text.length])
+  for (const [from, to] of marks) {
+    cuts.add(from)
+    cuts.add(to)
+  }
+  let at = 0
+  for (const [text] of base) {
+    cuts.add(at)
+    at += text.length
+  }
+  // oxlint-disable-next-line unicorn/no-array-sort -- sorts a fresh array
+  const points = [...cuts].sort((a, b) => a - b)
+  const out: Part[] = []
+  let index = 0
+  let partStart = 0
+  for (let i = 0; i + 1 < points.length; i++) {
+    const from = points[i]!
+    const to = points[i + 1]!
+    if (to <= from || from >= row.text.length) continue
+    while (partStart + base[index]![0].length <= from) partStart += base[index++]![0].length
+    const type = base[index]![1]
+    let cls = type ? `dou-syntax-${type}` : ''
+    let title: string | undefined
+    for (const [a, b, name, label] of marks)
+      if (a <= from && b >= to) {
+        cls = cls ? `${cls} ${name}` : name
+        title = label ?? title
+      }
+    const piece = row.text.slice(from, to)
+    out.push(title ? [piece, cls || null, title] : [piece, cls || null])
+  }
+  return out
+}
 
 /** The parts of one row of a wrapped line. */
 function rowParts(row: Row, sub: number) {
   const { breaks } = row.wrapped
   const start = sub ? breaks[sub - 1]! : 0
   const end = sub < breaks.length ? breaks[sub]! : row.text.length
-  const out: Array<[string, CodeTokenType | null]> = []
+  const out: Part[] = []
   let at = 0
-  for (const [text, type] of partsOf(row)) {
+  for (const [text, type, title] of partsOf(row)) {
     const from = Math.max(at, start)
     const to = Math.min(at + text.length, end)
-    if (to > from) out.push([text.slice(from - at, to - at), type])
+    if (to > from) out.push([text.slice(from - at, to - at), type, title])
     at += text.length
   }
   return out
@@ -1002,6 +1327,7 @@ function previousMatch() {
 function openSearch(replace = false, given?: Partial<CodeSearchQuery>) {
   if (!props.searchable) return
   menuOpen.value = false
+  closeProblems()
   const main = mainRange(state.value.selection)
   const patch: Partial<CodeSearchQuery> = { ...given }
   // A selection on one line, or else the word at the cursor, becomes the search.
@@ -1129,6 +1455,247 @@ const searchMarks = computed(() => {
   }
   if (current) out.push({ top: share(current.from) * 100, current: true })
   return out
+})
+
+// ---------------------------------------------------------------- problems
+
+/** The box over a place in the text with the problems there and their fixes; `keyboard` when opened by a key, so arrows pick a fix. */
+const problemBox = shallowRef<{
+  pos: number
+  problems: CodeDiagnostic[]
+  index: number
+  keyboard: boolean
+} | null>(null)
+const problemEl = ref<HTMLElement>()
+const problemSize = ref({ width: 0, height: 0 })
+let problemTimer = 0
+
+/** The problems that cover a position; an empty one covers the character it marks. */
+function problemsAt(pos: number) {
+  const out: CodeDiagnostic[] = []
+  for (const problem of diagnostics.value) {
+    if (problem.from > pos) break
+    if (pos <= Math.max(problem.to, problem.from + 1)) out.push(problem)
+  }
+  return out
+}
+
+const fixes = computed(() =>
+  (problemBox.value?.problems ?? []).flatMap((problem) =>
+    (problem.actions ?? []).map((action) => ({ problem, action })),
+  ),
+)
+
+function showProblems(pos: number, keyboard: boolean) {
+  clearTimeout(problemTimer)
+  const problems = problemsAt(pos)
+  if (!problems.length) {
+    problemBox.value = null
+    return false
+  }
+  const hasFixes = problems.some((problem) => problem.actions?.length)
+  problemBox.value = { pos, problems, index: keyboard && hasFixes ? 0 : -1, keyboard }
+  return true
+}
+
+/** Reads out the fix picked from the keyboard, and where it is in the list. */
+function announceFix() {
+  const index = problemBox.value?.index ?? -1
+  const fix = fixes.value[index]
+  if (!fix) return
+  announce(
+    format(messages.value.fixAt, {
+      label: fix.action.label,
+      index: index + 1,
+      count: fixes.value.length,
+    }),
+  )
+}
+
+function closeProblems() {
+  clearTimeout(problemTimer)
+  problemBox.value = null
+}
+
+function runFix(index: number) {
+  const fix = fixes.value[index]
+  if (!fix) return
+  closeProblems()
+  fix.action.run(context, fix.problem)
+  focusInput()
+}
+
+/** Moves the cursor to the next problem after it (`1`) or before it (`-1`), going round, and shows it. */
+function goToProblem(direction: 1 | -1) {
+  const list = diagnostics.value
+  if (!list.length) return false
+  const head = mainRange(state.value.selection).head
+  let found: CodeDiagnostic | undefined
+  if (direction > 0) found = list.find((problem) => problem.from > head) ?? list[0]
+  else {
+    for (let i = list.length - 1; i >= 0 && !found; i--) if (list[i]!.from < head) found = list[i]
+    found ??= list[list.length - 1]
+  }
+  const problem = found!
+  dispatch(transaction().select(problem.from).setMeta({ scroll: true }))
+  showProblems(problem.from, true)
+  const m = messages.value
+  announce(
+    format(m.problemAt, {
+      line: doc.value.lineAt(problem.from).number,
+      severity: m[problem.severity],
+      message: problem.message,
+    }),
+  )
+  return true
+}
+
+const diagnosticControl = {
+  next: () => goToProblem(1),
+  previous: () => goToProblem(-1),
+  showFixes: () => {
+    if (!showProblems(mainRange(state.value.selection).head, true)) return false
+    announceFix()
+    return true
+  },
+}
+
+/** Keys while the box is open from the keyboard: arrows pick a fix, Enter makes it, Escape closes the box. */
+function problemKey(name: string) {
+  const box = problemBox.value
+  if (!box) return false
+  if (name === 'escape') {
+    closeProblems()
+    return true
+  }
+  const count = fixes.value.length
+  if (!box.keyboard || !count) return false
+  if (name === 'arrowdown' || name === 'arrowup') {
+    const step = name === 'arrowdown' ? 1 : -1
+    problemBox.value = { ...box, index: (box.index + step + count) % count }
+    announceFix()
+    return true
+  }
+  if (name === 'enter' || name === 'tab') {
+    runFix(Math.max(0, box.index))
+    return true
+  }
+  return false
+}
+
+/**
+ * Shows the problems under the mouse after a moment; leaving them hides the
+ * box a moment later. Fingers are left out: a tap shows the box itself, and
+ * the mouse events a browser makes up after it would only close it again.
+ */
+function onContentHover(event: PointerEvent) {
+  if (event.pointerType !== 'mouse' || drag || problemBox.value?.keyboard) return
+  const rect = content.value?.getBoundingClientRect()
+  if (!rect) return
+  const point = { x: event.clientX, y: event.clientY }
+  const pos = posAtCoords(point)
+  const at = coordsAtPos(pos)
+  // Only over the text itself, not the empty space after a line.
+  const over = !!at && Math.abs(point.x - at.left) <= measure.cell * 2
+  const problems = over ? problemsAt(pos) : []
+  const box = problemBox.value
+  if (box && problems.length && problems.every((problem) => box.problems.includes(problem))) {
+    clearTimeout(problemTimer)
+    return
+  }
+  clearTimeout(problemTimer)
+  problemTimer = window.setTimeout(
+    () => (problems.length ? showProblems(pos, false) : closeProblems()),
+    problems.length ? 350 : 250,
+  )
+}
+
+/** The mouse came onto the box: it stays. */
+function keepProblems() {
+  clearTimeout(problemTimer)
+}
+
+function onContentLeave(event: PointerEvent) {
+  if (event.pointerType !== 'mouse' || problemBox.value?.keyboard) return
+  clearTimeout(problemTimer)
+  problemTimer = window.setTimeout(closeProblems, 250)
+}
+
+// Below the line, above it when there is no room, always in view.
+const problemStyle = computed(() => {
+  const box = problemBox.value
+  if (!box) return null
+  const at = pointOf(box.pos)
+  if (!at) return null
+  const view = visibleBox()
+  const { width, height } = problemSize.value
+  const lh = lineHeight.value
+  // A finger's cursor has its handle below the line: the box goes above when there is room, or under the handle.
+  const below = at.top + lh + 4
+  const roomBelow = view.bottom - 4 - below
+  const roomAbove = at.top - 4 - view.top
+  // A finger's cursor has its handle below the line, which the box keeps clear of where it can.
+  const handle = touchUi.value && caretHandle.value ? HANDLE : 0
+  let top: number
+  let room: number
+  if (roomBelow - handle >= height) [top, room] = [below + handle, roomBelow - handle]
+  else if (roomAbove >= height) [top, room] = [at.top - 4 - height, roomAbove]
+  else if (roomBelow >= height || roomBelow >= roomAbove) [top, room] = [below, roomBelow]
+  // Too tall for either side: on the roomier one, scrolling inside.
+  else [top, room] = [view.top + 4, roomAbove]
+  const left = Math.max(view.left + 4, Math.min(at.x - 12, view.right - width - 4))
+  return {
+    transform: `translate(${Math.round(left)}px, ${Math.round(top)}px)`,
+    maxHeight: height > room ? `${Math.max(0, Math.floor(room))}px` : undefined,
+  }
+})
+
+watch(
+  [problemEl, problemBox],
+  () => {
+    const el = problemEl.value
+    // Its whole height, even while it is cut short and scrolls.
+    if (el)
+      problemSize.value = {
+        width: el.offsetWidth,
+        height: el.scrollHeight + el.offsetHeight - el.clientHeight,
+      }
+  },
+  { flush: 'post' },
+)
+
+/** Where the problems sit along the scrollbar, by severity. */
+const problemMarks = computed(() => {
+  const list = diagnostics.value
+  if (!list.length) return []
+  const text = doc.value
+  const drawn = layout.value
+  const taken = new Set<string>()
+  const out: Array<{ top: number; severity: CodeDiagnosticSeverity }> = []
+  for (const problem of list) {
+    const top =
+      Math.round(((drawn.rowOf(text.lineAt(problem.from).number) + 0.5) / drawn.total) * 1000) / 10
+    const key = `${top}${problem.severity}`
+    if (taken.has(key)) continue
+    taken.add(key)
+    out.push({ top, severity: problem.severity })
+    if (out.length >= 1000) break
+  }
+  return out
+})
+
+// ---------------------------------------------------------------- panels
+
+const panels = computed(() => {
+  const top: Array<{ key: string; render: CodePanel['render'] }> = []
+  const bottom: typeof top = []
+  for (const extension of extensions.value)
+    for (const bar of extension.panels?.(context) ?? [])
+      (bar.position === 'top' ? top : bottom).push({
+        key: `${extension.name}/${bar.name}`,
+        render: bar.render,
+      })
+  return { top, bottom }
 })
 
 const searchControl = {
@@ -1307,6 +1874,9 @@ const target: CodeCommandTarget = {
   get folding() {
     return props.foldable ? folding : undefined
   },
+  get diagnostics() {
+    return diagnosticControl
+  },
 }
 
 function run(command: CodeCommand) {
@@ -1332,7 +1902,17 @@ function moveVertically(range: CodeRange, count: number) {
   return head
 }
 
-const keymap = computed(() => buildKeymap([...defaultKeymap, ...(props.keymap ?? [])], apple))
+/** The extensions' keys, lowest priority first, since later bindings are tried first. */
+function extensionKeys() {
+  const list = extensions.value
+  const out: CodeKeyBinding[] = []
+  for (let i = list.length - 1; i >= 0; i--) out.push(...keymapBindings(list[i]!.keymap?.(context)))
+  return out
+}
+
+const keymap = computed(() =>
+  buildKeymap([...defaultKeymap, ...extensionKeys(), ...keymapBindings(props.keymap)], apple),
+)
 /** After Escape, Tab leaves the editor instead of indenting, so keyboard users are never stuck. */
 let tabLeaves = false
 
@@ -1346,6 +1926,11 @@ function onKeydown(event: KeyboardEvent) {
   }
   confirmEnter = -Infinity
   const name = eventKey(event, apple)
+  if (problemKey(name)) {
+    event.preventDefault()
+    event.stopPropagation()
+    return
+  }
   // Escape first puts away the toolbar over the selection.
   if (name === 'escape' && menuOpen.value) {
     menuOpen.value = false
@@ -1634,6 +2219,14 @@ function foldTarget(event: Event) {
 
 function onPointerDown(event: PointerEvent, area: 'text' | 'gutter') {
   if (event.button !== 0 || props.disabled) return
+  const cell = (event.target as Element | null)?.closest?.('[data-gutter-cell]')
+  const column = cell && gutterColumns.value[Number(cell.getAttribute('data-gutter-cell'))]
+  if (column?.onPress) {
+    event.preventDefault()
+    event.stopPropagation()
+    column.onPress(Number(cell!.getAttribute('data-line')), event)
+    return
+  }
   const fold = foldTarget(event)
   if (fold) {
     event.preventDefault()
@@ -1667,6 +2260,7 @@ function onPointerDown(event: PointerEvent, area: 'text' | 'gutter') {
   }
   touchUi.value = false
   menuOpen.value = false
+  closeProblems()
   event.preventDefault()
   focusInput()
   // Alt + Shift drag selects a rectangle, one range per line.
@@ -1714,6 +2308,8 @@ function onPointerUp(event: PointerEvent, area: 'text' | 'gutter') {
   select(area === 'gutter' ? 'line' : 'char', pos, false)
   caretHandle.value = area === 'text'
   menuOpen.value = area === 'gutter' || (onCursor && !wasOpen)
+  // A tap on a problem shows it, the way hovering does with a mouse.
+  if (area === 'text' && !menuOpen.value) showProblems(pos, false)
   focusInput()
 }
 
@@ -1958,9 +2554,9 @@ const magnifier = computed(() => {
   const left = Math.max(view.left + 4, Math.min(at.x - width / 2, view.right - width - 4))
   const parts = row.wrapped.breaks.length
     ? rowParts(row, at.sub)
-    : row.tokens
+    : row.tokens || row.marks
       ? partsOf(row)
-      : ([[row.text, null]] as Array<[string, CodeTokenType | null]>)
+      : ([[row.text, null]] as Part[])
   // The text, scaled from the row's left edge, slid so the moving end sits under the caret.
   const x = at.x - PAD_X
   const caret = Math.max(4, Math.min(width - 4, at.x - left))
@@ -2152,6 +2748,25 @@ onMounted(() => {
   document.fonts?.ready.then(() => root.value && refreshMetrics())
   document.fonts?.addEventListener?.('loadingdone', refreshMetrics)
   if (props.autofocus) focusInput()
+  for (const extension of extensions.value) startExtension(extension)
+  runLint()
+})
+
+/** What each extension's `setup` returned, to run when it goes. */
+const cleanups = new Map<CodeExtension, () => void>()
+function startExtension(extension: CodeExtension) {
+  if (cleanups.has(extension)) return
+  const cleanup = extension.setup?.(context)
+  cleanups.set(extension, typeof cleanup === 'function' ? cleanup : () => {})
+}
+watch(extensions, (next) => {
+  if (!mounted.value) return
+  for (const [extension, cleanup] of cleanups)
+    if (!next.includes(extension)) {
+      cleanup()
+      cleanups.delete(extension)
+    }
+  for (const extension of next) startExtension(extension)
 })
 
 onBeforeUnmount(() => {
@@ -2162,6 +2777,10 @@ onBeforeUnmount(() => {
   onPointerCancel()
   endHandlePress()
   unfollow()
+  clearTimeout(lintTimer)
+  clearTimeout(problemTimer)
+  for (const cleanup of cleanups.values()) cleanup()
+  cleanups.clear()
   cancelAnimationFrame(clipFrame)
   window.removeEventListener('scroll', onWindowScroll, { capture: true })
   window.removeEventListener('resize', onWindowScroll)
@@ -2178,6 +2797,7 @@ function onFocus(event: FocusEvent) {
 function onBlur(event: FocusEvent) {
   focused.value = false
   menuOpen.value = false
+  if (problemBox.value?.keyboard) closeProblems()
   history.close()
   if (lazyDirty) {
     lazyDirty = false
@@ -2186,7 +2806,7 @@ function onBlur(event: FocusEvent) {
   emit('blur', event)
 }
 
-defineExpose<CodeEditorExpose>({
+const api: CodeExtensionContext = {
   get state() {
     return state.value
   },
@@ -2230,7 +2850,17 @@ defineExpose<CodeEditorExpose>({
   get folds() {
     return foldStarts.value
   },
-})
+  get diagnostics() {
+    return diagnostics.value
+  },
+  get visible() {
+    return { from: visibleFrom.value, to: visibleTo.value }
+  },
+  announce,
+}
+context = api
+provide(CODE_EDITOR_KEY, api)
+defineExpose<CodeEditorExpose>(api)
 </script>
 
 <template>
@@ -2246,6 +2876,7 @@ defineExpose<CodeEditorExpose>({
     ]"
     :style="{
       '--dou-code-editor-gutter': `${gutterWidth}px`,
+      '--dou-code-editor-gutter-cells': `${gutterCells}px`,
       '--dou-code-editor-tab-size': tabSize,
     }"
   >
@@ -2267,6 +2898,14 @@ defineExpose<CodeEditorExpose>({
         @close="closeSearch"
       />
     </div>
+    <div v-if="problemMarks.length" :class="ns.e('marks')" aria-hidden="true">
+      <div
+        v-for="mark in problemMarks"
+        :key="`${mark.top}${mark.severity}`"
+        :class="[ns.e('mark'), ns.e('problem-mark'), ns.is(mark.severity, true)]"
+        :style="{ top: `${mark.top}%` }"
+      />
+    </div>
     <div v-if="searchMarks.length" :class="ns.e('marks')" aria-hidden="true">
       <div
         v-for="mark in searchMarks"
@@ -2276,6 +2915,9 @@ defineExpose<CodeEditorExpose>({
       />
     </div>
     <div :class="ns.e('live')" aria-live="polite">{{ announcement }}</div>
+    <div v-if="panels.top.length" :class="[ns.e('panels'), ns.is('top', true)]">
+      <RenderPart v-for="panel in panels.top" :key="panel.key" :render="panel.render" />
+    </div>
     <div ref="scroller" :class="ns.e('scroller')" @scroll.passive="onScroll">
       <div
         :class="ns.e('sizer')"
@@ -2285,7 +2927,7 @@ defineExpose<CodeEditorExpose>({
         }"
       >
         <div
-          v-if="lineNumbers || foldable"
+          v-if="lineNumbers || foldable || gutterCells"
           :class="ns.e('gutter')"
           aria-hidden="true"
           @pointerdown="onPointerDown($event, 'gutter')"
@@ -2307,6 +2949,25 @@ defineExpose<CodeEditorExpose>({
                   : undefined
               "
             >
+              <span v-if="gutterCells" :class="ns.e('cells')">
+                <span
+                  v-for="(column, c) in gutterColumns"
+                  :key="column.name"
+                  :class="[ns.e('cell'), gutterMarkers[c]?.get(row.n)?.class]"
+                  :style="{ width: `${column.width}px` }"
+                  :title="gutterMarkers[c]?.get(row.n)?.title"
+                  :data-gutter-cell="column.onPress ? c : undefined"
+                  :data-line="row.n"
+                >
+                  <template v-if="gutterMarkers[c]?.get(row.n)">
+                    <component
+                      :is="gutterMarkers[c]!.get(row.n)!.icon"
+                      v-if="gutterMarkers[c]!.get(row.n)!.icon"
+                    />
+                    <template v-else>{{ gutterMarkers[c]!.get(row.n)!.text }}</template>
+                  </template>
+                </span>
+              </span>
               <template v-if="lineNumbers">{{ row.n }}</template>
               <span
                 v-if="foldable && (row.folded || foldableLines.has(row.n))"
@@ -2323,9 +2984,10 @@ defineExpose<CodeEditorExpose>({
           ref="content"
           :class="ns.e('content')"
           @pointerdown="onPointerDown($event, 'text')"
-          @pointermove="onPointerMove"
+          @pointermove="(onPointerMove($event), onContentHover($event))"
           @pointerup="onPointerUp($event, 'text')"
           @pointercancel="onPointerCancel"
+          @pointerleave="onContentLeave"
           @mousedown.prevent
         >
           <div ref="probe" :class="ns.e('probe')" aria-hidden="true" />
@@ -2378,8 +3040,16 @@ defineExpose<CodeEditorExpose>({
             <div
               v-for="row in rows"
               :key="row.n"
-              v-memo="[row.text, row.tokens, row.compose?.join('\u0000'), row.wrapped, row.folded]"
-              :class="[ns.e('line'), ns.is('wrapped', !!row.wrapped.breaks.length)]"
+              v-memo="[
+                row.text,
+                row.tokens,
+                row.compose?.join('\u0000'),
+                row.wrapped,
+                row.folded,
+                row.marksKey,
+                row.lineClass,
+              ]"
+              :class="[ns.e('line'), ns.is('wrapped', !!row.wrapped.breaks.length), row.lineClass]"
             >
               <template v-if="row.compose"
                 >{{ row.compose[0] }}<span :class="ns.e('compose')">{{ row.compose[1] }}</span
@@ -2393,7 +3063,7 @@ defineExpose<CodeEditorExpose>({
                   :style="sub ? { paddingLeft: `${row.wrapped.indent}px` } : undefined"
                 >
                   <template v-for="(part, i) in rowParts(row, sub)" :key="i"
-                    ><span v-if="part[1]" :class="`dou-syntax-${part[1]}`">{{ part[0] }}</span
+                    ><span v-if="part[1]" :class="part[1]" :title="part[2]">{{ part[0] }}</span
                     ><template v-else>{{ part[0] }}</template></template
                   ><span
                     v-if="row.folded && sub === row.wrapped.breaks.length"
@@ -2404,9 +3074,9 @@ defineExpose<CodeEditorExpose>({
                   >
                 </div></template
               >
-              <template v-else-if="row.tokens"
+              <template v-else-if="row.tokens || row.marks"
                 ><template v-for="(part, i) in partsOf(row)" :key="i"
-                  ><span v-if="part[1]" :class="`dou-syntax-${part[1]}`">{{ part[0] }}</span
+                  ><span v-if="part[1]" :class="part[1]" :title="part[2]">{{ part[0] }}</span
                   ><template v-else>{{ part[0] }}</template></template
                 ></template
               >
@@ -2454,11 +3124,50 @@ defineExpose<CodeEditorExpose>({
               :style="[magnifier.textStyle, { paddingLeft: `${magnifier.indent}px` }]"
             >
               <template v-for="(part, i) in magnifier.parts" :key="i"
-                ><span v-if="part[1]" :class="`dou-syntax-${part[1]}`">{{ part[0] }}</span
+                ><span v-if="part[1]" :class="part[1]" :title="part[2]">{{ part[0] }}</span
                 ><template v-else>{{ part[0] }}</template></template
               >
             </div>
             <div :class="ns.e('magnifier-caret')" :style="{ left: `${magnifier.caret - 1}px` }" />
+          </div>
+          <div
+            v-if="problemStyle"
+            ref="problemEl"
+            :class="ns.e('problems')"
+            role="group"
+            :aria-label="messages.problems"
+            :style="problemStyle"
+            @pointerdown.stop.prevent
+            @pointermove.stop
+            @pointerenter="keepProblems"
+            @pointerleave="onContentLeave"
+          >
+            <div
+              v-for="(problem, i) in problemBox!.problems"
+              :key="i"
+              :class="[ns.e('problem-item'), ns.is(problem.severity, true)]"
+            >
+              <component :is="SEVERITY_ICON[problem.severity]" :class="ns.e('problem-severity')" />
+              <span :class="ns.e('problem-message')"
+                >{{ problem.message
+                }}<span v-if="problem.source" :class="ns.e('problem-source')">
+                  {{ problem.source }}</span
+                ></span
+              >
+            </div>
+            <div v-if="fixes.length" :class="ns.e('fixes')">
+              <button
+                v-for="(fix, i) in fixes"
+                :key="i"
+                type="button"
+                tabindex="-1"
+                :class="[ns.e('fix'), ns.is('active', i === problemBox!.index)]"
+                :aria-current="i === problemBox!.index || undefined"
+                @click="runFix(i)"
+              >
+                {{ fix.action.label }}
+              </button>
+            </div>
           </div>
           <div
             v-if="menuStyle"
@@ -2511,6 +3220,9 @@ defineExpose<CodeEditorExpose>({
           />
         </div>
       </div>
+    </div>
+    <div v-if="panels.bottom.length" :class="[ns.e('panels'), ns.is('bottom', true)]">
+      <RenderPart v-for="panel in panels.bottom" :key="panel.key" :render="panel.render" />
     </div>
     <Teleport to="body">
       <div v-if="showKeys" :class="ns.e('keys')" :style="keysStyle">

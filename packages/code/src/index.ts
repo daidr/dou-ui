@@ -5,6 +5,18 @@ import CodeKeys from './code-keys.vue'
 export const DouCodeEditor = withInstall(CodeEditor)
 export const DouCodeKeys = withInstall(CodeKeys)
 export { defaultCodeKeys } from './code-keys'
+export { defineCodeExtension, useCodeEditor } from './extension'
+export type {
+  CodeDecoration,
+  CodeDiagnostic,
+  CodeDiagnosticAction,
+  CodeDiagnosticSeverity,
+  CodeExtension,
+  CodeExtensionContext,
+  CodeGutter,
+  CodeGutterMarker,
+  CodePanel,
+} from './extension'
 export default DouCodeEditor
 
 export type {
@@ -69,8 +81,8 @@ export { createHtml, html, vue } from './languages/html'
 export type { HtmlState } from './languages/html'
 export { createMarkdown, markdown } from './languages/markdown'
 export type { MarkdownOptions, MarkdownState } from './languages/markdown'
-export type { CodeKeyBinding } from './core/keymap'
-export type { CodeSearchControl } from './core/commands'
+export type { CodeKeyBinding, CodeKeymap } from './core/keymap'
+export type { CodeDiagnosticControl, CodeSearchControl } from './core/commands'
 export { matchAfter, queryRegExp, replacementFor, searchText } from './core/search'
 export type { CodeMatch, CodeSearchQuery, CodeSearchResult } from './core/search'
 export { codeLocales } from './locale'

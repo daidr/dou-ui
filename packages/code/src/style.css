@@ -31,6 +31,9 @@
     );
     --dou-code-editor-match-mark: color-mix(in oklab, var(--dou-color-warning) 60%, transparent);
     --dou-code-editor-bracket: color-mix(in oklab, var(--dou-color-text) 35%, transparent);
+    --dou-code-editor-error: var(--dou-color-danger-text);
+    --dou-code-editor-warning: var(--dou-color-warning-text);
+    --dou-code-editor-info: var(--dou-color-primary-text);
     --dou-code-editor-bracket-unmatched: color-mix(
       in oklab,
       var(--dou-color-danger-text) 70%,
@@ -113,7 +116,7 @@
     position: relative;
     box-sizing: border-box;
     height: var(--dou-code-editor-line-height);
-    padding: 0 12px 0 16px;
+    padding: 0 12px 0 calc(16px + var(--dou-code-editor-gutter-cells, 0px));
     text-align: right;
 
     &.is-active {
@@ -403,6 +406,179 @@
 
 /* the search panel: a small floating surface in the editor's top right corner */
 @layer dou.components {
+  /* problems: a wavy line under the text in the problem's color, quieter for hints */
+  .dou-code-editor__problem {
+    text-decoration-line: underline;
+    text-decoration-style: wavy;
+    text-decoration-thickness: 1px;
+    text-decoration-skip-ink: none;
+    text-underline-offset: 3px;
+    &.is-error {
+      text-decoration-color: var(--dou-code-editor-error);
+    }
+    &.is-warning {
+      text-decoration-color: var(--dou-code-editor-warning);
+    }
+    &.is-info {
+      text-decoration-color: var(--dou-code-editor-info);
+    }
+    &.is-hint {
+      text-decoration-style: dotted;
+      text-decoration-color: var(--dou-color-text-tertiary);
+    }
+  }
+
+  /* columns of the gutter left of the line numbers */
+  .dou-code-editor__cells {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: flex;
+    height: var(--dou-code-editor-line-height);
+  }
+  .dou-code-editor__cell {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    font-size: var(--dou-font-size-sm);
+    &[data-gutter-cell] {
+      cursor: pointer;
+    }
+    & > svg {
+      width: 14px;
+      height: 14px;
+    }
+  }
+  .dou-code-editor__problem-icon {
+    &.is-error {
+      color: var(--dou-code-editor-error);
+    }
+    &.is-warning {
+      color: var(--dou-code-editor-warning);
+    }
+    &.is-info {
+      color: var(--dou-code-editor-info);
+    }
+    &.is-hint {
+      color: var(--dou-color-text-tertiary);
+    }
+  }
+  .dou-code-editor__problem-mark {
+    &.is-error {
+      background-color: var(--dou-code-editor-error);
+    }
+    &.is-warning {
+      background-color: var(--dou-code-editor-warning);
+    }
+    &.is-info {
+      background-color: var(--dou-code-editor-info);
+    }
+    &.is-hint {
+      background-color: var(--dou-color-text-tertiary);
+    }
+  }
+
+  /* the box with the problems at a place, and their fixes */
+  .dou-code-editor__problems {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 6;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: max-content;
+    max-width: min(440px, calc(100% - 8px));
+    padding: 6px;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-control);
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-md);
+    font-family: var(--dou-font-family);
+    font-size: var(--dou-font-size-sm);
+    line-height: 20px;
+    white-space: normal;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    & > * {
+      flex-shrink: 0;
+    }
+  }
+  .dou-code-editor__problem-item {
+    display: flex;
+    gap: 6px;
+    align-items: flex-start;
+    padding: 0 2px;
+    &.is-error {
+      --dou-code-editor-problem: var(--dou-code-editor-error);
+    }
+    &.is-warning {
+      --dou-code-editor-problem: var(--dou-code-editor-warning);
+    }
+    &.is-info {
+      --dou-code-editor-problem: var(--dou-code-editor-info);
+    }
+    &.is-hint {
+      --dou-code-editor-problem: var(--dou-color-text-tertiary);
+    }
+  }
+  .dou-code-editor__problem-severity {
+    flex: none;
+    width: 14px;
+    height: 20px;
+    color: var(--dou-code-editor-problem);
+  }
+  .dou-code-editor__problem-message {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    color: var(--dou-color-text);
+  }
+  .dou-code-editor__problem-source {
+    margin-left: 8px;
+    color: var(--dou-color-text-tertiary);
+  }
+  .dou-code-editor__fixes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    padding-top: 4px;
+    border-top: 1px solid var(--dou-color-border-subtle);
+  }
+  .dou-code-editor__fix {
+    display: inline-flex;
+    align-items: center;
+    height: 24px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: calc(var(--dou-radius-control) - 2px);
+    background: none;
+    color: var(--dou-color-primary-text);
+    font: inherit;
+    cursor: pointer;
+    &.is-active,
+    &:hover {
+      background-color: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+    }
+    @media (pointer: coarse) {
+      height: 36px;
+    }
+  }
+
+  /* bars from extensions above or below the text, inside the frame */
+  .dou-code-editor__panels {
+    flex: none;
+    font-family: var(--dou-font-family);
+    &.is-top {
+      border-bottom: 1px solid var(--dou-color-border-subtle);
+    }
+    &.is-bottom {
+      border-top: 1px solid var(--dou-color-border-subtle);
+    }
+  }
+
   /* touch: handles under the selection's ends, in the selection's hue */
   .dou-code-editor__handle {
     position: absolute;

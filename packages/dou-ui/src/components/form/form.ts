@@ -99,6 +99,11 @@ export interface FormProps {
   size?: Size
   /** Disable every control inside. */
   disabled?: boolean
+  /**
+   * Make every control inside read-only: values show as usual and can be
+   * selected and copied, but not changed.
+   */
+  readonly?: boolean
   requiredMark?: FormRequiredMark
   /** On a failed submit, scroll to the first invalid field and focus it. */
   scrollToError?: boolean
@@ -177,6 +182,7 @@ export interface FormContext {
   layout: ComputedRef<FormLayout>
   size: ComputedRef<Size | undefined>
   disabled: ComputedRef<boolean>
+  readonly: ComputedRef<boolean>
   requiredMark: ComputedRef<FormRequiredMark>
   register: (item: FormItemHandle) => void
   unregister: (item: FormItemHandle) => void

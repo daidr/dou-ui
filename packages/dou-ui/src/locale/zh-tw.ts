@@ -184,6 +184,7 @@ export const zhTW: Locale = {
     placeholder: '請選擇',
     empty: '沒有符合的選項',
     clear: '清除',
+    back: '返回上一層',
   },
   colorPicker: {
     placeholder: '選擇顏色',

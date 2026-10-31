@@ -3,7 +3,7 @@ import { StarIcon } from '@dou-ui/icons'
 import { computed, ref } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
-import { useFormDisabled, useFormItem, useFormSize } from '../form/use-form-item'
+import { useFormDisabled, useFormItem, useFormReadonly, useFormSize } from '../form/use-form-item'
 import type { RateProps, RateSlots } from './rate'
 
 defineOptions({ name: 'DouRate' })
@@ -26,7 +26,8 @@ const { formItem } = useFormItem()
 formItem?.markGroup()
 const size = useFormSize(() => props.size)
 const disabled = useFormDisabled(() => props.disabled)
-const interactive = computed(() => !disabled.value && !props.readonly)
+const readonly = useFormReadonly(() => props.readonly)
+const interactive = computed(() => !disabled.value && !readonly.value)
 
 const step = computed(() => (props.allowHalf ? 0.5 : 1))
 const round = (value: number) => Math.round(value / step.value) * step.value

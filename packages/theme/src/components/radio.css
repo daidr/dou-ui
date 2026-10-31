@@ -30,6 +30,18 @@
       cursor: not-allowed;
       opacity: 0.45;
     }
+
+    &.is-readonly {
+      cursor: default;
+    }
+  }
+
+  .dou-radio-group.is-invalid {
+    --dou-radio-border: color-mix(
+      in oklab,
+      var(--dou-color-danger) 60%,
+      var(--dou-color-border-strong)
+    );
   }
 
   .dou-radio--sm {
@@ -82,7 +94,7 @@
     transition-timing-function: var(--dou-motion-easing);
   }
 
-  .dou-radio:hover:not(.is-disabled) .dou-radio__indicator {
+  .dou-radio:hover:not(.is-disabled, .is-readonly) .dou-radio__indicator {
     border-color: color-mix(in oklab, var(--dou-radio-tone) 45%, var(--dou-color-border-strong));
   }
 

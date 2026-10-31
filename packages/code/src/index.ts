@@ -21,6 +21,7 @@ export type {
   CodeExtensionContext,
   CodeGutter,
   CodeGutterMarker,
+  CodeHistoryHandler,
   CodeCompletion,
   CodeCompletionKind,
   CodeCompletionRequest,

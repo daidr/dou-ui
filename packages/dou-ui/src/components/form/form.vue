@@ -12,6 +12,7 @@ const props = withDefaults(defineProps<FormProps>(), {
   layout: 'vertical',
   labelAlign: 'start',
   disabled: false,
+  readonly: false,
   requiredMark: true,
   scrollToError: true,
 })
@@ -30,6 +31,7 @@ provide(formKey, {
   layout: computed(() => props.layout),
   size: computed(() => props.size),
   disabled: computed(() => props.disabled),
+  readonly: computed(() => props.readonly),
   requiredMark: computed(() => props.requiredMark),
   register: (item) => items.add(item),
   unregister: (item) => items.delete(item),
@@ -105,6 +107,7 @@ const classes = computed(() => [
   ns.m(props.layout),
   ns.m(`label-${props.labelAlign}`),
   ns.is('disabled', props.disabled),
+  ns.is('readonly', props.readonly),
 ])
 
 defineExpose<FormExpose>({ validate, resetFields, clearValidate, scrollToField })

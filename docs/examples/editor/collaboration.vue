@@ -98,10 +98,15 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="collab-demo">
-    <label class="collab-demo__switch">
-      <DouSwitch :model-value="online" @update:model-value="setOnline" />
-      {{ online ? '已连接' : '已断开，修改会在重新连接后合并' }}
-    </label>
+    <div class="collab-demo__switch">
+      <label class="collab-demo__toggle">
+        <DouSwitch :model-value="online" @update:model-value="setOnline" />
+        连接
+      </label>
+      <span class="collab-demo__status" aria-live="polite">
+        {{ online ? '修改实时同步' : '已断开，修改会在重新连接后合并' }}
+      </span>
+    </div>
     <div class="collab-demo__editors">
       <section v-for="editor in demo?.editors" :key="editor.name" class="collab-demo__pane">
         <div class="collab-demo__name">{{ editor.name }}</div>
@@ -119,11 +124,23 @@ onBeforeUnmount(() => {
 }
 
 .collab-demo__switch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+
+.collab-demo__toggle {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   color: var(--dou-color-text-secondary);
   font-size: var(--dou-font-size-md);
+}
+
+.collab-demo__status {
+  color: var(--dou-color-text-tertiary);
+  font-size: var(--dou-font-size-sm);
 }
 
 .collab-demo__editors {

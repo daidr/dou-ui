@@ -3,11 +3,12 @@ import { ArrowRightIcon, CalendarIcon, CloseIcon } from '@dou-ui/icons'
 import { computed, nextTick, ref, useId, useTemplateRef, watch } from 'vue'
 import type { InputHTMLAttributes } from 'vue'
 import { usePopup } from '../../composables/use-popup'
+import { useCoarsePointer } from '../../utils/media'
 import { useNamespace } from '../../utils/namespace'
 import { OnlyChild } from '../../utils/only-child'
 import { DouButton } from '../button'
 import { useLocale } from '../config-provider/use-config'
-import { useFormDisabled, useFormItem, useFormSize } from '../form/use-form-item'
+import { useFormDisabled, useFormItem, useFormReadonly, useFormSize } from '../form/use-form-item'
 import { formatTime, now, parseTime } from '../time-picker/time'
 import type { TimeParts } from '../time-picker/time'
 import TimeColumns from '../time-picker/time-columns.vue'
@@ -47,10 +48,15 @@ const emit = defineEmits<{
 const slots = defineSlots<DatePickerSlots>()
 
 const ns = useNamespace('date-picker')
+// On a phone the panel is how a value is picked, so typing stays off.
+const coarse = useCoarsePointer()
 const { t, locale } = useLocale()
 const { formItem } = useFormItem()
 const size = useFormSize(() => props.size)
 const disabled = useFormDisabled(() => props.disabled)
+const readonly = useFormReadonly(() => props.readonly)
+// Read-only keeps the field focusable but never opens or changes it.
+const locked = computed(() => disabled.value || readonly.value)
 const invalid = computed(() => props.invalid || !!formItem?.invalid.value)
 const id = `dou-date-picker-${useId()}`
 const panelId = `${id}-panel`
@@ -196,7 +202,7 @@ const popup = usePopup({
   open,
   trigger: 'manual',
   closeOnOutside: true,
-  disabled,
+  disabled: locked,
   placement: () => props.placement,
   offset: 4,
 })
@@ -207,7 +213,7 @@ const startRef = useTemplateRef<HTMLInputElement>('start')
 const fieldRef = useTemplateRef<HTMLElement>('field')
 
 function show() {
-  if (disabled.value || open.value) return
+  if (locked.value || open.value) return
   draft.value = [...values.value]
   open.value = true
 }
@@ -295,7 +301,7 @@ function onInput(index: number) {
 }
 
 function onKeydown(event: KeyboardEvent) {
-  if (disabled.value) return
+  if (locked.value) return
   if (event.key === 'ArrowDown') {
     event.preventDefault()
     void focusCalendar()
@@ -318,7 +324,7 @@ function onPanelKeydown(event: KeyboardEvent) {
 
 // Pressing the field opens the calendar and keeps focus in a text box.
 function onFieldMousedown(event: MouseEvent) {
-  if (disabled.value) return
+  if (locked.value) return
   const target = event.target as HTMLElement
   if (target.closest('button')) return
   if (target.tagName !== 'INPUT') {
@@ -402,7 +408,7 @@ const inputAttrs = (index: number): InputHTMLAttributes => ({
   'aria-label': isRange.value ? placeholders.value[index] : undefined,
 })
 
-const showClear = computed(() => props.clearable && !disabled.value && values.value.length > 0)
+const showClear = computed(() => props.clearable && !locked.value && values.value.length > 0)
 const showToday = computed(() => !isRange.value && props.type === 'date' && allowed(today()))
 const showNow = computed(() => isDateTime.value && !isRange.value && allowed(today()))
 
@@ -413,6 +419,7 @@ const classes = computed(() => [
   ns.is('datetime', isDateTime.value),
   ns.is('open', open.value),
   ns.is('disabled', disabled.value),
+  ns.is('readonly', readonly.value),
   ns.is('invalid', invalid.value),
   ns.is('clearable', showClear.value),
 ])
@@ -442,9 +449,11 @@ defineExpose<DatePickerExpose>({
         :id="formItem?.inputId"
         :class="ns.e('input')"
         type="text"
+        :inputmode="coarse ? 'none' : undefined"
         autocomplete="off"
         :placeholder="placeholders[0]"
         :disabled="disabled"
+        :readonly="readonly"
         @input="onInput(0)"
         @keydown="onKeydown"
       />
@@ -456,9 +465,11 @@ defineExpose<DatePickerExpose>({
           v-bind="inputAttrs(1)"
           :class="ns.e('input')"
           type="text"
+          :inputmode="coarse ? 'none' : undefined"
           autocomplete="off"
           :placeholder="placeholders[1]"
           :disabled="disabled"
+          :readonly="readonly"
           @input="onInput(1)"
           @keydown="onKeydown"
         />

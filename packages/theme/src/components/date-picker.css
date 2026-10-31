@@ -71,6 +71,14 @@
       --dou-date-picker-ring: color-mix(in oklab, var(--dou-color-danger) 18%, transparent);
     }
 
+    /* read-only keeps the plain surface so it never passes for disabled;
+       the resting shadow goes and nothing reacts to hover */
+    &.is-readonly {
+      --dou-date-picker-border-hover: var(--dou-date-picker-border);
+      --dou-date-picker-shadow: none;
+      cursor: default;
+    }
+
     &.is-disabled {
       --dou-date-picker-bg: var(--dou-color-bg-muted);
       --dou-date-picker-border-hover: var(--dou-date-picker-border);
@@ -228,6 +236,49 @@
     border-inline-start: 1px solid var(--dou-color-border-subtle);
   }
 
+  /*
+   * On a phone the presets become a scrolling row above the calendar and the
+   * time columns move below it, so the panel is never wider than the screen.
+   * Ranges show one month there (see DouCalendar).
+   */
+  @media (max-width: 639.98px) {
+    /* the stacked panel can be taller than the room beside the field: it scrolls */
+    .dou-date-picker__panel {
+      max-height: var(--dou-floating-available, calc(100dvh - 16px));
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+
+    /* one column: a wrapping row would still size the panel to all its parts side by side */
+    .dou-date-picker__body {
+      display: grid;
+      grid-template-columns: minmax(0, auto);
+    }
+
+    .dou-date-picker__shortcuts {
+      /* many presets scroll instead of widening the panel */
+      contain: inline-size;
+      flex-direction: row;
+      min-width: 0;
+      padding-inline-end: 0;
+      padding-bottom: 8px;
+      border-inline-end: 0;
+      border-bottom: 1px solid var(--dou-color-border-subtle);
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+
+    .dou-date-picker__times {
+      --dou-time-picker-rows: 5;
+
+      justify-content: center;
+      padding-inline-start: 0;
+      padding-top: 8px;
+      border-inline-start: 0;
+      border-top: 1px solid var(--dou-color-border-subtle);
+    }
+  }
+
   .dou-date-picker__footer {
     display: flex;
     justify-content: flex-end;
@@ -240,6 +291,7 @@
   /* the calendar */
   .dou-calendar {
     --dou-calendar-cell: 32px;
+    --dou-calendar-key-height: 36px;
     --dou-calendar-range-bg: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
     --dou-calendar-range-edge: color-mix(in oklab, var(--dou-color-text) 28%, transparent);
 
@@ -456,7 +508,7 @@
   :is(.dou-calendar--month, .dou-calendar--quarter, .dou-calendar--year) {
     & .dou-calendar__day {
       width: var(--dou-calendar-key);
-      height: 36px;
+      height: var(--dou-calendar-key-height);
       margin: 4px 0;
     }
     & .dou-calendar__panel {
@@ -513,5 +565,13 @@
     padding-top: 8px;
     margin-top: 8px;
     border-top: 1px solid var(--dou-color-border-subtle);
+  }
+
+  /* fingers need larger targets than a pointer */
+  @media (pointer: coarse) {
+    .dou-calendar {
+      --dou-calendar-cell: 40px;
+      --dou-calendar-key-height: 40px;
+    }
   }
 }

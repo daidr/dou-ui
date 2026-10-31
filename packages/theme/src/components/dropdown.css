@@ -141,4 +141,17 @@
   .dou-dropdown-button > .dou-button--solid + .dou-dropdown-button__arrow {
     border-inline-start-color: color-mix(in oklab, currentColor 28%, transparent);
   }
+
+  /* fingers need taller rows; touch screens have no keyboard to use the shortcuts with */
+  @media (pointer: coarse) {
+    .dou-dropdown {
+      --dou-dropdown-item-height: 40px;
+    }
+  }
+
+  @media (hover: none) {
+    .dou-dropdown__shortcut {
+      display: none;
+    }
+  }
 }

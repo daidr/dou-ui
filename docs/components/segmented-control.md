@@ -34,14 +34,16 @@
 
 ### Props
 
-| 名称         | 说明                               | 类型                                             | 默认值  |
-| ------------ | ---------------------------------- | ------------------------------------------------ | ------- |
-| `modelValue` | 选中值，配合 `v-model`             | `string \| number \| boolean`                    | —       |
-| `options`    | 选项；字符串或数字同时作为值和标签 | `(SegmentedControlOption \| string \| number)[]` | —       |
-| `size`       | 尺寸，默认取表单或全局配置         | `'sm' \| 'md' \| 'lg'`                           | `'md'`  |
-| `block`      | 撑满宽度，选项平分                 | `boolean`                                        | `false` |
-| `disabled`   | 禁用全部                           | `boolean`                                        | `false` |
-| `name`       | 原生 `name`，不传时自动生成        | `string`                                         | —       |
+| 名称         | 说明                                                                    | 类型                                             | 默认值  |
+| ------------ | ----------------------------------------------------------------------- | ------------------------------------------------ | ------- |
+| `modelValue` | 选中值，配合 `v-model`                                                  | `string \| number \| boolean`                    | —       |
+| `options`    | 选项；字符串或数字同时作为值和标签                                      | `(SegmentedControlOption \| string \| number)[]` | —       |
+| `size`       | 尺寸，默认取表单或全局配置                                              | `'sm' \| 'md' \| 'lg'`                           | `'md'`  |
+| `block`      | 撑满宽度，选项平分                                                      | `boolean`                                        | `false` |
+| `disabled`   | 禁用全部                                                                | `boolean`                                        | `false` |
+| `readonly`   | 只读：值照常显示、可以聚焦，但不能修改；Form 设置 `readonly` 时自动只读 | `boolean`                                        | `false` |
+| `invalid`    | 标记为校验失败，边框显示危险色；在 FormItem 中校验失败时自动带上        | `boolean`                                        | `false` |
+| `name`       | 原生 `name`，不传时自动生成                                             | `string`                                         | —       |
 
 `SegmentedControlOption` 为 `{ value: string | number | boolean; label?: string; disabled?: boolean }`。
 

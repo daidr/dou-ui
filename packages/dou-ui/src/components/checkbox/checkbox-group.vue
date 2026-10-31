@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, provide, toRef } from 'vue'
 import { useNamespace } from '../../utils/namespace'
-import { useFormDisabled, useFormItem, useFormSize } from '../form/use-form-item'
+import { useFormDisabled, useFormItem, useFormReadonly, useFormSize } from '../form/use-form-item'
 import { checkboxGroupKey } from './checkbox'
 import type { CheckboxGroupProps, CheckboxGroupSlots, CheckboxValue } from './checkbox'
 
@@ -21,6 +21,8 @@ formItem?.markGroup()
 provide(checkboxGroupKey, {
   model,
   disabled: useFormDisabled(() => props.disabled),
+  readonly: useFormReadonly(() => props.readonly),
+  invalid: computed(() => props.invalid || !!formItem?.invalid.value),
   size: useFormSize(() => props.size),
   name: toRef(props, 'name'),
   toggle(value, checked) {
@@ -30,7 +32,11 @@ provide(checkboxGroupKey, {
   },
 })
 
-const classes = computed(() => [ns.b(), ns.m(props.direction)])
+const classes = computed(() => [
+  ns.b(),
+  ns.m(props.direction),
+  ns.is('invalid', props.invalid || !!formItem?.invalid.value),
+])
 </script>
 
 <template>
@@ -40,7 +46,7 @@ const classes = computed(() => [ns.b(), ns.m(props.direction)])
     role="group"
     :aria-labelledby="formItem?.labelId"
     :aria-describedby="formItem?.describedBy.value"
-    :aria-invalid="formItem?.invalid.value || undefined"
+    :aria-invalid="props.invalid || formItem?.invalid.value || undefined"
   >
     <slot />
   </div>

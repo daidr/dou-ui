@@ -3,7 +3,7 @@ import { computed, ref, useAttrs, useTemplateRef } from 'vue'
 import type { StyleValue } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
-import { useFormDisabled, useFormItem, useFormSize } from '../form/use-form-item'
+import { useFormDisabled, useFormItem, useFormReadonly, useFormSize } from '../form/use-form-item'
 import type { InputOtpExpose, InputOtpProps, InputOtpSlots } from './input-otp'
 
 defineOptions({ name: 'DouInputOtp', inheritAttrs: false })
@@ -24,6 +24,7 @@ const { t } = useLocale()
 const { formItem } = useFormItem()
 const size = useFormSize(() => props.size)
 const disabled = useFormDisabled(() => props.disabled)
+const readonly = useFormReadonly(() => props.readonly)
 const invalid = computed(() => props.invalid || !!formItem?.invalid.value)
 
 // The code lives in one native input laid over the cells, so autofill,
@@ -109,6 +110,7 @@ const classes = computed(() => [
   ns.b(),
   ns.m(size.value),
   ns.is('disabled', disabled.value),
+  ns.is('readonly', readonly.value),
   ns.is('invalid', invalid.value),
   ns.is('focused', focused.value),
   attrs.class,
@@ -149,6 +151,7 @@ defineExpose<InputOtpExpose>({
       :pattern="type === 'numeric' ? '\\d*' : undefined"
       :maxlength="length"
       :disabled="disabled"
+      :readonly="readonly"
       :aria-invalid="invalid || undefined"
       autocomplete="one-time-code"
       autocapitalize="off"

@@ -88,6 +88,7 @@ function dismiss() {
 function onContextmenu(event: MouseEvent) {
   if (props.disabled) return
   event.preventDefault()
+  if (!press?.fired) cancelPress()
   // A menu opened from the keyboard has no pointer position: open it at
   // the bottom left of the focused element instead.
   if (event.button === -1 || (event.clientX === 0 && event.clientY === 0)) {
@@ -98,6 +99,94 @@ function onContextmenu(event: MouseEvent) {
   }
   show(event.clientX, event.clientY)
 }
+
+/*
+ * A long press opens the menu on touch screens. Safari on iOS never sends
+ * `contextmenu` for one, so the press sends its own from where the finger
+ * went down: listeners that note which item was pressed keep working.
+ * Moving the finger first scrolls instead; the click that follows the press
+ * is swallowed so it does not choose the item now under the finger.
+ */
+const LONG_PRESS = 500
+const SLOP = 8
+interface Press {
+  x: number
+  y: number
+  timer: number
+  el: HTMLElement
+  origin: Element
+  style: string | null
+  fired: boolean
+}
+let press: Press | null = null
+
+function onPointerdown(event: PointerEvent) {
+  if (props.disabled || event.pointerType === 'mouse' || !event.isPrimary) return
+  cancelPress()
+  const el = event.currentTarget as HTMLElement
+  const origin = event.target instanceof Element ? event.target : el
+  const { clientX: x, clientY: y } = event
+  // keep the press from selecting text or raising the system callout
+  const style = el.getAttribute('style')
+  el.style.setProperty('-webkit-touch-callout', 'none')
+  el.style.setProperty('-webkit-user-select', 'none')
+  el.style.setProperty('user-select', 'none')
+  const timer = window.setTimeout(() => {
+    if (!press) return
+    press.fired = true
+    window.getSelection()?.removeAllRanges()
+    const from = press.origin.isConnected ? press.origin : el
+    from.dispatchEvent(
+      new MouseEvent('contextmenu', {
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+        button: 2,
+        buttons: 0,
+        clientX: x,
+        clientY: y,
+      }),
+    )
+  }, LONG_PRESS)
+  press = { x, y, timer, el, origin, style, fired: false }
+  window.addEventListener('pointermove', onPressMove, { passive: true })
+  window.addEventListener('pointerup', onPressEnd)
+  window.addEventListener('pointercancel', cancelPress)
+}
+
+function onPressMove(event: PointerEvent) {
+  if (press && !press.fired && Math.hypot(event.clientX - press.x, event.clientY - press.y) > SLOP)
+    cancelPress()
+}
+
+function onPressEnd() {
+  if (press?.fired) swallowClick()
+  cancelPress()
+}
+
+function cancelPress() {
+  if (!press) return
+  window.clearTimeout(press.timer)
+  if (press.style === null) press.el.removeAttribute('style')
+  else press.el.setAttribute('style', press.style)
+  press = null
+  window.removeEventListener('pointermove', onPressMove)
+  window.removeEventListener('pointerup', onPressEnd)
+  window.removeEventListener('pointercancel', cancelPress)
+}
+
+function swallow(event: Event) {
+  event.preventDefault()
+  event.stopPropagation()
+}
+
+/** Drop the click the lifted finger may still produce. */
+function swallowClick() {
+  window.addEventListener('click', swallow, { capture: true, once: true })
+  window.setTimeout(() => window.removeEventListener('click', swallow, { capture: true }), 400)
+}
+
+onScopeDispose(cancelPress)
 
 useLayer({
   open,
@@ -146,7 +235,9 @@ defineExpose<ContextMenuExpose>({ open: show, close: hide })
 </script>
 
 <template>
-  <OnlyChild ref="targetRef" @contextmenu="onContextmenu"><slot /></OnlyChild>
+  <OnlyChild ref="targetRef" @contextmenu="onContextmenu" @pointerdown="onPointerdown">
+    <slot />
+  </OnlyChild>
   <Teleport v-if="rendered" :to="teleportTarget.to" :disabled="teleportTarget.disabled">
     <Transition appear name="dou-floating">
       <div

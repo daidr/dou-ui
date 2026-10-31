@@ -8,6 +8,12 @@
 
 <DocDemo src="checkbox/basic" />
 
+## 自定义值
+
+单独使用时，`v-model` 默认是 `true` / `false`。接口要的是别的值时，用 `checked-value` 和 `unchecked-value` 指定选中与未选中时的值。
+
+<DocDemo src="checkbox/values" />
+
 ## 多选组
 
 在 `DouCheckboxGroup` 中，`v-model` 是被选中选项的 `value` 数组。
@@ -26,31 +32,37 @@
 
 ### Checkbox Props
 
-| 名称            | 说明                                           | 类型                   | 默认值  |
-| --------------- | ---------------------------------------------- | ---------------------- | ------- |
-| `modelValue`    | 是否选中，配合 `v-model`；组内忽略             | `boolean`              | `false` |
-| `value`         | 在组中代表的值                                 | `string \| number`     | —       |
-| `indeterminate` | 部分选中的外观                                 | `boolean`              | `false` |
-| `disabled`      | 禁用                                           | `boolean`              | `false` |
-| `size`          | 尺寸，默认继承组                               | `'sm' \| 'md' \| 'lg'` | `'md'`  |
-| `name`          | 原生 `name`，默认继承组                        | `string`               | —       |
-| `ariaLabel`     | 没有可见标签时的读屏名称，如表格里选择一行的框 | `string`               | —       |
+| 名称             | 说明                                                                               | 类型                   | 默认值  |
+| ---------------- | ---------------------------------------------------------------------------------- | ---------------------- | ------- |
+| `modelValue`     | 当前值，配合 `v-model`；选中时为 `checkedValue`，否则为 `uncheckedValue`；组内忽略 | `T`（默认 `boolean`）  | —       |
+| `checkedValue`   | 选中时的值；组内忽略                                                               | `T`                    | `true`  |
+| `uncheckedValue` | 未选中时的值；组内忽略                                                             | `T`                    | `false` |
+| `value`          | 在组中代表的值                                                                     | `string \| number`     | —       |
+| `indeterminate`  | 部分选中的外观                                                                     | `boolean`              | `false` |
+| `disabled`       | 禁用                                                                               | `boolean`              | `false` |
+| `readonly`       | 只读：值照常显示、可以聚焦，但不能修改；Form 设置 `readonly` 时自动只读            | `boolean`              | `false` |
+| `invalid`        | 标记为校验失败，边框显示危险色；在 FormItem 中校验失败时自动带上                   | `boolean`              | `false` |
+| `size`           | 尺寸，默认继承组                                                                   | `'sm' \| 'md' \| 'lg'` | `'md'`  |
+| `name`           | 原生 `name`，默认继承组                                                            | `string`               | —       |
+| `ariaLabel`      | 没有可见标签时的读屏名称，如表格里选择一行的框                                     | `string`               | —       |
 
 ### CheckboxGroup Props
 
-| 名称         | 说明                       | 类型                         | 默认值         |
-| ------------ | -------------------------- | ---------------------------- | -------------- |
-| `modelValue` | 选中项的值，配合 `v-model` | `(string \| number)[]`       | `[]`           |
-| `disabled`   | 禁用全部                   | `boolean`                    | `false`        |
-| `size`       | 尺寸                       | `'sm' \| 'md' \| 'lg'`       | —              |
-| `direction`  | 排列方向                   | `'horizontal' \| 'vertical'` | `'horizontal'` |
-| `name`       | 统一的原生 `name`          | `string`                     | —              |
+| 名称         | 说明                                                                    | 类型                         | 默认值         |
+| ------------ | ----------------------------------------------------------------------- | ---------------------------- | -------------- |
+| `modelValue` | 选中项的值，配合 `v-model`                                              | `(string \| number)[]`       | `[]`           |
+| `disabled`   | 禁用全部                                                                | `boolean`                    | `false`        |
+| `readonly`   | 只读：值照常显示、可以聚焦，但不能修改；Form 设置 `readonly` 时自动只读 | `boolean`                    | `false`        |
+| `invalid`    | 标记为校验失败，边框显示危险色；在 FormItem 中校验失败时自动带上        | `boolean`                    | `false`        |
+| `size`       | 尺寸                                                                    | `'sm' \| 'md' \| 'lg'`       | —              |
+| `direction`  | 排列方向                                                                | `'horizontal' \| 'vertical'` | `'horizontal'` |
+| `name`       | 统一的原生 `name`                                                       | `string`                     | —              |
 
 ### Events
 
 | 组件               | 名称                | 参数                            |
 | ------------------ | ------------------- | ------------------------------- |
-| `DouCheckbox`      | `update:modelValue` | `(value: boolean)`              |
+| `DouCheckbox`      | `update:modelValue` | `(value: T)`                    |
 | `DouCheckboxGroup` | `update:modelValue` | `(value: (string \| number)[])` |
 
 ### CSS 变量

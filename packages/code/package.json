@@ -8,7 +8,8 @@
     "code-editor",
     "editor",
     "code",
-    "textarea"
+    "textarea",
+    "collaboration"
   ],
   "license": "MIT",
   "author": "daidr <daidr@daidr.me>",
@@ -31,6 +32,10 @@
       "types": "./dist/types/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./collaboration": {
+      "types": "./dist/types/collaboration/index.d.ts",
+      "import": "./dist/collaboration/index.js"
+    },
     "./style.css": "./dist/style.css",
     "./package.json": "./package.json"
   },
@@ -45,9 +50,19 @@
   },
   "peerDependencies": {
     "dou-ui": "workspace:*",
-    "vue": "^3.5.0"
+    "vue": "^3.5.0",
+    "yjs": "^13.6.0"
   },
   "publishConfig": {
     "access": "public"
+  },
+  "peerDependenciesMeta": {
+    "yjs": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "yjs": "^13.6.33",
+    "y-protocols": "^1.0.7"
   }
 }

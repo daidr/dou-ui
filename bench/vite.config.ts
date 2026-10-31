@@ -24,6 +24,11 @@ export default defineConfig({
         find: /^@dou-ui\/gantt\/style\.css$/,
         replacement: r('../packages/gantt/src/style.css'),
       },
+      { find: /^@dou-ui\/code$/, replacement: r('../packages/code/src/index.ts') },
+      {
+        find: /^@dou-ui\/code\/style\.css$/,
+        replacement: r('../packages/code/src/style.css'),
+      },
       { find: /^@dou-ui\/sheet$/, replacement: r('../packages/sheet/src/index.ts') },
       {
         find: /^@dou-ui\/sheet\/style\.css$/,

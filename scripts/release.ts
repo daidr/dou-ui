@@ -23,6 +23,7 @@ const packages = [
   'sheet',
   'chart',
   'form-builder',
+  'code',
   'resolver',
   'nuxt',
 ]

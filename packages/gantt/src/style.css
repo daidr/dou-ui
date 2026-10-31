@@ -367,7 +367,8 @@
     min-width: 0;
     overflow: auto;
     outline: none;
-    overscroll-behavior: contain;
+    /* sideways it stays in the chart; up and down the page scrolls on once the chart is at its end */
+    overscroll-behavior-x: contain;
   }
 
   .dou-gantt__canvas {

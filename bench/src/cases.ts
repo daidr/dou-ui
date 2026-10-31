@@ -988,6 +988,13 @@ export const cases: Record<string, Case> = {
       viewport.dispatchEvent(new Event('scroll'))
     },
   },
+  // n rows of formulas: each row's amount doubled, a running total chained down all n
+  // rows, and their sum on top. Changing the first amount works the whole chain out again.
+  'sheet-formulas': {
+    render: (n) => formulaSheet(n),
+    act: () => (window as any).sheet.value.transact((tr: any) => tr.setValue('A1', 99)),
+    budget: { 10_000: 40 },
+  },
   // Everything selected: every cell in view is drawn again with the tint.
   'sheet-select-all': {
     render: (n) => sheet(n),
@@ -1105,6 +1112,25 @@ function codeType(root: HTMLElement, text: string) {
   textarea.value = textarea.value.slice(0, at) + text + textarea.value.slice(textarea.selectionEnd)
   textarea.setSelectionRange(at + 1, at + 1)
   textarea.dispatchEvent(new Event('input', { bubbles: true }))
+}
+
+function formulaSheet(n: number) {
+  const cells = Array.from({ length: n }, (_, r) => [
+    (r * 7) % 100,
+    `=A${r + 1}*2`,
+    r ? `=C${r}+B${r + 1}` : '=B1',
+    r ? null : '=SUM(C:C)',
+  ])
+  const book = ref<SheetWorkbook>({ sheets: [{ name: '表 1', cells, rowCount: n }] })
+  const grid = ref<SheetExpose>()
+  ;(window as any).sheet = grid
+  return () =>
+    h(DouSheet, {
+      ref: grid,
+      modelValue: book.value,
+      'onUpdate:modelValue': (value: SheetWorkbook) => (book.value = value),
+      style: 'height: 600px',
+    })
 }
 
 function sheet(n: number, typed = false) {

@@ -96,6 +96,11 @@ export type {
   SheetStylePatch,
   SheetTransactionMeta,
 } from './core/transaction'
+export { defineSheetFunction } from './formula/functions'
+export type { SheetFunction, SheetFunctionContext } from './formula/functions'
+export { isSheetError, SheetError } from './formula/error'
+export type { SheetErrorCode } from './formula/error'
+export type { SheetArg, SheetRangeArg, SheetResult } from './formula/values'
 export { sheetLocales, useSheetMessages } from './locale'
 export type { SheetMessages } from './locale'
 

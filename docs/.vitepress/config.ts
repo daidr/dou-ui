@@ -63,6 +63,7 @@ const ganttSidebar = ecosystem('甘特图', [
 const sheetSidebar = ecosystem('电子表格', [
   { text: '介绍', link: '/sheet/' },
   { text: '文档数据', link: '/sheet/data' },
+  { text: '公式', link: '/sheet/formulas' },
   { text: '扩展', link: '/sheet/extensions' },
 ])
 const codeSidebar = ecosystem('代码编辑器', [{ text: '介绍', link: '/code/' }])
@@ -445,6 +446,10 @@ export default defineConfig({
           replacement: r('../../packages/code/src/style.css'),
         },
         { find: /^@dou-ui\/sheet$/, replacement: r('../../packages/sheet/src/index.ts') },
+        {
+          find: /^@dou-ui\/sheet\/formula$/,
+          replacement: r('../../packages/sheet/src/formula/index.ts'),
+        },
         {
           find: /^@dou-ui\/sheet\/style\.css$/,
           replacement: r('../../packages/sheet/src/style.css'),

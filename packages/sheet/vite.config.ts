@@ -8,7 +8,7 @@ export default defineConfig({
     minify: false,
     sourcemap: true,
     lib: {
-      entry: { index: 'src/index.ts' },
+      entry: { index: 'src/index.ts', 'formula/index': 'src/formula/index.ts' },
       formats: ['es'],
     },
     rollupOptions: {

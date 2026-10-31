@@ -58,6 +58,9 @@ import { SheetAxis } from './core/axis'
 import { mergesOf } from './core/merge'
 import { alignOf, fitNumber, formatValue, inputText, parseInput } from './core/format'
 import { SheetHistory, type SheetHistoryView } from './core/history'
+import { SheetFormulaEngine } from './formula/engine'
+import { isSheetError } from './formula/error'
+import { shownValue } from './formula/values'
 import {
   cellOf,
   colCountOf,
@@ -152,6 +155,7 @@ watch(
   (value) => {
     if (value === doc.value) return
     doc.value = value
+    if (engine.doc !== value) engine.load(value)
     if (value !== sent) {
       // replaced from outside: the history no longer fits it
       history.clear()
@@ -198,6 +202,23 @@ const cellTypes = computed(() => {
   }
   return map
 })
+
+// Formulas -------------------------------------------------------------------------------
+
+const newEngine = () =>
+  new SheetFormulaEngine(doc.value, { functions: resolved.value.functions, locale: lang.value })
+/** Works out the formulas of the workbook as cells show them, and follows every change. */
+let engine = newEngine()
+/** Goes up when the engine is made again, for other functions or another language. */
+const engineId = shallowRef(0)
+watch([() => resolved.value.functions, lang], () => {
+  engine = newEngine()
+  engineId.value++
+})
+/** A cell of the sheet shown as it comes to: its formula's result, or its value. */
+const resultAt = (row: number, col: number) => engine.result(sheetKey(sheet.value), row, col)
+/** When a row's results last changed, for `v-memo`. */
+const resultsOf = (row: number) => engine.rowVersion(sheetKey(sheet.value), row)
 /** The type of a cell of the sheet shown. */
 function typeAt(row: number, col: number): SheetResolvedType | undefined {
   const input = sheet.value.cells[row]?.[col]
@@ -489,10 +510,18 @@ function cellView(
   let problem: string | undefined
   if (input != null && input !== '') {
     const cell = typeof input === 'object' ? input : null
-    const value = cell ? (cell.value ?? null) : (input as SheetValue)
+    let value = cell ? (cell.value ?? null) : (input as SheetValue)
+    let error = false
+    if (typeof value === 'string' && value.startsWith('=')) {
+      const result = resultAt(row, col)
+      error = isSheetError(result)
+      value = isSheetError(result) ? result.code : result
+    }
     const typed = cell?.type ? resolveCellType(cell, doc.value, cellTypes.value) : undefined
-    text =
-      typed?.definition.format?.(value, typed.setup) ?? formatValue(value, cell?.format, lang.value)
+    text = error
+      ? (value as string)
+      : (typed?.definition.format?.(value, typed.setup) ??
+        formatValue(value, cell?.format, lang.value))
     // a number without a format fits the cell, as far as its digits allow
     if (typeof value === 'number' && !cell?.format && !typed?.definition.format && digitWidth.value)
       text = fitNumber(value, Math.max(1, Math.floor((width - 16) / digitWidth.value)))
@@ -501,7 +530,13 @@ function cellView(
       if (style.cls) cls += ` ${style.cls}`
       css += style.css
     }
-    const align = style?.align ? 'left' : (typed?.definition.align ?? alignOf(value))
+    // an error shows in the middle, as `TRUE` and `FALSE` do
+    const align = style?.align
+      ? 'left'
+      : error
+        ? 'center'
+        : (typed?.definition.align ?? alignOf(value))
+    if (error) cls += ' is-error'
     if (align !== 'left') cls += ` is-align-${align}`
     if (typed) {
       const { definition, setup } = typed
@@ -517,7 +552,7 @@ function cellView(
       if (definition.render) {
         render = definition.render
         renderProps = { value, text, setup, readonly: props.readonly }
-        label = cellText(input)
+        label = cellText(input, { row, col })
       }
     }
   }
@@ -628,7 +663,7 @@ function mergeKey(row: number) {
   if (!merges.value.size) return ''
   let key = ''
   for (const m of merges.value.inRow(row))
-    key += `${m.top},${m.left}:${rowId(sheet.value.cells[m.top])}:${rowMarks(m.top)}|${rowMarks(m.bottom)};`
+    key += `${m.top},${m.left}:${rowId(sheet.value.cells[m.top])}:${resultsOf(m.top)}:${rowMarks(m.top)}|${rowMarks(m.bottom)};`
   return key ? `${key}${bodyRows.value[0]}` : ''
 }
 
@@ -656,6 +691,7 @@ const memoBase = computed(() => [
   styleCache.value,
   lang.value,
   digitWidth.value,
+  engineId.value,
   doc.value.types,
   cellTypes.value,
   props.readonly,
@@ -677,7 +713,10 @@ const activeId = computed(() => cellId(active.value.row, active.value.col))
 /** What the cell the keyboard is on reads as. */
 const activeLabel = computed(() => {
   const { row, col } = active.value
-  const text = cellText(sheet.value.cells[row]?.[col])
+  // a result can change with any cell of the workbook
+  void doc.value
+  void engineId.value
+  const text = cellText(sheet.value.cells[row]?.[col], { row, col })
   return format(messages.value.cell, {
     cell: formatCell(active.value),
     value: text || messages.value.empty,
@@ -737,6 +776,7 @@ function syncHistory() {
 
 function apply(tr: SheetTransaction) {
   const was = tr.before.sheets[sheetIndex.value]
+  engine.update(tr.doc, tr.steps, tr.before)
   doc.value = tr.doc
   sent = tr.doc
   emit('update:modelValue', tr.doc)
@@ -930,13 +970,20 @@ function commitEdit(move?: SheetDirection) {
 /** Says what a cell now holds. */
 function announceChange(at: { sheet: number; row: number; col: number }) {
   const cell = doc.value.sheets[at.sheet]?.cells[at.row]?.[at.col]
-  const value = cellText(cell) || messages.value.empty
+  const value = cellText(cell, at) || messages.value.empty
   announce(format(messages.value.changed, { cell: formatCell(at), value }))
 }
 
 /** A cell's value as it reads: its text, or whether it is checked. */
-function cellText(input: SheetCellInput) {
-  const value = valueOf(input)
+function cellText(input: SheetCellInput, at?: { sheet?: number; row: number; col: number }) {
+  const value = at
+    ? shownValue(
+        valueOf(input),
+        (row, col) => engine.result(at.sheet ?? sheetKey(sheet.value), row, col),
+        at.row,
+        at.col,
+      )
+    : valueOf(input)
   const cell = cellOf(input)
   const typed = cell?.type ? resolveCellType(cell, doc.value, cellTypes.value) : undefined
   if (typed?.definition.toggle)
@@ -1558,17 +1605,27 @@ function takeClip(cut: boolean) {
   const clip = clipOf(b, id)
   const height = clip.cells.length
   const width = clip.cells[0]?.length ?? 1
-  const bounds = { top: b.top, left: b.left, bottom: b.top + height - 1, right: b.left + width - 1 }
+  const bounds = {
+    top: b.top,
+    left: b.left,
+    bottom: b.top + height - 1,
+    right: b.left + width - 1,
+  }
   clipMark.value = { sheet: sheetKey(sheet.value), bounds, cut: id }
   announce(format(messages.value[cut ? 'cutDone' : 'copied'], { range: rangeName(bounds) }))
-  return formatClip(clip, { locale: lang.value, text: typedText })
+  const key = sheetKey(sheet.value)
+  return formatClip(clip, {
+    locale: lang.value,
+    text: typedText,
+    result: (row, col) => engine.result(key, b.top + row, b.left + col),
+  })
 }
 
 /** A cell's text as its type shows it, such as 80% for 0.8; `undefined` for a plain cell. */
-function typedText(input: SheetCellInput) {
+function typedText(input: SheetCellInput, value: SheetValue) {
   const cell = cellOf(input)
   const typed = cell?.type ? resolveCellType(cell, doc.value, cellTypes.value) : undefined
-  return typed?.definition.format?.(valueOf(input), typed.setup)
+  return typed?.definition.format?.(value, typed.setup)
 }
 
 /** A sheet as CSV, with what its cells show. */
@@ -1576,7 +1633,13 @@ function toCSV(options: SheetCSVWriteOptions & { sheet?: SheetRef } = {}) {
   const { sheet: target, ...rest } = options
   const data = doc.value.sheets[target == null ? sheetIndex.value : indexOfSheet(target)]
   if (!data) throw new RangeError(`There is no sheet "${target}"`)
-  return sheetToCSV(data, { locale: lang.value, text: typedText, ...rest })
+  const key = sheetKey(data)
+  return sheetToCSV(data, {
+    locale: lang.value,
+    text: typedText,
+    result: (row, col) => engine.result(key, row, col),
+    ...rest,
+  })
 }
 
 function onCopy(event: ClipboardEvent) {
@@ -2042,13 +2105,14 @@ function fitSize(axis: SheetAxisName, index: number): number | undefined {
     const plain = `${font.fontStyle} ${font.fontWeight} ${font.fontSize} ${font.fontFamily}`
     const bold = `${font.fontStyle} 600 ${font.fontSize} ${font.fontFamily}`
     let widest = 0
-    for (const line of cells) {
+    for (const [row, line] of cells.entries()) {
       const input = line?.[index]
       if (isBlank(input)) continue
       const cell = cellOf(input)
       const style = cell?.style ? doc.value.styles?.[cell.style] : undefined
       fitCanvas.font = style?.bold ? bold : plain
-      const text = formatValue(valueOf(input), cell?.format, lang.value)
+      const value = shownValue(valueOf(input), resultAt, row, index)
+      const text = formatValue(value, cell?.format, lang.value)
       for (const part of text.split('\n'))
         widest = Math.max(widest, fitCanvas.measureText(part).width)
     }
@@ -2065,7 +2129,8 @@ function fitSize(axis: SheetAxisName, index: number): number | undefined {
     const cell = cellOf(input)
     if (isBlank(input) || !cell?.style || !doc.value.styles?.[cell.style]?.wrap) return
     probe.style.width = `${cols.value.size(col) - 16}px`
-    probe.textContent = formatValue(cell.value, cell.format, lang.value)
+    const value = shownValue(cell.value ?? null, resultAt, index, col)
+    probe.textContent = formatValue(value, cell.format, lang.value)
     tallest = Math.max(tallest, probe.offsetHeight + 9)
   })
   probe.remove()
@@ -3029,6 +3094,7 @@ const context: SheetContext = {
   messages,
   forEachSelected,
   value: (point) => valueOf(sheet.value.cells[point.row]?.[point.col]),
+  result: (point) => resultAt(point.row, point.col),
   cellType: (point) => typeAt(point.row, point.col),
   cellRect: visibleRect,
   transact: (run, meta) => transact(run, meta),
@@ -3228,7 +3294,7 @@ defineExpose<SheetExpose>({
           <div
             v-for="row in frozenRowList"
             :key="row"
-            v-memo="[sheet.cells[row], memoBase, rowMarks(row), mergeKey(row)]"
+            v-memo="[sheet.cells[row], memoBase, resultsOf(row), rowMarks(row), mergeKey(row)]"
             class="dou-sheet__row is-frozen"
             :class="{ 'is-freeze-edge': row === frozen.rows - 1 }"
             role="row"
@@ -3304,7 +3370,7 @@ defineExpose<SheetExpose>({
           <div
             v-for="row in bodyRows"
             :key="row"
-            v-memo="[sheet.cells[row], memoBase, rowMarks(row), mergeKey(row)]"
+            v-memo="[sheet.cells[row], memoBase, resultsOf(row), rowMarks(row), mergeKey(row)]"
             class="dou-sheet__row"
             role="row"
             :aria-rowindex="row + (headers ? 2 : 1)"

@@ -1,0 +1,157 @@
+# 公式
+
+以 `=` 开头的值是公式，单元格显示它的计算结果。改动单元格后，只有依赖它的公式重新计算。
+
+<DocDemo src="sheet/formulas" column />
+
+## 写法
+
+公式的写法和常见的表格软件一致，函数名不区分大小写，参数用 `,` 分隔（也可以用 `;`）。
+
+| 写法                                 | 说明                                                               |
+| ------------------------------------ | ------------------------------------------------------------------ |
+| `12`、`1.5e3`、`"文字"`、`TRUE`      | 数字、文字（文字里的 `"` 写成 `""`）、布尔值                       |
+| `A1`、`$A$1`                         | 单元格；`$` 只影响复制和填充时引用是否跟着移动                     |
+| `A1:C4`、`B:B`、`2:3`                | 区域、整列、整行                                                   |
+| `表2!A1`、`'九月 上海'!B2:B9`        | 其他工作表；名字里有空格或符号时用 `'` 括起来                      |
+| `+ - * / ^`、`%`                     | 加减乘除、乘方、百分比（`50%` 是 `0.5`）                           |
+| `&`                                  | 连接文字                                                           |
+| `= <> < > <= >=`                     | 比较，结果是 `TRUE` 或 `FALSE`；比较文字时不区分大小写             |
+| `SUM(A1:A9)`、`IF(A1>0, "正", "负")` | 函数调用，可以嵌套；省略的参数写成空，比如 `XLOOKUP(1,A:A,B:B,,1)` |
+
+运算顺序从先到后是：负号、`%`、`^`、`* /`、`+ -`、`&`、比较。负号先于乘方，所以 `=-2^2` 是 `4`，和常见的表格软件一样；`2^3^2` 从左往右算，是 `64`。
+
+## 值的类型
+
+公式里的值是数字、文字、`TRUE` / `FALSE`、空或错误值。需要数字的地方，`TRUE` 当作 `1`，空单元格当作 `0`，能读成数字的文字（`"12"`、`"1,280"`、`"12%"`）按数字算，其他文字得到 `#VALUE!`。
+
+日期和时间按单元格的写法保存为文字（`'2026-03-05'`、`'2026-03-05 09:30'`），参与计算时按天数算：日期加减天数得到日期，两个日期相减得到相差的天数。
+
+| `A1` 是 `2026-03-05` 时 | 结果         |
+| ----------------------- | ------------ |
+| `=A1+30`                | `2026-04-04` |
+| `=A1-"2026-03-01"`      | `4`          |
+| `=A1>"2026-01-01"`      | `TRUE`       |
+| `=YEAR(A1)`             | `2026`       |
+
+结果按单元格的 `format` 显示，比如公式单元格设了 `¥#,##0`，结果就显示为金额。单元格只引用一个空单元格时显示 `0`。
+
+## 错误值
+
+公式出错时，单元格显示错误值，用红色文字居中显示。引用了出错的单元格时，错误会一直传下去，可以用 `IFERROR` 换成别的值。
+
+| 错误值    | 原因                                           |
+| --------- | ---------------------------------------------- |
+| `#DIV/0!` | 除以 0，或者求平均值时没有数字                 |
+| `#N/A`    | 查找函数没有找到                               |
+| `#NAME?`  | 没有这个函数                                   |
+| `#NUM!`   | 数字超出范围，比如负数开平方                   |
+| `#REF!`   | 引用的工作表不存在，或者引用的单元格已经被删除 |
+| `#VALUE!` | 值的类型不对，比如文字参与加法、参数个数不对   |
+| `#CYCLE!` | 公式直接或间接引用了自己                       |
+| `#ERROR!` | 写法有误，比如括号不配对，`=1+` 没写完         |
+
+## 函数
+
+| 类别     | 函数                                                                                                                                           |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| 数学     | `SUM` `PRODUCT` `AVERAGE` `MIN` `MAX` `COUNT` `COUNTA` `COUNTBLANK` `ABS` `INT` `SQRT` `POWER` `MOD` `ROUND` `ROUNDUP` `ROUNDDOWN`             |
+| 逻辑     | `IF` `IFS` `IFERROR` `IFNA` `AND` `OR` `NOT` `ISBLANK` `ISNUMBER` `ISTEXT` `ISERROR` `ISNA`                                                    |
+| 文字     | `CONCAT` `CONCATENATE` `TEXTJOIN` `LEFT` `RIGHT` `MID` `LEN` `TRIM` `UPPER` `LOWER` `EXACT` `REPT` `SUBSTITUTE` `FIND` `SEARCH` `TEXT` `VALUE` |
+| 日期     | `TODAY` `NOW` `DATE` `YEAR` `MONTH` `DAY` `WEEKDAY` `DATEDIF`                                                                                  |
+| 条件统计 | `SUMIF` `AVERAGEIF` `COUNTIF` `SUMIFS` `AVERAGEIFS` `COUNTIFS`                                                                                 |
+| 查找     | `VLOOKUP` `HLOOKUP` `MATCH` `INDEX` `XLOOKUP`                                                                                                  |
+
+函数的参数和结果和常见的表格软件一致，下面只列出需要注意的地方：
+
+- `SUM`、`AVERAGE` 这类函数在区域里只算数字，文字和空单元格跳过；直接写在参数里的 `"2"`、`TRUE` 会按数字算。
+- `IF`、`IFS`、`IFERROR` 只计算用到的那个分支，`=IF(A1=0, 0, B1/A1)` 不会因为 `A1` 是 0 而出错。
+- `ROUND` 按十进制四舍五入，`ROUND(1.005, 2)` 是 `1.01`，负数向远离 0 的方向舍入。
+- `SUMIF`、`COUNTIF` 等的条件可以是一个值，也可以是 `">=80"`、`"<>完成"`、`"上海*"` 这样的文字：`*` 匹配任意多个字，`?` 匹配一个字，`~*` 表示 `*` 本身；`""` 匹配空单元格。日期也可以比较，比如 `">=2026-02-01"`。
+- `VLOOKUP` 和 `MATCH` 默认按近似查找，要求第一列从小到大排好；精确查找要把最后一个参数写成 `FALSE`（`MATCH` 是 `0`）。`XLOOKUP` 默认精确查找，第五个参数 `-1` / `1` 找下一个较小 / 较大的值，`2` 用通配符。
+- `TODAY()`、`NOW()` 每次修改后都会重新计算。`TEXT` 的格式写法和单元格的 `format` 一样。
+
+## 计算方式
+
+公式在要显示的时候才计算，表格只计算看得见的单元格，以及它们依赖的单元格。算出的结果会保留，直到它依赖的单元格变化：每次修改后，只有依赖被改单元格的公式（包括间接依赖的）重新计算，其他结果不动，没有变化的行也不会重绘。插入、删除、移动行列和工作表，以及从外部整个替换 `v-model` 时，所有结果重新计算。
+
+很长的依赖链也能计算，比如一列 10 万行、每行引用上一行的累计值。
+
+复制成纯文本、导出 CSV（`toCSV`）和读屏软件读到的都是计算结果；复制后粘贴回表格时仍然是公式。`useSheet()` 的 `result(point)` 返回单元格的计算结果，`value(point)` 返回公式本身。
+
+## 自定义函数
+
+`defineSheetFunction` 定义一个函数，放进扩展的 `functions` 里：
+
+```ts
+import { defineSheetExtension, defineSheetFunction, isSheetError } from '@dou-ui/sheet'
+import { numbersOf } from '@dou-ui/sheet/formula'
+
+// 含税价：TAX(金额, 税率)，税率默认 6%
+const TAX = defineSheetFunction({
+  name: 'TAX',
+  minArgs: 1,
+  maxArgs: 2,
+  run: (args) => {
+    const numbers = numbersOf(args)
+    if (isSheetError(numbers)) return numbers
+    const [amount = 0, rate = 0.06] = numbers
+    return amount * (1 + rate)
+  },
+})
+
+const finance = defineSheetExtension({ name: 'finance', functions: [TAX] })
+```
+
+| 字段       | 说明                                                                                 | 类型                         |
+| ---------- | ------------------------------------------------------------------------------------ | ---------------------------- |
+| `name`     | 公式里调用时的名字，不区分大小写；和内置函数同名时替换内置的                         | `string`                     |
+| `run`      | 计算结果。收到每个参数的值，引用多个单元格的参数收到区域；返回结果，出错时返回错误值 | `(args, ctx) => SheetResult` |
+| `minArgs`  | 最少几个参数，少了得到 `#VALUE!`                                                     | `number`                     |
+| `maxArgs`  | 最多几个参数，多了得到 `#VALUE!`                                                     | `number`                     |
+| `lazy`     | 为 `true` 时每个参数收到一个函数，调用它才计算这个参数，像 `IF` 那样只算用到的参数   | `boolean`                    |
+| `volatile` | 每次修改后都重新计算，像 `TODAY`                                                     | `boolean`                    |
+
+参数是区域时收到 `SheetRangeArg`：`rows`、`cols` 是大小，`at(row, col)` 取其中一格（从 0 开始），`entries()` 依次给出有内容的格子 `[row, col, value]`，跳过空格子，所以整列 `A:A` 也只遍历有数据的部分。`ctx.now` 是这次计算的时间，`ctx.locale` 是表格的语言。`run` 抛出异常时结果是 `#VALUE!`。
+
+`@dou-ui/sheet/formula` 里还有处理参数的工具：
+
+| 名称                                  | 说明                                                         |
+| ------------------------------------- | ------------------------------------------------------------ |
+| `numbersOf(args)`                     | 参数里所有的数字，规则同 `SUM`；遇到错误值时返回它           |
+| `scalarOf(arg)`                       | 一个值：一格的区域取那一格，更大的区域得到 `#VALUE!`         |
+| `toNumber`、`toText`、`toBoolean`     | 按公式的规则转换，不能转换时返回 `#VALUE!`                   |
+| `compareValues(a, b)`                 | 按公式的规则比较两个值，返回负数、`0` 或正数                 |
+| `criteriaOf(criteria)`                | 把 `SUMIF` 那样的条件变成判断函数 `(value) => boolean`       |
+| `serialOf(text)`、`dateText(serial)`  | 日期文字和天数（从 1899-12-30 算起）互相转换                 |
+| `SheetError.of(code)`、`isSheetError` | 得到错误值（比如 `SheetError.of('#N/A')`）、判断是不是错误值 |
+
+## 单独使用计算引擎
+
+不显示表格时，也可以用 `SheetFormulaEngine` 计算工作簿里的公式，比如在服务端生成报表：
+
+```ts
+import { SheetTransaction } from '@dou-ui/sheet'
+import { SheetFormulaEngine } from '@dou-ui/sheet/formula'
+
+const engine = new SheetFormulaEngine(book, { functions: [TAX] })
+engine.result(0, 6, 3) // 第一个工作表 D7 的结果
+engine.evaluate('=SUM(D2:D5)/4') // 不写进单元格，直接算一个公式
+
+// 修改后告诉引擎改了什么，只重新计算受影响的公式
+const tr = new SheetTransaction(book).setValue('B2', 1500)
+engine.update(tr.doc, tr.steps, book)
+```
+
+| 名称                                     | 说明                                                                                              |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `new SheetFormulaEngine(doc?, options?)` | 选项有 `functions`（追加的函数）、`locale`（`TEXT` 用的语言）、`now`（`TODAY` 用的时间）          |
+| `result(sheet, row, col)`                | 单元格的结果：公式的计算结果，或者单元格的值。`sheet` 是工作表的序号或 `id`（没有 `id` 时是名字） |
+| `evaluate(formula, sheet?)`              | 在某个工作表上计算一个公式，不保留结果                                                            |
+| `update(doc, steps, before?)`            | 修改之后调用；`before` 不是引擎上次见到的工作簿时整个重新计算                                     |
+| `load(doc)`                              | 换成另一个工作簿，所有结果重新计算                                                                |
+| `rowVersion(sheet, row)`                 | 这一行的结果最后一次变化的编号，可以用来判断是否需要重绘                                          |
+
+`parseFormula(text)` 把公式读成语法树，写法有误时抛出 `SheetFormulaSyntaxError`（带出错的位置 `at`）；`referencesOf(node)` 列出其中所有的引用。
+
+`sheetToCSV` 和 `formatClip` 的 `result` 选项接收 `(row, col) => 结果`，传入 `engine.result` 后导出的就是计算结果。

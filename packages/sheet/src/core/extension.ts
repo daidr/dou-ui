@@ -1,6 +1,7 @@
 import type { Component } from 'vue'
 import type { SheetContext } from '../context'
 import type { SheetMenuContext, SheetMenuItem } from '../types'
+import type { SheetFunction } from '../formula/functions'
 import type { SheetCellType } from './cell-type'
 import type { SheetTransaction } from './transaction'
 
@@ -23,6 +24,11 @@ export interface SheetExtension {
   priority?: number
   /** Cell types cells can name with `type`; one with a built-in name replaces it. */
   cellTypes?: SheetCellType[]
+  /**
+   * Functions formulas can call (see `defineSheetFunction`); one with a
+   * built-in name replaces it.
+   */
+  functions?: SheetFunction[]
   /**
    * Keys, written as in `useHotkey` (e.g. `mod+b`, `alt+arrowdown`), while the
    * grid has focus and no cell is being edited. They come before the grid's own.
@@ -54,6 +60,7 @@ export function defineSheetExtension(extension: SheetExtension): SheetExtension 
 export interface ResolvedSheetExtensions {
   extensions: SheetExtension[]
   cellTypes: SheetCellType[]
+  functions: SheetFunction[]
   keymaps: NonNullable<SheetExtension['keymap']>[]
   menus: NonNullable<SheetExtension['contextMenu']>[]
   setups: NonNullable<SheetExtension['setup']>[]
@@ -96,6 +103,9 @@ export function resolveSheetExtensions(list: ExtensionList = []): ResolvedSheetE
     extensions,
     // the first (highest priority) extension to name a type wins
     cellTypes: extensions.flatMap((e) => e.cellTypes ?? []),
+    // added in reverse, so the highest priority one is added last and wins
+    // oxlint-disable-next-line unicorn/no-array-reverse -- reverses a fresh array
+    functions: extensions.flatMap((e) => e.functions ?? []).reverse(),
     keymaps: pick('keymap'),
     menus: pick('contextMenu'),
     setups: pick('setup'),

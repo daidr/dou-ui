@@ -1,6 +1,14 @@
 import { boundsOf, parseRange, type SheetBounds, type SheetRange } from './address'
 import { formatValue, inputText, parseInput } from './format'
-import { cellOf, valueOf, type SheetCellInput, type SheetData, type SheetRow } from './model'
+import {
+  cellOf,
+  valueOf,
+  type SheetCellInput,
+  type SheetData,
+  type SheetRow,
+  type SheetValue,
+} from './model'
+import { shownValue, type SheetResult } from '../formula/values'
 
 /*
  * CSV and other delimited text: reading it into a sheet and writing a
@@ -157,8 +165,16 @@ export interface SheetCSVWriteOptions {
   formatted?: boolean
   /** The language dates are shown in. */
   locale?: string
-  /** A cell's text, e.g. as its cell type shows it; `undefined` uses its format. */
-  text?: (input: SheetCellInput) => string | undefined
+  /**
+   * What a formula comes to, by its row and column in the sheet, e.g. from
+   * `SheetFormulaEngine.result`; with `formatted`, the formula itself by default.
+   */
+  result?: (row: number, col: number) => SheetResult
+  /**
+   * A cell's text, e.g. as its cell type shows it; `undefined` uses its
+   * format. `value` is its value, or its formula's result.
+   */
+  text?: (input: SheetCellInput, value: SheetValue) => string | undefined
   /** Line breaks between rows; `\r\n` by default, as the format asks. */
   newline?: string
   /** Starts with a byte order mark, so programs that guess the encoding read it as UTF-8. */
@@ -199,6 +215,7 @@ export function sheetToCSV(sheet: SheetData, options: SheetCSVWriteOptions = {})
     formatted = true,
     locale,
     text,
+    result,
     newline = '\r\n',
     bom,
     escapeFormulas = true,
@@ -219,9 +236,10 @@ export function sheetToCSV(sheet: SheetData, options: SheetCSVWriteOptions = {})
     const fields: string[] = []
     for (let col = b.left; col <= right; col++) {
       const input = line?.[col]
-      const value = valueOf(input)
+      const stored = valueOf(input)
+      const value = formatted ? shownValue(stored, result, row, col) : stored
       const shown = formatted
-        ? (text?.(input) ?? formatValue(value, cellOf(input)?.format, locale))
+        ? (text?.(input, value) ?? formatValue(value, cellOf(input)?.format, locale))
         : rawText(value)
       // written as stored, this grid's formulas stay formulas, to be read back with `formulas`
       const formula = !formatted && typeof value === 'string' && value.startsWith('=')

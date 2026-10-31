@@ -2,6 +2,7 @@ import { inject, type ComputedRef, type InjectionKey, type Ref } from 'vue'
 import type { SheetPoint } from './core/address'
 import type { SheetResolvedType } from './core/cell-type'
 import type { SheetData, SheetStyle, SheetValue, SheetWorkbook } from './core/model'
+import type { SheetResult } from './formula/values'
 import type { SheetSelection } from './core/selection'
 import type { SheetStylePatch } from './core/transaction'
 import type { SheetMessages } from './locale'
@@ -33,8 +34,10 @@ export interface SheetContext {
    * row by row; a merged cell counts once, at its top left cell.
    */
   forEachSelected: (callback: (point: SheetPoint) => void) => void
-  /** The value in a cell of the sheet shown. */
+  /** The value in a cell of the sheet shown; for a formula, the formula. */
   value: (point: SheetPoint) => SheetValue
+  /** What a cell of the sheet shown comes to: its formula's result, or its value. */
+  result: (point: SheetPoint) => SheetResult
   /** A cell's type and its settings, or `undefined` for a plain cell. */
   cellType: (point: SheetPoint) => SheetResolvedType | undefined
   /** Where a cell (or the merged cell it is in) is drawn now; `null` while it is out of view. */

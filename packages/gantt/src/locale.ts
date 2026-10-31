@@ -60,6 +60,13 @@ export interface GanttMessages {
   newTask: string
   /** The row below the table that adds a task. */
   addRow: string
+  /** Read out when a task is added from the row below the table. */
+  taskAdded: string
+  /** Read out after indenting or outdenting: `{task}` moved under `{parent}`, or to the top level. */
+  movedUnder: string
+  movedTop: string
+  /** Read out when an edited value can't be read, so the cell keeps its value. */
+  invalidValue: string
   /** Read out when tasks are removed; `{titles}` joined with `listSeparator`. */
   tasksRemoved: string
   listSeparator: string
@@ -131,6 +138,10 @@ const zhCN: GanttMessages = {
   scheduled: '已重新排期，移动了 {count} 个任务',
   newTask: '新任务',
   addRow: '添加任务',
+  taskAdded: '已添加{title}',
+  movedUnder: '{task}已移到{parent}下',
+  movedTop: '{task}已移到最外层',
+  invalidValue: '{column}无效，未修改',
   tasksRemoved: '已删除：{titles}',
   listSeparator: '、',
   editCell: '编辑{column}',
@@ -182,6 +193,10 @@ const zhTW: GanttMessages = {
   scheduled: '已重新排程，移動了 {count} 個任務',
   newTask: '新任務',
   addRow: '新增任務',
+  taskAdded: '已新增{title}',
+  movedUnder: '{task}已移到{parent}下',
+  movedTop: '{task}已移到最外層',
+  invalidValue: '{column}無效，未修改',
   tasksRemoved: '已刪除：{titles}',
   editCell: '編輯{column}',
   menu: {
@@ -250,6 +265,10 @@ const en: GanttMessages = {
   scheduled: 'Rescheduled, {count} tasks moved',
   newTask: 'New task',
   addRow: 'Add a task',
+  taskAdded: 'Added {title}',
+  movedUnder: '{task} moved under {parent}',
+  movedTop: '{task} moved to the top level',
+  invalidValue: '{column} not valid, nothing changed',
   tasksRemoved: 'Removed {titles}',
   listSeparator: ', ',
   editCell: 'Edit {column}',

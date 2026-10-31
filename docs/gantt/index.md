@@ -46,7 +46,9 @@ app.use(DouGantt)
 
 双击单元格可以直接修改，`Enter` 确认，`Esc` 取消，点到别处也会确认。任务名、开始、结束、工期和进度都能改：改开始时间会整体移动任务，工期不变；改工期按工作日（精确到分钟的任务按工作小时）重新算结束时间。汇总任务的时间和进度由子任务算出，不能直接改。键盘焦点在任务上时按 `F2` 修改任务名。
 
-表格最下面一行用来添加任务，输入名称后按 `Enter`，可以连续添加。新任务还没有排期，在它那一行的时间轴上拖动画出起止时间。不需要这一行时设 `:add-row="false"`。
+表格最下面一行用来添加任务，输入名称后按 `Enter`，可以连续添加。新任务接在最后一个任务后面，占一个工作日；之后可以拖动或修改时间。不需要这一行时设 `:add-row="false"`。
+
+输入的值无法识别时（例如工期填了文字），输入框会保留并标红，读屏会提示未修改。
 
 拖动表格的行可以调整顺序：落在两行之间时插到那里，落在一行的中间时成为它的子任务。触屏上按住片刻再拖动。`Ctrl` / `⌘` + `]` 把任务变成上一个任务的子任务，`Ctrl` / `⌘` + `[` 移出上级；修改任务名时按 `Tab`、`Shift` + `Tab` 也可以。
 
@@ -54,9 +56,9 @@ app.use(DouGantt)
 
 ### 右键菜单
 
-在任务条、表格的行、依赖线或时间轴空白处点右键，或者按键盘上的菜单键（`Shift` + `F10`），会打开菜单；触屏上按住任务条或行片刻后松手也会打开。内置的菜单项有重命名、在下方添加任务、添加子任务、缩进、取消缩进、删除任务和删除依赖。
+在任务条、表格的行、依赖线或时间轴空白处点右键，或者按键盘上的菜单键（`Shift` + `F10`），会打开菜单；触屏上按住任务条或行片刻后松手也会打开。内置的菜单项有重命名、在下方添加任务、添加子任务、缩进、取消缩进、删除任务和删除依赖；在时间轴空白处添加的任务从点击的那天开始。
 
-扩展可以用 `contextMenu` 加自己的项，排在内置项前面；`menu` 设为 `false` 时只显示扩展的项。`taskContextmenu`、`linkContextmenu` 事件先于菜单触发，调用 `event.preventDefault()` 就不打开菜单。
+扩展可以用 `contextMenu` 加自己的项，排在内置项前面；`menu` 设为 `false` 时只显示扩展的项。`target.kind` 是 `task`、`link` 或 `canvas`（时间轴空白处），`target.point` 是打开菜单的位置（时间轴坐标），`target.time` 是该位置对应的时间（分钟），可以用来在点击的地方添加任务或里程碑。从表格或键盘打开时，位置在任务的开始处。`taskContextmenu`、`linkContextmenu` 事件先于菜单触发，调用 `event.preventDefault()` 就不打开菜单。
 
 ```ts
 const details = defineGanttExtension({
@@ -68,7 +70,7 @@ const details = defineGanttExtension({
 })
 ```
 
-这些操作也可以通过组件实例调用：`editCell(id, key?)`、`insertTask(near, 'after' | 'inside')`、`indentTask(id)`、`outdentTask(id)`。
+这些操作也可以通过组件实例调用：`editCell(id, key?)`、`insertTask(near, { where?: 'after' | 'inside', start? })`、`indentTask(id)`、`outdentTask(id)`。
 
 ### 撤销与重做
 

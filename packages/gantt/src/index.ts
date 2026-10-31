@@ -9,6 +9,7 @@ export type {
   GanttColumn,
   GanttEmits,
   GanttExpose,
+  GanttInsertOptions,
   GanttMarker,
   GanttMove,
   GanttProps,
@@ -29,7 +30,7 @@ export { applyGanttSteps, GanttTransaction } from './core/transaction'
 export type { GanttDocument, GanttStep, GanttTransactionMeta } from './core/transaction'
 export { computeCriticalPath, computeSchedule, findBrokenLinks } from './core/schedule'
 export type { GanttCriticalPath, GanttSchedule, GanttScheduleOptions } from './core/schedule'
-export type { GanttMenuItem, GanttMenuTarget } from './core/menu'
+export type { GanttMenuItem, GanttMenuTarget, GanttPoint } from './core/menu'
 export { orderBetween } from './core/order'
 export { parseLag } from './core/links'
 export type { GanttLag, GanttLinkRefusal } from './core/links'

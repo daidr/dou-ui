@@ -86,4 +86,21 @@ const columns = [
 
 用 `cell` 插槽可以自定义单元格，插槽参数里有 `task`、`column` 和格式化好的 `text`。
 
-不是只读时，双击单元格可以编辑。内置列默认可以编辑，设 `editable: false` 关闭；其他列设 `editable: true` 后可以编辑，输入的文字写进任务 `data` 里与 `key` 同名的字段。
+不是只读时，双击单元格可以编辑。内置列默认可以编辑，设 `editable: false` 关闭；其他列设 `editable: true` 后可以编辑，写进任务 `data` 里与 `key` 同名的字段。
+
+自定义列默认把输入的文字原样写入。要保存数字或其他类型时，用 `parse` 把文字转成要写入的值，返回 `undefined` 表示无法识别，输入框会保留并标红；用 `format` 决定值在单元格里显示成什么文字，输入框里显示的是值本身转成的文字。`input: 'number'` 让手机弹出数字键盘。
+
+```ts
+const columns = [
+  { key: 'title' },
+  {
+    key: 'budget',
+    title: '预算',
+    editable: true,
+    input: 'number',
+    align: 'end',
+    parse: (text) => (text.trim() && Number.isFinite(Number(text)) ? Number(text) : undefined),
+    format: (value) => (value == null ? '' : `¥${value}`),
+  },
+]
+```

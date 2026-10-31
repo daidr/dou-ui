@@ -27,9 +27,30 @@ export interface GanttColumn {
   /**
    * Double-click (or F2 for the title) to edit. Built-in columns are
    * editable unless this is `false`; other columns only when it is `true`,
-   * and they write the text to the task's `data`.
+   * and they write to the task's `data`, through `parse`.
    */
   editable?: boolean
+  /**
+   * For an editable column of your own: the value to write for the typed
+   * text. Return `undefined` when the text can't be read: the field stays
+   * open, marked invalid. Without it the text is written as it is.
+   */
+  parse?: (text: string, task: GanttTask) => unknown
+  /** For a column of your own: the text a value shows as in its cell. Its editor starts from `String(value)`. */
+  format?: (value: unknown, task: GanttTask) => string
+  /** For an editable column of your own: `number` brings up a number keypad. */
+  input?: 'text' | 'number'
+}
+
+/** Where `insertTask` puts the new task. */
+export interface GanttInsertOptions {
+  /** After `near` (the default), or as its last subtask. */
+  where?: 'after' | 'inside'
+  /**
+   * When it starts, as a date or minutes; it lasts a working day. Without
+   * it the task starts after the one above it, or today.
+   */
+  start?: string | number
 }
 
 /** A vertical line across the timeline, such as a release day or a freeze. */
@@ -154,10 +175,11 @@ export interface GanttExpose {
   /** Starts editing a cell of the table, the title by default; `false` when it can't be edited. */
   editCell: (id: string, key?: string) => boolean
   /**
-   * Adds a task named with `messages.newTask` after another one, or as its
-   * last subtask, and starts editing its title. Returns its id.
+   * Adds a task named with `messages.newTask` after another one (or at
+   * the end), lasting a working day, and starts editing its title.
+   * Returns its id.
    */
-  insertTask: (near: string | null, where?: 'after' | 'inside') => string
+  insertTask: (near: string | null, options?: GanttInsertOptions) => string
   /** Makes a task the last subtask of the one above it. */
   indentTask: (id: string) => boolean
   /** Moves a task out of its parent, to just after it. */

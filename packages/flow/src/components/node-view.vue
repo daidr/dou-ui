@@ -165,6 +165,7 @@ const viewProps = computed(() => ({
       'is-dragging': dragging,
       'is-sized': node.width != null,
       'is-container': container,
+      'is-bare': spec?.frame === false,
       'is-collapsed': collapsed,
       'is-drop-target': dropTarget,
     }"

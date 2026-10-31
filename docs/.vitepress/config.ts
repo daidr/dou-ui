@@ -47,6 +47,7 @@ const flowSidebar = ecosystem('流程编辑器', [
   { text: '编辑交互', link: '/flow/editing' },
   { text: '扩展', link: '/flow/extensions' },
   { text: '协同编辑', link: '/flow/collaboration' },
+  { text: '白板', link: '/flow/whiteboard' },
   { text: '大型流程', link: '/flow/performance' },
 ])
 
@@ -353,6 +354,10 @@ export default defineConfig({
         {
           find: /^@dou-ui\/editor\/style\.css$/,
           replacement: r('../../packages/editor/src/style.css'),
+        },
+        {
+          find: /^@dou-ui\/flow\/whiteboard$/,
+          replacement: r('../../packages/flow/src/whiteboard/index.ts'),
         },
         {
           find: /^@dou-ui\/flow\/collaboration$/,

@@ -46,7 +46,11 @@ import {
 } from './core/connect'
 import { FlowHistory } from './core/history'
 import { flowOrder } from './core/order'
-import { resolveFlowExtensions, type FlowHistoryHandler } from './core/extension'
+import {
+  resolveFlowExtensions,
+  type FlowHistoryHandler,
+  type FlowPressHandler,
+} from './core/extension'
 import { flowKit } from './kit'
 import type { FlowMenuItem, FlowMenuTarget, FlowToolbarItem } from './core/menu'
 import { readClipboard, writeClipboard } from './core/clipboard'
@@ -1069,6 +1073,14 @@ type Gesture =
       started: boolean
     }
   | {
+      /** A press an extension took over. */
+      kind: 'press'
+      id: number
+      touch: boolean
+      handler: FlowPressHandler
+      done: boolean
+    }
+  | {
       kind: 'connect'
       id: number
       touch: boolean
@@ -1164,6 +1176,22 @@ function onPointerDown(event: PointerEvent) {
   if (event.button !== 0) return
   // Typing a label: the field's own presses.
   if (target.closest('.dou-flow-editor__label-input')) return
+
+  if (resolved.value.presses.length && !props.readonly && !isInteractive(target)) {
+    const pressedId = target.closest<HTMLElement>('[data-node-id]')?.dataset.nodeId
+    const press = {
+      point: toCanvas(client),
+      node: (pressedId && nodeById.value.get(pressedId)) || null,
+      event,
+    }
+    for (const hook of resolved.value.presses) {
+      const handler = hook(context, press)
+      if (!handler) continue
+      gesture.value = { kind: 'press', id: event.pointerId, touch, handler, done: false }
+      capture(event.pointerId)
+      return
+    }
+  }
 
   const resizeEl = target.closest('.dou-flow-editor__resize')
   if (resizeEl && nodeEl && !props.readonly) {
@@ -1381,6 +1409,8 @@ function onPointerMove(event: PointerEvent) {
       panning.value = true
     }
     setViewport({ x: g.origin.x + dx, y: g.origin.y + dy, zoom: g.origin.zoom })
+  } else if (g.kind === 'press') {
+    g.handler.move?.(toCanvas(client), event)
   } else if (g.kind === 'box') {
     g.client = client
     updateBox(g)
@@ -1566,6 +1596,7 @@ function autoPan(client: Point) {
       !g ||
       g.kind === 'pan' ||
       g.kind === 'bend' ||
+      g.kind === 'press' ||
       g.kind === 'resize' ||
       ((g.kind === 'drag' || g.kind === 'connect') && !g.started)
     )
@@ -2355,6 +2386,10 @@ function onPointerUp(event: PointerEvent) {
   const g = gesture.value
   if (!g || g.id !== event.pointerId) return
   const cancelled = event.type === 'pointercancel'
+  if (g.kind === 'press' && !cancelled) {
+    g.done = true
+    g.handler.end?.(toCanvas({ x: event.clientX, y: event.clientY }), event)
+  }
   if (!cancelled) {
     if (g.kind === 'pan' && !g.moved) {
       if (!g.additive) setSelection(emptySelection())
@@ -2384,6 +2419,11 @@ function onPointerUp(event: PointerEvent) {
 
 function endGesture() {
   const g = gesture.value
+  // the press didn't end with the pointer let go: cancelled, by Escape or a second finger
+  if (g?.kind === 'press' && !g.done) {
+    g.done = true
+    g.handler.cancel?.()
+  }
   clearPress()
   cancelAnimationFrame(autoPanFrame)
   if (g && root.value?.hasPointerCapture(g.id)) root.value.releasePointerCapture(g.id)
@@ -2714,6 +2754,12 @@ function onKeydown(event: KeyboardEvent) {
   const nodeEl = target.closest('[data-node-id]')
   if (nodeEl && nodeEl !== target) return
   if (keyLink.value) return onKeyLink(event)
+  // Escape lets go of a press an extension took over, before its keys are asked
+  if (event.key === 'Escape' && gesture.value?.kind === 'press') {
+    event.preventDefault()
+    endGesture()
+    return
+  }
   for (const keymap of keymaps.value)
     for (const [hotkey, handler] of Object.entries(keymap))
       if (matchesHotkey(event, hotkey) && handler(event) !== false) {
@@ -3203,7 +3249,12 @@ defineExpose<FlowEditorExpose>({
         />
       </template>
       <svg class="dou-flow-editor__edges" aria-hidden="true">
-        <g v-for="item in edgePaths" :key="item.edge.id" :data-edge-id="item.edge.id">
+        <g
+          v-for="item in edgePaths"
+          :key="item.edge.id"
+          :data-edge-id="item.edge.id"
+          :data-edge-type="edgeTypeOf(item.edge.type).type"
+        >
           <path class="dou-flow-editor__edge-hit" :d="item.route.path" />
           <path
             class="dou-flow-editor__edge"

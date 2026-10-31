@@ -41,6 +41,12 @@ export interface NodeTypeSpec<Data extends FlowData = FlowData> {
   resizable?: boolean | { minWidth?: number; minHeight?: number }
   /** The `width` and `height` a new node starts with. */
   size?: { width: number; height: number }
+  /**
+   * `false` leaves out the card the editor draws around the component (its
+   * border, background and shadow), for nodes that draw their own outline,
+   * e.g. a circle. Selection then shows as a thin outline around the box.
+   */
+  frame?: boolean
 }
 
 export interface NodePaletteSpec {

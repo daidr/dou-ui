@@ -130,3 +130,28 @@ export const inBounds = (b: SheetBounds, row: number, col: number) =>
 
 /** A range of one cell. */
 export const pointRange = (point: SheetPoint): SheetRange => ({ start: point, end: point })
+
+/*
+ * A cell reference inside a formula: not part of a longer name (`LOG10(`,
+ * `A1B`), and outside quoted text.
+ */
+const FORMULA_PART = /"(?:[^"]|"")*"|(?<![\w.$])(\$?)([a-z]{1,3})(\$?)([1-9]\d*)(?![\w(!])/gi
+
+/**
+ * A formula moved by `rows` and `cols`, as copying or filling it does:
+ * references without `$` move along, `$A$1` stays. A reference pushed past
+ * the first row or column becomes `#REF!`.
+ */
+export function shiftFormula(formula: string, rows: number, cols: number) {
+  if (!formula.startsWith('=') || (rows === 0 && cols === 0)) return formula
+  return formula.replace(
+    FORMULA_PART,
+    (match, colMark?: string, letters?: string, rowMark?: string, digits?: string) => {
+      if (letters == null) return match
+      const col = colMark ? columnIndex(letters) : columnIndex(letters) + cols
+      const row = rowMark ? Number(digits) - 1 : Number(digits) - 1 + rows
+      if (col < 0 || row < 0) return '#REF!'
+      return `${colMark}${columnName(col)}${rowMark}${row + 1}`
+    },
+  )
+}

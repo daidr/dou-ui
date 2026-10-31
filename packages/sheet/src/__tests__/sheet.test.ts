@@ -192,6 +192,73 @@ describe('DouSheet', () => {
     expect(wrapper.findAll('.dou-sheet__cell').map((cell) => cell.text())).toContain('2026/3/5')
   })
 
+  it('copies and pastes through clipboard events', async () => {
+    const { key, cells, input } = setup()
+    await key('ArrowDown')
+    await key('ArrowRight', { shiftKey: true })
+    const data = new Map<string, string>()
+    const clipboardData = {
+      setData: (type: string, value: string) => data.set(type, value),
+      getData: (type: string) => data.get(type) ?? '',
+    }
+    const fire = async (type: string) => {
+      const event = new Event(type, { bubbles: true, cancelable: true })
+      Object.defineProperty(event, 'clipboardData', { value: clipboardData })
+      input.dispatchEvent(event)
+      await nextTick()
+      return event
+    }
+    await fire('copy')
+    expect(data.get('text/plain')).toBe('显示器\t42')
+    await key('ArrowDown', { ctrlKey: true })
+    await key('ArrowDown')
+    await fire('paste')
+    expect(cells()[3]).toEqual(['显示器', 42])
+    // text from elsewhere is read as typed
+    data.clear()
+    data.set('text/plain', '鼠标\t1,500\n键盘\t12%')
+    await fire('paste')
+    expect(cells()[3]).toEqual(['鼠标', 1500])
+    expect(cells()[4]).toEqual(['键盘', { value: 0.12, format: '0%' }])
+  })
+
+  it('cuts and moves cells', async () => {
+    const { key, cells, input } = setup()
+    const data = new Map<string, string>()
+    const clipboardData = {
+      setData: (type: string, value: string) => data.set(type, value),
+      getData: (type: string) => data.get(type) ?? '',
+    }
+    const fire = async (type: string) => {
+      const event = new Event(type, { bubbles: true, cancelable: true })
+      Object.defineProperty(event, 'clipboardData', { value: clipboardData })
+      input.dispatchEvent(event)
+      await nextTick()
+    }
+    await key('ArrowDown')
+    await fire('cut')
+    await key('ArrowRight', { ctrlKey: true })
+    await key('ArrowRight')
+    await fire('paste')
+    expect(cells()[1]).toEqual([undefined, 42, '显示器'])
+  })
+
+  it('fills down with Ctrl+D and inserts rows with the keyboard', async () => {
+    const { key, cells } = setup()
+    await key('ArrowDown')
+    await key('ArrowDown', { shiftKey: true })
+    await key('ArrowDown', { shiftKey: true })
+    await key('ArrowRight', { shiftKey: true })
+    await key('d', { ctrlKey: true })
+    expect(cells()[3]).toEqual(['显示器', 42])
+    await key(' ', { shiftKey: true })
+    await key('+', { ctrlKey: true, shiftKey: true })
+    expect(cells()[1]).toBeNull()
+    expect(cells()[4]).toEqual(['显示器', 42])
+    await key('-', { ctrlKey: true })
+    expect(cells()[1]).toEqual(['显示器', 42])
+  })
+
   it('keeps frozen rows and columns at the top and left', () => {
     const book = sample()
     book.sheets[0]!.freeze = { rows: 1, cols: 1 }

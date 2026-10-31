@@ -44,6 +44,9 @@
     "dou-ui": "workspace:*",
     "vue": "^3.5.0"
   },
+  "dependencies": {
+    "@dou-ui/icons": "workspace:*"
+  },
   "publishConfig": {
     "access": "public"
   }

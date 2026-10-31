@@ -1,4 +1,5 @@
 import type { SheetCellTarget, SheetRange } from './core/address'
+import type { SheetClip } from './core/clipboard'
 import type { SheetWorkbook } from './core/model'
 import type { SheetSelection } from './core/selection'
 import type { SheetTransaction, SheetTransactionMeta } from './core/transaction'
@@ -59,4 +60,12 @@ export interface SheetExpose {
   /** Opens the editor on a cell, the active one by default. */
   edit: (cell?: SheetCellTarget) => void
   focus: () => void
+  /** Copies (or cuts) the selection to the system clipboard. */
+  copy: () => Promise<void>
+  cut: () => Promise<void>
+  /**
+   * Pastes at the selection: the given cells (e.g. from `readClip`), or what
+   * is on the system clipboard when the browser allows reading it.
+   */
+  paste: (clip?: SheetClip) => Promise<void>
 }

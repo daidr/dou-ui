@@ -13,8 +13,12 @@ export {
   formatRange,
   parseCell,
   parseRange,
+  shiftFormula,
   splitSheet,
 } from './core/address'
+export { parseTSV, readClip, writeClip } from './core/clipboard'
+export type { SheetClip } from './core/clipboard'
+export { continueValues } from './core/fill'
 export type { SheetBounds, SheetCellTarget, SheetPoint, SheetRange } from './core/address'
 export { cellOf, valueOf } from './core/model'
 export type {
@@ -33,6 +37,7 @@ export { isSelected, selectCell } from './core/selection'
 export type { SheetSelection } from './core/selection'
 export { applySheetSteps, compactSheetSteps, sheetKey, SheetTransaction } from './core/transaction'
 export type {
+  SheetAxisName,
   SheetCellAt,
   SheetPatch,
   SheetRangeAt,

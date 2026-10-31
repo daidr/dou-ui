@@ -24,6 +24,40 @@ export interface SheetMessages {
   changed: string
   undone: string
   redone: string
+  /** Menu items. `{count}` is how many rows or columns. */
+  cut: string
+  copy: string
+  paste: string
+  insertRowsAbove: string
+  insertRowsBelow: string
+  insertColsLeft: string
+  insertColsRight: string
+  deleteRows: string
+  deleteCols: string
+  hideRows: string
+  hideCols: string
+  showRows: string
+  showCols: string
+  clear: string
+  /** Read out after copying or cutting: `{range}`. */
+  copied: string
+  cutDone: string
+  /** Read out after pasting or filling: `{range}`. */
+  pasted: string
+  filled: string
+  /** Read out after rows or columns change: `{count}`. */
+  rowsInserted: string
+  colsInserted: string
+  rowsDeleted: string
+  colsDeleted: string
+  rowsMoved: string
+  colsMoved: string
+  /** Read out after resizing: `{size}` in px. */
+  resized: string
+  /** Shown when the browser won't let the page read the clipboard: `{key}` pastes instead. */
+  pasteBlocked: string
+  /** The handle at the corner of the selection, for filling. */
+  fillHandle: string
 }
 
 const zhCN: SheetMessages = {
@@ -39,6 +73,33 @@ const zhCN: SheetMessages = {
   changed: '{cell} 改为 {value}',
   undone: '已撤销',
   redone: '已重做',
+  cut: '剪切',
+  copy: '复制',
+  paste: '粘贴',
+  insertRowsAbove: '在上方插入 {count} 行',
+  insertRowsBelow: '在下方插入 {count} 行',
+  insertColsLeft: '在左侧插入 {count} 列',
+  insertColsRight: '在右侧插入 {count} 列',
+  deleteRows: '删除 {count} 行',
+  deleteCols: '删除 {count} 列',
+  hideRows: '隐藏 {count} 行',
+  hideCols: '隐藏 {count} 列',
+  showRows: '取消隐藏行',
+  showCols: '取消隐藏列',
+  clear: '清除内容',
+  copied: '已复制 {range}',
+  cutDone: '已剪切 {range}',
+  pasted: '已粘贴到 {range}',
+  filled: '已填充 {range}',
+  rowsInserted: '已插入 {count} 行',
+  colsInserted: '已插入 {count} 列',
+  rowsDeleted: '已删除 {count} 行',
+  colsDeleted: '已删除 {count} 列',
+  rowsMoved: '已移动 {count} 行',
+  colsMoved: '已移动 {count} 列',
+  resized: '已改为 {size} 像素',
+  pasteBlocked: '浏览器不允许网页读取剪贴板，请按 {key} 粘贴',
+  fillHandle: '填充柄',
 }
 
 const zhTW: SheetMessages = {
@@ -54,6 +115,33 @@ const zhTW: SheetMessages = {
   changed: '{cell} 改為 {value}',
   undone: '已復原',
   redone: '已重做',
+  cut: '剪下',
+  copy: '複製',
+  paste: '貼上',
+  insertRowsAbove: '在上方插入 {count} 列',
+  insertRowsBelow: '在下方插入 {count} 列',
+  insertColsLeft: '在左側插入 {count} 欄',
+  insertColsRight: '在右側插入 {count} 欄',
+  deleteRows: '刪除 {count} 列',
+  deleteCols: '刪除 {count} 欄',
+  hideRows: '隱藏 {count} 列',
+  hideCols: '隱藏 {count} 欄',
+  showRows: '取消隱藏列',
+  showCols: '取消隱藏欄',
+  clear: '清除內容',
+  copied: '已複製 {range}',
+  cutDone: '已剪下 {range}',
+  pasted: '已貼上到 {range}',
+  filled: '已填滿 {range}',
+  rowsInserted: '已插入 {count} 列',
+  colsInserted: '已插入 {count} 欄',
+  rowsDeleted: '已刪除 {count} 列',
+  colsDeleted: '已刪除 {count} 欄',
+  rowsMoved: '已移動 {count} 列',
+  colsMoved: '已移動 {count} 欄',
+  resized: '已改為 {size} 像素',
+  pasteBlocked: '瀏覽器不允許網頁讀取剪貼簿，請按 {key} 貼上',
+  fillHandle: '填滿控點',
 }
 
 const en: SheetMessages = {
@@ -69,6 +157,33 @@ const en: SheetMessages = {
   changed: '{cell} is now {value}',
   undone: 'Undone',
   redone: 'Redone',
+  cut: 'Cut',
+  copy: 'Copy',
+  paste: 'Paste',
+  insertRowsAbove: 'Insert {count} rows above',
+  insertRowsBelow: 'Insert {count} rows below',
+  insertColsLeft: 'Insert {count} columns left',
+  insertColsRight: 'Insert {count} columns right',
+  deleteRows: 'Delete {count} rows',
+  deleteCols: 'Delete {count} columns',
+  hideRows: 'Hide {count} rows',
+  hideCols: 'Hide {count} columns',
+  showRows: 'Unhide rows',
+  showCols: 'Unhide columns',
+  clear: 'Clear contents',
+  copied: '{range} copied',
+  cutDone: '{range} cut',
+  pasted: 'Pasted into {range}',
+  filled: '{range} filled',
+  rowsInserted: '{count} rows inserted',
+  colsInserted: '{count} columns inserted',
+  rowsDeleted: '{count} rows deleted',
+  colsDeleted: '{count} columns deleted',
+  rowsMoved: '{count} rows moved',
+  colsMoved: '{count} columns moved',
+  resized: 'Resized to {size} px',
+  pasteBlocked: "The browser doesn't let the page read the clipboard. Press {key} to paste.",
+  fillHandle: 'Fill handle',
 }
 
 export const sheetLocales: Record<string, SheetMessages> = {

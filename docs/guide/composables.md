@@ -25,8 +25,9 @@ DouUI 的组件建立在一组组合式函数上。下面这些已经导出，�
 | `useClipboard`                                    | 复制文本，并在复制成功后的一段时间内给出 `copied`      | [下文](#useclipboard)                                              |
 | `useElementSize` / `useResizeObserver`            | 读取元素尺寸，或在尺寸变化时执行回调                   | [下文](#useelementsize)                                            |
 | `useIntersection`                                 | 元素是否出现在视口或滚动容器中                         | [下文](#useintersection)                                           |
+| `holdPointer`                                     | 触摸拖动开始后不再滚动页面，按下的元素被移除也不中断   | [下文](#holdpointer)                                               |
 
-这些函数都要在 `setup` 中调用，组件卸载时自动清理监听。
+除 `holdPointer` 外，这些函数都要在 `setup` 中调用，组件卸载时自动清理监听。
 
 ## 自己写一个浮层
 
@@ -139,3 +140,30 @@ const { isIntersecting, ratio, entry } = useIntersection(el, {
 元素进入视口时 `isIntersecting` 为 `true`，`ratio` 是可见部分的比例。`root` 换成某个滚动容器，`rootMargin` 扩大或缩小判定范围（写法同 CSS 的 `margin`），`threshold` 设置在哪些可见比例时更新。`root`、`rootMargin`、`threshold` 都可以传 ref 或 getter，变化后会重新监听。`once` 在第一次可见后停止监听，适合只需要触发一次的场景，例如进入视口后再加载图片或数据。
 
 <DocDemo src="composables/intersection" />
+
+## holdPointer
+
+```ts
+function onPointerdown(event: PointerEvent) {
+  const hold = holdPointer(event, listEl.value)
+  const move = (e: PointerEvent) => {
+    if (!dragging && far(e)) {
+      dragging = true
+      hold.grab()
+    }
+  }
+  const up = () => {
+    hold.release()
+    window.removeEventListener('pointermove', move)
+    window.removeEventListener('pointerup', up)
+    window.removeEventListener('pointercancel', up)
+  }
+  window.addEventListener('pointermove', move)
+  window.addEventListener('pointerup', up)
+  window.addEventListener('pointercancel', up)
+}
+```
+
+在手机上，手指按下后滑动默认会滚动页面，浏览器一旦开始滚动就会发出 `pointercancel`，拖动随之中断。`holdPointer` 要在 `pointerdown` 里调用，拖动真正开始时调用 `grab()`，此后这次触摸不再滚动页面；拖动结束或取消时调用 `release()`。在 `grab()` 之前，手指仍然可以正常滚动页面，适合先长按再拖动的列表。
+
+触摸事件始终发往手指按下的那个元素。拖动时这个元素可能被移除，例如条目被拖进了另一个列表，或者虚拟列表滚动后不再渲染它，此后它的事件不会再冒泡到页面。`holdPointer` 会在这个元素上单独监听，并把指针捕获到第二个参数给出的元素上，所以第二个参数应当是拖动期间一直存在的元素，例如列表容器。用鼠标时它什么也不做。Sortable、Tree、Drawer 的拖动都基于它实现。

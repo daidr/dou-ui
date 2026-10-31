@@ -134,6 +134,8 @@
   .dou-dialog__panel.is-draggable > .dou-dialog__header {
     cursor: move;
     user-select: none;
+    /* a finger on the header moves the panel, not the page */
+    touch-action: none;
   }
 
   .dou-dialog-dragging,

@@ -1,6 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
+import { defineGanttExtension, useGantt } from '../index'
 import { DouGantt } from '../index'
 import type { GanttLink, GanttTask } from '../index'
 
@@ -49,6 +50,14 @@ const press = (el: Element, clientX: number) =>
   )
 const pointer = (type: string, clientX: number) =>
   window.dispatchEvent(new PointerEvent(type, { clientX, clientY: 10, pointerId: 1 }))
+
+// each press in its own tick, as from a person: the bound v-model catches up in between
+const pressKey = async (el: Element, key: string, init: KeyboardEventInit = {}) => {
+  el.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, ...init }))
+  await nextTick()
+}
+const live = (wrapper: { find: (selector: string) => { text: () => string } }) =>
+  wrapper.find('[aria-live]').text()
 
 describe('DouGantt', () => {
   it('renders the table with summaries worked out', async () => {
@@ -208,6 +217,112 @@ describe('DouGantt', () => {
     await wrapper.find('.dou-gantt__link').trigger('click')
     await wrapper.find('.dou-gantt').trigger('keydown', { key: 'Delete' })
     expect(links.value.map((link) => link.id)).toEqual(['l2'])
+    wrapper.unmount()
+  })
+
+  it('walks the rows and moves a task with keys, as one undo step', async () => {
+    const { wrapper, tasks } = setup()
+    await nextTick()
+    const root = wrapper.find('.dou-gantt').element
+    await pressKey(root, 'ArrowDown')
+    await pressKey(root, 'ArrowDown')
+    await nextTick()
+    expect(document.activeElement?.getAttribute('data-task')).toBe('a')
+    await pressKey(root, 'ArrowRight', { altKey: true })
+    await pressKey(root, 'ArrowRight', { altKey: true })
+    // two working days later, still five working days long
+    expect(tasks.value[1]).toMatchObject({ start: '2026-03-04', end: '2026-03-10' })
+    await nextTick()
+    await nextTick()
+    expect(live(wrapper)).toContain('设计')
+    await pressKey(root, 'ArrowRight', { altKey: true, shiftKey: true })
+    expect(tasks.value[1]!.end).toBe('2026-03-11')
+    const mod = /mac/i.test(navigator.platform) ? { metaKey: true } : { ctrlKey: true }
+    await pressKey(root, 'z', mod)
+    await pressKey(root, 'z', mod)
+    expect(tasks.value[1]).toMatchObject({ start: '2026-03-02', end: '2026-03-06' })
+    wrapper.unmount()
+  })
+
+  it('folds a summary with Left and links two tasks with L', async () => {
+    const { wrapper, tasks, links } = setup()
+    await nextTick()
+    const root = wrapper.find('.dou-gantt').element
+    await pressKey(root, 'ArrowDown')
+    await pressKey(root, 'ArrowLeft')
+    expect(tasks.value[0]!.collapsed).toBe(true)
+    await pressKey(root, 'ArrowRight')
+    await nextTick()
+    await pressKey(root, 'ArrowDown')
+    await pressKey(root, 'l')
+    // 设计 already leads to 开发, so that one is refused; 上线 is next
+    await pressKey(root, 'ArrowDown')
+    await nextTick()
+    expect(wrapper.find('.dou-gantt__bar[data-task="b"]').classes()).toContain('is-link-refused')
+    await pressKey(root, 'Enter')
+    expect(links.value).toHaveLength(2)
+    await pressKey(root, 'ArrowDown')
+    await pressKey(root, 'Enter')
+    expect(links.value.at(-1)).toMatchObject({ from: 'a', to: 'm' })
+    await nextTick()
+    await nextTick()
+    expect(live(wrapper)).toContain('设计 → 上线')
+    wrapper.unmount()
+  })
+
+  it('asks can-move and says why it refuses', async () => {
+    const { wrapper, tasks } = setup({
+      canMove: (move: { start: string }) => move.start >= '2026-03-02' || '不能早于 3 月 2 日',
+    })
+    await nextTick()
+    const root = wrapper.find('.dou-gantt').element
+    await pressKey(root, 'ArrowDown')
+    await pressKey(root, 'ArrowDown')
+    await pressKey(root, 'ArrowLeft', { altKey: true })
+    expect(tasks.value[1]!.start).toBe('2026-03-02')
+    await nextTick()
+    await nextTick()
+    expect(live(wrapper)).toBe('不能早于 3 月 2 日')
+    wrapper.unmount()
+  })
+
+  it('takes columns, keys, markers and layers from extensions', async () => {
+    const pressed: string[] = []
+    const Layer = defineComponent(() => {
+      const gantt = useGantt()
+      return () => h('i', { class: 'test-layer', style: { left: `${gantt.xOf('2026-03-09')}px` } })
+    })
+    const owner = defineGanttExtension({
+      name: 'owner',
+      columns: [{ key: 'owner', title: '负责人', value: () => '戴兜' }],
+      keymap: () => ({
+        'shift+d': () => {
+          pressed.push('d')
+        },
+        arrowdown: () => false,
+      }),
+      markers: () => [{ date: '2026-03-13', label: '冻结', tone: 'warning' }],
+      layers: { below: [Layer] },
+    })
+    const { wrapper } = setup({
+      extensions: [owner],
+      markers: [{ date: '2026-03-16', label: '发布' }],
+    })
+    await nextTick()
+    expect(wrapper.findAll('.dou-gantt__th').map((th) => th.text())).toContain('负责人')
+    expect(wrapper.findAll('.dou-gantt__marker-label').map((el) => el.text())).toEqual([
+      '发布',
+      '冻结',
+    ])
+    expect(wrapper.find('.dou-gantt__marker.is-warning').exists()).toBe(true)
+    expect(wrapper.find('.test-layer').exists()).toBe(true)
+    const root = wrapper.find('.dou-gantt').element
+    await pressKey(root, 'D', { shiftKey: true })
+    expect(pressed).toEqual(['d'])
+    // a handler that returns false lets the chart's own key through
+    await pressKey(root, 'ArrowDown')
+    await nextTick()
+    expect(wrapper.find('.dou-gantt__tr.is-active').exists()).toBe(true)
     wrapper.unmount()
   })
 })

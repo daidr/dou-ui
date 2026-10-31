@@ -6,12 +6,16 @@ import {
   nextTick,
   onBeforeUnmount,
   onMounted,
+  provide,
   ref,
   shallowRef,
   toRaw,
+  useId,
   useTemplateRef,
   watch,
 } from 'vue'
+import { ganttKey, type GanttContext } from './context'
+import { resolveGanttExtensions } from './core/extension'
 import { endKeepingWork, offTime, resolveCalendar } from './core/calendar'
 import { arrowPath, roundedPath, routeLink, type BarBox } from './core/geometry'
 import { GanttHistory } from './core/history'
@@ -32,7 +36,14 @@ import { MINUTES_PER_DAY, dayIndex, dayStart, parseTime, wallClockNow } from './
 import { buildTree, type GanttRow } from './core/tree'
 import { dateLabel, durationLabel, endLabel, unitLabel } from './labels'
 import { format, useGanttMessages } from './locale'
-import type { GanttColumn, GanttEmits, GanttExpose, GanttProps, GanttSlots } from './types'
+import type {
+  GanttColumn,
+  GanttEmits,
+  GanttExpose,
+  GanttMove,
+  GanttProps,
+  GanttSlots,
+} from './types'
 
 defineOptions({ name: 'DouGantt' })
 
@@ -51,6 +62,7 @@ const emit = defineEmits<GanttEmits>()
 defineSlots<GanttSlots>()
 
 const messages = useGanttMessages(() => props.messages)
+const resolved = computed(() => resolveGanttExtensions(props.extensions))
 const { locale } = useLocale()
 const weekStart = computed(() => props.weekStart ?? locale.value.region.weekStart)
 
@@ -580,14 +592,14 @@ function onDividerKey(event: KeyboardEvent) {
   event.preventDefault()
 }
 
-const columns = computed<GanttColumn[]>(
-  () =>
-    props.columns ?? [
-      { key: 'title' },
-      { key: 'start', width: 96 },
-      { key: 'duration', width: 72 },
-    ],
-)
+const columns = computed<GanttColumn[]>(() => [
+  ...(props.columns ?? [
+    { key: 'title' },
+    { key: 'start', width: 96 },
+    { key: 'duration', width: 72 },
+  ]),
+  ...resolved.value.columns,
+])
 
 function headerOf(column: GanttColumn) {
   if (column.title != null) return column.title
@@ -663,6 +675,7 @@ function select(task: GanttTask, event: MouseEvent) {
 function onTaskClick(row: GanttRow, event: MouseEvent) {
   if (dragged) return
   selectedLink.value = null
+  active.value = row.task.id
   select(row.task, event)
   emit('taskClick', row.task, event)
 }
@@ -893,21 +906,55 @@ function linkTarget(d: Drag): Drag['target'] {
   if (!el || !id) return undefined
   const rect = el.getBoundingClientRect()
   const end: End = d.clientX < rect.left + rect.width / 2 ? 'start' : 'end'
-  let refusal = linkRefusal(new Map(tasks.value.map((t) => [t.id, t])), links.value, d.id, id)
+  return { id, end, ...checkLink(d.id, id, linkTypeOf(d.from!, end)) }
+}
+
+/** Whether a link may be made, and if not, why: the built-in rules, then `can-link` and the extensions'. */
+function checkLink(from: string, to: string, type: GanttLink['type']) {
+  let refusal = linkRefusal(new Map(tasks.value.map((t) => [t.id, t])), links.value, from, to)
   let reason: string | undefined
   if (refusal && refusal !== 'self' && refusal !== 'custom')
     reason = messages.value.linkRefusals[refusal]
-  if (!refusal && props.canLink) {
-    const link = { from: d.id, to: id, type: linkTypeOf(d.from!, end) }
-    const answer = props.canLink(link, docOf())
+  if (refusal) return { refusal, reason }
+  const link = { from, to, type }
+  for (const rule of [...(props.canLink ? [props.canLink] : []), ...resolved.value.linkRules]) {
+    const answer = rule(link, docOf())
+    if (answer === true) continue
     if (answer === undefined) warnCanLink()
-    if (answer !== true) {
-      refusal = 'custom'
-      if (typeof answer === 'string' && answer) reason = answer
+    return {
+      refusal: 'custom' as const,
+      reason: typeof answer === 'string' && answer ? answer : undefined,
     }
   }
-  return { id, end, refusal, reason }
+  return { refusal: null, reason }
 }
+
+/**
+ * Why new dates can't be written, from `can-move` and the extensions'; a
+ * refusal without words gets a plain one. `null` when they can.
+ */
+function checkMove(changes: Map<string, Partial<GanttTask>>) {
+  const rules = [...(props.canMove ? [props.canMove] : []), ...resolved.value.moveRules]
+  if (!rules.length) return null
+  const doc = docOf()
+  for (const [id, patch] of changes) {
+    if (patch.start === undefined) continue
+    const move: GanttMove = { task: task(id), start: patch.start, end: patch.end }
+    for (const rule of rules) {
+      const answer = rule(move, doc)
+      if (answer === true) continue
+      return typeof answer === 'string' && answer ? answer : messages.value.moveRefused
+    }
+  }
+  return null
+}
+
+/** Why the current drag's dates would be refused. */
+const dragRefusal = computed(() => {
+  const changes = dragPreview.value
+  if (!changes || drag.value?.mode === 'progress') return null
+  return checkMove(changes)
+})
 
 // scroll while the pointer rests near an edge, and keep the drag under it
 function autoScroll() {
@@ -932,12 +979,15 @@ function onDragEnd(event: PointerEvent) {
     dragged = true
     setTimeout(() => (dragged = false))
     if (d.mode === 'link') finishLink(d)
+    else if (dragRefusal.value) announce(dragRefusal.value)
     else {
       const changes = dragPreview.value
-      if (changes)
+      if (changes) {
         transact((tr) => {
           for (const [id, patch] of changes) tr.updateTask(id, patch)
         })
+        announceTask(d.id)
+      }
     }
   }
   stopDrag()
@@ -951,6 +1001,11 @@ function finishLink(d: Drag) {
   if (type !== 'fs') link.type = type
   transact((tr) => tr.addLink(link))
   emit('link', link)
+  announceLinked(link)
+}
+
+function announceLinked(link: GanttLink) {
+  announce(format(messages.value.linked, { from: task(link.from).title, to: task(link.to).title }))
 }
 
 const onDragCancel = () => stopDrag()
@@ -1007,8 +1062,28 @@ function onBodyDown(event: PointerEvent) {
   startDrag(event, row, 'draw')
 }
 
+/** The bar a link being drawn would end at, and whether it is refused. */
+const linkHighlight = computed(() => {
+  const target = drag.value?.target
+  if (target) return { id: target.id, refused: !!target.refusal }
+  const link = keyLink.value
+  return link?.to ? { id: link.to, refused: !!link.refusal } : null
+})
+
 /** The line drawn while linking: from the end it started at to the pointer or target. */
 const draftLink = computed(() => {
+  const link = keyLink.value
+  if (link?.to) {
+    const a = tree.value.byId.get(link.from)
+    const b = tree.value.byId.get(link.to)
+    const boxA = a && boxOf(a)
+    const boxB = b && boxOf(b)
+    if (!boxA || !boxB) return null
+    return {
+      d: roundedPath(routeLink(boxA, boxB, 'fs', props.rowHeight).points),
+      refused: !!link.refusal,
+    }
+  }
   const d = drag.value
   if (d?.mode !== 'link' || !d.started) return null
   const row = tree.value.byId.get(d.id)
@@ -1023,10 +1098,13 @@ const draftLink = computed(() => {
   }
 })
 
-/** What a drag shows beside the pointer: new dates, or the progress. */
-/** Keeps a tip that starts left of the view inside it. */
-const tipLeft = (x: number) => Math.max(x, scrollLeft.value + 8)
+/** Keeps a tip inside the view: one that starts left of it, or runs past its right edge. */
+function tipLeft(x: number, text: string) {
+  const right = scrollLeft.value + viewWidth.value - textWidth(text) - 24
+  return Math.max(Math.min(x, right), scrollLeft.value + 8)
+}
 
+/** What a drag shows beside the pointer: new dates, the progress, or why it can't. */
 const dragTip = computed(() => {
   const d = drag.value
   if (!d?.started) return null
@@ -1036,15 +1114,17 @@ const dragTip = computed(() => {
     if (!target?.span || target.index < 0) return null
     return {
       text: d.target!.reason!,
-      left: tipLeft(xOf(target.span.start)),
+      refused: true,
+      left: tipLeft(xOf(target.span.start), d.target!.reason!),
       top: target.index * props.rowHeight,
     }
   }
   const row = tree.value.byId.get(d.id)
   if (!row?.span || row.index < 0) return null
   const m = messages.value
-  const text =
-    d.mode === 'progress'
+  const text = dragRefusal.value
+    ? dragRefusal.value
+    : d.mode === 'progress'
       ? format(m.progressTip, { value: Math.round(row.progress * 100) })
       : row.milestone
         ? dateLabel(
@@ -1057,25 +1137,229 @@ const dragTip = computed(() => {
             end: endLabel(row.span, m),
             duration: durationLabel(row.span, calendar.value, m),
           })
-  return { text, left: tipLeft(xOf(row.span.start)), top: row.index * props.rowHeight }
+  return {
+    text,
+    refused: !!dragRefusal.value,
+    left: tipLeft(xOf(row.span.start), text),
+    top: row.index * props.rowHeight,
+  }
 })
 
 // Keys ----------------------------------------------------------------------------------
 
-function onKeydown(event: KeyboardEvent) {
-  if (
-    !editable.value ||
-    (event.target as HTMLElement).closest('input, textarea, [contenteditable]')
+/** The task the keyboard is on. */
+const active = ref<string | null>(null)
+
+/** Puts the keyboard on a task: scrolls it into view and focuses its bar, or its table row. */
+function focusTask(id: string) {
+  if (!tree.value.byId.get(id)) return
+  active.value = id
+  scrollToTask(id)
+  void nextTick(() => {
+    const el =
+      root.value?.querySelector<HTMLElement>(`.dou-gantt__bar[data-task="${CSS.escape(id)}"]`) ??
+      root.value?.querySelector<HTMLElement>(`.dou-gantt__tr[data-row="${CSS.escape(id)}"]`)
+    ;(el ?? root.value)?.focus({ preventScroll: true })
+  })
+}
+
+/** Reads a task out as it is once the change has reached the rows. */
+function announceTask(id: string) {
+  void nextTick(() => {
+    const row = tree.value.byId.get(id)
+    if (row) announce(describe(row))
+  })
+}
+
+/** Moves the task the keyboard is on (or the selection) by a step, or its end. */
+function keyMove(direction: 1 | -1, which: 'move' | 'end') {
+  const row = active.value ? tree.value.byId.get(active.value) : undefined
+  if (!row || !editable.value) return
+  let changes = new Map<string, Partial<GanttTask>>()
+  if (which === 'move') {
+    const spans = movers(row)
+    if (!spans.size) return
+    const unit = stepFor(spans.values()) * direction
+    for (const [id, span] of spans)
+      changes.set(
+        id,
+        writeSpan(
+          task(id),
+          span.start + unit,
+          endKeepingWork(calendar.value, span, span.start + unit),
+        ),
+      )
+  } else {
+    const span = row.span
+    if (!span || row.summary || row.milestone || row.task.locked) return
+    const unit = stepFor([span])
+    const end = Math.max(span.end + unit * direction, span.start + unit)
+    if (end === span.end) return
+    changes = new Map([[row.task.id, writeSpan(row.task, span.start, end)]])
+  }
+  const refusal = checkMove(changes)
+  if (refusal) return announce(refusal)
+  // repeated presses undo as one step
+  transact(
+    (tr) => {
+      for (const [id, patch] of changes) tr.updateTask(id, patch)
+    },
+    { group: `keys:${which}:${row.task.id}` },
   )
-    return
-  if (matchesHotkey(event, 'mod+z')) undo()
-  else if (matchesHotkey(event, 'mod+shift+z') || matchesHotkey(event, 'mod+y')) redo()
-  else if ((event.key === 'Delete' || event.key === 'Backspace') && selectedLink.value) {
-    const id = selectedLink.value
-    transact((tr) => tr.removeLink(id))
-  } else return
+  scrollToTask(row.task.id)
+  announceTask(row.task.id)
+}
+
+/** Linking by keys: from the task the keyboard was on, to the one picked with Up and Down. */
+const keyLink = ref<{
+  from: string
+  to: string | null
+  refusal: GanttLinkRefusal | null
+  reason?: string
+} | null>(null)
+
+function pickLinkTarget(step: 1 | -1) {
+  const link = keyLink.value!
+  const list = rows.value
+  let index = list.findIndex((row) => row.task.id === (link.to ?? link.from))
+  for (let i = 0; i < list.length; i++) {
+    index = (index + step + list.length) % list.length
+    const row = list[index]!
+    if (row.task.id !== link.from && row.span) break
+  }
+  const to = list[index]!.task.id
+  if (to === link.from) return
+  keyLink.value = { from: link.from, to, ...checkLink(link.from, to, 'fs') }
+  scrollToTask(to)
+  const title = task(to).title
+  announce(keyLink.value.reason ? `${title}，${keyLink.value.reason}` : title)
+}
+
+function onKeyLink(event: KeyboardEvent) {
+  const link = keyLink.value!
+  if (event.key === 'ArrowDown' || event.key === 'ArrowUp')
+    pickLinkTarget(event.key === 'ArrowDown' ? 1 : -1)
+  else if (event.key === 'Enter') {
+    if (!link.to) return
+    if (link.refusal) {
+      announce(link.reason ?? messages.value.linkRefusals.cycle)
+    } else {
+      const made: GanttLink = { id: createId(), from: link.from, to: link.to }
+      transact((tr) => tr.addLink(made))
+      emit('link', made)
+      announceLinked(made)
+      keyLink.value = null
+    }
+  } else if (event.key === 'Escape') {
+    keyLink.value = null
+    announce(messages.value.cancelled)
+  } else if (event.key !== 'Tab') return
   event.preventDefault()
 }
+
+const keymaps = computed(() => resolved.value.keymaps.map((keymap) => keymap(context)))
+
+function onKeydown(event: KeyboardEvent) {
+  if ((event.target as HTMLElement).closest('input, textarea, select, [contenteditable]')) return
+  if (keyLink.value) return onKeyLink(event)
+  for (const keymap of keymaps.value)
+    for (const [hotkey, handler] of Object.entries(keymap))
+      if (matchesHotkey(event, hotkey) && handler(event) !== false) {
+        event.preventDefault()
+        return
+      }
+  if (onEditKey(event) || onNavigationKey(event)) event.preventDefault()
+}
+
+function onEditKey(event: KeyboardEvent) {
+  if (!editable.value) return false
+  if (matchesHotkey(event, 'mod+z')) {
+    if (undo()) announce(messages.value.undone)
+  } else if (matchesHotkey(event, 'mod+shift+z') || matchesHotkey(event, 'mod+y')) {
+    if (redo()) announce(messages.value.redone)
+  } else if ((event.key === 'Delete' || event.key === 'Backspace') && selectedLink.value) {
+    const id = selectedLink.value
+    transact((tr) => tr.removeLink(id))
+    announce(messages.value.linkRemoved)
+  } else if (matchesHotkey(event, 'alt+arrowleft')) keyMove(-1, 'move')
+  else if (matchesHotkey(event, 'alt+arrowright')) keyMove(1, 'move')
+  else if (matchesHotkey(event, 'alt+shift+arrowleft')) keyMove(-1, 'end')
+  else if (matchesHotkey(event, 'alt+shift+arrowright')) keyMove(1, 'end')
+  else if (matchesHotkey(event, 'l') && active.value) {
+    keyLink.value = { from: active.value, to: null, refusal: null }
+    announce(format(messages.value.linkMode, { title: task(active.value).title }))
+  } else return false
+  return true
+}
+
+function onNavigationKey(event: KeyboardEvent) {
+  if (event.altKey || event.metaKey || event.ctrlKey) return false
+  const list = rows.value
+  if (!list.length) return false
+  const row = active.value ? tree.value.byId.get(active.value) : undefined
+  const index = row && row.index >= 0 ? row.index : -1
+  const go = (i: number) => focusTask(list[Math.max(0, Math.min(list.length - 1, i))]!.task.id)
+  switch (event.key) {
+    case 'ArrowDown':
+      go(index < 0 ? 0 : index + 1)
+      break
+    case 'ArrowUp':
+      go(index < 0 ? 0 : index - 1)
+      break
+    case 'Home':
+      go(0)
+      break
+    case 'End':
+      go(list.length - 1)
+      break
+    case 'ArrowRight':
+      if (!row) return false
+      if (row.summary && row.task.collapsed) toggle(row)
+      else if (row.summary) go(index + 1)
+      break
+    case 'ArrowLeft':
+      if (!row) return false
+      if (row.summary && !row.task.collapsed) toggle(row)
+      else if (row.task.parent != null && tree.value.byId.has(row.task.parent))
+        focusTask(row.task.parent)
+      break
+    case ' ':
+    case 'Enter':
+      if (!row) return false
+      selectedLink.value = null
+      if (event.key === 'Enter') selection.value = [row.task.id]
+      else
+        selection.value = selected.value.has(row.task.id)
+          ? selection.value.filter((id) => id !== row.task.id)
+          : [...selection.value, row.task.id]
+      break
+    default:
+      return false
+  }
+  return true
+}
+
+// Announcements for screen readers.
+const live = ref('')
+function announce(text: string) {
+  live.value = ''
+  void nextTick(() => (live.value = text))
+}
+const keysHint = `${useId()}-keys`
+
+// Markers ---------------------------------------------------------------------------
+
+const markers = computed(() => {
+  const list = [
+    ...(props.markers ?? []),
+    ...resolved.value.markers.flatMap((fromExtension) => fromExtension(context)),
+  ]
+  return list.flatMap((marker, index) => {
+    const at = parseTime(marker.date)?.at
+    if (at == null || at < extent.value.start || at > extent.value.end) return []
+    return [{ key: `${index}:${marker.date}`, x: xOf(at), marker }]
+  })
+})
 
 function onLinkClick(link: GanttLink, event: MouseEvent) {
   selectedLink.value = link.id
@@ -1088,6 +1372,10 @@ function onLinkClick(link: GanttLink, event: MouseEvent) {
 function scrollToDate(date: string) {
   const parsed = parseTime(date)
   if (parsed) scrollToTime(parsed.at)
+}
+
+function scrollToToday() {
+  scrollToTime(now.value, viewWidth.value / 3)
 }
 
 function scrollToTask(id: string) {
@@ -1121,9 +1409,46 @@ defineExpose<GanttExpose>({
   fit,
   scrollToDate,
   scrollToTask,
+  scrollToToday,
+  focusTask,
   zoomIn,
   zoomOut,
 })
+
+const context: GanttContext = {
+  tasks,
+  links,
+  selection,
+  active,
+  readonly: computed(() => !editable.value),
+  messages,
+  scale: computed(() => level.value.name),
+  dayWidth,
+  rowHeight: computed(() => props.rowHeight),
+  rows,
+  transact,
+  undo,
+  redo,
+  canUndo,
+  canRedo,
+  fit,
+  zoomIn,
+  zoomOut,
+  scrollToDate,
+  scrollToTask,
+  scrollToToday,
+  focusTask,
+  xOf: (time) => {
+    const at = typeof time === 'number' ? time : parseTime(time)?.at
+    return at == null ? null : xOf(at)
+  },
+  rowTop: (id) => {
+    const row = tree.value.byId.get(id)
+    return row && row.index >= 0 ? row.index * props.rowHeight : null
+  },
+  announce,
+}
+provide(ganttKey, context)
 
 const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * props.rowHeight}px)` })
 </script>
@@ -1137,13 +1462,17 @@ const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * prop
       'is-editable': editable,
       'is-dragging': drag?.started,
       [`is-dragging-${drag?.mode}`]: drag?.started,
+      'is-linking': !!keyLink,
     }"
     :style="{ '--dou-gantt-row-height': `${rowHeight}px` }"
     role="group"
     tabindex="0"
     :aria-label="ariaLabel ?? messages.chart"
+    :aria-describedby="keysHint"
     @keydown="onKeydown"
   >
+    <span :id="keysHint" class="dou-gantt__sr-only">{{ messages.keys }}</span>
+    <div class="dou-gantt__sr-only" aria-live="polite">{{ live }}</div>
     <div v-if="showTable" class="dou-gantt__table-pane" :style="{ width: `${tableSize}px` }">
       <div class="dou-gantt__table" role="treegrid" :aria-rowcount="rows.length">
         <div class="dou-gantt__table-head" role="row">
@@ -1171,8 +1500,11 @@ const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * prop
                 'is-selected': selected.has(row.task.id),
                 'is-hovered': hovered === row.task.id,
                 'is-summary': row.summary,
+                'is-active': active === row.task.id,
               }"
               :style="rowStyle(row)"
+              :data-row="row.task.id"
+              tabindex="-1"
               role="row"
               :aria-level="row.depth + 1"
               :aria-rowindex="row.index + 1"
@@ -1270,6 +1602,15 @@ const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * prop
             class="dou-gantt__today-mark"
             :style="{ left: `${todayX}px` }"
           />
+          <span
+            v-for="item in markers"
+            :key="item.key"
+            class="dou-gantt__marker-label"
+            :class="item.marker.tone && `is-${item.marker.tone}`"
+            :style="{ left: `${item.x}px` }"
+          >
+            {{ item.marker.label }}
+          </span>
         </div>
         <div
           class="dou-gantt__body"
@@ -1307,6 +1648,14 @@ const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * prop
             :style="rowStyle(row)"
           />
           <div v-if="todayX != null" class="dou-gantt__today" :style="{ left: `${todayX}px` }" />
+          <div
+            v-for="item in markers"
+            :key="item.key"
+            class="dou-gantt__marker"
+            :class="item.marker.tone && `is-${item.marker.tone}`"
+            :style="{ left: `${item.x}px` }"
+          />
+          <component :is="layer" v-for="(layer, i) in resolved.below" :key="`below-${i}`" />
           <svg class="dou-gantt__links" :width="totalWidth" :height="rows.length * rowHeight">
             <g
               v-for="item in linkPaths"
@@ -1350,8 +1699,11 @@ const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * prop
                   'is-milestone': bar.row.milestone,
                   'is-selected': selected.has(bar.row.task.id),
                   'is-locked': bar.row.task.locked,
-                  'is-link-target': drag?.target?.id === bar.row.task.id && !drag.target.refusal,
-                  'is-link-refused': drag?.target?.id === bar.row.task.id && !!drag.target.refusal,
+                  'is-link-target': linkHighlight?.id === bar.row.task.id && !linkHighlight.refused,
+                  'is-link-refused': linkHighlight?.id === bar.row.task.id && linkHighlight.refused,
+                  'is-move-refused':
+                    !!dragRefusal && drag?.started && drag.spans.has(bar.row.task.id),
+                  'is-active': active === bar.row.task.id,
                 },
               ]"
               :data-task="bar.row.task.id"
@@ -1360,6 +1712,7 @@ const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * prop
                 width: bar.row.milestone ? undefined : `${bar.width}px`,
               }"
               role="img"
+              tabindex="-1"
               :aria-label="bar.aria"
               @pointerdown="onBarDown($event, bar.row)"
               @click="onTaskClick(bar.row, $event)"
@@ -1420,9 +1773,11 @@ const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * prop
               <slot name="bar" :task="bar.row.task" :row="bar.row">{{ bar.row.task.title }}</slot>
             </span>
           </div>
+          <component :is="layer" v-for="(layer, i) in resolved.above" :key="`above-${i}`" />
           <div
             v-if="dragTip"
             class="dou-gantt__tip"
+            :class="{ 'is-refused': dragTip.refused }"
             :style="{ transform: `translate(${dragTip.left}px, ${dragTip.top}px)` }"
           >
             {{ dragTip.text }}
@@ -1430,5 +1785,7 @@ const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * prop
         </div>
       </div>
     </div>
+    <component :is="overlay" v-for="(overlay, i) in resolved.overlays" :key="`overlay-${i}`" />
+    <slot />
   </div>
 </template>

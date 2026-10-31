@@ -17,6 +17,7 @@
     --dou-gantt-today: var(--dou-color-primary);
     --dou-gantt-bar-height: 20px;
 
+    position: relative;
     display: flex;
     box-sizing: border-box;
     width: 100%;
@@ -470,7 +471,8 @@
       border-color: var(--dou-color-primary);
       box-shadow: 0 0 0 3px color-mix(in oklab, var(--dou-color-primary) 22%, transparent);
     }
-    &.is-link-refused {
+    &.is-link-refused,
+    &.is-move-refused {
       border-color: var(--dou-color-danger);
       box-shadow: 0 0 0 3px color-mix(in oklab, var(--dou-color-danger) 18%, transparent);
     }
@@ -747,5 +749,98 @@
     font-size: 12px;
     white-space: nowrap;
     pointer-events: none;
+  }
+
+  .dou-gantt__tip.is-refused {
+    background-color: var(--dou-color-danger);
+    color: var(--dou-color-danger-on);
+  }
+
+  /* keys ------------------------------------------------------------------- */
+
+  .dou-gantt__bar:focus-visible {
+    outline: 2px solid var(--dou-color-focus);
+    outline-offset: 2px;
+  }
+
+  .dou-gantt__tr:focus-visible {
+    outline: 2px solid var(--dou-color-focus);
+    outline-offset: -2px;
+  }
+
+  .dou-gantt__sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /* marker lines ------------------------------------------------------------ */
+
+  .dou-gantt__marker,
+  .dou-gantt__marker-label {
+    --dou-gantt-marker: color-mix(in oklab, var(--dou-color-text) 45%, transparent);
+    --dou-gantt-marker-text: var(--dou-color-text-secondary);
+
+    &.is-accent {
+      --dou-gantt-marker: var(--dou-color-primary);
+      --dou-gantt-marker-text: var(--dou-color-primary-text);
+    }
+    &.is-success {
+      --dou-gantt-marker: var(--dou-color-success);
+      --dou-gantt-marker-text: var(--dou-color-success-text);
+    }
+    &.is-warning {
+      --dou-gantt-marker: var(--dou-color-warning);
+      --dou-gantt-marker-text: var(--dou-color-warning-text);
+    }
+    &.is-danger {
+      --dou-gantt-marker: var(--dou-color-danger);
+      --dou-gantt-marker-text: var(--dou-color-danger-text);
+    }
+  }
+
+  .dou-gantt__marker {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    z-index: 1;
+    border-left: 1px dashed var(--dou-gantt-marker);
+    pointer-events: none;
+  }
+
+  /* the label sits in the top row of the time header, where labels are few */
+  .dou-gantt__marker-label {
+    position: absolute;
+    top: 5px;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    height: 18px;
+    padding: 0 6px;
+    border: 1px solid color-mix(in oklab, var(--dou-gantt-marker) 40%, transparent);
+    border-radius: var(--dou-radius-control);
+    background-color: var(--dou-gantt-header-bg);
+    color: var(--dou-gantt-marker-text);
+    font-size: 12px;
+    white-space: nowrap;
+    transform: translateX(4px);
+    pointer-events: none;
+
+    /* the line runs on through the header to the label */
+    &::before {
+      position: absolute;
+      top: -6px;
+      left: -5px;
+      height: 56px;
+      border-left: 1px dashed var(--dou-gantt-marker);
+      content: '';
+    }
+
+    &:empty {
+      display: none;
+    }
   }
 }

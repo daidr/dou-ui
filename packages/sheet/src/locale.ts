@@ -99,6 +99,7 @@ export interface SheetMessages {
   filter: SheetFilterMessages
   /** Conditional formats: the toolbar's menu, the dialog that adds one and the list of them. */
   formats: SheetFormatsMessages
+  validation: SheetValidationMessages
   /** The name a new sheet gets: `{n}` is a number. */
   sheetName: string
   /** The sheet tabs' accessible name. */
@@ -340,6 +341,45 @@ const zhCN: SheetMessages = {
     remove: '删除',
     added: '已为 {range} 添加条件格式',
     cleared: '已清除 {count} 条条件格式',
+  },
+  validation: {
+    title: '数据验证',
+    range: '应用于',
+    allow: '允许',
+    kinds: { list: '列表', number: '数字', integer: '整数', text: '文本', formula: '公式' },
+    condition: '条件',
+    any: '任意值',
+    value: '值',
+    and: '到',
+    options: '选项',
+    optionsHelp: '用逗号分隔，或引用单元格，如 =$H$2:$H$9',
+    formula: '公式',
+    formulaHelp: '按区域左上角的单元格书写，结果为 TRUE 时符合',
+    prompt: '输入提示',
+    promptHelp: '选中单元格时显示，选填',
+    message: '出错提示',
+    messageHelp: '选填，不填时说明规则',
+    strict: '拒绝不符合的输入',
+    strictHelp: '不勾选时保留输入的值，在单元格角上标记',
+    invalidRange: '请输入单元格区域，如 D2:D40',
+    needValue: '请输入值',
+    needOptions: '请输入选项',
+    needFormula: '请输入公式',
+    remove: '删除规则',
+    cancel: '取消',
+    apply: '确定',
+    list: '请从列表中选择',
+    number: '请输入数字，{cond}',
+    numberOnly: '请输入数字',
+    integer: '请输入整数，{cond}',
+    integerOnly: '请输入整数',
+    text: '值应{cond}',
+    formulaFailed: '不符合规则 {formula}',
+    cond: '{op} {value}',
+    condBetween: '{op} {value} 和 {to} 之间',
+    refused: '没有写入：{message}',
+    added: '已为 {range} 设置数据验证',
+    removed: '已删除 {range} 的数据验证',
   },
   filter: {
     sortAsc: '升序排序',
@@ -596,6 +636,45 @@ const zhTW: SheetMessages = {
     remove: '刪除',
     added: '已为 {range} 添加條件格式',
     cleared: '已清除 {count} 条條件格式',
+  },
+  validation: {
+    title: '資料驗證',
+    range: '套用於',
+    allow: '允許',
+    kinds: { list: '清單', number: '數字', integer: '整數', text: '文字', formula: '公式' },
+    condition: '條件',
+    any: '任意值',
+    value: '值',
+    and: '到',
+    options: '選項',
+    optionsHelp: '用逗號分隔，或參照儲存格，如 =$H$2:$H$9',
+    formula: '公式',
+    formulaHelp: '按區域左上角的儲存格書寫，結果為 TRUE 時符合',
+    prompt: '輸入提示',
+    promptHelp: '選取儲存格時顯示，選填',
+    message: '錯誤提示',
+    messageHelp: '選填，不填時說明規則',
+    strict: '拒絕不符合的輸入',
+    strictHelp: '不勾選時保留輸入的值，在儲存格角上標記',
+    invalidRange: '請輸入儲存格範圍，如 D2:D40',
+    needValue: '請輸入值',
+    needOptions: '請輸入選項',
+    needFormula: '請輸入公式',
+    remove: '刪除規則',
+    cancel: '取消',
+    apply: '確定',
+    list: '請從清單中選擇',
+    number: '請輸入數字，{cond}',
+    numberOnly: '請輸入數字',
+    integer: '請輸入整數，{cond}',
+    integerOnly: '請輸入整數',
+    text: '值應{cond}',
+    formulaFailed: '不符合規則 {formula}',
+    cond: '{op} {value}',
+    condBetween: '{op} {value} 和 {to} 之間',
+    refused: '沒有寫入：{message}',
+    added: '已為 {range} 設定資料驗證',
+    removed: '已刪除 {range} 的資料驗證',
   },
   filter: {
     sortAsc: '遞增排序',
@@ -854,6 +933,51 @@ const en: SheetMessages = {
     added: 'Added a conditional format to {range}',
     cleared: 'Cleared {count} conditional formats',
   },
+  validation: {
+    title: 'Data validation',
+    range: 'Apply to',
+    allow: 'Allow',
+    kinds: {
+      list: 'List',
+      number: 'Number',
+      integer: 'Whole number',
+      text: 'Text',
+      formula: 'Formula',
+    },
+    condition: 'Condition',
+    any: 'Any value',
+    value: 'Value',
+    and: 'and',
+    options: 'Options',
+    optionsHelp: 'Separated by commas, or a reference such as =$H$2:$H$9',
+    formula: 'Formula',
+    formulaHelp: 'Written for the top left cell of the range; a value fits when it comes to TRUE',
+    prompt: 'Input hint',
+    promptHelp: 'Shown while the cell is selected; optional',
+    message: 'Error message',
+    messageHelp: 'Optional; the rule is described when left empty',
+    strict: 'Refuse values that don’t fit',
+    strictHelp: 'When off, the value is kept and its cell is marked',
+    invalidRange: 'Enter a range of cells, e.g. D2:D40',
+    needValue: 'Enter a value',
+    needOptions: 'Enter the options',
+    needFormula: 'Enter a formula',
+    remove: 'Remove rule',
+    cancel: 'Cancel',
+    apply: 'OK',
+    list: 'Pick a value from the list',
+    number: 'Enter a number that is {cond}',
+    numberOnly: 'Enter a number',
+    integer: 'Enter a whole number that is {cond}',
+    integerOnly: 'Enter a whole number',
+    text: 'The value must be: {cond}',
+    formulaFailed: 'Doesn’t meet {formula}',
+    cond: '{op} {value}',
+    condBetween: '{op} {value} and {to}',
+    refused: 'Not entered: {message}',
+    added: 'Data validation set on {range}',
+    removed: 'Data validation removed from {range}',
+  },
   filter: {
     sortAsc: 'Sort ascending',
     sortDesc: 'Sort descending',
@@ -1030,6 +1154,51 @@ export interface SheetFormatsMessages {
   /** Read out: `{range}`, `{count}`. */
   added: string
   cleared: string
+}
+
+/** The texts of data validation: the dialog, and what is said when a value doesn't fit. */
+export interface SheetValidationMessages {
+  title: string
+  range: string
+  allow: string
+  kinds: { list: string; number: string; integer: string; text: string; formula: string }
+  condition: string
+  any: string
+  value: string
+  and: string
+  options: string
+  optionsHelp: string
+  formula: string
+  formulaHelp: string
+  prompt: string
+  promptHelp: string
+  message: string
+  messageHelp: string
+  strict: string
+  strictHelp: string
+  invalidRange: string
+  needValue: string
+  needOptions: string
+  needFormula: string
+  remove: string
+  cancel: string
+  apply: string
+  /** A rule in words, said when a value doesn't fit: `{cond}`, `{formula}`. */
+  list: string
+  number: string
+  numberOnly: string
+  integer: string
+  integerOnly: string
+  text: string
+  formulaFailed: string
+  /** A condition in words: `{op}`, `{value}`, `{to}`. */
+  cond: string
+  condBetween: string
+  /** Said when a typed value is refused: `{message}`. */
+  refused: string
+  /** Read out: `{range}`. */
+  added: string
+  removed: string
 }
 
 export interface SheetFilterMessages {

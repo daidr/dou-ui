@@ -3,7 +3,7 @@ import type { SheetCellTarget, SheetRange } from './core/address'
 import type { SheetClip } from './core/clipboard'
 import type { SheetCSVWriteOptions } from './core/csv'
 import type { SheetExtension } from './core/extension'
-import type { SheetWorkbook } from './core/model'
+import type { SheetValidation, SheetWorkbook } from './core/model'
 import type { SheetSelection } from './core/selection'
 import type { SheetRef, SheetTransaction, SheetTransactionMeta } from './core/transaction'
 import type { SheetMessages } from './locale'
@@ -120,6 +120,7 @@ export type SheetToolbarTool =
   | 'sort'
   | 'filter'
   | 'conditional'
+  | 'validation'
   | 'clear'
   | '|'
 
@@ -198,4 +199,20 @@ export interface SheetExpose {
    * is on the system clipboard when the browser allows reading it.
    */
   paste: (clip?: SheetClip) => Promise<void>
+  /**
+   * The cells whose values break a validation rule, row by row: on every
+   * sheet, or on `sheet`. Use it to check a workbook before sending it.
+   */
+  findInvalid: (sheet?: SheetRef) => SheetInvalidCell[]
+}
+
+/** A cell whose value breaks a validation rule. */
+export interface SheetInvalidCell {
+  /** The sheet's name. */
+  sheet: string
+  /** Where the cell is, such as `'C4'`. */
+  cell: string
+  rule: SheetValidation
+  /** The rule in words: its `message`, or what it asks for. */
+  message: string
 }

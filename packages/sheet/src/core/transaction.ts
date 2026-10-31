@@ -28,6 +28,7 @@ import {
   type SheetRow,
   type SheetStyle,
   type SheetTypeSetup,
+  type SheetValidation,
   type SheetValue,
   type SheetWorkbook,
   valueOf,
@@ -35,6 +36,12 @@ import {
 import { continueValues, type SheetFillMode } from './fill'
 import { mergesOf, overlaps } from './merge'
 import { sortRows, textCollator, type SheetSortKey } from './data'
+
+/** The lists of rules a sheet keeps, each rule with a `range`. */
+type RuleKey = 'conditionalFormats' | 'validations'
+type RuleOf<K extends RuleKey> = K extends 'conditionalFormats'
+  ? SheetConditionalFormat
+  : SheetValidation
 
 /*
  * Every change to a workbook is a list of steps. Applying a step also gives
@@ -98,6 +105,7 @@ export type SheetAction =
   | 'sort'
   | 'filter'
   | 'format'
+  | 'validation'
   | 'style'
   | 'freeze'
   | 'sheet'
@@ -476,21 +484,12 @@ export class SheetTransaction {
    * names cells of `sheet`.
    */
   addConditionalFormat(format: SheetConditionalFormat, sheet: SheetRef = this.sheet) {
-    const index = this.mustIndex(sheet)
-    if (!parseRange(format.range)) throw new RangeError(`"${format.range}" isn't a range`)
-    const formats = this.book.sheets[index]!.conditionalFormats ?? []
-    return this.updateSheet({ conditionalFormats: [...formats, format] }, index)
+    return this.addRule('conditionalFormats', format, sheet)
   }
 
   /** Sets a sheet's conditional formats, in order, e.g. after moving one up; `[]` removes them all. */
   setConditionalFormats(formats: readonly SheetConditionalFormat[], sheet: SheetRef = this.sheet) {
-    const index = this.mustIndex(sheet)
-    for (const f of formats)
-      if (!parseRange(f.range)) throw new RangeError(`"${f.range}" isn't a range`)
-    return this.updateSheet(
-      { conditionalFormats: formats.length ? [...formats] : undefined },
-      index,
-    )
+    return this.setRules('conditionalFormats', formats, sheet)
   }
 
   /**
@@ -498,18 +497,57 @@ export class SheetTransaction {
    * the selection; without a range, all of the sheet's.
    */
   clearConditionalFormats(at?: SheetRangeAt) {
+    return this.clearRules('conditionalFormats', at)
+  }
+
+  /**
+   * Adds a validation rule after the sheet's others; where two cover a
+   * cell, the earlier one applies. The rule's `range` names cells of `sheet`.
+   */
+  addValidation(rule: SheetValidation, sheet: SheetRef = this.sheet) {
+    return this.addRule('validations', rule, sheet)
+  }
+
+  /** Sets a sheet's validation rules, in order; `[]` removes them all. */
+  setValidations(rules: readonly SheetValidation[], sheet: SheetRef = this.sheet) {
+    return this.setRules('validations', rules, sheet)
+  }
+
+  /**
+   * Removes the validation rules whose cells overlap a range, such as the
+   * selection; without a range, all of the sheet's.
+   */
+  clearValidations(at?: SheetRangeAt) {
+    return this.clearRules('validations', at)
+  }
+
+  private addRule<K extends RuleKey>(key: K, rule: RuleOf<K>, sheet: SheetRef) {
+    const index = this.mustIndex(sheet)
+    if (!parseRange(rule.range)) throw new RangeError(`"${rule.range}" isn't a range`)
+    const rules = (this.book.sheets[index]![key] ?? []) as RuleOf<K>[]
+    return this.updateSheet({ [key]: [...rules, rule] }, index)
+  }
+
+  private setRules<K extends RuleKey>(key: K, rules: readonly RuleOf<K>[], sheet: SheetRef) {
+    const index = this.mustIndex(sheet)
+    for (const rule of rules)
+      if (!parseRange(rule.range)) throw new RangeError(`"${rule.range}" isn't a range`)
+    return this.updateSheet({ [key]: rules.length ? [...rules] : undefined }, index)
+  }
+
+  private clearRules(key: RuleKey, at?: SheetRangeAt) {
     const { index, bounds } =
       at == null ? { index: this.mustIndex(), bounds: null } : this.rangeAt(at)
-    const formats = this.book.sheets[index]!.conditionalFormats
-    if (!formats?.length) return this
+    const rules = this.book.sheets[index]![key]
+    if (!rules?.length) return this
     const kept = bounds
-      ? formats.filter((f) => {
-          const range = parseRange(f.range)
+      ? (rules as { range: string }[]).filter((rule) => {
+          const range = parseRange(rule.range)
           return range && !overlaps(boundsOf(range), bounds)
         })
       : []
-    if (kept.length === formats.length) return this
-    return this.updateSheet({ conditionalFormats: kept.length ? kept : undefined }, index)
+    if (kept.length === rules.length) return this
+    return this.updateSheet({ [key]: kept.length ? kept : undefined }, index)
   }
 
   /**
@@ -664,7 +702,8 @@ export class SheetTransaction {
     const sheet = this.book.sheets[index]!
     this.rewriteReferences(sheet.name, map)
     this.moveFilter(index, map)
-    this.moveConditionalFormats(index, map)
+    this.moveRules('conditionalFormats', index, map)
+    this.moveRules('validations', index, map)
     const merges = sheet.merges
     if (!merges?.length) return this
     const next: string[] = []
@@ -681,20 +720,20 @@ export class SheetTransaction {
     return same ? this : this.updateSheet({ merges: next.length ? next : undefined }, index)
   }
 
-  /** Moves a sheet's conditional formats with their cells; a format goes when its cells do. */
-  private moveConditionalFormats(index: number, map: SheetRefMap) {
-    const formats = this.book.sheets[index]!.conditionalFormats
-    if (!formats?.length) return
-    const next: SheetConditionalFormat[] = []
-    for (const f of formats) {
-      const range = parseRange(f.range)
+  /** Moves a sheet's rules with their cells; a rule goes when its cells do. */
+  private moveRules(key: RuleKey, index: number, map: SheetRefMap) {
+    const rules = this.book.sheets[index]![key] as { range: string }[] | undefined
+    if (!rules?.length) return
+    const next: { range: string }[] = []
+    for (const rule of rules) {
+      const range = parseRange(rule.range)
       const moved = range && map(boundsOf(range))
       if (!moved) continue
-      const range2 = rangeText('bounds' in moved ? moved.bounds : moved)
-      next.push(range2 === f.range ? f : { ...f, range: range2 })
+      const text = rangeText('bounds' in moved ? moved.bounds : moved)
+      next.push(text === rule.range ? rule : { ...rule, range: text })
     }
-    if (next.length !== formats.length || next.some((f, i) => f !== formats[i]))
-      this.updateSheet({ conditionalFormats: next.length ? next : undefined }, index)
+    if (next.length !== rules.length || next.some((rule, i) => rule !== rules[i]))
+      this.updateSheet({ [key]: next.length ? next : undefined }, index)
   }
 
   /** Moves a sheet's filter with its rows and columns; it goes when its range does. */
@@ -909,20 +948,33 @@ export class SheetTransaction {
     return this.rewriteRuleFormulas((formula) => rewrite(formula))
   }
 
-  /** Rewrites the formulas of every sheet's conditional formats. */
+  /**
+   * Rewrites the formulas of every sheet's rules: conditional formats' and
+   * validations' formulas, and the references of validation lists.
+   */
   private rewriteRuleFormulas(rewrite: (formula: string, sheet: SheetData) => string) {
     this.book.sheets.forEach((sheet, index) => {
-      const formats = sheet.conditionalFormats
-      if (!formats?.some((f) => 'formula' in f)) return
-      let changed = false
-      const next = formats.map((f) => {
-        if (!('formula' in f)) return f
-        const formula = rewrite(f.formula, sheet)
-        if (formula === f.formula) return f
-        changed = true
-        return { ...f, formula }
-      })
-      if (changed) this.updateSheet({ conditionalFormats: next }, index)
+      for (const key of ['conditionalFormats', 'validations'] as const) {
+        const rules = sheet[key] as RuleOf<RuleKey>[] | undefined
+        if (!rules?.length) continue
+        let changed = false
+        const next = rules.map((rule) => {
+          if ('formula' in rule) {
+            const formula = rewrite(rule.formula, sheet)
+            if (formula === rule.formula) return rule
+            changed = true
+            return { ...rule, formula }
+          }
+          if ('list' in rule && typeof rule.list === 'string') {
+            const list = rewrite(rule.list, sheet)
+            if (list === rule.list) return rule
+            changed = true
+            return { ...rule, list }
+          }
+          return rule
+        })
+        if (changed) this.updateSheet({ [key]: next }, index)
+      }
     })
     return this
   }

@@ -55,6 +55,7 @@ const ganttSidebar = ecosystem('甘特图', [
   { text: '文档数据', link: '/gantt/data' },
   { text: '扩展', link: '/gantt/extensions' },
   { text: '协同编辑', link: '/gantt/collaboration' },
+  { text: '资源排期', link: '/gantt/scheduler' },
 ])
 
 export default defineConfig({
@@ -362,6 +363,10 @@ export default defineConfig({
         {
           find: /^@dou-ui\/flow\/style\.css$/,
           replacement: r('../../packages/flow/src/style.css'),
+        },
+        {
+          find: /^@dou-ui\/gantt\/scheduler$/,
+          replacement: r('../../packages/gantt/src/scheduler/index.ts'),
         },
         {
           find: /^@dou-ui\/gantt\/collaboration$/,

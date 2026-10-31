@@ -18,6 +18,10 @@ export default defineConfig({
       { find: /^@dou-ui\/editor$/, replacement: r('./packages/editor/src/index.ts') },
       { find: /^@dou-ui\/flow$/, replacement: r('./packages/flow/src/index.ts') },
       {
+        find: /^@dou-ui\/gantt\/scheduler$/,
+        replacement: r('./packages/gantt/src/scheduler/index.ts'),
+      },
+      {
         find: /^@dou-ui\/gantt\/collaboration$/,
         replacement: r('./packages/gantt/src/collaboration/index.ts'),
       },

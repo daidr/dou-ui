@@ -1,0 +1,219 @@
+import { mount } from '@vue/test-utils'
+import { describe, expect, it } from 'vitest'
+import { defineComponent, h, nextTick, ref } from 'vue'
+import { spanOf, type GanttTask } from '../../index'
+import { DouScheduler, groupByResource, loadSegments, packLanes, type GanttResource } from '..'
+import type { SchedulerRange } from '../types'
+
+const resources: GanttResource[] = [
+  { id: 'dai', title: '戴兜', group: '设计' },
+  { id: 'qing', title: '阿青', group: '设计' },
+  { id: 'man', title: '林小满', capacity: 2 },
+]
+
+const sample = (): GanttTask[] => [
+  { id: 'a', title: '会员页', resource: 'dai', start: '2026-03-02', end: '2026-03-04' },
+  { id: 'b', title: '图标', resource: 'dai', start: '2026-03-04', end: '2026-03-05' },
+  { id: 'c', title: '海报', resource: 'qing', start: '2026-03-03', end: '2026-03-03' },
+  { id: 'd', title: '支付', resource: 'man', start: '2026-03-02', end: '2026-03-06' },
+  { id: 'e', title: '导出', resource: 'man', start: '2026-03-03', end: '2026-03-04' },
+  { id: 'f', title: '需求', start: '2026-03-05' },
+]
+
+function setup(extra: Record<string, unknown> = {}) {
+  const tasks = ref(sample())
+  const selection = ref<string[]>([])
+  const ranges: SchedulerRange[] = []
+  const wrapper = mount(
+    defineComponent(
+      () => () =>
+        h(DouScheduler, {
+          tasks: tasks.value,
+          'onUpdate:tasks': (value: GanttTask[]) => (tasks.value = value),
+          selection: selection.value,
+          'onUpdate:selection': (value: string[]) => (selection.value = value),
+          resources,
+          onRangeSelect: (range: SchedulerRange) => ranges.push(range),
+          ...extra,
+        }),
+    ),
+    { attachTo: document.body },
+  )
+  return { wrapper, tasks, selection, ranges }
+}
+
+const task = (tasks: { value: GanttTask[] }, id: string) =>
+  tasks.value.find((item) => item.id === id)!
+
+// happy-dom lays nothing out: the chart sits at 0,0 with the 56px header on top
+const pointer = (type: string, x: number, y: number, el: EventTarget = window) =>
+  el.dispatchEvent(
+    new PointerEvent(type, { button: 0, clientX: x, clientY: y, pointerId: 1, bubbles: true }),
+  )
+const pressKey = async (el: Element, key: string, init: KeyboardEventInit = {}) => {
+  el.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, ...init }))
+  await nextTick()
+}
+const leftOf = (el: { attributes: (name: string) => string | undefined }) =>
+  Number.parseFloat(/left: ([\d.-]+)px/.exec(el.attributes('style') ?? '')![1]!)
+
+describe('scheduler layout', () => {
+  it('puts overlapping tasks in separate lanes', () => {
+    const items = [
+      { span: { start: 0, end: 10, dateOnly: false }, lane: -1 },
+      { span: { start: 5, end: 15, dateOnly: false }, lane: -1 },
+      { span: { start: 10, end: 20, dateOnly: false }, lane: -1 },
+      { span: { start: 6, end: 8, dateOnly: false }, lane: -1 },
+    ]
+    expect(packLanes(items)).toBe(3)
+    expect(items.map((item) => item.lane)).toEqual([0, 1, 0, 2])
+  })
+
+  it('counts how many tasks go on at once', () => {
+    expect(
+      loadSegments([
+        { start: 0, end: 10, dateOnly: false },
+        { start: 5, end: 15, dateOnly: false },
+        { start: 20, end: 30, dateOnly: false },
+        // a milestone is not work
+        { start: 25, end: 25, dateOnly: false },
+      ]),
+    ).toEqual([
+      { start: 0, end: 5, count: 1 },
+      { start: 5, end: 10, count: 2 },
+      { start: 10, end: 15, count: 1 },
+      { start: 20, end: 30, count: 1 },
+    ])
+  })
+
+  it('groups tasks by resource, unknown and missing ones together', () => {
+    const groups = groupByResource(
+      [...sample(), { id: 'g', title: '其他', resource: 'nobody', start: '2026-03-02' }],
+      resources,
+    )
+    // 会员页 runs to the end of 3/4, when 图标 starts
+    expect(groups.get('dai')!.lanes).toBe(2)
+    expect(groups.get('qing')!.lanes).toBe(1)
+    expect(groups.get('man')!.lanes).toBe(2)
+    expect(groups.get('')!.items.map((item) => item.task.id)).toEqual(['f', 'g'])
+  })
+})
+
+describe('DouScheduler', () => {
+  it('lists the resources under their groups, rows as tall as their lanes', async () => {
+    const { wrapper } = setup()
+    await nextTick()
+    const rows = wrapper.findAll('.dou-gantt__tr')
+    expect(rows.map((row) => row.text())).toEqual(['设计', '戴兜', '阿青', '林小满', '未分配'])
+    // 林小满 has two lanes: 36 + 28
+    expect(rows[3]!.attributes('style')).toContain('height: 64px')
+    // 戴兜 has two tasks at once and can take one: overloaded
+    expect(rows[1]!.classes()).toContain('is-overloaded')
+    expect(rows[3]!.classes()).not.toContain('is-overloaded')
+    expect(wrapper.findAll('.dou-gantt__bar')).toHaveLength(6)
+  })
+
+  it('folds a group', async () => {
+    const { wrapper } = setup()
+    await nextTick()
+    await wrapper.find('.dou-gantt__toggle').trigger('click')
+    expect(wrapper.findAll('.dou-gantt__tr').map((row) => row.text())).toEqual([
+      '设计',
+      '林小满',
+      '未分配',
+    ])
+  })
+
+  it('moves a task in time and to another resource by dragging', async () => {
+    const { wrapper, tasks } = setup()
+    await nextTick()
+    const bar = wrapper.find('.dou-gantt__bar[data-task="c"]')
+    const x = leftOf(bar) + 10
+    // 阿青's row: header 56 + group 36 + 戴兜 64, so 156 to 192
+    pointer('pointerdown', x, 170, bar.element)
+    pointer('pointermove', x + 20, 170)
+    pointer('pointermove', x + 40, 210)
+    await nextTick()
+    // shown where it would go while dragging
+    expect(wrapper.find('.dou-gantt__tr[data-row="man"]').attributes('style')).toContain(
+      'height: 92px',
+    )
+    pointer('pointerup', x + 40, 210)
+    await nextTick()
+    await nextTick()
+    // a day later, now with 林小满
+    expect(task(tasks, 'c')).toMatchObject({
+      resource: 'man',
+      start: '2026-03-04',
+      end: '2026-03-04',
+    })
+    expect(wrapper.find('[aria-live]').text()).toBe('海报已移到林小满')
+  })
+
+  it('resizes a task by its end', async () => {
+    const { wrapper, tasks } = setup()
+    await nextTick()
+    const handle = wrapper.find('.dou-gantt__bar[data-task="b"] ~ .dou-gantt__handle.is-end')
+    const x = leftOf(handle)
+    pointer('pointerdown', x, 100, handle.element)
+    pointer('pointermove', x + 40, 100)
+    pointer('pointerup', x + 40, 100)
+    await nextTick()
+    expect(task(tasks, 'b')).toMatchObject({ start: '2026-03-04', end: '2026-03-06' })
+  })
+
+  it('hands over a range drawn on an empty part of a row', async () => {
+    const { wrapper, ranges } = setup()
+    await nextTick()
+    const body = wrapper.find('.dou-gantt__body')
+    // on screen: the bar's place in the timeline, less how far it is scrolled
+    const scrolled = wrapper.find('.dou-gantt__chart').element.scrollLeft
+    const start = leftOf(wrapper.find('.dou-gantt__bar[data-task="c"]')) - scrolled
+    // 阿青's row, from 3/3 to 3/5
+    pointer('pointerdown', start + 4, 170, body.element)
+    pointer('pointermove', start + 60, 170)
+    pointer('pointermove', start + 100, 170)
+    pointer('pointerup', start + 100, 170)
+    await nextTick()
+    expect(ranges).toEqual([{ resource: 'qing', start: '2026-03-03', end: '2026-03-05' }])
+  })
+
+  it('moves the focused task with Alt and the arrow keys, and undoes it', async () => {
+    const { wrapper, tasks } = setup()
+    await nextTick()
+    const root = wrapper.find('.dou-gantt').element
+    await pressKey(root, 'ArrowDown')
+    // the first task in reading order
+    expect(wrapper.find('.dou-gantt__bar.is-active').attributes('data-task')).toBe('a')
+    await pressKey(root, 'ArrowRight', { altKey: true })
+    expect(task(tasks, 'a')).toMatchObject({ start: '2026-03-03', end: '2026-03-05' })
+    await pressKey(root, 'ArrowDown', { altKey: true })
+    expect(task(tasks, 'a').resource).toBe('qing')
+    await pressKey(root, 'z', { ctrlKey: true })
+    await pressKey(root, 'z', { ctrlKey: true })
+    expect(task(tasks, 'a')).toMatchObject({ resource: 'dai', start: '2026-03-02' })
+  })
+
+  it('removes the selected tasks with Delete', async () => {
+    const { wrapper, tasks, selection } = setup()
+    await nextTick()
+    await wrapper.find('.dou-gantt__bar[data-task="e"]').trigger('click')
+    expect(selection.value).toEqual(['e'])
+    await pressKey(wrapper.find('.dou-gantt').element, 'Delete')
+    expect(tasks.value.some((item) => item.id === 'e')).toBe(false)
+    expect(selection.value).toEqual([])
+  })
+
+  it('stays put when read-only', async () => {
+    const { wrapper, tasks } = setup({ readonly: true })
+    await nextTick()
+    const bar = wrapper.find('.dou-gantt__bar[data-task="a"]')
+    const x = leftOf(bar) + 10
+    pointer('pointerdown', x, 100, bar.element)
+    pointer('pointermove', x + 80, 100)
+    pointer('pointerup', x + 80, 100)
+    await nextTick()
+    expect(spanOf(task(tasks, 'a'))).toEqual(spanOf(sample()[0]!))
+    expect(wrapper.find('.dou-gantt__handle').exists()).toBe(false)
+  })
+})

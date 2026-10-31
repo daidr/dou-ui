@@ -58,7 +58,16 @@ import { DouSheet, type SheetExpose, type SheetWorkbook } from '@dou-ui/sheet'
 import '@dou-ui/sheet/style.css'
 import { DouPivot, type PivotCollapsed, type PivotConfig } from '@dou-ui/pivot'
 import '@dou-ui/pivot/style.css'
-import { DouGridLayout, compactLayout, type GridItem } from '@dou-ui/dashboard'
+import {
+  DouDashboard,
+  DouGridLayout,
+  compactLayout,
+  defineDashboardWidget,
+  useDashboardWidget,
+  type DashboardDocument,
+  type DashboardExpose,
+  type GridItem,
+} from '@dou-ui/dashboard'
 import '@dou-ui/dashboard/style.css'
 import {
   DouFormBuilder,
@@ -1112,6 +1121,23 @@ export const cases: Record<string, Case> = {
     budget: { 200: 8 },
   },
   // Floating n tiles up, the work done after every drop.
+  // A dashboard of n widgets in view mode: frames, title bars and contents.
+  dashboard: {
+    render: (n) => dashboard(n),
+  },
+  // One widget's setting changed, as its settings form does: one change goes
+  // through the history, and only that widget draws again.
+  'dashboard-edit': {
+    render: (n) => dashboard(n, true),
+    act: () => {
+      const api = (window as any).dashboardApi as DashboardExpose
+      const value = ((window as any).dashboardValue = ((window as any).dashboardValue ?? 0) + 1)
+      api.dispatch([{ type: 'update', id: 'w0', patch: { props: { value } } }])
+      return nextTick()
+    },
+    frames: 20,
+    budget: { 200: 8 },
+  },
   'grid-compact': {
     render: () => () => h('div'),
     act: () => {
@@ -1165,6 +1191,40 @@ function gridLayout(n: number) {
           h('div', { class: 'tile' }, [h('strong', item.id), h('span', `${item.w} × ${item.h}`)]),
       },
     )
+}
+
+const benchWidget = defineDashboardWidget({
+  type: 'value',
+  label: '数值',
+  size: { w: 3, h: 2 },
+  component: {
+    setup() {
+      const { props } = useDashboardWidget<{ value: number }>()
+      return () => h('strong', String(props.value.value))
+    },
+  },
+})
+
+function dashboard(n: number, editable = false) {
+  const doc = shallowRef<DashboardDocument>({
+    version: 1,
+    widgets: gridItems(n).map((item, i) => ({
+      id: item.id.replace('t', 'w'),
+      type: 'value',
+      props: { value: i },
+      place: { lg: { x: item.x, y: item.y, w: item.w, h: item.h } },
+    })),
+  })
+  return () =>
+    h(DouDashboard, {
+      ref: (api: unknown) => ((window as any).dashboardApi = api),
+      modelValue: doc.value,
+      'onUpdate:modelValue': (next: DashboardDocument) => (doc.value = next),
+      widgets: [benchWidget],
+      editable,
+      rowHeight: 48,
+      gap: 8,
+    })
 }
 
 /** Waits for a pivot table with rows and no veil, its first row other than `before` when given. */

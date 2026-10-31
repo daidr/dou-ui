@@ -8,7 +8,16 @@ import {
   type VNodeChild,
 } from 'vue'
 import type { ChartSeriesKind, ChartSeriesProps } from './core/series'
-import type { ChartAxisProps, ChartPieProps, ChartTooltipProps, ChartTooltipSlots } from './types'
+import type {
+  ChartAxisProps,
+  ChartBrushEvent,
+  ChartBrushProps,
+  ChartInterval,
+  ChartPieProps,
+  ChartTooltipProps,
+  ChartTooltipSlots,
+  ChartZoomProps,
+} from './types'
 
 /** A child component as the chart keeps it. */
 export interface ChartPart<P> {
@@ -37,11 +46,31 @@ export interface TooltipPart extends ChartPart<ChartTooltipProps> {
 
 export type AxisPart = ChartPart<ChartAxisProps>
 
+/** A stretch of x and of the values; `null` (or left out) for none. */
+export interface IntervalModels {
+  x: Ref<ChartInterval | null | undefined>
+  y: Ref<ChartInterval | null | undefined>
+}
+
+export interface ZoomPart extends ChartPart<ChartZoomProps>, IntervalModels {}
+
+export interface BrushPart extends ChartPart<ChartBrushProps>, IntervalModels {
+  /** A stretch was selected: tells the page. */
+  select: (event: ChartBrushEvent) => void
+}
+
+export interface RangePart extends ChartPart<Record<string, never>> {
+  x: Ref<ChartInterval | null | undefined>
+}
+
 export interface ChartRegistry {
   addSeries(part: SeriesPart): () => void
   addAxis(part: AxisPart): () => void
   addPie(part: PiePart): () => void
   addTooltip(part: TooltipPart): () => void
+  addZoom(part: ZoomPart): () => void
+  addBrush(part: BrushPart): () => void
+  addRange(part: RangePart): () => void
 }
 
 export const chartKey: InjectionKey<ChartRegistry> = Symbol('DouChart')

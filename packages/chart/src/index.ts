@@ -6,6 +6,9 @@ import Line from './components/line.vue'
 import Pie from './components/pie.vue'
 import Scatter from './components/scatter.vue'
 import Tooltip from './components/tooltip.vue'
+import Zoom from './components/zoom.vue'
+import Brush from './components/brush.vue'
+import Range from './components/range.vue'
 import Chart from './chart.vue'
 
 export const DouChart = withInstall(Chart)
@@ -16,6 +19,9 @@ export const DouChartBar = withInstall(Bar)
 export const DouChartScatter = withInstall(Scatter)
 export const DouChartPie = withInstall(Pie)
 export const DouChartTooltip = withInstall(Tooltip)
+export const DouChartZoom = withInstall(Zoom)
+export const DouChartBrush = withInstall(Brush)
+export const DouChartRange = withInstall(Range)
 export default DouChart
 
 export { defineChartSeries } from './define'
@@ -24,6 +30,9 @@ export type {
   ChartAreaProps,
   ChartAxisProps,
   ChartBarProps,
+  ChartBrushEvent,
+  ChartBrushProps,
+  ChartInterval,
   ChartLineProps,
   ChartPieProps,
   ChartPieSlots,
@@ -34,6 +43,8 @@ export type {
   ChartTooltipItem,
   ChartTooltipProps,
   ChartTooltipSlots,
+  ChartZoomAxis,
+  ChartZoomProps,
 } from './types'
 export type { ChartAccessor, ChartRow, XColumn as ChartColumn } from './core/data'
 export type { ChartAxisRole, ChartAxisType, ChartTickValue } from './core/layout'
@@ -61,5 +72,8 @@ declare module 'vue' {
     DouChartScatter: typeof DouChartScatter
     DouChartPie: typeof DouChartPie
     DouChartTooltip: typeof DouChartTooltip
+    DouChartZoom: typeof DouChartZoom
+    DouChartBrush: typeof DouChartBrush
+    DouChartRange: typeof DouChartRange
   }
 }

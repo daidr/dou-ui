@@ -66,6 +66,11 @@ export interface ChartAxisProps {
   title?: string
   /** Keep the axis (and its scale) but don't show it. */
   hidden?: boolean
+  /**
+   * The room for tick labels, in px, for an axis drawn down the side.
+   * Give charts stacked one above another the same value to line up their plots.
+   */
+  labelWidth?: number
 }
 
 export interface ChartLineProps extends ChartSeriesProps {
@@ -172,4 +177,49 @@ export interface ChartSelectEvent {
 export interface ChartPieSlots {
   /** Shown in the hole of a donut: a total, a title. */
   default?: () => unknown
+}
+
+/**
+ * A stretch of an axis, from one value to another: numbers, `Date`s on a
+ * time axis, categories on a category axis (both ends included).
+ */
+export type ChartInterval = [from: ChartTickValue, to: ChartTickValue]
+
+/** Which axes a part works along: x, the values, or both. */
+export type ChartZoomAxis = 'x' | 'y' | 'xy'
+
+export interface ChartZoomProps {
+  /** The axes to zoom and pan: x (the default), the values (`y`, with `y2` following), or both. */
+  axis?: ChartZoomAxis
+  /**
+   * Zoom with the wheel alone. By default the wheel scrolls the page, and
+   * zooms with Ctrl (⌘ on a Mac) held; pinching on a trackpad zooms either way.
+   */
+  wheel?: boolean
+  /** Turns zooming off and shows the whole chart. */
+  disabled?: boolean
+}
+
+export interface ChartBrushProps {
+  /** Select a stretch of x (the default), of the values (`y`), or a box of both. */
+  axis?: ChartZoomAxis
+  /** Fade what is outside the selection. On by default. */
+  dim?: boolean
+  /** Turns selecting off. */
+  disabled?: boolean
+}
+
+/**
+ * What `select` of `DouChartBrush` gives: the stretch selected and the rows
+ * in it. When the selection is let go, neither `x` nor `y` and no rows.
+ */
+export interface ChartBrushEvent {
+  /** The stretch of x, unless only values were selected. */
+  x?: ChartInterval
+  /** The stretch of values (on `y`, or on `y2` when it is alone), when they were selected. */
+  y?: ChartInterval
+  /** The rows with a point in the selection, each once: by series, then along x. */
+  rows: ChartRow[]
+  /** The same, by series. */
+  series: Array<{ name: string; rows: ChartRow[] }>
 }

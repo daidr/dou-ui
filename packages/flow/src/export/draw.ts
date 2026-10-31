@@ -7,11 +7,13 @@ import { escapeXml, round, type DrawTools, type FlowDrawContext } from './contex
 
 export interface FlowExportOptions {
   /**
-   * `all` (the default): every node and edge. `selection`: the selected
-   * nodes, what is inside selected groups, and the edges between them.
+   * `all` (the default): every node and edge. `view`: what is in view now,
+   * at the canvas's size, cut at its edges. `selection`: the selected nodes,
+   * what is inside selected groups, and the edges between them; it throws
+   * when nothing is selected.
    */
-  range?: 'all' | 'selection'
-  /** Room around the drawing, in px. Defaults to `24`. */
+  range?: 'all' | 'view' | 'selection'
+  /** Room around the drawing, in px. Defaults to `24`; not used by `view`. */
   padding?: number
   /** Fills the canvas color behind it. Defaults to `true`; `false` leaves it see-through. */
   background?: boolean
@@ -47,6 +49,10 @@ export interface DrawInput {
   edges: DrawEdge[]
   padding: number
   background: boolean
+  /** The area to draw, in place of what the drawing covers plus `padding`. */
+  frame?: Rect
+  /** Extensions' layers over the nodes, as `FlowExtension.drawLayer`. */
+  layers?: ((draw: FlowDrawContext) => string)[]
 }
 
 /** The points a path passes through or bends towards; the curve stays inside them. */
@@ -223,12 +229,23 @@ export function drawFlow(input: DrawInput, tools: DrawTools, root: HTMLElement) 
   } finally {
     looks.dispose()
   }
-  const box = bounds.get() ?? { x: 0, y: 0, width: 0, height: 0 }
-  const pad = input.padding
+  const box = input.frame ?? bounds.get() ?? { x: 0, y: 0, width: 0, height: 0 }
+  const pad = input.frame ? 0 : input.padding
   const x = Math.floor(box.x - pad)
   const y = Math.floor(box.y - pad)
   const width = Math.ceil(box.x + box.width + pad) - x
   const height = Math.ceil(box.y + box.height + pad) - y
+  const layerParts: string[] = []
+  if (input.layers?.length) {
+    const draw = tools.forNode({ width, height }, new Map(), () => '')
+    for (const layer of input.layers) {
+      try {
+        layerParts.push(layer(draw))
+      } catch (error) {
+        console.error('[@dou-ui/flow] drawing a layer failed', error)
+      }
+    }
+  }
   const rootStyle = getComputedStyle(root)
   const background = input.background
     ? `<rect x="${x}" y="${y}" width="${width}" height="${height}" fill="${tools.color(rootStyle.backgroundColor || 'var(--dou-color-bg-canvas)')}"/>`
@@ -241,6 +258,7 @@ export function drawFlow(input: DrawInput, tools: DrawTools, root: HTMLElement) 
     edgeParts.join('') +
     labelParts.join('') +
     nodeParts.join('') +
+    layerParts.join('') +
     '</svg>'
   return { svg, width, height }
 }

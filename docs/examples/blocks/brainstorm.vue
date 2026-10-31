@@ -4,6 +4,7 @@ import {
   DouFlowControls,
   DouFlowEditor,
   flowKit,
+  useFlowEditor,
   type FlowDocument,
   type FlowNode,
   type FlowSelection,
@@ -11,7 +12,7 @@ import {
 import { whiteboardKit } from '@dou-ui/flow/whiteboard'
 import { DownloadIcon, HeartIcon } from '@dou-ui/icons'
 import { useElementSize, type Tone } from 'dou-ui'
-import { computed, ref, useTemplateRef } from 'vue'
+import { computed, defineComponent, h, ref, useTemplateRef } from 'vue'
 
 // 每个人的便签用自己的颜色
 const members: { name: string; tone: Tone }[] = [
@@ -91,6 +92,36 @@ const ranking = computed(() =>
     .sort((a, b) => b.data!.votes!.length - a.data!.votes!.length),
 )
 
+// 票数显示在便签右下角：画布上是一层组件，导出时由 drawLayer 画进图片
+const BADGE = { height: 20, inset: 8 }
+const badgeWidth = (votes: number) => 32 + String(votes).length * 7
+const votesOf = (node: FlowNode) =>
+  node.type === 'sticky' ? ((node.data as NoteData | undefined)?.votes?.length ?? 0) : 0
+
+const VoteBadges = defineComponent(() => {
+  const ctx = useFlowEditor()
+  return () =>
+    notes.value.map((node) => {
+      const votes = votesOf(node)
+      const rect = votes ? ctx.getNodeRect(node.id) : null
+      if (!rect) return null
+      return h(
+        'div',
+        {
+          key: node.id,
+          class: 'brainstorm-votes',
+          style: {
+            width: `${rect.width}px`,
+            height: `${rect.height}px`,
+            transform: `translate(${rect.x}px, ${rect.y}px) rotate(${Number(node.data?.rotation) || 0}deg)`,
+          },
+          'aria-hidden': 'true',
+        },
+        h('span', { class: 'brainstorm-votes__badge' }, [h(HeartIcon), votes]),
+      )
+    })
+})
+
 // 新贴的便签记下是谁贴的；选中便签后可以投票
 const brainstorm = defineFlowExtension({
   name: 'brainstorm',
@@ -100,13 +131,40 @@ const brainstorm = defineFlowExtension({
       tr.updateData(step.node.id, { author: me.value, tone: toneOf(me.value), votes: [] })
     }
   },
+  layers: { above: [VoteBadges] },
+  drawLayer(ctx, draw, nodes) {
+    const parts: string[] = []
+    for (const node of nodes) {
+      const votes = votesOf(node)
+      const rect = votes ? ctx.getNodeRect(node.id) : null
+      if (!rect) continue
+      const width = badgeWidth(votes)
+      const x = rect.width - BADGE.inset - width
+      const y = rect.height - BADGE.inset - BADGE.height
+      const turn = Number(node.data?.rotation) || 0
+      const muted = draw.color('var(--dou-color-text-secondary)')
+      parts.push(
+        `<g transform="translate(${rect.x} ${rect.y}) rotate(${turn} ${rect.width / 2} ${rect.height / 2})">` +
+          `<rect x="${x}" y="${y}" width="${width}" height="${BADGE.height}" rx="${BADGE.height / 2}" fill="${draw.color('var(--dou-color-bg-surface)')}" fill-opacity="0.8"/>` +
+          draw.icon(HeartIcon, { x: x + 8, y: y + 4, width: 12, height: 12 }, muted) +
+          draw.text(
+            String(votes),
+            { x: x + 24, y, width: width - 30, height: BADGE.height },
+            { size: 12, lineHeight: BADGE.height, color: muted, nowrap: true },
+          ) +
+          '</g>',
+      )
+    }
+    return parts.join('')
+  },
   toolbarItems(ctx, nodes) {
     if (!nodes.every((node) => node.type === 'sticky')) return []
     const voted = nodes.every((node) => (node.data as NoteData).votes?.includes(me.value))
     return [
       {
         key: 'vote',
-        label: voted ? '取消赞同' : '赞同',
+        // 名称不变，是否已赞同由按下状态表达
+        label: '赞同',
         icon: HeartIcon,
         active: voted,
         run() {
@@ -142,7 +200,8 @@ async function exportImage() {
   a.href = url
   a.download = '开业活动头脑风暴.png'
   a.click()
-  URL.revokeObjectURL(url)
+  // 下载开始之后再释放，立即释放会让部分浏览器下载失败或丢掉文件名
+  setTimeout(() => URL.revokeObjectURL(url), 10_000)
 }
 
 const root = useTemplateRef('root')
@@ -205,8 +264,15 @@ const resultsOpen = ref(false)
         <ol v-if="ranking.length" class="brainstorm__list">
           <li v-for="item in ranking" :key="item.id">
             <button type="button" class="brainstorm__item" @click="focusNote(item.id)">
-              <span class="brainstorm__dot" :class="`is-${item.data?.tone ?? 'warning'}`" />
-              <span class="brainstorm__text">{{ item.data?.text }}</span>
+              <span
+                class="brainstorm__dot"
+                :class="`is-${item.data?.tone ?? 'warning'}`"
+                :title="item.data?.author"
+              />
+              <span class="brainstorm__text">
+                {{ item.data?.text }}
+                <span class="brainstorm__author">{{ item.data?.author }}</span>
+              </span>
               <span class="brainstorm__votes">{{ item.data?.votes?.length }} 票</span>
             </button>
           </li>
@@ -225,8 +291,15 @@ const resultsOpen = ref(false)
       <ol v-if="ranking.length" class="brainstorm__list">
         <li v-for="item in ranking" :key="item.id">
           <button type="button" class="brainstorm__item" @click="focusNote(item.id)">
-            <span class="brainstorm__dot" :class="`is-${item.data?.tone ?? 'warning'}`" />
-            <span class="brainstorm__text">{{ item.data?.text }}</span>
+            <span
+              class="brainstorm__dot"
+              :class="`is-${item.data?.tone ?? 'warning'}`"
+              :title="item.data?.author"
+            />
+            <span class="brainstorm__text">
+              {{ item.data?.text }}
+              <span class="brainstorm__author">{{ item.data?.author }}</span>
+            </span>
             <span class="brainstorm__votes">{{ item.data?.votes?.length }} 票</span>
           </button>
         </li>
@@ -371,6 +444,12 @@ const resultsOpen = ref(false)
   min-width: 0;
 }
 
+.brainstorm__author {
+  display: block;
+  color: var(--dou-color-text-tertiary);
+  font-size: var(--dou-font-size-sm);
+}
+
 .brainstorm__votes {
   flex: none;
   color: var(--dou-color-text-tertiary);
@@ -381,6 +460,40 @@ const resultsOpen = ref(false)
 @media (width < 720px) {
   .brainstorm__body {
     height: 480px;
+  }
+}
+</style>
+
+<style>
+/* 画布里的票数：由渲染函数生成，不带 scoped 标记 */
+.brainstorm-votes {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 8px;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.brainstorm-votes__badge {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  box-sizing: border-box;
+  border-radius: var(--dou-radius-full);
+  background-color: color-mix(in oklab, var(--dou-color-bg-surface) 80%, transparent);
+  color: var(--dou-color-text-secondary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+
+  & > svg {
+    width: 12px;
+    height: 12px;
   }
 }
 </style>

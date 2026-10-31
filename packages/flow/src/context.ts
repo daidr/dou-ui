@@ -138,8 +138,8 @@ export interface FlowEditorExpose {
   /** A node's measured box in canvas coordinates. */
   getNodeRect: (id: string) => Rect | null
   /**
-   * The flow as an SVG document, as it looks now: every node and edge, or
-   * the selected ones. Colors are written as `#rrggbb` or `rgba(…)`, so
+   * The flow as an SVG document, as it looks now: every node and edge, what
+   * is in view, or the selected ones (it throws when nothing is selected). Colors are written as `rgb(…)`, `rgba(…)` or `#rrggbb`, so
    * vector editors read them; nodes are drawn by their type's `draw`.
    */
   exportSVG: (options?: FlowExportOptions) => string

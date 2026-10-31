@@ -3,7 +3,7 @@ let normalizer: CanvasRenderingContext2D | null | undefined
 const SRGB = /^(#|rgba?\()/
 
 /**
- * A computed color as `#rrggbb` or `rgba(…)`, which every SVG reader
+ * A computed color as `rgb(…)`, `rgba(…)` or `#rrggbb`, which every SVG reader
  * understands. A canvas converts most colors as it parses them; colors it
  * keeps in another space (`oklab(…)`, `color(…)`) are painted on a pixel
  * and read back.

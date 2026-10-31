@@ -1,3 +1,4 @@
+import { ImageOffIcon } from '@dou-ui/icons'
 import { h, render, type Component } from 'vue'
 import type { PortAnchor } from '../context'
 import type { Rect } from '../core/model'
@@ -44,7 +45,7 @@ export interface FlowDrawContext {
   style: (...classes: string[]) => CSSStyleDeclaration
   /**
    * A CSS color, also one with variables such as `var(--dou-color-text)`,
-   * as `#rrggbb` or `rgba(…)`, which every SVG reader understands.
+   * as `rgb(…)`, `rgba(…)` or `#rrggbb`, which every SVG reader understands.
    */
   color: (value: string) => string
   /** Text in a box, wrapped as on screen and cut where the box ends. */
@@ -109,8 +110,15 @@ export function wrapText(text: string, max: number, measure: (text: string) => n
 }
 
 /** Cuts text to fit `max`, with an ellipsis. */
-export function cutText(text: string, max: number, measure: (text: string) => number) {
-  if (measure(text) <= max) return text
+export function cutText(
+  text: string,
+  max: number,
+  measure: (text: string) => number,
+  /** Ends it with an ellipsis even when it fits: more text follows. */
+  more = false,
+) {
+  if (more) text = text.trimEnd()
+  if (!more && measure(text) <= max) return text
   let lo = 0
   let hi = text.length
   while (lo < hi) {
@@ -236,7 +244,10 @@ export function drawTools(
       : wrapText(value, area.width, width)
     // whole lines that fit, as the box clips them on screen
     const room = Math.max(1, Math.floor((area.height + 0.5) / lineHeight))
-    if (lines.length > room) lines = lines.slice(0, room)
+    if (lines.length > room) {
+      lines = lines.slice(0, room)
+      lines[room - 1] = cutText(lines[room - 1]!, area.width, width, true)
+    }
     const total = lines.length * lineHeight
     const top = options.valign === 'middle' ? area.y + (area.height - total) / 2 : area.y
     const align = options.align ?? 'start'
@@ -288,9 +299,18 @@ export function drawTools(
     images.add(src)
     const href = imageHref(src)
     const { x, y, width, height } = area
-    if (href === null)
-      // not readable here: a plain box where it would be
-      return `<rect x="${round(x)}" y="${round(y)}" width="${round(width)}" height="${round(height)}" rx="${options.radius ?? 0}" fill="${color('var(--dou-color-bg-muted)')}"/>`
+    if (href === null) {
+      // not readable here: a plain box with a sign, as the canvas shows it
+      const side = Math.min(24, width * 0.4, height * 0.4)
+      return (
+        `<rect x="${round(x)}" y="${round(y)}" width="${round(width)}" height="${round(height)}" rx="${options.radius ?? 0}" fill="${color('var(--dou-color-bg-muted)')}"/>` +
+        icon(
+          ImageOffIcon,
+          { x: x + (width - side) / 2, y: y + (height - side) / 2, width: side, height: side },
+          color('var(--dou-color-text-tertiary)'),
+        )
+      )
+    }
     let clip = ''
     let defs = ''
     if (options.radius) {

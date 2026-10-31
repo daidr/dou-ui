@@ -11,7 +11,7 @@ const props = defineProps<{
   size: { width: number; height: number }
 }>()
 
-const { messages } = useFlowEditor()
+const { messages, root } = useFlowEditor()
 const el = useTemplateRef<HTMLElement>('el')
 const box = ref({ width: 0, height: 0 })
 
@@ -26,13 +26,35 @@ watch(
 /** Room between the toolbar and the selection, and the editor's edges. */
 const GAP = 8
 
-// Above the selection, below it when there is no room, kept inside the editor.
+/** Boxes of what floats over the canvas, e.g. a whiteboard's tools, from the editor's top left. */
+function overlays() {
+  const editor = root.value
+  if (!editor) return []
+  const origin = editor.getBoundingClientRect()
+  return [...editor.querySelectorAll<HTMLElement>('[data-flow-overlay]')].map((item) => {
+    const r = item.getBoundingClientRect()
+    return {
+      left: r.left - origin.left,
+      top: r.top - origin.top,
+      right: r.right - origin.left,
+      bottom: r.bottom - origin.top,
+    }
+  })
+}
+
+// Above the selection, below it when there is no room or it would cover
+// something floating there, kept inside the editor.
 const style = computed(() => {
   const { width, height } = box.value
   const { anchor, size } = props
-  const below = anchor.top - GAP - height < GAP
-  const top = below ? anchor.bottom + GAP : anchor.top - GAP - height
   const left = Math.min(Math.max(anchor.x - width / 2, GAP), size.width - width - GAP)
+  const above = anchor.top - GAP - height
+  const covers = (top: number) =>
+    overlays().some(
+      (o) => left < o.right && left + width > o.left && top < o.bottom && top + height > o.top,
+    )
+  const below = above < GAP || covers(Math.max(above, GAP))
+  const top = below ? anchor.bottom + GAP : above
   return {
     left: `${Math.round(left)}px`,
     top: `${Math.round(Math.min(Math.max(top, GAP), size.height - height - GAP))}px`,

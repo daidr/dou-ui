@@ -75,6 +75,8 @@ describe('text layout', () => {
   it('cuts one line with an ellipsis', () => {
     expect(cutText('订周六上午的票', 35, measure)).toBe('订周六上…')
     expect(cutText('票', 35, measure)).toBe('票')
+    // more lines follow: an ellipsis even when it fits
+    expect(cutText('票 ', 35, measure, true)).toBe('票…')
   })
 
   it('keeps colors SVG readers know as they are', () => {
@@ -139,6 +141,57 @@ describe('exportSVG', () => {
     expect(svg).toMatch(/viewBox="0 0 200 460"/)
   })
 
+  it('throws when nothing is selected to export', async () => {
+    const { editor } = setup(doc())
+    await ticks()
+    expect(() => editor.value!.exportSVG({ range: 'selection' })).toThrow(/nothing is selected/)
+  })
+
+  it('draws what is in view, at the canvas’s size', async () => {
+    const { editor } = setup(doc())
+    await ticks()
+    editor.value!.zoomTo(1)
+    const svg = editor.value!.exportSVG({ range: 'view' })
+    expect(svg).toMatch(/ width="800" height="600" viewBox="-?\d+ -?\d+ 800 600"/)
+  })
+
+  it('cuts text that doesn’t fit with an ellipsis', async () => {
+    const { editor } = setup(
+      {
+        nodes: [
+          {
+            id: 's',
+            type: 'shape',
+            x: 0,
+            y: 0,
+            width: 100,
+            height: 60,
+            data: { text: '一段很长很长很长很长很长很长很长很长的文字' },
+          },
+        ],
+        edges: [],
+      },
+      [flowKit(), whiteboardKit()],
+    )
+    await ticks()
+    expect(editor.value!.exportSVG()).toMatch(/…<\/tspan>/)
+  })
+
+  it('draws extensions’ layers over the nodes', async () => {
+    const { editor } = setup(doc(), [
+      flowKit(),
+      {
+        name: 'marks',
+        drawLayer: (_ctx, draw, nodes) =>
+          nodes.map((node) => `<circle data-mark="${draw.escape(node.id)}" r="2"/>`).join(''),
+      },
+    ])
+    await ticks()
+    const svg = editor.value!.exportSVG()
+    expect(svg).toMatch(/data-mark="a".*data-mark="b".*data-mark="c".*<\/svg>$/)
+    expect(svg.indexOf('data-mark')).toBeGreaterThan(svg.lastIndexOf('归档'))
+  })
+
   it('uses a node type’s draw, and a card with the name without one', async () => {
     const stamp = defineNodeType({
       type: 'stamp',
@@ -192,6 +245,8 @@ describe('exportSVG', () => {
     const svg = editor.value!.exportSVG()
     expect(svg).toContain('收集')
     expect(svg).not.toContain('本周日程')
+    // a picture has nothing to fold: no toggle
+    expect(svg).not.toContain('<svg x="12" y="12"')
   })
 
   it('draws whiteboard nodes: turned, inked and with images', async () => {

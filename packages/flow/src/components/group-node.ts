@@ -1,4 +1,3 @@
-import { ChevronDownIcon } from '@dou-ui/icons'
 import { defineNodeType } from '../core/node-types'
 import { drawCard } from '../export/draw'
 import GroupNode from './group-node.vue'
@@ -25,16 +24,12 @@ export const groupNode = defineNodeType<GroupNodeData>({
   defaults: () => ({ label: '' }),
   draw(node, draw) {
     const title = draw.style('dou-flow-group-node__title')
-    const toggle = draw.style('dou-flow-group-node__toggle')
-    const chevron = draw.color(toggle.color)
-    // the toggle's chevron, turned to the right when folded
-    const turn = node.data?.collapsed ? ' transform="rotate(-90 20 20)"' : ''
+    // a picture has nothing to fold: no toggle, the title where it starts
     return (
       drawCard(draw, ['is-container'].concat(node.data?.collapsed ? ['is-collapsed'] : [])) +
-      `<g${turn}>${draw.icon(ChevronDownIcon, { x: 12, y: 12, width: 16, height: 16 }, chevron)}</g>` +
       draw.text(
         node.data?.label || draw.messages.group,
-        { x: 36, y: 0, width: Math.max(0, draw.width - 48), height: 40 },
+        { x: 12, y: 0, width: Math.max(0, draw.width - 24), height: 40 },
         {
           size: Number.parseFloat(title.fontSize) || 13,
           weight: title.fontWeight,

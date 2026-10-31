@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { DouFlowEditor, flowKit, type FlowDocument } from '@dou-ui/flow'
+import { DouFlowEditor, flowKit, type FlowDocument, type FlowSelection } from '@dou-ui/flow'
 import { whiteboardKit } from '@dou-ui/flow/whiteboard'
 import { DouButton, DouSpace } from 'dou-ui'
 import { ref, useTemplateRef } from 'vue'
@@ -14,14 +14,20 @@ function save(data: Blob | string, name: string) {
   a.href = url
   a.download = name
   a.click()
-  URL.revokeObjectURL(url)
+  // 下载开始之后再释放，立即释放会让部分浏览器下载失败或丢掉文件名
+  setTimeout(() => URL.revokeObjectURL(url), 10_000)
 }
 
 async function savePNG() {
   if (editor.value) save(await editor.value.exportPNG(), '周末计划.png')
 }
 const saveSVG = () => editor.value && save(editor.value.exportSVG(), '周末计划.svg')
-// 只导出选中的节点和它们之间的连线
+// 只导出画布上看得到的部分
+async function saveView() {
+  if (editor.value) save(await editor.value.exportPNG({ range: 'view' }), '当前视图.png')
+}
+// 只导出选中的节点和它们之间的连线；什么都没选时会报错，所以按钮先禁用
+const selection = ref<FlowSelection>({ nodes: [], edges: [] })
 async function saveSelection() {
   if (editor.value) save(await editor.value.exportPNG({ range: 'selection' }), '选中部分.png')
 }
@@ -105,11 +111,15 @@ const doc = ref<FlowDocument>({
   <DouSpace>
     <DouButton size="sm" @click="savePNG">导出 PNG</DouButton>
     <DouButton size="sm" @click="saveSVG">导出 SVG</DouButton>
-    <DouButton size="sm" @click="saveSelection">导出选中部分</DouButton>
+    <DouButton size="sm" @click="saveView">导出当前视图</DouButton>
+    <DouButton size="sm" :disabled="!selection.nodes.length" @click="saveSelection">
+      导出选中部分
+    </DouButton>
   </DouSpace>
   <DouFlowEditor
     ref="editor"
     v-model="doc"
+    v-model:selection="selection"
     :extensions="extensions"
     fit-view
     aria-label="周末计划白板"

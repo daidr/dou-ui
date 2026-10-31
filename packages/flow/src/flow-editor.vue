@@ -72,7 +72,7 @@ import { containerAt, FlowTree } from './core/groups'
 import { labelOf, portsOf, resizeOf, type NodeTypeSpec } from './core/node-types'
 import { FlowTransaction, type FlowTransactionMeta } from './core/transaction'
 import { format, useFlowMessages } from './locale'
-import { drawTools, type DrawTools } from './export/context'
+import { drawTools, type DrawTools, type FlowDrawContext } from './export/context'
 import {
   drawFlow,
   readImage,
@@ -3203,17 +3203,31 @@ function drawing(options: FlowExportOptions, imageHref?: (src: string) => string
   const el = root.value
   if (!el) throw new Error('[@dou-ui/flow] the editor is not mounted')
   let keep: Set<string> | null = null
+  let frame: Rect | undefined
   if (options.range === 'selection') {
+    if (!selection.value.nodes.length)
+      throw new Error('[@dou-ui/flow] nothing is selected to export')
     keep = new Set<string>()
     for (const id of selection.value.nodes) {
       keep.add(id)
       for (const inner of tree.value.descendants(id)) keep.add(inner)
     }
+  } else if (options.range === 'view') {
+    const { x, y, zoom } = viewport.value
+    frame = {
+      x: -x / zoom,
+      y: -y / zoom,
+      width: size.value.width / zoom,
+      height: size.value.height / zoom,
+    }
   }
   const hidden = hiddenIn.value
-  const nodes = shownNodes.value.filter(
-    (node) => !hidden.has(node.id) && (!keep || keep.has(node.id)),
-  )
+  const nodes = shownNodes.value.filter((node) => {
+    if (hidden.has(node.id) || (keep && !keep.has(node.id))) return false
+    if (!frame) return true
+    const rect = rectOf(node)
+    return intersects(specOf(node).bounds?.(node, rect) ?? rect, frame)
+  })
   const index = new Map(nodes.map((node, i) => [node.id, i]))
   // oxlint-disable-next-line unicorn/no-array-sort -- sorts a fresh array
   const ordered = nodes.sort((a, b) => {
@@ -3258,6 +3272,10 @@ function drawing(options: FlowExportOptions, imageHref?: (src: string) => string
         edges,
         padding: options.padding ?? 24,
         background: options.background ?? true,
+        frame,
+        layers: resolved.value.drawLayers.map(
+          (fn) => (draw: FlowDrawContext) => fn(context, draw, ordered),
+        ),
       },
       tools,
       el,
@@ -3293,11 +3311,20 @@ function exportSVG(options: FlowExportOptions = {}) {
   return drawing(options).svg
 }
 
+/** Image addresses this page couldn't read, not asked for again. */
+const unreadable = new Set<string>()
+
 async function exportPNG(options: FlowImageOptions = {}) {
   // a picture drawn from SVG can't load other files: images go in as data
   const { images } = drawing(options)
   const read = new Map<string, string | null>()
-  await Promise.all([...images].map(async (src) => read.set(src, await readImage(src))))
+  await Promise.all(
+    [...images].map(async (src) => {
+      const data = unreadable.has(src) ? null : await readImage(src)
+      if (data === null) unreadable.add(src)
+      read.set(src, data)
+    }),
+  )
   const { svg, width, height } = drawing(options, (src) => read.get(src) ?? null)
   return svgToPng(svg, width, height, options.pixelRatio ?? 2)
 }

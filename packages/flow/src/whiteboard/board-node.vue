@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ImageOffIcon } from '@dou-ui/icons'
 import { computed, nextTick, ref, toRef, useTemplateRef, watch } from 'vue'
 import DouFlowPort from '../components/flow-port.vue'
 import { useFlowEditor } from '../context'
@@ -82,6 +83,35 @@ const diamond = computed(() => {
   const i = 1
   return `${w / 2},${i} ${w - i},${h / 2} ${w / 2},${h - i} ${i},${h / 2}`
 })
+
+// Whole lines that fit, the last one ending in an ellipsis, as an export draws them.
+const textEl = useTemplateRef<HTMLElement>('textEl')
+const textMetrics = ref<{ line: number; padding: number } | null>(null)
+watch(
+  textEl,
+  (el) => {
+    if (!el) return
+    const s = getComputedStyle(el)
+    const line = Number.parseFloat(s.lineHeight)
+    if (!line) return
+    const padding = Number.parseFloat(s.paddingTop) + Number.parseFloat(s.paddingBottom)
+    textMetrics.value = { line, padding: padding || 0 }
+  },
+  { flush: 'post' },
+)
+const textStyle = computed(() => {
+  const m = textMetrics.value
+  if (!m || kind.value === 'text') return undefined
+  const height = sizing.value?.height ?? box.value.h
+  return { '-webkit-line-clamp': Math.max(1, Math.floor((height - m.padding + 0.5) / m.line)) }
+})
+
+// An image that can't be loaded: a plain box with a sign, as an export draws it.
+const broken = ref(false)
+watch(
+  () => props.data.src,
+  () => (broken.value = false),
+)
 
 const editing = computed(() => state.editing.value === props.node.id)
 const draft = ref('')
@@ -187,12 +217,21 @@ function onKeydown(event: KeyboardEvent) {
       <path class="dou-whiteboard-node__ink-hit" :d="ink" />
       <path :d="ink" />
     </svg>
+    <div
+      v-else-if="kind === 'image' && broken"
+      class="dou-whiteboard-node__image is-broken"
+      role="img"
+      :aria-label="data.alt || undefined"
+    >
+      <ImageOffIcon />
+    </div>
     <img
       v-else-if="kind === 'image'"
       class="dou-whiteboard-node__image"
       :src="data.src"
       :alt="data.alt ?? ''"
       draggable="false"
+      @error="broken = true"
     />
     <textarea
       v-if="editing"
@@ -204,7 +243,13 @@ function onKeydown(event: KeyboardEvent) {
       @blur="finish"
       @pointerdown.stop
     />
-    <div v-else-if="writable" class="dou-whiteboard-node__text">{{ data.text }}</div>
+    <div
+      v-else-if="writable"
+      ref="textEl"
+      class="dou-whiteboard-node__text"
+      :style="textStyle"
+      v-text="data.text"
+    />
     <div v-if="kind !== 'ink'" class="dou-whiteboard-node__anchors">
       <template v-for="side in anchorSides" :key="side">
         <DouFlowPort :id="`${side}-in`" class="dou-whiteboard-node__anchor" />

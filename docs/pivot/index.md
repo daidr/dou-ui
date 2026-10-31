@@ -137,6 +137,53 @@ values: [
 - `merge` 把两个组的状态合并成一个。小计和总计由内层各组的状态合并而来，不会再逐条读取记录，所以 `merge` 必须得到和逐条 `add` 一样的结果。
 - `input` 默认是 `'number'`，`add` 收到的是数字，没有数字的记录会跳过；设为 `'value'` 时收到字段的原始值，空值跳过。
 
+### 显示方式
+
+`show` 把值换一种方式显示：占比、与前一组的差值、累计或排名。汇总的结果不变，只是显示的数字不同：
+
+<DocDemo src="pivot/show" />
+
+| `show`              | 显示                                         |
+| ------------------- | -------------------------------------------- |
+| `percentOfTotal`    | 占总计的百分比                               |
+| `percentOfRow`      | 占这一行合计的百分比                         |
+| `percentOfColumn`   | 占这一列合计的百分比                         |
+| `percentOfParent`   | 占上一级组的百分比                           |
+| `difference`        | 与前一组的差值，第一组为空                   |
+| `percentDifference` | 与前一组相差的百分比                         |
+| `runningTotal`      | 从第一组加到这一组的累计                     |
+| `rank`              | 在同一级的组里的排名，最大的为 1，总计不排名 |
+
+“前一组”“同一级”看的是一个方向（`axis`）上的组：差值和累计默认沿列，即和左边一列的组比较、从左往右累加（比如按季度和上一季度比较）；占上一级和排名默认沿行，即和上一级的行组相比、在同一级的行组里排名。这个方向上没有字段时换到另一个方向。要指定方向，写成对象：
+
+```ts
+{ field: 'amount', show: { as: 'difference', axis: 'rows' } } // 和上一行的组比较
+```
+
+组的先后按组名的顺序，不受按数值排序的影响。百分比默认保留一位小数，差值带正负号；`format` 可以另外指定。表头会在值的名称后面加上显示方式，比如“销售额 · 占行合计”。`cell-click` 的 `value` 是显示的数字。
+
+### 计算值
+
+`formula` 用已有的字段算出新的值，比如每杯的均价：
+
+<DocDemo src="pivot/formula" />
+
+公式里的字段名（或字段的 `label`）表示这个字段在这一格的合计，所以小计和总计里算的是“合计之比”，而不是把各组的比值相加。可以用：
+
+- 数字、`+ - * /` 和括号；
+- `sum(字段)`、`avg(字段)`、`min(字段)`、`max(字段)`、`count(字段)`（非空的个数）和 `count()`（记录的条数）；
+- 方括号括起有空格或符号的字段名，如 `[unit price]`。
+
+除以 0 的格子留空。公式只做解析和计算，不会执行任何代码。字段面板的“添加计算值”可以在界面里写公式，写错时会指出原因。`parsePivotFormula` 和 `checkPivotFormula` 可以在别处检查公式，错误是 `PivotFormulaError`，`code` 说明原因。
+
+### 条件格式
+
+`mark` 按数值给格子上色：`'bar'` 在数字下面画一条数据条，`'scale'` 按大小给格子铺上深浅不同的底色。颜色默认是中性色，`{ type: 'scale', tone: 'success' }` 可以换成别的语气色：
+
+<DocDemo src="pivot/mark" />
+
+上色的只有最内层的格子，小计和总计不上色，最小值和最大值也只在这些格子里找。有负数时，数据条从 0 开始向两边画。
+
 ## 布局
 
 默认的紧凑式布局把行上的字段放在同一列里，缩进成一棵树，组所在的行就是它的小计。`layout="tabular"` 改成表格式：每个行字段单独一列，组名只在这一组的第一行显示，展开的组在子项后面另起一行“小计”。
@@ -187,6 +234,18 @@ filters: {
   region: { include: ['华东', '华南'] },
 }
 ```
+
+`top` 按合计保留最大（或最小）的几组，`between` 保留合计在某个范围里的组：
+
+```ts
+filters: {
+  city: { top: { count: 10 } }, // 销售额最高的 10 个城市
+  category: { top: { count: 3, valueIndex: 1, order: 'asc' } }, // 按第 2 个值，最小的 3 个
+  region: { between: { min: 10000 } },
+}
+```
+
+合计按 `values` 里第 `valueIndex` 个值（默认第一个）计算，统计的是经过 `include` / `exclude` 筛选后的记录，被排除的组不参与总计。字段面板里，行和列上字段的菜单有“前 N 项”，选“自定义…”可以填任意项数，或者按合计范围筛选。
 
 没有记录通过筛选时，表格中间显示“没有数据”。
 
@@ -308,6 +367,8 @@ result.get(east, result.columns.total) // 华东的销售额（列上的总计�
 result.get(east, result.columns.find(['Q1']), 1) // 华东 Q1 的第 2 个值
 ```
 
+`get` 返回汇总的结果；值有 `show` 时，`shown(row, column, valueIndex)` 返回换算后显示的数字，`range(valueIndex)` 返回最内层格子的最小值和最大值。
+
 同一个 `PivotSource` 可以反复计算不同的布局，已经读过的字段不会再读。
 
 ## API
@@ -353,26 +414,26 @@ result.get(east, result.columns.find(['Q1']), 1) // 华东 Q1 的第 2 个值
 
 ### PivotCellEvent
 
-| 名称         | 说明                              | 类型             |
-| ------------ | --------------------------------- | ---------------- |
-| `row`        | 行组从外到内的组名，总计行为 `[]` | `unknown[]`      |
-| `column`     | 列组从外到内的组名，总计列为 `[]` | `unknown[]`      |
-| `valueIndex` | 值在 `config.values` 里的序号     | `number`         |
-| `value`      | 格子里的数值，空格子为 `NaN`      | `number`         |
-| `records`    | 汇总进这一格的记录                | `() => object[]` |
-| `indices`    | 这些记录在 `data` 里的下标        | `() => number[]` |
+| 名称         | 说明                                                         | 类型             |
+| ------------ | ------------------------------------------------------------ | ---------------- |
+| `row`        | 行组从外到内的组名，总计行为 `[]`                            | `unknown[]`      |
+| `column`     | 列组从外到内的组名，总计列为 `[]`                            | `unknown[]`      |
+| `valueIndex` | 值在 `config.values` 里的序号                                | `number`         |
+| `value`      | 格子里显示的数值（有 `show` 时是换算后的数），空格子为 `NaN` | `number`         |
+| `records`    | 汇总进这一格的记录                                           | `() => object[]` |
+| `indices`    | 这些记录在 `data` 里的下标                                   | `() => number[]` |
 
 ### PivotConfig
 
-| 名称       | 说明                     | 类型                                                        | 默认值      |
-| ---------- | ------------------------ | ----------------------------------------------------------- | ----------- |
-| `rows`     | 行上的字段               | `(string \| { field, sort?, subtotal?, by? })[]`            | `[]`        |
-| `columns`  | 列上的字段               | `(string \| { field, sort?, subtotal?, by? })[]`            | `[]`        |
-| `values`   | 要汇总的值               | `(string \| { field?, aggregate?, label?, format? })[]`     | 计数        |
-| `filters`  | 按字段保留或排除组       | `Record<string, { include?, exclude?, by? }>`               | —           |
-| `valuesOn` | 多个值放在哪个方向       | `'columns' \| 'rows'`                                       | `'columns'` |
-| `sort`     | 按某一列的数值给行组排序 | `{ valueIndex: number, column?: unknown[], order } \| null` | —           |
-| `totals`   | 总计行和总计列           | `{ rows?: boolean, columns?: boolean }`                     | 都显示      |
+| 名称       | 说明                     | 类型                                                                            | 默认值      |
+| ---------- | ------------------------ | ------------------------------------------------------------------------------- | ----------- |
+| `rows`     | 行上的字段               | `(string \| { field, sort?, subtotal?, by? })[]`                                | `[]`        |
+| `columns`  | 列上的字段               | `(string \| { field, sort?, subtotal?, by? })[]`                                | `[]`        |
+| `values`   | 要汇总的值               | `(string \| { field?, aggregate?, formula?, label?, format?, show?, mark? })[]` | 计数        |
+| `filters`  | 按字段保留或排除组       | `Record<string, { include?, exclude?, top?, between?, by? }>`                   | —           |
+| `valuesOn` | 多个值放在哪个方向       | `'columns' \| 'rows'`                                                           | `'columns'` |
+| `sort`     | 按某一列的数值给行组排序 | `{ valueIndex: number, column?: unknown[], order } \| null`                     | —           |
+| `totals`   | 总计行和总计列           | `{ rows?: boolean, columns?: boolean }`                                         | 都显示      |
 
 ### Worker 与引擎
 
@@ -387,13 +448,15 @@ result.get(east, result.columns.find(['Q1']), 1) // 华东 Q1 的第 2 个值
 
 ### CSS 变量
 
-| 变量                      | 说明                   |
-| ------------------------- | ---------------------- |
-| `--dou-pivot-line`        | 格子之间的线           |
-| `--dou-pivot-line-strong` | 表头、行头的分隔线     |
-| `--dou-pivot-head-bg`     | 表头和总计行的背景     |
-| `--dou-pivot-total-bg`    | 合计列和总计列的背景   |
-| `--dou-pivot-ring`        | 键盘选中格子的边框颜色 |
+| 变量                         | 说明                               |
+| ---------------------------- | ---------------------------------- |
+| `--dou-pivot-line`           | 格子之间的线                       |
+| `--dou-pivot-line-strong`    | 表头、行头的分隔线                 |
+| `--dou-pivot-head-bg`        | 表头和总计行的背景                 |
+| `--dou-pivot-total-bg`       | 合计列和总计列的背景               |
+| `--dou-pivot-ring`           | 键盘选中格子的边框颜色             |
+| `--dou-pivot-scale-strength` | 色阶最深时语气色的比例，默认 `28%` |
+| `--dou-pivot-bar-strength`   | 数据条语气色的比例，默认 `12%`     |
 
 ### 读屏
 

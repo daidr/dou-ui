@@ -19,6 +19,7 @@ import {
   HashIcon,
   LayoutThreeColumnsIcon,
   LayoutThreeRowsIcon,
+  PlusIcon,
   SearchIcon,
   SigmaIcon,
   TablePivotIcon,
@@ -26,7 +27,13 @@ import {
   TypeIcon,
 } from '@dou-ui/icons'
 import { computed, nextTick, onMounted, ref, useId, type Component } from 'vue'
-import { resolveConfig, type PivotAggregator, type PivotResolvedField } from '../engine'
+import {
+  resolveConfig,
+  type PivotAggregator,
+  type PivotResolvedField,
+  type PivotShowAs,
+  type PivotSource,
+} from '../engine'
 import { BUILTIN_AGGREGATORS } from '../engine/aggregate'
 import { DATE_PERIODS, groupKey, type PivotGroupBy } from '../engine/group'
 import type { PivotConfig, PivotDimension, PivotFieldType, PivotFilter } from '../engine/types'
@@ -35,6 +42,8 @@ import { usePivotSource } from '../core/source'
 import { format, usePivotMessages } from '../locale'
 import type { PivotFieldsProps } from '../types'
 import FilterList from './filter-list.vue'
+import FormulaDialog from './formula-dialog.vue'
+import TopDialog from './top-dialog.vue'
 import {
   areasOf,
   AREAS,
@@ -45,9 +54,12 @@ import {
   withAggregate,
   withDimension,
   withFilter,
+  withRank,
+  withValue,
   type PivotArea,
   type PivotAreas,
   type PivotFieldItem,
+  type PivotRank,
 } from './model'
 
 defineOptions({ name: 'DouPivotFields' })
@@ -200,17 +212,40 @@ function groupText(by: PivotGroupBy) {
 function chipGroup(item: PivotFieldItem) {
   if (item.kind !== 'dimension') return ''
   const by = dimensionOf(axisOf(item), item.field)?.by
-  return by === undefined ? '' : groupText(by)
+  const top = topText(item.field)
+  return [by === undefined ? '' : groupText(by), top].filter(Boolean).join(' · ')
 }
+
+/** How a field's top N or range reads ("前 10 项", "合计 ≥ 100"), or ''. */
+function topText(name: string) {
+  const filter = filterOf(name)
+  const m = messages.value.fields
+  if (filter?.top) {
+    return format(filter.top.order === 'asc' ? m.bottomN : m.topN, { count: filter.top.count })
+  }
+  if (filter?.between) {
+    const write = new Intl.NumberFormat(undefined, { maximumFractionDigits: 6 })
+    const { min, max } = filter.between
+    const range =
+      min !== undefined && max !== undefined
+        ? format(messages.value.rangeLabel, { from: write.format(min), to: write.format(max) })
+        : min !== undefined
+          ? `≥ ${write.format(min)}`
+          : `≤ ${write.format(max ?? 0)}`
+    return format(m.between, { range })
+  }
+  return ''
+}
+
 const chipName = (item: PivotFieldItem) =>
   item.kind === 'dimension' ? itemLabel(item) : chipText(item)
 
 function chipText(item: PivotFieldItem) {
   if (item.kind === 'dimension') {
-    const by = dimensionOf(axisOf(item), item.field)?.by
-    return by === undefined
-      ? itemLabel(item)
-      : format(messages.value.fields.grouped, { field: itemLabel(item), group: groupText(by) })
+    const extra = chipGroup(item)
+    return extra
+      ? format(messages.value.fields.grouped, { field: itemLabel(item), group: extra })
+      : itemLabel(item)
   }
   if (item.kind !== 'value') return itemLabel(item)
   const value = resolved.value?.values[item.index]
@@ -309,6 +344,129 @@ function onAggregate(index: number, name: string | number) {
   config.value = withAggregate(config.value, index, String(name))
 }
 
+// ---- showing values ----
+
+const SHOWS: PivotShowAs[] = [
+  'percentOfTotal',
+  'percentOfRow',
+  'percentOfColumn',
+  'percentOfParent',
+  'difference',
+  'percentDifference',
+  'runningTotal',
+  'rank',
+]
+const valueSpec = (index: number) => {
+  const v = config.value.values?.[index]
+  return typeof v === 'object' ? v : undefined
+}
+const showKey = (index: number) => {
+  const show = valueSpec(index)?.show
+  return show === undefined ? '' : typeof show === 'string' ? show : show.as
+}
+function onShow(index: number, key: string | number) {
+  const spec = valueSpec(index)?.show
+  const axis = typeof spec === 'object' ? spec.axis : undefined
+  const show = key === '' ? null : axis ? { as: key as PivotShowAs, axis } : (key as PivotShowAs)
+  config.value = withValue(config.value, index, { show: show as PivotShowAs | null })
+}
+const markKey = (index: number) => {
+  const mark = valueSpec(index)?.mark
+  return mark === undefined ? '' : typeof mark === 'string' ? mark : mark.type
+}
+function onMark(index: number, key: string | number) {
+  config.value = withValue(config.value, index, {
+    mark: key === '' ? null : (key as 'bar' | 'scale'),
+  })
+}
+
+// ---- top N ----
+
+const TOPS = [
+  { key: 't5', count: 5, order: 'desc' },
+  { key: 't10', count: 10, order: 'desc' },
+  { key: 't20', count: 20, order: 'desc' },
+  { key: 'b5', count: 5, order: 'asc' },
+  { key: 'b10', count: 10, order: 'asc' },
+] as const
+function topKey(name: string) {
+  const filter = filterOf(name)
+  if (filter?.between) return 'range'
+  if (!filter?.top) return ''
+  return `${filter.top.order === 'asc' ? 'b' : 't'}${filter.top.count}`
+}
+const topOptions = (name: string) => {
+  const m = messages.value.fields
+  const options: { key: string; text: string }[] = [{ key: '', text: m.noTop }]
+  for (const t of TOPS) {
+    options.push({
+      key: t.key,
+      text: format(t.order === 'asc' ? m.bottomN : m.topN, { count: t.count }),
+    })
+  }
+  // a top N or a range set elsewhere, which the list does not offer
+  const key = topKey(name)
+  if (key && !options.some((o) => o.key === key)) options.push({ key, text: topText(name) })
+  return options
+}
+function onTop(item: PivotFieldItem, key: string | number) {
+  if (key === 'range') return
+  const match = /^([tb])(\d+)$/.exec(String(key))
+  const old = filterOf(item.field)?.top
+  setRank(
+    item,
+    match
+      ? {
+          top: {
+            ...(old?.valueIndex ? { valueIndex: old.valueIndex } : {}),
+            count: Number(match[2]),
+            ...(match[1] === 'b' ? { order: 'asc' as const } : {}),
+          },
+        }
+      : null,
+  )
+}
+function setRank(item: PivotFieldItem, rank: PivotRank | null) {
+  config.value = withRank(config.value, item.field, rank, item.kind === 'filter')
+}
+
+/** The field whose top N or range is set in the dialog. */
+const topItem = ref<PivotFieldItem | null>(null)
+const topOpen = ref(false)
+function openTop(item: PivotFieldItem) {
+  topItem.value = item
+  // after the menu has closed and given focus back
+  nextTick(() => (topOpen.value = true))
+}
+
+// ---- calculated values ----
+
+const formulaOpen = ref(false)
+/** The value being changed in the dialog, or -1 for a new one. */
+const formulaIndex = ref(-1)
+const formulaInitial = computed(() => {
+  const spec = formulaIndex.value >= 0 ? valueSpec(formulaIndex.value) : undefined
+  return spec?.formula === undefined ? null : { formula: spec.formula, label: spec.label }
+})
+function openFormula(index: number) {
+  formulaIndex.value = index
+  // after a menu has closed and given focus back
+  nextTick(() => (formulaOpen.value = true))
+}
+function applyFormula(value: { formula: string; label?: string }) {
+  const index = formulaIndex.value
+  if (index < 0) {
+    config.value = { ...config.value, values: [...(config.value.values ?? []), value] }
+    return
+  }
+  config.value = withValue(config.value, index, {
+    formula: value.formula,
+    label: value.label ?? null,
+  })
+}
+const isFormula = (item: PivotFieldItem) =>
+  item.kind === 'value' && valueSpec(item.index)?.formula !== undefined
+
 // ---- filters ----
 
 const filterOpen = ref<string | null>(null)
@@ -328,6 +486,17 @@ const filterBy = (item: PivotFieldItem): PivotGroupBy | undefined => {
   return filterOf(item.field)?.by
 }
 function applyFilter(item: PivotFieldItem, filter: PivotFilter | null) {
+  // the list sets which groups are picked; top N and ranges stay
+  const old = filterOf(item.field)
+  const kept = { top: old?.top, between: old?.between }
+  if (kept.top || kept.between) {
+    filter = {
+      ...filter,
+      ...(kept.top ? { top: kept.top } : {}),
+      ...(kept.between ? { between: kept.between } : {}),
+    }
+    if (filter.by === undefined && old?.by !== undefined) filter.by = old.by
+  }
   config.value = withFilter(config.value, item.field, filter, item.kind === 'filter')
   filterOpen.value = null
 }
@@ -361,7 +530,7 @@ const filtered = (item: PivotFieldItem) => isFiltering(filterOf(item.field))
     :aria-label="inDrawer ? undefined : messages.fields.panel"
   >
     <DouButton v-if="inDrawer" size="sm" variant="outline" @click="drawerOpen = true">
-      <template #prefix><TablePivotIcon aria-hidden="true" /></template>
+      <template #leading><TablePivotIcon aria-hidden="true" /></template>
       {{ messages.fields.open }}
     </DouButton>
     <component
@@ -526,6 +695,23 @@ const filtered = (item: PivotFieldItem) => isFiltering(filterOf(item.field))
                             >
                           </DouDropdownRadioGroup>
                         </DouDropdownSub>
+                        <DouDropdownSub :title="messages.fields.top">
+                          <DouDropdownRadioGroup
+                            :model-value="topKey(item.field)"
+                            @update:model-value="onTop(item, $event!)"
+                          >
+                            <DouDropdownItem
+                              v-for="option in topOptions(item.field)"
+                              :key="option.key"
+                              :value="option.key"
+                              :divided="option.key === 'b5'"
+                              >{{ option.text }}</DouDropdownItem
+                            >
+                          </DouDropdownRadioGroup>
+                          <DouDropdownItem divided @click="openTop(item)">{{
+                            messages.fields.customTop
+                          }}</DouDropdownItem>
+                        </DouDropdownSub>
                         <DouDropdownItem
                           :checked="dimensionOf(axisOf(item), item.field)?.subtotal !== false"
                           @update:checked="onSubtotal(axisOf(item), item.field, $event)"
@@ -533,7 +719,10 @@ const filtered = (item: PivotFieldItem) => isFiltering(filterOf(item.field))
                         >
                       </template>
                       <template v-if="item.kind === 'value'">
-                        <DouDropdownSub :title="messages.fields.aggregate">
+                        <DouDropdownItem v-if="isFormula(item)" @click="openFormula(item.index)">{{
+                          messages.fields.editFormula
+                        }}</DouDropdownItem>
+                        <DouDropdownSub v-else :title="messages.fields.aggregate">
                           <DouDropdownRadioGroup
                             :model-value="currentAggregate(item.index)"
                             @update:model-value="onAggregate(item.index, $event!)"
@@ -544,6 +733,35 @@ const filtered = (item: PivotFieldItem) => isFiltering(filterOf(item.field))
                               :value="name"
                               >{{ aggregateText(name) }}</DouDropdownItem
                             >
+                          </DouDropdownRadioGroup>
+                        </DouDropdownSub>
+                        <DouDropdownSub :title="messages.fields.showAs">
+                          <DouDropdownRadioGroup
+                            :model-value="showKey(item.index)"
+                            @update:model-value="onShow(item.index, $event!)"
+                          >
+                            <DouDropdownItem value="">{{
+                              messages.fields.showPlain
+                            }}</DouDropdownItem>
+                            <DouDropdownItem
+                              v-for="(show, i) in SHOWS"
+                              :key="show"
+                              :value="show"
+                              :divided="i === 0 || show === 'difference'"
+                              >{{ messages.shows[show] }}</DouDropdownItem
+                            >
+                          </DouDropdownRadioGroup>
+                        </DouDropdownSub>
+                        <DouDropdownSub :title="messages.fields.mark">
+                          <DouDropdownRadioGroup
+                            :model-value="markKey(item.index)"
+                            @update:model-value="onMark(item.index, $event!)"
+                          >
+                            <DouDropdownItem value="">{{ messages.fields.noMark }}</DouDropdownItem>
+                            <DouDropdownItem value="bar">{{ messages.fields.bar }}</DouDropdownItem>
+                            <DouDropdownItem value="scale">{{
+                              messages.fields.scale
+                            }}</DouDropdownItem>
                           </DouDropdownRadioGroup>
                         </DouDropdownSub>
                         <DouDropdownItem
@@ -586,9 +804,34 @@ const filtered = (item: PivotFieldItem) => isFiltering(filterOf(item.field))
                 <p class="dou-pivot-fields__drop">{{ messages.fields.dropHere }}</p>
               </template>
             </DouSortable>
+            <DouButton
+              v-if="area === 'values'"
+              class="dou-pivot-fields__add"
+              size="sm"
+              variant="ghost"
+              @click="openFormula(-1)"
+            >
+              <template #leading><PlusIcon aria-hidden="true" /></template>
+              {{ messages.fields.addFormula }}
+            </DouButton>
           </section>
         </div>
       </div>
     </component>
+    <FormulaDialog
+      v-model:open="formulaOpen"
+      :source="source as PivotSource<unknown>"
+      :messages="messages"
+      :initial="formulaInitial"
+      @apply="applyFormula"
+    />
+    <TopDialog
+      v-model:open="topOpen"
+      :messages="messages"
+      :field="topItem ? itemLabel(topItem) : ''"
+      :values="areas.values.map((v) => chipText(v))"
+      :filter="topItem ? filterOf(topItem.field) : undefined"
+      @apply="topItem && setRank(topItem, $event)"
+    />
   </div>
 </template>

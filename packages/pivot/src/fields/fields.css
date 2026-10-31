@@ -307,4 +307,37 @@
     color: var(--dou-color-text-tertiary);
     font-size: 12px;
   }
+
+  .dou-pivot-fields__add.dou-button {
+    align-self: flex-start;
+    margin-top: 4px;
+  }
+
+  /* the calculated value dialog */
+  .dou-pivot-formula__fields {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+  }
+  .dou-pivot-formula__fields-title {
+    margin-right: 4px;
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-sm);
+  }
+
+  /* the dialog that keeps groups by their totals */
+  .dou-pivot-top__range {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .dou-pivot-top__help {
+    margin: 0;
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-sm);
+  }
+  .dou-pivot-top__clear.dou-button {
+    margin-right: auto;
+  }
 }

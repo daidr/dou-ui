@@ -81,7 +81,7 @@ export interface PivotCellEvent<Row = Record<string, unknown>> {
   column: PivotPath
   /** The value's place in `config.values`. */
   valueIndex: number
-  /** The number in the cell; `NaN` when it is empty. */
+  /** The number in the cell, as shown (a share, when the value has `show`); `NaN` when it is empty. */
   value: number
   /** The records summed up in the cell. */
   records: () => Row[]

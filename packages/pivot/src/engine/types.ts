@@ -45,6 +45,49 @@ export type PivotDimension =
 /** The built-in ways to sum up a field. */
 export type PivotAggregateName = 'sum' | 'count' | 'avg' | 'min' | 'max' | 'distinct' | 'median'
 
+/**
+ * How a value is shown instead of as it is summed up:
+ *
+ * - `percentOfTotal`, `percentOfRow`, `percentOfColumn`: its share of the grand
+ *   total, of its row's total, or of its column's total
+ * - `percentOfParent`: its share of the group it is in
+ * - `difference`, `percentDifference`: how far it is from the group before it
+ * - `runningTotal`: it and every group before it, added up
+ * - `rank`: its place among the groups beside it, the largest first
+ */
+export type PivotShowAs =
+  | 'percentOfTotal'
+  | 'percentOfRow'
+  | 'percentOfColumn'
+  | 'percentOfParent'
+  | 'difference'
+  | 'percentDifference'
+  | 'runningTotal'
+  | 'rank'
+
+/** A way of showing a value, with the axis it works along. */
+export interface PivotShow {
+  as: PivotShowAs
+  /**
+   * The axis whose groups come "before" or "beside" (`difference`,
+   * `percentDifference`, `runningTotal`, `rank`) or "above" (`percentOfParent`).
+   * `'columns'` by default for the first three and `'rows'` for the others;
+   * the other axis when that one has no fields.
+   */
+  axis?: 'rows' | 'columns'
+}
+
+/** The colors a mark can take. */
+export type PivotTone = 'neutral' | 'primary' | 'success' | 'warning' | 'danger'
+
+/** Colors the innermost cells of a value by where they fall between its smallest and largest. */
+export interface PivotMark {
+  /** `'bar'` draws a bar under the number; `'scale'` tints the cell, deeper for larger values. */
+  type: 'bar' | 'scale'
+  /** `'neutral'` by default. */
+  tone?: PivotTone
+}
+
 /** A value to show: a field to sum up, or the name of a field (summed when numeric, counted otherwise). */
 export type PivotValue =
   | string
@@ -53,16 +96,48 @@ export type PivotValue =
       field?: string
       /** A built-in name or one from `defineAggregator`; `'sum'` for numbers, `'count'` otherwise. */
       aggregate?: PivotAggregateName | (string & {})
+      /**
+       * A calculated value worked out from other fields, such as `profit / amount`
+       * (see `parsePivotFormula`); `field` and `aggregate` are then left out.
+       */
+      formula?: string
       /** The header; worked out from the field and the aggregate when left out. */
       label?: string
       /** How the value is written; the field's `format` when left out. */
       format?: PivotFormat
+      /** Shows the value as a share, a difference, a running total or a rank. */
+      show?: PivotShowAs | PivotShow
+      /** Colors the cells by their values. */
+      mark?: 'bar' | 'scale' | PivotMark
     }
 
-/** Keeps only some groups of a field: those listed in `include`, or all but those in `exclude`. */
+/** Keeps the groups of a field with the largest (or smallest) totals of a value. */
+export interface PivotTopFilter {
+  count: number
+  /** Which value, by its place in `values`; the first by default. */
+  valueIndex?: number
+  /** `'desc'` (the default) keeps the largest. */
+  order?: 'asc' | 'desc'
+}
+
+/** Keeps the groups of a field whose totals of a value are within a range. */
+export interface PivotRangeFilter {
+  /** Which value, by its place in `values`; the first by default. */
+  valueIndex?: number
+  min?: number
+  max?: number
+}
+
+/**
+ * Keeps only some groups of a field: those listed in `include`, or all but
+ * those in `exclude`; then, by their totals, the `top` ones or those `between`
+ * two numbers (worked out over the records the other filters keep).
+ */
 export interface PivotFilter {
   include?: readonly unknown[]
   exclude?: readonly unknown[]
+  top?: PivotTopFilter
+  between?: PivotRangeFilter
   /**
    * The values above are groups of this grouping. Left out, it is the
    * field's grouping on the rows or columns, if it is there.

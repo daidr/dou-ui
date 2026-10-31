@@ -156,8 +156,7 @@ export function createPivotWorker(worker: PivotWorkerLike | (() => PivotWorkerLi
           fields,
         })
       }
-      const typeOf = (name: string) => source.field(name).type
-      const need = neededColumns(typeOf, config, request.aggregators)
+      const need = neededColumns(source, config, request.aggregators)
       const shipped = lane.then(() => ship(source, need, signal))
       lane = shipped.catch(() => {})
       await shipped

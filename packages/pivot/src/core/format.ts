@@ -1,5 +1,5 @@
 import type { PivotResolvedField, PivotResolvedValue } from '../engine'
-import { isEmpty } from '../engine'
+import { isEmpty, PERCENT_SHOWS } from '../engine'
 import { readBucket, type PivotGroupBy } from '../engine/group'
 import type { PivotFormat } from '../engine/types'
 
@@ -88,22 +88,45 @@ function groupFormatter(
   }
 }
 
-/** Writes a value; an empty cell is blank. */
+/**
+ * Writes a value; an empty cell is blank. A value shown as a share is a
+ * percentage, a difference has its sign, a rank is a whole number; a
+ * `format` of its own is used as given.
+ */
 export function valueFormatter(value: PivotResolvedValue, locale: string): (n: number) => string {
   const format: PivotFormat | undefined = value.format
-  const fn =
-    typeof format === 'function'
-      ? (format as (n: number) => string)
-      : value.field?.type === 'date' && (value.aggregate === 'min' || value.aggregate === 'max')
-        ? (
-            (write) => (n: number) =>
-              write(new Date(n))
-          )(dateFormat(locale, (format as Intl.DateTimeFormatOptions) ?? DATE))
-        : numberFormat(
-            locale,
-            (format as Intl.NumberFormatOptions) ??
-              (value.integer ? { maximumFractionDigits: 0 } : { maximumFractionDigits: 2 }),
-          )
+  const show = value.show?.as
+  const signed = show === 'difference' || show === 'percentDifference'
+  let fn: (n: number) => string
+  if (typeof format === 'function') fn = format as (n: number) => string
+  else if (show && PERCENT_SHOWS.has(show)) {
+    fn = numberFormat(
+      locale,
+      (format as Intl.NumberFormatOptions) ?? {
+        style: 'percent',
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+        ...(signed ? { signDisplay: 'exceptZero' } : {}),
+      },
+    )
+  } else if (show === 'rank') {
+    fn = numberFormat(locale, (format as Intl.NumberFormatOptions) ?? { maximumFractionDigits: 0 })
+  } else if (
+    value.field?.type === 'date' &&
+    !show &&
+    (value.aggregate === 'min' || value.aggregate === 'max')
+  ) {
+    const write = dateFormat(locale, (format as Intl.DateTimeFormatOptions) ?? DATE)
+    fn = (n) => write(new Date(n))
+  } else {
+    const options =
+      (format as Intl.NumberFormatOptions) ??
+      (value.integer ? { maximumFractionDigits: 0 } : { maximumFractionDigits: 2 })
+    fn = numberFormat(
+      locale,
+      signed && !options.signDisplay ? { ...options, signDisplay: 'exceptZero' } : options,
+    )
+  }
   return (n) => (n !== n ? '' : fn(n))
 }
 

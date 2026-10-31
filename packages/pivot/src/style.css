@@ -22,6 +22,9 @@
     );
     --dou-pivot-scroll-shadow: color-mix(in oklab, var(--dou-color-text) 14%, transparent);
     --dou-pivot-ring: var(--dou-color-primary);
+    /* how deep the largest value's tint is, and how deep a bar is */
+    --dou-pivot-scale-strength: 28%;
+    --dou-pivot-bar-strength: 12%;
 
     position: relative;
     box-sizing: border-box;
@@ -374,6 +377,36 @@
 
     &.is-total {
       background-color: var(--dou-pivot-total-bg);
+    }
+    /* marks: a tint laid over the background, so hover still shows */
+    &.has-scale {
+      --dou-pivot-tint: color-mix(
+        in oklab,
+        var(--dou-pivot-tone) calc(var(--dou-pivot-mark) * var(--dou-pivot-scale-strength)),
+        transparent
+      );
+      background-image: linear-gradient(var(--dou-pivot-tint), var(--dou-pivot-tint));
+    }
+    &.has-bar {
+      position: relative;
+
+      &::before {
+        position: absolute;
+        top: 6px;
+        bottom: 6px;
+        left: calc(4px + (100% - 8px) * var(--dou-pivot-bar-start));
+        width: calc((100% - 8px) * var(--dou-pivot-bar-size));
+        border-radius: 3px;
+        background-color: color-mix(
+          in oklab,
+          var(--dou-pivot-tone) var(--dou-pivot-bar-strength),
+          transparent
+        );
+        content: '';
+      }
+      & > .dou-pivot__text {
+        position: relative;
+      }
     }
     .dou-pivot__row:hover > & {
       background-color: var(--dou-pivot-hover-bg);

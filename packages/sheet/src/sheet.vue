@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {
+  DouPopover,
   holdPointer,
   isComposing,
   matchesHotkey,
@@ -18,11 +19,16 @@ import {
   EyeIcon,
   EyeOffIcon,
   CellsMergeIcon,
+  FilterIcon,
+  FilterXIcon,
   PlusIcon,
   RowInsertBottomIcon,
   RowInsertTopIcon,
   RowRemoveIcon,
   ScissorsIcon,
+  SortAscendingIcon,
+  SortDescendingIcon,
+  SortIcon,
   CellsSplitIcon,
   TrashIcon,
 } from '@dou-ui/icons'
@@ -72,10 +78,14 @@ import {
   valueOf,
   type SheetCellInput,
   type SheetData,
+  type SheetFilterRule,
+  type SheetSortOrder,
   type SheetStyle,
   type SheetValue,
 } from './core/model'
 import { movePoint, stepIndex, type SheetDirection } from './core/nav'
+import { compareForSort, isEmptyValue, meetsRule, textCollator } from './core/data'
+import FilterPanel from './components/filter-panel.vue'
 import {
   clampPoint,
   clampSelection,
@@ -219,6 +229,296 @@ watch([() => resolved.value.functions, lang], () => {
 })
 /** A cell of the sheet shown as it comes to: its formula's result, or its value. */
 const resultAt = (row: number, col: number) => engine.result(sheetKey(sheet.value), row, col)
+/** What a cell of the sheet shown comes to: its formula's result, or its value. */
+const valueAt = (row: number, col: number) =>
+  shownValue(valueOf(sheet.value.cells[row]?.[col]), resultAt, row, col)
+
+// Filtering --------------------------------------------------------------------------------
+
+/** The filter's range on the sheet shown, kept inside it. */
+const filterBounds = computed(() => {
+  const range = sheet.value.filter && parseRange(sheet.value.filter.range)
+  if (!range) return null
+  const b = boundsOf(range)
+  const bottom = Math.min(b.bottom, rowCountOf(sheet.value) - 1)
+  const right = Math.min(b.right, colCountOf(sheet.value) - 1)
+  return b.top > bottom || b.left > right ? null : { ...b, bottom, right }
+})
+
+/** The rows of the filter's range that its rules hide, but for column `skip`'s rule. */
+function rowsFilteredOut(skip?: number) {
+  const out = new Set<number>()
+  const f = sheet.value.filter
+  const b = filterBounds.value
+  if (!f?.columns || !b) return out
+  const collator = textCollator(lang.value)
+  const rules = Object.entries(f.columns)
+    .map(([key, rule]) => ({ col: Number(key), rule }))
+    .filter(({ col }) => col !== skip && col >= b.left && col <= b.right)
+  if (!rules.length) return out
+  const cells = sheet.value.cells
+  for (let row = b.top + 1; row <= b.bottom; row++) {
+    for (const { col, rule } of rules) {
+      const value = valueAt(row, col)
+      const text = isEmptyValue(value) ? '' : cellText(cells[row]?.[col], { row, col })
+      if (!meetsRule(rule, value, text, collator)) {
+        out.add(row)
+        break
+      }
+    }
+  }
+  return out
+}
+
+/*
+ * The rows the filter hides. Worked out when the filter changes, not on
+ * every edit: a row that stops matching while being edited stays shown
+ * until the filter is applied again, so it doesn't vanish under the cursor.
+ */
+const filteredRows = shallowRef<ReadonlySet<number>>(new Set())
+/** What the filter says, on which sheet, with which engine: changes only when one of them does. */
+const filterKey = computed(
+  () => `${sheetIndex.value}:${engineId.value}:${JSON.stringify(sheet.value.filter ?? null)}`,
+)
+watch(filterKey, () => (filteredRows.value = rowsFilteredOut()), {
+  immediate: true,
+  // at once, so what a change of the filter shows can be read out right after it
+  flush: 'sync',
+})
+/** The row heights drawn: the sheet's, and 0 for the rows the filter hides. */
+const shownRowSizes = computed(() => {
+  const sizes = sheet.value.rowSizes ?? NO_SIZES
+  const hidden = filteredRows.value
+  if (!hidden.size) return sizes
+  const out: Record<number, number> = { ...sizes }
+  for (const row of hidden) out[row] = 0
+  return out
+})
+
+/** The filter buttons on the headings shown: one per column of the range. */
+const filterButtons = computed(() => {
+  const b = filterBounds.value
+  const f = sheet.value.filter
+  if (!b || !f) return []
+  const out: {
+    col: number
+    x: number
+    y: number
+    active: boolean
+    sorted?: SheetSortOrder
+    label: string
+  }[] = []
+  for (let col = b.left; col <= b.right; col++) {
+    if (cols.value.hidden(col)) continue
+    const rect = visibleRect({ row: b.top, col })
+    if (!rect || rect.x + rect.width - 22 < headerWidth.value) continue
+    const heading =
+      cellText(sheet.value.cells[b.top]?.[col], { row: b.top, col }) || columnName(col)
+    out.push({
+      col,
+      // a heading cut off by the view's edge has its button at the edge
+      x: Math.min(rect.x + rect.width, viewWidth.value),
+      y: rect.y + rect.height / 2,
+      active: !!f.columns?.[col],
+      sorted: f.sorted?.col === col ? f.sorted.order : undefined,
+      label: format(messages.value.filter.button, { column: heading }),
+    })
+  }
+  return out
+})
+
+/** The column whose filter panel is open. */
+const filterOpen = ref<number | null>(null)
+
+/** A column's values as they show, each once, in sorted order, from the rows the other columns keep. */
+const filterValues = computed(() => {
+  const col = filterOpen.value
+  const b = filterBounds.value
+  if (col == null || !b) return []
+  const others = rowsFilteredOut(col)
+  const seen = new Map<string, unknown>()
+  const cells = sheet.value.cells
+  for (let row = b.top + 1; row <= b.bottom; row++) {
+    if (others.has(row) || sheet.value.rowSizes?.[row] === 0) continue
+    const value = valueAt(row, col)
+    const text = isEmptyValue(value) ? '' : cellText(cells[row]?.[col], { row, col })
+    if (!seen.has(text)) seen.set(text, value)
+  }
+  const collator = textCollator(lang.value)
+  // oxlint-disable-next-line unicorn/no-array-sort -- sorts a fresh array
+  return [...seen.keys()].sort((x, y) => {
+    if (!x || !y) return x ? -1 : y ? 1 : 0
+    return compareForSort(seen.get(x), seen.get(y), collator)
+  })
+})
+
+function filterHeading(col: number) {
+  const b = filterBounds.value
+  if (!b) return columnName(col)
+  return cellText(sheet.value.cells[b.top]?.[col], { row: b.top, col }) || columnName(col)
+}
+
+/** Sets a column's filter rule and says how many rows show now. */
+function applyFilter(col: number, rule: SheetFilterRule | undefined) {
+  filterOpen.value = null
+  transact((tr) => tr.filterColumn(col, rule), { action: 'filter' })
+  const b = filterBounds.value
+  if (!b) return
+  const total = b.bottom - b.top
+  announce(
+    format(messages.value.filter.applied, {
+      column: filterHeading(col),
+      shown: total - filteredRows.value.size,
+      total,
+    }),
+  )
+  focusGrid()
+}
+
+/**
+ * Sorts rows: `range` by column `col`, the heading row kept in place when
+ * `header`. Ranges with merged cells are not sorted.
+ */
+function sortBy(range: SheetBounds, col: number, order: SheetSortOrder, header: boolean) {
+  const m = messages.value.filter
+  if (merges.value.touching({ ...range, top: range.top + (header ? 1 : 0) }).length) {
+    announce(m.mergedSort)
+    showNotice(m.mergedSort)
+    return false
+  }
+  const inFilter = sheet.value.filter && filterBounds.value && sameBounds(filterBounds.value, range)
+  transact(
+    (tr) => {
+      tr.sortRange(range, [{ col, order }], { header, valueAt, lang: lang.value })
+      if (inFilter) tr.markSorted({ col, order })
+    },
+    { action: 'sort' },
+  )
+  const heading = header
+    ? cellText(sheet.value.cells[range.top]?.[col], { row: range.top, col })
+    : ''
+  announce(format(m.sorted, { column: heading || columnName(col) }))
+  return true
+}
+
+function sortFilterColumn(col: number, order: SheetSortOrder) {
+  filterOpen.value = null
+  const b = filterBounds.value
+  if (b) sortBy(b, col, order, true)
+  focusGrid()
+}
+
+/**
+ * The block of filled cells around a cell, as far as filled cells reach in
+ * every direction; where sorting and filtering go when one cell is selected.
+ */
+function regionAround(point: SheetPoint): SheetBounds {
+  const cells = sheet.value.cells
+  const filled = (row: number, col: number) => !isBlank(cells[row]?.[col])
+  const b = { top: point.row, left: point.col, bottom: point.row, right: point.col }
+  const lastRow = rowCount.value - 1
+  const lastCol = colCount.value - 1
+  const rowHas = (row: number) => {
+    for (let col = Math.max(0, b.left - 1); col <= Math.min(lastCol, b.right + 1); col++)
+      if (filled(row, col)) return true
+    return false
+  }
+  const colHas = (col: number) => {
+    for (let row = Math.max(0, b.top - 1); row <= Math.min(lastRow, b.bottom + 1); row++)
+      if (filled(row, col)) return true
+    return false
+  }
+  let grew = true
+  while (grew) {
+    grew = false
+    if (b.top > 0 && rowHas(b.top - 1)) {
+      b.top--
+      grew = true
+    }
+    if (b.bottom < lastRow && rowHas(b.bottom + 1)) {
+      b.bottom++
+      grew = true
+    }
+    if (b.left > 0 && colHas(b.left - 1)) {
+      b.left--
+      grew = true
+    }
+    if (b.right < lastCol && colHas(b.right + 1)) {
+      b.right++
+      grew = true
+    }
+  }
+  return b
+}
+
+/** Whether a block's first row reads as headings: all text, over a row with something else. */
+function hasHeadings(b: SheetBounds) {
+  if (b.bottom - b.top < 1) return false
+  let other = false
+  for (let col = b.left; col <= b.right; col++) {
+    const head = valueAt(b.top, col)
+    if (typeof head !== 'string' || head === '') return false
+    const below = valueAt(b.top + 1, col)
+    if (typeof below !== 'string') other = true
+  }
+  return other
+}
+
+/**
+ * Sorts by the active cell's column: the selected rows when more than one
+ * is selected, else the filter's rows, else the block of cells around it.
+ */
+function sortSelection(order: SheetSortOrder) {
+  const { col } = active.value
+  const sel = lastBounds()
+  if (sel.bottom > sel.top) return sortBy(sel, col, order, false)
+  const f = filterBounds.value
+  if (f && inBounds(f, active.value.row, col)) return sortBy(f, col, order, true)
+  const region = regionAround(active.value)
+  if (region.bottom === region.top) {
+    announce(messages.value.filter.nothingToSort)
+    showNotice(messages.value.filter.nothingToSort)
+    return false
+  }
+  return sortBy(region, col, order, hasHeadings(region))
+}
+
+/** Puts a filter on the selection (or the block around the active cell), or takes it off. */
+function toggleFilter() {
+  const m = messages.value.filter
+  if (sheet.value.filter) {
+    filterOpen.value = null
+    transact((tr) => tr.setFilter(null), { action: 'filter' })
+    announce(m.removed)
+    return
+  }
+  const sel = lastBounds()
+  const b = sel.bottom > sel.top ? sel : regionAround(active.value)
+  transact((tr) => tr.setFilter(b), { action: 'filter' })
+  announce(format(m.added, { range: rangeName(b) }))
+}
+
+/** Clears every column's filter rule, showing all the rows again. */
+function clearFilters() {
+  const f = sheet.value.filter
+  if (!f?.columns) return
+  transact(
+    (tr) => {
+      for (const key of Object.keys(f.columns!)) tr.filterColumn(Number(key), undefined)
+    },
+    { action: 'filter' },
+  )
+  announce(messages.value.filter.removed)
+}
+
+/** Opens the filter panel of the active cell's column, from its heading. */
+function openFilterAtActive() {
+  const b = filterBounds.value
+  const { row, col } = active.value
+  if (!b || row !== b.top || col < b.left || col > b.right) return false
+  filterOpen.value = col
+  return true
+}
 /** When a row's results last changed, for `v-memo`. */
 const resultsOf = (row: number) => engine.rowVersion(sheetKey(sheet.value), row)
 /** The type of a cell of the sheet shown. */
@@ -245,11 +545,7 @@ function sizesOf(axis: SheetAxisName, sizes: Record<number, number>) {
   const s = sizing.value
   return s && s.axis === axis ? { ...sizes, [s.index]: s.size } : sizes
 }
-const rows = useAxis(() => [
-  rowCount.value,
-  props.rowHeight,
-  sizesOf('row', sheet.value.rowSizes ?? NO_SIZES),
-])
+const rows = useAxis(() => [rowCount.value, props.rowHeight, sizesOf('row', shownRowSizes.value)])
 const cols = useAxis(() => [
   colCount.value,
   props.colWidth,
@@ -1366,6 +1662,9 @@ function onKeydown(event: KeyboardEvent) {
   const arrow = ARROWS[key]
   // Alt + ↓ opens a cell type's panel, such as the list to pick from
   if (key === 'ArrowDown' && event.altKey && !mod && openPanel()) return event.preventDefault()
+  // and on a filter's heading, its filter panel
+  if (key === 'ArrowDown' && event.altKey && !mod && openFilterAtActive())
+    return event.preventDefault()
   if (arrow && !event.altKey) {
     event.preventDefault()
     if (event.shiftKey) return extend(arrow, mod)
@@ -1383,6 +1682,11 @@ function onKeydown(event: KeyboardEvent) {
   if (matchesHotkey(event, 'mod+shift+z') || matchesHotkey(event, 'mod+y'))
     return done(event, travel('redo'))
   if (matchesHotkey(event, 'mod+a')) return done(event, selectAll())
+  if (matchesHotkey(event, 'mod+shift+l')) {
+    event.preventDefault()
+    if (props.readonly) return announce(messages.value.readonly)
+    return toggleFilter()
+  }
   for (const [hotkey, name] of STYLE_KEYS)
     if (matchesHotkey(event, hotkey)) {
       event.preventDefault()
@@ -2347,12 +2651,12 @@ function deleteLines(axis: SheetAxisName) {
 /** Hides the selected rows (or columns), or shows the hidden ones among them. */
 function setHidden(axis: SheetAxisName, hide: boolean) {
   const { from, count } = linesOf(axis)
-  const axisNow = axis === 'row' ? rows.value : cols.value
+  const sizes = (axis === 'row' ? sheet.value.rowSizes : sheet.value.colSizes) ?? NO_SIZES
   transact(
     (tr) => {
       for (let i = from; i < from + count; i++)
         if (hide) tr.setSize(axis, i, 0)
-        else if (axisNow.hidden(i)) tr.setSize(axis, i, undefined)
+        else if (sizes[i] === 0) tr.setSize(axis, i, undefined)
     },
     { action: 'hide' },
   )
@@ -2361,9 +2665,11 @@ function setHidden(axis: SheetAxisName, hide: boolean) {
 /** Whether any of the selected rows (or columns) is hidden, or right beside them. */
 function hasHidden(axis: SheetAxisName) {
   const { from, count } = linesOf(axis)
-  const axisNow = axis === 'row' ? rows.value : cols.value
-  for (let i = Math.max(0, from - 1); i <= Math.min(axisNow.count - 1, from + count); i++)
-    if (axisNow.hidden(i)) return true
+  // rows a filter hides don't count: they show again with the filter
+  const sizes = (axis === 'row' ? sheet.value.rowSizes : sheet.value.colSizes) ?? NO_SIZES
+  const last = (axis === 'row' ? rowCount.value : colCount.value) - 1
+  for (let i = Math.max(0, from - 1); i <= Math.min(last, from + count); i++)
+    if (sizes[i] === 0) return true
   return false
 }
 
@@ -2598,8 +2904,46 @@ function menuFor(area: SheetMenuContext['area']): SheetMenuItem[] {
         ]
       : []),
     ...mergeItems(),
+    ...dataItems(),
     clear,
   ]
+}
+
+/** Sorting and filtering. */
+function dataItems(): SheetMenuItem[] {
+  const m = messages.value.filter
+  const items: SheetMenuItem[] = [
+    {
+      key: 'sort',
+      label: m.sort,
+      icon: SortIcon,
+      divided: true,
+      children: [
+        {
+          key: 'sort-asc',
+          label: m.sortAsc,
+          icon: SortAscendingIcon,
+          run: () => sortSelection('asc'),
+        },
+        {
+          key: 'sort-desc',
+          label: m.sortDesc,
+          icon: SortDescendingIcon,
+          run: () => sortSelection('desc'),
+        },
+      ],
+    },
+    {
+      key: 'filter',
+      label: sheet.value.filter ? m.turnOff : m.turnOn,
+      icon: sheet.value.filter ? FilterXIcon : FilterIcon,
+      shortcut: 'mod+shift+l',
+      run: toggleFilter,
+    },
+  ]
+  if (sheet.value.filter?.columns)
+    items.push({ key: 'filter-clear', label: m.clearAll, run: clearFilters })
+  return items
 }
 
 /** Merging the selection, or splitting the merged cells in it. */
@@ -3440,6 +3784,9 @@ const context: SheetContext = {
   canMerge,
   merge: () => mergeSelection(),
   unmerge: () => unmergeSelection(),
+  sort: (order) => sortSelection(order),
+  filtered: computed(() => !!sheet.value.filter),
+  toggleFilter,
   announce,
   editor: {
     cell: computed(() => editing.value),
@@ -3946,6 +4293,45 @@ defineExpose<SheetExpose>({
       >
         <ChevronDownIcon />
       </button>
+      <DouPopover
+        v-for="button in filterButtons"
+        :key="button.col"
+        :open="filterOpen === button.col"
+        trigger="click"
+        placement="bottom-end"
+        :width="260"
+        @update:open="(open: boolean) => (filterOpen = open ? button.col : null)"
+      >
+        <button
+          type="button"
+          class="dou-sheet__filter-button"
+          :class="{ 'is-active': button.active || button.sorted }"
+          :style="`left:${button.x}px;top:${button.y}px`"
+          :aria-label="button.label"
+          :aria-pressed="button.active"
+          tabindex="-1"
+          @pointerdown.stop
+        >
+          <SortAscendingIcon v-if="button.sorted === 'asc' && !button.active" />
+          <SortDescendingIcon v-else-if="button.sorted === 'desc' && !button.active" />
+          <FilterIcon v-else-if="button.active" />
+          <ChevronDownIcon v-else />
+        </button>
+        <template #content>
+          <FilterPanel
+            v-if="filterOpen === button.col"
+            :values="filterValues"
+            :rule="sheet.filter?.columns?.[button.col]"
+            :sorted="
+              sheet.filter?.sorted?.col === button.col ? sheet.filter.sorted.order : undefined
+            "
+            :messages="messages"
+            :readonly="readonly"
+            @sort="(order: SheetSortOrder) => sortFilterColumn(button.col, order)"
+            @apply="(rule: SheetFilterRule | undefined) => applyFilter(button.col, rule)"
+          />
+        </template>
+      </DouPopover>
       <CellPanel
         v-if="panelType"
         ref="panel"

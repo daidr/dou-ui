@@ -117,6 +117,8 @@ export type SheetToolbarTool =
   | 'wrap'
   | 'merge'
   | 'freeze'
+  | 'sort'
+  | 'filter'
   | 'clear'
   | '|'
 

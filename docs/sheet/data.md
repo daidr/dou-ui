@@ -25,6 +25,7 @@ interface SheetData {
   merges?: string[] // 合并的区域，如 'A1:C1'
   filter?: SheetFilter // 筛选
   conditionalFormats?: SheetConditionalFormat[] // 条件格式，排在前面的优先
+  validations?: SheetValidation[] // 数据验证，排在前面的优先
 }
 ```
 
@@ -90,6 +91,23 @@ type SheetColor = Tone | string // 主题的语义色名，或任意 CSS 颜色
 ```
 
 `range` 可以是 `'D2:D40'` 这样的区域，也可以是整列 `'D:D'`、整行 `'2:2'`。`style` 写样式或 `styles` 里的样式名。`top`、`bottom`、`average`、`scale`、`bar` 只看数字，文字和空单元格不参与计算；`duplicates`、`unique` 按显示的文字比较，不区分大小写，空单元格不算。色阶用最小值、中位数（三种颜色时）和最大值定位颜色。
+
+## 数据验证
+
+```ts
+type SheetValidation = (
+  | { list: SheetSelectOption[] | string } // 列表：选项，或引用单元格，如 '=$G$2:$G$5'
+  | { when: SheetCondition; integer?: boolean } // 满足条件；条件里是数字时要求数字
+  | { formula: string } // 公式为真，按左上角单元格书写
+) & {
+  range: string
+  strict?: boolean // 输入不符合时拒绝，默认 true
+  message?: string // 不符合时的提示
+  prompt?: string // 选中时的提示
+}
+```
+
+`integer` 写在条件外面，是因为 `SheetCondition` 和筛选、条件格式共用，那里没有“必须是整数”的说法。一个单元格被多条规则覆盖时，用排在前面的那条。列表的选项按值比较，文字不区分大小写；引用的单元格里的空值和重复值会去掉，最多读 1000 行。
 
 ## 单元格
 

@@ -35,6 +35,7 @@ export type {
   SheetToolbarSlots,
   SheetToolbarTool,
   SheetExpose,
+  SheetInvalidCell,
   SheetMenuContext,
   SheetMenuItem,
   SheetPasteEvent,
@@ -93,6 +94,10 @@ export type {
   SheetSortOrder,
   SheetStyle,
   SheetTypeSetup,
+  SheetValidation,
+  SheetValidationFormula,
+  SheetValidationList,
+  SheetValidationWhen,
   SheetValue,
   SheetWorkbook,
 } from './core/model'

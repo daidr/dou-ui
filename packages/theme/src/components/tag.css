@@ -169,5 +169,12 @@
       position: absolute;
       inset: -4px;
     }
+
+    /* on touch screens, about 40px around the glyph's centre */
+    @media (pointer: coarse) {
+      &::after {
+        inset: calc(50% - 20px);
+      }
+    }
   }
 }

@@ -363,6 +363,33 @@ sheet.value.transact((tr) => {
 })
 ```
 
+## 数据验证
+
+数据验证限制单元格里能填什么，比如只能从列表里选，或者只能填 1 到 5 的整数。规则保存在工作表的 `validations` 里，每条规则作用于一个区域：
+
+- `list`：从列表里选。可以直接写选项，也可以引用一片单元格，如 `'=$G$2:$G$5'`、`'=城市!A2:A20'`。这些单元格会像下拉类型一样带一个展开按钮。
+- `when`：满足条件，写法和条件格式一样。条件里写的是数字时，单元格必须是数字；加上 `integer: true` 时必须是整数。
+- `formula`：公式结果为 `TRUE` 或非零数字时符合，按区域左上角单元格书写，和条件格式的公式一样移动引用。
+
+空单元格总是符合规则。每条规则还可以写：
+
+- `strict`：输入不符合时是否拒绝，默认 `true`。拒绝时值不会写入，表格下方会提示原因，编辑框保持打开；点到别处时放弃这次输入。设为 `false` 时值照常写入，只在单元格角上标记。
+- `message`：不符合时的提示，不写时说明规则，比如“请输入整数，介于 1 和 5 之间”。
+- `prompt`：选中单元格时在下方显示的提示，读屏也会读出。
+
+粘贴和填充的值不检查，不符合的单元格同样会被标记：鼠标悬停时显示原因，选中时在旁边的提示里显示原因，读屏会读出“无效”和原因。`findInvalid()` 列出所有不符合规则的单元格，可以在提交前检查：
+
+<DocDemo src="sheet/validation" column />
+
+工具栏的“数据验证”按钮打开当前单元格所在的规则，没有时为选区新建一条。插入或删除行列时，规则的区域、公式和列表引用跟着移动。用代码修改时调用事务的方法：
+
+```ts
+sheet.value.transact((tr) => {
+  tr.addValidation({ range: 'D2:D20', when: { op: 'between', value: 1, to: 5 }, integer: true })
+  tr.clearValidations('D2:D20') // 移除与这个区域重叠的规则
+})
+```
+
 ## 工具栏
 
 把 `DouSheetToolbar` 放进 `header` 插槽，表格上方会出现格式工具栏。按钮作用于选区，按下的状态跟着当前单元格（键盘所在的那一格）：
@@ -376,6 +403,7 @@ sheet.value.transact((tr) => {
 - 冻结：冻结首行、首列，或冻结到当前单元格所在的行、列。
 - 排序和筛选：同右键菜单里的“排序”和“筛选”。
 - 条件格式：突出显示大于、小于、介于、等于某个值或包含某段文字的单元格，以及重复值、按公式判断、前几项、后几项、高于或低于平均值；给选区加数据条或色阶；清除规则，或在“管理规则”里编辑、调整顺序、删除规则，见[条件格式](#条件格式)。
+- 数据验证：设置当前单元格或选区的验证规则，见[数据验证](#数据验证)。
 - 清除格式：去掉样式和数字格式，值不变。
 
 <DocDemo src="sheet/toolbar" column />
@@ -392,7 +420,7 @@ sheet.value.transact((tr) => {
 </DouSheetToolbar>
 ```
 
-可用的名字有 `undo`、`redo`、`format`、`decimals`、`bold`、`italic`、`underline`、`strike`、`color`、`fill`、`align`、`valign`、`wrap`、`merge`、`freeze`、`sort`、`filter`、`conditional`、`clear`。`formats` 替换数字格式菜单里的选项，每项是 `{ label, format, example? }`，`example` 是菜单里用这个格式显示的示例值。
+可用的名字有 `undo`、`redo`、`format`、`decimals`、`bold`、`italic`、`underline`、`strike`、`color`、`fill`、`align`、`valign`、`wrap`、`merge`、`freeze`、`sort`、`filter`、`conditional`、`validation`、`clear`。`formats` 替换数字格式菜单里的选项，每项是 `{ label, format, example? }`，`example` 是菜单里用这个格式显示的示例值。
 
 显示单元格地址和公式的编辑栏是 `DouSheetFormulaBar`，同样放在 `header` 插槽里，可以和工具栏一起用，见[公式](./formulas#编辑栏)。
 

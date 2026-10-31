@@ -15,6 +15,7 @@ import {
 import type { GridItem, GridLayoutOptions } from '../layout/types'
 import { format, useDashboardMessages } from '../locale'
 import GridItemView, { gridItemKey } from './grid-item'
+import { DEFAULT_BREAKPOINTS, DEFAULT_COLUMNS, gridTiers, type GridTier } from './tiers'
 import type {
   GridChangeReason,
   GridDropItem,
@@ -29,8 +30,8 @@ import type {
 defineOptions({ name: 'DouGridLayout' })
 
 const props = withDefaults(defineProps<Omit<GridLayoutProps, 'modelValue' | 'layouts'>>(), {
-  columns: () => ({ lg: 12, md: 6, sm: 1 }),
-  breakpoints: () => ({ lg: 1024, md: 640, sm: 0 }),
+  columns: () => DEFAULT_COLUMNS,
+  breakpoints: () => DEFAULT_BREAKPOINTS,
   rowHeight: 80,
   gap: 16,
   compact: 'vertical',
@@ -67,23 +68,9 @@ const root = ref<HTMLElement>()
 // ---------------------------------------------------------------------------
 // Breakpoints: the grid's own width picks how many columns it has
 
-interface Tier {
-  name: string
-  min: number
-  columns: number
-}
+type Tier = GridTier
 
-const tiers = computed<Tier[]>(() => {
-  const { columns, breakpoints } = props
-  if (typeof columns === 'number') return [{ name: 'default', min: 0, columns }]
-  const list = Object.entries(columns).map(([name, count]) => ({
-    name,
-    min: breakpoints[name] ?? 0,
-    columns: count,
-  }))
-  list.sort((a, b) => b.min - a.min)
-  return list
-})
+const tiers = computed(() => gridTiers(props.columns, props.breakpoints))
 const { width: gridWidth } = useElementSize(root)
 const tier = computed(() => {
   const list = tiers.value
@@ -99,7 +86,7 @@ const optionsOf = (t: Tier): GridLayoutOptions => ({
 })
 const options = computed(() => optionsOf(tier.value))
 const mainLayout = computed(() => normalizeLayout(model.value, optionsOf(tiers.value[0]!)))
-const settled = computed<readonly GridItem[]>(() => {
+const settledRaw = computed<readonly GridItem[]>(() => {
   if (isMain.value) return mainLayout.value
   const main = mainLayout.value
   const derived = deriveLayout(main, optionsOf(tiers.value[0]!).columns, options.value)
@@ -113,6 +100,24 @@ const settled = computed<readonly GridItem[]>(() => {
     }),
     options.value,
   )
+})
+/**
+ * The items drawn last time are reused where nothing about them changed, so
+ * a change to one item draws only that one again, even when the layout had
+ * to be worked out anew (e.g. from a document that wasn't compacted).
+ */
+let drawnById = new Map<string, GridItem>()
+const ITEM_KEYS = ['x', 'y', 'w', 'h', 'minW', 'maxW', 'minH', 'maxH', 'locked'] as const
+const settled = computed<readonly GridItem[]>(() => {
+  const next = new Map<string, GridItem>()
+  const list = settledRaw.value.map((item) => {
+    const old = drawnById.get(item.id)
+    const keep = old && ITEM_KEYS.every((key) => old[key] === item[key]) ? old : item
+    next.set(item.id, keep)
+    return keep
+  })
+  drawnById = next
+  return list
 })
 watch(
   () => tier.value.name,

@@ -69,7 +69,11 @@ const sheetSidebar = ecosystem('电子表格', [
 const codeSidebar = ecosystem('代码编辑器', [{ text: '介绍', link: '/code/' }])
 const chartSidebar = ecosystem('图表', [{ text: '介绍', link: '/chart/' }])
 const pivotSidebar = ecosystem('数据透视', [{ text: '介绍', link: '/pivot/' }])
-const dashboardSidebar = ecosystem('仪表盘', [{ text: '介绍', link: '/dashboard/' }])
+const dashboardSidebar = ecosystem('仪表盘', [
+  { text: '网格布局', link: '/dashboard/' },
+  { text: '仪表盘', link: '/dashboard/dashboard' },
+  { text: '数据与筛选', link: '/dashboard/data' },
+])
 const formBuilderSidebar = ecosystem('表单设计器', [
   { text: '介绍', link: '/form-builder/' },
   { text: '表单描述', link: '/form-builder/document' },

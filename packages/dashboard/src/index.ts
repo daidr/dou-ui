@@ -1,9 +1,56 @@
 import { withInstall } from 'dou-ui'
 import GridLayout from './grid/grid-layout.vue'
 import GridLayoutHandle from './grid/grid-handle.vue'
+import Dashboard from './dashboard/dashboard.vue'
+import DashboardPalette from './dashboard/palette.vue'
+import DashboardFilterBar from './dashboard/filter-bar.vue'
 
 export const DouGridLayout = withInstall(GridLayout)
 export const DouGridLayoutHandle = withInstall(GridLayoutHandle)
+export const DouDashboard = withInstall(Dashboard)
+export const DouDashboardPalette = withInstall(DashboardPalette)
+export const DouDashboardFilterBar = withInstall(DashboardFilterBar)
+
+export type {
+  DashboardAddOptions,
+  DashboardEmits,
+  DashboardExpose,
+  DashboardFilterBarProps,
+  DashboardPaletteProps,
+  DashboardProps,
+} from './dashboard/types'
+export type { DashboardDocument, DashboardPlace, DashboardWidget } from './core/types'
+export { checkDocument, isDashboardPlace, migrateDocument } from './core/document'
+export type { CheckDocumentOptions, DocumentProblem } from './core/document'
+export { applySteps, DashboardTransaction, sameValue } from './core/transaction'
+export type {
+  DashboardStep,
+  DashboardTransactionMeta,
+  DashboardWidgetPatch,
+} from './core/transaction'
+export { DashboardHistory } from './core/history'
+export { defineDashboardWidget } from './widget/define'
+export type { DashboardWidgetSize, DashboardWidgetType } from './widget/define'
+export { useDashboardWidget } from './widget/context'
+export { isEmptyFilter } from './data/filters'
+export type {
+  DashboardDateRangeFilterField,
+  DashboardFilterField,
+  DashboardFilters,
+  DashboardLinkedFilter,
+  DashboardSearchFilterField,
+  DashboardSelectFilterField,
+  DashboardSetFilterOptions,
+  DashboardSourceContext,
+  DashboardSourceLoad,
+  DashboardSourceOptions,
+  DashboardSources,
+} from './data/types'
+export type {
+  DashboardWidgetContext,
+  DashboardWidgetState,
+  DashboardWidgetStatus,
+} from './widget/context'
 
 export type {
   GridChangeEvent,
@@ -41,5 +88,8 @@ declare module 'vue' {
   export interface GlobalComponents {
     DouGridLayout: typeof DouGridLayout
     DouGridLayoutHandle: typeof DouGridLayoutHandle
+    DouDashboard: typeof DouDashboard
+    DouDashboardPalette: typeof DouDashboardPalette
+    DouDashboardFilterBar: typeof DouDashboardFilterBar
   }
 }

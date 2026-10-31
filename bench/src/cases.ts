@@ -58,7 +58,16 @@ import { DouSheet, type SheetExpose, type SheetWorkbook } from '@dou-ui/sheet'
 import '@dou-ui/sheet/style.css'
 import { DouPivot, type PivotCollapsed, type PivotConfig } from '@dou-ui/pivot'
 import '@dou-ui/pivot/style.css'
-import { DouGridLayout, compactLayout, type GridItem } from '@dou-ui/dashboard'
+import {
+  DouDashboard,
+  DouGridLayout,
+  compactLayout,
+  defineDashboardWidget,
+  useDashboardWidget,
+  type DashboardDocument,
+  type DashboardExpose,
+  type GridItem,
+} from '@dou-ui/dashboard'
 import '@dou-ui/dashboard/style.css'
 import {
   DouFormBuilder,
@@ -1124,6 +1133,36 @@ export const cases: Record<string, Case> = {
     budget: { 200: 8 },
   },
   // Floating n tiles up, the work done after every drop.
+  // A dashboard of n widgets in view mode: frames, title bars and contents.
+  dashboard: {
+    render: (n) => dashboard(n),
+  },
+  // One widget's setting changed, as its settings form does: one change goes
+  // through the history, and only that widget draws again.
+  'dashboard-edit': {
+    render: (n) => dashboard(n, true),
+    act: () => {
+      const api = (window as any).dashboardApi as DashboardExpose
+      const value = ((window as any).dashboardValue = ((window as any).dashboardValue ?? 0) + 1)
+      api.dispatch(api.transaction().update('w0', { props: { value } }))
+      return nextTick()
+    },
+    frames: 20,
+    budget: { 200: 8 },
+  },
+  // A filter changed on 200 widgets sharing 20 sources: 20 loads, and every
+  // widget draws its new data.
+  'dashboard-filter': {
+    render: (n) => dashboard(n, false, true),
+    act: async () => {
+      const api = (window as any).dashboardApi as DashboardExpose
+      api.setFilter('region', api.filters.region === '华东' ? '华南' : '华东')
+      for (let i = 0; i < 3; i++) await Promise.resolve()
+      await nextTick()
+    },
+    frames: 20,
+    budget: { 200: 8 },
+  },
   'grid-compact': {
     render: () => () => h('div'),
     act: () => {
@@ -1177,6 +1216,65 @@ function gridLayout(n: number) {
           h('div', { class: 'tile' }, [h('strong', item.id), h('span', `${item.w} × ${item.h}`)]),
       },
     )
+}
+
+const BenchValue = {
+  setup() {
+    const { props } = useDashboardWidget<{ value: number }>()
+    return () => h('strong', String(props.value.value))
+  },
+}
+
+// `component` gets its own line: run.mjs finds cases by their `  name: {` lines
+const benchWidget = defineDashboardWidget({
+  type: 'value',
+  label: '数值',
+  size: { w: 3, h: 2 },
+  component: BenchValue,
+})
+
+const BenchData = {
+  setup() {
+    const { data } = useDashboardWidget<{ source: string }, string>()
+    return () => h('strong', data.value ?? '')
+  },
+}
+
+const benchDataWidget = defineDashboardWidget({
+  type: 'data',
+  label: '数据',
+  size: { w: 3, h: 2 },
+  component: BenchData,
+})
+
+const benchSources = Object.fromEntries(
+  Array.from({ length: 20 }, (_, i) => [
+    `s${i}`,
+    ({ filters }: { filters: Record<string, unknown> }) => `${i}:${String(filters.region ?? '')}`,
+  ]),
+)
+
+function dashboard(n: number, editable = false, data = false) {
+  const doc = shallowRef<DashboardDocument>({
+    version: 1,
+    widgets: gridItems(n).map((item, i) => ({
+      id: item.id.replace('t', 'w'),
+      type: data ? 'data' : 'value',
+      props: data ? { source: `s${i % 20}` } : { value: i },
+      place: { lg: { x: item.x, y: item.y, w: item.w, h: item.h } },
+    })),
+  })
+  return () =>
+    h(DouDashboard, {
+      ref: (api: unknown) => ((window as any).dashboardApi = api),
+      modelValue: doc.value,
+      'onUpdate:modelValue': (next: DashboardDocument) => (doc.value = next),
+      widgets: [benchWidget, benchDataWidget],
+      sources: benchSources,
+      editable,
+      rowHeight: 48,
+      gap: 8,
+    })
 }
 
 /** Waits for a pivot table with rows and no veil, its first row other than `before` when given. */

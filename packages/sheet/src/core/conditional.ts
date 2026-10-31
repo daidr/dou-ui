@@ -203,7 +203,7 @@ const sameBounds = (a: SheetBounds, b: SheetBounds) =>
   a.top === b.top && a.left === b.left && a.bottom === b.bottom && a.right === b.right
 
 /** The bounds of a range, kept inside the sheet; `null` when it isn't a range. */
-function boundsIn(text: string, size: { rows: number; cols: number }): SheetBounds | null {
+export function boundsIn(text: string, size: { rows: number; cols: number }): SheetBounds | null {
   const range = parseRange(text)
   if (!range) return null
   const b = boundsOf(range)

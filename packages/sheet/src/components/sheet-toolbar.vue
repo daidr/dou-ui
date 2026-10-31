@@ -17,6 +17,7 @@ import {
   RedoIcon,
   StrikethroughIcon,
   TableFreezeIcon,
+  TableCheckIcon,
   TableHighlightIcon,
   TextAlignCenterIcon,
   TextAlignLeftIcon,
@@ -54,11 +55,12 @@ import {
   type Component,
 } from 'vue'
 import { useSheet } from '../context'
-import { boundsOf, columnName, formatRange } from '../core/address'
+import { boundsOf, columnName, formatRange, inBounds, parseRange } from '../core/address'
 import { alignOf, changeDecimals, formatValue } from '../core/format'
-import type { SheetConditionalFormat, SheetStyle } from '../core/model'
+import type { SheetConditionalFormat, SheetStyle, SheetValidation } from '../core/model'
 import FormatDialog from './format-dialog.vue'
 import FormatList from './format-list.vue'
+import ValidationDialog from './validation-dialog.vue'
 import {
   barSwatch,
   LOOKS,
@@ -109,6 +111,7 @@ const DEFAULT_TOOLS: SheetToolbarTool[] = [
   'sort',
   'filter',
   'conditional',
+  'validation',
   '|',
   'clear',
 ]
@@ -378,6 +381,40 @@ function dialogClosed() {
   // editing from the list goes back to it, which keeps the focus
   if (!listOpen.value) sheet.focus()
 }
+// Data validation --------------------------------------------------------------------------
+
+const validations = computed(() => sheet.sheet.value.validations ?? [])
+const ruleOpen = ref(false)
+const rule = ref<SheetValidation>({ range: '', list: [] })
+/** The rule being edited, by its place in the sheet's; `-1` adds one. */
+const ruleIndex = ref(-1)
+/** Opens the rule of the active cell, or a new one for the selection. */
+function openValidation() {
+  const { row, col } = active.value
+  ruleIndex.value = validations.value.findIndex((r) => {
+    const range = parseRange(r.range)
+    return !!range && inBounds(boundsOf(range), row, col)
+  })
+  rule.value =
+    ruleIndex.value >= 0 ? validations.value[ruleIndex.value]! : { range: activeRange(), list: [] }
+  ruleOpen.value = true
+}
+function applyValidation(next: SheetValidation) {
+  const list = [...validations.value]
+  if (ruleIndex.value >= 0) list[ruleIndex.value] = next
+  else list.push(next)
+  sheet.transact((tr) => tr.setValidations(list), { action: 'validation' })
+  sheet.announce(format(m.value.validation.added, { range: next.range }))
+}
+function removeValidation() {
+  const gone = validations.value[ruleIndex.value]
+  if (!gone) return
+  sheet.transact((tr) => tr.setValidations(validations.value.filter((r) => r !== gone)), {
+    action: 'validation',
+  })
+  sheet.announce(format(m.value.validation.removed, { range: gone.range }))
+}
+
 const listOpen = ref(false)
 const conditionals = computed(() => sheet.sheet.value.conditionalFormats ?? [])
 function setFormats(next: SheetConditionalFormat[]) {
@@ -900,6 +937,22 @@ onBeforeUnmount(() => observer?.disconnect())
         </DouTooltip>
 
         <DouTooltip
+          v-else-if="tool === 'validation'"
+          :content="m.validation.title"
+          placement="bottom"
+        >
+          <DouButton
+            variant="ghost"
+            :aria-label="m.validation.title"
+            aria-haspopup="dialog"
+            :disabled="disabled"
+            @click="openValidation"
+          >
+            <TableCheckIcon />
+          </DouButton>
+        </DouTooltip>
+
+        <DouTooltip
           v-else-if="tool === 'clear'"
           :content="m.clearFormatting"
           shortcut="mod+\"
@@ -925,6 +978,15 @@ onBeforeUnmount(() => observer?.disconnect())
       :messages="m"
       @apply="applyFormat"
       @closed="dialogClosed"
+    />
+    <ValidationDialog
+      v-model:open="ruleOpen"
+      :rule="rule"
+      :editing="ruleIndex >= 0"
+      :messages="m"
+      @apply="applyValidation"
+      @remove="removeValidation"
+      @closed="sheet.focus()"
     />
     <FormatList
       v-model:open="listOpen"

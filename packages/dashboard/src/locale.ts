@@ -22,6 +22,46 @@ export interface DashboardMessages {
   cancelled: string
   /** The handle in an item's corner. */
   resize: string
+  /** The dashboard's accessible name. */
+  dashboard: string
+  /** The menu button in a widget's title bar. */
+  widgetMenu: string
+  /** Menu items. */
+  settings: string
+  fullscreen: string
+  duplicate: string
+  remove: string
+  /** The settings drawer's title: `{title}`. */
+  settingsTitle: string
+  /** The title field in the settings drawer. */
+  titleField: string
+  /** Read when a widget is added, copied or removed: `{item}`. */
+  added: string
+  removed: string
+  /** A widget whose type isn't registered: `{type}`. */
+  unknownType: string
+  /** A widget's status. */
+  loading: string
+  error: string
+  empty: string
+  retry: string
+  /** A dashboard without widgets, while editing. */
+  emptyTitle: string
+  emptyHint: string
+  /** The list of widgets to add. */
+  palette: string
+  /** A widget in that list: `{label}`. */
+  paletteItem: string
+  /** In the title bar of a widget that set a filter: `{value}`. */
+  filteredBy: string
+  /** The button clearing that filter: `{value}`. */
+  clearFilter: string
+  /** The filter bar's accessible name. */
+  filterBar: string
+  /** A filter set by a widget, in the filter bar: `{title}` and `{value}`. */
+  linkedFilter: string
+  /** Clears every filter. */
+  clearFilters: string
 }
 
 const zhCN: DashboardMessages = {
@@ -35,6 +75,30 @@ const zhCN: DashboardMessages = {
   dropped: '已放下 {item}，{position}',
   cancelled: '已取消，{item} 回到原处',
   resize: '调整大小',
+  dashboard: '仪表盘',
+  widgetMenu: '格子操作',
+  settings: '设置',
+  fullscreen: '全屏查看',
+  duplicate: '复制一份',
+  remove: '删除',
+  settingsTitle: '{title}的设置',
+  titleField: '标题',
+  added: '已添加 {item}',
+  removed: '已删除 {item}',
+  unknownType: '没有注册类型为 {type} 的格子',
+  loading: '加载中',
+  error: '加载失败',
+  empty: '暂无数据',
+  retry: '重试',
+  emptyTitle: '还没有格子',
+  emptyHint: '从列表里拖进来，或点一下添加',
+  palette: '添加格子',
+  paletteItem: '添加{label}',
+  filteredBy: '已按 {value} 筛选',
+  clearFilter: '清除筛选：{value}',
+  filterBar: '筛选',
+  linkedFilter: '{title}：{value}',
+  clearFilters: '清除筛选',
 }
 
 const zhTW: DashboardMessages = {
@@ -48,6 +112,30 @@ const zhTW: DashboardMessages = {
   dropped: '已放下 {item}，{position}',
   cancelled: '已取消，{item} 回到原處',
   resize: '調整大小',
+  dashboard: '儀表板',
+  widgetMenu: '格子操作',
+  settings: '設定',
+  fullscreen: '全螢幕檢視',
+  duplicate: '複製一份',
+  remove: '刪除',
+  settingsTitle: '{title}的設定',
+  titleField: '標題',
+  added: '已新增 {item}',
+  removed: '已刪除 {item}',
+  unknownType: '沒有註冊類型為 {type} 的格子',
+  loading: '載入中',
+  error: '載入失敗',
+  empty: '暫無資料',
+  retry: '重試',
+  emptyTitle: '還沒有格子',
+  emptyHint: '從清單拖進來，或點一下新增',
+  palette: '新增格子',
+  paletteItem: '新增{label}',
+  filteredBy: '已按 {value} 篩選',
+  clearFilter: '清除篩選：{value}',
+  filterBar: '篩選',
+  linkedFilter: '{title}：{value}',
+  clearFilters: '清除篩選',
 }
 
 const en: DashboardMessages = {
@@ -62,6 +150,30 @@ const en: DashboardMessages = {
   dropped: 'Put down {item}, {position}',
   cancelled: 'Cancelled, {item} is back where it was',
   resize: 'Resize',
+  dashboard: 'Dashboard',
+  widgetMenu: 'Widget actions',
+  settings: 'Settings',
+  fullscreen: 'View full screen',
+  duplicate: 'Duplicate',
+  remove: 'Remove',
+  settingsTitle: '{title} settings',
+  titleField: 'Title',
+  added: 'Added {item}',
+  removed: 'Removed {item}',
+  unknownType: 'No widget type “{type}” is registered',
+  loading: 'Loading',
+  error: 'Couldn’t load',
+  empty: 'No data',
+  retry: 'Retry',
+  emptyTitle: 'No widgets yet',
+  emptyHint: 'Drag one in from the list, or click to add it',
+  palette: 'Add widget',
+  paletteItem: 'Add {label}',
+  filteredBy: 'Filtered by {value}',
+  clearFilter: 'Clear filter: {value}',
+  filterBar: 'Filters',
+  linkedFilter: '{title}: {value}',
+  clearFilters: 'Clear filters',
 }
 
 export const dashboardLocales: Record<string, DashboardMessages> = {

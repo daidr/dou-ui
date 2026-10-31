@@ -14,10 +14,11 @@ interface FormDocument {
   nodes: FormNode[]
 }
 
-type FormNode = FormFieldNode | FormSectionNode
+type FormNode =
+  FormFieldNode | FormSectionNode | FormTabsNode | FormStepsNode | FormPageNode | FormListNode
 ```
 
-`version` 目前总是 `1`。以后描述的结构有变化时，会按这个字段把旧数据升级过来。漏写或写成其他值时，渲染器在控制台提示一次，然后照第 1 版读取。
+`version` 目前总是 `1`。以后描述的结构有变化时，会按这个字段把旧数据升级过来，读取保存过的描述时先交给 [`migrateDocument`](./structure#版本迁移)。漏写或写成其他值时，渲染器在控制台提示一次，然后照第 1 版读取。
 
 ## 字段节点
 
@@ -37,7 +38,7 @@ interface FormFieldNode {
   disabledWhen?: string
   requiredWhen?: string
   formula?: string
-  source?: { name: string; args?: string } // 选项来源
+  source?: { name: string; arg?: string; keep?: boolean } // 选项来源
 }
 ```
 
@@ -65,6 +66,8 @@ interface FormSectionNode {
 ```
 
 分组可以嵌套，也可以用 `visibleWhen`、`disabledWhen` 整组显示或禁用。分组用 `role="group"` 并以标题命名，读屏会读出字段属于哪个分组。
+
+标签页、分步、页面和列表见[标签页、分步与列表](./structure)。
 
 ## 规则
 
@@ -105,6 +108,7 @@ form.value = {
 | `emptyDocument()`                                      | 一份没有节点的描述                           |
 | `createId(prefix?)`                                    | 生成节点 id                                  |
 | `walkNodes(nodes)`                                     | 按文档顺序遍历全部节点，分组在它的子节点之前 |
+| `checkDocument(document, options?)`                    | 检查描述，见[检查描述](./structure#检查描述) |
 | `fieldNodes(document)`                                 | 全部存值的字段节点                           |
 | `findNode(document, id)`                               | 按 id 找节点                                 |
 | `getPath(model, path)` / `setPath(model, path, value)` | 按点号路径读写                               |

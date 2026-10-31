@@ -31,7 +31,12 @@ export interface FormDocument {
   nodes: FormNode[]
 }
 
-export type FormNode = FormFieldNode | FormSectionNode
+export type FormNode =
+  FormFieldNode | FormSectionNode | FormTabsNode | FormStepsNode | FormPageNode | FormListNode
+
+/** The nodes that hold other nodes. */
+export type FormContainerNode =
+  FormSectionNode | FormTabsNode | FormStepsNode | FormPageNode | FormListNode
 
 interface FormNodeBase {
   /** Unique within the document, and kept when the node moves or changes. */
@@ -107,6 +112,66 @@ export interface FormOptionSource {
   arg?: string
   /** Keep the field's value when the options change and no longer offer it. */
   keep?: boolean
+}
+
+/** Pages shown one at a time, picked from a row of tabs. */
+export interface FormTabsNode extends FormNodeBase {
+  type: 'tabs'
+  /** The pages, one per tab. */
+  children: FormPageNode[]
+}
+
+/**
+ * Pages filled in one after another. Each page is checked before the
+ * next one opens; going back is always allowed.
+ */
+export interface FormStepsNode extends FormNodeBase {
+  type: 'steps'
+  /** The pages, one per step. */
+  children: FormPageNode[]
+}
+
+/** One page of `tabs` or `steps`. A hidden page (`visibleWhen`) is left out. */
+export interface FormPageNode extends FormNodeBase {
+  type: 'page'
+  /** The text of the tab or step. */
+  title: string
+  description?: string
+  /** Columns of the page's own grid. Defaults to the document's. */
+  columns?: number
+  children: FormNode[]
+}
+
+/**
+ * A list of items that people add, remove and reorder, each made of the
+ * same fields, e.g. the people on a booking. The value at `name` is a
+ * list of objects; the fields inside name their own key in an item
+ * (`name: 'phone'` writes `item.phone`) and read the item in
+ * expressions as `item`.
+ */
+export interface FormListNode extends FormNodeBase {
+  type: 'list'
+  /** The path of the list, e.g. `guests`. */
+  name: string
+  label?: string
+  help?: string
+  /** The items the list starts with. Defaults to `min` empty items. */
+  default?: Record<string, unknown>[]
+  /** Fewest items; below it items cannot be removed. */
+  min?: number
+  /** Most items; at it no more can be added. */
+  max?: number
+  /** Let people drag items into another order. Defaults to `true`. */
+  sortable?: boolean
+  /** Text of the add button. Defaults to the locale's. */
+  addText?: string
+  /** Checks of the list itself, e.g. `required` for at least one item. */
+  required?: boolean
+  rules?: FormRuleSpec[]
+  /** Columns of each item's grid. Defaults to the document's. */
+  columns?: number
+  /** The fields of one item. */
+  children: FormNode[]
 }
 
 /**

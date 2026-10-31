@@ -52,6 +52,12 @@ export interface TabPanelProps {
   disabled?: boolean
   /** Show a close button on this tab, overriding the tabs' `closable`. */
   closable?: boolean
+  /**
+   * Render the content before the panel is first shown, instead of on
+   * first show. For content that must exist while hidden, e.g. form
+   * fields that are checked on submit.
+   */
+  eager?: boolean
 }
 
 export interface TabPanelSlots {

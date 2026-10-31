@@ -62,6 +62,22 @@ describe('DouTabs', () => {
     wrapper.unmount()
   })
 
+  it('renders an eager panel before it is shown', async () => {
+    const wrapper = mount({
+      components: { DouTabs, DouTabPanel },
+      template: `
+        <DouTabs>
+          <DouTabPanel value="a" label="甲">甲的内容</DouTabPanel>
+          <DouTabPanel value="b" label="乙" eager>乙的内容</DouTabPanel>
+        </DouTabs>`,
+    })
+    await nextTick()
+    const panels = wrapper.findAll('[role="tabpanel"]')
+    expect(panels[1]!.text()).toBe('乙的内容')
+    expect(panels[1]!.attributes('hidden')).toBeDefined()
+    wrapper.unmount()
+  })
+
   it('ignores clicks on a disabled tab', async () => {
     const wrapper = make()
     await nextTick()

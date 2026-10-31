@@ -11,7 +11,13 @@ export type {
   FormRendererSlots,
   FormOptionsLoader,
 } from './context'
-export { findFormulaCycles } from './formulas'
+export { findFormulaCycles, findItemFormulaCycles } from '../core/formulas'
+export { checkDocument, migrateDocument } from '../core/check'
+export type { CheckDocumentOptions, DocumentProblem } from '../core/check'
+export { emptyItem, fillValues, startValue, visibleValues } from '../core/values'
+export type { VisibleValuesOptions } from '../core/values'
+export { formatMessage, formBuilderLocales, useFormBuilderMessages } from '../locale'
+export type { FormBuilderMessages, FormBuilderMessagesOverride } from '../locale'
 export { builtinFields, resolveFields } from '../fields/builtin'
 export { defineFormField, fieldProps, useFormField } from '../fields/define'
 export type { FormFieldContext, FormFieldProps, FormFieldType } from '../fields/define'
@@ -25,8 +31,16 @@ export {
   fieldNodes,
   findNode,
   getPath,
+  isContainer,
+  isField,
+  isList,
+  isPage,
   isSection,
+  isSteps,
+  isTabs,
   setPath,
+  unsetPath,
+  valueNodes,
   walkNodes,
 } from '../core/document'
 export { rulesOf, toFormRule } from '../core/rules'
@@ -53,13 +67,18 @@ export type {
 } from '../core/expression'
 export type {
   FormBreakpoint,
+  FormContainerNode,
   FormDocument,
   FormFieldNode,
+  FormListNode,
   FormNode,
   FormOptionSource,
+  FormPageNode,
   FormResponsive,
   FormRuleSpec,
   FormSectionNode,
+  FormStepsNode,
+  FormTabsNode,
 } from '../core/types'
 
 export type FormRendererInstance = InstanceType<typeof FormRenderer>

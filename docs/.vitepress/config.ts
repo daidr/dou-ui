@@ -70,6 +70,7 @@ const formBuilderSidebar = ecosystem('表单设计器', [
   { text: '表单描述', link: '/form-builder/document' },
   { text: '字段类型', link: '/form-builder/fields' },
   { text: '联动与表达式', link: '/form-builder/logic' },
+  { text: '标签页、分步与列表', link: '/form-builder/structure' },
 ])
 
 export default defineConfig({

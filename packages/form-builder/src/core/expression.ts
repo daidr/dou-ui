@@ -41,7 +41,7 @@ export class ExpressionError extends Error {
 export type ExpressionNode =
   | { kind: 'literal'; value: string | number | boolean | null; start: number; end: number }
   | { kind: 'list'; items: ExpressionNode[]; start: number; end: number }
-  | { kind: 'name'; name: 'values' | 'value'; start: number; end: number }
+  | { kind: 'name'; name: 'values' | 'value' | 'item'; start: number; end: number }
   | { kind: 'member'; object: ExpressionNode; key: ExpressionNode; start: number; end: number }
   | { kind: 'call'; name: string; args: ExpressionNode[]; start: number; end: number }
   | { kind: 'unary'; operator: '!' | '-'; argument: ExpressionNode; start: number; end: number }
@@ -74,6 +74,8 @@ export interface ExpressionScope {
   values: Record<string, unknown>
   /** The value of the field the expression belongs to. */
   value?: unknown
+  /** Inside a list, the item the field belongs to. */
+  item?: unknown
   /** Functions besides the built-in ones; one of the same name replaces the built-in function. */
   functions?: Readonly<Record<string, FormFunction>>
 }
@@ -87,6 +89,8 @@ export interface CompiledExpression {
    * so it may read anything.
    */
   readonly fields: readonly string[]
+  /** The paths under `item` it reads, like `fields` for `values`. */
+  readonly itemFields: readonly string[]
   /** Whether it reads `value`. */
   readonly readsValue: boolean
   /** The functions it calls. */
@@ -398,11 +402,11 @@ export function parseExpression(source: string): ExpressionNode {
           return { kind: 'literal', value: name === 'true', start: token.start, end: token.end }
         if (name === 'null')
           return { kind: 'literal', value: null, start: token.start, end: token.end }
-        if (name === 'values' || name === 'value')
+        if (name === 'values' || name === 'value' || name === 'item')
           return { kind: 'name', name, start: token.start, end: token.end }
         throw new ExpressionError(
           'unknown-name',
-          `Unknown name "${name}"; read fields with values.${name}`,
+          `Unknown name "${name}"; read fields with values.${name}, or item.${name} inside a list`,
           token.start,
           token.end,
         )
@@ -599,7 +603,14 @@ function dayNumber(value: unknown): number | null {
 /** The numbers among the arguments, lists flattened one level. */
 function numbersOf(args: unknown[]): number[] {
   const result: number[] = []
-  for (const arg of Array.isArray(args[0]) && args.length === 1 ? args[0] : args) {
+  let list: unknown[] = args
+  if (Array.isArray(args[0]) && args.length === 1) list = args[0]
+  // `sum(values.items, 'amount')`: one key of every item of a list.
+  else if (Array.isArray(args[0]) && args.length === 2 && typeof args[1] === 'string') {
+    const key = args[1]
+    list = args[0].map((item) => read(item, key))
+  }
+  for (const arg of list) {
     if (arg === null || arg === undefined || arg === '') continue
     const number = toNumber(arg)
     if (!Number.isNaN(number)) result.push(number)
@@ -613,7 +624,8 @@ function numbersOf(args: unknown[]): number[] {
  * - `len(x)`: length of text, number of items or of keys; `0` for nothing.
  * - `empty(x)`: whether `x` is `null`, blank text, `[]` or `{}`.
  * - `number(x)`: `x` as a number, or `null` when it is not one.
- * - `sum(list)`, `min(list)`, `max(list)`: over a list, or over the arguments.
+ * - `sum(list)`, `min(list)`, `max(list)`: over a list, or over the arguments;
+ *   `sum(list, 'key')` over one key of every item.
  * - `round(x, digits?)`, `abs(x)`.
  * - `today(offset?)`: today, or `offset` days from today, as `YYYY-MM-DD`.
  * - `days(from, to)`: whole days from one date to the other.
@@ -682,7 +694,9 @@ function compileNode(node: ExpressionNode): Run {
       return (scope) => items.map((item) => item(scope))
     }
     case 'name':
-      return node.name === 'values' ? (scope) => scope.values : (scope) => scope.value ?? null
+      if (node.name === 'values') return (scope) => scope.values
+      if (node.name === 'item') return (scope) => scope.item ?? null
+      return (scope) => scope.value ?? null
     case 'member': {
       const object = compileNode(node.object)
       if (node.key.kind === 'literal') {
@@ -759,7 +773,7 @@ function compileNode(node: ExpressionNode): Run {
  * when it runs stops the path there: `values.rows[i].name` reads `rows`,
  * and `values[key]` reads everything (`''`).
  */
-function pathOf(node: ExpressionNode): string | undefined {
+function pathOf(node: ExpressionNode, root: 'values' | 'item' = 'values'): string | undefined {
   const keys: string[] = []
   let current = node
   while (current.kind === 'member') {
@@ -768,7 +782,7 @@ function pathOf(node: ExpressionNode): string | undefined {
     else keys.length = 0
     current = current.object
   }
-  if (current.kind !== 'name' || current.name !== 'values') return undefined
+  if (current.kind !== 'name' || current.name !== root) return undefined
   return keys.join('.')
 }
 
@@ -780,8 +794,19 @@ function computedKeys(node: ExpressionNode): ExpressionNode[] {
   return keys
 }
 
+/** A path inside another one adds nothing: `a` covers `a.b`; `''` covers all. */
+function outermost(paths: Set<string>) {
+  // oxlint-disable-next-line unicorn/no-array-sort -- sorts a fresh array
+  const sorted = [...paths].sort()
+  if (sorted.includes('')) return ['']
+  return sorted.filter(
+    (path) => !sorted.some((other) => other !== path && path.startsWith(`${other}.`)),
+  )
+}
+
 function analyse(root: ExpressionNode) {
   const fields = new Set<string>()
+  const itemFields = new Set<string>()
   const calls = new Set<string>()
   let readsValue = false
 
@@ -789,12 +814,19 @@ function analyse(root: ExpressionNode) {
     switch (node.kind) {
       case 'name':
         if (node.name === 'value') readsValue = true
+        else if (node.name === 'item') itemFields.add('')
         else fields.add('')
         return
       case 'member': {
         const path = pathOf(node)
         if (path !== undefined) {
           fields.add(path)
+          computedKeys(node).forEach(visit)
+          return
+        }
+        const itemPath = pathOf(node, 'item')
+        if (itemPath !== undefined) {
+          itemFields.add(itemPath)
           computedKeys(node).forEach(visit)
           return
         }
@@ -825,15 +857,12 @@ function analyse(root: ExpressionNode) {
     }
   }
   visit(root)
-  // A path inside another one adds nothing: `a` covers `a.b`.
-  // oxlint-disable-next-line unicorn/no-array-sort -- sorts a fresh array
-  const sorted = [...fields].sort()
-  const kept = sorted.includes('')
-    ? ['']
-    : sorted.filter(
-        (path) => !sorted.some((other) => other !== path && path.startsWith(`${other}.`)),
-      )
-  return { fields: kept, calls: [...calls], readsValue }
+  return {
+    fields: outermost(fields),
+    itemFields: outermost(itemFields),
+    calls: [...calls],
+    readsValue,
+  }
 }
 
 const warned = new Set<string>()
@@ -857,11 +886,12 @@ export function compileExpression(source: string): CompiledExpression {
     try {
       const ast = parseExpression(source)
       const run = compileNode(ast)
-      const { fields, calls, readsValue } = analyse(ast)
+      const { fields, itemFields, calls, readsValue } = analyse(ast)
       result = {
         source,
         ast,
         fields,
+        itemFields,
         calls,
         readsValue,
         evaluate(scope) {

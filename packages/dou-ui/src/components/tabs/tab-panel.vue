@@ -15,7 +15,11 @@ import type { TabPanelProps, TabPanelSlots } from './tabs'
 
 defineOptions({ name: 'DouTabPanel' })
 
-const props = withDefaults(defineProps<TabPanelProps>(), { disabled: false, closable: undefined })
+const props = withDefaults(defineProps<TabPanelProps>(), {
+  disabled: false,
+  closable: undefined,
+  eager: false,
+})
 const slots = defineSlots<TabPanelSlots>()
 
 const ns = useNamespace('tabs')
@@ -31,7 +35,7 @@ const selected = computed(() => tabs?.selected.value === props.value)
 
 // Render the content the first time the panel is shown, then keep it, so
 // switching back is instant and keeps its state.
-const visited = ref(selected.value)
+const visited = ref(selected.value || props.eager)
 watch(selected, (value) => {
   if (value) visited.value = true
 })

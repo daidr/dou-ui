@@ -25,6 +25,7 @@ function compile(source: string, flags = ''): RegExp | null {
 export function toFormRule(
   spec: FormRuleSpec,
   functions?: Readonly<Record<string, FormFunction>>,
+  item?: () => unknown,
 ): FormRule {
   const { pattern, flags, check, ...rest } = spec
   const rule: FormRule = rest
@@ -36,7 +37,8 @@ export function toFormRule(
     const expression = tryCompileExpression(check)
     if (expression)
       rule.validator = (value, model) =>
-        isEmptyValue(value) || truthy(expression.evaluate({ values: model, value, functions }))
+        isEmptyValue(value) ||
+        truthy(expression.evaluate({ values: model, value, item: item?.(), functions }))
   }
   return rule
 }
@@ -46,35 +48,42 @@ export interface RulesOptions {
   required?: boolean
   /** What `check` expressions can call besides the built-in functions. */
   functions?: Readonly<Record<string, FormFunction>>
+  /** Inside a list, the item the field belongs to, read as `item` by `check`. */
+  item?: () => unknown
 }
 
 interface Cached {
   specs: FormRuleSpec[] | undefined
   required: boolean
   functions: RulesOptions['functions']
+  item: RulesOptions['item']
   rules: FormRule[]
 }
 
-const cache = new WeakMap<FormFieldNode, Cached>()
+const cache = new WeakMap<object, Cached>()
 
 /**
  * The rules of a field node, `required` first. Cached per node while its
  * `rules`, whether it is required and the functions stay the same, so
  * re-renders hand the form item the same array.
  */
-export function rulesOf(node: FormFieldNode, options: RulesOptions = {}): FormRule[] {
+export function rulesOf(
+  node: Pick<FormFieldNode, 'rules' | 'required'>,
+  options: RulesOptions = {},
+): FormRule[] {
   const required = options.required ?? node.required ?? false
-  const { functions } = options
+  const { functions, item } = options
   const cached = cache.get(node)
   if (
     cached &&
     cached.specs === node.rules &&
     cached.required === required &&
-    cached.functions === functions
+    cached.functions === functions &&
+    cached.item === item
   )
     return cached.rules
-  const rules = (node.rules ?? []).map((spec) => toFormRule(spec, functions))
+  const rules = (node.rules ?? []).map((spec) => toFormRule(spec, functions, item))
   if (required && !rules.some((rule) => rule.required)) rules.unshift({ required: true })
-  cache.set(node, { specs: node.rules, required, functions, rules })
+  cache.set(node, { specs: node.rules, required, functions, item, rules })
   return rules
 }

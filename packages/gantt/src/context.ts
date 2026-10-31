@@ -22,6 +22,11 @@ export interface GanttContext {
   rowHeight: ComputedRef<number>
   /** The rows as laid out, with spans and summaries worked out. */
   rows: ComputedRef<GanttRow[]>
+  /**
+   * While a bar is dragged: the tasks it would change, with the ones it
+   * would push, as they would be written. `null` otherwise.
+   */
+  preview: ComputedRef<Map<string, Partial<GanttTask>> | null>
   transact: GanttExpose['transact']
   /** The critical path when `critical` is on, `null` otherwise. */
   critical: ComputedRef<GanttCriticalPath | null>

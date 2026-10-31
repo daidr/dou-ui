@@ -82,6 +82,11 @@ export class GanttTransaction {
   private tasks: GanttTask[]
   private links: GanttLink[]
   private copied = { tasks: false, links: false }
+  /** Where each task and link is in its list; built on first use, dropped when a list changes length. */
+  private at: { tasks: Map<string, number> | null; links: Map<string, number> | null } = {
+    tasks: null,
+    links: null,
+  }
 
   constructor(readonly before: GanttDocument) {
     this.tasks = before.tasks
@@ -103,11 +108,24 @@ export class GanttTransaction {
   }
 
   getTask(id: string) {
-    return this.tasks.find((task) => task.id === id)
+    return this.tasks[this.indexOf('tasks', id)]
   }
 
   getLink(id: string) {
-    return this.links.find((link) => link.id === id)
+    return this.links[this.indexOf('links', id)]
+  }
+
+  /** A task's or link's position in its list, `-1` when there is none. */
+  private indexOf(kind: 'tasks' | 'links', id: string) {
+    let at = this.at[kind]
+    if (!at) {
+      at = new Map()
+      const list = kind === 'tasks' ? this.tasks : this.links
+      // the first one wins, as with `find`
+      for (let i = list.length - 1; i >= 0; i--) at.set(list[i]!.id, i)
+      this.at[kind] = at
+    }
+    return at.get(id) ?? -1
   }
 
   /** Links into or out of a task. */
@@ -241,16 +259,18 @@ export class GanttTransaction {
         if (this.getTask(step.task.id)) return null
         const list = this.writable('tasks')
         list.splice(clampIndex(step.index, list.length), 0, step.task)
+        this.at.tasks = null
         return { type: 'removeTask', id: step.task.id }
       }
       case 'removeTask': {
-        const index = this.tasks.findIndex((task) => task.id === step.id)
+        const index = this.indexOf('tasks', step.id)
         if (index < 0) return null
         const [task] = this.writable('tasks').splice(index, 1)
+        this.at.tasks = null
         return { type: 'addTask', task: task!, index }
       }
       case 'updateTask': {
-        const index = this.tasks.findIndex((task) => task.id === step.id)
+        const index = this.indexOf('tasks', step.id)
         if (index < 0) return null
         const task = this.tasks[index]!
         const keys = Object.keys(step.patch) as (keyof GanttTask)[]
@@ -262,16 +282,18 @@ export class GanttTransaction {
         if (this.getLink(step.link.id)) return null
         const list = this.writable('links')
         list.splice(clampIndex(step.index, list.length), 0, step.link)
+        this.at.links = null
         return { type: 'removeLink', id: step.link.id }
       }
       case 'removeLink': {
-        const index = this.links.findIndex((link) => link.id === step.id)
+        const index = this.indexOf('links', step.id)
         if (index < 0) return null
         const [link] = this.writable('links').splice(index, 1)
+        this.at.links = null
         return { type: 'addLink', link: link!, index }
       }
       case 'updateLink': {
-        const index = this.links.findIndex((link) => link.id === step.id)
+        const index = this.indexOf('links', step.id)
         if (index < 0) return null
         const link = this.links[index]!
         const keys = Object.keys(step.patch) as (keyof GanttLink)[]

@@ -11,6 +11,7 @@
       "@dou-ui/editor/collaboration": ["./packages/editor/src/collaboration/index.ts"],
       "@dou-ui/flow": ["./packages/flow/src/index.ts"],
       "@dou-ui/gantt": ["./packages/gantt/src/index.ts"],
+      "@dou-ui/gantt/collaboration": ["./packages/gantt/src/collaboration/index.ts"],
       "@dou-ui/resolver": ["./packages/resolver/src/index.ts"]
     }
   },

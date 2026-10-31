@@ -680,6 +680,54 @@
     }
   }
 
+  /* what other people are dragging (dashed) or have selected (solid), in their colors */
+  .dou-gantt__peer {
+    --dou-gantt-peer-color: var(--dou-color-text-secondary);
+
+    position: absolute;
+    top: calc((var(--dou-gantt-row-height) - var(--dou-gantt-bar-height)) / 2 - 2px);
+    left: -2px;
+    z-index: 2;
+    box-sizing: content-box;
+    height: var(--dou-gantt-bar-height);
+    padding: 1px;
+    border: 1px solid var(--dou-gantt-peer-color);
+    border-radius: 8px;
+    pointer-events: none;
+
+    &.is-moving {
+      border-style: dashed;
+      background-color: color-mix(in oklab, var(--dou-gantt-peer-color) 8%, transparent);
+    }
+    &.is-milestone {
+      top: calc((var(--dou-gantt-row-height) - 14px) / 2 - 2px);
+      width: 14px;
+      height: 14px;
+      margin-left: -9px;
+      border-radius: 3px;
+      rotate: 45deg;
+
+      > .dou-gantt__peer-name {
+        rotate: -45deg;
+      }
+    }
+  }
+
+  .dou-gantt__peer-name {
+    position: absolute;
+    bottom: calc(100% + 2px);
+    left: -2px;
+    padding: 0 6px;
+    border-radius: 4px 4px 4px 0;
+    background-color: var(--dou-gantt-peer-color);
+    /* the collaborator's color is the app's: pick dark or light text by its lightness */
+    color: white;
+    color: oklch(from var(--dou-gantt-peer-color) clamp(0.2, (0.66 - l) * 100, 0.99) 0 0);
+    font-size: var(--dou-font-size-sm);
+    line-height: 18px;
+    white-space: nowrap;
+  }
+
   .dou-gantt__progress {
     position: absolute;
     top: 0;

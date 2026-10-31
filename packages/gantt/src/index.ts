@@ -18,7 +18,12 @@ export type {
 export { useGantt } from './context'
 export type { GanttContext } from './context'
 export { defineGanttExtension } from './core/extension'
-export type { GanttExtension, GanttExtensionContext, GanttKeyHandler } from './core/extension'
+export type {
+  GanttExtension,
+  GanttExtensionContext,
+  GanttHistoryHandler,
+  GanttKeyHandler,
+} from './core/extension'
 export { ganttLocales, useGanttMessages } from './locale'
 export type { GanttMessages, GanttMessagesOverride } from './locale'
 export { spanOf, writeSpan } from './core/model'

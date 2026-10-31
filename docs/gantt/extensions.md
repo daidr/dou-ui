@@ -37,8 +37,23 @@ const extensions = [owners, quietDays('2026-11-09', '2026-11-11', '团建')]
 | `layers`      | 画在时间轴坐标里的组件，`below` 在依赖线下方，`above` 在任务条上方，跟着时间轴滚动                                         | `{ below?: Component[], above?: Component[] }`        |
 | `contextMenu` | 右键菜单的项，排在内置项前面，`target.kind` 是 `task`、`link` 或 `canvas`，带 `point` 和 `time`，见[右键菜单](./#右键菜单) | `(ctx, target) => GanttMenuItem[]`                    |
 | `overlays`    | 浮在甘特图上方的组件，不随时间轴滚动，比如面板                                                                             | `Component[]`                                         |
+| `setup`       | 甘特图挂载后调用，可以返回一个函数，在卸载时调用                                                                           | `(ctx) => void \| (() => void)`                       |
+| `transaction` | 每次修改生效前按优先级调用，可以继续往里加步骤；撤销和重做也会经过这里                                                     | `(tr, ctx) => void`                                   |
+| `history`     | 替换甘特图自带的撤销记录，只用第一个提供它的扩展，例如[协同编辑](./collaboration)只撤销自己的修改                          | `(ctx) => GanttHistoryHandler`                        |
 
 `ctx` 和组件里 `useGantt()` 拿到的是同一个对象。
+
+`history` 返回的对象：
+
+```ts
+interface GanttHistoryHandler {
+  /** 没有可撤销的修改时返回 false */
+  undo: () => boolean
+  redo: () => boolean
+  canUndo: () => boolean
+  canRedo: () => boolean
+}
+```
 
 ## 图层组件
 
@@ -86,16 +101,17 @@ const duplicate = defineGanttExtension({
 
 在图层、浮层，以及甘特图的插槽和默认插槽里，`useGantt()` 返回当前甘特图的状态和操作：
 
-| 名称                                             | 说明                             |
-| ------------------------------------------------ | -------------------------------- |
-| `tasks`、`links`、`selection`                    | 当前的任务、依赖和选中的任务     |
-| `active`                                         | 键盘所在的任务                   |
-| `rows`                                           | 排好的行，带算好的起止时间和汇总 |
-| `readonly`、`scale`、`dayWidth`、`rowHeight`     | 只读状态、当前刻度、日宽、行高   |
-| `transact`、`undo`、`redo`、`canUndo`、`canRedo` | 修改与撤销，同组件实例           |
-| `fit`、`zoomIn`、`zoomOut`                       | 缩放                             |
-| `scrollToDate`、`scrollToTask`、`scrollToToday`  | 滚动                             |
-| `focusTask(id)`                                  | 把键盘焦点放到任务上             |
-| `xOf(time)`、`rowTop(id)`                        | 时间和行在时间轴上的位置         |
-| `announce(text)`                                 | 让读屏软件播报一段文字           |
-| `messages`                                       | 当前语言的文案                   |
+| 名称                                             | 说明                                                            |
+| ------------------------------------------------ | --------------------------------------------------------------- |
+| `tasks`、`links`、`selection`                    | 当前的任务、依赖和选中的任务                                    |
+| `active`                                         | 键盘所在的任务                                                  |
+| `rows`                                           | 排好的行，带算好的起止时间和汇总                                |
+| `preview`                                        | 拖动中将要写入的日期（包括会被推后的任务），不在拖动时为 `null` |
+| `readonly`、`scale`、`dayWidth`、`rowHeight`     | 只读状态、当前刻度、日宽、行高                                  |
+| `transact`、`undo`、`redo`、`canUndo`、`canRedo` | 修改与撤销，同组件实例                                          |
+| `fit`、`zoomIn`、`zoomOut`                       | 缩放                                                            |
+| `scrollToDate`、`scrollToTask`、`scrollToToday`  | 滚动                                                            |
+| `focusTask(id)`                                  | 把键盘焦点放到任务上                                            |
+| `xOf(time)`、`rowTop(id)`                        | 时间和行在时间轴上的位置                                        |
+| `announce(text)`                                 | 让读屏软件播报一段文字                                          |
+| `messages`                                       | 当前语言的文案                                                  |

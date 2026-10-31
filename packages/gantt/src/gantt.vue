@@ -24,7 +24,7 @@ import {
   watch,
 } from 'vue'
 import { ganttKey, type GanttContext } from './context'
-import { resolveGanttExtensions } from './core/extension'
+import { resolveGanttExtensions, type GanttHistoryHandler } from './core/extension'
 import GanttMenu from './components/gantt-menu.vue'
 import CellEditor from './components/cell-editor.vue'
 import {
@@ -126,11 +126,13 @@ const { width: viewWidth, height: viewHeight } = useElementSize(chart)
 // Document and history -------------------------------------------------------------
 
 const history = new GanttHistory()
+/** An extension's history, used instead of the chart's own. */
+let customHistory: GanttHistoryHandler | null = null
 const canUndo = ref(false)
 const canRedo = ref(false)
 const syncHistory = () => {
-  canUndo.value = history.canUndo
-  canRedo.value = history.canRedo
+  canUndo.value = customHistory ? customHistory.canUndo() : history.canUndo
+  canRedo.value = customHistory ? customHistory.canRedo() : history.canRedo
 }
 const editable = computed(() => !props.readonly)
 
@@ -142,7 +144,12 @@ let latest: GanttDocument | null = null
 const docOf = (): GanttDocument =>
   latest ?? { tasks: toRaw(tasks.value), links: toRaw(links.value) }
 
+/** The last transaction committed, for reading out what an extension's undo changed. */
+let lastCommit: GanttTransaction | null = null
+
 function commit(tr: GanttTransaction) {
+  for (const hook of resolved.value.transactions) hook(tr, context)
+  lastCommit = tr
   if (!latest) void nextTick(() => (latest = null))
   latest = tr.doc
   if (tr.touches('tasks')) tasks.value = tr.doc.tasks
@@ -188,12 +195,18 @@ function transact(fn: (tr: GanttTransaction) => void, meta?: GanttTransactionMet
   pushFollowers(tr)
   const before = selection.value
   commit(tr)
-  history.record(tr, before, selection.value)
+  if (!customHistory) history.record(tr, before, selection.value)
   syncHistory()
   return tr
 }
 
 function travel(direction: 'undo' | 'redo') {
+  if (customHistory) {
+    const before = lastCommit
+    const done = customHistory[direction]()
+    syncHistory()
+    return done && lastCommit !== before ? lastCommit : null
+  }
   const result = history[direction](docOf())
   if (!result) return null
   result.tr.setMeta({ origin: direction, history: false, schedule: false })
@@ -224,11 +237,17 @@ const selectedLink = ref<string | null>(null)
 
 // While a bar is dragged, the chart shows the tasks as they would be after the drop.
 const drag = shallowRef<Drag | null>(null)
+/*
+ * The tasks and links as plain arrays. They are replaced, never changed in
+ * place, so reading them raw spares tracking every field of every task.
+ */
+const taskList = computed(() => toRaw(tasks.value))
+const linkList = computed(() => toRaw(links.value))
 const shown = computed(() => {
-  if (!drag.value?.started) return tasks.value
+  if (!drag.value?.started) return taskList.value
   const changes = dragPreview.value
-  if (!changes) return tasks.value
-  return tasks.value.map((task) => {
+  if (!changes) return taskList.value
+  return taskList.value.map((task) => {
     const patch = changes.get(task.id)
     return patch ? { ...task, ...patch } : task
   })
@@ -238,9 +257,19 @@ const tree = computed(() => buildTree(shown.value))
 const rows = computed(() => tree.value.rows)
 const calendar = computed(() => resolveCalendar(props.calendar))
 const selected = computed(() => new Set(selection.value))
-const shownDoc = computed<GanttDocument>(() => ({ tasks: shown.value, links: links.value }))
+const shownDoc = computed<GanttDocument>(() => ({ tasks: shown.value, links: linkList.value }))
 
 /** While dragging with automatic scheduling: the tasks the drop would push, and where to. */
+/** The tasks a drag is about to change, with the ones it would push, as they would be written. */
+const preview = computed<Map<string, Partial<GanttTask>> | null>(() => {
+  const changes = dragPreview.value
+  const pushes = pushPreview.value?.moves
+  if (!changes || !pushes?.size) return changes
+  const out = new Map(changes)
+  for (const [id, patch] of pushes) out.set(id, patch)
+  return out
+})
+
 const pushPreview = computed(() => {
   const changes = dragPreview.value
   if (props.scheduling !== 'auto' || !changes || drag.value?.mode === 'progress') return null
@@ -515,7 +544,7 @@ const rowTitles = computed(() => {
  */
 const linkedEnds = computed(() => {
   const out = new Set<string>()
-  for (const link of links.value) {
+  for (const link of linkList.value) {
     const type = link.type ?? 'fs'
     if (type === 'fs' || type === 'ff') out.add(link.from)
     if (type === 'ff' || type === 'sf') out.add(link.to)
@@ -642,7 +671,7 @@ const linkPaths = computed(() => {
   const xFrom = scrollLeft.value - OVERSCAN_X
   const xTo = scrollLeft.value + (viewWidth.value || 800) + OVERSCAN_X
   const out: { link: GanttLink; d: string; arrow: string }[] = []
-  for (const link of links.value) {
+  for (const link of linkList.value) {
     const a = tree.value.byId.get(link.from)
     const b = tree.value.byId.get(link.to)
     if (!a || !b || a === b) continue
@@ -957,12 +986,19 @@ function onAddDone(value: string | null) {
   }
   if (!title) return
   const id = createId()
-  const last = tree.value.rows[tree.value.rows.length - 1]
+  const last = lastDated()
   const span = newTaskSpan(last && { after: last })
   transact((tr) => tr.addTask({ id, title, ...writeSpan({ id, title }, span.start, span.end) }))
   active.value = id
   void nextTick(() => scrollToTask(id))
   announce(format(messages.value.taskAdded, { title }))
+}
+
+/** The lowest row that has dates. */
+function lastDated() {
+  const list = tree.value.rows
+  for (let i = list.length - 1; i >= 0; i--) if (list[i]!.span) return list[i]
+  return undefined
 }
 
 /**
@@ -996,7 +1032,7 @@ function insertTask(near: string | null, options: GanttInsertOptions = {}) {
     ? children.length
       ? tree.value.byId.get(children[children.length - 1]!.id)
       : undefined
-    : (row ?? tree.value.rows[tree.value.rows.length - 1])
+    : (row ?? lastDated())
   const span = newTaskSpan(
     at != null ? { at } : above ? { after: above } : row?.span ? { at: row.span.start } : undefined,
   )
@@ -2274,6 +2310,7 @@ const context: GanttContext = {
   dayWidth,
   rowHeight: computed(() => props.rowHeight),
   rows,
+  preview,
   critical,
   brokenLinks,
   schedule,
@@ -2304,6 +2341,29 @@ const context: GanttContext = {
   announce,
 }
 provide(ganttKey, context)
+
+// Extensions that hook into the chart's life: set up once mounted, again when the list changes
+let cleanups: (() => void)[] = []
+let mounted = false
+function teardownExtensions() {
+  for (const cleanup of cleanups.splice(0)) cleanup()
+  customHistory = null
+}
+function setupExtensions() {
+  teardownExtensions()
+  customHistory = resolved.value.history?.(context) ?? null
+  for (const setup of resolved.value.setups) {
+    const cleanup = setup(context)
+    if (typeof cleanup === 'function') cleanups.push(cleanup)
+  }
+  syncHistory()
+}
+onMounted(() => {
+  mounted = true
+  setupExtensions()
+})
+watch(resolved, () => mounted && setupExtensions())
+onBeforeUnmount(teardownExtensions)
 
 const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * props.rowHeight}px)` })
 </script>

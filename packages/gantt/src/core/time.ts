@@ -17,12 +17,26 @@ export interface ParsedTime {
   dateOnly: boolean
 }
 
+/** Strings already read: a plan repeats the same dates, and reads them all on every change. */
+const parsed = new Map<string, Readonly<ParsedTime> | null>()
+const PARSED_MAX = 50_000
+
 /**
  * Reads `YYYY-MM-DD` or `YYYY-MM-DD HH:mm`; seconds (`HH:mm:ss`) are
  * accepted and dropped. `null` for anything else.
  */
-export function parseTime(text: string | undefined | null): ParsedTime | null {
-  const match = text ? PATTERN.exec(text.trim()) : null
+export function parseTime(text: string | undefined | null): Readonly<ParsedTime> | null {
+  if (!text) return null
+  let result = parsed.get(text)
+  if (result !== undefined) return result
+  result = readTime(text)
+  if (parsed.size >= PARSED_MAX) parsed.clear()
+  parsed.set(text, result)
+  return result
+}
+
+function readTime(text: string): ParsedTime | null {
+  const match = PATTERN.exec(text.trim())
   if (!match) return null
   const [, y, mo, d, h, mi] = match
   const month = Number(mo)

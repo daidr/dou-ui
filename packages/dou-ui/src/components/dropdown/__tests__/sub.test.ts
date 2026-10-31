@@ -78,19 +78,34 @@ describe('DouDropdownSub', () => {
     const wrapper = withSub()
     await wrapper.get('#trigger').trigger('click')
     const sub = document.querySelector<HTMLElement>('[role="menuitem"][aria-haspopup]')!
-    sub.dispatchEvent(new MouseEvent('mouseenter'))
+    sub.dispatchEvent(new PointerEvent('pointerenter', { pointerType: 'mouse' }))
     vi.advanceTimersByTime(120)
     await tick()
     expect(sub.getAttribute('aria-expanded')).toBe('true')
-    sub.dispatchEvent(new MouseEvent('mouseleave'))
-    menus()[1]!.dispatchEvent(new MouseEvent('mouseenter'))
+    sub.dispatchEvent(new PointerEvent('pointerleave', { pointerType: 'mouse' }))
+    menus()[1]!.dispatchEvent(new PointerEvent('pointerenter', { pointerType: 'mouse' }))
     vi.advanceTimersByTime(300)
     await tick()
     expect(sub.getAttribute('aria-expanded')).toBe('true')
-    menus()[1]!.dispatchEvent(new MouseEvent('mouseleave'))
+    menus()[1]!.dispatchEvent(new PointerEvent('pointerleave', { pointerType: 'mouse' }))
     vi.advanceTimersByTime(300)
     await tick()
     expect(sub.getAttribute('aria-expanded')).toBe('false')
+  })
+})
+
+describe('DouDropdownSub on touch', () => {
+  it('opens on a tap and stays open when the finger lifts', async () => {
+    vi.useFakeTimers()
+    const wrapper = withSub()
+    await wrapper.get('#trigger').trigger('click')
+    const sub = document.querySelector<HTMLElement>('[role="menuitem"][aria-haspopup]')!
+    sub.dispatchEvent(new PointerEvent('pointerenter', { pointerType: 'touch' }))
+    sub.dispatchEvent(new MouseEvent('click', { detail: 1, bubbles: true }))
+    sub.dispatchEvent(new PointerEvent('pointerleave', { pointerType: 'touch' }))
+    vi.advanceTimersByTime(300)
+    await tick()
+    expect(sub.getAttribute('aria-expanded')).toBe('true')
   })
 })
 

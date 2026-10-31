@@ -29,7 +29,7 @@
     padding-inline-start: var(--dou-editor-gutter);
     color: var(--dou-color-text);
     font-family: var(--dou-font-family);
-    font-size: var(--dou-editor-font-size);
+    font-size: max(var(--dou-font-size-input-min, 0px), var(--dou-editor-font-size));
     line-height: var(--dou-editor-line-height);
     overflow-wrap: break-word;
 
@@ -1210,6 +1210,7 @@
     background: none;
     color: inherit;
     font: inherit;
+    font-size: max(var(--dou-font-size-input-min, 0px), 1em);
     text-align: inherit;
     outline: none;
 

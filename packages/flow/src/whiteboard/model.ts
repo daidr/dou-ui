@@ -49,6 +49,25 @@ export interface WhiteboardInkData extends WhiteboardNodeData {
   tone?: Tone
 }
 
+/** How a connector runs: one straight line, right-angled turns, or a smooth curve. */
+export type WhiteboardRoute = 'straight' | 'elbow' | 'curve'
+export type WhiteboardDash = 'solid' | 'dashed' | 'dotted' | 'dash-dot'
+/** Which ends of a connector have an arrowhead. */
+export type WhiteboardArrow = 'none' | 'end' | 'both'
+
+/** A `connector` edge's look. */
+export interface WhiteboardConnectorData {
+  [key: string]: unknown
+  /** `straight` by default. */
+  route?: WhiteboardRoute
+  /** `solid` by default. */
+  dash?: WhiteboardDash
+  /** `end` by default. */
+  arrow?: WhiteboardArrow
+  /** Where an `elbow` connector's middle run sits, from 0 to 1; set by dragging it. */
+  bend?: number
+}
+
 export interface WhiteboardImageData extends WhiteboardNodeData {
   src: string
   /** Read by screen readers. */

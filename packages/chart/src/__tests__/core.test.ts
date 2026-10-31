@@ -224,8 +224,8 @@ describe('model', () => {
     expect([...b!.base!]).toEqual([1, Number.NaN])
     expect([...b!.top]).toEqual([3, Number.NaN])
     expect([...c!.top]).toEqual([-1, -2])
-    expect(model.y.left).toEqual([-2, 3])
-    expect(model.zero.left).toBe(true)
+    expect(model.y.y).toEqual([-2, 3])
+    expect(model.zero.y).toBe(true)
   })
 
   it('merges the categories of series with their own data', () => {
@@ -264,11 +264,11 @@ describe('model', () => {
 
   it('leaves hidden series out and keeps each on its axis', () => {
     const model = buildModel(
-      [input(0, { y: 'a', hidden: true }, lineKind), input(1, { y: 'b', axis: 'right' }, lineKind)],
+      [input(0, { y: 'a', hidden: true }, lineKind), input(1, { y: 'b', axis: 'y2' }, lineKind)],
       { data: rows, x: 'm' },
     )
     expect(model.series.map((s) => s.name)).toEqual(['b'])
-    expect(model.y.left).toBeNull()
-    expect(model.y.right).toEqual([2, 2])
+    expect(model.y.y).toBeNull()
+    expect(model.y.y2).toEqual([2, 2])
   })
 })

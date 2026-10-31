@@ -21,4 +21,8 @@ export type {
   WhiteboardStickyData,
   WhiteboardTextData,
   WhiteboardTool,
+  WhiteboardArrow,
+  WhiteboardConnectorData,
+  WhiteboardDash,
+  WhiteboardRoute,
 } from './model'

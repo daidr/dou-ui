@@ -4,18 +4,38 @@ import Sheet from './sheet.vue'
 export const DouSheet = withInstall(Sheet)
 export default DouSheet
 
-export type { SheetEmits, SheetExpose, SheetProps } from './types'
+export type {
+  SheetEmits,
+  SheetExpose,
+  SheetMenuContext,
+  SheetMenuItem,
+  SheetPasteEvent,
+  SheetProps,
+} from './types'
 export {
   boundsOf,
   columnIndex,
   columnName,
   formatCell,
   formatRange,
+  moveReferences,
   parseCell,
   parseRange,
+  quoteSheet,
+  shiftFormula,
   splitSheet,
 } from './core/address'
-export type { SheetBounds, SheetCellTarget, SheetPoint, SheetRange } from './core/address'
+export { formatClip, parseClip, parseTSV } from './core/clipboard'
+export type { SheetClip } from './core/clipboard'
+export { continueValues, fillContinues } from './core/fill'
+export type { SheetFillMode, SheetFillOptions } from './core/fill'
+export type {
+  SheetBounds,
+  SheetCellTarget,
+  SheetPoint,
+  SheetRange,
+  SheetRefMap,
+} from './core/address'
 export { cellOf, valueOf } from './core/model'
 export type {
   SheetCell,
@@ -33,7 +53,10 @@ export { isSelected, selectCell } from './core/selection'
 export type { SheetSelection } from './core/selection'
 export { applySheetSteps, compactSheetSteps, sheetKey, SheetTransaction } from './core/transaction'
 export type {
+  SheetAction,
+  SheetAxisName,
   SheetCellAt,
+  SheetLinesAt,
   SheetPatch,
   SheetRangeAt,
   SheetRef,

@@ -39,7 +39,8 @@ const opposite: Record<Side, Side> = { top: 'bottom', bottom: 'top', left: 'righ
  *
  * The box sits on the preferred side, flips to the opposite one when it
  * would overflow there and the opposite has more room, then slides along
- * the other axis to stay inside the viewport.
+ * the other axis to stay inside the viewport. A box beside the reference
+ * that fits on neither side also slides sideways, over the reference.
  */
 export function computePosition(
   reference: Box,
@@ -82,7 +83,12 @@ export function computePosition(
 
   let { x, y } = place(side)
   if (side === 'top' || side === 'bottom') x = clamp(x, padding, viewport.width - padding - width)
-  else y = clamp(y, padding, viewport.height - padding - height)
+  else {
+    y = clamp(y, padding, viewport.height - padding - height)
+    // too wide for either side (a submenu on a phone): it covers part of the
+    // reference instead of running off the screen
+    x = clamp(x, padding, Math.max(padding, viewport.width - padding - width))
+  }
 
   return {
     x: Math.round(x),

@@ -348,6 +348,8 @@
     background: transparent;
     color: transparent;
     font: inherit;
+    /* 16px or more on phones, so focusing it doesn't zoom the page */
+    font-size: max(var(--dou-font-size-input-min, 0px), 1em);
     line-height: 20px;
     white-space: pre;
     caret-color: transparent;
@@ -375,11 +377,6 @@
     &.is-italic {
       font-style: italic;
     }
-
-    /* 16px or more, so phones don't zoom in when it gets focus */
-    @media (pointer: coarse) {
-      font-size: max(16px, 1em);
-    }
   }
 
   /*
@@ -399,6 +396,180 @@
     .dou-sheet__cell.is-freeze-edge {
       box-shadow: var(--dou-sheet-edge-shadow);
     }
+  }
+
+  /* resizing, moving and filling -------------------------------------------------- */
+
+  .dou-sheet.is-resizing-col,
+  .dou-sheet.is-resizing-col * {
+    cursor: col-resize;
+  }
+  .dou-sheet.is-resizing-row,
+  .dou-sheet.is-resizing-row * {
+    cursor: row-resize;
+  }
+  .dou-sheet:not(.is-readonly) .is-full:is(.dou-sheet__col-head, .dou-sheet__row-head) {
+    cursor: grab;
+  }
+  .dou-sheet.is-moving,
+  .dou-sheet.is-moving * {
+    cursor: grabbing;
+  }
+
+  /* a hidden row or column shows as a double line between the headers beside it */
+  .dou-sheet__col-head.is-after-hidden::before,
+  .dou-sheet__row-head.is-after-hidden::before {
+    position: absolute;
+    border: 0 solid var(--dou-sheet-freeze-line);
+    content: '';
+    pointer-events: none;
+  }
+  .dou-sheet__col-head.is-after-hidden::before {
+    inset: 0 auto 0 0;
+    width: 2px;
+    border-inline-width: 1px;
+  }
+  .dou-sheet__row-head.is-after-hidden::before {
+    inset: 0 0 auto;
+    height: 2px;
+    border-block-width: 1px;
+  }
+
+  /* the copied (or cut) range, and where a fill would reach */
+  .dou-sheet__mark {
+    position: absolute;
+    z-index: 4;
+    box-sizing: border-box;
+    border: 1px dashed var(--dou-sheet-ring);
+    pointer-events: none;
+
+    &.is-cut {
+      border-style: dotted;
+    }
+    &.is-fill {
+      border-color: var(--dou-color-text-secondary);
+    }
+  }
+
+  /* cells a fill handle dragged back over, which will be cleared */
+  .dou-sheet__clearing {
+    position: absolute;
+    z-index: 4;
+    background-color: color-mix(in oklab, var(--dou-color-text) 10%, transparent);
+    pointer-events: none;
+  }
+
+  /* where moved rows or columns go, and where a resized one ends */
+  .dou-sheet__guide {
+    position: absolute;
+    z-index: 4;
+    background-color: var(--dou-color-primary);
+    pointer-events: none;
+
+    &.is-thin {
+      background-color: var(--dou-sheet-ring);
+    }
+  }
+
+  /* the square at the corner of the selection that fills */
+  .dou-sheet__fill {
+    position: absolute;
+    z-index: 4;
+    box-sizing: border-box;
+    width: 8px;
+    height: 8px;
+    margin: -5px 0 0 -5px;
+    border: 1px solid var(--dou-color-bg-surface);
+    border-radius: 1px;
+    background-color: var(--dou-sheet-ring);
+    cursor: crosshair;
+    touch-action: none;
+
+    /* kept while dragging, so a touch stays on it */
+    &.is-dragging {
+      opacity: 0;
+    }
+
+    /* a bigger target for a finger, drawn as a dot */
+    @media (pointer: coarse) {
+      width: 14px;
+      height: 14px;
+      margin: -8px 0 0 -8px;
+      border-width: 2px;
+      border-radius: 50%;
+
+      /* the finger's target is larger than the dot */
+      &::before {
+        position: absolute;
+        inset: -11px;
+        border-radius: 50%;
+        content: '';
+      }
+    }
+  }
+
+  /* what the last filled cell will show, while dragging the fill handle */
+  .dou-sheet__fill-hint {
+    position: absolute;
+    z-index: 5;
+    max-width: 240px;
+    margin-left: 8px;
+    padding: 2px 8px;
+    overflow: hidden;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-control);
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-md);
+    color: var(--dou-color-text);
+    font-size: var(--dou-font-size-sm);
+    line-height: var(--dou-font-line-height);
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    transform: translateY(-50%);
+    pointer-events: none;
+
+    /* clear of the finger on the handle */
+    @media (pointer: coarse) {
+      margin-left: 28px;
+    }
+
+    &.is-flipped {
+      margin-left: -8px;
+      transform: translate(-100%, -50%);
+    }
+  }
+
+  .dou-sheet__notice {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    z-index: 6;
+    box-sizing: border-box;
+    max-width: calc(100% - 24px);
+    padding: 6px 12px;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-control);
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-md);
+    font-size: var(--dou-font-size-sm);
+    transform: translateX(-50%);
+  }
+
+  .dou-sheet__menu-anchor {
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+  }
+
+  /* measures wrapped text when fitting a row */
+  .dou-sheet__probe {
+    position: absolute;
+    visibility: hidden;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    line-height: var(--dou-font-line-height);
+    pointer-events: none;
   }
 
   .dou-sheet__sr-only {

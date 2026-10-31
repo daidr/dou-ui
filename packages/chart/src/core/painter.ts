@@ -14,10 +14,12 @@ export type Painter = Pick<
   | 'bezierCurveTo'
   | 'rect'
   | 'arc'
+  | 'arcTo'
   | 'fill'
   | 'stroke'
   | 'clip'
   | 'setLineDash'
+  | 'drawImage'
   | 'fillStyle'
   | 'strokeStyle'
   | 'lineWidth'
@@ -49,22 +51,25 @@ export function crisp(value: number, dpr: number, width = 1): number {
  * With `smooth`, a monotone curve: it bends through every point without
  * swinging above or below a neighbor, so a peak in the curve is a peak in
  * the data. `reverse` traces from the last point back to the first (the
- * lower edge of an area); the curve is the same either way.
+ * lower edge of an area); the curve is the same either way. With `swap`,
+ * `px` are tops and `py` lefts: the line runs down (a horizontal chart).
  */
 export function tracePoints(
   painter: Painter,
   px: ArrayLike<number>,
   py: ArrayLike<number>,
   count: number,
-  { smooth = false, reverse = false, join = false } = {},
+  { smooth = false, reverse = false, join = false, swap = false } = {},
 ): void {
   if (count === 0) return
   const at = (i: number) => (reverse ? count - 1 - i : i)
+  const move = (a: number, b: number) => (swap ? painter.moveTo(b, a) : painter.moveTo(a, b))
+  const line = (a: number, b: number) => (swap ? painter.lineTo(b, a) : painter.lineTo(a, b))
   const start = at(0)
-  if (join) painter.lineTo(px[start]!, py[start]!)
-  else painter.moveTo(px[start]!, py[start]!)
+  if (join) line(px[start]!, py[start]!)
+  else move(px[start]!, py[start]!)
   if (!smooth || count < 3) {
-    for (let k = 1; k < count; k++) painter.lineTo(px[at(k)]!, py[at(k)]!)
+    for (let k = 1; k < count; k++) line(px[at(k)]!, py[at(k)]!)
     return
   }
   const tangents = monotoneTangents(px, py, count)
@@ -72,14 +77,9 @@ export function tracePoints(
     const i = at(k - 1)
     const j = at(k)
     const dx = (px[j]! - px[i]!) / 3
-    painter.bezierCurveTo(
-      px[i]! + dx,
-      py[i]! + dx * tangents[i]!,
-      px[j]! - dx,
-      py[j]! - dx * tangents[j]!,
-      px[j]!,
-      py[j]!,
-    )
+    const c = [px[i]! + dx, py[i]! + dx * tangents[i]!, px[j]! - dx, py[j]! - dx * tangents[j]!]
+    if (swap) painter.bezierCurveTo(c[1]!, c[0]!, c[3]!, c[2]!, py[j]!, px[j]!)
+    else painter.bezierCurveTo(c[0]!, c[1]!, c[2]!, c[3]!, px[j]!, py[j]!)
   }
 }
 

@@ -18,6 +18,11 @@ export interface FlowMenuItem {
   tone?: 'danger'
   /** Draw a separator above the item. */
   divided?: boolean
+  /**
+   * Shows a check mark on the option in use. When every item of a menu has
+   * it, the menu is one choice and its items are read as radio items.
+   */
+  checked?: boolean
   run: () => void
 }
 
@@ -30,6 +35,12 @@ export interface FlowToolbarItem {
   /** Pressed state, for toggles. */
   active?: boolean
   disabled?: boolean
-  /** `event` is the click, e.g. to open a menu under the button. */
-  run: (event: MouseEvent) => void
+  /** Called on click. */
+  run?: (event: MouseEvent) => void
+  /**
+   * Choices to show under the button instead of `run`: the editor places
+   * the menu, marks the button as opening one, and closes it on a second
+   * click. Give the items `checked` to mark the one in use.
+   */
+  menu?: () => FlowMenuItem[]
 }

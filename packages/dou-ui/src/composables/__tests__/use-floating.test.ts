@@ -50,6 +50,15 @@ describe('computePosition', () => {
     expect(computePosition(nearRight, size, 'bottom', options).x).toBe(792)
   })
 
+  it('keeps a box beside the reference on screen when neither side fits', () => {
+    // a submenu on a phone: the menu fills most of the width
+    const phone = { ...options, viewport: { width: 390, height: 800 } }
+    const item = { x: 150, y: 300, width: 200, height: 32 }
+    const sub = computePosition(item, size, 'right-start', phone)
+    expect(sub.placement).toBe('left-start')
+    expect(sub.x).toBe(8)
+  })
+
   it('reports the room left on the chosen side', () => {
     expect(computePosition(reference, size, 'bottom', options).available).toBe(452)
   })

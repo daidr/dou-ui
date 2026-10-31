@@ -44,6 +44,25 @@ Token 就是普通的 CSS 变量，不在级联层中的样式可以直接覆盖
 }
 ```
 
+### 输入文字的最小字号
+
+`--dou-font-size-input-min` 是所有可输入文字的地方的最小字号，默认 `0px`，在触屏设备（`pointer: coarse`）上是 `16px`，用来避免手机浏览器聚焦输入框时自动放大页面。
+它不属于主题 Token，`defineTheme` 不会改动它。设为 `0px` 可以关闭这个行为，输入框在手机上也使用原本的字号：
+
+```css
+:root {
+  --dou-font-size-input-min: 0px !important;
+}
+```
+
+自己写的输入控件可以这样使用它：
+
+```css
+.my-input {
+  font-size: max(var(--dou-font-size-input-min), 14px);
+}
+```
+
 ## 定义完整主题
 
 ```ts

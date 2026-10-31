@@ -1,4 +1,4 @@
-import { h, ref, shallowRef } from 'vue'
+import { h, reactive, ref, shallowRef } from 'vue'
 import type { VNode } from 'vue'
 import {
   DouButton,
@@ -23,6 +23,13 @@ import {
   DouVirtualList,
   DouChatList,
   DouChatBubble,
+  DouForm,
+  DouFormItem,
+  DouInputNumber,
+  DouRadio,
+  DouRadioGroup,
+  DouSwitch,
+  DouTextarea,
 } from 'dou-ui'
 import {
   DouGantt,
@@ -33,12 +40,20 @@ import {
   type GanttTask,
 } from '@dou-ui/gantt'
 import '@dou-ui/gantt/style.css'
-import { DouChart, DouChartAxis, DouChartLine } from '@dou-ui/chart'
+import { DouChart, DouChartAxis, DouChartBar, DouChartLine, DouChartScatter } from '@dou-ui/chart'
 import '@dou-ui/chart/style.css'
 import { DouFlowEditor, type FlowDocument } from '@dou-ui/flow'
 import '@dou-ui/flow/style.css'
 import { DouSheet, type SheetExpose, type SheetWorkbook } from '@dou-ui/sheet'
 import '@dou-ui/sheet/style.css'
+import {
+  DouFormRenderer,
+  type FormDocument,
+  type FormFieldNode,
+  type FormNode,
+  type FormSectionNode,
+} from '@dou-ui/form-builder'
+import '@dou-ui/form-builder/style.css'
 
 export interface Case {
   /** What the case renders, given a size. */
@@ -127,7 +142,7 @@ function plan(n: number) {
 const drawn = () =>
   new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
 
-function chartCase(n: number) {
+function chartCase(n: number, series: 'line' | 'bar' | 'scatter' = 'line') {
   let seed = 1
   const points = () => {
     const list = Array.from({ length: n })
@@ -135,7 +150,7 @@ function chartCase(n: number) {
     for (let i = 0; i < n; i++) {
       seed = (seed * 16807) % 2147483647
       value += (seed / 2147483647 - 0.5) * 2
-      list[i] = { t: i * 1000, v: value }
+      list[i] = { t: i * 1000, v: value, x: (seed % 100_000) / 1000 }
     }
     return list
   }
@@ -143,10 +158,14 @@ function chartCase(n: number) {
   ;(window as any).chart = { data, points }
   return () =>
     h('div', { class: 'chart-frame', style: 'width: 1200px' }, [
-      h(DouChart, { data: data.value, x: 't', height: 400 }, () => [
-        h(DouChartAxis, { position: 'bottom', type: 'time' }),
-        h(DouChartLine, { y: 'v' }),
-      ]),
+      h(DouChart, { data: data.value, x: series === 'scatter' ? 'x' : 't', height: 400 }, () =>
+        series === 'scatter'
+          ? [h(DouChartScatter, { y: 'v' })]
+          : [
+              h(DouChartAxis, { for: 'x', type: 'time' }),
+              h(series === 'bar' ? DouChartBar : DouChartLine, { y: 'v' }),
+            ],
+      ),
     ])
 }
 
@@ -576,6 +595,32 @@ export const cases: Record<string, Case> = {
       await drawn()
     },
   },
+  // `n` bars, most narrower than a pixel: merged per pixel column
+  'chart-bar': {
+    render: (n) => chartCase(n, 'bar'),
+    prepare: () => {
+      const state = (window as any).chart
+      state.next = state.points()
+    },
+    act: async () => {
+      const { data, next } = (window as any).chart
+      data.value = next
+      await drawn()
+    },
+  },
+  // `n` points scattered over the plot: dots on one pixel drawn once
+  'chart-scatter': {
+    render: (n) => chartCase(n, 'scatter'),
+    prepare: () => {
+      const state = (window as any).chart
+      state.next = state.points()
+    },
+    act: async () => {
+      const { data, next } = (window as any).chart
+      data.value = next
+      await drawn()
+    },
+  },
   'chart-resize': {
     render: (n) => chartCase(n),
     // the same data at another width: only laid out and drawn again
@@ -632,6 +677,29 @@ export const cases: Record<string, Case> = {
     render: (n) => flowEditor(n),
     // Scroll across the canvas.
     act: (root) => wheel(root, 600, 400),
+  },
+  // A form of `n` fields of mixed types in sections of 10, two columns wide.
+  'form-renderer': {
+    render: (n) => formRenderer(n),
+    // Type into a field in the middle; only it should re-render.
+    act: (root) => {
+      const inputs = root.querySelectorAll<HTMLInputElement>('.dou-input input')
+      input(inputs[inputs.length >> 1] ?? null, '戴兜')
+    },
+  },
+  // The same form with logic: in each group, the other fields show, turn
+  // required and work out a formula from the group's first text field.
+  // Typing in the middle group's one reruns only that group's expressions.
+  'form-logic': {
+    render: (n) => formLogic(n),
+    act: (root) => {
+      const gate = logicGates[logicGates.length >> 1]
+      input(root.querySelector<HTMLInputElement>(`[data-node="${gate}"] input`), '戴兜')
+    },
+  },
+  // The same form written by hand, for the cost of the renderer itself.
+  'form-handwritten': {
+    render: (n) => formHandwritten(n),
   },
   'flow-zoomed-out': {
     render: (n) => flowEditor(n, 0.2),
@@ -733,5 +801,118 @@ function wheel(root: HTMLElement, x: number, y: number) {
     .querySelector('.dou-flow-editor')!
     .dispatchEvent(
       new WheelEvent('wheel', { deltaX: x, deltaY: y, bubbles: true, cancelable: true }),
+    )
+}
+
+const formTypes = [
+  'input',
+  'select',
+  'input-number',
+  'date-picker',
+  'radio-group',
+  'switch',
+  'textarea',
+  'input',
+]
+
+function formDocument(n: number): FormDocument {
+  const sections: FormNode[] = []
+  for (let index = 0; index < n; index += 10) {
+    const children: FormNode[] = []
+    for (let i = index; i < Math.min(n, index + 10); i++) {
+      const type = formTypes[i % formTypes.length]!
+      children.push({
+        id: `f${i}`,
+        type,
+        name: `field${i}`,
+        label: label(i),
+        span: { md: type === 'textarea' ? 12 : 6 },
+        required: i % 3 === 0,
+        props:
+          type === 'select' || type === 'radio-group'
+            ? { options: ['上海', '北京', '杭州'] }
+            : { placeholder: label(i) },
+      })
+    }
+    sections.push({ id: `s${index}`, type: 'section', title: `第 ${index / 10 + 1} 组`, children })
+  }
+  return { version: 1, nodes: sections }
+}
+
+function formRenderer(n: number) {
+  const form = formDocument(n)
+  return () => h(DouFormRenderer, { form, style: 'max-width: 960px' })
+}
+
+/** The ids of the fields the others in their group read, in `form-logic`. */
+let logicGates: string[] = []
+
+function formLogic(n: number) {
+  const form = formDocument(n)
+  const gates: string[] = []
+  for (const section of form.nodes as FormSectionNode[]) {
+    const gate = section.children.find((node) => node.type === 'input') as FormFieldNode
+    gates.push(gate.id)
+    const name = gate.name!
+    section.children.forEach((node, index) => {
+      if (node === gate) return
+      node.visibleWhen = `values.${name} != '隐藏'`
+      if (index % 3 === 1 && node.type !== 'switch')
+        (node as FormFieldNode).requiredWhen = `len(values.${name}) > 0`
+    })
+    section.children.push({
+      id: `${section.id}-count`,
+      type: 'input-number',
+      name: `${name}Length`,
+      label: '字数',
+      span: { md: 6 },
+      formula: `len(values.${name})`,
+    })
+  }
+  logicGates = gates
+  return () => h(DouFormRenderer, { form, style: 'max-width: 960px' })
+}
+
+function formHandwritten(n: number) {
+  const form = formDocument(n)
+  const model = reactive<Record<string, unknown>>({})
+  const control = (node: any) => {
+    const value: Record<string, any> = {
+      modelValue: model[node.name],
+      'onUpdate:modelValue': (v: unknown) => (model[node.name] = v),
+    }
+    switch (node.type) {
+      case 'select':
+        return h(DouSelect, { ...node.props, ...value })
+      case 'input-number':
+        return h(DouInputNumber, { ...node.props, ...value })
+      case 'date-picker':
+        return h(DouDatePicker, { ...node.props, ...value })
+      case 'radio-group':
+        return h(DouRadioGroup, value, () =>
+          node.props.options.map((option: string) => h(DouRadio, { value: option }, () => option)),
+        )
+      case 'switch':
+        return h(DouSwitch, value)
+      case 'textarea':
+        return h(DouTextarea, { ...node.props, ...value })
+      default:
+        return h(DouInput, { ...node.props, ...value })
+    }
+  }
+  return () =>
+    h(DouForm, { model, style: 'max-width: 960px' }, () =>
+      form.nodes.map((section: any) =>
+        h('div', { key: section.id }, [
+          h('div', section.title),
+          ...section.children.map((node: any) =>
+            h(
+              DouFormItem,
+              { key: node.id, label: node.label, prop: node.name, required: node.required },
+              () => control(node),
+            ),
+          ),
+        ]),
+      ),
     )
 }

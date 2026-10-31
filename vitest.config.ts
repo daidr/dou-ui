@@ -16,6 +16,7 @@ export default defineConfig({
         replacement: r('./packages/editor/src/collaboration/index.ts'),
       },
       { find: /^@dou-ui\/editor$/, replacement: r('./packages/editor/src/index.ts') },
+      { find: /^@dou-ui\/chart$/, replacement: r('./packages/chart/src/index.ts') },
       { find: /^@dou-ui\/flow$/, replacement: r('./packages/flow/src/index.ts') },
       {
         find: /^@dou-ui\/gantt\/scheduler$/,
@@ -26,6 +27,7 @@ export default defineConfig({
         replacement: r('./packages/gantt/src/collaboration/index.ts'),
       },
       { find: /^@dou-ui\/gantt$/, replacement: r('./packages/gantt/src/index.ts') },
+      { find: /^@dou-ui\/sheet$/, replacement: r('./packages/sheet/src/index.ts') },
       {
         find: /^@dou-ui\/form-builder\/renderer$/,
         replacement: r('./packages/form-builder/src/renderer/index.ts'),

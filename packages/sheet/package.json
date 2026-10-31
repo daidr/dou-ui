@@ -1,0 +1,50 @@
+{
+  "name": "@dou-ui/sheet",
+  "version": "0.0.0",
+  "description": "DouUI 的电子表格：可编辑的单元格网格、公式与协同",
+  "keywords": [
+    "vue",
+    "vue3",
+    "spreadsheet",
+    "sheet",
+    "grid",
+    "table"
+  ],
+  "license": "MIT",
+  "author": "daidr <daidr@daidr.me>",
+  "homepage": "https://github.com/daidr/dou-ui#readme",
+  "bugs": "https://github.com/daidr/dou-ui/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/daidr/dou-ui.git",
+    "directory": "packages/sheet"
+  },
+  "type": "module",
+  "sideEffects": [
+    "*.css"
+  ],
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./style.css": "./dist/style.css",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "vite build && vue-tsc -p tsconfig.build.json && bun scripts/build-style.ts"
+  },
+  "peerDependencies": {
+    "dou-ui": "workspace:*",
+    "vue": "^3.5.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

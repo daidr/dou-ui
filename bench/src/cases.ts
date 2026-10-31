@@ -1,4 +1,4 @@
-import { h, reactive, ref } from 'vue'
+import { h, reactive, ref, shallowRef } from 'vue'
 import type { VNode } from 'vue'
 import {
   DouButton,
@@ -40,8 +40,12 @@ import {
   type GanttTask,
 } from '@dou-ui/gantt'
 import '@dou-ui/gantt/style.css'
+import { DouChart, DouChartAxis, DouChartLine } from '@dou-ui/chart'
+import '@dou-ui/chart/style.css'
 import { DouFlowEditor, type FlowDocument } from '@dou-ui/flow'
 import '@dou-ui/flow/style.css'
+import { DouSheet, type SheetExpose, type SheetWorkbook } from '@dou-ui/sheet'
+import '@dou-ui/sheet/style.css'
 import { DouFormRenderer, type FormDocument, type FormNode } from '@dou-ui/form-builder'
 import '@dou-ui/form-builder/style.css'
 
@@ -127,6 +131,32 @@ function plan(n: number) {
     if (place > 1) links.push({ id: `l${index}`, from: `t${index - 1}`, to: `t${index}` })
   }
   return { tasks, links }
+}
+
+const drawn = () =>
+  new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+
+function chartCase(n: number) {
+  let seed = 1
+  const points = () => {
+    const list = Array.from({ length: n })
+    let value = 50
+    for (let i = 0; i < n; i++) {
+      seed = (seed * 16807) % 2147483647
+      value += (seed / 2147483647 - 0.5) * 2
+      list[i] = { t: i * 1000, v: value }
+    }
+    return list
+  }
+  const data = shallowRef(points())
+  ;(window as any).chart = { data, points }
+  return () =>
+    h('div', { class: 'chart-frame', style: 'width: 1200px' }, [
+      h(DouChart, { data: data.value, x: 't', height: 400 }, () => [
+        h(DouChartAxis, { position: 'bottom', type: 'time' }),
+        h(DouChartLine, { y: 'v' }),
+      ]),
+    ])
 }
 
 function gantt(n: number, props: Record<string, unknown> = {}) {
@@ -541,6 +571,28 @@ export const cases: Record<string, Case> = {
       ),
     act: (root) => mousedown(field(root, 'date-picker')),
   },
+  // a time series of `n` points; the canvas is drawn in the next frame, so `act` waits for it
+  chart: {
+    render: (n) => chartCase(n),
+    // new data: read into columns again and drawn
+    prepare: () => {
+      const state = (window as any).chart
+      state.next = state.points()
+    },
+    act: async () => {
+      const { data, next } = (window as any).chart
+      data.value = next
+      await drawn()
+    },
+  },
+  'chart-resize': {
+    render: (n) => chartCase(n),
+    // the same data at another width: only laid out and drawn again
+    act: async (root) => {
+      root.querySelector<HTMLElement>('.chart-frame')!.style.width = '1000px'
+      await drawn()
+    },
+  },
   gantt: {
     render: (n) => gantt(n),
     // a step to the right, which renders the newly seen days
@@ -607,6 +659,52 @@ export const cases: Record<string, Case> = {
     render: (n) => flowEditor(n, 0.2),
     act: (root) => wheel(root, 300, 200),
   },
+  // A sheet of n rows × 20 columns, every cell filled.
+  sheet: {
+    render: (n) => sheet(n),
+    // Scroll a long way down and to the right.
+    act: (root) => {
+      const viewport = root.querySelector('.dou-sheet__viewport')!
+      viewport.scrollTop = viewport.scrollHeight / 2
+      viewport.scrollLeft = 600
+      viewport.dispatchEvent(new Event('scroll'))
+    },
+  },
+  // A short scroll, as one frame of a wheel: only the rows coming in are drawn.
+  'sheet-scroll-step': {
+    render: (n) => sheet(n),
+    act: (root) => {
+      const viewport = root.querySelector('.dou-sheet__viewport')!
+      viewport.scrollTop += 84
+      viewport.dispatchEvent(new Event('scroll'))
+    },
+  },
+  // One cell changed: the rows that stay the same aren't copied or drawn again.
+  'sheet-edit': {
+    render: (n) => sheet(n),
+    act: () => (window as any).sheet.value.transact((tr: any) => tr.setValue('D4', 42)),
+  },
+  // Everything selected: every cell in view is drawn again with the tint.
+  'sheet-select-all': {
+    render: (n) => sheet(n),
+    act: () => (window as any).sheet.value.select('A1:T100000'),
+  },
+}
+
+function sheet(n: number) {
+  const cells = Array.from({ length: n }, (_, r) =>
+    Array.from({ length: 20 }, (__, c) => (c === 0 ? `第 ${r + 1} 行` : (r * 7 + c * 13) % 1000)),
+  )
+  const book = ref<SheetWorkbook>({ sheets: [{ name: '表 1', cells }] })
+  const grid = ref<SheetExpose>()
+  ;(window as any).sheet = grid
+  return () =>
+    h(DouSheet, {
+      ref: grid,
+      modelValue: book.value,
+      'onUpdate:modelValue': (value: SheetWorkbook) => (book.value = value),
+      style: 'height: 600px',
+    })
 }
 
 function flowDocument(n: number): FlowDocument {

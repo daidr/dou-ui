@@ -60,6 +60,11 @@ const ganttSidebar = ecosystem('甘特图', [
   { text: '资源排期', link: '/gantt/scheduler' },
 ])
 
+const sheetSidebar = ecosystem('电子表格', [
+  { text: '介绍', link: '/sheet/' },
+  { text: '文档数据', link: '/sheet/data' },
+])
+const chartSidebar = ecosystem('图表', [{ text: '介绍', link: '/chart/' }])
 const formBuilderSidebar = ecosystem('表单设计器', [
   { text: '介绍', link: '/form-builder/' },
   { text: '表单描述', link: '/form-builder/document' },
@@ -85,11 +90,11 @@ export default defineConfig({
       { text: '指南', link: '/guide/philosophy' },
       { text: '组件', link: '/components/overview' },
       { text: '区块', link: '/blocks/login' },
-      // The editor, flow, gantt and form builder packages keep their own paths.
+      // The ecosystem packages keep their own paths.
       {
         text: '生态系统',
         link: '/ecosystem/',
-        activeMatch: '^/(ecosystem|editor|flow|gantt|form-builder)(/|$)',
+        activeMatch: '^/(ecosystem|editor|flow|gantt|sheet|chart|form-builder)(/|$)',
       },
       { text: '图标', link: '/icons/' },
       { text: '集成', link: '/integrations/vite' },
@@ -125,6 +130,8 @@ export default defineConfig({
             { text: '块编辑器', link: '/editor/' },
             { text: '流程编辑器', link: '/flow/' },
             { text: '甘特图', link: '/gantt/' },
+            { text: '电子表格', link: '/sheet/' },
+            { text: '图表', link: '/chart/' },
             { text: '表单设计器', link: '/form-builder/' },
           ],
         },
@@ -132,6 +139,8 @@ export default defineConfig({
       '/editor': editorSidebar,
       '/flow': flowSidebar,
       '/gantt': ganttSidebar,
+      '/sheet': sheetSidebar,
+      '/chart': chartSidebar,
       '/form-builder': formBuilderSidebar,
       '/icons': [
         {
@@ -389,6 +398,11 @@ export default defineConfig({
           find: /^@dou-ui\/gantt\/collaboration$/,
           replacement: r('../../packages/gantt/src/collaboration/index.ts'),
         },
+        { find: /^@dou-ui\/chart$/, replacement: r('../../packages/chart/src/index.ts') },
+        {
+          find: /^@dou-ui\/chart\/style\.css$/,
+          replacement: r('../../packages/chart/src/style.css'),
+        },
         { find: /^@dou-ui\/gantt$/, replacement: r('../../packages/gantt/src/index.ts') },
         {
           find: /^@dou-ui\/form-builder\/renderer$/,
@@ -405,6 +419,11 @@ export default defineConfig({
         {
           find: /^@dou-ui\/gantt\/style\.css$/,
           replacement: r('../../packages/gantt/src/style.css'),
+        },
+        { find: /^@dou-ui\/sheet$/, replacement: r('../../packages/sheet/src/index.ts') },
+        {
+          find: /^@dou-ui\/sheet\/style\.css$/,
+          replacement: r('../../packages/sheet/src/style.css'),
         },
       ],
     },

@@ -55,6 +55,13 @@ export interface ThemeTokens {
      * button reads as a pressed-in shape rather than a flat block.
      */
     edge: string
+    /**
+     * Categorical colors for chart series, in the order they are used. The
+     * first is neutral, so a chart with one series is not colored for no
+     * reason; the rest are low-saturation hues told apart by lightness as
+     * well, so they stay distinct for common color-vision deficiencies.
+     */
+    chart: ChartPalette
   }
 
   font: {
@@ -162,6 +169,18 @@ export interface ToneTokens {
    * as text on a dark page.
    */
   text: string
+}
+
+/** Eight series colors, `--dou-color-chart-1` to `--dou-color-chart-8`. */
+export interface ChartPalette {
+  1: string
+  2: string
+  3: string
+  4: string
+  5: string
+  6: string
+  7: string
+  8: string
 }
 
 export interface SizeScale {

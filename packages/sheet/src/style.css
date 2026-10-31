@@ -1,0 +1,412 @@
+/*
+ * Spreadsheet
+ *
+ * A sheet of hairline cells on the surface, with quiet headers along the
+ * top and the left. Hue only marks what is selected: a soft tint over the
+ * range, a thin line around it and a firmer ring on the active cell.
+ */
+@layer dou.components {
+  .dou-sheet {
+    --dou-sheet-line: var(--dou-color-border-subtle);
+    --dou-sheet-line-strong: var(--dou-color-border);
+    --dou-sheet-freeze-line: var(--dou-color-border-strong);
+    --dou-sheet-scroll-shadow: color-mix(in oklab, var(--dou-color-text) 14%, transparent);
+    --dou-sheet-header-bg: var(--dou-color-bg-canvas);
+    --dou-sheet-ring: var(--dou-color-primary);
+    --dou-sheet-tint: color-mix(in oklab, var(--dou-color-primary) 8%, transparent);
+    --dou-sheet-header-marked: color-mix(
+      in oklab,
+      var(--dou-color-text) 6%,
+      var(--dou-sheet-header-bg)
+    );
+    --dou-sheet-header-full: color-mix(
+      in oklab,
+      var(--dou-color-primary) 12%,
+      var(--dou-sheet-header-bg)
+    );
+
+    position: relative;
+    box-sizing: border-box;
+    width: 100%;
+    height: 480px;
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-container);
+    background-color: var(--dou-color-bg-surface);
+    color: var(--dou-color-text);
+    font-family: var(--dou-font-family);
+    font-size: var(--dou-font-size-sm);
+    line-height: var(--dou-font-line-height);
+
+    &:not(.is-focused) {
+      --dou-sheet-ring: color-mix(in oklab, var(--dou-color-text) 45%, transparent);
+      --dou-sheet-tint: color-mix(in oklab, var(--dou-color-text) 5%, transparent);
+    }
+    &:not(.has-gridlines) {
+      --dou-sheet-line: transparent;
+    }
+    &.is-dragging,
+    &.is-dragging * {
+      user-select: none;
+      -webkit-user-select: none;
+    }
+  }
+
+  .dou-sheet__viewport {
+    position: absolute;
+    inset: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+    outline: none;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklab, var(--dou-color-text) 22%, transparent) transparent;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* the column letters and the frozen rows, kept at the top */
+  .dou-sheet__head {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+  }
+
+  .dou-sheet__body {
+    position: relative;
+  }
+
+  .dou-sheet__row {
+    display: flex;
+    box-sizing: border-box;
+
+    .dou-sheet__body > & {
+      position: absolute;
+      left: 0;
+    }
+    .dou-sheet__head > & {
+      position: relative;
+    }
+  }
+
+  /* headers ------------------------------------------------------------------ */
+
+  .dou-sheet__corner,
+  .dou-sheet__col-head,
+  .dou-sheet__row-head {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    height: 100%;
+    overflow: hidden;
+    border-right: 1px solid var(--dou-sheet-line-strong);
+    border-bottom: 1px solid var(--dou-sheet-line-strong);
+    background-color: var(--dou-sheet-header-bg);
+    color: var(--dou-color-text-tertiary);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    text-box: trim-both cap alphabetic;
+    cursor: default;
+    user-select: none;
+    -webkit-user-select: none;
+
+    box-shadow:
+      var(--dou-sheet-mark, 0 0 transparent), var(--dou-sheet-edge-shadow, 0 0 transparent);
+
+    &.is-marked {
+      background-color: var(--dou-sheet-header-marked);
+      color: var(--dou-color-text);
+    }
+    &.is-full {
+      background-color: var(--dou-sheet-header-full);
+      color: var(--dou-color-primary-text);
+    }
+  }
+
+  .dou-sheet__corner {
+    position: sticky;
+    left: 0;
+    z-index: 3;
+  }
+
+  .dou-sheet__col-head {
+    border-right-color: var(--dou-sheet-line);
+
+    &.is-freeze-edge {
+      border-right-color: var(--dou-sheet-freeze-line);
+    }
+    &.is-frozen {
+      position: sticky;
+      z-index: 2;
+    }
+    &:not(.is-frozen) {
+      position: absolute;
+      top: 0;
+    }
+    &.is-marked {
+      --dou-sheet-mark: inset 0 -2px 0 var(--dou-sheet-ring);
+    }
+  }
+
+  .dou-sheet__row-head {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    border-bottom-color: var(--dou-sheet-line);
+
+    .is-freeze-edge > & {
+      border-bottom-color: var(--dou-sheet-freeze-line);
+    }
+    &.is-marked {
+      --dou-sheet-mark: inset -2px 0 0 var(--dou-sheet-ring);
+    }
+  }
+
+  /* cells -------------------------------------------------------------------- */
+
+  .dou-sheet__cell {
+    display: flex;
+    flex: none;
+    align-items: center;
+    box-sizing: border-box;
+    height: 100%;
+    padding: 0 8px;
+    border-right: 1px solid var(--dou-sheet-line);
+    border-bottom: 1px solid var(--dou-sheet-line);
+    white-space: pre;
+    cursor: cell;
+
+    &:not(.is-frozen) {
+      position: absolute;
+      top: 0;
+    }
+    &.is-frozen {
+      position: sticky;
+      z-index: 1;
+      background-color: var(--dou-color-bg-surface);
+    }
+    &.is-freeze-edge {
+      border-right-color: var(--dou-sheet-freeze-line);
+    }
+    .is-freeze-edge > & {
+      border-bottom-color: var(--dou-sheet-freeze-line);
+    }
+
+    &.is-bold {
+      font-weight: var(--dou-font-weight-bold);
+    }
+    &.is-italic {
+      font-style: italic;
+    }
+    &.is-align-center .dou-sheet__text {
+      text-align: center;
+    }
+    &.is-align-right .dou-sheet__text {
+      text-align: right;
+    }
+    &.is-valign-top {
+      align-items: flex-start;
+      padding-top: 4px;
+    }
+    &.is-valign-bottom {
+      align-items: flex-end;
+      padding-bottom: 4px;
+    }
+    &.is-wrap {
+      align-items: flex-start;
+      padding-block: 4px;
+      white-space: pre-wrap;
+
+      .dou-sheet__text {
+        margin-block: 0;
+        padding-block: 0;
+        text-box: normal;
+        overflow-wrap: anywhere;
+      }
+    }
+
+    &.is-tone-neutral {
+      color: var(--dou-color-neutral-text);
+    }
+    &.is-tone-primary {
+      color: var(--dou-color-primary-text);
+    }
+    &.is-tone-success {
+      color: var(--dou-color-success-text);
+    }
+    &.is-tone-warning {
+      color: var(--dou-color-warning-text);
+    }
+    &.is-tone-danger {
+      color: var(--dou-color-danger-text);
+    }
+    &.is-fill-neutral {
+      background-color: color-mix(in oklab, var(--dou-color-text) 6%, var(--dou-color-bg-surface));
+    }
+    &.is-fill-primary {
+      background-color: color-mix(
+        in oklab,
+        var(--dou-color-primary) 12%,
+        var(--dou-color-bg-surface)
+      );
+    }
+    &.is-fill-success {
+      background-color: color-mix(
+        in oklab,
+        var(--dou-color-success) 12%,
+        var(--dou-color-bg-surface)
+      );
+    }
+    &.is-fill-warning {
+      background-color: color-mix(
+        in oklab,
+        var(--dou-color-warning) 14%,
+        var(--dou-color-bg-surface)
+      );
+    }
+    &.is-fill-danger {
+      background-color: color-mix(
+        in oklab,
+        var(--dou-color-danger) 12%,
+        var(--dou-color-bg-surface)
+      );
+    }
+
+    /* the range: a tint over whatever fill the cell has, and a line around it */
+    &.is-selected {
+      background-image: linear-gradient(var(--dou-sheet-tint), var(--dou-sheet-tint));
+
+      &::after {
+        position: absolute;
+        inset: -1px 0 0 -1px;
+        border: 0 solid var(--dou-sheet-ring);
+        content: '';
+        pointer-events: none;
+      }
+    }
+    &.is-edge-top::after {
+      border-top-width: 1px;
+    }
+    &.is-edge-bottom::after {
+      border-bottom-width: 1px;
+    }
+    &.is-edge-left::after {
+      border-left-width: 1px;
+    }
+    &.is-edge-right::after {
+      border-right-width: 1px;
+    }
+
+    /* the active cell stays clear, with a ring over its grid lines */
+    &.is-active {
+      background-image: none;
+
+      &::before {
+        position: absolute;
+        inset: -1px 0 0 -1px;
+        z-index: 1;
+        border: 2px solid var(--dou-sheet-ring);
+        content: '';
+        pointer-events: none;
+      }
+    }
+  }
+
+  /*
+   * Trimmed to the cap height so text sits in the middle, and cut off only
+   * sideways: glyphs reach past the trimmed box. The padding keeps them
+   * inside the clip edge where a sticky cell clips both ways.
+   */
+  .dou-sheet__text {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin-block: -4px;
+    padding-block: 4px;
+    overflow-x: clip;
+    text-box: trim-both cap alphabetic;
+  }
+
+  /* editor ------------------------------------------------------------------- */
+
+  /*
+   * Always there over the active cell, unseen, so typing and input methods
+   * start on it; shown while editing.
+   */
+  .dou-sheet__input {
+    position: absolute;
+    z-index: 5;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 4px 9px;
+    overflow: hidden;
+    border: 0;
+    border-radius: 0;
+    outline: none;
+    background: transparent;
+    color: transparent;
+    font: inherit;
+    line-height: 20px;
+    white-space: pre;
+    caret-color: transparent;
+    opacity: 0;
+    resize: none;
+    pointer-events: none;
+
+    &.is-open {
+      background-color: var(--dou-color-bg-surface);
+      color: var(--dou-color-text);
+      caret-color: auto;
+      opacity: 1;
+      box-shadow:
+        inset 0 0 0 2px var(--dou-color-primary),
+        var(--dou-shadow-md);
+      pointer-events: auto;
+    }
+    &.is-wrap {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+    &.is-bold {
+      font-weight: var(--dou-font-weight-bold);
+    }
+    &.is-italic {
+      font-style: italic;
+    }
+
+    /* 16px or more, so phones don't zoom in when it gets focus */
+    @media (pointer: coarse) {
+      font-size: max(16px, 1em);
+    }
+  }
+
+  /*
+   * Once scrolled, a soft shadow along the frozen edge (or the headers)
+   * shows that cells are passing under it.
+   */
+  .dou-sheet.is-scrolled-y .dou-sheet__head {
+    box-shadow: 0 4px 6px -4px var(--dou-sheet-scroll-shadow);
+  }
+  .dou-sheet.is-scrolled-x {
+    .dou-sheet__cell.is-freeze-edge,
+    .dou-sheet__col-head.is-freeze-edge,
+    &:not(.has-frozen-cols) .dou-sheet__corner,
+    &:not(.has-frozen-cols) .dou-sheet__row-head {
+      --dou-sheet-edge-shadow: 4px 0 6px -4px var(--dou-sheet-scroll-shadow);
+    }
+    .dou-sheet__cell.is-freeze-edge {
+      box-shadow: var(--dou-sheet-edge-shadow);
+    }
+  }
+
+  .dou-sheet__sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}

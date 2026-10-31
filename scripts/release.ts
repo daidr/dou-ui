@@ -20,6 +20,8 @@ const packages = [
   'editor',
   'flow',
   'gantt',
+  'sheet',
+  'chart',
   'form-builder',
   'resolver',
   'nuxt',

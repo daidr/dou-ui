@@ -1292,7 +1292,7 @@ const ecosystemArts: Record<string, string | ((id: string) => string)> = {
   flow: (id) => {
     return (
       `<defs><pattern id="${id}-d" width="8" height="8" x="24" y="14" patternUnits="userSpaceOnUse"><circle cx="4" cy="4" r=".7" class="b"/></pattern></defs>` +
-      rect(24, 14, 152, 92, 'pm', 8) +
+      rect(24, 14, 152, 92, 'p', 8) +
       `<rect x="24" y="14" width="152" height="92" rx="8" style="fill:url(#${id}-d)"/>` +
       path(
         'M64 60c10 0 10 -20 20 -20M64 60c10 0 10 20 20 20M120 40c10 0 10 20 20 20M120 80c10 0 10 -20 20 -20',

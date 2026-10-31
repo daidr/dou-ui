@@ -66,6 +66,11 @@ export interface ChartAxisProps {
   title?: string
   /** Keep the axis (and its scale) but don't show it. */
   hidden?: boolean
+  /**
+   * The room for tick labels, in px, for an axis drawn down the side.
+   * Give charts stacked one above another the same value to line up their plots.
+   */
+  labelWidth?: number
 }
 
 export interface ChartLineProps extends ChartSeriesProps {
@@ -198,11 +203,16 @@ export interface ChartZoomProps {
 export interface ChartBrushProps {
   /** Select a stretch of x (the default), of the values (`y`), or a box of both. */
   axis?: ChartZoomAxis
+  /** Fade what is outside the selection. On by default. */
+  dim?: boolean
   /** Turns selecting off. */
   disabled?: boolean
 }
 
-/** What `select` of `DouChartBrush` gives: the stretch selected and the rows in it. */
+/**
+ * What `select` of `DouChartBrush` gives: the stretch selected and the rows
+ * in it. When the selection is let go, neither `x` nor `y` and no rows.
+ */
 export interface ChartBrushEvent {
   /** The stretch of x, unless only values were selected. */
   x?: ChartInterval

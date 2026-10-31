@@ -398,6 +398,116 @@ describe('DouChartBrush', () => {
   })
 })
 
+/** Whether a touch moving now is kept from scrolling the page. */
+function blocked() {
+  const move = new Event('touchmove', { cancelable: true })
+  window.dispatchEvent(move)
+  return move.defaultPrevented
+}
+
+describe('review fixes', () => {
+  it('tells the page when the selection is let go, and selects with Shift and the arrows', async () => {
+    const picked = ref<ChartInterval | null>(null)
+    const events: Array<{ x?: ChartInterval; rows: unknown[] }> = []
+    const { wrapper, root } = await sized(() =>
+      h(DouChart, { data: months, x: 'm' }, () => [
+        h(DouChartLine, { y: 'v' }),
+        h(DouChartBrush, {
+          x: picked.value,
+          'onUpdate:x': (v: ChartInterval | null) => (picked.value = v),
+          onSelect: (e: (typeof events)[number]) => events.push(e),
+        }),
+      ]),
+    )
+    key(root, 'ArrowRight')
+    key(root, 'ArrowRight', { shiftKey: true })
+    key(root, 'ArrowRight', { shiftKey: true })
+    await settle()
+    expect(picked.value).toEqual(['1月', '3月'])
+    expect(events.at(-1)!.rows).toHaveLength(3)
+    key(root, 'Escape')
+    key(root, 'Escape')
+    await settle()
+    expect(picked.value).toBeNull()
+    expect(events.at(-1)).toEqual({ rows: [], series: [] })
+    wrapper.unmount()
+  })
+
+  it('lets a finger scroll the page unless it moves the way the chart pans', async () => {
+    const range = ref<ChartInterval | null>(null)
+    const { wrapper, root } = await sized(() =>
+      h(DouChart, { data: months, x: 'm' }, () => [
+        h(DouChartBar, { y: 'v' }),
+        h(DouChartZoom, {
+          x: range.value,
+          'onUpdate:x': (v: ChartInterval | null) => (range.value = v),
+        }),
+      ]),
+    )
+    const touch = { pointerType: 'touch', pointerId: 7 }
+    // not zoomed: nothing to pan
+    pointer(root, 'pointerdown', 300, 150, touch)
+    pointer(root, 'pointermove', 300, 100, touch)
+    expect(blocked()).toBe(false)
+    pointer(root, 'pointerup', 300, 100, touch)
+    range.value = ['2月', '5月']
+    await settle()
+    // zoomed along x: up and down still scrolls
+    pointer(root, 'pointerdown', 300, 150, touch)
+    pointer(root, 'pointermove', 302, 100, touch)
+    expect(blocked()).toBe(false)
+    pointer(root, 'pointerup', 302, 100, touch)
+    // sideways pans
+    pointer(root, 'pointerdown', 300, 150, touch)
+    pointer(root, 'pointermove', 200, 152, touch)
+    expect(blocked()).toBe(true)
+    pointer(root, 'pointerup', 200, 152, touch)
+    await settle()
+    expect(range.value).not.toEqual(['2月', '5月'])
+    wrapper.unmount()
+  })
+
+  it('gives numbers back no finer than a thousandth of the span', async () => {
+    const rows = Array.from({ length: 50 }, (_, i) => ({ x: i * 1.37, v: Math.sin(i) * 10 }))
+    const range = ref<ChartInterval | null>(null)
+    const { wrapper, root } = await sized(() =>
+      h(DouChart, { data: rows, x: 'x' }, () => [
+        h(DouChartLine, { y: 'v' }),
+        h(DouChartZoom, {
+          x: range.value,
+          'onUpdate:x': (v: ChartInterval | null) => (range.value = v),
+        }),
+      ]),
+    )
+    key(root, '+')
+    await settle()
+    for (const end of range.value!)
+      expect(String(end).split('.')[1]?.length ?? 0).toBeLessThanOrEqual(2)
+    wrapper.unmount()
+  })
+
+  it('takes the room for side labels it is given', () => {
+    const model = buildModel([{ index: 0, kind: lineKind, props: { y: 'v' } as never }], {
+      data: months,
+      x: 'm',
+    })
+    const axes: ChartAxes = {
+      x: { position: 'bottom', grid: false, hidden: false },
+      y: { position: 'left', grid: true, hidden: false, labelWidth: 40 },
+      y2: null,
+    }
+    const l = layoutChart({
+      model,
+      axes,
+      width: 600,
+      height: 300,
+      locale: 'zh-CN',
+      measure: () => 12,
+    })
+    expect(l.plot.x).toBe(4 + 40 + 8)
+  })
+})
+
 describe('DouChartRange', () => {
   it('shows the part of x shown between two sliders, moved with the keys', async () => {
     const range = ref<ChartInterval | null>(null)

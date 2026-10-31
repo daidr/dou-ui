@@ -42,6 +42,8 @@ export interface AxisConfig {
   grid: boolean
   title?: string
   hidden: boolean
+  /** The room for tick labels down the side, in px, whatever they measure. */
+  labelWidth?: number
 }
 
 /** The axes by what they measure. */
@@ -333,8 +335,12 @@ function layoutUp(
   // value axes first: their labels decide how wide the plot is
   const yCount = Math.max(2, Math.floor(plotHeight / Y_TICK_SPACE))
   const { y, y2 } = valueAxes(axes, model, yCount, locale, plotHeight, zoom?.y)
-  const leftWidth = y && shown(axes.y) ? INSET + labelWidth(y.texts, measure) + LABEL_GAP : EDGE
-  const rightWidth = y2 && shown(axes.y2) ? INSET + labelWidth(y2.texts, measure) + LABEL_GAP : EDGE
+  const side = (axis: ValueAxis | null, config: AxisConfig | null) =>
+    axis && shown(config)
+      ? INSET + (config.labelWidth ?? labelWidth(axis.texts, measure)) + LABEL_GAP
+      : EDGE
+  const leftWidth = side(y, axes.y)
+  const rightWidth = side(y2, axes.y2)
   const plot: Rect = {
     x: leftWidth,
     y: plotTop,
@@ -438,14 +444,19 @@ function layoutAcross(
   x ??= { position: xAxis.position, scale, ticks: [], labels: [], grid: xAxis.grid, full }
   if (!xShown) x.labels = []
   // long names are cut short, so they can't squeeze the plot away
-  const widest = Math.floor(width * SIDE_LABEL_SHARE)
+  const widest = xAxis.labelWidth ?? Math.floor(width * SIDE_LABEL_SHARE)
   for (const label of x.labels)
     if (label.width > widest) {
       label.width = widest
       label.clipped = true
     }
-  const leftWidth =
-    xShown && x.labels.length ? INSET + labelWidth(x.labels.map((l) => l.width)) + LABEL_GAP : EDGE
+  const leftWidth = !xShown
+    ? EDGE
+    : xAxis.labelWidth !== undefined
+      ? INSET + xAxis.labelWidth + LABEL_GAP
+      : x.labels.length
+        ? INSET + labelWidth(x.labels.map((l) => l.width)) + LABEL_GAP
+        : EDGE
 
   let rightWidth = EDGE
   const plot: Rect = { x: leftWidth, y: plotTop, width: 1, height: plotHeight }

@@ -10,19 +10,19 @@ const rows = Array.from({ length: 90 }, (_, i) => ({
   price: Math.round(86 + 6 * Math.sin(i / 9 + 1) - (i % 7 >= 5 ? 4 : 0)),
 }))
 
-// 两个图表绑定同一个值，缩放和平移一起变化
+// 两个图表绑定同一个值，缩放和平移一起变化；刻度文字的宽度设成一样，绘图区左边对齐
 const range = ref(null)
 </script>
 
 <template>
   <div class="linked">
     <DouChart :data="rows" x="date" :height="200">
-      <DouChartAxis for="y" title="客流（人次）" />
+      <DouChartAxis for="y" title="客流（人次）" :label-width="40" />
       <DouChartBar y="visits" name="客流" />
       <DouChartZoom v-model:x="range" />
     </DouChart>
     <DouChart :data="rows" x="date" :height="200">
-      <DouChartAxis for="y" title="客单价（元）" />
+      <DouChartAxis for="y" title="客单价（元）" :label-width="40" />
       <DouChartLine y="price" name="客单价" />
       <DouChartZoom v-model:x="range" />
     </DouChart>

@@ -17,7 +17,7 @@ function onSelect(event) {
 }
 const summary = computed(() => {
   const list = picked.value
-  if (!list.length) return '拖动选出一片门店'
+  if (!list.length) return '拖动选出一片门店，按 Esc 或点击选区外面清除'
   const average = list.reduce((sum, row) => sum + row.sales, 0) / list.length
   return `选中 ${list.length} 家门店，平均月销售额 ${average.toFixed(1)} 万元`
 })

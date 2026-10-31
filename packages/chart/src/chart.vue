@@ -474,7 +474,8 @@ function showX(window: Window | null, settle = false) {
   let next = window && clampWindow(window, l.x.full, leastX.value)
   if (next && settle && category) next = clampWindow(snapCategories(next), l.x.full, 1)
   xWindow.value = next
-  const interval = next ? windowToInterval(next, m.xKind, m.categories) : null
+  let interval = next ? windowToInterval(next, m.xKind, m.categories) : null
+  if (interval && next && m.xKind === 'linear') interval = rounded(next)
   // a model the page hasn't updated yet still holds what it had: compare with what was sent too
   const last = sentX as ChartInterval | null
   for (const kept of xModels.value) {
@@ -494,11 +495,18 @@ function showY(window: Window | null) {
   const span = units.to(axis.full[1]) - units.to(axis.full[0])
   const next = window && clampWindow(window, axis.full, span / 1000, units)
   yWindow.value = next
-  const interval: ChartInterval | null = next ? [next[0], next[1]] : null
+  const interval: ChartInterval | null = next ? rounded(next) : null
   if (sameInterval(interval, part.y.value) && sameInterval(interval, sentY as ChartInterval | null))
     return
   sentY = interval
   part.y.value = interval
+}
+
+/** A window of numbers as given back: a thousandth of its span is as fine as it gets, not 62.1344726775542. */
+function rounded([a, b]: Window): [number, number] {
+  const span = Math.abs(b - a)
+  const digits = span > 0 ? Math.min(12, Math.max(0, Math.ceil(-Math.log10(span / 1000)))) : 0
+  return [Number(a.toFixed(digits)), Number(b.toFixed(digits))]
 }
 
 const zoomed = computed(() => !!xWindow.value || !!yWindow.value)
@@ -949,8 +957,9 @@ function onPointerDown(event: PointerEvent) {
   }
   // a mouse pans when zoomed, and selects with Shift held (or when it can't zoom); a finger pans, and selects when held still
   const brush = !!brushPart.value
+  const { sideways, upDown } = panDirections()
   const mode = touch
-    ? zoomOn.value
+    ? sideways || upDown
       ? 'pan'
       : null
     : brush && (event.shiftKey || !zoomOn.value)
@@ -1026,8 +1035,10 @@ function gesture(event: PointerEvent): boolean {
   const by: [number, number] = [at[0] - d.start[0], at[1] - d.start[1]]
   if (!d.moved) {
     if (Math.hypot(...by) < SLOP[d.touch ? 'touch' : 'mouse']) return true
-    if (!d.mode) {
-      // a finger that moves before it is held long enough scrolls the page
+    // a finger that moves before it is held long enough, or the way the chart can't pan, scrolls the page
+    const { sideways, upDown } = panDirections()
+    const across = Math.abs(by[0]) >= Math.abs(by[1])
+    if (!d.mode || (d.touch && d.mode === 'pan' && !(across ? sideways : upDown))) {
       endDrag(false)
       return false
     }
@@ -1162,6 +1173,7 @@ function valuesOver(scale: Scale, [a, b]: Window): Window {
 function brushTo(rect: Rect | null) {
   const l = layout.value
   const part = brushPart.value
+  brushAnchor = null
   if (!l || !part || !rect) return
   const { x: bx, y: by } = brushAxes.value
   const xs = spanX(rect)
@@ -1187,8 +1199,12 @@ function brushTo(rect: Rect | null) {
   }
   const primary = primaryY(l)
   const y = by && primary ? valuesOver(primary.scale, ys) : null
-  const xInterval = x ? windowToInterval(x, m.xKind, m.categories) : null
-  const yInterval: ChartInterval | null = y ? [y[0], y[1]] : null
+  const xInterval = x
+    ? m.xKind === 'linear'
+      ? rounded(x)
+      : windowToInterval(x, m.xKind, m.categories)
+    : null
+  const yInterval: ChartInterval | null = y ? rounded(y) : null
   part.x.value = xInterval
   part.y.value = yInterval
   part.select({
@@ -1198,11 +1214,44 @@ function brushTo(rect: Rect | null) {
   })
 }
 
+/** Where a selection made with Shift and the arrow keys started, along x. */
+let brushAnchor: number | null = null
+
+/** The x of an x or a point picked. */
+function xOf(target: Target | null): number | null {
+  if (!target || target.type === 'slice') return null
+  if (target.type === 'axis') return target.x
+  return series.value.find((s) => s.index === target.series)?.x.values[target.row] ?? null
+}
+
+/** Shift and an arrow: moves on `step` and selects from where it started to there. */
+function brushWithKeys(step: number) {
+  const part = brushPart.value
+  const from = xOf(active.value)
+  const next = moveAlong(step)
+  const to = xOf(next)
+  if (!part || !next || to === null) return
+  bringIntoView(next)
+  setActive(next, null)
+  brushAnchor ??= from ?? to
+  const m = model.value
+  const lo = Math.min(brushAnchor, to)
+  const hi = Math.max(brushAnchor, to)
+  const window: Window = m.xKind === 'category' ? [lo - 0.5, hi + 0.5] : [lo, hi]
+  const x = windowToInterval(window, m.xKind, m.categories)
+  part.x.value = x
+  part.y.value = null
+  part.select({ x, ...rowsIn(window, null) })
+}
+
+/** Lets the selection go, and tells the page: nothing is selected. */
 function clearBrush() {
   const part = brushPart.value
+  brushAnchor = null
   if (!part || (!part.x.value && !part.y.value)) return
   part.x.value = null
   part.y.value = null
+  part.select({ rows: [], series: [] })
 }
 
 /** The rows with a point in the selection: x in `x`, and drawn within `y` of the values. */
@@ -1234,6 +1283,13 @@ function rowsIn(x: Window | null, y: Window | null): Pick<ChartBrushEvent, 'rows
   }
   return { rows: [...all], series: bySeries }
 }
+
+/** The selection to keep the rest faded around, while it is dragged or kept. */
+const dimmed = computed(() =>
+  brushPart.value && brushPart.value.props.dim !== false
+    ? (brushDraft.value ?? selection.value)
+    : null,
+)
 
 /** The selection kept (`v-model:x` / `v-model:y` of the brush), in px over the plot. */
 const selection = computed<Rect | null>(() => {
@@ -1288,6 +1344,7 @@ function onWheel(event: WheelEvent) {
     const d = Math.max(-WHEEL_MOST, Math.min(WHEEL_MOST, dy))
     setActive(null, null)
     onceAFrame(() => zoomBy(Math.exp(d * WHEEL_ZOOM), at))
+    settleSoon()
     return
   }
   // zoomed in: a sideways scroll (or Shift and the wheel) pans along x
@@ -1297,7 +1354,16 @@ function onWheel(event: WheelEvent) {
   setActive(null, null)
   const by: [number, number] = props.horizontal ? [0, -dx] : [-dx, 0]
   onceAFrame(() => panBy(by))
+  settleSoon()
 }
+
+let settleTimer: ReturnType<typeof setTimeout> | undefined
+/** Once the wheel stops, categories cut part way are shown whole. */
+function settleSoon() {
+  clearTimeout(settleTimer)
+  settleTimer = setTimeout(() => showX(xWindow.value, true), 160)
+}
+onBeforeUnmount(() => clearTimeout(settleTimer))
 
 function onDblclick(event: MouseEvent) {
   if (!zoomOn.value || !inPlot(local(event))) return
@@ -1346,6 +1412,12 @@ function onKeydown(event: KeyboardEvent) {
   const step =
     along[event.key] ?? (event.key === 'Home' ? -Infinity : event.key === 'End' ? Infinity : 0)
   const turn = between[event.key] ?? 0
+  if (step && event.shiftKey && brushPart.value && brushAxes.value.x && !pie.value) {
+    event.preventDefault()
+    brushWithKeys(step)
+    return
+  }
+  if (step || turn) brushAnchor = null
   const next = step ? moveAlong(step) : turn ? moveBetween(turn) : undefined
   if (next === undefined) return
   event.preventDefault()
@@ -1375,6 +1447,7 @@ function zoomKey(event: KeyboardEvent): boolean {
     else at[0] = x
   }
   zoomBy(factor, at)
+  showX(xWindow.value, true)
   const now = layout.value
   if (!now) return true
   const [from, to] = now.x.scale.domain
@@ -1536,6 +1609,7 @@ watch(
     pie.value && { ...pie.value.props },
     focused.value,
     pie.value && active.value,
+    dimmed.value,
   ],
   request,
   { flush: 'post' },
@@ -1818,25 +1892,40 @@ function paint(painter: CanvasRenderingContext2D, dpr: number, t: number, enteri
   lastSeries = shown
   const focus = focused.value === null ? -1 : focused.value
   const fading = focus >= 0 && shown.some((s) => s.index === focus)
+  /** Draws `s` faded, all at once; `false` where it can't be. */
+  const drawFaded = (s: ChartSeries, view: ChartView) => {
+    const layer = fadeOn(painter, l.width, l.height, dpr)
+    if (!layer) return false
+    layer.save()
+    clip(layer, s)
+    s.kind.draw(layer, s, view)
+    layer.restore()
+    painter.save()
+    painter.globalAlpha = FADED
+    painter.drawImage(layer.canvas, 0, 0, l.width, l.height)
+    painter.restore()
+    return true
+  }
+  // a selection: what is outside it is faded, with room past the plot's edges it reaches
+  const kept = dimmed.value
+  const keep = kept && {
+    x: kept.x <= plot.x ? kept.x - 4 : kept.x,
+    y: kept.y <= plot.y ? kept.y - 4 : kept.y,
+    right: kept.x + kept.width >= right ? right + 4 : kept.x + kept.width,
+    bottom: kept.y + kept.height >= bottom ? bottom + 4 : kept.y + kept.height,
+  }
   for (const s of shown) {
     const view = viewOf(s)
     if (!view) continue
-    if (fading && s.index !== focus) {
-      const layer = fadeOn(painter, l.width, l.height, dpr)
-      if (layer) {
-        layer.save()
-        clip(layer, s)
-        s.kind.draw(layer, s, view)
-        layer.restore()
-        painter.save()
-        painter.globalAlpha = FADED
-        painter.drawImage(layer.canvas, 0, 0, l.width, l.height)
-        painter.restore()
-        continue
-      }
-    }
+    if (fading && s.index !== focus && drawFaded(s, view)) continue
+    if (keep && !drawFaded(s, view)) continue
     painter.save()
     clip(painter, s)
+    if (keep) {
+      painter.beginPath()
+      painter.rect(keep.x, keep.y, keep.right - keep.x, keep.bottom - keep.y)
+      painter.clip()
+    }
     s.kind.draw(painter, s, view)
     painter.restore()
   }
@@ -2138,13 +2227,18 @@ const zoomLayer: ZoomLayerState = {
   paint: paintStrip,
 }
 
-/** Which way a finger may scroll the page over the plot: not the way it pans. */
-const touchAction = computed(() => {
-  if (!zoomOn.value) return undefined
+/** Which ways on the screen what is shown can be moved: only when zoomed in along them. */
+function panDirections() {
   const { x, y } = zoomAxes.value
   const panX = x && !!xWindow.value
   const panY = y && !!yWindow.value
-  const [sideways, upDown] = props.horizontal ? [panY, panX] : [panX, panY]
+  return props.horizontal ? { sideways: panY, upDown: panX } : { sideways: panX, upDown: panY }
+}
+
+/** Which way a finger may scroll the page over the plot: not the way it pans. */
+const touchAction = computed(() => {
+  if (!zoomOn.value) return undefined
+  const { sideways, upDown } = panDirections()
   // two fingers always zoom the chart, not the page
   return sideways && upDown ? 'none' : sideways ? 'pan-y' : upDown ? 'pan-x' : 'pan-x pan-y'
 })

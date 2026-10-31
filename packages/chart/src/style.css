@@ -387,18 +387,20 @@
 
   /* the parts not shown, washed out */
   .dou-chart__range-shade {
-    background-color: color-mix(in oklab, var(--dou-chart-surface) 64%, transparent);
+    background-color: color-mix(in oklab, var(--dou-chart-surface) 72%, transparent);
   }
 
   .dou-chart__range-window {
     box-sizing: border-box;
-    border-block: 1px solid var(--dou-chart-baseline);
-    background-color: color-mix(in oklab, var(--dou-color-text) 4%, transparent);
+    --dou-chart-range-edge: color-mix(in oklab, var(--dou-color-text) 32%, transparent);
+
+    border-block: 1px solid var(--dou-chart-range-edge);
+    background-color: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
     cursor: grab;
 
     .is-vertical > & {
       border-block: none;
-      border-inline: 1px solid var(--dou-chart-baseline);
+      border-inline: 1px solid var(--dou-chart-range-edge);
     }
   }
 
@@ -438,6 +440,17 @@
 
       &::before {
         inset: -8px -6px;
+      }
+    }
+
+    /* a finger needs about 40px */
+    @media (pointer: coarse) {
+      &::before {
+        inset: -10px -16px;
+      }
+
+      .is-vertical > &::before {
+        inset: -16px -10px;
       }
     }
   }

@@ -4,9 +4,9 @@ import type { ChartBrushEvent, ChartBrushProps, ChartInterval } from '../types'
 
 defineOptions({ name: 'DouChartBrush' })
 
-const props = defineProps<ChartBrushProps>()
+const props = withDefaults(defineProps<ChartBrushProps>(), { dim: true })
 const emit = defineEmits<{
-  /** A stretch was selected (on release): the stretch and the rows in it. */
+  /** A stretch was selected (on release), or the selection let go: the stretch and the rows in it. */
   select: [event: ChartBrushEvent]
 }>()
 /** The stretch of x selected; `null` for none. */

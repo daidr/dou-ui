@@ -1172,6 +1172,15 @@
     opacity: 0;
     transform: translateY(-50%);
     transition: opacity var(--dou-motion-duration-fast) var(--dou-motion-easing);
+    /* a finger drags the width, not the page */
+    touch-action: none;
+
+    /* wide enough to hit with a finger */
+    &::before {
+      position: absolute;
+      inset: -4px -9px;
+      content: '';
+    }
 
     &.is-left {
       left: 8px;

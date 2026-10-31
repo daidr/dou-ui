@@ -1,16 +1,20 @@
 import type { Size } from 'dou-ui'
 import type { PivotAggregator } from './engine/aggregate'
 import type { PivotResult } from './engine/compute'
+import type { PivotEngine } from './engine/engine'
+import type { PivotData } from './engine/source'
 import type { PivotAxis } from './core/layout'
 import type { PivotCollapsed, PivotConfig, PivotField, PivotPath } from './engine/types'
 import type { PivotMessagesOverride } from './locale'
 
 export interface PivotProps<Row = Record<string, unknown>> {
   /**
-   * The records. Replace the array to update it (changes inside it are not
-   * seen); for large data keep it in a `shallowRef`.
+   * The records: an array of objects, or their columns
+   * (`{ region: [...], amount: [...] }`, typed arrays welcome). Replace it
+   * to update it (changes inside are not seen); keep large data in a
+   * `shallowRef`.
    */
-  data: readonly Row[]
+  data: PivotData<Row>
   /** What the fields hold and how to show them; worked out from the records when left out. */
   fields?: readonly PivotField<Row>[]
   /** Which fields go where. */
@@ -38,6 +42,13 @@ export interface PivotProps<Row = Record<string, unknown>> {
   resizable?: boolean
   /** Ways to sum up beside the built-in ones, by the name the config uses. */
   aggregators?: readonly PivotAggregator[]
+  /**
+   * Sum up in a worker, keeping the page responsive. `'auto'` (the default)
+   * does so above 100,000 records where workers are available.
+   */
+  worker?: boolean | 'auto'
+  /** Where to sum up instead: your own worker (`createPivotWorker`) or a server. */
+  engine?: PivotEngine
   /** The table's accessible name. */
   ariaLabel?: string
   /** Texts to override. */
@@ -46,7 +57,7 @@ export interface PivotProps<Row = Record<string, unknown>> {
 
 export interface PivotFieldsProps<Row = Record<string, unknown>> {
   /** The same records as the table's; the panel reads them to list the fields and their values. */
-  data: readonly Row[]
+  data: PivotData<Row>
   /** The same fields as the table's. */
   fields?: readonly PivotField<Row>[]
   /** Which fields go where; bind the same config as the table's with `v-model:config`. */

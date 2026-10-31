@@ -1030,6 +1030,61 @@ export const cases: Record<string, Case> = {
       viewport.dispatchEvent(new Event('scroll'))
     },
   },
+  // A million records in a worker, given as columns: another layout of fields
+  // already sent, so only the config goes over; done when the new numbers show.
+  // The page's own work stays in slices (see longest task in the console).
+  'pivot-worker': {
+    render: (n) => pivotColumns(n),
+    prepare: (root) => untilPivotShows(root),
+    act: async (root) => {
+      const { config } = (window as any).pivot
+      const before = root.querySelector('.dou-pivot__row-head')?.textContent
+      config.value = { ...config.value, rows: ['city', 'kind'], columns: ['region'] }
+      await untilPivotShows(root, before)
+    },
+    budget: { 1_000_000: 500 },
+  },
+}
+
+/** Waits for a pivot table with rows and no veil, its first row other than `before` when given. */
+function untilPivotShows(root: HTMLElement, before?: string | null) {
+  return new Promise<void>((resolve) => {
+    const check = () => {
+      const first = root.querySelector('.dou-pivot__row-head')?.textContent
+      const ready = first && !root.querySelector('.dou-pivot__veil') && first !== before
+      if (ready) resolve()
+      else requestAnimationFrame(check)
+    }
+    check()
+  })
+}
+
+/** The records of `pivot`, column by column, summed up in a worker. */
+function pivotColumns(n: number) {
+  const regions = ['华东', '华南', '华北', '华中', '西南', '西北', '东北', '海外']
+  const kinds = ['果茶', '奶茶', '纯茶', '咖啡']
+  const data = {
+    region: Array.from({ length: n }, (_, i) => regions[i % 8]!),
+    city: Array.from({ length: n }, (_, i) => `${regions[i % 8]}城市 ${(i * 7) % 15}`),
+    kind: Array.from({ length: n }, (_, i) => kinds[(i >> 3) % 4]!),
+    quarter: Array.from({ length: n }, (_, i) => `Q${((i >> 5) % 4) + 1}`),
+    month: Float64Array.from({ length: n }, (_, i) => ((i * 13) % 12) + 1),
+    amount: Float64Array.from({ length: n }, (_, i) => (i * 37) % 1000),
+  }
+  const config = ref<PivotConfig>({
+    rows: ['region', 'city', 'kind'],
+    columns: ['quarter', 'month'],
+    values: ['amount', { aggregate: 'count' }],
+  })
+  ;(window as any).pivot = { config, collapsed: ref({}) }
+  return () =>
+    h(DouPivot, {
+      data,
+      worker: true,
+      config: config.value,
+      'onUpdate:config': (value: PivotConfig) => (config.value = value),
+      maxHeight: 600,
+    })
 }
 
 function pivot(n: number) {
@@ -1056,6 +1111,8 @@ function pivot(n: number) {
   return () =>
     h(DouPivot, {
       data: records,
+      // summed up here at every size, to time the engine itself
+      worker: false,
       config: config.value,
       'onUpdate:config': (value: PivotConfig) => (config.value = value),
       collapsed: collapsed.value,

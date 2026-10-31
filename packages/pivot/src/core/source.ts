@@ -1,6 +1,6 @@
 import { useLocale } from 'dou-ui'
 import { computed, markRaw, toRaw, toValue, type MaybeRefOrGetter } from 'vue'
-import { PivotSource } from '../engine'
+import { PivotSource, type PivotData } from '../engine'
 import type { PivotField } from '../engine/types'
 
 interface Entry {
@@ -34,17 +34,17 @@ export function sameFields(a?: readonly PivotField<never>[], b?: readonly PivotF
 
 /** The records as a `PivotSource`, read again only when the array, the fields or the locale change. */
 export function usePivotSource<Row>(
-  data: MaybeRefOrGetter<readonly Row[]>,
+  data: MaybeRefOrGetter<PivotData<Row>>,
   fields: MaybeRefOrGetter<readonly PivotField<Row>[] | undefined>,
 ) {
   const { locale } = useLocale()
   return computed<PivotSource<Row>>(() => {
-    const rows = toRaw(toValue(data))
+    const rows = toRaw(toValue(data)) as PivotData<Row>
     const given = toValue(fields)
     const list = (given && toRaw(given)) as readonly PivotField<never>[] | undefined
     const name = locale.value.name
-    let entries = sources.get(rows)
-    if (!entries) sources.set(rows, (entries = []))
+    let entries = sources.get(rows as object)
+    if (!entries) sources.set(rows as object, (entries = []))
     const hit = entries.find((e) => e.locale === name && sameFields(e.fields, list))
     if (hit) return hit.source as unknown as PivotSource<Row>
     const source = markRaw(

@@ -1,7 +1,17 @@
 <script setup lang="ts" generic="Row = Record<string, unknown>">
 import { useElementSize, useLocale } from 'dou-ui'
 import { ArrowDownIcon, ArrowUpIcon, ChevronRightIcon } from '@dou-ui/icons'
-import { computed, markRaw, nextTick, ref, shallowRef, toRaw, useId, watch } from 'vue'
+import {
+  computed,
+  markRaw,
+  nextTick,
+  onBeforeUnmount,
+  ref,
+  shallowRef,
+  toRaw,
+  useId,
+  watch,
+} from 'vue'
 import {
   computePivot,
   PivotSource,
@@ -10,6 +20,7 @@ import {
   type PivotTree,
 } from './engine'
 import { BUILTIN_AGGREGATORS, FAST_AGGREGATES } from './engine/aggregate'
+import type { PivotEngine } from './engine/engine'
 import type {
   PivotCollapsed,
   PivotConfig,
@@ -41,6 +52,7 @@ defineOptions({ name: 'DouPivot' })
 const props = withDefaults(defineProps<PivotProps<Row>>(), {
   layout: 'compact',
   resizable: true,
+  worker: 'auto',
   maxHeight: 480,
   size: 'md',
   rowHeaderWidth: 200,
@@ -112,9 +124,92 @@ const engineConfig = computed<PivotConfig>(() => {
   return next
 })
 
-const result = computed<PivotResult>(() =>
-  markRaw(computePivot(source.value, engineConfig.value, { aggregators: aggregatorMap.value })),
+// ---- summing up: here, or in a worker ----
+
+/** Records from which `'auto'` sums up in a worker. */
+const WORKER_FROM = 100_000
+/** How long a worker may take before the table says it is busy, in ms. */
+const BUSY_AFTER = 120
+
+const away = computed(
+  () =>
+    !!props.engine ||
+    props.worker === true ||
+    (props.worker === 'auto' && source.value.length > WORKER_FROM && typeof Worker !== 'undefined'),
 )
+
+/** The last result summed up here, shown while a worker sums up the first time. */
+let lastHere: PivotResult | null = null
+const here = computed(() => {
+  if (away.value) return null
+  const next = computePivot(source.value, engineConfig.value, { aggregators: aggregatorMap.value })
+  return (lastHere = markRaw(next))
+})
+
+/** What a worker last sent, and whether a newer one is on its way. */
+const fromAway = shallowRef<PivotResult | null>(null)
+const busy = ref(false)
+/** Groups with no records yet: the shape of the table while the first result is on its way. */
+const shapeOnly = computed(() =>
+  markRaw(computePivot(new PivotSource([], { fields: [...source.value.fields.values()] }), {})),
+)
+const result = computed<PivotResult>(() => here.value ?? fromAway.value ?? shapeOnly.value)
+
+let ownEngine: PivotEngine | null = null
+async function startOwnEngine() {
+  const [{ createPivotWorker }, { default: PivotWorker }] = await Promise.all([
+    import('./worker/client'),
+    import('./worker/default?worker&inline'),
+  ])
+  return createPivotWorker(() => new PivotWorker())
+}
+let ownEngineReady: Promise<PivotEngine> | null = null
+const engineFor = () =>
+  props.engine
+    ? Promise.resolve(props.engine)
+    : (ownEngineReady ??= startOwnEngine().then((engine) => (ownEngine = engine)))
+
+let job = 0
+let stop: AbortController | null = null
+watch(
+  [away, source, engineConfig, () => props.engine],
+  async ([isAway, src, cfg]) => {
+    stop?.abort()
+    stop = null
+    const id = ++job
+    if (!isAway) {
+      busy.value = false
+      fromAway.value = null
+      return
+    }
+    // keep what is on screen until the worker's first result comes
+    if (!fromAway.value && lastHere) fromAway.value = lastHere
+    lastHere = null
+    const controller = (stop = new AbortController())
+    const slow = setTimeout(() => id === job && (busy.value = true), BUSY_AFTER)
+    try {
+      const engine = await engineFor()
+      const next = await engine.compute(src, cfg, {
+        aggregators: aggregatorMap.value,
+        signal: controller.signal,
+      })
+      if (id !== job) return
+      fromAway.value = markRaw(next)
+    } catch (error) {
+      if (id === job && (error as Error).name !== 'AbortError') console.error(error)
+    } finally {
+      clearTimeout(slow)
+      if (id === job) busy.value = false
+    }
+  },
+  { immediate: true },
+)
+
+onBeforeUnmount(() => {
+  stop?.abort()
+  job++
+  ownEngine?.dispose?.()
+})
 
 // ---- what is shown ----
 
@@ -723,7 +818,7 @@ const activeId = computed(() => {
 
 function cellEvent(row: PivotLine, col: PivotLine): PivotCellEvent<Row> {
   const res = result.value
-  const data = props.data
+  const src = source.value
   const valueIndex = row.value >= 0 ? row.value : Math.max(0, col.value)
   const indices = () => res.indices(row.node, col.node)
   return {
@@ -731,7 +826,7 @@ function cellEvent(row: PivotLine, col: PivotLine): PivotCellEvent<Row> {
     column: col.kind === 'total' ? [] : res.columns.path(col.node),
     valueIndex,
     value: rowBlank(row) ? Number.NaN : res.get(row.node, col.node, valueIndex),
-    records: () => indices().map((i) => data[i]!),
+    records: () => indices().map((i) => src.record(i) as Row),
     indices,
   }
 }
@@ -924,6 +1019,7 @@ defineExpose<PivotExpose>({
         'is-scrolled-y': scroll.top > 0,
         'has-values-column': valuesOnRows,
         'is-tabular': tabular,
+        'is-busy': busy,
       },
     ]"
     :style="rootStyle"
@@ -937,6 +1033,7 @@ defineExpose<PivotExpose>({
       :aria-rowcount="headRows + allLines.length"
       :aria-colcount="colLines.length + (valuesOnRows ? 2 : 1)"
       :aria-activedescendant="activeId"
+      :aria-busy="busy || undefined"
       @scroll="onScroll"
       @click="onClick"
       @keydown="onKeydown"
@@ -1234,9 +1331,17 @@ defineExpose<PivotExpose>({
         </div>
       </div>
       <span ref="measurer" class="dou-pivot__measure" aria-hidden="true" />
-      <div v-if="result.matched === 0" class="dou-pivot__empty" role="status">
+      <div
+        v-if="result.matched === 0 && !busy && result !== shapeOnly"
+        class="dou-pivot__empty"
+        role="status"
+      >
         {{ messages.noData }}
       </div>
+    </div>
+    <!-- the last result stays under a veil while the next one is summed up -->
+    <div v-if="busy" class="dou-pivot__veil" role="status">
+      <span class="dou-pivot__busy">{{ messages.busy }}</span>
     </div>
   </div>
 </template>

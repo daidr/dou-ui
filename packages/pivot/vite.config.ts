@@ -8,7 +8,11 @@ export default defineConfig({
     minify: false,
     sourcemap: true,
     lib: {
-      entry: { index: 'src/index.ts', 'engine/index': 'src/engine/index.ts' },
+      entry: {
+        index: 'src/index.ts',
+        'engine/index': 'src/engine/index.ts',
+        'worker/index': 'src/worker/index.ts',
+      },
       formats: ['es'],
     },
     rollupOptions: {

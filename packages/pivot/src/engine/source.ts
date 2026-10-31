@@ -27,28 +27,99 @@ export interface PivotSourceOptions<Row> {
   locale?: string
 }
 
+/**
+ * Records given column by column: each field's values in one array (or
+ * typed array), all of the same length. A million records take far less
+ * memory this way than as a million objects.
+ */
+export type PivotColumns = Readonly<Record<string, ArrayLike<unknown>>>
+
+/** The records: an array of objects, or their columns. */
+export type PivotData<Row = Record<string, unknown>> = readonly Row[] | PivotColumns
+
+/** A field's groups before they are put in order: what a worker is sent. */
+export interface PivotEncodedColumn {
+  codes: Uint32Array
+  labels: unknown[]
+  empty: number
+}
+
 const SAMPLE = 100
+/** Records read between looks at the clock while reading in slices. */
+const STEP = 4096
+
+export const isColumns = (data: unknown): data is PivotColumns =>
+  !!data && typeof data === 'object' && !Array.isArray(data)
 
 /**
  * The records, read field by field into typed arrays the first time each
  * field is used, and kept until the records change.
  */
 export class PivotSource<Row = Record<string, unknown>> {
-  readonly rows: readonly Row[]
+  /** The records as given: objects, or columns. */
+  readonly data: PivotData<Row>
   readonly length: number
   readonly fields: Map<string, PivotResolvedField<Row>>
+  readonly locale: string | undefined
   private collator: Intl.Collator
   private dimensions = new Map<string, PivotDimensionColumn>()
   private measures = new Map<string, Float64Array>()
+  /** Groups read elsewhere (in the page, for a worker), waiting to be put in order. */
+  private given = new Map<string, PivotEncodedColumn>()
 
-  constructor(rows: readonly Row[], options: PivotSourceOptions<Row> = {}) {
-    this.rows = rows
-    this.length = rows.length
+  constructor(data: PivotData<Row>, options: PivotSourceOptions<Row> & { length?: number } = {}) {
+    this.data = data
+    this.length = isColumns(data)
+      ? (options.length ?? Math.max(0, ...Object.values(data).map((c) => c.length)))
+      : data.length
+    this.locale = options.locale
     this.collator = new Intl.Collator(options.locale, { numeric: true })
     this.fields = new Map()
-    for (const field of options.fields ?? inferFields(rows)) {
+    for (const field of options.fields ?? inferFields(data)) {
       this.fields.set(field.name, this.resolve(field))
     }
+  }
+
+  /** The record at `index`: the object given, or one made from the columns. */
+  record(index: number): Row {
+    const { data } = this
+    if (!isColumns(data)) return data[index]!
+    const row: Record<string, unknown> = {}
+    for (const name in data) row[name] = data[name]![index]
+    return row as Row
+  }
+
+  /** How to read a field from record `i`. */
+  private reader(field: PivotField<Row>): (i: number) => unknown {
+    const { data } = this
+    const read = field.value
+    if (read) {
+      if (!isColumns(data)) return (i) => read(data[i]!, i)
+      return (i) => read(this.record(i), i)
+    }
+    if (isColumns(data)) {
+      const column = data[field.name]
+      return column ? (i) => column[i] : () => undefined
+    }
+    const name = field.name
+    return (i) => (data[i] as Record<string, unknown> | undefined)?.[name]
+  }
+
+  /** Describes a field (or describes it again), as `fields` would have. */
+  define(field: PivotField<Row>) {
+    this.fields.set(field.name, this.resolve(field))
+  }
+
+  /** Hands over groups read elsewhere, such as in the page for a worker. */
+  provide(name: string, column: PivotEncodedColumn) {
+    this.given.set(name, column)
+    for (const key of this.dimensions.keys())
+      if (key === name || key.startsWith(`${name}\u0000`)) this.dimensions.delete(key)
+  }
+
+  /** Hands over a field's numbers read elsewhere. */
+  provideMeasure(name: string, values: Float64Array) {
+    this.measures.set(name, values)
   }
 
   /** The field called `name`; one is made up for keys the fields do not list. */
@@ -63,12 +134,9 @@ export class PivotSource<Row = Record<string, unknown>> {
 
   /** The field's values, one per record. */
   values(name: string): unknown[] {
-    const field = this.field(name)
-    const { rows } = this
-    const out: unknown[] = Array.from({ length: rows.length })
-    const read = field.value
-    if (read) for (let i = 0; i < rows.length; i++) out[i] = read(rows[i]!, i)
-    else for (let i = 0; i < rows.length; i++) out[i] = (rows[i] as Record<string, unknown>)[name]
+    const read = this.reader(this.field(name))
+    const out: unknown[] = Array.from({ length: this.length })
+    for (let i = 0; i < this.length; i++) out[i] = read(i)
     return out
   }
 
@@ -81,7 +149,7 @@ export class PivotSource<Row = Record<string, unknown>> {
     const key = by === undefined ? name : `${name}\u0000${groupKey(by)}`
     let column = this.dimensions.get(key)
     if (!column) {
-      column = by === undefined ? this.encode(this.field(name)) : this.group(name, by)
+      column = by === undefined ? this.encode(name) : this.group(name, by)
       this.dimensions.set(key, column)
     }
     return column
@@ -126,15 +194,27 @@ export class PivotSource<Row = Record<string, unknown>> {
   measure(name: string): Float64Array {
     let column = this.measures.get(name)
     if (!column) {
-      const { rows } = this
-      const field = this.field(name)
-      column = new Float64Array(rows.length)
-      const read = field.value
-      for (let i = 0; i < rows.length; i++) {
-        const value = read ? read(rows[i]!, i) : (rows[i] as Record<string, unknown>)[name]
-        column[i] = toNumber(value)
-      }
+      column = run(this.measureSteps(name))
       this.measures.set(name, column)
+    }
+    return column
+  }
+
+  /**
+   * Reads a field's numbers a slice at a time, for reading a large field
+   * without holding up the page. The array is new: the source keeps none.
+   */
+  *measureSteps(name: string, copy = false): Generator<void, Float64Array> {
+    const field = this.field(name)
+    const given = isColumns(this.data) && !field.value ? this.data[name] : undefined
+    // a column of numbers is used as it is (or copied, to be sent away)
+    if (given instanceof Float64Array && given.length === this.length)
+      return copy ? given.slice() : given
+    const read = this.reader(field)
+    const column = new Float64Array(this.length)
+    for (let i = 0; i < this.length; i++) {
+      if (i % STEP === 0 && i) yield
+      column[i] = toNumber(read(i))
     }
     return column
   }
@@ -148,13 +228,11 @@ export class PivotSource<Row = Record<string, unknown>> {
   }
 
   private guess(field: PivotField<Row>): PivotFieldType {
-    const { rows } = this
+    const read = this.reader(field)
     let seen = 0
     let type: PivotFieldType | undefined
-    for (let i = 0; i < rows.length && seen < SAMPLE; i++) {
-      const value = field.value
-        ? field.value(rows[i]!, i)
-        : (rows[i] as Record<string, unknown>)[field.name]
+    for (let i = 0; i < this.length && seen < SAMPLE; i++) {
+      const value = read(i)
       if (isEmpty(value)) continue
       seen++
       const kind = typeOf(value)
@@ -164,17 +242,29 @@ export class PivotSource<Row = Record<string, unknown>> {
     return type ?? 'string'
   }
 
-  private encode(field: PivotResolvedField<Row>): PivotDimensionColumn {
-    const { rows } = this
-    const codes = new Uint32Array(rows.length)
+  private encode(name: string): PivotDimensionColumn {
+    const field = this.field(name)
+    const given = this.given.get(name)
+    const { codes, labels, empty } = given ?? run(this.encodeSteps(name))
+    const find = finder(labels, empty)
+    return { codes, labels, empty, rank: this.rank(labels, field, find), find }
+  }
+
+  /**
+   * Reads a field's groups a slice at a time, for reading a large field
+   * without holding up the page: each record's group number and each
+   * group's value, not yet in order.
+   */
+  *encodeSteps(name: string): Generator<void, PivotEncodedColumn> {
+    const read = this.reader(this.field(name))
+    const n = this.length
+    const codes = new Uint32Array(n)
     const labels: unknown[] = []
     const byValue = new Map<unknown, number>()
     const byTime = new Map<number, number>()
     let empty = -1
     let last: unknown = undefined
     let lastCode = -1
-    const read = field.value
-    const name = field.name
     const codeOf = (value: unknown) => {
       if (isEmpty(value)) {
         if (empty < 0) {
@@ -201,8 +291,9 @@ export class PivotSource<Row = Record<string, unknown>> {
       }
       return code
     }
-    for (let i = 0; i < rows.length; i++) {
-      const value = read ? read(rows[i]!, i) : (rows[i] as Record<string, unknown>)[name]
+    for (let i = 0; i < n; i++) {
+      if (i % STEP === 0 && i) yield
+      const value = read(i)
       // sorted data repeats itself, so the last lookup is often the answer
       if (value === last && lastCode >= 0) {
         codes[i] = lastCode
@@ -212,12 +303,7 @@ export class PivotSource<Row = Record<string, unknown>> {
       last = value
       codes[i] = lastCode
     }
-    const find = (value: unknown) => {
-      if (isEmpty(value)) return empty
-      if (value instanceof Date) return byTime.get(value.getTime()) ?? -1
-      return byValue.get(value) ?? -1
-    }
-    return { codes, labels, empty, rank: this.rank(labels, field, find), find }
+    return { codes, labels, empty }
   }
 
   /** Each group's place: the field's `order` first, then by value, the empty group last. */
@@ -287,8 +373,34 @@ export function toNumber(value: unknown) {
   return Number.NaN
 }
 
-/** The fields of records nobody described: every key of the first records. */
-function inferFields<Row>(rows: readonly Row[]): PivotField<Row>[] {
+/** Runs reading in slices to the end, at once. */
+export function run<T>(steps: Generator<void, T>): T {
+  for (;;) {
+    const step = steps.next()
+    if (step.done) return step.value
+  }
+}
+
+/** Finds a group by its value; dates by their time. */
+export function finder(labels: readonly unknown[], empty: number) {
+  const byValue = new Map<unknown, number>()
+  const byTime = new Map<number, number>()
+  labels.forEach((label, code) => {
+    if (code === empty) return
+    if (label instanceof Date) byTime.set(label.getTime(), code)
+    else byValue.set(label, code)
+  })
+  return (value: unknown) => {
+    if (isEmpty(value)) return empty
+    if (value instanceof Date) return byTime.get(value.getTime()) ?? -1
+    return byValue.get(value) ?? -1
+  }
+}
+
+/** The fields of records nobody described: every key of the first records, or every column. */
+function inferFields<Row>(data: PivotData<Row>): PivotField<Row>[] {
+  if (isColumns(data)) return Object.keys(data).map((name) => ({ name }))
+  const rows = data
   const names = new Set<string>()
   for (let i = 0; i < Math.min(rows.length, SAMPLE); i++) {
     const row = rows[i]

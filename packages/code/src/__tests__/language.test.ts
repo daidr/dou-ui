@@ -374,3 +374,19 @@ describe('editing commands', () => {
     expect(apply(codeCommands.cursorMatchingBracket, 'f(a, [b])|').text).toBe('f|(a, [b])')
   })
 })
+
+describe('multiple cursors', () => {
+  it('selects the word, then each next occurrence of it', () => {
+    expect(apply(codeCommands.selectNextOccurrence, 'a|b ab abc ab').text).toBe('|ab| ab abc ab')
+    expect(apply(codeCommands.selectNextOccurrence, '|ab| ab abc ab').text).toBe('|ab| |ab| abc ab')
+    // A word selection skips `abc`; it wraps round to the start.
+    expect(apply(codeCommands.selectNextOccurrence, 'ab abc |ab|').text).toBe('|ab| abc |ab|')
+    expect(apply(codeCommands.selectNextOccurrence, 'x |ab|').ran).toBe(false)
+  })
+
+  it('selects every occurrence', () => {
+    expect(apply(codeCommands.selectAllOccurrences, 'a|b ab abc ab').text).toBe(
+      '|ab| |ab| abc |ab|',
+    )
+  })
+})

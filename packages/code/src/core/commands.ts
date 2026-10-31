@@ -1,6 +1,6 @@
 import type { CodeLanguage, CodeTokenType } from '../language/language'
 import { findPartner, matchBracket } from './brackets'
-import { indentOf, moveCluster, moveWord } from './chars'
+import { indentOf, moveCluster, moveWord, wordAt } from './chars'
 import {
   type CodeRange,
   type CodeSelection,
@@ -38,6 +38,20 @@ export interface CodeCommandTarget {
   syntaxAt(pos: number): CodeTokenType | null
   /** Typing an opening bracket or quote also types its partner. */
   readonly closeBrackets: boolean
+  /** The editor's search panel, when it has one. */
+  readonly search?: CodeSearchControl
+}
+
+/** What commands can do with the editor's search panel. */
+export interface CodeSearchControl {
+  /** Opens the panel (with the replace box when `replace` is set) and focuses it. */
+  open(replace?: boolean): void
+  /** Closes the panel; `false` when it wasn't open. */
+  close(): boolean
+  /** Selects the next match; `false` without matches. */
+  next(): boolean
+  /** Selects the previous match; `false` without matches. */
+  previous(): boolean
 }
 
 /** Does something to the editor; returns whether it applied, so a key can fall through when it didn't. */
@@ -159,6 +173,113 @@ export const selectPageDown: CodeCommand = (target) =>
 
 export const selectAll: CodeCommand = (target) =>
   setSelection(target, { ranges: [{ anchor: 0, head: target.state.doc.length }], main: 0 })
+
+/** The word around a cursor (after it, else before it), as a range, or `null` when it touches none. */
+function wordRange(doc: CodeText, pos: number): CodeRange | null {
+  const line = lineOf(doc, pos)
+  const col = pos - line.from
+  for (const at of [col, col - 1]) {
+    if (at < 0 || at >= line.text.length || !WORD.test(line.text[at]!)) continue
+    const word = wordAt(line.text, at)
+    return { anchor: line.from + word.from, head: line.from + word.to }
+  }
+  return null
+}
+
+const WORD = /[\p{L}\p{N}_$]/u
+
+const isWholeWord = (all: string, at: number, length: number) =>
+  !WORD.test(all[at - 1] ?? '') && !WORD.test(all[at + length] ?? '')
+
+/** Where `text` occurs first at or after `from`, wrapping around to the start; a whole word only when `word` is set. */
+function nextOccurrence(all: string, text: string, from: number, word: boolean): number | null {
+  for (let at = all.indexOf(text, from); at >= 0; at = all.indexOf(text, at + 1))
+    if (!word || isWholeWord(all, at, text.length)) return at
+  for (let at = all.indexOf(text); at >= 0 && at < from; at = all.indexOf(text, at + 1))
+    if (!word || isWholeWord(all, at, text.length)) return at
+  return null
+}
+
+/**
+ * Selects the word at the cursor; with a selection, adds the next place
+ * the same text occurs as another selection (wrapping around the end).
+ */
+export const selectNextOccurrence: CodeCommand = (target) => {
+  const { doc, selection } = target.state
+  const main = mainRange(selection)
+  if (isEmptyRange(main)) {
+    const word = wordRange(doc, main.head)
+    if (!word) return false
+    const ranges = selection.ranges.slice()
+    ranges[selection.main] = word
+    return setSelection(target, { ranges, main: selection.main })
+  }
+  const text = doc.slice(rangeFrom(main), rangeTo(main))
+  // A selection made from a word looks for whole words only.
+  const word = isWordAt(doc, main)
+  const all = doc.toString()
+  const taken = new Set(selection.ranges.map(rangeFrom))
+  let at = nextOccurrence(all, text, Math.max(...selection.ranges.map(rangeTo)), word)
+  // Skips places already selected; gives up once it comes round to one again.
+  const seen = new Set<number>()
+  while (at !== null && taken.has(at) && !seen.has(at)) {
+    seen.add(at)
+    at = nextOccurrence(all, text, at + 1, word)
+  }
+  if (at !== null && taken.has(at)) at = null
+  if (at === null) return false
+  const ranges = [...selection.ranges, { anchor: at, head: at + text.length }]
+  return setSelection(target, { ranges, main: ranges.length - 1 })
+}
+
+/** Selects every place the selected text (or the word at the cursor) occurs. */
+export const selectAllOccurrences: CodeCommand = (target) => {
+  const { doc, selection } = target.state
+  let main = mainRange(selection)
+  let word = isWordAt(doc, main)
+  if (isEmptyRange(main)) {
+    const found = wordRange(doc, main.head)
+    if (!found) return false
+    main = found
+    word = true
+  }
+  const text = doc.slice(rangeFrom(main), rangeTo(main))
+  const all = doc.toString()
+  const ranges: CodeRange[] = []
+  let mainIndex = 0
+  for (let at = all.indexOf(text); at >= 0; at = all.indexOf(text, at + text.length)) {
+    if (word && !isWholeWord(all, at, text.length)) continue
+    if (at === rangeFrom(main)) mainIndex = ranges.length
+    ranges.push({ anchor: at, head: at + text.length })
+  }
+  if (!ranges.length) return false
+  return setSelection(target, { ranges, main: mainIndex })
+}
+
+/** Whether a range covers exactly one whole word. */
+function isWordAt(doc: CodeText, range: CodeRange) {
+  if (isEmptyRange(range)) return false
+  const word = wordRange(doc, rangeFrom(range))
+  return !!word && word.anchor === rangeFrom(range) && word.head === rangeTo(range)
+}
+
+function addCursor(dir: -1 | 1): CodeCommand {
+  return (target) => {
+    const { selection } = target.state
+    const ranges = selection.ranges.slice()
+    // From the outermost cursor in that direction, one line further.
+    const edge = dir < 0 ? selection.ranges[0]! : selection.ranges[selection.ranges.length - 1]!
+    const head = target.moveVertically({ anchor: edge.head, head: edge.head }, dir)
+    if (head === edge.head) return false
+    ranges.push({ anchor: head, head })
+    return setSelection(target, { ranges, main: ranges.length - 1 })
+  }
+}
+
+/** Adds a cursor on the line above the topmost one. */
+export const addCursorAbove = addCursor(-1)
+/** Adds a cursor on the line below the bottommost one. */
+export const addCursorBelow = addCursor(1)
 
 /** Leaves only the main range, then only a cursor; returns false when there was nothing to drop. */
 export const simplifySelection: CodeCommand = (target) => {
@@ -681,3 +802,24 @@ export const cursorMatchingBracket: CodeCommand = (target) => {
   if (!moved) return false
   return setSelection(target, { ranges, main: selection.main })
 }
+
+/** Opens the search panel, filled with the selected text. */
+export const openSearch: CodeCommand = (target) => {
+  if (!target.search) return false
+  target.search.open()
+  return true
+}
+
+/** Opens the search panel with the replace box. */
+export const openReplace: CodeCommand = (target) => {
+  if (!target.search || target.readonly) return false
+  target.search.open(true)
+  return true
+}
+
+/** Selects the next match of the search. */
+export const findNext: CodeCommand = (target) => !!target.search?.next()
+/** Selects the previous match of the search. */
+export const findPrevious: CodeCommand = (target) => !!target.search?.previous()
+/** Closes the search panel. */
+export const closeSearch: CodeCommand = (target) => !!target.search?.close()

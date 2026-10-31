@@ -1,6 +1,8 @@
 import type { CodeCommand } from './core/commands'
 import type { CodeKeyBinding } from './core/keymap'
+import type { CodeSearchQuery } from './core/search'
 import type { CodeSelection } from './core/selection'
+import type { CodeMessages } from './locale'
 import type { CodeLanguage } from './language/language'
 import type { CodeText } from './core/text'
 import type {
@@ -39,6 +41,10 @@ export interface CodeEditorProps {
   closeBrackets?: boolean
   /** Outlines the bracket next to the cursor and its partner. On by default. */
   matchBrackets?: boolean
+  /** The built-in search panel (Mod+F). On by default. */
+  searchable?: boolean
+  /** Replaces any of the editor's texts, which otherwise follow DouUI's locale. */
+  messages?: Partial<CodeMessages>
   /** Extra keys, tried before the built-in ones. */
   keymap?: CodeKeyBinding[]
   autofocus?: boolean
@@ -86,4 +92,8 @@ export interface CodeEditorExpose {
   posAtCoords: (point: { x: number; y: number }) => number
   focus: () => void
   blur: () => void
+  /** Opens the search panel, filled with `query` or else the selected text. */
+  openSearch: (query?: Partial<CodeSearchQuery>) => void
+  /** Closes the search panel; `false` when it wasn't open. */
+  closeSearch: () => boolean
 }

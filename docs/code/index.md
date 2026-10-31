@@ -136,9 +136,40 @@ app.use(DouUI, {
 
 按住 `Alt`（Apple 上是 `⌥`）点击，在点击处加一个光标；按住拖动则加一个选区。有多个选区时，输入、删除、粘贴会作用到每一个上；粘贴的行数和选区个数相同时，每个选区各得一行。按 `Esc` 只留下主选区。也可以用 `v-model:selection` 或 `select()` 从代码里设置多个选区。
 
+### 多光标
+
+- `Mod` + `D` 选中光标处的词，再按一次选中下一个相同的词，依次添加选区；`Mod` + `Shift` + `L` 一次选中所有相同的词。选中的是一个完整的词时，只找同样是完整词的地方。
+- `Ctrl` + `Alt` + `↑` / `↓`（Apple 上是 `⌥` + `⌘` + `↑` / `↓`）在上一行或下一行同一列加一个光标。
+- 按住 `Alt` + `Shift`（Apple 上是 `⌥` + `Shift`）拖动，按列选择一个矩形区域：每一行各得一个选区，短的行只放一个光标在行尾。
+
 双击选中一个词，三击或点击行号选中一整行；双击、三击后继续拖动，会按词或按行扩大选区。
 
 光标按用户看到的字符移动：一个 emoji 或带声调的字母是一个字符，不会停在中间。按词移动时，中文按浏览器的分词结果切分，而不是把一整段中文当成一个词。
+
+## 查找与替换
+
+按 `Mod` + `F` 打开查找面板，选中的文字会填进查找框；没有选中时填入光标所在的词。`Enter` 和 `Shift` + `Enter` 跳到下一个、上一个匹配，`Esc` 关闭面板并回到编辑器。查找框右侧的三个开关分别是区分大小写、全词匹配和正则表达式；正则写法有误时查找框标红。
+
+所有匹配都会加上浅色底，光标所在的那个再加一圈边框；编辑器右侧靠近滚动条的位置标出匹配在整个文本中的分布。边输入边查找，第一个匹配会被选中并滚动到可见。
+
+按 `Mod` + `H`（Apple 上是 `⌥` + `⌘` + `F`），或点击面板左侧的箭头，展开替换框；焦点在面板里时这个按键同样有效。替换框里按 `Enter` 替换当前的匹配并跳到下一个，按 `Mod` + `Enter` 全部替换，全部替换只算一次修改，撤销一次就能还原。用正则查找时，替换文字里可以用 `$1`、`$<name>` 引用分组，`$&` 是整个匹配，`$$` 是 `$` 本身。只读的编辑器里只能查找。
+
+<DocDemo src="code/search" column />
+
+`openSearch(query?)` 用代码打开面板，并可以带上查找的内容与选项，带上 `replace` 时同时展开替换框；`closeSearch()` 关闭面板。`searchable` 设为 `false` 不提供查找面板，`Mod` + `F` 交还给浏览器。面板上的文字跟随 ConfigProvider 的语言包，`messages` 属性可以单独改写其中几条。
+
+在编辑器之外查找文本，可以直接用 `searchText`：
+
+```ts
+import { CodeText, replacementFor, searchText } from '@dou-ui/code'
+
+const doc = CodeText.of('let a = 1\nlet b = 2')
+const query = { search: 'let (\\w)', regexp: true, replace: 'const $1' }
+const { matches } = searchText(doc, query) // [{ from: 0, to: 5 }, { from: 10, to: 15 }]
+replacementFor(doc, matches[0], query) // 'const a'
+```
+
+一次最多统计一万个匹配，更多时面板显示“超过 10000 个”，全部替换仍然会替换所有匹配。
 
 ## 输入法
 
@@ -150,27 +181,31 @@ app.use(DouUI, {
 
 `Mod` 在 Apple 设备上是 `⌘`，在其他系统上是 `Ctrl`。
 
-| 按键                                               | 作用                                              |
-| -------------------------------------------------- | ------------------------------------------------- |
-| 方向键                                             | 移动一个字符或一行，上下移动时保持列的位置        |
-| `Alt` / `Ctrl` + `←` `→`                           | 按词移动（Apple 设备上用 `⌥`，其他用 `Ctrl`）     |
-| `Home` / `End`，Apple 上也可 `⌘` + `←` `→`         | 移到行首或行尾；行首先停在缩进之后                |
-| `Mod` + `Home` / `End`，Apple 上 `⌘` + `↑` `↓`     | 移到文本开头或结尾                                |
-| `PageUp` / `PageDown`                              | 翻一屏                                            |
-| 以上按键加 `Shift`                                 | 扩大选区                                          |
-| `Backspace` / `Delete`                             | 删除一个字符；有选区时删除选区                    |
-| `Alt` / `Ctrl` + `Backspace`                       | 删除一个词；Apple 上 `⌘` + `Backspace` 删到行首   |
-| `Enter`                                            | 换行，并保留当前行的缩进                          |
-| `Tab` / `Shift` + `Tab`                            | 缩进到下一个制表位 / 减少缩进；选中多行时整体缩进 |
-| `Mod` + `]` / `[`                                  | 增加 / 减少所在行的缩进                           |
-| `Mod` + `A`                                        | 全选                                              |
-| `Mod` + `Z`，`Mod` + `Shift` + `Z` 或 `Ctrl` + `Y` | 撤销，重做                                        |
-| `Esc`                                              | 只留下主选区；之后按 `Tab` 会离开编辑器           |
-| `Mod` + `/`                                        | 注释或取消注释所在的行                            |
-| `Alt` + `↑` / `↓`                                  | 把所在的行上移 / 下移一行                         |
-| `Shift` + `Alt` + `↑` / `↓`                        | 把所在的行复制到上方 / 下方                       |
-| `Mod` + `Shift` + `K`                              | 删除所在的行                                      |
-| `Mod` + `Shift` + `\`                              | 移到配对的括号                                    |
+| 按键                                                 | 作用                                              |
+| ---------------------------------------------------- | ------------------------------------------------- |
+| 方向键                                               | 移动一个字符或一行，上下移动时保持列的位置        |
+| `Alt` / `Ctrl` + `←` `→`                             | 按词移动（Apple 设备上用 `⌥`，其他用 `Ctrl`）     |
+| `Home` / `End`，Apple 上也可 `⌘` + `←` `→`           | 移到行首或行尾；行首先停在缩进之后                |
+| `Mod` + `Home` / `End`，Apple 上 `⌘` + `↑` `↓`       | 移到文本开头或结尾                                |
+| `PageUp` / `PageDown`                                | 翻一屏                                            |
+| 以上按键加 `Shift`                                   | 扩大选区                                          |
+| `Backspace` / `Delete`                               | 删除一个字符；有选区时删除选区                    |
+| `Alt` / `Ctrl` + `Backspace`                         | 删除一个词；Apple 上 `⌘` + `Backspace` 删到行首   |
+| `Enter`                                              | 换行，并保留当前行的缩进                          |
+| `Tab` / `Shift` + `Tab`                              | 缩进到下一个制表位 / 减少缩进；选中多行时整体缩进 |
+| `Mod` + `]` / `[`                                    | 增加 / 减少所在行的缩进                           |
+| `Mod` + `A`                                          | 全选                                              |
+| `Mod` + `Z`，`Mod` + `Shift` + `Z` 或 `Ctrl` + `Y`   | 撤销，重做                                        |
+| `Esc`                                                | 只留下主选区；之后按 `Tab` 会离开编辑器           |
+| `Mod` + `/`                                          | 注释或取消注释所在的行                            |
+| `Alt` + `↑` / `↓`                                    | 把所在的行上移 / 下移一行                         |
+| `Shift` + `Alt` + `↑` / `↓`                          | 把所在的行复制到上方 / 下方                       |
+| `Mod` + `Shift` + `K`                                | 删除所在的行                                      |
+| `Mod` + `Shift` + `\`                                | 移到配对的括号                                    |
+| `Mod` + `D` / `Mod` + `Shift` + `L`                  | 选中下一个相同的词 / 所有相同的词                 |
+| `Ctrl` + `Alt` + `↑` / `↓`，Apple 上 `⌥` + `⌘`       | 在上一行 / 下一行加一个光标                       |
+| `Mod` + `F`，`Mod` + `H`（Apple 上 `⌥` + `⌘` + `F`） | 打开查找 / 替换                                   |
+| `F3` 或 `Mod` + `G`，加 `Shift` 反向                 | 跳到下一个 / 上一个匹配                           |
 
 编辑器里 `Tab` 用来缩进。只用键盘时，先按 `Esc` 再按 `Tab`，焦点就会移到页面上的下一个元素。
 
@@ -230,6 +265,12 @@ const keymap: CodeKeyBinding[] = [
 | `copyLineUp` / `copyLineDown`              | 把所在的行复制到上方 / 下方           | `Shift` + `Alt` + `↑` / `↓`                       | `Shift` + `⌥` + `↑` / `↓`                           |
 | `deleteLine`                               | 删除所在的行                          | `Mod` + `Shift` + `K`                             |                                                     |
 | `cursorMatchingBracket`                    | 移到配对的括号前                      | `Mod` + `Shift` + `\`                             |                                                     |
+| `selectNextOccurrence`                     | 选中光标处的词，或加选下一个相同的    | `Mod` + `D`                                       |                                                     |
+| `selectAllOccurrences`                     | 选中所有相同的词                      | `Mod` + `Shift` + `L`                             |                                                     |
+| `addCursorAbove` / `addCursorBelow`        | 在上一行 / 下一行加一个光标           | `Ctrl` + `Alt` + `↑` / `↓`                        | `⌥` + `⌘` + `↑` / `↓`                               |
+| `openSearch` / `openReplace`               | 打开查找 / 替换面板                   | `Mod` + `F` / `Mod` + `H`                         | `⌘` + `F` / `⌥` + `⌘` + `F`                         |
+| `findNext` / `findPrevious`                | 跳到下一个 / 上一个匹配               | `F3`、`Mod` + `G` / 加 `Shift`                    |                                                     |
+| `closeSearch`                              | 关闭查找面板                          | `Esc`                                             |                                                     |
 
 `codeCommands.insertText(target, text)` 不是按键命令：它像输入一样在每个光标处输入一个字符，并处理括号补全和右括号对齐，处理了返回 `true`。
 
@@ -279,24 +320,26 @@ const doc = shallowRef(CodeText.of(source))
 
 ### Props
 
-| 名称                | 说明                            | 类型               | 默认值     |
-| ------------------- | ------------------------------- | ------------------ | ---------- |
-| `v-model`           | 代码                            | `string`           | —          |
-| `v-model:doc`       | 代码，作为 `CodeText`，大文件用 | `CodeText`         | —          |
-| `v-model:selection` | 选区                            | `CodeSelection`    | 开头的光标 |
-| `readonly`          | 只读                            | `boolean`          | `false`    |
-| `disabled`          | 禁用                            | `boolean`          | `false`    |
-| `line-numbers`      | 显示行号                        | `boolean`          | `true`     |
-| `active-line`       | 给光标所在行加底色              | `boolean`          | `true`     |
-| `tab-size`          | 制表位宽度                      | `number`           | `2`        |
-| `indent-with-tabs`  | 用制表符缩进                    | `boolean`          | `false`    |
-| `placeholder`       | 文本为空时的提示                | `string`           | —          |
-| `language`          | 语言                            | `CodeLanguage`     | —          |
-| `close-brackets`    | 输入括号和引号时补上另一半      | `boolean`          | `true`     |
-| `match-brackets`    | 标出光标旁的括号和它的配对      | `boolean`          | `true`     |
-| `keymap`            | 额外的按键，比内置的优先        | `CodeKeyBinding[]` | —          |
-| `autofocus`         | 挂载后获得焦点                  | `boolean`          | `false`    |
-| `aria-label`        | 读屏读出的名称                  | `string`           | —          |
+| 名称                | 说明                            | 类型                    | 默认值     |
+| ------------------- | ------------------------------- | ----------------------- | ---------- |
+| `v-model`           | 代码                            | `string`                | —          |
+| `v-model:doc`       | 代码，作为 `CodeText`，大文件用 | `CodeText`              | —          |
+| `v-model:selection` | 选区                            | `CodeSelection`         | 开头的光标 |
+| `readonly`          | 只读                            | `boolean`               | `false`    |
+| `disabled`          | 禁用                            | `boolean`               | `false`    |
+| `line-numbers`      | 显示行号                        | `boolean`               | `true`     |
+| `active-line`       | 给光标所在行加底色              | `boolean`               | `true`     |
+| `tab-size`          | 制表位宽度                      | `number`                | `2`        |
+| `indent-with-tabs`  | 用制表符缩进                    | `boolean`               | `false`    |
+| `placeholder`       | 文本为空时的提示                | `string`                | —          |
+| `language`          | 语言                            | `CodeLanguage`          | —          |
+| `close-brackets`    | 输入括号和引号时补上另一半      | `boolean`               | `true`     |
+| `match-brackets`    | 标出光标旁的括号和它的配对      | `boolean`               | `true`     |
+| `searchable`        | 提供查找替换面板                | `boolean`               | `true`     |
+| `messages`          | 改写查找面板上的文字            | `Partial<CodeMessages>` | —          |
+| `keymap`            | 额外的按键，比内置的优先        | `CodeKeyBinding[]`      | —          |
+| `autofocus`         | 挂载后获得焦点                  | `boolean`               | `false`    |
+| `aria-label`        | 读屏读出的名称                  | `string`                | —          |
 
 ### Events
 
@@ -320,3 +363,5 @@ const doc = shallowRef(CodeText.of(source))
 | `coordsAtPos(pos)`          | 某个位置在视口中的坐标；所在行没有绘制时为 `null`              |
 | `posAtCoords({ x, y })`     | 视口中某一点最近的文本位置                                     |
 | `focus()`、`blur()`         | 获得、失去焦点                                                 |
+| `openSearch(query?)`        | 打开查找面板，`query` 设置查找的内容与选项                     |
+| `closeSearch()`             | 关闭查找面板                                                   |

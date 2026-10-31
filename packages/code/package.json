@@ -40,6 +40,9 @@
   "scripts": {
     "build": "vite build && vue-tsc -p tsconfig.build.json && bun scripts/build-style.ts"
   },
+  "dependencies": {
+    "@dou-ui/icons": "workspace:*"
+  },
   "peerDependencies": {
     "dou-ui": "workspace:*",
     "vue": "^3.5.0"

@@ -91,9 +91,180 @@
     line-height: var(--dou-font-line-height);
   }
 
+  /* Required lists mark their title the way fields mark their label. */
+  .dou-form-renderer--marked .dou-form-renderer__section-title.is-required::before {
+    content: '*';
+    margin-inline-end: 4px;
+    color: var(--dou-color-danger);
+  }
+
+  .dou-form-renderer__page {
+    display: flex;
+    flex-direction: column;
+    gap: var(--dou-space-lg);
+    min-width: 0;
+  }
+
+  .dou-form-renderer__page-description {
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-sm);
+    line-height: var(--dou-font-line-height);
+  }
+
+  /*
+   * A tab whose page has errors: a dot at the end of its title, over the
+   * tab's padding, so the tab keeps its width and its underline.
+   */
+  .dou-form-renderer__tab-title {
+    position: relative;
+  }
+
+  .dou-form-renderer__tab-error {
+    position: absolute;
+    inset-block-start: -2px;
+    inset-inline-end: -8px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--dou-color-danger);
+  }
+
+  .dou-form-renderer__sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .dou-form-renderer__tabs .dou-tabs__panel {
+    padding-block-start: var(--dou-space-lg);
+  }
+
+  .dou-form-renderer__steps {
+    display: flex;
+    flex-direction: column;
+    gap: var(--dou-space-lg);
+    min-width: 0;
+  }
+
+  .dou-form-renderer__step[hidden] {
+    display: none;
+  }
+
+  .dou-form-renderer__steps-footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--dou-space-sm);
+    align-items: center;
+
+    &:empty {
+      display: none;
+    }
+  }
+
+  .dou-form-renderer__list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--dou-space-md);
+    min-width: 0;
+  }
+
+  .dou-form-renderer__list-items {
+    display: flex;
+    flex-direction: column;
+    gap: var(--dou-space-md);
+  }
+
+  .dou-form-renderer__list-item {
+    display: flex;
+    flex-direction: column;
+    gap: var(--dou-space-md);
+    padding: var(--dou-space-md) var(--dou-space-lg) var(--dou-space-lg);
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-container);
+    background: var(--dou-color-bg-surface);
+  }
+
+  .dou-form-renderer__list-item-header {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    min-height: 28px;
+  }
+
+  .dou-form-renderer__list-handle {
+    margin-inline-start: -6px;
+  }
+
+  /* The copy of an item that follows the pointer, outside the form. */
+  .dou-form-renderer__list-ghost {
+    border-radius: var(--dou-radius-container);
+  }
+
+  /* On touch, the handle and the remove button take a 40px press around them. */
+  @media (pointer: coarse) {
+    .dou-form-renderer__list-handle,
+    .dou-form-renderer__list-remove {
+      position: relative;
+
+      &::after {
+        content: '';
+        position: absolute;
+        inset: 50% auto auto 50%;
+        width: 40px;
+        height: 40px;
+        transform: translate(-50%, -50%);
+      }
+    }
+  }
+
+  .dou-form-renderer__list-item-title {
+    flex: 1;
+    min-width: 0;
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-sm);
+    font-weight: var(--dou-font-weight-medium);
+  }
+
+  .dou-form-renderer__list-remove {
+    margin-inline-end: -6px;
+  }
+
+  .dou-form-renderer__list-empty {
+    padding: var(--dou-space-lg);
+    border: 1px dashed var(--dou-color-border);
+    border-radius: var(--dou-radius-container);
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+    text-align: center;
+  }
+
+  /* The add button and the list's own errors; no label column beside them. */
+  .dou-form-renderer__list-footer {
+    margin: 0;
+
+    & .dou-form-item__label {
+      display: none;
+    }
+  }
+
   .dou-form-renderer__title,
   .dou-form-renderer__paragraph {
     margin: 0;
+  }
+
+  /* Narrow forms keep only the current step's title; the others are read out but not shown. */
+  @container dou-form-renderer (width < 480px) {
+    .dou-form-renderer__steps .dou-steps__item:not([aria-current]) .dou-steps__text {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
   }
 
   /* Below the first breakpoint there is no room beside the fields: labels go above. */

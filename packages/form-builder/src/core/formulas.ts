@@ -1,7 +1,7 @@
-import { fieldNodes } from '../core/document'
-import { related, tryCompileExpression } from '../core/expression'
-import type { CompiledExpression } from '../core/expression'
-import type { FormDocument } from '../core/types'
+import { isField, valueNodes } from './document'
+import { related, tryCompileExpression } from './expression'
+import type { CompiledExpression } from './expression'
+import type { FormDocument, FormListNode, FormNode } from './types'
 
 export interface FormulaField {
   name: string
@@ -14,30 +14,35 @@ export interface FormulaField {
  * field is a circle of one.
  */
 export function findFormulaCycles(document: FormDocument): string[][] {
-  return analyse(document).cycles
+  return analyse(document.nodes, 'fields').cycles
 }
 
 /** The formulas of a document that can run: every one that parses and is on no circle. */
 export function formulasOf(document: FormDocument): FormulaField[] {
-  return analyse(document).formulas
+  return analyse(document.nodes, 'fields').formulas
 }
 
-function analyse(document: FormDocument) {
+/** Like `findFormulaCycles`, for the fields of a list's items, which read each other through `item`. */
+export function findItemFormulaCycles(list: FormListNode): string[][] {
+  return analyse(list.children, 'itemFields').cycles
+}
+
+function analyse(nodes: readonly FormNode[], reads: 'fields' | 'itemFields') {
   const all: FormulaField[] = []
-  for (const node of fieldNodes(document)) {
-    if (!node.formula) continue
+  for (const node of valueNodes(nodes)) {
+    if (!isField(node) || !node.formula) continue
     const expression = tryCompileExpression(node.formula)
     if (expression) all.push({ name: node.name!, expression })
   }
 
   // Formula fields reading each other, in Tarjan's way: every strongly
   // connected group of more than one, or one that reads itself, is a circle.
-  const reads = all.map(({ name, expression }) =>
+  const edges = all.map(({ name, expression }) =>
     all
       .map((other, index) => ({ other, index }))
       .filter(
         ({ other }) =>
-          expression.fields.some((path) => related(other.name, path)) ||
+          expression[reads].some((path) => related(other.name, path)) ||
           (other.name === name && expression.readsValue),
       )
       .map(({ index }) => index),
@@ -54,7 +59,7 @@ function analyse(document: FormDocument) {
     order[index] = low[index] = counter++
     stack.push(index)
     onStack.add(index)
-    for (const next of reads[index]!) {
+    for (const next of edges[index]!) {
       if (order[next] === -1) {
         connect(next)
         low[index] = Math.min(low[index]!, low[next]!)
@@ -68,7 +73,7 @@ function analyse(document: FormDocument) {
       onStack.delete(member)
       group.unshift(member)
     } while (member !== index)
-    if (group.length > 1 || reads[index]!.includes(index)) {
+    if (group.length > 1 || edges[index]!.includes(index)) {
       group.forEach((i) => onCycle.add(i))
       cycles.push(group.map((i) => all[i]!.name))
     }

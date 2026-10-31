@@ -1,13 +1,22 @@
 <script setup lang="ts">
-import { computed, effectScope, provide, reactive, shallowRef, useTemplateRef, watch } from 'vue'
+import {
+  computed,
+  effectScope,
+  nextTick,
+  provide,
+  reactive,
+  shallowReactive,
+  shallowRef,
+  useTemplateRef,
+  watch,
+} from 'vue'
 import { DouForm } from 'dou-ui'
 import type { FormInstance, FormModel } from 'dou-ui'
-import { checkVersion, cloneValue, fieldNodes, getPath, setPath } from '../core/document'
+import { checkVersion, cloneValue, getPath, isSteps, setPath } from '../core/document'
 import { equalValues } from '../core/expression'
-import type { FormDocument } from '../core/types'
+import { fillValues, visibleValues } from '../core/values'
 import { resolveFields } from '../fields/builtin'
-import { fieldProps } from '../fields/define'
-import type { FormFieldType } from '../fields/define'
+import { useFormBuilderMessages } from '../locale'
 import { rendererKey } from './context'
 import type {
   FormRendererEmits,
@@ -15,14 +24,14 @@ import type {
   FormRendererProps,
   FormRendererSlots,
 } from './context'
-import { findFormulaCycles, formulasOf } from './formulas'
-import { FormNodeView } from './node-view'
+import { findFormulaCycles, formulasOf } from '../core/formulas'
+import { FormNodeView, nodeKey } from './node-view'
 
 defineOptions({ name: 'DouFormRenderer' })
 
 const props = withDefaults(defineProps<FormRendererProps>(), { disabled: false })
 const emit = defineEmits<FormRendererEmits>()
-defineSlots<FormRendererSlots>()
+const slots = defineSlots<FormRendererSlots>()
 
 const own = reactive<FormModel>({})
 // `reactive` hands back the same proxy for an object it has seen, and
@@ -45,28 +54,14 @@ function warnCycle(cycle: string[]) {
   )
 }
 
-/** The value a field starts with: its own default, else its type's empty value. */
-function startValue(type: FormFieldType, node: Parameters<typeof fieldProps>[1]) {
-  if (node.default !== undefined) return cloneValue(node.default)
-  return type.empty ? type.empty(fieldProps(type, node)) : null
-}
-
-/**
- * Fill in the fields the model has no value for, before the form items
- * mount and take the values as the ones to reset to.
- */
-function fill(document: FormDocument, target: FormModel, types: Map<string, FormFieldType>) {
-  checkVersion(document)
-  for (const node of fieldNodes(document)) {
-    const type = types.get(node.type)
-    if (!type || type.kind === 'display') continue
-    if (getPath(target, node.name!) === undefined)
-      setPath(target, node.name!, startValue(type, node))
-  }
-}
+// Fill in the fields the model has no value for, before the form items
+// mount and take the values as the ones to reset to.
 watch(
   [() => props.form, model, fields],
-  ([document, target, types]) => fill(document, target, types),
+  ([document, target, types]) => {
+    checkVersion(document)
+    fillValues(document.nodes, target, types)
+  },
   {
     immediate: true,
   },
@@ -137,6 +132,44 @@ function reloadSource(name?: string) {
   versions[name] = (versions[name] ?? 0) + 1
 }
 
+const messages = useFormBuilderMessages(() => props.messages)
+const formRef = useTemplateRef<FormInstance>('formRef')
+
+// Tabs and steps holding a field bring it into view before it is scrolled to.
+const revealers = new Set<(path: string) => boolean>()
+function scrollToField(name: string) {
+  for (const reveal of revealers) reveal(name)
+  void nextTick(() => formRef.value?.scrollToField(name))
+}
+async function validate(names?: string | string[]) {
+  return (await formRef.value?.validate(names)) ?? { valid: true, errors: {} }
+}
+function getValues(): FormModel {
+  return props.keepHidden
+    ? cloneValue(model.value)
+    : visibleValues(props.form, model.value, { functions: props.functions })
+}
+function onInvalid(errors: Record<string, string>) {
+  const first = Object.keys(errors)[0]
+  if (first) scrollToField(first)
+  emit('invalid', errors)
+}
+
+// The form items showing an error, for the tabs to mark their pages.
+type Tracked = { path: () => string | undefined; error: () => string | undefined }
+const tracked = shallowReactive(new Set<Tracked>())
+const errorPaths = computed(() => {
+  const paths: string[] = []
+  for (const entry of tracked) {
+    const path = entry.path()
+    if (path && entry.error()) paths.push(path)
+  }
+  return paths
+})
+
+/** A form that is a series of steps shows the default slot on its last step. */
+const footerOwner = computed(() => props.form.nodes.find(isSteps)?.id)
+
 provide(rendererKey, {
   model: () => model.value,
   fields: () => fields.value,
@@ -145,25 +178,44 @@ provide(rendererKey, {
   functions: () => props.functions,
   load,
   sourceVersion: (name) => everyVersion.value + (versions[name] ?? 0),
+  messages: () => messages.value,
+  validate,
+  scrollToField,
+  addRevealer: (reveal) => {
+    revealers.add(reveal)
+    return () => revealers.delete(reveal)
+  },
+  trackError: (path, error) => {
+    const entry = { path, error }
+    tracked.add(entry)
+    return () => tracked.delete(entry)
+  },
+  errorPaths: () => errorPaths.value,
+  footer: () => slots.default?.(),
+  footerOwner: () => footerOwner.value,
 })
 
-const formRef = useTemplateRef<FormInstance>('formRef')
 defineExpose<FormRendererExpose>({
   get model() {
     return model.value
   },
-  validate: async (names) => (await formRef.value?.validate(names)) ?? { valid: true, errors: {} },
+  validate,
   resetFields: (names) => formRef.value?.resetFields(names),
   clearValidate: (names) => formRef.value?.clearValidate(names),
-  scrollToField: (name) => formRef.value?.scrollToField(name),
+  scrollToField,
   reloadSource,
+  getValues,
 })
 </script>
 
 <template>
   <DouForm
     ref="formRef"
-    :class="['dou-form-renderer', `dou-form-renderer--${layout}`]"
+    :class="[
+      'dou-form-renderer',
+      `dou-form-renderer--${layout}`,
+      (form.requiredMark ?? true) === true && 'dou-form-renderer--marked',
+    ]"
     :model="model"
     :rules="rules"
     :layout="layout"
@@ -171,13 +223,19 @@ defineExpose<FormRendererExpose>({
     :size="form.size"
     :required-mark="form.requiredMark ?? true"
     :disabled="disabled"
-    @submit="emit('submit', $event)"
-    @invalid="emit('invalid', $event)"
+    :scroll-to-error="false"
+    @submit="emit('submit', getValues())"
+    @invalid="onInvalid"
     @reset="emit('reset')"
   >
     <div class="dou-form-renderer__grid" :style="{ '--dou-form-columns': columns }">
-      <FormNodeView v-for="node in form.nodes" :key="node.id" :node="node" :columns="columns" />
+      <FormNodeView
+        v-for="node in form.nodes"
+        :key="nodeKey(node)"
+        :node="node"
+        :columns="columns"
+      />
     </div>
-    <slot />
+    <slot v-if="!footerOwner" />
   </DouForm>
 </template>

@@ -78,30 +78,32 @@ app.use(DouFormRenderer)
 
 ### Props
 
-| 名称      | 说明                                            | 类型                                | 默认值           |
-| --------- | ----------------------------------------------- | ----------------------------------- | ---------------- |
-| form      | 表单描述                                        | `FormDocument`                      | —                |
-| model     | 字段写入的对象，原地修改                        | `Record<string, any>`               | 渲染器自己的对象 |
-| fields    | 内置之外的字段类型                              | `FormFieldType[]`                   | —                |
-| rules     | 按字段名追加的规则                              | `FormRules`                         | —                |
-| disabled  | 禁用全部字段                                    | `boolean`                           | `false`          |
-| functions | 表达式可以调用的函数，见[联动与表达式](./logic) | `Record<string, FormFunction>`      | —                |
-| sources   | 选项来源，见[联动与表达式](./logic)             | `Record<string, FormOptionsLoader>` | —                |
+| 名称       | 说明                                                               | 类型                                | 默认值           |
+| ---------- | ------------------------------------------------------------------ | ----------------------------------- | ---------------- |
+| form       | 表单描述                                                           | `FormDocument`                      | —                |
+| model      | 字段写入的对象，原地修改                                           | `Record<string, any>`               | 渲染器自己的对象 |
+| fields     | 内置之外的字段类型                                                 | `FormFieldType[]`                   | —                |
+| rules      | 按字段名追加的规则                                                 | `FormRules`                         | —                |
+| disabled   | 禁用全部字段                                                       | `boolean`                           | `false`          |
+| functions  | 表达式可以调用的函数，见[联动与表达式](./logic)                    | `Record<string, FormFunction>`      | —                |
+| sources    | 选项来源，见[联动与表达式](./logic)                                | `Record<string, FormOptionsLoader>` | —                |
+| keepHidden | 提交时保留隐藏字段的值，见[隐藏字段的值](./structure#隐藏字段的值) | `boolean`                           | `false`          |
+| messages   | 替换部分文字，见[文字](./structure#文字)                           | `FormBuilderMessagesOverride`       | —                |
 
 ### 事件
 
-| 名称    | 说明               | 参数                               |
-| ------- | ------------------ | ---------------------------------- |
-| change  | 字段被填写         | `(name: string, value: unknown)`   |
-| submit  | 提交且全部字段通过 | `(model)`                          |
-| invalid | 提交但有字段未通过 | `(errors: Record<string, string>)` |
-| reset   | 重置为初始值       | —                                  |
+| 名称    | 说明                                                   | 参数                               |
+| ------- | ------------------------------------------------------ | ---------------------------------- |
+| change  | 字段被填写                                             | `(name: string, value: unknown)`   |
+| submit  | 提交且全部字段通过，拿到值的拷贝，默认不含隐藏字段的值 | `(values)`                         |
+| invalid | 提交但有字段未通过                                     | `(errors: Record<string, string>)` |
+| reset   | 重置为初始值                                           | —                                  |
 
 ### 插槽
 
-| 名称    | 说明                         |
-| ------- | ---------------------------- |
-| default | 放在所有字段后面，通常是按钮 |
+| 名称    | 说明                                                   |
+| ------- | ------------------------------------------------------ |
+| default | 放在所有字段后面，通常是按钮；表单是分步时放在最后一步 |
 
 ### 实例方法
 
@@ -113,3 +115,4 @@ app.use(DouFormRenderer)
 | clearValidate | 清除错误                                                       | `(names?: string \| string[]) => void`                        |
 | scrollToField | 滚动到字段并聚焦                                               | `(name: string) => void`                                      |
 | reloadSource  | 重新加载一个或全部选项来源，见[联动与表达式](./logic#选项来源) | `(name?: string) => void`                                     |
+| getValues     | 和 `submit` 相同的值的拷贝                                     | `() => Record<string, any>`                                   |

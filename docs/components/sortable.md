@@ -55,18 +55,19 @@ const { container, list, listAttrs, itemAttrs } = useSortable({
 
 ### Sortable Props
 
-| 名称         | 说明                             | 类型                                   | 默认值       |
-| ------------ | -------------------------------- | -------------------------------------- | ------------ |
-| `modelValue` | 列表，配合 `v-model`，放下时替换 | `T[]`                                  | —            |
-| `itemKey`    | 唯一键的字段名，或返回键的函数   | `string \| (item: T) => PropertyKey`   | `'id'`       |
-| `direction`  | 排列方向，决定方向键             | `'vertical' \| 'horizontal' \| 'grid'` | `'vertical'` |
-| `group`      | 同组的列表之间可以互相拖动       | `string`                               | —            |
-| `handle`     | 只能从 `DouSortableHandle` 拖动  | `boolean`                              | `false`      |
-| `disabled`   | 禁止拖动                         | `boolean`                              | `false`      |
-| `animation`  | 拖动时其他项滑动让位             | `boolean`                              | `true`       |
-| `tag`        | 列表元素                         | `string`                               | `'div'`      |
-| `itemTag`    | 每一项的元素                     | `string`                               | `'div'`      |
-| `itemLabel`  | 读屏时项的名称                   | `(item: T, index: number) => string`   | “第 n 项”    |
+| 名称         | 说明                                                     | 类型                                   | 默认值       |
+| ------------ | -------------------------------------------------------- | -------------------------------------- | ------------ |
+| `modelValue` | 列表，配合 `v-model`，放下时替换                         | `T[]`                                  | —            |
+| `itemKey`    | 唯一键的字段名，或返回键的函数                           | `string \| (item: T) => PropertyKey`   | `'id'`       |
+| `direction`  | 排列方向，决定方向键                                     | `'vertical' \| 'horizontal' \| 'grid'` | `'vertical'` |
+| `group`      | 同组的列表之间可以互相拖动                               | `string`                               | —            |
+| `handle`     | 只能从 `DouSortableHandle` 拖动                          | `boolean`                              | `false`      |
+| `disabled`   | 禁止拖动                                                 | `boolean`                              | `false`      |
+| `animation`  | 拖动时其他项滑动让位                                     | `boolean`                              | `true`       |
+| `tag`        | 列表元素                                                 | `string`                               | `'div'`      |
+| `itemTag`    | 每一项的元素                                             | `string`                               | `'div'`      |
+| `itemLabel`  | 读屏时项的名称                                           | `(item: T, index: number) => string`   | “第 n 项”    |
+| `ghost`      | 生成拖动时跟随指针的副本，例如保留列表外的样式带来的外观 | `(el: HTMLElement) => HTMLElement`     | 深拷贝元素   |
 
 ### Sortable Events
 

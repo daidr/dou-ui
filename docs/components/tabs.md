@@ -6,7 +6,7 @@
 
 <DocDemo src="tabs/basic" column />
 
-不绑定 `v-model` 时默认选中第一个可用的标签。面板在第一次显示时才渲染，之后切走也会保留，切回来是即时的，状态也还在。
+不绑定 `v-model` 时默认选中第一个可用的标签。面板在第一次显示时才渲染，之后切走也会保留，切回来是即时的，状态也还在。面板设了 `eager` 时一开始就渲染，适合放隐藏时也要存在的内容，比如提交时要校验的表单字段。
 
 ## 自定义标签与额外内容
 
@@ -82,6 +82,7 @@
 | `label`    | 标签文字                              | `string`           | `value` |
 | `disabled` | 禁用                                  | `boolean`          | `false` |
 | `closable` | 显示关闭按钮，覆盖 Tabs 的 `closable` | `boolean`          | —       |
+| `eager`    | 一开始就渲染内容，不等第一次显示      | `boolean`          | `false` |
 
 ### TabPanel Slots
 

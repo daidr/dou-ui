@@ -16,7 +16,7 @@
 
 <DocDemo src="form-builder/logic-visible" column />
 
-隐藏字段的值目前仍留在 `model` 里，提交前如果不需要，可以自己去掉。后续版本会加上自动处理隐藏字段值的选项。
+隐藏字段的值仍留在 `model` 里，再次显示时不用重新填写；`submit` 拿到的值默认去掉了它们，见[隐藏字段的值](./structure#隐藏字段的值)。
 
 ## 公式
 
@@ -61,6 +61,7 @@ source: { name: 'cities', arg: 'values.province' }
 | `12`、`1.5`、`'上海'`、`"上海"`、`true`、`null`、`[1, 2]`                | 数字、文字、布尔值、空值、列表                                                                                                                                         |
 | `values.city`、`values.contact.phone`、`values.list[0]`、`values['a-b']` | 读取表单的值，路径上缺了就是 `null`                                                                                                                                    |
 | `value`                                                                  | 当前字段自己的值                                                                                                                                                       |
+| `item.price`                                                             | 列表里同一项的值                                                                                                                                                       |
 | `+ - * / %`                                                              | 算术。`+` 两边有文字时拼接文字。`* / %` 有一边为空时得到 `null`；`+ -` 两边都为空时得到 `null`，只有一边为空时按 0 计算；结果不是有限数字（比如除以 0）时也得到 `null` |
 | `== !=`                                                                  | 按值比较，列表和对象逐项比较。数字和数字形式的文字按数字比较（文本框里的 `3` 等于 `3`），其他不做类型转换                                                              |
 | `< <= > >=`                                                              | 比较数字或文字。一边是数字、另一边是数字形式的文字时按数字比较。`YYYY-MM-DD` 格式的日期可以直接比较                                                                    |
@@ -70,7 +71,7 @@ source: { name: 'cities', arg: 'values.province' }
 
 `false`、`null`、`0`、空文字和空列表都算假，其余都算真。这一点和 JavaScript 不同：空列表也算假，所以 `visibleWhen: 'values.tags'` 在一个标签都没选时为假。
 
-表达式里只能出现 `values`、`value` 和函数名。写成 `city == 'sh'` 会报错并提示改成 `values.city`；把 `==` 写成 `=` 也会提示。读不到对象自身的属性时（例如 `constructor`）结果是 `null`。
+表达式里只能出现 `values`、`value`、`item`（列表的一项，见[列表](./structure#列表)）和函数名。写成 `city == 'sh'` 会报错并提示改成 `values.city`；把 `==` 写成 `=` 也会提示。读不到对象自身的属性时（例如 `constructor`）结果是 `null`。
 
 ### 内置函数
 
@@ -80,6 +81,7 @@ source: { name: 'cities', arg: 'values.province' }
 | `empty(x)`                            | 是否为空：`null`、空白文字、空列表、空对象             |
 | `number(x)`                           | 转成数字，转不了时为 `null`                            |
 | `sum(list)`、`min(list)`、`max(list)` | 对一个列表或多个参数求和、求最小值、求最大值，空值跳过 |
+| `sum(list, 'key')`                    | 对列表每一项的 `key` 求和，`min`、`max` 同理           |
 | `round(x, digits?)`                   | 四舍五入到 `digits` 位小数，默认取整；`x` 为空时为空   |
 | `abs(x)`                              | 绝对值                                                 |
 | `today(offset?)`                      | 今天的日期（`YYYY-MM-DD`），`offset` 为相对今天的天数  |
@@ -149,7 +151,7 @@ formula: 'round(values.price + tax(values.price), 2)'
 | 名称                                                                | 说明                                                                                                   |
 | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
 | `compileExpression(source)`                                         | 解析表达式，返回 `evaluate`、读到的字段 `fields`、调用的函数 `calls`；解析失败时抛出 `ExpressionError` |
-| `evaluateExpression(source, scope)`                                 | 解析并执行，`scope` 为 `{ values, value?, functions? }`                                                |
+| `evaluateExpression(source, scope)`                                 | 解析并执行，`scope` 为 `{ values, value?, item?, functions? }`                                         |
 | `parseExpression(source)`                                           | 只解析，返回语法树，供可视化的条件编辑使用                                                             |
 | `checkExpression(source, options?)`                                 | 检查语法、字段和函数，返回问题列表                                                                     |
 | `fitToOptions(value, options)` / `fitPathToOptions(value, options)` | 把值收窄到选项提供的范围                                                                               |

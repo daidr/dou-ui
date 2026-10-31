@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import {
-  BrushIcon,
   CircleIcon,
   CursorIcon,
   DiamondIcon,
@@ -8,6 +7,7 @@ import {
   HandGrabIcon,
   HandIcon,
   ImageIcon,
+  PencilIcon,
   SquareIcon,
   StickyNoteIcon,
   TypeIcon,
@@ -40,7 +40,7 @@ const groups: { tool: WhiteboardTool; icon: Component }[][] = [
     { tool: 'text', icon: TypeIcon },
   ],
   [
-    { tool: 'pen', icon: BrushIcon },
+    { tool: 'pen', icon: PencilIcon },
     { tool: 'eraser', icon: EraserIcon },
   ],
 ]

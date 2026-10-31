@@ -1051,6 +1051,7 @@ function insertTask(near: string | null, options: GanttInsertOptions = {}) {
   })
   selection.value = [id]
   void nextTick(() => editCell(id))
+  announce(format(messages.value.taskAdded, { title }))
   return id
 }
 

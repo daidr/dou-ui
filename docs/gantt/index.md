@@ -68,6 +68,29 @@ const details = defineGanttExtension({
       ? [{ key: 'details', label: '查看详情', icon: FileTextIcon, run: () => open(target.task.id) }]
       : [],
 })
+
+// 在空白处右键的位置添加里程碑；time 是分钟数，用 formatTime 写成日期
+const milestones = defineGanttExtension({
+  name: 'milestones',
+  contextMenu: (ctx, target) =>
+    target.kind === 'canvas'
+      ? [
+          {
+            key: 'milestone',
+            label: '在这里添加里程碑',
+            run: () =>
+              ctx.transact((tr) =>
+                tr.addTask({
+                  id: crypto.randomUUID(),
+                  title: '里程碑',
+                  type: 'milestone',
+                  start: formatTime(target.time, true),
+                }),
+              ),
+          },
+        ]
+      : [],
+})
 ```
 
 这些操作也可以通过组件实例调用：`editCell(id, key?)`、`insertTask(near, { where?: 'after' | 'inside', start? })`、`indentTask(id)`、`outdentTask(id)`。

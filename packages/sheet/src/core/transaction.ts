@@ -1,6 +1,7 @@
 import {
   boundsOf,
   columnIndex,
+  formatRange,
   moveReferences,
   parseCell,
   shiftFormula,
@@ -24,6 +25,7 @@ import {
   valueOf,
 } from './model'
 import { continueValues, type SheetFillMode } from './fill'
+import { mergesOf, overlaps } from './merge'
 
 /*
  * Every change to a workbook is a list of steps. Applying a step also gives
@@ -76,6 +78,7 @@ export type SheetAction =
   | 'insert'
   | 'delete'
   | 'hide'
+  | 'merge'
   | 'undo'
   | 'redo'
   | 'api'
@@ -428,8 +431,8 @@ export class SheetTransaction {
       at,
     )
     const add = (n: number) => (n >= index ? n + count : n)
-    return this.rewriteReferences(
-      sheet.name,
+    return this.moveRanges(
+      at,
       lineMap(axis, (a, b) => [add(a), add(b)]),
     )
   }
@@ -443,8 +446,8 @@ export class SheetTransaction {
     const left = (n: number) => n - Math.max(0, Math.min(n, index + count) - index)
     this.updateSheet(linesPatch(sheet, axis, left, -count), at)
     const end = index + count
-    return this.rewriteReferences(
-      sheet.name,
+    return this.moveRanges(
+      at,
       lineMap(axis, (a, b) => {
         if (a >= index && b < end) return null
         const first = a < index ? a : a >= end ? a - count : index
@@ -459,14 +462,72 @@ export class SheetTransaction {
     const at = this.mustIndex(ref)
     this.step({ type: 'moveLines', sheet: this.keyOf(at), axis, from, count, to })
     const place = movedIndex(from, count, to)
-    return this.rewriteReferences(
-      this.book.sheets[at]!.name,
+    return this.moveRanges(
+      at,
       lineMap(axis, (a, b) => {
         const x = place(a)
         const y = place(b)
         return [Math.min(x, y), Math.max(x, y)]
       }),
     )
+  }
+
+  /**
+   * After rows or columns of a sheet change: rewrites formulas pointing at
+   * it, and moves its merged cells, dropping those that are gone or now
+   * one cell.
+   */
+  private moveRanges(index: number, map: SheetRefMap) {
+    const sheet = this.book.sheets[index]!
+    this.rewriteReferences(sheet.name, map)
+    const merges = sheet.merges
+    if (!merges?.length) return this
+    const next: string[] = []
+    for (const text of merges) {
+      const range = parseRange(text)
+      if (!range) continue
+      const moved = map(boundsOf(range))
+      if (!moved) continue
+      const b = 'bounds' in moved ? moved.bounds : moved
+      if (b.top === b.bottom && b.left === b.right) continue
+      next.push(rangeText(b))
+    }
+    const same = next.length === merges.length && next.every((m, i) => m === merges[i])
+    return same ? this : this.updateSheet({ merges: next.length ? next : undefined }, index)
+  }
+
+  /**
+   * Merges a range into one cell. Merges it touches are taken into it. The
+   * top left cell keeps its content; as in other spreadsheet programs, the
+   * values of the other cells are cleared, keeping their styles.
+   */
+  mergeCells(at: SheetRangeAt) {
+    const { index, bounds } = this.rangeAt(at)
+    const sheet = this.book.sheets[index]!
+    const b = mergesOf(sheet).expand(bounds)
+    if (b.top === b.bottom && b.left === b.right) return this
+    for (let row = b.top; row <= b.bottom; row++)
+      for (let col = b.left; col <= b.right; col++)
+        if ((row !== b.top || col !== b.left) && valueOf(sheet.cells[row]?.[col]) != null)
+          this.setValue({ sheet: index, row, col }, undefined)
+    const kept = (sheet.merges ?? []).filter((text) => {
+      const range = parseRange(text)
+      return !range || !overlaps(boundsOf(range), b)
+    })
+    return this.updateSheet({ merges: [...kept, rangeText(b)] }, index)
+  }
+
+  /** Splits the merged cells a range touches back into single cells. */
+  unmergeCells(at: SheetRangeAt) {
+    const { index, bounds } = this.rangeAt(at)
+    const sheet = this.book.sheets[index]!
+    if (!sheet.merges?.length) return this
+    const kept = sheet.merges.filter((text) => {
+      const range = parseRange(text)
+      return !range || !overlaps(boundsOf(range), bounds)
+    })
+    if (kept.length === sheet.merges.length) return this
+    return this.updateSheet({ merges: kept.length ? kept : undefined }, index)
   }
 
   /** Rewrites the references to cells on sheet `name` in every formula of the workbook. */
@@ -710,6 +771,9 @@ export class SheetTransaction {
     return own.cells[row]!
   }
 }
+
+const rangeText = (b: SheetBounds) =>
+  formatRange({ start: { row: b.top, col: b.left }, end: { row: b.bottom, col: b.right } })
 
 /** Whether `x` lies inside `y`. */
 const inside = (x: SheetBounds, y: SheetBounds) =>

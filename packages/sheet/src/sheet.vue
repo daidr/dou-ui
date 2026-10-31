@@ -16,11 +16,13 @@ import {
   EraserIcon,
   EyeIcon,
   EyeOffIcon,
+  MergeIcon,
   PlusIcon,
   RowInsertBottomIcon,
   RowInsertTopIcon,
   RowRemoveIcon,
   ScissorsIcon,
+  SplitIcon,
   TrashIcon,
 } from '@dou-ui/icons'
 import {
@@ -51,6 +53,7 @@ import {
 import { formatClip, parseClip, type SheetClip } from './core/clipboard'
 import { fillContinues, type SheetFillMode } from './core/fill'
 import { SheetAxis } from './core/axis'
+import { mergesOf } from './core/merge'
 import { alignOf, fitNumber, formatValue, inputText, parseInput } from './core/format'
 import { SheetHistory, type SheetHistoryView } from './core/history'
 import {
@@ -290,9 +293,43 @@ watch([rowCount, colCount], ([rowsNow, colsNow]) => {
 })
 
 const selectedBounds = computed(() => selection.value.ranges.map(boundsOf))
+
+/**
+ * A selection grown to take in the merged cells it touches, with the
+ * keyboard on a merged cell's top left cell. Each range keeps the corner
+ * it started from.
+ */
+function fitMerges(sel: SheetSelection): SheetSelection {
+  const m = mergesOf(sheet.value)
+  if (!m.size) return sel
+  let changed = false
+  const ranges = sel.ranges.map((range) => {
+    const b = boundsOf(range)
+    const grown = m.expand(b)
+    if (
+      grown === b ||
+      (grown.top === b.top &&
+        grown.left === b.left &&
+        grown.bottom === b.bottom &&
+        grown.right === b.right)
+    )
+      return range
+    changed = true
+    const down = range.end.row >= range.start.row
+    const across = range.end.col >= range.start.col
+    return {
+      start: { row: down ? grown.top : grown.bottom, col: across ? grown.left : grown.right },
+      end: { row: down ? grown.bottom : grown.top, col: across ? grown.right : grown.left },
+    }
+  })
+  const active = m.anchor(sel.active)
+  if (active !== sel.active) changed = true
+  return changed ? { active, ranges } : sel
+}
 const active = computed(() => selection.value.active)
 
-function setSelection(next: SheetSelection) {
+function setSelection(given: SheetSelection) {
+  const next = fitMerges(given)
   if (sameSelection(next, selection.value)) return
   selection.value = next
   emit('update:selection', next)
@@ -332,6 +369,9 @@ interface CellView {
   text: string
   cls: string
   css: string
+  key?: string
+  /** The cell the keyboard is on gets the grid's active id. */
+  id?: string
 }
 
 /**
@@ -355,12 +395,31 @@ onMounted(() => {
   void document.fonts?.ready.then(measureDigits)
 })
 
+const merges = computed(() => mergesOf(sheet.value))
+// a selection given from outside, or one a new merge now cuts through, grows over the merges
+watch(
+  [merges, selection],
+  () => {
+    const next = fitMerges(selection.value)
+    if (next !== selection.value) setSelection(next)
+  },
+  { immediate: true },
+)
+
+/**
+ * A cell as drawn. `span` is the merge it shows, for the merged cell
+ * itself; the cells a merge covers are drawn empty and see-through, and
+ * the merged cell is drawn over them.
+ */
 function cellView(
   row: number,
   col: number,
   line: SheetData['cells'][number],
   width: number,
+  span?: SheetBounds,
 ): CellView {
+  if (!span && merges.value.size && merges.value.at(row, col))
+    return { col, text: '', cls: 'dou-sheet__cell is-covered', css: '' }
   const input = line?.[col]
   let cls = 'dou-sheet__cell'
   let css = ''
@@ -380,13 +439,15 @@ function cellView(
     const align = style?.align ? 'left' : alignOf(value)
     if (align !== 'left') cls += ` is-align-${align}`
   }
+  const bottom = span ? span.bottom : row
+  const right = span ? span.right : col
   for (const b of selectedBounds.value) {
     if (!inBounds(b, row, col)) continue
     if (!cls.includes(' is-selected')) cls += ' is-selected'
     if (row === b.top) cls += ' is-edge-top'
-    if (row === b.bottom) cls += ' is-edge-bottom'
+    if (bottom === b.bottom) cls += ' is-edge-bottom'
     if (col === b.left) cls += ' is-edge-left'
-    if (col === b.right) cls += ' is-edge-right'
+    if (right === b.right) cls += ' is-edge-right'
   }
   if (row === active.value.row && col === active.value.col) cls += ' is-active'
   return { col, text, cls, css }
@@ -397,13 +458,91 @@ function rowCells(row: number, list: number[]): CellView[] {
   const axis = cols.value
   const x0 = headerWidth.value
   const edgeCol = frozen.value.cols - 1
-  return list.map((col) => {
+  const views = list.map((col) => {
     const width = axis.size(col)
     const view = cellView(row, col, line, width)
     view.css = `width:${width}px;left:${x0 + axis.offset(col)}px;${view.css}`
     if (col === edgeCol) view.cls += ' is-freeze-edge'
+    if (row === active.value.row && col === active.value.col && !view.cls.includes('is-covered'))
+      view.id = activeId.value
     return view
   })
+  if (merges.value.size) addMergedCells(row, list, views)
+  return views
+}
+
+/**
+ * The first of `list` (sorted) from `from` to `to`, or `-1`: where a
+ * merged cell is drawn when its own top left cell is out of view.
+ */
+function firstIn(list: readonly number[], from: number, to: number) {
+  for (const i of list) {
+    if (i > to) return -1
+    if (i >= from) return i
+  }
+  return -1
+}
+
+/**
+ * Adds the merged cells drawn from this row and these columns. A merge is
+ * drawn once in each pane it reaches, from its first row and column drawn
+ * there, so it shows even when its top left cell has scrolled away. In a
+ * frozen pane it stops at the pane's edge; the text goes in the pane with
+ * the merge's top left cell.
+ */
+function addMergedCells(row: number, list: number[], views: CellView[]) {
+  const f = frozen.value
+  const frozenCols = list === frozenColList.value
+  const rowList = row < f.rows ? frozenRowList.value : bodyRows.value
+  const r = rows.value
+  const c = cols.value
+  const x0 = headerWidth.value
+  for (const m of merges.value.inRow(row)) {
+    const paneTop = row < f.rows ? m.top : Math.max(m.top, f.rows)
+    if (firstIn(rowList, paneTop, m.bottom) !== row) continue
+    const paneLeft = frozenCols ? m.left : Math.max(m.left, f.cols)
+    const paneRight = frozenCols ? Math.min(m.right, f.cols - 1) : m.right
+    if (paneLeft > paneRight || firstIn(list, paneLeft, paneRight) === -1) continue
+    const right = frozenCols ? paneRight : m.right
+    const bottom = row < f.rows ? Math.min(m.bottom, f.rows - 1) : m.bottom
+    const width = c.offset(right + 1) - c.offset(m.left)
+    const height = r.offset(bottom + 1) - r.offset(m.top)
+    const anchor = sheet.value.cells[m.top]
+    const view = cellView(m.top, m.left, anchor, width, m)
+    // the text shows once, in the pane holding the top left cell
+    const home = !((!frozenCols && m.left < f.cols) || (row >= f.rows && m.top < f.rows))
+    if (!home) view.text = ''
+    view.cls += ' is-merged'
+    view.key = `m${m.left}`
+    if (home && active.value.row === m.top && active.value.col === m.left) view.id = activeId.value
+    if (right >= f.cols - 1 && m.left < f.cols && frozenCols) view.cls += ' is-freeze-edge'
+    const top = r.offset(m.top) - r.offset(row)
+    const left = x0 + c.offset(m.left)
+    view.css = frozenCols
+      ? `width:${width}px;height:${height}px;left:${left}px;margin-top:${top}px;margin-right:${-width}px;${view.css}`
+      : `width:${width}px;height:${height}px;left:${left}px;top:${top}px;${view.css}`
+    // in the frozen columns it sits in the flow, just before the cells it covers
+    const at = frozenCols ? views.findIndex((v) => v.col === m.left) : views.length
+    views.splice(at === -1 ? views.length : at, 0, view)
+  }
+}
+
+/** What a row's merged cells depend on beyond the row itself, for `v-memo`. */
+function mergeKey(row: number) {
+  if (!merges.value.size) return ''
+  let key = ''
+  for (const m of merges.value.inRow(row))
+    key += `${m.top},${m.left}:${rowId(sheet.value.cells[m.top])}:${rowMarks(m.top)}|${rowMarks(m.bottom)};`
+  return key ? `${key}${bodyRows.value[0]}` : ''
+}
+
+const rowIds = new WeakMap<object, number>()
+let lastRowId = 0
+function rowId(line: SheetData['cells'][number]) {
+  if (!line) return 0
+  let id = rowIds.get(line)
+  if (id == null) rowIds.set(line, (id = ++lastRowId))
+  return id
 }
 
 /*
@@ -411,6 +550,7 @@ function rowCells(row: number, list: number[]): CellView[] {
  * the layout change, so scrolling down draws just the rows coming in.
  */
 const memoBase = computed(() => [
+  merges.value,
   rows.value,
   cols.value,
   bodyCols.value,
@@ -471,12 +611,19 @@ function scrollToPoint(point: SheetPoint) {
 
 /** Where a cell is in the view, in px from its top left corner. */
 function cellRect(point: SheetPoint) {
-  const { row, col } = point
+  // a merged cell is as big as its merge
+  const span = merges.value.cell(point)
+  const { top: row, left: col } = span
   let x = headerWidth.value + cols.value.offset(col)
   let y = headerHeight.value + rows.value.offset(row)
   if (col >= frozen.value.cols) x -= scroll.value.left
   if (row >= frozen.value.rows) y -= scroll.value.top
-  return { x, y, width: cols.value.size(col), height: rows.value.size(row) }
+  return {
+    x,
+    y,
+    width: cols.value.offset(span.right + 1) - cols.value.offset(col),
+    height: rows.value.offset(span.bottom + 1) - rows.value.offset(row),
+  }
 }
 
 // Changes --------------------------------------------------------------------------------
@@ -679,9 +826,24 @@ function onInputBlur() {
 
 // Keys -----------------------------------------------------------------------------------
 
-function moveActive(direction: SheetDirection) {
-  const next = movePoint(active.value, direction, axes(), filled)
+/**
+ * Where the keys entered the merged cell that's active, so leaving it keeps
+ * to the same column (or row) instead of the merge's first.
+ */
+let entered: SheetPoint | undefined
+
+function moveActive(direction: SheetDirection, jump = false) {
+  // out of a merged cell from its far side
+  const span = merges.value.cell(active.value)
+  const track =
+    entered && merges.value.at(entered.row, entered.col) === span ? entered : active.value
+  const from = {
+    row: direction === 'down' ? span.bottom : direction === 'up' ? span.top : track.row,
+    col: direction === 'right' ? span.right : direction === 'left' ? span.left : track.col,
+  }
+  const next = movePoint(from, direction, axes(), filled, jump)
   select(selectCell(next))
+  entered = merges.value.at(next.row, next.col) ? next : undefined
 }
 
 const axes = () => ({ rows: rows.value, cols: cols.value })
@@ -755,8 +917,7 @@ function onKeydown(event: KeyboardEvent) {
   if (arrow && !event.altKey) {
     event.preventDefault()
     if (event.shiftKey) return extend(arrow, mod)
-    const next = movePoint(active.value, arrow, axes(), filled, mod)
-    return select(selectCell(next))
+    return moveActive(arrow, mod)
   }
   if (matchesHotkey(event, 'mod+z')) return done(event, travel('undo'))
   if (matchesHotkey(event, 'mod+shift+z') || matchesHotkey(event, 'mod+y'))
@@ -1733,8 +1894,54 @@ function menuFor(area: SheetMenuContext['area']): SheetMenuItem[] {
           } as const,
         ]
       : []),
+    ...mergeItems(),
     clear,
   ]
+}
+
+/** Merging the selection, or splitting the merged cells in it. */
+function mergeItems(): SheetMenuItem[] {
+  const m = messages.value
+  const b = lastBounds()
+  const touched = merges.value.touching(b)
+  const one = touched.length === 1 && sameBounds(touched[0]!, b)
+  const out: SheetMenuItem[] = []
+  if (!one && (b.top !== b.bottom || b.left !== b.right) && selection.value.ranges.length === 1)
+    out.push({
+      key: 'merge',
+      label: m.mergeCells,
+      icon: MergeIcon,
+      divided: true,
+      run: mergeSelection,
+    })
+  if (touched.length)
+    out.push({
+      key: 'unmerge',
+      label: m.unmergeCells,
+      icon: SplitIcon,
+      divided: !out.length,
+      run: unmergeSelection,
+    })
+  return out
+}
+
+const sameBounds = (a: SheetBounds, b: SheetBounds) =>
+  a.top === b.top && a.left === b.left && a.bottom === b.bottom && a.right === b.right
+
+/** Merges the last range of the selection into one cell. */
+function mergeSelection() {
+  const b = lastBounds()
+  const changed = transact((tr) => tr.mergeCells(b), { action: 'merge' })
+  if (!changed) return
+  setSelection(selectCell({ row: b.top, col: b.left }))
+  announce(format(messages.value.merged, { range: rangeName(b) }))
+}
+
+/** Splits the merged cells the last range of the selection touches. */
+function unmergeSelection() {
+  const b = lastBounds()
+  if (transact((tr) => tr.unmergeCells(b), { action: 'merge' }))
+    announce(format(messages.value.unmerged, { range: rangeName(b) }))
 }
 
 /** The items with a line above the first. */
@@ -2458,7 +2665,7 @@ defineExpose<SheetExpose>({
         <div
           v-for="row in frozenRowList"
           :key="row"
-          v-memo="[sheet.cells[row], memoBase, rowMarks(row)]"
+          v-memo="[sheet.cells[row], memoBase, rowMarks(row), mergeKey(row)]"
           class="dou-sheet__row is-frozen"
           :class="{ 'is-freeze-edge': row === frozen.rows - 1 }"
           role="row"
@@ -2480,8 +2687,8 @@ defineExpose<SheetExpose>({
           </div>
           <div
             v-for="cell in rowCells(row, frozenColList)"
-            :id="row === active.row && cell.col === active.col ? activeId : undefined"
-            :key="cell.col"
+            :id="cell.id"
+            :key="cell.key ?? cell.col"
             :class="[cell.cls, 'is-frozen']"
             role="gridcell"
             :aria-colindex="cell.col + (headers ? 2 : 1)"
@@ -2492,8 +2699,8 @@ defineExpose<SheetExpose>({
           </div>
           <div
             v-for="cell in rowCells(row, bodyCols)"
-            :id="row === active.row && cell.col === active.col ? activeId : undefined"
-            :key="cell.col"
+            :id="cell.id"
+            :key="cell.key ?? cell.col"
             :class="cell.cls"
             role="gridcell"
             :aria-colindex="cell.col + (headers ? 2 : 1)"
@@ -2512,7 +2719,7 @@ defineExpose<SheetExpose>({
         <div
           v-for="row in bodyRows"
           :key="row"
-          v-memo="[sheet.cells[row], memoBase, rowMarks(row)]"
+          v-memo="[sheet.cells[row], memoBase, rowMarks(row), mergeKey(row)]"
           class="dou-sheet__row"
           role="row"
           :aria-rowindex="row + (headers ? 2 : 1)"
@@ -2533,8 +2740,8 @@ defineExpose<SheetExpose>({
           </div>
           <div
             v-for="cell in rowCells(row, frozenColList)"
-            :id="row === active.row && cell.col === active.col ? activeId : undefined"
-            :key="cell.col"
+            :id="cell.id"
+            :key="cell.key ?? cell.col"
             :class="[cell.cls, 'is-frozen']"
             role="gridcell"
             :aria-colindex="cell.col + (headers ? 2 : 1)"
@@ -2545,8 +2752,8 @@ defineExpose<SheetExpose>({
           </div>
           <div
             v-for="cell in rowCells(row, bodyCols)"
-            :id="row === active.row && cell.col === active.col ? activeId : undefined"
-            :key="cell.col"
+            :id="cell.id"
+            :key="cell.key ?? cell.col"
             :class="cell.cls"
             role="gridcell"
             :aria-colindex="cell.col + (headers ? 2 : 1)"

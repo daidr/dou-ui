@@ -132,6 +132,7 @@ sheet.value.transact((tr) => {
 | `paste`、`cut`           | 粘贴；粘贴剪切的内容（移动单元格）       |
 | `fill`、`clear`          | 填充柄、`Ctrl` + `D` / `R`；清空内容     |
 | `resize`、`hide`、`move` | 调整行高列宽；隐藏、取消隐藏；移动行列   |
+| `merge`                  | 合并、取消合并单元格                     |
 | `insert`、`delete`       | 插入、删除行列                           |
 | `undo`、`redo`           | 撤销、重做                               |
 | `api`                    | 组件实例的 `transact`，没有指定 `action` |
@@ -151,6 +152,7 @@ sheet.value.transact((tr) => {
 | `deleteRows(at, count?, sheet?)`、`deleteCols` | 删除行（列）及其中的单元格和尺寸                                                                                                                               |
 | `moveRows(lines, to, sheet?)`、`moveCols`      | 把行（列）移到 `to` 之前，`to` 按移动前编号；`lines` 是序号、`'2:3'` 或 `{ from, count }`                                                                      |
 | `moveCells(range, cell)`                       | 把一块单元格移到以 `cell` 为左上角的位置，原位置清空                                                                                                           |
+| `mergeCells(range)`、`unmergeCells(range)`     | 合并区域，只保留左上角的内容；取消区域碰到的所有合并                                                                                                           |
 | `setStyle(name, style)`                        | 添加、修改或（传 `undefined`）删除一个命名样式                                                                                                                 |
 | `setMeta({ history, group, action })`          | `history: false` 不进入撤销记录；同一 `group` 的连续修改合并为一步；`action` 见上表                                                                            |
 
@@ -251,6 +253,14 @@ function menu(items: SheetMenuItem[], context: SheetMenuContext) {
 `context.area` 是 `cell`、`row`、`col` 或 `corner`，整行、整列被选中时按行号、列标算；`context.selection` 是菜单作用的选区。菜单项的 `children` 显示为子菜单。
 
 插入、删除发生在冻结区域内时，冻结的行数和列数会跟着变化。工作表设置了 `rowCount`、`colCount` 时，行数、列数也随之增减。
+
+## 合并单元格
+
+工作表的 `merges` 列出合并的区域，例如 `['A1:B1']`。合并后显示左上角单元格的内容，其余单元格被盖住。选区碰到合并区域时会扩大到把它整个包含进来，方向键移动时把合并区域当作一个单元格。
+
+选中区域后，在右键菜单里选“合并单元格”或“取消合并”；用代码修改时调用 `tr.mergeCells('A1:B2')`、`tr.unmergeCells('A1')`。合并时只保留左上角的内容，其余单元格被清空，撤销时一起恢复。插入、删除、移动行列时，合并区域跟着移动和伸缩，缩到只剩一个单元格时自动取消。
+
+<DocDemo src="sheet/merge" column />
 
 ## 冻结行列
 

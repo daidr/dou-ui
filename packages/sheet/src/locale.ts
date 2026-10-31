@@ -41,6 +41,10 @@ export interface SheetMessages {
   showRows: string
   showCols: string
   clear: string
+  mergeCells: string
+  unmergeCells: string
+  merged: string
+  unmerged: string
   /** Read out after copying or cutting: `{range}`. */
   copied: string
   cutDone: string
@@ -91,6 +95,10 @@ const zhCN: SheetMessages = {
   showRows: '取消隐藏行',
   showCols: '取消隐藏列',
   clear: '清除内容',
+  mergeCells: '合并单元格',
+  unmergeCells: '取消合并',
+  merged: '已合并 {range}',
+  unmerged: '已取消合并 {range}',
   copied: '已复制 {range}',
   cutDone: '已剪切 {range}',
   pasted: '已粘贴到 {range}',
@@ -135,6 +143,10 @@ const zhTW: SheetMessages = {
   showRows: '取消隱藏列',
   showCols: '取消隱藏欄',
   clear: '清除內容',
+  mergeCells: '合併儲存格',
+  unmergeCells: '取消合併',
+  merged: '已合併 {range}',
+  unmerged: '已取消合併 {range}',
   copied: '已複製 {range}',
   cutDone: '已剪下 {range}',
   pasted: '已貼上到 {range}',
@@ -179,6 +191,10 @@ const en: SheetMessages = {
   showRows: 'Unhide rows',
   showCols: 'Unhide columns',
   clear: 'Clear contents',
+  mergeCells: 'Merge cells',
+  unmergeCells: 'Unmerge',
+  merged: '{range} merged',
+  unmerged: '{range} unmerged',
   copied: '{range} copied',
   cutDone: '{range} cut',
   pasted: 'Pasted into {range}',

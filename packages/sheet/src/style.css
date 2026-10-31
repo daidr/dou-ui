@@ -195,6 +195,24 @@
       border-bottom-color: var(--dou-sheet-freeze-line);
     }
 
+    /* under a merged cell: kept in place, but nothing of it shows */
+    &.is-covered {
+      border-color: transparent;
+      background: none;
+    }
+    /* a merged cell, drawn over the cells it covers from the row it starts in */
+    &.is-merged {
+      background-color: var(--dou-color-bg-surface);
+
+      &:not(.is-frozen) {
+        z-index: 0;
+      }
+      &.is-frozen {
+        z-index: 2;
+        align-self: flex-start;
+      }
+    }
+
     &.is-bold {
       font-weight: var(--dou-font-weight-bold);
     }
@@ -242,6 +260,14 @@
     }
     &.is-tone-danger {
       color: var(--dou-color-danger-text);
+    }
+    /* lines stay as visible on a fill as on the bare sheet */
+    .has-gridlines &[class*='is-fill-'] {
+      --dou-sheet-line: color-mix(
+        in oklab,
+        var(--dou-color-text) 7%,
+        var(--dou-color-border-subtle)
+      );
     }
     &.is-fill-neutral {
       background-color: color-mix(in oklab, var(--dou-color-text) 6%, var(--dou-color-bg-surface));

@@ -51,6 +51,12 @@ export interface SheetData {
   /** Column widths that differ from the default, by column number; `0` hides the column. */
   colSizes?: Record<number, number>
   freeze?: SheetFreeze
+  /**
+   * Merged cells, as ranges such as `'A1:C1'`. The top left cell of each
+   * holds what it shows; the cells it covers keep their data but are not
+   * shown. Merges must not overlap.
+   */
+  merges?: string[]
 }
 
 /** How cells that use a style look. Tones follow the color mode; colors are used as given. */

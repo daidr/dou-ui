@@ -1,6 +1,7 @@
 import type { Component } from 'vue'
 import type { FlowEditorContext } from '../context'
 import type { FlowConnection, PortTypes } from './connect'
+import type { EdgeTypeSpec } from './edge-types'
 import type { FlowMenuItem, FlowMenuTarget, FlowToolbarItem } from './menu'
 import type { FlowDocument, FlowNode } from './model'
 import type { NodeTypeSpec } from './node-types'
@@ -24,6 +25,8 @@ export interface FlowExtension {
   /** Higher runs first: its keys and rules are asked before others. Defaults to 100. */
   priority?: number
   nodeTypes?: NodeTypeSpec<any>[]
+  /** Edge types, used by `edge.type`; `flowKit` brings `bezier`, `step` and `straight`. */
+  edgeTypes?: EdgeTypeSpec<any>[]
   /** Looks and connection rules of port types; see the `port-types` prop. */
   portTypes?: PortTypes
   /**
@@ -64,6 +67,7 @@ export function defineFlowExtension(extension: FlowExtension): FlowExtension {
 export interface ResolvedFlowExtensions {
   extensions: FlowExtension[]
   nodeTypes: Map<string, NodeTypeSpec>
+  edgeTypes: Map<string, EdgeTypeSpec>
   portTypes: PortTypes
   rules: NonNullable<FlowExtension['canConnect']>[]
   keymaps: NonNullable<FlowExtension['keymap']>[]
@@ -98,6 +102,7 @@ export function resolveFlowExtensions(list: ExtensionList): ResolvedFlowExtensio
 
   const names = new Set<string>()
   const nodeTypes = new Map<string, NodeTypeSpec>()
+  const edgeTypes = new Map<string, EdgeTypeSpec>()
   const portTypes: PortTypes = {}
   for (const extension of extensions) {
     if (names.has(extension.name))
@@ -109,6 +114,13 @@ export function resolveFlowExtensions(list: ExtensionList): ResolvedFlowExtensio
           `[@dou-ui/flow] node type "${spec.type}" from "${extension.name}" is already defined`,
         )
       nodeTypes.set(spec.type, spec)
+    }
+    for (const spec of extension.edgeTypes ?? []) {
+      if (edgeTypes.has(spec.type))
+        throw new Error(
+          `[@dou-ui/flow] edge type "${spec.type}" from "${extension.name}" is already defined`,
+        )
+      edgeTypes.set(spec.type, spec)
     }
     for (const [name, spec] of Object.entries(extension.portTypes ?? {})) {
       if (name in portTypes)
@@ -125,6 +137,7 @@ export function resolveFlowExtensions(list: ExtensionList): ResolvedFlowExtensio
   return {
     extensions,
     nodeTypes,
+    edgeTypes,
     portTypes,
     rules: pick('canConnect'),
     keymaps: pick('keymap'),

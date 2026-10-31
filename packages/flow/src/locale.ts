@@ -30,6 +30,9 @@ export interface FlowMessages {
   delete: string
   selectAll: string
   more: string
+  /** Editing an edge's text. */
+  editLabel: string
+  label: string
   /** The list offered when an edge is dropped on the canvas. */
   search: string
   noTypes: string
@@ -39,6 +42,12 @@ export interface FlowMessages {
   undone: string
   redone: string
   connected: string
+  /** An edge selected from the keyboard; `{from}` and `{to}` are node names. */
+  edge: string
+  /** Follows `edge` when it has a label. */
+  edgeLabel: string
+  noEdges: string
+  labelSaved: string
   /** `{node}` is the new node's name. */
   added: string
   /** While connecting from the keyboard; `{node}` and `{port}` are names. */
@@ -59,7 +68,8 @@ export interface FlowMessages {
 }
 
 const zhCN: FlowMessages = {
-  canvas: '流程画布。方向键移动选中的节点，Tab 在节点之间切换，C 从选中的节点连线，Delete 删除。',
+  canvas:
+    '流程画布。方向键移动选中的节点，Tab 在节点之间切换，C 从选中的节点连线，E 选中它的连线，Delete 删除。',
   node: '节点',
   ports: '{inputs} 个输入，{outputs} 个输出，已连接 {connected} 条',
   input: '输入',
@@ -82,6 +92,8 @@ const zhCN: FlowMessages = {
   delete: '删除',
   selectAll: '全选',
   more: '更多',
+  editLabel: '编辑标签',
+  label: '连线标签',
   search: '搜索节点',
   noTypes: '没有能接上的节点',
   deleted: '已删除 {count} 项',
@@ -89,6 +101,10 @@ const zhCN: FlowMessages = {
   undone: '已撤销',
   redone: '已重做',
   connected: '已连接',
+  edge: '连线：{from} → {to}',
+  edgeLabel: '，标签：{label}',
+  noEdges: '这个节点没有连线',
+  labelSaved: '已保存标签',
   added: '已添加{node}',
   connectTo: '连接到 {node} 的 {port}，方向键换一个，Enter 确认',
   noTarget: '没有可以连接的端口',
@@ -105,7 +121,8 @@ const zhCN: FlowMessages = {
 }
 
 const zhTW: FlowMessages = {
-  canvas: '流程畫布。方向鍵移動選取的節點，Tab 在節點之間切換，C 從選取的節點連線，Delete 刪除。',
+  canvas:
+    '流程畫布。方向鍵移動選取的節點，Tab 在節點之間切換，C 從選取的節點連線，E 選取它的連線，Delete 刪除。',
   node: '節點',
   ports: '{inputs} 個輸入，{outputs} 個輸出，已連接 {connected} 條',
   input: '輸入',
@@ -128,6 +145,8 @@ const zhTW: FlowMessages = {
   delete: '刪除',
   selectAll: '全選',
   more: '更多',
+  editLabel: '編輯標籤',
+  label: '連線標籤',
   search: '搜尋節點',
   noTypes: '沒有能接上的節點',
   deleted: '已刪除 {count} 項',
@@ -135,6 +154,10 @@ const zhTW: FlowMessages = {
   undone: '已復原',
   redone: '已重做',
   connected: '已連接',
+  edge: '連線：{from} → {to}',
+  edgeLabel: '，標籤：{label}',
+  noEdges: '這個節點沒有連線',
+  labelSaved: '已儲存標籤',
   added: '已新增{node}',
   connectTo: '連接到 {node} 的 {port}，方向鍵換一個，Enter 確認',
   noTarget: '沒有可以連接的連接埠',
@@ -152,7 +175,7 @@ const zhTW: FlowMessages = {
 
 const en: FlowMessages = {
   canvas:
-    'Flow canvas. Arrow keys move the selected nodes, Tab moves between nodes, C draws an edge from the selected node, Delete removes.',
+    'Flow canvas. Arrow keys move the selected nodes, Tab moves between nodes, C draws an edge from the selected node, E selects its edges, Delete removes.',
   node: 'node',
   ports: '{inputs} inputs, {outputs} outputs, {connected} connected',
   input: 'Input',
@@ -175,6 +198,8 @@ const en: FlowMessages = {
   delete: 'Delete',
   selectAll: 'Select all',
   more: 'More',
+  editLabel: 'Edit label',
+  label: 'Edge label',
   search: 'Search nodes',
   noTypes: 'No node can take this edge',
   deleted: '{count} deleted',
@@ -182,6 +207,10 @@ const en: FlowMessages = {
   undone: 'Undone',
   redone: 'Redone',
   connected: 'Connected',
+  edge: 'Edge: {from} → {to}',
+  edgeLabel: ', label: {label}',
+  noEdges: 'This node has no edges',
+  labelSaved: 'Label saved',
   added: 'Added {node}',
   connectTo: 'Connect to {port} of {node}; arrow keys pick another, Enter confirms',
   noTarget: 'No port to connect to',

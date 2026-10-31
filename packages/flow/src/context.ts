@@ -12,6 +12,7 @@ import type {
   Rect,
 } from './core/model'
 import type { FlowConnection, PortTypes, PortTypeSpec } from './core/connect'
+import type { EdgeTypeSpec } from './core/edge-types'
 import type { FlowExtension } from './core/extension'
 import type { FlowMenuTarget } from './core/menu'
 import type { NodeTypeSpec } from './core/node-types'
@@ -44,6 +45,15 @@ export interface FlowEditorProps {
   extensions?: (FlowExtension | FlowExtension[])[]
   /** Node types besides the extensions'; they win over an extension's type of the same name. */
   nodeTypes?: NodeTypeSpec<any>[]
+  /** Edge types besides the extensions'; they win over an extension's type of the same name. */
+  edgeTypes?: EdgeTypeSpec<any>[]
+  /** The type of edges without `type`, new ones included. `bezier` by default. */
+  edgeType?: string
+  /**
+   * Below this zoom nodes are drawn as plain boxes with their names, which
+   * keeps a large flow quick; see the `simple` slot. `0` never does. `0.4` by default.
+   */
+  simpleZoom?: number
   /** Grid step for snapping and arrow keys, in px. `0` turns snapping to the grid off. */
   grid?: number
   /** Line nodes up with their neighbours while dragging. */
@@ -150,6 +160,8 @@ export interface FlowEditorExpose {
   startInsertDrag: (type: string, event: PointerEvent) => boolean
   /** Node types with a `palette` entry, in the order they were given. */
   readonly paletteTypes: NodeTypeSpec[]
+  /** Selects an edge and opens the text field on its label. */
+  editLabel: (id: string) => void
 }
 
 export interface FlowEditorSlots {
@@ -163,6 +175,8 @@ export interface FlowEditorSlots {
     choose: (type: string) => void
     close: () => void
   }) => unknown
+  /** A node's content while zoomed out past `simple-zoom`; its name by default. */
+  simple?: (props: { node: FlowNode }) => unknown
 }
 
 export interface FlowInsertOptions {
@@ -226,6 +240,7 @@ export interface FlowEditorContext {
   /** Node types with a `palette` entry, in the order they were given. */
   paletteTypes: ComputedRef<NodeTypeSpec[]>
   startInsertDrag: FlowEditorExpose['startInsertDrag']
+  editLabel: FlowEditorExpose['editLabel']
   /** The editor's element. */
   root: Readonly<ShallowRef<HTMLElement | null>>
   /**

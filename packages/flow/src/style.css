@@ -122,6 +122,157 @@
     }
   }
 
+  /* dashes running from source to target */
+  .dou-flow-editor__edge.is-animated:not(.is-stale) {
+    stroke-dasharray: 6 4;
+    animation: dou-flow-editor-flow 480ms linear infinite;
+
+    @media (prefers-reduced-motion: reduce) {
+      animation: none;
+    }
+  }
+
+  @keyframes dou-flow-editor-flow {
+    from {
+      stroke-dashoffset: 10;
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+
+  /* an edge's text, centred on its route */
+  .dou-flow-editor__label {
+    position: absolute;
+    top: 0;
+    left: 0;
+    translate: -50% -50%;
+    box-sizing: border-box;
+    max-width: 200px;
+    padding: 0 6px;
+    overflow: hidden;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-control);
+    background: var(--dou-color-bg-surface);
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-sm);
+    line-height: 20px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    cursor: pointer;
+
+    /* over the nodes, so it stays readable */
+    &.is-selected {
+      z-index: 1;
+      border-color: var(--dou-flow-editor-selected);
+      color: var(--dou-color-text);
+    }
+    /* on a selected edge's handle: dragging it moves that part */
+    &.is-bend {
+      cursor: ew-resize;
+    }
+    &.is-bend.is-y {
+      cursor: ns-resize;
+    }
+    /* sized by its text: the field and a hidden copy share one cell */
+    &.is-editing {
+      z-index: 2;
+      display: inline-grid;
+      min-width: 48px;
+      max-width: none;
+      overflow: visible;
+      cursor: text;
+
+      /* a space more than the text, for the caret */
+      &::after {
+        content: attr(data-value) ' ';
+        grid-area: 1 / 1;
+        visibility: hidden;
+        white-space: pre;
+      }
+    }
+  }
+
+  .dou-flow-editor__label-input {
+    grid-area: 1 / 1;
+    width: 100%;
+    min-width: 0;
+    padding: 0;
+    border: none;
+    outline: none;
+    background: none;
+    color: inherit;
+    font: inherit;
+    user-select: text;
+    -webkit-user-select: text;
+  }
+
+  /* a node while zoomed far out: its outline and name */
+  .dou-flow-editor__simple {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+    padding: 0 16px;
+    overflow: hidden;
+    border: 1px solid var(--dou-flow-editor-node-border);
+    border-radius: var(--dou-flow-editor-node-radius);
+    background: var(--dou-flow-editor-node-bg);
+    outline: none;
+
+    &.is-selected {
+      border-color: var(--dou-flow-editor-selected);
+      box-shadow: 0 0 0 1px var(--dou-flow-editor-selected);
+    }
+  }
+
+  /* so small a hairline border would vanish: a filled block instead */
+  .dou-flow-editor.is-tiny .dou-flow-editor__simple:not(.is-selected) {
+    border-color: transparent;
+    background: color-mix(in oklab, var(--dou-color-text) 14%, transparent);
+  }
+
+  .dou-flow-editor__simple-label {
+    overflow: hidden;
+    color: var(--dou-color-text-secondary);
+    /* stays about 12px on screen */
+    font-size: min(calc(12px / var(--dou-flow-editor-zoom, 1)), 40px);
+    line-height: 1.2;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  /* drags part of the selected edge, e.g. a step edge's middle */
+  .dou-flow-editor__bend {
+    position: absolute;
+    z-index: 1;
+    top: 0;
+    left: 0;
+    translate: -50% -50%;
+    box-sizing: border-box;
+    width: 6px;
+    height: 16px;
+    border: 1px solid var(--dou-flow-editor-selected);
+    border-radius: 3px;
+    background: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-sm);
+    cursor: ew-resize;
+
+    &.is-y {
+      width: 16px;
+      height: 6px;
+      cursor: ns-resize;
+    }
+    /* a larger target for fingers */
+    &::before {
+      content: '';
+      position: absolute;
+      inset: -8px;
+    }
+  }
+
   .dou-flow-editor__guides line {
     stroke: var(--dou-flow-editor-guide);
     stroke-width: 1px;

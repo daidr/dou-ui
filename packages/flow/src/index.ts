@@ -49,13 +49,8 @@ export type {
 export { applyFlowSteps, compactFlowSteps, FlowTransaction } from './core/transaction'
 export type { FlowStep, FlowTransactionMeta } from './core/transaction'
 export { FlowHistory } from './core/history'
-export { defineFlowExtension, resolveFlowExtensions } from './core/extension'
-export type {
-  FlowExtension,
-  FlowExtensionContext,
-  FlowKeyHandler,
-  ResolvedFlowExtensions,
-} from './core/extension'
+export { defineFlowExtension } from './core/extension'
+export type { FlowExtension, FlowExtensionContext, FlowKeyHandler } from './core/extension'
 export { flowKit } from './kit'
 export type { FlowKitOptions } from './kit'
 export { flowOrder } from './core/order'
@@ -75,7 +70,9 @@ export type {
   PortTypes,
   PortTypeSpec,
 } from './core/connect'
-export { bezierPath, boundsOf, intersects, rectFrom, snapBox, snapTo } from './core/geometry'
+export { boundsOf, intersects, rectFrom, snapBox, snapTo } from './core/geometry'
+export { bezierEdge, bezierPath, defineEdgeType, stepEdge, straightEdge } from './core/edge-types'
+export type { EdgeAnchor, EdgeRoute, EdgeTypeSpec } from './core/edge-types'
 export type { Guide, SnapResult } from './core/geometry'
 
 declare module 'vue' {

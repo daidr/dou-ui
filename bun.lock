@@ -24,6 +24,7 @@
       "dependencies": {
         "@dou-ui/chart": "workspace:*",
         "@dou-ui/code": "workspace:*",
+        "@dou-ui/dashboard": "workspace:*",
         "@dou-ui/editor": "workspace:*",
         "@dou-ui/flow": "workspace:*",
         "@dou-ui/form-builder": "workspace:*",
@@ -53,6 +54,17 @@
     },
     "packages/code": {
       "name": "@dou-ui/code",
+      "version": "0.0.0",
+      "dependencies": {
+        "@dou-ui/icons": "workspace:*",
+      },
+      "peerDependencies": {
+        "dou-ui": "workspace:*",
+        "vue": "^3.5.0",
+      },
+    },
+    "packages/dashboard": {
+      "name": "@dou-ui/dashboard",
       "version": "0.0.0",
       "dependencies": {
         "@dou-ui/icons": "workspace:*",
@@ -333,6 +345,8 @@
     "@dou-ui/chart": ["@dou-ui/chart@workspace:packages/chart"],
 
     "@dou-ui/code": ["@dou-ui/code@workspace:packages/code"],
+
+    "@dou-ui/dashboard": ["@dou-ui/dashboard@workspace:packages/dashboard"],
 
     "@dou-ui/docs": ["@dou-ui/docs@workspace:docs"],
 

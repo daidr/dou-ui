@@ -25,6 +25,7 @@ const packages = [
   'form-builder',
   'code',
   'pivot',
+  'dashboard',
   'resolver',
   'nuxt',
 ]

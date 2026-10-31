@@ -1,0 +1,57 @@
+{
+  "name": "@dou-ui/dashboard",
+  "version": "0.0.0",
+  "description": "DouUI 的仪表盘：可拖动、可缩放的网格布局与仪表盘设计器",
+  "keywords": [
+    "vue",
+    "vue3",
+    "dashboard",
+    "grid-layout",
+    "drag-and-drop",
+    "resizable"
+  ],
+  "license": "MIT",
+  "author": "daidr <daidr@daidr.me>",
+  "homepage": "https://github.com/daidr/dou-ui#readme",
+  "bugs": "https://github.com/daidr/dou-ui/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/daidr/dou-ui.git",
+    "directory": "packages/dashboard"
+  },
+  "type": "module",
+  "sideEffects": [
+    "*.css"
+  ],
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./layout": {
+      "types": "./dist/types/layout/index.d.ts",
+      "import": "./dist/layout/index.js"
+    },
+    "./style.css": "./dist/style.css",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "vite build && vue-tsc -p tsconfig.build.json && bun scripts/build-style.ts"
+  },
+  "peerDependencies": {
+    "dou-ui": "workspace:*",
+    "vue": "^3.5.0"
+  },
+  "dependencies": {
+    "@dou-ui/icons": "workspace:*"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

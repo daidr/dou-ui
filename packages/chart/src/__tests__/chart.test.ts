@@ -26,9 +26,11 @@ describe('DouChart', () => {
     )
     await nextTick()
     const root = wrapper.find('.dou-chart')
-    expect(root.attributes('role')).toBe('img')
+    // it can be explored with the keys
+    expect(root.attributes('role')).toBe('group')
+    expect(root.attributes('tabindex')).toBe('0')
     expect(root.attributes('aria-label')).toBe(
-      '图表，横轴从 一月 到 三月。数量：3 个数据点，最小 10，最大 30',
+      '图表，横轴从 一月 到 三月。数量：3 个数据点，最小 10，最大 30。用方向键逐个查看数据',
     )
     showFirst.value = true
     await nextTick()

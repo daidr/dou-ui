@@ -46,7 +46,13 @@ import { DouFlowEditor, type FlowDocument } from '@dou-ui/flow'
 import '@dou-ui/flow/style.css'
 import { DouSheet, type SheetExpose, type SheetWorkbook } from '@dou-ui/sheet'
 import '@dou-ui/sheet/style.css'
-import { DouFormRenderer, type FormDocument, type FormNode } from '@dou-ui/form-builder'
+import {
+  DouFormRenderer,
+  type FormDocument,
+  type FormFieldNode,
+  type FormNode,
+  type FormSectionNode,
+} from '@dou-ui/form-builder'
 import '@dou-ui/form-builder/style.css'
 
 export interface Case {
@@ -681,6 +687,16 @@ export const cases: Record<string, Case> = {
       input(inputs[inputs.length >> 1] ?? null, '戴兜')
     },
   },
+  // The same form with logic: in each group, the other fields show, turn
+  // required and work out a formula from the group's first text field.
+  // Typing in the middle group's one reruns only that group's expressions.
+  'form-logic': {
+    render: (n) => formLogic(n),
+    act: (root) => {
+      const gate = logicGates[logicGates.length >> 1]
+      input(root.querySelector<HTMLInputElement>(`[data-node="${gate}"] input`), '戴兜')
+    },
+  },
   // The same form written by hand, for the cost of the renderer itself.
   'form-handwritten': {
     render: (n) => formHandwritten(n),
@@ -825,6 +841,35 @@ function formDocument(n: number): FormDocument {
 
 function formRenderer(n: number) {
   const form = formDocument(n)
+  return () => h(DouFormRenderer, { form, style: 'max-width: 960px' })
+}
+
+/** The ids of the fields the others in their group read, in `form-logic`. */
+let logicGates: string[] = []
+
+function formLogic(n: number) {
+  const form = formDocument(n)
+  const gates: string[] = []
+  for (const section of form.nodes as FormSectionNode[]) {
+    const gate = section.children.find((node) => node.type === 'input') as FormFieldNode
+    gates.push(gate.id)
+    const name = gate.name!
+    section.children.forEach((node, index) => {
+      if (node === gate) return
+      node.visibleWhen = `values.${name} != '隐藏'`
+      if (index % 3 === 1 && node.type !== 'switch')
+        (node as FormFieldNode).requiredWhen = `len(values.${name}) > 0`
+    })
+    section.children.push({
+      id: `${section.id}-count`,
+      type: 'input-number',
+      name: `${name}Length`,
+      label: '字数',
+      span: { md: 6 },
+      formula: `len(values.${name})`,
+    })
+  }
+  logicGates = gates
   return () => h(DouFormRenderer, { form, style: 'max-width: 960px' })
 }
 

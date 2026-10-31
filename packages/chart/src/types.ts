@@ -78,8 +78,6 @@ export interface ChartLineProps extends ChartSeriesProps {
   lineWidth?: number
   /** Join the line across gaps (`null` values) instead of breaking it. */
   connectNulls?: boolean
-  /** Hide the series but keep its color and place. */
-  hidden?: boolean
 }
 
 export interface ChartAreaProps extends ChartLineProps {
@@ -92,17 +90,17 @@ export interface ChartBarProps extends ChartSeriesProps {
   stack?: string | boolean
   /** Corner radius of the bar's end, in px. In a stack, only the outermost bar is rounded. */
   radius?: number
-  /** Hide the series but keep its color. */
-  hidden?: boolean
 }
 
 export interface ChartScatterProps extends ChartSeriesProps {
   /** The size of each point, a key or a function: makes bubbles whose area grows with it. */
   size?: ChartAccessor
+  /** What `size` is, shown in the tooltip; defaults to `size` when that is a key. */
+  sizeName?: string
+  /** The name of each point (a key or a function), the title of its tooltip; the series' name by default. */
+  label?: ChartAccessor
   /** Dot radius in px; with `size`, the radius of the largest bubble. */
   radius?: number
-  /** Hide the series but keep its color. */
-  hidden?: boolean
 }
 
 export interface ChartPieProps {
@@ -122,6 +120,53 @@ export interface ChartPieProps {
   color?: ChartAccessor<string | undefined>
   /** The size of the hole, as a part of the radius: `0` is a pie, `0.6` a donut. */
   innerRadius?: number
+}
+
+export interface ChartTooltipProps {
+  /**
+   * What it shows: every series at the x under the pointer (`axis`), or
+   * the one point or slice under it (`item`). `item` for scatters and pies,
+   * `axis` for the others.
+   */
+  trigger?: 'axis' | 'item'
+  /** A line across the plot at the x under the pointer (a shaded band for bars). On by default. */
+  crosshair?: boolean
+  /** No tooltip: the chart doesn't follow the pointer and can't be focused. */
+  disabled?: boolean
+}
+
+/** One line of a tooltip. */
+export interface ChartTooltipItem {
+  /** The series' or slice's name, or what the value is (`x`) for one point. */
+  name: string
+  /** The value as the axis shows it. */
+  text: string
+  /** The value itself; `undefined` for an x that isn't a number. */
+  value?: number
+  /** The series' or slice's color; `undefined` for a line that isn't one. */
+  color?: string
+  /** The row the value comes from. */
+  row?: ChartRow
+}
+
+export interface ChartTooltipSlots {
+  /** The tooltip's content. */
+  default?: (props: {
+    /** The x (axis tooltips), or the series (one point). */
+    title?: string
+    items: ChartTooltipItem[]
+    /** A note under the values: how many slices of a pie are turned off. */
+    note?: string
+  }) => unknown
+}
+
+/** What `select` gives: what the tooltip shows where it was clicked. */
+export interface ChartSelectEvent {
+  /** The x as given: the category, a `Date` on a time axis, or the number; a slice's label. */
+  x: unknown
+  title?: string
+  /** One per series at the x, or the one point or slice. */
+  items: ChartTooltipItem[]
 }
 
 export interface ChartPieSlots {

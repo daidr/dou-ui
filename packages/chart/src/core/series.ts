@@ -101,4 +101,23 @@ export interface ChartSeriesKind<P = Record<string, unknown>> {
    */
   inset?(series: Pick<ChartSeries<P>, 'props' | 'rows' | 'x' | 'y'>): number
   draw(painter: Painter, series: ChartSeries<P>, view: ChartView): void
+  /**
+   * What the tooltip shows by default: every series at the x under the
+   * pointer (`axis`, the default), or the one point under it (`item`,
+   * for scatters).
+   */
+  tooltip?: 'axis' | 'item'
+  /**
+   * The point under `(px, py)` for an `item` tooltip, and the radius of its
+   * mark. By default, the nearest point within 12px.
+   */
+  hit?(series: ChartSeries<P>, view: ChartView, px: number, py: number): ChartHit | null
+}
+
+/** A point found under the pointer. */
+export interface ChartHit {
+  /** The row's index in the series' rows. */
+  index: number
+  /** The radius of its mark in px, for the ring that shows it. */
+  radius: number
 }

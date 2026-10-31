@@ -56,6 +56,8 @@ app.use(DouFormRenderer)
 
 <DocDemo src="form-builder/rules" column />
 
+规则里还可以写 `check` 表达式，和其他字段的值比较，见[联动与表达式](./logic#用表达式校验)。
+
 ## 自定义字段
 
 内置字段覆盖了 `dou-ui` 的常用输入控件，列表见[字段类型](./fields)。需要别的控件时，用 `defineFormField` 注册一个字段类型，通过 `fields` 传给渲染器：
@@ -76,13 +78,15 @@ app.use(DouFormRenderer)
 
 ### Props
 
-| 名称     | 说明                     | 类型                  | 默认值           |
-| -------- | ------------------------ | --------------------- | ---------------- |
-| form     | 表单描述                 | `FormDocument`        | —                |
-| model    | 字段写入的对象，原地修改 | `Record<string, any>` | 渲染器自己的对象 |
-| fields   | 内置之外的字段类型       | `FormFieldType[]`     | —                |
-| rules    | 按字段名追加的规则       | `FormRules`           | —                |
-| disabled | 禁用全部字段             | `boolean`             | `false`          |
+| 名称      | 说明                                            | 类型                                | 默认值           |
+| --------- | ----------------------------------------------- | ----------------------------------- | ---------------- |
+| form      | 表单描述                                        | `FormDocument`                      | —                |
+| model     | 字段写入的对象，原地修改                        | `Record<string, any>`               | 渲染器自己的对象 |
+| fields    | 内置之外的字段类型                              | `FormFieldType[]`                   | —                |
+| rules     | 按字段名追加的规则                              | `FormRules`                         | —                |
+| disabled  | 禁用全部字段                                    | `boolean`                           | `false`          |
+| functions | 表达式可以调用的函数，见[联动与表达式](./logic) | `Record<string, FormFunction>`      | —                |
+| sources   | 选项来源，见[联动与表达式](./logic)             | `Record<string, FormOptionsLoader>` | —                |
 
 ### 事件
 
@@ -101,10 +105,11 @@ app.use(DouFormRenderer)
 
 ### 实例方法
 
-| 名称          | 说明                             | 类型                                                          |
-| ------------- | -------------------------------- | ------------------------------------------------------------- |
-| model         | 字段写入的对象                   | `Record<string, any>`                                         |
-| validate      | 检查给定字段或全部字段，不会抛错 | `(names?: string \| string[]) => Promise<FormValidateResult>` |
-| resetFields   | 恢复为初始值并清除错误           | `(names?: string \| string[]) => void`                        |
-| clearValidate | 清除错误                         | `(names?: string \| string[]) => void`                        |
-| scrollToField | 滚动到字段并聚焦                 | `(name: string) => void`                                      |
+| 名称          | 说明                                                           | 类型                                                          |
+| ------------- | -------------------------------------------------------------- | ------------------------------------------------------------- |
+| model         | 字段写入的对象                                                 | `Record<string, any>`                                         |
+| validate      | 检查给定字段或全部字段，不会抛错                               | `(names?: string \| string[]) => Promise<FormValidateResult>` |
+| resetFields   | 恢复为初始值并清除错误                                         | `(names?: string \| string[]) => void`                        |
+| clearValidate | 清除错误                                                       | `(names?: string \| string[]) => void`                        |
+| scrollToField | 滚动到字段并聚焦                                               | `(name: string) => void`                                      |
+| reloadSource  | 重新加载一个或全部选项来源，见[联动与表达式](./logic#选项来源) | `(name?: string) => void`                                     |

@@ -97,6 +97,7 @@ export default defineConfig({
             { text: '概览', link: '/gantt/' },
             { text: '数据格式', link: '/gantt/data' },
             { text: '扩展', link: '/gantt/extensions' },
+            { text: '协同编辑', link: '/gantt/collaboration' },
           ],
         },
       ],
@@ -339,6 +340,10 @@ export default defineConfig({
         {
           find: /^@dou-ui\/flow\/style\.css$/,
           replacement: r('../../packages/flow/src/style.css'),
+        },
+        {
+          find: /^@dou-ui\/gantt\/collaboration$/,
+          replacement: r('../../packages/gantt/src/collaboration/index.ts'),
         },
         { find: /^@dou-ui\/gantt$/, replacement: r('../../packages/gantt/src/index.ts') },
         {

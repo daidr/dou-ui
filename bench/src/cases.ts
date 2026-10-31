@@ -24,6 +24,15 @@ import {
   DouChatList,
   DouChatBubble,
 } from 'dou-ui'
+import {
+  DouGantt,
+  computeCriticalPath,
+  computeSchedule,
+  type GanttExpose,
+  type GanttLink,
+  type GanttTask,
+} from '@dou-ui/gantt'
+import '@dou-ui/gantt/style.css'
 import { DouFlowEditor, type FlowDocument } from '@dou-ui/flow'
 import '@dou-ui/flow/style.css'
 
@@ -74,6 +83,59 @@ const rows = (n: number) =>
     for (let column = 0; column < 8; column++) row[`c${column}`] = `${label(index)}-${column}`
     return row
   })
+
+/** The date of a working day, counted from Monday 2026-01-05. */
+function workday(index: number) {
+  const offset = Math.floor(index / 5) * 7 + (index % 5)
+  return new Date(Date.UTC(2026, 0, 5 + offset)).toISOString().slice(0, 10)
+}
+
+/**
+ * A plan of `n` tasks: a summary for every 20, its 19 tasks two working
+ * days each, one after another, and each group waiting on the one before.
+ */
+function plan(n: number) {
+  const tasks: GanttTask[] = []
+  const links: GanttLink[] = []
+  let parent = ''
+  for (let index = 0; index < n; index++) {
+    const place = index % 20
+    const group = Math.floor(index / 20)
+    if (place === 0) {
+      parent = `g${index}`
+      tasks.push({ id: parent, title: `${words[group % words.length]} 阶段 ${group}` })
+      if (index) links.push({ id: `k${index}`, from: `t${index - 1}`, to: `t${index + 1}` })
+      continue
+    }
+    const start = group * 38 + (place - 1) * 2
+    tasks.push({
+      id: `t${index}`,
+      parent,
+      title: `任务 ${index}`,
+      start: workday(start),
+      end: workday(start + 1),
+    })
+    if (place > 1) links.push({ id: `l${index}`, from: `t${index - 1}`, to: `t${index}` })
+  }
+  return { tasks, links }
+}
+
+function gantt(n: number, props: Record<string, unknown> = {}) {
+  const { tasks, links } = plan(n)
+  const state = { tasks: ref(tasks), links: ref(links) }
+  const chart = ref<GanttExpose>()
+  ;(window as any).gantt = { chart, state }
+  return () =>
+    h(DouGantt, {
+      ref: chart,
+      tasks: state.tasks.value,
+      'onUpdate:tasks': (value: GanttTask[]) => (state.tasks.value = value),
+      links: state.links.value,
+      'onUpdate:links': (value: GanttLink[]) => (state.links.value = value),
+      style: 'height: 600px',
+      ...props,
+    })
+}
 
 const sentence = '今天在上海讨论了组件库的虚拟滚动方案，'
 const messages = (n: number) =>
@@ -469,6 +531,49 @@ export const cases: Record<string, Case> = {
         Array.from({ length: n }, () => h(DouDatePicker, { teleport: false })),
       ),
     act: (root) => mousedown(field(root, 'date-picker')),
+  },
+  gantt: {
+    render: (n) => gantt(n),
+    // a step to the right, which renders the newly seen days
+    act: (root) => {
+      const chart = root.querySelector('.dou-gantt__chart')!
+      chart.scrollLeft += 2000
+      chart.dispatchEvent(new Event('scroll'))
+    },
+  },
+  'gantt-critical': {
+    render: (n) => gantt(n, { critical: true }),
+  },
+  'gantt-auto': {
+    render: (n) => gantt(n, { scheduling: 'auto' }),
+    // a week later for the first task: every task after it is pushed
+    act: () => {
+      const { chart } = (window as any).gantt
+      chart.value.transact((tr: any) => tr.setSpan('t1', '2026-01-12', '2026-01-13'))
+    },
+  },
+  'gantt-schedule': {
+    render: (n) => gantt(n),
+    act: () => {
+      const { state } = (window as any).gantt
+      const doc = { tasks: state.tasks.value, links: state.links.value }
+      computeSchedule(
+        {
+          ...doc,
+          tasks: doc.tasks.map((t: GanttTask) =>
+            t.id === 't1' ? { ...t, start: '2026-01-12', end: '2026-01-13' } : t,
+          ),
+        },
+        { fixed: ['t1'] },
+      )
+    },
+  },
+  'gantt-critical-path': {
+    render: (n) => gantt(n),
+    act: () => {
+      const { state } = (window as any).gantt
+      computeCriticalPath({ tasks: state.tasks.value, links: state.links.value })
+    },
   },
   // A flow of n nodes in a grid and about 1.6 edges per node, most of it off screen.
   flow: {

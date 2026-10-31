@@ -5,7 +5,8 @@ import { nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef } from 'vue'
 /*
  * The editor inside a table cell. It keeps its own value and hands it
  * back once: on Enter, on a pick from the calendar, or on a press outside.
- * Escape hands back nothing.
+ * Escape hands back nothing. A value `check` turns down keeps the field
+ * open on Enter, marked invalid, and is dropped on a press outside.
  */
 
 const props = defineProps<{
@@ -15,20 +16,31 @@ const props = defineProps<{
   placeholder?: string
   /** Keep editing after Enter, with the field emptied: for adding tasks one after another. */
   repeat?: boolean
+  /** Whether a value can be saved. */
+  check?: (value: string) => boolean
 }>()
 const emit = defineEmits<{
   /** `null` when cancelled. */
   done: [value: string | null]
   /** Tab or Shift+Tab in a text field. */
   tab: [back: boolean]
+  /** A value `check` turned down. */
+  invalid: [value: string]
 }>()
 
 const draft = ref(props.value)
+const invalid = ref(false)
 const root = useTemplateRef<HTMLElement>('root')
 let finished = false
 
-function finish(value: string | null) {
+function finish(value: string | null, outside = false) {
   if (finished) return
+  if (value != null && props.check && !props.check(value)) {
+    invalid.value = true
+    emit('invalid', value)
+    if (!outside) return
+    value = null
+  }
   if (props.repeat && value != null) {
     emit('done', value)
     draft.value = ''
@@ -53,7 +65,7 @@ function onKeydown(event: KeyboardEvent) {
 function onOutside(event: PointerEvent) {
   const target = event.target as Element | null
   if (!target || root.value?.contains(target) || target.closest('.dou-floating')) return
-  finish(String(draft.value))
+  finish(String(draft.value), true)
 }
 
 function onPick(value: unknown) {
@@ -98,10 +110,12 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onOutside, tru
       v-else
       v-model="draft"
       class="dou-gantt__editor-input"
+      :aria-invalid="invalid || undefined"
       :type="kind === 'number' ? 'number' : 'text'"
       :inputmode="kind === 'number' ? 'decimal' : undefined"
       :aria-label="label"
       :placeholder="placeholder"
+      @input="invalid = false"
     />
   </div>
 </template>

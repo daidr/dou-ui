@@ -24,12 +24,13 @@ import {
   watch,
 } from 'vue'
 import { ganttKey, type GanttContext } from './context'
-import { resolveGanttExtensions } from './core/extension'
+import { resolveGanttExtensions, type GanttHistoryHandler } from './core/extension'
 import GanttMenu from './components/gantt-menu.vue'
 import CellEditor from './components/cell-editor.vue'
 import {
   endKeepingWork,
   isWorkTime,
+  nextWorkTime,
   offTime,
   resolveCalendar,
   shiftWorkdays,
@@ -74,6 +75,7 @@ import type {
   GanttColumn,
   GanttEmits,
   GanttExpose,
+  GanttInsertOptions,
   GanttMove,
   GanttProps,
   GanttSlots,
@@ -124,11 +126,13 @@ const { width: viewWidth, height: viewHeight } = useElementSize(chart)
 // Document and history -------------------------------------------------------------
 
 const history = new GanttHistory()
+/** An extension's history, used instead of the chart's own. */
+let customHistory: GanttHistoryHandler | null = null
 const canUndo = ref(false)
 const canRedo = ref(false)
 const syncHistory = () => {
-  canUndo.value = history.canUndo
-  canRedo.value = history.canRedo
+  canUndo.value = customHistory ? customHistory.canUndo() : history.canUndo
+  canRedo.value = customHistory ? customHistory.canRedo() : history.canRedo
 }
 const editable = computed(() => !props.readonly)
 
@@ -140,7 +144,12 @@ let latest: GanttDocument | null = null
 const docOf = (): GanttDocument =>
   latest ?? { tasks: toRaw(tasks.value), links: toRaw(links.value) }
 
+/** The last transaction committed, for reading out what an extension's undo changed. */
+let lastCommit: GanttTransaction | null = null
+
 function commit(tr: GanttTransaction) {
+  for (const hook of resolved.value.transactions) hook(tr, context)
+  lastCommit = tr
   if (!latest) void nextTick(() => (latest = null))
   latest = tr.doc
   if (tr.touches('tasks')) tasks.value = tr.doc.tasks
@@ -186,12 +195,18 @@ function transact(fn: (tr: GanttTransaction) => void, meta?: GanttTransactionMet
   pushFollowers(tr)
   const before = selection.value
   commit(tr)
-  history.record(tr, before, selection.value)
+  if (!customHistory) history.record(tr, before, selection.value)
   syncHistory()
   return tr
 }
 
 function travel(direction: 'undo' | 'redo') {
+  if (customHistory) {
+    const before = lastCommit
+    const done = customHistory[direction]()
+    syncHistory()
+    return done && lastCommit !== before ? lastCommit : null
+  }
   const result = history[direction](docOf())
   if (!result) return null
   result.tr.setMeta({ origin: direction, history: false, schedule: false })
@@ -222,11 +237,17 @@ const selectedLink = ref<string | null>(null)
 
 // While a bar is dragged, the chart shows the tasks as they would be after the drop.
 const drag = shallowRef<Drag | null>(null)
+/*
+ * The tasks and links as plain arrays. They are replaced, never changed in
+ * place, so reading them raw spares tracking every field of every task.
+ */
+const taskList = computed(() => toRaw(tasks.value))
+const linkList = computed(() => toRaw(links.value))
 const shown = computed(() => {
-  if (!drag.value?.started) return tasks.value
+  if (!drag.value?.started) return taskList.value
   const changes = dragPreview.value
-  if (!changes) return tasks.value
-  return tasks.value.map((task) => {
+  if (!changes) return taskList.value
+  return taskList.value.map((task) => {
     const patch = changes.get(task.id)
     return patch ? { ...task, ...patch } : task
   })
@@ -236,9 +257,19 @@ const tree = computed(() => buildTree(shown.value))
 const rows = computed(() => tree.value.rows)
 const calendar = computed(() => resolveCalendar(props.calendar))
 const selected = computed(() => new Set(selection.value))
-const shownDoc = computed<GanttDocument>(() => ({ tasks: shown.value, links: links.value }))
+const shownDoc = computed<GanttDocument>(() => ({ tasks: shown.value, links: linkList.value }))
 
 /** While dragging with automatic scheduling: the tasks the drop would push, and where to. */
+/** The tasks a drag is about to change, with the ones it would push, as they would be written. */
+const preview = computed<Map<string, Partial<GanttTask>> | null>(() => {
+  const changes = dragPreview.value
+  const pushes = pushPreview.value?.moves
+  if (!changes || !pushes?.size) return changes
+  const out = new Map(changes)
+  for (const [id, patch] of pushes) out.set(id, patch)
+  return out
+})
+
 const pushPreview = computed(() => {
   const changes = dragPreview.value
   if (props.scheduling !== 'auto' || !changes || drag.value?.mode === 'progress') return null
@@ -513,7 +544,7 @@ const rowTitles = computed(() => {
  */
 const linkedEnds = computed(() => {
   const out = new Set<string>()
-  for (const link of links.value) {
+  for (const link of linkList.value) {
     const type = link.type ?? 'fs'
     if (type === 'fs' || type === 'ff') out.add(link.from)
     if (type === 'ff' || type === 'sf') out.add(link.to)
@@ -640,7 +671,7 @@ const linkPaths = computed(() => {
   const xFrom = scrollLeft.value - OVERSCAN_X
   const xTo = scrollLeft.value + (viewWidth.value || 800) + OVERSCAN_X
   const out: { link: GanttLink; d: string; arrow: string }[] = []
-  for (const link of links.value) {
+  for (const link of linkList.value) {
     const a = tree.value.byId.get(link.from)
     const b = tree.value.byId.get(link.to)
     if (!a || !b || a === b) continue
@@ -745,11 +776,14 @@ function headerOf(column: GanttColumn) {
   return builtIn[column.key] ?? column.key
 }
 
+/** A value of a column of your own, as text. */
+function valueText(column: GanttColumn, value: unknown, task: GanttTask) {
+  if (column.format) return column.format(value, task)
+  return value == null ? '' : String(value)
+}
+
 function cellText(row: GanttRow, column: GanttColumn) {
-  if (column.value) {
-    const value = column.value(row.task)
-    return value == null ? '' : String(value)
-  }
+  if (column.value) return valueText(column, column.value(row.task), row.task)
   const m = messages.value
   const span = row.span
   switch (column.key) {
@@ -769,10 +803,8 @@ function cellText(row: GanttRow, column: GanttColumn) {
       return span && !row.milestone ? durationLabel(span, calendar.value, m) : ''
     case 'progress':
       return span && !row.milestone ? `${Math.round(row.progress * 100)}%` : ''
-    default: {
-      const value = row.task.data?.[column.key]
-      return value == null ? '' : String(value)
-    }
+    default:
+      return valueText(column, row.task.data?.[column.key], row.task)
   }
 }
 
@@ -826,14 +858,17 @@ function editCell(id: string, key = 'title') {
   return true
 }
 
-function editorKind(row: GanttRow, key: string) {
+function editorKind(row: GanttRow, column: GanttColumn) {
+  const key = column.key
   if (key === 'start' || key === 'end') return row.span && !row.span.dateOnly ? 'datetime' : 'date'
-  return key === 'duration' || key === 'progress' ? 'number' : 'text'
+  if (key === 'duration' || key === 'progress') return 'number'
+  return BUILT_IN_EDITABLE.has(key) ? 'text' : (column.input ?? 'text')
 }
 
 /** What an editor starts with: the value as it would be typed. */
-function editorValue(row: GanttRow, key: string) {
+function editorValue(row: GanttRow, column: GanttColumn) {
   const { task, span } = row
+  const key = column.key
   switch (key) {
     case 'title':
       return task.title
@@ -859,16 +894,24 @@ function editorValue(row: GanttRow, key: string) {
   }
 }
 
-/** The change an edited value makes to its task, or `null` when it makes none or can't be read. */
-function editPatch(row: GanttRow, key: string, text: string): Partial<GanttTask> | null {
+/**
+ * The change an edited value makes to its task: `null` when it makes
+ * none, `false` when the value can't be read.
+ */
+function editPatch(
+  row: GanttRow,
+  column: GanttColumn,
+  text: string,
+): Partial<GanttTask> | null | false {
   const { task, span } = row
+  const key = column.key
   const value = text.trim()
   switch (key) {
     case 'title':
       return value && value !== task.title ? { title: value } : null
     case 'start': {
       const at = parseTime(value)
-      if (!at) return null
+      if (!at) return false
       if (row.milestone) return { start: value }
       if (!span)
         return writeSpan(
@@ -881,13 +924,14 @@ function editPatch(row: GanttRow, key: string, text: string): Partial<GanttTask>
     }
     case 'end': {
       const at = parseTime(value)
-      if (!at || !span) return null
-      const end = at.at + (at.dateOnly ? MINUTES_PER_DAY : 0)
-      return end > span.start ? writeSpan(task, span.start, end) : null
+      if (!span) return null
+      const end = at ? at.at + (at.dateOnly ? MINUTES_PER_DAY : 0) : -Infinity
+      return end > span.start ? writeSpan(task, span.start, end) : false
     }
     case 'duration': {
       const count = Number(value)
-      if (!span || !Number.isFinite(count) || count <= 0) return null
+      if (!span) return null
+      if (!value || !Number.isFinite(count) || count <= 0) return false
       const end = span.dateOnly
         ? shiftWorkdays(calendar.value, span.start, count)
         : shiftWorkMinutes(calendar.value, span.start, Math.round(count * 60))
@@ -895,19 +939,27 @@ function editPatch(row: GanttRow, key: string, text: string): Partial<GanttTask>
     }
     case 'progress': {
       const count = Number(value)
-      if (!Number.isFinite(count)) return null
+      if (!value || !Number.isFinite(count)) return false
       return { progress: Math.min(100, Math.max(0, count)) / 100 }
     }
-    default:
-      return { data: { ...task.data, [key]: value } }
+    default: {
+      const next = column.parse ? column.parse(text, task) : value
+      if (next === undefined) return false
+      return next === task.data?.[key] ? null : { data: { ...task.data, [key]: next } }
+    }
   }
 }
 
-function onEditDone(row: GanttRow, key: string, value: string | null) {
+/** Says a cell's value can't be read. */
+function onEditInvalid(column: GanttColumn) {
+  announce(format(messages.value.invalidValue, { column: headerOf(column) }))
+}
+
+function onEditDone(row: GanttRow, column: GanttColumn, value: string | null) {
   editing.value = null
   focusTask(row.task.id)
   if (value == null) return
-  const patch = editPatch(row, key, value)
+  const patch = editPatch(row, column, value)
   if (!patch) return
   if ('start' in patch) {
     const refusal = checkMove(new Map([[row.task.id, patch]]))
@@ -934,31 +986,72 @@ function onAddDone(value: string | null) {
   }
   if (!title) return
   const id = createId()
-  transact((tr) => tr.addTask({ id, title }))
+  const last = lastDated()
+  const span = newTaskSpan(last && { after: last })
+  transact((tr) => tr.addTask({ id, title, ...writeSpan({ id, title }, span.start, span.end) }))
   active.value = id
   void nextTick(() => scrollToTask(id))
+  announce(format(messages.value.taskAdded, { title }))
+}
+
+/** The lowest row that has dates. */
+function lastDated() {
+  const list = tree.value.rows
+  for (let i = list.length - 1; i >= 0; i--) if (list[i]!.span) return list[i]
+  return undefined
+}
+
+/**
+ * Dates for a new task, so it shows on the timeline: a working day from
+ * `at`, or right after the task above it (a working hour, if that one has
+ * times), or from today.
+ */
+function newTaskSpan(from?: { at: number } | { after: GanttRow }) {
+  const cal = calendar.value
+  const above = from && 'after' in from ? from.after.span : null
+  if (above && !above.dateOnly) {
+    const start = nextWorkTime(cal, above.end, false)
+    return { start, end: shiftWorkMinutes(cal, start, 60) }
+  }
+  const day = from && 'at' in from ? dayStart(from.at) : (above?.end ?? dayStart(now.value))
+  const start = nextWorkTime(cal, day, true)
+  return { start, end: shiftWorkdays(cal, start, 1) }
 }
 
 /** Adds a task after another one, or as its last subtask, and starts editing its title. */
-function insertTask(near: string | null, where: 'after' | 'inside' = 'after') {
+function insertTask(near: string | null, options: GanttInsertOptions = {}) {
+  const { where = 'after' } = options
   const id = createId()
   const title = messages.value.newTask
+  const row = near == null ? undefined : tree.value.byId.get(near)
+  const inside = !!row && where === 'inside'
+  const at = typeof options.start === 'string' ? parseTime(options.start)?.at : options.start
+  // the task the new one comes after: the last subtask when adding inside
+  const children = row && inside ? (tree.value.childrenOf.get(row.task.id) ?? []) : []
+  const above = inside
+    ? children.length
+      ? tree.value.byId.get(children[children.length - 1]!.id)
+      : undefined
+    : (row ?? lastDated())
+  const span = newTaskSpan(
+    at != null ? { at } : above ? { after: above } : row?.span ? { at: row.span.start } : undefined,
+  )
   transact((tr) => {
-    tr.addTask({ id, title })
-    if (near == null) return
-    const row = tree.value.byId.get(near)
+    tr.addTask({ id, title, ...writeSpan({ id, title }, span.start, span.end) })
     if (!row) return
-    if (where === 'inside') {
-      tr.moveTask(id, near)
-      if (row.task.collapsed) tr.updateTask(near, { collapsed: undefined })
+    const nearId = row.task.id
+    if (inside) {
+      tr.moveTask(id, nearId)
+      if (row.task.collapsed) tr.updateTask(nearId, { collapsed: undefined })
     } else {
-      const parent = parentOf(near)
+      const parent = parentOf(nearId)
       const siblings = tree.value.childrenOf.get(parent) ?? []
-      tr.moveTask(id, parent, siblings.findIndex((task) => task.id === near) + 1)
+      tr.moveTask(id, parent, siblings.findIndex((task) => task.id === nearId) + 1)
     }
   })
   selection.value = [id]
   void nextTick(() => editCell(id))
+  announce(format(messages.value.taskAdded, { title }))
   return id
 }
 
@@ -980,7 +1073,7 @@ function indentTask(id: string) {
     tr.moveTask(id, above.id)
     if (above.collapsed) tr.updateTask(above.id, { collapsed: undefined })
   })
-  announceTask(id)
+  announceMoved(id)
   return true
 }
 
@@ -992,8 +1085,20 @@ function outdentTask(id: string) {
   const grand = parentOf(parent)
   const index = (tree.value.childrenOf.get(grand) ?? []).findIndex((task) => task.id === parent)
   transact((tr) => tr.moveTask(id, grand, index + 1))
-  announceTask(id)
+  announceMoved(id)
   return true
+}
+
+/** Says where a task went in the outline, once the change has reached the rows. */
+function announceMoved(id: string) {
+  void nextTick(() => {
+    const byId = tree.value.byId
+    const task = byId.get(id)?.task.title ?? ''
+    const up = parentOf(id)
+    const parent = up == null ? undefined : byId.get(up)?.task.title
+    const m = messages.value
+    announce(parent ? format(m.movedUnder, { task, parent }) : format(m.movedTop, { task }))
+  })
 }
 
 /** Removes tasks with their subtasks and links, as one undo step. */
@@ -1097,6 +1202,7 @@ function onRowDown(event: PointerEvent, row: GanttRow) {
     started: false,
   }
   rowDrag.value = d
+  if (d.touch) touchTarget = event.target
   window.addEventListener('pointermove', onRowMove)
   window.addEventListener('pointerup', onRowUp)
   window.addEventListener('pointercancel', stopRowDrag)
@@ -1112,8 +1218,8 @@ function onRowDown(event: PointerEvent, row: GanttRow) {
 
 function beginRowDrag(d: RowDrag) {
   d.started = true
+  if (d.touch) holdTouch(d.pointerId)
   window.getSelection()?.removeAllRanges()
-  window.addEventListener('touchmove', preventScroll, { passive: false })
   rowFrame = requestAnimationFrame(rowAutoScroll)
   rowDrag.value = { ...d }
 }
@@ -1136,7 +1242,8 @@ function rowAutoScroll() {
   const body = tableBody.value
   if (!d?.started || !body) return
   const rect = body.getBoundingClientRect()
-  const dy = -edgeSpeed(d.clientY - rect.top) || edgeSpeed(rect.bottom - d.clientY)
+  let dy = -edgeSpeed(d.clientY - rect.top) || edgeSpeed(rect.bottom - d.clientY)
+  if (Math.sign(dy) !== Math.sign(d.y - d.y0)) dy = 0
   if (dy) {
     body.scrollTop += dy
     onTableScroll()
@@ -1192,11 +1299,11 @@ function stopRowDrag() {
   clearTimeout(rowTimer)
   rowTimer = undefined
   cancelAnimationFrame(rowFrame)
+  releaseTouch()
   window.removeEventListener('pointermove', onRowMove)
   window.removeEventListener('pointerup', onRowUp)
   window.removeEventListener('pointercancel', stopRowDrag)
   window.removeEventListener('keydown', onRowKey, true)
-  window.removeEventListener('touchmove', preventScroll)
   rowDrag.value = null
 }
 
@@ -1358,6 +1465,7 @@ function movers(row: GanttRow) {
 function startDrag(event: PointerEvent, row: GanttRow, mode: DragMode, from?: End) {
   if (event.button !== 0 || !editable.value) return
   const touch = event.pointerType === 'touch'
+  if (touch) touchTarget = event.target
   const x = contentX(event.clientX)
   const d: Drag = {
     mode,
@@ -1402,12 +1510,88 @@ function startDrag(event: PointerEvent, row: GanttRow, mode: DragMode, from?: En
 
 function begin(d: Drag) {
   d.started = true
-  window.addEventListener('touchmove', preventScroll, { passive: false })
+  if (d.touch) holdTouch(d.pointerId)
   frame = requestAnimationFrame(autoScroll)
   drag.value = { ...d }
 }
 
-const preventScroll = (event: TouchEvent) => event.preventDefault()
+/*
+ * Once a finger has picked up a bar or a row, it no longer scrolls. The
+ * listener is on the chart from the start: one added during the touch
+ * comes too late, as the browser has already decided the touch may scroll.
+ */
+function onTouchMove(event: TouchEvent) {
+  if (pinch && event.touches.length === 2) {
+    event.preventDefault()
+    const [a, b] = [event.touches[0]!, event.touches[1]!]
+    const rect = chart.value!.getBoundingClientRect()
+    const distance = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY)
+    zoomTo(pinch.dayWidth * (distance / pinch.distance), (a.clientX + b.clientX) / 2 - rect.left)
+    return
+  }
+  if (drag.value?.started || rowDrag.value?.started) event.preventDefault()
+}
+
+/** Two fingers on the timeline zoom it, as a held Ctrl and the wheel do. */
+let pinch: { distance: number; dayWidth: number } | null = null
+
+function onTouchStart(event: TouchEvent) {
+  const [a, b] = [event.touches[0], event.touches[1]]
+  if (event.touches.length !== 2 || !a || !b) return
+  if (!chart.value?.contains(a.target as Node) || !chart.value.contains(b.target as Node)) return
+  // the second finger turns a press on a bar into a pinch
+  stopDrag()
+  stopRowDrag()
+  pinch = {
+    distance: Math.max(1, Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY)),
+    dayWidth: dayWidth.value,
+  }
+}
+
+function onTouchEnd(event: TouchEvent) {
+  if (event.touches.length < 2) pinch = null
+}
+
+onMounted(() => {
+  const el = root.value!
+  el.addEventListener('touchstart', onTouchStart, { passive: true })
+  el.addEventListener('touchmove', onTouchMove, { passive: false })
+  el.addEventListener('touchend', onTouchEnd)
+  el.addEventListener('touchcancel', onTouchEnd)
+})
+onBeforeUnmount(() => {
+  const el = root.value
+  el?.removeEventListener('touchstart', onTouchStart)
+  el?.removeEventListener('touchmove', onTouchMove)
+  el?.removeEventListener('touchend', onTouchEnd)
+  el?.removeEventListener('touchcancel', onTouchEnd)
+})
+
+/** What the finger went down on: touch events keep going there for the rest of the touch. */
+let touchTarget: EventTarget | null = null
+let releaseTouch = () => {}
+
+/*
+ * Keeps a finger with the chart once it has picked something up. The
+ * element it went down on may be drawn anew while it moves (a bar's title
+ * steps outside a shrinking bar), and a removed element no longer passes
+ * events up: so the chart captures the pointer, and the element gets its
+ * own listener that keeps the touch from scrolling.
+ */
+function holdTouch(pointerId: number) {
+  releaseTouch()
+  const target = touchTarget
+  try {
+    root.value?.setPointerCapture(pointerId)
+  } catch {
+    // the pointer is already gone
+  }
+  target?.addEventListener('touchmove', onTouchMove as EventListener, { passive: false })
+  releaseTouch = () => {
+    target?.removeEventListener('touchmove', onTouchMove as EventListener)
+    releaseTouch = () => {}
+  }
+}
 
 function onDragMove(event: PointerEvent) {
   const d = drag.value
@@ -1508,7 +1692,9 @@ function autoScroll() {
   const el = chart.value
   if (!d?.started || !el) return
   const rect = el.getBoundingClientRect()
-  const dx = -edgeSpeed(d.clientX - rect.left) || edgeSpeed(rect.right - d.clientX)
+  // only towards where the pointer has gone: a bar picked up by the edge doesn't run off
+  let dx = -edgeSpeed(d.clientX - rect.left) || edgeSpeed(rect.right - d.clientX)
+  if (Math.sign(dx) !== Math.sign(d.x - d.x0)) dx = 0
   const dy = -edgeSpeed(d.clientY - rect.top - HEADER) || edgeSpeed(rect.bottom - d.clientY)
   if (dx || (dy && d.mode === 'link')) {
     el.scrollLeft += dx
@@ -1584,11 +1770,11 @@ function onDragKey(event: KeyboardEvent) {
 function stopDrag() {
   clearTimeout(pressTimer)
   cancelAnimationFrame(frame)
+  releaseTouch()
   window.removeEventListener('pointermove', onDragMove)
   window.removeEventListener('pointerup', onDragEnd)
   window.removeEventListener('pointercancel', onDragCancel)
   window.removeEventListener('keydown', onDragKey, true)
-  window.removeEventListener('touchmove', preventScroll)
   drag.value = null
 }
 
@@ -1727,8 +1913,15 @@ function builtInItems(target: GanttMenuTarget): GanttMenuItem[] {
         },
       },
     ]
-  if (target.kind === 'empty')
-    return [{ key: 'add', label: m.addTask, icon: PlusIcon, run: () => insertTask(null, 'after') }]
+  if (target.kind === 'canvas')
+    return [
+      {
+        key: 'add',
+        label: m.addTask,
+        icon: PlusIcon,
+        run: () => insertTask(null, { start: target.time }),
+      },
+    ]
   const id = target.task.id
   const row = tree.value.byId.get(id)
   const siblings = tree.value.childrenOf.get(parentOf(id)) ?? []
@@ -1736,13 +1929,13 @@ function builtInItems(target: GanttMenuTarget): GanttMenuItem[] {
   const ids = selected.value.has(id) ? selection.value : [id]
   return [
     { key: 'rename', label: m.rename, icon: EditIcon, shortcut: 'f2', run: () => editCell(id) },
-    { key: 'add-after', label: m.addAfter, icon: PlusIcon, run: () => insertTask(id, 'after') },
+    { key: 'add-after', label: m.addAfter, icon: PlusIcon, run: () => insertTask(id) },
     {
       key: 'add-inside',
       label: m.addInside,
       icon: ListTreeIcon,
       disabled: !!row?.milestone,
-      run: () => insertTask(id, 'inside'),
+      run: () => insertTask(id, { where: 'inside' }),
     },
     {
       key: 'indent',
@@ -1785,8 +1978,30 @@ function itemsFor(target: GanttMenuTarget) {
   return items
 }
 
+type MenuOn =
+  { kind: 'task'; task: GanttTask } | { kind: 'link'; link: GanttLink } | { kind: 'canvas' }
+
+/**
+ * Where a menu opened, on the timeline: under the pointer when it is over
+ * the timeline, otherwise at the task's start.
+ */
+function menuPoint(on: MenuOn, x: number, y: number) {
+  const rect = chart.value!.getBoundingClientRect()
+  const point = {
+    x: x - rect.left + chart.value!.scrollLeft,
+    y: y - rect.top - HEADER + chart.value!.scrollTop,
+  }
+  if (on.kind === 'task' && (x < rect.left || x > rect.right)) {
+    const row = tree.value.byId.get(on.task.id)
+    if (row?.span) point.x = xOf(row.span.start)
+    if (row && row.index >= 0) point.y = (row.index + 0.5) * props.rowHeight
+  }
+  return { point, time: Math.round(origin.value + point.x / ppm.value) }
+}
+
 /** Opens the menu for a target at a point on screen; `false` when it has nothing to show. */
-function showMenu(target: GanttMenuTarget, x: number, y: number) {
+function showMenu(on: MenuOn, x: number, y: number) {
+  const target = { ...on, ...menuPoint(on, x, y) } as GanttMenuTarget
   const items = itemsFor(target)
   if (!items.length) return false
   if (target.kind === 'task') {
@@ -1827,7 +2042,7 @@ function onBodyContextmenu(event: MouseEvent) {
     if (!(event.target as HTMLElement).matches('.dou-gantt__off, .dou-gantt__gridline')) return
   }
   if (Date.now() - touchedAt < 1000) return event.preventDefault()
-  if (showMenu({ kind: 'empty' }, event.clientX, event.clientY)) event.preventDefault()
+  if (showMenu({ kind: 'canvas' }, event.clientX, event.clientY)) event.preventDefault()
 }
 
 /** The menu key, or Shift+F10, opens the menu of the task the keyboard is on, at its bar. */
@@ -2177,6 +2392,7 @@ const context: GanttContext = {
   dayWidth,
   rowHeight: computed(() => props.rowHeight),
   rows,
+  preview,
   critical,
   brokenLinks,
   schedule,
@@ -2207,6 +2423,29 @@ const context: GanttContext = {
   announce,
 }
 provide(ganttKey, context)
+
+// Extensions that hook into the chart's life: set up once mounted, again when the list changes
+let cleanups: (() => void)[] = []
+let mounted = false
+function teardownExtensions() {
+  for (const cleanup of cleanups.splice(0)) cleanup()
+  customHistory = null
+}
+function setupExtensions() {
+  teardownExtensions()
+  customHistory = resolved.value.history?.(context) ?? null
+  for (const setup of resolved.value.setups) {
+    const cleanup = setup(context)
+    if (typeof cleanup === 'function') cleanups.push(cleanup)
+  }
+  syncHistory()
+}
+onMounted(() => {
+  mounted = true
+  setupExtensions()
+})
+watch(resolved, () => mounted && setupExtensions())
+onBeforeUnmount(teardownExtensions)
 
 const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * props.rowHeight}px)` })
 </script>
@@ -2319,10 +2558,12 @@ const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * prop
                 </template>
                 <CellEditor
                   v-if="editing?.id === row.task.id && editing.key === column.key"
-                  :kind="editorKind(row, column.key)"
-                  :value="editorValue(row, column.key)"
+                  :kind="editorKind(row, column)"
+                  :value="editorValue(row, column)"
                   :label="format(messages.editCell, { column: headerOf(column) })"
-                  @done="onEditDone(row, column.key, $event)"
+                  :check="(text) => editPatch(row, column, text) !== false"
+                  @done="onEditDone(row, column, $event)"
+                  @invalid="onEditInvalid(column)"
                   @tab="onEditTab(row, $event)"
                 />
                 <span v-else class="dou-gantt__cell-text">

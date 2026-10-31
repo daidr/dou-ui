@@ -36,7 +36,7 @@ app.use(DouGantt)
 - 在未排期任务那一行的时间轴上拖动，为它画出起止时间。
 - 点击依赖线选中它，按 `Delete` 删除。
 
-拖动时显示新的起止时间和工期，表格同步更新，松开后才写回；拖动中按 `Escape` 取消。只精确到日期的任务按整天对齐；精确到分钟的任务按缩放程度对齐，日刻度下按整天，小时刻度下按 1 小时、30 分钟或 15 分钟。拖到时间轴边缘时会自动滚动。触屏上按住任务条片刻再拖动，直接滑动则是滚动时间轴。
+拖动时显示新的起止时间和工期，表格同步更新，松开后才写回；拖动中按 `Escape` 取消。只精确到日期的任务按整天对齐；精确到分钟的任务按缩放程度对齐，日刻度下按整天，小时刻度下按 1 小时、30 分钟或 15 分钟。拖到时间轴边缘时会自动滚动。触屏上按住任务条片刻再拖动，直接滑动则是滚动时间轴；上下滑到时间轴的尽头后，页面接着滚动。
 
 `locked: true` 的任务不能拖动。`readonly` 关闭全部编辑。
 
@@ -46,7 +46,9 @@ app.use(DouGantt)
 
 双击单元格可以直接修改，`Enter` 确认，`Esc` 取消，点到别处也会确认。任务名、开始、结束、工期和进度都能改：改开始时间会整体移动任务，工期不变；改工期按工作日（精确到分钟的任务按工作小时）重新算结束时间。汇总任务的时间和进度由子任务算出，不能直接改。键盘焦点在任务上时按 `F2` 修改任务名。
 
-表格最下面一行用来添加任务，输入名称后按 `Enter`，可以连续添加。新任务还没有排期，在它那一行的时间轴上拖动画出起止时间。不需要这一行时设 `:add-row="false"`。
+表格最下面一行用来添加任务，输入名称后按 `Enter`，可以连续添加。新任务接在最后一个有日期的任务后面，占一个工作日；之后可以拖动或修改时间。不需要这一行时设 `:add-row="false"`。
+
+输入的值无法识别时（例如工期填了文字），输入框会保留并标红，读屏会提示未修改。
 
 拖动表格的行可以调整顺序：落在两行之间时插到那里，落在一行的中间时成为它的子任务。触屏上按住片刻再拖动。`Ctrl` / `⌘` + `]` 把任务变成上一个任务的子任务，`Ctrl` / `⌘` + `[` 移出上级；修改任务名时按 `Tab`、`Shift` + `Tab` 也可以。
 
@@ -54,9 +56,9 @@ app.use(DouGantt)
 
 ### 右键菜单
 
-在任务条、表格的行、依赖线或时间轴空白处点右键，或者按键盘上的菜单键（`Shift` + `F10`），会打开菜单；触屏上按住任务条或行片刻后松手也会打开。内置的菜单项有重命名、在下方添加任务、添加子任务、缩进、取消缩进、删除任务和删除依赖。
+在任务条、表格的行、依赖线或时间轴空白处点右键，或者按键盘上的菜单键（`Shift` + `F10`），会打开菜单；触屏上按住任务条或行片刻后松手也会打开。内置的菜单项有重命名、在下方添加任务、添加子任务、缩进、取消缩进、删除任务和删除依赖；在时间轴空白处添加的任务从点击的那天开始。
 
-扩展可以用 `contextMenu` 加自己的项，排在内置项前面；`menu` 设为 `false` 时只显示扩展的项。`taskContextmenu`、`linkContextmenu` 事件先于菜单触发，调用 `event.preventDefault()` 就不打开菜单。
+扩展可以用 `contextMenu` 加自己的项，排在内置项前面；`menu` 设为 `false` 时只显示扩展的项。`target.kind` 是 `task`、`link` 或 `canvas`（时间轴空白处），`target.point` 是打开菜单的位置（时间轴坐标），`target.time` 是该位置对应的时间（分钟），可以用来在点击的地方添加任务或里程碑。从表格或键盘打开时，位置在任务的开始处。`taskContextmenu`、`linkContextmenu` 事件先于菜单触发，调用 `event.preventDefault()` 就不打开菜单。
 
 ```ts
 const details = defineGanttExtension({
@@ -66,9 +68,32 @@ const details = defineGanttExtension({
       ? [{ key: 'details', label: '查看详情', icon: FileTextIcon, run: () => open(target.task.id) }]
       : [],
 })
+
+// 在空白处右键的位置添加里程碑；time 是分钟数，用 formatTime 写成日期
+const milestones = defineGanttExtension({
+  name: 'milestones',
+  contextMenu: (ctx, target) =>
+    target.kind === 'canvas'
+      ? [
+          {
+            key: 'milestone',
+            label: '在这里添加里程碑',
+            run: () =>
+              ctx.transact((tr) =>
+                tr.addTask({
+                  id: crypto.randomUUID(),
+                  title: '里程碑',
+                  type: 'milestone',
+                  start: formatTime(target.time, true),
+                }),
+              ),
+          },
+        ]
+      : [],
+})
 ```
 
-这些操作也可以通过组件实例调用：`editCell(id, key?)`、`insertTask(near, 'after' | 'inside')`、`indentTask(id)`、`outdentTask(id)`。
+这些操作也可以通过组件实例调用：`editCell(id, key?)`、`insertTask(near, { where?: 'after' | 'inside', start? })`、`indentTask(id)`、`outdentTask(id)`。
 
 ### 撤销与重做
 
@@ -183,7 +208,7 @@ const broken = findBrokenLinks({ tasks, links }, { calendar })
 
 ## 时间刻度
 
-不传 `scale` 时，甘特图打开时会选一个能放下全部任务的日宽，并滚动到第一个任务。`v-model:scale` 切换时间刻度：`hour`、`day`、`week`、`month`、`quarter`、`year`。按住 `Ctrl` / `⌘` 滚动滚轮或在触控板上捏合可以连续缩放，缩放以指针所在的时间为中心，日宽跨过某一级的范围时自动换成那一级的表头，`scale` 也随之更新。
+不传 `scale` 时，甘特图打开时会选一个能放下全部任务的日宽，并滚动到第一个任务。`v-model:scale` 切换时间刻度：`hour`、`day`、`week`、`month`、`quarter`、`year`。按住 `Ctrl` / `⌘` 滚动滚轮、在触控板上捏合或在触屏上双指捏合可以连续缩放，缩放以指针（或两指中间）所在的时间为中心，日宽跨过某一级的范围时自动换成那一级的表头，`scale` 也随之更新。
 
 <DocDemo src="gantt/scales" column />
 

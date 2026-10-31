@@ -34,6 +34,7 @@ const columns = [{ key: 'title' }, { key: 'start', width: 120 }, { key: 'duratio
     v-model:links="links"
     :calendar="calendar"
     :columns="columns"
+    readonly
     :table-width="380"
     style="height: 260px"
   />

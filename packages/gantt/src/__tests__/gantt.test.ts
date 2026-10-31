@@ -425,32 +425,84 @@ describe('DouGantt', () => {
     await days.setValue('7')
     await days.trigger('keydown', { key: 'Enter' })
     expect(tasks.value[2]).toMatchObject({ start: '2026-03-09', end: '2026-03-17' })
+    // a value that can't be read keeps the field open
+    await wrapper.findAll('.dou-gantt__tr')[2]!.findAll('.dou-gantt__td')[2]!.trigger('dblclick')
+    const wrong = wrapper.find<HTMLInputElement>('.dou-gantt__editor-input')
+    await wrong.setValue('abc')
+    await wrong.trigger('keydown', { key: 'Enter' })
+    expect(wrong.attributes('aria-invalid')).toBe('true')
+    expect(live(wrapper)).toBe('工期无效，未修改')
+    await wrong.trigger('keydown', { key: 'Escape' })
+    expect(wrapper.find('.dou-gantt__editor').exists()).toBe(false)
     // a summary's dates can't be edited
     await wrapper.findAll('.dou-gantt__tr')[0]!.findAll('.dou-gantt__td')[1]!.trigger('dblclick')
     expect(wrapper.find('.dou-gantt__editor').exists()).toBe(false)
 
     await pressKey(root, ']', { ctrlKey: true, metaKey: /mac/i.test(navigator.platform) })
     expect(tasks.value.find((task) => task.id === 'b')!.parent).toBe('a')
+    await nextTick()
+    await nextTick()
+    await nextTick()
+    expect(live(wrapper)).toBe('开发与联调已移到设计下')
     await pressKey(root, '[', { ctrlKey: true, metaKey: /mac/i.test(navigator.platform) })
     expect(tasks.value.find((task) => task.id === 'b')!.parent).toBe('p')
+    await nextTick()
+    await nextTick()
+    await nextTick()
+    expect(live(wrapper)).toBe('开发与联调已移到发布下')
 
     await wrapper.find('.dou-gantt__add').trigger('click')
     const add = wrapper.find<HTMLInputElement>('.dou-gantt__add-row input')
     await add.setValue('复盘')
     await add.trigger('keydown', { key: 'Enter' })
-    expect(tasks.value.at(-1)).toMatchObject({ title: '复盘' })
+    // it starts the working day after the last task, so it shows on the timeline
+    expect(tasks.value.at(-1)).toMatchObject({
+      title: '复盘',
+      start: '2026-03-17',
+      end: '2026-03-17',
+    })
     expect(tasks.value.at(-1)!.parent).toBeUndefined()
+    expect(live(wrapper)).toBe('已添加复盘')
+    wrapper.unmount()
+  })
+
+  it('reads and writes columns of your own with parse and format', async () => {
+    const columns = [
+      { key: 'title' },
+      {
+        key: 'budget',
+        editable: true,
+        input: 'number' as const,
+        parse: (text: string) => (text.trim() && Number.isFinite(+text) ? +text : undefined),
+        format: (value: unknown) => (value == null ? '' : `¥${value}`),
+      },
+    ]
+    const { wrapper, tasks } = setup({ columns })
+    await nextTick()
+    const cell = () => wrapper.findAll('.dou-gantt__tr')[1]!.findAll('.dou-gantt__td')[1]!
+    await cell().trigger('dblclick')
+    const input = wrapper.find<HTMLInputElement>('.dou-gantt__editor-input')
+    expect(input.attributes('type')).toBe('number')
+    await input.setValue('1200')
+    await input.trigger('keydown', { key: 'Enter' })
+    expect(tasks.value[1]!.data).toEqual({ budget: 1200 })
+    expect(cell().text()).toBe('¥1200')
+    await cell().trigger('dblclick')
+    expect(wrapper.find<HTMLInputElement>('.dou-gantt__editor-input').element.value).toBe('1200')
     wrapper.unmount()
   })
 
   it('opens a menu with the extensions’ items before the built-in ones', async () => {
     const run = vi.fn<(id: string) => void>()
+    const seen: string[] = []
     const extension = defineGanttExtension({
       name: 'details',
-      contextMenu: (_, target) =>
-        target.kind === 'task'
+      contextMenu: (_, target) => {
+        seen.push(target.kind)
+        return target.kind === 'task'
           ? [{ key: 'details', label: '详情', run: () => run(target.task.id) }]
-          : [],
+          : []
+      },
     })
     const { wrapper } = setup({ extensions: [extension] })
     await nextTick()
@@ -464,6 +516,7 @@ describe('DouGantt', () => {
     expect(items.some((text) => text?.startsWith('删除任务'))).toBe(true)
     ;(document.querySelector('[role="menuitem"]') as HTMLElement).click()
     expect(run).toHaveBeenCalledWith('a')
+    expect(seen).toEqual(['task'])
     wrapper.unmount()
   })
 })

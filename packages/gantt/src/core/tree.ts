@@ -25,9 +25,15 @@ export interface GanttTree {
   childrenOf: Map<string | undefined, GanttTask[]>
 }
 
+/** Between two siblings given the same `order`: by id. */
+const sameOrder = (a: GanttTask, b: GanttTask) =>
+  a.order == null || b.order == null || a.id === b.id ? 0 : a.id < b.id ? -1 : 1
+
 /**
  * Orders siblings: by `order` where given, otherwise as in the array. A
  * sibling without `order` sorts right after the one before it in the array.
+ * Two siblings given the same `order` (two people inserting at the same
+ * place) sort by id, so every client shows them alike.
  */
 function sortSiblings(list: { task: GanttTask; index: number }[]) {
   let key = ''
@@ -36,7 +42,9 @@ function sortSiblings(list: { task: GanttTask; index: number }[]) {
     return { ...item, key }
   })
   // oxlint-disable-next-line unicorn/no-array-sort -- sorts a fresh array
-  keyed.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : a.index - b.index))
+  keyed.sort((a, b) =>
+    a.key < b.key ? -1 : a.key > b.key ? 1 : sameOrder(a.task, b.task) || a.index - b.index,
+  )
   return keyed.map((item) => item.task)
 }
 

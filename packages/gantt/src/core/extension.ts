@@ -3,7 +3,7 @@ import type { GanttContext } from '../context'
 import type { GanttColumn, GanttMarker, GanttMove } from '../types'
 import type { GanttMenuItem, GanttMenuTarget } from './menu'
 import type { GanttLink } from './model'
-import type { GanttDocument } from './transaction'
+import type { GanttDocument, GanttTransaction } from './transaction'
 
 /** What an extension's hooks receive; the same as `useGantt()`. */
 export type GanttExtensionContext = GanttContext
@@ -13,6 +13,15 @@ export type GanttExtensionContext = GanttContext
  * and the chart's own keys; anything else means it was handled.
  */
 export type GanttKeyHandler = (event: KeyboardEvent) => boolean | void
+
+/** An undo history that replaces the chart's own, e.g. one that only undoes this user's changes. */
+export interface GanttHistoryHandler {
+  /** `false` when there is nothing to undo. */
+  undo: () => boolean
+  redo: () => boolean
+  canUndo: () => boolean
+  canRedo: () => boolean
+}
 
 /**
  * A piece of the Gantt chart: table columns, rules for links and moves,
@@ -45,6 +54,15 @@ export interface GanttExtension {
   layers?: { below?: Component[]; above?: Component[] }
   /** Components drawn over the chart, not scrolled, e.g. a panel. They can call `useGantt()`. */
   overlays?: Component[]
+  /** Runs once the chart is mounted. Return a function to run when it unmounts. */
+  setup?: (context: GanttExtensionContext) => void | (() => void)
+  /**
+   * Sees every change before it reaches the tasks and links, in priority
+   * order, and may add steps to it. Undo and redo come through here too.
+   */
+  transaction?: (tr: GanttTransaction, context: GanttExtensionContext) => void
+  /** Replaces the chart's undo history; the first extension that has one wins. */
+  history?: (context: GanttExtensionContext) => GanttHistoryHandler
 }
 
 /** Declares an extension; only gives it a type. */
@@ -61,6 +79,9 @@ export interface ResolvedGanttExtensions {
   keymaps: NonNullable<GanttExtension['keymap']>[]
   markers: NonNullable<GanttExtension['markers']>[]
   menus: NonNullable<GanttExtension['contextMenu']>[]
+  setups: NonNullable<GanttExtension['setup']>[]
+  transactions: NonNullable<GanttExtension['transaction']>[]
+  history: GanttExtension['history']
   below: Component[]
   above: Component[]
   overlays: Component[]
@@ -105,6 +126,9 @@ export function resolveGanttExtensions(list: ExtensionList = []): ResolvedGanttE
     keymaps: pick('keymap'),
     markers: pick('markers'),
     menus: pick('contextMenu'),
+    setups: pick('setup'),
+    transactions: pick('transaction'),
+    history: extensions.find((e) => e.history)?.history,
     below: extensions.flatMap((e) => e.layers?.below ?? []),
     above: extensions.flatMap((e) => e.layers?.above ?? []),
     overlays: extensions.flatMap((e) => e.overlays ?? []),

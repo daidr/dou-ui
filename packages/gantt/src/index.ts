@@ -9,6 +9,7 @@ export type {
   GanttColumn,
   GanttEmits,
   GanttExpose,
+  GanttInsertOptions,
   GanttMarker,
   GanttMove,
   GanttProps,
@@ -17,7 +18,12 @@ export type {
 export { useGantt } from './context'
 export type { GanttContext } from './context'
 export { defineGanttExtension } from './core/extension'
-export type { GanttExtension, GanttExtensionContext, GanttKeyHandler } from './core/extension'
+export type {
+  GanttExtension,
+  GanttExtensionContext,
+  GanttHistoryHandler,
+  GanttKeyHandler,
+} from './core/extension'
 export { ganttLocales, useGanttMessages } from './locale'
 export type { GanttMessages, GanttMessagesOverride } from './locale'
 export { spanOf, writeSpan } from './core/model'
@@ -29,7 +35,7 @@ export { applyGanttSteps, GanttTransaction } from './core/transaction'
 export type { GanttDocument, GanttStep, GanttTransactionMeta } from './core/transaction'
 export { computeCriticalPath, computeSchedule, findBrokenLinks } from './core/schedule'
 export type { GanttCriticalPath, GanttSchedule, GanttScheduleOptions } from './core/schedule'
-export type { GanttMenuItem, GanttMenuTarget } from './core/menu'
+export type { GanttMenuItem, GanttMenuTarget, GanttPoint } from './core/menu'
 export { orderBetween } from './core/order'
 export { parseLag } from './core/links'
 export type { GanttLag, GanttLinkRefusal } from './core/links'

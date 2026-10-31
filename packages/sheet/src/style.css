@@ -526,6 +526,15 @@
     color: var(--dou-color-text-secondary);
     cursor: pointer;
 
+    /* a finger gets a larger target than the button shows */
+    @media (pointer: coarse) {
+      &::after {
+        position: absolute;
+        inset: -10px;
+        content: '';
+      }
+    }
+
     &:hover {
       background-color: var(--dou-color-bg-muted);
       color: var(--dou-color-text);
@@ -776,8 +785,9 @@
     position: absolute;
     z-index: 5;
     box-sizing: border-box;
-    max-width: 240px;
-    margin-top: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
     padding: 4px 8px;
     border: 1px solid var(--dou-color-border);
     border-radius: var(--dou-radius-control);
@@ -787,6 +797,10 @@
     font-size: var(--dou-font-size-sm);
     line-height: var(--dou-font-line-height);
     pointer-events: none;
+  }
+
+  .dou-sheet__prompt-problem {
+    color: var(--dou-color-danger-text);
   }
 
   .dou-sheet__fill-hint {

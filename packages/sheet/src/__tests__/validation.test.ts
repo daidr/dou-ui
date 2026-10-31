@@ -126,6 +126,8 @@ describe('DouSheet with validation', () => {
     await nextTick()
     expect(cell(1, 0).classes()).toContain('is-invalid')
     expect(cell(1, 0).attributes('title')).toBe('请从列表中选择')
+    expect(cell(1, 0).attributes('aria-invalid')).toBe('true')
+    expect(cell(0, 0).attributes('aria-invalid')).toBeUndefined()
     expect(cell(0, 0).classes()).not.toContain('is-invalid')
     expect(grid.value!.findInvalid()).toEqual([
       expect.objectContaining({ sheet: '表', cell: 'A2', message: '请从列表中选择' }),

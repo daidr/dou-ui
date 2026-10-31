@@ -3960,13 +3960,33 @@ function announce(text: string) {
 const keysHint = `${uid}-keys`
 const promptId = `${uid}-prompt`
 /** The active cell's rule's hint, shown under it while nothing covers it. */
+/** Width of the hint beside the active cell, at most. */
+const HINT_WIDTH = 240
+/** The narrowest the hint gets beside the cell before it moves under it. */
+const HINT_MIN = 160
+/**
+ * What the active cell's hint says: why its value doesn't fit (there is no
+ * hover on touch), and its rule's prompt. It sits right of the cell, clear
+ * of the cells below, or under it when there is no room.
+ */
 const prompt = computed(() => {
+  if (drag.value?.started || panelType.value) return null
+  const at = active.value
   const c = checks.value
-  if (c.empty || drag.value?.started || panelType.value) return null
-  const { row, col } = active.value
-  const text = c.ruleAt(row, col)?.prompt
-  const rect = text ? visibleRect(active.value) : null
-  return rect && { text, x: rect.x, y: rect.y + rect.height }
+  const text = c.empty ? undefined : c.ruleAt(at.row, at.col)?.prompt
+  let problem: string | undefined
+  if (!editing.value) {
+    const here = cellView(at.row, at.col, sheet.value.cells[at.row], cols.value.size(at.col))
+    if (here.invalid) problem = here.problem
+  }
+  if (!text && !problem) return null
+  const rect = visibleRect(at)
+  if (!rect) return null
+  const right = rect.x + rect.width + 4
+  const room = viewWidth.value - right - 8
+  return room >= HINT_MIN
+    ? { text, problem, x: right, y: rect.y, width: Math.min(HINT_WIDTH, room) }
+    : { text, problem, x: rect.x, y: rect.y + rect.height + 4, width: HINT_WIDTH }
 })
 const describedBy = computed(() => (prompt.value ? `${keysHint} ${promptId}` : keysHint))
 
@@ -4291,6 +4311,7 @@ defineExpose<SheetExpose>({
               :aria-rowspan="cell.rowspan"
               :aria-colspan="cell.colspan"
               :title="cell.problem"
+              :aria-invalid="cell.invalid || undefined"
               :style="cell.css"
             >
               <template v-if="cell.render">
@@ -4315,6 +4336,7 @@ defineExpose<SheetExpose>({
               :aria-rowspan="cell.rowspan"
               :aria-colspan="cell.colspan"
               :title="cell.problem"
+              :aria-invalid="cell.invalid || undefined"
               :style="cell.css"
             >
               <template v-if="cell.render">
@@ -4377,6 +4399,7 @@ defineExpose<SheetExpose>({
               :aria-rowspan="cell.rowspan"
               :aria-colspan="cell.colspan"
               :title="cell.problem"
+              :aria-invalid="cell.invalid || undefined"
               :style="cell.css"
             >
               <template v-if="cell.render">
@@ -4401,6 +4424,7 @@ defineExpose<SheetExpose>({
               :aria-rowspan="cell.rowspan"
               :aria-colspan="cell.colspan"
               :title="cell.problem"
+              :aria-invalid="cell.invalid || undefined"
               :style="cell.css"
             >
               <template v-if="cell.render">
@@ -4562,9 +4586,10 @@ defineExpose<SheetExpose>({
         v-if="prompt"
         :id="promptId"
         class="dou-sheet__prompt"
-        :style="`left:${prompt.x}px;top:${prompt.y}px`"
+        :style="`left:${prompt.x}px;top:${prompt.y}px;max-width:${prompt.width}px`"
       >
-        {{ prompt.text }}
+        <span v-if="prompt.problem" class="dou-sheet__prompt-problem">{{ prompt.problem }}</span>
+        <span v-if="prompt.text">{{ prompt.text }}</span>
       </div>
       <button
         v-if="panelButton"

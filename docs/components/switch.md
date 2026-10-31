@@ -38,18 +38,18 @@
 
 ### Props
 
-| 名称             | 说明                                                 | 类型                                       | 默认值  |
-| ---------------- | ---------------------------------------------------- | ------------------------------------------ | ------- |
-| `modelValue`     | 当前值，配合 `v-model`                               | `T`（默认 `boolean`）                      | —       |
-| `checkedValue`   | 打开时的值                                           | `T`                                        | `true`  |
-| `uncheckedValue` | 关闭时的值                                           | `T`                                        | `false` |
-| `disabled`       | 禁用                                                 | `boolean`                                  | `false` |
-| `readonly`       | 只读，可聚焦但不能切换                               | `boolean`                                  | `false` |
-| `invalid`        | 标记为校验失败                                       | `boolean`                                  | `false` |
-| `loading`        | 加载中，忽略操作但可聚焦                             | `boolean`                                  | `false` |
-| `beforeChange`   | 切换前调用，返回 `false` 或被拒绝的 Promise 时不切换 | `(next: T) => boolean \| Promise<boolean>` | —       |
-| `size`           | 尺寸                                                 | `'sm' \| 'md' \| 'lg'`                     | `'md'`  |
-| `ariaLabel`      | 没有可见标签时给读屏的名字                           | `string`                                   | —       |
+| 名称             | 说明                                                 | 类型                                                       | 默认值  |
+| ---------------- | ---------------------------------------------------- | ---------------------------------------------------------- | ------- |
+| `modelValue`     | 当前值，配合 `v-model`                               | `T`（默认 `boolean`）                                      | —       |
+| `checkedValue`   | 打开时的值                                           | `T`                                                        | `true`  |
+| `uncheckedValue` | 关闭时的值                                           | `T`                                                        | `false` |
+| `disabled`       | 禁用                                                 | `boolean`                                                  | `false` |
+| `readonly`       | 只读，可聚焦但不能切换                               | `boolean`                                                  | `false` |
+| `invalid`        | 标记为校验失败                                       | `boolean`                                                  | `false` |
+| `loading`        | 加载中，忽略操作但可聚焦                             | `boolean`                                                  | `false` |
+| `beforeChange`   | 切换前调用，返回 `false` 或被拒绝的 Promise 时不切换 | `(next: T) => boolean \| void \| Promise<boolean \| void>` | —       |
+| `size`           | 尺寸                                                 | `'sm' \| 'md' \| 'lg'`                                     | `'md'`  |
+| `ariaLabel`      | 没有可见标签时给读屏的名字                           | `string`                                                   | —       |
 
 ### Events
 

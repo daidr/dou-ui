@@ -17,7 +17,7 @@ const last = ref('无')
         color: var(--dou-color-text-tertiary);
       "
     >
-      在这里点右键
+      在这里点右键或长按
     </div>
     <template #menu>
       <DouDropdownItem value="打开">

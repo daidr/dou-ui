@@ -1,19 +1,29 @@
-<script setup lang="ts">
+<script setup lang="ts" generic="T extends CheckboxModelValue = boolean">
 import { CheckIcon, MinusIcon } from '@dou-ui/icons'
-import { computed, inject, useAttrs } from 'vue'
-import type { StyleValue } from 'vue'
+import { computed, inject, ref, useAttrs, watch } from 'vue'
+import type { Ref, StyleValue } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { useFormDisabled, useFormItem, useFormReadonly, useFormSize } from '../form/use-form-item'
 import { checkboxGroupKey } from './checkbox'
-import type { CheckboxProps, CheckboxSlots } from './checkbox'
+import type { CheckboxEmits, CheckboxModelValue, CheckboxProps, CheckboxSlots } from './checkbox'
 
 defineOptions({ name: 'DouCheckbox', inheritAttrs: false })
 
-const props = withDefaults(defineProps<CheckboxProps>(), {
+const props = withDefaults(defineProps<CheckboxProps<T>>(), {
   indeterminate: false,
   disabled: false,
 })
-const model = defineModel<boolean>({ default: false })
+// Declared by hand rather than with `defineModel`, so the update carries
+// `T` and not `T | undefined`.
+const emit = defineEmits<CheckboxEmits<T>>()
+// also works without `v-model`
+const model = ref(props.modelValue) as Ref<T | undefined>
+watch(
+  () => props.modelValue,
+  (next) => (model.value = next),
+)
+const onValue = computed(() => (props.checkedValue ?? true) as T)
+const offValue = computed(() => (props.uncheckedValue ?? false) as T)
 const slots = defineSlots<CheckboxSlots>()
 
 const ns = useNamespace('checkbox')
@@ -24,7 +34,7 @@ const ownSize = useFormSize(() => props.size)
 
 const inGroup = computed(() => !!group && props.value !== undefined)
 const checked = computed(() =>
-  inGroup.value ? group!.model.value.includes(props.value!) : model.value,
+  inGroup.value ? group!.model.value.includes(props.value!) : model.value === onValue.value,
 )
 const disabled = useFormDisabled(() => props.disabled || group?.disabled.value)
 const readonly = useFormReadonly(() => props.readonly || group?.readonly.value)
@@ -40,7 +50,10 @@ const name = computed(() => props.name ?? group?.name.value)
 function onChange(event: Event) {
   const next = (event.target as HTMLInputElement).checked
   if (inGroup.value) group!.toggle(props.value!, next)
-  else model.value = next
+  else {
+    model.value = next ? onValue.value : offValue.value
+    emit('update:modelValue', model.value)
+  }
   formItem?.trigger('change')
 }
 

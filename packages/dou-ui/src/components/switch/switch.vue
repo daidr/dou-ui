@@ -41,7 +41,7 @@ async function toggle() {
   if (disabled.value || readonly.value || busy.value) return
   const next = checked.value ? offValue.value : onValue.value
   if (props.beforeChange) {
-    let allowed: boolean
+    let allowed: boolean | void
     try {
       const result = props.beforeChange(next)
       if (result instanceof Promise) pending.value = true

@@ -23,3 +23,9 @@ export function useMediaQuery(query: string): Readonly<Ref<boolean>> {
 
 /** Whether the viewport is narrower than the `sm` breakpoint: a phone held upright. */
 export const useNarrowViewport = () => useMediaQuery(`(max-width: ${breakpoints.sm - 0.02}px)`)
+
+/**
+ * Whether the main pointer is a finger. Pickers then keep the on-screen
+ * keyboard closed, since their panel is the easier way to choose.
+ */
+export const useCoarsePointer = () => useMediaQuery('(pointer: coarse)')

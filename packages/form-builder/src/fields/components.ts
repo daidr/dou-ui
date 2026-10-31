@@ -114,7 +114,7 @@ export const CheckboxField = defineComponent({
         {
           modelValue: props.modelValue,
           disabled: props.disabled,
-          'onUpdate:modelValue': (value: boolean) => emit('update:modelValue', value),
+          'onUpdate:modelValue': (value: unknown) => emit('update:modelValue', value === true),
         },
         props.text ? () => props.text : undefined,
       )

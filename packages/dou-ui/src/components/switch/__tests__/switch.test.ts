@@ -97,6 +97,14 @@ describe('DouSwitch', () => {
     expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([true])
   })
 
+  it('lets a beforeChange that returns nothing through', async () => {
+    const beforeChange = vi.fn<(next: boolean) => void>()
+    const wrapper = withModel({ beforeChange })
+    await wrapper.get('button').trigger('click')
+    await flushPromises()
+    expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([true])
+  })
+
   it('treats a rejected beforeChange as no', async () => {
     const wrapper = withModel({ beforeChange: () => Promise.reject(new Error('offline')) })
     await wrapper.get('button').trigger('click')

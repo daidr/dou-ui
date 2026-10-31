@@ -27,7 +27,7 @@ export interface SwitchProps<T extends SwitchValue = boolean> {
    * promise that resolves to `false` or rejects, to keep the current value.
    * While a promise is pending the switch shows its spinner.
    */
-  beforeChange?: (next: T) => boolean | Promise<boolean>
+  beforeChange?: (next: T) => boolean | void | Promise<boolean | void>
   size?: SwitchSize
   /** Names a switch that has no visible label. */
   ariaLabel?: string

@@ -3,6 +3,7 @@ import { ArrowRightIcon, CalendarIcon, CloseIcon } from '@dou-ui/icons'
 import { computed, nextTick, ref, useId, useTemplateRef, watch } from 'vue'
 import type { InputHTMLAttributes } from 'vue'
 import { usePopup } from '../../composables/use-popup'
+import { useCoarsePointer } from '../../utils/media'
 import { useNamespace } from '../../utils/namespace'
 import { OnlyChild } from '../../utils/only-child'
 import { DouButton } from '../button'
@@ -47,6 +48,8 @@ const emit = defineEmits<{
 const slots = defineSlots<DatePickerSlots>()
 
 const ns = useNamespace('date-picker')
+// On a phone the panel is how a value is picked, so typing stays off.
+const coarse = useCoarsePointer()
 const { t, locale } = useLocale()
 const { formItem } = useFormItem()
 const size = useFormSize(() => props.size)
@@ -446,6 +449,7 @@ defineExpose<DatePickerExpose>({
         :id="formItem?.inputId"
         :class="ns.e('input')"
         type="text"
+        :inputmode="coarse ? 'none' : undefined"
         autocomplete="off"
         :placeholder="placeholders[0]"
         :disabled="disabled"
@@ -461,6 +465,7 @@ defineExpose<DatePickerExpose>({
           v-bind="inputAttrs(1)"
           :class="ns.e('input')"
           type="text"
+          :inputmode="coarse ? 'none' : undefined"
           autocomplete="off"
           :placeholder="placeholders[1]"
           :disabled="disabled"

@@ -5,9 +5,19 @@ export type CheckboxSize = Size
 export type CheckboxValue = string | number
 export type CheckboxGroupDirection = 'horizontal' | 'vertical'
 
-export interface CheckboxProps {
-  /** Whether the box is checked, bound with `v-model`. Ignored inside a group. */
-  modelValue?: boolean
+/** What a single box stands for when checked or not; booleans unless `checkedValue` / `uncheckedValue` say otherwise. */
+export type CheckboxModelValue = boolean | string | number
+
+export interface CheckboxProps<T extends CheckboxModelValue = boolean> {
+  /**
+   * The current value, bound with `v-model`: `checkedValue` when checked,
+   * `uncheckedValue` when not. Ignored inside a group.
+   */
+  modelValue?: T
+  /** The value when checked. Defaults to `true`. Ignored inside a group. */
+  checkedValue?: T
+  /** The value when not checked. Defaults to `false`. Ignored inside a group. */
+  uncheckedValue?: T
   /** The value this box contributes to a `DouCheckboxGroup`. */
   value?: CheckboxValue
   /**
@@ -28,8 +38,8 @@ export interface CheckboxProps {
   ariaLabel?: string
 }
 
-export interface CheckboxEmits {
-  'update:modelValue': [value: boolean]
+export interface CheckboxEmits<T extends CheckboxModelValue = boolean> {
+  'update:modelValue': [value: T]
 }
 
 export interface CheckboxSlots {

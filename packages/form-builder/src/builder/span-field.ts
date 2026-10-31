@@ -112,7 +112,7 @@ const SpanInput = defineComponent({
                 disabled: props.disabled,
                 size: 'sm',
                 class: 'dou-form-builder__span-toggle',
-                'onUpdate:modelValue': toggle,
+                'onUpdate:modelValue': (on: unknown) => toggle(on === true),
               },
               () => messages.settings.spanResponsive,
             ),

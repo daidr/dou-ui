@@ -3,6 +3,7 @@ import { ArrowRightIcon, ClockIcon, CloseIcon } from '@dou-ui/icons'
 import { computed, nextTick, ref, useId, useTemplateRef, watch } from 'vue'
 import type { InputHTMLAttributes } from 'vue'
 import { usePopup } from '../../composables/use-popup'
+import { useCoarsePointer } from '../../utils/media'
 import { useNamespace } from '../../utils/namespace'
 import { OnlyChild } from '../../utils/only-child'
 import { DouButton } from '../button'
@@ -34,6 +35,8 @@ const model = defineModel<TimeValue | TimeRange | null>()
 const emit = defineEmits<{ change: [value: TimeValue | TimeRange | null] }>()
 
 const ns = useNamespace('time-picker')
+// On a phone the panel is how a value is picked, so typing stays off.
+const coarse = useCoarsePointer()
 const { t } = useLocale()
 const { formItem } = useFormItem()
 const size = useFormSize(() => props.size)
@@ -270,7 +273,7 @@ defineExpose<TimePickerExpose>({
           class="dou-picker__input"
           :class="ns.e('input')"
           type="text"
-          inputmode="numeric"
+          :inputmode="coarse ? 'none' : 'numeric'"
           autocomplete="off"
           :placeholder="placeholders[index - 1]"
           :disabled="disabled"

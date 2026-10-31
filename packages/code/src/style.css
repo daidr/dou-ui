@@ -23,6 +23,13 @@
     --dou-code-editor-cursor: var(--dou-color-text);
     --dou-code-editor-active-line: color-mix(in oklab, var(--dou-color-text) 4%, transparent);
     --dou-code-editor-selection: color-mix(in oklab, var(--dou-color-primary) 20%, transparent);
+    --dou-code-editor-match: color-mix(in oklab, var(--dou-color-warning) 22%, transparent);
+    --dou-code-editor-match-current: color-mix(
+      in oklab,
+      var(--dou-color-warning-text) 80%,
+      transparent
+    );
+    --dou-code-editor-match-mark: color-mix(in oklab, var(--dou-color-warning) 60%, transparent);
     --dou-code-editor-bracket: color-mix(in oklab, var(--dou-color-text) 35%, transparent);
     --dou-code-editor-bracket-unmatched: color-mix(
       in oklab,
@@ -126,6 +133,7 @@
   }
 
   .dou-code-editor__lines,
+  .dou-code-editor__matches,
   .dou-code-editor__brackets,
   .dou-code-editor__selections,
   .dou-code-editor__cursors {
@@ -179,6 +187,68 @@
     pointer-events: none;
     .dou-code-editor:not(.is-focused) & {
       background-color: transparent;
+    }
+  }
+
+  /* search matches: a faint tint; the selected one also gets an edge, so it reads on top of the selection */
+  .dou-code-editor__match {
+    position: absolute;
+    top: 0;
+    left: 0;
+    box-sizing: border-box;
+    height: var(--dou-code-editor-line-height);
+    border-radius: 2px;
+    background-color: var(--dou-code-editor-match);
+    &.is-current {
+      box-shadow: inset 0 0 0 1px var(--dou-code-editor-match-current);
+    }
+  }
+
+  /* where the matches are in the whole text, beside the scrollbar */
+  .dou-code-editor__marks {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 3;
+    width: 6px;
+    pointer-events: none;
+  }
+  .dou-code-editor__mark {
+    position: absolute;
+    right: 0;
+    width: 6px;
+    height: 2px;
+    border-radius: 1px;
+    background-color: var(--dou-code-editor-match-mark);
+    &.is-current {
+      height: 3px;
+      background-color: var(--dou-code-editor-match-current);
+    }
+  }
+
+  .dou-code-editor__live {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /* the search panel sits in the top right corner and takes the whole width of a narrow editor */
+  .dou-code-editor__search {
+    position: absolute;
+    top: 6px;
+    right: 14px;
+    left: 6px;
+    z-index: 4;
+    display: flex;
+    justify-content: flex-end;
+    container-type: inline-size;
+    pointer-events: none;
+    > * {
+      pointer-events: auto;
     }
   }
 
@@ -260,6 +330,122 @@
     pointer-events: none;
     &::selection {
       background: transparent;
+    }
+  }
+}
+
+/* the search panel: a small floating surface in the editor's top right corner */
+@layer dou.components {
+  .dou-code-search {
+    display: flex;
+    gap: 2px;
+    align-items: flex-start;
+    box-sizing: border-box;
+    max-width: 100%;
+    padding: 4px;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-control);
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-md);
+    font-family: var(--dou-font-family);
+    font-size: var(--dou-font-size-sm);
+    line-height: normal;
+  }
+  .dou-code-search__rows {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+  .dou-code-search__row {
+    display: flex;
+    gap: 2px;
+    align-items: center;
+    min-width: 0;
+  }
+  .dou-code-search__field {
+    display: flex;
+    flex: 1 1 auto;
+    gap: 1px;
+    align-items: center;
+    box-sizing: border-box;
+    width: 260px;
+    min-width: 0;
+    height: var(--dou-control-height-sm);
+    padding-right: 2px;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-control);
+    background-color: var(--dou-color-bg-surface);
+    transition: border-color var(--dou-motion-duration-fast) var(--dou-motion-easing);
+    &:focus-within {
+      border-color: var(--dou-color-focus);
+    }
+    &.is-invalid {
+      border-color: var(--dou-color-danger);
+    }
+    .dou-toggle {
+      flex: none;
+      width: calc(var(--dou-control-height-sm) - 6px);
+      height: calc(var(--dou-control-height-sm) - 6px);
+      padding: 0;
+    }
+  }
+  .dou-code-search__input {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 100%;
+    padding: 0 8px;
+    border: 0;
+    outline: none;
+    background: transparent;
+    color: var(--dou-color-text);
+    font: inherit;
+    font-family: var(--dou-font-family-mono);
+    font-size: max(var(--dou-font-size-input-min), var(--dou-font-size-sm));
+    &::placeholder {
+      color: var(--dou-color-text-tertiary);
+      font-family: var(--dou-font-family);
+    }
+  }
+  @container (max-width: 480px) {
+    .dou-code-search {
+      flex: 1 1 auto;
+    }
+    .dou-code-search .dou-code-search__rows {
+      flex: 1 1 auto;
+    }
+    .dou-code-search .dou-code-search__field {
+      width: auto;
+    }
+    /* the find box gets its own line; the count and the buttons go under it */
+    .dou-code-search .dou-code-search__row:first-child {
+      flex-wrap: wrap;
+      row-gap: 4px;
+      > .dou-code-search__field {
+        flex-basis: 100%;
+      }
+    }
+    .dou-code-search .dou-code-search__status {
+      min-width: 0;
+      margin-right: auto;
+      padding: 0 4px;
+    }
+  }
+  .dou-code-search__status {
+      min-width: 0;
+      padding: 0 4px;
+    }
+  }
+  .dou-code-search__status {
+    flex: none;
+    min-width: 64px;
+    padding: 0 6px;
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-sm);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    &.is-empty {
+      color: var(--dou-color-text-tertiary);
     }
   }
 }

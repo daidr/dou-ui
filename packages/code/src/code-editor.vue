@@ -37,7 +37,16 @@ import {
   type CodeTransactionMeta,
   type CodeTransactionResult,
 } from './core/transaction'
+import {
+  type CodeMatch,
+  type CodeSearchQuery,
+  matchAfter,
+  replacementFor,
+  searchText,
+} from './core/search'
 import { CodeHighlighter } from './language/highlighter'
+import { format, useCodeMessages } from './locale'
+import SearchPanel from './search-panel.vue'
 import { type CodeLineTokens, type CodeTokenType, lineParts, tokenTypes } from './language/language'
 import type { CodeEditorEmits, CodeEditorExpose, CodeEditorProps } from './types'
 import { diffText } from './view/input'
@@ -55,6 +64,8 @@ const props = withDefaults(defineProps<CodeEditorProps>(), {
   language: undefined,
   closeBrackets: true,
   matchBrackets: true,
+  search: true,
+  messages: undefined,
 })
 const emit = defineEmits<CodeEditorEmits>()
 const ns = useNamespace('code-editor')
@@ -136,7 +147,10 @@ function dispatch(tr: CodeTransaction): CodeTransactionResult | null {
     history.record(result)
     historyTick.value++
   }
-  if (!result.changes.empty) highlighter?.update(result.state.doc, result.changes)
+  if (!result.changes.empty) {
+    highlighter?.update(result.state.doc, result.changes)
+    mapMatches(result.changes)
+  }
   state.value = markRaw(result.state)
   goals = pendingGoals
   pendingGoals = new Map()
@@ -195,6 +209,7 @@ function receive(next: string, given?: CodeText) {
   historyTick.value++
   highlighter?.update(result.state.doc, result.changes)
   state.value = markRaw(result.state)
+  mapMatches(result.changes)
   joined = { doc: result.state.doc, text: normalized }
   if (!composing.value) syncInput()
   if (!sameSelection(result.state.selection, result.before.selection))
@@ -515,6 +530,211 @@ const bracketBoxes = computed(() => {
   return out
 })
 
+// ---------------------------------------------------------------- search
+
+const messages = useCodeMessages(() => props.messages)
+const searchOpen = ref(false)
+const showReplace = ref(false)
+const query = ref<CodeSearchQuery>({ search: '' })
+const panel = ref<InstanceType<typeof SearchPanel>>()
+/** The matches, kept in step with edits between searches. */
+const matches = shallowRef<CodeMatch[]>([])
+const capped = ref(false)
+const searchError = ref<string>()
+/** Read out after a replacement. */
+const announcement = ref('')
+let searchTimer = 0
+
+function runSearch() {
+  clearTimeout(searchTimer)
+  searchTimer = 0
+  if (!searchOpen.value || !query.value.search) {
+    matches.value = []
+    capped.value = false
+    searchError.value = undefined
+    return
+  }
+  const result = searchText(doc.value, query.value)
+  matches.value = result.matches
+  capped.value = result.capped
+  searchError.value = result.error
+}
+
+/** Searches again a little later, so typing in a long text doesn't search on every key. */
+function scheduleSearch(delay = 120) {
+  clearTimeout(searchTimer)
+  searchTimer = window.setTimeout(runSearch, delay)
+}
+
+watch(query, () => {
+  runSearch()
+  // While typing the search, the first match from the selection on is selected, as a preview.
+  revealMatch(matchAfter(matches.value, rangeFrom(mainRange(state.value.selection))))
+})
+
+/** Moves the matches along with an edit, and searches again soon. */
+function mapMatches(changes: ChangeSet) {
+  if (!searchOpen.value || !matches.value.length) return
+  matches.value = matches.value
+    .map((m) => ({ from: changes.mapPos(m.from, 1), to: changes.mapPos(m.to, -1) }))
+    .filter((m) => m.to > m.from)
+  scheduleSearch(doc.value.length > 200_000 ? 300 : 120)
+}
+
+/** Which match the main selection is exactly on, or `-1`. */
+const currentMatch = computed(() => {
+  const main = mainRange(state.value.selection)
+  const i = matchAfter(matches.value, rangeFrom(main))
+  const m = matches.value[i]
+  return m && m.from === rangeFrom(main) && m.to === rangeTo(main) ? i : -1
+})
+
+function revealMatch(index: number) {
+  const m = matches.value[index]
+  if (!m) return false
+  dispatch(transaction().select(m.from, m.to).setMeta({ scroll: true }))
+  return true
+}
+
+function nextMatch() {
+  if (!matches.value.length) return false
+  const main = mainRange(state.value.selection)
+  const at = currentMatch.value >= 0 ? rangeTo(main) : rangeFrom(main)
+  let i = matchAfter(matches.value, at)
+  if (currentMatch.value >= 0 && i === currentMatch.value) i = (i + 1) % matches.value.length
+  return revealMatch(i)
+}
+
+function previousMatch() {
+  if (!matches.value.length) return false
+  const list = matches.value
+  const from = rangeFrom(mainRange(state.value.selection))
+  const after = matchAfter(list, from)
+  // `matchAfter` wraps to the first past the end; the one before the cursor is then the last.
+  return revealMatch(
+    list[after]!.from < from ? list.length - 1 : (after - 1 + list.length) % list.length,
+  )
+}
+
+function openSearch(replace = false, given?: Partial<CodeSearchQuery>) {
+  if (!props.search) return
+  const main = mainRange(state.value.selection)
+  const selected = doc.value.slice(rangeFrom(main), rangeTo(main))
+  const patch: Partial<CodeSearchQuery> = { ...given }
+  // A selection on one line becomes the search.
+  if (given?.search === undefined && selected && !selected.includes('\n')) patch.search = selected
+  if (Object.keys(patch).length) query.value = { ...query.value, ...patch }
+  if (replace && !target.readonly) showReplace.value = true
+  searchOpen.value = true
+  runSearch()
+  panel.value?.focus(replace ? 'replace' : 'find')
+  nextTick(() => panel.value?.focus(replace ? 'replace' : 'find'))
+}
+
+function closeSearch() {
+  if (!searchOpen.value) return false
+  searchOpen.value = false
+  matches.value = []
+  focusInput()
+  return true
+}
+
+function replaceOne() {
+  if (target.readonly) return
+  if (currentMatch.value < 0) {
+    nextMatch()
+    return
+  }
+  const m = matches.value[currentMatch.value]!
+  const insert = replacementFor(doc.value, m, query.value)
+  const tr = transaction().setMeta({ action: 'replace', scroll: true })
+  tr.replace(m.from, m.to, insert)
+  dispatch(tr)
+  runSearch()
+  // On to the next match after the replaced text.
+  const i = matchAfter(matches.value, m.from + insert.length)
+  if (i >= 0 && (matches.value[i]!.from >= m.from + insert.length || i === 0)) revealMatch(i)
+}
+
+function replaceAll() {
+  if (target.readonly) return
+  // Every match, also past the number shown.
+  const all = capped.value ? searchText(doc.value, query.value, Infinity).matches : matches.value
+  if (!all.length) return
+  const text = doc.value
+  const tr = transaction().setMeta({ action: 'replace', scroll: true })
+  for (const m of all) tr.replace(m.from, m.to, replacementFor(text, m, query.value))
+  dispatch(tr)
+  announcement.value = format(messages.value.replaced, { count: all.length })
+  runSearch()
+}
+
+/** The matches on the lines in view, as boxes; the one selected stands out. */
+const matchBoxes = computed(() => {
+  void metrics.value
+  if (!searchOpen.value || !matches.value.length) return []
+  const text = doc.value
+  const first = text.line(visibleFrom.value).from
+  const last = text.line(visibleTo.value).to
+  const out: Array<Box & { current: boolean }> = []
+  for (let i = matchAfter(matches.value, first); i >= 0 && i < matches.value.length; i++) {
+    const m = matches.value[i]!
+    // Past the view, or wrapped around to the first match above it.
+    if (m.from > last || m.to < first) break
+    const from = text.lineAt(m.from)
+    const to = text.lineAt(m.to)
+    for (
+      let n = Math.max(from.number, visibleFrom.value);
+      n <= Math.min(to.number, visibleTo.value);
+      n++
+    ) {
+      const str = lineText(n)
+      const line = text.line(n)
+      const left = n === from.number ? measure.x(str, m.from - line.from) : 0
+      const right = n === to.number ? measure.x(str, m.to - line.from) : measure.x(str, str.length)
+      if (right > left)
+        out.push({
+          key: `m${m.from}-${n}`,
+          left: PAD_X + left,
+          top: yOf(n),
+          width: right - left,
+          current: i === currentMatch.value,
+        })
+    }
+    if (out.length > 2000) break
+  }
+  return out
+})
+
+/** Marks beside the scrollbar for where the matches are in the whole text, one per pixel row. */
+const searchMarks = computed(() => {
+  if (!searchOpen.value || !matches.value.length) return []
+  const text = doc.value
+  const lineCount = text.lines
+  const taken = new Set<number>()
+  const out: Array<{ top: number; current: boolean }> = []
+  const current = matches.value[currentMatch.value]
+  // A thousand evenly spread matches show the picture; more only cost time.
+  const step = Math.max(1, Math.floor(matches.value.length / 1000))
+  for (let i = 0; i < matches.value.length; i += step) {
+    const top =
+      Math.round(((text.lineAt(matches.value[i]!.from).number - 0.5) / lineCount) * 1000) / 10
+    if (taken.has(top)) continue
+    taken.add(top)
+    out.push({ top, current: false })
+  }
+  if (current)
+    out.push({ top: ((text.lineAt(current.from).number - 0.5) / lineCount) * 100, current: true })
+  return out
+})
+
+const searchControl = {
+  open: (replace?: boolean) => openSearch(replace),
+  close: closeSearch,
+  next: () => nextMatch(),
+  previous: () => previousMatch(),
+}
+
 // ---------------------------------------------------------------- the hidden textarea
 
 /** What the textarea holds: the text from `from` to `to`, and the caret inside it. */
@@ -670,6 +890,9 @@ const target: CodeCommandTarget = {
   redo,
   languageAt,
   syntaxAt,
+  get search() {
+    return props.search ? searchControl : undefined
+  },
 }
 
 function run(command: CodeCommand) {
@@ -811,10 +1034,46 @@ let drag: {
   y: number
   frame: number
   hold: ReturnType<typeof holdPointer>
+  /** Where a column selection (Alt + Shift drag) started. */
+  column?: { n: number; x: number }
 } | null = null
+
+/** The line and the x inside the text (from the line's start) under a point in the page. */
+function lineAtCoords(point: { x: number; y: number }) {
+  const rect = content.value!.getBoundingClientRect()
+  const n = Math.min(
+    doc.value.lines,
+    Math.max(1, Math.floor((point.y - rect.top - PAD_Y - shift.value) / lineHeight.value) + 1),
+  )
+  return { n, x: Math.max(0, point.x - rect.left - PAD_X) }
+}
+
+/** A rectangle of text from the drag's start to `point`: one range per line, cut at the same x. */
+function extendColumns(point: { x: number; y: number }) {
+  const start = drag!.column!
+  const end = lineAtCoords(point)
+  const ranges: CodeRange[] = []
+  const step = end.n >= start.n ? 1 : -1
+  for (let n = start.n; ; n += step) {
+    const line = doc.value.line(n)
+    const anchor = line.from + measure.col(line.text, start.x)
+    const head = line.from + measure.col(line.text, end.x)
+    // Lines too short to reach the rectangle are left out, unless the rectangle is only a line of cursors.
+    if (anchor !== head || start.x === end.x || measure.x(line.text, line.text.length) >= start.x)
+      ranges.push({ anchor, head })
+    if (n === end.n) break
+  }
+  if (!ranges.length) return
+  dispatch(
+    transaction()
+      .select(normalizeSelection({ ranges, main: ranges.length - 1 }, doc.value.length))
+      .setMeta({ scroll: false }),
+  )
+}
 
 function extendTo(point: { x: number; y: number }) {
   if (!drag) return
+  if (drag.column) return extendColumns(point)
   const pos = posAtCoords(point)
   const at = unitAt(pos, drag.unit)
   const { start } = drag
@@ -934,6 +1193,13 @@ function onPointerDown(event: PointerEvent, area: 'text' | 'gutter') {
   }
   event.preventDefault()
   focusInput()
+  // Alt + Shift drag selects a rectangle, one range per line.
+  if (event.altKey && event.shiftKey && area === 'text') {
+    startDrag(event, 'char', { from: pos, to: pos })
+    drag!.column = lineAtCoords({ x: event.clientX, y: event.clientY })
+    extendColumns({ x: event.clientX, y: event.clientY })
+    return
+  }
   const count = countClick(event)
   const unit: Unit = area === 'gutter' || count === 3 ? 'line' : count === 2 ? 'word' : 'char'
   // Alt + click adds a cursor; dragging from there selects with it.
@@ -1066,6 +1332,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   if (syntaxJob) cancelIdle(syntaxJob)
+  clearTimeout(searchTimer)
   resize?.disconnect()
   endDrag()
   onPointerCancel()
@@ -1127,6 +1394,8 @@ defineExpose<CodeEditorExpose>({
   posAtCoords,
   focus: focusInput,
   blur: () => input.value?.blur(),
+  openSearch: (given) => openSearch(false, given),
+  closeSearch,
 })
 </script>
 
@@ -1144,6 +1413,33 @@ defineExpose<CodeEditorExpose>({
       '--dou-code-editor-tab-size': tabSize,
     }"
   >
+    <div v-if="searchOpen" :class="ns.e('search')">
+      <SearchPanel
+        ref="panel"
+        v-model:query="query"
+        v-model:show-replace="showReplace"
+        :messages="messages"
+        :count="matches.length"
+        :current="currentMatch"
+        :capped="capped"
+        :error="searchError"
+        :readonly="readonly || disabled"
+        @next="nextMatch()"
+        @previous="previousMatch()"
+        @replace="replaceOne"
+        @replace-all="replaceAll"
+        @close="closeSearch"
+      />
+    </div>
+    <div v-if="searchMarks.length" :class="ns.e('marks')" aria-hidden="true">
+      <div
+        v-for="mark in searchMarks"
+        :key="`${mark.top}${mark.current ? 'c' : ''}`"
+        :class="[ns.e('mark'), ns.is('current', mark.current)]"
+        :style="{ top: `${mark.top}%` }"
+      />
+    </div>
+    <div :class="ns.e('live')" aria-live="polite">{{ announcement }}</div>
     <div ref="scroller" :class="ns.e('scroller')" @scroll.passive="onScroll">
       <div
         :class="ns.e('sizer')"
@@ -1187,6 +1483,17 @@ defineExpose<CodeEditorExpose>({
             :class="ns.e('active-line')"
             :style="{ transform: `translateY(${activeLineTop}px)` }"
           />
+          <div :class="ns.e('matches')" aria-hidden="true">
+            <div
+              v-for="box in matchBoxes"
+              :key="box.key"
+              :class="[ns.e('match'), ns.is('current', box.current)]"
+              :style="{
+                transform: `translate(${box.left}px, ${box.top}px)`,
+                width: `${box.width}px`,
+              }"
+            />
+          </div>
           <div :class="ns.e('brackets')" aria-hidden="true">
             <div
               v-for="box in bracketBoxes"

@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { useChartPart, useOwnNode } from '../context'
+import { useChartPart, useOwnNode, renderNothing } from '../context'
 import type { ChartPieProps, ChartPieSlots } from '../types'
 
-defineOptions({ name: 'DouChartPie' })
+defineOptions({ name: 'DouChartPie', render: renderNothing })
 
 const props = withDefaults(defineProps<ChartPieProps>(), { innerRadius: 0 })
 const slots = defineSlots<ChartPieSlots>()
@@ -15,5 +15,3 @@ useChartPart('DouChartPie', (chart) =>
   chart.addPie({ props, el, hidden, center: () => slots.default?.() as never }),
 )
 </script>
-
-<template></template>

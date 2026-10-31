@@ -1,3 +1,5 @@
+import type { PivotGroupBy } from './group'
+
 /** What a field holds; it decides how values are grouped, sorted and shown. */
 export type PivotFieldType = 'string' | 'number' | 'date' | 'boolean'
 
@@ -36,6 +38,8 @@ export type PivotDimension =
       sort?: 'asc' | 'desc'
       /** Whether its groups show a total of their own; `true` by default. */
       subtotal?: boolean
+      /** Groups dates by a period, or numbers in ranges, instead of by each value. */
+      by?: PivotGroupBy
     }
 
 /** The built-in ways to sum up a field. */
@@ -59,6 +63,11 @@ export type PivotValue =
 export interface PivotFilter {
   include?: readonly unknown[]
   exclude?: readonly unknown[]
+  /**
+   * The values above are groups of this grouping. Left out, it is the
+   * field's grouping on the rows or columns, if it is there.
+   */
+  by?: PivotGroupBy
 }
 
 /** Orders the row groups by the values in one column (what clicking a value header does). */

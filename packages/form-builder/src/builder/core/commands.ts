@@ -12,7 +12,7 @@ import type { FormFieldType } from '../../fields/define'
 import type { FormBuilderMessages } from '../locale'
 import { formatMessage } from '../../locale'
 import { canContainFormNode, formNodePlaces } from './transaction'
-import type { FormBuilderTransaction } from './transaction'
+import type { FormBuilderTransaction, FormDocumentPatch } from './transaction'
 
 /** Where a new node goes: into a container (`null`: the top) at an index. */
 export interface FormBuilderInsertPlace {
@@ -352,4 +352,22 @@ export function dropPlaces(
   }
   visit(null, document.nodes)
   return result
+}
+
+/**
+ * Replace the whole document with another, e.g. one imported as JSON: the
+ * old nodes go, the new ones come in, and the settings follow. As steps of
+ * a transaction, so undo brings the old document back.
+ */
+export function replaceDocument(tr: FormBuilderTransaction, next: FormDocument) {
+  for (const node of tr.doc.nodes.slice()) tr.remove(node.id)
+  next.nodes.forEach((node, index) => tr.insert(node, null, index))
+  const before = tr.doc as unknown as Record<string, unknown>
+  const after = next as unknown as Record<string, unknown>
+  const patch: Record<string, unknown> = {}
+  for (const key of new Set([...Object.keys(before), ...Object.keys(after)])) {
+    if (key === 'nodes' || key === 'version' || before[key] === after[key]) continue
+    patch[key] = after[key]
+  }
+  if (Object.keys(patch).length) tr.updateDocument(patch as FormDocumentPatch)
 }

@@ -1,8 +1,9 @@
 import { inject, type ComputedRef, type InjectionKey, type Ref } from 'vue'
 import type { SheetPoint } from './core/address'
 import type { SheetResolvedType } from './core/cell-type'
-import type { SheetData, SheetValue, SheetWorkbook } from './core/model'
+import type { SheetData, SheetStyle, SheetValue, SheetWorkbook } from './core/model'
 import type { SheetSelection } from './core/selection'
+import type { SheetStylePatch } from './core/transaction'
 import type { SheetMessages } from './locale'
 import type { SheetExpose } from './types'
 
@@ -49,6 +50,30 @@ export interface SheetContext {
   focus: SheetExpose['focus']
   showSheet: SheetExpose['showSheet']
   toCSV: SheetExpose['toCSV']
+  /** How a cell of the sheet shown looks: its style, or `{}`. A merged cell has its top left cell's. */
+  styleAt: (point: SheetPoint) => SheetStyle
+  /** A cell's number or date format. */
+  formatAt: (point: SheetPoint) => string | undefined
+  /**
+   * Changes how the selected cells look, as `tr.styleCells` does; `null`
+   * takes their styles off. Returns whether anything changed.
+   */
+  styleSelection: (patch: SheetStylePatch | null) => boolean
+  /** Sets the format of the selected cells, or changes each with a function, as `tr.formatCells` does. */
+  formatSelection: (
+    format:
+      string | undefined | ((format: string | undefined, value: SheetValue) => string | undefined),
+  ) => boolean
+  /** Takes the styles and formats off the selected cells. */
+  clearFormatting: () => boolean
+  /** Whether the selection touches merged cells. */
+  merged: ComputedRef<boolean>
+  /** Whether the selection can be merged: one range of more than one cell, not one merge already. */
+  canMerge: ComputedRef<boolean>
+  /** Merges the selection into one cell, telling how many values that cleared. */
+  merge: () => void
+  /** Splits the merged cells the selection touches. */
+  unmerge: () => void
   /** Says `text` to screen readers. */
   announce: (text: string) => void
 }

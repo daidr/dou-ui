@@ -1,3 +1,4 @@
+import { bucketer, groupKey, type PivotGroupBy } from './group'
 import type { PivotField, PivotFieldType } from './types'
 
 /** A field's groups: each record's group number, and each group's value. */
@@ -71,14 +72,54 @@ export class PivotSource<Row = Record<string, unknown>> {
     return out
   }
 
-  /** The field grouped by value. */
-  dimension(name: string): PivotDimensionColumn {
-    let column = this.dimensions.get(name)
+  /**
+   * The field grouped by value, or by `by`: dates by a period, numbers in
+   * ranges. A grouping is worked out from the field's groups, not from the
+   * records, so it costs one pass over the group numbers.
+   */
+  dimension(name: string, by?: PivotGroupBy): PivotDimensionColumn {
+    const key = by === undefined ? name : `${name}\u0000${groupKey(by)}`
+    let column = this.dimensions.get(key)
     if (!column) {
-      column = this.encode(this.field(name))
-      this.dimensions.set(name, column)
+      column = by === undefined ? this.encode(this.field(name)) : this.group(name, by)
+      this.dimensions.set(key, column)
     }
     return column
+  }
+
+  private group(name: string, by: PivotGroupBy): PivotDimensionColumn {
+    const base = this.dimension(name)
+    const bucketOf = bucketer(by)
+    const labels: unknown[] = []
+    const byValue = new Map<unknown, number>()
+    let empty = -1
+    // each of the field's groups goes in one bucket
+    const map = new Uint32Array(base.labels.length)
+    base.labels.forEach((label, code) => {
+      const bucket = code === base.empty ? null : bucketOf(label)
+      let to: number | undefined
+      if (bucket === null) {
+        if (empty < 0) {
+          empty = labels.length
+          labels.push(null)
+        }
+        to = empty
+      } else {
+        to = byValue.get(bucket)
+        if (to === undefined) {
+          to = labels.length
+          labels.push(bucket)
+          byValue.set(bucket, to)
+        }
+      }
+      map[code] = to
+    })
+    const from = base.codes
+    const codes = new Uint32Array(from.length)
+    for (let i = 0; i < from.length; i++) codes[i] = map[from[i]!]!
+    const find = (value: unknown) => (isEmpty(value) ? empty : (byValue.get(value) ?? -1))
+    // buckets sort by themselves; the field's `order` is for its own values
+    return { codes, labels, empty, rank: this.rank(labels, { name }, find), find }
   }
 
   /** The field as numbers, `NaN` where a record has none. */

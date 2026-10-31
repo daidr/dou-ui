@@ -124,4 +124,31 @@ describe('DouAutocomplete highlight', () => {
     expect(wrapper.props('modelValue')).toBe('上')
     wrapper.unmount()
   })
+
+  it('runs over several lines when multiline', async () => {
+    const wrapper = mount(DouAutocomplete, {
+      props: {
+        options: ['Vue', 'Vite'],
+        multiline: true,
+        'onUpdate:modelValue': (v: string) => wrapper.setProps({ modelValue: v }),
+      },
+      attachTo: document.body,
+    })
+    const area = wrapper.get('textarea')
+    expect(area.attributes('role')).toBe('combobox')
+    await area.trigger('focus')
+    await area.trigger('keydown', { key: 'Escape' })
+    expect(area.attributes('aria-expanded')).toBe('false')
+    // With the list closed the arrows are left to the caret.
+    const down = new KeyboardEvent('keydown', { key: 'ArrowDown', cancelable: true })
+    area.element.dispatchEvent(down)
+    expect(down.defaultPrevented).toBe(false)
+    expect(area.attributes('aria-expanded')).toBe('false')
+    await area.setValue('v')
+    expect(area.attributes('aria-expanded')).toBe('true')
+    await area.trigger('keydown', { key: 'ArrowDown' })
+    await area.trigger('keydown', { key: 'Enter' })
+    expect(wrapper.props('modelValue')).toBe('Vue')
+    wrapper.unmount()
+  })
 })

@@ -104,7 +104,7 @@ useHotkey(hotkeys, handler, { target, enabled, allowInInput, preventDefault, seq
 
 <DocDemo src="composables/hotkey" />
 
-`formatHotkey(hotkey)` 按当前平台给出每个按键的名称，例如 `mod+k` 在 macOS 上是 `[['⌘', 'K']]`；直接显示时用 [Kbd](../components/kbd#快捷键) 的 `keys` 属性即可。`matchesHotkey(event, hotkey)` 判断一次按键是否匹配某个组合键。
+`formatHotkey(hotkey)` 按当前平台给出每个按键的名称，例如 `mod+k` 在 macOS 上是 `[['⌘', 'K']]`；直接显示时用 [Kbd](../components/kbd#快捷键) 的 `keys` 属性即可。`matchesHotkey(event, hotkey)` 判断一次按键是否匹配某个组合键。`ariaHotkey(hotkey)` 给出 `aria-keyshortcuts` 的写法，例如 `mod+k` 在 macOS 上是 `Meta+K`，其他平台是 `Control+K`；按键序列没有对应写法，返回 `undefined`。
 
 ## useClipboard
 

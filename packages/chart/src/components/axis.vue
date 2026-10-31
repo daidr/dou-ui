@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { useChartPart, useOwnNode } from '../context'
+import { useChartPart, useOwnNode, renderNothing } from '../context'
 import type { ChartAxisProps } from '../types'
 
-defineOptions({ name: 'DouChartAxis' })
+defineOptions({ name: 'DouChartAxis', render: renderNothing })
 
 const props = withDefaults(defineProps<ChartAxisProps>(), {
   zero: undefined,
@@ -13,5 +13,3 @@ const props = withDefaults(defineProps<ChartAxisProps>(), {
 const el = useOwnNode()
 useChartPart('DouChartAxis', (chart) => chart.addAxis({ props, el }))
 </script>
-
-<template></template>

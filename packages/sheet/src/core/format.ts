@@ -318,6 +318,53 @@ export function fitNumber(value: number, chars: number) {
 }
 
 /**
+ * A number format with `by` more digits after the point, or fewer when
+ * `by` is below 0, as the toolbar's buttons change it: `0.00` → `0.000`,
+ * `#,##0` → `#,##0.0`, `0.0%` → `0%`. Without a format it starts from the
+ * digits `value` shows. Date, time and text formats stay as they are.
+ */
+export function changeDecimals(
+  format: string | undefined,
+  value: SheetValue,
+  by: number,
+): string | undefined {
+  if (!format) {
+    const text = typeof value === 'number' ? generalNumber(value) : ''
+    const point = text.includes('E') ? -1 : text.indexOf('.')
+    const digits = Math.max(0, (point === -1 ? 0 : text.length - point - 1) + by)
+    return digits ? `0.${'0'.repeat(digits)}` : '0'
+  }
+  if (format === '@' || isDateFormat(format)) return format
+  return format
+    .split(';')
+    .map((section) => sectionDecimals(section, by))
+    .join(';')
+}
+
+/** One section of a number format with more or fewer digits after the point. */
+function sectionDecimals(section: string, by: number) {
+  let start = -1
+  for (let i = 0; i < section.length; i++) {
+    const char = section[i]!
+    if (char === '"') {
+      const close = section.indexOf('"', i + 1)
+      i = close === -1 ? section.length : close
+    } else if (char === '\\') i++
+    else if (char === '0' || char === '#') {
+      start = i
+      break
+    }
+  }
+  if (start === -1) return section
+  let end = start
+  while (end < section.length && '0#,.'.includes(section[end]!)) end++
+  const [whole = '', fraction = ''] = section.slice(start, end).split('.')
+  const digits =
+    by > 0 ? fraction + '0'.repeat(by) : fraction.slice(0, Math.max(0, fraction.length + by))
+  return section.slice(0, start) + (digits ? `${whole}.${digits}` : whole) + section.slice(end)
+}
+
+/**
  * How a value lines up in its cell unless its style says otherwise:
  * numbers, dates and times to the right, `TRUE` and `FALSE` in the middle,
  * text to the left.

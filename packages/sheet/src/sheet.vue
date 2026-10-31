@@ -83,6 +83,7 @@ import {
   sheetKey,
   type SheetAxisName,
   type SheetRef,
+  type SheetStylePatch,
   type SheetTransactionMeta,
 } from './core/transaction'
 import SheetMenu from './components/sheet-menu.vue'
@@ -1241,6 +1242,16 @@ function onKeydown(event: KeyboardEvent) {
   if (matchesHotkey(event, 'mod+shift+z') || matchesHotkey(event, 'mod+y'))
     return done(event, travel('redo'))
   if (matchesHotkey(event, 'mod+a')) return done(event, selectAll())
+  for (const [hotkey, name] of STYLE_KEYS)
+    if (matchesHotkey(event, hotkey)) {
+      event.preventDefault()
+      return toggleStyle(name)
+    }
+  if (matchesHotkey(event, 'mod+\\')) {
+    event.preventDefault()
+    if (clearFormatting()) announce(messages.value.formattingCleared)
+    return
+  }
   if (matchesHotkey(event, 'mod+d') || matchesHotkey(event, 'mod+r')) {
     event.preventDefault()
     if (props.readonly) return announce(messages.value.readonly)
@@ -2287,6 +2298,87 @@ function unmergeSelection() {
     announce(format(messages.value.unmerged, { range: rangeName(b) }))
 }
 
+// How the selection looks ------------------------------------------------------------------
+
+const NO_STYLE: SheetStyle = Object.freeze({})
+
+const STYLE_KEYS: [string, StyleToggle][] = [
+  ['mod+b', 'bold'],
+  ['mod+i', 'italic'],
+  ['mod+u', 'underline'],
+  ['mod+shift+x', 'strike'],
+]
+
+/** A cell's style, or `{}`; a merged cell has its top left cell's. */
+function styleAt(point: SheetPoint): SheetStyle {
+  const at = merges.value.size ? merges.value.anchor(point) : point
+  const name = cellOf(sheet.value.cells[at.row]?.[at.col])?.style
+  return (name && doc.value.styles?.[name]) || NO_STYLE
+}
+
+/** A cell's number or date format; a merged cell has its top left cell's. */
+function formatAt(point: SheetPoint) {
+  const at = merges.value.size ? merges.value.anchor(point) : point
+  return cellOf(sheet.value.cells[at.row]?.[at.col])?.format
+}
+
+/** Runs `run` on each selected range, kept inside the sheet, as one change. */
+function changeSelected(run: (tr: SheetTransaction, b: SheetBounds) => void) {
+  if (props.readonly) {
+    announce(messages.value.readonly)
+    return false
+  }
+  return !!transact(
+    (tr) => {
+      for (const range of selection.value.ranges) {
+        const b = boundsOf(range)
+        run(tr, {
+          top: Math.max(0, b.top),
+          left: Math.max(0, b.left),
+          bottom: Math.min(rowCount.value - 1, b.bottom),
+          right: Math.min(colCount.value - 1, b.right),
+        })
+      }
+    },
+    { action: 'style' },
+  )
+}
+
+const styleSelection = (patch: SheetStylePatch | null) =>
+  changeSelected((tr, b) => tr.styleCells(b, patch))
+
+const formatSelection: SheetContext['formatSelection'] = (to) =>
+  changeSelected((tr, b) => tr.formatCells(b, to))
+
+const clearFormatting = () =>
+  changeSelected((tr, b) => {
+    tr.styleCells(b, null)
+    tr.formatCells(b, undefined)
+  })
+
+type StyleToggle = 'bold' | 'italic' | 'underline' | 'strike'
+
+/** Turns bold (or another) on for the selection, or off when the active cell has it. */
+function toggleStyle(name: StyleToggle) {
+  const on = !styleAt(active.value)[name]
+  if (!styleSelection({ [name]: on || undefined })) return
+  announce(
+    format(on ? messages.value.styleOn : messages.value.styleOff, { name: messages.value[name] }),
+  )
+}
+
+/** Whether the selection touches merged cells, and whether it could be merged. */
+const merged = computed(() => merges.value.touching(lastBounds()).length > 0)
+const canMerge = computed(() => {
+  const b = lastBounds()
+  const touched = merges.value.touching(b)
+  return (
+    !(touched.length === 1 && sameBounds(touched[0]!, b)) &&
+    (b.top !== b.bottom || b.left !== b.right) &&
+    selection.value.ranges.length === 1
+  )
+})
+
 /** The items with a line above the first. */
 const dividedFirst = (list: SheetMenuItem[]) =>
   list.map((item, i) => (i === 0 ? { ...item, divided: true } : item))
@@ -2950,6 +3042,15 @@ const context: SheetContext = {
   focus: () => focusGrid(),
   showSheet,
   toCSV,
+  styleAt,
+  formatAt,
+  styleSelection,
+  formatSelection,
+  clearFormatting,
+  merged,
+  canMerge,
+  merge: () => mergeSelection(),
+  unmerge: () => unmergeSelection(),
   announce,
 }
 provide(sheetContextKey, context)

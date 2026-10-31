@@ -102,6 +102,58 @@ export interface SheetMessages {
   sheetNameEmpty: string
   /** How to use the tabs with keys; read out when they get focus. */
   sheetTabKeys: string
+
+  /** The toolbar's name. */
+  toolbar: string
+  undo: string
+  redo: string
+  bold: string
+  italic: string
+  underline: string
+  strike: string
+  /** Read out after a style is turned on or off with its key: `{name}`. */
+  styleOn: string
+  styleOff: string
+  clearFormatting: string
+  formattingCleared: string
+  /** The number format menu and its items; `formatCurrency` is the currency's format. */
+  numberFormat: string
+  formatGeneral: string
+  formatNumber: string
+  formatPercent: string
+  formatCurrency: string
+  currencyFormat: string
+  formatDate: string
+  formatTime: string
+  formatText: string
+  formatCustom: string
+  moreDecimals: string
+  fewerDecimals: string
+  textColor: string
+  fillColor: string
+  /** The color a style leaves to the sheet. */
+  colorDefault: string
+  colorCustom: string
+  toneNeutral: string
+  tonePrimary: string
+  toneSuccess: string
+  toneWarning: string
+  toneDanger: string
+  alignLeft: string
+  alignCenter: string
+  alignRight: string
+  verticalAlign: string
+  alignTop: string
+  alignMiddle: string
+  alignBottom: string
+  wrap: string
+  freeze: string
+  /** Freezes the rows (or columns) up to the active cell's: `{n}` rows, up to column `{col}`. */
+  freezeRows: string
+  freezeCols: string
+  freezeFirstRow: string
+  freezeFirstCol: string
+  unfreeze: string
 }
 
 const zhCN: SheetMessages = {
@@ -175,6 +227,52 @@ const zhCN: SheetMessages = {
   sheetNameTaken: '已有名为“{name}”的工作表',
   sheetNameEmpty: '名称不能为空',
   sheetTabKeys: '左右方向键切换工作表，F2 重命名，Shift + F10 打开菜单',
+  toolbar: '格式',
+  undo: '撤销',
+  redo: '重做',
+  bold: '加粗',
+  italic: '斜体',
+  underline: '下划线',
+  strike: '删除线',
+  styleOn: '{name}：开',
+  styleOff: '{name}：关',
+  clearFormatting: '清除格式',
+  formattingCleared: '已清除格式',
+  numberFormat: '数字格式',
+  formatGeneral: '常规',
+  formatNumber: '数字',
+  formatPercent: '百分比',
+  formatCurrency: '货币',
+  currencyFormat: '¥#,##0.00',
+  formatDate: '日期',
+  formatTime: '时间',
+  formatText: '文本',
+  formatCustom: '自定义',
+  moreDecimals: '增加小数位数',
+  fewerDecimals: '减少小数位数',
+  textColor: '文字颜色',
+  fillColor: '填充颜色',
+  colorDefault: '默认',
+  colorCustom: '自定义颜色',
+  toneNeutral: '中性',
+  tonePrimary: '主色',
+  toneSuccess: '成功',
+  toneWarning: '警告',
+  toneDanger: '危险',
+  alignLeft: '左对齐',
+  alignCenter: '居中对齐',
+  alignRight: '右对齐',
+  verticalAlign: '垂直对齐',
+  alignTop: '顶端对齐',
+  alignMiddle: '中部对齐',
+  alignBottom: '底端对齐',
+  wrap: '自动换行',
+  freeze: '冻结',
+  freezeRows: '冻结到第 {n} 行',
+  freezeCols: '冻结到 {col} 列',
+  freezeFirstRow: '冻结首行',
+  freezeFirstCol: '冻结首列',
+  unfreeze: '取消冻结',
 }
 
 const zhTW: SheetMessages = {
@@ -248,6 +346,52 @@ const zhTW: SheetMessages = {
   sheetNameTaken: '已有名為「{name}」的工作表',
   sheetNameEmpty: '名稱不能為空',
   sheetTabKeys: '左右方向鍵切換工作表，F2 重新命名，Shift + F10 開啟選單',
+  toolbar: '格式',
+  undo: '復原',
+  redo: '重做',
+  bold: '粗體',
+  italic: '斜體',
+  underline: '底線',
+  strike: '刪除線',
+  styleOn: '{name}：開',
+  styleOff: '{name}：關',
+  clearFormatting: '清除格式',
+  formattingCleared: '已清除格式',
+  numberFormat: '數字格式',
+  formatGeneral: '一般',
+  formatNumber: '數字',
+  formatPercent: '百分比',
+  formatCurrency: '貨幣',
+  currencyFormat: '$#,##0.00',
+  formatDate: '日期',
+  formatTime: '時間',
+  formatText: '文字',
+  formatCustom: '自訂',
+  moreDecimals: '增加小數位數',
+  fewerDecimals: '減少小數位數',
+  textColor: '文字顏色',
+  fillColor: '填滿色彩',
+  colorDefault: '預設',
+  colorCustom: '自訂顏色',
+  toneNeutral: '中性',
+  tonePrimary: '主色',
+  toneSuccess: '成功',
+  toneWarning: '警告',
+  toneDanger: '危險',
+  alignLeft: '靠左對齊',
+  alignCenter: '置中對齊',
+  alignRight: '靠右對齊',
+  verticalAlign: '垂直對齊',
+  alignTop: '靠上對齊',
+  alignMiddle: '中間對齊',
+  alignBottom: '靠下對齊',
+  wrap: '自動換行',
+  freeze: '凍結',
+  freezeRows: '凍結至第 {n} 列',
+  freezeCols: '凍結至 {col} 欄',
+  freezeFirstRow: '凍結首列',
+  freezeFirstCol: '凍結首欄',
+  unfreeze: '取消凍結',
 }
 
 const en: SheetMessages = {
@@ -322,6 +466,52 @@ const en: SheetMessages = {
   sheetNameTaken: 'There is a sheet named “{name}” already',
   sheetNameEmpty: "The name can't be empty",
   sheetTabKeys: 'Left and right arrows switch sheets, F2 renames, Shift + F10 opens the menu',
+  toolbar: 'Formatting',
+  undo: 'Undo',
+  redo: 'Redo',
+  bold: 'Bold',
+  italic: 'Italic',
+  underline: 'Underline',
+  strike: 'Strikethrough',
+  styleOn: '{name} on',
+  styleOff: '{name} off',
+  clearFormatting: 'Clear formatting',
+  formattingCleared: 'Formatting cleared',
+  numberFormat: 'Number format',
+  formatGeneral: 'General',
+  formatNumber: 'Number',
+  formatPercent: 'Percent',
+  formatCurrency: 'Currency',
+  currencyFormat: '$#,##0.00',
+  formatDate: 'Date',
+  formatTime: 'Time',
+  formatText: 'Text',
+  formatCustom: 'Custom',
+  moreDecimals: 'More decimal places',
+  fewerDecimals: 'Fewer decimal places',
+  textColor: 'Text color',
+  fillColor: 'Fill color',
+  colorDefault: 'Default',
+  colorCustom: 'Custom color',
+  toneNeutral: 'Neutral',
+  tonePrimary: 'Primary',
+  toneSuccess: 'Success',
+  toneWarning: 'Warning',
+  toneDanger: 'Danger',
+  alignLeft: 'Align left',
+  alignCenter: 'Align center',
+  alignRight: 'Align right',
+  verticalAlign: 'Vertical align',
+  alignTop: 'Align top',
+  alignMiddle: 'Align middle',
+  alignBottom: 'Align bottom',
+  wrap: 'Wrap text',
+  freeze: 'Freeze',
+  freezeRows: 'Up to row {n}',
+  freezeCols: 'Up to column {col}',
+  freezeFirstRow: 'First row',
+  freezeFirstCol: 'First column',
+  unfreeze: 'Unfreeze',
 }
 
 export const sheetLocales: Record<string, SheetMessages> = {

@@ -14,6 +14,16 @@ export interface CodeKeyBinding {
   shift?: CodeCommand
 }
 
+/**
+ * Keys and the commands they run, as `{ 'mod+s': save }`. A command that
+ * returns `false` lets the next binding of the same key try.
+ */
+export type CodeKeymap = Record<string, CodeCommand>
+
+/** A keymap as bindings, in its own order. */
+export const keymapBindings = (keymap: CodeKeymap | null | undefined): CodeKeyBinding[] =>
+  keymap ? Object.entries(keymap).map(([key, run]) => ({ key, run })) : []
+
 const ORDER = ['mod', 'ctrl', 'meta', 'alt', 'shift']
 
 /** A key written as a binding, in one spelling for both platforms. */
@@ -119,6 +129,8 @@ export const defaultKeymap: readonly CodeKeyBinding[] = [
   { key: 'mod+g', run: cmd.findNext, shift: cmd.findPrevious },
   { key: 'ctrl+shift+[', mac: 'mod+alt+[', run: cmd.foldCode },
   { key: 'ctrl+shift+]', mac: 'mod+alt+]', run: cmd.unfoldCode },
+  { key: 'f8', run: cmd.nextDiagnostic, shift: cmd.previousDiagnostic },
+  { key: 'mod+.', run: cmd.showFixes },
   { key: 'mod+shift+l', run: cmd.selectAllOccurrences },
   { key: 'ctrl+alt+arrowup', mac: 'mod+alt+arrowup', run: cmd.addCursorAbove },
   { key: 'ctrl+alt+arrowdown', mac: 'mod+alt+arrowdown', run: cmd.addCursorBelow },

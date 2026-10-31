@@ -291,7 +291,16 @@ describe('DouSheet', () => {
     await nextTick()
     await key('F10', { shiftKey: true })
     expect(seen[1]!.area).toBe('cell')
-    expect(seen[1]!.keys).toEqual(['cut', 'copy', 'paste', 'insert', 'delete', 'clear'])
+    expect(seen[1]!.keys).toEqual([
+      'cut',
+      'copy',
+      'paste',
+      'insert',
+      'delete',
+      'sort',
+      'filter',
+      'clear',
+    ])
   })
 
   it('fills down with Ctrl+D and inserts rows with the keyboard', async () => {

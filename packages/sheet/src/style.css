@@ -1418,4 +1418,103 @@
     overflow: hidden;
     pointer-events: none;
   }
+
+  /* Filter ----------------------------------------------------------------------------------- */
+
+  /* on the right of each heading of the filter's range */
+  .dou-sheet__filter-button {
+    position: absolute;
+    z-index: 4;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -23px;
+    padding: 0;
+    border: 1px solid var(--dou-color-border);
+    border-radius: calc(var(--dou-radius-control) - 2px);
+    background-color: var(--dou-color-bg-surface);
+    color: var(--dou-color-text-tertiary);
+    cursor: pointer;
+
+    &:hover,
+    &[aria-expanded='true'] {
+      background-color: var(--dou-color-bg-muted);
+      color: var(--dou-color-text);
+    }
+    &.is-active {
+      border-color: color-mix(in oklab, var(--dou-color-primary) 40%, var(--dou-color-border));
+      color: var(--dou-color-primary-text);
+    }
+
+    & > svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    @media (pointer: coarse) {
+      width: 24px;
+      height: 24px;
+      margin: -12px 0 0 -26px;
+
+      &::after {
+        position: absolute;
+        inset: -8px;
+        content: '';
+      }
+    }
+  }
+
+  .dou-sheet-filter {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: var(--dou-font-size-sm);
+  }
+  .dou-sheet-filter__sort {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--dou-color-border-subtle);
+
+    .dou-button {
+      justify-content: flex-start;
+    }
+  }
+  .dou-sheet-filter__list {
+    display: flex;
+    flex-direction: column;
+    max-height: 200px;
+    padding: 4px 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .dou-sheet-filter__item {
+    min-height: 28px;
+    padding: 0 4px;
+
+    &.is-blank,
+    &.is-all {
+      color: var(--dou-color-text-secondary);
+    }
+  }
+  .dou-sheet-filter__hint {
+    padding: 6px 4px;
+    color: var(--dou-color-text-tertiary);
+  }
+  .dou-sheet-filter__condition {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .dou-sheet-filter__footer {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--dou-color-border-subtle);
+  }
 }

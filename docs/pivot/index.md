@@ -8,6 +8,8 @@ wide: true
 
 透视表只用来分析数据，不修改传入的记录。汇总在内部按列读成紧凑的数字数组后进行，10 万条记录的分组汇总在几十毫秒内完成；只调整排序、展开折叠时不会重新汇总。
 
+几个完整页面的写法见区块中的[销售分析](../blocks/sales-analysis)和[工单统计](../blocks/ticket-stats)。
+
 ## 安装
 
 数据透视是单独的包，需要和 `dou-ui` 一起使用：
@@ -251,9 +253,67 @@ filters: {
 
 ## 查看明细
 
-点击一个数字（或用方向键选中后按 Enter）会触发 `cell-click`，参数里有这一格的行组、列组、值的序号和数值。`records()` 返回汇总进这一格的记录，`indices()` 返回它们在 `data` 里的下标。
+点击一个数字（或用方向键选中后按 Enter）会触发 `cell-click`，参数里有这一格的行组、列组、值的序号和数值；`row` 和 `column` 是组的原始值（日期按月分组时是 `'2026-01'`），`labels` 是表格里写出的文字。`records()` 返回汇总进这一格的记录，`indices()` 返回它们在 `data` 里的下标。下面的例子在抽屉里用表格列出这些订单：
 
 <DocDemo src="pivot/details" />
+
+`records()` 和 `indices()` 在调用时才去查找记录，点击本身不会多花时间。总计格子包含所有记录，数据量大时列表要用虚拟滚动，例子里的表格加了 `virtual`。
+
+## 复制与导出
+
+### 选择与复制
+
+用鼠标在格子上拖动，或者按住 Shift 点击、按 Shift + 方向键，可以选中一片格子；Ctrl / ⌘ + A 选中全部，Esc 取消。按 Ctrl / ⌘ + C 复制，剪贴板里同时有两种内容：
+
+- 用制表符分隔的文字，数字按表格里显示的样子写，粘到文本编辑器里也能对齐；
+- 一张 HTML 表格，粘到电子表格软件里，每个数字占一格。粘到 [`DouSheet`](/sheet/) 里时，数字保留原来的值和格式（比如占比仍然是 `0.213`，显示为 `21.3%`），总计行是粗体。
+
+选中的范围包括行头时，每个行字段各占一列。全选后复制会带上列的表头。手机上拖动用来滚动表格，不会选中格子。
+
+通过 ref 调用 `copy()` 复制选中的格子，`copy({ all: true })` 复制整张表。
+
+### 导出
+
+表格通过 ref 提供几种导出方式，导出的都是当前看到的样子：折叠的组只有一行，显示方式、排序和筛选都和表格一致。导出时每个行字段占一列，和表格式布局一样。
+
+<DocDemo src="pivot/export" />
+
+| 方法                    | 结果                                                                                        |
+| ----------------------- | ------------------------------------------------------------------------------------------- |
+| `toCSV(options?)`       | CSV 文字。默认写数值（`1280`、`0.213`），`{ text: true }` 写显示的文字（`¥1,280`、`21.3%`） |
+| `toSheet({ name? })`    | 给 `DouSheet` 的工作簿：数字带格式，表头合并并冻结，列宽和屏幕上一样                        |
+| `toChartRows(options?)` | 给 `@dou-ui/chart` 的行数据和系列，见下面的透视图                                           |
+| `toGrid()`              | 每个格子的文字、数值和类型，用来自己生成别的格式                                            |
+| `print(options?)`       | 打开浏览器的打印对话框，打印整张表                                                          |
+
+数值去掉了汇总时的浮点误差（按 15 位有效数字取整，`1592.0200000000002` 写成 `1592.02`）。CSV 默认以字节顺序标记开头，这样电子表格软件能按 UTF-8 打开，`{ bom: false }` 可以去掉。组名以 `=`、`+`、`-`、`@` 开头时，前面会加上 `'`，防止在电子表格里被当成公式运行。
+
+### 转成电子表格
+
+`toSheet()` 返回的对象可以直接作为 `DouSheet` 的 `v-model`，之后可以在表格里继续编辑、加公式。两个包互不依赖，各自单独安装。
+
+<DocDemo src="pivot/sheet" />
+
+### 透视图
+
+`toChartRows()` 返回 `{ x, rows, series }`：每个没有展开的行组是一行（展开的组换成它的子组），每个列组是一个系列，小计和总计不在里面。把 `rows` 交给图表的 `data`、`x` 交给 `x`，再为每个系列放一个柱子或折线：
+
+```vue
+<DouChart :data="chart.rows" :x="chart.x">
+  <DouChartAxis for="y" :format="chart.series[0]?.format" />
+  <DouChartBar v-for="s in chart.series" :key="s.key" :y="s.key" :name="s.name" stack />
+</DouChart>
+```
+
+每个系列还带有 `valueIndex` 和 `format`：`format` 按表格的写法写出数字，交给坐标轴的 `format`，刻度就和表格一致（`¥10,000`）。空格子是 `null`，图表里会断开。没有数据时返回 `{ x: 'label', rows: [], series: [] }`。
+
+在 `computed` 里调用 `toChartRows()`，表格展开、折叠或换了字段时图会跟着更新。有多个值时，`{ valueIndex }` 只取其中一个。
+
+<DocDemo src="pivot/chart" />
+
+### 打印
+
+表格只渲染看得到的部分，直接打印页面只能打出一屏。`print()` 把整张表写成普通的表格再打印：纸张是 A4，表格比竖向的纸宽时自动横向，列的表头在每一页重复。`title` 是表格上方的标题，默认用 `aria-label`；`orientation` 可以指定 `'portrait'` 或 `'landscape'`。
 
 ## 总计
 
@@ -352,6 +412,8 @@ const engine = {
 
 表格可以聚焦，方向键移动选中的格子；在组名上按 → 展开、按 ← 折叠或回到上一级，Enter 或空格切换展开。Page Up / Page Down 翻页，Home / End 跳到行首、行尾，加上 Ctrl 或 ⌘ 跳到第一行、最后一行。
 
+以上移动键加上 Shift 会扩大选中的范围。Ctrl / ⌘ + A 全选，Ctrl / ⌘ + C 复制，Esc 取消选中的范围。
+
 ## 不用组件
 
 汇总的内核可以单独使用，比如在服务端或 worker 里：
@@ -414,14 +476,15 @@ result.get(east, result.columns.find(['Q1']), 1) // 华东 Q1 的第 2 个值
 
 ### PivotCellEvent
 
-| 名称         | 说明                                                         | 类型             |
-| ------------ | ------------------------------------------------------------ | ---------------- |
-| `row`        | 行组从外到内的组名，总计行为 `[]`                            | `unknown[]`      |
-| `column`     | 列组从外到内的组名，总计列为 `[]`                            | `unknown[]`      |
-| `valueIndex` | 值在 `config.values` 里的序号                                | `number`         |
-| `value`      | 格子里显示的数值（有 `show` 时是换算后的数），空格子为 `NaN` | `number`         |
-| `records`    | 汇总进这一格的记录                                           | `() => object[]` |
-| `indices`    | 这些记录在 `data` 里的下标                                   | `() => number[]` |
+| 名称         | 说明                                                                              | 类型                                  |
+| ------------ | --------------------------------------------------------------------------------- | ------------------------------------- |
+| `row`        | 行组从外到内的组名，总计行为 `[]`                                                 | `unknown[]`                           |
+| `column`     | 列组从外到内的组名，总计列为 `[]`                                                 | `unknown[]`                           |
+| `labels`     | 同样的行组和列组按表格里写出的文字，如 `{ row: ['2026年1月'], column: ['外卖'] }` | `{ row: string[], column: string[] }` |
+| `valueIndex` | 值在 `config.values` 里的序号                                                     | `number`                              |
+| `value`      | 格子里显示的数值（有 `show` 时是换算后的数），空格子为 `NaN`                      | `number`                              |
+| `records`    | 汇总进这一格的记录                                                                | `() => object[]`                      |
+| `indices`    | 这些记录在 `data` 里的下标                                                        | `() => number[]`                      |
 
 ### PivotConfig
 
@@ -434,6 +497,22 @@ result.get(east, result.columns.find(['Q1']), 1) // 华东 Q1 的第 2 个值
 | `valuesOn` | 多个值放在哪个方向       | `'columns' \| 'rows'`                                                           | `'columns'` |
 | `sort`     | 按某一列的数值给行组排序 | `{ valueIndex: number, column?: unknown[], order } \| null`                     | —           |
 | `totals`   | 总计行和总计列           | `{ rows?: boolean, columns?: boolean }`                                         | 都显示      |
+
+### Pivot Methods
+
+| 名称                              | 说明                                                      | 类型                                |
+| --------------------------------- | --------------------------------------------------------- | ----------------------------------- |
+| `result`                          | 当前的汇总结果                                            | `PivotResult`                       |
+| `expandAll({ axis? })`            | 展开所有组                                                | `(options?) => void`                |
+| `collapseAll({ axis?, depth? })`  | 折叠从第 `depth` 层开始的所有组                           | `(options?) => void`                |
+| `toggle(axis, path, open?)`       | 展开或折叠一个组                                          | `(axis, path, open?) => void`       |
+| `selectAll()`                     | 选中全部格子                                              | `() => void`                        |
+| `copy({ all? })`                  | 复制选中的格子，`all` 复制整张表                          | `(options?) => Promise<void>`       |
+| `toCSV({ text?, bom? })`          | 导出 CSV                                                  | `(options?) => string`              |
+| `toSheet({ name? })`              | 导出给 `DouSheet` 的工作簿                                | `(options?) => PivotSheetWorkbook`  |
+| `toChartRows(options?)`           | 导出给图表的行数据和系列，`options.valueIndex` 只取一个值 | `(options?) => { x, rows, series }` |
+| `toGrid()`                        | 每个格子的 `text`、`kind`、`value`、`total` 和合并范围    | `() => PivotGrid`                   |
+| `print({ title?, orientation? })` | 打印整张表                                                | `(options?) => void`                |
 
 ### Worker 与引擎
 
@@ -448,16 +527,18 @@ result.get(east, result.columns.find(['Q1']), 1) // 华东 Q1 的第 2 个值
 
 ### CSS 变量
 
-| 变量                         | 说明                               |
-| ---------------------------- | ---------------------------------- |
-| `--dou-pivot-line`           | 格子之间的线                       |
-| `--dou-pivot-line-strong`    | 表头、行头的分隔线                 |
-| `--dou-pivot-head-bg`        | 表头和总计行的背景                 |
-| `--dou-pivot-total-bg`       | 合计列和总计列的背景               |
-| `--dou-pivot-ring`           | 键盘选中格子的边框颜色             |
-| `--dou-pivot-scale-strength` | 色阶最深时语气色的比例，默认 `28%` |
-| `--dou-pivot-bar-strength`   | 数据条语气色的比例，默认 `12%`     |
+| 变量                            | 说明                                     |
+| ------------------------------- | ---------------------------------------- |
+| `--dou-pivot-line`              | 格子之间的线                             |
+| `--dou-pivot-line-strong`       | 表头、行头的分隔线                       |
+| `--dou-pivot-head-bg`           | 表头和总计行的背景                       |
+| `--dou-pivot-total-bg`          | 合计列和总计列的背景                     |
+| `--dou-pivot-ring`              | 键盘选中格子的边框颜色                   |
+| `--dou-pivot-selected`          | 选中范围的底色                           |
+| `--dou-pivot-scale-strength`    | 色阶最深时语气色的比例，默认 `28%`       |
+| `--dou-pivot-bar-strength`      | 数据条语气色的比例，默认 `12%`           |
+| `--dou-pivot-bar-strength-dark` | 深色主题下数据条语气色的比例，默认 `24%` |
 
 ### 读屏
 
-表格是一个树形网格（`role="treegrid"`）：每行带有层级（`aria-level`），组所在的行带有展开状态（`aria-expanded`），排序中的表头带有 `aria-sort`。用方向键移动时，读屏读出选中的格子。
+表格是一个树形网格（`role="treegrid"`）：每行带有层级（`aria-level`），组所在的行带有展开状态（`aria-expanded`），排序中的表头带有 `aria-sort`。表格可以多选（`aria-multiselectable`），选中范围内的格子带有 `aria-selected`。用方向键移动时，读屏读出选中的格子。选中一片格子、复制、展开或折叠一组时，表格通过一个隐藏的 `role="status"` 区域播报结果，比如“已选中 3 行 2 列”“已复制 6 个格子”。

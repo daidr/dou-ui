@@ -5,7 +5,7 @@
 只是展示一段代码时，用 [CodeBlock 代码块](/components/code-block) 更合适。
 
 ::: tip 开发中
-目前完成的是编辑内核、语法高亮、多光标、查找替换、自动换行、折叠和手机触控。补全、对比和协同编辑会陆续加入。
+目前完成的是编辑内核、语法高亮、多光标、查找替换、自动换行、折叠、手机触控和扩展（装饰、侧栏、面板、诊断）。补全、对比和协同编辑会陆续加入。
 :::
 
 ## 安装
@@ -229,15 +229,15 @@ replacementFor(doc, matches[0], query) // 'const a'
 
 每次修改之后触发 `transaction` 事件，参数里有 `changes`（这次的改动）、`before` 和 `state`（修改前后的文本与选区），`meta.action` 说明修改的来源：`input` 输入、`delete` 删除、`paste` 粘贴、`cut` 剪切、`undo` / `redo`、`external` 来自新的 `v-model` 值等。
 
-`codeCommands` 里是内置的编辑和移动命令，用 `run(command)` 执行。在按钮里执行命令后，焦点还在按钮上，需要接着输入时再调用 `focus()`。`keymap` 属性传入额外的按键，写法和 `useHotkey` 一样（`mod+shift+k`），比内置按键优先；命令返回 `false` 时继续尝试下一个绑定：
+`codeCommands` 里是内置的编辑和移动命令，用 `run(command)` 执行。在按钮里执行命令后，焦点还在按钮上，需要接着输入时再调用 `focus()`。`keymap` 属性传入额外的按键，键名的写法和 `useHotkey` 一样（`mod+shift+k`），值是要执行的命令，比内置按键优先；命令返回 `false` 时继续尝试下一个绑定：
 
 ```ts
-import { codeCommands, type CodeKeyBinding } from '@dou-ui/code'
+import { codeCommands, type CodeKeymap } from '@dou-ui/code'
 
-const keymap: CodeKeyBinding[] = [
-  { key: 'mod+s', run: () => (save(), true) },
-  { key: 'mod+d', run: codeCommands.selectAll },
-]
+const keymap: CodeKeymap = {
+  'mod+s': () => (save(), true),
+  'mod+d': codeCommands.selectAll,
+}
 ```
 
 内置命令及默认按键（`Mod` 的含义同上，“Apple” 一列只写和其他系统不同的按键）：
@@ -273,6 +273,8 @@ const keymap: CodeKeyBinding[] = [
 | `closeSearch`                              | 关闭查找面板                          | `Esc`                                             |                                                     |
 | `foldCode` / `unfoldCode`                  | 折叠 / 展开光标所在的一段             | `Ctrl` + `Shift` + `[` / `]`                      | `⌥` + `⌘` + `[` / `]`                               |
 | `foldAll` / `unfoldAll`                    | 折叠所有最外层的段 / 全部展开         | 无                                                |                                                     |
+| `nextDiagnostic` / `previousDiagnostic`    | 跳到下一个 / 上一个问题               | `F8` / `Shift` + `F8`                             |                                                     |
+| `showFixes`                                | 显示光标处问题的修复办法              | `Mod` + `.`                                       |                                                     |
 
 `codeCommands.insertText(target, text)` 不是按键命令：它像输入一样在每个光标处输入一个字符，并处理括号补全和右括号对齐，处理了返回 `true`。`codeCommands.typeText(text)` 返回一个命令，像键盘输入一样输入一段文字，适合做成按钮，符号栏就是用它输入的。
 
@@ -318,6 +320,38 @@ const keys = [
 | `icon`      | 代替文字显示的图标                         | `Component`   |
 | `repeat`    | 按住时连续触发                             | `boolean`     |
 | `ariaLabel` | 读屏读出的名称，`label` 说不清楚时使用     | `string`      |
+
+## 扩展
+
+扩展用 `defineCodeExtension` 定义，通过 `extensions` 传给编辑器。一个扩展可以提供下面这些部分，都是可选的：
+
+| 名称          | 说明                                                                                      |
+| ------------- | ----------------------------------------------------------------------------------------- |
+| `name`        | 扩展的名字，用来区分各个扩展找到的问题                                                    |
+| `priority`    | 优先级，默认 `100`，大的先执行，它的按键也先尝试                                          |
+| `keymap`      | 返回按键表的函数，写法和 `keymap` 属性一样；比内置的优先，比 `keymap` 属性靠后            |
+| `decorations` | 装饰：给一段文字加 class（`mark`），或给整行加 class（`line`）                            |
+| `gutters`     | 行号左侧的列（`name`、`width`、`markers`、`onPress`），每行可以放图标或文字，可以响应点击 |
+| `panels`      | 编辑器上方或下方的栏（`name`、`position`、`render`），在边框之内                          |
+| `lint`        | 找出文本里的问题，可以返回 Promise                                                        |
+| `transaction` | 每次修改应用之前调用，可以在同一次修改里追加改动；撤销、重做和新的 `v-model` 值不经过这里 |
+| `setup`       | 编辑器挂载后调用一次，返回的函数在卸载时调用                                              |
+
+这些函数的参数是编辑器的上下文：它就是编辑器实例（`doc`、`selection`、`transact`、`run` 等都在上面），另外还有 `visible`（可见的行号范围）、`diagnostics`（现在的所有问题）和 `announce(message)`（让读屏读出一句话）。`decorations` 和 `panels` 在绘制时调用，里面读到的响应式数据变化时会重新调用；`decorations` 只需要给出可见的行，大文件里也不会变慢。
+
+装饰只改变文字的样子，比如颜色、底色、下划线、边框，不改变字的大小和粗细，这样光标仍然落在字符上。
+
+<DocDemo src="code/extension" column />
+
+在面板或侧栏里渲染的组件可以用 `useCodeEditor()` 拿到同一个上下文。
+
+### 诊断
+
+问题的形状是 `{ from, to, severity, message, source?, actions? }`，`from`、`to` 是文本里的位置，`severity` 是 `error`、`warning`、`info`、`hint` 之一。问题在文字下面画波浪线，在行号左侧显示图标，在滚动条上留下标记；鼠标停在上面会显示说明和 `actions` 里的修复办法。
+
+问题有两个来源：`diagnostics` 属性，以及扩展的 `lint`。`lint` 在编辑器挂载时运行，之后在文字停止变化一小会儿后再运行；返回的是 Promise 时，如果结果回来时文字又改过了，这次结果会被丢掉，等下一次运行。两次运行之间，已经找到的问题会跟着修改移动。从 `diagnostics` 属性传入的问题也一样，直到传入新的数组。
+
+`F8` / `Shift` + `F8` 跳到下一个 / 上一个问题并显示说明，读屏会读出行号和内容；`Mod` + `.` 显示光标处问题的修复办法，用上下键选择，`Enter` 执行，`Esc` 关闭。触屏上点一下有问题的文字就会显示说明。
 
 ## 大文件
 
@@ -385,7 +419,9 @@ const doc = shallowRef(CodeText.of(source))
 | `foldable`          | 显示折叠箭头，允许折叠                         | `boolean`                          | `true`     |
 | `keys`              | 触屏上键盘上方的符号栏；数组改写可以滑动的按键 | `boolean \| (CodeKey \| string)[]` | `true`     |
 | `messages`          | 改写编辑器上的文字（查找面板、工具条、符号栏） | `Partial<CodeMessages>`            | —          |
-| `keymap`            | 额外的按键，比内置的优先                       | `CodeKeyBinding[]`                 | —          |
+| `keymap`            | 额外的按键，比内置的优先                       | `CodeKeymap`                       | —          |
+| `extensions`        | 扩展                                           | `CodeExtension[]`                  | —          |
+| `diagnostics`       | 要显示的问题，之后跟着修改移动                 | `CodeDiagnostic[]`                 | —          |
 | `autofocus`         | 挂载后获得焦点                                 | `boolean`                          | `false`    |
 | `aria-label`        | 读屏读出的名称                                 | `string`                           | —          |
 
@@ -417,6 +453,7 @@ const doc = shallowRef(CodeText.of(source))
 | `fold(line?)`、`unfold(line?)` | 折叠、展开某一行（从 1 开始）开始的一段，不传时用光标所在的行；返回有没有变化 |
 | `foldAll()`、`unfoldAll()`     | 折叠所有最外层的段、全部展开；返回有没有变化                                  |
 | `folds`                        | 现在折叠着的各段的起始行号                                                    |
+| `diagnostics`                  | 现在的所有问题，按位置排序                                                    |
 
 ### DouCodeKeys Props
 

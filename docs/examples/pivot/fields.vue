@@ -45,5 +45,9 @@ const config = ref({
   .panel {
     width: auto;
   }
+  /* in a column, flex: 1 would take the table's height away */
+  .table {
+    flex: none;
+  }
 }
 </style>

@@ -22,6 +22,8 @@ import {
   type SheetCell,
   type SheetCellInput,
   type SheetData,
+  type SheetFilter,
+  type SheetFilterRule,
   type SheetRow,
   type SheetStyle,
   type SheetTypeSetup,
@@ -31,6 +33,7 @@ import {
 } from './model'
 import { continueValues, type SheetFillMode } from './fill'
 import { mergesOf, overlaps } from './merge'
+import { sortRows, textCollator, type SheetSortKey } from './data'
 
 /*
  * Every change to a workbook is a list of steps. Applying a step also gives
@@ -91,6 +94,8 @@ export type SheetAction =
   | 'delete'
   | 'hide'
   | 'merge'
+  | 'sort'
+  | 'filter'
   | 'style'
   | 'freeze'
   | 'sheet'
@@ -368,6 +373,102 @@ export class SheetTransaction {
   }
 
   /**
+   * Sorts the rows of a range by the values in `keys`' columns; the cells
+   * outside the range stay. `header` keeps the first row in place. Equal rows
+   * keep their order, and empty values go last either way. Formulas move
+   * with their rows and their references move along, as when copied.
+   * `valueAt` gives what a cell comes to, e.g. a formula's result; the value
+   * as written is used without it. Ranges with merged cells are not sorted.
+   */
+  sortRange(
+    at: SheetRangeAt,
+    keys: readonly SheetSortKey[],
+    options: {
+      header?: boolean
+      valueAt?: (row: number, col: number) => unknown
+      lang?: string
+    } = {},
+  ) {
+    const { index, bounds } = this.rangeIn(at)
+    const sheet = this.book.sheets[index]!
+    const top = bounds.top + (options.header ? 1 : 0)
+    if (top >= bounds.bottom || !keys.length) return this
+    const body = { ...bounds, top }
+    if (mergesOf(sheet).touching(body).length)
+      throw new RangeError('A range with merged cells cannot be sorted')
+    const rows = Array.from({ length: bounds.bottom - top + 1 }, (_, i) => top + i)
+    const cells = sheet.cells
+    const valueAt =
+      options.valueAt ?? ((row: number, col: number) => valueOf(cells[row]?.[col] ?? undefined))
+    const order = sortRows(rows, keys, valueAt, textCollator(options.lang))
+    // read the moved cells before writing any
+    const moved = order.map((from) =>
+      Array.from({ length: bounds.right - bounds.left + 1 }, (_, c) =>
+        cellOf(cells[from]?.[bounds.left + c] ?? undefined),
+      ),
+    )
+    order.forEach((from, i) => {
+      const to = top + i
+      if (from === to) return
+      moved[i]!.forEach((cell, c) => {
+        const value = cell?.value
+        const next =
+          typeof value === 'string' && value.startsWith('=')
+            ? compactCell({ ...cell, value: shiftFormula(value, to - from, 0) })
+            : compactCell(cell)
+        this.setCell({ sheet: index, row: to, col: bounds.left + c }, next)
+      })
+    })
+    return this
+  }
+
+  /**
+   * Puts a filter on a range, headings in its first row; `null` takes the
+   * filter off, showing the rows it hid. A new range drops the old rules.
+   */
+  setFilter(at: SheetRangeAt | null) {
+    if (at == null) {
+      const index = this.mustIndex()
+      if (!this.book.sheets[index]!.filter) return this
+      return this.updateSheet({ filter: undefined }, index)
+    }
+    const { index, bounds } = this.rangeIn(at)
+    const old = this.book.sheets[index]!.filter
+    const range = rangeText(bounds)
+    if (old?.range === range) return this
+    return this.updateSheet({ filter: { range } }, index)
+  }
+
+  /**
+   * Sets which rows a column of the filter keeps; `undefined` keeps all.
+   * `sorted` marks the column the rows were sorted by, for its button.
+   */
+  filterColumn(col: number, rule: SheetFilterRule | undefined, sheet: SheetRef = this.sheet) {
+    const index = this.mustIndex(sheet)
+    const filter = this.book.sheets[index]!.filter
+    if (!filter) throw new RangeError('The sheet has no filter')
+    const columns = { ...filter.columns }
+    if (rule) columns[col] = rule
+    else delete columns[col]
+    const next: SheetFilter = {
+      ...filter,
+      columns: Object.keys(columns).length ? columns : undefined,
+    }
+    if (!next.columns) delete next.columns
+    return this.updateSheet({ filter: next }, index)
+  }
+
+  /** Remembers the filter column the rows were sorted by, or forgets it with `undefined`. */
+  markSorted(sorted: SheetFilter['sorted'], sheet: SheetRef = this.sheet) {
+    const index = this.mustIndex(sheet)
+    const filter = this.book.sheets[index]!.filter
+    if (!filter) return this
+    const next: SheetFilter = { ...filter, sorted }
+    if (!sorted) delete next.sorted
+    return this.updateSheet({ filter: next }, index)
+  }
+
+  /**
    * Adds empty rows before `at`: `insertRows(4, 2)` or `insertRows('5:6')`
    * both add two rows where row 5 was. Frozen rows and the row count grow
    * with them, and formulas pointing below follow their cells.
@@ -518,6 +619,7 @@ export class SheetTransaction {
   private moveRanges(index: number, map: SheetRefMap) {
     const sheet = this.book.sheets[index]!
     this.rewriteReferences(sheet.name, map)
+    this.moveFilter(index, map)
     const merges = sheet.merges
     if (!merges?.length) return this
     const next: string[] = []
@@ -532,6 +634,36 @@ export class SheetTransaction {
     }
     const same = next.length === merges.length && next.every((m, i) => m === merges[i])
     return same ? this : this.updateSheet({ merges: next.length ? next : undefined }, index)
+  }
+
+  /** Moves a sheet's filter with its rows and columns; it goes when its range does. */
+  private moveFilter(index: number, map: SheetRefMap) {
+    const filter = this.book.sheets[index]!.filter
+    if (!filter) return
+    const range = parseRange(filter.range)
+    const moved = range && map(boundsOf(range))
+    if (!moved) {
+      this.updateSheet({ filter: undefined }, index)
+      return
+    }
+    const b = 'bounds' in moved ? moved.bounds : moved
+    const columns: Record<number, SheetFilterRule> = {}
+    for (const [key, rule] of Object.entries(filter.columns ?? {})) {
+      const col = Number(key)
+      const to = map({ top: b.top, bottom: b.top, left: col, right: col })
+      if (!to) continue
+      const at = 'bounds' in to ? to.bounds : to
+      if (at.left === at.right) columns[at.left] = rule
+    }
+    const next: SheetFilter = { range: rangeText(b) }
+    if (Object.keys(columns).length) next.columns = columns
+    if (filter.sorted) {
+      const col = filter.sorted.col
+      const to = map({ top: b.top, bottom: b.top, left: col, right: col })
+      const at = to && ('bounds' in to ? to.bounds : to)
+      if (at && at.left === at.right) next.sorted = { ...filter.sorted, col: at.left }
+    }
+    if (JSON.stringify(next) !== JSON.stringify(filter)) this.updateSheet({ filter: next }, index)
   }
 
   /**

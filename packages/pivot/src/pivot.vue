@@ -42,11 +42,32 @@ import {
   type PivotHeaderSpan,
   type PivotLine,
 } from './core/layout'
-import { labelFormatter, valueFormatter } from './core/format'
+import { labelFormatter, valueFormatter, valueNumberOptions } from './core/format'
 import { valueLabel } from './core/labels'
 import { usePivotSource } from './core/source'
+import {
+  gridMerges,
+  gridToCSV,
+  gridToHTML,
+  gridToSheetCells,
+  gridToTSV,
+  sheetFormat,
+  SHEET_STYLES,
+  type PivotCSVOptions,
+  type PivotGrid,
+  type PivotGridCell,
+} from './core/table'
 import { format, usePivotMessages } from './locale'
-import type { PivotCellEvent, PivotExpose, PivotProps } from './types'
+import type {
+  PivotCellEvent,
+  PivotChartRows,
+  PivotChartRowsOptions,
+  PivotCopyOptions,
+  PivotExpose,
+  PivotPrintOptions,
+  PivotProps,
+  PivotSheetWorkbook,
+} from './types'
 
 defineOptions({ name: 'DouPivot' })
 
@@ -291,9 +312,12 @@ const valueDisplay = computed(() => {
       show,
       format: spec?.format ?? (own ? undefined : value.format),
     }
+    const options = valueNumberOptions(shownValue)
     return {
       label: valueLabel(shownValue, spec?.label, m),
       write: valueFormatter(shownValue, locale.value.name),
+      /** The same format for a sheet, when there is one. */
+      sheetFormat: options ? sheetFormat(options, locale.value.name) : undefined,
       show: show ?? null,
       mark: markOf(spec?.mark),
     }
@@ -532,6 +556,8 @@ function rowHead(line: PivotLine, index: number): RowHead {
 
 interface Cell {
   key: number
+  /** In the selected range. */
+  selected: boolean
   text: string
   cls: string
   col: number
@@ -556,8 +582,10 @@ function markStyle(value: number, valueIndex: number) {
   return `;${tone};--dou-pivot-bar-start:${start.toFixed(3)};--dou-pivot-bar-size:${(Math.abs(value) / span).toFixed(3)}`
 }
 
-function rowCells(line: PivotLine): Cell[] {
+function rowCells(line: PivotLine, row: number): Cell[] {
   const res = result.value
+  const sel = selection.value
+  const picked = sel && row >= sel.top && row <= sel.bottom ? sel : null
   const blank = rowBlank(line)
   const display = valueDisplay.value
   const starts = colStarts.value
@@ -570,13 +598,15 @@ function rowCells(line: PivotLine): Cell[] {
     let cls = 'dou-pivot__cell'
     if (col.kind !== 'group') cls += ' is-total'
     if (col.kind === 'group' && col.node > 0 && res.columns.isGroup(col.node)) cls += ' is-closed'
+    const selected = !!picked && index >= picked.left && index <= picked.right
+    if (selected) cls += ' is-selected'
     let style = `width:${starts[index + 1]! - starts[index]!}px`
     const mark = display[v]!.mark
     if (mark && innerRow && n === n && res.columns.depth[col.node] === res.columns.levels.length) {
       cls += mark.type === 'bar' ? ' has-bar' : ' has-scale'
       style += markStyle(n, v)
     }
-    return { key: index, col: index, text: display[v]!.write(n), cls, style }
+    return { key: index, col: index, text: display[v]!.write(n), cls, style, selected }
   })
 }
 
@@ -594,6 +624,17 @@ interface HeadCell {
   cls: string
   /** The column whose width its edge sets, or -1. */
   resize: number
+}
+
+/** What a header cell says: a group, a subtotal, the grand total or a value. */
+function spanText(span: PivotHeaderSpan) {
+  const tree = result.value.columns
+  if (span.kind === 'value')
+    return span.value >= 0 ? valueDisplay.value[span.value]!.label : messages.value.total
+  if (span.kind === 'total') return messages.value.total
+  if (span.kind === 'subtotal')
+    return format(messages.value.subtotal, { label: nodeText(tree, colWriters.value, span.node) })
+  return nodeText(tree, colWriters.value, span.node)
 }
 
 const columnPath = (line: { kind: string; node: number }) =>
@@ -621,15 +662,7 @@ const headCells = computed<HeadCell[]>(() => {
           ? sort.order
           : null
       const canToggle = span.kind === 'group' && tree.isGroup(span.node)
-      let text: string
-      if (span.kind === 'value')
-        text = span.value >= 0 ? valueDisplay.value[span.value]!.label : messages.value.total
-      else if (span.kind === 'total') text = messages.value.total
-      else if (span.kind === 'subtotal')
-        text = format(messages.value.subtotal, {
-          label: nodeText(tree, colWriters.value, span.node),
-        })
-      else text = nodeText(tree, colWriters.value, span.node)
+      const text = spanText(span)
       let cls = `dou-pivot__col-head is-${span.kind}`
       // over the numbers, names sit right like them; a group with a toggle reads from the left
       if (span.kind !== 'group' || (!canToggle && single)) cls += ' is-end'
@@ -703,6 +736,8 @@ function toggleNode(axis: PivotAxis, node: number, all = false) {
   const tree = axis === 'rows' ? result.value.rows : result.value.columns
   const nodes = axis === 'rows' ? rowCollapsed.value : columnCollapsed.value
   const open = nodes.has(node)
+  const label = nodeText(tree, axis === 'rows' ? rowWriters.value : colWriters.value, node)
+  announce(format(open ? messages.value.expanded : messages.value.collapsed, { label }))
   if (!all) return toggle(axis, tree.path(node), open)
   // Alt: every group at the same depth goes the same way
   const depth = tree.depth[node]!
@@ -858,6 +893,47 @@ const resizeStop = computed(() => {
 
 const active = shallowRef<{ row: number; col: number } | null>(null)
 const focused = ref(false)
+/** Where a range of cells starts; the active cell is its other corner. */
+const anchor = shallowRef<{ row: number; col: number } | null>(null)
+/** The selected range, rows and columns from first to last (column -1 is the row headers); null for one cell. */
+const selection = computed(() => {
+  const a = anchor.value
+  const b = active.value
+  if (!a || !b || (a.row === b.row && a.col === b.col)) return null
+  return {
+    top: Math.min(a.row, b.row),
+    bottom: Math.max(a.row, b.row),
+    left: Math.min(a.col, b.col),
+    right: Math.max(a.col, b.col),
+  }
+})
+/** What a screen reader reads out: a range picked, cells copied, a group opened. */
+const announcement = ref('')
+let announceTimer: ReturnType<typeof setTimeout> | undefined
+function announce(text: string, delay = 0) {
+  clearTimeout(announceTimer)
+  // cleared first, so the same words twice are read twice
+  announcement.value = ''
+  announceTimer = setTimeout(() => (announcement.value = text), delay || 50)
+}
+// read out once the range stops growing, not on every step
+watch(selection, (sel) => {
+  if (!sel) return
+  announce(
+    format(messages.value.selected, {
+      rows: sel.bottom - sel.top + 1,
+      columns: sel.right - sel.left + 1,
+    }),
+    400,
+  )
+})
+onBeforeUnmount(() => clearTimeout(announceTimer))
+
+/** The selected columns of a row, as `left:right`; empty when the row is not in the range. */
+const selectedIn = (row: number) => {
+  const sel = selection.value
+  return sel && row >= sel.top && row <= sel.bottom ? `${sel.left}:${sel.right}` : ''
+}
 const allLines = computed(() => [...bodyLines.value, ...footLines.value])
 
 const cellId = (row: number, col: number) => `${uid}-${row}-${col}`
@@ -875,6 +951,10 @@ function cellEvent(row: PivotLine, col: PivotLine): PivotCellEvent<Row> {
   return {
     row: row.kind === 'total' ? [] : res.rows.path(row.node),
     column: col.kind === 'total' ? [] : res.columns.path(col.node),
+    labels: {
+      row: row.kind === 'total' ? [] : pathTexts(res.rows, rowWriters.value, row.node),
+      column: col.kind === 'total' ? [] : pathTexts(res.columns, colWriters.value, col.node),
+    },
     valueIndex,
     value: rowBlank(row)
       ? Number.NaN
@@ -884,9 +964,58 @@ function cellEvent(row: PivotLine, col: PivotLine): PivotCellEvent<Row> {
   }
 }
 
+/** Set while a drag (or a Shift+click) picks a range, so the click that ends it opens nothing. */
+let swept = false
+
+/** Pressing on a cell and dragging picks a range; Shift+click grows it. Touch scrolls instead. */
+function onPointerDown(event: PointerEvent) {
+  if (event.button !== 0 || event.pointerType === 'touch') return
+  const target = event.target as HTMLElement
+  if (target.closest('[data-resize], [data-head], [data-toggle-node], [data-sort-field]')) return
+  const el = target.closest<HTMLElement>('[data-row]')
+  const view = viewport.value
+  if (!el || !view) return
+  // no text selection while dragging; the table takes the focus itself
+  event.preventDefault()
+  view.focus({ preventScroll: true })
+  const start = { row: Number(el.dataset.row), col: Number(el.dataset.col) }
+  if (event.shiftKey) {
+    anchor.value ??= active.value ?? start
+    active.value = start
+    swept = true
+    setTimeout(() => (swept = false))
+    return
+  }
+  anchor.value = null
+  const onMove = (e: PointerEvent) => {
+    // near an edge the table scrolls on
+    const box = view.getBoundingClientRect()
+    if (e.clientY > box.bottom - 24) view.scrollTop += 16
+    else if (e.clientY < box.top + headHeight.value + 8) view.scrollTop -= 16
+    if (e.clientX > box.right - 24) view.scrollLeft += 16
+    else if (e.clientX < box.left + headWidth.value + 8 && start.col >= 0) view.scrollLeft -= 16
+    const hit = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>('[data-row]')
+    if (!hit || !view.contains(hit)) return
+    const at = { row: Number(hit.dataset.row), col: Number(hit.dataset.col) }
+    if (!swept && at.row === start.row && at.col === start.col) return
+    swept = true
+    anchor.value = start
+    if (active.value?.row !== at.row || active.value?.col !== at.col) active.value = at
+  }
+  const onUp = () => {
+    window.removeEventListener('pointermove', onMove)
+    window.removeEventListener('pointerup', onUp)
+    window.removeEventListener('pointercancel', onUp)
+    setTimeout(() => (swept = false))
+  }
+  window.addEventListener('pointermove', onMove)
+  window.addEventListener('pointerup', onUp)
+  window.addEventListener('pointercancel', onUp)
+}
+
 function onClick(event: MouseEvent) {
   const target = event.target as HTMLElement
-  if (target.closest('[data-resize]') || justResized) return
+  if (target.closest('[data-resize]') || justResized || swept) return
   const sortField = target.closest<HTMLElement>('[data-sort-field]')
   if (sortField) return sortByField(Number(sortField.dataset.sortField))
   const head = target.closest<HTMLElement>('[data-head]')
@@ -903,6 +1032,7 @@ function onClick(event: MouseEvent) {
   const row = Number(el.dataset.row)
   const col = Number(el.dataset.col)
   active.value = { row, col }
+  anchor.value = null
   const line = allLines.value[row]
   if (!line) return
   if (col < 0) {
@@ -933,7 +1063,8 @@ function ensureVisible(row: number, col: number) {
   onScroll()
 }
 
-function moveTo(row: number, col: number) {
+/** Moves the active cell; `extend` (Shift) grows the range from where it started instead. */
+function moveTo(row: number, col: number, extend = false) {
   const rows = allLines.value.length
   const cols = colLines.value.length
   if (rows === 0) return
@@ -941,6 +1072,8 @@ function moveTo(row: number, col: number) {
     row: Math.max(0, Math.min(rows - 1, row)),
     col: Math.max(-1, Math.min(cols - 1, col)),
   }
+  if (extend) anchor.value ??= active.value ?? next
+  else anchor.value = null
   active.value = next
   ensureVisible(next.row, next.col)
 }
@@ -971,33 +1104,44 @@ function onKeydown(event: KeyboardEvent) {
   const open = isGroup && !rowCollapsed.value.has(line!.node)
   const page = Math.max(1, Math.floor((viewHeight.value - headHeight.value) / rowHeight.value) - 1)
   const mod = event.ctrlKey || event.metaKey
+  const shift = event.shiftKey
+  if (mod && !shift && !event.altKey && event.key.toLowerCase() === 'a') {
+    selectAll()
+    event.preventDefault()
+    return
+  }
   switch (event.key) {
     case 'ArrowDown':
-      moveTo(a.row + 1, a.col)
+      moveTo(a.row + 1, a.col, shift)
       break
     case 'ArrowUp':
-      moveTo(a.row - 1, a.col)
+      moveTo(a.row - 1, a.col, shift)
       break
     case 'ArrowRight':
-      if (a.col < 0 && isGroup && !open) toggleNode('rows', line!.node)
-      else moveTo(a.row, a.col + 1)
+      if (a.col < 0 && isGroup && !open && !shift) toggleNode('rows', line!.node)
+      else moveTo(a.row, a.col + 1, shift)
       break
     case 'ArrowLeft':
-      if (a.col < 0 && open) toggleNode('rows', line!.node)
+      if (shift) moveTo(a.row, a.col - 1, true)
+      else if (a.col < 0 && open) toggleNode('rows', line!.node)
       else if (a.col < 0 && line) moveTo(parentRow(a.row), -1)
       else moveTo(a.row, a.col - 1)
       break
     case 'PageDown':
-      moveTo(a.row + page, a.col)
+      moveTo(a.row + page, a.col, shift)
       break
     case 'PageUp':
-      moveTo(a.row - page, a.col)
+      moveTo(a.row - page, a.col, shift)
       break
     case 'Home':
-      moveTo(mod ? 0 : a.row, -1)
+      moveTo(mod ? 0 : a.row, -1, shift)
       break
     case 'End':
-      moveTo(mod ? allLines.value.length - 1 : a.row, colLines.value.length - 1)
+      moveTo(mod ? allLines.value.length - 1 : a.row, colLines.value.length - 1, shift)
+      break
+    case 'Escape':
+      if (!anchor.value) return
+      anchor.value = null
       break
     case 'Enter':
     case ' ':
@@ -1042,6 +1186,336 @@ watch(engineConfig, () => {
   })
 })
 
+// ---- the table as cells: copying, CSV, a sheet, a chart and printing ----
+
+/** The column headers for export, which always name the values when they run along the columns. */
+const exportSpans = computed(() =>
+  headerSpans(
+    result.value.columns,
+    colLines.value,
+    result.value.columns.levels.length === 0 || !valuesOnRows.value,
+  ),
+)
+
+interface GridRange {
+  top: number
+  bottom: number
+  left: number
+  right: number
+}
+
+/** A row's labels, one per row field: the group on its own line, as the table shows it. */
+function rowLabels(line: PivotLine, index: number, count: number) {
+  const texts: string[] = Array.from({ length: count }, () => '')
+  if (line.kind === 'total') texts[0] = messages.value.total
+  else if (isFirstOfNode(line)) {
+    const head = rowHead(line, index)
+    if (tabular.value) head.parts.forEach((part, level) => part && (texts[level] = part.text))
+    else texts[head.depth] = head.text
+  }
+  return texts
+}
+
+/**
+ * Cells of the table: rows `top` to `bottom`, columns `left` to `right`
+ * (`-1` takes the row headers), with the column headers when `heads`.
+ */
+function gridOf(range: GridRange, heads: boolean): PivotGrid {
+  const res = result.value
+  const display = valueDisplay.value
+  const levels = Math.max(1, res.rows.levels.length)
+  const withLeft = range.left < 0
+  const headCols = withLeft ? levels + (valuesOnRows.value ? 1 : 0) : 0
+  const from = Math.max(0, range.left)
+  const to = range.right
+  const width = headCols + Math.max(0, to - from + 1)
+  const cells: (PivotGridCell | null)[][] = []
+  const headRowCount = heads ? res.columns.levels.length + 1 : 0
+  for (let r = 0; r < headRowCount; r++)
+    cells.push(Array.from({ length: width }, (): PivotGridCell => ({ text: '', kind: 'head' })))
+  if (heads && withLeft) {
+    columnFields.value.forEach((label, level) => (cells[level]![0] = { text: label, kind: 'head' }))
+    const last = cells[headRowCount - 1]!
+    for (const field of rowFields.value) last[field.index] = { text: field.label, kind: 'head' }
+    if (valuesOnRows.value) last[levels] = { text: messages.value.values, kind: 'head' }
+  }
+  if (heads) {
+    for (const list of exportSpans.value) {
+      for (const span of list) {
+        const a = Math.max(span.from, from)
+        const b = Math.min(span.to - 1, to)
+        if (a > b) continue
+        const col = headCols + a - from
+        const cell: PivotGridCell = { text: spanText(span), kind: 'head' }
+        const line = colLines.value[span.from]!
+        if (span.kind === 'total' || span.kind === 'subtotal' || line.kind !== 'group')
+          cell.total = true
+        if (b > a) cell.colSpan = b - a + 1
+        if (span.rows > 1) cell.rowSpan = span.rows
+        for (let r = span.level; r < span.level + span.rows; r++)
+          for (let c = col; c <= col + b - a; c++) cells[r]![c] = null
+        cells[span.level]![col] = cell
+      }
+    }
+  }
+  const lines = allLines.value
+  for (let i = range.top; i <= range.bottom; i++) {
+    const line = lines[i]
+    if (!line) continue
+    const out: (PivotGridCell | null)[] = []
+    // a group's own line holds its total
+    const lineTotal = line.kind !== 'group' || (line.node > 0 && res.rows.isGroup(line.node))
+    const mark = lineTotal ? { total: true } : {}
+    if (withLeft) {
+      for (const text of rowLabels(line, i, levels)) out.push({ text, kind: 'label', ...mark })
+      if (valuesOnRows.value)
+        out.push({
+          text: line.value >= 0 ? display[line.value]!.label : '',
+          kind: 'label',
+          ...mark,
+        })
+    }
+    const blank = rowBlank(line)
+    for (let c = from; c <= to; c++) {
+      const col = colLines.value[c]!
+      const v = line.value >= 0 ? line.value : Math.max(0, col.value)
+      const n = blank ? Number.NaN : res.shown(line.node, col.node, v, display[v]!.show)
+      const total =
+        lineTotal || col.kind !== 'group' || (col.node > 0 && res.columns.isGroup(col.node))
+      out.push({
+        text: display[v]!.write(n),
+        kind: 'value',
+        value: n,
+        valueIndex: v,
+        ...(total ? { total: true } : {}),
+      })
+    }
+    cells.push(out)
+  }
+  const widths: number[] = []
+  if (withLeft) {
+    const own = tabular.value
+      ? levelWidth.value
+      : levels === 1
+        ? rowHeadWidth.value
+        : Math.max(80, Math.round(props.rowHeaderWidth * 0.6))
+    for (let l = 0; l < levels; l++) widths.push(own)
+    if (valuesOnRows.value) widths.push(VALUE_HEADER_WIDTH)
+  }
+  const starts = colStarts.value
+  for (let c = from; c <= to; c++) widths.push(starts[c + 1]! - starts[c]!)
+  return {
+    cells,
+    headRows: headRowCount,
+    headCols,
+    formats: display.map((d) => d.sheetFormat),
+    widths,
+  }
+}
+
+const wholeRange = (): GridRange => ({
+  top: 0,
+  bottom: allLines.value.length - 1,
+  left: -1,
+  right: colLines.value.length - 1,
+})
+
+/** The whole table, headers and all, as cells. */
+const toGrid = () => gridOf(wholeRange(), true)
+
+/**
+ * What copying takes: the selected range, or the active cell. A range over
+ * the whole table brings the column headers along.
+ */
+function copyGrid(all = false): PivotGrid | null {
+  if (all) return toGrid()
+  const range: GridRange | null =
+    selection.value ??
+    (active.value
+      ? {
+          top: active.value.row,
+          bottom: active.value.row,
+          left: active.value.col,
+          right: active.value.col,
+        }
+      : null)
+  if (!range) return null
+  const whole = wholeRange()
+  const isWhole =
+    range.top === 0 &&
+    range.bottom === whole.bottom &&
+    range.left === -1 &&
+    range.right === whole.right
+  return gridOf(range, isWhole)
+}
+
+/** Selects every cell, the row headers too (Ctrl / ⌘ + A). */
+function selectAll() {
+  const whole = wholeRange()
+  if (whole.bottom < 0) return
+  anchor.value = { row: 0, col: -1 }
+  active.value = { row: whole.bottom, col: whole.right }
+}
+
+/** Copying puts tab-separated text and a table on the clipboard; pasted into DouSheet, numbers keep their formats. */
+function onCopy(event: ClipboardEvent) {
+  const grid = copyGrid()
+  if (!grid || !event.clipboardData) return
+  event.preventDefault()
+  event.clipboardData.setData('text/plain', gridToTSV(grid))
+  event.clipboardData.setData('text/html', gridToHTML(grid, { sheet: true }))
+  announceCopied(grid)
+}
+
+function announceCopied(grid: PivotGrid) {
+  let cells = 0
+  for (const row of grid.cells) for (const cell of row) if (cell) cells++
+  announce(format(messages.value.copied, { cells }))
+}
+
+async function copy(options: PivotCopyOptions = {}) {
+  const grid = copyGrid(options.all)
+  if (!grid) return
+  const text = gridToTSV(grid)
+  const html = gridToHTML(grid, { sheet: true })
+  const clipboard = navigator.clipboard
+  if (typeof ClipboardItem !== 'undefined' && clipboard?.write) {
+    await clipboard.write([
+      new ClipboardItem({
+        'text/plain': new Blob([text], { type: 'text/plain' }),
+        'text/html': new Blob([html], { type: 'text/html' }),
+      }),
+    ])
+  } else await clipboard.writeText(text)
+  announceCopied(grid)
+}
+
+const toCSV = (options?: PivotCSVOptions) => gridToCSV(toGrid(), options)
+
+function toSheet(options: { name?: string } = {}): PivotSheetWorkbook {
+  const grid = toGrid()
+  const colSizes: Record<number, number> = {}
+  grid.widths.forEach((w, i) => (colSizes[i] = w))
+  return {
+    sheets: [
+      {
+        name: options.name ?? messages.value.pivot,
+        cells: gridToSheetCells(grid),
+        merges: gridMerges(grid),
+        freeze: { rows: grid.headRows, cols: grid.headCols },
+        colSizes,
+      },
+    ],
+    styles: structuredClone(SHEET_STYLES),
+  }
+}
+
+/**
+ * Rows for a chart: a row per group on show that is not open (its children
+ * would be the rows instead), a series per column the same way; the
+ * subtotals and totals are left out.
+ */
+function toChartRows(options: PivotChartRowsOptions = {}): PivotChartRows {
+  const res = result.value
+  const display = valueDisplay.value
+  const { valueIndex } = options
+  const many = display.length > 1
+  const series = colLines.value
+    .map((line, col) => ({ line, col }))
+    .filter(({ line }) =>
+      res.columns.levels.length === 0 ? line.kind === 'total' : line.kind === 'group',
+    )
+    .filter(({ line }) => valueIndex === undefined || line.value < 0 || line.value === valueIndex)
+    .map(({ line }, i) => {
+      const v = line.value >= 0 ? line.value : (valueIndex ?? 0)
+      const group = line.kind === 'total' ? '' : pathText(res.columns, colWriters.value, line.node)
+      const value = display[v]!.label
+      const name = group ? (many && !valuesOnRows.value ? join([group, value]) : group) : value
+      return { key: `s${i}`, name, valueIndex: v, node: line.node, format: display[v]!.write }
+    })
+  const lines = res.rows.levels.length === 0 ? footLines.value : bodyLines.value
+  const rows: Record<string, string | number | null>[] = []
+  for (const line of lines) {
+    if (res.rows.levels.length > 0) {
+      if (line.kind !== 'group') continue
+      if (res.rows.isGroup(line.node) && !rowCollapsed.value.has(line.node)) continue
+    }
+    if (valuesOnRows.value && line.value !== (valueIndex ?? 0)) continue
+    const row: Record<string, string | number | null> = {
+      label:
+        line.kind === 'total'
+          ? messages.value.total
+          : pathText(res.rows, rowWriters.value, line.node),
+    }
+    for (const s of series) {
+      const v = valuesOnRows.value ? line.value : s.valueIndex
+      const n = res.shown(line.node, s.node, v, display[v]!.show)
+      row[s.key] = n === n ? n : null
+    }
+    rows.push(row)
+  }
+  return {
+    x: 'label',
+    rows,
+    series: series.map(({ key, name, valueIndex: v, format: write }) => {
+      const at = valuesOnRows.value ? (valueIndex ?? 0) : v
+      return { key, name, valueIndex: at, format: valuesOnRows.value ? display[at]!.write : write }
+    }),
+  }
+}
+
+const join = (texts: string[]) => texts.join(' · ')
+/** A group's labels from the outermost in, as one text. */
+function pathTexts(tree: PivotTree, writers: ((v: unknown) => string)[], node: number) {
+  const texts: string[] = []
+  for (let at = node; at > 0; at = tree.parent[at]!) texts.unshift(nodeText(tree, writers, at))
+  return texts
+}
+const pathText = (tree: PivotTree, writers: ((v: unknown) => string)[], node: number) =>
+  join(pathTexts(tree, writers, node))
+const escape = (text: string) =>
+  text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
+/** A4 less 10mm margins, in px at 96 per inch. */
+const PAGE_WIDTH = { portrait: 718, landscape: 1047 }
+
+function print(options: PivotPrintOptions = {}) {
+  const grid = toGrid()
+  const orientation =
+    options.orientation ??
+    (grid.widths.reduce((a, b) => a + b, 0) > PAGE_WIDTH.portrait ? 'landscape' : 'portrait')
+  const title = options.title ?? props.ariaLabel ?? ''
+  const iframe = document.createElement('iframe')
+  iframe.setAttribute('aria-hidden', 'true')
+  iframe.style.cssText = 'position:fixed;width:0;height:0;border:0;visibility:hidden'
+  document.body.append(iframe)
+  const doc = iframe.contentDocument!
+  const font = root.value ? getComputedStyle(root.value).fontFamily : 'sans-serif'
+  doc.open()
+  doc.write(
+    `<!doctype html><html><head><meta charset="utf-8"><title>${escape(title || document.title)}</title><style>` +
+      `@page{size:A4 ${orientation};margin:10mm}` +
+      `html,body{margin:0;color:#1f1f1f;font:10px/1.4 ${font};font-variant-numeric:tabular-nums}` +
+      `h1{margin:0 0 8px;font-size:13px;font-weight:600}` +
+      `table{border-collapse:collapse;width:100%}` +
+      `thead{display:table-header-group}tr{break-inside:avoid}` +
+      `th,td{border:1px solid #d6d6d6;padding:3px 6px;white-space:nowrap}` +
+      `th{background:#f5f5f5;font-weight:500;text-align:left}` +
+      `tbody th{background:none}.is-total{font-weight:600}` +
+      `thead th.is-end{text-align:right}` +
+      `*{print-color-adjust:exact;-webkit-print-color-adjust:exact}` +
+      `</style></head><body>${title ? `<h1>${escape(title)}</h1>` : ''}${gridToHTML(grid)}</body></html>`,
+  )
+  doc.close()
+  const win = iframe.contentWindow!
+  const done = () => iframe.remove()
+  win.addEventListener('afterprint', done)
+  // browsers that print without a dialog, or never send afterprint
+  setTimeout(done, 60_000)
+  win.focus()
+  win.print()
+}
+
 const ariaLabel = computed(() => props.ariaLabel ?? messages.value.pivot)
 const rootStyle = computed(() => {
   const height = typeof props.maxHeight === 'number' ? `${props.maxHeight}px` : props.maxHeight
@@ -1057,6 +1531,13 @@ defineExpose<PivotExpose>({
   expandAll,
   collapseAll,
   toggle,
+  toGrid,
+  toCSV,
+  toSheet,
+  toChartRows,
+  copy,
+  print,
+  selectAll,
 })
 </script>
 
@@ -1085,10 +1566,13 @@ defineExpose<PivotExpose>({
       :aria-label="ariaLabel"
       :aria-rowcount="headRows + allLines.length"
       :aria-colcount="colLines.length + (valuesOnRows ? 2 : 1)"
+      aria-multiselectable="true"
       :aria-activedescendant="activeId"
       :aria-busy="busy || undefined"
       @scroll="onScroll"
+      @pointerdown="onPointerDown"
       @click="onClick"
+      @copy="onCopy"
       @keydown="onKeydown"
       @focus="onFocus"
       @blur="focused = false"
@@ -1239,6 +1723,7 @@ defineExpose<PivotExpose>({
               valueDisplay,
               rowWriters,
               active?.row === index ? active.col : -9,
+              selectedIn(index),
             ]"
             class="dou-pivot__row"
             :class="{
@@ -1259,8 +1744,10 @@ defineExpose<PivotExpose>({
                 :class="{
                   'is-active': active?.row === index && active.col === -1,
                   'is-clickable': head.group,
+                  'is-selected': selectedIn(index).startsWith('-1:'),
                 }"
                 role="rowheader"
+                :aria-selected="selectedIn(index).startsWith('-1:') || undefined"
                 :data-row="index"
                 data-col="-1"
                 :style="
@@ -1318,11 +1805,12 @@ defineExpose<PivotExpose>({
             </template>
             <div class="dou-pivot__spacer" :style="`width:${colStarts[colWindow.from]}px`" />
             <div
-              v-for="cell in rowCells(line)"
+              v-for="cell in rowCells(line, index)"
               :id="cellId(index, cell.col)"
               :key="cell.key"
               :class="[cell.cls, { 'is-active': active?.row === index && active.col === cell.col }]"
               role="gridcell"
+              :aria-selected="cell.selected || undefined"
               :aria-colindex="cell.col + (valuesOnRows ? 3 : 2)"
               :data-row="index"
               :data-col="cell.col"
@@ -1350,8 +1838,12 @@ defineExpose<PivotExpose>({
             <div
               :id="cellId(index, -1)"
               class="dou-pivot__row-head"
-              :class="{ 'is-active': active?.row === index && active.col === -1 }"
+              :class="{
+                'is-active': active?.row === index && active.col === -1,
+                'is-selected': selectedIn(index).startsWith('-1:'),
+              }"
               role="rowheader"
+              :aria-selected="selectedIn(index).startsWith('-1:') || undefined"
               :data-row="index"
               data-col="-1"
               :style="`width:${rowHeadWidth}px`"
@@ -1368,11 +1860,12 @@ defineExpose<PivotExpose>({
             </div>
             <div class="dou-pivot__spacer" :style="`width:${colStarts[colWindow.from]}px`" />
             <div
-              v-for="cell in rowCells(line)"
+              v-for="cell in rowCells(line, index)"
               :id="cellId(index, cell.col)"
               :key="cell.key"
               :class="[cell.cls, { 'is-active': active?.row === index && active.col === cell.col }]"
               role="gridcell"
+              :aria-selected="cell.selected || undefined"
               :aria-colindex="cell.col + (valuesOnRows ? 3 : 2)"
               :data-row="index"
               :data-col="cell.col"
@@ -1392,6 +1885,7 @@ defineExpose<PivotExpose>({
         {{ messages.noData }}
       </div>
     </div>
+    <span class="dou-pivot__live" role="status" aria-live="polite">{{ announcement }}</span>
     <!-- the last result stays under a veil while the next one is summed up -->
     <div v-if="busy" class="dou-pivot__veil" role="status">
       <span class="dou-pivot__busy">{{ messages.busy }}</span>

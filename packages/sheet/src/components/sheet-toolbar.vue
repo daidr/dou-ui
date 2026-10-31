@@ -7,9 +7,13 @@ import {
   ChevronDownIcon,
   DecimalDecreaseIcon,
   DecimalIncreaseIcon,
+  FilterIcon,
   ItalicIcon,
   PaintBucketIcon,
   PaletteIcon,
+  SortAscendingIcon,
+  SortDescendingIcon,
+  SortIcon,
   RedoIcon,
   StrikethroughIcon,
   TableFreezeIcon,
@@ -88,6 +92,9 @@ const DEFAULT_TOOLS: SheetToolbarTool[] = [
   '|',
   'merge',
   'freeze',
+  '|',
+  'sort',
+  'filter',
   '|',
   'clear',
 ]
@@ -647,6 +654,56 @@ onBeforeUnmount(() => observer?.disconnect())
               </template>
             </DouDropdown>
           </span>
+        </DouTooltip>
+
+        <DouTooltip
+          v-else-if="tool === 'sort'"
+          :content="m.filter.sort"
+          :disabled="menuOpen === tool"
+          placement="bottom"
+        >
+          <span class="dou-sheet-toolbar__trigger">
+            <DouDropdown
+              :open="menuOpen === tool"
+              placement="bottom-start"
+              :disabled="disabled"
+              @update:open="onMenu(tool, $event)"
+            >
+              <DouButton
+                variant="ghost"
+                class="dou-sheet-toolbar__menu"
+                :aria-label="m.filter.sort"
+              >
+                <SortIcon />
+                <template #trailing><ChevronDownIcon /></template>
+              </DouButton>
+              <template #menu>
+                <DouDropdownItem @click="sheet.sort('asc')">
+                  <template #prefix><SortAscendingIcon /></template>
+                  {{ m.filter.sortAsc }}
+                </DouDropdownItem>
+                <DouDropdownItem @click="sheet.sort('desc')">
+                  <template #prefix><SortDescendingIcon /></template>
+                  {{ m.filter.sortDesc }}
+                </DouDropdownItem>
+              </template>
+            </DouDropdown>
+          </span>
+        </DouTooltip>
+
+        <DouTooltip
+          v-else-if="tool === 'filter'"
+          :content="sheet.filtered.value ? m.filter.turnOff : m.filter.turnOn"
+          placement="bottom"
+        >
+          <DouToggle
+            :pressed="sheet.filtered.value"
+            :aria-label="m.filter.turnOn"
+            :disabled="disabled"
+            @update:pressed="(sheet.toggleFilter(), done())"
+          >
+            <FilterIcon />
+          </DouToggle>
         </DouTooltip>
 
         <DouTooltip

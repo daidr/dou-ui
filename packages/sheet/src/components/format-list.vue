@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import { ArrowDownIcon, ArrowUpIcon, TrashIcon } from '@dou-ui/icons'
+import { ArrowDownIcon, ArrowUpIcon, PencilIcon, TrashIcon } from '@dou-ui/icons'
 import { DouButton, DouDialog, DouTooltip } from 'dou-ui'
 import { computed, useId } from 'vue'
-import { barColor, fillColor } from '../core/conditional'
 import type { SheetConditionalFormat, SheetStyle, SheetValue } from '../core/model'
 import { format, type SheetMessages } from '../locale'
+import { formatSample } from './format-presets'
 
 /*
  * The conditional formats of the sheet shown, in the order they apply:
- * what each checks, its cells and how they look, to reorder or delete.
+ * what each checks, its cells and how they look, to edit, reorder or delete.
  */
 
 const props = defineProps<{
@@ -18,7 +18,12 @@ const props = defineProps<{
   messages: SheetMessages
 }>()
 const open = defineModel<boolean>('open', { required: true })
-const emit = defineEmits<{ change: [formats: SheetConditionalFormat[]]; closed: [] }>()
+const emit = defineEmits<{
+  change: [formats: SheetConditionalFormat[]]
+  /** Asks to edit the format at `index`. */
+  edit: [index: number]
+  closed: []
+}>()
 
 const m = computed(() => props.messages.formats)
 const uid = useId()
@@ -43,39 +48,13 @@ function describe(f: SheetConditionalFormat) {
   if ('bottom' in f && f.bottom != null)
     return format(f.percent ? d.bottomPercent : d.bottom, { count: f.bottom })
   if ('average' in f) return f.average === 'above' ? d.above : d.below
-  if ('duplicates' in f) return f.duplicates ? d.repeated : d.unique
+  if ('duplicates' in f) return d.repeated
+  if ('unique' in f) return d.unique
   if ('scale' in f) return d.scale
   return d.bar
 }
 
-/** How the sample of a format looks. */
-function sample(f: SheetConditionalFormat): { cls: string[]; css: string } {
-  if ('scale' in f) {
-    const colors = f.scale.map(fillColor)
-    return { cls: [], css: `background-image:linear-gradient(to right, ${colors.join(', ')})` }
-  }
-  if ('bar' in f) {
-    const color = barColor(f.bar === true ? 'neutral' : f.bar)
-    return {
-      cls: ['is-bar'],
-      css: `background-image:linear-gradient(to right, ${color} 70%, transparent 70%)`,
-    }
-  }
-  const style = typeof f.style === 'string' ? props.styles?.[f.style] : f.style
-  if (!style) return { cls: [], css: '' }
-  let css = ''
-  if (style.color) css += `color:${style.color};`
-  if (style.background) css += `background-color:${style.background};`
-  return {
-    cls: [
-      !style.color && style.tone ? `is-tone-${style.tone}` : '',
-      !style.background && style.fill ? `is-fill-${style.fill}` : '',
-      style.bold ? 'is-bold' : '',
-      style.italic ? 'is-italic' : '',
-    ].filter(Boolean),
-    css,
-  }
-}
+const sample = (f: SheetConditionalFormat) => formatSample(f, props.styles)
 
 function move(index: number, by: number) {
   const list = [...props.formats]
@@ -108,6 +87,17 @@ function remove(index: number) {
           <span class="dou-sheet-formats__range">{{ f.range }}</span>
         </span>
         <span class="dou-sheet-formats__actions">
+          <DouTooltip :content="m.edit">
+            <DouButton
+              variant="ghost"
+              size="sm"
+              :aria-label="m.edit"
+              :aria-describedby="`${uid}-${i}`"
+              @click="emit('edit', i)"
+            >
+              <PencilIcon />
+            </DouButton>
+          </DouTooltip>
           <DouTooltip :content="m.moveUp">
             <DouButton
               variant="ghost"

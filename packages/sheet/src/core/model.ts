@@ -78,7 +78,7 @@ export interface SheetData {
 
 /**
  * A look for the cells of `range` that meet a rule. The rule is one of
- * `when`, `formula`, `top`, `bottom`, `average` or `duplicates`, with
+ * `when`, `formula`, `top`, `bottom`, `average`, `duplicates` or `unique`, with
  * `style` as the look; or the cells are shaded by their numbers, with
  * `scale` or `bar`.
  */
@@ -88,6 +88,7 @@ export type SheetConditionalFormat =
   | SheetConditionalRank
   | SheetConditionalAverage
   | SheetConditionalDuplicates
+  | SheetConditionalUnique
   | SheetConditionalScale
   | SheetConditionalBar
 
@@ -128,9 +129,15 @@ export interface SheetConditionalAverage extends SheetConditionalBase {
   style: SheetConditionalStyle
 }
 
-/** Values that show up more than once in the range (`true`), or only once (`false`). */
+/** Values that show up more than once in the range, compared as they show, without case. */
 export interface SheetConditionalDuplicates extends SheetConditionalBase {
-  duplicates: boolean
+  duplicates: true
+  style: SheetConditionalStyle
+}
+
+/** Values that show up only once in the range, compared as they show, without case. */
+export interface SheetConditionalUnique extends SheetConditionalBase {
+  unique: true
   style: SheetConditionalStyle
 }
 
@@ -149,7 +156,7 @@ export interface SheetConditionalScale extends SheetConditionalBase {
 /**
  * Draws a bar in each number's cell, as long as the number is large
  * against the others. Negative numbers draw to the left of zero, in the
- * danger tone. `true` uses the neutral tone.
+ * same color. `true` uses the neutral tone.
  */
 export interface SheetConditionalBar extends SheetConditionalBase {
   bar: true | SheetColor

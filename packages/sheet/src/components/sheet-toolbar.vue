@@ -56,11 +56,19 @@ import {
 } from 'vue'
 import { useSheet } from '../context'
 import { boundsOf, columnName, formatRange } from '../core/address'
-import { barColor, fillColor } from '../core/conditional'
 import { alignOf, changeDecimals, formatValue } from '../core/format'
-import type { SheetColor, SheetConditionalFormat, SheetStyle } from '../core/model'
-import FormatDialog, { type SheetFormatKind } from './format-dialog.vue'
+import type { SheetConditionalFormat, SheetStyle } from '../core/model'
+import FormatDialog from './format-dialog.vue'
 import FormatList from './format-list.vue'
+import {
+  barSwatch,
+  LOOKS,
+  SCALES,
+  scaleSwatch,
+  TONES,
+  toneKey,
+  type SheetScaleColors,
+} from './format-presets'
 import { format } from '../locale'
 import type {
   SheetFormatOption,
@@ -206,9 +214,7 @@ function decimals(by: number) {
 
 // Colors ----------------------------------------------------------------------------------
 
-const TONES: Tone[] = ['neutral', 'primary', 'success', 'warning', 'danger']
-const toneLabel = (tone: Tone) =>
-  m.value[`tone${tone[0]!.toUpperCase()}${tone.slice(1)}` as 'toneNeutral']
+const toneLabel = (tone: Tone) => m.value[toneKey(tone)]
 
 type ColorTool = 'color' | 'fill'
 const colorOpen = ref<ColorTool | null>(null)
@@ -323,13 +329,55 @@ function addFormats(list: SheetConditionalFormat[]) {
   done()
 }
 
-const formatKind = ref<SheetFormatKind>('gt')
-const formatOpen = ref(false)
-const formatRange0 = ref('')
-function openFormat(kind: SheetFormatKind) {
-  formatKind.value = kind
-  formatRange0.value = activeRange()
-  formatOpen.value = true
+/** The menu items that open the dialog, and the rule each starts with. */
+const HIGHLIGHTS = ['gt', 'lt', 'between', 'eq', 'contains', 'duplicates', 'formula'] as const
+const RANKS = ['top', 'bottom', 'above', 'below'] as const
+type FormatItem = (typeof HIGHLIGHTS)[number] | (typeof RANKS)[number]
+function startOf(item: FormatItem, range: string): SheetConditionalFormat {
+  const look = { ...LOOKS.danger }
+  switch (item) {
+    case 'duplicates':
+      return { range, duplicates: true, style: look }
+    case 'formula':
+      return { range, formula: '', style: look }
+    case 'top':
+      return { range, top: 10, style: look }
+    case 'bottom':
+      return { range, bottom: 10, style: look }
+    case 'above':
+    case 'below':
+      return { range, average: item, style: look }
+    default:
+      return { range, when: { op: item }, style: look }
+  }
+}
+
+const dialogFormat = ref<SheetConditionalFormat>({ range: '', when: { op: 'gt' }, style: {} })
+const dialogTitle = ref('')
+const dialogOpen = ref(false)
+/** The rule being edited, by its place in the list; `-1` adds one. */
+const editing = ref(-1)
+function openFormat(item: FormatItem) {
+  dialogFormat.value = startOf(item, activeRange())
+  dialogTitle.value = m.value.formats[item].replace(/…$/, '')
+  editing.value = -1
+  dialogOpen.value = true
+}
+function editFormat(index: number) {
+  dialogFormat.value = conditionals.value[index]!
+  dialogTitle.value = m.value.formats.editTitle
+  editing.value = index
+  dialogOpen.value = true
+}
+function applyFormat(f: SheetConditionalFormat) {
+  if (editing.value < 0) return addFormats([f])
+  const list = [...conditionals.value]
+  list[editing.value] = f
+  setFormats(list)
+}
+function dialogClosed() {
+  // editing from the list goes back to it, which keeps the focus
+  if (!listOpen.value) sheet.focus()
 }
 const listOpen = ref(false)
 const conditionals = computed(() => sheet.sheet.value.conditionalFormats ?? [])
@@ -350,25 +398,8 @@ function clearFormats(all: boolean) {
   done()
 }
 
-const HIGHLIGHTS: SheetFormatKind[] = ['gt', 'lt', 'between', 'eq', 'contains', 'duplicates']
-const RANKS: SheetFormatKind[] = ['top', 'bottom', 'above', 'below']
-const SCALES: { key: keyof typeof m.value.formats.scales; colors: SheetColor[] }[] = [
-  { key: 'rag', colors: ['danger', 'warning', 'success'] },
-  { key: 'gar', colors: ['success', 'warning', 'danger'] },
-  { key: 'diverging', colors: ['danger', 'neutral', 'success'] },
-  { key: 'blue', colors: ['neutral', 'primary'] },
-]
-const scaleSwatch = (colors: SheetColor[]) =>
-  `linear-gradient(to right, ${colors.map(fillColor).join(', ')})`
-const barSwatch = (tone: Tone) =>
-  `linear-gradient(to right, ${barColor(tone)} 65%, transparent 65%)`
-function addScale(colors: SheetColor[]) {
-  addFormats(
-    selectedRanges().map((range) => ({
-      range,
-      scale: colors as [SheetColor, SheetColor] | [SheetColor, SheetColor, SheetColor],
-    })),
-  )
+function addScale(colors: SheetScaleColors) {
+  addFormats(selectedRanges().map((range) => ({ range, scale: [...colors] as SheetScaleColors })))
 }
 function addBar(tone: Tone) {
   addFormats(selectedRanges().map((range) => ({ range, bar: tone })))
@@ -843,17 +874,17 @@ onBeforeUnmount(() => observer?.disconnect())
                 </DouDropdownSub>
                 <DouDropdownSub :title="m.formats.scale">
                   <DouDropdownItem
-                    v-for="scale in SCALES"
-                    :key="scale.key"
-                    @click="addScale(scale.colors)"
+                    v-for="(colors, key) in SCALES"
+                    :key="key"
+                    @click="addScale(colors)"
                   >
                     <template #prefix>
                       <span
                         class="dou-sheet-toolbar__gradient"
-                        :style="{ backgroundImage: scaleSwatch(scale.colors) }"
+                        :style="{ backgroundImage: scaleSwatch(colors) }"
                       />
                     </template>
-                    {{ m.formats.scales[scale.key] }}
+                    {{ m.formats.scales[key] }}
                   </DouDropdownItem>
                 </DouDropdownSub>
                 <DouDropdownItem divided @click="clearFormats(false)">
@@ -889,12 +920,13 @@ onBeforeUnmount(() => observer?.disconnect())
       <slot name="end" />
     </DouToolbar>
     <FormatDialog
-      v-model:open="formatOpen"
-      :kind="formatKind"
-      :range="formatRange0"
+      v-model:open="dialogOpen"
+      :format="dialogFormat"
+      :title="dialogTitle"
+      :styles="sheet.doc.value.styles"
       :messages="m"
-      @apply="addFormats([$event])"
-      @closed="sheet.focus()"
+      @apply="applyFormat"
+      @closed="dialogClosed"
     />
     <FormatList
       v-model:open="listOpen"
@@ -902,6 +934,7 @@ onBeforeUnmount(() => observer?.disconnect())
       :styles="sheet.doc.value.styles"
       :messages="m"
       @change="setFormats"
+      @edit="editFormat"
       @closed="sheet.focus()"
     />
   </div>

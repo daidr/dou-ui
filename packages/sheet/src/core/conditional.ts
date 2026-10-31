@@ -130,7 +130,7 @@ const keyOf = (source: SheetLookSource, row: number, col: number) =>
 function statsOf(rule: Rule, source: SheetLookSource): Stats {
   const f = rule.format
   const b = rule.bounds
-  if ('duplicates' in f) {
+  if ('duplicates' in f || 'unique' in f) {
     const counts = new Map<string, number>()
     for (let row = b.top; row <= b.bottom; row++)
       for (let col = b.left; col <= b.right; col++) {
@@ -334,11 +334,11 @@ export class SheetLooks {
       const result = s.evaluate(formula)
       return result === true || (typeof result === 'number' && result !== 0)
     }
-    if ('duplicates' in f) {
+    if ('duplicates' in f || 'unique' in f) {
       const key = keyOf(s, row, col)
       if (!key) return false
       const stats = this.stats(rule) as Extract<Stats, { kind: 'counts' }>
-      return stats.counts.get(key)! > 1 === f.duplicates
+      return stats.counts.get(key)! > 1 === 'duplicates' in f
     }
     const n = numberAt(s, row, col)
     if (n == null) return false
@@ -371,7 +371,7 @@ export class SheetLooks {
     if (!(hi > lo)) return undefined
     const zero = (0 - lo) / (hi - lo)
     const at = (n - lo) / (hi - lo)
-    const color = n < 0 ? barColor('danger') : barColor(f.bar === true ? 'neutral' : f.bar)
+    const color = barColor(f.bar === true ? 'neutral' : f.bar)
     return { from: Math.min(zero, at), to: Math.max(zero, at), color }
   }
 }

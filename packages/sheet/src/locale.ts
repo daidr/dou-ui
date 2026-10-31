@@ -274,6 +274,7 @@ const zhCN: SheetMessages = {
     eq: '等于…',
     contains: '文本包含…',
     duplicates: '重复值…',
+    formula: '使用公式…',
     top: '前 10 项…',
     bottom: '后 10 项…',
     above: '高于平均值…',
@@ -296,6 +297,14 @@ const zhCN: SheetMessages = {
     cancel: '取消',
     apply: '确定',
     close: '关闭',
+    edit: '编辑',
+    editTitle: '编辑规则',
+    condition: '条件',
+    formulaField: '公式',
+    formulaHelp: '按区域左上角的单元格书写，如 =$D2>$C2',
+    needFormula: '请输入公式',
+    color: '颜色',
+    current: '保持原样',
     looks: {
       danger: '浅红填充，深红色文字',
       warning: '浅黄填充，深黄色文字',
@@ -521,6 +530,7 @@ const zhTW: SheetMessages = {
     eq: '等於…',
     contains: '文字包含…',
     duplicates: '重複值…',
+    formula: '使用公式…',
     top: '前 10 項…',
     bottom: '後 10 項…',
     above: '高於平均…',
@@ -543,6 +553,14 @@ const zhTW: SheetMessages = {
     cancel: '取消',
     apply: '確定',
     close: '關閉',
+    edit: '編輯',
+    editTitle: '編輯規則',
+    condition: '條件',
+    formulaField: '公式',
+    formulaHelp: '按區域左上角的儲存格書寫，如 =$D2>$C2',
+    needFormula: '請輸入公式',
+    color: '顏色',
+    current: '保持原樣',
     looks: {
       danger: '淺紅填滿，深紅色文字',
       warning: '淺黃填滿，深黃色文字',
@@ -769,6 +787,7 @@ const en: SheetMessages = {
     eq: 'Equal to…',
     contains: 'Text that contains…',
     duplicates: 'Duplicate values…',
+    formula: 'Use a formula…',
     top: 'Top 10 items…',
     bottom: 'Bottom 10 items…',
     above: 'Above average…',
@@ -791,6 +810,14 @@ const en: SheetMessages = {
     cancel: 'Cancel',
     apply: 'OK',
     close: 'Close',
+    edit: 'Edit',
+    editTitle: 'Edit rule',
+    condition: 'Condition',
+    formulaField: 'Formula',
+    formulaHelp: 'Written for the top left cell of the range, e.g. =$D2>$C2',
+    needFormula: 'Enter a formula',
+    color: 'Color',
+    current: 'Keep as is',
     looks: {
       danger: 'Light red fill with dark red text',
       warning: 'Light yellow fill with dark yellow text',
@@ -924,7 +951,7 @@ export const sheetLocales: Record<string, SheetMessages> = {
   en,
 }
 
-/** The texts of sorting and filtering. */
+/** The texts of conditional formats. */
 export interface SheetFormatsMessages {
   title: string
   highlight: string
@@ -935,6 +962,7 @@ export interface SheetFormatsMessages {
   eq: string
   contains: string
   duplicates: string
+  formula: string
   top: string
   bottom: string
   above: string
@@ -958,6 +986,16 @@ export interface SheetFormatsMessages {
   cancel: string
   apply: string
   close: string
+  edit: string
+  editTitle: string
+  condition: string
+  formulaField: string
+  formulaHelp: string
+  needFormula: string
+  /** A data bar's or a scale's colors. */
+  color: string
+  /** Keeps a look or color the menus don't offer, when editing a rule. */
+  current: string
   /** The looks to pick from. */
   looks: {
     danger: string

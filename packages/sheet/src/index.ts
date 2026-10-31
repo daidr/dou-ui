@@ -82,6 +82,7 @@ export type {
   SheetConditionalRank,
   SheetConditionalScale,
   SheetConditionalStyle,
+  SheetConditionalUnique,
   SheetConditionalWhen,
   SheetData,
   SheetFilter,

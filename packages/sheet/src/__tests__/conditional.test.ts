@@ -5,7 +5,9 @@ import { layStyle, SheetLooks, type SheetLookSource } from '../core/conditional'
 import type { SheetConditionalFormat, SheetWorkbook } from '../core/model'
 import { SheetTransaction } from '../core/transaction'
 import { SheetFormulaEngine } from '../formula'
+import FormatDialog from '../components/format-dialog.vue'
 import { DouSheet } from '../index'
+import { sheetLocales } from '../locale'
 import type { SheetExpose } from '../types'
 
 /** Looks over a grid of plain values, formulas worked out by an engine. */
@@ -86,6 +88,16 @@ describe('conditional formats', () => {
       false,
       false,
     ])
+    const unique = looksOf(column(['上海', 'abc', 'ABC', '', null]), [
+      { range: 'A1:A5', unique: true, style: { bold: true } },
+    ])
+    expect([0, 1, 2, 3, 4].map((r) => !!unique.lookAt(r, 0))).toEqual([
+      true,
+      false,
+      false,
+      false,
+      false,
+    ])
   })
 
   it('shades numbers along a scale and draws bars from zero', () => {
@@ -99,7 +111,7 @@ describe('conditional formats', () => {
     const third = 1 / 3
     expect(looks.lookAt(1, 0)?.bar).toMatchObject({ from: third, to: 2 * third })
     expect(looks.lookAt(3, 0)?.bar).toMatchObject({ from: 0, to: third })
-    expect(looks.lookAt(3, 0)?.bar?.color).toContain('danger')
+    expect(looks.lookAt(3, 0)?.bar?.color).toBe(looks.lookAt(1, 0)?.bar?.color)
   })
 
   it('lets earlier formats win, and the look win over the cell’s own style', () => {
@@ -207,12 +219,42 @@ describe('DouSheet with conditional formats', () => {
     expect(cell(1).classes()).toContain('is-fill-danger')
     expect(cell(0).classes()).not.toContain('is-fill-danger')
     expect(cell(0).classes()).toContain('has-bar')
-    expect(cell(2).attributes('style')).toContain('danger')
+    expect(cell(2).attributes('style')).toContain('primary')
     // only row 0 changes, yet row 1 is no longer the largest
     grid.value!.transact((tr) => tr.setValue('A1', 20))
     await nextTick()
     expect(cell(0).classes()).toContain('is-fill-danger')
     expect(cell(1).classes()).not.toContain('is-fill-danger')
+    wrapper.unmount()
+  })
+})
+
+describe('the conditional format dialog', () => {
+  const formats: SheetConditionalFormat[] = [
+    { range: 'A1:A9', when: { op: 'notBetween', value: 1, to: 5 }, style: { tone: 'danger' } },
+    { range: 'B2:B9', formula: '=$B2>$C2', style: 'warn' },
+    { range: 'C1:C9', unique: true, style: { fill: 'success', tone: 'success' } },
+    { range: 'D1:D9', bottom: 5, percent: true, style: { bold: true } },
+    { range: 'E1:E9', scale: ['#000000', '#ffffff'] },
+    { range: 'F1:F9', bar: true },
+  ]
+  it.each(formats)('gives back a rule it edits unchanged: %o', async (f) => {
+    const wrapper = mount(FormatDialog, {
+      props: {
+        format: f,
+        title: '编辑规则',
+        styles: { warn: { fill: 'warning' } },
+        messages: sheetLocales['zh-CN']!,
+        open: false,
+      },
+      attachTo: document.body,
+    })
+    await wrapper.setProps({ open: true })
+    await nextTick()
+    const apply = [...document.querySelectorAll('button')].find((b) => b.textContent === '确定')!
+    apply.click()
+    await nextTick()
+    expect(wrapper.emitted('apply')?.[0]).toEqual([f])
     wrapper.unmount()
   })
 })

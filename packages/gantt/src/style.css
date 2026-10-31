@@ -709,20 +709,44 @@
       height: 14px;
       margin-left: -9px;
       border-radius: 3px;
-      rotate: 45deg;
+      /* turned 45deg in the inline transform, after moving it into place */
 
+      /* from the diamond's left corner, turned back level */
       > .dou-gantt__peer-name {
-        rotate: -45deg;
+        top: 100%;
+        right: auto;
+        left: 0;
+        translate: none;
+        transform: rotate(-45deg) translate(calc(-100% - 4px), -50%);
+        transform-origin: 0 0;
       }
+      /* from the right corner */
+      &.is-moving > .dou-gantt__peer-name {
+        top: 0;
+        left: 100%;
+        transform: rotate(-45deg) translate(4px, -50%);
+      }
+    }
+
+    /* where the task is going: nothing is drawn to its right yet */
+    &.is-moving > .dou-gantt__peer-name {
+      right: auto;
+      left: calc(100% + 4px);
     }
   }
 
+  /*
+   * In the box's own row, as rows are too low to fit it above. A selected
+   * box sits on the bar, whose title may be just to its right: the name goes
+   * to the left.
+   */
   .dou-gantt__peer-name {
     position: absolute;
-    bottom: calc(100% + 2px);
-    left: -2px;
+    top: 50%;
+    right: calc(100% + 4px);
+    translate: 0 -50%;
     padding: 0 6px;
-    border-radius: 4px 4px 4px 0;
+    border-radius: 4px;
     background-color: var(--dou-gantt-peer-color);
     /* the collaborator's color is the app's: pick dark or light text by its lightness */
     color: white;

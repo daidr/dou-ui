@@ -86,7 +86,7 @@ export function createPeers(awareness: AwarenessLike): Component {
                 class: ['dou-gantt__peer', `is-${item.kind}`, { 'is-milestone': item.milestone }],
                 style: {
                   ...style,
-                  transform: `translate(${item.left}px, ${item.top}px)`,
+                  transform: `translate(${item.left}px, ${item.top}px)${item.milestone ? ' rotate(45deg)' : ''}`,
                   width: item.milestone ? undefined : `${item.width}px`,
                 },
               },

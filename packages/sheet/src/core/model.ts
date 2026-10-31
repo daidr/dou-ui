@@ -74,6 +74,11 @@ export interface SheetData {
    * the earlier one wins.
    */
   conditionalFormats?: SheetConditionalFormat[]
+  /**
+   * What cells may hold, such as one of a list or a number from 1 to 5.
+   * Where two rules cover a cell, the earlier one applies.
+   */
+  validations?: SheetValidation[]
 }
 
 /**
@@ -160,6 +165,54 @@ export interface SheetConditionalScale extends SheetConditionalBase {
  */
 export interface SheetConditionalBar extends SheetConditionalBase {
   bar: true | SheetColor
+}
+
+/**
+ * What the cells of `range` may hold: one of a `list`, a value that meets
+ * a condition (`when`), or one for which a `formula` comes to `TRUE`.
+ * Empty cells always fit.
+ */
+export type SheetValidation = SheetValidationList | SheetValidationWhen | SheetValidationFormula
+
+interface SheetValidationBase {
+  /** The cells, such as `'D2:D40'`. */
+  range: string
+  /**
+   * Whether a typed value that doesn't fit is refused, `true` by default.
+   * With `false` it is kept and marked. Pasted and filled values are always
+   * kept and marked.
+   */
+  strict?: boolean
+  /** Said when a value doesn't fit; by default the rule in words. */
+  message?: string
+  /** Shown beside the cell while it is the active one, e.g. what to enter. */
+  prompt?: string
+}
+
+/**
+ * One of a list: the values, or a reference to cells holding them, such as
+ * `'=$H$2:$H$9'` or `'=城市!A2:A20'`. The cells get a list to pick from.
+ */
+export interface SheetValidationList extends SheetValidationBase {
+  list: SheetSelectOption[] | string
+}
+
+/**
+ * A value that meets a condition, e.g. `{ op: 'between', value: 1, to: 5 }`.
+ * A number in the condition asks for a number; with `integer`, a whole one.
+ */
+export interface SheetValidationWhen extends SheetValidationBase {
+  when: SheetCondition
+  integer?: boolean
+}
+
+/**
+ * A value for which a formula comes to `TRUE` (or a number other than 0).
+ * It is written for the range's top left cell and moves with each cell:
+ * `'=COUNTIF($A$2:$A$40, A2) = 1'` on `'A2:A40'` asks for values not repeated.
+ */
+export interface SheetValidationFormula extends SheetValidationBase {
+  formula: string
 }
 
 /**

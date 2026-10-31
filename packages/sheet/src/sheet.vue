@@ -53,6 +53,7 @@ import {
   inBounds,
   parseCell,
   parseRange,
+  splitSheet,
   type SheetBounds,
   type SheetCellTarget,
   type SheetPoint,
@@ -81,6 +82,7 @@ import {
   type SheetFilterRule,
   type SheetSortOrder,
   type SheetStyle,
+  type SheetTypeSetup,
   type SheetValue,
 } from './core/model'
 import { movePoint, stepIndex, type SheetDirection } from './core/nav'
@@ -107,6 +109,7 @@ import CellPanel from './components/cell-panel.vue'
 import { builtinCellTypes } from './cell-types'
 import { sheetContextKey, type SheetContext } from './context'
 import { resolveCellType, type SheetCellType, type SheetResolvedType } from './core/cell-type'
+import { ruleMessage, SheetChecks } from './core/validation'
 import { resolveSheetExtensions, type ResolvedSheetExtensions } from './core/extension'
 import { format, useSheetMessages } from './locale'
 import { sheetToCSV, type SheetCSVWriteOptions } from './core/csv'
@@ -114,6 +117,7 @@ import type {
   SheetEmits,
   SheetSlots,
   SheetExpose,
+  SheetInvalidCell,
   SheetMenuContext,
   SheetMenuItem,
   SheetPasteEvent,
@@ -296,6 +300,106 @@ function lookStyle(name: string | undefined, look: SheetLook) {
 /** The CSS that draws a look's bar. */
 const barCss = (bar: NonNullable<SheetLook['bar']>) =>
   `--dou-sheet-bar-from:${(bar.from * 100).toFixed(2)}%;--dou-sheet-bar-to:${(bar.to * 100).toFixed(2)}%;--dou-sheet-bar-color:${bar.color};`
+
+// Data validation --------------------------------------------------------------------------
+
+/** The rules of a sheet, reading its cells as they come to. */
+function checksOf(data: SheetData) {
+  const key = sheetKey(data)
+  const result = (row: number, col: number) => engine.result(key, row, col)
+  return new SheetChecks(data.validations, {
+    valueAt: (row, col) => shownValue(valueOf(data.cells[row]?.[col]), result, row, col),
+    textAt: (row, col) => cellText(data.cells[row]?.[col], { sheet: key, row, col }),
+    evaluate: (formula) => engine.evaluate(formula, key),
+    listAt: (reference) => listValues(reference, data),
+    size: { rows: rowCountOf(data), cols: colCountOf(data) },
+    lang: lang.value,
+  })
+}
+/** The rules of the sheet shown, made again after every change: a list or formula can read any cell. */
+const checks = computed(() => {
+  void doc.value
+  void engineId.value
+  return checksOf(sheet.value)
+})
+/** What a row's marks depend on beyond its own cells, for `v-memo`. */
+function checksKey(row: number) {
+  const c = checks.value
+  return c.empty || !c.readsOthersIn(row) ? 0 : c
+}
+
+/** The cells whose values break a rule, on every sheet or on one. */
+function findInvalid(target?: SheetRef): SheetInvalidCell[] {
+  const found: SheetInvalidCell[] = []
+  const at = target == null ? -1 : indexOfSheet(target)
+  doc.value.sheets.forEach((data, index) => {
+    if ((target != null && index !== at) || !data.validations?.length) return
+    const list = [...checksOf(data).broken()]
+    list.sort((a, b) => a.row - b.row || a.col - b.col)
+    for (const { row, col, rule } of list)
+      found.push({
+        sheet: data.name,
+        cell: formatCell({ row, col }),
+        rule,
+        message: ruleMessage(rule, messages.value),
+      })
+  })
+  return found
+}
+
+/** The values of the cells a list refers to, such as `'=$H$2:$H$9'` or `'=城市!A2:A20'`. */
+function listValues(reference: string, from: SheetData): SheetValue[] {
+  const { sheet: name, ref: cells } = splitSheet(reference.replace(/^=/, '').trim())
+  const data = name == null ? from : doc.value.sheets.find((s) => s.name === name)
+  const range = data && parseRange(cells)
+  if (!data || !range) return []
+  const key = sheetKey(data)
+  const result = (row: number, col: number) => engine.result(key, row, col)
+  const b = boundsOf(range)
+  const bottom = Math.min(b.bottom, rowCountOf(data) - 1, b.top + 999)
+  const right = Math.min(b.right, colCountOf(data) - 1)
+  const values: SheetValue[] = []
+  for (let row = b.top; row <= bottom; row++)
+    for (let col = b.left; col <= right; col++) {
+      const value = shownValue(valueOf(data.cells[row]?.[col]), result, row, col)
+      if (!isSheetError(value)) values.push(value as SheetValue)
+    }
+  return values
+}
+
+/**
+ * The select type for the cells of a list rule: plain text, as typed, or
+ * soft tags when an option has a tone. A rule's own check marks values
+ * that aren't options, so the type's is left out.
+ */
+const listTypes = computed(() => {
+  const picker = cellTypes.value.get('select')
+  return (
+    picker && {
+      plain: { ...picker, render: undefined, valid: undefined } as SheetCellType,
+      tagged: { ...picker, valid: undefined } as SheetCellType,
+    }
+  )
+})
+const listSetups = new WeakMap<object, SheetResolvedType>()
+function listTypeAt(row: number, col: number): SheetResolvedType | undefined {
+  const c = checks.value
+  const types = listTypes.value
+  if (c.empty || !types) return undefined
+  const options = c.optionsAt(row, col)
+  if (!options) return undefined
+  let listed = listSetups.get(options)
+  if (!listed) {
+    const toned = options.some((o) => typeof o === 'object' && o != null && 'tone' in o && o.tone)
+    listed = {
+      name: 'select',
+      definition: toned ? types.tagged : types.plain,
+      setup: { type: 'select', options, plain: !toned },
+    }
+    listSetups.set(options, listed)
+  }
+  return listed
+}
 
 // Filtering --------------------------------------------------------------------------------
 
@@ -605,11 +709,12 @@ function openFilterAtActive() {
 }
 /** When a row's results last changed, for `v-memo`. */
 const resultsOf = (row: number) => engine.rowVersion(sheetKey(sheet.value), row)
-/** The type of a cell of the sheet shown. */
+/** The type of a cell of the sheet shown; a cell with a list rule and no type of its own picks from the list. */
 function typeAt(row: number, col: number): SheetResolvedType | undefined {
   const input = sheet.value.cells[row]?.[col]
-  if (input == null || typeof input !== 'object' || !input.type) return undefined
-  return resolveCellType(input, doc.value, cellTypes.value)
+  if (input != null && typeof input === 'object' && input.type)
+    return resolveCellType(input, doc.value, cellTypes.value)
+  return listTypeAt(row, col)
 }
 const rowCount = computed(() => rowCountOf(sheet.value))
 const colCount = computed(() => colCountOf(sheet.value))
@@ -830,6 +935,8 @@ interface CellView {
   label?: string
   /** Why the value doesn't fit the cell's type; shown on hover and read out. */
   problem?: string
+  /** Whether the value breaks its type or a rule, which a corner mark shows. */
+  invalid?: boolean
   /** Left out for screen readers: a cell under a merge, or a merge's piece in another pane. */
   hidden?: boolean
   rowspan?: number
@@ -890,6 +997,7 @@ function cellView(
   let renderProps: CellView['props']
   let label: string | undefined
   let problem: string | undefined
+  let invalid = false
   const look = looks.value.lookAt(row, col)
   if (look?.bar) {
     cls += ' has-bar'
@@ -941,12 +1049,22 @@ function cellView(
           : definition.valid(value, setup, messages.value)
       if (fits !== true) {
         cls += ' is-invalid'
+        invalid = true
         problem = typeof fits === 'string' && fits ? fits : messages.value.invalid
       }
       if (definition.render) {
         render = definition.render
         renderProps = { value, text, setup, readonly: props.readonly }
         label = cellText(input, { row, col })
+      }
+    }
+    if (!problem) {
+      const c = checks.value
+      const rule = c.empty ? undefined : c.ruleAt(row, col)
+      if (rule && !c.fits(row, col, value, text)) {
+        cls += ' is-invalid'
+        invalid = true
+        problem = ruleMessage(rule, messages.value)
       }
     }
   } else if (look?.style) {
@@ -973,6 +1091,7 @@ function cellView(
     view.label = label
   }
   if (problem) view.problem = problem
+  if (invalid) view.invalid = true
   return view
 }
 
@@ -1250,7 +1369,7 @@ function indexOfSheet(target: SheetRef) {
 function showSheet(target: SheetRef) {
   const at = indexOfSheet(target)
   if (at === -1) return false
-  if (editing.value) commitEdit()
+  if (editing.value) commitEdit(undefined, true)
   setSheet(at)
   return true
 }
@@ -1417,14 +1536,24 @@ function cancelEdit() {
   if (editor.value) editor.value.value = ''
 }
 
-/** Writes what was typed into the cell, then moves on when told which way. */
-function commitEdit(move?: SheetDirection) {
+/**
+ * Writes what was typed into the cell, then moves on when told which way.
+ * A value a strict rule refuses isn't written: the edit stays open, or,
+ * when `leaving` it (a press elsewhere, the focus going), is dropped.
+ */
+function commitEdit(move?: SheetDirection, leaving = false) {
   const e = editing.value
   if (!e) return
   const text = editor.value?.value ?? ''
   const typed = e.sheet === sheetIndex.value ? typeAt(e.row, e.col) : undefined
-  cancelEdit()
   const parsed = typed?.definition.parse?.(text, typed.setup) ?? parseInput(text)
+  const refused = e.sheet === sheetIndex.value && refusal(e.row, e.col, parsed)
+  if (refused) {
+    showNotice(format(messages.value.validation.refused, { message: refused }))
+    if (leaving) cancelEdit()
+    return
+  }
+  cancelEdit()
   const before = { sheet: sheetKey(doc.value.sheets[e.sheet]!), selection: selection.value }
   if (move) moveActive(move)
   const changed = transact(
@@ -1442,6 +1571,19 @@ function commitEdit(move?: SheetDirection) {
   if (changed) announceChange(e)
 }
 
+/** Why a strict rule refuses a typed value for a cell, or `''` when it doesn't. */
+function refusal(row: number, col: number, parsed: { value?: SheetValue; format?: string }) {
+  const c = checks.value
+  const rule = c.empty ? undefined : c.ruleAt(row, col)
+  const value = parsed.value ?? null
+  // a formula's result is checked once it is worked out, and marked
+  if (!rule || rule.strict === false || (typeof value === 'string' && value.startsWith('=')))
+    return ''
+  const old = cellOf(sheet.value.cells[row]?.[col])
+  const text = formatValue(value, old?.format ?? parsed.format, lang.value)
+  return c.fits(row, col, value, text) ? '' : ruleMessage(rule, messages.value)
+}
+
 /** Says what a cell now holds. */
 function announceChange(at: { sheet: number; row: number; col: number }) {
   const cell = doc.value.sheets[at.sheet]?.cells[at.row]?.[at.col]
@@ -1450,7 +1592,10 @@ function announceChange(at: { sheet: number; row: number; col: number }) {
 }
 
 /** A cell's value as it reads: its text, or whether it is checked. */
-function cellText(input: SheetCellInput, at?: { sheet?: number; row: number; col: number }) {
+function cellText(
+  input: SheetCellInput,
+  at?: { sheet?: number | string; row: number; col: number },
+) {
   const value = at
     ? shownValue(
         valueOf(input),
@@ -1654,7 +1799,7 @@ function onInputBlur(event: FocusEvent) {
   focused.value = false
   // switching windows, or to the formula bar, keeps the edit open
   if (editInputs.has(event.relatedTarget as HTMLTextAreaElement)) return
-  if (editing.value && document.hasFocus()) commitEdit()
+  if (editing.value && document.hasFocus()) commitEdit(undefined, true)
 }
 
 // Keys -----------------------------------------------------------------------------------
@@ -3382,7 +3527,7 @@ function onPointerDown(event: PointerEvent) {
     frame = requestAnimationFrame(autoScroll)
     return
   }
-  if (editing.value) commitEdit()
+  if (editing.value) commitEdit(undefined, true)
   const touch = event.pointerType === 'touch'
   if (event.button === 2) {
     // a right click keeps a selection it lands in
@@ -3813,6 +3958,55 @@ function announce(text: string) {
   void nextTick(() => (live.value = text))
 }
 const keysHint = `${uid}-keys`
+const promptId = `${uid}-prompt`
+/** The active cell's rule's hint, shown under it while nothing covers it. */
+/** Width of the hint beside the active cell, at most. */
+const HINT_WIDTH = 240
+/** The narrowest the hint gets beside the cell before it moves under it. */
+const HINT_MIN = 160
+/** About how tall a two-line hint is, to tell whether it fits under the cell. */
+const HINT_HEIGHT = 64
+/**
+ * What the active cell's hint says: why its value doesn't fit (there is no
+ * hover on touch), and its rule's prompt. It sits right of the cell, clear
+ * of the cells below, or under it when there is no room.
+ */
+const prompt = computed(() => {
+  if (drag.value?.started || panelType.value) return null
+  const at = active.value
+  const c = checks.value
+  const text = c.empty ? undefined : c.ruleAt(at.row, at.col)?.prompt
+  let problem: string | undefined
+  if (!editing.value) {
+    const here = cellView(at.row, at.col, sheet.value.cells[at.row], cols.value.size(at.col))
+    if (here.invalid) problem = here.problem
+  }
+  if (!text && !problem) return null
+  const rect = visibleRect(at)
+  if (!rect) return null
+  const right = rect.x + rect.width + 4
+  const room = viewWidth.value - right - 8
+  if (room >= HINT_MIN)
+    return { text, problem, x: right, y: rect.y, width: Math.min(HINT_WIDTH, room), shift: '' }
+  // Under the cell (over it near the bottom), as wide as the view allows; near
+  // the right edge it lines up with the cell's right side and reaches left.
+  const width = Math.min(HINT_WIDTH, viewWidth.value - 8)
+  const fromLeft = rect.x + width <= viewWidth.value - 4
+  const x = fromLeft ? Math.max(4, rect.x) : Math.min(rect.x + rect.width, viewWidth.value - 4)
+  const below = rect.y + rect.height + 4
+  const above = below + HINT_HEIGHT > viewHeight.value && rect.y - HINT_HEIGHT >= headerHeight.value
+  const shift = `translate(${fromLeft ? 0 : '-100%'},${above ? '-100%' : 0})`
+  return { text, problem, x, y: above ? rect.y - 4 : below, width, shift }
+})
+// Each line is its own reference, so a screen reader pauses between them.
+const describedBy = computed(() => {
+  const p = prompt.value
+  if (!p) return keysHint
+  let ids = keysHint
+  if (p.problem) ids += ` ${promptId}-problem`
+  if (p.text) ids += ` ${promptId}-text`
+  return ids
+})
 
 // Extensions -----------------------------------------------------------------------------
 
@@ -3989,6 +4183,7 @@ defineExpose<SheetExpose>({
   copy: () => copyToClipboard(false),
   cut: () => copyToClipboard(true),
   paste: async (clip) => (clip ? paste(clip) : pasteFromClipboard()),
+  findInvalid,
 })
 </script>
 
@@ -4029,7 +4224,7 @@ defineExpose<SheetExpose>({
         :aria-readonly="readonly || undefined"
         :aria-multiselectable="true"
         :aria-activedescendant="activeId"
-        :aria-describedby="keysHint"
+        :aria-describedby="describedBy"
         @scroll="onScroll"
         @pointerdown="onPointerDown"
         @click="onClick"
@@ -4100,6 +4295,8 @@ defineExpose<SheetExpose>({
               rowMarks(row),
               mergeKey(row),
               looksKey(row),
+              sheet.validations,
+              checksKey(row),
             ]"
             class="dou-sheet__row is-frozen"
             :class="{ 'is-freeze-edge': row === frozen.rows - 1 }"
@@ -4132,6 +4329,7 @@ defineExpose<SheetExpose>({
               :aria-rowspan="cell.rowspan"
               :aria-colspan="cell.colspan"
               :title="cell.problem"
+              :aria-invalid="cell.invalid || undefined"
               :style="cell.css"
             >
               <template v-if="cell.render">
@@ -4142,6 +4340,7 @@ defineExpose<SheetExpose>({
               </template>
               <span v-else class="dou-sheet__text">{{ cell.text }}</span>
               <span v-if="cell.problem" class="dou-sheet__sr-only">（{{ cell.problem }}）</span>
+              <span v-if="cell.invalid" class="dou-sheet__invalid" aria-hidden="true" />
             </div>
             <div
               v-for="cell in rowCells(row, bodyCols)"
@@ -4155,6 +4354,7 @@ defineExpose<SheetExpose>({
               :aria-rowspan="cell.rowspan"
               :aria-colspan="cell.colspan"
               :title="cell.problem"
+              :aria-invalid="cell.invalid || undefined"
               :style="cell.css"
             >
               <template v-if="cell.render">
@@ -4165,6 +4365,7 @@ defineExpose<SheetExpose>({
               </template>
               <span v-else class="dou-sheet__text">{{ cell.text }}</span>
               <span v-if="cell.problem" class="dou-sheet__sr-only">（{{ cell.problem }}）</span>
+              <span v-if="cell.invalid" class="dou-sheet__invalid" aria-hidden="true" />
             </div>
           </div>
         </div>
@@ -4183,6 +4384,8 @@ defineExpose<SheetExpose>({
               rowMarks(row),
               mergeKey(row),
               looksKey(row),
+              sheet.validations,
+              checksKey(row),
             ]"
             class="dou-sheet__row"
             role="row"
@@ -4214,6 +4417,7 @@ defineExpose<SheetExpose>({
               :aria-rowspan="cell.rowspan"
               :aria-colspan="cell.colspan"
               :title="cell.problem"
+              :aria-invalid="cell.invalid || undefined"
               :style="cell.css"
             >
               <template v-if="cell.render">
@@ -4224,6 +4428,7 @@ defineExpose<SheetExpose>({
               </template>
               <span v-else class="dou-sheet__text">{{ cell.text }}</span>
               <span v-if="cell.problem" class="dou-sheet__sr-only">（{{ cell.problem }}）</span>
+              <span v-if="cell.invalid" class="dou-sheet__invalid" aria-hidden="true" />
             </div>
             <div
               v-for="cell in rowCells(row, bodyCols)"
@@ -4237,6 +4442,7 @@ defineExpose<SheetExpose>({
               :aria-rowspan="cell.rowspan"
               :aria-colspan="cell.colspan"
               :title="cell.problem"
+              :aria-invalid="cell.invalid || undefined"
               :style="cell.css"
             >
               <template v-if="cell.render">
@@ -4247,6 +4453,7 @@ defineExpose<SheetExpose>({
               </template>
               <span v-else class="dou-sheet__text">{{ cell.text }}</span>
               <span v-if="cell.problem" class="dou-sheet__sr-only">（{{ cell.problem }}）</span>
+              <span v-if="cell.invalid" class="dou-sheet__invalid" aria-hidden="true" />
             </div>
           </div>
         </div>
@@ -4290,7 +4497,7 @@ defineExpose<SheetExpose>({
         "
         :aria-autocomplete="formulaEdit ? 'list' : undefined"
         :aria-controls="assist ? assistId : undefined"
-        :aria-describedby="keysHint"
+        :aria-describedby="describedBy"
         :readonly="readonly"
         autocomplete="off"
         autocapitalize="off"
@@ -4392,6 +4599,17 @@ defineExpose<SheetExpose>({
         aria-hidden="true"
       >
         {{ fillHint.text }}
+      </div>
+      <div
+        v-if="prompt"
+        :id="promptId"
+        class="dou-sheet__prompt"
+        :style="`left:${prompt.x}px;top:${prompt.y}px;max-width:${prompt.width}px;transform:${prompt.shift}`"
+      >
+        <span v-if="prompt.problem" :id="`${promptId}-problem`" class="dou-sheet__prompt-problem">{{
+          prompt.problem
+        }}</span>
+        <span v-if="prompt.text" :id="`${promptId}-text`">{{ prompt.text }}</span>
       </div>
       <button
         v-if="panelButton"

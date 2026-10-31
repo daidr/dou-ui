@@ -5,6 +5,7 @@ import {
   nextTick,
   provide,
   reactive,
+  shallowReactive,
   shallowRef,
   useTemplateRef,
   watch,
@@ -154,6 +155,18 @@ function onInvalid(errors: Record<string, string>) {
   emit('invalid', errors)
 }
 
+// The form items showing an error, for the tabs to mark their pages.
+type Tracked = { path: () => string | undefined; error: () => string | undefined }
+const tracked = shallowReactive(new Set<Tracked>())
+const errorPaths = computed(() => {
+  const paths: string[] = []
+  for (const entry of tracked) {
+    const path = entry.path()
+    if (path && entry.error()) paths.push(path)
+  }
+  return paths
+})
+
 /** A form that is a series of steps shows the default slot on its last step. */
 const footerOwner = computed(() => props.form.nodes.find(isSteps)?.id)
 
@@ -172,6 +185,12 @@ provide(rendererKey, {
     revealers.add(reveal)
     return () => revealers.delete(reveal)
   },
+  trackError: (path, error) => {
+    const entry = { path, error }
+    tracked.add(entry)
+    return () => tracked.delete(entry)
+  },
+  errorPaths: () => errorPaths.value,
   footer: () => slots.default?.(),
   footerOwner: () => footerOwner.value,
 })

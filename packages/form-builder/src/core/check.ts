@@ -1,7 +1,16 @@
-import { isContainer, isField, isList, isPage, isSteps, isTabs } from './document'
+import {
+  isContainer,
+  isField,
+  isList,
+  isPage,
+  isSteps,
+  isTabs,
+  valueNodes,
+  walkNodes,
+} from './document'
 import { checkExpression } from './expression'
 import type { ExpressionProblem } from './expression'
-import { findFormulaCycles } from './formulas'
+import { findFormulaCycles, findItemFormulaCycles } from './formulas'
 import type { FormDocument, FormNode } from './types'
 import { resolveFields } from '../fields/builtin'
 import type { FormFieldType } from '../fields/define'
@@ -15,6 +24,7 @@ export interface DocumentProblem {
     | 'unknown-type'
     | 'misplaced-page'
     | 'not-a-page'
+    | 'empty'
     | 'expression'
     | 'formula-cycle'
   /** The node at fault; none for the document's own problems. */
@@ -60,7 +70,12 @@ export function checkDocument(
   const ids = new Set<string>()
   const known = scopeNames(document.nodes)
 
-  function visit(nodes: readonly FormNode[], parent: FormNode | undefined) {
+  /** `itemFields`: the names an item of the list around the nodes has; none outside lists. */
+  function visit(
+    nodes: readonly FormNode[],
+    parent: FormNode | undefined,
+    itemFields: readonly string[],
+  ) {
     for (const node of nodes) {
       if (ids.has(node.id))
         problems.push({
@@ -85,6 +100,21 @@ export function checkDocument(
           nodeId: node.id,
           text: node.id,
           message: 'Tabs and steps hold pages only',
+        })
+
+      if ((isTabs(node) || isSteps(node) || isList(node)) && !node.children?.length)
+        problems.push({
+          code: 'empty',
+          nodeId: node.id,
+          text: node.id,
+          message: isList(node) ? 'The list has no fields' : `The ${node.type} have no pages`,
+        })
+      if (isList(node) && !node.name)
+        problems.push({
+          code: 'missing-name',
+          nodeId: node.id,
+          text: node.id,
+          message: 'The list has no name',
         })
 
       if (isField(node)) {
@@ -116,7 +146,11 @@ export function checkDocument(
       if (isField(node) && node.source?.arg) expressions.push(['source.arg', node.source.arg])
       for (const [property, source] of expressions) {
         if (!source) continue
-        const found = checkExpression(source, { fields: known, functions: options.functions })
+        const found = checkExpression(source, {
+          fields: known,
+          itemFields,
+          functions: options.functions,
+        })
         for (const problem of found)
           problems.push({
             code: 'expression',
@@ -128,18 +162,24 @@ export function checkDocument(
           })
       }
 
-      if (isContainer(node)) visit(node.children, node)
+      if (isList(node)) visit(node.children ?? [], node, scopeNames(node.children ?? []))
+      else if (isContainer(node)) visit(node.children ?? [], node, itemFields)
     }
   }
-  visit(document.nodes, undefined)
+  visit(document.nodes, undefined, [])
   duplicateNames(document.nodes, problems)
 
-  for (const cycle of findFormulaCycles(document))
+  const cycle = (names: string[], scope: readonly FormNode[]) =>
     problems.push({
       code: 'formula-cycle',
-      text: cycle.join(' → '),
-      message: `The formulas read each other: ${cycle.join(' -> ')}`,
+      nodeId: valueNodes(scope).find((node) => node.name === names[0])?.id,
+      text: names.join(' → '),
+      message: `The formulas read each other: ${names.join(' -> ')}`,
     })
+  for (const names of findFormulaCycles(document)) cycle(names, document.nodes)
+  for (const node of walkNodes(document.nodes))
+    if (isList(node))
+      for (const names of findItemFormulaCycles(node)) cycle(names, node.children ?? [])
   return problems
 }
 
@@ -151,7 +191,7 @@ function scopeNames(nodes: readonly FormNode[]): string[] {
   for (const node of nodes) {
     const name = nameOf(node)
     if (name) result.push(name)
-    if (isContainer(node) && !isList(node)) result.push(...scopeNames(node.children))
+    if (isContainer(node) && !isList(node)) result.push(...scopeNames(node.children ?? []))
   }
   return result
 }
@@ -171,8 +211,8 @@ function duplicateNames(nodes: readonly FormNode[], problems: DocumentProblem[])
           })
         seen.add(name)
       }
-      if (isList(node)) scan(node.children, new Set())
-      else if (isContainer(node)) scan(node.children, seen)
+      if (isList(node)) scan(node.children ?? [], new Set())
+      else if (isContainer(node)) scan(node.children ?? [], seen)
     }
   }
   scan(nodes, new Set())
@@ -184,14 +224,17 @@ const migrations: Record<number, (document: any) => any> = {}
 /**
  * The document in the current version (`1`). Documents of an older
  * version are upgraded step by step; there are none yet, so for now this
- * only checks the version. Throws for a version it does not know.
+ * only checks the version. A document without a version is read as
+ * version 1, as the renderer does. Throws for anything that is not a
+ * document and for a version it does not know.
  */
-export function migrateDocument(
-  document: { version: number } & Record<string, unknown>,
-): FormDocument {
-  let current = document
+export function migrateDocument(document: unknown): FormDocument {
+  if (document === null || typeof document !== 'object' || Array.isArray(document))
+    throw new Error('[dou-ui] a form document must be an object')
+  let current = document as { version?: unknown } & Record<string, unknown>
+  if (current.version === undefined) current = { ...current, version: 1 }
   while (current.version !== 1) {
-    const step = migrations[current.version]
+    const step = typeof current.version === 'number' ? migrations[current.version] : undefined
     if (!step)
       throw new Error(`[dou-ui] form document version ${String(current.version)} is not known`)
     current = step(current)

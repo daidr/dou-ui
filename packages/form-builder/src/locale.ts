@@ -18,6 +18,8 @@ export interface FormBuilderMessages {
   item: string
   /** Shown in a list without items. */
   empty: string
+  /** Read out after the title of a tab whose fields have errors. */
+  invalid: string
   /** What an editor shows for each problem of an expression; `{text}` is the source at fault. */
   expression: Record<ExpressionProblem['code'], string>
   /** What an editor shows for each problem of a document; `{text}` is the id, name or type at fault. */
@@ -32,6 +34,7 @@ const zhCN: FormBuilderMessages = {
   move: '拖动第 {index} 项调整顺序',
   item: '第 {index} 项',
   empty: '还没有内容',
+  invalid: '有错误',
   expression: {
     'unexpected-character': '这里不能出现“{text}”',
     'unterminated-string': '文字缺少结尾的引号',
@@ -52,6 +55,7 @@ const zhCN: FormBuilderMessages = {
     'unknown-type': '没有“{text}”这种字段',
     'misplaced-page': '页面只能放在标签页或分步里',
     'not-a-page': '标签页和分步里只能放页面',
+    empty: '这里还没有内容',
     expression: '表达式有误：{text}',
     'formula-cycle': '公式互相引用：{text}',
   },
@@ -65,6 +69,7 @@ const zhTW: FormBuilderMessages = {
   move: '拖曳第 {index} 項調整順序',
   item: '第 {index} 項',
   empty: '還沒有內容',
+  invalid: '有錯誤',
   expression: {
     'unexpected-character': '這裡不能出現「{text}」',
     'unterminated-string': '文字缺少結尾的引號',
@@ -85,6 +90,7 @@ const zhTW: FormBuilderMessages = {
     'unknown-type': '沒有「{text}」這種欄位',
     'misplaced-page': '頁面只能放在分頁或分步裡',
     'not-a-page': '分頁和分步裡只能放頁面',
+    empty: '這裡還沒有內容',
     expression: '運算式有誤：{text}',
     'formula-cycle': '公式互相引用：{text}',
   },
@@ -98,6 +104,7 @@ const en: FormBuilderMessages = {
   move: 'Drag item {index} to reorder',
   item: 'Item {index}',
   empty: 'Nothing here yet',
+  invalid: 'has errors',
   expression: {
     'unexpected-character': '“{text}” can’t go here',
     'unterminated-string': 'The text is missing its closing quote',
@@ -118,6 +125,7 @@ const en: FormBuilderMessages = {
     'unknown-type': 'There is no field type “{text}”',
     'misplaced-page': 'A page belongs in tabs or steps',
     'not-a-page': 'Tabs and steps hold pages only',
+    empty: 'There is nothing in here yet',
     expression: 'The expression is wrong: {text}',
     'formula-cycle': 'The formulas read each other: {text}',
   },

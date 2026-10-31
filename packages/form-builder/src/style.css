@@ -111,6 +111,33 @@
     line-height: var(--dou-font-line-height);
   }
 
+  /*
+   * A tab whose page has errors: a dot at the end of its title, over the
+   * tab's padding, so the tab keeps its width and its underline.
+   */
+  .dou-form-renderer__tab-title {
+    position: relative;
+  }
+
+  .dou-form-renderer__tab-error {
+    position: absolute;
+    inset-block-start: -2px;
+    inset-inline-end: -8px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--dou-color-danger);
+  }
+
+  .dou-form-renderer__sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
   .dou-form-renderer__tabs .dou-tabs__panel {
     padding-block-start: var(--dou-space-lg);
   }
@@ -171,6 +198,28 @@
     margin-inline-start: -6px;
   }
 
+  /* The copy of an item that follows the pointer, outside the form. */
+  .dou-form-renderer__list-ghost {
+    border-radius: var(--dou-radius-container);
+  }
+
+  /* On touch, the handle and the remove button take a 40px press around them. */
+  @media (pointer: coarse) {
+    .dou-form-renderer__list-handle,
+    .dou-form-renderer__list-remove {
+      position: relative;
+
+      &::after {
+        content: '';
+        position: absolute;
+        inset: 50% auto auto 50%;
+        width: 40px;
+        height: 40px;
+        transform: translate(-50%, -50%);
+      }
+    }
+  }
+
   .dou-form-renderer__list-item-title {
     flex: 1;
     min-width: 0;
@@ -204,6 +253,18 @@
   .dou-form-renderer__title,
   .dou-form-renderer__paragraph {
     margin: 0;
+  }
+
+  /* Narrow forms keep only the current step's title; the others are read out but not shown. */
+  @container dou-form-renderer (width < 480px) {
+    .dou-form-renderer__steps .dou-steps__item:not([aria-current]) .dou-steps__text {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
   }
 
   /* Below the first breakpoint there is no room beside the fields: labels go above. */

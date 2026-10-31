@@ -49,6 +49,7 @@ const sortable = useSortable<T>({
     dropped: (label, position, total) => t('sortable.dropped', { label, position, total }),
     canceled: (label) => t('sortable.canceled', { label }),
   }),
+  ghost: (el) => props.ghost?.(el) ?? (el.cloneNode(true) as HTMLElement),
   onSort: (event) => emit('sort', event),
   onAdd: (event) => emit('add', event),
   onRemove: (event) => emit('remove', event),

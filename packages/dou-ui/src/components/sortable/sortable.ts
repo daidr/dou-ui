@@ -22,6 +22,12 @@ export interface SortableProps<T = unknown> {
   itemTag?: string
   /** Names an item in what screen readers hear while it moves. Defaults to its position. */
   itemLabel?: (item: T, index: number) => string
+  /**
+   * Builds the copy that follows the pointer from the item's element, e.g.
+   * to keep a look that comes from outside the list once the copy sits on
+   * `body`. Defaults to a deep clone.
+   */
+  ghost?: (el: HTMLElement) => HTMLElement
 }
 
 export interface SortableEmits<T = unknown> {

@@ -108,6 +108,10 @@ export interface RendererContext {
    * the page it is on. It says whether it holds the field.
    */
   addRevealer: (reveal: (path: string) => boolean) => () => void
+  /** Follow the error a form item shows, so tabs can mark the pages with errors. */
+  trackError: (path: () => string | undefined, error: () => string | undefined) => () => void
+  /** The paths of the fields that show an error now. */
+  errorPaths: () => string[]
   /** The default slot, for the steps that show it on their last step. */
   footer: () => unknown
   /** The id of the steps that show the default slot, if the form is a series of steps. */

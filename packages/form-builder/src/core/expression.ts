@@ -70,8 +70,8 @@ export type FormFunction = (...args: any[]) => unknown
 
 /** What an expression reads when it runs. */
 export interface ExpressionScope {
-  /** The whole form. */
-  values: Record<string, unknown>
+  /** The whole form. Defaults to an empty one. */
+  values?: Record<string, unknown>
   /** The value of the field the expression belongs to. */
   value?: unknown
   /** Inside a list, the item the field belongs to. */
@@ -694,7 +694,7 @@ function compileNode(node: ExpressionNode): Run {
       return (scope) => items.map((item) => item(scope))
     }
     case 'name':
-      if (node.name === 'values') return (scope) => scope.values
+      if (node.name === 'values') return (scope) => scope.values ?? {}
       if (node.name === 'item') return (scope) => scope.item ?? null
       return (scope) => scope.value ?? null
     case 'member': {
@@ -957,9 +957,18 @@ export interface ExpressionProblem {
  * names of the form's fields; a path inside one (`contact.phone` for a
  * field `contact`) or around one (`contact` for `contact.phone`) counts.
  */
+export interface CheckExpressionOptions {
+  /** The fields `values` can read; reading another is a problem. */
+  fields?: readonly string[]
+  /** The fields of a list item that `item` can read; an empty list where there is no item. */
+  itemFields?: readonly string[]
+  /** Functions besides the built-in ones. */
+  functions?: readonly string[]
+}
+
 export function checkExpression(
   source: string,
-  options: { fields?: readonly string[]; functions?: readonly string[] } = {},
+  options: CheckExpressionOptions = {},
 ): ExpressionProblem[] {
   let ast: ExpressionNode
   try {
@@ -987,6 +996,20 @@ export function checkExpression(
         computedKeys(node).forEach(visit)
         return
       }
+      const itemPath = pathOf(node, 'item')
+      if (itemPath !== undefined) {
+        const own = options.itemFields
+        if (itemPath !== '' && own && !own.some((name) => related(name, itemPath)))
+          problems.push({
+            code: 'unknown-field',
+            message: `There is no field "item.${itemPath}"`,
+            text: `item.${itemPath}`,
+            start: node.start,
+            end: node.end,
+          })
+        computedKeys(node).forEach(visit)
+        return
+      }
       visit(node.object)
       visit(node.key)
       return
@@ -1003,6 +1026,14 @@ export function checkExpression(
       node.args.forEach(visit)
       return
     }
+    if (node.kind === 'name' && node.name === 'item' && options.itemFields?.length === 0)
+      problems.push({
+        code: 'unknown-field',
+        message: 'There is no list item here to read',
+        text: 'item',
+        start: node.start,
+        end: node.end,
+      })
     if (node.kind === 'list') node.items.forEach(visit)
     else if (node.kind === 'unary') visit(node.argument)
     else if (node.kind === 'binary') {

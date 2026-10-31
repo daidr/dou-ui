@@ -3,6 +3,7 @@ import {
   defineComponent,
   h,
   inject,
+  nextTick,
   onScopeDispose,
   provide,
   shallowRef,
@@ -20,7 +21,7 @@ import {
   DouTabPanel,
   DouTabs,
 } from 'dou-ui'
-import type { FormRule, StepItem } from 'dou-ui'
+import type { FormItemExpose, FormRule, StepItem } from 'dou-ui'
 import { PlusIcon, TrashIcon } from '@dou-ui/icons'
 import { getPath, isList, setPath, valueNodes } from '../core/document'
 import { findItemFormulaCycles } from '../core/formulas'
@@ -118,8 +119,31 @@ export function tabsView(
       },
       () =>
         pages.value.map((node) =>
-          h(DouTabPanel, { key: node.id, value: node.id, label: node.title, eager: true }, () =>
-            pageOf(kit, node, props),
+          h(
+            DouTabPanel,
+            { key: node.id, value: node.id, label: node.title, eager: true },
+            {
+              default: () => pageOf(kit, node, props),
+              // A page with errors gets a dot, read out as "has errors". Worked
+              // out in the slot, so the tab list follows the errors itself.
+              label: () => {
+                const failed = renderer
+                  .errorPaths()
+                  .some((path) => holdsPath(node.children, path, scope.prefix()))
+                return h('span', { class: 'dou-form-renderer__tab-title' }, [
+                  node.title,
+                  failed
+                    ? h('span', { class: 'dou-form-renderer__tab-error' }, [
+                        h(
+                          'span',
+                          { class: 'dou-form-renderer__sr-only' },
+                          `（${renderer.messages().invalid}）`,
+                        ),
+                      ])
+                    : null,
+                ])
+              },
+            },
           ),
         ),
     )
@@ -241,6 +265,29 @@ function itemKey(item: unknown) {
   return id
 }
 
+/**
+ * The copy of an item that follows the pointer. It sits on `body`, away
+ * from the form whose width picks the columns and whose classes set the
+ * layout, so it is wrapped in an element with the form's classes and every
+ * cell keeps the columns it has now.
+ */
+function listGhost(el: HTMLElement): HTMLElement {
+  const clone = el.cloneNode(true) as HTMLElement
+  const cells = el.querySelectorAll<HTMLElement>('.dou-form-renderer__cell')
+  clone.querySelectorAll<HTMLElement>('.dou-form-renderer__cell').forEach((cell, index) => {
+    const source = cells[index]
+    if (source) cell.style.gridColumn = getComputedStyle(source).gridColumn
+  })
+  const form = el.closest<HTMLElement>('.dou-form')
+  if (!form) return clone
+  const wrapper = document.createElement('div')
+  wrapper.className = `${form.className} dou-form-renderer__list-ghost`
+  // The wrapper takes the size the copy is given, not the form's container sizing.
+  wrapper.style.containerType = 'normal'
+  wrapper.append(clone)
+  return wrapper
+}
+
 /** The rules of a list itself: its own, and its bounds on the number of items. */
 function listRules(node: FormListNode, renderer: RendererContext): FormRule[] {
   const rules = rulesOf(node, { functions: renderer.functions() })
@@ -281,8 +328,36 @@ export function listView(
     setPath(renderer.model(), name, next)
     renderer.changed(name, getPath(renderer.model(), name))
   }
-  const add = () => write([...items.value, emptyItem(list(), renderer.fields())])
-  const remove = (index: number) => write(items.value.filter((_, at) => at !== index))
+  const root = shallowRef<HTMLElement>()
+  const footer = shallowRef<FormItemExpose>()
+  onScopeDispose(renderer.trackError(path, () => footer.value?.error))
+
+  /** The items of this list, not of lists inside it nor ones still animating out. */
+  const itemElements = () =>
+    [...(root.value?.querySelectorAll<HTMLElement>('.dou-form-renderer__list-item') ?? [])].filter(
+      (el) =>
+        el.closest('.dou-form-renderer__list') === root.value && !el.closest('[class*="-leave-"]'),
+    )
+  /** Focus the first field of an item, or the add button when there is none. */
+  async function focusItem(index: number) {
+    // The sortable list renders its items a tick after the value changes.
+    await nextTick()
+    await nextTick()
+    const elements = itemElements()
+    const target = elements[Math.min(index, elements.length - 1)]
+    const control = target?.querySelector<HTMLElement>(
+      ':scope > .dou-form-renderer__grid :is(input, textarea, select, button, [tabindex="0"]):not([disabled])',
+    )
+    ;(control ?? root.value?.querySelector<HTMLElement>('.dou-form-renderer__list-add'))?.focus()
+  }
+  function add() {
+    write([...items.value, emptyItem(list(), renderer.fields())])
+    void focusItem(items.value.length - 1)
+  }
+  function remove(index: number) {
+    write(items.value.filter((_, at) => at !== index))
+    void focusItem(index)
+  }
 
   return () => {
     const node = list()
@@ -297,6 +372,7 @@ export function listView(
     return h(
       'div',
       {
+        ref: root,
         class: ['dou-form-renderer__list', off && 'is-disabled'],
         role: 'group',
         'aria-labelledby': labelId,
@@ -326,6 +402,7 @@ export function listView(
                 'onUpdate:modelValue': (next: unknown[]) =>
                   write(next as Record<string, unknown>[]),
                 itemKey,
+                ghost: listGhost,
                 handle: true,
                 disabled: !sortable,
                 itemLabel: (_item: unknown, index: number) =>
@@ -353,11 +430,21 @@ export function listView(
         // list puts back its own items; its errors show under the button.
         h(
           DouFormItem,
-          { class: 'dou-form-renderer__list-footer', prop: path(), rules: rules.value },
+          {
+            ref: footer,
+            class: 'dou-form-renderer__list-footer',
+            prop: path(),
+            rules: rules.value,
+          },
           () =>
             h(
               DouButton,
-              { variant: 'outline', disabled: !canAdd, onClick: add },
+              {
+                class: 'dou-form-renderer__list-add',
+                variant: 'outline',
+                disabled: !canAdd,
+                onClick: add,
+              },
               { leading: () => h(PlusIcon), default: () => node.addText ?? messages.add },
             ),
         ),

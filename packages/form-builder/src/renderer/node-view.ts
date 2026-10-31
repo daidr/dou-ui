@@ -1,4 +1,14 @@
-import { computed, defineComponent, h, inject, provide, shallowRef, useId, watch } from 'vue'
+import {
+  computed,
+  defineComponent,
+  h,
+  inject,
+  onScopeDispose,
+  provide,
+  shallowRef,
+  useId,
+  watch,
+} from 'vue'
 import type { Component, CSSProperties, PropType, VNode, VNodeChild } from 'vue'
 import { DouFormItem } from 'dou-ui'
 import type { FormItemExpose } from 'dou-ui'
@@ -224,6 +234,7 @@ function fieldView(
   }
   const type = computed(() => renderer.fields().get(field().type))
   const item = shallowRef<FormItemExpose>()
+  onScopeDispose(renderer.trackError(path, () => item.value?.error))
 
   // Options from a source, while the field shows, has a source and its type takes options.
   const request = computed(() => {

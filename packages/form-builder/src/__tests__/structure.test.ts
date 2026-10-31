@@ -46,7 +46,7 @@ const guests: FormListNode = {
 
 describe('expressions in lists', () => {
   it('reads the item and sums one key of every item', () => {
-    expect(evaluateExpression('item.price * 2', { values: {}, item: { price: 3 } })).toBe(6)
+    expect(evaluateExpression('item.price * 2', { item: { price: 3 } })).toBe(6)
     const values = { items: [{ amount: 1.1 }, { amount: 2.2 }, { amount: null }] }
     expect(evaluateExpression("sum(values.items, 'amount')", { values })).toBe(3.3)
     expect(evaluateExpression("max(values.items, 'amount')", { values })).toBe(2.2)
@@ -89,6 +89,28 @@ describe('lists', () => {
     await removes()[0]!.trigger('click')
     expect(model.guests).toHaveLength(2)
     expect(model.guests[0].name).toBe('')
+  })
+
+  it('moves focus to the new item, the next one after removing, and the add button at last', async () => {
+    const wrapper = mount(DouFormRenderer, {
+      attachTo: document.body,
+      props: { form: doc([{ ...guests, min: 0 }]) },
+    })
+    const add = wrapper.find('.dou-form-renderer__list-add')
+    await add.trigger('click')
+    await add.trigger('click')
+    await nextTick()
+    const inputs = () => wrapper.findAll('.dou-form-renderer__list-item input')
+    expect(document.activeElement).toBe(
+      wrapper.findAll('.dou-form-renderer__list-item')[1]!.find('input').element,
+    )
+    await wrapper.findAll('.dou-form-renderer__list-remove')[0]!.trigger('click')
+    await nextTick()
+    expect(document.activeElement).toBe(inputs()[0]!.element)
+    await wrapper.findAll('.dou-form-renderer__list-remove')[0]!.trigger('click')
+    await nextTick()
+    expect(document.activeElement).toBe(wrapper.find('.dou-form-renderer__list-add').element)
+    wrapper.unmount()
   })
 
   it('works out item formulas per item and totals across items', async () => {
@@ -269,6 +291,13 @@ describe('tabs', () => {
     await flush()
     expect(Object.keys(onInvalid.mock.calls[0]![0])).toEqual(['city'])
     expect(wrapper.findAll('[role=tab]')[1]!.attributes('aria-selected')).toBe('true')
+    expect(wrapper.findAll('[role=tab]')[1]!.find('.dou-form-renderer__tab-error').exists()).toBe(
+      true,
+    )
+    expect(wrapper.findAll('[role=tab]')[1]!.text()).toContain('有错误')
+    expect(wrapper.findAll('[role=tab]')[0]!.find('.dou-form-renderer__tab-error').exists()).toBe(
+      false,
+    )
     wrapper.unmount()
   })
 })
@@ -344,6 +373,18 @@ describe('checkDocument', () => {
           id: 'l',
           children: [{ id: 'in', type: 'input', name: 'name', visibleWhen: 'item.name' }],
         },
+        {
+          id: 'l2',
+          type: 'list',
+          name: 'rows',
+          children: [
+            { id: 'r1', type: 'input-number', name: 'a', formula: 'item.b' },
+            { id: 'r2', type: 'input-number', name: 'b', formula: 'item.a + item.pricee' },
+          ],
+        },
+        { id: 'l3', type: 'list', children: [] } as any,
+        { id: 's', type: 'steps', children: [] },
+        { id: 'out', type: 'input', name: 'out', visibleWhen: 'item.x' },
         { id: 'f1', type: 'input-number', name: 'f1', formula: 'values.f2' },
         { id: 'f2', type: 'input-number', name: 'f2', formula: 'values.f1' },
       ]),
@@ -355,10 +396,21 @@ describe('checkDocument', () => {
       ['misplaced-page', 'p'],
       ['not-a-page', 'f'],
       ['expression', 'values.nope == 1'],
+      ['expression', 'item.a + item.pricee'],
+      ['empty', 'l3'],
+      ['missing-name', 'l3'],
+      ['empty', 's'],
+      ['expression', 'item.x'],
       ['duplicate-name', 'name'],
       ['formula-cycle', 'f1 → f2'],
+      ['formula-cycle', 'a → b'],
     ])
     expect(problems.find((problem) => problem.code === 'expression')!.property).toBe('visibleWhen')
+    const item = problems.find((problem) => problem.nodeId === 'r2')!
+    expect(item.expression!.text).toBe('item.pricee')
+    expect(
+      problems.filter((problem) => problem.code === 'formula-cycle').map((p) => p.nodeId),
+    ).toEqual(['f1', 'r1'])
   })
 
   it('accepts a sound document, names inside lists apart from the rest', () => {
@@ -369,6 +421,8 @@ describe('checkDocument', () => {
     const current = doc([])
     expect(migrateDocument(current as any)).toBe(current)
     expect(() => migrateDocument({ version: 9, nodes: [] })).toThrow(/version 9/)
+    expect(migrateDocument({ nodes: [] })).toEqual({ version: 1, nodes: [] })
+    expect(() => migrateDocument(null)).toThrow(/\[dou-ui\] a form document must be an object/)
   })
 })
 

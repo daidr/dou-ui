@@ -2,7 +2,7 @@ import { type Component, type InjectionKey, type VNodeChild, inject } from 'vue'
 import type { CodeKeymap } from './core/keymap'
 import type { CodeSelection } from './core/selection'
 import type { CodeText } from './core/text'
-import type { CodeState, CodeTransaction } from './core/transaction'
+import type { CodeState, CodeTransaction, CodeTransactionResult } from './core/transaction'
 import type { CodeEditorExpose } from './types'
 
 /** How bad a diagnostic is, worst first. */
@@ -38,8 +38,19 @@ export interface CodeDiagnostic {
  * widget takes its own room in the line.
  */
 export type CodeDecoration =
-  /** Classes on the characters from `from` to `to`. */
-  | { type: 'mark'; from: number; to: number; class: string; title?: string }
+  /**
+   * Classes on the characters from `from` to `to`. `style` sets inline
+   * styles on them as well, e.g. a CSS variable holding a person's color;
+   * where marks overlap, the later one's styles win.
+   */
+  | {
+      type: 'mark'
+      from: number
+      to: number
+      class: string
+      title?: string
+      style?: Readonly<Record<string, string>>
+    }
   /** A class on a whole line (`line` from 1), e.g. a tinted background. */
   | { type: 'line'; line: number; class: string }
   /**
@@ -95,6 +106,18 @@ export interface CodeGutter {
   markers: (context: CodeExtensionContext) => CodeGutterMarker[]
   /** A press on the column, on line `line`, e.g. to set a breakpoint. */
   onPress?: (line: number, event: PointerEvent, context: CodeExtensionContext) => void
+}
+
+/** An undo history that takes the place of the editor's own, e.g. one shared with others. */
+export interface CodeHistoryHandler {
+  /** `false` when there is nothing to undo. */
+  undo: () => boolean
+  redo: () => boolean
+  /** Read in templates and computed values: keep them reactive. */
+  canUndo: () => boolean
+  canRedo: () => boolean
+  /** The next change starts a new undo step, e.g. when the editor loses focus. */
+  close?: () => void
 }
 
 /** A bar above or below the text, inside the editor's frame. */
@@ -253,10 +276,24 @@ export interface CodeExtension {
   ) => CodeSignatureResult | null | undefined | Promise<CodeSignatureResult | null | undefined>
   /**
    * Sees every change before it is applied, in priority order, and may add
-   * to it (positions are in the text before the change). Undo, redo and new
-   * `v-model` values don't come through here.
+   * to it (positions are in the text before the change). Undo, redo, new
+   * `v-model` values and other people's changes (`action: 'remote'`) don't
+   * come through here.
    */
   transaction?: (tr: CodeTransaction, context: CodeExtensionContext) => void
+  /**
+   * Runs after every step the editor took, with the text and selection
+   * already updated: typing, commands, undo and redo, new `v-model`
+   * values and other people's changes. `result.meta.action` tells them
+   * apart.
+   */
+  update?: (result: CodeTransactionResult, context: CodeExtensionContext) => void
+  /**
+   * Replaces the editor's undo history; the first extension that has one
+   * wins. Called once per list of extensions: return the same handler
+   * each time.
+   */
+  history?: (context: CodeExtensionContext) => CodeHistoryHandler
   /** Runs once the editor is mounted. Return a function to run when it unmounts. */
   setup?: (context: CodeExtensionContext) => void | (() => void)
 }
@@ -271,6 +308,8 @@ export interface CodeExtensionContext extends CodeEditorExpose {
   readonly visible: { readonly from: number; readonly to: number }
   /** The problems found now, by all linters and the `diagnostics` prop, in text order. */
   readonly diagnostics: readonly CodeDiagnostic[]
+  /** Whether the editor has focus; reading it in reactive code follows it. */
+  readonly focused: boolean
   /** Reads a message out to screen readers. */
   announce: (message: string) => void
 }

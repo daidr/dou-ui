@@ -96,6 +96,7 @@ import {
   type CodeExtension,
   type CodeExtensionContext,
   type CodeGutterMarker,
+  type CodeHistoryHandler,
   type CodePanel,
 } from './extension'
 import RenderPart from './render-part'
@@ -213,9 +214,17 @@ const menuOpen = ref(false)
 /** A finger drags a handle or a long-pressed selection: the magnifier shows. */
 const touchDrag = ref(false)
 
+/** Steps whose changes aren't this user's typing: extensions' `transaction` hooks don't see them. */
+const UNHOOKED = new Set(['undo', 'redo', 'external', 'remote'])
+
+/** Runs every extension's `update` hook for a step that was applied. */
+function notify(result: CodeTransactionResult) {
+  for (const extension of extensions.value) extension.update?.(result, context)
+}
+
 function dispatch(tr: CodeTransaction): CodeTransactionResult | null {
   const { action } = tr.meta
-  if (action !== 'undo' && action !== 'redo' && action !== 'external')
+  if (!UNHOOKED.has(action ?? ''))
     for (const extension of extensions.value) extension.transaction?.(tr, context)
   const result = tr.resolve()
   const before = state.value
@@ -223,11 +232,14 @@ function dispatch(tr: CodeTransaction): CodeTransactionResult | null {
     pendingGoals = new Map()
     return null
   }
-  if (!result.changes.empty) {
+  // Someone else's change: what this user has open (menus, the problem box, the goal column) stays.
+  const remote = action === 'remote'
+  if (!result.changes.empty && !historyHandler.value) {
     history.record(result)
     historyTick.value++
   }
   if (!result.changes.empty) {
+    if (composing.value) mapComposition(result.changes)
     highlighter?.update(result.state.doc, result.changes)
     mapMatches(result.changes)
     updateWrap(before.doc, result.state.doc, result.changes)
@@ -237,16 +249,19 @@ function dispatch(tr: CodeTransaction): CodeTransactionResult | null {
   }
   state.value = markRaw(result.state)
   revealFolds()
-  problemBox.value = null
-  // The toolbar is for the selection it opened on; typing also puts away the handle under a lone cursor.
-  menuOpen.value = false
-  if (!result.changes.empty) caretHandle.value = false
-  goals = pendingGoals
+  if (!remote) {
+    problemBox.value = null
+    // The toolbar is for the selection it opened on; typing also puts away the handle under a lone cursor.
+    menuOpen.value = false
+    if (!result.changes.empty) caretHandle.value = false
+    goals = pendingGoals
+    blink.value++
+  }
   pendingGoals = new Map()
-  blink.value++
   if (!composing.value) syncInput()
   updateAssist(result)
   emitChange(result)
+  notify(result)
   if (result.meta.scroll ?? !result.changes.empty)
     nextTick(() => {
       scrollIntoView()
@@ -380,8 +395,19 @@ function applySteps(step: { changes: ChangeSet; selection: CodeSelection } | nul
   return true
 }
 
-const undo = () => !props.readonly && applySteps(history.undo(), 'undo')
-const redo = () => !props.readonly && applySteps(history.redo(), 'redo')
+/** The undo history an extension brings in place of the editor's own; the first one wins. */
+const historyHandler = computed<CodeHistoryHandler | null>(() => {
+  for (const extension of extensions.value)
+    if (extension.history) return markRaw(extension.history(context))
+  return null
+})
+const undo = () =>
+  !props.readonly &&
+  (historyHandler.value ? historyHandler.value.undo() : applySteps(history.undo(), 'undo'))
+const redo = () =>
+  !props.readonly &&
+  (historyHandler.value ? historyHandler.value.redo() : applySteps(history.redo(), 'redo'))
+const closeHistory = () => (historyHandler.value ? historyHandler.value.close?.() : history.close())
 
 /**
  * Takes in a new text from outside as the smallest change, so the cursor
@@ -407,8 +433,11 @@ function receive(next: string, given?: CodeText) {
   const result = given
     ? { ...resolved, state: markRaw({ ...resolved.state, doc: given }) }
     : resolved
-  history.record(result)
-  historyTick.value++
+  if (!historyHandler.value) {
+    history.record(result)
+    historyTick.value++
+  }
+  if (composing.value) mapComposition(result.changes)
   highlighter?.update(result.state.doc, result.changes)
   updateWrap(result.before.doc, result.state.doc, result.changes)
   mapFolds(result.changes, result.state.doc)
@@ -427,6 +456,7 @@ function receive(next: string, given?: CodeText) {
   if (!given) emitDoc(result.state.doc)
   else if (listens('onUpdate:modelValue')) emit('update:modelValue', normalized)
   emit('transaction', result)
+  notify(result)
 }
 
 watch(
@@ -1087,9 +1117,36 @@ function toggleFold(n: number, folded: boolean) {
 const composing = ref(false)
 /** What the input method shows while composing: a replacement of the text, drawn but not applied yet. */
 const preview = shallowRef<{ from: number; to: number; insert: string } | null>(null)
+/**
+ * Changes that came in while composing (someone else's, or a new
+ * `v-model`): the textarea still holds the text from before them, so what
+ * it gives back is moved through these.
+ */
+let composeMap: ChangeSet | null = null
+
+/** A position in the text the textarea was filled from, in the text now. */
+const composedPos = (pos: number, assoc: -1 | 1) =>
+  composeMap ? composeMap.mapPos(pos, assoc) : pos
+
+function mapComposition(changes: ChangeSet) {
+  composeMap = composeMap ? composeMap.compose(changes) : changes
+  const shown = preview.value
+  if (shown)
+    preview.value = {
+      ...shown,
+      from: changes.mapPos(shown.from, -1),
+      to: Math.max(changes.mapPos(shown.from, -1), changes.mapPos(shown.to, 1)),
+    }
+}
 
 /** A class over part of a line, `from`–`to` in the line, with a title shown on hover. */
-type Mark = [from: number, to: number, cls: string, title?: string]
+type Mark = [
+  from: number,
+  to: number,
+  cls: string,
+  title?: string,
+  style?: Readonly<Record<string, string>>,
+]
 
 /** A widget inside a line, before column `col`. */
 interface Inline {
@@ -1187,7 +1244,13 @@ const lineDecorations = computed(() => {
   const last = visibleTo.value
   const start = text.line(first).from
   const end = text.line(last).to
-  const mark = (from: number, to: number, cls: string, title?: string) => {
+  const mark = (
+    from: number,
+    to: number,
+    cls: string,
+    title?: string,
+    style?: Readonly<Record<string, string>>,
+  ) => {
     if (to < start || from > end || to <= from) return
     const a = text.lineAt(Math.max(from, start))
     const b = text.lineAt(Math.min(to, end))
@@ -1197,7 +1260,11 @@ const lineDecorations = computed(() => {
       const y = Math.min(to, line.to) - line.from
       if (y <= x) continue
       const own = marks.get(n)
-      const item: Mark = title ? [x, y, cls, title] : [x, y, cls]
+      const item: Mark = style
+        ? [x, y, cls, title, style]
+        : title
+          ? [x, y, cls, title]
+          : [x, y, cls]
       if (own) own.push(item)
       else marks.set(n, [item])
     }
@@ -1218,7 +1285,7 @@ const lineDecorations = computed(() => {
         width: item.width,
       })
       inlines.set(line.number, own)
-    } else mark(item.from, item.to, item.class, item.title)
+    } else mark(item.from, item.to, item.class, item.title, item.style)
   }
   // In the order they are drawn: by column, then as given.
   for (const own of inlines.values())
@@ -1396,7 +1463,13 @@ function languageAt(pos: number) {
  * mark over it; or, with `inline`, the line's inline widget of that index
  * (its text empty).
  */
-type Part = [text: string, cls: string | null, title?: string, inline?: number]
+type Part = [
+  text: string,
+  cls: string | null,
+  title?: string,
+  inline?: number,
+  style?: Readonly<Record<string, string>>,
+]
 
 /** A line cut where its tokens and marks start and end, each piece with its classes, and its inline widgets between. */
 function partsOf(row: Row): Part[] {
@@ -1412,8 +1485,8 @@ function partsOf(row: Row): Part[] {
     let piece = part
     while (next < own.length && own[next]!.col < at + piece[0].length) {
       const cut = own[next]!.col - at
-      out.push([piece[0].slice(0, cut), piece[1], piece[2]])
-      piece = [piece[0].slice(cut), piece[1], piece[2]]
+      out.push([piece[0].slice(0, cut), piece[1], piece[2], undefined, piece[4]])
+      piece = [piece[0].slice(cut), piece[1], piece[2], undefined, piece[4]]
       at += cut
       while (next < own.length && own[next]!.col <= at) out.push(['', null, undefined, next++])
     }
@@ -1451,13 +1524,21 @@ function textParts(row: Row): Part[] {
     const type = base[index]![1]
     let cls = type ? `dou-syntax-${type}` : ''
     let title: string | undefined
-    for (const [a, b, name, label] of marks)
+    let style: Readonly<Record<string, string>> | undefined
+    for (const [a, b, name, label, css] of marks)
       if (a <= from && b >= to) {
         cls = cls ? `${cls} ${name}` : name
         title = label ?? title
+        if (css) style = style ? { ...style, ...css } : css
       }
     const piece = row.text.slice(from, to)
-    out.push(title ? [piece, cls || null, title] : [piece, cls || null])
+    out.push(
+      style
+        ? [piece, cls || null, title, undefined, style]
+        : title
+          ? [piece, cls || null, title]
+          : [piece, cls || null],
+    )
   }
   return out
 }
@@ -1471,7 +1552,7 @@ function rowParts(row: Row, sub: number) {
   let at = 0
   const last = sub === breaks.length
   for (const part of partsOf(row)) {
-    const [text, type, title, inline] = part
+    const [text, type, title, inline, style] = part
     // A widget goes on the row its column starts; at the very end, on the last row.
     if (inline !== undefined) {
       if (at >= start && (at < end || (last && at === end))) out.push(part)
@@ -1479,7 +1560,7 @@ function rowParts(row: Row, sub: number) {
     }
     const from = Math.max(at, start)
     const to = Math.min(at + text.length, end)
-    if (to > from) out.push([text.slice(from - at, to - at), type, title])
+    if (to > from) out.push([text.slice(from - at, to - at), type, title, undefined, style])
     at += text.length
   }
   return out
@@ -2629,6 +2710,29 @@ function updateAssist(result: CodeTransactionResult) {
     snippet.value =
       action === 'snippet' || action === 'complete' || inside ? { ...session, groups, end } : null
   }
+  if (action === 'remote') {
+    // Someone else's change: the list and the hints stay, unless it reached what they are about.
+    if (changes.empty) return
+    const head = mainRange(result.before.selection).head
+    const map = (pos: number) => changes.mapPos(pos, -1)
+    const list = completion.value
+    if (list) {
+      const start = Math.min(list.pos, ...list.results.map((answer) => answer.from))
+      if (changes.touches(Math.min(start, head), Math.max(list.pos, head))) closeCompletion()
+      else
+        completion.value = {
+          ...list,
+          pos: map(list.pos),
+          results: list.results.map((answer) => ({ ...answer, from: map(answer.from) })),
+          items: list.items.map((item) => ({ ...item, from: map(item.from) })),
+        }
+    }
+    const hints = signature.value
+    if (hints)
+      if (changes.touches(Math.min(hints.pos, head), Math.max(hints.pos, head))) updateSignature()
+      else signature.value = { ...hints, pos: map(hints.pos) }
+    return
+  }
   if (action === 'complete' || action === 'snippet') {
     // A completed call puts the cursor inside its brackets: the hints show right away.
     updateSignature()
@@ -2718,6 +2822,7 @@ function syncInput() {
   const start = Math.max(0, Math.min(rangeFrom(main), to) - from)
   const end = Math.max(0, Math.min(rangeTo(main), to) - from)
   mirror = { from, to, value, start, end }
+  composeMap = null
   // Put the textarea where its caret lines up with the drawn main cursor, so input methods open there.
   const startLine = text.lineAt(from)
   const headLine = text.lineAt(main.head)
@@ -2745,8 +2850,8 @@ function readInput() {
   if (!el || props.readonly) return
   const diff = diffText(mirror.value, el.value, mirror.start)
   if (!diff) return
-  const from = mirror.from + diff.from
-  const to = mirror.from + diff.to
+  const from = composedPos(mirror.from + diff.from, -1)
+  const to = Math.max(from, composedPos(mirror.from + diff.to, 1))
   let { insert } = diff
   // The Enter that confirmed a composition only confirms it.
   if (insert.endsWith('\n') && performance.now() - confirmEnter < 200) {
@@ -2776,7 +2881,8 @@ function readInput() {
   const tr = transaction().setMeta({ action: insert ? 'input' : 'delete' })
   tr.replace(from, to, insert)
   const result = tr.resolve()
-  const caret = (offset: number) => mirror.from + offset
+  const base = composedPos(mirror.from, 1)
+  const caret = (offset: number) => base + offset
   const ranges = result.state.selection.ranges.slice()
   const backward = el.selectionDirection === 'backward'
   const head = caret(backward ? el.selectionStart : el.selectionEnd)
@@ -2790,9 +2896,13 @@ function onInput() {
   if (composing.value) {
     const el = input.value!
     const diff = diffText(mirror.value, el.value, mirror.start)
-    preview.value = diff
-      ? { from: mirror.from + diff.from, to: mirror.from + diff.to, insert: diff.insert }
-      : null
+    if (!diff) {
+      preview.value = null
+      return
+    }
+    const from = composedPos(mirror.from + diff.from, -1)
+    const to = Math.max(from, composedPos(mirror.from + diff.to, 1))
+    preview.value = { from, to, insert: diff.insert }
     return
   }
   readInput()
@@ -3771,14 +3881,30 @@ function startExtension(extension: CodeExtension) {
   const cleanup = extension.setup?.(context)
   cleanups.set(extension, typeof cleanup === 'function' ? cleanup : () => {})
 }
+let restarts: number[] = []
+let restartWarned = false
+/** An extension made in the template is new on every render, and set up again each time. */
+function warnRestarts() {
+  if (process.env.NODE_ENV === 'production' || restartWarned) return
+  const now = Date.now()
+  restarts = [...restarts.filter((time) => now - time < 1000), now]
+  if (restarts.length < 4) return
+  restartWarned = true
+  console.warn(
+    '[@dou-ui/code] the extensions keep being set up again, which also starts their state over (such as a shared undo history). Create them once in <script setup> instead of in the template.',
+  )
+}
 watch(extensions, (next) => {
   if (!mounted.value) return
+  let restarted = false
   for (const [extension, cleanup] of cleanups)
     if (!next.includes(extension)) {
       cleanup()
       cleanups.delete(extension)
+      restarted = true
     }
   for (const extension of next) startExtension(extension)
+  if (restarted) warnRestarts()
 })
 
 onBeforeUnmount(() => {
@@ -3814,7 +3940,7 @@ function onBlur(event: FocusEvent) {
   if (problemBox.value?.keyboard) closeProblems()
   closeCompletion()
   closeSignature()
-  history.close()
+  closeHistory()
   if (lazyDirty) {
     lazyDirty = false
     emit('update:modelValue', textOf(doc.value))
@@ -3837,10 +3963,12 @@ const api: CodeExtensionContext = {
   undo,
   redo,
   get canUndo() {
+    if (historyHandler.value) return historyHandler.value.canUndo()
     void historyTick.value
     return history.canUndo
   },
   get canRedo() {
+    if (historyHandler.value) return historyHandler.value.canRedo()
     void historyTick.value
     return history.canRedo
   },
@@ -3871,6 +3999,9 @@ const api: CodeExtensionContext = {
   },
   get visible() {
     return { from: visibleFrom.value, to: visibleTo.value }
+  },
+  get focused() {
+    return focused.value
   },
   announce,
 }
@@ -4100,7 +4231,9 @@ defineExpose<CodeEditorExpose>(api)
                           : undefined
                       "
                       ><RenderPart :render="row.inlines![part[3]!]!.render" /></span
-                    ><span v-else-if="part[1]" :class="part[1]" :title="part[2]">{{ part[0] }}</span
+                    ><span v-else-if="part[1]" :class="part[1]" :title="part[2]" :style="part[4]">{{
+                      part[0]
+                    }}</span
                     ><template v-else>{{ part[0] }}</template></template
                   ><span
                     v-if="row.folded && sub === row.wrapped.breaks.length"
@@ -4130,7 +4263,9 @@ defineExpose<CodeEditorExpose>(api)
                         : undefined
                     "
                     ><RenderPart :render="row.inlines![part[3]!]!.render" /></span
-                  ><span v-else-if="part[1]" :class="part[1]" :title="part[2]">{{ part[0] }}</span
+                  ><span v-else-if="part[1]" :class="part[1]" :title="part[2]" :style="part[4]">{{
+                    part[0]
+                  }}</span
                   ><template v-else>{{ part[0] }}</template></template
                 ></template
               >
@@ -4183,7 +4318,9 @@ defineExpose<CodeEditorExpose>(api)
                   :class="ns.e('inline')"
                   :style="{ width: `${widthOf(magnifier.inlines[part[3]!]!)}px` }"
                   ><RenderPart :render="magnifier.inlines[part[3]!]!.render" /></span
-                ><span v-else-if="part[1]" :class="part[1]" :title="part[2]">{{ part[0] }}</span
+                ><span v-else-if="part[1]" :class="part[1]" :title="part[2]" :style="part[4]">{{
+                  part[0]
+                }}</span
                 ><template v-else>{{ part[0] }}</template></template
               >
             </div>

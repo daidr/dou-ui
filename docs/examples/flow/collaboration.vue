@@ -151,10 +151,15 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="flow-collab">
-    <label class="flow-collab__switch">
-      <DouSwitch :model-value="online" @update:model-value="setOnline" />
-      {{ online ? '已连接' : '已断开，修改会在重新连接后合并' }}
-    </label>
+    <div class="flow-collab__switch">
+      <label class="flow-collab__toggle">
+        <DouSwitch :model-value="online" @update:model-value="setOnline" />
+        连接
+      </label>
+      <span class="flow-collab__status" aria-live="polite">
+        {{ online ? '修改实时同步' : '已断开，修改会在重新连接后合并' }}
+      </span>
+    </div>
     <section v-for="client in clients" :key="client.name" class="flow-collab__pane">
       <div class="flow-collab__name">{{ client.name }}</div>
       <DouFlowEditor
@@ -180,11 +185,23 @@ onBeforeUnmount(() => {
 }
 
 .flow-collab__switch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+
+.flow-collab__toggle {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   color: var(--dou-color-text-secondary);
   font-size: var(--dou-font-size-md);
+}
+
+.flow-collab__status {
+  color: var(--dou-color-text-tertiary);
+  font-size: var(--dou-font-size-sm);
 }
 
 .flow-collab__pane {

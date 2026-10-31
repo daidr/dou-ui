@@ -22,10 +22,15 @@ export type CodeAction =
   | 'undo'
   | 'redo'
   | 'external'
+  /** Someone else's change, from editing together. */
+  | 'remote'
   | (string & {})
 
 export interface CodeTransactionMeta {
-  /** What made the change, e.g. `'input'` for typing, `'external'` for a new `v-model` value. */
+  /**
+   * What made the change, e.g. `'input'` for typing, `'external'` for a new
+   * `v-model` value, `'remote'` for someone else's.
+   */
   action?: CodeAction
   /** `false` keeps the change out of undo. */
   history?: boolean

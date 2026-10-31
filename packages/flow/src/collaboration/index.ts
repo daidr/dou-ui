@@ -1,3 +1,4 @@
+import { collaborationColors } from 'dou-ui'
 import { toRaw, watch } from 'vue'
 import * as Y from 'yjs'
 import type { FlowEditorContext } from '../context'
@@ -24,17 +25,7 @@ export interface CollaborationOptions {
   user?: CollaborationUser
 }
 
-/** Deep, low-saturation colors that read on both light and dark surfaces. */
-export const collaborationColors = [
-  '#3b6ea8',
-  '#a8553b',
-  '#3b8a6e',
-  '#8a3b7a',
-  '#8a7a3b',
-  '#5b4fa8',
-  '#3b8a8a',
-  '#a83b55',
-]
+export { collaborationColors }
 
 type Shared = Y.Map<unknown>
 type Item = Record<string, unknown>

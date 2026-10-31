@@ -1194,6 +1194,13 @@
   }
 }
 
+@keyframes dou-code-peer-name {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
 @keyframes dou-code-editor-blink {
   50% {
     opacity: 0;
@@ -1428,5 +1435,56 @@
     overflow: hidden;
     clip-path: inset(50%);
     white-space: nowrap;
+  }
+
+  /* collaboration: the others' cursors and selections, in their colors */
+  .dou-code-peer {
+    position: relative;
+    z-index: 1;
+    display: inline-block;
+    width: 0;
+    height: var(--dou-code-editor-line-height);
+    vertical-align: top;
+    pointer-events: none;
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -1px;
+      width: 2px;
+      height: 100%;
+      border-radius: 1px;
+      background-color: var(--dou-code-peer-color);
+    }
+  }
+
+  .dou-code-peer__name {
+    position: absolute;
+    bottom: 100%;
+    left: -1px;
+    padding: 0 6px;
+    border-radius: 4px 4px 4px 0;
+    background-color: var(--dou-code-peer-color);
+    /* the collaborator's color is the app's: pick dark or light text by its lightness */
+    color: white;
+    color: oklch(from var(--dou-code-peer-color) clamp(0.2, (0.66 - l) * 100, 0.99) 0 0);
+    font-family: var(--dou-font-family);
+    font-size: var(--dou-font-size-sm);
+    line-height: 18px;
+    white-space: nowrap;
+    user-select: none;
+    /* the name covers the line above: it steps aside a while after they stop moving */
+    animation: dou-code-peer-name var(--dou-motion-duration-fast) var(--dou-motion-easing) 3s
+      forwards;
+    /* on the first line there is no room above */
+    .dou-code-peer.is-below & {
+      top: 100%;
+      bottom: auto;
+      border-radius: 0 4px 4px 4px;
+    }
+  }
+
+  .dou-code-peer-selection {
+    background-color: color-mix(in oklab, var(--dou-code-peer-color) 20%, transparent);
   }
 }

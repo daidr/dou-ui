@@ -41,7 +41,7 @@ export const CellOption: FunctionalComponent<SheetCellRenderProps> = (props) => 
   const cls = 'dou-tag dou-tag--soft dou-sheet__tag'
   return h(
     'span',
-    { class: tone && tone !== 'neutral' ? `${cls} dou-tag--${tone}` : cls },
+    { class: tone && tone !== 'neutral' ? `${cls} dou-tag--${tone}` : `${cls} is-neutral` },
     props.text,
   )
 }

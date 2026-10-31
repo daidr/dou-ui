@@ -1,7 +1,13 @@
 <script setup>
-import { DouSheet, DouSheetTabs, DouSheetToolbar, columnName, valueOf } from '@dou-ui/sheet'
-import { SheetFormulaEngine } from '@dou-ui/sheet/formula'
-import { computed, ref, shallowRef, triggerRef } from 'vue'
+import {
+  DouSheet,
+  DouSheetTabs,
+  DouSheetToolbar,
+  columnName,
+  useSheetFormulas,
+  valueOf,
+} from '@dou-ui/sheet'
+import { computed, ref } from 'vue'
 
 const head = (value) => ({ value, style: 'head' })
 const side = (value) => ({ value, style: 'side' })
@@ -18,9 +24,9 @@ const days = [
 ]
 const shifts = [
   { value: '早班', tone: 'primary' },
-  { value: '晚班', tone: 'warning' },
+  { value: '晚班', tone: 'success' },
   { value: '休息' },
-  { value: '请假', tone: 'danger' },
+  { value: '请假', tone: 'warning' },
 ]
 const staff = [
   ['戴兜', '店长', '早班 早班 早班 早班 早班 休息 休息'],
@@ -97,29 +103,24 @@ const book = ref({
   ],
 })
 
-/* 下方的提醒用计算引擎读表格里的结果，表格每次修改后更新 */
-const engine = shallowRef(new SheetFormulaEngine(book.value))
-function onTransaction(tr) {
-  engine.value.update(tr)
-  triggerRef(engine)
-}
+/* 下方的提醒读取公式的结果，表格每次修改后跟着更新 */
+const formulas = useSheetFormulas(book)
 
 const notes = computed(() => {
-  const results = engine.value
-  const cells = results.doc.sheets[0].cells
+  const cells = book.value.sheets[0].cells
   const list = []
   for (let row = 1; row < cells.length; row++) {
     const label = valueOf(cells[row]?.[0])
     if (typeof label !== 'string' || !label) continue
     if (label.endsWith('人数')) {
       days.forEach((day, i) => {
-        const count = results.result(0, row, i + 2)
+        const count = formulas.result(0, row, i + 2)
         if (typeof count === 'number' && count < 2)
           list.push({ tone: 'warning', text: `${day}${label.slice(0, 2)}只有 ${count} 人` })
       })
     } else {
-      const hours = results.result(0, row, 9)
-      const rest = results.result(0, row, 10)
+      const hours = formulas.result(0, row, 9)
+      const rest = formulas.result(0, row, 10)
       if (typeof hours === 'number' && hours > 40)
         list.push({ tone: 'danger', text: `${label}本周超时 ${hours - 40} 小时` })
       if (rest === 0) list.push({ tone: 'danger', text: `${label}本周没有休息` })
@@ -143,7 +144,7 @@ const notes = computed(() => {
         v-model="book"
         class="shifts__sheet"
         aria-label="门店排班"
-        @transaction="onTransaction"
+        @transaction="formulas.update"
       >
         <template #header>
           <DouSheetToolbar :tools="['undo', 'redo', '|', 'fill', 'clear', '|', 'validation']" />

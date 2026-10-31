@@ -1910,6 +1910,8 @@ function onKeydown(event: KeyboardEvent) {
   // and on a filter's heading, its filter panel
   if (key === 'ArrowDown' && event.altKey && !mod && openFilterAtActive())
     return event.preventDefault()
+  // with nothing to open it does nothing, rather than scroll the page
+  if ((key === 'ArrowDown' || key === 'ArrowUp') && event.altKey) return event.preventDefault()
   if (arrow && !event.altKey) {
     event.preventDefault()
     if (event.shiftKey) return extend(arrow, mod)

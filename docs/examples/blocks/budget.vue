@@ -1,9 +1,15 @@
 <script setup>
-import { DouSheet, DouSheetFormulaBar, DouSheetTabs, DouSheetToolbar, valueOf } from '@dou-ui/sheet'
-import { SheetFormulaEngine } from '@dou-ui/sheet/formula'
+import {
+  DouSheet,
+  DouSheetFormulaBar,
+  DouSheetTabs,
+  DouSheetToolbar,
+  useSheetFormulas,
+  valueOf,
+} from '@dou-ui/sheet'
 import { CheckCircleIcon, DownloadIcon } from '@dou-ui/icons'
 import { toast } from 'dou-ui'
-import { computed, ref, shallowRef, triggerRef } from 'vue'
+import { computed, ref, shallowRef } from 'vue'
 
 const head = (value) => ({ value, style: 'head' })
 const total = (value, format) => ({ value, style: 'total', format })
@@ -85,13 +91,9 @@ const book = ref({
       validations: [
         { range: `A2:A${last}`, list: '=按类别!$A$2:$A$7', prompt: '类别在“按类别”表里维护' },
         { range: `C2:C${last}`, list: ['戴兜', '阿青', '小林'] },
+        // 已执行和四个季度不相邻，写在一条规则里
         {
-          range: `G2:J${last}`,
-          when: { op: 'ge', value: 0 },
-          message: '金额不能是负数',
-        },
-        {
-          range: `E2:E${last}`,
+          range: [`E2:E${last}`, `G2:J${last}`],
           when: { op: 'ge', value: 0 },
           message: '金额不能是负数',
         },
@@ -134,24 +136,20 @@ const book = ref({
 })
 
 /*
- * 上方的数字用单独的计算引擎算：表格每次修改后把事务交给引擎，
- * 只重新计算受影响的公式。
+ * 上方的数字读取公式的结果：useSheetFormulas 在表格之外计算同一个工作簿，
+ * 把表格的 transaction 事件交给它，每次修改只重新计算受影响的公式。
  */
-const engine = shallowRef(new SheetFormulaEngine(book.value))
-function onTransaction(tr) {
-  engine.value.update(tr)
-  triggerRef(engine)
+const formulas = useSheetFormulas(book)
+/** 第一个工作表里一格的结果，不是数字时当作 0 */
+function at(row, col) {
+  const value = formulas.result(0, row, col)
+  return typeof value === 'number' ? value : 0
 }
 
 const summary = computed(() => {
-  const results = engine.value
-  const cells = results.doc.sheets[0].cells
+  const cells = book.value.sheets[0].cells
   // 合计行可能因为插入、删除行而移动，按第一列的文字找到它
   const totalRow = cells.findIndex((row) => valueOf(row?.[0]) === '合计')
-  const at = (row, col) => {
-    const value = results.result(0, row, col)
-    return typeof value === 'number' ? value : 0
-  }
   let over = 0
   for (let row = 1; row < totalRow; row++) if (at(row, 5) > 1) over++
   const budget = at(totalRow, 3)
@@ -221,7 +219,7 @@ function download() {
       v-model="book"
       class="budget__sheet"
       aria-label="部门预算"
-      @transaction="onTransaction"
+      @transaction="formulas.update"
     >
       <template #header>
         <DouSheetToolbar
@@ -257,6 +255,7 @@ function download() {
   gap: 16px;
   width: 100%;
   min-width: 0;
+  container-type: inline-size;
 }
 .budget__cards {
   display: grid;
@@ -265,5 +264,14 @@ function download() {
 }
 .budget__sheet {
   height: 480px;
+}
+/* 窄屏时两列，数字缩小，金额不被截断 */
+@container (max-width: 560px) {
+  .budget__cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .budget__cards :deep(.dou-statistic) {
+    --dou-statistic-value-size: 18px;
+  }
 }
 </style>

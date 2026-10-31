@@ -9,7 +9,7 @@ import {
   DouSelect,
 } from 'dou-ui'
 import { computed, ref, useTemplateRef, watch } from 'vue'
-import { parseRange } from '../core/address'
+import { readRuleRange, ruleRangeText } from '../core/conditional'
 import { optionOf } from '../core/cell-type'
 import type { SheetCondition, SheetValidation, SheetValue } from '../core/model'
 import type { SheetMessages } from '../locale'
@@ -65,7 +65,7 @@ function kindOf(rule: SheetValidation): Kind {
 watch(open, (now) => {
   if (!now) return
   const r = props.rule
-  target.value = r.range
+  target.value = ruleRangeText(r.range)
   kind.value = kindOf(r)
   options.value = 'list' in r ? listText(r.list) : ''
   const when = 'when' in r ? r.when : undefined
@@ -109,7 +109,7 @@ function operand(input: string): SheetValue {
   return numberOf(input) ?? input.trim()
 }
 
-const rangeOk = computed(() => !!parseRange(target.value))
+const rangeOk = computed(() => readRuleRange(target.value) != null)
 const optionsOk = computed(
   () => kind.value !== 'list' || options.value.trim().replace(/^=/, '') !== '',
 )
@@ -123,7 +123,7 @@ const formulaOk = computed(
 
 function result(): SheetValidation {
   const base: Pick<SheetValidation, 'range' | 'strict' | 'prompt' | 'message'> = {
-    range: target.value.trim().toUpperCase(),
+    range: readRuleRange(target.value)!,
   }
   if (!strict.value) base.strict = false
   if (prompt.value.trim()) base.prompt = prompt.value.trim()

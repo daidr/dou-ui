@@ -12,7 +12,7 @@ import {
   type Tone,
 } from 'dou-ui'
 import { computed, ref, useTemplateRef, watch } from 'vue'
-import { parseRange } from '../core/address'
+import { readRuleRange, ruleRangeText } from '../core/conditional'
 import type {
   SheetColor,
   SheetCondition,
@@ -112,7 +112,7 @@ const resolve = (style: SheetConditionalStyle | undefined) =>
 watch(open, (now) => {
   if (!now) return
   const f = props.format
-  target.value = f.range
+  target.value = ruleRangeText(f.range)
   op.value = 'when' in f ? f.when.op : 'gt'
   value.value = 'when' in f ? text(f.when.value) : ''
   to.value = 'when' in f ? text(f.when.to) : ''
@@ -178,7 +178,7 @@ const needsValue = computed(
   () => kind.value === 'when' && op.value !== 'blank' && op.value !== 'notBlank',
 )
 const needsTo = computed(() => op.value === 'between' || op.value === 'notBetween')
-const rangeOk = computed(() => !!parseRange(target.value))
+const rangeOk = computed(() => readRuleRange(target.value) != null)
 const valueOk = computed(
   () =>
     !needsValue.value || (value.value.trim() !== '' && (!needsTo.value || to.value.trim() !== '')),
@@ -197,7 +197,7 @@ function operand(input: string): SheetValue {
 
 function result(): SheetConditionalFormat {
   const f = props.format
-  const range = target.value.trim().toUpperCase()
+  const range = readRuleRange(target.value)!
   const style: SheetConditionalStyle =
     look.value === 'current' && current.value !== undefined
       ? current.value

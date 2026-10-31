@@ -76,21 +76,23 @@ interface SheetCondition {
 ## 条件格式
 
 ```ts
-type SheetConditionalFormat =
-  | { range: string; when: SheetCondition; style: string | SheetStyle } // 满足条件
-  | { range: string; formula: string; style: string | SheetStyle } // 公式为真，按左上角单元格书写
-  | { range: string; top: number; percent?: boolean; style: string | SheetStyle } // 最大的几个
-  | { range: string; bottom: number; percent?: boolean; style: string | SheetStyle } // 最小的几个
-  | { range: string; average: 'above' | 'below'; style: string | SheetStyle } // 高于或低于平均值
-  | { range: string; duplicates: true; style: string | SheetStyle } // 重复值
-  | { range: string; unique: true; style: string | SheetStyle } // 唯一值
-  | { range: string; scale: [SheetColor, SheetColor] | [SheetColor, SheetColor, SheetColor] } // 色阶
-  | { range: string; bar: true | SheetColor } // 数据条，true 用中性色
+type SheetConditionalFormat = (
+  | { when: SheetCondition; style: string | SheetStyle } // 满足条件
+  | { formula: string; style: string | SheetStyle } // 公式为真，按左上角单元格书写
+  | { top: number; percent?: boolean; style: string | SheetStyle } // 最大的几个
+  | { bottom: number; percent?: boolean; style: string | SheetStyle } // 最小的几个
+  | { average: 'above' | 'below'; style: string | SheetStyle } // 高于或低于平均值
+  | { duplicates: true; style: string | SheetStyle } // 重复值
+  | { unique: true; style: string | SheetStyle } // 唯一值
+  | { scale: [SheetColor, SheetColor] | [SheetColor, SheetColor, SheetColor] } // 色阶
+  | { bar: true | SheetColor } // 数据条，true 用中性色
+) & { range: SheetRuleRange }
 
+type SheetRuleRange = string | string[] // 一个区域，或几个区域
 type SheetColor = Tone | string // 主题的语义色名，或任意 CSS 颜色
 ```
 
-`range` 可以是 `'D2:D40'` 这样的区域，也可以是整列 `'D:D'`、整行 `'2:2'`。`style` 写样式或 `styles` 里的样式名。`top`、`bottom`、`average`、`scale`、`bar` 只看数字，文字和空单元格不参与计算；`duplicates`、`unique` 按显示的文字比较，不区分大小写，空单元格不算。色阶用最小值、中位数（三种颜色时）和最大值定位颜色。
+`range` 可以是 `'D2:D40'` 这样的区域，也可以是整列 `'D:D'`、整行 `'2:2'`，或者几个区域组成的数组，如 `['D2:D40', 'G2:G40']`。几个区域当作一个整体：最大最小、平均值、重复值、色阶和数据条按所有区域一起计算，公式按第一个区域的左上角单元格书写。`style` 写样式或 `styles` 里的样式名。`top`、`bottom`、`average`、`scale`、`bar` 只看数字，文字和空单元格不参与计算；`duplicates`、`unique` 按显示的文字比较，不区分大小写，空单元格不算。色阶用最小值、中位数（三种颜色时）和最大值定位颜色。
 
 ## 数据验证
 
@@ -100,7 +102,7 @@ type SheetValidation = (
   | { when: SheetCondition; integer?: boolean } // 满足条件；条件里是数字时要求数字
   | { formula: string } // 公式为真，按左上角单元格书写
 ) & {
-  range: string
+  range: SheetRuleRange // 写法同条件格式
   strict?: boolean // 输入不符合时拒绝，默认 true
   message?: string // 不符合时的提示
   prompt?: string // 选中时的提示

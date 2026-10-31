@@ -50,6 +50,25 @@ describe('conditional formats', () => {
     expect(looks.lookAt(1, 1)?.style).toEqual({ bold: true })
   })
 
+  it('takes several ranges as one: stats over all, formulas from the first', () => {
+    const looks = looksOf(
+      [
+        [1, null, 10],
+        [2, null, 3],
+      ],
+      [
+        { range: ['A1:A2', 'C1:C2'], top: 1, style: { bold: true } },
+        { range: ['A1:A2', 'C1:C2'], formula: '=A1>2', style: { italic: true } },
+      ],
+    )
+    // the largest of A1:A2 and C1:C2 together is C1
+    expect(looks.lookAt(1, 0)?.style).toBeUndefined()
+    expect(looks.lookAt(0, 2)?.style).toEqual({ bold: true, italic: true })
+    // C2 reads A1 shifted by its place from A1: C2 → C2 > 2
+    expect(looks.lookAt(1, 2)?.style).toEqual({ italic: true })
+    expect(looks.lookAt(0, 1)).toBeUndefined()
+  })
+
   it('finds the top and bottom numbers, by count or percent', () => {
     const values = column([3, 9, 1, 7, 5, 'x'])
     const top = looksOf(values, [{ range: 'A1:A6', top: 2, style: { bold: true } }])

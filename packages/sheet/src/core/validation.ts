@@ -1,6 +1,6 @@
 import { shiftFormula, type SheetBounds } from './address'
 import { optionOf } from './cell-type'
-import { boundsIn } from './conditional'
+import { areasIn } from './conditional'
 import { isEmptyValue, meetsCondition, textCollator } from './data'
 import type { SheetSelectOption, SheetValidation, SheetValue } from './model'
 import { format, type SheetMessages } from '../locale'
@@ -25,10 +25,13 @@ export interface SheetCheckSource {
   lang?: string
 }
 
+/** A rule over one of its ranges; the ranges of a rule share its `list`. */
 interface Rule {
   rule: SheetValidation
   bounds: SheetBounds
-  options?: SheetSelectOption[]
+  /** The cell its formula is written for. */
+  anchor: { row: number; col: number }
+  list: { options?: SheetSelectOption[] }
 }
 
 /** Whether a rule reads other cells, so a cell's mark can change when they do. */
@@ -55,9 +58,9 @@ export class SheetChecks {
   ) {
     this.collator = textCollator(source.lang)
     for (const rule of validations ?? []) {
-      const bounds = boundsIn(rule.range, source.size)
-      if (bounds && bounds.top <= bounds.bottom && bounds.left <= bounds.right)
-        this.rules.push({ rule, bounds })
+      const { areas, anchor } = areasIn(rule.range, source.size)
+      const list = {}
+      for (const bounds of areas) this.rules.push({ rule, bounds, anchor, list })
     }
   }
 
@@ -94,17 +97,18 @@ export class SheetChecks {
 
   private optionsOf(entry: Rule) {
     const { list } = entry.rule as Extract<SheetValidation, { list: unknown }>
-    if (!entry.options) {
-      if (typeof list !== 'string') entry.options = list
+    const cache = entry.list
+    if (!cache.options) {
+      if (typeof list !== 'string') cache.options = list
       else {
         // a list's cells, without blanks or values given twice
         const seen: SheetValue[] = []
         for (const value of this.source.listAt(list))
           if (!isEmptyValue(value) && !seen.some((v) => sameOption(v, value))) seen.push(value)
-        entry.options = seen
+        cache.options = seen
       }
     }
-    return entry.options
+    return cache.options
   }
 
   /**
@@ -125,7 +129,7 @@ export class SheetChecks {
       }
       return meetsCondition(when, value, text, this.collator)
     }
-    const formula = shiftFormula(rule.formula, row - entry.bounds.top, col - entry.bounds.left)
+    const formula = shiftFormula(rule.formula, row - entry.anchor.row, col - entry.anchor.col)
     const result = this.source.evaluate(formula)
     return result === true || (typeof result === 'number' && result !== 0)
   }

@@ -324,6 +324,26 @@
     }
   }
 
+  /* a node that draws its own outline: no card, a thin ring once selected */
+  .dou-flow-editor__node.is-bare {
+    border-color: transparent;
+    background: none;
+    box-shadow: none;
+
+    &:hover {
+      border-color: transparent;
+    }
+    &.is-selected {
+      border-color: transparent;
+      box-shadow: none;
+      outline: calc(1px / var(--dou-flow-editor-zoom, 1)) solid var(--dou-flow-editor-selected);
+      outline-offset: calc(4px / var(--dou-flow-editor-zoom, 1));
+    }
+    &.is-dragging {
+      box-shadow: none;
+    }
+  }
+
   /* ports: a small ring centred on the node's edge, filled once connected */
   .dou-flow-port {
     --dou-flow-port-color: var(--dou-flow-editor-port);
@@ -1013,4 +1033,260 @@
 
 .dou-flow-editor.is-refused .dou-flow-editor__edge.is-preview {
   stroke: var(--dou-color-danger);
+}
+
+/*
+ * Whiteboard
+ *
+ * Shapes are drawn in ink, a deep neutral line on the paper's surface;
+ * a tone only tints a shape or note someone chose to color. Anchors show
+ * where a connector can start, on hover and while one is drawn.
+ */
+@layer dou.components {
+  .dou-flow-editor {
+    --dou-flow-whiteboard-ink: color-mix(in oklab, var(--dou-color-text) 72%, transparent);
+
+    &[data-board-tool='hand'],
+    &[data-board-tool='hand'] .dou-flow-editor__node {
+      cursor: grab;
+    }
+    &[data-board-panning],
+    &[data-board-panning] .dou-flow-editor__node {
+      cursor: grabbing;
+    }
+    &[data-board-tool='rect'],
+    &[data-board-tool='ellipse'],
+    &[data-board-tool='diamond'],
+    &[data-board-tool='sticky'] {
+      &,
+      & .dou-flow-editor__node {
+        cursor: crosshair;
+      }
+    }
+    &[data-board-tool='text'],
+    &[data-board-tool='text'] .dou-flow-editor__node {
+      cursor: text;
+    }
+  }
+
+  .dou-whiteboard-node {
+    --dou-whiteboard-tone: var(--dou-color-neutral);
+
+    position: relative;
+    display: grid;
+    box-sizing: border-box;
+    width: 100%;
+    height: 100%;
+    min-height: inherit;
+    place-items: center;
+    color: var(--dou-color-text);
+
+    &.is-primary {
+      --dou-whiteboard-tone: var(--dou-color-primary);
+    }
+    &.is-success {
+      --dou-whiteboard-tone: var(--dou-color-success);
+    }
+    &.is-warning {
+      --dou-whiteboard-tone: var(--dou-color-warning);
+    }
+    &.is-danger {
+      --dou-whiteboard-tone: var(--dou-color-danger);
+    }
+
+    /* a sticky note: a soft square of color resting on the board */
+    &.is-sticky {
+      border-radius: 4px;
+      background-color: color-mix(
+        in oklab,
+        var(--dou-whiteboard-tone) 20%,
+        var(--dou-color-bg-surface)
+      );
+      box-shadow: var(--dou-shadow-sm);
+    }
+    &.is-text {
+      place-items: start stretch;
+    }
+  }
+
+  .dou-whiteboard-node__shape {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    fill: var(--dou-color-bg-surface);
+    stroke: var(--dou-flow-whiteboard-ink);
+    stroke-linejoin: round;
+    stroke-width: 1.5px;
+
+    .dou-whiteboard-node:not(.is-neutral) > & {
+      fill: color-mix(in oklab, var(--dou-whiteboard-tone) 10%, var(--dou-color-bg-surface));
+      stroke: var(--dou-whiteboard-tone);
+    }
+  }
+
+  .dou-whiteboard-node__text {
+    position: relative;
+    box-sizing: border-box;
+    max-width: 100%;
+    max-height: 100%;
+    padding: 12px 16px;
+    overflow: hidden;
+    font: inherit;
+    font-size: var(--dou-font-size-md);
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+    text-align: center;
+    white-space: pre-wrap;
+
+    .is-sticky > & {
+      padding: 16px;
+    }
+    .is-text > & {
+      padding: 4px 2px;
+      font-size: var(--dou-font-size-lg);
+      text-align: start;
+    }
+  }
+
+  /* typing: the same text, now a field */
+  .dou-whiteboard-node__field {
+    display: block;
+    width: 100%;
+    min-height: 1lh;
+    margin: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    outline: none;
+    resize: none;
+    field-sizing: content;
+  }
+
+  /* anchors: an output and an input on each side; only the output shows */
+  .dou-whiteboard-node__anchors {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+
+    & .dou-flow-port {
+      opacity: 0;
+      pointer-events: none;
+      scale: calc(1 / var(--dou-flow-editor-zoom, 1));
+    }
+  }
+  .dou-flow-editor[data-board-tool='select'] {
+    & .dou-flow-editor__node:hover,
+    & .dou-flow-editor__node.is-selected {
+      & .dou-whiteboard-node:not(.is-editing) .dou-flow-port.is-output {
+        opacity: 1;
+        pointer-events: auto;
+      }
+    }
+  }
+  /* while a connector is drawn: where it can land */
+  .dou-flow-editor.is-connecting .dou-whiteboard-node__anchors .dou-flow-port.is-input {
+    &.is-valid {
+      opacity: 0.6;
+    }
+    &.is-candidate {
+      opacity: 1;
+    }
+  }
+
+  /* connectors are drawn in ink, like the shapes they join */
+  [data-edge-type='connector'] > .dou-flow-editor__edge {
+    stroke-linecap: round;
+    stroke-linejoin: round;
+
+    &:not(.is-selected) {
+      stroke: var(--dou-flow-whiteboard-ink);
+      stroke-width: 1.5px;
+    }
+  }
+
+  .dou-whiteboard-draft {
+    position: absolute;
+    top: 0;
+    left: 0;
+    box-sizing: border-box;
+    border: calc(1px / var(--dou-flow-editor-zoom, 1)) dashed var(--dou-flow-editor-selected);
+    border-radius: 4px;
+    background-color: color-mix(in oklab, var(--dou-flow-editor-selected) 6%, transparent);
+    pointer-events: none;
+
+    &.is-ellipse {
+      border-radius: 50%;
+    }
+  }
+
+  .dou-whiteboard-toolbar {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid var(--dou-color-border);
+    border-radius: calc(var(--dou-radius-control) + 2px);
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-sm);
+    translate: -50% 0;
+  }
+
+  .dou-whiteboard-toolbar__button {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--dou-radius-control);
+    background: none;
+    color: var(--dou-color-text-secondary);
+    cursor: pointer;
+    transition-property: background-color, color;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    & svg {
+      width: 16px;
+      height: 16px;
+    }
+    &:hover {
+      background-color: var(--dou-color-bg-muted);
+      color: var(--dou-color-text);
+    }
+    &[aria-pressed='true'] {
+      background-color: var(--dou-color-bg-muted);
+      color: var(--dou-color-text);
+    }
+    /* kept after drawing: a dot under the icon */
+    &.is-locked::after {
+      position: absolute;
+      bottom: 3px;
+      left: 50%;
+      width: 4px;
+      height: 4px;
+      border-radius: var(--dou-radius-full);
+      background-color: currentColor;
+      content: '';
+      translate: -50% 0;
+    }
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 0;
+    }
+  }
+
+  .dou-whiteboard-toolbar__divider {
+    width: 1px;
+    height: 16px;
+    margin: 0 2px;
+    background-color: var(--dou-color-border);
+  }
 }

@@ -58,6 +58,8 @@ export type {
   FlowExtensionContext,
   FlowHistoryHandler,
   FlowKeyHandler,
+  FlowPress,
+  FlowPressHandler,
 } from './core/extension'
 export { flowKit } from './kit'
 export type { FlowKitOptions } from './kit'

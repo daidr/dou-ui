@@ -239,17 +239,42 @@ function onMeasure(id: string, value: NodeMetrics) {
   pending.delete(id)
   // Now that the node has a size: its centre, or the port taking the edge, goes on the point.
   const port = wait.port ? value.ports.get(wait.port) : undefined
-  const x = snapTo(wait.at.x - (port ? port.x : value.width / 2))
-  const y = snapTo(wait.at.y - (port ? port.y : value.height / 2))
+  const vertical = props.direction === 'vertical'
+  // `start`: the point is where the node begins along the flow, centred across it.
+  const along = (v: number, size: number, flow: boolean) => (wait.start && flow ? v : v - size / 2)
+  let x = snapTo(port ? wait.at.x - port.x : along(wait.at.x, value.width, !vertical))
+  let y = snapTo(port ? wait.at.y - port.y : along(wait.at.y, value.height, vertical))
+  if (wait.avoid) {
+    // Step across the flow until the node covers no other.
+    const others = doc.value.nodes.flatMap((n) => (n.id === id ? [] : (getNodeRect(n.id) ?? [])))
+    const step = snapTo((vertical ? value.width : value.height) + 16)
+    const free = (px: number, py: number) =>
+      !others.some((r) =>
+        intersects({ x: px - 8, y: py - 8, width: value.width + 16, height: value.height + 16 }, r),
+      )
+    for (let i = 0; i < 40 && !free(x, y); i++) {
+      if (vertical) x += step
+      else y += step
+    }
+  }
   const node = doc.value.nodes.find((n) => n.id === id)
   if (node && (node.x !== x || node.y !== y))
     transact((tr) => tr.moveNode(id, x, y), { group: wait.group })
-  // A node added near the edge is scrolled into view.
-  void nextTick(() => reveal(id))
+  void nextTick(() => {
+    // A node added near the edge is scrolled into view, and takes focus so keys act on it.
+    reveal(id)
+    if (wait.focus)
+      root.value
+        ?.querySelector<HTMLElement>(`[data-node-id="${CSS.escape(id)}"]`)
+        ?.focus({ preventScroll: true })
+  })
 }
 
 /** Nodes just added, waiting for their size to be placed: the point and the port to put on it. */
-const pending = new Map<string, { at: Point; port?: string; group: string }>()
+const pending = new Map<
+  string,
+  { at: Point; port?: string; group: string; start?: boolean; avoid?: boolean; focus?: boolean }
+>()
 const snapTo = (v: number) => (props.grid ? Math.round(v / props.grid) * props.grid : Math.round(v))
 
 // Forget nodes that are gone.
@@ -1554,26 +1579,32 @@ function insertNode(type: string, options: FlowInsertOptions = {}) {
   if (!spec || props.readonly) return null
   const node = draft(spec)
   let at = options.at
-  if (!at) {
-    // The middle of the view, stepping aside from a node already put there.
-    let point = toCanvas(clientCenter())
-    const step = (props.grid || 8) * 3
-    const taken = (p: Point) =>
-      doc.value.nodes.some((n) => {
-        const rect = getNodeRect(n.id)
-        if (!rect) return false
-        return (
-          Math.abs(rect.x + rect.width / 2 - p.x) < step / 2 &&
-          Math.abs(rect.y + rect.height / 2 - p.y) < step / 2
-        )
-      })
-    for (let i = 0; i < 20 && taken(point); i++) point = { x: point.x + step, y: point.y + step }
-    at = point
+  let from = options.from
+  let start = false
+  const after = !at && !from ? soleSelected() : undefined
+  if (after) {
+    // After the one selected node, connected to it when a port can take an edge from it.
+    const rect = getNodeRect(after.id)!
+    const vertical = props.direction === 'vertical'
+    const gap = TIDY_GAP[props.direction].rank
+    for (const out of portsOf(specOf(after), after)) {
+      const end = { node: after.id, port: out.id }
+      if (out.kind === 'output' && takingPort(node, end)) {
+        from = end
+        break
+      }
+    }
+    const fromAt = from && anchorOf(from, 'source')
+    at = vertical
+      ? { x: fromAt?.x ?? rect.x + rect.width / 2, y: rect.y + rect.height + gap }
+      : { x: rect.x + rect.width + gap, y: fromAt?.y ?? rect.y + rect.height / 2 }
+    start = true
   }
+  // Without a point: the middle of the view.
+  at ??= toCanvas(clientCenter())
   node.x = snapTo(at.x)
   node.y = snapTo(at.y)
-  const port = options.from ? takingPort(node, options.from) : undefined
-  const from = options.from
+  const port = from ? takingPort(node, from) : undefined
   const group = `insert:${node.id}`
   transact(
     (tr) => {
@@ -1590,10 +1621,23 @@ function insertNode(type: string, options: FlowInsertOptions = {}) {
     },
     { group },
   )
-  pending.set(node.id, { at, port: port?.id, group })
+  pending.set(node.id, {
+    at,
+    port: port?.id,
+    group,
+    start,
+    avoid: !options.at,
+    focus: options.focus ?? true,
+  })
   setSelection({ nodes: [node.id], edges: [] })
   announce(format(messages.value.added, { node: labelOf(spec, node) }))
   return node.id
+}
+
+/** The node selected on its own, if any. */
+function soleSelected() {
+  const { nodes, edges } = selection.value
+  return nodes.length === 1 && !edges.length ? nodeById.value.get(nodes[0]!) : undefined
 }
 
 /** The middle of the editor on screen. */
@@ -1688,7 +1732,7 @@ function chooseQuickAdd(type: string | null) {
   quickAdd.value = null
   if (!pendingAdd) return
   if (type) insertNode(type, { at: pendingAdd.at, from: pendingAdd.link.fixed })
-  root.value?.focus({ preventScroll: true })
+  else root.value?.focus({ preventScroll: true })
 }
 
 // Dragging a new node in, from anywhere on the page --------------------------------
@@ -1750,10 +1794,8 @@ function onInsertUp(event: PointerEvent) {
   if (!d.started) return
   swallowClick()
   const client = { x: event.clientX, y: event.clientY }
-  if (event.type === 'pointerup' && onCanvasAt(client)) {
+  if (event.type === 'pointerup' && onCanvasAt(client))
     insertNode(d.spec.type, { at: toCanvas(client) })
-    root.value?.focus({ preventScroll: true })
-  }
 }
 
 // Escape puts the node back.
@@ -2279,6 +2321,9 @@ defineExpose<FlowEditorExpose>({
   removeStaleEdges,
   insertNode,
   startInsertDrag,
+  get paletteTypes() {
+    return paletteTypes.value
+  },
 })
 </script>
 

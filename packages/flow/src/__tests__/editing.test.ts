@@ -109,6 +109,34 @@ describe('insertNode', () => {
     expect(doc.value.nodes).toHaveLength(2)
   })
 
+  it('without a point, goes after the one selected node and connects to it', async () => {
+    const { editor, doc, selection } = setup()
+    selection.value = { nodes: ['a'], edges: [] }
+    await nextTick()
+    const first = editor.insertNode('summary')!
+    await nextTick()
+    expect(doc.value.edges).toEqual([
+      expect.objectContaining({
+        source: { node: 'a', port: 'out' },
+        target: { node: first, port: 'text' },
+      }),
+    ])
+    expect(doc.value.nodes.find((n) => n.id === first)!.x).toBeGreaterThan(0)
+    // The new node is selected, so the next one chains on.
+    const second = editor.insertNode('summary')!
+    await nextTick()
+    expect(doc.value.edges[1]).toEqual(
+      expect.objectContaining({
+        source: { node: first, port: 'out' },
+        target: { node: second, port: 'text' },
+      }),
+    )
+  })
+
+  it('exposes the palette types', () => {
+    expect(setup().editor.paletteTypes.map((spec) => spec.type)).toEqual(['note', 'summary'])
+  })
+
   it('connects through the first port that can take the edge', async () => {
     const { editor, doc } = setup()
     const id = editor.insertNode('summary', {

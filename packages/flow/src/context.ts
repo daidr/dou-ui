@@ -148,6 +148,8 @@ export interface FlowEditorExpose {
    * when nothing was started.
    */
   startInsertDrag: (type: string, event: PointerEvent) => boolean
+  /** Node types with a `palette` entry, in the order they were given. */
+  readonly paletteTypes: NodeTypeSpec[]
 }
 
 export interface FlowEditorSlots {
@@ -166,11 +168,15 @@ export interface FlowEditorSlots {
 export interface FlowInsertOptions {
   /**
    * Where the node goes, in canvas coordinates: its centre, or with `from`,
-   * the port that takes the edge. Defaults to the middle of the view.
+   * the port that takes the edge. Without it the node goes after the one
+   * selected node, connected to it when it can be, or else in the middle
+   * of the view; either way clear of other nodes.
    */
   at?: Point
   /** Connect the new node to this port, through the first port that can take it. */
   from?: Required<FlowEndpoint>
+  /** Move focus to the new node, so keys such as undo act on it. `true` by default. */
+  focus?: boolean
 }
 
 /** Where a port's centre is, from its node's top left corner. */

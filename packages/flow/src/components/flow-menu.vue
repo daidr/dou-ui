@@ -7,6 +7,9 @@ defineProps<{ items: FlowMenuItem[] }>()
 const emit = defineEmits<{ select: [key: unknown] }>()
 const open = defineModel<boolean>('open', { default: false })
 
+// Shortcuts mean nothing without a keyboard.
+const coarse = () => typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches
+
 const menu = useTemplateRef<InstanceType<typeof DouContextMenu>>('menu')
 
 defineExpose({
@@ -27,7 +30,7 @@ defineExpose({
         :disabled="item.disabled"
         :tone="item.tone"
         :divided="item.divided"
-        :shortcut="item.shortcut"
+        :shortcut="coarse() ? undefined : item.shortcut"
       >
         <template v-if="item.icon" #prefix>
           <DouIcon><component :is="item.icon" /></DouIcon>

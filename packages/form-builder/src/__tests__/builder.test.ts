@@ -10,8 +10,10 @@ import {
 } from '../index'
 import type { FormBuilderExpose, FormDocument, FormNode, FormSectionNode } from '../index'
 import {
+  dropPlaces,
   duplicateNodes,
   insertPlace,
+  moveNodesTo,
   moveNodes,
   removeNodes,
   wrapNodes,
@@ -180,6 +182,36 @@ describe('builder commands', () => {
     expect(moveNodes(tr, ['phone', 'name'], -1)).toBe(false)
   })
 
+  it('moves nodes to a place counted with them still there', () => {
+    const tr = new FormBuilderTransaction(sample())
+    // after "phone", i.e. the end of the section
+    expect(moveNodesTo(tr, ['city', 'name'], 's', 2)).toBe(true)
+    expect((tr.doc.nodes[0] as FormSectionNode).children.map((node) => node.id)).toEqual([
+      'phone',
+      'name',
+      'city',
+    ])
+    // dropping where they already are changes nothing
+    const same = new FormBuilderTransaction(sample())
+    expect(moveNodesTo(same, ['name'], 's', 1)).toBe(false)
+  })
+
+  it('lists the places nodes can go to in reading order', () => {
+    const places = dropPlaces(sample(), ['city'], () => undefined)
+    expect(places).toEqual([
+      { parent: null, index: 0 },
+      { parent: 's', index: 0 },
+      { parent: 's', index: 1 },
+      { parent: 's', index: 2 },
+      { parent: null, index: 1 },
+      { parent: null, index: 2 },
+    ])
+    // a section cannot go inside itself
+    expect(
+      dropPlaces(sample(), ['s'], () => undefined).every((place) => place.parent === null),
+    ).toBe(true)
+  })
+
   it('wraps nodes of one container into a section', () => {
     const tr = new FormBuilderTransaction(sample())
     const id = wrapNodes(tr, ['phone', 'name'], context)!
@@ -275,6 +307,33 @@ describe('DouFormBuilder', () => {
     await label.setValue('')
     await flush()
     expect(formNodePlaces(form.value).get('name')!.node).not.toHaveProperty('label')
+    wrapper.unmount()
+  })
+
+  it('moves the selection with the keyboard after Space', async () => {
+    const { wrapper, form, selected } = setup(sample(), ['city'])
+    await flush()
+    const tree = wrapper.find('[role="tree"].dou-form-builder__tree')
+    await tree.trigger('keydown', { key: ' ' })
+    expect(wrapper.find('.dou-form-builder__live').text()).toContain('已拿起')
+    // from the end of the section (where city is now: top, 1) up to the start of it
+    for (let press = 0; press < 3; press++) await tree.trigger('keydown', { key: 'ArrowUp' })
+    expect(wrapper.find('.dou-form-builder__live').text()).toBe('放到联系人的第 1 位')
+    await tree.trigger('keydown', { key: 'Enter' })
+    await flush()
+    expect((form.value.nodes[0] as FormSectionNode).children.map((node) => node.id)).toEqual([
+      'city',
+      'name',
+      'phone',
+    ])
+    expect(selected.value).toEqual(['city'])
+    // Escape puts nodes back down where they were
+    await tree.trigger('keydown', { key: ' ' })
+    await tree.trigger('keydown', { key: 'ArrowDown' })
+    await tree.trigger('keydown', { key: 'Escape' })
+    await flush()
+    expect(wrapper.find('.dou-form-builder__live').text()).toBe('已取消移动')
+    expect((form.value.nodes[0] as FormSectionNode).children[0]!.id).toBe('city')
     wrapper.unmount()
   })
 

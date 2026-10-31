@@ -1,7 +1,17 @@
 <script setup lang="ts">
-import { computed, nextTick, provide, ref, useId, watch } from 'vue'
-import { DouPopover, DouTabPanel, DouTabs } from 'dou-ui'
-import { PanelLeftIcon, RedoIcon, UndoIcon } from '@dou-ui/icons'
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  provide,
+  ref,
+  shallowRef,
+  useId,
+  watch,
+} from 'vue'
+import { DouDrawer, DouPopover, DouTabPanel, DouTabs } from 'dou-ui'
+import { PanelLeftIcon, RedoIcon, SlidersIcon, UndoIcon } from '@dou-ui/icons'
 import { resolveFields } from '../fields/builtin'
 import { createBuilderState, builderKey } from './context'
 import { useFormBuilderMessages } from './locale'
@@ -44,6 +54,31 @@ const side = ref<'fields' | 'outline'>('fields')
 // and close once a node is added or picked; focus moves to the canvas,
 // where the node now is.
 const sideOpen = ref(false)
+
+// On phones (a builder narrower than 560px) the fields and the settings
+// are drawers from the bottom. The settings open at half height when a
+// node is picked, and can be pulled up.
+const root = shallowRef<HTMLElement | null>(null)
+const compact = ref(false)
+const settingsOpen = ref(false)
+let observer: ResizeObserver | undefined
+onMounted(() => {
+  if (typeof ResizeObserver === 'undefined' || !root.value) return
+  observer = new ResizeObserver(([entry]) => {
+    compact.value = (entry?.contentRect.width ?? Infinity) < 560
+  })
+  observer.observe(root.value)
+})
+onBeforeUnmount(() => observer?.disconnect())
+// A tap on a node (not a drag, and not a node just added) opens its settings.
+function onCanvasClick(event: MouseEvent) {
+  if (!compact.value || state.dragger.value?.swallowClick()) return
+  const node = (event.target as HTMLElement).closest('.dou-form-builder__node')
+  if (!node || (event.target as HTMLElement).closest('.dou-form-builder__actions')) return
+  void nextTick(() => {
+    if (state.focused.value) settingsOpen.value = true
+  })
+}
 watch(
   () => state.selection,
   () => {
@@ -61,6 +96,7 @@ const {
   remove,
   duplicate,
   moveBy,
+  moveTo,
   wrap,
   addPage,
   selectParent,
@@ -94,6 +130,7 @@ defineExpose<FormBuilderExpose>({
   remove,
   duplicate,
   moveBy,
+  moveTo,
   wrap,
   addPage,
   selectParent,
@@ -104,7 +141,7 @@ defineExpose<FormBuilderExpose>({
 </script>
 
 <template>
-  <div class="dou-form-builder">
+  <div ref="root" :class="['dou-form-builder', compact && 'is-compact']">
     <slot>
       <div class="dou-form-builder__layout">
         <aside class="dou-form-builder__side" :aria-label="messages.panels.side">
@@ -119,7 +156,18 @@ defineExpose<FormBuilderExpose>({
         </aside>
         <div class="dou-form-builder__main">
           <div class="dou-form-builder__toolbar" role="toolbar">
+            <button
+              v-if="compact"
+              type="button"
+              class="dou-form-builder__tool dou-form-builder__side-toggle"
+              aria-haspopup="dialog"
+              @click="sideOpen = true"
+            >
+              <PanelLeftIcon />
+              <span>{{ messages.panels.fields }}</span>
+            </button>
             <DouPopover
+              v-else
               v-model:open="sideOpen"
               placement="bottom-start"
               :aria-label="messages.panels.side"
@@ -163,16 +211,57 @@ defineExpose<FormBuilderExpose>({
               <RedoIcon />
             </button>
             <slot name="toolbar" />
+            <button
+              v-if="compact"
+              type="button"
+              class="dou-form-builder__tool dou-form-builder__settings-toggle"
+              aria-haspopup="dialog"
+              :aria-label="messages.panels.settings"
+              :title="messages.panels.settings"
+              @click="settingsOpen = true"
+            >
+              <SlidersIcon />
+            </button>
           </div>
-          <FormBuilderCanvas />
+          <FormBuilderCanvas @click.capture="onCanvasClick" />
         </div>
         <aside
+          v-if="!compact"
           class="dou-form-builder__side dou-form-builder__side--end"
           :aria-label="messages.panels.settings"
         >
           <FormBuilderInspector />
         </aside>
       </div>
+      <template v-if="compact">
+        <DouDrawer
+          v-model:open="sideOpen"
+          placement="bottom"
+          :title="messages.panels.side"
+          :snap-points="['50%', '90%']"
+          swipeable
+          class="dou-form-builder__drawer"
+        >
+          <DouTabs v-model="side" size="sm" class="dou-form-builder__side-tabs">
+            <DouTabPanel value="fields" :label="messages.panels.fields">
+              <FormBuilderPalette />
+            </DouTabPanel>
+            <DouTabPanel value="outline" :label="messages.panels.outline">
+              <FormBuilderOutline />
+            </DouTabPanel>
+          </DouTabs>
+        </DouDrawer>
+        <DouDrawer
+          v-model:open="settingsOpen"
+          placement="bottom"
+          :title="messages.panels.settings"
+          :snap-points="['50%', '90%']"
+          swipeable
+          class="dou-form-builder__drawer"
+        >
+          <FormBuilderInspector />
+        </DouDrawer>
+      </template>
     </slot>
     <div class="dou-form-builder__live" aria-live="polite" aria-atomic="true">
       {{ state.live.value }}

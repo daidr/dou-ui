@@ -13,6 +13,7 @@ import {
   duplicateNodes,
   insertPlace,
   moveNodes,
+  moveNodesTo,
   namesIn,
   removeNodes,
   scopeOf,
@@ -20,6 +21,7 @@ import {
 } from './core/commands'
 import type { FormBuilderInsertPlace } from './core/commands'
 import { labelOf } from './settings'
+import type { DragController } from './drag'
 
 /** How a click changes the selection: replace it, add or take away the node, or extend it. */
 export type FormBuilderSelectMode = 'replace' | 'toggle' | 'extend'
@@ -64,6 +66,11 @@ export interface FormBuilderContext {
   duplicate: (ids?: readonly string[]) => void
   /** Move nodes, the selected ones by default, one place up (`-1`) or down (`1`). */
   moveBy: (delta: -1 | 1, ids?: readonly string[]) => void
+  /**
+   * Move nodes, the selected ones by default, into a container (`null`:
+   * the top) to start at `index` of its children as they are now.
+   */
+  moveTo: (place: FormBuilderInsertPlace, ids?: readonly string[]) => void
   /** Put nodes of one container into a new section, the selected ones by default. */
   wrap: (ids?: readonly string[]) => void
   /** Add a page to tabs or steps (the selected ones, or the ones around the selection). */
@@ -89,6 +96,8 @@ export interface BuilderState extends FormBuilderContext {
   inspector: Ref<HTMLElement | null>
   /** The canvas's focusable tree, to take focus back. */
   canvas: Ref<HTMLElement | null>
+  /** Drags on the canvas, set by the canvas once it is mounted. */
+  dragger: Ref<DragController | null>
   /** The selection, as a set, for views checking many nodes. */
   selected: ComputedRef<ReadonlySet<string>>
   /** The node the inspector and the action bar are for: the last selected one. */
@@ -143,6 +152,7 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
   const live = shallowRef('')
   const inspector = shallowRef<HTMLElement | null>(null)
   const canvas = shallowRef<HTMLElement | null>(null)
+  const dragger = shallowRef<DragController | null>(null)
 
   // A document from outside, e.g. one loaded or reset by the page, starts a new history.
   watch(options.document, (next) => {
@@ -287,6 +297,20 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
     })
   }
 
+  function moveTo(place: FormBuilderInsertPlace, ids?: readonly string[]) {
+    const tr = transaction()
+    const moving = target(ids)
+    if (!moveNodesTo(tr, moving, place.parent, place.index)) return
+    tr.setMeta('origin', 'drag')
+    const first = formNodePlaces(tr.doc).get(moving[0] ?? '')
+    dispatch(tr, {
+      selection: [...moving],
+      announce: first
+        ? formatMessage(options.messages().announce.moved, { index: first.index + 1 })
+        : undefined,
+    })
+  }
+
   function wrap(ids?: readonly string[]) {
     const tr = transaction()
     const section = wrapNodes(tr, target(ids), context())
@@ -406,6 +430,15 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
 
   function keydown(event: KeyboardEvent, view: BuilderView) {
     if (event.isComposing) return
+    // While nodes are picked up, the keys choose where they go.
+    if (dragger.value?.carrying) {
+      if (dragger.value.keydown(event)) event.preventDefault()
+      return
+    }
+    if (event.key === ' ' && !event.repeat && dragger.value?.pickUp()) {
+      event.preventDefault()
+      return
+    }
     for (const [hotkey, run] of keys) {
       if (!matchesHotkey(event, hotkey)) continue
       event.preventDefault()
@@ -442,6 +475,7 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
     remove,
     duplicate,
     moveBy,
+    moveTo,
     wrap,
     addPage,
     selectParent,
@@ -455,6 +489,7 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
     focusInspector,
     inspector,
     canvas,
+    dragger,
     selected,
     focused,
   }

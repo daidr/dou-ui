@@ -57,6 +57,17 @@ export interface FormBuilderMessages {
     undone: string
     redone: string
   }
+  /** Moving nodes by dragging, or with the keyboard after `Space`. `{index}` counts from 1. */
+  drag: {
+    /** Read out before the first place, so it ends with its own stop. */
+    picked: string
+    place: string
+    /** The top of the form, as `{where}` in `place`. */
+    top: string
+    cancelled: string
+    /** The handle on a node's edge that changes its width. */
+    resize: string
+  }
   /** What new nodes are called. `{index}` counts from 1. */
   created: {
     option: string
@@ -133,6 +144,13 @@ const zhCN: FormBuilderMessages = {
     wrapped: '已放进分组',
     undone: '已撤销',
     redone: '已重做',
+  },
+  drag: {
+    picked: '已拿起，用方向键选择位置，Enter 放下，Esc 取消。',
+    place: '放到{where}的第 {index} 位',
+    top: '表单最外层',
+    cancelled: '已取消移动',
+    resize: '拖动调整宽度',
   },
   created: {
     option: '选项 {index}',
@@ -276,6 +294,13 @@ const zhTW: FormBuilderMessages = {
     wrapped: '已放進分組',
     undone: '已復原',
     redone: '已重做',
+  },
+  drag: {
+    picked: '已拿起，用方向鍵選擇位置，Enter 放下，Esc 取消。',
+    place: '放到{where}的第 {index} 位',
+    top: '表單最外層',
+    cancelled: '已取消移動',
+    resize: '拖動調整寬度',
   },
   created: {
     option: '選項 {index}',
@@ -424,6 +449,13 @@ const en: FormBuilderMessages = {
     wrapped: 'Put in a section',
     undone: 'Undone',
     redone: 'Redone',
+  },
+  drag: {
+    picked: 'Picked up. Use the arrow keys to choose a place, Enter to drop, Escape to cancel. ',
+    place: 'In {where}, position {index}',
+    top: 'the top of the form',
+    cancelled: 'Move cancelled',
+    resize: 'Drag to change the width',
   },
   created: {
     option: 'Option {index}',

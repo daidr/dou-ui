@@ -50,6 +50,7 @@
 - `@dou-ui/pivot`：字段面板 `DouPivotFields`，拖动字段到筛选 / 列 / 行 / 值，手机上长按拖动、窄屏收进底部抽屉；字段菜单调整排序、分组、小计、汇总方式与位置；筛选弹层支持搜索、全选与虚拟列表；日期按年 / 季度 / 月 / 周 / 日分组、数字按区间分组（`by`）；表格式布局（`layout="tabular"`）与小计行；拖动调整列宽、双击按内容适应
 - `@dou-ui/pivot`：大数据汇总，`data` 可以按列给出（`{ 字段: 数组 }`，数字列用 `Float64Array`）；超过 10 万条记录时在 worker 中汇总（`worker`），列数据只传一次、调整配置只发配置，过期结果直接丢弃，汇总较慢时表格上显示“正在汇总”；`@dou-ui/pivot/worker` 提供 `servePivot` 与 `createPivotWorker`，自定义汇总可以在自己的 worker 中注册；`engine` 属性接入自定义引擎（如服务端汇总），`PivotResult.pack` / `unpack` 负责结果的序列化；100 万条记录在 worker 中汇总约 250 毫秒
 - `@dou-ui/pivot`：值的显示方式（`show`：占总计 / 行 / 列 / 上级的百分比、差值、差值百分比、累计、排名，不重新汇总）；计算值（`formula`，如 `销售额 / 杯数`，合计按“合计之比”计算，自带解析器、不执行代码，`parsePivotFormula` / `checkPivotFormula` 与 `PivotFormulaError`）；条件格式（`mark`：数据条与色阶）；按合计筛选（`filters` 的 `top` 与 `between`）；字段面板增加显示方式、条件格式、前 N 项菜单和“添加计算值”对话框
+- `@dou-ui/pivot`：选择与复制（拖动、Shift + 方向键、Ctrl / ⌘ + A，复制为制表符文字和 HTML 表格，粘到 `DouSheet` 保留数值和格式）；导出 `toCSV`、`toSheet`（给 `DouSheet` 的工作簿，带格式、合并表头和冻结）、`toChartRows`（给 `@dou-ui/chart` 的透视图）、`toGrid`，以及 `print` 打印整张表并在每页重复表头；文档增加查看明细抽屉、导出、转成电子表格和透视图示例
 - `@dou-ui/resolver`：配合按需组件插件，自动导入组件和它的样式入口
 - `@dou-ui/nuxt`：Nuxt 模块，组件、指令与函数自动导入，样式与配色模式开箱即用，支持服务端渲染
 - 组件从 `dou-ui` 具名导入；样式可以全量引入 `dou-ui/style.css`，也可以按组件引入 `dou-ui/components/<name>/style`

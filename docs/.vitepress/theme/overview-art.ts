@@ -1418,6 +1418,53 @@ const ecosystemArts: Record<string, string | ((id: string) => string)> = {
     visits.forEach((v, i) => (art += circle(x(i), y(v), 2, 'c2')))
     return art
   },
+  // a crosstab: an open column group over its months, a tree of row groups
+  // (one open, one closed) and the grand total kept at the bottom
+  pivot: () => {
+    const head = 56
+    const col = 34
+    const top = 14
+    // two header rows, three body rows and the total
+    const row = 92 / 6
+    const x = (c: number) => 20 + head + c * col
+    const y = (r: number) => top + r * row
+    // body rows: depth, whether it is a group (open or closed), label width, number widths
+    const body: [number, 'open' | 'closed' | null, number, number[]][] = [
+      [0, 'open', 14, [14, 12, 18]],
+      [1, null, 12, [8, 10, 12]],
+      [0, 'closed', 12, [12, 14, 18]],
+    ]
+    let grid = `M${x(1)} ${y(1)}V106M${x(2)} ${top}V106M20 ${y(3)}H180M20 ${y(4)}H180M${x(0)} ${y(1)}H${x(2)}`
+    let art =
+      path(`M20 ${y(2)}V22a8 8 0 0 1 8-8h144a8 8 0 0 1 8 8v${y(2) - 22}Z`, 'm') +
+      path(`M20 ${y(5)}h160v${106 - y(5) - 8}a8 8 0 0 1-8 8H28a8 8 0 0 1-8-8Z`, 'm') +
+      path(grid, 'lb') +
+      path(`M${x(0)} ${top}V106M20 ${y(2)}H180M20 ${y(5)}H180`, 'ln') +
+      // the column group, open, over two months; the total column reaches down
+      icon('chevron-down', x(0) + 8, y(0) + row / 2, 9, 'ico-3') +
+      bar(x(0) + 14, y(0) + row / 2 - 2, 10, 't') +
+      bar(x(3) - 5 - 12, y(1) - 2, 12, 't')
+    for (const c of [0, 1]) art += bar(x(c + 1) - 5 - 10, y(1) + row / 2 - 2, 10, 's')
+    body.forEach(([depth, kind, label, numbers], i) => {
+      const cy = y(i + 2) + row / 2
+      const lx = 26 + depth * 10
+      if (kind)
+        art += icon(kind === 'open' ? 'chevron-down' : 'chevron-right', lx + 3, cy, 9, 'ico-2')
+      // groups hold their subtotals, a weight darker than the rows inside them
+      art += bar(lx + 9, cy - 2, label, kind ? 't' : 's')
+      numbers.forEach((w, c) => (art += bar(x(c + 1) - 5 - w, cy - 2, w, kind ? 't' : 's')))
+    })
+    // the grand total
+    const ty = y(5) + row / 2 - 2
+    art += bar(26, ty, 12, 't')
+    for (const [c, w] of [
+      [0, 16],
+      [1, 14],
+      [2, 20],
+    ] as const)
+      art += bar(x(c + 1) - 5 - w, ty, w, 't')
+    return art + rect(20, 14, 160, 92, 'lb', 8)
+  },
   // a palette of field types beside a form, one type dragged in at the insert line
   'form-builder': () => {
     const palette = ['heading', 'calendar', 'star']

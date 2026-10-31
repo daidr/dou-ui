@@ -1,0 +1,420 @@
+/*
+ * Pivot table
+ *
+ * Quiet headers along the top and the left on a hairline grid. Groups and
+ * totals are told apart by weight and a faint tint, never by hue; numbers
+ * sit right, in tabular figures, so columns line up digit by digit.
+ */
+@layer dou.components {
+  .dou-pivot {
+    --dou-pivot-line: var(--dou-color-border-subtle);
+    --dou-pivot-line-strong: var(--dou-color-border);
+    --dou-pivot-bg: var(--dou-color-bg-surface);
+    --dou-pivot-head-bg: color-mix(in oklab, var(--dou-color-text) 2.5%, var(--dou-pivot-bg));
+    --dou-pivot-total-bg: color-mix(in oklab, var(--dou-color-text) 2%, var(--dou-pivot-bg));
+    --dou-pivot-hover-bg: color-mix(in oklab, var(--dou-color-text) 3.5%, var(--dou-pivot-bg));
+    --dou-pivot-hover-total-bg: color-mix(
+      in oklab,
+      var(--dou-color-text) 5.5%,
+      var(--dou-pivot-bg)
+    );
+    --dou-pivot-scroll-shadow: color-mix(in oklab, var(--dou-color-text) 14%, transparent);
+    --dou-pivot-ring: var(--dou-color-primary);
+
+    position: relative;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid var(--dou-pivot-line-strong);
+    border-radius: var(--dou-radius-container);
+    background-color: var(--dou-pivot-bg);
+    color: var(--dou-color-text);
+    font-family: var(--dou-font-family);
+    font-size: var(--dou-font-size-sm);
+    line-height: var(--dou-font-line-height);
+
+    &:has(.dou-pivot__viewport:focus-visible) {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 2px;
+    }
+  }
+
+  .dou-pivot__viewport {
+    position: absolute;
+    inset: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+    outline: none;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklab, var(--dou-color-text) 22%, transparent) transparent;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .dou-pivot__sheet {
+    position: relative;
+    min-width: 100%;
+  }
+
+  /*
+   * Trimmed to the cap height so CJK sits centered; the padding (taken back
+   * by the margin) keeps the parts of glyphs below the baseline out of the
+   * clipping that the ellipsis needs.
+   */
+  .dou-pivot__text {
+    min-width: 0;
+    margin-block: -4px;
+    padding-block: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-box: trim-both cap alphabetic;
+  }
+
+  /* header ------------------------------------------------------------------ */
+
+  .dou-pivot__head {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    display: flex;
+    background-color: var(--dou-pivot-head-bg);
+    box-shadow: inset 0 -1px 0 var(--dou-pivot-line-strong);
+    transition: box-shadow var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    .is-scrolled-y & {
+      box-shadow:
+        inset 0 -1px 0 var(--dou-pivot-line-strong),
+        0 4px 6px -4px var(--dou-pivot-scroll-shadow);
+    }
+  }
+
+  .dou-pivot__corner {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    flex: none;
+    box-sizing: border-box;
+    border-right: 1px solid var(--dou-pivot-line-strong);
+    border-bottom: 1px solid var(--dou-pivot-line-strong);
+    background-color: var(--dou-pivot-head-bg);
+    transition: box-shadow var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    .is-scrolled-x & {
+      box-shadow: 4px 0 6px -4px var(--dou-pivot-scroll-shadow);
+    }
+  }
+
+  .dou-pivot__corner-line {
+    position: absolute;
+    right: 0;
+    left: 0;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    box-sizing: border-box;
+    height: var(--dou-pivot-row-height);
+    padding: 0 8px;
+
+    &.is-column {
+      justify-content: flex-end;
+      padding-right: 12px;
+      color: var(--dou-color-text-tertiary);
+      font-size: 12px;
+    }
+  }
+
+  .dou-pivot__corner-label {
+    margin-block: -4px;
+    padding-block: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-box: trim-both cap alphabetic;
+  }
+
+  .dou-pivot__corner-sep {
+    color: var(--dou-color-text-disabled);
+    font-size: 12px;
+  }
+
+  .dou-pivot__corner-values {
+    margin-left: auto;
+    color: var(--dou-color-text-tertiary);
+    font-size: 12px;
+  }
+
+  .dou-pivot__field {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 2px;
+    height: 20px;
+    padding: 0 4px;
+    border: 0;
+    border-radius: calc(var(--dou-radius-control) - 2px);
+    background: transparent;
+    color: var(--dou-color-text-secondary);
+    font: inherit;
+    font-weight: var(--dou-font-weight-medium);
+    text-box: trim-both cap alphabetic;
+    cursor: pointer;
+    transition-property: background-color, color;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    & > svg {
+      width: 12px;
+      height: 12px;
+    }
+
+    &:hover {
+      background-color: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+      color: var(--dou-color-text);
+    }
+  }
+
+  .dou-pivot__col-heads {
+    position: relative;
+    flex: none;
+  }
+
+  .dou-pivot__col-head {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+    padding: 0 12px;
+    border-right: 1px solid var(--dou-pivot-line);
+    border-bottom: 1px solid var(--dou-pivot-line);
+    background-color: var(--dou-pivot-head-bg);
+    color: var(--dou-color-text-secondary);
+    font-weight: var(--dou-font-weight-medium);
+    white-space: nowrap;
+    user-select: none;
+    -webkit-user-select: none;
+
+    &.is-end {
+      justify-content: flex-end;
+      border-bottom-color: var(--dou-pivot-line-strong);
+    }
+    &.is-value {
+      color: var(--dou-color-text-tertiary);
+      font-size: 12px;
+    }
+    &.is-total,
+    &.is-subtotal {
+      background-color: color-mix(in oklab, var(--dou-color-text) 2%, var(--dou-pivot-head-bg));
+    }
+    &[title] {
+      cursor: pointer;
+
+      &:hover {
+        color: var(--dou-color-text);
+      }
+    }
+    &.is-sorted {
+      color: var(--dou-color-text);
+    }
+  }
+
+  /* a wide group keeps its name in view while its columns scroll by */
+  .dou-pivot__col-label {
+    position: sticky;
+    left: calc(var(--dou-pivot-head-width) + 12px);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    max-width: 100%;
+
+    .is-end > & {
+      left: auto;
+    }
+  }
+
+  .dou-pivot__sort {
+    flex: none;
+    width: 12px;
+    height: 12px;
+  }
+
+  .dou-pivot__toggle,
+  .dou-pivot__toggle-space {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+  }
+
+  .dou-pivot__toggle {
+    margin-left: -4px;
+    border-radius: calc(var(--dou-radius-control) - 2px);
+    color: var(--dou-color-text-tertiary);
+    cursor: pointer;
+    transition-property: background-color, color;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    & > svg {
+      width: 14px;
+      height: 14px;
+      transition: transform var(--dou-motion-duration-fast) var(--dou-motion-easing);
+    }
+    &.is-open > svg {
+      transform: rotate(90deg);
+    }
+    &:hover,
+    .is-clickable:hover > & {
+      background-color: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+      color: var(--dou-color-text);
+    }
+  }
+
+  .dou-pivot__toggle-space {
+    margin-left: -4px;
+  }
+
+  /* rows --------------------------------------------------------------------- */
+
+  .dou-pivot__body {
+    position: relative;
+  }
+
+  /* the row draws the line under it, so the line runs on past the last column */
+  .dou-pivot__row {
+    position: absolute;
+    left: 0;
+    display: flex;
+    box-sizing: border-box;
+    min-width: 100%;
+    height: var(--dou-pivot-row-height);
+    border-bottom: 1px solid var(--dou-pivot-line);
+
+    &:hover {
+      background-color: var(--dou-pivot-hover-bg);
+    }
+
+    &.is-group {
+      font-weight: var(--dou-font-weight-medium);
+    }
+  }
+
+  .dou-pivot__row-head,
+  .dou-pivot__value-head {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 4px;
+    box-sizing: border-box;
+    height: 100%;
+    padding-right: 12px;
+    background-color: var(--dou-pivot-bg);
+    transition: box-shadow var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    .dou-pivot__row:hover > & {
+      background-color: var(--dou-pivot-hover-bg);
+    }
+  }
+
+  .dou-pivot__row-head {
+    border-right: 1px solid var(--dou-pivot-line-strong);
+
+    &.is-clickable {
+      cursor: pointer;
+    }
+    .has-values-column & {
+      border-right-color: var(--dou-pivot-line);
+    }
+  }
+
+  .dou-pivot__value-head {
+    padding-left: 12px;
+    border-right: 1px solid var(--dou-pivot-line-strong);
+    color: var(--dou-color-text-secondary);
+    font-weight: var(--dou-font-weight-regular);
+  }
+
+  .is-scrolled-x .dou-pivot__row-head,
+  .is-scrolled-x .dou-pivot__value-head {
+    box-shadow: 4px 0 6px -4px var(--dou-pivot-scroll-shadow);
+  }
+  .is-scrolled-x.has-values-column .dou-pivot__row-head {
+    box-shadow: none;
+  }
+
+  .dou-pivot__spacer {
+    flex: none;
+  }
+
+  .dou-pivot__cell {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: flex-end;
+    box-sizing: border-box;
+    height: 100%;
+    padding: 0 12px;
+    border-right: 1px solid var(--dou-pivot-line);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+
+    &.is-total {
+      background-color: var(--dou-pivot-total-bg);
+    }
+    .dou-pivot__row:hover > & {
+      background-color: var(--dou-pivot-hover-bg);
+
+      &.is-total {
+        background-color: var(--dou-pivot-hover-total-bg);
+      }
+    }
+  }
+
+  .is-focused .is-active {
+    box-shadow: inset 0 0 0 2px var(--dou-pivot-ring);
+  }
+  .is-focused.is-scrolled-x .dou-pivot__row-head.is-active {
+    box-shadow:
+      inset 0 0 0 2px var(--dou-pivot-ring),
+      4px 0 6px -4px var(--dou-pivot-scroll-shadow);
+  }
+
+  /* the grand total, kept at the bottom ---------------------------------------- */
+
+  .dou-pivot__foot {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    background-color: var(--dou-pivot-head-bg);
+    box-shadow: 0 -1px 0 var(--dou-pivot-line-strong);
+
+    & .dou-pivot__row {
+      border-bottom: 0;
+      font-weight: var(--dou-font-weight-medium);
+    }
+    & .dou-pivot__row-head,
+    & .dou-pivot__value-head,
+    & .dou-pivot__cell {
+      background-color: var(--dou-pivot-head-bg);
+    }
+    & .dou-pivot__row-head {
+      padding-left: 12px;
+    }
+  }
+
+  .dou-pivot__empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--dou-color-text-tertiary);
+    pointer-events: none;
+  }
+}

@@ -18,6 +18,7 @@ const groups = [
         label: '@dou-ui/form-builder',
         link: '/form-builder/',
       },
+      { key: 'pivot', name: '数据透视', label: '@dou-ui/pivot', link: '/pivot/' },
     ],
   },
   {

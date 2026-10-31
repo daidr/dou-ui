@@ -46,6 +46,8 @@ import { DouFlowEditor, type FlowDocument } from '@dou-ui/flow'
 import '@dou-ui/flow/style.css'
 import { DouSheet, type SheetExpose, type SheetWorkbook } from '@dou-ui/sheet'
 import '@dou-ui/sheet/style.css'
+import { DouPivot, type PivotCollapsed, type PivotConfig } from '@dou-ui/pivot'
+import '@dou-ui/pivot/style.css'
 import {
   DouFormBuilder,
   DouFormRenderer,
@@ -766,6 +768,74 @@ export const cases: Record<string, Case> = {
     render: (n) => sheet(n),
     act: () => (window as any).sheet.value.select('A1:T100000'),
   },
+  // n records grouped 8 × 120 cities × 4 by 4 × 12 months, two values: read, summed up and drawn.
+  pivot: {
+    render: (n) => pivot(n),
+    // Another layout of fields already read: summed up again, nothing read again.
+    act: () => {
+      ;(window as any).pivot.config.value = {
+        rows: ['city'],
+        columns: ['region'],
+        values: ['amount', { aggregate: 'count' }],
+      }
+    },
+  },
+  // Rows ordered by the grand total: no summing up again.
+  'pivot-sort': {
+    render: (n) => pivot(n),
+    act: () => {
+      const { config } = (window as any).pivot
+      config.value = { ...config.value, sort: { value: 0, order: 'desc' } }
+    },
+  },
+  // The first region closed: the rows are laid out again, not summed up.
+  'pivot-toggle': {
+    render: (n) => pivot(n),
+    act: () => {
+      ;(window as any).pivot.collapsed.value = { rows: [['华东']] }
+    },
+  },
+  // A long way down and to the right.
+  'pivot-scroll': {
+    render: (n) => pivot(n),
+    act: (root) => {
+      const viewport = root.querySelector('.dou-pivot__viewport')!
+      viewport.scrollTop = viewport.scrollHeight / 2
+      viewport.scrollLeft = 800
+      viewport.dispatchEvent(new Event('scroll'))
+    },
+  },
+}
+
+function pivot(n: number) {
+  const regions = ['华东', '华南', '华北', '华中', '西南', '西北', '东北', '海外']
+  const kinds = ['果茶', '奶茶', '纯茶', '咖啡']
+  const records = Array.from({ length: n }, (_, i) => {
+    const r = i % 8
+    return {
+      region: regions[r],
+      city: `${regions[r]}城市 ${(i * 7) % 15}`,
+      kind: kinds[(i >> 3) % 4],
+      quarter: `Q${((i >> 5) % 4) + 1}`,
+      month: ((i * 13) % 12) + 1,
+      amount: (i * 37) % 1000,
+    }
+  })
+  const config = ref<PivotConfig>({
+    rows: ['region', 'city', 'kind'],
+    columns: ['quarter', 'month'],
+    values: ['amount', { aggregate: 'count' }],
+  })
+  const collapsed = ref<PivotCollapsed>({})
+  ;(window as any).pivot = { config, collapsed }
+  return () =>
+    h(DouPivot, {
+      data: records,
+      config: config.value,
+      'onUpdate:config': (value: PivotConfig) => (config.value = value),
+      collapsed: collapsed.value,
+      height: 600,
+    })
 }
 
 function sheet(n: number, typed = false) {

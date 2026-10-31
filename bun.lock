@@ -27,6 +27,7 @@
         "@dou-ui/form-builder": "workspace:*",
         "@dou-ui/gantt": "workspace:*",
         "@dou-ui/icons": "workspace:*",
+        "@dou-ui/pivot": "workspace:*",
         "@dou-ui/sheet": "workspace:*",
         "@dou-ui/theme": "workspace:*",
         "dou-ui": "workspace:*",
@@ -163,6 +164,17 @@
       "peerDependencies": {
         "dou-ui": "workspace:*",
         "nuxt": "^4.0.0",
+      },
+    },
+    "packages/pivot": {
+      "name": "@dou-ui/pivot",
+      "version": "0.0.0",
+      "dependencies": {
+        "@dou-ui/icons": "workspace:*",
+      },
+      "peerDependencies": {
+        "dou-ui": "workspace:*",
+        "vue": "^3.5.0",
       },
     },
     "packages/resolver": {
@@ -312,6 +324,8 @@
     "@dou-ui/icons": ["@dou-ui/icons@workspace:packages/icons"],
 
     "@dou-ui/nuxt": ["@dou-ui/nuxt@workspace:packages/nuxt"],
+
+    "@dou-ui/pivot": ["@dou-ui/pivot@workspace:packages/pivot"],
 
     "@dou-ui/playground": ["@dou-ui/playground@workspace:playground"],
 

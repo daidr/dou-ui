@@ -7,9 +7,9 @@ const { props, data, setFilter, ownFilters } = useDashboardWidget()
 const max = computed(() => Math.max(1, ...(data.value ?? []).map((row) => row.value)))
 // 点一行，按它筛选其他格子；再点一次取消。这个格子自己仍然显示全部
 // 筛选的值是代码，label 给出显示在标题栏和筛选栏里的名字
-const picked = computed(() => ownFilters.value[props.value.filterKey])
+const picked = computed(() => ownFilters.value[props.value.filter])
 function pick(row) {
-  setFilter(props.value.filterKey, picked.value === row.code ? undefined : row.code, {
+  setFilter(props.value.filter, picked.value === row.code ? undefined : row.code, {
     label: row.name,
   })
 }

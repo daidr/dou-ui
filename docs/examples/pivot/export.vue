@@ -25,7 +25,7 @@ function download() {
   link.href = URL.createObjectURL(blob)
   link.download = '销售额.csv'
   link.click()
-  URL.revokeObjectURL(link.href)
+  setTimeout(() => URL.revokeObjectURL(link.href), 1000)
 }
 </script>
 

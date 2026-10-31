@@ -22,19 +22,19 @@ const ys = computed(() => props.value.y ?? [])
 const nameOf = (key: string) => props.value.labels?.[key] ?? key
 /** The x this widget filters by, if any: the other bars fade. */
 const picked = computed(() =>
-  props.value.filterKey ? ownFilters.value[props.value.filterKey] : undefined,
+  props.value.filter ? ownFilters.value[props.value.filter] : undefined,
 )
 /** Bars other than the picked one turn gray; a new function when the pick changes, so they draw again. */
 const barColor = computed(() => {
   const value = picked.value
   const x = props.value.x ?? ''
-  if (!props.value.filterKey || value === undefined) return undefined
+  if (!props.value.filter || value === undefined) return undefined
   return (row: Record<string, unknown>) =>
     filterValueOf(row[x]) === value ? undefined : 'var(--dou-color-border-strong)'
 })
 
 function onSelect(event: ChartSelectEvent) {
-  const key = props.value.filterKey
+  const key = props.value.filter
   if (!key) return
   const value = filterValueOf(event.x)
   if (value === picked.value) setFilter(key, undefined)
@@ -51,7 +51,7 @@ function onSelect(event: ChartSelectEvent) {
     :horizontal="kind === 'bar' && props.horizontal"
     :legend="kind === 'pie' || ys.length > 1"
     :aria-label="widget.title"
-    v-on="props.filterKey ? { select: onSelect } : {}"
+    v-on="props.filter ? { select: onSelect } : {}"
   >
     <DouChartPie
       v-if="kind === 'pie'"

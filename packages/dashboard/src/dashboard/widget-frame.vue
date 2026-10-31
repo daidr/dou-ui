@@ -22,6 +22,11 @@ const editing = computed(() => frame.editing())
 const messages = computed(() => frame.messages())
 /** The filters this widget set, each with a button to clear it. */
 const linked = computed(() => frame.linked(props.id))
+/** All of them in one tag (a pivot table's click sets one per field), cleared together. */
+const linkLabel = computed(() => linked.value.map((link) => link.label).join(' / '))
+function clearLinks() {
+  for (const link of linked.value) frame.clearFilter(link.key)
+}
 
 const renaming = ref(false)
 
@@ -89,14 +94,12 @@ function onSelect(value: DropdownValue | undefined) {
       <div v-else class="dou-dashboard__title">{{ title }}</div>
       <div v-if="linked.length" class="dou-dashboard__links" data-dou-nodrag>
         <DouTag
-          v-for="link in linked"
-          :key="link.key"
           size="sm"
           closable
-          :close-label="format(messages.clearFilter, { value: link.label })"
-          @close="frame.clearFilter(link.key)"
+          :close-label="format(messages.clearFilter, { value: linkLabel })"
+          @close="clearLinks"
         >
-          {{ format(messages.filteredBy, { value: link.label }) }}
+          {{ format(messages.filteredBy, { value: linkLabel }) }}
         </DouTag>
       </div>
       <div class="dou-dashboard__actions" data-dou-nodrag>

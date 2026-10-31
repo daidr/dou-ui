@@ -40,7 +40,7 @@ const sparkHeight = computed(() => Math.max(0, Math.floor(size.height.value - 56
       :value="value"
       :precision="props.precision"
       :prefix="props.prefix"
-      :suffix="props.unit"
+      :suffix="props.suffix"
       :trend="delta === undefined || delta === 0 ? undefined : delta > 0 ? 'up' : 'down'"
     >
       <template v-if="deltaText" #footer>{{ deltaText }}</template>

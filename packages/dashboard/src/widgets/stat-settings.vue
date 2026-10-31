@@ -47,11 +47,11 @@ const set = (patch: Partial<StatWidgetProps>) => (model.value = { ...model.value
           @update:model-value="(prefix) => set({ prefix: prefix || undefined })"
         />
       </SettingsField>
-      <SettingsField :label="messages.unit">
+      <SettingsField :label="messages.suffix">
         <DouInput
-          :model-value="model.unit ?? ''"
-          :aria-label="messages.unit"
-          @update:model-value="(unit) => set({ unit: unit || undefined })"
+          :model-value="model.suffix ?? ''"
+          :aria-label="messages.suffix"
+          @update:model-value="(suffix) => set({ suffix: suffix || undefined })"
         />
       </SettingsField>
     </div>

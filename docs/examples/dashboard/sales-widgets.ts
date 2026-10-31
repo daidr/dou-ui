@@ -23,7 +23,7 @@ export const salesWidgets = [
     type: 'bars',
     label: '排行',
     size: { w: 6, h: 4, minW: 3, minH: 3 },
-    defaultProps: { source: 'region', filterKey: 'region' },
+    defaultProps: { source: 'region', filter: 'region' },
     component: SalesBars,
   }),
 ]

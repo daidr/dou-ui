@@ -19,5 +19,5 @@ export interface ChartWidgetProps {
    * Clicking an x (or a slice) sets the filter of this name to it for the
    * other widgets; clicking it again clears it.
    */
-  filterKey?: string
+  filter?: string
 }

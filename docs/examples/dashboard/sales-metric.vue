@@ -8,7 +8,7 @@ const { props, data } = useDashboardWidget()
 
 <template>
   <div class="metric">
-    <DouStatistic :value="data?.[props.field] ?? 0" :prefix="props.prefix" :suffix="props.unit" />
+    <DouStatistic :value="data?.[props.field] ?? 0" :prefix="props.prefix" :suffix="props.suffix" />
   </div>
 </template>
 

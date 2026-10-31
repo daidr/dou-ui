@@ -82,7 +82,7 @@ describe('built-in widgets', () => {
         {
           id: 's',
           type: 'stat',
-          props: { source: 'total', field: 'sum.amount', unit: '元', delta: 'delta' },
+          props: { source: 'total', field: 'sum.amount', suffix: '元', delta: 'delta' },
           place: place(0),
         },
       ],
@@ -136,7 +136,7 @@ describe('built-in widgets', () => {
         {
           id: 'c',
           type: 'chart',
-          props: { source: 'rows', kind: 'bar', x: 'region', y: ['amount'], filterKey: 'region' },
+          props: { source: 'rows', kind: 'bar', x: 'region', y: ['amount'], filter: 'region' },
           place: place(0),
         },
       ],
@@ -175,6 +175,11 @@ describe('built-in widgets', () => {
     pivot.vm.$emit('cell-click', cell(['华东', '上海']))
     await flush()
     expect(filters.value).toEqual({ region: '华东', city: '上海' })
+    // one tag for both filters, clearing both
+    const tags = wrapper.findAll('.dou-dashboard__links .dou-tag')
+    expect(tags).toHaveLength(1)
+    expect(tags[0]!.text()).toContain('华东 / 上海')
+    expect(pivot.props('highlight')).toEqual({ row: ['华东', '上海'], column: [] })
     pivot.vm.$emit('cell-click', cell(['华南']))
     await flush()
     expect(filters.value).toEqual({ region: '华南' })

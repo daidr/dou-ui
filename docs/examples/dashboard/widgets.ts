@@ -12,7 +12,7 @@ export const widgets = [
     label: '统计数字',
     icon: ActivityIcon,
     size: { w: 3, h: 2, minW: 2, minH: 2 },
-    defaultProps: { value: 0, unit: '' },
+    defaultProps: { value: 0, suffix: '' },
     component: StatWidget,
     settings: StatSettings,
     fullscreen: false,

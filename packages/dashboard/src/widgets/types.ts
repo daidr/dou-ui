@@ -7,7 +7,7 @@ export interface StatWidgetProps {
   /** The number shown when there is no source. */
   value?: number
   prefix?: string
-  unit?: string
+  suffix?: string
   /** Decimal places. */
   precision?: number
   /** Where a list of numbers is, drawn as a sparkline under the number. */

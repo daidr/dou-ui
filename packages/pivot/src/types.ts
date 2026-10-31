@@ -50,6 +50,12 @@ export interface PivotProps<Row = Record<string, unknown>> {
   worker?: boolean | 'auto'
   /** Where to sum up instead: your own worker (`createPivotWorker`) or a server. */
   engine?: PivotEngine
+  /**
+   * Marks a row group and a column group, by their paths (as `cell-click`
+   * gives them), such as the groups a click picked; the cells where both
+   * meet stand out the most.
+   */
+  highlight?: { row?: PivotPath; column?: PivotPath }
   /** The table's accessible name. */
   ariaLabel?: string
   /** Texts to override. */

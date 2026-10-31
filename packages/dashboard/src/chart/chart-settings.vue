@@ -65,11 +65,11 @@ const kind = computed(() => model.value.kind ?? 'line')
         {{ messages.horizontal }}
       </DouSwitch>
     </div>
-    <SettingsField :label="messages.filterKey" :hint="messages.filterKeyHint">
+    <SettingsField :label="messages.chartFilter" :hint="messages.chartFilterHint">
       <DouInput
-        :model-value="model.filterKey ?? ''"
-        :aria-label="messages.filterKey"
-        @update:model-value="(key) => set({ filterKey: key.trim() || undefined })"
+        :model-value="model.filter ?? ''"
+        :aria-label="messages.chartFilter"
+        @update:model-value="(key) => set({ filter: key.trim() || undefined })"
       />
     </SettingsField>
   </div>

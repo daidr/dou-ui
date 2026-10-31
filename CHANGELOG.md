@@ -53,6 +53,7 @@
 - `@dou-ui/pivot`：值的显示方式（`show`：占总计 / 行 / 列 / 上级的百分比、差值、差值百分比、累计、排名，不重新汇总）；计算值（`formula`，如 `销售额 / 杯数`，合计按“合计之比”计算，自带解析器、不执行代码，`parsePivotFormula` / `checkPivotFormula` 与 `PivotFormulaError`）；条件格式（`mark`：数据条与色阶）；按合计筛选（`filters` 的 `top` 与 `between`）；字段面板增加显示方式、条件格式、前 N 项菜单和“添加计算值”对话框
 - `@dou-ui/pivot`：选择与复制（拖动、Shift + 方向键、Ctrl / ⌘ + A，复制为制表符文字和 HTML 表格，粘到 `DouSheet` 保留数值和格式）；导出 `toCSV`、`toSheet`（给 `DouSheet` 的工作簿，带格式、合并表头和冻结）、`toChartRows`（给 `@dou-ui/chart` 的透视图）、`toGrid`，以及 `print` 打印整张表并在每页重复表头；文档增加查看明细抽屉、导出、转成电子表格和透视图示例
 - `@dou-ui/pivot`：读屏播报选中范围、复制结果和展开折叠（新增语言包文字 `selected`、`copied`、`expanded`、`collapsed`）；新增区块“销售分析”和“工单统计”
+- `@dou-ui/pivot`：`highlight` 标出一个行分组和一个列分组；数据变化时选中的单元格留在原来的分组上，不再停在原来的位置
 - `@dou-ui/resolver`：配合按需组件插件，自动导入组件和它的样式入口
 - `@dou-ui/nuxt`：Nuxt 模块，组件、指令与函数自动导入，样式与配色模式开箱即用，支持服务端渲染
 - 组件从 `dou-ui` 具名导入；样式可以全量引入 `dou-ui/style.css`，也可以按组件引入 `dou-ui/components/<name>/style`

@@ -68,7 +68,7 @@ export interface DashboardMessages {
   field: string
   value: string
   prefix: string
-  unit: string
+  suffix: string
   precision: string
   trend: string
   delta: string
@@ -92,8 +92,8 @@ export interface DashboardMessages {
   stacked: string
   horizontal: string
   /** The filter set by clicking a chart. */
-  filterKey: string
-  filterKeyHint: string
+  chartFilter: string
+  chartFilterHint: string
   /** Whether clicking a pivot table's cell filters the other widgets. */
   pivotFilter: string
 }
@@ -138,7 +138,7 @@ const zhCN: DashboardMessages = {
   field: '字段',
   value: '数值',
   prefix: '前缀',
-  unit: '单位',
+  suffix: '后缀',
   precision: '小数位数',
   trend: '迷你图字段',
   delta: '变化率字段',
@@ -159,8 +159,8 @@ const zhCN: DashboardMessages = {
   yFields: '数值',
   stacked: '堆叠',
   horizontal: '横向',
-  filterKey: '点击时筛选',
-  filterKeyHint: '点图表里的一项时，用这个名字筛选其他格子；留空则不筛选',
+  chartFilter: '点击时筛选',
+  chartFilterHint: '点图表里的一项时，用这个名字筛选其他格子；留空则不筛选',
   pivotFilter: '点击单元格时，按它所在的分组筛选其他格子',
 }
 
@@ -204,7 +204,7 @@ const zhTW: DashboardMessages = {
   field: '欄位',
   value: '數值',
   prefix: '前綴',
-  unit: '單位',
+  suffix: '後綴',
   precision: '小數位數',
   trend: '迷你圖欄位',
   delta: '變化率欄位',
@@ -225,8 +225,8 @@ const zhTW: DashboardMessages = {
   yFields: '數值',
   stacked: '堆疊',
   horizontal: '橫向',
-  filterKey: '點擊時篩選',
-  filterKeyHint: '点圖表里的一项时，用这个名字筛选其他格子；留空则不筛选',
+  chartFilter: '點擊時篩選',
+  chartFilterHint: '點圖表裡的一項時，用這個名字篩選其他格子；留空則不篩選',
   pivotFilter: '點擊儲存格時，依其所在的分組篩選其他格子',
 }
 
@@ -271,7 +271,7 @@ const en: DashboardMessages = {
   field: 'Field',
   value: 'Value',
   prefix: 'Prefix',
-  unit: 'Unit',
+  suffix: 'Suffix',
   precision: 'Decimal places',
   trend: 'Sparkline field',
   delta: 'Change field',
@@ -292,8 +292,8 @@ const en: DashboardMessages = {
   yFields: 'Values',
   stacked: 'Stacked',
   horizontal: 'Horizontal',
-  filterKey: 'Filter on click',
-  filterKeyHint:
+  chartFilter: 'Filter on click',
+  chartFilterHint:
     'Clicking an item filters the other widgets by this name; leave empty to not filter',
   pivotFilter: 'Clicking a cell filters the other widgets by its groups',
 }

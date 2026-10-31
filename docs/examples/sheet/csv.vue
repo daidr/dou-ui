@@ -40,7 +40,7 @@ function exportFile() {
   link.href = url
   link.download = `${book.value.sheets[active.value].name}.csv`
   link.click()
-  URL.revokeObjectURL(url)
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 </script>
 

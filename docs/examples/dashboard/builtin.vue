@@ -40,7 +40,7 @@ const doc = ref({
       id: 'orders',
       type: 'stat',
       title: '订单数',
-      props: { source: 'overview', field: 'orders', unit: '单' },
+      props: { source: 'overview', field: 'orders', suffix: '单' },
       place: { lg: { x: 4, y: 0, w: 4, h: 3 } },
     },
     {
@@ -60,7 +60,7 @@ const doc = ref({
         x: 'name',
         y: ['value'],
         labels: { value: '销售额' },
-        filterKey: 'region',
+        filter: 'region',
       },
       place: { lg: { x: 0, y: 3, w: 6, h: 5 } },
     },
@@ -97,9 +97,10 @@ async function download() {
   const blob = await dashboard.value.exportPNG()
   const link = document.createElement('a')
   link.href = URL.createObjectURL(blob)
-  link.download = '销售看板.png'
+  link.download = 'dashboard.png'
   link.click()
-  URL.revokeObjectURL(link.href)
+  // released later: the download starts after this, and needs the address until then
+  setTimeout(() => URL.revokeObjectURL(link.href), 1000)
 }
 </script>
 

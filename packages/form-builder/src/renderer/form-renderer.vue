@@ -16,7 +16,7 @@ import { checkVersion, cloneValue, getPath, isSteps, setPath } from '../core/doc
 import { equalValues } from '../core/expression'
 import { fillValues, visibleValues } from '../core/values'
 import { resolveFields } from '../fields/builtin'
-import { useFormBuilderMessages } from '../locale'
+import { useFormRendererMessages } from '../locale'
 import { rendererKey } from './context'
 import type {
   FormRendererEmits,
@@ -132,7 +132,7 @@ function reloadSource(name?: string) {
   versions[name] = (versions[name] ?? 0) + 1
 }
 
-const messages = useFormBuilderMessages(() => props.messages)
+const messages = useFormRendererMessages(() => props.messages)
 const formRef = useTemplateRef<FormInstance>('formRef')
 
 // Tabs and steps holding a field bring it into view before it is scrolled to.

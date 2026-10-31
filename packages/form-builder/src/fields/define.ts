@@ -1,6 +1,6 @@
 import { inject, markRaw } from 'vue'
 import type { Component, InjectionKey } from 'vue'
-import type { FormFieldNode } from '../core/types'
+import type { FormFieldNode, FormNode } from '../core/types'
 
 export type FormFieldProps = Record<string, unknown>
 
@@ -45,13 +45,30 @@ export interface FormFieldType<P extends FormFieldProps = FormFieldProps> {
   fitValue?: (value: unknown, options: readonly unknown[]) => unknown
   /** Turns the settings into the component's props, when they differ. */
   toProps?: (props: P, node: FormFieldNode) => Record<string, unknown>
+  /** The builder's palette: the type's icon, e.g. one of `@dou-ui/icons`. */
+  icon?: Component
+  /**
+   * The palette group the type is listed in: `input`, `choice`, `more`
+   * (the default), `display`, or a name of your own, shown as it is.
+   */
+  group?: string
+  /**
+   * The settings the builder's inspector shows for the type, as nodes of
+   * a form whose values are the node's `props`: a field named
+   * `placeholder` edits `props.placeholder`, and expressions read the
+   * other settings as `values`. A setting left at its `default` is not
+   * written to the node.
+   */
+  settings?: FormNode[]
 }
 
 /** Declare a field type. Gives the spec its types and leaves it as is otherwise. */
 export function defineFormField<P extends FormFieldProps = FormFieldProps>(
   spec: FormFieldType<P>,
 ): FormFieldType<P> {
-  return { ...spec, component: markRaw(spec.component) }
+  const result = { ...spec, component: markRaw(spec.component) }
+  if (spec.icon) result.icon = markRaw(spec.icon)
+  return result
 }
 
 /** Settings of a node: its type's `defaultProps` with its own `props` on top. */

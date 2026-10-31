@@ -47,6 +47,7 @@ import '@dou-ui/flow/style.css'
 import { DouSheet, type SheetExpose, type SheetWorkbook } from '@dou-ui/sheet'
 import '@dou-ui/sheet/style.css'
 import {
+  DouFormBuilder,
   DouFormRenderer,
   type FormDocument,
   type FormFieldNode,
@@ -697,6 +698,27 @@ export const cases: Record<string, Case> = {
       input(root.querySelector<HTMLInputElement>(`[data-node="${gate}"] input`), '戴兜')
     },
   },
+  // The builder opening the same form; then a press selects a field in the
+  // middle, which shows its settings.
+  'form-builder': {
+    render: (n) => formBuilder(n),
+    act: (root) => {
+      const nodes = root.querySelectorAll<HTMLElement>('.dou-form-builder__node:not(.is-container)')
+      nodes[nodes.length >> 1]?.click()
+    },
+  },
+  // Changing the selected field's label: one transaction with its undo record.
+  'form-builder-edit': {
+    render: (n) => formBuilder(n),
+    prepare: (root) => {
+      const nodes = root.querySelectorAll<HTMLElement>('.dou-form-builder__node:not(.is-container)')
+      nodes[nodes.length >> 1]?.click()
+    },
+    act: () => {
+      const builder = (window as any).formBuilder
+      builder.dispatch(builder.transaction().update(builder.selection[0], { label: '戴兜' }))
+    },
+  },
   // The same form written by hand, for the cost of the renderer itself.
   'form-handwritten': {
     render: (n) => formHandwritten(n),
@@ -863,6 +885,17 @@ function formDocument(n: number): FormDocument {
 function formRenderer(n: number) {
   const form = formDocument(n)
   return () => h(DouFormRenderer, { form, style: 'max-width: 960px' })
+}
+
+function formBuilder(n: number) {
+  const form = shallowRef(formDocument(n))
+  return () =>
+    h(DouFormBuilder, {
+      ref: (instance: unknown) => ((window as any).formBuilder = instance),
+      modelValue: form.value,
+      'onUpdate:modelValue': (next: FormDocument) => (form.value = next),
+      style: '--dou-form-builder-height: 800px',
+    })
 }
 
 /** The ids of the fields the others in their group read, in `form-logic`. */

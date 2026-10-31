@@ -1,0 +1,82 @@
+import { inject, markRaw } from 'vue'
+import type { Component, InjectionKey } from 'vue'
+import type { FormFieldNode } from '../core/types'
+
+export type FormFieldProps = Record<string, unknown>
+
+/**
+ * What a field type is: how it renders, what it starts with, and which
+ * settings it takes. The renderer and the builder share the same list.
+ */
+export interface FormFieldType<P extends FormFieldProps = FormFieldProps> {
+  /** The name nodes refer to it by in `type`. A type of the same name as a built-in one replaces it. */
+  type: string
+  /** Shown to people building the form. */
+  label?: string
+  /**
+   * - `value`: holds a value at the node's `name`, wrapped in a form item
+   *   with its label, help and checks.
+   * - `display`: only shows something, such as text or a divider.
+   */
+  kind?: 'value' | 'display'
+  /** Settings a node starts with, below its own `props`. */
+  defaultProps?: Partial<P>
+  /**
+   * The type's empty value, which a field starts with when its node sets
+   * no `default`, e.g. `[]` for a list of choices. Defaults to `null`.
+   */
+  empty?: (props: P) => unknown
+  /**
+   * Renders the field. A `value` field gets `modelValue`, listens to
+   * `update:modelValue`, and receives the settings as props (after
+   * `toProps`). Call `useFormField()` inside it for the node itself.
+   */
+  component: Component
+  /** Turns the settings into the component's props, when they differ. */
+  toProps?: (props: P, node: FormFieldNode) => Record<string, unknown>
+}
+
+/** Declare a field type. Gives the spec its types and leaves it as is otherwise. */
+export function defineFormField<P extends FormFieldProps = FormFieldProps>(
+  spec: FormFieldType<P>,
+): FormFieldType<P> {
+  return { ...spec, component: markRaw(spec.component) }
+}
+
+/** Settings of a node: its type's `defaultProps` with its own `props` on top. */
+export function fieldProps(type: FormFieldType | undefined, node: FormFieldNode): FormFieldProps {
+  const base = type?.defaultProps as FormFieldProps | undefined
+  if (!base) return node.props ?? {}
+  return node.props ? { ...base, ...node.props } : base
+}
+
+export interface FormFieldContext {
+  /** The node being rendered. */
+  node: FormFieldNode
+  /** Its type. */
+  type: FormFieldType
+  /** Its settings, with the type's `defaultProps` filled in. */
+  props: FormFieldProps
+}
+
+export const formFieldKey: InjectionKey<() => FormFieldContext> = Symbol('DouFormField')
+
+/**
+ * Inside a field type's component: the node it renders, its type and
+ * settings. The properties stay current when the node changes.
+ */
+export function useFormField(): Readonly<FormFieldContext> {
+  const get = inject(formFieldKey, undefined)
+  if (!get) throw new Error('[dou-ui] useFormField() must be called inside a form field')
+  return {
+    get node() {
+      return get().node
+    },
+    get type() {
+      return get().type
+    },
+    get props() {
+      return get().props
+    },
+  }
+}

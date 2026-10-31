@@ -12,6 +12,12 @@ const groups = [
       { key: 'gantt', name: '甘特图', label: '@dou-ui/gantt', link: '/gantt/' },
       { key: 'sheet', name: '电子表格', label: '@dou-ui/sheet', link: '/sheet/' },
       { key: 'chart', name: '图表', label: '@dou-ui/chart', link: '/chart/' },
+      {
+        key: 'form-builder',
+        name: '表单设计器',
+        label: '@dou-ui/form-builder',
+        link: '/form-builder/',
+      },
     ],
   },
   {

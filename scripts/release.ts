@@ -22,6 +22,7 @@ const packages = [
   'gantt',
   'sheet',
   'chart',
+  'form-builder',
   'resolver',
   'nuxt',
 ]

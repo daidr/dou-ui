@@ -12,6 +12,7 @@
     "@dou-ui/chart": "workspace:*",
     "@dou-ui/editor": "workspace:*",
     "@dou-ui/flow": "workspace:*",
+    "@dou-ui/form-builder": "workspace:*",
     "@dou-ui/gantt": "workspace:*",
     "@dou-ui/icons": "workspace:*",
     "@dou-ui/sheet": "workspace:*",

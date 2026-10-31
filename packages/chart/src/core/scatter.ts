@@ -92,6 +92,9 @@ export function drawScatter(painter: Painter, series: ChartSeries<ScatterStyle>,
       const at = point(i)
       if (!at) continue
       const r = radius(size)
+      const own = series.colors?.[i]
+      painter.fillStyle = own ?? series.color
+      painter.strokeStyle = own ?? series.color
       painter.beginPath()
       painter.moveTo(at[0] + r, at[1])
       painter.arc(at[0], at[1], r, 0, Math.PI * 2)
@@ -110,6 +113,7 @@ export function drawScatter(painter: Painter, series: ChartSeries<ScatterStyle>,
     for (let i = 0; i < n; i++) {
       const at = point(i)
       if (!at) continue
+      if (series.colors) painter.fillStyle = series.colors[i] ?? series.color
       painter.beginPath()
       painter.arc(at[0], at[1], r, 0, Math.PI * 2)
       painter.fill()

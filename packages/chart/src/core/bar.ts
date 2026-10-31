@@ -99,17 +99,17 @@ export function drawBars(painter: Painter, series: ChartSeries<BarStyle>, view: 
   }
 
   const radius = Math.max(0, series.props.radius ?? 2)
-  for (let i = from; i < to; i++) {
+  const bar = (i: number) => {
     const value = top[i]!
     const x = xs[i]!
-    if (value !== value || x !== x) continue
+    if (value !== value || x !== x) return
     // a log axis has no 0 to grow from, nor room for values at or below it
     if (log && !(value > 0)) {
       warnLog()
-      continue
+      return
     }
     const from0 = base ? base[i]! : 0
-    if (value === from0) continue
+    if (value === from0) return
     const u0 = snap(sx.map(x) + offset)
     const u1 = Math.max(u0 + 1 / dpr, snap(sx.map(x) + offset + width))
     let v0 = base ? sy.map(from0) : zero
@@ -122,7 +122,26 @@ export function drawBars(painter: Painter, series: ChartSeries<BarStyle>, view: 
     if (r < 0.5) rect(u0, u1, v0, v1)
     else roundedEnd(painter, u0, u1, v0, v1, r, horizontal)
   }
-  painter.fill()
+  const own = series.colors
+  if (own) {
+    // bars of their own color: one shape per color
+    const groups = new Map<string, number[]>()
+    for (let i = from; i < to; i++) {
+      const color = own[i] ?? series.color
+      let group = groups.get(color)
+      if (!group) groups.set(color, (group = []))
+      group.push(i)
+    }
+    for (const [color, rows] of groups) {
+      painter.fillStyle = color
+      painter.beginPath()
+      for (const i of rows) bar(i)
+      painter.fill()
+    }
+  } else {
+    for (let i = from; i < to; i++) bar(i)
+    painter.fill()
+  }
   painter.restore()
 }
 

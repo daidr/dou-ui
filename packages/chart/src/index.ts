@@ -32,6 +32,7 @@ export type {
   ChartAreaProps,
   ChartAxisProps,
   ChartBarProps,
+  ChartItemColor,
   ChartBrushEvent,
   ChartBrushProps,
   ChartExportOptions,

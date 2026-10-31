@@ -2,7 +2,7 @@ import { mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createSSRApp, defineComponent, h, nextTick } from 'vue'
 import { renderToString } from 'vue/server-renderer'
-import { DouChart, DouChartAxis, DouChartLine, DouChartMarker, DouChartPie } from '..'
+import { DouChart, DouChartAxis, DouChartBar, DouChartLine, DouChartMarker, DouChartPie } from '..'
 import { drawMarkers, placeMarkers, type MarkerInput } from '../core/marker'
 import { categoryScale, linearScale } from '../core/scale'
 import { SvgPainter } from '../core/svg'
@@ -243,6 +243,22 @@ describe('exporting', () => {
     const bare = (wrapper.vm as unknown as ChartExpose).exportSVG({ background: false, padding: 0 })
     expect(bare).toContain('width="600" height="300"')
     expect(bare).not.toContain('<rect width="600" height="300"')
+    wrapper.unmount()
+  })
+
+  it('colors single bars from a function, the legend keeping the series color', async () => {
+    const wrapper = await sized(() =>
+      h(DouChartBar, {
+        y: 'a',
+        name: '数量',
+        color: (_row: unknown, i: number) => (i === 1 ? 'danger' : i === 2 ? '#123456' : undefined),
+      }),
+    )
+    const svg = (wrapper.vm as unknown as ChartExpose).exportSVG()
+    // three shapes: the series' color, the danger tone, and the color given
+    expect(svg).toContain('style="fill:var(--dou-color-chart-1)"')
+    expect(svg).toContain('style="fill:var(--dou-color-danger)"')
+    expect(svg).toContain('fill="#123456"')
     wrapper.unmount()
   })
 

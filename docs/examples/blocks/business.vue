@@ -55,6 +55,9 @@ const category = ref(null)
 function pick(event) {
   category.value = category.value === event.x ? null : event.x
 }
+// 选中一个品类时，其余品类的柱子变淡
+const faded = 'color-mix(in oklab, var(--dou-color-chart-1) 24%, transparent)'
+const categoryColor = (row) => (category.value && row.name !== category.value ? faded : undefined)
 
 const trend = computed(() => {
   const picked = categories.find((item) => item.name === category.value)
@@ -76,6 +79,8 @@ const total = salesOf(1, 1).slice(0, THIS_MONTH)
 const sum = (list, key) => list.reduce((acc, row) => acc + row[key], 0)
 const growth = (now, last) => (now - last) / last
 const percent = (value) => `${(value * 100).toFixed(1)}%`
+// 带正负号：+12.4%、-21.7%
+const signed = (value) => (value >= 0 ? '+' : '-') + percent(Math.abs(value))
 const share = (value) => `${Math.round(value * 100)}%`
 const sales = { now: sum(total, 'now'), last: sum(total, 'last') }
 const orders = { now: (sales.now * 10) / 23.6, last: (sales.last * 10) / 23 }
@@ -147,7 +152,7 @@ async function exportAs(format) {
           :trend="card.change >= 0 ? 'up' : 'down'"
           :up-is-good="card.upIsGood ?? true"
         >
-          <template #footer>同比 {{ percent(Math.abs(card.change)) }}</template>
+          <template #footer>同比 {{ signed(card.change) }}</template>
         </DouStatistic>
       </DouCard>
     </div>
@@ -186,7 +191,7 @@ async function exportAs(format) {
       <DouCard title="品类销售" description="点击品类，走势只看这个品类">
         <DouChart :data="categories" x="name" :height="240" horizontal @select="pick">
           <DouChartAxis for="y" :format="share" :ticks="4" />
-          <DouChartBar y="share" name="销售占比" />
+          <DouChartBar y="share" name="销售占比" :color="categoryColor" />
         </DouChart>
       </DouCard>
       <DouCard title="渠道占比" description="1–10 月各渠道的订单">

@@ -17,8 +17,13 @@ export interface ChartSeriesProps {
   data?: ChartData
   /** The x of each row of this series' own `data`; defaults to the chart's `x`. */
   x?: ChartAccessor
-  /** Any CSS color. Defaults to the next color of the chart palette. */
-  color?: string
+  /**
+   * Any CSS color. Defaults to the next color of the chart palette. Kinds
+   * that draw each point on its own (bars, scatter) also take a function of
+   * the row giving that point's color: a CSS color or a tone, `undefined`
+   * for the series' color. Its results are in `series.colors`.
+   */
+  color?: string | ((row: any, index: number) => string | undefined)
   /** A tone, for when the color means something (`danger` for errors). */
   tone?: Tone
   /** The value axis to measure on: `y2` is a second one, on the right (on the top when horizontal). */
@@ -36,6 +41,11 @@ export interface ChartSeries<P = Record<string, unknown>> {
   rows: ChartData
   /** The color as a CSS color the canvas understands. */
   color: string
+  /**
+   * Colors of single points or bars, by row, for a series whose `color`
+   * is a function (bars, scatter); `undefined` where the row takes `color`.
+   */
+  colors?: Array<string | undefined> | null
   axis: ChartValueAxis
   x: XColumn
   /** The values as given. */

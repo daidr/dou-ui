@@ -363,22 +363,62 @@ watch(model, (m) => {
   }
 })
 
+const TONES = new Set(['neutral', 'primary', 'success', 'warning', 'danger'])
+
 const paletteColor = (index: number) => `var(--dou-color-chart-${(index % 8) + 1})`
 
 /** A series' color: its own, its tone's, or the palette's by its place among all series. */
 function seriesColor(p: SeriesPart['props'], index: number): string {
-  return resolveColor(p.color ?? (p.tone ? `var(--dou-color-${p.tone})` : paletteColor(index)))
+  const own = typeof p.color === 'string' ? p.color : undefined
+  return resolveColor(own ?? (p.tone ? `var(--dou-color-${p.tone})` : paletteColor(index)))
+}
+
+/** A color given as a CSS color or a tone name, as the canvas takes it. */
+const itemColor = (color: string) =>
+  resolveColor(
+    color === 'neutral'
+      ? 'var(--dou-color-chart-1)'
+      : TONES.has(color)
+        ? `var(--dou-color-${color})`
+        : color,
+  )
+
+/** The colors of single bars or points, by row, when `color` is a function. */
+function itemColors(s: ChartSeries): Array<string | undefined> | null {
+  const of = s.props.color
+  if (typeof of !== 'function') return null
+  const out: Array<string | undefined> = []
+  // a few colors for many rows: each worked out once
+  const seen = new Map<string, string>()
+  for (let i = 0; i < s.y.length; i++) {
+    const color = of(rowOf(s.rows, i), i)
+    if (!color) {
+      out.push(undefined)
+      continue
+    }
+    let css = seen.get(color)
+    if (css === undefined) seen.set(color, (css = itemColor(color)))
+    out.push(css)
+  }
+  return out
 }
 
 const series = computed<ChartSeries[]>(() => {
   void themeVersion.value
   return model.value.series.map((s) => {
     const { props: p, index } = s.input
-    return { ...s, index, kind: s.input.kind, props: p, color: seriesColor(p, index) }
+    const shown: ChartSeries = {
+      ...s,
+      index,
+      kind: s.input.kind,
+      props: p,
+      color: seriesColor(p, index),
+    }
+    shown.colors = itemColors(shown)
+    return shown
   })
 })
 
-const TONES = new Set(['neutral', 'primary', 'success', 'warning', 'danger'])
 /** The colored part of the palette: slices leave the neutral first color for "other". */
 const SLICE_COLORS = 7
 
@@ -890,7 +930,7 @@ function tipOf(a: Active | null): Tip | null {
         name: axes.value[s.axis]?.title ?? (s.axis === 'y2' ? 'y2' : 'y'),
         text: valueText(s.axis)(y),
         value: y,
-        color: s.color,
+        color: s.colors?.[a.row] ?? s.color,
       },
     ]
     const sizeOf = s.props.size as ChartAccessor | undefined
@@ -910,7 +950,7 @@ function tipOf(a: Active | null): Tip | null {
       title: own == null || own === '' ? s.name : String(own),
       items,
       anchor: [left, top],
-      marks: [{ left, top, color: s.color, radius: a.radius + 3, ring: true }],
+      marks: [{ left, top, color: s.colors?.[a.row] ?? s.color, radius: a.radius + 3, ring: true }],
     }
   }
   // every series at one x
@@ -929,13 +969,13 @@ function tipOf(a: Active | null): Tip | null {
       name: s.name,
       text: valueText(s.axis)(y),
       value: y,
-      color: s.color,
+      color: s.colors?.[row] ?? s.color,
       row: rowOf(s.rows, row),
     })
     if (s.kind.band) band = true
     else {
       const [left, top] = view.point(x, s.top[row]!)
-      marks.push({ left, top, color: s.color, radius: 4, ring: false })
+      marks.push({ left, top, color: s.colors?.[row] ?? s.color, radius: 4, ring: false })
     }
   }
   if (!items.length) return null
@@ -1931,11 +1971,14 @@ function shownSeries(t: number): ChartSeries[] {
   if (!motion || t >= 1) return list
   return list.map((s) => {
     let from = motion!.series.get(s.index)
-    // bars and areas grow from their base; lines come in from the start (see `paint`)
+    // bars and areas grow from the baseline; lines come in from the start (see `paint`).
+    // Coming in, a stack grows as a whole (each slice's base grows too, so the
+    // slices stay on each other); a series added later grows from its own base.
     if (!from && s.kind.zero) {
-      const zero = baselineValue(s)
-      const base = s.base ?? new Float64Array(s.top.length).fill(zero)
-      from = { top: base, base: s.base, ends: s.stackEnds && { up: base, down: base } }
+      const zero = new Float64Array(s.top.length).fill(baselineValue(s))
+      const base = motion!.enter ? s.base && zero : s.base
+      const start = base ?? zero
+      from = { top: start, base, ends: s.stackEnds && { up: start, down: start } }
     }
     if (!from) return s
     return {

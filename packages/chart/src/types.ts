@@ -122,7 +122,9 @@ export interface ChartAxisProps {
   labelWidth?: number
 }
 
-export interface ChartLineProps extends ChartSeriesProps {
+export interface ChartLineProps extends Omit<ChartSeriesProps, 'color'> {
+  /** Any CSS color. Defaults to the next color of the chart palette. */
+  color?: string
   /** Curve through the points without swinging past them. Dense data is drawn straight. */
   smooth?: boolean
   /** Dots on the points: always, never, or `auto` when there is room for them. */
@@ -139,7 +141,18 @@ export interface ChartAreaProps extends ChartLineProps {
   stack?: string | boolean
 }
 
+/**
+ * The color of each bar or point, as a function of its row: any CSS color
+ * or a tone (`danger`, `neutral`…); `undefined` keeps the series' color.
+ */
+export type ChartItemColor = (row: ChartRow, index: number) => string | undefined
+
 export interface ChartBarProps extends ChartSeriesProps {
+  /**
+   * Any CSS color for all the bars, or a function that gives each bar its own
+   * (a CSS color or a tone; `undefined` keeps the series' color, as in the legend).
+   */
+  color?: string | ChartItemColor
   /** Stack on the bars before it with the same `stack` name (`true` is one shared stack). */
   stack?: string | boolean
   /** Corner radius of the bar's end, in px. In a stack, only the outermost bar is rounded. */
@@ -147,6 +160,8 @@ export interface ChartBarProps extends ChartSeriesProps {
 }
 
 export interface ChartScatterProps extends ChartSeriesProps {
+  /** Any CSS color for all the points, or a function that gives each point its own, as for bars. */
+  color?: string | ChartItemColor
   /** The size of each point, a key or a function: makes bubbles whose area grows with it. */
   size?: ChartAccessor
   /** What `size` is, shown in the tooltip; defaults to `size` when that is a key. */

@@ -118,8 +118,8 @@ interface SheetPresence {
 
 ### 函数和常量
 
-| 名称                  | 说明                           | 类型                                             |
-| --------------------- | ------------------------------ | ------------------------------------------------ |
-| `fillBook`            | 把工作簿写入空的共享文档       | `(book: Y.Map, workbook: SheetWorkbook) => void` |
-| `readBook`            | 从共享文档读出工作簿           | `(book: Y.Map) => SheetWorkbook`                 |
-| `collaborationColors` | 不传 `user.color` 时使用的颜色 | `string[]`                                       |
+| 名称                  | 说明                                                                               | 类型                                             |
+| --------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------ |
+| `fillBook`            | 把工作簿写入空的共享文档                                                           | `(book: Y.Map, workbook: SheetWorkbook) => void` |
+| `readBook`            | 从共享文档读出工作簿                                                               | `(book: Y.Map) => SheetWorkbook`                 |
+| `collaborationColors` | 不传 `user.color` 时使用的颜色，和其他协同编辑的包是同一组，也可以从 `dou-ui` 引入 | `readonly string[]`                              |

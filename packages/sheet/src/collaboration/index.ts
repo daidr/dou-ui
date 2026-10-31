@@ -1,3 +1,4 @@
+import { collaborationColors } from 'dou-ui'
 import { nextTick, shallowRef, watch } from 'vue'
 import * as Y from 'yjs'
 import type { SheetBounds, SheetPoint } from '../core/address'
@@ -84,17 +85,7 @@ export interface SheetPresence {
   editing: boolean
 }
 
-/** Deep, low-saturation colors that read on both light and dark surfaces. */
-export const collaborationColors = [
-  '#3b6ea8',
-  '#a8553b',
-  '#3b8a6e',
-  '#8a3b7a',
-  '#8a7a3b',
-  '#5b4fa8',
-  '#3b8a8a',
-  '#a83b55',
-]
+export { collaborationColors }
 
 type Json = Record<string, unknown>
 

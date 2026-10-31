@@ -5,6 +5,17 @@ export function emptyDocument(): FormDocument {
   return { version: 1, nodes: [] }
 }
 
+let warnedVersion = false
+
+/** Warn once, for the whole page, about a document of a version this package does not know. */
+export function checkVersion(document: FormDocument) {
+  if (document.version === 1 || warnedVersion) return
+  warnedVersion = true
+  console.warn(
+    `[dou-ui] form document version ${String(document.version)} is not supported; it is read as version 1`,
+  )
+}
+
 let counter = 0
 
 /** A short id that is unique enough within one document, e.g. `f-lz3k9a-1`. */

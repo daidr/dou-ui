@@ -26,7 +26,9 @@ app.use(DouFormRenderer)
 
 ## 基础用法
 
-`document` 是表单描述，格式见[表单描述](./document)。`model` 是字段写入的对象，传入 `reactive` 对象就能随时读到填写的值；描述里有、`model` 里还没有的字段会先填上默认值。不传 `model` 时渲染器自己建一个，可以从 `submit` 事件或组件实例的 `model` 拿到。
+`form` 是表单描述，格式见[表单描述](./document)。`model` 是字段写入的对象，传入 `reactive` 对象就能随时读到填写的值；描述里有、`model` 里还没有的字段会先填上默认值。不传 `model` 时渲染器自己建一个，可以从 `submit` 事件或组件实例的 `model` 拿到。
+
+字段被填写时触发 `change(name, value)`，可以用来自动保存草稿或刷新预览，不必深度监听 `model`。重置表单、或者从外部直接修改 `model` 时不会触发。
 
 默认插槽放在所有字段后面，通常放提交和重置按钮。提交时先校验全部字段，都通过才触发 `submit`，否则触发 `invalid` 并滚动到第一个出错的字段。
 
@@ -48,6 +50,8 @@ app.use(DouFormRenderer)
 
 `required: true` 是必填的简写，`rules` 里写其他规则：`type`（`string`、`number`、`integer`、`email`、`url`）、`min` / `max`（文字长度、选中项数或数值大小）、`pattern`（正则表达式的源码字符串）、`message` 和 `trigger`。这些规则会转成 `DouForm` 的规则，所以检查时机也一样：文本框失焦时检查，出错后每次输入都重新检查；选择类字段每次改动都检查。
 
+注意：除了 `required`，其他规则不检查空值（空文字、空数组、`null`），空着的字段总能通过它们。要求“至少选一项”时写 `required` 并配上合适的 `message`，`min` 只在选了之后限制数量。
+
 需要写代码的检查（比如向服务端确认账号是否可用）放在组件的 `rules` 属性里，按字段名合并到描述的规则上。也可以写 Standard Schema。
 
 <DocDemo src="form-builder/rules" column />
@@ -58,7 +62,7 @@ app.use(DouFormRenderer)
 
 <DocDemo src="form-builder/custom-field" column />
 
-字段组件拿到 `modelValue`、触发 `update:modelValue`，描述里的 `props`（加上类型的 `defaults`）作为它的属性传入。组件里调用 `useFormField()` 可以拿到它渲染的节点。和内置类型同名的类型会替换内置的那个。
+字段组件拿到 `modelValue`、触发 `update:modelValue`，描述里的 `props`（加上类型的 `defaultProps`）作为它的属性传入。组件里调用 `useFormField()` 可以拿到它渲染的节点。和内置类型同名的类型会替换内置的那个。
 
 ## 性能
 
@@ -74,7 +78,7 @@ app.use(DouFormRenderer)
 
 | 名称     | 说明                     | 类型                  | 默认值           |
 | -------- | ------------------------ | --------------------- | ---------------- |
-| document | 表单描述                 | `FormDocument`        | —                |
+| form     | 表单描述                 | `FormDocument`        | —                |
 | model    | 字段写入的对象，原地修改 | `Record<string, any>` | 渲染器自己的对象 |
 | fields   | 内置之外的字段类型       | `FormFieldType[]`     | —                |
 | rules    | 按字段名追加的规则       | `FormRules`           | —                |
@@ -84,6 +88,7 @@ app.use(DouFormRenderer)
 
 | 名称    | 说明               | 参数                               |
 | ------- | ------------------ | ---------------------------------- |
+| change  | 字段被填写         | `(name: string, value: unknown)`   |
 | submit  | 提交且全部字段通过 | `(model)`                          |
 | invalid | 提交但有字段未通过 | `(errors: Record<string, string>)` |
 | reset   | 重置为初始值       | —                                  |

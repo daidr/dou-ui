@@ -20,20 +20,20 @@ export interface FormFieldType<P extends FormFieldProps = FormFieldProps> {
    */
   kind?: 'value' | 'display'
   /** Settings a node starts with, below its own `props`. */
-  defaults?: Partial<P>
+  defaultProps?: Partial<P>
   /**
-   * The value a field starts with when its node sets no `default`, e.g.
-   * `[]` for a list of choices. Defaults to `null`.
+   * The type's empty value, which a field starts with when its node sets
+   * no `default`, e.g. `[]` for a list of choices. Defaults to `null`.
    */
-  initial?: (props: P) => unknown
+  empty?: (props: P) => unknown
   /**
    * Renders the field. A `value` field gets `modelValue`, listens to
    * `update:modelValue`, and receives the settings as props (after
-   * `bind`). Call `useFormField()` inside it for the node itself.
+   * `toProps`). Call `useFormField()` inside it for the node itself.
    */
   component: Component
   /** Turns the settings into the component's props, when they differ. */
-  bind?: (props: P, node: FormFieldNode) => Record<string, unknown>
+  toProps?: (props: P, node: FormFieldNode) => Record<string, unknown>
 }
 
 /** Declare a field type. Gives the spec its types and leaves it as is otherwise. */
@@ -43,10 +43,11 @@ export function defineFormField<P extends FormFieldProps = FormFieldProps>(
   return { ...spec, component: markRaw(spec.component) }
 }
 
-/** Settings of a node: its type's defaults with its own `props` on top. */
+/** Settings of a node: its type's `defaultProps` with its own `props` on top. */
 export function fieldProps(type: FormFieldType | undefined, node: FormFieldNode): FormFieldProps {
-  if (!type?.defaults) return node.props ?? {}
-  return node.props ? { ...type.defaults, ...node.props } : (type.defaults as FormFieldProps)
+  const base = type?.defaultProps as FormFieldProps | undefined
+  if (!base) return node.props ?? {}
+  return node.props ? { ...base, ...node.props } : base
 }
 
 export interface FormFieldContext {
@@ -54,7 +55,7 @@ export interface FormFieldContext {
   node: FormFieldNode
   /** Its type. */
   type: FormFieldType
-  /** Its settings, with the type's defaults filled in. */
+  /** Its settings, with the type's `defaultProps` filled in. */
   props: FormFieldProps
 }
 

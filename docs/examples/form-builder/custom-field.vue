@@ -7,12 +7,12 @@ import ChipField from './chip-field.vue'
 const chips = defineFormField<{ options: string[] }>({
   type: 'chips',
   component: ChipField,
-  defaults: { options: [] },
-  initial: (props) => props.options[0] ?? null,
+  defaultProps: { options: [] },
+  empty: (props) => props.options[0] ?? null,
 })
 const fields = [chips]
 
-const document: FormDocument = {
+const form: FormDocument = {
   version: 1,
   nodes: [
     {
@@ -37,6 +37,6 @@ const model = reactive<Record<string, string>>({})
 </script>
 
 <template>
-  <DouFormRenderer :document="document" :fields="fields" :model="model" />
+  <DouFormRenderer :form="form" :fields="fields" :model="model" />
   <p>{{ model.size }} · {{ model.sugar }}</p>
 </template>

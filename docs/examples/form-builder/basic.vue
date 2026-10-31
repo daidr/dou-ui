@@ -4,7 +4,7 @@ import { DouButton, DouSpace, DouText } from 'dou-ui'
 import { reactive, ref } from 'vue'
 
 // 这份描述是普通数据，可以存进数据库，也可以由表单设计器生成
-const document: FormDocument = {
+const form: FormDocument = {
   version: 1,
   nodes: [
     { id: 'name', type: 'input', name: 'name', label: '姓名', required: true },
@@ -30,7 +30,7 @@ const document: FormDocument = {
       type: 'checkbox-group',
       name: 'sessions',
       label: '想听的分享',
-      rules: [{ min: 1, message: '至少选一场' }],
+      rules: [{ required: true, message: '至少选一场' }],
       props: { options: ['设计系统', '性能优化', '无障碍'] },
     },
     { id: 'agree', type: 'checkbox', name: 'agree', props: { text: '同意主办方联系我' } },
@@ -43,7 +43,7 @@ const submitted = ref('')
 
 <template>
   <DouFormRenderer
-    :document="document"
+    :form="form"
     :model="model"
     style="max-width: 440px"
     @submit="submitted = JSON.stringify($event, null, 2)"

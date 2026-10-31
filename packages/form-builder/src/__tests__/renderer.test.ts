@@ -28,7 +28,7 @@ const flush = async () => {
 }
 
 describe('document helpers', () => {
-  const document = doc([
+  const sample = doc([
     { id: 'a', type: 'input', name: 'name' },
     {
       id: 's',
@@ -41,9 +41,9 @@ describe('document helpers', () => {
   ])
 
   it('lists the nodes that hold a value, sections included', () => {
-    expect(fieldNodes(document).map((node) => node.id)).toEqual(['a', 'b'])
-    expect(findNode(document, 'c')?.type).toBe('divider')
-    expect(findNode(document, 'x')).toBeUndefined()
+    expect(fieldNodes(sample).map((node) => node.id)).toEqual(['a', 'b'])
+    expect(findNode(sample, 'c')?.type).toBe('divider')
+    expect(findNode(sample, 'x')).toBeUndefined()
   })
 
   it('reads and writes dotted paths, creating objects on the way', () => {
@@ -99,12 +99,12 @@ describe('DouFormRenderer', () => {
     const wrapper = mount(DouFormRenderer, {
       props: {
         model,
-        document: doc([
+        form: doc([
           { id: 'n', type: 'input', name: 'name', label: '姓名' },
           { id: 'c', type: 'input', name: 'city', default: '北京' },
           { id: 't', type: 'checkbox-group', name: 'tags', default: ['a'] },
           { id: 'p', type: 'input', name: 'contact.phone' },
-          { id: 'n2', type: 'number', name: 'age' },
+          { id: 'n2', type: 'input-number', name: 'age' },
           { id: 's', type: 'select', name: 'many', props: { multiple: true, options: ['a'] } },
         ]),
       },
@@ -123,9 +123,9 @@ describe('DouFormRenderer', () => {
   })
 
   it('gives each form its own copy of a default', () => {
-    const document = doc([{ id: 't', type: 'tags', name: 'tags', default: ['a'] }])
-    const first = mount(DouFormRenderer, { props: { document } })
-    const second = mount(DouFormRenderer, { props: { document } })
+    const sample = doc([{ id: 't', type: 'input-tag', name: 'tags', default: ['a'] }])
+    const first = mount(DouFormRenderer, { props: { form: sample } })
+    const second = mount(DouFormRenderer, { props: { form: sample } })
     const a = (first.vm as any).model.tags
     expect(a).toEqual(['a'])
     expect(a).not.toBe((second.vm as any).model.tags)
@@ -136,7 +136,7 @@ describe('DouFormRenderer', () => {
     const wrapper = mount(DouFormRenderer, {
       props: {
         onInvalid,
-        document: doc([
+        form: doc([
           { id: 'n', type: 'input', name: 'name', label: '姓名', required: true },
           {
             id: 'z',
@@ -158,7 +158,7 @@ describe('DouFormRenderer', () => {
   it('adds rules given in code to the document’s own', async () => {
     const wrapper = mount(DouFormRenderer, {
       props: {
-        document: doc([{ id: 'n', type: 'input', name: 'name', default: 'x' }]),
+        form: doc([{ id: 'n', type: 'input', name: 'name', default: 'x' }]),
         rules: { name: { validator: (value) => value === 'ok' || '不对' } },
       },
     })
@@ -168,7 +168,7 @@ describe('DouFormRenderer', () => {
 
   it('resets to the starting values', async () => {
     const wrapper = mount(DouFormRenderer, {
-      props: { document: doc([{ id: 'n', type: 'input', name: 'name', default: '戴兜' }]) },
+      props: { form: doc([{ id: 'n', type: 'input', name: 'name', default: '戴兜' }]) },
     })
     await wrapper.find('input').setValue('阿青')
     expect((wrapper.vm as any).model.name).toBe('阿青')
@@ -179,7 +179,7 @@ describe('DouFormRenderer', () => {
   it('renders sections with their own grid and display fields without a form item', () => {
     const wrapper = mount(DouFormRenderer, {
       props: {
-        document: doc(
+        form: doc(
           [
             {
               id: 's',
@@ -218,7 +218,7 @@ describe('DouFormRenderer', () => {
   it('gives every field the label width in the horizontal layout', () => {
     const wrapper = mount(DouFormRenderer, {
       props: {
-        document: doc([{ id: 'n', type: 'input', name: 'name', label: '姓名' }], {
+        form: doc([{ id: 'n', type: 'input', name: 'name', label: '姓名' }], {
           layout: 'horizontal',
           labelWidth: 120,
         }),
@@ -249,11 +249,11 @@ describe('DouFormRenderer', () => {
     const stars = defineFormField<{ max: number }>({
       type: 'stars',
       component: Stars,
-      defaults: { max: 5 },
-      initial: () => 0,
+      defaultProps: { max: 5 },
+      empty: () => 0,
     })
     const wrapper = mount(DouFormRenderer, {
-      props: { fields: [stars], document: doc([{ id: 's', type: 'stars', name: 'score' }]) },
+      props: { fields: [stars], form: doc([{ id: 's', type: 'stars', name: 'score' }]) },
     })
     const button = wrapper.find('button')
     expect(button.text()).toBe('0/5')
@@ -266,7 +266,7 @@ describe('DouFormRenderer', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const wrapper = mount(DouFormRenderer, {
       props: {
-        document: doc([
+        form: doc([
           { id: 'a', type: 'nope', name: 'a' },
           { id: 'b', type: 'nope', name: 'b' },
           { id: 'c', type: 'input', name: 'c' },
@@ -286,18 +286,167 @@ describe('DouFormRenderer', () => {
         return () => (renders++, h('span', props.modelValue))
       },
     })
-    const probe = defineFormField({ type: 'probe', component: Probe, initial: () => '' })
+    const probe = defineFormField({ type: 'probe', component: Probe, empty: () => '' })
     const nodes = Array.from({ length: 50 }, (_, index) => ({
       id: `n${index}`,
       type: 'probe',
       name: `f${index}`,
     }))
     const model = reactive<Record<string, string>>({})
-    const document = ref(doc(nodes))
-    mount(DouFormRenderer, { props: { model, fields: [probe], document: document.value } })
+    const sample = ref(doc(nodes))
+    mount(DouFormRenderer, { props: { model, fields: [probe], form: sample.value } })
     expect(renders).toBe(50)
     model.f3 = 'x'
     await nextTick()
     expect(renders).toBe(51)
+  })
+})
+
+describe('rules as data', () => {
+  it.each([
+    [{ required: true }, { required: true }],
+    [
+      { type: 'email', trigger: 'blur' },
+      { type: 'email', trigger: 'blur' },
+    ],
+    [
+      { min: 2, max: 8, message: 'x' },
+      { min: 2, max: 8, message: 'x' },
+    ],
+    [{ pattern: 'ab', flags: 'gi' }, { pattern: /ab/i }],
+  ] as const)('turns %j into a form rule', (spec, rule) => {
+    expect(toFormRule({ ...spec })).toEqual(rule)
+  })
+
+  it.each([
+    [{ required: undefined, rules: undefined }, []],
+    [{ required: true, rules: [] }, [{ required: true }]],
+    [
+      { required: true, rules: [{ required: true, message: '必填' }] },
+      [{ required: true, message: '必填' }],
+    ],
+    [{ required: false, rules: [{ max: 3 }] }, [{ max: 3 }]],
+  ])('collects %j', (extra, rules) => {
+    expect(rulesOf({ id: 'a', type: 'input', name: 'a', ...extra })).toEqual(rules)
+  })
+
+  it('leaves empty values to required: min alone lets an empty list through', async () => {
+    const wrapper = mount(DouFormRenderer, {
+      props: {
+        form: doc([
+          { id: 'a', type: 'checkbox-group', name: 'loose', rules: [{ min: 1 }] },
+          {
+            id: 'b',
+            type: 'checkbox-group',
+            name: 'strict',
+            rules: [{ required: true, message: '至少选一项' }],
+          },
+        ]),
+      },
+    })
+    const result = await (wrapper.vm as any).validate()
+    expect(result).toEqual({ valid: false, errors: { strict: '至少选一项' } })
+  })
+})
+
+describe('starting values', () => {
+  it.each([
+    ['the model wins over the node default', { name: '戴兜' }, { default: '阿青' }, '戴兜'],
+    ['the node default fills a missing value', {}, { default: '阿青' }, '阿青'],
+    ['null in the model is a value and stays', { name: null }, { default: '阿青' }, null],
+    ['the type empty value comes last', {}, {}, ''],
+  ])('%s', (_, start, node, expected) => {
+    const model = reactive<Record<string, unknown>>({ ...start })
+    mount(DouFormRenderer, {
+      props: { model, form: doc([{ id: 'n', type: 'input', name: 'name', ...node }]) },
+    })
+    expect(model.name).toEqual(expected)
+  })
+
+  it.each([
+    ['input-number', {}, null],
+    ['select', { multiple: true }, []],
+    ['select', {}, null],
+    ['slider', { range: true, min: 10 }, [10, 100]],
+    ['segmented-control', { options: [{ value: 'a' }, 'b'] }, 'a'],
+    ['input-tag', {}, []],
+    ['switch', {}, false],
+  ])('a %s with %j starts at %j', (type, props, expected) => {
+    const model = reactive<Record<string, unknown>>({})
+    mount(DouFormRenderer, { props: { model, form: doc([{ id: 'n', type, name: 'v', props }]) } })
+    expect(model.v).toEqual(expected)
+  })
+
+  it('writes nested paths into existing and missing objects', async () => {
+    const model = reactive<Record<string, any>>({ contact: { phone: '1' }, other: 3 })
+    const wrapper = mount(DouFormRenderer, {
+      props: {
+        model,
+        form: doc([
+          { id: 'a', type: 'input', name: 'contact.phone' },
+          { id: 'b', type: 'input', name: 'contact.mail' },
+          { id: 'c', type: 'input', name: 'address.city.name' },
+        ]),
+      },
+    })
+    expect(model).toEqual({
+      contact: { phone: '1', mail: '' },
+      other: 3,
+      address: { city: { name: '' } },
+    })
+    await wrapper.findAll('input')[2]!.setValue('上海')
+    expect(model.address.city.name).toBe('上海')
+  })
+})
+
+describe('renderer events and checks', () => {
+  it('emits change with the name and value of what was typed', async () => {
+    const onChange = vi.fn<(name: string, value: unknown) => void>()
+    const wrapper = mount(DouFormRenderer, {
+      props: { onChange, form: doc([{ id: 'n', type: 'input', name: 'contact.name' }]) },
+    })
+    await wrapper.find('input').setValue('戴兜')
+    expect(onChange).toHaveBeenLastCalledWith('contact.name', '戴兜')
+    ;(wrapper.vm as any).resetFields()
+    expect(onChange).toHaveBeenCalledTimes(1)
+  })
+
+  it('warns once about a version it does not know', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const form = { version: 2, nodes: [] } as unknown as FormDocument
+    mount(DouFormRenderer, { props: { form } })
+    mount(DouFormRenderer, { props: { form } })
+    expect(warn).toHaveBeenCalledTimes(1)
+    warn.mockRestore()
+  })
+
+  it('takes the padding of bordered sections off the label column', () => {
+    const wrapper = mount(DouFormRenderer, {
+      props: {
+        form: doc(
+          [
+            { id: 'a', type: 'input', name: 'a', label: '外面' },
+            {
+              id: 's',
+              type: 'section',
+              bordered: true,
+              children: [
+                { id: 'b', type: 'input', name: 'b', label: '里面' },
+                {
+                  id: 't',
+                  type: 'section',
+                  children: [{ id: 'c', type: 'input', name: 'c', label: '再里面' }],
+                },
+              ],
+            },
+          ],
+          { layout: 'horizontal' },
+        ),
+      },
+    })
+    const widths = wrapper.findAll('.dou-form-item').map((item) => item.attributes('style'))
+    expect(widths[0]).toContain('96px')
+    expect(widths[1]).toContain('calc(96px - 1 * (var(--dou-space-lg) + 1px))')
+    expect(widths[2]).toContain('calc(96px - 1 * (var(--dou-space-lg) + 1px))')
   })
 })

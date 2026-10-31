@@ -17,14 +17,14 @@ interface FormDocument {
 type FormNode = FormFieldNode | FormSectionNode
 ```
 
-`version` 目前总是 `1`。以后描述的结构有变化时，会按这个字段把旧数据升级过来。
+`version` 目前总是 `1`。以后描述的结构有变化时，会按这个字段把旧数据升级过来。漏写或写成其他值时，渲染器在控制台提示一次，然后照第 1 版读取。
 
 ## 字段节点
 
 ```ts
 interface FormFieldNode {
   id: string
-  type: string // 'input'、'select'……或自定义类型
+  type: string // 'input'、'input-number'……或自定义类型
   name?: string // 值写入的路径，如 'name'、'contact.phone'
   label?: string
   help?: string // 字段下方的提示，出错时换成错误信息
@@ -81,11 +81,9 @@ interface FormRuleSpec {
 
 ```ts
 // 把 phone 字段改成必填
-document.value = {
-  ...document.value,
-  nodes: document.value.nodes.map((node) =>
-    node.id === 'phone' ? { ...node, required: true } : node,
-  ),
+form.value = {
+  ...form.value,
+  nodes: form.value.nodes.map((node) => (node.id === 'phone' ? { ...node, required: true } : node)),
 }
 ```
 

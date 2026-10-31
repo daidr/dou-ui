@@ -761,8 +761,8 @@ function wheel(root: HTMLElement, x: number, y: number) {
 const formTypes = [
   'input',
   'select',
-  'number',
-  'date',
+  'input-number',
+  'date-picker',
   'radio-group',
   'switch',
   'textarea',
@@ -794,12 +794,12 @@ function formDocument(n: number): FormDocument {
 }
 
 function formRenderer(n: number) {
-  const document = formDocument(n)
-  return () => h(DouFormRenderer, { document, style: 'max-width: 960px' })
+  const form = formDocument(n)
+  return () => h(DouFormRenderer, { form, style: 'max-width: 960px' })
 }
 
 function formHandwritten(n: number) {
-  const document = formDocument(n)
+  const form = formDocument(n)
   const model = reactive<Record<string, unknown>>({})
   const control = (node: any) => {
     const value: Record<string, any> = {
@@ -809,9 +809,9 @@ function formHandwritten(n: number) {
     switch (node.type) {
       case 'select':
         return h(DouSelect, { ...node.props, ...value })
-      case 'number':
+      case 'input-number':
         return h(DouInputNumber, { ...node.props, ...value })
-      case 'date':
+      case 'date-picker':
         return h(DouDatePicker, { ...node.props, ...value })
       case 'radio-group':
         return h(DouRadioGroup, value, () =>
@@ -827,7 +827,7 @@ function formHandwritten(n: number) {
   }
   return () =>
     h(DouForm, { model, style: 'max-width: 960px' }, () =>
-      document.nodes.map((section: any) =>
+      form.nodes.map((section: any) =>
         h('div', { key: section.id }, [
           h('div', section.title),
           ...section.children.map((node: any) =>

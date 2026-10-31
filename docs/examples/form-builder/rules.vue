@@ -2,7 +2,7 @@
 import { DouFormRenderer, type FormDocument } from '@dou-ui/form-builder'
 import { DouButton, type FormRules } from 'dou-ui'
 
-const document: FormDocument = {
+const form: FormDocument = {
   version: 1,
   nodes: [
     {
@@ -25,7 +25,7 @@ const document: FormDocument = {
     },
     {
       id: 'seats',
-      type: 'number',
+      type: 'input-number',
       name: 'seats',
       label: '人数',
       required: true,
@@ -48,7 +48,7 @@ const rules: FormRules = {
 </script>
 
 <template>
-  <DouFormRenderer :document="document" :rules="rules" style="max-width: 440px">
+  <DouFormRenderer :form="form" :rules="rules" style="max-width: 440px">
     <div>
       <DouButton native-type="submit" tone="primary">创建</DouButton>
     </div>

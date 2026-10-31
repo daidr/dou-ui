@@ -6,7 +6,7 @@ import { computed, ref } from 'vue'
 const layout = ref<'vertical' | 'horizontal'>('vertical')
 
 // 栅格默认 12 列；`span: { sm: 6 }` 在表单宽度达到 480px 时占半行，更窄时占满一行
-const document = computed<FormDocument>(() => ({
+const form = computed<FormDocument>(() => ({
   version: 1,
   layout: layout.value,
   nodes: [
@@ -32,10 +32,16 @@ const document = computed<FormDocument>(() => ({
           span: { sm: 6 },
           props: { placeholder: '例如 SH-2026-0153' },
         },
-        { id: 'bought', type: 'date', name: 'device.bought', label: '购买日期', span: { sm: 6 } },
+        {
+          id: 'bought',
+          type: 'date-picker',
+          name: 'device.bought',
+          label: '购买日期',
+          span: { sm: 6 },
+        },
         {
           id: 'level',
-          type: 'segmented',
+          type: 'segmented-control',
           name: 'level',
           label: '紧急程度',
           span: { sm: 6 },
@@ -74,5 +80,5 @@ const document = computed<FormDocument>(() => ({
     size="sm"
     style="align-self: flex-start; margin-bottom: 16px"
   />
-  <DouFormRenderer :document="document" />
+  <DouFormRenderer :form="form" />
 </template>

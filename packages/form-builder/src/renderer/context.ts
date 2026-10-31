@@ -4,8 +4,8 @@ import type { FormFieldType } from '../fields/define'
 import type { FormDocument } from '../core/types'
 
 export interface FormRendererProps {
-  /** The form to render. */
-  document: FormDocument
+  /** The form to render: its fields, groups and layout, as plain data. */
+  form: FormDocument
   /**
    * The object the fields write to, changed in place. Pass a reactive
    * object to read the values as they change; fields missing from it are
@@ -21,6 +21,8 @@ export interface FormRendererProps {
 }
 
 export interface FormRendererEmits {
+  /** A field changed its value: its `name`, and the value it now holds. */
+  change: [name: string, value: unknown]
   /** The form was submitted and every field passed. */
   submit: [model: FormModel]
   /** The form was submitted and some fields failed. */
@@ -53,6 +55,8 @@ export interface RendererContext {
   fields: () => Map<string, FormFieldType>
   /** Pixel width of the label column in the horizontal layout, else `undefined`. */
   labelWidth: () => number | undefined
+  /** Tell the renderer a field wrote a value. */
+  changed: (name: string, value: unknown) => void
 }
 
 export const rendererKey: InjectionKey<RendererContext> = Symbol('DouFormRenderer')

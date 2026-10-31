@@ -29,74 +29,63 @@ import {
 } from './components'
 import type { FormOption } from './components'
 
-const empty = () => ''
+const text = () => ''
 const none = () => null
 const list = () => []
 const listWhen = (key: string) => (props: Record<string, unknown>) => (props[key] ? [] : null)
 
-/** The field types every renderer and builder knows. */
+/**
+ * The field types every renderer and builder knows. Each one is named
+ * after the component it renders, in kebab case without the `Dou`
+ * prefix: `input-number` renders `DouInputNumber`.
+ */
 export const builtinFields: FormFieldType<any>[] = [
-  defineFormField({ type: 'input', component: DouInput, initial: empty }),
-  defineFormField({ type: 'textarea', component: DouTextarea, initial: empty }),
-  defineFormField({ type: 'number', component: DouInputNumber }),
-  defineFormField({
-    type: 'password',
-    component: DouInput,
-    defaults: { type: 'password', showPassword: true },
-    initial: empty,
-  }),
+  defineFormField({ type: 'input', component: DouInput, empty: text }),
+  defineFormField({ type: 'textarea', component: DouTextarea, empty: text }),
+  defineFormField({ type: 'input-number', component: DouInputNumber }),
   defineFormField({
     type: 'select',
     component: DouSelect,
-    defaults: { options: [] },
-    initial: listWhen('multiple'),
+    defaultProps: { options: [] },
+    empty: listWhen('multiple'),
   }),
-  defineFormField({ type: 'radio-group', component: RadioField, initial: none }),
-  defineFormField({ type: 'checkbox-group', component: CheckboxGroupField, initial: list }),
+  defineFormField({ type: 'radio-group', component: RadioField, empty: none }),
+  defineFormField({ type: 'checkbox-group', component: CheckboxGroupField, empty: list }),
+  defineFormField({ type: 'checkbox', component: CheckboxField, empty: () => false }),
+  defineFormField({ type: 'switch', component: DouSwitch, empty: () => false }),
   defineFormField({
-    type: 'checkbox',
-    component: CheckboxField,
-    initial: () => false,
-  }),
-  defineFormField({ type: 'switch', component: DouSwitch, initial: () => false }),
-  defineFormField({
-    type: 'segmented',
+    type: 'segmented-control',
     component: DouSegmentedControl,
-    defaults: { options: [] },
-    initial: (props: { options?: FormOption[] }) =>
-      normalizeOptions(props.options)[0]?.value ?? null,
+    defaultProps: { options: [] },
+    empty: (props: { options?: FormOption[] }) => normalizeOptions(props.options)[0]?.value ?? null,
   }),
   defineFormField({
     type: 'slider',
     component: DouSlider,
-    initial: (props: { range?: boolean; min?: number; max?: number }) => {
+    empty: (props: { range?: boolean; min?: number; max?: number }) => {
       const min = props.min ?? 0
       return props.range ? [min, props.max ?? 100] : min
     },
   }),
-  defineFormField({ type: 'rate', component: DouRate, initial: () => 0 }),
-  defineFormField({
-    type: 'date',
-    component: DouDatePicker,
-    initial: none,
-  }),
-  defineFormField({ type: 'time', component: DouTimePicker, initial: none }),
-  defineFormField({ type: 'color', component: DouColorPicker, initial: none }),
+  defineFormField({ type: 'rate', component: DouRate, empty: () => 0 }),
+  defineFormField({ type: 'date-picker', component: DouDatePicker, empty: none }),
+  defineFormField({ type: 'time-picker', component: DouTimePicker, empty: none }),
+  defineFormField({ type: 'color-picker', component: DouColorPicker, empty: none }),
   defineFormField({
     type: 'cascader',
     component: DouCascader,
-    defaults: { options: [] },
-    initial: none,
+    defaultProps: { options: [] },
+    empty: none,
   }),
   defineFormField({
     type: 'tree-select',
     component: DouTreeSelect,
-    defaults: { data: [] },
-    initial: listWhen('multiple'),
+    defaultProps: { data: [] },
+    empty: listWhen('multiple'),
   }),
-  defineFormField({ type: 'tags', component: DouInputTag, initial: list }),
-  defineFormField({ type: 'otp', component: DouInputOtp, initial: empty }),
-  defineFormField({ type: 'upload', component: DouUpload, initial: list }),
+  defineFormField({ type: 'input-tag', component: DouInputTag, empty: list }),
+  defineFormField({ type: 'input-otp', component: DouInputOtp, empty: text }),
+  defineFormField({ type: 'upload', component: DouUpload, empty: list }),
   defineFormField({ type: 'text', kind: 'display', component: TextField }),
   defineFormField({ type: 'divider', kind: 'display', component: DividerField }),
   defineFormField({ type: 'alert', kind: 'display', component: AlertField }),

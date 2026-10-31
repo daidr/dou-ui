@@ -37,8 +37,8 @@ function warnUnknown(type: string) {
 }
 
 /** The nodes of one grid: the document's, or a section's. */
-export function renderNodes(nodes: readonly FormNode[], columns: number): VNode[] {
-  return nodes.map((node) => h(FormNodeView, { key: node.id, node, columns }))
+export function renderNodes(nodes: readonly FormNode[], columns: number, inset = 0): VNode[] {
+  return nodes.map((node) => h(FormNodeView, { key: node.id, node, columns, inset }))
 }
 
 /**
@@ -51,6 +51,8 @@ export const FormNodeView = defineComponent({
   props: {
     node: { type: Object as PropType<FormNode>, required: true },
     columns: { type: Number, required: true },
+    /** How many bordered sections the node sits in; their padding comes off the label column. */
+    inset: { type: Number, default: 0 },
   },
   setup(props) {
     const renderer = inject(rendererKey)!
@@ -64,6 +66,14 @@ export const FormNodeView = defineComponent({
       props: settings.value,
     }))
     const uid = useId()
+
+    // Labels inside bordered sections line up with the ones outside: the
+    // padding and border of each section come off the label column.
+    function labelWidth() {
+      const width = renderer.labelWidth()
+      if (width === undefined || !props.inset) return width
+      return `calc(${width}px - ${props.inset} * (var(--dou-space-lg) + 1px))`
+    }
 
     function renderSection(node: FormSectionNode) {
       const columns = node.columns ?? props.columns
@@ -87,7 +97,7 @@ export const FormNodeView = defineComponent({
           h(
             'div',
             { class: 'dou-form-renderer__grid', style: { '--dou-form-columns': columns } },
-            renderNodes(node.children, columns),
+            renderNodes(node.children, columns, props.inset + (node.bordered ? 1 : 0)),
           ),
         ],
       )
@@ -99,7 +109,7 @@ export const FormNodeView = defineComponent({
         warnUnknown(node.type)
         return null
       }
-      const bound = spec.bind ? spec.bind(settings.value, node) : settings.value
+      const bound = spec.toProps ? spec.toProps(settings.value, node) : settings.value
       if (spec.kind === 'display' || !node.name) return h(spec.component, bound)
       const name = node.name
       const model = renderer.model()
@@ -110,13 +120,16 @@ export const FormNodeView = defineComponent({
           prop: name,
           help: node.help,
           rules: rulesOf(node),
-          labelWidth: renderer.labelWidth(),
+          labelWidth: labelWidth(),
         },
         () =>
           h(spec.component, {
             ...bound,
             modelValue: getPath(model, name),
-            'onUpdate:modelValue': (value: unknown) => setPath(model, name, value),
+            'onUpdate:modelValue': (value: unknown) => {
+              setPath(model, name, value)
+              renderer.changed(name, value)
+            },
           }),
       )
     }

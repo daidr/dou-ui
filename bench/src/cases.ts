@@ -58,6 +58,8 @@ import { DouSheet, type SheetExpose, type SheetWorkbook } from '@dou-ui/sheet'
 import '@dou-ui/sheet/style.css'
 import { DouPivot, type PivotCollapsed, type PivotConfig } from '@dou-ui/pivot'
 import '@dou-ui/pivot/style.css'
+import { DouGridLayout, compactLayout, type GridItem } from '@dou-ui/dashboard'
+import '@dou-ui/dashboard/style.css'
 import {
   DouFormBuilder,
   DouFormRenderer,
@@ -1085,6 +1087,96 @@ export const cases: Record<string, Case> = {
     },
     budget: { 1_000_000: 500 },
   },
+  // n tiles on a 12-column grid, four sizes mixed, each with a little content.
+  'grid-layout': {
+    render: (n) => gridLayout(n),
+  },
+  // A tile carried across the grid, one column further each frame: the layout is
+  // worked out again and the tiles in the way move, none of their content renders again.
+  'grid-layout-drag': {
+    render: (n) => gridLayout(n),
+    prepare: (root) => {
+      const tile = root.querySelector<HTMLElement>('[data-grid-id="t0"]')!
+      const box = tile.getBoundingClientRect()
+      const at = (type: string, target: EventTarget, x: number) =>
+        target.dispatchEvent(
+          new PointerEvent(type, {
+            bubbles: true,
+            clientX: x,
+            clientY: box.top + 10,
+            pointerId: 1,
+            pointerType: 'mouse',
+            isPrimary: true,
+          }),
+        )
+      at('pointerdown', tile, box.left + 10)
+      at('pointermove', window, box.left + 20)
+      let step = 0
+      ;(window as any).gridStep = () => {
+        step = (step + 1) % 10
+        const column = root.getBoundingClientRect().width / 12
+        at('pointermove', window, box.left + 10 + step * column)
+        return nextTick()
+      }
+    },
+    act: () => (window as any).gridStep(),
+    frames: 20,
+    budget: { 200: 8 },
+  },
+  // Floating n tiles up, the work done after every drop.
+  'grid-compact': {
+    render: () => () => h('div'),
+    act: () => {
+      const items = (window as any).gridItems as GridItem[]
+      for (let i = 0; i < 10; i++) compactLayout(items, 12)
+    },
+    prepare: () => {
+      ;(window as any).gridItems = gridItems(1000).map((item, i) => ({
+        ...item,
+        y: item.y + (i % 7),
+      }))
+    },
+    budget: { 1000: 16 },
+  },
+}
+
+/** n tiles of mixed sizes, packed row by row. */
+function gridItems(n: number): GridItem[] {
+  const sizes = [
+    [3, 2],
+    [6, 3],
+    [3, 3],
+    [4, 2],
+  ] as const
+  const items: GridItem[] = []
+  let x = 0
+  let y = 0
+  for (let i = 0; i < n; i++) {
+    const [w, height] = sizes[i % sizes.length]!
+    if (x + w > 12) [x, y] = [0, y + 3]
+    items.push({ id: `t${i}`, x, y, w, h: height })
+    x += w
+  }
+  return items
+}
+
+function gridLayout(n: number) {
+  const items = shallowRef(gridItems(n))
+  return () =>
+    h(
+      DouGridLayout,
+      {
+        modelValue: items.value,
+        'onUpdate:modelValue': (next: GridItem[]) => (items.value = next),
+        editable: true,
+        rowHeight: 48,
+        gap: 8,
+      },
+      {
+        item: ({ item }: { item: GridItem }) =>
+          h('div', { class: 'tile' }, [h('strong', item.id), h('span', `${item.w} × ${item.h}`)]),
+      },
+    )
 }
 
 /** Waits for a pivot table with rows and no veil, its first row other than `before` when given. */

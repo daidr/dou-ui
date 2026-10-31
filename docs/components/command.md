@@ -14,7 +14,7 @@
 
 标签没有匹配时会再看 `description` 和 `keywords`，得分减半，所以试试输入“上线”或“release”。完全自定义时传 `filter(query, item)`，返回 `{ score, indices }` 或 `null`；`fuzzyMatch(text, query)` 也一并导出。
 
-`shortcut` 只负责显示按键，不会绑定快捷键，真正的绑定由你决定。
+`shortcut` 按 `useHotkey` 的写法填写，例如 `mod+n`，按当前平台显示按键（苹果设备上是 ⌘，其他是 Ctrl）。它只负责显示，不会绑定快捷键，真正的绑定由你决定。
 
 ## 命令面板对话框
 
@@ -63,15 +63,15 @@
 
 ### CommandItem
 
-| 名称          | 说明                         | 类型               |
-| ------------- | ---------------------------- | ------------------ |
-| `value`       | 唯一值                       | `string \| number` |
-| `label`       | 显示的文字，优先匹配         | `string`           |
-| `group`       | 所在的组                     | `string`           |
-| `description` | 标签后的次要文字，也参与搜索 | `string`           |
-| `keywords`    | 额外的搜索词                 | `string[]`         |
-| `shortcut`    | 显示在末尾的按键             | `string[]`         |
-| `disabled`    | 不可选中                     | `boolean`          |
+| 名称          | 说明                                                  | 类型               |
+| ------------- | ----------------------------------------------------- | ------------------ |
+| `value`       | 唯一值                                                | `string \| number` |
+| `label`       | 显示的文字，优先匹配                                  | `string`           |
+| `group`       | 所在的组                                              | `string`           |
+| `description` | 标签后的次要文字，也参与搜索                          | `string`           |
+| `keywords`    | 额外的搜索词                                          | `string[]`         |
+| `shortcut`    | 显示在末尾的按键，按 `useHotkey` 的写法，例如 `mod+k` | `string`           |
+| `disabled`    | 不可选中                                              | `boolean`          |
 
 ### Events
 

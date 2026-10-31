@@ -349,7 +349,13 @@ describe('extensions', () => {
     // The key is a hint apart from the name.
     const hi = wrapper.find('button[aria-label="打招呼"]')
     expect(hi.attributes('aria-keyshortcuts')).toBe('Alt+H')
-    expect(hi.attributes('title')).toBe('打招呼（Alt+H）')
+    expect(hi.attributes('title')).toBeUndefined()
+    await hi.trigger('focusin')
+    await flush()
+    const tip = document.querySelector('[role="tooltip"]')!
+    expect(tip.textContent).toContain('打招呼')
+    expect(tip.querySelector('.dou-kbd')?.textContent).toContain('H')
+    await hi.trigger('focusout')
     await hi.trigger('click')
     expect(seen).toContain('toolbar')
 

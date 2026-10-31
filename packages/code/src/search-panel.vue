@@ -10,7 +10,14 @@ import {
   ReplaceIcon,
   WholeWordIcon,
 } from '@dou-ui/icons'
-import { DouButton, DouToggle, isComposing, isApplePlatform, useNamespace } from 'dou-ui'
+import {
+  DouButton,
+  DouToggle,
+  DouTooltip,
+  isComposing,
+  isApplePlatform,
+  useNamespace,
+} from 'dou-ui'
 import { computed, nextTick, ref } from 'vue'
 import type { CodeSearchQuery } from './core/search'
 import { type CodeMessages, format } from './locale'
@@ -37,6 +44,8 @@ const query = defineModel<CodeSearchQuery>('query', { required: true })
 const showReplace = defineModel<boolean>('showReplace', { default: false })
 const ns = useNamespace('code-search')
 const apple = isApplePlatform()
+/** The key that opens the replace box; ⌘H hides the app on Apple platforms. */
+const replaceKey = apple ? 'mod+alt+f' : 'mod+h'
 
 const findInput = ref<HTMLInputElement>()
 const replaceInput = ref<HTMLInputElement>()
@@ -109,19 +118,19 @@ defineExpose({ focus })
 
 <template>
   <div :class="ns.b()" role="search" :aria-label="messages.search" @keydown="onKeydown">
-    <DouButton
-      v-if="!readonly"
-      :class="ns.e('expand')"
-      variant="ghost"
-      size="sm"
-      :aria-label="messages.toggleReplace"
-      :aria-expanded="showReplace"
-      :title="messages.toggleReplace"
-      @click="showReplace = !showReplace"
-    >
-      <ChevronDownIcon v-if="showReplace" />
-      <ChevronRightIcon v-else />
-    </DouButton>
+    <DouTooltip v-if="!readonly" :content="messages.toggleReplace" :shortcut="replaceKey">
+      <DouButton
+        :class="ns.e('expand')"
+        variant="ghost"
+        size="sm"
+        :aria-label="messages.toggleReplace"
+        :aria-expanded="showReplace"
+        @click="showReplace = !showReplace"
+      >
+        <ChevronDownIcon v-if="showReplace" />
+        <ChevronRightIcon v-else />
+      </DouButton>
+    </DouTooltip>
     <div :class="ns.e('rows')">
       <div :class="ns.e('row')">
         <div :class="[ns.e('field'), ns.is('invalid', !!error)]">
@@ -139,66 +148,67 @@ defineExpose({ focus })
             @input="set({ search: ($event.target as HTMLInputElement).value })"
             @keydown="onFindKeydown"
           />
-          <DouToggle
-            :pressed="!!query.caseSensitive"
-            size="sm"
-            :aria-label="messages.caseSensitive"
-            :title="messages.caseSensitive"
-            @update:pressed="set({ caseSensitive: $event })"
-          >
-            <LetterCaseIcon />
-          </DouToggle>
-          <DouToggle
-            :pressed="!!query.wholeWord"
-            size="sm"
-            :aria-label="messages.wholeWord"
-            :title="messages.wholeWord"
-            @update:pressed="set({ wholeWord: $event })"
-          >
-            <WholeWordIcon />
-          </DouToggle>
-          <DouToggle
-            :pressed="!!query.regexp"
-            size="sm"
-            :aria-label="messages.regexp"
-            :title="messages.regexp"
-            @update:pressed="set({ regexp: $event })"
-          >
-            <RegexIcon />
-          </DouToggle>
+          <DouTooltip :content="messages.caseSensitive">
+            <DouToggle
+              :pressed="!!query.caseSensitive"
+              size="sm"
+              :aria-label="messages.caseSensitive"
+              @update:pressed="set({ caseSensitive: $event })"
+            >
+              <LetterCaseIcon />
+            </DouToggle>
+          </DouTooltip>
+          <DouTooltip :content="messages.wholeWord">
+            <DouToggle
+              :pressed="!!query.wholeWord"
+              size="sm"
+              :aria-label="messages.wholeWord"
+              @update:pressed="set({ wholeWord: $event })"
+            >
+              <WholeWordIcon />
+            </DouToggle>
+          </DouTooltip>
+          <DouTooltip :content="messages.regexp">
+            <DouToggle
+              :pressed="!!query.regexp"
+              size="sm"
+              :aria-label="messages.regexp"
+              @update:pressed="set({ regexp: $event })"
+            >
+              <RegexIcon />
+            </DouToggle>
+          </DouTooltip>
         </div>
         <span :class="[ns.e('status'), ns.is('empty', !count)]" aria-live="polite">{{
           status
         }}</span>
-        <DouButton
-          variant="ghost"
-          size="sm"
-          :disabled="!count"
-          :aria-label="messages.previous"
-          :title="messages.previous"
-          @click="emit('previous')"
-        >
-          <ChevronUpIcon />
-        </DouButton>
-        <DouButton
-          variant="ghost"
-          size="sm"
-          :disabled="!count"
-          :aria-label="messages.next"
-          :title="messages.next"
-          @click="emit('next')"
-        >
-          <ChevronDownIcon />
-        </DouButton>
-        <DouButton
-          variant="ghost"
-          size="sm"
-          :aria-label="messages.close"
-          :title="messages.close"
-          @click="emit('close')"
-        >
-          <CloseIcon />
-        </DouButton>
+        <DouTooltip :content="messages.previous" :shortcut="'shift+enter'">
+          <DouButton
+            variant="ghost"
+            size="sm"
+            :disabled="!count"
+            :aria-label="messages.previous"
+            @click="emit('previous')"
+          >
+            <ChevronUpIcon />
+          </DouButton>
+        </DouTooltip>
+        <DouTooltip :content="messages.next" :shortcut="'enter'">
+          <DouButton
+            variant="ghost"
+            size="sm"
+            :disabled="!count"
+            :aria-label="messages.next"
+            @click="emit('next')"
+          >
+            <ChevronDownIcon />
+          </DouButton>
+        </DouTooltip>
+        <DouTooltip :content="messages.close" :shortcut="'escape'">
+          <DouButton variant="ghost" size="sm" :aria-label="messages.close" @click="emit('close')">
+            <CloseIcon />
+          </DouButton>
+        </DouTooltip>
       </div>
       <div v-if="showReplace && !readonly" :class="ns.e('row')">
         <div :class="ns.e('field')">
@@ -216,26 +226,28 @@ defineExpose({ focus })
             @keydown="onReplaceKeydown"
           />
         </div>
-        <DouButton
-          variant="ghost"
-          size="sm"
-          :disabled="!count"
-          :aria-label="messages.replaceOne"
-          :title="messages.replaceOne"
-          @click="emit('replace')"
-        >
-          <ReplaceIcon />
-        </DouButton>
-        <DouButton
-          variant="ghost"
-          size="sm"
-          :disabled="!count"
-          :aria-label="messages.replaceAll"
-          :title="messages.replaceAll"
-          @click="emit('replaceAll')"
-        >
-          <ReplaceAllIcon />
-        </DouButton>
+        <DouTooltip :content="messages.replaceOne" :shortcut="'enter'">
+          <DouButton
+            variant="ghost"
+            size="sm"
+            :disabled="!count"
+            :aria-label="messages.replaceOne"
+            @click="emit('replace')"
+          >
+            <ReplaceIcon />
+          </DouButton>
+        </DouTooltip>
+        <DouTooltip :content="messages.replaceAll" :shortcut="'mod+enter'">
+          <DouButton
+            variant="ghost"
+            size="sm"
+            :disabled="!count"
+            :aria-label="messages.replaceAll"
+            @click="emit('replaceAll')"
+          >
+            <ReplaceAllIcon />
+          </DouButton>
+        </DouTooltip>
       </div>
     </div>
   </div>

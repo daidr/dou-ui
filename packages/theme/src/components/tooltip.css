@@ -34,6 +34,24 @@
     text-box: trim-both cap alphabetic;
   }
 
+  /*
+   * Text, then its keys. The keys stand taller than the trimmed text, so
+   * the row is a flex box of its own, centered on the text's cap height,
+   * and pulled into the padding so the keys sit as far from the top,
+   * bottom and end as each other.
+   */
+  .dou-tooltip__shortcut {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-block: -3px;
+    margin-inline-end: -5px;
+  }
+
+  .dou-tooltip__text {
+    text-box: trim-both cap alphabetic;
+  }
+
   /* not interactive: the pointer passes through to the page */
   .dou-tooltip.is-static {
     pointer-events: none;

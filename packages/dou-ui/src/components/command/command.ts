@@ -11,8 +11,11 @@ export interface CommandItem {
   description?: string
   /** Other words that should find this item, e.g. synonyms. */
   keywords?: string[]
-  /** Keys shown at the end, e.g. `['⌘', 'K']`. Only shown, not bound. */
-  shortcut?: string[]
+  /**
+   * A hotkey in `useHotkey` syntax shown at the end, e.g. `mod+k`, with this
+   * platform's key names. Only shown, not bound.
+   */
+  shortcut?: string
   disabled?: boolean
   [extra: string]: unknown
 }

@@ -10,15 +10,7 @@ import {
   useId,
   watch,
 } from 'vue'
-import {
-  ariaHotkey,
-  DouDrawer,
-  DouPopover,
-  DouTabPanel,
-  DouTabs,
-  formatHotkey,
-  useApplePlatform,
-} from 'dou-ui'
+import { DouDrawer, DouPopover, DouTabPanel, DouTabs, DouTooltip } from 'dou-ui'
 import {
   BracesIcon,
   EyeIcon,
@@ -32,8 +24,6 @@ import { resolveFields } from '../fields/builtin'
 import { createBuilderState, builderKey } from './context'
 import type { FormBuilderMode } from './context'
 import { resolveFormBuilderExtensions } from './extension'
-import type { FormBuilderToolbarItem } from './extension'
-import { formatMessage } from '../locale'
 import FormBuilderJson from './json-dialog.vue'
 import FormBuilderPreview from './preview.vue'
 import { useFormBuilderMessages } from './locale'
@@ -87,16 +77,6 @@ provide(builderKey, state)
 
 const jsonOpen = ref(false)
 const toolbarItems = computed(() => extensions.value.toolbars.flatMap((toolbar) => toolbar(state)))
-
-// The key of a toolbar item goes in its tooltip, and to screen readers apart from its name.
-const apple = useApplePlatform()
-function toolTitle(item: FormBuilderToolbarItem) {
-  if (!item.shortcut) return item.label
-  const keys = formatHotkey(item.shortcut, apple.value)
-    .map((step) => step.join(apple.value ? '' : '+'))
-    .join(' ')
-  return formatMessage(messages.value.actions.withShortcut, { label: item.label, keys })
-}
 
 // Extensions start once the builder is mounted, again when their hooks change, and stop when it goes.
 const stops: (() => void)[] = []
@@ -296,84 +276,96 @@ defineExpose<FormBuilderExpose>({
                 </DouTabs>
               </template>
             </DouPopover>
-            <button
-              v-if="!previewing"
-              type="button"
-              class="dou-form-builder__tool"
-              :disabled="!state.canUndo"
-              :aria-label="messages.actions.undo"
-              :title="messages.actions.undo"
-              aria-keyshortcuts="Control+Z Meta+Z"
-              @click="state.undo()"
-            >
-              <UndoIcon />
-            </button>
-            <button
-              v-if="!previewing"
-              type="button"
-              class="dou-form-builder__tool"
-              :disabled="!state.canRedo"
-              :aria-label="messages.actions.redo"
-              :title="messages.actions.redo"
-              aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z"
-              @click="state.redo()"
-            >
-              <RedoIcon />
-            </button>
-            <button
+            <template v-if="!previewing">
+              <DouTooltip :content="messages.actions.undo" shortcut="mod+z" placement="bottom">
+                <button
+                  type="button"
+                  class="dou-form-builder__tool"
+                  :disabled="!state.canUndo"
+                  :aria-label="messages.actions.undo"
+                  @click="state.undo()"
+                >
+                  <UndoIcon />
+                </button>
+              </DouTooltip>
+              <DouTooltip
+                :content="messages.actions.redo"
+                shortcut="mod+shift+z"
+                placement="bottom"
+              >
+                <button
+                  type="button"
+                  class="dou-form-builder__tool"
+                  :disabled="!state.canRedo"
+                  :aria-label="messages.actions.redo"
+                  @click="state.redo()"
+                >
+                  <RedoIcon />
+                </button>
+              </DouTooltip>
+            </template>
+            <!-- A tool with its name on it needs a tip only for its key. -->
+            <DouTooltip
               v-for="item in toolbarItems"
               :key="item.key"
-              type="button"
-              class="dou-form-builder__tool"
-              :disabled="item.disabled"
-              :aria-pressed="item.pressed"
-              :aria-label="item.icon ? item.label : undefined"
-              :aria-keyshortcuts="item.shortcut ? ariaHotkey(item.shortcut, apple) : undefined"
-              :title="toolTitle(item)"
-              @click="item.run()"
+              :content="item.label"
+              :shortcut="item.shortcut"
+              :disabled="!item.icon && !item.shortcut"
+              placement="bottom"
             >
-              <component :is="item.icon" v-if="item.icon" />
-              <span v-else>{{ item.label }}</span>
-            </button>
+              <button
+                type="button"
+                class="dou-form-builder__tool"
+                :disabled="item.disabled"
+                :aria-pressed="item.pressed"
+                :aria-label="item.icon ? item.label : undefined"
+                @click="item.run()"
+              >
+                <component :is="item.icon" v-if="item.icon" />
+                <span v-else>{{ item.label }}</span>
+              </button>
+            </DouTooltip>
             <slot name="toolbar" />
             <span class="dou-form-builder__toolbar-spacer" />
-            <button
-              v-if="compact && !previewing"
-              type="button"
-              class="dou-form-builder__tool dou-form-builder__select-toggle"
-              :aria-pressed="state.tapToggles.value"
-              :aria-label="messages.actions.selectMany"
-              :title="messages.actions.selectMany"
-              @click="state.tapToggles.value = !state.tapToggles.value"
-            >
-              <ListChecksIcon />
-            </button>
-            <button
-              v-if="compact && !previewing"
-              type="button"
-              class="dou-form-builder__tool dou-form-builder__settings-toggle"
-              aria-haspopup="dialog"
-              :aria-label="messages.panels.settings"
-              :title="messages.panels.settings"
-              @click="settingsOpen = true"
-            >
-              <SlidersIcon />
-            </button>
-            <button
-              type="button"
-              class="dou-form-builder__tool"
-              aria-haspopup="dialog"
-              :aria-label="messages.json.title"
-              :title="messages.json.title"
-              @click="jsonOpen = true"
-            >
-              <BracesIcon />
-            </button>
+            <template v-if="compact && !previewing">
+              <DouTooltip :content="messages.actions.selectMany" placement="bottom">
+                <button
+                  type="button"
+                  class="dou-form-builder__tool dou-form-builder__select-toggle"
+                  :aria-pressed="state.tapToggles.value"
+                  :aria-label="messages.actions.selectMany"
+                  @click="state.tapToggles.value = !state.tapToggles.value"
+                >
+                  <ListChecksIcon />
+                </button>
+              </DouTooltip>
+              <DouTooltip :content="messages.panels.settings" placement="bottom">
+                <button
+                  type="button"
+                  class="dou-form-builder__tool dou-form-builder__settings-toggle"
+                  aria-haspopup="dialog"
+                  :aria-label="messages.panels.settings"
+                  @click="settingsOpen = true"
+                >
+                  <SlidersIcon />
+                </button>
+              </DouTooltip>
+            </template>
+            <DouTooltip :content="messages.json.title" placement="bottom">
+              <button
+                type="button"
+                class="dou-form-builder__tool"
+                aria-haspopup="dialog"
+                :aria-label="messages.json.title"
+                @click="jsonOpen = true"
+              >
+                <BracesIcon />
+              </button>
+            </DouTooltip>
             <button
               type="button"
               class="dou-form-builder__tool dou-form-builder__preview-toggle"
               :aria-pressed="previewing"
-              :title="messages.preview.toggle"
               @click="state.setMode(previewing ? 'design' : 'preview')"
             >
               <EyeIcon />

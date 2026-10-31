@@ -44,6 +44,7 @@ const iconSources = import.meta.glob<string>(
     '../../../packages/icons/icons/clock.stroke.svg',
     '../../../packages/icons/icons/cloud-upload.stroke.svg',
     '../../../packages/icons/icons/code.stroke.svg',
+    '../../../packages/icons/icons/grip-horizontal.stroke.svg',
     '../../../packages/icons/icons/grip-vertical.stroke.svg',
     '../../../packages/icons/icons/heading.stroke.svg',
     '../../../packages/icons/icons/heart.stroke.svg',
@@ -1272,6 +1273,14 @@ export function overviewArt(name: string) {
 const flowNode = (x: number, y: number, w: number, h: number, c = 'p') => rect(x, y, w, h, c, 4)
 const flowPort = (cx: number, cy: number) => circle(cx, cy, 2, 'p lk')
 
+/** A dashboard tile's box: four columns of 37 with gaps of 4, rows of 26 with gaps of 6. */
+const dashboardCell = (
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+): [number, number, number, number] => [20 + x * 41, 14 + y * 32, w * 41 - 4, h * 32 - 6]
+
 /** Drawings for the ecosystem overview, one per package. */
 const ecosystemArts: Record<string, string | ((id: string) => string)> = {
   // a document of blocks, one hovered with its handle in the gutter
@@ -1517,6 +1526,31 @@ const ecosystemArts: Record<string, string | ((id: string) => string)> = {
       })
       if (i === active) art += rect(x - 3, y - 6, 2, 12, 'k', 1)
     })
+    return art
+  },
+  // tiles on a grid: one picked up and carried, a dashed box where it will land
+  dashboard: () => {
+    const tile = ([x, y, w, h]: number[], c = 'p') => rect(x!, y!, w!, h!, c, 6)
+    const stat = dashboardCell(0, 0, 2, 1)
+    const chart = dashboardCell(0, 1, 2, 2)
+    const list = dashboardCell(2, 0, 2, 2)
+    const spot = dashboardCell(2, 2, 2, 1)
+    let art =
+      tile(stat) + bar(stat[0] + 8, stat[1] + 7, 20, 't') + bar(stat[0] + 8, stat[1] + 15, 32, 'k')
+    art += tile(chart) + bar(chart[0] + 8, chart[1] + 7, 24, 't')
+    const heights = [12, 20, 14, 24, 32]
+    heights.forEach(
+      (v, i) => (art += rect(chart[0] + 9 + i * 13, chart[1] + chart[3] - 7 - v, 8, v, 'b', 1.5)),
+    )
+    art += tile(list) + bar(list[0] + 8, list[1] + 7, 22, 't')
+    for (const [i, w] of [44, 32, 50, 28].entries())
+      art += bar(list[0] + 8, list[1] + 19 + i * 9, w)
+    // the landing place, and the tile lifted off it
+    art += rect(spot[0], spot[1], spot[2], spot[3], 'pm dash', 6)
+    const [lx, ly] = [spot[0] - 10, spot[1] - 8]
+    art += rect(lx, ly, spot[2], spot[3], 'p f', 6)
+    art += bar(lx + 8, ly + 7, 18, 't') + bar(lx + 8, ly + 15, 28, 'k')
+    art += icon('grip-horizontal', lx + spot[2] - 10, ly + 9, 10, 'ico-3')
     return art
   },
   // the icon gallery: a search field above a grid of icons

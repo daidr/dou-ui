@@ -90,6 +90,25 @@ export interface FlowMessages {
     custom: string
   }
   status: { wait: string; process: string; finish: string; error: string }
+  /** The whiteboard's toolbar and nodes. */
+  board: {
+    tools: string
+    select: string
+    hand: string
+    rect: string
+    ellipse: string
+    diamond: string
+    sticky: string
+    text: string
+    /** The field for a node's text. */
+    editText: string
+    /** Read after a tool's name; `{key}` is its key. */
+    key: string
+    /** Announced when a tool is picked; `{tool}` is its name. */
+    picked: string
+    /** A node's name when it has text; `{kind}` is what it is, as `rect` or `sticky`. */
+    named: string
+  }
 }
 
 const zhCN: FlowMessages = {
@@ -160,6 +179,20 @@ const zhCN: FlowMessages = {
     custom: '不能连到这个端口',
   },
   status: { wait: '等待', process: '运行中', finish: '已完成', error: '失败' },
+  board: {
+    tools: '白板工具',
+    select: '选择',
+    hand: '移动画布',
+    rect: '矩形',
+    ellipse: '椭圆',
+    diamond: '菱形',
+    sticky: '便签',
+    text: '文字',
+    editText: '编辑文字',
+    key: '{tool}（{key}）',
+    picked: '已选择{tool}工具',
+    named: '{kind}：{text}',
+  },
 }
 
 const zhTW: FlowMessages = {
@@ -230,6 +263,20 @@ const zhTW: FlowMessages = {
     custom: '不能連到這個連接埠',
   },
   status: { wait: '等待', process: '執行中', finish: '已完成', error: '失敗' },
+  board: {
+    tools: '白板工具',
+    select: '選取',
+    hand: '移動畫布',
+    rect: '矩形',
+    ellipse: '橢圓',
+    diamond: '菱形',
+    sticky: '便利貼',
+    text: '文字',
+    editText: '編輯文字',
+    key: '{tool}（{key}）',
+    picked: '已選取{tool}工具',
+    named: '{kind}：{text}',
+  },
 }
 
 const en: FlowMessages = {
@@ -300,6 +347,20 @@ const en: FlowMessages = {
     custom: 'Can’t connect to this port',
   },
   status: { wait: 'Waiting', process: 'Running', finish: 'Done', error: 'Failed' },
+  board: {
+    tools: 'Whiteboard tools',
+    select: 'Select',
+    hand: 'Hand',
+    rect: 'Rectangle',
+    ellipse: 'Ellipse',
+    diamond: 'Diamond',
+    sticky: 'Sticky note',
+    text: 'Text',
+    editText: 'Edit text',
+    key: '{tool} ({key})',
+    picked: '{tool} tool',
+    named: '{kind}: {text}',
+  },
 }
 
 export const flowLocales: Record<string, FlowMessages> = { 'zh-CN': zhCN, 'zh-TW': zhTW, en }

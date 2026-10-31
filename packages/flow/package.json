@@ -35,6 +35,10 @@
       "types": "./dist/types/collaboration/index.d.ts",
       "import": "./dist/collaboration/index.js"
     },
+    "./whiteboard": {
+      "types": "./dist/types/whiteboard/index.d.ts",
+      "import": "./dist/whiteboard/index.js"
+    },
     "./style.css": "./dist/style.css",
     "./package.json": "./package.json"
   },

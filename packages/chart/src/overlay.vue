@@ -27,6 +27,8 @@ export interface OverlayState {
       dashed: boolean
       /** Turned off. */
       off: boolean
+      /** The last one shown: it can't be turned off. */
+      locked: boolean
     }>
   >
   /** Turns the series (or slice) at `index` on or off. */
@@ -79,9 +81,11 @@ const focusVisible = (e: FocusEvent) => (e.target as Element).matches(':focus-vi
         ns.is(item.kind),
         ns.is('dashed', item.dashed),
         ns.is('off', item.off),
+        ns.is('locked', item.locked),
       ]"
       :style="{ transform: `translate(${item.left}px, ${item.top}px)` }"
       :aria-pressed="!item.off"
+      :aria-disabled="item.locked || undefined"
       @click="toggle(item.index)"
       @pointerenter="(e) => e.pointerType !== 'touch' && !item.off && focus(item.index)"
       @pointerleave="focus(null)"

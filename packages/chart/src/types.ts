@@ -155,7 +155,18 @@ export interface ChartTooltipSlots {
     /** The x (axis tooltips), or the series (one point). */
     title?: string
     items: ChartTooltipItem[]
+    /** A note under the values: how many slices of a pie are turned off. */
+    note?: string
   }) => unknown
+}
+
+/** What `select` gives: what the tooltip shows where it was clicked. */
+export interface ChartSelectEvent {
+  /** The x as given: the category, a `Date` on a time axis, or the number; a slice's label. */
+  x: unknown
+  title?: string
+  /** One per series at the x, or the one point or slice. */
+  items: ChartTooltipItem[]
 }
 
 export interface ChartPieSlots {

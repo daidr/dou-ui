@@ -29,6 +29,7 @@ export type {
   ChartPieSlots,
   ChartProps,
   ChartScatterProps,
+  ChartSelectEvent,
   ChartSlots,
   ChartTooltipItem,
   ChartTooltipProps,

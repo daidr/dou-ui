@@ -230,6 +230,39 @@ describe('tooltip', () => {
   })
 })
 
+describe('select', () => {
+  it('tells what was clicked, or picked with Enter', async () => {
+    const picked: unknown[] = []
+    const { wrapper, root } = await sized(() =>
+      h(
+        DouChart,
+        { data: sales, x: 'q', height: 300, onSelect: (event: unknown) => picked.push(event) },
+        () => [h(DouChartBar, { y: 'a', name: '线上' })],
+      ),
+    )
+    key(root, 'ArrowRight')
+    key(root, 'Enter')
+    await nextTick()
+    expect(picked).toHaveLength(1)
+    expect(picked[0]).toMatchObject({
+      x: '一季度',
+      title: '一季度',
+      items: [{ name: '线上', value: 120, row: sales[0] }],
+    })
+    // a click on the plot, over the third quarter
+    const plotX = (wrapper.vm.$el as HTMLElement).clientWidth
+    root.dispatchEvent(
+      new MouseEvent('click', { clientX: plotX * 0.75, clientY: 150, bubbles: true }),
+    )
+    expect(picked).toHaveLength(2)
+    expect((picked[1] as { x: string }).x).toBe('三季度')
+    // outside the plot: nothing
+    root.dispatchEvent(new MouseEvent('click', { clientX: 2, clientY: 2, bubbles: true }))
+    expect(picked).toHaveLength(2)
+    wrapper.unmount()
+  })
+})
+
 describe('legend', () => {
   it('turns a series off and on, keeping the last one on', async () => {
     const hidden = ref(false)
@@ -249,7 +282,9 @@ describe('legend', () => {
     await entries()[0]!.trigger('click')
     expect(hidden.value).toBe(true)
     expect(entries()[0]!.classes()).toContain('is-off')
-    // the last one shown stays on
+    // the last one shown stays on, and says so
+    await nextTick()
+    expect(entries()[1]!.attributes('aria-disabled')).toBe('true')
     await entries()[1]!.trigger('click')
     expect(entries()[1]!.attributes('aria-pressed')).toBe('true')
     await entries()[0]!.trigger('click')
@@ -267,11 +302,16 @@ describe('legend', () => {
     )
     await wrapper.findAll('.dou-chart__legend')[0]!.trigger('click')
     await nextTick()
-    expect(root.getAttribute('aria-label')).toMatch(/^图表。餐饮 1（100%）/)
+    expect(root.getAttribute('aria-label')).toMatch(
+      /^图表。餐饮 1（100%），已隐藏 1 项，占比只按显示的部分计算/,
+    )
     key(root, 'ArrowRight')
     await nextTick()
-    // the slice turned off is skipped
+    // the slice turned off is skipped, and the tooltip says shares leave it out
     expect(wrapper.find('.dou-chart__tooltip-item').text()).toBe('餐饮1（100%）')
+    expect(wrapper.find('.dou-chart__tooltip-note').text()).toBe(
+      '已隐藏 1 项，占比只按显示的部分计算',
+    )
     wrapper.unmount()
   })
 })

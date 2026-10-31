@@ -2,6 +2,7 @@
 import { useElementSize, useLocale, useNamespace, useReducedMotion } from 'dou-ui'
 import {
   computed,
+  getCurrentInstance,
   onBeforeUnmount,
   onMounted,
   provide,
@@ -40,7 +41,7 @@ import {
 import { format, useChartMessages } from './locale'
 import ChartOverlay, { type OverlayState } from './overlay.vue'
 import ChartPointer, { type PointerState, type Tip } from './pointer.vue'
-import type { ChartProps, ChartSlots, ChartTooltipItem } from './types'
+import type { ChartProps, ChartSelectEvent, ChartSlots, ChartTooltipItem } from './types'
 
 defineOptions({ name: 'DouChart' })
 
@@ -51,6 +52,10 @@ const props = withDefaults(defineProps<ChartProps>(), {
   legend: undefined,
 })
 defineSlots<ChartSlots>()
+const emit = defineEmits<{
+  /** A bar, point or slice was clicked, or Enter pressed on it: what the tooltip shows there. */
+  select: [event: ChartSelectEvent]
+}>()
 
 const ns = useNamespace('chart')
 const { locale } = useLocale()
@@ -297,21 +302,26 @@ const legendEntries = computed(() => {
   void themeVersion.value
   if (pie.value) {
     if (!(props.legend ?? slices.value.length > 1)) return []
+    const last = shownSlices.value.length === 1
     return slices.value.map((slice, k) => ({
       text: slice.label,
       color: sliceColors.value[k]!,
       kind: 'pie',
       dashed: false,
       off: slice.hidden,
+      locked: last && !slice.hidden,
     }))
   }
   if (!(props.legend ?? seriesParts.value.length > 1)) return []
+  const last = seriesParts.value.filter((part) => !part.hidden.value).length === 1
   return seriesParts.value.map((part, index) => ({
     text: seriesName({ index, props: part.props }),
     color: seriesColor(part.props, index),
     kind: part.kind.type,
     dashed: !!part.props.dashed,
     off: part.hidden.value,
+    // the last one shown can't be turned off
+    locked: last && !part.hidden.value,
   }))
 })
 
@@ -448,19 +458,23 @@ const percent = computed(
 
 /** What is shown for the active x, point or slice. */
 const tip = computed<Tip | null>(() => {
+  if (!interactive.value) return null
   const t = tipOf(active.value)
   return t && active.value?.touch ? { ...t, above: true } : t
 })
 
 function tipOf(a: Active | null): Tip | null {
-  if (!a || !interactive.value) return null
+  if (!a) return null
   if (a.type === 'slice') {
     const p = pieLayout.value
     const slice = slices.value[a.slice]
     if (!p || !slice || slice.hidden) return null
     const middle = (slice.start + slice.end) / 2
     const at = p.radius * (holeRatio.value > 0 ? (1 + holeRatio.value) / 2 : 0.6)
+    const off = slices.value.length - shownSlices.value.length
     return {
+      x: slice.label,
+      note: off ? format(messages.value.hiddenSlices, { count: off }) : undefined,
       items: [
         {
           name: slice.label,
@@ -511,6 +525,7 @@ function tipOf(a: Active | null): Tip | null {
     const label = s.props.label as ChartAccessor | undefined
     const own = label === undefined ? null : read(s.rows[a.row]!, label, a.row)
     return {
+      x: rawX(x),
       title: own == null || own === '' ? s.name : String(own),
       items,
       anchor: [left, top],
@@ -562,15 +577,48 @@ function tipOf(a: Active | null): Tip | null {
       anchor = [at, top]
     }
   }
+  // a finger on the screen: beside the x, clear of its bars and the hand
+  const width = band ? room : 24
   return {
+    x: rawX(x),
     title: xText(x),
     items,
     anchor,
+    clear: a.touch ? across(at - width / 2, width) : undefined,
     marks,
     band: crosshair && band ? across(at - room / 2, room) : undefined,
     line: crosshair && !band ? across(line, 1) : undefined,
   }
 }
+
+/** An x as given: the category, a `Date` on a time axis, or the number. */
+function rawX(x: number): unknown {
+  const kind = model.value.xKind
+  return kind === 'category' ? model.value.categories[x] : kind === 'time' ? new Date(x) : x
+}
+
+/** Tells the page what was picked: what the tooltip shows there. */
+function select(t: Tip) {
+  emit('select', { x: t.x, title: t.title, items: t.items })
+}
+
+const instance = getCurrentInstance()
+/** Whether anyone listens to `select`: then what can be picked shows a pointing hand. */
+const selectable = () => !!instance?.vnode.props?.onSelect
+
+function onClick(event: MouseEvent) {
+  // the legend's own buttons
+  if ((event.target as Element).closest?.('button')) return
+  const at = local(event)
+  const target = hitAt(...at)
+  const t = target && tipOf({ ...target, pointer: at })
+  if (t) select(t)
+}
+
+watch(active, (a) => {
+  const root = rootRef.value
+  if (root && selectable()) root.style.cursor = a?.pointer && !a.touch ? 'pointer' : ''
+})
 
 /** Whether x is a number worth giving as `value` (not a category's index). */
 const m0x = () => model.value.xKind !== 'category'
@@ -590,7 +638,7 @@ function setActive(next: Target | null, pointer: [number, number] | null, touch 
 let pointerFrame = 0
 let lastPointer: [number, number] | null = null
 
-function local(event: PointerEvent): [number, number] {
+function local(event: MouseEvent): [number, number] {
   const rect = rootRef.value!.getBoundingClientRect()
   return [event.clientX - rect.left, event.clientY - rect.top]
 }
@@ -652,6 +700,10 @@ onBeforeUnmount(() => {
 
 function onKeydown(event: KeyboardEvent) {
   if (!interactive.value || event.target !== rootRef.value) return
+  if (event.key === 'Enter') {
+    if (tip.value) select(tip.value)
+    return
+  }
   if (event.key === 'Escape') {
     if (active.value) {
       setActive(null, null)
@@ -766,7 +818,8 @@ const live = computed(() => {
   const items = t.items
     .map((item) => `${item.name} ${item.text}`)
     .join(messages.value.itemSeparator)
-  return t.title ? `${t.title}${messages.value.itemSeparator}${items}` : items
+  const text = t.title ? `${t.title}${messages.value.itemSeparator}${items}` : items
+  return t.note ? `${text}${messages.value.itemSeparator}${t.note}` : text
 })
 
 const pointer: PointerState = {
@@ -1194,11 +1247,13 @@ const label = computed(() => {
         }),
       )
       .join(m.listSeparator)
+    const off = slices.value.length - shownSlices.value.length
+    const shown = off ? `${list}${m.itemSeparator}${format(m.hiddenSlices, { count: off })}` : list
     const title = pie.value.props.name
     return withKeys(
       format(m.summary, {
         chart: m.chart,
-        series: title ? format(m.pie, { name: title, slices: list }) : list,
+        series: title ? format(m.pie, { name: title, slices: shown }) : shown,
       }),
     )
   }
@@ -1296,6 +1351,7 @@ const cssLength = (value: number | string) => (typeof value === 'number' ? `${va
     @pointerup="onPointerUp"
     @pointercancel="onPointerCancel"
     @keydown="onKeydown"
+    @click="onClick"
     @blur="active && !active.pointer && setActive(null, null)"
   >
     <div :class="ns.e('parts')" hidden><slot /></div>

@@ -18,6 +18,8 @@ export interface ChartMessages {
   itemSeparator: string
   /** A slice's value in its tooltip: `{value}`, `{share}` (a percentage). */
   share: string
+  /** Under a pie with slices turned off: `{count}`. */
+  hiddenSlices: string
   /** The summary of a chart that can be explored with the keys: `{summary}`. */
   keys: string
   /** The chart with the range of its x axis: `{chart}`, `{from}`, `{to}`. */
@@ -39,6 +41,7 @@ const zhCN: ChartMessages = {
   listSeparator: '；',
   itemSeparator: '，',
   share: '{value}（{share}）',
+  hiddenSlices: '已隐藏 {count} 项，占比只按显示的部分计算',
   keys: '{summary}。用方向键逐个查看数据',
   range: '{chart}，横轴从 {from} 到 {to}',
   rangeDown: '{chart}，纵轴从 {from} 到 {to}',
@@ -55,6 +58,7 @@ const zhTW: ChartMessages = {
   listSeparator: '；',
   itemSeparator: '，',
   share: '{value}（{share}）',
+  hiddenSlices: '已隱藏 {count} 項，占比只按顯示的部分計算',
   keys: '{summary}。用方向鍵逐個查看資料',
   range: '{chart}，橫軸從 {from} 到 {to}',
   rangeDown: '{chart}，縱軸從 {from} 到 {to}',
@@ -71,6 +75,7 @@ const en: ChartMessages = {
   listSeparator: '; ',
   itemSeparator: ', ',
   share: '{value} ({share})',
+  hiddenSlices: '{count} hidden; shares are of the slices shown',
   keys: '{summary}. Use the arrow keys to read each point',
   range: '{chart}, x from {from} to {to}',
   rangeDown: '{chart}, x from {from} to {to}',

@@ -18,6 +18,12 @@ export interface Tip {
   marks: Array<{ left: number; top: number; color: string; radius: number; ring: boolean }>
   /** Above the anchor rather than below, out from under a finger. */
   above?: boolean
+  /** A place to keep clear of (the x under a finger): the tooltip goes beside it. */
+  clear?: Rect
+  /** A line under the values (slices left out of a pie). */
+  note?: string
+  /** The x as given, for `select`. */
+  x?: unknown
 }
 
 export interface PointerState {
@@ -48,6 +54,30 @@ watchPostEffect(() => {
   if (!el || !t || !size) return
   const width = el.offsetWidth
   const height = el.offsetHeight
+  const c = t.clear
+  if (c) {
+    const fits = (at: number, span: number, room: number) => at >= EDGE && at + span <= room - EDGE
+    if (c.width < c.height) {
+      // a column: to its right, or its left, at the top of the plot
+      const right = c.x + c.width + GAP
+      const left = c.x - GAP - width
+      if (fits(right, width, size.width) || fits(left, width, size.width)) {
+        const x = fits(right, width, size.width) ? right : left
+        el.style.transform = `translate(${Math.round(x)}px, ${Math.round(Math.max(EDGE, c.y))}px)`
+        return
+      }
+    } else {
+      // a row: below it, or above it, at the start of the plot
+      const below = c.y + c.height + GAP
+      const above = c.y - GAP - height
+      if (fits(below, height, size.height) || fits(above, height, size.height)) {
+        const y = fits(below, height, size.height) ? below : above
+        const x = Math.min(Math.max(EDGE, c.x), size.width - EDGE - width)
+        el.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`
+        return
+      }
+    }
+  }
   const [x, y] = t.anchor
   let left = x + GAP
   if (left + width > size.width - EDGE) left = x - GAP - width
@@ -84,7 +114,7 @@ const px = (r: Rect) => ({
     />
     <div ref="box" :class="ns.e('tooltip')">
       <component
-        :is="() => state.content.value!({ title: tip!.title, items: tip!.items })"
+        :is="() => state.content.value!({ title: tip!.title, items: tip!.items, note: tip!.note })"
         v-if="state.content.value"
       />
       <template v-else>
@@ -96,6 +126,7 @@ const px = (r: Rect) => ({
           <span :class="[ns.e('tooltip-name'), ns.e('text')]">{{ item.name }}</span>
           <span :class="[ns.e('tooltip-value'), ns.e('text')]">{{ item.text }}</span>
         </div>
+        <div v-if="tip.note" :class="ns.e('tooltip-note')">{{ tip.note }}</div>
       </template>
     </div>
   </div>

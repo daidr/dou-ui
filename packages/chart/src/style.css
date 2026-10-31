@@ -141,6 +141,15 @@
       outline-offset: 2px;
     }
 
+    /* the last one shown: it stays on, so it doesn't look pressable */
+    &.is-locked {
+      cursor: default;
+
+      &:hover {
+        color: var(--dou-color-text-secondary);
+      }
+    }
+
     /* turned off: the swatch empties and the name fades */
     &.is-off {
       color: var(--dou-color-text-disabled);
@@ -308,6 +317,12 @@
     color: var(--dou-color-text);
     font-weight: var(--dou-font-weight-medium);
     white-space: nowrap;
+  }
+
+  .dou-chart__tooltip-note {
+    margin-top: 6px;
+    color: var(--dou-color-text-tertiary);
+    line-height: 16px;
   }
 
   /* read out, not shown */

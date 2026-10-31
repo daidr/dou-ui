@@ -73,14 +73,20 @@ export type {
   SheetCell,
   SheetCellInput,
   SheetData,
+  SheetFilter,
+  SheetFilterCondition,
+  SheetFilterRule,
   SheetFreeze,
   SheetRow,
   SheetSelectOption,
+  SheetSortOrder,
   SheetStyle,
   SheetTypeSetup,
   SheetValue,
   SheetWorkbook,
 } from './core/model'
+export { compareForSort, meetsRule, sortRows, textCollator } from './core/data'
+export type { SheetSortKey } from './core/data'
 export { changeDecimals, formatValue, parseInput } from './core/format'
 export type { SheetInput } from './core/format'
 export { isSelected, selectCell } from './core/selection'

@@ -66,7 +66,49 @@ export interface SheetData {
    * shown. Merges must not overlap.
    */
   merges?: string[]
+  /** A filter on a range: rows whose cells don't match its rules are hidden. */
+  filter?: SheetFilter
 }
+
+/**
+ * A filter on a range of rows. The range's first row holds the headings,
+ * which get the filter buttons; the rows below are filtered. Rows hidden by
+ * a filter are not stored as hidden: clearing the rules shows them again.
+ */
+export interface SheetFilter {
+  /** The range, headings included, such as `'A1:E40'`. */
+  range: string
+  /** The rule of each filtered column, by column number. */
+  columns?: Record<number, SheetFilterRule>
+  /** The column the rows were last sorted by from the filter, shown on its button. */
+  sorted?: { col: number; order: SheetSortOrder }
+}
+
+/**
+ * Which rows a column keeps: those whose shown text is one of `values` (an
+ * empty cell is `''`), or those that meet `condition`.
+ */
+export type SheetFilterRule = { values: string[] } | { condition: SheetFilterCondition }
+
+/** A condition on a cell; numbers compare as numbers, text without case. */
+export interface SheetFilterCondition {
+  op:
+    | 'eq'
+    | 'ne'
+    | 'gt'
+    | 'ge'
+    | 'lt'
+    | 'le'
+    | 'contains'
+    | 'notContains'
+    | 'begins'
+    | 'ends'
+    | 'blank'
+    | 'notBlank'
+  value?: SheetValue
+}
+
+export type SheetSortOrder = 'asc' | 'desc'
 
 /** How cells that use a style look. Tones follow the color mode; colors are used as given. */
 export interface SheetStyle {

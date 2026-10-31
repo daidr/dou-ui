@@ -1,7 +1,7 @@
 import { inject, type ComputedRef, type InjectionKey, type Ref } from 'vue'
 import type { SheetPoint } from './core/address'
 import type { SheetResolvedType } from './core/cell-type'
-import type { SheetData, SheetStyle, SheetValue, SheetWorkbook } from './core/model'
+import type { SheetData, SheetSortOrder, SheetStyle, SheetValue, SheetWorkbook } from './core/model'
 import type { SheetResult } from './formula/values'
 import type { SheetSelection } from './core/selection'
 import type { SheetStylePatch } from './core/transaction'
@@ -77,6 +77,15 @@ export interface SheetContext {
   merge: () => void
   /** Splits the merged cells the selection touches. */
   unmerge: () => void
+  /**
+   * Sorts by the active cell's column: the selected rows, or the filter's
+   * rows, or the block of cells around it. Returns whether it sorted.
+   */
+  sort: (order: SheetSortOrder) => boolean
+  /** Whether the sheet shown has a filter. */
+  filtered: ComputedRef<boolean>
+  /** Puts a filter on the selection (or the block around the active cell), or takes it off. */
+  toggleFilter: () => void
   /** Says `text` to screen readers. */
   announce: (text: string) => void
   /** The cell being edited, for inputs outside the grid such as the formula bar. */

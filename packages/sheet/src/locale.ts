@@ -92,6 +92,8 @@ export interface SheetMessages {
   badAddress: string
   /** The list of functions while typing a function's name. */
   functionList: string
+  /** Sorting and filtering. */
+  filter: SheetFilterMessages
   /** The name a new sheet gets: `{n}` is a number. */
   sheetName: string
   /** The sheet tabs' accessible name. */
@@ -241,6 +243,48 @@ const zhCN: SheetMessages = {
   formulaBox: '编辑栏',
   badAddress: '“{text}”不是单元格地址',
   functionList: '函数',
+  filter: {
+    sortAsc: '升序排序',
+    sortDesc: '降序排序',
+    sort: '排序',
+    turnOn: '筛选',
+    turnOff: '取消筛选',
+    clearAll: '清除所有筛选条件',
+    button: '{column} 筛选',
+    byValues: '按值',
+    byCondition: '按条件',
+    search: '搜索',
+    values: '值',
+    all: '全选',
+    allMatches: '选择所有搜索结果',
+    blank: '（空白）',
+    noMatch: '没有匹配的值',
+    more: '另有 {count} 项未列出，可以搜索',
+    condition: '条件',
+    value: '值',
+    clear: '清除筛选',
+    apply: '确定',
+    ops: {
+      eq: '等于',
+      ne: '不等于',
+      gt: '大于',
+      ge: '大于或等于',
+      lt: '小于',
+      le: '小于或等于',
+      contains: '包含',
+      notContains: '不包含',
+      begins: '开头是',
+      ends: '结尾是',
+      blank: '为空',
+      notBlank: '不为空',
+    },
+    added: '已对 {range} 添加筛选',
+    removed: '已取消筛选',
+    applied: '{column} 已筛选，显示 {shown} / {total} 行',
+    sorted: '已按 {column} 排序',
+    mergedSort: '含有合并单元格的区域不能排序',
+    nothingToSort: '请选择要排序的多行，或先添加筛选',
+  },
   sheetName: '工作表{n}',
   sheets: '工作表',
   sheetShown: '工作表“{name}”',
@@ -376,6 +420,48 @@ const zhTW: SheetMessages = {
   formulaBox: '資料編輯列',
   badAddress: '「{text}」不是儲存格位址',
   functionList: '函數',
+  filter: {
+    sortAsc: '遞增排序',
+    sortDesc: '遞減排序',
+    sort: '排序',
+    turnOn: '篩選',
+    turnOff: '取消篩選',
+    clearAll: '清除所有篩選條件',
+    button: '{column} 篩選',
+    byValues: '依值',
+    byCondition: '依條件',
+    search: '搜尋',
+    values: '值',
+    all: '全選',
+    allMatches: '選取所有搜尋結果',
+    blank: '（空白）',
+    noMatch: '沒有相符的值',
+    more: '另有 {count} 項未列出，可以搜尋',
+    condition: '條件',
+    value: '值',
+    clear: '清除篩選',
+    apply: '確定',
+    ops: {
+      eq: '等於',
+      ne: '不等於',
+      gt: '大於',
+      ge: '大於或等於',
+      lt: '小於',
+      le: '小於或等於',
+      contains: '包含',
+      notContains: '不包含',
+      begins: '開頭是',
+      ends: '結尾是',
+      blank: '為空白',
+      notBlank: '不為空白',
+    },
+    added: '已對 {range} 加上篩選',
+    removed: '已取消篩選',
+    applied: '{column} 已篩選，顯示 {shown} / {total} 列',
+    sorted: '已依 {column} 排序',
+    mergedSort: '含有合併儲存格的範圍無法排序',
+    nothingToSort: '請選取要排序的多列，或先加上篩選',
+  },
   sheetName: '工作表{n}',
   sheets: '工作表',
   sheetShown: '工作表「{name}」',
@@ -512,6 +598,48 @@ const en: SheetMessages = {
   formulaBox: 'Formula bar',
   badAddress: '"{text}" is not a cell address',
   functionList: 'Functions',
+  filter: {
+    sortAsc: 'Sort ascending',
+    sortDesc: 'Sort descending',
+    sort: 'Sort',
+    turnOn: 'Filter',
+    turnOff: 'Remove filter',
+    clearAll: 'Clear all filters',
+    button: 'Filter {column}',
+    byValues: 'By values',
+    byCondition: 'By condition',
+    search: 'Search',
+    values: 'Values',
+    all: 'Select all',
+    allMatches: 'Select all matches',
+    blank: '(Blank)',
+    noMatch: 'No matching values',
+    more: '{count} more not listed; search to find them',
+    condition: 'Condition',
+    value: 'Value',
+    clear: 'Clear filter',
+    apply: 'Apply',
+    ops: {
+      eq: 'Equals',
+      ne: 'Does not equal',
+      gt: 'Greater than',
+      ge: 'Greater than or equal to',
+      lt: 'Less than',
+      le: 'Less than or equal to',
+      contains: 'Contains',
+      notContains: 'Does not contain',
+      begins: 'Begins with',
+      ends: 'Ends with',
+      blank: 'Is empty',
+      notBlank: 'Is not empty',
+    },
+    added: 'Filter added to {range}',
+    removed: 'Filter removed',
+    applied: '{column} filtered: {shown} of {total} rows shown',
+    sorted: 'Sorted by {column}',
+    mergedSort: 'A range with merged cells cannot be sorted',
+    nothingToSort: 'Select more than one row to sort, or add a filter first',
+  },
   sheetName: 'Sheet{n}',
   sheets: 'Sheets',
   sheetShown: 'Sheet “{name}”',
@@ -581,6 +709,58 @@ export const sheetLocales: Record<string, SheetMessages> = {
   en,
 }
 
+/** The texts of sorting and filtering. */
+export interface SheetFilterMessages {
+  /** Menu and toolbar items. */
+  sortAsc: string
+  sortDesc: string
+  sort: string
+  turnOn: string
+  turnOff: string
+  clearAll: string
+  /** A column's filter button: `{column}` is its heading or letter. */
+  button: string
+  /** The panel. */
+  byValues: string
+  byCondition: string
+  search: string
+  values: string
+  all: string
+  allMatches: string
+  blank: string
+  noMatch: string
+  /** More values than listed: `{count}`. */
+  more: string
+  condition: string
+  value: string
+  clear: string
+  apply: string
+  ops: Record<
+    | 'eq'
+    | 'ne'
+    | 'gt'
+    | 'ge'
+    | 'lt'
+    | 'le'
+    | 'contains'
+    | 'notContains'
+    | 'begins'
+    | 'ends'
+    | 'blank'
+    | 'notBlank',
+    string
+  >
+  /** Read out: `{range}`, `{shown}` rows of `{total}`, `{column}`. */
+  added: string
+  removed: string
+  applied: string
+  sorted: string
+  /** Sorting a range with merged cells. */
+  mergedSort: string
+  /** Sorting with nothing to sort: one row selected and no filter. */
+  nothingToSort: string
+}
+
 /**
  * The spreadsheet's texts, picked by the name of DouUI's current locale.
  * Pass `messages` to override any of them.
@@ -598,7 +778,9 @@ export function useSheetMessages(override?: MaybeRefOrGetter<Partial<SheetMessag
       if (value === undefined) continue
       // error reasons and function help can be given one by one
       out[key] =
-        key === 'errors' || key === 'functions' ? { ...base[key], ...(value as object) } : value
+        key === 'errors' || key === 'functions' || key === 'filter'
+          ? { ...base[key], ...(value as object) }
+          : value
     }
     return out as unknown as SheetMessages
   })

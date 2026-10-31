@@ -23,6 +23,7 @@ interface SheetData {
   colSizes?: Record<number, number> // 改过的列宽，按列号；0 表示隐藏
   freeze?: { rows?: number; cols?: number } // 冻结的行数、列数
   merges?: string[] // 合并的区域，如 'A1:C1'
+  filter?: SheetFilter // 筛选
 }
 ```
 
@@ -31,6 +32,41 @@ interface SheetData {
 `cells` 是二维数组，`cells[0][1]` 是第 1 行第 2 列，也就是 `B1`。空行、空单元格可以留空（`null` 或不写），数组只需要写到有数据的地方。行号、列号都从 0 开始，`columnName(1)` 得到 `B`，`parseCell('B1')` 得到 `{ row: 0, col: 1 }`。
 
 用二维数组而不是 `{ A1: ... }` 这样的键值表，是为了修改快：每次修改只复制改动的那一行和外层数组，其余行原样共享。表格靠比较行数组是否相同来判断哪些行要重新绘制。
+
+## 筛选
+
+```ts
+interface SheetFilter {
+  range: string // 筛选的区域，第一行是表头，如 'A1:G25'
+  columns?: Record<number, SheetFilterRule> // 各列的筛选条件，按列号
+  sorted?: { col: number; order: 'asc' | 'desc' } // 最近一次从筛选按钮排序的列
+}
+
+type SheetFilterRule =
+  | { values: string[] } // 显示文字是其中之一的行留下，空单元格是 ''
+  | { condition: SheetFilterCondition }
+
+interface SheetFilterCondition {
+  op:
+    | 'eq'
+    | 'ne'
+    | 'gt'
+    | 'ge'
+    | 'lt'
+    | 'le'
+    | 'contains'
+    | 'notContains'
+    | 'begins'
+    | 'ends'
+    | 'blank'
+    | 'notBlank'
+  value?: SheetValue
+}
+```
+
+`values` 按单元格显示的文字比较，所以设了格式的数字写显示出来的样子，比如 `'¥1,280'`。插入、删除、移动行列时，筛选区域和各列的条件跟着移动。
+
+在表格之外处理同样的数据时，可以用包里导出的 `sortRows`、`compareForSort`、`meetsRule` 和 `textCollator`，排序和筛选的结果与表格里一致。
 
 ## 单元格
 

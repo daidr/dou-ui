@@ -168,9 +168,86 @@ function valueAxes(
 ): { y: ValueAxis | null; y2: ValueAxis | null } {
   const y = axes.y ? valueAxis('y', axes.y, model, count, locale, length) : null
   let y2 = axes.y2 ? valueAxis('y2', axes.y2, model, count, locale, length) : null
-  if (y && y2 && !axes.y2!.ticks && !y2.fixed && y.ticks.length > 1)
+  if (y && y2 && !axes.y2!.ticks && !y2.fixed && y.ticks.length > 1) {
+    const both = alignZero(y, y2, axes.y!, axes.y2!, model, locale, length)
+    if (both) return both
     y2 = alignTo(y2, y.ticks.length - 1, axes.y2!, model, locale, length)
+  }
   return { y, y2 }
+}
+
+/** The data span an axis has to show, with 0 when it starts at 0. */
+function extent(
+  role: ChartValueAxis,
+  config: AxisConfig,
+  model: ChartModel,
+  length: number,
+): [number, number] {
+  const data = model.y[role]
+  let [lo, hi] = data ? widen(data[0], data[1], model.inset, length) : [0, 1]
+  if (config.zero ?? model.zero[role]) {
+    lo = Math.min(lo, 0)
+    hi = Math.max(hi, 0)
+  }
+  return [lo, hi]
+}
+
+/**
+ * Two linear axes that both reach below 0: 0 on one line, so bars on
+ * both start from the same baseline. Each gets nice steps of its own, the
+ * same number of them below 0 and above, as few as cover both. `null`
+ * when it doesn't apply (an end or the ticks given, a log axis, all data
+ * on one side of 0, where aligning the steps already lines up 0).
+ */
+function alignZero(
+  y: ValueAxis,
+  y2: ValueAxis,
+  yConfig: AxisConfig,
+  y2Config: AxisConfig,
+  model: ChartModel,
+  locale: string,
+  length: number,
+): { y: ValueAxis; y2: ValueAxis } | null {
+  if (y.kind === 'log' || y2.kind === 'log') return null
+  const given = (c: AxisConfig) => c.min !== undefined || c.max !== undefined || !!c.ticks
+  if (given(yConfig) || given(y2Config)) return null
+  const spans = [extent('y', yConfig, model, length), extent('y2', y2Config, model, length)]
+  if (!spans.some(([lo, hi]) => lo < 0 && hi > 0) || spans.some(([lo, hi]) => lo > 0 || hi < 0))
+    return null
+  const intervals = y.ticks.length - 1
+  const steps = spans.map(([lo, hi]) => {
+    const choices: number[] = []
+    let step = niceStep(hi - lo || 1, intervals * 2)
+    for (let i = 0; i < 6; i++, step = nextNiceStep(step)) choices.push(step)
+    return choices
+  })
+  let best: { s: [number, number]; below: number; above: number; fill: number } | null = null
+  for (const s1 of steps[0]!)
+    for (const s2 of steps[1]!) {
+      const s: [number, number] = [s1, s2]
+      const below = Math.max(...spans.map(([lo], i) => Math.ceil(-lo / s[i]! - 1e-9)))
+      const above = Math.max(...spans.map(([, hi], i) => Math.ceil(hi / s[i]! - 1e-9)))
+      const total = below + above
+      if (total < Math.max(2, intervals - 1) || total > intervals + 1) continue
+      // how much of each axis the data fills; the emptier one counts
+      const fill = Math.min(...spans.map(([lo, hi], i) => (hi - lo) / (s[i]! * total)))
+      if (!best || fill > best.fill + 1e-9) best = { s, below, above, fill }
+    }
+  if (!best) return null
+  const { s, below, above } = best
+  const make = (axis: ValueAxis, config: AxisConfig, step: number): ValueAxis => {
+    const decimals = stepDecimals(step)
+    const ticks = Array.from({ length: below + above + 1 }, (_, i) =>
+      Number(((i - below) * step).toFixed(decimals)),
+    )
+    return {
+      ...axis,
+      domain: [ticks[0]!, ticks[ticks.length - 1]!],
+      ticks,
+      texts: valueTexts(ticks, config, locale),
+    }
+  }
+  return { y: make(y, yConfig, s[0]), y2: make(y2, y2Config, s[1]) }
 }
 
 /** x along the bottom, values up the left side (and the right). */
@@ -547,13 +624,7 @@ function alignTo(
   length: number,
 ): ValueAxis {
   if (axis.kind === 'log') return axis
-  const data = model.y[axis.role]
-  const zero = config.zero ?? model.zero[axis.role]
-  let [lo, hi] = data ? widen(data[0], data[1], model.inset, length) : [0, 1]
-  if (zero) {
-    lo = Math.min(lo, 0)
-    hi = Math.max(hi, 0)
-  }
+  let [lo, hi] = extent(axis.role, config, model, length)
   if (config.min !== undefined) lo = Number(config.min)
   if (lo === hi) hi = lo + 1
   let step = niceStep(hi - lo, intervals)

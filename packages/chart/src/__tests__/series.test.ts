@@ -187,6 +187,54 @@ describe('bars', () => {
   })
 })
 
+const lay = (rows: Record<string, unknown>[], height = 300) =>
+  layoutChart({
+    model: buildModel([input(0, { y: 'a' }), input(1, { y: 'b', axis: 'y2' })], {
+      data: rows,
+      x: 'k',
+    }),
+    axes: { x: axis('bottom'), y: axis('left'), y2: axis('right') },
+    width: 600,
+    height,
+    locale: 'zh-CN',
+    measure,
+  })
+
+describe('two value axes', () => {
+  it('puts 0 on one line when values go below it', () => {
+    for (const height of [160, 240, 300, 420]) {
+      const layout = lay(
+        [
+          { k: '甲', a: -20, b: -10 },
+          { k: '乙', a: 40, b: 50 },
+        ],
+        height,
+      )
+      const y = layout.y.y!
+      const y2 = layout.y.y2!
+      expect(y2.scale.map(0)).toBeCloseTo(y.scale.map(0), 6)
+      expect(y2.ticks.length).toBe(y.ticks.length)
+      expect(y2.ticks.map((t) => y2.scale.map(t))).toEqual(y.ticks.map((t) => y.scale.map(t)))
+      // both still show all their data
+      expect(y.ticks[0]).toBeLessThanOrEqual(-20)
+      expect(y.ticks.at(-1)).toBeGreaterThanOrEqual(40)
+      expect(y2.ticks[0]).toBeLessThanOrEqual(-10)
+      expect(y2.ticks.at(-1)).toBeGreaterThanOrEqual(50)
+    }
+  })
+
+  it('makes room below 0 for an axis whose values stay above it', () => {
+    const layout = lay([
+      { k: '甲', a: -30, b: 5 },
+      { k: '乙', a: 60, b: 80 },
+    ])
+    const y = layout.y.y!
+    const y2 = layout.y.y2!
+    expect(y2.scale.map(0)).toBeCloseTo(y.scale.map(0), 6)
+    expect(y2.ticks[0]).toBeLessThan(0)
+  })
+})
+
 describe('horizontal', () => {
   it('puts y2 along the top and cuts long names short', () => {
     const rows = [

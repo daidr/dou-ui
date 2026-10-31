@@ -35,6 +35,10 @@
       "types": "./dist/types/engine/index.d.ts",
       "import": "./dist/engine/index.js"
     },
+    "./worker": {
+      "types": "./dist/types/worker/index.d.ts",
+      "import": "./dist/worker/index.js"
+    },
     "./style.css": "./dist/style.css",
     "./package.json": "./package.json"
   },

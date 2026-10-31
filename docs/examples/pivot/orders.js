@@ -38,6 +38,48 @@ export function makeOrders(count, seed = 2026) {
   return orders
 }
 
+/**
+ * 同样的订单按列给出：每个字段一个数组，数字用类型化数组。
+ * 百万条记录用这种形式，内存只有对象数组的几分之一。
+ * 分段生成：每次 next() 生成 2 万条，生成完时返回全部列。
+ */
+export function* orderColumnSteps(count, seed = 2026) {
+  let state = seed
+  const random = () => {
+    state = (Math.imul(state, 1103515245) + 12345) >>> 0
+    return state / 4294967296
+  }
+  const regions = Object.keys(cities)
+  const columns = {
+    region: [],
+    city: [],
+    category: [],
+    channel: [],
+    quarter: [],
+    month: new Float64Array(count),
+    amount: new Float64Array(count),
+    cups: new Float64Array(count),
+  }
+  for (let i = 0; i < count; i++) {
+    if (i && i % 20000 === 0) yield i
+    const region = regions[Math.floor(random() * regions.length)]
+    const list = cities[region]
+    const month = 1 + Math.floor(random() * 12)
+    const cups = 1 + Math.floor(random() * 4)
+    const category = categories[Math.floor(random() * categories.length)]
+    const price = category === '咖啡' ? 22 : category === '纯茶' ? 14 : 18
+    columns.region[i] = region
+    columns.city[i] = list[Math.floor(random() * list.length)]
+    columns.category[i] = category
+    columns.channel[i] = channels[Math.floor(random() * channels.length)]
+    columns.quarter[i] = `Q${Math.ceil(month / 3)}`
+    columns.month[i] = month
+    columns.amount[i] = Math.round(cups * price * (0.8 + random() * 0.4) * 100) / 100
+    columns.cups[i] = cups
+  }
+  return columns
+}
+
 export const orders = makeOrders(2400)
 
 export const fields = [

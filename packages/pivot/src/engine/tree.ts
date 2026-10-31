@@ -1,6 +1,6 @@
 import type { PivotGroupBy } from './group'
-import { IntIndex } from './hash'
-import type { PivotDimensionColumn, PivotResolvedField } from './source'
+import { IntIndex, typed, type PivotIndexPacket } from './hash'
+import { finder, type PivotDimensionColumn, type PivotResolvedField } from './source'
 
 /** A field on an axis, with what the config asked of it. */
 export interface PivotLevel {
@@ -77,6 +77,75 @@ export class PivotTree {
     this.walk()
   }
 
+  /** The tree as data: typed arrays to move to another thread, or to write as JSON. */
+  pack(): PivotTreePacket {
+    return {
+      size: this.size,
+      stride: this.stride,
+      parent: this.parent,
+      depth: this.depth,
+      code: this.code,
+      childStart: this.childStart,
+      children: this.children,
+      enter: this.enter,
+      exit: this.exit,
+      index: this.index.pack(),
+      levels: this.levels.map((l) => ({
+        field: l.field.name,
+        sort: l.sort,
+        subtotal: l.subtotal,
+        ...(l.by === undefined ? {} : { by: l.by }),
+        labels: l.column.labels,
+        empty: l.column.empty,
+        rank: l.column.rank,
+      })),
+    }
+  }
+
+  /** A tree made from `pack()`'s output, with fields described by `field`. */
+  static unpack(
+    packet: PivotTreePacket,
+    field: (name: string) => PivotResolvedField<unknown>,
+  ): PivotTree {
+    const tree = Object.create(PivotTree.prototype) as PivotTree
+    const levels: PivotLevel[] = packet.levels.map((l) => {
+      const f = field(l.field)
+      // JSON writes dates as text
+      const labels =
+        f.type === 'date' && l.by === undefined
+          ? l.labels.map((v) => (typeof v === 'string' ? new Date(v) : v))
+          : l.labels
+      return {
+        field: f,
+        sort: l.sort,
+        subtotal: l.subtotal,
+        by: l.by,
+        column: {
+          codes: new Uint32Array(0),
+          labels,
+          empty: l.empty,
+          rank: typed(Uint32Array, l.rank),
+          find: finder(labels, l.empty),
+        },
+      }
+    })
+    Object.assign(tree, {
+      total: 0,
+      size: packet.size,
+      levels,
+      parent: typed(Int32Array, packet.parent),
+      depth: typed(Uint8Array, packet.depth),
+      code: typed(Int32Array, packet.code),
+      childStart: typed(Int32Array, packet.childStart),
+      children: typed(Int32Array, packet.children),
+      enter: typed(Int32Array, packet.enter),
+      exit: typed(Int32Array, packet.exit),
+      index: IntIndex.unpack(packet.index),
+      stride: packet.stride,
+    })
+    return tree
+  }
+
   /** The node's own value (its group label); `undefined` for the root. */
   label(node: number): unknown {
     if (node <= 0) return undefined
@@ -139,6 +208,29 @@ export class PivotTree {
       }
     }
   }
+}
+
+/** A `PivotTree` as data. */
+export interface PivotTreePacket {
+  size: number
+  stride: number
+  parent: ArrayLike<number>
+  depth: ArrayLike<number>
+  code: ArrayLike<number>
+  childStart: ArrayLike<number>
+  children: ArrayLike<number>
+  enter: ArrayLike<number>
+  exit: ArrayLike<number>
+  index: PivotIndexPacket
+  levels: {
+    field: string
+    sort: 'asc' | 'desc'
+    subtotal: boolean
+    by?: PivotGroupBy
+    labels: unknown[]
+    empty: number
+    rank: ArrayLike<number>
+  }[]
 }
 
 /** Grows a tree one record at a time: each record walks down its groups. */

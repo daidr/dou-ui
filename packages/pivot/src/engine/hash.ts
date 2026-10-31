@@ -48,13 +48,29 @@ export class IntIndex {
     table[slot] = key
     this.ids[slot] = id
     if (id >= this.keys.length) {
-      const keys = new Float64Array(this.keys.length * 2)
+      const keys = new Float64Array(this.keys.length * 2 || 8)
       keys.set(this.keys)
       this.keys = keys
     }
     this.keys[id] = key
     if (this.size * 2 > table.length) this.grow()
     return id
+  }
+
+  /** Its arrays, to send to another thread (moved, not copied) or save. */
+  pack(): PivotIndexPacket {
+    return { table: this.table, ids: this.ids, keys: this.keys, size: this.size }
+  }
+
+  /** An index made from `pack()`'s output; plain arrays (from JSON) work too. */
+  static unpack(packet: PivotIndexPacket): IntIndex {
+    const index = new IntIndex(0)
+    index.table = typed(Float64Array, packet.table)
+    index.ids = typed(Int32Array, packet.ids)
+    index.keys = typed(Float64Array, packet.keys)
+    index.mask = index.table.length - 1
+    index.size = packet.size
+    return index
   }
 
   private grow() {
@@ -74,6 +90,22 @@ export class IntIndex {
     this.ids = ids
     this.mask = mask
   }
+}
+
+type TypedArrayOf =
+  Float64ArrayConstructor | Int32ArrayConstructor | Uint32ArrayConstructor | Uint8ArrayConstructor
+
+/** The array as it is when it is already of that type (moved from a worker), else a typed copy (from JSON). */
+export function typed<T extends TypedArrayOf>(Type: T, array: ArrayLike<number>): InstanceType<T> {
+  return (array instanceof Type ? array : Type.from(array)) as InstanceType<T>
+}
+
+/** An `IntIndex` as data. */
+export interface PivotIndexPacket {
+  table: ArrayLike<number>
+  ids: ArrayLike<number>
+  keys: ArrayLike<number>
+  size: number
 }
 
 const HIGH = 4294967296

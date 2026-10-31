@@ -1,6 +1,7 @@
 import type { ChartAccessor, ChartData, ChartRow } from './core/data'
 import type { ChartAxisRole, ChartAxisType, ChartTickValue } from './core/layout'
-import type { ChartSeriesProps } from './core/series'
+import type { Tone } from 'dou-ui'
+import type { ChartSeriesProps, ChartValueAxis } from './core/series'
 import type { ChartMessagesOverride } from './locale'
 
 export interface ChartProps {
@@ -26,6 +27,13 @@ export interface ChartProps {
   horizontal?: boolean
   /** Texts to override. */
   messages?: ChartMessagesOverride
+  /** Shows that data is on its way: what is drawn fades and a spinner turns over it. */
+  loading?: boolean
+  /**
+   * The width the chart is drawn at on the server, in px: the page shows it
+   * as an image until the browser draws it at its own width.
+   */
+  ssrWidth?: number
 }
 
 export interface ChartSlots {
@@ -33,6 +41,45 @@ export interface ChartSlots {
   default?: () => unknown
   /** Shown instead of the chart when no series has a value. */
   empty?: () => unknown
+}
+
+export interface ChartExportOptions {
+  /** Fill the background with the chart's surface color. On by default; `false` leaves it clear. */
+  background?: boolean
+}
+
+export interface ChartImageOptions extends ChartExportOptions {
+  /** Pixels per CSS px. 2 by default, sharp on most screens. */
+  pixelRatio?: number
+}
+
+/** What a `DouChart` ref gives. */
+export interface ChartExpose {
+  /** The chart as it is shown, as an SVG document: series, markers, labels and legend. */
+  exportSVG: (options?: ChartExportOptions) => string
+  /** The chart as a PNG image. */
+  exportPNG: (options?: ChartImageOptions) => Promise<Blob>
+}
+
+export interface ChartMarkerProps {
+  /**
+   * A line across x at this value: a date, a category, a number. Give
+   * `[from, to]` for a band between two values.
+   */
+  x?: ChartTickValue | ChartInterval
+  /**
+   * A line at this value, such as a target. Give `[from, to]` for a band.
+   * With a single `x` as well, a point. The value axis reaches it.
+   */
+  y?: number | [from: number, to: number]
+  /** The value axis `y` is on: `y2` for the second one. */
+  axis?: ChartValueAxis
+  /** Text shown by the marker. */
+  label?: string
+  /** The marker's color. Neutral by default. */
+  tone?: Tone
+  /** A solid line; lines are dashed by default so they stand apart from the data. */
+  solid?: boolean
 }
 
 export interface ChartAxisProps {

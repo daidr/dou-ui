@@ -14,6 +14,7 @@
     --dou-chart-label: var(--dou-color-text-tertiary);
     --dou-chart-title: var(--dou-color-text-secondary);
     --dou-chart-range-ink: var(--dou-color-text-tertiary);
+    --dou-chart-marker: color-mix(in oklab, var(--dou-color-text) 45%, transparent);
 
     position: relative;
     box-sizing: border-box;
@@ -32,6 +33,37 @@
     top: 0;
     left: 0;
     display: block;
+  }
+
+  /* drawn on the server at ssr-width: scaled to fit until the browser draws */
+  .dou-chart__static {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    font-size: 12px;
+  }
+
+  /* data on its way: what is drawn fades under a spinner */
+  .dou-chart__canvas,
+  .dou-chart__static,
+  .dou-chart__labels,
+  .dou-chart__legends {
+    transition: opacity var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    .dou-chart.is-loading > & {
+      opacity: 0.4;
+    }
+  }
+
+  .dou-chart__loading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--dou-color-text-secondary);
   }
 
   .dou-chart__labels {
@@ -72,6 +104,57 @@
       line-height: 16px;
       text-overflow: ellipsis;
       text-box: normal;
+    }
+  }
+
+  /* a marker's label: by its line, at its band's corner, over its point */
+  .dou-chart__marker {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: flex;
+    align-items: center;
+    height: 16px;
+    color: var(--dou-color-text-secondary);
+    white-space: nowrap;
+
+    &.is-middle {
+      translate: -50% 0;
+    }
+
+    &.is-end {
+      translate: -100% 0;
+    }
+
+    /* by a line or a point, maybe over the data: on a chip of its color, the text where it would be */
+    &.is-backdrop {
+      padding-inline: 4px;
+      border-radius: 4px;
+      background-color: color-mix(in oklab, currentColor 10%, var(--dou-chart-surface));
+
+      &.is-start {
+        margin-left: -4px;
+      }
+
+      &.is-end {
+        margin-left: 4px;
+      }
+    }
+
+    &.is-primary {
+      color: var(--dou-color-primary-text);
+    }
+
+    &.is-success {
+      color: var(--dou-color-success-text);
+    }
+
+    &.is-warning {
+      color: var(--dou-color-warning-text);
+    }
+
+    &.is-danger {
+      color: var(--dou-color-danger-text);
     }
   }
 

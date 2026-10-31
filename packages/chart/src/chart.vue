@@ -16,8 +16,10 @@ import {
   ref,
   shallowRef,
   toRaw,
+  useId,
   useTemplateRef,
   watch,
+  type VNodeChild,
 } from 'vue'
 import { createColorResolver, observeTheme } from './core/colors'
 import { extent, read, rowOf, type ChartAccessor, type ChartRow } from './core/data'
@@ -32,6 +34,7 @@ import {
   type ChartLayout,
   type ChartAxisPosition,
   type ChartAxisRole,
+  type ChartTickValue,
   type TickLabel,
 } from './core/layout'
 import {
@@ -41,9 +44,11 @@ import {
   type ChartModel,
   type SeriesInput,
 } from './core/model'
+import { drawMarkers, placeMarkers, type MarkerColors, type MarkerInput } from './core/marker'
 import { crisp, type Painter, type Rect } from './core/painter'
 import { drawPie, FADED, pieSlices, type PieSlice } from './core/pie'
 import { categoryScale, linearScale, logScale, type Scale } from './core/scale'
+import { escapeXml, isSvg, num, paintAttribute, SvgPainter } from './core/svg'
 import type { ChartColors, ChartHit, ChartSeries, ChartValueAxis, ChartView } from './core/series'
 import {
   clampWindow,
@@ -51,6 +56,7 @@ import {
   panWindow,
   snapCategories,
   unitsOf,
+  valueToNumber,
   windowToInterval,
   within,
   zoomWindow,
@@ -61,6 +67,7 @@ import {
   type AxisPart,
   type BrushPart,
   type ChartPart,
+  type MarkerPart,
   type PiePart,
   type SeriesPart,
   type RangePart,
@@ -70,10 +77,16 @@ import {
 import { format, useChartMessages } from './locale'
 import ChartOverlay, { type OverlayState } from './overlay.vue'
 import ChartPointer, { type PointerState, type Tip } from './pointer.vue'
+import ChartStatic, { type StaticState } from './static.vue'
 import ChartZoomLayer, { type ZoomLayerState } from './zoom-layer.vue'
+import type { Tone } from 'dou-ui'
 import type {
   ChartBrushEvent,
+  ChartExportOptions,
+  ChartExpose,
+  ChartImageOptions,
   ChartInterval,
+  ChartMarkerProps,
   ChartProps,
   ChartSelectEvent,
   ChartSlots,
@@ -85,10 +98,11 @@ defineOptions({ name: 'DouChart' })
 const props = withDefaults(defineProps<ChartProps>(), {
   data: () => [],
   height: 320,
+  ssrWidth: 640,
   // left out: shown when there is more than one series
   legend: undefined,
 })
-defineSlots<ChartSlots>()
+const slots = defineSlots<ChartSlots>()
 const emit = defineEmits<{
   /** A bar, point or slice was clicked, or Enter pressed on it: what the tooltip shows there. */
   select: [event: ChartSelectEvent]
@@ -100,7 +114,23 @@ const messages = useChartMessages(() => props.messages)
 
 const rootRef = useTemplateRef<HTMLElement>('root')
 const canvasRef = useTemplateRef<HTMLCanvasElement>('canvas')
-const size = useElementSize(rootRef)
+const instance = getCurrentInstance()
+/**
+ * Drawn on the server, or taking over a page drawn there: until the canvas
+ * has drawn, the chart is an SVG at `ssrWidth` (the server can't know the width).
+ */
+const fromServer = ref(typeof window === 'undefined' || !!instance?.vnode.el)
+const size = useElementSize(
+  rootRef,
+  fromServer.value
+    ? {
+        initial: {
+          width: props.ssrWidth,
+          height: typeof props.height === 'number' ? props.height : 320,
+        },
+      }
+    : {},
+)
 
 /* the parts written inside the chart, in the order they are written */
 
@@ -111,6 +141,7 @@ const tooltipParts = shallowRef<TooltipPart[]>([])
 const zoomParts = shallowRef<ZoomPart[]>([])
 const brushParts = shallowRef<BrushPart[]>([])
 const rangeParts = shallowRef<RangePart[]>([])
+const markerParts = shallowRef<MarkerPart[]>([])
 
 function inPageOrder<T extends ChartPart<unknown>>(parts: T[]): T[] {
   // oxlint-disable-next-line unicorn/no-array-sort -- sorts a copy
@@ -136,6 +167,7 @@ provide(chartKey, {
   addZoom: adder(zoomParts),
   addBrush: adder(brushParts),
   addRange: adder(rangeParts),
+  addMarker: adder(markerParts),
 })
 
 /* theme: colors are read from CSS and read again when the theme changes */
@@ -248,13 +280,41 @@ const model = computed(() => {
     hidden: part.hidden.value,
   }))
   const type = axes.value.x.type
-  return buildModel(inputs, {
+  const built = buildModel(inputs, {
     data: toRaw(props.data),
     x: props.x,
     xKind: type === 'log' ? 'linear' : type,
     axis: defaultAxis.value,
   })
+  return reachMarkers(built)
 })
+
+/** The model with each value axis reaching the markers' values on it, so a target shows. */
+function reachMarkers(m: ChartModel): ChartModel {
+  let y: ChartModel['y'] | null = null
+  for (const part of markerParts.value) {
+    const value = part.props.y
+    if (value === undefined) continue
+    const axis = part.props.axis ?? defaultAxis.value
+    const known = (y ?? m.y)[axis]
+    // an axis with no data stays empty: a marker alone isn't a chart
+    if (!known) continue
+    let [lo, hi] = known
+    for (const v of Array.isArray(value) ? value : [value]) {
+      if (!Number.isFinite(v)) continue
+      lo = Math.min(lo, v)
+      hi = Math.max(hi, v)
+    }
+    // a line above all the data, with a label: room over it for the label
+    if (part.props.label && !Array.isArray(value) && part.props.x === undefined && value >= hi)
+      hi = value + (value - lo) * 0.1
+    if (lo !== known[0] || hi !== known[1]) {
+      y ??= { ...m.y }
+      y[axis] = [lo, hi]
+    }
+  }
+  return y ? { ...m, y } : m
+}
 
 /* a pie: drawn alone, without axes */
 
@@ -593,6 +653,100 @@ const pieLayout = computed(() => {
   })
 })
 
+/* markers: lines, bands and points written into the chart */
+
+/** A marker's x as a number on the x scale: one, or the two ends of a band; `undefined` when it can't be read. */
+function markerX(x: ChartMarkerProps['x']): MarkerInput['x'] | undefined {
+  if (x === undefined || x === null) return null
+  const m = model.value
+  if (Array.isArray(x)) {
+    const [a, b] = x as ChartInterval
+    // a band of one category, or of one time, is that category or time
+    if (
+      m.xKind !== 'category' &&
+      valueToNumber(a, m.xKind, m.categories) === valueToNumber(b, m.xKind, m.categories)
+    )
+      return markerX(a)
+    return intervalToWindow(x as ChartInterval, m.xKind, m.categories) ?? undefined
+  }
+  const at = valueToNumber(x as ChartTickValue, m.xKind, m.categories)
+  return at === at ? at : undefined
+}
+
+const placedMarkers = computed(() => {
+  const l = layout.value
+  if (!l || empty.value || !markerParts.value.length) return []
+  const inputs: MarkerInput[] = []
+  for (const part of markerParts.value) {
+    const p = part.props
+    const x = markerX(p.x)
+    if (x === undefined) continue
+    inputs.push({
+      x,
+      y: p.y ?? null,
+      axis: p.axis ?? defaultAxis.value,
+      label: p.label,
+      tone: p.tone ?? 'neutral',
+      solid: !!p.solid,
+    })
+  }
+  return placeMarkers(inputs, {
+    plot: l.plot,
+    x: l.x.scale,
+    y: (axis) => l.y[axis]?.scale ?? null,
+    horizontal: !!props.horizontal,
+    measure,
+  })
+})
+
+/** The markers' labels, as text over the chart. */
+const markerLabels = computed(() =>
+  placedMarkers.value.flatMap((marker, i) =>
+    marker.label
+      ? [
+          {
+            ...marker.label,
+            key: `marker:${i}`,
+            tone: marker.tone,
+            // by a line or a point, maybe over the data: on the surface's color to stay readable
+            backdrop: marker.shape.kind !== 'area',
+          },
+        ]
+      : [],
+  ),
+)
+
+const markerText = (tone: Tone) =>
+  tone === 'neutral' ? 'var(--dou-color-text-secondary)' : `var(--dou-color-${tone}-text)`
+
+const markerColors = computed(() => {
+  void themeVersion.value
+  const surface = colors.value.surface
+  const of = (line: string, dot: string, fill: string): MarkerColors => ({
+    line: resolveColor(line),
+    dot: resolveColor(dot),
+    fill: resolveColor(fill),
+    surface,
+  })
+  const tone = (name: string) =>
+    of(
+      `var(--dou-color-${name})`,
+      `var(--dou-color-${name})`,
+      `color-mix(in oklab, var(--dou-color-${name}) 10%, transparent)`,
+    )
+  return {
+    neutral: of(
+      'var(--dou-chart-marker)',
+      'var(--dou-color-text-secondary)',
+      'color-mix(in oklab, var(--dou-color-text) 5%, transparent)',
+    ),
+    primary: tone('primary'),
+    success: tone('success'),
+    warning: tone('warning'),
+    danger: tone('danger'),
+  } satisfies Record<Tone, MarkerColors>
+})
+
 /* the tooltip: what is under the pointer, or picked with the keys */
 
 const tooltipPart = computed(() => tooltipParts.value[0] ?? null)
@@ -828,7 +982,6 @@ function select(t: Tip) {
   emit('select', { x: t.x, title: t.title, items: t.items })
 }
 
-const instance = getCurrentInstance()
 /** Whether anyone listens to `select`: then what can be picked shows a pointing hand. */
 const selectable = () => !!instance?.vnode.props?.onSelect
 
@@ -975,7 +1128,16 @@ function onPointerDown(event: PointerEvent) {
         : null
   if (!mode && !(touch && brush)) return
   const hold = holdPointer(event, rootRef.value)
-  drag = { id: event.pointerId, touch, start: at, mode, moved: false, from, hold, timer: undefined }
+  drag = {
+    id: event.pointerId,
+    touch,
+    start: at,
+    mode,
+    moved: false,
+    from,
+    hold,
+    timer: undefined,
+  }
   if (touch && brush)
     drag.timer = setTimeout(() => {
       if (!drag || drag.moved) return
@@ -1821,6 +1983,11 @@ function draw() {
     return
   }
   const now = typeof performance === 'undefined' ? Date.now() : performance.now()
+  // the server's drawing is already showing: the chart doesn't come in again
+  if (fromServer.value) {
+    drawnModel = model.value
+    drawnSlices = slices.value
+  }
   startMotion(now)
   const dpr = window.devicePixelRatio || 1
   const width = Math.round(l.width * dpr)
@@ -1840,19 +2007,23 @@ function draw() {
   const entering = motion?.enter ? t : 1
   if (pieLayout.value) paintPie(ctx, t, entering)
   else paint(ctx, dpr, t, entering)
+  // the canvas shows the chart now: the server's image goes
+  fromServer.value = false
   // the next frame of the move
   if (done >= 1) motion = null
   else request()
 }
 
-function paintPie(painter: Painter, t: number, sweep: number) {
+/** Draws the pie; `still` leaves out what follows the pointer and the legend (an export). */
+function paintPie(painter: Painter, t: number, sweep: number, still = false) {
   const l = pieLayout.value!
-  const a = active.value
-  const legendFocus = focused.value === null ? undefined : slices.value[focused.value]
+  const a = still ? null : active.value
+  const legendFocus = still || focused.value === null ? undefined : slices.value[focused.value]
   const hovered = a?.type === 'slice' ? slices.value[a.slice] : undefined
   const focus = legendFocus && !legendFocus.hidden ? legendFocus : hovered
-  lastSlices = shownSlicesAt(t)
-  drawPie(painter, lastSlices, sliceColors.value, {
+  const shown = shownSlicesAt(t)
+  if (!still) lastSlices = shown
+  drawPie(painter, shown, sliceColors.value, {
     cx: l.cx,
     cy: l.cy,
     radius: l.radius,
@@ -1869,8 +2040,8 @@ const holeRatio = computed(() => Math.min(0.95, Math.max(0, pie.value?.props.inn
 /** Whether an axis is drawn across the chart (along the bottom or top), so its grid lines stand up. */
 const across = (axis: AxisLayout) => axis.position === 'bottom' || axis.position === 'top'
 
-/** The scales and room a series draws with. */
-function viewOf(s: ChartSeries): ChartView | null {
+/** The scales and room a series draws with; `vector` for an SVG, which takes no images. */
+function viewOf(s: ChartSeries, dpr = dprNow(), vector = false): ChartView | null {
   const l = layout.value
   if (!l) return null
   const y = l.y[s.axis]
@@ -1889,7 +2060,7 @@ function viewOf(s: ChartSeries): ChartView | null {
   const point: ChartView['point'] = horizontal
     ? (x, value) => [ys.map(value), xScale.map(x)]
     : (x, value) => [xScale.map(x), ys.map(value)]
-  return { x: xScale, y: ys, horizontal, band, point, plot, dpr: dprNow(), colors: colors.value }
+  return { x: xScale, y: ys, horizontal, band, point, plot, dpr, vector, colors: colors.value }
 }
 
 const dprNow = () => (typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1)
@@ -1897,7 +2068,13 @@ const dprNow = () => (typeof window === 'undefined' ? 1 : window.devicePixelRati
 /** A canvas to draw faded series on, then onto the chart at once: a series sets its own alpha. */
 let fadeLayer: HTMLCanvasElement | null = null
 
-function paint(painter: CanvasRenderingContext2D, dpr: number, t: number, entering: number) {
+const markerColor = (tone: Tone) => markerColors.value[tone]
+
+/**
+ * Draws the chart with axes. `still` draws it as it stands, without what
+ * follows the pointer, the legend or a selection: for an SVG.
+ */
+function paint(painter: Painter, dpr: number, t: number, entering: number, still = false) {
   const l = layout.value!
   const { plot } = l
   const c = colors.value
@@ -1931,6 +2108,10 @@ function paint(painter: CanvasRenderingContext2D, dpr: number, t: number, enteri
   painter.stroke()
   painter.restore()
 
+  // bands, under the series
+  const markers = placedMarkers.value
+  drawMarkers(painter, markers, markerColor, dpr, true)
+
   // series, kept to the plot (with room for a line's width and a dot at the edge)
   const xRoom = xWindow.value ? 0 : 4
   const yRoom = zoomAxes.value.y && yWindow.value ? 0 : 4
@@ -1947,12 +2128,22 @@ function paint(painter: CanvasRenderingContext2D, dpr: number, t: number, enteri
     target.clip()
   }
   const shown = shownSeries(t)
-  lastSeries = shown
-  const focus = focused.value === null ? -1 : focused.value
+  if (!still) lastSeries = shown
+  const focus = still || focused.value === null ? -1 : focused.value
   const fading = focus >= 0 && shown.some((s) => s.index === focus)
+  const vector = isSvg(painter)
   /** Draws `s` faded, all at once; `false` where it can't be. */
   const drawFaded = (s: ChartSeries, view: ChartView) => {
-    const layer = fadeOn(painter, l.width, l.height, dpr)
+    if (isSvg(painter)) {
+      painter.layer(FADED, () => {
+        painter.save()
+        clip(painter, s)
+        s.kind.draw(painter, s, view)
+        painter.restore()
+      })
+      return true
+    }
+    const layer = fadeOn(painter as CanvasRenderingContext2D, l.width, l.height, dpr)
     if (!layer) return false
     layer.save()
     clip(layer, s)
@@ -1965,7 +2156,7 @@ function paint(painter: CanvasRenderingContext2D, dpr: number, t: number, enteri
     return true
   }
   // a selection: what is outside it is faded, with room past the plot's edges it reaches
-  const kept = dimmed.value
+  const kept = still ? null : dimmed.value
   const keep = kept && {
     x: kept.x <= plot.x ? kept.x - 4 : kept.x,
     y: kept.y <= plot.y ? kept.y - 4 : kept.y,
@@ -1973,7 +2164,7 @@ function paint(painter: CanvasRenderingContext2D, dpr: number, t: number, enteri
     bottom: kept.y + kept.height >= bottom ? bottom + 4 : kept.y + kept.height,
   }
   for (const s of shown) {
-    const view = viewOf(s)
+    const view = viewOf(s, dpr, vector)
     if (!view) continue
     if (fading && s.index !== focus && drawFaded(s, view)) continue
     if (keep && !drawFaded(s, view)) continue
@@ -2020,6 +2211,9 @@ function paint(painter: CanvasRenderingContext2D, dpr: number, t: number, enteri
   }
   painter.stroke()
   painter.restore()
+
+  // lines and points, over everything
+  drawMarkers(painter, markers, markerColor, dpr, false)
 }
 
 /** A clear canvas the size of the chart to draw a faded series on; `null` where there is none. */
@@ -2155,19 +2349,24 @@ const titles = computed(() => {
 const frame = computed(() => layout.value ?? pieLayout.value)
 
 const overlay: OverlayState = {
-  shown: computed(() => !!frame.value && !empty.value),
+  // while the server's drawing shows, its own text does
+  shown: computed(() => !!frame.value && !empty.value && !fromServer.value),
   labels,
   titles,
   legend,
   hole: computed(() => {
     const l = pieLayout.value
-    if (!l || empty.value || !(holeRatio.value > 0)) return null
+    if (!l || empty.value || fromServer.value || !(holeRatio.value > 0)) return null
     return { left: l.cx, top: l.cy, width: l.radius * holeRatio.value * 2 * 0.8 }
   }),
   // the pie's default slot
   center: () => pie.value?.center(),
   toggle,
   focus: (index) => (focused.value = index),
+  markers: markerLabels,
+  empty: computed(() => empty.value && !props.loading),
+  emptyContent: () => (slots.empty?.() as VNodeChild) ?? messages.value.empty,
+  loading: computed(() => !!props.loading),
 }
 
 /* the range strip: all of x, small, with the part shown */
@@ -2240,6 +2439,12 @@ function paintStrip(canvas: HTMLCanvasElement) {
   if (!ctx) return
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
   ctx.clearRect(0, 0, strip.width, strip.height)
+  drawStrip(ctx, sketch, dpr)
+}
+
+/** The strip's sketch, in the strip's own px. */
+function drawStrip(ctx: Painter, sketch: StripSketch, dpr: number) {
+  const strip = sketch.rect
   const horizontal = !!props.horizontal
   // in the strip's own px, a little in from its edges
   const pad = 4
@@ -2274,6 +2479,7 @@ function paintStrip(canvas: HTMLCanvasElement) {
         : (v, value) => [x.map(v), y.map(value)],
       plot,
       dpr,
+      vector: isSvg(ctx),
       colors: colors.value,
     }
     ctx.save()
@@ -2326,6 +2532,294 @@ const zoomLayer: ZoomLayerState = {
   paint: paintStrip,
 }
 
+/* the chart as an SVG: drawn by the same code as the canvas, with its text */
+
+const uid = useId()
+let drawings = 0
+
+const SRGB = /^(#|rgba?\()/
+let normalizer: CanvasRenderingContext2D | null | undefined
+
+/**
+ * A computed color as `#rrggbb` or `rgba(…)`, which every SVG reader
+ * understands. Colors a canvas keeps in another space (`oklab(…)`) are
+ * painted on a pixel and read back.
+ */
+function plainColor(color: string): string {
+  if (SRGB.test(color) || typeof document === 'undefined') return color
+  normalizer ??= document.createElement('canvas').getContext('2d', { willReadFrequently: true })
+  if (!normalizer) return color
+  normalizer.fillStyle = '#000'
+  normalizer.fillStyle = color
+  const parsed = String(normalizer.fillStyle)
+  if (SRGB.test(parsed)) return parsed
+  normalizer.clearRect(0, 0, 1, 1)
+  normalizer.fillRect(0, 0, 1, 1)
+  const [r, g, b, alpha] = normalizer.getImageData(0, 0, 1, 1).data
+  return alpha === 255 ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${num(alpha! / 255)})`
+}
+
+/** Room either side of a marker's label on its backdrop. */
+const BACKDROP = 4
+
+interface TextStyle {
+  color: string
+  size: number
+  weight?: string
+  anchor?: 'start' | 'middle' | 'end'
+}
+
+/** A line of text whose 16px box starts at `top`, centered on its cap height as in the page. */
+function svgText(text: string, x: number, top: number, style: TextStyle): string {
+  let attributes = ` x="${num(x)}" y="${num(top + 8 + style.size * 0.35)}"${paintAttribute('fill', style.color)}`
+  if (style.size !== 12) attributes += ` font-size="${num(style.size)}"`
+  if (style.weight && style.weight !== '400' && style.weight !== 'normal')
+    attributes += ` font-weight="${style.weight}"`
+  if (style.anchor && style.anchor !== 'start') attributes += ` text-anchor="${style.anchor}"`
+  return `<text${attributes}>${escapeXml(text)}</text>`
+}
+
+/** `text` cut short with an ellipsis to fit `width`, as a clipped tick label shows. */
+function fitText(text: string, width: number): string {
+  if (measure(text) <= width) return text
+  const chars = [...text]
+  let end = chars.length
+  while (end > 0 && measure(`${chars.slice(0, end).join('')}…`) > width) end--
+  return `${chars.slice(0, end).join('')}…`
+}
+
+/** A legend entry's swatch, as the page draws it. */
+function swatch(kind: string, dashed: boolean, left: number, top: number, color: string): string {
+  const fill = paintAttribute('fill', color)
+  const box = (x: number, y: number, width: number, height: number, r: number) =>
+    `<rect x="${num(x)}" y="${num(y)}" width="${width}" height="${height}" rx="${r}"${fill}/>`
+  if (kind === 'area') return box(left, top + 4, 12, 8, 2)
+  if (kind === 'bar' || kind === 'pie') return box(left + 2, top + 4, 8, 8, 2)
+  if (kind === 'scatter') return `<circle cx="${num(left + 6)}" cy="${num(top + 8)}" r="4"${fill}/>`
+  if (dashed) return box(left, top + 7, 4, 2, 0) + box(left + 7, top + 7, 4, 2, 0)
+  return box(left, top + 7, 12, 2, 1)
+}
+
+/** The texts in an element of the chart (a donut's center), where the page shows them. */
+function textsIn(el: Element, origin: DOMRect, color: (css: string) => string): string {
+  const out: string[] = []
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
+  const range = document.createRange()
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    const text = node.textContent?.trim()
+    const parent = node.parentElement
+    if (!text || !parent) continue
+    range.selectNodeContents(node)
+    const box = range.getBoundingClientRect()
+    if (!box.width) continue
+    const style = getComputedStyle(parent)
+    const fontSize = Number.parseFloat(style.fontSize) || 12
+    out.push(
+      svgText(text, box.left - origin.left, box.top - origin.top + box.height / 2 - 8, {
+        color: color(style.color),
+        size: fontSize,
+        weight: style.fontWeight,
+      }),
+    )
+  }
+  return out.join('')
+}
+
+/** A filled box; nothing when it has no room. */
+const svgBox = (r: Rect, fill: string) =>
+  r.width > 0 && r.height > 0
+    ? `<rect x="${num(r.x)}" y="${num(r.y)}" width="${num(r.width)}" height="${num(r.height)}"${paintAttribute('fill', fill)}/>`
+    : ''
+
+/** The range strip: its sketch, the parts not shown washed out and the part shown. */
+function stripMarkup(svg: SvgPainter, color: (css: string) => string, radius: number) {
+  const state = stripState.value
+  const sketch = stripSketch.value
+  if (!state || !sketch) return
+  const { rect, horizontal } = state
+  const box = svgBox
+  svg.raw(
+    `<rect x="${num(rect.x + 0.5)}" y="${num(rect.y + 0.5)}" width="${num(rect.width - 1)}" height="${num(rect.height - 1)}" rx="${num(Math.max(0, radius - 0.5))}" fill="none"${paintAttribute('stroke', color('var(--dou-color-border-subtle)'))}/>`,
+  )
+  svg.raw(`<g transform="translate(${num(rect.x)} ${num(rect.y)})">`)
+  svg.layer(0.56, () => drawStrip(svg, sketch, 1))
+  svg.raw('</g>')
+  const length = horizontal ? rect.height : rect.width
+  const start = horizontal ? rect.y : rect.x
+  const a = start + state.from * length
+  const b = start + state.to * length
+  const stretch = (from: number, to: number): Rect =>
+    horizontal
+      ? { x: rect.x, y: from, width: rect.width, height: to - from }
+      : { x: from, y: rect.y, width: to - from, height: rect.height }
+  const shade = color('color-mix(in oklab, var(--dou-chart-surface) 72%, transparent)')
+  const edge = color('color-mix(in oklab, var(--dou-color-text) 32%, transparent)')
+  const shown = stretch(a, b)
+  svg.raw(
+    box(stretch(start, a), shade) +
+      box(stretch(b, start + length), shade) +
+      box(shown, color('color-mix(in oklab, var(--dou-color-text) 6%, transparent)')),
+  )
+  const edges = horizontal
+    ? [
+        { x: shown.x, y: shown.y, width: 1, height: shown.height },
+        { x: shown.x + shown.width - 1, y: shown.y, width: 1, height: shown.height },
+      ]
+    : [
+        { x: shown.x, y: shown.y, width: shown.width, height: 1 },
+        { x: shown.x, y: shown.y + shown.height - 1, width: shown.width, height: 1 },
+      ]
+  svg.raw(edges.map((r) => box(r, edge)).join(''))
+}
+
+/** The chart as it is shown, as an SVG document. */
+function exportSVG(options: ChartExportOptions = {}): string {
+  const root = rootRef.value
+  const style = root && typeof getComputedStyle !== 'undefined' ? getComputedStyle(root) : null
+  const svg = new SvgPainter(`${uid}-${drawings++}-`, plainColor)
+  drawSvg(svg, (css) => plainColor(resolveColor(css)), style, options.background !== false)
+  const width = num(frame.value?.width ?? 0)
+  const height = num(frame.value?.height ?? 0)
+  const font = escapeXml(style?.fontFamily || 'sans-serif')
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="${font}" font-size="12">` +
+    `<title>${escapeXml(label.value)}</title>${svg.markup()}</svg>`
+  )
+}
+
+/**
+ * Draws the whole chart into `svg`: what the canvas shows, then its text.
+ * `color` makes a color the SVG can take; `style` is the chart's computed
+ * style, `null` on the server.
+ */
+function drawSvg(
+  svg: SvgPainter,
+  color: (css: string) => string,
+  style: CSSStyleDeclaration | null,
+  background: boolean,
+) {
+  const l = frame.value
+  const root = rootRef.value
+  const width = l?.width ?? 0
+  const height = l?.height ?? 0
+  if (background)
+    svg.raw(
+      `<rect width="${num(width)}" height="${num(height)}"${paintAttribute('fill', color('var(--dou-chart-surface)'))}/>`,
+    )
+  const texts: string[] = []
+  if (l && empty.value) {
+    // what the page shows instead: the empty message
+    const text =
+      root?.querySelector(`.${ns.e('empty')}`)?.textContent?.trim() || messages.value.empty
+    texts.push(
+      svgText(text, width / 2, height / 2 - 8, {
+        color: color('var(--dou-color-text-tertiary)'),
+        size: Number.parseFloat(style?.getPropertyValue('--dou-font-size-sm') ?? '') || 12,
+        anchor: 'middle',
+      }),
+    )
+  } else if (pieLayout.value) {
+    paintPie(svg, 1, 1, true)
+    const center = root?.querySelector(`.${ns.e('center')}`)
+    if (center && root) texts.push(textsIn(center, root.getBoundingClientRect(), color))
+  } else if (layout.value) {
+    paint(svg, 1, 1, 1, true)
+    const radius = Number.parseFloat(style?.getPropertyValue('--dou-radius-control') ?? '') || 6
+    stripMarkup(svg, color, radius)
+    const ink = color('var(--dou-chart-label)')
+    for (const tick of labels.value) {
+      const text = tick.clipped ? fitText(tick.text, tick.width) : tick.text
+      texts.push(svgText(text, tick.left, tick.top, { color: ink, size: 12 }))
+    }
+    const title = color('var(--dou-chart-title)')
+    const weight = style?.getPropertyValue('--dou-font-weight-medium').trim() || '500'
+    for (const t of titles.value)
+      texts.push(
+        svgText(t.text, t.left, t.top, { color: title, size: 12, weight, anchor: t.align }),
+      )
+    for (const m of markerLabels.value) {
+      if (m.backdrop) {
+        // the page's 4px either side of the text, rounded
+        const plate = measure(m.text) + BACKDROP * 2
+        const shift =
+          m.align === 'start'
+            ? 0
+            : m.align === 'middle'
+              ? plate / 2 - BACKDROP
+              : plate - BACKDROP * 2
+        texts.push(
+          `<rect x="${num(m.left - BACKDROP - shift)}" y="${num(m.top)}" width="${num(plate)}" height="16" rx="4"${paintAttribute('fill', color(`color-mix(in oklab, ${markerText(m.tone)} 10%, var(--dou-chart-surface))`))}/>`,
+        )
+      }
+      texts.push(
+        svgText(m.text, m.left, m.top, {
+          color: color(markerText(m.tone)),
+          size: 12,
+          anchor: m.align,
+        }),
+      )
+    }
+  }
+  const on = color('var(--dou-color-text-secondary)')
+  const off = color('var(--dou-color-text-disabled)')
+  for (const item of legend.value) {
+    const mark = swatch(item.kind, item.dashed, item.left, item.top, color(item.color))
+    texts.push(item.off ? `<g opacity="0.32">${mark}</g>` : mark)
+    texts.push(
+      svgText(item.text, item.left + 18, item.top, { color: item.off ? off : on, size: 12 }),
+    )
+  }
+  svg.raw(texts.join(''))
+}
+
+/** The chart as a PNG image, from its SVG. */
+async function exportPNG(options: ChartImageOptions = {}): Promise<Blob> {
+  const markup = exportSVG(options)
+  const l = frame.value
+  const ratio = options.pixelRatio ?? 2
+  const url = URL.createObjectURL(new Blob([markup], { type: 'image/svg+xml' }))
+  try {
+    const image = new Image()
+    image.src = url
+    await image.decode()
+    const sheet = document.createElement('canvas')
+    sheet.width = Math.max(1, Math.ceil((l?.width ?? image.width) * ratio))
+    sheet.height = Math.max(1, Math.ceil((l?.height ?? image.height) * ratio))
+    const ctx = sheet.getContext('2d')!
+    ctx.scale(ratio, ratio)
+    ctx.drawImage(image, 0, 0)
+    return await new Promise<Blob>((resolve, reject) =>
+      sheet.toBlob(
+        (blob) => (blob ? resolve(blob) : reject(new Error('[@dou-ui/chart] PNG export failed'))),
+        'image/png',
+      ),
+    )
+  } finally {
+    URL.revokeObjectURL(url)
+  }
+}
+
+defineExpose<ChartExpose>({ exportSVG, exportPNG })
+
+/*
+ * On the server: the chart as an SVG, its text too, in the theme's
+ * variables so it follows the theme like the page. It scales to fit the
+ * chart's box, whose width the server can't know.
+ */
+const serverDrawing = computed(() => {
+  if (typeof window !== 'undefined' || !frame.value || empty.value) return ''
+  const svg = new SvgPainter(`${uid}-`)
+  drawSvg(svg, (css) => resolveColor(css), null, false)
+  return svg.markup()
+})
+
+const staticState: StaticState = {
+  shown: computed(() => fromServer.value && !!frame.value && !empty.value),
+  size: computed(() => ({ width: frame.value?.width ?? 0, height: frame.value?.height ?? 0 })),
+  markup: serverDrawing,
+  label,
+}
+
 /** Which ways on the screen what is shown can be moved: only when zoomed in along them. */
 function panDirections() {
   const { x, y } = zoomAxes.value
@@ -2358,12 +2852,14 @@ const cssLength = (value: number | string) => (typeof value === 'number' ? `${va
       ns.is('interactive', interactive),
       ns.is('zoomed', zoomOn && zoomed),
       ns.is('brushing', !!brushPart && !zoomOn),
+      ns.is('loading', !!loading),
     ]"
     :style="{ height: cssLength(height), touchAction }"
-    :role="interactive ? 'group' : 'img'"
-    :aria-roledescription="interactive ? messages.chart : undefined"
-    :aria-label="label"
-    :tabindex="interactive ? 0 : undefined"
+    :role="fromServer ? undefined : interactive ? 'group' : 'img'"
+    :aria-roledescription="interactive && !fromServer ? messages.chart : undefined"
+    :aria-label="fromServer ? undefined : label"
+    :aria-busy="loading || undefined"
+    :tabindex="interactive && !fromServer ? 0 : undefined"
     @pointermove="onPointerMove"
     @pointerleave="onPointerLeave"
     @pointerdown="onPointerDown"
@@ -2377,11 +2873,10 @@ const cssLength = (value: number | string) => (typeof value === 'number' ? `${va
   >
     <div :class="ns.e('parts')" hidden><slot /></div>
     <canvas ref="canvas" :class="ns.e('canvas')" aria-hidden="true" />
+    <!-- after the parts: on the server they are known only once their slot has rendered -->
+    <ChartStatic :state="staticState" />
     <ChartOverlay :state="overlay" />
     <ChartZoomLayer :state="zoomLayer" />
     <ChartPointer :state="pointer" />
-    <div v-if="empty" :class="ns.e('empty')">
-      <slot name="empty">{{ messages.empty }}</slot>
-    </div>
   </div>
 </template>

@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { useChartPart, useOwnNode } from '../context'
+import { useChartPart, useOwnNode, renderNothing } from '../context'
 import type { ChartInterval, ChartZoomProps } from '../types'
 
-defineOptions({ name: 'DouChartZoom' })
+defineOptions({ name: 'DouChartZoom', render: renderNothing })
 
 const props = defineProps<ChartZoomProps>()
 /** The stretch of x shown; `null` for all of it. */
@@ -13,5 +13,3 @@ const y = defineModel<ChartInterval | null>('y', { default: null })
 const el = useOwnNode()
 useChartPart('DouChartZoom', (chart) => chart.addZoom({ props, el, x, y }))
 </script>
-
-<template></template>

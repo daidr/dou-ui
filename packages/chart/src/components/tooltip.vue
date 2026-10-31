@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { useChartPart, useOwnNode } from '../context'
+import { useChartPart, useOwnNode, renderNothing } from '../context'
 import type { ChartTooltipProps, ChartTooltipSlots } from '../types'
 
-defineOptions({ name: 'DouChartTooltip' })
+defineOptions({ name: 'DouChartTooltip', render: renderNothing })
 
 const props = withDefaults(defineProps<ChartTooltipProps>(), { crosshair: true })
 const slots = defineSlots<ChartTooltipSlots>()
@@ -12,5 +12,3 @@ useChartPart('DouChartTooltip', (chart) =>
   chart.addTooltip({ props, el, content: () => slots.default }),
 )
 </script>
-
-<template></template>

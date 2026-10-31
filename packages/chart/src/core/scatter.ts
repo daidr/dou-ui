@@ -114,8 +114,8 @@ export function drawScatter(painter: Painter, series: ChartSeries<ScatterStyle>,
       painter.arc(at[0], at[1], r, 0, Math.PI * 2)
       painter.fill()
     }
-  } else if (!stampDots(painter, series.color, view, r, n, point)) {
-    // no canvas to stamp on (not in a page): one shape, a dot per pixel
+  } else if (view.vector || !stampDots(painter, series.color, view, r, n, point)) {
+    // no canvas to stamp on (an SVG, or not in a page): one shape, a dot per pixel
     const columns = Math.ceil(plot.width) + 17
     const cells = columns * (Math.ceil(plot.height) + 17)
     const seen = take(cells)

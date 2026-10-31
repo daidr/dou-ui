@@ -9,6 +9,7 @@ import Tooltip from './components/tooltip.vue'
 import Zoom from './components/zoom.vue'
 import Brush from './components/brush.vue'
 import Range from './components/range.vue'
+import Marker from './components/marker.vue'
 import Chart from './chart.vue'
 
 export const DouChart = withInstall(Chart)
@@ -22,6 +23,7 @@ export const DouChartTooltip = withInstall(Tooltip)
 export const DouChartZoom = withInstall(Zoom)
 export const DouChartBrush = withInstall(Brush)
 export const DouChartRange = withInstall(Range)
+export const DouChartMarker = withInstall(Marker)
 export default DouChart
 
 export { defineChartSeries } from './define'
@@ -32,8 +34,12 @@ export type {
   ChartBarProps,
   ChartBrushEvent,
   ChartBrushProps,
+  ChartExportOptions,
+  ChartExpose,
+  ChartImageOptions,
   ChartInterval,
   ChartLineProps,
+  ChartMarkerProps,
   ChartPieProps,
   ChartPieSlots,
   ChartProps,
@@ -81,5 +87,6 @@ declare module 'vue' {
     DouChartZoom: typeof DouChartZoom
     DouChartBrush: typeof DouChartBrush
     DouChartRange: typeof DouChartRange
+    DouChartMarker: typeof DouChartMarker
   }
 }

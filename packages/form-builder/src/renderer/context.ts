@@ -2,6 +2,7 @@ import type { InjectionKey } from 'vue'
 import type { FormModel, FormRules, FormValidateResult } from 'dou-ui'
 import type { FormFieldType } from '../fields/define'
 import type { FormDocument } from '../core/types'
+import type { FormFunction } from '../core/expression'
 
 export interface FormRendererProps {
   /** The form to render: its fields, groups and layout, as plain data. */
@@ -18,7 +19,23 @@ export interface FormRendererProps {
   rules?: FormRules
   /** Disable every field. */
   disabled?: boolean
+  /**
+   * Functions the document's expressions can call besides the built-in
+   * ones, e.g. `{ tax: (price) => price * 0.06 }`. They get plain values
+   * and should not change them; one of the same name replaces a built-in function.
+   */
+  functions?: Record<string, FormFunction>
+  /**
+   * Where options come from, by the name a node's `source` gives. A source
+   * gets the result of the node's `args` expression and returns the
+   * options, or a promise of them. Results are kept for each name and
+   * `args`, so fields asking the same thing share one call.
+   */
+  sources?: Record<string, FormOptionsLoader>
 }
+
+/** Loads the options of a field, given the result of its `source.args`. */
+export type FormOptionsLoader = (args: any) => unknown[] | Promise<unknown[]>
 
 export interface FormRendererEmits {
   /** A field changed its value: its `name`, and the value it now holds. */
@@ -57,6 +74,10 @@ export interface RendererContext {
   labelWidth: () => number | undefined
   /** Tell the renderer a field wrote a value. */
   changed: (name: string, value: unknown) => void
+  /** The functions expressions can call besides the built-in ones. */
+  functions: () => Record<string, FormFunction> | undefined
+  /** The options from a source, shared by every field asking the same thing. */
+  load: (name: string, args: unknown) => Promise<unknown[]>
 }
 
 export const rendererKey: InjectionKey<RendererContext> = Symbol('DouFormRenderer')

@@ -1,4 +1,6 @@
 import type { FormRule } from 'dou-ui'
+import { isEmptyValue, truthy, tryCompileExpression } from './expression'
+import type { FormFunction } from './expression'
 import type { FormFieldNode, FormRuleSpec } from './types'
 
 const patterns = new Map<string, RegExp | null>()
@@ -19,20 +21,37 @@ function compile(source: string, flags = ''): RegExp | null {
   return pattern
 }
 
-/** One rule as data, as the form's own rule. */
-export function toFormRule(spec: FormRuleSpec): FormRule {
-  const { pattern, flags, ...rest } = spec
+/** One rule as data, as the form's own rule. `functions` are what a `check` can call besides the built-in ones. */
+export function toFormRule(
+  spec: FormRuleSpec,
+  functions?: Readonly<Record<string, FormFunction>>,
+): FormRule {
+  const { pattern, flags, check, ...rest } = spec
   const rule: FormRule = rest
   if (pattern !== undefined) {
     const compiled = compile(pattern, flags)
     if (compiled) rule.pattern = compiled
   }
+  if (check !== undefined) {
+    const expression = tryCompileExpression(check)
+    if (expression)
+      rule.validator = (value, model) =>
+        isEmptyValue(value) || truthy(expression.evaluate({ values: model, value, functions }))
+  }
   return rule
+}
+
+export interface RulesOptions {
+  /** Whether the field is required, when that is decided elsewhere. Defaults to the node's `required`. */
+  required?: boolean
+  /** What `check` expressions can call besides the built-in functions. */
+  functions?: Readonly<Record<string, FormFunction>>
 }
 
 interface Cached {
   specs: FormRuleSpec[] | undefined
-  required: boolean | undefined
+  required: boolean
+  functions: RulesOptions['functions']
   rules: FormRule[]
 }
 
@@ -40,15 +59,22 @@ const cache = new WeakMap<FormFieldNode, Cached>()
 
 /**
  * The rules of a field node, `required` first. Cached per node while its
- * `rules` and `required` stay the same, so re-renders hand the form item
- * the same array.
+ * `rules`, whether it is required and the functions stay the same, so
+ * re-renders hand the form item the same array.
  */
-export function rulesOf(node: FormFieldNode): FormRule[] {
+export function rulesOf(node: FormFieldNode, options: RulesOptions = {}): FormRule[] {
+  const required = options.required ?? node.required ?? false
+  const { functions } = options
   const cached = cache.get(node)
-  if (cached && cached.specs === node.rules && cached.required === node.required)
+  if (
+    cached &&
+    cached.specs === node.rules &&
+    cached.required === required &&
+    cached.functions === functions
+  )
     return cached.rules
-  const rules = (node.rules ?? []).map(toFormRule)
-  if (node.required && !rules.some((rule) => rule.required)) rules.unshift({ required: true })
-  cache.set(node, { specs: node.rules, required: node.required, rules })
+  const rules = (node.rules ?? []).map((spec) => toFormRule(spec, functions))
+  if (required && !rules.some((rule) => rule.required)) rules.unshift({ required: true })
+  cache.set(node, { specs: node.rules, required, functions, rules })
   return rules
 }

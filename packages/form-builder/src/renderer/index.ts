@@ -9,7 +9,9 @@ export type {
   FormRendererExpose,
   FormRendererProps,
   FormRendererSlots,
+  FormOptionsLoader,
 } from './context'
+export { findFormulaCycles } from './formulas'
 export { builtinFields, resolveFields } from '../fields/builtin'
 export { defineFormField, fieldProps, useFormField } from '../fields/define'
 export type { FormFieldContext, FormFieldProps, FormFieldType } from '../fields/define'
@@ -27,11 +29,33 @@ export {
   walkNodes,
 } from '../core/document'
 export { rulesOf, toFormRule } from '../core/rules'
+export type { RulesOptions } from '../core/rules'
+export {
+  builtinFunctions,
+  checkExpression,
+  compileExpression,
+  equalValues,
+  evaluateExpression,
+  ExpressionError,
+  isEmptyValue,
+  parseExpression,
+  truthy,
+} from '../core/expression'
+export type {
+  BinaryOperator,
+  CompiledExpression,
+  ExpressionErrorCode,
+  ExpressionNode,
+  ExpressionProblem,
+  ExpressionScope,
+  FormFunction,
+} from '../core/expression'
 export type {
   FormBreakpoint,
   FormDocument,
   FormFieldNode,
   FormNode,
+  FormOptionSource,
   FormResponsive,
   FormRuleSpec,
   FormSectionNode,

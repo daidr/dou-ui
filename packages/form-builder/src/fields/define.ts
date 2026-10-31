@@ -32,6 +32,11 @@ export interface FormFieldType<P extends FormFieldProps = FormFieldProps> {
    * `toProps`). Call `useFormField()` inside it for the node itself.
    */
   component: Component
+  /**
+   * The prop that takes the list of options, for a type whose options can
+   * come from a source (a node's `source`), e.g. `options` or `data`.
+   */
+  optionsProp?: string
   /** Turns the settings into the component's props, when they differ. */
   toProps?: (props: P, node: FormFieldNode) => Record<string, unknown>
 }

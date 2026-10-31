@@ -1,11 +1,14 @@
-import { computed, defineComponent, h, inject, provide, useId } from 'vue'
-import type { CSSProperties, PropType, VNode } from 'vue'
+import { computed, defineComponent, h, inject, provide, shallowRef, useId, watch } from 'vue'
+import type { Component, CSSProperties, InjectionKey, PropType, VNode } from 'vue'
 import { DouFormItem } from 'dou-ui'
+import type { FormItemExpose } from 'dou-ui'
 import { getPath, isSection, setPath } from '../core/document'
+import { related, truthy, tryCompileExpression } from '../core/expression'
 import { rulesOf } from '../core/rules'
 import type { FormFieldNode, FormNode, FormResponsive, FormSectionNode } from '../core/types'
 import { fieldProps, formFieldKey } from '../fields/define'
 import { rendererKey } from './context'
+import type { RendererContext } from './context'
 
 const breakpoints = ['base', 'sm', 'md', 'lg', 'xl'] as const
 
@@ -38,13 +41,29 @@ function warnUnknown(type: string) {
 
 /** The nodes of one grid: the document's, or a section's. */
 export function renderNodes(nodes: readonly FormNode[], columns: number, inset = 0): VNode[] {
-  return nodes.map((node) => h(FormNodeView, { key: node.id, node, columns, inset }))
+  // Keyed by kind too, so a node that turns into a group gets a new view.
+  return nodes.map((node) =>
+    h(FormNodeView, { key: isSection(node) ? `${node.id}/g` : node.id, node, columns, inset }),
+  )
 }
+
+/** Whether the groups around a node are disabled. */
+const disabledKey: InjectionKey<() => boolean> = Symbol('DouFormNodeDisabled')
+
+/** Whether a component takes a prop, so it is only passed to ones that do. */
+function declares(component: Component, prop: string) {
+  const props = (component as { props?: unknown }).props
+  if (Array.isArray(props)) return props.includes(prop)
+  return !!props && typeof props === 'object' && prop in props
+}
+
+type NodeProps = { node: FormNode; columns: number; inset: number }
 
 /**
  * One node and its grid cell. A node re-renders only when its own object
- * changes or the value at its name does, so typing in one field leaves
- * the others alone.
+ * changes or a value it reads does, so typing in one field leaves the
+ * others alone. A hidden node renders nothing: no cell, no form item to
+ * check and no options to load.
  */
 export const FormNodeView = defineComponent({
   name: 'DouFormNode',
@@ -56,85 +75,34 @@ export const FormNodeView = defineComponent({
   },
   setup(props) {
     const renderer = inject(rendererKey)!
-    const type = computed(() =>
-      isSection(props.node) ? undefined : renderer.fields().get(props.node.type),
-    )
-    const settings = computed(() => fieldProps(type.value, props.node as FormFieldNode))
-    provide(formFieldKey, () => ({
-      node: props.node as FormFieldNode,
-      type: type.value!,
-      props: settings.value,
-    }))
-    const uid = useId()
+    const parentDisabled = inject(disabledKey, undefined)
 
-    // Labels inside bordered sections line up with the ones outside: the
-    // padding and border of each section come off the label column.
-    function labelWidth() {
-      const width = renderer.labelWidth()
-      if (width === undefined || !props.inset) return width
-      return `calc(${width}px - ${props.inset} * (var(--dou-space-lg) + 1px))`
-    }
-
-    function renderSection(node: FormSectionNode) {
-      const columns = node.columns ?? props.columns
-      const titleId = node.title ? `dou-form-section-${uid}` : undefined
-      return h(
-        'div',
-        {
-          class: ['dou-form-renderer__section', node.bordered && 'is-bordered'],
-          role: 'group',
-          'aria-labelledby': titleId,
-        },
-        [
-          node.title || node.description
-            ? h('div', { class: 'dou-form-renderer__section-header' }, [
-                node.title &&
-                  h('div', { id: titleId, class: 'dou-form-renderer__section-title' }, node.title),
-                node.description &&
-                  h('div', { class: 'dou-form-renderer__section-description' }, node.description),
-              ])
-            : null,
-          h(
-            'div',
-            { class: 'dou-form-renderer__grid', style: { '--dou-form-columns': columns } },
-            renderNodes(node.children, columns, props.inset + (node.bordered ? 1 : 0)),
-          ),
-        ],
-      )
-    }
-
-    function renderField(node: FormFieldNode) {
-      const spec = type.value
-      if (!spec) {
-        warnUnknown(node.type)
-        return null
-      }
-      const bound = spec.toProps ? spec.toProps(settings.value, node) : settings.value
-      if (spec.kind === 'display' || !node.name) return h(spec.component, bound)
-      const name = node.name
+    /** An expression of the node, run against the form; `fallback` when it is unset or does not parse. */
+    function condition(source: string | undefined, fallback: boolean) {
+      if (!source) return fallback
+      const expression = tryCompileExpression(source)
+      if (!expression) return fallback
+      const node = props.node
       const model = renderer.model()
-      return h(
-        DouFormItem,
-        {
-          label: node.label,
-          prop: name,
-          help: node.help,
-          rules: rulesOf(node),
-          labelWidth: labelWidth(),
-        },
-        () =>
-          h(spec.component, {
-            ...bound,
-            modelValue: getPath(model, name),
-            'onUpdate:modelValue': (value: unknown) => {
-              setPath(model, name, value)
-              renderer.changed(name, value)
-            },
-          }),
+      return truthy(
+        expression.evaluate({
+          values: model,
+          value: !isSection(node) && node.name ? getPath(model, node.name) : null,
+          functions: renderer.functions(),
+        }),
       )
     }
+
+    const visible = computed(() => condition(props.node.visibleWhen, true))
+    const disabled = computed(
+      () => !!parentDisabled?.() || condition(props.node.disabledWhen, false),
+    )
+    const render = isSection(props.node)
+      ? sectionView(props, disabled)
+      : fieldView(props, renderer, visible, disabled, condition)
 
     return () => {
+      if (!visible.value) return null
       const node = props.node
       return h(
         'div',
@@ -143,8 +111,189 @@ export const FormNodeView = defineComponent({
           style: spanStyle(node.span, props.columns),
           'data-node': node.id,
         },
-        [isSection(node) ? renderSection(node) : renderField(node)],
+        [render()],
       )
     }
   },
 })
+
+function sectionView(props: NodeProps, disabled: { readonly value: boolean }) {
+  provide(disabledKey, () => disabled.value)
+  const uid = useId()
+  return () => {
+    const node = props.node as FormSectionNode
+    const columns = node.columns ?? props.columns
+    const titleId = node.title ? `dou-form-section-${uid}` : undefined
+    return h(
+      'div',
+      {
+        class: ['dou-form-renderer__section', node.bordered && 'is-bordered'],
+        role: 'group',
+        'aria-labelledby': titleId,
+        'aria-disabled': disabled.value || undefined,
+      },
+      [
+        node.title || node.description
+          ? h('div', { class: 'dou-form-renderer__section-header' }, [
+              node.title &&
+                h('div', { id: titleId, class: 'dou-form-renderer__section-title' }, node.title),
+              node.description &&
+                h('div', { class: 'dou-form-renderer__section-description' }, node.description),
+            ])
+          : null,
+        h(
+          'div',
+          { class: 'dou-form-renderer__grid', style: { '--dou-form-columns': columns } },
+          renderNodes(node.children, columns, props.inset + (node.bordered ? 1 : 0)),
+        ),
+      ],
+    )
+  }
+}
+
+function fieldView(
+  props: NodeProps,
+  renderer: RendererContext,
+  visible: { readonly value: boolean },
+  disabled: { readonly value: boolean },
+  condition: (source: string | undefined, fallback: boolean) => boolean,
+) {
+  const field = () => props.node as FormFieldNode
+  const type = computed(() => renderer.fields().get(field().type))
+  const item = shallowRef<FormItemExpose>()
+
+  // Options from a source, while the field shows, has a source and its type takes options.
+  const request = computed(() => {
+    const source = field().source
+    const prop = type.value?.optionsProp
+    if (!source?.name || !prop || !visible.value) return undefined
+    let args: unknown = null
+    if (source.args) {
+      const expression = tryCompileExpression(source.args)
+      if (expression)
+        args = expression.evaluate({ values: renderer.model(), functions: renderer.functions() })
+    }
+    return { name: source.name, prop, args, key: `${source.name}\u0000${JSON.stringify(args)}` }
+  })
+  const options = shallowRef<unknown[]>()
+  const loading = shallowRef(false)
+  watch(
+    () => request.value?.key,
+    (_key, _old, onCleanup) => {
+      const current = request.value
+      if (!current) {
+        loading.value = false
+        return
+      }
+      let stale = false
+      onCleanup(() => (stale = true))
+      loading.value = true
+      renderer.load(current.name, current.args).then(
+        (list) => {
+          if (stale) return
+          options.value = list
+          loading.value = false
+        },
+        () => {
+          if (stale) return
+          options.value = []
+          loading.value = false
+        },
+      )
+    },
+    { immediate: true },
+  )
+
+  const settings = computed(() => {
+    const base = fieldProps(type.value, field())
+    const prop = field().source?.name && type.value?.optionsProp
+    return prop ? { ...base, [prop]: options.value ?? [] } : base
+  })
+  provide(formFieldKey, () => ({ node: field(), type: type.value!, props: settings.value }))
+
+  const required = computed(() => {
+    const node = field()
+    return condition(node.requiredWhen, node.required ?? false)
+  })
+  const rules = computed(() =>
+    rulesOf(field(), { required: required.value, functions: renderer.functions() }),
+  )
+
+  // A check that reads other fields runs again when they change, while
+  // the field shows an error: an end date stops being wrong once the
+  // start date moves before it.
+  const checked = computed(() => {
+    const { name, rules: specs } = field()
+    const paths: string[] = []
+    for (const spec of specs ?? []) {
+      if (!spec.check) continue
+      for (const path of tryCompileExpression(spec.check)?.fields ?? [])
+        if (path === '' || !name || !related(name, path)) paths.push(path)
+    }
+    return paths
+  })
+  watch(
+    () => {
+      const paths = checked.value
+      if (!paths.length) return undefined
+      const model = renderer.model()
+      return paths.map((path) => (path ? getPath(model, path) : model))
+    },
+    () => {
+      if (item.value?.error) void item.value.validate()
+    },
+    { deep: true },
+  )
+
+  // Labels inside bordered sections line up with the ones outside: the
+  // padding and border of each section come off the label column.
+  function labelWidth() {
+    const width = renderer.labelWidth()
+    if (width === undefined || !props.inset) return width
+    return `calc(${width}px - ${props.inset} * (var(--dou-space-lg) + 1px))`
+  }
+
+  return () => {
+    const node = field()
+    const spec = type.value
+    if (!spec) {
+      warnUnknown(node.type)
+      return null
+    }
+    const bound: Record<string, unknown> = spec.toProps
+      ? { ...spec.toProps(settings.value, node) }
+      : { ...settings.value }
+    if (request.value && declares(spec.component, 'loading')) bound.loading = loading.value
+    if (disabled.value) bound.disabled = true
+    if (spec.kind === 'display' || !node.name) return h(spec.component, bound)
+    // A field that holds a formula's result shows it but takes no input.
+    if (node.formula) {
+      if (declares(spec.component, 'readonly')) bound.readonly = true
+      else bound.disabled = true
+      // Steppers would only invite a change that cannot be made.
+      if (declares(spec.component, 'controls')) bound.controls = false
+    }
+    const name = node.name
+    const model = renderer.model()
+    return h(
+      DouFormItem,
+      {
+        ref: item,
+        label: node.label,
+        prop: name,
+        help: node.help,
+        rules: rules.value,
+        labelWidth: labelWidth(),
+      },
+      () =>
+        h(spec.component, {
+          ...bound,
+          modelValue: getPath(model, name),
+          'onUpdate:modelValue': (value: unknown) => {
+            setPath(model, name, value)
+            renderer.changed(name, value)
+          },
+        }),
+    )
+  }
+}

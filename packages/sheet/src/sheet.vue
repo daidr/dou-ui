@@ -1,5 +1,12 @@
 <script setup lang="ts">
-import { holdPointer, isComposing, matchesHotkey, useElementSize, type PointerHold } from 'dou-ui'
+import {
+  holdPointer,
+  isComposing,
+  matchesHotkey,
+  useLocale,
+  useElementSize,
+  type PointerHold,
+} from 'dou-ui'
 import { computed, nextTick, onBeforeUnmount, ref, shallowRef, toRaw, useId, watch } from 'vue'
 import {
   boundsOf,
@@ -9,6 +16,7 @@ import {
   inBounds,
   parseCell,
   parseRange,
+  type SheetCellTarget,
   type SheetPoint,
   type SheetRange,
 } from './core/address'
@@ -35,7 +43,7 @@ import {
 } from './core/selection'
 import { SheetTransaction, type SheetTransactionMeta } from './core/transaction'
 import { format, useSheetMessages } from './locale'
-import type { SheetCellTarget, SheetEmits, SheetExpose, SheetProps } from './types'
+import type { SheetEmits, SheetExpose, SheetProps } from './types'
 
 defineOptions({ name: 'DouSheet' })
 
@@ -54,6 +62,9 @@ const props = withDefaults(defineProps<SheetProps>(), {
 const emit = defineEmits<SheetEmits>()
 
 const messages = useSheetMessages(() => props.messages)
+const { locale } = useLocale()
+/** The language weekdays are named in. */
+const lang = computed(() => locale.value.name)
 const uid = useId()
 
 const root = ref<HTMLElement>()
@@ -276,7 +287,7 @@ function cellView(row: number, col: number, line: SheetData['cells'][number]): C
   if (input != null && input !== '') {
     const cell = typeof input === 'object' ? input : null
     const value = cell ? cell.value : (input as SheetValue)
-    text = formatValue(value, cell?.format)
+    text = formatValue(value, cell?.format, lang.value)
     const style = cell?.style ? styleCache.value.get(cell.style) : undefined
     if (style) {
       if (style.cls) cls += ` ${style.cls}`
@@ -323,6 +334,7 @@ const memoBase = computed(() => [
   headerWidth.value,
   frozenHeight.value,
   styleCache.value,
+  lang.value,
 ])
 
 /** The selection as it touches one row. */
@@ -342,7 +354,7 @@ const activeId = computed(() => cellId(active.value.row, active.value.col))
 const activeLabel = computed(() => {
   const { row, col } = active.value
   const input = sheet.value.cells[row]?.[col]
-  const text = formatValue(valueOf(input), cellOf(input)?.format)
+  const text = formatValue(valueOf(input), cellOf(input)?.format, lang.value)
   return format(messages.value.cell, {
     cell: formatCell(active.value),
     value: text || messages.value.empty,
@@ -384,6 +396,8 @@ function cellRect(point: SheetPoint) {
 
 // Changes --------------------------------------------------------------------------------
 
+const sheetSize = () => ({ rows: rowCount.value, cols: colCount.value })
+
 const view = (): SheetHistoryView => ({ sheet: sheetIndex.value, selection: selection.value })
 
 function syncHistory() {
@@ -404,7 +418,7 @@ function transact(
   before: SheetHistoryView = view(),
 ) {
   if (props.readonly) return null
-  const tr = new SheetTransaction(doc.value)
+  const tr = new SheetTransaction(doc.value, sheetIndex.value)
   if (meta) tr.setMeta(meta)
   run(tr)
   if (!tr.changed) return null
@@ -481,8 +495,9 @@ function commitEdit(move?: SheetDirection) {
   if (move) moveActive(move)
   const changed = transact(
     (tr) => {
-      const old = cellOf(tr.getCell(e.sheet, e.row, e.col))
-      tr.updateCell(e.sheet, e.row, e.col, {
+      const at = { sheet: e.sheet, row: e.row, col: e.col }
+      const old = cellOf(tr.getCell(at))
+      tr.updateCell(at, {
         value: parsed.value ?? undefined,
         format: old?.format ?? parsed.format,
       })
@@ -492,7 +507,7 @@ function commitEdit(move?: SheetDirection) {
   )
   if (changed) {
     const cell = changed.doc.sheets[e.sheet]!.cells[e.row]?.[e.col]
-    const shownText = formatValue(valueOf(cell), cellOf(cell)?.format)
+    const shownText = formatValue(valueOf(cell), cellOf(cell)?.format, lang.value)
     const value = shownText || messages.value.empty
     announce(format(messages.value.changed, { cell: formatCell(e), value }))
   }
@@ -629,7 +644,7 @@ function announceRange() {
   const count = (b.bottom - b.top + 1) * (b.right - b.left + 1)
   announce(
     count > 1
-      ? format(messages.value.selected, { range: formatRange(range), count })
+      ? format(messages.value.selected, { range: formatRange(range, sheetSize()), count })
       : activeLabel.value,
   )
 }
@@ -796,10 +811,14 @@ function clearSelection() {
   if (props.readonly) return announce(messages.value.readonly)
   const ranges = selection.value.ranges
   const cleared = transact((tr) => {
-    for (const range of ranges) tr.clearValues(sheetIndex.value, boundsOf(range))
+    for (const range of ranges) tr.clearValues(boundsOf(range))
   })
   if (cleared)
-    announce(format(messages.value.cleared, { range: ranges.map(formatRange).join(', ') }))
+    announce(
+      format(messages.value.cleared, {
+        range: ranges.map((range) => formatRange(range, sheetSize())).join(', '),
+      }),
+    )
 }
 
 /** Selects, scrolls the active cell into view and reads it out. */
@@ -1123,6 +1142,9 @@ defineExpose<SheetExpose>({
       'is-dragging': drag?.started,
       'has-gridlines': gridlines,
       'is-editing': editing,
+      'is-scrolled-x': scroll.left > 0,
+      'is-scrolled-y': scroll.top > 0,
+      'has-frozen-cols': frozen.cols > 0,
     }"
     @keydown="onKeydown"
   >
@@ -1169,6 +1191,7 @@ defineExpose<SheetExpose>({
             :key="col"
             class="dou-sheet__col-head is-frozen"
             :class="{
+              'is-freeze-edge': col === frozen.cols - 1,
               'is-marked': headerMarks.colsMarked.has(col),
               'is-full': headerMarks.colsFull.has(col),
             }"

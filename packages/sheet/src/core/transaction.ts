@@ -1,4 +1,12 @@
-import type { SheetBounds } from './address'
+import {
+  boundsOf,
+  parseCell,
+  parseRange,
+  splitSheet,
+  type SheetBounds,
+  type SheetPoint,
+  type SheetRange,
+} from './address'
 import {
   cellOf,
   compactCell,
@@ -26,12 +34,31 @@ type Patch<T> = { [K in keyof T]?: T[K] | undefined }
 /** The parts of a sheet set with `updateSheet`. */
 export type SheetPatch = Patch<Omit<SheetData, 'cells' | 'rowSizes' | 'colSizes'>>
 
+/** A sheet: its index in the workbook, or its `id` or `name`. */
+export type SheetRef = number | string
+
+/**
+ * A cell: `'B3'`, `'表 2'!B3` for another sheet, or a point with an
+ * optional `sheet`. Without a sheet it is on the transaction's sheet.
+ */
+export type SheetCellAt = string | (SheetPoint & { sheet?: SheetRef })
+
+/** A range, written like a cell: `'A1:C4'`, `'表 2'!B:B`, a range or its bounds. */
+export type SheetRangeAt = string | SheetRange | SheetBounds
+
+/** What a step calls a sheet: its `id`, or its name when it has none. */
+export const sheetKey = (sheet: SheetData) => sheet.id ?? sheet.name
+
+/*
+ * Steps name sheets by key rather than index, so they still apply after
+ * sheets are reordered, and on another client in collaboration.
+ */
 export type SheetStep =
-  /** Writes a cell; `cell` left out empties it. `sheet` is the sheet's index. */
-  | { type: 'setCell'; sheet: number; row: number; col: number; cell?: SheetCellInput }
+  /** Writes a cell; `cell` left out empties it. */
+  | { type: 'setCell'; sheet: string; row: number; col: number; cell?: SheetCellInput }
   /** Sets a row's height or a column's width; `size` left out goes back to the default. */
-  | { type: 'setSize'; sheet: number; axis: 'row' | 'col'; index: number; size?: number }
-  | { type: 'updateSheet'; sheet: number; patch: SheetPatch }
+  | { type: 'setSize'; sheet: string; axis: 'row' | 'col'; index: number; size?: number }
+  | { type: 'updateSheet'; sheet: string; patch: SheetPatch }
   /** Adds, replaces or (with `style` left out) removes a named style. */
   | { type: 'setStyle'; name: string; style?: SheetStyle }
 
@@ -46,7 +73,8 @@ export interface SheetTransactionMeta {
 
 /**
  * A batch of changes. Steps apply as they are added, so later calls see
- * earlier ones; `doc` is the result.
+ * earlier ones; `doc` is the result. Cells and ranges without a sheet are
+ * on `sheet` (in the grid, the one shown).
  */
 export class SheetTransaction {
   readonly steps: SheetStep[] = []
@@ -59,7 +87,11 @@ export class SheetTransaction {
   private ownSheets = new Set<number>()
   private ownRows = new Map<number, Set<number>>()
 
-  constructor(readonly before: SheetWorkbook) {
+  constructor(
+    readonly before: SheetWorkbook,
+    /** The sheet cells and ranges are on when they don't name one. */
+    readonly sheet: SheetRef = 0,
+  ) {
     this.book = before
   }
 
@@ -76,14 +108,24 @@ export class SheetTransaction {
     return this
   }
 
-  sheet(index: number): SheetData {
-    const sheet = this.book.sheets[index]
-    if (!sheet) throw new RangeError(`There is no sheet ${index}`)
-    return sheet
+  /** The index of a sheet, by index, `id` or name; `-1` when there is none. */
+  indexOf(ref: SheetRef = this.sheet) {
+    const { sheets } = this.book
+    if (typeof ref === 'number') return ref >= 0 && ref < sheets.length ? ref : -1
+    const byId = sheets.findIndex((sheet) => sheet.id === ref)
+    return byId === -1 ? sheets.findIndex((sheet) => sheet.id == null && sheet.name === ref) : byId
   }
 
-  getCell(sheet: number, row: number, col: number): SheetCellInput {
-    return this.sheet(sheet).cells[row]?.[col] ?? undefined
+  /** A sheet as it is now in this transaction. */
+  getSheet(ref: SheetRef = this.sheet): SheetData {
+    const index = this.indexOf(ref)
+    if (index === -1) throw new RangeError(`There is no sheet "${ref}"`)
+    return this.book.sheets[index]!
+  }
+
+  getCell(at: SheetCellAt): SheetCellInput {
+    const { index, row, col } = this.cellAt(at)
+    return this.book.sheets[index]!.cells[row]?.[col] ?? undefined
   }
 
   step(step: SheetStep) {
@@ -96,24 +138,27 @@ export class SheetTransaction {
   }
 
   /** Replaces a cell; `undefined` empties it. */
-  setCell(sheet: number, row: number, col: number, cell: SheetCellInput) {
-    return this.step({ type: 'setCell', sheet, row, col, cell })
+  setCell(at: SheetCellAt, cell: SheetCellInput) {
+    const { index, row, col } = this.cellAt(at)
+    return this.step({ type: 'setCell', sheet: this.keyOf(index), row, col, cell })
   }
 
   /** Changes some of a cell's fields and keeps the rest. */
-  updateCell(sheet: number, row: number, col: number, patch: Patch<SheetCell>) {
-    const cell = { ...cellOf(this.getCell(sheet, row, col)), ...patch }
-    return this.setCell(sheet, row, col, compactCell(cell))
+  updateCell(at: SheetCellAt, patch: Patch<SheetCell>) {
+    const target = this.cellAt(at)
+    const point = { sheet: target.index, row: target.row, col: target.col }
+    return this.setCell(point, compactCell({ ...cellOf(this.getCell(point)), ...patch }))
   }
 
   /** Writes a cell's value and keeps its style and format. */
-  setValue(sheet: number, row: number, col: number, value: SheetValue | undefined) {
-    return this.updateCell(sheet, row, col, { value: value ?? undefined })
+  setValue(at: SheetCellAt, value: SheetValue | undefined) {
+    return this.updateCell(at, { value: value ?? undefined })
   }
 
   /** Empties the values in a range, keeping styles and formats. */
-  clearValues(sheet: number, bounds: SheetBounds) {
-    const { cells } = this.sheet(sheet)
+  clearValues(at: SheetRangeAt) {
+    const { index, bounds } = this.rangeAt(at)
+    const { cells } = this.book.sheets[index]!
     const last = Math.min(bounds.bottom, cells.length - 1)
     for (let row = bounds.top; row <= last; row++) {
       const line = cells[row]
@@ -122,49 +167,96 @@ export class SheetTransaction {
       for (let col = bounds.left; col <= end; col++) {
         const cell = line[col]
         if (cell != null && cell !== '' && (typeof cell !== 'object' || cell.value != null))
-          this.setValue(sheet, row, col, undefined)
+          this.setValue({ sheet: index, row, col }, undefined)
       }
     }
     return this
   }
 
-  setSize(sheet: number, axis: 'row' | 'col', index: number, size: number | undefined) {
-    return this.step({ type: 'setSize', sheet, axis, index, size })
+  /** Sets a row's height or a column's width in px; `undefined` for the default, `0` hides it. */
+  setSize(axis: 'row' | 'col', index: number, size: number | undefined, sheet?: SheetRef) {
+    const key = this.keyOf(this.mustIndex(sheet))
+    return this.step({ type: 'setSize', sheet: key, axis, index, size })
   }
 
-  updateSheet(sheet: number, patch: SheetPatch) {
-    return this.step({ type: 'updateSheet', sheet, patch })
+  /** Changes a sheet's name, freeze, row or column count. */
+  updateSheet(patch: SheetPatch, sheet?: SheetRef) {
+    return this.step({ type: 'updateSheet', sheet: this.keyOf(this.mustIndex(sheet)), patch })
   }
 
   setStyle(name: string, style: SheetStyle | undefined) {
     return this.step({ type: 'setStyle', name, style })
   }
 
+  private mustIndex(ref: SheetRef = this.sheet) {
+    const index = this.indexOf(ref)
+    if (index === -1) throw new RangeError(`There is no sheet "${ref}"`)
+    return index
+  }
+
+  private keyOf(index: number) {
+    return sheetKey(this.book.sheets[index]!)
+  }
+
+  private cellAt(at: SheetCellAt) {
+    if (typeof at === 'string') {
+      const { sheet, ref } = splitSheet(at)
+      const point = parseCell(ref)
+      if (!point) throw new RangeError(`"${at}" isn't a cell`)
+      return { index: this.mustIndex(sheet), ...point }
+    }
+    return { index: this.mustIndex(at.sheet), row: at.row, col: at.col }
+  }
+
+  private rangeAt(at: SheetRangeAt) {
+    let sheet: string | undefined
+    let bounds: SheetBounds
+    if (typeof at === 'string') {
+      const split = splitSheet(at)
+      sheet = split.sheet
+      const range = parseRange(split.ref)
+      if (!range) throw new RangeError(`"${at}" isn't a range`)
+      bounds = boundsOf(range)
+    } else bounds = 'start' in at ? boundsOf(at) : at
+    return { index: this.mustIndex(sheet), bounds }
+  }
+
   /** Applies a step, returning the step that undoes it, or `null` when nothing changes. */
   private apply(step: SheetStep): SheetStep | null {
+    if (step.type === 'setStyle') {
+      const old = this.book.styles?.[step.name]
+      if (old === step.style) return null
+      const book = this.ownBook()
+      const styles = this.own.styles ? book.styles! : { ...book.styles }
+      this.own.styles = true
+      if (step.style) styles[step.name] = step.style
+      else delete styles[step.name]
+      book.styles = styles
+      return { type: 'setStyle', name: step.name, style: old }
+    }
+    const index = this.mustIndex(step.sheet)
+    const sheet = this.book.sheets[index]!
     switch (step.type) {
       case 'setCell': {
         const { row, col } = step
         const cell = step.cell ?? undefined
-        const old = this.getCell(step.sheet, row, col)
+        const old = sheet.cells[row]?.[col] ?? undefined
         if (old === cell || (old == null && cell == null)) return null
-        const line = this.row(step.sheet, row)
-        line[col] = cell
-        return { type: 'setCell', sheet: step.sheet, row, col, cell: old }
+        this.row(index, row)[col] = cell
+        return { ...step, cell: old }
       }
       case 'setSize': {
         const key = step.axis === 'row' ? 'rowSizes' : 'colSizes'
-        const sizes = this.sheet(step.sheet)[key]
+        const sizes = sheet[key]
         const old = sizes?.[step.index]
         if (old === step.size) return null
         const next = { ...sizes }
         if (step.size == null) delete next[step.index]
         else next[step.index] = step.size
-        this.ownSheet(step.sheet)[key] = next
+        this.ownSheet(index)[key] = next
         return { ...step, size: old }
       }
       case 'updateSheet': {
-        const sheet = this.sheet(step.sheet)
         const old: Record<string, unknown> = {}
         let changed = false
         for (const key of Object.keys(step.patch) as (keyof SheetPatch)[]) {
@@ -172,23 +264,13 @@ export class SheetTransaction {
           if (sheet[key] !== step.patch[key]) changed = true
         }
         if (!changed) return null
-        const own = this.ownSheet(step.sheet) as unknown as Record<string, unknown>
+        const own = this.ownSheet(index) as unknown as Record<string, unknown>
         for (const [key, value] of Object.entries(step.patch)) {
           if (value === undefined) delete own[key]
           else own[key] = value
         }
-        return { type: 'updateSheet', sheet: step.sheet, patch: old as SheetPatch }
-      }
-      case 'setStyle': {
-        const old = this.book.styles?.[step.name]
-        if (old === step.style) return null
-        const book = this.ownBook()
-        const styles = this.own.styles ? book.styles! : { ...book.styles }
-        this.own.styles = true
-        if (step.style) styles[step.name] = step.style
-        else delete styles[step.name]
-        book.styles = styles
-        return { type: 'setStyle', name: step.name, style: old }
+        // a rename changes the key of a sheet without an id
+        return { type: 'updateSheet', sheet: this.keyOf(index), patch: old as SheetPatch }
       }
     }
   }
@@ -208,7 +290,7 @@ export class SheetTransaction {
       this.own.sheets = true
     }
     if (!this.ownSheets.has(index)) {
-      const sheet = this.sheet(index)
+      const sheet = book.sheets[index]!
       book.sheets[index] = { ...sheet, cells: sheet.cells.slice() }
       this.ownSheets.add(index)
     }

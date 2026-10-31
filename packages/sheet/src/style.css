@@ -9,6 +9,8 @@
   .dou-sheet {
     --dou-sheet-line: var(--dou-color-border-subtle);
     --dou-sheet-line-strong: var(--dou-color-border);
+    --dou-sheet-freeze-line: var(--dou-color-border-strong);
+    --dou-sheet-scroll-shadow: color-mix(in oklab, var(--dou-color-text) 14%, transparent);
     --dou-sheet-header-bg: var(--dou-color-bg-canvas);
     --dou-sheet-ring: var(--dou-color-primary);
     --dou-sheet-tint: color-mix(in oklab, var(--dou-color-primary) 8%, transparent);
@@ -111,6 +113,9 @@
     user-select: none;
     -webkit-user-select: none;
 
+    box-shadow:
+      var(--dou-sheet-mark, 0 0 transparent), var(--dou-sheet-edge-shadow, 0 0 transparent);
+
     &.is-marked {
       background-color: var(--dou-sheet-header-marked);
       color: var(--dou-color-text);
@@ -130,6 +135,9 @@
   .dou-sheet__col-head {
     border-right-color: var(--dou-sheet-line);
 
+    &.is-freeze-edge {
+      border-right-color: var(--dou-sheet-freeze-line);
+    }
     &.is-frozen {
       position: sticky;
       z-index: 2;
@@ -139,7 +147,7 @@
       top: 0;
     }
     &.is-marked {
-      box-shadow: inset 0 -2px 0 var(--dou-sheet-ring);
+      --dou-sheet-mark: inset 0 -2px 0 var(--dou-sheet-ring);
     }
   }
 
@@ -149,8 +157,11 @@
     z-index: 2;
     border-bottom-color: var(--dou-sheet-line);
 
+    .is-freeze-edge > & {
+      border-bottom-color: var(--dou-sheet-freeze-line);
+    }
     &.is-marked {
-      box-shadow: inset -2px 0 0 var(--dou-sheet-ring);
+      --dou-sheet-mark: inset -2px 0 0 var(--dou-sheet-ring);
     }
   }
 
@@ -178,14 +189,14 @@
       background-color: var(--dou-color-bg-surface);
     }
     &.is-freeze-edge {
-      border-right-color: var(--dou-sheet-line-strong);
+      border-right-color: var(--dou-sheet-freeze-line);
     }
     .is-freeze-edge > & {
-      border-bottom-color: var(--dou-sheet-line-strong);
+      border-bottom-color: var(--dou-sheet-freeze-line);
     }
 
     &.is-bold {
-      font-weight: var(--dou-font-weight-medium);
+      font-weight: var(--dou-font-weight-bold);
     }
     &.is-italic {
       font-style: italic;
@@ -359,10 +370,34 @@
       overflow-wrap: anywhere;
     }
     &.is-bold {
-      font-weight: var(--dou-font-weight-medium);
+      font-weight: var(--dou-font-weight-bold);
     }
     &.is-italic {
       font-style: italic;
+    }
+
+    /* 16px or more, so phones don't zoom in when it gets focus */
+    @media (pointer: coarse) {
+      font-size: max(16px, 1em);
+    }
+  }
+
+  /*
+   * Once scrolled, a soft shadow along the frozen edge (or the headers)
+   * shows that cells are passing under it.
+   */
+  .dou-sheet.is-scrolled-y .dou-sheet__head {
+    box-shadow: 0 4px 6px -4px var(--dou-sheet-scroll-shadow);
+  }
+  .dou-sheet.is-scrolled-x {
+    .dou-sheet__cell.is-freeze-edge,
+    .dou-sheet__col-head.is-freeze-edge,
+    &:not(.has-frozen-cols) .dou-sheet__corner,
+    &:not(.has-frozen-cols) .dou-sheet__row-head {
+      --dou-sheet-edge-shadow: 4px 0 6px -4px var(--dou-sheet-scroll-shadow);
+    }
+    .dou-sheet__cell.is-freeze-edge {
+      box-shadow: var(--dou-sheet-edge-shadow);
     }
   }
 

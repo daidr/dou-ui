@@ -56,7 +56,7 @@ function setup(extra: Record<string, unknown> = {}) {
 }
 
 const selected = (selection: SheetSelection | undefined) =>
-  selection?.ranges.map(formatRange).join(',')
+  selection?.ranges.map((range) => formatRange(range)).join(',')
 
 describe('DouSheet', () => {
   it('draws the cells with their formats and styles', () => {
@@ -150,18 +150,46 @@ describe('DouSheet', () => {
     await key('Enter')
     await key('Delete')
     expect(cells()[1]![0]).toBe('显示器')
-    expect(grid.value!.transact((tr) => tr.setValue(0, 0, 0, 'x'))).toBeNull()
+    expect(grid.value!.transact((tr) => tr.setValue('A1', 'x'))).toBeNull()
   })
 
   it('applies transactions and selects by name', async () => {
     const { grid, cells, selection } = setup()
-    grid.value!.transact((tr) => tr.setValue(0, 4, 0, '鼠标').setValue(0, 4, 1, 98))
+    grid.value!.transact((tr) => tr.setValue('A5', '鼠标').setValue('B5', 98))
     await nextTick()
     expect(cells()[4]).toEqual(['鼠标', 98])
     grid.value!.select('B2:A3')
     await nextTick()
     expect(selected(selection.value)).toBe('A2:B3')
     expect(selection.value?.active).toEqual({ row: 1, col: 1 })
+  })
+
+  it('selects whole columns and rows by name', async () => {
+    const { grid, selection, wrapper } = setup()
+    grid.value!.select('B:B')
+    await nextTick()
+    expect(selection.value?.ranges[0]).toEqual({
+      start: { row: 0, col: 1 },
+      end: { row: 999, col: 1 },
+    })
+    expect(wrapper.find('.dou-sheet__col-head.is-full').text()).toBe('B')
+    grid.value!.select('2:3')
+    await nextTick()
+    expect(selection.value?.ranges[0]!.end).toEqual({ row: 2, col: 25 })
+  })
+
+  it('writes to a sheet by name and keeps typed dates as typed', async () => {
+    const { grid, key, type, cells, wrapper } = setup()
+    grid.value!.transact((tr) => tr.setValue("'库存'!C1", '入库'))
+    await nextTick()
+    expect(cells()[0]![2]).toBe('入库')
+    await key('ArrowDown')
+    await key('ArrowRight', { ctrlKey: true })
+    await key('ArrowRight')
+    await type('2026/3/5')
+    await key('Enter')
+    expect(cells()[1]![2]).toEqual({ value: '2026-03-05', format: 'yyyy/m/d' })
+    expect(wrapper.findAll('.dou-sheet__cell').map((cell) => cell.text())).toContain('2026/3/5')
   })
 
   it('keeps frozen rows and columns at the top and left', () => {

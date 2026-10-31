@@ -610,7 +610,7 @@ export const cases: Record<string, Case> = {
   // One cell changed: the rows that stay the same aren't copied or drawn again.
   'sheet-edit': {
     render: (n) => sheet(n),
-    act: () => (window as any).sheet.value.transact((tr: any) => tr.setValue(0, 3, 3, 42)),
+    act: () => (window as any).sheet.value.transact((tr: any) => tr.setValue('D4', 42)),
   },
   // Everything selected: every cell in view is drawn again with the tint.
   'sheet-select-all': {

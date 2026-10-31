@@ -1,4 +1,4 @@
-import type { SheetPoint, SheetRange } from './core/address'
+import type { SheetCellTarget, SheetRange } from './core/address'
 import type { SheetWorkbook } from './core/model'
 import type { SheetSelection } from './core/selection'
 import type { SheetTransaction, SheetTransactionMeta } from './core/transaction'
@@ -11,7 +11,7 @@ export interface SheetProps {
   selection?: SheetSelection
   /** The index of the sheet shown; bind with `v-model:active-sheet`. Defaults to 0. */
   activeSheet?: number
-  /** Show the cells without letting anyone change them. Selecting and copying still work. */
+  /** Show the cells without letting anyone change them; selecting still works. */
   readonly?: boolean
   /** The default row height, in px. */
   rowHeight?: number
@@ -37,13 +37,11 @@ export interface SheetEmits {
   transaction: [tr: SheetTransaction]
 }
 
-/** A cell, as a name such as `'B3'` or as a point. */
-export type SheetCellTarget = string | SheetPoint
-
 export interface SheetExpose {
   /**
    * Makes a change: `run` adds steps to the transaction, which is applied
-   * and recorded for undo as one. Returns it, or `null` when nothing changed
+   * and recorded for undo as one. Cells without a sheet (`'A5'`) are on
+   * the sheet shown. Returns it, or `null` when nothing changed
    * or the grid is read-only.
    */
   transact: (

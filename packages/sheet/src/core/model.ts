@@ -32,6 +32,12 @@ export interface SheetFreeze {
 
 /** One sheet of a workbook. */
 export interface SheetData {
+  /**
+   * A stable name for the sheet that changes and collaboration refer to.
+   * Without one they use `name`; give an `id` when sheets can be renamed
+   * while changes are on their way, e.g. from another client.
+   */
+  id?: string
   /** Shown on the sheet's tab and used by formulas to refer to it. Unique in the workbook. */
   name: string
   /** The cells, row by row. Rows and cells past the data can be left out. */

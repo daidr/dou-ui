@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { columnIndex, columnName, formatRange, parseCell, parseRange } from '../core/address'
+import {
+  columnIndex,
+  columnName,
+  formatRange,
+  parseCell,
+  parseRange,
+  splitSheet,
+} from '../core/address'
 import { SheetAxis } from '../core/axis'
 import { formatValue, inputText, parseInput } from '../core/format'
 import { SheetHistory } from '../core/history'
@@ -24,6 +31,39 @@ describe('addresses', () => {
     expect(formatRange(parseRange('B2')!)).toBe('B2')
     expect(parseRange('A1:B2:C3')).toBeNull()
   })
+
+  it.each([
+    ['B2', { start: { row: 1, col: 1 }, end: { row: 1, col: 1 } }],
+    ['$A$1:b3', { start: { row: 0, col: 0 }, end: { row: 2, col: 1 } }],
+    ['B:D', { start: { row: 0, col: 1 }, end: { row: Infinity, col: 3 } }],
+    ['$C:$C', { start: { row: 0, col: 2 }, end: { row: Infinity, col: 2 } }],
+    ['2:3', { start: { row: 1, col: 0 }, end: { row: 2, col: Infinity } }],
+    ['A', null],
+    ['B:3', null],
+    ['0:2', null],
+    ['', null],
+  ])('parses the range %j', (text, range) => {
+    expect(parseRange(text)).toEqual(range)
+  })
+
+  it.each([
+    ['B2', 'B2'],
+    ['C4:A1', 'A1:C4'],
+    ['B:D', 'B:D'],
+    ['B1:D1000', 'B:D'],
+    ['A2:Z3', '2:3'],
+    ['2:3', '2:3'],
+    ['A1:Z1000', 'A1:Z1000'],
+  ])('names %s as %s in a 1000 × 26 sheet', (text, name) => {
+    expect(formatRange(parseRange(text)!, { rows: 1000, cols: 26 })).toBe(name)
+  })
+
+  it('splits off the sheet', () => {
+    expect(splitSheet("'表 2'!A5")).toEqual({ sheet: '表 2', ref: 'A5' })
+    expect(splitSheet("'戴兜''s'!B:B")).toEqual({ sheet: "戴兜's", ref: 'B:B' })
+    expect(splitSheet('表2!A5')).toEqual({ sheet: '表2', ref: 'A5' })
+    expect(splitSheet('A5')).toEqual({ ref: 'A5' })
+  })
 })
 
 describe('axis', () => {
@@ -41,39 +81,118 @@ describe('axis', () => {
 })
 
 describe('format', () => {
-  it('shows numbers by pattern', () => {
-    expect(formatValue(1234.5, '#,##0.00')).toBe('1,234.50')
-    expect(formatValue(-1234.5, '#,##0')).toBe('-1,235')
-    expect(formatValue(0.256, '0.0%')).toBe('25.6%')
-    expect(formatValue(1.005, '0.00')).toBe('1.01')
-    expect(formatValue(1.5, '0.##')).toBe('1.5')
-    expect(formatValue(3, '¥#,##0.00')).toBe('¥3.00')
-    expect(formatValue(3, '0"件"')).toBe('3件')
-    expect(formatValue(-3, '0;(0)')).toBe('(3)')
-    expect(formatValue(0.1 + 0.2)).toBe('0.3')
-    expect(formatValue(true)).toBe('TRUE')
+  it.each([
+    [1234.5, '#,##0.00', '1,234.50'],
+    [-1234.5, '#,##0', '-1,235'],
+    [0.256, '0.0%', '25.6%'],
+    [1.005, '0.00', '1.01'],
+    [1.5, '0.##', '1.5'],
+    [2, '0.##', '2'],
+    [7, '000', '007'],
+    [3, '¥#,##0.00', '¥3.00'],
+    [-3, '¥#,##0.00', '-¥3.00'],
+    [3, '0"件"', '3件'],
+    [3, '0\\h', '3h'],
+    [-3, '0;(0)', '(3)'],
+    [3, '0;(0)', '3'],
+    [0, '0;(0);"-"', '-'],
+    [0, '0.00;(0.00);"零"', '零'],
+    [0, '0.00;(0.00);0', '0'],
+    [-2, '0;(0);"-"', '(2)'],
+    [5, '0;(0);"-"', '5'],
+    [-0.001, '0.00', '0.00'],
+    [0.1 + 0.2, undefined, '0.3'],
+    [1e21, undefined, '1E+21'],
+    [3, 'yyyy', '3'],
+    [true, undefined, 'TRUE'],
+    [42, '@', '42'],
+  ] as const)('shows %j with %j as %j', (value, format, text) => {
+    expect(formatValue(value, format)).toBe(text)
   })
 
-  it('shows dates by pattern', () => {
-    expect(formatValue('2026-03-05', 'yyyy/m/d')).toBe('2026/3/5')
-    expect(formatValue('2026-03-05 09:07', 'mm-dd hh:mm')).toBe('03-05 09:07')
-    expect(formatValue('不是日期', 'yyyy')).toBe('不是日期')
+  it.each([
+    ['2026-03-05', 'yyyy/m/d', '2026/3/5'],
+    ['2026-03-05', 'yy-mm-dd', '26-03-05'],
+    ['2026-03-05 09:07', 'mm-dd hh:mm', '03-05 09:07'],
+    ['2026-03-05 09:07:08', 'h:mm:ss', '9:07:08'],
+    ['2026-03-05 09:07', 'm/d h:mm', '3/5 9:07'],
+    ['2026-03-05', 'yyyy"年"m"月"d"日"', '2026年3月5日'],
+    ['2026-03-05', 'yyyy年m月d日', '2026年3月5日'],
+    ['2026-03-05', 'yyyy-mm-dd "(d)"', '2026-03-05 (d)'],
+    ['2026-03-05', 'd \\d', '5 d'],
+    ['2026-03-05 18:30', 'yyyy-mm-dd at hh:mm', '2026-03-05 at 18:30'],
+    ['09:05', 'h:mm', '9:05'],
+    ['09:05:30', 'hh:mm:ss', '09:05:30'],
+    ['09:05', 'yyyy-mm-dd', '09:05'],
+    ['不是日期', 'yyyy', '不是日期'],
+  ])('shows %j with %j as %j', (value, format, text) => {
+    expect(formatValue(value, format)).toBe(text)
   })
 
-  it('reads typed text', () => {
-    expect(parseInput('1,234.5')).toEqual({ value: 1234.5 })
-    expect(parseInput('12.5%')).toEqual({ value: 0.125, format: '0.0%' })
-    expect(parseInput('2026/3/5')).toEqual({ value: '2026-03-05' })
-    expect(parseInput('2026/2/30')).toEqual({ value: '2026/2/30' })
-    expect(parseInput('true')).toEqual({ value: true })
-    expect(parseInput("'007")).toEqual({ value: '007' })
-    expect(parseInput('=SUM(A1:A3)')).toEqual({ value: '=SUM(A1:A3)' })
-    expect(parseInput('上海')).toEqual({ value: '上海' })
-    expect(parseInput('')).toEqual({ value: null })
-    expect(inputText('007')).toBe("'007")
-    expect(inputText('上海')).toBe('上海')
-    expect(inputText('123')).toBe("'123")
-    expect(parseInput(inputText('123')).value).toBe('123')
+  it('names weekdays in the given language', () => {
+    expect(formatValue('2026-10-31', 'ddd', 'en')).toBe('Sat')
+    expect(formatValue('2026-10-31', 'dddd', 'en')).toBe('Saturday')
+    expect(formatValue('2026-10-31', 'm/d ddd', 'zh-CN')).toBe('10/31 周六')
+    expect(formatValue('2026-10-31', 'dddd', 'zh-CN')).toBe('星期六')
+  })
+
+  it.each([
+    ['1,234.5', { value: 1234.5 }],
+    ['-12', { value: -12 }],
+    ['1e3', { value: 1000 }],
+    ['12.5%', { value: 0.125, format: '0.0%' }],
+    ['50%', { value: 0.5, format: '0%' }],
+    ['¥1,200', { value: 1200, format: '¥#,##0' }],
+    ['$12.50', { value: 12.5, format: '$#,##0.00' }],
+    ['-€3', { value: -3, format: '€#,##0' }],
+    ['£-3.5', { value: -3.5, format: '£#,##0.0' }],
+    ['¥', { value: '¥' }],
+    ['¥1,2', { value: '¥1,2' }],
+    ['-¥-3', { value: '-¥-3' }],
+    ['2026-03-05', { value: '2026-03-05' }],
+    ['2026-3-5', { value: '2026-03-05', format: 'yyyy-m-d' }],
+    ['2026/3/5', { value: '2026-03-05', format: 'yyyy/m/d' }],
+    ['2026/03/05', { value: '2026-03-05', format: 'yyyy/mm/dd' }],
+    ['2026.3.5', { value: '2026-03-05', format: 'yyyy.m.d' }],
+    ['2026-03-05 09:30', { value: '2026-03-05 09:30' }],
+    ['2026-03-05 9:30', { value: '2026-03-05 09:30', format: 'yyyy-mm-dd h:mm' }],
+    ['2026/3/5 18:30:15', { value: '2026-03-05 18:30:15', format: 'yyyy/m/d hh:mm:ss' }],
+    ['2026/3-5', { value: '2026/3-5' }],
+    ['2026/2/30', { value: '2026/2/30' }],
+    ['2026-03-05 25:00', { value: '2026-03-05 25:00' }],
+    ['9:30', { value: '09:30', format: 'h:mm' }],
+    ['09:30', { value: '09:30' }],
+    ['18:30:15', { value: '18:30:15' }],
+    ['24:00', { value: '24:00' }],
+    ['9:60', { value: '9:60' }],
+    ['true', { value: true }],
+    ['FALSE', { value: false }],
+    ["'007", { value: '007' }],
+    ['=SUM(A1:A3)', { value: '=SUM(A1:A3)' }],
+    ['上海', { value: '上海' }],
+    ['', { value: null }],
+  ])('reads %j', (text, input) => {
+    expect(parseInput(text)).toEqual(input)
+  })
+
+  it('shows typed dates and times as typed', () => {
+    for (const text of ['2026/3/5', '2026.3.5', '2026-3-5 9:30', '9:30', '¥1,200.50', '-$3'])
+      expect(formatValue(parseInput(text).value, parseInput(text).format)).toBe(text)
+  })
+
+  it.each([
+    ['007', "'007"],
+    ['上海', '上海'],
+    ['123', "'123"],
+    ['9:30', "'9:30"],
+    ['09:30', '09:30'],
+    ['2026-03-05', '2026-03-05'],
+    ['¥3', "'¥3"],
+    [12.5, '12.5'],
+    [true, 'TRUE'],
+  ] as const)('starts editing %j as %j', (value, text) => {
+    expect(inputText(value)).toBe(text)
+    expect(parseInput(text).value).toBe(value)
   })
 })
 
@@ -93,7 +212,7 @@ const book = (): SheetWorkbook => ({
 describe('transactions', () => {
   it('copies only the rows it changes', () => {
     const doc = book()
-    const tr = new SheetTransaction(doc).setValue(0, 1, 1, 4).setValue(0, 1, 0, '青苹果')
+    const tr = new SheetTransaction(doc).setValue('B2', 4).setValue({ row: 1, col: 0 }, '青苹果')
     const next = tr.doc.sheets[0]!
     expect(next.cells[1]).toEqual(['青苹果', 4])
     expect(next.cells[0]).toBe(doc.sheets[0]!.cells[0])
@@ -103,7 +222,7 @@ describe('transactions', () => {
   })
 
   it('keeps styles when a value changes and compacts cells', () => {
-    const tr = new SheetTransaction(book()).setValue(0, 2, 1, 6).setValue(0, 1, 1, undefined)
+    const tr = new SheetTransaction(book()).setValue('B3', 6).setValue('B2', undefined)
     expect(tr.doc.sheets[0]!.cells[2]![1]).toEqual({ value: 6, style: 'b' })
     expect(tr.doc.sheets[0]!.cells[1]![1]).toBeUndefined()
     expect(compactCell({ value: 1 })).toBe(1)
@@ -111,20 +230,20 @@ describe('transactions', () => {
   })
 
   it('skips steps that change nothing', () => {
-    const tr = new SheetTransaction(book()).setValue(0, 1, 1, 3)
+    const tr = new SheetTransaction(book()).setValue('B2', 3)
     expect(tr.changed).toBe(false)
   })
 
   it('clears values in a range', () => {
-    const tr = new SheetTransaction(book()).clearValues(0, { top: 1, left: 0, bottom: 5, right: 5 })
+    const tr = new SheetTransaction(book()).clearValues('A2:F6')
     expect(tr.doc.sheets[0]!.cells[2]).toEqual([undefined, { style: 'b' }])
     expect(tr.steps).toHaveLength(4)
   })
 
   it('sets sizes, sheet fields and styles', () => {
     const tr = new SheetTransaction(book())
-      .setSize(0, 'col', 1, 120)
-      .updateSheet(0, { freeze: { rows: 1 } })
+      .setSize('col', 1, 120)
+      .updateSheet({ freeze: { rows: 1 } })
       .setStyle('b', { bold: true })
     expect(tr.doc.sheets[0]!.colSizes).toEqual({ 1: 120 })
     expect(tr.doc.sheets[0]!.freeze).toEqual({ rows: 1 })
@@ -137,9 +256,9 @@ describe('transactions', () => {
 
   it('compacts repeated writes', () => {
     const steps = compactSheetSteps([
-      { type: 'setCell', sheet: 0, row: 0, col: 0, cell: 1 },
-      { type: 'setCell', sheet: 0, row: 0, col: 1, cell: 2 },
-      { type: 'setCell', sheet: 0, row: 0, col: 0, cell: 3 },
+      { type: 'setCell', sheet: '表 1', row: 0, col: 0, cell: 1 },
+      { type: 'setCell', sheet: '表 1', row: 0, col: 1, cell: 2 },
+      { type: 'setCell', sheet: '表 1', row: 0, col: 0, cell: 3 },
     ])
     expect(steps).toHaveLength(2)
     expect(steps[0]).toMatchObject({ col: 0, cell: 3 })
@@ -157,7 +276,7 @@ describe('history', () => {
     const view = { sheet: 0, selection: selectCell({ row: 0, col: 0 }) }
     let doc = book()
     for (const value of [4, 5]) {
-      const tr = new SheetTransaction(doc).setValue(0, 1, 1, value).setMeta({ group: 'typing' })
+      const tr = new SheetTransaction(doc).setValue('B2', value).setMeta({ group: 'typing' })
       history.record(tr, view, view)
       doc = tr.doc
     }

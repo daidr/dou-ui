@@ -247,6 +247,11 @@
     line-height: 18px;
     white-space: nowrap;
   }
+  /* a name over a widget they only selected steps aside after a while; one shows again when they act */
+  .dou-dashboard__peer.is-focus {
+    animation: dou-dashboard-peer-name var(--dou-motion-duration-fast) var(--dou-motion-easing) 3s
+      forwards;
+  }
 
   .dou-dashboard__header {
     display: flex;
@@ -629,5 +634,12 @@
     .dou-dashboard__widget {
       outline: none;
     }
+  }
+}
+
+@keyframes dou-dashboard-peer-name {
+  to {
+    opacity: 0;
+    visibility: hidden;
   }
 }

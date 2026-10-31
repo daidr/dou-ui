@@ -86,8 +86,8 @@ function onSelect(value: DropdownValue | undefined) {
   <div v-if="widget && peers.length" class="dou-dashboard__peers" aria-hidden="true">
     <span
       v-for="peer in peers"
-      :key="peer.client"
-      class="dou-dashboard__peer"
+      :key="`${peer.client}:${peer.action}`"
+      :class="['dou-dashboard__peer', `is-${peer.action}`]"
       :style="{ '--dou-dashboard-peer-color': peer.color }"
     >
       {{ peerText(peer) }}

@@ -507,9 +507,24 @@ function applyShared(doc: DashboardDocument, origin: 'remote' | 'undo' | 'redo')
   commit(tr)
 }
 
+// one written in the template is new on every render: each one starts over and clears undo
+let setupTimes: number[] = []
+let setupWarned = false
+function warnRepeatedSetup() {
+  if (process.env.NODE_ENV === 'production' || setupWarned) return
+  const now = Date.now()
+  setupTimes = [...setupTimes.filter((time) => now - time < 1000), now]
+  if (setupTimes.length < 4) return
+  setupWarned = true
+  console.warn(
+    '[@dou-ui/dashboard] collaboration keeps being replaced, which starts it over and clears undo each time. Create it once in <script setup> instead of in the template.',
+  )
+}
+
 watch(
   () => props.collaboration,
   (shared, _, onCleanup) => {
+    if (shared) warnRepeatedSetup()
     history.clear()
     historyVersion.value++
     if (!shared) return

@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { applyAwarenessUpdate, Awareness, encodeAwarenessUpdate } from 'y-protocols/awareness'
 import * as Y from 'yjs'
@@ -257,6 +257,8 @@ describe('collaboration', () => {
     await nextTick()
     const peers = one.wrapper.findAll('.dou-dashboard__peer')
     expect(peers.map((el) => el.text())).toEqual(['阿青 正在移动'])
+    // a name over a widget they only selected fades; one for an action stays
+    expect(peers[0]!.classes()).toContain('is-move')
     expect(one.wrapper.findAll('.dou-dashboard__widget.has-peers')).toHaveLength(1)
 
     // focusing a widget here shares it
@@ -270,5 +272,14 @@ describe('collaboration', () => {
       action: 'focus',
     })
     for (const each of awareness) each.destroy()
+  })
+  it('warns when a new collaboration keeps being handed in, e.g. made in the template', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const doc = new Y.Doc()
+    const { wrapper } = await mountClient(doc)
+    for (let i = 0; i < 4; i++)
+      await wrapper.setProps({ collaboration: collaboration({ widgets: doc.getMap('widgets') }) })
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('collaboration keeps being replaced'))
+    warn.mockRestore()
   })
 })

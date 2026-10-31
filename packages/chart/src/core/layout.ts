@@ -233,6 +233,7 @@ function zoomAxis(
     units.from(d0 + (d1 - d0) * part[0]),
     units.from(d0 + (d1 - d0) * part[1]),
   ]
+  count = tickCount(config, count)
   const given = explicitTicks(config, axis.kind)
   const ticks = given
     ? given.filter((v) => v >= domain[0] && v <= domain[1])
@@ -662,6 +663,7 @@ function valueAxis(
   locale: string,
   length: number,
 ): ValueAxis {
+  count = tickCount(config, count)
   const kind = config.type === 'log' ? 'log' : 'linear'
   const data = model.y[role]
   const zero = config.zero ?? model.zero[role]
@@ -733,6 +735,11 @@ function alignTo(
   return axis
 }
 
+/** How many ticks to aim for: the number given as `ticks`, else `count` (what fits). */
+function tickCount(config: AxisConfig, count: number): number {
+  return typeof config.ticks === 'number' && config.ticks >= 1 ? Math.round(config.ticks) : count
+}
+
 function explicitTicks(config: AxisConfig, kind: XKind | 'log'): number[] | null {
   if (!Array.isArray(config.ticks)) return null
   return config.ticks.map((value) => asNumber(value, kind)!).filter((v) => Number.isFinite(v))
@@ -788,7 +795,10 @@ function wholeXScale(
     }
     return linearScale([lo, hi], range, 'time')
   }
-  const domain = linearDomain(lo, hi, { count, nice: config.nice ?? false })
+  const domain = linearDomain(lo, hi, {
+    count: tickCount(config, count),
+    nice: config.nice ?? false,
+  })
   if (config.min !== undefined) domain[0] = lo
   if (config.max !== undefined) domain[1] = hi
   return linearScale(domain, range)
@@ -825,7 +835,7 @@ function* xTickChoices(
   }
   const explicit = explicitTicks(config, kind)
   const [lo, hi] = scale.domain
-  const wanted = Math.max(2, Math.floor(length / space))
+  const wanted = tickCount(config, Math.max(2, Math.floor(length / space)))
   if (kind === 'time') {
     for (let count = wanted; count >= 1; count--) {
       const interval = timeInterval(hi - lo, count)

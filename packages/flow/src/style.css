@@ -257,7 +257,10 @@
     z-index: 1;
     top: 0;
     left: 0;
-    translate: -50% -50%;
+    /*
+     * placed by an inline translate, never transform: transform applies
+     * inside scale, so the zoom compensation below would scale the offset too
+     */
     box-sizing: border-box;
     width: 6px;
     height: 16px;

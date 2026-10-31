@@ -170,7 +170,8 @@ export const stepEdge = defineEdgeType<StepData>({
       const mid = s.x + (t.x - s.x) * bend
       points = [s, { x: mid, y: s.y }, { x: mid, y: t.y }, t]
       label = { x: mid, y: (s.y + t.y) / 2 }
-      if (t.x !== s.x) {
+      // No handle when the ends line up: the middle segment has no length.
+      if (t.x !== s.x && Math.abs(t.y - s.y) >= 1) {
         const span = t.x - s.x
         const at = back(label)
         handle = {

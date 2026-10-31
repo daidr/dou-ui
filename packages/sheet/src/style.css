@@ -875,37 +875,42 @@
     align-items: center;
     gap: 2px;
     max-width: 160px;
-    padding: 0 6px;
+    /* half the row's padding above and below the line: clear of the text on both sides */
+    height: 14px;
+    padding: 0 5px;
     border-radius: 4px;
     background-color: var(--dou-sheet-peer);
     /* the collaborator's color is the app's: pick dark or light text by its lightness */
     color: white;
     color: oklch(from var(--dou-sheet-peer) clamp(0.2, (0.66 - l) * 100, 0.99) 0 0);
-    font-size: var(--dou-font-size-sm);
-    line-height: 18px;
+    font-size: 11px;
+    line-height: 14px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    /* on the grid line, not over the text of the cell beside it */
+    transform: translateY(-50%);
+    /* it steps aside a while after they stop moving; it stays while they edit */
+    animation: dou-sheet-peer-name var(--dou-motion-duration-fast) var(--dou-motion-easing) 3s
+      forwards;
+
+    .dou-sheet__peer-cell.is-editing & {
+      animation: none;
+    }
 
     &.is-above {
-      bottom: 100%;
-      margin-bottom: 2px;
-      border-bottom-right-radius: 0;
-      border-bottom-left-radius: 0;
+      top: -1px;
     }
 
     &.is-below {
-      top: 100%;
-      margin-top: 2px;
-      border-top-right-radius: 0;
-      border-top-left-radius: 0;
+      top: calc(100% + 1px);
     }
   }
 
   .dou-sheet__peer-icon {
     flex: none;
-    width: 12px;
-    height: 12px;
+    width: 10px;
+    height: 10px;
   }
 
   .dou-sheet__notice {
@@ -1818,5 +1823,12 @@
     padding: 16px 0;
     color: var(--dou-color-text-tertiary);
     text-align: center;
+  }
+}
+
+@keyframes dou-sheet-peer-name {
+  to {
+    opacity: 0;
+    visibility: hidden;
   }
 }

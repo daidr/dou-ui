@@ -374,7 +374,11 @@ describe('collaboration', () => {
     )
     onTestFinished(() => spies.forEach((spy) => spy.mockRestore()))
     const { a, b } = await pair({ awareness: true })
+    // nothing shows until 阿青 comes to the grid
     b.grid().select('B2:C3')
+    await flush()
+    expect(a.wrapper.find('.dou-sheet__peer-range').exists()).toBe(false)
+    b.grid().focus()
     await flush()
     const range = a.wrapper.find('.dou-sheet__peer-range')
     expect(range.exists()).toBe(true)

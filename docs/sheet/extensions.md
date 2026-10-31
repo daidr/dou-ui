@@ -117,6 +117,7 @@ const Panel = defineComponent({
 | `doc`、`sheet`、`sheetIndex`                     | 工作簿、当前显示的工作表和它的序号                                                            |
 | `selection`、`active`                            | 选区和键盘所在的单元格                                                                        |
 | `readonly`、`messages`                           | 只读状态、当前语言的文案                                                                      |
+| `focused`                                        | 表格或单元格编辑框是否有键盘焦点                                                              |
 | `value(point)`、`result(point)`                  | 当前工作表里一个单元格的值（公式单元格是公式本身），和它的计算结果                            |
 | `forEachSelected(callback)`                      | 依次处理选中的每个单元格，合并单元格只算一次（左上角）                                        |
 | `cellType(point)`                                | 单元格的类型 `{ name, definition, setup }`，`definition` 是类型本身；普通单元格为 `undefined` |

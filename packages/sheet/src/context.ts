@@ -33,6 +33,8 @@ export interface SheetContext {
   /** The cell the keyboard is on. */
   active: ComputedRef<SheetPoint>
   readonly: ComputedRef<boolean>
+  /** Whether the grid or its cell editor has the keyboard focus. */
+  focused: Readonly<Ref<boolean>>
   messages: ComputedRef<SheetMessages>
   /**
    * Calls `callback` for each selected cell of the sheet shown, once each,

@@ -32,8 +32,10 @@ const cutEdges = (cut: SheetRangeRect['cut']) => ({
 
 /**
  * A layer that shows the other people on the sheet shown, in their colors:
- * a tint over what they have selected, a ring on their cell with their
- * name beside it, and a pencil while they edit it.
+ * a tint over what they have selected and a ring on their cell. Their name
+ * sits on the ring's corner, over the grid line rather than the cells'
+ * text; it fades a few seconds after they stop moving, and stays with a
+ * pencil while they edit.
  */
 export function createPeers(peers: Ref<SheetPeer[]>): Component {
   return defineComponent({
@@ -72,7 +74,7 @@ export function createPeers(peers: Ref<SheetPeer[]>): Component {
           if (!active || !shown) continue
           const cut = shown.cut.top || shown.cut.right || shown.cut.bottom || shown.cut.left
           const rect = cut ? shown : (sheet.cellRect(active) ?? shown)
-          // the name goes above the cell, or below it at the top of the view
+          // the name sits on the top edge, or on the bottom edge at the top of the view
           const above =
             active.row > 0 && !!sheet.rangeRect(point({ ...active, row: active.row - 1 }))
           children.push(
@@ -90,10 +92,15 @@ export function createPeers(peers: Ref<SheetPeer[]>): Component {
                   ...cutEdges(shown.cut),
                 },
               },
-              h('span', { class: ['dou-sheet__peer-name', above ? 'is-above' : 'is-below'] }, [
-                peer.editing ? h(PencilIcon, { class: 'dou-sheet__peer-icon' }) : null,
-                peer.name,
-              ]),
+              // a new key each time they move or start editing shows the name again
+              h(
+                'span',
+                {
+                  key: `${active.row}:${active.col}:${peer.editing}`,
+                  class: ['dou-sheet__peer-name', above ? 'is-above' : 'is-below'],
+                },
+                [peer.editing ? h(PencilIcon, { class: 'dou-sheet__peer-icon' }) : null, peer.name],
+              ),
             ),
           )
         }

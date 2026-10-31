@@ -898,14 +898,23 @@ export function collaboration(options: CollaborationOptions): SheetExtension {
         awareness.on('change', readPeers)
         // the others' lines may have moved: read where they are again
         const stopRevision = watch(revision, () => readPeers?.())
+        /*
+         * Nothing is shared until this person first comes to the grid, so a
+         * selection nobody made doesn't show on the others' screens. After
+         * that it stays shared while the grid is not focused.
+         */
+        let arrived = false
         const stopShare = watch(
           () => [
+            sheet.focused.value,
             sheet.sheet.value.id,
             sheet.selection.value,
             sheet.editor.cell.value,
             revision.value,
           ],
           () => {
+            arrived ||= sheet.focused.value || !!sheet.editor.cell.value
+            if (!arrived) return
             const id = sheet.sheet.value.id
             const view = id != null ? storeView(id, sheet.selection.value) : undefined
             awareness.setLocalStateField(

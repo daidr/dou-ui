@@ -4116,6 +4116,7 @@ const context: SheetContext = {
   selection,
   active,
   readonly: computed(() => props.readonly),
+  focused,
   messages,
   forEachSelected,
   value: (point) => valueOf(sheet.value.cells[point.row]?.[point.col]),

@@ -55,7 +55,7 @@ export interface CodeEditorProps {
    * while the editor can be typed in. An array sets the keys that scroll;
    * a string is a key that types itself. `false` leaves the bar out. On by default.
    */
-  keys?: boolean | Array<CodeKey | string>
+  keys?: boolean | ReadonlyArray<CodeKey | string>
   /** Extra keys, tried before the built-in ones. */
   keymap?: CodeKeyBinding[]
   autofocus?: boolean
@@ -82,7 +82,7 @@ export interface CodeKeysProps {
   /** The editor the keys type into. */
   editor?: (Pick<CodeEditorExpose, 'run'> & Partial<Pick<CodeEditorExpose, 'focus'>>) | null
   /** The keys that scroll; a string is a key that types itself. The arrow keys at the end always stay. */
-  keys?: Array<CodeKey | string>
+  keys?: ReadonlyArray<CodeKey | string>
   messages?: Partial<CodeMessages>
 }
 

@@ -3,7 +3,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { CodeText } from '../core/text'
 import { typeText } from '../core/commands'
-import { DouCodeEditor, DouCodeKeys, type CodeEditorExpose, typescript } from '../index'
+import {
+  DouCodeEditor,
+  DouCodeKeys,
+  type CodeEditorExpose,
+  defaultCodeKeys,
+  typescript,
+} from '../index'
 
 /** Without a page to measure in, cells are 8px wide and lines 20px high, inside 12px and 8px of padding. */
 const at = (col: number, line: number) => ({
@@ -232,5 +238,28 @@ describe('DouCodeKeys', () => {
     await press(keys[0]!)
     await press(keys[1]!)
     expect(editor.value!.doc.toString()).toBe('=>// ')
+  })
+
+  it("adds to the default keys, which read out in the bar's language", async () => {
+    const editor = ref<CodeEditorExpose>()
+    const wrapper = mount(
+      defineComponent(
+        () => () =>
+          h('div', [
+            h(DouCodeEditor, { ref: editor, doc: CodeText.of('') }),
+            h(DouCodeKeys, {
+              editor: editor.value,
+              keys: [...defaultCodeKeys, { label: '=>', text: ' => ' }],
+            }),
+          ]),
+      ),
+    )
+    await nextTick()
+    const keys = wrapper.findAll('.dou-code-keys__scroll .dou-code-keys__key')
+    expect(keys.length).toBe(defaultCodeKeys.length + 1)
+    expect(keys[0]!.attributes('aria-label')).toBe('缩进')
+    expect(wrapper.find('[aria-label="撤销"]').exists()).toBe(true)
+    await press(keys[keys.length - 1]!)
+    expect(editor.value!.doc.toString()).toBe(' => ')
   })
 })

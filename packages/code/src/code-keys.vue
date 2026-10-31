@@ -1,12 +1,5 @@
 <script setup lang="ts">
-import {
-  ChevronDownIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  ChevronUpIcon,
-  RedoIcon,
-  UndoIcon,
-} from '@dou-ui/icons'
+import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon } from '@dou-ui/icons'
 import { useNamespace } from 'dou-ui'
 import { computed, onBeforeUnmount, ref } from 'vue'
 import {
@@ -15,11 +8,9 @@ import {
   cursorCharRight,
   cursorLineDown,
   cursorLineUp,
-  insertTab,
-  redo,
   typeText,
-  undo,
 } from './core/commands'
+import { defaultCodeKeys, keyName } from './code-keys'
 import { useCodeMessages } from './locale'
 import type { CodeKey, CodeKeysProps } from './types'
 
@@ -34,20 +25,10 @@ const props = withDefaults(defineProps<CodeKeysProps>(), {
 const ns = useNamespace('code-keys')
 const messages = useCodeMessages(() => props.messages)
 
-const SYMBOLS = '(){}[]<>=;:,.\'"`/\\|&!?+-*_$#%'
-
-/** Keys that scroll: Tab, the symbols code is full of, then undo and redo. */
-const symbolKeys = computed<CodeKey[]>(() => {
-  const m = messages.value
-  if (props.keys)
-    return props.keys.map((key) => (typeof key === 'string' ? { label: key, text: key } : key))
-  return [
-    { label: 'Tab', command: insertTab, ariaLabel: m.indent },
-    ...[...SYMBOLS].map((ch) => ({ label: ch, text: ch })),
-    { label: m.undo, icon: UndoIcon, command: undo, repeat: true },
-    { label: m.redo, icon: RedoIcon, command: redo, repeat: true },
-  ]
-})
+/** Keys that scroll; a string is a key that types itself. */
+const symbolKeys = computed<CodeKey[]>(() =>
+  (props.keys ?? defaultCodeKeys).map((key) => (typeof key === 'string' ? { label: key } : key)),
+)
 
 /** Moving the cursor, always at hand at the end of the bar. */
 const arrowKeys = computed<CodeKey[]>(() => {
@@ -149,8 +130,8 @@ onBeforeUnmount(stop)
         :key="`s${i}`"
         type="button"
         :class="[ns.e('key'), ns.is('pressed', pressed === `s${i}`), ns.is('icon', !!key.icon)]"
-        :aria-label="key.ariaLabel ?? (key.icon ? key.label : undefined)"
-        :title="key.icon ? key.label : undefined"
+        :aria-label="keyName(key, messages)"
+        :title="key.icon ? keyName(key, messages) : undefined"
         @pointerdown="onPointerDown($event, key, `s${i}`)"
         @pointermove="onPointerMove"
         @pointerup="onPointerUp"

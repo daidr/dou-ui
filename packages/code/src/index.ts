@@ -4,6 +4,7 @@ import CodeKeys from './code-keys.vue'
 
 export const DouCodeEditor = withInstall(CodeEditor)
 export const DouCodeKeys = withInstall(CodeKeys)
+export { defaultCodeKeys } from './code-keys'
 export default DouCodeEditor
 
 export type {

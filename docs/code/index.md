@@ -296,19 +296,28 @@ const keymap: CodeKeyBinding[] = [
 
 <DocDemo src="code/touch" column />
 
-自定义按键时，`command` 可以是任意命令，比如 `codeCommands.typeText('=>')` 输入一段文字，`codeCommands.toggleComment` 切换注释：
+自定义按键时，`defaultCodeKeys` 是默认那一串按键，展开它再加上自己的，就不用把整串重写一遍。`text` 是按下时输入的文字；`command` 用来做输入以外的操作，比如切换注释：
 
 ```ts
-import { codeCommands } from '@dou-ui/code'
+import { codeCommands, defaultCodeKeys } from '@dou-ui/code'
 
 const keys = [
-  { label: 'Tab', command: codeCommands.insertTab },
-  '(',
-  ')',
-  { label: '=>', command: codeCommands.typeText(' => ') },
+  ...defaultCodeKeys,
+  { label: '=>', text: ' => ' },
   { label: '//', command: codeCommands.toggleComment, ariaLabel: '切换注释' },
 ]
 ```
+
+`CodeKey` 的字段：
+
+| 名称        | 说明                                       | 类型          |
+| ----------- | ------------------------------------------ | ------------- |
+| `label`     | 按键上显示的文字；有 `icon` 时是按键的名称 | `string`      |
+| `text`      | 按下时输入的文字，默认是 `label`           | `string`      |
+| `command`   | 按下时执行的命令，代替输入                 | `CodeCommand` |
+| `icon`      | 代替文字显示的图标                         | `Component`   |
+| `repeat`    | 按住时连续触发                             | `boolean`     |
+| `ariaLabel` | 读屏读出的名称，`label` 说不清楚时使用     | `string`      |
 
 ## 大文件
 
@@ -411,10 +420,10 @@ const doc = shallowRef(CodeText.of(source))
 
 ### DouCodeKeys Props
 
-| 名称       | 说明                                     | 类型                    | 默认值 |
-| ---------- | ---------------------------------------- | ----------------------- | ------ |
-| `editor`   | 按键输入到的编辑器（实例）               | `CodeEditorExpose`      | —      |
-| `keys`     | 可以滑动的按键；末尾的四个方向键一直都在 | `(CodeKey \| string)[]` | —      |
-| `messages` | 改写按键的名称                           | `Partial<CodeMessages>` | —      |
+| 名称       | 说明                                                               | 类型                    | 默认值 |
+| ---------- | ------------------------------------------------------------------ | ----------------------- | ------ |
+| `editor`   | 按键输入到的编辑器（实例）                                         | `CodeEditorExpose`      | —      |
+| `keys`     | 可以滑动的按键，默认是 `defaultCodeKeys`；末尾的四个方向键一直都在 | `(CodeKey \| string)[]` | —      |
+| `messages` | 改写按键的名称                                                     | `Partial<CodeMessages>` | —      |
 
-`CodeKey` 的字段：`label` 按键上显示的文字，有图标时是它的名称；`text` 按下时输入的文字，默认是 `label`；`command` 按下时执行的命令，代替输入；`icon` 代替文字显示的图标；`repeat` 按住时连续触发；`ariaLabel` 读屏读出的名称。
+`CodeKey` 的字段见上文“手机触控”一节。

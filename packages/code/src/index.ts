@@ -1,9 +1,11 @@
 import { withInstall } from 'dou-ui'
 import CodeEditor from './code-editor.vue'
+import CodeInput from './code-input.vue'
 import CodeKeys from './code-keys.vue'
 
 export const DouCodeEditor = withInstall(CodeEditor)
 export const DouCodeKeys = withInstall(CodeKeys)
+export const DouCodeInput = withInstall(CodeInput)
 export { defaultCodeKeys } from './code-keys'
 export { defineCodeExtension, useCodeEditor } from './extension'
 export type {
@@ -31,6 +33,8 @@ export type {
   CodeEditorEmits,
   CodeEditorExpose,
   CodeEditorProps,
+  CodeInputEmits,
+  CodeInputProps,
   CodeKey,
   CodeKeysProps,
 } from './types'
@@ -100,5 +104,6 @@ declare module 'vue' {
   export interface GlobalComponents {
     DouCodeEditor: typeof DouCodeEditor
     DouCodeKeys: typeof DouCodeKeys
+    DouCodeInput: typeof DouCodeInput
   }
 }

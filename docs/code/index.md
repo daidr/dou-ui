@@ -428,38 +428,52 @@ const doc = shallowRef(CodeText.of(source))
 | `--dou-code-editor-bg`          | `var(--dou-color-bg-surface)` |
 | `--dou-code-editor-selection`   | 主色的浅色                    |
 | `--dou-code-editor-active-line` | 文字色的 4%                   |
+| `--dou-code-editor-padding-y`   | `8px`                         |
+| `--dou-code-editor-padding-x`   | `12px`                        |
 
-行高请用整数像素，每一行都按这个高度排列。
+行高请用整数像素，每一行都按这个高度排列。`padding-y` 是第一行上方和最后一行下方的空白，`padding-x` 是每行左右的空白。
+
+## 代码输入框
+
+`DouCodeInput` 是和输入框一样高的代码编辑器，用来写表达式、公式这类一两行的代码。它没有行号和折叠，`Tab` 和普通输入框一样移到下一个控件；补全列表、说明和参数提示显示在页面上层，不会被输入框挡住。
+
+默认只有一行：`Enter` 触发 `enter` 事件，粘贴进来的换行会变成空格，内容超出宽度时横向滚动。加上 `multiline` 后可以换行，输入框随内容长高，超过 `autosize.maxRows` 行后滚动（写法和 `DouTextarea` 的 `autosize` 相同），这时 `Mod` + `Enter` 触发 `enter`。
+
+放在 `DouFormItem` 里时，它和 `DouInput` 一样使用表单项的 `id`、说明和校验状态，`size` 和 `disabled` 也跟随表单。
+
+<DocDemo src="code/input" column />
 
 ## API
 
 ### Props
 
-| 名称                | 说明                                           | 类型                               | 默认值     |
-| ------------------- | ---------------------------------------------- | ---------------------------------- | ---------- |
-| `v-model`           | 代码                                           | `string`                           | —          |
-| `v-model:doc`       | 代码，作为 `CodeText`，大文件用                | `CodeText`                         | —          |
-| `v-model:selection` | 选区                                           | `CodeSelection`                    | 开头的光标 |
-| `readonly`          | 只读                                           | `boolean`                          | `false`    |
-| `disabled`          | 禁用                                           | `boolean`                          | `false`    |
-| `line-numbers`      | 显示行号                                       | `boolean`                          | `true`     |
-| `active-line`       | 给光标所在行加底色                             | `boolean`                          | `true`     |
-| `tab-size`          | 制表位宽度                                     | `number`                           | `2`        |
-| `indent-with-tabs`  | 用制表符缩进                                   | `boolean`                          | `false`    |
-| `placeholder`       | 文本为空时的提示                               | `string`                           | —          |
-| `language`          | 语言                                           | `CodeLanguage`                     | —          |
-| `close-brackets`    | 输入括号和引号时补上另一半                     | `boolean`                          | `true`     |
-| `match-brackets`    | 标出光标旁的括号和它的配对                     | `boolean`                          | `true`     |
-| `searchable`        | 提供查找替换面板                               | `boolean`                          | `true`     |
-| `wrap`              | 长行自动换行                                   | `boolean`                          | `false`    |
-| `foldable`          | 显示折叠箭头，允许折叠                         | `boolean`                          | `true`     |
-| `keys`              | 触屏上键盘上方的符号栏；数组改写可以滑动的按键 | `boolean \| (CodeKey \| string)[]` | `true`     |
-| `messages`          | 改写编辑器上的文字（查找面板、工具条、符号栏） | `Partial<CodeMessages>`            | —          |
-| `keymap`            | 额外的按键，比内置的优先                       | `CodeKeymap`                       | —          |
-| `extensions`        | 扩展                                           | `CodeExtension[]`                  | —          |
-| `diagnostics`       | 要显示的问题，之后跟着修改移动                 | `CodeDiagnostic[]`                 | —          |
-| `autofocus`         | 挂载后获得焦点                                 | `boolean`                          | `false`    |
-| `aria-label`        | 读屏读出的名称                                 | `string`                           | —          |
+| 名称                | 说明                                                              | 类型                               | 默认值     |
+| ------------------- | ----------------------------------------------------------------- | ---------------------------------- | ---------- |
+| `v-model`           | 代码                                                              | `string`                           | —          |
+| `v-model:doc`       | 代码，作为 `CodeText`，大文件用                                   | `CodeText`                         | —          |
+| `v-model:selection` | 选区                                                              | `CodeSelection`                    | 开头的光标 |
+| `readonly`          | 只读                                                              | `boolean`                          | `false`    |
+| `disabled`          | 禁用                                                              | `boolean`                          | `false`    |
+| `line-numbers`      | 显示行号                                                          | `boolean`                          | `true`     |
+| `active-line`       | 给光标所在行加底色                                                | `boolean`                          | `true`     |
+| `tab-size`          | 制表位宽度                                                        | `number`                           | `2`        |
+| `indent-with-tabs`  | 用制表符缩进                                                      | `boolean`                          | `false`    |
+| `placeholder`       | 文本为空时的提示                                                  | `string`                           | —          |
+| `language`          | 语言                                                              | `CodeLanguage`                     | —          |
+| `close-brackets`    | 输入括号和引号时补上另一半                                        | `boolean`                          | `true`     |
+| `match-brackets`    | 标出光标旁的括号和它的配对                                        | `boolean`                          | `true`     |
+| `searchable`        | 提供查找替换面板                                                  | `boolean`                          | `true`     |
+| `wrap`              | 长行自动换行                                                      | `boolean`                          | `false`    |
+| `foldable`          | 显示折叠箭头，允许折叠                                            | `boolean`                          | `true`     |
+| `keys`              | 触屏上键盘上方的符号栏；数组改写可以滑动的按键                    | `boolean \| (CodeKey \| string)[]` | `true`     |
+| `messages`          | 改写编辑器上的文字（查找面板、工具条、符号栏）                    | `Partial<CodeMessages>`            | —          |
+| `keymap`            | 额外的按键，比内置的优先                                          | `CodeKeymap`                       | —          |
+| `extensions`        | 扩展                                                              | `CodeExtension[]`                  | —          |
+| `diagnostics`       | 要显示的问题，之后跟着修改移动                                    | `CodeDiagnostic[]`                 | —          |
+| `tab-indents`       | `Tab` 用来缩进；关闭后 `Tab` 移到下一个控件，补全和片段里仍然可用 | `boolean`                          | `true`     |
+| `teleport`          | 补全列表、说明和参数提示渲染到哪里；`false` 时在编辑器的边框内    | `string \| HTMLElement \| false`   | `false`    |
+| `autofocus`         | 挂载后获得焦点                                                    | `boolean`                          | `false`    |
+| `aria-label`        | 读屏读出的名称                                                    | `string`                           | —          |
 
 ### Events
 
@@ -500,3 +514,21 @@ const doc = shallowRef(CodeText.of(source))
 | `messages` | 改写按键的名称                                                     | `Partial<CodeMessages>` | —      |
 
 `CodeKey` 的字段见上文“手机触控”一节。
+
+### DouCodeInput Props
+
+| 名称                                                                                        | 说明                                                     | 类型                                     | 默认值                       |
+| ------------------------------------------------------------------------------------------- | -------------------------------------------------------- | ---------------------------------------- | ---------------------------- |
+| `v-model`                                                                                   | 代码；只有一行时，换行会变成空格                         | `string`                                 | —                            |
+| `multiline`                                                                                 | 允许多行，随内容长高                                     | `boolean`                                | `false`                      |
+| `autosize`                                                                                  | 多行时最少、最多显示的行数，超过后滚动                   | `{ minRows?: number, maxRows?: number }` | `{ minRows: 1, maxRows: 6 }` |
+| `size`                                                                                      | 尺寸，和输入框一致                                       | `'sm' \| 'md' \| 'lg'`                   | 跟随表单，否则 `'md'`        |
+| `invalid`                                                                                   | 显示为有错误                                             | `boolean`                                | `false`                      |
+| `disabled`、`readonly`                                                                      | 禁用、只读                                               | `boolean`                                | `false`                      |
+| `placeholder`                                                                               | 为空时的提示                                             | `string`                                 | —                            |
+| `language`、`extensions`、`diagnostics`、`keymap`、`close-brackets`、`tab-size`、`messages` | 和编辑器相同                                             | —                                        | —                            |
+| `teleport`                                                                                  | 补全列表、说明和参数提示渲染到哪里；`false` 时在输入框内 | `string \| HTMLElement \| false`         | 全局配置，否则 `body`        |
+| `keys`                                                                                      | 触屏上键盘上方的符号栏                                   | `boolean \| (CodeKey \| string)[]`       | `false`                      |
+| `aria-label`                                                                                | 读屏读出的名称                                           | `string`                                 | —                            |
+
+事件有 `update:modelValue`、`enter`、`transaction`、`focus`、`blur`；实例和 `DouCodeEditor` 相同。

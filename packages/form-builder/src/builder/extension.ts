@@ -87,6 +87,15 @@ export interface FormBuilderExtension {
    */
   fields?: FormFieldType<any>[]
   /**
+   * Replaces the text box for expressions (formulas, checks, conditions
+   * written as text), e.g. with the code input of
+   * `@dou-ui/form-builder/code`. It gets the built-in box's props:
+   * `modelValue`, `names`, `itemNames`, `readsValue`, `placeholder`,
+   * `disabled`, and emits `update:modelValue`. The first one by priority
+   * is used.
+   */
+  expressionInput?: Component
+  /**
    * Keys, written as in `useHotkey` (e.g. `mod+e`, `shift+t`), while the
    * canvas or the outline has focus. They come before the builder's own.
    */
@@ -136,6 +145,7 @@ export interface ResolvedFormBuilderExtensions {
   setups: NonNullable<FormBuilderExtension['setup']>[]
   marks: NonNullable<FormBuilderExtension['marks']>[]
   history: FormBuilderExtension['history']
+  expressionInput: FormBuilderExtension['expressionInput']
   transactions: NonNullable<FormBuilderExtension['transaction']>[]
 }
 
@@ -182,6 +192,7 @@ export function resolveFormBuilderExtensions(
     setups: pick('setup'),
     marks: pick('marks'),
     history: extensions.find((e) => e.history)?.history,
+    expressionInput: extensions.find((e) => e.expressionInput)?.expressionInput,
     transactions: pick('transaction'),
   }
 }

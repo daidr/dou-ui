@@ -6,10 +6,20 @@ import { clusterStarts, isAscii } from '../core/chars'
  * is measured once in the page's own font and remembered. Tabs reach to
  * the next tab stop.
  */
+/** A length read from computed styles, in px. */
+function px(value: string, fallback: number) {
+  const n = Number.parseFloat(value)
+  return Number.isFinite(n) ? Math.max(0, n) : fallback
+}
+
 export class Measure {
   /** Width of one monospace cell. */
   cell = 8
   lineHeight = 20
+  /** Space above the first line and below the last (`--dou-code-editor-padding-y`). */
+  padY = 8
+  /** Space before and after each line (`--dou-code-editor-padding-x`). */
+  padX = 12
   tabSize = 2
   private widths = new Map<string, number>()
 
@@ -26,6 +36,13 @@ export class Measure {
     if (rect.width > 0) this.cell = rect.width / 64
     if (rect.height > 0) this.lineHeight = Math.round(rect.height)
     el.textContent = ''
+    // Through a padding, so a calc() in the variable comes out in pixels.
+    el.style.padding =
+      'var(--dou-code-editor-padding-y, 8px) var(--dou-code-editor-padding-x, 12px)'
+    const style = getComputedStyle(el)
+    this.padY = px(style.paddingTop, 8)
+    this.padX = px(style.paddingLeft, 12)
+    el.style.padding = ''
   }
 
   /** Width of one character as drawn. */

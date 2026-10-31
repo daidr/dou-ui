@@ -30,6 +30,12 @@ export interface CodeEditorProps {
   disabled?: boolean
   /** Shows line numbers. */
   lineNumbers?: boolean
+  /**
+   * The column left of the text: line numbers, fold toggles, and the
+   * problems' and extensions' markers. Off, problems are only underlined.
+   * On by default.
+   */
+  gutter?: boolean
   /** Tints the line with the cursor. */
   activeLine?: boolean
   /** Columns per tab stop, also the width of one indent. */
@@ -59,6 +65,8 @@ export interface CodeEditorProps {
   keys?: boolean | ReadonlyArray<CodeKey | string>
   /** Extra keys, tried before the built-in ones. */
   keymap?: CodeKeymap
+  /** `Tab` indents. Off, `Tab` moves the focus on as in a form, unless a completion or snippet is in use. On by default. */
+  tabIndents?: boolean
   /** Extensions: decorations, gutter columns, panels, linters and more. */
   extensions?: CodeExtension[]
   /**
@@ -67,6 +75,13 @@ export interface CodeEditorProps {
    * with later edits until new ones come.
    */
   diagnostics?: CodeDiagnostic[]
+  /**
+   * Where the completion list, hover text and parameter hints render.
+   * `false` (the default) keeps them inside the editor's frame; a selector
+   * or element puts them above the page, for an editor too small to hold
+   * them, such as `DouCodeInput`.
+   */
+  teleport?: string | HTMLElement | false
   autofocus?: boolean
   ariaLabel?: string
 }
@@ -154,4 +169,46 @@ export interface CodeEditorExpose {
   readonly folds: number[]
   /** The problems found now, by all linters and the `diagnostics` prop, in text order. */
   readonly diagnostics: readonly CodeDiagnostic[]
+}
+
+export interface CodeInputProps {
+  /** The code; with one line, line breaks typed or pasted become spaces. */
+  modelValue?: string
+  placeholder?: string
+  /** Several lines: Enter breaks the line, and the box grows with the content. */
+  multiline?: boolean
+  /**
+   * With `multiline`, the least and the most lines shown, written as for
+   * DouTextarea's `autosize`. Defaults to `{ minRows: 1, maxRows: 6 }`.
+   */
+  autosize?: { minRows?: number; maxRows?: number }
+  size?: 'sm' | 'md' | 'lg'
+  invalid?: boolean
+  disabled?: boolean
+  readonly?: boolean
+  language?: CodeLanguage | null
+  extensions?: CodeExtension[]
+  diagnostics?: CodeDiagnostic[]
+  closeBrackets?: boolean
+  tabSize?: number
+  keymap?: CodeKeymap
+  /**
+   * Where the completion list, hover text and parameter hints render; above
+   * the page by default. `false` keeps them inside the box.
+   */
+  teleport?: string | HTMLElement | false
+  /** The bar of symbol keys above a phone's keyboard; off by default. */
+  keys?: boolean | ReadonlyArray<CodeKey | string>
+  messages?: Partial<CodeMessages>
+  autofocus?: boolean
+  ariaLabel?: string
+}
+
+export interface CodeInputEmits {
+  'update:modelValue': [value: string]
+  /** Enter on one line, or Mod + Enter on several, when no completion is open. */
+  enter: []
+  transaction: [result: CodeTransactionResult]
+  focus: [event: FocusEvent]
+  blur: [event: FocusEvent]
 }

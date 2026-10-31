@@ -25,6 +25,7 @@
       "@dou-ui/form-builder": ["./packages/form-builder/src/index.ts"],
       "@dou-ui/form-builder/renderer": ["./packages/form-builder/src/renderer/index.ts"],
       "@dou-ui/form-builder/collaboration": ["./packages/form-builder/src/collaboration/index.ts"],
+      "@dou-ui/form-builder/code": ["./packages/form-builder/src/code/index.ts"],
       "@dou-ui/resolver": ["./packages/resolver/src/index.ts"]
     }
   },

@@ -12,6 +12,7 @@ export default defineConfig({
         index: 'src/index.ts',
         'renderer/index': 'src/renderer/index.ts',
         'collaboration/index': 'src/collaboration/index.ts',
+        'code/index': 'src/code/index.ts',
       },
       formats: ['es'],
     },

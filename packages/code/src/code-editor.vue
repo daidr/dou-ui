@@ -1,20 +1,20 @@
 <script setup lang="ts">
 import {
   AlertTriangleIcon,
-  BracesIcon,
   ChevronDownIcon,
   ChevronRightIcon,
-  CubeIcon,
   FunctionIcon,
-  HashIcon,
   InfoIcon,
-  KeyIcon,
   LightbulbIcon,
   PackageIcon,
   SquareCodeIcon,
-  TagIcon,
+  SymbolClassIcon,
+  SymbolConstantIcon,
+  SymbolKeywordIcon,
+  SymbolTypeAliasIcon,
   TypeIcon,
   VariableIcon,
+  WrenchIcon,
   XCircleIcon,
 } from '@dou-ui/icons'
 import { holdPointer, isApplePlatform, isComposing, useNamespace, useZIndex } from 'dou-ui'
@@ -26,6 +26,7 @@ import {
   onBeforeUnmount,
   onMounted,
   provide,
+  reactive,
   ref,
   shallowReactive,
   shallowRef,
@@ -41,6 +42,7 @@ import {
   deleteCharBackward,
   deleteCharForward,
   insertNewline,
+  insertTab,
   insertText,
   selectAll,
 } from './core/commands'
@@ -130,14 +132,16 @@ const props = withDefaults(defineProps<CodeEditorProps>(), {
   foldable: true,
   keys: true,
   messages: undefined,
+  teleport: false,
+  tabIndents: true,
+  gutter: true,
 })
 const emit = defineEmits<CodeEditorEmits>()
 const ns = useNamespace('code-editor')
 const instance = getCurrentInstance()!
 
-/** Space above the first line and below the last. */
-const PAD_Y = 8
-const PAD_X = 12
+/** Space above the first line and below the last, and before and after each line; set from the styles once measured. */
+const pad = reactive({ x: 12, y: 8 })
 /** Browsers stop growing an element somewhere past 16M px; taller texts scroll in scaled steps. */
 const MAX_HEIGHT = 8_000_000
 const OVERSCAN = 6
@@ -477,7 +481,7 @@ const wrapWidth = computed(() => {
   // Cut nothing before the editor knows its width.
   if (!props.wrap || !mounted.value) return 0
   void metrics.value
-  const width = viewWidth.value - gutterWidth.value - PAD_X * 2 - measure.cell
+  const width = viewWidth.value - gutterWidth.value - pad.x * 2 - measure.cell
   return Math.max(measure.cell * 8, width)
 })
 /** How each line text is cut at the current width; texts repeat (blank lines, braces), so this is by text. */
@@ -631,7 +635,7 @@ const widgetsHeight = computed(() => {
 })
 
 const total = computed(() => layout.value.total * lineHeight.value + widgetsHeight.value)
-const sizerHeight = computed(() => Math.min(total.value, MAX_HEIGHT) + PAD_Y * 2)
+const sizerHeight = computed(() => Math.min(total.value, MAX_HEIGHT) + pad.y * 2)
 /** How much faster than the scrollbar the text moves, above `MAX_HEIGHT`. */
 const ratio = computed(() => {
   if (total.value <= MAX_HEIGHT) return 1
@@ -641,18 +645,18 @@ const ratio = computed(() => {
 /** Offset between the text's own y and where it is drawn in the scaled scroller. */
 const shift = computed(() => scrollTop.value - scrollTop.value * ratio.value)
 /** The y line `n` is drawn at. */
-const yOf = (line: number) => PAD_Y + rowTop(layout.value.rowOf(line)) + shift.value
+const yOf = (line: number) => pad.y + rowTop(layout.value.rowOf(line)) + shift.value
 /** The row under a y in the content, from the text's top. */
-const rowAtY = (y: number) => rowAtTextY(y - PAD_Y - shift.value)
+const rowAtY = (y: number) => rowAtTextY(y - pad.y - shift.value)
 
 const visibleFrom = computed(() => {
   const top = scrollTop.value * ratio.value + (clip.value?.top ?? 0)
-  const row = rowAtTextY(Math.max(0, top - PAD_Y)) - OVERSCAN
+  const row = rowAtTextY(Math.max(0, top - pad.y)) - OVERSCAN
   return layout.value.lineAtRow(Math.max(0, row)).n
 })
 const visibleTo = computed(() => {
   const bottom = scrollTop.value * ratio.value + (clip.value?.bottom ?? viewHeight.value)
-  const row = rowAtTextY(Math.max(0, bottom - PAD_Y)) + 1 + OVERSCAN
+  const row = rowAtTextY(Math.max(0, bottom - pad.y)) + 1 + OVERSCAN
   return layout.value.lineAtRow(row).n
 })
 
@@ -667,7 +671,7 @@ const shownWidgets = computed(() => {
     .filter((widget) => widget.row >= from && widget.row <= to)
     .map((widget) => ({
       ...widget,
-      top: PAD_Y + widget.row * lh + widget.before + shift.value,
+      top: pad.y + widget.row * lh + widget.before + shift.value,
     }))
 })
 
@@ -811,6 +815,7 @@ const gutterColumns = computed(() => {
     markers: () => CodeGutterMarker[]
     onPress?: (line: number, event: PointerEvent) => void
   }> = []
+  if (!props.gutter) return columns
   // Kept while anything may report problems, so the text doesn't jump when the first one comes.
   if (props.diagnostics !== undefined || linting.value || diagnostics.value.length)
     columns.push({ name: 'problems', width: 16, markers: problemMarkers })
@@ -862,7 +867,7 @@ const gutterMarkers = computed(() =>
 
 const gutterWidth = computed(() => {
   const cells = gutterCells.value
-  if (!props.lineNumbers && !props.foldable && !cells) return 0
+  if (!props.gutter || (!props.lineNumbers && !props.foldable && !cells)) return 0
   void metrics.value
   const digits = Math.max(2, String(doc.value.lines).length)
   const numbers = props.lineNumbers ? Math.ceil(digits * measure.cell) + 28 : 12
@@ -884,7 +889,7 @@ const contentWidth = computed(() => {
       measure.x(text, text.length) + own.reduce((w, i) => w + widthOf(i), 0),
     )
   }
-  return Math.ceil(widest + PAD_X * 2 + measure.cell)
+  return Math.ceil(widest + pad.x * 2 + measure.cell)
 })
 
 watch(wrapWidth, rebuildWrap, { immediate: true })
@@ -1488,14 +1493,14 @@ const cursors = computed(() => {
           .join('') ?? lineStr
       out.push({
         key: `c${i}`,
-        left: PAD_X + measure.x(lineStr, lineStr.length),
+        left: pad.x + measure.x(lineStr, lineStr.length),
         top: yOf(at.number),
         width: 2,
       })
       return
     }
     const at = place(line.number, lineStr, pos - line.from)
-    out.push({ key: `c${i}`, left: PAD_X + at.x, top: at.top, width: 2 })
+    out.push({ key: `c${i}`, left: pad.x + at.x, top: at.top, width: 2 })
   })
   return out
 })
@@ -1519,7 +1524,7 @@ const selectionBoxes = computed(() => {
       // A selected line break shows as half a cell past the end.
       const boxes = spans(n, str, a, b, n === to.number ? 0 : measure.cell / 2)
       boxes.forEach((box, k) =>
-        out.push({ key: `s${i}-${n}-${k}`, ...box, left: PAD_X + box.left }),
+        out.push({ key: `s${i}-${n}-${k}`, ...box, left: pad.x + box.left }),
       )
     }
   })
@@ -1565,7 +1570,7 @@ const bracketBoxes = computed(() => {
     const str = lineText(line.number)
     const [box] = spans(line.number, str, pos - line.from, pos - line.from + 1)
     if (box)
-      out.push({ key: `b${pos}`, ...box, left: PAD_X + box.left, matched: found.match !== null })
+      out.push({ key: `b${pos}`, ...box, left: pad.x + box.left, matched: found.match !== null })
   }
   return out
 })
@@ -1757,7 +1762,7 @@ const matchBoxes = computed(() => {
         out.push({
           key: `m${m.from}-${n}-${k}`,
           ...box,
-          left: PAD_X + box.left,
+          left: pad.x + box.left,
           current: i === currentMatch.value,
         }),
       )
@@ -2068,9 +2073,25 @@ const problemStyle = computed(() => {
  * either side, it scrolls inside on the roomier one.
  */
 function floatingStyle(pos: number, size: { width: number; height: number }, above = false) {
-  const at = pointOf(pos)
-  if (!at) return null
-  const view = visibleBox()
+  const inside = pointOf(pos)
+  if (!inside) return null
+  let at: { x: number; top: number } = inside
+  let view = visibleBox()
+  if (floatingTarget.value) {
+    // Above the page: in the window's coordinates, wherever the window is scrolled.
+    void viewportTick.value
+    if (inside.top + lineHeight.value <= view.top || inside.top >= view.bottom) return null
+    if (inside.x < view.left || inside.x > view.right) return null
+    const rect = content.value?.getBoundingClientRect()
+    if (!rect) return null
+    at = { x: rect.left + inside.x, top: rect.top + inside.top }
+    view = {
+      left: 0,
+      top: 0,
+      right: document.documentElement.clientWidth,
+      bottom: document.documentElement.clientHeight,
+    }
+  }
   const { width, height } = size
   const lh = lineHeight.value
   // Never wider than the text area in view, on a phone too.
@@ -2123,14 +2144,14 @@ watch([problemEl, problemBox], () => measureFloating(problemEl.value, problemSiz
 // ---------------------------------------------------------------- completion
 
 const KIND_ICON: Record<CodeCompletionKind, unknown> = {
-  keyword: KeyIcon,
+  keyword: SymbolKeywordIcon,
   function: FunctionIcon,
   method: FunctionIcon,
   variable: VariableIcon,
-  property: TagIcon,
-  constant: HashIcon,
-  class: CubeIcon,
-  type: BracesIcon,
+  property: WrenchIcon,
+  constant: SymbolConstantIcon,
+  class: SymbolClassIcon,
+  type: SymbolTypeAliasIcon,
   module: PackageIcon,
   snippet: SquareCodeIcon,
   text: TypeIcon,
@@ -2545,6 +2566,24 @@ watch([signatureEl, signature], () => measureFloating(signatureEl.value, signatu
   flush: 'post',
 })
 
+/** Where the boxes about the text render: inside the frame (`null`), or above the page. */
+const floatingTarget = computed(() => props.teleport || null)
+const floatingZ = ref(0)
+/** Bumped when the page scrolls or resizes, for boxes placed in the window's coordinates. */
+const viewportTick = ref(0)
+const bumpViewport = () => viewportTick.value++
+const floatingOpen = computed(() => !!(problemBox.value || completion.value || signature.value))
+watch(floatingOpen, (open, _old, onCleanup) => {
+  if (!open || !floatingTarget.value || typeof window === 'undefined') return
+  floatingZ.value = nextZIndex()
+  window.addEventListener('scroll', bumpViewport, { capture: true, passive: true })
+  window.addEventListener('resize', bumpViewport, { passive: true })
+  onCleanup(() => {
+    window.removeEventListener('scroll', bumpViewport, { capture: true })
+    window.removeEventListener('resize', bumpViewport)
+  })
+})
+
 /** After each change: opens, updates or closes the completion list and the parameter hints, and moves the snippet's places. */
 function updateAssist(result: CodeTransactionResult) {
   const { action } = result.meta
@@ -2637,7 +2676,7 @@ const searchControl = {
 
 /** What the textarea holds: the text from `from` to `to`, and the caret inside it. */
 let mirror = { from: 0, to: 0, value: '', start: 0, end: 0 }
-const inputBox = ref({ top: PAD_Y, left: PAD_X, height: 20 })
+const inputBox = ref({ top: pad.y, left: pad.x, height: 20 })
 
 function syncInput() {
   const { doc: text, selection } = state.value
@@ -2666,7 +2705,7 @@ function syncInput() {
   inputBox.value = {
     top: caret.top - (headLine.number - startLine.number) * lineHeight.value,
     left:
-      PAD_X +
+      pad.x +
       caret.x -
       (measure.x(headText, main.head - headLine.from) - measure.x(headText, lineStart)),
     height: (text.lineAt(to).number - startLine.number + 1) * lineHeight.value,
@@ -2844,7 +2883,15 @@ function extensionKeys() {
 }
 
 const keymap = computed(() =>
-  buildKeymap([...defaultKeymap, ...extensionKeys(), ...keymapBindings(props.keymap)], apple),
+  buildKeymap(
+    [
+      // Without indenting, Tab is left to the browser, but still fills in snippets.
+      ...(props.tabIndents ? defaultKeymap : defaultKeymap.filter((b) => b.run !== insertTab)),
+      ...extensionKeys(),
+      ...keymapBindings(props.keymap),
+    ],
+    apple,
+  ),
 )
 /** After Escape, Tab leaves the editor instead of indenting, so keyboard users are never stuck. */
 let tabLeaves = false
@@ -2948,7 +2995,7 @@ function posAtCoords(point: { x: number; y: number }) {
   if (!rect) return 0
   const { n, sub } = layout.value.lineAtRow(rowAtY(point.y - rect.top))
   const line = state.value.doc.line(n)
-  return line.from + colAt(n, line.text, sub, point.x - rect.left - PAD_X)
+  return line.from + colAt(n, line.text, sub, point.x - rect.left - pad.x)
 }
 
 function coordsAtPos(pos: number) {
@@ -2958,7 +3005,7 @@ function coordsAtPos(pos: number) {
   if (!isShown(line.number)) return null
   const at = place(line.number, line.text, pos - line.from)
   const top = rect.top + at.top
-  return { left: rect.left + PAD_X + at.x, top, bottom: top + lineHeight.value }
+  return { left: rect.left + pad.x + at.x, top, bottom: top + lineHeight.value }
 }
 
 type Unit = 'char' | 'word' | 'line'
@@ -2993,7 +3040,7 @@ let drag: {
 function lineAtCoords(point: { x: number; y: number }) {
   const rect = content.value!.getBoundingClientRect()
   const { n } = layout.value.lineAtRow(rowAtY(point.y - rect.top))
-  return { n, x: Math.max(0, point.x - rect.left - PAD_X) }
+  return { n, x: Math.max(0, point.x - rect.left - pad.x) }
 }
 
 /** A rectangle of text from the drag's start to `point`: one range per line, cut at the same x. */
@@ -3276,7 +3323,7 @@ function pointOf(pos: number) {
   const line = doc.value.lineAt(pos)
   if (!isShown(line.number)) return null
   const at = place(line.number, lineText(line.number), pos - line.from)
-  return { x: PAD_X + at.x, top: at.top, sub: at.sub, n: line.number }
+  return { x: pad.x + at.x, top: at.top, sub: at.sub, n: line.number }
 }
 
 type HandleKind = 'start' | 'end' | 'caret'
@@ -3498,7 +3545,7 @@ const magnifier = computed(() => {
       ? partsOf(row)
       : ([[row.text, null]] as Part[])
   // The text, scaled from the row's left edge, slid so the moving end sits under the caret.
-  const x = at.x - PAD_X
+  const x = at.x - pad.x
   const caret = Math.max(4, Math.min(width - 4, at.x - left))
   return {
     parts,
@@ -3625,7 +3672,7 @@ function scrollIntoView(pos = mainRange(state.value.selection).head) {
   const margin = Math.min(lh, view / 4)
   if (y - margin < top) el.scrollTop = Math.max(0, (y - margin) / ratio.value)
   else if (y + lh + margin > top + view) el.scrollTop = (y + lh + margin - view) / ratio.value
-  const x = PAD_X + at.x
+  const x = pad.x + at.x
   const width = el.clientWidth - gutterWidth.value
   if (x - measure.cell * 2 < el.scrollLeft) el.scrollLeft = Math.max(0, x - measure.cell * 4)
   else if (x + measure.cell * 2 > el.scrollLeft + width)
@@ -3658,6 +3705,8 @@ function onWindowScroll(event: Event) {
 let resize: ResizeObserver | undefined
 function refreshMetrics() {
   measure.refresh(props.tabSize)
+  pad.y = measure.padY
+  pad.x = measure.padX
   metrics.value++
   syncInput()
 }
@@ -3872,7 +3921,7 @@ defineExpose<CodeEditorExpose>(api)
         }"
       >
         <div
-          v-if="lineNumbers || foldable || gutterCells"
+          v-if="gutter && (lineNumbers || foldable || gutterCells)"
           :class="ns.e('gutter')"
           aria-hidden="true"
           @pointerdown="onPointerDown($event, 'gutter')"
@@ -4118,115 +4167,130 @@ defineExpose<CodeEditorExpose>(api)
             </div>
             <div :class="ns.e('magnifier-caret')" :style="{ left: `${magnifier.caret - 1}px` }" />
           </div>
-          <div
-            v-if="problemStyle"
-            ref="problemEl"
-            :class="ns.e('problems')"
-            role="group"
-            :aria-label="problemBox!.problems.length ? messages.problems : messages.details"
-            :style="problemStyle"
-            @pointerdown.stop.prevent
-            @pointermove.stop
-            @pointerenter="keepProblems"
-            @pointerleave="onContentLeave"
-          >
-            <div v-for="(item, i) in problemBox!.info" :key="`info-${i}`" :class="ns.e('hover')">
-              <template v-if="typeof item === 'string'">{{ item }}</template>
-              <RenderPart v-else :render="item" />
-            </div>
+          <!-- The boxes about the text: inside the frame, or above the page for a small editor. -->
+          <Teleport :to="floatingTarget || 'body'" :disabled="!floatingTarget">
             <div
-              v-for="(problem, i) in problemBox!.problems"
-              :key="i"
-              :class="[ns.e('problem-item'), ns.is(problem.severity, true)]"
-            >
-              <component :is="SEVERITY_ICON[problem.severity]" :class="ns.e('problem-severity')" />
-              <span :class="ns.e('problem-message')"
-                >{{ problem.message
-                }}<span v-if="problem.source" :class="ns.e('problem-source')">
-                  {{ problem.source }}</span
-                ></span
-              >
-            </div>
-            <div v-if="fixes.length" :class="ns.e('fixes')">
-              <button
-                v-for="(fix, i) in fixes"
-                :key="i"
-                type="button"
-                tabindex="-1"
-                :class="[ns.e('fix'), ns.is('active', i === problemBox!.index)]"
-                :aria-current="i === problemBox!.index || undefined"
-                @click="runFix(i)"
-              >
-                {{ fix.action.label }}
-              </button>
-            </div>
-          </div>
-          <div
-            v-if="completionStyle"
-            ref="completionEl"
-            :class="ns.e('completions')"
-            :style="completionStyle"
-            @pointerdown.stop.prevent
-            @pointermove.stop
-          >
-            <div
-              :id="completionId"
-              ref="completionList"
-              :class="ns.e('completion-list')"
-              role="listbox"
-              :aria-label="messages.completions"
+              :class="[ns.e('floating'), ns.is('outside', !!floatingTarget)]"
+              :style="floatingTarget ? { zIndex: floatingZ } : undefined"
             >
               <div
-                v-for="(item, i) in completion!.items"
-                :id="`${completionId}-${i}`"
-                :key="i"
-                role="option"
-                :aria-selected="i === completion!.index"
-                :class="[ns.e('completion'), ns.is('active', i === completion!.index)]"
-                @click="acceptCompletion(i)"
+                v-if="problemStyle"
+                ref="problemEl"
+                :class="ns.e('problems')"
+                role="group"
+                :aria-label="problemBox!.problems.length ? messages.problems : messages.details"
+                :style="problemStyle"
+                @pointerdown.stop.prevent
+                @pointermove.stop
+                @pointerenter="keepProblems"
+                @pointerleave="onContentLeave"
               >
-                <component
-                  :is="KIND_ICON[item.option.kind ?? 'text']"
-                  :class="[ns.e('completion-kind'), ns.is(item.option.kind ?? 'text', true)]"
-                  aria-hidden="true"
-                />
-                <span :class="ns.e('completion-label')"
-                  ><template v-for="(part, j) in labelParts(item)" :key="j"
-                    ><mark v-if="part[1]" :class="ns.e('completion-match')">{{ part[0] }}</mark
-                    ><template v-else>{{ part[0] }}</template></template
-                  ></span
+                <div
+                  v-for="(item, i) in problemBox!.info"
+                  :key="`info-${i}`"
+                  :class="ns.e('hover')"
                 >
-                <span v-if="item.option.detail" :class="ns.e('completion-detail')">{{
-                  item.option.detail
-                }}</span>
+                  <template v-if="typeof item === 'string'">{{ item }}</template>
+                  <RenderPart v-else :render="item" />
+                </div>
+                <div
+                  v-for="(problem, i) in problemBox!.problems"
+                  :key="i"
+                  :class="[ns.e('problem-item'), ns.is(problem.severity, true)]"
+                >
+                  <component
+                    :is="SEVERITY_ICON[problem.severity]"
+                    :class="ns.e('problem-severity')"
+                  />
+                  <span :class="ns.e('problem-message')"
+                    >{{ problem.message
+                    }}<span v-if="problem.source" :class="ns.e('problem-source')">
+                      {{ problem.source }}</span
+                    ></span
+                  >
+                </div>
+                <div v-if="fixes.length" :class="ns.e('fixes')">
+                  <button
+                    v-for="(fix, i) in fixes"
+                    :key="i"
+                    type="button"
+                    tabindex="-1"
+                    :class="[ns.e('fix'), ns.is('active', i === problemBox!.index)]"
+                    :aria-current="i === problemBox!.index || undefined"
+                    @click="runFix(i)"
+                  >
+                    {{ fix.action.label }}
+                  </button>
+                </div>
+              </div>
+              <div
+                v-if="completionStyle"
+                ref="completionEl"
+                :class="ns.e('completions')"
+                :style="completionStyle"
+                @pointerdown.stop.prevent
+                @pointermove.stop
+              >
+                <div
+                  :id="completionId"
+                  ref="completionList"
+                  :class="ns.e('completion-list')"
+                  role="listbox"
+                  :aria-label="messages.completions"
+                >
+                  <div
+                    v-for="(item, i) in completion!.items"
+                    :id="`${completionId}-${i}`"
+                    :key="i"
+                    role="option"
+                    :aria-selected="i === completion!.index"
+                    :class="[ns.e('completion'), ns.is('active', i === completion!.index)]"
+                    @click="acceptCompletion(i)"
+                  >
+                    <component
+                      :is="KIND_ICON[item.option.kind ?? 'text']"
+                      :class="[ns.e('completion-kind'), ns.is(item.option.kind ?? 'text', true)]"
+                      aria-hidden="true"
+                    />
+                    <span :class="ns.e('completion-label')"
+                      ><template v-for="(part, j) in labelParts(item)" :key="j"
+                        ><mark v-if="part[1]" :class="ns.e('completion-match')">{{ part[0] }}</mark
+                        ><template v-else>{{ part[0] }}</template></template
+                      ></span
+                    >
+                    <span v-if="item.option.detail" :class="ns.e('completion-detail')">{{
+                      item.option.detail
+                    }}</span>
+                  </div>
+                </div>
+                <div
+                  v-if="completion!.items[completion!.index]?.option.info"
+                  :class="ns.e('completion-info')"
+                >
+                  {{ completion!.items[completion!.index]!.option.info }}
+                </div>
+              </div>
+              <div
+                v-if="signatureStyle"
+                ref="signatureEl"
+                :class="ns.e('signature')"
+                role="note"
+                :aria-label="messages.signature"
+                :style="signatureStyle"
+                @pointerdown.stop.prevent
+              >
+                <div :class="ns.e('signature-label')">
+                  <template v-for="(part, i) in signatureParts" :key="i"
+                    ><span v-if="part[1]" :class="ns.e('signature-active')">{{ part[0] }}</span
+                    ><template v-else>{{ part[0] }}</template></template
+                  >
+                </div>
+                <div v-if="signature!.result.info" :class="ns.e('signature-info')">
+                  {{ signature!.result.info }}
+                </div>
               </div>
             </div>
-            <div
-              v-if="completion!.items[completion!.index]?.option.info"
-              :class="ns.e('completion-info')"
-            >
-              {{ completion!.items[completion!.index]!.option.info }}
-            </div>
-          </div>
-          <div
-            v-if="signatureStyle"
-            ref="signatureEl"
-            :class="ns.e('signature')"
-            role="note"
-            :aria-label="messages.signature"
-            :style="signatureStyle"
-            @pointerdown.stop.prevent
-          >
-            <div :class="ns.e('signature-label')">
-              <template v-for="(part, i) in signatureParts" :key="i"
-                ><span v-if="part[1]" :class="ns.e('signature-active')">{{ part[0] }}</span
-                ><template v-else>{{ part[0] }}</template></template
-              >
-            </div>
-            <div v-if="signature!.result.info" :class="ns.e('signature-info')">
-              {{ signature!.result.info }}
-            </div>
-          </div>
+          </Teleport>
           <div
             v-if="menuStyle"
             ref="menuEl"

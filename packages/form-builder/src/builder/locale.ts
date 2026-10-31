@@ -101,6 +101,10 @@ export interface FormBuilderMessages {
     item: string
     value: string
     problems: Record<string, string>
+    /** What the built-in functions take and do, for hover text and parameter hints. */
+    functions: Record<string, { signature: string; info: string }>
+    /** Shown beside `true`, `false`, `null` and `in` in completions. */
+    keyword: string
   }
   preview: {
     /** The button that shows the preview. */
@@ -268,6 +272,20 @@ const zhCN: FormBuilderMessages = {
     values: '表单的值',
     item: '列表这一项的值',
     value: '这个字段的值',
+    functions: {
+      len: { signature: 'len(value)', info: '文字的字数、列表的项数' },
+      empty: { signature: 'empty(value)', info: '是否为空：空文字、空列表、没有值' },
+      number: { signature: 'number(value)', info: '转成数字；没有值时得到 null' },
+      sum: { signature: 'sum(...numbers)', info: '求和，可以传列表' },
+      min: { signature: 'min(...numbers)', info: '最小的数' },
+      max: { signature: 'max(...numbers)', info: '最大的数' },
+      round: { signature: 'round(value, digits?)', info: '四舍五入到 digits 位小数，默认取整' },
+      abs: { signature: 'abs(value)', info: '绝对值' },
+      today: { signature: 'today(offset?)', info: '今天的日期（YYYY-MM-DD），offset 是往后的天数' },
+      days: { signature: 'days(from, to)', info: '两个日期相差的天数' },
+      contains: { signature: 'contains(collection, item)', info: '文字或列表里是否有 item' },
+    },
+    keyword: '关键字',
     problems: {
       'unexpected-character': '不认识的字符“{text}”',
       'unterminated-string': '文字缺少结尾的引号',
@@ -543,6 +561,20 @@ const zhTW: FormBuilderMessages = {
     values: '表單的值',
     item: '清單這一項的值',
     value: '這個欄位的值',
+    functions: {
+      len: { signature: 'len(value)', info: '文字的字數、清單的項數' },
+      empty: { signature: 'empty(value)', info: '是否為空：空文字、空清單、沒有值' },
+      number: { signature: 'number(value)', info: '轉成數字；沒有值時得到 null' },
+      sum: { signature: 'sum(...numbers)', info: '加總，可以傳入清單' },
+      min: { signature: 'min(...numbers)', info: '最小的數' },
+      max: { signature: 'max(...numbers)', info: '最大的數' },
+      round: { signature: 'round(value, digits?)', info: '四捨五入到 digits 位小數，預設取整數' },
+      abs: { signature: 'abs(value)', info: '絕對值' },
+      today: { signature: 'today(offset?)', info: '今天的日期（YYYY-MM-DD），offset 是往後的天數' },
+      days: { signature: 'days(from, to)', info: '兩個日期相差的天數' },
+      contains: { signature: 'contains(collection, item)', info: '文字或清單裡是否有 item' },
+    },
+    keyword: '關鍵字',
     problems: {
       'unexpected-character': '無法辨識的字元「{text}」',
       'unterminated-string': '文字缺少結尾的引號',
@@ -823,6 +855,29 @@ const en: FormBuilderMessages = {
     values: 'The form’s values',
     item: 'This item’s values',
     value: 'This field’s value',
+    functions: {
+      len: { signature: 'len(value)', info: 'The length of a text or the items of a list' },
+      empty: {
+        signature: 'empty(value)',
+        info: 'Whether it is empty: no text, no items, no value',
+      },
+      number: { signature: 'number(value)', info: 'As a number; null when there is no value' },
+      sum: { signature: 'sum(...numbers)', info: 'The total; lists count too' },
+      min: { signature: 'min(...numbers)', info: 'The smallest number' },
+      max: { signature: 'max(...numbers)', info: 'The largest number' },
+      round: {
+        signature: 'round(value, digits?)',
+        info: 'Rounded to digits decimals, whole by default',
+      },
+      abs: { signature: 'abs(value)', info: 'The absolute value' },
+      today: { signature: 'today(offset?)', info: 'Today as YYYY-MM-DD, offset days later' },
+      days: { signature: 'days(from, to)', info: 'The days from one date to another' },
+      contains: {
+        signature: 'contains(collection, item)',
+        info: 'Whether a text or list holds item',
+      },
+    },
+    keyword: 'Keyword',
     problems: {
       'unexpected-character': 'Unexpected character “{text}”',
       'unterminated-string': 'The text is missing its closing quote',

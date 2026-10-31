@@ -11,6 +11,8 @@
   .dou-code-editor {
     --dou-code-editor-font-size: var(--dou-font-size-sm);
     --dou-code-editor-line-height: 20px;
+    --dou-code-editor-padding-y: 8px;
+    --dou-code-editor-padding-x: 12px;
     --dou-code-editor-bg: var(--dou-color-bg-surface);
     --dou-code-editor-gutter-bg: var(--dou-code-editor-bg);
     --dou-code-editor-gutter-text: var(--dou-color-text-tertiary);
@@ -46,7 +48,9 @@
     box-sizing: border-box;
     width: 100%;
     min-width: 0;
-    min-height: calc(var(--dou-code-editor-line-height) + 18px);
+    min-height: calc(
+      var(--dou-code-editor-line-height) + 2 * var(--dou-code-editor-padding-y) + 2px
+    );
     overflow: hidden;
     border: 1px solid var(--dou-code-editor-border);
     border-radius: var(--dou-radius-container);
@@ -191,7 +195,7 @@
   .dou-code-editor__line {
     box-sizing: border-box;
     height: var(--dou-code-editor-line-height);
-    padding: 0 12px;
+    padding: 0 var(--dou-code-editor-padding-x);
     white-space: pre;
     tab-size: var(--dou-code-editor-tab-size, 2);
     &.is-wrapped {
@@ -368,8 +372,8 @@
 
   .dou-code-editor__placeholder {
     position: absolute;
-    top: 8px;
-    left: 12px;
+    top: var(--dou-code-editor-padding-y);
+    left: var(--dou-code-editor-padding-x);
     color: var(--dou-color-text-tertiary);
     white-space: pre;
     pointer-events: none;
@@ -380,7 +384,7 @@
     position: absolute;
     z-index: -1;
     box-sizing: border-box;
-    width: calc(100% - 12px);
+    width: calc(100% - var(--dou-code-editor-padding-x));
     min-width: 1px;
     margin: 0;
     padding: 0;
@@ -477,6 +481,25 @@
     }
     &.is-hint {
       background-color: var(--dou-color-text-tertiary);
+    }
+  }
+
+  /* the boxes about the text: in place inside the frame, or in a layer above the page */
+  .dou-code-editor__floating {
+    display: contents;
+    &.is-outside {
+      --dou-code-editor-font-size: var(--dou-font-size-sm);
+      --dou-code-editor-error: var(--dou-color-danger-text);
+      --dou-code-editor-warning: var(--dou-color-warning-text);
+      --dou-code-editor-info: var(--dou-color-primary-text);
+      position: fixed;
+      top: 0;
+      left: 0;
+      display: block;
+      width: 0;
+      height: 0;
+      color: var(--dou-color-text);
+      line-height: 20px;
     }
   }
 
@@ -1095,6 +1118,74 @@
     white-space: nowrap;
     &.is-empty {
       color: var(--dou-color-text-tertiary);
+    }
+  }
+}
+
+/*
+ * Code input: the editor at the height of a text input, with an input's
+ * edge, hover and invalid states. One line scrolls sideways without a bar.
+ */
+@layer dou.components {
+  .dou-code-input {
+    --dou-code-input-height: var(--dou-control-height-md);
+    display: block;
+    width: 100%;
+    min-width: 0;
+
+    .dou-code-editor {
+      --dou-code-editor-padding-x: var(--dou-control-padding-x-md);
+      /* the line in the middle of the input's height */
+      --dou-code-editor-padding-y: calc(
+        (var(--dou-code-input-height) - var(--dou-code-editor-line-height) - 2px) / 2
+      );
+      min-height: var(--dou-code-input-height);
+      border-radius: var(--dou-radius-control);
+      transition-property: border-color, box-shadow;
+      @media (hover: hover) {
+        &:not(.is-focused, .is-disabled):hover {
+          --dou-code-editor-border: var(--dou-color-border-strong);
+        }
+      }
+    }
+    /* problems are underlined; marks beside a box this small would only crowd it */
+    .dou-code-editor__marks {
+      display: none;
+    }
+    &:not(.is-multiline) .dou-code-editor {
+      height: var(--dou-code-input-height);
+      .dou-code-editor__scroller {
+        scrollbar-width: none;
+        &::-webkit-scrollbar {
+          display: none;
+        }
+      }
+    }
+    &.is-multiline .dou-code-editor {
+      max-height: calc(
+        var(--dou-code-input-max-rows, 6) * var(--dou-code-editor-line-height) + 2 *
+          var(--dou-code-editor-padding-y) + 2px
+      );
+    }
+    &.is-invalid .dou-code-editor {
+      --dou-code-editor-border: color-mix(
+        in oklab,
+        var(--dou-color-danger) 55%,
+        var(--dou-color-border)
+      );
+      --dou-code-editor-border-focus: var(--dou-color-danger);
+    }
+  }
+  .dou-code-input--sm {
+    --dou-code-input-height: var(--dou-control-height-sm);
+    .dou-code-editor {
+      --dou-code-editor-padding-x: var(--dou-control-padding-x-sm);
+    }
+  }
+  .dou-code-input--lg {
+    --dou-code-input-height: var(--dou-control-height-lg);
+    .dou-code-editor {
+      --dou-code-editor-padding-x: var(--dou-control-padding-x-lg);
     }
   }
 }

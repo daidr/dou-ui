@@ -13,7 +13,7 @@ import { BracesIcon, CloseIcon, FilterIcon, PlusIcon } from '@dou-ui/icons'
 import { parseCondition, printCondition, unaryOperators } from './condition'
 import type { Condition, ConditionLiteral, ConditionOperator, ConditionRow } from './condition'
 import { useBuilderState } from './context'
-import ExpressionInput from './expression-input.vue'
+import ExpressionInput from './expression-box'
 import { operatorsOf } from './logic'
 import type { LogicTarget } from './logic'
 

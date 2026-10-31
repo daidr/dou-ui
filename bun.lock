@@ -143,15 +143,18 @@
         "@dou-ui/icons": "workspace:*",
       },
       "devDependencies": {
+        "@dou-ui/code": "workspace:*",
         "y-protocols": "^1.0.7",
         "yjs": "^13.6.33",
       },
       "peerDependencies": {
+        "@dou-ui/code": "workspace:*",
         "dou-ui": "workspace:*",
         "vue": "^3.5.0",
         "yjs": "^13.6.0",
       },
       "optionalPeers": [
+        "@dou-ui/code",
         "yjs",
       ],
     },

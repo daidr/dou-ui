@@ -44,6 +44,18 @@ export interface CodeCommandTarget {
   readonly folding?: CodeFoldControl
   /** The problems found in the text, when there are any to go through. */
   readonly diagnostics?: CodeDiagnosticControl
+  /** Completions, hover text and snippet fields from extensions. */
+  readonly assist?: CodeAssistControl
+}
+
+/** What commands can do with what extensions offer while typing. */
+export interface CodeAssistControl {
+  /** Asks for completions at the cursor; `false` when none can be given. */
+  complete(): boolean
+  /** Shows the text about the cursor's place, and its problems; `false` when there is none. */
+  hover(): boolean
+  /** Selects the next / previous place to fill in of the snippet being filled in; `false` when there is none. */
+  field(dir: 1 | -1): boolean
 }
 
 /** What commands can do with the problems found in the text. */
@@ -883,3 +895,15 @@ export const nextDiagnostic: CodeCommand = (target) => !!target.diagnostics?.nex
 export const previousDiagnostic: CodeCommand = (target) => !!target.diagnostics?.previous()
 
 export const showFixes: CodeCommand = (target) => !!target.diagnostics?.showFixes()
+
+/** Opens the completion list at the cursor. */
+export const startCompletion: CodeCommand = (target) => !!target.assist?.complete()
+
+/** Shows the hover text at the cursor, as hovering does with a mouse. */
+export const showHover: CodeCommand = (target) => !!target.assist?.hover()
+
+/** Goes to the next place to fill in of a snippet. */
+export const nextSnippetField: CodeCommand = (target) => !!target.assist?.field(1)
+
+/** Goes to the previous place to fill in of a snippet. */
+export const previousSnippetField: CodeCommand = (target) => !!target.assist?.field(-1)

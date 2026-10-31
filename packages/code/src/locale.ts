@@ -59,8 +59,14 @@ export interface CodeMessages {
   problems: string
   /** Read out when the cursor moves to a problem: `{line}`, `{severity}`, `{message}`. */
   problemAt: string
-  /** Read out when a fix is picked: `{label}`, `{index}`, `{count}`. */
-  fixAt: string
+  /** Read out when a fix or a completion is picked: `{label}`, `{index}`, `{count}`. */
+  itemAt: string
+  /** The box with the text about a place, and its problems. */
+  details: string
+  /** The completion list. */
+  completions: string
+  /** The box with the parameters of a call. */
+  signature: string
   /** Read out after replacing: `{count}`. */
   replaced: string
 }
@@ -108,7 +114,10 @@ export const zhCN: CodeMessages = {
   hint: '提示',
   problems: '问题',
   problemAt: '第 {line} 行，{severity}：{message}',
-  fixAt: '{label}，第 {index} 项，共 {count} 项',
+  itemAt: '{label}，第 {index} 项，共 {count} 项',
+  details: '说明',
+  completions: '补全',
+  signature: '参数提示',
 }
 
 export const zhTW: CodeMessages = {
@@ -154,7 +163,10 @@ export const zhTW: CodeMessages = {
   hint: '提示',
   problems: '問題',
   problemAt: '第 {line} 行，{severity}：{message}',
-  fixAt: '{label}，第 {index} 項，共 {count} 項',
+  itemAt: '{label}，第 {index} 項，共 {count} 項',
+  details: '說明',
+  completions: '自動完成',
+  signature: '參數提示',
 }
 
 export const en: CodeMessages = {
@@ -200,7 +212,10 @@ export const en: CodeMessages = {
   hint: 'Hint',
   problems: 'Problems',
   problemAt: 'Line {line}, {severity}: {message}',
-  fixAt: '{label}, {index} of {count}',
+  itemAt: '{label}, {index} of {count}',
+  details: 'Details',
+  completions: 'Suggestions',
+  signature: 'Parameter hints',
 }
 
 export const codeLocales: Record<string, CodeMessages> = {

@@ -567,6 +567,154 @@
     }
   }
 
+  /* what an extension says about the code under the pointer, above any problems there */
+  .dou-code-editor__hover {
+    padding: 0 2px;
+    color: var(--dou-color-text);
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+    & + .dou-code-editor__problem-item {
+      padding-top: 4px;
+      border-top: 1px solid var(--dou-color-border-subtle);
+    }
+  }
+
+  /* the completion list under the word being typed */
+  .dou-code-editor__completions {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 7;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    width: max-content;
+    min-width: min(200px, 100%);
+    max-height: 264px;
+    padding: 4px;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-control);
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-md);
+    font-family: var(--dou-font-family-mono);
+    font-size: var(--dou-code-editor-font-size);
+    line-height: 20px;
+  }
+  /* the entries scroll; the info of the picked one stays in view below them */
+  .dou-code-editor__completion-list {
+    flex: 0 1 auto;
+    min-height: 28px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .dou-code-editor__completion {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    height: 28px;
+    padding: 0 8px 0 6px;
+    border-radius: calc(var(--dou-radius-control) - 2px);
+    color: var(--dou-color-text);
+    cursor: pointer;
+    &.is-active {
+      background-color: color-mix(in oklab, var(--dou-color-text) 8%, transparent);
+    }
+    @media (hover: hover) {
+      &:not(.is-active):hover {
+        background-color: color-mix(in oklab, var(--dou-color-text) 4%, transparent);
+      }
+    }
+    @media (pointer: coarse) {
+      height: 36px;
+    }
+  }
+  .dou-code-editor__completion-kind {
+    flex: none;
+    width: 16px;
+    height: 16px;
+    color: var(--dou-color-text-tertiary);
+  }
+  /* the label keeps its room; the detail gives way first */
+  .dou-code-editor__completion-label {
+    flex: none;
+    max-width: 75%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: pre;
+  }
+  .dou-code-editor__completion-match {
+    background: none;
+    color: var(--dou-color-primary-text);
+    font-weight: 600;
+  }
+  .dou-code-editor__completion-detail {
+    flex: 0 1 auto;
+    min-width: 0;
+    margin-left: auto;
+    padding-left: 16px;
+    overflow: hidden;
+    color: var(--dou-color-text-tertiary);
+    font-family: var(--dou-font-family);
+    font-size: var(--dou-font-size-sm);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .dou-code-editor__completion-info {
+    flex: none;
+    margin-top: 4px;
+    padding: 6px 6px 2px;
+    border-top: 1px solid var(--dou-color-border-subtle);
+    color: var(--dou-color-text-secondary);
+    font-family: var(--dou-font-family);
+    font-size: var(--dou-font-size-sm);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    max-width: 400px;
+  }
+
+  /* parameter hints over the call being typed */
+  .dou-code-editor__signature {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 6;
+    box-sizing: border-box;
+    width: max-content;
+    max-width: min(440px, calc(100% - 8px));
+    padding: 4px 8px;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-control);
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-md);
+    font-size: var(--dou-font-size-sm);
+    line-height: 20px;
+    overflow-y: auto;
+    pointer-events: none;
+  }
+  .dou-code-editor__signature-label {
+    color: var(--dou-color-text-secondary);
+    font-family: var(--dou-font-family-mono);
+    font-size: var(--dou-code-editor-font-size);
+    overflow-wrap: anywhere;
+  }
+  .dou-code-editor__signature-active {
+    color: var(--dou-color-text);
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .dou-code-editor__signature-info {
+    color: var(--dou-color-text-tertiary);
+    font-family: var(--dou-font-family);
+    white-space: pre-wrap;
+  }
+
+  /* the places of a snippet still to fill in */
+  .dou-code-editor__field {
+    border-radius: 2px;
+    box-shadow: inset 0 0 0 1px var(--dou-color-border-strong);
+  }
+
   /* components from extensions between lines, held in view while the text scrolls sideways */
   .dou-code-editor__widgets {
     position: absolute;

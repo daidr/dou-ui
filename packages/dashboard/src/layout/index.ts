@@ -1,5 +1,6 @@
 export {
   compactLayout,
+  deriveLayout,
   findPlace,
   fitItem,
   layoutHeight,

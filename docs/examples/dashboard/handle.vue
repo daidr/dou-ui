@@ -1,5 +1,5 @@
 <script setup>
-import { DouGridLayout } from '@dou-ui/dashboard'
+import { DouGridLayout, DouGridLayoutHandle } from '@dou-ui/dashboard'
 import { GripHorizontalIcon } from '@dou-ui/icons'
 import { DouButton, DouProgress } from 'dou-ui'
 import { ref } from 'vue'
@@ -17,17 +17,17 @@ const deploys = ref(3)
   <DouGridLayout
     v-model="items"
     editable
-    handle=".tile-head"
+    handle
     :row-height="56"
     :gap="12"
     :item-label="(item) => titles[item.id]"
   >
     <template #item="{ item }">
       <section class="tile">
-        <header class="tile-head">
+        <DouGridLayoutHandle as="header" class="tile-head">
           <GripHorizontalIcon class="grip" />
           {{ titles[item.id] }}
-        </header>
+        </DouGridLayoutHandle>
         <div class="tile-body">
           <DouProgress v-if="item.id === 'disk'" :value="72" show-value />
           <template v-else-if="item.id === 'deploy'">
@@ -59,7 +59,6 @@ const deploys = ref(3)
   border-bottom: 1px solid var(--dou-color-border-subtle);
   font-size: var(--dou-font-size-sm);
   font-weight: 500;
-  cursor: grab;
 }
 .grip {
   color: var(--dou-color-text-tertiary);

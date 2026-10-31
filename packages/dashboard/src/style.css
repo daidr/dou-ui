@@ -76,7 +76,11 @@
     -webkit-touch-callout: none;
   }
 
-  .dou-grid-layout.is-editable:not(.is-pointer-dragging) .dou-grid-layout__item.is-movable {
+  .dou-grid-layout.is-editable:not(.is-pointer-dragging, .has-handle)
+    .dou-grid-layout__item.is-movable,
+  .dou-grid-layout.is-editable.has-handle:not(.is-pointer-dragging)
+    .dou-grid-layout__item.is-movable
+    .dou-grid-layout__handle {
     cursor: grab;
   }
 

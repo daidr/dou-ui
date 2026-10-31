@@ -259,14 +259,14 @@ function onKeydown(event: KeyboardEvent) {
     <template v-if="handles">
       <span
         class="dou-whiteboard-node__turn"
-        data-flow-nodrag
+        data-dou-nodrag
         aria-hidden="true"
         @pointerdown="startTurn"
       />
       <span
         v-if="rotation"
         class="dou-whiteboard-node__corner"
-        data-flow-nodrag
+        data-dou-nodrag
         aria-hidden="true"
         @pointerdown="startResize"
       />

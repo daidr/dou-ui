@@ -56,6 +56,28 @@ export interface GanttMessages {
   pushed: string
   /** Read out when a change leaves links not kept: `{task}` is the rest, `{count}` how many. */
   broken: string
+  /** The title of a task added from the menu. */
+  newTask: string
+  /** The row below the table that adds a task. */
+  addRow: string
+  /** Read out when tasks are removed; `{titles}` joined with `listSeparator`. */
+  tasksRemoved: string
+  listSeparator: string
+  /** The name of a cell's editor; `{column}` is its header. */
+  editCell: string
+  /** The built-in context menu items. */
+  menu: {
+    rename: string
+    addAfter: string
+    addInside: string
+    addTask: string
+    indent: string
+    outdent: string
+    removeTask: string
+    /** `{count}` tasks. */
+    removeTasks: string
+    removeLink: string
+  }
   /** Read out after `schedule()`: `{count}` tasks moved. */
   scheduled: string
   /** A task on the critical path, read out: `{task}` is the rest. */
@@ -95,7 +117,7 @@ const zhCN: GanttMessages = {
     cycle: '会形成循环依赖',
   },
   moveRefused: '不能移到这里',
-  keys: '上下键选择任务，左右键收起或展开，空格选中；Alt 加左右键移动任务，Alt 加 Shift 加左右键调整结束时间；L 添加依赖',
+  keys: '上下键选择任务，左右键收起或展开，空格选中；Alt 加左右键移动任务，Alt 加 Shift 加左右键调整结束时间；L 添加依赖；F2 重命名，菜单键打开菜单',
   linkMode: '从“{title}”添加依赖：上下键选择后续任务，Enter 确认，Esc 取消',
   linked: '已添加依赖：{from} → {to}',
   linkRemoved: '已删除依赖',
@@ -107,6 +129,22 @@ const zhCN: GanttMessages = {
   pushed: '{task}；另有 {count} 个任务随之推后',
   broken: '{task}；{count} 条依赖未满足',
   scheduled: '已重新排期，移动了 {count} 个任务',
+  newTask: '新任务',
+  addRow: '添加任务',
+  tasksRemoved: '已删除：{titles}',
+  listSeparator: '、',
+  editCell: '编辑{column}',
+  menu: {
+    rename: '重命名',
+    addAfter: '在下方添加任务',
+    addInside: '添加子任务',
+    addTask: '添加任务',
+    indent: '缩进',
+    outdent: '取消缩进',
+    removeTask: '删除任务',
+    removeTasks: '删除 {count} 个任务',
+    removeLink: '删除依赖',
+  },
   criticalTask: '{task}，关键任务',
 }
 
@@ -130,7 +168,7 @@ const zhTW: GanttMessages = {
     cycle: '會形成循環相依',
   },
   moveRefused: '不能移到這裡',
-  keys: '上下鍵選擇任務，左右鍵收合或展開，空白鍵選取；Alt 加左右鍵移動任務，Alt 加 Shift 加左右鍵調整結束時間；L 新增相依',
+  keys: '上下鍵選擇任務，左右鍵收合或展開，空白鍵選取；Alt 加左右鍵移動任務，Alt 加 Shift 加左右鍵調整結束時間；L 新增相依；F2 重新命名，選單鍵開啟選單',
   linkMode: '從「{title}」新增相依：上下鍵選擇後續任務，Enter 確認，Esc 取消',
   linked: '已新增相依：{from} → {to}',
   linkRemoved: '已刪除相依',
@@ -142,6 +180,21 @@ const zhTW: GanttMessages = {
   pushed: '{task}；另有 {count} 個任務隨之延後',
   broken: '{task}；{count} 條相依未滿足',
   scheduled: '已重新排程，移動了 {count} 個任務',
+  newTask: '新任務',
+  addRow: '新增任務',
+  tasksRemoved: '已刪除：{titles}',
+  editCell: '編輯{column}',
+  menu: {
+    rename: '重新命名',
+    addAfter: '在下方新增任務',
+    addInside: '新增子任務',
+    addTask: '新增任務',
+    indent: '縮排',
+    outdent: '取消縮排',
+    removeTask: '刪除任務',
+    removeTasks: '刪除 {count} 個任務',
+    removeLink: '刪除相依',
+  },
   criticalTask: '{task}，要徑任務',
 }
 
@@ -182,7 +235,7 @@ const en: GanttMessages = {
     cycle: 'This would make a loop',
   },
   moveRefused: 'Can’t move here',
-  keys: 'Up and Down pick a task, Left and Right fold, Space selects; Alt with Left or Right moves the task, Alt with Shift and Left or Right changes its end; L adds a dependency',
+  keys: 'Up and Down pick a task, Left and Right fold, Space selects; Alt with Left or Right moves the task, Alt with Shift and Left or Right changes its end; L adds a dependency; F2 renames, the menu key opens the menu',
   linkMode:
     'Adding a dependency from “{title}”: pick the next task with Up and Down, Enter to confirm, Escape to cancel',
   linked: 'Linked {from} → {to}',
@@ -195,6 +248,22 @@ const en: GanttMessages = {
   pushed: '{task}; {count} more pushed later',
   broken: '{task}; {count} dependencies not kept',
   scheduled: 'Rescheduled, {count} tasks moved',
+  newTask: 'New task',
+  addRow: 'Add a task',
+  tasksRemoved: 'Removed {titles}',
+  listSeparator: ', ',
+  editCell: 'Edit {column}',
+  menu: {
+    rename: 'Rename',
+    addAfter: 'Add task below',
+    addInside: 'Add subtask',
+    addTask: 'Add task',
+    indent: 'Indent',
+    outdent: 'Outdent',
+    removeTask: 'Delete task',
+    removeTasks: 'Delete {count} tasks',
+    removeLink: 'Delete dependency',
+  },
   criticalTask: '{task}, critical',
 }
 

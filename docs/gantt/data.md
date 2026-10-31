@@ -85,3 +85,5 @@ const columns = [
 ```
 
 用 `cell` 插槽可以自定义单元格，插槽参数里有 `task`、`column` 和格式化好的 `text`。
+
+不是只读时，双击单元格可以编辑。内置列默认可以编辑，设 `editable: false` 关闭；其他列设 `editable: true` 后可以编辑，输入的文字写进任务 `data` 里与 `key` 同名的字段。

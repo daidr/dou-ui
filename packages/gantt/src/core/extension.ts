@@ -1,6 +1,7 @@
 import type { Component } from 'vue'
 import type { GanttContext } from '../context'
 import type { GanttColumn, GanttMarker, GanttMove } from '../types'
+import type { GanttMenuItem, GanttMenuTarget } from './menu'
 import type { GanttLink } from './model'
 import type { GanttDocument } from './transaction'
 
@@ -30,6 +31,11 @@ export interface GanttExtension {
   canMove?: (move: GanttMove, doc: GanttDocument) => boolean | string
   /** Keys, written as in `useHotkey` (e.g. `mod+d`, `shift+t`), while the chart has focus. */
   keymap?: (context: GanttExtensionContext) => Record<string, GanttKeyHandler>
+  /**
+   * Items for the context menu, which opens on a right click, the menu key
+   * or a long press. They come before the built-in ones.
+   */
+  contextMenu?: (context: GanttExtensionContext, target: GanttMenuTarget) => GanttMenuItem[]
   /** Vertical marker lines, such as a release day; worked out again when what they read changes. */
   markers?: (context: GanttExtensionContext) => GanttMarker[]
   /**
@@ -54,6 +60,7 @@ export interface ResolvedGanttExtensions {
   moveRules: NonNullable<GanttExtension['canMove']>[]
   keymaps: NonNullable<GanttExtension['keymap']>[]
   markers: NonNullable<GanttExtension['markers']>[]
+  menus: NonNullable<GanttExtension['contextMenu']>[]
   below: Component[]
   above: Component[]
   overlays: Component[]
@@ -97,6 +104,7 @@ export function resolveGanttExtensions(list: ExtensionList = []): ResolvedGanttE
     moveRules: pick('canMove'),
     keymaps: pick('keymap'),
     markers: pick('markers'),
+    menus: pick('contextMenu'),
     below: extensions.flatMap((e) => e.layers?.below ?? []),
     above: extensions.flatMap((e) => e.layers?.above ?? []),
     overlays: extensions.flatMap((e) => e.overlays ?? []),

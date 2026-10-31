@@ -28,6 +28,10 @@ export interface GanttContext {
   /** Links not kept by the dates as they are. */
   brokenLinks: ComputedRef<Set<string>>
   schedule: GanttExpose['schedule']
+  editCell: GanttExpose['editCell']
+  insertTask: GanttExpose['insertTask']
+  indentTask: GanttExpose['indentTask']
+  outdentTask: GanttExpose['outdentTask']
   undo: () => boolean
   redo: () => boolean
   canUndo: Ref<boolean>

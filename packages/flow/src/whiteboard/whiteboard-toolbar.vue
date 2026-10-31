@@ -3,7 +3,8 @@ import {
   CircleIcon,
   CursorIcon,
   DiamondIcon,
-  MoveIcon,
+  HandGrabIcon,
+  HandIcon,
   SquareIcon,
   StickyNoteIcon,
   TypeIcon,
@@ -23,7 +24,7 @@ const t = computed(() => ctx.messages.value.board)
 const groups: { tool: WhiteboardTool; icon: Component }[][] = [
   [
     { tool: 'select', icon: CursorIcon },
-    { tool: 'hand', icon: MoveIcon },
+    { tool: 'hand', icon: HandIcon },
   ],
   [
     { tool: 'rect', icon: SquareIcon },
@@ -69,7 +70,7 @@ function pick(tool: WhiteboardTool, keep: boolean) {
         @click="pick(item.tool, false)"
         @dblclick="pick(item.tool, true)"
       >
-        <component :is="item.icon" />
+        <component :is="item.tool === 'hand' && state.panning.value ? HandGrabIcon : item.icon" />
       </button>
     </template>
   </div>

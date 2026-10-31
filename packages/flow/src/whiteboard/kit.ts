@@ -155,10 +155,15 @@ export function whiteboardKit(options: WhiteboardKitOptions = {}): FlowExtension
           },
           { immediate: true },
         ),
+        watch(state.panning, (panning) => {
+          const root = ctx.root.value
+          if (root) root.toggleAttribute('data-board-panning', panning)
+        }),
       )
       return () => {
         for (const stop of stops) stop()
         delete ctx.root.value?.dataset.boardTool
+        ctx.root.value?.removeAttribute('data-board-panning')
       }
     },
 
@@ -171,7 +176,11 @@ export function whiteboardKit(options: WhiteboardKitOptions = {}): FlowExtension
       if (tool === 'hand') {
         const start = { x: press.event.clientX, y: press.event.clientY }
         const origin = { ...ctx.viewport.value }
+        state.panning.value = true
+        const stop = () => (state.panning.value = false)
         return {
+          end: stop,
+          cancel: stop,
           move(_, event) {
             ctx.viewport.value = {
               ...origin,

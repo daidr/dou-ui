@@ -1050,6 +1050,10 @@
     &[data-board-tool='hand'] .dou-flow-editor__node {
       cursor: grab;
     }
+    &[data-board-panning],
+    &[data-board-panning] .dou-flow-editor__node {
+      cursor: grabbing;
+    }
     &[data-board-tool='rect'],
     &[data-board-tool='ellipse'],
     &[data-board-tool='diamond'],

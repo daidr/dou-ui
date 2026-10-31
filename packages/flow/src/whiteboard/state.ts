@@ -8,6 +8,8 @@ export interface WhiteboardState {
   tool: Ref<WhiteboardTool>
   /** Keeps the tool after drawing, instead of going back to select. */
   locked: Ref<boolean>
+  /** The hand is dragging the view. */
+  panning: Ref<boolean>
   /** The node whose text is being typed. */
   editing: ShallowRef<string | null>
   /** The box being drawn, with the tool drawing it. */
@@ -23,6 +25,7 @@ export function boardState(context: FlowEditorContext): WhiteboardState {
     state = {
       tool: ref('select'),
       locked: ref(false),
+      panning: ref(false),
       editing: shallowRef(null),
       draft: shallowRef(null),
     }

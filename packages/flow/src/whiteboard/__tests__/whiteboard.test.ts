@@ -155,11 +155,23 @@ describe('whiteboard tools', () => {
   })
 
   it('moves the view with the hand', async () => {
-    const { tool, viewport, drag, flow } = setup()
+    const { root, tool, viewport, flow } = setup()
     await ticks()
     tool.value = 'hand'
     await ticks()
-    await drag([100, 100], [160, 140])
+    const button = () => root.findAll('.dou-whiteboard-toolbar__button')[1]!
+    const handOpen = button().html()
+    root.element.dispatchEvent(pointer('pointerdown', 100, 100))
+    root.element.dispatchEvent(pointer('pointermove', 130, 120))
+    await ticks()
+    // the hand closes while it holds the view
+    expect(root.attributes('data-board-panning')).toBeDefined()
+    expect(button().html()).not.toBe(handOpen)
+    root.element.dispatchEvent(pointer('pointermove', 160, 140))
+    root.element.dispatchEvent(pointer('pointerup', 160, 140))
+    await ticks()
+    expect(root.attributes('data-board-panning')).toBeUndefined()
+    expect(button().html()).toBe(handOpen)
     expect(viewport.value).toMatchObject({ x: 60, y: 40 })
     expect(flow.value.nodes).toHaveLength(0)
   })

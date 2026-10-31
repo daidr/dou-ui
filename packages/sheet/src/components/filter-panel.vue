@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { SearchIcon, SortAscendingIcon, SortDescendingIcon } from '@dou-ui/icons'
 import { DouButton, DouCheckbox, DouInput, DouSegmentedControl, DouSelect } from 'dou-ui'
-import { computed, ref, shallowRef } from 'vue'
+import { computed, nextTick, onMounted, ref, shallowRef, useTemplateRef } from 'vue'
 import type { SheetFilterCondition, SheetFilterRule, SheetSortOrder } from '../core/model'
 import { format, type SheetMessages } from '../locale'
 
@@ -13,6 +13,8 @@ import { format, type SheetMessages } from '../locale'
 const props = defineProps<{
   /** The column's values as they show, each once, in sorted order; `''` is empty. */
   values: readonly string[]
+  /** Whether most of the column's values are numbers: conditions then start at “≥”. */
+  numeric?: boolean
   rule: SheetFilterRule | undefined
   sorted: SheetSortOrder | undefined
   messages: SheetMessages
@@ -79,7 +81,7 @@ const OPS: SheetFilterCondition['op'][] = [
   'notBlank',
 ]
 const condition = props.rule && 'condition' in props.rule ? props.rule.condition : undefined
-const op = ref<SheetFilterCondition['op']>(condition?.op ?? 'contains')
+const op = ref<SheetFilterCondition['op']>(condition?.op ?? (props.numeric ? 'ge' : 'contains'))
 const operand = ref(condition?.value == null ? '' : String(condition.value))
 const needsOperand = computed(() => op.value !== 'blank' && op.value !== 'notBlank')
 const opOptions = computed(() => OPS.map((value) => ({ value, label: m.value.ops[value] })))
@@ -109,10 +111,39 @@ const empty = computed(
 )
 
 const label = (value: string) => value || m.value.blank
+
+// focus -------------------------------------------------------------------------------------
+
+const root = useTemplateRef<HTMLElement>('root')
+const TABBABLE =
+  'button:not(:disabled), input:not(:disabled), [tabindex]:not([tabindex="-1"]):not(:disabled)'
+const tabbable = () =>
+  [...(root.value?.querySelectorAll<HTMLElement>(TABBABLE) ?? [])].filter(
+    (el) => el.offsetParent !== null || el === document.activeElement,
+  )
+
+// Opened from the button or Alt+↓, focus starts inside so the keyboard
+// can reach the panel; Escape hands it back to where it came from.
+onMounted(() => nextTick(() => tabbable()[0]?.focus({ preventScroll: true })))
+
+/** Keeps Tab inside the panel, going round from the last item to the first. */
+function onKeydown(event: KeyboardEvent) {
+  if (event.key !== 'Tab') return
+  const items = tabbable()
+  if (!items.length) return
+  const first = items[0]!
+  const last = items[items.length - 1]!
+  const at = document.activeElement
+  if (event.shiftKey ? at === first || !root.value?.contains(at) : at === last) {
+    event.preventDefault()
+    event.stopPropagation()
+    ;(event.shiftKey ? last : first).focus()
+  }
+}
 </script>
 
 <template>
-  <div class="dou-sheet-filter">
+  <div ref="root" class="dou-sheet-filter" @keydown="onKeydown">
     <div class="dou-sheet-filter__sort" role="group" :aria-label="m.sort">
       <DouButton
         variant="ghost"

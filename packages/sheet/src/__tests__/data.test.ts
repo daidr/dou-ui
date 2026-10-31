@@ -4,7 +4,9 @@ import { defineComponent, h, nextTick, ref } from 'vue'
 import { compareForSort, meetsCondition, meetsRule, sortRows, textCollator } from '../core/data'
 import type { SheetWorkbook } from '../core/model'
 import { applySheetSteps, SheetTransaction } from '../core/transaction'
+import FilterPanel from '../components/filter-panel.vue'
 import { DouSheet } from '../index'
+import { sheetLocales } from '../locale'
 import type { SheetExpose } from '../types'
 
 describe('comparing and sorting values', () => {
@@ -209,5 +211,41 @@ describe('DouSheet sorting and filtering', () => {
     expect(doc.value.sheets[0]!.filter?.range).toBe('A1:C5')
     await key('l', { ctrlKey: true, shiftKey: true })
     expect(doc.value.sheets[0]!.filter).toBeUndefined()
+  })
+})
+
+const panel = (props: Record<string, unknown>) =>
+  mount(FilterPanel, {
+    props: {
+      rule: undefined,
+      sorted: undefined,
+      messages: sheetLocales['zh-CN'],
+      readonly: false,
+      ...props,
+    },
+    attachTo: document.body,
+  })
+
+describe('the filter panel', () => {
+  it('starts conditions at “≥” for number columns and “contains” for text', async () => {
+    for (const [numeric, op] of [
+      [true, 'ge'],
+      [false, 'contains'],
+    ] as const) {
+      const wrapper = panel({ values: ['1', '2'], numeric })
+      await wrapper.findAll('[role=radiogroup] input').at(-1)!.setValue(true)
+      await wrapper.find('input[type=text]').setValue('5')
+      await wrapper.findAll('.dou-sheet-filter__footer button').at(-1)!.trigger('click')
+      expect(wrapper.emitted('apply')![0]).toEqual([{ condition: { op, value: 5 } }])
+      wrapper.unmount()
+    }
+  })
+
+  it('takes focus when it opens', async () => {
+    const wrapper = panel({ values: ['上海'] })
+    await nextTick()
+    await nextTick()
+    expect(document.activeElement?.textContent).toContain('升序')
+    wrapper.unmount()
   })
 })

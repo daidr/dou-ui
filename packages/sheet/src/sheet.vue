@@ -329,27 +329,47 @@ const filterButtons = computed(() => {
 
 /** The column whose filter panel is open. */
 const filterOpen = ref<number | null>(null)
+// Escape hands focus back to the filter button, which is out of the tab
+// order; send it on to the grid so arrow keys and Alt+↓ go on working.
+watch(filterOpen, (now) => {
+  if (now != null) return
+  void nextTick(() => {
+    if (
+      (document.activeElement as HTMLElement | null)?.classList.contains('dou-sheet__filter-button')
+    )
+      focusGrid()
+  })
+})
 
-/** A column's values as they show, each once, in sorted order, from the rows the other columns keep. */
+/**
+ * A column's values as they show, each once, in sorted order, from the rows
+ * the other columns keep; and whether most of them are numbers.
+ */
 const filterValues = computed(() => {
   const col = filterOpen.value
   const b = filterBounds.value
-  if (col == null || !b) return []
+  if (col == null || !b) return { values: [] as string[], numeric: false }
   const others = rowsFilteredOut(col)
+  let numbers = 0
+  let filled = 0
   const seen = new Map<string, unknown>()
   const cells = sheet.value.cells
   for (let row = b.top + 1; row <= b.bottom; row++) {
     if (others.has(row) || sheet.value.rowSizes?.[row] === 0) continue
     const value = valueAt(row, col)
-    const text = isEmptyValue(value) ? '' : cellText(cells[row]?.[col], { row, col })
+    const empty = isEmptyValue(value)
+    if (!empty) filled++
+    if (typeof value === 'number') numbers++
+    const text = empty ? '' : cellText(cells[row]?.[col], { row, col })
     if (!seen.has(text)) seen.set(text, value)
   }
   const collator = textCollator(lang.value)
   // oxlint-disable-next-line unicorn/no-array-sort -- sorts a fresh array
-  return [...seen.keys()].sort((x, y) => {
+  const values = [...seen.keys()].sort((x, y) => {
     if (!x || !y) return x ? -1 : y ? 1 : 0
     return compareForSort(seen.get(x), seen.get(y), collator)
   })
+  return { values, numeric: filled > 0 && numbers * 2 > filled }
 })
 
 function filterHeading(col: number) {
@@ -4320,7 +4340,8 @@ defineExpose<SheetExpose>({
         <template #content>
           <FilterPanel
             v-if="filterOpen === button.col"
-            :values="filterValues"
+            :values="filterValues.values"
+            :numeric="filterValues.numeric"
             :rule="sheet.filter?.columns?.[button.col]"
             :sorted="
               sheet.filter?.sorted?.col === button.col ? sheet.filter.sorted.order : undefined

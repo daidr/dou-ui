@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { layoutGraph, matchesHotkey, useReducedMotion, type Tone } from 'dou-ui'
+import { holdPointer, layoutGraph, matchesHotkey, useReducedMotion, type Tone } from 'dou-ui'
 import {
   computed,
   customRef,
@@ -2236,6 +2236,8 @@ const insertDrag = shallowRef<{
   over: boolean
 } | null>(null)
 let pickUpTimer: ReturnType<typeof setTimeout> | undefined
+/** Keeps a finger that picked a node up from scrolling the page. */
+let insertHold: ReturnType<typeof holdPointer> | undefined
 
 /** Whether a point on screen is on the canvas itself, not on a panel over it. */
 function onCanvasAt(client: Point) {
@@ -2262,11 +2264,14 @@ function startInsertDrag(type: string, event: PointerEvent) {
   window.addEventListener('pointercancel', onInsertUp, true)
   window.addEventListener('keydown', onInsertKey, true)
   window.addEventListener('contextmenu', onInsertMenu, true)
+  insertHold = holdPointer(event)
   // A finger that slides at once scrolls the palette; one that rests picks the node up.
   if (event.pointerType === 'touch')
     pickUpTimer = setTimeout(() => {
       const d = insertDrag.value
-      if (d && !d.started) insertDrag.value = { ...d, started: true, over: onCanvasAt(d.client) }
+      if (!d || d.started) return
+      insertHold?.grab()
+      insertDrag.value = { ...d, started: true, over: onCanvasAt(d.client) }
     }, PICK_UP)
   return true
 }
@@ -2312,6 +2317,8 @@ function onInsertKey(event: KeyboardEvent) {
 function stopInsertDrag() {
   insertDrag.value = null
   clearTimeout(pickUpTimer)
+  insertHold?.release()
+  insertHold = undefined
   window.removeEventListener('contextmenu', onInsertMenu, true)
   window.removeEventListener('pointermove', onInsertMove, true)
   window.removeEventListener('pointerup', onInsertUp, true)
@@ -2868,8 +2875,7 @@ const pointerListeners = [
 
 /** Keeps the page from scrolling while a finger drags or pinches in the editor. */
 function holdTouch(event: TouchEvent) {
-  const inserting = insertDrag.value?.touch && insertDrag.value.started
-  if ((gesture.value?.touch || pinch || inserting) && event.cancelable) event.preventDefault()
+  if ((gesture.value?.touch || pinch) && event.cancelable) event.preventDefault()
 }
 
 /** The editor's size on screen, for the minimap. */

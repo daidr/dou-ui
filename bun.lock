@@ -21,10 +21,12 @@
     "docs": {
       "name": "@dou-ui/docs",
       "dependencies": {
+        "@dou-ui/chart": "workspace:*",
         "@dou-ui/editor": "workspace:*",
         "@dou-ui/flow": "workspace:*",
         "@dou-ui/gantt": "workspace:*",
         "@dou-ui/icons": "workspace:*",
+        "@dou-ui/sheet": "workspace:*",
         "@dou-ui/theme": "workspace:*",
         "dou-ui": "workspace:*",
       },
@@ -35,6 +37,14 @@
         "vitepress": "^1.6.4",
         "y-protocols": "1.0.7",
         "yjs": "13.6.33",
+      },
+    },
+    "packages/chart": {
+      "name": "@dou-ui/chart",
+      "version": "0.0.0",
+      "peerDependencies": {
+        "dou-ui": "workspace:*",
+        "vue": "^3.5.0",
       },
     },
     "packages/dou-ui": {
@@ -146,6 +156,14 @@
     "packages/resolver": {
       "name": "@dou-ui/resolver",
       "version": "0.0.0",
+    },
+    "packages/sheet": {
+      "name": "@dou-ui/sheet",
+      "version": "0.0.0",
+      "peerDependencies": {
+        "dou-ui": "workspace:*",
+        "vue": "^3.5.0",
+      },
     },
     "packages/theme": {
       "name": "@dou-ui/theme",
@@ -264,6 +282,8 @@
 
     "@docsearch/react": ["@docsearch/react@3.8.2", "", { "dependencies": { "@algolia/autocomplete-core": "1.17.7", "@algolia/autocomplete-preset-algolia": "1.17.7", "@docsearch/css": "3.8.2", "algoliasearch": "^5.14.2" }, "peerDependencies": { "@types/react": ">= 16.8.0 < 19.0.0", "react": ">= 16.8.0 < 19.0.0", "react-dom": ">= 16.8.0 < 19.0.0", "search-insights": ">= 1 < 3" }, "optionalPeers": ["@types/react", "react", "react-dom", "search-insights"] }, "sha512-xCRrJQlTt8N9GU0DG4ptwHRkfnSnD/YpdeaXe02iKfqs97TkZJv60yE+1eq/tjPcVnTW8dP5qLP7itifFVV5eg=="],
 
+    "@dou-ui/chart": ["@dou-ui/chart@workspace:packages/chart"],
+
     "@dou-ui/docs": ["@dou-ui/docs@workspace:docs"],
 
     "@dou-ui/editor": ["@dou-ui/editor@workspace:packages/editor"],
@@ -279,6 +299,8 @@
     "@dou-ui/playground": ["@dou-ui/playground@workspace:playground"],
 
     "@dou-ui/resolver": ["@dou-ui/resolver@workspace:packages/resolver"],
+
+    "@dou-ui/sheet": ["@dou-ui/sheet@workspace:packages/sheet"],
 
     "@dou-ui/theme": ["@dou-ui/theme@workspace:packages/theme"],
 

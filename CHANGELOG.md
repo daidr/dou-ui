@@ -1,6 +1,6 @@
 # 更新日志
 
-`dou-ui`、`@dou-ui/theme`、`@dou-ui/icons`、`@dou-ui/editor`、`@dou-ui/resolver` 与 `@dou-ui/nuxt` 使用同一个版本号，一起发布。
+`dou-ui`、`@dou-ui/theme`、`@dou-ui/icons`、`@dou-ui/editor`、`@dou-ui/sheet`、`@dou-ui/resolver` 与 `@dou-ui/nuxt` 使用同一个版本号，一起发布。
 版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)；`1.0.0` 之前，次版本号（`0.x.0`）的变化可能包含不兼容的改动，会在这里单独标出。
 
 新的改动先记在「未发布」下，发布时由 `bun run release <版本号>` 改成对应版本。
@@ -45,6 +45,7 @@
 - `@dou-ui/editor` 的表格可以拖动把手移动整行整列；手机上把手与按钮更大，不提供拖动调整列宽
 - `@dou-ui/editor/collaboration` 支持表格：行、列、格子与合并单元格分开同步，移动行列和编辑格子不会互相覆盖，其他人的光标也会显示在格子里
 - `@dou-ui/editor` 支持导入导出 HTML 与 Markdown（`blocksToHTML`、`htmlToBlocks`，以及 `@dou-ui/editor/markdown`），写法由各扩展声明
+- `@dou-ui/sheet`：电子表格，横纵虚拟滚动、冻结行列、多区域选择、直接输入与输入法、数字与日期格式、命名样式、事务与撤销重做
 - `@dou-ui/resolver`：配合按需组件插件，自动导入组件和它的样式入口
 - `@dou-ui/nuxt`：Nuxt 模块，组件、指令与函数自动导入，样式与配色模式开箱即用，支持服务端渲染
 - 组件从 `dou-ui` 具名导入；样式可以全量引入 `dou-ui/style.css`，也可以按组件引入 `dou-ui/components/<name>/style`

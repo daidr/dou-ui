@@ -108,6 +108,21 @@ function setup(initial: string, extra: Record<string, unknown> = {}) {
 }
 
 describe('search in the editor', () => {
+  it('searches the word at the cursor, and handles keys anywhere in the panel', async () => {
+    const { wrapper, editor, textarea, selected } = setup('let total = total + 1')
+    editor.value!.select(6)
+    await keyOn(textarea, 'f', { ctrlKey: true })
+    const find = wrapper.find<HTMLInputElement>('.dou-code-search__input')
+    expect(find.element.value).toBe('total')
+    expect(selected()).toBe('total@4')
+    await keyOn(find.element, 'h', { ctrlKey: true })
+    expect(wrapper.findAll('.dou-code-search__input').length).toBe(2)
+    const toggle = wrapper.find('.dou-code-search .dou-toggle').element
+    await keyOn(toggle, 'Escape')
+    expect(wrapper.find('.dou-code-search').exists()).toBe(false)
+    expect(document.activeElement).toBe(textarea)
+  })
+
   it('opens with the selected word, steps through matches and closes', async () => {
     const { wrapper, editor, textarea, selected } = setup('foo bar foo\nfoo')
     editor.value!.select(0, 3)
@@ -145,15 +160,20 @@ describe('search in the editor', () => {
 
   it('replaces one match at a time, then all of them', async () => {
     const { wrapper, editor, code } = setup('a1 a2 a3')
-    editor.value!.openSearch({ search: 'a(\\d)', regexp: true })
+    editor.value!.openSearch({ search: 'a(\\d)', regexp: true, replace: '' })
     await nextTick()
-    await wrapper.find('.dou-code-search__expand').trigger('click')
     const [, replace] = wrapper.findAll<HTMLInputElement>('.dou-code-search__input')
     await fill(replace!.element, 'b$1')
     await keyOn(replace!.element, 'Enter')
     expect(code.value).toBe('b1 a2 a3')
     await keyOn(replace!.element, 'Enter', { ctrlKey: true })
     expect(code.value).toBe('b1 b2 b3')
+    // A cursor is left behind, not a selection that looks like a match.
+    const main = editor.value!.selection.ranges[0]!
+    expect(main.anchor).toBe(main.head)
+    editor.value!.undo()
+    await nextTick()
+    expect(code.value).toBe('b1 a2 a3')
     editor.value!.closeSearch()
   })
 
@@ -166,7 +186,7 @@ describe('search in the editor', () => {
   })
 
   it('opens nothing with search turned off', async () => {
-    const { wrapper, textarea } = setup('abc', { search: false })
+    const { wrapper, textarea } = setup('abc', { searchable: false })
     await keyOn(textarea, 'f', { ctrlKey: true })
     expect(wrapper.find('.dou-code-search').exists()).toBe(false)
   })

@@ -407,6 +407,20 @@
       font-family: var(--dou-font-family);
     }
   }
+  /* fingers get 36px targets, like the other toolbars */
+  @media (pointer: coarse) {
+    .dou-code-search .dou-code-search__field {
+      height: 40px;
+      .dou-toggle {
+        width: 34px;
+        height: 34px;
+      }
+    }
+    .dou-code-search .dou-button {
+      min-width: 36px;
+      min-height: 36px;
+    }
+  }
   @container (max-width: 480px) {
     .dou-code-search {
       flex: 1 1 auto;

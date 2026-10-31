@@ -60,9 +60,6 @@ function onFindKeydown(event: KeyboardEvent) {
     event.preventDefault()
     if (event.shiftKey) emit('previous')
     else emit('next')
-  } else if (event.key === 'Escape') {
-    event.preventDefault()
-    emit('close')
   }
 }
 
@@ -73,9 +70,28 @@ function onReplaceKeydown(event: KeyboardEvent) {
     const all = apple ? event.metaKey : event.ctrlKey
     if (all) emit('replaceAll')
     else emit('replace')
-  } else if (event.key === 'Escape') {
+  }
+}
+
+/** Keys anywhere in the panel, its buttons included: Esc closes, the search keys move between the boxes. */
+function onKeydown(event: KeyboardEvent) {
+  if (isComposing(event)) return
+  const mod = apple ? event.metaKey : event.ctrlKey
+  const key = event.key.toLowerCase()
+  if (event.key === 'Escape') {
     event.preventDefault()
     emit('close')
+  } else if (
+    !props.readonly &&
+    ((mod && !event.altKey && key === 'h') ||
+      (apple && event.metaKey && event.altKey && event.code === 'KeyF'))
+  ) {
+    event.preventDefault()
+    showReplace.value = true
+    focus('replace')
+  } else if (mod && !event.altKey && key === 'f') {
+    event.preventDefault()
+    focus('find')
   }
 }
 
@@ -92,7 +108,7 @@ defineExpose({ focus })
 </script>
 
 <template>
-  <div :class="ns.b()" role="search" :aria-label="messages.search">
+  <div :class="ns.b()" role="search" :aria-label="messages.search" @keydown="onKeydown">
     <DouButton
       v-if="!readonly"
       :class="ns.e('expand')"

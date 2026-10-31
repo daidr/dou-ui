@@ -64,7 +64,7 @@ const props = withDefaults(defineProps<CodeEditorProps>(), {
   language: undefined,
   closeBrackets: true,
   matchBrackets: true,
-  search: true,
+  searchable: true,
   messages: undefined,
 })
 const emit = defineEmits<CodeEditorEmits>()
@@ -617,14 +617,30 @@ function previousMatch() {
 }
 
 function openSearch(replace = false, given?: Partial<CodeSearchQuery>) {
-  if (!props.search) return
+  if (!props.searchable) return
   const main = mainRange(state.value.selection)
-  const selected = doc.value.slice(rangeFrom(main), rangeTo(main))
   const patch: Partial<CodeSearchQuery> = { ...given }
-  // A selection on one line becomes the search.
-  if (given?.search === undefined && selected && !selected.includes('\n')) patch.search = selected
+  // A selection on one line, or else the word at the cursor, becomes the search.
+  if (given?.search === undefined) {
+    const selected = doc.value.slice(rangeFrom(main), rangeTo(main))
+    if (selected && !selected.includes('\n')) patch.search = selected
+    else if (!selected) {
+      const line = doc.value.lineAt(main.head)
+      const col = main.head - line.from
+      const text = lineText(line.number)
+      for (const at of [col, col - 1]) {
+        if (at < 0 || at >= text.length || !/[\p{L}\p{N}_$]/u.test(text[at]!)) continue
+        const word = wordAt(text, at)
+        patch.search = text.slice(word.from, word.to)
+        // Select it, so the search starts from this word rather than the next one.
+        dispatch(transaction().select(line.from + word.from, line.from + word.to))
+        break
+      }
+    }
+  }
   if (Object.keys(patch).length) query.value = { ...query.value, ...patch }
-  if (replace && !target.readonly) showReplace.value = true
+  // Given a replacement, the replace box opens with it.
+  if ((replace || given?.replace !== undefined) && !target.readonly) showReplace.value = true
   searchOpen.value = true
   runSearch()
   panel.value?.focus(replace ? 'replace' : 'find')
@@ -665,6 +681,9 @@ function replaceAll() {
   const tr = transaction().setMeta({ action: 'replace', scroll: true })
   for (const m of all) tr.replace(m.from, m.to, replacementFor(text, m, query.value))
   dispatch(tr)
+  // Leave a cursor rather than a selection on the last replacement, which would look like a match left over.
+  const head = mainRange(state.value.selection).head
+  dispatch(transaction().select(head))
   announcement.value = format(messages.value.replaced, { count: all.length })
   runSearch()
 }
@@ -891,7 +910,7 @@ const target: CodeCommandTarget = {
   languageAt,
   syntaxAt,
   get search() {
-    return props.search ? searchControl : undefined
+    return props.searchable ? searchControl : undefined
   },
 }
 

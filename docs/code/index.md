@@ -148,15 +148,15 @@ app.use(DouUI, {
 
 ## 查找与替换
 
-按 `Mod` + `F` 打开查找面板，选中的文字会填进查找框。`Enter` 和 `Shift` + `Enter` 跳到下一个、上一个匹配，`Esc` 关闭面板并回到编辑器。查找框右侧的三个开关分别是区分大小写、全词匹配和正则表达式；正则写法有误时查找框标红。
+按 `Mod` + `F` 打开查找面板，选中的文字会填进查找框；没有选中时填入光标所在的词。`Enter` 和 `Shift` + `Enter` 跳到下一个、上一个匹配，`Esc` 关闭面板并回到编辑器。查找框右侧的三个开关分别是区分大小写、全词匹配和正则表达式；正则写法有误时查找框标红。
 
 所有匹配都会加上浅色底，光标所在的那个再加一圈边框；编辑器右侧靠近滚动条的位置标出匹配在整个文本中的分布。边输入边查找，第一个匹配会被选中并滚动到可见。
 
-按 `Mod` + `H`（Apple 上是 `⌥` + `⌘` + `F`），或点击面板左侧的箭头，展开替换框。替换框里按 `Enter` 替换当前的匹配并跳到下一个，按 `Mod` + `Enter` 全部替换，全部替换只算一次修改，撤销一次就能还原。用正则查找时，替换文字里可以用 `$1`、`$<name>` 引用分组，`$&` 是整个匹配，`$$` 是 `$` 本身。只读的编辑器里只能查找。
+按 `Mod` + `H`（Apple 上是 `⌥` + `⌘` + `F`），或点击面板左侧的箭头，展开替换框；焦点在面板里时这个按键同样有效。替换框里按 `Enter` 替换当前的匹配并跳到下一个，按 `Mod` + `Enter` 全部替换，全部替换只算一次修改，撤销一次就能还原。用正则查找时，替换文字里可以用 `$1`、`$<name>` 引用分组，`$&` 是整个匹配，`$$` 是 `$` 本身。只读的编辑器里只能查找。
 
 <DocDemo src="code/search" column />
 
-`openSearch(query?)` 用代码打开面板，并可以带上查找的内容与选项；`closeSearch()` 关闭面板。`search` 设为 `false` 不提供查找面板，`Mod` + `F` 交还给浏览器。面板上的文字跟随 ConfigProvider 的语言包，`messages` 属性可以单独改写其中几条。
+`openSearch(query?)` 用代码打开面板，并可以带上查找的内容与选项，带上 `replace` 时同时展开替换框；`closeSearch()` 关闭面板。`searchable` 设为 `false` 不提供查找面板，`Mod` + `F` 交还给浏览器。面板上的文字跟随 ConfigProvider 的语言包，`messages` 属性可以单独改写其中几条。
 
 在编辑器之外查找文本，可以直接用 `searchText`：
 
@@ -335,7 +335,7 @@ const doc = shallowRef(CodeText.of(source))
 | `language`          | 语言                            | `CodeLanguage`          | —          |
 | `close-brackets`    | 输入括号和引号时补上另一半      | `boolean`               | `true`     |
 | `match-brackets`    | 标出光标旁的括号和它的配对      | `boolean`               | `true`     |
-| `search`            | 提供查找替换面板                | `boolean`               | `true`     |
+| `searchable`        | 提供查找替换面板                | `boolean`               | `true`     |
 | `messages`          | 改写查找面板上的文字            | `Partial<CodeMessages>` | —          |
 | `keymap`            | 额外的按键，比内置的优先        | `CodeKeyBinding[]`      | —          |
 | `autofocus`         | 挂载后获得焦点                  | `boolean`               | `false`    |

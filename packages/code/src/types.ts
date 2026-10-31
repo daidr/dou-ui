@@ -42,7 +42,7 @@ export interface CodeEditorProps {
   /** Outlines the bracket next to the cursor and its partner. On by default. */
   matchBrackets?: boolean
   /** The built-in search panel (Mod+F). On by default. */
-  search?: boolean
+  searchable?: boolean
   /** Replaces any of the editor's texts, which otherwise follow DouUI's locale. */
   messages?: Partial<CodeMessages>
   /** Extra keys, tried before the built-in ones. */

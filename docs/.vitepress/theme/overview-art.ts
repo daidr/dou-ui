@@ -1350,6 +1350,29 @@ const ecosystemArts: Record<string, string | ((id: string) => string)> = {
     })
     return art + path(`M124 30v76`, 'la') + circle(124, 30, 2, 'a')
   },
+  // a palette of field types beside a form, one type dragged in at the insert line
+  'form-builder': () => {
+    const palette = ['heading', 'calendar', 'star']
+      .map((name, i) => {
+        const y = 32 + i * 22
+        return rect(28, y, 30, 14, 'pm', 4) + icon(name, 36, y + 7, 9, 'ico-3') + bar(43, y + 5, 10)
+      })
+      .join('')
+    return (
+      rect(20, 14, 160, 92, 'p', 8) +
+      path('M66 14v92', 'lb') +
+      palette +
+      bar(78, 24, 20, 't') +
+      field(78, 30, 90, 14, 32) +
+      path('M78 56h90', 'la') +
+      circle(78, 56, 2, 'a') +
+      bar(78, 80, 16, 't') +
+      field(78, 86, 90, 14, 24) +
+      rect(104, 60, 58, 16, 'p f', 5) +
+      icon('calendar', 113, 68, 9, 'ico-3') +
+      bar(121, 66, 28)
+    )
+  },
   // the icon gallery: a search field above a grid of icons
   icons:
     field(40, 18, 120, 20, 0) +

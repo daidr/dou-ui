@@ -1,0 +1,148 @@
+/*
+ * Form renderer
+ *
+ * A document's nodes sit on a grid of equal columns (12 by default).
+ * Spans follow the width of the form itself, not of the viewport, so a
+ * form inside a narrow dialog or side panel stacks the way it would on a
+ * phone. Each breakpoint has its own custom property and falls back to
+ * the next smaller one that is set, as in the main grid.
+ *
+ * Breakpoints: sm 480px, md 640px, lg 800px, xl 960px of form width,
+ * smaller than the page's, since a form is narrower than the page.
+ */
+@layer dou.components {
+  /*
+   * The form is a size container, so it cannot take its width from its
+   * content; it fills the line instead, also in a flex row.
+   */
+  .dou-form-renderer {
+    container: dou-form-renderer / inline-size;
+    box-sizing: border-box;
+    width: 100%;
+  }
+
+  .dou-form-renderer__grid {
+    --dou-form-columns: 12;
+
+    display: grid;
+    grid-template-columns: repeat(var(--dou-form-columns), minmax(0, 1fr));
+    gap: var(--dou-form-gap) var(--dou-space-lg);
+    align-items: start;
+    min-width: 0;
+  }
+
+  /* The horizontal form is itself a two-column grid; the fields span it. */
+  .dou-form-renderer--horizontal > .dou-form-renderer__grid {
+    grid-column: 1 / -1;
+  }
+
+  .dou-form-renderer__cell {
+    --dou-form-span: initial;
+    --dou-form-span-sm: initial;
+    --dou-form-span-md: initial;
+    --dou-form-span-lg: initial;
+    --dou-form-span-xl: initial;
+
+    grid-column: span var(--dou-form-span, 1);
+    min-width: 0;
+
+    /* Dividers and text take the place of a field, without extra space. */
+    & > .dou-divider {
+      margin-block: 0;
+    }
+  }
+
+  /* An inline form is a row of fields; the grid and spans step aside. */
+  .dou-form-renderer--inline .dou-form-renderer__grid,
+  .dou-form-renderer--inline .dou-form-renderer__cell {
+    display: contents;
+  }
+
+  .dou-form-renderer__section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--dou-space-lg);
+    min-width: 0;
+
+    &.is-bordered {
+      padding: var(--dou-space-lg);
+      border: 1px solid var(--dou-color-border);
+      border-radius: var(--dou-radius-container);
+      background: var(--dou-color-bg-surface);
+    }
+  }
+
+  .dou-form-renderer__section-header {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .dou-form-renderer__section-title {
+    color: var(--dou-color-text);
+    font-size: var(--dou-font-size-md);
+    font-weight: var(--dou-font-weight-medium);
+    line-height: 1.4;
+  }
+
+  .dou-form-renderer__section-description {
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-sm);
+    line-height: var(--dou-font-line-height);
+  }
+
+  .dou-form-renderer__title,
+  .dou-form-renderer__paragraph {
+    margin: 0;
+  }
+
+  /* Below the first breakpoint there is no room beside the fields: labels go above. */
+  @container dou-form-renderer (width < 480px) {
+    .dou-form-renderer--horizontal .dou-form-item.is-fixed-label {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+
+      & .dou-form-item__label {
+        justify-content: flex-start;
+        min-height: 0;
+        text-align: start;
+      }
+    }
+  }
+
+  @container dou-form-renderer (min-width: 480px) {
+    .dou-form-renderer__cell {
+      grid-column: span var(--dou-form-span-sm, var(--dou-form-span, 1));
+    }
+  }
+
+  @container dou-form-renderer (min-width: 640px) {
+    .dou-form-renderer__cell {
+      grid-column: span var(--dou-form-span-md, var(--dou-form-span-sm, var(--dou-form-span, 1)));
+    }
+  }
+
+  @container dou-form-renderer (min-width: 800px) {
+    .dou-form-renderer__cell {
+      grid-column: span
+        var(
+          --dou-form-span-lg,
+          var(--dou-form-span-md, var(--dou-form-span-sm, var(--dou-form-span, 1)))
+        );
+    }
+  }
+
+  @container dou-form-renderer (min-width: 960px) {
+    .dou-form-renderer__cell {
+      grid-column: span
+        var(
+          --dou-form-span-xl,
+          var(
+            --dou-form-span-lg,
+            var(--dou-form-span-md, var(--dou-form-span-sm, var(--dou-form-span, 1)))
+          )
+        );
+    }
+  }
+}

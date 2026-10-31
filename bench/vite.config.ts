@@ -19,6 +19,14 @@ export default defineConfig({
         find: /^@dou-ui\/gantt\/style\.css$/,
         replacement: r('../packages/gantt/src/style.css'),
       },
+      {
+        find: /^@dou-ui\/form-builder$/,
+        replacement: r('../packages/form-builder/src/index.ts'),
+      },
+      {
+        find: /^@dou-ui\/form-builder\/style\.css$/,
+        replacement: r('../packages/form-builder/src/style.css'),
+      },
       { find: /^@dou-ui\/flow$/, replacement: r('../packages/flow/src/index.ts') },
       {
         find: /^@dou-ui\/flow\/style\.css$/,

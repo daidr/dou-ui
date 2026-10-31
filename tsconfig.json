@@ -13,6 +13,8 @@
       "@dou-ui/gantt": ["./packages/gantt/src/index.ts"],
       "@dou-ui/gantt/collaboration": ["./packages/gantt/src/collaboration/index.ts"],
       "@dou-ui/gantt/scheduler": ["./packages/gantt/src/scheduler/index.ts"],
+      "@dou-ui/form-builder": ["./packages/form-builder/src/index.ts"],
+      "@dou-ui/form-builder/renderer": ["./packages/form-builder/src/renderer/index.ts"],
       "@dou-ui/resolver": ["./packages/resolver/src/index.ts"]
     }
   },

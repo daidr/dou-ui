@@ -26,6 +26,11 @@ export default defineConfig({
         replacement: r('./packages/gantt/src/collaboration/index.ts'),
       },
       { find: /^@dou-ui\/gantt$/, replacement: r('./packages/gantt/src/index.ts') },
+      {
+        find: /^@dou-ui\/form-builder\/renderer$/,
+        replacement: r('./packages/form-builder/src/renderer/index.ts'),
+      },
+      { find: /^@dou-ui\/form-builder$/, replacement: r('./packages/form-builder/src/index.ts') },
     ],
   },
   test: {

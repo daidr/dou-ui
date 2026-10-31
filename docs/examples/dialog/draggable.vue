@@ -21,7 +21,7 @@ const fullscreen = ref(false)
       >
       <DouTextarea
         :rows="fullscreen ? 16 : 6"
-        model-value="本周：完成第 18 批组件的拖拽与子菜单。&#10;下周：整理验收截图，更新路线图。"
+        model-value="本周：完成活动页的交互稿，和设计确认了配色。&#10;下周：和后端联调报名接口，准备上线检查。"
       />
     </DouSpace>
     <template #footer="{ close }">

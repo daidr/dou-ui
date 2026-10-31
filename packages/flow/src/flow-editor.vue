@@ -1325,7 +1325,8 @@ function movePinch() {
 let hover: Point | null = null
 
 function onPointerMove(event: PointerEvent) {
-  if (event.pointerType === 'mouse') hover = { x: event.clientX, y: event.clientY }
+  if (event.pointerType === 'mouse' && root.value?.contains(event.target as Node))
+    hover = { x: event.clientX, y: event.clientY }
   if (event.pointerType === 'touch' && touches.has(event.pointerId)) {
     touches.set(event.pointerId, { x: event.clientX, y: event.clientY })
     if (pinch) {
@@ -2809,6 +2810,17 @@ function onClipboard(event: ClipboardEvent) {
 
 const clipboardEvents = ['copy', 'cut', 'paste'] as const
 
+const pointerListeners = [
+  ['pointermove', onPointerMove],
+  ['pointerup', onPointerUp],
+  ['pointercancel', onPointerUp],
+] as const
+
+/** Keeps the page from scrolling while a finger drags or pinches in the editor. */
+function holdTouch(event: TouchEvent) {
+  if ((gesture.value?.touch || pinch) && event.cancelable) event.preventDefault()
+}
+
 /** The editor's size on screen, for the minimap. */
 const size = ref({ width: 0, height: 0 })
 let sizeObserver: ResizeObserver | undefined
@@ -2824,12 +2836,18 @@ onMounted(() => {
   }
   root.value!.addEventListener('wheel', onWheel, { passive: false })
   for (const type of clipboardEvents) document.addEventListener(type, onClipboard)
+  // On the window: a pressed element that is drawn again mid-gesture leaves the
+  // document, and its pointer events no longer bubble up to the editor.
+  for (const [type, fn] of pointerListeners) window.addEventListener(type, fn, true)
+  window.addEventListener('touchmove', holdTouch, { passive: false })
 })
 onBeforeUnmount(() => {
   sizeObserver?.disconnect()
   cancelAnimationFrame(tweenFrame)
   for (const type of clipboardEvents) document.removeEventListener(type, onClipboard)
   root.value?.removeEventListener('wheel', onWheel)
+  for (const [type, fn] of pointerListeners) window.removeEventListener(type, fn, true)
+  window.removeEventListener('touchmove', holdTouch)
   stopAnimation()
   endGesture()
 })
@@ -3018,9 +3036,6 @@ defineExpose<FlowEditorExpose>({
     :aria-description="messages.canvas"
     tabindex="0"
     @pointerdown="onPointerDown"
-    @pointermove="onPointerMove"
-    @pointerup="onPointerUp"
-    @pointercancel="onPointerUp"
     @pointerleave="hover = null"
     @dblclick="onDblclick"
     @contextmenu="onContextmenu"

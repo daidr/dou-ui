@@ -2,6 +2,7 @@ import { computed, nextTick, onBeforeUnmount, ref, shallowRef, watch } from 'vue
 import type { ComputedRef, Ref } from 'vue'
 import { announce } from '../../utils/announce'
 import { getScrollParent, isWindow } from '../../utils/scroll'
+import { holdPointer } from '../../utils/pointer'
 
 export type SortableDirection = 'vertical' | 'horizontal' | 'grid'
 
@@ -305,8 +306,11 @@ export function useSortable<T>(options: UseSortableOptions<T>) {
     let started = false
     const timer = press ? setTimeout(() => (ready = true), 250) : undefined
 
+    const hold = holdPointer(event, container.value)
+
     const begin = (e: PointerEvent) => {
       started = true
+      hold.grab()
       active.value = {
         item,
         key: options.key(item),
@@ -339,24 +343,19 @@ export function useSortable<T>(options: UseSortableOptions<T>) {
       e.preventDefault()
       endPointer(false)
     }
-    // Once dragging, a touch must not scroll the page as well.
-    const onTouchMove = (e: TouchEvent) => {
-      if (started) e.preventDefault()
-    }
     const stop = () => {
       clearTimeout(timer)
+      hold.release()
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
       window.removeEventListener('pointercancel', onCancel)
       window.removeEventListener('keydown', onKey, true)
-      window.removeEventListener('touchmove', onTouchMove)
     }
     cleanup = stop
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)
     window.addEventListener('pointercancel', onCancel)
     window.addEventListener('keydown', onKey, true)
-    window.addEventListener('touchmove', onTouchMove, { passive: false })
   }
 
   /* the keyboard */

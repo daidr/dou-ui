@@ -452,6 +452,16 @@
       );
     }
 
+    /* a timed event that runs past midnight: square where it is cut */
+    &.is-from-before {
+      border-start-start-radius: 0;
+      border-start-end-radius: 0;
+    }
+    &.is-runs-on {
+      border-end-start-radius: 0;
+      border-end-end-radius: 0;
+    }
+
     /* a short event puts its time on the same line */
     &.is-short {
       flex-direction: row;

@@ -312,11 +312,22 @@ export function deriveLayout(
     return out
   }
   const scale = to / from
-  const scaled = items.map((item) =>
-    fitItem(
-      { ...item, x: Math.floor(item.x * scale), w: Math.max(1, Math.round(item.w * scale)) },
+  // both edges are scaled, so items side by side stay side by side
+  const edge = (value: number) => Math.round(value * scale)
+  const limit = (value: number | undefined) =>
+    value === undefined ? undefined : Math.max(1, edge(value))
+  const scaled = items.map((item) => {
+    const x = edge(item.x)
+    return fitItem(
+      {
+        ...item,
+        x,
+        w: Math.max(1, edge(item.x + item.w) - x),
+        minW: limit(item.minW),
+        maxW: limit(item.maxW),
+      },
       to,
-    ),
-  )
+    )
+  })
   return normalizeLayout(scaled, options)
 }

@@ -4,6 +4,7 @@ import type { PivotResult } from './engine/compute'
 import type { PivotEngine } from './engine/engine'
 import type { PivotData } from './engine/source'
 import type { PivotAxis } from './core/layout'
+import type { PivotCSVOptions, PivotGrid } from './core/table'
 import type { PivotCollapsed, PivotConfig, PivotField, PivotPath } from './engine/types'
 import type { PivotMessagesOverride } from './locale'
 
@@ -107,4 +108,73 @@ export interface PivotExpose {
   collapseAll: (options?: { axis?: PivotAxis; depth?: number }) => void
   /** Opens or closes a group. */
   toggle: (axis: PivotAxis, path: PivotPath, open?: boolean) => void
+  /**
+   * The table as it shows, headers and all, as cells: each row field in a
+   * column of its own, the numbers as shown (shares, ranks…) with their text.
+   */
+  toGrid: () => PivotGrid
+  /** The table as CSV, the numbers as values a spreadsheet can add up unless `text`. */
+  toCSV: (options?: PivotCSVOptions) => string
+  /**
+   * The table as a workbook for `DouSheet`: numbers with their formats, the
+   * headers merged and frozen, the columns as wide as on screen.
+   */
+  toSheet: (options?: { name?: string }) => PivotSheetWorkbook
+  /** Rows and series for `@dou-ui/chart`, from the groups on show; totals are left out. */
+  toChartRows: (options?: PivotChartRowsOptions) => PivotChartRows
+  /** Copies the selected cells (or, with `all`, the whole table) to the clipboard. */
+  copy: (options?: PivotCopyOptions) => Promise<void>
+  /** Selects every cell, as Ctrl / ⌘ + A does. */
+  selectAll: () => void
+  /** Prints the whole table on A4 pages, the column headers repeated on each. */
+  print: (options?: PivotPrintOptions) => void
+}
+
+export interface PivotCopyOptions {
+  /** The whole table, headers and all, instead of the selected cells. */
+  all?: boolean
+}
+
+export interface PivotPrintOptions {
+  /** A heading above the table; the table's `aria-label` by default. */
+  title?: string
+  /** Landscape when the table is wider than a portrait page, by default. */
+  orientation?: 'portrait' | 'landscape'
+}
+
+export interface PivotChartRowsOptions {
+  /** Only this value (its place in `config.values`); every value on show by default. */
+  valueIndex?: number
+}
+
+/** What a chart needs: `rows` as its `data`, `x` as its `x`, a series per entry of `series`. */
+export interface PivotChartRows {
+  /** The key of each row's group label. */
+  x: 'label'
+  rows: Record<string, string | number | null>[]
+  series: {
+    /** The key of the series' numbers in each row. */
+    key: string
+    /** The column's groups (and the value, when there are several). */
+    name: string
+    valueIndex: number
+    /** Writes a number as the table does, e.g. for the axis's `format`. */
+    format: (n: number) => string
+  }[]
+}
+
+/** A cell as `DouSheet` takes it. */
+export type PivotSheetCell =
+  string | number | null | { value: string | number; format?: string; style?: string }
+
+/** A workbook in the shape `DouSheet`'s `v-model` takes. */
+export interface PivotSheetWorkbook {
+  sheets: {
+    name: string
+    cells: PivotSheetCell[][]
+    merges: string[]
+    freeze: { rows: number; cols: number }
+    colSizes: Record<number, number>
+  }[]
+  styles: Record<string, { bold?: boolean }>
 }

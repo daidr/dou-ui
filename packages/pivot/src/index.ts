@@ -6,7 +6,20 @@ export const DouPivot = withInstall(Pivot)
 export const DouPivotFields = withInstall(PivotFields)
 export default DouPivot
 
-export type { PivotCellEvent, PivotEmits, PivotExpose, PivotFieldsProps, PivotProps } from './types'
+export type {
+  PivotCellEvent,
+  PivotChartRows,
+  PivotChartRowsOptions,
+  PivotCopyOptions,
+  PivotEmits,
+  PivotExpose,
+  PivotFieldsProps,
+  PivotPrintOptions,
+  PivotProps,
+  PivotSheetCell,
+  PivotSheetWorkbook,
+} from './types'
+export type { PivotCSVOptions, PivotGrid, PivotGridCell } from './core/table'
 export type { PivotAxis } from './core/layout'
 export {
   bucketer,

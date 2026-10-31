@@ -140,6 +140,8 @@ export const chipField = defineFormField({
 | `inspector`   | 属性面板里追加的部分：`title` 和 `component`，没有选中节点时参数是 `undefined`                                                                          |
 | `transaction` | 每次修改提交前调用，可以往事务里追加步骤，它们和原来的修改是同一步撤销；撤销和重做不经过这里                                                            |
 | `setup`       | 设计器挂载后调用，返回的函数在卸载时调用                                                                                                                |
+| `marks`       | 节点上的标记：`key`、`label`、`color`，画布上显示为同色的框和名字，结构树里显示为圆点；渲染时读取，里面用到的响应式数据变化时会更新                     |
+| `history`     | 替换内置的撤销记录，返回 `undo`、`redo`、`canUndo`、`canRedo`；只取第一个提供它的扩展，[协同编辑](./collaboration)就是这样只撤销自己的修改              |
 
 扩展里的函数拿到的参数和 `useFormBuilder()` 是同一个对象。扩展带来的字段类型也要交给渲染器，`resolveFormBuilderFields(fields, extensions)` 把两处的字段类型合在一起：
 

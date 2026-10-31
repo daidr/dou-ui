@@ -512,6 +512,15 @@ describe('DouSheet review fixes', () => {
       .findAll('.dou-sheet__cell.is-invalid')
       .map((cell) => cell.find('.dou-sheet__text').text())
     expect(invalid).toEqual(['明天', '取消了'])
+    const marked = wrapper.findAll('.dou-sheet__cell.is-invalid')
+    expect(marked.map((cell) => cell.attributes('title'))).toEqual(['不是日期', '不在选项里'])
+    expect(marked[1]!.findAll('.dou-sheet__sr-only').map((el) => el.text())).toEqual([
+      '取消了',
+      '（不在选项里）',
+    ])
+    // what a type draws is hidden from screen readers; only the label is read
+    const shown = marked[1]!.find('.dou-sheet__content')
+    expect(shown.attributes('aria-hidden')).toBe('true')
     wrapper.unmount()
   })
 

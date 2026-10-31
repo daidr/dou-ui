@@ -1,4 +1,5 @@
 import type { Component } from 'vue'
+import type { SheetMessages } from '../locale'
 import type { SheetInput } from './format'
 import type {
   SheetCell,
@@ -63,10 +64,12 @@ export interface SheetCellType {
    */
   edit?: (value: SheetValue, setup: SheetTypeSetup) => string | undefined
   /**
-   * Whether a value fits the type; a cell holding one that doesn't gets a
-   * small mark in its corner, e.g. text in a date cell. Empty cells always fit.
+   * Whether a value fits the type: `true`, or `false` or a short sentence
+   * saying why not, e.g. text in a date cell. A cell whose value doesn't fit
+   * gets a small mark in its corner; the sentence shows on hover and is read
+   * out. Empty cells always fit.
    */
-  valid?: (value: SheetValue, setup: SheetTypeSetup) => boolean
+  valid?: (value: SheetValue, setup: SheetTypeSetup, messages: SheetMessages) => boolean | string
   /**
    * Drawn in the cell instead of its text; props are `SheetCellRenderProps`.
    * Keep it light: it is drawn for every visible cell of the type. An

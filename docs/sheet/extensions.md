@@ -53,21 +53,21 @@ const extensions = [progress]
 
 单元格的 `type` 写类型的名字，或工作簿 `types` 里的名字（见[单元格类型](./#单元格类型)）。一个类型可以提供下面这些字段，都可以不写：
 
-| 名称     | 说明                                                                                                                                                        | 类型                                       |
-| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
-| `name`   | 类型的名字                                                                                                                                                  | `string`                                   |
-| `parse`  | 把输入的文字读成值，返回 `{ value, format? }`；返回 `undefined` 时按普通单元格读                                                                            | `(text, setup) => SheetInput \| undefined` |
-| `format` | 值显示成的文字；默认按单元格的 `format` 显示。复制成纯文本和读屏软件也用这段文字                                                                            | `(value, setup) => string \| undefined`    |
-| `edit`   | 编辑框打开时的文字，要能被 `parse` 读回同样的值；默认用 `format` 的结果，没有 `format` 时用值本身                                                           | `(value, setup) => string \| undefined`    |
-| `valid`  | 值是否符合这个类型；不符合的单元格右上角有红色小三角。空单元格总是符合                                                                                      | `(value, setup) => boolean`                |
-| `render` | 代替文字画在单元格里的组件。每个看得见的单元格都会画一个，要尽量轻；里面带 `data-sheet-toggle` 的元素被点击时切换值                                         | `Component`                                |
-| `panel`  | 编辑时显示在单元格下方的面板，比如日历；发出 `pick` 事件写入值并结束编辑                                                                                    | `Component`                                |
-| `toggle` | 有它时，空格、`F2`、双击和点 `data-sheet-toggle` 元素会切换值，不打开编辑框。空格切换选区里所有同类单元格：值相同时一起切换，不同时都变成空单元格切换后的值 | `(value, setup) => SheetValue`             |
-| `align`  | 单元格样式没有指定对齐时的对齐方式                                                                                                                          | `'left' \| 'center' \| 'right'`            |
+| 名称     | 说明                                                                                                                                                        | 类型                                            |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `name`   | 类型的名字                                                                                                                                                  | `string`                                        |
+| `parse`  | 把输入的文字读成值，返回 `{ value, format? }`；返回 `undefined` 时按普通单元格读                                                                            | `(text, setup) => SheetInput \| undefined`      |
+| `format` | 值显示成的文字；默认按单元格的 `format` 显示。复制成纯文本和读屏软件也用这段文字                                                                            | `(value, setup) => string \| undefined`         |
+| `edit`   | 编辑框打开时的文字，要能被 `parse` 读回同样的值；默认用 `format` 的结果，没有 `format` 时用值本身                                                           | `(value, setup) => string \| undefined`         |
+| `valid`  | 值是否符合这个类型：返回 `true`，或者返回 `false`、一句原因。不符合的单元格右上角有红色小三角，原因在悬停时显示，读屏也会读出。空单元格总是符合             | `(value, setup, messages) => boolean \| string` |
+| `render` | 代替文字画在单元格里的组件。每个看得见的单元格都会画一个，要尽量轻；里面带 `data-sheet-toggle` 的元素被点击时切换值                                         | `Component`                                     |
+| `panel`  | 编辑时显示在单元格下方的面板，比如日历；发出 `pick` 事件写入值并结束编辑                                                                                    | `Component`                                     |
+| `toggle` | 有它时，空格、`F2`、双击和点 `data-sheet-toggle` 元素会切换值，不打开编辑框。空格切换选区里所有同类单元格：值相同时一起切换，不同时都变成空单元格切换后的值 | `(value, setup) => SheetValue`                  |
+| `align`  | 单元格样式没有指定对齐时的对齐方式                                                                                                                          | `'left' \| 'center' \| 'right'`                 |
 
 `setup` 是这个单元格的类型设置：工作簿 `types` 里对应的那一项，例如 `{ type: 'select', options: [...] }`；直接写类型名时是 `{ type: 'progress' }`。
 
-`parse` 返回 `undefined` 时，文字按普通单元格读：数字、日期、`TRUE` 之类照常识别，其余原样存成文字。所以 `format`、`render` 要能处理不是这个类型的值，例如进度单元格里输入了文字，就只显示文字，`valid` 再把它标出来。
+`parse` 返回 `undefined` 时，文字按普通单元格读：数字、日期、`TRUE` 之类照常识别，其余原样存成文字。所以 `format`、`render` 要能处理不是这个类型的值，例如进度单元格里输入了文字，就只显示文字，`valid` 再把它标出来。`valid` 的第三个参数是当前语言的文案，内置类型用它给出“不是日期”“不在选项里”这样的原因；只返回 `false` 时显示通用的“不符合单元格类型”。
 
 `render` 组件收到 `value`、`text`（`format` 之后的文字）、`setup` 和 `readonly`。读屏软件读的是 `text`，有 `toggle` 的类型读“已勾选”或“未勾选”，`render` 里的内容不会被读出，可以加 `aria-hidden`。
 

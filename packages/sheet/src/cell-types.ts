@@ -25,7 +25,7 @@ const date = defineSheetCellType({
     const day = shortDay(text)
     return day ? { value: day } : undefined
   },
-  valid: (value) => typeof value === 'string' && DAY.test(value),
+  valid: (value, _, m) => (typeof value === 'string' && DAY.test(value)) || m.notDate,
   panel: DatePanel,
 })
 
@@ -42,7 +42,8 @@ const select = defineSheetCellType({
     }
     return undefined
   },
-  valid: (value, setup) => (setup.options ?? []).some((option) => optionOf(option).value === value),
+  valid: (value, setup, m) =>
+    (setup.options ?? []).some((option) => optionOf(option).value === value) || m.notOption,
   render: CellOption,
   panel: OptionPanel,
 })
@@ -55,7 +56,7 @@ const checkbox = defineSheetCellType({
     if (value === 1 || value === 0) return { value: value === 1 }
     return typeof value === 'boolean' || value === null ? { value } : undefined
   },
-  valid: (value) => typeof value === 'boolean',
+  valid: (value, _, m) => typeof value === 'boolean' || m.notChecked,
   render: CellCheck,
   toggle: (value) => value !== true,
   align: 'center',

@@ -423,6 +423,11 @@
     }
   }
 
+  /* a cell type's own content, laid out as if the cell held it directly */
+  .dou-sheet__content {
+    display: contents;
+  }
+
   /* a value that doesn't fit its cell's type: a small mark in the corner */
   .dou-sheet__cell.is-invalid::after {
     position: absolute;

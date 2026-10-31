@@ -415,6 +415,8 @@ interface CellView {
   props?: Record<string, unknown>
   /** What screen readers read for a cell type's own content. */
   label?: string
+  /** Why the value doesn't fit the cell's type; shown on hover and read out. */
+  problem?: string
   /** Left out for screen readers: a cell under a merge, or a merge's piece in another pane. */
   hidden?: boolean
   rowspan?: number
@@ -474,6 +476,7 @@ function cellView(
   let render: CellView['render']
   let renderProps: CellView['props']
   let label: string | undefined
+  let problem: string | undefined
   if (input != null && input !== '') {
     const cell = typeof input === 'object' ? input : null
     const value = cell ? (cell.value ?? null) : (input as SheetValue)
@@ -493,8 +496,14 @@ function cellView(
     if (typed) {
       const { definition, setup } = typed
       cls += ` is-type-${definition.name}`
-      if (definition.valid && value != null && value !== '' && !definition.valid(value, setup))
+      const fits =
+        !definition.valid || value == null || value === ''
+          ? true
+          : definition.valid(value, setup, messages.value)
+      if (fits !== true) {
         cls += ' is-invalid'
+        problem = typeof fits === 'string' && fits ? fits : messages.value.invalid
+      }
       if (definition.render) {
         render = definition.render
         renderProps = { value, text, setup, readonly: props.readonly }
@@ -513,9 +522,14 @@ function cellView(
     if (right === b.right) cls += ' is-edge-right'
   }
   if (row === active.value.row && col === active.value.col) cls += ' is-active'
-  return render
-    ? { col, text, cls, css, render, props: renderProps, label }
-    : { col, text, cls, css }
+  const view: CellView = { col, text, cls, css }
+  if (render) {
+    view.render = render
+    view.props = renderProps
+    view.label = label
+  }
+  if (problem) view.problem = problem
+  return view
 }
 
 function rowCells(row: number, list: number[]): CellView[] {
@@ -3046,13 +3060,17 @@ defineExpose<SheetExpose>({
             :aria-hidden="cell.hidden || undefined"
             :aria-rowspan="cell.rowspan"
             :aria-colspan="cell.colspan"
+            :title="cell.problem"
             :style="cell.css"
           >
             <template v-if="cell.render">
-              <component :is="cell.render" v-bind="cell.props" />
+              <span class="dou-sheet__content" aria-hidden="true">
+                <component :is="cell.render" v-bind="cell.props" />
+              </span>
               <span class="dou-sheet__sr-only">{{ cell.label }}</span>
             </template>
             <span v-else class="dou-sheet__text">{{ cell.text }}</span>
+            <span v-if="cell.problem" class="dou-sheet__sr-only">（{{ cell.problem }}）</span>
           </div>
           <div
             v-for="cell in rowCells(row, bodyCols)"
@@ -3065,13 +3083,17 @@ defineExpose<SheetExpose>({
             :aria-hidden="cell.hidden || undefined"
             :aria-rowspan="cell.rowspan"
             :aria-colspan="cell.colspan"
+            :title="cell.problem"
             :style="cell.css"
           >
             <template v-if="cell.render">
-              <component :is="cell.render" v-bind="cell.props" />
+              <span class="dou-sheet__content" aria-hidden="true">
+                <component :is="cell.render" v-bind="cell.props" />
+              </span>
               <span class="dou-sheet__sr-only">{{ cell.label }}</span>
             </template>
             <span v-else class="dou-sheet__text">{{ cell.text }}</span>
+            <span v-if="cell.problem" class="dou-sheet__sr-only">（{{ cell.problem }}）</span>
           </div>
         </div>
       </div>
@@ -3113,13 +3135,17 @@ defineExpose<SheetExpose>({
             :aria-hidden="cell.hidden || undefined"
             :aria-rowspan="cell.rowspan"
             :aria-colspan="cell.colspan"
+            :title="cell.problem"
             :style="cell.css"
           >
             <template v-if="cell.render">
-              <component :is="cell.render" v-bind="cell.props" />
+              <span class="dou-sheet__content" aria-hidden="true">
+                <component :is="cell.render" v-bind="cell.props" />
+              </span>
               <span class="dou-sheet__sr-only">{{ cell.label }}</span>
             </template>
             <span v-else class="dou-sheet__text">{{ cell.text }}</span>
+            <span v-if="cell.problem" class="dou-sheet__sr-only">（{{ cell.problem }}）</span>
           </div>
           <div
             v-for="cell in rowCells(row, bodyCols)"
@@ -3132,13 +3158,17 @@ defineExpose<SheetExpose>({
             :aria-hidden="cell.hidden || undefined"
             :aria-rowspan="cell.rowspan"
             :aria-colspan="cell.colspan"
+            :title="cell.problem"
             :style="cell.css"
           >
             <template v-if="cell.render">
-              <component :is="cell.render" v-bind="cell.props" />
+              <span class="dou-sheet__content" aria-hidden="true">
+                <component :is="cell.render" v-bind="cell.props" />
+              </span>
               <span class="dou-sheet__sr-only">{{ cell.label }}</span>
             </template>
             <span v-else class="dou-sheet__text">{{ cell.text }}</span>
+            <span v-if="cell.problem" class="dou-sheet__sr-only">（{{ cell.problem }}）</span>
           </div>
         </div>
       </div>

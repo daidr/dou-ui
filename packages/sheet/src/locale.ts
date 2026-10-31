@@ -74,6 +74,11 @@ export interface SheetMessages {
   /** The list of a `select` cell, and what it shows when nothing matches. */
   options: string
   noOptions: string
+  /** Why a value doesn't fit its cell's type, shown on hover and read out. */
+  invalid: string
+  notDate: string
+  notOption: string
+  notChecked: string
 }
 
 const zhCN: SheetMessages = {
@@ -128,6 +133,10 @@ const zhCN: SheetMessages = {
   openPanel: '展开选项',
   options: '选项',
   noOptions: '没有匹配的选项',
+  invalid: '不符合单元格类型',
+  notDate: '不是日期',
+  notOption: '不在选项里',
+  notChecked: '不是勾选值',
 }
 
 const zhTW: SheetMessages = {
@@ -182,6 +191,10 @@ const zhTW: SheetMessages = {
   openPanel: '展開選項',
   options: '選項',
   noOptions: '沒有符合的選項',
+  invalid: '不符合儲存格類型',
+  notDate: '不是日期',
+  notOption: '不在選項裡',
+  notChecked: '不是勾選值',
 }
 
 const en: SheetMessages = {
@@ -237,6 +250,10 @@ const en: SheetMessages = {
   openPanel: 'Show options',
   options: 'Options',
   noOptions: 'No matching options',
+  invalid: "Doesn't fit the cell type",
+  notDate: 'Not a date',
+  notOption: 'Not one of the options',
+  notChecked: 'Not checked or unchecked',
 }
 
 export const sheetLocales: Record<string, SheetMessages> = {

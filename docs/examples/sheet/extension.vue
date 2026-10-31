@@ -37,7 +37,7 @@ const progress = defineSheetExtension({
       },
       // 文字不是进度，照常显示
       format: (value) => (typeof value === 'number' ? `${Math.round(value * 100)}%` : undefined),
-      valid: (value) => typeof value === 'number',
+      valid: (value) => typeof value === 'number' || '进度要填 0 到 1 之间的数字',
       render: ProgressBar,
     }),
   ],

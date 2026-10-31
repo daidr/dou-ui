@@ -131,11 +131,16 @@ const WORKER_FROM = 100_000
 /** How long a worker may take before the table says it is busy, in ms. */
 const BUSY_AFTER = 120
 
+/** Set when the table's own worker cannot start (under a strict CSP, say); it then sums up here. */
+const ownFailed = ref(false)
 const away = computed(
   () =>
     !!props.engine ||
-    props.worker === true ||
-    (props.worker === 'auto' && source.value.length > WORKER_FROM && typeof Worker !== 'undefined'),
+    (!ownFailed.value &&
+      (props.worker === true ||
+        (props.worker === 'auto' &&
+          source.value.length > WORKER_FROM &&
+          typeof Worker !== 'undefined'))),
 )
 
 /** The last result summed up here, shown while a worker sums up the first time. */
@@ -196,7 +201,16 @@ watch(
       if (id !== job) return
       fromAway.value = markRaw(next)
     } catch (error) {
-      if (id === job && (error as Error).name !== 'AbortError') console.error(error)
+      if (id !== job || (error as Error).name === 'AbortError') return
+      if (props.engine) console.error(error)
+      else {
+        // the own worker failed: sum up on the page from now on
+        console.warn('[DouPivot] worker 不可用，改为在页面中汇总', error)
+        ownEngine?.dispose?.()
+        ownEngine = null
+        ownEngineReady = null
+        ownFailed.value = true
+      }
     } finally {
       clearTimeout(slow)
       if (id === job) busy.value = false

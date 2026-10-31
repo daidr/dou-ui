@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import {
   computePivot,
@@ -41,7 +41,9 @@ function fakeWorker(options?: Parameters<typeof servePivot>[0]) {
       const data = structuredClone(message, { transfer })
       setTimeout(() => deliver?.({ data } as MessageEvent))
     },
-    addEventListener: (_type, listener) => listeners.push(listener),
+    addEventListener: (type: string, listener: (event: never) => void) => {
+      if (type === 'message') listeners.push(listener as (event: MessageEvent) => void)
+    },
   }
   return { worker, sent }
 }
@@ -187,6 +189,43 @@ describe('DouPivotFields with columns', () => {
     const names = wrapper.findAll('.dou-pivot-fields__field').map((e) => e.text())
     expect(names.some((n) => n.includes('region'))).toBe(true)
     expect(names.some((n) => n.includes('amount'))).toBe(true)
+    wrapper.unmount()
+  })
+})
+
+describe('when the worker cannot start', () => {
+  it('rejects pending and later computes', async () => {
+    let fail: ((event: Event) => void) | null = null
+    const worker: PivotWorkerLike = {
+      postMessage() {},
+      addEventListener: (type: string, listener: (event: never) => void) => {
+        if (type === 'error') fail = listener as (event: Event) => void
+      },
+    }
+    const engine = createPivotWorker(worker)
+    const source = new PivotSource(rows)
+    const pending = engine.compute(source, { rows: ['region'] })
+    const caught = pending.catch((e: Error) => e)
+    await new Promise((r) => setTimeout(r, 20))
+    fail!(new Event('error'))
+    expect(await caught).toBeInstanceOf(Error)
+    await expect(engine.compute(source, { rows: ['city'] })).rejects.toThrow(
+      '[DouPivot] worker 无法启动',
+    )
+  })
+
+  it('sums up on the page instead', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const wrapper = mount(DouPivot, {
+      props: { data: rows, worker: true, config: { rows: ['region'], values: ['amount'] } },
+      attachTo: document.body,
+    })
+    const heads = () =>
+      wrapper.findAll('.dou-pivot__body .dou-pivot__row-head').map((e) => e.text())
+    await until(() => heads().length > 0)
+    expect(new Set(heads())).toEqual(new Set(['华东', '华南', '华北']))
+    expect(warn).toHaveBeenCalled()
+    warn.mockRestore()
     wrapper.unmount()
   })
 })

@@ -8,6 +8,8 @@ import type { PivotFromWorker, PivotToWorker, PivotWorkerField } from './protoco
 export interface PivotWorkerLike {
   postMessage(message: unknown, transfer?: Transferable[]): void
   addEventListener(type: 'message', listener: (event: MessageEvent) => void): void
+  /** When the worker fails to start or throws: pending and later computes reject. */
+  addEventListener(type: 'error', listener: (event: Event) => void): void
   terminate?(): void
 }
 
@@ -65,6 +67,8 @@ export function createPivotWorker(worker: PivotWorkerLike | (() => PivotWorkerLi
   let current: object | null = null
   let sourceId = 0
   let nextId = 0
+  /** Why the worker stopped working, once it has. */
+  let broken: string | null = null
   const known = new Set<string>()
   const sent = { dimensions: new Set<string>(), measures: new Set<string>() }
   const waiting = new Map<
@@ -89,6 +93,11 @@ export function createPivotWorker(worker: PivotWorkerLike | (() => PivotWorkerLi
       if (!job) return
       waiting.delete(m.id)
       job.resolve(m)
+    })
+    w.addEventListener('error', (event) => {
+      broken = (event as ErrorEvent).message || '[DouPivot] worker 无法启动'
+      for (const job of waiting.values()) job.resolve({ type: 'error', id: -1, message: broken })
+      waiting.clear()
     })
     return w
   }
@@ -125,7 +134,12 @@ export function createPivotWorker(worker: PivotWorkerLike | (() => PivotWorkerLi
   return {
     async compute(source, config: PivotConfig, request: PivotComputeRequest = {}) {
       const { signal } = request
-      connect()
+      try {
+        connect()
+      } catch (error) {
+        broken = (error as Error).message || '[DouPivot] worker 无法启动'
+      }
+      if (broken) throw new Error(broken)
       if (source !== current) {
         current = source
         sourceId++
@@ -152,6 +166,7 @@ export function createPivotWorker(worker: PivotWorkerLike | (() => PivotWorkerLi
         if (signal?.aborted) throw abortError()
         const id = nextId++
         const answer = await new Promise<PivotFromWorker>((resolve) => {
+          if (broken) return resolve({ type: 'error', id, message: broken })
           waiting.set(id, { resolve })
           post({ type: 'compute', source: sourceId, id, config })
         })

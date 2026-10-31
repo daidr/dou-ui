@@ -80,6 +80,8 @@ export interface PivotCellEvent<Row = Record<string, unknown>> {
   row: PivotPath
   /** The column group's labels, `[]` for the grand total. */
   column: PivotPath
+  /** The same groups as the table writes them (`2026年1月` for the group `'2026-01'`). */
+  labels: { row: string[]; column: string[] }
   /** The value's place in `config.values`. */
   valueIndex: number
   /** The number in the cell, as shown (a share, when the value has `show`); `NaN` when it is empty. */

@@ -612,6 +612,15 @@
     }
   }
 
+  .dou-pivot__live {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
   .dou-pivot__measure {
     position: absolute;
     top: 0;

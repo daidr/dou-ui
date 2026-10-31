@@ -736,6 +736,8 @@ function toggleNode(axis: PivotAxis, node: number, all = false) {
   const tree = axis === 'rows' ? result.value.rows : result.value.columns
   const nodes = axis === 'rows' ? rowCollapsed.value : columnCollapsed.value
   const open = nodes.has(node)
+  const label = nodeText(tree, axis === 'rows' ? rowWriters.value : colWriters.value, node)
+  announce(format(open ? messages.value.expanded : messages.value.collapsed, { label }))
   if (!all) return toggle(axis, tree.path(node), open)
   // Alt: every group at the same depth goes the same way
   const depth = tree.depth[node]!
@@ -905,6 +907,28 @@ const selection = computed(() => {
     right: Math.max(a.col, b.col),
   }
 })
+/** What a screen reader reads out: a range picked, cells copied, a group opened. */
+const announcement = ref('')
+let announceTimer: ReturnType<typeof setTimeout> | undefined
+function announce(text: string, delay = 0) {
+  clearTimeout(announceTimer)
+  // cleared first, so the same words twice are read twice
+  announcement.value = ''
+  announceTimer = setTimeout(() => (announcement.value = text), delay || 50)
+}
+// read out once the range stops growing, not on every step
+watch(selection, (sel) => {
+  if (!sel) return
+  announce(
+    format(messages.value.selected, {
+      rows: sel.bottom - sel.top + 1,
+      columns: sel.right - sel.left + 1,
+    }),
+    400,
+  )
+})
+onBeforeUnmount(() => clearTimeout(announceTimer))
+
 /** The selected columns of a row, as `left:right`; empty when the row is not in the range. */
 const selectedIn = (row: number) => {
   const sel = selection.value
@@ -927,6 +951,10 @@ function cellEvent(row: PivotLine, col: PivotLine): PivotCellEvent<Row> {
   return {
     row: row.kind === 'total' ? [] : res.rows.path(row.node),
     column: col.kind === 'total' ? [] : res.columns.path(col.node),
+    labels: {
+      row: row.kind === 'total' ? [] : pathTexts(res.rows, rowWriters.value, row.node),
+      column: col.kind === 'total' ? [] : pathTexts(res.columns, colWriters.value, col.node),
+    },
     valueIndex,
     value: rowBlank(row)
       ? Number.NaN
@@ -1336,6 +1364,13 @@ function onCopy(event: ClipboardEvent) {
   event.preventDefault()
   event.clipboardData.setData('text/plain', gridToTSV(grid))
   event.clipboardData.setData('text/html', gridToHTML(grid, { sheet: true }))
+  announceCopied(grid)
+}
+
+function announceCopied(grid: PivotGrid) {
+  let cells = 0
+  for (const row of grid.cells) for (const cell of row) if (cell) cells++
+  announce(format(messages.value.copied, { cells }))
 }
 
 async function copy(options: PivotCopyOptions = {}) {
@@ -1352,6 +1387,7 @@ async function copy(options: PivotCopyOptions = {}) {
       }),
     ])
   } else await clipboard.writeText(text)
+  announceCopied(grid)
 }
 
 const toCSV = (options?: PivotCSVOptions) => gridToCSV(toGrid(), options)
@@ -1430,11 +1466,13 @@ function toChartRows(options: PivotChartRowsOptions = {}): PivotChartRows {
 
 const join = (texts: string[]) => texts.join(' · ')
 /** A group's labels from the outermost in, as one text. */
-function pathText(tree: PivotTree, writers: ((v: unknown) => string)[], node: number) {
+function pathTexts(tree: PivotTree, writers: ((v: unknown) => string)[], node: number) {
   const texts: string[] = []
   for (let at = node; at > 0; at = tree.parent[at]!) texts.unshift(nodeText(tree, writers, at))
-  return join(texts)
+  return texts
 }
+const pathText = (tree: PivotTree, writers: ((v: unknown) => string)[], node: number) =>
+  join(pathTexts(tree, writers, node))
 const escape = (text: string) =>
   text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
@@ -1847,6 +1885,7 @@ defineExpose<PivotExpose>({
         {{ messages.noData }}
       </div>
     </div>
+    <span class="dou-pivot__live" role="status" aria-live="polite">{{ announcement }}</span>
     <!-- the last result stays under a veil while the next one is summed up -->
     <div v-if="busy" class="dou-pivot__veil" role="status">
       <span class="dou-pivot__busy">{{ messages.busy }}</span>

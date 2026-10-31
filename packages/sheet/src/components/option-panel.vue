@@ -87,12 +87,10 @@ defineExpose({
       @click="emit('pick', option.value)"
     >
       <span
-        v-if="option.tone"
         class="dou-tag dou-tag--soft dou-sheet__tag"
-        :class="option.tone !== 'neutral' && `dou-tag--${option.tone}`"
+        :class="option.tone && option.tone !== 'neutral' && `dou-tag--${option.tone}`"
         >{{ option.label }}</span
       >
-      <span v-else class="dou-sheet__option-label">{{ option.label }}</span>
       <CheckIcon v-if="option.value === value" class="dou-sheet__option-check" />
     </div>
     <div v-if="!options.length" class="dou-sheet__options-empty">{{ messages.noOptions }}</div>

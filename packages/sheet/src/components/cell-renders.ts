@@ -22,18 +22,27 @@ export const CellCheck: FunctionalComponent<SheetCellRenderProps> = (props) =>
   )
 CellCheck.props = PROPS as unknown as string[]
 
-/** A select cell: its value, as a soft tag when its option has a tone. */
+/**
+ * A select cell: its value as a soft tag, in its option's tone or neutral.
+ * A value that isn't one of the options shows as plain text.
+ */
 export const CellOption: FunctionalComponent<SheetCellRenderProps> = (props) => {
+  let found = false
   let tone
   for (const option of props.setup.options ?? []) {
     const picked = optionOf(option)
     if (picked.value === props.value) {
+      found = true
       tone = picked.tone
       break
     }
   }
-  if (!tone || !props.text) return h('span', { class: 'dou-sheet__text' }, props.text)
+  if (!found || !props.text) return h('span', { class: 'dou-sheet__text' }, props.text)
   const cls = 'dou-tag dou-tag--soft dou-sheet__tag'
-  return h('span', { class: tone === 'neutral' ? cls : `${cls} dou-tag--${tone}` }, props.text)
+  return h(
+    'span',
+    { class: tone && tone !== 'neutral' ? `${cls} dou-tag--${tone}` : cls },
+    props.text,
+  )
 }
 CellOption.props = PROPS as unknown as string[]

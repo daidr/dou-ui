@@ -27,6 +27,11 @@ export interface SheetContext {
   active: ComputedRef<SheetPoint>
   readonly: ComputedRef<boolean>
   messages: ComputedRef<SheetMessages>
+  /**
+   * Calls `callback` for each selected cell of the sheet shown, once each,
+   * row by row; a merged cell counts once, at its top left cell.
+   */
+  forEachSelected: (callback: (point: SheetPoint) => void) => void
   /** The value in a cell of the sheet shown. */
   value: (point: SheetPoint) => SheetValue
   /** A cell's type and its settings, or `undefined` for a plain cell. */

@@ -506,18 +506,20 @@ export class SheetTransaction {
 
   /**
    * Merges a range into one cell. Merges it touches are taken into it. The
-   * top left cell keeps its content; as in other spreadsheet programs, the
-   * values of the other cells are cleared, keeping their styles.
+   * top left cell keeps its content; the values of the other cells are
+   * cleared, keeping their styles, unless `keep` leaves them hidden under the
+   * merge, to show again when it is split.
    */
-  mergeCells(at: SheetRangeAt) {
+  mergeCells(at: SheetRangeAt, options: { keep?: boolean } = {}) {
     const { index, bounds } = this.rangeAt(at)
     const sheet = this.book.sheets[index]!
     const b = mergesOf(sheet).expand(bounds)
     if (b.top === b.bottom && b.left === b.right) return this
-    for (let row = b.top; row <= b.bottom; row++)
-      for (let col = b.left; col <= b.right; col++)
-        if ((row !== b.top || col !== b.left) && valueOf(sheet.cells[row]?.[col]) != null)
-          this.setValue({ sheet: index, row, col }, undefined)
+    if (!options.keep)
+      for (let row = b.top; row <= b.bottom; row++)
+        for (let col = b.left; col <= b.right; col++)
+          if ((row !== b.top || col !== b.left) && valueOf(sheet.cells[row]?.[col]) != null)
+            this.setValue({ sheet: index, row, col }, undefined)
     const kept = (sheet.merges ?? []).filter((text) => {
       const range = parseRange(text)
       return !range || !overlaps(boundsOf(range), b)

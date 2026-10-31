@@ -52,7 +52,7 @@ defineExpose({
       @mousedown.prevent
     >
       <component
-        :is="resolved.type.panel"
+        :is="resolved.definition.panel"
         :ref="(el: unknown) => (inner = el as typeof inner)"
         :value="value"
         :text="text"

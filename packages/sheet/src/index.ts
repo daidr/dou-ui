@@ -43,7 +43,7 @@ export {
   splitSheet,
 } from './core/address'
 export { formatClip, parseClip, parseTSV } from './core/clipboard'
-export type { SheetClip } from './core/clipboard'
+export type { SheetClip, SheetClipFormat } from './core/clipboard'
 export { continueValues, fillContinues } from './core/fill'
 export type { SheetFillMode, SheetFillOptions } from './core/fill'
 export type {

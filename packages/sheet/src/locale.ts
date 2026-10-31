@@ -44,6 +44,8 @@ export interface SheetMessages {
   mergeCells: string
   unmergeCells: string
   merged: string
+  /** Shown after merging cells that had values: `{range}`, `{count}` values cleared. */
+  mergedCleared: string
   unmerged: string
   /** Read out after copying or cutting: `{range}`. */
   copied: string
@@ -106,6 +108,7 @@ const zhCN: SheetMessages = {
   mergeCells: '合并单元格',
   unmergeCells: '取消合并',
   merged: '已合并 {range}',
+  mergedCleared: '已合并 {range}，只保留左上角的内容，清空了 {count} 个单元格，可以撤销',
   unmerged: '已取消合并 {range}',
   copied: '已复制 {range}',
   cutDone: '已剪切 {range}',
@@ -159,6 +162,7 @@ const zhTW: SheetMessages = {
   mergeCells: '合併儲存格',
   unmergeCells: '取消合併',
   merged: '已合併 {range}',
+  mergedCleared: '已合併 {range}，只保留左上角的內容，清除了 {count} 個儲存格，可以復原',
   unmerged: '已取消合併 {range}',
   copied: '已複製 {range}',
   cutDone: '已剪下 {range}',
@@ -212,6 +216,8 @@ const en: SheetMessages = {
   mergeCells: 'Merge cells',
   unmergeCells: 'Unmerge',
   merged: '{range} merged',
+  mergedCleared:
+    'Merged {range}. Only the top left value is kept; {count} cleared. Undo to restore them.',
   unmerged: '{range} unmerged',
   copied: '{range} copied',
   cutDone: '{range} cut',

@@ -52,8 +52,21 @@ export interface SheetCellType {
    * does (numbers, dates, `TRUE`…).
    */
   parse?: (text: string, setup: SheetTypeSetup) => SheetInput | undefined
-  /** The text shown for a value; by default the value with the cell's `format`. */
+  /**
+   * The text shown for a value; by default the value with the cell's
+   * `format`. Copying and screen readers use it too.
+   */
   format?: (value: SheetValue, setup: SheetTypeSetup) => string | undefined
+  /**
+   * The text the editor starts with, which `parse` reads back. By default
+   * the text `format` gives, or the value as typed when there is no `format`.
+   */
+  edit?: (value: SheetValue, setup: SheetTypeSetup) => string | undefined
+  /**
+   * Whether a value fits the type; a cell holding one that doesn't gets a
+   * small mark in its corner, e.g. text in a date cell. Empty cells always fit.
+   */
+  valid?: (value: SheetValue, setup: SheetTypeSetup) => boolean
   /**
    * Drawn in the cell instead of its text; props are `SheetCellRenderProps`.
    * Keep it light: it is drawn for every visible cell of the type. An
@@ -66,9 +79,10 @@ export interface SheetCellType {
    */
   panel?: Component
   /**
-   * Switches the value instead of opening the editor: on `Space` (for every
-   * selected cell of the type), `Enter`, a double click or a click on a
-   * `data-sheet-toggle` element.
+   * Switches the value instead of opening the editor: on `Space`, `F2`, a
+   * double click or a click on a `data-sheet-toggle` element. `Space`
+   * switches every selected cell of the type: all to the same value when
+   * they hold the same, otherwise all to what an empty cell switches to.
    */
   toggle?: (value: SheetValue, setup: SheetTypeSetup) => SheetValue
   /** Where the content sits when the cell's style doesn't say. */
@@ -80,9 +94,11 @@ export function defineSheetCellType(type: SheetCellType): SheetCellType {
   return type
 }
 
-/** A cell's type, resolved: what it is and its settings. */
+/** A cell's type, resolved: its name, what defines it and its settings. */
 export interface SheetResolvedType {
-  type: SheetCellType
+  /** The cell type's name, e.g. `select` for a cell whose `type` is a setup of a list. */
+  name: string
+  definition: SheetCellType
   setup: SheetTypeSetup
 }
 
@@ -102,8 +118,8 @@ export function resolveCellType(
   const name = cell?.type
   if (!name) return undefined
   const setup = book.types?.[name] ?? setupOf(name)
-  const type = types.get(setup.type)
-  return type ? { type, setup } : undefined
+  const definition = types.get(setup.type)
+  return definition ? { name: definition.name, definition, setup } : undefined
 }
 
 /** A `select` option as a value with an optional tone. */

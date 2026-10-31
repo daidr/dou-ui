@@ -48,11 +48,17 @@ function cssOf(style: SheetStyle | undefined, align: string | undefined) {
   return css
 }
 
-/**
- * The clipboard's text and HTML for a block of cells. `locale` names the
- * language dates are shown in.
- */
-export function formatClip(clip: SheetClip, locale?: string) {
+/** How `formatClip` writes cells as text. */
+export interface SheetClipFormat {
+  /** The language dates are shown in. */
+  locale?: string
+  /** A cell's text, e.g. as its cell type shows it; `undefined` uses its format. */
+  text?: (input: SheetCellInput) => string | undefined
+}
+
+/** The clipboard's text and HTML for a block of cells, with the text as the cells show it. */
+export function formatClip(clip: SheetClip, options: SheetClipFormat = {}) {
+  const { locale, text: textOf } = options
   const styles = clip.styles ?? {}
   const text: string[] = []
   let rows = ''
@@ -62,7 +68,7 @@ export function formatClip(clip: SheetClip, locale?: string) {
     for (const input of line) {
       const cell = cellOf(input)
       const value = valueOf(input)
-      const shown = formatValue(value, cell?.format, locale)
+      const shown = textOf?.(input) ?? formatValue(value, cell?.format, locale)
       fields.push(tsvField(shown))
       const style = cell?.style ? styles[cell.style] : undefined
       const css = cssOf(style, typeof value === 'number' ? 'right' : undefined)

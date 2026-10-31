@@ -423,6 +423,18 @@
     }
   }
 
+  /* a value that doesn't fit its cell's type: a small mark in the corner */
+  .dou-sheet__cell.is-invalid::after {
+    position: absolute;
+    top: 0;
+    right: 0;
+    border: 4px solid transparent;
+    border-top-color: var(--dou-color-danger);
+    border-right-color: var(--dou-color-danger);
+    content: '';
+    pointer-events: none;
+  }
+
   /* a select cell's value in its option's tone, as a quiet tag */
   .dou-sheet__tag {
     --dou-tag-height: 20px;
@@ -475,10 +487,17 @@
       height: 14px;
     }
 
+    /* a finger gets 40px around the 24px button */
     @media (pointer: coarse) {
       width: 24px;
       height: 24px;
       margin: -12px 0 0 -26px;
+
+      &::before {
+        position: absolute;
+        inset: -8px;
+        content: '';
+      }
     }
   }
 
@@ -496,13 +515,6 @@
     &.is-active {
       background-color: var(--dou-dropdown-item-active-bg);
     }
-  }
-
-  .dou-sheet__option-label {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 
   .dou-sheet__option-check {

@@ -6,13 +6,15 @@ import {
   type SheetCellRenderProps,
   type SheetWorkbook,
 } from '@dou-ui/sheet'
-import { CheckIcon } from '@dou-ui/icons'
+import { CalendarIcon, CheckIcon } from '@dou-ui/icons'
 import { defineComponent, h, ref } from 'vue'
 
-/** 进度：0 到 1 的数字，画成一条细进度条，输入 60 或 60% 都记为 0.6。 */
+/** 进度：0 到 1 的数字，画成一条细进度条，输入 60 或 60% 都记为 0.6；编辑时显示 60%。 */
 const ProgressBar = defineComponent<SheetCellRenderProps>(
   (props) => () => {
-    const ratio = Math.min(1, Math.max(0, Number(props.value) || 0))
+    // 不是数字（比如输入了文字）时只显示文字
+    if (typeof props.value !== 'number') return h('span', { class: 'dou-sheet__text' }, props.text)
+    const ratio = Math.min(1, Math.max(0, props.value))
     return h('span', { class: 'progress-cell' }, [
       h('span', { class: 'progress-cell__track' }, [
         h('span', { class: 'progress-cell__bar', style: { width: `${ratio * 100}%` } }),
@@ -30,21 +32,29 @@ const progress = defineSheetExtension({
       name: 'progress',
       parse: (text) => {
         const n = Number.parseFloat(text)
+        // 不是数字时返回 undefined，按普通单元格读，原样存成文字
         return Number.isNaN(n) ? undefined : { value: Math.min(1, Math.max(0, n / 100)) }
       },
-      format: (value) => `${Math.round((Number(value) || 0) * 100)}%`,
+      // 文字不是进度，照常显示
+      format: (value) => (typeof value === 'number' ? `${Math.round(value * 100)}%` : undefined),
+      valid: (value) => typeof value === 'number',
       render: ProgressBar,
     }),
   ],
-  // 进度单元格的右键菜单里加一项“完成”
-  contextMenu: ({ active, cellType, transact }) =>
-    cellType(active.value)?.type.name === 'progress'
+  // 进度单元格的右键菜单里加一项“标为完成”，作用于选中的所有进度单元格
+  contextMenu: ({ active, cellType, forEachSelected, transact }) =>
+    cellType(active.value)?.name === 'progress'
       ? [
           {
             key: 'done',
             label: '标为完成',
             icon: CheckIcon,
-            run: () => transact((tr) => tr.updateCell(active.value, { value: 1 })),
+            run: () =>
+              transact((tr) =>
+                forEachSelected((point) => {
+                  if (cellType(point)?.name === 'progress') tr.updateCell(point, { value: 1 })
+                }),
+              ),
           },
         ]
       : [],
@@ -52,19 +62,32 @@ const progress = defineSheetExtension({
 
 const pad = (n: number) => String(n).padStart(2, '0')
 
-/** Ctrl / ⌘ + ; 填入今天的日期。 */
-const today = defineSheetExtension({
+/** Ctrl / ⌘ + ; 或右键菜单（手机上长按）在当前单元格填入今天的日期。 */
+function today() {
+  const now = new Date()
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+}
+
+const todayExtension = defineSheetExtension({
   name: 'today',
   keymap: ({ active, transact }) => ({
-    'mod+;': () => {
-      const now = new Date()
-      const value = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
-      transact((tr) => tr.updateCell(active.value, { value }))
-    },
+    'mod+;': () => void transact((tr) => tr.updateCell(active.value, { value: today() })),
   }),
+  contextMenu: ({ active, transact, readonly }) =>
+    readonly.value
+      ? []
+      : [
+          {
+            key: 'today',
+            label: '填入今天',
+            icon: CalendarIcon,
+            shortcut: 'mod+;',
+            run: () => transact((tr) => tr.updateCell(active.value, { value: today() })),
+          },
+        ],
 })
 
-const extensions = [progress, today]
+const extensions = [progress, todayExtension]
 
 const head = (value: string) => ({ value, style: 'head' })
 const row = (name: string, owner: string, ratio: number) => [

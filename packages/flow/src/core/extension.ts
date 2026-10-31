@@ -5,6 +5,7 @@ import type { EdgeTypeSpec } from './edge-types'
 import type { FlowMenuItem, FlowMenuTarget, FlowToolbarItem } from './menu'
 import type { FlowDocument, FlowNode } from './model'
 import type { NodeTypeSpec } from './node-types'
+import type { FlowTransaction } from './transaction'
 
 /** What an extension's hooks receive; the same as `useFlowEditor()`. */
 export type FlowExtensionContext = FlowEditorContext
@@ -14,6 +15,15 @@ export type FlowExtensionContext = FlowEditorContext
  * and the editor's own keys; anything else means it was handled.
  */
 export type FlowKeyHandler = (event: KeyboardEvent) => boolean | void
+
+/** An undo history that replaces the editor's own, e.g. one that only undoes this user's changes. */
+export interface FlowHistoryHandler {
+  /** `false` when there is nothing to undo. */
+  undo: () => boolean
+  redo: () => boolean
+  canUndo: () => boolean
+  canRedo: () => boolean
+}
 
 /**
  * A piece of the editor: node types, port types, connection rules, keys and
@@ -56,6 +66,15 @@ export interface FlowExtension {
   contextMenu?: (context: FlowExtensionContext, target: FlowMenuTarget) => FlowMenuItem[]
   /** Buttons for the toolbar that floats above the selected nodes. */
   toolbarItems?: (context: FlowExtensionContext, nodes: FlowNode[]) => FlowToolbarItem[]
+  /** Runs once the editor is mounted. Return a function to run when it unmounts. */
+  setup?: (context: FlowExtensionContext) => void | (() => void)
+  /**
+   * Sees every change before it reaches the document, in priority order,
+   * and may add steps to it. Undo and redo come through here too.
+   */
+  transaction?: (tr: FlowTransaction, context: FlowExtensionContext) => void
+  /** Replaces the editor's undo history; the first extension that has one wins. */
+  history?: (context: FlowExtensionContext) => FlowHistoryHandler
 }
 
 /** Declares an extension; only gives it a type. */
@@ -77,6 +96,9 @@ export interface ResolvedFlowExtensions {
   overlays: Component[]
   menus: NonNullable<FlowExtension['contextMenu']>[]
   toolbars: NonNullable<FlowExtension['toolbarItems']>[]
+  setups: NonNullable<FlowExtension['setup']>[]
+  transactions: NonNullable<FlowExtension['transaction']>[]
+  history: FlowExtension['history']
 }
 
 type ExtensionList = readonly (FlowExtension | readonly FlowExtension[])[]
@@ -147,5 +169,8 @@ export function resolveFlowExtensions(list: ExtensionList): ResolvedFlowExtensio
     overlays: extensions.flatMap((e) => e.overlays ?? []),
     menus: pick('contextMenu'),
     toolbars: pick('toolbarItems'),
+    setups: pick('setup'),
+    transactions: pick('transaction'),
+    history: extensions.find((e) => e.history)?.history,
   }
 }

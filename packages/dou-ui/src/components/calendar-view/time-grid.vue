@@ -4,12 +4,14 @@ import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
 import { today } from '../date-picker/date'
 import type { CalendarDay, CalendarEvent } from './calendar-view'
-import { isTimed, layoutDay, toMinutes } from './time-layout'
+import { layoutDay, segmentOn, toMinutes } from './time-layout'
+import type { EventSpan } from './time-layout'
 
 defineOptions({ name: 'DouCalendarTimeGrid' })
 
 const props = defineProps<{
   days: CalendarDay[]
+  spans: Map<CalendarEvent, EventSpan>
   hours: [number, number]
   scrollTime: string
   cursor: string
@@ -19,7 +21,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   choose: [day: CalendarDay]
   eventClick: [event: CalendarEvent]
-  timeClick: [slot: { date: string; time: string }]
+  timeClick: [start: string]
 }>()
 defineSlots<{
   event?: (props: { event: CalendarEvent; day: CalendarDay }) => unknown
@@ -44,19 +46,25 @@ const timeText = (minutes: number) => clock.value.format(new Date(Date.UTC(2000,
 const weekdayFormat = computed(() => formatter({ weekday: 'short' }))
 const fullDate = computed(() => formatter({ dateStyle: 'full' }))
 
+const isTimed = (event: CalendarEvent) => props.spans.get(event)!.start !== null
 const columns = computed(() =>
   props.days.map((day) => ({
     day,
     allDay: day.events.filter((event) => !isTimed(event)),
-    timed: layoutDay(day.events.filter((event) => isTimed(event) && event.date === day.date)),
+    timed: layoutDay(
+      day.events
+        .filter(isTimed)
+        .map((event) => ({ event, ...segmentOn(props.spans.get(event)!, day.date) })),
+    ),
   })),
 )
 const hasAllDay = computed(() => columns.value.some((column) => column.allDay.length))
 
-const isStart = (event: CalendarEvent, date: string) => event.date === date
-const isEnd = (event: CalendarEvent, date: string) => (event.end ?? event.date) <= date
-const keyOf = (event: CalendarEvent) =>
-  event.key ?? `${event.date}:${event.time ?? ''}:${event.title}`
+const isStart = (event: CalendarEvent, date: string) => props.spans.get(event)!.from === date
+const isEnd = (event: CalendarEvent, date: string) => props.spans.get(event)!.to <= date
+/** An event over several days is reached with Tab once, on the first day shown. */
+const tabindexOf = (event: CalendarEvent, date: string) =>
+  isStart(event, date) || date === props.days[0]?.date ? undefined : -1
 
 const placement = (start: number, end: number, column = 0, count = 1, span = 1) => ({
   '--dou-calendar-view-from': (Math.max(start, first.value * 60) - first.value * 60) / 60,
@@ -66,10 +74,20 @@ const placement = (start: number, end: number, column = 0, count = 1, span = 1) 
   '--dou-calendar-view-columns': count,
   '--dou-calendar-view-span': span,
 })
+/** Minutes of an event inside the hours shown. */
+const shown = (item: { start: number; end: number }) =>
+  Math.min(item.end, last.value * 60) - Math.max(item.start, first.value * 60)
 const visible = (start: number, end: number) => end > first.value * 60 && start < last.value * 60
 
-const eventLabel = (start: number, end: number, event: CalendarEvent) =>
-  `${event.title}, ${timeText(start)}–${timeText(end)}`
+/** Names both days when a timed event runs past midnight. */
+function eventLabel(event: CalendarEvent) {
+  const span = props.spans.get(event)!
+  const range = `${timeText(span.start!)}–${timeText(span.end!)}`
+  if (span.from === span.to) return `${event.title}, ${range}`
+  const from = fullDate.value.format(props.asDate(span.from))
+  const to = fullDate.value.format(props.asDate(span.to))
+  return `${event.title}, ${from} ${timeText(span.start!)} – ${to} ${timeText(span.end!)}`
+}
 
 /* the current time, only after mounting so server and client agree */
 
@@ -115,7 +133,7 @@ function onColumnClick(event: MouseEvent, day: CalendarDay) {
   const minutes = first.value * 60 + Math.floor(((y / hourHeight()) * 60) / 30) * 30
   const clamped = Math.min(Math.max(minutes, first.value * 60), last.value * 60 - 30)
   const time = `${String(Math.floor(clamped / 60)).padStart(2, '0')}:${String(clamped % 60).padStart(2, '0')}`
-  emit('timeClick', { date: day.date, time })
+  emit('timeClick', `${day.date} ${time}`)
 }
 </script>
 
@@ -151,7 +169,7 @@ function onColumnClick(event: MouseEvent, day: CalendarDay) {
       <div v-for="(column, index) in columns" :key="column.day.date" :class="ns.e('all-day-cell')">
         <button
           v-for="event in column.allDay"
-          :key="keyOf(event)"
+          :key="event.id"
           type="button"
           :class="[
             ns.e('event'),
@@ -161,6 +179,7 @@ function onColumnClick(event: MouseEvent, day: CalendarDay) {
             ns.is('end', isEnd(event, column.day.date)),
           ]"
           :title="event.title"
+          :tabindex="tabindexOf(event, column.day.date)"
           @click="emit('eventClick', event)"
         >
           <slot name="event" :event="event" :day="column.day">{{ event.title }}</slot>
@@ -186,7 +205,7 @@ function onColumnClick(event: MouseEvent, day: CalendarDay) {
           ]"
           @click.self="onColumnClick($event, column.day)"
         >
-          <template v-for="item in column.timed" :key="keyOf(item.event)">
+          <template v-for="item in column.timed" :key="item.event.id">
             <button
               v-if="visible(item.start, item.end)"
               type="button"
@@ -196,20 +215,29 @@ function onColumnClick(event: MouseEvent, day: CalendarDay) {
                 `${ns.e('event')}--${item.event.tone ?? 'primary'}`,
                 ns.is('start'),
                 ns.is('end'),
-                ns.is('short', item.end - item.start < 45),
-                ns.is('tall', item.end - item.start >= 90),
+                ns.is('from-before', !isStart(item.event, column.day.date)),
+                ns.is('runs-on', !isEnd(item.event, column.day.date)),
+                ns.is('short', shown(item) < 45),
+                ns.is('tall', shown(item) >= 90),
               ]"
               :style="placement(item.start, item.end, item.column, item.columns, item.span)"
-              :aria-label="eventLabel(item.start, item.end, item.event)"
+              :aria-label="eventLabel(item.event)"
+              :tabindex="tabindexOf(item.event, column.day.date)"
               @click="emit('eventClick', item.event)"
             >
               <slot name="event" :event="item.event" :day="column.day">
                 <span :class="ns.e('event-title')">{{ item.event.title }}</span>
-                <span :class="ns.e('event-time')">
+                <span v-if="isStart(item.event, column.day.date)" :class="ns.e('event-time')">
                   {{ timeText(item.start)
-                  }}<span v-if="item.end - item.start >= 45" :class="ns.e('event-end')">
+                  }}<span
+                    v-if="isEnd(item.event, column.day.date) && shown(item) >= 45"
+                    :class="ns.e('event-end')"
+                  >
                     – {{ timeText(item.end) }}</span
                   >
+                </span>
+                <span v-else-if="isEnd(item.event, column.day.date)" :class="ns.e('event-time')">
+                  – {{ timeText(item.end) }}
                 </span>
               </slot>
             </button>

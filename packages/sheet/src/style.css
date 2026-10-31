@@ -195,6 +195,24 @@
       border-bottom-color: var(--dou-sheet-freeze-line);
     }
 
+    /* under a merged cell: kept in place, but nothing of it shows */
+    &.is-covered {
+      border-color: transparent;
+      background: none;
+    }
+    /* a merged cell, drawn over the cells it covers from the row it starts in */
+    &.is-merged {
+      background-color: var(--dou-color-bg-surface);
+
+      &:not(.is-frozen) {
+        z-index: 0;
+      }
+      &.is-frozen {
+        z-index: 2;
+        align-self: flex-start;
+      }
+    }
+
     &.is-bold {
       font-weight: var(--dou-font-weight-bold);
     }
@@ -242,6 +260,14 @@
     }
     &.is-tone-danger {
       color: var(--dou-color-danger-text);
+    }
+    /* lines stay as visible on a fill as on the bare sheet */
+    .has-gridlines &[class*='is-fill-'] {
+      --dou-sheet-line: color-mix(
+        in oklab,
+        var(--dou-color-text) 7%,
+        var(--dou-color-border-subtle)
+      );
     }
     &.is-fill-neutral {
       background-color: color-mix(in oklab, var(--dou-color-text) 6%, var(--dou-color-bg-surface));
@@ -327,6 +353,186 @@
     padding-block: 4px;
     overflow-x: clip;
     text-box: trim-both cap alphabetic;
+  }
+
+  /* cell types --------------------------------------------------------------- */
+
+  /* a check box cell: the box of a checkbox, small enough for a row */
+  .dou-sheet__check {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: 14px;
+    height: 14px;
+    border: 1px solid var(--dou-color-border-strong);
+    border-radius: calc(var(--dou-radius-control) - 2px);
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-sm);
+    color: var(--dou-color-neutral-on);
+    cursor: pointer;
+    transition-property: background-color, border-color, box-shadow;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    & > svg {
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      transform: scale(0.6);
+      transition-property: opacity, transform;
+      transition-duration: var(--dou-motion-duration-fast);
+      transition-timing-function: var(--dou-motion-easing);
+    }
+
+    &:hover {
+      border-color: color-mix(
+        in oklab,
+        var(--dou-color-neutral) 45%,
+        var(--dou-color-border-strong)
+      );
+    }
+
+    &.is-checked {
+      border-color: color-mix(in oklab, var(--dou-color-neutral) 90%, var(--dou-color-edge));
+      background-color: var(--dou-color-neutral);
+      box-shadow:
+        var(--dou-shadow-highlight),
+        0 1px 2px color-mix(in oklab, var(--dou-color-neutral) 24%, transparent);
+
+      & > svg {
+        opacity: 1;
+        transform: none;
+      }
+    }
+
+    .is-readonly & {
+      cursor: inherit;
+    }
+
+    /* a finger gets the whole cell around the box */
+    @media (pointer: coarse) {
+      position: relative;
+
+      &::before {
+        position: absolute;
+        inset: -7px -12px;
+        content: '';
+      }
+    }
+  }
+
+  /* a cell type's own content, laid out as if the cell held it directly */
+  .dou-sheet__content {
+    display: contents;
+  }
+
+  /* a value that doesn't fit its cell's type: a small mark in the corner */
+  .dou-sheet__cell.is-invalid::after {
+    position: absolute;
+    top: 0;
+    right: 0;
+    border: 4px solid transparent;
+    border-top-color: var(--dou-color-danger);
+    border-right-color: var(--dou-color-danger);
+    content: '';
+    pointer-events: none;
+  }
+
+  /* a select cell's value in its option's tone, as a quiet tag */
+  .dou-sheet__tag {
+    --dou-tag-height: 20px;
+    --dou-tag-padding-x: 6px;
+
+    flex: none;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .dou-sheet__cell {
+    &.is-align-center > .dou-sheet__check,
+    &.is-align-center > .dou-sheet__tag {
+      margin-inline: auto;
+    }
+    &.is-align-right > .dou-sheet__check,
+    &.is-align-right > .dou-sheet__tag {
+      margin-left: auto;
+    }
+  }
+
+  /* the button on the active cell that opens its list or calendar */
+  .dou-sheet__panel-button {
+    position: absolute;
+    z-index: 4;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -23px;
+    padding: 0;
+    border: 1px solid var(--dou-color-border);
+    border-radius: calc(var(--dou-radius-control) - 2px);
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-sm);
+    color: var(--dou-color-text-secondary);
+    cursor: pointer;
+
+    &:hover {
+      background-color: var(--dou-color-bg-muted);
+      color: var(--dou-color-text);
+    }
+
+    & > svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    /* a finger gets 40px around the 24px button */
+    @media (pointer: coarse) {
+      width: 24px;
+      height: 24px;
+      margin: -12px 0 0 -26px;
+
+      &::before {
+        position: absolute;
+        inset: -8px;
+        content: '';
+      }
+    }
+  }
+
+  .dou-sheet__options {
+    min-width: 160px;
+    max-width: 280px;
+    max-height: 264px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .dou-sheet__option {
+    justify-content: space-between;
+
+    &.is-active {
+      background-color: var(--dou-dropdown-item-active-bg);
+    }
+  }
+
+  .dou-sheet__option-check {
+    flex: none;
+    width: 14px;
+    height: 14px;
+    color: var(--dou-color-text-secondary);
+  }
+
+  .dou-sheet__options-empty {
+    padding: 8px;
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
   }
 
   /* editor ------------------------------------------------------------------- */

@@ -1,7 +1,15 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
-import { DouSheet, formatRange, type SheetSelection, type SheetWorkbook } from '../index'
+import {
+  defineSheetCellType,
+  defineSheetExtension,
+  DouSheet,
+  formatRange,
+  useSheet,
+  type SheetSelection,
+  type SheetWorkbook,
+} from '../index'
 import type { SheetTransaction } from '../core/transaction'
 import type { SheetExpose, SheetMenuContext, SheetMenuItem, SheetPasteEvent } from '../types'
 
@@ -309,5 +317,275 @@ describe('DouSheet', () => {
     expect(frozen.findAll('.dou-sheet__head .dou-sheet__row')).toHaveLength(2)
     expect(frozen.findAll('.dou-sheet__body .dou-sheet__cell.is-frozen').length).toBeGreaterThan(0)
     expect(frozen.find('.dou-sheet__cell.is-freeze-edge').exists()).toBe(true)
+  })
+  it('draws merged cells once and grows the selection over them', async () => {
+    const book = sample()
+    book.sheets[0]!.merges = ['A1:B1']
+    const { wrapper, key, selection } = setup({ modelValue: book })
+    const merged = wrapper.findAll('.dou-sheet__cell.is-merged')
+    expect(merged).toHaveLength(1)
+    expect(merged[0]!.text()).toBe('物品')
+    expect(merged[0]!.attributes('style')).toContain('width: 192px')
+    expect(wrapper.findAll('.dou-sheet__cell.is-covered')).toHaveLength(2)
+    expect(selected(selection.value)).toBe('A1:B1')
+    await key('ArrowRight')
+    // out of the merge from its right edge
+    expect(selection.value?.active).toEqual({ row: 0, col: 2 })
+    await key('ArrowLeft')
+    expect(selection.value?.active).toEqual({ row: 0, col: 0 })
+  })
+})
+
+const typed = (): SheetWorkbook => ({
+  types: {
+    status: { type: 'select', options: ['未开始', { value: '进行中', tone: 'primary' }, '已完成'] },
+  },
+  sheets: [
+    {
+      name: '任务',
+      cells: [
+        [
+          { value: true, type: 'checkbox' },
+          { value: '未开始', type: 'status' },
+          { value: '2026-10-31 09:30', type: 'date' },
+        ],
+        [
+          { value: false, type: 'checkbox' },
+          { value: '进行中', type: 'status' },
+        ],
+      ],
+    },
+  ],
+})
+
+describe('DouSheet cell types', () => {
+  it('draws check boxes and tags, and switches boxes with Space and a click', async () => {
+    const { wrapper, key, book, grid } = setup({ modelValue: typed() })
+    expect(wrapper.findAll('.dou-sheet__check')).toHaveLength(2)
+    expect(wrapper.find('.dou-sheet__check').classes()).toContain('is-checked')
+    expect(wrapper.find('.dou-tag--primary').text()).toBe('进行中')
+    // an option without a tone is a neutral tag
+    expect(wrapper.findAll('.dou-sheet__tag').map((el) => el.text())).toEqual(['未开始', '进行中'])
+    // boxes that differ are all checked; boxes that agree all switch
+    grid.value!.select('A1:A2')
+    await nextTick()
+    const checks = () =>
+      book.value.sheets[0]!.cells.map((row) => (row![0] as { value: boolean }).value)
+    await key(' ')
+    expect(checks()).toEqual([true, true])
+    await key(' ')
+    expect(checks()).toEqual([false, false])
+    await wrapper.findAll('.dou-sheet__check')[1]!.trigger('click')
+    expect((book.value.sheets[0]!.cells[1]![0] as { value: boolean }).value).toBe(true)
+    // screen readers read the box's state
+    const read = wrapper.findAll('.is-type-checkbox .dou-sheet__sr-only').map((el) => el.text())
+    expect(read).toEqual(['未勾选', '已勾选'])
+    // F2 switches instead of opening the editor
+    grid.value!.select('A2')
+    await nextTick()
+    await key('F2')
+    expect((book.value.sheets[0]!.cells[1]![0] as { value: boolean }).value).toBe(false)
+    expect(wrapper.find('.dou-sheet__input.is-open').exists()).toBe(false)
+  })
+
+  it('picks an option from the list with the keys, and reads typed options', async () => {
+    const { wrapper, key, type, book, grid } = setup({ modelValue: typed() })
+    grid.value!.select('B1')
+    await nextTick()
+    await key('ArrowDown', { altKey: true })
+    await nextTick()
+    const options = document.querySelectorAll('.dou-sheet__option')
+    expect([...options].map((o) => o.textContent?.trim())).toEqual(['未开始', '进行中', '已完成'])
+    await key('ArrowDown')
+    await key('Enter')
+    expect(book.value.sheets[0]!.cells[0]![1]).toEqual({ value: '进行中', type: 'status' })
+    expect(document.querySelector('.dou-sheet__options')).toBeNull()
+    // typing filters; text naming an option in another case is that option
+    grid.value!.select('B2')
+    await nextTick()
+    await type('已')
+    expect(
+      [...document.querySelectorAll('.dou-sheet__option')].map((o) => o.textContent?.trim()),
+    ).toEqual(['已完成'])
+    await key('Enter')
+    expect(book.value.sheets[0]!.cells[1]![1]).toEqual({ value: '已完成', type: 'status' })
+    wrapper.unmount()
+  })
+
+  it('opens a calendar for dates and keeps the time when a day is picked', async () => {
+    const { wrapper, key, book, grid } = setup({ modelValue: typed() })
+    grid.value!.select('C1')
+    await nextTick()
+    await key('F2')
+    await nextTick()
+    const days = [...document.querySelectorAll<HTMLElement>('.dou-sheet__calendar [data-value]')]
+    const day = days.find((el) => el.dataset.value === '2026-10-20')
+    expect(day).toBeTruthy()
+    day!.click()
+    await nextTick()
+    expect(book.value.sheets[0]!.cells[0]![2]).toEqual({ value: '2026-10-20 09:30', type: 'date' })
+    wrapper.unmount()
+  })
+})
+
+describe('DouSheet extensions', () => {
+  it('adds cell types, keys, menu items, overlays and a say in each change', async () => {
+    const calls: string[] = []
+    const Overlay = defineComponent(() => {
+      const sheet = useSheet()
+      return () => h('div', { class: 'test-overlay' }, sheet.sheet.value.name)
+    })
+    const stars = defineSheetCellType({
+      name: 'stars',
+      parse: (text) => ({ value: text.length }),
+      format: (value) => '★'.repeat(Number(value) || 0),
+    })
+    const extension = defineSheetExtension({
+      name: 'test',
+      cellTypes: [stars],
+      keymap: (context) => ({
+        'mod+b': () => {
+          calls.push(
+            `key ${formatRange({ start: context.active.value, end: context.active.value })}`,
+          )
+        },
+      }),
+      contextMenu: () => [{ key: 'mine', label: '我的', run: () => calls.push('menu') }],
+      overlays: [Overlay],
+      setup: () => {
+        calls.push('setup')
+        return () => calls.push('cleanup')
+      },
+      // every change gets a note in A9
+      transaction: (tr) => {
+        if (tr.meta.action !== 'api') tr.setCell('A9', 'changed')
+      },
+    })
+    const menuKeys: string[][] = []
+    const book = sample()
+    book.sheets[0]!.cells.push([{ value: 2, type: 'stars' }])
+    const { wrapper, key, type, cells, grid } = setup({
+      modelValue: book,
+      extensions: [extension],
+      menu: (items: SheetMenuItem[]) => {
+        menuKeys.push(items.map((item) => item.key))
+        return items
+      },
+    })
+    expect(calls).toEqual(['setup'])
+    expect(wrapper.find('.test-overlay').text()).toBe('库存')
+    expect(wrapper.findAll('.dou-sheet__cell').some((cell) => cell.text() === '★★')).toBe(true)
+    await key('b', { ctrlKey: true })
+    expect(calls).toContain('key A1')
+    await key('F10', { shiftKey: true })
+    expect(menuKeys[0]!.slice(0, 2)).toEqual(['mine', 'cut'])
+    grid.value!.select('A4')
+    await nextTick()
+    await type('abc')
+    await key('Enter')
+    expect(cells()[3]).toEqual([{ value: 3, type: 'stars' }])
+    expect(cells()[8]).toEqual(['changed'])
+    // undo takes back the added step with the rest
+    grid.value!.undo()
+    await nextTick()
+    expect(cells()[8]?.[0]).toBeUndefined()
+    wrapper.unmount()
+    expect(calls).toContain('cleanup')
+  })
+})
+
+describe('DouSheet review fixes', () => {
+  it('reads more ways to write a day, and marks values that do not fit', async () => {
+    const { wrapper, type, key, book, grid } = setup({ modelValue: typed() })
+    const year = new Date().getFullYear()
+    grid.value!.select('C1')
+    await nextTick()
+    await type('11月30日')
+    await key('Enter')
+    expect(book.value.sheets[0]!.cells[0]![2]).toEqual({ value: `${year}-11-30`, type: 'date' })
+    grid.value!.transact((tr) => {
+      tr.updateCell('C1', { value: '明天' })
+      tr.updateCell('B2', { value: '取消了' })
+    })
+    await nextTick()
+    const invalid = wrapper
+      .findAll('.dou-sheet__cell.is-invalid')
+      .map((cell) => cell.find('.dou-sheet__text').text())
+    expect(invalid).toEqual(['明天', '取消了'])
+    const marked = wrapper.findAll('.dou-sheet__cell.is-invalid')
+    expect(marked.map((cell) => cell.attributes('title'))).toEqual(['不是日期', '不在选项里'])
+    expect(marked[1]!.findAll('.dou-sheet__sr-only').map((el) => el.text())).toEqual([
+      '取消了',
+      '（不在选项里）',
+    ])
+    // what a type draws is hidden from screen readers; only the label is read
+    const shown = marked[1]!.find('.dou-sheet__content')
+    expect(shown.attributes('aria-hidden')).toBe('true')
+    wrapper.unmount()
+  })
+
+  it('edits a custom type with the text it shows, and copies that text', async () => {
+    const percent = defineSheetExtension({
+      name: 'percent',
+      cellTypes: [
+        defineSheetCellType({
+          name: 'percent',
+          parse: (text) => ({ value: Number.parseFloat(text) / 100 }),
+          format: (value) => (typeof value === 'number' ? `${value * 100}%` : undefined),
+        }),
+      ],
+    })
+    const book = sample()
+    book.sheets[0]!.cells.push([{ value: 0.8, type: 'percent' }])
+    const { input, key, cells, grid, wrapper } = setup({ modelValue: book, extensions: [percent] })
+    grid.value!.select('A4')
+    await nextTick()
+    await key('F2')
+    expect(input.value).toBe('80%')
+    await key('Enter')
+    expect(cells()[3]).toEqual([{ value: 0.8, type: 'percent' }])
+    const data = new Map<string, string>()
+    const event = new Event('copy', { bubbles: true, cancelable: true }) as ClipboardEvent
+    Object.defineProperty(event, 'clipboardData', {
+      value: { setData: (k: string, v: string) => data.set(k, v), getData: () => '' },
+    })
+    grid.value!.select('A4')
+    await nextTick()
+    input.dispatchEvent(event)
+    expect(data.get('text/plain')).toBe('80%')
+    wrapper.unmount()
+  })
+
+  it('tells screen readers how merged cells span, and hides the cells under them', () => {
+    const book = sample()
+    book.sheets[0]!.merges = ['A2:B3']
+    const { wrapper } = setup({ modelValue: book })
+    const merged = wrapper.find('.dou-sheet__cell.is-merged')
+    expect(merged.attributes('aria-rowspan')).toBe('2')
+    expect(merged.attributes('aria-colspan')).toBe('2')
+    const covered = wrapper.findAll('.dou-sheet__cell.is-covered')
+    expect(covered.length).toBe(4)
+    expect(covered.every((cell) => cell.attributes('aria-hidden') === 'true')).toBe(true)
+  })
+
+  it('keeps the covered values when asked, and the context walks the selection', async () => {
+    const seen: string[] = []
+    const probe = defineSheetExtension({
+      name: 'probe',
+      keymap: ({ forEachSelected }) => ({
+        'mod+b': () => forEachSelected((p) => seen.push(formatRange({ start: p, end: p }))),
+      }),
+    })
+    const book = sample()
+    book.sheets[0]!.merges = ['A2:B2']
+    const { key, cells, grid, wrapper } = setup({ modelValue: book, extensions: [probe] })
+    grid.value!.select('A1:B2')
+    await nextTick()
+    await key('b', { ctrlKey: true })
+    expect(seen).toEqual(['A1', 'B1', 'A2'])
+    grid.value!.transact((tr) => tr.mergeCells('A3:B3', { keep: true }))
+    await nextTick()
+    expect(cells()[2]).toEqual(['键盘', { value: 1200, format: '#,##0' }])
+    wrapper.unmount()
   })
 })

@@ -6,6 +6,7 @@
 interface SheetWorkbook {
   sheets: SheetData[]
   styles?: Record<string, SheetStyle> // 命名样式，单元格按名字引用
+  types?: Record<string, SheetTypeSetup> // 命名单元格类型设置，单元格的 type 按名字引用
 }
 ```
 
@@ -21,6 +22,7 @@ interface SheetData {
   rowSizes?: Record<number, number> // 改过的行高，按行号；0 表示隐藏
   colSizes?: Record<number, number> // 改过的列宽，按列号；0 表示隐藏
   freeze?: { rows?: number; cols?: number } // 冻结的行数、列数
+  merges?: string[] // 合并的区域，如 'A1:C1'
 }
 ```
 
@@ -42,10 +44,11 @@ interface SheetCell {
   style?: string // 样式的名字
   format?: string // 数字或日期格式
   note?: string // 备注
+  type?: string // 单元格类型：date、select、checkbox、扩展加的类型，或 types 里的名字
 }
 ```
 
-只有值的单元格直接写值：`['苹果', 3, true]`。需要样式或格式时写成对象：`{ value: 1800, format: '¥#,##0' }`。表格写回数据时也是这样，没有其他字段的单元格会写成值本身。
+只有值的单元格直接写值：`['苹果', 3, true]`。需要样式或格式时写成对象：`{ value: 1800, format: '¥#,##0' }`。表格写回数据时也是这样，没有其他字段的单元格会写成值本身。合并单元格和单元格类型见[介绍](./#合并单元格)。
 
 以 `=` 开头的字符串是公式。日期用 `'YYYY-MM-DD'` 或 `'YYYY-MM-DD HH:mm'` 字符串，时间用 `'HH:mm'` 或 `'HH:mm:ss'` 字符串，和 DouUI 其他日期组件一致。
 

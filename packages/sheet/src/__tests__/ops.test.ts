@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { moveReferences, shiftFormula } from '../core/address'
 import { parseTSV, parseClip, formatClip } from '../core/clipboard'
 import { continueValues, fillContinues } from '../core/fill'
+import { mergesOf } from '../core/merge'
 import type { SheetWorkbook } from '../core/model'
 import { applySheetSteps, SheetTransaction } from '../core/transaction'
 
@@ -308,5 +309,58 @@ describe('clipboard', () => {
     ])
     expect(parseClip({ text: '12\t上海\n' })!.cells).toEqual([[12, '上海']])
     expect(parseClip({ text: '' })).toBeNull()
+  })
+})
+
+const merged = (): SheetWorkbook => ({
+  sheets: [
+    {
+      name: '表1',
+      cells: [
+        ['季度', null, '合计'],
+        [1, 2, 3],
+        [4, 5, 6],
+      ],
+      merges: ['A1:B1'],
+    },
+  ],
+})
+
+describe('merged cells', () => {
+  it('merges a range, keeping the top left value, and splits it again', () => {
+    const tr = new SheetTransaction(merged()).mergeCells('A2:B3')
+    expect(tr.doc.sheets[0]!.merges).toEqual(['A1:B1', 'A2:B3'])
+    expect(cells(tr)[1]).toEqual([1, undefined, 3])
+    expect(cells(tr)[2]).toEqual([undefined, undefined, 6])
+    expect(undo(tr)).toEqual(merged())
+    const split = new SheetTransaction(tr.doc).unmergeCells('B2')
+    expect(split.doc.sheets[0]!.merges).toEqual(['A1:B1'])
+  })
+
+  it('takes in the merges a new merge touches', () => {
+    const tr = new SheetTransaction(merged()).mergeCells('B1:C1')
+    expect(tr.doc.sheets[0]!.merges).toEqual(['A1:C1'])
+    expect(cells(tr)[0]).toEqual(['季度', null, undefined])
+  })
+
+  it('move with inserted, deleted and moved lines', () => {
+    expect(new SheetTransaction(merged()).insertRows(0).doc.sheets[0]!.merges).toEqual(['A2:B2'])
+    expect(new SheetTransaction(merged()).insertCols(1).doc.sheets[0]!.merges).toEqual(['A1:C1'])
+    // shrunk to one cell: no longer a merge
+    expect(new SheetTransaction(merged()).deleteCols(1).doc.sheets[0]!.merges).toBeUndefined()
+    expect(new SheetTransaction(merged()).moveRows(0, 3).doc.sheets[0]!.merges).toEqual(['A3:B3'])
+  })
+
+  it('reads merges once and grows ranges to take them in', () => {
+    const m = mergesOf(merged().sheets[0]!)
+    expect(m.at(0, 1)).toEqual({ top: 0, left: 0, bottom: 0, right: 1 })
+    expect(m.anchor({ row: 0, col: 1 })).toEqual({ row: 0, col: 0 })
+    expect(m.expand({ top: 0, left: 1, bottom: 1, right: 1 })).toEqual({
+      top: 0,
+      left: 0,
+      bottom: 1,
+      right: 1,
+    })
+    expect(m.at(1, 1)).toBeUndefined()
   })
 })

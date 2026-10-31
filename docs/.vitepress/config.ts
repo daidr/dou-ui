@@ -63,6 +63,7 @@ const ganttSidebar = ecosystem('甘特图', [
 const sheetSidebar = ecosystem('电子表格', [
   { text: '介绍', link: '/sheet/' },
   { text: '文档数据', link: '/sheet/data' },
+  { text: '扩展', link: '/sheet/extensions' },
 ])
 const chartSidebar = ecosystem('图表', [{ text: '介绍', link: '/chart/' }])
 const formBuilderSidebar = ecosystem('表单设计器', [

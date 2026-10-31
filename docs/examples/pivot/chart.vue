@@ -1,5 +1,5 @@
 <script setup>
-import { DouChart, DouChartBar } from '@dou-ui/chart'
+import { DouChart, DouChartAxis, DouChartBar } from '@dou-ui/chart'
 import { DouPivot } from '@dou-ui/pivot'
 import { computed, ref } from 'vue'
 import { fields, orders } from './orders'
@@ -23,6 +23,8 @@ const chart = computed(() => pivot.value?.toChartRows() ?? { x: 'label', rows: [
       :max-height="240"
     />
     <DouChart :data="chart.rows" :x="chart.x" :height="260">
+      <!-- 刻度和表格写法一致：¥10,000 -->
+      <DouChartAxis for="y" :format="chart.series[0]?.format" />
       <DouChartBar v-for="s in chart.series" :key="s.key" :y="s.key" :name="s.name" stack />
     </DouChart>
   </div>

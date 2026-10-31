@@ -276,15 +276,15 @@ filters: {
 
 <DocDemo src="pivot/export" />
 
-| 方法                   | 结果                                                                                        |
-| ---------------------- | ------------------------------------------------------------------------------------------- |
-| `toCSV(options?)`      | CSV 文字。默认写数值（`1280`、`0.213`），`{ text: true }` 写显示的文字（`¥1,280`、`21.3%`） |
-| `toSheet({ name? })`   | 给 `DouSheet` 的工作簿：数字带格式，表头合并并冻结，列宽和屏幕上一样                        |
-| `toChartRows(options)` | 给 `@dou-ui/chart` 的行数据和系列，见下面的透视图                                           |
-| `toGrid()`             | 每个格子的文字、数值和类型，用来自己生成别的格式                                            |
-| `print(options?)`      | 打开浏览器的打印对话框，打印整张表                                                          |
+| 方法                    | 结果                                                                                        |
+| ----------------------- | ------------------------------------------------------------------------------------------- |
+| `toCSV(options?)`       | CSV 文字。默认写数值（`1280`、`0.213`），`{ text: true }` 写显示的文字（`¥1,280`、`21.3%`） |
+| `toSheet({ name? })`    | 给 `DouSheet` 的工作簿：数字带格式，表头合并并冻结，列宽和屏幕上一样                        |
+| `toChartRows(options?)` | 给 `@dou-ui/chart` 的行数据和系列，见下面的透视图                                           |
+| `toGrid()`              | 每个格子的文字、数值和类型，用来自己生成别的格式                                            |
+| `print(options?)`       | 打开浏览器的打印对话框，打印整张表                                                          |
 
-CSV 默认以字节顺序标记开头，这样电子表格软件能按 UTF-8 打开，`{ bom: false }` 可以去掉。组名以 `=`、`+`、`-`、`@` 开头时，前面会加上 `'`，防止在电子表格里被当成公式运行。
+数值去掉了汇总时的浮点误差（按 15 位有效数字取整，`1592.0200000000002` 写成 `1592.02`）。CSV 默认以字节顺序标记开头，这样电子表格软件能按 UTF-8 打开，`{ bom: false }` 可以去掉。组名以 `=`、`+`、`-`、`@` 开头时，前面会加上 `'`，防止在电子表格里被当成公式运行。
 
 ### 转成电子表格
 
@@ -298,9 +298,12 @@ CSV 默认以字节顺序标记开头，这样电子表格软件能按 UTF-8 打
 
 ```vue
 <DouChart :data="chart.rows" :x="chart.x">
+  <DouChartAxis for="y" :format="chart.series[0]?.format" />
   <DouChartBar v-for="s in chart.series" :key="s.key" :y="s.key" :name="s.name" stack />
 </DouChart>
 ```
+
+每个系列还带有 `valueIndex` 和 `format`：`format` 按表格的写法写出数字，交给坐标轴的 `format`，刻度就和表格一致（`¥10,000`）。空格子是 `null`，图表里会断开。没有数据时返回 `{ x: 'label', rows: [], series: [] }`。
 
 在 `computed` 里调用 `toChartRows()`，表格展开、折叠或换了字段时图会跟着更新。有多个值时，`{ valueIndex }` 只取其中一个。
 
@@ -494,19 +497,19 @@ result.get(east, result.columns.find(['Q1']), 1) // 华东 Q1 的第 2 个值
 
 ### Pivot Methods
 
-| 名称                              | 说明                                                   | 类型                                |
-| --------------------------------- | ------------------------------------------------------ | ----------------------------------- |
-| `result`                          | 当前的汇总结果                                         | `PivotResult`                       |
-| `expandAll({ axis? })`            | 展开所有组                                             | `(options?) => void`                |
-| `collapseAll({ axis?, depth? })`  | 折叠从第 `depth` 层开始的所有组                        | `(options?) => void`                |
-| `toggle(axis, path, open?)`       | 展开或折叠一个组                                       | `(axis, path, open?) => void`       |
-| `selectAll()`                     | 选中全部格子                                           | `() => void`                        |
-| `copy({ all? })`                  | 复制选中的格子，`all` 复制整张表                       | `(options?) => Promise<void>`       |
-| `toCSV({ text?, bom? })`          | 导出 CSV                                               | `(options?) => string`              |
-| `toSheet({ name? })`              | 导出给 `DouSheet` 的工作簿                             | `(options?) => PivotSheetWorkbook`  |
-| `toChartRows({ valueIndex? })`    | 导出给图表的行数据和系列                               | `(options?) => { x, rows, series }` |
-| `toGrid()`                        | 每个格子的 `text`、`kind`、`value`、`total` 和合并范围 | `() => PivotGrid`                   |
-| `print({ title?, orientation? })` | 打印整张表                                             | `(options?) => void`                |
+| 名称                              | 说明                                                      | 类型                                |
+| --------------------------------- | --------------------------------------------------------- | ----------------------------------- |
+| `result`                          | 当前的汇总结果                                            | `PivotResult`                       |
+| `expandAll({ axis? })`            | 展开所有组                                                | `(options?) => void`                |
+| `collapseAll({ axis?, depth? })`  | 折叠从第 `depth` 层开始的所有组                           | `(options?) => void`                |
+| `toggle(axis, path, open?)`       | 展开或折叠一个组                                          | `(axis, path, open?) => void`       |
+| `selectAll()`                     | 选中全部格子                                              | `() => void`                        |
+| `copy({ all? })`                  | 复制选中的格子，`all` 复制整张表                          | `(options?) => Promise<void>`       |
+| `toCSV({ text?, bom? })`          | 导出 CSV                                                  | `(options?) => string`              |
+| `toSheet({ name? })`              | 导出给 `DouSheet` 的工作簿                                | `(options?) => PivotSheetWorkbook`  |
+| `toChartRows(options?)`           | 导出给图表的行数据和系列，`options.valueIndex` 只取一个值 | `(options?) => { x, rows, series }` |
+| `toGrid()`                        | 每个格子的 `text`、`kind`、`value`、`total` 和合并范围    | `() => PivotGrid`                   |
+| `print({ title?, orientation? })` | 打印整张表                                                | `(options?) => void`                |
 
 ### Worker 与引擎
 
@@ -534,4 +537,4 @@ result.get(east, result.columns.find(['Q1']), 1) // 华东 Q1 的第 2 个值
 
 ### 读屏
 
-表格是一个树形网格（`role="treegrid"`）：每行带有层级（`aria-level`），组所在的行带有展开状态（`aria-expanded`），排序中的表头带有 `aria-sort`。用方向键移动时，读屏读出选中的格子。
+表格是一个树形网格（`role="treegrid"`）：每行带有层级（`aria-level`），组所在的行带有展开状态（`aria-expanded`），排序中的表头带有 `aria-sort`。表格可以多选（`aria-multiselectable`），选中范围内的格子带有 `aria-selected`。用方向键移动时，读屏读出选中的格子。

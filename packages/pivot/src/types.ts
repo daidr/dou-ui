@@ -158,6 +158,8 @@ export interface PivotChartRows {
     /** The column's groups (and the value, when there are several). */
     name: string
     valueIndex: number
+    /** Writes a number as the table does, e.g. for the axis's `format`. */
+    format: (n: number) => string
   }[]
 }
 

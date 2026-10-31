@@ -4,7 +4,14 @@ import { describe, expect, it } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { DouPivot, type PivotCollapsed, type PivotConfig } from '../index'
 import type { PivotExpose } from '../types'
-import { gridMerges, gridToCSV, gridToHTML, gridToTSV, sheetFormat } from '../core/table'
+import {
+  gridMerges,
+  gridToCSV,
+  gridToHTML,
+  gridToTSV,
+  sheetFormat,
+  tidyNumber,
+} from '../core/table'
 
 const sales = [
   { region: '华东', city: '上海', quarter: 'Q1', amount: 10 },
@@ -50,11 +57,27 @@ describe('sheetFormat', () => {
       ),
     ).toBe('#,##0.0%')
     expect(sheetFormat({ style: 'currency', currency: 'CNY' }, 'zh-CN')).toBe('"¥"#,##0.00')
+    // a maximum below the default minimum lowers it, as Intl does
+    expect(
+      sheetFormat({ style: 'currency', currency: 'CNY', maximumFractionDigits: 0 }, 'zh-CN'),
+    ).toBe('"¥"#,##0')
+    expect(
+      sheetFormat({ style: 'currency', currency: 'CNY', maximumFractionDigits: 1 }, 'zh-CN'),
+    ).toBe('"¥"#,##0.0')
     expect(sheetFormat({ useGrouping: false, minimumFractionDigits: 2 }, 'zh-CN')).toBe('0.00#')
     expect(sheetFormat({ maximumFractionDigits: 0, signDisplay: 'exceptZero' }, 'zh-CN')).toBe(
       '+#,##0;-#,##0;#,##0',
     )
     expect(sheetFormat({ style: 'unit', unit: 'kilogram' }, 'zh-CN')).toBeUndefined()
+  })
+})
+
+describe('tidyNumber', () => {
+  it('takes off the float noise of adding up', () => {
+    expect(tidyNumber(1592.0200000000002)).toBe(1592.02)
+    expect(tidyNumber(0.1 + 0.2)).toBe(0.3)
+    expect(tidyNumber(Number.NaN)).toBeNaN()
+    expect(tidyNumber(123456789.123)).toBe(123456789.123)
   })
 })
 
@@ -139,7 +162,7 @@ describe('the table as cells', () => {
       { value: 'Q2', style: 'pivot-head' },
       { value: '总计', style: 'pivot-head' },
     ])
-    expect(sheet.cells[2]![1]).toEqual({ value: 15 / 45.5, format: '#,##0.0%' })
+    expect(sheet.cells[2]![1]).toEqual({ value: tidyNumber(15 / 45.5), format: '#,##0.0%' })
     expect(sheet.cells[4]![3]).toEqual({ value: 1, format: '#,##0.0%', style: 'pivot-total' })
     expect(Object.keys(sheet.colSizes)).toHaveLength(4)
     expect(book.styles['pivot-total']).toEqual({ bold: true })
@@ -153,10 +176,12 @@ describe('the table as cells', () => {
     })
     let chart = pivot.value!.toChartRows()
     expect(chart.x).toBe('label')
-    expect(chart.series).toEqual([
+    expect(chart.series).toMatchObject([
       { key: 's0', name: 'Q1', valueIndex: 0 },
       { key: 's1', name: 'Q2', valueIndex: 0 },
     ])
+    // the numbers written as the table writes them, for the axis
+    expect(chart.series[0]!.format(1234.5)).toBe('1,234.5')
     expect(chart.rows.map((r) => r.label)).toEqual([
       '华东 · 杭州',
       '华东 · 上海',
@@ -183,7 +208,7 @@ describe('the table as cells', () => {
       { label: '华东', s0: 35, s1: 3 },
       { label: '华南', s0: 10.5, s1: 2 },
     ])
-    expect(pivot.value!.toChartRows({ valueIndex: 1 }).series).toEqual([
+    expect(pivot.value!.toChartRows({ valueIndex: 1 }).series).toMatchObject([
       { key: 's0', name: '计数', valueIndex: 1 },
     ])
   })
@@ -207,6 +232,8 @@ describe('selecting and copying', () => {
     await view.trigger('keydown', { key: 'ArrowRight', shiftKey: true })
     await view.trigger('keydown', { key: 'ArrowDown', shiftKey: true })
     expect(wrapper.findAll('.dou-pivot__cell.is-selected')).toHaveLength(4)
+    expect(wrapper.findAll('[role="gridcell"][aria-selected="true"]')).toHaveLength(4)
+    expect(view.attributes('aria-multiselectable')).toBe('true')
     const { event, data } = copyEvent()
     view.element.dispatchEvent(event)
     expect(event.defaultPrevented).toBe(true)

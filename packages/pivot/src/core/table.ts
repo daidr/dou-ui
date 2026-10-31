@@ -35,6 +35,9 @@ export interface PivotGrid {
   widths: number[]
 }
 
+/** A number without the float noise of adding up (`1592.0200000000002` is `1592.02`). */
+export const tidyNumber = (n: number) => (Number.isFinite(n) ? Number(n.toPrecision(15)) : n)
+
 /** What a spreadsheet program would start a formula with. */
 const FORMULA_START = /^[=+\-@\t\r]/
 
@@ -43,7 +46,7 @@ function plainText(cell: PivotGridCell | null, text: boolean) {
   if (!cell) return ''
   if (cell.kind === 'value') {
     const v = cell.value!
-    return text ? cell.text : v === v ? String(v) : ''
+    return text ? cell.text : v === v ? String(tidyNumber(v)) : ''
   }
   return cell.text
 }
@@ -91,7 +94,7 @@ export const SHEET_STYLES = {
 function sheetCell(cell: PivotGridCell | null, formats: PivotGrid['formats']): PivotSheetCell {
   if (!cell) return null
   if (cell.kind === 'value') {
-    const v = cell.value!
+    const v = tidyNumber(cell.value!)
     if (v !== v) return null
     const format = formats[cell.valueIndex!]
     if (!format && !cell.total) return v
@@ -185,8 +188,10 @@ export function sheetFormat(options: Intl.NumberFormatOptions, locale: string): 
   if (style === 'unit') return undefined
   const currency = style === 'currency'
   const percent = style === 'percent'
-  const min = options.minimumFractionDigits ?? (currency ? 2 : 0)
-  const max = Math.max(min, options.maximumFractionDigits ?? (currency ? 2 : percent ? 0 : 3))
+  // like Intl: a maximum below the default minimum lowers the minimum
+  const ownMax = options.maximumFractionDigits
+  const min = options.minimumFractionDigits ?? Math.min(currency ? 2 : 0, ownMax ?? Infinity)
+  const max = Math.max(min, ownMax ?? (currency ? 2 : percent ? 0 : 3))
   const grouping = options.useGrouping !== false && (options.useGrouping as unknown) !== 'false'
   let body = grouping ? '#,##0' : '0'
   if (max > 0) body += `.${'0'.repeat(min)}${'#'.repeat(max - min)}`

@@ -556,6 +556,8 @@ function rowHead(line: PivotLine, index: number): RowHead {
 
 interface Cell {
   key: number
+  /** In the selected range. */
+  selected: boolean
   text: string
   cls: string
   col: number
@@ -596,14 +598,15 @@ function rowCells(line: PivotLine, row: number): Cell[] {
     let cls = 'dou-pivot__cell'
     if (col.kind !== 'group') cls += ' is-total'
     if (col.kind === 'group' && col.node > 0 && res.columns.isGroup(col.node)) cls += ' is-closed'
-    if (picked && index >= picked.left && index <= picked.right) cls += ' is-selected'
+    const selected = !!picked && index >= picked.left && index <= picked.right
+    if (selected) cls += ' is-selected'
     let style = `width:${starts[index + 1]! - starts[index]!}px`
     const mark = display[v]!.mark
     if (mark && innerRow && n === n && res.columns.depth[col.node] === res.columns.levels.length) {
       cls += mark.type === 'bar' ? ' has-bar' : ' has-scale'
       style += markStyle(n, v)
     }
-    return { key: index, col: index, text: display[v]!.write(n), cls, style }
+    return { key: index, col: index, text: display[v]!.write(n), cls, style, selected }
   })
 }
 
@@ -1392,7 +1395,7 @@ function toChartRows(options: PivotChartRowsOptions = {}): PivotChartRows {
       const group = line.kind === 'total' ? '' : pathText(res.columns, colWriters.value, line.node)
       const value = display[v]!.label
       const name = group ? (many && !valuesOnRows.value ? join([group, value]) : group) : value
-      return { key: `s${i}`, name, valueIndex: v, node: line.node }
+      return { key: `s${i}`, name, valueIndex: v, node: line.node, format: display[v]!.write }
     })
   const lines = res.rows.levels.length === 0 ? footLines.value : bodyLines.value
   const rows: Record<string, string | number | null>[] = []
@@ -1418,11 +1421,10 @@ function toChartRows(options: PivotChartRowsOptions = {}): PivotChartRows {
   return {
     x: 'label',
     rows,
-    series: series.map(({ key, name, valueIndex: v }) => ({
-      key,
-      name,
-      valueIndex: valuesOnRows.value ? (valueIndex ?? 0) : v,
-    })),
+    series: series.map(({ key, name, valueIndex: v, format: write }) => {
+      const at = valuesOnRows.value ? (valueIndex ?? 0) : v
+      return { key, name, valueIndex: at, format: valuesOnRows.value ? display[at]!.write : write }
+    }),
   }
 }
 
@@ -1526,6 +1528,7 @@ defineExpose<PivotExpose>({
       :aria-label="ariaLabel"
       :aria-rowcount="headRows + allLines.length"
       :aria-colcount="colLines.length + (valuesOnRows ? 2 : 1)"
+      aria-multiselectable="true"
       :aria-activedescendant="activeId"
       :aria-busy="busy || undefined"
       @scroll="onScroll"
@@ -1706,6 +1709,7 @@ defineExpose<PivotExpose>({
                   'is-selected': selectedIn(index).startsWith('-1:'),
                 }"
                 role="rowheader"
+                :aria-selected="selectedIn(index).startsWith('-1:') || undefined"
                 :data-row="index"
                 data-col="-1"
                 :style="
@@ -1768,6 +1772,7 @@ defineExpose<PivotExpose>({
               :key="cell.key"
               :class="[cell.cls, { 'is-active': active?.row === index && active.col === cell.col }]"
               role="gridcell"
+              :aria-selected="cell.selected || undefined"
               :aria-colindex="cell.col + (valuesOnRows ? 3 : 2)"
               :data-row="index"
               :data-col="cell.col"
@@ -1800,6 +1805,7 @@ defineExpose<PivotExpose>({
                 'is-selected': selectedIn(index).startsWith('-1:'),
               }"
               role="rowheader"
+              :aria-selected="selectedIn(index).startsWith('-1:') || undefined"
               :data-row="index"
               data-col="-1"
               :style="`width:${rowHeadWidth}px`"
@@ -1821,6 +1827,7 @@ defineExpose<PivotExpose>({
               :key="cell.key"
               :class="[cell.cls, { 'is-active': active?.row === index && active.col === cell.col }]"
               role="gridcell"
+              :aria-selected="cell.selected || undefined"
               :aria-colindex="cell.col + (valuesOnRows ? 3 : 2)"
               :data-row="index"
               :data-col="cell.col"

@@ -26,19 +26,17 @@ const last = ref('无')
         </template>
         打开
       </DouDropdownItem>
-      <DouDropdownItem value="重命名">
+      <DouDropdownItem value="重命名" shortcut="f2">
         <template #prefix>
           <DouIcon><EditIcon /></DouIcon>
         </template>
         重命名
-        <template #suffix>F2</template>
       </DouDropdownItem>
-      <DouDropdownItem value="复制">
+      <DouDropdownItem value="复制" shortcut="mod+c">
         <template #prefix>
           <DouIcon><CopyIcon /></DouIcon>
         </template>
         复制
-        <template #suffix>⌘C</template>
       </DouDropdownItem>
       <DouDropdownItem value="删除" tone="danger" divided>
         <template #prefix>

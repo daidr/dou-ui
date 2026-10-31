@@ -348,6 +348,8 @@
     background: transparent;
     color: transparent;
     font: inherit;
+    /* 16px or more on phones, so focusing it doesn't zoom the page */
+    font-size: max(var(--dou-font-size-input-min, 0px), 1em);
     line-height: 20px;
     white-space: pre;
     caret-color: transparent;
@@ -374,11 +376,6 @@
     }
     &.is-italic {
       font-style: italic;
-    }
-
-    /* 16px or more, so phones don't zoom in when it gets focus */
-    @media (pointer: coarse) {
-      font-size: max(16px, 1em);
     }
   }
 

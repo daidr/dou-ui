@@ -92,6 +92,7 @@
     background: transparent;
     color: inherit;
     font: inherit;
+    font-size: max(var(--dou-font-size-input-min, 0px), 1em);
     line-height: normal;
 
     &::placeholder {

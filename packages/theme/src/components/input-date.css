@@ -36,7 +36,7 @@
     background-color: var(--dou-input-date-bg);
     box-shadow: var(--dou-input-date-shadow);
     color: var(--dou-color-text);
-    font-size: var(--dou-input-date-font-size);
+    font-size: max(var(--dou-font-size-input-min, 0px), var(--dou-input-date-font-size));
     vertical-align: middle;
     cursor: text;
     transition-property: border-color, box-shadow, background-color;

@@ -1,4 +1,22 @@
 /*
+ * Smallest text size for anything the user types into. Phones zoom the page
+ * in when a field under 16px gets focus, so with a coarse pointer every input,
+ * textarea and editable area grows to 16px; elsewhere it keeps its own size.
+ * Components use it as `font-size: max(var(--dou-font-size-input-min), …)`.
+ */
+@layer dou.tokens {
+  :root {
+    --dou-font-size-input-min: 0px;
+  }
+
+  @media (pointer: coarse) {
+    :root {
+      --dou-font-size-input-min: 16px;
+    }
+  }
+}
+
+/*
  * Minimal base layer. DouUI never restyles the host page on its own:
  * only elements that opt in with `data-dou-theme` get themed defaults.
  */

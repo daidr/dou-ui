@@ -82,6 +82,7 @@
     box-shadow: 0 0 0 3px var(--dou-editable-ring);
     color: inherit;
     font: inherit;
+    font-size: max(var(--dou-font-size-input-min, 0px), 1em);
     letter-spacing: inherit;
     outline: none;
     resize: none;

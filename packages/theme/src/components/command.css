@@ -48,7 +48,7 @@
     background: transparent;
     color: inherit;
     font: inherit;
-    font-size: var(--dou-font-size-lg);
+    font-size: max(var(--dou-font-size-input-min, 0px), var(--dou-font-size-lg));
 
     &::placeholder {
       color: var(--dou-color-text-tertiary);

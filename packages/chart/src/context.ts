@@ -13,6 +13,7 @@ import type {
   ChartBrushEvent,
   ChartBrushProps,
   ChartInterval,
+  ChartMarkerProps,
   ChartPieProps,
   ChartTooltipProps,
   ChartTooltipSlots,
@@ -63,6 +64,8 @@ export interface RangePart extends ChartPart<Record<string, never>> {
   x: Ref<ChartInterval | null | undefined>
 }
 
+export type MarkerPart = ChartPart<ChartMarkerProps>
+
 export interface ChartRegistry {
   addSeries(part: SeriesPart): () => void
   addAxis(part: AxisPart): () => void
@@ -71,9 +74,18 @@ export interface ChartRegistry {
   addZoom(part: ZoomPart): () => void
   addBrush(part: BrushPart): () => void
   addRange(part: RangePart): () => void
+  addMarker(part: MarkerPart): () => void
 }
 
 export const chartKey: InjectionKey<ChartRegistry> = Symbol('DouChart')
+
+/**
+ * The render of a part: it draws nothing itself. A comment in the page on
+ * the server and in the browser alike, so taking over a server-rendered
+ * page finds each part where it expects it (an empty template renders
+ * nothing at all on the server).
+ */
+export const renderNothing = () => null
 
 /** Registers a child (a series, an axis) with the surrounding chart while it is mounted. */
 export function useChartPart(name: string, add: (registry: ChartRegistry) => () => void) {
@@ -84,8 +96,11 @@ export function useChartPart(name: string, add: (registry: ChartRegistry) => () 
     return
   }
   let remove: (() => void) | undefined
-  onMounted(() => (remove = add(registry)))
   onBeforeUnmount(() => remove?.())
+  // on the server, and while taking over the page it rendered, the chart
+  // draws before anything mounts: it needs its parts now
+  if (typeof window === 'undefined' || getCurrentInstance()?.vnode.el) remove = add(registry)
+  else onMounted(() => (remove = add(registry)))
 }
 
 /** The node a renderless child leaves in the page. */

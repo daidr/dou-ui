@@ -75,6 +75,11 @@ export interface ChartView {
   plot: Rect
   /** Device pixels per CSS px. */
   dpr: number
+  /**
+   * Drawing into an SVG (an export, the server's image): shapes only, no
+   * images of another canvas.
+   */
+  vector?: boolean
   /** The resolved colors of the chart. */
   colors: ChartColors
 }

@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { useNamespace } from 'dou-ui'
+import { DouSpinner, useNamespace, type Tone } from 'dou-ui'
 import type { ComputedRef, VNodeChild } from 'vue'
 import type { TickLabel } from './core/layout'
+import type { MarkerLabel } from './core/marker'
 
 /**
  * The text over the canvas: tick labels, titles, the legend and what goes
@@ -38,14 +39,21 @@ export interface OverlayState {
   /** Where the donut's hole is, if there is one to fill. */
   hole: ComputedRef<{ left: number; top: number; width: number } | null>
   center: () => VNodeChild
+  /** The markers' labels. */
+  markers: ComputedRef<Array<MarkerLabel & { key: string; tone: Tone; backdrop: boolean }>>
+  /** No series has a value: the empty message shows. */
+  empty: ComputedRef<boolean>
+  emptyContent: () => VNodeChild
+  loading: ComputedRef<boolean>
 }
 
 defineOptions({ name: 'DouChartOverlay' })
 
 const { state } = defineProps<{ state: OverlayState }>()
 const ns = useNamespace('chart')
-const { shown, labels, titles, legend, hole, toggle, focus } = state
+const { shown, labels, titles, legend, hole, toggle, focus, markers, empty, loading } = state
 const Center = () => state.center()
+const Empty = () => state.emptyContent()
 // a click focuses the entry too: only keyboard focus brings its series forward
 const focusVisible = (e: FocusEvent) => (e.target as Element).matches(':focus-visible')
 </script>
@@ -69,6 +77,18 @@ const focusVisible = (e: FocusEvent) => (e.target as Element).matches(':focus-vi
       :class="[ns.e('title'), ns.is('end', title.align === 'end')]"
       :style="{ transform: `translate(${title.left}px, ${title.top}px)` }"
       ><span :class="ns.e('text')">{{ title.text }}</span></span
+    >
+    <span
+      v-for="marker in markers"
+      :key="marker.key"
+      :class="[
+        ns.e('marker'),
+        ns.is(marker.tone),
+        ns.is(marker.align),
+        ns.is('backdrop', marker.backdrop),
+      ]"
+      :style="{ transform: `translate(${marker.left}px, ${marker.top}px)` }"
+      ><span :class="ns.e('text')">{{ marker.text }}</span></span
     >
   </div>
   <div v-if="shown && legend.length" :class="ns.e('legends')">
@@ -104,4 +124,8 @@ const focusVisible = (e: FocusEvent) => (e.target as Element).matches(':focus-vi
   >
     <Center />
   </div>
+  <div v-if="empty" :class="ns.e('empty')"><Empty /></div>
+  <Transition name="dou-fade">
+    <div v-if="loading" :class="ns.e('loading')"><DouSpinner /></div>
+  </Transition>
 </template>

@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { useChartPart, useOwnNode } from '../context'
+import { useChartPart, useOwnNode, renderNothing } from '../context'
 import type { ChartBrushEvent, ChartBrushProps, ChartInterval } from '../types'
 
-defineOptions({ name: 'DouChartBrush' })
+defineOptions({ name: 'DouChartBrush', render: renderNothing })
 
 const props = withDefaults(defineProps<ChartBrushProps>(), { dim: true })
 const emit = defineEmits<{
@@ -19,5 +19,3 @@ useChartPart('DouChartBrush', (chart) =>
   chart.addBrush({ props, el, x, y, select: (event) => emit('select', event) }),
 )
 </script>
-
-<template></template>

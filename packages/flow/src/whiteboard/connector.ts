@@ -1,4 +1,5 @@
 import {
+  ArrowEndsIcon,
   ArrowLeftRightIcon,
   ArrowRightIcon,
   ConnectorCurveIcon,
@@ -8,6 +9,7 @@ import {
   LineDashedIcon,
   LineDottedIcon,
   LineSolidIcon,
+  LineStyleIcon,
   MinusIcon,
   RouteIcon,
 } from '@dou-ui/icons'
@@ -157,15 +159,8 @@ export function connectorToolbar(ctx: FlowEditorContext, edges: FlowEdge[]): Flo
       DASH_CHOICES,
       t.dashes,
       { of: t.dashOf, set: t.dashSet },
-      LineDashDotIcon,
+      LineStyleIcon,
     ),
-    choice(
-      'arrow',
-      'end',
-      ARROWS,
-      t.arrows,
-      { of: t.arrowOf, set: t.arrowSet },
-      ArrowLeftRightIcon,
-    ),
+    choice('arrow', 'end', ARROWS, t.arrows, { of: t.arrowOf, set: t.arrowSet }, ArrowEndsIcon),
   ]
 }

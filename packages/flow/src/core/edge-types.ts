@@ -191,5 +191,3 @@ export const stepEdge = defineEdgeType<StepData>({
     return { path: rounded(points.map(back)), label: back(label), handle }
   },
 })
-
-export const builtinEdgeTypes = [bezierEdge, stepEdge, straightEdge]

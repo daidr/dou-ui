@@ -228,6 +228,12 @@
     }
   }
 
+  /* so small a hairline border would vanish: a filled block instead */
+  .dou-flow-editor.is-tiny .dou-flow-editor__simple:not(.is-selected) {
+    border-color: transparent;
+    background: color-mix(in oklab, var(--dou-color-text) 14%, transparent);
+  }
+
   .dou-flow-editor__simple-label {
     overflow: hidden;
     color: var(--dou-color-text-secondary);

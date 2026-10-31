@@ -31,13 +31,7 @@ import {
   type PortAnchor,
   type PortState,
 } from './context'
-import {
-  bezierEdge,
-  builtinEdgeTypes,
-  type EdgeAnchor,
-  type EdgeRoute,
-  type EdgeTypeSpec,
-} from './core/edge-types'
+import { bezierEdge, type EdgeAnchor, type EdgeRoute, type EdgeTypeSpec } from './core/edge-types'
 import { boundsOf, intersects, rectFrom, snapBox, type Guide, type SnapLink } from './core/geometry'
 import {
   canJoin,
@@ -125,8 +119,7 @@ const types = computed(() => {
 })
 const portTypes = computed(() => ({ ...resolved.value.portTypes, ...props.portTypes }))
 const edgeTypes = computed(() => {
-  const map = new Map<string, EdgeTypeSpec>(builtinEdgeTypes.map((spec) => [spec.type, spec]))
-  for (const [type, spec] of resolved.value.edgeTypes) map.set(type, spec)
+  const map = new Map(resolved.value.edgeTypes)
   for (const spec of props.edgeTypes ?? []) map.set(spec.type, spec as EdgeTypeSpec)
   return map
 })
@@ -456,6 +449,57 @@ const bend = computed(() => {
   return handle && item ? { edge: item.edge, handle } : null
 })
 
+// Edges from the keyboard ----------------------------------------------------------
+
+/** The node whose edges `E` goes through, and the one last selected. */
+let edgeCycle: { node: string; edge: string } | null = null
+
+/**
+ * Selects the next edge of the selected node, or of the node whose edges
+ * are being gone through, and says which nodes it joins.
+ */
+function cycleEdges(step: 1 | -1) {
+  const { nodes, edges } = selection.value
+  let node: string | undefined
+  let current: string | undefined
+  if (nodes.length === 1 && !edges.length) node = nodes[0]
+  else {
+    const last = edgeCycle
+    if (last && !nodes.length && edges.length === 1 && last.edge === edges[0]) {
+      node = last.node
+      current = last.edge
+    }
+  }
+  if (!node) return false
+  // Outgoing first, each in document order.
+  const all = doc.value.edges
+  const list = [
+    ...all.filter((e) => e.source.node === node),
+    ...all.filter((e) => e.target.node === node && e.source.node !== node),
+  ]
+  if (!list.length) {
+    announce(messages.value.noEdges)
+    return true
+  }
+  const index = current ? list.findIndex((e) => e.id === current) : -1
+  const edge = list[(index + step + list.length) % list.length]!
+  edgeCycle = { node, edge: edge.id }
+  setSelection({ nodes: [], edges: [edge.id] })
+  announce(describeEdge(edge))
+  return true
+}
+
+function nodeName(id: string) {
+  const node = nodeById.value.get(id)
+  return node ? labelOf(specOf(node), node) : id
+}
+
+function describeEdge(edge: FlowEdge) {
+  const t = messages.value
+  const text = format(t.edge, { from: nodeName(edge.source.node), to: nodeName(edge.target.node) })
+  return edge.label ? text + format(t.edgeLabel, { label: edge.label }) : text
+}
+
 // Edge labels ----------------------------------------------------------------------
 
 const editingLabel = ref<string | null>(null)
@@ -486,7 +530,8 @@ function finishLabel(save: boolean) {
   if (!id) return
   editingLabel.value = null
   const text = labelDraft.value.trim()
-  if (save) transact((tr) => tr.updateEdge(id, { label: text || undefined }))
+  if (save && transact((tr) => tr.updateEdge(id, { label: text || undefined })).changed)
+    announce(messages.value.labelSaved)
   root.value?.focus({ preventScroll: true })
 }
 
@@ -2343,6 +2388,9 @@ function onKeydown(event: KeyboardEvent) {
       if (props.readonly || selection.value.nodes.length !== 1) return
       startKeyLink(selection.value.nodes[0]!)
       break
+    case 'e':
+      if (!cycleEdges(event.shiftKey ? -1 : 1)) return
+      break
     default:
       return
   }
@@ -2479,9 +2527,12 @@ const drawnNodes = computed(() => {
 
 /** Zoomed out this far, measured nodes are drawn as plain boxes. */
 const simple = computed(() => viewport.value.zoom < props.simpleZoom)
+/** Names below this zoom would be a few px tall: only the boxes are drawn. */
+const TINY = 0.2
 
 const classes = computed(() => ({
   'is-simple': simple.value,
+  'is-tiny': simple.value && viewport.value.zoom < TINY,
   'is-readonly': props.readonly,
   'is-panning': panning.value,
   'is-space': spaceHeld.value,
@@ -2656,7 +2707,9 @@ defineExpose<FlowEditorExpose>({
           tabindex="-1"
         >
           <slot name="simple" :node="node">
-            <span class="dou-flow-editor__simple-label">{{ labelOf(specOf(node), node) }}</span>
+            <span v-if="viewport.zoom >= TINY" class="dou-flow-editor__simple-label">{{
+              labelOf(specOf(node), node)
+            }}</span>
           </slot>
         </div>
         <NodeView

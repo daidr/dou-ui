@@ -1,7 +1,14 @@
 import { mount } from '@vue/test-utils'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
-import { bezierEdge, defineEdgeType, DouFlowEditor, stepEdge, straightEdge } from '../index'
+import {
+  bezierEdge,
+  defineEdgeType,
+  DouFlowEditor,
+  flowKit,
+  stepEdge,
+  straightEdge,
+} from '../index'
 import { resolveFlowExtensions } from '../core/extension'
 import type {
   EdgeAnchor,
@@ -62,6 +69,11 @@ describe('edge types', () => {
         { name: 'b', edgeTypes: [line] },
       ]),
     ).toThrow('edge type "line"')
+    // The built-in types come with flowKit, so the same rule holds for them.
+    const step = defineEdgeType({ type: 'step', route: straightEdge.route })
+    expect(() => resolveFlowExtensions([flowKit(), { name: 'mine', edgeTypes: [step] }])).toThrow(
+      'edge type "step"',
+    )
   })
 })
 
@@ -245,6 +257,61 @@ describe('edges in the editor', () => {
   })
 })
 
+describe('edges from the keyboard', () => {
+  it("E goes through the selected node's edges and says which nodes they join", async () => {
+    const { root, doc, selection } = await setup()
+    doc.value = {
+      ...doc.value,
+      edges: [
+        ...doc.value.edges,
+        { id: 'back', source: { node: 'b', port: 'out' }, target: { node: 'a', port: 'in' } },
+      ],
+    }
+    selection.value = { nodes: ['a'], edges: [] }
+    await ticks()
+    const live = () => root.find('[aria-live]').text()
+    const press = async (shiftKey = false) => {
+      await root.trigger('keydown', { key: 'e', shiftKey })
+      await ticks()
+    }
+    await press()
+    expect(selection.value).toEqual({ nodes: [], edges: ['e'] })
+    expect(live()).toBe('连线：读取笔记 → 发布，标签：摘要')
+    await press()
+    expect(selection.value.edges).toEqual(['back'])
+    expect(live()).toBe('连线：发布 → 读取笔记')
+    await press()
+    expect(selection.value.edges).toEqual(['e'])
+    await press(true)
+    expect(selection.value.edges).toEqual(['back'])
+    // Then Enter edits its label and Delete removes it.
+    await root.trigger('keydown', { key: 'Delete' })
+    await ticks()
+    expect(doc.value.edges.map((e) => e.id)).toEqual(['e', 'gone'])
+  })
+
+  it('says when the node has no edges, and announces a saved label', async () => {
+    const { root, doc, selection } = await setup()
+    const edges = doc.value.edges
+    doc.value = { ...doc.value, edges: [] }
+    selection.value = { nodes: ['a'], edges: [] }
+    await ticks()
+    await root.trigger('keydown', { key: 'e' })
+    await ticks()
+    expect(root.find('[aria-live]').text()).toBe('这个节点没有连线')
+    doc.value = { ...doc.value, edges }
+    selection.value = { nodes: [], edges: ['e'] }
+    await ticks()
+    await root.trigger('keydown', { key: 'Enter' })
+    await ticks()
+    const input = root.find<HTMLInputElement>('.dou-flow-editor__label-input')
+    await input.setValue('新标签')
+    await input.trigger('keydown', { key: 'Enter' })
+    await ticks()
+    expect(root.find('[aria-live]').text()).toBe('已保存标签')
+  })
+})
+
 describe('large flows', () => {
   it('leaves out nodes and edges far out of view, once measured', async () => {
     const { root } = await setup()
@@ -284,6 +351,11 @@ describe('large flows', () => {
     expect(root.find('.dou-flow-editor__node').exists()).toBe(false)
     expect(root.find('.dou-flow-editor__label').exists()).toBe(false)
     expect(root.find('[data-edge-id="e"]').exists()).toBe(true)
+    // Further out, names would be a few px tall: only the boxes.
+    viewport.value = { x: 0, y: 0, zoom: 0.15 }
+    await ticks()
+    expect(root.findAll('.dou-flow-editor__simple').length).toBeGreaterThan(0)
+    expect(root.find('.dou-flow-editor__simple-label').exists()).toBe(false)
   })
 
   it('takes a simple slot', async () => {

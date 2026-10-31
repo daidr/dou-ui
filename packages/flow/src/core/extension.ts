@@ -25,7 +25,7 @@ export interface FlowExtension {
   /** Higher runs first: its keys and rules are asked before others. Defaults to 100. */
   priority?: number
   nodeTypes?: NodeTypeSpec<any>[]
-  /** Edge types, used by `edge.type`; `bezier`, `step` and `straight` are built in. */
+  /** Edge types, used by `edge.type`; `flowKit` brings `bezier`, `step` and `straight`. */
   edgeTypes?: EdgeTypeSpec<any>[]
   /** Looks and connection rules of port types; see the `port-types` prop. */
   portTypes?: PortTypes

@@ -11,6 +11,7 @@ import {
   TrashIcon,
 } from '@dou-ui/icons'
 import { defaultNode } from './components/default-node'
+import { bezierEdge, stepEdge, straightEdge } from './core/edge-types'
 import { defineFlowExtension, type FlowExtension } from './core/extension'
 import type { FlowMenuItem } from './core/menu'
 
@@ -159,13 +160,17 @@ const editToolbar = defineFlowExtension({
 
 /**
  * The editor's built-in parts as extensions: the default node type, the
- * context menu and the toolbar over selected nodes. Pass it along with
+ * `bezier`, `step` and `straight` edge types, the context menu and the
+ * toolbar over selected nodes. Pass it along with
  * your own extensions, e.g. `[flowKit(), aiNodes]`; without `extensions`
  * the editor uses it alone.
  */
 export function flowKit(options: FlowKitOptions = {}): FlowExtension[] {
   const { menu = true, toolbar = true } = options
-  const kit = [defineFlowExtension({ name: 'default-node', nodeTypes: [defaultNode] })]
+  const kit = [
+    defineFlowExtension({ name: 'default-node', nodeTypes: [defaultNode] }),
+    defineFlowExtension({ name: 'default-edges', edgeTypes: [bezierEdge, stepEdge, straightEdge] }),
+  ]
   if (menu) kit.push(editMenu)
   if (toolbar) kit.push(editToolbar)
   return kit

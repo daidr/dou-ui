@@ -12,10 +12,11 @@ import {
   toRaw,
   watch,
 } from 'vue'
-import type { ChangeSet } from './core/changes'
+import { matchBracket } from './core/brackets'
+import { ChangeSet } from './core/changes'
 import { moveCluster, snapCluster, wordAt } from './core/chars'
 import type { CodeCommand, CodeCommandTarget } from './core/commands'
-import { deleteCharBackward, deleteCharForward, insertNewline } from './core/commands'
+import { deleteCharBackward, deleteCharForward, insertNewline, insertText } from './core/commands'
 import { CodeHistory } from './core/history'
 import { buildKeymap, defaultKeymap, eventKey } from './core/keymap'
 import {
@@ -36,6 +37,8 @@ import {
   type CodeTransactionMeta,
   type CodeTransactionResult,
 } from './core/transaction'
+import { CodeHighlighter } from './language/highlighter'
+import { type CodeLineTokens, type CodeTokenType, lineParts, tokenTypes } from './language/language'
 import type { CodeEditorEmits, CodeEditorExpose, CodeEditorProps } from './types'
 import { diffText } from './view/input'
 import { Measure } from './view/measure'
@@ -49,6 +52,9 @@ const props = withDefaults(defineProps<CodeEditorProps>(), {
   lineNumbers: true,
   activeLine: true,
   tabSize: 2,
+  language: undefined,
+  closeBrackets: true,
+  matchBrackets: true,
 })
 const emit = defineEmits<CodeEditorEmits>()
 const ns = useNamespace('code-editor')
@@ -130,6 +136,7 @@ function dispatch(tr: CodeTransaction): CodeTransactionResult | null {
     history.record(result)
     historyTick.value++
   }
+  if (!result.changes.empty) highlighter?.update(result.state.doc, result.changes)
   state.value = markRaw(result.state)
   goals = pendingGoals
   pendingGoals = new Map()
@@ -172,7 +179,10 @@ function receive(next: string, given?: CodeText) {
   const normalized = next.includes('\r') ? next.replace(/\r\n?/g, '\n') : next
   const diff = diffText(old, normalized, mainRange(state.value.selection).head)
   if (!diff) {
-    if (given) state.value = markRaw({ ...state.value, doc: given })
+    if (given) {
+      highlighter?.update(given, ChangeSet.of([], given.length))
+      state.value = markRaw({ ...state.value, doc: given })
+    }
     return
   }
   const tr = transaction().setMeta({ action: 'external', scroll: false })
@@ -183,6 +193,7 @@ function receive(next: string, given?: CodeText) {
     : resolved
   history.record(result)
   historyTick.value++
+  highlighter?.update(result.state.doc, result.changes)
   state.value = markRaw(result.state)
   joined = { doc: result.state.doc, text: normalized }
   if (!composing.value) syncInput()
@@ -290,6 +301,8 @@ const preview = shallowRef<{ from: number; to: number; insert: string } | null>(
 interface Row {
   n: number
   text: string
+  /** The line's tokens, when its language has read it; kept the same while the line doesn't change. */
+  tokens: CodeLineTokens | null
   /** Set on the line being composed: the text drawn before, inside and after the composition. */
   compose?: [before: string, insert: string, after: string]
 }
@@ -298,14 +311,97 @@ const rows = computed<Row[]>(() => {
   const from = visibleFrom.value
   const p = preview.value
   const line = p ? doc.value.lineAt(p.from) : null
+  const tokensOf = syntaxLines(from, visibleTo.value)
   return lines.value.map((text, i) => {
     const n = from + i
-    if (!p || n !== line!.number) return { n, text }
+    const tokens = tokensOf(n)
+    if (!p || n !== line!.number) return { n, text, tokens }
     const col = p.from - line!.from
     const end = p.to <= line!.to ? p.to - line!.from : col
-    return { n, text, compose: [text.slice(0, col), p.insert, text.slice(end)] }
+    return { n, text, tokens: null, compose: [text.slice(0, col), p.insert, text.slice(end)] }
   })
 })
+
+// ---------------------------------------------------------------- syntax
+
+/** Lines read ahead of the last read one while drawing; further away, idle time catches up first. */
+const SYNTAX_REACH = 2000
+let highlighter: CodeHighlighter | null = null
+/** Bumped when lines in view got their tokens in idle time. */
+const syntaxTick = ref(0)
+
+watch(
+  () => props.language,
+  (language) => {
+    highlighter = language ? markRaw(new CodeHighlighter(language, doc.value, props.tabSize)) : null
+    syntaxTick.value++
+  },
+  { immediate: true },
+)
+
+/** Gets the tokens of the lines in view, asking idle time for the ones too far ahead. */
+function syntaxLines(from: number, to: number): (n: number) => CodeLineTokens | null {
+  void syntaxTick.value
+  const hl = highlighter
+  if (!hl) return () => null
+  if (!hl.ready(to) && to - hl.frontier > SYNTAX_REACH) {
+    scheduleSyntax(to)
+    return (n) => (hl.ready(n) ? hl.line(n) : null)
+  }
+  return (n) => hl.line(n)
+}
+
+let syntaxJob = 0
+let syntaxUntil = 0
+const idle =
+  typeof requestIdleCallback === 'function'
+    ? (task: () => void) => requestIdleCallback(task, { timeout: 100 })
+    : (task: () => void) => window.setTimeout(task, 16)
+const cancelIdle = (id: number) =>
+  typeof cancelIdleCallback === 'function' ? cancelIdleCallback(id) : clearTimeout(id)
+
+function scheduleSyntax(until: number) {
+  syntaxUntil = Math.max(syntaxUntil, until)
+  if (syntaxJob) return
+  syntaxJob = idle(() => {
+    syntaxJob = 0
+    const hl = highlighter
+    if (!hl) return
+    hl.work(performance.now() + 8, syntaxUntil)
+    if (hl.ready(syntaxUntil)) {
+      syntaxUntil = 0
+      syntaxTick.value++
+    } else scheduleSyntax(syntaxUntil)
+  })
+}
+
+/** The kind of token the character at `pos` is part of, when its line has been read. */
+function syntaxAt(pos: number): CodeTokenType | null {
+  const hl = highlighter
+  if (!hl || pos < 0 || pos >= doc.value.length) return null
+  const line = doc.value.lineAt(pos)
+  const tokens = hl.line(line.number, SYNTAX_REACH)
+  if (!tokens) return null
+  const col = pos - line.from
+  for (let i = 0; i < tokens.length; i += 2) {
+    if (col < tokens[i]!) {
+      const type = tokens[i + 1]!
+      return type < 0 ? null : tokenTypes[type]!
+    }
+  }
+  return null
+}
+
+function languageAt(pos: number) {
+  const hl = highlighter
+  if (!hl) return null
+  const line = doc.value.lineAt(Math.min(Math.max(pos, 0), doc.value.length))
+  // Within reach only: far down an unread file, the outer language will do.
+  if (line.number - hl.frontier > SYNTAX_REACH) return hl.language
+  return hl.languageAt(line.number)
+}
+
+const partsOf = (row: Row) => lineParts(row.text, row.tokens)
 
 // ---------------------------------------------------------------- overlays
 
@@ -388,6 +484,37 @@ const activeLineNumber = computed(
   () => doc.value.lineAt(mainRange(state.value.selection).head).number,
 )
 
+/** The bracket at the main cursor and its partner, outlined; a bracket without one is marked. */
+const bracketBoxes = computed(() => {
+  void metrics.value
+  void syntaxTick.value
+  if (!props.matchBrackets || !props.language || !focused.value || preview.value) return []
+  const main = mainRange(state.value.selection)
+  if (!isEmptyRange(main)) return []
+  const text = doc.value
+  const brackets = languageAt(main.head)?.brackets ?? props.language.brackets
+  const found = matchBracket(text, main.head, brackets, (pos) => {
+    const kind = syntaxAt(pos)
+    return kind === 'string' || kind === 'comment'
+  })
+  if (!found) return []
+  const out: Array<Box & { matched: boolean }> = []
+  for (const pos of found.match === null ? [found.from] : [found.from, found.match]) {
+    const line = text.lineAt(pos)
+    if (line.number < visibleFrom.value || line.number > visibleTo.value) continue
+    const str = lineText(line.number)
+    const left = measure.x(str, pos - line.from)
+    out.push({
+      key: `b${pos}`,
+      left: PAD_X + left,
+      top: yOf(line.number),
+      width: measure.x(str, pos - line.from + 1) - left,
+      matched: found.match !== null,
+    })
+  }
+  return out
+})
+
 // ---------------------------------------------------------------- the hidden textarea
 
 /** What the textarea holds: the text from `from` to `to`, and the caret inside it. */
@@ -445,6 +572,7 @@ function readInput() {
   // Typing over the selection or at the cursor: the same goes to every cursor.
   if (from === rangeFrom(main) && to === rangeTo(main) && insert) {
     if (insert === '\n') return run(insertNewline)
+    if (insertText(target, insert)) return
     dispatch(transaction().replaceSelection(insert).setMeta({ action: 'input' }))
     return
   }
@@ -529,11 +657,19 @@ const target: CodeCommandTarget = {
   get pageLines() {
     return Math.max(1, Math.floor((viewHeight.value || 400) / lineHeight.value) - 1)
   },
+  get language() {
+    return props.language ?? null
+  },
+  get closeBrackets() {
+    return props.closeBrackets
+  },
   transaction,
   dispatch,
   moveVertically,
   undo,
   redo,
+  languageAt,
+  syntaxAt,
 }
 
 function run(command: CodeCommand) {
@@ -929,6 +1065,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  if (syntaxJob) cancelIdle(syntaxJob)
   resize?.disconnect()
   endDrag()
   onPointerCancel()
@@ -1050,6 +1187,17 @@ defineExpose<CodeEditorExpose>({
             :class="ns.e('active-line')"
             :style="{ transform: `translateY(${activeLineTop}px)` }"
           />
+          <div :class="ns.e('brackets')" aria-hidden="true">
+            <div
+              v-for="box in bracketBoxes"
+              :key="box.key"
+              :class="[ns.e('bracket'), ns.is('unmatched', !box.matched)]"
+              :style="{
+                transform: `translate(${box.left}px, ${box.top}px)`,
+                width: `${box.width}px`,
+              }"
+            />
+          </div>
           <div :class="ns.e('selections')" aria-hidden="true">
             <div
               v-for="box in selectionBoxes"
@@ -1069,12 +1217,18 @@ defineExpose<CodeEditorExpose>({
             <div
               v-for="row in rows"
               :key="row.n"
-              v-memo="[row.text, row.compose?.join('\u0000')]"
+              v-memo="[row.text, row.tokens, row.compose?.join('\u0000')]"
               :class="ns.e('line')"
             >
               <template v-if="row.compose"
                 >{{ row.compose[0] }}<span :class="ns.e('compose')">{{ row.compose[1] }}</span
                 >{{ row.compose[2] }}</template
+              >
+              <template v-else-if="row.tokens"
+                ><template v-for="(part, i) in partsOf(row)" :key="i"
+                  ><span v-if="part[1]" :class="`dou-syntax-${part[1]}`">{{ part[0] }}</span
+                  ><template v-else>{{ part[0] }}</template></template
+                ></template
               >
               <template v-else>{{ row.text }}</template>
             </div>

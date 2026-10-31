@@ -1,5 +1,5 @@
 <script setup>
-import { CodeText, DouCodeEditor } from '@dou-ui/code'
+import { CodeText, DouCodeEditor, javascript } from '@dou-ui/code'
 import { DouSpace, DouText } from 'dou-ui'
 import { computed, shallowRef } from 'vue'
 
@@ -14,7 +14,12 @@ const size = computed(() => `${doc.value.lines.toLocaleString()} 行`)
 
 <template>
   <DouSpace direction="vertical" block>
-    <DouCodeEditor v-model:doc="doc" style="height: 400px" aria-label="大文件示例" />
+    <DouCodeEditor
+      v-model:doc="doc"
+      :language="javascript"
+      style="height: 400px"
+      aria-label="大文件示例"
+    />
     <DouText variant="secondary" size="sm">{{ size }}</DouText>
   </DouSpace>
 </template>

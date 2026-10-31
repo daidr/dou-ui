@@ -1,11 +1,11 @@
 # 代码编辑器
 
-`@dou-ui/code` 提供代码编辑器 `DouCodeEditor`：一块等宽字体、带行号的可编辑文本区域。十万行的文件也能马上打开、流畅输入和滚动，中文输入法在光标处直接组字，可以同时有多个选区。适合做配置编辑、脚本输入、代码练习这类"编辑一段代码"的界面。
+`@dou-ui/code` 提供代码编辑器 `DouCodeEditor`：一块等宽字体、带行号的可编辑文本区域。它按语言给代码着色，自动缩进、补全括号、切换注释；十万行的文件也能马上打开、流畅输入和滚动，中文输入法在光标处直接组字，可以同时有多个选区。适合做配置编辑、脚本输入、代码练习这类"编辑一段代码"的界面。
 
 只是展示一段代码时，用 [CodeBlock 代码块](/components/code-block) 更合适。
 
 ::: tip 开发中
-目前完成的是编辑内核：输入、选择、撤销和大文件。语法高亮、括号与缩进、查找替换、折叠、补全和协同编辑会陆续加入。
+目前完成的是编辑内核和语法高亮：输入、选择、撤销、大文件、语言、括号与缩进。查找替换、折叠、补全和协同编辑会陆续加入。
 :::
 
 ## 安装
@@ -33,6 +33,98 @@ app.use(DouCodeEditor)
 <DocDemo src="code/basic" column />
 
 字符串里的 `\r\n` 和 `\r` 都按换行读入，交回的字符串统一用 `\n`。
+
+## 语言
+
+`language` 设置代码的语言。语言决定代码怎么着色，也决定按 `Enter` 时怎么缩进、注释用什么符号、哪些括号成对输入。内置的语言从 `@dou-ui/code` 按需引入，没用到的不会打包。`createCodeHighlighter` 和 Markdown 代码块按名称或别名找语言，不区分大小写：
+
+| 导出         | 语言                                                  | 名称与别名（`lang` 可以写的值）  |
+| ------------ | ----------------------------------------------------- | -------------------------------- |
+| `javascript` | JavaScript                                            | `javascript`、`js`、`mjs`、`cjs` |
+| `typescript` | TypeScript                                            | `typescript`、`ts`、`mts`、`cts` |
+| `jsx`、`tsx` | 带 JSX 的 JavaScript、TypeScript                      | `jsx`、`tsx`                     |
+| `json`       | JSON，也允许注释和末尾逗号                            | `json`、`jsonc`、`json5`         |
+| `css`        | CSS                                                   | `css`                            |
+| `scss`       | SCSS 和 Less：嵌套规则、`//` 注释与 `$` 变量          | `scss`、`less`、`postcss`        |
+| `html`       | HTML，`<script>` 和 `<style>` 里按 JavaScript、CSS 读 | `html`、`htm`、`xml`、`svg`      |
+| `vue`        | Vue 单文件组件，模板里的 `{{ }}` 和指令值按表达式读   | `vue`                            |
+| `markdown`   | Markdown                                              | `markdown`、`md`                 |
+
+<DocDemo src="code/languages" column />
+
+`<script lang="ts">` 按 TypeScript 读，`<style lang="scss">` 按 SCSS 读。Markdown 的代码块默认只显示成一种颜色；要按语言着色，用 `createMarkdown` 的 `languages` 传入会用到的语言，按代码块开头写的语言名或别名选用：
+
+```ts
+import { createMarkdown, typescript, json } from '@dou-ui/code'
+
+const markdown = createMarkdown({ languages: [typescript, json] })
+```
+
+着色只针对看得见的行，以及它们之前必须读过的行。修改之后从改动的行重新读起，读到某一行开头的状态和修改前一样就停下，所以在长文件里输入只重读一两行。直接跳到很远的地方时，那里先显示为没有颜色的文字，空闲时间读到之后再着色。
+
+### 颜色
+
+每种记号的颜色来自主题的 `--dou-color-syntax-*` 变量，切换暗色不需要重新读代码。也可以和其他主题变量一样，用 `createTheme` 或 CSS 覆盖：
+
+| 变量                             | 用于                        |
+| -------------------------------- | --------------------------- |
+| `--dou-color-syntax-keyword`     | 关键字，CSS 的 `@media` 等  |
+| `--dou-color-syntax-string`      | 字符串、正则表达式          |
+| `--dou-color-syntax-number`      | 数字，CSS 的长度和颜色值    |
+| `--dou-color-syntax-comment`     | 注释                        |
+| `--dou-color-syntax-function`    | 函数名、链接                |
+| `--dou-color-syntax-type`        | 类型名，CSS 的类名和 id     |
+| `--dou-color-syntax-variable`    | 变量名                      |
+| `--dou-color-syntax-property`    | 属性名、对象的键            |
+| `--dou-color-syntax-operator`    | 运算符                      |
+| `--dou-color-syntax-punctuation` | 括号、逗号等标点            |
+| `--dou-color-syntax-tag`         | HTML 和 JSX 标签            |
+| `--dou-color-syntax-attribute`   | 标签的属性                  |
+| `--dou-color-syntax-meta`        | 实体、Markdown 代码块标记等 |
+| `--dou-color-syntax-invalid`     | 读不懂的内容，带波浪下划线  |
+
+着色用的类名是 `dou-syntax-keyword` 这样的形式，写在主题的基础样式里，所以 CodeBlock 也能使用。
+
+### 代码块使用同一套颜色
+
+`createCodeHighlighter` 生成一个 [CodeBlock](/components/code-block) 的 `highlight` 函数，用同样的语言和颜色给代码块着色。在 `defaults` 里设置一次，所有代码块都会使用；列表里没有的语言显示为普通文字：
+
+```ts
+import { createCodeHighlighter, css, json, typescript, vue } from '@dou-ui/code'
+
+app.use(DouUI, {
+  defaults: {
+    DouCodeBlock: { highlight: createCodeHighlighter([typescript, vue, css, json]) },
+  },
+})
+```
+
+### 自定义语言
+
+`defineCodeLanguage` 用一个按行读取的 `token` 函数定义语言。每次调用读一个记号（至少一个字符）并返回它的种类，返回 `null` 表示普通文字；`stream` 提供 `match`、`next`、`eat`、`peek`、`skipToEnd`、`sol`（是否在行首）等方法：
+
+<DocDemo src="code/custom-language" column />
+
+需要跨行的信息（比如多行注释）放在状态里：`startState` 返回文本开头的状态，`token` 的第二个参数就是它，可以直接修改。状态应当是普通的对象、数组、字符串和数字，编辑器会复制和比较它，判断从哪一行起不必重读。其他选项：
+
+| 选项          | 说明                                                            |
+| ------------- | --------------------------------------------------------------- |
+| `name`        | 名称，`createCodeHighlighter` 按它和 `aliases` 匹配 `lang`      |
+| `aliases`     | 别名，如 `['js', 'mjs']`                                        |
+| `startState`  | 文本开头的状态                                                  |
+| `comment`     | 注释写法：`{ line: '//', block: ['/*', '*/'] }`                 |
+| `brackets`    | 成对的括号，默认 `'()[]{}'`                                     |
+| `autoClose`   | 输入时自动补上另一半的字符，写成一个字符串，默认是左括号和 `'"` |
+| `indentAfter` | 光标前的文字符合这个正则时，换行多缩进一级                      |
+
+## 编辑辅助
+
+设置了 `language` 之后：
+
+- 按 `Enter` 保留缩进；光标前是左括号（或 HTML 的开始标签）时多缩进一级，光标在一对括号之间时，右括号单独放到下一行。在空行上输入右括号，会对齐到与它配对的左括号所在行的缩进。
+- 输入左括号或引号时同时补上另一半，光标留在中间；再输入右括号或引号时跳过已经补上的那个。有选区时，输入括号或引号会把选区包起来。字母后面的引号（如 `it's`）、字符串和注释里的括号不会自动补全。在一对空括号之间按 `Backspace` 两边一起删除。`close-brackets` 设为 `false` 可以关闭这些。
+- 光标挨着括号时，它和配对的括号会加上细边框；找不到配对时边框是红色。字符串和注释里的括号不参与配对。`match-brackets` 设为 `false` 可以关闭。
+- `Mod` + `/` 注释或取消注释所在的行，在 Vue 或 HTML 的 `<script>` 里用 `//`，在模板里用 `<!-- -->`。
 
 ## 选择与光标
 
@@ -74,6 +166,11 @@ app.use(DouCodeEditor)
 | `Mod` + `A`                                        | 全选                                              |
 | `Mod` + `Z`，`Mod` + `Shift` + `Z` 或 `Ctrl` + `Y` | 撤销，重做                                        |
 | `Esc`                                              | 只留下主选区；之后按 `Tab` 会离开编辑器           |
+| `Mod` + `/`                                        | 注释或取消注释所在的行                            |
+| `Alt` + `↑` / `↓`                                  | 把所在的行上移 / 下移一行                         |
+| `Shift` + `Alt` + `↑` / `↓`                        | 把所在的行复制到上方 / 下方                       |
+| `Mod` + `Shift` + `K`                              | 删除所在的行                                      |
+| `Mod` + `Shift` + `\`                              | 移到配对的括号                                    |
 
 编辑器里 `Tab` 用来缩进。只用键盘时，先按 `Esc` 再按 `Tab`，焦点就会移到页面上的下一个元素。
 
@@ -128,6 +225,13 @@ const keymap: CodeKeyBinding[] = [
 | `insertTab`                                | 插入缩进；选中多行时整体缩进          | `Tab`                                             |                                                     |
 | `indentMore` / `indentLess`                | 增加 / 减少所在行的缩进               | `Mod` + `]` / `[`，减少还有 `Shift` + `Tab`       |                                                     |
 | `undo` / `redo`                            | 撤销 / 重做                           | `Mod` + `Z` / `Mod` + `Shift` + `Z`、`Ctrl` + `Y` |                                                     |
+| `toggleComment`                            | 注释或取消注释所在的行                | `Mod` + `/`                                       |                                                     |
+| `moveLineUp` / `moveLineDown`              | 把所在的行上移 / 下移                 | `Alt` + `↑` / `↓`                                 | `⌥` + `↑` / `↓`                                     |
+| `copyLineUp` / `copyLineDown`              | 把所在的行复制到上方 / 下方           | `Shift` + `Alt` + `↑` / `↓`                       | `Shift` + `⌥` + `↑` / `↓`                           |
+| `deleteLine`                               | 删除所在的行                          | `Mod` + `Shift` + `K`                             |                                                     |
+| `cursorMatchingBracket`                    | 移到配对的括号前                      | `Mod` + `Shift` + `\`                             |                                                     |
+
+`codeCommands.insertText(target, text)` 不是按键命令：它像输入一样在每个光标处输入一个字符，并处理括号补全和右括号对齐，处理了返回 `true`。
 
 ## 大文件
 
@@ -187,6 +291,9 @@ const doc = shallowRef(CodeText.of(source))
 | `tab-size`          | 制表位宽度                      | `number`           | `2`        |
 | `indent-with-tabs`  | 用制表符缩进                    | `boolean`          | `false`    |
 | `placeholder`       | 文本为空时的提示                | `string`           | —          |
+| `language`          | 语言                            | `CodeLanguage`     | —          |
+| `close-brackets`    | 输入括号和引号时补上另一半      | `boolean`          | `true`     |
+| `match-brackets`    | 标出光标旁的括号和它的配对      | `boolean`          | `true`     |
 | `keymap`            | 额外的按键，比内置的优先        | `CodeKeyBinding[]` | —          |
 | `autofocus`         | 挂载后获得焦点                  | `boolean`          | `false`    |
 | `aria-label`        | 读屏读出的名称                  | `string`           | —          |

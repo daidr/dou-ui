@@ -23,6 +23,12 @@
     --dou-code-editor-cursor: var(--dou-color-text);
     --dou-code-editor-active-line: color-mix(in oklab, var(--dou-color-text) 4%, transparent);
     --dou-code-editor-selection: color-mix(in oklab, var(--dou-color-primary) 20%, transparent);
+    --dou-code-editor-bracket: color-mix(in oklab, var(--dou-color-text) 35%, transparent);
+    --dou-code-editor-bracket-unmatched: color-mix(
+      in oklab,
+      var(--dou-color-danger-text) 70%,
+      transparent
+    );
 
     position: relative;
     display: flex;
@@ -120,6 +126,7 @@
   }
 
   .dou-code-editor__lines,
+  .dou-code-editor__brackets,
   .dou-code-editor__selections,
   .dou-code-editor__cursors {
     position: absolute;
@@ -139,6 +146,11 @@
     padding: 0 12px;
     white-space: pre;
     tab-size: var(--dou-code-editor-tab-size, 2);
+  }
+
+  /* Bold glyphs can be wider than the cell the cursor is placed by, so the editor keeps one weight. */
+  .dou-code-editor__line :is(.dou-syntax-heading, .dou-syntax-strong) {
+    font-weight: inherit;
   }
 
   /* text being composed by an input method, before it is confirmed */
@@ -167,6 +179,20 @@
     pointer-events: none;
     .dou-code-editor:not(.is-focused) & {
       background-color: transparent;
+    }
+  }
+
+  /* the bracket at the cursor and its partner: a hairline box, not a fill, so it never hides a selection */
+  .dou-code-editor__bracket {
+    position: absolute;
+    top: 0;
+    left: 0;
+    box-sizing: border-box;
+    height: var(--dou-code-editor-line-height);
+    border: 1px solid var(--dou-code-editor-bracket);
+    border-radius: 2px;
+    &.is-unmatched {
+      border-color: var(--dou-code-editor-bracket-unmatched);
     }
   }
 

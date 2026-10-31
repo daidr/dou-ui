@@ -16,8 +16,14 @@ export interface ChartProps {
   height?: number | string
   /** The chart's accessible name, read out instead of the generated summary. */
   ariaLabel?: string
-  /** A legend under the chart. Shown when there is more than one series. */
+  /** A legend under the chart. Shown when there is more than one series, or slice of a pie. */
   legend?: boolean
+  /**
+   * Lay x down the left side and values along the bottom: bars that are
+   * easier to read across, with room for long category names. Axes are
+   * then set by where they are drawn: `left` is the x axis, `bottom` the values.
+   */
+  horizontal?: boolean
   /** Texts to override. */
   messages?: ChartMessagesOverride
 }
@@ -74,4 +80,40 @@ export interface ChartLineProps extends ChartSeriesProps {
 export interface ChartAreaProps extends ChartLineProps {
   /** Stack on the series before it with the same `stack` name (`true` is one shared stack). */
   stack?: string | boolean
+}
+
+export interface ChartBarProps extends ChartSeriesProps {
+  /** Stack on the bars before it with the same `stack` name (`true` is one shared stack). */
+  stack?: string | boolean
+  /** Corner radius of the bar's end, in px. In a stack, only the outermost bar is rounded. */
+  radius?: number
+  /** Hide the series but keep its color. */
+  hidden?: boolean
+}
+
+export interface ChartScatterProps extends ChartSeriesProps {
+  /** The size of each point, a key or a function: makes bubbles whose area grows with it. */
+  size?: ChartAccessor
+  /** Dot radius in px; with `size`, the radius of the largest bubble. */
+  radius?: number
+  /** Hide the series but keep its color. */
+  hidden?: boolean
+}
+
+export interface ChartPieProps {
+  /** The value of each slice: a key of the row or a function of it. Values of 0 or less are left out. */
+  value: ChartAccessor
+  /** The name of each slice, shown in the legend; defaults to the chart's `x`. */
+  label?: ChartAccessor
+  /** Rows of this pie alone; defaults to the chart's `data`. */
+  data?: readonly ChartRow[]
+  /** What the pie shows, read out before its slices. */
+  name?: string
+  /** The size of the hole, as a part of the radius: `0` is a pie, `0.6` a donut. */
+  innerRadius?: number
+}
+
+export interface ChartPieSlots {
+  /** Shown in the hole of a donut: a total, a title. */
+  default?: () => unknown
 }

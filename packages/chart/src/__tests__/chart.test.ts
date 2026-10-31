@@ -120,7 +120,7 @@ describe('layout', () => {
     )
     const layout = layoutChart({
       model,
-      axes: { bottom: axis('bottom'), left: axis('left'), right: axis('right') },
+      axes: { x: axis('bottom'), left: axis('left'), right: axis('right') },
       width: 600,
       height: 300,
       locale: 'zh-CN',
@@ -147,7 +147,7 @@ describe('layout', () => {
     )
     const layout = layoutChart({
       model,
-      axes: { bottom: axis('bottom'), left: axis('left'), right: null },
+      axes: { x: axis('bottom'), left: axis('left'), right: null },
       width: 300,
       height: 200,
       locale: 'zh-CN',
@@ -170,7 +170,7 @@ describe('layout', () => {
     })
     const layout = layoutChart({
       model,
-      axes: { bottom: axis('bottom'), left: axis('left'), right: null },
+      axes: { x: axis('bottom'), left: axis('left'), right: null },
       width: 1200,
       height: 200,
       locale: 'zh-CN',
@@ -197,7 +197,7 @@ describe('layout', () => {
     })
     const layout = layoutChart({
       model,
-      axes: { bottom: axis('bottom'), left: axis('left'), right: null },
+      axes: { x: axis('bottom'), left: axis('left'), right: null },
       width: 400,
       height: 200,
       locale: 'zh-CN',

@@ -33,7 +33,7 @@ import {
   type GanttTask,
 } from '@dou-ui/gantt'
 import '@dou-ui/gantt/style.css'
-import { DouChart, DouChartAxis, DouChartLine } from '@dou-ui/chart'
+import { DouChart, DouChartAxis, DouChartBar, DouChartLine, DouChartScatter } from '@dou-ui/chart'
 import '@dou-ui/chart/style.css'
 import { DouFlowEditor, type FlowDocument } from '@dou-ui/flow'
 import '@dou-ui/flow/style.css'
@@ -127,7 +127,7 @@ function plan(n: number) {
 const drawn = () =>
   new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
 
-function chartCase(n: number) {
+function chartCase(n: number, series: 'line' | 'bar' | 'scatter' = 'line') {
   let seed = 1
   const points = () => {
     const list = Array.from({ length: n })
@@ -135,7 +135,7 @@ function chartCase(n: number) {
     for (let i = 0; i < n; i++) {
       seed = (seed * 16807) % 2147483647
       value += (seed / 2147483647 - 0.5) * 2
-      list[i] = { t: i * 1000, v: value }
+      list[i] = { t: i * 1000, v: value, x: (seed % 100_000) / 1000 }
     }
     return list
   }
@@ -143,10 +143,14 @@ function chartCase(n: number) {
   ;(window as any).chart = { data, points }
   return () =>
     h('div', { class: 'chart-frame', style: 'width: 1200px' }, [
-      h(DouChart, { data: data.value, x: 't', height: 400 }, () => [
-        h(DouChartAxis, { position: 'bottom', type: 'time' }),
-        h(DouChartLine, { y: 'v' }),
-      ]),
+      h(DouChart, { data: data.value, x: series === 'scatter' ? 'x' : 't', height: 400 }, () =>
+        series === 'scatter'
+          ? [h(DouChartScatter, { y: 'v' })]
+          : [
+              h(DouChartAxis, { position: 'bottom', type: 'time' }),
+              h(series === 'bar' ? DouChartBar : DouChartLine, { y: 'v' }),
+            ],
+      ),
     ])
 }
 
@@ -566,6 +570,32 @@ export const cases: Record<string, Case> = {
   chart: {
     render: (n) => chartCase(n),
     // new data: read into columns again and drawn
+    prepare: () => {
+      const state = (window as any).chart
+      state.next = state.points()
+    },
+    act: async () => {
+      const { data, next } = (window as any).chart
+      data.value = next
+      await drawn()
+    },
+  },
+  // `n` bars, most narrower than a pixel: merged per pixel column
+  'chart-bar': {
+    render: (n) => chartCase(n, 'bar'),
+    prepare: () => {
+      const state = (window as any).chart
+      state.next = state.points()
+    },
+    act: async () => {
+      const { data, next } = (window as any).chart
+      data.value = next
+      await drawn()
+    },
+  },
+  // `n` points scattered over the plot: dots on one pixel drawn once
+  'chart-scatter': {
+    render: (n) => chartCase(n, 'scatter'),
     prepare: () => {
       const state = (window as any).chart
       state.next = state.points()

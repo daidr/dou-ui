@@ -1,6 +1,6 @@
 # 图表
 
-`@dou-ui/chart` 用来画折线图、面积图等统计图表。图表由一个外壳 `DouChart` 和写在里面的系列、坐标轴组成，每个部分都是一个组件，按需组合。
+`@dou-ui/chart` 用来画折线图、面积图、柱状图、散点图、饼图等统计图表。图表由一个外壳 `DouChart` 和写在里面的系列、坐标轴组成，每个部分都是一个组件，按需组合。
 
 系列画在 canvas 上，数据量大时也能流畅绘制；坐标轴的刻度文字是普通的页面文字，跟随主题的字体和颜色。
 
@@ -17,10 +17,12 @@ bun add dou-ui @dou-ui/chart
 ```ts
 import 'dou-ui/style.css'
 import '@dou-ui/chart/style.css'
-import { DouChart, DouChartArea, DouChartAxis, DouChartLine } from '@dou-ui/chart'
+import { DouChart, DouChartAxis, DouChartBar, DouChartLine } from '@dou-ui/chart'
 
-app.use(DouChart).use(DouChartAxis).use(DouChartLine).use(DouChartArea)
+app.use(DouChart).use(DouChartAxis).use(DouChartLine).use(DouChartBar)
 ```
+
+用到哪种系列就注册哪个组件：`DouChartLine`、`DouChartArea`、`DouChartBar`、`DouChartScatter`、`DouChartPie`。
 
 ## 基础用法
 
@@ -64,6 +66,66 @@ app.use(DouChart).use(DouChartAxis).use(DouChartLine).use(DouChartArea)
 
 `stack` 相同的面积图依次叠在前一个上面，`stack` 为 `true` 时属于同一组。正数向上叠，负数向下叠。堆叠的系列需要使用同一份数据。
 
+## 柱状图
+
+`DouChartBar` 从 0 画到每个值。多个柱状系列在同一个位置并排显示。
+
+<DocDemo src="chart/bar" />
+
+柱子的宽度按每个位置的空间计算，空间很大时也不会超过 56px。`radius` 是柱子末端的圆角，默认 2px。
+
+### 堆叠
+
+和面积图一样，`stack` 相同的柱子叠在一起，`stack` 为 `true` 时属于同一组。只有最外面一段有圆角，各段之间留出 1px 的间隔。不同的 `stack` 名称会形成并排的几组堆叠。
+
+<DocDemo src="chart/bar-stacked" />
+
+### 负值
+
+负数向下画，图表在 0 的位置画一条基准线。
+
+<DocDemo src="chart/bar-negative" />
+
+### 横向
+
+`horizontal` 把横轴放到左侧、数值放到底部，适合类目名称较长或者需要从上往下比较的情况。横向时坐标轴按画出的位置指定：`position="left"` 是类目轴，`position="bottom"` 是数值轴。
+
+<DocDemo src="chart/bar-horizontal" />
+
+横轴是数值或时间时也可以画柱状图，比如每天一根柱子。柱子的宽度按相邻两个值的最小间隔计算，横轴两端会各留出半根柱子的空间。柱子太密、每根不到 1.5px 时，同一像素列的柱子会合并成一根从最低值到最高值的柱子，看起来一样，绘制量只和图表宽度有关。
+
+## 散点图
+
+`DouChartScatter` 在每个数据点画一个圆点。圆点略微透明，重叠的地方颜色更深。系列可以用 `data` 带上自己的数据，图表的 `x` 对每个系列的数据都有效。
+
+<DocDemo src="chart/scatter" />
+
+`radius` 是圆点的半径，默认 3.5px。数据点超过 2000 个时，落在同一像素上的点只画一次，并且合并成一次绘制。
+
+### 气泡图
+
+`size` 指定每个点的大小，画成气泡：气泡的面积和值成正比，`radius` 是最大气泡的半径，默认 24px。大气泡先画，小气泡不会被盖住。
+
+<DocDemo src="chart/bubble" />
+
+## 饼图
+
+`DouChartPie` 画一个饼图，`value` 是每一块的值，`label` 是每一块的名称，不写时使用图表的 `x`。各块按数据的顺序从 12 点钟方向顺时针排列，小于等于 0 的值不画。饼图没有坐标轴，下方的图例列出每一块。
+
+<DocDemo src="chart/pie" />
+
+`inner-radius` 是中间空洞占半径的比例，设置后画成环形图。默认插槽的内容显示在空洞中间，可以放合计或说明。
+
+<DocDemo src="chart/donut" />
+
+一个图表里只画一个饼图，饼图和其他系列不能放在同一个图表里。读屏会读出每一块的名称、值和占比，`name` 会读在最前面。
+
+## 组合图
+
+不同的系列可以放在同一个图表里，比如柱状图配合折线图，再用右侧纵轴显示另一种单位。
+
+<DocDemo src="chart/combo" />
+
 ## 坐标轴
 
 `DouChartAxis` 用 `position` 指定位置：`bottom` 是横轴，`left` 和 `right` 是纵轴。
@@ -77,6 +139,31 @@ app.use(DouChart).use(DouChartAxis).use(DouChartLine).use(DouChartArea)
 - `ticks` 是大致的刻度数量，也可以是具体的刻度值数组。刻度文字放不下时会自动减少刻度。
 - `type="log"` 用对数刻度，适合跨越几个数量级的数据。
 - `grid` 控制网格线，默认只有左侧纵轴有；`title` 是坐标轴的标题；`hidden` 保留坐标轴的范围但不显示。
+
+## 自定义系列
+
+`defineChartSeries` 用来定义自己的系列组件。它和内置系列一样放在 `DouChart` 里，共用坐标轴、堆叠、图例和配色，只需要说明两件事：坐标轴怎样包含它的数据（`zero`、`band`），以及怎样画出来。
+
+<DocDemo src="chart/custom" />
+
+```ts
+defineChartSeries({
+  name: 'lollipop', // 组件名为 DouChartLollipop，图例里的类名为 is-lollipop
+  zero: true, // 数值轴包含 0
+  stacks: false, // 是否支持 stack
+  band: false, // 是否像柱子一样在每个位置并排分配空间
+  props: { radius: { type: Number, default: 5 } }, // 自己的属性
+  draw(painter, series, view) {},
+})
+```
+
+`draw` 收到三个参数：
+
+- `painter`：canvas 2D 上下文的一部分方法，只通过它绘制。
+- `series`：读取好的数据。`series.x.values` 是横轴的值（类目轴上是类目的序号），`series.top` 是要画的值（堆叠时是这一段的顶端），`series.base` 是堆叠时这一段的底端，`series.rows` 是原始的行数据，`series.props` 是组件的属性，`series.color` 是计算好的颜色。
+- `view`：`x`、`y` 两个比例尺，`map` 把值换算成像素；`horizontal` 表示横向，此时 `x.map` 得到的是纵坐标；`band` 是每个位置的宽度（像素）；`plot` 是绘图区域。
+
+内置的折线、面积、柱状和散点系列也通过同一个接口实现。
 
 ## 缺失的数据
 
@@ -119,6 +206,7 @@ app.use(DouChart).use(DouChartAxis).use(DouChartLine).use(DouChartArea)
 | `height`     | 高度，数字按 px 计算               | `number \| string`                          | `320`              |
 | `aria-label` | 读屏读出的名称，替换自动生成的概要 | `string`                                    | —                  |
 | `legend`     | 在图表下方显示图例                 | `boolean`                                   | 多于一个系列时显示 |
+| `horizontal` | 横轴放在左侧，数值放在底部         | `boolean`                                   | `false`            |
 | `messages`   | 替换语言包里的文字                 | `Partial<ChartMessages>`                    | —                  |
 
 ### Chart Slots
@@ -149,31 +237,76 @@ app.use(DouChart).use(DouChartAxis).use(DouChartLine).use(DouChartArea)
 | `hidden`        | 隐藏系列，保留它的颜色和位置       | `boolean`                                   | `false`                  |
 | `stack`         | 堆叠分组，名称相同的叠在一起       | `string \| boolean`                         | —                        |
 
+### Bar Props
+
+`y`、`name`、`data`、`x`、`color`、`tone`、`axis`、`hidden` 和折线图相同。
+
+| 名称     | 说明                         | 类型                | 默认值 |
+| -------- | ---------------------------- | ------------------- | ------ |
+| `stack`  | 堆叠分组，名称相同的叠在一起 | `string \| boolean` | —      |
+| `radius` | 柱子末端的圆角，单位 px      | `number`            | `2`    |
+
+### Scatter Props
+
+`y`、`name`、`data`、`x`、`color`、`tone`、`axis`、`hidden` 和折线图相同。
+
+| 名称     | 说明                                            | 类型                                        | 默认值             |
+| -------- | ----------------------------------------------- | ------------------------------------------- | ------------------ |
+| `size`   | 每个点的大小：字段名，或从行取值的函数          | `string \| (row, index: number) => unknown` | —                  |
+| `radius` | 圆点半径，单位 px；有 `size` 时是最大气泡的半径 | `number`                                    | `3.5`，气泡为 `24` |
+
+### Pie Props
+
+| 名称           | 说明                                 | 类型                                        | 默认值        |
+| -------------- | ------------------------------------ | ------------------------------------------- | ------------- |
+| `value`        | 每一块的值：字段名，或从行取值的函数 | `string \| (row, index: number) => unknown` | —             |
+| `label`        | 每一块的名称                         | `string \| (row, index: number) => unknown` | 图表的 `x`    |
+| `data`         | 饼图自己的行数据                     | `object[]`                                  | 图表的 `data` |
+| `name`         | 饼图的名称，读屏时读在最前面         | `string`                                    | —             |
+| `inner-radius` | 中间空洞占半径的比例，`0` 是饼图     | `number`                                    | `0`           |
+
+### Pie Slots
+
+| 名称      | 说明                       |
+| --------- | -------------------------- |
+| `default` | 显示在环形图空洞中间的内容 |
+
+### defineChartSeries
+
+| 选项     | 说明                                           | 类型                              |
+| -------- | ---------------------------------------------- | --------------------------------- |
+| `name`   | 名称，组件名为 `DouChart` 加上首字母大写的名称 | `string`                          |
+| `zero`   | 数值轴包含 0                                   | `boolean`                         |
+| `stacks` | 支持 `stack` 堆叠                              | `boolean`                         |
+| `band`   | 在每个位置并排分配空间，横轴两端留出半个位置   | `boolean`                         |
+| `props`  | 组件自己的属性，写法和 Vue 组件的 `props` 相同 | `object`                          |
+| `draw`   | 绘制                                           | `(painter, series, view) => void` |
+
 ### Axis Props
 
-| 名称       | 说明                     | 类型                                          | 默认值                    |
-| ---------- | ------------------------ | --------------------------------------------- | ------------------------- |
-| `position` | 位置                     | `'bottom' \| 'left' \| 'right'`               | —                         |
-| `type`     | 刻度类型                 | `'linear' \| 'log' \| 'time' \| 'category'`   | 横轴按数据判断，纵轴线性  |
-| `min`      | 起点                     | `number \| string \| Date`                    | 数据的最小值              |
-| `max`      | 终点                     | `number \| string \| Date`                    | 数据的最大值              |
-| `zero`     | 纵轴包含 0               | `boolean`                                     | 有面积图时为 `true`       |
-| `nice`     | 两端取到整齐的刻度值     | `boolean`                                     | 纵轴 `true`，横轴 `false` |
-| `ticks`    | 刻度数量，或具体的刻度值 | `number \| (number \| string \| Date)[]`      | 按尺寸计算                |
-| `format`   | 格式化刻度文字           | `(value: number \| Date \| string) => string` | —                         |
-| `grid`     | 显示网格线               | `boolean`                                     | 左侧纵轴 `true`           |
-| `title`    | 标题                     | `string`                                      | —                         |
-| `hidden`   | 隐藏坐标轴，保留它的范围 | `boolean`                                     | `false`                   |
+| 名称       | 说明                     | 类型                                          | 默认值                      |
+| ---------- | ------------------------ | --------------------------------------------- | --------------------------- |
+| `position` | 位置                     | `'bottom' \| 'left' \| 'right'`               | —                           |
+| `type`     | 刻度类型                 | `'linear' \| 'log' \| 'time' \| 'category'`   | 横轴按数据判断，纵轴线性    |
+| `min`      | 起点                     | `number \| string \| Date`                    | 数据的最小值                |
+| `max`      | 终点                     | `number \| string \| Date`                    | 数据的最大值                |
+| `zero`     | 纵轴包含 0               | `boolean`                                     | 有面积图、柱状图时为 `true` |
+| `nice`     | 两端取到整齐的刻度值     | `boolean`                                     | 纵轴 `true`，横轴 `false`   |
+| `ticks`    | 刻度数量，或具体的刻度值 | `number \| (number \| string \| Date)[]`      | 按尺寸计算                  |
+| `format`   | 格式化刻度文字           | `(value: number \| Date \| string) => string` | —                           |
+| `grid`     | 显示网格线               | `boolean`                                     | 主数值轴 `true`             |
+| `title`    | 标题                     | `string`                                      | —                           |
+| `hidden`   | 隐藏坐标轴，保留它的范围 | `boolean`                                     | `false`                     |
 
 ### CSS 变量
 
-| 变量                   | 说明                               |
-| ---------------------- | ---------------------------------- |
-| `--dou-chart-grid`     | 网格线颜色                         |
-| `--dou-chart-baseline` | 横轴和 0 刻度线的颜色              |
-| `--dou-chart-label`    | 刻度文字颜色                       |
-| `--dou-chart-title`    | 坐标轴标题颜色                     |
-| `--dou-chart-surface`  | 图表所在的背景色，用于数据点的描边 |
+| 变量                   | 说明                                                   |
+| ---------------------- | ------------------------------------------------------ |
+| `--dou-chart-grid`     | 网格线颜色                                             |
+| `--dou-chart-baseline` | 横轴和 0 刻度线的颜色                                  |
+| `--dou-chart-label`    | 刻度文字颜色                                           |
+| `--dou-chart-title`    | 坐标轴标题颜色                                         |
+| `--dou-chart-surface`  | 图表所在的背景色，用于数据点的描边和饼图各块之间的间隔 |
 
 ### 读屏
 

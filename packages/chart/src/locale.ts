@@ -8,6 +8,10 @@ export interface ChartMessages {
   series: string
   /** Read out for a series without points: `{name}`. */
   seriesEmpty: string
+  /** Read out for a slice of a pie: `{label}`, `{value}`, `{share}` (a percentage). */
+  slice: string
+  /** Read out for a pie with a `name`: `{name}`, `{slices}`. */
+  pie: string
   /** Joins the series in the summary. */
   listSeparator: string
   /** The chart with the range of its x axis: `{chart}`, `{from}`, `{to}`. */
@@ -22,6 +26,8 @@ const zhCN: ChartMessages = {
   chart: '图表',
   series: '{name}：{count} 个数据点，最小 {min}，最大 {max}',
   seriesEmpty: '{name}：没有数据',
+  slice: '{label} {value}（{share}）',
+  pie: '{name}：{slices}',
   listSeparator: '；',
   range: '{chart}，横轴从 {from} 到 {to}',
   summary: '{chart}。{series}',
@@ -32,6 +38,8 @@ const zhTW: ChartMessages = {
   chart: '圖表',
   series: '{name}：{count} 個資料點，最小 {min}，最大 {max}',
   seriesEmpty: '{name}：沒有資料',
+  slice: '{label} {value}（{share}）',
+  pie: '{name}：{slices}',
   listSeparator: '；',
   range: '{chart}，橫軸從 {from} 到 {to}',
   summary: '{chart}。{series}',
@@ -42,6 +50,8 @@ const en: ChartMessages = {
   chart: 'Chart',
   series: '{name}: {count} points, from {min} to {max}',
   seriesEmpty: '{name}: no data',
+  slice: '{label} {value} ({share})',
+  pie: '{name}: {slices}',
   listSeparator: '; ',
   range: '{chart}, x from {from} to {to}',
   summary: '{chart}. {series}',

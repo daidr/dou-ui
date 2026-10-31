@@ -183,3 +183,13 @@ export function categoryTicks(count: number, every = 1): number[] {
   for (let i = 0; i < count; i += every) ticks.push(i)
   return ticks
 }
+
+/**
+ * The pixel that areas and bars grow from: 0, or the nearer end when 0 is
+ * off the axis (always the start on a log axis).
+ */
+export function baseline(scale: Scale): number {
+  if (scale.kind === 'log') return scale.range[0]
+  const [a, b] = scale.domain
+  return scale.map(Math.min(Math.max(0, Math.min(a, b)), Math.max(a, b)))
+}

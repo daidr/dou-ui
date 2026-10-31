@@ -1,6 +1,7 @@
 import { BREAK, decimate, visibleRange } from './decimate'
 import { tracePoints, type Painter } from './painter'
-import type { ChartView, ResolvedSeries, SeriesKind } from './series'
+import { baseline } from './scale'
+import type { ChartSeries, ChartSeriesKind, ChartView } from './series'
 
 /** Room a point needs before dots are shown on their own (`dots: 'auto'`). */
 const DOT_SPACE = 16
@@ -28,24 +29,26 @@ function ensure(length: number) {
 }
 
 /** Draws a line, and with `area` the area under it (or under its slice of a stack). */
-export function drawLine(painter: Painter, series: ResolvedSeries, view: ChartView, area: boolean) {
-  const style = series.props as LineStyle
-  const { x: sx, y: sy, plot } = view
+export function drawLine(
+  painter: Painter,
+  series: ChartSeries<LineStyle>,
+  view: ChartView,
+  area: boolean,
+) {
+  const style = series.props
+  const { x: sx, y: sy, plot, horizontal: swap } = view
+  const along = swap ? plot.height : plot.width
   const xs = series.x.values
   const [from, to] = visibleRange(xs, series.x.sorted, sx.domain[0], sx.domain[1])
   const { indices, length } = decimate(xs, series.top, from, to, sx.k, sx.b, style.connectNulls)
   if (length === 0) return
 
   const shown = to - from
-  const smooth = !!style.smooth && shown * SMOOTH_SPACE <= plot.width
+  const smooth = !!style.smooth && shown * SMOOTH_SPACE <= along
   const lineWidth = style.lineWidth ?? 2
 
-  // where an area without a stack grows from: 0, or the bottom edge when 0 is off the axis
-  const floor = Math.min(
-    Math.max(0, Math.min(sy.domain[0], sy.domain[1])),
-    Math.max(sy.domain[0], sy.domain[1]),
-  )
-  const floorY = sy.kind === 'log' ? sy.range[0] : sy.map(floor)
+  // where an area without a stack grows from
+  const floorY = baseline(sy)
 
   ensure(length)
   const runs: Array<[number, number]> = []
@@ -71,9 +74,10 @@ export function drawLine(painter: Painter, series: ResolvedSeries, view: ChartVi
     painter.beginPath()
     for (const [a, b] of runs) {
       const xsRun = bufferX.subarray(a, b)
-      tracePoints(painter, xsRun, bufferY.subarray(a, b), b - a, { smooth })
+      tracePoints(painter, xsRun, bufferY.subarray(a, b), b - a, { smooth, swap })
       tracePoints(painter, xsRun, bufferB.subarray(a, b), b - a, {
         smooth,
+        swap,
         reverse: true,
         join: true,
       })
@@ -91,13 +95,13 @@ export function drawLine(painter: Painter, series: ResolvedSeries, view: ChartVi
   if (style.dashed) painter.setLineDash([lineWidth * 3, lineWidth * 2.5])
   painter.beginPath()
   for (const [a, b] of runs)
-    tracePoints(painter, bufferX.subarray(a, b), bufferY.subarray(a, b), b - a, { smooth })
+    tracePoints(painter, bufferX.subarray(a, b), bufferY.subarray(a, b), b - a, { smooth, swap })
   painter.stroke()
   painter.restore()
 
   const dots = style.dots ?? 'auto'
   // a point standing alone (a gap on both sides) is invisible without its dot
-  const every = dots === true || (dots === 'auto' && shown * DOT_SPACE <= plot.width)
+  const every = dots === true || (dots === 'auto' && shown * DOT_SPACE <= along)
   const lonely = runs.some(([a, b]) => b - a === 1)
   if (every || lonely) {
     const r = Math.max(2.5, lineWidth + 0.5)
@@ -109,8 +113,9 @@ export function drawLine(painter: Painter, series: ResolvedSeries, view: ChartVi
     for (const [a, b] of runs) {
       if (!every && b - a > 1) continue
       for (let k = a; k < b; k++) {
-        painter.moveTo(bufferX[k]! + r, bufferY[k]!)
-        painter.arc(bufferX[k]!, bufferY[k]!, r, 0, Math.PI * 2)
+        const [cx, cy] = swap ? [bufferY[k]!, bufferX[k]!] : [bufferX[k]!, bufferY[k]!]
+        painter.moveTo(cx + r, cy)
+        painter.arc(cx, cy, r, 0, Math.PI * 2)
       }
     }
     painter.stroke()
@@ -119,14 +124,12 @@ export function drawLine(painter: Painter, series: ResolvedSeries, view: ChartVi
   }
 }
 
-export const lineKind: SeriesKind = {
+export const lineKind: ChartSeriesKind<LineStyle> = {
   name: 'line',
-  zero: false,
-  stacks: false,
   draw: (painter, series, view) => drawLine(painter, series, view, false),
 }
 
-export const areaKind: SeriesKind = {
+export const areaKind: ChartSeriesKind<LineStyle> = {
   name: 'area',
   zero: true,
   stacks: true,

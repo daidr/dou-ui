@@ -24,13 +24,15 @@ export interface ChartSeriesProps {
   axis?: ChartValueAxis
 }
 
-/** How the chart sees a series once its data is read. */
-export interface ResolvedSeries {
+/** A series as it is drawn: its data read into columns and its color worked out. */
+export interface ChartSeries<P = Record<string, unknown>> {
   /** Stable for the series' lifetime: its place among all series, hidden or not. */
   index: number
-  kind: SeriesKind
-  props: ChartSeriesProps & Record<string, unknown>
+  kind: ChartSeriesKind<any>
+  props: ChartSeriesProps & P
   name: string
+  /** The rows the series reads: its own `data`, or the chart's. */
+  rows: readonly ChartRow[]
   /** The color as a CSS color the canvas understands. */
   color: string
   axis: ChartValueAxis
@@ -41,12 +43,26 @@ export interface ResolvedSeries {
   top: Float64Array
   /** The bottom of its slice of a stack; `null` when not stacked. */
   base: Float64Array | null
+  /**
+   * For a stacked series: how far the whole stack reaches at each x, up
+   * (positives) and down (negatives). A slice whose `top` is there is the
+   * outermost one.
+   */
+  stackEnds: { up: Float64Array; down: Float64Array } | null
+  /** For series that share the room of each x (bars): which part is theirs. */
+  slot: { index: number; count: number } | null
 }
 
 /** What a series draws with. */
 export interface ChartView {
+  /** The x scale. With `horizontal`, it runs down the left side. */
   x: Scale
+  /** The value scale. With `horizontal`, it runs along the bottom. */
   y: Scale
+  /** Whether x runs down and values run across: `map` of `x` gives a top, of `y` a left. */
+  horizontal: boolean
+  /** The room each x value gets along the x axis, in px: a category's width, or the closest two x apart. */
+  band: number
   /** The plot area, in CSS px. */
   plot: Rect
   /** Device pixels per CSS px. */
@@ -56,18 +72,30 @@ export interface ChartView {
 }
 
 export interface ChartColors {
-  /** What the chart sits on; rings around dots. */
+  /** What the chart sits on; rings around dots, gaps between slices. */
   surface: string
   grid: string
   baseline: string
 }
 
 /** A kind of series: how it widens the axes and how it draws. */
-export interface SeriesKind {
+export interface ChartSeriesKind<P = Record<string, unknown>> {
+  /** Names the series in class names (`is-bar`): the legend draws its swatch from it. */
   name: string
   /** Whether the value axis must reach 0 (areas and bars grow from it). */
-  zero: boolean
-  /** Whether series of this kind can stack. */
-  stacks: boolean
-  draw(painter: Painter, series: ResolvedSeries, view: ChartView): void
+  zero?: boolean
+  /** Whether series of this kind can stack (`stack` prop). */
+  stacks?: boolean
+  /**
+   * Whether series of this kind share the room of each x side by side
+   * (bars): each gets a `slot`, and the x axis leaves half a band of room
+   * at both ends.
+   */
+  band?: boolean
+  /**
+   * Room the series needs around each point, in px, for marks larger than
+   * a dot (bubbles): the axes are widened so they fit inside the plot.
+   */
+  inset?(series: Pick<ChartSeries<P>, 'props' | 'rows' | 'x' | 'y'>): number
+  draw(painter: Painter, series: ChartSeries<P>, view: ChartView): void
 }

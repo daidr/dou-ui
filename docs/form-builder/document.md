@@ -33,12 +33,18 @@ interface FormFieldNode {
   rules?: FormRuleSpec[]
   props?: Record<string, unknown> // 这个类型自己的设置
   span?: number | { base?: number; sm?: number; md?: number; lg?: number; xl?: number }
+  visibleWhen?: string // 以下都是表达式，见“联动与表达式”
+  disabledWhen?: string
+  requiredWhen?: string
+  formula?: string
+  source?: { name: string; args?: string } // 选项来源
 }
 ```
 
 - `id` 在整份描述里唯一，节点移动或修改时保持不变。设计器靠它记住选中的节点，撤销和协同也靠它对应节点。
 - `name` 用点号表示嵌套，`contact.phone` 写到 `model.contact.phone`，路径上缺的对象会自动建出来。存值的字段都要有 `name`；`text`、`divider`、`alert` 这类只用来展示的字段不需要。
 - `default` 每个表单拿到的是一份拷贝，几个表单共用一份描述时不会互相影响。`model` 里已经有值的字段不会被默认值覆盖，所以编辑已有数据时直接把数据传给 `model` 即可。重置时恢复的是字段挂载时的值。
+- `visibleWhen`、`disabledWhen`、`requiredWhen`、`formula` 和 `source` 让字段随其他字段变化，见[联动与表达式](./logic)。
 - `props` 的内容由字段类型决定，比如 `select` 的 `options`、`multiple`，`input` 的 `placeholder`、`maxlength`。列表见[字段类型](./fields)。
 
 ## 分组节点
@@ -52,11 +58,13 @@ interface FormSectionNode {
   bordered?: boolean
   columns?: number // 分组自己的栅格列数，默认和表单一样
   span?: FormResponsive<number>
+  visibleWhen?: string
+  disabledWhen?: string
   children: FormNode[]
 }
 ```
 
-分组可以嵌套。分组用 `role="group"` 并以标题命名，读屏会读出字段属于哪个分组。
+分组可以嵌套，也可以用 `visibleWhen`、`disabledWhen` 整组显示或禁用。分组用 `role="group"` 并以标题命名，读屏会读出字段属于哪个分组。
 
 ## 规则
 
@@ -68,6 +76,7 @@ interface FormRuleSpec {
   max?: number
   pattern?: string // 正则表达式的源码，不带斜杠
   flags?: string // 如 'i'
+  check?: string // 表达式，如 'value >= values.start'
   message?: string
   trigger?: 'change' | 'blur'
 }

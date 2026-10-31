@@ -38,6 +38,13 @@ interface FormNodeBase {
   id: string
   /** How many grid columns the node covers. Defaults to the whole row. */
   span?: FormResponsive<number>
+  /**
+   * An expression; the node shows only while it is true, e.g.
+   * `values.type == 'laptop'`. A hidden field is not checked on submit.
+   */
+  visibleWhen?: string
+  /** An expression; the node, and everything in a group, is disabled while it is true. */
+  disabledWhen?: string
 }
 
 export interface FormFieldNode extends FormNodeBase {
@@ -56,6 +63,22 @@ export interface FormFieldNode extends FormNodeBase {
   default?: unknown
   /** Shorthand for a `{ required: true }` rule. */
   required?: boolean
+  /** An expression; the field is required while it is true. Takes over from `required`. */
+  requiredWhen?: string
+  /**
+   * An expression whose result the field holds, e.g.
+   * `values.price * values.count`. It is worked out again whenever a value
+   * it reads changes, and the field cannot be edited.
+   */
+  formula?: string
+  /**
+   * Where the options come from, for a type with options such as `select`:
+   * the name of a source given to the renderer's `sources`, and an
+   * expression for what to ask it, e.g. `{ name: 'cities', arg: 'values.province' }`.
+   * Asked again when the result of `arg` changes; a value the new options
+   * no longer offer is cleared, unless `keep` is set.
+   */
+  source?: FormOptionSource
   /** Checks the value must pass, besides `required`. */
   rules?: FormRuleSpec[]
   /** Settings of the field type: a placeholder, the options of a select, a range… */
@@ -74,6 +97,18 @@ export interface FormSectionNode extends FormNodeBase {
   children: FormNode[]
 }
 
+export interface FormOptionSource {
+  /** The key of the source in the renderer's `sources`. */
+  name: string
+  /**
+   * An expression; its result is handed to the source. To hand over
+   * several values, make it a list: `[values.province, values.kind]`.
+   */
+  arg?: string
+  /** Keep the field's value when the options change and no longer offer it. */
+  keep?: boolean
+}
+
 /**
  * A check as plain data. Turned into a `FormRule` of the form, so it
  * behaves the same as rules written by hand.
@@ -90,6 +125,12 @@ export interface FormRuleSpec {
   pattern?: string
   /** Flags for `pattern`, e.g. `i`. */
   flags?: string
+  /**
+   * An expression the value must make true, e.g. `value >= values.start`.
+   * `value` is the field's value and `values` the whole form. Like `min`
+   * and `pattern` it skips an empty value; that is `required`'s job.
+   */
+  check?: string
   /** Replaces the default message. */
   message?: string
   trigger?: 'change' | 'blur'

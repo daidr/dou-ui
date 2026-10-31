@@ -216,7 +216,7 @@ export interface CodeInputEmits {
 export interface CodeDiffProps {
   /** The text before. */
   original?: string
-  /** The text after, bound with `v-model`; editable beside the original when `readonly` is off. */
+  /** The text after, bound with `v-model`; editable beside the original with `editable`. */
   modelValue?: string
   language?: CodeLanguage | null
   /**
@@ -226,8 +226,8 @@ export interface CodeDiffProps {
    * the toolbar's toggle should be kept.
    */
   mode?: 'split' | 'inline' | 'auto'
-  /** Keeps the modified text from being edited. On by default; the inline view is always read-only. */
-  readonly?: boolean
+  /** Lets the modified text be edited, side by side; the inline view is always read-only. */
+  editable?: boolean
   /**
    * Hides runs of unchanged lines behind a bar that shows them, keeping
    * `context` lines (3 by default, at least 1) next to each change, when

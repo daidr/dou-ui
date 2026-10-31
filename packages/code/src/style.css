@@ -1249,6 +1249,9 @@
     gap: 2px;
     min-height: 36px;
     padding: 0 6px 0 12px;
+    @media (pointer: coarse) {
+      min-height: 44px;
+    }
     border-bottom: 1px solid var(--dou-code-diff-border);
     font-size: var(--dou-font-size-sm);
   }
@@ -1275,6 +1278,20 @@
     overflow: hidden;
     color: var(--dou-color-text-secondary);
     text-overflow: ellipsis;
+  }
+  .dou-code-diff__hidden-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .dou-code-diff__toolbar .dou-button {
+    @media (pointer: coarse) {
+      min-width: 36px;
+      min-height: 36px;
+    }
   }
 
   .dou-code-diff__body {

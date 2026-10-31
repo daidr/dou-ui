@@ -36,7 +36,7 @@ const props = withDefaults(defineProps<CodeDiffProps>(), {
   modelValue: '',
   language: undefined,
   mode: 'auto',
-  readonly: true,
+  editable: false,
   collapseUnchanged: true,
   ignoreWhitespace: false,
   words: true,
@@ -73,11 +73,14 @@ function toggleView() {
   emit('update:mode', other)
 }
 
+/** Below this, each side would show fewer than about 30 columns: one column reads better. */
+const SPLIT_WIDTH = 560
+
 let resize: ResizeObserver | undefined
 onMounted(() => {
   if (typeof ResizeObserver === 'undefined' || !root.value) return
   resize = new ResizeObserver(([entry]) => {
-    if (entry) roomy.value = entry.contentRect.width >= 640
+    if (entry) roomy.value = entry.contentRect.width >= SPLIT_WIDTH
   })
   resize.observe(root.value)
 })
@@ -194,8 +197,12 @@ watch(
   },
 )
 
-/** The bar over a run of hidden lines. */
-function bar(run: Unchanged) {
+/**
+ * The bar over a run of hidden lines. Side by side, the original's bar
+ * mirrors the modified one's: pressed with a pointer, but left out of the
+ * keyboard order and of what is read out, so the run is one stop, not two.
+ */
+function bar(run: Unchanged, mirror = false) {
   const label = format(messages.value.diffUnchanged, { count: run.hideCount })
   return h(
     'button',
@@ -203,6 +210,8 @@ function bar(run: Unchanged) {
       type: 'button',
       class: ns.e('bar'),
       'aria-label': `${messages.value.unfold}：${label}`,
+      'aria-hidden': mirror ? 'true' : undefined,
+      tabindex: mirror ? -1 : undefined,
       onClick: () => open(run.key),
     },
     [h(ChevronUpDownIcon, { class: ns.e('bar-icon') }), h('span', label)],
@@ -297,7 +306,7 @@ function sideExtension(side: Side): CodeExtension {
           id: `bar-${run.key}`,
           ...(last < total ? { line: last + 1, position: 'above' as const } : { line: first - 1 }),
           height: BAR_HEIGHT,
-          render: () => bar(run),
+          render: () => bar(run, side === 'a'),
         })
       }
       return out
@@ -333,9 +342,11 @@ function onScroll(event: Event) {
   const other = (from === sideA.value ? sideB.value : sideA.value)?.querySelector<HTMLElement>(
     '.dou-code-editor__scroller',
   )
-  if (!other || other.scrollTop === source.scrollTop) return
+  if (!other) return
+  if (other.scrollTop === source.scrollTop && other.scrollLeft === source.scrollLeft) return
   syncing = other
   other.scrollTop = source.scrollTop
+  other.scrollLeft = source.scrollLeft
   requestAnimationFrame(() => {
     if (syncing === other) syncing = null
   })
@@ -670,9 +681,11 @@ defineExpose({
     <div v-if="toolbar" :class="ns.e('toolbar')">
       <span :class="ns.e('stats')">
         <template v-if="hunks.length">
-          <span :class="[ns.e('count'), 'is-added']">+{{ stats.added }}</span>
-          <span :class="[ns.e('count'), 'is-removed']">−{{ stats.removed }}</span>
-          <span :class="ns.e('summary')">{{ summary }}</span>
+          <span :class="[ns.e('count'), 'is-added']" aria-hidden="true">+{{ stats.added }}</span>
+          <span :class="[ns.e('count'), 'is-removed']" aria-hidden="true"
+            >−{{ stats.removed }}</span
+          >
+          <span :class="ns.e('hidden-text')">{{ summary }}</span>
         </template>
         <span v-else :class="ns.e('summary')">{{ summary }}</span>
       </span>
@@ -755,7 +768,7 @@ defineExpose({
           :aria-label="messages.diffModified"
           :foldable="false"
           :active-line="false"
-          :readonly="readonly"
+          :readonly="!editable"
           @update:model-value="onModifiedInput"
           @transaction="revealAt('b', $event)"
         />

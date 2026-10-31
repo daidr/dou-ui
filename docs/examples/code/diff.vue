@@ -40,5 +40,5 @@ export default shippingFee
 </script>
 
 <template>
-  <DouCodeDiff v-model="modified" :original="original" :language="javascript" :readonly="false" />
+  <DouCodeDiff v-model="modified" :original="original" :language="javascript" editable />
 </template>

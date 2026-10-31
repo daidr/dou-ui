@@ -204,7 +204,8 @@ export interface CodeExtension {
    */
   widgets?: (context: CodeExtensionContext) => CodeWidget[]
   /**
-   * Lines left out of view, from `from` to `to` (from 1, both kept out),
+   * Lines left out of view: line numbers (from 1, not text positions), from
+   * line `from` to line `to`, both left out,
    * e.g. the unchanged lines of a diff. Unlike a fold, nothing marks the
    * spot; put a widget there for that. Asked for the whole text; reactive
    * state read here updates them. Moving up and down steps over them.
@@ -266,7 +267,7 @@ export interface CodeExtensionContext extends CodeEditorExpose {
   readonly state: CodeState
   readonly doc: CodeText
   readonly selection: CodeSelection
-  /** The lines in view, from 1. */
+  /** The lines in view: line numbers (from 1, not text positions), both ends in view. */
   readonly visible: { readonly from: number; readonly to: number }
   /** The problems found now, by all linters and the `diagnostics` prop, in text order. */
   readonly diagnostics: readonly CodeDiagnostic[]

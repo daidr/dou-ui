@@ -341,7 +341,7 @@ const keys = [
 | `transaction` | 每次修改应用之前调用，可以在同一次修改里追加改动；撤销、重做和新的 `v-model` 值不经过这里                                                       |
 | `setup`       | 编辑器挂载后调用一次，返回的函数在卸载时调用                                                                                                    |
 
-这些函数的参数是编辑器的上下文：它就是编辑器实例（`doc`、`selection`、`transact`、`run` 等都在上面），另外还有 `visible`（可见的行号范围）、`diagnostics`（现在的所有问题）和 `announce(message)`（让读屏读出一句话）。`decorations` 和 `panels` 在绘制时调用，里面读到的响应式数据变化时会重新调用；`decorations` 只需要给出可见的行，大文件里也不会变慢。
+这些函数的参数是编辑器的上下文：它就是编辑器实例（`doc`、`selection`、`transact`、`run` 等都在上面），另外还有 `visible`（可见的行，`{ from, to }` 是行号，不是文本位置，两端都包含）、`diagnostics`（现在的所有问题）和 `announce(message)`（让读屏读出一句话）。`decorations` 和 `panels` 在绘制时调用，里面读到的响应式数据变化时会重新调用；`decorations` 只需要给出可见的行，大文件里也不会变慢。
 
 `mark` 和 `line` 只改变文字的样子，比如颜色、底色、下划线、边框，不改变字的大小和粗细，这样光标仍然落在字符上。
 
@@ -446,11 +446,11 @@ const doc = shallowRef(CodeText.of(source))
 
 <DocDemo src="code/diff" column />
 
-`mode` 决定怎样显示：`split` 左右并排，`inline` 把删除和新增的行放在同一列里，左侧两列行号分别是原文和修改后的行号。默认的 `auto` 在宽度不少于 640px 时并排，更窄时（比如手机上）改为行内；工具栏上的按钮可以切换，用 `v-model:mode` 可以记住切换的结果。并排时两侧逐行对齐，一侧多出的行在另一侧用斜纹空行补齐，两侧一起滚动；为了保持对齐，并排时不自动换行，`wrap` 只对行内显示生效。
+`mode` 决定怎样显示：`split` 左右并排，`inline` 把删除和新增的行放在同一列里，左侧两列行号分别是原文和修改后的行号。默认的 `auto` 在宽度不少于 560px（两侧各约 30 列）时并排，更窄时（比如手机上）改为行内；工具栏上的按钮可以切换，用 `v-model:mode` 可以记住切换的结果。并排时两侧逐行对齐，一侧多出的行在另一侧用斜纹空行补齐，两侧一起上下、左右滚动；为了保持对齐，并排时不自动换行，`wrap` 只对行内显示生效。
 
 连续多行没有改动时，只保留改动前后各 `context` 行（默认 3 行），其余的收起成一条“N 行未改动”的栏，点一下展开。`collapse-unchanged` 设为 `false` 时全部显示，也可以写成 `{ context, minLines }`：至少能收起 `minLines` 行（默认 4 行）时才收起。工具栏上可以一次展开或收起全部；查找等操作把光标移进收起的行时，这一段会自动展开。
 
-`readonly` 默认开启。关闭后可以在并排视图的右侧直接修改，对比结果随输入更新；行内视图总是只读的。`extensions` 只用在并排视图的右侧。`F7` / `Shift` + `F7` 跳到下一处 / 上一处改动，读屏会读出这是第几处改动和改了几行。
+加上 `editable` 后可以在并排视图的右侧直接修改，对比结果随输入更新；行内视图总是只读的。`extensions` 只用在并排视图的右侧。`F7` / `Shift` + `F7` 跳到下一处 / 上一处改动，读屏会读出这是第几处改动和改了几行。
 
 对比按整行进行（Myers 算法，线性空间），行内再按词比较，中文按字比较；改动的词太多时只标整行。`ignore-whitespace` 把只有空白不同的行看作相同。也可以直接调用 `diffText(original, modified, options?)` 得到改动列表，每一项是 `{ originalStart, originalCount, modifiedStart, modifiedCount, parts }`，行号从 1 开始，`parts` 是改动的词在两段文本里的位置。
 

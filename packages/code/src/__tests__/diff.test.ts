@@ -140,6 +140,8 @@ describe('DouCodeDiff', () => {
     expect(b!.findAll('.dou-code-diff__filler')).toHaveLength(0)
     expect(wrapper.find('.dou-code-diff__stats').text()).toContain('+3')
     expect(wrapper.find('.dou-code-diff__stats').text()).toContain('−2')
+    // The counts are drawn; the sentence is for screen readers.
+    expect(wrapper.find('.dou-code-diff__hidden-text').text()).toBe('新增 3 行，删除 2 行')
   })
 
   it('marks the words that changed', async () => {
@@ -157,6 +159,10 @@ describe('DouCodeDiff', () => {
     // Lines 7–16 are 3 away from both changes: hidden on both sides, the same bar on each.
     const bars = wrapper.findAll('.dou-code-diff__bar')
     expect(bars.map((bar) => bar.text())).toEqual(['10 行未改动', '10 行未改动'])
+    // One stop for the keyboard and screen readers: the original's bar mirrors the other.
+    expect(bars[0]!.attributes('aria-hidden')).toBe('true')
+    expect(bars[0]!.attributes('tabindex')).toBe('-1')
+    expect(bars[1]!.attributes('aria-hidden')).toBeUndefined()
     const left = wrapper.findAll('.dou-code-diff__side')[0]!
     const shown = () => left.findAll('.dou-code-editor__line').map((l) => l.text())
     expect(shown().slice(5, 8)).toEqual(['line 6', 'line 17', 'line 18'])
@@ -206,7 +212,7 @@ describe('DouCodeDiff', () => {
   })
 
   it('edits the modified side when not read-only, and follows the edit', async () => {
-    const { wrapper, code, diff } = setup({ readonly: false })
+    const { wrapper, code, diff } = setup({ editable: true })
     await nextTick()
     diff.value!.modified!.transact((tr) => tr.insert(0, 'new\n'))
     await nextTick()

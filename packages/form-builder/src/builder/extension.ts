@@ -43,6 +43,26 @@ export interface FormBuilderMenuItem {
   shortcut?: string
 }
 
+/**
+ * A mark on a node of the canvas and the outline, e.g. who else has it
+ * selected: an outline in its color and a tag with its label.
+ */
+export interface FormBuilderNodeMark {
+  key: string
+  label: string
+  /** Any CSS color; the text color when left out. */
+  color?: string
+}
+
+/** An undo history that replaces the builder's own, e.g. one that only undoes this user's changes. */
+export interface FormBuilderHistoryHandler {
+  /** `false` when there was nothing to undo. */
+  undo: () => boolean
+  redo: () => boolean
+  canUndo: () => boolean
+  canRedo: () => boolean
+}
+
 /** A part of the inspector, under the built-in settings. */
 export interface FormBuilderInspectorSection {
   key: string
@@ -83,6 +103,13 @@ export interface FormBuilderExtension {
     context: FormBuilderExtensionContext,
     node: FormNode | undefined,
   ) => FormBuilderInspectorSection[]
+  /**
+   * Marks for a node, read while the node renders: reactive state read
+   * here updates them.
+   */
+  marks?: (context: FormBuilderExtensionContext, node: FormNode) => FormBuilderNodeMark[]
+  /** Replaces the builder's undo history; the first extension that has one wins. */
+  history?: (context: FormBuilderExtensionContext) => FormBuilderHistoryHandler
   /** Runs once the builder is mounted. Return a function to run when it unmounts. */
   setup?: (context: FormBuilderExtensionContext) => void | (() => void)
   /**
@@ -107,6 +134,8 @@ export interface ResolvedFormBuilderExtensions {
   menus: NonNullable<FormBuilderExtension['menu']>[]
   inspectors: NonNullable<FormBuilderExtension['inspector']>[]
   setups: NonNullable<FormBuilderExtension['setup']>[]
+  marks: NonNullable<FormBuilderExtension['marks']>[]
+  history: FormBuilderExtension['history']
   transactions: NonNullable<FormBuilderExtension['transaction']>[]
 }
 
@@ -151,6 +180,8 @@ export function resolveFormBuilderExtensions(
     menus: pick('menu'),
     inspectors: pick('inspector'),
     setups: pick('setup'),
+    marks: pick('marks'),
+    history: extensions.find((e) => e.history)?.history,
     transactions: pick('transaction'),
   }
 }

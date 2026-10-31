@@ -355,19 +355,71 @@ export function dropPlaces(
 }
 
 /**
- * Replace the whole document with another, e.g. one imported as JSON: the
- * old nodes go, the new ones come in, and the settings follow. As steps of
- * a transaction, so undo brings the old document back.
+ * Turn the document into another, e.g. one imported as JSON or one changed
+ * by another person, in as few steps as it takes: nodes only the old one
+ * has go, nodes only the new one has come in, nodes in both move where the
+ * new one has them and take its keys, and the settings follow. Nodes that
+ * did not change stay the same objects. As steps of a transaction, so undo
+ * brings the old document back.
  */
 export function replaceDocument(tr: FormBuilderTransaction, next: FormDocument) {
-  for (const node of tr.doc.nodes.slice()) tr.remove(node.id)
-  next.nodes.forEach((node, index) => tr.insert(node, null, index))
+  const wanted = new Map<string, FormNode>()
+  for (const node of walkNodes(next.nodes)) wanted.set(node.id, node)
+
+  // Nodes the new document has not, or has as another type, go first, with what they hold.
+  for (const node of walkNodes(tr.doc.nodes)) {
+    const target = wanted.get(node.id)
+    if (target && target.type === node.type) continue
+    if (formNodePlaces(tr.doc).has(node.id)) tr.remove(node.id)
+  }
+
+  // Then from the top down, so each node's container is in its place before the node.
+  const place = (children: readonly FormNode[], parent: string | null) => {
+    children.forEach((target, index) => {
+      const at = formNodePlaces(tr.doc).get(target.id)
+      if (!at) {
+        // A node that is new with all it holds comes in whole; one holding nodes that are here, empty.
+        const whole = ![...walkNodes([target])].some(
+          (node) => node !== target && formNodePlaces(tr.doc).has(node.id),
+        )
+        const node = whole || !isContainer(target) ? target : { ...target, children: [] }
+        tr.insert(node as FormNode, parent, index)
+        if (!whole && isContainer(target)) place(target.children, target.id)
+        return
+      }
+      if ((at.parent?.id ?? null) !== parent || at.index !== index)
+        tr.move(target.id, parent, index)
+      const patch = nodePatch(at.node, target)
+      if (patch) tr.update(target.id, patch)
+      if (isContainer(target)) place(target.children, target.id)
+    })
+  }
+  place(next.nodes, null)
+
   const before = tr.doc as unknown as Record<string, unknown>
   const after = next as unknown as Record<string, unknown>
   const patch: Record<string, unknown> = {}
   for (const key of new Set([...Object.keys(before), ...Object.keys(after)])) {
-    if (key === 'nodes' || key === 'version' || before[key] === after[key]) continue
+    if (key === 'nodes' || key === 'version' || sameValue(before[key], after[key])) continue
     patch[key] = after[key]
   }
   if (Object.keys(patch).length) tr.updateDocument(patch as FormDocumentPatch)
+}
+
+const sameValue = (a: unknown, b: unknown) =>
+  a === b ||
+  (typeof a === 'object' && typeof b === 'object' && JSON.stringify(a) === JSON.stringify(b))
+
+/** The keys of `to` that differ from `from`, besides its place and what it holds; `null` when none. */
+function nodePatch(from: FormNode, to: FormNode): Record<string, unknown> | null {
+  const a = from as unknown as Record<string, unknown>
+  const b = to as unknown as Record<string, unknown>
+  const patch: Record<string, unknown> = {}
+  let changed = false
+  for (const key of new Set([...Object.keys(a), ...Object.keys(b)])) {
+    if (key === 'id' || key === 'type' || key === 'children' || sameValue(a[key], b[key])) continue
+    patch[key] = b[key]
+    changed = true
+  }
+  return changed ? patch : null
 }

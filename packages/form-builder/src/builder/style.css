@@ -1175,6 +1175,51 @@
     width: 100%;
   }
 
+  /* Marks from extensions, e.g. what other people have selected: a ring in the first one's color. */
+  .dou-form-builder__node.is-marked::after {
+    content: '';
+    position: absolute;
+    z-index: 1;
+    inset: calc(var(--dou-form-builder-outset) * -1 - 2px);
+    border: 1px solid var(--dou-form-builder-mark);
+    border-radius: calc(var(--dou-radius-control) + 2px);
+    pointer-events: none;
+  }
+
+  .dou-form-builder__marks {
+    position: absolute;
+    z-index: 2;
+    /* centered on the ring's top edge, clear of the label under it */
+    inset-block-start: calc(var(--dou-form-builder-outset) * -1 - 9px);
+    inset-inline-start: calc(var(--dou-form-builder-outset) * -1 + 6px);
+    display: flex;
+    gap: 4px;
+    max-width: calc(100% - 48px);
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .dou-form-builder__mark {
+    flex-shrink: 0;
+    box-sizing: border-box;
+    height: 14px;
+    padding-inline: 4px;
+    border-radius: 4px;
+    background: var(--dou-form-builder-mark);
+    color: #fff;
+    font-size: 12px;
+    line-height: 14px;
+    white-space: nowrap;
+  }
+
+  .dou-form-builder__outline-mark {
+    flex-shrink: 0;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--dou-form-builder-mark, currentColor);
+  }
+
   /* Marks a node that has conditions or a formula; the tooltip tells them. */
   .dou-form-builder__logic-mark {
     position: absolute;

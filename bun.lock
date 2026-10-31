@@ -127,10 +127,18 @@
       "dependencies": {
         "@dou-ui/icons": "workspace:*",
       },
+      "devDependencies": {
+        "y-protocols": "^1.0.7",
+        "yjs": "^13.6.33",
+      },
       "peerDependencies": {
         "dou-ui": "workspace:*",
         "vue": "^3.5.0",
+        "yjs": "^13.6.0",
       },
+      "optionalPeers": [
+        "yjs",
+      ],
     },
     "packages/gantt": {
       "name": "@dou-ui/gantt",

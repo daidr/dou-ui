@@ -40,6 +40,7 @@ import { formatMessage, useFormRendererMessages } from '../locale'
 import type { FormRendererMessages } from '../locale'
 import { rendererKey, rootScope, scopeKey } from '../renderer/context'
 import { menuItems, nodeMenu } from './menu'
+import type { FormBuilderNodeMark } from './extension'
 import type { NodeScope, RendererContext } from '../renderer/context'
 import { FormNodeView, nodeKey, spanStyle } from '../renderer/node-view'
 import { canvasOrder, useBuilderState } from './context'
@@ -427,6 +428,7 @@ const DesignNode = defineComponent({
       const node = props.node
       const title = nodeTitle(node, state.fields as Map<string, FormFieldType>, state.messages)
       const logic = logicOf(state, node)
+      const marks = state.extensions().marks.flatMap((marksOf) => marksOf(state, node))
       let body: VNode
       if (isList(node)) body = listBody(state, node, props, renderer.messages())
       else if (node.type === 'tabs' || node.type === 'steps')
@@ -455,9 +457,13 @@ const DesignNode = defineComponent({
             'dou-form-builder__node',
             isContainer(node) && 'is-container',
             selected.value && 'is-selected',
+            marks.length > 0 && 'is-marked',
           ],
           ref: el,
-          style: spanStyle(node.span, props.columns),
+          style: [
+            spanStyle(node.span, props.columns),
+            marks.length ? { '--dou-form-builder-mark': marks[0]!.color ?? 'currentColor' } : null,
+          ],
           id: state.domId(node.id, 'canvas'),
           role: 'treeitem',
           'aria-level': props.level,
@@ -493,6 +499,7 @@ const DesignNode = defineComponent({
         [
           body,
           logic && !primary.value ? logicMark(logic) : null,
+          marks.length ? markTags(marks) : null,
           primary.value ? actionBar(state, node, title) : null,
           primary.value && !isPage(node) ? resizeHandle(state, node, el) : null,
         ],
@@ -500,6 +507,25 @@ const DesignNode = defineComponent({
     }
   },
 })
+
+/** The labels of a node's marks, over its top edge, each in its color. */
+function markTags(marks: FormBuilderNodeMark[]) {
+  return h(
+    'div',
+    { class: 'dou-form-builder__marks', 'aria-hidden': 'true' },
+    marks.map((mark) =>
+      h(
+        'span',
+        {
+          key: mark.key,
+          class: 'dou-form-builder__mark',
+          style: mark.color ? { '--dou-form-builder-mark': mark.color } : undefined,
+        },
+        mark.label,
+      ),
+    ),
+  )
+}
 
 const LOGIC_KEYS = ['visibleWhen', 'disabledWhen', 'requiredWhen', 'formula'] as const
 

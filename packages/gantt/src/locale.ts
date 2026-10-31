@@ -89,6 +89,25 @@ export interface GanttMessages {
   scheduled: string
   /** A task on the critical path, read out: `{task}` is the rest. */
   criticalTask: string
+  /** The scheduler's texts. */
+  scheduler: {
+    /** Its accessible name when none is given. */
+    name: string
+    /** The header over the resources. */
+    resource: string
+    /** The row for tasks without a resource. */
+    unassigned: string
+    /** How to use it with keys; read out when it gets focus. */
+    keys: string
+    /** Read out for a task: `{title}`, `{resource}`, `{start}`, `{end}`. */
+    item: string
+    /** Read out for a resource: `{title}`, `{count}` tasks. */
+    row: string
+    /** Added to a resource that takes more than it can at times: `{row}` is the rest. */
+    overloaded: string
+    /** Read out after a task moved to another resource: `{title}`, `{resource}`. */
+    moved: string
+  }
 }
 
 const zhMonths = Array.from({ length: 12 }, (_, i) => `${i + 1}月`)
@@ -157,6 +176,16 @@ const zhCN: GanttMessages = {
     removeLink: '删除依赖',
   },
   criticalTask: '{task}，关键任务',
+  scheduler: {
+    name: '资源排期',
+    resource: '资源',
+    unassigned: '未分配',
+    keys: '方向键在任务之间移动，Alt 加左右方向键改时间，Alt 加上下方向键换资源，Delete 删除，Mod+Z 撤销',
+    item: '{title}，{resource}，{start} 至 {end}',
+    row: '{title}，{count} 项',
+    overloaded: '{row}，有时段超出可承担的数量',
+    moved: '{title}已移到{resource}',
+  },
 }
 
 const zhTW: GanttMessages = {
@@ -211,6 +240,16 @@ const zhTW: GanttMessages = {
     removeLink: '刪除相依',
   },
   criticalTask: '{task}，要徑任務',
+  scheduler: {
+    name: '資源排程',
+    resource: '資源',
+    unassigned: '未分配',
+    keys: '方向鍵在任務之間移動，Alt 加左右方向鍵改時間，Alt 加上下方向鍵換資源，Delete 刪除，Mod+Z 復原',
+    item: '{title}，{resource}，{start} 至 {end}',
+    row: '{title}，{count} 項',
+    overloaded: '{row}，有時段超出可承擔的數量',
+    moved: '{title}已移到{resource}',
+  },
 }
 
 const en: GanttMessages = {
@@ -284,6 +323,16 @@ const en: GanttMessages = {
     removeLink: 'Delete dependency',
   },
   criticalTask: '{task}, critical',
+  scheduler: {
+    name: 'Scheduler',
+    resource: 'Resource',
+    unassigned: 'Unassigned',
+    keys: 'Arrow keys move between tasks, Alt with left or right changes the time, Alt with up or down changes the resource, Delete removes, Mod+Z undoes',
+    item: '{title}, {resource}, {start} to {end}',
+    row: '{title}, {count} tasks',
+    overloaded: '{row}, takes more than it can at times',
+    moved: '{title} moved to {resource}',
+  },
 }
 
 export const ganttLocales: Record<string, GanttMessages> = {

@@ -3,7 +3,7 @@ import type { FlowEditorContext } from '../context'
 import type { FlowConnection, PortTypes } from './connect'
 import type { EdgeTypeSpec } from './edge-types'
 import type { FlowMenuItem, FlowMenuTarget, FlowToolbarItem } from './menu'
-import type { FlowDocument, FlowNode } from './model'
+import type { FlowDocument, FlowNode, Point } from './model'
 import type { NodeTypeSpec } from './node-types'
 import type { FlowTransaction } from './transaction'
 
@@ -25,6 +25,23 @@ export interface FlowHistoryHandler {
   canRedo: () => boolean
 }
 
+/** A press on the editor that an extension may take over, e.g. a drawing tool. */
+export interface FlowPress {
+  /** Where it was pressed, in canvas coordinates. */
+  point: Point
+  /** The node under the pointer, if any. */
+  node: FlowNode | null
+  event: PointerEvent
+}
+
+/** Follows a press an extension took over, until the pointer is let go. */
+export interface FlowPressHandler {
+  move?: (point: Point, event: PointerEvent) => void
+  end?: (point: Point, event: PointerEvent) => void
+  /** Escape, a second finger, or the browser took the pointer. */
+  cancel?: () => void
+}
+
 /**
  * A piece of the editor: node types, port types, connection rules, keys and
  * extra layers. The default node type comes as an extension too (see
@@ -37,6 +54,11 @@ export interface FlowExtension {
   nodeTypes?: NodeTypeSpec<any>[]
   /** Edge types, used by `edge.type`; `flowKit` brings `bezier`, `step` and `straight`. */
   edgeTypes?: EdgeTypeSpec<any>[]
+  /**
+   * The edge type of edges without a `type`, unless the editor's `edge-type`
+   * prop says otherwise. The last extension that sets it wins.
+   */
+  edgeType?: string
   /** Looks and connection rules of port types; see the `port-types` prop. */
   portTypes?: PortTypes
   /**
@@ -66,6 +88,12 @@ export interface FlowExtension {
   contextMenu?: (context: FlowExtensionContext, target: FlowMenuTarget) => FlowMenuItem[]
   /** Buttons for the toolbar that floats above the selected nodes. */
   toolbarItems?: (context: FlowExtensionContext, nodes: FlowNode[]) => FlowToolbarItem[]
+  /**
+   * Asked first when the canvas or a node is pressed with the main button or
+   * one finger, in priority order. Return handlers to take the press over;
+   * the editor then doesn't select, drag or pan for it.
+   */
+  press?: (context: FlowExtensionContext, press: FlowPress) => FlowPressHandler | void
   /** Runs once the editor is mounted. Return a function to run when it unmounts. */
   setup?: (context: FlowExtensionContext) => void | (() => void)
   /**
@@ -87,6 +115,7 @@ export interface ResolvedFlowExtensions {
   extensions: FlowExtension[]
   nodeTypes: Map<string, NodeTypeSpec>
   edgeTypes: Map<string, EdgeTypeSpec>
+  edgeType: string | undefined
   portTypes: PortTypes
   rules: NonNullable<FlowExtension['canConnect']>[]
   keymaps: NonNullable<FlowExtension['keymap']>[]
@@ -99,6 +128,7 @@ export interface ResolvedFlowExtensions {
   setups: NonNullable<FlowExtension['setup']>[]
   transactions: NonNullable<FlowExtension['transaction']>[]
   history: FlowExtension['history']
+  presses: NonNullable<FlowExtension['press']>[]
 }
 
 type ExtensionList = readonly (FlowExtension | readonly FlowExtension[])[]
@@ -160,6 +190,7 @@ export function resolveFlowExtensions(list: ExtensionList): ResolvedFlowExtensio
     extensions,
     nodeTypes,
     edgeTypes,
+    edgeType: extensions.reduce<string | undefined>((type, e) => e.edgeType ?? type, undefined),
     portTypes,
     rules: pick('canConnect'),
     keymaps: pick('keymap'),
@@ -168,6 +199,7 @@ export function resolveFlowExtensions(list: ExtensionList): ResolvedFlowExtensio
     above: extensions.flatMap((e) => e.layers?.above ?? []),
     overlays: extensions.flatMap((e) => e.overlays ?? []),
     menus: pick('contextMenu'),
+    presses: pick('press'),
     toolbars: pick('toolbarItems'),
     setups: pick('setup'),
     transactions: pick('transaction'),

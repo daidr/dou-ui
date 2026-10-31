@@ -47,6 +47,7 @@ const flowSidebar = ecosystem('流程编辑器', [
   { text: '编辑交互', link: '/flow/editing' },
   { text: '扩展', link: '/flow/extensions' },
   { text: '协同编辑', link: '/flow/collaboration' },
+  { text: '白板', link: '/flow/whiteboard' },
   { text: '大型流程', link: '/flow/performance' },
 ])
 
@@ -55,6 +56,7 @@ const ganttSidebar = ecosystem('甘特图', [
   { text: '文档数据', link: '/gantt/data' },
   { text: '扩展', link: '/gantt/extensions' },
   { text: '协同编辑', link: '/gantt/collaboration' },
+  { text: '资源排期', link: '/gantt/scheduler' },
 ])
 
 export default defineConfig({
@@ -355,6 +357,10 @@ export default defineConfig({
           replacement: r('../../packages/editor/src/style.css'),
         },
         {
+          find: /^@dou-ui\/flow\/whiteboard$/,
+          replacement: r('../../packages/flow/src/whiteboard/index.ts'),
+        },
+        {
           find: /^@dou-ui\/flow\/collaboration$/,
           replacement: r('../../packages/flow/src/collaboration/index.ts'),
         },
@@ -362,6 +368,10 @@ export default defineConfig({
         {
           find: /^@dou-ui\/flow\/style\.css$/,
           replacement: r('../../packages/flow/src/style.css'),
+        },
+        {
+          find: /^@dou-ui\/gantt\/scheduler$/,
+          replacement: r('../../packages/gantt/src/scheduler/index.ts'),
         },
         {
           find: /^@dou-ui\/gantt\/collaboration$/,

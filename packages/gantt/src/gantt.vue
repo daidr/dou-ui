@@ -9,14 +9,7 @@ import {
   PlusIcon,
   TrashIcon,
 } from '@dou-ui/icons'
-import {
-  holdPointer,
-  matchesHotkey,
-  useElementSize,
-  useLocale,
-  useNow,
-  type PointerHold,
-} from 'dou-ui'
+import { holdPointer, matchesHotkey, useElementSize, useLocale, type PointerHold } from 'dou-ui'
 import {
   computed,
   nextTick,
@@ -34,11 +27,12 @@ import { ganttKey, type GanttContext } from './context'
 import { resolveGanttExtensions, type GanttHistoryHandler } from './core/extension'
 import GanttMenu from './components/gantt-menu.vue'
 import CellEditor from './components/cell-editor.vue'
+import TimeGrid from './components/time-grid.vue'
+import TimeHeader from './components/time-header.vue'
 import {
   endKeepingWork,
   isWorkTime,
   nextWorkTime,
-  offTime,
   resolveCalendar,
   shiftWorkdays,
   shiftWorkMinutes,
@@ -57,25 +51,10 @@ import {
   type GanttStep,
   type GanttTransactionMeta,
 } from './core/transaction'
-import {
-  DAY_WIDTH_RANGE,
-  hourStep,
-  levelByName,
-  levelOf,
-  snapStep,
-  unitsBetween,
-  type GanttScale,
-  type TimeUnit,
-} from './core/scale'
-import {
-  MINUTES_PER_DAY,
-  dayIndex,
-  dayStart,
-  formatTime,
-  parseTime,
-  wallClockNow,
-} from './core/time'
+import { snapStep, type GanttScale } from './core/scale'
+import { MINUTES_PER_DAY, dayIndex, dayStart, formatTime, parseTime } from './core/time'
 import { buildTree, type GanttRow } from './core/tree'
+import { useTimeAxis } from './time-axis'
 import { dateLabel, durationLabel, endLabel, unitLabel } from './labels'
 import { format, useGanttMessages } from './locale'
 import type {
@@ -294,28 +273,7 @@ const critical = computed(() =>
 
 // Time axis -----------------------------------------------------------------------
 
-/** How wide a day is, in px; zooming changes it smoothly. */
-const dayWidth = ref(levelByName(scale.value ?? 'day').base)
-/** Without a `scale`, the first view picks the day width that fits the tasks. */
-let fitPending = scale.value == null
-const level = computed(() => levelOf(dayWidth.value))
-/** px per minute. */
-const ppm = computed(() => dayWidth.value / MINUTES_PER_DAY)
-
-watch(level, (next) => {
-  if (scale.value !== next.name) scale.value = next.name
-})
-// a picked level zooms around now when it is in view, else around the middle
-watch(scale, (name) => {
-  if (!name || level.value.name === name) return
-  const x = todayX.value == null ? null : todayX.value - scrollLeft.value
-  zoomTo(levelByName(name).base, x != null && x >= 0 && x <= viewWidth.value ? x : undefined)
-})
-
-const nowMs = useNow({ interval: 60_000 })
-const now = computed(() => wallClockNow(new Date(nowMs.value)))
-
-/** The time the tasks cover, or the coming month when nothing is scheduled. */
+/** The time the tasks cover, or `null` when nothing is scheduled. */
 const content = computed(() => {
   let start = Infinity
   let end = -Infinity
@@ -324,112 +282,55 @@ const content = computed(() => {
     start = Math.min(start, row.span.start)
     end = Math.max(end, row.span.end)
   }
-  if (start > end) {
-    start = dayStart(now.value)
-    end = start + 30 * MINUTES_PER_DAY
-  }
-  return { start, end }
+  return start > end ? null : { start, end }
 })
 
-/** Minutes added at either end by scrolling close to it. */
-const grown = ref({ before: 0, after: 0 })
-
-/** The span the timeline covers. */
-const extent = computed(() => {
-  const fixed = props.range?.map((text) => parseTime(text))
-  if (fixed?.[0] && fixed[1])
-    return { start: dayStart(fixed[0].at), end: dayStart(fixed[1].at) + MINUTES_PER_DAY }
-  const pad = Math.max((viewWidth.value || 800) / ppm.value, 7 * MINUTES_PER_DAY)
-  return {
-    start: dayStart(content.value.start - pad - grown.value.before),
-    end: dayStart(content.value.end + pad + grown.value.after) + MINUTES_PER_DAY,
-  }
-})
-const origin = computed(() => extent.value.start)
-const totalWidth = computed(() => Math.ceil((extent.value.end - extent.value.start) * ppm.value))
-const xOf = (at: number) => (at - origin.value) * ppm.value
-
-// Scrolling -----------------------------------------------------------------------
-
-const scrollTop = ref(0)
-const scrollLeft = ref(0)
-/**
- * The time at the left edge of the view. It is what stays put: when the
- * extent grows or the zoom changes, the scroll position follows it.
- */
-const viewStart = ref(0)
-const scrollbar = ref(0)
-
-function onChartScroll() {
-  const el = chart.value!
-  scrollTop.value = el.scrollTop
-  scrollLeft.value = el.scrollLeft
-  viewStart.value = origin.value + el.scrollLeft / ppm.value
-  if (tableBody.value && Math.abs(tableBody.value.scrollTop - el.scrollTop) >= 1)
-    tableBody.value.scrollTop = el.scrollTop
-  if (props.range) return
-  const view = viewWidth.value / ppm.value
-  if (el.scrollLeft < viewWidth.value / 2)
-    grown.value = { ...grown.value, before: grown.value.before + 2 * view }
-  else if (el.scrollLeft + viewWidth.value > totalWidth.value - viewWidth.value / 2)
-    grown.value = { ...grown.value, after: grown.value.after + 2 * view }
-}
-
-function onTableScroll() {
-  const body = tableBody.value!
-  if (chart.value && Math.abs(chart.value.scrollTop - body.scrollTop) >= 1)
-    chart.value.scrollTop = body.scrollTop
-}
-
-// keep the time at the left edge in place as the axis changes under it
-watch(
-  [origin, ppm, totalWidth],
-  () => {
-    const el = chart.value
-    if (!el) return
-    const target = Math.round((viewStart.value - origin.value) * ppm.value)
-    if (Math.abs(el.scrollLeft - target) >= 1) el.scrollLeft = target
-    scrollLeft.value = el.scrollLeft
-  },
-  { flush: 'post' },
-)
-
-function measureScrollbar() {
-  const el = chart.value
-  if (el) scrollbar.value = el.offsetHeight - el.clientHeight
-}
-watch([viewHeight, viewWidth], measureScrollbar, { flush: 'post' })
-
-function scrollToTime(at: number, offset = 48) {
-  viewStart.value = at - offset / ppm.value
-  const el = chart.value
-  if (!el) return
-  el.scrollLeft = Math.round((viewStart.value - origin.value) * ppm.value)
-  scrollLeft.value = el.scrollLeft
-}
-
-/** The widest a day gets when fitting, so short plans don't zoom to hours. */
-const FIT_MAX = 64
-
-function fit() {
+const axis = useTimeAxis({
+  chart,
+  tableBody,
+  viewWidth,
+  scale,
+  range: () => props.range,
+  today: () => props.today,
+  weekStart,
+  calendar,
+  messages,
+  content,
   // worked out from the root, so a table about to step aside doesn't count
-  const width = showTable.value ? viewWidth.value : rootWidth.value
-  if (!width) return
-  const days = Math.max(1, (content.value.end - content.value.start) / MINUTES_PER_DAY)
-  dayWidth.value = Math.min(FIT_MAX, Math.max(DAY_WIDTH_RANGE[0], (width - 96) / days))
-  scrollToTime(content.value.start)
-}
-
-onMounted(() => {
-  measureScrollbar()
-  scrollToTime(content.value.start)
+  fitWidth: () => (showTable.value ? viewWidth.value : rootWidth.value),
 })
+const {
+  dayWidth,
+  level,
+  ppm,
+  now,
+  extent,
+  origin,
+  totalWidth,
+  xOf,
+  contentX,
+  scrollTop,
+  scrollLeft,
+  scrollbar,
+  onChartScroll,
+  onTableScroll,
+  scrollToTime,
+  scrollToDate,
+  scrollToToday,
+  fit,
+  zoomTo,
+  zoomIn,
+  zoomOut,
+  onWheel,
+  timeWindow,
+  topCells,
+  bottomCells,
+  shaded,
+  todayX,
+} = axis
 
-watch([rootWidth, viewWidth], ([outer, inner]) => {
-  if (!fitPending || !outer || !inner) return
-  fitPending = false
-  fit()
-})
+watch([viewHeight, viewWidth], axis.measureScrollbar, { flush: 'post' })
+watch([rootWidth, viewWidth], axis.fitWhenSized)
 
 // Dates that can't be read leave a task unscheduled; say so once per task while developing.
 const warned = new Set<string>()
@@ -453,27 +354,6 @@ watch(
   { immediate: true },
 )
 
-// Zoom ----------------------------------------------------------------------------
-
-/** Changes the day width, keeping the time under `anchor` (px from the view's left) in place. */
-function zoomTo(width: number, anchor = viewWidth.value / 2) {
-  const next = Math.min(DAY_WIDTH_RANGE[1], Math.max(DAY_WIDTH_RANGE[0], width))
-  const at = viewStart.value + anchor / ppm.value
-  dayWidth.value = next
-  viewStart.value = at - anchor / ppm.value
-}
-
-function onWheel(event: WheelEvent) {
-  if (!(event.ctrlKey || event.metaKey)) return
-  event.preventDefault()
-  const rect = chart.value!.getBoundingClientRect()
-  zoomTo(dayWidth.value * Math.exp(-event.deltaY * 0.01), event.clientX - rect.left)
-}
-
-const ZOOM_STEP = 1.5
-const zoomIn = () => zoomTo(dayWidth.value * ZOOM_STEP)
-const zoomOut = () => zoomTo(dayWidth.value / ZOOM_STEP)
-
 // What is in view -----------------------------------------------------------------
 
 const bodyHeight = computed(() => Math.max(0, viewHeight.value - HEADER))
@@ -487,50 +367,6 @@ const rowWindow = computed(() => {
   return { from, to }
 })
 const visibleRows = computed(() => rows.value.slice(rowWindow.value.from, rowWindow.value.to))
-
-/** The time in view, with some room either side. */
-const timeWindow = computed(() => ({
-  start: origin.value + (scrollLeft.value - OVERSCAN_X) / ppm.value,
-  end: origin.value + (scrollLeft.value + (viewWidth.value || 800) + OVERSCAN_X) / ppm.value,
-}))
-
-// Header ---------------------------------------------------------------------------
-
-interface HeaderCell {
-  key: number
-  end: number
-  left: number
-  width: number
-  label: string
-}
-
-function cells(unit: TimeUnit, step = 1): HeaderCell[] {
-  const { start, end } = timeWindow.value
-  return unitsBetween(unit, Math.max(start, origin.value), end, weekStart.value, step).map(
-    (cell) => ({
-      key: cell.start,
-      end: cell.end,
-      left: xOf(cell.start),
-      width: (cell.end - cell.start) * ppm.value,
-      label: unitLabel(unit, cell.start, messages.value, dayWidth.value),
-    }),
-  )
-}
-
-const headerStep = computed(() => (level.value.bottom === 'hour' ? hourStep(dayWidth.value) : 1))
-const topCells = computed(() => cells(level.value.top))
-const bottomCells = computed(() => cells(level.value.bottom, headerStep.value))
-
-/** Days off, shaded; at hour level the hours outside work too. */
-const shaded = computed(() => {
-  if (dayWidth.value < 8) return []
-  const { start, end } = timeWindow.value
-  return offTime(calendar.value, start, end, level.value.name === 'hour').map((range) => ({
-    key: range.start,
-    left: xOf(range.start),
-    width: (range.end - range.start) * ppm.value,
-  }))
-})
 
 /**
  * Without the table, rows whose bar is out of view (or that have none)
@@ -565,12 +401,6 @@ const sideOffset = (bar: Bar) =>
 
 /** Rows titled at the edge; their own side labels would only crowd it. */
 const titled = computed(() => new Set(rowTitles.value.map((item) => item.row.task.id)))
-
-const todayX = computed(() =>
-  props.today && now.value >= extent.value.start && now.value <= extent.value.end
-    ? xOf(now.value)
-    : null,
-)
 
 // Bars ------------------------------------------------------------------------------
 
@@ -1453,9 +1283,6 @@ const dragPreview = computed<Map<string, Partial<GanttTask>> | null>(() => {
   return out
 })
 
-const contentX = (clientX: number) =>
-  clientX - chart.value!.getBoundingClientRect().left + chart.value!.scrollLeft
-
 /** The leaf tasks a drag on `row` moves: the row itself, its subtasks, or the whole selection. */
 function movers(row: GanttRow) {
   const out = new Map<string, { start: number; end: number; dateOnly: boolean }>()
@@ -1533,33 +1360,14 @@ function begin(d: Drag) {
  */
 let hold: PointerHold | null = null
 
-function onTouchMove(event: TouchEvent) {
-  if (!pinch || event.touches.length !== 2) return
-  event.preventDefault()
-  const [a, b] = [event.touches[0]!, event.touches[1]!]
-  const rect = chart.value!.getBoundingClientRect()
-  const distance = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY)
-  zoomTo(pinch.dayWidth * (distance / pinch.distance), (a.clientX + b.clientX) / 2 - rect.left)
-}
-
-/** Two fingers on the timeline zoom it, as a held Ctrl and the wheel do. */
-let pinch: { distance: number; dayWidth: number } | null = null
+const onTouchMove = (event: TouchEvent) => void axis.pinchMove(event)
+const onTouchEnd = (event: TouchEvent) => axis.pinchEnd(event)
 
 function onTouchStart(event: TouchEvent) {
-  const [a, b] = [event.touches[0], event.touches[1]]
-  if (event.touches.length !== 2 || !a || !b) return
-  if (!chart.value?.contains(a.target as Node) || !chart.value.contains(b.target as Node)) return
   // the second finger turns a press on a bar into a pinch
+  if (!axis.pinchStart(event)) return
   stopDrag()
   stopRowDrag()
-  pinch = {
-    distance: Math.max(1, Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY)),
-    dayWidth: dayWidth.value,
-  }
-}
-
-function onTouchEnd(event: TouchEvent) {
-  if (event.touches.length < 2) pinch = null
 }
 
 onMounted(() => {
@@ -2315,15 +2123,6 @@ function onLinkClick(link: GanttLink, event: MouseEvent) {
 
 // Exposed ---------------------------------------------------------------------------
 
-function scrollToDate(date: string) {
-  const parsed = parseTime(date)
-  if (parsed) scrollToTime(parsed.at)
-}
-
-function scrollToToday() {
-  scrollToTime(now.value, viewWidth.value / 3)
-}
-
 function scrollToTask(id: string) {
   const row = tree.value.byId.get(id)
   if (!row) return
@@ -2623,36 +2422,14 @@ const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * prop
       @wheel="onWheel"
     >
       <div class="dou-gantt__canvas" :style="{ width: `${totalWidth}px` }">
-        <div class="dou-gantt__header" aria-hidden="true">
-          <div class="dou-gantt__tier is-top">
-            <div
-              v-for="cell in topCells"
-              :key="cell.key"
-              class="dou-gantt__cell"
-              :style="{ left: `${cell.left}px`, width: `${cell.width}px` }"
-            >
-              <span class="dou-gantt__cell-label">{{ cell.label }}</span>
-            </div>
-          </div>
-          <div class="dou-gantt__tier is-bottom">
-            <div
-              v-for="cell in bottomCells"
-              :key="cell.key"
-              class="dou-gantt__cell"
-              :class="{
-                'is-now': todayX != null && now >= cell.key && now < cell.end,
-                'is-off': level.bottom === 'day' && !calendar.isWorkday(dayIndex(cell.key)),
-              }"
-              :style="{ left: `${cell.left}px`, width: `${cell.width}px` }"
-            >
-              <span class="dou-gantt__cell-label">{{ cell.label }}</span>
-            </div>
-          </div>
-          <div
-            v-if="todayX != null"
-            class="dou-gantt__today-mark"
-            :style="{ left: `${todayX}px` }"
-          />
+        <TimeHeader
+          :top-cells="topCells"
+          :bottom-cells="bottomCells"
+          :bottom-unit="level.bottom"
+          :calendar="calendar"
+          :now="now"
+          :today-x="todayX"
+        >
           <span
             v-for="item in markers"
             :key="item.key"
@@ -2662,7 +2439,7 @@ const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * prop
           >
             {{ item.marker.label }}
           </span>
-        </div>
+        </TimeHeader>
         <div
           class="dou-gantt__body"
           :style="{ height: `${bodyRows * rowHeight}px` }"
@@ -2680,18 +2457,7 @@ const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * prop
               {{ item.row.task.title }}
             </span>
           </div>
-          <div
-            v-for="range in shaded"
-            :key="range.key"
-            class="dou-gantt__off"
-            :style="{ left: `${range.left}px`, width: `${range.width}px` }"
-          />
-          <div
-            v-for="cell in bottomCells"
-            :key="cell.key"
-            class="dou-gantt__gridline"
-            :style="{ left: `${cell.left}px` }"
-          />
+          <TimeGrid :cells="bottomCells" :shaded="shaded" />
           <div
             v-for="row in highlightRows"
             :key="row.task.id"

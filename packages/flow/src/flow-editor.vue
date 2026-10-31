@@ -46,7 +46,11 @@ import {
 } from './core/connect'
 import { FlowHistory } from './core/history'
 import { flowOrder } from './core/order'
-import { resolveFlowExtensions, type FlowHistoryHandler } from './core/extension'
+import {
+  resolveFlowExtensions,
+  type FlowHistoryHandler,
+  type FlowPressHandler,
+} from './core/extension'
 import { flowKit } from './kit'
 import type { FlowMenuItem, FlowMenuTarget, FlowToolbarItem } from './core/menu'
 import { readClipboard, writeClipboard } from './core/clipboard'
@@ -81,7 +85,7 @@ const props = withDefaults(defineProps<FlowEditorProps>(), {
   fitMinZoom: 0.5,
   readonly: false,
   panOnScroll: true,
-  edgeType: 'bezier',
+  edgeType: undefined,
   simpleZoom: 0.4,
 })
 const doc = defineModel<FlowDocument>({ default: emptyDocument })
@@ -127,8 +131,12 @@ const edgeTypes = computed(() => {
   for (const spec of props.edgeTypes ?? []) map.set(spec.type, spec as EdgeTypeSpec)
   return map
 })
+/** The type of edges without one: the prop, else the extensions', else bezier. */
+const defaultEdgeType = computed(() => props.edgeType ?? resolved.value.edgeType ?? 'bezier')
 const edgeTypeOf = (type?: string) =>
-  edgeTypes.value.get(type ?? props.edgeType) ?? edgeTypes.value.get(props.edgeType) ?? bezierEdge
+  edgeTypes.value.get(type ?? defaultEdgeType.value) ??
+  edgeTypes.value.get(defaultEdgeType.value) ??
+  bezierEdge
 const specOf = (node: FlowNode) =>
   types.value.get(node.type ?? 'default') ??
   types.value.get('default') ??
@@ -656,7 +664,9 @@ const degree = computed(() => {
 
 /** A node's name; a container without one goes by the word for a group. */
 function nameOf(node: FlowNode) {
-  return labelOf(specOf(node), node) || (isContainer(node) ? messages.value.group : '')
+  return (
+    labelOf(specOf(node), node, messages.value) || (isContainer(node) ? messages.value.group : '')
+  )
 }
 
 const roleOf = (node: FlowNode) => (isContainer(node) ? messages.value.group : messages.value.node)
@@ -1069,6 +1079,14 @@ type Gesture =
       started: boolean
     }
   | {
+      /** A press an extension took over. */
+      kind: 'press'
+      id: number
+      touch: boolean
+      handler: FlowPressHandler
+      done: boolean
+    }
+  | {
       kind: 'connect'
       id: number
       touch: boolean
@@ -1164,6 +1182,22 @@ function onPointerDown(event: PointerEvent) {
   if (event.button !== 0) return
   // Typing a label: the field's own presses.
   if (target.closest('.dou-flow-editor__label-input')) return
+
+  if (resolved.value.presses.length && !props.readonly && !isInteractive(target)) {
+    const pressedId = target.closest<HTMLElement>('[data-node-id]')?.dataset.nodeId
+    const press = {
+      point: toCanvas(client),
+      node: (pressedId && nodeById.value.get(pressedId)) || null,
+      event,
+    }
+    for (const hook of resolved.value.presses) {
+      const handler = hook(context, press)
+      if (!handler) continue
+      gesture.value = { kind: 'press', id: event.pointerId, touch, handler, done: false }
+      capture(event.pointerId)
+      return
+    }
+  }
 
   const resizeEl = target.closest('.dou-flow-editor__resize')
   if (resizeEl && nodeEl && !props.readonly) {
@@ -1381,6 +1415,8 @@ function onPointerMove(event: PointerEvent) {
       panning.value = true
     }
     setViewport({ x: g.origin.x + dx, y: g.origin.y + dy, zoom: g.origin.zoom })
+  } else if (g.kind === 'press') {
+    g.handler.move?.(toCanvas(client), event)
   } else if (g.kind === 'box') {
     g.client = client
     updateBox(g)
@@ -1566,6 +1602,7 @@ function autoPan(client: Point) {
       !g ||
       g.kind === 'pan' ||
       g.kind === 'bend' ||
+      g.kind === 'press' ||
       g.kind === 'resize' ||
       ((g.kind === 'drag' || g.kind === 'connect') && !g.started)
     )
@@ -1721,6 +1758,16 @@ function refusalText(refusal: JoinRefusal) {
   return messages.value.refused[refusal.reason]
 }
 
+/** Whether a link was let go over a node other than its own. */
+function overNode(link: Link) {
+  const { x, y } = link.point
+  return doc.value.nodes.some((node) => {
+    if (node.id === link.fixed.node || isContainer(node)) return false
+    const r = rectOf(node)
+    return x >= r.x && x <= r.x + r.width && y >= r.y && y <= r.y + r.height
+  })
+}
+
 /** Adds the edge a link describes, replacing what it must. */
 function finishLink(link: Link, event?: MouseEvent) {
   const { candidate } = link
@@ -1728,6 +1775,9 @@ function finishLink(link: Link, event?: MouseEvent) {
     if (link.refused) {
       // Dropped on a port that can't take it: say why, and leave things as they were.
       announce(refusalText(link.refused.refusal))
+    } else if (!link.edge && overNode(link)) {
+      // Dropped on a node with no port that can take it.
+      announce(messages.value.noTarget)
     } else if (link.edge) {
       // Dropping a picked-up edge on nothing removes it.
       const id = link.edge
@@ -1829,7 +1879,7 @@ function rankEnds(link: Link) {
 function describeEnd(end: Required<FlowEndpoint>) {
   const node = nodeById.value.get(end.node)
   const port = portSpec(end)
-  const name = node ? labelOf(specOf(node), node) : end.node
+  const name = node ? labelOf(specOf(node), node, messages.value) : end.node
   return format(messages.value.connectTo, { node: name, port: port?.label ?? port?.id ?? '' })
 }
 
@@ -2063,6 +2113,8 @@ function insertNode(type: string, options: FlowInsertOptions = {}) {
   const spec = types.value.get(type)
   if (!spec || props.readonly) return null
   const node = draft(spec)
+  if (options.data) node.data = { ...node.data, ...options.data }
+  if (options.size) Object.assign(node, options.size)
   let at = options.at
   let from = options.from
   let start = false
@@ -2118,7 +2170,7 @@ function insertNode(type: string, options: FlowInsertOptions = {}) {
     focus: options.focus ?? true,
   })
   setSelection({ nodes: [node.id], edges: [] })
-  announce(format(messages.value.added, { node: labelOf(spec, node) }))
+  announce(format(messages.value.added, { node: labelOf(spec, node, messages.value) }))
   return node.id
 }
 
@@ -2355,6 +2407,10 @@ function onPointerUp(event: PointerEvent) {
   const g = gesture.value
   if (!g || g.id !== event.pointerId) return
   const cancelled = event.type === 'pointercancel'
+  if (g.kind === 'press' && !cancelled) {
+    g.done = true
+    g.handler.end?.(toCanvas({ x: event.clientX, y: event.clientY }), event)
+  }
   if (!cancelled) {
     if (g.kind === 'pan' && !g.moved) {
       if (!g.additive) setSelection(emptySelection())
@@ -2384,6 +2440,11 @@ function onPointerUp(event: PointerEvent) {
 
 function endGesture() {
   const g = gesture.value
+  // the press didn't end with the pointer let go: cancelled, by Escape or a second finger
+  if (g?.kind === 'press' && !g.done) {
+    g.done = true
+    g.handler.cancel?.()
+  }
   clearPress()
   cancelAnimationFrame(autoPanFrame)
   if (g && root.value?.hasPointerCapture(g.id)) root.value.releasePointerCapture(g.id)
@@ -2714,6 +2775,12 @@ function onKeydown(event: KeyboardEvent) {
   const nodeEl = target.closest('[data-node-id]')
   if (nodeEl && nodeEl !== target) return
   if (keyLink.value) return onKeyLink(event)
+  // Escape lets go of a press an extension took over, before its keys are asked
+  if (event.key === 'Escape' && gesture.value?.kind === 'press') {
+    event.preventDefault()
+    endGesture()
+    return
+  }
   for (const keymap of keymaps.value)
     for (const [hotkey, handler] of Object.entries(keymap))
       if (matchesHotkey(event, hotkey) && handler(event) !== false) {
@@ -3181,7 +3248,7 @@ defineExpose<FlowEditorExpose>({
         >
           <slot name="simple" :node="node">
             <span v-if="viewport.zoom >= TINY" class="dou-flow-editor__simple-label">{{
-              labelOf(specOf(node), node)
+              labelOf(specOf(node), node, messages)
             }}</span>
           </slot>
         </div>
@@ -3203,7 +3270,12 @@ defineExpose<FlowEditorExpose>({
         />
       </template>
       <svg class="dou-flow-editor__edges" aria-hidden="true">
-        <g v-for="item in edgePaths" :key="item.edge.id" :data-edge-id="item.edge.id">
+        <g
+          v-for="item in edgePaths"
+          :key="item.edge.id"
+          :data-edge-id="item.edge.id"
+          :data-edge-type="edgeTypeOf(item.edge.type).type"
+        >
           <path class="dou-flow-editor__edge-hit" :d="item.route.path" />
           <path
             class="dou-flow-editor__edge"
@@ -3268,7 +3340,7 @@ defineExpose<FlowEditorExpose>({
         >
           <slot name="simple" :node="node">
             <span v-if="viewport.zoom >= TINY" class="dou-flow-editor__simple-label">{{
-              labelOf(specOf(node), node)
+              labelOf(specOf(node), node, messages)
             }}</span>
           </slot>
         </div>

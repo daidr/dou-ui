@@ -1357,7 +1357,7 @@ function lineMap(
 }
 
 /** Where line `i` ends up when `count` lines from `from` move to before `to`. */
-function movedIndex(from: number, count: number, to: number) {
+export function movedIndex(from: number, count: number, to: number) {
   return (i: number) => {
     if (i >= from && i < from + count) return to > from ? i - from + to - count : i - from + to
     if (to > from && i >= from + count && i < to) return i - count

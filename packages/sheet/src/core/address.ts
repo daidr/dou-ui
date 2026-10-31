@@ -138,7 +138,7 @@ export const pointRange = (point: SheetPoint): SheetRange => ({ start: point, en
  */
 
 /** One end of a reference: a column, a row or both, each maybe fixed with `$`. */
-interface RefEnd {
+export interface RefEnd {
   col?: number
   row?: number
   colMark: boolean
@@ -198,7 +198,7 @@ export function quoteSheet(name: string) {
  * Calls `map` for every reference in a formula, with its sheet (as
  * written, unquoted) and its two ends, and puts back the text it returns.
  */
-function eachRef(
+export function eachRef(
   formula: string,
   map: (sheet: string | undefined, a: RefEnd, b: RefEnd, text: string) => string,
 ) {
@@ -213,7 +213,7 @@ function eachRef(
   })
 }
 
-function writeRef(
+export function writeRef(
   sheet: string | undefined,
   a: RefEnd,
   b: RefEnd,

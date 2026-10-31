@@ -97,6 +97,7 @@ import {
   type SheetSelection,
 } from './core/selection'
 import {
+  movedIndex,
   SheetTransaction,
   sheetKey,
   type SheetAxisName,
@@ -110,7 +111,11 @@ import { builtinCellTypes } from './cell-types'
 import { sheetContextKey, type SheetContext } from './context'
 import { resolveCellType, type SheetCellType, type SheetResolvedType } from './core/cell-type'
 import { ruleMessage, SheetChecks } from './core/validation'
-import { resolveSheetExtensions, type ResolvedSheetExtensions } from './core/extension'
+import {
+  resolveSheetExtensions,
+  type ResolvedSheetExtensions,
+  type SheetHistoryHandler,
+} from './core/extension'
 import { format, useSheetMessages } from './locale'
 import { sheetToCSV, type SheetCSVWriteOptions } from './core/csv'
 import type {
@@ -1289,12 +1294,61 @@ const sheetSize = () => ({ rows: rowCount.value, cols: colCount.value })
 
 const view = (): SheetHistoryView => ({ sheet: sheetKey(sheet.value), selection: selection.value })
 
+/** An extension's history, used instead of the grid's own. */
+let customFor: unknown
+let custom: SheetHistoryHandler | null = null
+function customHistory() {
+  const make = resolved.value.history
+  if (make !== customFor) {
+    customFor = make
+    custom = make ? make(context) : null
+  }
+  return custom
+}
+
 function syncHistory() {
-  canUndo.value = history.canUndo
-  canRedo.value = history.canRedo
+  const handler = customHistory()
+  canUndo.value = handler ? handler.canUndo() : history.canUndo
+  canRedo.value = handler ? handler.canRedo() : history.canRedo
+}
+
+/**
+ * Keeps the cell being edited on its cell when a change, such as another
+ * person's, inserts, deletes or moves lines around it; stops the edit
+ * when its cell is gone.
+ */
+function followEdit(tr: SheetTransaction) {
+  const e = editing.value
+  const was = e && tr.before.sheets[e.sheet]
+  if (!e || !was) return
+  const key = sheetKey(was)
+  let { row, col } = e
+  for (const step of tr.steps) {
+    if (step.type === 'removeSheet' && step.sheet === key) return cancelEdit()
+    if (
+      (step.type !== 'insertLines' && step.type !== 'removeLines' && step.type !== 'moveLines') ||
+      step.sheet !== key
+    )
+      continue
+    const n = step.axis === 'row' ? row : col
+    let next = n
+    if (step.type === 'insertLines') next = n >= step.index ? n + step.count : n
+    else if (step.type === 'removeLines') {
+      if (n >= step.index && n < step.index + step.count) return cancelEdit()
+      next = n >= step.index + step.count ? n - step.count : n
+    } else next = movedIndex(step.from, step.count, step.to)(n)
+    if (step.axis === 'row') row = next
+    else col = next
+  }
+  // a sheet without an id is known by its name, which a rename changes
+  const at = tr.doc.sheets.findIndex((s) => sheetKey(s) === key)
+  const index = at === -1 ? e.sheet : at
+  if (row !== e.row || col !== e.col || index !== e.sheet)
+    editing.value = { ...e, sheet: index, row, col }
 }
 
 function apply(tr: SheetTransaction) {
+  followEdit(tr)
   const was = tr.before.sheets[sheetIndex.value]
   engine.update(tr)
   doc.value = tr.doc
@@ -1326,7 +1380,8 @@ function transact(
   /** Leave the copied range marked, as pasting a copy does. */
   keepMark = false,
 ) {
-  if (props.readonly) return null
+  // a change kept out of the history, such as another person's, still reaches a read-only grid
+  if (props.readonly && meta?.history !== false) return null
   const tr = new SheetTransaction(doc.value, sheetIndex.value)
   tr.setMeta({ action: 'api', ...meta })
   run(tr)
@@ -1334,13 +1389,20 @@ function transact(
   for (const hook of resolved.value.transactions) hook(tr, context)
   if (!keepMark) clipMark.value = null
   apply(tr)
-  history.record(tr, before, view())
+  if (!customHistory()) history.record(tr, before, view())
   syncHistory()
   return tr
 }
 
 function travel(direction: 'undo' | 'redo') {
   if (props.readonly) return false
+  const handler = customHistory()
+  if (handler) {
+    const travelled = handler[direction]()
+    syncHistory()
+    if (travelled) announce(messages.value[direction === 'undo' ? 'undone' : 'redone'])
+    return travelled
+  }
   const result = direction === 'undo' ? history.undo(doc.value) : history.redo(doc.value)
   syncHistory()
   if (!result) return false
@@ -4060,6 +4122,7 @@ const context: SheetContext = {
   result: (point) => resultAt(point.row, point.col),
   cellType: (point) => typeAt(point.row, point.col),
   cellRect: visibleRect,
+  rangeRect,
   transact: (run, meta) => transact(run, meta),
   undo: () => travel('undo'),
   redo: () => travel('redo'),
@@ -4128,6 +4191,8 @@ function setupExtensions() {
     const cleanup = setup(context)
     if (typeof cleanup === 'function') cleanups.push(cleanup)
   }
+  // an extension's history may have come or gone with the list
+  syncHistory()
 }
 onMounted(() => {
   setupExtensions()

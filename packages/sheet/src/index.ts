@@ -13,12 +13,13 @@ export default DouSheet
 export { useSheet, sheetContextKey } from './context'
 export { useSheetFormulas } from './formulas'
 export type { SheetFormulas } from './formulas'
-export type { SheetContext, SheetEditorContext, SheetRect } from './context'
+export type { SheetContext, SheetEditorContext, SheetRangeRect, SheetRect } from './context'
 export { defineSheetExtension, resolveSheetExtensions } from './core/extension'
 export type {
   ResolvedSheetExtensions,
   SheetExtension,
   SheetExtensionContext,
+  SheetHistoryHandler,
   SheetKeyHandler,
 } from './core/extension'
 export { defineSheetCellType, optionOf, resolveCellType } from './core/cell-type'

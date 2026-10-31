@@ -839,6 +839,75 @@
     }
   }
 
+  /* other people on the sheet: their selection, their cell and their name */
+  .dou-sheet__peers {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .dou-sheet__peer-range,
+  .dou-sheet__peer-cell {
+    --dou-sheet-peer: var(--dou-color-text-secondary);
+    position: absolute;
+    z-index: 4;
+    box-sizing: border-box;
+  }
+
+  .dou-sheet__peer-range {
+    border: 1px solid color-mix(in oklab, var(--dou-sheet-peer) 60%, transparent);
+    background-color: color-mix(in oklab, var(--dou-sheet-peer) 8%, transparent);
+  }
+
+  .dou-sheet__peer-cell {
+    border: 2px solid var(--dou-sheet-peer);
+
+    &.is-editing {
+      background-color: color-mix(in oklab, var(--dou-sheet-peer) 6%, transparent);
+    }
+  }
+
+  .dou-sheet__peer-name {
+    position: absolute;
+    right: -2px;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    max-width: 160px;
+    padding: 0 6px;
+    border-radius: 4px;
+    background-color: var(--dou-sheet-peer);
+    /* the collaborator's color is the app's: pick dark or light text by its lightness */
+    color: white;
+    color: oklch(from var(--dou-sheet-peer) clamp(0.2, (0.66 - l) * 100, 0.99) 0 0);
+    font-size: var(--dou-font-size-sm);
+    line-height: 18px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    &.is-above {
+      bottom: 100%;
+      margin-bottom: 2px;
+      border-bottom-right-radius: 0;
+      border-bottom-left-radius: 0;
+    }
+
+    &.is-below {
+      top: 100%;
+      margin-top: 2px;
+      border-top-right-radius: 0;
+      border-top-left-radius: 0;
+    }
+  }
+
+  .dou-sheet__peer-icon {
+    flex: none;
+    width: 12px;
+    height: 12px;
+  }
+
   .dou-sheet__notice {
     position: absolute;
     bottom: 12px;

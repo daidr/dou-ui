@@ -54,25 +54,26 @@
 
 ### Props
 
-| 名称               | 说明                                | 类型                                | 默认值           |
-| ------------------ | ----------------------------------- | ----------------------------------- | ---------------- |
-| `modelValue`       | 选中的 key，多选时为勾选的 key 数组 | `TreeKey \| TreeKey[] \| null`      | —                |
-| `data`             | 节点                                | `TreeNodeData[]`                    | —                |
-| `multiple`         | 多选（复选框）                      | `boolean`                           | `false`          |
-| `checkStrictly`    | 多选时每个节点单独勾选              | `boolean`                           | `false`          |
-| `leafOnly`         | 只能选中叶子节点                    | `boolean`                           | `false`          |
-| `filterable`       | 输入文字筛选节点                    | `boolean`                           | `false`          |
-| `defaultExpandAll` | 第一次打开时展开所有分支            | `boolean`                           | `false`          |
-| `load`             | 节点第一次展开时取子节点            | `(node) => Promise<TreeNodeData[]>` | —                |
-| `height`           | 树的高度；给出后只渲染看得见的行    | `number \| string`                  | —                |
-| `placeholder`      | 未选择时的提示                      | `string`                            | 语言包           |
-| `size`             | 尺寸，默认取表单或全局配置          | `'sm' \| 'md' \| 'lg'`              | `'md'`           |
-| `disabled`         | 禁用                                | `boolean`                           | `false`          |
-| `invalid`          | 无效状态                            | `boolean`                           | `false`          |
-| `clearable`        | 显示清空按钮                        | `boolean`                           | `false`          |
-| `placement`        | 列表首选的位置                      | `Placement`                         | `'bottom-start'` |
-| `teleport`         | 列表渲染到哪里；`false` 为原地渲染  | `string \| HTMLElement \| false`    | `'body'`         |
-| `ariaLabel`        | 没有可见标签时的读屏名称            | `string`                            | —                |
+| 名称               | 说明                                                                    | 类型                                | 默认值           |
+| ------------------ | ----------------------------------------------------------------------- | ----------------------------------- | ---------------- |
+| `modelValue`       | 选中的 key，多选时为勾选的 key 数组                                     | `TreeKey \| TreeKey[] \| null`      | —                |
+| `data`             | 节点                                                                    | `TreeNodeData[]`                    | —                |
+| `multiple`         | 多选（复选框）                                                          | `boolean`                           | `false`          |
+| `checkStrictly`    | 多选时每个节点单独勾选                                                  | `boolean`                           | `false`          |
+| `leafOnly`         | 只能选中叶子节点                                                        | `boolean`                           | `false`          |
+| `filterable`       | 输入文字筛选节点                                                        | `boolean`                           | `false`          |
+| `defaultExpandAll` | 第一次打开时展开所有分支                                                | `boolean`                           | `false`          |
+| `load`             | 节点第一次展开时取子节点                                                | `(node) => Promise<TreeNodeData[]>` | —                |
+| `height`           | 树的高度；给出后只渲染看得见的行                                        | `number \| string`                  | —                |
+| `placeholder`      | 未选择时的提示                                                          | `string`                            | 语言包           |
+| `size`             | 尺寸，默认取表单或全局配置                                              | `'sm' \| 'md' \| 'lg'`              | `'md'`           |
+| `disabled`         | 禁用                                                                    | `boolean`                           | `false`          |
+| `readonly`         | 只读：值照常显示、可以聚焦，但不能修改；Form 设置 `readonly` 时自动只读 | `boolean`                           | `false`          |
+| `invalid`          | 无效状态                                                                | `boolean`                           | `false`          |
+| `clearable`        | 显示清空按钮                                                            | `boolean`                           | `false`          |
+| `placement`        | 列表首选的位置                                                          | `Placement`                         | `'bottom-start'` |
+| `teleport`         | 列表渲染到哪里；`false` 为原地渲染                                      | `string \| HTMLElement \| false`    | `'body'`         |
+| `ariaLabel`        | 没有可见标签时的读屏名称                                                | `string`                            | —                |
 
 ### Events
 

@@ -28,16 +28,17 @@
 
 ### InputOtp Props
 
-| 名称                    | 说明                          | 类型                                    | 默认值      |
-| ----------------------- | ----------------------------- | --------------------------------------- | ----------- |
-| `modelValue`（v-model） | 验证码                        | `string`                                | `''`        |
-| `length`                | 位数                          | `number`                                | `6`         |
-| `type`                  | 每一位接受的字符              | `'numeric' \| 'alphanumeric' \| 'text'` | `'numeric'` |
-| `mask`                  | 显示为圆点                    | `boolean`                               | `false`     |
-| `separator`             | 在这些位之后留间隔（从 1 数） | `number \| number[]`                    | —           |
-| `size`                  | 尺寸                          | `'sm' \| 'md' \| 'lg'`                  | `'md'`      |
-| `disabled`              | 禁用                          | `boolean`                               | `false`     |
-| `invalid`               | 标记为无效                    | `boolean`                               | `false`     |
+| 名称                    | 说明                                                                    | 类型                                    | 默认值      |
+| ----------------------- | ----------------------------------------------------------------------- | --------------------------------------- | ----------- |
+| `modelValue`（v-model） | 验证码                                                                  | `string`                                | `''`        |
+| `length`                | 位数                                                                    | `number`                                | `6`         |
+| `type`                  | 每一位接受的字符                                                        | `'numeric' \| 'alphanumeric' \| 'text'` | `'numeric'` |
+| `mask`                  | 显示为圆点                                                              | `boolean`                               | `false`     |
+| `separator`             | 在这些位之后留间隔（从 1 数）                                           | `number \| number[]`                    | —           |
+| `size`                  | 尺寸                                                                    | `'sm' \| 'md' \| 'lg'`                  | `'md'`      |
+| `disabled`              | 禁用                                                                    | `boolean`                               | `false`     |
+| `readonly`              | 只读：值照常显示、可以聚焦，但不能修改；Form 设置 `readonly` 时自动只读 | `boolean`                               | `false`     |
+| `invalid`               | 标记为无效                                                              | `boolean`                               | `false`     |
 
 其余属性（`name`、`aria-label`、`autofocus` 等）会传给内部的原生输入框。
 

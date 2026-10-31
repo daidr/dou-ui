@@ -17,6 +17,10 @@ export interface SegmentedControlProps {
   options: (SegmentedControlOption | string | number)[]
   size?: SegmentedControlSize
   disabled?: boolean
+  /** Show the value without letting it change: the field can still be focused and its text selected. */
+  readonly?: boolean
+  /** Mark the value as invalid. Sets `aria-invalid` and paints the edge in the danger tone. */
+  invalid?: boolean
   /** Stretch to the width of the parent and share it evenly between the options. */
   block?: boolean
   /** The native `name` shared by the options. Generated when omitted. */

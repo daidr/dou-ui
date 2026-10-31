@@ -3,7 +3,7 @@ import { CheckIcon, MinusIcon } from '@dou-ui/icons'
 import { computed, inject, useAttrs } from 'vue'
 import type { StyleValue } from 'vue'
 import { useNamespace } from '../../utils/namespace'
-import { useFormDisabled, useFormItem, useFormSize } from '../form/use-form-item'
+import { useFormDisabled, useFormItem, useFormReadonly, useFormSize } from '../form/use-form-item'
 import { checkboxGroupKey } from './checkbox'
 import type { CheckboxProps, CheckboxSlots } from './checkbox'
 
@@ -27,6 +27,13 @@ const checked = computed(() =>
   inGroup.value ? group!.model.value.includes(props.value!) : model.value,
 )
 const disabled = useFormDisabled(() => props.disabled || group?.disabled.value)
+const readonly = useFormReadonly(() => props.readonly || group?.readonly.value)
+const invalid = computed(() => props.invalid || !!group?.invalid.value || !!formItem?.invalid.value)
+
+// A read-only box takes focus but cancels the click that would toggle it.
+function onClick(event: MouseEvent) {
+  if (readonly.value) event.preventDefault()
+}
 const size = computed(() => props.size ?? group?.size.value ?? ownSize.value)
 const name = computed(() => props.name ?? group?.name.value)
 
@@ -51,6 +58,8 @@ const classes = computed(() => [
   ns.is('checked', checked.value && !props.indeterminate),
   ns.is('indeterminate', props.indeterminate),
   ns.is('disabled', disabled.value),
+  ns.is('readonly', readonly.value),
+  ns.is('invalid', invalid.value),
 ])
 </script>
 
@@ -68,8 +77,10 @@ const classes = computed(() => [
         :value="value"
         :aria-label="ariaLabel"
         :aria-describedby="formItem?.describedBy.value"
-        :aria-invalid="formItem?.invalid.value || undefined"
+        :aria-invalid="invalid || undefined"
+        :aria-readonly="readonly || undefined"
         :aria-required="formItem?.required.value || undefined"
+        @click="onClick"
         @change="onChange"
         v-bind="nativeAttrs"
       />

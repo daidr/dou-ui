@@ -24,6 +24,12 @@ export function useFormSize(own: () => Size | undefined): ComputedRef<Size> {
   return computed(() => own() ?? group?.size.value ?? form?.size.value ?? config.value.size)
 }
 
+/** A control is read-only by its own prop or by the form around it. */
+export function useFormReadonly(own: () => boolean | undefined): ComputedRef<boolean> {
+  const form = inject(formKey, undefined)
+  return computed(() => !!own() || !!form?.readonly.value)
+}
+
 /** A control is disabled by its own prop or by the form around it. */
 export function useFormDisabled(own: () => boolean | undefined): ComputedRef<boolean> {
   const form = inject(formKey, undefined)

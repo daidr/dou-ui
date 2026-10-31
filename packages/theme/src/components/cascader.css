@@ -38,6 +38,52 @@
     }
   }
 
+  /* on a phone: the deepest open column alone, under a row that goes back up */
+  .dou-cascader__columns.is-narrow {
+    flex-direction: column;
+    min-width: min(240px, calc(100vw - 16px));
+
+    & > .dou-cascader__column {
+      border-left: 0;
+    }
+  }
+
+  .dou-cascader__back {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    box-sizing: border-box;
+    width: 100%;
+    height: var(--dou-control-height-md);
+    padding: 0 12px 0 8px;
+    margin: 0;
+    border: 0;
+    border-bottom: 1px solid var(--dou-color-border-subtle);
+    background: transparent;
+    color: var(--dou-color-text-secondary);
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+
+    &:active {
+      background-color: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+    }
+  }
+
+  .dou-cascader__back-icon {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+  }
+
+  .dou-cascader__trail {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-x: clip;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .dou-cascader__matches {
     min-width: 240px;
   }

@@ -5,7 +5,7 @@ import { GROUP_START, useGroupedWindow } from '../../composables/use-grouped-win
 import { isComposing } from '../../utils/keyboard'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
-import { useFormDisabled, useFormItem, useFormSize } from '../form/use-form-item'
+import { useFormDisabled, useFormItem, useFormReadonly, useFormSize } from '../form/use-form-item'
 import type {
   ListboxExpose,
   ListboxOption,
@@ -35,6 +35,8 @@ const { formItem } = useFormItem()
 formItem?.markGroup()
 const size = useFormSize(() => props.size)
 const disabled = useFormDisabled(() => props.disabled)
+const readonly = useFormReadonly(() => props.readonly)
+const invalid = computed(() => props.invalid || !!formItem?.invalid.value)
 
 const id = `dou-listbox-${useId()}`
 const optionId = (index: number) => `${id}-option-${index}`
@@ -173,7 +175,7 @@ function move(from: number, step: 1 | -1) {
 }
 
 function choose(option: ListboxOption | undefined) {
-  if (!option || option.disabled || disabled.value) return
+  if (!option || option.disabled || disabled.value || readonly.value) return
   let next: ListboxValue | ListboxValue[] | null
   if (props.multiple) {
     next = isSelected(option)
@@ -283,7 +285,8 @@ defineExpose<ListboxExpose>({ focus })
       ns.m(size),
       ns.is('disabled', disabled),
       ns.is('multiple', multiple),
-      ns.is('invalid', !!formItem?.invalid.value),
+      ns.is('readonly', readonly),
+      ns.is('invalid', invalid),
     ]"
   >
     <div v-if="filterable" :class="ns.e('search')">
@@ -316,6 +319,8 @@ defineExpose<ListboxExpose>({ focus })
       :aria-describedby="formItem?.describedBy.value"
       :aria-multiselectable="multiple || undefined"
       :aria-disabled="disabled || undefined"
+      :aria-readonly="readonly || undefined"
+      :aria-invalid="invalid || undefined"
       :aria-activedescendant="!filterable && active >= 0 ? optionId(active) : undefined"
       @keydown="onKeydown"
       @focus="onFocus"

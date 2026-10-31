@@ -18,6 +18,8 @@ export interface SliderProps {
   step?: number
   size?: SliderSize
   disabled?: boolean
+  /** Show the value without letting it change: the field can still be focused and its text selected. */
+  readonly?: boolean
   /** Mark the value as invalid. Sets `aria-invalid` and paints the fill in the danger tone. */
   invalid?: boolean
   /** Labels along the track. */

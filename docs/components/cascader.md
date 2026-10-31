@@ -61,26 +61,27 @@
 
 ### Cascader Props
 
-| 名称             | 说明                                     | 类型                                           | 默认值           |
-| ---------------- | ---------------------------------------- | ---------------------------------------------- | ---------------- |
-| `modelValue`     | 路径，配合 `v-model`；多选时为路径的数组 | `CascaderValue[] \| CascaderValue[][] \| null` | —                |
-| `options`        | 选项树                                   | `CascaderOption[]`                             | `[]`             |
-| `load`           | 第一次展开时加载下级                     | `(option, path) => Promise<CascaderOption[]>`  | —                |
-| `changeOnSelect` | 每一级都可以选中                         | `boolean`                                      | `false`          |
-| `expandTrigger`  | 展开下一级的方式                         | `'click' \| 'hover'`                           | `'click'`        |
-| `filterable`     | 可搜索完整路径                           | `boolean`                                      | `false`          |
-| `separator`      | 字段里路径的分隔符                       | `string`                                       | `' / '`          |
-| `showLastOnly`   | 字段里只显示最后一级                     | `boolean`                                      | `false`          |
-| `multiple`       | 多选                                     | `boolean`                                      | `false`          |
-| `checkStrictly`  | 多选时每一级各自勾选                     | `boolean`                                      | `false`          |
-| `maxTagCount`    | 多选时最多显示几个标签                   | `number`                                       | —                |
-| `placeholder`    | 占位文字                                 | `string`                                       | 语言包           |
-| `clearable`      | 显示清空按钮                             | `boolean`                                      | `false`          |
-| `size`           | 尺寸，默认取表单或全局配置               | `'sm' \| 'md' \| 'lg'`                         | `'md'`           |
-| `disabled`       | 禁用                                     | `boolean`                                      | `false`          |
-| `invalid`        | 标记为无效                               | `boolean`                                      | `false`          |
-| `placement`      | 弹出的位置                               | `Placement`                                    | `'bottom-start'` |
-| `teleport`       | 渲染到哪里，`false` 留在原处             | `string \| HTMLElement \| false`               | `'body'`         |
+| 名称             | 说明                                                                    | 类型                                           | 默认值           |
+| ---------------- | ----------------------------------------------------------------------- | ---------------------------------------------- | ---------------- |
+| `modelValue`     | 路径，配合 `v-model`；多选时为路径的数组                                | `CascaderValue[] \| CascaderValue[][] \| null` | —                |
+| `options`        | 选项树                                                                  | `CascaderOption[]`                             | `[]`             |
+| `load`           | 第一次展开时加载下级                                                    | `(option, path) => Promise<CascaderOption[]>`  | —                |
+| `changeOnSelect` | 每一级都可以选中                                                        | `boolean`                                      | `false`          |
+| `expandTrigger`  | 展开下一级的方式                                                        | `'click' \| 'hover'`                           | `'click'`        |
+| `filterable`     | 可搜索完整路径                                                          | `boolean`                                      | `false`          |
+| `separator`      | 字段里路径的分隔符                                                      | `string`                                       | `' / '`          |
+| `showLastOnly`   | 字段里只显示最后一级                                                    | `boolean`                                      | `false`          |
+| `multiple`       | 多选                                                                    | `boolean`                                      | `false`          |
+| `checkStrictly`  | 多选时每一级各自勾选                                                    | `boolean`                                      | `false`          |
+| `maxTagCount`    | 多选时最多显示几个标签                                                  | `number`                                       | —                |
+| `placeholder`    | 占位文字                                                                | `string`                                       | 语言包           |
+| `clearable`      | 显示清空按钮                                                            | `boolean`                                      | `false`          |
+| `size`           | 尺寸，默认取表单或全局配置                                              | `'sm' \| 'md' \| 'lg'`                         | `'md'`           |
+| `disabled`       | 禁用                                                                    | `boolean`                                      | `false`          |
+| `readonly`       | 只读：值照常显示、可以聚焦，但不能修改；Form 设置 `readonly` 时自动只读 | `boolean`                                      | `false`          |
+| `invalid`        | 标记为无效                                                              | `boolean`                                      | `false`          |
+| `placement`      | 弹出的位置                                                              | `Placement`                                    | `'bottom-start'` |
+| `teleport`       | 渲染到哪里，`false` 留在原处                                            | `string \| HTMLElement \| false`               | `'body'`         |
 
 `CascaderOption` 为 `{ value, label?, disabled?, children?, leaf? }`。
 

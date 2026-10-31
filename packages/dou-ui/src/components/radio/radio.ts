@@ -11,6 +11,8 @@ export interface RadioProps {
   /** The selected value, bound with `v-model`, when used without a group. */
   modelValue?: RadioValue
   disabled?: boolean
+  /** Show the state without letting it change. Inherits from the group and the form. */
+  readonly?: boolean
   /** Inherits from the group, otherwise `md`. */
   size?: RadioSize
   /** The native `name`. Inside a group the group's name is used. */
@@ -30,6 +32,10 @@ export interface RadioGroupProps {
   /** The selected value, bound with `v-model`. */
   modelValue?: RadioValue
   disabled?: boolean
+  /** Show the choice without letting it change. */
+  readonly?: boolean
+  /** Mark the group as invalid: sets `aria-invalid` and paints every edge in the danger tone. */
+  invalid?: boolean
   size?: RadioSize
   direction?: RadioGroupDirection
   /** The native `name` shared by the options. Generated when omitted. */
@@ -47,6 +53,7 @@ export interface RadioGroupSlots {
 export interface RadioGroupContext {
   model: Readonly<Ref<RadioValue | undefined>>
   disabled: Readonly<Ref<boolean>>
+  readonly: Readonly<Ref<boolean>>
   size: Readonly<Ref<RadioSize>>
   name: Readonly<Ref<string>>
   select: (value: RadioValue) => void

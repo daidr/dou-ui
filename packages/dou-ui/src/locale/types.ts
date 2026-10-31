@@ -293,6 +293,8 @@ export interface Locale {
     /** Shown when nothing matches, or a level is empty. */
     empty: string
     clear: string
+    /** On a phone, the button that goes back up one level. */
+    back: string
   }
   colorPicker: {
     /** Shown in an empty field, and names the panel. */

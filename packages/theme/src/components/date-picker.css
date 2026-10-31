@@ -71,6 +71,14 @@
       --dou-date-picker-ring: color-mix(in oklab, var(--dou-color-danger) 18%, transparent);
     }
 
+    /* read-only keeps the plain surface so it never passes for disabled;
+       the resting shadow goes and nothing reacts to hover */
+    &.is-readonly {
+      --dou-date-picker-border-hover: var(--dou-date-picker-border);
+      --dou-date-picker-shadow: none;
+      cursor: default;
+    }
+
     &.is-disabled {
       --dou-date-picker-bg: var(--dou-color-bg-muted);
       --dou-date-picker-border-hover: var(--dou-date-picker-border);
@@ -226,6 +234,49 @@
 
     padding-inline-start: 8px;
     border-inline-start: 1px solid var(--dou-color-border-subtle);
+  }
+
+  /*
+   * On a phone the presets become a scrolling row above the calendar and the
+   * time columns move below it, so the panel is never wider than the screen.
+   * Ranges show one month there (see DouCalendar).
+   */
+  @media (max-width: 639.98px) {
+    /* the stacked panel can be taller than the room beside the field: it scrolls */
+    .dou-date-picker__panel {
+      max-height: var(--dou-floating-available, calc(100dvh - 16px));
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+
+    /* one column: a wrapping row would still size the panel to all its parts side by side */
+    .dou-date-picker__body {
+      display: grid;
+      grid-template-columns: minmax(0, auto);
+    }
+
+    .dou-date-picker__shortcuts {
+      /* many presets scroll instead of widening the panel */
+      contain: inline-size;
+      flex-direction: row;
+      min-width: 0;
+      padding-inline-end: 0;
+      padding-bottom: 8px;
+      border-inline-end: 0;
+      border-bottom: 1px solid var(--dou-color-border-subtle);
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+
+    .dou-date-picker__times {
+      --dou-time-picker-rows: 5;
+
+      justify-content: center;
+      padding-inline-start: 0;
+      padding-top: 8px;
+      border-inline-start: 0;
+      border-top: 1px solid var(--dou-color-border-subtle);
+    }
   }
 
   .dou-date-picker__footer {

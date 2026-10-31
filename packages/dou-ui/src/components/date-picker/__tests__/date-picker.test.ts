@@ -155,6 +155,34 @@ describe('DouCalendar', () => {
     expect(value.value).toEqual(['2026-10-20', '2026-11-03'])
     wrapper.unmount()
   })
+
+  it('shows a range one month at a time on a phone', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query.includes('max-width'),
+      media: query,
+      addEventListener() {},
+      removeEventListener() {},
+    }))
+    try {
+      const { wrapper, value } = make(DouCalendar, { range: true })
+      await nextTick()
+      expect(wrapper.findAll('.dou-calendar__title').map((title) => title.text())).toEqual([
+        '2026年10月',
+      ])
+      await wrapper.get('[data-value="2026-10-20"]').trigger('click')
+      await wrapper.get('.dou-calendar__step:last-of-type').trigger('click')
+      await wrapper.get('[data-value="2026-11-03"]').trigger('click')
+      expect(value.value).toEqual(['2026-10-20', '2026-11-03'])
+      // an explicit `panels` still wins
+      const two = make(DouCalendar, { range: true, panels: 2 })
+      await nextTick()
+      expect(two.wrapper.findAll('.dou-calendar__title')).toHaveLength(2)
+      wrapper.unmount()
+      two.wrapper.unmount()
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
 })
 
 describe('DouDatePicker', () => {

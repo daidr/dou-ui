@@ -1,14 +1,21 @@
 <script setup lang="ts">
-import { CheckIcon, ChevronDownIcon, ChevronRightIcon, CloseIcon } from '@dou-ui/icons'
+import {
+  CheckIcon,
+  ChevronDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  CloseIcon,
+} from '@dou-ui/icons'
 import { computed, nextTick, reactive, ref, useId, useTemplateRef, watch } from 'vue'
 import type { HTMLAttributes } from 'vue'
 import { usePopup } from '../../composables/use-popup'
 import { isComposing } from '../../utils/keyboard'
+import { useNarrowViewport } from '../../utils/media'
 import { useNamespace } from '../../utils/namespace'
 import { shouldVirtualize, visibleWindow } from '../../utils/virtual'
 import { OnlyChild } from '../../utils/only-child'
 import { useLocale } from '../config-provider/use-config'
-import { useFormDisabled, useFormItem, useFormSize } from '../form/use-form-item'
+import { useFormDisabled, useFormItem, useFormReadonly, useFormSize } from '../form/use-form-item'
 import DouCheckbox from '../checkbox/checkbox.vue'
 import { DouSpinner } from '../spinner'
 import { DouTag } from '../tag'
@@ -54,6 +61,9 @@ const { formItem } = useFormItem()
 if (!props.filterable) formItem?.markGroup()
 const size = useFormSize(() => props.size)
 const disabled = useFormDisabled(() => props.disabled)
+const readonly = useFormReadonly(() => props.readonly)
+// Read-only keeps the field focusable but never opens or changes it.
+const locked = computed(() => disabled.value || readonly.value)
 const invalid = computed(() => props.invalid || !!formItem?.invalid.value)
 
 const id = `dou-cascader-${useId()}`
@@ -117,6 +127,16 @@ const columns = computed(() => {
   }
   return list
 })
+
+// On a phone the columns do not fit side by side: show the deepest one, with
+// the way back up above it.
+const narrow = useNarrowViewport()
+const backTrail = computed(() => resolve(expanded.value).map(labelOf).join(props.separator))
+function goUp() {
+  if (!expanded.value.length) return
+  active.value = expanded.value
+  expanded.value = expanded.value.slice(0, -1)
+}
 
 // The highlighted option, as a path of values. Focus stays in the field.
 const active = ref<CascaderValue[]>([])
@@ -201,7 +221,7 @@ async function toggleCheck(option: CascaderOption, path: CascaderValue[]) {
 }
 
 function removePath(path: CascaderValue[]) {
-  if (disabled.value) return
+  if (locked.value) return
   commit(checkedPaths.value.filter((item) => keyOf(item) !== keyOf(path)))
 }
 
@@ -312,14 +332,14 @@ const popup = usePopup({
   open,
   trigger: 'manual',
   closeOnOutside: true,
-  disabled,
+  disabled: locked,
   placement: () => props.placement,
   offset: 4,
 })
 const { triggerRef, panelRef, rendered, theme, placement, panelStyle } = popup
 
 function show() {
-  if (disabled.value || open.value) return
+  if (locked.value || open.value) return
   open.value = true
   const chosen = props.multiple ? (checkedPaths.value[0] ?? []) : single.value
   expanded.value = chosen.slice(0, -1)
@@ -458,7 +478,7 @@ async function enter(choose: boolean) {
 }
 
 function onKeydown(event: KeyboardEvent) {
-  if (disabled.value || isComposing(event)) return
+  if (locked.value || isComposing(event)) return
   if (searching.value) {
     const count = matches.value.length
     switch (event.key) {
@@ -523,7 +543,7 @@ function onKeydown(event: KeyboardEvent) {
 }
 
 function onFieldMousedown(event: MouseEvent) {
-  if (disabled.value) return
+  if (locked.value) return
   const target = event.target as HTMLElement
   if (target.closest('button')) return
   if (target !== inputRef.value) event.preventDefault()
@@ -589,7 +609,7 @@ const comboboxAttrs = computed<HTMLAttributes>(() => ({
   'aria-describedby': formItem?.describedBy.value,
 }))
 
-const showClear = computed(() => props.clearable && !disabled.value && !!model.value?.length)
+const showClear = computed(() => props.clearable && !locked.value && !!model.value?.length)
 const inputPlaceholder = computed(() => {
   if (props.multiple) return tags.value.length ? '' : placeholderText.value
   return display.value || placeholderText.value
@@ -611,6 +631,7 @@ defineExpose<CascaderExpose>({ focus, blur: () => combobox()?.blur() })
         ns.is('multiple', multiple),
         ns.is('has-tags', tags.length > 0),
         ns.is('disabled', disabled),
+        ns.is('readonly', readonly),
         ns.is('invalid', invalid),
       ]"
       :id="filterable ? undefined : formItem?.inputId"
@@ -625,7 +646,7 @@ defineExpose<CascaderExpose>({ focus, blur: () => combobox()?.blur() })
           v-for="tag in shownTags"
           :key="keyOf(tag.values)"
           :size="size"
-          :closable="!disabled"
+          :closable="!locked"
           @close="removePath(tag.values)"
         >
           {{ tag.label }}
@@ -651,6 +672,7 @@ defineExpose<CascaderExpose>({ focus, blur: () => combobox()?.blur() })
           aria-autocomplete="list"
           :placeholder="inputPlaceholder"
           :disabled="disabled"
+          :readonly="readonly"
           @input="show"
           @keydown="onKeydown"
         />
@@ -668,6 +690,7 @@ defineExpose<CascaderExpose>({ focus, blur: () => combobox()?.blur() })
         aria-autocomplete="list"
         :placeholder="display || placeholderText"
         :disabled="disabled"
+        :readonly="readonly"
         :class="ns.is('has-value', !!display)"
         @input="show"
         @keydown="onKeydown"
@@ -733,9 +756,21 @@ defineExpose<CascaderExpose>({ focus, blur: () => combobox()?.blur() })
             <slot name="empty">{{ t('cascader.empty') }}</slot>
           </li>
         </ul>
-        <div v-else :class="ns.e('columns')">
+        <div v-else :class="[ns.e('columns'), ns.is('narrow', narrow)]">
+          <button
+            v-if="narrow && columns.length > 1"
+            type="button"
+            tabindex="-1"
+            :class="ns.e('back')"
+            :aria-label="t('cascader.back')"
+            @click="goUp"
+          >
+            <ChevronLeftIcon :class="ns.e('back-icon')" />
+            <span :class="ns.e('trail')">{{ backTrail }}</span>
+          </button>
           <ul
             v-for="(column, level) in columns"
+            v-show="!narrow || level === columns.length - 1"
             :id="listboxId(level)"
             :key="keyOf(column.path)"
             role="listbox"

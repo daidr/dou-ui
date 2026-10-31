@@ -27,6 +27,8 @@ export interface TreeSelectProps {
   placeholder?: string
   size?: Size
   disabled?: boolean
+  /** Show the value without letting it change: the field can still be focused and its text selected. */
+  readonly?: boolean
   /** Mark the value as invalid. Sets `aria-invalid` and paints the edge in the danger tone. */
   invalid?: boolean
   /** Show a button that clears the choice. */

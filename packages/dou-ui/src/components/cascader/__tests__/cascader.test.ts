@@ -1,5 +1,5 @@
 import { flushPromises, mount } from '@vue/test-utils'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 import { DouCascader } from '../../../index'
 import type { CascaderOption } from '../../../index'
@@ -47,6 +47,7 @@ const make = (props: Record<string, unknown> = {}) => {
 }
 
 const field = (wrapper: ReturnType<typeof make>) => wrapper.get('.dou-cascader')
+const back = () => document.querySelector<HTMLButtonElement>('.dou-cascader__back')
 
 describe('DouCascader', () => {
   it('shows the chosen path in the field', () => {
@@ -73,6 +74,42 @@ describe('DouCascader', () => {
     expect(wrapper.emitted('change')![0]![1]).toHaveLength(3)
     expect(field(wrapper).attributes('aria-expanded')).toBe('false')
     wrapper.unmount()
+  })
+
+  it('shows one column at a time on a phone, with the way back', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query.includes('max-width'),
+      media: query,
+      addEventListener() {},
+      removeEventListener() {},
+    }))
+    try {
+      const wrapper = make()
+      await nextTick()
+      const shown = () => lists().filter((list) => (list as HTMLElement).style.display !== 'none')
+      await field(wrapper).trigger('mousedown')
+      expect(shown()).toHaveLength(1)
+      expect(back()).toBeNull()
+      optionIn(shown()[0]!, '浙江').click()
+      await flushPromises()
+      expect(shown()).toHaveLength(1)
+      expect(optionIn(shown()[0]!, '杭州')).toBeTruthy()
+      expect(back()!.textContent).toContain('浙江')
+      optionIn(shown()[0]!, '杭州').click()
+      await flushPromises()
+      expect(back()!.textContent).toContain('浙江 / 杭州')
+      back()!.click()
+      await flushPromises()
+      expect(optionIn(shown()[0]!, '杭州')).toBeTruthy()
+      optionIn(shown()[0]!, '杭州').click()
+      await flushPromises()
+      optionIn(shown()[0]!, '西湖区').click()
+      await flushPromises()
+      expect(wrapper.props('modelValue')).toEqual(['zj', 'hz', 'xh'])
+      wrapper.unmount()
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 
   it('walks the columns with the keyboard', async () => {

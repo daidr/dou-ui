@@ -61,7 +61,7 @@ function setup(initialProps: Partial<FormProps> = {}, rules: FormRules = {}) {
           h(DouFormItem, { label: '启用', prop: 'on' }, () =>
             h(DouSwitch, {
               modelValue: model.on,
-              'onUpdate:modelValue': (value: boolean) => (model.on = value),
+              'onUpdate:modelValue': (value: unknown) => (model.on = value as boolean),
             }),
           ),
           h(DouFormItem, null, () => h(DouButton, { nativeType: 'submit' }, () => '提交')),

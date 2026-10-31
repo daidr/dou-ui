@@ -7,7 +7,7 @@ import { useNamespace } from '../../utils/namespace'
 import { OnlyChild } from '../../utils/only-child'
 import { DouButton } from '../button'
 import { useLocale } from '../config-provider/use-config'
-import { useFormDisabled, useFormItem, useFormSize } from '../form/use-form-item'
+import { useFormDisabled, useFormItem, useFormReadonly, useFormSize } from '../form/use-form-item'
 import { formatTime, now, parseTime, snap } from './time'
 import type { TimeParts } from './time'
 import type { TimePickerExpose, TimePickerProps, TimeRange, TimeValue } from './time-picker'
@@ -38,6 +38,9 @@ const { t } = useLocale()
 const { formItem } = useFormItem()
 const size = useFormSize(() => props.size)
 const disabled = useFormDisabled(() => props.disabled)
+const readonly = useFormReadonly(() => props.readonly)
+// Read-only keeps the field focusable but never opens or changes it.
+const locked = computed(() => disabled.value || readonly.value)
 const invalid = computed(() => props.invalid || !!formItem?.invalid.value)
 const id = `dou-time-picker-${useId()}`
 const panelId = `${id}-panel`
@@ -112,7 +115,7 @@ const popup = usePopup({
   open,
   trigger: 'manual',
   closeOnOutside: true,
-  disabled,
+  disabled: locked,
   placement: () => props.placement,
   offset: 4,
 })
@@ -127,7 +130,7 @@ const fieldRef = useTemplateRef<HTMLElement>('field')
 const columnsRef = useTemplateRef<{ focus: () => void }[]>('columns')
 
 function show() {
-  if (!disabled.value) open.value = true
+  if (!locked.value) open.value = true
 }
 function hide() {
   open.value = false
@@ -157,7 +160,7 @@ function confirm() {
 /* typing */
 
 function onKeydown(event: KeyboardEvent) {
-  if (disabled.value) return
+  if (locked.value) return
   if (event.key === 'ArrowDown') {
     event.preventDefault()
     show()
@@ -178,7 +181,7 @@ function onPanelKeydown(event: KeyboardEvent) {
 }
 
 function onFieldMousedown(event: MouseEvent) {
-  if (disabled.value) return
+  if (locked.value) return
   const target = event.target as HTMLElement
   if (target.closest('button')) return
   if (target.tagName !== 'INPUT') {
@@ -229,7 +232,7 @@ const inputAttrs = (index: number): InputHTMLAttributes => ({
   'aria-label': props.range ? placeholders.value[index] : undefined,
 })
 
-const showClear = computed(() => props.clearable && !disabled.value && values.value.length > 0)
+const showClear = computed(() => props.clearable && !locked.value && values.value.length > 0)
 
 defineExpose<TimePickerExpose>({
   focus,
@@ -249,6 +252,7 @@ defineExpose<TimePickerExpose>({
         ns.is('range', range),
         ns.is('open', open),
         ns.is('disabled', disabled),
+        ns.is('readonly', readonly),
         ns.is('invalid', invalid),
       ]"
       :role="range ? 'group' : undefined"
@@ -270,6 +274,7 @@ defineExpose<TimePickerExpose>({
           autocomplete="off"
           :placeholder="placeholders[index - 1]"
           :disabled="disabled"
+          :readonly="readonly"
           @input="show"
           @keydown="onKeydown"
         />

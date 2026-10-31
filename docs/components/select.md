@@ -104,28 +104,29 @@
 
 ### Props
 
-| 名称            | 说明                                                           | 类型                                                        | 默认值           |
-| --------------- | -------------------------------------------------------------- | ----------------------------------------------------------- | ---------------- |
-| `modelValue`    | 选中值，多选时为数组，配合 `v-model`                           | `SelectValue \| SelectValue[] \| null`                      | —                |
-| `options`       | 选项；字符串或数字同时作为值和标签；可以分组                   | `(SelectOption \| SelectOptionGroup \| string \| number)[]` | —                |
-| `multiple`      | 多选                                                           | `boolean`                                                   | `false`          |
-| `filterable`    | 输入文字筛选选项                                               | `boolean`                                                   | `false`          |
-| `placeholder`   | 未选择时的提示                                                 | `string`                                                    | 语言包           |
-| `size`          | 尺寸，默认取表单或全局配置                                     | `'sm' \| 'md' \| 'lg'`                                      | `'md'`           |
-| `disabled`      | 禁用                                                           | `boolean`                                                   | `false`          |
-| `invalid`       | 无效状态                                                       | `boolean`                                                   | `false`          |
-| `clearable`     | 显示清空按钮                                                   | `boolean`                                                   | `false`          |
-| `placement`     | 列表首选的位置                                                 | `Placement`                                                 | `'bottom-start'` |
-| `teleport`      | 列表渲染到哪里；`false` 为原地渲染                             | `string \| HTMLElement \| false`                            | `'body'`         |
-| `ariaLabel`     | 没有可见标签时的读屏名称                                       | `string`                                                    | —                |
-| `remote`        | 远程搜索：输入时触发 `search`，不在本地筛选；隐含 `filterable` | `boolean`                                                   | `false`          |
-| `searchDelay`   | 输入停顿多久后触发 `search`，毫秒                              | `number`                                                    | `300`            |
-| `loading`       | 列表里显示加载中                                               | `boolean`                                                   | `false`          |
-| `creatable`     | 没有完全匹配时，把输入的文字作为新选项；隐含 `filterable`      | `boolean`                                                   | `false`          |
-| `virtual`       | 只渲染看得见的选项；不传时超过 100 个选项自动开启              | `boolean`                                                   | —                |
-| `maxTagCount`   | 多选时最多显示几个标签，其余折叠成“+N”                         | `number`                                                    | —                |
-| `multipleLimit` | 多选时最多选几项                                               | `number`                                                    | —                |
-| `valueKey`      | 值为对象时，用来区分它们的属性                                 | `string`                                                    | —                |
+| 名称            | 说明                                                                    | 类型                                                        | 默认值           |
+| --------------- | ----------------------------------------------------------------------- | ----------------------------------------------------------- | ---------------- |
+| `modelValue`    | 选中值，多选时为数组，配合 `v-model`                                    | `SelectValue \| SelectValue[] \| null`                      | —                |
+| `options`       | 选项；字符串或数字同时作为值和标签；可以分组                            | `(SelectOption \| SelectOptionGroup \| string \| number)[]` | —                |
+| `multiple`      | 多选                                                                    | `boolean`                                                   | `false`          |
+| `filterable`    | 输入文字筛选选项                                                        | `boolean`                                                   | `false`          |
+| `placeholder`   | 未选择时的提示                                                          | `string`                                                    | 语言包           |
+| `size`          | 尺寸，默认取表单或全局配置                                              | `'sm' \| 'md' \| 'lg'`                                      | `'md'`           |
+| `disabled`      | 禁用                                                                    | `boolean`                                                   | `false`          |
+| `readonly`      | 只读：值照常显示、可以聚焦，但不能修改；Form 设置 `readonly` 时自动只读 | `boolean`                                                   | `false`          |
+| `invalid`       | 无效状态                                                                | `boolean`                                                   | `false`          |
+| `clearable`     | 显示清空按钮                                                            | `boolean`                                                   | `false`          |
+| `placement`     | 列表首选的位置                                                          | `Placement`                                                 | `'bottom-start'` |
+| `teleport`      | 列表渲染到哪里；`false` 为原地渲染                                      | `string \| HTMLElement \| false`                            | `'body'`         |
+| `ariaLabel`     | 没有可见标签时的读屏名称                                                | `string`                                                    | —                |
+| `remote`        | 远程搜索：输入时触发 `search`，不在本地筛选；隐含 `filterable`          | `boolean`                                                   | `false`          |
+| `searchDelay`   | 输入停顿多久后触发 `search`，毫秒                                       | `number`                                                    | `300`            |
+| `loading`       | 列表里显示加载中                                                        | `boolean`                                                   | `false`          |
+| `creatable`     | 没有完全匹配时，把输入的文字作为新选项；隐含 `filterable`               | `boolean`                                                   | `false`          |
+| `virtual`       | 只渲染看得见的选项；不传时超过 100 个选项自动开启                       | `boolean`                                                   | —                |
+| `maxTagCount`   | 多选时最多显示几个标签，其余折叠成“+N”                                  | `number`                                                    | —                |
+| `multipleLimit` | 多选时最多选几项                                                        | `number`                                                    | —                |
+| `valueKey`      | 值为对象时，用来区分它们的属性                                          | `string`                                                    | —                |
 
 `SelectValue` 为 `string | number | boolean | object`（对象需要 `valueKey`），`SelectOption` 为 `{ value: SelectValue; label?: string; disabled?: boolean }`，`SelectOptionGroup` 为 `{ label: string; options: (SelectOption | string | number)[]; disabled?: boolean }`。
 

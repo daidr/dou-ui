@@ -6,7 +6,7 @@ import { useNamespace } from '../../utils/namespace'
 import { OnlyChild } from '../../utils/only-child'
 import DouColorPanel from '../color-panel/color-panel.vue'
 import { useLocale } from '../config-provider/use-config'
-import { useFormDisabled, useFormItem, useFormSize } from '../form/use-form-item'
+import { useFormDisabled, useFormItem, useFormReadonly, useFormSize } from '../form/use-form-item'
 import { formatColor, parseColor, toCss } from './color'
 import type { ColorFormat } from './color'
 import type { ColorPickerExpose, ColorPickerProps } from './color-picker'
@@ -36,6 +36,9 @@ const { t } = useLocale()
 const { formItem } = useFormItem()
 const size = useFormSize(() => props.size)
 const disabled = useFormDisabled(() => props.disabled)
+const readonly = useFormReadonly(() => props.readonly)
+// Read-only keeps the field focusable but never opens or changes it.
+const locked = computed(() => disabled.value || readonly.value)
 const invalid = computed(() => props.invalid || !!formItem?.invalid.value)
 const panelId = `dou-color-picker-${useId()}-panel`
 
@@ -75,7 +78,7 @@ const popup = usePopup({
   open,
   trigger: 'manual',
   closeOnOutside: true,
-  disabled,
+  disabled: locked,
   placement: () => props.placement,
   offset: 4,
 })
@@ -96,12 +99,12 @@ function focus() {
   fieldRef.value?.focus()
 }
 function toggle() {
-  if (disabled.value) return
+  if (locked.value) return
   open.value = !open.value
 }
 
 function onFieldKeydown(event: KeyboardEvent) {
-  if (disabled.value) return
+  if (locked.value) return
   if (event.key === 'Enter' || event.key === ' ' || event.key === 'ArrowDown') {
     event.preventDefault()
     open.value = true
@@ -126,7 +129,7 @@ function clear() {
   focus()
 }
 
-const showClear = computed(() => props.clearable && !disabled.value && !!model.value)
+const showClear = computed(() => props.clearable && !locked.value && !!model.value)
 
 defineExpose<ColorPickerExpose>({ focus, blur: () => fieldRef.value?.blur() })
 </script>
@@ -146,6 +149,7 @@ defineExpose<ColorPickerExpose>({ focus, blur: () => fieldRef.value?.blur() })
       :aria-describedby="formItem?.describedBy.value"
       :aria-invalid="invalid || undefined"
       :aria-disabled="disabled || undefined"
+      :aria-readonly="readonly || undefined"
       :class="[
         ns.b(),
         'dou-picker',
@@ -154,6 +158,7 @@ defineExpose<ColorPickerExpose>({ focus, blur: () => fieldRef.value?.blur() })
         ns.is('hex', format === 'hex'),
         ns.is('open', open),
         ns.is('disabled', disabled),
+        ns.is('readonly', readonly),
         ns.is('invalid', invalid),
       ]"
       @click="toggle"

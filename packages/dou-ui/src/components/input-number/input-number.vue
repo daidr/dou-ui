@@ -4,7 +4,7 @@ import { computed, onBeforeUnmount, ref, useAttrs, useTemplateRef, watch } from 
 import type { StyleValue } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
-import { useFormDisabled, useFormItem, useFormSize } from '../form/use-form-item'
+import { useFormDisabled, useFormItem, useFormReadonly, useFormSize } from '../form/use-form-item'
 import type { InputNumberExpose, InputNumberProps, InputNumberSlots } from './input-number'
 
 defineOptions({ name: 'DouInputNumber', inheritAttrs: false })
@@ -27,8 +27,9 @@ const { t } = useLocale()
 const { formItem } = useFormItem()
 const size = useFormSize(() => props.size)
 const disabled = useFormDisabled(() => props.disabled)
+const readonly = useFormReadonly(() => props.readonly)
 const invalid = computed(() => props.invalid || !!formItem?.invalid.value)
-const editable = computed(() => !disabled.value && !props.readonly)
+const editable = computed(() => !disabled.value && !readonly.value)
 
 const attrs = useAttrs()
 const inputAttrs = computed(() => {
@@ -280,7 +281,7 @@ const classes = computed(() => [
   ns.b(),
   ns.m(size.value),
   ns.is('disabled', disabled.value),
-  ns.is('readonly', props.readonly),
+  ns.is('readonly', readonly.value),
   ns.is('invalid', invalid.value),
   ns.is('controls', props.controls),
   ns.is('expanded', expanded.value),

@@ -16,6 +16,10 @@ export interface CheckboxProps {
    */
   indeterminate?: boolean
   disabled?: boolean
+  /** Show the state without letting it change. Inherits from the group and the form. */
+  readonly?: boolean
+  /** Mark the box as invalid: sets `aria-invalid` and paints the edge in the danger tone. */
+  invalid?: boolean
   /** Inherits from the group, otherwise `md`. */
   size?: CheckboxSize
   /** The native `name`. Inherits from the group. */
@@ -38,6 +42,10 @@ export interface CheckboxGroupProps {
   modelValue?: CheckboxValue[]
   /** Disable every box in the group. */
   disabled?: boolean
+  /** Show the choice without letting it change. */
+  readonly?: boolean
+  /** Mark the group as invalid: sets `aria-invalid` and paints every edge in the danger tone. */
+  invalid?: boolean
   size?: CheckboxSize
   direction?: CheckboxGroupDirection
   /** The native `name` given to every box. */
@@ -55,6 +63,8 @@ export interface CheckboxGroupSlots {
 export interface CheckboxGroupContext {
   model: Readonly<Ref<CheckboxValue[]>>
   disabled: Readonly<Ref<boolean>>
+  readonly: Readonly<Ref<boolean>>
+  invalid: Readonly<Ref<boolean>>
   size: Readonly<Ref<CheckboxSize>>
   name: Readonly<Ref<string | undefined>>
   toggle: (value: CheckboxValue, checked: boolean) => void

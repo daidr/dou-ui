@@ -211,4 +211,8 @@
     font-size: var(--dou-font-size-sm);
     text-align: center;
   }
+
+  .dou-listbox.is-readonly .dou-listbox__option {
+    cursor: default;
+  }
 }

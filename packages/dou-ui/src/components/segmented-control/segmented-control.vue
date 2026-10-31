@@ -10,7 +10,7 @@ import {
   watch,
 } from 'vue'
 import { useNamespace } from '../../utils/namespace'
-import { useFormDisabled, useFormItem, useFormSize } from '../form/use-form-item'
+import { useFormDisabled, useFormItem, useFormReadonly, useFormSize } from '../form/use-form-item'
 import type {
   SegmentedControlOption,
   SegmentedControlProps,
@@ -40,6 +40,16 @@ const { formItem } = useFormItem()
 formItem?.markGroup()
 const size = useFormSize(() => props.size)
 const disabled = useFormDisabled(() => props.disabled)
+const readonly = useFormReadonly(() => props.readonly)
+const invalid = computed(() => props.invalid || !!formItem?.invalid.value)
+
+// A read-only control takes focus but cancels the click or arrow key that would pick.
+function onClick(event: MouseEvent) {
+  if (readonly.value) event.preventDefault()
+}
+function onKeydown(event: KeyboardEvent) {
+  if (readonly.value && event.key.startsWith('Arrow')) event.preventDefault()
+}
 
 const options = computed<SegmentedControlOption[]>(() =>
   props.options.map((option) =>
@@ -48,7 +58,7 @@ const options = computed<SegmentedControlOption[]>(() =>
 )
 
 function select(option: SegmentedControlOption) {
-  if (disabled.value || option.disabled || option.value === model.value) return
+  if (disabled.value || readonly.value || option.disabled || option.value === model.value) return
   model.value = option.value
   emit('change', option.value)
   formItem?.trigger('change')
@@ -124,6 +134,8 @@ const classes = computed(() => [
   ns.m(size.value),
   ns.is('block', props.block),
   ns.is('disabled', disabled.value),
+  ns.is('readonly', readonly.value),
+  ns.is('invalid', invalid.value),
   ns.is('settled', settled.value),
 ])
 </script>
@@ -137,7 +149,8 @@ const classes = computed(() => [
     :aria-disabled="disabled || undefined"
     :aria-labelledby="formItem?.labelId"
     :aria-describedby="formItem?.describedBy.value"
-    :aria-invalid="formItem?.invalid.value || undefined"
+    :aria-invalid="invalid || undefined"
+    :aria-readonly="readonly || undefined"
     :aria-required="formItem?.required.value || undefined"
   >
     <span :class="ns.e('indicator')" :style="indicatorStyle" aria-hidden="true" />
@@ -157,6 +170,8 @@ const classes = computed(() => [
         :value="option.value"
         :checked="option.value === model"
         :disabled="disabled || option.disabled"
+        @click="onClick"
+        @keydown="onKeydown"
         @change="select(option)"
       />
       <span :class="ns.e('label')">

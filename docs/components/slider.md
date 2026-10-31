@@ -61,22 +61,23 @@
 
 ### Props
 
-| 名称         | 说明                                     | 类型                         | 默认值  |
-| ------------ | ---------------------------------------- | ---------------------------- | ------- |
-| `modelValue` | 绑定值，配合 `v-model`；范围模式下为一对 | `number \| [number, number]` | —       |
-| `range`      | 选择一个区间                             | `boolean`                    | `false` |
-| `min`        | 最小值                                   | `number`                     | `0`     |
-| `max`        | 最大值                                   | `number`                     | `100`   |
-| `step`       | 步长，可取的值为 `min` 加步长的整数倍    | `number`                     | `1`     |
-| `marks`      | 刻度标签，键为刻度所在的值               | `Record<number, string>`     | —       |
-| `format`     | 读屏软件念出的文字                       | `(value: number) => string`  | —       |
-| `vertical`   | 竖向，从下往上                           | `boolean`                    | `false` |
-| `height`     | 竖向时的长度，数字为 px                  | `number \| string`           | `200px` |
-| `showInput`  | 旁边放一个同步的数字输入框（单值）       | `boolean`                    | `false` |
-| `tooltip`    | 在滑块上方显示数值，`'always'` 一直显示  | `boolean \| 'always'`        | `false` |
-| `size`       | 尺寸，默认取表单或全局配置               | `'sm' \| 'md' \| 'lg'`       | `'md'`  |
-| `disabled`   | 禁用                                     | `boolean`                    | `false` |
-| `invalid`    | 标记为无效，填充改为危险语气             | `boolean`                    | `false` |
+| 名称         | 说明                                                                    | 类型                         | 默认值  |
+| ------------ | ----------------------------------------------------------------------- | ---------------------------- | ------- |
+| `modelValue` | 绑定值，配合 `v-model`；范围模式下为一对                                | `number \| [number, number]` | —       |
+| `range`      | 选择一个区间                                                            | `boolean`                    | `false` |
+| `min`        | 最小值                                                                  | `number`                     | `0`     |
+| `max`        | 最大值                                                                  | `number`                     | `100`   |
+| `step`       | 步长，可取的值为 `min` 加步长的整数倍                                   | `number`                     | `1`     |
+| `marks`      | 刻度标签，键为刻度所在的值                                              | `Record<number, string>`     | —       |
+| `format`     | 读屏软件念出的文字                                                      | `(value: number) => string`  | —       |
+| `vertical`   | 竖向，从下往上                                                          | `boolean`                    | `false` |
+| `height`     | 竖向时的长度，数字为 px                                                 | `number \| string`           | `200px` |
+| `showInput`  | 旁边放一个同步的数字输入框（单值）                                      | `boolean`                    | `false` |
+| `tooltip`    | 在滑块上方显示数值，`'always'` 一直显示                                 | `boolean \| 'always'`        | `false` |
+| `size`       | 尺寸，默认取表单或全局配置                                              | `'sm' \| 'md' \| 'lg'`       | `'md'`  |
+| `disabled`   | 禁用                                                                    | `boolean`                    | `false` |
+| `readonly`   | 只读：值照常显示、可以聚焦，但不能修改；Form 设置 `readonly` 时自动只读 | `boolean`                    | `false` |
+| `invalid`    | 标记为无效，填充改为危险语气                                            | `boolean`                    | `false` |
 
 ### Events
 

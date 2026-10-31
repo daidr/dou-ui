@@ -5,7 +5,7 @@ import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
 import { formItemKey } from '../form/form'
 import type { FormItemContext } from '../form/form'
-import { useFormDisabled, useFormItem, useFormSize } from '../form/use-form-item'
+import { useFormDisabled, useFormItem, useFormReadonly, useFormSize } from '../form/use-form-item'
 import DouInputNumber from '../input-number/input-number.vue'
 import type { SliderExpose, SliderProps, SliderValue } from './slider'
 
@@ -32,6 +32,7 @@ const { formItem } = useFormItem()
 formItem?.markGroup()
 const size = useFormSize(() => props.size)
 const disabled = useFormDisabled(() => props.disabled)
+const readonly = useFormReadonly(() => props.readonly)
 const invalid = computed(() => props.invalid || !!formItem?.invalid.value)
 // The number input is part of the slider, not a second field of the form item.
 provide(formItemKey, undefined as unknown as FormItemContext)
@@ -154,7 +155,7 @@ function nearest(value: number) {
 }
 
 function onPointerdown(event: PointerEvent) {
-  if (disabled.value || event.button !== 0) return
+  if (disabled.value || readonly.value || event.button !== 0) return
   event.preventDefault()
   const value = valueAt(event)
   const thumb = (event.target as HTMLElement).closest<HTMLElement>('[data-index]')
@@ -187,7 +188,7 @@ function onPointerup(event: PointerEvent) {
 }
 
 function onKeydown(event: KeyboardEvent, index: number) {
-  if (disabled.value) return
+  if (disabled.value || readonly.value) return
   const value = values.value[index] ?? props.min
   const page = Math.max(props.step, Math.round(span.value / 10 / props.step) * props.step)
   const targets: Record<string, number> = {
@@ -242,6 +243,7 @@ const classes = computed(() => [
   ns.is('vertical', props.vertical),
   ns.is('with-input', props.showInput && !props.range),
   ns.is('disabled', disabled.value),
+  ns.is('readonly', readonly.value),
   ns.is('invalid', invalid.value),
   ns.is('dragging', active.value !== null),
   ns.is(
@@ -313,6 +315,7 @@ defineExpose<SliderExpose>({
           :aria-labelledby="thumb.labelledBy"
           :aria-describedby="formItem?.describedBy.value"
           :aria-disabled="disabled || undefined"
+          :aria-readonly="readonly || undefined"
           :aria-invalid="invalid || undefined"
           @keydown="onKeydown($event, thumb.index)"
         >
@@ -341,6 +344,7 @@ defineExpose<SliderExpose>({
       :step="step"
       :size="size"
       :disabled="disabled"
+      :readonly="readonly"
       :invalid="invalid"
       :aria-label="thumbs[0]?.label"
       :aria-labelledby="thumbs[0]?.labelledBy"

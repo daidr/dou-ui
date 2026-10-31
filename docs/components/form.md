@@ -118,6 +118,12 @@ schema 自己决定空值是否合法，必填标记则无法从 schema 推断�
 <DouForm size="sm" disabled>...</DouForm>
 ```
 
+## 只读
+
+详情页常用同一张表单展示数据。`readonly` 让内部所有输入类控件只读：值照常显示、文字可以选中复制，但不能修改，选择器不会展开，清除按钮也不出现。和 `disabled` 不同，只读的控件不变灰，仍可获得焦点，并带有 `aria-readonly`。
+
+<DocDemo src="form/readonly" column />
+
 ## 可访问性
 
 - 标签是真正的 `<label for>`，指向控件的可聚焦元素，点击标签即可聚焦。
@@ -130,11 +136,12 @@ schema 自己决定空值是否合法，必填标记则无法从 schema 推断�
 自己写的控件可以通过 `useFormItem()` 接入同一套上下文：
 
 ```ts
-import { useFormDisabled, useFormItem, useFormSize } from 'dou-ui'
+import { useFormDisabled, useFormItem, useFormReadonly, useFormSize } from 'dou-ui'
 
 const { formItem } = useFormItem()
 const size = useFormSize(() => props.size)
 const disabled = useFormDisabled(() => props.disabled)
+const readonly = useFormReadonly(() => props.readonly)
 
 // 把 formItem.inputId 给可聚焦元素，formItem.describedBy 给 aria-describedby，
 // 值变化时调用 formItem.trigger('change')，失焦时调用 formItem.trigger('blur')。
@@ -154,6 +161,7 @@ const disabled = useFormDisabled(() => props.disabled)
 | `labelWidth`    | 水平布局中标签列的宽度，默认取最长标签 | `string \| number`                       | —            |
 | `size`          | 内部控件的尺寸                         | `'sm' \| 'md' \| 'lg'`                   | —            |
 | `disabled`      | 禁用内部所有控件                       | `boolean`                                | `false`      |
+| `readonly`      | 内部所有输入类控件只读                 | `boolean`                                | `false`      |
 | `requiredMark`  | 必填 / 可选标记                        | `boolean \| 'optional'`                  | `true`       |
 | `scrollToError` | 提交失败时滚动到第一个错误字段并聚焦   | `boolean`                                | `true`       |
 

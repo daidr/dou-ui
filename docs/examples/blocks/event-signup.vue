@@ -193,7 +193,8 @@ function submit(values: Record<string, any>) {
       v-model:selection="selection"
       class="signup__builder"
     />
-    <div v-else class="signup__fill">
+    <!-- 填写区只是隐藏，不卸载：切到设计再回来，已填的值和所在步骤都还在 -->
+    <div v-show="mode === 'fill'" class="signup__fill">
       <div class="signup__paper">
         <DouFormRenderer ref="renderer" :form="form" @submit="submit">
           <div>

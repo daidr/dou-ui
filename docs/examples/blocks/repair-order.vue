@@ -260,7 +260,8 @@ function submit(values: Record<string, any>) {
       :sources="sources"
       class="repair__builder"
     />
-    <div v-else class="repair__fill">
+    <!-- 填写区只是隐藏，不卸载：切到设计再回来，已填的值和所在步骤都还在 -->
+    <div v-show="mode === 'fill'" class="repair__fill">
       <div class="repair__paper">
         <DouFormRenderer ref="renderer" :form="form" :sources="sources" @submit="submit">
           <DouButton native-type="submit" tone="primary">提交报修</DouButton>

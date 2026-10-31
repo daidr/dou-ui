@@ -55,6 +55,21 @@ export interface FlowMessages {
   ungroup: string
   /** Takes a node out of the group it is in. */
   leaveGroup: string
+  /**
+   * Moving nodes up and down the stack. `top` and `bottom` say nothing moved
+   * because the nodes already are there; `noneAbove` and `noneBelow`, that
+   * no other node overlaps them that way.
+   */
+  layers: {
+    front: string
+    forward: string
+    backward: string
+    back: string
+    top: string
+    bottom: string
+    noneAbove: string
+    noneBelow: string
+  }
   expand: string
   collapse: string
   /** Between parts of a node's description. */
@@ -122,7 +137,6 @@ export interface FlowMessages {
     unrotate: string
     /** `{degrees}` is the node's new turn. */
     turned: string
-    layers: { front: string; forward: string; backward: string; back: string }
   }
 }
 
@@ -169,6 +183,16 @@ const zhCN: FlowMessages = {
   makeGroup: '放进分组',
   ungroup: '取消分组',
   leaveGroup: '移出分组',
+  layers: {
+    front: '置于顶层',
+    forward: '上移一层',
+    backward: '下移一层',
+    back: '置于底层',
+    top: '已经在最上层',
+    bottom: '已经在最底层',
+    noneAbove: '上面没有和它重叠的节点',
+    noneBelow: '下面没有和它重叠的节点',
+  },
   expand: '展开',
   collapse: '收起',
   separator: '，',
@@ -216,7 +240,6 @@ const zhCN: FlowMessages = {
     rotate: '顺时针旋转 90°',
     unrotate: '取消旋转',
     turned: '已旋转到 {degrees}°',
-    layers: { front: '置于顶层', forward: '上移一层', backward: '下移一层', back: '置于底层' },
   },
 }
 
@@ -263,6 +286,16 @@ const zhTW: FlowMessages = {
   makeGroup: '放進群組',
   ungroup: '取消群組',
   leaveGroup: '移出群組',
+  layers: {
+    front: '移到最上層',
+    forward: '上移一層',
+    backward: '下移一層',
+    back: '移到最下層',
+    top: '已經在最上層',
+    bottom: '已經在最下層',
+    noneAbove: '上面沒有和它重疊的節點',
+    noneBelow: '下面沒有和它重疊的節點',
+  },
   expand: '展開',
   collapse: '收合',
   separator: '，',
@@ -310,7 +343,6 @@ const zhTW: FlowMessages = {
     rotate: '順時針旋轉 90°',
     unrotate: '取消旋轉',
     turned: '已旋轉到 {degrees}°',
-    layers: { front: '移到最上層', forward: '上移一層', backward: '下移一層', back: '移到最下層' },
   },
 }
 
@@ -357,6 +389,16 @@ const en: FlowMessages = {
   makeGroup: 'Group',
   ungroup: 'Ungroup',
   leaveGroup: 'Remove from group',
+  layers: {
+    front: 'Bring to front',
+    forward: 'Bring forward',
+    backward: 'Send backward',
+    back: 'Send to back',
+    top: 'Already at the front',
+    bottom: 'Already at the back',
+    noneAbove: 'No node above overlaps it',
+    noneBelow: 'No node below overlaps it',
+  },
   expand: 'Expand',
   collapse: 'Collapse',
   separator: ', ',
@@ -404,12 +446,6 @@ const en: FlowMessages = {
     rotate: 'Rotate 90° clockwise',
     unrotate: 'Reset rotation',
     turned: 'Rotated to {degrees}°',
-    layers: {
-      front: 'Bring to front',
-      forward: 'Bring forward',
-      backward: 'Send backward',
-      back: 'Send to back',
-    },
   },
 }
 

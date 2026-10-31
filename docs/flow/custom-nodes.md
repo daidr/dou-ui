@@ -60,3 +60,4 @@ const promptNode = defineNodeType({
 | `resizable` | 选中时显示调整大小的手柄，可以给出最小尺寸；写成函数时按节点决定，返回 `false` 不显示             | `NodeResize \| (node) => NodeResize`         |
 | `size`      | 新建时的宽高                                                                                      | `{ width: number, height: number }`          |
 | `frame`     | 设为 `false` 时编辑器不画卡片（边框、底色、阴影），由组件自己画外形，例如圆形；选中时显示一圈细框 | `boolean`                                    |
+| `bounds`    | 节点画到自身方框外时（例如旋转后）在屏幕上占的范围，选中节点上方的工具栏按它定位                  | `(node, rect) => Rect`                       |

@@ -63,6 +63,8 @@ export type {
 } from './core/extension'
 export { flowKit } from './kit'
 export type { FlowKitOptions } from './kit'
+export { moveLayer } from './layers'
+export type { LayerMove } from './layers'
 export { flowOrder } from './core/order'
 export {
   canJoin,

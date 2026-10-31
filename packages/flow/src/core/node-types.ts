@@ -1,6 +1,6 @@
 import type { Component } from 'vue'
 import type { FlowMessages } from '../locale'
-import type { FlowData, FlowNode, FlowPortSpec, PortSide } from './model'
+import type { FlowData, FlowNode, FlowPortSpec, PortSide, Rect } from './model'
 
 /** What a node type's component receives. */
 export interface NodeViewProps<Data extends FlowData = FlowData> {
@@ -54,6 +54,11 @@ export interface NodeTypeSpec<Data extends FlowData = FlowData> {
    * e.g. a circle. Selection then shows as a thin outline around the box.
    */
   frame?: boolean
+  /**
+   * The box the node covers on screen when it draws outside its own `rect`,
+   * e.g. while turned. The toolbar over the selection floats above it.
+   */
+  bounds?: (node: FlowNode<Data>, rect: Rect) => Rect
 }
 
 export interface NodePaletteSpec {

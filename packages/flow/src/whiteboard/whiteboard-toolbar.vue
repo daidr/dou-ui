@@ -63,7 +63,7 @@ const imageTitle = computed(() =>
   format(t.value.key, { tool: t.value.image, key: imageKey.toUpperCase() }),
 )
 function insertImage() {
-  pickImages(ctx, state.upload)
+  pickImages(ctx)
 }
 </script>
 

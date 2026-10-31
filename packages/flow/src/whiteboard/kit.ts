@@ -1,10 +1,4 @@
-import {
-  ChevronDownIcon,
-  ChevronsDownIcon,
-  ChevronsUpIcon,
-  ChevronUpIcon,
-  RotateCwIcon,
-} from '@dou-ui/icons'
+import { RotateCwIcon } from '@dou-ui/icons'
 import { watch, type Ref } from 'vue'
 import type { FlowMenuItem } from '../core/menu'
 import type { FlowEditorContext } from '../context'
@@ -30,7 +24,7 @@ import {
   whiteboardKeys,
 } from './model'
 import { imageFiles, insertImages, pickImages, type WhiteboardUpload } from './image'
-import { moveLayer, layerChanges, type LayerMove } from './layers'
+import { turn } from './ink'
 import { drawInk, erase } from './pen'
 import { boardState } from './state'
 
@@ -50,6 +44,24 @@ const unlessTurned =
   (node: FlowNode<WhiteboardNodeData>): NodeResize =>
     node.data?.rotation ? false : min
 
+/** The box around a turned node, so the toolbar over it clears its corners. */
+function turnedBounds(node: FlowNode<WhiteboardNodeData>, rect: Rect): Rect {
+  const degrees = node.data?.rotation
+  if (!degrees) return rect
+  const centre = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }
+  const corners = [
+    { x: rect.x, y: rect.y },
+    { x: rect.x + rect.width, y: rect.y },
+    { x: rect.x, y: rect.y + rect.height },
+    { x: rect.x + rect.width, y: rect.y + rect.height },
+  ].map((corner) => turn(corner, centre, degrees))
+  const xs = corners.map((p) => p.x)
+  const ys = corners.map((p) => p.y)
+  const x = Math.min(...xs)
+  const y = Math.min(...ys)
+  return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y }
+}
+
 /** A rectangle, ellipse or diamond with centred text; `data.shape` says which. */
 export const shapeNode = defineNodeType<WhiteboardShapeData>({
   type: 'shape',
@@ -57,6 +69,7 @@ export const shapeNode = defineNodeType<WhiteboardShapeData>({
   ports: anchorPorts,
   frame: false,
   resizable: unlessTurned({ minWidth: 24, minHeight: 24 }),
+  bounds: turnedBounds,
   size: { width: 160, height: 100 },
   defaults: () => ({ shape: 'rect' }),
   label: (node, t) => nameOf(t.board[node.data?.shape ?? 'rect'], node.data?.text, t),
@@ -69,6 +82,7 @@ export const stickyNode = defineNodeType<WhiteboardStickyData>({
   ports: anchorPorts,
   frame: false,
   resizable: unlessTurned({ minWidth: 64, minHeight: 64 }),
+  bounds: turnedBounds,
   size: { width: 160, height: 160 },
   defaults: () => ({}),
   label: (node, t) => nameOf(t.board.sticky, node.data?.text, t),
@@ -81,6 +95,7 @@ export const textNode = defineNodeType<WhiteboardTextData>({
   ports: anchorPorts,
   frame: false,
   resizable: unlessTurned({ minWidth: 24, minHeight: 24 }),
+  bounds: turnedBounds,
   size: { width: 200, height: 40 },
   defaults: () => ({}),
   label: (node, t) => nameOf(t.board.text, node.data?.text, t),
@@ -92,6 +107,7 @@ export const inkNode = defineNodeType<WhiteboardInkData>({
   component: BoardNode,
   frame: false,
   resizable: unlessTurned({ minWidth: 8, minHeight: 8 }),
+  bounds: turnedBounds,
   defaults: () => ({ points: [], box: [0, 0] }),
   label: (_, t) => t.board.ink,
 })
@@ -103,6 +119,7 @@ export const imageNode = defineNodeType<WhiteboardImageData>({
   ports: anchorPorts,
   frame: false,
   resizable: unlessTurned({ minWidth: 24, minHeight: 24 }),
+  bounds: turnedBounds,
   size: { width: 240, height: 180 },
   defaults: () => ({ src: '' }),
   label: (node, t) => nameOf(t.board.image, node.data?.alt, t),
@@ -120,9 +137,9 @@ export const connectorEdge = defineEdgeType({
     const dx = target.x - source.x
     const dy = target.y - source.y
     const angle = Math.atan2(dy, dx)
-    const wing = (turn: number) => ({
-      x: target.x - ARROW.length * Math.cos(angle + turn),
-      y: target.y - ARROW.length * Math.sin(angle + turn),
+    const wing = (spread: number) => ({
+      x: target.x - ARROW.length * Math.cos(angle + spread),
+      y: target.y - ARROW.length * Math.sin(angle + spread),
     })
     const a = wing(ARROW.spread)
     const b = wing(-ARROW.spread)
@@ -189,18 +206,6 @@ export function whiteboardKit(options: WhiteboardKitOptions = {}): FlowExtension
     layers: { above: [BoardDraft] },
     overlays: options.toolbar === false ? [] : [WhiteboardToolbar],
 
-    // what is added lands on top, also once nodes have been moved in the stack
-    transaction(tr) {
-      const ids = new Set<string>()
-      for (const step of tr.steps)
-        if (step.type === 'addNode' && step.node.z === undefined) ids.add(step.node.id)
-      if (!ids.size) return
-      let top = 0
-      for (const node of tr.doc.nodes) if (!ids.has(node.id)) top = Math.max(top, node.z ?? 0)
-      if (!top) return
-      for (const id of ids) tr.updateNode(id, { z: ++top })
-    },
-
     setup(ctx) {
       const state = boardState(ctx)
       state.upload = options.upload
@@ -240,7 +245,7 @@ export function whiteboardKit(options: WhiteboardKitOptions = {}): FlowExtension
         if (ctx.readonly.value || !files.length) return
         event.preventDefault()
         const at = ctx.toCanvas({ x: event.clientX, y: event.clientY })
-        void insertImages(ctx, files, options.upload, at)
+        void insertImages(ctx, files, { at })
       }
       const onPaste = (event: ClipboardEvent) => {
         const active = document.activeElement
@@ -251,7 +256,7 @@ export function whiteboardKit(options: WhiteboardKitOptions = {}): FlowExtension
         if (!files.length) return
         event.preventDefault()
         event.stopImmediatePropagation()
-        void insertImages(ctx, files, options.upload)
+        void insertImages(ctx, files)
       }
       root?.addEventListener('dragover', onDragOver)
       root?.addEventListener('drop', onDrop)
@@ -340,22 +345,6 @@ export function whiteboardKit(options: WhiteboardKitOptions = {}): FlowExtension
       if (target.kind !== 'node' || ctx.readonly.value) return []
       const t = ctx.messages.value.board
       const items: FlowMenuItem[] = []
-      const moves: [LayerMove, string, typeof ChevronsUpIcon][] = [
-        ['front', 'mod+shift+]', ChevronsUpIcon],
-        ['forward', 'mod+]', ChevronUpIcon],
-        ['backward', 'mod+[', ChevronDownIcon],
-        ['back', 'mod+shift+[', ChevronsDownIcon],
-      ]
-      moves.forEach(([move, shortcut, icon]) =>
-        items.push({
-          key: `layer-${move}`,
-          label: t.layers[move],
-          icon,
-          shortcut,
-          disabled: !layerChanges(ctx, move).size,
-          run: () => void moveLayer(ctx, move),
-        }),
-      )
       const node = target.node
       if (BOARD_TYPES.has(node.type ?? '') && ctx.selection.value.nodes.length <= 1) {
         const rotation = (node.data?.rotation as number | undefined) ?? 0
@@ -394,22 +383,12 @@ export function whiteboardKit(options: WhiteboardKitOptions = {}): FlowExtension
       const keys: Record<string, () => boolean | void> = {}
       for (const [tool, key] of Object.entries(whiteboardKeys))
         keys[key] = pick(tool as WhiteboardTool)
-      const layer = (move: LayerMove) => () => {
-        if (ctx.readonly.value) return false
-        if (!moveLayer(ctx, move)) return false
-        ctx.announce(ctx.messages.value.board.layers[move])
-      }
       return {
         ...keys,
         [imageKey]: () => {
           if (ctx.readonly.value) return false
-          pickImages(ctx, options.upload)
+          pickImages(ctx)
         },
-        // with Shift first: without it, `mod+[` would match either
-        'mod+shift+]': layer('front'),
-        'mod+shift+[': layer('back'),
-        'mod+]': layer('forward'),
-        'mod+[': layer('backward'),
         enter: () => {
           if (ctx.readonly.value) return false
           const tool = state.tool.value

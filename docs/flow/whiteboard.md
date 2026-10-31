@@ -63,7 +63,7 @@ const extensions = [flowKit(), whiteboardKit({ tool, toolbar: false })]
 
 图片可以拖到画布上、粘贴进来，或者用工具栏的图片按钮（I）选择文件。新图片最长的一边不超过 320，保持原来的比例，放在松手处或视野中间。
 
-不传 `upload` 时，图片以 data URL 存在文档里，适合小图和本地使用。要存到自己的服务器，传入 `upload`，返回图片地址：
+不传 `upload` 时，图片以 data URL 存在文档里，适合小图和本地使用。data URL 会让文档变得很大；[协同编辑](./collaboration)时每个人打开都要下载整份文档，请一定传入 `upload`。`upload` 把文件存到自己的服务器，返回图片地址：
 
 ```ts
 const extensions = [
@@ -79,7 +79,7 @@ const extensions = [
 ]
 ```
 
-上传失败的图片不会加进来，读屏会提示。
+`upload` 也可以返回 `{ src, alt }`，给图片写说明文字，供读屏使用；只返回地址时，说明文字是去掉扩展名的文件名。之后要修改，用 `transact` 更新节点的 `data.alt`。上传失败的图片不会加进来，读屏会提示。
 
 ## 旋转
 
@@ -87,16 +87,7 @@ const extensions = [
 
 ## 层级
 
-后加的节点在上面。右键菜单或快捷键可以调整选中节点的层级：
-
-| 操作     | 快捷键                                           |
-| -------- | ------------------------------------------------ |
-| 置于顶层 | `Ctrl` / `⌘` + `Shift` + `]`                     |
-| 上移一层 | `Ctrl` / `⌘` + `]`，越过上面第一个和它重叠的节点 |
-| 下移一层 | `Ctrl` / `⌘` + `[`，越过下面第一个和它重叠的节点 |
-| 置于底层 | `Ctrl` / `⌘` + `Shift` + `[`                     |
-
-层级存在节点的 `z` 上，数字大的在上面，一样时按文档里的顺序，见[文档数据](./data)。协同编辑时层级也会同步。
+后加的节点在上面。调整层级来自 `flowKit()`，普通流程里也能用：右键菜单或 `Ctrl` / `⌘` + `]`、`[`，加 `Shift` 直接到顶层或底层，见[层级](./editing#层级)。协同编辑时层级也会同步。
 
 ## 连接线
 
@@ -114,7 +105,7 @@ const extensions = [
 | `ink`    | `{ points, box, size?, tone? }`                             | 笔迹，见下文                   |
 | `image`  | `{ src, alt? }`                                             | 图片，`alt` 给读屏用           |
 
-每种节点的 `data` 都可以带 `rotation`。笔迹的 `points` 是 `x, y, 压力` 三个一组的平铺数组，坐标相对节点左上角；`box` 是画下时的宽高，节点被拉伸时笔迹跟着按比例拉伸；`size` 是满压力时的粗细，默认 `4`。
+每种节点的 `data` 都可以带 `rotation`。旋转只属于白板节点，所以放在 `data` 里；层级 `z` 是编辑器决定绘制顺序用的，所有节点都有，所以放在节点上。笔迹的 `points` 是 `x, y, 压力` 三个一组的平铺数组，坐标相对节点左上角；`box` 是画下时的宽高，节点被拉伸时笔迹跟着按比例拉伸；`size` 是满压力时的粗细，默认 `4`。
 
 `tone` 取主题的语气色：`neutral`、`primary`、`success`、`warning`、`danger`。形状默认是 `neutral`，用正文颜色描边；其他颜色会给形状描边并淡淡地铺底，给便签铺底。
 
@@ -147,27 +138,28 @@ const board: FlowDocument = {
 
 ### whiteboardKit 选项
 
-| 名称      | 说明                                           | 类型                                        | 默认值        |
-| --------- | ---------------------------------------------- | ------------------------------------------- | ------------- |
-| `tool`    | 当前工具，和自己的工具栏共享；不传时由内部管理 | `Ref<WhiteboardTool>`                       | —             |
-| `toolbar` | 是否显示内置工具栏                             | `boolean`                                   | `true`        |
-| `upload`  | 把图片文件变成要保存的地址，例如上传后返回 URL | `(file: File) => string \| Promise<string>` | 存为 data URL |
+| 名称      | 说明                                                                      | 类型                                                                | 默认值        |
+| --------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------- | ------------- |
+| `tool`    | 当前工具，和自己的工具栏共享；不传时由内部管理                            | `Ref<WhiteboardTool>`                                               | —             |
+| `toolbar` | 是否显示内置工具栏                                                        | `boolean`                                                           | `true`        |
+| `upload`  | 把图片文件变成要保存的地址，例如上传后返回 URL；也可以返回 `{ src, alt }` | `(file: File) => WhiteboardUploaded \| Promise<WhiteboardUploaded>` | 存为 data URL |
 
 ```ts
+type WhiteboardUploaded = string | { src: string; alt?: string }
+
 type WhiteboardTool =
   'select' | 'hand' | 'rect' | 'ellipse' | 'diamond' | 'sticky' | 'text' | 'pen' | 'eraser'
 ```
 
 ### 导出
 
-| 名称                                                          | 说明                                                                                                 |
-| ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `shapeNode`、`stickyNode`、`textNode`、`inkNode`、`imageNode` | 节点类型，可以单独放进自己的扩展里                                                                   |
-| `connectorEdge`                                               | 连接线的连线类型                                                                                     |
-| `whiteboardKeys`、`imageKey`                                  | 每个工具的按键和插入图片的按键，用来在自己的工具栏上显示                                             |
-| `pickImages(ctx, upload?)`                                    | 打开文件选择并插入选中的图片，给自己的工具栏用                                                       |
-| `insertImages(ctx, files, upload?, at?)`                      | 插入图片文件，`at` 是画布坐标，默认视野中间                                                          |
-| `moveLayer(ctx, move)`                                        | 调整选中节点的层级，`move` 是 `'front'`、`'forward'`、`'backward'`、`'back'`；没有变化时返回 `false` |
+| 名称                                                          | 说明                                                                                                     |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `shapeNode`、`stickyNode`、`textNode`、`inkNode`、`imageNode` | 节点类型，可以单独放进自己的扩展里                                                                       |
+| `connectorEdge`                                               | 连接线的连线类型                                                                                         |
+| `whiteboardKeys`、`imageKey`                                  | 每个工具的按键和插入图片的按键，用来在自己的工具栏上显示                                                 |
+| `pickImages(ctx, options?)`                                   | 打开文件选择并插入选中的图片，给自己的工具栏用                                                           |
+| `insertImages(ctx, files, options?)`                          | 插入图片文件。`options.at` 是画布坐标，默认视野中间；`options.upload` 默认用 `whiteboardKit` 的 `upload` |
 
 ### CSS 变量
 

@@ -572,11 +572,55 @@ describe('layers', () => {
     expect(order(root)).toEqual(['a', 'b', 'c'])
     press('[', true)
     await ticks()
-    // already at the bottom: nothing to undo
-    expect(root.find('[aria-live]').text()).toBe('置于底层')
+    // already at the bottom: nothing to undo, and it says so
+    expect(root.find('[aria-live]').text()).toBe('已经在最底层')
+    press('[')
+    await ticks()
+    expect(root.find('[aria-live]').text()).toBe('已经在最底层')
     press(']', true)
     await ticks()
     expect(order(root)).toEqual(['b', 'c', 'a'])
+  })
+
+  it('works in a plain flow too, through flowKit', async () => {
+    const flow = ref<FlowDocument>({
+      nodes: [
+        { id: 'a', x: 0, y: 0, width: 100, height: 60, data: { label: 'a' } },
+        { id: 'b', x: 50, y: 20, width: 100, height: 60, data: { label: 'b' } },
+        { id: 'c', x: 400, y: 0, width: 100, height: 60, data: { label: 'c' } },
+      ],
+      edges: [],
+    })
+    const selection = ref<FlowSelection>({ nodes: ['b'], edges: [] })
+    const wrapper = mount(
+      defineComponent(
+        () => () =>
+          h(DouFlowEditor, {
+            modelValue: flow.value,
+            'onUpdate:modelValue': (value: FlowDocument) => (flow.value = value),
+            selection: selection.value,
+            'onUpdate:selection': (value: FlowSelection) => (selection.value = value),
+          }),
+      ),
+      { attachTo: document.body },
+    )
+    mounted.push(wrapper)
+    await ticks()
+    const root = wrapper.find('.dou-flow-editor')
+    root.element.dispatchEvent(
+      new KeyboardEvent('keydown', { key: '[', ctrlKey: true, bubbles: true }),
+    )
+    await ticks()
+    expect(order(root)).toEqual(['b', 'a', 'c'])
+    expect(root.find('[aria-live]').text()).toBe('下移一层')
+    // c overlaps nothing: a step up has nothing to pass
+    selection.value = { nodes: ['c'], edges: [] }
+    await ticks()
+    root.element.dispatchEvent(
+      new KeyboardEvent('keydown', { key: ']', ctrlKey: true, bubbles: true }),
+    )
+    await ticks()
+    expect(root.find('[aria-live]').text()).toBe('已经在最上层')
   })
 
   it('puts what is added on top, once nodes have a z', async () => {
@@ -651,6 +695,44 @@ describe('images', () => {
       },
     })
     expect(root.find('.dou-whiteboard-node__image').attributes('alt')).toBe('展览海报')
+  })
+
+  it('takes the description an upload gives', async () => {
+    vi.stubGlobal(
+      'Image',
+      class extends EventTarget {
+        naturalWidth = 100
+        naturalHeight = 100
+        set src(_: string) {
+          queueMicrotask(() => this.dispatchEvent(new Event('load')))
+        }
+      },
+    )
+    const flow = ref<FlowDocument>({ nodes: [], edges: [] })
+    const wrapper = mount(
+      defineComponent(
+        () => () =>
+          h(DouFlowEditor, {
+            modelValue: flow.value,
+            'onUpdate:modelValue': (value: FlowDocument) => (flow.value = value),
+            extensions: [
+              flowKit(),
+              whiteboardKit({ upload: () => ({ src: '/poster.png', alt: '上海展览海报' }) }),
+            ],
+          }),
+      ),
+      { attachTo: document.body },
+    )
+    mounted.push(wrapper)
+    await ticks()
+    const drop = new Event('drop', { bubbles: true, cancelable: true })
+    Object.defineProperty(drop, 'dataTransfer', {
+      value: { files: [new File(['x'], 'IMG_0412.png', { type: 'image/png' })], types: ['Files'] },
+    })
+    wrapper.find('.dou-flow-editor').element.dispatchEvent(drop)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    await ticks()
+    expect(flow.value.nodes[0]!.data).toEqual({ src: '/poster.png', alt: '上海展览海报' })
   })
 
   it('says so when an upload fails', async () => {

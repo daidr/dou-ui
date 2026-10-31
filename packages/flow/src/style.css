@@ -1173,7 +1173,7 @@
     user-select: none;
   }
 
-  /* the turn handle above the node, and the corner handle of a turned node */
+  /* the turn handle below the node, and the corner handle of a turned node */
   .dou-whiteboard-node__turn,
   .dou-whiteboard-node__corner {
     position: absolute;

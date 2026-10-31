@@ -2248,7 +2248,14 @@ const toolbarItems = computed<FlowToolbarItem[][]>(() => {
 
 /** Where the toolbar floats: above the selected nodes, in screen px within the editor. */
 const toolbarAnchor = computed(() => {
-  const bounds = boundsOf(selection.value.nodes.flatMap((id) => getNodeRect(id) ?? []))
+  const bounds = boundsOf(
+    selection.value.nodes.flatMap((id) => {
+      const node = nodeById.value.get(id)
+      if (!node) return []
+      const rect = rectOf(node)
+      return specOf(node).bounds?.(node, rect) ?? rect
+    }),
+  )
   if (!bounds) return null
   const { x, y, zoom } = viewport.value
   return {

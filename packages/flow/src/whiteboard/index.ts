@@ -9,10 +9,8 @@ export {
 } from './kit'
 export { imageKey, whiteboardKeys } from './model'
 export { insertImages, pickImages } from './image'
-export { moveLayer } from './layers'
 export type { WhiteboardKitOptions } from './kit'
-export type { WhiteboardUpload } from './image'
-export type { LayerMove } from './layers'
+export type { WhiteboardImageOptions, WhiteboardUpload, WhiteboardUploaded } from './image'
 export type {
   WhiteboardImageData,
   WhiteboardInkData,

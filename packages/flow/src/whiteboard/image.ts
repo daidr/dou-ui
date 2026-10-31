@@ -3,8 +3,22 @@ import type { Point } from '../core/model'
 import { format } from '../locale'
 import { boardState } from './state'
 
-/** Turns a file into the `src` an image node keeps, e.g. by uploading it. */
-export type WhiteboardUpload = (file: File) => string | Promise<string>
+/**
+ * Turns a file into the `src` an image node keeps, e.g. by uploading it.
+ * Return `{ src, alt }` to give the image its description; it is the file's
+ * name otherwise.
+ */
+export type WhiteboardUpload = (file: File) => WhiteboardUploaded | Promise<WhiteboardUploaded>
+
+/** An image's address, or its address and description. */
+export type WhiteboardUploaded = string | { src: string; alt?: string }
+
+export interface WhiteboardImageOptions {
+  /** Where the images go, in canvas units; the middle of the view by default. */
+  at?: Point
+  /** Overrides the kit's `upload` option for these images. */
+  upload?: WhiteboardUpload
+}
 
 /** Without an upload, images are kept in the document as data URLs. */
 const readAsDataUrl: WhiteboardUpload = (file) =>
@@ -36,16 +50,17 @@ export const imageFiles = (files: Iterable<File> | null | undefined) =>
   [...(files ?? [])].filter((file) => file.type.startsWith('image/'))
 
 /**
- * Adds an image node for each file, centred on `at` (the middle of the view
- * when left out) and stepped down and right when there are several.
+ * Adds an image node for each file, centred on `at` and stepped down and
+ * right when there are several. Files go through the kit's `upload` option.
  */
 export async function insertImages(
   ctx: FlowEditorContext,
   files: File[],
-  upload: WhiteboardUpload = readAsDataUrl,
-  at?: Point,
+  options: WhiteboardImageOptions = {},
 ) {
   const state = boardState(ctx)
+  const upload = options.upload ?? state.upload ?? readAsDataUrl
+  const at = options.at
   const t = ctx.messages.value.board
   const root = ctx.root.value
   if (!root || ctx.readonly.value) return
@@ -57,8 +72,14 @@ export async function insertImages(
     await Promise.all(
       files.map(async (file, i) => {
         let src: string
+        let alt = file.name.replace(/\.[^.]+$/, '')
         try {
-          src = await upload(file)
+          const done = await upload(file)
+          if (typeof done === 'string') src = done
+          else {
+            src = done.src
+            if (done.alt !== undefined) alt = done.alt
+          }
         } catch {
           ctx.announce(format(t.imageFailed, { name: file.name }))
           return
@@ -67,7 +88,7 @@ export async function insertImages(
         const scale = Math.min(1, MAX_SIDE / Math.max(size.width, size.height))
         const id = ctx.insertNode('image', {
           at: { x: centre.x + i * 24, y: centre.y + i * 24 },
-          data: { src, alt: file.name.replace(/\.[^.]+$/, '') },
+          data: { src, alt },
           size: { width: Math.round(size.width * scale), height: Math.round(size.height * scale) },
           focus: false,
         })
@@ -80,15 +101,15 @@ export async function insertImages(
   if (ids.length > 1) ctx.selection.value = { nodes: ids, edges: [] }
 }
 
-/** Opens the file picker and inserts what is picked. */
-export function pickImages(ctx: FlowEditorContext, upload?: WhiteboardUpload) {
+/** Opens the file picker and inserts what is picked, as `insertImages` does. */
+export function pickImages(ctx: FlowEditorContext, options: WhiteboardImageOptions = {}) {
   const input = document.createElement('input')
   input.type = 'file'
   input.accept = 'image/*'
   input.multiple = true
   input.addEventListener('change', () => {
     const files = imageFiles(input.files)
-    if (files.length) void insertImages(ctx, files, upload)
+    if (files.length) void insertImages(ctx, files, options)
   })
   input.click()
 }

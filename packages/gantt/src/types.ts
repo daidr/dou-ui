@@ -1,6 +1,8 @@
 import type { GanttCalendar } from './core/calendar'
 import type { GanttExtension } from './core/extension'
 import type { GanttLink, GanttTask } from './core/model'
+import type { Tone } from 'dou-ui'
+import type { GanttSchedule } from './core/schedule'
 import type { GanttScale } from './core/scale'
 import type { GanttDocument, GanttTransaction, GanttTransactionMeta } from './core/transaction'
 import type { GanttRow } from './core/tree'
@@ -30,7 +32,7 @@ export interface GanttMarker {
   date: string
   /** Shown in the time header. */
   label?: string
-  tone?: 'neutral' | 'accent' | 'success' | 'warning' | 'danger'
+  tone?: Tone
 }
 
 /** New dates about to be given to a task, as they would be written. */
@@ -71,6 +73,14 @@ export interface GanttProps {
   today?: boolean
   /** The first day of a week: `0` Sunday, `1` Monday. Defaults to the locale's. */
   weekStart?: 0 | 1
+  /**
+   * `manual` (the default) changes only what is moved; links are shown and
+   * checked, and the ones not kept are drawn dashed. `auto` also pushes
+   * the tasks that wait on a moved task later, in the same undo step.
+   */
+  scheduling?: 'manual' | 'auto'
+  /** Highlight the critical path: the tasks with no slack, and the links that drive them. */
+  critical?: boolean
   /** Show the plan without changing it: no dragging, no new links, no undo keys. */
   readonly?: boolean
   /**
@@ -121,6 +131,11 @@ export interface GanttExpose {
   redo: () => boolean
   readonly canUndo: boolean
   readonly canRedo: boolean
+  /**
+   * Moves tasks so that every link is kept, as one undo step, and returns
+   * what moved. Only pushes tasks later, unless `pull` is set.
+   */
+  schedule: (options?: { pull?: boolean }) => GanttSchedule
   /** Picks the day width that fits all tasks into view and scrolls to the first one. */
   fit: () => void
   /** Scrolls so that a date (or time) is near the left of the timeline. */

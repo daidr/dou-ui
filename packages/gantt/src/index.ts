@@ -27,6 +27,8 @@ export { resolveCalendar, workdaysBetween, workingMinutes } from './core/calenda
 export type { GanttCalendar, WorkCalendar } from './core/calendar'
 export { applyGanttSteps, GanttTransaction } from './core/transaction'
 export type { GanttDocument, GanttStep, GanttTransactionMeta } from './core/transaction'
+export { computeCriticalPath, computeSchedule, findBrokenLinks } from './core/schedule'
+export type { GanttCriticalPath, GanttSchedule, GanttScheduleOptions } from './core/schedule'
 export { parseLag } from './core/links'
 export type { GanttLag, GanttLinkRefusal } from './core/links'
 export type { GanttScale } from './core/scale'

@@ -31,6 +31,11 @@ export interface GanttTransactionMeta {
    * one, e.g. repeated arrow key nudges.
    */
   group?: string
+  /**
+   * With `scheduling="auto"`, set to `false` to leave the waiting tasks
+   * where they are, e.g. for a change from another client.
+   */
+  schedule?: boolean
   /** Who made the change, passed on to the `transaction` event. */
   origin?: string
 }

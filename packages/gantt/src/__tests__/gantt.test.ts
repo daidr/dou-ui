@@ -325,4 +325,51 @@ describe('DouGantt', () => {
     expect(wrapper.find('.dou-gantt__tr.is-active').exists()).toBe(true)
     wrapper.unmount()
   })
+  it('pushes waiting tasks with automatic scheduling, previewed while dragging, undone as one', async () => {
+    const { wrapper, tasks } = setup({ scheduling: 'auto' })
+    await nextTick()
+    press(wrapper.find('.dou-gantt__bar[data-task="a"]').element, 100)
+    pointer('pointermove', 110)
+    pointer('pointermove', 183)
+    await nextTick()
+    // dashed outlines where b and the milestone will go
+    expect(wrapper.findAll('.dou-gantt__ghost')).toHaveLength(2)
+    pointer('pointerup', 183)
+    expect(tasks.value[1]).toMatchObject({ start: '2026-03-04', end: '2026-03-10' })
+    expect(tasks.value[2]).toMatchObject({ start: '2026-03-11', end: '2026-03-17' })
+    expect(tasks.value[3]).toMatchObject({ start: '2026-03-17' })
+    await vi.waitFor(() => expect(live(wrapper)).toContain('另有 2 个任务随之推后'))
+    const mod = /mac/i.test(navigator.platform) ? { metaKey: true } : { ctrlKey: true }
+    await pressKey(wrapper.find('.dou-gantt').element, 'z', mod)
+    expect(tasks.value.slice(1).map((task) => task.start)).toEqual([
+      '2026-03-02',
+      '2026-03-09',
+      '2026-03-16',
+    ])
+    await vi.waitFor(() => expect(live(wrapper)).toContain('已撤销：设计'))
+    wrapper.unmount()
+  })
+
+  it('dashes broken links, skips days off with keys, and schedules on request', async () => {
+    const { wrapper, tasks } = setup({ critical: true })
+    await nextTick()
+    const root = wrapper.find('.dou-gantt').element
+    for (const key of ['ArrowDown', 'ArrowDown', 'ArrowDown']) await pressKey(root, key)
+    // a step back from Monday lands on Sunday, so it goes on to Friday
+    await pressKey(root, 'ArrowLeft', { altKey: true })
+    expect(tasks.value[2]).toMatchObject({ start: '2026-03-06', end: '2026-03-12' })
+    await nextTick()
+    expect(wrapper.findAll('.dou-gantt__link.is-broken')).toHaveLength(1)
+    const gantt = wrapper.findComponent(DouGantt).vm
+    const result = gantt.schedule({ pull: true })
+    expect([...result.moves.keys()]).toEqual(['b', 'm'])
+    expect(tasks.value[2]).toMatchObject({ start: '2026-03-09', end: '2026-03-13' })
+    expect(tasks.value[3]!.start).toBe('2026-03-13')
+    await nextTick()
+    expect(wrapper.findAll('.dou-gantt__link.is-broken')).toHaveLength(0)
+    // back to back from start to finish: everything is critical
+    expect(wrapper.findAll('.dou-gantt__bar.is-critical')).toHaveLength(3)
+    expect(wrapper.findAll('.dou-gantt__link.is-critical')).toHaveLength(2)
+    wrapper.unmount()
+  })
 })

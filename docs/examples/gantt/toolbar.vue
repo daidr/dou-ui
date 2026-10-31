@@ -43,7 +43,7 @@ const gantt = useTemplateRef('gantt')
     ref="gantt"
     v-model:tasks="tasks"
     v-model:links="links"
-    :table-width="240"
+    :table-width="300"
     style="height: 260px"
   />
 </template>

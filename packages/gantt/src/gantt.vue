@@ -16,12 +16,18 @@ import {
 } from 'vue'
 import { ganttKey, type GanttContext } from './context'
 import { resolveGanttExtensions } from './core/extension'
-import { endKeepingWork, offTime, resolveCalendar } from './core/calendar'
+import { endKeepingWork, isWorkTime, offTime, resolveCalendar } from './core/calendar'
 import { arrowPath, roundedPath, routeLink, type BarBox } from './core/geometry'
 import { GanttHistory } from './core/history'
 import { linkRefusal, linkTypeOf, type GanttLinkRefusal } from './core/links'
-import { createId, writeSpan, type GanttLink, type GanttTask } from './core/model'
-import { GanttTransaction, type GanttDocument, type GanttTransactionMeta } from './core/transaction'
+import { createId, spanOf, writeSpan, type GanttLink, type GanttTask } from './core/model'
+import { computeCriticalPath, computeSchedule, findBrokenLinks } from './core/schedule'
+import {
+  GanttTransaction,
+  type GanttDocument,
+  type GanttStep,
+  type GanttTransactionMeta,
+} from './core/transaction'
 import {
   DAY_WIDTH_RANGE,
   hourStep,
@@ -53,6 +59,7 @@ const props = withDefaults(defineProps<GanttProps>(), {
   rowHeight: 36,
   barLabel: 'auto',
   today: true,
+  scheduling: 'manual',
 })
 const tasks = defineModel<GanttTask[]>('tasks', { default: () => [] })
 const links = defineModel<GanttLink[]>('links', { default: () => [] })
@@ -118,12 +125,35 @@ function commit(tr: GanttTransaction) {
   emit('transaction', tr)
 }
 
+/** Tasks a transaction gave dates to. */
+function datedIn(steps: readonly GanttStep[]) {
+  const out = new Set<string>()
+  for (const step of steps) {
+    if (step.type === 'addTask') out.add(step.task.id)
+    else if (step.type === 'updateTask' && ('start' in step.patch || 'end' in step.patch))
+      out.add(step.id)
+  }
+  return out
+}
+
+/** How many tasks automatic scheduling pushed in each transaction. */
+const pushedBy = new WeakMap<GanttTransaction, number>()
+
+/** With automatic scheduling, pushes the tasks that wait on what changed, in the same transaction. */
+function pushFollowers(tr: GanttTransaction) {
+  if (props.scheduling !== 'auto' || tr.meta.schedule === false) return
+  const result = computeSchedule(tr.doc, { calendar: calendar.value, fixed: datedIn(tr.steps) })
+  for (const [id, patch] of result.moves) tr.updateTask(id, patch)
+  if (result.moves.size) pushedBy.set(tr, result.moves.size)
+}
+
 /** Applies changes as one transaction, one undo step. */
 function transact(fn: (tr: GanttTransaction) => void, meta?: GanttTransactionMeta) {
   const tr = new GanttTransaction(docOf())
   if (meta) tr.setMeta(meta)
   fn(tr)
   if (!tr.changed) return tr
+  pushFollowers(tr)
   const before = selection.value
   commit(tr)
   history.record(tr, before, selection.value)
@@ -131,24 +161,30 @@ function transact(fn: (tr: GanttTransaction) => void, meta?: GanttTransactionMet
   return tr
 }
 
-function undo() {
-  const result = history.undo(docOf())
-  if (!result) return false
-  result.tr.setMeta({ origin: 'undo', history: false })
+function travel(direction: 'undo' | 'redo') {
+  const result = history[direction](docOf())
+  if (!result) return null
+  result.tr.setMeta({ origin: direction, history: false, schedule: false })
   commit(result.tr)
   selection.value = result.selection
   syncHistory()
-  return true
+  return result.tr
 }
 
-function redo() {
-  const result = history.redo(docOf())
-  if (!result) return false
-  result.tr.setMeta({ origin: 'redo', history: false })
-  commit(result.tr)
-  selection.value = result.selection
-  syncHistory()
-  return true
+const undo = () => !!travel('undo')
+const redo = () => !!travel('redo')
+
+/** Moves tasks so that every link is kept, as one undo step. */
+function schedule(options: { pull?: boolean } = {}) {
+  const result = computeSchedule(docOf(), { calendar: calendar.value, pull: options.pull })
+  if (result.moves.size)
+    transact(
+      (tr) => {
+        for (const [id, patch] of result.moves) tr.updateTask(id, patch)
+      },
+      { schedule: false },
+    )
+  return result
 }
 
 const selectedLink = ref<string | null>(null)
@@ -169,6 +205,22 @@ const tree = computed(() => buildTree(shown.value))
 const rows = computed(() => tree.value.rows)
 const calendar = computed(() => resolveCalendar(props.calendar))
 const selected = computed(() => new Set(selection.value))
+const shownDoc = computed<GanttDocument>(() => ({ tasks: shown.value, links: links.value }))
+
+/** While dragging with automatic scheduling: the tasks the drop would push, and where to. */
+const pushPreview = computed(() => {
+  const changes = dragPreview.value
+  if (props.scheduling !== 'auto' || !changes || drag.value?.mode === 'progress') return null
+  return computeSchedule(shownDoc.value, { calendar: calendar.value, fixed: changes.keys() })
+})
+
+/** Links whose later task starts (or ends) before the link allows. */
+const brokenLinks = computed(
+  () => pushPreview.value?.violated ?? findBrokenLinks(shownDoc.value, calendar.value),
+)
+const critical = computed(() =>
+  props.critical ? computeCriticalPath(shownDoc.value, calendar.value) : null,
+)
 
 // Time axis -----------------------------------------------------------------------
 
@@ -493,7 +545,8 @@ function describe(row: GanttRow) {
     duration: durationLabel(span, calendar.value, m),
     progress: Math.round(row.progress * 100),
   }
-  return format(row.summary ? m.summary : m.task, params)
+  const text = format(row.summary ? m.summary : m.task, params)
+  return critical.value?.tasks.has(task.id) ? format(m.criticalTask, { task: text }) : text
 }
 
 const bars = computed<Bar[]>(() => {
@@ -509,6 +562,26 @@ const bars = computed<Bar[]>(() => {
     if (row.milestone || row.summary) label = props.barLabel === 'none' ? 'none' : 'outside'
     else if (props.barLabel === 'auto' && textWidth(row.task.title) + 20 > width) label = 'outside'
     out.push({ row, left, width, top: row.index * h, label, aria: describe(row) })
+  }
+  return out
+})
+
+/** Dashed outlines where a drag would push the waiting tasks to. */
+const ghosts = computed(() => {
+  const moves = pushPreview.value?.moves
+  if (!moves?.size) return []
+  const out: { id: string; left: number; width: number; top: number; milestone: boolean }[] = []
+  for (const [id, patch] of moves) {
+    const row = tree.value.byId.get(id)
+    const span = row && row.index >= 0 && spanOf({ ...row.task, ...patch })
+    if (!span) continue
+    out.push({
+      id,
+      left: xOf(span.start),
+      width: Math.max(2, (span.end - span.start) * ppm.value),
+      top: row.index * props.rowHeight,
+      milestone: row.milestone,
+    })
   }
   return out
 })
@@ -600,6 +673,35 @@ const columns = computed<GanttColumn[]>(() => [
   ]),
   ...resolved.value.columns,
 ])
+
+/** Columns without a width in px are counted at this, or at their `minWidth`. */
+const FLEX_COLUMN = 64
+const TITLE_MIN = 120
+
+/** A length in px, when it is one. */
+const px = (value: number | string | undefined) =>
+  typeof value === 'number' ? value : value?.endsWith('px') ? Number.parseFloat(value) : null
+
+/** The narrowest the columns go; past it the table scrolls sideways. */
+const tableMinWidth = computed(() => {
+  let total = 0
+  for (const column of columns.value)
+    total +=
+      px(column.width) ?? px(column.minWidth) ?? (column.key === 'title' ? TITLE_MIN : FLEX_COLUMN)
+  return total
+})
+
+const tablePane = useTemplateRef<HTMLElement>('tablePane')
+/** Height of the table's own sideways scrollbar, in px. */
+const tableScrollbar = ref(0)
+watch(
+  [tableSize, tableMinWidth, viewHeight, showTable],
+  () => {
+    const el = tablePane.value
+    tableScrollbar.value = el ? el.offsetHeight - el.clientHeight : 0
+  },
+  { flush: 'post' },
+)
 
 function headerOf(column: GanttColumn) {
   if (column.title != null) return column.title
@@ -949,11 +1051,12 @@ function checkMove(changes: Map<string, Partial<GanttTask>>) {
   return null
 }
 
-/** Why the current drag's dates would be refused. */
+/** Why the current drag's dates would be refused, its own or those of the tasks it pushes. */
 const dragRefusal = computed(() => {
   const changes = dragPreview.value
   if (!changes || drag.value?.mode === 'progress') return null
-  return checkMove(changes)
+  const pushes = pushPreview.value?.moves
+  return checkMove(pushes?.size ? new Map([...changes, ...pushes]) : changes)
 })
 
 // scroll while the pointer rests near an edge, and keep the drag under it
@@ -983,10 +1086,10 @@ function onDragEnd(event: PointerEvent) {
     else {
       const changes = dragPreview.value
       if (changes) {
-        transact((tr) => {
+        const done = transact((tr) => {
           for (const [id, patch] of changes) tr.updateTask(id, patch)
         })
-        announceTask(d.id)
+        announceTask(d.id, done)
       }
     }
   }
@@ -999,13 +1102,22 @@ function finishLink(d: Drag) {
   const link: GanttLink = { id: createId(), from: d.id, to: target.id }
   const type = linkTypeOf(d.from!, target.end)
   if (type !== 'fs') link.type = type
-  transact((tr) => tr.addLink(link))
+  const done = transact((tr) => tr.addLink(link))
   emit('link', link)
-  announceLinked(link)
+  announceLinked(link, done)
 }
 
-function announceLinked(link: GanttLink) {
-  announce(format(messages.value.linked, { from: task(link.from).title, to: task(link.to).title }))
+function announceLinked(link: GanttLink, tr: GanttTransaction) {
+  const m = messages.value
+  announce(
+    withPushed(format(m.linked, { from: task(link.from).title, to: task(link.to).title }), tr),
+  )
+}
+
+/** Adds how many tasks automatic scheduling pushed, if any. */
+function withPushed(text: string, tr: GanttTransaction) {
+  const count = pushedBy.get(tr)
+  return count ? format(messages.value.pushed, { task: text, count }) : text
 }
 
 const onDragCancel = () => stopDrag()
@@ -1164,10 +1276,10 @@ function focusTask(id: string) {
 }
 
 /** Reads a task out as it is once the change has reached the rows. */
-function announceTask(id: string) {
+function announceTask(id: string, tr?: GanttTransaction) {
   void nextTick(() => {
     const row = tree.value.byId.get(id)
-    if (row) announce(describe(row))
+    if (row) announce(tr ? withPushed(describe(row), tr) : describe(row))
   })
 }
 
@@ -1180,34 +1292,42 @@ function keyMove(direction: 1 | -1, which: 'move' | 'end') {
     const spans = movers(row)
     if (!spans.size) return
     const unit = stepFor(spans.values()) * direction
-    for (const [id, span] of spans)
-      changes.set(
-        id,
-        writeSpan(
-          task(id),
-          span.start + unit,
-          endKeepingWork(calendar.value, span, span.start + unit),
-        ),
-      )
+    // step over time off, so a task doesn't start on a weekend
+    const first = spans.get(row.task.id) ?? spans.values().next().value!
+    let shift = unit
+    for (
+      let i = 0;
+      i < 366 && !isWorkTime(calendar.value, first.start + shift, first.dateOnly);
+      i++
+    )
+      shift += unit
+    for (const [id, span] of spans) {
+      const start = span.start + shift
+      changes.set(id, writeSpan(task(id), start, endKeepingWork(calendar.value, span, start)))
+    }
   } else {
     const span = row.span
     if (!span || row.summary || row.milestone || row.task.locked) return
     const unit = stepFor([span])
-    const end = Math.max(span.end + unit * direction, span.start + unit)
+    let end = span.end + unit * direction
+    // a whole-day task doesn't end on a day off
+    while (span.dateOnly && end > span.start + unit && !calendar.value.isWorkday(dayIndex(end - 1)))
+      end += unit * direction
+    end = Math.max(end, span.start + unit)
     if (end === span.end) return
     changes = new Map([[row.task.id, writeSpan(row.task, span.start, end)]])
   }
   const refusal = checkMove(changes)
   if (refusal) return announce(refusal)
   // repeated presses undo as one step
-  transact(
+  const done = transact(
     (tr) => {
       for (const [id, patch] of changes) tr.updateTask(id, patch)
     },
     { group: `keys:${which}:${row.task.id}` },
   )
   scrollToTask(row.task.id)
-  announceTask(row.task.id)
+  announceTask(row.task.id, done)
 }
 
 /** Linking by keys: from the task the keyboard was on, to the one picked with Up and Down. */
@@ -1245,9 +1365,9 @@ function onKeyLink(event: KeyboardEvent) {
       announce(link.reason ?? messages.value.linkRefusals.cycle)
     } else {
       const made: GanttLink = { id: createId(), from: link.from, to: link.to }
-      transact((tr) => tr.addLink(made))
+      const done = transact((tr) => tr.addLink(made))
       emit('link', made)
-      announceLinked(made)
+      announceLinked(made, done)
       keyLink.value = null
     }
   } else if (event.key === 'Escape') {
@@ -1271,12 +1391,40 @@ function onKeydown(event: KeyboardEvent) {
   if (onEditKey(event) || onNavigationKey(event)) event.preventDefault()
 }
 
+/** Undoes or redoes, and says what changed back. */
+function announceTravel(direction: 'undo' | 'redo') {
+  const tr = travel(direction)
+  if (!tr) return
+  const m = messages.value
+  // the change as first made: undoing runs the steps backwards
+  const step = tr.steps[direction === 'undo' ? tr.steps.length - 1 : 0]!
+  void nextTick(() => {
+    let change = ''
+    if (step.type === 'addLink' || step.type === 'removeLink') {
+      const link =
+        step.type === 'addLink' ? step.link : tr.before.links.find((l) => l.id === step.id)
+      const from = link && tree.value.byId.get(link.from)?.task.title
+      const to = link && tree.value.byId.get(link.to)?.task.title
+      change =
+        step.type === 'addLink' && from && to ? format(m.linked, { from, to }) : m.linkRemoved
+    } else if (step.type === 'updateLink') change = m.linkChanged
+    else {
+      const id = step.type === 'addTask' ? step.task.id : step.id
+      const row = tree.value.byId.get(id)
+      change = row
+        ? describe(row)
+        : format(m.taskRemoved, { title: tr.before.tasks.find((t) => t.id === id)?.title ?? '' })
+    }
+    announce(format(m[direction === 'undo' ? 'undone' : 'redone'], { change }))
+  })
+}
+
 function onEditKey(event: KeyboardEvent) {
   if (!editable.value) return false
   if (matchesHotkey(event, 'mod+z')) {
-    if (undo()) announce(messages.value.undone)
+    announceTravel('undo')
   } else if (matchesHotkey(event, 'mod+shift+z') || matchesHotkey(event, 'mod+y')) {
-    if (redo()) announce(messages.value.redone)
+    announceTravel('redo')
   } else if ((event.key === 'Delete' || event.key === 'Backspace') && selectedLink.value) {
     const id = selectedLink.value
     transact((tr) => tr.removeLink(id))
@@ -1400,6 +1548,7 @@ defineExpose<GanttExpose>({
   transact,
   undo,
   redo,
+  schedule,
   get canUndo() {
     return canUndo.value
   },
@@ -1426,6 +1575,9 @@ const context: GanttContext = {
   dayWidth,
   rowHeight: computed(() => props.rowHeight),
   rows,
+  critical,
+  brokenLinks,
+  schedule,
   transact,
   undo,
   redo,
@@ -1473,8 +1625,18 @@ const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * prop
   >
     <span :id="keysHint" class="dou-gantt__sr-only">{{ messages.keys }}</span>
     <div class="dou-gantt__sr-only" aria-live="polite">{{ live }}</div>
-    <div v-if="showTable" class="dou-gantt__table-pane" :style="{ width: `${tableSize}px` }">
-      <div class="dou-gantt__table" role="treegrid" :aria-rowcount="rows.length">
+    <div
+      v-if="showTable"
+      ref="tablePane"
+      class="dou-gantt__table-pane"
+      :style="{ width: `${tableSize}px` }"
+    >
+      <div
+        class="dou-gantt__table"
+        role="treegrid"
+        :aria-rowcount="rows.length"
+        :style="{ minWidth: `${tableMinWidth}px` }"
+      >
         <div class="dou-gantt__table-head" role="row">
           <div
             v-for="column in columns"
@@ -1490,7 +1652,9 @@ const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * prop
         <div ref="tableBody" class="dou-gantt__table-body" @scroll="onTableScroll">
           <div
             class="dou-gantt__table-rows"
-            :style="{ height: `${rows.length * rowHeight + scrollbar}px` }"
+            :style="{
+              height: `${rows.length * rowHeight + Math.max(0, scrollbar - tableScrollbar)}px`,
+            }"
           >
             <div
               v-for="row in visibleRows"
@@ -1559,18 +1723,12 @@ const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * prop
       </div>
     </div>
     <div
-      v-if="showTable"
-      class="dou-gantt__divider"
-      role="separator"
-      tabindex="0"
-      aria-orientation="vertical"
-      :aria-valuenow="Math.round(tableSize)"
-      :aria-valuemin="TABLE_MIN"
-      :aria-valuemax="tableMax"
-      @pointerdown="onDividerDown"
-      @keydown="onDividerKey"
-    />
-    <div ref="chart" class="dou-gantt__chart" @scroll.passive="onChartScroll" @wheel="onWheel">
+      ref="chart"
+      class="dou-gantt__chart"
+      tabindex="-1"
+      @scroll.passive="onChartScroll"
+      @wheel="onWheel"
+    >
       <div class="dou-gantt__canvas" :style="{ width: `${totalWidth}px` }">
         <div class="dou-gantt__header" aria-hidden="true">
           <div class="dou-gantt__tier is-top">
@@ -1664,6 +1822,8 @@ const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * prop
               :class="{
                 'is-related': selected.has(item.link.from) || selected.has(item.link.to),
                 'is-selected': selectedLink === item.link.id,
+                'is-broken': brokenLinks.has(item.link.id),
+                'is-critical': critical?.links.has(item.link.id),
               }"
               @click="onLinkClick(item.link, $event)"
             >
@@ -1704,6 +1864,7 @@ const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * prop
                   'is-move-refused':
                     !!dragRefusal && drag?.started && drag.spans.has(bar.row.task.id),
                   'is-active': active === bar.row.task.id,
+                  'is-critical': critical?.tasks.has(bar.row.task.id),
                 },
               ]"
               :data-task="bar.row.task.id"
@@ -1773,6 +1934,16 @@ const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * prop
               <slot name="bar" :task="bar.row.task" :row="bar.row">{{ bar.row.task.title }}</slot>
             </span>
           </div>
+          <div
+            v-for="ghost in ghosts"
+            :key="ghost.id"
+            class="dou-gantt__ghost"
+            :class="{ 'is-milestone': ghost.milestone }"
+            :style="{
+              transform: `translate(${ghost.left}px, ${ghost.top}px)`,
+              width: ghost.milestone ? undefined : `${ghost.width}px`,
+            }"
+          />
           <component :is="layer" v-for="(layer, i) in resolved.above" :key="`above-${i}`" />
           <div
             v-if="dragTip"
@@ -1785,6 +1956,19 @@ const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * prop
         </div>
       </div>
     </div>
+    <!-- after the chart, so Tab reaches it last; CSS puts it between the panes -->
+    <div
+      v-if="showTable"
+      class="dou-gantt__divider"
+      role="separator"
+      tabindex="0"
+      aria-orientation="vertical"
+      :aria-valuenow="Math.round(tableSize)"
+      :aria-valuemin="TABLE_MIN"
+      :aria-valuemax="tableMax"
+      @pointerdown="onDividerDown"
+      @keydown="onDividerKey"
+    />
     <component :is="overlay" v-for="(overlay, i) in resolved.overlays" :key="`overlay-${i}`" />
     <slot />
   </div>

@@ -3,16 +3,19 @@ import GridLayout from './grid/grid-layout.vue'
 import GridLayoutHandle from './grid/grid-handle.vue'
 import Dashboard from './dashboard/dashboard.vue'
 import DashboardPalette from './dashboard/palette.vue'
+import DashboardFilterBar from './dashboard/filter-bar.vue'
 
 export const DouGridLayout = withInstall(GridLayout)
 export const DouGridLayoutHandle = withInstall(GridLayoutHandle)
 export const DouDashboard = withInstall(Dashboard)
 export const DouDashboardPalette = withInstall(DashboardPalette)
+export const DouDashboardFilterBar = withInstall(DashboardFilterBar)
 
 export type {
   DashboardAddOptions,
   DashboardEmits,
   DashboardExpose,
+  DashboardFilterBarProps,
   DashboardPaletteProps,
   DashboardProps,
 } from './dashboard/types'
@@ -29,6 +32,20 @@ export { DashboardHistory } from './core/history'
 export { defineDashboardWidget } from './widget/define'
 export type { DashboardWidgetSize, DashboardWidgetType } from './widget/define'
 export { useDashboardWidget } from './widget/context'
+export { isEmptyFilter } from './data/filters'
+export type {
+  DashboardDateRangeFilterField,
+  DashboardFilterField,
+  DashboardFilters,
+  DashboardLinkedFilter,
+  DashboardSearchFilterField,
+  DashboardSelectFilterField,
+  DashboardSetFilterOptions,
+  DashboardSourceContext,
+  DashboardSourceLoad,
+  DashboardSourceOptions,
+  DashboardSources,
+} from './data/types'
 export type {
   DashboardWidgetContext,
   DashboardWidgetState,
@@ -73,5 +90,6 @@ declare module 'vue' {
     DouGridLayoutHandle: typeof DouGridLayoutHandle
     DouDashboard: typeof DouDashboard
     DouDashboardPalette: typeof DouDashboardPalette
+    DouDashboardFilterBar: typeof DouDashboardFilterBar
   }
 }

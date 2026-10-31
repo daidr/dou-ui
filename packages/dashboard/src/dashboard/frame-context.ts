@@ -1,5 +1,6 @@
 import type { InjectionKey } from 'vue'
 import type { DashboardWidget } from '../core/types'
+import type { DashboardLinkedFilter } from '../data/types'
 import type { DashboardMessages } from '../locale'
 import type { DashboardWidgetType } from '../widget/define'
 
@@ -21,6 +22,9 @@ export interface FrameContext {
   setProps: (id: string, patch: Record<string, unknown>, options?: { group?: string }) => void
   action: (id: string, action: WidgetAction) => void
   rename: (id: string, title: string) => void
+  /** The filters a widget set, shown in its title bar. */
+  linked: (id: string) => DashboardLinkedFilter[]
+  clearFilter: (key: string) => void
 }
 
 export const frameContextKey: InjectionKey<FrameContext> = Symbol('dou-dashboard-frame')

@@ -1150,6 +1150,19 @@ export const cases: Record<string, Case> = {
     frames: 20,
     budget: { 200: 8 },
   },
+  // A filter changed on 200 widgets sharing 20 sources: 20 loads, and every
+  // widget draws its new data.
+  'dashboard-filter': {
+    render: (n) => dashboard(n, false, true),
+    act: async () => {
+      const api = (window as any).dashboardApi as DashboardExpose
+      api.setFilter('region', api.filters.region === '华东' ? '华南' : '华东')
+      for (let i = 0; i < 3; i++) await Promise.resolve()
+      await nextTick()
+    },
+    frames: 20,
+    budget: { 200: 8 },
+  },
   'grid-compact': {
     render: () => () => h('div'),
     act: () => {
@@ -1220,13 +1233,34 @@ const benchWidget = defineDashboardWidget({
   component: BenchValue,
 })
 
-function dashboard(n: number, editable = false) {
+const BenchData = {
+  setup() {
+    const { data } = useDashboardWidget<{ source: string }, string>()
+    return () => h('strong', data.value ?? '')
+  },
+}
+
+const benchDataWidget = defineDashboardWidget({
+  type: 'data',
+  label: '数据',
+  size: { w: 3, h: 2 },
+  component: BenchData,
+})
+
+const benchSources = Object.fromEntries(
+  Array.from({ length: 20 }, (_, i) => [
+    `s${i}`,
+    ({ filters }: { filters: Record<string, unknown> }) => `${i}:${String(filters.region ?? '')}`,
+  ]),
+)
+
+function dashboard(n: number, editable = false, data = false) {
   const doc = shallowRef<DashboardDocument>({
     version: 1,
     widgets: gridItems(n).map((item, i) => ({
       id: item.id.replace('t', 'w'),
-      type: 'value',
-      props: { value: i },
+      type: data ? 'data' : 'value',
+      props: data ? { source: `s${i % 20}` } : { value: i },
       place: { lg: { x: item.x, y: item.y, w: item.w, h: item.h } },
     })),
   })
@@ -1235,7 +1269,8 @@ function dashboard(n: number, editable = false) {
       ref: (api: unknown) => ((window as any).dashboardApi = api),
       modelValue: doc.value,
       'onUpdate:modelValue': (next: DashboardDocument) => (doc.value = next),
-      widgets: [benchWidget],
+      widgets: [benchWidget, benchDataWidget],
+      sources: benchSources,
       editable,
       rowHeight: 48,
       gap: 8,

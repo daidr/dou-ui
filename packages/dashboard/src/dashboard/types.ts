@@ -1,5 +1,12 @@
 import type { DashboardTransaction } from '../core/transaction'
 import type { DashboardDocument, DashboardPlace } from '../core/types'
+import type {
+  DashboardFilterField,
+  DashboardFilters,
+  DashboardLinkedFilter,
+  DashboardSetFilterOptions,
+  DashboardSources,
+} from '../data/types'
 import type { GridCompact } from '../layout/types'
 import type { DashboardMessagesOverride } from '../locale'
 import type { DashboardWidgetType } from '../widget/define'
@@ -9,6 +16,15 @@ export interface DashboardProps {
   modelValue?: DashboardDocument
   /** The kinds of widget it can hold, made with `defineDashboardWidget`. */
   widgets?: DashboardWidgetType<any>[]
+  /**
+   * Where widgets get their data, by name; a widget names its source in
+   * `props.source`. Each source loads once for each set of filters, however
+   * many widgets show it. A source replaced by another function (or other
+   * options) loads again; define the functions once, not in the template.
+   */
+  sources?: DashboardSources
+  /** The filter values, bound with `v-model:filters`; widgets load their sources with them. */
+  filters?: DashboardFilters
   /** Whether widgets can be added, moved, resized, changed and removed. */
   editable?: boolean
   /**
@@ -34,6 +50,7 @@ export interface DashboardProps {
 
 export interface DashboardEmits {
   'update:modelValue': [doc: DashboardDocument]
+  'update:filters': [filters: DashboardFilters]
   /** After every change, with the steps that made it and those that undo it. */
   change: [transaction: DashboardTransaction]
   'breakpoint-change': [breakpoint: string]
@@ -78,6 +95,17 @@ export interface DashboardExpose {
   /** The breakpoint in use. */
   readonly breakpoint: string
   readonly editable: boolean
+  /** The document as it is now. */
+  readonly document: DashboardDocument
+  /** The filter values in effect. */
+  readonly filters: DashboardFilters
+  /** The filters set by widgets, e.g. by clicking a chart. */
+  readonly linkedFilters: readonly DashboardLinkedFilter[]
+  /** Sets a filter for every widget; an empty value (`undefined`, `null`, `''`, `[]`) clears it. */
+  setFilter: (key: string, value: unknown, options?: DashboardSetFilterOptions) => void
+  clearFilters: () => void
+  /** Loads the sources shown again: one by name, or all of them. */
+  refresh: (source?: string) => void
 }
 
 export interface DashboardPaletteProps {
@@ -87,4 +115,15 @@ export interface DashboardPaletteProps {
   types?: string[]
   /** How the list runs. Defaults to `vertical`. */
   direction?: 'vertical' | 'horizontal'
+}
+
+export interface DashboardFilterBarProps {
+  /** The dashboard whose filters it sets (its component instance, from a template ref). */
+  for?: DashboardExpose | null
+  /** The controls, in order. Filters set by widgets show after them, each with a button to clear it. */
+  fields?: DashboardFilterField[]
+  /** Shows a button clearing every filter while any is set. Defaults to `true`. */
+  clearable?: boolean
+  /** Replaces texts of the language pack. */
+  messages?: DashboardMessagesOverride
 }

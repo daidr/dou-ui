@@ -52,6 +52,16 @@ export interface DashboardMessages {
   palette: string
   /** A widget in that list: `{label}`. */
   paletteItem: string
+  /** In the title bar of a widget that set a filter: `{value}`. */
+  filteredBy: string
+  /** The button clearing that filter: `{value}`. */
+  clearFilter: string
+  /** The filter bar's accessible name. */
+  filterBar: string
+  /** A filter set by a widget, in the filter bar: `{title}` and `{value}`. */
+  linkedFilter: string
+  /** Clears every filter. */
+  clearFilters: string
 }
 
 const zhCN: DashboardMessages = {
@@ -84,6 +94,11 @@ const zhCN: DashboardMessages = {
   emptyHint: '从列表里拖进来，或点一下添加',
   palette: '添加格子',
   paletteItem: '添加{label}',
+  filteredBy: '已按 {value} 筛选',
+  clearFilter: '清除筛选：{value}',
+  filterBar: '筛选',
+  linkedFilter: '{title}：{value}',
+  clearFilters: '清除筛选',
 }
 
 const zhTW: DashboardMessages = {
@@ -116,6 +131,11 @@ const zhTW: DashboardMessages = {
   emptyHint: '從清單拖進來，或點一下新增',
   palette: '新增格子',
   paletteItem: '新增{label}',
+  filteredBy: '已按 {value} 篩選',
+  clearFilter: '清除篩選：{value}',
+  filterBar: '篩選',
+  linkedFilter: '{title}：{value}',
+  clearFilters: '清除篩選',
 }
 
 const en: DashboardMessages = {
@@ -149,6 +169,11 @@ const en: DashboardMessages = {
   emptyHint: 'Drag one in from the list, or click to add it',
   palette: 'Add widget',
   paletteItem: 'Add {label}',
+  filteredBy: 'Filtered by {value}',
+  clearFilter: 'Clear filter: {value}',
+  filterBar: 'Filters',
+  linkedFilter: '{title}: {value}',
+  clearFilters: 'Clear filters',
 }
 
 export const dashboardLocales: Record<string, DashboardMessages> = {

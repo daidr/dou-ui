@@ -39,7 +39,7 @@ const doc = shallowRef(build())
 </script>
 
 <template>
-  <DouFlowEditor v-model="doc" aria-label="500 个节点">
+  <DouFlowEditor v-model="doc" :min-zoom="0.05" aria-label="500 个节点">
     <DouFlowControls />
     <DouFlowMinimap />
   </DouFlowEditor>

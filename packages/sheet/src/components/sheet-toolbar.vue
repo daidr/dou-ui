@@ -161,10 +161,21 @@ const formats = computed<SheetFormatOption[]>(
       { label: m.value.formatText, format: '@' },
     ],
 )
-const formatShown = computed(
-  () => formats.value.find((option) => option.format === cellFormat.value) ?? null,
-)
+/**
+ * The option the cell's format is, or is with more or fewer decimals:
+ * `¥#,##0.000` is still currency and `0.0%` still percent.
+ */
+const formatShown = computed(() => {
+  const current = cellFormat.value
+  const exact = formats.value.find((option) => option.format === current)
+  if (exact || !current) return exact ?? null
+  const kind = withoutDecimals(current)
+  return (
+    formats.value.find((option) => option.format && withoutDecimals(option.format) === kind) ?? null
+  )
+})
 const formatLabel = computed(() => formatShown.value?.label ?? m.value.formatCustom)
+const withoutDecimals = (pattern: string) => changeDecimals(pattern, null, -99)
 const exampleOf = (option: SheetFormatOption) =>
   option.example == null ? '' : formatValue(option.example, option.format)
 
@@ -480,9 +491,7 @@ onBeforeUnmount(() => observer?.disconnect())
                     :aria-label="m.colorDefault"
                     :title="m.colorDefault"
                     @click="setColor(tool, {})"
-                  >
-                    <span v-if="tool === 'color'" aria-hidden="true">A</span>
-                  </button>
+                  />
                   <button
                     v-for="tone in TONES"
                     :key="tone"

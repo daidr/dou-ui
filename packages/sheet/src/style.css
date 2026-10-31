@@ -972,7 +972,9 @@
 
     /* a finger gets bigger buttons */
     @media (pointer: coarse) {
-      --dou-button-height: 36px;
+      .dou-button {
+        --dou-button-height: 36px;
+      }
     }
   }
 
@@ -997,17 +999,17 @@
       display: none;
     }
     &.has-more-start {
-      mask-image: linear-gradient(to right, transparent, #000 24px);
+      mask-image: linear-gradient(to right, transparent, #000 40px);
     }
     &.has-more-end {
-      mask-image: linear-gradient(to left, transparent, #000 24px);
+      mask-image: linear-gradient(to left, transparent, #000 40px);
     }
     &.has-more-start.has-more-end {
       mask-image: linear-gradient(
         to right,
         transparent,
-        #000 24px,
-        #000 calc(100% - 24px),
+        #000 40px,
+        #000 calc(100% - 40px),
         transparent
       );
     }
@@ -1115,6 +1117,20 @@
     }
     &.is-fill.is-default {
       background-color: var(--dou-color-bg-surface);
+    }
+    /* the default: no color of its own, a slash across */
+    &.is-default {
+      position: relative;
+      overflow: hidden;
+
+      &::after {
+        position: absolute;
+        inset: 50% -4px auto;
+        height: 1px;
+        background-color: var(--dou-color-text-tertiary);
+        transform: rotate(-45deg);
+        content: '';
+      }
     }
     &.is-custom:not([style*='--dou-sheet-swatch:']) {
       color: var(--dou-color-text-secondary);

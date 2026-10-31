@@ -153,7 +153,7 @@ describe('DouSheetToolbar', () => {
 
   it('aligns, wraps and merges', async () => {
     const { wrapper, doc, button } = setup()
-    await button('居中').trigger('click')
+    await button('居中对齐').trigger('click')
     expect(doc.value.styles!.s1).toEqual({ align: 'center' })
     await button('自动换行').trigger('click')
     const style = doc.value.sheets[0]!.cells[1]![0] as { style: string }
@@ -163,6 +163,20 @@ describe('DouSheetToolbar', () => {
     expect(button('合并单元格').attributes('aria-pressed')).toBe('true')
     await button('合并单元格').trigger('click')
     expect(doc.value.sheets[0]!.merges).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('keeps naming a format after its decimals change', async () => {
+    const { wrapper, button } = setup()
+    await wrapper.find('.dou-sheet-toolbar__format').trigger('click')
+    await nextTick()
+    const item = [...document.querySelectorAll('.dou-sheet-toolbar__format-item')].find((el) =>
+      el.textContent?.includes('货币'),
+    ) as HTMLElement
+    item.click()
+    await nextTick()
+    await button('增加小数位数').trigger('click')
+    expect(button('数字格式：货币').exists()).toBe(true)
     wrapper.unmount()
   })
 

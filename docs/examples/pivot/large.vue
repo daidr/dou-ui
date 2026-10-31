@@ -1,11 +1,11 @@
 <script setup>
 import { DouButton, DouSpace } from 'dou-ui'
 import { DouPivot } from '@dou-ui/pivot'
-import { nextTick, ref, shallowRef } from 'vue'
+import { nextTick, onMounted, ref, shallowRef } from 'vue'
 import { fields, makeOrders } from './orders'
 
 // 大数据放在 shallowRef 里：数组整体替换，不需要逐项响应
-const rows = shallowRef(makeOrders(100_000))
+const rows = shallowRef([])
 const took = ref('')
 const loading = ref(0)
 const config = ref({
@@ -30,7 +30,7 @@ async function load(count) {
   loading.value = 0
 }
 
-load(100_000)
+onMounted(() => load(100_000))
 </script>
 
 <template>

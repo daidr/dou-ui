@@ -4,7 +4,7 @@ import { DouButton } from 'dou-ui'
 import type { FormRules } from 'dou-ui'
 import { CopyIcon, PlusIcon, SquareDashedIcon, TrashIcon } from '@dou-ui/icons'
 import { isContainer, isField, isList } from '../core/document'
-import type { FormFieldNode, FormNode } from '../core/types'
+import type { FormFieldNode, FormNode, FormRuleSpec } from '../core/types'
 import { builtinFields } from '../fields/builtin'
 import { normalizeOptions } from '../fields/components'
 import type { FormFieldType } from '../fields/define'
@@ -13,6 +13,16 @@ import FormRenderer from '../renderer/form-renderer.vue'
 import { useBuilderState } from './context'
 import { scopeOf } from './core/commands'
 import { formNodePlaces } from './core/transaction'
+import {
+  itemToRule,
+  logicScope,
+  logicScopeKey,
+  logicSettings,
+  ruleSettings,
+  ruleToItem,
+} from './logic'
+import type { LogicScope } from './logic'
+import { conditionField, expressionField } from './logic-fields'
 import {
   builtinSettings,
   documentSettings,
@@ -36,9 +46,12 @@ onBeforeUnmount(() => {
 
 const messages = computed(() => state.messages)
 const types = computed(() => state.fields as Map<string, FormFieldType>)
-const extra = [spanField]
-const rendererFields = computed(() => [...types.value.values(), spanField])
-const inspectorFields = computed(() => new Map([...types.value, [spanField.type, spanField]]))
+const builderFields = [spanField, expressionField, conditionField]
+const extra = builderFields
+const rendererFields = computed(() => [...types.value.values(), ...builderFields])
+const inspectorFields = computed(
+  () => new Map([...types.value, ...builderFields.map((type) => [type.type, type] as const)]),
+)
 
 const count = computed(() => state.selection.length)
 const node = computed(() => (count.value === 1 ? state.focused.value : undefined))
@@ -140,6 +153,47 @@ const spanForm = memo(
     ),
 )
 
+// What the node's logic can read; kept as one object while the fields it lists stay the same.
+let lastScope: { key: string; scope: LogicScope } | undefined
+const logic = computed(() => {
+  const next = logicScope(state.document, node.value?.id, types.value, messages.value)
+  const key = logicScopeKey(next)
+  if (lastScope?.key !== key) lastScope = { key, scope: next }
+  return lastScope.scope
+})
+const holdsValue = computed(() => {
+  const current = node.value
+  if (!current) return false
+  return isList(current) || (isField(current) && spec.value?.kind !== 'display')
+})
+
+const logicForm = memo(
+  () => [
+    node.value?.type,
+    (node.value as FormFieldNode | undefined)?.name,
+    logic.value,
+    spec.value,
+    messages.value,
+  ],
+  () =>
+    settingsDocument(
+      node.value
+        ? logicSettings(node.value, {
+            messages: messages.value,
+            scope: logic.value,
+            type: spec.value,
+          })
+        : [],
+    ),
+)
+const ruleForm = memo(
+  () => [holdsValue.value, logic.value, messages.value],
+  () =>
+    settingsDocument(
+      holdsValue.value ? ruleSettings({ messages: messages.value, scope: logic.value }) : [],
+    ),
+)
+
 function update(id: string, patch: Record<string, unknown>) {
   const tr = state.transaction().update(id, patch)
   tr.setMeta('group', `inspector:${id}:${Object.keys(patch).join(',')}`)
@@ -155,6 +209,39 @@ const nodeModel = useSettingsBinding({
   apply: (patch) =>
     node.value ? (update(node.value.id, patch) as unknown as Record<string, unknown>) : undefined,
 })
+
+const logicModel = useSettingsBinding({
+  source: () => node.value as Record<string, unknown> | undefined,
+  form: () => logicForm.value,
+  fields: () => inspectorFields.value,
+  apply: (patch) =>
+    node.value ? (update(node.value.id, patch) as unknown as Record<string, unknown>) : undefined,
+})
+
+const ruleModel = useSettingsBinding({
+  source: () => node.value as Record<string, unknown> | undefined,
+  form: () => ruleForm.value,
+  fields: () => inspectorFields.value,
+  prepare: (data) => {
+    const rules = (data.rules as FormRuleSpec[] | undefined) ?? []
+    return { ...data, rules: rules.map(ruleToItem) }
+  },
+  apply: (patch) => {
+    const current = node.value
+    if (!current || !('rules' in patch)) return undefined
+    const items = (patch.rules as Record<string, unknown>[] | undefined) ?? []
+    const rules = items.map(itemToRule)
+    return update(current.id, { rules: rules.length ? rules : undefined }) as unknown as
+      Record<string, unknown> | undefined
+  },
+})
+
+/** Parts of the inspector from extensions, for the node or the form. */
+const sections = computed(() =>
+  count.value > 1
+    ? []
+    : state.extensions().inspectors.flatMap((inspector) => inspector(state, node.value)),
+)
 
 const typeModel = useSettingsBinding({
   source: () => (node.value as FormFieldNode | undefined)?.props,
@@ -250,8 +337,7 @@ const nameRules = computed<FormRules>(() => ({
         const current = node.value
         if (!current) return true
         const name = typeof value === 'string' ? value.trim() : ''
-        const holdsValue = isList(current) || (isField(current) && spec.value?.kind !== 'display')
-        if (!name) return holdsValue ? messages.value.errors.name : true
+        if (!name) return holdsValue.value ? messages.value.errors.name : true
         if (otherNames(current).has(name))
           return formatMessage(messages.value.errors.taken, { text: name })
         return true
@@ -339,8 +425,28 @@ const canWrap = computed(() => {
             :fields="rendererFields"
           />
         </template>
+        <template v-if="ruleForm.nodes.length">
+          <div class="dou-form-builder__inspector-section">{{ messages.inspector.rules }}</div>
+          <FormRenderer
+            :key="`${node.id}/rules`"
+            :form="ruleForm"
+            :model="ruleModel"
+            :fields="rendererFields"
+          />
+        </template>
+        <div class="dou-form-builder__inspector-section">{{ messages.inspector.logic }}</div>
+        <FormRenderer
+          :key="`${node.id}/logic`"
+          :form="logicForm"
+          :model="logicModel"
+          :fields="rendererFields"
+        />
       </template>
       <FormRenderer v-else :form="formForm" :model="formModel" :fields="extra" />
+      <template v-for="section in sections" :key="section.key">
+        <div class="dou-form-builder__inspector-section">{{ section.title }}</div>
+        <component :is="section.component" v-bind="section.props" />
+      </template>
     </div>
   </div>
 </template>

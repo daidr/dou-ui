@@ -93,7 +93,7 @@ export function labelOf(
 /** What a node is called in the outline and the inspector's heading. */
 export function nodeTitle(
   node: FormNode,
-  fields: Map<string, FormFieldType>,
+  fields: ReadonlyMap<string, FormFieldType>,
   messages: FormBuilderMessages,
 ): string {
   const record = node as unknown as Record<string, unknown>
@@ -107,16 +107,16 @@ export function nodeTitle(
 
 type Setting = Record<string, unknown>
 
-const field = (type: string, name: string, label: string, extra: Setting = {}): FormNode =>
+export const field = (type: string, name: string, label: string, extra: Setting = {}): FormNode =>
   ({ id: `setting-${name}`, type, name, label, ...extra }) as FormFieldNode
 
 const sw = (name: string, label: string, extra: Setting = {}) => field('switch', name, label, extra)
-const text = (name: string, label: string, extra: Setting = {}) =>
+export const text = (name: string, label: string, extra: Setting = {}) =>
   field('input', name, label, { ...extra, props: { clearable: true, ...(extra.props as Setting) } })
-const number = (name: string, label: string, props: Setting = {}, extra: Setting = {}) =>
+export const number = (name: string, label: string, props: Setting = {}, extra: Setting = {}) =>
   field('input-number', name, label, { ...extra, props: { controls: false, ...props } })
 
-function choices(
+export function choices(
   messages: FormBuilderMessages,
   key: string,
   values: readonly (string | boolean)[],
@@ -125,7 +125,7 @@ function choices(
   return values.map((value) => ({ value, label: labels[String(value)] ?? String(value) }))
 }
 
-const segmented = (
+export const segmented = (
   messages: FormBuilderMessages,
   name: string,
   values: readonly string[],
@@ -295,6 +295,10 @@ export interface NodeSettingsContext {
 
 /** The builder's own type for a node's width: a number of columns, or one per breakpoint. */
 export const SPAN_TYPE = 'dou-builder-span'
+/** The builder's own type for expression text, with completions and problems. */
+export const EXPRESSION_TYPE = 'dou-builder-expression'
+/** The builder's own type for a condition, edited as rows or as text. */
+export const CONDITION_TYPE = 'dou-builder-condition'
 
 function spanSetting(context: NodeSettingsContext): FormNode {
   // The field draws its own label, with the "by form width" switch on the same row.

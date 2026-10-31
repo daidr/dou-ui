@@ -241,3 +241,160 @@ export function migrateDocument(document: unknown): FormDocument {
   }
   return current as unknown as FormDocument
 }
+
+/** A part of some data that is not shaped like a form document. */
+export interface DocumentShapeProblem {
+  /** Where, as a path into the data, e.g. `nodes[2].children[0].label`; `''` for the whole. */
+  path: string
+  /** `type`: the value is of another kind; `required`: it is missing. */
+  code: 'type' | 'required'
+  /** What the value should be. */
+  expected: 'object' | 'array' | 'string' | 'number' | 'boolean' | 'span' | 'mark'
+  /** An English description, for logs. */
+  message: string
+}
+
+type Expected = DocumentShapeProblem['expected']
+
+const NODE_KEYS: Record<string, Expected> = {
+  id: 'string',
+  type: 'string',
+  name: 'string',
+  label: 'string',
+  help: 'string',
+  title: 'string',
+  description: 'string',
+  addText: 'string',
+  visibleWhen: 'string',
+  disabledWhen: 'string',
+  requiredWhen: 'string',
+  formula: 'string',
+  required: 'boolean',
+  bordered: 'boolean',
+  sortable: 'boolean',
+  min: 'number',
+  max: 'number',
+  columns: 'number',
+  span: 'span',
+  props: 'object',
+  source: 'object',
+  rules: 'array',
+  children: 'array',
+}
+
+const RULE_KEYS: Record<string, Expected> = {
+  required: 'boolean',
+  type: 'string',
+  min: 'number',
+  max: 'number',
+  pattern: 'string',
+  flags: 'string',
+  check: 'string',
+  message: 'string',
+  trigger: 'string',
+}
+
+const DOCUMENT_KEYS: Record<string, Expected> = {
+  version: 'number',
+  layout: 'string',
+  labelAlign: 'string',
+  labelWidth: 'number',
+  size: 'string',
+  requiredMark: 'mark',
+  columns: 'number',
+  nodes: 'array',
+}
+
+const CONTAINER_TYPES = new Set(['section', 'tabs', 'steps', 'page', 'list'])
+const SHAPE_LIMIT = 50
+
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === 'object' && !Array.isArray(value)
+
+function fits(value: unknown, expected: Expected): boolean {
+  switch (expected) {
+    case 'object':
+      return isObject(value)
+    case 'array':
+      return Array.isArray(value)
+    case 'span':
+      return (
+        (typeof value === 'number' && Number.isFinite(value)) ||
+        (isObject(value) && Object.values(value).every((each) => typeof each === 'number'))
+      )
+    case 'mark':
+      return typeof value === 'boolean' || value === 'optional'
+    case 'number':
+      return typeof value === 'number' && Number.isFinite(value)
+    default:
+      return typeof value === expected
+  }
+}
+
+/**
+ * Where some data, e.g. JSON pasted into an editor, is not shaped like a
+ * form document: a key holding the wrong kind of value, or a node without
+ * its `id`, `type` or `children`. Problems name the path to the value, so
+ * they can be found in the text. Run `checkDocument` on the result for
+ * the problems of a document that is shaped right.
+ */
+export function checkDocumentShape(data: unknown): DocumentShapeProblem[] {
+  const problems: DocumentShapeProblem[] = []
+  const add = (path: string, code: 'type' | 'required', expected: Expected) => {
+    if (problems.length >= SHAPE_LIMIT) return
+    problems.push({
+      path,
+      code,
+      expected,
+      message:
+        code === 'required'
+          ? `${path} is missing`
+          : `${path || 'The document'} should be ${expected === 'span' ? 'a number or an object of numbers' : expected === 'mark' ? 'a boolean or "optional"' : `a ${expected}`}`,
+    })
+  }
+  const keys = (value: Record<string, unknown>, spec: Record<string, Expected>, path: string) => {
+    for (const [key, expected] of Object.entries(spec))
+      if (value[key] !== undefined && !fits(value[key], expected))
+        add(`${path}.${key}`, 'type', expected)
+  }
+  const node = (value: unknown, path: string) => {
+    if (!isObject(value)) return add(path, 'type', 'object')
+    keys(value, NODE_KEYS, path)
+    for (const key of ['id', 'type'] as const)
+      if (value[key] === undefined) add(`${path}.${key}`, 'required', 'string')
+    if (Array.isArray(value.rules))
+      value.rules.forEach((rule, index) => {
+        const at = `${path}.rules[${index}]`
+        if (isObject(rule)) keys(rule, RULE_KEYS, at)
+        else add(at, 'type', 'object')
+      })
+    if (isObject(value.source) && typeof value.source.name !== 'string')
+      add(`${path}.source.name`, value.source.name === undefined ? 'required' : 'type', 'string')
+    const container = typeof value.type === 'string' && CONTAINER_TYPES.has(value.type)
+    if (container && value.children === undefined) add(`${path}.children`, 'required', 'array')
+    if (Array.isArray(value.children))
+      value.children.forEach((child, index) => node(child, `${path}.children[${index}]`))
+  }
+  if (!isObject(data)) {
+    add('', 'type', 'object')
+    return problems
+  }
+  for (const [key, expected] of Object.entries(DOCUMENT_KEYS))
+    if (data[key] !== undefined && !fits(data[key], expected)) add(key, 'type', expected)
+  if (data.nodes === undefined) add('nodes', 'required', 'array')
+  if (Array.isArray(data.nodes)) data.nodes.forEach((each, index) => node(each, `nodes[${index}]`))
+  return problems
+}
+
+/** The path of each node of a document, by id, in the form `checkDocumentShape` names them. */
+export function documentPaths(document: FormDocument): Map<string, string> {
+  const paths = new Map<string, string>()
+  const visit = (nodes: readonly FormNode[], path: string) =>
+    nodes.forEach((node, index) => {
+      const at = `${path}[${index}]`
+      if (!paths.has(node.id)) paths.set(node.id, at)
+      if (isContainer(node)) visit(node.children ?? [], `${at}.children`)
+    })
+  visit(document.nodes, 'nodes')
+  return paths
+}

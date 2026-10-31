@@ -11,8 +11,8 @@ import {
   watch,
 } from 'vue'
 import type { InjectionKey, PropType, Ref, VNode } from 'vue'
-import { DouButton, DouDropdown, DouDropdownItem, DouForm, holdPointer } from 'dou-ui'
-import type { DropdownExpose } from 'dou-ui'
+import { DouButton, DouContextMenu, DouDropdown, DouForm, holdPointer } from 'dou-ui'
+import type { ContextMenuExpose, DropdownExpose } from 'dou-ui'
 import {
   ArrowDownIcon,
   ArrowUpIcon,
@@ -37,6 +37,7 @@ import type { FormFieldType } from '../fields/define'
 import { formatMessage, useFormRendererMessages } from '../locale'
 import type { FormRendererMessages } from '../locale'
 import { rendererKey, rootScope, scopeKey } from '../renderer/context'
+import { menuItems, nodeMenu } from './menu'
 import type { NodeScope, RendererContext } from '../renderer/context'
 import { FormNodeView, nodeKey, spanStyle } from '../renderer/node-view'
 import { canvasOrder, useBuilderState } from './context'
@@ -226,6 +227,28 @@ export const FormBuilderCanvas = defineComponent({
       return last ? state.domId(last, 'canvas') : undefined
     })
 
+    // The menu of the selected nodes, opened by a right click or the menu key.
+    const contextMenu = shallowRef<ContextMenuExpose | null>(null)
+    const openMenu = (x: number, y: number) => {
+      if (state.selection.length) contextMenu.value?.open(x, y)
+    }
+    state.openMenu.value = openMenu
+    onBeforeUnmount(() => {
+      if (state.openMenu.value === openMenu) state.openMenu.value = null
+    })
+    function onTreeKeydown(event: KeyboardEvent) {
+      if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
+        event.preventDefault()
+        const id = state.selection[state.selection.length - 1]
+        const rect = id
+          ? globalThis.document?.getElementById(state.domId(id, 'canvas'))?.getBoundingClientRect()
+          : undefined
+        if (rect) openMenu(rect.left + 16, rect.top + 16)
+        return
+      }
+      state.keydown(event, view)
+    }
+
     return () => {
       const doc = document.value
       return h(
@@ -258,6 +281,17 @@ export const FormBuilderCanvas = defineComponent({
               hidden: true,
             }),
           ]),
+          h(
+            DouContextMenu,
+            {
+              ref: (instance: unknown) =>
+                (contextMenu.value = instance as ContextMenuExpose | null),
+            },
+            {
+              default: () => h('span', { class: 'dou-form-builder__menu-anchor' }),
+              menu: () => menuItems(nodeMenu(state, state.selection)),
+            },
+          ),
           h('div', { class: 'dou-form-builder__paper' }, [
             h(
               DouForm,
@@ -288,7 +322,7 @@ export const FormBuilderCanvas = defineComponent({
                     'aria-label': state.messages.canvas.label,
                     'aria-multiselectable': true,
                     'aria-activedescendant': active.value,
-                    onKeydown: (event: KeyboardEvent) => state.keydown(event, view),
+                    onKeydown: onTreeKeydown,
                   },
                   doc.nodes.length
                     ? designNodes(doc.nodes, columns.value, 0, 1)
@@ -431,6 +465,14 @@ const DesignNode = defineComponent({
           'aria-label': title,
           'data-node': node.id,
           onClick: press,
+          onContextmenu: (event: MouseEvent) => {
+            event.stopPropagation()
+            event.preventDefault()
+            // On touch screens a long press drags; the action bar has the menu.
+            if ((event as PointerEvent).pointerType === 'touch') return
+            if (!selected.value) state.select(node.id)
+            state.openMenu.value?.(event.clientX, event.clientY)
+          },
           onPointerdown: (event: PointerEvent) => {
             // The innermost node takes the press; the buttons and the width handle keep theirs.
             event.stopPropagation()
@@ -631,6 +673,7 @@ function actionBar(state: BuilderState, node: FormNode, title: string) {
   const place = formNodePlaces(state.document).get(node.id)
   const siblings = place?.parent ? place.parent.children.length : state.document.nodes.length
   const after = () => state.canvas.value?.focus({ preventScroll: true })
+  const ids = state.selected.value.has(node.id) ? state.selection : [node.id]
   const actions = [
     place?.parent
       ? {
@@ -696,36 +739,35 @@ function actionBar(state: BuilderState, node: FormNode, title: string) {
           },
           h(MoreHorizontalIcon),
         ),
-      menu: () =>
-        actions.map((action) =>
-          h(
-            DouDropdownItem,
-            {
-              key: action.label,
-              disabled: action.disabled,
-              tone: action.danger ? 'danger' : 'neutral',
-              onClick: action.run,
-            },
-            { prefix: () => h(action.icon), default: () => action.label },
-          ),
-        ),
+      menu: () => menuItems(nodeMenu(state, ids)),
     },
   )
-  return h('div', { class: 'dou-form-builder__actions', role: 'toolbar', 'aria-label': title }, [
-    ...actions.map((action) =>
-      actionButton(
-        action.label,
-        h(action.icon),
-        (event) => {
-          event.stopPropagation()
-          action.run()
-          after()
-        },
-        action.disabled,
+  // Items of extensions are only in the menu, so the menu button shows at any width.
+  const extra = state.extensions().menus.length > 0
+  return h(
+    'div',
+    {
+      class: 'dou-form-builder__actions',
+      role: 'toolbar',
+      'aria-label': title,
+      'data-extra': extra || undefined,
+    },
+    [
+      ...actions.map((action) =>
+        actionButton(
+          action.label,
+          h(action.icon),
+          (event) => {
+            event.stopPropagation()
+            action.run()
+            after()
+          },
+          action.disabled,
+        ),
       ),
-    ),
-    h('span', { class: 'dou-form-builder__actions-more' }, more),
-  ])
+      h('span', { class: 'dou-form-builder__actions-more' }, more),
+    ],
+  )
 }
 
 /** The form widths the breakpoints of a responsive width start at, as in the renderer's styles. */

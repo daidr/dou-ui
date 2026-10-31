@@ -3,7 +3,10 @@ import type { ComputedRef, InjectionKey, Ref } from 'vue'
 import { matchesHotkey } from 'dou-ui'
 import { isContainer, isPage } from '../core/document'
 import type { FormContainerNode, FormDocument, FormNode, FormPageNode } from '../core/types'
+import type { FormFunction } from '../core/expression'
 import type { FormFieldType } from '../fields/define'
+import type { FormOptionsLoader } from '../renderer/context'
+import type { ResolvedFormBuilderExtensions } from './extension'
 import { formatMessage } from '../locale'
 import type { FormBuilderMessages } from './locale'
 import { FormBuilderHistory } from './core/history'
@@ -17,12 +20,16 @@ import {
   namesIn,
   topmost,
   removeNodes,
+  replaceDocument,
   scopeOf,
   wrapNodes,
 } from './core/commands'
 import type { FormBuilderInsertPlace } from './core/commands'
 import { labelOf, nodeTitle } from './settings'
 import type { DragController } from './drag'
+
+/** What the builder shows: the canvas to edit on, or the form to fill in as people will. */
+export type FormBuilderMode = 'design' | 'preview'
 
 /** How a click changes the selection: replace it, add or take away the node, or extend it. */
 export type FormBuilderSelectMode = 'replace' | 'toggle' | 'extend'
@@ -48,6 +55,9 @@ export interface FormBuilderContext {
   readonly messages: FormBuilderMessages
   readonly canUndo: boolean
   readonly canRedo: boolean
+  readonly mode: FormBuilderMode
+  /** Show the canvas or the preview. */
+  setMode: (mode: FormBuilderMode) => void
   /** A transaction on the document as it is now, to `dispatch`. */
   transaction: () => FormBuilderTransaction
   /** Make the changes of a transaction, as one undo step (or part of one, by `meta.group`). */
@@ -72,6 +82,8 @@ export interface FormBuilderContext {
    * the top) to start at `index` of its children as they are now.
    */
   moveTo: (place: FormBuilderInsertPlace, ids?: readonly string[]) => void
+  /** Replace the whole form with another, e.g. one imported as JSON, as one undo step. */
+  replace: (document: FormDocument) => void
   /** Put nodes of one container into a new section, the selected ones by default. */
   wrap: (ids?: readonly string[]) => void
   /** Add a page to tabs or steps (the selected ones, or the ones around the selection). */
@@ -106,6 +118,14 @@ export interface BuilderState extends FormBuilderContext {
   pick: (id: string, event: MouseEvent, view: BuilderView) => void
   /** Drags on the canvas, set by the canvas once it is mounted. */
   dragger: Ref<DragController | null>
+  /** Opens the menu of the selected nodes at a point of the viewport, set by the canvas. */
+  openMenu: Ref<((x: number, y: number) => void) | null>
+  /** The names of the functions given to the builder, for checks and completions. */
+  functionNames: ComputedRef<string[]>
+  /** The functions given to the builder, for the preview. */
+  functions: () => Record<string, FormFunction> | undefined
+  sources: () => Record<string, FormOptionsLoader> | undefined
+  extensions: () => ResolvedFormBuilderExtensions
   /** The selection, as a set, for views checking many nodes. */
   selected: ComputedRef<ReadonlySet<string>>
   /** The node the inspector and the action bar are for: the last selected one. */
@@ -146,6 +166,11 @@ export interface CreateBuilderOptions {
   messages: () => FormBuilderMessages
   emitDocument: (document: FormDocument, tr: FormBuilderTransaction) => void
   emitSelection: (ids: string[]) => void
+  mode: () => FormBuilderMode
+  emitMode: (mode: FormBuilderMode) => void
+  functions: () => Record<string, FormFunction> | undefined
+  sources: () => Record<string, FormOptionsLoader> | undefined
+  extensions: () => ResolvedFormBuilderExtensions
 }
 
 const same = (a: readonly string[], b: readonly string[]) =>
@@ -161,6 +186,7 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
   const inspector = shallowRef<HTMLElement | null>(null)
   const canvas = shallowRef<HTMLElement | null>(null)
   const dragger = shallowRef<DragController | null>(null)
+  const openMenu = shallowRef<((x: number, y: number) => void) | null>(null)
 
   // A document from outside, e.g. one loaded or reset by the page, starts a new history.
   watch(options.document, (next) => {
@@ -227,6 +253,7 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
     if (tr.before !== doc.value)
       throw new Error('[dou-ui] the transaction was made on another version of the form')
     const before = selection.value.slice()
+    if (tr.changed) for (const hook of options.extensions().transactions) hook(tr, self)
     if (tr.changed) {
       doc.value = tr.doc
       options.emitDocument(tr.doc, tr)
@@ -357,6 +384,13 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
     })
   }
 
+  function replace(next: FormDocument) {
+    const tr = transaction()
+    replaceDocument(tr, toRaw(next))
+    tr.setMeta('origin', 'replace')
+    dispatch(tr, { selection: [], announce: options.messages().announce.replaced })
+  }
+
   function wrap(ids?: readonly string[]) {
     const tr = transaction()
     const section = wrapNodes(tr, target(ids), context())
@@ -485,6 +519,12 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
       event.preventDefault()
       return
     }
+    for (const keymap of options.extensions().keymaps)
+      for (const [hotkey, handler] of Object.entries(keymap(self))) {
+        if (!matchesHotkey(event, hotkey) || handler(event) === false) continue
+        event.preventDefault()
+        return
+      }
     for (const [hotkey, run] of keys) {
       if (!matchesHotkey(event, hotkey)) continue
       event.preventDefault()
@@ -493,7 +533,9 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
     }
   }
 
-  return {
+  const functionNames = computed(() => Object.keys(options.functions() ?? {}))
+
+  const self: BuilderState = {
     get document() {
       return doc.value
     },
@@ -514,6 +556,12 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
       void travelled.value
       return history.canRedo
     },
+    get mode() {
+      return options.mode()
+    },
+    setMode: (mode) => {
+      if (mode !== options.mode()) options.emitMode(mode)
+    },
     transaction,
     dispatch,
     select,
@@ -522,6 +570,7 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
     duplicate,
     moveBy,
     moveTo,
+    replace,
     wrap,
     addPage,
     selectParent,
@@ -536,11 +585,17 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
     inspector,
     canvas,
     dragger,
+    openMenu,
     tapToggles,
     pick,
     selected,
     focused,
+    functionNames,
+    functions: options.functions,
+    sources: options.sources,
+    extensions: options.extensions,
   }
+  return self
 }
 
 /** Every node in the order the canvas lists them: only the shown page of tabs and steps is open. */

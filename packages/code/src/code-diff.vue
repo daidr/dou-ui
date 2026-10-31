@@ -2,10 +2,10 @@
 import {
   ArrowDownIcon,
   ArrowUpIcon,
-  ChevronUpDownIcon,
-  LayoutColumnsIcon,
-  LayoutRowsIcon,
-  SeparatorHorizontalIcon,
+  DiffSplitIcon,
+  DiffUnifiedIcon,
+  FoldVerticalIcon,
+  UnfoldVerticalIcon,
 } from '@dou-ui/icons'
 import { DouButton, DouTooltip, useNamespace } from 'dou-ui'
 import { computed, h, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
@@ -214,7 +214,7 @@ function bar(run: Unchanged, mirror = false) {
       tabindex: mirror ? -1 : undefined,
       onClick: () => open(run.key),
     },
-    [h(ChevronUpDownIcon, { class: ns.e('bar-icon') }), h('span', label)],
+    [h(UnfoldVerticalIcon, { class: ns.e('bar-icon') }), h('span', label)],
   )
 }
 const BAR_HEIGHT = 28
@@ -721,8 +721,8 @@ defineExpose({
           :aria-label="hiddenCount ? messages.diffExpandAll : messages.diffCollapse"
           @click="toggleAll"
         >
-          <ChevronUpDownIcon v-if="hiddenCount" />
-          <SeparatorHorizontalIcon v-else />
+          <UnfoldVerticalIcon v-if="hiddenCount" />
+          <FoldVerticalIcon v-else />
         </DouButton>
       </DouTooltip>
       <DouTooltip :content="view === 'split' ? messages.diffInline : messages.diffSplit">
@@ -732,8 +732,8 @@ defineExpose({
           :aria-label="view === 'split' ? messages.diffInline : messages.diffSplit"
           @click="toggleView"
         >
-          <LayoutRowsIcon v-if="view === 'split'" />
-          <LayoutColumnsIcon v-else />
+          <DiffUnifiedIcon v-if="view === 'split'" />
+          <DiffSplitIcon v-else />
         </DouButton>
       </DouTooltip>
     </div>

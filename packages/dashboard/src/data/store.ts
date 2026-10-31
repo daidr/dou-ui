@@ -38,10 +38,25 @@ interface Entry extends SourceEntry {
 /** How many loaded results nobody shows are kept, to come back to without loading. */
 const KEEP = 32
 
-function optionsOf(
+export function optionsOf(
   source: DashboardSourceLoad<any> | DashboardSourceOptions<any>,
 ): DashboardSourceOptions<any> {
   return typeof source === 'function' ? { load: source } : source
+}
+
+/** Whether two definitions of a source load the same way. */
+export function sameSource(
+  a: DashboardSourceLoad<any> | DashboardSourceOptions<any> | undefined,
+  b: DashboardSourceLoad<any> | DashboardSourceOptions<any> | undefined,
+) {
+  if (!a || !b) return a === b
+  const x = optionsOf(a)
+  const y = optionsOf(b)
+  return (
+    x.load === y.load &&
+    x.interval === y.interval &&
+    (x.filters ?? []).join('\u0000') === (y.filters ?? []).join('\u0000')
+  )
 }
 
 const isAbort = (error: unknown) =>
@@ -71,7 +86,7 @@ export function createSourceStore(sources: () => DashboardSources | undefined) {
   function schedule(entry: Entry) {
     clearTimeout(entry.timer)
     entry.timer = undefined
-    const every = optionsOf(sources()?.[entry.name] ?? (() => undefined)).refresh
+    const every = optionsOf(sources()?.[entry.name] ?? (() => undefined)).interval
     if (!every || every <= 0 || entry.users === 0) return
     const wait = Math.max(0, entry.loadedAt + every - Date.now())
     entry.timer = setTimeout(() => {
@@ -169,7 +184,7 @@ export function createSourceStore(sources: () => DashboardSources | undefined) {
     const status = entry.state.value.status
     if (status === 'idle' || (status === 'error' && !entry.controller)) load(entry)
     else if (entry.users === 1 && !entry.controller) {
-      const every = optionsOf(sources()?.[name] ?? (() => undefined)).refresh
+      const every = optionsOf(sources()?.[name] ?? (() => undefined)).interval
       // a kept result older than its refresh interval loads again
       if (every && Date.now() - entry.loadedAt >= every) load(entry, true)
       else schedule(entry)

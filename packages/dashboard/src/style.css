@@ -479,7 +479,11 @@
     }
   }
 
-  .dou-dashboard-filter__clear {
+  /* the slot's controls sit at the far end */
+  .dou-dashboard-filter__extra {
+    display: flex;
+    align-items: center;
+    gap: 4px;
     margin-left: auto;
   }
 

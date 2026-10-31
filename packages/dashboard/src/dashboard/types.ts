@@ -19,8 +19,8 @@ export interface DashboardProps {
   /**
    * Where widgets get their data, by name; a widget names its source in
    * `props.source`. Each source loads once for each set of filters, however
-   * many widgets show it. Read when loading, so replacing it doesn't load
-   * again by itself: call `refresh()`.
+   * many widgets show it. A source replaced by another function (or other
+   * options) loads again; define the functions once, not in the template.
    */
   sources?: DashboardSources
   /** The filter values, bound with `v-model:filters`; widgets load their sources with them. */

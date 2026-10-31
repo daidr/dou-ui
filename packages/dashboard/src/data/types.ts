@@ -23,7 +23,7 @@ export interface DashboardSourceOptions<T = unknown> {
    */
   filters?: string[]
   /** Loads again every this many ms while it is shown; paused while the page is hidden. */
-  refresh?: number
+  interval?: number
 }
 
 /** Where widgets get their data, by name. A widget names its source in `props.source`. */

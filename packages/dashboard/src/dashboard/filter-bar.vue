@@ -15,7 +15,7 @@ const props = withDefaults(defineProps<DashboardFilterBarProps>(), {
   clearable: true,
 })
 defineSlots<{
-  /** More controls after the fields, e.g. a refresh button. */
+  /** More controls at the end of the bar, e.g. a refresh button. */
   default?: () => unknown
 }>()
 
@@ -119,7 +119,6 @@ onBeforeUnmount(() => timers.forEach((timer) => clearTimeout(timer)))
     >
       {{ format(messages.linkedFilter, { title: titleOf(link.widget), value: link.label }) }}
     </DouTag>
-    <slot />
     <DouButton
       v-if="clearable && anySet"
       class="dou-dashboard-filter__clear"
@@ -129,5 +128,6 @@ onBeforeUnmount(() => timers.forEach((timer) => clearTimeout(timer)))
     >
       {{ messages.clearFilters }}
     </DouButton>
+    <div v-if="$slots.default" class="dou-dashboard-filter__extra"><slot /></div>
   </div>
 </template>

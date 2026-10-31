@@ -6,24 +6,27 @@ const { props, data, setFilter, ownFilters } = useDashboardWidget()
 
 const max = computed(() => Math.max(1, ...(data.value ?? []).map((row) => row.value)))
 // 点一行，按它筛选其他格子；再点一次取消。这个格子自己仍然显示全部
+// 筛选的值是代码，label 给出显示在标题栏和筛选栏里的名字
 const picked = computed(() => ownFilters.value[props.value.filterKey])
-function pick(name) {
-  setFilter(props.value.filterKey, picked.value === name ? undefined : name)
+function pick(row) {
+  setFilter(props.value.filterKey, picked.value === row.code ? undefined : row.code, {
+    label: row.name,
+  })
 }
 </script>
 
 <template>
   <ul class="bars">
-    <li v-for="row in data ?? []" :key="row.name">
+    <li v-for="row in data ?? []" :key="row.code">
       <button
         type="button"
         :class="[
           'bar',
-          picked === row.name && 'is-picked',
-          picked && picked !== row.name && 'is-dim',
+          picked === row.code && 'is-picked',
+          picked && picked !== row.code && 'is-dim',
         ]"
-        :aria-pressed="picked === row.name"
-        @click="pick(row.name)"
+        :aria-pressed="picked === row.code"
+        @click="pick(row)"
       >
         <span class="name">{{ row.name }}</span>
         <span class="track"

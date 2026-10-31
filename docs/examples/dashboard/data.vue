@@ -48,7 +48,7 @@ const doc = ref({
       id: 'cities',
       type: 'bars',
       title: '城市前五',
-      props: { source: 'city', filterKey: 'keyword' },
+      props: { source: 'city', filterKey: 'city' },
       place: { lg: { x: 6, y: 2, w: 6, h: 4 } },
     },
   ],

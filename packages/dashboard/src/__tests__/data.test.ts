@@ -82,7 +82,7 @@ describe('source store', () => {
       get: () => (hidden ? 'hidden' : 'visible'),
     })
     let n = 0
-    const store = createSourceStore(() => ({ live: { load: () => ++n, refresh: 1000 } }))
+    const store = createSourceStore(() => ({ live: { load: () => ++n, interval: 1000 } }))
     const handle = store.use('live', {})
     await vi.advanceTimersByTimeAsync(0)
     expect(handle.entry.state.value).toEqual({ status: 'ready', data: 1 })
@@ -259,6 +259,29 @@ describe('DouDashboard data', () => {
       '{"region":"west"}',
       '{"region":"west"}',
     ])
+    wrapper.unmount()
+  })
+
+  it('loads a source again when it is replaced by another', async () => {
+    const first = vi.fn<(context: any) => unknown>(() => ['a'])
+    const second = vi.fn<(context: any) => unknown>(() => ['b'])
+    const sources = ref<DashboardSources>({ s0: first })
+    const wrapper = mount(
+      defineComponent({
+        setup: () => () =>
+          h(DouDashboard, { modelValue: board(1, 1), widgets, sources: sources.value }),
+      }),
+      { attachTo: document.body },
+    )
+    await flush()
+    expect(wrapper.find('.rows').text()).toBe('a')
+    sources.value = { s0: first }
+    await flush()
+    expect(first).toHaveBeenCalledTimes(1)
+    sources.value = { s0: second }
+    await flush()
+    expect(second).toHaveBeenCalledTimes(1)
+    expect(wrapper.find('.rows').text()).toBe('b')
     wrapper.unmount()
   })
 

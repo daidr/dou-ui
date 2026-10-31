@@ -18,7 +18,7 @@ import type { DashboardStep, DashboardTransactionMeta } from '../core/transactio
 import type { DashboardDocument, DashboardPlace, DashboardWidget } from '../core/types'
 import { dataContextKey } from '../data/context'
 import { filterText, isEmptyFilter } from '../data/filters'
-import { createSourceStore } from '../data/store'
+import { createSourceStore, sameSource } from '../data/store'
 import type {
   DashboardFilters,
   DashboardLinkedFilter,
@@ -483,6 +483,14 @@ provide(frameContextKey, {
 
 const store = createSourceStore(() => props.sources)
 onBeforeUnmount(() => store.dispose())
+// a source replaced by one that loads differently loads again
+watch(
+  () => props.sources,
+  (next, previous) => {
+    const names = new Set([...Object.keys(previous ?? {}), ...Object.keys(next ?? {})])
+    for (const name of names) if (!sameSource(previous?.[name], next?.[name])) store.reload(name)
+  },
+)
 
 /** The filters set by widgets, by key: they apply to every widget but the one that set them. */
 const links = shallowRef(new Map<string, DashboardLinkedFilter>())

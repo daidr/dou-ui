@@ -5,16 +5,31 @@ interface Row {
   date: string
   region: string
   city: string
+  cityName: string
   amount: number
   orders: number
 }
 
 // 演示用的订单数据：最近 30 天，各城市每天的销售额
-const regions: Record<string, string[]> = {
-  华东: ['上海', '杭州', '南京'],
-  华北: ['北京', '天津'],
-  华南: ['广州', '深圳'],
-  西南: ['成都', '重庆'],
+// 城市用代码表示，显示时换成名字
+const regions: Record<string, [code: string, name: string][]> = {
+  华东: [
+    ['sh', '上海'],
+    ['hz', '杭州'],
+    ['nj', '南京'],
+  ],
+  华北: [
+    ['bj', '北京'],
+    ['tj', '天津'],
+  ],
+  华南: [
+    ['gz', '广州'],
+    ['sz', '深圳'],
+  ],
+  西南: [
+    ['cd', '成都'],
+    ['cq', '重庆'],
+  ],
 }
 export const regionNames = Object.keys(regions)
 
@@ -29,12 +44,13 @@ let seed = 7
 const random = () => (seed = (seed * 16807) % 2147483647) / 2147483647
 const rows: Row[] = []
 for (const [region, cities] of Object.entries(regions))
-  for (const [index, city] of cities.entries())
+  for (const [index, [city, cityName]] of cities.entries())
     for (const [day, date] of days.entries())
       rows.push({
         date,
         region,
         city,
+        cityName,
         amount: Math.round((3 - index * 0.6) * (800 + day * 20 + random() * 600)),
         orders: Math.round(6 + random() * 10),
       })
@@ -53,9 +69,10 @@ function request<T>(filters: DashboardFilters, signal: AbortSignal, pick: (list:
         const list = rows.filter(
           (row) =>
             (!filters.region || row.region === filters.region) &&
+            (!filters.city || row.city === filters.city) &&
             (!from || row.date >= from) &&
             (!to || row.date <= to) &&
-            row.city.includes(keyword),
+            row.cityName.includes(keyword),
         )
         resolve(pick(list))
       },
@@ -68,11 +85,17 @@ function request<T>(filters: DashboardFilters, signal: AbortSignal, pick: (list:
   })
 }
 
+// 每一行带上筛选用的值 code 和显示用的名字 name
 function groupBy(list: Row[], key: 'region' | 'city') {
-  const totals = new Map<string, number>()
-  for (const row of list) totals.set(row[key], (totals.get(row[key]) ?? 0) + row.amount)
+  const totals = new Map<string, { code: string; name: string; value: number }>()
+  for (const row of list) {
+    const code = row[key]
+    const total = totals.get(code) ?? { code, name: key === 'city' ? row.cityName : code, value: 0 }
+    total.value += row.amount
+    totals.set(code, total)
+  }
   // oxlint-disable-next-line unicorn/no-array-sort -- sorts a fresh array
-  return [...totals].map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value)
+  return [...totals.values()].sort((a, b) => b.value - a.value)
 }
 
 export const sources: DashboardSources = {

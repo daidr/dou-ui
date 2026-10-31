@@ -22,7 +22,7 @@ app.use(DouGantt)
 
 ## 基础用法
 
-`v-model:tasks` 绑定任务列表，`v-model:links` 绑定任务之间的依赖，格式见[数据格式](./data)。有子任务的任务是汇总任务，它的起止时间和进度由子任务算出；`type: 'milestone'` 的任务是里程碑，画成一个菱形。
+`v-model:tasks` 绑定任务列表，`v-model:links` 绑定任务之间的依赖，格式见[文档数据](./data)。有子任务的任务是汇总任务，它的起止时间和进度由子任务算出；`type: 'milestone'` 的任务是里程碑，画成一个菱形。
 
 <DocDemo src="gantt/basic" column />
 

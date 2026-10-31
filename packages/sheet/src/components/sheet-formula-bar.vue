@@ -18,6 +18,8 @@ const mirror = useTemplateRef<HTMLElement>('mirror')
 // The name box: the active cell's name, or a cell or range to go to ----------------------------
 
 const nameTyping = ref<string | null>(null)
+/** Whether the text in the name box is no cell or range; it stays there to fix, or Escape. */
+const nameInvalid = ref(false)
 const cellName = computed(() => {
   const e = editor.cell.value
   return formatCell(e ?? sheet.active.value)
@@ -26,8 +28,10 @@ const nameText = computed(() => nameTyping.value ?? cellName.value)
 
 function goTo() {
   const text = (nameTyping.value ?? '').trim()
-  nameTyping.value = null
-  if (!text) return sheet.focus()
+  if (!text) {
+    nameTyping.value = null
+    return sheet.focus()
+  }
   const { sheet: name, ref: target } = splitSheet(text)
   const range = parseRange(target)
   const at =
@@ -35,15 +39,29 @@ function goTo() {
       ? sheet.sheetIndex.value
       : sheet.doc.value.sheets.findIndex((s) => s.name.toLowerCase() === name.toLowerCase())
   if (!range || at === -1) {
+    nameInvalid.value = true
     sheet.announce(format(m.value.badAddress, { text }))
     nameInput.value?.select()
     return
   }
+  nameTyping.value = null
+  nameInvalid.value = false
   if (at !== sheet.sheetIndex.value) sheet.showSheet(at)
   void nextTick(() => {
     sheet.select(target)
     sheet.focus()
   })
+}
+
+function onNameInput(event: Event) {
+  nameTyping.value = (event.target as HTMLInputElement).value
+  nameInvalid.value = false
+}
+
+/** Leaving the box shows the active cell again. */
+function onNameBlur() {
+  nameTyping.value = null
+  nameInvalid.value = false
 }
 
 function onNameKey(event: KeyboardEvent) {
@@ -54,6 +72,7 @@ function onNameKey(event: KeyboardEvent) {
   } else if (event.key === 'Escape') {
     event.preventDefault()
     nameTyping.value = null
+    nameInvalid.value = false
     sheet.focus()
   }
 }
@@ -105,7 +124,7 @@ function onKey(event: KeyboardEvent) {
 
 function syncCaret() {
   const el = input.value
-  if (el && editingHere.value) editor.caretMoved(el.selectionStart)
+  if (el && editingHere.value) editor.moveCaret(el.selectionStart)
   syncMirror()
 }
 
@@ -140,14 +159,16 @@ onBeforeUnmount(() => detach?.())
       ref="name"
       class="dou-sheet-formula-bar__name"
       :value="nameText"
+      :class="{ 'is-invalid': nameInvalid }"
       :aria-label="m.nameBox"
+      :aria-invalid="nameInvalid || undefined"
       autocomplete="off"
       autocapitalize="off"
       spellcheck="false"
       @focus="($event.target as HTMLInputElement).select()"
-      @input="nameTyping = ($event.target as HTMLInputElement).value"
+      @input="onNameInput"
       @keydown="onNameKey"
-      @blur="nameTyping = null"
+      @blur="onNameBlur"
     />
     <span class="dou-sheet-formula-bar__mark" aria-hidden="true"><FunctionIcon /></span>
     <div class="dou-sheet-formula-bar__box" :style="`--dou-sheet-bar-lines:${lines}`">

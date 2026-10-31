@@ -1543,6 +1543,29 @@ const functionList = computed(() => {
   return engine.functionList()
 })
 /** What a function takes and does: its own words, or the built-in help in the grid's language. */
+/** The functions used most, in the order the list shows them before the rest. */
+const COMMON = [
+  'SUM',
+  'AVERAGE',
+  'IF',
+  'COUNT',
+  'MAX',
+  'MIN',
+  'ROUND',
+  'SUMIF',
+  'COUNTIF',
+  'IFERROR',
+  'VLOOKUP',
+  'XLOOKUP',
+  'AND',
+  'OR',
+  'CONCAT',
+  'TODAY',
+]
+const rankOf = (name: string) => {
+  const at = COMMON.indexOf(name)
+  return at === -1 ? COMMON.length : at
+}
 function helpOf(fn: SheetFunction) {
   const name = fn.name.toUpperCase()
   const own = messages.value.functions[name]
@@ -1571,6 +1594,8 @@ const assist = computed(() => {
     const items = functionList.value
       .filter((fn) => fn.name.toUpperCase().startsWith(prefix))
       .map(helpOf)
+    // the functions used most come first, so Tab after `=SU` writes SUM
+    items.sort((a, b) => rankOf(a.name) - rankOf(b.name))
     if (items.length) return { kind: 'list' as const, ...name, items }
   }
   const call = callAt(text, caret)
@@ -3422,7 +3447,7 @@ const context: SheetContext = {
     caret: editCaret,
     textAt: (point) => editTextAt(point.row, point.col) ?? '',
     input: inputFrom,
-    caretMoved: (caret) => {
+    moveCaret: (caret) => {
       if (!editing.value) return
       if (caret !== editCaret.value) pointing.value = null
       editCaret.value = caret

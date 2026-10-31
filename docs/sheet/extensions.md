@@ -126,7 +126,7 @@ const Panel = defineComponent({
 | `cell`、`text`、`caret`     | 正在编辑的单元格（没有时为 `null`）、编辑中的文字和光标位置                              |
 | `textAt(point)`             | 单元格编辑时显示的文字：公式，或按输入方式写出的值                                       |
 | `input(text, caret?)`       | 改写编辑中的文字；还没在编辑时，开始编辑当前单元格                                       |
-| `caretMoved(caret)`         | 输入框的光标被按键或点击移动后告诉表格                                                   |
+| `moveCaret(caret)`          | 输入框的光标被按键或点击移动后告诉表格                                                   |
 | `key(event)`                | 按单元格编辑时的规则处理按键（补全、插入引用、`Enter`、`Tab`、`Esc`），处理了返回 `true` |
 | `commit(move?)`、`cancel()` | 保存或放弃编辑，之后键盘回到表格                                                         |
 | `attach(el)`                | 登记输入框：焦点移到它上面时编辑不结束，函数列表显示在它下方；返回取消登记的函数         |

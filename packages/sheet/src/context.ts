@@ -95,8 +95,8 @@ export interface SheetEditorContext {
   textAt: (point: SheetPoint) => string
   /** Sets the text being edited, starting an edit of the active cell when none is open. */
   input: (text: string, caret?: number) => boolean
-  /** Tells where the caret went after keys or a click moved it. */
-  caretMoved: (caret: number) => void
+  /** Tells where the input's caret is, after keys or a click moved it. */
+  moveCaret: (caret: number) => void
   /** Handles a key the way the cell's editor does (completion, pointing, Enter, Tab, Escape); `true` when it did. */
   key: (event: KeyboardEvent) => boolean
   /** Saves the edit, then moves the way Enter (`'down'`) or Tab (`'right'`) do. */

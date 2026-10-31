@@ -136,8 +136,9 @@ describe('DouSheet formula editing', () => {
     await type('=coun')
     const names = () =>
       wrapper.findAll('.dou-sheet__assist-item .dou-sheet__assist-name').map((n) => n.text())
-    expect(names()).toEqual(['COUNT', 'COUNTA', 'COUNTBLANK', 'COUNTIF', 'COUNTIFS'])
+    expect(names()).toEqual(['COUNT', 'COUNTIF', 'COUNTA', 'COUNTBLANK', 'COUNTIFS'])
     expect(input.getAttribute('aria-activedescendant')).toMatch(/-assist-0$/)
+    await key('ArrowDown')
     await key('ArrowDown')
     await key('Tab')
     expect(input.value).toBe('=COUNTA(')
@@ -159,6 +160,12 @@ describe('DouSheet formula editing', () => {
     expect(wrapper.find('.dou-sheet__input.is-open').exists()).toBe(true)
     await type('m')
     expect(wrapper.find('[role=listbox]').exists()).toBe(true)
+    // the ones used most first
+    expect(wrapper.findAll('.dou-sheet__assist-name').map((n) => n.text())).toEqual([
+      'SUM',
+      'SUMIF',
+      'SUMIFS',
+    ])
   })
 
   it('describes functions of its own', async () => {
@@ -220,5 +227,10 @@ describe('DouSheetFormulaBar', () => {
     await name.setValue('nope')
     await name.trigger('keydown', { key: 'Enter' })
     expect(wrapper.find('[aria-live]').text()).toContain('“nope”不是单元格地址')
+    expect((name.element as HTMLInputElement).value).toBe('nope')
+    expect(name.attributes('aria-invalid')).toBe('true')
+    await name.trigger('keydown', { key: 'Escape' })
+    expect((name.element as HTMLInputElement).value).toBe('B2')
+    expect(name.attributes('aria-invalid')).toBeUndefined()
   })
 })

@@ -63,7 +63,10 @@ export type PivotValue =
 export interface PivotFilter {
   include?: readonly unknown[]
   exclude?: readonly unknown[]
-  /** The values above are groups of this grouping (as the field is grouped on an axis). */
+  /**
+   * The values above are groups of this grouping. Left out, it is the
+   * field's grouping on the rows or columns, if it is there.
+   */
   by?: PivotGroupBy
 }
 

@@ -208,6 +208,23 @@
     }
   }
 
+  /* a finger needs bigger buttons than a mouse */
+  @media (pointer: coarse) {
+    .dou-pivot-fields__chip {
+      height: 40px;
+    }
+
+    .dou-pivot-fields__chip-button {
+      width: 36px;
+      height: 36px;
+
+      & svg {
+        width: 16px;
+        height: 16px;
+      }
+    }
+  }
+
   .dou-pivot-fields-trigger {
     display: flex;
   }

@@ -130,6 +130,66 @@ describe('DouPivotFields', () => {
   })
 })
 
+const items = () => [...document.querySelectorAll<HTMLElement>('[role^="menuitem"]')]
+// the newest menu comes last; menus closed before may still be leaving
+const find = (label: string) =>
+  items()
+    .filter((el) => el.textContent?.trim() === label)
+    .at(-1)
+
+describe('DouPivotFields menus', () => {
+  it('shows the grouping on a chip, moves fields up and sorts rows by a value', async () => {
+    const dated = sales.map((row, i) => ({ ...row, date: new Date(2026, i * 3, 1) }))
+    const config = ref<PivotConfig>({
+      rows: ['region', 'city'],
+      columns: [{ field: 'date', by: 'month' }],
+      values: ['amount'],
+    })
+    const wrapper = mount(
+      defineComponent(
+        () => () =>
+          h(DouPivotFields, {
+            data: dated,
+            drawer: false,
+            config: config.value,
+            'onUpdate:config': (value: PivotConfig) => (config.value = value),
+          }),
+      ),
+      { attachTo: document.body },
+    )
+    const chips = () => wrapper.findAll('.dou-pivot-fields__chip-text').map((el) => el.text())
+    expect(chips()).toContain('date · 按月')
+
+    const menuOf = async (text: string) => {
+      const chip = wrapper
+        .findAll('.dou-pivot-fields__chip')
+        .find((el) => el.find('.dou-pivot-fields__chip-text').text() === text)!
+      await chip.findAll('button').at(-1)!.trigger('click')
+      await nextTick()
+      return [...document.querySelectorAll<HTMLElement>('[role^="menuitem"]')]
+    }
+    const pick = async (text: string, label: string, sub?: string) => {
+      await menuOf(text)
+      if (sub) {
+        find(sub)!.click()
+        await nextTick()
+      }
+      find(label)!.click()
+      await nextTick()
+    }
+
+    await pick('city', '上移')
+    expect(config.value.rows).toEqual(['city', 'region'])
+
+    await pick('region', '按amount从高到低', '排序')
+    expect(config.value.sort).toEqual({ valueIndex: 0, column: [], order: 'desc' })
+    await pick('region', '降序', '排序')
+    expect(config.value.sort).toBeNull()
+    expect(config.value.rows).toEqual(['city', { field: 'region', sort: 'desc' }])
+    wrapper.unmount()
+  })
+})
+
 describe('tabular layout', () => {
   it('puts each row field in its own column and subtotals after the children', async () => {
     const wrapper = mount(DouPivot, {

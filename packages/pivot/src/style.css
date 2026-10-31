@@ -517,8 +517,13 @@
       content: '';
     }
 
+    &:focus-visible {
+      outline: none;
+    }
+
     &:hover::after,
-    &:active::after {
+    &:active::after,
+    &:focus-visible::after {
       opacity: 1;
     }
   }

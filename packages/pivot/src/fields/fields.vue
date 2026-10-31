@@ -141,6 +141,24 @@ function moveTo(item: PivotFieldItem, to: PivotArea | null) {
   config.value = configOf(moveItem(areas.value, areaOf(item), item, to), config.value)
 }
 
+/** Moves an item one place up or down in its area. */
+function shift(item: PivotFieldItem, by: -1 | 1) {
+  const area = areaOf(item)
+  if (!area) return
+  const list = [...areas.value[area]]
+  const at = list.findIndex((i) => i.key === item.key)
+  const to = at + by
+  if (to < 0 || to >= list.length) return
+  list.splice(at, 1)
+  list.splice(to, 0, item)
+  config.value = configOf({ ...areas.value, [area]: list }, config.value)
+}
+const placeOf = (item: PivotFieldItem) => {
+  const area = areaOf(item)
+  const list = area ? areas.value[area] : []
+  return { first: list[0]?.key === item.key, last: list[list.length - 1]?.key === item.key }
+}
+
 /** The checkbox in the list: adds a field where it fits (numbers to the values), or takes it out everywhere. */
 function toggleField(name: string, on: boolean) {
   if (!on) {
@@ -170,7 +188,21 @@ const aggregatorMap = computed(() => {
   return map
 })
 
+/** How a grouping reads, as in the grouping menu. */
+function groupText(by: PivotGroupBy) {
+  const m = messages.value.fields
+  if (typeof by === 'string') return m.periods[by]
+  const write = new Intl.NumberFormat(undefined, { maximumFractionDigits: 6 })
+  return format(m.step, { step: write.format(by.step) })
+}
+
 function chipText(item: PivotFieldItem) {
+  if (item.kind === 'dimension') {
+    const by = dimensionOf(axisOf(item), item.field)?.by
+    return by === undefined
+      ? itemLabel(item)
+      : format(messages.value.fields.grouped, { field: itemLabel(item), group: groupText(by) })
+  }
   if (item.kind !== 'value') return itemLabel(item)
   const value = resolved.value?.values[item.index]
   const given = config.value.values?.[item.index]
@@ -238,8 +270,23 @@ function groupingsFor(name: string): { key: string; by: PivotGroupBy | null; tex
   ]
 }
 
-function onSort(axis: 'rows' | 'columns', name: string, order: string | number) {
-  config.value = withDimension(config.value, axis, name, { sort: order as 'asc' | 'desc' })
+/** The sort a row field's menu shows: by its labels, or the rows by a value's grand total. */
+function sortKey(axis: 'rows' | 'columns', name: string) {
+  const sort = config.value.sort
+  if (axis === 'rows' && sort && !sort.column?.length) return `v:${sort.valueIndex}:${sort.order}`
+  return dimensionOf(axis, name)?.sort ?? 'asc'
+}
+function onSort(axis: 'rows' | 'columns', name: string, key: string | number) {
+  const by = /^v:(\d+):(asc|desc)$/.exec(String(key))
+  if (by) {
+    const order = by[2] as 'asc' | 'desc'
+    config.value = { ...config.value, sort: { valueIndex: +by[1]!, column: [], order } }
+    return
+  }
+  const next = withDimension(config.value, axis, name, { sort: key as 'asc' | 'desc' })
+  // sorting by labels on the rows takes over from sorting by a value
+  if (axis === 'rows') next.sort = null
+  config.value = next
 }
 function onGroup(axis: 'rows' | 'columns', name: string, key: string | number) {
   const option = groupingsFor(name).find((g) => g.key === key)
@@ -426,13 +473,27 @@ const filtered = (item: PivotFieldItem) => isFiltering(filterOf(item.field))
                       <template v-if="item.kind === 'dimension'">
                         <DouDropdownSub :title="messages.fields.sort">
                           <DouDropdownRadioGroup
-                            :model-value="dimensionOf(axisOf(item), item.field)?.sort ?? 'asc'"
+                            :model-value="sortKey(axisOf(item), item.field)"
                             @update:model-value="onSort(axisOf(item), item.field, $event!)"
                           >
                             <DouDropdownItem value="asc">{{ messages.fields.asc }}</DouDropdownItem>
                             <DouDropdownItem value="desc">{{
                               messages.fields.desc
                             }}</DouDropdownItem>
+                            <template v-if="axisOf(item) === 'rows'">
+                              <template v-for="(value, index) in areas.values" :key="value.key">
+                                <DouDropdownItem
+                                  :value="`v:${index}:desc`"
+                                  :divided="index === 0"
+                                  >{{
+                                    format(messages.fields.byValueDesc, { value: chipText(value) })
+                                  }}</DouDropdownItem
+                                >
+                                <DouDropdownItem :value="`v:${index}:asc`">{{
+                                  format(messages.fields.byValueAsc, { value: chipText(value) })
+                                }}</DouDropdownItem>
+                              </template>
+                            </template>
                           </DouDropdownRadioGroup>
                         </DouDropdownSub>
                         <DouDropdownSub
@@ -483,7 +544,16 @@ const filtered = (item: PivotFieldItem) => isFiltering(filterOf(item.field))
                       <DouDropdownItem v-if="canFilter(item)" @click="openFilter(item)">{{
                         messages.fields.filter
                       }}</DouDropdownItem>
-                      <DouDropdownSub :title="messages.fields.moveTo" divided>
+                      <DouDropdownItem
+                        divided
+                        :disabled="placeOf(item).first"
+                        @click="shift(item, -1)"
+                        >{{ messages.fields.moveUp }}</DouDropdownItem
+                      >
+                      <DouDropdownItem :disabled="placeOf(item).last" @click="shift(item, 1)">{{
+                        messages.fields.moveDown
+                      }}</DouDropdownItem>
+                      <DouDropdownSub :title="messages.fields.moveTo">
                         <DouDropdownItem
                           v-for="to in otherAreas(item)"
                           :key="to"

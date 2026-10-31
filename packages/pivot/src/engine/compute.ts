@@ -106,7 +106,10 @@ export function computePivot<Row>(
 
   const filters = Object.entries(config.filters ?? {}).flatMap(([name, filter]) => {
     if (!filter.include && !filter.exclude) return []
-    const column = src.dimension(name, filter.by)
+    // without its own grouping, a filter takes the one the field has on an axis
+    const by =
+      filter.by ?? [...resolved.rows, ...resolved.columns].find((l) => l.field.name === name)?.by
+    const column = src.dimension(name, by)
     const allow = new Uint8Array(column.labels.length).fill(filter.include ? 0 : 1)
     for (const value of filter.include ?? []) {
       const code = column.find(value)

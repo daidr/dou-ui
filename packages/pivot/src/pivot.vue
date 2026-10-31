@@ -506,6 +506,7 @@ const headCells = computed<HeadCell[]>(() => {
   return out
 })
 
+const rowFieldNames = computed(() => rowFields.value.map((f) => f.label).join(' / '))
 const rowFields = computed(() =>
   result.value.rows.levels.map((level, i) => ({
     index: i,
@@ -585,6 +586,23 @@ let justResized = false
 const MIN_COLUMN = 56
 const MAX_COLUMN = 640
 
+/** A column's width, or the row headers' for `-1`. */
+const widthOf = (col: number) =>
+  col < 0 ? rowHeadWidth.value : colStarts.value[col + 1]! - colStarts.value[col]!
+const minWidthOf = (col: number) => (col < 0 ? 80 * rowLevelCount.value : MIN_COLUMN)
+const maxWidthOf = (col: number) => (col < 0 ? 480 * rowLevelCount.value : MAX_COLUMN)
+
+function setWidth(col: number, width: number) {
+  const w = Math.round(Math.min(Math.max(width, minWidthOf(col)), maxWidthOf(col)))
+  if (col < 0) {
+    rowHeadDragged.value = w
+    return
+  }
+  const next = new Map(dragged.value)
+  next.set(colKey(colLines.value[col]!), w)
+  dragged.value = next
+}
+
 /** Dragging the edge of a column header (or of the corner, for the row headers). */
 function onResizeDown(event: PointerEvent) {
   const handle = (event.target as HTMLElement).closest<HTMLElement>('[data-resize]')
@@ -593,23 +611,14 @@ function onResizeDown(event: PointerEvent) {
   event.stopPropagation()
   const col = Number(handle.dataset.resize)
   const startX = event.clientX
-  const starts = colStarts.value
-  const from = col < 0 ? rowHeadWidth.value : starts[col + 1]! - starts[col]!
-  const key = col < 0 ? '' : colKey(colLines.value[col]!)
+  const from = widthOf(col)
   let moved = false
   handle.setPointerCapture?.(event.pointerId)
   const onMove = (e: PointerEvent) => {
     const dx = e.clientX - startX
     if (!moved && Math.abs(dx) < 2) return
     moved = true
-    if (col < 0) {
-      const min = 80 * rowLevelCount.value
-      rowHeadDragged.value = Math.round(Math.min(Math.max(from + dx, min), min * 6))
-      return
-    }
-    const next = new Map(dragged.value)
-    next.set(key, Math.round(Math.min(Math.max(from + dx, MIN_COLUMN), MAX_COLUMN)))
-    dragged.value = next
+    setWidth(col, from + dx)
   }
   const onUp = () => {
     window.removeEventListener('pointermove', onMove)
@@ -648,7 +657,10 @@ function onResizeFit(event: MouseEvent) {
   const handle = (event.target as HTMLElement).closest<HTMLElement>('[data-resize]')
   if (!handle) return
   event.stopPropagation()
-  const col = Number(handle.dataset.resize)
+  fitWidth(Number(handle.dataset.resize))
+}
+
+function fitWidth(col: number) {
   if (col < 0) {
     rowHeadDragged.value = 0
     return
@@ -674,6 +686,27 @@ function onResizeFit(event: MouseEvent) {
   )
   dragged.value = next
 }
+
+/** The keys on a focused edge: the arrows resize it (Shift for bigger steps), Enter fits it. */
+function onResizeKeydown(event: KeyboardEvent) {
+  const handle = (event.target as HTMLElement).closest<HTMLElement>('[data-resize]')
+  if (!handle || event.key === 'Tab') return
+  // the table's own keys stay off while an edge has the focus
+  event.stopPropagation()
+  const col = Number(handle.dataset.resize)
+  const step = event.shiftKey ? 32 : 8
+  if (event.key === 'ArrowLeft') setWidth(col, widthOf(col) - step)
+  else if (event.key === 'ArrowRight') setWidth(col, widthOf(col) + step)
+  else if (event.key === 'Enter') fitWidth(col)
+  else return
+  event.preventDefault()
+}
+
+/** One edge takes Tab: that of the active cell's column, or the row headers'. */
+const resizeStop = computed(() => {
+  const col = active.value?.col ?? -1
+  return col >= 0 && col < colLines.value.length ? col : -1
+})
 
 // ---- pointer and keys ----
 
@@ -970,10 +1003,17 @@ defineExpose<PivotExpose>({
               v-if="resizable"
               class="dou-pivot__resize"
               data-resize="-1"
+              role="separator"
+              aria-orientation="vertical"
+              :aria-label="format(messages.columnWidth, { column: rowFieldNames })"
+              :aria-valuenow="widthOf(-1)"
+              :aria-valuemin="minWidthOf(-1)"
+              :aria-valuemax="maxWidthOf(-1)"
+              :tabindex="resizeStop === -1 ? 0 : -1"
               :title="messages.resizeColumn"
-              aria-hidden="true"
               @pointerdown="onResizeDown"
               @dblclick="onResizeFit"
+              @keydown="onResizeKeydown"
             />
           </div>
           <div
@@ -1019,10 +1059,17 @@ defineExpose<PivotExpose>({
                 v-if="cell.resize >= 0"
                 class="dou-pivot__resize"
                 :data-resize="cell.resize"
+                role="separator"
+                aria-orientation="vertical"
+                :aria-label="format(messages.columnWidth, { column: cell.text })"
+                :aria-valuenow="widthOf(cell.resize)"
+                :aria-valuemin="MIN_COLUMN"
+                :aria-valuemax="MAX_COLUMN"
+                :tabindex="resizeStop === cell.resize ? 0 : -1"
                 :title="messages.resizeColumn"
-                aria-hidden="true"
                 @pointerdown="onResizeDown"
                 @dblclick="onResizeFit"
+                @keydown="onResizeKeydown"
               />
             </div>
           </div>

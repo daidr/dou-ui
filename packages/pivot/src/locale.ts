@@ -36,6 +36,8 @@ export interface PivotMessages {
   subtotalRow: string
   /** What dragging the edge of a column header does. */
   resizeColumn: string
+  /** The accessible name of a column's resize handle: `{column}`. */
+  columnWidth: string
   /** The field panel. */
   fields: {
     /** The panel's accessible name. */
@@ -52,11 +54,16 @@ export interface PivotMessages {
     sort: string
     asc: string
     desc: string
+    /** Sorting the row groups by a value's grand total: `{value}`. */
+    byValueDesc: string
+    byValueAsc: string
     groupBy: string
     noGroup: string
     periods: Record<'year' | 'quarter' | 'month' | 'week' | 'day', string>
     /** A grouping in ranges: `{step}`. */
     step: string
+    /** A chip whose field is grouped: `{field}` and `{group}` (as in the grouping menu). */
+    grouped: string
     subtotal: string
     aggregate: string
     filter: string
@@ -64,6 +71,9 @@ export interface PivotMessages {
     filtered: string
     /** The submenu that moves the field to another area. */
     moveTo: string
+    /** Move the field one place up or down in its area (the order of the rows makes the levels). */
+    moveUp: string
+    moveDown: string
     remove: string
     /** In the values area: puts several values down the rows. */
     valuesOnRows: string
@@ -113,6 +123,7 @@ const zhCN: PivotMessages = {
   rangeLabel: '{from} – {to}',
   subtotalRow: '{label} 小计',
   resizeColumn: '拖动调整列宽，双击适应内容',
+  columnWidth: '{column}的列宽',
   fields: {
     panel: '字段',
     list: '全部字段',
@@ -124,15 +135,20 @@ const zhCN: PivotMessages = {
     sort: '排序',
     asc: '升序',
     desc: '降序',
+    byValueDesc: '按{value}从高到低',
+    byValueAsc: '按{value}从低到高',
     groupBy: '分组',
     noGroup: '不分组',
     periods: { year: '按年', quarter: '按季度', month: '按月', week: '按周', day: '按日' },
     step: '每 {step} 一组',
+    grouped: '{field} · {group}',
     subtotal: '显示小计',
     aggregate: '汇总方式',
     filter: '筛选…',
     filtered: '已筛选',
     moveTo: '移到',
+    moveUp: '上移',
+    moveDown: '下移',
     remove: '移除',
     valuesOnRows: '值放在行上',
     open: '字段',
@@ -177,6 +193,7 @@ const zhTW: PivotMessages = {
   rangeLabel: '{from} – {to}',
   subtotalRow: '{label} 小計',
   resizeColumn: '拖曳調整欄寬，按兩下符合內容',
+  columnWidth: '{column}的欄寬',
   fields: {
     panel: '欄位',
     list: '所有欄位',
@@ -188,15 +205,20 @@ const zhTW: PivotMessages = {
     sort: '排序',
     asc: '遞增',
     desc: '遞減',
+    byValueDesc: '依{value}由高到低',
+    byValueAsc: '依{value}由低到高',
     groupBy: '分組',
     noGroup: '不分組',
     periods: { year: '依年', quarter: '依季', month: '依月', week: '依週', day: '依日' },
     step: '每 {step} 一組',
+    grouped: '{field} · {group}',
     subtotal: '顯示小計',
     aggregate: '摘要方式',
     filter: '篩選…',
     filtered: '已篩選',
     moveTo: '移到',
+    moveUp: '上移',
+    moveDown: '下移',
     remove: '移除',
     valuesOnRows: '值放在列上',
     open: '欄位',
@@ -241,6 +263,7 @@ const en: PivotMessages = {
   rangeLabel: '{from} – {to}',
   subtotalRow: '{label} subtotal',
   resizeColumn: 'Drag to resize, double-click to fit',
+  columnWidth: 'Width of {column}',
   fields: {
     panel: 'Fields',
     list: 'All fields',
@@ -252,6 +275,8 @@ const en: PivotMessages = {
     sort: 'Sort',
     asc: 'Ascending',
     desc: 'Descending',
+    byValueDesc: '{value}, high to low',
+    byValueAsc: '{value}, low to high',
     groupBy: 'Group',
     noGroup: 'No grouping',
     periods: {
@@ -262,11 +287,14 @@ const en: PivotMessages = {
       day: 'By day',
     },
     step: 'Every {step}',
+    grouped: '{field} · {group}',
     subtotal: 'Show subtotals',
     aggregate: 'Summarize by',
     filter: 'Filter…',
     filtered: 'Filtered',
     moveTo: 'Move to',
+    moveUp: 'Move up',
+    moveDown: 'Move down',
     remove: 'Remove',
     valuesOnRows: 'Values on rows',
     open: 'Fields',

@@ -297,6 +297,13 @@ describe('computePivot', () => {
       filters: { day: { include: [2026], by: 'year' } },
     })
     expect(filtered.get(0, 0)).toBe(70)
+    // without its own grouping, a filter reads groups as the axis has them
+    const onAxis = computePivot(salesSource, {
+      rows: [{ field: 'day', by: 'quarter' }],
+      values: ['amount'],
+      filters: { day: { include: ['2026-Q1'] } },
+    })
+    expect(onAxis.get(0, 0)).toBe(30)
 
     const ranges = computePivot(salesSource, {
       rows: [{ field: 'amount', by: { step: 25 } }],

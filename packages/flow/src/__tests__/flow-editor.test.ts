@@ -245,6 +245,39 @@ describe('DouFlowEditor', () => {
     wrapper.unmount()
   })
 
+  it('pans with one finger after a pinch whose finger lifted outside the editor', async () => {
+    const { wrapper, root } = setup()
+    const editor = wrapper.findComponent(DouFlowEditor)
+    const touch = (type: string, pointerId: number, x: number, y: number, isPrimary = false) =>
+      root.trigger(type, {
+        pointerType: 'touch',
+        pointerId,
+        isPrimary,
+        clientX: x,
+        clientY: y,
+        button: 0,
+      })
+    await touch('pointerdown', 1, 100, 100, true)
+    await touch('pointerdown', 2, 200, 100)
+    await touch('pointermove', 2, 300, 100)
+    // The second finger lifts outside the editor: its pointerup never arrives.
+    await touch('pointerup', 1, 100, 100, true)
+    const zoom = (editor.vm as any).viewport?.zoom ?? 1
+    const before = editor.emitted('update:viewport')?.at(-1)?.[0] as { zoom: number }
+    // A new one-finger drag pans and keeps the zoom.
+    await touch('pointerdown', 3, 100, 100, true)
+    await touch('pointermove', 3, 160, 140, true)
+    await touch('pointermove', 3, 220, 180, true)
+    const after = editor.emitted('update:viewport')?.at(-1)?.[0] as {
+      x: number
+      y: number
+      zoom: number
+    }
+    expect(after.zoom).toBe(before?.zoom ?? zoom)
+    expect(after.x - (before as any).x).toBe(120)
+    wrapper.unmount()
+  })
+
   it('merges message overrides by group', () => {
     let messages!: FlowMessages
     mount(

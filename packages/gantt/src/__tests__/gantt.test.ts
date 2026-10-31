@@ -519,6 +519,25 @@ describe('DouGantt', () => {
     expect(seen).toEqual(['task'])
     wrapper.unmount()
   })
+
+  it('takes menu items from a prop too, before the extensions’', async () => {
+    const extension = defineGanttExtension({
+      name: 'details',
+      contextMenu: () => [{ key: 'details', label: '详情', run: () => {} }],
+    })
+    const copy = vi.fn<() => void>()
+    const contextMenu = () => [{ key: 'copy', label: '复制', run: copy }]
+    const { wrapper } = setup({ extensions: [extension], contextMenu })
+    await nextTick()
+    await wrapper.find('.dou-gantt__bar[data-task="a"]').trigger('contextmenu')
+    await nextTick()
+    await nextTick()
+    const items = [...document.querySelectorAll('[role="menuitem"]')].map((el) =>
+      el.textContent?.trim(),
+    )
+    expect(items.slice(0, 2)).toEqual(['复制', '详情'])
+    wrapper.unmount()
+  })
 })
 
 describe('extension lifecycle', () => {

@@ -1,13 +1,14 @@
 import type { GanttCalendar } from '../core/calendar'
+import type { GanttMenuItem } from '../core/menu'
 import type { GanttTask } from '../core/model'
-import type { GanttTransaction, GanttTransactionMeta } from '../core/transaction'
+import type { GanttDocument, GanttTransaction, GanttTransactionMeta } from '../core/transaction'
 import type { GanttMessagesOverride } from '../locale'
 import type { GanttMarker } from '../types'
-import type { GanttResource } from './layout'
+import type { SchedulerResource } from './layout'
 
 export interface SchedulerProps {
   /** The rows, in order. Tasks go to the row named by their `resource`. */
-  resources: GanttResource[]
+  resources: SchedulerResource[]
   /** The working calendar: workdays, days off and working hours. */
   calendar?: GanttCalendar
   /** A fixed span for the time axis, `[start, end]` as dates. Without it the axis follows the tasks. */
@@ -27,13 +28,41 @@ export interface SchedulerProps {
   /** Show how busy each resource is, under its row. */
   load?: boolean
   readonly?: boolean
+  /**
+   * The last check before a task is moved, resized or given to another
+   * resource, by dragging or by keys. Return `true` to allow it; anything
+   * else refuses it, and a string is shown as the reason.
+   */
+  canMove?: (move: SchedulerMove, doc: GanttDocument) => boolean | string
+  /** The built-in context menu item: remove. Turn off to keep only `contextMenu`'s items. */
+  menu?: boolean
+  /** Your own context menu items, shown above the built-in ones; return none to add nothing. */
+  contextMenu?: (target: SchedulerMenuTarget) => GanttMenuItem[]
   ariaLabel?: string
   messages?: GanttMessagesOverride
 }
 
+/** A change of dates or resource about to be made. */
+export interface SchedulerMove {
+  task: GanttTask
+  start: string
+  end?: string
+  /** The resource it goes to; `undefined` for the unassigned row. */
+  resource?: string
+}
+
+/**
+ * What a context menu was opened on: a task, or an empty part of a row.
+ * `time` is the moment under the pointer, in minutes; from the keyboard it
+ * is the task's start.
+ */
+export type SchedulerMenuTarget =
+  | { kind: 'task'; task: GanttTask; resource: SchedulerResource | null; time: number }
+  | { kind: 'row'; resource: SchedulerResource | null; time: number }
+
 export interface SchedulerRange {
-  /** The resource's id; `null` for the row of tasks without one. */
-  resource: string | null
+  /** The resource's id; `undefined` for the row of tasks without one. */
+  resource?: string
   /** As a task would have them: dates for whole days, else date and time. */
   start: string
   end: string
@@ -44,6 +73,8 @@ export interface SchedulerEmits {
   transaction: [tr: GanttTransaction]
   taskClick: [task: GanttTask, event: MouseEvent]
   taskDblclick: [task: GanttTask, event: MouseEvent]
+  /** Sent before the menu opens; `event.preventDefault()` keeps it closed. */
+  taskContextmenu: [task: GanttTask, event: MouseEvent]
   /** A time range was drawn on an empty part of a row; add a task for it if you like. */
   rangeSelect: [range: SchedulerRange]
 }
@@ -52,7 +83,7 @@ export interface SchedulerSlots {
   /** A task's bar content. */
   bar?: (props: { task: GanttTask }) => unknown
   /** A resource in the list. */
-  resource?: (props: { resource: GanttResource }) => unknown
+  resource?: (props: { resource: SchedulerResource }) => unknown
   default?: () => unknown
 }
 

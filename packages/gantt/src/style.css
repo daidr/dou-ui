@@ -720,12 +720,25 @@
         transform: rotate(-45deg) translate(calc(-100% - 4px), -50%);
         transform-origin: 0 0;
       }
+      /* from the right corner */
+      &.is-moving > .dou-gantt__peer-name {
+        top: 0;
+        left: 100%;
+        transform: rotate(-45deg) translate(4px, -50%);
+      }
+    }
+
+    /* where the task is going: nothing is drawn to its right yet */
+    &.is-moving > .dou-gantt__peer-name {
+      right: auto;
+      left: calc(100% + 4px);
     }
   }
 
   /*
-   * Left of the box, in its own row: rows are too low to fit it above, and
-   * the right is where short bars and milestones put their titles.
+   * In the box's own row, as rows are too low to fit it above. A selected
+   * box sits on the bar, whose title may be just to its right: the name goes
+   * to the left.
    */
   .dou-gantt__peer-name {
     position: absolute;

@@ -960,4 +960,223 @@
     font-size: var(--dou-font-size-sm);
     white-space: nowrap;
   }
+
+  /* Toolbar ------------------------------------------------------------------------------ */
+
+  .dou-sheet-toolbar {
+    display: flex;
+    flex: none;
+    min-width: 0;
+    border-bottom: 1px solid var(--dou-color-border);
+    background-color: var(--dou-sheet-header-bg);
+
+    /* a finger gets bigger buttons */
+    @media (pointer: coarse) {
+      --dou-button-height: 36px;
+    }
+  }
+
+  /* one row that scrolls sideways when narrow, faded at the side with more */
+  .dou-sheet-toolbar__bar {
+    flex: 1;
+    flex-wrap: nowrap;
+    gap: 2px;
+    height: 40px;
+    padding: 0 6px;
+    box-sizing: border-box;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
+
+    @media (pointer: coarse) {
+      height: 46px;
+    }
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+    &.has-more-start {
+      mask-image: linear-gradient(to right, transparent, #000 24px);
+    }
+    &.has-more-end {
+      mask-image: linear-gradient(to left, transparent, #000 24px);
+    }
+    &.has-more-start.has-more-end {
+      mask-image: linear-gradient(
+        to right,
+        transparent,
+        #000 24px,
+        #000 calc(100% - 24px),
+        transparent
+      );
+    }
+
+    > *,
+    .dou-toggle-group {
+      flex: none;
+    }
+  }
+
+  .dou-sheet-toolbar__trigger {
+    display: inline-flex;
+    flex: none;
+  }
+
+  .dou-sheet-toolbar__tip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* the number format: as wide as its longest name, so the tools after it stay put */
+  .dou-sheet-toolbar__format {
+    min-width: 72px;
+    justify-content: space-between;
+  }
+  .dou-sheet-toolbar__format-label {
+    flex: 1;
+    text-align: start;
+  }
+  .dou-sheet-toolbar__check {
+    display: inline-flex;
+    width: 1em;
+    margin-inline-end: 6px;
+  }
+  .dou-sheet-toolbar__example {
+    margin-inline-start: 16px;
+    color: var(--dou-color-text-tertiary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .dou-sheet-toolbar__menu {
+    gap: 2px;
+    padding-inline: 4px;
+
+    &.is-on {
+      --dou-button-fg: var(--dou-color-text);
+      --dou-button-bg: color-mix(in oklab, var(--dou-color-text) 9%, transparent);
+    }
+  }
+
+  /* the color in use, on the bar under the letter and the drop by the bucket */
+  .dou-sheet-toolbar__color.is-color svg > :last-child {
+    stroke: var(--dou-sheet-swatch, currentColor);
+    stroke-width: 3;
+  }
+  .dou-sheet-toolbar__color.is-fill svg > :last-child {
+    fill: var(--dou-sheet-swatch, none);
+    stroke: var(--dou-sheet-swatch, currentColor);
+  }
+
+  .dou-sheet-toolbar__colors {
+    display: flex;
+    gap: 6px;
+  }
+
+  .dou-sheet-toolbar__swatch {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: 1px solid color-mix(in oklab, var(--dou-color-text) 14%, transparent);
+    border-radius: 6px;
+    background-color: var(--dou-sheet-swatch, var(--dou-color-bg-surface));
+    color: var(--dou-color-text-secondary);
+    cursor: pointer;
+
+    @media (pointer: coarse) {
+      width: 32px;
+      height: 32px;
+    }
+
+    &:hover {
+      border-color: color-mix(in oklab, var(--dou-color-text) 30%, transparent);
+    }
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-primary);
+      outline-offset: 2px;
+    }
+    &[aria-pressed='true'] {
+      box-shadow:
+        0 0 0 2px var(--dou-color-bg-elevated, var(--dou-color-bg-surface)),
+        0 0 0 3px var(--dou-color-text);
+    }
+
+    /* text colors as a letter in them; fills as the cell shows them */
+    &.is-color {
+      background-color: var(--dou-color-bg-surface);
+      color: var(--dou-sheet-swatch, var(--dou-color-text));
+      font-size: 14px;
+      font-weight: 600;
+    }
+    &.is-fill.is-default {
+      background-color: var(--dou-color-bg-surface);
+    }
+    &.is-custom:not([style*='--dou-sheet-swatch:']) {
+      color: var(--dou-color-text-secondary);
+    }
+    &.is-color.is-tone-neutral {
+      --dou-sheet-swatch: var(--dou-color-neutral-text);
+    }
+    &.is-color.is-tone-primary {
+      --dou-sheet-swatch: var(--dou-color-primary-text);
+    }
+    &.is-color.is-tone-success {
+      --dou-sheet-swatch: var(--dou-color-success-text);
+    }
+    &.is-color.is-tone-warning {
+      --dou-sheet-swatch: var(--dou-color-warning-text);
+    }
+    &.is-color.is-tone-danger {
+      --dou-sheet-swatch: var(--dou-color-danger-text);
+    }
+    &.is-fill.is-tone-neutral {
+      --dou-sheet-swatch: color-mix(
+        in oklab,
+        var(--dou-color-text) 6%,
+        var(--dou-color-bg-surface)
+      );
+    }
+    &.is-fill.is-tone-primary {
+      --dou-sheet-swatch: color-mix(
+        in oklab,
+        var(--dou-color-primary) 12%,
+        var(--dou-color-bg-surface)
+      );
+    }
+    &.is-fill.is-tone-success {
+      --dou-sheet-swatch: color-mix(
+        in oklab,
+        var(--dou-color-success) 12%,
+        var(--dou-color-bg-surface)
+      );
+    }
+    &.is-fill.is-tone-warning {
+      --dou-sheet-swatch: color-mix(
+        in oklab,
+        var(--dou-color-warning) 14%,
+        var(--dou-color-bg-surface)
+      );
+    }
+    &.is-fill.is-tone-danger {
+      --dou-sheet-swatch: color-mix(
+        in oklab,
+        var(--dou-color-danger) 12%,
+        var(--dou-color-bg-surface)
+      );
+    }
+
+    svg {
+      width: 14px;
+      height: 14px;
+    }
+  }
+
+  .dou-sheet-toolbar__panel {
+    margin-top: 12px;
+  }
 }

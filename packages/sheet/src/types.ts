@@ -95,6 +95,53 @@ export interface SheetSlots {
   footer?: () => unknown
 }
 
+/**
+ * A tool of `DouSheetToolbar`: `|` is a line between groups; `color` and
+ * `fill` are the text and fill colors, `align` left / center / right and
+ * `valign` top / middle / bottom; `format` is the number format menu and
+ * `decimals` the two buttons beside it.
+ */
+export type SheetToolbarTool =
+  | 'undo'
+  | 'redo'
+  | 'format'
+  | 'decimals'
+  | 'bold'
+  | 'italic'
+  | 'underline'
+  | 'strike'
+  | 'color'
+  | 'fill'
+  | 'align'
+  | 'valign'
+  | 'wrap'
+  | 'merge'
+  | 'freeze'
+  | 'clear'
+  | '|'
+
+/** A number format offered in the toolbar's menu. */
+export interface SheetFormatOption {
+  label: string
+  /** The format; `undefined` for none. */
+  format: string | undefined
+  /** A value shown beside it in that format. */
+  example?: string | number
+}
+
+export interface SheetToolbarProps {
+  /** The tools, in order; all of them by default. */
+  tools?: SheetToolbarTool[]
+  /** The number formats in the menu, instead of the usual ones. */
+  formats?: SheetFormatOption[]
+}
+
+export interface SheetToolbarSlots {
+  /** More controls before the tools, and after them. They can use `useSheet()`. */
+  start?: () => unknown
+  end?: () => unknown
+}
+
 export interface SheetEmits {
   'update:modelValue': [value: SheetWorkbook]
   'update:selection': [value: SheetSelection]

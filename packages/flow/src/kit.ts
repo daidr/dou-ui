@@ -170,21 +170,30 @@ const groups = defineFlowExtension({
   nodeTypes: [groupNode],
   keymap: (ctx) => ({
     'mod+g': () => ctx.groupNodes() !== null,
+    // A group goes away; a node inside one comes out of it.
     'mod+shift+g': () => {
       const ids = ctx.selection.value.nodes
-      const done = ids.filter((id) => ctx.ungroup(id))
-      return done.length > 0
+      const containers = ids.filter((id) => {
+        const node = ctx.doc.value.nodes.find((n) => n.id === id)
+        return node && ctx.isContainer(node)
+      })
+      if (containers.length) return containers.filter((id) => ctx.ungroupNode(id)).length > 0
+      return ctx.leaveGroup(ids) > 0
     },
   }),
   contextMenu(ctx, target) {
     if (target.kind !== 'node' || ctx.readonly.value) return []
     const t = ctx.messages.value
+    const tree = ctx.tree.value
+    const parents = new Set(tree.topmost(ctx.selection.value.nodes).map((id) => tree.parentOf(id)))
     const items: FlowMenuItem[] = [
       {
         key: 'group',
         label: t.makeGroup,
         icon: GroupIcon,
         shortcut: 'mod+g',
+        // Nodes from different groups can't share a new frame.
+        disabled: parents.size > 1,
         run: () => void ctx.groupNodes(),
       },
     ]
@@ -194,7 +203,15 @@ const groups = defineFlowExtension({
         label: t.ungroup,
         icon: UngroupIcon,
         shortcut: 'mod+shift+g',
-        run: () => void ctx.ungroup(target.node.id),
+        run: () => void ctx.ungroupNode(target.node.id),
+      })
+    else if (tree.parentOf(target.node.id))
+      items.push({
+        key: 'leave-group',
+        label: t.leaveGroup,
+        icon: UngroupIcon,
+        shortcut: 'mod+shift+g',
+        run: () => void ctx.leaveGroup(),
       })
     return items
   },

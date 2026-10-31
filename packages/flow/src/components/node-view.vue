@@ -12,7 +12,7 @@ import {
 import type { CSSProperties } from 'vue'
 import { flowNodeKey, type NodeMetrics, type PortAnchor, type PortState } from '../context'
 import type { FlowNode, FlowPortSpec, PortSide } from '../core/model'
-import { labelOf, portSide, portsOf, type NodeTypeSpec } from '../core/node-types'
+import { portSide, portsOf, type NodeTypeSpec } from '../core/node-types'
 import DefaultNode from './default-node.vue'
 import FlowPortView from './flow-port.vue'
 
@@ -25,6 +25,8 @@ const props = defineProps<{
   connected: Set<string>
   portStates: Map<string, PortState> | null
   roleDescription: string
+  /** The node's accessible name. */
+  label: string
   /** Read out after the name, e.g. the port counts. */
   description: string
   /** Where the nodes being dragged will be put. */
@@ -170,7 +172,7 @@ const viewProps = computed(() => ({
     :data-node-id="node.id"
     role="group"
     :aria-roledescription="roleDescription"
-    :aria-label="labelOf(spec, node)"
+    :aria-label="label"
     :aria-description="description || undefined"
     tabindex="-1"
   >

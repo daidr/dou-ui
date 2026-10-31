@@ -170,7 +170,12 @@ export interface FlowEditorExpose {
    */
   groupNodes: (ids?: string[], type?: string) => string | null
   /** Removes a container and keeps the nodes inside, as one undo step. */
-  ungroup: (id: string) => boolean
+  ungroupNode: (id: string) => boolean
+  /**
+   * Takes nodes, the selected ones by default, out of their groups and puts
+   * them just below, as one undo step; returns how many moved.
+   */
+  leaveGroup: (ids?: string[]) => number
 }
 
 export interface FlowEditorSlots {
@@ -251,7 +256,8 @@ export interface FlowEditorContext {
   startInsertDrag: FlowEditorExpose['startInsertDrag']
   editLabel: FlowEditorExpose['editLabel']
   groupNodes: FlowEditorExpose['groupNodes']
-  ungroup: FlowEditorExpose['ungroup']
+  ungroupNode: FlowEditorExpose['ungroupNode']
+  leaveGroup: FlowEditorExpose['leaveGroup']
   /** Which node is inside which, from the nodes' `parent`. */
   tree: ComputedRef<FlowTree>
   /** Whether the node's type can hold other nodes. */

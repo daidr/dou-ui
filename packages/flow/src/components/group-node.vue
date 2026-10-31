@@ -2,11 +2,12 @@
 import { ChevronDownIcon } from '@dou-ui/icons'
 import { nextTick, ref, useTemplateRef } from 'vue'
 import { useFlowEditor } from '../context'
+import { format } from '../locale'
 import type { NodeViewProps } from '../core/node-types'
 import type { GroupNodeData } from './group-node'
 
 const props = defineProps<NodeViewProps<GroupNodeData>>()
-const { messages } = useFlowEditor()
+const { messages, announce } = useFlowEditor()
 
 const editing = ref(false)
 const draft = ref('')
@@ -29,6 +30,13 @@ function finish(save: boolean) {
     props.updateData({ label: draft.value.trim() })
 }
 
+function toggle() {
+  const collapsed = !props.data.collapsed
+  props.updateData({ collapsed: collapsed || undefined })
+  const t = messages.value
+  announce(format(collapsed ? t.collapsed : t.expanded, { group: props.data.label || t.group }))
+}
+
 function onKeydown(event: KeyboardEvent) {
   if (event.isComposing) return
   if (event.key === 'Enter') finish(true)
@@ -48,7 +56,7 @@ function onKeydown(event: KeyboardEvent) {
         :aria-label="data.collapsed ? messages.expand : messages.collapse"
         :aria-expanded="!data.collapsed"
         :disabled="readonly"
-        @click="updateData({ collapsed: !data.collapsed || undefined })"
+        @click="toggle"
       >
         <ChevronDownIcon />
       </button>

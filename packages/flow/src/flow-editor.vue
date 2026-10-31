@@ -538,7 +538,7 @@ function cycleEdges(step: 1 | -1) {
 
 function nodeName(id: string) {
   const node = nodeById.value.get(id)
-  return node ? labelOf(specOf(node), node) : id
+  return node ? nameOf(node) : id
 }
 
 function describeEdge(edge: FlowEdge) {
@@ -620,14 +620,32 @@ const degree = computed(() => {
   return map
 })
 
+/** A node's name; a container without one goes by the word for a group. */
+function nameOf(node: FlowNode) {
+  return labelOf(specOf(node), node) || (isContainer(node) ? messages.value.group : '')
+}
+
+const roleOf = (node: FlowNode) => (isContainer(node) ? messages.value.group : messages.value.node)
+
+/** Read out after a node's name: the group it is in, what it holds, its ports. */
 function describe(node: FlowNode) {
+  const t = messages.value
+  const parts: string[] = []
+  const parent = tree.value.parentOf(node.id)
+  const group = parent && nodeById.value.get(parent)
+  if (group) parts.push(format(t.inGroup, { group: nameOf(group) }))
+  if (isContainer(node))
+    parts.push(format(t.groupSize, { count: tree.value.children.get(node.id)?.length ?? 0 }))
   const ports = portsOf(specOf(node), node)
-  if (!ports.length) return ''
-  return format(messages.value.ports, {
-    inputs: ports.filter((p) => p.kind === 'input').length,
-    outputs: ports.filter((p) => p.kind === 'output').length,
-    connected: degree.value.get(node.id) ?? 0,
-  })
+  if (ports.length)
+    parts.push(
+      format(t.ports, {
+        inputs: ports.filter((p) => p.kind === 'input').length,
+        outputs: ports.filter((p) => p.kind === 'output').length,
+        connected: degree.value.get(node.id) ?? 0,
+      }),
+    )
+  return parts.join(t.separator)
 }
 
 // Viewport -------------------------------------------------------------------------
@@ -1478,13 +1496,23 @@ function settleDrop(g: Extract<Gesture, { kind: 'drag' }>) {
   dropTarget.value = null
   const moved = tree.value.topmost(g.origins.keys())
   if (!moved.some((id) => tree.value.parentOf(id) !== target)) return
+  reparent(moved, target, g.group)
+}
+
+/** Puts nodes into a container, or out on the canvas, and says so. */
+function reparent(ids: readonly string[], target: string | undefined, group: string) {
+  const changing = ids.filter((id) => tree.value.parentOf(id) !== target)
+  if (!changing.length) return
+  const left = target ? undefined : tree.value.parentOf(changing[0]!)
   transact(
     (tr) => {
-      for (const id of moved)
-        if (tree.value.parentOf(id) !== target) tr.updateNode(id, { parent: target })
+      for (const id of changing) tr.updateNode(id, { parent: target })
     },
-    { group: g.group },
+    { group },
   )
+  const t = messages.value
+  if (target) announce(format(t.joinedGroup, { group: nodeName(target) }))
+  else if (left) announce(format(t.leftGroup, { group: nodeName(left) }))
 }
 
 let autoPanFrame = 0
@@ -2464,15 +2492,20 @@ function groupNodes(ids: string[] = selection.value.nodes, type = 'group') {
   const top = tree.value.topmost(ids.filter((id) => !hiddenIn.value.has(id)))
   const bounds = boundsOf(top.flatMap((id) => getNodeRect(id) ?? []))
   if (!bounds) return null
-  // Inside the container they shared, if any.
+  // A frame around nodes from different groups would cut across them.
   const parents = new Set(top.map((id) => tree.value.parentOf(id)))
+  if (parents.size > 1) {
+    announce(messages.value.groupMixed)
+    return null
+  }
   const group: FlowNode = {
     ...draft(spec),
     x: snapTo(bounds.x - GROUP_PAD.side),
     y: snapTo(bounds.y - GROUP_PAD.top),
     width: snapTo(bounds.width + GROUP_PAD.side * 2),
     height: snapTo(bounds.height + GROUP_PAD.top + GROUP_PAD.side),
-    parent: parents.size === 1 ? [...parents][0] : undefined,
+    // Inside the container they shared, if any.
+    parent: [...parents][0],
   }
   transact((tr) => {
     // Before the nodes, so it is under them in the document's order too.
@@ -2482,21 +2515,57 @@ function groupNodes(ids: string[] = selection.value.nodes, type = 'group') {
     for (const id of top) tr.updateNode(id, { parent: group.id })
   })
   setSelection({ nodes: [group.id], edges: [] })
-  announce(format(messages.value.added, { node: labelOf(spec, group) || messages.value.group }))
+  announce(format(messages.value.added, { node: nameOf(group) }))
   return group.id
 }
 
 /** Removes a container and keeps what was inside it, as one undo step. */
-function ungroup(id: string) {
+function ungroupNode(id: string) {
   const node = nodeById.value.get(id)
   if (props.readonly || !node || !isContainer(node)) return false
   const children = tree.value.children.get(id) ?? []
+  const name = nameOf(node)
   transact((tr) => {
     for (const child of children) tr.updateNode(child, { parent: node.parent })
     tr.removeNode(id)
   })
   setSelection({ nodes: [...children], edges: [] })
+  announce(format(messages.value.ungrouped, { group: name }))
   return true
+}
+
+/**
+ * Takes nodes, the selected ones by default, out of the containers they
+ * are in and puts them just below, as one undo step; returns how many moved.
+ */
+function leaveGroup(ids: string[] = selection.value.nodes) {
+  if (props.readonly) return 0
+  const byParent = new Map<string, string[]>()
+  for (const id of tree.value.topmost(ids)) {
+    const parent = tree.value.parentOf(id)
+    if (parent && !nodeById.value.get(id)?.locked)
+      byParent.set(parent, [...(byParent.get(parent) ?? []), id])
+  }
+  if (!byParent.size) return 0
+  let count = 0
+  transact((tr) => {
+    for (const [parent, list] of byParent) {
+      const frame = getNodeRect(parent)!
+      const top = Math.min(...list.map((id) => nodeById.value.get(id)!.y))
+      const dy = snapTo(frame.y + frame.height + GROUP_PAD.side - top)
+      for (const id of list) {
+        tr.updateNode(id, { parent: nodeById.value.get(parent)!.parent })
+        for (const inner of [id, ...tree.value.descendants(id)]) {
+          const node = tr.getNode(inner)!
+          tr.moveNode(inner, node.x, node.y + dy)
+        }
+        count++
+      }
+    }
+  })
+  if (byParent.size === 1)
+    announce(format(messages.value.leftGroup, { group: nodeName([...byParent.keys()][0]!) }))
+  return count
 }
 
 function deleteSelection() {
@@ -2537,7 +2606,41 @@ function nudge(dx: number, dy: number) {
     },
     { group: 'nudge' },
   )
+  // As with a drag: nodes go into the container their middle is over, or out of theirs.
+  const others = containerRects(moving)
+  const settle = new Map<string | undefined, string[]>()
+  for (const id of tree.value.topmost(moving)) {
+    const rect = getNodeRect(id)
+    if (!rect) continue
+    const target = containerAt({ x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }, others)
+    settle.set(target, [...(settle.get(target) ?? []), id])
+  }
+  for (const [target, list] of settle) reparent(list, target, 'nudge')
   if (ids.length === 1) reveal(ids[0]!)
+}
+
+/** Resizes the selected resizable nodes from the keyboard. */
+function resizeBy(dw: number, dh: number) {
+  const nodes = selection.value.nodes.flatMap((id) => {
+    const node = nodeById.value.get(id)
+    return node && specOf(node).resizable && !node.locked ? [node] : []
+  })
+  if (!nodes.length) return false
+  transact(
+    (tr) => {
+      for (const node of nodes) {
+        const resizable = specOf(node).resizable
+        const min = typeof resizable === 'object' ? resizable : {}
+        const rect = rectOf(node)
+        tr.updateNode(node.id, {
+          width: Math.max(min.minWidth ?? 40, rect.width + dw),
+          height: Math.max(min.minHeight ?? 40, rect.height + dh),
+        })
+      }
+    },
+    { group: 'resize-keys' },
+  )
+  return true
 }
 
 function onKeydown(event: KeyboardEvent) {
@@ -2576,7 +2679,8 @@ function onKeydown(event: KeyboardEvent) {
     if (handled) event.preventDefault()
     return
   }
-  if (event.altKey) return
+  // Alt only goes with the arrow keys, for resizing.
+  if (event.altKey && !key.startsWith('Arrow')) return
 
   switch (key) {
     case 'Tab': {
@@ -2623,7 +2727,10 @@ function onKeydown(event: KeyboardEvent) {
       const horizontal = key === 'ArrowLeft' || key === 'ArrowRight'
       if (selection.value.nodes.length && !props.readonly) {
         const step = (props.grid || 1) * (event.shiftKey ? 4 : 1)
-        nudge(horizontal ? sign * step : 0, horizontal ? 0 : sign * step)
+        // Alt: wider or narrower, taller or shorter, for nodes that can be resized.
+        if (event.altKey) {
+          if (!resizeBy(horizontal ? sign * step : 0, horizontal ? 0 : sign * step)) return
+        } else nudge(horizontal ? sign * step : 0, horizontal ? 0 : sign * step)
       } else {
         const step = event.shiftKey ? 160 : 40
         const { x, y, zoom } = viewport.value
@@ -2837,7 +2944,8 @@ const context: FlowEditorContext = {
   startInsertDrag,
   editLabel,
   groupNodes,
-  ungroup,
+  ungroupNode,
+  leaveGroup,
   tree,
   isContainer,
   openMenu,
@@ -2885,7 +2993,8 @@ defineExpose<FlowEditorExpose>({
   startInsertDrag,
   editLabel,
   groupNodes,
-  ungroup,
+  ungroupNode,
+  leaveGroup,
   get paletteTypes() {
     return paletteTypes.value
   },
@@ -2932,8 +3041,8 @@ defineExpose<FlowEditorExpose>({
           }"
           :data-node-id="node.id"
           role="group"
-          :aria-roledescription="messages.node"
-          :aria-label="labelOf(specOf(node), node)"
+          :aria-roledescription="roleOf(node)"
+          :aria-label="nameOf(node)"
           tabindex="-1"
         >
           <slot name="simple" :node="node">
@@ -2951,7 +3060,8 @@ defineExpose<FlowEditorExpose>({
           :dragging="!!dragging?.has(node.id)"
           :connected="connected.get(node.id) ?? none"
           :port-states="portStates ? (portStates.get(node.id) ?? noStates) : null"
-          :role-description="messages.node"
+          :role-description="roleOf(node)"
+          :label="nameOf(node)"
           :description="describe(node)"
           :drop-target="dropTarget === node.id"
           @measure="onMeasure"
@@ -3018,8 +3128,8 @@ defineExpose<FlowEditorExpose>({
           }"
           :data-node-id="node.id"
           role="group"
-          :aria-roledescription="messages.node"
-          :aria-label="labelOf(specOf(node), node)"
+          :aria-roledescription="roleOf(node)"
+          :aria-label="nameOf(node)"
           tabindex="-1"
         >
           <slot name="simple" :node="node">
@@ -3037,7 +3147,8 @@ defineExpose<FlowEditorExpose>({
           :dragging="!!dragging?.has(node.id)"
           :connected="connected.get(node.id) ?? none"
           :port-states="portStates ? (portStates.get(node.id) ?? noStates) : null"
-          :role-description="messages.node"
+          :role-description="roleOf(node)"
+          :label="nameOf(node)"
           :description="describe(node)"
           :drop-target="dropTarget === node.id"
           @measure="onMeasure"

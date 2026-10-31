@@ -220,7 +220,7 @@ describe('groups in the editor', () => {
 
   it('groups the selection around it, and ungroups, each as one undo step', async () => {
     const { doc, editor, selection } = await setup()
-    editor.ungroup('g')
+    editor.ungroupNode('g')
     await ticks()
     expect(doc.value.nodes.map((n) => n.id)).toEqual(['a', 'b', 'c'])
     expect(doc.value.nodes.every((n) => !n.parent)).toBe(true)
@@ -290,5 +290,61 @@ describe('groups in the editor', () => {
     expect(find(doc.value, 'a').x - g.x).toBe(24)
     expect(find(doc.value, 'b').x - g.x).toBe(288)
     expect(find(doc.value, 'c').x).toBeGreaterThanOrEqual(g.x + g.width!)
+  })
+
+  it('refuses to group nodes from different groups, and says why', async () => {
+    const { root, doc, editor } = await setup()
+    expect(editor.groupNodes(['a', 'c'])).toBeNull()
+    expect(doc.value.nodes).toHaveLength(4)
+    await ticks()
+    expect(root.find('.dou-flow-editor__live').text()).toContain('不在同一个分组里')
+  })
+
+  it('takes a node out of its group from the keyboard, below the group', async () => {
+    const { root, doc, editor, selection } = await setup()
+    selection.value = { nodes: ['a'], edges: [] }
+    await ticks()
+    await root.trigger('keydown', { key: 'g', ctrlKey: true, shiftKey: true })
+    await ticks()
+    expect(find(doc.value, 'a').parent).toBeUndefined()
+    expect(find(doc.value, 'a').y).toBeGreaterThanOrEqual(200)
+    expect(find(doc.value, 'g')).toBeDefined()
+    expect(root.find('.dou-flow-editor__live').text()).toContain('已移出“整理”')
+    editor.undo()
+    expect(find(doc.value, 'a')).toMatchObject({ y: 56, parent: 'g' })
+  })
+
+  it('moves a node in and out of a group with the arrow keys', async () => {
+    const { root, doc, selection } = await setup()
+    selection.value = { nodes: ['c'], edges: [] }
+    await ticks()
+    // c is 280px right of the group; its middle crosses in after a few steps.
+    for (let i = 0; i < 20; i++) await root.trigger('keydown', { key: 'ArrowLeft', shiftKey: true })
+    expect(find(doc.value, 'c').parent).toBe('g')
+    for (let i = 0; i < 20; i++)
+      await root.trigger('keydown', { key: 'ArrowRight', shiftKey: true })
+    expect(find(doc.value, 'c').parent).toBeUndefined()
+  })
+
+  it('resizes a group with Alt and the arrow keys', async () => {
+    const { root, doc, selection } = await setup()
+    selection.value = { nodes: ['g'], edges: [] }
+    await ticks()
+    await root.trigger('keydown', { key: 'ArrowRight', altKey: true })
+    await root.trigger('keydown', { key: 'ArrowDown', altKey: true, shiftKey: true })
+    expect(find(doc.value, 'g')).toMatchObject({ x: 0, y: 0, width: 528, height: 232 })
+  })
+
+  it('tells screen readers what is a group and where a node is', async () => {
+    const { root, doc, editor } = await setup()
+    const group = root.find('[data-node-id="g"]')
+    expect(group.attributes('aria-roledescription')).toBe('分组')
+    expect(group.attributes('aria-description')).toContain('有 2 个节点')
+    expect(root.find('[data-node-id="a"]').attributes('aria-description')).toContain('在“整理”里')
+    // A new group has no title yet but still a name.
+    const id = editor.groupNodes(['c'])!
+    await ticks()
+    expect(find(doc.value, id).data?.label).toBe('')
+    expect(root.find(`[data-node-id="${id}"]`).attributes('aria-label')).toBe('分组')
   })
 })

@@ -19,6 +19,8 @@ export interface FrameContext {
   messages: () => DashboardMessages
   /** Whether a frame mounting now is drawn in full at once. */
   eager: (id: string) => boolean
+  /** Whether every widget is drawn in full now, to export or print the dashboard. */
+  all: () => boolean
   setProps: (id: string, patch: Record<string, unknown>, options?: { group?: string }) => void
   action: (id: string, action: WidgetAction) => void
   rename: (id: string, title: string) => void

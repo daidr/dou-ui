@@ -10,6 +10,7 @@ import type {
 import type { GridCompact } from '../layout/types'
 import type { DashboardMessagesOverride } from '../locale'
 import type { DashboardWidgetType } from '../widget/define'
+import type { DashboardImageOptions } from './export'
 
 export interface DashboardProps {
   /** The dashboard, bound with `v-model`; a new document object after every change. */
@@ -106,6 +107,13 @@ export interface DashboardExpose {
   clearFilters: () => void
   /** Loads the sources shown again: one by name, or all of them. */
   refresh: (source?: string) => void
+  /**
+   * The dashboard as a PNG image, every widget drawn (also those far from
+   * the view) once their data is in, without menus and buttons.
+   */
+  exportPNG: (options?: DashboardImageOptions) => Promise<Blob>
+  /** Draws every widget, waits for their data, and opens the print dialog. */
+  print: () => Promise<void>
 }
 
 export interface DashboardPaletteProps {

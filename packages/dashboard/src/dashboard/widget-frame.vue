@@ -2,7 +2,7 @@
 import { MaximizeIcon, MoreHorizontalIcon } from '@dou-ui/icons'
 import { DouButton, DouDropdown, DouDropdownItem, DouEditable, DouTag, DouTooltip } from 'dou-ui'
 import type { DropdownValue } from 'dou-ui'
-import { computed, inject, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, inject, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import GridLayoutHandle from '../grid/grid-handle.vue'
 import { format } from '../locale'
 import { frameContextKey } from './frame-context'
@@ -42,6 +42,16 @@ onMounted(() => {
   })
 })
 onBeforeUnmount(() => stop?.())
+// drawn in full to export or print the dashboard, and kept that way
+watch(
+  () => frame.all(),
+  (all) => {
+    if (!all || active.value) return
+    active.value = true
+    stop?.()
+  },
+  { immediate: true },
+)
 const canFullscreen = computed(() => type.value?.fullscreen !== false)
 
 const emitAction = (action: WidgetAction) => frame.action(props.id, action)

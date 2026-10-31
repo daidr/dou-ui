@@ -59,6 +59,8 @@ export interface DashboardWidgetContext<P extends object = Record<string, unknow
   ownFilters: ComputedRef<DashboardFilters>
   /** Loads the widget's source again. */
   refresh: () => void
+  /** The names of the dashboard's sources, e.g. to pick one in a settings form. */
+  sources: ComputedRef<string[]>
 }
 
 export const widgetContextKey: InjectionKey<DashboardWidgetContext<any, any>> =
@@ -160,6 +162,7 @@ export function provideWidgetContext(source: ContextSource): DashboardWidgetCont
     setFilter: (name, value, options) => data?.setFilter(id.value, name, value, options),
     ownFilters,
     refresh,
+    sources: computed(() => data?.sourceNames() ?? []),
   }
   provide(widgetContextKey, context)
   return context

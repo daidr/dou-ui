@@ -32,6 +32,18 @@ export default defineConfig({
         find: /^@dou-ui\/dashboard\/layout$/,
         replacement: r('./packages/dashboard/src/layout/index.ts'),
       },
+      {
+        find: /^@dou-ui\/dashboard\/widgets$/,
+        replacement: r('./packages/dashboard/src/widgets/index.ts'),
+      },
+      {
+        find: /^@dou-ui\/dashboard\/chart$/,
+        replacement: r('./packages/dashboard/src/chart/index.ts'),
+      },
+      {
+        find: /^@dou-ui\/dashboard\/pivot$/,
+        replacement: r('./packages/dashboard/src/pivot/index.ts'),
+      },
       { find: /^@dou-ui\/dashboard$/, replacement: r('./packages/dashboard/src/index.ts') },
       { find: /^@dou-ui\/sheet$/, replacement: r('./packages/sheet/src/index.ts') },
       {

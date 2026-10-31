@@ -32,6 +32,10 @@ const regions: Record<string, [code: string, name: string][]> = {
   ],
 }
 export const regionNames = Object.keys(regions)
+/** 城市代码对应的名字 */
+export const cityNames: Record<string, string> = Object.fromEntries(
+  Object.values(regions).flatMap((cities) => cities),
+)
 
 const days = Array.from({ length: 30 }, (_, i) => {
   const date = new Date(2026, 9, 2 + i)
@@ -98,6 +102,8 @@ function groupBy(list: Row[], key: 'region' | 'city') {
   return [...totals.values()].sort((a, b) => b.value - a.value)
 }
 
+const sumOf = (part: number[]) => part.reduce((total, value) => total + value, 0)
+
 export const sources: DashboardSources = {
   summary: ({ filters, signal }) =>
     request(filters, signal, (list) => ({
@@ -110,6 +116,33 @@ export const sources: DashboardSources = {
       for (const row of list) totals.set(row.date, (totals.get(row.date) ?? 0) + row.amount)
       return [...totals.values()]
     }),
+  // 合计、每日走势和后半月比前半月的变化
+  overview: ({ filters, signal }) =>
+    request(filters, signal, (list) => {
+      const daily = new Map<string, number>()
+      for (const row of list) daily.set(row.date, (daily.get(row.date) ?? 0) + row.amount)
+      const trend = [...daily.values()]
+      const half = Math.floor(trend.length / 2)
+      const before = sumOf(trend.slice(0, half))
+      return {
+        amount: sumOf(trend),
+        orders: list.reduce((total, row) => total + row.orders, 0),
+        trend,
+        delta: before ? sumOf(trend.slice(half)) / before - 1 : 0,
+      }
+    }),
+  // 每个城市每天一行的明细
+  orders: ({ filters, signal }) =>
+    request(filters, signal, (list) =>
+      list.map((row) => ({
+        date: row.date,
+        region: row.region,
+        city: row.city,
+        cityName: row.cityName,
+        amount: row.amount,
+        orders: row.orders,
+      })),
+    ),
   region: ({ filters, signal }) => request(filters, signal, (list) => groupBy(list, 'region')),
   city: ({ filters, signal }) =>
     request(filters, signal, (list) => groupBy(list, 'city').slice(0, 5)),

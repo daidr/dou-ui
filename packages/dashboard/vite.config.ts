@@ -11,6 +11,9 @@ export default defineConfig({
       entry: {
         index: 'src/index.ts',
         'layout/index': 'src/layout/index.ts',
+        'widgets/index': 'src/widgets/index.ts',
+        'chart/index': 'src/chart/index.ts',
+        'pivot/index': 'src/pivot/index.ts',
       },
       formats: ['es'],
     },

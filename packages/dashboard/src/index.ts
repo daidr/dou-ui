@@ -33,6 +33,7 @@ export { defineDashboardWidget } from './widget/define'
 export type { DashboardWidgetSize, DashboardWidgetType } from './widget/define'
 export { useDashboardWidget } from './widget/context'
 export { isEmptyFilter } from './data/filters'
+export type { DashboardImageOptions } from './dashboard/export'
 export type {
   DashboardDateRangeFilterField,
   DashboardFilterField,

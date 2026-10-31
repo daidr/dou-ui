@@ -371,6 +371,37 @@
     gap: 8px;
   }
 
+  .dou-dashboard__field-hint {
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+  }
+
+  /* two short fields side by side */
+  .dou-dashboard__field-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+
+    & > .dou-dashboard__field {
+      flex: 1 1 120px;
+      min-width: 0;
+    }
+  }
+
+  /* the column list in a table widget's settings */
+  .dou-dashboard__columns {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .dou-dashboard__column {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+  }
+
   .dou-dashboard__field-label {
     color: var(--dou-color-text);
     font-size: var(--dou-font-size-sm);
@@ -501,6 +532,77 @@
     .dou-dashboard-filter__control.is-range {
       flex: 1 1 auto;
       width: auto;
+    }
+  }
+
+  /* built-in widgets */
+  .dou-dashboard-stat {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 8px;
+    height: 100%;
+  }
+
+  .dou-dashboard-stat__spark {
+    flex: none;
+    margin: 0 -16px -16px;
+  }
+
+  .dou-dashboard-text {
+    height: 100%;
+    overflow: auto;
+    color: var(--dou-color-text);
+    line-height: 1.6;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+
+    &.is-sm {
+      color: var(--dou-color-text-secondary);
+      font-size: var(--dou-font-size-sm);
+    }
+
+    &.is-md {
+      font-size: var(--dou-font-size-md);
+    }
+
+    &.is-lg {
+      font-size: var(--dou-font-size-lg);
+      font-weight: var(--dou-font-weight-medium);
+      line-height: 1.4;
+    }
+  }
+
+  /* exported as an image or printed: no controls, no focus rings */
+  .dou-dashboard.is-exporting {
+    & .dou-dashboard__actions,
+    & .dou-dashboard__links .dou-tag__close,
+    & .dou-grid-layout__resize,
+    & .dou-dashboard__live {
+      display: none;
+    }
+
+    & .dou-grid-layout__item {
+      outline: none;
+    }
+  }
+
+  @media print {
+    .dou-dashboard {
+      print-color-adjust: exact;
+    }
+
+    .dou-dashboard__actions,
+    .dou-dashboard__links .dou-tag__close,
+    .dou-grid-layout__resize,
+    .dou-dashboard-filter__clear,
+    .dou-dashboard-filter__extra {
+      display: none;
+    }
+
+    .dou-grid-layout__item {
+      outline: none;
+      break-inside: avoid;
     }
   }
 }

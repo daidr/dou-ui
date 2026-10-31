@@ -62,6 +62,40 @@ export interface DashboardMessages {
   linkedFilter: string
   /** Clears every filter. */
   clearFilters: string
+  /** Settings of the built-in widgets. */
+  source: string
+  noSource: string
+  field: string
+  value: string
+  prefix: string
+  unit: string
+  precision: string
+  trend: string
+  delta: string
+  /** The change under a number: `{value}`, e.g. `+12.5%`. */
+  deltaText: string
+  text: string
+  textSize: string
+  sizeSmall: string
+  sizeMedium: string
+  sizeLarge: string
+  columns: string
+  /** The title of a table column, while it has none: `{field}`. */
+  columnTitle: string
+  chartKind: string
+  chartLine: string
+  chartArea: string
+  chartBar: string
+  chartPie: string
+  xField: string
+  yFields: string
+  stacked: string
+  horizontal: string
+  /** The filter set by clicking a chart. */
+  filterKey: string
+  filterKeyHint: string
+  /** Whether clicking a pivot table's cell filters the other widgets. */
+  pivotFilter: string
 }
 
 const zhCN: DashboardMessages = {
@@ -99,6 +133,35 @@ const zhCN: DashboardMessages = {
   filterBar: '筛选',
   linkedFilter: '{title}：{value}',
   clearFilters: '清除筛选',
+  source: '数据源',
+  noSource: '不使用数据源',
+  field: '字段',
+  value: '数值',
+  prefix: '前缀',
+  unit: '单位',
+  precision: '小数位数',
+  trend: '迷你图字段',
+  delta: '变化率字段',
+  deltaText: '较上期 {value}',
+  text: '文字',
+  textSize: '字号',
+  sizeSmall: '小',
+  sizeMedium: '中',
+  sizeLarge: '大',
+  columns: '列',
+  columnTitle: '{field} 的标题',
+  chartKind: '图表',
+  chartLine: '折线图',
+  chartArea: '面积图',
+  chartBar: '柱状图',
+  chartPie: '饼图',
+  xField: '分类或时间',
+  yFields: '数值',
+  stacked: '堆叠',
+  horizontal: '横向',
+  filterKey: '点击时筛选',
+  filterKeyHint: '点图表里的一项时，用这个名字筛选其他格子；留空则不筛选',
+  pivotFilter: '点击单元格时，按它所在的分组筛选其他格子',
 }
 
 const zhTW: DashboardMessages = {
@@ -136,6 +199,35 @@ const zhTW: DashboardMessages = {
   filterBar: '篩選',
   linkedFilter: '{title}：{value}',
   clearFilters: '清除篩選',
+  source: '資料來源',
+  noSource: '不使用資料來源',
+  field: '欄位',
+  value: '數值',
+  prefix: '前綴',
+  unit: '單位',
+  precision: '小數位數',
+  trend: '迷你圖欄位',
+  delta: '變化率欄位',
+  deltaText: '較上期 {value}',
+  text: '文字',
+  textSize: '字號',
+  sizeSmall: '小',
+  sizeMedium: '中',
+  sizeLarge: '大',
+  columns: '欄',
+  columnTitle: '{field} 的標題',
+  chartKind: '圖表',
+  chartLine: '折線圖',
+  chartArea: '面積圖',
+  chartBar: '長條圖',
+  chartPie: '圓餅圖',
+  xField: '分類或時間',
+  yFields: '數值',
+  stacked: '堆疊',
+  horizontal: '橫向',
+  filterKey: '點擊時篩選',
+  filterKeyHint: '点圖表里的一项时，用这个名字筛选其他格子；留空则不筛选',
+  pivotFilter: '點擊儲存格時，依其所在的分組篩選其他格子',
 }
 
 const en: DashboardMessages = {
@@ -174,6 +266,36 @@ const en: DashboardMessages = {
   filterBar: 'Filters',
   linkedFilter: '{title}: {value}',
   clearFilters: 'Clear filters',
+  source: 'Source',
+  noSource: 'No source',
+  field: 'Field',
+  value: 'Value',
+  prefix: 'Prefix',
+  unit: 'Unit',
+  precision: 'Decimal places',
+  trend: 'Sparkline field',
+  delta: 'Change field',
+  deltaText: '{value} vs. last period',
+  text: 'Text',
+  textSize: 'Size',
+  sizeSmall: 'Small',
+  sizeMedium: 'Medium',
+  sizeLarge: 'Large',
+  columns: 'Columns',
+  columnTitle: 'Title of {field}',
+  chartKind: 'Chart',
+  chartLine: 'Line',
+  chartArea: 'Area',
+  chartBar: 'Bar',
+  chartPie: 'Pie',
+  xField: 'Category or time',
+  yFields: 'Values',
+  stacked: 'Stacked',
+  horizontal: 'Horizontal',
+  filterKey: 'Filter on click',
+  filterKeyHint:
+    'Clicking an item filters the other widgets by this name; leave empty to not filter',
+  pivotFilter: 'Clicking a cell filters the other widgets by its groups',
 }
 
 export const dashboardLocales: Record<string, DashboardMessages> = {

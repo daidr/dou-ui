@@ -229,6 +229,12 @@ export function createSourceStore(sources: () => DashboardSources | undefined) {
     if (own) load(own)
   }
 
+  /** Whether a source shown is loading. */
+  function busy() {
+    for (const entry of entries.values()) if (entry.users > 0 && entry.controller) return true
+    return false
+  }
+
   function dispose() {
     if (typeof document !== 'undefined')
       document.removeEventListener('visibilitychange', onVisibility)
@@ -239,7 +245,7 @@ export function createSourceStore(sources: () => DashboardSources | undefined) {
     entries.clear()
   }
 
-  return { use, reload, retry, dispose, keyOf }
+  return { use, reload, retry, busy, dispose, keyOf }
 }
 
 export type SourceStore = ReturnType<typeof createSourceStore>

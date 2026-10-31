@@ -184,6 +184,9 @@ describe('time ticks', () => {
     expect(timeInterval(day(2026, 11, 1) - day(2026, 9, 7), 12)).toEqual({ unit: 'week', every: 1 })
     expect(timeInterval(24 * 3600e3, 8)).toEqual({ unit: 'hour', every: 3 })
     expect(timeInterval(20 * 365 * 24 * 3600e3, 5)).toEqual({ unit: 'year', every: 5 })
+    // five minutes in a narrow chart: more than one tick
+    expect(timeInterval(5 * 60e3, 4)).toEqual({ unit: 'minute', every: 2 })
+    expect(timeInterval(6 * 3600e3, 4)).toEqual({ unit: 'hour', every: 2 })
   })
 
   it('lands on round local times', () => {

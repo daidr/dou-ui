@@ -217,7 +217,7 @@ function chartCase(n: number, series: 'line' | 'bar' | 'scatter' = 'line', zoom 
           ? [h(DouChartScatter, { y: 'v' })]
           : [
               h(DouChartAxis, { for: 'x', type: 'time' }),
-              h(series === 'bar' ? DouChartBar : DouChartLine, { y: 'v' }),
+              series === 'bar' ? h(DouChartBar, { y: 'v' }) : h(DouChartLine, { y: 'v' }),
               ...(zoom
                 ? [
                     h(DouChartZoom, {

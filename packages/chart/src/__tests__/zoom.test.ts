@@ -506,6 +506,35 @@ describe('review fixes', () => {
     })
     expect(l.plot.x).toBe(4 + 40 + 8)
   })
+
+  it('aims for the number of ticks given, on the values and on x', () => {
+    const rows = Array.from({ length: 11 }, (_, i) => ({ x: i * 10, v: 140 * i }))
+    const model = buildModel([{ index: 0, kind: lineKind, props: { y: 'v' } as never }], {
+      data: rows,
+      x: 'x',
+    })
+    const layout = (count?: number) =>
+      layoutChart({
+        model,
+        axes: {
+          x: { position: 'bottom', grid: false, hidden: false, ticks: count },
+          y: { position: 'left', grid: true, hidden: false, ticks: count },
+          y2: null,
+        },
+        width: 800,
+        height: 400,
+        locale: 'zh-CN',
+        measure: () => 12,
+      })
+    const many = layout()
+    const few = layout(3)
+    expect(many.y.y!.ticks.length).toBeGreaterThan(4)
+    // 0 to 1400 in steps of 500: the top of the axis is a tick
+    expect(few.y.y!.ticks).toEqual([0, 500, 1000, 1500])
+    expect(few.y.y!.scale.domain).toEqual([0, 1500])
+    expect(few.x.ticks.length).toBeLessThanOrEqual(4)
+    expect(many.x.ticks.length).toBeGreaterThan(few.x.ticks.length)
+  })
 })
 
 describe('DouChartRange', () => {

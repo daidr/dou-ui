@@ -4,6 +4,8 @@
 
 系列画在 canvas 上，数据量大时也能流畅绘制；坐标轴的刻度文字是普通的页面文字，跟随主题的字体和颜色。
 
+几个完整页面的写法见区块中的[经营看板](../blocks/business)、[实时监控](../blocks/monitoring)和[门店对比](../blocks/compare)。
+
 ## 安装
 
 图表是单独的包，需要和 `dou-ui` 一起使用：
@@ -83,6 +85,8 @@ app.use(DouChart).use(DouChartAxis).use(DouChartLine).use(DouChartBar)
 ### 负值
 
 负数向下画，图表在 0 的位置画一条基准线。
+
+`color` 也可以是一个函数，按每一行给柱子单独上色，返回 CSS 颜色或语气色名称（`danger`、`neutral` 等）；返回 `undefined` 的柱子用系列的颜色，图例和系列颜色一致。下面亏损的月份用 `danger`。散点图的 `color` 也可以这样写。
 
 <DocDemo src="chart/bar-negative" />
 
@@ -199,7 +203,7 @@ defineChartSeries({
 `draw` 收到三个参数：
 
 - `painter`：canvas 2D 上下文的一部分方法，只通过它绘制。
-- `series`：读取好的数据。`series.x.values` 是横轴的值（类目轴上是类目的序号），`series.top` 是要画的值（堆叠时是这一段的顶端），`series.base` 是堆叠时这一段的底端，`series.rows` 是原始的行数据，`series.props` 是组件的属性，`series.color` 是计算好的颜色。
+- `series`：读取好的数据。`series.x.values` 是横轴的值（类目轴上是类目的序号），`series.top` 是要画的值（堆叠时是这一段的顶端），`series.base` 是堆叠时这一段的底端，`series.rows` 是原始的行数据，`series.props` 是组件的属性，`series.color` 是计算好的颜色；`color` 写成函数时，`series.colors` 是按行计算好的各点颜色，没有单独颜色的位置是 `undefined`。
 - `view`：`point(x, value)` 返回这个值画在哪里，`[left, top]`，竖向和横向都一样，自定义系列一般只用它；`x`、`y` 是两个比例尺，`map` 把值换算成沿轴的像素；`horizontal` 表示横向；`band` 是每个位置的宽度（像素）；`plot` 是绘图区域。
 
 内置的折线、面积、柱状和散点系列也通过同一个接口实现。
@@ -288,7 +292,7 @@ defineChartSeries({
 
 <DocDemo src="chart/brush" />
 
-和 `DouChartZoom` 一起使用时，拖动是平移，按住 Shift 拖动是框选。手机上按住不动片刻再拖动是框选。用键盘时，聚焦图表后按住 Shift 再按方向键，从当前位置开始按横轴选择；框出一块区域（`axis="xy"`）只能用指针。
+手机上按住不动片刻再拖动是框选，直接滑动仍是滚动页面。和 `DouChartZoom` 一起使用时，拖动是平移，按住 Shift 拖动是框选。用键盘时，聚焦图表后按住 Shift 再按方向键，从当前位置开始按横轴选择；框出一块区域（`axis="xy"`）只能用指针。
 
 ## 键盘与动画
 
@@ -440,23 +444,25 @@ SVG 和画布用同一套绘制代码，两者画出的图形一致。导出的�
 
 ### Bar Props
 
-`y`、`name`、`data`、`x`、`color`、`tone`、`axis`、`v-model:hidden` 和折线图相同。
+`y`、`name`、`data`、`x`、`tone`、`axis`、`v-model:hidden` 和折线图相同。
 
-| 名称     | 说明                         | 类型                | 默认值 |
-| -------- | ---------------------------- | ------------------- | ------ |
-| `stack`  | 堆叠分组，名称相同的叠在一起 | `string \| boolean` | —      |
-| `radius` | 柱子末端的圆角，单位 px      | `number`            | `2`    |
+| 名称     | 说明                                                                                          | 类型                                                    | 默认值         |
+| -------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------- | -------------- |
+| `color`  | 颜色：一个 CSS 颜色，或按行给每根柱子上色的函数（CSS 颜色或语气色，`undefined` 用系列的颜色） | `string \| (row, index: number) => string \| undefined` | 色板的下一个色 |
+| `stack`  | 堆叠分组，名称相同的叠在一起                                                                  | `string \| boolean`                                     | —              |
+| `radius` | 柱子末端的圆角，单位 px                                                                       | `number`                                                | `2`            |
 
 ### Scatter Props
 
-`y`、`name`、`data`、`x`、`color`、`tone`、`axis`、`v-model:hidden` 和折线图相同。
+`y`、`name`、`data`、`x`、`tone`、`axis`、`v-model:hidden` 和折线图相同。
 
-| 名称        | 说明                                            | 类型                                        | 默认值             |
-| ----------- | ----------------------------------------------- | ------------------------------------------- | ------------------ |
-| `size`      | 每个点的大小：字段名，或从行取值的函数          | `string \| (row, index: number) => unknown` | —                  |
-| `size-name` | 提示框里大小这一项的名称                        | `string`                                    | `size` 的字段名    |
-| `label`     | 每个点的名称，用作提示框的标题                  | `string \| (row, index: number) => unknown` | 系列名称           |
-| `radius`    | 圆点半径，单位 px；有 `size` 时是最大气泡的半径 | `number`                                    | `3.5`，气泡为 `24` |
+| 名称        | 说明                                                   | 类型                                                    | 默认值             |
+| ----------- | ------------------------------------------------------ | ------------------------------------------------------- | ------------------ |
+| `color`     | 颜色，写法和柱状图相同；点多于 2000 个时都用系列的颜色 | `string \| (row, index: number) => string \| undefined` | 色板的下一个色     |
+| `size`      | 每个点的大小：字段名，或从行取值的函数                 | `string \| (row, index: number) => unknown`             | —                  |
+| `size-name` | 提示框里大小这一项的名称                               | `string`                                                | `size` 的字段名    |
+| `label`     | 每个点的名称，用作提示框的标题                         | `string \| (row, index: number) => unknown`             | 系列名称           |
+| `radius`    | 圆点半径，单位 px；有 `size` 时是最大气泡的半径        | `number`                                                | `3.5`，气泡为 `24` |
 
 ### Pie Props
 

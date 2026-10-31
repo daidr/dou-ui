@@ -139,6 +139,29 @@ describe('bars', () => {
     expect(seen[0]).toContain('log axis')
   })
 
+  it('draws bars of their own color as one shape per color', () => {
+    const rows = ['a', 'b', 'c', 'd'].map((k, i) => ({ k, v: i + 1 }))
+    const model = buildModel([input(0, { y: 'v' })], { data: rows, x: 'k' })
+    const [series] = resolve(model)
+    const view: ChartView = {
+      x: categoryScale(['a', 'b', 'c', 'd'], [0, 400]),
+      y: linearScale([0, 4], [100, 0]),
+      horizontal: false,
+      band: 100,
+      point: () => [0, 0],
+      plot: { x: 0, y: 0, width: 400, height: 100 },
+      dpr: 1,
+      colors,
+    }
+    const { painter, calls } = recorder()
+    drawBars(painter, { ...series, colors: [undefined, '#f00', undefined, '#f00'] } as never, view)
+    // the series' color for a and c, red for b and d: two fills
+    const fills = calls.filter(([key]) => key === 'fill')
+    expect(fills).toHaveLength(2)
+    expect(calls.filter(([key]) => key === 'moveTo' || key === 'rect').length).toBe(4)
+    expect((painter as unknown as { fillStyle: string }).fillStyle).toBe('#f00')
+  })
+
   it('merges bars thinner than a pixel and a half by pixel column', () => {
     const rows = Array.from({ length: 10_000 }, (_, i) => ({ x: i, v: i % 7 }))
     const model = buildModel([input(0, { y: 'v' })], { data: rows, x: 'x' })

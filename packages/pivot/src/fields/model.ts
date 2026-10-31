@@ -1,5 +1,12 @@
 import type { PivotGroupBy } from '../engine/group'
-import type { PivotConfig, PivotDimension, PivotFilter, PivotValue } from '../engine/types'
+import type {
+  PivotConfig,
+  PivotDimension,
+  PivotFilter,
+  PivotShowAs,
+  PivotTopFilter,
+  PivotValue,
+} from '../engine/types'
 
 /** The four places a field can go. */
 export type PivotArea = 'filters' | 'columns' | 'rows' | 'values'
@@ -26,7 +33,11 @@ const fieldOfValue = (v: PivotValue) => (typeof v === 'string' ? v : (v.field ??
 
 /** Whether a filter keeps out anything. */
 export const isFiltering = (filter: PivotFilter | undefined) =>
-  !!filter && (filter.include !== undefined || (filter.exclude?.length ?? 0) > 0)
+  !!filter &&
+  (filter.include !== undefined ||
+    (filter.exclude?.length ?? 0) > 0 ||
+    !!filter.top ||
+    !!filter.between)
 
 /** The fields in each area. A field filtered on an axis stays on its axis, not in the filters. */
 export function areasOf(config: PivotConfig): PivotAreas {
@@ -153,6 +164,43 @@ export function withAggregate(config: PivotConfig, index: number, aggregate: str
   const spec = typeof v === 'string' ? { field: v } : { ...v }
   values[index] = { ...spec, aggregate }
   return { ...config, values }
+}
+
+/** A value with its way of showing, its mark or its formula changed; `null` takes one away. */
+export function withValue(
+  config: PivotConfig,
+  index: number,
+  patch: {
+    show?: PivotShowAs | null
+    mark?: 'bar' | 'scale' | null
+    formula?: string
+    label?: string | null
+  },
+): PivotConfig {
+  const values = [...(config.values ?? [])]
+  const v = values[index]
+  if (v === undefined) return config
+  const spec: Exclude<PivotValue, string> = typeof v === 'string' ? { field: v } : { ...v }
+  for (const key of ['show', 'mark', 'formula', 'label'] as const) {
+    if (patch[key] === null) delete spec[key]
+    else if (patch[key] !== undefined) (spec as Record<string, unknown>)[key] = patch[key]
+  }
+  const keys = Object.keys(spec)
+  values[index] = keys.length === 1 && keys[0] === 'field' ? spec.field! : spec
+  return { ...config, values }
+}
+
+/** A field's filter with its `top` set or taken away; its lists stay as they are. */
+export function withTop(
+  config: PivotConfig,
+  field: string,
+  top: PivotTopFilter | null,
+  inFilters: boolean,
+): PivotConfig {
+  const old = { ...config.filters?.[field] }
+  if (top) old.top = top
+  else delete old.top
+  return withFilter(config, field, old, inFilters)
 }
 
 /** A field's filter replaced; an axis field without a filter left has none. */

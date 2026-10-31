@@ -47,7 +47,7 @@ export function servePivot(
     pending = null
     if (!job || !source || job.source !== sourceId) return
     const s = source
-    const need = neededColumns((name) => s.field(name).type, job.config, aggregators)
+    const need = neededColumns(s, job.config, aggregators)
     const dimensions = need.dimensions.filter((n) => !have.dimensions.has(n))
     const measures = need.measures.filter((n) => !have.measures.has(n))
     if (dimensions.length || measures.length) {

@@ -1,6 +1,6 @@
 import { BUILTIN_AGGREGATORS, type PivotAggregator } from './aggregate'
-import type { PivotResult } from './compute'
-import type { PivotFieldType, PivotConfig } from './types'
+import { checkFormula, type PivotResult } from './compute'
+import type { PivotConfig } from './types'
 import type { PivotSource } from './source'
 
 export interface PivotComputeRequest {
@@ -28,24 +28,41 @@ export interface PivotEngine {
 /**
  * The fields a config reads, and how: grouped (`dimensions`: on an axis,
  * filtered, counted) or as numbers (`measures`: summed and the like).
+ * No record is read.
  */
-export function neededColumns(
-  typeOf: (name: string) => PivotFieldType,
+export function neededColumns<Row>(
+  source: PivotSource<Row>,
   config: PivotConfig,
   aggregators: Readonly<Record<string, PivotAggregator>> = {},
 ) {
+  const src = source as PivotSource<unknown>
   const dimensions = new Set<string>()
   const measures = new Set<string>()
   for (const d of [...(config.rows ?? []), ...(config.columns ?? [])])
     dimensions.add(typeof d === 'string' ? d : d.field)
   for (const name of Object.keys(config.filters ?? {})) {
     const f = config.filters![name]!
-    if (f.include || f.exclude) dimensions.add(name)
+    if (f.include || f.exclude || f.top || f.between) dimensions.add(name)
   }
   for (const v of config.values ?? []) {
     const spec = typeof v === 'string' ? { field: v } : v
+    if (spec.formula !== undefined) {
+      let formula
+      try {
+        formula = checkFormula(src, spec.formula)
+      } catch {
+        // computing it says what is wrong
+        continue
+      }
+      for (const term of formula.terms) {
+        if (term.field === null) continue
+        if (term.aggregate === 'count') dimensions.add(term.field)
+        else measures.add(term.field)
+      }
+      continue
+    }
     if (spec.field === undefined) continue
-    const name = spec.aggregate ?? (typeOf(spec.field) === 'number' ? 'sum' : 'count')
+    const name = spec.aggregate ?? (src.field(spec.field).type === 'number' ? 'sum' : 'count')
     const input =
       name === 'count'
         ? 'value'

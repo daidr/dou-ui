@@ -20,6 +20,7 @@ import {
   type PivotTree,
 } from './engine'
 import { BUILTIN_AGGREGATORS, FAST_AGGREGATES } from './engine/aggregate'
+import { markOf, PERCENT_SHOWS, showOf } from './engine/compute'
 import type { PivotEngine } from './engine/engine'
 import type {
   PivotCollapsed,
@@ -113,8 +114,13 @@ const engineConfig = computed<PivotConfig>(() => {
   const next: PivotConfig = {
     rows: (c.rows ?? []).map(dimensionKey),
     columns: (c.columns ?? []).map(dimensionKey),
+    // how values are shown, marked, headed and written changes nothing to sum up
     values: values.map((v) =>
-      typeof v === 'string' ? { field: v } : { field: v.field, aggregate: v.aggregate },
+      typeof v === 'string'
+        ? { field: v }
+        : v.formula !== undefined
+          ? { formula: v.formula }
+          : { field: v.field, aggregate: v.aggregate },
     ),
     filters: c.filters,
   }
@@ -271,15 +277,25 @@ const valueRow = computed(
 )
 const spans = computed(() => headerSpans(result.value.columns, colLines.value, valueRow.value))
 
-/** How each value is headed and written. */
+/** How each value is headed, shown, marked and written: the config's, on what was summed up. */
 const valueDisplay = computed(() => {
   const m = messages.value
   return result.value.values.map((value, i) => {
     const given = config.value.values?.[i]
     const spec = typeof given === 'object' ? given : undefined
+    const show = showOf(spec?.show)
+    // a share or a rank is not in the field's units
+    const own = show && (PERCENT_SHOWS.has(show.as) || show.as === 'rank')
+    const shownValue = {
+      ...value,
+      show,
+      format: spec?.format ?? (own ? undefined : value.format),
+    }
     return {
-      label: valueLabel(value, spec?.label, m),
-      write: valueFormatter({ ...value, format: spec?.format ?? value.format }, locale.value.name),
+      label: valueLabel(shownValue, spec?.label, m),
+      write: valueFormatter(shownValue, locale.value.name),
+      show: show ?? null,
+      mark: markOf(spec?.mark),
     }
   })
 })
@@ -519,7 +535,25 @@ interface Cell {
   text: string
   cls: string
   col: number
-  width: number
+  style: string
+}
+
+/** Where a mark puts a value: a bar's start and size, or a tint's depth, from 0 to 1. */
+function markStyle(value: number, valueIndex: number) {
+  const { mark, show } = valueDisplay.value[valueIndex]!
+  if (!mark) return ''
+  const { min, max } = result.value.range(valueIndex, show)
+  if (min !== min) return ''
+  const tone = `--dou-pivot-tone:var(--dou-color-${mark.tone})`
+  if (mark.type === 'scale') {
+    const depth = max === min ? 1 : (value - min) / (max - min)
+    return `;${tone};--dou-pivot-mark:${depth.toFixed(3)}`
+  }
+  // bars grow from zero, to the left for values below it
+  const lo = Math.min(0, min)
+  const span = Math.max(0, max) - lo || 1
+  const start = (Math.min(value, 0) - lo) / span
+  return `;${tone};--dou-pivot-bar-start:${start.toFixed(3)};--dou-pivot-bar-size:${(Math.abs(value) / span).toFixed(3)}`
 }
 
 function rowCells(line: PivotLine): Cell[] {
@@ -527,19 +561,22 @@ function rowCells(line: PivotLine): Cell[] {
   const blank = rowBlank(line)
   const display = valueDisplay.value
   const starts = colStarts.value
+  // marks go on the innermost cells, never on subtotals and totals
+  // (without fields on an axis, its grand total is its innermost group)
+  const innerRow = res.rows.depth[line.node] === res.rows.levels.length && !blank
   return visibleCols.value.map(({ line: col, index }) => {
     const v = line.value >= 0 ? line.value : Math.max(0, col.value)
-    const n = blank ? Number.NaN : res.get(line.node, col.node, v)
+    const n = blank ? Number.NaN : res.shown(line.node, col.node, v, display[v]!.show)
     let cls = 'dou-pivot__cell'
     if (col.kind !== 'group') cls += ' is-total'
     if (col.kind === 'group' && col.node > 0 && res.columns.isGroup(col.node)) cls += ' is-closed'
-    return {
-      key: index,
-      col: index,
-      text: display[v]!.write(n),
-      cls,
-      width: starts[index + 1]! - starts[index]!,
+    let style = `width:${starts[index + 1]! - starts[index]!}px`
+    const mark = display[v]!.mark
+    if (mark && innerRow && n === n && res.columns.depth[col.node] === res.columns.levels.length) {
+      cls += mark.type === 'bar' ? ' has-bar' : ' has-scale'
+      style += markStyle(n, v)
     }
+    return { key: index, col: index, text: display[v]!.write(n), cls, style }
   })
 }
 
@@ -839,7 +876,9 @@ function cellEvent(row: PivotLine, col: PivotLine): PivotCellEvent<Row> {
     row: row.kind === 'total' ? [] : res.rows.path(row.node),
     column: col.kind === 'total' ? [] : res.columns.path(col.node),
     valueIndex,
-    value: rowBlank(row) ? Number.NaN : res.get(row.node, col.node, valueIndex),
+    value: rowBlank(row)
+      ? Number.NaN
+      : res.shown(row.node, col.node, valueIndex, valueDisplay.value[valueIndex]?.show ?? null),
     records: () => indices().map((i) => src.record(i) as Row),
     indices,
   }
@@ -1287,7 +1326,7 @@ defineExpose<PivotExpose>({
               :aria-colindex="cell.col + (valuesOnRows ? 3 : 2)"
               :data-row="index"
               :data-col="cell.col"
-              :style="`width:${cell.width}px`"
+              :style="cell.style"
             >
               <span class="dou-pivot__text">{{ cell.text }}</span>
             </div>
@@ -1337,7 +1376,7 @@ defineExpose<PivotExpose>({
               :aria-colindex="cell.col + (valuesOnRows ? 3 : 2)"
               :data-row="index"
               :data-col="cell.col"
-              :style="`width:${cell.width}px`"
+              :style="cell.style"
             >
               <span class="dou-pivot__text">{{ cell.text }}</span>
             </div>

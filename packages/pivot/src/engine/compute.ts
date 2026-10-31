@@ -4,10 +4,23 @@ import {
   FAST_AGGREGATES,
   type PivotAggregator,
 } from './aggregate'
+import { parseFormula, PivotFormulaError, type PivotFormula } from './formula'
 import { IntIndex, typed, type PivotIndexPacket } from './hash'
+import { PivotShown, resolveShow, type PivotResolvedShow } from './show'
+
+export type { PivotResolvedShow }
 import type { PivotResolvedField, PivotSource } from './source'
 import { PivotTree, PivotTreeBuilder, type PivotLevel, type PivotTreePacket } from './tree'
-import type { PivotConfig, PivotDimension, PivotFormat, PivotValueSort } from './types'
+import type {
+  PivotConfig,
+  PivotDimension,
+  PivotFilter,
+  PivotFormat,
+  PivotMark,
+  PivotShow,
+  PivotShowAs,
+  PivotValueSort,
+} from './types'
 
 /** A value of the config with everything filled in. */
 export interface PivotResolvedValue {
@@ -22,6 +35,58 @@ export interface PivotResolvedValue {
   integer: boolean
   /** Whether it stands in for an empty `values` (a count of records). */
   implicit?: boolean
+  /** A calculated value's formula, as written (`aggregate` is then `'formula'`). */
+  formula?: string
+  /** How it is shown, as given (the axis is worked out by the result). */
+  show?: PivotShow
+  mark?: Required<PivotMark>
+}
+
+/** The ways of showing a value that write it as a percentage. */
+export const PERCENT_SHOWS: ReadonlySet<PivotShowAs> = new Set([
+  'percentOfTotal',
+  'percentOfRow',
+  'percentOfColumn',
+  'percentOfParent',
+  'percentDifference',
+])
+
+/** A `show` as an object. */
+export const showOf = (show: PivotShowAs | PivotShow | undefined): PivotShow | undefined =>
+  show === undefined ? undefined : typeof show === 'string' ? { as: show } : show
+
+/** A `mark` with its tone filled in. */
+export const markOf = (
+  mark: 'bar' | 'scale' | PivotMark | undefined,
+): Required<PivotMark> | undefined =>
+  mark === undefined
+    ? undefined
+    : typeof mark === 'string'
+      ? { type: mark, tone: 'neutral' as const }
+      : { type: mark.type, tone: mark.tone ?? 'neutral' }
+
+/**
+ * Reads a calculated value's formula and finds its fields by name (or by
+ * label). Throws a `PivotFormulaError` when it is not well formed, names a
+ * field that is not there, or sums up one that is not a number.
+ */
+export function checkFormula(source: PivotSource<unknown>, text: string): PivotFormula {
+  const formula = parseFormula(text)
+  const byLabel = new Map<string, string>()
+  for (const f of source.fields.values()) if (!byLabel.has(f.label)) byLabel.set(f.label, f.name)
+  for (const term of formula.terms) {
+    if (term.field === null) continue
+    const name = source.fields.has(term.field) ? term.field : byLabel.get(term.field)
+    if (name === undefined) {
+      const at = text.indexOf(term.field)
+      throw new PivotFormulaError('unknownField', Math.max(0, at), term.field)
+    }
+    if (term.aggregate !== 'count' && source.field(name).type !== 'number') {
+      throw new PivotFormulaError('notNumber', Math.max(0, text.indexOf(term.field)), term.field)
+    }
+    term.field = name
+  }
+  return formula
 }
 
 export interface PivotComputeOptions {
@@ -44,8 +109,27 @@ export function resolveConfig(
       by: spec.by,
     }
   }
+  const formulas: (PivotFormula | null)[] = []
   const values: PivotResolvedValue[] = (config.values ?? []).map((item) => {
     const spec = typeof item === 'string' ? { field: item } : item
+    const show = showOf(spec.show)
+    const mark = markOf(spec.mark)
+    // a share or a rank is not in the field's units
+    const ownFormat = show && (PERCENT_SHOWS.has(show.as) || show.as === 'rank')
+    if (spec.formula !== undefined) {
+      formulas.push(checkFormula(source, spec.formula))
+      return {
+        field: null,
+        aggregate: 'formula',
+        label: spec.label,
+        format: spec.format,
+        integer: false,
+        formula: spec.formula,
+        ...(show ? { show } : {}),
+        ...(mark ? { mark } : {}),
+      }
+    }
+    formulas.push(null)
     const field = spec.field === undefined ? null : source.field(spec.field)
     let name = spec.aggregate ?? (field?.type === 'number' ? 'sum' : 'count')
     if (!field && name !== 'count') name = 'count'
@@ -60,16 +144,21 @@ export function resolveConfig(
       aggregate: name,
       aggregator,
       label: spec.label,
-      format: spec.format ?? field?.format,
+      format: spec.format ?? (ownFormat ? undefined : field?.format),
       integer: name === 'count' || !!aggregator?.integer,
+      ...(show ? { show } : {}),
+      ...(mark ? { mark } : {}),
     }
   })
-  if (values.length === 0)
+  if (values.length === 0) {
     values.push({ field: null, aggregate: 'count', integer: true, implicit: true })
+    formulas.push(null)
+  }
   return {
     rows: (config.rows ?? []).map(level),
     columns: (config.columns ?? []).map(level),
     values,
+    formulas,
   }
 }
 
@@ -87,6 +176,13 @@ export function computePivot<Row>(
   options: PivotComputeOptions = {},
 ): PivotResult {
   const src = source as PivotSource<unknown>
+  if (Object.values(config.filters ?? {}).some((f) => f.top || f.between)) {
+    return computePivot(
+      source,
+      { ...config, filters: rankedFilters(src, config, options) },
+      options,
+    )
+  }
   const resolved = resolveConfig(src, config, options)
   const rowLevels: PivotLevel[] = resolved.rows.map((l) => ({
     ...l,
@@ -232,9 +328,12 @@ export function computePivot<Row>(
   }
 
   const size = cells.size
-  const data = resolved.values.map((value) =>
-    aggregate(src, value, slotOf, leaves, size, targets, fan),
-  )
+  const sum = (value: PivotResolvedValue) =>
+    aggregate(src, value, slotOf, leaves, size, targets, fan)
+  const data = resolved.values.map((value, i) => {
+    const formula = resolved.formulas[i]
+    return formula ? calculate(src, formula, sum, size) : sum(value)
+  })
   return new PivotResult({
     rows: new PivotTree(rowTree, rowLevels),
     columns: new PivotTree(colTree, colLevels),
@@ -247,6 +346,81 @@ export function computePivot<Row>(
     leafRow,
     leafCol,
   })
+}
+
+/**
+ * The filters with `top` and `between` turned into lists of the groups they
+ * keep: each field's groups are summed up once on their own, over the
+ * records that the `include` and `exclude` lists keep.
+ */
+function rankedFilters(
+  source: PivotSource<unknown>,
+  config: PivotConfig,
+  options: PivotComputeOptions,
+): Record<string, PivotFilter> {
+  const given = config.filters ?? {}
+  const plain: Record<string, PivotFilter> = {}
+  for (const [name, f] of Object.entries(given)) {
+    if (f.include || f.exclude) plain[name] = { include: f.include, exclude: f.exclude, by: f.by }
+  }
+  const out: Record<string, PivotFilter> = { ...plain }
+  const axes = [...(config.rows ?? []), ...(config.columns ?? [])]
+  for (const [name, f] of Object.entries(given)) {
+    if (!f.top && !f.between) continue
+    const onAxis = axes.find((d) => typeof d === 'object' && d.field === name)
+    const by = f.by ?? (typeof onAxis === 'object' ? onAxis.by : undefined)
+    const index = f.top?.valueIndex ?? f.between?.valueIndex ?? 0
+    const value = config.values?.[index]
+    const plainValue =
+      value === undefined ? [] : [typeof value === 'string' ? value : { ...value, show: undefined }]
+    const totals = computePivot(
+      source,
+      { rows: [{ field: name, by, subtotal: false }], values: plainValue, filters: plain },
+      options,
+    )
+    const tree = totals.rows
+    let groups: { label: unknown; total: number }[] = []
+    for (let k = tree.childStart[0]!; k < tree.childStart[1]!; k++) {
+      const node = tree.children[k]!
+      groups.push({ label: tree.label(node), total: totals.get(node, 0) })
+    }
+    if (f.between) {
+      const { min = -Infinity, max = Infinity } = f.between
+      groups = groups.filter((g) => g.total >= min && g.total <= max)
+    }
+    if (f.top) {
+      const sign = f.top.order === 'asc' ? 1 : -1
+      const ranked = groups.filter((g) => g.total === g.total)
+      // oxlint-disable-next-line unicorn/no-array-sort -- sorts a fresh array
+      ranked.sort((a, b) => sign * (a.total - b.total))
+      groups = ranked.slice(0, Math.max(0, f.top.count))
+    }
+    out[name] = { include: groups.map((g) => g.label), by }
+  }
+  return out
+}
+
+/** A calculated value: each term summed up as usual, then the formula per cell. */
+function calculate(
+  source: PivotSource<unknown>,
+  formula: PivotFormula,
+  sum: (value: PivotResolvedValue) => Float64Array,
+  size: number,
+) {
+  const columns = formula.terms.map((term) =>
+    sum({
+      field: term.field === null ? null : source.field(term.field),
+      aggregate: term.aggregate,
+      integer: term.aggregate === 'count',
+    }),
+  )
+  const out = new Float64Array(size)
+  const values = new Float64Array(columns.length)
+  for (let s = 0; s < size; s++) {
+    for (let t = 0; t < columns.length; t++) values[t] = columns[t]![s]!
+    out[s] = formula.evaluate(values)
+  }
+  return out
 }
 
 /** More than any group number of the axis, so (parent, group) makes a unique key. */
@@ -417,6 +591,9 @@ export interface PivotPacket {
     integer: boolean
     implicit?: boolean
     label?: string
+    formula?: string
+    show?: PivotShow
+    mark?: Required<PivotMark>
   }[]
   matched: number
   cells: PivotIndexPacket
@@ -509,6 +686,9 @@ export class PivotResult {
         integer: v.integer,
         ...(v.implicit ? { implicit: true } : {}),
         ...(v.label === undefined ? {} : { label: v.label }),
+        ...(v.formula === undefined ? {} : { formula: v.formula }),
+        ...(v.show ? { show: v.show } : {}),
+        ...(v.mark ? { mark: v.mark } : {}),
       })),
       matched: this.matched,
       cells: this.cells.pack(),
@@ -551,7 +731,10 @@ export class PivotResult {
         const f = v.field === null ? null : field(v.field)
         const spec = v.implicit ? undefined : given[i]
         const format = typeof spec === 'object' ? spec.format : undefined
-        return { ...v, field: f, format: format ?? f?.format }
+        const own =
+          v.formula !== undefined ||
+          (v.show && (PERCENT_SHOWS.has(v.show.as) || v.show.as === 'rank'))
+        return { ...v, field: f, format: format ?? (own ? undefined : f?.format) }
       }),
       matched: packet.matched,
       cells: IntIndex.unpack(packet.cells),
@@ -564,6 +747,75 @@ export class PivotResult {
       leafRow: typed(Int32Array, packet.leafRow),
       leafCol: typed(Int32Array, packet.leafCol),
     })
+  }
+
+  private showing = new Map<string, PivotShown | null>()
+  private ranges = new Map<string, { min: number; max: number }>()
+
+  private shownBy(valueIndex: number, show: PivotShow | null | undefined) {
+    const spec = show === undefined ? this.values[valueIndex]?.show : show
+    const key = `${valueIndex}|${spec ? `${spec.as}|${spec.along ?? ''}` : ''}`
+    let shown = this.showing.get(key)
+    if (shown === undefined) {
+      shown = spec
+        ? new PivotShown(
+            resolveShow(spec, this.rows, this.columns),
+            this.rows,
+            this.columns,
+            (r, c) => this.get(r, c, valueIndex),
+          )
+        : null
+      this.showing.set(key, shown)
+    }
+    return shown
+  }
+
+  /**
+   * How a value is shown, its `show` with the axis worked out; null when as
+   * it is. `show` stands in for the value's own (`null` for none).
+   */
+  show(valueIndex = 0, show?: PivotShow | null): PivotResolvedShow | null {
+    return this.shownBy(valueIndex, show)?.show ?? null
+  }
+
+  /**
+   * The value as it is shown: a share, a difference, a running total or a
+   * rank when the value has a `show` (or one is given), the summed-up value
+   * otherwise. Nothing is summed up again.
+   */
+  shown(row: number, column: number, valueIndex = 0, show?: PivotShow | null): number {
+    const shown = this.shownBy(valueIndex, show)
+    return shown ? shown.value(row, column) : this.get(row, column, valueIndex)
+  }
+
+  /**
+   * The smallest and largest shown values of the innermost cells (those
+   * under no subtotal or total), which marks are drawn against.
+   */
+  range(valueIndex = 0, show?: PivotShow | null): { min: number; max: number } {
+    const spec = show === undefined ? this.values[valueIndex]?.show : show
+    const key = `${valueIndex}|${spec ? `${spec.as}|${spec.along ?? ''}` : ''}`
+    let range = this.ranges.get(key)
+    if (!range) {
+      const { rows, columns, cells, width } = this
+      const rowDepth = rows.levels.length
+      const colDepth = columns.levels.length
+      let min = Infinity
+      let max = -Infinity
+      for (let s = 0; s < cells.size; s++) {
+        const cell = cells.keys[s]!
+        const row = Math.floor(cell / width)
+        const col = cell - row * width
+        if (rows.depth[row] !== rowDepth || columns.depth[col] !== colDepth) continue
+        const v = this.shown(row, col, valueIndex, spec ?? null)
+        if (v !== v) continue
+        if (v < min) min = v
+        if (v > max) max = v
+      }
+      range = min > max ? { min: Number.NaN, max: Number.NaN } : { min, max }
+      this.ranges.set(key, range)
+    }
+    return range
   }
 
   /**

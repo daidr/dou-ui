@@ -1,4 +1,4 @@
-import type { PivotResult, PivotTree } from '../engine'
+import type { PivotTree } from '../engine'
 import type { PivotCollapsed, PivotPath } from '../engine/types'
 
 /**
@@ -227,8 +227,3 @@ export function samePath(a: PivotPath, b: PivotPath) {
 }
 
 export type PivotAxis = keyof PivotCollapsed
-
-/** The cell value of a row line and a column line. */
-export function cellValue(result: PivotResult, row: PivotLine, column: PivotLine) {
-  return result.get(row.node, column.node, row.value >= 0 ? row.value : Math.max(0, column.value))
-}

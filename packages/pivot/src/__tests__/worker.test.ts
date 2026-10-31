@@ -99,6 +99,19 @@ describe('packets', () => {
 })
 
 describe('createPivotWorker', () => {
+  it('sends what calculated values and top N read, and sums up the same', async () => {
+    const { worker } = fakeWorker()
+    const engine = createPivotWorker(worker)
+    const source = new PivotSource(rows, { locale: 'zh-CN' })
+    const config: PivotConfig = {
+      rows: ['city'],
+      columns: ['region'],
+      values: [{ formula: 'amount / count()' }, 'amount'],
+      filters: { city: { top: { count: 3, valueIndex: 1 } } },
+    }
+    expect(table(await engine.compute(source, config))).toEqual(table(computePivot(source, config)))
+  })
+
   it('sends each field once, then only configs', async () => {
     const { worker, sent } = fakeWorker()
     const engine = createPivotWorker(worker)

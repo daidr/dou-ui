@@ -1,5 +1,17 @@
-export { computePivot, PivotResult, resolveConfig } from './compute'
-export type { PivotComputeOptions, PivotPacket, PivotResolvedValue } from './compute'
+export { checkFormula, computePivot, PERCENT_SHOWS, PivotResult, resolveConfig } from './compute'
+export type {
+  PivotComputeOptions,
+  PivotPacket,
+  PivotResolvedShow,
+  PivotResolvedValue,
+} from './compute'
+export { parseFormula, PivotFormulaError } from './formula'
+export type {
+  PivotFormula,
+  PivotFormulaAggregate,
+  PivotFormulaErrorCode,
+  PivotFormulaTerm,
+} from './formula'
 export { neededColumns } from './engine'
 export type { PivotComputeRequest, PivotEngine } from './engine'
 export { defineAggregator } from './aggregate'

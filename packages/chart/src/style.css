@@ -85,6 +85,19 @@
     left: 0;
   }
 
+  /* explored with the keys: the ring shows on the chart itself */
+  .dou-chart.is-interactive:focus-visible {
+    outline: 2px solid var(--dou-color-focus);
+    outline-offset: 2px;
+    border-radius: var(--dou-radius-control);
+  }
+
+  .dou-chart__legends {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
   .dou-chart__title {
     color: var(--dou-chart-title);
     font-weight: var(--dou-font-weight-medium);
@@ -94,14 +107,57 @@
     }
   }
 
+  /* a button: turns its series on and off */
   .dou-chart__legend {
     position: absolute;
     display: flex;
     gap: 6px;
     align-items: center;
     height: 16px;
+    padding: 0;
+    border: 0;
+    border-radius: 2px;
+    background: none;
     color: var(--dou-color-text-secondary);
+    font: inherit;
     white-space: nowrap;
+    cursor: pointer;
+    pointer-events: auto;
+    transition: color var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    /* a finger needs more room than the text: reach a little beyond it */
+    &::before {
+      position: absolute;
+      inset: -6px -4px;
+      content: '';
+    }
+
+    &:hover {
+      color: var(--dou-color-text);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 2px;
+    }
+
+    /* the last one shown: it stays on, so it doesn't look pressable */
+    &.is-locked {
+      cursor: default;
+
+      &:hover {
+        color: var(--dou-color-text-secondary);
+      }
+    }
+
+    /* turned off: the swatch empties and the name fades */
+    &.is-off {
+      color: var(--dou-color-text-disabled);
+
+      > .dou-chart__swatch {
+        opacity: 0.32;
+      }
+    }
   }
 
   /* a short stroke for a line, a small filled square for an area */
@@ -157,5 +213,125 @@
     justify-content: center;
     color: var(--dou-color-text-tertiary);
     font-size: var(--dou-font-size-sm);
+  }
+
+  /* what is under the pointer */
+  .dou-chart__pointer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  .dou-chart__crosshair,
+  .dou-chart__band,
+  .dou-chart__mark,
+  .dou-chart__tooltip {
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+
+  .dou-chart__crosshair {
+    background-color: var(--dou-chart-baseline);
+  }
+
+  .dou-chart__band {
+    background-color: color-mix(in oklab, var(--dou-color-text) 5%, transparent);
+  }
+
+  /* a dot on a line's point, ringed with the surface so it stands off the line */
+  .dou-chart__mark {
+    box-sizing: border-box;
+    border: 2px solid var(--dou-chart-surface);
+    border-radius: 50%;
+    background-color: currentColor;
+    box-shadow: 0 0 0 1px color-mix(in oklab, currentColor 24%, transparent);
+
+    /* around one point of a scatter */
+    &.is-ring {
+      border-color: currentColor;
+      background: none;
+      box-shadow: 0 0 0 1px var(--dou-chart-surface);
+    }
+  }
+
+  .dou-chart__tooltip {
+    --dou-chart-tooltip-bg: light-dark(
+      var(--dou-color-bg-surface),
+      color-mix(in oklab, var(--dou-color-text) 4%, var(--dou-color-bg-surface))
+    );
+
+    box-sizing: border-box;
+    min-width: 120px;
+    max-width: min(280px, calc(100% - 8px));
+    padding: 8px 10px;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-container);
+    background-color: var(--dou-chart-tooltip-bg);
+    box-shadow: var(--dou-shadow-md);
+    color: var(--dou-color-text-secondary);
+    will-change: transform;
+  }
+
+  .dou-chart__tooltip-title {
+    display: flex;
+    align-items: center;
+    min-height: 16px;
+    margin-bottom: 6px;
+    color: var(--dou-color-text);
+    font-weight: var(--dou-font-weight-medium);
+  }
+
+  .dou-chart__tooltip-item {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    min-height: 16px;
+
+    & + & {
+      margin-top: 4px;
+    }
+  }
+
+  .dou-chart__tooltip-swatch {
+    flex-shrink: 0;
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    background-color: currentColor;
+  }
+
+  /* untrimmed, so cutting a long name short doesn't cut the tops and tails of the letters */
+  .dou-chart__tooltip-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    line-height: 16px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-box: normal;
+  }
+
+  .dou-chart__tooltip-value {
+    margin-left: 12px;
+    color: var(--dou-color-text);
+    font-weight: var(--dou-font-weight-medium);
+    white-space: nowrap;
+  }
+
+  .dou-chart__tooltip-note {
+    margin-top: 6px;
+    color: var(--dou-color-text-tertiary);
+    line-height: 16px;
+  }
+
+  /* read out, not shown */
+  .dou-chart__live {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 }

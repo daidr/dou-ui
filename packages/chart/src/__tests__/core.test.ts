@@ -197,10 +197,11 @@ describe('monotone curve', () => {
   })
 })
 
-const input = (index: number, props: Record<string, unknown>, kind = areaKind) => ({
+const input = (index: number, { hidden, ...props }: Record<string, unknown>, kind = areaKind) => ({
   index,
   kind,
   props: props as never,
+  hidden: !!hidden,
 })
 
 describe('model', () => {

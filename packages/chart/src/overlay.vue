@@ -25,8 +25,16 @@ export interface OverlayState {
       color: string
       kind: string
       dashed: boolean
+      /** Turned off. */
+      off: boolean
+      /** The last one shown: it can't be turned off. */
+      locked: boolean
     }>
   >
+  /** Turns the series (or slice) at `index` on or off. */
+  toggle: (index: number) => void
+  /** Brings the series at `index` forward while the pointer or focus is on its entry; `null` to stop. */
+  focus: (index: number | null) => void
   /** Where the donut's hole is, if there is one to fill. */
   hole: ComputedRef<{ left: number; top: number; width: number } | null>
   center: () => VNodeChild
@@ -36,8 +44,10 @@ defineOptions({ name: 'DouChartOverlay' })
 
 const { state } = defineProps<{ state: OverlayState }>()
 const ns = useNamespace('chart')
-const { shown, labels, titles, legend, hole } = state
+const { shown, labels, titles, legend, hole, toggle, focus } = state
 const Center = () => state.center()
+// a click focuses the entry too: only keyboard focus brings its series forward
+const focusVisible = (e: FocusEvent) => (e.target as Element).matches(':focus-visible')
 </script>
 
 <template>
@@ -60,15 +70,32 @@ const Center = () => state.center()
       :style="{ transform: `translate(${title.left}px, ${title.top}px)` }"
       ><span :class="ns.e('text')">{{ title.text }}</span></span
     >
-    <span
+  </div>
+  <div v-if="shown && legend.length" :class="ns.e('legends')">
+    <button
       v-for="item in legend"
       :key="`legend:${item.index}`"
-      :class="[ns.e('legend'), ns.is(item.kind), ns.is('dashed', item.dashed)]"
+      type="button"
+      :class="[
+        ns.e('legend'),
+        ns.is(item.kind),
+        ns.is('dashed', item.dashed),
+        ns.is('off', item.off),
+        ns.is('locked', item.locked),
+      ]"
       :style="{ transform: `translate(${item.left}px, ${item.top}px)` }"
-      ><span :class="ns.e('swatch')" :style="{ color: item.color }" /><span :class="ns.e('text')">{{
-        item.text
-      }}</span></span
+      :aria-pressed="!item.off"
+      :aria-disabled="item.locked || undefined"
+      @click="toggle(item.index)"
+      @pointerenter="(e) => e.pointerType !== 'touch' && !item.off && focus(item.index)"
+      @pointerleave="focus(null)"
+      @focus="(e) => focusVisible(e) && !item.off && focus(item.index)"
+      @blur="focus(null)"
     >
+      <span :class="ns.e('swatch')" :style="{ color: item.color }" /><span :class="ns.e('text')">{{
+        item.text
+      }}</span>
+    </button>
   </div>
   <div
     v-if="hole"

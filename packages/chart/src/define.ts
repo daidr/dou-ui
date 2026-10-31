@@ -1,6 +1,7 @@
 import type { Tone } from 'dou-ui'
 import {
   defineComponent,
+  useModel,
   type ComponentObjectPropsOptions,
   type ExtractPropTypes,
   type PropType,
@@ -19,6 +20,7 @@ const seriesProps = {
   tone: String as PropType<Tone>,
   axis: String as PropType<ChartValueAxis>,
   stack: { type: [String, Boolean] as PropType<string | boolean>, default: undefined },
+  /** Turned off in the legend (`v-model:hidden`). */
   hidden: Boolean,
 } as const
 
@@ -58,10 +60,12 @@ export function defineChartSeries<Props extends ComponentObjectPropsOptions = {}
   return defineComponent({
     name: component,
     props: { ...seriesProps, ...(own as Props) },
+    emits: ['update:hidden'],
     setup(props) {
       const el = useOwnNode()
+      const hidden = useModel(props as { hidden: boolean }, 'hidden')
       useChartPart(component, (chart) =>
-        chart.addSeries({ kind: kind as ChartSeriesKind<any>, props: props as never, el }),
+        chart.addSeries({ kind: kind as ChartSeriesKind<any>, props: props as never, el, hidden }),
       )
       return () => null
     },

@@ -36,6 +36,10 @@
       "types": "./dist/types/collaboration/index.d.ts",
       "import": "./dist/collaboration/index.js"
     },
+    "./shiki": {
+      "types": "./dist/types/shiki/index.d.ts",
+      "import": "./dist/shiki/index.js"
+    },
     "./style.css": "./dist/style.css",
     "./package.json": "./package.json"
   },
@@ -63,6 +67,7 @@
   },
   "devDependencies": {
     "yjs": "^13.6.33",
-    "y-protocols": "^1.0.7"
+    "y-protocols": "^1.0.7",
+    "shiki": "2.5.0"
   }
 }

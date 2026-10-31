@@ -483,6 +483,10 @@ export default defineConfig({
           replacement: r('../../packages/gantt/src/style.css'),
         },
         {
+          find: /^@dou-ui\/code\/shiki$/,
+          replacement: r('../../packages/code/src/shiki/index.ts'),
+        },
+        {
           find: /^@dou-ui\/code\/collaboration$/,
           replacement: r('../../packages/code/src/collaboration/index.ts'),
         },

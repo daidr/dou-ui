@@ -59,6 +59,7 @@
         "@dou-ui/icons": "workspace:*",
       },
       "devDependencies": {
+        "shiki": "2.5.0",
         "y-protocols": "^1.0.7",
         "yjs": "^13.6.33",
       },

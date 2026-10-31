@@ -17,7 +17,7 @@ const rows = Array.from({ length: days }, (_, i) => ({
 
 <template>
   <DouChart :data="rows" x="date" :height="300">
-    <DouChartAxis position="left" title="客流（人次）" />
+    <DouChartAxis for="y" title="客流（人次）" />
     <DouChartLine y="sh" name="上海店" smooth />
     <DouChartLine y="bj" name="北京店" smooth />
     <DouChartLine y="hz" name="杭州店" smooth />

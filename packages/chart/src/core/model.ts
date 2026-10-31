@@ -8,12 +8,12 @@ import {
   type XColumn,
   type XKind,
 } from './data'
-import type { ChartSeriesProps, ChartValueAxis, SeriesKind } from './series'
+import type { ChartSeriesKind, ChartSeriesProps, ChartValueAxis } from './series'
 
 /** A series as registered by its component. */
 export interface SeriesInput {
   index: number
-  kind: SeriesKind
+  kind: ChartSeriesKind<any>
   props: ChartSeriesProps & { stack?: string | boolean; hidden?: boolean } & Record<string, unknown>
 }
 
@@ -21,11 +21,14 @@ export interface SeriesInput {
 export interface ModelSeries {
   input: SeriesInput
   name: string
+  rows: readonly ChartRow[]
   axis: ChartValueAxis
   x: XColumn
   y: Float64Array
   top: Float64Array
   base: Float64Array | null
+  stackEnds: { up: Float64Array; down: Float64Array } | null
+  slot: { index: number; count: number } | null
 }
 
 export interface ChartModel {
@@ -40,6 +43,14 @@ export interface ChartModel {
   zero: Record<ChartValueAxis, boolean>
   /** Whether every x is a whole number (years, counts): the x axis then has no ticks in between. */
   xIntegers: boolean
+  /**
+   * For series that take a band of each x (bars) on a number or time axis:
+   * the smallest distance between two x values, which is one band. `NaN`
+   * when there is no such series or no two values.
+   */
+  xStep: number
+  /** The most room any series needs around its points, in px (bubbles). */
+  inset: number
 }
 
 const extents = new WeakMap<Float64Array, [number, number] | null>()
@@ -116,11 +127,14 @@ export function buildModel(
     return {
       input,
       name,
-      axis: input.props.axis ?? chart.axis ?? 'left',
+      rows,
+      axis: input.props.axis ?? chart.axis ?? 'y',
       x: column,
       y,
       top: y,
       base: null,
+      stackEnds: null,
+      slot: null,
     }
   })
 
@@ -146,13 +160,23 @@ export function buildModel(
   }
 
   stack(series)
+  assignSlots(series)
 
   let x: [number, number] | null = null
+  let xStep = Number.NaN
   if (kind === 'category') x = categories.length ? [0, categories.length - 1] : null
-  else for (const s of series) x = merge(x, cachedExtent(s.x.values))
+  else {
+    for (const s of series) {
+      x = merge(x, cachedExtent(s.x.values))
+      if (s.input.kind.band) {
+        const gap = smallestGap(s.x.values)
+        if (!(gap >= xStep)) xStep = gap
+      }
+    }
+  }
 
-  const y: ChartModel['y'] = { left: null, right: null }
-  const zero: ChartModel['zero'] = { left: false, right: false }
+  const y: ChartModel['y'] = { y: null, y2: null }
+  const zero: ChartModel['zero'] = { y: false, y2: false }
   for (const s of series) {
     y[s.axis] = merge(y[s.axis], cachedExtent(s.top))
     if (s.base) y[s.axis] = merge(y[s.axis], cachedExtent(s.base))
@@ -160,7 +184,51 @@ export function buildModel(
   }
 
   const xIntegers = kind === 'linear' && series.every((s) => allIntegers(s.x.values))
-  return { series, xKind: kind, categories, x, y, zero, xIntegers }
+  let inset = 0
+  for (const s of series)
+    inset = Math.max(
+      inset,
+      s.input.kind.inset?.({ props: s.input.props, rows: s.rows, x: s.x, y: s.y }) ?? 0,
+    )
+  return { series, xKind: kind, categories, x, y, zero, xIntegers, xStep, inset }
+}
+
+const gaps = new WeakMap<Float64Array, number>()
+/** The smallest distance between two different values, or `NaN` with fewer than two. */
+function smallestGap(values: Float64Array): number {
+  let gap = gaps.get(values)
+  if (gap === undefined) {
+    // typed arrays sort as numbers, NaN last
+    // oxlint-disable-next-line unicorn/no-array-sort -- sorts a copy
+    const sorted = values.slice().sort()
+    gap = Number.NaN
+    for (let i = 1; i < sorted.length; i++) {
+      const d = sorted[i]! - sorted[i - 1]!
+      if (d > 0 && !(d >= gap)) gap = d
+    }
+    gaps.set(values, gap)
+  }
+  return gap
+}
+
+/**
+ * Gives each series that takes a band of each x (bars) its part of it: a
+ * stack shares one part, every other series gets its own.
+ */
+function assignSlots(series: ModelSeries[]) {
+  const keys = new Map<string, number>()
+  const banded = series.filter((s) => s.input.kind.band)
+  const keyOf = (s: ModelSeries) => {
+    const name = s.input.props.stack
+    return s.stackEnds && name !== undefined && name !== false
+      ? `${s.axis}\u0000${name === true ? '' : name}`
+      : `#${s.input.index}`
+  }
+  for (const s of banded) {
+    const key = keyOf(s)
+    if (!keys.has(key)) keys.set(key, keys.size)
+  }
+  for (const s of banded) s.slot = { index: keys.get(keyOf(s))!, count: keys.size }
 }
 
 /**
@@ -172,7 +240,7 @@ function stack(series: ModelSeries[]) {
   const groups = new Map<string, ModelSeries[]>()
   for (const s of series) {
     const name = s.input.props.stack
-    if (!s.input.kind.stacks || name === undefined || name === false) continue
+    if (!s.input.kind.stackable || name === undefined || name === false) continue
     const key = `${s.axis}\u0000${name === true ? '' : name}`
     const group = groups.get(key)
     if (!group) groups.set(key, [s])
@@ -205,6 +273,7 @@ function stack(series: ModelSeries[]) {
       }
       s.base = base
       s.top = top
+      s.stackEnds = { up, down }
     }
   }
 }

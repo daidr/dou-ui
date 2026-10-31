@@ -31,7 +31,7 @@ generate(100_000)
     </DouSpace>
     <DouChart :data="rows" x="time" :height="280">
       <!-- 时间是毫秒数，用 type 把横轴指定为时间轴 -->
-      <DouChartAxis position="bottom" type="time" />
+      <DouChartAxis for="x" type="time" />
       <DouChartLine y="value" name="读数" :line-width="1.5" />
     </DouChart>
   </div>

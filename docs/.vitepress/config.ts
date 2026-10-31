@@ -101,6 +101,8 @@ export default defineConfig({
             { text: '看板', link: '/blocks/kanban' },
             { text: '文件管理', link: '/blocks/files' },
             { text: 'AI 工作流', link: '/blocks/ai-workflow' },
+            { text: '发布排期', link: '/blocks/release-plan' },
+            { text: '会议室预约', link: '/blocks/room-booking' },
           ],
         },
       ],

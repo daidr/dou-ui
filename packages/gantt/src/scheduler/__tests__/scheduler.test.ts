@@ -2,7 +2,14 @@ import { mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { spanOf, type GanttTask } from '../../index'
-import { DouScheduler, groupByResource, loadSegments, packLanes, type SchedulerResource } from '..'
+import {
+  DouScheduler,
+  findConflict,
+  groupByResource,
+  loadSegments,
+  packLanes,
+  type SchedulerResource,
+} from '..'
 import type { SchedulerMenuTarget, SchedulerMove, SchedulerRange } from '../types'
 
 const resources: SchedulerResource[] = [
@@ -96,6 +103,33 @@ describe('scheduler layout', () => {
     expect(groups.get('qing')!.lanes).toBe(1)
     expect(groups.get('man')!.lanes).toBe(2)
     expect(groups.get('')!.items.map((item) => item.task.id)).toEqual(['f', 'g'])
+  })
+})
+
+describe('findConflict', () => {
+  const booked: GanttTask[] = [
+    { id: 'x', title: '周会', resource: '301', start: '2026-03-02 09:30', end: '2026-03-02 10:30' },
+    { id: 'y', title: '面试', resource: '302', start: '2026-03-02 10:00', end: '2026-03-02 11:00' },
+  ]
+  it('finds a task on the same resource at the same time', () => {
+    expect(
+      findConflict(booked, { resource: '301', start: '2026-03-02 10:00', end: '2026-03-02 11:00' })
+        ?.id,
+    ).toBe('x')
+  })
+  it('lets tasks touch, and ignores other resources, the task itself and no resource', () => {
+    const at = { start: '2026-03-02 10:30', end: '2026-03-02 11:30' }
+    expect(findConflict(booked, { resource: '301', ...at })).toBeUndefined()
+    expect(
+      findConflict(booked, { resource: '303', start: '2026-03-02 10:00', end: '2026-03-02 11:00' }),
+    ).toBeUndefined()
+    expect(
+      findConflict(booked, { task: booked[0], resource: '301', start: '2026-03-02 10:00' }),
+    ).toBeUndefined()
+    expect(findConflict(booked, { start: '2026-03-02 10:00' })).toBeUndefined()
+  })
+  it('counts a whole day against the times in it', () => {
+    expect(findConflict(booked, { resource: '302', start: '2026-03-02' })?.id).toBe('y')
   })
 })
 

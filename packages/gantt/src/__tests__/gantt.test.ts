@@ -1,9 +1,9 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
-import { defineGanttExtension, useGantt } from '../index'
+import { defineGanttExtension, takeBaseline, useGantt } from '../index'
 import { DouGantt } from '../index'
-import type { GanttLink, GanttTask } from '../index'
+import type { GanttExpose, GanttLink, GanttTask } from '../index'
 
 const sample = (): GanttTask[] => [
   { id: 'p', title: '发布' },
@@ -587,5 +587,102 @@ describe('extension lifecycle', () => {
     const calls = warn.mock.calls.filter(([text]) => String(text).includes('set up again'))
     expect(calls).toHaveLength(1)
     warn.mockRestore()
+  })
+})
+
+describe('baseline', () => {
+  it('saves the current dates, summaries included', () => {
+    expect(takeBaseline(sample())).toEqual([
+      { id: 'p', start: '2026-03-02', end: '2026-03-16' },
+      { id: 'a', start: '2026-03-02', end: '2026-03-06' },
+      { id: 'b', start: '2026-03-09', end: '2026-03-13' },
+      { id: 'm', start: '2026-03-16' },
+    ])
+  })
+
+  it('draws the plan under the bars and reads out how far a task moved', async () => {
+    const baseline = takeBaseline(sample()).map((item) =>
+      item.id === 'b' ? { ...item, start: '2026-03-05', end: '2026-03-11' } : item,
+    )
+    const { wrapper } = setup({ baseline })
+    await nextTick()
+    expect(wrapper.find('.dou-gantt').classes()).toContain('has-baseline')
+    expect(wrapper.findAll('.dou-gantt__baseline')).toHaveLength(4)
+    expect(wrapper.find('.dou-gantt__baseline.is-milestone').exists()).toBe(true)
+    // planned to end on 3/11, now ends on 3/13: two working days late
+    expect(wrapper.find('.dou-gantt__bar[data-task="b"]').attributes('aria-label')).toMatch(
+      /，比计划晚 2 天$/,
+    )
+    expect(wrapper.find('.dou-gantt__bar[data-task="a"]').attributes('aria-label')).not.toMatch(
+      /计划/,
+    )
+  })
+
+  it('puts a milestone plan under the milestone, turned after it is moved into place', async () => {
+    const { wrapper } = setup({ baseline: takeBaseline(sample()) })
+    await nextTick()
+    const plan = wrapper.find('.dou-gantt__baseline.is-milestone').element as HTMLElement
+    const bar = wrapper.find('.dou-gantt__bar[data-task="m"]').element as HTMLElement
+    const row = bar.parentElement!
+    const move = /^translate\(([\d.]+)px, ([\d.]+)px\) rotate\(45deg\)$/.exec(plan.style.transform)
+    expect(move).not.toBeNull()
+    expect(Number(move![1])).toBe(Number.parseFloat(bar.style.left))
+    expect(Number(move![2])).toBe(Number(/translateY\(([\d.]+)px\)/.exec(row.style.transform)![1]))
+  })
+})
+
+describe('export', () => {
+  it('writes the table as CSV, collapsed subtasks too', async () => {
+    const { wrapper, tasks } = setup()
+    tasks.value = tasks.value.map((task) => (task.id === 'p' ? { ...task, collapsed: true } : task))
+    await nextTick()
+    const vm = wrapper.findComponent(DouGantt).vm as unknown as GanttExpose
+    const csv = vm.exportCSV()
+    expect(csv.startsWith('﻿')).toBe(true)
+    expect(csv.slice(1).split('\r\n')).toEqual([
+      '任务,开始,工期（天）',
+      '发布,2026-03-02,11',
+      '设计,2026-03-02,5',
+      '开发,2026-03-09,5',
+      '上线,2026-03-16,',
+    ])
+    // with timed tasks too, each duration keeps its unit
+    tasks.value = [
+      ...tasks.value,
+      { id: 't', title: '评审会', start: '2026-03-03 10:00', end: '2026-03-03 12:00' },
+    ]
+    await nextTick()
+    expect(vm.exportCSV({ bom: false }).split('\r\n').slice(-1)).toEqual([
+      '评审会,2026-03-03 10:00,2 小时',
+    ])
+    expect(vm.exportCSV({ bom: false }).split('\r\n')[0]).toBe('任务,开始,工期')
+    tasks.value = tasks.value.filter((task) => task.id !== 't')
+    await nextTick()
+    expect(vm.exportCSV({ text: true, bom: false }).split('\r\n')).toEqual([
+      '任务,开始,工期',
+      '发布,3月2日,11 天',
+      '设计,3月2日,5 天',
+      '开发,3月9日,5 天',
+      '上线,3月16日,',
+    ])
+  })
+
+  it('draws the chart as SVG, with the plan under the bars', async () => {
+    const baseline = [{ id: 'b', start: '2026-03-05', end: '2026-03-11' }]
+    const { wrapper } = setup({ baseline })
+    await nextTick()
+    const vm = wrapper.findComponent(DouGantt).vm as unknown as {
+      exportSVG: (options?: { table?: boolean }) => string
+    }
+    const svg = vm.exportSVG({ table: true })
+    expect(svg.startsWith('<svg xmlns="http://www.w3.org/2000/svg"')).toBe(true)
+    for (const text of ['任务', '发布', '设计', '开发', '上线', '2026年3月'])
+      expect(svg).toContain(`>${text}<`)
+    // two links, each a line and an arrow
+    expect(svg.match(/<path d="M/g)?.length).toBeGreaterThanOrEqual(4)
+    expect(svg).toContain('height="4" rx="2"')
+    // a parseable document
+    const doc = new DOMParser().parseFromString(svg, 'image/svg+xml')
+    expect(doc.querySelector('parsererror')).toBeNull()
   })
 })

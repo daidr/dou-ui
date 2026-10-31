@@ -215,9 +215,67 @@ const broken = findBrokenLinks({ tasks, links }, { calendar })
 
 ## 标记线
 
-`markers` 在时间轴上画竖向的标记线，比如发布日、代码冻结。`date` 是位置，只写日期时在当天开始处；`label` 显示在表头；`tone` 可选 `neutral`、`primary`、`success`、`warning`、`danger`。
+`markers` 在时间轴上画竖向的标记线，比如发布日、代码冻结。`date` 是位置，只写日期时在当天开始处；`label` 显示在表头；`tone` 可选 `neutral`、`primary`、`success`、`warning`、`danger`。两个标记离得太近时，左边的标签会截短或只留下线，鼠标悬停可以看到完整文字。
 
 <DocDemo src="gantt/markers" column />
+
+## 基线
+
+基线是某一时刻保存下来的计划日期。传入 `baseline` 后，每个任务条下方会画一条细的灰线，标出计划中的位置，可以直接看出哪些任务比计划提前或推迟；读屏时也会读出比计划晚或早了多久。
+
+<DocDemo src="gantt/baseline" column />
+
+`takeBaseline(tasks)` 把当前的日期保存成基线，汇总任务按子任务覆盖的范围保存。基线是普通的数组，和任务一起存到服务端即可，需要对比时再传回来；可以保存多份，切换 `baseline` 查看不同时期的计划。
+
+```ts
+import { takeBaseline, type GanttBaselineItem } from '@dou-ui/gantt'
+
+const baseline = ref<GanttBaselineItem[]>()
+baseline.value = takeBaseline(tasks.value) // [{ id, start, end }, …]
+```
+
+## 导出与打印
+
+组件实例上有四个方法，导出的内容和屏幕上一致，颜色跟随当前的亮暗主题：
+
+| 方法                 | 说明                                                                                   |
+| -------------------- | -------------------------------------------------------------------------------------- |
+| `exportSVG(options)` | 返回 SVG 文档字符串，可以在设计软件里继续编辑                                          |
+| `exportPNG(options)` | 返回 PNG 的 `Blob`，默认按 2 倍像素绘制                                                |
+| `exportCSV(options)` | 返回 CSV 字符串：表格的每一列和每个任务，收起的子任务也在内                            |
+| `print(options)`     | 打开浏览器的打印对话框：所有行，按纸张宽度自动选择刻度，行多时分成多页，每页都重复表头 |
+
+<DocDemo src="gantt/export" column />
+
+`exportSVG` 和 `exportPNG` 的选项：
+
+| 名称         | 说明                                                            | 默认值           |
+| ------------ | --------------------------------------------------------------- | ---------------- |
+| `range`      | `all` 是全部行和全部任务所在的时间，`view` 是当前看到的行和时间 | `'all'`          |
+| `table`      | 是否画出左侧表格                                                | 跟随当前是否显示 |
+| `scale`      | 按哪个刻度绘制，如 `'week'`                                     | 当前的缩放       |
+| `pixelRatio` | 只用于 PNG，每个 CSS 像素对应的图片像素                         | `2`              |
+
+`print` 的选项是 `orientation`（`landscape` 横向或 `portrait` 纵向，默认横向）和 `table`。`table` 默认为 `true`：纸张放得下表格，即使窄屏上表格已经收起。时间跨度很长时，导出的图片最宽 16000px，超出时会自动缩小刻度。
+
+CSV 默认写入表格软件能排序和计算的值：日期是 `2026-03-02`（带时间的任务是 `2026-03-02 09:30`），工期是工作日数（带时间的任务是工作小时数），表头会写上单位，如“工期（天）”；两种任务都有时，工期保留单位，如 `5 天`、`2 小时`。进度是 0–100 的数字。`exportCSV` 的选项：
+
+| 名称   | 说明                                                    | 默认值  |
+| ------ | ------------------------------------------------------- | ------- |
+| `text` | 改为写入表格里显示的文字，如 `3月2日`、`5 天`           | `false` |
+| `bom`  | 在开头加上 BOM，表格软件才会按 UTF-8 读取，中文不会乱码 | `true`  |
+
+方法只返回内容，下载由你决定，例如：
+
+```ts
+const blob = await gantt.value.exportPNG()
+const url = URL.createObjectURL(blob)
+const a = Object.assign(document.createElement('a'), { href: url, download: '排期.png' })
+a.click()
+URL.revokeObjectURL(url)
+```
+
+任务数据本身需要保存为 JSON 时，直接序列化 `tasks` 和 `links` 即可。
 
 ## 时间刻度
 

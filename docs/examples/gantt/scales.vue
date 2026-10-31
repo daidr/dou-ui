@@ -39,6 +39,7 @@ const links = ref([
       v-model:scale="scale"
       :columns="[{ key: 'title' }, { key: 'duration', width: 72 }]"
       :table-width="220"
+      readonly
       style="height: 320px"
     />
   </div>

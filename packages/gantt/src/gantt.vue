@@ -12,7 +12,7 @@ import {
   useTemplateRef,
   watch,
 } from 'vue'
-import { offTime, resolveCalendar } from './core/calendar'
+import { endKeepingWork, offTime, resolveCalendar } from './core/calendar'
 import { arrowPath, roundedPath, routeLink, type BarBox } from './core/geometry'
 import { GanttHistory } from './core/history'
 import { linkRefusal, linkTypeOf, type GanttLinkRefusal } from './core/links'
@@ -738,8 +738,11 @@ const dragPreview = computed<Map<string, Partial<GanttTask>> | null>(() => {
       const unit = stepFor(d.spans.values())
       const first = d.spans.get(d.id) ?? d.spans.values().next().value!
       const shift = snap(first.start + delta, unit) - first.start
-      for (const [id, span] of d.spans)
-        out.set(id, writeSpan(task(id), span.start + shift, span.end + shift))
+      // the work stays the same: moving across a weekend stretches the bar
+      for (const [id, span] of d.spans) {
+        const start = span.start + shift
+        out.set(id, writeSpan(task(id), start, endKeepingWork(calendar.value, span, start)))
+      }
       break
     }
     case 'start':
@@ -870,6 +873,16 @@ function update(d: Drag, x: number) {
   drag.value = next
 }
 
+let canLinkWarned = false
+// a `canLink` that forgets its last `return true` refuses every link
+function warnCanLink() {
+  if (process.env.NODE_ENV === 'production' || canLinkWarned) return
+  canLinkWarned = true
+  console.warn(
+    '[DouGantt] canLink returned undefined, so the link is refused. Return true to allow it.',
+  )
+}
+
 /** The bar end under the pointer, and whether a link to it would be refused. */
 function linkTarget(d: Drag): Drag['target'] {
   // look through lines and handles to the bar underneath
@@ -887,6 +900,7 @@ function linkTarget(d: Drag): Drag['target'] {
   if (!refusal && props.canLink) {
     const link = { from: d.id, to: id, type: linkTypeOf(d.from!, end) }
     const answer = props.canLink(link, docOf())
+    if (answer === undefined) warnCanLink()
     if (answer !== true) {
       refusal = 'custom'
       if (typeof answer === 'string' && answer) reason = answer

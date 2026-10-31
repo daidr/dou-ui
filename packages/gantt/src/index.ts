@@ -19,7 +19,7 @@ export type { GanttData, GanttLink, GanttLinkType, GanttTask, TaskSpan } from '.
 export type { GanttRow } from './core/tree'
 export { resolveCalendar, workdaysBetween, workingMinutes } from './core/calendar'
 export type { GanttCalendar, WorkCalendar } from './core/calendar'
-export { applySteps, GanttTransaction } from './core/transaction'
+export { applyGanttSteps, GanttTransaction } from './core/transaction'
 export type { GanttDocument, GanttStep, GanttTransactionMeta } from './core/transaction'
 export { parseLag } from './core/links'
 export type { GanttLag, GanttLinkRefusal } from './core/links'

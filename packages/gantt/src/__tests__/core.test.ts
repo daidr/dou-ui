@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { offTime, resolveCalendar, workdaysBetween, workingMinutes } from '../core/calendar'
+import {
+  endKeepingWork,
+  offTime,
+  resolveCalendar,
+  workdaysBetween,
+  workingMinutes,
+} from '../core/calendar'
 import { roundedPath, routeLink } from '../core/geometry'
 import { linkRefusal, linkTypeOf, parseLag } from '../core/links'
 import { spanOf, writeSpan } from '../core/model'
@@ -73,6 +79,26 @@ describe('spans', () => {
 })
 
 describe('calendar', () => {
+  it('keeps the working time of a moved span', () => {
+    const calendar = resolveCalendar({
+      hours: [
+        ['09:00', '12:00'],
+        ['13:00', '18:00'],
+      ],
+    })
+    // Mon–Fri, five working days, moved to start on Wednesday: ends Tuesday
+    const week = { start: at('2026-03-02'), end: at('2026-03-07'), dateOnly: true }
+    expect(formatTime(endKeepingWork(calendar, week, at('2026-03-04')))).toBe('2026-03-11 00:00')
+    // three working hours (lunch left out), from Friday 16:00, run into Monday
+    const hours = { start: at('2026-03-02 09:00'), end: at('2026-03-02 13:00'), dateOnly: false }
+    expect(formatTime(endKeepingWork(calendar, hours, at('2026-03-06 16:00')))).toBe(
+      '2026-03-09 10:00',
+    )
+    // a span with no working time keeps its length
+    const weekend = { start: at('2026-03-07'), end: at('2026-03-09'), dateOnly: true }
+    expect(endKeepingWork(calendar, weekend, at('2026-03-14'))).toBe(at('2026-03-16'))
+  })
+
   // 2026-10-01 is a Thursday
   const calendar = resolveCalendar({
     holidays: ['2026-10-01', '2026-10-02'],

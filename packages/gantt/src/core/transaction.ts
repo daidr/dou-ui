@@ -1,4 +1,5 @@
 import { writeSpan, type GanttLink, type GanttTask } from './model'
+import { MINUTES_PER_DAY, parseTime } from './time'
 
 /*
  * Every change to the tasks and links is a list of steps. Applying a step
@@ -49,6 +50,14 @@ function previous<T extends object>(item: T, patch: Patch<T>): Patch<T> {
   const old: Record<string, unknown> = {}
   for (const key of Object.keys(patch)) old[key] = (item as Record<string, unknown>)[key]
   return old as Patch<T>
+}
+
+/** A time as minutes; a date-only end counts its whole day. */
+function minutesOf(time: number | string, end: boolean) {
+  if (typeof time === 'number') return time
+  const parsed = parseTime(time)
+  if (!parsed) throw new RangeError(`Can't read the time "${time}"`)
+  return parsed.at + (end && parsed.dateOnly ? MINUTES_PER_DAY : 0)
 }
 
 const clampIndex = (index: number | undefined, length: number) =>
@@ -128,11 +137,15 @@ export class GanttTransaction {
     return this.step({ type: 'updateTask', id, patch })
   }
 
-  /** Sets a task's dates from minutes, written in the task's own style. */
-  setSpan(id: string, start: number, end: number) {
+  /**
+   * Sets a task's dates, written back in the task's own style. Takes
+   * minutes, or strings read like the task's own: a date-only `end` is the
+   * last day of the task.
+   */
+  setSpan(id: string, start: number | string, end: number | string) {
     const task = this.getTask(id)
     if (!task) return this
-    return this.updateTask(id, writeSpan(task, start, end))
+    return this.updateTask(id, writeSpan(task, minutesOf(start, false), minutesOf(end, true)))
   }
 
   /** Merges `patch` into the task's `data`. */
@@ -213,7 +226,7 @@ export class GanttTransaction {
 }
 
 /** Applies steps to a document; steps that no longer apply are skipped. */
-export function applySteps(doc: GanttDocument, steps: readonly GanttStep[]) {
+export function applyGanttSteps(doc: GanttDocument, steps: readonly GanttStep[]) {
   const tr = new GanttTransaction(doc)
   for (const step of steps) tr.step(step)
   return tr

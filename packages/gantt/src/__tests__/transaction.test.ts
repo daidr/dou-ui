@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { GanttHistory } from '../core/history'
 import { parseTime } from '../core/time'
-import { applySteps, compactSteps, GanttTransaction, type GanttDocument } from '../core/transaction'
+import {
+  applyGanttSteps,
+  compactSteps,
+  GanttTransaction,
+  type GanttDocument,
+} from '../core/transaction'
 
 const doc = (): GanttDocument => ({
   tasks: [
@@ -22,6 +27,10 @@ describe('GanttTransaction', () => {
     tr.setSpan('b', at('2026-03-09 10:00'), at('2026-03-09 12:00'))
     expect(tr.getTask('a')).toMatchObject({ start: '2026-03-03', end: '2026-03-07' })
     expect(tr.getTask('b')).toMatchObject({ start: '2026-03-09 10:00', end: '2026-03-09 12:00' })
+    // strings are read like task dates: a date-only end is the last day
+    tr.setSpan('a', '2026-03-10', '2026-03-12')
+    expect(tr.getTask('a')).toMatchObject({ start: '2026-03-10', end: '2026-03-12' })
+    expect(() => tr.setSpan('a', '3/10', '3/12')).toThrow(RangeError)
   })
 
   it('removes a task with its subtasks and links, and undoes it all', () => {
@@ -31,7 +40,7 @@ describe('GanttTransaction', () => {
     expect(tr.doc.tasks.map((t) => t.id)).toEqual(['b'])
     expect(tr.doc.links).toEqual([])
     expect(tr.touches('links')).toBe(true)
-    const undone = applySteps(tr.doc, tr.inverse).doc
+    const undone = applyGanttSteps(tr.doc, tr.inverse).doc
     expect(undone).toEqual(before)
   })
 

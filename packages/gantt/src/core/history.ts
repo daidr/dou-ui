@@ -1,5 +1,5 @@
 import {
-  applySteps,
+  applyGanttSteps,
   compactSteps,
   type GanttDocument,
   type GanttStep,
@@ -63,7 +63,7 @@ export class GanttHistory {
   undo(doc: GanttDocument) {
     const entry = this.done.pop()
     if (!entry) return null
-    const tr = applySteps(doc, entry.inverse)
+    const tr = applyGanttSteps(doc, entry.inverse)
     this.undone.push(entry)
     return { tr, selection: entry.selectionBefore }
   }
@@ -71,7 +71,7 @@ export class GanttHistory {
   redo(doc: GanttDocument) {
     const entry = this.undone.pop()
     if (!entry) return null
-    const tr = applySteps(doc, entry.steps)
+    const tr = applyGanttSteps(doc, entry.steps)
     this.done.push({ ...entry, group: undefined })
     return { tr, selection: entry.selectionAfter }
   }

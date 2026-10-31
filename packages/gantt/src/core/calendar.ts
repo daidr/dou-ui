@@ -125,3 +125,42 @@ export function offTime(calendar: WorkCalendar, from: number, to: number, hours 
   }
   return out
 }
+
+/** How far a search for working time looks ahead, in days. */
+const LOOKAHEAD = 3660
+
+/**
+ * The end of a span moved to start at `start`, keeping its working time:
+ * as many working days for a date-only span, as many working minutes
+ * otherwise. A span with no working time keeps its length.
+ */
+export function endKeepingWork(
+  calendar: WorkCalendar,
+  span: { start: number; end: number; dateOnly: boolean },
+  start: number,
+) {
+  const length = span.end - span.start
+  if (span.dateOnly) {
+    let left = workdaysBetween(calendar, span.start, span.end)
+    if (!left) return start + length
+    const first = dayIndex(start)
+    for (let day = first; day < first + LOOKAHEAD; day++)
+      if (calendar.isWorkday(day) && --left === 0) return (day + 1) * MINUTES_PER_DAY
+    return start + length
+  }
+  let left = workingMinutes(calendar, span.start, span.end)
+  if (!left) return start + length
+  const first = dayIndex(start)
+  for (let day = first; day < first + LOOKAHEAD; day++) {
+    if (!calendar.isWorkday(day)) continue
+    const base = day * MINUTES_PER_DAY
+    for (const [open, close] of calendar.hours) {
+      const from = Math.max(start, base + open)
+      const room = base + close - from
+      if (room <= 0) continue
+      if (left <= room) return from + left
+      left -= room
+    }
+  }
+  return start + length
+}

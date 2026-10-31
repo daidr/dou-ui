@@ -152,7 +152,8 @@ describe('DouGantt', () => {
     )
     expect(tasks.value[1]!.start).toBe('2026-03-02')
     pointer('pointerup', 183)
-    expect(tasks.value[1]).toMatchObject({ start: '2026-03-04', end: '2026-03-08' })
+    // five working days still: the bar now spans the weekend
+    expect(tasks.value[1]).toMatchObject({ start: '2026-03-04', end: '2026-03-10' })
     // undo right away, before the parent has rendered the change
     const mod = /mac/i.test(navigator.platform) ? { metaKey: true } : { ctrlKey: true }
     wrapper

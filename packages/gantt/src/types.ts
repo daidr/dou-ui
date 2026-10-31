@@ -182,6 +182,11 @@ export interface GanttExportOptions {
   table?: boolean
   /** The time scale to draw at; defaults to the current zoom. */
   scale?: GanttScale
+  /**
+   * Fill the header and the rows with the page colors. `false` leaves them
+   * transparent, for placing on a slide or page of another color. Defaults to `true`.
+   */
+  background?: boolean
 }
 
 export interface GanttImageOptions extends GanttExportOptions {

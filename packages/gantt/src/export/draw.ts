@@ -50,6 +50,8 @@ export interface DrawInput {
   broken: ReadonlySet<string>
   baseline: ReadonlyMap<string, TaskSpan> | null
   barLabel: GanttBarLabel
+  /** Fill the header and the rows with the page colors; `false` leaves them transparent. */
+  background: boolean
   /** Tasks with a link at their end, whose side titles start further out. */
   linkedEnds: ReadonlySet<string>
   /** Width of a text in px, at the given weight. */
@@ -115,7 +117,9 @@ export function drawGantt(input: DrawInput, theme: ExportTheme): GanttDrawing {
       : ''
 
   // Header -----------------------------------------------------------------------------
-  const header: string[] = [`<rect width="${width}" height="${HEADER}" fill="${theme.headerBg}"/>`]
+  const header: string[] = input.background
+    ? [`<rect width="${width}" height="${HEADER}" fill="${theme.headerBg}"/>`]
+    : []
   input.columns.reduce((left, column) => {
     const label = fit(column.title, column.width - 24, measure(false))
     const x =
@@ -203,7 +207,9 @@ export function drawGantt(input: DrawInput, theme: ExportTheme): GanttDrawing {
   )
 
   // Body -------------------------------------------------------------------------------
-  const body: string[] = [`<rect width="${width}" height="${bodyHeight}" fill="${theme.surface}"/>`]
+  const body: string[] = input.background
+    ? [`<rect width="${width}" height="${bodyHeight}" fill="${theme.surface}"/>`]
+    : []
   if (input.dayWidth >= 8)
     for (const range of offTime(input.calendar, start, end, level.name === 'hour'))
       body.push(

@@ -26,7 +26,8 @@ function save(data: Blob | string, name: string, type = 'text/plain') {
   a.href = url
   a.download = name
   a.click()
-  URL.revokeObjectURL(url)
+  // 下载开始后再释放，立即释放会让部分浏览器下载失败
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
 async function savePNG() {

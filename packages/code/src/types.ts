@@ -43,6 +43,10 @@ export interface CodeEditorProps {
   matchBrackets?: boolean
   /** The built-in search panel (Mod+F). On by default. */
   searchable?: boolean
+  /** Wraps long lines at the editor's width instead of scrolling sideways. */
+  wrap?: boolean
+  /** Shows fold toggles beside the line numbers, and lets blocks be folded. On by default. */
+  foldable?: boolean
   /** Replaces any of the editor's texts, which otherwise follow DouUI's locale. */
   messages?: Partial<CodeMessages>
   /** Extra keys, tried before the built-in ones. */
@@ -59,6 +63,8 @@ export interface CodeEditorEmits {
   transaction: [result: CodeTransactionResult]
   focus: [event: FocusEvent]
   blur: [event: FocusEvent]
+  /** The folds changed: the lines that start one now, from 1. Edits that move a fold to another line count too. */
+  'fold-change': [lines: number[]]
 }
 
 export interface CodeEditorExpose {
@@ -96,4 +102,14 @@ export interface CodeEditorExpose {
   openSearch: (query?: Partial<CodeSearchQuery>) => void
   /** Closes the search panel; `false` when it wasn't open. */
   closeSearch: () => boolean
+  /** Folds the block starting at a line (from 1), or the one around the cursor; `false` when there is none. */
+  fold: (line?: number) => boolean
+  /** Unfolds the folds that start at or hide a line, or the cursor's line. */
+  unfold: (line?: number) => boolean
+  /** Folds every outermost block. */
+  foldAll: () => boolean
+  /** Unfolds everything. */
+  unfoldAll: () => boolean
+  /** The lines that start a fold now, from 1. */
+  readonly folds: number[]
 }

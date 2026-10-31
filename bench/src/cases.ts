@@ -958,6 +958,24 @@ export const cases: Record<string, Case> = {
     },
     act: (root) => codeType(root, '/*'),
   },
+  // A key typed with long lines wrapping: the line is cut again and the rows below move.
+  'code-wrap-type': {
+    render: (n) => codeEditor(n, 'doc', true, true),
+    prepare: (root) => {
+      const editor = (window as any).codeEditor.value as CodeEditorExpose
+      editor.select(editor.doc.line(20).from + 8)
+      root.querySelector('textarea')!.focus()
+    },
+    act: (root) => codeType(root, 'x'),
+  },
+  // Folding every block of the text at once.
+  'code-fold-all': {
+    render: (n) => codeEditor(n, 'doc', true),
+    act: () => {
+      const editor = (window as any).codeEditor.value as CodeEditorExpose
+      editor.foldAll()
+    },
+  },
   // A sheet of n rows × 20 columns, every cell filled.
   sheet: {
     render: (n) => sheet(n),
@@ -1131,7 +1149,7 @@ function pivot(n: number) {
     })
 }
 
-function codeEditor(n: number, bind: 'string' | 'doc', highlighted = false) {
+function codeEditor(n: number, bind: 'string' | 'doc', highlighted = false, wrap = false) {
   const source = Array.from(
     { length: n },
     (_, i) => `  const value${i} = compute(${i}, '第 ${i + 1} 行') // ${i % 7 ? '' : 'note'}`,
@@ -1145,6 +1163,7 @@ function codeEditor(n: number, bind: 'string' | 'doc', highlighted = false) {
       ref: editor,
       style: 'height: 600px',
       language: highlighted ? typescript : undefined,
+      wrap,
       ...(bind === 'string'
         ? { modelValue: code.value, 'onUpdate:modelValue': (value: string) => (code.value = value) }
         : {

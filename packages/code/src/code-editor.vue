@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ChevronDownIcon, ChevronRightIcon } from '@dou-ui/icons'
 import { holdPointer, isApplePlatform, isComposing, useNamespace } from 'dou-ui'
 import {
   computed,
@@ -17,6 +18,7 @@ import { ChangeSet } from './core/changes'
 import { moveCluster, snapCluster, wordAt } from './core/chars'
 import type { CodeCommand, CodeCommandTarget } from './core/commands'
 import { deleteCharBackward, deleteCharForward, insertNewline, insertText } from './core/commands'
+import { type CodeFold, foldEndAt, hiddenLines } from './core/folding'
 import { CodeHistory } from './core/history'
 import { buildKeymap, defaultKeymap, eventKey } from './core/keymap'
 import {
@@ -50,6 +52,14 @@ import SearchPanel from './search-panel.vue'
 import { type CodeLineTokens, type CodeTokenType, lineParts, tokenTypes } from './language/language'
 import type { CodeEditorEmits, CodeEditorExpose, CodeEditorProps } from './types'
 import { diffText } from './view/input'
+import {
+  LineLayout,
+  UNWRAPPED,
+  type WrappedLine,
+  rowOfCol,
+  updateRows,
+  wrapLine,
+} from './view/layout'
 import { Measure } from './view/measure'
 
 defineOptions({ name: 'DouCodeEditor' })
@@ -65,6 +75,8 @@ const props = withDefaults(defineProps<CodeEditorProps>(), {
   closeBrackets: true,
   matchBrackets: true,
   searchable: true,
+  wrap: false,
+  foldable: true,
   messages: undefined,
 })
 const emit = defineEmits<CodeEditorEmits>()
@@ -150,8 +162,11 @@ function dispatch(tr: CodeTransaction): CodeTransactionResult | null {
   if (!result.changes.empty) {
     highlighter?.update(result.state.doc, result.changes)
     mapMatches(result.changes)
+    updateWrap(before.doc, result.state.doc, result.changes)
+    mapFolds(result.changes, result.state.doc)
   }
   state.value = markRaw(result.state)
+  revealFolds()
   goals = pendingGoals
   pendingGoals = new Map()
   blink.value++
@@ -196,6 +211,7 @@ function receive(next: string, given?: CodeText) {
     if (given) {
       highlighter?.update(given, ChangeSet.of([], given.length))
       state.value = markRaw({ ...state.value, doc: given })
+      if (wrapRows) rebuildWrap()
     }
     return
   }
@@ -208,6 +224,8 @@ function receive(next: string, given?: CodeText) {
   history.record(result)
   historyTick.value++
   highlighter?.update(result.state.doc, result.changes)
+  updateWrap(result.before.doc, result.state.doc, result.changes)
+  mapFolds(result.changes, result.state.doc)
   state.value = markRaw(result.state)
   mapMatches(result.changes)
   joined = { doc: result.state.doc, text: normalized }
@@ -252,6 +270,7 @@ const measure = markRaw(new Measure(() => probe.value))
 /** Bumped when the font metrics change, so everything drawn from them is worked out again. */
 const metrics = ref(0)
 
+const mounted = ref(false)
 const scrollTop = ref(0)
 const viewHeight = ref(0)
 const viewWidth = ref(0)
@@ -262,7 +281,66 @@ const lineHeight = computed(() => {
   void metrics.value
   return measure.lineHeight
 })
-const total = computed(() => doc.value.lines * lineHeight.value)
+
+// ---------------------------------------------------------------- wrapping and folding
+
+/** The width a row of text may take when wrapping; 0 when lines don't wrap. */
+const wrapWidth = computed(() => {
+  // Cut nothing before the editor knows its width.
+  if (!props.wrap || !mounted.value) return 0
+  void metrics.value
+  const width = viewWidth.value - gutterWidth.value - PAD_X * 2 - measure.cell
+  return Math.max(measure.cell * 8, width)
+})
+/** How each line text is cut at the current width; texts repeat (blank lines, braces), so this is by text. */
+let wrapCache = new Map<string, WrappedLine>()
+/** Rows of each line while wrapping (index `n - 1`), kept in step with edits. */
+let wrapRows: number[] | null = null
+/** Bumped when `wrapRows` changes without the text changing. */
+const layoutTick = ref(0)
+
+function wrapOf(text: string): WrappedLine {
+  const width = wrapWidth.value
+  if (!width || text.length * measure.cell <= width / 2) return UNWRAPPED
+  let wrapped = wrapCache.get(text)
+  if (!wrapped) {
+    if (wrapCache.size > 20_000) wrapCache = new Map()
+    wrapped = wrapLine(text, width, measure)
+    wrapCache.set(text, wrapped)
+  }
+  return wrapped
+}
+
+const rowsOfText = (text: string) => wrapOf(text).breaks.length + 1
+
+function rebuildWrap() {
+  wrapCache = new Map()
+  wrapRows = wrapWidth.value ? doc.value.lineTexts(1, doc.value.lines).map(rowsOfText) : null
+  layoutTick.value++
+}
+
+/** Moves the wrapped rows along with an edit, cutting again only the lines it touched. */
+function updateWrap(before: CodeText, after: CodeText, changes: ChangeSet) {
+  if (!wrapRows) return
+  if (!updateRows(wrapRows, before, after, changes, rowsOfText)) rebuildWrap()
+}
+
+const folds = shallowRef<CodeFold[]>([])
+const NOTHING_HIDDEN: Array<[number, number]> = []
+const hidden = computed(() =>
+  folds.value.length ? hiddenLines(doc.value, folds.value) : NOTHING_HIDDEN,
+)
+const layout = computed<LineLayout>((previous) => {
+  void layoutTick.value
+  const lines = doc.value.lines
+  const rows = wrapRows && wrapRows.length === lines ? wrapRows : null
+  // One row per line and the same count: the same layout, so nothing drawn from it is worked out again.
+  if (!rows && !hidden.value.length && previous?.uniform && previous.lines === lines)
+    return previous
+  return markRaw(new LineLayout(lines, rows, hidden.value))
+})
+
+const total = computed(() => layout.value.total * lineHeight.value)
 const sizerHeight = computed(() => Math.min(total.value, MAX_HEIGHT) + PAD_Y * 2)
 /** How much faster than the scrollbar the text moves, above `MAX_HEIGHT`. */
 const ratio = computed(() => {
@@ -272,32 +350,121 @@ const ratio = computed(() => {
 })
 /** Offset between the text's own y and where it is drawn in the scaled scroller. */
 const shift = computed(() => scrollTop.value - scrollTop.value * ratio.value)
-const yOf = (line: number) => PAD_Y + (line - 1) * lineHeight.value + shift.value
+/** The y line `n` is drawn at. */
+const yOf = (line: number) => PAD_Y + layout.value.rowOf(line) * lineHeight.value + shift.value
+/** The row under a y in the content, from the text's top. */
+const rowAtY = (y: number) => Math.floor((y - PAD_Y - shift.value) / lineHeight.value)
 
 const visibleFrom = computed(() => {
   const top = scrollTop.value * ratio.value + (clip.value?.top ?? 0)
-  return Math.max(1, Math.floor((top - PAD_Y) / lineHeight.value) + 1 - OVERSCAN)
+  const row = Math.floor((top - PAD_Y) / lineHeight.value) - OVERSCAN
+  return layout.value.lineAtRow(Math.max(0, row)).n
 })
 const visibleTo = computed(() => {
   const bottom = scrollTop.value * ratio.value + (clip.value?.bottom ?? viewHeight.value)
-  return Math.min(doc.value.lines, Math.ceil((bottom - PAD_Y) / lineHeight.value) + OVERSCAN)
+  const row = Math.ceil((bottom - PAD_Y) / lineHeight.value) + OVERSCAN
+  return layout.value.lineAtRow(row).n
 })
 
-/** The text of the lines in view; a lot of lines in each, so computed once per frame. */
-const lines = computed(() => doc.value.lineTexts(visibleFrom.value, visibleTo.value))
-const lineText = (n: number) =>
-  n >= visibleFrom.value && n <= visibleTo.value
-    ? lines.value[n - visibleFrom.value]!
-    : doc.value.line(n).text
+/** The lines in view that are drawn (folded ones left out), with their text; read in runs, once per frame. */
+const shownLines = computed(() => {
+  const from = visibleFrom.value
+  const to = visibleTo.value
+  const text = doc.value
+  const numbers: number[] = []
+  const texts: string[] = []
+  let n = from
+  for (const [a, b] of hidden.value) {
+    if (b < n) continue
+    if (a > to) break
+    if (a > n) {
+      const chunk = text.lineTexts(n, a - 1)
+      for (let i = 0; i < chunk.length; i++) numbers.push(n + i)
+      texts.push(...chunk)
+    }
+    n = Math.max(n, b + 1)
+  }
+  if (n <= to) {
+    const chunk = text.lineTexts(n, to)
+    for (let i = 0; i < chunk.length; i++) numbers.push(n + i)
+    texts.push(...chunk)
+  }
+  return { numbers, texts }
+})
+const lines = computed(() => shownLines.value.texts)
+/** A line's text, from the lines in view when it is one of them. */
+function lineText(n: number) {
+  const { numbers, texts } = shownLines.value
+  let lo = 0
+  let hi = numbers.length - 1
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1
+    if (numbers[mid] === n) return texts[mid]!
+    if (numbers[mid]! < n) lo = mid + 1
+    else hi = mid - 1
+  }
+  return doc.value.line(n).text
+}
+const isShown = (n: number) =>
+  n >= visibleFrom.value && n <= visibleTo.value && layout.value.shown(n)
+
+/** Where column `col` of line `n` is drawn: the row's top, the x from the text's left edge, and which row of the line. */
+function place(n: number, text: string, col: number) {
+  const wrapped = wrapOf(text)
+  const sub = rowOfCol(wrapped, col)
+  const top = yOf(n) + sub * lineHeight.value
+  if (!sub) return { top, x: measure.x(text, col), sub }
+  return {
+    top,
+    x: wrapped.indent + measure.x(text, col) - measure.x(text, wrapped.breaks[sub - 1]!),
+    sub,
+  }
+}
+
+/** The column nearest to `x` on row `sub` of a line. */
+function colAt(text: string, sub: number, x: number) {
+  const wrapped = wrapOf(text)
+  const { breaks } = wrapped
+  if (!breaks.length) return measure.col(text, x)
+  const start = sub ? breaks[sub - 1]! : 0
+  const end = sub < breaks.length ? breaks[sub]! : text.length
+  const base = measure.x(text, start)
+  const col = measure.col(text, base + Math.max(0, x - (sub ? wrapped.indent : 0)))
+  // The end of a row that isn't the last is the start of the next one; stay on this row.
+  if (sub < breaks.length && col >= end) return Math.max(start, moveCluster(text, end, -1))
+  return Math.max(start, col)
+}
+
+/** Boxes over columns `from` to `to` of line `n`, one per row; `tail` adds width past the line's end. */
+function spans(n: number, text: string, from: number, to: number, tail = 0) {
+  const wrapped = wrapOf(text)
+  const out: Array<{ top: number; left: number; width: number }> = []
+  const rows = wrapped.breaks.length + 1
+  const top = yOf(n)
+  for (let sub = 0; sub < rows; sub++) {
+    const start = sub ? wrapped.breaks[sub - 1]! : 0
+    const end = sub < rows - 1 ? wrapped.breaks[sub]! : text.length
+    if (to < start || from > end || (from === end && sub < rows - 1)) continue
+    const a = Math.max(from, start)
+    const b = Math.min(to, end)
+    const base = sub ? wrapped.indent - measure.x(text, start) : 0
+    const left = base + measure.x(text, a)
+    const right = base + measure.x(text, b) + (sub === rows - 1 ? tail : 0)
+    if (right > left) out.push({ top: top + sub * lineHeight.value, left, width: right - left })
+  }
+  return out
+}
 
 const gutterWidth = computed(() => {
-  if (!props.lineNumbers) return 0
+  if (!props.lineNumbers && !props.foldable) return 0
   void metrics.value
   const digits = Math.max(2, String(doc.value.lines).length)
-  return Math.ceil(digits * measure.cell) + 28
+  const numbers = props.lineNumbers ? Math.ceil(digits * measure.cell) + 28 : 12
+  return numbers + (props.foldable ? 14 : 0)
 })
 
 const contentWidth = computed(() => {
+  if (props.wrap) return 0
   void metrics.value
   let widest = doc.value.widest * measure.cell
   for (const text of lines.value) {
@@ -306,6 +473,174 @@ const contentWidth = computed(() => {
   }
   return Math.ceil(widest + PAD_X * 2 + measure.cell)
 })
+
+watch(wrapWidth, rebuildWrap, { immediate: true })
+
+// ---------------------------------------------------------------- folding
+
+/**
+ * Where a fold starting at line `n` would end, or `null`; by brackets with a
+ * language, else by indentation. Brackets in strings and comments count
+ * only where the text has been read already, so folding a whole long text
+ * doesn't read all of it first.
+ */
+function foldEnd(n: number) {
+  const text = doc.value
+  const hl = highlighter
+  const read = !!hl?.ready(n)
+  const language = props.language
+    ? ((read ? languageAt(text.line(n).from) : null) ?? props.language)
+    : null
+  return foldEndAt(text, n, {
+    brackets: language?.brackets,
+    tabSize: props.tabSize,
+    skip: read
+      ? (pos) => {
+          const kind = syntaxAt(pos)
+          return kind === 'string' || kind === 'comment'
+        }
+      : undefined,
+  })
+}
+
+/** The lines that start a fold, from 1. */
+const foldStarts = computed(() => folds.value.map((fold) => doc.value.lineAt(fold.from).number))
+watch(foldStarts, (next, prev) => {
+  if (next.length !== prev.length || next.some((n, i) => n !== prev[i])) emit('fold-change', next)
+})
+
+function setFolds(next: CodeFold[]) {
+  // oxlint-disable-next-line unicorn/no-array-sort -- sorts a fresh array
+  folds.value = next.slice().sort((a, b) => a.from - b.from)
+}
+
+/** Moves the folds along with an edit; a fold whose lines were joined goes away. */
+function mapFolds(changes: ChangeSet, after: CodeText) {
+  if (!folds.value.length) return
+  setFolds(
+    folds.value
+      .map((fold) => ({ from: changes.mapPos(fold.from, 1), to: changes.mapPos(fold.to, -1) }))
+      .filter((fold) => after.lineAt(fold.to).number > after.lineAt(fold.from).number),
+  )
+}
+
+/** Unfolds whatever hides a cursor, so the cursor is never out of sight. */
+function revealFolds() {
+  if (!folds.value.length) return
+  const heads = state.value.selection.ranges.map((range) => range.head)
+  const keep = folds.value.filter((fold) => !heads.some((h) => h > fold.from && h <= fold.to))
+  if (keep.length !== folds.value.length) folds.value = keep
+}
+
+/** Folds the block starting at line `n`; cursors inside move to its first line. */
+function foldLine(n: number) {
+  const end = foldEnd(n)
+  if (end === null) return false
+  const text = doc.value
+  const fold = { from: text.line(n).to, to: text.line(end).to }
+  if (folds.value.some((f) => f.from === fold.from)) return false
+  const { selection } = state.value
+  if (selection.ranges.some((range) => range.head > fold.from && range.head <= fold.to)) {
+    const ranges = selection.ranges.map((range) =>
+      range.head > fold.from && range.head <= fold.to
+        ? { anchor: fold.from, head: fold.from }
+        : range,
+    )
+    dispatch(
+      transaction().select(normalizeSelection({ ranges, main: selection.main }, text.length)),
+    )
+  }
+  setFolds([...folds.value, fold])
+  announce(format(messages.value.folded, { from: n + 1, to: end }))
+  return true
+}
+
+/** Reads a fold out; the same words twice in a row are read again. */
+function announce(text: string) {
+  announcement.value = announcement.value === text ? `${text}\u200b` : text
+}
+
+const folding = {
+  fold(line?: number) {
+    if (!props.foldable) return false
+    const text = doc.value
+    const n = line ?? text.lineAt(mainRange(state.value.selection).head).number
+    if (line !== undefined) return foldLine(n)
+    // The block that starts here, or else the nearest one above that reaches down to here.
+    for (let k = n; k >= Math.max(1, n - 2000); k--) {
+      const end = foldEnd(k)
+      if (end !== null && (k === n || end >= n) && foldLine(k)) return true
+    }
+    return false
+  },
+  unfold(line?: number) {
+    const text = doc.value
+    const n = line ?? text.lineAt(mainRange(state.value.selection).head).number
+    const keep = folds.value.filter((fold) => {
+      const from = text.lineAt(fold.from).number
+      return n < from || n > text.lineAt(fold.to).number
+    })
+    if (keep.length === folds.value.length) return false
+    folds.value = keep
+    announce(messages.value.unfolded)
+    return true
+  },
+  foldAll() {
+    if (!props.foldable) return false
+    const text = doc.value
+    const next: CodeFold[] = []
+    for (let n = 1; n < text.lines; n++) {
+      const end = foldEnd(n)
+      if (end === null) continue
+      next.push({ from: text.line(n).to, to: text.line(end).to })
+      n = end
+    }
+    if (!next.length) return false
+    setFolds(next)
+    announce(messages.value.foldedAll)
+    // Cursors that ended up hidden go to the top of their block.
+    const { selection } = state.value
+    const ranges = selection.ranges.map((range) => {
+      const fold = next.find((f) => range.head > f.from && range.head <= f.to)
+      return fold ? { anchor: fold.from, head: fold.from } : range
+    })
+    dispatch(
+      transaction().select(normalizeSelection({ ranges, main: selection.main }, text.length)),
+    )
+    return true
+  },
+  unfoldAll() {
+    if (!folds.value.length) return false
+    folds.value = []
+    announce(messages.value.unfoldedAll)
+    return true
+  },
+}
+
+/** Whether lines in view start a block, worked out only while the gutter is pointed at (or on touch screens). */
+const gutterHover = ref(false)
+const coarse = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches
+let foldCache = { doc: null as CodeText | null, ends: new Map<number, number | null>() }
+const foldableLines = computed(() => {
+  const out = new Set<number>()
+  if (!props.foldable || !(gutterHover.value || coarse)) return out
+  void syntaxTick.value
+  if (foldCache.doc !== doc.value) foldCache = { doc: doc.value, ends: new Map() }
+  for (const n of shownLines.value.numbers) {
+    let end = foldCache.ends.get(n)
+    if (end === undefined) {
+      end = foldEnd(n)
+      foldCache.ends.set(n, end)
+    }
+    if (end !== null) out.add(n)
+  }
+  return out
+})
+
+function toggleFold(n: number, folded: boolean) {
+  if (folded) folding.unfold(n)
+  else folding.fold(n)
+}
 
 // ---------------------------------------------------------------- composition
 
@@ -316,6 +651,10 @@ const preview = shallowRef<{ from: number; to: number; insert: string } | null>(
 interface Row {
   n: number
   text: string
+  /** How the line is cut into rows, when it wraps. */
+  wrapped: WrappedLine
+  /** The line starts a fold. */
+  folded: boolean
   /** The line's tokens, when its language has read it; kept the same while the line doesn't change. */
   tokens: CodeLineTokens | null
   /** Set on the line being composed: the text drawn before, inside and after the composition. */
@@ -323,17 +662,27 @@ interface Row {
 }
 
 const rows = computed<Row[]>(() => {
-  const from = visibleFrom.value
+  const { numbers, texts } = shownLines.value
   const p = preview.value
   const line = p ? doc.value.lineAt(p.from) : null
-  const tokensOf = syntaxLines(from, visibleTo.value)
-  return lines.value.map((text, i) => {
-    const n = from + i
+  const tokensOf = syntaxLines(visibleFrom.value, visibleTo.value)
+  const starts = new Set(hidden.value.map(([from]) => from - 1))
+  return texts.map((text, i) => {
+    const n = numbers[i]!
     const tokens = tokensOf(n)
-    if (!p || n !== line!.number) return { n, text, tokens }
+    const wrapped = wrapOf(text)
+    const folded = starts.has(n)
+    if (!p || n !== line!.number) return { n, text, tokens, wrapped, folded }
     const col = p.from - line!.from
     const end = p.to <= line!.to ? p.to - line!.from : col
-    return { n, text, tokens: null, compose: [text.slice(0, col), p.insert, text.slice(end)] }
+    return {
+      n,
+      text,
+      tokens: null,
+      wrapped,
+      folded,
+      compose: [text.slice(0, col), p.insert, text.slice(end)],
+    }
   })
 })
 
@@ -418,6 +767,22 @@ function languageAt(pos: number) {
 
 const partsOf = (row: Row) => lineParts(row.text, row.tokens)
 
+/** The parts of one row of a wrapped line. */
+function rowParts(row: Row, sub: number) {
+  const { breaks } = row.wrapped
+  const start = sub ? breaks[sub - 1]! : 0
+  const end = sub < breaks.length ? breaks[sub]! : row.text.length
+  const out: Array<[string, CodeTokenType | null]> = []
+  let at = 0
+  for (const [text, type] of partsOf(row)) {
+    const from = Math.max(at, start)
+    const to = Math.min(at + text.length, end)
+    if (to > from) out.push([text.slice(from - at, to - at), type])
+    at += text.length
+  }
+  return out
+}
+
 // ---------------------------------------------------------------- overlays
 
 const focused = ref(false)
@@ -435,9 +800,9 @@ const cursors = computed(() => {
   const { doc: text, selection } = state.value
   const p = preview.value
   selection.ranges.forEach((range, i) => {
-    let pos = range.head
+    const pos = range.head
     const line = text.lineAt(pos)
-    if (line.number < visibleFrom.value || line.number > visibleTo.value) return
+    if (!isShown(line.number)) return
     let lineStr = lineText(line.number)
     if (p && i === selection.main) {
       const at = text.lineAt(p.from)
@@ -454,13 +819,8 @@ const cursors = computed(() => {
       })
       return
     }
-    pos -= line.from
-    out.push({
-      key: `c${i}`,
-      left: PAD_X + measure.x(lineStr, pos),
-      top: yOf(line.number),
-      width: 2,
-    })
+    const at = place(line.number, lineStr, pos - line.from)
+    out.push({ key: `c${i}`, left: PAD_X + at.x, top: at.top, width: 2 })
   })
   return out
 })
@@ -477,15 +837,15 @@ const selectionBoxes = computed(() => {
     const from = text.lineAt(rangeFrom(range))
     const to = text.lineAt(rangeTo(range))
     for (let n = Math.max(from.number, first); n <= Math.min(to.number, last); n++) {
+      if (!layout.value.shown(n)) continue
       const str = lineText(n)
-      const left = n === from.number ? measure.x(str, rangeFrom(range) - from.from) : 0
+      const a = n === from.number ? rangeFrom(range) - from.from : 0
+      const b = n === to.number ? rangeTo(range) - to.from : str.length
       // A selected line break shows as half a cell past the end.
-      const right =
-        n === to.number
-          ? measure.x(str, rangeTo(range) - to.from)
-          : measure.x(str, str.length) + measure.cell / 2
-      if (right > left)
-        out.push({ key: `s${i}-${n}`, left: PAD_X + left, top: yOf(n), width: right - left })
+      const boxes = spans(n, str, a, b, n === to.number ? 0 : measure.cell / 2)
+      boxes.forEach((box, k) =>
+        out.push({ key: `s${i}-${n}-${k}`, ...box, left: PAD_X + box.left }),
+      )
     }
   })
   return out
@@ -493,8 +853,9 @@ const selectionBoxes = computed(() => {
 
 const activeLineTop = computed(() => {
   const n = doc.value.lineAt(mainRange(state.value.selection).head).number
-  return n >= visibleFrom.value && n <= visibleTo.value ? yOf(n) : null
+  return isShown(n) ? yOf(n) : null
 })
+const activeLineRows = computed(() => layout.value.rowsOf(activeLineNumber.value) || 1)
 const activeLineNumber = computed(
   () => doc.value.lineAt(mainRange(state.value.selection).head).number,
 )
@@ -516,16 +877,11 @@ const bracketBoxes = computed(() => {
   const out: Array<Box & { matched: boolean }> = []
   for (const pos of found.match === null ? [found.from] : [found.from, found.match]) {
     const line = text.lineAt(pos)
-    if (line.number < visibleFrom.value || line.number > visibleTo.value) continue
+    if (!isShown(line.number)) continue
     const str = lineText(line.number)
-    const left = measure.x(str, pos - line.from)
-    out.push({
-      key: `b${pos}`,
-      left: PAD_X + left,
-      top: yOf(line.number),
-      width: measure.x(str, pos - line.from + 1) - left,
-      matched: found.match !== null,
-    })
+    const [box] = spans(line.number, str, pos - line.from, pos - line.from + 1)
+    if (box)
+      out.push({ key: `b${pos}`, ...box, left: PAD_X + box.left, matched: found.match !== null })
   }
   return out
 })
@@ -707,18 +1063,18 @@ const matchBoxes = computed(() => {
       n <= Math.min(to.number, visibleTo.value);
       n++
     ) {
+      if (!layout.value.shown(n)) continue
       const str = lineText(n)
-      const line = text.line(n)
-      const left = n === from.number ? measure.x(str, m.from - line.from) : 0
-      const right = n === to.number ? measure.x(str, m.to - line.from) : measure.x(str, str.length)
-      if (right > left)
+      const a = n === from.number ? m.from - from.from : 0
+      const b = n === to.number ? m.to - to.from : str.length
+      spans(n, str, a, b).forEach((box, k) =>
         out.push({
-          key: `m${m.from}-${n}`,
-          left: PAD_X + left,
-          top: yOf(n),
-          width: right - left,
+          key: `m${m.from}-${n}-${k}`,
+          ...box,
+          left: PAD_X + box.left,
           current: i === currentMatch.value,
-        })
+        }),
+      )
     }
     if (out.length > 2000) break
   }
@@ -729,21 +1085,21 @@ const matchBoxes = computed(() => {
 const searchMarks = computed(() => {
   if (!searchOpen.value || !matches.value.length) return []
   const text = doc.value
-  const lineCount = text.lines
+  const drawn = layout.value
+  /** Where a line sits in the whole text, from 0 to 1, as drawn (wrapped rows and folds counted). */
+  const share = (pos: number) => (drawn.rowOf(text.lineAt(pos).number) + 0.5) / drawn.total
   const taken = new Set<number>()
   const out: Array<{ top: number; current: boolean }> = []
   const current = matches.value[currentMatch.value]
   // A thousand evenly spread matches show the picture; more only cost time.
   const step = Math.max(1, Math.floor(matches.value.length / 1000))
   for (let i = 0; i < matches.value.length; i += step) {
-    const top =
-      Math.round(((text.lineAt(matches.value[i]!.from).number - 0.5) / lineCount) * 1000) / 10
+    const top = Math.round(share(matches.value[i]!.from) * 1000) / 10
     if (taken.has(top)) continue
     taken.add(top)
     out.push({ top, current: false })
   }
-  if (current)
-    out.push({ top: ((text.lineAt(current.from).number - 0.5) / lineCount) * 100, current: true })
+  if (current) out.push({ top: share(current.from) * 100, current: true })
   return out
 })
 
@@ -778,10 +1134,18 @@ function syncInput() {
   const start = Math.max(0, Math.min(rangeFrom(main), to) - from)
   const end = Math.max(0, Math.min(rangeTo(main), to) - from)
   mirror = { from, to, value, start, end }
+  // Put the textarea where its caret lines up with the drawn main cursor, so input methods open there.
   const startLine = text.lineAt(from)
+  const headLine = text.lineAt(main.head)
+  const headText = headLine.number === startLine.number ? startLine.text : headLine.text
+  const caret = place(headLine.number, headText, main.head - headLine.from)
+  const lineStart = headLine.number === startLine.number ? from - startLine.from : 0
   inputBox.value = {
-    top: yOf(startLine.number),
-    left: PAD_X + measure.x(startLine.text, from - startLine.from),
+    top: caret.top - (headLine.number - startLine.number) * lineHeight.value,
+    left:
+      PAD_X +
+      caret.x -
+      (measure.x(headText, main.head - headLine.from) - measure.x(headText, lineStart)),
     height: (text.lineAt(to).number - startLine.number + 1) * lineHeight.value,
   }
   const el = input.value
@@ -912,23 +1276,29 @@ const target: CodeCommandTarget = {
   get search() {
     return props.searchable ? searchControl : undefined
   },
+  get folding() {
+    return props.foldable ? folding : undefined
+  },
 }
 
 function run(command: CodeCommand) {
   return command(target)
 }
 
+/** Moves by rows as drawn: a wrapped line's rows one by one, over folded lines. */
 function moveVertically(range: CodeRange, count: number) {
   const { doc: text } = state.value
   const line = text.lineAt(range.head)
-  const goal = goals.get(range.head) ?? measure.x(line.text, range.head - line.from)
-  const n = line.number + count
+  const at = place(line.number, line.text, range.head - line.from)
+  const goal = goals.get(range.head) ?? at.x
+  const row = layout.value.rowOf(line.number) + at.sub + count
   let head: number
-  if (n < 1) head = 0
-  else if (n > text.lines) head = text.length
+  if (row < 0) head = 0
+  else if (row >= layout.value.total) head = text.length
   else {
+    const { n, sub } = layout.value.lineAtRow(row)
     const next = text.line(n)
-    head = next.from + measure.col(next.text, goal)
+    head = next.from + colAt(next.text, sub, goal)
   }
   pendingGoals.set(head, goal)
   return head
@@ -1013,26 +1383,19 @@ function onPaste(event: ClipboardEvent) {
 function posAtCoords(point: { x: number; y: number }) {
   const rect = content.value?.getBoundingClientRect()
   if (!rect) return 0
-  const { doc: text } = state.value
-  const n = Math.min(
-    text.lines,
-    Math.max(1, Math.floor((point.y - rect.top - PAD_Y - shift.value) / lineHeight.value) + 1),
-  )
-  const line = text.line(n)
-  return line.from + measure.col(line.text, point.x - rect.left - PAD_X)
+  const { n, sub } = layout.value.lineAtRow(rowAtY(point.y - rect.top))
+  const line = state.value.doc.line(n)
+  return line.from + colAt(line.text, sub, point.x - rect.left - PAD_X)
 }
 
 function coordsAtPos(pos: number) {
   const rect = content.value?.getBoundingClientRect()
   if (!rect) return null
   const line = doc.value.lineAt(pos)
-  if (line.number < visibleFrom.value || line.number > visibleTo.value) return null
-  const top = rect.top + yOf(line.number)
-  return {
-    left: rect.left + PAD_X + measure.x(line.text, pos - line.from),
-    top,
-    bottom: top + lineHeight.value,
-  }
+  if (!isShown(line.number)) return null
+  const at = place(line.number, line.text, pos - line.from)
+  const top = rect.top + at.top
+  return { left: rect.left + PAD_X + at.x, top, bottom: top + lineHeight.value }
 }
 
 type Unit = 'char' | 'word' | 'line'
@@ -1060,10 +1423,7 @@ let drag: {
 /** The line and the x inside the text (from the line's start) under a point in the page. */
 function lineAtCoords(point: { x: number; y: number }) {
   const rect = content.value!.getBoundingClientRect()
-  const n = Math.min(
-    doc.value.lines,
-    Math.max(1, Math.floor((point.y - rect.top - PAD_Y - shift.value) / lineHeight.value) + 1),
-  )
+  const { n } = layout.value.lineAtRow(rowAtY(point.y - rect.top))
   return { n, x: Math.max(0, point.x - rect.left - PAD_X) }
 }
 
@@ -1074,6 +1434,7 @@ function extendColumns(point: { x: number; y: number }) {
   const ranges: CodeRange[] = []
   const step = end.n >= start.n ? 1 : -1
   for (let n = start.n; ; n += step) {
+    if (!layout.value.shown(n) && n !== end.n) continue
     const line = doc.value.line(n)
     const anchor = line.from + measure.col(line.text, start.x)
     const head = line.from + measure.col(line.text, end.x)
@@ -1189,8 +1550,25 @@ function select(unit: Unit, pos: number, extend: boolean, add = false) {
 /** A tap that may turn into a scroll or a long press; touches only act once they end in place. */
 let touch: { x: number; y: number; timer: number; pointer: number; pressed: boolean } | null = null
 
+/** The fold toggle or folded marker under a pointer, as the line it belongs to. */
+function foldTarget(event: Event) {
+  const el = (event.target as Element | null)?.closest?.('[data-fold], [data-unfold]')
+  if (!el) return null
+  const unfold = el.getAttribute('data-unfold')
+  return unfold
+    ? { n: Number(unfold), folded: true }
+    : { n: Number(el.getAttribute('data-fold')), folded: el.classList.contains('is-folded') }
+}
+
 function onPointerDown(event: PointerEvent, area: 'text' | 'gutter') {
   if (event.button !== 0 || props.disabled) return
+  const fold = foldTarget(event)
+  if (fold) {
+    event.preventDefault()
+    event.stopPropagation()
+    toggleFold(fold.n, fold.folded)
+    return
+  }
   const pos = posAtCoords({ x: event.clientX, y: event.clientY })
   if (event.pointerType !== 'mouse') {
     const x = event.clientX
@@ -1279,12 +1657,13 @@ function scrollIntoView(pos = mainRange(state.value.selection).head) {
   const lh = lineHeight.value
   const view = el.clientHeight
   if (view < lh * 3) return
-  const y = PAD_Y + (line.number - 1) * lh
+  const at = place(line.number, line.text, pos - line.from)
+  const y = at.top - shift.value
   const top = el.scrollTop * ratio.value
   const margin = Math.min(lh, view / 4)
   if (y - margin < top) el.scrollTop = Math.max(0, (y - margin) / ratio.value)
   else if (y + lh + margin > top + view) el.scrollTop = (y + lh + margin - view) / ratio.value
-  const x = PAD_X + measure.x(line.text, pos - line.from)
+  const x = PAD_X + at.x
   const width = el.clientWidth - gutterWidth.value
   if (x - measure.cell * 2 < el.scrollLeft) el.scrollLeft = Math.max(0, x - measure.cell * 4)
   else if (x + measure.cell * 2 > el.scrollLeft + width)
@@ -1340,6 +1719,7 @@ onMounted(() => {
     resize.observe(el)
   }
   updateClip()
+  mounted.value = true
   window.addEventListener('scroll', onWindowScroll, { capture: true, passive: true })
   window.addEventListener('resize', onWindowScroll, { passive: true })
   document.addEventListener('selectionchange', onSelectionChange)
@@ -1415,6 +1795,13 @@ defineExpose<CodeEditorExpose>({
   blur: () => input.value?.blur(),
   openSearch: (given) => openSearch(false, given),
   closeSearch,
+  fold: (line) => folding.fold(line),
+  unfold: (line) => folding.unfold(line),
+  foldAll: () => folding.foldAll(),
+  unfoldAll: () => folding.unfoldAll(),
+  get folds() {
+    return foldStarts.value
+  },
 })
 </script>
 
@@ -1426,6 +1813,8 @@ defineExpose<CodeEditorExpose>({
       ns.is('focused', focused),
       ns.is('readonly', !!readonly),
       ns.is('disabled', !!disabled),
+      ns.is('foldable', foldable),
+      ns.is('wrap', wrap),
     ]"
     :style="{
       '--dou-code-editor-gutter': `${gutterWidth}px`,
@@ -1468,13 +1857,15 @@ defineExpose<CodeEditorExpose>({
         }"
       >
         <div
-          v-if="lineNumbers"
+          v-if="lineNumbers || foldable"
           :class="ns.e('gutter')"
           aria-hidden="true"
           @pointerdown="onPointerDown($event, 'gutter')"
           @pointermove="onPointerMove"
           @pointerup="onPointerUp($event, 'gutter')"
           @pointercancel="onPointerCancel"
+          @pointerenter="gutterHover = true"
+          @pointerleave="gutterHover = false"
           @mousedown.prevent
         >
           <div :class="ns.e('numbers')" :style="{ transform: `translateY(${yOf(visibleFrom)}px)` }">
@@ -1482,8 +1873,21 @@ defineExpose<CodeEditorExpose>({
               v-for="row in rows"
               :key="row.n"
               :class="[ns.e('number'), ns.is('active', row.n === activeLineNumber)]"
+              :style="
+                row.wrapped.breaks.length
+                  ? { height: `${(row.wrapped.breaks.length + 1) * lineHeight}px` }
+                  : undefined
+              "
             >
-              {{ row.n }}
+              <template v-if="lineNumbers">{{ row.n }}</template>
+              <span
+                v-if="foldable && (row.folded || foldableLines.has(row.n))"
+                :class="[ns.e('fold-toggle'), ns.is('folded', row.folded)]"
+                :data-fold="row.n"
+              >
+                <ChevronRightIcon v-if="row.folded" />
+                <ChevronDownIcon v-else />
+              </span>
             </div>
           </div>
         </div>
@@ -1500,7 +1904,10 @@ defineExpose<CodeEditorExpose>({
           <div
             v-if="activeLine && activeLineTop !== null && !disabled"
             :class="ns.e('active-line')"
-            :style="{ transform: `translateY(${activeLineTop}px)` }"
+            :style="{
+              transform: `translateY(${activeLineTop}px)`,
+              height: activeLineRows > 1 ? `${activeLineRows * lineHeight}px` : undefined,
+            }"
           />
           <div :class="ns.e('matches')" aria-hidden="true">
             <div
@@ -1543,12 +1950,31 @@ defineExpose<CodeEditorExpose>({
             <div
               v-for="row in rows"
               :key="row.n"
-              v-memo="[row.text, row.tokens, row.compose?.join('\u0000')]"
-              :class="ns.e('line')"
+              v-memo="[row.text, row.tokens, row.compose?.join('\u0000'), row.wrapped, row.folded]"
+              :class="[ns.e('line'), ns.is('wrapped', !!row.wrapped.breaks.length)]"
             >
               <template v-if="row.compose"
                 >{{ row.compose[0] }}<span :class="ns.e('compose')">{{ row.compose[1] }}</span
                 >{{ row.compose[2] }}</template
+              >
+              <template v-else-if="row.wrapped.breaks.length"
+                ><div
+                  v-for="(_, sub) in row.wrapped.breaks.length + 1"
+                  :key="sub"
+                  :class="ns.e('row')"
+                  :style="sub ? { paddingLeft: `${row.wrapped.indent}px` } : undefined"
+                >
+                  <template v-for="(part, i) in rowParts(row, sub)" :key="i"
+                    ><span v-if="part[1]" :class="`dou-syntax-${part[1]}`">{{ part[0] }}</span
+                    ><template v-else>{{ part[0] }}</template></template
+                  ><span
+                    v-if="row.folded && sub === row.wrapped.breaks.length"
+                    :class="ns.e('fold-marker')"
+                    :data-unfold="row.n"
+                    :title="messages.unfold"
+                    >⋯</span
+                  >
+                </div></template
               >
               <template v-else-if="row.tokens"
                 ><template v-for="(part, i) in partsOf(row)" :key="i"
@@ -1557,6 +1983,13 @@ defineExpose<CodeEditorExpose>({
                 ></template
               >
               <template v-else>{{ row.text }}</template>
+              <span
+                v-if="row.folded && !row.wrapped.breaks.length"
+                :class="ns.e('fold-marker')"
+                :data-unfold="row.n"
+                :title="messages.unfold"
+                >⋯</span
+              >
             </div>
           </div>
           <div

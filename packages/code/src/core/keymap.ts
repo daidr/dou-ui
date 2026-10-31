@@ -38,6 +38,9 @@ export function eventKey(event: KeyboardEvent, apple: boolean): string {
   let name = event.key.toLowerCase()
   if (/^Key[A-Z]$/.test(event.code)) name = event.code.slice(3).toLowerCase()
   else if (/^Digit\d$/.test(event.code)) name = event.code.slice(5)
+  // Shift and ⌥ change what the bracket keys type (`{`, `“`); the binding means the key.
+  else if (event.code === 'BracketLeft') name = '['
+  else if (event.code === 'BracketRight') name = ']'
   const mods: string[] = []
   if (apple ? event.metaKey : event.ctrlKey) mods.push('mod')
   if (apple && event.ctrlKey) mods.push('ctrl')
@@ -114,6 +117,8 @@ export const defaultKeymap: readonly CodeKeyBinding[] = [
   { key: 'mod+h', mac: 'mod+alt+f', run: cmd.openReplace },
   { key: 'f3', run: cmd.findNext, shift: cmd.findPrevious },
   { key: 'mod+g', run: cmd.findNext, shift: cmd.findPrevious },
+  { key: 'ctrl+shift+[', mac: 'mod+alt+[', run: cmd.foldCode },
+  { key: 'ctrl+shift+]', mac: 'mod+alt+]', run: cmd.unfoldCode },
   { key: 'mod+shift+l', run: cmd.selectAllOccurrences },
   { key: 'ctrl+alt+arrowup', mac: 'mod+alt+arrowup', run: cmd.addCursorAbove },
   { key: 'ctrl+alt+arrowdown', mac: 'mod+alt+arrowdown', run: cmd.addCursorBelow },

@@ -40,6 +40,20 @@ export interface CodeCommandTarget {
   readonly closeBrackets: boolean
   /** The editor's search panel, when it has one. */
   readonly search?: CodeSearchControl
+  /** The editor's folding, when it folds. */
+  readonly folding?: CodeFoldControl
+}
+
+/** What commands can do with folds. Lines are counted from 1; without one, the main cursor's line. */
+export interface CodeFoldControl {
+  /** Folds the block that starts at the line, or else the innermost one around it; `false` when there is none. */
+  fold(line?: number): boolean
+  /** Unfolds the folds that start at the line or hide it; `false` when there were none. */
+  unfold(line?: number): boolean
+  /** Folds every outermost block. */
+  foldAll(): boolean
+  /** Unfolds everything; `false` when nothing was folded. */
+  unfoldAll(): boolean
 }
 
 /** What commands can do with the editor's search panel. */
@@ -823,3 +837,15 @@ export const findNext: CodeCommand = (target) => !!target.search?.next()
 export const findPrevious: CodeCommand = (target) => !!target.search?.previous()
 /** Closes the search panel. */
 export const closeSearch: CodeCommand = (target) => !!target.search?.close()
+
+/** Folds the block at the cursor's line, or the innermost one around it. */
+export const foldCode: CodeCommand = (target) => !!target.folding?.fold()
+
+/** Unfolds the block at the cursor's line. */
+export const unfoldCode: CodeCommand = (target) => !!target.folding?.unfold()
+
+/** Folds every outermost block. */
+export const foldAll: CodeCommand = (target) => !!target.folding?.foldAll()
+
+/** Unfolds everything. */
+export const unfoldAll: CodeCommand = (target) => !!target.folding?.unfoldAll()

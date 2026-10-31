@@ -1154,14 +1154,22 @@
       background-color: var(--dou-gantt-hover);
       font-weight: var(--dou-font-weight-medium);
     }
-    &.is-overloaded .dou-gantt__cell-text::after {
-      display: inline-block;
+  }
+
+  /* beside an overloaded resource's name; its title says why */
+  .dou-gantt__overload {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 16px;
+    height: 16px;
+    margin-left: 2px;
+
+    &::before {
       width: 6px;
       height: 6px;
-      margin-left: 6px;
       border-radius: 50%;
       background-color: var(--dou-color-warning);
-      vertical-align: middle;
       content: '';
     }
   }

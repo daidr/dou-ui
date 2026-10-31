@@ -55,3 +55,19 @@ export function durationLabel(span: TaskSpan, calendar: WorkCalendar, m: GanttMe
   const hours = workingMinutes(calendar, span.start, span.end) / MINUTES_PER_HOUR
   return format(m.hours, { count: Math.round(hours * 10) / 10 })
 }
+
+/** A task's dates, read out: just the date for a task of one whole day. */
+export function datesLabel(span: TaskSpan, m: GanttMessages) {
+  const start = dateLabel(span.start, span.dateOnly, m)
+  if (span.dateOnly && span.end - span.start === MINUTES_PER_DAY) return start
+  return format(m.range, { start, end: endLabel(span, m) })
+}
+
+/** The duration, read out: says so when it has no working time at all. */
+export function spokenDuration(span: TaskSpan, calendar: WorkCalendar, m: GanttMessages) {
+  const working = span.dateOnly
+    ? workdaysBetween(calendar, span.start, span.end)
+    : workingMinutes(calendar, span.start, span.end)
+  if (!working) return span.dateOnly ? m.offDays : m.offHours
+  return durationLabel(span, calendar, m)
+}

@@ -26,20 +26,44 @@ const resources = [{ id: 'xiaoman', title: '林小满', capacity: 2 }]
 
 ## 预约
 
-在一行的空白处拖出一段时间，会触发 `range-select` 事件，参数是资源和这段时间。组件不会自己新建任务，在事件里按需要添加即可，例如会议室预约：
+在一行的空白处拖出一段时间，会触发 `range-select` 事件，参数是资源和这段时间。组件不会自己新建任务，在事件里按需要添加即可。用 `transact` 添加时，新任务和拖动一样计入撤销记录，读屏也会播报：
 
 <DocDemo src="gantt/booking" />
 
 ```ts
+const scheduler = useTemplateRef('scheduler')
+
 function book(range: SchedulerRange) {
-  tasks.value = [
-    ...tasks.value,
-    { id: createId(), title: '新预约', ...range, resource: range.resource ?? undefined },
-  ]
+  scheduler.value?.transact((tr) =>
+    tr.addTask({ id: crypto.randomUUID(), title: '新预约', ...range }),
+  )
 }
 ```
 
 时间按当前刻度吸附：小时刻度下按 15 分钟、30 分钟或 1 小时，天及以上的刻度按整天，整天的范围写成只有日期的字符串。
+
+## 限制移动
+
+`can-move` 在任务被拖动、改时长、换资源或用键盘移动之前调用，参数里的 `resource` 是任务将要去的资源。返回 `true` 表示允许；返回其他值会拒绝这次修改，返回字符串时会在拖动提示里显示原因。上面的会议室示例用它禁止同一间会议室的预约重叠：
+
+```ts
+const canMove = (move: SchedulerMove) =>
+  !move.resource || !taken(move, move.task.id) || '这段时间已有预约'
+```
+
+## 右键菜单
+
+在任务上右键、手机上长按任务后松开，或者按菜单键（`Shift` + `F10`），会打开任务的菜单，内置一项“删除任务”。`context-menu` 可以加上自己的菜单项，排在内置项前面；在一行的空白处右键时，参数是这一行的资源和鼠标下的时间，可以用来加“在此预约”之类的项。`:menu="false"` 关闭内置项。
+
+```ts
+function contextMenu(target: SchedulerMenuTarget): GanttMenuItem[] {
+  if (target.kind === 'task')
+    return [{ key: 'edit', label: '编辑', run: () => openEditor(target.task) }]
+  return []
+}
+```
+
+排期视图没有任务表格，不能就地改名；需要编辑任务时，可以在 `task-dblclick` 或自己的菜单项里打开表单。
 
 ## 键盘
 
@@ -49,35 +73,43 @@ function book(range: SchedulerRange) {
 | `Alt` + `←` / `→`                   | 把任务提前或推后一格                                                 |
 | `Alt` + `↑` / `↓`                   | 把任务换到上一个或下一个资源                                         |
 | `Enter` / `Space`                   | 选中当前任务                                                         |
+| 菜单键 / `Shift` + `F10`            | 打开当前任务的菜单                                                   |
 | `Delete` / `Backspace`              | 删除选中的任务                                                       |
 | `Mod` + `Z` / `Mod` + `Shift` + `Z` | 撤销 / 重做                                                          |
 | `Esc`                               | 取消拖动，或清空选中                                                 |
+
+## 主题
+
+排期视图沿用甘特图的样式和 CSS 变量，根元素的类名是 `dou-gantt is-scheduler`。只想改排期视图时，用 `.dou-gantt.is-scheduler` 作为选择器。
 
 ## API
 
 ### Props
 
-| 名称                | 说明                                | 类型                    | 默认值         |
-| ------------------- | ----------------------------------- | ----------------------- | -------------- |
-| `v-model:tasks`     | 任务，写法和甘特图相同              | `GanttTask[]`           | `[]`           |
-| `v-model:selection` | 选中的任务 id                       | `string[]`              | `[]`           |
-| `v-model:scale`     | 时间刻度                            | `GanttScale`            | 按内容自动缩放 |
-| `resources`         | 资源，按顺序排成行                  | `GanttResource[]`       | —              |
-| `calendar`          | 工作日历                            | `GanttCalendar`         | —              |
-| `range`             | 固定时间轴的范围                    | `[string, string]`      | —              |
-| `today`             | 显示当前时间线                      | `boolean`               | `true`         |
-| `week-start`        | 一周的第一天                        | `0 \| 1`                | 跟随语言       |
-| `markers`           | 标记线                              | `GanttMarker[]`         | —              |
-| `table`             | 显示左侧的资源列表                  | `boolean`               | `true`         |
-| `table-width`       | 资源列表的宽度                      | `number`                | `200`          |
-| `row-height`        | 只有一道时的行高，每多一道增加 28px | `number`                | `36`           |
-| `load`              | 显示负载条                          | `boolean`               | `true`         |
-| `readonly`          | 只读                                | `boolean`               | `false`        |
-| `aria-label`        | 读屏名称                            | `string`                | `'资源排期'`   |
-| `messages`          | 覆盖文案                            | `GanttMessagesOverride` | —              |
+| 名称                | 说明                                | 类型                                                             | 默认值         |
+| ------------------- | ----------------------------------- | ---------------------------------------------------------------- | -------------- |
+| `v-model:tasks`     | 任务，写法和甘特图相同              | `GanttTask[]`                                                    | `[]`           |
+| `v-model:selection` | 选中的任务 id                       | `string[]`                                                       | `[]`           |
+| `v-model:scale`     | 时间刻度                            | `GanttScale`                                                     | 按内容自动缩放 |
+| `resources`         | 资源，按顺序排成行                  | `SchedulerResource[]`                                            | —              |
+| `calendar`          | 工作日历                            | `GanttCalendar`                                                  | —              |
+| `range`             | 固定时间轴的范围                    | `[string, string]`                                               | —              |
+| `today`             | 显示当前时间线                      | `boolean`                                                        | `true`         |
+| `week-start`        | 一周的第一天                        | `0 \| 1`                                                         | 跟随语言       |
+| `markers`           | 标记线                              | `GanttMarker[]`                                                  | —              |
+| `table`             | 显示左侧的资源列表                  | `boolean`                                                        | `true`         |
+| `table-width`       | 资源列表的宽度                      | `number`                                                         | `200`          |
+| `row-height`        | 只有一道时的行高，每多一道增加 28px | `number`                                                         | `36`           |
+| `load`              | 显示负载条                          | `boolean`                                                        | `true`         |
+| `readonly`          | 只读                                | `boolean`                                                        | `false`        |
+| `can-move`          | 移动前的检查，见上文                | `(move: SchedulerMove, doc: GanttDocument) => boolean \| string` | —              |
+| `menu`              | 菜单里显示内置的“删除任务”          | `boolean`                                                        | `true`         |
+| `context-menu`      | 自己的菜单项                        | `(target: SchedulerMenuTarget) => GanttMenuItem[]`               | —              |
+| `aria-label`        | 读屏名称                            | `string`                                                         | `'资源排期'`   |
+| `messages`          | 覆盖文案                            | `GanttMessagesOverride`                                          | —              |
 
 ```ts
-interface GanttResource {
+interface SchedulerResource {
   id: string
   title: string
   /** 同组的资源排在一起 */
@@ -90,20 +122,33 @@ interface GanttResource {
 
 ### 事件
 
-| 名称            | 说明                           | 参数                                   |
-| --------------- | ------------------------------ | -------------------------------------- |
-| `transaction`   | 每次修改后触发，包括撤销和重做 | `(tr: GanttTransaction)`               |
-| `task-click`    | 点击任务                       | `(task: GanttTask, event: MouseEvent)` |
-| `task-dblclick` | 双击任务                       | `(task: GanttTask, event: MouseEvent)` |
-| `range-select`  | 在空白处拖出一段时间           | `(range: SchedulerRange)`              |
+| 名称               | 说明                                                        | 参数                                   |
+| ------------------ | ----------------------------------------------------------- | -------------------------------------- |
+| `transaction`      | 每次修改后触发，包括撤销和重做                              | `(tr: GanttTransaction)`               |
+| `task-click`       | 点击任务                                                    | `(task: GanttTask, event: MouseEvent)` |
+| `task-dblclick`    | 双击任务                                                    | `(task: GanttTask, event: MouseEvent)` |
+| `task-contextmenu` | 在任务上打开菜单前触发，`event.preventDefault()` 可以不打开 | `(task: GanttTask, event: MouseEvent)` |
+| `range-select`     | 在空白处拖出一段时间                                        | `(range: SchedulerRange)`              |
 
 ```ts
 interface SchedulerRange {
-  /** 资源 id，在“未分配”一行时为 null */
-  resource: string | null
+  /** 资源 id，在“未分配”一行时为 undefined */
+  resource?: string
   start: string
   end: string
 }
+
+interface SchedulerMove {
+  task: GanttTask
+  start: string
+  end?: string
+  /** 要去的资源，“未分配”一行时为 undefined */
+  resource?: string
+}
+
+type SchedulerMenuTarget =
+  | { kind: 'task'; task: GanttTask; resource: SchedulerResource | null; time: number }
+  | { kind: 'row'; resource: SchedulerResource | null; time: number }
 ```
 
 ### 插槽
@@ -126,8 +171,8 @@ interface SchedulerRange {
 
 ### 函数
 
-| 名称              | 说明                               | 类型                                                  |
-| ----------------- | ---------------------------------- | ----------------------------------------------------- |
-| `packLanes`       | 把重叠的任务分到不同的道，返回道数 | `(items: { span, lane }[]) => number`                 |
-| `loadSegments`    | 计算每段时间同时进行的任务数       | `(spans: Iterable<TaskSpan>) => LoadSegment[]`        |
-| `groupByResource` | 按资源分组并分道                   | `(tasks, resources) => Map<string, { items, lanes }>` |
+| 名称              | 说明                               | 类型                                                    |
+| ----------------- | ---------------------------------- | ------------------------------------------------------- |
+| `packLanes`       | 把重叠的任务分到不同的道，返回道数 | `(items: { span, lane }[]) => number`                   |
+| `loadSegments`    | 计算每段时间同时进行的任务数       | `(spans: Iterable<TaskSpan>) => SchedulerLoadSegment[]` |
+| `groupByResource` | 按资源分组并分道                   | `(tasks, resources) => Map<string, { items, lanes }>`   |

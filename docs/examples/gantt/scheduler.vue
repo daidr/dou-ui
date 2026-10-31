@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import type { GanttTask } from '@dou-ui/gantt'
-import { DouScheduler, type GanttResource } from '@dou-ui/gantt/scheduler'
+import { DouScheduler, type SchedulerResource } from '@dou-ui/gantt/scheduler'
 import { ref } from 'vue'
 import { day } from './dates'
 
-const resources: GanttResource[] = [
+const resources: SchedulerResource[] = [
   { id: 'daidou', title: '戴兜', group: '设计' },
   { id: 'aqing', title: '阿青', group: '设计' },
   { id: 'xiaoman', title: '林小满', group: '开发', capacity: 2 },

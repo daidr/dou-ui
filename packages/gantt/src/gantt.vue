@@ -55,7 +55,7 @@ import { snapStep, type GanttScale } from './core/scale'
 import { MINUTES_PER_DAY, dayIndex, dayStart, formatTime, parseTime } from './core/time'
 import { buildTree, type GanttRow } from './core/tree'
 import { useTimeAxis } from './time-axis'
-import { dateLabel, durationLabel, endLabel, unitLabel } from './labels'
+import { dateLabel, datesLabel, durationLabel, endLabel, spokenDuration, unitLabel } from './labels'
 import { format, useGanttMessages } from './locale'
 import type {
   GanttColumn,
@@ -440,9 +440,8 @@ function describe(row: GanttRow) {
   if (row.milestone) return format(m.milestone, { title: task.title, start })
   const params = {
     title: task.title,
-    start,
-    end: endLabel(span, m),
-    duration: durationLabel(span, calendar.value, m),
+    dates: datesLabel(span, m),
+    duration: spokenDuration(span, calendar.value, m),
     progress: Math.round(row.progress * 100),
   }
   const text = format(row.summary ? m.summary : m.task, params)
@@ -1759,10 +1758,13 @@ function builtInItems(target: GanttMenuTarget): GanttMenuItem[] {
   ]
 }
 
-/** The extensions' items, then the built-in ones, a separator between each group. */
+/** Your items, the extensions', then the built-in ones, a separator between each group. */
 function itemsFor(target: GanttMenuTarget) {
   const items: GanttMenuItem[] = []
-  const groups = resolved.value.menus.map((fn) => fn(context, target))
+  const groups = [
+    props.contextMenu?.(target) ?? [],
+    ...resolved.value.menus.map((fn) => fn(context, target)),
+  ]
   if (props.menu && editable.value) groups.push(builtInItems(target))
   for (const list of groups)
     list.forEach((item, i) =>
@@ -2622,6 +2624,7 @@ const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * prop
       v-if="showTable"
       class="dou-gantt__divider"
       role="separator"
+      :aria-label="messages.resizeTable"
       tabindex="0"
       aria-orientation="vertical"
       :aria-valuenow="Math.round(tableSize)"

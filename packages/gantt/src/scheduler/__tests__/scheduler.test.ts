@@ -1,11 +1,11 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { spanOf, type GanttTask } from '../../index'
-import { DouScheduler, groupByResource, loadSegments, packLanes, type GanttResource } from '..'
-import type { SchedulerRange } from '../types'
+import { DouScheduler, groupByResource, loadSegments, packLanes, type SchedulerResource } from '..'
+import type { SchedulerMenuTarget, SchedulerMove, SchedulerRange } from '../types'
 
-const resources: GanttResource[] = [
+const resources: SchedulerResource[] = [
   { id: 'dai', title: '戴兜', group: '设计' },
   { id: 'qing', title: '阿青', group: '设计' },
   { id: 'man', title: '林小满', capacity: 2 },
@@ -202,6 +202,106 @@ describe('DouScheduler', () => {
     await pressKey(wrapper.find('.dou-gantt').element, 'Delete')
     expect(tasks.value.some((item) => item.id === 'e')).toBe(false)
     expect(selection.value).toEqual([])
+  })
+
+  it('refuses a move that canMove turns down, and says why', async () => {
+    const seen: SchedulerMove[] = []
+    const canMove = (move: SchedulerMove) => {
+      seen.push(move)
+      return move.resource === 'man' ? '林小满这周请假' : true
+    }
+    const { wrapper, tasks } = setup({ canMove })
+    await nextTick()
+    const bar = wrapper.find('.dou-gantt__bar[data-task="c"]')
+    const x = leftOf(bar) + 10
+    pointer('pointerdown', x, 170, bar.element)
+    pointer('pointermove', x + 20, 170)
+    pointer('pointermove', x + 20, 210)
+    await nextTick()
+    expect(wrapper.find('.dou-gantt__tip').text()).toBe('林小满这周请假')
+    expect(wrapper.find('.dou-gantt__bar[data-task="c"]').classes()).toContain('is-move-refused')
+    pointer('pointerup', x + 20, 210)
+    await nextTick()
+    await nextTick()
+    expect(task(tasks, 'c').resource).toBe('qing')
+    expect(seen.at(-1)).toMatchObject({ resource: 'man', start: '2026-03-04' })
+    expect(wrapper.find('[aria-live]').text()).toBe('林小满这周请假')
+    // the keys ask too
+    const root = wrapper.find('.dou-gantt').element
+    await pressKey(root, 'ArrowDown')
+    await pressKey(root, 'ArrowDown')
+    expect(wrapper.find('.dou-gantt__bar.is-active').attributes('data-task')).toBe('c')
+    await pressKey(root, 'ArrowDown', { altKey: true })
+    expect(task(tasks, 'c').resource).toBe('qing')
+  })
+
+  it('reads out tasks as the gantt chart does, with their resource', async () => {
+    const { wrapper } = setup()
+    await nextTick()
+    // a single day reads as one date
+    expect(wrapper.find('.dou-gantt__bar[data-task="c"]').attributes('aria-label')).toBe(
+      '海报，3月3日，1 天，阿青',
+    )
+    expect(wrapper.find('.dou-gantt__bar[data-task="a"]').attributes('aria-label')).toBe(
+      '会员页，3月2日至3月4日，3 天，戴兜',
+    )
+  })
+
+  it('says a task on a day off has no working time', async () => {
+    const { wrapper } = setup()
+    await nextTick()
+    const vm = wrapper.findComponent(DouScheduler).vm as unknown as {
+      transact: (fn: (tr: { addTask: (task: GanttTask) => void }) => void) => void
+    }
+    // 3月7日 is a Saturday
+    vm.transact((tr) =>
+      tr.addTask({ id: 's', title: '值班', resource: 'qing', start: '2026-03-07' }),
+    )
+    await nextTick()
+    expect(wrapper.find('.dou-gantt__bar[data-task="s"]').attributes('aria-label')).toBe(
+      '值班，3月7日，休息日，阿青',
+    )
+  })
+
+  it('reads out tasks added from outside, and undoes them', async () => {
+    const { wrapper, tasks } = setup()
+    await nextTick()
+    const vm = wrapper.findComponent(DouScheduler).vm as unknown as {
+      transact: (fn: (tr: { addTask: (task: GanttTask) => void }) => void) => void
+    }
+    vm.transact((tr) =>
+      tr.addTask({ id: 'n', title: '新预约', resource: 'qing', start: '2026-03-05' }),
+    )
+    await nextTick()
+    await nextTick()
+    expect(wrapper.find('[aria-live]').text()).toBe('已添加新预约')
+    await pressKey(wrapper.find('.dou-gantt').element, 'z', { ctrlKey: true })
+    expect(tasks.value.some((item) => item.id === 'n')).toBe(false)
+  })
+
+  it('opens a menu with your items before the built-in one', async () => {
+    const run = vi.fn<(id: string) => void>()
+    const targets: SchedulerMenuTarget[] = []
+    const contextMenu = (target: SchedulerMenuTarget) => {
+      targets.push(target)
+      return target.kind === 'task'
+        ? [{ key: 'details', label: '详情', run: () => run(target.task.id) }]
+        : [{ key: 'book', label: '在此预约', run: () => {} }]
+    }
+    const { wrapper } = setup({ contextMenu })
+    await nextTick()
+    await wrapper.find('.dou-gantt__bar[data-task="a"]').trigger('contextmenu')
+    await nextTick()
+    await nextTick()
+    const items = [...document.querySelectorAll('[role="menuitem"]')].map((el) =>
+      el.textContent?.trim(),
+    )
+    expect(items[0]).toBe('详情')
+    expect(items.some((text) => text?.startsWith('删除任务'))).toBe(true)
+    ;(document.querySelector('[role="menuitem"]') as HTMLElement).click()
+    expect(run).toHaveBeenCalledWith('a')
+    expect(targets[0]).toMatchObject({ kind: 'task', resource: { id: 'dai' } })
+    wrapper.unmount()
   })
 
   it('stays put when read-only', async () => {

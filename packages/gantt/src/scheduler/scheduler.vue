@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChevronDownIcon, ChevronRightIcon } from '@dou-ui/icons'
+import { ChevronDownIcon, ChevronRightIcon, TrashIcon } from '@dou-ui/icons'
 import { holdPointer, matchesHotkey, useElementSize, useLocale, type PointerHold } from 'dou-ui'
 import {
   computed,
@@ -13,10 +13,12 @@ import {
   useTemplateRef,
   watch,
 } from 'vue'
+import GanttMenu from '../components/gantt-menu.vue'
 import TimeGrid from '../components/time-grid.vue'
 import TimeHeader from '../components/time-header.vue'
 import { resolveCalendar } from '../core/calendar'
 import { GanttHistory } from '../core/history'
+import type { GanttMenuItem } from '../core/menu'
 import { spanOf, writeSpan, type GanttTask, type TaskSpan } from '../core/model'
 import { snapStep, type GanttScale } from '../core/scale'
 import { MINUTES_PER_DAY, parseTime } from '../core/time'
@@ -25,19 +27,21 @@ import {
   type GanttDocument,
   type GanttTransactionMeta,
 } from '../core/transaction'
-import { dateLabel, durationLabel, endLabel } from '../labels'
+import { dateLabel, datesLabel, durationLabel, endLabel, spokenDuration } from '../labels'
 import { format, useGanttMessages } from '../locale'
 import { useTimeAxis } from '../time-axis'
 import {
   groupByResource,
   loadSegments,
-  type GanttResource,
-  type LoadSegment,
+  type SchedulerResource,
+  type SchedulerLoadSegment,
   type SchedulerItem,
 } from './layout'
 import type {
   SchedulerEmits,
   SchedulerExpose,
+  SchedulerMenuTarget,
+  SchedulerMove,
   SchedulerProps,
   SchedulerRange,
   SchedulerSlots,
@@ -51,6 +55,7 @@ const props = withDefaults(defineProps<SchedulerProps>(), {
   tableWidth: 200,
   rowHeight: 36,
   load: true,
+  menu: true,
 })
 const tasks = defineModel<GanttTask[]>('tasks', { default: () => [] })
 const selection = defineModel<string[]>('selection', { default: () => [] })
@@ -122,6 +127,10 @@ function transact(fn: (tr: GanttTransaction) => void, meta?: GanttTransactionMet
   history.record(tr, before, selection.value)
   canUndo.value = history.canUndo
   canRedo.value = history.canRedo
+  // tasks added from outside, such as a booking for a drawn range, are read out
+  const added = tr.steps.flatMap((step) => (step.type === 'addTask' ? [step.task.title] : []))
+  if (added.length)
+    announce(format(messages.value.taskAdded, { title: added.join(messages.value.listSeparator) }))
   return tr
 }
 
@@ -172,11 +181,11 @@ interface ResourceRow {
   kind: 'resource'
   key: string
   /** `null` for the row of tasks without a resource. */
-  resource: GanttResource | null
+  resource: SchedulerResource | null
   title: string
   items: SchedulerItem[]
   lanes: number
-  load: LoadSegment[]
+  load: SchedulerLoadSegment[]
   capacity: number
   overloaded: boolean
   top: number
@@ -214,7 +223,7 @@ const rows = computed<Row[]>(() => {
     out.push({ ...row, top } as Row)
     top += row.height
   }
-  const resourceRow = (resource: GanttResource | null): Omit<ResourceRow, 'top'> => {
+  const resourceRow = (resource: SchedulerResource | null): Omit<ResourceRow, 'top'> => {
     const entry = placed.value.get(resource?.id ?? '')
     const lanes = Math.max(entry?.lanes ?? 0, keptLanes.value?.get(resource?.id ?? '') ?? 0)
     const load = loadSegments((entry?.items ?? []).map((item) => item.span))
@@ -362,13 +371,24 @@ const describeRow = (row: ResourceRow) => {
 
 function describe(item: SchedulerItem, row: ResourceRow) {
   const m = messages.value
-  const start = dateLabel(item.span.start, item.span.dateOnly, m)
-  return format(sm.value.item, {
-    title: item.task.title,
-    resource: row.title,
-    start,
-    end: item.span.end > item.span.start ? endLabel(item.span, m) : start,
-  })
+  const { task, span } = item
+  // as the gantt chart reads them out
+  const text =
+    task.type === 'milestone' || span.end <= span.start
+      ? format(m.milestone, {
+          title: task.title,
+          start: dateLabel(
+            span.start - (span.dateOnly ? MINUTES_PER_DAY / 2 : 0),
+            span.dateOnly,
+            m,
+          ),
+        })
+      : format(sm.value.task, {
+          title: task.title,
+          dates: datesLabel(span, m),
+          duration: spokenDuration(span, calendar.value, m),
+        })
+  return format(sm.value.item, { task: text, resource: row.title })
 }
 
 const selected = computed(() => new Set(selection.value))
@@ -601,6 +621,39 @@ const planned = computed<Planned[] | null>(() => {
   return out
 })
 
+/**
+ * Why `canMove` refuses changes, or `null` when it allows them all. Each
+ * patch is checked with the resource it ends up with.
+ */
+function checkMove(patches: Iterable<{ id: string; patch: Partial<GanttTask> }>) {
+  const rule = props.canMove
+  if (!rule) return null
+  const doc = docOf()
+  for (const { id, patch } of patches) {
+    const task = taskById(id)
+    if (!task) continue
+    const next = { ...task, ...patch }
+    if (!next.start) continue
+    const known = next.resource && props.resources.some((item) => item.id === next.resource)
+    const move: SchedulerMove = {
+      task,
+      start: next.start,
+      end: next.end,
+      resource: known ? next.resource : undefined,
+    }
+    const answer = rule(move, doc)
+    if (answer === true) continue
+    return typeof answer === 'string' && answer ? answer : messages.value.moveRefused
+  }
+  return null
+}
+
+/** Why the current drag would be refused. */
+const dragRefusal = computed(() => {
+  const plans = planned.value
+  return plans?.length ? checkMove(plans) : null
+})
+
 /** The range being drawn on an empty part of a row. */
 const drawn = computed(() => {
   const d = drag.value
@@ -634,8 +687,10 @@ const dragTip = computed(() => {
   const span = found?.item.span ?? (drawn.value && { ...drawn.value })
   const row = found?.row ?? rowByKey.value.get(d.from)
   if (!span || row?.kind !== 'resource') return null
-  const text =
-    span.end > span.start
+  const refusal = d.mode === 'draw' ? null : dragRefusal.value
+  const text = refusal
+    ? refusal
+    : span.end > span.start
       ? format(m.rangeTip, {
           start: dateLabel(span.start, span.dateOnly, m),
           end: endLabel(span, m),
@@ -644,6 +699,7 @@ const dragTip = computed(() => {
       : dateLabel(span.start - (span.dateOnly ? MINUTES_PER_DAY / 2 : 0), span.dateOnly, m)
   return {
     text,
+    refused: !!refusal,
     left: Math.max(scrollLeft.value + 8, xOf(span.start)),
     top: laneTop(row, found?.item.lane ?? 0),
   }
@@ -753,6 +809,13 @@ function autoScroll() {
 function onDragEnd(event: PointerEvent) {
   const d = drag.value
   if (!d || event.pointerId !== d.pointerId) return
+  // a finger held on a bar and let go without moving: the task's menu
+  if (d.touch && d.started && d.mode === 'move' && Math.abs(d.x - d.x0) < THRESHOLD.touch) {
+    const found = itemById.value.get(d.id)
+    stopDrag()
+    if (found) showMenu(taskTarget(found.item.task, found.row), event.clientX, event.clientY)
+    return
+  }
   if (d.started) {
     dragged = true
     setTimeout(() => (dragged = false))
@@ -765,6 +828,7 @@ function onDragEnd(event: PointerEvent) {
 function finishMove(d: Drag) {
   const plans = planned.value
   if (!plans?.length) return
+  if (dragRefusal.value) return void announce(dragRefusal.value)
   transact((tr) => {
     for (const plan of plans) tr.updateTask(plan.id, plan.patch)
   })
@@ -779,7 +843,7 @@ function finishDraw() {
   if (!range) return
   const span = writeSpan({ id: '', title: '' }, range.start, range.end)
   const out: SchedulerRange = {
-    resource: range.row || null,
+    resource: range.row || undefined,
     start: span.start!,
     end: span.end ?? span.start!,
   }
@@ -844,6 +908,96 @@ onBeforeUnmount(() => {
   el?.removeEventListener('touchcancel', onTouchEnd)
   stopDrag()
 })
+
+// Menu -------------------------------------------------------------------------------------
+
+const menu = useTemplateRef<InstanceType<typeof GanttMenu>>('menu')
+const menuItems = shallowRef<GanttMenuItem[]>([])
+const menuOpen = ref(false)
+
+/** The moment under a point on screen, or the task's start when it is off the timeline. */
+function timeAt(x: number, fallback: number) {
+  const rect = chart.value!.getBoundingClientRect()
+  if (x < rect.left || x > rect.right) return fallback
+  return Math.round(origin.value + contentX(x) / ppm.value)
+}
+
+const taskTarget = (task: GanttTask, row: ResourceRow) =>
+  ({ kind: 'task', task, resource: row.resource, time: 0 }) as const
+
+/** Your items, then the built-in one, a separator between them. */
+function itemsFor(target: SchedulerMenuTarget) {
+  const items: GanttMenuItem[] = [...(props.contextMenu?.(target) ?? [])]
+  if (props.menu && editable.value && target.kind === 'task') {
+    const ids = selected.value.has(target.task.id) ? selection.value : [target.task.id]
+    const m = messages.value.menu
+    items.push({
+      key: 'remove',
+      label: ids.length > 1 ? format(m.removeTasks, { count: ids.length }) : m.removeTask,
+      icon: TrashIcon,
+      shortcut: 'delete',
+      tone: 'danger',
+      divided: items.length > 0,
+      run: () => removeTasks(ids),
+    })
+  }
+  return items
+}
+
+/** Opens the menu at a point on screen; `false` when it has nothing to show. */
+function showMenu(on: SchedulerMenuTarget, x: number, y: number) {
+  const start = on.kind === 'task' ? (itemById.value.get(on.task.id)?.item.span.start ?? 0) : 0
+  const target = { ...on, time: timeAt(x, start) }
+  const items = itemsFor(target)
+  if (!items.length) return false
+  if (target.kind === 'task') {
+    active.value = target.task.id
+    if (!selected.value.has(target.task.id)) selection.value = [target.task.id]
+  }
+  menuItems.value = items
+  menu.value?.open(x, y)
+  return true
+}
+
+function runMenuItem(key: unknown) {
+  menuItems.value.find((item) => item.key === key)?.run()
+}
+
+/** When a finger last went down: its long press opens the menu itself, not the browser's. */
+let touchedAt = 0
+const onRootPointerdown = (event: PointerEvent) => {
+  if (event.pointerType === 'touch') touchedAt = Date.now()
+}
+
+function onTaskContextmenu(bar: Bar, event: MouseEvent) {
+  emit('taskContextmenu', bar.item.task, event)
+  if (event.defaultPrevented) return
+  if (Date.now() - touchedAt < 1000) return event.preventDefault()
+  if (showMenu(taskTarget(bar.item.task, bar.row), event.clientX, event.clientY))
+    event.preventDefault()
+}
+
+function onBodyContextmenu(event: MouseEvent) {
+  const target = event.target as HTMLElement
+  if (event.defaultPrevented || target.closest('.dou-gantt__bar-row')) return
+  if (Date.now() - touchedAt < 1000) return event.preventDefault()
+  const row = resourceRowAt(contentY(event.clientY))
+  if (!row) return
+  const on = { kind: 'row', resource: row.resource, time: 0 } as const
+  if (showMenu(on, event.clientX, event.clientY)) event.preventDefault()
+}
+
+/** The menu key, or Shift+F10, opens the menu of the task the keyboard is on, at its bar. */
+function openKeyMenu() {
+  const found = active.value ? itemById.value.get(active.value) : undefined
+  if (!found) return false
+  const el = root.value?.querySelector(
+    `.dou-gantt__bar[data-task="${CSS.escape(found.item.task.id)}"]`,
+  )
+  const rect = el?.getBoundingClientRect()
+  if (!rect) return false
+  return showMenu(taskTarget(found.item.task, found.row), rect.left + 8, rect.bottom + 4)
+}
 
 // Keys -------------------------------------------------------------------------------------
 
@@ -926,11 +1080,10 @@ function keyMove(key: string) {
   if (key === 'ArrowLeft' || key === 'ArrowRight') {
     const unit = stepFor([item.span])
     const shift = key === 'ArrowLeft' ? -unit : unit
-    transact(
-      (tr) =>
-        tr.updateTask(task.id, writeSpan(task, item.span.start + shift, item.span.end + shift)),
-      { group: `key-move:${task.id}` },
-    )
+    const patch = writeSpan(task, item.span.start + shift, item.span.end + shift)
+    const refusal = checkMove([{ id: task.id, patch }])
+    if (refusal) return void announce(refusal)
+    transact((tr) => tr.updateTask(task.id, patch), { group: `key-move:${task.id}` })
     const span = spanOf(taskById(task.id)!)
     if (span) announce(describe({ ...item, span }, row))
     return
@@ -939,6 +1092,8 @@ function keyMove(key: string) {
   const index = list.indexOf(row)
   const target = list[index + (key === 'ArrowUp' ? -1 : 1)]
   if (!target) return
+  const refusal = checkMove([{ id: task.id, patch: { resource: target.resource?.id } }])
+  if (refusal) return void announce(refusal)
   transact((tr) => tr.updateTask(task.id, { resource: target.resource?.id }))
   announce(format(sm.value.moved, { title: task.title, resource: target.title }))
   focusTask(task.id)
@@ -946,7 +1101,10 @@ function keyMove(key: string) {
 
 function removeSelected() {
   const ids = selection.value.length ? selection.value : active.value ? [active.value] : []
-  if (!ids.length) return
+  if (ids.length) removeTasks(ids)
+}
+
+function removeTasks(ids: string[]) {
   const titles = ids.map((id) => taskById(id)?.title).filter(Boolean)
   transact((tr) => {
     for (const id of ids) tr.removeTask(id)
@@ -974,6 +1132,10 @@ function onKeydown(event: KeyboardEvent) {
     if (event.altKey) {
       if (editable.value) keyMove(key)
     } else stepFocus(key)
+    return
+  }
+  if (key === 'ContextMenu' || matchesHotkey(event, 'shift+f10')) {
+    if (openKeyMenu()) event.preventDefault()
     return
   }
   if ((key === 'Delete' || key === 'Backspace') && editable.value) {
@@ -1031,6 +1193,7 @@ defineExpose<SchedulerExpose>({
     :aria-label="ariaLabel ?? sm.name"
     :aria-describedby="keysHint"
     @keydown="onKeydown"
+    @pointerdown.capture="onRootPointerdown"
   >
     <span :id="keysHint" class="dou-gantt__sr-only">{{ sm.keys }}</span>
     <div class="dou-gantt__sr-only" aria-live="polite">{{ live }}</div>
@@ -1039,7 +1202,12 @@ defineExpose<SchedulerExpose>({
         <div class="dou-gantt__table-head">
           <div class="dou-gantt__th is-title">{{ sm.resource }}</div>
         </div>
-        <div ref="tableBody" class="dou-gantt__table-body" @scroll="axis.onTableScroll">
+        <div
+          ref="tableBody"
+          class="dou-gantt__table-body"
+          tabindex="-1"
+          @scroll="axis.onTableScroll"
+        >
           <div class="dou-gantt__table-rows" :style="{ height: `${totalHeight + scrollbar}px` }">
             <div
               v-for="row in visibleRows"
@@ -1080,6 +1248,12 @@ defineExpose<SchedulerExpose>({
                     </slot>
                     <template v-else>{{ row.title }}</template>
                   </span>
+                  <span
+                    v-if="row.overloaded"
+                    class="dou-gantt__overload"
+                    :title="sm.overloadHint"
+                    aria-hidden="true"
+                  />
                 </template>
               </div>
             </div>
@@ -1117,6 +1291,7 @@ defineExpose<SchedulerExpose>({
           class="dou-gantt__body"
           :style="{ height: `${totalHeight}px` }"
           @pointerdown="onBodyDown"
+          @contextmenu="onBodyContextmenu"
         >
           <div v-if="!showTable" class="dou-gantt__row-titles">
             <span
@@ -1175,6 +1350,8 @@ defineExpose<SchedulerExpose>({
                   'is-selected': selected.has(bar.item.task.id),
                   'is-locked': bar.item.task.locked,
                   'is-active': active === bar.item.task.id,
+                  'is-move-refused':
+                    !!dragRefusal && drag?.started && drag.spans.has(bar.item.task.id),
                 },
               ]"
               :data-task="bar.item.task.id"
@@ -1188,6 +1365,7 @@ defineExpose<SchedulerExpose>({
               @pointerdown="onBarDown($event, bar)"
               @click="onTaskClick(bar.item.task, $event)"
               @dblclick="emit('taskDblclick', bar.item.task, $event)"
+              @contextmenu="onTaskContextmenu(bar, $event)"
             >
               <span v-if="!bar.outside" class="dou-gantt__bar-label">
                 <slot name="bar" :task="bar.item.task">{{ bar.item.task.title }}</slot>
@@ -1226,6 +1404,7 @@ defineExpose<SchedulerExpose>({
           <div
             v-if="dragTip"
             class="dou-gantt__tip"
+            :class="{ 'is-refused': dragTip.refused }"
             :style="{ transform: `translate(${dragTip.left}px, ${dragTip.top}px)` }"
           >
             {{ dragTip.text }}
@@ -1237,6 +1416,7 @@ defineExpose<SchedulerExpose>({
       v-if="showTable"
       class="dou-gantt__divider"
       role="separator"
+      :aria-label="messages.resizeTable"
       tabindex="0"
       aria-orientation="vertical"
       :aria-valuenow="Math.round(tableSize)"
@@ -1245,6 +1425,7 @@ defineExpose<SchedulerExpose>({
       @pointerdown="onDividerDown"
       @keydown="onDividerKey"
     />
+    <GanttMenu ref="menu" v-model:open="menuOpen" :items="menuItems" @select="runMenuItem" />
     <slot />
   </div>
 </template>

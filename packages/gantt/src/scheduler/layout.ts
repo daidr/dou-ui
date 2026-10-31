@@ -1,7 +1,7 @@
 import { spanOf, type GanttData, type GanttTask, type TaskSpan } from '../core/model'
 
 /** A row of the scheduler: a person, a room, a machine. */
-export interface GanttResource<Data extends GanttData = GanttData> {
+export interface SchedulerResource<Data extends GanttData = GanttData> {
   id: string
   title: string
   /** Resources with the same group are listed together under its name. */
@@ -21,7 +21,7 @@ export interface SchedulerItem {
 }
 
 /** A stretch of time with the same number of tasks going on. */
-export interface LoadSegment {
+export interface SchedulerLoadSegment {
   start: number
   end: number
   count: number
@@ -52,7 +52,7 @@ export function packLanes(items: { span: TaskSpan; lane: number }[]) {
 }
 
 /** How many tasks are going on over time; stretches with none are left out. */
-export function loadSegments(spans: Iterable<TaskSpan>): LoadSegment[] {
+export function loadSegments(spans: Iterable<TaskSpan>): SchedulerLoadSegment[] {
   const changes = new Map<number, number>()
   for (const span of spans) {
     // a milestone is not work
@@ -62,7 +62,7 @@ export function loadSegments(spans: Iterable<TaskSpan>): LoadSegment[] {
   }
   // oxlint-disable-next-line unicorn/no-array-sort -- sorts a fresh array
   const times = [...changes.keys()].sort((a, b) => a - b)
-  const out: LoadSegment[] = []
+  const out: SchedulerLoadSegment[] = []
   let count = 0
   for (let i = 0; i < times.length - 1; i++) {
     count += changes.get(times[i]!)!
@@ -79,7 +79,10 @@ export function loadSegments(spans: Iterable<TaskSpan>): LoadSegment[] {
  * or with one that isn't listed, go under `''`; tasks without dates are
  * left out.
  */
-export function groupByResource(tasks: readonly GanttTask[], resources: readonly GanttResource[]) {
+export function groupByResource(
+  tasks: readonly GanttTask[],
+  resources: readonly SchedulerResource[],
+) {
   const known = new Set(resources.map((resource) => resource.id))
   const out = new Map<string, { items: SchedulerItem[]; lanes: number }>()
   for (const task of tasks) {

@@ -53,16 +53,55 @@ function read<T>(map: Shared, id: string): T | null {
   return { ...(fields.toJSON() as Item), id } as T
 }
 
+/** Where in `value` there is something JSON can't hold (a function, a component, a `Date`…), or `null`. */
+function unsharable(value: unknown, path: string, seen = new Set<object>()): string | null {
+  if (value === null || ['string', 'number', 'boolean', 'undefined'].includes(typeof value))
+    return null
+  if (typeof value !== 'object') return path
+  const proto = Object.getPrototypeOf(value)
+  if (seen.has(value)) return path
+  if (!Array.isArray(value) && proto !== Object.prototype && proto !== null) return path
+  seen.add(value)
+  for (const [key, item] of Object.entries(value)) {
+    const found = unsharable(
+      item,
+      Array.isArray(value) ? `${path}[${key}]` : `${path}.${key}`,
+      seen,
+    )
+    if (found) return found
+  }
+  return null
+}
+
+/*
+ * Such a value reads back fine on this side, but the others get it without
+ * the parts JSON can't hold: say so once per field while developing.
+ */
+const warned = new Set<string>()
+function checkSharable(id: string, key: string, value: unknown) {
+  // the app's bundler replaces this, as for Vue's own warnings
+  if (process.env.NODE_ENV === 'production' || warned.has(`${id}:${key}`)) return
+  const path = unsharable(toRaw(value), key)
+  if (!path) return
+  warned.add(`${id}:${key}`)
+  console.warn(
+    `[@dou-ui/gantt/collaboration] "${id}" has a value at ${path} that can't be shared: only JSON values reach the others. Keep components and functions out of the shared fields, for example by looking them up by name.`,
+  )
+}
+
 /** Writes a task's or link's fields, only those that changed. */
 function write(map: Shared, value: GanttTask | GanttLink) {
   const item = value as unknown as Item
   const existing = map.get(value.id)
-  const fields: Shared = existing instanceof Y.Map ? existing : new Y.Map<unknown>()
+  let fields: Shared
+  if (existing instanceof Y.Map) fields = existing
+  // a new map joins the document first: it can't be read before
+  else map.set(value.id, (fields = new Y.Map<unknown>()))
   for (const [key, field] of Object.entries(item)) {
     if (LOCAL_FIELDS.has(key) || field === undefined) continue
+    checkSharable(value.id, key, field)
     if (!same(fields.get(key), field)) fields.set(key, field)
   }
-  if (existing !== fields) return void map.set(value.id, fields)
   for (const key of Array.from(fields.keys()))
     if (!LOCAL_FIELDS.has(key) && item[key] === undefined) fields.delete(key)
 }

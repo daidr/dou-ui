@@ -545,4 +545,28 @@ describe('extension lifecycle', () => {
     await nextTick()
     expect(setups).toBe(1)
   })
+
+  it('warns once when the extensions keep being made anew', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const tasks = ref(sample())
+    mount(
+      defineComponent(
+        () => () =>
+          h(DouGantt, {
+            tasks: tasks.value,
+            'onUpdate:tasks': (value: GanttTask[]) => (tasks.value = value),
+            // a new extension on every render, as when made in the template
+            extensions: [defineGanttExtension({ name: 'fresh', setup: () => {} })],
+          }),
+      ),
+      { attachTo: document.body },
+    )
+    for (let i = 0; i < 6; i++) {
+      tasks.value = tasks.value.map((task) => ({ ...task }))
+      await nextTick()
+    }
+    const calls = warn.mock.calls.filter(([text]) => String(text).includes('set up again'))
+    expect(calls).toHaveLength(1)
+    warn.mockRestore()
+  })
 })

@@ -1193,16 +1193,19 @@ function gridLayout(n: number) {
     )
 }
 
+const BenchValue = {
+  setup() {
+    const { props } = useDashboardWidget<{ value: number }>()
+    return () => h('strong', String(props.value.value))
+  },
+}
+
+// `component` gets its own line: run.mjs finds cases by their `  name: {` lines
 const benchWidget = defineDashboardWidget({
   type: 'value',
   label: '数值',
   size: { w: 3, h: 2 },
-  component: {
-    setup() {
-      const { props } = useDashboardWidget<{ value: number }>()
-      return () => h('strong', String(props.value.value))
-    },
-  },
+  component: BenchValue,
 })
 
 function dashboard(n: number, editable = false) {

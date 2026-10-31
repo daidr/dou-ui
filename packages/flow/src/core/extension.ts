@@ -1,5 +1,6 @@
 import type { Component } from 'vue'
 import type { FlowEditorContext } from '../context'
+import type { FlowDrawContext } from '../export/context'
 import type { FlowConnection, PortTypes } from './connect'
 import type { EdgeTypeSpec } from './edge-types'
 import type { FlowMenuItem, FlowMenuTarget, FlowToolbarItem } from './menu'
@@ -76,6 +77,12 @@ export interface FlowExtension {
    */
   layers?: { below?: Component[]; above?: Component[] }
   /**
+   * What `layers.above` shows, for `exportSVG` and `exportPNG`: SVG markup
+   * in canvas coordinates, drawn over the nodes. `nodes` are the ones in the
+   * picture; `draw.width` and `draw.height` are the picture's size.
+   */
+  drawLayer?: (context: FlowExtensionContext, draw: FlowDrawContext, nodes: FlowNode[]) => string
+  /**
    * Components drawn over the editor in screen space, e.g. a panel or a
    * popup. They can call `useFlowEditor()`.
    */
@@ -125,6 +132,7 @@ export interface ResolvedFlowExtensions {
   overlays: Component[]
   menus: NonNullable<FlowExtension['contextMenu']>[]
   toolbars: NonNullable<FlowExtension['toolbarItems']>[]
+  drawLayers: NonNullable<FlowExtension['drawLayer']>[]
   setups: NonNullable<FlowExtension['setup']>[]
   transactions: NonNullable<FlowExtension['transaction']>[]
   history: FlowExtension['history']
@@ -201,6 +209,7 @@ export function resolveFlowExtensions(list: ExtensionList): ResolvedFlowExtensio
     menus: pick('contextMenu'),
     presses: pick('press'),
     toolbars: pick('toolbarItems'),
+    drawLayers: pick('drawLayer'),
     setups: pick('setup'),
     transactions: pick('transaction'),
     history: extensions.find((e) => e.history)?.history,

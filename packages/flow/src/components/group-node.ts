@@ -1,4 +1,5 @@
 import { defineNodeType } from '../core/node-types'
+import { drawCard } from '../export/draw'
 import GroupNode from './group-node.vue'
 
 export interface GroupNodeData {
@@ -21,4 +22,23 @@ export const groupNode = defineNodeType<GroupNodeData>({
   resizable: { minWidth: 160, minHeight: 96 },
   size: { width: 320, height: 200 },
   defaults: () => ({ label: '' }),
+  draw(node, draw) {
+    const title = draw.style('dou-flow-group-node__title')
+    // a picture has nothing to fold: no toggle, the title where it starts
+    return (
+      drawCard(draw, ['is-container'].concat(node.data?.collapsed ? ['is-collapsed'] : [])) +
+      draw.text(
+        node.data?.label || draw.messages.group,
+        { x: 12, y: 0, width: Math.max(0, draw.width - 24), height: 40 },
+        {
+          size: Number.parseFloat(title.fontSize) || 13,
+          weight: title.fontWeight,
+          color: draw.color(title.color),
+          valign: 'middle',
+          nowrap: true,
+          lineHeight: 40,
+        },
+      )
+    )
+  },
 })

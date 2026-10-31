@@ -93,6 +93,26 @@ const extensions = [
 
 鼠标移到形状、便签或文字上，四边中点会出现锚点。从锚点拖出连接线，拖到另一个形状上任意位置松开，会接到离松手处最近的锚点上。形状移动时连接线跟着走。连接线是直线，终点带箭头，双击可以加文字。松手处的节点接不上时，读屏会提示没有可以连接的端口。
 
+## 导出
+
+`exportSVG()` 和 `exportPNG()` 把白板导出成图片，形状、便签、笔迹、图片和旋转都按画布上的样子画出来，见[导出图片](./export)。
+
+## 协同编辑
+
+白板的数据就是节点和连线，所以加上 [`collaboration()`](./collaboration) 扩展就能多人同时编辑：形状、便签、笔迹、图片、旋转和层级都会同步。工具、正在画的笔迹和正在输入的文字只在自己这边，松手或写完后才同步给其他人。
+
+<DocDemo src="flow/whiteboard-collaboration" column />
+
+```ts
+const extensions = [
+  flowKit(),
+  whiteboardKit({ upload }),
+  collaboration({ nodes: doc.getMap('nodes'), edges: doc.getMap('edges'), awareness, user }),
+]
+```
+
+协同时请传入 `upload`，把图片存到服务器，不要让 data URL 进入共享文档。
+
 ## 节点数据
 
 白板上的东西都是普通节点，`type` 和 `data` 如下：

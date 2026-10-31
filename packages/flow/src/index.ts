@@ -64,6 +64,9 @@ export type {
 export { flowKit } from './kit'
 export type { FlowKitOptions } from './kit'
 export { moveLayer } from './layers'
+export { drawCard } from './export/draw'
+export type { FlowExportOptions, FlowImageOptions } from './export/draw'
+export type { FlowDrawContext, FlowDrawTextOptions } from './export/context'
 export type { LayerMove } from './layers'
 export { flowOrder } from './core/order'
 export {

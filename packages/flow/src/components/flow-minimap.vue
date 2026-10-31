@@ -103,6 +103,7 @@ function onPointerUp() {
 <template>
   <div
     class="dou-flow-minimap"
+    data-flow-overlay
     :class="[`is-${placement}`, { 'is-dragging': dragging }]"
     role="img"
     :aria-label="messages.minimap"

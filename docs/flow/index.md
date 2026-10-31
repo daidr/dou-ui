@@ -147,6 +147,7 @@ app.use(DouFlowEditor)
 | `tidy`                                      | 整理节点，默认整理选中的（两个以上时）或全部，算作一步撤销               | `(ids?: string[]) => void`                     |
 | `toCanvas`                                  | 屏幕坐标转画布坐标                                                       | `(point: Point) => Point`                      |
 | `getNodeRect`                               | 节点在画布上的位置和尺寸                                                 | `(id: string) => Rect \| null`                 |
+| `exportSVG` / `exportPNG`                   | 把流程导出成 SVG 文本或 PNG，见[导出图片](./export)                      | —                                              |
 | `staleEdges`                                | 端口已经对不上的连线，见[端口类型随数据变化](./ports#端口类型随数据变化) | `string[]`                                     |
 | `removeStaleEdges`                          | 删除这些连线，算作一步撤销，返回删除的条数                               | `() => number`                                 |
 | `insertNode`                                | 新建一个节点并选中，见[用代码添加节点](./editing#用代码添加节点)         | `(type, options?) => string \| null`           |

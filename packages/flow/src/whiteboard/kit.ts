@@ -24,6 +24,7 @@ import {
   whiteboardKeys,
 } from './model'
 import { imageFiles, insertImages, pickImages, type WhiteboardUpload } from './image'
+import { drawBoardNode } from './draw'
 import { turn } from './ink'
 import { drawInk, erase } from './pen'
 import { boardState } from './state'
@@ -70,6 +71,7 @@ export const shapeNode = defineNodeType<WhiteboardShapeData>({
   frame: false,
   resizable: unlessTurned({ minWidth: 24, minHeight: 24 }),
   bounds: turnedBounds,
+  draw: drawBoardNode,
   size: { width: 160, height: 100 },
   defaults: () => ({ shape: 'rect' }),
   label: (node, t) => nameOf(t.board[node.data?.shape ?? 'rect'], node.data?.text, t),
@@ -83,6 +85,7 @@ export const stickyNode = defineNodeType<WhiteboardStickyData>({
   frame: false,
   resizable: unlessTurned({ minWidth: 64, minHeight: 64 }),
   bounds: turnedBounds,
+  draw: drawBoardNode,
   size: { width: 160, height: 160 },
   defaults: () => ({}),
   label: (node, t) => nameOf(t.board.sticky, node.data?.text, t),
@@ -96,6 +99,7 @@ export const textNode = defineNodeType<WhiteboardTextData>({
   frame: false,
   resizable: unlessTurned({ minWidth: 24, minHeight: 24 }),
   bounds: turnedBounds,
+  draw: drawBoardNode,
   size: { width: 200, height: 40 },
   defaults: () => ({}),
   label: (node, t) => nameOf(t.board.text, node.data?.text, t),
@@ -108,6 +112,7 @@ export const inkNode = defineNodeType<WhiteboardInkData>({
   frame: false,
   resizable: unlessTurned({ minWidth: 8, minHeight: 8 }),
   bounds: turnedBounds,
+  draw: drawBoardNode,
   defaults: () => ({ points: [], box: [0, 0] }),
   label: (_, t) => t.board.ink,
 })
@@ -120,6 +125,7 @@ export const imageNode = defineNodeType<WhiteboardImageData>({
   frame: false,
   resizable: unlessTurned({ minWidth: 24, minHeight: 24 }),
   bounds: turnedBounds,
+  draw: drawBoardNode,
   size: { width: 240, height: 180 },
   defaults: () => ({ src: '' }),
   label: (node, t) => nameOf(t.board.image, node.data?.alt, t),

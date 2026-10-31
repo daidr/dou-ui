@@ -203,6 +203,13 @@ export interface CodeExtension {
    * them few (comments, not one per line).
    */
   widgets?: (context: CodeExtensionContext) => CodeWidget[]
+  /**
+   * Lines left out of view, from `from` to `to` (from 1, both kept out),
+   * e.g. the unchanged lines of a diff. Unlike a fold, nothing marks the
+   * spot; put a widget there for that. Asked for the whole text; reactive
+   * state read here updates them. Moving up and down steps over them.
+   */
+  hide?: (context: CodeExtensionContext) => Array<{ from: number; to: number }>
   /** Bars above or below the text; reactive state read here updates them. */
   panels?: (context: CodeExtensionContext) => CodePanel[]
   /**

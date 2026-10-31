@@ -1,11 +1,15 @@
 import { withInstall } from 'dou-ui'
 import CodeEditor from './code-editor.vue'
+import CodeDiff from './code-diff.vue'
 import CodeInput from './code-input.vue'
 import CodeKeys from './code-keys.vue'
 
 export const DouCodeEditor = withInstall(CodeEditor)
 export const DouCodeKeys = withInstall(CodeKeys)
 export const DouCodeInput = withInstall(CodeInput)
+export const DouCodeDiff = withInstall(CodeDiff)
+export { diffText } from './core/diff'
+export type { CodeDiffHunk, CodeDiffOptions, CodeDiffPart } from './core/diff'
 export { defaultCodeKeys } from './code-keys'
 export { defineCodeExtension, useCodeEditor } from './extension'
 export type {
@@ -30,6 +34,8 @@ export type {
 export default DouCodeEditor
 
 export type {
+  CodeDiffEmits,
+  CodeDiffProps,
   CodeEditorEmits,
   CodeEditorExpose,
   CodeEditorProps,
@@ -105,5 +111,6 @@ declare module 'vue' {
     DouCodeEditor: typeof DouCodeEditor
     DouCodeKeys: typeof DouCodeKeys
     DouCodeInput: typeof DouCodeInput
+    DouCodeDiff: typeof DouCodeDiff
   }
 }

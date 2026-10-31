@@ -69,6 +69,33 @@ export interface CodeMessages {
   signature: string
   /** Read out after replacing: `{count}`. */
   replaced: string
+  /** The diff view's name. */
+  diff: string
+  /** The original side's label. */
+  diffOriginal: string
+  /** The modified side's label. */
+  diffModified: string
+  diffPrevious: string
+  diffNext: string
+  /** Shows the two sides next to each other. */
+  diffSplit: string
+  /** Shows the changes in one column. */
+  diffInline: string
+  /** Shows all the unchanged lines. */
+  diffExpandAll: string
+  /** Hides the unchanged lines again. */
+  diffCollapse: string
+  /** The bar over hidden unchanged lines: `{count}`. */
+  diffUnchanged: string
+  /** How many lines were added and removed: `{added}`, `{removed}`. */
+  diffStats: string
+  diffNoChanges: string
+  /** A removed line, in the gutter. */
+  diffRemoved: string
+  /** An added line, in the gutter. */
+  diffAdded: string
+  /** Read out when moving to a change: `{index}`, `{count}`, `{line}`, `{removed}`, `{added}`. */
+  diffChangeAt: string
 }
 
 export const zhCN: CodeMessages = {
@@ -118,6 +145,22 @@ export const zhCN: CodeMessages = {
   details: '说明',
   completions: '补全',
   signature: '参数提示',
+  diff: '对比',
+  diffOriginal: '原文',
+  diffModified: '修改后',
+  diffPrevious: '上一处改动',
+  diffNext: '下一处改动',
+  diffSplit: '并排显示',
+  diffInline: '行内显示',
+  diffExpandAll: '展开全部',
+  diffCollapse: '折叠未改动的行',
+  diffUnchanged: '{count} 行未改动',
+  diffStats: '新增 {added} 行，删除 {removed} 行',
+  diffNoChanges: '没有改动',
+  diffRemoved: '删除',
+  diffAdded: '新增',
+  diffChangeAt:
+    '第 {index} 处改动，共 {count} 处，第 {line} 行：删除 {removed} 行，新增 {added} 行',
 }
 
 export const zhTW: CodeMessages = {
@@ -167,6 +210,22 @@ export const zhTW: CodeMessages = {
   details: '說明',
   completions: '自動完成',
   signature: '參數提示',
+  diff: '對比',
+  diffOriginal: '原文',
+  diffModified: '修改後',
+  diffPrevious: '上一處改動',
+  diffNext: '下一處改動',
+  diffSplit: '並排顯示',
+  diffInline: '行內顯示',
+  diffExpandAll: '展開全部',
+  diffCollapse: '摺疊未改動的行',
+  diffUnchanged: '{count} 行未改動',
+  diffStats: '新增 {added} 行，刪除 {removed} 行',
+  diffNoChanges: '沒有改動',
+  diffRemoved: '刪除',
+  diffAdded: '新增',
+  diffChangeAt:
+    '第 {index} 處改動，共 {count} 處，第 {line} 行：刪除 {removed} 行，新增 {added} 行',
 }
 
 export const en: CodeMessages = {
@@ -216,6 +275,21 @@ export const en: CodeMessages = {
   details: 'Details',
   completions: 'Suggestions',
   signature: 'Parameter hints',
+  diff: 'Diff',
+  diffOriginal: 'Original',
+  diffModified: 'Modified',
+  diffPrevious: 'Previous change',
+  diffNext: 'Next change',
+  diffSplit: 'Side by side',
+  diffInline: 'Inline',
+  diffExpandAll: 'Expand all',
+  diffCollapse: 'Collapse unchanged lines',
+  diffUnchanged: '{count} unchanged lines',
+  diffStats: '{added} added, {removed} removed',
+  diffNoChanges: 'No changes',
+  diffRemoved: 'Removed',
+  diffAdded: 'Added',
+  diffChangeAt: 'Change {index} of {count}, line {line}: {removed} removed, {added} added',
 }
 
 export const codeLocales: Record<string, CodeMessages> = {

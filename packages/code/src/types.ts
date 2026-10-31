@@ -212,3 +212,43 @@ export interface CodeInputEmits {
   focus: [event: FocusEvent]
   blur: [event: FocusEvent]
 }
+
+export interface CodeDiffProps {
+  /** The text before. */
+  original?: string
+  /** The text after, bound with `v-model`; editable beside the original when `readonly` is off. */
+  modelValue?: string
+  language?: CodeLanguage | null
+  /**
+   * `split` puts the two texts side by side, `inline` puts the changes in
+   * one column. `auto` (the default) is `split` when there is room (640px)
+   * and `inline` otherwise, as on a phone. Bound with `v-model:mode` when
+   * the toolbar's toggle should be kept.
+   */
+  mode?: 'split' | 'inline' | 'auto'
+  /** Keeps the modified text from being edited. On by default; the inline view is always read-only. */
+  readonly?: boolean
+  /**
+   * Hides runs of unchanged lines behind a bar that shows them, keeping
+   * `context` lines (3 by default, at least 1) next to each change, when
+   * at least `minLines` (4 by default) would be hidden. On by default.
+   */
+  collapseUnchanged?: boolean | { context?: number; minLines?: number }
+  /** Treats lines that differ only in spaces as unchanged. */
+  ignoreWhitespace?: boolean
+  /** Marks the words that changed inside changed lines. On by default. */
+  words?: boolean
+  /** Wraps long lines in the inline view; side by side, lines never wrap, to stay aligned. */
+  wrap?: boolean
+  /** Extensions of the modified side, side by side only. */
+  extensions?: CodeExtension[]
+  tabSize?: number
+  /** The toolbar above: change count, previous and next, expand, and the view toggle. On by default. */
+  toolbar?: boolean
+  messages?: Partial<CodeMessages>
+}
+
+export interface CodeDiffEmits {
+  'update:modelValue': [value: string]
+  'update:mode': [mode: 'split' | 'inline']
+}

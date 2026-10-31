@@ -327,18 +327,19 @@ const keys = [
 
 扩展用 `defineCodeExtension` 定义，通过 `extensions` 传给编辑器。一个扩展可以提供下面这些部分，都是可选的：
 
-| 名称          | 说明                                                                                               |
-| ------------- | -------------------------------------------------------------------------------------------------- |
-| `name`        | 扩展的名字，用来区分各个扩展找到的问题                                                             |
-| `priority`    | 优先级，默认 `100`，大的先执行，它的按键也先尝试                                                   |
-| `keymap`      | 返回按键表的函数，写法和 `keymap` 属性一样；比内置的优先，比 `keymap` 属性靠后                     |
-| `decorations` | 装饰：给一段文字加 class（`mark`），给整行加 class（`line`），或在行内放小部件（`inline`）         |
-| `gutters`     | 行号左侧的列（`name`、`width`、`markers`、`onPress`），每行可以放图标或文字，可以响应点击          |
-| `widgets`     | 插在两行之间的组件（`id`、`pos` 或 `line`、`position`、`render`、`height`、`label`），比如审阅评论 |
-| `panels`      | 编辑器上方或下方的栏（`name`、`position`、`render`），在边框之内                                   |
-| `lint`        | 找出文本里的问题，可以返回 Promise                                                                 |
-| `transaction` | 每次修改应用之前调用，可以在同一次修改里追加改动；撤销、重做和新的 `v-model` 值不经过这里          |
-| `setup`       | 编辑器挂载后调用一次，返回的函数在卸载时调用                                                       |
+| 名称          | 说明                                                                                                                                            |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`        | 扩展的名字，用来区分各个扩展找到的问题                                                                                                          |
+| `priority`    | 优先级，默认 `100`，大的先执行，它的按键也先尝试                                                                                                |
+| `keymap`      | 返回按键表的函数，写法和 `keymap` 属性一样；比内置的优先，比 `keymap` 属性靠后                                                                  |
+| `decorations` | 装饰：给一段文字加 class（`mark`），给整行加 class（`line`），或在行内放小部件（`inline`）                                                      |
+| `gutters`     | 行号左侧的列（`name`、`width`、`markers`、`onPress`），每行可以放图标或文字，可以响应点击                                                       |
+| `widgets`     | 插在两行之间的组件（`id`、`pos` 或 `line`、`position`、`render`、`height`、`label`），比如审阅评论                                              |
+| `hide`        | 返回不显示的行（`{ from, to }`，行号从 1 开始，两端都不显示），比如对比时收起的行；上下移动光标会跳过它们，原处不留标记，需要时自己放一个小部件 |
+| `panels`      | 编辑器上方或下方的栏（`name`、`position`、`render`），在边框之内                                                                                |
+| `lint`        | 找出文本里的问题，可以返回 Promise                                                                                                              |
+| `transaction` | 每次修改应用之前调用，可以在同一次修改里追加改动；撤销、重做和新的 `v-model` 值不经过这里                                                       |
+| `setup`       | 编辑器挂载后调用一次，返回的函数在卸载时调用                                                                                                    |
 
 这些函数的参数是编辑器的上下文：它就是编辑器实例（`doc`、`selection`、`transact`、`run` 等都在上面），另外还有 `visible`（可见的行号范围）、`diagnostics`（现在的所有问题）和 `announce(message)`（让读屏读出一句话）。`decorations` 和 `panels` 在绘制时调用，里面读到的响应式数据变化时会重新调用；`decorations` 只需要给出可见的行，大文件里也不会变慢。
 
@@ -389,6 +390,12 @@ const keys = [
 
 <DocDemo src="code/completion" column />
 
+### 在 worker 里计算
+
+补全和检查可能很耗时，比如要分析整个文件。这时可以把它们放进 Web Worker，扩展只负责发送请求、返回 Promise：编辑器会等结果回来，文字又变了就丢掉旧结果，`signal` 也会中止，这时可以不再等这次回复。下面的例子把文本和光标位置发给 worker，worker 算出补全项和问题再发回来。worker 每次收到的是整段文本；文件很大时，可以改为只发送改动（`transaction` 事件里的 `changes`），由 worker 维护一份副本。
+
+<DocDemo src="code/worker" column />
+
 ## 大文件
 
 编辑器只绘制看得见的行，文本保存在按行组织的平衡树里：按行号或位置查找、插入、删除都只走一条路径，打开文件时也不复制内容。滚动时只绘制新进入视野的行；修改一行只重画这一行。
@@ -432,6 +439,20 @@ const doc = shallowRef(CodeText.of(source))
 | `--dou-code-editor-padding-x`   | `12px`                        |
 
 行高请用整数像素，每一行都按这个高度排列。`padding-y` 是第一行上方和最后一行下方的空白，`padding-x` 是每行左右的空白。
+
+## 对比视图
+
+`DouCodeDiff` 对比两段文本：`original` 是原文，`v-model` 是修改后的文本。删除的行和新增的行用浅色底标出，行内改动的词用深一点的底色标出，行号旁边的 `−` / `+` 不靠颜色也能分辨。
+
+<DocDemo src="code/diff" column />
+
+`mode` 决定怎样显示：`split` 左右并排，`inline` 把删除和新增的行放在同一列里，左侧两列行号分别是原文和修改后的行号。默认的 `auto` 在宽度不少于 640px 时并排，更窄时（比如手机上）改为行内；工具栏上的按钮可以切换，用 `v-model:mode` 可以记住切换的结果。并排时两侧逐行对齐，一侧多出的行在另一侧用斜纹空行补齐，两侧一起滚动；为了保持对齐，并排时不自动换行，`wrap` 只对行内显示生效。
+
+连续多行没有改动时，只保留改动前后各 `context` 行（默认 3 行），其余的收起成一条“N 行未改动”的栏，点一下展开。`collapse-unchanged` 设为 `false` 时全部显示，也可以写成 `{ context, minLines }`：至少能收起 `minLines` 行（默认 4 行）时才收起。工具栏上可以一次展开或收起全部；查找等操作把光标移进收起的行时，这一段会自动展开。
+
+`readonly` 默认开启。关闭后可以在并排视图的右侧直接修改，对比结果随输入更新；行内视图总是只读的。`extensions` 只用在并排视图的右侧。`F7` / `Shift` + `F7` 跳到下一处 / 上一处改动，读屏会读出这是第几处改动和改了几行。
+
+对比按整行进行（Myers 算法，线性空间），行内再按词比较，中文按字比较；改动的词太多时只标整行。`ignore-whitespace` 把只有空白不同的行看作相同。也可以直接调用 `diffText(original, modified, options?)` 得到改动列表，每一项是 `{ originalStart, originalCount, modifiedStart, modifiedCount, parts }`，行号从 1 开始，`parts` 是改动的词在两段文本里的位置。
 
 ## 代码输入框
 
@@ -514,6 +535,25 @@ const doc = shallowRef(CodeText.of(source))
 | `messages` | 改写按键的名称                                                     | `Partial<CodeMessages>` | —      |
 
 `CodeKey` 的字段见上文“手机触控”一节。
+
+### DouCodeDiff Props
+
+| 名称                   | 说明                                                      | 类型                                                 | 默认值   |
+| ---------------------- | --------------------------------------------------------- | ---------------------------------------------------- | -------- |
+| `original`             | 原文                                                      | `string`                                             | `''`     |
+| `v-model`              | 修改后的文本                                              | `string`                                             | `''`     |
+| `v-model:mode`         | 显示方式                                                  | `'split' \| 'inline' \| 'auto'`                      | `'auto'` |
+| `language`             | 语言，两侧相同                                            | `CodeLanguage`                                       | —        |
+| `readonly`             | 不能修改右侧                                              | `boolean`                                            | `true`   |
+| `collapse-unchanged`   | 收起没有改动的行                                          | `boolean \| { context?: number, minLines?: number }` | `true`   |
+| `ignore-whitespace`    | 只有空白不同的行看作相同                                  | `boolean`                                            | `false`  |
+| `words`                | 标出行内改动的词                                          | `boolean`                                            | `true`   |
+| `wrap`                 | 行内显示时自动换行                                        | `boolean`                                            | `false`  |
+| `extensions`           | 右侧编辑器的扩展，只在并排时使用                          | `CodeExtension[]`                                    | —        |
+| `toolbar`              | 显示工具栏：改动统计、上一处 / 下一处、展开全部、切换显示 | `boolean`                                            | `true`   |
+| `tab-size`、`messages` | 和编辑器相同                                              | —                                                    | —        |
+
+实例上有 `hunks`（现在的改动列表）、`next()`、`previous()`、`expandAll()`、`collapseAll()`，以及 `original`、`modified` 两个编辑器实例（行内显示时只有 `modified`，是那一列的编辑器）。
 
 ### DouCodeInput Props
 

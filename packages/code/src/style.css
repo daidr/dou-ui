@@ -1199,3 +1199,210 @@
     opacity: 0;
   }
 }
+
+/*
+ * Code diff
+ *
+ * One frame around both sides. Removed lines take a faint danger wash,
+ * added ones a faint success wash, and the words that changed a deeper
+ * one; a sign in the gutter says the same without color. Hidden runs of
+ * unchanged lines sit behind a quiet bar.
+ */
+@layer dou.components {
+  .dou-code-diff {
+    --dou-code-diff-removed: color-mix(in oklab, var(--dou-color-danger) 10%, transparent);
+    --dou-code-diff-added: color-mix(in oklab, var(--dou-color-success) 10%, transparent);
+    --dou-code-diff-removed-word: color-mix(
+      in oklab,
+      var(--dou-color-danger-text) 30%,
+      transparent
+    );
+    --dou-code-diff-added-word: color-mix(in oklab, var(--dou-color-success-text) 30%, transparent);
+    --dou-code-diff-border: var(--dou-color-border);
+
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid var(--dou-code-diff-border);
+    border-radius: var(--dou-radius-container);
+    background-color: var(--dou-color-bg-surface);
+    transition: border-color var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    &:focus-within {
+      border-color: color-mix(in oklab, var(--dou-color-focus) 70%, var(--dou-color-text));
+    }
+
+    .dou-code-editor {
+      border: 0;
+      border-radius: 0;
+    }
+  }
+
+  .dou-code-diff__toolbar {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 2px;
+    min-height: 36px;
+    padding: 0 6px 0 12px;
+    border-bottom: 1px solid var(--dou-code-diff-border);
+    font-size: var(--dou-font-size-sm);
+  }
+  .dou-code-diff__stats {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .dou-code-diff__count {
+    font-family: var(--dou-font-family-mono);
+    font-variant-numeric: tabular-nums;
+    &.is-added {
+      color: var(--dou-color-success-text);
+    }
+    &.is-removed {
+      color: var(--dou-color-danger-text);
+    }
+  }
+  .dou-code-diff__summary {
+    overflow: hidden;
+    color: var(--dou-color-text-secondary);
+    text-overflow: ellipsis;
+  }
+
+  .dou-code-diff__body {
+    display: grid;
+    flex: 1 1 auto;
+    grid-template-rows: minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 0;
+  }
+  .dou-code-diff--split > .dou-code-diff__body {
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .dou-code-diff__label {
+    padding: 4px 12px;
+    border-bottom: 1px solid var(--dou-code-diff-border);
+    color: var(--dou-color-text-secondary);
+    font-size: 12px;
+    &:nth-child(2) {
+      border-left: 1px solid var(--dou-code-diff-border);
+    }
+  }
+  .dou-code-diff__side {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    &.is-modified {
+      border-left: 1px solid var(--dou-code-diff-border);
+    }
+    > .dou-code-editor {
+      flex: 1 1 auto;
+    }
+  }
+
+  .dou-code-diff__line {
+    &.is-removed {
+      background-color: var(--dou-code-diff-removed);
+    }
+    &.is-added {
+      background-color: var(--dou-code-diff-added);
+    }
+  }
+  .dou-code-diff__word {
+    &.is-removed {
+      background-color: var(--dou-code-diff-removed-word);
+    }
+    &.is-added {
+      background-color: var(--dou-code-diff-added-word);
+    }
+  }
+  .dou-code-editor__cell.dou-code-diff__sign {
+    font-family: var(--dou-font-family-mono);
+    &.is-removed {
+      background-color: var(--dou-code-diff-removed);
+      color: var(--dou-color-danger-text);
+    }
+    &.is-added {
+      background-color: var(--dou-code-diff-added);
+      color: var(--dou-color-success-text);
+    }
+  }
+  .dou-code-editor__cell.dou-code-diff__number {
+    justify-content: flex-end;
+    padding-right: 8px;
+    box-sizing: border-box;
+    color: var(--dou-code-editor-gutter-text);
+    font-family: var(--dou-font-family-mono);
+    font-size: inherit;
+    font-variant-numeric: tabular-nums;
+    &.is-removed {
+      background-color: var(--dou-code-diff-removed);
+    }
+    &.is-added {
+      background-color: var(--dou-code-diff-added);
+    }
+  }
+
+  .dou-code-diff__filler {
+    background-image: repeating-linear-gradient(
+      -45deg,
+      transparent 0 6px,
+      color-mix(in oklab, var(--dou-color-text) 5%, transparent) 6px 7px
+    );
+  }
+
+  .dou-code-diff__bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    box-sizing: border-box;
+    width: 100%;
+    height: 28px;
+    margin: 0;
+    padding: 0 12px;
+    border: 0;
+    border-block: 1px solid var(--dou-code-diff-border);
+    background-color: color-mix(in oklab, var(--dou-color-text) 3%, transparent);
+    color: var(--dou-color-text-secondary);
+    font: inherit;
+    font-size: 12px;
+    text-align: left;
+    cursor: pointer;
+    @media (hover: hover) {
+      &:hover {
+        background-color: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+        color: var(--dou-color-text);
+      }
+    }
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: -2px;
+    }
+    @media (pointer: coarse) {
+      height: 36px;
+    }
+  }
+  .dou-code-diff__bar-icon {
+    flex: none;
+    font-size: 14px;
+  }
+
+  .dou-code-diff__live {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}

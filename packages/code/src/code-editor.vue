@@ -46,7 +46,7 @@ import {
   insertText,
   selectAll,
 } from './core/commands'
-import { type CodeFold, foldEndAt, hiddenLines } from './core/folding'
+import { type CodeFold, foldEndAt, hiddenLines, mergeRanges } from './core/folding'
 import { CodeHistory } from './core/history'
 import {
   type CodeKeyBinding,
@@ -519,9 +519,31 @@ function updateWrap(before: CodeText, after: CodeText, changes: ChangeSet) {
 
 const folds = shallowRef<CodeFold[]>([])
 const NOTHING_HIDDEN: Array<[number, number]> = []
-const hidden = computed(() =>
+const foldHidden = computed(() =>
   folds.value.length ? hiddenLines(doc.value, folds.value) : NOTHING_HIDDEN,
 )
+/** The lines extensions hide, as sorted ranges that don't overlap. */
+const extensionHidden = computed(() => {
+  const lines = doc.value.lines
+  const ranges: Array<[number, number]> = []
+  for (const extension of extensions.value) {
+    if (!extension.hide) continue
+    for (const { from, to } of extension.hide(context)) {
+      const a = Math.max(1, Math.floor(from))
+      const b = Math.min(lines, Math.floor(to))
+      if (b >= a) ranges.push([a, b])
+    }
+  }
+  return ranges.length ? mergeRanges(ranges) : NOTHING_HIDDEN
+})
+/** The lines not drawn: folded, or hidden by an extension. */
+const hidden = computed(() => {
+  const own = foldHidden.value
+  const other = extensionHidden.value
+  if (!other.length) return own
+  if (!own.length) return other
+  return mergeRanges([...own, ...other])
+})
 const layout = computed<LineLayout>((previous) => {
   void layoutTick.value
   const lines = doc.value.lines
@@ -1105,7 +1127,7 @@ const rows = computed<Row[]>(() => {
   const p = preview.value
   const line = p ? doc.value.lineAt(p.from) : null
   const tokensOf = syntaxLines(visibleFrom.value, visibleTo.value)
-  const starts = new Set(hidden.value.map(([from]) => from - 1))
+  const starts = new Set(foldHidden.value.map(([from]) => from - 1))
   const { marks, lineClasses, inlines } = lineDecorations.value
   return texts.map((text, i) => {
     const n = numbers[i]!

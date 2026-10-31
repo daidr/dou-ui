@@ -1,4 +1,5 @@
 import type { Component } from 'vue'
+import type { CodeDiagnostic, CodeExtension } from './extension'
 import type { CodeCommand } from './core/commands'
 import type { CodeKeyBinding } from './core/keymap'
 import type { CodeSearchQuery } from './core/search'
@@ -58,6 +59,14 @@ export interface CodeEditorProps {
   keys?: boolean | ReadonlyArray<CodeKey | string>
   /** Extra keys, tried before the built-in ones. */
   keymap?: CodeKeyBinding[]
+  /** Extensions: decorations, gutter columns, panels, linters and more. */
+  extensions?: CodeExtension[]
+  /**
+   * Problems to show in the text (underlined, marked in the gutter, with
+   * their fixes), for the text as it is when they are given; they move
+   * with later edits until new ones come.
+   */
+  diagnostics?: CodeDiagnostic[]
   autofocus?: boolean
   ariaLabel?: string
 }
@@ -143,4 +152,6 @@ export interface CodeEditorExpose {
   unfoldAll: () => boolean
   /** The lines that start a fold now, from 1. */
   readonly folds: number[]
+  /** The problems found now, by all linters and the `diagnostics` prop, in text order. */
+  readonly diagnostics: readonly CodeDiagnostic[]
 }

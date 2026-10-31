@@ -51,6 +51,14 @@ export interface CodeMessages {
   cursorDown: string
   undo: string
   redo: string
+  error: string
+  warning: string
+  info: string
+  hint: string
+  /** The box with the problems at a place in the text. */
+  problems: string
+  /** Read out when the cursor moves to a problem: `{line}`, `{severity}`, `{message}`. */
+  problemAt: string
   /** Read out after replacing: `{count}`. */
   replaced: string
 }
@@ -92,6 +100,12 @@ export const zhCN: CodeMessages = {
   cursorDown: '光标下移',
   undo: '撤销',
   redo: '重做',
+  error: '错误',
+  warning: '警告',
+  info: '信息',
+  hint: '提示',
+  problems: '问题',
+  problemAt: '第 {line} 行，{severity}：{message}',
 }
 
 export const zhTW: CodeMessages = {
@@ -131,6 +145,12 @@ export const zhTW: CodeMessages = {
   cursorDown: '游標下移',
   undo: '復原',
   redo: '重做',
+  error: '錯誤',
+  warning: '警告',
+  info: '資訊',
+  hint: '提示',
+  problems: '問題',
+  problemAt: '第 {line} 行，{severity}：{message}',
 }
 
 export const en: CodeMessages = {
@@ -170,6 +190,12 @@ export const en: CodeMessages = {
   cursorDown: 'Move down',
   undo: 'Undo',
   redo: 'Redo',
+  error: 'Error',
+  warning: 'Warning',
+  info: 'Info',
+  hint: 'Hint',
+  problems: 'Problems',
+  problemAt: 'Line {line}, {severity}: {message}',
 }
 
 export const codeLocales: Record<string, CodeMessages> = {

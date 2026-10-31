@@ -1350,6 +1350,50 @@ const ecosystemArts: Record<string, string | ((id: string) => string)> = {
     })
     return art + path(`M124 30v76`, 'la') + circle(124, 30, 2, 'a')
   },
+  // a grid of cells under column letters, a range selected around the active cell
+  sheet: () => {
+    const left = 36
+    const top = 28
+    const col = 36
+    const row = 13
+    const rows = 6
+    const x = (c: number) => left + c * col
+    const y = (r: number) => top + r * row
+    // which cells have text: [row, column, width]; numbers sit at the right
+    const cells: [number, number, number][] = [
+      [0, 0, 18],
+      [0, 1, 14],
+      [0, 2, 14],
+      [1, 0, 22],
+      [1, 1, 10],
+      [1, 2, 16],
+      [2, 0, 16],
+      [2, 1, 14],
+      [2, 2, 12],
+      [3, 0, 20],
+      [3, 1, 8],
+      [3, 2, 16],
+      [4, 0, 14],
+      [4, 2, 10],
+    ]
+    let grid = ''
+    for (let c = 1; c < 4; c++) grid += `M${x(c)} ${top}V106`
+    for (let r = 1; r < rows; r++) grid += `M${left} ${y(r)}H180`
+    let art =
+      path('M20 28V22a8 8 0 0 1 8-8h144a8 8 0 0 1 8 8v6Z', 'm') +
+      path('M20 28h16v78h-8a8 8 0 0 1-8-8Z', 'm') +
+      // the range B2:C4, with B2 active and clear
+      rect(x(1), y(1), col * 2, row * 3, 'as') +
+      rect(x(1), y(1), col, row, 'p') +
+      path(grid + `M${left} 14V106M20 ${top}H180`, 'lb') +
+      rect(x(1), y(1), col * 2, row * 3, 'la') +
+      rect(x(1) + 1, y(1) + 1, col - 2, row - 2, 'la') +
+      path(`M${x(1)} ${top - 0.5}h${col * 2}M${left - 0.5} ${y(1)}v${row * 3}`, 'la')
+    for (let c = 0; c < 4; c++) art += bar(x(c) + col / 2 - 3, 19, 6, 't')
+    for (const [r, c, w] of cells)
+      art += bar(c === 0 ? x(c) + 5 : x(c + 1) - 5 - w, y(r) + row / 2 - 2, w, c === 0 ? 's' : 't')
+    return art + rect(20, 14, 160, 92, 'lb', 8)
+  },
   // the icon gallery: a search field above a grid of icons
   icons:
     field(40, 18, 120, 20, 0) +

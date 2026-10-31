@@ -2,7 +2,7 @@
 
 扩展把节点类型、端口类型、连接规则、快捷键和画布上的额外图层打包在一起，用 `extensions` 传给编辑器。默认的节点类型本身也是一个扩展，由 `flowKit()` 提供。
 
-下面的例子用一个扩展给节点分组：选中两个以上的节点按 `Ctrl` / `⌘` + `G` 放进一个新分组，`Ctrl` / `⌘` + `Shift` + `G` 移出分组。分组框画在连线下方，跟着画布移动和缩放。
+下面的例子用一个扩展标记节点：选中节点按 `M` 加上标记，再按一次去掉。标记画在连线下方，跟着画布移动和缩放。
 
 <DocDemo src="flow/extension" column />
 
@@ -11,17 +11,17 @@
 ```ts
 import { defineFlowExtension, flowKit } from '@dou-ui/flow'
 
-const groups = defineFlowExtension({
-  name: 'groups',
-  layers: { below: [GroupFrames] },
+const marks = defineFlowExtension({
+  name: 'marks',
+  layers: { below: [MarkRings] },
   keymap: ({ selection, transact }) => ({
-    'mod+g': () => {
+    m: () => {
       // ...
     },
   }),
 })
 
-const extensions = [flowKit(), groups]
+const extensions = [flowKit(), marks]
 ```
 
 不传 `extensions` 时等于 `[flowKit()]`。传了就要自己带上 `flowKit()`，除非不需要默认节点。`node-types` 和 `port-types` 属性仍然可用，同名时它们覆盖扩展里的定义。
@@ -51,7 +51,7 @@ const extensions = [flowKit(), groups]
 
 图层的坐标就是画布坐标，用 `position: absolute` 和节点的位置摆放即可。`getNodeRect(id)` 返回节点的位置和尺寸，节点移动或改变大小时会更新。
 
-<<< @/examples/flow/group-frames.vue
+<<< @/examples/flow/mark-rings.vue
 
 图层默认会挡住下面的点击，只用来展示的内容记得加 `pointer-events: none`。
 

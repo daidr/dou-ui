@@ -3,14 +3,17 @@ import {
   CopyIcon,
   CopyPlusIcon,
   EditIcon,
+  GroupIcon,
   FocusIcon,
   HierarchyHorizontalIcon,
   MoreHorizontalIcon,
   ScissorsIcon,
   SquareDashedIcon,
   TrashIcon,
+  UngroupIcon,
 } from '@dou-ui/icons'
 import { defaultNode } from './components/default-node'
+import { groupNode } from './components/group-node'
 import { bezierEdge, stepEdge, straightEdge } from './core/edge-types'
 import { defineFlowExtension, type FlowExtension } from './core/extension'
 import type { FlowMenuItem } from './core/menu'
@@ -20,6 +23,8 @@ export interface FlowKitOptions {
   menu?: boolean
   /** The toolbar over the selected nodes: duplicate, delete and more. */
   toolbar?: boolean
+  /** The `group` node type, with its menu items and `mod+g` / `mod+shift+g`. */
+  group?: boolean
 }
 
 /** Copy, paste, delete and the rest, on right click. */
@@ -158,20 +163,76 @@ const editToolbar = defineFlowExtension({
   },
 })
 
+/** Group nodes: the type, Ctrl / ⌘ + G to group the selection, with Shift to ungroup. */
+const groups = defineFlowExtension({
+  name: 'groups',
+  priority: 0,
+  nodeTypes: [groupNode],
+  keymap: (ctx) => ({
+    'mod+g': () => ctx.groupNodes() !== null,
+    // A group goes away; a node inside one comes out of it.
+    'mod+shift+g': () => {
+      const ids = ctx.selection.value.nodes
+      const containers = ids.filter((id) => {
+        const node = ctx.doc.value.nodes.find((n) => n.id === id)
+        return node && ctx.isContainer(node)
+      })
+      if (containers.length) return containers.filter((id) => ctx.ungroupNode(id)).length > 0
+      return ctx.leaveGroup(ids) > 0
+    },
+  }),
+  contextMenu(ctx, target) {
+    if (target.kind !== 'node' || ctx.readonly.value) return []
+    const t = ctx.messages.value
+    const tree = ctx.tree.value
+    const parents = new Set(tree.topmost(ctx.selection.value.nodes).map((id) => tree.parentOf(id)))
+    const items: FlowMenuItem[] = [
+      {
+        key: 'group',
+        label: t.makeGroup,
+        icon: GroupIcon,
+        shortcut: 'mod+g',
+        // Nodes from different groups can't share a new frame.
+        disabled: parents.size > 1,
+        run: () => void ctx.groupNodes(),
+      },
+    ]
+    if (ctx.isContainer(target.node))
+      items.push({
+        key: 'ungroup',
+        label: t.ungroup,
+        icon: UngroupIcon,
+        shortcut: 'mod+shift+g',
+        run: () => void ctx.ungroupNode(target.node.id),
+      })
+    // A group inside another can be ungrouped or taken out; the shortcut ungroups.
+    if (tree.parentOf(target.node.id))
+      items.push({
+        key: 'leave-group',
+        label: t.leaveGroup,
+        icon: UngroupIcon,
+        shortcut: ctx.isContainer(target.node) ? undefined : 'mod+shift+g',
+        run: () => void ctx.leaveGroup(),
+      })
+    return items
+  },
+})
+
 /**
  * The editor's built-in parts as extensions: the default node type, the
- * `bezier`, `step` and `straight` edge types, the context menu and the
- * toolbar over selected nodes. Pass it along with
+ * `bezier`, `step` and `straight` edge types, group nodes, the context
+ * menu and the toolbar over selected nodes. Pass it along with
  * your own extensions, e.g. `[flowKit(), aiNodes]`; without `extensions`
  * the editor uses it alone.
  */
 export function flowKit(options: FlowKitOptions = {}): FlowExtension[] {
-  const { menu = true, toolbar = true } = options
+  const { menu = true, toolbar = true, group = true } = options
   const kit = [
     defineFlowExtension({ name: 'default-node', nodeTypes: [defaultNode] }),
     defineFlowExtension({ name: 'default-edges', edgeTypes: [bezierEdge, stepEdge, straightEdge] }),
   ]
   if (menu) kit.push(editMenu)
   if (toolbar) kit.push(editToolbar)
+  if (group) kit.push(groups)
   return kit
 }

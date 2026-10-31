@@ -48,6 +48,31 @@ export interface FlowMessages {
   edgeLabel: string
   noEdges: string
   labelSaved: string
+  /** Groups. */
+  group: string
+  groupName: string
+  makeGroup: string
+  ungroup: string
+  /** Takes a node out of the group it is in. */
+  leaveGroup: string
+  expand: string
+  collapse: string
+  /** Between parts of a node's description. */
+  separator: string
+  /** `{group}` is the group's name. */
+  inGroup: string
+  /** `{count}` nodes inside a group. */
+  groupSize: string
+  /** Announced; `{group}` is the group's name. */
+  joinedGroup: string
+  leftGroup: string
+  ungrouped: string
+  expanded: string
+  collapsed: string
+  /** After resizing from the keyboard; `{node}`, `{width}` and `{height}`. */
+  resized: string
+  /** Why the selection can't be grouped. */
+  groupMixed: string
   /** `{node}` is the new node's name. */
   added: string
   /** While connecting from the keyboard; `{node}` and `{port}` are names. */
@@ -105,6 +130,23 @@ const zhCN: FlowMessages = {
   edgeLabel: '，标签：{label}',
   noEdges: '这个节点没有连线',
   labelSaved: '已保存标签',
+  group: '分组',
+  groupName: '分组名称',
+  makeGroup: '放进分组',
+  ungroup: '取消分组',
+  leaveGroup: '移出分组',
+  expand: '展开',
+  collapse: '收起',
+  separator: '，',
+  inGroup: '在“{group}”里',
+  groupSize: '有 {count} 个节点',
+  joinedGroup: '已放进“{group}”',
+  leftGroup: '已移出“{group}”',
+  ungrouped: '已取消“{group}”',
+  expanded: '已展开“{group}”',
+  collapsed: '已收起“{group}”',
+  resized: '{node}，宽 {width}，高 {height}',
+  groupMixed: '选中的节点不在同一个分组里，不能一起放进分组',
   added: '已添加{node}',
   connectTo: '连接到 {node} 的 {port}，方向键换一个，Enter 确认',
   noTarget: '没有可以连接的端口',
@@ -158,6 +200,23 @@ const zhTW: FlowMessages = {
   edgeLabel: '，標籤：{label}',
   noEdges: '這個節點沒有連線',
   labelSaved: '已儲存標籤',
+  group: '群組',
+  groupName: '群組名稱',
+  makeGroup: '放進群組',
+  ungroup: '取消群組',
+  leaveGroup: '移出群組',
+  expand: '展開',
+  collapse: '收合',
+  separator: '，',
+  inGroup: '在「{group}」裡',
+  groupSize: '有 {count} 個節點',
+  joinedGroup: '已放進「{group}」',
+  leftGroup: '已移出「{group}」',
+  ungrouped: '已取消「{group}」',
+  expanded: '已展開「{group}」',
+  collapsed: '已收合「{group}」',
+  resized: '{node}，寬 {width}，高 {height}',
+  groupMixed: '選取的節點不在同一個群組裡，不能一起放進群組',
   added: '已新增{node}',
   connectTo: '連接到 {node} 的 {port}，方向鍵換一個，Enter 確認',
   noTarget: '沒有可以連接的連接埠',
@@ -211,6 +270,23 @@ const en: FlowMessages = {
   edgeLabel: ', label: {label}',
   noEdges: 'This node has no edges',
   labelSaved: 'Label saved',
+  group: 'Group',
+  groupName: 'Group name',
+  makeGroup: 'Group',
+  ungroup: 'Ungroup',
+  leaveGroup: 'Remove from group',
+  expand: 'Expand',
+  collapse: 'Collapse',
+  separator: ', ',
+  inGroup: 'in {group}',
+  groupSize: '{count} nodes',
+  joinedGroup: 'Added to {group}',
+  leftGroup: 'Removed from {group}',
+  ungrouped: 'Ungrouped {group}',
+  expanded: 'Expanded {group}',
+  collapsed: 'Collapsed {group}',
+  resized: '{node}, {width} wide, {height} high',
+  groupMixed: 'The selected nodes are in different groups and can’t be grouped together',
   added: 'Added {node}',
   connectTo: 'Connect to {port} of {node}; arrow keys pick another, Enter confirms',
   noTarget: 'No port to connect to',

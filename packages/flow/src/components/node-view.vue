@@ -12,7 +12,7 @@ import {
 import type { CSSProperties } from 'vue'
 import { flowNodeKey, type NodeMetrics, type PortAnchor, type PortState } from '../context'
 import type { FlowNode, FlowPortSpec, PortSide } from '../core/model'
-import { labelOf, portSide, portsOf, type NodeTypeSpec } from '../core/node-types'
+import { portSide, portsOf, type NodeTypeSpec } from '../core/node-types'
 import DefaultNode from './default-node.vue'
 import FlowPortView from './flow-port.vue'
 
@@ -25,8 +25,12 @@ const props = defineProps<{
   connected: Set<string>
   portStates: Map<string, PortState> | null
   roleDescription: string
+  /** The node's accessible name. */
+  label: string
   /** Read out after the name, e.g. the port counts. */
   description: string
+  /** Where the nodes being dragged will be put. */
+  dropTarget?: boolean
 }>()
 const emit = defineEmits<{
   measure: [id: string, metrics: NodeMetrics]
@@ -130,10 +134,15 @@ watch(
   { flush: 'post' },
 )
 
+const container = computed(() => !!props.spec?.container)
+// A collapsed container is as tall as its content, its title.
+const collapsed = computed(() => container.value && !!props.node.data?.collapsed)
+const resizable = computed(() => !!props.spec?.resizable && !props.readonly && !collapsed.value)
+
 const style = computed<CSSProperties>(() => ({
   transform: `translate(${props.node.x}px, ${props.node.y}px)`,
   width: props.node.width != null ? `${props.node.width}px` : undefined,
-  height: props.node.height != null ? `${props.node.height}px` : undefined,
+  height: props.node.height != null && !collapsed.value ? `${props.node.height}px` : undefined,
 }))
 
 const viewProps = computed(() => ({
@@ -155,12 +164,15 @@ const viewProps = computed(() => ({
       'is-locked': node.locked,
       'is-dragging': dragging,
       'is-sized': node.width != null,
+      'is-container': container,
+      'is-collapsed': collapsed,
+      'is-drop-target': dropTarget,
     }"
     :style="style"
     :data-node-id="node.id"
     role="group"
     :aria-roledescription="roleDescription"
-    :aria-label="labelOf(spec, node)"
+    :aria-label="label"
     :aria-description="description || undefined"
     tabindex="-1"
   >
@@ -173,5 +185,6 @@ const viewProps = computed(() => ({
       class="is-auto"
       :style="autoStyle(port)"
     />
+    <span v-if="resizable && selected" class="dou-flow-editor__resize" aria-hidden="true" />
   </div>
 </template>

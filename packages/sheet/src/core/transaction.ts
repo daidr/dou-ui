@@ -20,6 +20,7 @@ import {
   type SheetData,
   type SheetRow,
   type SheetStyle,
+  type SheetTypeSetup,
   type SheetValue,
   type SheetWorkbook,
   valueOf,
@@ -98,6 +99,8 @@ export type SheetStep =
   | { type: 'updateSheet'; sheet: string; patch: SheetPatch }
   /** Adds, replaces or (with `style` left out) removes a named style. */
   | { type: 'setStyle'; name: string; style?: SheetStyle }
+  /** Adds, replaces or (with `setup` left out) removes a named cell type. */
+  | { type: 'setType'; name: string; setup?: SheetTypeSetup }
   /**
    * Adds `count` rows (or columns) before `index`, moving the rest down (or
    * right). They are empty unless `cells` and `sizes` fill them: for rows,
@@ -150,7 +153,7 @@ export class SheetTransaction {
   meta: SheetTransactionMeta = {}
   private book: SheetWorkbook
   /** What this transaction has copied, so it copies each thing once. */
-  private own = { book: false, sheets: false, styles: false }
+  private own = { book: false, sheets: false, styles: false, types: false }
   private ownSheets = new Set<number>()
   private ownRows = new Map<number, Set<number>>()
 
@@ -253,6 +256,11 @@ export class SheetTransaction {
 
   setStyle(name: string, style: SheetStyle | undefined) {
     return this.step({ type: 'setStyle', name, style })
+  }
+
+  /** Adds, replaces or (with `undefined`) removes a named cell type, such as a list to pick from. */
+  setType(name: string, setup: SheetTypeSetup | undefined) {
+    return this.step({ type: 'setType', name, setup })
   }
 
   /**
@@ -597,6 +605,17 @@ export class SheetTransaction {
       book.styles = styles
       return { type: 'setStyle', name: step.name, style: old }
     }
+    if (step.type === 'setType') {
+      const old = this.book.types?.[step.name]
+      if (old === step.setup) return null
+      const book = this.ownBook()
+      const types = this.own.types ? book.types! : { ...book.types }
+      this.own.types = true
+      if (step.setup) types[step.name] = step.setup
+      else delete types[step.name]
+      book.types = types
+      return { type: 'setType', name: step.name, setup: old }
+    }
     const index = this.mustIndex(step.sheet)
     const sheet = this.book.sheets[index]!
     switch (step.type) {
@@ -882,6 +901,8 @@ const keyOf = (step: SheetStep) => {
       return `s${step.sheet}:${step.axis}:${step.index}`
     case 'setStyle':
       return `y${step.name}`
+    case 'setType':
+      return `t${step.name}`
     default:
       return null
   }

@@ -1,6 +1,7 @@
 import type { Component } from 'vue'
 import type { SheetCellTarget, SheetRange } from './core/address'
 import type { SheetClip } from './core/clipboard'
+import type { SheetExtension } from './core/extension'
 import type { SheetWorkbook } from './core/model'
 import type { SheetSelection } from './core/selection'
 import type { SheetTransaction, SheetTransactionMeta } from './core/transaction'
@@ -35,6 +36,11 @@ export interface SheetProps {
    * removed, reordered, or added with a `run` of their own.
    */
   menu?: (items: SheetMenuItem[], context: SheetMenuContext) => SheetMenuItem[]
+  /**
+   * Extensions: cell types, keys, menu items, overlays and hooks. Create
+   * the list once, in `<script setup>`; arrays inside are flattened.
+   */
+  extensions?: (SheetExtension | SheetExtension[])[]
 }
 
 /** An item of the right-click menu. */

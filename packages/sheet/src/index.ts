@@ -4,6 +4,23 @@ import Sheet from './sheet.vue'
 export const DouSheet = withInstall(Sheet)
 export default DouSheet
 
+export { useSheet, sheetContextKey } from './context'
+export type { SheetContext, SheetRect } from './context'
+export { defineSheetExtension, resolveSheetExtensions } from './core/extension'
+export type {
+  ResolvedSheetExtensions,
+  SheetExtension,
+  SheetExtensionContext,
+  SheetKeyHandler,
+} from './core/extension'
+export { defineSheetCellType, optionOf, resolveCellType } from './core/cell-type'
+export type {
+  SheetCellPanelExpose,
+  SheetCellPanelProps,
+  SheetCellRenderProps,
+  SheetCellType,
+  SheetResolvedType,
+} from './core/cell-type'
 export type {
   SheetEmits,
   SheetExpose,
@@ -43,7 +60,9 @@ export type {
   SheetData,
   SheetFreeze,
   SheetRow,
+  SheetSelectOption,
   SheetStyle,
+  SheetTypeSetup,
   SheetValue,
   SheetWorkbook,
 } from './core/model'

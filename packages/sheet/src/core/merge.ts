@@ -100,6 +100,8 @@ export function mergesOf(sheet: SheetData): SheetMerges {
   let merges = cache.get(list)
   if (!merges) {
     const bounds: SheetBounds[] = []
+    // by row, to find overlaps without comparing every pair
+    const rows = new Map<number, SheetBounds[]>()
     for (const text of list) {
       const range = parseRange(text)
       if (!range) continue
@@ -107,8 +109,16 @@ export function mergesOf(sheet: SheetData): SheetMerges {
       if (!Number.isFinite(b.bottom) || !Number.isFinite(b.right)) continue
       if (b.top === b.bottom && b.left === b.right) continue
       // a merge overlapping one before it is left out
-      if (bounds.some((m) => overlaps(m, b))) continue
+      let clash = false
+      for (let row = b.top; row <= b.bottom && !clash; row++)
+        clash = !!rows.get(row)?.some((m) => overlaps(m, b))
+      if (clash) continue
       bounds.push(b)
+      for (let row = b.top; row <= b.bottom; row++) {
+        const at = rows.get(row)
+        if (at) at.push(b)
+        else rows.set(row, [b])
+      }
     }
     merges = new SheetMerges(bounds)
     cache.set(list, merges)

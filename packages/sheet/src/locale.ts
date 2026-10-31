@@ -64,6 +64,14 @@ export interface SheetMessages {
   pasteBlocked: string
   /** The handle at the corner of the selection, for filling. */
   fillHandle: string
+  /** How a check box cell reads. */
+  checked: string
+  unchecked: string
+  /** The button on a cell with a list or calendar, which opens it. */
+  openPanel: string
+  /** The list of a `select` cell, and what it shows when nothing matches. */
+  options: string
+  noOptions: string
 }
 
 const zhCN: SheetMessages = {
@@ -73,7 +81,7 @@ const zhCN: SheetMessages = {
   empty: '空',
   selected: '已选择 {range}，共 {count} 个单元格',
   edit: '编辑 {cell}',
-  keys: '方向键移动，Shift 加方向键扩大选区，输入内容或按 F2 编辑，Enter 确认，Esc 取消，Delete 清空。',
+  keys: '方向键移动，Shift 加方向键扩大选区，输入内容或按 F2 编辑，Enter 确认，Esc 取消，Delete 清空。勾选框按空格切换，Alt 加下方向键展开选项。',
   readonly: '表格是只读的',
   cleared: '已清空 {range}',
   changed: '{cell} 改为 {value}',
@@ -112,6 +120,11 @@ const zhCN: SheetMessages = {
   resized: '已改为 {size} 像素',
   pasteBlocked: '浏览器不允许网页读取剪贴板，请按 {key} 粘贴',
   fillHandle: '填充柄',
+  checked: '已勾选',
+  unchecked: '未勾选',
+  openPanel: '展开选项',
+  options: '选项',
+  noOptions: '没有匹配的选项',
 }
 
 const zhTW: SheetMessages = {
@@ -121,7 +134,7 @@ const zhTW: SheetMessages = {
   empty: '空白',
   selected: '已選取 {range}，共 {count} 個儲存格',
   edit: '編輯 {cell}',
-  keys: '方向鍵移動，Shift 加方向鍵擴大選取範圍，輸入內容或按 F2 編輯，Enter 確認，Esc 取消，Delete 清除。',
+  keys: '方向鍵移動，Shift 加方向鍵擴大選取範圍，輸入內容或按 F2 編輯，Enter 確認，Esc 取消，Delete 清除。勾選框按空白鍵切換，Alt 加下方向鍵展開選項。',
   readonly: '試算表是唯讀的',
   cleared: '已清除 {range}',
   changed: '{cell} 改為 {value}',
@@ -160,6 +173,11 @@ const zhTW: SheetMessages = {
   resized: '已改為 {size} 像素',
   pasteBlocked: '瀏覽器不允許網頁讀取剪貼簿，請按 {key} 貼上',
   fillHandle: '填滿控點',
+  checked: '已勾選',
+  unchecked: '未勾選',
+  openPanel: '展開選項',
+  options: '選項',
+  noOptions: '沒有符合的選項',
 }
 
 const en: SheetMessages = {
@@ -169,7 +187,7 @@ const en: SheetMessages = {
   empty: 'empty',
   selected: '{range} selected, {count} cells',
   edit: 'Edit {cell}',
-  keys: 'Arrow keys move, Shift and an arrow extend the selection, type or press F2 to edit, Enter to confirm, Escape to cancel, Delete to clear.',
+  keys: 'Arrow keys move, Shift and an arrow extend the selection, type or press F2 to edit, Enter to confirm, Escape to cancel, Delete to clear. Space switches a check box, Alt and Down show the options of a cell.',
   readonly: 'The spreadsheet is read-only',
   cleared: '{range} cleared',
   changed: '{cell} is now {value}',
@@ -208,6 +226,11 @@ const en: SheetMessages = {
   resized: 'Resized to {size} px',
   pasteBlocked: "The browser doesn't let the page read the clipboard. Press {key} to paste.",
   fillHandle: 'Fill handle',
+  checked: 'Checked',
+  unchecked: 'Not checked',
+  openPanel: 'Show options',
+  options: 'Options',
+  noOptions: 'No matching options',
 }
 
 export const sheetLocales: Record<string, SheetMessages> = {

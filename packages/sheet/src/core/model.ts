@@ -15,6 +15,12 @@ export interface SheetCell {
   format?: string
   /** A note on the cell. */
   note?: string
+  /**
+   * What kind of cell it is: `date`, `select`, `checkbox`, a type an
+   * extension adds, or a name in the workbook's `types`. It decides how the
+   * value shows and how it is edited.
+   */
+  type?: string
 }
 
 /** A cell as written in the data: a bare value, or a cell with a style or format. */
@@ -80,10 +86,28 @@ export interface SheetStyle {
   wrap?: boolean
 }
 
+/**
+ * A cell type with its settings, which cells refer to by name, e.g.
+ * `{ type: 'select', options: ['未开始', '进行中', '已完成'] }`.
+ */
+export interface SheetTypeSetup {
+  /** The cell type it sets up: `select`, or a type an extension adds. */
+  type: string
+  /** For `select`: the values to pick from, each a value or a value with a tone. */
+  options?: SheetSelectOption[]
+  /** Settings of types from extensions. */
+  [key: string]: unknown
+}
+
+/** A value of a `select` cell; with a `tone` it shows as a soft tag in that tone. */
+export type SheetSelectOption = SheetValue | { value: SheetValue; tone?: Tone }
+
 export interface SheetWorkbook {
   sheets: SheetData[]
   /** Named styles, which cells refer to by name. */
   styles?: Record<string, SheetStyle>
+  /** Named cell types with their settings, which cells refer to with `type`. */
+  types?: Record<string, SheetTypeSetup>
 }
 
 export const DEFAULT_ROWS = 1000

@@ -312,21 +312,21 @@ describe('clipboard', () => {
   })
 })
 
-describe('merged cells', () => {
-  const merged = (): SheetWorkbook => ({
-    sheets: [
-      {
-        name: '表1',
-        cells: [
-          ['季度', null, '合计'],
-          [1, 2, 3],
-          [4, 5, 6],
-        ],
-        merges: ['A1:B1'],
-      },
-    ],
-  })
+const merged = (): SheetWorkbook => ({
+  sheets: [
+    {
+      name: '表1',
+      cells: [
+        ['季度', null, '合计'],
+        [1, 2, 3],
+        [4, 5, 6],
+      ],
+      merges: ['A1:B1'],
+    },
+  ],
+})
 
+describe('merged cells', () => {
   it('merges a range, keeping the top left value, and splits it again', () => {
     const tr = new SheetTransaction(merged()).mergeCells('A2:B3')
     expect(tr.doc.sheets[0]!.merges).toEqual(['A1:B1', 'A2:B3'])

@@ -730,6 +730,15 @@ export const cases: Record<string, Case> = {
     render: (n) => sheet(n),
     act: () => (window as any).sheet.value.transact((tr: any) => tr.setValue('D4', 42)),
   },
+  // Typed cells (a check box and a tagged option per row) and a merge every ten rows, scrolled.
+  'sheet-typed': {
+    render: (n) => sheet(n, true),
+    act: (root) => {
+      const viewport = root.querySelector('.dou-sheet__viewport')!
+      viewport.scrollTop = viewport.scrollHeight / 2
+      viewport.dispatchEvent(new Event('scroll'))
+    },
+  },
   // Everything selected: every cell in view is drawn again with the tint.
   'sheet-select-all': {
     render: (n) => sheet(n),
@@ -737,11 +746,23 @@ export const cases: Record<string, Case> = {
   },
 }
 
-function sheet(n: number) {
+function sheet(n: number, typed = false) {
   const cells = Array.from({ length: n }, (_, r) =>
     Array.from({ length: 20 }, (__, c) => (c === 0 ? `第 ${r + 1} 行` : (r * 7 + c * 13) % 1000)),
   )
   const book = ref<SheetWorkbook>({ sheets: [{ name: '表 1', cells }] })
+  if (typed) {
+    const choices = ['未开始', { value: '进行中', tone: 'primary' as const }, '已完成']
+    book.value.types = { status: { type: 'select', options: choices } }
+    for (const [r, row] of cells.entries()) {
+      ;(row as unknown[])[1] = { value: r % 2 === 0, type: 'checkbox' }
+      ;(row as unknown[])[2] = { value: '进行中', type: 'status' }
+    }
+    book.value.sheets[0]!.merges = Array.from(
+      { length: Math.floor(n / 10) },
+      (_, i) => `D${i * 10 + 1}:F${i * 10 + 2}`,
+    )
+  }
   const grid = ref<SheetExpose>()
   ;(window as any).sheet = grid
   return () =>

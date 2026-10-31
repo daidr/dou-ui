@@ -184,6 +184,7 @@ function schedule(options: { pull?: boolean } = {}) {
       },
       { schedule: false },
     )
+  announce(format(messages.value.scheduled, { count: result.moves.size }))
   return result
 }
 
@@ -216,10 +217,11 @@ const pushPreview = computed(() => {
 
 /** Links whose later task starts (or ends) before the link allows. */
 const brokenLinks = computed(
-  () => pushPreview.value?.violated ?? findBrokenLinks(shownDoc.value, calendar.value),
+  () =>
+    pushPreview.value?.violated ?? findBrokenLinks(shownDoc.value, { calendar: calendar.value }),
 )
 const critical = computed(() =>
-  props.critical ? computeCriticalPath(shownDoc.value, calendar.value) : null,
+  props.critical ? computeCriticalPath(shownDoc.value, { calendar: calendar.value }) : null,
 )
 
 // Time axis -----------------------------------------------------------------------
@@ -1279,7 +1281,14 @@ function focusTask(id: string) {
 function announceTask(id: string, tr?: GanttTransaction) {
   void nextTick(() => {
     const row = tree.value.byId.get(id)
-    if (row) announce(tr ? withPushed(describe(row), tr) : describe(row))
+    if (!row) return
+    let text = tr ? withPushed(describe(row), tr) : describe(row)
+    // say so when the change leaves links into or out of the task not kept
+    const count = links.value.filter(
+      (link) => (link.from === id || link.to === id) && brokenLinks.value.has(link.id),
+    ).length
+    if (count) text = format(messages.value.broken, { task: text, count })
+    announce(text)
   })
 }
 

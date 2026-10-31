@@ -90,7 +90,7 @@ describe('schedule', () => {
     const result = computeSchedule(doc(tasks, links), { fixed: ['c'] })
     expect(result.moves.size).toBe(0)
     expect([...result.violated]).toEqual(['ab', 'ac'])
-    expect(findBrokenLinks(doc(tasks, links))).toEqual(new Set(['ab', 'ac']))
+    expect(findBrokenLinks(doc(tasks, links), {})).toEqual(new Set(['ab', 'ac']))
   })
 
   it('applies a link to a summary to each subtask, and reads one from a summary as a whole', () => {

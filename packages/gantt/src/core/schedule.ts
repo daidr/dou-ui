@@ -265,8 +265,11 @@ export function computeSchedule(
 }
 
 /** Links whose `to` side starts (or ends) before the link allows; for manual scheduling. */
-export function findBrokenLinks(doc: GanttDocument, calendar?: GanttScheduleOptions['calendar']) {
-  const graph = buildGraph(doc, toCalendar(calendar))
+export function findBrokenLinks(
+  doc: GanttDocument,
+  options: Pick<GanttScheduleOptions, 'calendar'> = {},
+) {
+  const graph = buildGraph(doc, toCalendar(options.calendar))
   return new Set(doc.links.filter((link) => !keeps(graph, link)).map((link) => link.id))
 }
 
@@ -278,9 +281,9 @@ export function findBrokenLinks(doc: GanttDocument, calendar?: GanttScheduleOpti
  */
 export function computeCriticalPath(
   doc: GanttDocument,
-  calendar?: GanttScheduleOptions['calendar'],
+  options: Pick<GanttScheduleOptions, 'calendar'> = {},
 ): GanttCriticalPath {
-  const cal = toCalendar(calendar)
+  const cal = toCalendar(options.calendar)
   const graph = buildGraph(doc, cal)
   const out: GanttCriticalPath = { tasks: new Set(), links: new Set() }
   if (!graph.order.length) return out

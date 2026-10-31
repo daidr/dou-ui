@@ -93,18 +93,18 @@ gantt.value.transact((tr) => {
 
 每次修改，不论来自拖动、撤销还是 `transact`，都会更新 `v-model` 并触发 `transaction` 事件。事件参数里的 `steps` 是这次修改的步骤列表，`inverse` 是撤销它的步骤，可以用来同步到服务端或做协同编辑；另一端用 `applyGanttSteps(doc, steps)` 应用。
 
-| 方法                           | 说明                                                               |
-| ------------------------------ | ------------------------------------------------------------------ |
-| `addTask(task, index?)`        | 添加任务                                                           |
-| `removeTask(id)`               | 删除任务，连同它的子任务和相关依赖                                 |
-| `updateTask(id, patch)`        | 修改任务的字段，值为 `undefined` 的字段会被删除                    |
-| `setSpan(id, start, end)`      | 用分钟数设置起止时间，按任务原来的格式写回                         |
-| `updateData(id, patch)`        | 合并到任务的 `data`                                                |
-| `addLink(link, index?)`        | 添加依赖                                                           |
-| `removeLink(id)`               | 删除依赖                                                           |
-| `updateLink(id, patch)`        | 修改依赖                                                           |
-| `setMeta({ history, group })`  | `history: false` 不进入撤销记录；同一 `group` 的连续修改合并为一步 |
-| `setMeta({ schedule: false })` | 自动排期时不推动后续任务，比如应用来自其他客户端的修改             |
+| 方法                           | 说明                                                                                 |
+| ------------------------------ | ------------------------------------------------------------------------------------ |
+| `addTask(task, index?)`        | 添加任务                                                                             |
+| `removeTask(id)`               | 删除任务，连同它的子任务和相关依赖                                                   |
+| `updateTask(id, patch)`        | 修改任务的字段，值为 `undefined` 的字段会被删除                                      |
+| `setSpan(id, start, end)`      | 设置起止时间，写法和任务的 `start`、`end` 一样，也可以传分钟数；按任务原来的格式写回 |
+| `updateData(id, patch)`        | 合并到任务的 `data`                                                                  |
+| `addLink(link, index?)`        | 添加依赖                                                                             |
+| `removeLink(id)`               | 删除依赖                                                                             |
+| `updateLink(id, patch)`        | 修改依赖                                                                             |
+| `setMeta({ history, group })`  | `history: false` 不进入撤销记录；同一 `group` 的连续修改合并为一步                   |
+| `setMeta({ schedule: false })` | 自动排期时不推动后续任务，比如应用来自其他客户端的修改                               |
 
 ## 自动排期
 
@@ -132,11 +132,11 @@ gantt.value.transact((tr) => {
 import { computeCriticalPath, computeSchedule, findBrokenLinks } from '@dou-ui/gantt'
 
 const { moves, violated, cycle } = computeSchedule({ tasks, links }, { calendar, pull: false })
-const { tasks: critical } = computeCriticalPath({ tasks, links }, calendar)
-const broken = findBrokenLinks({ tasks, links }, calendar)
+const { tasks: critical } = computeCriticalPath({ tasks, links }, { calendar })
+const broken = findBrokenLinks({ tasks, links }, { calendar })
 ```
 
-`moves` 是需要移动的任务和它们新的 `start`、`end`；`violated` 是排期之后仍然没有满足的依赖；`cycle` 是处在循环依赖上（或在它之后）的任务，它们不会被移动。`fixed` 选项可以指定不移动的任务。
+`moves` 是需要移动的任务和它们新的 `start`、`end`；`violated` 是排期之后仍然没有满足的依赖；`cycle` 是处在循环依赖上（或在它之后）的任务，它们不会被移动。`fixed` 选项可以指定不移动的任务。返回值里是 `Map` 和 `Set`，需要转成 JSON 时先换成普通对象和数组，如 `Object.fromEntries(moves)`、`[...violated]`。
 
 ## 工具栏
 

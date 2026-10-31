@@ -428,17 +428,17 @@
     }
   }
 
-  /* a link the dates don't keep: the later task starts too early */
+  .dou-gantt__link.is-critical {
+    color: color-mix(in oklab, var(--dou-color-danger) 72%, var(--dou-color-bg-surface));
+  }
+
+  /* a link the dates don't keep: the later task starts too early; it wins over critical */
   .dou-gantt__link.is-broken {
     color: var(--dou-color-warning);
 
     .dou-gantt__link-line {
       stroke-dasharray: 4 3;
     }
-  }
-
-  .dou-gantt__link.is-critical {
-    color: color-mix(in oklab, var(--dou-color-danger) 72%, var(--dou-color-bg-surface));
   }
 
   /* the line being drawn to a new link */

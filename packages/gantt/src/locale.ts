@@ -54,6 +54,10 @@ export interface GanttMessages {
   taskRemoved: string
   /** Read out when a change pushed other tasks: `{task}` is the rest, `{count}` how many. */
   pushed: string
+  /** Read out when a change leaves links not kept: `{task}` is the rest, `{count}` how many. */
+  broken: string
+  /** Read out after `schedule()`: `{count}` tasks moved. */
+  scheduled: string
   /** A task on the critical path, read out: `{task}` is the rest. */
   criticalTask: string
 }
@@ -101,6 +105,8 @@ const zhCN: GanttMessages = {
   undone: '已撤销：{change}',
   redone: '已重做：{change}',
   pushed: '{task}；另有 {count} 个任务随之推后',
+  broken: '{task}；{count} 条依赖未满足',
+  scheduled: '已重新排期，移动了 {count} 个任务',
   criticalTask: '{task}，关键任务',
 }
 
@@ -134,6 +140,8 @@ const zhTW: GanttMessages = {
   undone: '已復原：{change}',
   redone: '已重做：{change}',
   pushed: '{task}；另有 {count} 個任務隨之延後',
+  broken: '{task}；{count} 條相依未滿足',
+  scheduled: '已重新排程，移動了 {count} 個任務',
   criticalTask: '{task}，要徑任務',
 }
 
@@ -185,6 +193,8 @@ const en: GanttMessages = {
   undone: 'Undone: {change}',
   redone: 'Redone: {change}',
   pushed: '{task}; {count} more pushed later',
+  broken: '{task}; {count} dependencies not kept',
+  scheduled: 'Rescheduled, {count} tasks moved',
   criticalTask: '{task}, critical',
 }
 

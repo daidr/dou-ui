@@ -360,6 +360,7 @@ describe('DouGantt', () => {
     expect(tasks.value[2]).toMatchObject({ start: '2026-03-06', end: '2026-03-12' })
     await nextTick()
     expect(wrapper.findAll('.dou-gantt__link.is-broken')).toHaveLength(1)
+    await vi.waitFor(() => expect(live(wrapper)).toContain('1 条依赖未满足'))
     const gantt = wrapper.findComponent(DouGantt).vm
     const result = gantt.schedule({ pull: true })
     expect([...result.moves.keys()]).toEqual(['b', 'm'])

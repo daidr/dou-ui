@@ -1,3 +1,4 @@
+import type { FlowExportOptions, FlowImageOptions } from './export/draw'
 import type { FlowTree } from './core/groups'
 import { inject, type ComputedRef, type InjectionKey, type Ref, type ShallowRef } from 'vue'
 import type { FlowMessages, FlowMessagesOverride } from './locale'
@@ -137,6 +138,14 @@ export interface FlowEditorExpose {
   /** A node's measured box in canvas coordinates. */
   getNodeRect: (id: string) => Rect | null
   /**
+   * The flow as an SVG document, as it looks now: every node and edge, or
+   * the selected ones. Colors are written as `#rrggbb` or `rgba(…)`, so
+   * vector editors read them; nodes are drawn by their type's `draw`.
+   */
+  exportSVG: (options?: FlowExportOptions) => string
+  /** The flow as a PNG image, with images embedded where their address can be read. */
+  exportPNG: (options?: FlowImageOptions) => Promise<Blob>
+  /**
    * Lays nodes out in columns along their edges, as one undo step: the given
    * ones, the selection when two or more nodes are selected, or all.
    */
@@ -248,6 +257,8 @@ export interface FlowEditorContext {
   /** A port type's color as CSS. */
   colorOf: (spec: PortTypeSpec | undefined) => string | undefined
   getNodeRect: FlowEditorExpose['getNodeRect']
+  exportSVG: FlowEditorExpose['exportSVG']
+  exportPNG: FlowEditorExpose['exportPNG']
   tidy: FlowEditorExpose['tidy']
   centerNode: FlowEditorExpose['centerNode']
   /** Says `text` to screen readers. */

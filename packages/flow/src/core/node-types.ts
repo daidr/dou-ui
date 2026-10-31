@@ -1,3 +1,4 @@
+import type { FlowDrawContext } from '../export/context'
 import type { Component } from 'vue'
 import type { FlowMessages } from '../locale'
 import type { FlowData, FlowNode, FlowPortSpec, PortSide, Rect } from './model'
@@ -59,6 +60,11 @@ export interface NodeTypeSpec<Data extends FlowData = FlowData> {
    * e.g. while turned. The toolbar over the selection floats above it.
    */
   bounds?: (node: FlowNode<Data>, rect: Rect) => Rect
+  /**
+   * Draws the node as SVG markup for `exportSVG` and `exportPNG`, in its
+   * own coordinates. Without it the node is drawn as a card with its name.
+   */
+  draw?: (node: FlowNode<Data>, draw: FlowDrawContext) => string
 }
 
 export interface NodePaletteSpec {

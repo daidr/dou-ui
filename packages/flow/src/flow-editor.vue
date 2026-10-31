@@ -31,15 +31,8 @@ import {
   type PortAnchor,
   type PortState,
 } from './context'
-import {
-  bezierPath,
-  boundsOf,
-  intersects,
-  rectFrom,
-  snapBox,
-  type Guide,
-  type SnapLink,
-} from './core/geometry'
+import { bezierEdge, type EdgeAnchor, type EdgeRoute, type EdgeTypeSpec } from './core/edge-types'
+import { boundsOf, intersects, rectFrom, snapBox, type Guide, type SnapLink } from './core/geometry'
 import {
   canJoin,
   displacedEdges,
@@ -86,6 +79,8 @@ const props = withDefaults(defineProps<FlowEditorProps>(), {
   fitMinZoom: 0.5,
   readonly: false,
   panOnScroll: true,
+  edgeType: 'bezier',
+  simpleZoom: 0.4,
 })
 const doc = defineModel<FlowDocument>({ default: emptyDocument })
 const selection = defineModel<FlowSelection>('selection', { default: emptySelection })
@@ -123,15 +118,29 @@ const types = computed(() => {
   return map
 })
 const portTypes = computed(() => ({ ...resolved.value.portTypes, ...props.portTypes }))
+const edgeTypes = computed(() => {
+  const map = new Map(resolved.value.edgeTypes)
+  for (const spec of props.edgeTypes ?? []) map.set(spec.type, spec as EdgeTypeSpec)
+  return map
+})
+const edgeTypeOf = (type?: string) =>
+  edgeTypes.value.get(type ?? props.edgeType) ?? edgeTypes.value.get(props.edgeType) ?? bezierEdge
 const specOf = (node: FlowNode) =>
   types.value.get(node.type ?? 'default') ??
   types.value.get('default') ??
   (defaultNode as NodeTypeSpec)
 
+/** Each node's ports by id, worked out once per change rather than per edge. */
+const portsByNode = computed(() => {
+  const map = new Map<string, Map<string, FlowPortSpec>>()
+  for (const node of nodeById.value.values())
+    map.set(node.id, new Map(portsOf(specOf(node), node).map((port) => [port.id, port])))
+  return map
+})
+
 function portSpec(end: FlowEndpoint) {
-  const node = nodeById.value.get(end.node)
-  if (!node || end.port == null) return undefined
-  return portsOf(specOf(node), node).find((port) => port.id === end.port)
+  if (end.port == null) return undefined
+  return portsByNode.value.get(end.node)?.get(end.port)
 }
 
 const portTypeOf = (port: FlowPortSpec): PortTypeSpec | undefined => {
@@ -232,8 +241,20 @@ const shownNodes = computed(() => {
 })
 const nodeById = computed(() => new Map(shownNodes.value.map((node) => [node.id, node])))
 
+/** Two measurements of a node that place it and its ports the same. */
+function sameMetrics(a: NodeMetrics | undefined, b: NodeMetrics) {
+  if (!a || a.width !== b.width || a.height !== b.height || a.ports.size !== b.ports.size)
+    return false
+  for (const [id, p] of b.ports) {
+    const q = a.ports.get(id)
+    if (!q || q.x !== p.x || q.y !== p.y || q.side !== p.side) return false
+  }
+  return true
+}
+
 function onMeasure(id: string, value: NodeMetrics) {
-  metrics.set(id, value)
+  // A node drawn again after scrolling back into view measures the same.
+  if (!sameMetrics(metrics.get(id), value)) metrics.set(id, value)
   const wait = pending.get(id)
   if (!wait) return
   pending.delete(id)
@@ -349,18 +370,16 @@ function removeStaleEdges() {
   return ids.length
 }
 
-const edgePaths = computed(() => {
-  const selected = new Set(selection.value.edges)
-  const moving = connecting.value?.edge
-  const out: {
-    edge: FlowEdge
-    path: string
-    selected: boolean
-    stale: boolean
-    style?: CSSProperties
-  }[] = []
-  for (const edge of doc.value.edges) {
-    if (edge.id === moving) continue
+/** How far an edge may bulge past its ends, in canvas px. */
+const EDGE_REACH = 80
+
+/** Every edge's route and the box around it; independent of the view, so panning skips it. */
+const edgeRoutes = computed(() => {
+  const out: { edge: FlowEdge; route: EdgeRoute; box: Rect; style?: CSSProperties }[] = []
+  // Read once: adding or removing edges is tracked, single edges are replaced whole.
+  const edges = doc.value.edges
+  void edges.length
+  for (const edge of toRaw(edges)) {
     const source = nodeById.value.get(edge.source.node)
     const target = nodeById.value.get(edge.target.node)
     if (!source || !target) continue
@@ -369,10 +388,42 @@ const edgePaths = computed(() => {
     if (!a || !b) continue
     out.push({
       edge,
-      path: bezierPath(a, a.side, b, b.side),
-      selected: selected.has(edge.id),
-      stale: staleEdges.value.has(edge.id),
+      route: edgeTypeOf(edge.type).route(a, b, edge),
+      // Both ends, with room for the curve.
+      box: {
+        x: Math.min(a.x, b.x) - EDGE_REACH,
+        y: Math.min(a.y, b.y) - EDGE_REACH,
+        width: Math.abs(a.x - b.x) + EDGE_REACH * 2,
+        height: Math.abs(a.y - b.y) + EDGE_REACH * 2,
+      },
       style: edgeStyle(edge),
+    })
+  }
+  return out
+})
+
+/** The edges in view. */
+const edgePaths = computed(() => {
+  const selected = new Set(selection.value.edges)
+  const moving = connecting.value?.edge
+  const area = drawnArea.value
+  const stale = staleEdges.value
+  const out: {
+    edge: FlowEdge
+    route: EdgeRoute
+    selected: boolean
+    stale: boolean
+    style?: CSSProperties
+  }[] = []
+  for (const item of edgeRoutes.value) {
+    const { edge } = item
+    if (edge.id === moving || (area && !intersects(item.box, area))) continue
+    out.push({
+      edge,
+      route: item.route,
+      selected: selected.has(edge.id),
+      stale: stale.has(edge.id),
+      style: item.style,
     })
   }
   return out
@@ -387,6 +438,110 @@ function edgeStyle(edge: FlowEdge): CSSProperties | undefined {
     '--dou-flow-editor-edge-width': type.edgeWidth ? `${type.edgeWidth}px` : undefined,
     strokeDasharray: type.dashed ? '4 4' : undefined,
   } as CSSProperties
+}
+
+/** The handle that reshapes the one selected edge, e.g. a step edge's middle. */
+const bend = computed(() => {
+  const { nodes, edges } = selection.value
+  if (props.readonly || nodes.length || edges.length !== 1) return null
+  const item = edgeRoutes.value.find((e) => e.edge.id === edges[0])
+  const handle = item?.route.handle
+  return handle && item ? { edge: item.edge, handle } : null
+})
+
+// Edges from the keyboard ----------------------------------------------------------
+
+/** The node whose edges `E` goes through, and the one last selected. */
+let edgeCycle: { node: string; edge: string } | null = null
+
+/**
+ * Selects the next edge of the selected node, or of the node whose edges
+ * are being gone through, and says which nodes it joins.
+ */
+function cycleEdges(step: 1 | -1) {
+  const { nodes, edges } = selection.value
+  let node: string | undefined
+  let current: string | undefined
+  if (nodes.length === 1 && !edges.length) node = nodes[0]
+  else {
+    const last = edgeCycle
+    if (last && !nodes.length && edges.length === 1 && last.edge === edges[0]) {
+      node = last.node
+      current = last.edge
+    }
+  }
+  if (!node) return false
+  // Outgoing first, each in document order.
+  const all = doc.value.edges
+  const list = [
+    ...all.filter((e) => e.source.node === node),
+    ...all.filter((e) => e.target.node === node && e.source.node !== node),
+  ]
+  if (!list.length) {
+    announce(messages.value.noEdges)
+    return true
+  }
+  const index = current ? list.findIndex((e) => e.id === current) : -1
+  const edge = list[(index + step + list.length) % list.length]!
+  edgeCycle = { node, edge: edge.id }
+  setSelection({ nodes: [], edges: [edge.id] })
+  announce(describeEdge(edge))
+  return true
+}
+
+function nodeName(id: string) {
+  const node = nodeById.value.get(id)
+  return node ? labelOf(specOf(node), node) : id
+}
+
+function describeEdge(edge: FlowEdge) {
+  const t = messages.value
+  const text = format(t.edge, { from: nodeName(edge.source.node), to: nodeName(edge.target.node) })
+  return edge.label ? text + format(t.edgeLabel, { label: edge.label }) : text
+}
+
+// Edge labels ----------------------------------------------------------------------
+
+const editingLabel = ref<string | null>(null)
+const labelDraft = ref('')
+
+// Too small to read when zoomed out, except the one being typed.
+const edgeLabels = computed(() =>
+  edgePaths.value.filter(
+    (item) => item.edge.id === editingLabel.value || (item.edge.label && !simple.value),
+  ),
+)
+
+/** Opens the text field on an edge's label. */
+function editLabel(id: string) {
+  if (props.readonly || !doc.value.edges.some((e) => e.id === id)) return
+  setSelection({ nodes: [], edges: [id] })
+  labelDraft.value = doc.value.edges.find((e) => e.id === id)!.label ?? ''
+  editingLabel.value = id
+  void nextTick(() => {
+    const input = root.value?.querySelector<HTMLInputElement>('.dou-flow-editor__label-input')
+    input?.focus({ preventScroll: true })
+    input?.select()
+  })
+}
+
+function finishLabel(save: boolean) {
+  const id = editingLabel.value
+  if (!id) return
+  editingLabel.value = null
+  const text = labelDraft.value.trim()
+  if (save && transact((tr) => tr.updateEdge(id, { label: text || undefined })).changed)
+    announce(messages.value.labelSaved)
+  root.value?.focus({ preventScroll: true })
+}
+
+function onLabelKeydown(event: KeyboardEvent) {
+  if (event.isComposing) return
+  if (event.key === 'Enter') finishLabel(true)
+  else if (event.key === 'Escape') finishLabel(false)
+  else return
+  event.preventDefault()
+  event.stopPropagation()
 }
 
 /** Connected port ids, by node. */
@@ -407,14 +562,24 @@ const connected = computed(() => {
 const none = new Set<string>()
 const noStates = new Map<string, PortState>()
 
+/** How many edges touch each node. */
+const degree = computed(() => {
+  const map = new Map<string, number>()
+  const add = (id: string) => map.set(id, (map.get(id) ?? 0) + 1)
+  for (const edge of toRaw(doc.value).edges) {
+    add(edge.source.node)
+    if (edge.target.node !== edge.source.node) add(edge.target.node)
+  }
+  return map
+})
+
 function describe(node: FlowNode) {
   const ports = portsOf(specOf(node), node)
   if (!ports.length) return ''
   return format(messages.value.ports, {
     inputs: ports.filter((p) => p.kind === 'input').length,
     outputs: ports.filter((p) => p.kind === 'output').length,
-    connected: doc.value.edges.filter((e) => e.source.node === node.id || e.target.node === node.id)
-      .length,
+    connected: degree.value.get(node.id) ?? 0,
   })
 }
 
@@ -710,7 +875,10 @@ const background = computed<CSSProperties>(() => {
 
 const layerStyle = computed<CSSProperties>(() => {
   const { x, y, zoom } = viewport.value
-  return { transform: `translate(${x}px, ${y}px) scale(${zoom})` }
+  return {
+    transform: `translate(${x}px, ${y}px) scale(${zoom})`,
+    '--dou-flow-editor-zoom': zoom,
+  } as CSSProperties
 })
 
 // Pointer gestures ------------------------------------------------------------------
@@ -751,6 +919,20 @@ type Gesture =
       held: boolean
       group: string
       snap: boolean
+    }
+  | {
+      kind: 'bend'
+      id: number
+      touch: boolean
+      edge: string
+      /** The edge's data before the drag, to put back on Escape. */
+      origin: FlowEdge['data']
+      move: NonNullable<EdgeRoute['handle']>['move']
+      group: string
+      start: Point
+      /** From the pointer to the handle, in canvas coordinates. */
+      offset: Point
+      started: boolean
     }
   | {
       kind: 'connect'
@@ -846,6 +1028,29 @@ function onPointerDown(event: PointerEvent) {
     return
   }
   if (event.button !== 0) return
+  // Typing a label: the field's own presses.
+  if (target.closest('.dou-flow-editor__label-input')) return
+
+  // The handle, or the label sitting on it.
+  const bendEl = target.closest('.dou-flow-editor__bend, .dou-flow-editor__label.is-bend')
+  if (bendEl && bend.value) {
+    const { edge, handle } = bend.value
+    const at = toCanvas(client)
+    gesture.value = {
+      kind: 'bend',
+      id: event.pointerId,
+      touch,
+      edge: edge.id,
+      origin: edge.data,
+      move: handle.move,
+      group: `bend:${++dragCount}`,
+      start: client,
+      offset: { x: handle.at.x - at.x, y: handle.at.y - at.y },
+      started: false,
+    }
+    // Captured once it moves, so a double click still reaches the label.
+    return
+  }
 
   const portEl = target.closest<HTMLElement>('.dou-flow-port')
   if (nodeEl && portEl && !props.readonly) {
@@ -1016,6 +1221,21 @@ function onPointerMove(event: PointerEvent) {
     g.client = client
     updateBox(g)
     autoPan(client)
+  } else if (g.kind === 'bend') {
+    if (!g.started) {
+      if (
+        Math.hypot(client.x - g.start.x, client.y - g.start.y) <
+        THRESHOLD[g.touch ? 'touch' : 'mouse']
+      )
+        return
+      g.started = true
+      capture(g.id)
+    }
+    const p = toCanvas(client)
+    const patch = g.move({ x: p.x + g.offset.x, y: p.y + g.offset.y })
+    transact((tr) => tr.updateEdge(g.edge, { data: { ...g.origin, ...patch } }), {
+      group: g.group,
+    })
   } else if (g.kind === 'connect') {
     g.client = client
     if (!g.started) {
@@ -1117,7 +1337,12 @@ function autoPan(client: Point) {
   if (!vx && !vy) return
   const step = () => {
     const g = gesture.value
-    if (!g || g.kind === 'pan' || ((g.kind === 'drag' || g.kind === 'connect') && !g.started))
+    if (
+      !g ||
+      g.kind === 'pan' ||
+      g.kind === 'bend' ||
+      ((g.kind === 'drag' || g.kind === 'connect') && !g.started)
+    )
       return
     const { x, y, zoom } = viewport.value
     viewport.value = { x: x + vx, y: y + vy, zoom }
@@ -1328,10 +1553,10 @@ const previewPath = computed(() => {
   if (!a) return null
   const c = link.candidate && anchorOf(link.candidate, link.moving)
   const opposite = { left: 'right', right: 'left', top: 'bottom', bottom: 'top' } as const
-  const b = c ?? { ...link.point, side: opposite[a.side] }
-  return link.moving === 'target'
-    ? bezierPath(a, a.side, b, b.side)
-    : bezierPath(b, b.side, a, a.side)
+  const b: EdgeAnchor = c ?? { ...link.point, side: opposite[a.side] }
+  const moved = link.edge ? doc.value.edges.find((e) => e.id === link.edge) : undefined
+  const route = edgeTypeOf(moved?.type).route
+  return (link.moving === 'target' ? route(a, b, moved) : route(b, a, moved)).path
 })
 
 /** How each port looks while connecting: by node, then port. */
@@ -1875,7 +2100,7 @@ function endGesture() {
   clearPress()
   cancelAnimationFrame(autoPanFrame)
   if (g && root.value?.hasPointerCapture(g.id)) root.value.releasePointerCapture(g.id)
-  if (g?.kind === 'drag' && g.started) history.close()
+  if ((g?.kind === 'drag' || g?.kind === 'bend') && g.started) history.close()
   gesture.value = null
   guides.value = []
   panning.value = false
@@ -1884,9 +2109,10 @@ function endGesture() {
 /** Puts dragged nodes back where they started. */
 function cancelDrag() {
   const g = gesture.value
-  if (g?.kind !== 'drag' || !g.started) return false
+  if ((g?.kind !== 'drag' && g?.kind !== 'bend') || !g.started) return false
   const tr = new FlowTransaction(toRaw(doc.value)).setMeta({ history: false })
-  for (const [id, o] of g.origins) tr.moveNode(id, o.x, o.y)
+  if (g.kind === 'bend') tr.updateEdge(g.edge, { data: g.origin })
+  else for (const [id, o] of g.origins) tr.moveNode(id, o.x, o.y)
   if (tr.changed) commit(tr)
   history.drop(g.group)
   syncHistory()
@@ -1940,6 +2166,10 @@ function onDblclick(event: MouseEvent) {
   const nodeEl = (event.target as Element).closest<HTMLElement>('[data-node-id]')
   const node = nodeEl && nodeById.value.get(nodeEl.dataset.nodeId!)
   if (node) emit('nodeDblclick', node, event)
+  else {
+    const edgeEl = (event.target as Element).closest<Element>('[data-edge-id]')
+    if (edgeEl) editLabel(edgeEl.getAttribute('data-edge-id')!)
+  }
 }
 
 function onContextmenu(event: MouseEvent) {
@@ -2007,10 +2237,15 @@ const isEditable = (el: Element) =>
 const readingOrder = () => flowOrder(doc.value)
 
 function focusNode(id: string) {
-  const el = root.value?.querySelector<HTMLElement>(`[data-node-id="${CSS.escape(id)}"]`)
-  el?.focus({ preventScroll: true })
+  // Drawn even while out of view, until it is revealed.
+  focusedNode.value = id
   setSelection({ nodes: [id], edges: [] })
   reveal(id)
+  void nextTick(() =>
+    root.value
+      ?.querySelector<HTMLElement>(`[data-node-id="${CSS.escape(id)}"]`)
+      ?.focus({ preventScroll: true }),
+  )
 }
 
 function deleteSelection() {
@@ -2114,6 +2349,13 @@ function onKeydown(event: KeyboardEvent) {
       if (!selection.value.nodes.length && !selection.value.edges.length) return
       setSelection(emptySelection())
       break
+    case 'Enter':
+    case 'F2': {
+      const { nodes, edges } = selection.value
+      if (props.readonly || nodes.length || edges.length !== 1) return
+      editLabel(edges[0]!)
+      break
+    }
     case 'Delete':
     case 'Backspace':
       if (props.readonly) return
@@ -2145,6 +2387,9 @@ function onKeydown(event: KeyboardEvent) {
     case 'c':
       if (props.readonly || selection.value.nodes.length !== 1) return
       startKeyLink(selection.value.nodes[0]!)
+      break
+    case 'e':
+      if (!cycleEdges(event.shiftKey ? -1 : 1)) return
       break
     default:
       return
@@ -2240,7 +2485,54 @@ const dragging = computed(() => {
   return g?.kind === 'drag' && g.started ? new Set(g.origins.keys()) : null
 })
 
+// Drawing only what is in view ----------------------------------------------------
+
+/** How far past the editor's edges nodes and edges are still drawn, in screen px. */
+const DRAW_MARGIN = 200
+
+/** The part of the canvas that is drawn: the view and a margin around it. */
+const drawnArea = computed<Rect | null>(() => {
+  const { width, height } = size.value
+  if (!width || !height) return null
+  const { x, y, zoom } = viewport.value
+  return {
+    x: (-x - DRAW_MARGIN) / zoom,
+    y: (-y - DRAW_MARGIN) / zoom,
+    width: (width + DRAW_MARGIN * 2) / zoom,
+    height: (height + DRAW_MARGIN * 2) / zoom,
+  }
+})
+
+/** The node holding focus, kept drawn when it scrolls away. */
+const focusedNode = ref<string | null>(null)
+function onFocusin(event: FocusEvent) {
+  const nodeEl = (event.target as Element).closest<HTMLElement>('[data-node-id]')
+  focusedNode.value = nodeEl?.dataset.nodeId ?? null
+}
+
+/**
+ * Nodes in view. A node not measured yet is drawn wherever it is, so it gets
+ * a size; selected and focused ones too, so dragging and keys keep working.
+ */
+const drawnNodes = computed(() => {
+  const area = drawnArea.value
+  if (!area) return shownNodes.value
+  const keep = selectedNodes.value
+  return shownNodes.value.filter((node) => {
+    const m = metrics.get(node.id)
+    if (!m || keep.has(node.id) || node.id === focusedNode.value) return true
+    return intersects({ x: node.x, y: node.y, width: m.width, height: m.height }, area)
+  })
+})
+
+/** Zoomed out this far, measured nodes are drawn as plain boxes. */
+const simple = computed(() => viewport.value.zoom < props.simpleZoom)
+/** Names below this zoom would be a few px tall: only the boxes are drawn. */
+const TINY = 0.2
+
 const classes = computed(() => ({
+  'is-simple': simple.value,
+  'is-tiny': simple.value && viewport.value.zoom < TINY,
   'is-readonly': props.readonly,
   'is-panning': panning.value,
   'is-space': spaceHeld.value,
@@ -2278,6 +2570,7 @@ const context: FlowEditorContext = {
   insertNode,
   paletteTypes,
   startInsertDrag,
+  editLabel,
   openMenu,
   toCanvas,
   copy,
@@ -2321,6 +2614,7 @@ defineExpose<FlowEditorExpose>({
   removeStaleEdges,
   insertNode,
   startInsertDrag,
+  editLabel,
   get paletteTypes() {
     return paletteTypes.value
   },
@@ -2347,36 +2641,92 @@ defineExpose<FlowEditorExpose>({
     @keydown="onKeydown"
     @keyup="onKeyup"
     @blur.capture="spaceHeld = false"
+    @focusin="onFocusin"
   >
     <div class="dou-flow-editor__layer" :style="layerStyle">
       <component :is="layer" v-for="(layer, i) in resolved.below" :key="`below-${i}`" />
       <svg class="dou-flow-editor__edges" aria-hidden="true">
         <g v-for="item in edgePaths" :key="item.edge.id" :data-edge-id="item.edge.id">
-          <path class="dou-flow-editor__edge-hit" :d="item.path" />
+          <path class="dou-flow-editor__edge-hit" :d="item.route.path" />
           <path
             class="dou-flow-editor__edge"
             :style="item.style"
-            :class="{ 'is-selected': item.selected, 'is-stale': item.stale }"
-            :d="item.path"
+            :class="{
+              'is-selected': item.selected,
+              'is-stale': item.stale,
+              'is-animated': item.edge.animated,
+            }"
+            :d="item.route.path"
           />
         </g>
         <path v-if="previewPath" class="dou-flow-editor__edge is-preview" :d="previewPath" />
       </svg>
-      <NodeView
-        v-for="node in shownNodes"
-        :key="node.id"
-        :node="node"
-        :spec="specOf(node)"
-        :selected="selectedNodes.has(node.id)"
-        :readonly="readonly"
-        :dragging="!!dragging?.has(node.id)"
-        :connected="connected.get(node.id) ?? none"
-        :port-states="portStates ? (portStates.get(node.id) ?? noStates) : null"
-        :role-description="messages.node"
-        :description="describe(node)"
-        @measure="onMeasure"
-        @update="updateData"
+      <div
+        v-for="item in edgeLabels"
+        :key="item.edge.id"
+        class="dou-flow-editor__label"
+        :class="[
+          bend?.edge.id === item.edge.id && `is-bend is-${bend.handle.axis}`,
+          { 'is-selected': item.selected, 'is-editing': item.edge.id === editingLabel },
+        ]"
+        :style="{ transform: `translate(${item.route.label.x}px, ${item.route.label.y}px)` }"
+        :data-edge-id="item.edge.id"
+        :data-value="item.edge.id === editingLabel ? labelDraft || ' ' : undefined"
+      >
+        <input
+          v-if="item.edge.id === editingLabel"
+          v-model="labelDraft"
+          class="dou-flow-editor__label-input"
+          :aria-label="messages.label"
+          @keydown="onLabelKeydown"
+          @blur="finishLabel(true)"
+        />
+        <template v-else>{{ item.edge.label }}</template>
+      </div>
+      <div
+        v-if="bend && !bend.edge.label && editingLabel !== bend.edge.id"
+        class="dou-flow-editor__bend"
+        :class="`is-${bend.handle.axis}`"
+        :style="{ transform: `translate(${bend.handle.at.x}px, ${bend.handle.at.y}px)` }"
+        aria-hidden="true"
       />
+      <template v-for="node in drawnNodes" :key="node.id">
+        <div
+          v-if="simple && metrics.has(node.id)"
+          class="dou-flow-editor__simple"
+          :class="{ 'is-selected': selectedNodes.has(node.id) }"
+          :style="{
+            transform: `translate(${node.x}px, ${node.y}px)`,
+            width: `${metrics.get(node.id)!.width}px`,
+            height: `${metrics.get(node.id)!.height}px`,
+          }"
+          :data-node-id="node.id"
+          role="group"
+          :aria-roledescription="messages.node"
+          :aria-label="labelOf(specOf(node), node)"
+          tabindex="-1"
+        >
+          <slot name="simple" :node="node">
+            <span v-if="viewport.zoom >= TINY" class="dou-flow-editor__simple-label">{{
+              labelOf(specOf(node), node)
+            }}</span>
+          </slot>
+        </div>
+        <NodeView
+          v-else
+          :node="node"
+          :spec="specOf(node)"
+          :selected="selectedNodes.has(node.id)"
+          :readonly="readonly"
+          :dragging="!!dragging?.has(node.id)"
+          :connected="connected.get(node.id) ?? none"
+          :port-states="portStates ? (portStates.get(node.id) ?? noStates) : null"
+          :role-description="messages.node"
+          :description="describe(node)"
+          @measure="onMeasure"
+          @update="updateData"
+        />
+      </template>
       <component :is="layer" v-for="(layer, i) in resolved.above" :key="`above-${i}`" />
       <svg v-if="guides.length" class="dou-flow-editor__guides" aria-hidden="true">
         <line

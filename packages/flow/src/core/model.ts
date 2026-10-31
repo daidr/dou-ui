@@ -31,9 +31,12 @@ export interface FlowEdge<Data extends FlowData = FlowData> {
   id: string
   source: FlowEndpoint
   target: FlowEndpoint
-  /** `'bezier'` when left out. */
+  /** The edge type: `bezier`, `step`, `straight` or one added by an extension. The editor's `edge-type` when left out. */
   type?: string
+  /** Text shown on the edge. */
   label?: string
+  /** Dashes run along the edge in its direction, e.g. while data flows through it. */
+  animated?: boolean
   data?: Data
 }
 

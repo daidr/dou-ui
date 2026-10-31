@@ -24,6 +24,8 @@ import {
   DouChatList,
   DouChatBubble,
 } from 'dou-ui'
+import { DouFlowEditor, type FlowDocument } from '@dou-ui/flow'
+import '@dou-ui/flow/style.css'
 
 export interface Case {
   /** What the case renders, given a size. */
@@ -468,4 +470,65 @@ export const cases: Record<string, Case> = {
       ),
     act: (root) => mousedown(field(root, 'date-picker')),
   },
+  // A flow of n nodes in a grid and about 1.6 edges per node, most of it off screen.
+  flow: {
+    render: (n) => flowEditor(n),
+    // Scroll across the canvas.
+    act: (root) => wheel(root, 600, 400),
+  },
+  'flow-zoomed-out': {
+    render: (n) => flowEditor(n, 0.2),
+    act: (root) => wheel(root, 300, 200),
+  },
+}
+
+function flowDocument(n: number): FlowDocument {
+  const perRow = Math.ceil(Math.sqrt(n))
+  const nodes = Array.from({ length: n }, (_, i) => ({
+    id: `n${i}`,
+    x: (i % perRow) * 280,
+    y: Math.floor(i / perRow) * 120,
+    data: {
+      label: label(i),
+      inputs: [{ id: 'in' }],
+      outputs: [{ id: 'a' }, { id: 'b' }],
+    },
+  }))
+  const edges = []
+  for (let i = 0; i < n; i++) {
+    if ((i + 1) % perRow)
+      edges.push({
+        id: `r${i}`,
+        source: { node: `n${i}`, port: 'a' },
+        target: { node: `n${i + 1}`, port: 'in' },
+      })
+    if (i + perRow + 1 < n && i % 3 !== 2)
+      edges.push({
+        id: `d${i}`,
+        source: { node: `n${i}`, port: 'b' },
+        target: { node: `n${i + perRow + 1}`, port: 'in' },
+      })
+  }
+  return { nodes, edges }
+}
+
+function flowEditor(n: number, zoom = 1) {
+  const doc = ref(flowDocument(n))
+  const viewport = ref({ x: 0, y: 0, zoom })
+  return () =>
+    h(DouFlowEditor, {
+      modelValue: doc.value,
+      'onUpdate:modelValue': (value: FlowDocument) => (doc.value = value),
+      viewport: viewport.value,
+      'onUpdate:viewport': (value: typeof viewport.value) => (viewport.value = value),
+      style: 'height: 720px',
+    })
+}
+
+function wheel(root: HTMLElement, x: number, y: number) {
+  root
+    .querySelector('.dou-flow-editor')!
+    .dispatchEvent(
+      new WheelEvent('wheel', { deltaX: x, deltaY: y, bubbles: true, cancelable: true }),
+    )
 }

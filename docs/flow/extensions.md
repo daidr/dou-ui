@@ -36,6 +36,7 @@ const extensions = [flowKit(), groups]
 | `priority`       | 优先级，越大越先处理按键和连接规则，默认 `100`                                             | `number`                                              |
 | `nodeTypes`      | 节点类型，见[自定义节点](./custom-nodes)                                                   | `NodeTypeSpec[]`                                      |
 | `portTypes`      | 端口类型，见[端口类型与连接规则](./ports)                                                  | `PortTypes`                                           |
+| `edgeTypes`      | 连线类型，见[自定义连线类型](./edges#自定义连线类型)                                       | `EdgeTypeSpec[]`                                      |
 | `canConnect`     | 连接规则，在 `can-connect` 属性之后检查，返回 `false` 或一段说明拒绝                       | `(connection, doc) => boolean \| string`              |
 | `keymap`         | 画布有焦点时的快捷键，写法和 `useHotkey` 一样；处理函数返回 `false` 表示没处理，交给下一个 | `(ctx) => Record<string, (event) => boolean \| void>` |
 | `transformPaste` | 粘贴前改写节点和连线，比如清掉运行状态                                                     | `(data, ctx) => FlowDocument`                         |

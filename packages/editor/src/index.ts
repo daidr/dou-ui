@@ -10,7 +10,7 @@ export type { EditorContext, EditorEmits, EditorExpose, EditorProps } from './ed
 export { editorLocales, useEditorMessages } from './locale'
 export type { EditorMessages, EditorMessagesOverride } from './locale'
 export { filterOptions } from './catalog'
-export { defineEditorExtension, labelOf, resolveEditorExtensions } from './core/extension'
+export { defineEditorExtension, labelOf } from './core/extension'
 export type {
   BlockOption,
   EditorExtension,

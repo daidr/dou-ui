@@ -30,6 +30,30 @@
     font-family: var(--dou-font-family);
     font-size: var(--dou-font-size-md);
     line-height: var(--dou-font-line-height);
+    outline: none;
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 2px;
+    }
+    &.is-dragging,
+    &.is-dragging * {
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    &.is-dragging-move,
+    &.is-dragging-move * {
+      cursor: grabbing;
+    }
+    &.is-dragging-start *,
+    &.is-dragging-end *,
+    &.is-dragging-progress *,
+    &.is-dragging-draw * {
+      cursor: ew-resize;
+    }
+    &.is-dragging-link * {
+      cursor: crosshair;
+    }
   }
 
   /* table ------------------------------------------------------------------ */
@@ -389,6 +413,26 @@
     fill: currentColor;
   }
 
+  .dou-gantt__link.is-selected {
+    color: var(--dou-color-primary);
+
+    .dou-gantt__link-line {
+      stroke-width: 2px;
+    }
+  }
+
+  /* the line being drawn to a new link */
+  .dou-gantt__link-draft {
+    fill: none;
+    stroke: var(--dou-color-primary);
+    stroke-dasharray: 4 3;
+    stroke-width: 1.5px;
+
+    &.is-refused {
+      stroke: var(--dou-color-danger);
+    }
+  }
+
   /* bars -------------------------------------------------------------------- */
 
   .dou-gantt__bar-row {
@@ -418,6 +462,17 @@
 
     &:hover {
       border-color: color-mix(in oklab, var(--dou-gantt-tone) 34%, var(--dou-color-bg-surface));
+    }
+    .is-editable &:not(.is-locked) {
+      cursor: grab;
+    }
+    &.is-link-target {
+      border-color: var(--dou-color-primary);
+      box-shadow: 0 0 0 3px color-mix(in oklab, var(--dou-color-primary) 22%, transparent);
+    }
+    &.is-link-refused {
+      border-color: var(--dou-color-danger);
+      box-shadow: 0 0 0 3px color-mix(in oklab, var(--dou-color-danger) 18%, transparent);
     }
     &.is-selected {
       border-color: var(--dou-color-primary);
@@ -528,5 +583,169 @@
       color: var(--dou-color-text);
       font-weight: var(--dou-font-weight-medium);
     }
+
+    /* make room for the link knob while the bar shows its handles */
+    .is-editable .dou-gantt__bar-row:is(:hover, .is-selected, .is-active) > & {
+      transform: translateX(12px);
+    }
+  }
+
+  /* handles: shown on the hovered or selected bar --------------------------- */
+
+  .dou-gantt__handle,
+  .dou-gantt__progress-handle,
+  .dou-gantt__dot {
+    position: absolute;
+    z-index: 1;
+    opacity: 0;
+    touch-action: none;
+    transition: opacity var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    .dou-gantt__bar-row:hover > &,
+    .dou-gantt__bar-row.is-selected > &,
+    .dou-gantt__bar-row.is-active > & {
+      opacity: 1;
+    }
+    .is-dragging .dou-gantt__bar-row:not(.is-active) > & {
+      opacity: 0;
+    }
+  }
+
+  /* a grip inside each end of the bar; the area to grab is wider than it looks */
+  .dou-gantt__handle {
+    top: calc((var(--dou-gantt-row-height) - 12px) / 2);
+    width: 12px;
+    height: 12px;
+    margin-left: -6px;
+    cursor: ew-resize;
+
+    &::after {
+      position: absolute;
+      top: 2px;
+      left: 5px;
+      width: 2px;
+      height: 8px;
+      border-radius: 1px;
+      background-color: color-mix(in oklab, var(--dou-color-text) 40%, transparent);
+      content: '';
+    }
+    &.is-start::after {
+      left: 7px;
+    }
+    &.is-end::after {
+      left: 3px;
+    }
+  }
+
+  /* a small notch under the bar at the done mark */
+  .dou-gantt__progress-handle {
+    top: calc((var(--dou-gantt-row-height) + var(--dou-gantt-bar-height)) / 2 - 1px);
+    width: 12px;
+    height: 10px;
+    margin-left: -6px;
+    cursor: ew-resize;
+
+    &::after {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 8px;
+      height: 6px;
+      background-color: color-mix(in oklab, var(--dou-color-text) 45%, transparent);
+      clip-path: polygon(50% 0, 100% 100%, 0 100%);
+      content: '';
+    }
+  }
+
+  /* round knobs past each end; drag one to another bar to link them */
+  .dou-gantt__dot {
+    top: calc((var(--dou-gantt-row-height) - 16px) / 2);
+    width: 16px;
+    height: 16px;
+    margin-left: -8px;
+    cursor: crosshair;
+
+    &.is-start {
+      transform: translateX(-10px);
+    }
+    &.is-end {
+      transform: translateX(10px);
+    }
+    &::after {
+      position: absolute;
+      inset: 4px;
+      box-sizing: border-box;
+      border: 1px solid color-mix(in oklab, var(--dou-color-text) 45%, transparent);
+      border-radius: 50%;
+      background-color: var(--dou-color-bg-surface);
+      content: '';
+    }
+    &:hover::after {
+      border-color: var(--dou-color-primary);
+      background-color: var(--dou-color-primary);
+    }
+  }
+
+  /* on touch screens the handles of a selected bar get a finger-sized area */
+  @media (pointer: coarse) {
+    .dou-gantt__handle,
+    .dou-gantt__progress-handle,
+    .dou-gantt__dot {
+      .dou-gantt__bar-row:not(.is-selected) > & {
+        display: none;
+      }
+    }
+    .dou-gantt__handle {
+      top: calc((var(--dou-gantt-row-height) - 32px) / 2);
+      width: 32px;
+      height: 32px;
+      margin-left: -16px;
+
+      &::after {
+        top: 12px;
+        left: 15px;
+      }
+      &.is-start::after {
+        left: 19px;
+      }
+      &.is-end::after {
+        left: 11px;
+      }
+    }
+    .dou-gantt__dot {
+      top: calc((var(--dou-gantt-row-height) - 32px) / 2);
+      width: 32px;
+      height: 32px;
+      margin-left: -16px;
+
+      &::after {
+        inset: 11px;
+      }
+      &.is-start {
+        transform: translateX(-20px);
+      }
+      &.is-end {
+        transform: translateX(20px);
+      }
+    }
+  }
+
+  /* what a drag will set, above the bar */
+  .dou-gantt__tip {
+    position: absolute;
+    top: -26px;
+    left: 0;
+    z-index: 4;
+    display: flex;
+    align-items: center;
+    height: 22px;
+    padding: 0 8px;
+    border-radius: var(--dou-radius-control);
+    background-color: var(--dou-color-neutral);
+    box-shadow: var(--dou-shadow-md);
+    color: var(--dou-color-neutral-on);
+    font-size: 12px;
+    white-space: nowrap;
+    pointer-events: none;
   }
 }

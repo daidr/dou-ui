@@ -32,6 +32,11 @@ export interface GanttMessages {
   unscheduled: string
   /** `{date}` and `{time}`. */
   dateTime: string
+  /** Shown while dragging: `{start}`, `{end}`, `{duration}`; `{value}` is a percentage. */
+  rangeTip: string
+  progressTip: string
+  /** Why a link being drawn can't be made. */
+  linkRefusals: { nested: string; duplicate: string; cycle: string }
 }
 
 const zhMonths = Array.from({ length: 12 }, (_, i) => `${i + 1}月`)
@@ -59,6 +64,13 @@ const zhCN: GanttMessages = {
   summary: '{title}，{start}至{end}，进度 {progress}%',
   unscheduled: '{title}，未排期',
   dateTime: '{date} {time}',
+  rangeTip: '{start} – {end} · {duration}',
+  progressTip: '进度 {value}%',
+  linkRefusals: {
+    nested: '不能连到自己的上级或子任务',
+    duplicate: '这两个任务之间已经有依赖',
+    cycle: '会形成循环依赖',
+  },
 }
 
 const zhTW: GanttMessages = {
@@ -74,6 +86,12 @@ const zhTW: GanttMessages = {
   milestone: '里程碑：{title}，{start}',
   summary: '{title}，{start}至{end}，進度 {progress}%',
   unscheduled: '{title}，未排程',
+  progressTip: '進度 {value}%',
+  linkRefusals: {
+    nested: '不能連到自己的上層或子任務',
+    duplicate: '這兩個任務之間已經有相依關係',
+    cycle: '會形成循環相依',
+  },
 }
 
 const en: GanttMessages = {
@@ -105,6 +123,13 @@ const en: GanttMessages = {
   summary: '{title}, {start} to {end}, {progress}% done',
   unscheduled: '{title}, not scheduled',
   dateTime: '{date} {time}',
+  rangeTip: '{start} – {end} · {duration}',
+  progressTip: '{value}% done',
+  linkRefusals: {
+    nested: 'Can’t link a task to its own parent or subtask',
+    duplicate: 'These tasks are already linked',
+    cycle: 'This would make a loop',
+  },
 }
 
 export const ganttLocales: Record<string, GanttMessages> = {

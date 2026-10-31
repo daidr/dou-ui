@@ -51,7 +51,8 @@ function client(
           'onUpdate:links': (value: GanttLink[]) => (state.links.value = value),
           selection: state.selection.value,
           'onUpdate:selection': (value: string[]) => (state.selection.value = value),
-          extensions,
+          // written inline, so it is a new list on every render
+          extensions: [...extensions],
           ...options.props,
         }),
     ),

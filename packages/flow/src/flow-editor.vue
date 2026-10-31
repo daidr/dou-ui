@@ -2,6 +2,7 @@
 import { layoutGraph, matchesHotkey, useReducedMotion, type Tone } from 'dou-ui'
 import {
   computed,
+  customRef,
   nextTick,
   onBeforeUnmount,
   onMounted,
@@ -45,7 +46,7 @@ import {
 } from './core/connect'
 import { FlowHistory } from './core/history'
 import { flowOrder } from './core/order'
-import { resolveFlowExtensions } from './core/extension'
+import { resolveFlowExtensions, type FlowHistoryHandler } from './core/extension'
 import { flowKit } from './kit'
 import type { FlowMenuItem, FlowMenuTarget, FlowToolbarItem } from './core/menu'
 import { readClipboard, writeClipboard } from './core/clipboard'
@@ -163,11 +164,13 @@ const colorOf = (spec: PortTypeSpec | undefined) =>
 // Document and history ------------------------------------------------------------
 
 const history = new FlowHistory()
+/** An extension's history, used instead of the editor's own. */
+let customHistory: FlowHistoryHandler | null = null
 const canUndo = ref(false)
 const canRedo = ref(false)
 const syncHistory = () => {
-  canUndo.value = history.canUndo
-  canRedo.value = history.canRedo
+  canUndo.value = customHistory ? customHistory.canUndo() : history.canUndo
+  canRedo.value = customHistory ? customHistory.canRedo() : history.canRedo
 }
 
 function setSelection(next: FlowSelection) {
@@ -186,7 +189,26 @@ function pruneSelection(next: FlowDocument, sel = selection.value): FlowSelectio
   }
 }
 
+/*
+ * A bound v-model only catches up when the parent renders, so changes made
+ * in the same tick (a drag frame, then a change from another person) build
+ * on the latest commit instead.
+ */
+let latest: FlowDocument | null = null
+const docOf = (): FlowDocument => latest ?? toRaw(doc.value)
+/** The document as extensions see it: the latest commit, even before `v-model` catches up. */
+const currentDoc = customRef<FlowDocument>(() => ({
+  get: () => {
+    const value = doc.value
+    return latest ?? value
+  },
+  set: (value) => (doc.value = value),
+}))
+
 function commit(tr: FlowTransaction) {
+  for (const hook of resolved.value.transactions) hook(tr, context)
+  if (!latest) void nextTick(() => (latest = null))
+  latest = tr.doc
   doc.value = tr.doc
   const removes = tr.steps.some((s) => s.type === 'removeNode' || s.type === 'removeEdge')
   if (removes) setSelection(pruneSelection(tr.doc))
@@ -194,19 +216,20 @@ function commit(tr: FlowTransaction) {
 }
 
 function transact(fn: (tr: FlowTransaction) => void, meta?: FlowTransactionMeta) {
-  const tr = new FlowTransaction(toRaw(doc.value))
+  const tr = new FlowTransaction(docOf())
   if (meta) tr.setMeta(meta)
   fn(tr)
   if (!tr.changed) return tr
   const before = selection.value
   commit(tr)
-  history.record(tr, before, selection.value)
+  if (!customHistory) history.record(tr, before, selection.value)
   syncHistory()
   return tr
 }
 
 function undo() {
-  const result = history.undo(toRaw(doc.value))
+  if (customHistory) return travel(customHistory.undo, messages.value.undone)
+  const result = history.undo(docOf())
   if (!result) return false
   result.tr.setMeta({ origin: 'undo', history: false })
   commit(result.tr)
@@ -216,8 +239,17 @@ function undo() {
   return true
 }
 
+/** Undo or redo through an extension's history. */
+function travel(fn: () => boolean, done: string) {
+  if (!fn()) return false
+  syncHistory()
+  announce(done)
+  return true
+}
+
 function redo() {
-  const result = history.redo(toRaw(doc.value))
+  if (customHistory) return travel(customHistory.redo, messages.value.redone)
+  const result = history.redo(docOf())
   if (!result) return false
   result.tr.setMeta({ origin: 'redo', history: false })
   commit(result.tr)
@@ -2342,7 +2374,7 @@ function endGesture() {
 function cancelDrag() {
   const g = gesture.value
   if ((g?.kind !== 'drag' && g?.kind !== 'bend') || !g.started) return false
-  const tr = new FlowTransaction(toRaw(doc.value)).setMeta({ history: false })
+  const tr = new FlowTransaction(docOf()).setMeta({ history: false })
   if (g.kind === 'bend') tr.updateEdge(g.edge, { data: g.origin })
   else for (const [id, o] of g.origins) tr.moveNode(id, o.x, o.y)
   if (tr.changed) commit(tr)
@@ -2865,6 +2897,13 @@ const marquee = computed<CSSProperties | null>(() => {
   }
 })
 
+/** A gesture that changes the document as it goes: moving nodes, resizing, bending an edge. */
+const gesturing = computed(() => {
+  const g = gesture.value
+  if (g?.kind === 'resize') return true
+  return (g?.kind === 'drag' || g?.kind === 'bend') && g.started
+})
+
 const dragging = computed(() => {
   const g = gesture.value
   return g?.kind === 'drag' && g.started ? new Set(g.origins.keys()) : null
@@ -2938,7 +2977,7 @@ const classes = computed(() => ({
 }))
 
 const context: FlowEditorContext = {
-  doc,
+  doc: currentDoc,
   selection,
   viewport,
   readonly: computed(() => props.readonly),
@@ -2972,6 +3011,8 @@ const context: FlowEditorContext = {
   leaveGroup,
   tree,
   isContainer,
+  gesturing,
+  connectingPath: previewPath,
   openMenu,
   toCanvas,
   copy,
@@ -2982,6 +3023,36 @@ const context: FlowEditorContext = {
   selectAll,
 }
 provide(flowEditorKey, context)
+
+// Extensions that hook into the editor's life: set up once mounted, again when the list changes.
+let cleanups: (() => void)[] = []
+let mounted = false
+function teardownExtensions() {
+  for (const cleanup of cleanups.splice(0)) cleanup()
+  customHistory = null
+}
+function setupExtensions() {
+  teardownExtensions()
+  customHistory = resolved.value.history?.(context) ?? null
+  for (const setup of resolved.value.setups) {
+    const cleanup = setup(context)
+    if (typeof cleanup === 'function') cleanups.push(cleanup)
+  }
+  syncHistory()
+}
+onMounted(() => {
+  mounted = true
+  setupExtensions()
+})
+// A list written inline is new on every render; set up again only when the hooks change.
+watch(
+  () => [resolved.value.history, ...resolved.value.setups],
+  (hooks, before) => {
+    if (mounted && (hooks.length !== before.length || hooks.some((hook, i) => hook !== before[i])))
+      setupExtensions()
+  },
+)
+onBeforeUnmount(teardownExtensions)
 
 const keymaps = computed(() => resolved.value.keymaps.map((keymap) => keymap(context)))
 

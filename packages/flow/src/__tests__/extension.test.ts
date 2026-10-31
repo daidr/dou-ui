@@ -239,6 +239,41 @@ describe('tidy', () => {
   })
 })
 
+describe('extension lifecycle', () => {
+  it('sets up once when the list is written inline', async () => {
+    let setups = 0
+    let cleanups = 0
+    const watcher = defineFlowExtension({
+      name: 'watcher',
+      setup: () => {
+        setups++
+        return () => cleanups++
+      },
+    })
+    const doc = ref(sample())
+    const wrapper = mount(
+      defineComponent(
+        () => () =>
+          h(DouFlowEditor, {
+            modelValue: doc.value,
+            'onUpdate:modelValue': (value: FlowDocument) => (doc.value = value),
+            // a new list on every render
+            extensions: [watcher],
+          }),
+      ),
+      { attachTo: document.body },
+    )
+    await nextTick()
+    doc.value = { ...doc.value, nodes: doc.value.nodes.slice(1) }
+    await nextTick()
+    doc.value = { ...doc.value, edges: [] }
+    await nextTick()
+    expect(setups).toBe(1)
+    wrapper.unmount()
+    expect(cleanups).toBe(1)
+  })
+})
+
 describe('DouFlowMinimap', () => {
   it('draws every node and moves the view where it is pressed', async () => {
     const { wrapper } = setup(undefined, { nodes: ['b'], edges: [] })

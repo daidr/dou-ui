@@ -86,6 +86,7 @@ export default defineConfig({
             { text: '分组', link: '/flow/groups' },
             { text: '编辑交互', link: '/flow/editing' },
             { text: '扩展', link: '/flow/extensions' },
+            { text: '协同编辑', link: '/flow/collaboration' },
             { text: '大型流程', link: '/flow/performance' },
           ],
         },
@@ -335,6 +336,10 @@ export default defineConfig({
         {
           find: /^@dou-ui\/editor\/style\.css$/,
           replacement: r('../../packages/editor/src/style.css'),
+        },
+        {
+          find: /^@dou-ui\/flow\/collaboration$/,
+          replacement: r('../../packages/flow/src/collaboration/index.ts'),
         },
         { find: /^@dou-ui\/flow$/, replacement: r('../../packages/flow/src/index.ts') },
         {

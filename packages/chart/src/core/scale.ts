@@ -4,7 +4,7 @@
  * an add: it runs once per drawn point.
  */
 
-export type ScaleKind = 'linear' | 'log' | 'time' | 'band'
+export type ScaleKind = 'linear' | 'log' | 'time' | 'category'
 
 export interface Scale {
   kind: ScaleKind
@@ -14,9 +14,9 @@ export interface Scale {
   range: [number, number]
   map(value: number): number
   invert(pixel: number): number
-  /** For `band`: the room each category gets, in px. 0 otherwise. */
+  /** For `category`: the room each category gets, in px. 0 otherwise. */
   step: number
-  /** For `band`: the categories. */
+  /** For `category`: the categories. */
   categories: string[]
   /** For all but `log`: `map(v)` is `v * k + b`, for loops that can't afford a call per point. */
   k: number
@@ -164,21 +164,21 @@ export function logScale(domain: [number, number], range: [number, number]): Sca
   }
 }
 
-/* band */
+/* category */
 
 /**
  * Categories side by side, each in the middle of its own step. `map(i)` is
  * the middle of category `i`; `domain` is `[-0.5, n - 0.5]` so that a
  * category's step runs from `map(i - 0.5)` to `map(i + 0.5)`.
  */
-export function bandScale(categories: string[], range: [number, number]): Scale {
+export function categoryScale(categories: string[], range: [number, number]): Scale {
   const n = Math.max(1, categories.length)
   const scale = linearScale([-0.5, n - 0.5], range)
-  return { ...scale, kind: 'band', step: Math.abs(range[1] - range[0]) / n, categories }
+  return { ...scale, kind: 'category', step: Math.abs(range[1] - range[0]) / n, categories }
 }
 
 /** Every `every`-th category index, starting from the first. */
-export function bandTicks(count: number, every = 1): number[] {
+export function categoryTicks(count: number, every = 1): number[] {
   const ticks: number[] = []
   for (let i = 0; i < count; i += every) ticks.push(i)
   return ticks

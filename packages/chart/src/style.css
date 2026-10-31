@@ -65,8 +65,56 @@
     contain: layout style;
   }
 
+  .dou-chart__title,
+  .dou-chart__legend {
+    top: 0;
+    left: 0;
+  }
+
   .dou-chart__title {
     color: var(--dou-chart-title);
     font-weight: var(--dou-font-weight-medium);
+
+    &.is-end {
+      translate: -100% 0;
+    }
+  }
+
+  .dou-chart__legend {
+    position: absolute;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    height: 16px;
+    color: var(--dou-color-text-secondary);
+    white-space: nowrap;
+  }
+
+  /* a short stroke for a line, a small filled square for an area */
+  .dou-chart__swatch {
+    flex-shrink: 0;
+    width: 12px;
+    height: 2px;
+    border-radius: 1px;
+    background-color: currentColor;
+
+    .is-area > & {
+      height: 8px;
+      border-radius: 2px;
+    }
+
+    .is-dashed > & {
+      background: repeating-linear-gradient(to right, currentColor 0 4px, transparent 4px 7px);
+    }
+  }
+
+  .dou-chart__empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
   }
 }

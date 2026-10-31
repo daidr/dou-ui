@@ -27,19 +27,45 @@ describe('DouChart', () => {
     await nextTick()
     const root = wrapper.find('.dou-chart')
     expect(root.attributes('role')).toBe('img')
-    expect(root.attributes('aria-label')).toBe('图表。数量：3 个数据点，最小 10，最大 30')
+    expect(root.attributes('aria-label')).toBe(
+      '图表，横轴从 一月 到 三月。数量：3 个数据点，最小 10，最大 30',
+    )
     showFirst.value = true
     await nextTick()
     await nextTick()
-    expect(root.attributes('aria-label')).toMatch(/^图表。比率：.*；数量：/)
+    expect(root.attributes('aria-label')).toMatch(/^图表，横轴从 一月 到 三月。比率：.*；数量：/)
   })
 
-  it('uses the description when given', () => {
+  it('uses aria-label when given', () => {
     const wrapper = mount(DouChart, {
-      props: { data: rows, x: 'm', description: '月度数量' },
+      props: { data: rows, x: 'm', ariaLabel: '月度数量' },
       slots: { default: () => h(DouChartLine, { y: 'a' }) },
     })
     expect(wrapper.find('.dou-chart').attributes('aria-label')).toBe('月度数量')
+  })
+
+  it('reads values the way their axis shows them', async () => {
+    const wrapper = mount(DouChart, {
+      props: { data: rows, x: 'm' },
+      slots: {
+        default: () => [
+          h(DouChartAxis, { position: 'right', format: (v: number) => `${v * 100}%` }),
+          h(DouChartLine, { y: 'b', name: '比率' }),
+        ],
+      },
+    })
+    await nextTick()
+    expect(wrapper.find('.dou-chart').attributes('aria-label')).toContain('最小 20%，最大 50%')
+  })
+
+  it('shows the empty slot when no series has a value', async () => {
+    const wrapper = mount(DouChart, {
+      props: { data: [{ m: 'a', v: null }], x: 'm' },
+      slots: { default: () => h(DouChartLine, { y: 'v' }), empty: () => '还没有记录' },
+    })
+    await nextTick()
+    expect(wrapper.find('.dou-chart__empty').text()).toBe('还没有记录')
+    expect(wrapper.find('.dou-chart').attributes('aria-label')).toBe('图表。没有数据')
   })
 
   it('warns when a part is used outside a chart', () => {
@@ -81,13 +107,65 @@ describe('layout', () => {
     })
     const left = layout.y.left!
     const right = layout.y.right!
-    expect(layout.plot.x).toBe(Math.max(...left.labels.map((l) => l.width)) + 8)
+    expect(layout.plot.x).toBe(4 + Math.max(...left.labels.map((l) => l.width)) + 8)
     expect(right.ticks.length).toBe(left.ticks.length)
     // the same pixel rows
     expect(right.ticks.map((t) => right.scale.map(t))).toEqual(
       left.ticks.map((t) => left.scale.map(t)),
     )
     expect(layout.x.labels.map((l) => l.text)).toEqual(['一月', '二月', '三月'])
+  })
+
+  it('puts a legend under the chart and keeps labels off the sides', () => {
+    const model = buildModel(
+      [
+        { index: 0, kind: lineKind, props: { y: 'a' } as never },
+        { index: 1, kind: lineKind, props: { y: 'b' } as never },
+      ],
+      { data: rows, x: 'm' },
+    )
+    const layout = layoutChart({
+      model,
+      axes: { bottom: axis('bottom'), left: axis('left'), right: null },
+      width: 300,
+      height: 200,
+      locale: 'zh-CN',
+      measure,
+      legend: ['数量', '比率'],
+    })
+    expect(layout.legend.map((item) => item.top)).toEqual([184, 184])
+    expect(layout.plot.y + layout.plot.height).toBeLessThan(184 - 16)
+    for (const label of layout.x.labels) {
+      expect(label.left).toBeGreaterThanOrEqual(4)
+      expect(label.left + label.width).toBeLessThanOrEqual(296)
+    }
+  })
+
+  it('shows years as they are, one tick per year at most', () => {
+    const years = [2019, 2020, 2021, 2022, 2023].map((year, i) => ({ year, v: i }))
+    const model = buildModel([{ index: 0, kind: lineKind, props: { y: 'v' } as never }], {
+      data: years,
+      x: 'year',
+    })
+    const layout = layoutChart({
+      model,
+      axes: { bottom: axis('bottom'), left: axis('left'), right: null },
+      width: 1200,
+      height: 200,
+      locale: 'zh-CN',
+      measure,
+    })
+    expect(layout.x.labels.map((l) => l.text)).toEqual(['2019', '2020', '2021', '2022', '2023'])
+  })
+
+  it('measures series on the only value axis written', () => {
+    const model = buildModel([{ index: 0, kind: lineKind, props: { y: 'a' } as never }], {
+      data: rows,
+      x: 'm',
+      axis: 'right',
+    })
+    expect(model.y.right).toEqual([10, 30])
+    expect(model.y.left).toBeNull()
   })
 
   it('shows fewer category labels when they do not fit', () => {

@@ -14,8 +14,10 @@ export interface ChartProps {
   x?: ChartAccessor
   /** Height, a number in px or any CSS length. The width fills the container. */
   height?: number | string
-  /** What the chart shows, read out instead of the generated summary. */
-  description?: string
+  /** The chart's accessible name, read out instead of the generated summary. */
+  ariaLabel?: string
+  /** A legend under the chart. Shown when there is more than one series. */
+  legend?: boolean
   /** Texts to override. */
   messages?: ChartMessagesOverride
 }
@@ -23,6 +25,8 @@ export interface ChartProps {
 export interface ChartSlots {
   /** Series, axes and other parts of the chart. */
   default?: () => unknown
+  /** Shown instead of the chart when no series has a value. */
+  empty?: () => unknown
 }
 
 export interface ChartAxisProps {
@@ -60,7 +64,7 @@ export interface ChartLineProps extends ChartSeriesProps {
   dots?: boolean | 'auto'
   dashed?: boolean
   /** Line width in px. */
-  width?: number
+  lineWidth?: number
   /** Join the line across gaps (`null` values) instead of breaking it. */
   connectNulls?: boolean
   /** Hide the series but keep its color and place. */

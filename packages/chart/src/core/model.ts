@@ -32,12 +32,14 @@ export interface ChartModel {
   series: ModelSeries[]
   xKind: XKind
   categories: string[]
-  /** The smallest and largest x (for `band`: the first and last category index). */
+  /** The smallest and largest x (for `category`: the first and last category index). */
   x: [number, number] | null
   /** The smallest and largest value on each y axis, with 0 when a series grows from it. */
   y: Record<ChartValueAxis, [number, number] | null>
   /** Whether each y axis must reach 0. */
   zero: Record<ChartValueAxis, boolean>
+  /** Whether every x is a whole number (years, counts): the x axis then has no ticks in between. */
+  xIntegers: boolean
 }
 
 const extents = new WeakMap<Float64Array, [number, number] | null>()
@@ -49,6 +51,23 @@ function cachedExtent(values: Float64Array): [number, number] | null {
 /** Places rows by their index when there is no x. */
 const byIndex: ChartAccessor = (_row, index) => index
 
+const wholes = new WeakMap<Float64Array, boolean>()
+function allIntegers(values: Float64Array): boolean {
+  let known = wholes.get(values)
+  if (known === undefined) {
+    known = true
+    for (let i = 0; i < values.length; i++) {
+      const v = values[i]!
+      if (v === v && !Number.isInteger(v)) {
+        known = false
+        break
+      }
+    }
+    wholes.set(values, known)
+  }
+  return known
+}
+
 const merge = (a: [number, number] | null, b: [number, number] | null): [number, number] | null =>
   !a ? b : !b ? a : [Math.min(a[0], b[0]), Math.max(a[1], b[1])]
 
@@ -59,7 +78,13 @@ const merge = (a: [number, number] | null, b: [number, number] | null): [number,
  */
 export function buildModel(
   inputs: SeriesInput[],
-  chart: { data: readonly ChartRow[]; x?: ChartAccessor; xKind?: XKind },
+  chart: {
+    data: readonly ChartRow[]
+    x?: ChartAccessor
+    xKind?: XKind
+    /** The y axis of series that don't name one. */
+    axis?: ChartValueAxis
+  },
 ): ChartModel {
   const shown = inputs.filter((input) => !input.props.hidden)
   const sourceOf = (input: SeriesInput) => ({
@@ -88,12 +113,20 @@ export function buildModel(
     const y = yColumn(rows, input.props.y)
     const name =
       input.props.name ?? (typeof input.props.y === 'string' ? input.props.y : `${input.index + 1}`)
-    return { input, name, axis: input.props.axis ?? 'left', x: column, y, top: y, base: null }
+    return {
+      input,
+      name,
+      axis: input.props.axis ?? chart.axis ?? 'left',
+      x: column,
+      y,
+      top: y,
+      base: null,
+    }
   })
 
   // categories of series with their own data are merged, in order of first appearance
   let categories: string[] = []
-  if (kind === 'band') {
+  if (kind === 'category') {
     const columns = [...new Set(series.map((s) => s.x))]
     if (columns.length === 1) categories = columns[0]!.categories
     else {
@@ -115,7 +148,7 @@ export function buildModel(
   stack(series)
 
   let x: [number, number] | null = null
-  if (kind === 'band') x = categories.length ? [0, categories.length - 1] : null
+  if (kind === 'category') x = categories.length ? [0, categories.length - 1] : null
   else for (const s of series) x = merge(x, cachedExtent(s.x.values))
 
   const y: ChartModel['y'] = { left: null, right: null }
@@ -126,7 +159,8 @@ export function buildModel(
     if (s.input.kind.zero) zero[s.axis] = true
   }
 
-  return { series, xKind: kind, categories, x, y, zero }
+  const xIntegers = kind === 'linear' && series.every((s) => allIntegers(s.x.values))
+  return { series, xKind: kind, categories, x, y, zero, xIntegers }
 }
 
 /**

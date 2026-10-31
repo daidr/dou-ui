@@ -11,7 +11,7 @@ export interface LineStyle {
   smooth?: boolean
   dots?: boolean | 'auto'
   dashed?: boolean
-  width?: number
+  lineWidth?: number
   connectNulls?: boolean
 }
 
@@ -38,7 +38,7 @@ export function drawLine(painter: Painter, series: ResolvedSeries, view: ChartVi
 
   const shown = to - from
   const smooth = !!style.smooth && shown * SMOOTH_SPACE <= plot.width
-  const lineWidth = style.width ?? 2
+  const lineWidth = style.lineWidth ?? 2
 
   // where an area without a stack grows from: 0, or the bottom edge when 0 is off the axis
   const floor = Math.min(

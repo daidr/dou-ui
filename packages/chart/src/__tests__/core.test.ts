@@ -6,7 +6,7 @@ import { areaKind, lineKind } from '../core/line'
 import { buildModel } from '../core/model'
 import { monotoneTangents } from '../core/painter'
 import {
-  bandScale,
+  categoryScale,
   linearDomain,
   linearScale,
   linearTicks,
@@ -30,7 +30,7 @@ describe('data', () => {
     expect(inferXKind([{ x: null }, { x: 3 }], 'x')).toBe('linear')
     expect(inferXKind([{ x: '2026-01-02' }], 'x')).toBe('time')
     expect(inferXKind([{ x: new Date() }], 'x')).toBe('time')
-    expect(inferXKind([{ x: '一月' }], 'x')).toBe('band')
+    expect(inferXKind([{ x: '一月' }], 'x')).toBe('category')
   })
 
   it('reads columns once per array and accessor', () => {
@@ -39,11 +39,11 @@ describe('data', () => {
       { x: 'b', y: null },
       { x: 'a', y: '3' },
     ]
-    const x = xColumn(rows, 'x', 'band')
+    const x = xColumn(rows, 'x', 'category')
     expect([...x.values]).toEqual([0, 1, 0])
     expect(x.categories).toEqual(['a', 'b'])
     expect(x.sorted).toBe(false)
-    expect(xColumn(rows, 'x', 'band')).toBe(x)
+    expect(xColumn(rows, 'x', 'category')).toBe(x)
     const y = yColumn(rows, 'y')
     expect([...y]).toEqual([1, Number.NaN, 3])
     expect(yColumn(rows, 'y')).toBe(y)
@@ -77,7 +77,7 @@ describe('scales', () => {
   })
 
   it('puts categories in the middle of their steps', () => {
-    const s = bandScale(['a', 'b', 'c', 'd'], [0, 400])
+    const s = categoryScale(['a', 'b', 'c', 'd'], [0, 400])
     expect(s.step).toBe(100)
     expect(s.map(0)).toBe(50)
     expect(s.map(3)).toBe(350)
@@ -140,6 +140,12 @@ describe('number labels', () => {
     const format = numberTickFormat('en', [0, 0.25, 0.5])
     expect(format(0.25)).toBe('0.25')
     expect(numberTickFormat('en', [0, 1000, 2000])(1000)).toBe('1,000')
+  })
+
+  it('gives short numbers enough digits to tell ticks apart', () => {
+    const ticks = [1.7769e12, 1.777e12, 1.7771e12]
+    const texts = ticks.map(numberTickFormat('zh-CN', ticks))
+    expect(new Set(texts).size).toBe(3)
   })
 
   it('shortens long numbers', () => {
@@ -212,7 +218,7 @@ describe('model', () => {
       ],
       { data: rows, x: 'm' },
     )
-    expect(model.xKind).toBe('band')
+    expect(model.xKind).toBe('category')
     const [a, b, c] = model.series
     expect([...a!.top]).toEqual([1, 3])
     expect([...b!.base!]).toEqual([1, Number.NaN])

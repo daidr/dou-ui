@@ -13,11 +13,11 @@ import {
 } from 'vue'
 import { createColorResolver, observeTheme } from './core/colors'
 import { extent } from './core/data'
-import { numberFormatFull } from './core/format'
+import { numberFormatFull, timeFormatFull } from './core/format'
 import { layoutChart, type AxisConfig, type ChartAxisPosition } from './core/layout'
 import { buildModel, type SeriesInput } from './core/model'
 import { crisp, type Painter } from './core/painter'
-import type { ChartColors, ChartView, ResolvedSeries } from './core/series'
+import type { ChartColors, ChartValueAxis, ChartView, ResolvedSeries } from './core/series'
 import { chartKey, type AxisPart, type ChartPart, type SeriesPart } from './context'
 import { format, useChartMessages } from './locale'
 import type { ChartProps, ChartSlots } from './types'
@@ -123,12 +123,22 @@ function measure(text: string): number {
 
 /* data → model → layout */
 
-const uses = (axis: 'left' | 'right') =>
-  seriesParts.value.some((part) => (part.props.axis ?? 'left') === axis)
-
-const axes = computed<Record<ChartAxisPosition, AxisConfig | null>>(() => {
+const declaredAxes = computed(() => {
   const declared: Partial<Record<ChartAxisPosition, AxisPart['props']>> = {}
   for (const part of axisParts.value) declared[part.props.position] = part.props
+  return declared
+})
+
+// with only a right axis written, series that don't say otherwise are measured on it
+const defaultAxis = computed<ChartValueAxis>(() =>
+  declaredAxes.value.right && !declaredAxes.value.left ? 'right' : 'left',
+)
+
+const uses = (axis: ChartValueAxis) =>
+  seriesParts.value.some((part) => (part.props.axis ?? defaultAxis.value) === axis)
+
+const axes = computed<Record<ChartAxisPosition, AxisConfig | null>>(() => {
+  const declared = declaredAxes.value
   const config = (position: ChartAxisPosition): AxisConfig => {
     const given = declared[position]
     return {
@@ -156,7 +166,31 @@ const model = computed(() => {
     data: toRaw(props.data),
     x: props.x,
     xKind: type === 'log' ? 'linear' : type,
+    axis: defaultAxis.value,
   })
+})
+
+/** No series has a value to show. */
+const empty = computed(() => !model.value.y.left && !model.value.y.right)
+
+// a number axis of what look like times in ms: most likely meant as a time axis
+let timestampWarned = false
+watch(model, (m) => {
+  if (process.env.NODE_ENV === 'production' || timestampWarned) return
+  if (m.xKind !== 'linear' || axes.value.bottom?.type || !m.x) return
+  if (m.x[0] > 1e11 && m.x[1] < 1e13) {
+    timestampWarned = true
+    console.warn(
+      '[@dou-ui/chart] the x values look like times in ms. Add <DouChartAxis position="bottom" type="time" /> to show them as dates.',
+    )
+  }
+})
+
+/** A legend under the chart when there is more than one series, unless turned off. */
+const legendNames = computed(() => {
+  const shown = props.legend ?? seriesParts.value.length > 1
+  if (!shown || empty.value) return []
+  return model.value.series.map((s) => s.name)
 })
 
 const layout = computed(() => {
@@ -171,6 +205,7 @@ const layout = computed(() => {
     height,
     locale: locale.value.name,
     measure,
+    legend: legendNames.value,
   })
 })
 
@@ -222,6 +257,7 @@ function draw() {
   if (!ctx) return
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
   ctx.clearRect(0, 0, l.width, l.height)
+  if (empty.value) return
   paint(ctx, dpr)
 }
 
@@ -296,18 +332,45 @@ function paint(painter: Painter, dpr: number) {
 /* what is read out */
 
 const label = computed(() => {
-  if (props.description) return props.description
+  if (props.ariaLabel) return props.ariaLabel
   const m = messages.value
-  const full = numberFormatFull(locale.value.name)
-  const parts = model.value.series.map((s) => {
+  const name = locale.value.name
+  const m0 = model.value
+  if (empty.value) return format(m.summary, { chart: m.chart, series: m.empty })
+  const count = numberFormatFull(name)
+  // values read the way the axis shows them
+  const valueText = (axis: ChartValueAxis) => axes.value[axis]?.format ?? numberFormatFull(name)
+  const parts = m0.series.map((s) => {
     const range = extent(s.y)
     if (!range) return format(m.seriesEmpty, { name: s.name })
-    let count = 0
-    for (let i = 0; i < s.y.length; i++) if (s.y[i] === s.y[i]) count++
-    return format(m.series, { name: s.name, count, min: full(range[0]), max: full(range[1]) })
+    let points = 0
+    for (let i = 0; i < s.y.length; i++) if (s.y[i] === s.y[i]) points++
+    const text = valueText(s.axis)
+    return format(m.series, {
+      name: s.name,
+      count: count(points),
+      min: text(range[0]),
+      max: text(range[1]),
+    })
   })
-  if (!parts.length) return m.chart
-  return format(m.summary, { chart: m.chart, series: parts.join(m.listSeparator) })
+  let chart = m.chart
+  if (m0.x) {
+    const xFormat = axes.value.bottom?.format
+    const xText = (value: number) => {
+      if (m0.xKind === 'category') {
+        const category = m0.categories[value] ?? ''
+        return xFormat ? xFormat(category) : category
+      }
+      if (m0.xKind === 'time') {
+        if (xFormat) return xFormat(new Date(value))
+        const span = m0.x![1] - m0.x![0]
+        return timeFormatFull(name, span < 2 * 86400e3 ? 'minute' : 'day')(value)
+      }
+      return xFormat ? xFormat(value) : numberFormatFull(name)(value)
+    }
+    chart = format(m.range, { chart: m.chart, from: xText(m0.x[0]), to: xText(m0.x[1]) })
+  }
+  return format(m.summary, { chart, series: parts.join(m.listSeparator) })
 })
 
 const labels = computed(() => {
@@ -327,6 +390,15 @@ const labels = computed(() => {
     )
   }
   return out
+})
+
+const legend = computed(() => {
+  const l = layout.value
+  if (!l) return []
+  return l.legend.map((item) => {
+    const s = series.value[item.index]!
+    return { ...item, color: s.color, kind: s.kind.name, dashed: !!s.props.dashed }
+  })
 })
 
 const titles = computed(() => {
@@ -355,7 +427,7 @@ const cssLength = (value: number | string) => (typeof value === 'number' ? `${va
       aria-hidden="true"
       :style="layout ? { width: `${layout.width}px`, height: `${layout.height}px` } : undefined"
     />
-    <div v-if="layout" :class="ns.e('labels')" aria-hidden="true">
+    <div v-if="layout && !empty" :class="ns.e('labels')" aria-hidden="true">
       <span
         v-for="tick in labels"
         :key="tick.key"
@@ -367,9 +439,22 @@ const cssLength = (value: number | string) => (typeof value === 'number' ? `${va
         v-for="title in titles"
         :key="title.key"
         :class="[ns.e('title'), ns.is('end', title.align === 'end')]"
-        :style="{ top: `${title.top}px`, [title.align === 'end' ? 'right' : 'left']: '0px' }"
+        :style="{ transform: `translate(${title.left}px, ${title.top}px)` }"
         ><span :class="ns.e('text')">{{ title.text }}</span></span
       >
+      <span
+        v-for="item in legend"
+        :key="`legend:${item.index}`"
+        :class="[ns.e('legend'), ns.is(item.kind), ns.is('dashed', item.dashed)]"
+        :style="{ transform: `translate(${item.left}px, ${item.top}px)` }"
+        ><span :class="ns.e('swatch')" :style="{ color: item.color }" /><span
+          :class="ns.e('text')"
+          >{{ item.text }}</span
+        ></span
+      >
+    </div>
+    <div v-if="empty" :class="ns.e('empty')">
+      <slot name="empty">{{ messages.empty }}</slot>
     </div>
   </div>
 </template>

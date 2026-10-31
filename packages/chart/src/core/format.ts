@@ -19,14 +19,24 @@ function dateFormat(locale: string, options: Intl.DateTimeFormatOptions): Intl.D
 
 /**
  * Formats the ticks of a number axis: as many decimals as the step needs,
- * and in short form ("12万", "1.2M") once the numbers get long.
+ * and in short form ("12万", "1.2M") once the numbers get long, with as
+ * many digits as it takes to tell the ticks apart. With `years`, whole
+ * numbers under 10000 go without separators, so 2019 doesn't read "2,019".
  */
-export function numberTickFormat(locale: string, ticks: number[]): (value: number) => string {
+export function numberTickFormat(
+  locale: string,
+  ticks: number[],
+  { years = false }: { years?: boolean } = {},
+): (value: number) => string {
   const step = ticks.length > 1 ? Math.abs(ticks[1]! - ticks[0]!) : 0
   const largest = Math.max(0, ...ticks.map(Math.abs))
   if (largest >= 1e5 && step >= 1e3) {
-    const compact = numberFormat(locale, { notation: 'compact', maximumFractionDigits: 2 })
-    return (value) => compact.format(value)
+    for (let digits = 2; ; digits++) {
+      const compact = numberFormat(locale, { notation: 'compact', maximumFractionDigits: digits })
+      const texts = ticks.map((tick) => compact.format(tick))
+      if (new Set(texts).size === texts.length || digits >= 8)
+        return (value) => compact.format(value)
+    }
   }
   // enough decimals for every tick (explicit ticks need not be multiples of a power of ten)
   let decimals = step > 0 ? stepDecimals(step) : 2
@@ -35,7 +45,8 @@ export function numberTickFormat(locale: string, ticks: number[]): (value: numbe
     const dot = text.indexOf('.')
     if (dot >= 0 && !text.includes('e')) decimals = Math.max(decimals, text.length - dot - 1)
   }
-  const plain = numberFormat(locale, { maximumFractionDigits: decimals })
+  const grouping = !(years && ticks.every((tick) => Number.isInteger(tick) && Math.abs(tick) < 1e4))
+  const plain = numberFormat(locale, { maximumFractionDigits: decimals, useGrouping: grouping })
   return (value) => plain.format(value)
 }
 

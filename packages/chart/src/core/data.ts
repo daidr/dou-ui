@@ -11,13 +11,13 @@ export type ChartRow = any
 export type ChartAccessor<V = unknown> = string | ((row: ChartRow, index: number) => V)
 
 /** How x values are read: numbers, points in time (ms), or categories. */
-export type XKind = 'linear' | 'time' | 'band'
+export type XKind = 'linear' | 'time' | 'category'
 
 export interface XColumn {
   kind: XKind
   /** Numbers, times in ms, or the index of each row's category in `categories`. */
   values: Float64Array
-  /** For `band`: the categories in the order they first appear. */
+  /** For `category`: the categories in the order they first appear. */
   categories: string[]
   /** Whether `values` never go down, so the visible part can be found by bisection. */
   sorted: boolean
@@ -63,7 +63,7 @@ export function inferXKind(rows: readonly ChartRow[], accessor: ChartAccessor): 
     if (typeof value === 'number') return 'linear'
     if (value instanceof Date) return 'time'
     if (typeof value === 'string' && DATE.test(value.trim())) return 'time'
-    return 'band'
+    return 'category'
   }
   return 'linear'
 }
@@ -102,7 +102,7 @@ function buildX(rows: readonly ChartRow[], accessor: ChartAccessor, kind: XKind)
   for (let i = 0; i < rows.length; i++) {
     const value = read(toRaw(rows[i]), accessor, i)
     let n: number
-    if (kind === 'band') {
+    if (kind === 'category') {
       const label = value == null ? '' : String(value)
       let at = seen.get(label)
       if (at === undefined) seen.set(label, (at = categories.push(label) - 1))

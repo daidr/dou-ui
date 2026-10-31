@@ -10,8 +10,12 @@ export interface ChartMessages {
   seriesEmpty: string
   /** Joins the series in the summary. */
   listSeparator: string
-  /** The summary: `{chart}` and `{series}` (the series joined). */
+  /** The chart with the range of its x axis: `{chart}`, `{from}`, `{to}`. */
+  range: string
+  /** The summary: `{chart}` (with its range) and `{series}` (the series joined). */
   summary: string
+  /** Shown, and read out, when no series has a value. */
+  empty: string
 }
 
 const zhCN: ChartMessages = {
@@ -19,7 +23,9 @@ const zhCN: ChartMessages = {
   series: '{name}：{count} 个数据点，最小 {min}，最大 {max}',
   seriesEmpty: '{name}：没有数据',
   listSeparator: '；',
+  range: '{chart}，横轴从 {from} 到 {to}',
   summary: '{chart}。{series}',
+  empty: '没有数据',
 }
 
 const zhTW: ChartMessages = {
@@ -27,7 +33,9 @@ const zhTW: ChartMessages = {
   series: '{name}：{count} 個資料點，最小 {min}，最大 {max}',
   seriesEmpty: '{name}：沒有資料',
   listSeparator: '；',
+  range: '{chart}，橫軸從 {from} 到 {to}',
   summary: '{chart}。{series}',
+  empty: '沒有資料',
 }
 
 const en: ChartMessages = {
@@ -35,7 +43,9 @@ const en: ChartMessages = {
   series: '{name}: {count} points, from {min} to {max}',
   seriesEmpty: '{name}: no data',
   listSeparator: '; ',
+  range: '{chart}, x from {from} to {to}',
   summary: '{chart}. {series}',
+  empty: 'No data',
 }
 
 export const chartLocales: Record<string, ChartMessages> = {

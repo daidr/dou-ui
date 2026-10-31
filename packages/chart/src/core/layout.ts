@@ -3,8 +3,8 @@ import { numberTickFormat, timeTickFormat } from './format'
 import type { ChartModel } from './model'
 import type { Rect } from './painter'
 import {
-  bandScale,
-  bandTicks,
+  categoryScale,
+  categoryTicks,
   linearDomain,
   linearScale,
   linearTicks,
@@ -20,9 +20,9 @@ import type { ChartValueAxis } from './series'
 import { timeInterval, timeTicks } from './time'
 
 export type ChartAxisPosition = 'bottom' | 'left' | 'right'
-export type ChartAxisType = 'linear' | 'log' | 'time' | 'band'
+export type ChartAxisType = 'linear' | 'log' | 'time' | 'category'
 
-/** A tick value as `format` receives it: a number, a `Date` on time axes, the category on band axes. */
+/** A tick value as `format` receives it: a number, a `Date` on time axes, the category on category axes. */
 export type ChartTickValue = number | Date | string
 
 /** An axis as configured, with defaults filled in. */
@@ -64,6 +64,17 @@ export interface ChartLayout {
   plot: Rect
   x: AxisLayout
   y: Partial<Record<ChartValueAxis, AxisLayout>>
+  legend: LegendItem[]
+}
+
+/** A legend entry, placed. */
+export interface LegendItem {
+  /** The entry's position in the names given. */
+  index: number
+  text: string
+  left: number
+  top: number
+  width: number
 }
 
 /** Height of a line of tick text, and the room between it and the plot. */
@@ -71,6 +82,13 @@ export const LABEL_HEIGHT = 16
 export const LABEL_GAP = 8
 /** Room left around the plot so lines and dots at the edge aren't cut. */
 export const EDGE = 8
+/** Room between text and the chart's sides. */
+export const INSET = 4
+/** A legend entry: the swatch, the room after it, and the room to the next entry. */
+const SWATCH = 12
+const SWATCH_GAP = 6
+const LEGEND_GAP = 16
+const LEGEND_ROW_GAP = 4
 /** Wanted room between ticks, in px. */
 const X_TICK_SPACE = 64
 const Y_TICK_SPACE = 48
@@ -82,6 +100,8 @@ interface LayoutOptions {
   height: number
   locale: string
   measure: (text: string) => number
+  /** Names for a legend under the chart, or none. */
+  legend?: string[]
 }
 
 const asNumber = (value: number | string | Date | undefined, kind: XKind | 'log') =>
@@ -95,7 +115,14 @@ export function layoutChart({
   height,
   locale,
   measure,
+  legend: names = [],
 }: LayoutOptions): ChartLayout {
+  const legend = placeLegend(names, width, measure)
+  // the legend sits under the x axis, a gap above it
+  const legendHeight = legend.length
+    ? LABEL_GAP + 4 + legend[legend.length - 1]!.top + LABEL_HEIGHT
+    : 0
+  for (const item of legend) item.top += height - legendHeight + LABEL_GAP + 4
   const xAxis = axes.bottom!
   const xShown = !xAxis.hidden
   const xType = model.xKind
@@ -103,7 +130,8 @@ export function layoutChart({
     (axes.left?.title && !axes.left.hidden) || (axes.right?.title && !axes.right.hidden)
   // a title sits above the top tick label, which is centered on the plot's top edge
   const top = titleRoom ? LABEL_HEIGHT + LABEL_GAP + LABEL_HEIGHT / 2 : EDGE
-  const bottom = xShown ? LABEL_HEIGHT + LABEL_GAP + (xAxis.title ? LABEL_HEIGHT + 4 : 0) : EDGE
+  const bottom =
+    (xShown ? LABEL_HEIGHT + LABEL_GAP + (xAxis.title ? LABEL_HEIGHT + 4 : 0) : EDGE) + legendHeight
   const plotTop = top
   const plotBottom = Math.max(plotTop + 1, height - bottom)
   const plotHeight = plotBottom - plotTop
@@ -116,9 +144,10 @@ export function layoutChart({
   if (left && right && !axes.right!.ticks && !right.fixed && left.ticks.length > 1)
     right = alignTo(right, left.ticks.length - 1, axes.right!, model, locale)
 
-  const leftWidth = left && !axes.left!.hidden ? labelWidth(left.texts, measure) + LABEL_GAP : EDGE
+  const leftWidth =
+    left && !axes.left!.hidden ? INSET + labelWidth(left.texts, measure) + LABEL_GAP : EDGE
   const rightWidth =
-    right && !axes.right!.hidden ? labelWidth(right.texts, measure) + LABEL_GAP : EDGE
+    right && !axes.right!.hidden ? INSET + labelWidth(right.texts, measure) + LABEL_GAP : EDGE
   const plot: Rect = {
     x: leftWidth,
     y: plotTop,
@@ -158,7 +187,7 @@ export function layoutChart({
           ? {
               text: config.title,
               top: 0,
-              left: axis.position === 'left' ? 0 : width,
+              left: axis.position === 'left' ? INSET : width - INSET,
               align: axis.position === 'left' ? 'start' : 'end',
             }
           : undefined,
@@ -167,12 +196,51 @@ export function layoutChart({
 
   const x = categoryOrTimeAxis(xAxis, xType, model, plot, width, locale, measure)
   if (xAxis.title && xShown)
-    x.title = { text: xAxis.title, top: height - LABEL_HEIGHT, left: width, align: 'end' }
+    x.title = {
+      text: xAxis.title,
+      top: height - legendHeight - LABEL_HEIGHT,
+      left: width - INSET,
+      align: 'end',
+    }
 
-  return { width, height, plot, x, y: yLayout }
+  return { width, height, plot, x, y: yLayout, legend }
 }
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
+
+/** Entries in rows that fit `width`, each row centered; `top` counts from the first row. */
+function placeLegend(
+  names: string[],
+  width: number,
+  measure: (text: string) => number,
+): LegendItem[] {
+  const items: LegendItem[] = []
+  let row: LegendItem[] = []
+  let rowWidth = 0
+  let top = 0
+  const finish = () => {
+    let left = Math.max(INSET, (width - rowWidth) / 2)
+    for (const item of row) {
+      item.left = left
+      left += item.width + LEGEND_GAP
+    }
+    row = []
+    rowWidth = 0
+  }
+  names.forEach((text, index) => {
+    const w = SWATCH + SWATCH_GAP + measure(text)
+    if (row.length && rowWidth + LEGEND_GAP + w > width - INSET * 2) {
+      finish()
+      top += LABEL_HEIGHT + LEGEND_ROW_GAP
+    }
+    const item = { index, text, left: 0, top, width: w }
+    rowWidth += (row.length ? LEGEND_GAP : 0) + w
+    row.push(item)
+    items.push(item)
+  })
+  if (row.length) finish()
+  return items
+}
 
 function labelWidth(texts: string[], measure: (text: string) => number): number {
   let widest = 0
@@ -306,7 +374,7 @@ function categoryOrTimeAxis(
       return {
         text: t,
         width: w,
-        left: clamp(scale.map(value) - w / 2, 0, width - w),
+        left: clamp(scale.map(value) - w / 2, INSET, width - INSET - w),
         top: labelTop,
       }
     })
@@ -324,13 +392,13 @@ function categoryOrTimeAxis(
     labels: config.hidden ? [] : labels,
     grid: config.grid,
   })
-  if (kind === 'band') {
-    const scale = bandScale(model.categories, range)
+  if (kind === 'category') {
+    const scale = categoryScale(model.categories, range)
     const text = (value: number) =>
       config.format ? config.format(model.categories[value]) : (model.categories[value] ?? '')
     // every category when they fit, else every second, third…
     for (let every = 1; ; every++) {
-      const ticks = bandTicks(model.categories.length, every)
+      const ticks = categoryTicks(model.categories.length, every)
       const labels = place(scale, ticks, text)
       if (fits(labels) || ticks.length <= 1) return result(scale, ticks, labels)
     }
@@ -362,9 +430,11 @@ function categoryOrTimeAxis(
   if (config.max !== undefined) domain[1] = hi
   const scale = linearScale(domain, range)
   const explicit = explicitTicks(config, kind)
-  for (let count = wanted; count >= 1; count--) {
+  // whole-number data (years): no ticks between them
+  const most = model.xIntegers ? Math.max(1, Math.floor(domain[1] - domain[0])) : wanted
+  for (let count = Math.min(wanted, most); count >= 1; count--) {
     const ticks = explicit ?? linearTicks(domain[0], domain[1], count)
-    const format = numberTickFormat(locale, ticks)
+    const format = numberTickFormat(locale, ticks, { years: true })
     const labels = place(scale, ticks, (value) =>
       config.format ? config.format(value) : format(value),
     )

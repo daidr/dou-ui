@@ -69,6 +69,7 @@ const sheetSidebar = ecosystem('电子表格', [
 const codeSidebar = ecosystem('代码编辑器', [{ text: '介绍', link: '/code/' }])
 const chartSidebar = ecosystem('图表', [{ text: '介绍', link: '/chart/' }])
 const pivotSidebar = ecosystem('数据透视', [{ text: '介绍', link: '/pivot/' }])
+const dashboardSidebar = ecosystem('仪表盘', [{ text: '介绍', link: '/dashboard/' }])
 const formBuilderSidebar = ecosystem('表单设计器', [
   { text: '介绍', link: '/form-builder/' },
   { text: '表单描述', link: '/form-builder/document' },
@@ -102,7 +103,8 @@ export default defineConfig({
       {
         text: '生态系统',
         link: '/ecosystem/',
-        activeMatch: '^/(ecosystem|editor|flow|gantt|sheet|chart|form-builder|code|pivot)(/|$)',
+        activeMatch:
+          '^/(ecosystem|editor|flow|gantt|sheet|chart|form-builder|code|pivot|dashboard)(/|$)',
       },
       { text: '图标', link: '/icons/' },
       { text: '集成', link: '/integrations/vite' },
@@ -148,6 +150,7 @@ export default defineConfig({
             { text: '表单设计器', link: '/form-builder/' },
             { text: '代码编辑器', link: '/code/' },
             { text: '数据透视', link: '/pivot/' },
+            { text: '仪表盘', link: '/dashboard/' },
           ],
         },
       ],
@@ -159,6 +162,7 @@ export default defineConfig({
       '/form-builder': formBuilderSidebar,
       '/code': codeSidebar,
       '/pivot': pivotSidebar,
+      '/dashboard': dashboardSidebar,
       '/icons': [
         {
           text: '图标',
@@ -423,6 +427,15 @@ export default defineConfig({
         {
           find: /^@dou-ui\/pivot\/worker$/,
           replacement: r('../../packages/pivot/src/worker/index.ts'),
+        },
+        {
+          find: /^@dou-ui\/dashboard\/layout$/,
+          replacement: r('../../packages/dashboard/src/layout/index.ts'),
+        },
+        { find: /^@dou-ui\/dashboard$/, replacement: r('../../packages/dashboard/src/index.ts') },
+        {
+          find: /^@dou-ui\/dashboard\/style\.css$/,
+          replacement: r('../../packages/dashboard/src/style.css'),
         },
         { find: /^@dou-ui\/pivot$/, replacement: r('../../packages/pivot/src/index.ts') },
         {

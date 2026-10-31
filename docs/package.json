@@ -15,6 +15,7 @@
     "@dou-ui/form-builder": "workspace:*",
     "@dou-ui/gantt": "workspace:*",
     "@dou-ui/icons": "workspace:*",
+    "@dou-ui/dashboard": "workspace:*",
     "@dou-ui/pivot": "workspace:*",
     "@dou-ui/sheet": "workspace:*",
     "@dou-ui/code": "workspace:*",

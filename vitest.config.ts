@@ -28,6 +28,11 @@ export default defineConfig({
       },
       { find: /^@dou-ui\/gantt$/, replacement: r('./packages/gantt/src/index.ts') },
       { find: /^@dou-ui\/code$/, replacement: r('./packages/code/src/index.ts') },
+      {
+        find: /^@dou-ui\/dashboard\/layout$/,
+        replacement: r('./packages/dashboard/src/layout/index.ts'),
+      },
+      { find: /^@dou-ui\/dashboard$/, replacement: r('./packages/dashboard/src/index.ts') },
       { find: /^@dou-ui\/sheet$/, replacement: r('./packages/sheet/src/index.ts') },
       {
         find: /^@dou-ui\/sheet\/formula$/,

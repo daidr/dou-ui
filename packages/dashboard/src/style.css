@@ -1,0 +1,181 @@
+/*
+ * Grid layout
+ *
+ * Items are placed by their cell numbers alone: the column width comes from
+ * the grid's own width through container units, so the layout is right
+ * before any script runs (and on the server). Positions are transforms,
+ * so moving an item never lays out the others; they only glide while
+ * something is being arranged, never while the window is resized.
+ */
+@layer dou.components {
+  .dou-grid-layout {
+    --dou-grid-item-radius: var(--dou-radius-container);
+    --dou-grid-col: calc(
+      (100cqw - (var(--dou-grid-columns) - 1) * var(--dou-grid-gap-x)) / var(--dou-grid-columns)
+    );
+
+    position: relative;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    height: calc(
+      var(--dou-grid-rows) * var(--dou-grid-row) + max(var(--dou-grid-rows) - 1, 0) *
+        var(--dou-grid-gap-y)
+    );
+    container-type: inline-size;
+
+    &.is-pointer-dragging {
+      cursor: grabbing;
+    }
+
+    &.is-resizing {
+      cursor: nwse-resize;
+    }
+  }
+
+  .dou-grid-layout__item,
+  .dou-grid-layout__placeholder {
+    position: absolute;
+    top: 0;
+    left: 0;
+    box-sizing: border-box;
+    width: calc(
+      var(--dou-grid-w) * var(--dou-grid-col) + (var(--dou-grid-w) - 1) * var(--dou-grid-gap-x) +
+        var(--dou-grid-dw, 0px)
+    );
+    height: calc(
+      var(--dou-grid-h) * var(--dou-grid-row) + (var(--dou-grid-h) - 1) * var(--dou-grid-gap-y) +
+        var(--dou-grid-dh, 0px)
+    );
+    border-radius: var(--dou-grid-item-radius);
+    transform: translate(
+      calc(
+        var(--dou-grid-x) * (var(--dou-grid-col) + var(--dou-grid-gap-x)) + var(--dou-grid-dx, 0px)
+      ),
+      calc(
+        var(--dou-grid-y) * (var(--dou-grid-row) + var(--dou-grid-gap-y)) + var(--dou-grid-dy, 0px)
+      )
+    );
+  }
+
+  .dou-grid-layout__item {
+    /* the content fills the item */
+    display: grid;
+    grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+    min-width: 0;
+    outline: none;
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 2px;
+    }
+  }
+
+  .dou-grid-layout.is-editable .dou-grid-layout__item.is-movable {
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+
+  .dou-grid-layout.is-editable:not(.is-pointer-dragging) .dou-grid-layout__item.is-movable {
+    cursor: grab;
+  }
+
+  /* only while something is being arranged: no gliding when the window is resized */
+  .dou-grid-layout.is-arranging .dou-grid-layout__item {
+    transition: transform var(--dou-motion-duration-normal) var(--dou-motion-easing);
+  }
+
+  .dou-grid-layout__item.is-dragging,
+  .dou-grid-layout__item.is-resizing {
+    z-index: 2;
+    box-shadow: var(--dou-shadow-lg);
+  }
+
+  /* under the pointer: no lag behind it */
+  .dou-grid-layout.is-pointer-dragging .dou-grid-layout__item.is-dragging,
+  .dou-grid-layout.is-pointer-dragging .dou-grid-layout__item.is-resizing {
+    transition: none;
+  }
+
+  .dou-grid-layout__placeholder {
+    z-index: 1;
+    border: 1px dashed var(--dou-color-border-strong);
+    background-color: color-mix(in oklab, var(--dou-color-text) 4%, transparent);
+    pointer-events: none;
+  }
+
+  .dou-grid-layout.is-arranging .dou-grid-layout__placeholder {
+    transition: transform var(--dou-motion-duration-fast) var(--dou-motion-easing);
+  }
+
+  /* resize handles: the edges are invisible strips, the corner a small mark */
+  .dou-grid-layout__resize {
+    position: absolute;
+    z-index: 1;
+    touch-action: none;
+
+    &.is-e {
+      top: 8px;
+      right: -4px;
+      bottom: 16px;
+      width: 8px;
+      cursor: ew-resize;
+    }
+
+    &.is-s {
+      right: 16px;
+      bottom: -4px;
+      left: 8px;
+      height: 8px;
+      cursor: ns-resize;
+    }
+
+    &.is-se {
+      right: 0;
+      bottom: 0;
+      width: 20px;
+      height: 20px;
+      cursor: nwse-resize;
+      opacity: 0;
+      transition: opacity var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+      /* two short strokes along the corner's curve */
+      &::after {
+        position: absolute;
+        right: 5px;
+        bottom: 5px;
+        width: 8px;
+        height: 8px;
+        box-sizing: border-box;
+        border-right: 2px solid var(--dou-color-text-tertiary);
+        border-bottom: 2px solid var(--dou-color-text-tertiary);
+        border-bottom-right-radius: 4px;
+        content: '';
+      }
+    }
+  }
+
+  .dou-grid-layout__item:hover > .dou-grid-layout__resize.is-se,
+  .dou-grid-layout__item:focus-visible > .dou-grid-layout__resize.is-se,
+  .dou-grid-layout__item.is-resizing > .dou-grid-layout__resize.is-se {
+    opacity: 1;
+  }
+
+  /* fingers can't hover: the corner stays visible, with a larger target */
+  @media (pointer: coarse) {
+    .dou-grid-layout__resize.is-se {
+      width: 32px;
+      height: 32px;
+      opacity: 1;
+    }
+  }
+
+  .dou-grid-layout__live {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}

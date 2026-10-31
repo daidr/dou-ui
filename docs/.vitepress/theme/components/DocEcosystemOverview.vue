@@ -20,6 +20,7 @@ const groups = [
       },
       { key: 'code', name: '代码编辑器', label: '@dou-ui/code', link: '/code/' },
       { key: 'pivot', name: '数据透视', label: '@dou-ui/pivot', link: '/pivot/' },
+      { key: 'dashboard', name: '仪表盘', label: '@dou-ui/dashboard', link: '/dashboard/' },
     ],
   },
   {

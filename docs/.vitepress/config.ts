@@ -65,6 +65,7 @@ const sheetSidebar = ecosystem('电子表格', [
   { text: '文档数据', link: '/sheet/data' },
   { text: '扩展', link: '/sheet/extensions' },
 ])
+const codeSidebar = ecosystem('代码编辑器', [{ text: '介绍', link: '/code/' }])
 const chartSidebar = ecosystem('图表', [{ text: '介绍', link: '/chart/' }])
 const formBuilderSidebar = ecosystem('表单设计器', [
   { text: '介绍', link: '/form-builder/' },
@@ -98,7 +99,7 @@ export default defineConfig({
       {
         text: '生态系统',
         link: '/ecosystem/',
-        activeMatch: '^/(ecosystem|editor|flow|gantt|sheet|chart|form-builder)(/|$)',
+        activeMatch: '^/(ecosystem|editor|flow|gantt|sheet|chart|form-builder|code)(/|$)',
       },
       { text: '图标', link: '/icons/' },
       { text: '集成', link: '/integrations/vite' },
@@ -137,6 +138,7 @@ export default defineConfig({
             { text: '电子表格', link: '/sheet/' },
             { text: '图表', link: '/chart/' },
             { text: '表单设计器', link: '/form-builder/' },
+            { text: '代码编辑器', link: '/code/' },
           ],
         },
       ],
@@ -146,6 +148,7 @@ export default defineConfig({
       '/sheet': sheetSidebar,
       '/chart': chartSidebar,
       '/form-builder': formBuilderSidebar,
+      '/code': codeSidebar,
       '/icons': [
         {
           text: '图标',
@@ -423,6 +426,11 @@ export default defineConfig({
         {
           find: /^@dou-ui\/gantt\/style\.css$/,
           replacement: r('../../packages/gantt/src/style.css'),
+        },
+        { find: /^@dou-ui\/code$/, replacement: r('../../packages/code/src/index.ts') },
+        {
+          find: /^@dou-ui\/code\/style\.css$/,
+          replacement: r('../../packages/code/src/style.css'),
         },
         { find: /^@dou-ui\/sheet$/, replacement: r('../../packages/sheet/src/index.ts') },
         {

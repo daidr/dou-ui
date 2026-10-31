@@ -18,6 +18,7 @@ const groups = [
         label: '@dou-ui/form-builder',
         link: '/form-builder/',
       },
+      { key: 'code', name: '代码编辑器', label: '@dou-ui/code', link: '/code/' },
     ],
   },
   {

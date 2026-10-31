@@ -1441,6 +1441,37 @@ const ecosystemArts: Record<string, string | ((id: string) => string)> = {
       bar(121, 66, 28)
     )
   },
+  // numbered lines of indented code, the cursor's line tinted and a word selected
+  code: () => {
+    // each line: indent and the widths of its words
+    const code = [
+      [0, 18, 26],
+      [8, 14, 30, 10],
+      [16, 24, 20],
+      [16, 12, 34],
+      [8, 10],
+      [0, 6],
+    ]
+    const top = 24
+    const step = 14
+    const active = 3
+    let art = rect(20, 14, 160, 92, 'p', 8)
+    art += path(`M20 ${top + active * step - 6}h160v12H20Z`, 'm')
+    art += path('M46 14v92', 'lb')
+    code.forEach(([indent, ...words], i) => {
+      const y = top + i * step
+      art += bar(30, y - 2, 8, i === active ? 't' : 's')
+      let x = 56 + indent!
+      words.forEach((w, k) => {
+        // the second word of the first line is selected
+        if (i === 0 && k === 1) art += rect(x - 2, y - 6, w + 4, 12, 'as', 2)
+        art += bar(x, y - 2, w, k === 0 ? 's' : 't')
+        x += w + 5
+      })
+      if (i === active) art += rect(x - 3, y - 6, 2, 12, 'k', 1)
+    })
+    return art
+  },
   // the icon gallery: a search field above a grid of icons
   icons:
     field(40, 18, 120, 20, 0) +

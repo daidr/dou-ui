@@ -22,6 +22,7 @@
       "name": "@dou-ui/docs",
       "dependencies": {
         "@dou-ui/chart": "workspace:*",
+        "@dou-ui/code": "workspace:*",
         "@dou-ui/editor": "workspace:*",
         "@dou-ui/flow": "workspace:*",
         "@dou-ui/form-builder": "workspace:*",
@@ -42,6 +43,14 @@
     },
     "packages/chart": {
       "name": "@dou-ui/chart",
+      "version": "0.0.0",
+      "peerDependencies": {
+        "dou-ui": "workspace:*",
+        "vue": "^3.5.0",
+      },
+    },
+    "packages/code": {
+      "name": "@dou-ui/code",
       "version": "0.0.0",
       "peerDependencies": {
         "dou-ui": "workspace:*",
@@ -298,6 +307,8 @@
     "@docsearch/react": ["@docsearch/react@3.8.2", "", { "dependencies": { "@algolia/autocomplete-core": "1.17.7", "@algolia/autocomplete-preset-algolia": "1.17.7", "@docsearch/css": "3.8.2", "algoliasearch": "^5.14.2" }, "peerDependencies": { "@types/react": ">= 16.8.0 < 19.0.0", "react": ">= 16.8.0 < 19.0.0", "react-dom": ">= 16.8.0 < 19.0.0", "search-insights": ">= 1 < 3" }, "optionalPeers": ["@types/react", "react", "react-dom", "search-insights"] }, "sha512-xCRrJQlTt8N9GU0DG4ptwHRkfnSnD/YpdeaXe02iKfqs97TkZJv60yE+1eq/tjPcVnTW8dP5qLP7itifFVV5eg=="],
 
     "@dou-ui/chart": ["@dou-ui/chart@workspace:packages/chart"],
+
+    "@dou-ui/code": ["@dou-ui/code@workspace:packages/code"],
 
     "@dou-ui/docs": ["@dou-ui/docs@workspace:docs"],
 

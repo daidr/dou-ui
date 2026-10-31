@@ -17,6 +17,7 @@ import { CloseIcon, PlusIcon } from '@dou-ui/icons'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
 import { useFormSize } from '../form/use-form-item'
+import { DouTooltip } from '../tooltip'
 import { tabsKey } from './tabs'
 import type { FunctionalComponent, VNode } from 'vue'
 import type { TabPanelEntry, TabsProps, TabsSlots, TabsValue } from './tabs'
@@ -234,15 +235,11 @@ const indicatorStyle = computed(() => {
             <TabLabel :entry="entry" :selected="entry.props.value === selected" />
           </span>
           <!-- not a button of its own: a tab cannot hold one; `Delete` closes it from the keyboard -->
-          <span
-            v-if="isClosable(entry)"
-            :class="ns.e('close')"
-            :title="t('tabs.close')"
-            aria-hidden="true"
-            @click.stop="remove(entry)"
-          >
-            <CloseIcon />
-          </span>
+          <DouTooltip v-if="isClosable(entry)" :content="t('tabs.close')" shortcut="delete">
+            <span :class="ns.e('close')" aria-hidden="true" @click.stop="remove(entry)">
+              <CloseIcon />
+            </span>
+          </DouTooltip>
         </button>
         <span :class="ns.e('indicator')" :style="indicatorStyle" aria-hidden="true" />
       </div>

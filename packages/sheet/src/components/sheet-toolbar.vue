@@ -33,7 +33,6 @@ import {
   DouColorPanel,
   DouDropdown,
   DouDropdownItem,
-  DouKbd,
   DouPopover,
   DouToggle,
   DouToggleGroup,
@@ -376,7 +375,11 @@ onBeforeUnmount(() => observer?.disconnect())
         <DouToolbarSeparator v-if="tool === '|'" />
 
         <template v-else-if="tool === 'undo' || tool === 'redo'">
-          <DouTooltip placement="bottom">
+          <DouTooltip
+            :content="m[tool]"
+            :shortcut="tool === 'undo' ? 'mod+z' : 'mod+shift+z'"
+            placement="bottom"
+          >
             <DouButton
               variant="ghost"
               :aria-label="m[tool]"
@@ -386,11 +389,6 @@ onBeforeUnmount(() => observer?.disconnect())
               <UndoIcon v-if="tool === 'undo'" />
               <RedoIcon v-else />
             </DouButton>
-            <template #content>
-              <span class="dou-sheet-toolbar__tip"
-                >{{ m[tool] }} <DouKbd size="sm" :keys="tool === 'undo' ? 'mod+z' : 'mod+shift+z'"
-              /></span>
-            </template>
           </DouTooltip>
         </template>
 
@@ -446,7 +444,12 @@ onBeforeUnmount(() => observer?.disconnect())
           </DouTooltip>
         </template>
 
-        <DouTooltip v-else-if="isStyleTool(tool)" placement="bottom">
+        <DouTooltip
+          v-else-if="isStyleTool(tool)"
+          :content="m[tool]"
+          :shortcut="STYLE[tool].key"
+          placement="bottom"
+        >
           <DouToggle
             :pressed="!!style[tool]"
             :aria-label="m[tool]"
@@ -455,11 +458,6 @@ onBeforeUnmount(() => observer?.disconnect())
           >
             <component :is="STYLE[tool].icon" />
           </DouToggle>
-          <template #content>
-            <span class="dou-sheet-toolbar__tip"
-              >{{ m[tool] }} <DouKbd size="sm" :keys="STYLE[tool].key"
-            /></span>
-          </template>
         </DouTooltip>
 
         <DouTooltip
@@ -708,7 +706,12 @@ onBeforeUnmount(() => observer?.disconnect())
           </DouToggle>
         </DouTooltip>
 
-        <DouTooltip v-else-if="tool === 'clear'" placement="bottom">
+        <DouTooltip
+          v-else-if="tool === 'clear'"
+          :content="m.clearFormatting"
+          shortcut="mod+\"
+          placement="bottom"
+        >
           <DouButton
             variant="ghost"
             :aria-label="m.clearFormatting"
@@ -717,11 +720,6 @@ onBeforeUnmount(() => observer?.disconnect())
           >
             <TypeXIcon />
           </DouButton>
-          <template #content>
-            <span class="dou-sheet-toolbar__tip"
-              >{{ m.clearFormatting }} <DouKbd size="sm" keys="mod+\"
-            /></span>
-          </template>
         </DouTooltip>
       </template>
       <slot name="end" />

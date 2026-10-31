@@ -1030,12 +1030,6 @@
     flex: none;
   }
 
-  .dou-sheet-toolbar__tip {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-  }
-
   /* the number format: as wide as its longest name, so the tools after it stay put */
   .dou-sheet-toolbar__format {
     min-width: 72px;

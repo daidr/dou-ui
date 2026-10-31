@@ -4,9 +4,11 @@ import { computed } from 'vue'
 import { useClipboard } from '../../composables/use-clipboard'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
+import { DouTooltip } from '../tooltip'
 import type { CopyButtonProps } from './copy-button'
 
-defineOptions({ name: 'DouCopyButton' })
+// The root is the tooltip, so attributes go on the button by hand.
+defineOptions({ name: 'DouCopyButton', inheritAttrs: false })
 
 const props = withDefaults(defineProps<CopyButtonProps>(), {
   text: '',
@@ -40,23 +42,26 @@ const copiedLabel = computed(() => props.copiedLabel ?? t('copyButton.copied'))
 </script>
 
 <template>
-  <button
-    type="button"
-    :class="[
-      ns.b(),
-      ns.m(size),
-      ns.m(variant),
-      ns.is('copied', copied),
-      ns.is('labelled', showLabel),
-    ]"
-    :disabled="disabled"
-    :aria-label="copied ? copiedLabel : label"
-    :title="showLabel ? undefined : copied ? copiedLabel : label"
-    @click="copy"
-  >
-    <CheckIcon v-if="copied" :class="ns.e('icon')" />
-    <CopyIcon v-else :class="ns.e('icon')" />
-    <span v-if="showLabel" :class="ns.e('label')">{{ copied ? copiedLabel : label }}</span>
-    <span :class="ns.e('status')" role="status">{{ copied ? copiedLabel : '' }}</span>
-  </button>
+  <!-- Only the icon shows: its name goes in a tooltip. -->
+  <DouTooltip :content="copied ? copiedLabel : label" :disabled="showLabel">
+    <button
+      v-bind="$attrs"
+      type="button"
+      :class="[
+        ns.b(),
+        ns.m(size),
+        ns.m(variant),
+        ns.is('copied', copied),
+        ns.is('labelled', showLabel),
+      ]"
+      :disabled="disabled"
+      :aria-label="copied ? copiedLabel : label"
+      @click="copy"
+    >
+      <CheckIcon v-if="copied" :class="ns.e('icon')" />
+      <CopyIcon v-else :class="ns.e('icon')" />
+      <span v-if="showLabel" :class="ns.e('label')">{{ copied ? copiedLabel : label }}</span>
+      <span :class="ns.e('status')" role="status">{{ copied ? copiedLabel : '' }}</span>
+    </button>
+  </DouTooltip>
 </template>

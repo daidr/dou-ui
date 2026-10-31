@@ -27,8 +27,6 @@ export interface FormBuilderMessages {
   /** `side` names the pane, or the button that opens it, holding the fields and the outline. */
   panels: { side: string; fields: string; outline: string; settings: string }
   actions: {
-    /** A tooltip with the key that does the same; `{label}` and `{keys}`. */
-    withShortcut: string
     parent: string
     up: string
     down: string
@@ -204,7 +202,6 @@ const zhCN: FormBuilderMessages = {
   canvas: { label: '表单画布', empty: '点击字段添加到这里' },
   panels: { side: '字段与结构', fields: '字段', outline: '结构', settings: '设置' },
   actions: {
-    withShortcut: '{label}（{keys}）',
     parent: '选中上一级',
     up: '上移',
     down: '下移',
@@ -480,7 +477,6 @@ const zhTW: FormBuilderMessages = {
   canvas: { label: '表單畫布', empty: '點選欄位新增到這裡' },
   panels: { side: '欄位與結構', fields: '欄位', outline: '結構', settings: '設定' },
   actions: {
-    withShortcut: '{label}（{keys}）',
     parent: '選取上一層',
     up: '上移',
     down: '下移',
@@ -761,7 +757,6 @@ const en: FormBuilderMessages = {
     settings: 'Settings',
   },
   actions: {
-    withShortcut: '{label} ({keys})',
     parent: 'Select parent',
     up: 'Move up',
     down: 'Move down',

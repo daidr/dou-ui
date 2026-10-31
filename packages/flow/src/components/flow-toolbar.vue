@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { DouTooltip } from 'dou-ui'
 import { computed, ref, shallowReactive, useTemplateRef, watch } from 'vue'
 import { useFlowEditor } from '../context'
 import type { FlowToolbarItem } from '../core/menu'
@@ -61,7 +62,7 @@ function overlays() {
 
 // Above the selection, below it when there is no room or it would cover
 // something floating there, kept inside the editor.
-const style = computed(() => {
+const place = computed(() => {
   const { width, height } = box.value
   const { anchor, size } = props
   const left = Math.min(Math.max(anchor.x - width / 2, GAP), size.width - width - GAP)
@@ -80,11 +81,14 @@ const style = computed(() => {
   const beneath = hits(under)
   if (beneath.length) candidates.push(Math.max(...beneath.map((o) => o.bottom)) + GAP)
   const top = candidates.find(fits) ?? (above >= GAP ? above : under)
-  return {
-    left: `${Math.round(left)}px`,
-    top: `${Math.round(Math.min(Math.max(top, GAP), size.height - height - GAP))}px`,
-  }
+  return { left, top: Math.min(Math.max(top, GAP), size.height - height - GAP) }
 })
+const style = computed(() => ({
+  left: `${Math.round(place.value.left)}px`,
+  top: `${Math.round(place.value.top)}px`,
+}))
+/** Tips open away from the selection, so they never cover it. */
+const tipPlacement = computed(() => (place.value.top < props.anchor.top ? 'top' : 'bottom'))
 
 /** The buttons by key, to tell which one opened the menu. */
 const buttons = shallowReactive(new Map<string, Element>())
@@ -114,23 +118,29 @@ const hidden = computed(
   >
     <template v-for="(group, i) in groups" :key="i">
       <span v-if="i > 0" class="dou-flow-controls__divider" />
-      <button
+      <!-- The tip stands aside while the button's menu is open. -->
+      <DouTooltip
         v-for="item in group"
         :key="item.key"
-        type="button"
-        class="dou-flow-controls__button"
-        :class="{ 'is-active': item.active }"
-        :disabled="item.disabled"
-        :aria-label="item.label"
-        :aria-pressed="item.menu ? undefined : (item.active ?? undefined)"
-        :aria-haspopup="item.menu ? 'menu' : undefined"
-        :aria-expanded="item.menu ? !!menuFrom && menuFrom === buttons.get(item.key) : undefined"
-        :title="item.label"
-        :ref="(button) => setButton(item.key, button)"
-        @click="press(item, $event)"
+        :content="item.label"
+        :disabled="!!menuFrom && menuFrom === buttons.get(item.key)"
+        :placement="tipPlacement"
       >
-        <component :is="item.icon" />
-      </button>
+        <button
+          :ref="(button) => setButton(item.key, button)"
+          type="button"
+          class="dou-flow-controls__button"
+          :class="{ 'is-active': item.active }"
+          :disabled="item.disabled"
+          :aria-label="item.label"
+          :aria-pressed="item.menu ? undefined : (item.active ?? undefined)"
+          :aria-haspopup="item.menu ? 'menu' : undefined"
+          :aria-expanded="item.menu ? !!menuFrom && menuFrom === buttons.get(item.key) : undefined"
+          @click="press(item, $event)"
+        >
+          <component :is="item.icon" />
+        </button>
+      </DouTooltip>
     </template>
   </div>
 </template>

@@ -472,7 +472,7 @@
   }
 
   .dou-form-builder__actions[data-extra] > .dou-form-builder__actions-more {
-    display: contents;
+    display: flex;
   }
 
   @container dou-form-builder-node (width < 360px) {
@@ -481,7 +481,7 @@
     }
 
     .dou-form-builder__actions-more {
-      display: contents;
+      display: flex;
     }
   }
 

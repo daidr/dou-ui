@@ -1,4 +1,4 @@
-import type { SheetFilterCondition, SheetFilterRule, SheetSortOrder } from './model'
+import type { SheetCondition, SheetFilterRule, SheetSortOrder } from './model'
 
 /*
  * Sorting and filtering rows by their values. The grid hands in what each
@@ -92,9 +92,16 @@ function numberOf(value: unknown): number | null {
   return null
 }
 
+/** How a cell compares with a condition's operand: as numbers when both are, else as text. */
+function compareTo(value: unknown, text: string, target: unknown, collator: Intl.Collator) {
+  const a = typeof value === 'number' ? value : null
+  const b = numberOf(target)
+  return a != null && b != null ? a - b : collator.compare(text, String(target))
+}
+
 /** Whether a cell meets a condition, given what it comes to and how it shows. */
 export function meetsCondition(
-  condition: SheetFilterCondition,
+  condition: SheetCondition,
   value: unknown,
   text: string,
   collator = textCollator(),
@@ -115,14 +122,17 @@ export function meetsCondition(
     case 'ends':
       return shown.endsWith(wanted)
   }
-  // comparisons: as numbers when both are, else as text
-  const a = typeof value === 'number' ? value : null
-  const b = numberOf(target)
-  let c: number
-  if (a != null && b != null) c = a - b
-  else if (isEmptyValue(value))
+  if (op === 'between' || op === 'notBetween') {
+    if (isEmptyValue(value)) return op === 'notBetween'
+    const from = compareTo(value, text, target, collator)
+    const to = compareTo(value, text, condition.to ?? '', collator)
+    // either end may be the larger
+    const inside = (from >= 0 && to <= 0) || (from <= 0 && to >= 0)
+    return op === 'between' ? inside : !inside
+  }
+  if (isEmptyValue(value))
     return op === 'ne' ? !isEmptyValue(target) : op === 'eq' && isEmptyValue(target)
-  else c = collator.compare(text, String(target))
+  const c = compareTo(value, text, target, collator)
   switch (op) {
     case 'eq':
       return c === 0

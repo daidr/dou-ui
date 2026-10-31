@@ -17,6 +17,7 @@ import {
   RedoIcon,
   StrikethroughIcon,
   TableFreezeIcon,
+  TableHighlightIcon,
   TextAlignCenterIcon,
   TextAlignLeftIcon,
   TextAlignRightIcon,
@@ -33,6 +34,7 @@ import {
   DouColorPanel,
   DouDropdown,
   DouDropdownItem,
+  DouDropdownSub,
   DouPopover,
   DouToggle,
   DouToggleGroup,
@@ -52,9 +54,20 @@ import {
   type Component,
 } from 'vue'
 import { useSheet } from '../context'
-import { columnName } from '../core/address'
+import { boundsOf, columnName, formatRange } from '../core/address'
 import { alignOf, changeDecimals, formatValue } from '../core/format'
-import type { SheetStyle } from '../core/model'
+import type { SheetConditionalFormat, SheetStyle } from '../core/model'
+import FormatDialog from './format-dialog.vue'
+import FormatList from './format-list.vue'
+import {
+  barSwatch,
+  LOOKS,
+  SCALES,
+  scaleSwatch,
+  TONES,
+  toneKey,
+  type SheetScaleColors,
+} from './format-presets'
 import { format } from '../locale'
 import type {
   SheetFormatOption,
@@ -95,6 +108,7 @@ const DEFAULT_TOOLS: SheetToolbarTool[] = [
   '|',
   'sort',
   'filter',
+  'conditional',
   '|',
   'clear',
 ]
@@ -199,9 +213,7 @@ function decimals(by: number) {
 
 // Colors ----------------------------------------------------------------------------------
 
-const TONES: Tone[] = ['neutral', 'primary', 'success', 'warning', 'danger']
-const toneLabel = (tone: Tone) =>
-  m.value[`tone${tone[0]!.toUpperCase()}${tone.slice(1)}` as 'toneNeutral']
+const toneLabel = (tone: Tone) => m.value[toneKey(tone)]
 
 type ColorTool = 'color' | 'fill'
 const colorOpen = ref<ColorTool | null>(null)
@@ -281,6 +293,115 @@ function setAlign(value: ToggleValue | ToggleValue[] | null) {
 function setValign(value: SheetStyle['valign']) {
   sheet.styleSelection({ valign: value === 'middle' ? undefined : value })
   done()
+}
+
+// Conditional formats ---------------------------------------------------------------------
+
+/** The selected ranges, as names such as `D2:D40`. */
+function selectedRanges() {
+  const data = sheet.sheet.value
+  const size = { rows: data.rowCount ?? 1000, cols: data.colCount ?? 26 }
+  return sheet.selection.value.ranges.map((range) => formatRange(range, size))
+}
+/** The range the active cell is in, which a new format starts with. */
+function activeRange() {
+  const { ranges } = sheet.selection.value
+  const { row, col } = active.value
+  const range =
+    ranges.find((r) => {
+      const b = boundsOf(r)
+      return row >= b.top && row <= b.bottom && col >= b.left && col <= b.right
+    }) ?? ranges[ranges.length - 1]
+  const data = sheet.sheet.value
+  return range ? formatRange(range, { rows: data.rowCount ?? 1000, cols: data.colCount ?? 26 }) : ''
+}
+
+function addFormats(list: SheetConditionalFormat[]) {
+  if (!list.length) return
+  sheet.transact(
+    (tr) => {
+      for (const f of list) tr.addConditionalFormat(f)
+    },
+    { action: 'format' },
+  )
+  sheet.announce(format(m.value.formats.added, { range: list.map((f) => f.range).join(', ') }))
+  done()
+}
+
+/** The menu items that open the dialog, and the rule each starts with. */
+const HIGHLIGHTS = ['gt', 'lt', 'between', 'eq', 'contains', 'duplicates', 'formula'] as const
+const RANKS = ['top', 'bottom', 'above', 'below'] as const
+type FormatItem = (typeof HIGHLIGHTS)[number] | (typeof RANKS)[number]
+function startOf(item: FormatItem, range: string): SheetConditionalFormat {
+  const look = { ...LOOKS.danger }
+  switch (item) {
+    case 'duplicates':
+      return { range, duplicates: true, style: look }
+    case 'formula':
+      return { range, formula: '', style: look }
+    case 'top':
+      return { range, top: 10, style: look }
+    case 'bottom':
+      return { range, bottom: 10, style: look }
+    case 'above':
+    case 'below':
+      return { range, average: item, style: look }
+    default:
+      return { range, when: { op: item }, style: look }
+  }
+}
+
+const dialogFormat = ref<SheetConditionalFormat>({ range: '', when: { op: 'gt' }, style: {} })
+const dialogTitle = ref('')
+const dialogOpen = ref(false)
+/** The rule being edited, by its place in the list; `-1` adds one. */
+const editing = ref(-1)
+function openFormat(item: FormatItem) {
+  dialogFormat.value = startOf(item, activeRange())
+  dialogTitle.value = m.value.formats[item].replace(/…$/, '')
+  editing.value = -1
+  dialogOpen.value = true
+}
+function editFormat(index: number) {
+  dialogFormat.value = conditionals.value[index]!
+  dialogTitle.value = m.value.formats.editTitle
+  editing.value = index
+  dialogOpen.value = true
+}
+function applyFormat(f: SheetConditionalFormat) {
+  if (editing.value < 0) return addFormats([f])
+  const list = [...conditionals.value]
+  list[editing.value] = f
+  setFormats(list)
+}
+function dialogClosed() {
+  // editing from the list goes back to it, which keeps the focus
+  if (!listOpen.value) sheet.focus()
+}
+const listOpen = ref(false)
+const conditionals = computed(() => sheet.sheet.value.conditionalFormats ?? [])
+function setFormats(next: SheetConditionalFormat[]) {
+  sheet.transact((tr) => tr.setConditionalFormats(next), { action: 'format' })
+}
+function clearFormats(all: boolean) {
+  const before = conditionals.value.length
+  sheet.transact(
+    (tr) => {
+      if (all) tr.clearConditionalFormats()
+      else for (const range of selectedRanges()) tr.clearConditionalFormats(range)
+    },
+    { action: 'format' },
+  )
+  const count = before - (sheet.sheet.value.conditionalFormats?.length ?? 0)
+  sheet.announce(format(m.value.formats.cleared, { count }))
+  done()
+}
+
+function addScale(colors: SheetScaleColors) {
+  addFormats(selectedRanges().map((range) => ({ range, scale: [...colors] as SheetScaleColors })))
+}
+function addBar(tone: Tone) {
+  addFormats(selectedRanges().map((range) => ({ range, bar: tone })))
 }
 
 // Merge and freeze ------------------------------------------------------------------------
@@ -707,6 +828,78 @@ onBeforeUnmount(() => observer?.disconnect())
         </DouTooltip>
 
         <DouTooltip
+          v-else-if="tool === 'conditional'"
+          :content="m.formats.title"
+          :disabled="menuOpen === tool"
+          placement="bottom"
+        >
+          <span class="dou-sheet-toolbar__trigger">
+            <DouDropdown
+              :open="menuOpen === tool"
+              placement="bottom-start"
+              :disabled="disabled"
+              @update:open="onMenu(tool, $event)"
+            >
+              <DouButton
+                variant="ghost"
+                class="dou-sheet-toolbar__menu"
+                :aria-label="m.formats.title"
+              >
+                <TableHighlightIcon />
+                <template #trailing><ChevronDownIcon /></template>
+              </DouButton>
+              <template #menu>
+                <DouDropdownSub :title="m.formats.highlight">
+                  <DouDropdownItem v-for="kind in HIGHLIGHTS" :key="kind" @click="openFormat(kind)">
+                    {{ m.formats[kind] }}
+                  </DouDropdownItem>
+                </DouDropdownSub>
+                <DouDropdownSub :title="m.formats.ranks">
+                  <DouDropdownItem v-for="kind in RANKS" :key="kind" @click="openFormat(kind)">
+                    {{ m.formats[kind] }}
+                  </DouDropdownItem>
+                </DouDropdownSub>
+                <DouDropdownSub :title="m.formats.bar">
+                  <DouDropdownItem v-for="tone in TONES" :key="tone" @click="addBar(tone)">
+                    <template #prefix>
+                      <span
+                        class="dou-sheet-toolbar__gradient"
+                        :style="{ backgroundImage: barSwatch(tone) }"
+                      />
+                    </template>
+                    {{ toneLabel(tone) }}
+                  </DouDropdownItem>
+                </DouDropdownSub>
+                <DouDropdownSub :title="m.formats.scale">
+                  <DouDropdownItem
+                    v-for="(colors, key) in SCALES"
+                    :key="key"
+                    @click="addScale(colors)"
+                  >
+                    <template #prefix>
+                      <span
+                        class="dou-sheet-toolbar__gradient"
+                        :style="{ backgroundImage: scaleSwatch(colors) }"
+                      />
+                    </template>
+                    {{ m.formats.scales[key] }}
+                  </DouDropdownItem>
+                </DouDropdownSub>
+                <DouDropdownItem divided @click="clearFormats(false)">
+                  {{ m.formats.clearSelection }}
+                </DouDropdownItem>
+                <DouDropdownItem :disabled="!conditionals.length" @click="clearFormats(true)">
+                  {{ m.formats.clearSheet }}
+                </DouDropdownItem>
+                <DouDropdownItem divided @click="listOpen = true">
+                  {{ m.formats.manage }}
+                </DouDropdownItem>
+              </template>
+            </DouDropdown>
+          </span>
+        </DouTooltip>
+
+        <DouTooltip
           v-else-if="tool === 'clear'"
           :content="m.clearFormatting"
           shortcut="mod+\"
@@ -724,5 +917,23 @@ onBeforeUnmount(() => observer?.disconnect())
       </template>
       <slot name="end" />
     </DouToolbar>
+    <FormatDialog
+      v-model:open="dialogOpen"
+      :format="dialogFormat"
+      :title="dialogTitle"
+      :styles="sheet.doc.value.styles"
+      :messages="m"
+      @apply="applyFormat"
+      @closed="dialogClosed"
+    />
+    <FormatList
+      v-model:open="listOpen"
+      :formats="conditionals"
+      :styles="sheet.doc.value.styles"
+      :messages="m"
+      @change="setFormats"
+      @edit="editFormat"
+      @closed="sheet.focus()"
+    />
   </div>
 </template>

@@ -433,6 +433,34 @@
     }
   }
 
+  /* a conditional format's data bar, under the text and the selection's tint */
+  .dou-sheet__cell.has-bar {
+    --dou-sheet-bar: linear-gradient(
+      to right,
+      transparent var(--dou-sheet-bar-from),
+      var(--dou-sheet-bar-color) var(--dou-sheet-bar-from),
+      var(--dou-sheet-bar-color) var(--dou-sheet-bar-to),
+      transparent var(--dou-sheet-bar-to)
+    );
+    --dou-sheet-bar-size: calc(100% - 6px) calc(100% - 10px);
+    background-image: var(--dou-sheet-bar);
+    background-position: center;
+    background-size: var(--dou-sheet-bar-size);
+    background-repeat: no-repeat;
+
+    &.is-selected {
+      background-image:
+        linear-gradient(var(--dou-sheet-tint), var(--dou-sheet-tint)), var(--dou-sheet-bar);
+      background-size:
+        100% 100%,
+        var(--dou-sheet-bar-size);
+    }
+    &.is-active {
+      background-image: var(--dou-sheet-bar);
+      background-size: var(--dou-sheet-bar-size);
+    }
+  }
+
   /* a cell type's own content, laid out as if the cell held it directly */
   .dou-sheet__content {
     display: contents;
@@ -1516,5 +1544,159 @@
     gap: 8px;
     padding-top: 8px;
     border-top: 1px solid var(--dou-color-border-subtle);
+  }
+
+  /* conditional formats ---------------------------------------------------------- */
+
+  /* a small swatch in the toolbar's menu: a data bar or a color scale */
+  .dou-sheet-toolbar__gradient {
+    display: inline-block;
+    width: 28px;
+    height: 12px;
+    border: 1px solid var(--dou-color-border-subtle);
+    border-radius: 3px;
+  }
+
+  .dou-sheet-format__values {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    gap: 8px;
+
+    & > .dou-input {
+      flex: 1;
+      min-width: 0;
+    }
+  }
+  .dou-sheet-format__and {
+    flex: none;
+    color: var(--dou-color-text-secondary);
+  }
+  .dou-sheet-format__look {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+  /* how a look shows on a cell, in small */
+  .dou-sheet-format__sample {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: 40px;
+    height: 20px;
+    border: 1px solid var(--dou-color-border);
+    border-radius: 4px;
+    background-color: var(--dou-color-bg-surface);
+    background-repeat: no-repeat;
+    color: var(--dou-color-text);
+    font-size: var(--dou-font-size-xs);
+    font-variant-numeric: tabular-nums;
+
+    &.is-bold {
+      font-weight: 600;
+    }
+    &.is-italic {
+      font-style: italic;
+    }
+    &.is-bar {
+      background-position: 3px center;
+      background-size: calc(100% - 6px) 10px;
+    }
+    &.is-tone-neutral {
+      color: var(--dou-color-neutral-text);
+    }
+    &.is-tone-primary {
+      color: var(--dou-color-primary-text);
+    }
+    &.is-tone-success {
+      color: var(--dou-color-success-text);
+    }
+    &.is-tone-warning {
+      color: var(--dou-color-warning-text);
+    }
+    &.is-tone-danger {
+      color: var(--dou-color-danger-text);
+    }
+    &.is-fill-neutral {
+      background-color: color-mix(in oklab, var(--dou-color-text) 6%, var(--dou-color-bg-surface));
+    }
+    &.is-fill-primary {
+      background-color: color-mix(
+        in oklab,
+        var(--dou-color-primary) 12%,
+        var(--dou-color-bg-surface)
+      );
+    }
+    &.is-fill-success {
+      background-color: color-mix(
+        in oklab,
+        var(--dou-color-success) 12%,
+        var(--dou-color-bg-surface)
+      );
+    }
+    &.is-fill-warning {
+      background-color: color-mix(
+        in oklab,
+        var(--dou-color-warning) 14%,
+        var(--dou-color-bg-surface)
+      );
+    }
+    &.is-fill-danger {
+      background-color: color-mix(
+        in oklab,
+        var(--dou-color-danger) 12%,
+        var(--dou-color-bg-surface)
+      );
+    }
+  }
+
+  /* the list of a sheet's conditional formats */
+  .dou-sheet-formats {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .dou-sheet-formats__item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0;
+
+    & + & {
+      border-top: 1px solid var(--dou-color-border-subtle);
+    }
+  }
+  .dou-sheet-formats__what {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .dou-sheet-formats__rule {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .dou-sheet-formats__range {
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+    font-variant-numeric: tabular-nums;
+  }
+  .dou-sheet-formats__actions {
+    display: flex;
+    flex: none;
+    gap: 2px;
+  }
+  .dou-sheet-formats__empty {
+    margin: 0;
+    padding: 16px 0;
+    color: var(--dou-color-text-tertiary);
+    text-align: center;
   }
 }

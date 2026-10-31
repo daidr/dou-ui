@@ -166,16 +166,20 @@ const drawn = () =>
 
 /**
  * Runs `change`, then waits for the frame it is drawn in: the time taken
- * is the change itself, the updates after it, and the frame's work before
- * this callback (the chart draws in its own, earlier one), not the wait.
+ * is the change itself, the updates after it, and the frame callbacks the
+ * change asked for (the chart draws in one), not the wait for the frame.
+ * A callback asked for before the change runs first in that frame, one
+ * asked for after it runs last: the time between them is the frame's work.
  */
 async function timedDraw(change: () => void) {
+  let frameStart = 0
+  requestAnimationFrame(() => (frameStart = performance.now()))
   const start = performance.now()
   change()
   await nextTick()
   const updates = performance.now() - start
   await new Promise<void>((resolve) =>
-    requestAnimationFrame((frameStart) => {
+    requestAnimationFrame(() => {
       ;(window as any).workTime = updates + (performance.now() - frameStart)
       resolve()
     }),

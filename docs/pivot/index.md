@@ -527,16 +527,17 @@ result.get(east, result.columns.find(['Q1']), 1) // 华东 Q1 的第 2 个值
 
 ### CSS 变量
 
-| 变量                         | 说明                               |
-| ---------------------------- | ---------------------------------- |
-| `--dou-pivot-line`           | 格子之间的线                       |
-| `--dou-pivot-line-strong`    | 表头、行头的分隔线                 |
-| `--dou-pivot-head-bg`        | 表头和总计行的背景                 |
-| `--dou-pivot-total-bg`       | 合计列和总计列的背景               |
-| `--dou-pivot-ring`           | 键盘选中格子的边框颜色             |
-| `--dou-pivot-selected`       | 选中范围的底色                     |
-| `--dou-pivot-scale-strength` | 色阶最深时语气色的比例，默认 `28%` |
-| `--dou-pivot-bar-strength`   | 数据条语气色的比例，默认 `12%`     |
+| 变量                            | 说明                                     |
+| ------------------------------- | ---------------------------------------- |
+| `--dou-pivot-line`              | 格子之间的线                             |
+| `--dou-pivot-line-strong`       | 表头、行头的分隔线                       |
+| `--dou-pivot-head-bg`           | 表头和总计行的背景                       |
+| `--dou-pivot-total-bg`          | 合计列和总计列的背景                     |
+| `--dou-pivot-ring`              | 键盘选中格子的边框颜色                   |
+| `--dou-pivot-selected`          | 选中范围的底色                           |
+| `--dou-pivot-scale-strength`    | 色阶最深时语气色的比例，默认 `28%`       |
+| `--dou-pivot-bar-strength`      | 数据条语气色的比例，默认 `12%`           |
+| `--dou-pivot-bar-strength-dark` | 深色主题下数据条语气色的比例，默认 `24%` |
 
 ### 读屏
 

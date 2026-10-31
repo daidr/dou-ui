@@ -23,9 +23,11 @@
     --dou-pivot-scroll-shadow: color-mix(in oklab, var(--dou-color-text) 14%, transparent);
     --dou-pivot-ring: var(--dou-color-primary);
     --dou-pivot-selected: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
-    /* how deep the largest value's tint is, and how deep a bar is */
+    /* how deep the largest value's tint is, and how deep a bar is (a light
+       tone on a dark surface needs more of itself to show) */
     --dou-pivot-scale-strength: 28%;
     --dou-pivot-bar-strength: 12%;
+    --dou-pivot-bar-strength-dark: 24%;
 
     position: relative;
     box-sizing: border-box;
@@ -406,10 +408,9 @@
         left: calc(4px + (100% - 8px) * var(--dou-pivot-bar-start));
         width: calc((100% - 8px) * var(--dou-pivot-bar-size));
         border-radius: 3px;
-        background-color: color-mix(
-          in oklab,
-          var(--dou-pivot-tone) var(--dou-pivot-bar-strength),
-          transparent
+        background-color: light-dark(
+          color-mix(in oklab, var(--dou-pivot-tone) var(--dou-pivot-bar-strength), transparent),
+          color-mix(in oklab, var(--dou-pivot-tone) var(--dou-pivot-bar-strength-dark), transparent)
         );
         content: '';
       }

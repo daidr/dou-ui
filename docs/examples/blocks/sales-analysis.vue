@@ -152,31 +152,33 @@ async function exportAs(kind) {
         :data="orders"
         :fields="fields"
       />
-      <DouPivot
-        ref="pivot"
-        v-model:config="config"
-        v-model:collapsed="collapsed"
-        class="sales__table"
-        :data="orders"
-        :fields="fields"
-        :max-height="420"
-        aria-label="销售分析"
-        @cell-click="showDetails"
-      />
-    </div>
-
-    <DouCard title="透视图" :description="chartNote">
-      <DouChart :data="chart.rows" :x="chart.x" :height="260">
-        <DouChartAxis for="y" :format="chart.series[0]?.format" />
-        <DouChartBar
-          v-for="s in chart.series"
-          :key="s.key"
-          :y="s.key"
-          :name="s.name"
-          :stack="stacked"
+      <div class="sales__content">
+        <DouPivot
+          ref="pivot"
+          v-model:config="config"
+          v-model:collapsed="collapsed"
+          :data="orders"
+          :fields="fields"
+          :max-height="420"
+          aria-label="销售分析"
+          @cell-click="showDetails"
         />
-      </DouChart>
-    </DouCard>
+
+        <!-- 透视图放在表格下方，和字段面板并排 -->
+        <DouCard title="透视图" :description="chartNote">
+          <DouChart :data="chart.rows" :x="chart.x" :height="260">
+            <DouChartAxis for="y" :format="chart.series[0]?.format" />
+            <DouChartBar
+              v-for="s in chart.series"
+              :key="s.key"
+              :y="s.key"
+              :name="s.name"
+              :stack="stacked"
+            />
+          </DouChart>
+        </DouCard>
+      </div>
+    </div>
 
     <DouDrawer v-model:open="open" :title="`${where}（${records.length} 笔）`" :size="520">
       <DouTable
@@ -212,8 +214,10 @@ async function exportAs(kind) {
   flex: none;
   width: 280px;
 }
-.sales__table {
+.sales__content {
+  display: grid;
   flex: 1;
+  gap: 12px;
   min-width: 0;
 }
 @media (max-width: 639px) {
@@ -224,8 +228,8 @@ async function exportAs(kind) {
   .sales__fields {
     width: auto;
   }
-  /* in a column, flex: 1 would take the table's height away */
-  .sales__table {
+  /* in a column, flex: 1 would take the height away */
+  .sales__content {
     flex: none;
   }
 }

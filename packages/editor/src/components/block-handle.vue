@@ -19,7 +19,13 @@ import {
   getBlockSelection,
   selectBlocks,
 } from '../core/block-selection'
-import { blocksIn, findBlockById, siblingRangeBetween, type SiblingRange } from '../core/blocks'
+import {
+  blockAround,
+  blocksIn,
+  findBlockById,
+  siblingRangeBetween,
+  type SiblingRange,
+} from '../core/blocks'
 import {
   duplicateBlocks,
   insertBlockAfter,
@@ -34,7 +40,16 @@ import { blockElementOf, contentAt, firstLine, scrollParent } from '../dom'
 import { editorKey } from '../editor'
 import { useMenuEscape } from './menu-escape'
 
-const { view, state, messages, root, dragging, kit } = inject(editorKey)!
+const { view, state, focused, messages, root, dragging, kit } = inject(editorKey)!
+
+/**
+ * Touch screens have no hover: there the handle shows only the grip, next
+ * to the block with the cursor (or the selected blocks) while the editor
+ * has focus. A tap on it opens the menu, a press and drag moves the block.
+ */
+const touch = shallowRef(false)
+let media: MediaQueryList | null = null
+const onMedia = () => (touch.value = !!media?.matches)
 
 /** The block the handle is next to, by id. */
 const hovered = shallowRef<string | null>(null)
@@ -46,9 +61,12 @@ const drop = shallowRef<{ pos: number; top: number; left: number; width: number 
 // typing hides the handle until the pointer moves again
 const resting = shallowRef(false)
 
-const visible = computed(
-  () => !!position.value && (!resting.value || menuOpen.value || dragging.value),
-)
+const visible = computed(() => {
+  if (!position.value) return false
+  if (menuOpen.value || dragging.value) return true
+  if (touch.value) return focused.value || (!!state.value && !!getBlockSelection(state.value))
+  return !resting.value
+})
 
 function place(content: HTMLElement) {
   const block = blockElementOf(content)
@@ -70,6 +88,8 @@ let lastY = 0
 let lastX = 0
 
 function track(event: PointerEvent) {
+  // a finger only moves the handle by moving the cursor; a drag reports itself
+  if (event.pointerType === 'touch') return
   lastY = event.clientY
   lastX = event.clientX
   resting.value = false
@@ -90,11 +110,47 @@ function leave(event: PointerEvent) {
   hovered.value = null
 }
 
+/** On touch screens: put the handle next to the block with the cursor. */
+function follow() {
+  const current = view.value
+  if (!current || dragging.value) return
+  const selected = blockSelectionRange(current.state)
+  const info = selected ? blocksIn(selected)[0] : blockAround(current.state.selection.$from)
+  const element = info
+    ? (current.nodeDOM(info.pos) as HTMLElement | null)?.querySelector<HTMLElement>(
+        ':scope > .dou-editor__content',
+      )
+    : null
+  if (element) place(element)
+  else {
+    position.value = null
+    hovered.value = null
+  }
+}
+
+let followFrame = 0
+function scheduleFollow() {
+  if (!touch.value || followFrame) return
+  followFrame = requestAnimationFrame(() => {
+    followFrame = 0
+    if (touch.value && !menuOpen.value) follow()
+  })
+}
+
+watch([state, focused, touch], scheduleFollow)
+
 onMounted(() => {
+  media = window.matchMedia('(pointer: coarse)')
+  onMedia()
+  media.addEventListener('change', onMedia)
+  window.addEventListener('resize', scheduleFollow)
   root.value?.addEventListener('pointermove', track)
   root.value?.addEventListener('pointerleave', leave)
 })
 onBeforeUnmount(() => {
+  media?.removeEventListener('change', onMedia)
+  window.removeEventListener('resize', scheduleFollow)
+  if (followFrame) cancelAnimationFrame(followFrame)
   root.value?.removeEventListener('pointermove', track)
   root.value?.removeEventListener('pointerleave', leave)
   if (frame) cancelAnimationFrame(frame)
@@ -103,7 +159,7 @@ onBeforeUnmount(() => {
 
 // follow edits: keep the handle on its block, or hide it while typing
 watch(state, (next, previous) => {
-  if (!next || !previous || next.doc === previous.doc || dragging.value) return
+  if (touch.value || !next || !previous || next.doc === previous.doc || dragging.value) return
   if (!menuOpen.value) resting.value = true
   requestAnimationFrame(() => {
     const current = view.value
@@ -216,7 +272,7 @@ const canMove = (direction: -1 | 1) => {
 
 /* dragging */
 
-let start: { x: number; y: number; pointer: number } | null = null
+let start: { x: number; y: number; pointer: number; touch: boolean } | null = null
 let range: SiblingRange | null = null
 let scroller: HTMLElement | null = null
 let scrollFrame = 0
@@ -249,12 +305,20 @@ function showGhost(moving: SiblingRange) {
 }
 
 function moveGhost() {
-  if (ghost) ghost.style.transform = `translate(${lastX + 12}px, ${lastY + 12}px)`
+  if (!ghost) return
+  // above a finger, which would hide it; below and right of a mouse pointer
+  const y = start?.touch ? lastY - ghost.offsetHeight - 24 : lastY + 12
+  ghost.style.transform = `translate(${lastX + 12}px, ${y}px)`
 }
 
 function onGripDown(event: PointerEvent) {
   if (event.button !== 0) return
-  start = { x: event.clientX, y: event.clientY, pointer: event.pointerId }
+  start = {
+    x: event.clientX,
+    y: event.clientY,
+    pointer: event.pointerId,
+    touch: event.pointerType === 'touch',
+  }
   ;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
 }
 
@@ -263,7 +327,9 @@ function onGripMove(event: PointerEvent) {
   lastX = event.clientX
   lastY = event.clientY
   if (!dragging.value) {
-    if (Math.hypot(event.clientX - start.x, event.clientY - start.y) < 4) return
+    // a finger wobbles more than a mouse while tapping
+    const slop = start.touch ? 8 : 4
+    if (Math.hypot(event.clientX - start.x, event.clientY - start.y) < slop) return
     range = selectTarget()
     if (!range) return stopDrag()
     dragging.value = true
@@ -370,7 +436,9 @@ function stopDrag() {
 }
 
 watch(menuOpen, (value) => {
-  if (!value && !root.value?.matches(':hover')) position.value = null
+  if (value) return
+  if (touch.value) scheduleFollow()
+  else if (!root.value?.matches(':hover')) position.value = null
 })
 </script>
 
@@ -392,7 +460,7 @@ watch(menuOpen, (value) => {
     <button
       type="button"
       tabindex="-1"
-      class="dou-editor__handle-button"
+      class="dou-editor__handle-button dou-editor__add"
       :aria-label="messages.addBlock"
       :title="messages.addBlock"
       @click="add"
@@ -432,19 +500,32 @@ watch(menuOpen, (value) => {
             </template>
           </DouDropdownItem>
         </DouDropdownSub>
-        <DouDropdownItem shortcut="mod+d" @click="duplicate">
+        <DouDropdownItem :shortcut="touch ? undefined : 'mod+d'" @click="duplicate">
           <template #prefix><CopyIcon /></template>
           {{ messages.duplicate }}
         </DouDropdownItem>
-        <DouDropdownItem :disabled="!canMove(-1)" shortcut="mod+shift+up" @click="move(-1)">
+        <DouDropdownItem
+          :disabled="!canMove(-1)"
+          :shortcut="touch ? undefined : 'mod+shift+up'"
+          @click="move(-1)"
+        >
           <template #prefix><ArrowUpIcon /></template>
           {{ messages.moveUp }}
         </DouDropdownItem>
-        <DouDropdownItem :disabled="!canMove(1)" shortcut="mod+shift+down" @click="move(1)">
+        <DouDropdownItem
+          :disabled="!canMove(1)"
+          :shortcut="touch ? undefined : 'mod+shift+down'"
+          @click="move(1)"
+        >
           <template #prefix><ArrowDownIcon /></template>
           {{ messages.moveDown }}
         </DouDropdownItem>
-        <DouDropdownItem divided tone="danger" shortcut="delete" @click="remove">
+        <DouDropdownItem
+          divided
+          tone="danger"
+          :shortcut="touch ? undefined : 'delete'"
+          @click="remove"
+        >
           <template #prefix><TrashIcon /></template>
           {{ messages.delete }}
         </DouDropdownItem>

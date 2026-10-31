@@ -1,6 +1,6 @@
 # 折叠块与提示块
 
-折叠块和提示块都包含在 `starterKit` 中，在块菜单里输入“折叠块”或“提示块”插入。
+折叠块和提示块都包含在 `editorKit` 中，在块菜单里输入“折叠块”或“提示块”插入。
 
 <DocDemo src="editor/toggle-callout" column />
 
@@ -29,8 +29,8 @@
 
 ## 去掉这两种块
 
-不需要时，可以在 `starterKit` 中去掉：
+不需要时，可以在 `editorKit` 中去掉：
 
 ```ts
-starterKit({ toggle: false, callout: false })
+editorKit({ toggle: false, callout: false })
 ```

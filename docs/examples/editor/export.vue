@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { blocksToHTML, DouEditor, starterKit } from '@dou-ui/editor'
+import { blocksToHTML, DouEditor, editorKit } from '@dou-ui/editor'
 import { blocksToMarkdown } from '@dou-ui/editor/markdown'
 import { computed, ref } from 'vue'
 
-const extensions = [starterKit()]
+const extensions = [editorKit()]
 
 const blocks = ref([
   { type: 'heading', props: { level: 2 }, content: '上海站活动安排' },

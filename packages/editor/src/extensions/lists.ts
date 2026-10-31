@@ -1,7 +1,7 @@
 import { ListIcon, ListOrderedIcon, ListTodoIcon } from '@dou-ui/icons'
 import type { NodeViewConstructor } from 'prosemirror-view'
 import { setBlockType } from '../core/commands'
-import { defineExtension } from '../core/extension'
+import { defineEditorExtension } from '../core/extension'
 import { blockInputRule } from '../core/input-rules'
 import { createId } from '../core/model'
 import { numberingPlugin } from '../core/plugins'
@@ -83,7 +83,7 @@ const checkItemView: NodeViewConstructor = (node, view, getPos) => {
  * `Enter` continues the list, `Tab` nests an item. Pasted HTML lists keep
  * their nesting, and task lists become to-do items.
  */
-export const lists = defineExtension({
+export const lists = defineEditorExtension({
   name: 'lists',
   blocks: {
     bulletItem: textBlock('bulletItem', {
@@ -138,9 +138,9 @@ export const lists = defineExtension({
     })),
   ],
   keymap: () => ({
-    'Mod-Shift-7': setBlockType('numberedItem'),
-    'Mod-Shift-8': setBlockType('bulletItem'),
-    'Mod-Shift-9': setBlockType('checkItem'),
+    'mod+shift+7': setBlockType('numberedItem'),
+    'mod+shift+8': setBlockType('bulletItem'),
+    'mod+shift+9': setBlockType('checkItem'),
   }),
   blockOptions: [
     {

@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { blocksToMarkdown, markdownToBlocks } from '..'
 import { blocksToHTML, htmlToBlocks } from '../../core/convert'
-import { defineExtension } from '../../core/extension'
+import { defineEditorExtension } from '../../core/extension'
 import type { Block, InlineContent, PartialBlock } from '../../core/model'
 import { textBlock } from '../../core/schema'
 import { image } from '../../extensions/image'
 import { mention } from '../../extensions/mention'
-import { starterKit } from '../../extensions/starter-kit'
+import { editorKit } from '../../extensions/editor-kit'
 
-const extensions = [starterKit(), image(), mention({ search: () => [] })]
+const extensions = [editorKit(), image(), mention({ search: () => [] })]
 
 /** Blocks without ids, for comparing. */
 function shape(blocks: Block[]): unknown[] {
@@ -175,7 +175,7 @@ describe('Markdown', () => {
 
   it('leaves out what no extension reads', () => {
     const blocks = markdownToBlocks('<script>alert(1)</script>\n\n| a |\n| - |\n| b |\n', [
-      starterKit({ table: false }),
+      editorKit({ table: false }),
     ])
     expect(blocks.map((item) => item.type)).toEqual(['paragraph'])
     expect(JSON.stringify(blocks)).not.toContain('alert')
@@ -208,7 +208,7 @@ describe('HTML', () => {
   })
 
   it('uses what custom extensions declare', () => {
-    const note = defineExtension({
+    const note = defineEditorExtension({
       name: 'note',
       blocks: {
         note: textBlock('note', {
@@ -224,7 +224,7 @@ describe('HTML', () => {
         },
       },
     })
-    const list = [starterKit(), note]
+    const list = [editorKit(), note]
     const blocks = [block({ type: 'note', content: [text('记得带伞')] })]
     expect(blocksToHTML(blocks, list)).toBe('<section class="note">记得带伞</section>')
     expect(blocksToMarkdown(blocks, list)).toBe('NOTE: 记得带伞\n')

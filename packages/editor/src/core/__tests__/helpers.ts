@@ -1,12 +1,12 @@
 import { TextSelection, type Command, type EditorState } from 'prosemirror-state'
 import { findBlockById } from '../blocks'
 import { createPlugins, createState } from '../editor'
-import { resolveExtensions } from '../extension'
-import { starterKit } from '../../extensions/starter-kit'
+import { resolveEditorExtensions } from '../extension'
+import { editorKit } from '../../extensions/editor-kit'
 import { docToBlocks, type Block, type PartialBlock } from '../model'
 
 export function stateOf(blocks: PartialBlock[]): EditorState {
-  const kit = resolveExtensions([starterKit()])
+  const kit = resolveEditorExtensions([editorKit()])
   const plugins = createPlugins({
     kit,
     placeholder: { text: () => '', heading: () => '', empty: () => '' },

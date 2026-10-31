@@ -30,6 +30,7 @@ app.use(DouEditor)
 
 - 输入 `/` 打开块菜单，继续输入可以筛选，`Enter` 选中。在空块里会转换当前块，在有内容的块里会在下方插入新块。
 - 鼠标移到块上，左侧出现手柄：点击 `+` 在下方添加块；拖动 <code>⋮⋮</code> 移动块，点击它打开块菜单，可以转换类型、复制、移动和删除。
+- 在手机等触屏设备上，光标所在的块左侧出现 <code>⋮⋮</code>：按住拖动可以移动块，点一下打开块菜单，菜单里的“上移”“下移”适合小幅调整。
 - 选中文字后，上方出现格式工具栏，可以设置粗体、斜体、链接等，也可以转换所在块的类型。
 - 粘贴网页或其他编辑器的内容时，标题、列表（包括嵌套列表和任务列表）、引用、代码和链接都会保留。
 - 行首输入 `#`、`-`、`1.`、`[]` 等 Markdown 标记会转换块的类型，`Tab` 和 `Shift+Tab` 调整缩进。完整列表见[快捷操作](./shortcuts)。
@@ -71,19 +72,19 @@ function reset() {
 
 ### Props
 
-| 名称          | 说明                                                                      | 类型                     | 默认值           |
-| ------------- | ------------------------------------------------------------------------- | ------------------------ | ---------------- |
-| `modelValue`  | 文档内容，用 `v-model` 绑定                                               | `PartialBlock[]`         | —                |
-| `readonly`    | 只读                                                                      | `boolean`                | `false`          |
-| `placeholder` | 光标所在空块里的提示文字                                                  | `string`                 | 跟随语言         |
-| `ariaLabel`   | 编辑区域的无障碍名称                                                      | `string`                 | —                |
-| `autofocus`   | 挂载后获得焦点                                                            | `boolean`                | `false`          |
-| `messages`    | 替换内置文字，只写要改的部分即可，例如 `{ types: { paragraph: '段落' } }` | `EditorMessagesOverride` | —                |
-| `extensions`  | 使用的扩展，见[扩展](./extensions)，只在创建时读取                        | `EditorExtension[]`      | `[starterKit()]` |
-| `plugins`     | 额外的 ProseMirror 插件，排在内置插件之前                                 | `Plugin[]`               | —                |
-| `history`     | 使用内置的撤销记录，使用自己的撤销方案时关闭                              | `boolean`                | `true`           |
-| `undo`        | 替换撤销命令                                                              | `Command`                | —                |
-| `redo`        | 替换重做命令                                                              | `Command`                | —                |
+| 名称          | 说明                                                                      | 类型                     | 默认值          |
+| ------------- | ------------------------------------------------------------------------- | ------------------------ | --------------- |
+| `modelValue`  | 文档内容，用 `v-model` 绑定                                               | `PartialBlock[]`         | —               |
+| `readonly`    | 只读                                                                      | `boolean`                | `false`         |
+| `placeholder` | 光标所在空块里的提示文字                                                  | `string`                 | 跟随语言        |
+| `ariaLabel`   | 编辑区域的无障碍名称                                                      | `string`                 | —               |
+| `autofocus`   | 挂载后获得焦点                                                            | `boolean`                | `false`         |
+| `messages`    | 替换内置文字，只写要改的部分即可，例如 `{ types: { paragraph: '段落' } }` | `EditorMessagesOverride` | —               |
+| `extensions`  | 使用的扩展，见[扩展](./extensions)，只在创建时读取                        | `EditorExtension[]`      | `[editorKit()]` |
+| `plugins`     | 额外的 ProseMirror 插件，排在内置插件之前                                 | `Plugin[]`               | —               |
+| `history`     | 使用内置的撤销记录，使用自己的撤销方案时关闭                              | `boolean`                | `true`          |
+| `undo`        | 替换撤销命令                                                              | `Command`                | —               |
+| `redo`        | 替换重做命令                                                              | `Command`                | —               |
 
 ### Events
 

@@ -116,7 +116,7 @@ export function isSafeHref(href: string): boolean {
   return !scheme || ['http', 'https', 'mailto', 'tel'].includes(scheme)
 }
 
-/** The content types that come with `starterKit`; extensions add more. */
+/** The content types that come with `editorKit`; extensions add more. */
 export type BuiltinContentType =
   | 'paragraph'
   | 'heading'

@@ -1,6 +1,6 @@
 import { DOMParser as PMDOMParser } from 'prosemirror-model'
 import { Plugin, PluginKey } from 'prosemirror-state'
-import type { ResolvedExtensions } from './extension'
+import type { ResolvedEditorExtensions } from './extension'
 import { createId, docToBlocks, type Block } from './model'
 
 /**
@@ -77,12 +77,12 @@ const isBlank = (node: Node) => node.nodeType === 3 && !node.textContent?.trim()
 const isBlockElement = (node: Node) => node instanceof Element && BLOCK_TAGS.has(node.tagName)
 
 /** Run every extension's `prepareHTML` over the markup. */
-export function prepareElement(root: HTMLElement, kit: ResolvedExtensions) {
+export function prepareElement(root: HTMLElement, kit: ResolvedEditorExtensions) {
   for (const extension of kit.extensions) extension.prepareHTML?.(root)
 }
 
 /** Read HTML as blocks, with the block types, inline nodes and marks of `kit`. */
-export function parseHTML(html: string, kit: ResolvedExtensions): Block[] {
+export function parseHTML(html: string, kit: ResolvedEditorExtensions): Block[] {
   const doc = new DOMParser().parseFromString(html, 'text/html')
   prepareElement(doc.body, kit)
   const blocks = docToBlocks(PMDOMParser.fromSchema(kit.schema).parse(doc.body))
@@ -97,7 +97,7 @@ export function parseHTML(html: string, kit: ResolvedExtensions): Block[] {
 }
 
 /** Pasted HTML goes through the extensions' `prepareHTML` too. */
-export function preparePastePlugin(kit: ResolvedExtensions): Plugin {
+export function preparePastePlugin(kit: ResolvedEditorExtensions): Plugin {
   return new Plugin({
     key: new PluginKey('dou-editor-paste'),
     props: {

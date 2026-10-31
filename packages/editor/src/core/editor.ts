@@ -5,7 +5,7 @@ import type { Node as PMNode } from 'prosemirror-model'
 import { EditorState, type Command, type Plugin } from 'prosemirror-state'
 import { EditorView, type NodeViewConstructor } from 'prosemirror-view'
 import { blockSelectionPlugin } from './block-selection'
-import type { ResolvedExtensions } from './extension'
+import type { ResolvedEditorExtensions } from './extension'
 import { editorInputRules } from './input-rules'
 import { editorKeymap, type KeymapOptions } from './keymap'
 import { blocksToDoc, docToBlocks, type Block, type PartialBlock } from './model'
@@ -16,7 +16,7 @@ export interface CreateEditorOptions {
   /** Where the editor goes. */
   element: HTMLElement
   /** The resolved extensions: schema, plugins, node views. */
-  kit: ResolvedExtensions
+  kit: ResolvedEditorExtensions
   /** More node views, e.g. ones that render Vue components. */
   nodeViews?: Record<string, NodeViewConstructor>
   blocks?: PartialBlock[]
@@ -63,7 +63,7 @@ export function createPlugins(options: Omit<CreateEditorOptions, 'element'>): Pl
 }
 
 export function createState(
-  kit: ResolvedExtensions,
+  kit: ResolvedEditorExtensions,
   blocks: PartialBlock[] | undefined,
   plugins: Plugin[],
 ): EditorState {

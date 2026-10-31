@@ -1,6 +1,6 @@
 import { defineComponent, h } from 'vue'
 import { escapeHTML } from '../../core/output'
-import { defineExtension, type EditorExtension } from '../../core/extension'
+import { defineEditorExtension, type EditorExtension } from '../../core/extension'
 import MentionMenu from './mention-menu.vue'
 import { mentionPlugin, type MentionItem } from './state'
 
@@ -27,7 +27,7 @@ export function mention(options: MentionOptions): EditorExtension {
       return () => h(MentionMenu, { search: options.search })
     },
   })
-  return defineExtension({
+  return defineEditorExtension({
     name: 'mention',
     inlines: {
       mention: {

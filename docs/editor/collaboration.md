@@ -16,7 +16,7 @@ bun add yjs
 
 ```vue
 <script setup lang="ts">
-import { DouEditor, starterKit } from '@dou-ui/editor'
+import { DouEditor, editorKit } from '@dou-ui/editor'
 import { collaboration } from '@dou-ui/editor/collaboration'
 import { WebsocketProvider } from 'y-websocket'
 import * as Y from 'yjs'
@@ -25,7 +25,7 @@ const doc = new Y.Doc()
 const provider = new WebsocketProvider('wss://example.com', 'trip-plan', doc)
 
 const extensions = [
-  starterKit(),
+  editorKit(),
   collaboration({
     map: doc.getMap('document'),
     awareness: provider.awareness,

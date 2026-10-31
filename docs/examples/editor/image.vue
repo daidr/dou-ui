@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { DouEditor, image, starterKit } from '@dou-ui/editor'
+import { DouEditor, image, editorKit } from '@dou-ui/editor'
 import { ref } from 'vue'
 
 // 示例里只在本地显示，实际使用时把文件上传到自己的存储，返回图片地址
@@ -8,7 +8,7 @@ const upload = async (file: File) => {
   return URL.createObjectURL(file)
 }
 
-const extensions = [starterKit(), image({ upload })]
+const extensions = [editorKit(), image({ upload })]
 
 const photo =
   'data:image/svg+xml,' +

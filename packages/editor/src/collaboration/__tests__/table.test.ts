@@ -5,9 +5,9 @@ import { afterEach, describe, expect, it } from 'vitest'
 import * as Y from 'yjs'
 import { collaboration, fillMap } from '..'
 import { createEditorView, getBlocks } from '../../core/editor'
-import { resolveExtensions } from '../../core/extension'
+import { resolveEditorExtensions } from '../../core/extension'
 import type { Block, PartialBlock } from '../../core/model'
-import { starterKit } from '../../extensions/starter-kit'
+import { editorKit } from '../../extensions/editor-kit'
 import {
   deleteColumns,
   deleteRows,
@@ -28,10 +28,10 @@ afterEach(async () => {
   for (const view of views.splice(0)) view.destroy()
 })
 
-const kits = new WeakMap<EditorView, ReturnType<typeof resolveExtensions>>()
+const kits = new WeakMap<EditorView, ReturnType<typeof resolveEditorExtensions>>()
 
 function client(doc: Y.Doc) {
-  const kit = resolveExtensions([starterKit(), collaboration({ map: doc.getMap('document') })])
+  const kit = resolveEditorExtensions([editorKit(), collaboration({ map: doc.getMap('document') })])
   const element = document.createElement('div')
   document.body.append(element)
   const view = createEditorView({

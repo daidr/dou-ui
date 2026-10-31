@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { DouEditor, starterKit } from '@dou-ui/editor'
+import { DouEditor, editorKit } from '@dou-ui/editor'
 import { codeToHtml } from 'shiki'
 import { ref } from 'vue'
 
@@ -10,7 +10,7 @@ const highlight = (code: string, lang: string) =>
     defaultColor: false,
   })
 
-const extensions = [starterKit({ codeBlock: { highlight } })]
+const extensions = [editorKit({ codeBlock: { highlight } })]
 
 const blocks = ref([
   { type: 'heading', props: { level: 2 }, content: '读取行程' },

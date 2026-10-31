@@ -4,10 +4,10 @@ import type { EditorView } from 'prosemirror-view'
 import { afterEach, describe, expect, it } from 'vitest'
 import { blocksToHTML, htmlToBlocks } from '../../../core/convert'
 import { createEditorView } from '../../../core/editor'
-import { resolveExtensions } from '../../../core/extension'
+import { resolveEditorExtensions } from '../../../core/extension'
 import { blocksToDoc, docToBlocks, type Block, type PartialBlock } from '../../../core/model'
 import { blocksToMarkdown, markdownToBlocks } from '../../../markdown'
-import { starterKit } from '../../starter-kit'
+import { editorKit } from '../../editor-kit'
 import {
   alignColumns,
   deleteColumns,
@@ -21,8 +21,8 @@ import {
   toggleHeader,
 } from '../commands'
 
-const extensions = [starterKit()]
-const kit = resolveExtensions(extensions)
+const extensions = [editorKit()]
+const kit = resolveEditorExtensions(extensions)
 
 let view: EditorView | undefined
 afterEach(() => {

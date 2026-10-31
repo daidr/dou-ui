@@ -1,7 +1,7 @@
 import { ChevronRightSquareIcon } from '@dou-ui/icons'
 import { TextSelection, type Command } from 'prosemirror-state'
 import { blockAround } from '../../core/blocks'
-import { defineExtension } from '../../core/extension'
+import { defineEditorExtension } from '../../core/extension'
 import { blockElement } from '../../core/prepare'
 import { flipToggle, isToggleOpen, togglePlugin } from './state'
 import ToggleBlock from './toggle-block.vue'
@@ -41,7 +41,7 @@ const enter: Command = (state, dispatch, view) => {
  * A toggle: a title with a button that shows or hides the blocks nested
  * under it. Whether it is open belongs to the reader, not the document.
  */
-export const toggle = defineExtension({
+export const toggle = defineEditorExtension({
   name: 'toggle',
   blocks: {
     toggle: {
@@ -76,7 +76,7 @@ export const toggle = defineExtension({
       details.replaceWith(blockElement(details.ownerDocument, 'toggle', content, children))
     }
   },
-  keymap: () => ({ Enter: enter }),
+  keymap: () => ({ enter }),
   plugins: () => [togglePlugin()],
   blockOptions: [
     {

@@ -1,6 +1,6 @@
 import { TableIcon } from '@dou-ui/icons'
 import { columnResizing, tableEditing } from 'prosemirror-tables'
-import { defineExtension } from '../../core/extension'
+import { defineEditorExtension } from '../../core/extension'
 import { goDown, goToCell, stopAtCellEdge } from './commands'
 import { prepareTables, tableOutput } from './html'
 import { tablePlugin } from './plugin'
@@ -13,17 +13,17 @@ import { CELL_MIN_WIDTH, TableBlockView } from './view'
  * and columns are added, moved and removed from the handles on their
  * edges, and columns resized by dragging their borders.
  */
-export const table = defineExtension({
+export const table = defineEditorExtension({
   name: 'table',
   blocks: { table: tableSpec },
   nodes: tableNodes,
   nodeViews: { table: (node) => new TableBlockView(node) },
   keymap: () => ({
-    Tab: goToCell(1),
-    'Shift-Tab': goToCell(-1),
-    Enter: goDown,
-    Backspace: stopAtCellEdge('start'),
-    Delete: stopAtCellEdge('end'),
+    tab: goToCell(1),
+    'shift+tab': goToCell(-1),
+    enter: goDown,
+    backspace: stopAtCellEdge('start'),
+    delete: stopAtCellEdge('end'),
   }),
   plugins: () => [
     columnResizing({ cellMinWidth: 48, defaultCellMinWidth: CELL_MIN_WIDTH, View: null }),

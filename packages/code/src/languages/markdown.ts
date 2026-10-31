@@ -15,7 +15,7 @@ export interface MarkdownState {
 
 export interface MarkdownOptions {
   /** Languages for fenced code, picked by the fence's info string (`` ```ts ``). */
-  code?: readonly CodeLanguage[]
+  languages?: readonly CodeLanguage[]
 }
 
 function inline(stream: CodeStream): CodeTokenType | null {
@@ -32,9 +32,9 @@ function inline(stream: CodeStream): CodeTokenType | null {
   return null
 }
 
-/** Makes Markdown; `code` lists the languages its fenced code is highlighted with. */
+/** Makes Markdown; `languages` lists the languages its fenced code is highlighted with. */
 export function createMarkdown(options: MarkdownOptions = {}): CodeLanguage<MarkdownState> {
-  const languages = options.code ?? []
+  const languages = options.languages ?? []
   return defineCodeLanguage<MarkdownState>({
     name: 'markdown',
     aliases: ['md'],
@@ -90,7 +90,7 @@ export function createMarkdown(options: MarkdownOptions = {}): CodeLanguage<Mark
       return inline(stream)
     },
     comment: { block: ['<!--', '-->'] },
-    closeBrackets: '([{`"',
+    autoClose: '([{`"',
     languageAt: (state) => state.inner?.language ?? null,
   })
 }

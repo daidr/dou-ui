@@ -29,9 +29,11 @@ ${'<'}/script>
     language: typescript,
     code: `type Sugar = '无糖' | '半糖' | '全糖'
 
-/** 同一种甜度的杯数 */
-export function count(orders: { sugar: Sugar; cups: number }[], sugar: Sugar) {
-  return orders.filter((order) => order.sugar === sugar).length
+/** 同一种甜度一共几杯 */
+export function cupsOf(orders: { sugar: Sugar; cups: number }[], sugar: Sugar) {
+  return orders
+    .filter((order) => order.sugar === sugar)
+    .reduce((sum, order) => sum + order.cups, 0)
 }
 `,
   },

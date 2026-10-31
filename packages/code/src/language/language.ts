@@ -74,8 +74,8 @@ export interface CodeLanguageSpec<S> {
   comment?: { line?: string; block?: [open: string, close: string] }
   /** Bracket pairs, for matching and indenting. Default `'()[]{}'`. */
   brackets?: string
-  /** Characters that get their closing partner typed with them. Default the brackets' openers and `'"`. */
-  closeBrackets?: string
+  /** Characters, as one string, that get their closing partner typed with them. Default the brackets' openers and `'"`. */
+  autoClose?: string
   /** A line before the cursor that matches this gets one more indent on Enter, besides an open bracket. */
   indentAfter?: RegExp
   /** The language that is active in a state, for languages that hold others (a `<script>` in HTML). */
@@ -93,7 +93,7 @@ export interface CodeLanguage<S = any> {
   sameState(a: S, b: S): boolean
   readonly comment: { line?: string; block?: [string, string] }
   readonly brackets: string
-  readonly closeBrackets: string
+  readonly autoClose: string
   readonly indentAfter?: RegExp
   languageAt(state: S): CodeLanguage | null
 }
@@ -163,7 +163,7 @@ export function defineCodeLanguage<S = Record<string, never>>(
     sameState: spec.sameState ?? samePlain,
     comment: spec.comment ?? {},
     brackets,
-    closeBrackets: spec.closeBrackets ?? openers + '\'"',
+    autoClose: spec.autoClose ?? openers + '\'"',
     indentAfter: spec.indentAfter,
     languageAt: spec.languageAt ?? (() => null),
   })

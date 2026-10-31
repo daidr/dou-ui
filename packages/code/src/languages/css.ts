@@ -132,7 +132,7 @@ export function createCss(name: string, aliases: string[], scss = false): CodeLa
       return null
     },
     comment: scss ? { line: '//', block: ['/*', '*/'] } : { block: ['/*', '*/'] },
-    closeBrackets: '([{\'"',
+    autoClose: '([{\'"',
   })
 }
 

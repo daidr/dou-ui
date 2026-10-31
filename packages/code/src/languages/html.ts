@@ -199,7 +199,7 @@ export function createHtml(
       return state.in === 'tag' ? tag(stream, state, options) : text(stream, state, options)
     },
     comment: { block: ['<!--', '-->'] },
-    closeBrackets: '([{"\'',
+    autoClose: '([{"\'',
     indentAfter:
       /<(?!\/|!|(?:area|base|br|col|embed|hr|img|input|link|meta|source|track|wbr)\b)[\w:-]+(?:\s[^<>]*)?(?<!\/)>\s*$/i,
     languageAt: (state) => (state.inner?.block ? state.inner.language : null),

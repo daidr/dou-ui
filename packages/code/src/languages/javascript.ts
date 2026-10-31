@@ -321,7 +321,7 @@ export function createJavaScript(
       return code(stream, state, options)
     },
     comment: { line: '//', block: ['/*', '*/'] },
-    closeBrackets: '([{\'"`',
+    autoClose: '([{\'"`',
   })
 }
 

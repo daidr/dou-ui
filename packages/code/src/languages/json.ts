@@ -40,5 +40,5 @@ export const json: CodeLanguage<JsonState> = defineCodeLanguage<JsonState>({
     return 'invalid'
   },
   comment: { line: '//', block: ['/*', '*/'] },
-  closeBrackets: '[{"',
+  autoClose: '[{"',
 })

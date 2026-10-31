@@ -117,7 +117,7 @@ describe('languages', () => {
   })
 
   it('reads Markdown with fenced code in the languages it is given', () => {
-    const md = createMarkdown({ code: [typescript] })
+    const md = createMarkdown({ languages: [typescript] })
     expect(
       marked(md, '# Title\nA **b** *c* `d` [e](f)\n- item\n```ts\nlet a = 1\n```\n```sh\nls\n```'),
     ).toBe(

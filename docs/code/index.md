@@ -36,26 +36,28 @@ app.use(DouCodeEditor)
 
 ## 语言
 
-`language` 设置代码的语言。语言决定代码怎么着色，也决定按 `Enter` 时怎么缩进、注释用什么符号、哪些括号成对输入。内置的语言从 `@dou-ui/code` 按需引入，没用到的不会打包：
+`language` 设置代码的语言。语言决定代码怎么着色，也决定按 `Enter` 时怎么缩进、注释用什么符号、哪些括号成对输入。内置的语言从 `@dou-ui/code` 按需引入，没用到的不会打包。`createCodeHighlighter` 和 Markdown 代码块按名称或别名找语言，不区分大小写：
 
-| 导出                       | 语言                                                  |
-| -------------------------- | ----------------------------------------------------- |
-| `javascript`、`typescript` | JavaScript、TypeScript                                |
-| `jsx`、`tsx`               | 带 JSX 的 JavaScript、TypeScript                      |
-| `json`                     | JSON，也允许注释和末尾逗号                            |
-| `css`、`scss`              | CSS；SCSS 和 Less 的嵌套规则、`//` 注释与 `$` 变量    |
-| `html`                     | HTML，`<script>` 和 `<style>` 里按 JavaScript、CSS 读 |
-| `vue`                      | Vue 单文件组件，模板里的 `{{ }}` 和指令值按表达式读   |
-| `markdown`                 | Markdown                                              |
+| 导出         | 语言                                                  | 名称与别名（`lang` 可以写的值）  |
+| ------------ | ----------------------------------------------------- | -------------------------------- |
+| `javascript` | JavaScript                                            | `javascript`、`js`、`mjs`、`cjs` |
+| `typescript` | TypeScript                                            | `typescript`、`ts`、`mts`、`cts` |
+| `jsx`、`tsx` | 带 JSX 的 JavaScript、TypeScript                      | `jsx`、`tsx`                     |
+| `json`       | JSON，也允许注释和末尾逗号                            | `json`、`jsonc`、`json5`         |
+| `css`        | CSS                                                   | `css`                            |
+| `scss`       | SCSS 和 Less：嵌套规则、`//` 注释与 `$` 变量          | `scss`、`less`、`postcss`        |
+| `html`       | HTML，`<script>` 和 `<style>` 里按 JavaScript、CSS 读 | `html`、`htm`、`xml`、`svg`      |
+| `vue`        | Vue 单文件组件，模板里的 `{{ }}` 和指令值按表达式读   | `vue`                            |
+| `markdown`   | Markdown                                              | `markdown`、`md`                 |
 
 <DocDemo src="code/languages" column />
 
-`<script lang="ts">` 按 TypeScript 读，`<style lang="scss">` 按 SCSS 读。Markdown 的代码块默认只显示成一种颜色；要按语言着色，用 `createMarkdown` 传入会用到的语言，按代码块开头写的语言名选用：
+`<script lang="ts">` 按 TypeScript 读，`<style lang="scss">` 按 SCSS 读。Markdown 的代码块默认只显示成一种颜色；要按语言着色，用 `createMarkdown` 的 `languages` 传入会用到的语言，按代码块开头写的语言名或别名选用：
 
 ```ts
 import { createMarkdown, typescript, json } from '@dou-ui/code'
 
-const markdown = createMarkdown({ code: [typescript, json] })
+const markdown = createMarkdown({ languages: [typescript, json] })
 ```
 
 着色只针对看得见的行，以及它们之前必须读过的行。修改之后从改动的行重新读起，读到某一行开头的状态和修改前一样就停下，所以在长文件里输入只重读一两行。直接跳到很远的地方时，那里先显示为没有颜色的文字，空闲时间读到之后再着色。
@@ -105,15 +107,15 @@ app.use(DouUI, {
 
 需要跨行的信息（比如多行注释）放在状态里：`startState` 返回文本开头的状态，`token` 的第二个参数就是它，可以直接修改。状态应当是普通的对象、数组、字符串和数字，编辑器会复制和比较它，判断从哪一行起不必重读。其他选项：
 
-| 选项            | 说明                                                       |
-| --------------- | ---------------------------------------------------------- |
-| `name`          | 名称，`createCodeHighlighter` 按它和 `aliases` 匹配 `lang` |
-| `aliases`       | 别名，如 `['js', 'mjs']`                                   |
-| `startState`    | 文本开头的状态                                             |
-| `comment`       | 注释写法：`{ line: '//', block: ['/*', '*/'] }`            |
-| `brackets`      | 成对的括号，默认 `'()[]{}'`                                |
-| `closeBrackets` | 输入时自动补上另一半的字符，默认是左括号和 `'"`            |
-| `indentAfter`   | 光标前的文字符合这个正则时，换行多缩进一级                 |
+| 选项          | 说明                                                            |
+| ------------- | --------------------------------------------------------------- |
+| `name`        | 名称，`createCodeHighlighter` 按它和 `aliases` 匹配 `lang`      |
+| `aliases`     | 别名，如 `['js', 'mjs']`                                        |
+| `startState`  | 文本开头的状态                                                  |
+| `comment`     | 注释写法：`{ line: '//', block: ['/*', '*/'] }`                 |
+| `brackets`    | 成对的括号，默认 `'()[]{}'`                                     |
+| `autoClose`   | 输入时自动补上另一半的字符，写成一个字符串，默认是左括号和 `'"` |
+| `indentAfter` | 光标前的文字符合这个正则时，换行多缩进一级                      |
 
 ## 编辑辅助
 

@@ -284,7 +284,7 @@ function opensBlock(
 
 /** The closing partner of an opening bracket or quote, when the language pairs it. */
 function partnerOf(language: CodeLanguage, ch: string): string | null {
-  if (!language.closeBrackets.includes(ch)) return null
+  if (!language.autoClose.includes(ch)) return null
   const index = language.brackets.indexOf(ch)
   if (index >= 0) return index % 2 === 0 ? language.brackets[index + 1]! : null
   return ch

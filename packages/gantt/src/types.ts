@@ -1,4 +1,5 @@
 import type { GanttCalendar } from './core/calendar'
+import type { GanttExtension } from './core/extension'
 import type { GanttLink, GanttTask } from './core/model'
 import type { GanttScale } from './core/scale'
 import type { GanttDocument, GanttTransaction, GanttTransactionMeta } from './core/transaction'
@@ -21,6 +22,22 @@ export interface GanttColumn {
   width?: number | string
   minWidth?: number | string
   align?: 'start' | 'center' | 'end'
+}
+
+/** A vertical line across the timeline, such as a release day or a freeze. */
+export interface GanttMarker {
+  /** Where, as `YYYY-MM-DD` (the start of that day) or `YYYY-MM-DD HH:mm`. */
+  date: string
+  /** Shown in the time header. */
+  label?: string
+  tone?: 'neutral' | 'accent' | 'success' | 'warning' | 'danger'
+}
+
+/** New dates about to be given to a task, as they would be written. */
+export interface GanttMove {
+  task: GanttTask
+  start: string
+  end?: string
 }
 
 /** How a bar shows its task's title. */
@@ -57,10 +74,20 @@ export interface GanttProps {
   /** Show the plan without changing it: no dragging, no new links, no undo keys. */
   readonly?: boolean
   /**
-   * The last check before a link is made by dragging. Return `true` to
+   * The last check before a link is made, by dragging or by keys. Return `true` to
    * allow it; anything else refuses it, and a string is shown as the reason.
    */
   canLink?: (link: Pick<GanttLink, 'from' | 'to' | 'type'>, doc: GanttDocument) => boolean | string
+  /**
+   * The last check before new dates are written, by dragging or by keys.
+   * Return `true` to allow them; anything else refuses them, and a string
+   * is shown as the reason.
+   */
+  canMove?: (move: GanttMove, doc: GanttDocument) => boolean | string
+  /** Vertical marker lines, such as release days. */
+  markers?: GanttMarker[]
+  /** Columns, rules, keys and layers added to the chart; see `defineGanttExtension`. */
+  extensions?: (GanttExtension | GanttExtension[])[]
   /** Accessible name of the chart. */
   ariaLabel?: string
   /** Texts to change; only the ones given are replaced. */
@@ -83,6 +110,8 @@ export interface GanttSlots {
   cell?: (props: { task: GanttTask; row: GanttRow; column: GanttColumn; text: string }) => unknown
   /** The content of a bar, in place of its title. */
   bar?: (props: { task: GanttTask; row: GanttRow }) => unknown
+  /** Drawn over the chart, e.g. a panel; it can call `useGantt()`. */
+  default?: () => unknown
 }
 
 export interface GanttExpose {
@@ -98,6 +127,10 @@ export interface GanttExpose {
   scrollToDate: (date: string) => void
   /** Scrolls a task into view, rows and time. */
   scrollToTask: (id: string) => void
+  /** Scrolls so that now is in view. */
+  scrollToToday: () => void
+  /** Puts the keyboard on a task, scrolls it into view and focuses its bar. */
+  focusTask: (id: string) => void
   /** Widens the days by a step, keeping the middle of the view in place. */
   zoomIn: () => void
   zoomOut: () => void

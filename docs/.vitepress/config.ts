@@ -92,6 +92,7 @@ export default defineConfig({
           items: [
             { text: '概览', link: '/gantt/' },
             { text: '数据格式', link: '/gantt/data' },
+            { text: '扩展', link: '/gantt/extensions' },
           ],
         },
       ],

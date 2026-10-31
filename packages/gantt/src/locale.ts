@@ -37,6 +37,17 @@ export interface GanttMessages {
   progressTip: string
   /** Why a link being drawn can't be made. */
   linkRefusals: { nested: string; duplicate: string; cycle: string }
+  /** Shown when `can-move` refuses without a reason. */
+  moveRefused: string
+  /** How to use the chart with keys; read out when it gets focus. */
+  keys: string
+  /** Read out: linking by keys (`{title}` is where it starts), what was done. */
+  linkMode: string
+  linked: string
+  linkRemoved: string
+  cancelled: string
+  undone: string
+  redone: string
 }
 
 const zhMonths = Array.from({ length: 12 }, (_, i) => `${i + 1}月`)
@@ -71,6 +82,14 @@ const zhCN: GanttMessages = {
     duplicate: '这两个任务之间已经有依赖',
     cycle: '会形成循环依赖',
   },
+  moveRefused: '不能移到这里',
+  keys: '上下键选择任务，左右键收起或展开，空格选中；Alt 加左右键移动任务，Alt 加 Shift 加左右键调整结束时间；L 添加依赖',
+  linkMode: '从“{title}”添加依赖：上下键选择后续任务，Enter 确认，Esc 取消',
+  linked: '已添加依赖：{from} → {to}',
+  linkRemoved: '已删除依赖',
+  cancelled: '已取消',
+  undone: '已撤销',
+  redone: '已重做',
 }
 
 const zhTW: GanttMessages = {
@@ -92,6 +111,14 @@ const zhTW: GanttMessages = {
     duplicate: '這兩個任務之間已經有相依關係',
     cycle: '會形成循環相依',
   },
+  moveRefused: '不能移到這裡',
+  keys: '上下鍵選擇任務，左右鍵收合或展開，空白鍵選取；Alt 加左右鍵移動任務，Alt 加 Shift 加左右鍵調整結束時間；L 新增相依',
+  linkMode: '從「{title}」新增相依：上下鍵選擇後續任務，Enter 確認，Esc 取消',
+  linked: '已新增相依：{from} → {to}',
+  linkRemoved: '已刪除相依',
+  cancelled: '已取消',
+  undone: '已復原',
+  redone: '已重做',
 }
 
 const en: GanttMessages = {
@@ -130,6 +157,15 @@ const en: GanttMessages = {
     duplicate: 'These tasks are already linked',
     cycle: 'This would make a loop',
   },
+  moveRefused: 'Can’t move here',
+  keys: 'Up and Down pick a task, Left and Right fold, Space selects; Alt with Left or Right moves the task, Alt with Shift and Left or Right changes its end; L adds a dependency',
+  linkMode:
+    'Adding a dependency from “{title}”: pick the next task with Up and Down, Enter to confirm, Escape to cancel',
+  linked: 'Linked {from} → {to}',
+  linkRemoved: 'Dependency removed',
+  cancelled: 'Cancelled',
+  undone: 'Undone',
+  redone: 'Redone',
 }
 
 export const ganttLocales: Record<string, GanttMessages> = {

@@ -50,13 +50,12 @@ export function resizeBox(
   let width = handle.x ? Math.max(min.width, start.width + handle.x * local.x) : start.width
   let height = handle.y ? Math.max(min.height, start.height + handle.y * local.y) : start.height
   if (keepRatio && handle.x && handle.y && start.width && start.height) {
-    // the larger of the two stretches, but no smaller than the least size
-    const scale = Math.max(
-      width / start.width,
-      height / start.height,
-      min.width / start.width,
-      min.height / start.height,
-    )
+    // the pointer taken onto the box's diagonal, so the corner stays under
+    // it; no smaller than the least size
+    const w = start.width + handle.x * local.x
+    const h = start.height + handle.y * local.y
+    const along = (w * start.width + h * start.height) / (start.width ** 2 + start.height ** 2)
+    const scale = Math.max(along, min.width / start.width, min.height / start.height)
     width = start.width * scale
     height = start.height * scale
   }

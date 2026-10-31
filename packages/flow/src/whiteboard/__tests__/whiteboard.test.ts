@@ -677,8 +677,8 @@ describe('resize handles', () => {
     await ticks()
     let handle = at(root, '1,1').element
     handle.dispatchEvent(pointer('pointerdown', 100, 50))
-    handle.dispatchEvent(pointer('pointermove', 200, 50))
-    handle.dispatchEvent(pointer('pointerup', 200, 50))
+    handle.dispatchEvent(pointer('pointermove', 200, 100))
+    handle.dispatchEvent(pointer('pointerup', 200, 100))
     await ticks()
     expect(flow.value.nodes[0]).toMatchObject({ width: 200, height: 100 })
     handle = at(root, '1,1').element
@@ -765,8 +765,13 @@ describe('turning', () => {
   it('keeps the proportions from a corner when asked', () => {
     const start = { x: 0, y: 0, width: 100, height: 50 }
     const min = { width: 24, height: 24 }
-    const wider = resizeBox(start, 0, { x: 1, y: 1 }, { x: 100, y: 0 }, min, true)
+    const wider = resizeBox(start, 0, { x: 1, y: 1 }, { x: 100, y: 50 }, min, true)
     expect(wider).toEqual({ x: 0, y: 0, width: 200, height: 100 })
+    // the corner follows the pointer, taken onto the diagonal
+    const tiny = { width: 1, height: 1 }
+    const left = resizeBox(start, 0, { x: 1, y: 1 }, { x: -100, y: -10 }, tiny, true)
+    expect(left.width).toBeCloseTo(16)
+    expect(left.height).toBeCloseTo(8)
     // shrinking stops where the shorter side reaches its least size
     const small = resizeBox(start, 0, { x: 1, y: 1 }, { x: -90, y: -45 }, min, true)
     expect(small.height).toBeCloseTo(24)

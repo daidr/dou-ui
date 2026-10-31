@@ -1349,6 +1349,18 @@
   }
 
   /* anchors: an output and an input on each side; only the output shows */
+  /*
+   * on a selected node the sides resize: a port then answers only on its
+   * dot, so a drag from beside it, in the middle of a side, resizes
+   */
+  .dou-whiteboard-node.is-selected .dou-whiteboard-node__anchor::before {
+    inset: -2px;
+
+    @media (pointer: coarse) {
+      inset: -6px;
+    }
+  }
+
   .dou-whiteboard-node__anchors {
     position: absolute;
     inset: 0;

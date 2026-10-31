@@ -403,6 +403,225 @@
 
 /* the search panel: a small floating surface in the editor's top right corner */
 @layer dou.components {
+  /* touch: handles under the selection's ends, in the selection's hue */
+  .dou-code-editor__handle {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 5;
+    width: 0;
+    height: 0;
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+
+    /* a finger-sized area around the knob */
+    &::before {
+      position: absolute;
+      top: -6px;
+      width: 36px;
+      height: 36px;
+      content: '';
+    }
+    &::after {
+      position: absolute;
+      top: 0;
+      width: 14px;
+      height: 14px;
+      background-color: var(--dou-color-primary);
+      content: '';
+    }
+    &.is-start {
+      &::before {
+        left: -27px;
+      }
+      &::after {
+        right: 0;
+        border-radius: 50% 0 50% 50%;
+      }
+    }
+    &.is-end {
+      &::before {
+        left: -9px;
+      }
+      &::after {
+        left: 0;
+        border-radius: 0 50% 50% 50%;
+      }
+    }
+    &.is-caret {
+      &::before {
+        left: -18px;
+      }
+      &::after {
+        top: 4px;
+        left: -6px;
+        width: 12px;
+        height: 12px;
+        border-radius: 0 50% 50% 50%;
+        transform: rotate(45deg);
+      }
+    }
+  }
+
+  /* the row at the moving end, larger, over the finger */
+  .dou-code-editor__magnifier {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 6;
+    box-sizing: border-box;
+    width: 128px;
+    overflow: hidden;
+    border: 1px solid var(--dou-color-border);
+    border-radius: 999px;
+    background-color: var(--dou-code-editor-bg);
+    box-shadow: var(--dou-shadow-md);
+    pointer-events: none;
+  }
+  .dou-code-editor__magnifier-text {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    height: var(--dou-code-editor-line-height);
+    margin-top: calc(var(--dou-code-editor-line-height) / -2);
+    white-space: pre;
+    tab-size: var(--dou-code-editor-tab-size);
+    transform-origin: 0 50%;
+  }
+  .dou-code-editor__magnifier-caret {
+    position: absolute;
+    top: 50%;
+    width: 2px;
+    height: calc(var(--dou-code-editor-line-height) * 1.5);
+    border-radius: 1px;
+    background-color: var(--dou-color-primary);
+    translate: 0 -50%;
+  }
+
+  /* the toolbar over a selection made by finger */
+  .dou-code-editor__menu {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 6;
+    display: flex;
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid var(--dou-color-border);
+    border-radius: calc(var(--dou-radius-control) + 2px);
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-md);
+    font-family: var(--dou-font-family);
+    white-space: nowrap;
+  }
+  .dou-code-editor__menu-button {
+    display: inline-flex;
+    align-items: center;
+    min-width: 36px;
+    height: 36px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: var(--dou-radius-control);
+    background: none;
+    color: var(--dou-color-text);
+    font: inherit;
+    font-size: var(--dou-font-size-sm);
+    line-height: 1;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    &:active {
+      background-color: color-mix(in oklab, var(--dou-color-text) 8%, transparent);
+    }
+    @media (hover: hover) {
+      &:hover {
+        background-color: color-mix(in oklab, var(--dou-color-text) 5%, transparent);
+      }
+    }
+  }
+
+  /* the bar of keys, kept right above the phone's keyboard */
+  .dou-code-editor__keys {
+    position: fixed;
+    top: 0;
+    left: 0;
+  }
+
+  /* symbol keys: a strip that scrolls sideways, the arrow keys fixed at its end */
+  .dou-code-keys {
+    display: flex;
+    box-sizing: border-box;
+    height: 45px;
+    border-top: 1px solid var(--dou-color-border);
+    background-color: var(--dou-color-bg-surface);
+    color: var(--dou-color-text);
+    font-family: var(--dou-font-family-mono);
+    font-size: var(--dou-font-size-md);
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .dou-code-keys__scroll {
+    display: flex;
+    flex: 1 1 auto;
+    gap: 2px;
+    align-items: center;
+    min-width: 0;
+    padding: 0 4px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    touch-action: pan-x;
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+  .dou-code-keys__arrows {
+    display: flex;
+    flex: none;
+    gap: 2px;
+    align-items: center;
+    padding: 0 4px;
+    box-shadow: -1px 0 0 var(--dou-color-border-subtle);
+  }
+  .dou-code-keys__key {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    min-width: 36px;
+    height: 36px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: var(--dou-radius-control);
+    background: none;
+    color: inherit;
+    font: inherit;
+    line-height: 1;
+    cursor: pointer;
+    touch-action: pan-x;
+    -webkit-tap-highlight-color: transparent;
+    transition-property: background-color, transform;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing-exit);
+    & > svg {
+      width: 18px;
+      height: 18px;
+      color: var(--dou-color-text-secondary);
+    }
+    @media (hover: hover) {
+      &:hover {
+        background-color: color-mix(in oklab, var(--dou-color-text) 5%, transparent);
+      }
+    }
+    /* a key under the finger grows, so it shows past the finger; it springs while held */
+    &.is-pressed {
+      background-color: color-mix(in oklab, var(--dou-color-text) 10%, transparent);
+      transform: scale(1.12);
+      transition-duration: var(--dou-motion-duration-slow);
+      transition-timing-function: var(--dou-motion-easing-spring);
+    }
+  }
+
   .dou-code-search {
     display: flex;
     gap: 2px;

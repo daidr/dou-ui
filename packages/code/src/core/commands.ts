@@ -603,6 +603,22 @@ export const insertTab: CodeCommand = (target) => {
   return true
 }
 
+/**
+ * Types `text` as if from the keyboard: a bracket or quote closes itself,
+ * a line break indents. For buttons that type, like a bar of symbols.
+ */
+export const typeText =
+  (text: string): CodeCommand =>
+  (target) => {
+    if (target.readonly || !text) return false
+    if (text === '\n') return insertNewline(target)
+    if (insertText(target, text)) return true
+    target.dispatch(
+      target.transaction().replaceSelection(text).setMeta({ action: 'input', scroll: true }),
+    )
+    return true
+  }
+
 export const undo: CodeCommand = (target) => target.undo()
 export const redo: CodeCommand = (target) => target.redo()
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ChevronDownIcon, ChevronRightIcon } from '@dou-ui/icons'
-import { holdPointer, isApplePlatform, isComposing, useNamespace } from 'dou-ui'
+import { holdPointer, isApplePlatform, isComposing, useNamespace, useZIndex } from 'dou-ui'
 import {
   computed,
   getCurrentInstance,
@@ -17,7 +17,13 @@ import { matchBracket } from './core/brackets'
 import { ChangeSet } from './core/changes'
 import { moveCluster, snapCluster, wordAt } from './core/chars'
 import type { CodeCommand, CodeCommandTarget } from './core/commands'
-import { deleteCharBackward, deleteCharForward, insertNewline, insertText } from './core/commands'
+import {
+  deleteCharBackward,
+  deleteCharForward,
+  insertNewline,
+  insertText,
+  selectAll,
+} from './core/commands'
 import { type CodeFold, foldEndAt, hiddenLines } from './core/folding'
 import { CodeHistory } from './core/history'
 import { buildKeymap, defaultKeymap, eventKey } from './core/keymap'
@@ -48,6 +54,7 @@ import {
 } from './core/search'
 import { CodeHighlighter } from './language/highlighter'
 import { format, useCodeMessages } from './locale'
+import CodeKeys from './code-keys.vue'
 import SearchPanel from './search-panel.vue'
 import { type CodeLineTokens, type CodeTokenType, lineParts, tokenTypes } from './language/language'
 import type { CodeEditorEmits, CodeEditorExpose, CodeEditorProps } from './types'
@@ -77,6 +84,7 @@ const props = withDefaults(defineProps<CodeEditorProps>(), {
   searchable: true,
   wrap: false,
   foldable: true,
+  keys: true,
   messages: undefined,
 })
 const emit = defineEmits<CodeEditorEmits>()
@@ -148,6 +156,15 @@ let goals = new Map<number, number>()
 let pendingGoals = new Map<number, number>()
 const blink = ref(0)
 
+/** The last press was a finger: the selection gets handles, and a toolbar over it. */
+const touchUi = ref(false)
+/** A handle under a lone cursor, shown after a tap until the text changes. */
+const caretHandle = ref(false)
+/** The toolbar over the selection (cut, copy, paste, select all). */
+const menuOpen = ref(false)
+/** A finger drags a handle or a long-pressed selection: the magnifier shows. */
+const touchDrag = ref(false)
+
 function dispatch(tr: CodeTransaction): CodeTransactionResult | null {
   const result = tr.resolve()
   const before = state.value
@@ -167,12 +184,19 @@ function dispatch(tr: CodeTransaction): CodeTransactionResult | null {
   }
   state.value = markRaw(result.state)
   revealFolds()
+  // The toolbar is for the selection it opened on; typing also puts away the handle under a lone cursor.
+  menuOpen.value = false
+  if (!result.changes.empty) caretHandle.value = false
   goals = pendingGoals
   pendingGoals = new Map()
   blink.value++
   if (!composing.value) syncInput()
   emitChange(result)
-  if (result.meta.scroll ?? !result.changes.empty) nextTick(() => scrollIntoView())
+  if (result.meta.scroll ?? !result.changes.empty)
+    nextTick(() => {
+      scrollIntoView()
+      if (touchUi.value) followViewport()
+    })
   return result
 }
 
@@ -228,6 +252,8 @@ function receive(next: string, given?: CodeText) {
   mapFolds(result.changes, result.state.doc)
   state.value = markRaw(result.state)
   mapMatches(result.changes)
+  menuOpen.value = false
+  caretHandle.value = false
   joined = { doc: result.state.doc, text: normalized }
   if (!composing.value) syncInput()
   if (!sameSelection(result.state.selection, result.before.selection))
@@ -272,6 +298,7 @@ const metrics = ref(0)
 
 const mounted = ref(false)
 const scrollTop = ref(0)
+const scrollLeft = ref(0)
 const viewHeight = ref(0)
 const viewWidth = ref(0)
 /** The part of the scroller that is inside the window, for an editor taller than the page. */
@@ -974,6 +1001,7 @@ function previousMatch() {
 
 function openSearch(replace = false, given?: Partial<CodeSearchQuery>) {
   if (!props.searchable) return
+  menuOpen.value = false
   const main = mainRange(state.value.selection)
   const patch: Partial<CodeSearchQuery> = { ...given }
   // A selection on one line, or else the word at the cursor, becomes the search.
@@ -1318,6 +1346,13 @@ function onKeydown(event: KeyboardEvent) {
   }
   confirmEnter = -Infinity
   const name = eventKey(event, apple)
+  // Escape first puts away the toolbar over the selection.
+  if (name === 'escape' && menuOpen.value) {
+    menuOpen.value = false
+    event.preventDefault()
+    event.stopPropagation()
+    return
+  }
   const leaving = tabLeaves && (name === 'tab' || name === 'shift+tab')
   tabLeaves = name === 'escape'
   if (leaving) return
@@ -1363,8 +1398,11 @@ function onCut(event: ClipboardEvent) {
 }
 
 function onPaste(event: ClipboardEvent) {
-  const text = event.clipboardData?.getData('text/plain')
   event.preventDefault()
+  pasteText(event.clipboardData?.getData('text/plain'))
+}
+
+function pasteText(text: string | undefined) {
   if (!text || target.readonly) return
   const { ranges } = state.value.selection
   const parts = splitLines(text)
@@ -1418,6 +1456,12 @@ let drag: {
   hold: ReturnType<typeof holdPointer>
   /** Where a column selection (Alt + Shift drag) started. */
   column?: { n: number; x: number }
+  /** A finger drags: from a handle, or after a long press. */
+  touch?: boolean
+  /** A handle under a lone cursor moves the cursor, selecting nothing. */
+  caret?: boolean
+  /** From the finger to the text point it moves, so the handle doesn't jump under the finger. */
+  offset?: { x: number; y: number }
 } | null = null
 
 /** The line and the x inside the text (from the line's start) under a point in the page. */
@@ -1454,7 +1498,15 @@ function extendColumns(point: { x: number; y: number }) {
 function extendTo(point: { x: number; y: number }) {
   if (!drag) return
   if (drag.column) return extendColumns(point)
-  const pos = posAtCoords(point)
+  const { offset } = drag
+  const pos = posAtCoords(offset ? { x: point.x - offset.x, y: point.y - offset.y } : point)
+  if (drag.caret) {
+    dispatch(transaction().select(pos).setMeta({ scroll: false }))
+    caretHandle.value = true
+    return
+  }
+  // A handle keeps at least one character selected.
+  if (offset && pos === drag.start.from) return
   const at = unitAt(pos, drag.unit)
   const { start } = drag
   const range =
@@ -1491,15 +1543,24 @@ function autoScroll() {
   drag.frame = requestAnimationFrame(autoScroll)
 }
 
-function startDrag(event: PointerEvent, unit: Unit, start: { from: number; to: number }) {
+function startDrag(
+  event: PointerEvent | { clientX: number; clientY: number },
+  unit: Unit,
+  start: { from: number; to: number },
+  hold = holdPointer(event as PointerEvent, root.value),
+  touch?: { caret?: boolean; offset?: { x: number; y: number } },
+) {
   drag = {
     unit,
     start,
     x: event.clientX,
     y: event.clientY,
     frame: 0,
-    hold: holdPointer(event, root.value),
+    hold,
+    touch: !!touch,
+    ...touch,
   }
+  touchDrag.value = !!touch
   drag.hold.grab()
   drag.frame = requestAnimationFrame(autoScroll)
   window.addEventListener('pointermove', onDragMove)
@@ -1518,7 +1579,11 @@ function endDrag() {
   if (!drag) return
   cancelAnimationFrame(drag.frame)
   drag.hold.release()
+  const { touch, caret } = drag
   drag = null
+  touchDrag.value = false
+  // A selection made by finger offers what can be done with it.
+  if (touch && !caret && !isEmptyRange(mainRange(state.value.selection))) menuOpen.value = true
   window.removeEventListener('pointermove', onDragMove)
   window.removeEventListener('pointerup', endDrag)
   window.removeEventListener('pointercancel', endDrag)
@@ -1548,7 +1613,14 @@ function select(unit: Unit, pos: number, extend: boolean, add = false) {
 }
 
 /** A tap that may turn into a scroll or a long press; touches only act once they end in place. */
-let touch: { x: number; y: number; timer: number; pointer: number; pressed: boolean } | null = null
+let touch: {
+  x: number
+  y: number
+  timer: number
+  pointer: number
+  /** Taken at the press, so a long press can keep the page from scrolling. */
+  hold: ReturnType<typeof holdPointer>
+} | null = null
 
 /** The fold toggle or folded marker under a pointer, as the line it belongs to. */
 function foldTarget(event: Event) {
@@ -1571,23 +1643,30 @@ function onPointerDown(event: PointerEvent, area: 'text' | 'gutter') {
   }
   const pos = posAtCoords({ x: event.clientX, y: event.clientY })
   if (event.pointerType !== 'mouse') {
+    onPointerCancel()
     const x = event.clientX
     const y = event.clientY
     touch = {
       x,
       y,
       pointer: event.pointerId,
-      pressed: false,
-      // A long press selects the word under the finger.
+      hold: holdPointer(event, root.value),
+      // A long press selects the word under the finger; sliding on from there selects word by word.
       timer: window.setTimeout(() => {
         if (!touch) return
-        touch.pressed = true
-        select(area === 'gutter' ? 'line' : 'word', pos, false)
+        const { hold } = touch
+        touch = null
+        touchUi.value = true
+        const unit: Unit = area === 'gutter' ? 'line' : 'word'
+        const at = select(unit, pos, false)
         focusInput()
+        startDrag({ clientX: x, clientY: y }, unit, at, hold, {})
       }, 450),
     }
     return
   }
+  touchUi.value = false
+  menuOpen.value = false
   event.preventDefault()
   focusInput()
   // Alt + Shift drag selects a rectangle, one range per line.
@@ -1618,27 +1697,372 @@ function countClick(event: PointerEvent) {
 
 function onPointerMove(event: PointerEvent) {
   if (!touch || event.pointerId !== touch.pointer) return
-  if (Math.hypot(event.clientX - touch.x, event.clientY - touch.y) > 8) {
-    clearTimeout(touch.timer)
-    touch = null
-  }
+  // Moving before the long press is a scroll, which the page goes on with.
+  if (Math.hypot(event.clientX - touch.x, event.clientY - touch.y) > 8) onPointerCancel()
 }
 
 function onPointerUp(event: PointerEvent, area: 'text' | 'gutter') {
   if (!touch || event.pointerId !== touch.pointer) return
-  clearTimeout(touch.timer)
-  const pressed = touch.pressed
-  touch = null
-  if (pressed) return
+  onPointerCancel()
   const pos = posAtCoords({ x: event.clientX, y: event.clientY })
+  const main = mainRange(state.value.selection)
+  // A tap on the cursor itself opens the toolbar, or puts it away.
+  const onCursor =
+    area === 'text' && focused.value && isEmptyRange(main) && main.head === pos && caretHandle.value
+  const wasOpen = menuOpen.value
+  touchUi.value = true
   select(area === 'gutter' ? 'line' : 'char', pos, false)
+  caretHandle.value = area === 'text'
+  menuOpen.value = area === 'gutter' || (onCursor && !wasOpen)
   focusInput()
 }
 
 function onPointerCancel() {
-  if (touch) clearTimeout(touch.timer)
+  if (touch) {
+    clearTimeout(touch.timer)
+    touch.hold.release()
+  }
   touch = null
 }
+
+// ---------------------------------------------------------------- touch: handles, toolbar, magnifier
+
+/** The part of the content in view, in its own px. */
+function visibleBox() {
+  const top = scrollTop.value + (clip.value?.top ?? 0)
+  const bottom = scrollTop.value + (clip.value?.bottom ?? viewHeight.value)
+  const left = scrollLeft.value
+  return { top, bottom, left, right: left + Math.max(0, viewWidth.value - gutterWidth.value) }
+}
+
+/** Where a position is drawn in the content, when its line is in view. */
+function pointOf(pos: number) {
+  const line = doc.value.lineAt(pos)
+  if (!isShown(line.number)) return null
+  const at = place(line.number, lineText(line.number), pos - line.from)
+  return { x: PAD_X + at.x, top: at.top, sub: at.sub, n: line.number }
+}
+
+type HandleKind = 'start' | 'end' | 'caret'
+
+/** Handles under the ends of the selection, or under a lone cursor right after a tap. */
+const handles = computed(() => {
+  void metrics.value
+  if (!touchUi.value || !focused.value || preview.value || props.disabled) return []
+  const main = mainRange(state.value.selection)
+  const ends: Array<[HandleKind, number]> = isEmptyRange(main)
+    ? caretHandle.value && !props.readonly
+      ? [['caret', main.head]]
+      : []
+    : [
+        ['start', rangeFrom(main)],
+        ['end', rangeTo(main)],
+      ]
+  const out: Array<{ kind: HandleKind; left: number; top: number }> = []
+  for (const [kind, pos] of ends) {
+    const at = pointOf(pos)
+    if (at) out.push({ kind, left: at.x, top: at.top + lineHeight.value })
+  }
+  return out
+})
+
+/** A handle pressed but not moved yet: a press that stays put is a tap or a long press on the text below. */
+let handlePress: {
+  kind: HandleKind
+  x: number
+  y: number
+  pointer: number
+  hold: ReturnType<typeof holdPointer>
+  timer: number
+} | null = null
+
+function onHandleDown(event: PointerEvent, kind: HandleKind) {
+  if (event.button !== 0) return
+  event.preventDefault()
+  event.stopPropagation()
+  onPointerCancel()
+  endHandlePress()
+  const hold = holdPointer(event, root.value)
+  hold.grab()
+  handlePress = {
+    kind,
+    x: event.clientX,
+    y: event.clientY,
+    pointer: event.pointerId,
+    hold,
+    // The handle under a lone cursor reaches over the next line; held there, the press is for that line's text.
+    timer:
+      kind === 'caret'
+        ? window.setTimeout(() => {
+            if (!handlePress) return
+            const { x, y } = handlePress
+            const taken = handlePress.hold
+            clearHandlePress()
+            const at = select('word', posAtCoords({ x, y }), false)
+            startDrag({ clientX: x, clientY: y }, 'word', at, taken, {})
+          }, 450)
+        : 0,
+  }
+  window.addEventListener('pointermove', onHandleMove)
+  window.addEventListener('pointerup', onHandleUp)
+  window.addEventListener('pointercancel', endHandlePress)
+}
+
+function clearHandlePress() {
+  if (handlePress) clearTimeout(handlePress.timer)
+  handlePress = null
+  window.removeEventListener('pointermove', onHandleMove)
+  window.removeEventListener('pointerup', onHandleUp)
+  window.removeEventListener('pointercancel', endHandlePress)
+}
+
+function endHandlePress() {
+  handlePress?.hold.release()
+  clearHandlePress()
+}
+
+function onHandleMove(event: PointerEvent) {
+  const press = handlePress
+  if (!press || event.pointerId !== press.pointer) return
+  if (Math.hypot(event.clientX - press.x, event.clientY - press.y) < 4) return
+  const { kind, hold, x, y } = press
+  clearHandlePress()
+  const main = mainRange(state.value.selection)
+  const pos = kind === 'start' ? rangeFrom(main) : kind === 'end' ? rangeTo(main) : main.head
+  const fixed = kind === 'start' ? rangeTo(main) : kind === 'end' ? rangeFrom(main) : pos
+  const at = coordsAtPos(pos)
+  if (!at) return hold.release()
+  // The end being dragged becomes the head, so the drag moves it.
+  if (kind !== 'caret') dispatch(transaction().select(fixed, pos).setMeta({ scroll: false }))
+  menuOpen.value = false
+  // From where the finger went down, so the handle keeps its place under it.
+  const offset = { x: x - at.left, y: y - (at.top + lineHeight.value / 2) }
+  startDrag(event, 'char', { from: fixed, to: fixed }, hold, { caret: kind === 'caret', offset })
+  onDragMove(event)
+}
+
+function onHandleUp(event: PointerEvent) {
+  const press = handlePress
+  if (!press || event.pointerId !== press.pointer) return
+  endHandlePress()
+  // A tap on the handle under the cursor opens the toolbar, or puts it away.
+  if (press.kind === 'caret') menuOpen.value = !menuOpen.value
+}
+
+/** Room between the toolbar or magnifier and what they point at. */
+const GAP = 8
+/** How high a handle reaches below its line, which the toolbar keeps clear of. */
+const HANDLE = 24
+
+const menuEl = ref<HTMLElement>()
+const menuSize = ref({ width: 0, height: 0 })
+const canPaste = typeof navigator !== 'undefined' && !!navigator.clipboard?.readText
+
+/** The toolbar's buttons for the selection now. */
+const menuItems = computed(() => {
+  if (!menuOpen.value || !focused.value || props.disabled) return []
+  const m = messages.value
+  const main = mainRange(state.value.selection)
+  const empty = isEmptyRange(main)
+  const editable = !target.readonly
+  const items: Array<{ key: string; label: string; run: () => void }> = []
+  if (!empty && editable) items.push({ key: 'cut', label: m.cut, run: () => copySelection(true) })
+  if (!empty) items.push({ key: 'copy', label: m.copy, run: () => copySelection(false) })
+  if (editable && canPaste) items.push({ key: 'paste', label: m.paste, run: pasteFromClipboard })
+  if (rangeFrom(main) > 0 || rangeTo(main) < doc.value.length)
+    items.push({
+      key: 'all',
+      label: m.selectAll,
+      run: () => {
+        run(selectAll)
+        menuOpen.value = true
+      },
+    })
+  return items
+})
+
+// Above the selection; below it (past its handle) when there is no room; always in view.
+const menuStyle = computed(() => {
+  if (!menuItems.value.length) return null
+  const main = mainRange(state.value.selection)
+  const start = pointOf(rangeFrom(main))
+  const end = pointOf(rangeTo(main))
+  if (!start && !end) return null
+  const view = visibleBox()
+  const { width, height } = menuSize.value
+  const lh = lineHeight.value
+  const sameRow = start && end && start.top === end.top
+  const x = sameRow ? (start.x + end.x) / 2 : (view.left + view.right) / 2
+  const above = start ? start.top - GAP - height : -Infinity
+  const below = (end ?? start)!.top + lh + HANDLE + GAP
+  let top = above >= view.top + GAP ? above : below
+  top = Math.max(view.top + GAP, Math.min(top, view.bottom - height - GAP))
+  const left = Math.max(view.left + GAP, Math.min(x - width / 2, view.right - width - GAP))
+  return { transform: `translate(${Math.round(left)}px, ${Math.round(top)}px)` }
+})
+
+watch(
+  [menuEl, menuItems],
+  () => {
+    const el = menuEl.value
+    if (el) menuSize.value = { width: el.offsetWidth, height: el.offsetHeight }
+  },
+  { flush: 'post' },
+)
+
+/** Copies through the textarea, which hands the selection to the copy event. */
+function copyFromInput() {
+  focusInput()
+  document.execCommand('copy')
+}
+
+function writeClipboard(text: string) {
+  const fallback = copyFromInput
+  if (navigator.clipboard?.writeText) navigator.clipboard.writeText(text).catch(fallback)
+  else fallback()
+}
+
+function copySelection(cut: boolean) {
+  const text = selectedText()
+  if (!text) return
+  writeClipboard(text)
+  if (cut && !target.readonly)
+    dispatch(transaction().replaceSelection('').setMeta({ action: 'cut' }))
+  menuOpen.value = false
+}
+
+function pasteFromClipboard() {
+  menuOpen.value = false
+  navigator.clipboard
+    .readText()
+    .then((text) => pasteText(text))
+    .catch(() => {})
+}
+
+/** The magnifier over a finger dragging the selection: the row at the moving end, larger. */
+const MAGNIFIER = { width: 128, scale: 1.5 }
+const magnifier = computed(() => {
+  if (!touchDrag.value) return null
+  void metrics.value
+  const head = mainRange(state.value.selection).head
+  const at = pointOf(head)
+  if (!at) return null
+  const row = rows.value.find((r) => r.n === at.n)
+  if (!row) return null
+  const lh = lineHeight.value
+  const height = Math.round(lh * MAGNIFIER.scale) + 8
+  const view = visibleBox()
+  const { width } = MAGNIFIER
+  const above = at.top - GAP - height
+  const top = above >= view.top + 4 ? above : at.top + lh + HANDLE + GAP
+  const left = Math.max(view.left + 4, Math.min(at.x - width / 2, view.right - width - 4))
+  const parts = row.wrapped.breaks.length
+    ? rowParts(row, at.sub)
+    : row.tokens
+      ? partsOf(row)
+      : ([[row.text, null]] as Array<[string, CodeTokenType | null]>)
+  // The text, scaled from the row's left edge, slid so the moving end sits under the caret.
+  const x = at.x - PAD_X
+  const caret = Math.max(4, Math.min(width - 4, at.x - left))
+  return {
+    parts,
+    indent: at.sub ? row.wrapped.indent : 0,
+    style: {
+      transform: `translate(${Math.round(left)}px, ${Math.round(top)}px)`,
+      height: `${height}px`,
+    },
+    textStyle: {
+      transform: `translateX(${caret - x * MAGNIFIER.scale}px) scale(${MAGNIFIER.scale})`,
+    },
+    caret,
+  }
+})
+
+// ---------------------------------------------------------------- touch: keyboard
+
+const showKeys = computed(
+  () => !!props.keys && coarse && focused.value && !props.readonly && !props.disabled,
+)
+const keysList = computed(() => (Array.isArray(props.keys) ? props.keys : undefined))
+const keysEditor = { run }
+const { next: nextZIndex } = useZIndex()
+const keysZIndex = ref<number>()
+watch(showKeys, (shown) => {
+  if (shown) keysZIndex.value = nextZIndex()
+})
+/** The height of the bar of keys, which the keyboard pushes up and the cursor keeps clear of. */
+const KEYS_HEIGHT = 45
+const viewport = ref({ top: 0, left: 0, width: 0, height: 0 })
+
+function readViewport() {
+  const vv = window.visualViewport
+  viewport.value = vv
+    ? { top: vv.offsetTop, left: vv.offsetLeft, width: vv.width, height: vv.height }
+    : { top: 0, left: 0, width: window.innerWidth, height: window.innerHeight }
+}
+
+const keysStyle = computed(() => {
+  const { top, left, width, height } = viewport.value
+  return {
+    transform: `translate(${left}px, ${top + height - KEYS_HEIGHT}px)`,
+    width: `${width}px`,
+    zIndex: keysZIndex.value,
+  }
+})
+
+/**
+ * Keeps the main cursor clear of the phone's keyboard and the bar above it:
+ * scrolls the editor when the cursor can move inside it, else the page.
+ */
+function followViewport() {
+  const vv = window.visualViewport
+  const el = scroller.value
+  if (!vv || !el || !focused.value) return
+  const at = coordsAtPos(mainRange(state.value.selection).head)
+  if (!at) return
+  const lh = lineHeight.value
+  // Room below the cursor for its handle too.
+  const room = lh / 2 + (handles.value.length ? HANDLE : 0)
+  const rect = el.getBoundingClientRect()
+  const visibleTop = Math.max(rect.top, vv.offsetTop)
+  const visibleBottom = Math.min(
+    rect.bottom,
+    vv.offsetTop + vv.height - (showKeys.value ? KEYS_HEIGHT : 0),
+  )
+  if (at.bottom + room > visibleBottom && visibleBottom - visibleTop >= lh * 3) {
+    el.scrollTop += (at.bottom + room - visibleBottom) / ratio.value
+    onScroll()
+  } else if (at.top - lh / 2 < visibleTop && visibleBottom - visibleTop >= lh * 3) {
+    el.scrollTop -= (visibleTop - at.top + lh / 2) / ratio.value
+    onScroll()
+  }
+  // Whatever the editor couldn't scroll, the page does.
+  const after = coordsAtPos(mainRange(state.value.selection).head)
+  if (!after) return
+  const bottom = vv.offsetTop + vv.height - (showKeys.value ? KEYS_HEIGHT : 0)
+  if (after.bottom + room > bottom) window.scrollBy(0, after.bottom + room - bottom)
+}
+
+function onViewportChange() {
+  readViewport()
+  followViewport()
+}
+
+/** On a touch screen the keyboard comes and goes with focus; the view follows it meanwhile. */
+const following = computed(() => coarse && focused.value)
+function unfollow() {
+  const vv = typeof window !== 'undefined' ? window.visualViewport : null
+  vv?.removeEventListener('resize', onViewportChange)
+  vv?.removeEventListener('scroll', readViewport)
+}
+watch(following, (on) => {
+  const vv = window.visualViewport
+  if (on) {
+    readViewport()
+    vv?.addEventListener('resize', onViewportChange)
+    vv?.addEventListener('scroll', readViewport)
+  } else unfollow()
+})
 
 // ---------------------------------------------------------------- scrolling
 
@@ -1646,6 +2070,7 @@ function onScroll() {
   const el = scroller.value
   if (!el) return
   scrollTop.value = el.scrollTop
+  scrollLeft.value = el.scrollLeft
   updateClip()
 }
 
@@ -1735,6 +2160,8 @@ onBeforeUnmount(() => {
   resize?.disconnect()
   endDrag()
   onPointerCancel()
+  endHandlePress()
+  unfollow()
   cancelAnimationFrame(clipFrame)
   window.removeEventListener('scroll', onWindowScroll, { capture: true })
   window.removeEventListener('resize', onWindowScroll)
@@ -1750,6 +2177,7 @@ function onFocus(event: FocusEvent) {
 
 function onBlur(event: FocusEvent) {
   focused.value = false
+  menuOpen.value = false
   history.close()
   if (lazyDirty) {
     lazyDirty = false
@@ -2007,6 +2435,51 @@ defineExpose<CodeEditorExpose>({
               :style="{ transform: `translate(${cursor.left - 1}px, ${cursor.top}px)` }"
             />
           </div>
+          <div
+            v-for="handle in handles"
+            :key="handle.kind"
+            :class="[ns.e('handle'), ns.is(handle.kind, true)]"
+            :style="{ transform: `translate(${handle.left}px, ${handle.top}px)` }"
+            aria-hidden="true"
+            @pointerdown="onHandleDown($event, handle.kind)"
+          />
+          <div
+            v-if="magnifier"
+            :class="ns.e('magnifier')"
+            :style="magnifier.style"
+            aria-hidden="true"
+          >
+            <div
+              :class="ns.e('magnifier-text')"
+              :style="[magnifier.textStyle, { paddingLeft: `${magnifier.indent}px` }]"
+            >
+              <template v-for="(part, i) in magnifier.parts" :key="i"
+                ><span v-if="part[1]" :class="`dou-syntax-${part[1]}`">{{ part[0] }}</span
+                ><template v-else>{{ part[0] }}</template></template
+              >
+            </div>
+            <div :class="ns.e('magnifier-caret')" :style="{ left: `${magnifier.caret - 1}px` }" />
+          </div>
+          <div
+            v-if="menuStyle"
+            ref="menuEl"
+            :class="ns.e('menu')"
+            role="toolbar"
+            :aria-label="messages.editMenu"
+            :style="menuStyle"
+            @pointerdown.stop.prevent
+          >
+            <button
+              v-for="item in menuItems"
+              :key="item.key"
+              type="button"
+              tabindex="-1"
+              :class="ns.e('menu-button')"
+              @click="item.run()"
+            >
+              {{ item.label }}
+            </button>
+          </div>
           <textarea
             ref="input"
             :class="ns.e('input')"
@@ -2039,5 +2512,10 @@ defineExpose<CodeEditorExpose>({
         </div>
       </div>
     </div>
+    <Teleport to="body">
+      <div v-if="showKeys" :class="ns.e('keys')" :style="keysStyle">
+        <CodeKeys :editor="keysEditor" :keys="keysList" :messages="messages" />
+      </div>
+    </Teleport>
   </div>
 </template>

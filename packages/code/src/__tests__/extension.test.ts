@@ -248,8 +248,15 @@ describe('extensions', () => {
       defineCodeExtension({
         name: 'review',
         widgets: () => [
-          { id: 'a', line: 1, height: 50, render: () => h('button', { class: 'resolve' }, 'ok') },
-          { id: 'b', line: 3, position: 'above', height: 30, render: () => h('i', 'above') },
+          {
+            id: 'a',
+            line: 1,
+            height: 50,
+            label: 'review',
+            render: () => h('button', { class: 'resolve' }, 'ok'),
+          },
+          // Given by a position on line 3.
+          { id: 'b', pos: 23, position: 'above', height: 30, render: () => h('i', 'above') },
         ],
       }),
     ])
@@ -275,9 +282,15 @@ describe('extensions', () => {
     })
     window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1 }))
     expect(editor.value!.selection.ranges[0]!.head).toBe(10 + 2)
+    expect(shown[0]!.attributes('aria-label')).toBe('review')
+    // Moving onto line 1, the widget's label is read out.
+    editor.value!.select(0)
+    await nextTick()
+    await nextTick()
+    expect(wrapper.find('.dou-code-editor__live').text()).toBe('review')
     // Inside a widget, nothing moves.
     await wrapper.find('.resolve').trigger('pointerdown', { button: 0, pointerType: 'mouse' })
-    expect(editor.value!.selection.ranges[0]!.head).toBe(12)
+    expect(editor.value!.selection.ranges[0]!.head).toBe(0)
   })
 
   it('places inline widgets in the line, with the cursor stepping over them', async () => {

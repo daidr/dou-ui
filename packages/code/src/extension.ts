@@ -46,9 +46,10 @@ export type CodeDecoration =
    * Something drawn inside a line, before the character at `pos`, such as
    * a color swatch or a parameter's name. It isn't text: the cursor steps
    * over it and copying leaves it out. `width` in px saves measuring it;
-   * without it the widget is measured once drawn.
+   * without it the widget is measured once drawn, and the width is kept by
+   * `id`.
    */
-  | { type: 'inline'; pos: number; render: () => VNodeChild; width?: number; key?: string }
+  | { type: 'inline'; pos: number; render: () => VNodeChild; width?: number; id?: string }
 
 /**
  * A component drawn between lines, across the editor, e.g. a review
@@ -58,13 +59,19 @@ export type CodeDecoration =
 export interface CodeWidget {
   /** Tells widgets apart, unique among one extension's; its measured height is kept by it. */
   id: string
-  /** The line (from 1) it is drawn below, or above with `position: 'above'`. */
-  line: number
+  /**
+   * Where it is: below the line of text position `pos`, or below line
+   * `line` (from 1); above with `position: 'above'`. Give one of them.
+   */
+  pos?: number
+  line?: number
   /** Defaults to `below`. */
   position?: 'above' | 'below'
   render: () => VNodeChild
   /** Its height in px before it has been drawn and measured; defaults to one line. */
   height?: number
+  /** What it is, read out when the cursor moves onto its line, e.g. "戴兜的评论". */
+  label?: string
 }
 
 /** Something drawn in a column beside the line numbers, on line `line` (from 1). */

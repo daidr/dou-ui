@@ -520,6 +520,7 @@ interface PlacedWidget {
   line: number
   above: boolean
   render: () => VNodeChild
+  label?: string
   /** The row it sits just before: the line's first row above it, the next line's first row below it. */
   row: number
   height: number
@@ -535,7 +536,10 @@ const widgets = computed<PlacedWidget[]>(() => {
   for (const extension of extensions.value) {
     if (!extension.widgets) continue
     for (const widget of extension.widgets(context)) {
-      const n = widget.line
+      const n =
+        widget.pos !== undefined
+          ? doc.value.lineAt(Math.max(0, Math.min(doc.value.length, widget.pos))).number
+          : (widget.line ?? 0)
       if (n < 1 || n > drawn.lines || !drawn.shown(n)) continue
       const above = widget.position === 'above'
       const key = `${extension.name}/${widget.id}`
@@ -544,6 +548,7 @@ const widgets = computed<PlacedWidget[]>(() => {
         line: n,
         above,
         render: widget.render,
+        label: widget.label,
         row: drawn.rowOf(n) + (above ? 0 : drawn.rowsOf(n)),
         height: widgetHeights.get(key) ?? widget.height ?? lh,
         before: 0,
@@ -1162,7 +1167,7 @@ const lineDecorations = computed(() => {
       const own = inlines.get(line.number) ?? []
       own.push({
         col: item.pos - line.from,
-        key: item.key ?? `@${item.pos}`,
+        key: item.id ?? `@${item.pos}`,
         render: item.render,
         width: item.width,
       })
@@ -1504,6 +1509,15 @@ const activeLineRows = computed(() => layout.value.rowsOf(activeLineNumber.value
 const activeLineNumber = computed(
   () => doc.value.lineAt(mainRange(state.value.selection).head).number,
 )
+
+// Moving onto a line with widgets reads out what they are, the way problems are read out.
+watch(activeLineNumber, (n) => {
+  if (!focused.value || !widgets.value.length) return
+  const labels = widgets.value
+    .filter((widget) => widget.line === n && widget.label)
+    .map((widget) => widget.label!)
+  if (labels.length) announce(labels.join(' · '))
+})
 
 /** The bracket at the main cursor and its partner, outlined; a bracket without one is marked. */
 const bracketBoxes = computed(() => {
@@ -3429,26 +3443,6 @@ defineExpose<CodeEditorExpose>(api)
             </div>
           </div>
           <div
-            v-if="shownWidgets.length"
-            :class="ns.e('widgets')"
-            @pointerdown.stop
-            @pointermove.stop
-            @mousedown.stop
-          >
-            <div
-              v-for="widget in shownWidgets"
-              :key="widget.key"
-              :ref="(el) => observeWidget(el as Element | null, widget.key)"
-              :class="ns.e('widget')"
-              :style="{
-                transform: `translate(${scrollLeft}px, ${widget.top}px)`,
-                width: `${Math.max(0, viewWidth - gutterWidth)}px`,
-              }"
-            >
-              <RenderPart :render="widget.render" />
-            </div>
-          </div>
-          <div
             v-if="placeholder && !doc.length && !composing"
             :class="ns.e('placeholder')"
             aria-hidden="true"
@@ -3581,6 +3575,29 @@ defineExpose<CodeEditorExpose>(api)
             @focus="onFocus"
             @blur="onBlur"
           />
+          <!-- After the textarea, so Escape then Tab reaches what is inside the widgets. -->
+          <div
+            v-if="shownWidgets.length"
+            :class="ns.e('widgets')"
+            @pointerdown.stop
+            @pointermove.stop
+            @mousedown.stop
+          >
+            <div
+              v-for="widget in shownWidgets"
+              :key="widget.key"
+              :ref="(el) => observeWidget(el as Element | null, widget.key)"
+              :class="ns.e('widget')"
+              :role="widget.label ? 'group' : undefined"
+              :aria-label="widget.label"
+              :style="{
+                transform: `translate(${scrollLeft}px, ${widget.top}px)`,
+                width: `${Math.max(0, viewWidth - gutterWidth)}px`,
+              }"
+            >
+              <RenderPart :render="widget.render" />
+            </div>
+          </div>
         </div>
       </div>
     </div>

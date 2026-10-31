@@ -4,13 +4,13 @@ import { DouAvatar, DouButton } from 'dou-ui'
 import { h, ref } from 'vue'
 
 const code = ref(`.card {
-  color: #1f2328;
-  background: #f6f8fa;
-  border: 1px solid #d0d7de;
+  color: #2b2f36;
+  background: #f4f5f7;
+  border: 1px solid #c9ced6;
 }
 
 .card.is-active {
-  border-color: #0969da;
+  border-color: #3d6fd9;
 }
 `)
 
@@ -38,7 +38,7 @@ const comments = ref([
   {
     id: '1',
     pos: code.value.indexOf('border: 1px'),
-    author: '阿青',
+    author: '戴兜',
     text: '边框是不是浅了一点？',
   },
 ])
@@ -52,11 +52,12 @@ function onTransaction(result) {
 
 const review = defineCodeExtension({
   name: 'review',
-  widgets: (editor) =>
+  widgets: () =>
     comments.value.map((comment) => ({
       id: comment.id,
-      line: editor.doc.lineAt(comment.pos).number,
+      pos: comment.pos,
       height: 64,
+      label: `${comment.author}的评论：${comment.text}`,
       render: () =>
         h('div', { class: 'demo-comment' }, [
           h(DouAvatar, { name: comment.author, size: 'sm' }),

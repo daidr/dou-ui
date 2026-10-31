@@ -174,7 +174,7 @@ function download(data: Blob | string, name: string, type = 'text/plain') {
   const url = URL.createObjectURL(typeof data === 'string' ? new Blob([data], { type }) : data)
   const a = Object.assign(document.createElement('a'), { href: url, download: name })
   a.click()
-  URL.revokeObjectURL(url)
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
 async function exportAs(kind: unknown) {

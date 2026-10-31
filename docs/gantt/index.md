@@ -254,6 +254,7 @@ baseline.value = takeBaseline(tasks.value) // [{ id, start, end }, …]
 | `range`      | `all` 是全部行和全部任务所在的时间，`view` 是当前看到的行和时间 | `'all'`          |
 | `table`      | 是否画出左侧表格                                                | 跟随当前是否显示 |
 | `scale`      | 按哪个刻度绘制，如 `'week'`                                     | 当前的缩放       |
+| `background` | 是否填充表头和行的底色；`false` 时为透明底，便于放到其他背景上  | `true`           |
 | `pixelRatio` | 只用于 PNG，每个 CSS 像素对应的图片像素                         | `2`              |
 
 `print` 的选项是 `orientation`（`landscape` 横向或 `portrait` 纵向，默认横向）和 `table`。`table` 默认为 `true`：纸张放得下表格，即使窄屏上表格已经收起。时间跨度很长时，导出的图片最宽 16000px，超出时会自动缩小刻度。
@@ -272,7 +273,8 @@ const blob = await gantt.value.exportPNG()
 const url = URL.createObjectURL(blob)
 const a = Object.assign(document.createElement('a'), { href: url, download: '排期.png' })
 a.click()
-URL.revokeObjectURL(url)
+// 下载开始后再释放，立即释放会让部分浏览器下载失败
+setTimeout(() => URL.revokeObjectURL(url), 1000)
 ```
 
 任务数据本身需要保存为 JSON 时，直接序列化 `tasks` 和 `links` 即可。

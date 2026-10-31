@@ -2232,7 +2232,12 @@ function exportTextWidth(theme: ExportTheme) {
   }
 }
 
-function drawChart(options: { range: 'all' | 'view'; table: boolean; dayWidth?: number }) {
+function drawChart(options: {
+  range: 'all' | 'view'
+  table: boolean
+  dayWidth?: number
+  background?: boolean
+}) {
   const theme = readTheme(root.value!)
   let width = options.dayWidth ?? dayWidth.value
   let shownRows: readonly GanttRow[] = rows.value
@@ -2293,6 +2298,7 @@ function drawChart(options: { range: 'all' | 'view'; table: boolean; dayWidth?: 
       broken: brokenLinks.value,
       baseline: planned.value,
       barLabel: props.barLabel,
+      background: options.background !== false,
       linkedEnds: linkedEnds.value,
       textWidth: exportTextWidth(theme),
     },
@@ -2304,6 +2310,7 @@ const exportOptions = (options: GanttExportOptions = {}) => ({
   range: options.range ?? 'all',
   table: options.table ?? showTable.value,
   dayWidth: options.scale ? levelByName(options.scale).base : undefined,
+  background: options.background,
 })
 
 function exportSVG(options?: GanttExportOptions) {

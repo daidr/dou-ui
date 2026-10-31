@@ -631,6 +631,9 @@ describe('baseline', () => {
   })
 })
 
+/** Whether a rect fills the whole drawing. */
+const filled = (svg: string) => /<rect width="[\d.]+" height="[\d.]+" fill=/.test(svg)
+
 describe('export', () => {
   it('writes the table as CSV, collapsed subtasks too', async () => {
     const { wrapper, tasks } = setup()
@@ -672,7 +675,7 @@ describe('export', () => {
     const { wrapper } = setup({ baseline })
     await nextTick()
     const vm = wrapper.findComponent(DouGantt).vm as unknown as {
-      exportSVG: (options?: { table?: boolean }) => string
+      exportSVG: (options?: { table?: boolean; background?: boolean }) => string
     }
     const svg = vm.exportSVG({ table: true })
     expect(svg.startsWith('<svg xmlns="http://www.w3.org/2000/svg"')).toBe(true)
@@ -684,5 +687,8 @@ describe('export', () => {
     // a parseable document
     const doc = new DOMParser().parseFromString(svg, 'image/svg+xml')
     expect(doc.querySelector('parsererror')).toBeNull()
+    // without a background, nothing fills the whole drawing
+    expect(filled(svg)).toBe(true)
+    expect(filled(vm.exportSVG({ table: true, background: false }))).toBe(false)
   })
 })

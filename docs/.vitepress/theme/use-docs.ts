@@ -4,6 +4,8 @@ import { useData, useRoute } from 'vitepress'
 export interface NavLink {
   text: string
   link: string
+  /** Pages outside the link's own section that belong to this entry. */
+  activeMatch?: string
 }
 
 export interface SidebarGroup {
@@ -40,6 +42,16 @@ export function useDocs() {
     return prefix ? sidebars.value[prefix]! : []
   })
 
+  /** The header entry the current page belongs to, by its link. */
+  const activeNav = computed(
+    () =>
+      nav.value.find((item) =>
+        item.activeMatch
+          ? new RegExp(item.activeMatch).test(path.value)
+          : sectionOf(item.link) === sectionOf(path.value),
+      )?.link,
+  )
+
   const pages = computed(() => sidebar.value.flatMap((group) => group.items))
   const index = computed(() => pages.value.findIndex((page) => normalize(page.link) === path.value))
   const prev = computed(() => (index.value > 0 ? pages.value[index.value - 1] : undefined))
@@ -55,7 +67,11 @@ export function useDocs() {
           if (seen.has(item.link)) continue
           seen.add(item.link)
           // An untitled group (the overview) is listed under its section.
-          const section = nav.value.find((entry) => sectionOf(entry.link) === sectionOf(item.link))
+          const section = nav.value.find((entry) =>
+            entry.activeMatch
+              ? new RegExp(entry.activeMatch).test(normalize(item.link))
+              : sectionOf(entry.link) === sectionOf(item.link),
+          )
           list.push({ ...item, group: group.text || (section?.text ?? '') })
         }
       }
@@ -66,6 +82,7 @@ export function useDocs() {
   return {
     path,
     nav,
+    activeNav,
     sidebar,
     prev,
     next,

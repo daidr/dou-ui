@@ -1,6 +1,6 @@
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitepress'
-import type { MarkdownOptions } from 'vitepress'
+import type { DefaultTheme, MarkdownOptions } from 'vitepress'
 import { demoCode } from './demo-code'
 import { colorModeScript } from '../../packages/dou-ui/src/components/color-mode/use-color-mode'
 
@@ -13,6 +13,49 @@ const markdown: MarkdownOptions = {
     md.renderer.rules.fence = (...args) => `<DocCode>${fence(...args)}</DocCode>`
   },
 }
+
+/** Each package of the ecosystem shows its own pages below the ecosystem overview. */
+const ecosystem = (
+  title: string,
+  items: DefaultTheme.SidebarItem[],
+): DefaultTheme.SidebarItem[] => [
+  { text: '', items: [{ text: '生态系统概览', link: '/ecosystem/' }] },
+  { text: title, items },
+]
+
+const editorSidebar = ecosystem('块编辑器', [
+  { text: '介绍', link: '/editor/' },
+  { text: '文档数据', link: '/editor/data' },
+  { text: '快捷操作', link: '/editor/shortcuts' },
+  { text: '扩展', link: '/editor/extensions' },
+  { text: '代码块', link: '/editor/code-block' },
+  { text: '折叠块与提示块', link: '/editor/toggle-callout' },
+  { text: '图片', link: '/editor/image' },
+  { text: '提及', link: '/editor/mention' },
+  { text: '表格', link: '/editor/table' },
+  { text: '导入与导出', link: '/editor/import-export' },
+  { text: '协同编辑', link: '/editor/collaboration' },
+])
+
+const flowSidebar = ecosystem('流程编辑器', [
+  { text: '介绍', link: '/flow/' },
+  { text: '文档数据', link: '/flow/data' },
+  { text: '自定义节点', link: '/flow/custom-nodes' },
+  { text: '端口类型与连接规则', link: '/flow/ports' },
+  { text: '连线', link: '/flow/edges' },
+  { text: '分组', link: '/flow/groups' },
+  { text: '编辑交互', link: '/flow/editing' },
+  { text: '扩展', link: '/flow/extensions' },
+  { text: '协同编辑', link: '/flow/collaboration' },
+  { text: '大型流程', link: '/flow/performance' },
+])
+
+const ganttSidebar = ecosystem('甘特图', [
+  { text: '介绍', link: '/gantt/' },
+  { text: '文档数据', link: '/gantt/data' },
+  { text: '扩展', link: '/gantt/extensions' },
+  { text: '协同编辑', link: '/gantt/collaboration' },
+])
 
 export default defineConfig({
   lang: 'zh-CN',
@@ -33,9 +76,12 @@ export default defineConfig({
       { text: '指南', link: '/guide/philosophy' },
       { text: '组件', link: '/components/overview' },
       { text: '区块', link: '/blocks/login' },
-      { text: '编辑器', link: '/editor/' },
-      { text: '流程编辑器', link: '/flow/' },
-      { text: '甘特图', link: '/gantt/' },
+      // The editor, flow and gantt packages keep their own paths.
+      {
+        text: '生态系统',
+        link: '/ecosystem/',
+        activeMatch: '^/(ecosystem|editor|flow|gantt)(/|$)',
+      },
       { text: '图标', link: '/icons/' },
       { text: '集成', link: '/integrations/vite' },
     ],
@@ -56,52 +102,23 @@ export default defineConfig({
           ],
         },
       ],
-      '/editor': [
+      '/ecosystem': [
         {
-          text: '块编辑器',
+          text: '',
+          items: [{ text: '概览', link: '/ecosystem/' }],
+        },
+        {
+          text: '组件包',
           items: [
-            { text: '概览', link: '/editor/' },
-            { text: '文档数据', link: '/editor/data' },
-            { text: '快捷操作', link: '/editor/shortcuts' },
-            { text: '扩展', link: '/editor/extensions' },
-            { text: '代码块', link: '/editor/code-block' },
-            { text: '折叠块与提示块', link: '/editor/toggle-callout' },
-            { text: '图片', link: '/editor/image' },
-            { text: '提及', link: '/editor/mention' },
-            { text: '表格', link: '/editor/table' },
-            { text: '导入与导出', link: '/editor/import-export' },
-            { text: '协同编辑', link: '/editor/collaboration' },
+            { text: '块编辑器', link: '/editor/' },
+            { text: '流程编辑器', link: '/flow/' },
+            { text: '甘特图', link: '/gantt/' },
           ],
         },
       ],
-      '/flow': [
-        {
-          text: '流程编辑器',
-          items: [
-            { text: '概览', link: '/flow/' },
-            { text: '文档数据', link: '/flow/data' },
-            { text: '自定义节点', link: '/flow/custom-nodes' },
-            { text: '端口类型与连接规则', link: '/flow/ports' },
-            { text: '连线', link: '/flow/edges' },
-            { text: '分组', link: '/flow/groups' },
-            { text: '编辑交互', link: '/flow/editing' },
-            { text: '扩展', link: '/flow/extensions' },
-            { text: '协同编辑', link: '/flow/collaboration' },
-            { text: '大型流程', link: '/flow/performance' },
-          ],
-        },
-      ],
-      '/gantt': [
-        {
-          text: '甘特图',
-          items: [
-            { text: '概览', link: '/gantt/' },
-            { text: '数据格式', link: '/gantt/data' },
-            { text: '扩展', link: '/gantt/extensions' },
-            { text: '协同编辑', link: '/gantt/collaboration' },
-          ],
-        },
-      ],
+      '/editor': editorSidebar,
+      '/flow': flowSidebar,
+      '/gantt': ganttSidebar,
       '/icons': [
         {
           text: '图标',

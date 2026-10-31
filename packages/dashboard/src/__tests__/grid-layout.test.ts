@@ -121,6 +121,11 @@ describe('DouGridLayout', () => {
     expect(onChange.mock.calls[0]![0]).toMatchObject({ id: 'a', reason: 'move' })
     expect(wrapper.find('.dou-grid-layout__placeholder').exists()).toBe(false)
     expect((a as HTMLElement).style.getPropertyValue('--dou-grid-dx')).toBe('')
+    // the outcome is read out, as it is for the keyboard
+    await new Promise((resolve) => requestAnimationFrame(resolve))
+    expect(wrapper.get('.dou-grid-layout__live').text()).toBe(
+      '已放下 a，第 7 列第 1 行，宽 6 列，高 2 行',
+    )
   })
 
   it('cancels a drag with Escape', async () => {
@@ -347,6 +352,24 @@ describe('DouGridLayout breakpoints', () => {
       { id: 'c', x: 0, y: 2, w: 1, h: 2 },
     ])
     expect(place(wrapper, 'c')).toEqual([0, 2, 1, 2])
+  })
+
+  it('reads out the place in the list on one column', async () => {
+    width = 390
+    const { wrapper } = setup()
+    await nextTick()
+    const c = itemEl(wrapper, 'c').element as HTMLElement
+    // c is 80px wide on 390px; a row is 80px, plus 16px gaps
+    pointer('pointerdown', c, 10, 2 * 96 + 10)
+    pointer('pointermove', window, 10, 96 + 10)
+    pointer('pointermove', window, 10, 10)
+    await nextTick()
+    pointer('pointerup', window, 10, 10)
+    await nextTick()
+    await new Promise((resolve) => requestAnimationFrame(resolve))
+    const n = 1 + ['a', 'b'].filter((id) => place(wrapper, id)[1]! < place(wrapper, 'c')[1]!).length
+    expect(n).toBeLessThan(3)
+    expect(wrapper.get('.dou-grid-layout__live').text()).toBe(`已放下 c，第 ${n} 个，共 3 个`)
   })
 
   it('uses one number of columns at every width', async () => {

@@ -211,8 +211,14 @@ const cellStyle = (item: GridItem) => ({
 })
 
 const labelOf = (item: GridItem) => props.itemLabel?.(item) ?? item.id
-const positionText = (item: GridItem) =>
-  format(messages.value.position, { x: item.x + 1, y: item.y + 1, w: item.w, h: item.h })
+/** Where an item is, read out: its cell and size, or with one column its place in the list. */
+function positionText(item: GridItem, items: readonly GridItem[]) {
+  if (options.value.columns > 1)
+    return format(messages.value.position, { x: item.x + 1, y: item.y + 1, w: item.w, h: item.h })
+  let n = 1
+  for (const other of items) if (other.y < item.y) n++
+  return format(messages.value.order, { n, count: items.length })
+}
 
 // ---------------------------------------------------------------------------
 // Announcements
@@ -329,15 +335,17 @@ function finish(keep: boolean) {
   const reason = s.source === 'keyboard' ? 'keyboard' : s.kind
   const changed = keep && commit(next, s, reason)
   emit('drag-end', { id: s.id, kind: s.kind, cancelled: !keep || (s.kind === 'drop' && !changed) })
-  if (s.source === 'keyboard') {
-    const item = (changed ? next : s.base)?.find((other) => other.id === s.id) ?? s.item
-    const label = labelOf(item)
-    say(
-      keep
-        ? format(messages.value.dropped, { item: label, position: positionText(item) })
-        : format(messages.value.cancelled, { item: label }),
-    )
-  }
+  // the keyboard hears every outcome; the pointer only a change, or a drag
+  // undone (a new item that wasn't dropped has nowhere to go back to)
+  if (s.source !== 'keyboard' && (keep || s.kind === 'drop') && !changed) return
+  const items = (changed ? next : s.base) ?? s.base
+  const item = items.find((other) => other.id === s.id) ?? s.item
+  const label = labelOf(item)
+  say(
+    changed || (keep && s.source === 'keyboard')
+      ? format(messages.value.dropped, { item: label, position: positionText(item, items) })
+      : format(messages.value.cancelled, { item: label }),
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -657,7 +665,7 @@ function onKeyDown(event: KeyboardEvent) {
         : moveItemBy(current, id, arrow[0], arrow[1], options.value)
       preview.value = next
       const item = next.find((other) => other.id === id)
-      if (item) say(positionText(item))
+      if (item) say(positionText(item, next))
     } else if (event.key === 'Enter' || event.key === ' ') {
       finish(true)
     } else if (event.key === 'Escape') {
@@ -680,7 +688,12 @@ function onKeyDown(event: KeyboardEvent) {
     session.value = { id, kind: 'move', source: 'keyboard', base: settled.value, item }
     preview.value = settled.value
     emit('drag-start', { id, kind: 'move' })
-    say(format(messages.value.grabbed, { item: labelOf(item), position: positionText(item) }))
+    say(
+      format(messages.value.grabbed, {
+        item: labelOf(item),
+        position: positionText(item, settled.value),
+      }),
+    )
   } else if (arrow && !event.shiftKey && !event.altKey && !event.metaKey && !event.ctrlKey) {
     const next = neighbour(item, arrow[0], arrow[1])
     if (!next) return

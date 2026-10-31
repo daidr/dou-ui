@@ -286,6 +286,46 @@ function rank(key: string) {
   return index < 0 ? APPLE_ORDER.length : index
 }
 
+const ARIA_KEYS: Record<string, string> = {
+  ctrl: 'Control',
+  meta: 'Meta',
+  alt: 'Alt',
+  shift: 'Shift',
+  ' ': 'Space',
+  enter: 'Enter',
+  escape: 'Escape',
+  backspace: 'Backspace',
+  delete: 'Delete',
+  tab: 'Tab',
+  arrowup: 'ArrowUp',
+  arrowdown: 'ArrowDown',
+  arrowleft: 'ArrowLeft',
+  arrowright: 'ArrowRight',
+  pageup: 'PageUp',
+  pagedown: 'PageDown',
+  home: 'Home',
+  end: 'End',
+}
+
+/**
+ * A hotkey as the value of `aria-keyshortcuts`, e.g. `mod+k` gives
+ * `Control+K` (`Meta+K` on Apple platforms). `undefined` for a sequence,
+ * which the attribute has no way to write.
+ */
+export function ariaHotkey(hotkey: string, apple = isApplePlatform()): string | undefined {
+  const steps = parseHotkey(hotkey)
+  if (steps.length !== 1) return undefined
+  return steps[0]!
+    .map((key) =>
+      key === 'mod'
+        ? apple
+          ? 'Meta'
+          : 'Control'
+        : (ARIA_KEYS[key] ?? (key.length === 1 ? key.toUpperCase() : key)),
+    )
+    .join('+')
+}
+
 /**
  * Whether the page runs on an Apple platform, as a ref that starts `false`
  * and updates after mounting, so server-rendered markup matches the first

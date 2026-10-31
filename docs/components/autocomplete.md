@@ -34,6 +34,8 @@
 | `Enter` | 选中高亮的建议；没有高亮时交给表单（提交） |
 | `Esc`   | 收起列表                                   |
 
+开启 `multiline` 后，列表收起时 `↑` `↓` 移动光标，没有高亮的建议时 `Enter` 换行；`clearable` 和 `prefix` 插槽不生效。
+
 ## API
 
 ### Autocomplete Props
@@ -55,6 +57,7 @@
 | `placement`   | 列表弹出的位置                                | `Placement`                                    | `'bottom-start'` |
 | `teleport`    | 列表渲染到哪里，`false` 留在原处              | `string \| HTMLElement \| false`               | `'body'`         |
 | `virtual`     | 只渲染看得见的建议；不传时超过 100 条自动开启 | `boolean`                                      | —                |
+| `multiline`   | 文字可以换行，输入框随内容变高，默认最多 8 行 | `boolean \| { maxRows?: number }`              | `false`          |
 
 其余属性（如 `name`、`maxlength`）传给原生输入框。
 

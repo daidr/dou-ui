@@ -58,6 +58,7 @@ wide: true
 | `Enter`                                    | 跳到属性面板的第一项                               |
 | `Esc`                                      | 选中上一级                                         |
 | `Space`                                    | 拿起选中的节点，再用方向键选择位置，`Enter` 放下   |
+| `Shift` + `F10`，菜单键                    | 在画布上打开选中节点的菜单，也可以右键打开         |
 
 连续修改同一项设置（比如一个字一个字地输入标签）在一秒内会合并成一步撤销。
 
@@ -90,9 +91,68 @@ export const chipField = defineFormField({
 
 宽度可以是一个列数，也可以打开“按表单宽度分别设置”，为每个断点分别填写；空着的断点沿用更窄的那一个。
 
+## 校验与联动
+
+选中一个字段后，属性面板下方还有两部分：
+
+- **校验**：逐条添加规则，每条选一种：格式（邮箱、网址、数字、整数、文字）、范围（文字按字数，多选和列表按个数，数字按大小）、正则表达式、表达式。每条规则可以写出错时的提示，并选择检查时机。写进节点的是 `rules`，和[表单描述](./document)里手写的规则一样。
+- **联动**：显示条件、禁用条件、必填条件，以及字段的计算公式，分别写进 `visibleWhen`、`disabledWhen`、`requiredWhen` 和 `formula`。
+
+条件用一行行的“字段、比较方式、值”来编辑，多行之间可以选“满足全部条件”或“满足任一条件”。值的输入方式跟着字段走：有选项的字段从它的选项里选，开关和勾选框选“是”或“否”，数字字段输入数字。条件写进节点时就是表达式文本，比如 `values.device == 'laptop'`；点“写成表达式”可以直接改文本，能拆成条件的表达式也可以再切回来。在列表里的字段还可以读同一项的其他字段（`item.xxx`）。
+
+<DocDemo src="form-builder/builder-logic" column />
+
+表达式输入框会补全字段路径（输入 `values.` 之后）和函数名，并在下方即时提示问题：语法错误、不存在的字段、不存在的函数。表达式里用到了自己注册的函数时，把同一份 `functions` 也传给设计器，补全、检查和预览都会用到它：
+
+```vue
+<DouFormBuilder v-model="form" :functions="{ tax: (price) => price * 0.06 }" />
+```
+
+## 预览
+
+工具栏右侧的“预览”切换到填写视图：表单按真实的样子渲染，可以填写、看到联动和校验，提交通过后在下方列出会提交的值。上方可以选择桌面、平板（768px）和手机（375px）的宽度，栅格按表单宽度变化，所以能直接看到每个断点下的排版。手机上预览始终占满屏幕宽度。
+
+`v-model:mode` 绑定当前是设计（`design`）还是预览（`preview`），也可以从页面自己的按钮切换。预览用到选项来源时，把同一份 `sources` 传给设计器。
+
+## JSON
+
+工具栏上的 `{ }` 按钮打开表单的 JSON，可以复制、下载，也可以粘贴或打开一个文件来替换整张表单。修改时下方会按路径列出问题，比如 `nodes[0].children[1].label 应为文字`：
+
+- 结构不对（值的类型错了、缺少 `id`、`type`、`children`），或者 id 重复、页面放错了位置，这些问题会让设计器无法工作，改好之前不能应用；
+- 字段名重复、表达式引用了不存在的字段、字段类型没有注册等问题只做提示，仍然可以应用，应用之后可以在设计器里接着改。
+
+应用之后是一步撤销。代码里也可以用同样的检查：`checkDocumentShape(data)` 按路径列出结构问题，`checkDocument(document)` 列出内容问题，`documentPaths(document)` 给出每个节点 id 对应的路径；`replace(document)` 换掉整张表单，并记为一步撤销。
+
+## 扩展
+
+`extensions` 给设计器加上新的能力：字段类型、快捷键、工具栏按钮、节点菜单项、属性面板里的部分，以及对每次修改的处理。下面的扩展在节点菜单（右键或节点上的 `⋯` 按钮）、工具栏和 `Alt + R` 上加了“切换必填”：
+
+<DocDemo src="form-builder/builder-extension" column />
+
+| 选项          | 作用                                                                                                                                                    |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`        | 扩展的名字，同一个设计器里不能重复                                                                                                                      |
+| `priority`    | 越大越先执行，默认 `100`                                                                                                                                |
+| `fields`      | 字段类型，和 `fields` 属性一样出现在字段面板里                                                                                                          |
+| `keymap`      | 画布或结构树有焦点时的快捷键，写法同 `useHotkey`；先于内置快捷键，返回 `false` 时交给后面处理                                                           |
+| `toolbar`     | 工具栏按钮：`key`、`label`、`icon`、`run`，以及 `disabled`、`pressed`、`shortcut`（显示在提示里，并作为 `aria-keyshortcuts`；按键本身用 `keymap` 绑定） |
+| `menu`        | 选中节点的菜单项，排在内置的移动、复制、放进分组、删除之后；`shortcut` 显示在菜单项末尾                                                                 |
+| `inspector`   | 属性面板里追加的部分：`title` 和 `component`，没有选中节点时参数是 `undefined`                                                                          |
+| `transaction` | 每次修改提交前调用，可以往事务里追加步骤，它们和原来的修改是同一步撤销；撤销和重做不经过这里                                                            |
+| `setup`       | 设计器挂载后调用，返回的函数在卸载时调用                                                                                                                |
+
+扩展里的函数拿到的参数和 `useFormBuilder()` 是同一个对象。扩展带来的字段类型也要交给渲染器，`resolveFormBuilderFields(fields, extensions)` 把两处的字段类型合在一起：
+
+```ts
+import { resolveFormBuilderFields } from '@dou-ui/form-builder'
+
+const fields = resolveFormBuilderFields([chipField], [myExtension])
+// <DouFormRenderer :form="form" :fields="fields" />
+```
+
 ## 自己摆放面板
 
-默认插槽会替换设计器的整个布局，可以把 `DouFormBuilderPalette`（字段面板）、`DouFormBuilderCanvas`（画布）、`DouFormBuilderInspector`（属性面板）、`DouFormBuilderOutline`（结构树）放在任何位置，它们共用同一个设计器的状态。`toolbar` 插槽在默认布局的撤销、重做按钮后面追加按钮。
+默认插槽会替换设计器的整个布局，可以把 `DouFormBuilderPalette`（字段面板）、`DouFormBuilderCanvas`（画布）、`DouFormBuilderInspector`（属性面板）、`DouFormBuilderOutline`（结构树）、`DouFormBuilderPreview`（预览）放在任何位置，它们共用同一个设计器的状态。`toolbar` 插槽在默认布局的撤销、重做按钮后面追加按钮。
 
 <DocDemo src="form-builder/builder-parts" column />
 
@@ -109,6 +169,8 @@ export const chipField = defineFormField({
 | `moveBy(delta, ids?)` | 在同一个容器里上移（`-1`）或下移（`1`）一位                                     |
 | `wrap(ids?)`          | 把同一个容器里的节点放进一个新的分组                                            |
 | `addPage(id?)`        | 给标签页或分步加一页                                                            |
+| `replace(document)`   | 换掉整张表单，记为一步撤销                                                      |
+| `setMode(mode)`       | 切换设计（`design`）和预览（`preview`）                                         |
 | `select(ids, mode?)`  | 选中节点，`mode` 为 `replace`、`toggle` 或 `extend`；`null` 选中表单本身        |
 | `undo()` / `redo()`   | 撤销、重做                                                                      |
 

@@ -43,6 +43,13 @@ export interface AutocompleteProps {
    * past 100 suggestions; pass `false` for suggestions of differing heights.
    */
   virtual?: boolean
+  /**
+   * Let the text run over several lines, the field growing with it up to
+   * `maxRows`. `↑` `↓` move the caret while the list is closed, and Enter
+   * starts a new line when no suggestion is highlighted. `clearable` and
+   * the `prefix` slot do not apply.
+   */
+  multiline?: boolean | { maxRows?: number }
 }
 
 export interface AutocompleteEmits {

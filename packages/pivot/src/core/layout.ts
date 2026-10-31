@@ -46,11 +46,17 @@ export interface PivotLinesOptions {
   valuesHere: boolean
   /** Whether the grand total gets a line. */
   total: boolean
+  /**
+   * Rows only: an open group's total goes on a line of its own after its
+   * children (the tabular layout), instead of on the group's own line.
+   */
+  totalsAfter?: boolean
 }
 
 /**
  * The rows of the table, top to bottom, without the grand total: each open
- * group is followed by its children; a group's own row holds its total.
+ * group is followed by its children; a group's own row holds its total
+ * (or, with `totalsAfter`, a row after its children does).
  */
 export function rowLines(
   tree: PivotTree,
@@ -65,12 +71,18 @@ export function rowLines(
     else lines.push({ node, kind, value: -1 })
   }
   if (tree.levels.length === 0) return lines
-  const { childStart } = tree
+  const { childStart, depth, levels } = tree
   const visit = (node: number) => {
     for (let at = childStart[node]!; at < childStart[node + 1]!; at++) {
       const child = order[at]!
+      const open = !collapsed.has(child) && tree.isGroup(child)
+      if (open && options.totalsAfter) {
+        visit(child)
+        if (levels[depth[child]! - 1]!.subtotal) push(child, 'subtotal')
+        continue
+      }
       push(child, 'group')
-      if (!collapsed.has(child)) visit(child)
+      if (open) visit(child)
     }
   }
   visit(0)

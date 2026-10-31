@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { IntIndex } from '../engine/hash'
-import { computePivot, defineAggregator, PivotSource, type PivotConfig } from '../engine'
+import {
+  bucketer,
+  computePivot,
+  defineAggregator,
+  isoWeek,
+  PivotSource,
+  type PivotConfig,
+} from '../engine'
 
 interface Order {
   region: string | null
@@ -254,5 +261,60 @@ describe('computePivot', () => {
     expect((out.rows.label(first) as Date).getDate()).toBe(1)
     expect(out.get(first, 0)).toBe(40)
     expect(out.get(0, 0)).toBe(10 + 40 + 90)
+  })
+
+  it('groups dates by a period and numbers in ranges, from the field’s groups', () => {
+    const sales = [
+      { day: new Date(2025, 11, 31), amount: 5 },
+      { day: '2026-01-01', amount: 10 },
+      { day: new Date(2026, 1, 15), amount: 20 },
+      { day: new Date(2026, 3, 1), amount: 40 },
+      { day: null, amount: 80 },
+    ]
+    const salesSource = new PivotSource(sales, { locale: 'zh-CN' })
+    const quarters = computePivot(salesSource, {
+      rows: [{ field: 'day', by: 'quarter' }],
+      values: ['amount'],
+    })
+    const labels = (out: typeof quarters) =>
+      Array.from(out.rows.children, (node) => out.rows.label(node))
+    expect(labels(quarters)).toEqual(['2025-Q4', '2026-Q1', '2026-Q2', null])
+    expect(quarters.get(quarters.rows.find(['2026-Q1']), 0)).toBe(30)
+
+    const years = computePivot(salesSource, {
+      columns: [{ field: 'day', by: 'year' }],
+      values: ['amount'],
+    })
+    expect(Array.from(years.columns.children, (n) => years.columns.label(n))).toEqual([
+      2025,
+      2026,
+      null,
+    ])
+    // a filter on the groups of a grouping
+    const filtered = computePivot(salesSource, {
+      rows: ['day'],
+      values: ['amount'],
+      filters: { day: { include: [2026], by: 'year' } },
+    })
+    expect(filtered.get(0, 0)).toBe(70)
+
+    const ranges = computePivot(salesSource, {
+      rows: [{ field: 'amount', by: { step: 25 } }],
+      values: [{ aggregate: 'count' }],
+    })
+    expect(labels(ranges)).toEqual([0, 25, 75])
+    expect(ranges.get(ranges.rows.find([0]), 0)).toBe(3)
+  })
+
+  it('puts days in ISO weeks and steps without rounding noise', () => {
+    expect(isoWeek(new Date(2026, 0, 1))).toEqual([2026, 1])
+    expect(isoWeek(new Date(2027, 0, 1))).toEqual([2026, 53])
+    expect(isoWeek(new Date(2024, 11, 30))).toEqual([2025, 1])
+    expect(bucketer('week')('2026-03-15')).toBe('2026-W11')
+    expect(bucketer('month')(new Date(2026, 8, 3))).toBe('2026-09')
+    expect(bucketer('day')('2026-03-05')).toBe('2026-03-05')
+    expect(bucketer({ step: 0.1 })(0.35)).toBe(0.3)
+    expect(bucketer({ step: 10, start: 5 })(3)).toBe(-5)
+    expect(bucketer('year')('not a date')).toBeNull()
   })
 })

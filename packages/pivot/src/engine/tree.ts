@@ -1,3 +1,4 @@
+import type { PivotGroupBy } from './group'
 import { IntIndex } from './hash'
 import type { PivotDimensionColumn, PivotResolvedField } from './source'
 
@@ -7,6 +8,8 @@ export interface PivotLevel {
   column: PivotDimensionColumn
   sort: 'asc' | 'desc'
   subtotal: boolean
+  /** How the field's values are grouped, when not by each value. */
+  by?: PivotGroupBy
 }
 
 /**

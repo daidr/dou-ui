@@ -31,12 +31,16 @@ import {
   type PivotLine,
 } from './core/layout'
 import { labelFormatter, valueFormatter } from './core/format'
+import { valueLabel } from './core/labels'
+import { usePivotSource } from './core/source'
 import { format, usePivotMessages } from './locale'
 import type { PivotCellEvent, PivotExpose, PivotProps } from './types'
 
 defineOptions({ name: 'DouPivot' })
 
 const props = withDefaults(defineProps<PivotProps<Row>>(), {
+  layout: 'compact',
+  resizable: true,
   maxHeight: 480,
   size: 'md',
   rowHeaderWidth: 200,
@@ -55,39 +59,10 @@ const VALUE_HEADER_WIDTH = 120
 
 // ---- the records, read once per array ----
 
-let cache: {
-  data: readonly Row[]
-  fields: readonly PivotField<Row>[] | undefined
-  locale: string
-  source: PivotSource<Row>
-} | null = null
-
-const sameFields = (a?: readonly PivotField<Row>[], b?: readonly PivotField<Row>[]) => {
-  if (a === b) return true
-  if (!a || !b || a.length !== b.length) return false
-  return a.every((f, i) => {
-    const g = b[i]!
-    return (
-      f.name === g.name &&
-      f.label === g.label &&
-      f.type === g.type &&
-      f.value === g.value &&
-      f.format === g.format &&
-      f.order === g.order
-    )
-  })
-}
-
-const source = computed(() => {
-  const data = toRaw(props.data)
-  const fields = props.fields && toRaw(props.fields)
-  const name = locale.value.name
-  if (cache && cache.data === data && cache.locale === name && sameFields(cache.fields, fields))
-    return cache.source
-  const next = markRaw(new PivotSource<Row>(data, { fields, locale: name }))
-  cache = { data, fields, locale: name, source: next }
-  return next
-})
+const source = usePivotSource(
+  () => props.data,
+  () => props.fields,
+)
 
 /** Stays the same object while the aggregators do, even when the array is written inline. */
 let lastAggregators: Record<string, PivotAggregator> = {}
@@ -105,7 +80,9 @@ const keyReplacer = (_key: string, value: unknown) =>
   typeof value === 'function' ? undefined : value
 
 const dimensionKey = (d: PivotDimension) =>
-  typeof d === 'string' ? { field: d } : { field: d.field, sort: d.sort, subtotal: d.subtotal }
+  typeof d === 'string'
+    ? { field: d }
+    : { field: d.field, sort: d.sort, subtotal: d.subtotal, by: d.by }
 
 /**
  * The part of the config that changes what is summed up. Sorting, totals,
@@ -151,12 +128,15 @@ const columnCollapsed = computed(() =>
   collapsedNodes(result.value.columns, collapsed.value.columns),
 )
 const rowOrder = computed(() => result.value.rowOrder(config.value.sort))
+/** Each row field in a column of its own, open groups' totals on a line after their children. */
+const tabular = computed(() => props.layout === 'tabular' && result.value.rows.levels.length > 0)
 
 const bodyLines = computed(() =>
   rowLines(result.value.rows, rowOrder.value, rowCollapsed.value, {
     values: valueCount.value,
     valuesHere: valuesOnRows.value,
     total: showRowTotal.value,
+    totalsAfter: tabular.value,
   }),
 )
 const footLines = computed(() =>
@@ -188,20 +168,8 @@ const valueDisplay = computed(() => {
   return result.value.values.map((value, i) => {
     const given = config.value.values?.[i]
     const spec = typeof given === 'object' ? given : undefined
-    const label =
-      spec?.label ??
-      value.label ??
-      (value.implicit || !value.field
-        ? m.aggregates.count!
-        : value.aggregate === 'sum'
-          ? value.field.label
-          : format(m.value, {
-              field: value.field.label,
-              aggregate:
-                m.aggregates[value.aggregate] ?? value.aggregator?.label ?? value.aggregate,
-            }))
     return {
-      label,
+      label: valueLabel(value, spec?.label, m),
       write: valueFormatter({ ...value, format: spec?.format ?? value.format }, locale.value.name),
     }
   })
@@ -209,8 +177,16 @@ const valueDisplay = computed(() => {
 
 const labelWriters = (tree: PivotTree) => {
   const m = messages.value
-  const texts = { empty: m.empty, yes: m.yes, no: m.no }
-  return tree.levels.map((level) => labelFormatter(level.field, locale.value.name, texts))
+  const texts = {
+    empty: m.empty,
+    yes: m.yes,
+    no: m.no,
+    year: m.yearLabel,
+    quarter: m.quarterLabel,
+    week: m.weekLabel,
+    range: m.rangeLabel,
+  }
+  return tree.levels.map((level) => labelFormatter(level.field, locale.value.name, texts, level.by))
 }
 const rowWriters = computed(() => labelWriters(result.value.rows))
 const colWriters = computed(() => labelWriters(result.value.columns))
@@ -224,10 +200,23 @@ const rowHeight = computed(() => ROW_HEIGHT[props.size] ?? 32)
 /** A row per column field, and one more for the row fields (and the values, when shown). */
 const headRows = computed(() => result.value.columns.levels.length + 1)
 const headHeight = computed(() => headRows.value * rowHeight.value)
-/** On a narrow screen the row headers give up some width so the numbers still show. */
-const rowHeadWidth = computed(() =>
-  Math.min(props.rowHeaderWidth, Math.max(120, Math.floor(viewWidth.value * 0.4))),
-)
+/** Set by dragging the edge of the corner; `0` for the width worked out from the props. */
+const rowHeadDragged = ref(0)
+const rowLevelCount = computed(() => (tabular.value ? result.value.rows.levels.length : 1))
+/**
+ * The row headers' width. A tabular layout gives each row field a column of
+ * 60% of `rowHeaderWidth`. On a narrow screen the row headers give up some
+ * width so the numbers still show.
+ */
+const rowHeadWidth = computed(() => {
+  if (rowHeadDragged.value) return rowHeadDragged.value
+  const want = tabular.value
+    ? rowLevelCount.value * Math.round(props.rowHeaderWidth * 0.6)
+    : props.rowHeaderWidth
+  return Math.min(want, Math.max(120, Math.floor(viewWidth.value * (tabular.value ? 0.5 : 0.4))))
+})
+/** The width of each row field's column in the tabular layout. */
+const levelWidth = computed(() => Math.floor(rowHeadWidth.value / rowLevelCount.value))
 const headWidth = computed(() => rowHeadWidth.value + (valuesOnRows.value ? VALUE_HEADER_WIDTH : 0))
 /** Columns widen to fill a wide table, up to twice their width; past that the bands run on alone. */
 const colWidth = computed(() => {
@@ -235,7 +224,33 @@ const colWidth = computed(() => {
   const fill = count ? Math.floor((viewWidth.value - headWidth.value) / count) : 0
   return Math.max(props.columnWidth, Math.min(fill, props.columnWidth * 2))
 })
-const columnsWidth = computed(() => colLines.value.length * colWidth.value)
+/** Widths set by dragging a column's edge, by the column's groups, kind and value. */
+const dragged = shallowRef(new Map<string, number>())
+const colKey = (line: PivotLine) =>
+  `${line.kind}|${line.value}|${line.kind === 'total' ? '' : JSON.stringify(result.value.columns.path(line.node))}`
+/** Where each column starts; the last entry is where the last one ends. */
+const colStarts = computed(() => {
+  const lines = colLines.value
+  const starts = new Float64Array(lines.length + 1)
+  const base = colWidth.value
+  const map = dragged.value
+  for (let i = 0; i < lines.length; i++)
+    starts[i + 1] = starts[i]! + (map.size ? (map.get(colKey(lines[i]!)) ?? base) : base)
+  return starts
+})
+/** The column at `x` px from the left of the columns. */
+function columnAt(x: number) {
+  const starts = colStarts.value
+  let low = 0
+  let high = starts.length - 2
+  while (low < high) {
+    const mid = (low + high + 1) >> 1
+    if (starts[mid]! <= x) low = mid
+    else high = mid - 1
+  }
+  return Math.max(0, low)
+}
+const columnsWidth = computed(() => colStarts.value[colLines.value.length]!)
 const totalWidth = computed(() => headWidth.value + columnsWidth.value)
 const bodyHeight = computed(() => bodyLines.value.length * rowHeight.value)
 const footHeight = computed(() => footLines.value.length * rowHeight.value)
@@ -280,13 +295,10 @@ const rowWindow = computed(() => {
 })
 
 const colWindow = computed(() => {
-  const w = colWidth.value
-  const space = Math.max(w, viewWidth.value - headWidth.value)
-  const from = Math.max(0, Math.floor(scroll.value.left / w) - OVERSCAN_COLS)
-  const to = Math.min(
-    colLines.value.length,
-    Math.ceil((scroll.value.left + space) / w) + OVERSCAN_COLS,
-  )
+  const space = Math.max(colWidth.value, viewWidth.value - headWidth.value)
+  const count = colLines.value.length
+  const from = Math.max(0, columnAt(scroll.value.left) - OVERSCAN_COLS)
+  const to = count ? Math.min(count, columnAt(scroll.value.left + space) + 1 + OVERSCAN_COLS) : 0
   // a stable object while the window stays put, so rows can skip re-rendering
   const last = lastColWindow
   if (last && last.from === from && last.to === to) return last
@@ -326,6 +338,14 @@ const rowBlank = (line: PivotLine) => {
 
 const isFirstOfNode = (line: PivotLine) => line.value <= 0
 
+/** A group whose label shows on a line: in the tabular layout, one per row field. */
+interface RowHeadPart {
+  text: string
+  /** The group a click on the arrow opens or closes, or -1. */
+  toggle: number
+  open: boolean
+}
+
 interface RowHead {
   text: string
   depth: number
@@ -333,20 +353,56 @@ interface RowHead {
   open: boolean
   valueText: string
   firstOfNode: boolean
+  /** The tabular layout's labels, by row field; empty in the compact layout. */
+  parts: (RowHeadPart | null)[]
 }
 
-function rowHead(line: PivotLine): RowHead {
+/** Whether a line opens or closes a group from its row header: a group's line, or its total's. */
+/** Whether a line opens and closes its group; a subtotal after the children (tabular) does not. */
+const lineToggles = (line: PivotLine) =>
+  (line.kind === 'group' || (line.kind === 'subtotal' && !tabular.value)) &&
+  rowTree.value.isGroup(line.node)
+
+function rowHead(line: PivotLine, index: number): RowHead {
   const tree = rowTree.value
-  const group = line.kind === 'group' && tree.isGroup(line.node)
-  return {
+  const group = lineToggles(line)
+  const head: RowHead = {
     text:
-      line.kind === 'total' ? messages.value.total : nodeText(tree, rowWriters.value, line.node),
+      line.kind === 'total'
+        ? messages.value.total
+        : line.kind === 'subtotal'
+          ? format(messages.value.subtotalRow, {
+              label: nodeText(tree, rowWriters.value, line.node),
+            })
+          : nodeText(tree, rowWriters.value, line.node),
     depth: line.kind === 'total' ? 0 : tree.depth[line.node]! - 1,
     group,
     open: group && !rowCollapsed.value.has(line.node),
     valueText: line.value >= 0 ? valueDisplay.value[line.value]!.label : '',
     firstOfNode: isFirstOfNode(line),
+    parts: [],
   }
+  if (!tabular.value || !head.firstOfNode) return head
+  const parts: (RowHeadPart | null)[] = Array.from({ length: tree.levels.length }, () => null)
+  if (line.kind === 'total' || line.kind === 'subtotal') {
+    parts[head.depth] = { text: head.text, toggle: group ? line.node : -1, open: head.open }
+  } else {
+    // a group's label shows on the first line inside it
+    const before = index > 0 ? bodyLines.value[index - 1] : undefined
+    for (let at = line.node; at > 0; at = tree.parent[at]!) {
+      const level = tree.depth[at]! - 1
+      if (at !== line.node && before && before.kind !== 'total' && tree.within(before.node, at))
+        break
+      const isGroup = tree.isGroup(at)
+      parts[level] = {
+        text: nodeText(tree, rowWriters.value, at),
+        toggle: isGroup ? at : -1,
+        open: isGroup && !rowCollapsed.value.has(at),
+      }
+    }
+  }
+  head.parts = parts
+  return head
 }
 
 interface Cell {
@@ -354,19 +410,27 @@ interface Cell {
   text: string
   cls: string
   col: number
+  width: number
 }
 
 function rowCells(line: PivotLine): Cell[] {
   const res = result.value
   const blank = rowBlank(line)
   const display = valueDisplay.value
+  const starts = colStarts.value
   return visibleCols.value.map(({ line: col, index }) => {
     const v = line.value >= 0 ? line.value : Math.max(0, col.value)
     const n = blank ? Number.NaN : res.get(line.node, col.node, v)
     let cls = 'dou-pivot__cell'
     if (col.kind !== 'group') cls += ' is-total'
     if (col.kind === 'group' && col.node > 0 && res.columns.isGroup(col.node)) cls += ' is-closed'
-    return { key: index, col: index, text: display[v]!.write(n), cls }
+    return {
+      key: index,
+      col: index,
+      text: display[v]!.write(n),
+      cls,
+      width: starts[index + 1]! - starts[index]!,
+    }
   })
 }
 
@@ -382,6 +446,8 @@ interface HeadCell {
   sortable: boolean
   sorted: 'asc' | 'desc' | null
   cls: string
+  /** The column whose width its edge sets, or -1. */
+  resize: number
 }
 
 const columnPath = (line: { kind: string; node: number }) =>
@@ -389,7 +455,7 @@ const columnPath = (line: { kind: string; node: number }) =>
 
 const headCells = computed<HeadCell[]>(() => {
   const tree = result.value.columns
-  const w = colWidth.value
+  const starts = colStarts.value
   const h = rowHeight.value
   const sort = config.value.sort
   const out: HeadCell[] = []
@@ -427,7 +493,8 @@ const headCells = computed<HeadCell[]>(() => {
         key: `${span.level}:${span.from}:${span.kind}`,
         span,
         text,
-        style: `left:${span.from * w}px;top:${span.level * h}px;width:${(span.to - span.from) * w}px;height:${span.rows * h}px`,
+        style: `left:${starts[span.from]}px;top:${span.level * h}px;width:${starts[span.to]! - starts[span.from]!}px;height:${span.rows * h}px`,
+        resize: reachesBottom && single && props.resizable ? span.from : -1,
         toggle: canToggle,
         open: canToggle && !columnCollapsed.value.has(span.node),
         sortable,
@@ -512,6 +579,102 @@ function collapseAll({ axis, depth = 1 }: { axis?: PivotAxis; depth?: number } =
   collapsed.value = next
 }
 
+// ---- column widths ----
+
+let justResized = false
+const MIN_COLUMN = 56
+const MAX_COLUMN = 640
+
+/** Dragging the edge of a column header (or of the corner, for the row headers). */
+function onResizeDown(event: PointerEvent) {
+  const handle = (event.target as HTMLElement).closest<HTMLElement>('[data-resize]')
+  if (!handle || event.button !== 0) return
+  event.preventDefault()
+  event.stopPropagation()
+  const col = Number(handle.dataset.resize)
+  const startX = event.clientX
+  const starts = colStarts.value
+  const from = col < 0 ? rowHeadWidth.value : starts[col + 1]! - starts[col]!
+  const key = col < 0 ? '' : colKey(colLines.value[col]!)
+  let moved = false
+  handle.setPointerCapture?.(event.pointerId)
+  const onMove = (e: PointerEvent) => {
+    const dx = e.clientX - startX
+    if (!moved && Math.abs(dx) < 2) return
+    moved = true
+    if (col < 0) {
+      const min = 80 * rowLevelCount.value
+      rowHeadDragged.value = Math.round(Math.min(Math.max(from + dx, min), min * 6))
+      return
+    }
+    const next = new Map(dragged.value)
+    next.set(key, Math.round(Math.min(Math.max(from + dx, MIN_COLUMN), MAX_COLUMN)))
+    dragged.value = next
+  }
+  const onUp = () => {
+    window.removeEventListener('pointermove', onMove)
+    window.removeEventListener('pointerup', onUp)
+    window.removeEventListener('pointercancel', onUp)
+    if (moved) {
+      // the click that follows the drag is not a sort
+      justResized = true
+      setTimeout(() => (justResized = false))
+    }
+  }
+  window.addEventListener('pointermove', onMove)
+  window.addEventListener('pointerup', onUp)
+  window.addEventListener('pointercancel', onUp)
+}
+
+const measurer = ref<HTMLElement>()
+/** The widest of some texts in the table's font, measured once by the browser. */
+function widest(texts: string[]) {
+  const el = measurer.value
+  if (!el) return 0
+  // the longest few by length; measuring every text would cost a layout each
+  // oxlint-disable-next-line unicorn/no-array-sort -- sorts a fresh array
+  const top = [...new Set(texts)].sort((a, b) => b.length - a.length).slice(0, 12)
+  let max = 0
+  for (const text of top) {
+    el.textContent = text
+    max = Math.max(max, el.getBoundingClientRect().width)
+  }
+  el.textContent = ''
+  return Math.ceil(max)
+}
+
+/** Double-clicking a column's edge fits it to its numbers and its header; the corner's goes back to its width. */
+function onResizeFit(event: MouseEvent) {
+  const handle = (event.target as HTMLElement).closest<HTMLElement>('[data-resize]')
+  if (!handle) return
+  event.stopPropagation()
+  const col = Number(handle.dataset.resize)
+  if (col < 0) {
+    rowHeadDragged.value = 0
+    return
+  }
+  const column = colLines.value[col]!
+  const display = valueDisplay.value
+  const res = result.value
+  const lines = allLines.value
+  const texts: string[] = []
+  const limit = Math.min(lines.length, 5000)
+  for (let i = 0; i < limit; i++) {
+    const line = lines[i]!
+    const v = line.value >= 0 ? line.value : Math.max(0, column.value)
+    texts.push(display[v]!.write(rowBlank(line) ? Number.NaN : res.get(line.node, column.node, v)))
+  }
+  const head = headCells.value.find((c) => c.resize === col)
+  const textWidth = widest(texts)
+  const headWidthNeeded = head ? widest([head.text]) + (head.sorted ? 16 : 0) : 0
+  const next = new Map(dragged.value)
+  next.set(
+    colKey(column),
+    Math.min(MAX_COLUMN, Math.max(MIN_COLUMN, Math.max(textWidth, headWidthNeeded) + 26)),
+  )
+  dragged.value = next
+}
+
 // ---- pointer and keys ----
 
 const active = shallowRef<{ row: number; col: number } | null>(null)
@@ -542,6 +705,7 @@ function cellEvent(row: PivotLine, col: PivotLine): PivotCellEvent<Row> {
 
 function onClick(event: MouseEvent) {
   const target = event.target as HTMLElement
+  if (target.closest('[data-resize]') || justResized) return
   const sortField = target.closest<HTMLElement>('[data-sort-field]')
   if (sortField) return sortByField(Number(sortField.dataset.sortField))
   const head = target.closest<HTMLElement>('[data-head]')
@@ -561,8 +725,9 @@ function onClick(event: MouseEvent) {
   const line = allLines.value[row]
   if (!line) return
   if (col < 0) {
-    if (line.kind === 'group' && rowTree.value.isGroup(line.node))
-      toggleNode('rows', line.node, event.altKey)
+    const part = target.closest<HTMLElement>('[data-toggle-node]')
+    if (part) toggleNode('rows', Number(part.dataset.toggleNode), event.altKey)
+    else if (lineToggles(line)) toggleNode('rows', line.node, event.altKey)
     return
   }
   const column = colLines.value[col]
@@ -579,10 +744,10 @@ function ensureVisible(row: number, col: number) {
     else if ((row + 1) * h > el.scrollTop + space) el.scrollTop = (row + 1) * h - space
   }
   if (col >= 0) {
-    const w = colWidth.value
+    const starts = colStarts.value
     const space = viewWidth.value - headWidth.value
-    if (col * w < el.scrollLeft) el.scrollLeft = col * w
-    else if ((col + 1) * w > el.scrollLeft + space) el.scrollLeft = (col + 1) * w - space
+    if (starts[col]! < el.scrollLeft) el.scrollLeft = starts[col]!
+    else if (starts[col + 1]! > el.scrollLeft + space) el.scrollLeft = starts[col + 1]! - space
   }
   onScroll()
 }
@@ -612,6 +777,8 @@ function parentRow(row: number) {
       return first
     }
   }
+  // in the tabular layout a group's own line is its total, after its children
+  for (let i = row + 1; i < lines.length; i++) if (lines[i]!.node === parent) return i
   return row
 }
 
@@ -619,8 +786,7 @@ function onKeydown(event: KeyboardEvent) {
   if (event.isComposing) return
   const a = active.value ?? { row: 0, col: -1 }
   const line = allLines.value[a.row]
-  const tree = rowTree.value
-  const isGroup = !!line && line.kind === 'group' && tree.isGroup(line.node)
+  const isGroup = !!line && lineToggles(line)
   const open = isGroup && !rowCollapsed.value.has(line!.node)
   const page = Math.max(1, Math.floor((viewHeight.value - headHeight.value) / rowHeight.value) - 1)
   const mod = event.ctrlKey || event.metaKey
@@ -724,6 +890,7 @@ defineExpose<PivotExpose>({
         'is-scrolled-x': scroll.left > 0,
         'is-scrolled-y': scroll.top > 0,
         'has-values-column': valuesOnRows,
+        'is-tabular': tabular,
       },
     ]"
     :style="rootStyle"
@@ -759,20 +926,38 @@ defineExpose<PivotExpose>({
               :style="`top:${(headRows - 1) * rowHeight}px`"
             >
               <template v-for="field in rowFields" :key="field.index">
-                <span v-if="field.index > 0" class="dou-pivot__corner-sep" aria-hidden="true"
+                <span
+                  v-if="field.index > 0 && !tabular"
+                  class="dou-pivot__corner-sep"
+                  aria-hidden="true"
                   >/</span
                 >
-                <button
-                  type="button"
-                  class="dou-pivot__field"
-                  :class="{ 'is-sorted': !config.sort && field.sort === 'desc' }"
-                  tabindex="-1"
-                  :data-sort-field="field.index"
-                  :aria-label="format(messages.sortField, { field: field.label })"
+                <span
+                  :class="
+                    tabular
+                      ? [
+                          'dou-pivot__corner-field',
+                          { 'is-last': field.index === rowFields.length - 1 },
+                        ]
+                      : 'dou-pivot__corner-inline'
+                  "
+                  :style="tabular ? `width:${levelWidth}px` : undefined"
                 >
-                  {{ field.label }}
-                  <ArrowDownIcon v-if="!config.sort && field.sort === 'desc'" aria-hidden="true" />
-                </button>
+                  <button
+                    type="button"
+                    class="dou-pivot__field"
+                    :class="{ 'is-sorted': !config.sort && field.sort === 'desc' }"
+                    tabindex="-1"
+                    :data-sort-field="field.index"
+                    :aria-label="format(messages.sortField, { field: field.label })"
+                  >
+                    {{ field.label }}
+                    <ArrowDownIcon
+                      v-if="!config.sort && field.sort === 'desc'"
+                      aria-hidden="true"
+                    />
+                  </button>
+                </span>
               </template>
               <span v-if="valuesOnRows" class="dou-pivot__corner-values">{{
                 messages.values
@@ -781,6 +966,15 @@ defineExpose<PivotExpose>({
                 valueDisplay[0]!.label
               }}</span>
             </div>
+            <span
+              v-if="resizable"
+              class="dou-pivot__resize"
+              data-resize="-1"
+              :title="messages.resizeColumn"
+              aria-hidden="true"
+              @pointerdown="onResizeDown"
+              @dblclick="onResizeFit"
+            />
           </div>
           <div
             class="dou-pivot__col-heads"
@@ -821,6 +1015,15 @@ defineExpose<PivotExpose>({
                   aria-hidden="true"
                 />
               </span>
+              <span
+                v-if="cell.resize >= 0"
+                class="dou-pivot__resize"
+                :data-resize="cell.resize"
+                :title="messages.resizeColumn"
+                aria-hidden="true"
+                @pointerdown="onResizeDown"
+                @dblclick="onResizeFit"
+              />
             </div>
           </div>
         </div>
@@ -833,28 +1036,26 @@ defineExpose<PivotExpose>({
               line,
               colWindow,
               colLines,
-              colWidth,
+              colStarts,
               rowHeadWidth,
+              tabular,
               valueDisplay,
               rowWriters,
               active?.row === index ? active.col : -9,
             ]"
             class="dou-pivot__row"
             :class="{
-              'is-group': line.kind === 'group' && rowTree.isGroup(line.node),
+              'is-group': lineToggles(line),
+              'is-subtotal': line.kind === 'subtotal',
               'is-node-start': line.value <= 0,
             }"
             role="row"
             :aria-rowindex="headRows + index + 1"
             :aria-level="rowTree.depth[line.node]"
-            :aria-expanded="
-              line.kind === 'group' && rowTree.isGroup(line.node)
-                ? !rowCollapsed.has(line.node)
-                : undefined
-            "
+            :aria-expanded="lineToggles(line) ? !rowCollapsed.has(line.node) : undefined"
             :style="`top:${index * rowHeight}px;width:${totalWidth}px`"
           >
-            <template v-for="head in [rowHead(line)]" :key="0">
+            <template v-for="head in [rowHead(line, index)]" :key="0">
               <div
                 :id="cellId(index, -1)"
                 class="dou-pivot__row-head"
@@ -865,9 +1066,38 @@ defineExpose<PivotExpose>({
                 role="rowheader"
                 :data-row="index"
                 data-col="-1"
-                :style="`width:${rowHeadWidth}px;padding-left:${12 + head.depth * 16}px`"
+                :style="
+                  tabular
+                    ? `width:${rowHeadWidth}px;padding-left:0`
+                    : `width:${rowHeadWidth}px;padding-left:${12 + head.depth * 16}px`
+                "
               >
-                <template v-if="head.firstOfNode">
+                <template v-if="tabular">
+                  <span
+                    v-for="(part, level) in head.parts"
+                    :key="level"
+                    class="dou-pivot__level"
+                    :style="`width:${levelWidth}px`"
+                  >
+                    <template v-if="part">
+                      <span
+                        v-if="part.toggle > 0"
+                        class="dou-pivot__toggle"
+                        :class="{ 'is-open': part.open }"
+                        :data-toggle-node="part.toggle"
+                        aria-hidden="true"
+                      >
+                        <ChevronRightIcon />
+                      </span>
+                      <span
+                        v-else-if="level < head.parts.length - 1"
+                        class="dou-pivot__toggle-space"
+                      />
+                      <span class="dou-pivot__text">{{ part.text }}</span>
+                    </template>
+                  </span>
+                </template>
+                <template v-else-if="head.firstOfNode">
                   <span
                     v-if="head.group"
                     class="dou-pivot__toggle"
@@ -889,7 +1119,7 @@ defineExpose<PivotExpose>({
                 <span class="dou-pivot__text">{{ head.valueText }}</span>
               </div>
             </template>
-            <div class="dou-pivot__spacer" :style="`width:${colWindow.from * colWidth}px`" />
+            <div class="dou-pivot__spacer" :style="`width:${colStarts[colWindow.from]}px`" />
             <div
               v-for="cell in rowCells(line)"
               :id="cellId(index, cell.col)"
@@ -899,7 +1129,7 @@ defineExpose<PivotExpose>({
               :aria-colindex="cell.col + (valuesOnRows ? 3 : 2)"
               :data-row="index"
               :data-col="cell.col"
-              :style="`width:${colWidth}px`"
+              :style="`width:${cell.width}px`"
             >
               <span class="dou-pivot__text">{{ cell.text }}</span>
             </div>
@@ -939,7 +1169,7 @@ defineExpose<PivotExpose>({
             >
               <span class="dou-pivot__text">{{ valueDisplay[line.value]?.label }}</span>
             </div>
-            <div class="dou-pivot__spacer" :style="`width:${colWindow.from * colWidth}px`" />
+            <div class="dou-pivot__spacer" :style="`width:${colStarts[colWindow.from]}px`" />
             <div
               v-for="cell in rowCells(line)"
               :id="cellId(index, cell.col)"
@@ -949,13 +1179,14 @@ defineExpose<PivotExpose>({
               :aria-colindex="cell.col + (valuesOnRows ? 3 : 2)"
               :data-row="index"
               :data-col="cell.col"
-              :style="`width:${colWidth}px`"
+              :style="`width:${cell.width}px`"
             >
               <span class="dou-pivot__text">{{ cell.text }}</span>
             </div>
           </div>
         </div>
       </div>
+      <span ref="measurer" class="dou-pivot__measure" aria-hidden="true" />
       <div v-if="result.matched === 0" class="dou-pivot__empty" role="status">
         {{ messages.noData }}
       </div>

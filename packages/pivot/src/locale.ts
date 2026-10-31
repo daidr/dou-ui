@@ -26,6 +26,62 @@ export interface PivotMessages {
   sortValue: string
   /** Shown, and read out, when no record passes the filters. */
   noData: string
+  /** Group labels when a date field is grouped by a period: `{year}`, `{quarter}`, `{week}`. */
+  yearLabel: string
+  quarterLabel: string
+  weekLabel: string
+  /** A range of numbers: `{from}` and `{to}`. */
+  rangeLabel: string
+  /** The line of an open group in the tabular layout that holds its total: `{label}`. */
+  subtotalRow: string
+  /** What dragging the edge of a column header does. */
+  resizeColumn: string
+  /** The field panel. */
+  fields: {
+    /** The panel's accessible name. */
+    panel: string
+    /** The list of all fields. */
+    list: string
+    search: string
+    noFields: string
+    areas: Record<'filters' | 'columns' | 'rows' | 'values', string>
+    /** In an empty area. */
+    dropHere: string
+    /** On a field's menu button: `{field}`. */
+    menu: string
+    sort: string
+    asc: string
+    desc: string
+    groupBy: string
+    noGroup: string
+    periods: Record<'year' | 'quarter' | 'month' | 'week' | 'day', string>
+    /** A grouping in ranges: `{step}`. */
+    step: string
+    subtotal: string
+    aggregate: string
+    filter: string
+    /** On a field with a filter. */
+    filtered: string
+    /** The submenu that moves the field to another area. */
+    moveTo: string
+    remove: string
+    /** In the values area: puts several values down the rows. */
+    valuesOnRows: string
+    /** The button that opens the panel in a drawer on a narrow screen. */
+    open: string
+  }
+  /** The filter popover. */
+  filter: {
+    /** Its accessible name: `{field}`. */
+    title: string
+    search: string
+    all: string
+    noMatch: string
+    apply: string
+    cancel: string
+    /** How many values are picked: `{picked}` of `{total}`. */
+    count: string
+  }
 }
 
 const zhCN: PivotMessages = {
@@ -51,6 +107,45 @@ const zhCN: PivotMessages = {
   sortField: '按{field}排序',
   sortValue: '按这一列排序',
   noData: '没有数据',
+  yearLabel: '{year} 年',
+  quarterLabel: '{year} 年 Q{quarter}',
+  weekLabel: '{year} 年第 {week} 周',
+  rangeLabel: '{from} – {to}',
+  subtotalRow: '{label} 小计',
+  resizeColumn: '拖动调整列宽，双击适应内容',
+  fields: {
+    panel: '字段',
+    list: '全部字段',
+    search: '搜索字段',
+    noFields: '没有匹配的字段',
+    areas: { filters: '筛选', columns: '列', rows: '行', values: '值' },
+    dropHere: '拖动字段到这里',
+    menu: '{field}的选项',
+    sort: '排序',
+    asc: '升序',
+    desc: '降序',
+    groupBy: '分组',
+    noGroup: '不分组',
+    periods: { year: '按年', quarter: '按季度', month: '按月', week: '按周', day: '按日' },
+    step: '每 {step} 一组',
+    subtotal: '显示小计',
+    aggregate: '汇总方式',
+    filter: '筛选…',
+    filtered: '已筛选',
+    moveTo: '移到',
+    remove: '移除',
+    valuesOnRows: '值放在行上',
+    open: '字段',
+  },
+  filter: {
+    title: '筛选{field}',
+    search: '搜索',
+    all: '全选',
+    noMatch: '没有匹配的值',
+    apply: '确定',
+    cancel: '取消',
+    count: '已选 {picked} / {total}',
+  },
 }
 
 const zhTW: PivotMessages = {
@@ -76,6 +171,45 @@ const zhTW: PivotMessages = {
   sortField: '依{field}排序',
   sortValue: '依這一欄排序',
   noData: '沒有資料',
+  yearLabel: '{year} 年',
+  quarterLabel: '{year} 年 Q{quarter}',
+  weekLabel: '{year} 年第 {week} 週',
+  rangeLabel: '{from} – {to}',
+  subtotalRow: '{label} 小計',
+  resizeColumn: '拖曳調整欄寬，按兩下符合內容',
+  fields: {
+    panel: '欄位',
+    list: '所有欄位',
+    search: '搜尋欄位',
+    noFields: '沒有符合的欄位',
+    areas: { filters: '篩選', columns: '欄', rows: '列', values: '值' },
+    dropHere: '拖曳欄位到這裡',
+    menu: '{field}的選項',
+    sort: '排序',
+    asc: '遞增',
+    desc: '遞減',
+    groupBy: '分組',
+    noGroup: '不分組',
+    periods: { year: '依年', quarter: '依季', month: '依月', week: '依週', day: '依日' },
+    step: '每 {step} 一組',
+    subtotal: '顯示小計',
+    aggregate: '摘要方式',
+    filter: '篩選…',
+    filtered: '已篩選',
+    moveTo: '移到',
+    remove: '移除',
+    valuesOnRows: '值放在列上',
+    open: '欄位',
+  },
+  filter: {
+    title: '篩選{field}',
+    search: '搜尋',
+    all: '全選',
+    noMatch: '沒有符合的值',
+    apply: '確定',
+    cancel: '取消',
+    count: '已選 {picked} / {total}',
+  },
 }
 
 const en: PivotMessages = {
@@ -101,6 +235,51 @@ const en: PivotMessages = {
   sortField: 'Sort by {field}',
   sortValue: 'Sort by this column',
   noData: 'No data',
+  yearLabel: '{year}',
+  quarterLabel: 'Q{quarter} {year}',
+  weekLabel: 'Week {week}, {year}',
+  rangeLabel: '{from} – {to}',
+  subtotalRow: '{label} subtotal',
+  resizeColumn: 'Drag to resize, double-click to fit',
+  fields: {
+    panel: 'Fields',
+    list: 'All fields',
+    search: 'Search fields',
+    noFields: 'No matching fields',
+    areas: { filters: 'Filters', columns: 'Columns', rows: 'Rows', values: 'Values' },
+    dropHere: 'Drag fields here',
+    menu: 'Options for {field}',
+    sort: 'Sort',
+    asc: 'Ascending',
+    desc: 'Descending',
+    groupBy: 'Group',
+    noGroup: 'No grouping',
+    periods: {
+      year: 'By year',
+      quarter: 'By quarter',
+      month: 'By month',
+      week: 'By week',
+      day: 'By day',
+    },
+    step: 'Every {step}',
+    subtotal: 'Show subtotals',
+    aggregate: 'Summarize by',
+    filter: 'Filter…',
+    filtered: 'Filtered',
+    moveTo: 'Move to',
+    remove: 'Remove',
+    valuesOnRows: 'Values on rows',
+    open: 'Fields',
+  },
+  filter: {
+    title: 'Filter {field}',
+    search: 'Search',
+    all: 'Select all',
+    noMatch: 'No matching values',
+    apply: 'Apply',
+    cancel: 'Cancel',
+    count: '{picked} of {total} selected',
+  },
 }
 
 export const pivotLocales: Record<string, PivotMessages> = {
@@ -109,8 +288,12 @@ export const pivotLocales: Record<string, PivotMessages> = {
   en,
 }
 
-export type PivotMessagesOverride = Partial<Omit<PivotMessages, 'aggregates'>> & {
+export type PivotMessagesOverride = Partial<
+  Omit<PivotMessages, 'aggregates' | 'fields' | 'filter'>
+> & {
   aggregates?: Partial<PivotMessages['aggregates']> & Record<string, string>
+  fields?: Partial<PivotMessages['fields']>
+  filter?: Partial<PivotMessages['filter']>
 }
 
 /**
@@ -125,7 +308,13 @@ export function usePivotMessages(override?: MaybeRefOrGetter<PivotMessagesOverri
       pivotLocales[name] ?? pivotLocales[name.split('-')[0]!] ?? (name.startsWith('zh') ? zhCN : en)
     const extra = toValue(override)
     if (!extra) return base
-    return { ...base, ...extra, aggregates: { ...base.aggregates, ...extra.aggregates } }
+    return {
+      ...base,
+      ...extra,
+      aggregates: { ...base.aggregates, ...extra.aggregates },
+      fields: { ...base.fields, ...extra.fields },
+      filter: { ...base.filter, ...extra.filter },
+    }
   })
 }
 

@@ -1,0 +1,276 @@
+/*
+ * Field panel
+ *
+ * The list of fields over four drop areas. Chips are plain bordered
+ * pills; the areas are faint wells, so a chip being dragged reads as the
+ * one thing that is lifted. Selectors stay flat: the copy that follows the
+ * pointer lives on <body>, outside the panel.
+ */
+@layer dou.components {
+  .dou-pivot-fields {
+    --dou-pivot-fields-well: color-mix(
+      in oklab,
+      var(--dou-color-text) 3%,
+      var(--dou-color-bg-surface)
+    );
+
+    box-sizing: border-box;
+    min-width: 0;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-container);
+    background-color: var(--dou-color-bg-surface);
+    color: var(--dou-color-text);
+    font-family: var(--dou-font-family);
+    font-size: var(--dou-font-size-sm);
+    line-height: var(--dou-font-line-height);
+
+    &.is-in-drawer {
+      border: 0;
+      border-radius: 0;
+      background: none;
+    }
+  }
+
+  .dou-pivot-fields__list-part {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px;
+  }
+
+  .dou-pivot-fields__list.dou-sortable {
+    gap: 0;
+    min-height: 0;
+    max-height: 288px;
+    overflow: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+  }
+
+  .dou-pivot-fields__field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-sizing: border-box;
+    height: 32px;
+    padding: 0 8px;
+    border-radius: var(--dou-radius-control);
+    cursor: grab;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+
+    &:hover {
+      background-color: color-mix(in oklab, var(--dou-color-text) 5%, transparent);
+    }
+  }
+
+  .dou-pivot-fields__type {
+    flex: none;
+    width: 14px;
+    height: 14px;
+    color: var(--dou-color-text-tertiary);
+  }
+
+  .dou-pivot-fields__name,
+  .dou-pivot-fields__chip-text {
+    flex: 1;
+    min-width: 0;
+    margin-block: -4px;
+    padding-block: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-box: trim-both cap alphabetic;
+  }
+
+  .dou-pivot-fields__none,
+  .dou-pivot-fields__drop {
+    margin: 0;
+    padding: 8px;
+    color: var(--dou-color-text-tertiary);
+    font-size: 12px;
+    text-align: center;
+  }
+
+  .dou-pivot-fields__drop {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 28px;
+    padding: 4px;
+  }
+
+  .dou-pivot-fields__areas {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    padding: 8px;
+    border-top: 1px solid var(--dou-color-border-subtle);
+
+    .is-in-drawer & {
+      padding-inline: 0;
+    }
+  }
+
+  .dou-pivot-fields__area {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .dou-pivot-fields__area-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    padding-inline: 2px;
+    color: var(--dou-color-text-secondary);
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 16px;
+
+    & svg {
+      width: 14px;
+      height: 14px;
+      color: var(--dou-color-text-tertiary);
+    }
+  }
+
+  .dou-pivot-fields__chips.dou-sortable {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 4px;
+    box-sizing: border-box;
+    min-height: 84px;
+    padding: 4px;
+    border-radius: var(--dou-radius-control);
+    background-color: var(--dou-pivot-fields-well);
+
+    & > .dou-sortable__empty {
+      min-height: 0;
+      border: 0;
+    }
+  }
+
+  .dou-pivot-fields__chip {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    box-sizing: border-box;
+    height: 28px;
+    padding: 0 2px 0 8px;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-control);
+    background-color: var(--dou-color-bg-surface);
+    color: var(--dou-color-text);
+    font-family: var(--dou-font-family);
+    font-size: var(--dou-font-size-sm);
+    cursor: grab;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .dou-pivot-fields__chip-button {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 0;
+    border-radius: calc(var(--dou-radius-control) - 2px);
+    background: none;
+    color: var(--dou-color-text-tertiary);
+    cursor: pointer;
+
+    & svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    &:hover,
+    &[aria-expanded='true'] {
+      background-color: color-mix(in oklab, var(--dou-color-text) 7%, transparent);
+      color: var(--dou-color-text);
+    }
+
+    &.is-on {
+      color: var(--dou-color-primary-text);
+      background: color-mix(in srgb, var(--dou-color-primary) 12%, transparent);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: -2px;
+    }
+  }
+
+  .dou-pivot-fields-trigger {
+    display: flex;
+  }
+
+  /* the filter popover */
+  .dou-pivot-filter {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: -4px;
+  }
+
+  .dou-pivot-filter__all {
+    padding: 2px 8px 6px;
+    border-bottom: 1px solid var(--dou-color-border-subtle);
+  }
+
+  .dou-pivot-filter__item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-sizing: border-box;
+    height: 32px;
+    padding: 0 8px;
+
+    & .dou-checkbox {
+      flex: 1;
+      min-width: 0;
+    }
+  }
+
+  .dou-pivot-filter__text {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dou-pivot-filter__count {
+    flex: none;
+    color: var(--dou-color-text-tertiary);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .dou-pivot-filter__none {
+    margin: 0;
+    padding: 16px 8px;
+    color: var(--dou-color-text-tertiary);
+    text-align: center;
+  }
+
+  .dou-pivot-filter__foot {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-top: 8px;
+    border-top: 1px solid var(--dou-color-border-subtle);
+  }
+
+  .dou-pivot-filter__picked {
+    flex: 1;
+    color: var(--dou-color-text-tertiary);
+    font-size: 12px;
+  }
+}

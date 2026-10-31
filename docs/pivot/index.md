@@ -40,6 +40,14 @@ app.use(DouPivot)
 
 `config` 支持 `v-model:config`：在表格里排序时会更新它。它是普通的数据，可以直接保存下来，下次打开时恢复同样的视图。
 
+## 字段面板
+
+`DouPivotFields` 是配套的字段面板：上方列出所有字段，下方是筛选、列、行、值四个区域。把字段拖进区域、在区域里拖动调整顺序、拖回列表移除；勾选字段前的复选框会把它加到合适的位置（数值字段加到值，其他加到行）。面板和表格绑定同一个 `config`：
+
+<DocDemo src="pivot/fields" />
+
+每个字段右侧有两个按钮：漏斗按钮打开筛选，箭头按钮打开菜单，可以调整排序、分组、小计、汇总方式，或者移到其他区域。在手机上，按住字段片刻再拖动；屏幕较窄时，面板收成一个按钮，点击后从底部打开。
+
 ## 字段
 
 `fields` 是一个数组，每一项描述一个字段：
@@ -67,6 +75,23 @@ const fields = [
 不传 `fields` 时，字段从记录的键推断，表头显示键名。
 
 空值（`null`、`undefined`、空字符串、`NaN`）归为一组，显示为“（空）”，总是排在最后。
+
+## 分组
+
+日期和数字字段可以按区间分组。在行或列上写成对象，用 `by` 指定分组方式：
+
+```ts
+const config = {
+  rows: [{ field: 'date', by: 'month' }],
+  columns: [{ field: 'amount', by: { step: 100 } }],
+}
+```
+
+- 日期可以按 `'year'`、`'quarter'`、`'month'`、`'week'`、`'day'` 分组，周按 ISO 周计算（周一开始）。
+- 数字按 `{ step, start? }` 分成等宽的区间，`start` 默认是 `0`。
+- 组名是可以保存的普通数据：年是数字 `2026`，季度、月、周、日是文字 `'2026-Q1'`、`'2026-03'`、`'2026-W12'`、`'2026-03-15'`，区间是它的下限。`filters` 和 `collapsed` 里都用这些组名。
+
+筛选分过组的字段时，在筛选里写上同样的 `by`，例如 `{ include: ['2026-Q1'], by: 'quarter' }`。在字段面板里改变分组时，这个字段的筛选会被清空。
 
 ## 汇总方式
 
@@ -111,6 +136,14 @@ values: [
 - `init` 创建一个组的初始状态，`add` 把一条记录的值加进状态，`result` 从状态算出显示的数字。
 - `merge` 把两个组的状态合并成一个。小计和总计由内层各组的状态合并而来，不会再逐条读取记录，所以 `merge` 必须得到和逐条 `add` 一样的结果。
 - `input` 默认是 `'number'`，`add` 收到的是数字，没有数字的记录会跳过；设为 `'value'` 时收到字段的原始值，空值跳过。
+
+## 布局
+
+默认的紧凑式布局把行上的字段放在同一列里，缩进成一棵树，组所在的行就是它的小计。`layout="tabular"` 改成表格式：每个行字段单独一列，组名只在这一组的第一行显示，展开的组在子项后面另起一行“小计”。
+
+<DocDemo src="pivot/layout" />
+
+拖动列标题的右边缘可以调整列宽，双击右边缘按内容调整；左上角的右边缘调整行头的宽度，双击恢复。不需要时设置 `:resizable="false"`。
 
 ## 展开与折叠
 
@@ -204,19 +237,32 @@ result.get(east, result.columns.find(['Q1']), 1) // 华东 Q1 的第 2 个值
 
 ### Pivot Props
 
-| 名称               | 说明                                             | 类型                    | 默认值         |
-| ------------------ | ------------------------------------------------ | ----------------------- | -------------- |
-| `data`             | 记录                                             | `object[]`              | —              |
-| `fields`           | 字段的说明                                       | `PivotField[]`          | 从记录的键推断 |
-| `config`           | 字段放在哪里，支持 `v-model:config`              | `PivotConfig`           | `{}`           |
-| `collapsed`        | 折叠的组，支持 `v-model:collapsed`               | `PivotCollapsed`        | `{}`           |
-| `max-height`       | 最大高度，数字按 px 计算；内容更少时随内容变矮   | `number \| string`      | `480`          |
-| `size`             | 行高：28、32、40px                               | `'sm' \| 'md' \| 'lg'`  | `'md'`         |
-| `row-header-width` | 行头的宽度（px），窄屏上会自动收窄               | `number`                | `200`          |
-| `column-width`     | 每个数值列的最小宽度（px），表格较宽时会适当加宽 | `number`                | `120`          |
-| `aggregators`      | 自定义的汇总方式                                 | `PivotAggregator[]`     | —              |
-| `aria-label`       | 读屏读出的名称                                   | `string`                | `'数据透视表'` |
-| `messages`         | 替换语言包里的文字                               | `PivotMessagesOverride` | —              |
+| 名称               | 说明                                             | 类型                     | 默认值         |
+| ------------------ | ------------------------------------------------ | ------------------------ | -------------- |
+| `data`             | 记录                                             | `object[]`               | —              |
+| `fields`           | 字段的说明                                       | `PivotField[]`           | 从记录的键推断 |
+| `config`           | 字段放在哪里，支持 `v-model:config`              | `PivotConfig`            | `{}`           |
+| `collapsed`        | 折叠的组，支持 `v-model:collapsed`               | `PivotCollapsed`         | `{}`           |
+| `max-height`       | 最大高度，数字按 px 计算；内容更少时随内容变矮   | `number \| string`       | `480`          |
+| `size`             | 行高：28、32、40px                               | `'sm' \| 'md' \| 'lg'`   | `'md'`         |
+| `row-header-width` | 行头的宽度（px），窄屏上会自动收窄               | `number`                 | `200`          |
+| `column-width`     | 每个数值列的最小宽度（px），表格较宽时会适当加宽 | `number`                 | `120`          |
+| `layout`           | 紧凑式或表格式布局                               | `'compact' \| 'tabular'` | `'compact'`    |
+| `resizable`        | 能否拖动调整列宽                                 | `boolean`                | `true`         |
+| `aggregators`      | 自定义的汇总方式                                 | `PivotAggregator[]`      | —              |
+| `aria-label`       | 读屏读出的名称                                   | `string`                 | `'数据透视表'` |
+| `messages`         | 替换语言包里的文字                               | `PivotMessagesOverride`  | —              |
+
+### PivotFields Props
+
+| 名称          | 说明                                            | 类型                    | 默认值         |
+| ------------- | ----------------------------------------------- | ----------------------- | -------------- |
+| `data`        | 记录，和表格传同一份                            | `object[]`              | —              |
+| `fields`      | 字段的说明，和表格传同一份                      | `PivotField[]`          | 从记录的键推断 |
+| `config`      | 字段放在哪里，支持 `v-model:config`             | `PivotConfig`           | `{}`           |
+| `aggregators` | 自定义的汇总方式，会出现在值的菜单里            | `PivotAggregator[]`     | —              |
+| `drawer`      | 是否收成按钮、从底部打开；`'auto'` 在窄屏上收起 | `boolean \| 'auto'`     | `'auto'`       |
+| `messages`    | 替换语言包里的文字                              | `PivotMessagesOverride` | —              |
 
 ### Pivot Events
 
@@ -241,10 +287,10 @@ result.get(east, result.columns.find(['Q1']), 1) // 华东 Q1 的第 2 个值
 
 | 名称       | 说明                     | 类型                                                        | 默认值      |
 | ---------- | ------------------------ | ----------------------------------------------------------- | ----------- |
-| `rows`     | 行上的字段               | `(string \| { field, sort?, subtotal? })[]`                 | `[]`        |
-| `columns`  | 列上的字段               | `(string \| { field, sort?, subtotal? })[]`                 | `[]`        |
+| `rows`     | 行上的字段               | `(string \| { field, sort?, subtotal?, by? })[]`            | `[]`        |
+| `columns`  | 列上的字段               | `(string \| { field, sort?, subtotal?, by? })[]`            | `[]`        |
 | `values`   | 要汇总的值               | `(string \| { field?, aggregate?, label?, format? })[]`     | 计数        |
-| `filters`  | 按字段保留或排除组       | `Record<string, { include?, exclude? }>`                    | —           |
+| `filters`  | 按字段保留或排除组       | `Record<string, { include?, exclude?, by? }>`               | —           |
 | `valuesOn` | 多个值放在哪个方向       | `'columns' \| 'rows'`                                       | `'columns'` |
 | `sort`     | 按某一列的数值给行组排序 | `{ valueIndex: number, column?: unknown[], order } \| null` | —           |
 | `totals`   | 总计行和总计列           | `{ rows?: boolean, columns?: boolean }`                     | 都显示      |

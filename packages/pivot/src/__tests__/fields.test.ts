@@ -157,13 +157,16 @@ describe('DouPivotFields menus', () => {
       ),
       { attachTo: document.body },
     )
-    const chips = () => wrapper.findAll('.dou-pivot-fields__chip-text').map((el) => el.text())
-    expect(chips()).toContain('date · 按月')
+    const date = wrapper
+      .findAll('.dou-pivot-fields__chip-text')
+      .find((el) => el.find('.dou-pivot-fields__chip-name').text() === 'date')!
+    expect(date.find('.dou-pivot-fields__chip-group').text()).toBe('按月')
+    expect(date.attributes('title')).toBe('date · 按月')
 
     const menuOf = async (text: string) => {
       const chip = wrapper
         .findAll('.dou-pivot-fields__chip')
-        .find((el) => el.find('.dou-pivot-fields__chip-text').text() === text)!
+        .find((el) => el.find('.dou-pivot-fields__chip-name').text() === text)!
       await chip.findAll('button').at(-1)!.trigger('click')
       await nextTick()
       return [...document.querySelectorAll<HTMLElement>('[role^="menuitem"]')]

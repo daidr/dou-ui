@@ -196,6 +196,15 @@ function groupText(by: PivotGroupBy) {
   return format(m.step, { step: write.format(by.step) })
 }
 
+/** A chip's grouping, shown apart from its name so it can go on a line of its own. */
+function chipGroup(item: PivotFieldItem) {
+  if (item.kind !== 'dimension') return ''
+  const by = dimensionOf(axisOf(item), item.field)?.by
+  return by === undefined ? '' : groupText(by)
+}
+const chipName = (item: PivotFieldItem) =>
+  item.kind === 'dimension' ? itemLabel(item) : chipText(item)
+
 function chipText(item: PivotFieldItem) {
   if (item.kind === 'dimension') {
     const by = dimensionOf(axisOf(item), item.field)?.by
@@ -427,7 +436,12 @@ const filtered = (item: PivotFieldItem) => isFiltering(filterOf(item.field))
             >
               <template #default="{ item }">
                 <div class="dou-pivot-fields__chip" :class="{ 'is-filtered': filtered(item) }">
-                  <span class="dou-pivot-fields__chip-text">{{ chipText(item) }}</span>
+                  <span class="dou-pivot-fields__chip-text" :title="chipText(item)">
+                    <span class="dou-pivot-fields__chip-name">{{ chipName(item) }}</span>
+                    <span v-if="chipGroup(item)" class="dou-pivot-fields__chip-group">{{
+                      chipGroup(item)
+                    }}</span>
+                  </span>
                   <DouPopover
                     v-if="canFilter(item)"
                     :open="filterOpen === item.key"

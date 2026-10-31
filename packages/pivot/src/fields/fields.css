@@ -72,15 +72,30 @@
   }
 
   .dou-pivot-fields__name,
+  /* the name, and under it the grouping: a narrow chip still shows both */
   .dou-pivot-fields__chip-text {
+    display: flex;
     flex: 1;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
     min-width: 0;
+  }
+
+  .dou-pivot-fields__chip-name,
+  .dou-pivot-fields__chip-group {
+    max-width: 100%;
     margin-block: -4px;
     padding-block: 4px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     text-box: trim-both cap alphabetic;
+  }
+
+  .dou-pivot-fields__chip-group {
+    color: var(--dou-color-text-tertiary);
+    font-size: 12px;
   }
 
   .dou-pivot-fields__none,
@@ -159,8 +174,8 @@
     align-items: center;
     gap: 2px;
     box-sizing: border-box;
-    height: 28px;
-    padding: 0 2px 0 8px;
+    min-height: 28px;
+    padding: 6px 2px 6px 8px;
     border: 1px solid var(--dou-color-border);
     border-radius: var(--dou-radius-control);
     background-color: var(--dou-color-bg-surface);
@@ -179,6 +194,7 @@
     justify-content: center;
     width: 22px;
     height: 22px;
+    margin-block: -4px;
     padding: 0;
     border: 0;
     border-radius: calc(var(--dou-radius-control) - 2px);
@@ -211,12 +227,13 @@
   /* a finger needs bigger buttons than a mouse */
   @media (pointer: coarse) {
     .dou-pivot-fields__chip {
-      height: 40px;
+      min-height: 40px;
     }
 
     .dou-pivot-fields__chip-button {
       width: 36px;
       height: 36px;
+      margin-block: -10px;
 
       & svg {
         width: 16px;

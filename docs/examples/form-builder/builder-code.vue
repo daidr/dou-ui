@@ -8,11 +8,11 @@ const form = ref<FormDocument>({
   version: 1,
   nodes: [
     { id: 'buyer', type: 'input', name: 'buyer', label: '下单人', default: '戴兜' },
-    { id: 'price', type: 'number', name: 'price', label: '单价', default: 128 },
-    { id: 'count', type: 'number', name: 'count', label: '数量', default: 2 },
+    { id: 'price', type: 'input-number', name: 'price', label: '单价', default: 128 },
+    { id: 'count', type: 'input-number', name: 'count', label: '数量', default: 2 },
     {
       id: 'total',
-      type: 'number',
+      type: 'input-number',
       name: 'total',
       label: '合计',
       formula: 'round(values.price * values.count * 0.95, 2)',

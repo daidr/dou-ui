@@ -437,7 +437,7 @@ const doc = shallowRef(CodeText.of(source))
 
 `DouCodeInput` 是和输入框一样高的代码编辑器，用来写表达式、公式这类一两行的代码。它没有行号和折叠，`Tab` 和普通输入框一样移到下一个控件；补全列表、说明和参数提示显示在页面上层，不会被输入框挡住。
 
-默认只有一行：`Enter` 触发 `enter` 事件，粘贴进来的换行会变成空格，内容超出宽度时横向滚动。加上 `multiline` 后可以换行，输入框随内容长高，超过 `max-rows` 行后滚动，这时 `Mod` + `Enter` 触发 `enter`。
+默认只有一行：`Enter` 触发 `enter` 事件，粘贴进来的换行会变成空格，内容超出宽度时横向滚动。加上 `multiline` 后可以换行，输入框随内容长高，超过 `autosize.maxRows` 行后滚动（写法和 `DouTextarea` 的 `autosize` 相同），这时 `Mod` + `Enter` 触发 `enter`。
 
 放在 `DouFormItem` 里时，它和 `DouInput` 一样使用表单项的 `id`、说明和校验状态，`size` 和 `disabled` 也跟随表单。
 
@@ -517,18 +517,18 @@ const doc = shallowRef(CodeText.of(source))
 
 ### DouCodeInput Props
 
-| 名称                                                                                        | 说明                               | 类型                               | 默认值                |
-| ------------------------------------------------------------------------------------------- | ---------------------------------- | ---------------------------------- | --------------------- |
-| `v-model`                                                                                   | 代码；只有一行时，换行会变成空格   | `string`                           | —                     |
-| `multiline`                                                                                 | 允许多行，随内容长高               | `boolean`                          | `false`               |
-| `max-rows`                                                                                  | 多行时最多显示的行数，超过后滚动   | `number`                           | `6`                   |
-| `size`                                                                                      | 尺寸，和输入框一致                 | `'sm' \| 'md' \| 'lg'`             | 跟随表单，否则 `'md'` |
-| `invalid`                                                                                   | 显示为有错误                       | `boolean`                          | `false`               |
-| `disabled`、`readonly`                                                                      | 禁用、只读                         | `boolean`                          | `false`               |
-| `placeholder`                                                                               | 为空时的提示                       | `string`                           | —                     |
-| `language`、`extensions`、`diagnostics`、`keymap`、`close-brackets`、`tab-size`、`messages` | 和编辑器相同                       | —                                  | —                     |
-| `teleport`                                                                                  | 补全列表、说明和参数提示渲染到哪里 | `string \| HTMLElement`            | 全局配置，否则 `body` |
-| `keys`                                                                                      | 触屏上键盘上方的符号栏             | `boolean \| (CodeKey \| string)[]` | `false`               |
-| `aria-label`                                                                                | 读屏读出的名称                     | `string`                           | —                     |
+| 名称                                                                                        | 说明                                                     | 类型                                     | 默认值                       |
+| ------------------------------------------------------------------------------------------- | -------------------------------------------------------- | ---------------------------------------- | ---------------------------- |
+| `v-model`                                                                                   | 代码；只有一行时，换行会变成空格                         | `string`                                 | —                            |
+| `multiline`                                                                                 | 允许多行，随内容长高                                     | `boolean`                                | `false`                      |
+| `autosize`                                                                                  | 多行时最少、最多显示的行数，超过后滚动                   | `{ minRows?: number, maxRows?: number }` | `{ minRows: 1, maxRows: 6 }` |
+| `size`                                                                                      | 尺寸，和输入框一致                                       | `'sm' \| 'md' \| 'lg'`                   | 跟随表单，否则 `'md'`        |
+| `invalid`                                                                                   | 显示为有错误                                             | `boolean`                                | `false`                      |
+| `disabled`、`readonly`                                                                      | 禁用、只读                                               | `boolean`                                | `false`                      |
+| `placeholder`                                                                               | 为空时的提示                                             | `string`                                 | —                            |
+| `language`、`extensions`、`diagnostics`、`keymap`、`close-brackets`、`tab-size`、`messages` | 和编辑器相同                                             | —                                        | —                            |
+| `teleport`                                                                                  | 补全列表、说明和参数提示渲染到哪里；`false` 时在输入框内 | `string \| HTMLElement \| false`         | 全局配置，否则 `body`        |
+| `keys`                                                                                      | 触屏上键盘上方的符号栏                                   | `boolean \| (CodeKey \| string)[]`       | `false`                      |
+| `aria-label`                                                                                | 读屏读出的名称                                           | `string`                                 | —                            |
 
 事件有 `update:modelValue`、`enter`、`transaction`、`focus`、`blur`；实例和 `DouCodeEditor` 相同。

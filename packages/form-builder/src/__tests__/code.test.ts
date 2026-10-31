@@ -95,8 +95,14 @@ describe('codeExpressions', () => {
     const form = ref<FormDocument>({
       version: 1,
       nodes: [
-        { id: 'price', type: 'number', name: 'price', label: '单价' },
-        { id: 'total', type: 'number', name: 'total', label: '合计', formula: 'values.price * 2' },
+        { id: 'price', type: 'input-number', name: 'price', label: '单价' },
+        {
+          id: 'total',
+          type: 'input-number',
+          name: 'total',
+          label: '合计',
+          formula: 'values.price * 2',
+        },
       ],
     })
     const wrapper = mount(

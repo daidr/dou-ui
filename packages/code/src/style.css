@@ -1162,6 +1162,10 @@
       }
     }
     &.is-multiline .dou-code-editor {
+      min-height: calc(
+        var(--dou-code-input-min-rows, 1) * var(--dou-code-editor-line-height) + 2 *
+          var(--dou-code-editor-padding-y) + 2px
+      );
       max-height: calc(
         var(--dou-code-input-max-rows, 6) * var(--dou-code-editor-line-height) + 2 *
           var(--dou-code-editor-padding-y) + 2px

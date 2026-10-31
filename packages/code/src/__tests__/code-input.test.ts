@@ -114,4 +114,27 @@ describe('DouCodeInput', () => {
     expect(wrapper.find('.dou-code-editor__completions').exists()).toBe(false)
     expect(document.body.querySelector('.dou-code-editor__floating.is-outside')).not.toBeNull()
   })
+
+  it('keeps the completion list inside with teleport false', async () => {
+    const words = defineCodeExtension({
+      name: 'words',
+      completion: ({ word }) => ({ from: word.from, options: [{ label: 'values' }] }),
+    })
+    const { wrapper, textarea } = setup({ extensions: [words], teleport: false }, '')
+    textarea.value = 'v'
+    textarea.setSelectionRange(1, 1)
+    textarea.dispatchEvent(new Event('input', { bubbles: true }))
+    await nextTick()
+    await nextTick()
+    expect(wrapper.find('.dou-code-editor__completions').exists()).toBe(true)
+    expect(document.body.querySelector('.dou-code-editor__floating.is-outside')).toBeNull()
+  })
+
+  it('sets the least and the most lines with autosize', () => {
+    const { wrapper } = setup({ multiline: true, autosize: { minRows: 3, maxRows: 2 } })
+    const style = (wrapper.find('.dou-code-input').element as HTMLElement).style
+    expect(style.getPropertyValue('--dou-code-input-min-rows')).toBe('3')
+    // The most is never below the least.
+    expect(style.getPropertyValue('--dou-code-input-max-rows')).toBe('3')
+  })
 })

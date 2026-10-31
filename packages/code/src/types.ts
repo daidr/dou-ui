@@ -175,10 +175,13 @@ export interface CodeInputProps {
   /** The code; with one line, line breaks typed or pasted become spaces. */
   modelValue?: string
   placeholder?: string
-  /** Several lines: Enter breaks the line, and the box grows up to `maxRows`. */
+  /** Several lines: Enter breaks the line, and the box grows with the content. */
   multiline?: boolean
-  /** The most lines shown before it scrolls, with `multiline`. Defaults to 6. */
-  maxRows?: number
+  /**
+   * With `multiline`, the least and the most lines shown, written as for
+   * DouTextarea's `autosize`. Defaults to `{ minRows: 1, maxRows: 6 }`.
+   */
+  autosize?: { minRows?: number; maxRows?: number }
   size?: 'sm' | 'md' | 'lg'
   invalid?: boolean
   disabled?: boolean
@@ -189,8 +192,11 @@ export interface CodeInputProps {
   closeBrackets?: boolean
   tabSize?: number
   keymap?: CodeKeymap
-  /** Where the completion list, hover text and parameter hints render; above the page by default. */
-  teleport?: string | HTMLElement
+  /**
+   * Where the completion list, hover text and parameter hints render; above
+   * the page by default. `false` keeps them inside the box.
+   */
+  teleport?: string | HTMLElement | false
   /** The bar of symbol keys above a phone's keyboard; off by default. */
   keys?: boolean | ReadonlyArray<CodeKey | string>
   messages?: Partial<CodeMessages>

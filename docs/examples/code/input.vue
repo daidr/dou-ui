@@ -50,7 +50,7 @@ const order = defineCodeExtension({
         :language="javascript"
         :extensions="[order]"
         multiline
-        :max-rows="4"
+        :autosize="{ minRows: 2, maxRows: 4 }"
       />
     </DouFormItem>
     <p v-if="submitted" class="demo-submitted">已提交：{{ submitted }}</p>

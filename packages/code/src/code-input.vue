@@ -18,7 +18,7 @@ defineOptions({ name: 'DouCodeInput', inheritAttrs: false })
 const props = withDefaults(defineProps<CodeInputProps>(), {
   modelValue: '',
   multiline: false,
-  maxRows: 6,
+  autosize: () => ({}),
   invalid: false,
   disabled: undefined,
   readonly: false,
@@ -42,7 +42,10 @@ const editor = ref<CodeEditorExpose>()
 const root = ref<HTMLElement>()
 
 // Boxes about the text go above the page: a box this small can't hold them.
-const teleport = computed(() => props.teleport ?? (config.value.teleport || 'body'))
+// `false` keeps them inside, where an overflow-hidden box may cut them off.
+const teleport = computed(() =>
+  props.teleport === false ? false : (props.teleport ?? (config.value.teleport || 'body')),
+)
 
 function submit() {
   emit('enter')
@@ -105,9 +108,12 @@ watchEffect(() => {
   set('enterkeyhint', props.multiline ? 'enter' : 'done')
 })
 
-const height = computed(() =>
-  props.multiline ? { '--dou-code-input-max-rows': Math.max(1, props.maxRows) } : undefined,
-)
+const height = computed(() => {
+  if (!props.multiline) return undefined
+  const min = Math.max(1, props.autosize.minRows ?? 1)
+  const max = Math.max(min, props.autosize.maxRows ?? 6)
+  return { '--dou-code-input-min-rows': min, '--dou-code-input-max-rows': max }
+})
 
 // The same instance as the editor's.
 const EXPOSED = [

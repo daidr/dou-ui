@@ -73,7 +73,7 @@ const problem = computed(() => {
       :invalid="!!problem"
       :aria-describedby="problem ? errorId : undefined"
       multiline
-      :max-rows="4"
+      :autosize="{ maxRows: 4 }"
       size="sm"
       class="dou-form-builder__expression-input"
       @update:model-value="emit('update:modelValue', $event)"

@@ -600,6 +600,7 @@ function rowCells(line: PivotLine, row: number): Cell[] {
     if (col.kind === 'group' && col.node > 0 && res.columns.isGroup(col.node)) cls += ' is-closed'
     const selected = !!picked && index >= picked.left && index <= picked.right
     if (selected) cls += ' is-selected'
+    if (col.node === highlightCol.value) cls += ' is-highlighted'
     let style = `width:${starts[index + 1]! - starts[index]!}px`
     const mark = display[v]!.mark
     if (mark && innerRow && n === n && res.columns.depth[col.node] === res.columns.levels.length) {
@@ -936,6 +937,16 @@ const selectedIn = (row: number) => {
 }
 const allLines = computed(() => [...bodyLines.value, ...footLines.value])
 
+/** The highlighted groups' nodes, -1 when there is none (or its path matches no group). */
+const highlightRow = computed(() => {
+  const path = props.highlight?.row
+  return path?.length ? result.value.rows.find(path) || -1 : -1
+})
+const highlightCol = computed(() => {
+  const path = props.highlight?.column
+  return path?.length ? result.value.columns.find(path) || -1 : -1
+})
+
 const cellId = (row: number, col: number) => `${uid}-${row}-${col}`
 const activeId = computed(() => {
   const a = active.value
@@ -1164,15 +1175,43 @@ function onFocus() {
   if (!active.value && allLines.value.length) active.value = { row: 0, col: -1 }
 }
 
-// keep the active cell on the table when lines come and go
-watch(allLines, (lines) => {
+// The active cell's row and column by their groups, so that it stays on the
+// same groups when the data changes and lines come and go.
+const rowKey = (line: PivotLine | undefined) =>
+  line
+    ? `${line.kind}|${line.value}|${line.kind === 'total' ? '' : JSON.stringify(result.value.rows.path(line.node))}`
+    : ''
+let activeKeys: { row: string; col: string } | null = null
+watch(
+  active,
+  (a) => {
+    activeKeys = a
+      ? { row: rowKey(allLines.value[a.row]), col: a.col < 0 ? '' : colKey(colLines.value[a.col]!) }
+      : null
+  },
+  { flush: 'sync' },
+)
+watch([allLines, colLines], ([rows, cols]) => {
   const a = active.value
-  if (a && a.row >= lines.length)
-    active.value = lines.length ? { row: lines.length - 1, col: a.col } : null
-})
-watch(colLines, (lines) => {
-  const a = active.value
-  if (a && a.col >= lines.length) active.value = { row: a.row, col: lines.length - 1 }
+  const keys = activeKeys
+  if (!a || !keys) return
+  // most changes leave it where it was; look further only when they don't
+  let row =
+    rowKey(rows[a.row]) === keys.row ? a.row : rows.findIndex((line) => rowKey(line) === keys.row)
+  if (row < 0) row = Math.min(a.row, rows.length - 1)
+  let col = !keys.col
+    ? -1
+    : a.col >= 0 && cols[a.col] && colKey(cols[a.col]!) === keys.col
+      ? a.col
+      : cols.findIndex((line) => colKey(line) === keys.col)
+  if (col < 0 && keys.col) col = Math.min(a.col, cols.length - 1)
+  if (row < 0) active.value = null
+  else if (row !== a.row || col !== a.col) {
+    active.value = { row, col }
+    anchor.value = null
+    // it moved with its groups: bring it into view where the lines now put it
+    nextTick(() => ensureVisible(row, col))
+  }
 })
 
 // back to the top left when the layout changes
@@ -1724,12 +1763,15 @@ defineExpose<PivotExpose>({
               rowWriters,
               active?.row === index ? active.col : -9,
               selectedIn(index),
+              highlightCol,
+              line.node === highlightRow,
             ]"
             class="dou-pivot__row"
             :class="{
               'is-group': lineToggles(line),
               'is-subtotal': line.kind === 'subtotal',
               'is-node-start': line.value <= 0,
+              'is-highlighted': line.node === highlightRow,
             }"
             role="row"
             :aria-rowindex="headRows + index + 1"

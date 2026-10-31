@@ -24,7 +24,7 @@ const doc = ref<DashboardDocument>({
       id: 'orders',
       type: 'stat',
       title: '今日订单',
-      props: { value: 1286, unit: '单' },
+      props: { value: 1286, suffix: '单' },
       place: { lg: { x: 0, y: 0, w: 3, h: 2 } },
     },
   ],
@@ -50,7 +50,7 @@ const stat = defineDashboardWidget({
   label: '统计数字',
   icon: ActivityIcon,
   size: { w: 3, h: 2, minW: 2, minH: 2 },
-  defaultProps: { value: 0, unit: '' },
+  defaultProps: { value: 0, suffix: '' },
   component: StatWidget,
   settings: StatSettings,
 })

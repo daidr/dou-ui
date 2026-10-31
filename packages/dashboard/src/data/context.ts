@@ -5,6 +5,8 @@ import type { DashboardFilters, DashboardLinkedFilter, DashboardSetFilterOptions
 /** What widgets read from their dashboard about data and filters. */
 export interface DataContext {
   store: SourceStore
+  /** The names of the dashboard's sources. */
+  sourceNames: () => string[]
   /** Every filter value, as bound with `v-model:filters`. */
   filters: () => DashboardFilters
   /** The keys of the filters a widget set itself, which it doesn't see. */

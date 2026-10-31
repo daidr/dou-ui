@@ -35,6 +35,18 @@
       "types": "./dist/types/layout/index.d.ts",
       "import": "./dist/layout/index.js"
     },
+    "./widgets": {
+      "types": "./dist/types/widgets/index.d.ts",
+      "import": "./dist/widgets/index.js"
+    },
+    "./chart": {
+      "types": "./dist/types/chart/index.d.ts",
+      "import": "./dist/chart/index.js"
+    },
+    "./pivot": {
+      "types": "./dist/types/pivot/index.d.ts",
+      "import": "./dist/pivot/index.js"
+    },
     "./style.css": "./dist/style.css",
     "./package.json": "./package.json"
   },
@@ -45,11 +57,25 @@
     "build": "vite build && vue-tsc -p tsconfig.build.json && bun scripts/build-style.ts"
   },
   "peerDependencies": {
+    "@dou-ui/chart": "workspace:*",
+    "@dou-ui/pivot": "workspace:*",
     "dou-ui": "workspace:*",
     "vue": "^3.5.0"
   },
+  "peerDependenciesMeta": {
+    "@dou-ui/chart": {
+      "optional": true
+    },
+    "@dou-ui/pivot": {
+      "optional": true
+    }
+  },
   "dependencies": {
     "@dou-ui/icons": "workspace:*"
+  },
+  "devDependencies": {
+    "@dou-ui/chart": "workspace:*",
+    "@dou-ui/pivot": "workspace:*"
   },
   "publishConfig": {
     "access": "public"

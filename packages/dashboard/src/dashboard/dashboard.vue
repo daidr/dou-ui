@@ -34,6 +34,8 @@ import { DEFAULT_WIDGET_SIZE, defaultPropsOf } from '../widget/define'
 import type { DashboardWidgetType } from '../widget/define'
 import type { DashboardAddOptions, DashboardEmits, DashboardExpose, DashboardProps } from './types'
 import { createObservers, observersKey } from './observers'
+import { elementToPNG } from './export'
+import type { DashboardImageOptions } from './export'
 import WidgetBody from './widget-body.vue'
 import WidgetFrame from './widget-frame.vue'
 import WidgetSettings from './widget-settings.vue'
@@ -471,6 +473,7 @@ provide(frameContextKey, {
   editing: () => props.editable,
   messages: () => messages.value,
   eager: isEager,
+  all: () => showAll.value,
   setProps,
   action: onAction,
   rename,
@@ -512,13 +515,18 @@ const emittedByWidget = computed(() => {
   return result
 })
 
+// The values as set last: with `v-model:filters` the model only updates once
+// the parent draws again, so several filters set at once build on this.
+const values = shallowRef<DashboardFilters>(filters.value)
+watch(filters, (next) => (values.value = next))
+
 function setFilter(
   widget: string | undefined,
   key: string,
   value: unknown,
   options: DashboardSetFilterOptions = {},
 ) {
-  const next = { ...filters.value }
+  const next = { ...values.value }
   const nextLinks = new Map(links.value)
   if (isEmptyFilter(value)) delete next[key]
   else next[key] = value
@@ -526,19 +534,21 @@ function setFilter(
     nextLinks.set(key, { key, value, label: options.label ?? filterText(value), widget })
   else nextLinks.delete(key)
   links.value = nextLinks
+  values.value = next
   filters.value = next
 }
 
 function clearFilters() {
   links.value = new Map()
+  values.value = {}
   filters.value = {}
 }
 
 // a filter changed from outside (the filter bar, the app) is no longer the widget's
-watch(filters, (values) => {
+watch(filters, (current) => {
   let next: Map<string, DashboardLinkedFilter> | undefined
   for (const [key, link] of links.value) {
-    if (sameValue(values[key], link.value)) continue
+    if (sameValue(current[key], link.value)) continue
     next ??= new Map(links.value)
     next.delete(key)
   }
@@ -551,9 +561,11 @@ watch(widgetMap, (map) => {
     if (!map.has(link.widget)) setFilter(undefined, link.key, undefined)
 })
 
+const sourceNames = computed(() => Object.keys(props.sources ?? {}))
 provide(dataContextKey, {
   store,
-  filters: () => filters.value,
+  sourceNames: () => sourceNames.value,
+  filters: () => values.value,
   emitted: (id) => emittedByWidget.value.get(id) ?? EMPTY_SET,
   linked: (id) => linksByWidget.value.get(id) ?? NO_LINKS,
   setFilter,
@@ -633,6 +645,50 @@ function onPaste(event: ClipboardEvent) {
 }
 
 // ---------------------------------------------------------------------------
+// Export and print
+
+/** Every widget drawn in full, not only those near the view. */
+const showAll = ref(false)
+const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+
+/** Draws every widget and waits for their sources (at most `timeout` ms) and one more frame. */
+async function settle(timeout = 5000) {
+  showAll.value = true
+  await nextTick()
+  const start = performance.now()
+  await nextFrame()
+  while (store.busy() && performance.now() - start < timeout) await nextFrame()
+  await nextFrame()
+  await nextFrame()
+}
+
+/** The dashboard as it is shown, every widget drawn, as a PNG image. */
+async function exportPNG(options?: DashboardImageOptions) {
+  await settle()
+  const el = root.value!
+  // the controls are left out; the copy is made before the class goes
+  el.classList.add('is-exporting')
+  try {
+    return elementToPNG(el, options)
+  } finally {
+    el.classList.remove('is-exporting')
+  }
+}
+
+/** Draws every widget, waits for their data, and opens the browser's print dialog. */
+async function print() {
+  await settle()
+  window.print()
+}
+
+// printing from the browser's menu: draw what is far from the view, as far as there is time
+function onBeforePrint() {
+  showAll.value = true
+}
+onMounted(() => window.addEventListener('beforeprint', onBeforePrint))
+onBeforeUnmount(() => window.removeEventListener('beforeprint', onBeforePrint))
+
+// ---------------------------------------------------------------------------
 // Announcements
 
 const live = ref('')
@@ -683,7 +739,7 @@ defineExpose<DashboardExpose>({
     return model.value
   },
   get filters() {
-    return filters.value
+    return values.value
   },
   get linkedFilters() {
     return [...links.value.values()]
@@ -691,6 +747,8 @@ defineExpose<DashboardExpose>({
   setFilter: (key, value, options) => setFilter(undefined, key, value, options),
   clearFilters,
   refresh: (source) => store.reload(source),
+  exportPNG,
+  print,
 })
 </script>
 

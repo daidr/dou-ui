@@ -226,6 +226,15 @@
     padding-inline: 0;
   }
 
+  /* on touch screens, small icon buttons take taps from about 40px around their centre */
+  @media (pointer: coarse) {
+    .dou-button.is-icon-only::after {
+      position: absolute;
+      inset: min(0px, calc(50% - 20px));
+      content: '';
+    }
+  }
+
   .dou-button__label {
     /*
      * Center on the cap height instead of the font's ascent and descent,

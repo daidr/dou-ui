@@ -13,7 +13,7 @@ const set = (key, value) => (props.value = { ...props.value, [key]: value })
   </label>
   <label class="field">
     <span>单位</span>
-    <DouInput :model-value="props.unit" @update:model-value="set('unit', $event)" />
+    <DouInput :model-value="props.suffix" @update:model-value="set('suffix', $event)" />
   </label>
 </template>
 

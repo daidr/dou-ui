@@ -47,6 +47,51 @@ function setup(initial: PivotConfig, extra: Record<string, unknown> = {}) {
 }
 
 describe('DouPivot', () => {
+  it('keeps the active cell on its groups when the data changes, and marks highlighted groups', async () => {
+    const data = ref(sales)
+    const highlight = ref<{ row?: unknown[]; column?: unknown[] }>()
+    const wrapper = mount(
+      defineComponent(
+        () => () =>
+          h(DouPivot, {
+            data: data.value,
+            config: { rows: ['region', 'city'], columns: ['quarter'], values: ['amount'] },
+            highlight: highlight.value,
+          }),
+      ),
+      { attachTo: document.body },
+    )
+    await nextTick()
+    const lines = () => wrapper.findAll('.dou-pivot__body .dou-pivot__row')
+    const active = () => wrapper.find('.dou-pivot__body .is-active')
+    // 广州, Q2
+    await lines()[4]!.findAll('.dou-pivot__cell')[1]!.trigger('click')
+    expect(active().attributes('id')).toMatch(/-4-1$/)
+    data.value = sales.filter((row) => row.region === '华南')
+    await nextTick()
+    await nextTick()
+    // 华南, 广州, 深圳: still on 广州
+    expect(active().attributes('id')).toMatch(/-1-1$/)
+    data.value = sales.filter((row) => row.region === '华东')
+    await nextTick()
+    await nextTick()
+    // 广州 is gone: the cell stays in the table
+    expect(active().exists()).toBe(true)
+
+    data.value = sales
+    highlight.value = { row: ['华南', '广州'], column: ['Q2'] }
+    await nextTick()
+    await nextTick()
+    expect(lines()[4]!.classes()).toContain('is-highlighted')
+    expect(lines()[0]!.classes()).not.toContain('is-highlighted')
+    expect(
+      lines()[0]!
+        .findAll('.dou-pivot__cell')
+        .map((c) => c.classes('is-highlighted')),
+    ).toEqual([false, true, false])
+    wrapper.unmount()
+  })
+
   it('shows groups as a tree with subtotals on their own rows, and the grand total at the bottom', () => {
     const { rowHeads, row, foot, wrapper } = setup({
       rows: ['region', 'city'],

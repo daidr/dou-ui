@@ -16,14 +16,14 @@ const doc = ref({
       id: 'orders',
       type: 'stat',
       title: '今日订单',
-      props: { value: 1286, unit: '单' },
+      props: { value: 1286, suffix: '单' },
       place: { lg: { x: 0, y: 0, w: 3, h: 2 } },
     },
     {
       id: 'visits',
       type: 'stat',
       title: '访问量',
-      props: { value: 23904, unit: '次' },
+      props: { value: 23904, suffix: '次' },
       place: { lg: { x: 3, y: 0, w: 3, h: 2 } },
     },
     {

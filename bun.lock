@@ -77,10 +77,20 @@
       "dependencies": {
         "@dou-ui/icons": "workspace:*",
       },
+      "devDependencies": {
+        "@dou-ui/chart": "workspace:*",
+        "@dou-ui/pivot": "workspace:*",
+      },
       "peerDependencies": {
+        "@dou-ui/chart": "workspace:*",
+        "@dou-ui/pivot": "workspace:*",
         "dou-ui": "workspace:*",
         "vue": "^3.5.0",
       },
+      "optionalPeers": [
+        "@dou-ui/chart",
+        "@dou-ui/pivot",
+      ],
     },
     "packages/dou-ui": {
       "name": "dou-ui",

@@ -624,7 +624,17 @@ function onResizeKey(event: KeyboardEvent, column: TableColumn<T>) {
 }
 
 const tableStyle = computed(() => {
-  if (!resized.value) return undefined
+  if (!resized.value) {
+    // columns with a minimum width in px keep it: narrow tables scroll instead of squeezing them
+    if (!leaves.value.some((column) => typeof column.minWidth === 'number')) return undefined
+    const least =
+      leaves.value.reduce(
+        (sum, column) => sum + (typeof column.minWidth === 'number' ? column.minWidth : 0),
+        0,
+      ) +
+      utilityCount.value * UTILITY_WIDTH
+    return { minWidth: `${least}px` }
+  }
   const total =
     leaves.value.reduce((sum, column) => sum + numericWidth(column), 0) +
     utilityCount.value * UTILITY_WIDTH

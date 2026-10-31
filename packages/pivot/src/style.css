@@ -23,6 +23,7 @@
     --dou-pivot-scroll-shadow: color-mix(in oklab, var(--dou-color-text) 14%, transparent);
     --dou-pivot-ring: var(--dou-color-primary);
     --dou-pivot-selected: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+    --dou-pivot-highlight: color-mix(in oklab, var(--dou-color-text) 4%, transparent);
     /* how deep the largest value's tint is, and how deep a bar is (a light
        tone on a dark surface needs more of itself to show) */
     --dou-pivot-scale-strength: 28%;
@@ -386,6 +387,8 @@
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
 
+    background-image: var(--dou-pivot-highlight-layer, none);
+
     &.is-total {
       background-color: var(--dou-pivot-total-bg);
     }
@@ -396,7 +399,9 @@
         var(--dou-pivot-tone) calc(var(--dou-pivot-mark) * var(--dou-pivot-scale-strength)),
         transparent
       );
-      background-image: linear-gradient(var(--dou-pivot-tint), var(--dou-pivot-tint));
+      background-image:
+        var(--dou-pivot-highlight-layer, linear-gradient(transparent, transparent)),
+        linear-gradient(var(--dou-pivot-tint), var(--dou-pivot-tint));
     }
     &.has-bar {
       position: relative;
@@ -425,6 +430,22 @@
         background-color: var(--dou-pivot-hover-total-bg);
       }
     }
+  }
+
+  /* highlighted groups: a quiet tint on their row and column, a bar at the row's start */
+  .dou-pivot__row.is-highlighted .dou-pivot__row-head {
+    background-image: linear-gradient(to right, var(--dou-color-text) 2px, transparent 2px);
+    font-weight: var(--dou-font-weight-medium);
+  }
+  .dou-pivot__row.is-highlighted .dou-pivot__cell,
+  .dou-pivot__cell.is-highlighted {
+    --dou-pivot-highlight-layer: linear-gradient(
+      var(--dou-pivot-highlight),
+      var(--dou-pivot-highlight)
+    );
+  }
+  .dou-pivot__row.is-highlighted .dou-pivot__cell.is-highlighted {
+    font-weight: var(--dou-font-weight-medium);
   }
 
   /* a range of cells: a tint over whatever the cell shows, quieter when the table is not focused */

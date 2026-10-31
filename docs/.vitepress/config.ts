@@ -76,6 +76,7 @@ const dashboardSidebar = ecosystem('仪表盘', [
   { text: '网格布局', link: '/dashboard/' },
   { text: '仪表盘', link: '/dashboard/dashboard' },
   { text: '数据与筛选', link: '/dashboard/data' },
+  { text: '内置格子', link: '/dashboard/widgets' },
 ])
 const formBuilderSidebar = ecosystem('表单设计器', [
   { text: '介绍', link: '/form-builder/' },
@@ -442,6 +443,18 @@ export default defineConfig({
         {
           find: /^@dou-ui\/dashboard\/layout$/,
           replacement: r('../../packages/dashboard/src/layout/index.ts'),
+        },
+        {
+          find: /^@dou-ui\/dashboard\/widgets$/,
+          replacement: r('../../packages/dashboard/src/widgets/index.ts'),
+        },
+        {
+          find: /^@dou-ui\/dashboard\/chart$/,
+          replacement: r('../../packages/dashboard/src/chart/index.ts'),
+        },
+        {
+          find: /^@dou-ui\/dashboard\/pivot$/,
+          replacement: r('../../packages/dashboard/src/pivot/index.ts'),
         },
         { find: /^@dou-ui\/dashboard$/, replacement: r('../../packages/dashboard/src/index.ts') },
         {

@@ -46,6 +46,13 @@ export interface PivotMessages {
   resizeColumn: string
   /** The accessible name of a column's resize handle: `{column}`. */
   columnWidth: string
+  /** Read out when a range is selected: `{rows}` and `{columns}`. */
+  selected: string
+  /** Read out after copying: `{cells}`. */
+  copied: string
+  /** Read out when a group opens or closes: `{label}`. */
+  expanded: string
+  collapsed: string
   /** The field panel. */
   fields: {
     /** The panel's accessible name. */
@@ -200,6 +207,10 @@ const zhCN: PivotMessages = {
   subtotalRow: '{label} 小计',
   resizeColumn: '拖动调整列宽，双击适应内容',
   columnWidth: '{column}的列宽',
+  selected: '已选中 {rows} 行 {columns} 列',
+  copied: '已复制 {cells} 个格子',
+  expanded: '已展开{label}',
+  collapsed: '已折叠{label}',
   fields: {
     panel: '字段',
     list: '全部字段',
@@ -336,6 +347,10 @@ const zhTW: PivotMessages = {
   subtotalRow: '{label} 小計',
   resizeColumn: '拖曳調整欄寬，按兩下符合內容',
   columnWidth: '{column}的欄寬',
+  selected: '已選取 {rows} 列 {columns} 欄',
+  copied: '已複製 {cells} 個儲存格',
+  expanded: '已展開{label}',
+  collapsed: '已摺疊{label}',
   fields: {
     panel: '欄位',
     list: '所有欄位',
@@ -472,6 +487,10 @@ const en: PivotMessages = {
   subtotalRow: '{label} subtotal',
   resizeColumn: 'Drag to resize, double-click to fit',
   columnWidth: 'Width of {column}',
+  selected: '{rows} rows by {columns} columns selected',
+  copied: '{cells} cells copied',
+  expanded: '{label} expanded',
+  collapsed: '{label} collapsed',
   fields: {
     panel: 'Fields',
     list: 'All fields',

@@ -528,6 +528,65 @@
     }
   }
 
+  /* other people editing together: what they drag, select and connect */
+  .dou-flow-peers {
+    --dou-flow-peer-color: var(--dou-color-text-secondary);
+    --dou-flow-peer-line: calc(1.5px / var(--dou-flow-editor-zoom, 1));
+  }
+
+  .dou-flow-peer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    box-sizing: border-box;
+    border-radius: var(--dou-flow-editor-node-radius);
+    outline: var(--dou-flow-peer-line) solid var(--dou-flow-peer-color);
+    outline-offset: calc(3px / var(--dou-flow-editor-zoom, 1));
+    pointer-events: none;
+
+    &.is-moving {
+      outline-style: dashed;
+      background-color: color-mix(in oklab, var(--dou-flow-peer-color) 8%, transparent);
+    }
+  }
+
+  .dou-flow-peer__name {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    margin-bottom: calc(4px / var(--dou-flow-editor-zoom, 1));
+    padding: 0 6px;
+    border-radius: 4px;
+    background-color: var(--dou-flow-peer-color);
+    /* the collaborator's color is the app's: pick dark or light text by its lightness */
+    color: white;
+    color: oklch(from var(--dou-flow-peer-color) clamp(0.2, (0.66 - l) * 100, 0.99) 0 0);
+    font-size: var(--dou-font-size-sm);
+    line-height: 18px;
+    white-space: nowrap;
+    /* the same size on screen at any zoom */
+    scale: calc(1 / var(--dou-flow-editor-zoom, 1));
+    transform-origin: left bottom;
+  }
+
+  .dou-flow-peer__lines {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 1px;
+    height: 1px;
+    overflow: visible;
+    pointer-events: none;
+
+    & path {
+      fill: none;
+      stroke: var(--dou-flow-peer-color);
+      stroke-width: 1.5px;
+      stroke-dasharray: 4 3;
+      vector-effect: non-scaling-stroke;
+    }
+  }
+
   /* the group node */
   .dou-flow-group-node {
     height: 100%;

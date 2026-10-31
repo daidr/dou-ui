@@ -520,3 +520,29 @@ describe('DouGantt', () => {
     wrapper.unmount()
   })
 })
+
+describe('extension lifecycle', () => {
+  it('sets up once when the list is written inline', async () => {
+    let setups = 0
+    const watcher = defineGanttExtension({ name: 'watcher', setup: () => void setups++ })
+    const tasks = ref(sample())
+    mount(
+      defineComponent(
+        () => () =>
+          h(DouGantt, {
+            tasks: tasks.value,
+            'onUpdate:tasks': (value: GanttTask[]) => (tasks.value = value),
+            // a new list on every render
+            extensions: [watcher],
+          }),
+      ),
+      { attachTo: document.body },
+    )
+    await nextTick()
+    tasks.value = tasks.value.slice(1)
+    await nextTick()
+    tasks.value = tasks.value.slice(1)
+    await nextTick()
+    expect(setups).toBe(1)
+  })
+})

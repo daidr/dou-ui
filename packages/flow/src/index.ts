@@ -53,7 +53,12 @@ export { applyFlowSteps, compactFlowSteps, FlowTransaction } from './core/transa
 export type { FlowStep, FlowTransactionMeta } from './core/transaction'
 export { FlowHistory } from './core/history'
 export { defineFlowExtension } from './core/extension'
-export type { FlowExtension, FlowExtensionContext, FlowKeyHandler } from './core/extension'
+export type {
+  FlowExtension,
+  FlowExtensionContext,
+  FlowHistoryHandler,
+  FlowKeyHandler,
+} from './core/extension'
 export { flowKit } from './kit'
 export type { FlowKitOptions } from './kit'
 export { flowOrder } from './core/order'

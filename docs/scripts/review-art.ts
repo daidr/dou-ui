@@ -20,9 +20,12 @@
  * Each row also shows the component's first demo, so the drawing can be
  * checked against the real thing.
  *
+ * `--page ecosystem` reviews the drawings of the ecosystem overview instead.
+ *
  * Needs the docs dev server (`bun run docs:dev`) and Playwright.
  *
- *   bun scripts/review-art.ts [names] [--url <dev server>] [--out <dir>] [--per <n>]
+ *   bun scripts/review-art.ts [names] [--page components|ecosystem] [--url <dev server>]
+ *     [--out <dir>] [--per <n>]
  */
 import { mkdir, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
@@ -36,10 +39,12 @@ const option = (name: string) => {
 const url = option('--url') ?? 'http://localhost:5173'
 const outDir = resolve(option('--out') ?? 'review-art')
 const perSheet = Number(option('--per') ?? 4)
+const overview = option('--page') === 'ecosystem' ? '/ecosystem/' : '/components/overview'
 const only = args[0]?.split(',').filter(Boolean)
 
 interface Metric {
   name: string
+  link: string
   label: string
   x: number
   y: number
@@ -66,7 +71,7 @@ const toneClasses: Record<string, string> = {
 
 const browser = await chromium.launch()
 const page = await browser.newPage({ viewport: { width: 1400, height: 800 }, deviceScaleFactor: 2 })
-await page.goto(`${url}/components/overview`, { waitUntil: 'networkidle' })
+await page.goto(`${url}${overview}`, { waitUntil: 'networkidle' })
 
 const metrics: Metric[] = await page.evaluate(
   ({ tones: toneMap }) =>
@@ -79,7 +84,8 @@ const metrics: Metric[] = await page.evaluate(
         for (const name of shape.classList) if (toneMap[name]) tones.add(toneMap[name]!)
       }
       return {
-        name: card.getAttribute('href')!.split('/').pop()!,
+        name: card.dataset.art ?? card.getAttribute('href')!.split('/').pop()!,
+        link: card.getAttribute('href')!,
         label: card.querySelector('.doc-overview__name')!.textContent!,
         x: box.x,
         y: box.y,
@@ -125,7 +131,7 @@ const demoPage = await browser.newPage({
   deviceScaleFactor: 2,
 })
 for (const m of selected) {
-  await demoPage.goto(`${url}/components/${m.name}`, { waitUntil: 'networkidle' })
+  await demoPage.goto(`${url}${m.link}`, { waitUntil: 'networkidle' })
   const stage = demoPage.locator('.doc-demo__stage').first()
   if (await stage.count()) {
     // crop to the demo content, so a small control is not lost in a wide stage
@@ -169,7 +175,7 @@ for (let start = 0; start < selected.length; start += perSheet) {
         '<rect x="16" y="10" width="168" height="100" fill="none" stroke="#e5484d" stroke-opacity=".5" stroke-dasharray="3 3" vector-effect="non-scaling-stroke"/>' +
         '<path d="M100 0v120M0 60h200" stroke="#e5484d" stroke-opacity=".25" vector-effect="non-scaling-stroke"/>'
       for (const m of rows) {
-        const source = document.querySelector(`.doc-overview__card[href$="/${m.name}"]`)!
+        const source = document.querySelector(`.doc-overview__card[href="${m.link}"]`)!
         const art = source.querySelector('svg')!.innerHTML
         const box = `<rect x="${m.x}" y="${m.y}" width="${m.width}" height="${m.height}" fill="none" stroke="#3e63dd" stroke-opacity=".6" vector-effect="non-scaling-stroke"/>`
         const big = (theme: string) =>

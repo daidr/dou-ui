@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { layoutGraph, matchesHotkey, useReducedMotion, type Tone } from 'dou-ui'
+import { holdPointer, layoutGraph, matchesHotkey, useReducedMotion, type Tone } from 'dou-ui'
 import {
   computed,
+  customRef,
   nextTick,
   onBeforeUnmount,
   onMounted,
@@ -45,7 +46,7 @@ import {
 } from './core/connect'
 import { FlowHistory } from './core/history'
 import { flowOrder } from './core/order'
-import { resolveFlowExtensions } from './core/extension'
+import { resolveFlowExtensions, type FlowHistoryHandler } from './core/extension'
 import { flowKit } from './kit'
 import type { FlowMenuItem, FlowMenuTarget, FlowToolbarItem } from './core/menu'
 import { readClipboard, writeClipboard } from './core/clipboard'
@@ -98,6 +99,8 @@ const root = useTemplateRef<HTMLElement>('root')
 /** Movement in screen px before a press becomes a drag. */
 const THRESHOLD = { mouse: 3, touch: 6 }
 const LONG_PRESS = 500
+/** How long a finger rests on a palette item before it picks the node up, in ms. */
+const PICK_UP = 300
 /** How close to the edge a drag starts scrolling the canvas, in px. */
 const EDGE = 24
 /** Auto-scroll speed in px per frame, at `d` px from the edge. */
@@ -163,11 +166,13 @@ const colorOf = (spec: PortTypeSpec | undefined) =>
 // Document and history ------------------------------------------------------------
 
 const history = new FlowHistory()
+/** An extension's history, used instead of the editor's own. */
+let customHistory: FlowHistoryHandler | null = null
 const canUndo = ref(false)
 const canRedo = ref(false)
 const syncHistory = () => {
-  canUndo.value = history.canUndo
-  canRedo.value = history.canRedo
+  canUndo.value = customHistory ? customHistory.canUndo() : history.canUndo
+  canRedo.value = customHistory ? customHistory.canRedo() : history.canRedo
 }
 
 function setSelection(next: FlowSelection) {
@@ -186,7 +191,26 @@ function pruneSelection(next: FlowDocument, sel = selection.value): FlowSelectio
   }
 }
 
+/*
+ * A bound v-model only catches up when the parent renders, so changes made
+ * in the same tick (a drag frame, then a change from another person) build
+ * on the latest commit instead.
+ */
+let latest: FlowDocument | null = null
+const docOf = (): FlowDocument => latest ?? toRaw(doc.value)
+/** The document as extensions see it: the latest commit, even before `v-model` catches up. */
+const currentDoc = customRef<FlowDocument>(() => ({
+  get: () => {
+    const value = doc.value
+    return latest ?? value
+  },
+  set: (value) => (doc.value = value),
+}))
+
 function commit(tr: FlowTransaction) {
+  for (const hook of resolved.value.transactions) hook(tr, context)
+  if (!latest) void nextTick(() => (latest = null))
+  latest = tr.doc
   doc.value = tr.doc
   const removes = tr.steps.some((s) => s.type === 'removeNode' || s.type === 'removeEdge')
   if (removes) setSelection(pruneSelection(tr.doc))
@@ -194,19 +218,20 @@ function commit(tr: FlowTransaction) {
 }
 
 function transact(fn: (tr: FlowTransaction) => void, meta?: FlowTransactionMeta) {
-  const tr = new FlowTransaction(toRaw(doc.value))
+  const tr = new FlowTransaction(docOf())
   if (meta) tr.setMeta(meta)
   fn(tr)
   if (!tr.changed) return tr
   const before = selection.value
   commit(tr)
-  history.record(tr, before, selection.value)
+  if (!customHistory) history.record(tr, before, selection.value)
   syncHistory()
   return tr
 }
 
 function undo() {
-  const result = history.undo(toRaw(doc.value))
+  if (customHistory) return travel(customHistory.undo, messages.value.undone)
+  const result = history.undo(docOf())
   if (!result) return false
   result.tr.setMeta({ origin: 'undo', history: false })
   commit(result.tr)
@@ -216,8 +241,17 @@ function undo() {
   return true
 }
 
+/** Undo or redo through an extension's history. */
+function travel(fn: () => boolean, done: string) {
+  if (!fn()) return false
+  syncHistory()
+  announce(done)
+  return true
+}
+
 function redo() {
-  const result = history.redo(toRaw(doc.value))
+  if (customHistory) return travel(customHistory.redo, messages.value.redone)
+  const result = history.redo(docOf())
   if (!result) return false
   result.tr.setMeta({ origin: 'redo', history: false })
   commit(result.tr)
@@ -2201,6 +2235,9 @@ const insertDrag = shallowRef<{
   /** Whether letting go here adds the node. */
   over: boolean
 } | null>(null)
+let pickUpTimer: ReturnType<typeof setTimeout> | undefined
+/** Keeps a finger that picked a node up from scrolling the page. */
+let insertHold: ReturnType<typeof holdPointer> | undefined
 
 /** Whether a point on screen is on the canvas itself, not on a panel over it. */
 function onCanvasAt(client: Point) {
@@ -2226,18 +2263,34 @@ function startInsertDrag(type: string, event: PointerEvent) {
   window.addEventListener('pointerup', onInsertUp, true)
   window.addEventListener('pointercancel', onInsertUp, true)
   window.addEventListener('keydown', onInsertKey, true)
+  window.addEventListener('contextmenu', onInsertMenu, true)
+  insertHold = holdPointer(event)
+  // A finger that slides at once scrolls the palette; one that rests picks the node up.
+  if (event.pointerType === 'touch')
+    pickUpTimer = setTimeout(() => {
+      const d = insertDrag.value
+      if (!d || d.started) return
+      insertHold?.grab()
+      insertDrag.value = { ...d, started: true, over: onCanvasAt(d.client) }
+    }, PICK_UP)
   return true
+}
+
+// A long press would open the browser's menu for the source.
+function onInsertMenu(event: Event) {
+  event.preventDefault()
 }
 
 function onInsertMove(event: PointerEvent) {
   const d = insertDrag.value
   if (!d || d.id !== event.pointerId) return
   const client = { x: event.clientX, y: event.clientY }
-  if (
-    !d.started &&
-    Math.hypot(client.x - d.start.x, client.y - d.start.y) < THRESHOLD[d.touch ? 'touch' : 'mouse']
-  )
-    return
+  if (!d.started) {
+    const moved = Math.hypot(client.x - d.start.x, client.y - d.start.y)
+    if (moved < THRESHOLD[d.touch ? 'touch' : 'mouse']) return
+    // a finger that moves before the node is picked up is scrolling
+    if (d.touch) return stopInsertDrag()
+  }
   insertDrag.value = { ...d, client, started: true, over: onCanvasAt(client) }
 }
 
@@ -2263,6 +2316,10 @@ function onInsertKey(event: KeyboardEvent) {
 
 function stopInsertDrag() {
   insertDrag.value = null
+  clearTimeout(pickUpTimer)
+  insertHold?.release()
+  insertHold = undefined
+  window.removeEventListener('contextmenu', onInsertMenu, true)
   window.removeEventListener('pointermove', onInsertMove, true)
   window.removeEventListener('pointerup', onInsertUp, true)
   window.removeEventListener('pointercancel', onInsertUp, true)
@@ -2342,7 +2399,7 @@ function endGesture() {
 function cancelDrag() {
   const g = gesture.value
   if ((g?.kind !== 'drag' && g?.kind !== 'bend') || !g.started) return false
-  const tr = new FlowTransaction(toRaw(doc.value)).setMeta({ history: false })
+  const tr = new FlowTransaction(docOf()).setMeta({ history: false })
   if (g.kind === 'bend') tr.updateEdge(g.edge, { data: g.origin })
   else for (const [id, o] of g.origins) tr.moveNode(id, o.x, o.y)
   if (tr.changed) commit(tr)
@@ -2848,6 +2905,7 @@ onBeforeUnmount(() => {
   root.value?.removeEventListener('wheel', onWheel)
   for (const [type, fn] of pointerListeners) window.removeEventListener(type, fn, true)
   window.removeEventListener('touchmove', holdTouch)
+  stopInsertDrag()
   stopAnimation()
   endGesture()
 })
@@ -2863,6 +2921,13 @@ const marquee = computed<CSSProperties | null>(() => {
     width: `${box.width * zoom}px`,
     height: `${box.height * zoom}px`,
   }
+})
+
+/** A gesture that changes the document as it goes: moving nodes, resizing, bending an edge. */
+const gesturing = computed(() => {
+  const g = gesture.value
+  if (g?.kind === 'resize') return true
+  return (g?.kind === 'drag' || g?.kind === 'bend') && g.started
 })
 
 const dragging = computed(() => {
@@ -2938,7 +3003,7 @@ const classes = computed(() => ({
 }))
 
 const context: FlowEditorContext = {
-  doc,
+  doc: currentDoc,
   selection,
   viewport,
   readonly: computed(() => props.readonly),
@@ -2972,6 +3037,8 @@ const context: FlowEditorContext = {
   leaveGroup,
   tree,
   isContainer,
+  gesturing,
+  connectingPath: previewPath,
   openMenu,
   toCanvas,
   copy,
@@ -2982,6 +3049,52 @@ const context: FlowEditorContext = {
   selectAll,
 }
 provide(flowEditorKey, context)
+
+// Extensions that hook into the editor's life: set up once mounted, again when the list changes.
+let cleanups: (() => void)[] = []
+let mounted = false
+function teardownExtensions() {
+  for (const cleanup of cleanups.splice(0)) cleanup()
+  customHistory = null
+}
+let setUp = false
+let setupTimes: number[] = []
+let setupWarned = false
+/** An extension made in the template is new on every render, and set up again each time. */
+function warnRepeatedSetup() {
+  if (process.env.NODE_ENV === 'production' || setupWarned) return
+  const now = Date.now()
+  setupTimes = [...setupTimes.filter((time) => now - time < 1000), now]
+  if (setupTimes.length < 4) return
+  setupWarned = true
+  console.warn(
+    '[@dou-ui/flow] the extensions keep being set up again, which also clears undo each time. Create them once in <script setup> instead of in the template.',
+  )
+}
+function setupExtensions() {
+  if (setUp) warnRepeatedSetup()
+  setUp = true
+  teardownExtensions()
+  customHistory = resolved.value.history?.(context) ?? null
+  for (const setup of resolved.value.setups) {
+    const cleanup = setup(context)
+    if (typeof cleanup === 'function') cleanups.push(cleanup)
+  }
+  syncHistory()
+}
+onMounted(() => {
+  mounted = true
+  setupExtensions()
+})
+// A list written inline is new on every render; set up again only when the hooks change.
+watch(
+  () => [resolved.value.history, ...resolved.value.setups],
+  (hooks, before) => {
+    if (mounted && (hooks.length !== before.length || hooks.some((hook, i) => hook !== before[i])))
+      setupExtensions()
+  },
+)
+onBeforeUnmount(teardownExtensions)
 
 const keymaps = computed(() => resolved.value.keymaps.map((keymap) => keymap(context)))
 

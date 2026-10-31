@@ -2429,7 +2429,14 @@ onMounted(() => {
   mounted = true
   setupExtensions()
 })
-watch(resolved, () => mounted && setupExtensions())
+// A list written inline is new on every render; set up again only when the hooks change.
+watch(
+  () => [resolved.value.history, ...resolved.value.setups],
+  (hooks, before) => {
+    if (mounted && (hooks.length !== before.length || hooks.some((hook, i) => hook !== before[i])))
+      setupExtensions()
+  },
+)
 onBeforeUnmount(teardownExtensions)
 
 const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * props.rowHeight}px)` })

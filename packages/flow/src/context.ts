@@ -262,6 +262,13 @@ export interface FlowEditorContext {
   tree: ComputedRef<FlowTree>
   /** Whether the node's type can hold other nodes. */
   isContainer: (node: FlowNode) => boolean
+  /**
+   * While nodes are moved or resized, or an edge is bent: the document
+   * changes on every frame until the pointer is let go.
+   */
+  gesturing: ComputedRef<boolean>
+  /** The edge being drawn, as an SVG path in canvas coordinates. */
+  connectingPath: ComputedRef<string | null>
   /** The editor's element. */
   root: Readonly<ShallowRef<HTMLElement | null>>
   /**

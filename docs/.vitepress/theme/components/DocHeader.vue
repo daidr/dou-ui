@@ -10,12 +10,10 @@ const emit = defineEmits<{ search: []; menu: [] }>()
 
 const { site } = useData()
 const { isDark } = useColorMode()
-const { path, nav, social } = useDocs()
+const { activeNav, nav, social } = useDocs()
 
-/** `/guide/philosophy` belongs to the `/guide/` section. */
-const section = (link: string) => link.split('/').slice(0, 2).join('/')
 const items = computed<MenuOption[]>(() =>
-  nav.value.map((item) => ({ key: section(item.link), label: item.text, href: item.link })),
+  nav.value.map((item) => ({ key: item.link, label: item.text, href: item.link })),
 )
 const github = computed(() => social.value.find((link) => link.icon === 'github')?.link)
 // The server cannot know the reader's theme; follow it once mounted so
@@ -40,12 +38,7 @@ const isMac = computed(() => mounted.value && /Mac|iPhone|iPad/.test(navigator.p
         ></template>
       </DouButton>
       <a class="doc-header__logo" href="/">{{ site.title }}</a>
-      <DouMenu
-        class="doc-header__nav"
-        mode="horizontal"
-        :items="items"
-        :model-value="section(path)"
-      />
+      <DouMenu class="doc-header__nav" mode="horizontal" :items="items" :model-value="activeNav" />
       <div class="doc-header__actions">
         <DouButton class="doc-header__search" variant="outline" size="sm" @click="emit('search')">
           <template #leading

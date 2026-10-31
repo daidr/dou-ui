@@ -30,22 +30,39 @@ const extensions = [flowKit(), marks]
 
 ## 扩展的字段
 
-| 名称             | 说明                                                                                       | 类型                                                  |
-| ---------------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------- |
-| `name`           | 扩展的名字                                                                                 | `string`                                              |
-| `priority`       | 优先级，越大越先处理按键和连接规则，默认 `100`                                             | `number`                                              |
-| `nodeTypes`      | 节点类型，见[自定义节点](./custom-nodes)                                                   | `NodeTypeSpec[]`                                      |
-| `portTypes`      | 端口类型，见[端口类型与连接规则](./ports)                                                  | `PortTypes`                                           |
-| `edgeTypes`      | 连线类型，见[自定义连线类型](./edges#自定义连线类型)                                       | `EdgeTypeSpec[]`                                      |
-| `canConnect`     | 连接规则，在 `can-connect` 属性之后检查，返回 `false` 或一段说明拒绝                       | `(connection, doc) => boolean \| string`              |
-| `keymap`         | 画布有焦点时的快捷键，写法和 `useHotkey` 一样；处理函数返回 `false` 表示没处理，交给下一个 | `(ctx) => Record<string, (event) => boolean \| void>` |
-| `transformPaste` | 粘贴前改写节点和连线，比如清掉运行状态                                                     | `(data, ctx) => FlowDocument`                         |
-| `layers`         | 画在画布坐标里的组件，`below` 在连线下方，`above` 在节点上方，跟着画布移动和缩放           | `{ below?: Component[], above?: Component[] }`        |
-| `overlays`       | 浮在编辑器上方的组件，不随画布移动，比如面板                                               | `Component[]`                                         |
-| `contextMenu`    | 右键菜单的项，见[右键菜单](./editing#右键菜单)                                             | `(ctx, target) => FlowMenuItem[]`                     |
-| `toolbarItems`   | 选中节点上方工具栏的按钮，见[工具栏](./editing#工具栏)                                     | `(ctx, nodes) => FlowToolbarItem[]`                   |
+| 名称             | 说明                                                                                              | 类型                                                  |
+| ---------------- | ------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| `name`           | 扩展的名字                                                                                        | `string`                                              |
+| `priority`       | 优先级，越大越先处理按键和连接规则，默认 `100`                                                    | `number`                                              |
+| `nodeTypes`      | 节点类型，见[自定义节点](./custom-nodes)                                                          | `NodeTypeSpec[]`                                      |
+| `portTypes`      | 端口类型，见[端口类型与连接规则](./ports)                                                         | `PortTypes`                                           |
+| `edgeTypes`      | 连线类型，见[自定义连线类型](./edges#自定义连线类型)                                              | `EdgeTypeSpec[]`                                      |
+| `canConnect`     | 连接规则，在 `can-connect` 属性之后检查，返回 `false` 或一段说明拒绝                              | `(connection, doc) => boolean \| string`              |
+| `keymap`         | 画布有焦点时的快捷键，写法和 `useHotkey` 一样；处理函数返回 `false` 表示没处理，交给下一个        | `(ctx) => Record<string, (event) => boolean \| void>` |
+| `transformPaste` | 粘贴前改写节点和连线，比如清掉运行状态                                                            | `(data, ctx) => FlowDocument`                         |
+| `layers`         | 画在画布坐标里的组件，`below` 在连线下方，`above` 在节点上方，跟着画布移动和缩放                  | `{ below?: Component[], above?: Component[] }`        |
+| `overlays`       | 浮在编辑器上方的组件，不随画布移动，比如面板                                                      | `Component[]`                                         |
+| `contextMenu`    | 右键菜单的项，见[右键菜单](./editing#右键菜单)                                                    | `(ctx, target) => FlowMenuItem[]`                     |
+| `toolbarItems`   | 选中节点上方工具栏的按钮，见[工具栏](./editing#工具栏)                                            | `(ctx, nodes) => FlowToolbarItem[]`                   |
+| `setup`          | 编辑器挂载后调用，可以返回一个函数，在卸载时调用                                                  | `(ctx) => void \| (() => void)`                       |
+| `transaction`    | 每次修改生效前按优先级调用，可以继续往里加步骤；撤销和重做也会经过这里                            | `(tr, ctx) => void`                                   |
+| `history`        | 替换编辑器自带的撤销记录，只用第一个提供它的扩展，例如[协同编辑](./collaboration)只撤销自己的修改 | `(ctx) => FlowHistoryHandler`                         |
 
 `ctx` 和组件里 `useFlowEditor()` 拿到的是同一个对象。图层和浮层组件也可以调用 `useFlowEditor()`。
+
+`history` 返回的对象：
+
+```ts
+interface FlowHistoryHandler {
+  /** 没有可撤销的修改时返回 false */
+  undo: () => boolean
+  redo: () => boolean
+  canUndo: () => boolean
+  canRedo: () => boolean
+}
+```
+
+拖动节点、调整连线和改变分组大小时，编辑器每一帧都会提交一次修改。`ctx.gesturing` 在这期间为 `true`，松手后变回 `false`，需要把一次拖动当作一个修改来处理时（例如同步到服务器）可以等它变回 `false`。正在拉出的连线在 `ctx.connectingPath` 里，是画布坐标下的 SVG 路径，没有在连线时为 `null`。
 
 ## 图层组件
 

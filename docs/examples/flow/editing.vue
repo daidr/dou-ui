@@ -85,8 +85,6 @@ const doc = ref<FlowDocument>({
   font: inherit;
   font-size: var(--dou-font-size-sm);
   cursor: grab;
-  /* a finger drags the item instead of scrolling the page */
-  touch-action: none;
 }
 
 .review-flow__item:hover {

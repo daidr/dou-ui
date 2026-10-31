@@ -953,9 +953,13 @@ function openPanel() {
   return true
 }
 
-/** Where the active cell's panel button goes: on its right edge, while it isn't edited. */
+/**
+ * Where the active cell's panel button goes: on its right edge, while it
+ * isn't edited or dragged from. A finger that only touches down keeps it:
+ * iPhones drop the tap's click when something shows up during the tap.
+ */
 const panelButton = computed(() => {
-  if (props.readonly || editing.value || drag.value) return null
+  if (props.readonly || editing.value || drag.value?.started) return null
   const { row, col } = active.value
   if (!typeAt(row, col)?.definition.panel) return null
   const rect = visibleRect(active.value)

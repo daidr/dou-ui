@@ -30,6 +30,36 @@ export type {
 export * as codeCommands from './core/commands'
 export type { CodeCommand, CodeCommandTarget } from './core/commands'
 export { defaultKeymap } from './core/keymap'
+export { findPartner, matchBracket } from './core/brackets'
+export type { BracketMatch } from './core/brackets'
+export { CodeStream } from './language/stream'
+export {
+  copyPlain,
+  defineCodeLanguage,
+  languageFor,
+  lineParts,
+  samePlain,
+  tokenizeLine,
+  tokenTypes,
+} from './language/language'
+export type {
+  CodeLanguage,
+  CodeLanguageSpec,
+  CodeLineTokens,
+  CodeTokenType,
+} from './language/language'
+export { CodeHighlighter } from './language/highlighter'
+export { createCodeHighlighter, highlightToHtml } from './language/to-html'
+export { createJavaScript, javascript, jsx, tsx, typescript } from './languages/javascript'
+export type { JavaScriptOptions, JavaScriptState } from './languages/javascript'
+export { createCss, css, scss } from './languages/css'
+export type { CssState } from './languages/css'
+export { json } from './languages/json'
+export type { JsonState } from './languages/json'
+export { createHtml, html, vue } from './languages/html'
+export type { HtmlState } from './languages/html'
+export { createMarkdown, markdown } from './languages/markdown'
+export type { MarkdownOptions, MarkdownState } from './languages/markdown'
 export type { CodeKeyBinding } from './core/keymap'
 
 declare module 'vue' {

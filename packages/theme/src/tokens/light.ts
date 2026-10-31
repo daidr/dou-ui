@@ -43,6 +43,22 @@ export const light: ThemeTokens = {
       7: '#48773e',
       8: '#7e3e1e',
     },
+    syntax: {
+      keyword: '#7b3f99',
+      string: '#3c7536',
+      number: '#a14a24',
+      comment: '#6b6b6b',
+      function: '#3550a8',
+      type: '#1d726c',
+      variable: '#171717',
+      property: '#2c6688',
+      operator: '#5c5c5c',
+      punctuation: '#5c5c5c',
+      tag: '#9a3a4c',
+      attribute: '#7d5d16',
+      meta: '#666666',
+      invalid: '#b2423e',
+    },
   },
   font: {
     family:

@@ -1,4 +1,11 @@
-export type { ChartPalette, DeepPartial, SizeScale, ThemeTokens, ToneTokens } from './tokens/types'
+export type {
+  ChartPalette,
+  DeepPartial,
+  SizeScale,
+  SyntaxPalette,
+  ThemeTokens,
+  ToneTokens,
+} from './tokens/types'
 export { light } from './tokens/light'
 export { dark } from './tokens/dark'
 export { defineTheme } from './tokens/define'

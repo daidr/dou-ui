@@ -52,7 +52,7 @@ import {
 import '@dou-ui/chart/style.css'
 import { DouFlowEditor, type FlowDocument } from '@dou-ui/flow'
 import '@dou-ui/flow/style.css'
-import { CodeText, DouCodeEditor, type CodeEditorExpose } from '@dou-ui/code'
+import { CodeText, DouCodeEditor, type CodeEditorExpose, typescript } from '@dou-ui/code'
 import '@dou-ui/code/style.css'
 import { DouSheet, type SheetExpose, type SheetWorkbook } from '@dou-ui/sheet'
 import '@dou-ui/sheet/style.css'
@@ -925,6 +925,35 @@ export const cases: Record<string, Case> = {
     prepare: (root) => codeCursor(root, 1000),
     act: (root) => codeType(root, 'x'),
   },
+  // Highlighted as TypeScript: one frame of a wheel reads and colors only the lines coming in.
+  'code-syntax-scroll-step': {
+    render: (n) => codeEditor(n, 'doc', true),
+    act: (root) => {
+      const scroller = root.querySelector('.dou-code-editor__scroller')!
+      scroller.scrollTop += 60
+      scroller.dispatchEvent(new Event('scroll'))
+    },
+  },
+  // A key typed in highlighted code: the line is read again, and reading stops at the next.
+  'code-syntax-type': {
+    render: (n) => codeEditor(n, 'doc', true),
+    prepare: (root) => {
+      const editor = (window as any).codeEditor.value as CodeEditorExpose
+      editor.select(editor.doc.line(20).from + 8)
+      root.querySelector('textarea')!.focus()
+    },
+    act: (root) => codeType(root, 'x'),
+  },
+  // Opening a block comment at the top: every line in view is read and colored again.
+  'code-syntax-comment': {
+    render: (n) => codeEditor(n, 'doc', true),
+    prepare: (root) => {
+      const editor = (window as any).codeEditor.value as CodeEditorExpose
+      editor.select(0)
+      root.querySelector('textarea')!.focus()
+    },
+    act: (root) => codeType(root, '/*'),
+  },
   // A sheet of n rows × 20 columns, every cell filled.
   sheet: {
     render: (n) => sheet(n),
@@ -1034,7 +1063,7 @@ function pivot(n: number) {
     })
 }
 
-function codeEditor(n: number, bind: 'string' | 'doc') {
+function codeEditor(n: number, bind: 'string' | 'doc', highlighted = false) {
   const source = Array.from(
     { length: n },
     (_, i) => `  const value${i} = compute(${i}, '第 ${i + 1} 行') // ${i % 7 ? '' : 'note'}`,
@@ -1047,6 +1076,7 @@ function codeEditor(n: number, bind: 'string' | 'doc') {
     h(DouCodeEditor, {
       ref: editor,
       style: 'height: 600px',
+      language: highlighted ? typescript : undefined,
       ...(bind === 'string'
         ? { modelValue: code.value, 'onUpdate:modelValue': (value: string) => (code.value = value) }
         : {

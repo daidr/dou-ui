@@ -10,6 +10,7 @@ import { useLocale } from '../config-provider/use-config'
 import { useFormDisabled } from '../form/use-form-item'
 import { DouInput } from '../input'
 import type { InputExpose } from '../input'
+import { DouTextarea } from '../textarea'
 import { DouSpinner } from '../spinner'
 import type {
   AutocompleteExpose,
@@ -180,7 +181,13 @@ function move(step: 1 | -1) {
   }
 }
 
-const inputRef = useTemplateRef<InputExpose>('input')
+const inputRef = useTemplateRef<Pick<InputExpose, 'focus' | 'blur'>>('input')
+
+const autosize = computed(() =>
+  props.multiline
+    ? { minRows: 1, maxRows: (props.multiline === true ? undefined : props.multiline.maxRows) ?? 8 }
+    : undefined,
+)
 
 function choose(option: AutocompleteOption | undefined) {
   if (!option || option.disabled) return
@@ -215,6 +222,8 @@ function onKeydown(event: KeyboardEvent) {
   switch (event.key) {
     case 'ArrowDown':
     case 'ArrowUp':
+      // Over several lines the arrows move the caret until the list is open.
+      if (props.multiline && !open.value) return
       event.preventDefault()
       if (!open.value) {
         wanted.value = true
@@ -262,7 +271,24 @@ defineExpose<AutocompleteExpose>({
 
 <template>
   <OnlyChild ref="triggerRef">
+    <DouTextarea
+      v-if="autosize"
+      ref="input"
+      v-model="model"
+      v-bind="{ ...$attrs, ...inputAttrs }"
+      :class="[ns.b(), ns.is('multiline')]"
+      :size="size"
+      :disabled="disabled"
+      :invalid="invalid"
+      :placeholder="placeholder"
+      :autosize="autosize"
+      @input="onInput"
+      @focus="onFocus"
+      @blur="onBlur"
+      @keydown="onKeydown"
+    />
     <DouInput
+      v-else
       ref="input"
       v-model="model"
       v-bind="{ ...$attrs, ...inputAttrs }"

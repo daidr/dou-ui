@@ -1,9 +1,11 @@
 import { withInstall } from 'dou-ui'
 import Sheet from './sheet.vue'
 import SheetTabs from './components/sheet-tabs.vue'
+import SheetToolbar from './components/sheet-toolbar.vue'
 
 export const DouSheet = withInstall(Sheet)
 export const DouSheetTabs = withInstall(SheetTabs)
+export const DouSheetToolbar = withInstall(SheetToolbar)
 export default DouSheet
 
 export { useSheet, sheetContextKey } from './context'
@@ -25,7 +27,11 @@ export type {
 } from './core/cell-type'
 export type {
   SheetEmits,
+  SheetFormatOption,
   SheetSlots,
+  SheetToolbarProps,
+  SheetToolbarSlots,
+  SheetToolbarTool,
   SheetExpose,
   SheetMenuContext,
   SheetMenuItem,
@@ -73,7 +79,7 @@ export type {
   SheetValue,
   SheetWorkbook,
 } from './core/model'
-export { formatValue, parseInput } from './core/format'
+export { changeDecimals, formatValue, parseInput } from './core/format'
 export type { SheetInput } from './core/format'
 export { isSelected, selectCell } from './core/selection'
 export type { SheetSelection } from './core/selection'
@@ -87,6 +93,7 @@ export type {
   SheetRangeAt,
   SheetRef,
   SheetStep,
+  SheetStylePatch,
   SheetTransactionMeta,
 } from './core/transaction'
 export { sheetLocales, useSheetMessages } from './locale'
@@ -96,5 +103,6 @@ declare module 'vue' {
   export interface GlobalComponents {
     DouSheet: typeof DouSheet
     DouSheetTabs: typeof DouSheetTabs
+    DouSheetToolbar: typeof DouSheetToolbar
   }
 }

@@ -3,6 +3,7 @@ import FormBuilder from './form-builder.vue'
 import Inspector from './inspector.vue'
 import Outline from './outline.vue'
 import Palette from './palette.vue'
+import Preview from './preview.vue'
 import { FormBuilderCanvas } from './canvas'
 
 export const DouFormBuilder = withInstall(FormBuilder)
@@ -10,6 +11,7 @@ export const DouFormBuilderPalette = withInstall(Palette)
 export const DouFormBuilderInspector = withInstall(Inspector)
 export const DouFormBuilderOutline = withInstall(Outline)
 export const DouFormBuilderCanvas = withInstall(FormBuilderCanvas)
+export const DouFormBuilderPreview = withInstall(Preview)
 
 export type {
   FormBuilderEmits,
@@ -21,8 +23,23 @@ export { useFormBuilder } from './context'
 export type {
   FormBuilderContext,
   FormBuilderDispatchOptions,
+  FormBuilderMode,
   FormBuilderSelectMode,
 } from './context'
+export {
+  defineFormBuilderExtension,
+  resolveFormBuilderExtensions,
+  resolveFormBuilderFields,
+} from './extension'
+export type {
+  FormBuilderExtension,
+  FormBuilderExtensionContext,
+  FormBuilderInspectorSection,
+  FormBuilderKeyHandler,
+  FormBuilderMenuItem,
+  FormBuilderToolbarItem,
+  ResolvedFormBuilderExtensions,
+} from './extension'
 export {
   applyFormSteps,
   canContainFormNode,
@@ -51,5 +68,6 @@ declare module 'vue' {
     DouFormBuilderInspector: typeof DouFormBuilderInspector
     DouFormBuilderOutline: typeof DouFormBuilderOutline
     DouFormBuilderCanvas: typeof DouFormBuilderCanvas
+    DouFormBuilderPreview: typeof DouFormBuilderPreview
   }
 }

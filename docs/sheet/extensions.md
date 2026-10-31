@@ -110,6 +110,11 @@ const Panel = defineComponent({
 | `transact`、`undo`、`redo`、`canUndo`、`canRedo` | 修改与撤销，同组件实例                                                                        |
 | `select`、`scrollTo`、`edit`、`focus`            | 选择、滚动、编辑和聚焦，同组件实例                                                            |
 | `showSheet`、`toCSV`                             | 切换工作表、导出 CSV，同组件实例                                                              |
+| `styleAt(point)`、`formatAt(point)`              | 单元格的样式（没有时为 `{}`）和数字格式，合并单元格取左上角                                   |
+| `styleSelection(patch)`                          | 修改选区的样式，规则同 `tr.styleCells`，`null` 去掉样式；返回是否有改动                       |
+| `formatSelection(format)`                        | 设置选区的数字格式，也可以传函数逐格计算，同 `tr.formatCells`                                 |
+| `clearFormatting()`                              | 去掉选区的样式和数字格式                                                                      |
+| `merged`、`canMerge`、`merge()`、`unmerge()`     | 选区是否碰到合并单元格、能否合并；合并（会提示清空了几格）、取消合并                          |
 | `announce(text)`                                 | 让读屏软件播报一段文字                                                                        |
 
 `cellRect` 的坐标从表格左上角算起，包括列标和行号，已经减去滚动的距离，可以直接给浮层组件用 `position: absolute` 摆放。

@@ -10,10 +10,32 @@ import {
   useId,
   watch,
 } from 'vue'
-import { DouDrawer, DouPopover, DouTabPanel, DouTabs } from 'dou-ui'
-import { ListChecksIcon, PanelLeftIcon, RedoIcon, SlidersIcon, UndoIcon } from '@dou-ui/icons'
+import {
+  ariaHotkey,
+  DouDrawer,
+  DouPopover,
+  DouTabPanel,
+  DouTabs,
+  formatHotkey,
+  useApplePlatform,
+} from 'dou-ui'
+import {
+  BracesIcon,
+  EyeIcon,
+  ListChecksIcon,
+  PanelLeftIcon,
+  RedoIcon,
+  SlidersIcon,
+  UndoIcon,
+} from '@dou-ui/icons'
 import { resolveFields } from '../fields/builtin'
 import { createBuilderState, builderKey } from './context'
+import type { FormBuilderMode } from './context'
+import { resolveFormBuilderExtensions } from './extension'
+import type { FormBuilderToolbarItem } from './extension'
+import { formatMessage } from '../locale'
+import FormBuilderJson from './json-dialog.vue'
+import FormBuilderPreview from './preview.vue'
 import { useFormBuilderMessages } from './locale'
 import { FormBuilderCanvas } from './canvas'
 import FormBuilderInspector from './inspector.vue'
@@ -32,8 +54,14 @@ const props = defineProps<FormBuilderProps>()
 const emit = defineEmits<FormBuilderEmits>()
 defineSlots<FormBuilderSlots>()
 
-const fields = computed(() => resolveFields(props.fields))
+const extensions = computed(() => resolveFormBuilderExtensions(props.extensions))
+const fields = computed(() => resolveFields([...(props.fields ?? []), ...extensions.value.fields]))
 const messages = useFormBuilderMessages(() => props.messages)
+
+// The mode follows `v-model:mode` when it is bound, else the builder's own.
+const ownMode = ref<FormBuilderMode>('design')
+const mode = computed(() => props.mode ?? ownMode.value)
+const previewing = computed(() => mode.value === 'preview')
 
 const state = createBuilderState({
   uid: `dou-form-builder-${useId()}`,
@@ -46,8 +74,41 @@ const state = createBuilderState({
     emit('change', tr)
   },
   emitSelection: (ids) => emit('update:selection', ids),
+  mode: () => mode.value,
+  emitMode: (next) => {
+    ownMode.value = next
+    emit('update:mode', next)
+  },
+  functions: () => props.functions,
+  sources: () => props.sources,
+  extensions: () => extensions.value,
 })
 provide(builderKey, state)
+
+const jsonOpen = ref(false)
+const toolbarItems = computed(() => extensions.value.toolbars.flatMap((toolbar) => toolbar(state)))
+
+// The key of a toolbar item goes in its tooltip, and to screen readers apart from its name.
+const apple = useApplePlatform()
+function toolTitle(item: FormBuilderToolbarItem) {
+  if (!item.shortcut) return item.label
+  const keys = formatHotkey(item.shortcut, apple.value)
+    .map((step) => step.join(apple.value ? '' : '+'))
+    .join(' ')
+  return formatMessage(messages.value.actions.withShortcut, { label: item.label, keys })
+}
+
+// Extensions start once the builder is mounted, and stop when it goes.
+const stops: (() => void)[] = []
+onMounted(() => {
+  for (const setup of extensions.value.setups) {
+    const stop = setup(state)
+    if (typeof stop === 'function') stops.push(stop)
+  }
+})
+onBeforeUnmount(() => {
+  for (const stop of stops.splice(0)) stop()
+})
 
 const side = ref<'fields' | 'outline'>('fields')
 // On narrow builders the fields and the outline open from the toolbar,
@@ -101,12 +162,14 @@ const {
   duplicate,
   moveBy,
   moveTo,
+  replace,
   wrap,
   addPage,
   selectParent,
   undo,
   redo,
   shownPage,
+  setMode,
 } = state
 defineExpose<FormBuilderExpose>({
   get document() {
@@ -127,6 +190,10 @@ defineExpose<FormBuilderExpose>({
   get canRedo() {
     return state.canRedo
   },
+  get mode() {
+    return state.mode
+  },
+  setMode,
   transaction,
   dispatch,
   select,
@@ -135,6 +202,7 @@ defineExpose<FormBuilderExpose>({
   duplicate,
   moveBy,
   moveTo,
+  replace,
   wrap,
   addPage,
   selectParent,
@@ -145,10 +213,13 @@ defineExpose<FormBuilderExpose>({
 </script>
 
 <template>
-  <div ref="root" :class="['dou-form-builder', compact && 'is-compact']">
+  <div
+    ref="root"
+    :class="['dou-form-builder', compact && 'is-compact', previewing && 'is-previewing']"
+  >
     <slot>
       <div class="dou-form-builder__layout">
-        <aside class="dou-form-builder__side" :aria-label="messages.panels.side">
+        <aside v-if="!previewing" class="dou-form-builder__side" :aria-label="messages.panels.side">
           <DouTabs v-model="side" size="sm" class="dou-form-builder__side-tabs">
             <DouTabPanel value="fields" :label="messages.panels.fields">
               <FormBuilderPalette />
@@ -160,8 +231,9 @@ defineExpose<FormBuilderExpose>({
         </aside>
         <div class="dou-form-builder__main">
           <div class="dou-form-builder__toolbar" role="toolbar">
+            <template v-if="previewing" />
             <button
-              v-if="compact"
+              v-else-if="compact"
               type="button"
               class="dou-form-builder__tool dou-form-builder__side-toggle"
               aria-haspopup="dialog"
@@ -193,6 +265,7 @@ defineExpose<FormBuilderExpose>({
               </template>
             </DouPopover>
             <button
+              v-if="!previewing"
               type="button"
               class="dou-form-builder__tool"
               :disabled="!state.canUndo"
@@ -204,6 +277,7 @@ defineExpose<FormBuilderExpose>({
               <UndoIcon />
             </button>
             <button
+              v-if="!previewing"
               type="button"
               class="dou-form-builder__tool"
               :disabled="!state.canRedo"
@@ -214,9 +288,25 @@ defineExpose<FormBuilderExpose>({
             >
               <RedoIcon />
             </button>
-            <slot name="toolbar" />
             <button
-              v-if="compact"
+              v-for="item in toolbarItems"
+              :key="item.key"
+              type="button"
+              class="dou-form-builder__tool"
+              :disabled="item.disabled"
+              :aria-pressed="item.pressed"
+              :aria-label="item.icon ? item.label : undefined"
+              :aria-keyshortcuts="item.shortcut ? ariaHotkey(item.shortcut, apple) : undefined"
+              :title="toolTitle(item)"
+              @click="item.run()"
+            >
+              <component :is="item.icon" v-if="item.icon" />
+              <span v-else>{{ item.label }}</span>
+            </button>
+            <slot name="toolbar" />
+            <span class="dou-form-builder__toolbar-spacer" />
+            <button
+              v-if="compact && !previewing"
               type="button"
               class="dou-form-builder__tool dou-form-builder__select-toggle"
               :aria-pressed="state.tapToggles.value"
@@ -227,7 +317,7 @@ defineExpose<FormBuilderExpose>({
               <ListChecksIcon />
             </button>
             <button
-              v-if="compact"
+              v-if="compact && !previewing"
               type="button"
               class="dou-form-builder__tool dou-form-builder__settings-toggle"
               aria-haspopup="dialog"
@@ -237,11 +327,32 @@ defineExpose<FormBuilderExpose>({
             >
               <SlidersIcon />
             </button>
+            <button
+              type="button"
+              class="dou-form-builder__tool"
+              aria-haspopup="dialog"
+              :aria-label="messages.json.title"
+              :title="messages.json.title"
+              @click="jsonOpen = true"
+            >
+              <BracesIcon />
+            </button>
+            <button
+              type="button"
+              class="dou-form-builder__tool dou-form-builder__preview-toggle"
+              :aria-pressed="previewing"
+              :title="messages.preview.toggle"
+              @click="state.setMode(previewing ? 'design' : 'preview')"
+            >
+              <EyeIcon />
+              <span>{{ messages.preview.toggle }}</span>
+            </button>
           </div>
-          <FormBuilderCanvas @click.capture="onCanvasClick" />
+          <FormBuilderPreview v-if="previewing" />
+          <FormBuilderCanvas v-else @click.capture="onCanvasClick" />
         </div>
         <aside
-          v-if="!compact"
+          v-if="!compact && !previewing"
           class="dou-form-builder__side dou-form-builder__side--end"
           :aria-label="messages.panels.settings"
         >
@@ -278,6 +389,7 @@ defineExpose<FormBuilderExpose>({
         </DouDrawer>
       </template>
     </slot>
+    <FormBuilderJson v-model:open="jsonOpen" />
     <div class="dou-form-builder__live" aria-live="polite" aria-atomic="true">
       {{ state.live.value }}
     </div>

@@ -62,6 +62,13 @@ export interface ThemeTokens {
      * well, so they stay distinct for common color-vision deficiencies.
      */
     chart: ChartPalette
+    /**
+     * Code colors by token kind (`--dou-color-syntax-keyword`, …), shared by
+     * the code editor and code blocks. Deep, low-saturation hues on the
+     * surface; plain names and punctuation stay in the text colors, so the
+     * hue lands on what tells code apart.
+     */
+    syntax: SyntaxPalette
   }
 
   font: {
@@ -181,6 +188,24 @@ export interface ChartPalette {
   6: string
   7: string
   8: string
+}
+
+/** One color per kind of code token. */
+export interface SyntaxPalette {
+  keyword: string
+  string: string
+  number: string
+  comment: string
+  function: string
+  type: string
+  variable: string
+  property: string
+  operator: string
+  punctuation: string
+  tag: string
+  attribute: string
+  meta: string
+  invalid: string
 }
 
 export interface SizeScale {

@@ -144,6 +144,37 @@ app.use(DouChart).use(DouChartAxis).use(DouChartLine).use(DouChartBar)
 - `type="log"` 用对数刻度，适合跨越几个数量级的数据。对数轴上的柱子从轴的起点开始画，小于等于 0 的值不画，开发环境下会提示。
 - `grid` 控制网格线，默认只有 `y` 有（只有 `y2` 时是 `y2`）；`title` 是坐标轴的标题；`hidden` 保留坐标轴的范围但不显示。
 
+## 标注
+
+`DouChartMarker` 在图表上标出参考线、区间和点，可以写多个。`x` 和 `y` 的写法决定画出什么：
+
+| 写法                     | 画出                   |
+| ------------------------ | ---------------------- |
+| 只有 `y`                 | 一条横线，例如目标值   |
+| 只有 `x`                 | 一条竖线，例如上线日期 |
+| `x` 或 `y` 是 `[起, 止]` | 一段区间               |
+| `x` 和 `y` 都是单个值    | 一个点                 |
+
+横向图里方向随坐标轴一起转过来。`x` 的写法和横轴的数据一致：类目轴上是类目名，时间轴上是 `Date` 或日期字符串。
+
+### 参考线
+
+`y` 超出数据的范围时，数值轴会延伸到它，目标值总能显示出来。线默认是虚线，和数据区分开，`:dashed="false"` 画成实线。文字放在同色的浅底上，压在数据上也能看清；几个标注的文字靠得太近时会自动错开。
+
+<DocDemo src="chart/marker-line" />
+
+### 区间
+
+区间画在系列下面，参考线和点画在系列上面。
+
+<DocDemo src="chart/marker-band" />
+
+### 点
+
+<DocDemo src="chart/marker-point" />
+
+`label` 是显示的文字，`tone` 是颜色，默认是中性色。`y` 对应 `y2` 时用 `axis="y2"`。缩放后移出绘图区的标注不显示，区间只画在绘图区里的部分。
+
 ## 自定义系列
 
 `defineChartSeries` 用来定义自己的系列组件。它和内置系列一样放在 `DouChart` 里，共用坐标轴、堆叠、图例和配色，只需要说明两件事：坐标轴怎样包含它的数据（`zero`、`band`、`inset`），以及怎样画出来。
@@ -324,6 +355,26 @@ const data = shallowRef({
 
 所有系列都没有数值时，图表不画坐标轴，只在中间显示“没有数据”。`empty` 插槽可以替换这部分内容。
 
+## 加载中
+
+`loading` 为 `true` 时，图表变淡，中间显示加载图标；这时没有数据也不显示“没有数据”。数据到了再把 `loading` 设回 `false`，已有的图表会过渡到新数据。
+
+<DocDemo src="chart/loading" />
+
+## 导出
+
+通过 ref 调用 `exportSVG()` 得到 SVG 文本，`exportPNG()` 得到 PNG 图片的 `Blob`。导出的是图表当前的样子：隐藏的系列、缩放的范围和当前主题的颜色都和页面上一致，刻度文字、标题、图例和标注的文字都在里面；提示框、十字线和框选这些跟随指针的内容不导出。
+
+<DocDemo src="chart/export" />
+
+SVG 和画布用同一套绘制代码，两者画出的图形一致。导出的图四周默认留出 16px，用 `padding` 修改；`background: false` 不画背景色；`exportPNG({ pixelRatio })` 设置每个 CSS 像素对应几个像素，默认是 `2`。PNG 由 SVG 转成，文字使用系统里的字体：页面用网络字体时，导出的文字可能和页面上略有不同。
+
+## 服务端渲染
+
+在服务端渲染时，图表画成一张 SVG 放在页面里，刻度文字、图例和标注都在其中，脚本加载之前就能看到图表。SVG 的颜色用的是主题的 CSS 变量，跟随亮暗主题。
+
+服务端不知道图表的宽度，所以按 `ssr-width`（默认 `640`）画出，再等比缩放到图表的区域里；`height` 是 CSS 长度时按 `320` 计算。浏览器接管页面后，图表按实际宽度画在画布上，然后去掉这张 SVG，不再播放入场动画。环形图中间插槽的内容在浏览器接管之后显示。
+
 ## 主题
 
 图表的颜色都来自主题：系列颜色是 `--dou-color-chart-1` 到 `--dou-color-chart-8`，第 1 个是中性色，其余是低饱和的色相，并且明度错开，常见的色觉障碍下也能区分。切换暗色主题时图表会自动重绘。
@@ -343,12 +394,21 @@ const data = shallowRef({
 | `legend`     | 在图表下方显示图例                 | `boolean`                                   | 多于一个系列时显示 |
 | `horizontal` | x 轴放在左侧，数值放在底部         | `boolean`                                   | `false`            |
 | `messages`   | 替换语言包里的文字                 | `Partial<ChartMessages>`                    | —                  |
+| `loading`    | 显示加载状态                       | `boolean`                                   | `false`            |
+| `ssr-width`  | 服务端渲染时按这个宽度画出（px）   | `number`                                    | `640`              |
 
 ### Chart Events
 
 | 名称     | 说明                                                                         | 参数                                                                            |
 | -------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
 | `select` | 点击柱子、数据点或饼图的一块，或在键盘选中时按 Enter；和框选的 `select` 不同 | `ChartSelectEvent`：`{ x: unknown, title?: string, items: ChartTooltipItem[] }` |
+
+### Chart Exposes
+
+| 名称        | 说明                 | 类型                                                                                           |
+| ----------- | -------------------- | ---------------------------------------------------------------------------------------------- |
+| `exportSVG` | 当前的图表，SVG 文本 | `(options?: { background?: boolean, padding?: number }) => string`                             |
+| `exportPNG` | 当前的图表，PNG 图片 | `(options?: { background?: boolean, padding?: number, pixelRatio?: number }) => Promise<Blob>` |
 
 ### Chart Slots
 
@@ -415,6 +475,17 @@ const data = shallowRef({
 | 名称      | 说明                       |
 | --------- | -------------------------- |
 | `default` | 显示在环形图空洞中间的内容 |
+
+### Marker Props
+
+| 名称     | 说明                                         | 类型                                     | 默认值      |
+| -------- | -------------------------------------------- | ---------------------------------------- | ----------- |
+| `x`      | 横轴上的位置，给出两端时是一段区间           | `number \| string \| Date \| [from, to]` | —           |
+| `y`      | 数值，给出两端时是一段区间；数值轴会延伸到它 | `number \| [number, number]`             | —           |
+| `axis`   | `y` 对应的数值轴                             | `'y' \| 'y2'`                            | `'y'`       |
+| `label`  | 显示的文字                                   | `string`                                 | —           |
+| `tone`   | 颜色                                         | `Tone`                                   | `'neutral'` |
+| `dashed` | 参考线画成虚线                               | `boolean`                                | `true`      |
 
 ### Tooltip Props
 
@@ -510,6 +581,7 @@ const data = shallowRef({
 | `--dou-chart-title`     | 坐标轴标题颜色                                         |
 | `--dou-chart-surface`   | 图表所在的背景色，用于数据点的描边和饼图各块之间的间隔 |
 | `--dou-chart-range-ink` | 区间条里缩略图的颜色                                   |
+| `--dou-chart-marker`    | 中性色标注的线条颜色                                   |
 
 ### 读屏
 

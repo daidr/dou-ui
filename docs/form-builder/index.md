@@ -2,7 +2,7 @@
 
 `@dou-ui/form-builder` 用一份 JSON 描述表单：有哪些字段、怎么排版、要满足哪些规则。`DouFormRenderer` 把这份描述渲染成真正的 `DouForm`，校验、重置、滚动到出错字段这些行为和手写的表单完全一样。
 
-描述是普通数据，可以存进数据库、从接口取回，适合问卷、报名表、审批单这类经常调整、需要由使用者自己配置的表单。可视化的设计器会在后续版本加入，它编辑的也是同一份描述。
+描述是普通数据，可以存进数据库、从接口取回，适合问卷、报名表、审批单这类经常调整、需要由使用者自己配置的表单。用[设计器](./builder) `DouFormBuilder` 可以可视化地编辑这份描述。
 
 ## 安装
 
@@ -17,9 +17,10 @@ bun add dou-ui @dou-ui/form-builder
 ```ts
 import 'dou-ui/style.css'
 import '@dou-ui/form-builder/style.css'
-import { DouFormRenderer } from '@dou-ui/form-builder'
+import { DouFormBuilder, DouFormRenderer } from '@dou-ui/form-builder'
 
 app.use(DouFormRenderer)
+app.use(DouFormBuilder)
 ```
 
 只需要渲染表单、不需要设计器时，可以从 `@dou-ui/form-builder/renderer` 引入，打包时不会带上设计器的代码。

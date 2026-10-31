@@ -1,0 +1,794 @@
+/*
+ * Form builder
+ *
+ * Three panes on one quiet surface: the fields and the outline at the
+ * start, the form on a sheet of paper in the middle, its settings at the
+ * end. Nodes on the sheet look exactly as the renderer draws them; a
+ * hairline around one shows what a press would select, and hue only marks
+ * the selection.
+ */
+@layer dou.components {
+  .dou-form-builder {
+    --dou-form-builder-selected: var(--dou-color-primary-text);
+    --dou-form-builder-hover: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+    --dou-form-builder-outset: 6px;
+
+    container: dou-form-builder / inline-size;
+    position: relative;
+    box-sizing: border-box;
+    min-width: 0;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-container);
+    background: var(--dou-color-bg-surface);
+    color: var(--dou-color-text);
+    font-size: var(--dou-font-size-md);
+    overflow: hidden;
+  }
+
+  .dou-form-builder__layout {
+    display: grid;
+    grid-template-columns: 248px minmax(0, 1fr) 304px;
+    height: var(--dou-form-builder-height, 640px);
+  }
+
+  .dou-form-builder__side {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    border-inline-end: 1px solid var(--dou-color-border);
+
+    &.dou-form-builder__side--end {
+      border-inline-end: 0;
+      border-inline-start: 1px solid var(--dou-color-border);
+    }
+  }
+
+  /* The side tabs fill the pane; their panels scroll. */
+  .dou-form-builder__side-tabs {
+    flex: 1;
+    min-height: 0;
+
+    & > .dou-tabs__header {
+      padding-inline: var(--dou-space-md);
+    }
+
+    & > .dou-tabs__panel {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+    }
+  }
+
+  .dou-form-builder__main {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .dou-form-builder__toolbar {
+    display: flex;
+    flex-shrink: 0;
+    gap: 2px;
+    align-items: center;
+    box-sizing: border-box;
+    height: 41px;
+    padding-inline: var(--dou-space-md);
+    border-bottom: 1px solid var(--dou-color-border);
+  }
+
+  .dou-form-builder__tool,
+  .dou-form-builder__action,
+  .dou-form-builder__page-add,
+  .dou-form-builder__outline-toggle {
+    position: relative;
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    padding: 0;
+    border: 0;
+    border-radius: var(--dou-radius-control);
+    background: transparent;
+    color: var(--dou-color-text-secondary);
+    font: inherit;
+    cursor: pointer;
+    transition-property: background-color, color;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    &:hover:not(:disabled) {
+      background: var(--dou-form-builder-hover);
+      color: var(--dou-color-text);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: -2px;
+    }
+
+    &:disabled {
+      color: var(--dou-color-text-disabled);
+      cursor: not-allowed;
+    }
+
+    & > svg {
+      width: 16px;
+      height: 16px;
+    }
+  }
+
+  .dou-form-builder__tool {
+    width: 28px;
+    height: 28px;
+  }
+
+  /* On touch, small buttons take a 40px press around them. */
+  @media (pointer: coarse) {
+    .dou-form-builder__tool,
+    .dou-form-builder__action,
+    .dou-form-builder__page-add,
+    .dou-form-builder__outline-toggle {
+      &::after {
+        content: '';
+        position: absolute;
+        inset: 50% auto auto 50%;
+        width: 40px;
+        height: 40px;
+        transform: translate(-50%, -50%);
+      }
+    }
+  }
+
+  /* Canvas ---------------------------------------------------------------- */
+
+  .dou-form-builder__canvas {
+    flex: 1;
+    min-height: 0;
+    padding: var(--dou-space-lg);
+    overflow: auto;
+    background: var(--dou-color-bg-canvas);
+  }
+
+  .dou-form-builder__paper {
+    box-sizing: border-box;
+    max-width: 760px;
+    margin-inline: auto;
+    /* room above the first row for the action bar of a selected node */
+    padding: 40px 28px 28px;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-container);
+    background: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-sm);
+  }
+
+  /* Shift + press adds to the selection; it does not select text. */
+  .dou-form-builder__tree,
+  .dou-form-builder__outline {
+    outline: none;
+    user-select: none;
+  }
+
+  /* Focus on a canvas with nothing selected rings the sheet's content. */
+  .dou-form-builder__tree:focus-visible:not(:has(.is-selected)) {
+    outline: 2px solid var(--dou-color-focus);
+    outline-offset: 10px;
+    border-radius: 2px;
+  }
+
+  .dou-form-builder__node {
+    position: relative;
+    isolation: isolate;
+    cursor: default;
+
+    /* the hairline around the node, under its content */
+    &::before {
+      content: '';
+      position: absolute;
+      z-index: -1;
+      inset: calc(var(--dou-form-builder-outset) * -1);
+      border: 1px solid transparent;
+      border-radius: var(--dou-radius-control);
+      pointer-events: none;
+      transition-property: border-color, background-color;
+      transition-duration: var(--dou-motion-duration-fast);
+      transition-timing-function: var(--dou-motion-easing);
+    }
+
+    /* only the innermost node under the pointer */
+    &:hover:not(:has(.dou-form-builder__node:hover))::before {
+      border-color: var(--dou-color-border-strong);
+    }
+
+    &.is-selected::before {
+      border-color: var(--dou-form-builder-selected);
+      background: color-mix(in oklab, var(--dou-form-builder-selected) 4%, transparent);
+    }
+
+    /* a selected node over its neighbours, with its bar */
+    &.is-selected {
+      z-index: 1;
+    }
+  }
+
+  /* With focus on the canvas, the selected nodes' line doubles. */
+  .dou-form-builder__tree:focus-visible .dou-form-builder__node.is-selected::before {
+    box-shadow: 0 0 0 1px var(--dou-form-builder-selected);
+  }
+
+  /* Fields on the canvas show but take no input; a press selects them. */
+  .dou-form-builder__content {
+    pointer-events: none;
+    user-select: none;
+
+    & > .dou-form-renderer__cell > .dou-form-item {
+      margin-bottom: 0;
+    }
+  }
+
+  /* A field not drawn yet, off screen: about its height, in quiet blocks. */
+  .dou-form-builder__placeholder {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .dou-form-builder__placeholder-label,
+  .dou-form-builder__placeholder-box {
+    border-radius: var(--dou-radius-control);
+    background: var(--dou-color-bg-muted);
+  }
+
+  .dou-form-builder__placeholder-label {
+    width: 30%;
+    max-width: 96px;
+    height: 14px;
+    margin-block: 4px 2px;
+  }
+
+  .dou-form-builder__placeholder-box {
+    height: var(--dou-control-height-md);
+  }
+
+  .dou-form-builder__placeholder[data-type='textarea'] > .dou-form-builder__placeholder-box {
+    height: 76px;
+  }
+
+  .dou-form-builder__placeholder:is(
+      [data-type='radio-group'],
+      [data-type='checkbox-group'],
+      [data-type='checkbox'],
+      [data-type='switch'],
+      [data-type='rate'],
+      [data-type='slider']
+    )
+    > .dou-form-builder__placeholder-box {
+    height: 22px;
+  }
+
+  .dou-form-builder__placeholder:is([data-type='text'], [data-type='divider'], [data-type='alert'])
+    > .dou-form-builder__placeholder-label {
+    display: none;
+  }
+
+  .dou-form-builder__placeholder[data-type='alert'] > .dou-form-builder__placeholder-box {
+    height: 48px;
+  }
+
+  .dou-form-builder__placeholder:is([data-type='text'], [data-type='divider'])
+    > .dou-form-builder__placeholder-box {
+    height: 20px;
+  }
+
+  .dou-form-builder__empty {
+    grid-column: 1 / -1;
+    padding: 20px var(--dou-space-lg);
+    border: 1px dashed var(--dou-color-border-strong);
+    border-radius: var(--dou-radius-container);
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+    line-height: var(--dou-font-line-height);
+    text-align: center;
+  }
+
+  /* The selected node's type and buttons, on its top edge. */
+  .dou-form-builder__actions {
+    position: absolute;
+    z-index: 2;
+    inset-block-end: calc(100% + var(--dou-form-builder-outset) - 1px);
+    inset-inline-end: calc(var(--dou-form-builder-outset) * -1);
+    display: flex;
+    gap: 2px;
+    align-items: center;
+    box-sizing: border-box;
+    height: 30px;
+    padding: 2px;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-control);
+    background: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-sm);
+    white-space: nowrap;
+  }
+
+  .dou-form-builder__badge {
+    display: inline-flex;
+    gap: 4px;
+    align-items: center;
+    height: 24px;
+    padding-inline: 6px 8px;
+    margin-inline-end: 2px;
+    border-radius: 4px;
+    background: color-mix(in oklab, var(--dou-form-builder-selected) 10%, transparent);
+    color: var(--dou-color-primary-text);
+    font-size: var(--dou-font-size-sm);
+    font-weight: var(--dou-font-weight-medium);
+
+    & > svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    & > span {
+      text-box: trim-both cap alphabetic;
+    }
+  }
+
+  .dou-form-builder__badge-name {
+    color: var(--dou-color-text-secondary);
+    font-family: var(--dou-font-family-mono);
+    font-weight: var(--dou-font-weight-regular);
+  }
+
+  .dou-form-builder__action {
+    width: 24px;
+    height: 24px;
+
+    & > svg {
+      width: 14px;
+      height: 14px;
+    }
+  }
+
+  /* Tabs and steps: their pages as a row to pick from, and the open page. */
+  .dou-form-builder__pages {
+    display: flex;
+    flex-direction: column;
+    gap: var(--dou-space-lg);
+    min-width: 0;
+  }
+
+  .dou-form-builder__strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: center;
+    padding-block-end: 6px;
+    border-bottom: 1px solid var(--dou-color-border);
+  }
+
+  .dou-form-builder__pages.is-steps > .dou-form-builder__strip {
+    gap: var(--dou-space-sm);
+    padding-block-end: 0;
+    border-bottom: 0;
+  }
+
+  .dou-form-builder__page-tab {
+    position: relative;
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+    box-sizing: border-box;
+    height: var(--dou-control-height-md);
+    padding-inline: 10px;
+    border-radius: var(--dou-radius-control);
+    color: var(--dou-color-text-secondary);
+    font-weight: var(--dou-font-weight-medium);
+    white-space: nowrap;
+    cursor: default;
+    transition-property: background-color, color, box-shadow;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    &:hover {
+      background: var(--dou-form-builder-hover);
+      color: var(--dou-color-text);
+    }
+
+    &.is-shown {
+      color: var(--dou-color-text);
+    }
+
+    /* the open tab's underline, on the strip's hairline */
+    &.is-shown::after {
+      content: '';
+      position: absolute;
+      inset: auto 10px -7px;
+      height: 2px;
+      border-radius: 1px;
+      background: var(--dou-color-text);
+    }
+
+    &.is-selected {
+      box-shadow: inset 0 0 0 1px var(--dou-form-builder-selected);
+      background: color-mix(in oklab, var(--dou-form-builder-selected) 6%, transparent);
+    }
+  }
+
+  .dou-form-builder__page-title {
+    text-box: trim-both cap alphabetic;
+  }
+
+  .dou-form-builder__pages.is-steps .dou-form-builder__page-tab.is-shown::after {
+    display: none;
+  }
+
+  .dou-form-builder__step-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: 20px;
+    height: 20px;
+    border: 1px solid var(--dou-color-border-strong);
+    border-radius: 50%;
+    font-size: 12px;
+    line-height: 1;
+  }
+
+  .is-shown > .dou-form-builder__step-number {
+    border-color: var(--dou-color-text);
+    background: var(--dou-color-text);
+    color: var(--dou-color-bg-surface);
+  }
+
+  .dou-form-builder__page-add {
+    width: 28px;
+    height: 28px;
+  }
+
+  .dou-form-builder__page {
+    position: relative;
+    isolation: isolate;
+    display: flex;
+    flex-direction: column;
+    gap: var(--dou-space-lg);
+
+    &.is-selected::before {
+      content: '';
+      position: absolute;
+      z-index: -1;
+      inset: calc(var(--dou-form-builder-outset) * -1);
+      border: 1px solid var(--dou-form-builder-selected);
+      border-radius: var(--dou-radius-control);
+      background: color-mix(in oklab, var(--dou-form-builder-selected) 4%, transparent);
+    }
+  }
+
+  .dou-form-builder__list-add {
+    display: flex;
+    pointer-events: none;
+  }
+
+  /* Palette ---------------------------------------------------------------- */
+
+  .dou-form-builder__palette {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .dou-form-builder__palette-search {
+    position: sticky;
+    z-index: 1;
+    top: 0;
+    padding: var(--dou-space-md) var(--dou-space-sm);
+    background: var(--dou-color-bg-surface);
+  }
+
+  .dou-form-builder__palette-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--dou-space-md);
+    padding: 0 var(--dou-space-sm) var(--dou-space-md);
+  }
+
+  .dou-form-builder__palette-heading {
+    padding: 4px 2px 8px;
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+    font-weight: var(--dou-font-weight-medium);
+    line-height: 1;
+  }
+
+  .dou-form-builder__palette-items {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .dou-form-builder__palette-item {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    box-sizing: border-box;
+    min-width: 0;
+    height: 34px;
+    padding: 0 8px;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-control);
+    background: var(--dou-color-bg-surface);
+    color: var(--dou-color-text);
+    font: inherit;
+    font-size: var(--dou-font-size-sm);
+    text-align: start;
+    cursor: pointer;
+    transition-property: background-color, border-color;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    &:hover {
+      border-color: var(--dou-color-border-strong);
+      background: var(--dou-form-builder-hover);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 1px;
+    }
+  }
+
+  .dou-form-builder__palette-icon {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    color: var(--dou-color-text-secondary);
+  }
+
+  .dou-form-builder__palette-label {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .dou-form-builder__palette-empty,
+  .dou-form-builder__outline-empty {
+    padding: var(--dou-space-lg);
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+    text-align: center;
+  }
+
+  /* Outline ---------------------------------------------------------------- */
+
+  .dou-form-builder__outline {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding: var(--dou-space-sm);
+    outline: none;
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: -2px;
+    }
+  }
+
+  .dou-form-builder__outline-row {
+    --dou-form-builder-level: 0;
+
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    box-sizing: border-box;
+    min-width: 0;
+    height: 32px;
+    padding-inline: calc(4px + var(--dou-form-builder-level) * 16px) 8px;
+    border-radius: var(--dou-radius-control);
+    font-size: var(--dou-font-size-sm);
+    cursor: default;
+
+    &:hover {
+      background: var(--dou-form-builder-hover);
+    }
+
+    &.is-selected {
+      background: color-mix(in oklab, var(--dou-form-builder-selected) 10%, transparent);
+    }
+  }
+
+  .dou-form-builder__outline:focus-visible .dou-form-builder__outline-row.is-selected {
+    box-shadow: inset 0 0 0 1px var(--dou-form-builder-selected);
+  }
+
+  .dou-form-builder__outline-toggle,
+  .dou-form-builder__outline-spacer {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+  }
+
+  .dou-form-builder__outline-toggle > svg {
+    width: 14px;
+    height: 14px;
+    transition: transform var(--dou-motion-duration-fast) var(--dou-motion-easing);
+  }
+
+  .dou-form-builder__outline-toggle.is-open > svg {
+    transform: rotate(90deg);
+  }
+
+  .dou-form-builder__outline-icon {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    color: var(--dou-color-text-secondary);
+  }
+
+  .dou-form-builder__outline-title {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    text-box: trim-both cap alphabetic;
+    /* room for the glyphs that trimmed text lets out of its box */
+    padding-block: 3px;
+    margin-block: -3px;
+  }
+
+  .dou-form-builder__outline-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    color: var(--dou-color-text-tertiary);
+    white-space: nowrap;
+    text-align: end;
+    text-overflow: ellipsis;
+  }
+
+  /* Inspector -------------------------------------------------------------- */
+
+  .dou-form-builder__inspector {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .dou-form-builder__inspector-header {
+    display: flex;
+    flex-shrink: 0;
+    gap: 8px;
+    align-items: center;
+    box-sizing: border-box;
+    height: 41px;
+    padding-inline: var(--dou-space-lg);
+    border-bottom: 1px solid var(--dou-color-border);
+  }
+
+  .dou-form-builder__inspector-icon {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    color: var(--dou-color-text-secondary);
+  }
+
+  .dou-form-builder__inspector-title {
+    overflow: hidden;
+    font-weight: var(--dou-font-weight-medium);
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    text-box: trim-both cap alphabetic;
+    /* room for the glyphs that trimmed text lets out of its box */
+    padding-block: 3px;
+    margin-block: -3px;
+  }
+
+  .dou-form-builder__inspector-type {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+    white-space: nowrap;
+    text-align: end;
+    text-overflow: ellipsis;
+  }
+
+  .dou-form-builder__inspector-body {
+    flex: 1;
+    min-height: 0;
+    padding: var(--dou-space-lg);
+    overflow: auto;
+  }
+
+  .dou-form-builder__inspector-section {
+    margin-block: var(--dou-space-lg) var(--dou-space-md);
+    padding-block-start: var(--dou-space-lg);
+    border-top: 1px solid var(--dou-color-border-subtle);
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-sm);
+    font-weight: var(--dou-font-weight-medium);
+    line-height: 1;
+  }
+
+  .dou-form-builder__inspector-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--dou-space-sm);
+    margin-block-start: var(--dou-space-lg);
+  }
+
+  .dou-form-builder__inspector-add {
+    margin-block-start: var(--dou-space-md);
+  }
+
+  .dou-form-builder__span {
+    display: flex;
+    flex-direction: column;
+    gap: var(--dou-space-sm);
+    width: 100%;
+  }
+
+  .dou-form-builder__span-row {
+    display: flex;
+    gap: var(--dou-space-sm);
+    align-items: center;
+
+    & > .dou-input-number {
+      flex: 1;
+      min-width: 0;
+    }
+  }
+
+  .dou-form-builder__span-label {
+    flex-shrink: 0;
+    min-width: 48px;
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-sm);
+  }
+
+  .dou-form-builder__span-row > .dou-form-builder__span-label:last-child {
+    min-width: 0;
+  }
+
+  .dou-form-builder__live {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  @container dou-form-builder (width < 1100px) {
+    .dou-form-builder__layout {
+      grid-template-columns: 232px minmax(0, 1fr) 272px;
+    }
+  }
+
+  /* Narrow builders stack the panes; the canvas keeps a usable height. */
+  @container dou-form-builder (width < 860px) {
+    .dou-form-builder__layout {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: 240px 480px auto;
+      height: auto;
+    }
+
+    .dou-form-builder__side,
+    .dou-form-builder__side.dou-form-builder__side--end {
+      border-inline: 0;
+    }
+
+    .dou-form-builder__side:first-child {
+      border-bottom: 1px solid var(--dou-color-border);
+    }
+
+    .dou-form-builder__side--end {
+      border-top: 1px solid var(--dou-color-border);
+    }
+
+    .dou-form-builder__paper {
+      padding-inline: var(--dou-space-lg);
+    }
+  }
+}

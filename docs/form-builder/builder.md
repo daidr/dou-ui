@@ -1,0 +1,110 @@
+---
+wide: true
+---
+
+# 设计器
+
+`DouFormBuilder` 是可视化编辑表单描述的设计器。左边是字段面板和结构树，中间的画布就是渲染器画出来的表单，右边是选中节点的设置。它编辑的是和 `DouFormRenderer` 同一份描述，画布上看到的和最终渲染的一样。
+
+## 基础用法
+
+`v-model` 绑定表单描述。每次修改都会交出一份新的描述对象，没有改到的节点沿用原来的对象，所以可以直接比较引用判断某个节点有没有变。`v-model:selection` 绑定选中节点的 id 列表，不需要时可以不绑。
+
+<DocDemo src="form-builder/builder-basic" column />
+
+## 添加和选中
+
+单击字段面板里的类型就会添加一个新节点：选中的是分组、列表或页面时加在它的末尾，选中的是标签页或分步时加在当前显示的那一页，否则加在选中节点的后面；什么都没选时加在表单末尾。新字段有不重复的字段名（如 `select1`），选项类字段先带三个选项，添加后自动选中，方便接着修改。
+
+单击画布上的节点选中它，按住 Shift、⌘ 或 Ctrl 单击可以多选或取消选中，单击表单以外的空白处选中表单本身。选中的节点上方显示类型和操作按钮：选中上一级、上移、下移、复制、删除。标签页和分步的页签可以单击切换和选中，`+` 添加一页。
+
+画布外的字段先用占位块代替，滚动到附近时才画出来，几百个字段的表单也能很快打开。
+
+## 键盘
+
+焦点在画布或结构树上时可以用键盘完成大部分操作。画布和结构树都是读屏可以识别的树形结构，添加、删除、移动、撤销后会读出结果。
+
+| 按键                                       | 作用                                               |
+| ------------------------------------------ | -------------------------------------------------- |
+| `↑` `↓`                                    | 选中上一个、下一个节点                             |
+| `Shift` + `↑` `↓`                          | 扩大或缩小选中范围                                 |
+| `→` `←`                                    | 进入第一个子节点、回到上一级；结构树里先展开、收起 |
+| `Home` `End`                               | 选中第一个、最后一个节点                           |
+| `⌘` / `Ctrl` + `↑` `↓`                     | 上移、下移选中的节点                               |
+| `⌘` / `Ctrl` + `D`                         | 复制                                               |
+| `⌘` / `Ctrl` + `G`                         | 放进一个新分组                                     |
+| `Delete` `Backspace`                       | 删除                                               |
+| `⌘` / `Ctrl` + `Z`                         | 撤销                                               |
+| `⌘` / `Ctrl` + `Shift` + `Z`，`Ctrl` + `Y` | 重做                                               |
+| `Enter`                                    | 跳到属性面板的第一项                               |
+| `Esc`                                      | 选中上一级                                         |
+
+连续修改同一项设置（比如一个字一个字地输入标签）在一秒内会合并成一步撤销。
+
+## 属性面板
+
+没有选中节点时，属性面板显示表单本身的设置：标签位置、尺寸、必填标记、栅格列数。选中一个节点时显示它的基本设置（字段名、标签、提示文字、宽度、默认值、必填），下面是字段类型自己的设置；选中多个时可以统一改宽度、复制、删除或放进分组。
+
+属性面板本身就是用渲染器画出来的：每种字段类型的设置是一份表单描述，它的值就是节点的 `props`。自定义字段类型用 `settings` 写出自己的设置，不需要写任何设计器代码，`icon` 和 `group` 决定它在字段面板里的图标和分组：
+
+```ts
+import { defineFormField } from '@dou-ui/form-builder'
+import { TagsIcon } from '@dou-ui/icons'
+import ChipField from './chip-field.vue'
+
+export const chipField = defineFormField({
+  type: 'chips',
+  label: '标签选择',
+  icon: TagsIcon,
+  group: 'choice',
+  component: ChipField,
+  defaultProps: { options: [] },
+  settings: [
+    { id: 'options', type: 'input-tag', name: 'options', label: '可选的标签' },
+    { id: 'multiple', type: 'switch', name: 'multiple', label: '可以多选' },
+  ],
+})
+```
+
+设置改回默认值或清空时，这个键会从节点里去掉，描述里只留下真正设置过的内容。字段名为空或和同一层的其他字段重名时，字段名下方会直接提示。
+
+宽度可以是一个列数，也可以打开“按表单宽度分别设置”，为每个断点分别填写；空着的断点沿用更窄的那一个。
+
+## 自己摆放面板
+
+默认插槽会替换设计器的整个布局，可以把 `DouFormBuilderPalette`（字段面板）、`DouFormBuilderCanvas`（画布）、`DouFormBuilderInspector`（属性面板）、`DouFormBuilderOutline`（结构树）放在任何位置，它们共用同一个设计器的状态。`toolbar` 插槽在默认布局的撤销、重做按钮后面追加按钮。
+
+<DocDemo src="form-builder/builder-parts" column />
+
+## 在代码里修改
+
+组件实例和设计器内部的 `useFormBuilder()` 提供同样的接口：当前的 `document` 和 `selection`，`insert`、`remove`、`duplicate`、`move`、`wrap`、`addPage`、`undo`、`redo` 等命令，以及事务。需要一次做好几处修改时，先用 `transaction()` 开一个事务，逐步修改，再用 `dispatch` 提交，整个事务是一步撤销：
+
+```ts
+const builder = useFormBuilder()
+
+const tr = builder.transaction()
+tr.update('phone', { label: '联系电话', required: true })
+tr.move('phone', null, 0)
+builder.dispatch(tr, { selection: ['phone'] })
+```
+
+| 方法                            | 作用                                                |
+| ------------------------------- | --------------------------------------------------- |
+| `insert(node, parent?, index?)` | 把节点放进容器（`null` 是表单最外层），默认放在末尾 |
+| `remove(id)`                    | 删除节点和它里面的内容                              |
+| `update(id, patch)`             | 修改节点的键，值为 `undefined` 时删除这个键         |
+| `move(id, parent, index)`       | 移动节点，`index` 按移走之后的位置算                |
+| `updateDocument(patch)`         | 修改表单本身的设置，如 `{ layout: 'horizontal' }`   |
+
+事务的每一步都会检查结构：页面只能放进标签页和分步，节点不能移到自己里面，id 不能重复。`meta.group` 相同、间隔不到一秒的事务合并成一步撤销；`meta.history` 为 `false` 时不记入撤销。每次修改（包括撤销和重做）都会触发 `change` 事件，参数就是这个事务，`steps` 是它做了哪些修改。
+
+从外部换掉整份描述（比如加载另一张表单）时，撤销记录会清空。
+
+## 文字
+
+设计器自己的文字（字段类型的名称、按钮、提示、读屏播报）跟随当前语言，内置简体中文、繁体中文和英文。`messages` 可以替换其中一部分，按分组合并：
+
+```vue
+<DouFormBuilder v-model="form" :messages="{ types: { input: '文本' } }" />
+```

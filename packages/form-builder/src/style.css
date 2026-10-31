@@ -10,6 +10,8 @@
  * Breakpoints: sm 480px, md 640px, lg 800px, xl 960px of form width,
  * smaller than the page's, since a form is narrower than the page.
  */
+@import './builder/style.css';
+
 @layer dou.components {
   /*
    * The form is a size container, so it cannot take its width from its

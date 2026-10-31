@@ -46,7 +46,7 @@ const guests: FormListNode = {
 
 describe('expressions in lists', () => {
   it('reads the item and sums one key of every item', () => {
-    expect(evaluateExpression('item.price * 2', { item: { price: 3 } })).toBe(6)
+    expect(evaluateExpression('item.price * 2', { values: {}, item: { price: 3 } })).toBe(6)
     const values = { items: [{ amount: 1.1 }, { amount: 2.2 }, { amount: null }] }
     expect(evaluateExpression("sum(values.items, 'amount')", { values })).toBe(3.3)
     expect(evaluateExpression("max(values.items, 'amount')", { values })).toBe(2.2)

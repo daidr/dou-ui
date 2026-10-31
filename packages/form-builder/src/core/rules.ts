@@ -1,7 +1,7 @@
 import type { FormRule } from 'dou-ui'
 import { isEmptyValue, truthy, tryCompileExpression } from './expression'
 import type { FormFunction } from './expression'
-import type { FormFieldNode, FormRuleSpec } from './types'
+import type { FormFieldNode, FormListNode, FormRuleSpec } from './types'
 
 const patterns = new Map<string, RegExp | null>()
 
@@ -68,7 +68,7 @@ const cache = new WeakMap<object, Cached>()
  * re-renders hand the form item the same array.
  */
 export function rulesOf(
-  node: Pick<FormFieldNode, 'rules' | 'required'>,
+  node: FormFieldNode | FormListNode,
   options: RulesOptions = {},
 ): FormRule[] {
   const required = options.required ?? node.required ?? false

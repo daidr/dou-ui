@@ -1856,6 +1856,7 @@ function problemsSpan(problems: CodeDiagnostic[], pos: number) {
 
 /** Counts requests for hover text, so an answer to an older one is dropped. */
 let hoverRequest = 0
+let hoverAbort: AbortController | null = null
 
 /**
  * Shows what is known about a place: the extensions' hover text and the
@@ -1865,6 +1866,9 @@ let hoverRequest = 0
 function showInfo(pos: number, keyboard: boolean) {
   clearTimeout(problemTimer)
   const id = ++hoverRequest
+  hoverAbort?.abort()
+  const abort = new AbortController()
+  hoverAbort = abort
   const text = doc.value
   const problems = problemsAt(pos)
   const info: Array<string | (() => VNodeChild)> = []
@@ -1903,7 +1907,7 @@ function showInfo(pos: number, keyboard: boolean) {
     if (!extension.hover) continue
     let answer: ReturnType<NonNullable<CodeExtension['hover']>>
     try {
-      answer = extension.hover(pos, context)
+      answer = extension.hover({ pos, signal: abort.signal }, context)
     } catch (error) {
       console.error(`[DouCodeEditor] ${extension.name}: hover failed`, error)
       continue
@@ -1915,9 +1919,10 @@ function showInfo(pos: number, keyboard: boolean) {
           add(result)
           apply()
         })
-        .catch((error: unknown) =>
-          console.error(`[DouCodeEditor] ${extension.name}: hover failed`, error),
-        )
+        .catch((error: unknown) => {
+          if (!abort.signal.aborted)
+            console.error(`[DouCodeEditor] ${extension.name}: hover failed`, error)
+        })
     } else add(answer)
   }
   apply()
@@ -1941,6 +1946,8 @@ function announceFix() {
 function closeProblems() {
   clearTimeout(problemTimer)
   hoverRequest++
+  hoverAbort?.abort()
+  hoverAbort = null
   problemBox.value = null
 }
 
@@ -2145,6 +2152,8 @@ const completion = shallowRef<{
   items: CompletionItem[]
   index: number
   explicit: boolean
+  /** Picked from with the keys, not just opened by typing. */
+  moved: boolean
 } | null>(null)
 const completionEl = ref<HTMLElement>()
 const completionList = ref<HTMLElement>()
@@ -2222,7 +2231,16 @@ function startCompletion(explicit: boolean) {
     const before = completion.value
     const picked = before?.items[before.index]?.option
     const kept = picked ? items.findIndex((item) => item.option === picked) : -1
-    completion.value = { pos, results: source, items, index: Math.max(0, kept), explicit }
+    completion.value = {
+      pos,
+      results: source,
+      items,
+      index: Math.max(0, kept),
+      explicit,
+      moved: kept > 0 && !!before?.moved,
+    }
+    // A list that opens is read out with its first entry; the textarea is not a combobox to some readers.
+    if (!before) announceCompletion()
   }
   for (const extension of sources) {
     let answer: ReturnType<NonNullable<CodeExtension['completion']>>
@@ -2268,19 +2286,26 @@ function moveCompletion(step: number) {
     Math.abs(step) === 1
       ? (list.index + step + count) % count
       : Math.max(0, Math.min(count - 1, list.index + step))
-  completion.value = { ...list, index }
-  const item = list.items[index]!
-  announce(
-    format(messages.value.itemAt, {
-      label: item.option.detail ? `${item.option.label} ${item.option.detail}` : item.option.label,
-      index: index + 1,
-      count,
-    }),
-  )
+  completion.value = { ...list, index, moved: true }
+  announceCompletion()
   nextTick(() =>
     completionList.value
       ?.querySelector(`#${completionId}-${index}`)
       ?.scrollIntoView?.({ block: 'nearest' }),
+  )
+}
+
+/** Reads out the picked entry, and where it is in the list. */
+function announceCompletion() {
+  const list = completion.value
+  const item = list?.items[list.index]
+  if (!item) return
+  announce(
+    format(messages.value.itemAt, {
+      label: item.option.detail ? `${item.option.label} ${item.option.detail}` : item.option.label,
+      index: list.index + 1,
+      count: list.items.length,
+    }),
   )
 }
 
@@ -2310,7 +2335,16 @@ function completionKey(name: string) {
   if (!completion.value) return false
   if (name === 'arrowdown' || name === 'arrowup') moveCompletion(name === 'arrowdown' ? 1 : -1)
   else if (name === 'pagedown' || name === 'pageup') moveCompletion(name === 'pagedown' ? 8 : -8)
-  else if (name === 'enter' || name === 'tab') acceptCompletion(completion.value.index)
+  else if (
+    name === 'tab' &&
+    snippet.value &&
+    !completion.value.moved &&
+    !completion.value.explicit
+  ) {
+    // Inside a snippet, Tab goes on to the next place unless an entry was picked with the keys.
+    closeCompletion()
+    return false
+  } else if (name === 'enter' || name === 'tab') acceptCompletion(completion.value.index)
   else if (name === 'escape') closeCompletion()
   else return false
   return true
@@ -2357,6 +2391,8 @@ watch(
 const snippet = shallowRef<{
   groups: Array<{ index: number; ranges: Array<{ from: number; to: number }> }>
   at: number
+  /** Where the snippet ends, for the cursor once all its places are filled in. */
+  end: number
 } | null>(null)
 
 /** Inserts a snippet in place of `from`–`to`, its later lines indented like the first, and selects its first place. */
@@ -2384,7 +2420,8 @@ function insertSnippet(from: number, to: number, source: string) {
   tr.select({ ranges: first.ranges.map((r) => ({ anchor: r.from, head: r.to })), main: 0 })
   dispatch(tr)
   // Its places are in the new text already, so set after the change. Nothing more to fill in once there: no session to keep.
-  snippet.value = groups.length > 1 || first.index !== 0 ? { groups, at: 0 } : null
+  snippet.value =
+    groups.length > 1 || first.index !== 0 ? { groups, at: 0, end: from + text.length } : null
 }
 
 /** Selects the next or previous place of the snippet; past the last, the snippet is done. */
@@ -2394,14 +2431,13 @@ function snippetField(dir: 1 | -1) {
   const next = Math.max(0, session.at + dir)
   const group = session.groups[next]
   if (!group) {
-    // Past the last place: done, the cursor after it.
-    const last = session.groups[session.groups.length - 1]!.ranges[0]!
+    // Past the last place, with no $0: done, the cursor after the snippet.
     snippet.value = null
-    dispatch(transaction().select(last.to).setMeta({ action: 'snippet', scroll: true }))
+    dispatch(transaction().select(session.end).setMeta({ action: 'snippet', scroll: true }))
     return true
   }
-  snippet.value =
-    next === session.groups.length - 1 || group.index === 0 ? null : { ...session, at: next }
+  // $0 is where it ends: reaching it is done.
+  snippet.value = group.index === 0 ? null : { ...session, at: next }
   dispatch(
     transaction()
       .select({ ranges: group.ranges.map((r) => ({ anchor: r.from, head: r.to })), main: 0 })
@@ -2416,29 +2452,76 @@ const signature = shallowRef<{ pos: number; result: CodeSignatureResult } | null
 const signatureEl = ref<HTMLElement>()
 const signatureSize = ref({ width: 0, height: 0 })
 
-/** Asks the extensions about the call around the cursor; the first answer is shown. */
+let signatureRequest = 0
+let signatureAbort: AbortController | null = null
+
+/** Asks the extensions about the call around the cursor; the first answer, by priority, is shown. */
 function updateSignature() {
+  const id = ++signatureRequest
+  signatureAbort?.abort()
+  const abort = new AbortController()
+  signatureAbort = abort
   // At the head, also with a snippet's place selected.
-  const main = mainRange(state.value.selection)
+  const pos = mainRange(state.value.selection).head
+  const text = doc.value
+  type Answer = ReturnType<NonNullable<CodeExtension['signature']>>
+  const answers: Answer[] = []
   for (const extension of extensions.value) {
     if (!extension.signature) continue
-    let result: CodeSignatureResult | null | undefined
     try {
-      result = extension.signature(main.head, context)
+      const answer = extension.signature({ pos, signal: abort.signal }, context)
+      if (answer && 'then' in answer)
+        answers.push(
+          Promise.resolve(answer).catch((error: unknown) => {
+            if (!abort.signal.aborted)
+              console.error(`[DouCodeEditor] ${extension.name}: signature failed`, error)
+            return null
+          }),
+        )
+      else answers.push(answer)
     } catch (error) {
       console.error(`[DouCodeEditor] ${extension.name}: signature failed`, error)
     }
-    if (result) {
-      const before = signature.value?.result
-      signature.value = { pos: main.head, result }
-      // Read out when the parameter changes, not on every key.
-      if (!before || before.label !== result.label || before.active !== result.active) {
-        const param = result.params[result.active]
-        announce(param ? result.label.slice(param[0], param[1]) : result.label)
-      }
+  }
+  const show = (result: CodeSignatureResult | null | undefined) => {
+    if (id !== signatureRequest || doc.value !== text) return
+    if (mainRange(state.value.selection).head !== pos) return
+    if (!result) {
+      signature.value = null
       return
     }
+    const before = signature.value?.result
+    signature.value = { pos, result }
+    // Read out when the parameter changes, not on every key.
+    if (!before || before.label !== result.label || before.active !== result.active) {
+      const param = result.params[result.active]
+      announce(param ? result.label.slice(param[0], param[1]) : result.label)
+    }
   }
+  // The first answer in priority order; a slow one is waited for, the box staying as it was meanwhile.
+  let i = 0
+  const next = (): void => {
+    for (; i < answers.length; i++) {
+      const answer = answers[i]
+      if (answer && 'then' in answer) {
+        const at = i
+        void answer.then((result) => {
+          answers[at] = result
+          next()
+        })
+        return
+      }
+      if (answer) return show(answer)
+    }
+    show(null)
+  }
+  next()
+}
+
+function closeSignature() {
+  signatureRequest++
+  signatureAbort?.abort()
+  signatureAbort = null
   signature.value = null
 }
 
@@ -2481,8 +2564,9 @@ function updateAssist(result: CodeTransactionResult) {
     // Leaving the place being filled in ends the snippet.
     const current = groups[session.at]
     const inside = current?.ranges.some((range) => main.head >= range.from && main.head <= range.to)
+    const end = changes.empty ? session.end : changes.mapPos(session.end, 1)
     snippet.value =
-      action === 'snippet' || action === 'complete' || inside ? { ...session, groups } : null
+      action === 'snippet' || action === 'complete' || inside ? { ...session, groups, end } : null
   }
   if (action === 'complete' || action === 'snippet') {
     // A completed call puts the cursor inside its brackets: the hints show right away.
@@ -3658,7 +3742,7 @@ function onBlur(event: FocusEvent) {
   menuOpen.value = false
   if (problemBox.value?.keyboard) closeProblems()
   closeCompletion()
-  signature.value = null
+  closeSignature()
   history.close()
   if (lazyDirty) {
     lazyDirty = false

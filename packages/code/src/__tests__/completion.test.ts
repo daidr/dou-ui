@@ -66,6 +66,14 @@ const source = defineCodeExtension({
   completion: ({ word }) => ({ from: word.from, options: words }),
 })
 
+const call = defineCodeExtension({
+  name: 'call',
+  completion: ({ word }) => ({
+    from: word.from,
+    options: [{ label: 'max', snippet: 'max(${1:a}, ${2:b})' }],
+  }),
+})
+
 afterEach(() => {
   document.body.innerHTML = ''
 })
@@ -155,6 +163,41 @@ describe('completion', () => {
     expect(labels()).toEqual(['const', 'console', 'constructor'])
   })
 
+  it('opens with Alt+Esc too, since Ctrl+Space switches input methods on some systems', async () => {
+    const { key, labels, editor } = setup([source], 'co')
+    editor.value!.select(2)
+    await key('Escape', { altKey: true })
+    expect(labels()).toEqual(['const', 'console', 'constructor'])
+  })
+
+  it('goes on to the next place with Tab while typing in a snippet, unless an entry was picked', async () => {
+    const { code, type, key, labels, ranges } = setup([source, call])
+    await type('ma')
+    await key('Enter')
+    // Typing in the first place opens the list; Tab still moves on.
+    await type('c')
+    expect(labels().length).toBeGreaterThan(0)
+    await key('Tab')
+    expect(code.value).toBe('max(c, b)')
+    expect(ranges().ranges).toEqual([[7, 8]])
+    // Picked with the arrows: Tab puts the entry in.
+    await type('co')
+    await key('ArrowDown')
+    await key('Tab')
+    expect(code.value).toBe('max(c, console)')
+  })
+
+  it('ends a snippet without $0 after its last place, the cursor after it', async () => {
+    const { code, type, key, ranges } = setup([call])
+    await type('ma')
+    await key('Enter')
+    await key('Tab')
+    expect(ranges().ranges).toEqual([[7, 8]])
+    await key('Tab')
+    expect(code.value).toBe('max(a, b)')
+    expect(ranges().ranges).toEqual([[9, 9]])
+  })
+
   it('fills in a snippet, its places selected with Tab and Shift+Tab', async () => {
     const { code, type, key, ranges, editor } = setup([source], '  ')
     editor.value!.select(2)
@@ -187,7 +230,7 @@ describe('hover and parameter hints', () => {
       [
         defineCodeExtension({
           name: 'docs',
-          hover: (pos, { doc }) => {
+          hover: ({ pos }, { doc }) => {
             const text = doc.toString()
             return text.slice(pos - 3, pos) === 'max' || text.startsWith('max', pos)
               ? { from: 0, to: 3, content: '返回最大的数' }
@@ -203,6 +246,8 @@ describe('hover and parameter hints', () => {
     const box = wrapper.find('.dou-code-editor__problems')
     expect(box.find('.dou-code-editor__hover').text()).toBe('返回最大的数')
     expect(box.attributes('aria-label')).toBe('说明')
+    // Read out, since it was asked for from the keyboard.
+    expect(wrapper.find('.dou-code-editor__live').text()).toContain('返回最大的数')
     await key('Escape')
     expect(wrapper.find('.dou-code-editor__problems').exists()).toBe(false)
   })
@@ -210,7 +255,7 @@ describe('hover and parameter hints', () => {
   it('shows parameter hints after an opening bracket and follows commas', async () => {
     const hints = defineCodeExtension({
       name: 'hints',
-      signature: (pos, { doc }) => {
+      signature: ({ pos }, { doc }) => {
         const before = doc.slice(0, pos)
         const open = before.lastIndexOf('max(')
         if (open < 0 || before.indexOf(')', open) >= 0) return null
@@ -233,5 +278,27 @@ describe('hover and parameter hints', () => {
     expect(active().text()).toBe('b: number')
     await type('2)')
     expect(wrapper.find('.dou-code-editor__signature').exists()).toBe(false)
+  })
+
+  it('waits for a slow parameter hint, and aborts it when the cursor moves on', async () => {
+    const signals: AbortSignal[] = []
+    const answers: Array<() => void> = []
+    const hints = defineCodeExtension({
+      name: 'slow-hints',
+      signature: ({ signal }) => {
+        signals.push(signal)
+        return new Promise((resolve) =>
+          answers.push(() => resolve({ label: 'f(a)', params: [[2, 3]], active: 0 })),
+        )
+      },
+    })
+    const { wrapper, type } = setup([hints])
+    await type('f(')
+    expect(signals).toHaveLength(1)
+    answers[0]!()
+    await new Promise((resolve) => setTimeout(resolve))
+    expect(wrapper.find('.dou-code-editor__signature-active').text()).toBe('a')
+    await type('1')
+    expect(signals[0]!.aborted).toBe(true)
   })
 })

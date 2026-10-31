@@ -143,8 +143,16 @@ export interface CodeCompletionRequest {
   pos: number
   /** The word right before the cursor, by the language's word characters; empty when there is none. */
   word: { from: number; to: number; text: string }
-  /** Asked for with `Ctrl` + `Space` rather than by typing. */
+  /** Asked for from the keyboard (`Ctrl` + `Space`, `Alt` + `Esc`) rather than by typing. */
   explicit: boolean
+  /** Aborted when the answer is no longer wanted, so a slow source can stop. */
+  signal: AbortSignal
+}
+
+/** What a hover or signature source is asked with. */
+export interface CodePositionRequest {
+  /** The position asked about: under the pointer, or the cursor. */
+  pos: number
   /** Aborted when the answer is no longer wanted, so a slow source can stop. */
   signal: AbortSignal
 }
@@ -208,7 +216,7 @@ export interface CodeExtension {
   ) => CodeDiagnostic[] | null | undefined | Promise<CodeDiagnostic[] | null | undefined>
   /**
    * Offers completions while typing (after a word character or one of
-   * `completionTriggers`) and on `Ctrl` + `Space`. Answers from every
+   * `completionTriggers`) and on `Ctrl` + `Space` or `Alt` + `Esc`. Answers from every
    * extension are put in one list; a Promise is waited for, and dropped
    * when the text has moved on.
    */
@@ -218,13 +226,23 @@ export interface CodeExtension {
   ) => CodeCompletionResult | null | undefined | Promise<CodeCompletionResult | null | undefined>
   /** Characters that ask for completions when typed, such as `.`. */
   completionTriggers?: string[]
-  /** Text about position `pos`, shown on hover and with `Mod` + `I`. */
+  /**
+   * Text about a position, shown on hover and with `Mod` + `I`. A Promise
+   * is waited for; `signal` aborts when the pointer moves on.
+   */
   hover?: (
-    pos: number,
+    request: CodePositionRequest,
     context: CodeExtensionContext,
   ) => CodeHoverResult | null | undefined | Promise<CodeHoverResult | null | undefined>
-  /** The parameters of the call around the cursor, shown while typing its arguments. */
-  signature?: (pos: number, context: CodeExtensionContext) => CodeSignatureResult | null | undefined
+  /**
+   * The parameters of the call around the cursor, shown while typing its
+   * arguments. A Promise is waited for, and dropped when the cursor has
+   * moved on.
+   */
+  signature?: (
+    request: CodePositionRequest,
+    context: CodeExtensionContext,
+  ) => CodeSignatureResult | null | undefined | Promise<CodeSignatureResult | null | undefined>
   /**
    * Sees every change before it is applied, in priority order, and may add
    * to it (positions are in the text before the change). Undo, redo and new

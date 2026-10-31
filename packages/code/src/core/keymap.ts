@@ -131,7 +131,9 @@ export const defaultKeymap: readonly CodeKeyBinding[] = [
   { key: 'ctrl+shift+]', mac: 'mod+alt+]', run: cmd.unfoldCode },
   { key: 'f8', run: cmd.nextDiagnostic, shift: cmd.previousDiagnostic },
   { key: 'mod+.', run: cmd.showFixes },
+  // Ctrl + Space switches input methods on Apple devices: Alt + Esc as well.
   { key: 'ctrl+space', run: cmd.startCompletion },
+  { key: 'alt+escape', run: cmd.startCompletion },
   { key: 'mod+i', run: cmd.showHover },
   // Tried before indenting: inside a snippet, Tab goes to its next place.
   { key: 'tab', run: cmd.nextSnippetField, shift: cmd.previousSnippetField },

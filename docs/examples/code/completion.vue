@@ -67,7 +67,7 @@ const scriptApi = defineCodeExtension({
     }
   },
   // 鼠标停在函数名上，或按 Mod + I
-  hover(pos, editor) {
+  hover({ pos }, editor) {
     const line = editor.doc.lineAt(pos)
     for (const match of line.text.matchAll(/\w+/g)) {
       const from = line.from + match.index
@@ -78,7 +78,7 @@ const scriptApi = defineCodeExtension({
     return null
   },
   // 光标在函数的括号里时，提示正在填的参数
-  signature(pos, editor) {
+  signature({ pos }, editor) {
     const before = editor.doc.slice(Math.max(0, pos - 400), pos)
     let depth = 0
     let commas = 0

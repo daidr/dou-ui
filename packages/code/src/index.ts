@@ -18,6 +18,7 @@ export type {
   CodeCompletion,
   CodeCompletionKind,
   CodeCompletionRequest,
+  CodePositionRequest,
   CodeCompletionResult,
   CodeHoverResult,
   CodePanel,

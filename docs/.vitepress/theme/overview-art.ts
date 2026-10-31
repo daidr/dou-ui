@@ -44,6 +44,7 @@ const iconSources = import.meta.glob<string>(
     '../../../packages/icons/icons/clock.stroke.svg',
     '../../../packages/icons/icons/cloud-upload.stroke.svg',
     '../../../packages/icons/icons/code.stroke.svg',
+    '../../../packages/icons/icons/grip-vertical.stroke.svg',
     '../../../packages/icons/icons/heading.stroke.svg',
     '../../../packages/icons/icons/heart.stroke.svg',
     '../../../packages/icons/icons/home.stroke.svg',
@@ -1265,4 +1266,126 @@ export function overviewArt(name: string) {
   const art = arts[name]
   if (!art) return ''
   return typeof art === 'function' ? art(`ov-${name}`) : art
+}
+
+/** A flow node and one of its ports. */
+const flowNode = (x: number, y: number, w: number, h: number, c = 'p') => rect(x, y, w, h, c, 4)
+const flowPort = (cx: number, cy: number) => circle(cx, cy, 2, 'p lk')
+
+/** Drawings for the ecosystem overview, one per package. */
+const ecosystemArts: Record<string, string | ((id: string) => string)> = {
+  // a document of blocks, one hovered with its handle in the gutter
+  editor:
+    rect(24, 14, 152, 92, 'p', 8) +
+    bar(56, 26, 64, 'k', 6) +
+    lines(56, 42, [104, 84], 9) +
+    rect(52, 58, 112, 16, 'm', 4) +
+    bar(56, 64, 76) +
+    icon('plus', 34, 66, 11, 'ico-3') +
+    icon('grip-vertical', 44, 66, 11, 'ico-3') +
+    rect(56, 80, 8, 8, 'k', 2) +
+    icon('check', 60, 84, 8, 'ico-on') +
+    bar(70, 82, 56, 't') +
+    rect(56, 92, 8, 8, 'ps', 2) +
+    bar(70, 94, 44),
+  // nodes with ports on a dotted canvas
+  flow: (id) => {
+    return (
+      `<defs><pattern id="${id}-d" width="8" height="8" x="24" y="14" patternUnits="userSpaceOnUse"><circle cx="4" cy="4" r=".7" class="b"/></pattern></defs>` +
+      rect(24, 14, 152, 92, 'pm', 8) +
+      `<rect x="24" y="14" width="152" height="92" rx="8" style="fill:url(#${id}-d)"/>` +
+      path(
+        'M64 60c10 0 10 -20 20 -20M64 60c10 0 10 20 20 20M120 40c10 0 10 20 20 20M120 80c10 0 10 -20 20 -20',
+        'ln',
+      ) +
+      flowNode(36, 52, 28, 16) +
+      bar(42, 58, 14, 'k') +
+      flowNode(84, 30, 36, 20) +
+      bar(90, 36, 22, 'k') +
+      flowNode(84, 70, 36, 20) +
+      bar(90, 76, 18, 'k') +
+      flowNode(140, 50, 28, 20, 'ps la') +
+      bar(146, 58, 14, 'k') +
+      flowPort(64, 60) +
+      flowPort(84, 40) +
+      flowPort(120, 40) +
+      flowPort(84, 80) +
+      flowPort(120, 80) +
+      flowPort(140, 60)
+    )
+  },
+  // a task table beside bars on a timeline, linked step by step
+  gantt: () => {
+    const rows = [
+      { label: 36, x: 84, w: 60, summary: true },
+      { label: 28, x: 84, w: 20 },
+      { label: 32, x: 112, w: 26 },
+      { label: 24, x: 146, w: 18 },
+      { label: 20, x: 172, w: 0 },
+    ]
+    const top = 36
+    const gap = 13
+    let art =
+      rect(20, 14, 160, 92, 'p', 8) +
+      path('M20 30h160M72 14v92', 'lb') +
+      bar(28, 20, 20, 't') +
+      bar(80, 20, 24, 't') +
+      bar(132, 20, 16, 't')
+    rows.forEach((row, i) => {
+      const y = top + i * gap
+      art += bar(row.summary ? 28 : 36, y + 2, row.label, row.summary ? 'k' : 's')
+      if (row.summary) art += rect(row.x, y + 2, row.w, 4, 'k', 1)
+      else if (row.w) art += rect(row.x, y, row.w, 8, 'm lb', 3)
+      else
+        art += rect(-3, -3, 6, 6, 'k', 1).replace(
+          '/>',
+          ` transform="translate(${row.x} ${y + 4}) rotate(45)"/>`,
+        )
+      const prev = rows[i - 1]
+      if (prev && !prev.summary) {
+        const from = prev.x + prev.w
+        const to = row.w ? row.x : row.x - 4
+        art += path(`M${from} ${y - gap + 4}h4v${gap}h${to - from - 4}`, 'ln')
+      }
+    })
+    return art + path(`M124 30v76`, 'la') + circle(124, 30, 2, 'a')
+  },
+  // the icon gallery: a search field above a grid of icons
+  icons:
+    field(40, 18, 120, 20, 0) +
+    icon('search', 52, 28, 12, 'ico-3') +
+    bar(62, 26, 40, 'b') +
+    [
+      ['bell', 'mail', 'calendar', 'home'],
+      ['heart', 'star', 'sun', 'moon'],
+    ]
+      .flatMap((row, r) =>
+        row.map((name, i) => {
+          const x = 40 + i * 31
+          const y = 46 + r * 28
+          return (
+            rect(x, y, 27, 24, r === 0 && i === 1 ? 'pm' : 'p', 5) +
+            icon(name, x + 13.5, y + 12, 14)
+          )
+        }),
+      )
+      .join(''),
+  // the module added to the Nuxt config
+  nuxt:
+    rect(28, 16, 144, 88, 'p', 8) +
+    path('M28 34h144', 'lb') +
+    text(40, 28, 'nuxt.config.ts', 'tx tx2 small mono', 'start') +
+    bar(40, 44, 72, 't') +
+    bar(48, 56, 36) +
+    rect(42, 64, 120, 16, 'as', 4) +
+    text(56, 75, "'@dou-ui/nuxt'", 'tx small mono', 'start') +
+    bar(48, 88, 8) +
+    bar(40, 96, 8, 't'),
+}
+
+/** The drawing for a package on the ecosystem overview. */
+export function ecosystemArt(name: string) {
+  const art = ecosystemArts[name]
+  if (!art) return ''
+  return typeof art === 'function' ? art(`ov-eco-${name}`) : art
 }

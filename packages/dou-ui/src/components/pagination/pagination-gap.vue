@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, useId, useTemplateRef } from 'vue'
+import { useCoarsePointer } from '../../utils/media'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
 import DouVirtualList from '../virtual-list/virtual-list.vue'
@@ -18,7 +19,9 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ pick: [page: number] }>()
 
-const ROW = 32
+// rows are taller for fingers, like menu items
+const coarse = useCoarsePointer()
+const row = computed(() => (coarse.value ? 40 : 32))
 const VISIBLE = 8
 
 const ns = useNamespace('pagination')
@@ -73,6 +76,7 @@ defineExpose({ focus: () => boxRef.value?.focus({ preventScroll: true }) })
     role="listbox"
     tabindex="0"
     :class="ns.e('gap-list')"
+    :style="{ '--dou-pagination-gap-row': `${row}px` }"
     :aria-label="t('pagination.gap', { from, to })"
     :aria-activedescendant="`${id}-${from + active}`"
     @keydown="onKeydown"
@@ -80,8 +84,8 @@ defineExpose({ focus: () => boxRef.value?.focus({ preventScroll: true }) })
     <DouVirtualList
       ref="list"
       :items="items"
-      :item-size="ROW"
-      :height="Math.min(length, VISIBLE) * ROW"
+      :item-size="row"
+      :height="Math.min(length, VISIBLE) * row"
     >
       <template #default="{ item, index }">
         <div

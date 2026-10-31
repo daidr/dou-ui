@@ -188,6 +188,7 @@
 
   /* the arrows sit tight against the row they scroll */
   .dou-tabs__scroll {
+    position: relative;
     display: inline-flex;
     flex-shrink: 0;
     align-items: center;
@@ -211,6 +212,15 @@
 
     &.is-end {
       margin-left: -8px;
+    }
+
+    /* on touch screens, a 40px target around the arrow without changing the layout */
+    @media (pointer: coarse) {
+      &::after {
+        content: '';
+        position: absolute;
+        inset: calc(50% - 20px);
+      }
     }
 
     & > svg {

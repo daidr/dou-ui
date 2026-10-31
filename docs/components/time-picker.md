@@ -28,6 +28,8 @@
 
 `disabled-time` 为每一列给一条规则：`hour(h)`、`minute(m, h)`、`second(s, m, h)`，返回 `true` 的值不可选。不可选的格子会变淡，点不动，键盘也会跳过它们；换了小时后，如果原来的分钟在新的小时里不可选，会移到第一个可选的分钟。输入了不可选的时间时，失焦后恢复为原来的值。
 
+和 `range` 一起用时，开始和结束共用同一套规则；要分开设置，传一对规则 `[开始的规则, 结束的规则]`。
+
 <DocDemo src="time-picker/disabled-time" />
 
 ## 尺寸与状态
@@ -49,25 +51,25 @@
 
 ### TimePicker Props
 
-| 名称               | 说明                                                                    | 类型                                 | 默认值           |
-| ------------------ | ----------------------------------------------------------------------- | ------------------------------------ | ---------------- |
-| `modelValue`       | 值，配合 `v-model`                                                      | `string \| [string, string] \| null` | —                |
-| `format`           | 是否带秒                                                                | `'HH:mm' \| 'HH:mm:ss'`              | `'HH:mm'`        |
-| `range`            | 选择一段时间                                                            | `boolean`                            | `false`          |
-| `hourStep`         | 小时列的步长                                                            | `number`                             | `1`              |
-| `minuteStep`       | 分钟列的步长                                                            | `number`                             | `1`              |
-| `secondStep`       | 秒列的步长                                                              | `number`                             | `1`              |
-| `disabledTime`     | 不可选的时、分、秒，每列一条规则                                        | `DisabledTime`                       | —                |
-| `placeholder`      | 占位文字                                                                | `string`                             | 语言包           |
-| `startPlaceholder` | 范围开始的占位文字                                                      | `string`                             | 语言包           |
-| `endPlaceholder`   | 范围结束的占位文字                                                      | `string`                             | 语言包           |
-| `clearable`        | 显示清空按钮                                                            | `boolean`                            | `false`          |
-| `size`             | 尺寸，默认取表单或全局配置                                              | `'sm' \| 'md' \| 'lg'`               | `'md'`           |
-| `disabled`         | 禁用                                                                    | `boolean`                            | `false`          |
-| `readonly`         | 只读：值照常显示、可以聚焦，但不能修改；Form 设置 `readonly` 时自动只读 | `boolean`                            | `false`          |
-| `invalid`          | 标记为无效                                                              | `boolean`                            | `false`          |
-| `placement`        | 弹出的位置                                                              | `Placement`                          | `'bottom-start'` |
-| `teleport`         | 渲染到哪里，`false` 留在原处                                            | `string \| HTMLElement \| false`     | `'body'`         |
+| 名称               | 说明                                                                    | 类型                                           | 默认值           |
+| ------------------ | ----------------------------------------------------------------------- | ---------------------------------------------- | ---------------- |
+| `modelValue`       | 值，配合 `v-model`                                                      | `string \| [string, string] \| null`           | —                |
+| `format`           | 是否带秒                                                                | `'HH:mm' \| 'HH:mm:ss'`                        | `'HH:mm'`        |
+| `range`            | 选择一段时间                                                            | `boolean`                                      | `false`          |
+| `hourStep`         | 小时列的步长                                                            | `number`                                       | `1`              |
+| `minuteStep`       | 分钟列的步长                                                            | `number`                                       | `1`              |
+| `secondStep`       | 秒列的步长                                                              | `number`                                       | `1`              |
+| `disabledTime`     | 不可选的时、分、秒，每列一条规则；范围可传一对                          | `DisabledTime \| [DisabledTime, DisabledTime]` | —                |
+| `placeholder`      | 占位文字                                                                | `string`                                       | 语言包           |
+| `startPlaceholder` | 范围开始的占位文字                                                      | `string`                                       | 语言包           |
+| `endPlaceholder`   | 范围结束的占位文字                                                      | `string`                                       | 语言包           |
+| `clearable`        | 显示清空按钮                                                            | `boolean`                                      | `false`          |
+| `size`             | 尺寸，默认取表单或全局配置                                              | `'sm' \| 'md' \| 'lg'`                         | `'md'`           |
+| `disabled`         | 禁用                                                                    | `boolean`                                      | `false`          |
+| `readonly`         | 只读：值照常显示、可以聚焦，但不能修改；Form 设置 `readonly` 时自动只读 | `boolean`                                      | `false`          |
+| `invalid`          | 标记为无效                                                              | `boolean`                                      | `false`          |
+| `placement`        | 弹出的位置                                                              | `Placement`                                    | `'bottom-start'` |
+| `teleport`         | 渲染到哪里，`false` 留在原处                                            | `string \| HTMLElement \| false`               | `'body'`         |
 
 ### TimePicker Events
 

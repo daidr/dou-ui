@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { CloseIcon, MinusIcon, PlusIcon } from '@dou-ui/icons'
 import { computed, onBeforeUnmount, ref, useAttrs, useTemplateRef, watch } from 'vue'
-import type { StyleValue } from 'vue'
+import type { HTMLAttributes, StyleValue } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
 import { useFormDisabled, useFormItem, useFormReadonly, useFormSize } from '../form/use-form-item'
@@ -42,6 +42,15 @@ const inputAttrs = computed(() => {
     'aria-required': formItem.required.value || undefined,
     ...rest,
   }
+})
+
+// The on-screen keyboard: digits only for whole numbers. The iOS number
+// pads have no minus key, so a range that reaches below zero gets the full
+// keyboard. An `inputmode` attribute overrides this.
+const inputMode = computed((): HTMLAttributes['inputmode'] => {
+  if (typeof attrs.inputmode === 'string') return attrs.inputmode as HTMLAttributes['inputmode']
+  if (Number.isFinite(props.min) && props.min < 0) return 'text'
+  return props.precision === 0 ? 'numeric' : 'decimal'
 })
 
 const inputRef = useTemplateRef<HTMLInputElement>('input')
@@ -340,7 +349,7 @@ defineExpose<InputNumberExpose>({
       v-bind="inputAttrs"
       :class="ns.e('native')"
       type="text"
-      inputmode="decimal"
+      :inputmode="inputMode"
       autocomplete="off"
       role="spinbutton"
       :value="shown"

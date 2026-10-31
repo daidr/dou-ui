@@ -76,6 +76,12 @@ const syncTexts = () => {
 }
 watch([values, fields], syncTexts, { immediate: true })
 
+/** The rule set for the start (0) or the end (1). */
+const ruleAt = (index: number) => {
+  const rule = props.disabledTime
+  return Array.isArray(rule) ? rule[index] : rule
+}
+
 const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
 
 function commit(value: TimeValue | TimeRange | null) {
@@ -108,8 +114,8 @@ function commitTexts() {
   }
   if (
     parsed.some(
-      (value) =>
-        !value || isTimeDisabled(snap(value, steps.value), props.disabledTime, seconds.value),
+      (value, index) =>
+        !value || isTimeDisabled(snap(value, steps.value), ruleAt(index), seconds.value),
     )
   )
     return syncTexts()
@@ -157,8 +163,10 @@ function onPick(index: number, value: TimeParts) {
 }
 
 function pickNow() {
-  const value = fitTime(snap(now(), steps.value), props.disabledTime, steps.value, seconds.value)
-  if (value) commitParts(props.range ? [value, value] : [value])
+  const list = Array.from({ length: fields.value }, (_, index) =>
+    fitTime(snap(now(), steps.value), ruleAt(index), steps.value, seconds.value),
+  )
+  if (list.every(Boolean)) commitParts(list)
 }
 
 function confirm() {
@@ -325,7 +333,7 @@ defineExpose<TimePickerExpose>({
             :value="parts[index - 1] ?? null"
             :seconds="seconds"
             :steps="steps"
-            :disabled-time="disabledTime"
+            :disabled-time="ruleAt(index - 1)"
             :label="range ? placeholders[index - 1] : undefined"
             @pick="onPick(index - 1, $event)"
           />

@@ -35,7 +35,7 @@ close()
 
 `toast.loading()` 显示一条带加载图标的提示，它会一直显示，直到被更新或关闭。用返回的 `update()` 原地改写这条提示，比如从“保存中…”改为“已保存”；改写后加载状态结束，重新按 `duration` 倒计时。
 
-`toast.promise()` 把这一步合在一起：Promise 进行中显示 `loading`，完成后变为 `success`，失败后变为 `error`。`success` 与 `error` 也可以是函数，参数是结果或错误。第一个参数可以是 Promise，也可以是返回 Promise 的函数；它返回这个 Promise，调用方仍可以 `await`。
+`toast.promise()` 把这一步合在一起：Promise 进行中显示 `loading`，完成后显示 `success` 的内容（`tone` 为 `success`），失败后显示 `error` 的内容（`tone` 为 `danger`）。`success` 与 `error` 也可以是函数，参数是结果或错误。第一个参数可以是 Promise，也可以是返回 Promise 的函数；它返回这个 Promise，调用方仍可以 `await`。
 
 <DocDemo src="toast/promise" />
 

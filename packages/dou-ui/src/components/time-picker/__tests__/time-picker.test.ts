@@ -180,4 +180,28 @@ describe('disabled time', () => {
     expect(wrapper.props('modelValue')).toBe('18:00')
     wrapper.unmount()
   })
+
+  it('rules the ends of a range apart when given a pair', async () => {
+    const wrapper = mount(DouTimePicker, {
+      props: {
+        range: true,
+        modelValue: ['09:00', '18:00'],
+        disabledTime: [
+          { hour: (hour: number) => hour > 12 },
+          { hour: (hour: number) => hour < 12 },
+        ],
+      },
+      attachTo: document.body,
+    })
+    await wrapper.get('input').trigger('keydown', { key: 'Enter' })
+    await nextTick()
+    const groups = document.querySelectorAll<HTMLElement>('.dou-time-picker__columns')
+    const hours = (group: number) =>
+      groups[group]!.querySelector('[role="listbox"]')!.querySelectorAll('[role="option"]')
+    expect(hours(0)[13]!.getAttribute('aria-disabled')).toBe('true')
+    expect(hours(0)[8]!.getAttribute('aria-disabled')).toBeNull()
+    expect(hours(1)[8]!.getAttribute('aria-disabled')).toBe('true')
+    expect(hours(1)[13]!.getAttribute('aria-disabled')).toBeNull()
+    wrapper.unmount()
+  })
 })

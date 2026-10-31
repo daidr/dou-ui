@@ -307,3 +307,12 @@ describe('DouInputNumber clearable', () => {
     }
   })
 })
+
+describe('DouInputNumber keyboard', () => {
+  it('picks the on-screen keyboard from precision and min', () => {
+    expect(setup().input.attributes('inputmode')).toBe('decimal')
+    expect(setup({ precision: 0 }).input.attributes('inputmode')).toBe('numeric')
+    // the iOS number pads have no minus key
+    expect(setup({ min: -10 }).input.attributes('inputmode')).toBe('text')
+  })
+})

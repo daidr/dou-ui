@@ -10,5 +10,10 @@ const businessHours = {
 </script>
 
 <template>
-  <DouTimePicker v-model="time" :minute-step="15" :disabled-time="businessHours" />
+  <DouTimePicker
+    v-model="time"
+    :minute-step="15"
+    :disabled-time="businessHours"
+    style="width: 140px"
+  />
 </template>

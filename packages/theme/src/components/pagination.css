@@ -44,6 +44,7 @@
   }
 
   .dou-pagination__item {
+    position: relative;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -65,6 +66,15 @@
     &:hover:not(:disabled, .is-current) {
       background-color: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
       color: var(--dou-color-text);
+    }
+
+    /* on touch screens, at least a 40px target without changing the layout */
+    @media (pointer: coarse) {
+      &::after {
+        content: '';
+        position: absolute;
+        inset: min(0px, calc((var(--dou-pagination-size) - 40px) / 2));
+      }
     }
 
     &:focus-visible {
@@ -132,7 +142,7 @@
     display: flex;
     align-items: center;
     box-sizing: border-box;
-    height: 32px;
+    height: var(--dou-pagination-gap-row, 32px);
     padding: 0 10px;
     border-radius: var(--dou-radius-control);
     color: var(--dou-color-text);

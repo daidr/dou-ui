@@ -7,7 +7,12 @@ const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate
 
 const at = ref(null)
 // 不能早于今天，今天只能选现在以后的时间
-const disabledDate = (date) => date < today
+// 到了 23:59，今天已经没有可选的时间，这一天也要排除
+const lateTonight = () => {
+  const time = new Date()
+  return time.getHours() === 23 && time.getMinutes() === 59
+}
+const disabledDate = (date) => date < today || (date === today && lateTonight())
 const disabledTime = (date) => {
   if (date !== today) return
   const hour = new Date().getHours()

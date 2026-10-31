@@ -195,7 +195,7 @@
     background-color: var(--dou-color-bg-surface);
     color: var(--dou-color-text);
     font-family: var(--dou-font-family-mono);
-    font-size: 12px;
+    font-size: max(var(--dou-font-size-input-min, 0px), 12px);
     font-variant-numeric: tabular-nums;
     text-align: right;
     outline: none;
@@ -299,7 +299,7 @@
   .dou-color-panel__format .dou-select__value,
   .dou-color-panel__text .dou-input__native {
     font-family: var(--dou-font-family-mono);
-    font-size: 12px;
+    font-size: max(var(--dou-font-size-input-min, 0px), 12px);
   }
 
   .dou-color-panel__text.is-hex .dou-input__native {

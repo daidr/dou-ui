@@ -1289,8 +1289,15 @@
   }
   .dou-code-diff__toolbar .dou-button {
     @media (pointer: coarse) {
+      position: relative;
       min-width: 36px;
       min-height: 36px;
+      /* A 40px target around a 36px button. */
+      &::after {
+        position: absolute;
+        inset: -2px;
+        content: '';
+      }
     }
   }
 

@@ -287,10 +287,43 @@ export function formatValue(
   return value
 }
 
-/** How a value lines up in its cell unless its style says otherwise. */
+/**
+ * A number without a format, in at most `chars` characters, for a cell
+ * too narrow for all its digits: fewer decimals first, then `1.2E+11`.
+ * Only what the cell shows changes, never the value.
+ */
+export function fitNumber(value: number, chars: number) {
+  const text = generalNumber(value)
+  if (text.length <= chars || !Number.isFinite(value)) return text
+  if (!text.includes('E')) {
+    const point = text.indexOf('.')
+    // the whole part fits: round off decimals
+    if (point !== -1 && point <= chars) {
+      const decimals = Math.max(0, chars - point - 1)
+      const rounded = String(Number(value.toFixed(decimals)))
+      if (rounded.length <= chars && rounded !== '0' && rounded !== '-0') return rounded
+    }
+  }
+  let shortest = text
+  for (let digits = 14; digits >= 0; digits--) {
+    const [mantissa, exponent] = value.toExponential(digits).split('e')
+    const out = `${mantissa!.includes('.') ? mantissa!.replace(/\.?0+$/, '') : mantissa}E${exponent}`
+    shortest = out
+    if (out.length <= chars) return out
+  }
+  return shortest
+}
+
+/**
+ * How a value lines up in its cell unless its style says otherwise:
+ * numbers, dates and times to the right, `TRUE` and `FALSE` in the middle,
+ * text to the left.
+ */
 export function alignOf(value: SheetValue | undefined): 'left' | 'center' | 'right' {
   if (typeof value === 'number') return 'right'
   if (typeof value === 'boolean') return 'center'
+  if (typeof value === 'string' && (DATE_VALUE.test(value) || TIME_VALUE.test(value)))
+    return 'right'
   return 'left'
 }
 
@@ -308,11 +341,15 @@ export interface SheetInput {
 
 const pad = (n: string) => n.padStart(2, '0')
 
+/** A date part's format letter, doubled when it was typed with a leading zero. */
+const two = (part: string, letter: string) => (part.startsWith('0') ? letter + letter : letter)
+
 /** `HH:mm[:ss]` and the format that shows it as typed, or `null` when it isn't a time. */
 function readTime(h: string, m: string, s?: string) {
   if (Number(h) > 23 || Number(m) > 59 || (s != null && Number(s) > 59)) return null
   const value = `${pad(h)}:${m}${s != null ? `:${s}` : ''}`
-  const format = `${h.length === 1 ? 'h' : 'hh'}:mm${s != null ? ':ss' : ''}`
+  // `hh` only when the hour was typed with its zero: `9:30` and `12:30` are `h:mm`
+  const format = `${h.startsWith('0') ? 'hh' : 'h'}:mm${s != null ? ':ss' : ''}`
   return { value, format, canonical: h.length === 2 }
 }
 
@@ -356,8 +393,10 @@ export function parseInput(text: string): SheetInput {
       const day = `${y}-${pad(m!)}-${pad(d!)}`
       const time = h != null ? readTime(h, mi!, s) : null
       if (validDate(day) && (h == null || time)) {
-        const dayFormat = `yyyy${sep}${m!.length === 1 ? 'm' : 'mm'}${sep}${d!.length === 1 ? 'd' : 'dd'}`
-        const canonical = dayFormat === 'yyyy-mm-dd' && (!time || time.canonical)
+        // two digits only where they were typed with a zero: `2026/12/5` is `yyyy/m/d`
+        const dayFormat = `yyyy${sep}${two(m!, 'm')}${sep}${two(d!, 'd')}`
+        const canonical =
+          sep === '-' && m!.length === 2 && d!.length === 2 && (!time || time.canonical)
         const value = time ? `${day} ${time.value}` : day
         return canonical
           ? { value }

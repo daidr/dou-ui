@@ -8,7 +8,7 @@ import {
   splitSheet,
 } from '../core/address'
 import { SheetAxis } from '../core/axis'
-import { formatValue, inputText, parseInput } from '../core/format'
+import { alignOf, fitNumber, formatValue, inputText, parseInput } from '../core/format'
 import { SheetHistory } from '../core/history'
 import { compactCell, colCountOf, rowCountOf, type SheetWorkbook } from '../core/model'
 import { movePoint } from '../core/nav'
@@ -156,7 +156,10 @@ describe('format', () => {
     ['2026.3.5', { value: '2026-03-05', format: 'yyyy.m.d' }],
     ['2026-03-05 09:30', { value: '2026-03-05 09:30' }],
     ['2026-03-05 9:30', { value: '2026-03-05 09:30', format: 'yyyy-mm-dd h:mm' }],
-    ['2026/3/5 18:30:15', { value: '2026-03-05 18:30:15', format: 'yyyy/m/d hh:mm:ss' }],
+    ['2026/3/5 18:30:15', { value: '2026-03-05 18:30:15', format: 'yyyy/m/d h:mm:ss' }],
+    ['2026/12/25', { value: '2026-12-25', format: 'yyyy/m/d' }],
+    ['2026-1-31', { value: '2026-01-31', format: 'yyyy-m-d' }],
+    ['2026-12-05 08:30', { value: '2026-12-05 08:30' }],
     ['2026/3-5', { value: '2026/3-5' }],
     ['2026/2/30', { value: '2026/2/30' }],
     ['2026-03-05 25:00', { value: '2026-03-05 25:00' }],
@@ -305,5 +308,24 @@ describe('navigation', () => {
     expect(down(2, true)).toBe(6)
     expect(down(6, true)).toBe(7)
     expect(down(7, true)).toBe(9)
+  })
+})
+
+describe('numbers in narrow cells', () => {
+  it.each([
+    [1.23456789012345, 8, '1.234568'],
+    [123456789012, 8, '1.23E+11'],
+    [-1234.5678, 6, '-1235'],
+    [1 / 3, 10, '0.33333333'],
+    [42, 8, '42'],
+  ])('fits %d into %i characters', (value, chars, text) => {
+    expect(fitNumber(value, chars)).toBe(text)
+  })
+
+  it('lines up dates and times like numbers', () => {
+    expect(alignOf('2026-10-31')).toBe('right')
+    expect(alignOf('2026-10-31 09:30')).toBe('right')
+    expect(alignOf('09:30')).toBe('right')
+    expect(alignOf('上海')).toBe('left')
   })
 })

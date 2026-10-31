@@ -53,12 +53,15 @@ function back() {
 }
 
 // The pointer opens it after a short rest on the item, and leaving both
-// the item and the submenu closes it.
-function onEnter() {
-  if (props.disabled) return
+// the item and the submenu closes it. A finger has no hover: a tap opens
+// it, and the finger lifting is not leaving.
+function onEnter(event: PointerEvent) {
+  if (props.disabled || event.pointerType === 'touch') return
   popup.show(100)
 }
-const onLeave = () => popup.hide(150)
+function onLeave(event: PointerEvent) {
+  if (event.pointerType !== 'touch') popup.hide(150)
+}
 
 function onPointermove(event: PointerEvent) {
   const el = event.currentTarget as HTMLElement
@@ -96,12 +99,14 @@ function onPanelKeydown(event: KeyboardEvent) {
   onMenuKeydown(event)
 }
 
-function onPanelEnter() {
+function onPanelEnter(event: PointerEvent) {
+  if (event.pointerType === 'touch') return
   popup.show()
   dropdown?.hold()
 }
-function onPanelLeave() {
-  onLeave()
+function onPanelLeave(event: PointerEvent) {
+  if (event.pointerType === 'touch') return
+  onLeave(event)
   dropdown?.release()
 }
 
@@ -128,8 +133,8 @@ const classes = computed(() => [
       @click="onClick"
       @keydown="onItemKeydown"
       @pointermove="onPointermove"
-      @mouseenter="onEnter"
-      @mouseleave="onLeave"
+      @pointerenter="onEnter"
+      @pointerleave="onLeave"
     >
       <span v-if="slots.prefix" :class="ns.e('prefix')"><slot name="prefix" /></span>
       <span :class="ns.e('label')"
@@ -151,8 +156,8 @@ const classes = computed(() => [
         :data-placement="placement"
         :data-dou-theme="theme"
         @keydown="onPanelKeydown"
-        @mouseenter="onPanelEnter"
-        @mouseleave="onPanelLeave"
+        @pointerenter="onPanelEnter"
+        @pointerleave="onPanelLeave"
       >
         <slot />
       </div>

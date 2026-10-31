@@ -169,6 +169,9 @@
     "packages/sheet": {
       "name": "@dou-ui/sheet",
       "version": "0.0.0",
+      "dependencies": {
+        "@dou-ui/icons": "workspace:*",
+      },
       "peerDependencies": {
         "dou-ui": "workspace:*",
         "vue": "^3.5.0",

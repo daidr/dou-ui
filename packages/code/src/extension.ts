@@ -1,5 +1,5 @@
 import { type Component, type InjectionKey, type VNodeChild, inject } from 'vue'
-import type { CodeKeyBinding } from './core/keymap'
+import type { CodeKeymap } from './core/keymap'
 import type { CodeSelection } from './core/selection'
 import type { CodeText } from './core/text'
 import type { CodeState, CodeTransaction } from './core/transaction'
@@ -67,7 +67,8 @@ export interface CodeGutter {
 
 /** A bar above or below the text, inside the editor's frame. */
 export interface CodePanel {
-  key: string
+  /** Tells panels apart, unique among one extension's. */
+  name: string
   /** Defaults to `bottom`. */
   position?: 'top' | 'bottom'
   render: () => VNodeChild
@@ -78,7 +79,7 @@ export interface CodeExtension {
   /** Higher runs first: its keys and hooks come before others. Defaults to 100. */
   priority?: number
   /** Keys tried before the built-in ones, and after the `keymap` prop. */
-  keymap?: CodeKeyBinding[]
+  keymap?: (context: CodeExtensionContext) => CodeKeymap
   /**
    * How parts of the text look, read while drawing: reactive state read
    * here updates them. Asked for the lines in view (`context.visible`),

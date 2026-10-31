@@ -74,7 +74,7 @@ const status = defineCodeExtension({
   name: 'status',
   panels: (context) => [
     {
-      key: 'status',
+      name: 'status',
       render: () =>
         h('div', { class: 'demo-status' }, [
           `${context.diagnostics.length} 个问题`,

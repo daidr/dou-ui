@@ -155,6 +155,9 @@ describe('extensions', () => {
     expect(wrapper.find('.dou-code-editor__problems').exists()).toBe(false)
     await key('.', { ctrlKey: true })
     expect(wrapper.find('.dou-code-editor__fix.is-active').text()).toBe('let')
+    expect(wrapper.find('.dou-code-editor__live').text()).toBe('let，第 1 项，共 1 项')
+    await key('ArrowDown')
+    expect(wrapper.find('.dou-code-editor__fix.is-active').attributes('aria-current')).toBe('true')
     await key('Enter')
     expect(code.value).toBe('const a = 1\nlet b = 2')
     expect(wrapper.find('.dou-code-editor__problems').exists()).toBe(false)
@@ -227,8 +230,8 @@ describe('extensions', () => {
       defineCodeExtension({
         name: 'status',
         panels: () => [
-          { key: 'top', position: 'top', render: () => h('b', 'top') },
-          { key: 'bottom', render: () => h(Count) },
+          { name: 'top', position: 'top', render: () => h('b', 'top') },
+          { name: 'bottom', render: () => h(Count) },
         ],
       }),
     ])
@@ -301,13 +304,13 @@ describe('extensions', () => {
     const bind = (name: string, priority?: number): CodeExtension => ({
       name,
       priority,
-      keymap: [{ key: 'mod+k', run: () => (hits.push(name), true) }],
+      keymap: () => ({ 'mod+k': () => (hits.push(name), true) }),
     })
     const { key } = setup([bind('low', 50), bind('high', 150)])
     await key('k', { ctrlKey: true })
     expect(hits).toEqual(['high'])
     const prop = setup([bind('ext')], {
-      keymap: [{ key: 'mod+k', run: () => (hits.push('prop'), true) }],
+      keymap: { 'mod+k': () => (hits.push('prop'), true) },
     })
     await prop.key('k', { ctrlKey: true })
     expect(hits).toEqual(['high', 'prop'])

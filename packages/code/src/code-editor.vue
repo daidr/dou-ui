@@ -34,7 +34,13 @@ import {
 } from './core/commands'
 import { type CodeFold, foldEndAt, hiddenLines } from './core/folding'
 import { CodeHistory } from './core/history'
-import { type CodeKeyBinding, buildKeymap, defaultKeymap, eventKey } from './core/keymap'
+import {
+  type CodeKeyBinding,
+  buildKeymap,
+  defaultKeymap,
+  eventKey,
+  keymapBindings,
+} from './core/keymap'
 import {
   type CodeRange,
   type CodeSelection,
@@ -1492,6 +1498,20 @@ function showProblems(pos: number, keyboard: boolean) {
   return true
 }
 
+/** Reads out the fix picked from the keyboard, and where it is in the list. */
+function announceFix() {
+  const index = problemBox.value?.index ?? -1
+  const fix = fixes.value[index]
+  if (!fix) return
+  announce(
+    format(messages.value.fixAt, {
+      label: fix.action.label,
+      index: index + 1,
+      count: fixes.value.length,
+    }),
+  )
+}
+
 function closeProblems() {
   clearTimeout(problemTimer)
   problemBox.value = null
@@ -1533,7 +1553,11 @@ function goToProblem(direction: 1 | -1) {
 const diagnosticControl = {
   next: () => goToProblem(1),
   previous: () => goToProblem(-1),
-  showFixes: () => showProblems(mainRange(state.value.selection).head, true),
+  showFixes: () => {
+    if (!showProblems(mainRange(state.value.selection).head, true)) return false
+    announceFix()
+    return true
+  },
 }
 
 /** Keys while the box is open from the keyboard: arrows pick a fix, Enter makes it, Escape closes the box. */
@@ -1549,6 +1573,7 @@ function problemKey(name: string) {
   if (name === 'arrowdown' || name === 'arrowup') {
     const step = name === 'arrowdown' ? 1 : -1
     problemBox.value = { ...box, index: (box.index + step + count) % count }
+    announceFix()
     return true
   }
   if (name === 'enter' || name === 'tab') {
@@ -1662,11 +1687,14 @@ const problemMarks = computed(() => {
 // ---------------------------------------------------------------- panels
 
 const panels = computed(() => {
-  const top: CodePanel[] = []
+  const top: Array<{ key: string; render: CodePanel['render'] }> = []
   const bottom: typeof top = []
   for (const extension of extensions.value)
     for (const bar of extension.panels?.(context) ?? [])
-      (bar.position === 'top' ? top : bottom).push(bar)
+      (bar.position === 'top' ? top : bottom).push({
+        key: `${extension.name}/${bar.name}`,
+        render: bar.render,
+      })
   return { top, bottom }
 })
 
@@ -1878,12 +1906,12 @@ function moveVertically(range: CodeRange, count: number) {
 function extensionKeys() {
   const list = extensions.value
   const out: CodeKeyBinding[] = []
-  for (let i = list.length - 1; i >= 0; i--) out.push(...(list[i]!.keymap ?? []))
+  for (let i = list.length - 1; i >= 0; i--) out.push(...keymapBindings(list[i]!.keymap?.(context)))
   return out
 }
 
 const keymap = computed(() =>
-  buildKeymap([...defaultKeymap, ...extensionKeys(), ...(props.keymap ?? [])], apple),
+  buildKeymap([...defaultKeymap, ...extensionKeys(), ...keymapBindings(props.keymap)], apple),
 )
 /** After Escape, Tab leaves the editor instead of indenting, so keyboard users are never stuck. */
 let tabLeaves = false
@@ -3134,6 +3162,7 @@ defineExpose<CodeEditorExpose>(api)
                 type="button"
                 tabindex="-1"
                 :class="[ns.e('fix'), ns.is('active', i === problemBox!.index)]"
+                :aria-current="i === problemBox!.index || undefined"
                 @click="runFix(i)"
               >
                 {{ fix.action.label }}

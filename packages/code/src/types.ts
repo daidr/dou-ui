@@ -1,7 +1,7 @@
 import type { Component } from 'vue'
 import type { CodeDiagnostic, CodeExtension } from './extension'
 import type { CodeCommand } from './core/commands'
-import type { CodeKeyBinding } from './core/keymap'
+import type { CodeKeymap } from './core/keymap'
 import type { CodeSearchQuery } from './core/search'
 import type { CodeSelection } from './core/selection'
 import type { CodeMessages } from './locale'
@@ -58,7 +58,7 @@ export interface CodeEditorProps {
    */
   keys?: boolean | ReadonlyArray<CodeKey | string>
   /** Extra keys, tried before the built-in ones. */
-  keymap?: CodeKeyBinding[]
+  keymap?: CodeKeymap
   /** Extensions: decorations, gutter columns, panels, linters and more. */
   extensions?: CodeExtension[]
   /**

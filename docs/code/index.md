@@ -229,15 +229,15 @@ replacementFor(doc, matches[0], query) // 'const a'
 
 每次修改之后触发 `transaction` 事件，参数里有 `changes`（这次的改动）、`before` 和 `state`（修改前后的文本与选区），`meta.action` 说明修改的来源：`input` 输入、`delete` 删除、`paste` 粘贴、`cut` 剪切、`undo` / `redo`、`external` 来自新的 `v-model` 值等。
 
-`codeCommands` 里是内置的编辑和移动命令，用 `run(command)` 执行。在按钮里执行命令后，焦点还在按钮上，需要接着输入时再调用 `focus()`。`keymap` 属性传入额外的按键，写法和 `useHotkey` 一样（`mod+shift+k`），比内置按键优先；命令返回 `false` 时继续尝试下一个绑定：
+`codeCommands` 里是内置的编辑和移动命令，用 `run(command)` 执行。在按钮里执行命令后，焦点还在按钮上，需要接着输入时再调用 `focus()`。`keymap` 属性传入额外的按键，键名的写法和 `useHotkey` 一样（`mod+shift+k`），值是要执行的命令，比内置按键优先；命令返回 `false` 时继续尝试下一个绑定：
 
 ```ts
-import { codeCommands, type CodeKeyBinding } from '@dou-ui/code'
+import { codeCommands, type CodeKeymap } from '@dou-ui/code'
 
-const keymap: CodeKeyBinding[] = [
-  { key: 'mod+s', run: () => (save(), true) },
-  { key: 'mod+d', run: codeCommands.selectAll },
-]
+const keymap: CodeKeymap = {
+  'mod+s': () => (save(), true),
+  'mod+d': codeCommands.selectAll,
+}
 ```
 
 内置命令及默认按键（`Mod` 的含义同上，“Apple” 一列只写和其他系统不同的按键）：
@@ -329,10 +329,10 @@ const keys = [
 | ------------- | ----------------------------------------------------------------------------------------- |
 | `name`        | 扩展的名字，用来区分各个扩展找到的问题                                                    |
 | `priority`    | 优先级，默认 `100`，大的先执行，它的按键也先尝试                                          |
-| `keymap`      | 按键，比内置的优先，比 `keymap` 属性靠后                                                  |
+| `keymap`      | 返回按键表的函数，写法和 `keymap` 属性一样；比内置的优先，比 `keymap` 属性靠后            |
 | `decorations` | 装饰：给一段文字加 class（`mark`），或给整行加 class（`line`）                            |
-| `gutters`     | 行号左侧的列，每行可以放图标或文字，可以响应点击                                          |
-| `panels`      | 编辑器上方或下方的栏，在边框之内                                                          |
+| `gutters`     | 行号左侧的列（`name`、`width`、`markers`、`onPress`），每行可以放图标或文字，可以响应点击 |
+| `panels`      | 编辑器上方或下方的栏（`name`、`position`、`render`），在边框之内                          |
 | `lint`        | 找出文本里的问题，可以返回 Promise                                                        |
 | `transaction` | 每次修改应用之前调用，可以在同一次修改里追加改动；撤销、重做和新的 `v-model` 值不经过这里 |
 | `setup`       | 编辑器挂载后调用一次，返回的函数在卸载时调用                                              |
@@ -419,7 +419,7 @@ const doc = shallowRef(CodeText.of(source))
 | `foldable`          | 显示折叠箭头，允许折叠                         | `boolean`                          | `true`     |
 | `keys`              | 触屏上键盘上方的符号栏；数组改写可以滑动的按键 | `boolean \| (CodeKey \| string)[]` | `true`     |
 | `messages`          | 改写编辑器上的文字（查找面板、工具条、符号栏） | `Partial<CodeMessages>`            | —          |
-| `keymap`            | 额外的按键，比内置的优先                       | `CodeKeyBinding[]`                 | —          |
+| `keymap`            | 额外的按键，比内置的优先                       | `CodeKeymap`                       | —          |
 | `extensions`        | 扩展                                           | `CodeExtension[]`                  | —          |
 | `diagnostics`       | 要显示的问题，之后跟着修改移动                 | `CodeDiagnostic[]`                 | —          |
 | `autofocus`         | 挂载后获得焦点                                 | `boolean`                          | `false`    |

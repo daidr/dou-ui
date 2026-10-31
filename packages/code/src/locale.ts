@@ -59,6 +59,8 @@ export interface CodeMessages {
   problems: string
   /** Read out when the cursor moves to a problem: `{line}`, `{severity}`, `{message}`. */
   problemAt: string
+  /** Read out when a fix is picked: `{label}`, `{index}`, `{count}`. */
+  fixAt: string
   /** Read out after replacing: `{count}`. */
   replaced: string
 }
@@ -106,6 +108,7 @@ export const zhCN: CodeMessages = {
   hint: '提示',
   problems: '问题',
   problemAt: '第 {line} 行，{severity}：{message}',
+  fixAt: '{label}，第 {index} 项，共 {count} 项',
 }
 
 export const zhTW: CodeMessages = {
@@ -151,6 +154,7 @@ export const zhTW: CodeMessages = {
   hint: '提示',
   problems: '問題',
   problemAt: '第 {line} 行，{severity}：{message}',
+  fixAt: '{label}，第 {index} 項，共 {count} 項',
 }
 
 export const en: CodeMessages = {
@@ -196,6 +200,7 @@ export const en: CodeMessages = {
   hint: 'Hint',
   problems: 'Problems',
   problemAt: 'Line {line}, {severity}: {message}',
+  fixAt: '{label}, {index} of {count}',
 }
 
 export const codeLocales: Record<string, CodeMessages> = {

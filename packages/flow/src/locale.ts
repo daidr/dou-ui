@@ -48,6 +48,13 @@ export interface FlowMessages {
   edgeLabel: string
   noEdges: string
   labelSaved: string
+  /** Groups. */
+  group: string
+  groupName: string
+  makeGroup: string
+  ungroup: string
+  expand: string
+  collapse: string
   /** `{node}` is the new node's name. */
   added: string
   /** While connecting from the keyboard; `{node}` and `{port}` are names. */
@@ -105,6 +112,12 @@ const zhCN: FlowMessages = {
   edgeLabel: '，标签：{label}',
   noEdges: '这个节点没有连线',
   labelSaved: '已保存标签',
+  group: '分组',
+  groupName: '分组名称',
+  makeGroup: '放进分组',
+  ungroup: '取消分组',
+  expand: '展开',
+  collapse: '收起',
   added: '已添加{node}',
   connectTo: '连接到 {node} 的 {port}，方向键换一个，Enter 确认',
   noTarget: '没有可以连接的端口',
@@ -158,6 +171,12 @@ const zhTW: FlowMessages = {
   edgeLabel: '，標籤：{label}',
   noEdges: '這個節點沒有連線',
   labelSaved: '已儲存標籤',
+  group: '群組',
+  groupName: '群組名稱',
+  makeGroup: '放進群組',
+  ungroup: '取消群組',
+  expand: '展開',
+  collapse: '收合',
   added: '已新增{node}',
   connectTo: '連接到 {node} 的 {port}，方向鍵換一個，Enter 確認',
   noTarget: '沒有可以連接的連接埠',
@@ -211,6 +230,12 @@ const en: FlowMessages = {
   edgeLabel: ', label: {label}',
   noEdges: 'This node has no edges',
   labelSaved: 'Label saved',
+  group: 'Group',
+  groupName: 'Group name',
+  makeGroup: 'Group',
+  ungroup: 'Ungroup',
+  expand: 'Expand',
+  collapse: 'Collapse',
   added: 'Added {node}',
   connectTo: 'Connect to {port} of {node}; arrow keys pick another, Enter confirms',
   noTarget: 'No port to connect to',

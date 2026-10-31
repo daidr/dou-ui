@@ -21,6 +21,8 @@ interface FlowNode {
   data?: Record<string, unknown>
   /** 锁定后不能移动和删除 */
   locked?: boolean
+  /** 所在分组的 id，见[分组](./groups) */
+  parent?: string
 }
 ```
 

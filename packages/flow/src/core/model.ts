@@ -19,6 +19,11 @@ export interface FlowNode<Data extends FlowData = FlowData> {
   data?: Data
   /** A locked node cannot be moved or deleted. */
   locked?: boolean
+  /**
+   * The container node, e.g. a group, this node sits in. Its `x` and `y`
+   * stay canvas coordinates; moving the container moves it along.
+   */
+  parent?: string
 }
 
 export interface FlowEndpoint {

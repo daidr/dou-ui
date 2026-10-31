@@ -1,3 +1,4 @@
+import type { FlowTree } from './core/groups'
 import { inject, type ComputedRef, type InjectionKey, type Ref, type ShallowRef } from 'vue'
 import type { FlowMessages, FlowMessagesOverride } from './locale'
 import type {
@@ -162,6 +163,14 @@ export interface FlowEditorExpose {
   readonly paletteTypes: NodeTypeSpec[]
   /** Selects an edge and opens the text field on its label. */
   editLabel: (id: string) => void
+  /**
+   * Puts nodes, the selected ones by default, into a new container of
+   * `type` (`'group'` by default) drawn around them, as one undo step;
+   * returns its id, or `null` when nothing was grouped.
+   */
+  groupNodes: (ids?: string[], type?: string) => string | null
+  /** Removes a container and keeps the nodes inside, as one undo step. */
+  ungroup: (id: string) => boolean
 }
 
 export interface FlowEditorSlots {
@@ -241,6 +250,12 @@ export interface FlowEditorContext {
   paletteTypes: ComputedRef<NodeTypeSpec[]>
   startInsertDrag: FlowEditorExpose['startInsertDrag']
   editLabel: FlowEditorExpose['editLabel']
+  groupNodes: FlowEditorExpose['groupNodes']
+  ungroup: FlowEditorExpose['ungroup']
+  /** Which node is inside which, from the nodes' `parent`. */
+  tree: ComputedRef<FlowTree>
+  /** Whether the node's type can hold other nodes. */
+  isContainer: (node: FlowNode) => boolean
   /** The editor's element. */
   root: Readonly<ShallowRef<HTMLElement | null>>
   /**

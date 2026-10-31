@@ -7,46 +7,38 @@ import {
   type FlowDocument,
 } from '@dou-ui/flow'
 import { ref } from 'vue'
-import GroupFrames from './group-frames.vue'
+import MarkRings from './mark-rings.vue'
 
-let count = 1
-
-const groups = defineFlowExtension({
-  name: 'groups',
-  layers: { below: [GroupFrames] },
-  keymap: ({ selection, transact }) => ({
-    // Puts the selected nodes into a new group.
-    'mod+g': () => {
+const marks = defineFlowExtension({
+  name: 'marks',
+  layers: { below: [MarkRings] },
+  keymap: ({ selection, doc, transact }) => ({
+    // Marks the selected nodes, or clears the mark if they all have it.
+    m: () => {
       const ids = selection.value.nodes
-      if (ids.length < 2) return false
-      const group = `分组 ${count++}`
+      if (!ids.length) return false
+      const all = ids.every((id) => doc.value.nodes.find((n) => n.id === id)?.data?.marked)
       transact((tr) => {
-        for (const id of ids) tr.updateData(id, { group })
-      })
-    },
-    // Takes them out of their group.
-    'mod+shift+g': () => {
-      transact((tr) => {
-        for (const id of selection.value.nodes) tr.updateData(id, { group: undefined })
+        for (const id of ids) tr.updateData(id, { marked: all ? undefined : true })
       })
     },
   }),
-  // Pasted copies start outside any group.
+  // Pasted copies start without the mark.
   transformPaste: (data: FlowDocument) => ({
     ...data,
-    nodes: data.nodes.map((node) => ({ ...node, data: { ...node.data, group: undefined } })),
+    nodes: data.nodes.map((node) => ({ ...node, data: { ...node.data, marked: undefined } })),
   }),
 })
 
-const extensions = [flowKit(), groups]
+const extensions = [flowKit(), marks]
 
-const node = (id: string, x: number, y: number, label: string, group?: string) => ({
+const node = (id: string, x: number, y: number, label: string, marked?: boolean) => ({
   id,
   x,
   y,
   data: {
     label,
-    group,
+    marked,
     inputs: id === 'a' ? [] : [{ id: 'in' }],
     outputs: id === 'd' ? [] : [{ id: 'out' }],
   },
@@ -60,8 +52,8 @@ const link = (from: string, to: string) => ({
 const doc = ref<FlowDocument>({
   nodes: [
     node('a', 0, 72, '收到订单'),
-    node('b', 240, 0, '检查库存', '准备'),
-    node('c', 240, 112, '计算运费', '准备'),
+    node('b', 240, 0, '检查库存', true),
+    node('c', 240, 112, '计算运费'),
     node('d', 480, 56, '安排发货'),
   ],
   edges: [link('a', 'b'), link('a', 'c'), link('b', 'd'), link('c', 'd')],

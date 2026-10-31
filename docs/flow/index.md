@@ -72,6 +72,7 @@ app.use(DouFlowEditor)
 | `Esc`                                | 拖动中按下时取消这次拖动，否则清除选择                                    |
 | `Ctrl` / `⌘` + `A`                   | 选中全部节点                                                              |
 | `Ctrl` / `⌘` + `C` / `X` / `V` / `D` | 复制、剪切、粘贴、复制一份                                                |
+| `Ctrl` / `⌘` + `G`                   | 把选中的节点放进分组，加 `Shift` 取消分组，见[分组](./groups)             |
 | `Ctrl` / `⌘` + `=` / `-` / `0`       | 放大、缩小、恢复 100%                                                     |
 | 按住空格拖动                         | 平移画布                                                                  |
 
@@ -150,6 +151,7 @@ app.use(DouFlowEditor)
 | `insertNode`                    | 新建一个节点并选中，见[用代码添加节点](./editing#用代码添加节点)         | `(type, options?) => string \| null`           |
 | `startInsertDrag`               | 从一次 `pointerdown` 开始拖入新节点，见[拖入节点](./editing#拖入节点)    | `(type, event) => boolean`                     |
 | `editLabel`                     | 选中一条连线并开始编辑它的标签，见[标签](./edges#标签)                   | `(id: string) => void`                         |
+| `groupNodes` / `ungroup`        | 放进分组、取消分组，见[分组](./groups#方法)                              | —                                              |
 
 ### FlowControls 属性
 

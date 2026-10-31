@@ -2338,7 +2338,7 @@ async function exportPNG(options: GanttImageOptions = {}) {
 const csvCell = (text: string) => (/[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text)
 
 /** A cell as a spreadsheet reads it: dates as `YYYY-MM-DD`, numbers without units. */
-function csvValue(row: GanttRow, column: GanttColumn) {
+function csvValue(row: GanttRow, column: GanttColumn, mixed: boolean) {
   if (column.value) {
     const value = column.value(row.task)
     if (value == null) return ''
@@ -2353,13 +2353,27 @@ function csvValue(row: GanttRow, column: GanttColumn) {
         )
       : ''
   if (row.milestone && ['end', 'duration', 'progress'].includes(column.key)) return ''
+  if (column.key === 'duration' && mixed && span)
+    return durationLabel(span, calendar.value, messages.value)
   return editorValue(row, column)
 }
 
 function exportCSV(options: GanttCSVOptions = {}) {
   const list = columns.value
-  const cell = options.text ? cellText : csvValue
-  const lines = [list.map((column) => csvCell(headerOf(column))).join(',')]
+  const m = messages.value
+  // durations are working days or working hours; the header says which, or each value does when both are in
+  const timed = new Set<boolean>()
+  for (const row of tree.value.byId.values())
+    if (row.span && !row.milestone) timed.add(!row.span.dateOnly)
+  const mixed = timed.size > 1
+  const header = (column: GanttColumn) => {
+    const title = headerOf(column)
+    if (options.text || column.value || column.key !== 'duration' || timed.size !== 1) return title
+    return format(timed.has(true) ? m.hoursColumn : m.daysColumn, { title })
+  }
+  const cell = (row: GanttRow, column: GanttColumn) =>
+    options.text ? cellText(row, column) : csvValue(row, column, mixed)
+  const lines = [list.map((column) => csvCell(header(column))).join(',')]
   // every task in order, those under a collapsed parent too
   for (const row of tree.value.byId.values())
     lines.push(list.map((column) => csvCell(cell(row, column))).join(','))
@@ -2738,7 +2752,11 @@ const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * prop
             v-for="item in markers"
             :key="item.key"
             class="dou-gantt__marker-label"
-            :class="[item.marker.tone && `is-${item.marker.tone}`, { 'is-crowded': !item.room }]"
+            :class="[
+              item.marker.tone && `is-${item.marker.tone}`,
+              { 'is-cut': item.room !== Infinity, 'is-crowded': !item.room },
+            ]"
+            :title="item.room !== Infinity ? item.marker.label : undefined"
             :style="{
               left: `${item.x}px`,
               maxWidth: item.room && item.room !== Infinity ? `${item.room}px` : undefined,

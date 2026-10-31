@@ -1128,12 +1128,19 @@
     transform: translateX(4px);
     pointer-events: none;
 
-    /* too close to the next marker: only the line shows */
+    /* may be cut short: the whole label shows on hover */
+    &.is-cut {
+      pointer-events: auto;
+    }
+    /* too close to the next marker: only the line shows, with room to hover */
     &.is-crowded {
-      visibility: hidden;
+      width: 12px;
+      padding: 0;
+      border-color: transparent;
+      background-color: transparent;
 
-      &::before {
-        visibility: visible;
+      > .dou-gantt__marker-text {
+        display: none;
       }
     }
 

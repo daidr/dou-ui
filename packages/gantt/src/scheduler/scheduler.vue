@@ -1293,7 +1293,11 @@ defineExpose<SchedulerExpose>({
             v-for="item in markers"
             :key="item.key"
             class="dou-gantt__marker-label"
-            :class="[item.marker.tone && `is-${item.marker.tone}`, { 'is-crowded': !item.room }]"
+            :class="[
+              item.marker.tone && `is-${item.marker.tone}`,
+              { 'is-cut': item.room !== Infinity, 'is-crowded': !item.room },
+            ]"
+            :title="item.room !== Infinity ? item.marker.label : undefined"
             :style="{
               left: `${item.x}px`,
               maxWidth: item.room && item.room !== Infinity ? `${item.room}px` : undefined,

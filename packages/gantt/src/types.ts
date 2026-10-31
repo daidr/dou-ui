@@ -254,7 +254,8 @@ export interface GanttExpose {
   /**
    * The table as CSV, every task in order. Dates are `YYYY-MM-DD` (with
    * `HH:mm` for timed tasks), the duration is working days (working hours
-   * for timed tasks) and progress is 0–100.
+   * for timed tasks, the unit in its header; with both, each value keeps
+   * its unit) and progress is 0–100.
    */
   exportCSV: (options?: GanttCSVOptions) => string
   /**

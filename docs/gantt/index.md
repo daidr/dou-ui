@@ -215,7 +215,7 @@ const broken = findBrokenLinks({ tasks, links }, { calendar })
 
 ## 标记线
 
-`markers` 在时间轴上画竖向的标记线，比如发布日、代码冻结。`date` 是位置，只写日期时在当天开始处；`label` 显示在表头；`tone` 可选 `neutral`、`primary`、`success`、`warning`、`danger`。
+`markers` 在时间轴上画竖向的标记线，比如发布日、代码冻结。`date` 是位置，只写日期时在当天开始处；`label` 显示在表头；`tone` 可选 `neutral`、`primary`、`success`、`warning`、`danger`。两个标记离得太近时，左边的标签会截短或只留下线，鼠标悬停可以看到完整文字。
 
 <DocDemo src="gantt/markers" column />
 
@@ -258,7 +258,7 @@ baseline.value = takeBaseline(tasks.value) // [{ id, start, end }, …]
 
 `print` 的选项是 `orientation`（`landscape` 横向或 `portrait` 纵向，默认横向）和 `table`。`table` 默认为 `true`：纸张放得下表格，即使窄屏上表格已经收起。时间跨度很长时，导出的图片最宽 16000px，超出时会自动缩小刻度。
 
-CSV 默认写入表格软件能排序和计算的值：日期是 `2026-03-02`（带时间的任务是 `2026-03-02 09:30`），工期是工作日数（带时间的任务是工作小时数），进度是 0–100 的数字。`exportCSV` 的选项：
+CSV 默认写入表格软件能排序和计算的值：日期是 `2026-03-02`（带时间的任务是 `2026-03-02 09:30`），工期是工作日数（带时间的任务是工作小时数），表头会写上单位，如“工期（天）”；两种任务都有时，工期保留单位，如 `5 天`、`2 小时`。进度是 0–100 的数字。`exportCSV` 的选项：
 
 | 名称   | 说明                                                    | 默认值  |
 | ------ | ------------------------------------------------------- | ------- |

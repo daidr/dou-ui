@@ -640,12 +640,24 @@ describe('export', () => {
     const csv = vm.exportCSV()
     expect(csv.startsWith('﻿')).toBe(true)
     expect(csv.slice(1).split('\r\n')).toEqual([
-      '任务,开始,工期',
+      '任务,开始,工期（天）',
       '发布,2026-03-02,11',
       '设计,2026-03-02,5',
       '开发,2026-03-09,5',
       '上线,2026-03-16,',
     ])
+    // with timed tasks too, each duration keeps its unit
+    tasks.value = [
+      ...tasks.value,
+      { id: 't', title: '评审会', start: '2026-03-03 10:00', end: '2026-03-03 12:00' },
+    ]
+    await nextTick()
+    expect(vm.exportCSV({ bom: false }).split('\r\n').slice(-1)).toEqual([
+      '评审会,2026-03-03 10:00,2 小时',
+    ])
+    expect(vm.exportCSV({ bom: false }).split('\r\n')[0]).toBe('任务,开始,工期')
+    tasks.value = tasks.value.filter((task) => task.id !== 't')
+    await nextTick()
     expect(vm.exportCSV({ text: true, bom: false }).split('\r\n')).toEqual([
       '任务,开始,工期',
       '发布,3月2日,11 天',

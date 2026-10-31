@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, provide, ref, useId, watch } from 'vue'
+import { computed, nextTick, provide, ref, useId, watch } from 'vue'
 import { DouPopover, DouTabPanel, DouTabs } from 'dou-ui'
 import { PanelLeftIcon, RedoIcon, UndoIcon } from '@dou-ui/icons'
 import { resolveFields } from '../fields/builtin'
@@ -41,11 +41,16 @@ provide(builderKey, state)
 
 const side = ref<'fields' | 'outline'>('fields')
 // On narrow builders the fields and the outline open from the toolbar,
-// and close once a node is added or picked, so the canvas shows it.
+// and close once a node is added or picked; focus moves to the canvas,
+// where the node now is.
 const sideOpen = ref(false)
 watch(
   () => state.selection,
-  () => (sideOpen.value = false),
+  () => {
+    if (!sideOpen.value) return
+    sideOpen.value = false
+    void nextTick(() => state.canvas.value?.focus({ preventScroll: true }))
+  },
 )
 
 const {

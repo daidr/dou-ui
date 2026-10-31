@@ -211,6 +211,7 @@
   }
 
   .dou-form-builder__node {
+    container: dou-form-builder-node / inline-size;
     position: relative;
     isolation: isolate;
     cursor: default;
@@ -345,6 +346,21 @@
     background: var(--dou-color-bg-surface);
     box-shadow: var(--dou-shadow-sm);
     white-space: nowrap;
+  }
+
+  /* The menu button shows only on nodes too narrow for the row of buttons. */
+  .dou-form-builder__actions-more {
+    display: none;
+  }
+
+  @container dou-form-builder-node (width < 360px) {
+    .dou-form-builder__actions > .dou-form-builder__action {
+      display: none;
+    }
+
+    .dou-form-builder__actions-more {
+      display: contents;
+    }
   }
 
   .dou-form-builder__action {

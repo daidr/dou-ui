@@ -32,6 +32,8 @@ export interface FormBuilderMessages {
     down: string
     duplicate: string
     remove: string
+    /** The button that holds the other actions when a node is too narrow to show them. */
+    more: string
     wrap: string
     addPage: string
     undo: string
@@ -116,6 +118,7 @@ const zhCN: FormBuilderMessages = {
     down: '下移',
     duplicate: '复制',
     remove: '删除',
+    more: '更多操作',
     wrap: '放进分组',
     addPage: '添加页面',
     undo: '撤销',
@@ -258,6 +261,7 @@ const zhTW: FormBuilderMessages = {
     down: '下移',
     duplicate: '複製',
     remove: '刪除',
+    more: '更多操作',
     wrap: '放進分組',
     addPage: '新增頁面',
     undo: '復原',
@@ -405,6 +409,7 @@ const en: FormBuilderMessages = {
     down: 'Move down',
     duplicate: 'Duplicate',
     remove: 'Delete',
+    more: 'More actions',
     wrap: 'Put in a section',
     addPage: 'Add page',
     undo: 'Undo',

@@ -205,12 +205,13 @@ const groups = defineFlowExtension({
         shortcut: 'mod+shift+g',
         run: () => void ctx.ungroupNode(target.node.id),
       })
-    else if (tree.parentOf(target.node.id))
+    // A group inside another can be ungrouped or taken out; the shortcut ungroups.
+    if (tree.parentOf(target.node.id))
       items.push({
         key: 'leave-group',
         label: t.leaveGroup,
         icon: UngroupIcon,
-        shortcut: 'mod+shift+g',
+        shortcut: ctx.isContainer(target.node) ? undefined : 'mod+shift+g',
         run: () => void ctx.leaveGroup(),
       })
     return items

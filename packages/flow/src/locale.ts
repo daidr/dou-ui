@@ -69,6 +69,8 @@ export interface FlowMessages {
   ungrouped: string
   expanded: string
   collapsed: string
+  /** After resizing from the keyboard; `{node}`, `{width}` and `{height}`. */
+  resized: string
   /** Why the selection can't be grouped. */
   groupMixed: string
   /** `{node}` is the new node's name. */
@@ -143,6 +145,7 @@ const zhCN: FlowMessages = {
   ungrouped: '已取消“{group}”',
   expanded: '已展开“{group}”',
   collapsed: '已收起“{group}”',
+  resized: '{node}，宽 {width}，高 {height}',
   groupMixed: '选中的节点不在同一个分组里，不能一起放进分组',
   added: '已添加{node}',
   connectTo: '连接到 {node} 的 {port}，方向键换一个，Enter 确认',
@@ -212,6 +215,7 @@ const zhTW: FlowMessages = {
   ungrouped: '已取消「{group}」',
   expanded: '已展開「{group}」',
   collapsed: '已收合「{group}」',
+  resized: '{node}，寬 {width}，高 {height}',
   groupMixed: '選取的節點不在同一個群組裡，不能一起放進群組',
   added: '已新增{node}',
   connectTo: '連接到 {node} 的 {port}，方向鍵換一個，Enter 確認',
@@ -281,6 +285,7 @@ const en: FlowMessages = {
   ungrouped: 'Ungrouped {group}',
   expanded: 'Expanded {group}',
   collapsed: 'Collapsed {group}',
+  resized: '{node}, {width} wide, {height} high',
   groupMixed: 'The selected nodes are in different groups and can’t be grouped together',
   added: 'Added {node}',
   connectTo: 'Connect to {port} of {node}; arrow keys pick another, Enter confirms',

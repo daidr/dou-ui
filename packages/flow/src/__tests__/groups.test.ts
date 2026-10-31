@@ -333,6 +333,8 @@ describe('groups in the editor', () => {
     await root.trigger('keydown', { key: 'ArrowRight', altKey: true })
     await root.trigger('keydown', { key: 'ArrowDown', altKey: true, shiftKey: true })
     expect(find(doc.value, 'g')).toMatchObject({ x: 0, y: 0, width: 528, height: 232 })
+    await ticks()
+    expect(root.find('.dou-flow-editor__live').text()).toBe('整理，宽 528，高 232')
   })
 
   it('tells screen readers what is a group and where a node is', async () => {

@@ -2626,20 +2626,26 @@ function resizeBy(dw: number, dh: number) {
     return node && specOf(node).resizable && !node.locked ? [node] : []
   })
   if (!nodes.length) return false
+  const sizes = nodes.map((node) => {
+    const resizable = specOf(node).resizable
+    const min = typeof resizable === 'object' ? resizable : {}
+    const rect = rectOf(node)
+    return {
+      node,
+      width: Math.max(min.minWidth ?? 40, rect.width + dw),
+      height: Math.max(min.minHeight ?? 40, rect.height + dh),
+    }
+  })
   transact(
     (tr) => {
-      for (const node of nodes) {
-        const resizable = specOf(node).resizable
-        const min = typeof resizable === 'object' ? resizable : {}
-        const rect = rectOf(node)
-        tr.updateNode(node.id, {
-          width: Math.max(min.minWidth ?? 40, rect.width + dw),
-          height: Math.max(min.minHeight ?? 40, rect.height + dh),
-        })
-      }
+      for (const { node, width, height } of sizes) tr.updateNode(node.id, { width, height })
     },
     { group: 'resize-keys' },
   )
+  if (sizes.length === 1) {
+    const { node, width, height } = sizes[0]!
+    announce(format(messages.value.resized, { node: nameOf(node), width, height }))
+  }
   return true
 }
 

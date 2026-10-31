@@ -1,4 +1,4 @@
-import { BREAK, decimate, visibleRange } from './decimate'
+import { BREAK, decimate, summarize, visibleRange } from './decimate'
 import { tracePoints, type Painter } from './painter'
 import { baseline } from './scale'
 import type { ChartSeries, ChartSeriesKind, ChartView } from './series'
@@ -40,7 +40,16 @@ export function drawLine(
   const along = swap ? plot.height : plot.width
   const xs = series.x.values
   const [from, to] = visibleRange(xs, series.x.sorted, sx.domain[0], sx.domain[1])
-  const { indices, length } = decimate(xs, series.top, from, to, sx.k, sx.b, style.connectNulls)
+  const { indices, length } = decimate(
+    xs,
+    series.top,
+    from,
+    to,
+    sx.k,
+    sx.b,
+    style.connectNulls,
+    series.x.sorted,
+  )
   if (length === 0) return
 
   const shown = to - from
@@ -124,9 +133,15 @@ export function drawLine(
   }
 }
 
+/** For a long line: what lets zooming and panning skip over most of it. */
+function prepare(series: ChartSeries<LineStyle>) {
+  if (series.x.sorted) summarize(series.x.values, series.top)
+}
+
 export const lineKind: ChartSeriesKind<LineStyle> = {
   type: 'line',
   draw: (painter, series, view) => drawLine(painter, series, view, false),
+  prepare,
 }
 
 export const areaKind: ChartSeriesKind<LineStyle> = {
@@ -134,4 +149,5 @@ export const areaKind: ChartSeriesKind<LineStyle> = {
   zero: true,
   stackable: true,
   draw: (painter, series, view) => drawLine(painter, series, view, true),
+  prepare,
 }

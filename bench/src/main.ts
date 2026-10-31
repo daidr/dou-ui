@@ -30,22 +30,34 @@ const entry = cases[name]!
   },
   async act() {
     if (!entry.act) return null
-    const root = document.getElementById('app')!
-    await entry.prepare?.(root)
-    await frame()
-    const start = performance.now()
-    await entry.act(root)
-    await nextTick()
-    await nextTick()
-    ;(window as any).scriptTime = performance.now() - start
-    await settle()
-    // Work deferred by a zero timeout, e.g. a debounce of 0.
-    await new Promise((resolve) => setTimeout(resolve))
-    await settle()
-    const time = performance.now() - start
-    await frame()
-    return time
+    if (!entry.frames) return once()
+    await once()
+    const times: number[] = []
+    for (let i = 0; i < entry.frames; i++) times.push(await once())
+    // oxlint-disable-next-line unicorn/no-array-sort -- sorts its own array
+    times.sort((a, b) => a - b)
+    return times[times.length >> 1]!
   },
   script: () => (window as any).scriptTime ?? null,
+  budget: () => entry.budget ?? null,
   nodes: () => document.getElementsByTagName('*').length,
+}
+
+async function once(): Promise<number> {
+  const root = document.getElementById('app')!
+  await entry.prepare?.(root)
+  await frame()
+  const start = performance.now()
+  await entry.act!(root)
+  await nextTick()
+  await nextTick()
+  ;(window as any).scriptTime = performance.now() - start
+  await settle()
+  // Work deferred by a zero timeout, e.g. a debounce of 0.
+  await new Promise((resolve) => setTimeout(resolve))
+  await settle()
+  // a case that waits for a frame says how long its own work took in it
+  const time = (window as any).workTime ?? performance.now() - start
+  await frame()
+  return time
 }

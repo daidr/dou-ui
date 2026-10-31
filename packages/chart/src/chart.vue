@@ -1615,6 +1615,41 @@ watch(
   { flush: 'post' },
 )
 
+/*
+ * What makes zooming and the first hover quick (summaries of long lines, a
+ * scatter's grid), worked out once the data has stayed a moment and the
+ * page is idle: live data, replaced many times a second, never pays for it.
+ */
+
+const STEADY = 300
+let steady = 0
+let idle = 0
+function cancelPrepare() {
+  if (steady) clearTimeout(steady)
+  if (idle) (typeof cancelIdleCallback === 'function' ? cancelIdleCallback : clearTimeout)(idle)
+  steady = idle = 0
+}
+watch(
+  series,
+  (list) => {
+    cancelPrepare()
+    if (!list.some((s) => s.kind.prepare)) return
+    const work = () => {
+      idle = 0
+      for (const s of list) s.kind.prepare?.(s)
+    }
+    steady = setTimeout(() => {
+      steady = 0
+      idle =
+        typeof requestIdleCallback === 'function'
+          ? requestIdleCallback(work, { timeout: 1000 })
+          : (setTimeout(work) as unknown as number)
+    }, STEADY) as unknown as number
+  },
+  { flush: 'post' },
+)
+onBeforeUnmount(cancelPrepare)
+
 /* motion: series come in, and move to new values */
 
 const reduced = useReducedMotion()
@@ -1995,8 +2030,11 @@ function xText(value: number): string {
   }
   if (m0.xKind === 'time') {
     if (xFormat) return xFormat(new Date(value))
-    const span = m0.x ? m0.x[1] - m0.x[0] : 0
-    return timeFormatFull(name, span < 2 * 86400e3 ? 'minute' : 'day')(value)
+    // as fine as what is shown: zoomed in to an hour, to the second
+    const shown = layout.value?.x.scale.domain ?? m0.x
+    const span = shown ? shown[1] - shown[0] : 0
+    const unit = span < 3600e3 ? 'second' : span < 2 * 86400e3 ? 'minute' : 'day'
+    return timeFormatFull(name, unit)(value)
   }
   if (xFormat) return xFormat(value)
   // whole numbers on the axis (years) read as the ticks show them
@@ -2125,11 +2163,48 @@ const stripState = computed(() => {
   }
 })
 
+/**
+ * What the strip's sketch is drawn from: its box, all of x and each y axis'
+ * whole span. Kept the same object while they stay, so panning, which only
+ * moves the shown part, doesn't draw the sketch again.
+ */
+interface StripSketch {
+  rect: Rect
+  x: Window
+  y: Record<string, { full: Window; log: boolean }>
+}
+
+const sameWindow = (a: Window, b: Window) => a[0] === b[0] && a[1] === b[1]
+
+const stripSketch = computed<StripSketch | null>((old) => {
+  const l = layout.value
+  if (!l?.strip || !rangePart.value) return null
+  const next: StripSketch = { rect: l.strip, x: l.x.full, y: {} }
+  for (const [name, axis] of Object.entries(l.y)) {
+    if (axis) next.y[name] = { full: axis.full, log: axis.scale.kind === 'log' }
+  }
+  if (
+    old &&
+    old.rect.x === next.rect.x &&
+    old.rect.y === next.rect.y &&
+    old.rect.width === next.rect.width &&
+    old.rect.height === next.rect.height &&
+    sameWindow(old.x, next.x) &&
+    Object.keys(old.y).length === Object.keys(next.y).length &&
+    Object.entries(next.y).every(([name, axis]) => {
+      const was = old.y[name]
+      return !!was && was.log === axis.log && sameWindow(was.full, axis.full)
+    })
+  )
+    return old
+  return next
+})
+
 /** Draws every series shown on the strip, in one quiet ink, over all of x. */
 function paintStrip(canvas: HTMLCanvasElement) {
-  const l = layout.value
-  const strip = l?.strip
-  if (!l || !strip) return
+  const sketch = stripSketch.value
+  if (!sketch) return
+  const strip = sketch.rect
   void themeVersion.value
   const dpr = dprNow()
   const width = Math.round(strip.width * dpr)
@@ -2151,11 +2226,11 @@ function paintStrip(canvas: HTMLCanvasElement) {
   const x =
     m.xKind === 'category'
       ? categoryScale(m.categories, along)
-      : linearScale(l.x.full, along, m.xKind === 'time' ? 'time' : 'linear')
+      : linearScale(sketch.x, along, m.xKind === 'time' ? 'time' : 'linear')
   const ink = resolveColor('var(--dou-chart-range-ink)')
   const length = horizontal ? strip.height : strip.width
   for (const s of series.value) {
-    const axis = l.y[s.axis]
+    const axis = sketch.y[s.axis]
     if (!axis) continue
     const span: [number, number] = horizontal ? [pad, strip.width - pad] : [strip.height - pad, pad]
     // the data's own span, so the sketch fills the strip
@@ -2163,7 +2238,7 @@ function paintStrip(canvas: HTMLCanvasElement) {
     const ends: Window = m.zero[s.axis]
       ? [Math.min(0, data[0]), Math.max(0, data[1])]
       : [data[0], data[1] > data[0] ? data[1] : data[0] + 1]
-    const y = axis.scale.kind === 'log' ? logScale(axis.full, span) : linearScale(ends, span)
+    const y = axis.log ? logScale(axis.full, span) : linearScale(ends, span)
     const step = m.xStep
     const band = x.kind === 'category' ? x.step : step > 0 ? step * Math.abs(x.k) : length / 8
     const view: ChartView = {
@@ -2191,6 +2266,7 @@ function paintStrip(canvas: HTMLCanvasElement) {
 const zoomLayer: ZoomLayerState = {
   brush: computed(() => brushDraft.value ?? selection.value),
   strip: stripState,
+  sketch: stripSketch,
   least: computed(() => {
     const l = layout.value
     if (!l) return 0

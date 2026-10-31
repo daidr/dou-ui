@@ -1,6 +1,6 @@
 <script setup>
 import { DouButton, DouSpace } from 'dou-ui'
-import { DouChart, DouChartAxis, DouChartLine, DouChartZoom } from '@dou-ui/chart'
+import { DouChart, DouChartAxis, DouChartLine, DouChartRange, DouChartZoom } from '@dou-ui/chart'
 import { shallowRef } from 'vue'
 
 // 大数据放在 shallowRef 里：数组整体替换，不需要逐项响应
@@ -19,7 +19,7 @@ function generate(n) {
   count.value = n
 }
 
-generate(100_000)
+generate(1_000_000)
 </script>
 
 <template>
@@ -34,6 +34,7 @@ generate(100_000)
       <DouChartAxis for="x" type="time" />
       <DouChartLine y="value" name="读数" :line-width="1.5" />
       <DouChartZoom />
+      <DouChartRange />
     </DouChart>
   </div>
 </template>

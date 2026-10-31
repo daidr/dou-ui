@@ -1,4 +1,5 @@
 import { toRaw } from 'vue'
+import { inOrder } from './hit'
 
 /** A row of chart data: usually an object, read through accessors. */
 export type ChartRow = any
@@ -72,16 +73,83 @@ export function inferXKind(rows: readonly ChartRow[], accessor: ChartAccessor): 
 
 const cache = new WeakMap<object, Map<string, Map<unknown, unknown>>>()
 
-function cached<T>(rows: readonly ChartRow[], scope: string, key: unknown, build: () => T): T {
+/*
+ * Live data comes as a new array each time: the last one with a few rows
+ * added at the end, and perhaps a few gone from the start. The column of
+ * the last array is then moved along and only the new rows are read.
+ */
+
+/** The last array a column was built from, for each scope and key. */
+const latest = new Map<string, { rows: WeakRef<readonly ChartRow[]>; value: unknown }>()
+/** At most this many rows gone from the start, for the rest to be kept. */
+const MOST_DROPPED = 4096
+
+/**
+ * How `rows` carries on from `before`: how many rows of `before` are gone
+ * from its start (`dropped`) and how many are kept (`kept`, the start of
+ * `rows`). `null` when it doesn't carry on from it.
+ */
+export function carriesOn(
+  rows: readonly ChartRow[],
+  before: readonly ChartRow[],
+): { dropped: number; kept: number } | null {
+  if (!rows.length || !before.length) return null
+  const first = rows[0]
+  let dropped = -1
+  for (let i = 0, most = Math.min(before.length, MOST_DROPPED); i < most; i++) {
+    if (before[i] === first) {
+      dropped = i
+      break
+    }
+  }
+  if (dropped < 0) return null
+  const kept = before.length - dropped
+  // nothing new: the rows may have been changed in place, so read them all
+  if (kept >= rows.length) return null
+  // the same rows at the end and in the middle: taken as the same throughout
+  if (rows[kept - 1] !== before[before.length - 1]) return null
+  if (rows[kept >> 1] !== before[dropped + (kept >> 1)]) return null
+  return { dropped, kept }
+}
+
+function cached<T>(
+  rows: readonly ChartRow[],
+  scope: string,
+  key: unknown,
+  build: () => T,
+  /** Builds it from the column of the array `rows` carries on from. */
+  extend?: (before: T, dropped: number, kept: number) => T | null,
+): T {
   let scopes = cache.get(rows)
   if (!scopes) cache.set(rows, (scopes = new Map()))
   let entries = scopes.get(scope)
   if (!entries) scopes.set(scope, (entries = new Map()))
   if (entries.has(key)) return entries.get(key) as T
-  const value = build()
+  // only keys read the same row the same wherever it is: a function also gets the index
+  const name = typeof key === 'string' ? `${scope}\u0000${key}` : null
+  let value: T | null = null
+  if (name && extend) {
+    const last = latest.get(name)
+    const before = last?.rows.deref()
+    const link = before && carriesOn(rows, before)
+    if (link) value = extend(last!.value as T, link.dropped, link.kept)
+  }
+  value ??= build()
   entries.set(key, value)
+  if (name && extend && typeof WeakRef === 'function')
+    latest.set(name, { rows: new WeakRef(rows), value })
   return value
 }
+
+/** Reads a number the way y columns do: anything not finite is `NaN`. */
+function toNumber(value: unknown): number {
+  const n =
+    typeof value === 'number' ? value : value == null || value === '' ? Number.NaN : Number(value)
+  return Number.isFinite(n) ? n : Number.NaN
+}
+
+/** X columns with a gap somewhere. */
+const gapped = new WeakSet<Float64Array>()
 
 /**
  * The x values of `rows` as one typed array. Built once per data array,
@@ -90,7 +158,35 @@ function cached<T>(rows: readonly ChartRow[], scope: string, key: unknown, build
  */
 export function xColumn(rows: readonly ChartRow[], accessor: ChartAccessor, kind: XKind): XColumn {
   const raw = toRaw(rows)
-  return cached(raw, `x:${kind}`, accessor, () => buildX(raw, accessor, kind))
+  return cached(
+    raw,
+    `x:${kind}`,
+    accessor,
+    () => buildX(raw, accessor, kind),
+    (before, dropped, kept) => {
+      // categories and gaps of the dropped rows would linger: built afresh
+      if (kind === 'category' || !before.sorted || gapped.has(before.values)) return null
+      const values = new Float64Array(raw.length)
+      values.set(before.values.subarray(dropped))
+      let last = kept > 0 ? values[kept - 1]! : -Infinity
+      for (let i = kept; i < raw.length; i++) {
+        const value = read(toRaw(raw[i]), accessor, i)
+        const n =
+          kind === 'time'
+            ? toTime(value)
+            : typeof value === 'number'
+              ? value
+              : value == null || value === ''
+                ? Number.NaN
+                : Number(value)
+        // out of order or missing: built afresh, which works out the rest
+        if (!(n >= last)) return null
+        values[i] = last = n
+      }
+      inOrder(values)
+      return { kind, values, categories: before.categories, sorted: true }
+    },
+  )
 }
 
 function buildX(rows: readonly ChartRow[], accessor: ChartAccessor, kind: XKind): XColumn {
@@ -98,6 +194,7 @@ function buildX(rows: readonly ChartRow[], accessor: ChartAccessor, kind: XKind)
   const categories: string[] = []
   const seen = new Map<string, number>()
   let sorted = true
+  let gaps = false
   let last = -Infinity
   for (let i = 0; i < rows.length; i++) {
     const value = read(toRaw(rows[i]), accessor, i)
@@ -118,7 +215,11 @@ function buildX(rows: readonly ChartRow[], accessor: ChartAccessor, kind: XKind)
     values[i] = n
     if (n < last) sorted = false
     if (n === n) last = n
+    else gaps = true
   }
+  // the order hovering needs is then just as the rows come
+  if (sorted && !gaps) inOrder(values)
+  if (gaps) gapped.add(values)
   return { kind, values, categories, sorted }
 }
 
@@ -128,20 +229,21 @@ function buildX(rows: readonly ChartRow[], accessor: ChartAccessor, kind: XKind)
  */
 export function yColumn(rows: readonly ChartRow[], accessor: ChartAccessor): Float64Array {
   const raw = toRaw(rows)
-  return cached(raw, 'y', accessor, () => {
-    const values = new Float64Array(raw.length)
-    for (let i = 0; i < raw.length; i++) {
-      const value = read(toRaw(raw[i]), accessor, i)
-      const n =
-        typeof value === 'number'
-          ? value
-          : value == null || value === ''
-            ? Number.NaN
-            : Number(value)
-      values[i] = Number.isFinite(n) ? n : Number.NaN
-    }
+  const column = (from: number, values: Float64Array) => {
+    for (let i = from; i < raw.length; i++) values[i] = toNumber(read(toRaw(raw[i]), accessor, i))
     return values
-  })
+  }
+  return cached(
+    raw,
+    'y',
+    accessor,
+    () => column(0, new Float64Array(raw.length)),
+    (before, dropped, kept) => {
+      const values = new Float64Array(raw.length)
+      values.set(before.subarray(dropped))
+      return column(kept, values)
+    },
+  )
 }
 
 /** The smallest and largest number in `values` (skipping `NaN`), or `null`. */

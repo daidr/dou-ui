@@ -1,6 +1,8 @@
 // Runs every case in Chromium and prints the median of several runs.
 // Usage: bun run bench [case...] [--n=1000,10000] [--runs=5] [--json=out.json]
-// Needs Playwright with Chromium: `bun add -g playwright && playwright install chromium`.
+// With --check (`bun run bench:check`): only the cases with a budget, at the
+// sizes it names, and exits with 1 when one takes longer than its budget.
+// Needs Chromium for Playwright: `bunx playwright install chromium`.
 import { createServer } from 'node:http'
 import { readFile } from 'node:fs/promises'
 import { extname, join } from 'node:path'
@@ -33,7 +35,19 @@ const all = [...source.matchAll(/^  '?([\w-]+)'?: \{$/gm)].map((match) => match[
 const names = args.filter((arg) => !arg.startsWith('--'))
 const selected = names.length ? all.filter((name) => names.includes(name)) : all
 
+const check = args.includes('--check')
 const browser = await chromium.launch()
+
+/** A case's budget: the most its `act` may take at each size. */
+async function budgetOf(name) {
+  const page = await browser.newPage()
+  await page.goto(`${base}?case=${name}&n=1`)
+  await page.waitForFunction(() => window.bench)
+  const budget = await page.evaluate(() => window.bench.budget())
+  await page.close()
+  return budget
+}
+const over = []
 const median = (list) => {
   const sorted = list.filter((x) => x != null).toSorted((a, b) => a - b)
   return sorted.length ? sorted[sorted.length >> 1] : null
@@ -41,9 +55,11 @@ const median = (list) => {
 const fmt = (x) => (x == null ? '-' : x.toFixed(1))
 const results = []
 const print = (line) => process.stdout.write(`${line}\n`)
-print('case\tn\tmount ms\tact ms\tact js ms\tnodes\theap MB')
+print(`case\tn\tmount ms\tact ms\tact js ms\tnodes\theap MB${check ? '\tbudget ms' : ''}`)
 for (const name of selected) {
-  for (const n of sizes) {
+  const budget = check ? await budgetOf(name) : null
+  if (check && !budget) continue
+  for (const n of budget ? Object.keys(budget).map(Number) : sizes) {
     const mounts = []
     const acts = []
     const scripts = []
@@ -77,8 +93,19 @@ for (const name of selected) {
     }
     results.push(row)
     print(
-      [name, n, fmt(row.mount), fmt(row.act), fmt(row.script), nodes, heap.toFixed(1)].join('\t'),
+      [
+        name,
+        n,
+        fmt(row.mount),
+        fmt(row.act),
+        fmt(row.script),
+        nodes,
+        heap.toFixed(1),
+        ...(budget ? [budget[n]] : []),
+      ].join('\t'),
     )
+    if (budget && !(row.act <= budget[n]))
+      over.push(`${name} at ${n}: ${fmt(row.act)}ms, budget ${budget[n]}ms`)
   }
 }
 await browser.close()
@@ -86,4 +113,8 @@ server.close()
 if (flag('json')) {
   const { writeFile } = await import('node:fs/promises')
   await writeFile(flag('json'), JSON.stringify(results, null, 2))
+}
+if (over.length) {
+  console.error(`\nOver budget:\n${over.join('\n')}`)
+  process.exit(1)
 }

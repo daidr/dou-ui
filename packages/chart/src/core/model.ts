@@ -68,6 +68,15 @@ function cachedExtent(values: Float64Array): [number, number] | null {
   return extents.get(values)!
 }
 
+/** The first and last number of a sorted column: its extent, without going through it. */
+function ends(values: Float64Array): [number, number] | null {
+  let a = 0
+  let b = values.length - 1
+  while (a <= b && values[a] !== values[a]) a++
+  while (b >= a && values[b] !== values[b]) b--
+  return a <= b ? [values[a]!, values[b]!] : null
+}
+
 /** Places rows by their index when there is no x. */
 const byIndex: ChartAccessor = (_row, index) => index
 
@@ -175,7 +184,7 @@ export function buildModel(
   if (kind === 'category') x = categories.length ? [0, categories.length - 1] : null
   else {
     for (const s of series) {
-      x = merge(x, cachedExtent(s.x.values))
+      x = merge(x, s.x.sorted ? ends(s.x.values) : cachedExtent(s.x.values))
       if (s.input.kind.band) {
         const gap = smallestGap(s.x.values)
         if (!(gap >= xStep)) xStep = gap

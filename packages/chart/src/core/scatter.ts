@@ -1,5 +1,6 @@
 import { yColumn, type ChartAccessor } from './data'
 import type { Painter } from './painter'
+import { eachNear, pointGrid } from './grid'
 import { nearestPoint } from './hit'
 import type { ChartHit, ChartSeries, ChartSeriesKind, ChartView } from './series'
 
@@ -245,8 +246,34 @@ export function hitScatter(
   const sizeKey = series.props.size
   if (sizeKey === undefined) {
     const r = series.props.radius ?? DOT
-    const hit = nearestPoint(n, point, px, py, () => Math.max(r + 4, 12))
-    return hit && { index: hit.index, radius: r }
+    const reach = Math.max(r + 4, 12)
+    if (n < MANY) {
+      const hit = nearestPoint(n, point, px, py, () => reach)
+      return hit && { index: hit.index, radius: r }
+    }
+    // many dots: only those in the cells around the pointer
+    const { x: sx, y: sy, horizontal } = view
+    const [along, across] = horizontal ? [py, px] : [px, py]
+    let index = -1
+    let distance = Infinity
+    eachNear(
+      pointGrid(series.x.values, series.top),
+      sx.invert(along - reach),
+      sx.invert(along + reach),
+      sy.invert(across - reach),
+      sy.invert(across + reach),
+      (i) => {
+        const at = point(i)
+        if (!at) return
+        const d = Math.hypot(at[0] - px, at[1] - py)
+        // as with fewer dots: of equal ones, the one drawn last
+        if (d <= reach && (d < distance || (d === distance && i > index))) {
+          index = i
+          distance = d
+        }
+      },
+    )
+    return index < 0 ? null : { index, radius: r }
   }
   const sizes = yColumn(series.rows, sizeKey)
   const radius = bubbleRadius(sizes, series.props.radius)
@@ -268,6 +295,11 @@ export const scatterKind: ChartSeriesKind<ScatterStyle> = {
   type: 'scatter',
   tooltip: 'item',
   hit: hitScatter,
+  // the grid for finding dots under the pointer, when there are many
+  prepare: (series) => {
+    const n = Math.min(series.x.values.length, series.top.length)
+    if (n >= MANY && series.props.size === undefined) pointGrid(series.x.values, series.top)
+  },
   // bubbles may be large: keep them inside the plot
   inset: ({ props }) => (props.size === undefined ? 0 : (props.radius ?? BUBBLE) + 1),
   draw: drawScatter,

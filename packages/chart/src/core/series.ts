@@ -112,6 +112,11 @@ export interface ChartSeriesKind<P = Record<string, unknown>> {
    * mark. By default, the nearest point within 12px.
    */
   hit?(series: ChartSeries<P>, view: ChartView, px: number, py: number): ChartHit | null
+  /**
+   * Work done ahead, when the page is idle after new data is drawn, so the
+   * first `hit` is as quick as the rest: building an index, say.
+   */
+  prepare?(series: ChartSeries<P>): void
 }
 
 /** A point found under the pointer. */

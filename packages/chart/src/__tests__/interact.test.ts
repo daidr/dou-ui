@@ -12,7 +12,7 @@ import {
 import { allX, angleAt, nearestPoint, nearestX, rowAt, sortedOrder } from '../core/hit'
 import { buildModel } from '../core/model'
 import { pieSlices } from '../core/pie'
-import { categoryScale, linearScale } from '../core/scale'
+import { categoryScale, linearScale, logScale } from '../core/scale'
 import { hitScatter, scatterKind } from '../core/scatter'
 import type { ChartSeries, ChartView } from '../core/series'
 
@@ -102,6 +102,73 @@ describe('finding what is under the pointer', () => {
     // inside the large one only
     expect(hitScatter(s as never, view, 100, 120)?.index).toBe(0)
     expect(hitScatter(s as never, view, 0, 0)).toBeNull()
+  })
+})
+
+describe('many dots', () => {
+  it('finds the same dot through the grid as by looking at all of them', () => {
+    let seed = 11
+    const random = () => (seed = (seed * 16807) % 2147483647) / 2147483647
+    const rows = Array.from({ length: 20_000 }, (_, i) => ({
+      // a few dots on top of each other, and a few with no value
+      x: i % 997 === 0 ? 50 : random() * 100,
+      y: i % 1009 === 0 ? null : i % 997 === 0 ? 50 : 1 + random() * 999,
+    }))
+    const model = buildModel([{ index: 0, kind: scatterKind, props: { y: 'y' } as never }], {
+      data: rows,
+      x: 'x',
+    })
+    const s = {
+      ...model.series[0]!,
+      index: 0,
+      kind: scatterKind,
+      props: model.series[0]!.input.props,
+      color: '#000',
+    } as ChartSeries
+    const plot = { x: 0, y: 0, width: 400, height: 300 }
+    for (const [horizontal, log] of [
+      [false, false],
+      [true, false],
+      [false, true],
+    ] as const) {
+      // zoomed in on part of x
+      const x = linearScale([20, 70], horizontal ? [300, 0] : [0, 400])
+      const y = log
+        ? logScale([1, 1000], [300, 0])
+        : linearScale([0, 1000], horizontal ? [0, 400] : [300, 0])
+      const view = {
+        x,
+        y,
+        horizontal,
+        band: 0,
+        point: (a: number, b: number) => (horizontal ? [y.map(b), x.map(a)] : [x.map(a), y.map(b)]),
+        plot,
+        dpr: 1,
+        colors: { surface: '#fff', grid: '#eee', baseline: '#ccc' },
+      } as ChartView
+      for (let k = 0; k < 200; k++) {
+        const px = random() * 400
+        const py = random() * 300
+        const all = nearestPoint(
+          rows.length,
+          (i) => {
+            const a = s.x.values[i]!
+            const b = s.top[i]!
+            if (a !== a || b !== b) return null
+            const [u, v] = view.point(a, b)
+            if (u < -8 || u > 408 || v < -8 || v > 308) return null
+            return [u, v]
+          },
+          px,
+          py,
+          () => 12,
+        )
+        expect(hitScatter(s as never, view, px, py)?.index).toBe(all?.index)
+      }
+      // the dots on top of each other: the last one
+      const [u, v] = view.point(50, 50)
+      expect(hitScatter(s as never, view, u, v)?.index).toBe(19_940)
+    }
   })
 })
 

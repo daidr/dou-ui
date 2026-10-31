@@ -24,6 +24,20 @@ export function sortedOrder(values: Float64Array): Int32Array {
   return order
 }
 
+let identity = new Int32Array(0)
+/**
+ * Notes that `values` go up with no gaps, so their order is just
+ * 0, 1, 2…: shared, so it costs nothing to make.
+ */
+export function inOrder(values: Float64Array) {
+  const n = values.length
+  if (identity.length < n) {
+    identity = new Int32Array(Math.max(n, identity.length * 2))
+    for (let i = 0; i < identity.length; i++) identity[i] = i
+  }
+  orders.set(values, identity.subarray(0, n))
+}
+
 /** The position in `order` of the first value not below `value`. */
 function lowerBound(values: Float64Array, order: Int32Array, value: number): number {
   let lo = 0

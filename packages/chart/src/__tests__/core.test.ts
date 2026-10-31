@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { inferXKind, toTime, xColumn, yColumn } from '../core/data'
-import { BREAK, decimate, visibleRange } from '../core/decimate'
+import { carriesOn, inferXKind, toTime, xColumn, yColumn } from '../core/data'
+import { sortedOrder } from '../core/hit'
+import { BREAK, decimate, summarize, visibleRange } from '../core/decimate'
 import { numberTickFormat, timeTickFormat } from '../core/format'
 import { areaKind, lineKind } from '../core/line'
 import { buildModel } from '../core/model'
@@ -48,6 +49,50 @@ describe('data', () => {
     expect([...y]).toEqual([1, Number.NaN, 3])
     expect(yColumn(rows, 'y')).toBe(y)
     expect(yColumn([...rows], 'y')).not.toBe(y)
+  })
+})
+
+const row = (t: number) => ({ t, v: t % 7 === 0 ? null : Math.sin(t) })
+const fresh = (rows: object[]) => rows.map((r) => ({ ...r }))
+const picked = (r: { indices: Int32Array; length: number }) => [...r.indices.subarray(0, r.length)]
+
+describe('live data', () => {
+  it('knows an array that carries on from the last one', () => {
+    const a = [1, 2, 3, 4].map(row)
+    expect(carriesOn([...a.slice(1), row(5)], a)).toEqual({ dropped: 1, kept: 3 })
+    expect(carriesOn([...a, row(5), row(6)], a)).toEqual({ dropped: 0, kept: 4 })
+    // the same rows and nothing new: perhaps changed in place
+    expect(carriesOn([...a], a)).toBeNull()
+    expect(carriesOn([a[0], a[1], row(9), a[3], row(5)], a)).toBeNull()
+    expect(carriesOn(fresh(a), a)).toBeNull()
+  })
+
+  it('reads only the new rows, and gets the same columns as reading them all', () => {
+    let rows = Array.from({ length: 50 }, (_, i) => row(i))
+    xColumn(rows, 't', 'time')
+    yColumn(rows, 'v')
+    for (let step = 1; step <= 30; step++) {
+      const added = Array.from({ length: (step % 3) + 1 }, (_, i) => row(1000 + step * 10 + i))
+      rows = [...rows.slice(step % 4), ...added]
+      const x = xColumn(rows, 't', 'time')
+      const y = yColumn(rows, 'v')
+      // a copy of each row: not linked to any array before
+      const copy = fresh(rows)
+      const whole = xColumn(copy, 't', 'time')
+      expect([...x.values]).toEqual([...whole.values])
+      expect(x.sorted).toBe(true)
+      expect([...y]).toEqual([...yColumn(copy, 'v')])
+      expect([...sortedOrder(x.values)]).toEqual([...sortedOrder(whole.values)])
+    }
+  })
+
+  it('reads everything again when a new row is out of order', () => {
+    const rows = [1, 2, 3].map(row)
+    xColumn(rows, 't', 'linear')
+    const next = [...rows, row(0)]
+    const x = xColumn(next, 't', 'linear')
+    expect([...x.values]).toEqual([1, 2, 3, 0])
+    expect(x.sorted).toBe(false)
   })
 })
 
@@ -181,6 +226,36 @@ describe('decimate', () => {
     }
     const { length } = decimate(xs, ys, 0, n, 1000 / n, 0)
     expect(length).toBeLessThanOrEqual(4 * 1001)
+  })
+
+  it('picks the same points when it skips whole blocks of a sorted line', () => {
+    const n = 200_000
+    const xs = new Float64Array(n)
+    const ys = new Float64Array(n)
+    let seed = 7
+    const random = () => (seed = (seed * 16807) % 2147483647) / 2147483647
+    for (let i = 0; i < n; i++) {
+      xs[i] = i + random() * 0.5
+      // whole numbers, so equal lows and highs come up
+      ys[i] = Math.round(Math.sin(i / 300) * 40 + random() * 20)
+    }
+    for (const gap of [5000, 5001, 70_123, 150_000]) ys[gap] = Number.NaN
+    xs[99_999] = Number.NaN
+    expect(summarize(xs, ys)).not.toBeNull()
+    for (const [from, to, width] of [
+      [0, n, 997],
+      [0, n, 40],
+      [1234, 187_777, 640],
+      [30_000, 31_000, 1000],
+    ] as const) {
+      const scale = width / (to - from)
+      const b = -from * scale + 0.37
+      for (const connect of [false, true]) {
+        const plain = picked(decimate(xs, ys, from, to, scale, b, connect))
+        const skipped = picked(decimate(xs, ys, from, to, scale, b, connect, true))
+        expect(skipped).toEqual(plain)
+      }
+    }
   })
 
   it('finds the visible part of a sorted column, one point wider each side', () => {

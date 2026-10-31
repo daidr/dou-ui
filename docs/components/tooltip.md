@@ -18,9 +18,15 @@
 
 <DocDemo src="tooltip/placement" />
 
+## 快捷键
+
+按钮有快捷键时，用 `shortcut` 写出来，按 `useHotkey` 的写法，例如 `mod+z`。提示在文字后面按当前平台显示按键（苹果设备上是 ⌘，其他是 Ctrl），并给触发元素加上 `aria-keyshortcuts`，读屏也能读到。
+
+<DocDemo src="tooltip/shortcut" />
+
 ## 自定义内容
 
-`content` 插槽可以放更丰富的内容，例如快捷键。
+`content` 插槽可以放更丰富的内容，例如标题加说明。
 
 <DocDemo src="tooltip/custom" />
 
@@ -44,6 +50,7 @@
 | -------------- | ------------------------------ | -------------------------------- | -------- |
 | `open`         | 是否显示，配合 `v-model:open`  | `boolean`                        | `false`  |
 | `content`      | 提示文字                       | `string`                         | —        |
+| `shortcut`     | 快捷键，显示在文字后面         | `string`                         | —        |
 | `placement`    | 首选的一侧                     | `Placement`                      | `'top'`  |
 | `disabled`     | 不再显示                       | `boolean`                        | `false`  |
 | `showDelay`    | 指向后多久显示，毫秒           | `number`                         | `200`    |

@@ -295,6 +295,20 @@ describe('keyboard and names', () => {
     expect(tool.value).toBe('select')
   })
 
+  it('names each tool, with its key apart, in our own tooltip', async () => {
+    const { root } = setup()
+    await ticks()
+    const rect = root.findAll('.dou-whiteboard-toolbar__button')[2]!
+    expect(rect.attributes('aria-label')).toBe('矩形')
+    expect(rect.attributes('aria-keyshortcuts')).toBe('R')
+    expect(rect.attributes('title')).toBeUndefined()
+    await rect.trigger('focusin')
+    await ticks()
+    const tip = document.querySelector('[role="tooltip"]')!
+    expect(tip.textContent).toBe('矩形R')
+    expect(rect.attributes('aria-describedby')).toBe(tip.id)
+  })
+
   it('draws connectors without an edge-type prop', async () => {
     const { root } = setup({
       nodes: [

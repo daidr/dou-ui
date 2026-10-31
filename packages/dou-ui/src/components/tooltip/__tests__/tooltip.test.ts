@@ -51,6 +51,42 @@ describe('DouTooltip', () => {
     wrapper.unmount()
   })
 
+  it('stays away on touch, where a tap would leave it up', async () => {
+    const wrapper = mount(DouTooltip, {
+      props: { content: '提示' },
+      slots: { default: () => h('button', '触发') },
+      attachTo: document.body,
+    })
+    const button = wrapper.get('button')
+    await button.trigger('pointerenter', { pointerType: 'touch' })
+    await button.trigger('pointerdown', { pointerType: 'touch' })
+    await button.trigger('mouseenter')
+    await button.trigger('focusin')
+    vi.advanceTimersByTime(300)
+    expect(wrapper.emitted('update:open')).toBeUndefined()
+    // Once it is left, a mouse or the keyboard brings the tip back.
+    await button.trigger('focusout')
+    await button.trigger('focusin')
+    expect(wrapper.emitted('update:open')?.at(-1)).toEqual([true])
+    wrapper.unmount()
+  })
+
+  it('shows a shortcut after the text and gives it to the trigger', async () => {
+    const wrapper = mount(DouTooltip, {
+      props: { content: '撤销', shortcut: 'mod+z', open: true },
+      slots: { default: () => h('button', { 'aria-label': '撤销' }) },
+      attachTo: document.body,
+    })
+    await nextTick()
+    expect(tooltip()?.querySelector('.dou-kbd')?.textContent).toBe('CtrlZ')
+    expect(tooltip()?.textContent).toBe('撤销CtrlZ')
+    expect(wrapper.get('button').attributes('aria-keyshortcuts')).toBe('Control+Z')
+    await wrapper.setProps({ shortcut: undefined })
+    expect(tooltip()?.querySelector('.dou-kbd')).toBeNull()
+    expect(wrapper.get('button').attributes('aria-keyshortcuts')).toBeUndefined()
+    wrapper.unmount()
+  })
+
   it('wraps plain text in a span and stays silent when disabled', async () => {
     const wrapper = mount(DouTooltip, {
       props: { content: '提示', disabled: true },

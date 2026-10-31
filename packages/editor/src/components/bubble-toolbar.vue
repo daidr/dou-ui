@@ -5,7 +5,6 @@ import {
   DouDropdown,
   DouDropdownItem,
   DouInput,
-  DouKbd,
   DouToggle,
   DouToggleGroup,
   DouToolbar,
@@ -318,20 +317,20 @@ defineExpose({ editLink })
           :aria-label="messages.formatting"
           @update:model-value="onMarks"
         >
-          <DouTooltip v-for="mark in marks" :key="mark.mark" placement="bottom">
+          <DouTooltip
+            v-for="mark in marks"
+            :key="mark.mark"
+            :content="labelOf(mark.label, messages)"
+            :shortcut="mark.hotkey"
+            placement="bottom"
+          >
             <DouToggle :value="mark.mark" :aria-label="labelOf(mark.label, messages)">
               <component :is="mark.icon" />
             </DouToggle>
-            <template #content>
-              <span class="dou-editor-bubble__tip"
-                >{{ labelOf(mark.label, messages) }}
-                <DouKbd v-if="mark.hotkey" size="sm" :keys="mark.hotkey"
-              /></span>
-            </template>
           </DouTooltip>
         </DouToggleGroup>
         <DouToolbarSeparator v-if="linkMark" />
-        <DouTooltip v-if="linkMark" placement="bottom">
+        <DouTooltip v-if="linkMark" :content="messages.link" shortcut="mod+k" placement="bottom">
           <DouToggle
             :pressed="!!currentHref"
             :aria-label="messages.link"
@@ -339,11 +338,6 @@ defineExpose({ editLink })
           >
             <LinkIcon />
           </DouToggle>
-          <template #content>
-            <span class="dou-editor-bubble__tip"
-              >{{ messages.link }} <DouKbd size="sm" keys="mod+k"
-            /></span>
-          </template>
         </DouTooltip>
       </DouToolbar>
     </div>

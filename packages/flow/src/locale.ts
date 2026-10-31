@@ -15,6 +15,8 @@ export interface FlowMessages {
   zoomOut: string
   /** `{value}` is the zoom in percent. */
   zoomLevel: string
+  /** The tip on the zoom level, which resets it. */
+  zoomReset: string
   fit: string
   tidy: string
   minimap: string
@@ -118,8 +120,6 @@ export interface FlowMessages {
     text: string
     /** The field for a node's text. */
     editText: string
-    /** Read after a tool's name; `{key}` is its key. */
-    key: string
     /** Announced when a tool is picked; `{tool}` is its name. */
     picked: string
     /** A node's name when it has text; `{kind}` is what it is, as `rect` or `sticky`. */
@@ -164,6 +164,7 @@ const zhCN: FlowMessages = {
   zoomIn: '放大',
   zoomOut: '缩小',
   zoomLevel: '缩放 {value}%，点击恢复 100%',
+  zoomReset: '恢复 100%',
   fit: '适应画布',
   tidy: '整理',
   minimap: '小地图，点击或拖动移动画布',
@@ -242,7 +243,6 @@ const zhCN: FlowMessages = {
     sticky: '便签',
     text: '文字',
     editText: '编辑文字',
-    key: '{tool}（{key}）',
     picked: '已选择{tool}工具',
     named: '{kind}：{text}',
     pen: '画笔',
@@ -277,6 +277,7 @@ const zhTW: FlowMessages = {
   zoomIn: '放大',
   zoomOut: '縮小',
   zoomLevel: '縮放 {value}%，點擊恢復 100%',
+  zoomReset: '恢復 100%',
   fit: '適應畫布',
   tidy: '整理',
   minimap: '小地圖，點擊或拖曳移動畫布',
@@ -355,7 +356,6 @@ const zhTW: FlowMessages = {
     sticky: '便利貼',
     text: '文字',
     editText: '編輯文字',
-    key: '{tool}（{key}）',
     picked: '已選取{tool}工具',
     named: '{kind}：{text}',
     pen: '畫筆',
@@ -390,6 +390,7 @@ const en: FlowMessages = {
   zoomIn: 'Zoom in',
   zoomOut: 'Zoom out',
   zoomLevel: 'Zoom {value}%, click to reset to 100%',
+  zoomReset: 'Reset to 100%',
   fit: 'Fit to view',
   tidy: 'Tidy up',
   minimap: 'Minimap; click or drag to move the canvas',
@@ -468,7 +469,6 @@ const en: FlowMessages = {
     sticky: 'Sticky note',
     text: 'Text',
     editText: 'Edit text',
-    key: '{tool} ({key})',
     picked: '{tool} tool',
     named: '{kind}: {text}',
     pen: 'Pen',

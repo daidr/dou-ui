@@ -63,7 +63,7 @@ describe('DouFlowEditor', () => {
     wrapper.unmount()
   })
 
-  it('starts no text selection on the canvas, only in fields', () => {
+  it('starts no text selection on the canvas, only in fields and nodrag parts', () => {
     const { wrapper, root } = setup()
     const node = wrapper.find('[data-node-id="a"]').element
     // The text node itself, as a browser sends it.
@@ -77,6 +77,11 @@ describe('DouFlowEditor', () => {
     editable.textContent = '备注'
     node.append(editable)
     expect(selectstart(editable.firstChild!)).toBe(false)
+    const output = document.createElement('pre')
+    output.dataset.flowNodrag = ''
+    output.textContent = '运行结果'
+    node.append(output)
+    expect(selectstart(output.firstChild!)).toBe(false)
     wrapper.unmount()
   })
 

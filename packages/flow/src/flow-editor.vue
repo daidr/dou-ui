@@ -1140,14 +1140,15 @@ let lastTouch = 0
 const touches = new Map<number, Point>()
 let pinch: { distance: number; mid: Point; origin: FlowViewport } | null = null
 
-const isInteractive = (el: Element) =>
-  !!el.closest(
-    'input, textarea, select, button, a[href], [contenteditable=""], [contenteditable="true"], [data-flow-nodrag]',
-  )
+/** Where people type or read: presses there don't drag, and text can be selected. */
+const FIELDS =
+  'input, textarea, [contenteditable]:not([contenteditable="false"]), [data-flow-nodrag]'
+const isInteractive = (el: Element) => !!el.closest(`${FIELDS}, select, button, a[href]`)
 const inPanels = (el: Element) => !!el.closest('.dou-flow-editor__panels > *')
 
 /**
- * No text selection starts on the canvas, only in fields being typed in.
+ * No text selection starts on the canvas, only in fields and in parts of
+ * nodes marked `data-flow-nodrag`.
  * `user-select: none` says the same, but a user style or a browser
  * extension can turn selecting back on, and then every drag paints its way
  * across the nodes and panels.
@@ -1155,8 +1156,7 @@ const inPanels = (el: Element) => !!el.closest('.dou-flow-editor__panels > *')
 function onSelectstart(event: Event) {
   const node = event.target as Node
   const el = node instanceof Element ? node : node.parentElement
-  if (!el?.closest('input, textarea, [contenteditable]:not([contenteditable="false"])'))
-    event.preventDefault()
+  if (!el?.closest(FIELDS)) event.preventDefault()
 }
 
 /** Keeps receiving a pointer's events once it leaves the editor. */

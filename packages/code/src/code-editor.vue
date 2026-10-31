@@ -4259,8 +4259,6 @@ defineExpose<CodeEditorExpose>(api)
             :aria-placeholder="placeholder || undefined"
             :aria-autocomplete="hasCompletion ? 'list' : undefined"
             :aria-controls="completion ? completionId : undefined"
-            :aria-expanded="hasCompletion ? !!completion : undefined"
-            :aria-activedescendant="completion ? `${completionId}-${completion.index}` : undefined"
             :readonly="readonly"
             :disabled="disabled"
             wrap="off"

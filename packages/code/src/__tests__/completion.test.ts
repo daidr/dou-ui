@@ -113,8 +113,9 @@ describe('completion', () => {
     await type('cons')
     await nextTick()
     expect(labels()).toEqual(['const', 'console', 'constructor'])
-    expect(input.getAttribute('aria-expanded')).toBe('true')
-    expect(input.getAttribute('aria-activedescendant')).toMatch(/-0$/)
+    // Read out through the live region; the textarea is no combobox.
+    expect(input.getAttribute('aria-controls')).toBeTruthy()
+    expect(wrapper.find('.dou-code-editor__live').text()).toContain('const')
     await key('ArrowDown')
     expect(wrapper.find('.dou-code-editor__completion.is-active').text()).toContain('console')
     await key('Enter')

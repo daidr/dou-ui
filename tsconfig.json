@@ -10,6 +10,7 @@
       "@dou-ui/editor": ["./packages/editor/src/index.ts"],
       "@dou-ui/editor/collaboration": ["./packages/editor/src/collaboration/index.ts"],
       "@dou-ui/flow": ["./packages/flow/src/index.ts"],
+      "@dou-ui/chart": ["./packages/chart/src/index.ts"],
       "@dou-ui/gantt": ["./packages/gantt/src/index.ts"],
       "@dou-ui/gantt/collaboration": ["./packages/gantt/src/collaboration/index.ts"],
       "@dou-ui/gantt/scheduler": ["./packages/gantt/src/scheduler/index.ts"],

@@ -1350,6 +1350,30 @@ const ecosystemArts: Record<string, string | ((id: string) => string)> = {
     })
     return art + path(`M124 30v76`, 'la') + circle(124, 30, 2, 'a')
   },
+  // two series over a quiet grid: a line with its area, and a second color
+  chart: () => {
+    const left = 48
+    const right = 166
+    const top = 30
+    const bottom = 92
+    const sales = [30, 42, 38, 56, 50, 68, 74]
+    const visits = [18, 24, 32, 28, 40, 36, 48]
+    const x = (i: number) => left + ((right - left) * i) / (sales.length - 1)
+    const y = (v: number) => bottom - ((bottom - top) * v) / 80
+    const line = (values: number[]) =>
+      values.map((v, i) => `${i ? 'L' : 'M'}${x(i)} ${y(v)}`).join('')
+    let art = rect(20, 14, 160, 92, 'p', 8)
+    for (const v of [20, 40, 60, 80]) art += path(`M${left} ${y(v)}H${right}`, 'lb')
+    art += path(`M${left} ${bottom}H${right}`, 'ln')
+    for (const v of [0, 40, 80]) art += bar(left - 18, y(v) - 2, v ? 10 : 6, 't')
+    art +=
+      path(`${line(sales)}V${bottom}H${left}Z`, 'ac1') +
+      path(line(sales), 'lk w2 join data') +
+      path(line(visits), 'lc2 w2 join data')
+    sales.forEach((v, i) => (art += circle(x(i), y(v), 2, 'k')))
+    visits.forEach((v, i) => (art += circle(x(i), y(v), 2, 'c2')))
+    return art
+  },
   // the icon gallery: a search field above a grid of icons
   icons:
     field(40, 18, 120, 20, 0) +

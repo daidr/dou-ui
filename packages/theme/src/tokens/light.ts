@@ -33,6 +33,16 @@ export const light: ThemeTokens = {
     },
     focus: '#6a82cf',
     edge: '#000000',
+    chart: {
+      1: '#3d3d3d',
+      2: '#3f6aa1',
+      3: '#b08341',
+      4: '#2a9f9a',
+      5: '#b4666d',
+      6: '#5b4481',
+      7: '#48773e',
+      8: '#7e3e1e',
+    },
   },
   font: {
     family:

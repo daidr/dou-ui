@@ -10,6 +10,7 @@ const groups = [
       { key: 'editor', name: '块编辑器', label: '@dou-ui/editor', link: '/editor/' },
       { key: 'flow', name: '流程编辑器', label: '@dou-ui/flow', link: '/flow/' },
       { key: 'gantt', name: '甘特图', label: '@dou-ui/gantt', link: '/gantt/' },
+      { key: 'chart', name: '图表', label: '@dou-ui/chart', link: '/chart/' },
     ],
   },
   {

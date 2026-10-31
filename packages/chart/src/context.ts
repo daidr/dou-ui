@@ -1,0 +1,42 @@
+import { getCurrentInstance, inject, onBeforeUnmount, onMounted, type InjectionKey } from 'vue'
+import type { AxisConfig } from './core/layout'
+import type { ChartSeriesProps, SeriesKind } from './core/series'
+
+/** A child component as the chart keeps it. */
+export interface ChartPart<P> {
+  props: P
+  /** The child's place in the page, which orders the children as written. */
+  el: () => Node | null
+}
+
+export interface SeriesPart extends ChartPart<ChartSeriesProps & Record<string, unknown>> {
+  kind: SeriesKind
+}
+
+export type AxisPart = ChartPart<Partial<AxisConfig> & Pick<AxisConfig, 'position'>>
+
+export interface ChartRegistry {
+  addSeries(part: SeriesPart): () => void
+  addAxis(part: AxisPart): () => void
+}
+
+export const chartKey: InjectionKey<ChartRegistry> = Symbol('DouChart')
+
+/** Registers a child (a series, an axis) with the surrounding chart while it is mounted. */
+export function useChartPart(name: string, add: (registry: ChartRegistry) => () => void) {
+  const registry = inject(chartKey, null)
+  if (!registry) {
+    if (process.env.NODE_ENV !== 'production')
+      console.warn(`[@dou-ui/chart] <${name}> must be placed inside <DouChart>.`)
+    return
+  }
+  let remove: (() => void) | undefined
+  onMounted(() => (remove = add(registry)))
+  onBeforeUnmount(() => remove?.())
+}
+
+/** The node a renderless child leaves in the page. */
+export function useOwnNode(): () => Node | null {
+  const instance = getCurrentInstance()
+  return () => (instance?.vnode.el as Node | null) ?? null
+}

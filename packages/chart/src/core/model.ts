@@ -1,0 +1,176 @@
+import {
+  extent,
+  inferXKind,
+  xColumn,
+  yColumn,
+  type ChartAccessor,
+  type ChartRow,
+  type XColumn,
+  type XKind,
+} from './data'
+import type { ChartSeriesProps, ChartValueAxis, SeriesKind } from './series'
+
+/** A series as registered by its component. */
+export interface SeriesInput {
+  index: number
+  kind: SeriesKind
+  props: ChartSeriesProps & { stack?: string | boolean; hidden?: boolean } & Record<string, unknown>
+}
+
+/** A series with its data read, before colors are worked out. */
+export interface ModelSeries {
+  input: SeriesInput
+  name: string
+  axis: ChartValueAxis
+  x: XColumn
+  y: Float64Array
+  top: Float64Array
+  base: Float64Array | null
+}
+
+export interface ChartModel {
+  series: ModelSeries[]
+  xKind: XKind
+  categories: string[]
+  /** The smallest and largest x (for `band`: the first and last category index). */
+  x: [number, number] | null
+  /** The smallest and largest value on each y axis, with 0 when a series grows from it. */
+  y: Record<ChartValueAxis, [number, number] | null>
+  /** Whether each y axis must reach 0. */
+  zero: Record<ChartValueAxis, boolean>
+}
+
+const extents = new WeakMap<Float64Array, [number, number] | null>()
+function cachedExtent(values: Float64Array): [number, number] | null {
+  if (!extents.has(values)) extents.set(values, extent(values))
+  return extents.get(values)!
+}
+
+/** Places rows by their index when there is no x. */
+const byIndex: ChartAccessor = (_row, index) => index
+
+const merge = (a: [number, number] | null, b: [number, number] | null): [number, number] | null =>
+  !a ? b : !b ? a : [Math.min(a[0], b[0]), Math.max(a[1], b[1])]
+
+/**
+ * Reads the data of every shown series into columns, lines up categories
+ * shared by series with their own data, stacks what stacks, and finds the
+ * range of each axis.
+ */
+export function buildModel(
+  inputs: SeriesInput[],
+  chart: { data: readonly ChartRow[]; x?: ChartAccessor; xKind?: XKind },
+): ChartModel {
+  const shown = inputs.filter((input) => !input.props.hidden)
+  const sourceOf = (input: SeriesInput) => ({
+    rows: input.props.data ?? chart.data,
+    x: input.props.x ?? chart.x,
+  })
+
+  // how x is read: as the x axis says, else guessed from the first series with data
+  let xKind = chart.xKind
+  if (!xKind) {
+    xKind = 'linear'
+    for (const input of shown) {
+      const { rows, x } = sourceOf(input)
+      if (x !== undefined && rows.length) {
+        xKind = inferXKind(rows, x)
+        break
+      }
+    }
+  }
+  const kind = xKind
+
+  const series: ModelSeries[] = shown.map((input) => {
+    const { rows, x } = sourceOf(input)
+    // no x: rows are placed by their index
+    const column = xColumn(rows, x ?? byIndex, x === undefined ? 'linear' : kind)
+    const y = yColumn(rows, input.props.y)
+    const name =
+      input.props.name ?? (typeof input.props.y === 'string' ? input.props.y : `${input.index + 1}`)
+    return { input, name, axis: input.props.axis ?? 'left', x: column, y, top: y, base: null }
+  })
+
+  // categories of series with their own data are merged, in order of first appearance
+  let categories: string[] = []
+  if (kind === 'band') {
+    const columns = [...new Set(series.map((s) => s.x))]
+    if (columns.length === 1) categories = columns[0]!.categories
+    else {
+      const at = new Map<string, number>()
+      for (const column of columns)
+        for (const label of column.categories) if (!at.has(label)) at.set(label, at.size)
+      categories = [...at.keys()]
+      const remapped = new Map<XColumn, XColumn>()
+      for (const column of columns) {
+        const values = new Float64Array(column.values.length)
+        for (let i = 0; i < values.length; i++)
+          values[i] = at.get(column.categories[column.values[i]!]!)!
+        remapped.set(column, { ...column, values, categories, sorted: false })
+      }
+      for (const s of series) s.x = remapped.get(s.x)!
+    }
+  }
+
+  stack(series)
+
+  let x: [number, number] | null = null
+  if (kind === 'band') x = categories.length ? [0, categories.length - 1] : null
+  else for (const s of series) x = merge(x, cachedExtent(s.x.values))
+
+  const y: ChartModel['y'] = { left: null, right: null }
+  const zero: ChartModel['zero'] = { left: false, right: false }
+  for (const s of series) {
+    y[s.axis] = merge(y[s.axis], cachedExtent(s.top))
+    if (s.base) y[s.axis] = merge(y[s.axis], cachedExtent(s.base))
+    if (s.input.kind.zero) zero[s.axis] = true
+  }
+
+  return { series, xKind: kind, categories, x, y, zero }
+}
+
+/**
+ * Stacks series that share a `stack` name, the same axis and the same x
+ * values: each sits on the ones before it, positives upwards and
+ * negatives downwards. A gap counts as 0 for the ones above.
+ */
+function stack(series: ModelSeries[]) {
+  const groups = new Map<string, ModelSeries[]>()
+  for (const s of series) {
+    const name = s.input.props.stack
+    if (!s.input.kind.stacks || name === undefined || name === false) continue
+    const key = `${s.axis}\u0000${name === true ? '' : name}`
+    const group = groups.get(key)
+    if (!group) groups.set(key, [s])
+    else if (group[0]!.x === s.x) group.push(s)
+    // the app's bundler replaces this, as for Vue's own warnings
+    else if (process.env.NODE_ENV !== 'production')
+      console.warn(
+        `[@dou-ui/chart] series "${s.name}" has other x values than its stack, so it is drawn unstacked.`,
+      )
+  }
+  for (const group of groups.values()) {
+    const length = group[0]!.y.length
+    const up = new Float64Array(length)
+    const down = new Float64Array(length)
+    for (const s of group) {
+      const base = new Float64Array(length)
+      const top = new Float64Array(length)
+      for (let i = 0; i < length; i++) {
+        const v = s.y[i]!
+        if (v !== v) {
+          // a gap: no slice of its own, the next one sits where it would
+          base[i] = top[i] = Number.NaN
+          continue
+        }
+        const from = v >= 0 ? up[i]! : down[i]!
+        base[i] = from
+        top[i] = from + v
+        if (v >= 0) up[i] = top[i]!
+        else down[i] = top[i]!
+      }
+      s.base = base
+      s.top = top
+    }
+  }
+}

@@ -333,14 +333,14 @@
   .dou-form-builder__actions {
     position: absolute;
     z-index: 2;
-    inset-block-start: calc(var(--dou-form-builder-outset) * -1 + 3px);
-    inset-inline-end: calc(var(--dou-form-builder-outset) * -1 + 3px);
+    inset-block-start: calc(var(--dou-form-builder-outset) * -1 + 1px);
+    inset-inline-end: calc(var(--dou-form-builder-outset) * -1 + 1px);
     display: flex;
-    gap: 2px;
+    gap: 0;
     align-items: center;
     box-sizing: border-box;
-    height: 26px;
-    padding: 2px;
+    height: 22px;
+    padding: 0;
     border: 1px solid var(--dou-color-border);
     border-radius: var(--dou-radius-control);
     background: var(--dou-color-bg-surface);

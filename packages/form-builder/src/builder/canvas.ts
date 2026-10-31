@@ -12,6 +12,7 @@ import {
 } from 'vue'
 import type { InjectionKey, PropType, VNode } from 'vue'
 import { DouButton, DouDropdown, DouDropdownItem, DouForm } from 'dou-ui'
+import type { DropdownExpose } from 'dou-ui'
 import {
   ArrowDownIcon,
   ArrowUpIcon,
@@ -596,13 +597,37 @@ function actionBar(state: BuilderState, node: FormNode, title: string) {
     },
   ].filter((action) => action !== null)
   // A node too narrow for the row of buttons gets one button with a menu instead (see style.css).
+  let menu: DropdownExpose | null = null
   const more = h(
     DouDropdown,
-    { placement: 'bottom-end', onSelect: after },
+    {
+      ref: (instance: unknown) => (menu = instance as DropdownExpose | null),
+      placement: 'bottom-end',
+      // Closed by a choice, Escape or a press outside: the keys go on working on the canvas.
+      'onUpdate:open': (open: boolean) => {
+        if (!open) requestAnimationFrame(after)
+      },
+    },
     {
       default: () =>
-        actionButton(messages.actions.more, h(MoreHorizontalIcon), (event) =>
-          event.stopPropagation(),
+        h(
+          'button',
+          {
+            type: 'button',
+            class: 'dou-form-builder__action',
+            tabindex: -1,
+            'aria-label': messages.actions.more,
+            title: messages.actions.more,
+            onClick: (event: MouseEvent) => event.stopPropagation(),
+            // Escape closes the open menu only, rather than selecting the parent on the canvas.
+            onKeydown: (event: KeyboardEvent) => {
+              const target = event.currentTarget as HTMLElement
+              if (event.key !== 'Escape' || target.getAttribute('aria-expanded') !== 'true') return
+              event.stopPropagation()
+              menu?.close()
+            },
+          },
+          h(MoreHorizontalIcon),
         ),
       menu: () =>
         actions.map((action) =>

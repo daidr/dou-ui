@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import { computed, shallowRef, watch } from 'vue'
-import { DouButton, DouInput, DouInputNumber, DouSegmentedControl, DouSelect } from 'dou-ui'
+import {
+  DouButton,
+  DouInput,
+  DouInputNumber,
+  DouSegmentedControl,
+  DouSelect,
+  DouTooltip,
+} from 'dou-ui'
 import type { SelectValue } from 'dou-ui'
 import { BracesIcon, CloseIcon, FilterIcon, PlusIcon } from '@dou-ui/icons'
 import { parseCondition, printCondition, unaryOperators } from './condition'
@@ -216,16 +223,17 @@ const textValue = computed({
             class="dou-form-builder__condition-field"
             @update:model-value="pickField(index, $event)"
           />
-          <DouButton
-            :aria-label="words.remove"
-            :title="words.remove"
-            :disabled="disabled"
-            size="sm"
-            variant="ghost"
-            @click="removeRow(index)"
-          >
-            <CloseIcon />
-          </DouButton>
+          <DouTooltip :content="words.remove">
+            <DouButton
+              :aria-label="words.remove"
+              :disabled="disabled"
+              size="sm"
+              variant="ghost"
+              @click="removeRow(index)"
+            >
+              <CloseIcon />
+            </DouButton>
+          </DouTooltip>
         </div>
         <div class="dou-form-builder__condition-line">
           <DouSelect
@@ -318,18 +326,19 @@ const textValue = computed({
         <template #leading><BracesIcon /></template>
         {{ words.toText }}
       </DouButton>
-      <DouButton
-        v-else
-        size="sm"
-        variant="ghost"
-        class="dou-form-builder__condition-mode"
-        :disabled="disabled || !canUseRows"
-        :title="canUseRows ? undefined : words.notRows"
-        @click="toRows"
-      >
-        <template #leading><FilterIcon /></template>
-        {{ words.toRows }}
-      </DouButton>
+      <!-- Says why rows are out of reach. -->
+      <DouTooltip v-else :content="words.notRows" :disabled="canUseRows">
+        <DouButton
+          size="sm"
+          variant="ghost"
+          class="dou-form-builder__condition-mode"
+          :disabled="disabled || !canUseRows"
+          @click="toRows"
+        >
+          <template #leading><FilterIcon /></template>
+          {{ words.toRows }}
+        </DouButton>
+      </DouTooltip>
     </div>
   </div>
 </template>

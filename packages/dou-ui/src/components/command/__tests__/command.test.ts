@@ -5,7 +5,7 @@ import { DouCommand, DouCommandDialog, fuzzyMatch } from '../../../index'
 import type { CommandItem } from '../../../index'
 
 const items: CommandItem[] = [
-  { value: 'new', label: '新建项目', group: '操作', shortcut: ['⌘', 'N'] },
+  { value: 'new', label: '新建项目', group: '操作', shortcut: 'mod+n' },
   { value: 'deploy', label: 'Deploy to production', group: '操作', keywords: ['上线', 'release'] },
   { value: 'disabled', label: 'Delete project', group: '操作', disabled: true },
   { value: 'settings', label: 'Open settings', group: '导航', description: '域名、环境变量与权限' },
@@ -41,8 +41,15 @@ describe('DouCommand', () => {
     const options = wrapper.findAll('[role="option"]')
     expect(options).toHaveLength(5)
     expect(input.attributes('aria-activedescendant')).toBe(options[0]!.attributes('id'))
-    expect(wrapper.findAll('kbd').map((key) => key.text())).toEqual(['⌘', 'N'])
     wrapper.unmount()
+  })
+
+  it("shows a shortcut as this platform's keys", () => {
+    const wrapper = mount(DouCommand, { props: { items }, attachTo: document.body })
+    const option = wrapper.findAll('[role="option"]')[0]!
+    expect(option.get('.dou-command__shortcut').text()).toBe('CtrlN')
+    expect(option.attributes('aria-keyshortcuts')).toBe('Control+N')
+    expect(wrapper.findAll('[role="option"]')[1]!.attributes('aria-keyshortcuts')).toBeUndefined()
   })
 
   it('filters, ranks and highlights', async () => {

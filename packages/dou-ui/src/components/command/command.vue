@@ -2,6 +2,7 @@
 import { SearchIcon } from '@dou-ui/icons'
 import { computed, nextTick, ref, useId, useTemplateRef, watch } from 'vue'
 import { GROUP_START, useGroupedWindow } from '../../composables/use-grouped-window'
+import { ariaHotkey, useApplePlatform } from '../../composables/use-hotkey'
 import { isComposing } from '../../utils/keyboard'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
@@ -21,6 +22,7 @@ const emit = defineEmits<{ select: [item: CommandItem] }>()
 const slots = defineSlots<CommandSlots>()
 
 const ns = useNamespace('command')
+const apple = useApplePlatform()
 const { t } = useLocale()
 const id = `dou-command-${useId()}`
 const listboxId = `${id}-list`
@@ -245,6 +247,9 @@ const maxHeight = computed(() =>
           :aria-setsize="windowing.enabled.value ? flat.length : undefined"
           :aria-posinset="windowing.enabled.value ? entry.index + 1 : undefined"
           :aria-disabled="entry.item.disabled || undefined"
+          :aria-keyshortcuts="
+            entry.item.shortcut ? ariaHotkey(entry.item.shortcut, apple) : undefined
+          "
           :class="[
             ns.e('item'),
             ns.is('active', entry.index === active),
@@ -269,9 +274,12 @@ const maxHeight = computed(() =>
             <span v-if="entry.item.description" :class="ns.e('description')">
               {{ entry.item.description }}
             </span>
-            <span v-if="entry.item.shortcut?.length" :class="ns.e('shortcut')">
-              <DouKbd v-for="key in entry.item.shortcut" :key="key" size="sm">{{ key }}</DouKbd>
-            </span>
+            <DouKbd
+              v-if="entry.item.shortcut"
+              :class="ns.e('shortcut')"
+              size="sm"
+              :keys="entry.item.shortcut"
+            />
           </slot>
         </div>
         <div

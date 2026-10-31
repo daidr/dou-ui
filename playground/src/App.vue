@@ -231,13 +231,13 @@ const pickedDate = ref<string | null>('2026-10-28')
 const pickedMonth = ref<string | null>('2026-10')
 const pickedRange = ref<DateRange | null>(['2026-10-12', '2026-10-24'])
 const commandItems: CommandItem[] = [
-  { value: 'new', label: '新建项目', group: '操作', shortcut: ['⌘', 'N'] },
+  { value: 'new', label: '新建项目', group: '操作', shortcut: 'mod+n' },
   {
     value: 'deploy',
     label: '部署到生产环境',
     group: '操作',
     keywords: ['deploy'],
-    shortcut: ['⌘', 'D'],
+    shortcut: 'mod+d',
   },
   { value: 'delete', label: '删除项目', group: '操作', disabled: true },
   { value: 'deployments', label: 'Deployments', group: '导航', description: '部署记录' },

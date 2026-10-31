@@ -20,7 +20,7 @@
 
 ## 快捷键
 
-按钮有快捷键时，用 `shortcut` 写出来，按 `useHotkey` 的写法，例如 `mod+z`。提示在文字后面按当前平台显示按键（苹果设备上是 ⌘，其他是 Ctrl），并给触发元素加上 `aria-keyshortcuts`，读屏也能读到。
+按钮有快捷键时，用 `shortcut` 写出来，按 `useHotkey` 的写法，例如 `mod+z`。提示在文字后面按当前平台显示按键（苹果设备上是 ⌘，其他是 Ctrl），并给触发元素加上 `aria-keyshortcuts`，读屏也能读到。用了 `content` 插槽时，按键显示在插槽内容后面。
 
 <DocDemo src="tooltip/shortcut" />
 

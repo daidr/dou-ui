@@ -87,6 +87,17 @@ describe('DouTooltip', () => {
     wrapper.unmount()
   })
 
+  it('keeps the shortcut with the content slot', async () => {
+    mount(DouTooltip, {
+      props: { shortcut: 'mod+s', open: true },
+      slots: { default: () => h('button', '保存'), content: () => h('b', '保存草稿') },
+      attachTo: document.body,
+    })
+    await nextTick()
+    expect(tooltip()?.querySelector('b')?.textContent).toBe('保存草稿')
+    expect(tooltip()?.querySelector('.dou-kbd')?.textContent).toBe('CtrlS')
+  })
+
   it('wraps plain text in a span and stays silent when disabled', async () => {
     const wrapper = mount(DouTooltip, {
       props: { content: '提示', disabled: true },

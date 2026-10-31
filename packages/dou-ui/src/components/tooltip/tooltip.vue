@@ -110,13 +110,13 @@ const triggerProps = computed(() => ({
         :data-dou-theme="theme"
         v-bind="{ ...$attrs, ...(interactive ? panelListeners : {}) }"
       >
-        <slot name="content">
-          <span v-if="shortcut" :class="ns.e('shortcut')">
-            <span :class="ns.e('text')">{{ content }}</span>
-            <DouKbd size="sm" :keys="shortcut" />
-          </span>
-          <template v-else>{{ content }}</template>
-        </slot>
+        <span v-if="shortcut" :class="ns.e('shortcut')">
+          <span :class="ns.e('text')"
+            ><slot name="content">{{ content }}</slot></span
+          >
+          <DouKbd size="sm" :keys="shortcut" />
+        </span>
+        <slot v-else name="content">{{ content }}</slot>
       </div>
     </Transition>
   </Teleport>

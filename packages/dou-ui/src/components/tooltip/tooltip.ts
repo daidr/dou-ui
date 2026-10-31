@@ -9,7 +9,8 @@ export interface TooltipProps {
   content?: string
   /**
    * A hotkey in `useHotkey` syntax, e.g. `mod+z`, shown as keys after the
-   * text and given to the trigger as its `aria-keyshortcuts`.
+   * text (or the `content` slot) and given to the trigger as its
+   * `aria-keyshortcuts`.
    */
   shortcut?: string
   /** The preferred side, flipped when there is no room. */

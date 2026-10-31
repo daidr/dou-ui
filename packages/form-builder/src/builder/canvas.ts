@@ -417,6 +417,8 @@ const DesignNode = defineComponent({
     })
     onBeforeUnmount(() => stop?.())
 
+    const moreOpen = shallowRef(false)
+
     function press(event: MouseEvent, id = props.node.id) {
       event.stopPropagation()
       if (state.dragger.value?.swallowClick()) return
@@ -501,7 +503,7 @@ const DesignNode = defineComponent({
           body,
           logic && !primary.value ? logicMark(logic) : null,
           marks.length ? markTags(marks) : null,
-          primary.value ? actionBar(state, node, title) : null,
+          primary.value ? actionBar(state, node, title, moreOpen) : null,
           primary.value && !isPage(node) ? resizeHandle(state, node, el) : null,
         ],
       )
@@ -719,29 +721,36 @@ function pagesBody(
   ])
 }
 
-/** One button of the selected node's action bar. */
+/** One button of the selected node's action bar, its name and key in a tooltip. */
 const actionButton = (
   label: string,
+  shortcut: string | undefined,
   icon: VNode,
   onClick: (event: MouseEvent) => void,
   disabled = false,
 ) =>
   h(
-    'button',
+    DouTooltip,
+    { content: label, shortcut },
     {
-      type: 'button',
-      class: 'dou-form-builder__action',
-      tabindex: -1,
-      disabled,
-      'aria-label': label,
-      title: label,
-      onClick,
+      default: () =>
+        h(
+          'button',
+          {
+            type: 'button',
+            class: 'dou-form-builder__action',
+            tabindex: -1,
+            disabled,
+            'aria-label': label,
+            onClick,
+          },
+          icon,
+        ),
     },
-    icon,
   )
 
 /** The buttons of the selected node; its type and name show in the inspector's header. */
-function actionBar(state: BuilderState, node: FormNode, title: string) {
+function actionBar(state: BuilderState, node: FormNode, title: string, moreOpen: Ref<boolean>) {
   const messages = state.messages
   const place = formNodePlaces(state.document).get(node.id)
   const siblings = place?.parent ? place.parent.children.length : state.document.nodes.length
@@ -751,29 +760,34 @@ function actionBar(state: BuilderState, node: FormNode, title: string) {
     place?.parent
       ? {
           label: messages.actions.parent,
+          shortcut: 'escape',
           icon: CornerLeftUpIcon,
           run: () => state.selectParent(),
         }
       : null,
     {
       label: messages.actions.up,
+      shortcut: 'mod+arrowup',
       icon: ArrowUpIcon,
       run: () => state.moveBy(-1, [node.id]),
       disabled: !place?.index,
     },
     {
       label: messages.actions.down,
+      shortcut: 'mod+arrowdown',
       icon: ArrowDownIcon,
       run: () => state.moveBy(1, [node.id]),
       disabled: !place || place.index >= siblings - 1,
     },
     {
       label: messages.actions.duplicate,
+      shortcut: 'mod+d',
       icon: CopyIcon,
       run: () => state.duplicate([node.id]),
     },
     {
       label: messages.actions.remove,
+      shortcut: 'delete',
       icon: TrashIcon,
       run: () => state.remove([node.id]),
       danger: true,
@@ -788,6 +802,7 @@ function actionBar(state: BuilderState, node: FormNode, title: string) {
       placement: 'bottom-end',
       // Closed by a choice, Escape or a press outside: the keys go on working on the canvas.
       'onUpdate:open': (open: boolean) => {
+        moreOpen.value = open
         if (!open) requestAnimationFrame(after)
       },
     },
@@ -800,7 +815,6 @@ function actionBar(state: BuilderState, node: FormNode, title: string) {
             class: 'dou-form-builder__action',
             tabindex: -1,
             'aria-label': messages.actions.more,
-            title: messages.actions.more,
             onClick: (event: MouseEvent) => event.stopPropagation(),
             // Escape closes the open menu only, rather than selecting the parent on the canvas.
             onKeydown: (event: KeyboardEvent) => {
@@ -829,6 +843,7 @@ function actionBar(state: BuilderState, node: FormNode, title: string) {
       ...actions.map((action) =>
         actionButton(
           action.label,
+          action.shortcut,
           h(action.icon),
           (event) => {
             event.stopPropagation()
@@ -838,7 +853,12 @@ function actionBar(state: BuilderState, node: FormNode, title: string) {
           action.disabled,
         ),
       ),
-      h('span', { class: 'dou-form-builder__actions-more' }, more),
+      // The tip goes on a wrapper, since the menu takes the button itself; it stands aside while the menu is open.
+      h(
+        DouTooltip,
+        { content: messages.actions.more, disabled: moreOpen.value },
+        { default: () => h('span', { class: 'dou-form-builder__actions-more' }, more) },
+      ),
     ],
   )
 }

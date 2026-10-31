@@ -2,13 +2,13 @@
 import { ref } from 'vue'
 
 const items = [
-  { value: 'new', label: '新建项目', group: '操作', shortcut: ['⌘', 'N'] },
+  { value: 'new', label: '新建项目', group: '操作', shortcut: 'mod+n' },
   {
     value: 'deploy',
     label: '部署到生产环境',
     group: '操作',
     keywords: ['deploy', 'release', '上线'],
-    shortcut: ['⌘', 'D'],
+    shortcut: 'mod+d',
   },
   { value: 'invite', label: '邀请成员', group: '操作' },
   { value: 'delete', label: '删除项目', group: '操作', disabled: true },
@@ -16,7 +16,7 @@ const items = [
   { value: 'deployments', label: 'Deployments', group: '导航', description: '部署记录' },
   { value: 'settings', label: 'Settings', group: '导航', description: '域名、环境变量与权限' },
   { value: 'docs', label: 'Documentation', group: '帮助' },
-  { value: 'shortcuts', label: '键盘快捷键', group: '帮助', shortcut: ['?'] },
+  { value: 'shortcuts', label: '键盘快捷键', group: '帮助', shortcut: '?' },
 ]
 const last = ref('—')
 const open = ref(false)

@@ -1,4 +1,4 @@
-import type { ResolvedExtensions } from './extension'
+import type { ResolvedEditorExtensions } from './extension'
 import type { Block, InlineContent, PartialBlock } from './model'
 import { isSafeHref } from './schema'
 
@@ -48,7 +48,7 @@ export interface MarkOutput {
 }
 
 /** What an extension contributes to `blocksToHTML` and `blocksToMarkdown`. */
-export interface ExtensionOutput {
+export interface EditorExtensionOutput {
   blocks?: Record<string, BlockOutput>
   inlines?: Record<string, InlineOutput>
   marks?: Record<string, MarkOutput>
@@ -60,7 +60,7 @@ interface Outputs {
   marks: Record<string, MarkOutput>
 }
 
-function outputsOf(kit: ResolvedExtensions): Outputs {
+function outputsOf(kit: ResolvedEditorExtensions): Outputs {
   const outputs: Outputs = { blocks: {}, inlines: {}, marks: {} }
   // extensions that come first win, as with their keys
   for (let index = kit.extensions.length - 1; index >= 0; index--) {
@@ -163,7 +163,7 @@ function blocksHTML(blocks: Block[], outputs: Outputs, top = false): string {
  * send it by email. Each extension decides how its blocks look; the
  * result has no editor classes.
  */
-export function writeHTML(blocks: PartialBlock[], kit: ResolvedExtensions): string {
+export function writeHTML(blocks: PartialBlock[], kit: ResolvedEditorExtensions): string {
   return blocksHTML(blocks.map(complete), outputsOf(kit), true)
 }
 
@@ -340,7 +340,7 @@ function blocksMarkdown(blocks: Block[], outputs: Outputs): string {
 }
 
 /** Write blocks as Markdown (CommonMark with GitHub's extensions). */
-export function writeMarkdown(blocks: PartialBlock[], kit: ResolvedExtensions): string {
+export function writeMarkdown(blocks: PartialBlock[], kit: ResolvedEditorExtensions): string {
   const markdown = blocksMarkdown(blocks.map(complete), outputsOf(kit))
   return markdown ? `${markdown}\n` : ''
 }

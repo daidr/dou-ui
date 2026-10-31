@@ -1,21 +1,22 @@
 import type { Tone } from '../../utils/types'
 
-export interface CalendarEvent {
-  /** Defaults to the title and date. */
-  key?: string | number
-  /** The day it happens on, `YYYY-MM-DD`. */
-  date: string
-  /** The last day of an event that spans several days. */
-  end?: string
+export interface CalendarEvent<Data extends Record<string, unknown> = Record<string, unknown>> {
+  id: string
   /**
-   * When it starts, `HH:mm`. Events with a time sit on the time axis of the
-   * week and day views; events without one are all-day events.
+   * `YYYY-MM-DD` for an all-day event, or `YYYY-MM-DD HH:mm` for one at a
+   * time; timed events sit on the time axis of the week and day views.
    */
-  time?: string
-  /** When it ends, `HH:mm`, on the same day. Defaults to an hour after `time`. */
-  endTime?: string
+  start: string
+  /**
+   * `YYYY-MM-DD` for the last day of an all-day event, or `YYYY-MM-DD HH:mm`
+   * for the moment a timed one ends. Defaults to the same day, or an hour
+   * after a timed `start`.
+   */
+  end?: string
   title: string
   tone?: Tone
+  /** Your own fields, e.g. a place or who attends. */
+  data?: Data
 }
 
 /** A month as a grid of days, or a week or a day along a time axis. */
@@ -52,8 +53,8 @@ export interface CalendarViewEmits {
   select: [date: string]
   /** An event was pressed. */
   eventClick: [event: CalendarEvent]
-  /** An empty spot on the time axis was pressed, rounded down to the half hour. */
-  timeClick: [slot: { date: string; time: string }]
+  /** An empty spot on the time axis was pressed: `YYYY-MM-DD HH:mm`, rounded down to the half hour. */
+  timeClick: [start: string]
 }
 
 export interface CalendarDay {

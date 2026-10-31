@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { DouEditor, starterKit, type PartialBlock } from '@dou-ui/editor'
+import { DouEditor, editorKit, type PartialBlock } from '@dou-ui/editor'
 import { ref } from 'vue'
 
-const extensions = [starterKit()]
+const extensions = [editorKit()]
 
 const blocks = ref<PartialBlock[]>([
   { type: 'heading', props: { level: 2 }, content: '上海门店周报' },

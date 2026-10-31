@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { DouAvatar, useFloating, useLayer, useZIndex, type VirtualElement } from 'dou-ui'
 import { computed, nextTick, shallowRef, useId, useTemplateRef, watch } from 'vue'
-import { useEditorContext } from '../../editor'
+import { useEditor } from '../../editor'
 import {
   chooseMention,
   closeMention,
@@ -15,7 +15,7 @@ const props = defineProps<{
   search: (query: string) => MentionItem[] | Promise<MentionItem[]>
 }>()
 
-const { view, state, messages } = useEditorContext()
+const { view, state, messages } = useEditor()
 const id = `dou-editor-mention-${useId()}`
 const panel = useTemplateRef<HTMLElement>('panel')
 

@@ -28,7 +28,7 @@ import { CellSelection, TableMap, addColumn, addRow, type Rect } from 'prosemirr
 import { computed, onBeforeUnmount, onMounted, shallowRef, watch } from 'vue'
 import { createId } from '../../core/model'
 import { useMenuEscape } from '../../components/menu-escape'
-import { useEditorContext } from '../../editor'
+import { useEditor } from '../../editor'
 import {
   alignColumns,
   band,
@@ -49,7 +49,7 @@ import {
 } from './commands'
 import { fitColumns, type TableAlign } from './schema'
 
-const { view, state, root, messages } = useEditorContext()
+const { view, state, root, messages } = useEditor()
 
 /** The table and the cell the controls are about: the hovered one, or the selection's. */
 interface Target {

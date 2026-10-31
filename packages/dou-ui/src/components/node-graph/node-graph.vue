@@ -306,6 +306,11 @@ function distance() {
 
 function onPointerDown(event: PointerEvent) {
   if (event.button !== 0 || (event.target as Element).closest(`.${ns.e('toolbar')}`)) return
+  // The first finger of a new touch: fingers still on record lifted unheard.
+  if (event.isPrimary) {
+    pointers.clear()
+    pinch = null
+  }
   pointers.set(event.pointerId, { x: event.clientX, y: event.clientY })
   if (pointers.size === 2 && props.zoomable) {
     pinch = { distance: distance(), zoom: zoom.value }

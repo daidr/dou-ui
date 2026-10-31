@@ -122,6 +122,158 @@
     }
   }
 
+  /* dashes running from source to target */
+  .dou-flow-editor__edge.is-animated:not(.is-stale) {
+    stroke-dasharray: 6 4;
+    animation: dou-flow-editor-flow 480ms linear infinite;
+
+    @media (prefers-reduced-motion: reduce) {
+      animation: none;
+    }
+  }
+
+  @keyframes dou-flow-editor-flow {
+    from {
+      stroke-dashoffset: 10;
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+
+  /* an edge's text, centred on its route */
+  .dou-flow-editor__label {
+    position: absolute;
+    top: 0;
+    left: 0;
+    translate: -50% -50%;
+    box-sizing: border-box;
+    max-width: 200px;
+    padding: 0 6px;
+    overflow: hidden;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-control);
+    background: var(--dou-color-bg-surface);
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-sm);
+    line-height: 20px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    cursor: pointer;
+
+    /* over the nodes, so it stays readable */
+    &.is-selected {
+      z-index: 1;
+      border-color: var(--dou-flow-editor-selected);
+      color: var(--dou-color-text);
+    }
+    /* on a selected edge's handle: dragging it moves that part */
+    &.is-bend {
+      cursor: ew-resize;
+    }
+    &.is-bend.is-y {
+      cursor: ns-resize;
+    }
+    /* sized by its text: the field and a hidden copy share one cell */
+    &.is-editing {
+      z-index: 2;
+      display: inline-grid;
+      min-width: 48px;
+      max-width: none;
+      overflow: visible;
+      cursor: text;
+
+      /* a space more than the text, for the caret */
+      &::after {
+        content: attr(data-value) ' ';
+        grid-area: 1 / 1;
+        visibility: hidden;
+        white-space: pre;
+      }
+    }
+  }
+
+  .dou-flow-editor__label-input {
+    grid-area: 1 / 1;
+    width: 100%;
+    min-width: 0;
+    padding: 0;
+    border: none;
+    outline: none;
+    background: none;
+    color: inherit;
+    font: inherit;
+    user-select: text;
+    -webkit-user-select: text;
+  }
+
+  /* a node while zoomed far out: its outline and name */
+  .dou-flow-editor__simple {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+    padding: 0 16px;
+    overflow: hidden;
+    border: 1px solid var(--dou-flow-editor-node-border);
+    border-radius: var(--dou-flow-editor-node-radius);
+    background: var(--dou-flow-editor-node-bg);
+    outline: none;
+
+    &.is-selected {
+      border-color: var(--dou-flow-editor-selected);
+      box-shadow: 0 0 0 1px var(--dou-flow-editor-selected);
+    }
+  }
+
+  /* so small a hairline border would vanish: a filled block instead */
+  .dou-flow-editor.is-tiny .dou-flow-editor__simple:not(.is-selected) {
+    border-color: transparent;
+    background: color-mix(in oklab, var(--dou-color-text) 14%, transparent);
+  }
+
+  .dou-flow-editor__simple-label {
+    overflow: hidden;
+    color: var(--dou-color-text-secondary);
+    /* stays about 12px on screen */
+    font-size: min(calc(12px / var(--dou-flow-editor-zoom, 1)), 40px);
+    line-height: 1.2;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  /* drags part of the selected edge, e.g. a step edge's middle */
+  .dou-flow-editor__bend {
+    position: absolute;
+    z-index: 1;
+    top: 0;
+    left: 0;
+    translate: -50% -50%;
+    box-sizing: border-box;
+    width: 6px;
+    height: 16px;
+    border: 1px solid var(--dou-flow-editor-selected);
+    border-radius: 3px;
+    background: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-sm);
+    cursor: ew-resize;
+    scale: calc(1 / var(--dou-flow-editor-zoom, 1));
+
+    &.is-y {
+      width: 16px;
+      height: 6px;
+      cursor: ns-resize;
+    }
+    /* a larger target for fingers */
+    &::before {
+      content: '';
+      position: absolute;
+      inset: -8px;
+    }
+  }
+
   .dou-flow-editor__guides line {
     stroke: var(--dou-flow-editor-guide);
     stroke-width: 1px;
@@ -326,6 +478,202 @@
     white-space: nowrap;
   }
 
+  /* containers: a flat frame behind the nodes inside it */
+  .dou-flow-editor__node.is-container {
+    background-color: color-mix(in oklab, var(--dou-color-text) 3%, var(--dou-flow-editor-node-bg));
+    box-shadow: none;
+
+    &.is-selected,
+    &.is-selected.is-dragging {
+      box-shadow: 0 0 0 3px color-mix(in oklab, var(--dou-flow-editor-selected) 14%, transparent);
+    }
+    &.is-dragging:not(.is-selected) {
+      box-shadow: var(--dou-shadow-sm);
+    }
+  }
+
+  /* the container a dragged node will land in */
+  .dou-flow-editor__node.is-drop-target,
+  .dou-flow-editor__simple.is-drop-target {
+    border-color: var(--dou-flow-editor-selected);
+    background-color: color-mix(
+      in oklab,
+      var(--dou-flow-editor-selected) 6%,
+      var(--dou-flow-editor-node-bg)
+    );
+  }
+
+  /* drags the bottom right corner of a resizable node */
+  .dou-flow-editor__resize {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    translate: 50% 50%;
+    box-sizing: border-box;
+    width: 10px;
+    height: 10px;
+    border: 1px solid var(--dou-flow-editor-selected);
+    border-radius: 3px;
+    background: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-sm);
+    cursor: nwse-resize;
+    /* the same size on screen at any zoom */
+    scale: calc(1 / var(--dou-flow-editor-zoom, 1));
+
+    /* a larger target for fingers */
+    &::before {
+      content: '';
+      position: absolute;
+      inset: -8px;
+    }
+  }
+
+  /* other people editing together: what they drag, select and connect */
+  .dou-flow-peers {
+    --dou-flow-peer-color: var(--dou-color-text-secondary);
+    --dou-flow-peer-line: calc(1.5px / var(--dou-flow-editor-zoom, 1));
+  }
+
+  .dou-flow-peer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    box-sizing: border-box;
+    border-radius: var(--dou-flow-editor-node-radius);
+    outline: var(--dou-flow-peer-line) solid var(--dou-flow-peer-color);
+    outline-offset: calc(3px / var(--dou-flow-editor-zoom, 1));
+    pointer-events: none;
+
+    &.is-moving {
+      outline-style: dashed;
+      background-color: color-mix(in oklab, var(--dou-flow-peer-color) 8%, transparent);
+    }
+  }
+
+  .dou-flow-peer__name {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    margin-bottom: calc(4px / var(--dou-flow-editor-zoom, 1));
+    padding: 0 6px;
+    border-radius: 4px;
+    background-color: var(--dou-flow-peer-color);
+    /* the collaborator's color is the app's: pick dark or light text by its lightness */
+    color: white;
+    color: oklch(from var(--dou-flow-peer-color) clamp(0.2, (0.66 - l) * 100, 0.99) 0 0);
+    font-size: var(--dou-font-size-sm);
+    line-height: 18px;
+    white-space: nowrap;
+    /* the same size on screen at any zoom */
+    scale: calc(1 / var(--dou-flow-editor-zoom, 1));
+    transform-origin: left bottom;
+  }
+
+  .dou-flow-peer__lines {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 1px;
+    height: 1px;
+    overflow: visible;
+    pointer-events: none;
+
+    & path {
+      fill: none;
+      stroke: var(--dou-flow-peer-color);
+      stroke-width: 1.5px;
+      stroke-dasharray: 4 3;
+      vector-effect: non-scaling-stroke;
+    }
+  }
+
+  /* the group node */
+  .dou-flow-group-node {
+    height: 100%;
+  }
+
+  .dou-flow-editor__node.is-collapsed > .dou-flow-group-node {
+    height: auto;
+  }
+
+  .dou-flow-group-node__head {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    box-sizing: border-box;
+    height: 40px;
+    padding: 0 12px 0 8px;
+  }
+
+  .dou-flow-group-node__toggle {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--dou-color-text-tertiary);
+    font-size: 16px;
+    cursor: pointer;
+    transition-property: background-color, color;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    & > svg {
+      transition: rotate var(--dou-motion-duration-fast) var(--dou-motion-easing);
+    }
+    &:hover:not(:disabled) {
+      background: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+      color: var(--dou-color-text);
+    }
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: 0;
+    }
+    &:disabled {
+      cursor: default;
+    }
+  }
+
+  .dou-flow-group-node.is-collapsed .dou-flow-group-node__toggle > svg {
+    rotate: -90deg;
+  }
+
+  .dou-flow-group-node__title {
+    overflow: hidden;
+    color: var(--dou-color-text-secondary);
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 20px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .dou-flow-group-node__input {
+    flex: 1;
+    min-width: 0;
+    height: 24px;
+    box-sizing: border-box;
+    padding: 0 6px;
+    border: 1px solid var(--dou-flow-editor-selected);
+    border-radius: 6px;
+    outline: none;
+    background: var(--dou-color-bg-surface);
+    color: var(--dou-color-text);
+    font: inherit;
+    font-size: 13px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dou-flow-group-node__toggle > svg {
+      transition: none;
+    }
+  }
+
   /* the default node */
   .dou-flow-default-node {
     width: 208px;
@@ -429,6 +777,65 @@
   }
 
   /* controls */
+  .dou-flow-minimap {
+    position: absolute;
+    overflow: hidden;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-container);
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-sm);
+    line-height: 0;
+
+    &.is-top-left {
+      top: 12px;
+      left: 12px;
+    }
+    &.is-top-right {
+      top: 12px;
+      right: 12px;
+    }
+    &.is-bottom-left {
+      bottom: 12px;
+      left: 12px;
+    }
+    &.is-bottom-right {
+      right: 12px;
+      bottom: 12px;
+    }
+
+    & svg {
+      display: block;
+      cursor: pointer;
+      touch-action: none;
+    }
+    &.is-dragging svg {
+      cursor: grabbing;
+    }
+  }
+
+  .dou-flow-minimap__node {
+    fill: var(--dou-color-bg-muted);
+    stroke: var(--dou-color-border-strong);
+    stroke-width: 1px;
+    vector-effect: non-scaling-stroke;
+
+    &.is-selected {
+      fill: color-mix(in oklab, var(--dou-flow-editor-selected) 24%, var(--dou-color-bg-surface));
+      stroke: var(--dou-flow-editor-selected);
+    }
+  }
+
+  .dou-flow-minimap__shade {
+    fill: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+  }
+
+  .dou-flow-minimap__view {
+    fill: none;
+    stroke: var(--dou-color-text-tertiary);
+    stroke-width: 1px;
+    vector-effect: non-scaling-stroke;
+  }
+
   .dou-flow-controls {
     position: absolute;
     display: flex;
@@ -503,6 +910,104 @@
     height: 16px;
     margin: 0 2px;
     background-color: var(--dou-color-border);
+  }
+
+  .dou-flow-controls__button.is-active {
+    background-color: var(--dou-color-bg-muted);
+    color: var(--dou-color-text);
+  }
+
+  /* the toolbar over the selected nodes */
+  .dou-flow-toolbar {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid var(--dou-color-border);
+    border-radius: calc(var(--dou-radius-control) + 2px);
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-md);
+  }
+
+  /* the editor opens its menu at a point; the anchor only places it in the page */
+  .dou-flow-editor__menu-anchor {
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+  }
+
+  /* what follows the pointer while a new node is dragged in */
+  .dou-flow-editor__ghost {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 2147483647;
+    pointer-events: none;
+    translate: -50% -50%;
+    transition: opacity var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    &.is-outside {
+      opacity: 0.56;
+    }
+  }
+
+  .dou-flow-editor__ghost-card {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-sizing: border-box;
+    height: 36px;
+    padding: 0 12px 0 8px;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-container);
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-md);
+    color: var(--dou-color-text);
+    font-family: var(--dou-font-family);
+    font-size: var(--dou-font-size-sm);
+    white-space: nowrap;
+  }
+
+  .dou-flow-editor__ghost-icon,
+  .dou-flow-quick-add__icon {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: var(--dou-radius-control);
+    background-color: var(--dou-color-bg-muted);
+    color: var(--dou-color-text-secondary);
+
+    & svg {
+      width: 14px;
+      height: 14px;
+    }
+  }
+
+  /* the node types offered for an edge dropped on the canvas */
+  .dou-flow-quick-add {
+    width: 260px;
+    padding: 0;
+
+    &.is-custom {
+      width: auto;
+    }
+
+    & .dou-command__search {
+      height: 40px;
+      padding: 0 12px;
+    }
+    & .dou-command__item {
+      gap: 8px;
+    }
+    /* the name stays whole; the description gives way */
+    & .dou-command__label {
+      flex: none;
+    }
   }
 }
 

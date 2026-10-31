@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { DouEditor, starterKit, type Block } from '@dou-ui/editor'
+import { DouEditor, editorKit, type Block } from '@dou-ui/editor'
 import { markdownToBlocks } from '@dou-ui/editor/markdown'
 import { onMounted, ref } from 'vue'
 
-const extensions = [starterKit()]
+const extensions = [editorKit()]
 
 const markdown = ref(`## 读书笔记
 

@@ -3,16 +3,16 @@ import { DOMParser } from 'prosemirror-model'
 import { describe, expect, it } from 'vitest'
 import { nextTick } from 'vue'
 import { image, isSafeImageSrc } from '..'
-import { resolveExtensions } from '../../../core/extension'
+import { resolveEditorExtensions } from '../../../core/extension'
 import { blocksToDoc, docToBlocks, type Block } from '../../../core/model'
 import DouEditor from '../../../editor.vue'
-import { starterKit } from '../../starter-kit'
+import { editorKit } from '../../editor-kit'
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0))
 
 describe('image', () => {
   it('stores its props in the document', () => {
-    const { schema } = resolveExtensions([starterKit(), image()])
+    const { schema } = resolveEditorExtensions([editorKit(), image()])
     const doc = blocksToDoc(schema, [
       {
         id: 'a',
@@ -28,7 +28,7 @@ describe('image', () => {
   })
 
   it('reads images from pasted HTML and drops unsafe ones', () => {
-    const { schema } = resolveExtensions([starterKit(), image()])
+    const { schema } = resolveEditorExtensions([editorKit(), image()])
     const element = document.createElement('div')
     element.innerHTML =
       '<p>before</p><figure><img src="https://example.com/b.png" alt="b"><figcaption>说明</figcaption></figure>' +
@@ -58,7 +58,7 @@ describe('image', () => {
     const wrapper = mount(DouEditor, {
       attachTo: document.body,
       props: {
-        extensions: [starterKit(), image({ upload })],
+        extensions: [editorKit(), image({ upload })],
         modelValue: [{ id: 'a', content: '' }],
       },
     })

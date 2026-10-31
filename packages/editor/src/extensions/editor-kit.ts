@@ -7,7 +7,7 @@ import { lists } from './lists'
 import { table } from './table'
 import { toggle } from './toggle'
 
-export interface StarterKitOptions {
+export interface EditorKitOptions {
   heading?: boolean
   lists?: boolean
   quote?: boolean
@@ -23,9 +23,9 @@ export interface StarterKitOptions {
 
 /**
  * The built-in blocks and formatting. Pass `false` for any part to leave
- * it out, e.g. `starterKit({ codeBlock: false })`.
+ * it out, e.g. `editorKit({ codeBlock: false })`.
  */
-export function starterKit(options: StarterKitOptions = {}): EditorExtension[] {
+export function editorKit(options: EditorKitOptions = {}): EditorExtension[] {
   const code = options.codeBlock
   const parts = {
     heading,
@@ -42,7 +42,7 @@ export function starterKit(options: StarterKitOptions = {}): EditorExtension[] {
   return [
     paragraph,
     ...Object.entries(parts)
-      .filter(([name]) => options[name as keyof StarterKitOptions] !== false)
+      .filter(([name]) => options[name as keyof EditorKitOptions] !== false)
       .map(([, extension]) => extension),
   ]
 }

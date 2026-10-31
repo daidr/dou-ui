@@ -4,10 +4,10 @@
 
 ## 语法高亮
 
-编辑器本身不带语法高亮，高亮函数和 [CodeBlock](/components/code-block) 的 `highlight` 写法相同：接收代码和语言，返回 HTML，可以是 Promise。使用 [Shiki](https://shiki.style) 时，通过 `starterKit` 的 `codeBlock` 选项传入：
+编辑器本身不带语法高亮，高亮函数和 [CodeBlock](/components/code-block) 的 `highlight` 写法相同：接收代码和语言，返回 HTML，可以是 Promise。使用 [Shiki](https://shiki.style) 时，通过 `editorKit` 的 `codeBlock` 选项传入：
 
 ```ts
-import { starterKit } from '@dou-ui/editor'
+import { editorKit } from '@dou-ui/editor'
 import { codeToHtml } from 'shiki'
 
 const highlight = (code: string, lang: string) =>
@@ -17,7 +17,7 @@ const highlight = (code: string, lang: string) =>
     defaultColor: false,
   })
 
-const extensions = [starterKit({ codeBlock: { highlight } })]
+const extensions = [editorKit({ codeBlock: { highlight } })]
 ```
 
 <DocDemo src="editor/code-block" column />
@@ -31,7 +31,7 @@ const extensions = [starterKit({ codeBlock: { highlight } })]
 语言保存在块的 `language` 属性里，传给高亮函数，为空时按 `text` 处理。语言菜单默认列出常用的语言，`languages` 可以替换这个列表：
 
 ```ts
-starterKit({
+editorKit({
   codeBlock: {
     highlight,
     languages: [

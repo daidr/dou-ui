@@ -6,7 +6,7 @@
 
 ```vue
 <script setup lang="ts">
-import { DouEditor, image, starterKit } from '@dou-ui/editor'
+import { DouEditor, image, editorKit } from '@dou-ui/editor'
 
 async function upload(file: File) {
   const body = new FormData()
@@ -16,7 +16,7 @@ async function upload(file: File) {
   return url
 }
 
-const extensions = [starterKit(), image({ upload })]
+const extensions = [editorKit(), image({ upload })]
 </script>
 
 <template>

@@ -14,6 +14,7 @@ import {
 import { announce } from '../../utils/announce'
 import { splitHighlight } from '../../utils/highlight'
 import { useNamespace } from '../../utils/namespace'
+import { holdPointer } from '../../utils/pointer'
 import { getScrollParent, isWindow } from '../../utils/scroll'
 import { VIRTUAL_THRESHOLD } from '../../utils/virtual'
 import { useLocale } from '../config-provider/use-config'
@@ -556,11 +557,6 @@ function dragScrollArea() {
   return viewport ?? getScrollParent(treeRef.value)
 }
 
-// Once dragging, a touch must not scroll the page as well.
-function onDragTouchMove(event: TouchEvent) {
-  if (draggingKey.value !== null) event.preventDefault()
-}
-
 function onRowPointerdown(event: PointerEvent, row: TreeRow) {
   if (event.button !== 0 || !canDrag(row.node)) return
   // On touch a short press comes first, so a swipe still scrolls.
@@ -574,6 +570,8 @@ function onRowPointerdown(event: PointerEvent, row: TreeRow) {
   let frame = 0
   let hover: ReturnType<typeof setTimeout> | undefined
   let hovered: TreeKey | null = null
+  // A virtual row scrolled out of view is removed while the finger is still on it.
+  const hold = holdPointer(event, treeRef.value)
 
   const scroll = () => {
     const target = dragScrollArea()
@@ -607,6 +605,7 @@ function onRowPointerdown(event: PointerEvent, row: TreeRow) {
 
   const begin = () => {
     draggingKey.value = row.key
+    hold.grab()
     const label = rowEl.querySelector(`.${ns.e('label')}`)
     ghost = document.createElement('div')
     ghost.className = ns.e('ghost')
@@ -655,13 +654,13 @@ function onRowPointerdown(event: PointerEvent, row: TreeRow) {
     clearTimeout(timer)
     clearTimeout(hover)
     cancelAnimationFrame(frame)
+    hold.release()
     ghost?.remove()
     document.documentElement.classList.remove('dou-sortable-dragging')
     window.removeEventListener('pointermove', onMove)
     window.removeEventListener('pointerup', onUp)
     window.removeEventListener('pointercancel', onCancel)
     window.removeEventListener('keydown', onKey, true)
-    window.removeEventListener('touchmove', onDragTouchMove)
     stopDrag = undefined
   }
   stopDrag = () => end(false)
@@ -669,7 +668,6 @@ function onRowPointerdown(event: PointerEvent, row: TreeRow) {
   window.addEventListener('pointerup', onUp)
   window.addEventListener('pointercancel', onCancel)
   window.addEventListener('keydown', onKey, true)
-  window.addEventListener('touchmove', onDragTouchMove, { passive: false })
 }
 
 onBeforeUnmount(() => stopDrag?.())

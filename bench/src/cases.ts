@@ -24,6 +24,17 @@ import {
   DouChatList,
   DouChatBubble,
 } from 'dou-ui'
+import {
+  DouGantt,
+  computeCriticalPath,
+  computeSchedule,
+  type GanttExpose,
+  type GanttLink,
+  type GanttTask,
+} from '@dou-ui/gantt'
+import '@dou-ui/gantt/style.css'
+import { DouFlowEditor, type FlowDocument } from '@dou-ui/flow'
+import '@dou-ui/flow/style.css'
 
 export interface Case {
   /** What the case renders, given a size. */
@@ -72,6 +83,59 @@ const rows = (n: number) =>
     for (let column = 0; column < 8; column++) row[`c${column}`] = `${label(index)}-${column}`
     return row
   })
+
+/** The date of a working day, counted from Monday 2026-01-05. */
+function workday(index: number) {
+  const offset = Math.floor(index / 5) * 7 + (index % 5)
+  return new Date(Date.UTC(2026, 0, 5 + offset)).toISOString().slice(0, 10)
+}
+
+/**
+ * A plan of `n` tasks: a summary for every 20, its 19 tasks two working
+ * days each, one after another, and each group waiting on the one before.
+ */
+function plan(n: number) {
+  const tasks: GanttTask[] = []
+  const links: GanttLink[] = []
+  let parent = ''
+  for (let index = 0; index < n; index++) {
+    const place = index % 20
+    const group = Math.floor(index / 20)
+    if (place === 0) {
+      parent = `g${index}`
+      tasks.push({ id: parent, title: `${words[group % words.length]} 阶段 ${group}` })
+      if (index) links.push({ id: `k${index}`, from: `t${index - 1}`, to: `t${index + 1}` })
+      continue
+    }
+    const start = group * 38 + (place - 1) * 2
+    tasks.push({
+      id: `t${index}`,
+      parent,
+      title: `任务 ${index}`,
+      start: workday(start),
+      end: workday(start + 1),
+    })
+    if (place > 1) links.push({ id: `l${index}`, from: `t${index - 1}`, to: `t${index}` })
+  }
+  return { tasks, links }
+}
+
+function gantt(n: number, props: Record<string, unknown> = {}) {
+  const { tasks, links } = plan(n)
+  const state = { tasks: ref(tasks), links: ref(links) }
+  const chart = ref<GanttExpose>()
+  ;(window as any).gantt = { chart, state }
+  return () =>
+    h(DouGantt, {
+      ref: chart,
+      tasks: state.tasks.value,
+      'onUpdate:tasks': (value: GanttTask[]) => (state.tasks.value = value),
+      links: state.links.value,
+      'onUpdate:links': (value: GanttLink[]) => (state.links.value = value),
+      style: 'height: 600px',
+      ...props,
+    })
+}
 
 const sentence = '今天在上海讨论了组件库的虚拟滚动方案，'
 const messages = (n: number) =>
@@ -468,4 +532,108 @@ export const cases: Record<string, Case> = {
       ),
     act: (root) => mousedown(field(root, 'date-picker')),
   },
+  gantt: {
+    render: (n) => gantt(n),
+    // a step to the right, which renders the newly seen days
+    act: (root) => {
+      const chart = root.querySelector('.dou-gantt__chart')!
+      chart.scrollLeft += 2000
+      chart.dispatchEvent(new Event('scroll'))
+    },
+  },
+  'gantt-critical': {
+    render: (n) => gantt(n, { critical: true }),
+  },
+  'gantt-auto': {
+    render: (n) => gantt(n, { scheduling: 'auto' }),
+    // a week later for the first task: every task after it is pushed
+    act: () => {
+      const { chart } = (window as any).gantt
+      chart.value.transact((tr: any) => tr.setSpan('t1', '2026-01-12', '2026-01-13'))
+    },
+  },
+  'gantt-schedule': {
+    render: (n) => gantt(n),
+    act: () => {
+      const { state } = (window as any).gantt
+      const doc = { tasks: state.tasks.value, links: state.links.value }
+      computeSchedule(
+        {
+          ...doc,
+          tasks: doc.tasks.map((t: GanttTask) =>
+            t.id === 't1' ? { ...t, start: '2026-01-12', end: '2026-01-13' } : t,
+          ),
+        },
+        { fixed: ['t1'] },
+      )
+    },
+  },
+  'gantt-critical-path': {
+    render: (n) => gantt(n),
+    act: () => {
+      const { state } = (window as any).gantt
+      computeCriticalPath({ tasks: state.tasks.value, links: state.links.value })
+    },
+  },
+  // A flow of n nodes in a grid and about 1.6 edges per node, most of it off screen.
+  flow: {
+    render: (n) => flowEditor(n),
+    // Scroll across the canvas.
+    act: (root) => wheel(root, 600, 400),
+  },
+  'flow-zoomed-out': {
+    render: (n) => flowEditor(n, 0.2),
+    act: (root) => wheel(root, 300, 200),
+  },
+}
+
+function flowDocument(n: number): FlowDocument {
+  const perRow = Math.ceil(Math.sqrt(n))
+  const nodes = Array.from({ length: n }, (_, i) => ({
+    id: `n${i}`,
+    x: (i % perRow) * 280,
+    y: Math.floor(i / perRow) * 120,
+    data: {
+      label: label(i),
+      inputs: [{ id: 'in' }],
+      outputs: [{ id: 'a' }, { id: 'b' }],
+    },
+  }))
+  const edges = []
+  for (let i = 0; i < n; i++) {
+    if ((i + 1) % perRow)
+      edges.push({
+        id: `r${i}`,
+        source: { node: `n${i}`, port: 'a' },
+        target: { node: `n${i + 1}`, port: 'in' },
+      })
+    if (i + perRow + 1 < n && i % 3 !== 2)
+      edges.push({
+        id: `d${i}`,
+        source: { node: `n${i}`, port: 'b' },
+        target: { node: `n${i + perRow + 1}`, port: 'in' },
+      })
+  }
+  return { nodes, edges }
+}
+
+function flowEditor(n: number, zoom = 1) {
+  const doc = ref(flowDocument(n))
+  const viewport = ref({ x: 0, y: 0, zoom })
+  return () =>
+    h(DouFlowEditor, {
+      modelValue: doc.value,
+      'onUpdate:modelValue': (value: FlowDocument) => (doc.value = value),
+      viewport: viewport.value,
+      'onUpdate:viewport': (value: typeof viewport.value) => (viewport.value = value),
+      style: 'height: 720px',
+    })
+}
+
+function wheel(root: HTMLElement, x: number, y: number) {
+  root
+    .querySelector('.dou-flow-editor')!
+    .dispatchEvent(
+      new WheelEvent('wheel', { deltaX: x, deltaY: y, bubbles: true, cancelable: true }),
+    )
 }

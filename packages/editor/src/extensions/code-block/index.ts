@@ -1,7 +1,7 @@
 import { CodeIcon } from '@dou-ui/icons'
 import { Fragment } from 'prosemirror-model'
 import { defineComponent, h } from 'vue'
-import { defineExtension, type EditorExtension } from '../../core/extension'
+import { defineEditorExtension, type EditorExtension } from '../../core/extension'
 import { highlightPlugin, type CodeHighlighter } from '../../core/highlight'
 import { blockInputRule } from '../../core/input-rules'
 import { escapeHTML } from '../../core/output'
@@ -32,7 +32,7 @@ export function codeBlock(options: CodeBlockOptions = {}): EditorExtension {
       return () => h(CodeBlockView, { ...attrs, languages } as never)
     },
   })
-  return defineExtension({
+  return defineEditorExtension({
     name: 'codeBlock',
     blocks: {
       codeBlock: {

@@ -6,14 +6,14 @@
 
 ```vue
 <script setup lang="ts">
-import { DouEditor, mention, starterKit } from '@dou-ui/editor'
+import { DouEditor, mention, editorKit } from '@dou-ui/editor'
 
 async function search(query: string) {
   const response = await fetch(`/api/users?q=${encodeURIComponent(query)}`)
   return response.json()
 }
 
-const extensions = [starterKit(), mention({ search })]
+const extensions = [editorKit(), mention({ search })]
 </script>
 
 <template>

@@ -1,4 +1,4 @@
-import type { Point, PortSide, Rect } from './model'
+import type { Point, Rect } from './model'
 
 export function boundsOf(rects: readonly Rect[]): Rect | null {
   if (!rects.length) return null
@@ -124,38 +124,4 @@ export function snapBox(
     })
   }
   return { dx, dy, guides }
-}
-
-// Edges -------------------------------------------------------------------------
-
-const direction: Record<PortSide, Point> = {
-  left: { x: -1, y: 0 },
-  right: { x: 1, y: 0 },
-  top: { x: 0, y: -1 },
-  bottom: { x: 0, y: 1 },
-}
-
-const round = (value: number) => Math.round(value * 100) / 100
-
-/**
- * A cubic curve leaving `from` and entering `to` straight out of their
- * sides. The handles are equally long, half the distance along the axis
- * they point in (at least `min`), so a fan of edges from one port is
- * mirror-symmetric and a straight run stays a straight line.
- */
-export function bezierPath(
-  from: Point,
-  fromSide: PortSide,
-  to: Point,
-  toSide: PortSide,
-  min = 40,
-): string {
-  const a = direction[fromSide]
-  const b = direction[toSide]
-  const span = (dir: Point) => Math.abs(dir.x ? to.x - from.x : to.y - from.y)
-  const lenA = Math.max(min, span(a) / 2)
-  const lenB = Math.max(min, span(b) / 2)
-  const c1 = { x: from.x + a.x * lenA, y: from.y + a.y * lenA }
-  const c2 = { x: to.x + b.x * lenB, y: to.y + b.y * lenB }
-  return `M${round(from.x)} ${round(from.y)}C${round(c1.x)} ${round(c1.y)} ${round(c2.x)} ${round(c2.y)} ${round(to.x)} ${round(to.y)}`
 }

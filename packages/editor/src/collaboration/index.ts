@@ -1,8 +1,12 @@
 import { TextSelection, type Command } from 'prosemirror-state'
 import * as Y from 'yjs'
-import { defineExtension, resolveExtensions, type EditorExtension } from '../core/extension'
+import {
+  defineEditorExtension,
+  resolveEditorExtensions,
+  type EditorExtension,
+} from '../core/extension'
 import { blocksToDoc, type PartialBlock } from '../core/model'
-import { starterKit } from '../extensions/starter-kit'
+import { editorKit } from '../extensions/editor-kit'
 import { createBinding, syncPlugin, writeDoc, type YBlock } from './binding'
 import { cursorsPlugin, positionOf, type AwarenessLike } from './cursors'
 
@@ -74,7 +78,7 @@ export function collaboration(options: CollaborationOptions): EditorExtension {
       return true
     }
 
-  return defineExtension({
+  return defineEditorExtension({
     name: 'collaboration',
     externalDocument: true,
     plugins: () => [syncPlugin(binding), ...(awareness ? [cursorsPlugin(binding, awareness)] : [])],
@@ -91,9 +95,9 @@ export function collaboration(options: CollaborationOptions): EditorExtension {
 export function fillMap(
   map: Y.Map<unknown>,
   blocks: PartialBlock[],
-  extensions: (EditorExtension | EditorExtension[])[] = [starterKit()],
+  extensions: (EditorExtension | EditorExtension[])[] = [editorKit()],
 ) {
-  const schema = resolveExtensions(extensions).schema
+  const schema = resolveEditorExtensions(extensions).schema
   writeDoc(map as Y.Map<YBlock>, blocksToDoc(schema, blocks))
 }
 

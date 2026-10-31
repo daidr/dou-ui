@@ -3,7 +3,7 @@ import { ImageIcon, LinkIcon, UploadIcon } from '@dou-ui/icons'
 import { DouButton, DouInput, DouSpinner } from 'dou-ui'
 import { computed, onBeforeUnmount, shallowRef, useTemplateRef } from 'vue'
 import type { BlockProps } from '../../core/model'
-import { useEditorContext } from '../../editor'
+import { useEditor } from '../../editor'
 import { isSafeImageSrc, type Uploads } from './uploads'
 
 const props = defineProps<{
@@ -14,7 +14,7 @@ const props = defineProps<{
   uploads: Uploads
 }>()
 
-const { messages, view } = useEditorContext()
+const { messages, view } = useEditor()
 const text = computed(() => messages.value.image)
 
 const src = computed(() => {
@@ -78,11 +78,17 @@ function startResize(event: PointerEvent, side: -1 | 1) {
       props.updateProps({ width: dragWidth.value })
     dragWidth.value = null
   }
+  const onCancel = () => {
+    stop?.()
+    dragWidth.value = null
+  }
   window.addEventListener('pointermove', onMove)
   window.addEventListener('pointerup', onUp)
+  window.addEventListener('pointercancel', onCancel)
   stop = () => {
     window.removeEventListener('pointermove', onMove)
     window.removeEventListener('pointerup', onUp)
+    window.removeEventListener('pointercancel', onCancel)
     stop = null
   }
 }

@@ -1,5 +1,10 @@
 import type { FlowDocument, FlowSelection } from './model'
-import { applySteps, compactSteps, type FlowStep, type Transaction } from './transaction'
+import {
+  applyFlowSteps,
+  compactFlowSteps,
+  type FlowStep,
+  type FlowTransaction,
+} from './transaction'
 
 interface Entry {
   steps: FlowStep[]
@@ -28,7 +33,7 @@ export class FlowHistory {
   }
 
   record(
-    tr: Transaction,
+    tr: FlowTransaction,
     selectionBefore: FlowSelection,
     selectionAfter: FlowSelection,
     now = Date.now(),
@@ -38,8 +43,8 @@ export class FlowHistory {
     const last = this.done[this.done.length - 1]
     const group = tr.meta.group
     if (last && group && last.group === group && now - last.time < GROUP_WINDOW) {
-      last.steps = compactSteps([...last.steps, ...tr.steps])
-      last.inverse = compactSteps([...tr.inverse, ...last.inverse])
+      last.steps = compactFlowSteps([...last.steps, ...tr.steps])
+      last.inverse = compactFlowSteps([...tr.inverse, ...last.inverse])
       last.time = now
       last.selectionAfter = selectionAfter
       return
@@ -70,7 +75,7 @@ export class FlowHistory {
   undo(doc: FlowDocument) {
     const entry = this.done.pop()
     if (!entry) return null
-    const tr = applySteps(doc, entry.inverse)
+    const tr = applyFlowSteps(doc, entry.inverse)
     this.undone.push(entry)
     return { tr, selection: entry.selectionBefore }
   }
@@ -78,7 +83,7 @@ export class FlowHistory {
   redo(doc: FlowDocument) {
     const entry = this.undone.pop()
     if (!entry) return null
-    const tr = applySteps(doc, entry.steps)
+    const tr = applyFlowSteps(doc, entry.steps)
     this.done.push({ ...entry, group: undefined })
     return { tr, selection: entry.selectionAfter }
   }

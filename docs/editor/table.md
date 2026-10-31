@@ -1,10 +1,10 @@
 # 表格
 
-`table` 扩展提供表格块，默认包含在 `starterKit` 里。在斜杠菜单里输入“表格”插入一个 3 × 3 的表格，第一行是表头。也可以从网页或表格软件复制表格粘贴进来。
+`table` 扩展提供表格块，默认包含在 `editorKit` 里。在斜杠菜单里输入“表格”插入一个 3 × 3 的表格，第一行是表头。也可以从网页或表格软件复制表格粘贴进来。
 
 <DocDemo src="editor/table" column />
 
-不需要表格时，用 `starterKit({ table: false })` 关掉。
+不需要表格时，用 `editorKit({ table: false })` 关掉。
 
 ## 编辑
 

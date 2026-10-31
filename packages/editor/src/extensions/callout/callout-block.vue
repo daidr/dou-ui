@@ -3,7 +3,7 @@ import { DouDropdown, DouDropdownItem, DouDropdownRadioGroup } from 'dou-ui'
 import { computed } from 'vue'
 import type { BlockProps } from '../../core/model'
 import { EditorContent } from '../../define-block'
-import { useEditorContext } from '../../editor'
+import { useEditor } from '../../editor'
 import { calloutTones, type CalloutTone } from './tones'
 
 const props = defineProps<{
@@ -13,7 +13,7 @@ const props = defineProps<{
   editable: boolean
 }>()
 
-const { messages, view } = useEditorContext()
+const { messages, view } = useEditor()
 
 const tone = computed<CalloutTone>(() => {
   const value = props.block.props.tone as CalloutTone

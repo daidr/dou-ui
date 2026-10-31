@@ -21,6 +21,8 @@ interface FlowNode {
   data?: Record<string, unknown>
   /** 锁定后不能移动和删除 */
   locked?: boolean
+  /** 所在分组的 id，见[分组](./groups) */
+  parent?: string
 }
 ```
 
@@ -31,12 +33,15 @@ interface FlowEdge {
   id: string
   source: { node: string; port?: string }
   target: { node: string; port?: string }
+  /** 画法：bezier、step、straight 或扩展加入的类型 */
+  type?: string
   label?: string
+  animated?: boolean
   data?: Record<string, unknown>
 }
 ```
 
-不写 `port` 时，连线从源节点右侧中间出发，连到目标节点左侧中间。
+不写 `port` 时，连线从源节点右侧中间出发，连到目标节点左侧中间。画法、标签和流动效果见[连线](./edges)。
 
 ## 端口
 

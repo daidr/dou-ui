@@ -2,6 +2,7 @@ import {
   ClipboardPasteIcon,
   CopyIcon,
   CopyPlusIcon,
+  EditIcon,
   FocusIcon,
   HierarchyHorizontalIcon,
   MoreHorizontalIcon,
@@ -102,14 +103,25 @@ const editMenu = defineFlowExtension({
       return items
     }
     if (!editable) return items
-    items.push({
-      key: 'delete',
-      label: t.delete,
-      icon: TrashIcon,
-      shortcut: 'delete',
-      tone: 'danger',
-      run: ctx.deleteSelection,
-    })
+    const edge = target.edge
+    items.push(
+      {
+        key: 'edit-label',
+        label: t.editLabel,
+        icon: EditIcon,
+        shortcut: 'enter',
+        run: () => ctx.editLabel(edge.id),
+      },
+      {
+        key: 'delete',
+        label: t.delete,
+        icon: TrashIcon,
+        shortcut: 'delete',
+        tone: 'danger',
+        divided: true,
+        run: ctx.deleteSelection,
+      },
+    )
     return items
   },
 })

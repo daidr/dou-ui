@@ -7,10 +7,10 @@ import {
   DouFlowEditor,
   DouFlowMinimap,
   flowKit,
-  resolveFlowExtensions,
   useFlowEditor,
 } from '../index'
 import type { FlowDocument, FlowExtension, FlowSelection } from '../index'
+import { resolveFlowExtensions } from '../core/extension'
 
 const sample = (): FlowDocument => ({
   nodes: [

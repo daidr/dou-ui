@@ -30,6 +30,9 @@ export interface FlowMessages {
   delete: string
   selectAll: string
   more: string
+  /** Editing an edge's text. */
+  editLabel: string
+  label: string
   /** The list offered when an edge is dropped on the canvas. */
   search: string
   noTypes: string
@@ -82,6 +85,8 @@ const zhCN: FlowMessages = {
   delete: '删除',
   selectAll: '全选',
   more: '更多',
+  editLabel: '编辑标签',
+  label: '连线标签',
   search: '搜索节点',
   noTypes: '没有能接上的节点',
   deleted: '已删除 {count} 项',
@@ -128,6 +133,8 @@ const zhTW: FlowMessages = {
   delete: '刪除',
   selectAll: '全選',
   more: '更多',
+  editLabel: '編輯標籤',
+  label: '連線標籤',
   search: '搜尋節點',
   noTypes: '沒有能接上的節點',
   deleted: '已刪除 {count} 項',
@@ -175,6 +182,8 @@ const en: FlowMessages = {
   delete: 'Delete',
   selectAll: 'Select all',
   more: 'More',
+  editLabel: 'Edit label',
+  label: 'Edge label',
   search: 'Search nodes',
   noTypes: 'No node can take this edge',
   deleted: '{count} deleted',

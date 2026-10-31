@@ -14,6 +14,11 @@ export default defineConfig({
       { find: /^dou-ui$/, replacement: r('../packages/dou-ui/src/index.ts') },
       { find: /^@dou-ui\/icons$/, replacement: r('../packages/icons/src/index.ts') },
       { find: /^dou-ui\/style\.css$/, replacement: r('../packages/theme/src/index.css') },
+      { find: /^@dou-ui\/flow$/, replacement: r('../packages/flow/src/index.ts') },
+      {
+        find: /^@dou-ui\/flow\/style\.css$/,
+        replacement: r('../packages/flow/src/style.css'),
+      },
     ],
   },
   build: { outDir: r('dist'), emptyOutDir: true },

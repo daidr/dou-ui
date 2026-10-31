@@ -67,6 +67,7 @@ app.use(DouFlowEditor)
 | 方向键                               | 移动选中的节点一格（`grid`），加 `Shift` 移动四格；没有选中节点时平移画布 |
 | `Delete` / `Backspace`               | 删除选中的节点和连线                                                      |
 | `C`                                  | 从选中的节点开始连线                                                      |
+| `Enter` / `F2`                       | 编辑选中连线的标签                                                        |
 | `Esc`                                | 拖动中按下时取消这次拖动，否则清除选择                                    |
 | `Ctrl` / `⌘` + `A`                   | 选中全部节点                                                              |
 | `Ctrl` / `⌘` + `C` / `X` / `V` / `D` | 复制、剪切、粘贴、复制一份                                                |
@@ -108,6 +109,9 @@ app.use(DouFlowEditor)
 | `direction`             | 流程的方向，“整理”按它排列：`horizontal` 从左到右，`vertical` 从上到下 | `'horizontal' \| 'vertical'`             | `'horizontal'`             |
 | `fit-view`              | 节点测量完成后缩放到能看到全部节点                                     | `boolean`                                | `false`                    |
 | `fit-min-zoom`          | `fit-view` 最多缩小到多少，`0` 表示总是显示全部                        | `number`                                 | `0.5`                      |
+| `edge-type`             | 没写 `type` 的连线用哪种画法，见[连线](./edges)                        | `string`                                 | `'bezier'`                 |
+| `edge-types`            | 扩展之外的连线类型                                                     | `EdgeTypeSpec[]`                         | —                          |
+| `simple-zoom`           | 低于这个缩放比例时只画节点的外框和名字，见[大型流程](./performance)    | `number`                                 | `0.4`                      |
 | `port-types`            | 端口类型的外观和连接规则，见[端口类型与连接规则](./ports)              | `PortTypes`                              | —                          |
 | `acyclic`               | 不允许连出环                                                           | `boolean`                                | `false`                    |
 | `can-connect`           | 连线前的最后一道检查，返回 `false` 或一段说明拒绝                      | `(connection, doc) => boolean \| string` | —                          |
@@ -144,6 +148,7 @@ app.use(DouFlowEditor)
 | `removeStaleEdges`              | 删除这些连线，算作一步撤销，返回删除的条数                               | `() => number`                                 |
 | `insertNode`                    | 新建一个节点并选中，见[用代码添加节点](./editing#用代码添加节点)         | `(type, options?) => string \| null`           |
 | `startInsertDrag`               | 从一次 `pointerdown` 开始拖入新节点，见[拖入节点](./editing#拖入节点)    | `(type, event) => boolean`                     |
+| `editLabel`                     | 选中一条连线并开始编辑它的标签，见[标签](./edges#标签)                   | `(id: string) => void`                         |
 
 ### FlowControls 属性
 

@@ -25,11 +25,19 @@ export interface GanttMessages {
   today: string
   expand: string
   collapse: string
-  /** Read out for a task; `{title}`, `{start}`, `{end}`, `{duration}` and `{progress}` are filled in. */
+  /**
+   * Read out for a task; `{title}`, `{dates}`, `{duration}` and `{progress}`
+   * are filled in. `{dates}` is `range`, or the one date of a one-day task.
+   */
   task: string
   milestone: string
   summary: string
   unscheduled: string
+  /** A task's dates, read out: `{start}` and `{end}`. */
+  range: string
+  /** Read out instead of a duration when the task has no working time. */
+  offDays: string
+  offHours: string
   /** `{date}` and `{time}`. */
   dateTime: string
   /** Shown while dragging: `{start}`, `{end}`, `{duration}`; `{value}` is a percentage. */
@@ -101,7 +109,7 @@ export interface GanttMessages {
     unassigned: string
     /** How to use it with keys; read out when it gets focus. */
     keys: string
-    /** A task's dates: `{title}`, `{start}`, `{end}`, `{duration}`. */
+    /** A task's dates: `{title}`, `{dates}`, `{duration}`. */
     task: string
     /** Read out for a task: `{task}` (its dates, or the milestone text) and `{resource}`. */
     item: string
@@ -136,10 +144,13 @@ const zhCN: GanttMessages = {
   today: '今天',
   expand: '展开',
   collapse: '收起',
-  task: '{title}，{start}至{end}，{duration}，进度 {progress}%',
+  task: '{title}，{dates}，{duration}，进度 {progress}%',
   milestone: '里程碑：{title}，{start}',
-  summary: '{title}，{start}至{end}，进度 {progress}%',
+  summary: '{title}，{dates}，进度 {progress}%',
   unscheduled: '{title}，未排期',
+  range: '{start}至{end}',
+  offDays: '休息日',
+  offHours: '非工作时间',
   dateTime: '{date} {time}',
   rangeTip: '{start} – {end} · {duration}',
   progressTip: '进度 {value}%',
@@ -188,7 +199,7 @@ const zhCN: GanttMessages = {
     resource: '资源',
     unassigned: '未分配',
     keys: '方向键在任务之间移动，Alt 加左右方向键改时间，Alt 加上下方向键换资源，菜单键打开菜单，Delete 删除，Mod+Z 撤销',
-    task: '{title}，{start}至{end}，{duration}',
+    task: '{title}，{dates}，{duration}',
     item: '{task}，{resource}',
     row: '{title}，{count} 项',
     overloaded: '{row}，有时段超出可承担的数量',
@@ -206,10 +217,13 @@ const zhTW: GanttMessages = {
   hours: '{count} 小時',
   expand: '展開',
   collapse: '收合',
-  task: '{title}，{start}至{end}，{duration}，進度 {progress}%',
+  task: '{title}，{dates}，{duration}，進度 {progress}%',
   milestone: '里程碑：{title}，{start}',
-  summary: '{title}，{start}至{end}，進度 {progress}%',
+  summary: '{title}，{dates}，進度 {progress}%',
   unscheduled: '{title}，未排程',
+  range: '{start}至{end}',
+  offDays: '休息日',
+  offHours: '非工作時間',
   progressTip: '進度 {value}%',
   linkRefusals: {
     nested: '不能連到自己的上層或子任務',
@@ -255,7 +269,7 @@ const zhTW: GanttMessages = {
     resource: '資源',
     unassigned: '未分配',
     keys: '方向鍵在任務之間移動，Alt 加左右方向鍵改時間，Alt 加上下方向鍵換資源，選單鍵開啟選單，Delete 刪除，Mod+Z 復原',
-    task: '{title}，{start}至{end}，{duration}',
+    task: '{title}，{dates}，{duration}',
     item: '{task}，{resource}',
     row: '{title}，{count} 項',
     overloaded: '{row}，有時段超出可承擔的數量',
@@ -288,10 +302,13 @@ const en: GanttMessages = {
   today: 'Today',
   expand: 'Expand',
   collapse: 'Collapse',
-  task: '{title}, {start} to {end}, {duration}, {progress}% done',
+  task: '{title}, {dates}, {duration}, {progress}% done',
   milestone: 'Milestone: {title}, {start}',
-  summary: '{title}, {start} to {end}, {progress}% done',
+  summary: '{title}, {dates}, {progress}% done',
   unscheduled: '{title}, not scheduled',
+  range: '{start} to {end}',
+  offDays: 'days off',
+  offHours: 'outside working hours',
   dateTime: '{date} {time}',
   rangeTip: '{start} – {end} · {duration}',
   progressTip: '{value}% done',
@@ -341,7 +358,7 @@ const en: GanttMessages = {
     resource: 'Resource',
     unassigned: 'Unassigned',
     keys: 'Arrow keys move between tasks, Alt with left or right changes the time, Alt with up or down changes the resource, the menu key opens the menu, Delete removes, Mod+Z undoes',
-    task: '{title}, {start} to {end}, {duration}',
+    task: '{title}, {dates}, {duration}',
     item: '{task}, {resource}',
     row: '{title}, {count} tasks',
     overloaded: '{row}, takes more than it can at times',

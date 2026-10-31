@@ -238,8 +238,28 @@ describe('DouScheduler', () => {
   it('reads out tasks as the gantt chart does, with their resource', async () => {
     const { wrapper } = setup()
     await nextTick()
+    // a single day reads as one date
     expect(wrapper.find('.dou-gantt__bar[data-task="c"]').attributes('aria-label')).toBe(
-      '海报，3月3日至3月3日，1 天，阿青',
+      '海报，3月3日，1 天，阿青',
+    )
+    expect(wrapper.find('.dou-gantt__bar[data-task="a"]').attributes('aria-label')).toBe(
+      '会员页，3月2日至3月4日，3 天，戴兜',
+    )
+  })
+
+  it('says a task on a day off has no working time', async () => {
+    const { wrapper } = setup()
+    await nextTick()
+    const vm = wrapper.findComponent(DouScheduler).vm as unknown as {
+      transact: (fn: (tr: { addTask: (task: GanttTask) => void }) => void) => void
+    }
+    // 3月7日 is a Saturday
+    vm.transact((tr) =>
+      tr.addTask({ id: 's', title: '值班', resource: 'qing', start: '2026-03-07' }),
+    )
+    await nextTick()
+    expect(wrapper.find('.dou-gantt__bar[data-task="s"]').attributes('aria-label')).toBe(
+      '值班，3月7日，休息日，阿青',
     )
   })
 

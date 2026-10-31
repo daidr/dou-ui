@@ -58,7 +58,20 @@ app.use(DouGantt)
 
 在任务条、表格的行、依赖线或时间轴空白处点右键，或者按键盘上的菜单键（`Shift` + `F10`），会打开菜单；触屏上按住任务条或行片刻后松手也会打开。内置的菜单项有重命名、在下方添加任务、添加子任务、缩进、取消缩进、删除任务和删除依赖；在时间轴空白处添加的任务从点击的那天开始。
 
-扩展可以用 `contextMenu` 加自己的项，排在内置项前面；`menu` 设为 `false` 时只显示扩展的项。`target.kind` 是 `task`、`link` 或 `canvas`（时间轴空白处），`target.point` 是打开菜单的位置（时间轴坐标），`target.time` 是该位置对应的时间（分钟），可以用来在点击的地方添加任务或里程碑。从表格或键盘打开时，位置在任务的开始处。`taskContextmenu`、`linkContextmenu` 事件先于菜单触发，调用 `event.preventDefault()` 就不打开菜单。
+`context-menu` 属性或扩展的 `contextMenu` 都可以加自己的项，顺序是属性的项、扩展的项、内置项；`menu` 设为 `false` 时不显示内置项。只是加几项时用属性更直接，需要和其他功能一起复用时写成扩展。`target.kind` 是 `task`、`link` 或 `canvas`（时间轴空白处），`target.point` 是打开菜单的位置（时间轴坐标），`target.time` 是该位置对应的时间（分钟），可以用来在点击的地方添加任务或里程碑。从表格或键盘打开时，位置在任务的开始处。`taskContextmenu`、`linkContextmenu` 事件先于菜单触发，调用 `event.preventDefault()` 就不打开菜单。
+
+```vue
+<DouGantt v-model:tasks="tasks" :context-menu="contextMenu" />
+```
+
+```ts
+const contextMenu = (target: GanttMenuTarget): GanttMenuItem[] =>
+  target.kind === 'task'
+    ? [{ key: 'details', label: '查看详情', icon: FileTextIcon, run: () => open(target.task.id) }]
+    : []
+```
+
+写成扩展时，函数多一个参数 `ctx`：
 
 ```ts
 const details = defineGanttExtension({

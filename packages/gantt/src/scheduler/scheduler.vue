@@ -27,7 +27,7 @@ import {
   type GanttDocument,
   type GanttTransactionMeta,
 } from '../core/transaction'
-import { dateLabel, durationLabel, endLabel } from '../labels'
+import { dateLabel, datesLabel, durationLabel, endLabel, spokenDuration } from '../labels'
 import { format, useGanttMessages } from '../locale'
 import { useTimeAxis } from '../time-axis'
 import {
@@ -385,9 +385,8 @@ function describe(item: SchedulerItem, row: ResourceRow) {
         })
       : format(sm.value.task, {
           title: task.title,
-          start: dateLabel(span.start, span.dateOnly, m),
-          end: endLabel(span, m),
-          duration: durationLabel(span, calendar.value, m),
+          dates: datesLabel(span, m),
+          duration: spokenDuration(span, calendar.value, m),
         })
   return format(sm.value.item, { task: text, resource: row.title })
 }

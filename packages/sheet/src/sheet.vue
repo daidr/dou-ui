@@ -85,6 +85,7 @@ import {
 } from './core/model'
 import { movePoint, stepIndex, type SheetDirection } from './core/nav'
 import { compareForSort, isEmptyValue, meetsRule, textCollator } from './core/data'
+import { layStyle, SheetLooks, type SheetLook } from './core/conditional'
 import FilterPanel from './components/filter-panel.vue'
 import {
   clampPoint,
@@ -232,6 +233,69 @@ const resultAt = (row: number, col: number) => engine.result(sheetKey(sheet.valu
 /** What a cell of the sheet shown comes to: its formula's result, or its value. */
 const valueAt = (row: number, col: number) =>
   shownValue(valueOf(sheet.value.cells[row]?.[col]), resultAt, row, col)
+
+// Conditional formats ------------------------------------------------------------------------
+
+/**
+ * The looks the conditional formats of the sheet shown give its cells,
+ * worked out again after every change: a rule can depend on any cell.
+ */
+const looks = computed<SheetLooks>((previous) => {
+  const data = sheet.value
+  // results change with any cell of the workbook
+  void doc.value
+  void engineId.value
+  const key = sheetKey(data)
+  return new SheetLooks(
+    data.conditionalFormats,
+    {
+      valueAt,
+      textAt: (row, col) => cellText(data.cells[row]?.[col], { row, col }),
+      evaluate: (formula) => engine.evaluate(formula, key),
+      // a large range is read again only when one of its cells changed
+      cellStamp: (row, col) => {
+        const input = data.cells[row]?.[col]
+        const value = valueOf(input)
+        return typeof value === 'string' && value.startsWith('=')
+          ? engine.result(key, row, col)
+          : input
+      },
+      styles: doc.value.styles,
+      size: { rows: rowCountOf(data), cols: colCountOf(data) },
+      lang: lang.value,
+    },
+    previous,
+  )
+})
+/** What a row's conditional looks are, for `v-memo`: rules can look past the row. */
+function looksKey(row: number) {
+  const l = looks.value
+  if (l.empty) return ''
+  let key = ''
+  for (const [left, right] of l.spansIn(row))
+    for (const list of [frozenColList.value, bodyCols.value])
+      for (const col of list)
+        if (col >= left && col <= right) key += `${col}:${l.lookAt(row, col)?.key ?? ''};`
+  return key
+}
+/** Compiled styles of cells with a conditional look, by the cell's style and the look. */
+const lookStyles = computed(() => {
+  void styleCache.value
+  return new Map<string, ReturnType<typeof compileStyle>>()
+})
+function lookStyle(name: string | undefined, look: SheetLook) {
+  const key = `${name ?? ''}\u0000${look.key}`
+  let compiled = lookStyles.value.get(key)
+  if (!compiled) {
+    const own = name ? doc.value.styles?.[name] : undefined
+    compiled = compileStyle(look.style ? layStyle(own, look.style) : (own ?? {}))
+    lookStyles.value.set(key, compiled)
+  }
+  return compiled
+}
+/** The CSS that draws a look's bar. */
+const barCss = (bar: NonNullable<SheetLook['bar']>) =>
+  `--dou-sheet-bar-from:${(bar.from * 100).toFixed(2)}%;--dou-sheet-bar-to:${(bar.to * 100).toFixed(2)}%;--dou-sheet-bar-color:${bar.color};`
 
 // Filtering --------------------------------------------------------------------------------
 
@@ -826,6 +890,11 @@ function cellView(
   let renderProps: CellView['props']
   let label: string | undefined
   let problem: string | undefined
+  const look = looks.value.lookAt(row, col)
+  if (look?.bar) {
+    cls += ' has-bar'
+    css += barCss(look.bar)
+  }
   if (input != null && input !== '') {
     const cell = typeof input === 'object' ? input : null
     let value = cell ? (cell.value ?? null) : (input as SheetValue)
@@ -843,7 +912,11 @@ function cellView(
     // a number without a format fits the cell, as far as its digits allow
     if (typeof value === 'number' && !cell?.format && !typed?.definition.format && digitWidth.value)
       text = fitNumber(value, Math.max(1, Math.floor((width - 16) / digitWidth.value)))
-    const style = cell?.style ? styleCache.value.get(cell.style) : undefined
+    const style = look
+      ? lookStyle(cell?.style, look)
+      : cell?.style
+        ? styleCache.value.get(cell.style)
+        : undefined
     if (style) {
       if (style.cls) cls += ` ${style.cls}`
       css += style.css
@@ -876,6 +949,11 @@ function cellView(
         label = cellText(input, { row, col })
       }
     }
+  } else if (look?.style) {
+    // an empty cell takes on a look too, such as a fill for blanks
+    const style = lookStyle(undefined, look)
+    if (style.cls) cls += ` ${style.cls}`
+    css += style.css
   }
   const bottom = span ? span.bottom : row
   const right = span ? span.right : col
@@ -4015,7 +4093,14 @@ defineExpose<SheetExpose>({
           <div
             v-for="row in frozenRowList"
             :key="row"
-            v-memo="[sheet.cells[row], memoBase, resultsOf(row), rowMarks(row), mergeKey(row)]"
+            v-memo="[
+              sheet.cells[row],
+              memoBase,
+              resultsOf(row),
+              rowMarks(row),
+              mergeKey(row),
+              looksKey(row),
+            ]"
             class="dou-sheet__row is-frozen"
             :class="{ 'is-freeze-edge': row === frozen.rows - 1 }"
             role="row"
@@ -4091,7 +4176,14 @@ defineExpose<SheetExpose>({
           <div
             v-for="row in bodyRows"
             :key="row"
-            v-memo="[sheet.cells[row], memoBase, resultsOf(row), rowMarks(row), mergeKey(row)]"
+            v-memo="[
+              sheet.cells[row],
+              memoBase,
+              resultsOf(row),
+              rowMarks(row),
+              mergeKey(row),
+              looksKey(row),
+            ]"
             class="dou-sheet__row"
             role="row"
             :aria-rowindex="row + (headers ? 2 : 1)"

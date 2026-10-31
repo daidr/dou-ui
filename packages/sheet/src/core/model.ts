@@ -68,6 +68,91 @@ export interface SheetData {
   merges?: string[]
   /** A filter on a range: rows whose cells don't match its rules are hidden. */
   filter?: SheetFilter
+  /**
+   * Looks cells take on when they meet a rule, such as a red fill for
+   * amounts over budget. Where two formats give the same part of the look,
+   * the earlier one wins.
+   */
+  conditionalFormats?: SheetConditionalFormat[]
+}
+
+/**
+ * A look for the cells of `range` that meet a rule. The rule is one of
+ * `when`, `formula`, `top`, `bottom`, `average` or `duplicates`, with
+ * `style` as the look; or the cells are shaded by their numbers, with
+ * `scale` or `bar`.
+ */
+export type SheetConditionalFormat =
+  | SheetConditionalWhen
+  | SheetConditionalFormula
+  | SheetConditionalRank
+  | SheetConditionalAverage
+  | SheetConditionalDuplicates
+  | SheetConditionalScale
+  | SheetConditionalBar
+
+interface SheetConditionalBase {
+  /** The cells, such as `'D2:D40'`. */
+  range: string
+}
+
+/** A look: a style's name in the workbook's `styles`, or a style. */
+export type SheetConditionalStyle = string | SheetStyle
+
+/** Cells whose value meets a condition, e.g. `{ op: 'gt', value: 100 }`. */
+export interface SheetConditionalWhen extends SheetConditionalBase {
+  when: SheetCondition
+  style: SheetConditionalStyle
+}
+
+/**
+ * Cells for which a formula comes to `TRUE` (or a number other than 0).
+ * It is written for the range's top left cell and moves with each cell, as
+ * a copied formula does: `'=$E2>$D2'` on `'A2:F40'` checks each row's E and D.
+ */
+export interface SheetConditionalFormula extends SheetConditionalBase {
+  formula: string
+  style: SheetConditionalStyle
+}
+
+/** The largest (`top`) or smallest (`bottom`) numbers of the range: a count, or a percent of them. */
+export type SheetConditionalRank = SheetConditionalBase & {
+  /** With `percent`, a percent of the numbers, e.g. `10` for the top 10%. */
+  percent?: boolean
+  style: SheetConditionalStyle
+} & ({ top: number; bottom?: never } | { bottom: number; top?: never })
+
+/** Numbers above or below the range's average. */
+export interface SheetConditionalAverage extends SheetConditionalBase {
+  average: 'above' | 'below'
+  style: SheetConditionalStyle
+}
+
+/** Values that show up more than once in the range (`true`), or only once (`false`). */
+export interface SheetConditionalDuplicates extends SheetConditionalBase {
+  duplicates: boolean
+  style: SheetConditionalStyle
+}
+
+/** A tone, or any CSS color. */
+export type SheetColor = Tone | (string & {})
+
+/**
+ * Fills each number's cell with a color between two or three, from the
+ * smallest number to the largest (through the middle one with three), e.g.
+ * `['danger', 'warning', 'success']`.
+ */
+export interface SheetConditionalScale extends SheetConditionalBase {
+  scale: [SheetColor, SheetColor] | [SheetColor, SheetColor, SheetColor]
+}
+
+/**
+ * Draws a bar in each number's cell, as long as the number is large
+ * against the others. Negative numbers draw to the left of zero, in the
+ * danger tone. `true` uses the neutral tone.
+ */
+export interface SheetConditionalBar extends SheetConditionalBase {
+  bar: true | SheetColor
 }
 
 /**
@@ -88,10 +173,13 @@ export interface SheetFilter {
  * Which rows a column keeps: those whose shown text is one of `values` (an
  * empty cell is `''`), or those that meet `condition`.
  */
-export type SheetFilterRule = { values: string[] } | { condition: SheetFilterCondition }
+export type SheetFilterRule = { values: string[] } | { condition: SheetCondition }
 
-/** A condition on a cell; numbers compare as numbers, text without case. */
-export interface SheetFilterCondition {
+/**
+ * A condition on a cell; numbers compare as numbers, text without case.
+ * `between` and `notBetween` take `value` and `to`, both ends included.
+ */
+export interface SheetCondition {
   op:
     | 'eq'
     | 'ne'
@@ -99,6 +187,8 @@ export interface SheetFilterCondition {
     | 'ge'
     | 'lt'
     | 'le'
+    | 'between'
+    | 'notBetween'
     | 'contains'
     | 'notContains'
     | 'begins'
@@ -106,6 +196,8 @@ export interface SheetFilterCondition {
     | 'blank'
     | 'notBlank'
   value?: SheetValue
+  /** The other end for `between` and `notBetween`. */
+  to?: SheetValue
 }
 
 export type SheetSortOrder = 'asc' | 'desc'

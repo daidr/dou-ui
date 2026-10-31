@@ -332,6 +332,37 @@ sheet.value.transact((tr) => {
 
 `sortRange` 的 `valueAt(row, col)` 可以提供每个单元格用来比较的值，不提供时按单元格里写的值比较，公式按公式文字比较；表格里的排序按计算结果比较。
 
+## 条件格式
+
+条件格式按单元格的值改变它的样子，比如把没完成目标的数字标红。规则保存在工作表的 `conditionalFormats` 里，每条规则作用于一个区域：
+
+- `when`：满足条件的单元格使用 `style`，条件和筛选的写法一样，另外可以用 `between` 和 `notBetween`。
+- `formula`：公式结果为 `TRUE` 或非零数字时使用 `style`。公式按区域左上角单元格书写，套用到其他单元格时像复制公式一样移动引用，用 `$` 固定不动的部分。
+- `top`、`bottom`：最大或最小的几个数字，加上 `percent: true` 时按百分比计算。
+- `average`：高于（`'above'`）或低于（`'below'`）平均值的数字。
+- `duplicates`：`true` 选出重复出现的值，`false` 选出只出现一次的值，不区分大小写。
+- `scale`：色阶，按数字大小在两种或三种颜色之间填充。
+- `bar`：数据条，按数字大小在单元格里画出长度不同的条，负数从零点向左画，用危险色。
+
+`style` 可以写样式，也可以写 `styles` 里的样式名。颜色可以用主题的语义色名（跟着暗色模式变化），也可以写任意 CSS 颜色。
+
+<DocDemo src="sheet/conditional" column />
+
+上面的例子带了只有条件格式按钮的工具栏，可以选中一列试着添加规则。
+
+多条规则给同一个单元格设置同一项样式时，排在前面的规则生效；规则的样式会覆盖单元格本身的样式。插入或删除行列时，规则的区域和公式跟着移动。用代码修改时调用事务的方法：
+
+```ts
+sheet.value.transact((tr) => {
+  tr.addConditionalFormat({
+    range: 'E2:E9',
+    when: { op: 'lt', value: 1 },
+    style: { tone: 'danger' },
+  })
+  tr.clearConditionalFormats('E2:E9') // 移除与这个区域重叠的规则
+})
+```
+
 ## 工具栏
 
 把 `DouSheetToolbar` 放进 `header` 插槽，表格上方会出现格式工具栏。按钮作用于选区，按下的状态跟着当前单元格（键盘所在的那一格）：
@@ -343,6 +374,8 @@ sheet.value.transact((tr) => {
 - 水平对齐、垂直对齐和自动换行。没有设置对齐时，按下的是单元格本来的对齐方式，比如数字靠右。
 - 合并单元格：选区是合并单元格时按钮处于按下状态，再按一次取消合并。
 - 冻结：冻结首行、首列，或冻结到当前单元格所在的行、列。
+- 排序和筛选：同右键菜单里的“排序”和“筛选”。
+- 条件格式：突出显示大于、小于、介于、等于某个值或包含某段文字的单元格，以及重复值、前几项、后几项、高于或低于平均值；给选区加数据条或色阶；清除规则，或在“管理规则”里调整顺序、删除规则，见[条件格式](#条件格式)。
 - 清除格式：去掉样式和数字格式，值不变。
 
 <DocDemo src="sheet/toolbar" column />
@@ -359,7 +392,7 @@ sheet.value.transact((tr) => {
 </DouSheetToolbar>
 ```
 
-可用的名字有 `undo`、`redo`、`format`、`decimals`、`bold`、`italic`、`underline`、`strike`、`color`、`fill`、`align`、`valign`、`wrap`、`merge`、`freeze`、`clear`。`formats` 替换数字格式菜单里的选项，每项是 `{ label, format, example? }`，`example` 是菜单里用这个格式显示的示例值。
+可用的名字有 `undo`、`redo`、`format`、`decimals`、`bold`、`italic`、`underline`、`strike`、`color`、`fill`、`align`、`valign`、`wrap`、`merge`、`freeze`、`sort`、`filter`、`conditional`、`clear`。`formats` 替换数字格式菜单里的选项，每项是 `{ label, format, example? }`，`example` 是菜单里用这个格式显示的示例值。
 
 显示单元格地址和公式的编辑栏是 `DouSheetFormulaBar`，同样放在 `header` 插槽里，可以和工具栏一起用，见[公式](./formulas#编辑栏)。
 

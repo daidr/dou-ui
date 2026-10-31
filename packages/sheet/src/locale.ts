@@ -1,5 +1,6 @@
 import { useLocale } from 'dou-ui'
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
+import type { SheetCondition } from './core/model'
 import type { SheetErrorCode } from './formula/error'
 import { helpEn, helpZhCN, helpZhTW, type SheetFunctionHelp } from './formula/help'
 
@@ -93,7 +94,11 @@ export interface SheetMessages {
   /** The list of functions while typing a function's name. */
   functionList: string
   /** Sorting and filtering. */
+  /** The conditions of filters and conditional formats. */
+  ops: Record<SheetCondition['op'], string>
   filter: SheetFilterMessages
+  /** Conditional formats: the toolbar's menu, the dialog that adds one and the list of them. */
+  formats: SheetFormatsMessages
   /** The name a new sheet gets: `{n}` is a number. */
   sheetName: string
   /** The sheet tabs' accessible name. */
@@ -243,6 +248,90 @@ const zhCN: SheetMessages = {
   formulaBox: '编辑栏',
   badAddress: '“{text}”不是单元格地址',
   functionList: '函数',
+  ops: {
+    eq: '等于',
+    ne: '不等于',
+    gt: '大于',
+    ge: '大于或等于',
+    lt: '小于',
+    le: '小于或等于',
+    between: '介于',
+    notBetween: '不介于',
+    contains: '包含',
+    notContains: '不包含',
+    begins: '开头是',
+    ends: '结尾是',
+    blank: '为空',
+    notBlank: '不为空',
+  },
+  formats: {
+    title: '条件格式',
+    highlight: '突出显示单元格',
+    ranks: '最前 / 最后',
+    gt: '大于…',
+    lt: '小于…',
+    between: '介于…',
+    eq: '等于…',
+    contains: '文本包含…',
+    duplicates: '重复值…',
+    top: '前 10 项…',
+    bottom: '后 10 项…',
+    above: '高于平均值…',
+    below: '低于平均值…',
+    bar: '数据条',
+    scale: '色阶',
+    clearSelection: '清除所选单元格的规则',
+    clearSheet: '清除此工作表的规则',
+    manage: '管理规则…',
+    range: '应用于',
+    value: '值',
+    and: '到',
+    count: '项数',
+    percent: '按百分比',
+    repeated: '重复',
+    unique: '唯一',
+    look: '设置为',
+    invalidRange: '请输入单元格区域，如 D2:D40',
+    needValue: '请输入值',
+    cancel: '取消',
+    apply: '确定',
+    close: '关闭',
+    looks: {
+      danger: '浅红填充，深红色文字',
+      warning: '浅黄填充，深黄色文字',
+      success: '浅绿填充，深绿色文字',
+      dangerText: '红色文字',
+      bold: '加粗',
+      neutral: '浅灰填充',
+    },
+    scales: {
+      rag: '红 - 黄 - 绿',
+      gar: '绿 - 黄 - 红',
+      diverging: '红 - 灰 - 绿',
+      blue: '灰 - 蓝',
+    },
+    describe: {
+      when: '单元格值{op} {value}',
+      between: '单元格值{op} {value} 和 {to} 之间',
+      formula: '公式 {formula}',
+      top: '前 {count} 项',
+      topPercent: '前 {count}%',
+      bottom: '后 {count} 项',
+      bottomPercent: '后 {count}%',
+      above: '高于平均值',
+      below: '低于平均值',
+      repeated: '重复值',
+      unique: '唯一值',
+      scale: '色阶',
+      bar: '数据条',
+    },
+    empty: '此工作表没有条件格式',
+    moveUp: '上移',
+    moveDown: '下移',
+    remove: '删除',
+    added: '已为 {range} 添加条件格式',
+    cleared: '已清除 {count} 条条件格式',
+  },
   filter: {
     sortAsc: '升序排序',
     sortDesc: '降序排序',
@@ -264,20 +353,6 @@ const zhCN: SheetMessages = {
     value: '值',
     clear: '清除筛选',
     apply: '确定',
-    ops: {
-      eq: '等于',
-      ne: '不等于',
-      gt: '大于',
-      ge: '大于或等于',
-      lt: '小于',
-      le: '小于或等于',
-      contains: '包含',
-      notContains: '不包含',
-      begins: '开头是',
-      ends: '结尾是',
-      blank: '为空',
-      notBlank: '不为空',
-    },
     added: '已对 {range} 添加筛选',
     removed: '已取消筛选',
     applied: '{column} 已筛选，显示 {shown} / {total} 行',
@@ -420,6 +495,90 @@ const zhTW: SheetMessages = {
   formulaBox: '資料編輯列',
   badAddress: '「{text}」不是儲存格位址',
   functionList: '函數',
+  ops: {
+    eq: '等於',
+    ne: '不等於',
+    gt: '大於',
+    ge: '大於或等於',
+    lt: '小於',
+    le: '小於或等於',
+    between: '介於',
+    notBetween: '不介於',
+    contains: '包含',
+    notContains: '不包含',
+    begins: '開頭是',
+    ends: '結尾是',
+    blank: '為空白',
+    notBlank: '不為空白',
+  },
+  formats: {
+    title: '條件格式',
+    highlight: '醒目提示儲存格',
+    ranks: '前段 / 後段',
+    gt: '大於…',
+    lt: '小於…',
+    between: '介於…',
+    eq: '等於…',
+    contains: '文字包含…',
+    duplicates: '重複值…',
+    top: '前 10 項…',
+    bottom: '後 10 項…',
+    above: '高於平均…',
+    below: '低於平均…',
+    bar: '資料橫條',
+    scale: '色階',
+    clearSelection: '清除所選儲存格的規則',
+    clearSheet: '清除此工作表的規則',
+    manage: '管理規則…',
+    range: '套用範圍',
+    value: '值',
+    and: '到',
+    count: '項數',
+    percent: '依百分比',
+    repeated: '重複',
+    unique: '唯一',
+    look: '格式設定為',
+    invalidRange: '請輸入儲存格範圍，如 D2:D40',
+    needValue: '請輸入值',
+    cancel: '取消',
+    apply: '確定',
+    close: '關閉',
+    looks: {
+      danger: '淺紅填滿，深紅色文字',
+      warning: '淺黃填滿，深黃色文字',
+      success: '淺綠填滿，深綠色文字',
+      dangerText: '紅色文字',
+      bold: '粗體',
+      neutral: '淺灰填滿',
+    },
+    scales: {
+      rag: '紅 - 黃 - 綠',
+      gar: '綠 - 黃 - 紅',
+      diverging: '紅 - 灰 - 綠',
+      blue: '灰 - 藍',
+    },
+    describe: {
+      when: '儲存格的值{op} {value}',
+      between: '儲存格的值{op} {value} 和 {to} 之間',
+      formula: '公式 {formula}',
+      top: '前 {count} 項',
+      topPercent: '前 {count}%',
+      bottom: '後 {count} 項',
+      bottomPercent: '後 {count}%',
+      above: '高於平均',
+      below: '低於平均',
+      repeated: '重複值',
+      unique: '唯一值',
+      scale: '色階',
+      bar: '資料橫條',
+    },
+    empty: '此工作表没有條件格式',
+    moveUp: '上移',
+    moveDown: '下移',
+    remove: '刪除',
+    added: '已为 {range} 添加條件格式',
+    cleared: '已清除 {count} 条條件格式',
+  },
   filter: {
     sortAsc: '遞增排序',
     sortDesc: '遞減排序',
@@ -441,20 +600,6 @@ const zhTW: SheetMessages = {
     value: '值',
     clear: '清除篩選',
     apply: '確定',
-    ops: {
-      eq: '等於',
-      ne: '不等於',
-      gt: '大於',
-      ge: '大於或等於',
-      lt: '小於',
-      le: '小於或等於',
-      contains: '包含',
-      notContains: '不包含',
-      begins: '開頭是',
-      ends: '結尾是',
-      blank: '為空白',
-      notBlank: '不為空白',
-    },
     added: '已對 {range} 加上篩選',
     removed: '已取消篩選',
     applied: '{column} 已篩選，顯示 {shown} / {total} 列',
@@ -598,6 +743,90 @@ const en: SheetMessages = {
   formulaBox: 'Formula bar',
   badAddress: '"{text}" is not a cell address',
   functionList: 'Functions',
+  ops: {
+    eq: 'Equals',
+    ne: 'Does not equal',
+    gt: 'Greater than',
+    ge: 'Greater than or equal to',
+    lt: 'Less than',
+    le: 'Less than or equal to',
+    between: 'Between',
+    notBetween: 'Not between',
+    contains: 'Contains',
+    notContains: 'Does not contain',
+    begins: 'Begins with',
+    ends: 'Ends with',
+    blank: 'Is empty',
+    notBlank: 'Is not empty',
+  },
+  formats: {
+    title: 'Conditional formatting',
+    highlight: 'Highlight cells',
+    ranks: 'Top / bottom',
+    gt: 'Greater than…',
+    lt: 'Less than…',
+    between: 'Between…',
+    eq: 'Equal to…',
+    contains: 'Text that contains…',
+    duplicates: 'Duplicate values…',
+    top: 'Top 10 items…',
+    bottom: 'Bottom 10 items…',
+    above: 'Above average…',
+    below: 'Below average…',
+    bar: 'Data bars',
+    scale: 'Color scales',
+    clearSelection: 'Clear rules from selected cells',
+    clearSheet: 'Clear rules from this sheet',
+    manage: 'Manage rules…',
+    range: 'Applies to',
+    value: 'Value',
+    and: 'and',
+    count: 'Items',
+    percent: 'Percent',
+    repeated: 'Duplicate',
+    unique: 'Unique',
+    look: 'Format with',
+    invalidRange: 'Enter a range of cells, such as D2:D40',
+    needValue: 'Enter a value',
+    cancel: 'Cancel',
+    apply: 'OK',
+    close: 'Close',
+    looks: {
+      danger: 'Light red fill with dark red text',
+      warning: 'Light yellow fill with dark yellow text',
+      success: 'Light green fill with dark green text',
+      dangerText: 'Red text',
+      bold: 'Bold',
+      neutral: 'Light gray fill',
+    },
+    scales: {
+      rag: 'Red - yellow - green',
+      gar: 'Green - yellow - red',
+      diverging: 'Red - gray - green',
+      blue: 'Gray - blue',
+    },
+    describe: {
+      when: 'Cell value {op} {value}',
+      between: 'Cell value {op} {value} and {to}',
+      formula: 'Formula {formula}',
+      top: 'Top {count}',
+      topPercent: 'Top {count}%',
+      bottom: 'Bottom {count}',
+      bottomPercent: 'Bottom {count}%',
+      above: 'Above average',
+      below: 'Below average',
+      repeated: 'Duplicate values',
+      unique: 'Unique values',
+      scale: 'Color scale',
+      bar: 'Data bar',
+    },
+    empty: 'This sheet has no conditional formats',
+    moveUp: 'Move up',
+    moveDown: 'Move down',
+    remove: 'Delete',
+    added: 'Added a conditional format to {range}',
+    cleared: 'Cleared {count} conditional formats',
+  },
   filter: {
     sortAsc: 'Sort ascending',
     sortDesc: 'Sort descending',
@@ -619,20 +848,6 @@ const en: SheetMessages = {
     value: 'Value',
     clear: 'Clear filter',
     apply: 'Apply',
-    ops: {
-      eq: 'Equals',
-      ne: 'Does not equal',
-      gt: 'Greater than',
-      ge: 'Greater than or equal to',
-      lt: 'Less than',
-      le: 'Less than or equal to',
-      contains: 'Contains',
-      notContains: 'Does not contain',
-      begins: 'Begins with',
-      ends: 'Ends with',
-      blank: 'Is empty',
-      notBlank: 'Is not empty',
-    },
     added: 'Filter added to {range}',
     removed: 'Filter removed',
     applied: '{column} filtered: {shown} of {total} rows shown',
@@ -710,6 +925,75 @@ export const sheetLocales: Record<string, SheetMessages> = {
 }
 
 /** The texts of sorting and filtering. */
+export interface SheetFormatsMessages {
+  title: string
+  highlight: string
+  ranks: string
+  gt: string
+  lt: string
+  between: string
+  eq: string
+  contains: string
+  duplicates: string
+  top: string
+  bottom: string
+  above: string
+  below: string
+  bar: string
+  scale: string
+  clearSelection: string
+  clearSheet: string
+  manage: string
+  /** Dialog fields. */
+  range: string
+  value: string
+  and: string
+  count: string
+  percent: string
+  repeated: string
+  unique: string
+  look: string
+  invalidRange: string
+  needValue: string
+  cancel: string
+  apply: string
+  close: string
+  /** The looks to pick from. */
+  looks: {
+    danger: string
+    warning: string
+    success: string
+    dangerText: string
+    bold: string
+    neutral: string
+  }
+  /** Color scales, from the smallest number to the largest. */
+  scales: { rag: string; gar: string; diverging: string; blue: string }
+  /** How the list of formats describes each; `{value}`, `{to}`, `{count}`, `{formula}`. */
+  describe: {
+    when: string
+    between: string
+    formula: string
+    top: string
+    topPercent: string
+    bottom: string
+    bottomPercent: string
+    above: string
+    below: string
+    repeated: string
+    unique: string
+    scale: string
+    bar: string
+  }
+  empty: string
+  moveUp: string
+  moveDown: string
+  remove: string
+  /** Read out: `{range}`, `{count}`. */
+  added: string
+  cleared: string
+}
+
 export interface SheetFilterMessages {
   /** Menu and toolbar items. */
   sortAsc: string
@@ -735,21 +1019,6 @@ export interface SheetFilterMessages {
   value: string
   clear: string
   apply: string
-  ops: Record<
-    | 'eq'
-    | 'ne'
-    | 'gt'
-    | 'ge'
-    | 'lt'
-    | 'le'
-    | 'contains'
-    | 'notContains'
-    | 'begins'
-    | 'ends'
-    | 'blank'
-    | 'notBlank',
-    string
-  >
   /** Read out: `{range}`, `{shown}` rows of `{total}`, `{column}`. */
   added: string
   removed: string
@@ -776,11 +1045,9 @@ export function useSheetMessages(override?: MaybeRefOrGetter<Partial<SheetMessag
     const out: Record<string, unknown> = { ...base }
     for (const [key, value] of Object.entries(extra)) {
       if (value === undefined) continue
-      // error reasons and function help can be given one by one
-      out[key] =
-        key === 'errors' || key === 'functions' || key === 'filter'
-          ? { ...base[key], ...(value as object) }
-          : value
+      // groups, such as error reasons or function help, can be given one by one
+      const own = base[key as keyof SheetMessages]
+      out[key] = own && typeof own === 'object' ? { ...own, ...(value as object) } : value
     }
     return out as unknown as SheetMessages
   })

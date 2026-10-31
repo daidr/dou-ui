@@ -21,6 +21,7 @@ import {
   rowCountOf,
   type SheetCell,
   type SheetCellInput,
+  type SheetConditionalFormat,
   type SheetData,
   type SheetFilter,
   type SheetFilterRule,
@@ -96,6 +97,7 @@ export type SheetAction =
   | 'merge'
   | 'sort'
   | 'filter'
+  | 'format'
   | 'style'
   | 'freeze'
   | 'sheet'
@@ -469,6 +471,48 @@ export class SheetTransaction {
   }
 
   /**
+   * Adds a conditional format after the sheet's others; where two give the
+   * same part of a cell's look, the earlier one wins. The format's `range`
+   * names cells of `sheet`.
+   */
+  addConditionalFormat(format: SheetConditionalFormat, sheet: SheetRef = this.sheet) {
+    const index = this.mustIndex(sheet)
+    if (!parseRange(format.range)) throw new RangeError(`"${format.range}" isn't a range`)
+    const formats = this.book.sheets[index]!.conditionalFormats ?? []
+    return this.updateSheet({ conditionalFormats: [...formats, format] }, index)
+  }
+
+  /** Sets a sheet's conditional formats, in order, e.g. after moving one up; `[]` removes them all. */
+  setConditionalFormats(formats: readonly SheetConditionalFormat[], sheet: SheetRef = this.sheet) {
+    const index = this.mustIndex(sheet)
+    for (const f of formats)
+      if (!parseRange(f.range)) throw new RangeError(`"${f.range}" isn't a range`)
+    return this.updateSheet(
+      { conditionalFormats: formats.length ? [...formats] : undefined },
+      index,
+    )
+  }
+
+  /**
+   * Removes the conditional formats whose cells overlap a range, such as
+   * the selection; without a range, all of the sheet's.
+   */
+  clearConditionalFormats(at?: SheetRangeAt) {
+    const { index, bounds } =
+      at == null ? { index: this.mustIndex(), bounds: null } : this.rangeAt(at)
+    const formats = this.book.sheets[index]!.conditionalFormats
+    if (!formats?.length) return this
+    const kept = bounds
+      ? formats.filter((f) => {
+          const range = parseRange(f.range)
+          return range && !overlaps(boundsOf(range), bounds)
+        })
+      : []
+    if (kept.length === formats.length) return this
+    return this.updateSheet({ conditionalFormats: kept.length ? kept : undefined }, index)
+  }
+
+  /**
    * Adds empty rows before `at`: `insertRows(4, 2)` or `insertRows('5:6')`
    * both add two rows where row 5 was. Frozen rows and the row count grow
    * with them, and formulas pointing below follow their cells.
@@ -620,6 +664,7 @@ export class SheetTransaction {
     const sheet = this.book.sheets[index]!
     this.rewriteReferences(sheet.name, map)
     this.moveFilter(index, map)
+    this.moveConditionalFormats(index, map)
     const merges = sheet.merges
     if (!merges?.length) return this
     const next: string[] = []
@@ -634,6 +679,22 @@ export class SheetTransaction {
     }
     const same = next.length === merges.length && next.every((m, i) => m === merges[i])
     return same ? this : this.updateSheet({ merges: next.length ? next : undefined }, index)
+  }
+
+  /** Moves a sheet's conditional formats with their cells; a format goes when its cells do. */
+  private moveConditionalFormats(index: number, map: SheetRefMap) {
+    const formats = this.book.sheets[index]!.conditionalFormats
+    if (!formats?.length) return
+    const next: SheetConditionalFormat[] = []
+    for (const f of formats) {
+      const range = parseRange(f.range)
+      const moved = range && map(boundsOf(range))
+      if (!moved) continue
+      const range2 = rangeText('bounds' in moved ? moved.bounds : moved)
+      next.push(range2 === f.range ? f : { ...f, range: range2 })
+    }
+    if (next.length !== formats.length || next.some((f, i) => f !== formats[i]))
+      this.updateSheet({ conditionalFormats: next.length ? next : undefined }, index)
   }
 
   /** Moves a sheet's filter with its rows and columns; it goes when its range does. */
@@ -845,6 +906,24 @@ export class SheetTransaction {
         }),
       ),
     )
+    return this.rewriteRuleFormulas((formula) => rewrite(formula))
+  }
+
+  /** Rewrites the formulas of every sheet's conditional formats. */
+  private rewriteRuleFormulas(rewrite: (formula: string, sheet: SheetData) => string) {
+    this.book.sheets.forEach((sheet, index) => {
+      const formats = sheet.conditionalFormats
+      if (!formats?.some((f) => 'formula' in f)) return
+      let changed = false
+      const next = formats.map((f) => {
+        if (!('formula' in f)) return f
+        const formula = rewrite(f.formula, sheet)
+        if (formula === f.formula) return f
+        changed = true
+        return { ...f, formula }
+      })
+      if (changed) this.updateSheet({ conditionalFormats: next }, index)
+    })
     return this
   }
 
@@ -877,7 +956,9 @@ export class SheetTransaction {
         }),
       )
     })
-    return this
+    return this.rewriteRuleFormulas((formula, sheet) =>
+      moveReferences(formula, sheet.name, name, map),
+    )
   }
 
   private mustIndex(ref: SheetRef = this.sheet) {

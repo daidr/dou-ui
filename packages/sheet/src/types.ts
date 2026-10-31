@@ -119,6 +119,7 @@ export type SheetToolbarTool =
   | 'freeze'
   | 'sort'
   | 'filter'
+  | 'conditional'
   | 'clear'
   | '|'
 

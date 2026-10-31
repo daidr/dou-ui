@@ -24,6 +24,7 @@ interface SheetData {
   freeze?: { rows?: number; cols?: number } // 冻结的行数、列数
   merges?: string[] // 合并的区域，如 'A1:C1'
   filter?: SheetFilter // 筛选
+  conditionalFormats?: SheetConditionalFormat[] // 条件格式，排在前面的优先
 }
 ```
 
@@ -44,9 +45,9 @@ interface SheetFilter {
 
 type SheetFilterRule =
   | { values: string[] } // 显示文字是其中之一的行留下，空单元格是 ''
-  | { condition: SheetFilterCondition }
+  | { condition: SheetCondition }
 
-interface SheetFilterCondition {
+interface SheetCondition {
   op:
     | 'eq'
     | 'ne'
@@ -54,6 +55,8 @@ interface SheetFilterCondition {
     | 'ge'
     | 'lt'
     | 'le'
+    | 'between'
+    | 'notBetween'
     | 'contains'
     | 'notContains'
     | 'begins'
@@ -61,12 +64,31 @@ interface SheetFilterCondition {
     | 'blank'
     | 'notBlank'
   value?: SheetValue
+  to?: SheetValue // between 和 notBetween 的另一端，两端都包含
 }
 ```
 
 `values` 按单元格显示的文字比较，所以设了格式的数字写显示出来的样子，比如 `'¥1,280'`。插入、删除、移动行列时，筛选区域和各列的条件跟着移动。
 
 在表格之外处理同样的数据时，可以用包里导出的 `sortRows`、`compareForSort`、`meetsRule` 和 `textCollator`，排序和筛选的结果与表格里一致。
+
+## 条件格式
+
+```ts
+type SheetConditionalFormat =
+  | { range: string; when: SheetCondition; style: string | SheetStyle } // 满足条件
+  | { range: string; formula: string; style: string | SheetStyle } // 公式为真，按左上角单元格书写
+  | { range: string; top: number; percent?: boolean; style: string | SheetStyle } // 最大的几个
+  | { range: string; bottom: number; percent?: boolean; style: string | SheetStyle } // 最小的几个
+  | { range: string; average: 'above' | 'below'; style: string | SheetStyle } // 高于或低于平均值
+  | { range: string; duplicates: boolean; style: string | SheetStyle } // 重复值（true）或唯一值（false）
+  | { range: string; scale: [SheetColor, SheetColor] | [SheetColor, SheetColor, SheetColor] } // 色阶
+  | { range: string; bar: true | SheetColor } // 数据条，true 用中性色
+
+type SheetColor = Tone | string // 主题的语义色名，或任意 CSS 颜色
+```
+
+`range` 可以是 `'D2:D40'` 这样的区域，也可以是整列 `'D:D'`、整行 `'2:2'`。`style` 写样式或 `styles` 里的样式名。`top`、`bottom`、`average`、`scale`、`bar` 只看数字，文字和空单元格不参与计算；`duplicates` 按显示的文字比较，不区分大小写，空单元格不算。色阶用最小值、中位数（三种颜色时）和最大值定位颜色。
 
 ## 单元格
 

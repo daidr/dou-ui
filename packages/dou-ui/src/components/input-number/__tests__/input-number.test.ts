@@ -255,3 +255,55 @@ describe('DouInputNumber', () => {
     expect(wrapper.get('.dou-input-number').classes()).toContain('dou-input-number--sm')
   })
 })
+
+describe('DouInputNumber format', () => {
+  it('formats the value until the field is focused', async () => {
+    const { input } = setup({ modelValue: 1280000, format: { useGrouping: true } })
+    const el = input.element as HTMLInputElement
+    expect(el.value).toBe('1,280,000')
+    await input.trigger('focus')
+    expect(el.value).toBe('1280000')
+    await input.setValue('2500')
+    await input.trigger('blur')
+    expect(el.value).toBe('2,500')
+  })
+
+  it('uses precision for the decimals and reads the formatted text out', () => {
+    const { input } = setup({ modelValue: 0.125, precision: 3, format: { style: 'percent' } })
+    expect((input.element as HTMLInputElement).value).toBe('12.500%')
+    expect(input.attributes('aria-valuetext')).toBe('12.500%')
+    expect(input.attributes('aria-valuenow')).toBe('0.125')
+  })
+
+  it('takes a function', () => {
+    const { input } = setup({ modelValue: 3, format: (value) => `${value} 次` })
+    expect((input.element as HTMLInputElement).value).toBe('3 次')
+  })
+
+  it('shows nothing for an empty field', () => {
+    const { input } = setup({ modelValue: null, format: { style: 'percent' } })
+    expect((input.element as HTMLInputElement).value).toBe('')
+  })
+})
+
+describe('DouInputNumber clearable', () => {
+  it('empties the field from its button', async () => {
+    const { wrapper } = setup({ modelValue: 5, clearable: true })
+    await wrapper.get('.dou-input-number__clear').trigger('click')
+    expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([null])
+    expect(wrapper.emitted('change')?.at(-1)).toEqual([null, 5])
+    expect(wrapper.emitted('clear')).toHaveLength(1)
+    expect(wrapper.find('.dou-input-number__clear').exists()).toBe(false)
+  })
+
+  it('has no button while empty, disabled or read-only', () => {
+    for (const props of [
+      { modelValue: null },
+      { modelValue: 1, disabled: true },
+      { modelValue: 1, readonly: true },
+    ]) {
+      const { wrapper } = setup({ ...props, clearable: true })
+      expect(wrapper.find('.dou-input-number__clear').exists()).toBe(false)
+    }
+  })
+})

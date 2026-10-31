@@ -32,7 +32,7 @@ function loadEarlier() {
     <template #item="{ item }">
       <DouChatBubble
         :placement="item.mine ? 'end' : 'start'"
-        :variant="item.mine ? 'filled' : 'plain'"
+        :variant="item.mine ? 'soft' : 'ghost'"
       >
         {{ item.text }}
       </DouChatBubble>

@@ -38,6 +38,9 @@ afterEach(() => {
   document.body.innerHTML = ''
 })
 
+const hourCells = () =>
+  document.querySelectorAll('.dou-time-picker__column')[0]!.querySelectorAll<HTMLElement>('li')
+
 describe('DouCalendar', () => {
   it('shows the month of the value with a grid of days', () => {
     const { wrapper } = make(DouCalendar, { modelValue: '2026-10-08' })
@@ -315,6 +318,38 @@ describe('DouDatePicker', () => {
     await nextTick()
     expect(value.value).toBe('2026-10-15 09:30')
     expect(input.attributes('aria-expanded')).toBe('false')
+    wrapper.unmount()
+  })
+
+  it('applies the time rules of the picked day', async () => {
+    const { wrapper, value } = make(DouDatePicker, {
+      type: 'datetime',
+      defaultTime: '08:00',
+      disabledTime: (date: string) =>
+        date === '2026-10-15' ? { hour: (hour: number) => hour < 10 } : undefined,
+    })
+    await wrapper.get('.dou-date-picker').trigger('mousedown')
+    day('2026-10-14').click()
+    await nextTick()
+    expect(hourCells()[8]!.classList).not.toContain('is-disabled')
+    day('2026-10-15').click()
+    await nextTick()
+    expect(hourCells()[8]!.classList).toContain('is-disabled')
+    // 08:00 is ruled out on that day, so the time moves to the first allowed hour
+    expect(hourCells()[10]!.getAttribute('aria-selected')).toBe('true')
+    const confirm = [
+      ...document.querySelectorAll<HTMLButtonElement>('.dou-date-picker__footer button'),
+    ].find((button) => button.textContent!.trim() === '确定')!
+    confirm.click()
+    await nextTick()
+    expect(value.value).toBe('2026-10-15 10:00')
+
+    // a typed time that the day rules out is put back
+    const input = wrapper.get('input')
+    await input.setValue('2026-10-15 09:00')
+    await input.trigger('keydown', { key: 'Enter' })
+    await input.trigger('keydown', { key: 'Enter' })
+    expect(value.value).toBe('2026-10-15 10:00')
     wrapper.unmount()
   })
 

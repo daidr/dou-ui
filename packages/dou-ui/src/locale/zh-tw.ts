@@ -13,6 +13,8 @@ export const zhTW: Locale = {
     decimalSeparator: '.',
   },
   tabs: {
+    scrollPrev: '向前捲動分頁',
+    scrollNext: '向後捲動分頁',
     close: '關閉',
     add: '新增分頁',
   },
@@ -27,6 +29,7 @@ export const zhTW: Locale = {
   inputNumber: {
     increase: '增加',
     decrease: '減少',
+    clear: '清除',
   },
   slider: {
     start: '起始值',
@@ -79,6 +82,10 @@ export const zhTW: Locale = {
     total: '共 {total} 筆',
     pageSize: '{size} 筆/頁',
     pageSizeLabel: '每頁筆數',
+    gap: '第 {from}–{to} 頁',
+    jumpPrefix: '前往',
+    jumpSuffix: '頁',
+    jumpLabel: '跳至頁碼',
   },
   table: {
     selectAll: '選擇全部',

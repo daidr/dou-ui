@@ -9,7 +9,7 @@ import { OnlyChild } from '../../utils/only-child'
 import { DouButton } from '../button'
 import { useLocale } from '../config-provider/use-config'
 import { useFormDisabled, useFormItem, useFormReadonly, useFormSize } from '../form/use-form-item'
-import { formatTime, now, parseTime, snap } from './time'
+import { fitTime, formatTime, isTimeDisabled, now, parseTime, snap } from './time'
 import type { TimeParts } from './time'
 import type { TimePickerExpose, TimePickerProps, TimeRange, TimeValue } from './time-picker'
 import TimeColumns from './time-columns.vue'
@@ -106,7 +106,13 @@ function commitTexts() {
     if (values.value.length) commit(null)
     return
   }
-  if (parsed.some((value) => value === null || value === undefined)) return syncTexts()
+  if (
+    parsed.some(
+      (value) =>
+        !value || isTimeDisabled(snap(value, steps.value), props.disabledTime, seconds.value),
+    )
+  )
+    return syncTexts()
   commitParts(parsed as TimeParts[])
   if (props.range && Array.isArray(model.value)) commit(ordered(model.value))
 }
@@ -151,8 +157,8 @@ function onPick(index: number, value: TimeParts) {
 }
 
 function pickNow() {
-  const value = now()
-  commitParts(props.range ? [value, value] : [value])
+  const value = fitTime(snap(now(), steps.value), props.disabledTime, steps.value, seconds.value)
+  if (value) commitParts(props.range ? [value, value] : [value])
 }
 
 function confirm() {
@@ -319,6 +325,7 @@ defineExpose<TimePickerExpose>({
             :value="parts[index - 1] ?? null"
             :seconds="seconds"
             :steps="steps"
+            :disabled-time="disabledTime"
             :label="range ? placeholders[index - 1] : undefined"
             @pick="onPick(index - 1, $event)"
           />

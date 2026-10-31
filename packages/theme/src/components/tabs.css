@@ -163,6 +163,72 @@
     }
   }
 
+  /* a row too long to fit: the edges with more tabs fade out */
+  .dou-tabs__list {
+    --dou-tabs-fade: 32px;
+
+    &.is-fade-start {
+      mask-image: linear-gradient(to right, transparent, #000 var(--dou-tabs-fade));
+    }
+
+    &.is-fade-end {
+      mask-image: linear-gradient(to left, transparent, #000 var(--dou-tabs-fade));
+    }
+
+    &.is-fade-start.is-fade-end {
+      mask-image: linear-gradient(
+        to right,
+        transparent,
+        #000 var(--dou-tabs-fade),
+        #000 calc(100% - var(--dou-tabs-fade)),
+        transparent
+      );
+    }
+  }
+
+  /* the arrows sit tight against the row they scroll */
+  .dou-tabs__scroll {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: calc(var(--dou-tabs-height) - 4px);
+    padding: 0;
+    margin-bottom: 2px;
+    border: 0;
+    border-radius: var(--dou-radius-control);
+    background: transparent;
+    color: var(--dou-color-text-secondary);
+    cursor: pointer;
+    transition-property: background-color, color, opacity;
+    transition-duration: var(--dou-motion-duration-fast);
+    transition-timing-function: var(--dou-motion-easing);
+
+    &.is-start {
+      margin-right: -8px;
+    }
+
+    &.is-end {
+      margin-left: -8px;
+    }
+
+    & > svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    &:hover:not(:disabled) {
+      background-color: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+      color: var(--dou-color-text);
+    }
+
+    &:disabled {
+      opacity: 0.35;
+      cursor: default;
+    }
+  }
+
   .dou-tabs__add {
     display: inline-flex;
     flex-shrink: 0;

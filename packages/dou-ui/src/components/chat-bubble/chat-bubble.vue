@@ -9,7 +9,7 @@ defineOptions({ name: 'DouChatBubble' })
 
 const props = withDefaults(defineProps<ChatBubbleProps>(), {
   placement: 'start',
-  variant: 'filled',
+  variant: 'soft',
   avatar: undefined,
   loading: false,
 })

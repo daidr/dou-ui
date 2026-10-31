@@ -13,7 +13,8 @@ import {
   useTemplateRef,
   watch,
 } from 'vue'
-import { CloseIcon, PlusIcon } from '@dou-ui/icons'
+import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, PlusIcon } from '@dou-ui/icons'
+import { useReducedMotion } from '../../composables/use-motion'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
 import { useFormSize } from '../form/use-form-item'
@@ -172,17 +173,70 @@ function measure() {
   }
 }
 
+// When the tabs do not fit, the list scrolls sideways: the edges fade and
+// arrows appear on the side that has more, and the selected tab is kept in view.
+const overflow = ref({ start: false, end: false })
+const reduced = useReducedMotion()
+
+function updateOverflow() {
+  const list = listRef.value
+  if (!list || vertical.value) {
+    overflow.value = { start: false, end: false }
+    return
+  }
+  const max = list.scrollWidth - list.clientWidth
+  // a sub-pixel remainder is not something to scroll to
+  overflow.value = { start: list.scrollLeft > 1, end: list.scrollLeft < max - 1 }
+}
+
+function reveal(smooth: boolean) {
+  const list = listRef.value
+  const entry = panels.value.find((panel) => panel.props.value === selected.value)
+  const tab = entry && tabElement(entry)
+  if (!list || !tab || vertical.value) return
+  // leave room for the faded edge, so the tab is not under it
+  const margin = 32
+  const left = tab.offsetLeft - margin
+  const right = tab.offsetLeft + tab.offsetWidth + margin - list.clientWidth
+  const target = left < list.scrollLeft ? left : right > list.scrollLeft ? right : null
+  if (target === null) return
+  list.scrollTo({
+    left: Math.max(0, target),
+    behavior: smooth && !reduced.value ? 'smooth' : 'auto',
+  })
+}
+
+function scrollByPage(direction: 1 | -1) {
+  const list = listRef.value
+  if (!list) return
+  list.scrollBy({
+    left: direction * list.clientWidth * 0.8,
+    behavior: reduced.value ? 'auto' : 'smooth',
+  })
+}
+
 let observer: ResizeObserver | undefined
 onMounted(() => {
   measure()
+  updateOverflow()
+  reveal(false)
   requestAnimationFrame(() => (settled.value = true))
   if (typeof ResizeObserver !== 'undefined' && listRef.value) {
-    observer = new ResizeObserver(() => measure())
+    observer = new ResizeObserver(() => {
+      measure()
+      updateOverflow()
+    })
     observer.observe(listRef.value)
   }
 })
 onBeforeUnmount(() => observer?.disconnect())
-watch([selected, panels, size, () => props.placement], () => nextTick(measure))
+watch([selected, panels, size, () => props.placement], () =>
+  nextTick(() => {
+    measure()
+    updateOverflow()
+    reveal(settled.value)
+  }),
+)
 
 const indicatorStyle = computed(() => {
   const box = indicator.value
@@ -204,11 +258,27 @@ const indicatorStyle = computed(() => {
     ]"
   >
     <div :class="ns.e('header')">
+      <button
+        v-if="overflow.start || overflow.end"
+        type="button"
+        tabindex="-1"
+        :class="[ns.e('scroll'), ns.is('start', true)]"
+        :disabled="!overflow.start"
+        :aria-label="t('tabs.scrollPrev')"
+        @click="scrollByPage(-1)"
+      >
+        <ChevronLeftIcon />
+      </button>
       <div
         ref="list"
-        :class="ns.e('list')"
+        :class="[
+          ns.e('list'),
+          ns.is('fade-start', overflow.start),
+          ns.is('fade-end', overflow.end),
+        ]"
         role="tablist"
         :aria-orientation="vertical ? 'vertical' : 'horizontal'"
+        @scroll.passive="updateOverflow"
       >
         <button
           v-for="entry in panels"
@@ -243,6 +313,17 @@ const indicatorStyle = computed(() => {
         </button>
         <span :class="ns.e('indicator')" :style="indicatorStyle" aria-hidden="true" />
       </div>
+      <button
+        v-if="overflow.start || overflow.end"
+        type="button"
+        tabindex="-1"
+        :class="[ns.e('scroll'), ns.is('end', true)]"
+        :disabled="!overflow.end"
+        :aria-label="t('tabs.scrollNext')"
+        @click="scrollByPage(1)"
+      >
+        <ChevronRightIcon />
+      </button>
       <button
         v-if="addable"
         type="button"

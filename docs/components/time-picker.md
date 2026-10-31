@@ -24,6 +24,12 @@
 
 <DocDemo src="time-picker/step" />
 
+## 禁用时间
+
+`disabled-time` 为每一列给一条规则：`hour(h)`、`minute(m, h)`、`second(s, m, h)`，返回 `true` 的值不可选。不可选的格子会变淡，点不动，键盘也会跳过它们；换了小时后，如果原来的分钟在新的小时里不可选，会移到第一个可选的分钟。输入了不可选的时间时，失焦后恢复为原来的值。
+
+<DocDemo src="time-picker/disabled-time" />
+
 ## 尺寸与状态
 
 <DocDemo src="time-picker/size-state" />
@@ -51,6 +57,7 @@
 | `hourStep`         | 小时列的步长                                                            | `number`                             | `1`              |
 | `minuteStep`       | 分钟列的步长                                                            | `number`                             | `1`              |
 | `secondStep`       | 秒列的步长                                                              | `number`                             | `1`              |
+| `disabledTime`     | 不可选的时、分、秒，每列一条规则                                        | `DisabledTime`                       | —                |
 | `placeholder`      | 占位文字                                                                | `string`                             | 语言包           |
 | `startPlaceholder` | 范围开始的占位文字                                                      | `string`                             | 语言包           |
 | `endPlaceholder`   | 范围结束的占位文字                                                      | `string`                             | 语言包           |
@@ -68,3 +75,13 @@
 | ------------------- | -------------------- | --------------------------------------------- |
 | `update:modelValue` | 值变化               | `(value: string \| [string, string] \| null)` |
 | `change`            | 用户选中、输入或清空 | `(value: string \| [string, string] \| null)` |
+
+### DisabledTime
+
+```ts
+interface DisabledTime {
+  hour?: (hour: number) => boolean
+  minute?: (minute: number, hour: number) => boolean
+  second?: (second: number, minute: number, hour: number) => boolean
+}
+```

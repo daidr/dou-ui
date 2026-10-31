@@ -1,5 +1,6 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { nextTick } from 'vue'
+import { afterEach, describe, expect, it } from 'vitest'
 import { DouPagination, paginationRange } from '../../../index'
 
 const show = (items: ReturnType<typeof paginationRange>) =>
@@ -31,14 +32,11 @@ describe('DouPagination', () => {
     const current = wrapper.get('[aria-current="page"]')
     expect(current.text()).toBe('3')
     expect(current.attributes('aria-label')).toBe('第 3 页')
-    expect(wrapper.findAll('.dou-pagination__pages button').map((b) => b.text())).toEqual([
-      '1',
-      '2',
-      '3',
-      '4',
-      '5',
-      '10',
-    ])
+    expect(
+      wrapper
+        .findAll('.dou-pagination__pages button:not(.dou-pagination__ellipsis)')
+        .map((b) => b.text()),
+    ).toEqual(['1', '2', '3', '4', '5', '10'])
   })
 
   it('pages with the buttons and emits change', async () => {
@@ -95,5 +93,78 @@ describe('DouPagination', () => {
     expect(wrapper.findAll('button').every((b) => b.attributes('disabled') !== undefined)).toBe(
       true,
     )
+  })
+})
+
+async function openGap(wrapper: ReturnType<typeof mount>, index: number) {
+  await wrapper.findAll('.dou-pagination__ellipsis')[index]!.trigger('click')
+  await nextTick()
+  await nextTick()
+  return document.querySelector<HTMLElement>('.dou-pagination__gap-list')!
+}
+
+describe('DouPagination jumping', () => {
+  afterEach(() => {
+    document.body.innerHTML = ''
+  })
+
+  it('lists the pages an ellipsis skips, rendering only the rows in view', async () => {
+    const wrapper = mount(DouPagination, {
+      props: { total: 99990, page: 1 },
+      attachTo: document.body,
+    })
+    const ellipsis = wrapper.get('.dou-pagination__ellipsis')
+    expect(ellipsis.attributes('aria-label')).toBe('第 6–9998 页')
+    const list = await openGap(wrapper, 0)
+    expect(list.getAttribute('role')).toBe('listbox')
+    const options = list.querySelectorAll('[role="option"]')
+    expect(options.length).toBeGreaterThan(0)
+    expect(options.length).toBeLessThan(40)
+    expect(options[0]!.textContent).toContain('6')
+    wrapper.unmount()
+  })
+
+  it('moves with the keys and jumps on Enter', async () => {
+    const wrapper = mount(DouPagination, {
+      props: { total: 2000, page: 1 },
+      attachTo: document.body,
+    })
+    const list = await openGap(wrapper, 0)
+    const key = (name: string) =>
+      list.dispatchEvent(new KeyboardEvent('keydown', { key: name, bubbles: true }))
+    key('ArrowDown')
+    key('ArrowDown')
+    await nextTick()
+    expect(list.getAttribute('aria-activedescendant')).toMatch(/-8$/)
+    key('Enter')
+    await nextTick()
+    expect(wrapper.emitted('update:page')!.at(-1)).toEqual([8])
+    wrapper.unmount()
+  })
+
+  it('starts a gap before the current page next to it', async () => {
+    const wrapper = mount(DouPagination, {
+      props: { total: 2000, page: 100 },
+      attachTo: document.body,
+    })
+    const list = await openGap(wrapper, 0)
+    expect(list.getAttribute('aria-activedescendant')).toMatch(/-98$/)
+    wrapper.unmount()
+  })
+
+  it('jumps to a typed page, clamped to the last one', async () => {
+    const wrapper = mount(DouPagination, {
+      props: { total: 95, page: 1, showJumper: true },
+      attachTo: document.body,
+    })
+    const input = wrapper.get('.dou-pagination__jump input')
+    expect(input.attributes('aria-label')).toBe('跳转到页码')
+    await input.setValue('7')
+    await input.trigger('keydown', { key: 'Enter' })
+    expect(wrapper.emitted('update:page')!.at(-1)).toEqual([7])
+    await input.setValue('99')
+    await input.trigger('keydown', { key: 'Enter' })
+    expect(wrapper.emitted('update:page')!.at(-1)).toEqual([10])
+    wrapper.unmount()
   })
 })

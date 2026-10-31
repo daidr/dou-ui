@@ -18,12 +18,24 @@ export interface InputNumberProps {
   invalid?: boolean
   /** Show the step buttons. */
   controls?: boolean
+  /** Show a button that empties the field while it has a value. */
+  clearable?: boolean
+  /**
+   * How the value reads while the field is not being edited, e.g. with
+   * thousands separators, as money or as a percentage. Options for
+   * `Intl.NumberFormat` in the current locale, or a function of the value.
+   * While focused the field shows the plain number for editing.
+   */
+  format?: Intl.NumberFormatOptions | ((value: number) => string)
+  placeholder?: string
 }
 
 export interface InputNumberEmits {
   'update:modelValue': [value: number | null]
   /** The value was committed: on blur, on Enter, or by a step. */
   change: [value: number | null, oldValue: number | null]
+  /** The clear button emptied the field. */
+  clear: []
 }
 
 export interface InputNumberSlots {

@@ -1,8 +1,8 @@
 import type { Placement } from '../../composables/use-floating'
 import type { Size } from '../../utils/types'
-import type { TimeFormat } from './time'
+import type { DisabledTime, TimeFormat } from './time'
 
-export type { TimeFormat }
+export type { DisabledTime, TimeFormat }
 export type TimeValue = string
 export type TimeRange = [start: TimeValue, end: TimeValue]
 
@@ -17,6 +17,12 @@ export interface TimePickerProps {
   hourStep?: number
   minuteStep?: number
   secondStep?: number
+  /**
+   * Hours, minutes and seconds that cannot be picked, one rule per column,
+   * e.g. `{ hour: (h) => h < 9 || h > 18 }`. Ruled-out rows are greyed
+   * out and skipped, and typed times that hit one are refused.
+   */
+  disabledTime?: DisabledTime
   placeholder?: string
   startPlaceholder?: string
   endPlaceholder?: string

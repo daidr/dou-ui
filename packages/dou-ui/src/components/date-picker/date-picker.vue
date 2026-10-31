@@ -9,7 +9,7 @@ import { OnlyChild } from '../../utils/only-child'
 import { DouButton } from '../button'
 import { useLocale } from '../config-provider/use-config'
 import { useFormDisabled, useFormItem, useFormReadonly, useFormSize } from '../form/use-form-item'
-import { formatTime, now, parseTime } from '../time-picker/time'
+import { fitTime, formatTime, isTimeDisabled, now, parseTime } from '../time-picker/time'
 import type { TimeParts } from '../time-picker/time'
 import TimeColumns from '../time-picker/time-columns.vue'
 import DouCalendar from './calendar.vue'
@@ -162,9 +162,19 @@ const syncTexts = () => {
 }
 watch([values, isRange, pattern], syncTexts, { immediate: true })
 
+const timeRule = (day: string) => props.disabledTime?.(day)
+
 const allowed = (value: string) => {
   const day = value.length > 10 ? value.slice(0, 10) : value
-  return inBounds(day, props.min, props.max) && !(day.length === 10 && props.disabledDate?.(day))
+  if (!inBounds(day, props.min, props.max) || (day.length === 10 && props.disabledDate?.(day)))
+    return false
+  const time = isDateTime.value ? timeOf(value) : null
+  return !time || !isTimeDisabled(time, timeRule(day), seconds.value)
+}
+
+/** A time moved off any part that the day rules out. */
+function fitOn(day: string, time: TimeParts) {
+  return fitTime(time, timeRule(day), [1, 1, 1], seconds.value) ?? time
 }
 
 const same = (a: DateValue | DateRange | null | undefined, b: DateValue | DateRange | null) =>
@@ -244,15 +254,19 @@ const draftTimes = computed(() =>
   Array.from({ length: isRange.value ? 2 : 1 }, (_, index) => timeOf(draft.value[index])),
 )
 const ordered = (list: string[]) => (list[0]! <= list[1]! ? list : [list[1]!, list[0]!])
-const canConfirm = computed(() =>
-  isRange.value ? !!(draft.value[0] && draft.value[1]) : !!draft.value[0],
+const draftDays = computed(() =>
+  draftTimes.value.map((_, index) => dayOf(draft.value[index]) ?? dayOf(draft.value[0]) ?? today()),
 )
+const canConfirm = computed(() => {
+  const list = isRange.value ? draft.value.slice(0, 2) : draft.value.slice(0, 1)
+  return list.length === (isRange.value ? 2 : 1) && list.every((value) => !!value && allowed(value))
+})
 
 function onCalendarSelect(value: DateValue | DateRange) {
   if (!isDateTime.value) return onSelect(value)
   const days = Array.isArray(value) ? value : [value]
   draft.value = days.map((day, index) =>
-    withTime(day, timeOf(draft.value[index]) ?? defaultTime(index)),
+    withTime(day, fitOn(day, timeOf(draft.value[index]) ?? defaultTime(index))),
   )
 }
 
@@ -261,7 +275,7 @@ function onTimePick(index: number, time: TimeParts) {
   const day = dayOf(list[index]) ?? dayOf(list[0]) ?? today()
   list[index] = withTime(day, time)
   // a range whose start has a time but no end yet: the end starts on the same day
-  if (isRange.value && index === 0 && !list[1]) list[1] = withTime(day, defaultTime(1))
+  if (isRange.value && index === 0 && !list[1]) list[1] = withTime(day, fitOn(day, defaultTime(1)))
   draft.value = list
 }
 
@@ -273,7 +287,9 @@ function confirm() {
 
 function pickNow() {
   const time = now()
-  onSelect(withTime(today(), { ...time, second: seconds.value ? time.second : 0 }))
+  const day = today()
+  const value = withTime(day, fitOn(day, { ...time, second: seconds.value ? time.second : 0 }))
+  if (allowed(value)) onSelect(value)
 }
 
 function pickShortcut(shortcut: DatePickerShortcut) {
@@ -542,6 +558,7 @@ defineExpose<DatePickerExpose>({
               :value="time"
               :seconds="seconds"
               :steps="[1, 1, 1]"
+              :disabled-time="timeRule(draftDays[index]!)"
               :label="
                 isRange ? t(index ? 'timePicker.end' : 'timePicker.start') : t('datePicker.time')
               "

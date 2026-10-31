@@ -13,6 +13,8 @@ export const en: Locale = {
     decimalSeparator: '.',
   },
   tabs: {
+    scrollPrev: 'Scroll tabs back',
+    scrollNext: 'Scroll tabs forward',
     close: 'Close',
     add: 'New tab',
   },
@@ -27,6 +29,7 @@ export const en: Locale = {
   inputNumber: {
     increase: 'Increase',
     decrease: 'Decrease',
+    clear: 'Clear',
   },
   slider: {
     start: 'Start',
@@ -79,6 +82,10 @@ export const en: Locale = {
     total: '{total} items',
     pageSize: '{size} / page',
     pageSizeLabel: 'Items per page',
+    gap: 'Pages {from}–{to}',
+    jumpPrefix: 'Go to',
+    jumpSuffix: '',
+    jumpLabel: 'Page number',
   },
   table: {
     selectAll: 'Select all',

@@ -1,5 +1,5 @@
 export type ChatBubblePlacement = 'start' | 'end' | 'center'
-export type ChatBubbleVariant = 'filled' | 'outlined' | 'plain'
+export type ChatBubbleVariant = 'soft' | 'outline' | 'ghost'
 
 export interface ChatBubbleProps {
   /**
@@ -8,7 +8,7 @@ export interface ChatBubbleProps {
    * from the system.
    */
   placement?: ChatBubblePlacement
-  /** `filled` tints the bubble, `outlined` frames it, `plain` leaves the text bare. */
+  /** `soft` tints the bubble, `outline` frames it, `ghost` leaves the text bare. */
   variant?: ChatBubbleVariant
   /** The message as plain text. The default slot replaces it. */
   content?: string

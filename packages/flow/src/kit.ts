@@ -17,6 +17,7 @@ import { groupNode } from './components/group-node'
 import { bezierEdge, stepEdge, straightEdge } from './core/edge-types'
 import { defineFlowExtension, type FlowExtension } from './core/extension'
 import type { FlowMenuItem } from './core/menu'
+import { layers, stacking } from './layers'
 
 export interface FlowKitOptions {
   /** The built-in context menu items: copy, paste, delete and so on. */
@@ -25,6 +26,11 @@ export interface FlowKitOptions {
   toolbar?: boolean
   /** The `group` node type, with its menu items and `mod+g` / `mod+shift+g`. */
   group?: boolean
+  /**
+   * Moving nodes up and down the stack: menu items and `mod+]` / `mod+[`,
+   * with Shift for the very top or bottom.
+   */
+  layers?: boolean
 }
 
 /** Copy, paste, delete and the rest, on right click. */
@@ -220,19 +226,21 @@ const groups = defineFlowExtension({
 
 /**
  * The editor's built-in parts as extensions: the default node type, the
- * `bezier`, `step` and `straight` edge types, group nodes, the context
- * menu and the toolbar over selected nodes. Pass it along with
+ * `bezier`, `step` and `straight` edge types, group nodes, stacking order,
+ * the context menu and the toolbar over selected nodes. Pass it along with
  * your own extensions, e.g. `[flowKit(), aiNodes]`; without `extensions`
  * the editor uses it alone.
  */
 export function flowKit(options: FlowKitOptions = {}): FlowExtension[] {
-  const { menu = true, toolbar = true, group = true } = options
+  const { menu = true, toolbar = true, group = true, layers: layered = true } = options
   const kit = [
     defineFlowExtension({ name: 'default-node', nodeTypes: [defaultNode] }),
     defineFlowExtension({ name: 'default-edges', edgeTypes: [bezierEdge, stepEdge, straightEdge] }),
+    stacking,
   ]
   if (menu) kit.push(editMenu)
   if (toolbar) kit.push(editToolbar)
   if (group) kit.push(groups)
+  if (layered) kit.push(layers)
   return kit
 }

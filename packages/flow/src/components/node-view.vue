@@ -12,7 +12,7 @@ import {
 import type { CSSProperties } from 'vue'
 import { flowNodeKey, type NodeMetrics, type PortAnchor, type PortState } from '../context'
 import type { FlowNode, FlowPortSpec, PortSide } from '../core/model'
-import { portSide, portsOf, type NodeTypeSpec } from '../core/node-types'
+import { portSide, portsOf, resizeOf, type NodeTypeSpec } from '../core/node-types'
 import DefaultNode from './default-node.vue'
 import FlowPortView from './flow-port.vue'
 
@@ -137,7 +137,9 @@ watch(
 const container = computed(() => !!props.spec?.container)
 // A collapsed container is as tall as its content, its title.
 const collapsed = computed(() => container.value && !!props.node.data?.collapsed)
-const resizable = computed(() => !!props.spec?.resizable && !props.readonly && !collapsed.value)
+const resizable = computed(
+  () => !!resizeOf(props.spec, props.node) && !props.readonly && !collapsed.value,
+)
 
 const style = computed<CSSProperties>(() => ({
   transform: `translate(${props.node.x}px, ${props.node.y}px)`,

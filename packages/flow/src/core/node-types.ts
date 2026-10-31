@@ -1,6 +1,6 @@
 import type { Component } from 'vue'
 import type { FlowMessages } from '../locale'
-import type { FlowData, FlowNode, FlowPortSpec, PortSide } from './model'
+import type { FlowData, FlowNode, FlowPortSpec, PortSide, Rect } from './model'
 
 /** What a node type's component receives. */
 export interface NodeViewProps<Data extends FlowData = FlowData> {
@@ -41,8 +41,11 @@ export interface NodeTypeSpec<Data extends FlowData = FlowData> {
    * Containers are drawn under edges and other nodes.
    */
   container?: boolean
-  /** A handle on the selected node changes its stored `width` and `height`. */
-  resizable?: boolean | { minWidth?: number; minHeight?: number }
+  /**
+   * A handle on the selected node changes its stored `width` and `height`.
+   * A function decides per node, e.g. not while it is turned.
+   */
+  resizable?: NodeResize | ((node: FlowNode<Data>) => NodeResize)
   /** The `width` and `height` a new node starts with. */
   size?: { width: number; height: number }
   /**
@@ -51,6 +54,11 @@ export interface NodeTypeSpec<Data extends FlowData = FlowData> {
    * e.g. a circle. Selection then shows as a thin outline around the box.
    */
   frame?: boolean
+  /**
+   * The box the node covers on screen when it draws outside its own `rect`,
+   * e.g. while turned. The toolbar over the selection floats above it.
+   */
+  bounds?: (node: FlowNode<Data>, rect: Rect) => Rect
 }
 
 export interface NodePaletteSpec {
@@ -77,6 +85,18 @@ export function portsOf(spec: NodeTypeSpec | undefined, node: FlowNode): FlowPor
   const ports = spec?.ports
   if (!ports) return []
   return typeof ports === 'function' ? ports(node) : ports
+}
+
+export type NodeResize = boolean | { minWidth?: number; minHeight?: number }
+
+/** Whether a node can be resized, and its smallest size; `null` when it can't. */
+export function resizeOf(
+  spec: NodeTypeSpec | undefined,
+  node: FlowNode,
+): { minWidth?: number; minHeight?: number } | null {
+  const value = typeof spec?.resizable === 'function' ? spec.resizable(node) : spec?.resizable
+  if (!value) return null
+  return value === true ? {} : value
 }
 
 export function labelOf(

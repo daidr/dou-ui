@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
   endKeepingWork,
+  isWorkTime,
+  nextWorkTime,
   offTime,
   resolveCalendar,
+  shiftWorkdays,
+  shiftWorkMinutes,
+  startKeepingWork,
   workdaysBetween,
   workingMinutes,
 } from '../core/calendar'
@@ -97,6 +102,35 @@ describe('calendar', () => {
     // a span with no working time keeps its length
     const weekend = { start: at('2026-03-07'), end: at('2026-03-09'), dateOnly: true }
     expect(endKeepingWork(calendar, weekend, at('2026-03-14'))).toBe(at('2026-03-16'))
+  })
+
+  it('steps over time off in both directions', () => {
+    const calendar = resolveCalendar({
+      hours: [
+        ['09:00', '12:00'],
+        ['13:00', '18:00'],
+      ],
+    })
+    // Friday 17:00 back three working hours: 14:00; forward: Monday 11:00
+    expect(formatTime(shiftWorkMinutes(calendar, at('2026-03-06 17:00'), -180))).toBe(
+      '2026-03-06 14:00',
+    )
+    expect(formatTime(shiftWorkMinutes(calendar, at('2026-03-06 17:00'), 180))).toBe(
+      '2026-03-09 11:00',
+    )
+    // back two working days from Monday: Thursday
+    expect(formatTime(shiftWorkdays(calendar, at('2026-03-09'), -2), true)).toBe('2026-03-05')
+    expect(formatTime(nextWorkTime(calendar, at('2026-03-06 12:30'), false))).toBe(
+      '2026-03-06 13:00',
+    )
+    expect(formatTime(nextWorkTime(calendar, at('2026-03-07 10:00'), true), true)).toBe(
+      '2026-03-09',
+    )
+    expect(isWorkTime(calendar, at('2026-03-06 12:00'), false)).toBe(false)
+    const span = { start: at('2026-03-09 09:00'), end: at('2026-03-09 18:00'), dateOnly: false }
+    expect(formatTime(startKeepingWork(calendar, span, at('2026-03-10 12:00')))).toBe(
+      '2026-03-09 13:00',
+    )
   })
 
   // 2026-10-01 is a Thursday

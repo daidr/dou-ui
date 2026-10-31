@@ -46,8 +46,20 @@ export interface GanttMessages {
   linked: string
   linkRemoved: string
   cancelled: string
+  /** `{change}` is the task (or link) as it is afterwards. */
   undone: string
   redone: string
+  /** For `{change}`: a link's lag or type changed, a task was removed. */
+  linkChanged: string
+  taskRemoved: string
+  /** Read out when a change pushed other tasks: `{task}` is the rest, `{count}` how many. */
+  pushed: string
+  /** Read out when a change leaves links not kept: `{task}` is the rest, `{count}` how many. */
+  broken: string
+  /** Read out after `schedule()`: `{count}` tasks moved. */
+  scheduled: string
+  /** A task on the critical path, read out: `{task}` is the rest. */
+  criticalTask: string
 }
 
 const zhMonths = Array.from({ length: 12 }, (_, i) => `${i + 1}月`)
@@ -88,8 +100,14 @@ const zhCN: GanttMessages = {
   linked: '已添加依赖：{from} → {to}',
   linkRemoved: '已删除依赖',
   cancelled: '已取消',
-  undone: '已撤销',
-  redone: '已重做',
+  linkChanged: '依赖已修改',
+  taskRemoved: '{title}，已删除',
+  undone: '已撤销：{change}',
+  redone: '已重做：{change}',
+  pushed: '{task}；另有 {count} 个任务随之推后',
+  broken: '{task}；{count} 条依赖未满足',
+  scheduled: '已重新排期，移动了 {count} 个任务',
+  criticalTask: '{task}，关键任务',
 }
 
 const zhTW: GanttMessages = {
@@ -117,8 +135,14 @@ const zhTW: GanttMessages = {
   linked: '已新增相依：{from} → {to}',
   linkRemoved: '已刪除相依',
   cancelled: '已取消',
-  undone: '已復原',
-  redone: '已重做',
+  linkChanged: '相依已修改',
+  taskRemoved: '{title}，已刪除',
+  undone: '已復原：{change}',
+  redone: '已重做：{change}',
+  pushed: '{task}；另有 {count} 個任務隨之延後',
+  broken: '{task}；{count} 條相依未滿足',
+  scheduled: '已重新排程，移動了 {count} 個任務',
+  criticalTask: '{task}，要徑任務',
 }
 
 const en: GanttMessages = {
@@ -164,8 +188,14 @@ const en: GanttMessages = {
   linked: 'Linked {from} → {to}',
   linkRemoved: 'Dependency removed',
   cancelled: 'Cancelled',
-  undone: 'Undone',
-  redone: 'Redone',
+  linkChanged: 'Dependency changed',
+  taskRemoved: '{title}, removed',
+  undone: 'Undone: {change}',
+  redone: 'Redone: {change}',
+  pushed: '{task}; {count} more pushed later',
+  broken: '{task}; {count} dependencies not kept',
+  scheduled: 'Rescheduled, {count} tasks moved',
+  criticalTask: '{task}, critical',
 }
 
 export const ganttLocales: Record<string, GanttMessages> = {

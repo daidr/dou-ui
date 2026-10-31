@@ -1,5 +1,6 @@
 import { inject, type ComputedRef, type InjectionKey, type Ref } from 'vue'
 import type { GanttLink, GanttTask } from './core/model'
+import type { GanttCriticalPath } from './core/schedule'
 import type { GanttScale } from './core/scale'
 import type { GanttRow } from './core/tree'
 import type { GanttExpose } from './types'
@@ -22,6 +23,11 @@ export interface GanttContext {
   /** The rows as laid out, with spans and summaries worked out. */
   rows: ComputedRef<GanttRow[]>
   transact: GanttExpose['transact']
+  /** The critical path when `critical` is on, `null` otherwise. */
+  critical: ComputedRef<GanttCriticalPath | null>
+  /** Links not kept by the dates as they are. */
+  brokenLinks: ComputedRef<Set<string>>
+  schedule: GanttExpose['schedule']
   undo: () => boolean
   redo: () => boolean
   canUndo: Ref<boolean>

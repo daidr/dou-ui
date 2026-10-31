@@ -59,17 +59,20 @@
 
   /* table ------------------------------------------------------------------ */
 
+  /* columns wider than the pane scroll sideways */
   .dou-gantt__table-pane {
     display: flex;
     flex: none;
     min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
   }
 
   .dou-gantt__table {
     display: flex;
+    flex: 1 0 auto;
     flex-direction: column;
-    width: 100%;
-    min-width: 0;
   }
 
   .dou-gantt__table-head {
@@ -196,6 +199,7 @@
     position: relative;
     z-index: 3;
     flex: none;
+    order: 1;
     width: 1px;
     background-color: var(--dou-gantt-line-strong);
     outline: none;
@@ -220,8 +224,10 @@
   .dou-gantt__chart {
     position: relative;
     flex: 1;
+    order: 2;
     min-width: 0;
     overflow: auto;
+    outline: none;
     overscroll-behavior: contain;
   }
 
@@ -422,6 +428,19 @@
     }
   }
 
+  .dou-gantt__link.is-critical {
+    color: color-mix(in oklab, var(--dou-color-danger) 72%, var(--dou-color-bg-surface));
+  }
+
+  /* a link the dates don't keep: the later task starts too early; it wins over critical */
+  .dou-gantt__link.is-broken {
+    color: var(--dou-color-warning);
+
+    .dou-gantt__link-line {
+      stroke-dasharray: 4 3;
+    }
+  }
+
   /* the line being drawn to a new link */
   .dou-gantt__link-draft {
     fill: none;
@@ -490,8 +509,35 @@
     &.is-warning {
       --dou-gantt-tone: var(--dou-color-warning);
     }
-    &.is-danger {
+    &.is-danger,
+    &.is-critical {
       --dou-gantt-tone: var(--dou-color-danger);
+    }
+    /* stronger than a tone alone, so the path reads at a glance */
+    &.is-critical:not(.is-selected, .is-summary) {
+      border-color: color-mix(in oklab, var(--dou-color-danger) 48%, var(--dou-color-bg-surface));
+    }
+  }
+
+  /* where a drag would push a waiting task */
+  .dou-gantt__ghost {
+    position: absolute;
+    top: calc((var(--dou-gantt-row-height) - var(--dou-gantt-bar-height)) / 2);
+    left: 0;
+    z-index: 2;
+    box-sizing: border-box;
+    height: var(--dou-gantt-bar-height);
+    border: 1px dashed color-mix(in oklab, var(--dou-color-text) 40%, transparent);
+    border-radius: 6px;
+    pointer-events: none;
+
+    &.is-milestone {
+      top: calc((var(--dou-gantt-row-height) - 10px) / 2);
+      width: 10px;
+      height: 10px;
+      margin-left: -5px;
+      border-radius: 2px;
+      rotate: 45deg;
     }
   }
 
@@ -784,7 +830,7 @@
     --dou-gantt-marker: color-mix(in oklab, var(--dou-color-text) 45%, transparent);
     --dou-gantt-marker-text: var(--dou-color-text-secondary);
 
-    &.is-accent {
+    &.is-primary {
       --dou-gantt-marker: var(--dou-color-primary);
       --dou-gantt-marker-text: var(--dou-color-primary-text);
     }

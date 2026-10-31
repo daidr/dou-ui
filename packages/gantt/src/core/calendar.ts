@@ -126,8 +126,102 @@ export function offTime(calendar: WorkCalendar, from: number, to: number, hours 
   return out
 }
 
-/** How far a search for working time looks ahead, in days. */
+/** How far a search for working time looks, in days. */
 const LOOKAHEAD = 3660
+
+/**
+ * The midnight `count` working days away from the midnight `at`: forward
+ * it ends after the last of them, backward it is the start of the last
+ * one. A fraction rounds to whole days.
+ */
+export function shiftWorkdays(calendar: WorkCalendar, at: number, count: number) {
+  let left = Math.round(Math.abs(count))
+  const day = dayIndex(at)
+  if (!left) return at
+  if (count > 0) {
+    for (let d = day; d < day + LOOKAHEAD; d++)
+      if (calendar.isWorkday(d) && --left === 0) return (d + 1) * MINUTES_PER_DAY
+  } else {
+    for (let d = day - 1; d > day - LOOKAHEAD; d--)
+      if (calendar.isWorkday(d) && --left === 0) return d * MINUTES_PER_DAY
+  }
+  return at + count * MINUTES_PER_DAY
+}
+
+/**
+ * The moment `count` working minutes away from `at`, forward or backward.
+ * It lands inside working hours, or at the end of a stretch going forward.
+ */
+export function shiftWorkMinutes(calendar: WorkCalendar, at: number, count: number) {
+  let left = Math.abs(count)
+  if (!left) return at
+  const first = dayIndex(at)
+  if (count > 0) {
+    for (let day = first; day < first + LOOKAHEAD; day++) {
+      if (!calendar.isWorkday(day)) continue
+      const base = day * MINUTES_PER_DAY
+      for (const [open, close] of calendar.hours) {
+        const from = Math.max(at, base + open)
+        const room = base + close - from
+        if (room <= 0) continue
+        if (left <= room) return from + left
+        left -= room
+      }
+    }
+  } else {
+    for (let day = first; day > first - LOOKAHEAD; day--) {
+      if (!calendar.isWorkday(day)) continue
+      const base = day * MINUTES_PER_DAY
+      for (let i = calendar.hours.length - 1; i >= 0; i--) {
+        const [open, close] = calendar.hours[i]!
+        const to = Math.min(at, base + close)
+        const room = to - (base + open)
+        if (room <= 0) continue
+        if (left <= room) return to - left
+        left -= room
+      }
+    }
+  }
+  return at + count
+}
+
+/** Working days, or working minutes, in `[from, to)`. */
+export const workIn = (calendar: WorkCalendar, from: number, to: number, dateOnly: boolean) =>
+  dateOnly ? workdaysBetween(calendar, from, to) : workingMinutes(calendar, from, to)
+
+/**
+ * Whether work can start at `at`: the start of a working day for whole
+ * days, a moment inside working hours otherwise.
+ */
+export function isWorkTime(calendar: WorkCalendar, at: number, dateOnly: boolean) {
+  const day = dayIndex(at)
+  if (!calendar.isWorkday(day)) return false
+  if (dateOnly) return true
+  const clock = at - day * MINUTES_PER_DAY
+  return calendar.hours.some(([open, close]) => clock >= open && clock < close)
+}
+
+/**
+ * The first moment at or after `at` when work can start: the next working
+ * midnight for whole days, the next working minute otherwise.
+ */
+export function nextWorkTime(calendar: WorkCalendar, at: number, dateOnly: boolean) {
+  const first = dateOnly ? Math.ceil(at / MINUTES_PER_DAY) : dayIndex(at)
+  for (let day = first; day < first + LOOKAHEAD; day++) {
+    if (!calendar.isWorkday(day)) continue
+    const base = day * MINUTES_PER_DAY
+    if (dateOnly) return base
+    for (const [open, close] of calendar.hours) {
+      if (at < base + open) return base + open
+      if (at < base + close) return at
+    }
+  }
+  return at
+}
+
+/** The span's working time: working days for whole days, working minutes otherwise. */
+const workOf = (calendar: WorkCalendar, span: { start: number; end: number; dateOnly: boolean }) =>
+  workIn(calendar, span.start, span.end, span.dateOnly)
 
 /**
  * The end of a span moved to start at `start`, keeping its working time:
@@ -139,28 +233,22 @@ export function endKeepingWork(
   span: { start: number; end: number; dateOnly: boolean },
   start: number,
 ) {
-  const length = span.end - span.start
-  if (span.dateOnly) {
-    let left = workdaysBetween(calendar, span.start, span.end)
-    if (!left) return start + length
-    const first = dayIndex(start)
-    for (let day = first; day < first + LOOKAHEAD; day++)
-      if (calendar.isWorkday(day) && --left === 0) return (day + 1) * MINUTES_PER_DAY
-    return start + length
-  }
-  let left = workingMinutes(calendar, span.start, span.end)
-  if (!left) return start + length
-  const first = dayIndex(start)
-  for (let day = first; day < first + LOOKAHEAD; day++) {
-    if (!calendar.isWorkday(day)) continue
-    const base = day * MINUTES_PER_DAY
-    for (const [open, close] of calendar.hours) {
-      const from = Math.max(start, base + open)
-      const room = base + close - from
-      if (room <= 0) continue
-      if (left <= room) return from + left
-      left -= room
-    }
-  }
-  return start + length
+  const work = workOf(calendar, span)
+  if (!work) return start + span.end - span.start
+  return span.dateOnly
+    ? shiftWorkdays(calendar, start, work)
+    : shiftWorkMinutes(calendar, start, work)
+}
+
+/** The start of a span moved to end at `end`, keeping its working time. */
+export function startKeepingWork(
+  calendar: WorkCalendar,
+  span: { start: number; end: number; dateOnly: boolean },
+  end: number,
+) {
+  const work = workOf(calendar, span)
+  if (!work) return end - (span.end - span.start)
+  return span.dateOnly
+    ? shiftWorkdays(calendar, end, -work)
+    : shiftWorkMinutes(calendar, end, -work)
 }

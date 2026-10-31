@@ -63,7 +63,7 @@ const links = ref<GanttLink[]>([{ id: 'l1', from: 'ui', to: 'fe' }])
     v-model:tasks="tasks"
     v-model:links="links"
     :extensions="extensions"
-    :table-width="300"
+    :table-width="360"
     style="height: 220px"
   />
 </template>

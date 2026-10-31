@@ -11,10 +11,10 @@ const tasks = ref<GanttTask[]>([
 
 const markers: GanttMarker[] = [
   { date: day(7), label: '代码冻结', tone: 'warning' },
-  { date: day(11), label: '发布', tone: 'accent' },
+  { date: day(11), label: '发布', tone: 'primary' },
 ]
 </script>
 
 <template>
-  <DouGantt v-model:tasks="tasks" :markers="markers" :table-width="240" style="height: 220px" />
+  <DouGantt v-model:tasks="tasks" :markers="markers" :table-width="300" style="height: 220px" />
 </template>

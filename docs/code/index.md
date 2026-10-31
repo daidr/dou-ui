@@ -19,11 +19,11 @@ bun add dou-ui @dou-ui/code
 引入样式，再注册组件：
 
 ```ts
-import "dou-ui/style.css";
-import "@dou-ui/code/style.css";
-import { DouCodeEditor } from "@dou-ui/code";
+import 'dou-ui/style.css'
+import '@dou-ui/code/style.css'
+import { DouCodeEditor } from '@dou-ui/code'
 
-app.use(DouCodeEditor);
+app.use(DouCodeEditor)
 ```
 
 ## 基础用法
@@ -100,12 +100,12 @@ app.use(DouCodeEditor);
 `codeCommands` 里是内置的编辑和移动命令，用 `run(command)` 执行。在按钮里执行命令后，焦点还在按钮上，需要接着输入时再调用 `focus()`。`keymap` 属性传入额外的按键，写法和 `useHotkey` 一样（`mod+shift+k`），比内置按键优先；命令返回 `false` 时继续尝试下一个绑定：
 
 ```ts
-import { codeCommands, type CodeKeyBinding } from "@dou-ui/code";
+import { codeCommands, type CodeKeyBinding } from '@dou-ui/code'
 
 const keymap: CodeKeyBinding[] = [
-  { key: "mod+s", run: () => (save(), true) },
-  { key: "mod+d", run: codeCommands.selectAll },
-];
+  { key: 'mod+s', run: () => (save(), true) },
+  { key: 'mod+d', run: codeCommands.selectAll },
+]
 ```
 
 内置命令及默认按键（`Mod` 的含义同上，"Apple" 一列只写和其他系统不同的按键）：
@@ -138,9 +138,9 @@ const keymap: CodeKeyBinding[] = [
 `v-model` 每次修改都要把整份文本拼成一个字符串。文件很大时，改用 `v-model:doc` 绑定 `CodeText`：它是不可变的，每次修改得到一个新的 `CodeText`，没有改动的部分和旧的共享，不需要拼接。用 `shallowRef` 保存就够了。只关心最终结果时，也可以用 `v-model.lazy`，在编辑器失去焦点时才交回字符串。
 
 ```ts
-import { CodeText } from "@dou-ui/code";
+import { CodeText } from '@dou-ui/code'
 
-const doc = shallowRef(CodeText.of(source));
+const doc = shallowRef(CodeText.of(source))
 // 需要字符串时再拼：doc.value.toString()
 ```
 

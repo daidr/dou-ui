@@ -765,7 +765,9 @@ function select(unit: Unit, pos: number, extend: boolean, add = false) {
   const next = add
     ? { ranges: [...selection.ranges, range], main: selection.ranges.length }
     : { ranges: [range], main: 0 }
-  dispatch(transaction().select(normalizeSelection(next, doc.value.length)).setMeta({ scroll: false }))
+  dispatch(
+    transaction().select(normalizeSelection(next, doc.value.length)).setMeta({ scroll: false }),
+  )
   // A drag goes on from the anchor kept by Shift, or from the unit pressed.
   return extend ? { from: main.anchor, to: main.anchor } : at
 }
@@ -808,7 +810,8 @@ function onPointerDown(event: PointerEvent, area: 'text' | 'gutter') {
  */
 let lastClick = { time: 0, x: 0, y: 0, count: 0 }
 function countClick(event: PointerEvent) {
-  const near = Math.abs(event.clientX - lastClick.x) < 4 && Math.abs(event.clientY - lastClick.y) < 4
+  const near =
+    Math.abs(event.clientX - lastClick.x) < 4 && Math.abs(event.clientY - lastClick.y) < 4
   const count = near && event.timeStamp - lastClick.time < 500 ? (lastClick.count % 3) + 1 : 1
   lastClick = { time: event.timeStamp, x: event.clientX, y: event.clientY, count }
   return count

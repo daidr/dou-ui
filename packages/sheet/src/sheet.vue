@@ -1012,7 +1012,9 @@ function cellView(
       error = isSheetError(result)
       value = isSheetError(result) ? result.code : result
     }
-    const typed = cell?.type ? resolveCellType(cell, doc.value, cellTypes.value) : undefined
+    const typed = cell?.type
+      ? resolveCellType(cell, doc.value, cellTypes.value)
+      : listTypeAt(row, col)
     text = error
       ? (value as string)
       : (typed?.definition.format?.(value, typed.setup) ??

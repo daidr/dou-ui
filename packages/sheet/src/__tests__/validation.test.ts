@@ -97,7 +97,11 @@ function setup() {
           ['南京', 4],
         ],
         validations: [
-          { range: 'A1:A3', list: ['上海', '杭州'], prompt: '选一个城市' },
+          {
+            range: 'A1:A3',
+            list: [{ value: '上海', tone: 'primary' }, '杭州'],
+            prompt: '选一个城市',
+          },
           { range: 'B1:B3', when: { op: 'between', value: 1, to: 5 }, integer: true },
         ],
       },
@@ -132,6 +136,15 @@ describe('DouSheet with validation', () => {
     expect(grid.value!.findInvalid()).toEqual([
       expect.objectContaining({ sheet: '表', cell: 'A2', message: '请从列表中选择' }),
     ])
+    wrapper.unmount()
+  })
+
+  it('shows options with a tone as tags', async () => {
+    const { wrapper, cell } = setup()
+    await nextTick()
+    expect(cell(0, 0).find('.dou-sheet__tag').classes()).toContain('dou-tag--primary')
+    // a value outside the list stays plain text
+    expect(cell(1, 0).find('.dou-sheet__tag').exists()).toBe(false)
     wrapper.unmount()
   })
 

@@ -17,8 +17,11 @@ export interface PivotProps<Row = Record<string, unknown>> {
   config?: PivotConfig
   /** The collapsed groups; all groups are open by default. */
   collapsed?: PivotCollapsed
-  /** Height, a number in px or any CSS length. The width fills the container. */
-  height?: number | string
+  /**
+   * The most height, a number in px or any CSS length; a shorter table ends
+   * with its last row. The width fills the container.
+   */
+  maxHeight?: number | string
   /** Row height: 28, 32 (`md`, the default) or 40 px. */
   size?: Size
   /** The width of the row headers, in px. */
@@ -34,32 +37,37 @@ export interface PivotProps<Row = Record<string, unknown>> {
 }
 
 /** A cell that was clicked (or activated with Enter). */
-export interface PivotCellEvent {
+export interface PivotCellEvent<Row = Record<string, unknown>> {
   /** The row group's labels, `[]` for the grand total. */
   row: PivotPath
   /** The column group's labels, `[]` for the grand total. */
   column: PivotPath
   /** The value's place in `config.values`. */
-  value: number
+  valueIndex: number
   /** The number in the cell; `NaN` when it is empty. */
-  number: number
-  /** The indexes of the records summed up in the cell. */
-  records: () => number[]
+  value: number
+  /** The records summed up in the cell. */
+  records: () => Row[]
+  /** Their indexes in `data`. */
+  indices: () => number[]
 }
 
-export interface PivotEmits {
+export interface PivotEmits<Row = Record<string, unknown>> {
   'update:config': [config: PivotConfig]
   'update:collapsed': [collapsed: PivotCollapsed]
-  'cell-click': [cell: PivotCellEvent]
+  'cell-click': [cell: PivotCellEvent<Row>]
 }
 
 export interface PivotExpose {
   /** The groups and values on show. */
   readonly result: PivotResult
-  /** Opens every group, on one axis or both. */
-  expandAll: (axis?: PivotAxis) => void
-  /** Closes every group from `depth` in (1, the default, closes the outermost groups). */
-  collapseAll: (axis?: PivotAxis, depth?: number) => void
+  /** Opens every group, on one axis (`rows` or `columns`) or both. */
+  expandAll: (options?: { axis?: PivotAxis }) => void
+  /**
+   * Closes every group from `depth` in (1, the default, closes the outermost
+   * groups), on one axis or both.
+   */
+  collapseAll: (options?: { axis?: PivotAxis; depth?: number }) => void
   /** Opens or closes a group. */
   toggle: (axis: PivotAxis, path: PivotPath, open?: boolean) => void
 }

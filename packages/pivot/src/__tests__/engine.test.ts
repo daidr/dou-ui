@@ -145,7 +145,7 @@ describe('computePivot', () => {
     expect(node).toBeGreaterThan(0)
     expect(result.rows.path(node)).toEqual(['华东', '城市0-2'])
     const march = result.columns.find([3])
-    const records = result.records(node, march)
+    const records = result.indices(node, march)
     expect(records.length).toBe(result.get(node, march, 1))
     for (const i of records) expect(orders[i]!.city).toBe('城市0-2')
     expect(result.rows.find(['华东', '没有'])).toBe(-1)
@@ -184,7 +184,7 @@ describe('computePivot', () => {
     const asc = computePivot(custom, { rows: ['region'] })
     expect(labels(asc)).toEqual(['西南', '华南', '华北', '华东', null])
 
-    const byValue = result.rowOrder({ value: 0, order: 'desc', column: [] })
+    const byValue = result.rowOrder({ valueIndex: 0, order: 'desc', column: [] })
     const top = Array.from(byValue.subarray(result.rows.childStart[0], result.rows.childStart[1]))
     const totals = top.map((node) => result.get(node, 0, 0))
     expect(totals.every((t, i) => i === 0 || totals[i - 1]! >= t)).toBe(true)
@@ -233,7 +233,7 @@ describe('computePivot', () => {
       expect(out.get(0, 0)).toBe(total)
       const a7 = out.rows.find([7])
       expect(out.get(a7, 0)).toBe(wide.filter((r) => r.a === 7).reduce((x, r) => x + r.v, 0))
-      expect(out.records(a7, 0)).toEqual([7, 3007])
+      expect(out.indices(a7, out.columns.total)).toEqual([7, 3007])
     }
     expect(walked.rows.size).toBe(1 + 3000 + 4000 + 4000)
   })

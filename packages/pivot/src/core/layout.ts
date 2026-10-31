@@ -124,7 +124,8 @@ export function columnLines(
  * The header cells over the columns, one list per header row. Each field
  * of the columns is a row; a group spans its children; a closed group, a
  * subtotal and the grand total reach down to the values row. The values
- * row, when the values run along the columns, names each column's value.
+ * row names each column's value; without it, the cells reach one row
+ * further down instead (the header keeps a row for the row fields).
  */
 export function headerSpans(
   tree: PivotTree,
@@ -134,6 +135,7 @@ export function headerSpans(
   const fields = tree.levels.length
   const rows = fields + (valueRow ? 1 : 0)
   const spans: PivotHeaderSpan[][] = Array.from({ length: rows }, () => [])
+  const reach = valueRow ? fields : fields + 1
   const chain = new Int32Array(fields + 1)
   lines.forEach((line, i) => {
     const own = line.kind === 'total' ? 0 : tree.depth[line.node]!
@@ -146,14 +148,14 @@ export function headerSpans(
         if (level > 0) break
         node = 0
         kind = 'total'
-        height = fields
+        height = reach
       } else if (level < own - 1) {
         node = chain[level + 1]!
         kind = 'group'
       } else if (level === own - 1) {
         node = line.node
         kind = line.kind
-        height = fields - own + 1
+        height = reach - own + 1
       } else break
       const list = spans[level]!
       const last = list[list.length - 1]

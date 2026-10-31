@@ -12,5 +12,5 @@ const config = ref({
 </script>
 
 <template>
-  <DouPivot v-model:config="config" :data="orders" :fields="fields" :height="420" />
+  <DouPivot v-model:config="config" :data="orders" :fields="fields" :max-height="420" />
 </template>

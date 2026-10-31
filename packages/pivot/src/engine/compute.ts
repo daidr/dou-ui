@@ -428,14 +428,18 @@ export class PivotResult {
     this.leafCol = init.leafCol
   }
 
-  /** The `value`-th value of a row group and a column group; `NaN` when no record falls in both. */
-  get(row: number, column: number, value = 0): number {
+  /**
+   * The value at `valueIndex` (its place in `values`) of a row group and a
+   * column group; `NaN` when no record falls in both. The trees' `total`
+   * is the grand total.
+   */
+  get(row: number, column: number, valueIndex = 0): number {
     const slot = this.cells.get(row * this.width + column)
-    return slot < 0 ? Number.NaN : this.data[value]![slot]!
+    return slot < 0 ? Number.NaN : this.data[valueIndex]![slot]!
   }
 
   /** The indexes of the records in a row group and a column group, for showing the details. */
-  records(row: number, column: number): number[] {
+  indices(row: number, column: number): number[] {
     const { slotOf, leafRow, leafCol, rows, columns } = this
     // which innermost cells fall in the cell, then which records fall in those
     const inside = new Uint8Array(leafRow.length)
@@ -455,12 +459,13 @@ export class PivotResult {
    */
   rowOrder(sort: PivotValueSort | null | undefined): Int32Array {
     const { rows } = this
-    if (!sort || !this.data[sort.value]) return rows.children
+    if (!sort || !this.data[sort.valueIndex]) return rows.children
     const column = this.columns.find(sort.column ?? [])
     if (column < 0) return rows.children
     const children = rows.children.slice()
     const keys = new Float64Array(rows.size)
-    for (let node = 0; node < rows.size; node++) keys[node] = this.get(node, column, sort.value)
+    for (let node = 0; node < rows.size; node++)
+      keys[node] = this.get(node, column, sort.valueIndex)
     const sign = sort.order === 'desc' ? -1 : 1
     const place = new Int32Array(rows.size)
     rows.children.forEach((node, at) => (place[node] = at))

@@ -23,7 +23,7 @@ const options = [
 <template>
   <div class="pivot-demo">
     <DouSegmentedControl v-model="config.valuesOn" :options="options" size="sm" />
-    <DouPivot v-model:config="config" :data="orders" :fields="fields" :height="360" />
+    <DouPivot v-model:config="config" :data="orders" :fields="fields" :max-height="360" />
   </div>
 </template>
 

@@ -37,14 +37,14 @@ import type { PivotCellEvent, PivotExpose, PivotProps } from './types'
 defineOptions({ name: 'DouPivot' })
 
 const props = withDefaults(defineProps<PivotProps<Row>>(), {
-  height: 480,
+  maxHeight: 480,
   size: 'md',
   rowHeaderWidth: 200,
   columnWidth: 120,
 })
 const config = defineModel<PivotConfig>('config', { default: () => ({}) })
 const collapsed = defineModel<PivotCollapsed>('collapsed', { default: () => ({}) })
-const emit = defineEmits<{ 'cell-click': [cell: PivotCellEvent] }>()
+const emit = defineEmits<{ 'cell-click': [cell: PivotCellEvent<Row>] }>()
 
 const { locale } = useLocale()
 const messages = usePivotMessages(() => props.messages)
@@ -173,7 +173,13 @@ const colLines = computed(() =>
     total: showColumnTotal.value,
   }),
 )
-const valueRow = computed(() => !valuesOnRows.value || result.value.columns.levels.length === 0)
+/**
+ * The row naming each column's value: left out when the values run along the
+ * rows, and when one value sits under column groups (each would repeat it).
+ */
+const valueRow = computed(
+  () => result.value.columns.levels.length === 0 || (!valuesOnRows.value && valueCount.value > 1),
+)
 const spans = computed(() => headerSpans(result.value.columns, colLines.value, valueRow.value))
 
 /** How each value is headed and written. */
@@ -215,9 +221,8 @@ const nodeText = (tree: PivotTree, writers: ((v: unknown) => string)[], node: nu
 // ---- sizes and the window in view ----
 
 const rowHeight = computed(() => ROW_HEIGHT[props.size] ?? 32)
-const headRows = computed(() =>
-  Math.max(1, result.value.columns.levels.length + (valueRow.value ? 1 : 0)),
-)
+/** A row per column field, and one more for the row fields (and the values, when shown). */
+const headRows = computed(() => result.value.columns.levels.length + 1)
 const headHeight = computed(() => headRows.value * rowHeight.value)
 /** On a narrow screen the row headers give up some width so the numbers still show. */
 const rowHeadWidth = computed(() =>
@@ -397,7 +402,10 @@ const headCells = computed<HeadCell[]>(() => {
       const sortable = span.kind === 'value' || (reachesBottom && single && !valueRow.value)
       const value = span.kind === 'value' ? Math.max(0, span.value) : Math.max(0, line.value)
       const sorted =
-        sortable && sort && sort.value === value && samePath(sort.column ?? [], columnPath(line))
+        sortable &&
+        sort &&
+        sort.valueIndex === value &&
+        samePath(sort.column ?? [], columnPath(line))
           ? sort.order
           : null
       const canToggle = span.kind === 'group' && tree.isGroup(span.node)
@@ -447,10 +455,10 @@ function sortByColumn(span: PivotHeaderSpan) {
   const value = span.kind === 'value' ? Math.max(0, span.value) : Math.max(0, line.value)
   const column = columnPath(line)
   const current = config.value.sort
-  const same = current && current.value === value && samePath(current.column ?? [], column)
+  const same = current && current.valueIndex === value && samePath(current.column ?? [], column)
   // descending first (largest on top), then ascending, then back to the labels
   const order = !same ? 'desc' : current!.order === 'desc' ? 'asc' : null
-  config.value = { ...config.value, sort: order ? { value, column, order } : null }
+  config.value = { ...config.value, sort: order ? { valueIndex: value, column, order } : null }
 }
 
 function sortByField(index: number) {
@@ -491,13 +499,13 @@ function toggleNode(axis: PivotAxis, node: number, all = false) {
   setCollapsed(axis, open ? rest : [...rest, ...same])
 }
 
-function expandAll(axis?: PivotAxis) {
+function expandAll({ axis }: { axis?: PivotAxis } = {}) {
   const next = { ...collapsed.value }
   for (const a of axis ? [axis] : (['rows', 'columns'] as const)) next[a] = []
   collapsed.value = next
 }
 
-function collapseAll(axis?: PivotAxis, depth = 1) {
+function collapseAll({ axis, depth = 1 }: { axis?: PivotAxis; depth?: number } = {}) {
   const next = { ...collapsed.value }
   for (const a of axis ? [axis] : (['rows', 'columns'] as const))
     next[a] = groupPaths(a === 'rows' ? result.value.rows : result.value.columns, depth)
@@ -517,15 +525,18 @@ const activeId = computed(() => {
   return cellId(a.row, a.col)
 })
 
-function cellEvent(row: PivotLine, col: PivotLine): PivotCellEvent {
+function cellEvent(row: PivotLine, col: PivotLine): PivotCellEvent<Row> {
   const res = result.value
-  const value = row.value >= 0 ? row.value : Math.max(0, col.value)
+  const data = props.data
+  const valueIndex = row.value >= 0 ? row.value : Math.max(0, col.value)
+  const indices = () => res.indices(row.node, col.node)
   return {
     row: row.kind === 'total' ? [] : res.rows.path(row.node),
     column: col.kind === 'total' ? [] : res.columns.path(col.node),
-    value,
-    number: rowBlank(row) ? Number.NaN : res.get(row.node, col.node, value),
-    records: () => res.records(row.node, col.node),
+    valueIndex,
+    value: rowBlank(row) ? Number.NaN : res.get(row.node, col.node, valueIndex),
+    records: () => indices().map((i) => data[i]!),
+    indices,
   }
 }
 
@@ -686,7 +697,7 @@ watch(engineConfig, () => {
 
 const ariaLabel = computed(() => props.ariaLabel ?? messages.value.pivot)
 const rootStyle = computed(() => {
-  const height = typeof props.height === 'number' ? `${props.height}px` : props.height
+  const height = typeof props.maxHeight === 'number' ? `${props.maxHeight}px` : props.maxHeight
   // a short table ends with its last row instead of leaving blank space under it
   const content = headHeight.value + bodyHeight.value + footHeight.value + gutter.value + 2
   return `height:min(${height}, ${content}px);--dou-pivot-row-height:${rowHeight.value}px;--dou-pivot-head-width:${headWidth.value}px`
@@ -765,6 +776,9 @@ defineExpose<PivotExpose>({
               </template>
               <span v-if="valuesOnRows" class="dou-pivot__corner-values">{{
                 messages.values
+              }}</span>
+              <span v-else-if="!valueRow" class="dou-pivot__corner-values">{{
+                valueDisplay[0]!.label
               }}</span>
             </div>
           </div>

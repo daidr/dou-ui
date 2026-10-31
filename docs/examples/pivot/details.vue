@@ -7,8 +7,8 @@ const config = ref({ rows: ['region'], columns: ['channel'], values: ['amount'] 
 const picked = ref(null)
 
 function onCellClick(cell) {
-  // records() 给出这一格汇总了哪些记录（在 data 里的下标）
-  const list = cell.records().map((i) => orders[i])
+  // records() 给出这一格汇总了哪些记录
+  const list = cell.records()
   const where = [...cell.row, ...cell.column].join(' · ') || '全部'
   const biggest = list.reduce((a, b) => (b.amount > a.amount ? b : a), list[0])
   picked.value = biggest
@@ -23,7 +23,7 @@ function onCellClick(cell) {
       v-model:config="config"
       :data="orders"
       :fields="fields"
-      :height="260"
+      :max-height="260"
       @cell-click="onCellClick"
     />
     <p class="picked">{{ picked ?? '点击一个数字查看明细' }}</p>

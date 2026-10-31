@@ -59,7 +59,9 @@ describe('DouPivot', () => {
     expect(row(1)).toEqual(['5', '', '5'])
     expect(foot()).toEqual(['18', '27', '45'])
     const heads = wrapper.findAll('.dou-pivot__col-head').map((el) => el.text())
-    expect(heads).toEqual(['Q1', 'Q2', '总计', 'amount', 'amount', 'amount'])
+    // one value: no row repeating its name under each column, it is named once in the corner
+    expect(heads).toEqual(['Q1', 'Q2', '总计'])
+    expect(wrapper.find('.dou-pivot__corner-values').text()).toBe('amount')
     expect(wrapper.find('[role="treegrid"]').attributes('aria-rowcount')).toBe(String(2 + 7))
   })
 
@@ -81,7 +83,7 @@ describe('DouPivot', () => {
     // from a city, ← goes up to its region
     expect(grid.attributes('aria-activedescendant')).toMatch(/-0--1$/)
 
-    pivot.value!.collapseAll('rows')
+    pivot.value!.collapseAll({ axis: 'rows' })
     await nextTick()
     expect(rowHeads()).toEqual(['华东', '华南'])
     pivot.value!.expandAll()
@@ -95,9 +97,9 @@ describe('DouPivot', () => {
       columns: ['quarter'],
       values: ['amount'],
     })
-    const totalHead = () => wrapper.findAll('.dou-pivot__col-head.is-value').at(-1)!
+    const totalHead = () => wrapper.find('.dou-pivot__col-head.is-total')
     await totalHead().trigger('click')
-    expect(config.value.sort).toEqual({ value: 0, column: [], order: 'desc' })
+    expect(config.value.sort).toEqual({ valueIndex: 0, column: [], order: 'desc' })
     expect(rowHeads()).toEqual(['上海', '广州', '杭州', '深圳'])
     expect(totalHead().attributes('aria-sort')).toBe('descending')
     await totalHead().trigger('click')
@@ -123,9 +125,10 @@ describe('DouPivot', () => {
     const cell = clicks[0]!
     expect(cell.row).toEqual(['华南'])
     expect(cell.column).toEqual([])
-    expect(cell.value).toBe(1)
-    expect(cell.number).toBe(3)
-    expect(cell.records()).toEqual([3, 4, 5])
+    expect(cell.valueIndex).toBe(1)
+    expect(cell.value).toBe(3)
+    expect(cell.indices()).toEqual([3, 4, 5])
+    expect(cell.records()).toEqual([sales[3], sales[4], sales[5]])
   })
 
   it('counts records when there are no values and says when nothing passes the filters', async () => {
@@ -140,7 +143,7 @@ describe('DouPivot', () => {
   it('does not sum up again when only the sort or the labels change', async () => {
     const { pivot, config } = setup({ rows: ['city'], values: ['amount'] })
     const first = pivot.value!.result
-    config.value = { ...config.value, sort: { value: 0, order: 'desc' } }
+    config.value = { ...config.value, sort: { valueIndex: 0, order: 'desc' } }
     await nextTick()
     config.value = { ...config.value, values: [{ field: 'amount', label: '金额' }] }
     await nextTick()
@@ -179,5 +182,10 @@ describe('layout', () => {
       [1, 2],
     ])
     expect(spans[2]).toHaveLength(5)
+    // without the values row, the cells reach down to the row of the row fields
+    const bare = headerSpans(tree, lines, false)
+    expect(bare).toHaveLength(2)
+    expect(bare[0]!.map((s) => s.rows)).toEqual([1, 3, 3, 3])
+    expect(bare[1]!.map((s) => s.rows)).toEqual([2, 2])
   })
 })

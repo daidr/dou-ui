@@ -98,7 +98,7 @@ values: [
 
 ### 多个值
 
-有多个值时，默认放在列上，每个列组下面各有一列；`valuesOn: 'rows'` 把它们放到行上，每个行组占几行。
+有多个值时，默认放在列上，每个列组下面各有一列；`valuesOn: 'rows'` 把它们放到行上，每个行组占几行。只有一个值时，值的名称只在左上角显示一次，不在每一列下面重复。
 
 <DocDemo src="pivot/values" />
 
@@ -122,11 +122,15 @@ values: [
 
 通过 ref 还可以调用：
 
-| 方法                         | 说明                                                                |
-| ---------------------------- | ------------------------------------------------------------------- |
-| `expandAll(axis?)`           | 展开所有组，`axis` 是 `'rows'` 或 `'columns'`，不写时两个方向都展开 |
-| `collapseAll(axis?, depth?)` | 折叠从第 `depth` 层开始的所有组，默认 1，即只显示最外层             |
-| `toggle(axis, path, open?)`  | 展开或折叠一个组                                                    |
+| 方法                             | 说明                                                                         |
+| -------------------------------- | ---------------------------------------------------------------------------- |
+| `expandAll({ axis? })`           | 展开所有组，`axis` 是 `'rows'` 或 `'columns'`，不写时两个方向都展开          |
+| `collapseAll({ axis?, depth? })` | 折叠从第 `depth` 层开始的所有组，`depth` 默认 1，即只显示最外层；`axis` 同上 |
+| `toggle(axis, path, open?)`      | 展开或折叠一个组                                                             |
+
+```ts
+pivot.value.collapseAll({ axis: 'rows', depth: 2 }) // 行上只展开到第 2 层
+```
 
 ## 排序
 
@@ -135,10 +139,10 @@ values: [
 点击值的表头按这一列的数值排序：第一次从大到小，第二次从小到大，第三次恢复按组名排序。每一层的组在各自的上级里排序。按数值排序记录在 `config.sort` 里：
 
 ```ts
-sort: { value: 0, column: ['Q4'], order: 'desc' } // 按 Q4 那一列的第 1 个值降序
+sort: { valueIndex: 0, column: ['Q4'], order: 'desc' } // 按 Q4 那一列的第 1 个值降序
 ```
 
-`column` 是列组的组名，`[]` 表示总计列。
+`valueIndex` 是值在 `values` 里的序号，`column` 是列组的组名，`[]` 表示总计列。
 
 ## 筛选
 
@@ -155,7 +159,7 @@ filters: {
 
 ## 查看明细
 
-点击一个数字（或用方向键选中后按 Enter）会触发 `cell-click`，参数里有这一格的行组、列组和数值，`records()` 返回汇总进这一格的记录在 `data` 里的下标。
+点击一个数字（或用方向键选中后按 Enter）会触发 `cell-click`，参数里有这一格的行组、列组、值的序号和数值。`records()` 返回汇总进这一格的记录，`indices()` 返回它们在 `data` 里的下标。
 
 <DocDemo src="pivot/details" />
 
@@ -190,7 +194,8 @@ const source = new PivotSource(orders, { fields })
 const result = computePivot(source, { rows: ['region'], values: ['amount'] })
 
 const east = result.rows.find(['华东'])
-result.get(east, 0) // 华东的销售额，0 是列上的总计
+result.get(east, result.columns.total) // 华东的销售额（列上的总计）
+result.get(east, result.columns.find(['Q1']), 1) // 华东 Q1 的第 2 个值
 ```
 
 同一个 `PivotSource` 可以反复计算不同的布局，已经读过的字段不会再读。
@@ -205,7 +210,7 @@ result.get(east, 0) // 华东的销售额，0 是列上的总计
 | `fields`           | 字段的说明                                       | `PivotField[]`          | 从记录的键推断 |
 | `config`           | 字段放在哪里，支持 `v-model:config`              | `PivotConfig`           | `{}`           |
 | `collapsed`        | 折叠的组，支持 `v-model:collapsed`               | `PivotCollapsed`        | `{}`           |
-| `height`           | 最大高度，数字按 px 计算；内容更少时随内容变矮   | `number \| string`      | `480`          |
+| `max-height`       | 最大高度，数字按 px 计算；内容更少时随内容变矮   | `number \| string`      | `480`          |
 | `size`             | 行高：28、32、40px                               | `'sm' \| 'md' \| 'lg'`  | `'md'`         |
 | `row-header-width` | 行头的宽度（px），窄屏上会自动收窄               | `number`                | `200`          |
 | `column-width`     | 每个数值列的最小宽度（px），表格较宽时会适当加宽 | `number`                | `120`          |
@@ -215,23 +220,34 @@ result.get(east, 0) // 华东的销售额，0 是列上的总计
 
 ### Pivot Events
 
-| 名称               | 说明                       | 参数                                                                                            |
-| ------------------ | -------------------------- | ----------------------------------------------------------------------------------------------- |
-| `update:config`    | 在表格里排序时             | `PivotConfig`                                                                                   |
-| `update:collapsed` | 展开或折叠组时             | `PivotCollapsed`                                                                                |
-| `cell-click`       | 点击数字，或选中后按 Enter | `{ row: unknown[], column: unknown[], value: number, number: number, records: () => number[] }` |
+| 名称               | 说明                       | 参数             |
+| ------------------ | -------------------------- | ---------------- |
+| `update:config`    | 在表格里排序时             | `PivotConfig`    |
+| `update:collapsed` | 展开或折叠组时             | `PivotCollapsed` |
+| `cell-click`       | 点击数字，或选中后按 Enter | `PivotCellEvent` |
+
+### PivotCellEvent
+
+| 名称         | 说明                              | 类型             |
+| ------------ | --------------------------------- | ---------------- |
+| `row`        | 行组从外到内的组名，总计行为 `[]` | `unknown[]`      |
+| `column`     | 列组从外到内的组名，总计列为 `[]` | `unknown[]`      |
+| `valueIndex` | 值在 `config.values` 里的序号     | `number`         |
+| `value`      | 格子里的数值，空格子为 `NaN`      | `number`         |
+| `records`    | 汇总进这一格的记录                | `() => object[]` |
+| `indices`    | 这些记录在 `data` 里的下标        | `() => number[]` |
 
 ### PivotConfig
 
-| 名称       | 说明                     | 类型                                                    | 默认值      |
-| ---------- | ------------------------ | ------------------------------------------------------- | ----------- |
-| `rows`     | 行上的字段               | `(string \| { field, sort?, subtotal? })[]`             | `[]`        |
-| `columns`  | 列上的字段               | `(string \| { field, sort?, subtotal? })[]`             | `[]`        |
-| `values`   | 要汇总的值               | `(string \| { field?, aggregate?, label?, format? })[]` | 计数        |
-| `filters`  | 按字段保留或排除组       | `Record<string, { include?, exclude? }>`                | —           |
-| `valuesOn` | 多个值放在哪个方向       | `'columns' \| 'rows'`                                   | `'columns'` |
-| `sort`     | 按某一列的数值给行组排序 | `{ value: number, column?: unknown[], order } \| null`  | —           |
-| `totals`   | 总计行和总计列           | `{ rows?: boolean, columns?: boolean }`                 | 都显示      |
+| 名称       | 说明                     | 类型                                                        | 默认值      |
+| ---------- | ------------------------ | ----------------------------------------------------------- | ----------- |
+| `rows`     | 行上的字段               | `(string \| { field, sort?, subtotal? })[]`                 | `[]`        |
+| `columns`  | 列上的字段               | `(string \| { field, sort?, subtotal? })[]`                 | `[]`        |
+| `values`   | 要汇总的值               | `(string \| { field?, aggregate?, label?, format? })[]`     | 计数        |
+| `filters`  | 按字段保留或排除组       | `Record<string, { include?, exclude? }>`                    | —           |
+| `valuesOn` | 多个值放在哪个方向       | `'columns' \| 'rows'`                                       | `'columns'` |
+| `sort`     | 按某一列的数值给行组排序 | `{ valueIndex: number, column?: unknown[], order } \| null` | —           |
+| `totals`   | 总计行和总计列           | `{ rows?: boolean, columns?: boolean }`                     | 都显示      |
 
 ### CSS 变量
 

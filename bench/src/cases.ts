@@ -785,7 +785,7 @@ export const cases: Record<string, Case> = {
     render: (n) => pivot(n),
     act: () => {
       const { config } = (window as any).pivot
-      config.value = { ...config.value, sort: { value: 0, order: 'desc' } }
+      config.value = { ...config.value, sort: { valueIndex: 0, order: 'desc' } }
     },
   },
   // The first region closed: the rows are laid out again, not summed up.
@@ -834,7 +834,7 @@ function pivot(n: number) {
       config: config.value,
       'onUpdate:config': (value: PivotConfig) => (config.value = value),
       collapsed: collapsed.value,
-      height: 600,
+      maxHeight: 600,
     })
 }
 

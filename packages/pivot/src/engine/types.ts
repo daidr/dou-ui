@@ -64,7 +64,7 @@ export interface PivotFilter {
 /** Orders the row groups by the values in one column (what clicking a value header does). */
 export interface PivotValueSort {
   /** Which value, by its place in `values`. */
-  value: number
+  valueIndex: number
   /** The column's path of group labels; `[]` (the default) for the grand total. */
   column?: readonly unknown[]
   order: 'asc' | 'desc'

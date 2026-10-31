@@ -44,7 +44,8 @@
     position: absolute;
     inset: 0;
     overflow: auto;
-    overscroll-behavior: contain;
+    /* sideways only: a vertical swipe past the end still scrolls the page */
+    overscroll-behavior-x: contain;
     outline: none;
     scrollbar-width: thin;
     scrollbar-color: color-mix(in oklab, var(--dou-color-text) 22%, transparent) transparent;
@@ -121,6 +122,11 @@
       padding-right: 12px;
       color: var(--dou-color-text-tertiary);
       font-size: 12px;
+    }
+
+    &.is-rows {
+      /* the field buttons pad their own text; the value name lines up with the column fields */
+      padding-right: 12px;
     }
   }
 

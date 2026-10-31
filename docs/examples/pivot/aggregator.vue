@@ -29,6 +29,6 @@ const config = ref({
     :data="orders"
     :fields="fields"
     :aggregators="[spread]"
-    :height="260"
+    :max-height="260"
   />
 </template>

@@ -18,8 +18,10 @@ const pivot = ref()
   <div class="pivot-demo">
     <DouSpace>
       <DouButton size="sm" @click="pivot.expandAll()">全部展开</DouButton>
-      <DouButton size="sm" @click="pivot.collapseAll('rows')">只看大区</DouButton>
-      <DouButton size="sm" @click="pivot.collapseAll('rows', 2)">只看到城市</DouButton>
+      <DouButton size="sm" @click="pivot.collapseAll({ axis: 'rows' })">只看大区</DouButton>
+      <DouButton size="sm" @click="pivot.collapseAll({ axis: 'rows', depth: 2 })"
+        >只看到城市</DouButton
+      >
     </DouSpace>
     <DouPivot
       ref="pivot"
@@ -27,7 +29,7 @@ const pivot = ref()
       v-model:collapsed="collapsed"
       :data="orders"
       :fields="fields"
-      :height="420"
+      :max-height="420"
     />
   </div>
 </template>

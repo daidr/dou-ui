@@ -16,6 +16,8 @@ export interface PivotLevel {
  * `node` are `children[childStart[node]]` up to `children[childStart[node + 1]]`.
  */
 export class PivotTree {
+  /** The root: the grand total, as a row or column group. */
+  readonly total = 0
   readonly size: number
   readonly levels: readonly PivotLevel[]
   readonly parent: Int32Array

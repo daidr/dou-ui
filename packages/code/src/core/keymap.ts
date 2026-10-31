@@ -107,4 +107,12 @@ export const defaultKeymap: readonly CodeKeyBinding[] = [
   { key: 'mod+shift+z', run: cmd.redo },
   { key: 'mod+y', mac: 'mod+shift+z', run: cmd.redo },
   { key: 'escape', run: cmd.simplifySelection },
+  { key: 'mod+/', run: cmd.toggleComment },
+  { key: 'alt+arrowup', run: cmd.moveLineUp },
+  { key: 'alt+arrowdown', run: cmd.moveLineDown },
+  { key: 'shift+alt+arrowup', run: cmd.copyLineUp },
+  { key: 'shift+alt+arrowdown', run: cmd.copyLineDown },
+  { key: 'mod+shift+k', run: cmd.deleteLine },
+  { key: 'mod+shift+\\', run: cmd.cursorMatchingBracket },
+  { key: 'mod+shift+|', run: cmd.cursorMatchingBracket },
 ]

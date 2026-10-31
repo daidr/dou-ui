@@ -1,6 +1,7 @@
 import type { CodeCommand } from './core/commands'
 import type { CodeKeyBinding } from './core/keymap'
 import type { CodeSelection } from './core/selection'
+import type { CodeLanguage } from './language/language'
 import type { CodeText } from './core/text'
 import type {
   CodeState,
@@ -32,6 +33,12 @@ export interface CodeEditorProps {
   /** Indents with tabs instead of spaces. */
   indentWithTabs?: boolean
   placeholder?: string
+  /** The language: colors its tokens, and tells how to indent, comment and pair brackets. */
+  language?: CodeLanguage | null
+  /** Typing an opening bracket or quote also types its partner. On by default. */
+  closeBrackets?: boolean
+  /** Outlines the bracket next to the cursor and its partner. On by default. */
+  matchBrackets?: boolean
   /** Extra keys, tried before the built-in ones. */
   keymap?: CodeKeyBinding[]
   autofocus?: boolean

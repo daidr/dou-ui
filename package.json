@@ -20,7 +20,8 @@
     "lint": "oxlint --deny-warnings",
     "check": "bun fmt --check && bun run lint && bun run typecheck && bun run test",
     "release": "bun scripts/release.ts",
-    "bench": "bun run gen && vite build bench && node bench/run.mjs"
+    "bench": "bun run gen && vite build bench && node bench/run.mjs",
+    "bench:check": "bun run gen && vite build bench && node bench/run.mjs --check"
   },
   "devDependencies": {
     "@types/bun": "^1.4.4",
@@ -29,6 +30,7 @@
     "@vue/tsconfig": "^0.9.1",
     "happy-dom": "^21.0.4",
     "oxlint": "^1.90.0",
+    "playwright": "1.63.0",
     "typescript": "~6.0.3",
     "vite": "^8.3.5",
     "vitest": "^5.0.5",

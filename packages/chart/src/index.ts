@@ -46,7 +46,13 @@ export type {
   ChartZoomAxis,
   ChartZoomProps,
 } from './types'
-export type { ChartAccessor, ChartRow, XColumn as ChartColumn } from './core/data'
+export type {
+  ChartAccessor,
+  ChartColumns,
+  ChartData,
+  ChartRow,
+  XColumn as ChartXColumn,
+} from './core/data'
 export type { ChartAxisRole, ChartAxisType, ChartTickValue } from './core/layout'
 export type { Painter as ChartPainter, Rect as ChartRect } from './core/painter'
 export type { Scale as ChartScale } from './core/scale'

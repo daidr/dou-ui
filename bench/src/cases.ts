@@ -1,4 +1,4 @@
-import { h, reactive, ref, shallowRef } from 'vue'
+import { h, nextTick, reactive, ref, shallowRef } from 'vue'
 import type { VNode } from 'vue'
 import {
   DouButton,
@@ -40,7 +40,15 @@ import {
   type GanttTask,
 } from '@dou-ui/gantt'
 import '@dou-ui/gantt/style.css'
-import { DouChart, DouChartAxis, DouChartBar, DouChartLine, DouChartScatter } from '@dou-ui/chart'
+import {
+  DouChart,
+  DouChartAxis,
+  DouChartBar,
+  DouChartLine,
+  DouChartRange,
+  DouChartScatter,
+  DouChartZoom,
+} from '@dou-ui/chart'
 import '@dou-ui/chart/style.css'
 import { DouFlowEditor, type FlowDocument } from '@dou-ui/flow'
 import '@dou-ui/flow/style.css'
@@ -65,6 +73,20 @@ export interface Case {
   act?: (root: HTMLElement) => unknown
   /** Untimed setup before `act`. */
   prepare?: (root: HTMLElement) => unknown
+  /**
+   * For what happens frame after frame (a drag, a pointer moving, data
+   * coming in): how many times `act` runs. The first, which fills caches,
+   * is left out; the result is the median of the rest.
+   */
+  frames?: number
+  /**
+   * The most `act` may take, in ms, at each size: `bun run bench:check`
+   * runs the cases that have one, at those sizes, and fails above it.
+   * About twice what a laptop takes, so a slower machine passes: it
+   * catches a change that makes the case several times slower, not a
+   * few percent.
+   */
+  budget?: Record<number, number>
 }
 
 const words = ['上海', '北京', '杭州', '深圳', '成都', '南京', '武汉', '西安']
@@ -145,7 +167,32 @@ function plan(n: number) {
 const drawn = () =>
   new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
 
-function chartCase(n: number, series: 'line' | 'bar' | 'scatter' = 'line') {
+/**
+ * Runs `change`, then waits for the frame it is drawn in: the time taken
+ * is the change itself, the updates after it, and the frame callbacks the
+ * change asked for (the chart draws in one), not the wait for the frame.
+ * A callback asked for before the change runs first in that frame, one
+ * asked for after it runs last: the time between them is the frame's work.
+ */
+async function timedDraw(change: () => void) {
+  let frameStart = 0
+  requestAnimationFrame(() => (frameStart = performance.now()))
+  const start = performance.now()
+  change()
+  await nextTick()
+  const updates = performance.now() - start
+  await new Promise<void>((resolve) =>
+    requestAnimationFrame(() => {
+      ;(window as any).workTime = updates + (performance.now() - frameStart)
+      resolve()
+    }),
+  )
+}
+
+/** Moves the pointer a little each frame of a hover case. */
+let moves = 0
+
+function chartCase(n: number, series: 'line' | 'bar' | 'scatter' = 'line', zoom = false) {
   let seed = 1
   const points = () => {
     const list = Array.from({ length: n })
@@ -158,7 +205,9 @@ function chartCase(n: number, series: 'line' | 'bar' | 'scatter' = 'line') {
     return list
   }
   const data = shallowRef(points())
-  ;(window as any).chart = { data, points }
+  // a tenth of the time shown, from the middle
+  const range = shallowRef<[number, number] | null>(zoom ? [n * 450, n * 550] : null)
+  ;(window as any).chart = { data, points, range }
   return () =>
     h('div', { class: 'chart-frame', style: 'width: 1200px' }, [
       h(DouChart, { data: data.value, x: series === 'scatter' ? 'x' : 't', height: 400 }, () =>
@@ -167,6 +216,15 @@ function chartCase(n: number, series: 'line' | 'bar' | 'scatter' = 'line') {
           : [
               h(DouChartAxis, { for: 'x', type: 'time' }),
               h(series === 'bar' ? DouChartBar : DouChartLine, { y: 'v' }),
+              ...(zoom
+                ? [
+                    h(DouChartZoom, {
+                      x: range.value,
+                      'onUpdate:x': (v: any) => (range.value = v),
+                    }),
+                    h(DouChartRange),
+                  ]
+                : []),
             ],
       ),
     ])
@@ -586,6 +644,7 @@ export const cases: Record<string, Case> = {
   },
   // a time series of `n` points; the canvas is drawn in the next frame, so `act` waits for it
   chart: {
+    budget: { 1_000_000: 200 },
     render: (n) => chartCase(n),
     // new data: read into columns again and drawn
     prepare: () => {
@@ -594,8 +653,7 @@ export const cases: Record<string, Case> = {
     },
     act: async () => {
       const { data, next } = (window as any).chart
-      data.value = next
-      await drawn()
+      await timedDraw(() => (data.value = next))
     },
   },
   // `n` bars, most narrower than a pixel: merged per pixel column
@@ -607,8 +665,7 @@ export const cases: Record<string, Case> = {
     },
     act: async () => {
       const { data, next } = (window as any).chart
-      data.value = next
-      await drawn()
+      await timedDraw(() => (data.value = next))
     },
   },
   // `n` points scattered over the plot: dots on one pixel drawn once
@@ -620,8 +677,109 @@ export const cases: Record<string, Case> = {
     },
     act: async () => {
       const { data, next } = (window as any).chart
-      data.value = next
-      await drawn()
+      await timedDraw(() => (data.value = next))
+    },
+  },
+  // zoomed in to a tenth of `n` points: a step of the pan, as a drag or the wheel moves it
+  'chart-pan': {
+    frames: 20,
+    budget: { 1_000_000: 16 },
+    render: (n) => chartCase(n, 'line', true),
+    act: async () => {
+      const { range } = (window as any).chart
+      const [a, b] = range.value.map(Number)
+      const step = (b - a) / 50
+      await timedDraw(() => (range.value = [a + step, b + step]))
+    },
+  },
+  // new data given by column, as typed arrays: nothing to read row by row
+  'chart-columns': {
+    budget: { 1_000_000: 120 },
+    render: (n) => chartCase(n),
+    prepare: () => {
+      const state = (window as any).chart
+      const points = state.points()
+      const t = new Float64Array(points.length)
+      const v = new Float64Array(points.length)
+      for (let i = 0; i < points.length; i++) {
+        t[i] = points[i].t
+        v[i] = points[i].v
+      }
+      state.next = { t, v }
+    },
+    act: async () => {
+      const { data, next } = (window as any).chart
+      await timedDraw(() => (data.value = next))
+    },
+  },
+  // a live line of the last `n` points: one comes in, the oldest goes
+  'chart-live': {
+    frames: 20,
+    budget: { 10_000: 8 },
+    render: (n) => chartCase(n),
+    act: async () => {
+      const { data } = (window as any).chart
+      const shown = data.value
+      const last = shown[shown.length - 1]
+      await timedDraw(() => {
+        const next = shown.slice(1)
+        next.push({ t: last.t + 1000, v: last.v + Math.sin(last.t) * 0.5, x: 0 })
+        data.value = next
+      })
+    },
+  },
+  // all of `n` points shown, zoomed in by a step
+  'chart-zoom': {
+    frames: 20,
+    budget: { 1_000_000: 16 },
+    render: (n) => chartCase(n, 'line', true),
+    prepare: () => {
+      ;(window as any).chart.range.value = null
+    },
+    act: async () => {
+      const { range } = (window as any).chart
+      const n = (window as any).chart.data.value.length
+      await timedDraw(() => (range.value = [n * 50, n * 950]))
+    },
+  },
+  // the pointer over `n` points: the x under it found, the tooltip shown
+  'chart-hover': {
+    frames: 20,
+    budget: { 1_000_000: 8 },
+    render: (n) => chartCase(n),
+    act: async (root) => {
+      const el = root.querySelector<HTMLElement>('.dou-chart')!
+      const box = el.getBoundingClientRect()
+      await timedDraw(() =>
+        el.dispatchEvent(
+          new PointerEvent('pointermove', {
+            bubbles: true,
+            clientX: box.left + box.width * (0.6 + (moves++ % 20) / 100),
+            clientY: box.top + 200,
+            pointerType: 'mouse',
+          }),
+        ),
+      )
+    },
+  },
+  // the pointer over `n` scattered points: the nearest found
+  'chart-scatter-hover': {
+    frames: 20,
+    budget: { 100_000: 4, 1_000_000: 8 },
+    render: (n) => chartCase(n, 'scatter'),
+    act: async (root) => {
+      const el = root.querySelector<HTMLElement>('.dou-chart')!
+      const box = el.getBoundingClientRect()
+      await timedDraw(() =>
+        el.dispatchEvent(
+          new PointerEvent('pointermove', {
+            bubbles: true,
+            clientX: box.left + box.width * (0.6 + (moves++ % 20) / 100),
+            clientY: box.top + 200,
+            pointerType: 'mouse',
+          }),
+        ),
+      )
     },
   },
   'chart-resize': {

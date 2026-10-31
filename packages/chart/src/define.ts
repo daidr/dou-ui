@@ -6,7 +6,7 @@ import {
   type ExtractPropTypes,
   type PropType,
 } from 'vue'
-import type { ChartAccessor, ChartRow } from './core/data'
+import type { ChartAccessor, ChartData } from './core/data'
 import type { ChartSeriesKind, ChartValueAxis } from './core/series'
 import { useChartPart, useOwnNode } from './context'
 
@@ -14,7 +14,7 @@ import { useChartPart, useOwnNode } from './context'
 const seriesProps = {
   y: { type: [String, Function] as PropType<ChartAccessor>, required: true },
   name: String,
-  data: Array as PropType<readonly ChartRow[]>,
+  data: [Array, Object] as PropType<ChartData>,
   x: [String, Function] as PropType<ChartAccessor>,
   color: String,
   tone: String as PropType<Tone>,

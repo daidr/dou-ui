@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { h, nextTick } from 'vue'
 import { DouChart, DouChartBar, DouChartLine, DouChartPie, defineChartSeries } from '..'
 import { barKind, barPlacement, drawBars } from '../core/bar'
@@ -427,6 +427,32 @@ describe('defineChartSeries', () => {
     )
     wrapper.unmount()
     expect(drawn).toEqual([])
+  })
+
+  it('prepares once the data has stayed a moment, and keeps what it gives back', async () => {
+    vi.useFakeTimers()
+    const prepared: number[] = []
+    const DouChartMark = defineChartSeries({
+      type: 'mark',
+      prepare: (series) => {
+        prepared.push(series.top.length)
+        return `${series.top.length} 个点`
+      },
+      draw: () => {},
+    })
+    const data = { x: new Float64Array([1, 2]), y: new Float64Array([4, 5]) }
+    const wrapper = mount(DouChart, {
+      props: { data, x: 'x' },
+      slots: { default: () => [h(DouChartMark, { y: 'y' })] },
+    })
+    await nextTick()
+    await vi.advanceTimersByTimeAsync(200)
+    // new data before the old stayed long enough: only the new is prepared
+    await wrapper.setProps({ data: { x: new Float64Array([1, 2, 3]), y: data.y } })
+    await vi.advanceTimersByTimeAsync(1500)
+    expect(prepared).toEqual([3])
+    vi.useRealTimers()
+    wrapper.unmount()
   })
 })
 

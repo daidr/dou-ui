@@ -24,6 +24,20 @@ export function sortedOrder(values: Float64Array): Int32Array {
   return order
 }
 
+let identity = new Int32Array(0)
+/**
+ * Notes that `values` go up with no gaps, so their order is just
+ * 0, 1, 2…: shared, so it costs nothing to make.
+ */
+export function inOrder(values: Float64Array) {
+  const n = values.length
+  if (identity.length < n) {
+    identity = new Int32Array(Math.max(n, identity.length * 2))
+    for (let i = 0; i < identity.length; i++) identity[i] = i
+  }
+  orders.set(values, identity.subarray(0, n))
+}
+
 /** The position in `order` of the first value not below `value`. */
 function lowerBound(values: Float64Array, order: Int32Array, value: number): number {
   let lo = 0
@@ -34,6 +48,18 @@ function lowerBound(values: Float64Array, order: Int32Array, value: number): num
     else hi = mid
   }
   return lo
+}
+
+/** How far `value` is from the nearest other value of `values`; `Infinity` when there is none. */
+export function neighborGap(values: Float64Array, value: number): number {
+  const order = sortedOrder(values)
+  const at = lowerBound(values, order, value)
+  let gap = Number.POSITIVE_INFINITY
+  if (at > 0) gap = value - values[order[at - 1]!]!
+  let next = at
+  while (next < order.length && values[order[next]!]! <= value) next++
+  if (next < order.length) gap = Math.min(gap, values[order[next]!]! - value)
+  return gap
 }
 
 /** The row of `values` whose value is exactly `value`, or -1. */

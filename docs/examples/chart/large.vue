@@ -1,39 +1,62 @@
 <script setup>
-import { DouButton, DouSpace } from 'dou-ui'
-import { DouChart, DouChartAxis, DouChartLine, DouChartZoom } from '@dou-ui/chart'
-import { shallowRef } from 'vue'
+import { DouSegmentedControl } from 'dou-ui'
+import { DouChart, DouChartAxis, DouChartLine, DouChartRange, DouChartZoom } from '@dou-ui/chart'
+import { onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue'
 
-// 大数据放在 shallowRef 里：数组整体替换，不需要逐项响应
-const rows = shallowRef([])
-const count = shallowRef(0)
+const count = shallowRef(1_000_000)
+// 读数保留 1 位小数
+const oneDecimal = (value) => value.toFixed(1)
+// 按列给数据：每个字段一个 Float64Array，读取时直接复制，不必逐行读取
+const data = shallowRef(null)
 
 function generate(n) {
   const start = new Date(2026, 9, 1).getTime()
-  const next = Array.from({ length: n })
-  let value = 50
+  const time = new Float64Array(n)
+  const value = new Float64Array(n)
+  let v = 50
   for (let i = 0; i < n; i++) {
-    value += (Math.random() - 0.5) * 2 + (50 - value) * 0.001
-    next[i] = { time: start + i * 1000, value }
+    v += (Math.random() - 0.5) * 2 + (50 - v) * 0.001
+    time[i] = start + i * 1000
+    value[i] = v
   }
-  rows.value = next
-  count.value = n
+  data.value = { time, value }
 }
 
-generate(100_000)
+// 滚到示例附近时才生成数据，打开页面时不必等它
+const box = useTemplateRef('box')
+let observer
+onMounted(() => {
+  observer = new IntersectionObserver(
+    ([entry]) => {
+      if (!entry?.isIntersecting) return
+      observer.disconnect()
+      generate(count.value)
+    },
+    { rootMargin: '400px 0px' },
+  )
+  observer.observe(box.value)
+})
+onBeforeUnmount(() => observer?.disconnect())
+watch(count, (n) => data.value && generate(n))
 </script>
 
 <template>
-  <div class="large">
-    <DouSpace>
-      <DouButton size="sm" @click="generate(100_000)">10 万点</DouButton>
-      <DouButton size="sm" @click="generate(1_000_000)">100 万点</DouButton>
-      <span class="count">当前 {{ count.toLocaleString() }} 个点</span>
-    </DouSpace>
-    <DouChart :data="rows" x="time" :height="280">
+  <div ref="box" class="large">
+    <DouSegmentedControl
+      v-model="count"
+      :options="[
+        { value: 100_000, label: '10 万点' },
+        { value: 1_000_000, label: '100 万点' },
+      ]"
+      size="sm"
+    />
+    <DouChart :data="data ?? []" x="time" :height="280">
       <!-- 时间是毫秒数，用 type 把横轴指定为时间轴 -->
       <DouChartAxis for="x" type="time" />
+      <DouChartAxis for="y" :format="oneDecimal" />
       <DouChartLine y="value" name="读数" :line-width="1.5" />
       <DouChartZoom />
+      <DouChartRange />
     </DouChart>
   </div>
 </template>
@@ -43,10 +66,10 @@ generate(100_000)
   display: flex;
   width: 100%;
   flex-direction: column;
+  align-items: flex-start;
   gap: 12px;
 }
-.count {
-  color: var(--dou-color-text-tertiary);
-  font-size: var(--dou-font-size-sm);
+.large > :deep(.dou-chart) {
+  align-self: stretch;
 }
 </style>

@@ -150,6 +150,26 @@ describe('DouCodeEditor', () => {
     expect(wrapper.find('.dou-code-editor__compose').exists()).toBe(false)
   })
 
+  it('drops the line break of the Enter that confirmed a composition', async () => {
+    const { editor, input, code, key, type } = setup('ab')
+    editor.value!.select(1)
+    await nextTick()
+    input.dispatchEvent(new CompositionEvent('compositionstart'))
+    input.value = 'anib'
+    input.dispatchEvent(new Event('input'))
+    await key('Enter', { isComposing: true })
+    input.value = 'a你b'
+    input.dispatchEvent(new Event('input'))
+    input.dispatchEvent(new CompositionEvent('compositionend', { data: '你' }))
+    await nextTick()
+    // Some browsers put the confirming Enter's line break into the textarea as well.
+    await type('\n')
+    expect(code.value).toBe('a你b')
+    // A later Enter is a line break again.
+    await key('Enter')
+    expect(code.value).toBe('a你\nb')
+  })
+
   it('deletes with a textarea change, as phone keyboards do', async () => {
     const { editor, input, code } = setup('abc')
     editor.value!.select(3)

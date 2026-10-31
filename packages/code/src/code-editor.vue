@@ -433,7 +433,13 @@ function readInput() {
   if (!diff) return
   const from = mirror.from + diff.from
   const to = mirror.from + diff.to
-  const { insert } = diff
+  let { insert } = diff
+  // The Enter that confirmed a composition only confirms it.
+  if (insert.endsWith('\n') && performance.now() - confirmEnter < 200) {
+    insert = insert.slice(0, -1)
+    confirmEnter = -Infinity
+  }
+  if (!insert && from === to) return syncInput()
   const { doc: text, selection } = state.value
   const main = mainRange(selection)
   // Typing over the selection or at the cursor: the same goes to every cursor.
@@ -554,8 +560,15 @@ const keymap = computed(() => buildKeymap([...defaultKeymap, ...(props.keymap ??
 /** After Escape, Tab leaves the editor instead of indenting, so keyboard users are never stuck. */
 let tabLeaves = false
 
+/** When Enter last confirmed a composition; some browsers also put a line break into the textarea for it, right after. */
+let confirmEnter = -Infinity
+
 function onKeydown(event: KeyboardEvent) {
-  if (isComposing(event) || composing.value) return
+  if (isComposing(event) || composing.value) {
+    if (event.key === 'Enter') confirmEnter = performance.now()
+    return
+  }
+  confirmEnter = -Infinity
   const name = eventKey(event, apple)
   const leaving = tabLeaves && (name === 'tab' || name === 'shift+tab')
   tabLeaves = name === 'escape'
@@ -741,17 +754,18 @@ function focusInput() {
   input.value?.focus({ preventScroll: true })
 }
 
-function select(unit: Unit, pos: number, extend: boolean) {
+/** Selects the unit at `pos`: alone, extending the main range (`extend`), or as one more range (`add`). */
+function select(unit: Unit, pos: number, extend: boolean, add = false) {
   const at = unitAt(pos, unit)
-  const main = mainRange(state.value.selection)
+  const { selection } = state.value
+  const main = mainRange(selection)
   const range = extend
     ? { anchor: main.anchor, head: pos < main.anchor ? at.from : at.to }
     : { anchor: at.from, head: at.to }
-  dispatch(
-    transaction()
-      .select({ ranges: [range], main: 0 })
-      .setMeta({ scroll: false }),
-  )
+  const next = add
+    ? { ranges: [...selection.ranges, range], main: selection.ranges.length }
+    : { ranges: [range], main: 0 }
+  dispatch(transaction().select(normalizeSelection(next, doc.value.length)).setMeta({ scroll: false }))
   // A drag goes on from the anchor kept by Shift, or from the unit pressed.
   return extend ? { from: main.anchor, to: main.anchor } : at
 }
@@ -782,9 +796,22 @@ function onPointerDown(event: PointerEvent, area: 'text' | 'gutter') {
   }
   event.preventDefault()
   focusInput()
-  const unit: Unit =
-    area === 'gutter' ? 'line' : event.detail >= 3 ? 'line' : event.detail === 2 ? 'word' : 'char'
-  startDrag(event, unit, select(unit, pos, event.shiftKey))
+  const count = countClick(event)
+  const unit: Unit = area === 'gutter' || count === 3 ? 'line' : count === 2 ? 'word' : 'char'
+  // Alt + click adds a cursor; dragging from there selects with it.
+  startDrag(event, unit, select(unit, pos, event.shiftKey, event.altKey && !event.shiftKey))
+}
+
+/**
+ * Counts quick clicks in one spot ourselves: a `pointerdown`'s `detail` is
+ * 0 in some browsers, and the `mousedown` that has it is held back here.
+ */
+let lastClick = { time: 0, x: 0, y: 0, count: 0 }
+function countClick(event: PointerEvent) {
+  const near = Math.abs(event.clientX - lastClick.x) < 4 && Math.abs(event.clientY - lastClick.y) < 4
+  const count = near && event.timeStamp - lastClick.time < 500 ? (lastClick.count % 3) + 1 : 1
+  lastClick = { time: event.timeStamp, x: event.clientX, y: event.clientY, count }
+  return count
 }
 
 function onPointerMove(event: PointerEvent) {

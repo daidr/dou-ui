@@ -59,7 +59,8 @@
     flex: 1 1 auto;
     min-height: 0;
     overflow: auto;
-    overscroll-behavior: contain;
+    /* sideways only: a vertical swipe on an editor that doesn't scroll still scrolls the page */
+    overscroll-behavior-x: contain;
     scrollbar-width: thin;
   }
 

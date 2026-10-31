@@ -19,11 +19,11 @@ bun add dou-ui @dou-ui/code
 引入样式，再注册组件：
 
 ```ts
-import 'dou-ui/style.css'
-import '@dou-ui/code/style.css'
-import { DouCodeEditor } from '@dou-ui/code'
+import "dou-ui/style.css";
+import "@dou-ui/code/style.css";
+import { DouCodeEditor } from "@dou-ui/code";
 
-app.use(DouCodeEditor)
+app.use(DouCodeEditor);
 ```
 
 ## 基础用法
@@ -42,13 +42,15 @@ app.use(DouCodeEditor)
 
 <DocDemo src="code/selection" column />
 
-可以同时有多个选区，这时输入、删除、粘贴会作用到每一个上；粘贴的行数和选区个数相同时，每个选区各得一行。按 `Esc` 只留下主选区。
+按住 `Alt`（Apple 上是 `⌥`）点击，在点击处加一个光标；按住拖动则加一个选区。有多个选区时，输入、删除、粘贴会作用到每一个上；粘贴的行数和选区个数相同时，每个选区各得一行。按 `Esc` 只留下主选区。也可以用 `v-model:selection` 或 `select()` 从代码里设置多个选区。
 
-光标按用户看到的字符移动：一个 emoji 或带声调的字母是一个字符，不会停在中间。按词移动时，中文按词语切分，而不是把一整段中文当成一个词。
+双击选中一个词，三击或点击行号选中一整行；双击、三击后继续拖动，会按词或按行扩大选区。
+
+光标按用户看到的字符移动：一个 emoji 或带声调的字母是一个字符，不会停在中间。按词移动时，中文按浏览器的分词结果切分，而不是把一整段中文当成一个词。
 
 ## 输入法
 
-焦点在一个看不见的输入框上，它跟着光标走，所以输入法的候选框出现在光标处。组字时，拼音直接显示在光标位置并带下划线，确认后才写入文本；组字期间按下的 `Enter`、方向键等都交给输入法，不会触发编辑器的快捷键。
+焦点在一个看不见的输入框上，它跟着光标走，所以输入法的候选框出现在光标处。组字时，拼音直接显示在光标位置并带下划线，确认后才写入文本；组字期间按下的 `Enter`、方向键等都交给输入法，不会触发编辑器的快捷键，确认候选词的 `Enter` 也不会多换一行。
 
 手机上轻点放下光标并弹出键盘，单指滑动是滚动；按住片刻选中一个词。键盘的空格键拖动光标、自动更正和语音输入都能正常使用。输入框的字号至少是 16px，避免手机在聚焦时自动放大页面。
 
@@ -89,20 +91,43 @@ app.use(DouCodeEditor)
 
 <DocDemo src="code/transact" column />
 
+示例里"用 log() 包起选区"把每个选区换成 `log(选中的文字)`，光标处没有选中文字时插入一个空的 `log()`；"在每行前加 //"在每个非空行的开头插入 `// `，这些插入用的都是修改前的位置。
+
 `tr.doc` 是修改前的文本（`CodeText`）：`lines` 是行数，`line(n)` 取第 n 行（从 1 开始），`lineAt(pos)` 取某个位置所在的行，`slice(from, to)` 取一段文字。
 
 每次修改之后触发 `transaction` 事件，参数里有 `changes`（这次的改动）、`before` 和 `state`（修改前后的文本与选区），`meta.action` 说明修改的来源：`input` 输入、`delete` 删除、`paste` 粘贴、`cut` 剪切、`undo` / `redo`、`external` 来自新的 `v-model` 值等。
 
-`codeCommands` 里是内置的编辑和移动命令，如 `selectAll`、`cursorDocEnd`、`indentMore`，用 `run(command)` 执行。`keymap` 属性传入额外的按键，写法和 `useHotkey` 一样（`mod+shift+k`），比内置按键优先；命令返回 `false` 时继续尝试下一个绑定：
+`codeCommands` 里是内置的编辑和移动命令，用 `run(command)` 执行。在按钮里执行命令后，焦点还在按钮上，需要接着输入时再调用 `focus()`。`keymap` 属性传入额外的按键，写法和 `useHotkey` 一样（`mod+shift+k`），比内置按键优先；命令返回 `false` 时继续尝试下一个绑定：
 
 ```ts
-import { codeCommands, type CodeKeyBinding } from '@dou-ui/code'
+import { codeCommands, type CodeKeyBinding } from "@dou-ui/code";
 
 const keymap: CodeKeyBinding[] = [
-  { key: 'mod+s', run: () => (save(), true) },
-  { key: 'mod+d', run: codeCommands.selectAll },
-]
+  { key: "mod+s", run: () => (save(), true) },
+  { key: "mod+d", run: codeCommands.selectAll },
+];
 ```
+
+内置命令及默认按键（`Mod` 的含义同上，"Apple" 一列只写和其他系统不同的按键）：
+
+| 命令                                       | 作用                                  | 默认按键                                          | Apple                                               |
+| ------------------------------------------ | ------------------------------------- | ------------------------------------------------- | --------------------------------------------------- |
+| `cursorCharLeft` / `cursorCharRight`       | 左右移动一个字符；有选区时移到选区边  | `←` / `→`                                         |                                                     |
+| `cursorWordLeft` / `cursorWordRight`       | 按词移动                              | `Ctrl` + `←` / `→`                                | `⌥` + `←` / `→`                                     |
+| `cursorLineStart` / `cursorLineEnd`        | 移到行首（先停在缩进之后）/ 行尾      | `Home` / `End`                                    | 另有 `⌘` + `←` / `→`                                |
+| `cursorLineUp` / `cursorLineDown`          | 上下移动一行，保持列的位置            | `↑` / `↓`                                         |                                                     |
+| `cursorPageUp` / `cursorPageDown`          | 翻一屏                                | `PageUp` / `PageDown`                             |                                                     |
+| `cursorDocStart` / `cursorDocEnd`          | 移到文本开头 / 结尾                   | `Ctrl` + `Home` / `End`                           | `⌘` + `↑` / `↓`                                     |
+| `select…`（如 `selectWordLeft`）           | 和同名的 `cursor…` 一样移动，扩大选区 | 对应按键加 `Shift`                                | 对应按键加 `Shift`                                  |
+| `selectAll`                                | 全选                                  | `Mod` + `A`                                       |                                                     |
+| `simplifySelection`                        | 只留下主选区；只有一个时取消选中      | `Esc`                                             |                                                     |
+| `deleteCharBackward` / `deleteCharForward` | 删除前 / 后一个字符，或删除选区       | `Backspace` / `Delete`                            |                                                     |
+| `deleteWordBackward` / `deleteWordForward` | 删除前 / 后一个词                     | `Ctrl` + `Backspace` / `Delete`                   | `⌥` + `Backspace` / `Delete`                        |
+| `deleteLineStart` / `deleteLineEnd`        | 删到行首 / 行尾                       | 无                                                | `⌘` + `Backspace` / `Delete`，`Ctrl` + `K` 删到行尾 |
+| `insertNewline`                            | 换行，保留缩进                        | `Enter`                                           |                                                     |
+| `insertTab`                                | 插入缩进；选中多行时整体缩进          | `Tab`                                             |                                                     |
+| `indentMore` / `indentLess`                | 增加 / 减少所在行的缩进               | `Mod` + `]` / `[`，减少还有 `Shift` + `Tab`       |                                                     |
+| `undo` / `redo`                            | 撤销 / 重做                           | `Mod` + `Z` / `Mod` + `Shift` + `Z`、`Ctrl` + `Y` |                                                     |
 
 ## 大文件
 
@@ -113,9 +138,9 @@ const keymap: CodeKeyBinding[] = [
 `v-model` 每次修改都要把整份文本拼成一个字符串。文件很大时，改用 `v-model:doc` 绑定 `CodeText`：它是不可变的，每次修改得到一个新的 `CodeText`，没有改动的部分和旧的共享，不需要拼接。用 `shallowRef` 保存就够了。只关心最终结果时，也可以用 `v-model.lazy`，在编辑器失去焦点时才交回字符串。
 
 ```ts
-import { CodeText } from '@dou-ui/code'
+import { CodeText } from "@dou-ui/code";
 
-const doc = shallowRef(CodeText.of(source))
+const doc = shallowRef(CodeText.of(source));
 // 需要字符串时再拼：doc.value.toString()
 ```
 

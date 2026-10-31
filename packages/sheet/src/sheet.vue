@@ -3964,6 +3964,8 @@ const promptId = `${uid}-prompt`
 const HINT_WIDTH = 240
 /** The narrowest the hint gets beside the cell before it moves under it. */
 const HINT_MIN = 160
+/** About how tall a two-line hint is, to tell whether it fits under the cell. */
+const HINT_HEIGHT = 64
 /**
  * What the active cell's hint says: why its value doesn't fit (there is no
  * hover on touch), and its rule's prompt. It sits right of the cell, clear
@@ -3984,11 +3986,27 @@ const prompt = computed(() => {
   if (!rect) return null
   const right = rect.x + rect.width + 4
   const room = viewWidth.value - right - 8
-  return room >= HINT_MIN
-    ? { text, problem, x: right, y: rect.y, width: Math.min(HINT_WIDTH, room) }
-    : { text, problem, x: rect.x, y: rect.y + rect.height + 4, width: HINT_WIDTH }
+  if (room >= HINT_MIN)
+    return { text, problem, x: right, y: rect.y, width: Math.min(HINT_WIDTH, room), shift: '' }
+  // Under the cell (over it near the bottom), as wide as the view allows; near
+  // the right edge it lines up with the cell's right side and reaches left.
+  const width = Math.min(HINT_WIDTH, viewWidth.value - 8)
+  const fromLeft = rect.x + width <= viewWidth.value - 4
+  const x = fromLeft ? Math.max(4, rect.x) : Math.min(rect.x + rect.width, viewWidth.value - 4)
+  const below = rect.y + rect.height + 4
+  const above = below + HINT_HEIGHT > viewHeight.value && rect.y - HINT_HEIGHT >= headerHeight.value
+  const shift = `translate(${fromLeft ? 0 : '-100%'},${above ? '-100%' : 0})`
+  return { text, problem, x, y: above ? rect.y - 4 : below, width, shift }
 })
-const describedBy = computed(() => (prompt.value ? `${keysHint} ${promptId}` : keysHint))
+// Each line is its own reference, so a screen reader pauses between them.
+const describedBy = computed(() => {
+  const p = prompt.value
+  if (!p) return keysHint
+  let ids = keysHint
+  if (p.problem) ids += ` ${promptId}-problem`
+  if (p.text) ids += ` ${promptId}-text`
+  return ids
+})
 
 // Extensions -----------------------------------------------------------------------------
 
@@ -4586,10 +4604,12 @@ defineExpose<SheetExpose>({
         v-if="prompt"
         :id="promptId"
         class="dou-sheet__prompt"
-        :style="`left:${prompt.x}px;top:${prompt.y}px;max-width:${prompt.width}px`"
+        :style="`left:${prompt.x}px;top:${prompt.y}px;max-width:${prompt.width}px;transform:${prompt.shift}`"
       >
-        <span v-if="prompt.problem" class="dou-sheet__prompt-problem">{{ prompt.problem }}</span>
-        <span v-if="prompt.text">{{ prompt.text }}</span>
+        <span v-if="prompt.problem" :id="`${promptId}-problem`" class="dou-sheet__prompt-problem">{{
+          prompt.problem
+        }}</span>
+        <span v-if="prompt.text" :id="`${promptId}-text`">{{ prompt.text }}</span>
       </div>
       <button
         v-if="panelButton"

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { defineGanttExtension, takeBaseline, useGantt } from '../index'
 import { DouGantt } from '../index'
-import type { GanttLink, GanttTask } from '../index'
+import type { GanttExpose, GanttLink, GanttTask } from '../index'
 
 const sample = (): GanttTask[] => [
   { id: 'p', title: '发布' },
@@ -617,6 +617,18 @@ describe('baseline', () => {
       /计划/,
     )
   })
+
+  it('puts a milestone plan under the milestone, turned after it is moved into place', async () => {
+    const { wrapper } = setup({ baseline: takeBaseline(sample()) })
+    await nextTick()
+    const plan = wrapper.find('.dou-gantt__baseline.is-milestone').element as HTMLElement
+    const bar = wrapper.find('.dou-gantt__bar[data-task="m"]').element as HTMLElement
+    const row = bar.parentElement!
+    const move = /^translate\(([\d.]+)px, ([\d.]+)px\) rotate\(45deg\)$/.exec(plan.style.transform)
+    expect(move).not.toBeNull()
+    expect(Number(move![1])).toBe(Number.parseFloat(bar.style.left))
+    expect(Number(move![2])).toBe(Number(/translateY\(([\d.]+)px\)/.exec(row.style.transform)![1]))
+  })
 })
 
 describe('export', () => {
@@ -624,8 +636,17 @@ describe('export', () => {
     const { wrapper, tasks } = setup()
     tasks.value = tasks.value.map((task) => (task.id === 'p' ? { ...task, collapsed: true } : task))
     await nextTick()
-    const vm = wrapper.findComponent(DouGantt).vm as unknown as { exportCSV: () => string }
-    expect(vm.exportCSV().split('\r\n')).toEqual([
+    const vm = wrapper.findComponent(DouGantt).vm as unknown as GanttExpose
+    const csv = vm.exportCSV()
+    expect(csv.startsWith('﻿')).toBe(true)
+    expect(csv.slice(1).split('\r\n')).toEqual([
+      '任务,开始,工期',
+      '发布,2026-03-02,11',
+      '设计,2026-03-02,5',
+      '开发,2026-03-09,5',
+      '上线,2026-03-16,',
+    ])
+    expect(vm.exportCSV({ text: true, bom: false }).split('\r\n')).toEqual([
       '任务,开始,工期',
       '发布,3月2日,11 天',
       '设计,3月2日,5 天',

@@ -74,3 +74,23 @@ export function spokenDuration(span: TaskSpan, calendar: WorkCalendar, m: GanttM
   if (!working) return span.dateOnly ? m.offDays : m.offHours
   return durationLabel(span, calendar, m)
 }
+
+/** Labels narrower than this are left out rather than cut to a letter or two, in px. */
+const MARKER_MIN = 28
+
+/**
+ * How wide each marker label may be so it stops short of the next one to
+ * its right: `Infinity` for the last, `0` when there is no useful room.
+ */
+export function markerRoom(xs: readonly number[]) {
+  const order = xs.map((x, i) => i)
+  order.sort((a, b) => xs[a]! - xs[b]!)
+  const room: number[] = xs.map(() => Infinity)
+  for (let k = 0; k < order.length - 1; k++) {
+    const i = order[k]!
+    // the label starts 4px right of its line; leave 4px before the next one
+    const width = xs[order[k + 1]!]! - xs[i]! - 8
+    room[i] = width >= MARKER_MIN ? width : 0
+  }
+  return room
+}

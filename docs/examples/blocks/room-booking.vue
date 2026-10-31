@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { formatTime, spanOf, type GanttTask } from '@dou-ui/gantt'
+import { formatTime, type GanttTask } from '@dou-ui/gantt'
 import {
   DouScheduler,
+  findConflict,
   type SchedulerMenuTarget,
   type SchedulerMove,
   type SchedulerRange,
@@ -74,26 +75,12 @@ const floors = [
 const shown = computed(() =>
   rooms.filter((room) => floor.value === 'all' || room.floor === floor.value),
 )
+// 表头写“会议室”，不用通用的“资源”
+const messages = { scheduler: { resource: '会议室' } }
 const roomOf = (id?: string) => rooms.find((room) => room.id === id)
 
 /* 同一间会议室的预约不能重叠 */
-function overlaps(
-  room: string | undefined,
-  start: string,
-  end: string | undefined,
-  except?: string,
-) {
-  const own = spanOf({ id: '', title: '', start, end })!
-  return tasks.value.some((task) => {
-    if (task.id === except || task.resource !== room) return false
-    const span = spanOf(task)
-    return !!span && span.start < own.end && own.start < span.end
-  })
-}
-const canMove = (move: SchedulerMove) =>
-  !move.resource ||
-  !overlaps(move.resource, move.start, move.end, move.task.id) ||
-  '这段时间已有预约'
+const canMove = (move: SchedulerMove) => !findConflict(tasks.value, move) || '这段时间已有预约'
 
 /* 新建与编辑 */
 const scheduler = useTemplateRef('scheduler')
@@ -130,7 +117,8 @@ function save() {
   const end = at(date.value, draft.to)
   if (!draft.title.trim()) return void toast.warning('请填写会议主题')
   if (draft.to <= draft.from) return void toast.warning('结束时间要晚于开始时间')
-  if (overlaps(draft.room, start, end, editing.value?.id))
+  const task = editing.value ?? undefined
+  if (findConflict(tasks.value, { task, resource: draft.room, start, end }))
     return void toast.warning(`${roomOf(draft.room)?.title} 这段时间已有预约`)
   const fields = {
     title: draft.title.trim(),
@@ -193,7 +181,9 @@ const hostOptions = people.map((name) => ({ value: name, label: name }))
       </div>
       <DouSegmentedControl v-model="floor" :options="floors" size="sm" aria-label="楼层" />
       <span class="rooms__spacer" />
-      <DouButton size="sm" tone="primary" @click="book()"><PlusIcon />预约会议室</DouButton>
+      <DouButton size="sm" tone="primary" @click="book()"
+        ><template #leading><PlusIcon /></template>预约会议室</DouButton
+      >
     </div>
 
     <DouScheduler
@@ -207,6 +197,7 @@ const hostOptions = people.map((name) => ({ value: name, label: name }))
       :table-width="180"
       :can-move="canMove"
       :context-menu="contextMenu"
+      :messages="messages"
       aria-label="会议室预约"
       class="rooms__chart"
       @range-select="book"

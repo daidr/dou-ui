@@ -693,7 +693,7 @@
       height: 8px;
       margin-left: -4px;
       border-radius: 1px;
-      rotate: 45deg;
+      /* turned 45deg in the inline transform, after moving it into place */
     }
   }
 
@@ -715,7 +715,7 @@
       height: 10px;
       margin-left: -5px;
       border-radius: 2px;
-      rotate: 45deg;
+      /* turned 45deg in the inline transform, after moving it into place */
     }
   }
 
@@ -1122,10 +1122,20 @@
     border-radius: var(--dou-radius-control);
     background-color: var(--dou-gantt-header-bg);
     color: var(--dou-gantt-marker-text);
+    box-sizing: border-box;
     font-size: 12px;
     white-space: nowrap;
     transform: translateX(4px);
     pointer-events: none;
+
+    /* too close to the next marker: only the line shows */
+    &.is-crowded {
+      visibility: hidden;
+
+      &::before {
+        visibility: visible;
+      }
+    }
 
     /* the line runs on through the header to the label */
     &::before {
@@ -1142,6 +1152,13 @@
     }
   }
 
+  /* cut short where the next marker's label begins */
+  .dou-gantt__marker-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   /* scheduler: rows are resources, as tall as their lanes ------------------- */
 
   .dou-gantt.is-scheduler .dou-gantt__body {
@@ -1149,17 +1166,13 @@
   }
 
   /* without the table, a resource's name sits on its row as a small tag over the bars */
+  /* without the list, a resource's name sits in its own strip above the lanes */
   .is-scheduler .dou-gantt__row-title:not(.is-summary) {
-    top: calc((var(--dou-gantt-row-height) - 20px) / 2);
-    left: 8px;
-    height: 20px;
-    padding: 0 6px;
-    border: 1px solid var(--dou-gantt-line-strong);
-    border-radius: 4px;
-    background-color: var(--dou-color-bg-surface);
-    box-shadow: var(--dou-shadow-sm);
+    top: 2px;
+    gap: 6px;
+    height: 16px;
+    padding: 0 12px;
     font-size: 12px;
-    text-shadow: none;
   }
 
   .dou-gantt__lane-row {

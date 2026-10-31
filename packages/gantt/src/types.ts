@@ -192,8 +192,22 @@ export interface GanttImageOptions extends GanttExportOptions {
 export interface GanttPrintOptions {
   /** Defaults to `landscape`. */
   orientation?: 'landscape' | 'portrait'
-  /** Draw the table beside the timeline. Defaults to `true`. */
+  /**
+   * Draw the table beside the timeline. Defaults to `true`: a page has
+   * room for it even when a narrow screen hides it. (An exported image
+   * follows what is shown, as it is often taken on that screen.)
+   */
   table?: boolean
+}
+
+export interface GanttCSVOptions {
+  /**
+   * Write the texts the table shows (`3月2日`, `5 天`) instead of values a
+   * spreadsheet can sort and add up (`2026-03-02`, `5`). Defaults to `false`.
+   */
+  text?: boolean
+  /** Start with a byte order mark, so spreadsheets read the file as UTF-8. Defaults to `true`. */
+  bom?: boolean
 }
 
 export interface GanttExpose {
@@ -237,8 +251,12 @@ export interface GanttExpose {
   exportSVG: (options?: GanttExportOptions) => string
   /** The chart as a PNG image. */
   exportPNG: (options?: GanttImageOptions) => Promise<Blob>
-  /** The table as CSV, every task in order with the texts its columns show. */
-  exportCSV: () => string
+  /**
+   * The table as CSV, every task in order. Dates are `YYYY-MM-DD` (with
+   * `HH:mm` for timed tasks), the duration is working days (working hours
+   * for timed tasks) and progress is 0–100.
+   */
+  exportCSV: (options?: GanttCSVOptions) => string
   /**
    * Prints every row, scaled to the page width, with the header repeated on
    * each page.

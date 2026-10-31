@@ -27,7 +27,14 @@ import {
   type GanttDocument,
   type GanttTransactionMeta,
 } from '../core/transaction'
-import { dateLabel, datesLabel, durationLabel, endLabel, spokenDuration } from '../labels'
+import {
+  dateLabel,
+  datesLabel,
+  durationLabel,
+  endLabel,
+  markerRoom,
+  spokenDuration,
+} from '../labels'
 import { format, useGanttMessages } from '../locale'
 import { useTimeAxis } from '../time-axis'
 import {
@@ -74,6 +81,8 @@ const editable = computed(() => !props.readonly)
 const HEADER = 56
 /** The distance from one lane to the next, in px. */
 const LANE = 28
+/** Without the list, room above a resource's lanes for its name, in px. */
+const CAPTION = 18
 const OVERSCAN = 240
 /** Below this width the list steps aside and the timeline takes the whole width. */
 const NARROW = 520
@@ -87,6 +96,7 @@ const { width: viewWidth, height: viewHeight } = useElementSize(chart)
 
 const narrow = computed(() => rootWidth.value > 0 && rootWidth.value < NARROW)
 const showTable = computed(() => props.table && !narrow.value)
+const caption = computed(() => (showTable.value ? 0 : CAPTION))
 const tableSize = ref(props.tableWidth)
 watch(
   () => props.tableWidth,
@@ -238,7 +248,7 @@ const rows = computed<Row[]>(() => {
       load,
       capacity,
       overloaded: !!resource && load.some((segment) => segment.count > capacity),
-      height: props.rowHeight + Math.max(0, lanes - 1) * LANE,
+      height: props.rowHeight + Math.max(0, lanes - 1) * LANE + caption.value,
     }
   }
   const done = new Set<string>()
@@ -327,13 +337,15 @@ const {
 watch([viewHeight, viewWidth], axis.measureScrollbar, { flush: 'post' })
 watch([rootWidth, viewWidth], axis.fitWhenSized)
 
-const markers = computed(() =>
-  (props.markers ?? []).flatMap((marker, index) => {
+const markers = computed(() => {
+  const inRange = (props.markers ?? []).flatMap((marker, index) => {
     const at = parseTime(marker.date)?.at
     if (at == null || at < extent.value.start || at > extent.value.end) return []
     return [{ key: `${index}:${marker.date}`, x: xOf(at), marker }]
-  }),
-)
+  })
+  const room = markerRoom(inRange.map((item) => (item.marker.label ? item.x : -Infinity)))
+  return inRange.map((item, i) => ({ ...item, room: room[i]! }))
+})
 
 // What is in view ---------------------------------------------------------------------
 
@@ -362,7 +374,7 @@ const resourceRows = computed(() =>
 )
 
 /** Where a lane's bar row sits, in body px. */
-const laneTop = (row: ResourceRow, lane: number) => row.top + lane * LANE
+const laneTop = (row: ResourceRow, lane: number) => row.top + caption.value + lane * LANE
 
 const describeRow = (row: ResourceRow) => {
   const text = format(sm.value.row, { title: row.title, count: row.items.length })
@@ -674,7 +686,7 @@ const drawnBox = computed(() => {
   return {
     left: xOf(range.start),
     width: (range.end - range.start) * ppm.value,
-    top: row.top,
+    top: laneTop(row, 0),
   }
 })
 
@@ -1281,10 +1293,15 @@ defineExpose<SchedulerExpose>({
             v-for="item in markers"
             :key="item.key"
             class="dou-gantt__marker-label"
-            :class="item.marker.tone && `is-${item.marker.tone}`"
-            :style="{ left: `${item.x}px` }"
+            :class="[item.marker.tone && `is-${item.marker.tone}`, { 'is-crowded': !item.room }]"
+            :style="{
+              left: `${item.x}px`,
+              maxWidth: item.room && item.room !== Infinity ? `${item.room}px` : undefined,
+            }"
           >
-            {{ item.marker.label }}
+            <span v-if="item.marker.label" class="dou-gantt__marker-text">{{
+              item.marker.label
+            }}</span>
           </span>
         </TimeHeader>
         <div
@@ -1301,7 +1318,14 @@ defineExpose<SchedulerExpose>({
               :class="{ 'is-summary': row.kind === 'group' }"
               :style="{ transform: `translateY(${row.top}px)` }"
             >
-              {{ row.title }}
+              <slot
+                v-if="row.kind === 'resource' && row.resource"
+                name="resource"
+                :resource="row.resource"
+              >
+                {{ row.title }}
+              </slot>
+              <template v-else>{{ row.title }}</template>
             </span>
           </div>
           <TimeGrid :cells="bottomCells" :shaded="shaded" />

@@ -44,6 +44,7 @@ import { arrowPath, roundedPath, routeLink, type BarBox } from './core/geometry'
 import { baselineSpans } from './core/baseline'
 import {
   HEADER as EXPORT_HEADER,
+  LINKED_END_ROOM,
   drawGantt,
   paddedRange,
   svgDocument,
@@ -64,7 +65,15 @@ import { DAY_WIDTH_RANGE, levelByName, snapStep, type GanttScale } from './core/
 import { MINUTES_PER_DAY, dayIndex, dayStart, formatTime, parseTime } from './core/time'
 import { buildTree, type GanttRow } from './core/tree'
 import { useTimeAxis } from './time-axis'
-import { dateLabel, datesLabel, durationLabel, endLabel, spokenDuration, unitLabel } from './labels'
+import {
+  dateLabel,
+  datesLabel,
+  durationLabel,
+  endLabel,
+  markerRoom,
+  spokenDuration,
+  unitLabel,
+} from './labels'
 import { format, useGanttMessages } from './locale'
 import type {
   GanttColumn,
@@ -75,6 +84,7 @@ import type {
   GanttImageOptions,
   GanttMove,
   GanttPrintOptions,
+  GanttCSVOptions,
   GanttProps,
   GanttSlots,
 } from './types'
@@ -407,9 +417,10 @@ const linkedEnds = computed(() => {
   return out
 })
 
-/** Where a bar's side title starts, from the bar's left. */
+/** Where a bar's side title starts, from the bar's left: clear of a line leaving its end. */
 const sideOffset = (bar: Bar) =>
-  (bar.row.milestone ? 12 : bar.width + 8) + (linkedEnds.value.has(bar.row.task.id) ? 10 : 0)
+  (bar.row.milestone ? 12 : bar.width + 8) +
+  (linkedEnds.value.has(bar.row.task.id) ? LINKED_END_ROOM : 0)
 
 /** Rows titled at the edge; their own side labels would only crowd it. */
 const titled = computed(() => new Set(rowTitles.value.map((item) => item.row.task.id)))
@@ -2175,11 +2186,13 @@ const markers = computed(() => {
     ...(props.markers ?? []),
     ...resolved.value.markers.flatMap((fromExtension) => fromExtension(context)),
   ]
-  return list.flatMap((marker, index) => {
+  const inRange = list.flatMap((marker, index) => {
     const at = parseTime(marker.date)?.at
     if (at == null || at < extent.value.start || at > extent.value.end) return []
     return [{ key: `${index}:${marker.date}`, x: xOf(at), marker }]
   })
+  const room = markerRoom(inRange.map((item) => (item.marker.label ? item.x : -Infinity)))
+  return inRange.map((item, i) => ({ ...item, room: room[i]! }))
 })
 
 // Export and print --------------------------------------------------------------------
@@ -2251,7 +2264,10 @@ function drawChart(options: { range: 'all' | 'view'; table: boolean; dayWidth?: 
         props.barLabel === 'outside' ||
         (props.barLabel === 'auto' && measure(row.task.title) + 20 > barWidth)
       if (outside)
-        right = Math.max(right, row.span.end + (measure(row.task.title) + 24) / pxPerMinute)
+        right = Math.max(
+          right,
+          row.span.end + (measure(row.task.title) + 24 + LINKED_END_ROOM) / pxPerMinute,
+        )
     }
     if (right > end) end = paddedRange(known.start, right, width, weekStart.value).end
   }
@@ -2277,6 +2293,7 @@ function drawChart(options: { range: 'all' | 'view'; table: boolean; dayWidth?: 
       broken: brokenLinks.value,
       baseline: planned.value,
       barLabel: props.barLabel,
+      linkedEnds: linkedEnds.value,
       textWidth: exportTextWidth(theme),
     },
     theme,
@@ -2320,14 +2337,38 @@ async function exportPNG(options: GanttImageOptions = {}) {
 
 const csvCell = (text: string) => (/[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text)
 
-function exportCSV() {
+/** A cell as a spreadsheet reads it: dates as `YYYY-MM-DD`, numbers without units. */
+function csvValue(row: GanttRow, column: GanttColumn) {
+  if (column.value) {
+    const value = column.value(row.task)
+    if (value == null) return ''
+    return typeof value === 'object' ? JSON.stringify(value) : String(value)
+  }
+  const span = row.span
+  if (column.key === 'start')
+    return span
+      ? formatTime(
+          span.start - (row.milestone && span.dateOnly ? MINUTES_PER_DAY / 2 : 0),
+          span.dateOnly,
+        )
+      : ''
+  if (row.milestone && ['end', 'duration', 'progress'].includes(column.key)) return ''
+  return editorValue(row, column)
+}
+
+function exportCSV(options: GanttCSVOptions = {}) {
   const list = columns.value
+  const cell = options.text ? cellText : csvValue
   const lines = [list.map((column) => csvCell(headerOf(column))).join(',')]
   // every task in order, those under a collapsed parent too
   for (const row of tree.value.byId.values())
-    lines.push(list.map((column) => csvCell(cellText(row, column))).join(','))
-  return lines.join('\r\n')
+    lines.push(list.map((column) => csvCell(cell(row, column))).join(','))
+  // the byte order mark tells spreadsheets the file is UTF-8
+  return (options.bom === false ? '' : '\uFEFF') + lines.join('\r\n')
 }
+
+const escapeHTML = (text: string) =>
+  text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
 function print(options: GanttPrintOptions = {}) {
   const orientation = options.orientation ?? 'landscape'
@@ -2357,7 +2398,7 @@ function print(options: GanttPrintOptions = {}) {
   const doc = iframe.contentDocument!
   doc.open()
   doc.write(
-    `<!doctype html><html><head><meta charset="utf-8"><title>${document.title}</title><style>` +
+    `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHTML(document.title)}</title><style>` +
       `@page{size:A4 ${orientation};margin:10mm}html,body{margin:0}` +
       `.page{break-after:page;print-color-adjust:exact;-webkit-print-color-adjust:exact}` +
       `.page:last-child{break-after:auto}svg{display:block;width:100%;height:auto}` +
@@ -2697,10 +2738,15 @@ const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * prop
             v-for="item in markers"
             :key="item.key"
             class="dou-gantt__marker-label"
-            :class="item.marker.tone && `is-${item.marker.tone}`"
-            :style="{ left: `${item.x}px` }"
+            :class="[item.marker.tone && `is-${item.marker.tone}`, { 'is-crowded': !item.room }]"
+            :style="{
+              left: `${item.x}px`,
+              maxWidth: item.room && item.room !== Infinity ? `${item.room}px` : undefined,
+            }"
           >
-            {{ item.marker.label }}
+            <span v-if="item.marker.label" class="dou-gantt__marker-text">{{
+              item.marker.label
+            }}</span>
           </span>
         </TimeHeader>
         <div
@@ -2768,7 +2814,7 @@ const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * prop
             class="dou-gantt__baseline"
             :class="{ 'is-milestone': plan.milestone }"
             :style="{
-              transform: `translate(${plan.left}px, ${plan.top}px)`,
+              transform: `translate(${plan.left}px, ${plan.top}px)${plan.milestone ? ' rotate(45deg)' : ''}`,
               width: plan.milestone ? undefined : `${plan.width}px`,
             }"
           />
@@ -2874,7 +2920,7 @@ const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * prop
             class="dou-gantt__ghost"
             :class="{ 'is-milestone': ghost.milestone }"
             :style="{
-              transform: `translate(${ghost.left}px, ${ghost.top}px)`,
+              transform: `translate(${ghost.left}px, ${ghost.top}px)${ghost.milestone ? ' rotate(45deg)' : ''}`,
               width: ghost.milestone ? undefined : `${ghost.width}px`,
             }"
           />

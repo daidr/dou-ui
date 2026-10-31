@@ -6,12 +6,16 @@ export default DouGantt
 
 export type {
   GanttBarLabel,
+  GanttCSVOptions,
   GanttColumn,
   GanttEmits,
+  GanttExportOptions,
   GanttExpose,
+  GanttImageOptions,
   GanttInsertOptions,
   GanttMarker,
   GanttMove,
+  GanttPrintOptions,
   GanttProps,
   GanttSlots,
 } from './types'

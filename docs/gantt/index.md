@@ -242,7 +242,7 @@ baseline.value = takeBaseline(tasks.value) // [{ id, start, end }, …]
 | -------------------- | -------------------------------------------------------------------------------------- |
 | `exportSVG(options)` | 返回 SVG 文档字符串，可以在设计软件里继续编辑                                          |
 | `exportPNG(options)` | 返回 PNG 的 `Blob`，默认按 2 倍像素绘制                                                |
-| `exportCSV()`        | 返回 CSV 字符串：表格的列和每个任务显示的文字，收起的子任务也在内                      |
+| `exportCSV(options)` | 返回 CSV 字符串：表格的每一列和每个任务，收起的子任务也在内                            |
 | `print(options)`     | 打开浏览器的打印对话框：所有行，按纸张宽度自动选择刻度，行多时分成多页，每页都重复表头 |
 
 <DocDemo src="gantt/export" column />
@@ -256,7 +256,14 @@ baseline.value = takeBaseline(tasks.value) // [{ id, start, end }, …]
 | `scale`      | 按哪个刻度绘制，如 `'week'`                                     | 当前的缩放       |
 | `pixelRatio` | 只用于 PNG，每个 CSS 像素对应的图片像素                         | `2`              |
 
-`print` 的选项是 `orientation`（`landscape` 横向或 `portrait` 纵向，默认横向）和 `table`。时间跨度很长时，导出的图片最宽 16000px，超出时会自动缩小刻度。
+`print` 的选项是 `orientation`（`landscape` 横向或 `portrait` 纵向，默认横向）和 `table`。`table` 默认为 `true`：纸张放得下表格，即使窄屏上表格已经收起。时间跨度很长时，导出的图片最宽 16000px，超出时会自动缩小刻度。
+
+CSV 默认写入表格软件能排序和计算的值：日期是 `2026-03-02`（带时间的任务是 `2026-03-02 09:30`），工期是工作日数（带时间的任务是工作小时数），进度是 0–100 的数字。`exportCSV` 的选项：
+
+| 名称   | 说明                                                    | 默认值  |
+| ------ | ------------------------------------------------------- | ------- |
+| `text` | 改为写入表格里显示的文字，如 `3月2日`、`5 天`           | `false` |
+| `bom`  | 在开头加上 BOM，表格软件才会按 UTF-8 读取，中文不会乱码 | `true`  |
 
 方法只返回内容，下载由你决定，例如：
 
@@ -268,7 +275,7 @@ a.click()
 URL.revokeObjectURL(url)
 ```
 
-用表格软件打开 CSV 时，在内容前加上 `\ufeff`（BOM），中文才不会乱码。任务数据本身需要保存为 JSON 时，直接序列化 `tasks` 和 `links` 即可。
+任务数据本身需要保存为 JSON 时，直接序列化 `tasks` 和 `links` 即可。
 
 ## 时间刻度
 

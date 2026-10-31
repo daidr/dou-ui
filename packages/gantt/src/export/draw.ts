@@ -5,7 +5,7 @@ import type { GanttLink, TaskSpan } from '../core/model'
 import { hourStep, levelOf, nextUnit, unitStart, unitsBetween } from '../core/scale'
 import { dayIndex } from '../core/time'
 import type { GanttRow } from '../core/tree'
-import { unitLabel } from '../labels'
+import { markerRoom, unitLabel } from '../labels'
 import type { GanttMessages } from '../locale'
 import type { GanttBarLabel } from '../types'
 import type { BarTone, ExportTheme } from './theme'
@@ -17,6 +17,8 @@ const BAR = 20
 const MILESTONE = 7
 /** How far bars move up when a baseline is drawn under them, in px. */
 const BASELINE_SHIFT = 4
+/** More room before a side title where a link leaves the bar's end, in px. */
+export const LINKED_END_ROOM = 14
 
 export interface ExportColumn {
   title: string
@@ -48,6 +50,8 @@ export interface DrawInput {
   broken: ReadonlySet<string>
   baseline: ReadonlyMap<string, TaskSpan> | null
   barLabel: GanttBarLabel
+  /** Tasks with a link at their end, whose side titles start further out. */
+  linkedEnds: ReadonlySet<string>
   /** Width of a text in px, at the given weight. */
   textWidth: (text: string, bold?: boolean) => number
 }
@@ -172,10 +176,17 @@ export function drawGantt(input: DrawInput, theme: ExportTheme): GanttDrawing {
       ),
     )
   }
-  for (const marker of input.markers) {
-    if (!marker.label || marker.at < start || marker.at > end) continue
+  const shownMarkers = input.markers.filter(
+    (marker) => marker.label && marker.at >= start && marker.at <= end,
+  )
+  const markerRooms = markerRoom(shownMarkers.map((marker) => xOf(marker.at)))
+  for (const [i, marker] of shownMarkers.entries()) {
+    const room = markerRooms[i]!
+    if (!room) continue
     const tone = theme.marker[marker.tone ?? 'neutral']
-    const label = marker.label
+    // cut short before the next label, as on screen
+    const label = fit(marker.label!, room - 14, measure(false))
+    if (!label) continue
     const w = Math.ceil(input.textWidth(label)) + 12
     const x = xOf(marker.at)
     header.push(
@@ -310,7 +321,8 @@ export function drawGantt(input: DrawInput, theme: ExportTheme): GanttDrawing {
     const mid = i * rh + rh / 2 - shift
     const side = (x: number) => {
       if (input.barLabel === 'none') return
-      body.push(text(x, mid, row.task.title, `${font()} fill="${theme.textSecondary}"`))
+      const room = input.linkedEnds.has(row.task.id) ? LINKED_END_ROOM : 0
+      body.push(text(x + room, mid, row.task.title, `${font()} fill="${theme.textSecondary}"`))
     }
     if (row.milestone) {
       const colors = theme.milestone[tone]

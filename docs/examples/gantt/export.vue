@@ -33,7 +33,7 @@ async function savePNG() {
   if (gantt.value) save(await gantt.value.exportPNG(), '排期.png')
 }
 // 开头加上 BOM，表格软件才能认出中文
-const saveCSV = () => gantt.value && save(`﻿${gantt.value.exportCSV()}`, '排期.csv', 'text/csv')
+const saveCSV = () => gantt.value && save(gantt.value.exportCSV(), '排期.csv', 'text/csv')
 const saveSVG = () => gantt.value && save(gantt.value.exportSVG(), '排期.svg', 'image/svg+xml')
 </script>
 

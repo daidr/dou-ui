@@ -182,7 +182,7 @@ async function exportAs(kind: unknown) {
   if (!chart) return
   if (kind === 'png') download(await chart.exportPNG(), '会员中心 2.0 排期.png')
   else if (kind === 'svg') download(chart.exportSVG(), '会员中心 2.0 排期.svg', 'image/svg+xml')
-  else if (kind === 'csv') download(`﻿${chart.exportCSV()}`, '会员中心 2.0 排期.csv', 'text/csv')
+  else if (kind === 'csv') download(chart.exportCSV(), '会员中心 2.0 排期.csv', 'text/csv')
   else if (kind === 'print') chart.print()
 }
 </script>
@@ -237,7 +237,9 @@ async function exportAs(kind: unknown) {
       <span class="plan__spacer" />
       <DouButton size="sm" variant="outline" @click="saveBaseline">保存为基线</DouButton>
       <DouDropdown placement="bottom-end" @select="exportAs">
-        <DouButton size="sm" variant="outline"><DownloadIcon />导出</DouButton>
+        <DouButton size="sm" variant="outline"
+          ><template #leading><DownloadIcon /></template>导出</DouButton
+        >
         <template #menu>
           <DouDropdownItem value="png">图片（PNG）</DouDropdownItem>
           <DouDropdownItem value="svg">矢量图（SVG）</DouDropdownItem>

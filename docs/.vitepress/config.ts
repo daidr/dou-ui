@@ -75,6 +75,7 @@ const formBuilderSidebar = ecosystem('表单设计器', [
   { text: '联动与表达式', link: '/form-builder/logic' },
   { text: '标签页、分步与列表', link: '/form-builder/structure' },
   { text: '设计器', link: '/form-builder/builder' },
+  { text: '协同编辑', link: '/form-builder/collaboration' },
 ])
 
 export default defineConfig({
@@ -423,6 +424,10 @@ export default defineConfig({
           replacement: r('../../packages/chart/src/style.css'),
         },
         { find: /^@dou-ui\/gantt$/, replacement: r('../../packages/gantt/src/index.ts') },
+        {
+          find: /^@dou-ui\/form-builder\/collaboration$/,
+          replacement: r('../../packages/form-builder/src/collaboration/index.ts'),
+        },
         {
           find: /^@dou-ui\/form-builder\/renderer$/,
           replacement: r('../../packages/form-builder/src/renderer/index.ts'),

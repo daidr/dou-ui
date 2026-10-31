@@ -83,6 +83,11 @@ const active = computed(() => {
   return last ? state.domId(last, 'outline') : undefined
 })
 
+/** The extensions' marks of a node, as dots in their colors. */
+function marksOf(node: FormNode) {
+  return state.extensions().marks.flatMap((marks) => marks(state, node))
+}
+
 function secondary(node: FormNode) {
   const type = labelOf(node.type, types.value.get(node.type), state.messages)
   const title = nodeTitle(node, types.value, state.messages)
@@ -138,6 +143,14 @@ function secondary(node: FormNode) {
         nodeTitle(row.node, types, state.messages)
       }}</span>
       <span class="dou-form-builder__outline-name">{{ secondary(row.node) }}</span>
+      <span
+        v-for="mark in marksOf(row.node)"
+        :key="mark.key"
+        class="dou-form-builder__outline-mark"
+        :style="mark.color ? { '--dou-form-builder-mark': mark.color } : undefined"
+        :title="mark.label"
+        aria-hidden="true"
+      />
     </div>
     <div v-if="!rows.length" class="dou-form-builder__outline-empty">
       {{ state.messages.canvas.empty }}

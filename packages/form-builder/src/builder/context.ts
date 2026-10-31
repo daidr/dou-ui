@@ -6,7 +6,7 @@ import type { FormContainerNode, FormDocument, FormNode, FormPageNode } from '..
 import type { FormFunction } from '../core/expression'
 import type { FormFieldType } from '../fields/define'
 import type { FormOptionsLoader } from '../renderer/context'
-import type { ResolvedFormBuilderExtensions } from './extension'
+import type { FormBuilderHistoryHandler, ResolvedFormBuilderExtensions } from './extension'
 import { formatMessage } from '../locale'
 import type { FormBuilderMessages } from './locale'
 import { FormBuilderHistory } from './core/history'
@@ -249,6 +249,18 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
     return new FormBuilderTransaction(doc.value)
   }
 
+  /** An extension's history, used instead of the builder's own. */
+  let customFor: unknown
+  let custom: FormBuilderHistoryHandler | null = null
+  function customHistory() {
+    const make = options.extensions().history
+    if (make !== customFor) {
+      customFor = make
+      custom = make ? make(self) : null
+    }
+    return custom
+  }
+
   function dispatch(tr: FormBuilderTransaction, dispatchOptions: FormBuilderDispatchOptions = {}) {
     if (tr.before !== doc.value)
       throw new Error('[dou-ui] the transaction was made on another version of the form')
@@ -260,7 +272,7 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
     }
     setSelection(dispatchOptions.selection ?? selection.value)
     if (tr.changed) {
-      history.record(tr, before, selection.value.slice())
+      if (!customHistory()) history.record(tr, before, selection.value.slice())
       travelled.value++
     }
     if (dispatchOptions.announce) announce(dispatchOptions.announce)
@@ -428,6 +440,13 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
   }
 
   function travel(direction: 'undo' | 'redo') {
+    const handler = customHistory()
+    if (handler) {
+      if (!handler[direction]()) return
+      travelled.value++
+      announce(options.messages().announce[direction === 'undo' ? 'undone' : 'redone'])
+      return
+    }
     const result = direction === 'undo' ? history.undo(doc.value) : history.redo(doc.value)
     if (!result) return
     doc.value = result.tr.doc
@@ -550,11 +569,11 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
     },
     get canUndo() {
       void travelled.value
-      return history.canUndo
+      return customHistory()?.canUndo() ?? history.canUndo
     },
     get canRedo() {
       void travelled.value
-      return history.canRedo
+      return customHistory()?.canRedo() ?? history.canRedo
     },
     get mode() {
       return options.mode()

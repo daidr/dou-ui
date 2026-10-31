@@ -1,6 +1,7 @@
 import {
   boundsOf,
   columnIndex,
+  formatRange,
   moveReferences,
   parseCell,
   shiftFormula,
@@ -19,11 +20,13 @@ import {
   type SheetData,
   type SheetRow,
   type SheetStyle,
+  type SheetTypeSetup,
   type SheetValue,
   type SheetWorkbook,
   valueOf,
 } from './model'
 import { continueValues, type SheetFillMode } from './fill'
+import { mergesOf, overlaps } from './merge'
 
 /*
  * Every change to a workbook is a list of steps. Applying a step also gives
@@ -76,6 +79,7 @@ export type SheetAction =
   | 'insert'
   | 'delete'
   | 'hide'
+  | 'merge'
   | 'undo'
   | 'redo'
   | 'api'
@@ -95,6 +99,8 @@ export type SheetStep =
   | { type: 'updateSheet'; sheet: string; patch: SheetPatch }
   /** Adds, replaces or (with `style` left out) removes a named style. */
   | { type: 'setStyle'; name: string; style?: SheetStyle }
+  /** Adds, replaces or (with `setup` left out) removes a named cell type. */
+  | { type: 'setType'; name: string; setup?: SheetTypeSetup }
   /**
    * Adds `count` rows (or columns) before `index`, moving the rest down (or
    * right). They are empty unless `cells` and `sizes` fill them: for rows,
@@ -147,7 +153,7 @@ export class SheetTransaction {
   meta: SheetTransactionMeta = {}
   private book: SheetWorkbook
   /** What this transaction has copied, so it copies each thing once. */
-  private own = { book: false, sheets: false, styles: false }
+  private own = { book: false, sheets: false, styles: false, types: false }
   private ownSheets = new Set<number>()
   private ownRows = new Map<number, Set<number>>()
 
@@ -250,6 +256,11 @@ export class SheetTransaction {
 
   setStyle(name: string, style: SheetStyle | undefined) {
     return this.step({ type: 'setStyle', name, style })
+  }
+
+  /** Adds, replaces or (with `undefined`) removes a named cell type, such as a list to pick from. */
+  setType(name: string, setup: SheetTypeSetup | undefined) {
+    return this.step({ type: 'setType', name, setup })
   }
 
   /**
@@ -428,8 +439,8 @@ export class SheetTransaction {
       at,
     )
     const add = (n: number) => (n >= index ? n + count : n)
-    return this.rewriteReferences(
-      sheet.name,
+    return this.moveRanges(
+      at,
       lineMap(axis, (a, b) => [add(a), add(b)]),
     )
   }
@@ -443,8 +454,8 @@ export class SheetTransaction {
     const left = (n: number) => n - Math.max(0, Math.min(n, index + count) - index)
     this.updateSheet(linesPatch(sheet, axis, left, -count), at)
     const end = index + count
-    return this.rewriteReferences(
-      sheet.name,
+    return this.moveRanges(
+      at,
       lineMap(axis, (a, b) => {
         if (a >= index && b < end) return null
         const first = a < index ? a : a >= end ? a - count : index
@@ -459,14 +470,74 @@ export class SheetTransaction {
     const at = this.mustIndex(ref)
     this.step({ type: 'moveLines', sheet: this.keyOf(at), axis, from, count, to })
     const place = movedIndex(from, count, to)
-    return this.rewriteReferences(
-      this.book.sheets[at]!.name,
+    return this.moveRanges(
+      at,
       lineMap(axis, (a, b) => {
         const x = place(a)
         const y = place(b)
         return [Math.min(x, y), Math.max(x, y)]
       }),
     )
+  }
+
+  /**
+   * After rows or columns of a sheet change: rewrites formulas pointing at
+   * it, and moves its merged cells, dropping those that are gone or now
+   * one cell.
+   */
+  private moveRanges(index: number, map: SheetRefMap) {
+    const sheet = this.book.sheets[index]!
+    this.rewriteReferences(sheet.name, map)
+    const merges = sheet.merges
+    if (!merges?.length) return this
+    const next: string[] = []
+    for (const text of merges) {
+      const range = parseRange(text)
+      if (!range) continue
+      const moved = map(boundsOf(range))
+      if (!moved) continue
+      const b = 'bounds' in moved ? moved.bounds : moved
+      if (b.top === b.bottom && b.left === b.right) continue
+      next.push(rangeText(b))
+    }
+    const same = next.length === merges.length && next.every((m, i) => m === merges[i])
+    return same ? this : this.updateSheet({ merges: next.length ? next : undefined }, index)
+  }
+
+  /**
+   * Merges a range into one cell. Merges it touches are taken into it. The
+   * top left cell keeps its content; the values of the other cells are
+   * cleared, keeping their styles, unless `keep` leaves them hidden under the
+   * merge, to show again when it is split.
+   */
+  mergeCells(at: SheetRangeAt, options: { keep?: boolean } = {}) {
+    const { index, bounds } = this.rangeAt(at)
+    const sheet = this.book.sheets[index]!
+    const b = mergesOf(sheet).expand(bounds)
+    if (b.top === b.bottom && b.left === b.right) return this
+    if (!options.keep)
+      for (let row = b.top; row <= b.bottom; row++)
+        for (let col = b.left; col <= b.right; col++)
+          if ((row !== b.top || col !== b.left) && valueOf(sheet.cells[row]?.[col]) != null)
+            this.setValue({ sheet: index, row, col }, undefined)
+    const kept = (sheet.merges ?? []).filter((text) => {
+      const range = parseRange(text)
+      return !range || !overlaps(boundsOf(range), b)
+    })
+    return this.updateSheet({ merges: [...kept, rangeText(b)] }, index)
+  }
+
+  /** Splits the merged cells a range touches back into single cells. */
+  unmergeCells(at: SheetRangeAt) {
+    const { index, bounds } = this.rangeAt(at)
+    const sheet = this.book.sheets[index]!
+    if (!sheet.merges?.length) return this
+    const kept = sheet.merges.filter((text) => {
+      const range = parseRange(text)
+      return !range || !overlaps(boundsOf(range), bounds)
+    })
+    if (kept.length === sheet.merges.length) return this
+    return this.updateSheet({ merges: kept.length ? kept : undefined }, index)
   }
 
   /** Rewrites the references to cells on sheet `name` in every formula of the workbook. */
@@ -535,6 +606,17 @@ export class SheetTransaction {
       else delete styles[step.name]
       book.styles = styles
       return { type: 'setStyle', name: step.name, style: old }
+    }
+    if (step.type === 'setType') {
+      const old = this.book.types?.[step.name]
+      if (old === step.setup) return null
+      const book = this.ownBook()
+      const types = this.own.types ? book.types! : { ...book.types }
+      this.own.types = true
+      if (step.setup) types[step.name] = step.setup
+      else delete types[step.name]
+      book.types = types
+      return { type: 'setType', name: step.name, setup: old }
     }
     const index = this.mustIndex(step.sheet)
     const sheet = this.book.sheets[index]!
@@ -711,6 +793,9 @@ export class SheetTransaction {
   }
 }
 
+const rangeText = (b: SheetBounds) =>
+  formatRange({ start: { row: b.top, col: b.left }, end: { row: b.bottom, col: b.right } })
+
 /** Whether `x` lies inside `y`. */
 const inside = (x: SheetBounds, y: SheetBounds) =>
   x.top >= y.top && x.bottom <= y.bottom && x.left >= y.left && x.right <= y.right
@@ -818,6 +903,8 @@ const keyOf = (step: SheetStep) => {
       return `s${step.sheet}:${step.axis}:${step.index}`
     case 'setStyle':
       return `y${step.name}`
+    case 'setType':
+      return `t${step.name}`
     default:
       return null
   }

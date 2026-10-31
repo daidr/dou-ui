@@ -63,6 +63,7 @@ const ganttSidebar = ecosystem('甘特图', [
 const sheetSidebar = ecosystem('电子表格', [
   { text: '介绍', link: '/sheet/' },
   { text: '文档数据', link: '/sheet/data' },
+  { text: '扩展', link: '/sheet/extensions' },
 ])
 const codeSidebar = ecosystem('代码编辑器', [{ text: '介绍', link: '/code/' }])
 const chartSidebar = ecosystem('图表', [{ text: '介绍', link: '/chart/' }])
@@ -72,6 +73,7 @@ const formBuilderSidebar = ecosystem('表单设计器', [
   { text: '字段类型', link: '/form-builder/fields' },
   { text: '联动与表达式', link: '/form-builder/logic' },
   { text: '标签页、分步与列表', link: '/form-builder/structure' },
+  { text: '设计器', link: '/form-builder/builder' },
 ])
 
 export default defineConfig({

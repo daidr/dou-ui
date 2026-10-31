@@ -96,8 +96,13 @@ function measure() {
 let observer: ResizeObserver | undefined
 
 onMounted(() => {
-  measure()
-  requestAnimationFrame(() => (settled.value = true))
+  // Measured in the next frame, before it is painted: controls mounting
+  // together then share one layout, instead of each forcing one in the
+  // middle of mounting, which is slow on a page with many controls.
+  requestAnimationFrame(() => {
+    measure()
+    requestAnimationFrame(() => (settled.value = true))
+  })
   if (typeof ResizeObserver !== 'undefined' && rootRef.value) {
     observer = new ResizeObserver(() => measure())
     observer.observe(rootRef.value)

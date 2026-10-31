@@ -71,6 +71,7 @@ describe('DouSegmentedControl', () => {
 
   it('places the indicator on the selected option', async () => {
     const wrapper = setup({ modelValue: 'board' })
+    await new Promise((resolve) => requestAnimationFrame(resolve))
     await nextTick()
     const indicator = wrapper.get('.dou-segmented-control__indicator')
     // happy-dom does no layout, so the block sits at 0 with no width,

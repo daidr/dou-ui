@@ -4,7 +4,7 @@ import type { MaybeRefOrGetter } from 'vue'
 import type { ExpressionProblem } from './core/expression'
 import type { DocumentProblem } from './core/check'
 
-export interface FormBuilderMessages {
+export interface FormRendererMessages {
   /** Buttons of `steps`. */
   prev: string
   next: string
@@ -26,7 +26,7 @@ export interface FormBuilderMessages {
   document: Record<DocumentProblem['code'], string>
 }
 
-const zhCN: FormBuilderMessages = {
+const zhCN: FormRendererMessages = {
   prev: '上一步',
   next: '下一步',
   add: '添加一项',
@@ -61,7 +61,7 @@ const zhCN: FormBuilderMessages = {
   },
 }
 
-const zhTW: FormBuilderMessages = {
+const zhTW: FormRendererMessages = {
   prev: '上一步',
   next: '下一步',
   add: '新增一項',
@@ -96,7 +96,7 @@ const zhTW: FormBuilderMessages = {
   },
 }
 
-const en: FormBuilderMessages = {
+const en: FormRendererMessages = {
   prev: 'Back',
   next: 'Next',
   add: 'Add',
@@ -131,29 +131,29 @@ const en: FormBuilderMessages = {
   },
 }
 
-export const formBuilderLocales: Record<string, FormBuilderMessages> = {
+export const formRendererLocales: Record<string, FormRendererMessages> = {
   'zh-CN': zhCN,
   'zh-TW': zhTW,
   en,
 }
 
 /** Texts to change; the `expression` and `document` groups are merged, so only the ones given are replaced. */
-export type FormBuilderMessagesOverride = {
-  [K in keyof FormBuilderMessages]?: FormBuilderMessages[K] extends string
+export type FormRendererMessagesOverride = {
+  [K in keyof FormRendererMessages]?: FormRendererMessages[K] extends string
     ? string
-    : Partial<FormBuilderMessages[K]>
+    : Partial<FormRendererMessages[K]>
 }
 
 /** The form builder's texts, picked by the name of DouUI's current locale. */
-export function useFormBuilderMessages(
-  override?: MaybeRefOrGetter<FormBuilderMessagesOverride | undefined>,
+export function useFormRendererMessages(
+  override?: MaybeRefOrGetter<FormRendererMessagesOverride | undefined>,
 ) {
   const { locale } = useLocale()
-  return computed<FormBuilderMessages>(() => {
+  return computed<FormRendererMessages>(() => {
     const name = locale.value.name
     const base =
-      formBuilderLocales[name] ??
-      formBuilderLocales[name.split('-')[0]!] ??
+      formRendererLocales[name] ??
+      formRendererLocales[name.split('-')[0]!] ??
       (name.startsWith('zh') ? zhCN : en)
     const extra = toValue(override)
     if (!extra) return base
@@ -162,7 +162,7 @@ export function useFormBuilderMessages(
       ...extra,
       expression: { ...base.expression, ...extra.expression },
       document: { ...base.document, ...extra.document },
-    } as FormBuilderMessages
+    } as FormRendererMessages
   })
 }
 

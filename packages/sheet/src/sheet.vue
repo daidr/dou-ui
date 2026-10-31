@@ -8,6 +8,7 @@ import {
   type PointerHold,
 } from 'dou-ui'
 import {
+  ChevronDownIcon,
   ClipboardPasteIcon,
   ColumnInsertLeftIcon,
   ColumnInsertRightIcon,
@@ -16,11 +17,13 @@ import {
   EraserIcon,
   EyeIcon,
   EyeOffIcon,
+  CellsMergeIcon,
   PlusIcon,
   RowInsertBottomIcon,
   RowInsertTopIcon,
   RowRemoveIcon,
   ScissorsIcon,
+  CellsSplitIcon,
   TrashIcon,
 } from '@dou-ui/icons'
 import {
@@ -28,6 +31,7 @@ import {
   nextTick,
   onBeforeUnmount,
   onMounted,
+  provide,
   ref,
   shallowRef,
   toRaw,
@@ -51,6 +55,7 @@ import {
 import { formatClip, parseClip, type SheetClip } from './core/clipboard'
 import { fillContinues, type SheetFillMode } from './core/fill'
 import { SheetAxis } from './core/axis'
+import { mergesOf } from './core/merge'
 import { alignOf, fitNumber, formatValue, inputText, parseInput } from './core/format'
 import { SheetHistory, type SheetHistoryView } from './core/history'
 import {
@@ -75,6 +80,11 @@ import {
 } from './core/selection'
 import { SheetTransaction, type SheetAxisName, type SheetTransactionMeta } from './core/transaction'
 import SheetMenu from './components/sheet-menu.vue'
+import CellPanel from './components/cell-panel.vue'
+import { builtinCellTypes } from './cell-types'
+import { sheetContextKey, type SheetContext } from './context'
+import { resolveCellType, type SheetCellType, type SheetResolvedType } from './core/cell-type'
+import { resolveSheetExtensions, type ResolvedSheetExtensions } from './core/extension'
 import { format, useSheetMessages } from './locale'
 import type {
   SheetEmits,
@@ -99,6 +109,7 @@ const props = withDefaults(defineProps<SheetProps>(), {
   ariaLabel: undefined,
   messages: undefined,
   menu: undefined,
+  extensions: () => [],
 })
 const emit = defineEmits<SheetEmits>()
 
@@ -153,6 +164,36 @@ const sheetIndex = computed(() =>
 const EMPTY_SHEET: SheetData = { name: '', cells: [] }
 const NO_SIZES: Record<number, number> = {}
 const sheet = computed(() => doc.value.sheets[sheetIndex.value] ?? EMPTY_SHEET)
+
+// Extensions and cell types --------------------------------------------------------------
+
+// an equal list written again in a template keeps what was resolved, and the setups with it
+const resolved = computed((old?: ResolvedSheetExtensions) => {
+  const next = resolveSheetExtensions(props.extensions)
+  const same =
+    old &&
+    old.extensions.length === next.extensions.length &&
+    old.extensions.every((e, i) => e === next.extensions[i])
+  return same ? old : next
+})
+/** Cell types by name: the built-in ones, then the extensions', the first named winning. */
+const cellTypes = computed(() => {
+  const map = new Map<string, SheetCellType>()
+  for (const type of builtinCellTypes) map.set(type.name, type)
+  const added = new Set<string>()
+  for (const type of resolved.value.cellTypes) {
+    if (added.has(type.name)) continue
+    added.add(type.name)
+    map.set(type.name, type)
+  }
+  return map
+})
+/** The type of a cell of the sheet shown. */
+function typeAt(row: number, col: number): SheetResolvedType | undefined {
+  const input = sheet.value.cells[row]?.[col]
+  if (input == null || typeof input !== 'object' || !input.type) return undefined
+  return resolveCellType(input, doc.value, cellTypes.value)
+}
 const rowCount = computed(() => rowCountOf(sheet.value))
 const colCount = computed(() => colCountOf(sheet.value))
 
@@ -290,9 +331,43 @@ watch([rowCount, colCount], ([rowsNow, colsNow]) => {
 })
 
 const selectedBounds = computed(() => selection.value.ranges.map(boundsOf))
+
+/**
+ * A selection grown to take in the merged cells it touches, with the
+ * keyboard on a merged cell's top left cell. Each range keeps the corner
+ * it started from.
+ */
+function fitMerges(sel: SheetSelection): SheetSelection {
+  const m = mergesOf(sheet.value)
+  if (!m.size) return sel
+  let changed = false
+  const ranges = sel.ranges.map((range) => {
+    const b = boundsOf(range)
+    const grown = m.expand(b)
+    if (
+      grown === b ||
+      (grown.top === b.top &&
+        grown.left === b.left &&
+        grown.bottom === b.bottom &&
+        grown.right === b.right)
+    )
+      return range
+    changed = true
+    const down = range.end.row >= range.start.row
+    const across = range.end.col >= range.start.col
+    return {
+      start: { row: down ? grown.top : grown.bottom, col: across ? grown.left : grown.right },
+      end: { row: down ? grown.bottom : grown.top, col: across ? grown.right : grown.left },
+    }
+  })
+  const active = m.anchor(sel.active)
+  if (active !== sel.active) changed = true
+  return changed ? { active, ranges } : sel
+}
 const active = computed(() => selection.value.active)
 
-function setSelection(next: SheetSelection) {
+function setSelection(given: SheetSelection) {
+  const next = fitMerges(given)
   if (sameSelection(next, selection.value)) return
   selection.value = next
   emit('update:selection', next)
@@ -332,6 +407,20 @@ interface CellView {
   text: string
   cls: string
   css: string
+  key?: string
+  /** The cell the keyboard is on gets the grid's active id. */
+  id?: string
+  /** A cell type's own content, drawn instead of the text. */
+  render?: SheetCellType['render']
+  props?: Record<string, unknown>
+  /** What screen readers read for a cell type's own content. */
+  label?: string
+  /** Why the value doesn't fit the cell's type; shown on hover and read out. */
+  problem?: string
+  /** Left out for screen readers: a cell under a merge, or a merge's piece in another pane. */
+  hidden?: boolean
+  rowspan?: number
+  colspan?: number
 }
 
 /**
@@ -355,41 +444,92 @@ onMounted(() => {
   void document.fonts?.ready.then(measureDigits)
 })
 
+const merges = computed(() => mergesOf(sheet.value))
+// a selection given from outside, or one a new merge now cuts through, grows over the merges
+watch(
+  [merges, selection],
+  () => {
+    const next = fitMerges(selection.value)
+    if (next !== selection.value) setSelection(next)
+  },
+  { immediate: true },
+)
+
+/**
+ * A cell as drawn. `span` is the merge it shows, for the merged cell
+ * itself; the cells a merge covers are drawn empty and see-through, and
+ * the merged cell is drawn over them.
+ */
 function cellView(
   row: number,
   col: number,
   line: SheetData['cells'][number],
   width: number,
+  span?: SheetBounds,
 ): CellView {
+  if (!span && merges.value.size && merges.value.at(row, col))
+    return { col, text: '', cls: 'dou-sheet__cell is-covered', css: '', hidden: true }
   const input = line?.[col]
   let cls = 'dou-sheet__cell'
   let css = ''
   let text = ''
+  let render: CellView['render']
+  let renderProps: CellView['props']
+  let label: string | undefined
+  let problem: string | undefined
   if (input != null && input !== '') {
     const cell = typeof input === 'object' ? input : null
-    const value = cell ? cell.value : (input as SheetValue)
-    text = formatValue(value, cell?.format, lang.value)
+    const value = cell ? (cell.value ?? null) : (input as SheetValue)
+    const typed = cell?.type ? resolveCellType(cell, doc.value, cellTypes.value) : undefined
+    text =
+      typed?.definition.format?.(value, typed.setup) ?? formatValue(value, cell?.format, lang.value)
     // a number without a format fits the cell, as far as its digits allow
-    if (typeof value === 'number' && !cell?.format && digitWidth.value)
+    if (typeof value === 'number' && !cell?.format && !typed?.definition.format && digitWidth.value)
       text = fitNumber(value, Math.max(1, Math.floor((width - 16) / digitWidth.value)))
     const style = cell?.style ? styleCache.value.get(cell.style) : undefined
     if (style) {
       if (style.cls) cls += ` ${style.cls}`
       css += style.css
     }
-    const align = style?.align ? 'left' : alignOf(value)
+    const align = style?.align ? 'left' : (typed?.definition.align ?? alignOf(value))
     if (align !== 'left') cls += ` is-align-${align}`
+    if (typed) {
+      const { definition, setup } = typed
+      cls += ` is-type-${definition.name}`
+      const fits =
+        !definition.valid || value == null || value === ''
+          ? true
+          : definition.valid(value, setup, messages.value)
+      if (fits !== true) {
+        cls += ' is-invalid'
+        problem = typeof fits === 'string' && fits ? fits : messages.value.invalid
+      }
+      if (definition.render) {
+        render = definition.render
+        renderProps = { value, text, setup, readonly: props.readonly }
+        label = cellText(input)
+      }
+    }
   }
+  const bottom = span ? span.bottom : row
+  const right = span ? span.right : col
   for (const b of selectedBounds.value) {
     if (!inBounds(b, row, col)) continue
     if (!cls.includes(' is-selected')) cls += ' is-selected'
     if (row === b.top) cls += ' is-edge-top'
-    if (row === b.bottom) cls += ' is-edge-bottom'
+    if (bottom === b.bottom) cls += ' is-edge-bottom'
     if (col === b.left) cls += ' is-edge-left'
-    if (col === b.right) cls += ' is-edge-right'
+    if (right === b.right) cls += ' is-edge-right'
   }
   if (row === active.value.row && col === active.value.col) cls += ' is-active'
-  return { col, text, cls, css }
+  const view: CellView = { col, text, cls, css }
+  if (render) {
+    view.render = render
+    view.props = renderProps
+    view.label = label
+  }
+  if (problem) view.problem = problem
+  return view
 }
 
 function rowCells(row: number, list: number[]): CellView[] {
@@ -397,13 +537,98 @@ function rowCells(row: number, list: number[]): CellView[] {
   const axis = cols.value
   const x0 = headerWidth.value
   const edgeCol = frozen.value.cols - 1
-  return list.map((col) => {
+  const views = list.map((col) => {
     const width = axis.size(col)
     const view = cellView(row, col, line, width)
     view.css = `width:${width}px;left:${x0 + axis.offset(col)}px;${view.css}`
     if (col === edgeCol) view.cls += ' is-freeze-edge'
+    if (row === active.value.row && col === active.value.col && !view.cls.includes('is-covered'))
+      view.id = activeId.value
     return view
   })
+  if (merges.value.size) addMergedCells(row, list, views)
+  return views
+}
+
+/**
+ * The first of `list` (sorted) from `from` to `to`, or `-1`: where a
+ * merged cell is drawn when its own top left cell is out of view.
+ */
+function firstIn(list: readonly number[], from: number, to: number) {
+  for (const i of list) {
+    if (i > to) return -1
+    if (i >= from) return i
+  }
+  return -1
+}
+
+/**
+ * Adds the merged cells drawn from this row and these columns. A merge is
+ * drawn once in each pane it reaches, from its first row and column drawn
+ * there, so it shows even when its top left cell has scrolled away. In a
+ * frozen pane it stops at the pane's edge; the text goes in the pane with
+ * the merge's top left cell.
+ */
+function addMergedCells(row: number, list: number[], views: CellView[]) {
+  const f = frozen.value
+  const frozenCols = list === frozenColList.value
+  const rowList = row < f.rows ? frozenRowList.value : bodyRows.value
+  const r = rows.value
+  const c = cols.value
+  const x0 = headerWidth.value
+  for (const m of merges.value.inRow(row)) {
+    const paneTop = row < f.rows ? m.top : Math.max(m.top, f.rows)
+    if (firstIn(rowList, paneTop, m.bottom) !== row) continue
+    const paneLeft = frozenCols ? m.left : Math.max(m.left, f.cols)
+    const paneRight = frozenCols ? Math.min(m.right, f.cols - 1) : m.right
+    if (paneLeft > paneRight || firstIn(list, paneLeft, paneRight) === -1) continue
+    const right = frozenCols ? paneRight : m.right
+    const bottom = row < f.rows ? Math.min(m.bottom, f.rows - 1) : m.bottom
+    const width = c.offset(right + 1) - c.offset(m.left)
+    const height = r.offset(bottom + 1) - r.offset(m.top)
+    const anchor = sheet.value.cells[m.top]
+    const view = cellView(m.top, m.left, anchor, width, m)
+    // the text shows once, in the pane holding the top left cell
+    const home = !((!frozenCols && m.left < f.cols) || (row >= f.rows && m.top < f.rows))
+    if (home) {
+      view.rowspan = m.bottom - m.top + 1
+      view.colspan = m.right - m.left + 1
+    } else {
+      view.text = ''
+      view.render = undefined
+      view.hidden = true
+    }
+    view.cls += ' is-merged'
+    view.key = `m${m.left}`
+    if (home && active.value.row === m.top && active.value.col === m.left) view.id = activeId.value
+    if (right >= f.cols - 1 && m.left < f.cols && frozenCols) view.cls += ' is-freeze-edge'
+    const top = r.offset(m.top) - r.offset(row)
+    const left = x0 + c.offset(m.left)
+    view.css = frozenCols
+      ? `width:${width}px;height:${height}px;left:${left}px;margin-top:${top}px;margin-right:${-width}px;${view.css}`
+      : `width:${width}px;height:${height}px;left:${left}px;top:${top}px;${view.css}`
+    // in the frozen columns it sits in the flow, just before the cells it covers
+    const at = frozenCols ? views.findIndex((v) => v.col === m.left) : views.length
+    views.splice(at === -1 ? views.length : at, 0, view)
+  }
+}
+
+/** What a row's merged cells depend on beyond the row itself, for `v-memo`. */
+function mergeKey(row: number) {
+  if (!merges.value.size) return ''
+  let key = ''
+  for (const m of merges.value.inRow(row))
+    key += `${m.top},${m.left}:${rowId(sheet.value.cells[m.top])}:${rowMarks(m.top)}|${rowMarks(m.bottom)};`
+  return key ? `${key}${bodyRows.value[0]}` : ''
+}
+
+const rowIds = new WeakMap<object, number>()
+let lastRowId = 0
+function rowId(line: SheetData['cells'][number]) {
+  if (!line) return 0
+  let id = rowIds.get(line)
+  if (id == null) rowIds.set(line, (id = ++lastRowId))
+  return id
 }
 
 /*
@@ -411,6 +636,7 @@ function rowCells(row: number, list: number[]): CellView[] {
  * the layout change, so scrolling down draws just the rows coming in.
  */
 const memoBase = computed(() => [
+  merges.value,
   rows.value,
   cols.value,
   bodyCols.value,
@@ -420,6 +646,9 @@ const memoBase = computed(() => [
   styleCache.value,
   lang.value,
   digitWidth.value,
+  doc.value.types,
+  cellTypes.value,
+  props.readonly,
 ])
 
 /** The selection as it touches one row. */
@@ -438,8 +667,7 @@ const activeId = computed(() => cellId(active.value.row, active.value.col))
 /** What the cell the keyboard is on reads as. */
 const activeLabel = computed(() => {
   const { row, col } = active.value
-  const input = sheet.value.cells[row]?.[col]
-  const text = formatValue(valueOf(input), cellOf(input)?.format, lang.value)
+  const text = cellText(sheet.value.cells[row]?.[col])
   return format(messages.value.cell, {
     cell: formatCell(active.value),
     value: text || messages.value.empty,
@@ -471,12 +699,19 @@ function scrollToPoint(point: SheetPoint) {
 
 /** Where a cell is in the view, in px from its top left corner. */
 function cellRect(point: SheetPoint) {
-  const { row, col } = point
+  // a merged cell is as big as its merge
+  const span = merges.value.cell(point)
+  const { top: row, left: col } = span
   let x = headerWidth.value + cols.value.offset(col)
   let y = headerHeight.value + rows.value.offset(row)
   if (col >= frozen.value.cols) x -= scroll.value.left
   if (row >= frozen.value.rows) y -= scroll.value.top
-  return { x, y, width: cols.value.size(col), height: rows.value.size(row) }
+  return {
+    x,
+    y,
+    width: cols.value.offset(span.right + 1) - cols.value.offset(col),
+    height: rows.value.offset(span.bottom + 1) - rows.value.offset(row),
+  }
 }
 
 // Changes --------------------------------------------------------------------------------
@@ -509,6 +744,7 @@ function transact(
   tr.setMeta({ action: 'api', ...meta })
   run(tr)
   if (!tr.changed) return null
+  for (const hook of resolved.value.transactions) hook(tr, context)
   if (!keepMark) clipMark.value = null
   apply(tr)
   history.record(tr, before, view())
@@ -550,6 +786,21 @@ const editing = shallowRef<{
 } | null>(null)
 const editorSize = shallowRef({ width: 0, height: 0 })
 let measure: CanvasRenderingContext2D | null | undefined
+/** What is typed in the editor, and whether anything was typed since it opened. */
+const editText = ref('')
+const editTyped = ref(false)
+/** The value of the cell being edited, as it was. */
+const editValue = shallowRef<SheetValue>(null)
+/** Whether editing began with a finger: a type's panel then shows without the keyboard over it. */
+const editByTouch = ref(false)
+const panel = shallowRef<InstanceType<typeof CellPanel> | null>(null)
+/** The type of the cell being edited, when it has a panel to show under it. */
+const panelType = computed(() => {
+  const e = editing.value
+  if (!e || e.sheet !== sheetIndex.value) return undefined
+  const typed = typeAt(e.row, e.col)
+  return typed?.definition.panel ? typed : undefined
+})
 
 function beginEdit(mode: 'enter' | 'edit', text?: string) {
   if (props.readonly) {
@@ -561,7 +812,11 @@ function beginEdit(mode: 'enter' | 'edit', text?: string) {
   const point = active.value
   scrollToPoint(point)
   editing.value = { sheet: sheetIndex.value, ...point, mode }
+  editValue.value = valueOf(sheet.value.cells[point.row]?.[point.col])
+  editTyped.value = false
+  editByTouch.value = lastPointer === 'touch'
   if (text != null) el.value = text
+  editText.value = el.value
   if (document.activeElement !== el) el.focus({ preventScroll: true })
   if (text != null) el.setSelectionRange(el.value.length, el.value.length)
   fitEditor()
@@ -570,6 +825,8 @@ function beginEdit(mode: 'enter' | 'edit', text?: string) {
 
 function cancelEdit() {
   editing.value = null
+  editText.value = ''
+  editTyped.value = false
   if (editor.value) editor.value.value = ''
 }
 
@@ -578,8 +835,9 @@ function commitEdit(move?: SheetDirection) {
   const e = editing.value
   if (!e) return
   const text = editor.value?.value ?? ''
+  const typed = e.sheet === sheetIndex.value ? typeAt(e.row, e.col) : undefined
   cancelEdit()
-  const parsed = parseInput(text)
+  const parsed = typed?.definition.parse?.(text, typed.setup) ?? parseInput(text)
   const before = { sheet: e.sheet, selection: selection.value }
   if (move) moveActive(move)
   const changed = transact(
@@ -594,12 +852,125 @@ function commitEdit(move?: SheetDirection) {
     { action: 'input' },
     before,
   )
-  if (changed) {
-    const cell = changed.doc.sheets[e.sheet]!.cells[e.row]?.[e.col]
-    const shownText = formatValue(valueOf(cell), cellOf(cell)?.format, lang.value)
-    const value = shownText || messages.value.empty
-    announce(format(messages.value.changed, { cell: formatCell(e), value }))
+  if (changed) announceChange(e)
+}
+
+/** Says what a cell now holds. */
+function announceChange(at: { sheet: number; row: number; col: number }) {
+  const cell = doc.value.sheets[at.sheet]?.cells[at.row]?.[at.col]
+  const value = cellText(cell) || messages.value.empty
+  announce(format(messages.value.changed, { cell: formatCell(at), value }))
+}
+
+/** A cell's value as it reads: its text, or whether it is checked. */
+function cellText(input: SheetCellInput) {
+  const value = valueOf(input)
+  const cell = cellOf(input)
+  const typed = cell?.type ? resolveCellType(cell, doc.value, cellTypes.value) : undefined
+  if (typed?.definition.toggle)
+    return value === true ? messages.value.checked : messages.value.unchecked
+  return (
+    typed?.definition.format?.(value, typed.setup) ?? formatValue(value, cell?.format, lang.value)
+  )
+}
+
+/** Writes a value picked in a cell type's panel and finishes editing. */
+function pickValue(value: SheetValue) {
+  const e = editing.value
+  if (!e) return
+  cancelEdit()
+  const changed = transact(
+    (tr) => tr.updateCell({ sheet: e.sheet, row: e.row, col: e.col }, { value }),
+    { action: 'input' },
+  )
+  if (changed) announceChange(e)
+  focusGrid()
+}
+
+/**
+ * Switches the cells of a type with a `toggle`: one cell, or every selected
+ * one of the active cell's type. Those all become the same: what their
+ * shared value switches to, or, when they differ, what an empty cell does.
+ */
+function toggleCells(only?: SheetPoint) {
+  const at = only ?? active.value
+  const typed = typeAt(at.row, at.col)
+  const toggle = typed?.definition.toggle
+  if (!typed || !toggle) return false
+  if (props.readonly) {
+    announce(messages.value.readonly)
+    return true
   }
+  const points: SheetPoint[] = []
+  if (only) points.push(only)
+  else {
+    const cells = sheet.value.cells
+    const seen = new Set<string>()
+    for (const b of selectedBounds.value)
+      for (let row = b.top; row <= Math.min(b.bottom, cells.length - 1); row++) {
+        const line = cells[row]
+        if (!line) continue
+        for (let col = b.left; col <= Math.min(b.right, line.length - 1); col++) {
+          const key = `${row}:${col}`
+          if (seen.has(key) || typeAt(row, col)?.definition !== typed.definition) continue
+          seen.add(key)
+          points.push({ row, col })
+        }
+      }
+  }
+  const values = points.map((p) => valueOf(sheet.value.cells[p.row]?.[p.col]))
+  const same = values.every((value) => value === values[0])
+  const next = toggle(same ? (values[0] ?? null) : null, typed.setup)
+  const changed = transact(
+    (tr) => {
+      for (const point of points) tr.updateCell(point, { value: next })
+    },
+    { action: 'input' },
+  )
+  if (changed) announceChange({ sheet: sheetIndex.value, ...at })
+  return true
+}
+
+/** The text a cell's editor starts with: what its type gives, or the value as typed. */
+function editTextAt(row: number, col: number) {
+  const value = valueOf(sheet.value.cells[row]?.[col])
+  const typed = typeAt(row, col)
+  if (!typed) return inputText(value)
+  const { definition, setup } = typed
+  const text = definition.edit
+    ? definition.edit(value, setup)
+    : value == null
+      ? undefined
+      : definition.format?.(value, setup)
+  return text ?? inputText(value)
+}
+
+/** Edits the active cell when its type has a panel, which then shows. */
+function openPanel() {
+  const { row, col } = active.value
+  if (!typeAt(row, col)?.definition.panel) return false
+  beginEdit('edit', editTextAt(row, col))
+  return true
+}
+
+/**
+ * Where the active cell's panel button goes: on its right edge, while it
+ * isn't edited or dragged from. A finger that only touches down keeps it:
+ * iPhones drop the tap's click when something shows up during the tap.
+ */
+const panelButton = computed(() => {
+  if (props.readonly || editing.value || drag.value?.started) return null
+  const { row, col } = active.value
+  if (!typeAt(row, col)?.definition.panel) return null
+  const rect = visibleRect(active.value)
+  return rect && { x: rect.x + rect.width, y: rect.y + rect.height / 2 }
+})
+
+/** Edits the active cell, or switches it when its type toggles. */
+function editActive() {
+  if (toggleCells()) return
+  const { row, col } = active.value
+  beginEdit('edit', editTextAt(row, col))
 }
 
 /** Grows the editor to fit its text, up to the edge of the view. */
@@ -664,6 +1035,8 @@ function onInput() {
       return
     }
   }
+  editText.value = editor.value?.value ?? ''
+  editTyped.value = true
   fitEditor()
 }
 
@@ -679,9 +1052,31 @@ function onInputBlur() {
 
 // Keys -----------------------------------------------------------------------------------
 
-function moveActive(direction: SheetDirection) {
-  const next = movePoint(active.value, direction, axes(), filled)
+/**
+ * Where the keys entered the merged cell that's active, so leaving it keeps
+ * to the same column (or row) instead of the merge's first.
+ */
+let entered: { point: SheetPoint; selection: SheetSelection } | undefined
+
+function moveActive(direction: SheetDirection, jump = false) {
+  // out of a merged cell from its far side
+  const span = merges.value.cell(active.value)
+  // only while the selection is still the one the keys made
+  const track =
+    entered &&
+    entered.selection === selection.value &&
+    merges.value.at(entered.point.row, entered.point.col) === span
+      ? entered.point
+      : active.value
+  const from = {
+    row: direction === 'down' ? span.bottom : direction === 'up' ? span.top : track.row,
+    col: direction === 'right' ? span.right : direction === 'left' ? span.left : track.col,
+  }
+  const next = movePoint(from, direction, axes(), filled, jump)
   select(selectCell(next))
+  entered = merges.value.at(next.row, next.col)
+    ? { point: next, selection: selection.value }
+    : undefined
 }
 
 const axes = () => ({ rows: rows.value, cols: cols.value })
@@ -749,14 +1144,19 @@ function onKeydown(event: KeyboardEvent) {
   if (isComposing(event)) return
   const e = editing.value
   if (e) return editKey(event, e.mode)
+  for (const keymap of keymaps.value)
+    for (const combo in keymap)
+      if (matchesHotkey(event, combo) && keymap[combo]!(event) !== false)
+        return event.preventDefault()
   const mod = event.ctrlKey || event.metaKey
   const key = event.key
   const arrow = ARROWS[key]
+  // Alt + ↓ opens a cell type's panel, such as the list to pick from
+  if (key === 'ArrowDown' && event.altKey && !mod && openPanel()) return event.preventDefault()
   if (arrow && !event.altKey) {
     event.preventDefault()
     if (event.shiftKey) return extend(arrow, mod)
-    const next = movePoint(active.value, arrow, axes(), filled, mod)
-    return select(selectCell(next))
+    return moveActive(arrow, mod)
   }
   if (matchesHotkey(event, 'mod+z')) return done(event, travel('undo'))
   if (matchesHotkey(event, 'mod+shift+z') || matchesHotkey(event, 'mod+y'))
@@ -797,10 +1197,7 @@ function onKeydown(event: KeyboardEvent) {
       return moveWithin(event.shiftKey ? 'left' : 'right')
     case 'F2':
       event.preventDefault()
-      return void beginEdit(
-        'edit',
-        inputText(valueOf(sheet.value.cells[active.value.row]?.[active.value.col])),
-      )
+      return editActive()
     case 'Delete':
     case 'Backspace':
       event.preventDefault()
@@ -823,6 +1220,7 @@ function onKeydown(event: KeyboardEvent) {
       return select(selectCell({ row, col: active.value.col }))
     }
     case ' ':
+      if (!event.shiftKey && !mod && !event.altKey && toggleCells()) return event.preventDefault()
       if (event.shiftKey && !mod) return done(event, selectLines('row'))
       if (mod && !event.shiftKey) return done(event, selectLines('col'))
       return
@@ -841,6 +1239,8 @@ function done(event: KeyboardEvent, handled: unknown) {
 }
 
 function editKey(event: KeyboardEvent, mode: 'enter' | 'edit') {
+  // a cell type's panel gets the keys first, such as the arrows in a list
+  if (panel.value?.onKey(event)) return event.preventDefault()
   const key = event.key
   if (key === 'Escape') {
     event.preventDefault()
@@ -1071,7 +1471,15 @@ function takeClip(cut: boolean) {
   const bounds = { top: b.top, left: b.left, bottom: b.top + height - 1, right: b.left + width - 1 }
   clipMark.value = { sheet: sheetIndex.value, bounds, cut: id }
   announce(format(messages.value[cut ? 'cutDone' : 'copied'], { range: rangeName(bounds) }))
-  return formatClip(clip, lang.value)
+  return formatClip(clip, {
+    locale: lang.value,
+    // as cell types show their values, such as 80% for 0.8
+    text: (input) => {
+      const cell = cellOf(input)
+      const typed = cell?.type ? resolveCellType(cell, doc.value, cellTypes.value) : undefined
+      return typed?.definition.format?.(valueOf(input), typed.setup)
+    },
+  })
 }
 
 function onCopy(event: ClipboardEvent) {
@@ -1733,8 +2141,64 @@ function menuFor(area: SheetMenuContext['area']): SheetMenuItem[] {
           } as const,
         ]
       : []),
+    ...mergeItems(),
     clear,
   ]
+}
+
+/** Merging the selection, or splitting the merged cells in it. */
+function mergeItems(): SheetMenuItem[] {
+  const m = messages.value
+  const b = lastBounds()
+  const touched = merges.value.touching(b)
+  const one = touched.length === 1 && sameBounds(touched[0]!, b)
+  const out: SheetMenuItem[] = []
+  if (!one && (b.top !== b.bottom || b.left !== b.right) && selection.value.ranges.length === 1)
+    out.push({
+      key: 'merge',
+      label: m.mergeCells,
+      icon: CellsMergeIcon,
+      divided: true,
+      run: mergeSelection,
+    })
+  if (touched.length)
+    out.push({
+      key: 'unmerge',
+      label: m.unmergeCells,
+      icon: CellsSplitIcon,
+      divided: !out.length,
+      run: unmergeSelection,
+    })
+  return out
+}
+
+const sameBounds = (a: SheetBounds, b: SheetBounds) =>
+  a.top === b.top && a.left === b.left && a.bottom === b.bottom && a.right === b.right
+
+/** Merges the last range of the selection into one cell. */
+function mergeSelection() {
+  const b = merges.value.expand(lastBounds())
+  // the values only the top left one keeps
+  let lost = 0
+  for (let row = b.top; row <= b.bottom; row++)
+    for (let col = b.left; col <= b.right; col++)
+      if ((row !== b.top || col !== b.left) && !isBlank(sheet.value.cells[row]?.[col])) lost++
+  const changed = transact((tr) => tr.mergeCells(b), { action: 'merge' })
+  if (!changed) return
+  setSelection(selectCell({ row: b.top, col: b.left }))
+  const range = rangeName(b)
+  if (lost) {
+    const text = format(messages.value.mergedCleared, { range, count: lost })
+    showNotice(text)
+    announce(text)
+  } else announce(format(messages.value.merged, { range }))
+}
+
+/** Splits the merged cells the last range of the selection touches. */
+function unmergeSelection() {
+  const b = lastBounds()
+  if (transact((tr) => tr.unmergeCells(b), { action: 'merge' }))
+    announce(format(messages.value.unmerged, { range: rangeName(b) }))
 }
 
 /** The items with a line above the first. */
@@ -1757,10 +2221,11 @@ function menuArea(area: Hit['area']): SheetMenuContext['area'] {
 
 function openMenu(at: Hit['area'], x: number, y: number) {
   const area = menuArea(at)
-  const items = menuFor(area)
-  menuItems.value = props.menu
-    ? props.menu(items, { area, selection: selection.value, sheet: sheetIndex.value })
-    : items
+  const where = { area, selection: selection.value, sheet: sheetIndex.value }
+  const own = menuFor(area)
+  const added = resolved.value.menus.flatMap((items) => items(context, where))
+  const items = added.length && own.length ? [...added, ...dividedFirst(own)] : [...added, ...own]
+  menuItems.value = props.menu ? props.menu(items, where) : items
   if (menuItems.value.length) menu.value?.open(x, y)
 }
 
@@ -2245,9 +2710,20 @@ function onHover(event: PointerEvent) {
 }
 
 /** A tap selects a cell; a tap on the cell already selected edits it. */
-function onClick() {
-  const hit = tap
+function onClick(event: MouseEvent) {
+  const touched = tap
   tap = null
+  // a cell type's switch, such as a check box; a mouse selected its cell on the press
+  const toggle = event.target instanceof Element && event.target.closest('[data-sheet-toggle]')
+  const point = toggle && !event.shiftKey ? cellOfElement(toggle) : null
+  if (point) {
+    if (touched)
+      press({ ...touched, ...point }, { shiftKey: false, ctrlKey: false, metaKey: false })
+    toggleCells(point)
+    focusGrid()
+    return
+  }
+  const hit = touched
   if (!hit) return
   const sel = selection.value
   const single = sel.ranges.length === 1 && boundsOf(sel.ranges[0]!)
@@ -2260,7 +2736,7 @@ function onClick() {
     sel.active.col === hit.col
   if (again && !props.readonly) {
     // inside the tap, so phones show their keyboard
-    beginEdit('edit', inputText(valueOf(sheet.value.cells[hit.row]?.[hit.col])))
+    editActive()
     return
   }
   press(hit, { shiftKey: false, ctrlKey: false, metaKey: false })
@@ -2268,13 +2744,26 @@ function onClick() {
   announce(activeLabel.value)
 }
 
+/** The cell an element is drawn in, read from the grid's row and column numbers. */
+function cellOfElement(el: Element): SheetPoint | null {
+  const cell = el.closest('[role="gridcell"]')
+  const row = cell?.parentElement?.getAttribute('aria-rowindex')
+  const col = cell?.getAttribute('aria-colindex')
+  if (!row || !col) return null
+  const first = props.headers ? 2 : 1
+  // a merged cell can be drawn in a row or column after its own
+  return merges.value.anchor({ row: Number(row) - first, col: Number(col) - first })
+}
+
 function onDblClick(event: MouseEvent) {
   const hit = hitAt(event.clientX, event.clientY)
   const edge = props.readonly ? null : edgeAt(hit, lastPointer === 'touch')
   if (edge) return autofit(edge.axis, edge.index)
   if (lastPointer === 'touch' || hit.area !== 'cell') return
+  // the click on a switch already switched it
+  if (event.target instanceof Element && event.target.closest('[data-sheet-toggle]')) return
   select(selectCell({ row: hit.row, col: hit.col }))
-  beginEdit('edit', inputText(valueOf(sheet.value.cells[hit.row]?.[hit.col])))
+  editActive()
 }
 
 /** Fits a row (or column), or every selected one when it is among them, to its contents. */
@@ -2317,10 +2806,114 @@ function announce(text: string) {
 }
 const keysHint = `${uid}-keys`
 
+// Extensions -----------------------------------------------------------------------------
+
+/** Where a cell is drawn now, or `null` while it is out of view. */
+function visibleRect(point: SheetPoint) {
+  const rect = cellRect(point)
+  if (
+    rect.width <= 0 ||
+    rect.height <= 0 ||
+    rect.x + rect.width <= headerWidth.value ||
+    rect.y + rect.height <= headerHeight.value ||
+    rect.x >= viewWidth.value ||
+    rect.y >= viewHeight.value
+  )
+    return null
+  return rect
+}
+
+function forEachSelected(callback: (point: SheetPoint) => void) {
+  const seen = new Set<string>()
+  const m = merges.value
+  for (const range of selection.value.ranges) {
+    const b = boundsOf(range)
+    const bottom = Math.min(b.bottom, rowCount.value - 1)
+    const right = Math.min(b.right, colCount.value - 1)
+    for (let row = b.top; row <= bottom; row++)
+      for (let col = b.left; col <= right; col++) {
+        const point = m.size ? m.anchor({ row, col }) : { row, col }
+        const key = `${point.row}:${point.col}`
+        if (seen.has(key)) continue
+        seen.add(key)
+        callback(point)
+      }
+  }
+}
+
+const context: SheetContext = {
+  doc,
+  sheetIndex,
+  sheet,
+  selection,
+  active,
+  readonly: computed(() => props.readonly),
+  messages,
+  forEachSelected,
+  value: (point) => valueOf(sheet.value.cells[point.row]?.[point.col]),
+  cellType: (point) => typeAt(point.row, point.col),
+  cellRect: visibleRect,
+  transact: (run, meta) => transact(run, meta),
+  undo: () => travel('undo'),
+  redo: () => travel('redo'),
+  canUndo,
+  canRedo,
+  select: (target) => selectTarget(target),
+  scrollTo: (target) => scrollToTarget(target),
+  edit: (target) => editTarget(target),
+  focus: () => focusGrid(),
+  announce,
+}
+provide(sheetContextKey, context)
+
+const keymaps = computed(() => resolved.value.keymaps.map((keymap) => keymap(context)))
+
+let cleanups: (() => void)[] = []
+function setupExtensions() {
+  for (const cleanup of cleanups) cleanup()
+  cleanups = []
+  for (const setup of resolved.value.setups) {
+    const cleanup = setup(context)
+    if (typeof cleanup === 'function') cleanups.push(cleanup)
+  }
+}
+onMounted(() => {
+  setupExtensions()
+  watch(resolved, setupExtensions)
+})
+onBeforeUnmount(() => {
+  for (const cleanup of cleanups) cleanup()
+  cleanups = []
+})
+
 // Exposed --------------------------------------------------------------------------------
 
 function toPoint(target: SheetCellTarget): SheetPoint | null {
   return typeof target === 'string' ? parseCell(target) : target
+}
+
+function selectTarget(target: string | SheetRange | SheetSelection) {
+  let next: SheetSelection | null = null
+  if (typeof target === 'string') {
+    const range = parseRange(target)
+    if (range) next = { active: range.start, ranges: [range] }
+  } else if ('ranges' in target) next = target
+  else next = { active: target.start, ranges: [target] }
+  if (!next) return
+  setSelection(clampSelection(next, rowCount.value, colCount.value))
+  scrollToPoint(selection.value.active)
+}
+
+function scrollToTarget(target: SheetCellTarget) {
+  const point = toPoint(target)
+  if (point) scrollToPoint(clampPoint(point, rowCount.value, colCount.value))
+}
+
+function editTarget(target?: SheetCellTarget) {
+  const point = target == null ? active.value : toPoint(target)
+  if (!point) return
+  select(selectCell(clampPoint(point, rowCount.value, colCount.value)))
+  beginEdit('edit', editTextAt(active.value.row, active.value.col))
 }
 
 defineExpose<SheetExpose>({
@@ -2333,27 +2926,9 @@ defineExpose<SheetExpose>({
   get canRedo() {
     return canRedo.value
   },
-  select(target) {
-    let next: SheetSelection | null = null
-    if (typeof target === 'string') {
-      const range = parseRange(target)
-      if (range) next = { active: range.start, ranges: [range] }
-    } else if ('ranges' in target) next = target
-    else next = { active: target.start, ranges: [target] }
-    if (!next) return
-    setSelection(clampSelection(next, rowCount.value, colCount.value))
-    scrollToPoint(selection.value.active)
-  },
-  scrollTo(target) {
-    const point = toPoint(target)
-    if (point) scrollToPoint(clampPoint(point, rowCount.value, colCount.value))
-  },
-  edit(target) {
-    const point = target == null ? active.value : toPoint(target)
-    if (!point) return
-    select(selectCell(clampPoint(point, rowCount.value, colCount.value)))
-    beginEdit('edit', inputText(valueOf(sheet.value.cells[active.value.row]?.[active.value.col])))
-  },
+  select: selectTarget,
+  scrollTo: scrollToTarget,
+  edit: editTarget,
   focus: () => focusGrid(),
   copy: () => copyToClipboard(false),
   cut: () => copyToClipboard(true),
@@ -2458,7 +3033,7 @@ defineExpose<SheetExpose>({
         <div
           v-for="row in frozenRowList"
           :key="row"
-          v-memo="[sheet.cells[row], memoBase, rowMarks(row)]"
+          v-memo="[sheet.cells[row], memoBase, rowMarks(row), mergeKey(row)]"
           class="dou-sheet__row is-frozen"
           :class="{ 'is-freeze-edge': row === frozen.rows - 1 }"
           role="row"
@@ -2480,27 +3055,49 @@ defineExpose<SheetExpose>({
           </div>
           <div
             v-for="cell in rowCells(row, frozenColList)"
-            :id="row === active.row && cell.col === active.col ? activeId : undefined"
-            :key="cell.col"
+            :id="cell.id"
+            :key="cell.key ?? cell.col"
             :class="[cell.cls, 'is-frozen']"
             role="gridcell"
             :aria-colindex="cell.col + (headers ? 2 : 1)"
             :aria-selected="cell.cls.includes('is-selected') || undefined"
+            :aria-hidden="cell.hidden || undefined"
+            :aria-rowspan="cell.rowspan"
+            :aria-colspan="cell.colspan"
+            :title="cell.problem"
             :style="cell.css"
           >
-            <span class="dou-sheet__text">{{ cell.text }}</span>
+            <template v-if="cell.render">
+              <span class="dou-sheet__content" aria-hidden="true">
+                <component :is="cell.render" v-bind="cell.props" />
+              </span>
+              <span class="dou-sheet__sr-only">{{ cell.label }}</span>
+            </template>
+            <span v-else class="dou-sheet__text">{{ cell.text }}</span>
+            <span v-if="cell.problem" class="dou-sheet__sr-only">（{{ cell.problem }}）</span>
           </div>
           <div
             v-for="cell in rowCells(row, bodyCols)"
-            :id="row === active.row && cell.col === active.col ? activeId : undefined"
-            :key="cell.col"
+            :id="cell.id"
+            :key="cell.key ?? cell.col"
             :class="cell.cls"
             role="gridcell"
             :aria-colindex="cell.col + (headers ? 2 : 1)"
             :aria-selected="cell.cls.includes('is-selected') || undefined"
+            :aria-hidden="cell.hidden || undefined"
+            :aria-rowspan="cell.rowspan"
+            :aria-colspan="cell.colspan"
+            :title="cell.problem"
             :style="cell.css"
           >
-            <span class="dou-sheet__text">{{ cell.text }}</span>
+            <template v-if="cell.render">
+              <span class="dou-sheet__content" aria-hidden="true">
+                <component :is="cell.render" v-bind="cell.props" />
+              </span>
+              <span class="dou-sheet__sr-only">{{ cell.label }}</span>
+            </template>
+            <span v-else class="dou-sheet__text">{{ cell.text }}</span>
+            <span v-if="cell.problem" class="dou-sheet__sr-only">（{{ cell.problem }}）</span>
           </div>
         </div>
       </div>
@@ -2512,7 +3109,7 @@ defineExpose<SheetExpose>({
         <div
           v-for="row in bodyRows"
           :key="row"
-          v-memo="[sheet.cells[row], memoBase, rowMarks(row)]"
+          v-memo="[sheet.cells[row], memoBase, rowMarks(row), mergeKey(row)]"
           class="dou-sheet__row"
           role="row"
           :aria-rowindex="row + (headers ? 2 : 1)"
@@ -2533,27 +3130,49 @@ defineExpose<SheetExpose>({
           </div>
           <div
             v-for="cell in rowCells(row, frozenColList)"
-            :id="row === active.row && cell.col === active.col ? activeId : undefined"
-            :key="cell.col"
+            :id="cell.id"
+            :key="cell.key ?? cell.col"
             :class="[cell.cls, 'is-frozen']"
             role="gridcell"
             :aria-colindex="cell.col + (headers ? 2 : 1)"
             :aria-selected="cell.cls.includes('is-selected') || undefined"
+            :aria-hidden="cell.hidden || undefined"
+            :aria-rowspan="cell.rowspan"
+            :aria-colspan="cell.colspan"
+            :title="cell.problem"
             :style="cell.css"
           >
-            <span class="dou-sheet__text">{{ cell.text }}</span>
+            <template v-if="cell.render">
+              <span class="dou-sheet__content" aria-hidden="true">
+                <component :is="cell.render" v-bind="cell.props" />
+              </span>
+              <span class="dou-sheet__sr-only">{{ cell.label }}</span>
+            </template>
+            <span v-else class="dou-sheet__text">{{ cell.text }}</span>
+            <span v-if="cell.problem" class="dou-sheet__sr-only">（{{ cell.problem }}）</span>
           </div>
           <div
             v-for="cell in rowCells(row, bodyCols)"
-            :id="row === active.row && cell.col === active.col ? activeId : undefined"
-            :key="cell.col"
+            :id="cell.id"
+            :key="cell.key ?? cell.col"
             :class="cell.cls"
             role="gridcell"
             :aria-colindex="cell.col + (headers ? 2 : 1)"
             :aria-selected="cell.cls.includes('is-selected') || undefined"
+            :aria-hidden="cell.hidden || undefined"
+            :aria-rowspan="cell.rowspan"
+            :aria-colspan="cell.colspan"
+            :title="cell.problem"
             :style="cell.css"
           >
-            <span class="dou-sheet__text">{{ cell.text }}</span>
+            <template v-if="cell.render">
+              <span class="dou-sheet__content" aria-hidden="true">
+                <component :is="cell.render" v-bind="cell.props" />
+              </span>
+              <span class="dou-sheet__sr-only">{{ cell.label }}</span>
+            </template>
+            <span v-else class="dou-sheet__text">{{ cell.text }}</span>
+            <span v-if="cell.problem" class="dou-sheet__sr-only">（{{ cell.problem }}）</span>
           </div>
         </div>
       </div>
@@ -2564,6 +3183,9 @@ defineExpose<SheetExpose>({
       :class="[editorClass, { 'is-open': editing }]"
       :style="inputStyle"
       :aria-label="editing ? format(messages.edit, { cell: formatCell(editing) }) : activeLabel"
+      :aria-expanded="panelType ? true : undefined"
+      :inputmode="panelType && editByTouch ? 'none' : undefined"
+      :aria-activedescendant="panel?.activeId ?? undefined"
       :aria-describedby="keysHint"
       :readonly="readonly"
       autocomplete="off"
@@ -2625,6 +3247,29 @@ defineExpose<SheetExpose>({
     >
       {{ fillHint.text }}
     </div>
+    <button
+      v-if="panelButton"
+      type="button"
+      class="dou-sheet__panel-button"
+      :style="`left:${panelButton.x}px;top:${panelButton.y}px`"
+      :aria-label="messages.openPanel"
+      tabindex="-1"
+      @pointerdown.stop.prevent
+      @click="openPanel"
+    >
+      <ChevronDownIcon />
+    </button>
+    <CellPanel
+      v-if="panelType"
+      ref="panel"
+      :resolved="panelType"
+      :value="editValue"
+      :text="editText"
+      :typed="editTyped"
+      :anchor="editor"
+      @pick="pickValue"
+    />
+    <component :is="overlay" v-for="(overlay, i) in resolved.overlays" :key="i" />
     <div v-if="notice" class="dou-sheet__notice" role="status">{{ notice }}</div>
     <SheetMenu ref="menu" v-model:open="menuOpen" :items="menuItems" @select="runMenuItem" />
     <span :id="keysHint" class="dou-sheet__sr-only">{{ messages.keys }}</span>

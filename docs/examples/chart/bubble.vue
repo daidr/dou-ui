@@ -18,6 +18,6 @@ const rows = [
   <DouChart :data="rows" x="years" :height="300">
     <DouChartAxis for="x" title="开业年数" />
     <DouChartAxis for="y" title="坪效（元/㎡）" />
-    <DouChartScatter y="yield" size="stores" name="门店数量" />
+    <DouChartScatter y="yield" size="stores" size-name="门店数" label="city" name="城市" />
   </DouChart>
 </template>

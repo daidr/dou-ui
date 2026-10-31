@@ -1,6 +1,7 @@
 import { yColumn, type ChartAccessor } from './data'
 import type { Painter } from './painter'
-import type { ChartSeries, ChartSeriesKind, ChartView } from './series'
+import { nearestPoint } from './hit'
+import type { ChartHit, ChartSeries, ChartSeriesKind, ChartView } from './series'
 
 export interface ScatterStyle {
   /** The bubble size of each row; the area of a bubble grows with it. */
@@ -37,15 +38,11 @@ function largestFirst(sizes: Float64Array): Int32Array {
  * From a few thousand dots on, they are stamped into one image: quicker
  * by far, though a pile of dots is then no darker than one.
  */
-export function drawScatter(painter: Painter, series: ChartSeries<ScatterStyle>, view: ChartView) {
-  const { x: sx, y: sy, plot, horizontal } = view
+/** Where row `i` is drawn; `null` when it has no value or is well outside the plot. */
+function pointOf(series: ChartSeries<ScatterStyle>, { x: sx, y: sy, plot, horizontal }: ChartView) {
   const xs = series.x.values
   const ys = series.top
-  const sizeKey = series.props.size
-  const sizes = sizeKey === undefined ? null : yColumn(series.rows, sizeKey)
-  const n = Math.min(xs.length, ys.length)
-
-  const point = (i: number): [number, number] | null => {
+  return (i: number): [number, number] | null => {
     const x = xs[i]!
     const y = ys[i]!
     if (x !== x || y !== y) return null
@@ -57,15 +54,34 @@ export function drawScatter(painter: Painter, series: ChartSeries<ScatterStyle>,
     if (py < plot.y - 8 || py > plot.y + plot.height + 8) return null
     return [px, py]
   }
+}
+
+/** The radius of a bubble of each size: its area grows with the size. */
+function bubbleRadius(sizes: Float64Array, max = BUBBLE) {
+  let largest = 0
+  for (let i = 0; i < sizes.length; i++) if (sizes[i]! > largest) largest = sizes[i]!
+  return (size: number) =>
+    largest > 0 ? Math.max(MIN_BUBBLE, max * Math.sqrt(size / largest)) : MIN_BUBBLE
+}
+
+const DOT = 3.5
+
+export function drawScatter(painter: Painter, series: ChartSeries<ScatterStyle>, view: ChartView) {
+  const { plot } = view
+  const xs = series.x.values
+  const ys = series.top
+  const sizeKey = series.props.size
+  const sizes = sizeKey === undefined ? null : yColumn(series.rows, sizeKey)
+  const n = Math.min(xs.length, ys.length)
+
+  const point = pointOf(series, view)
 
   painter.save()
   painter.fillStyle = series.color
   painter.strokeStyle = series.color
 
   if (sizes) {
-    let largest = 0
-    for (let i = 0; i < sizes.length; i++) if (sizes[i]! > largest) largest = sizes[i]!
-    const max = series.props.radius ?? BUBBLE
+    const radius = bubbleRadius(sizes, series.props.radius)
     painter.lineWidth = 1
     // one at a time: each bubble's edge goes over the fill of those under it
     for (const i of largestFirst(sizes)) {
@@ -74,7 +90,7 @@ export function drawScatter(painter: Painter, series: ChartSeries<ScatterStyle>,
       if (!(size >= 0)) continue
       const at = point(i)
       if (!at) continue
-      const r = largest > 0 ? Math.max(MIN_BUBBLE, max * Math.sqrt(size / largest)) : MIN_BUBBLE
+      const r = radius(size)
       painter.beginPath()
       painter.moveTo(at[0] + r, at[1])
       painter.arc(at[0], at[1], r, 0, Math.PI * 2)
@@ -87,7 +103,7 @@ export function drawScatter(painter: Painter, series: ChartSeries<ScatterStyle>,
     return
   }
 
-  const r = series.props.radius ?? 3.5
+  const r = series.props.radius ?? DOT
   painter.globalAlpha = 0.72
   if (n < MANY) {
     for (let i = 0; i < n; i++) {
@@ -214,8 +230,44 @@ function stampDots(
   return true
 }
 
+/**
+ * The point under `(px, py)`: the bubble it is inside (the smallest, which
+ * is drawn on top), or the dot nearest to it within a finger's reach.
+ */
+export function hitScatter(
+  series: ChartSeries<ScatterStyle>,
+  view: ChartView,
+  px: number,
+  py: number,
+): ChartHit | null {
+  const point = pointOf(series, view)
+  const n = Math.min(series.x.values.length, series.top.length)
+  const sizeKey = series.props.size
+  if (sizeKey === undefined) {
+    const r = series.props.radius ?? DOT
+    const hit = nearestPoint(n, point, px, py, () => Math.max(r + 4, 12))
+    return hit && { index: hit.index, radius: r }
+  }
+  const sizes = yColumn(series.rows, sizeKey)
+  const radius = bubbleRadius(sizes, series.props.radius)
+  let best: ChartHit | null = null
+  for (let i = 0; i < n; i++) {
+    const size = sizes[i]!
+    if (!(size >= 0)) continue
+    const at = point(i)
+    if (!at) continue
+    const r = radius(size)
+    // small bubbles get a little more room, so they can be reached
+    if (Math.hypot(at[0] - px, at[1] - py) > Math.max(r, 8)) continue
+    if (!best || r < best.radius) best = { index: i, radius: r }
+  }
+  return best
+}
+
 export const scatterKind: ChartSeriesKind<ScatterStyle> = {
   type: 'scatter',
+  tooltip: 'item',
+  hit: hitScatter,
   // bubbles may be large: keep them inside the plot
   inset: ({ props }) => (props.size === undefined ? 0 : (props.radius ?? BUBBLE) + 1),
   draw: drawScatter,

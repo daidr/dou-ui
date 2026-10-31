@@ -6,9 +6,13 @@ import type { ChartScatterProps } from '../types'
 defineOptions({ name: 'DouChartScatter' })
 
 const props = defineProps<ChartScatterProps>()
+/** Turned off in the legend. */
+const hidden = defineModel<boolean>('hidden', { default: false })
 
 const el = useOwnNode()
-useChartPart('DouChartScatter', (chart) => chart.addSeries({ kind: scatterKind, props, el }))
+useChartPart('DouChartScatter', (chart) =>
+  chart.addSeries({ kind: scatterKind, props, el, hidden }),
+)
 </script>
 
 <template></template>

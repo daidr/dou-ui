@@ -14,6 +14,12 @@ export interface ChartMessages {
   pie: string
   /** Joins the series in the summary. */
   listSeparator: string
+  /** Joins what is read out for one x or point. */
+  itemSeparator: string
+  /** A slice's value in its tooltip: `{value}`, `{share}` (a percentage). */
+  share: string
+  /** The summary of a chart that can be explored with the keys: `{summary}`. */
+  keys: string
   /** The chart with the range of its x axis: `{chart}`, `{from}`, `{to}`. */
   range: string
   /** The same, for a `horizontal` chart, whose x axis runs down the side. */
@@ -31,6 +37,9 @@ const zhCN: ChartMessages = {
   slice: '{label} {value}（{share}）',
   pie: '{name}：{slices}',
   listSeparator: '；',
+  itemSeparator: '，',
+  share: '{value}（{share}）',
+  keys: '{summary}。用方向键逐个查看数据',
   range: '{chart}，横轴从 {from} 到 {to}',
   rangeDown: '{chart}，纵轴从 {from} 到 {to}',
   summary: '{chart}。{series}',
@@ -44,6 +53,9 @@ const zhTW: ChartMessages = {
   slice: '{label} {value}（{share}）',
   pie: '{name}：{slices}',
   listSeparator: '；',
+  itemSeparator: '，',
+  share: '{value}（{share}）',
+  keys: '{summary}。用方向鍵逐個查看資料',
   range: '{chart}，橫軸從 {from} 到 {to}',
   rangeDown: '{chart}，縱軸從 {from} 到 {to}',
   summary: '{chart}。{series}',
@@ -57,6 +69,9 @@ const en: ChartMessages = {
   slice: '{label} {value} ({share})',
   pie: '{name}: {slices}',
   listSeparator: '; ',
+  itemSeparator: ', ',
+  share: '{value} ({share})',
+  keys: '{summary}. Use the arrow keys to read each point',
   range: '{chart}, x from {from} to {to}',
   rangeDown: '{chart}, x from {from} to {to}',
   summary: '{chart}. {series}',

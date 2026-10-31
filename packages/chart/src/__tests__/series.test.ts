@@ -385,7 +385,9 @@ describe('pie', () => {
     Object.defineProperty(root, 'clientHeight', { value: 300 })
     await wrapper.setProps({ height: 300 })
     await nextTick()
-    expect(root.getAttribute('aria-label')).toBe('图表。支出：房租 3（75%）；餐饮 1（25%）')
+    expect(root.getAttribute('aria-label')).toBe(
+      '图表。支出：房租 3（75%）；餐饮 1（25%）。用方向键逐个查看数据',
+    )
     expect(wrapper.find('.dou-chart__center').text()).toBe('合计 4')
     expect(wrapper.findAll('.dou-chart__legend.is-pie').map((item) => item.text())).toEqual([
       '房租',

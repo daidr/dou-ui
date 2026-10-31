@@ -14,7 +14,16 @@ import type { ChartSeriesKind, ChartSeriesProps, ChartValueAxis } from './series
 export interface SeriesInput {
   index: number
   kind: ChartSeriesKind<any>
-  props: ChartSeriesProps & { stack?: string | boolean; hidden?: boolean } & Record<string, unknown>
+  props: ChartSeriesProps & { stack?: string | boolean } & Record<string, unknown>
+  /** Turned off (in the legend): left out of the axes and not drawn. */
+  hidden?: boolean
+}
+
+/** What a series is called: its `name`, else its `y` key, else its place. */
+export function seriesName(input: Pick<SeriesInput, 'index' | 'props'>): string {
+  return (
+    input.props.name ?? (typeof input.props.y === 'string' ? input.props.y : `${input.index + 1}`)
+  )
 }
 
 /** A series with its data read, before colors are worked out. */
@@ -97,7 +106,7 @@ export function buildModel(
     axis?: ChartValueAxis
   },
 ): ChartModel {
-  const shown = inputs.filter((input) => !input.props.hidden)
+  const shown = inputs.filter((input) => !input.hidden)
   const sourceOf = (input: SeriesInput) => ({
     rows: input.props.data ?? chart.data,
     x: input.props.x ?? chart.x,
@@ -122,8 +131,7 @@ export function buildModel(
     // no x: rows are placed by their index
     const column = xColumn(rows, x ?? byIndex, x === undefined ? 'linear' : kind)
     const y = yColumn(rows, input.props.y)
-    const name =
-      input.props.name ?? (typeof input.props.y === 'string' ? input.props.y : `${input.index + 1}`)
+    const name = seriesName(input)
     return {
       input,
       name,

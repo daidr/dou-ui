@@ -32,15 +32,40 @@ export interface CodeDiagnostic {
 }
 
 /**
- * How a part of the text is drawn. Decorations only change how the text
- * looks (colors, backgrounds, underlines, borders), never its size, so
- * the cursor still lands where the characters are.
+ * How a part of the text is drawn. Marks and line classes only change how
+ * the text looks (colors, backgrounds, underlines, borders), never its
+ * size, so the cursor still lands where the characters are; an inline
+ * widget takes its own room in the line.
  */
 export type CodeDecoration =
   /** Classes on the characters from `from` to `to`. */
   | { type: 'mark'; from: number; to: number; class: string; title?: string }
   /** A class on a whole line (`line` from 1), e.g. a tinted background. */
   | { type: 'line'; line: number; class: string }
+  /**
+   * Something drawn inside a line, before the character at `pos`, such as
+   * a color swatch or a parameter's name. It isn't text: the cursor steps
+   * over it and copying leaves it out. `width` in px saves measuring it;
+   * without it the widget is measured once drawn.
+   */
+  | { type: 'inline'; pos: number; render: () => VNodeChild; width?: number; key?: string }
+
+/**
+ * A component drawn between lines, across the editor, e.g. a review
+ * comment. The lines below move down to make room, and it moves with the
+ * text as lines are added or removed above it.
+ */
+export interface CodeWidget {
+  /** Tells widgets apart, unique among one extension's; its measured height is kept by it. */
+  id: string
+  /** The line (from 1) it is drawn below, or above with `position: 'above'`. */
+  line: number
+  /** Defaults to `below`. */
+  position?: 'above' | 'below'
+  render: () => VNodeChild
+  /** Its height in px before it has been drawn and measured; defaults to one line. */
+  height?: number
+}
 
 /** Something drawn in a column beside the line numbers, on line `line` (from 1). */
 export interface CodeGutterMarker {
@@ -88,6 +113,12 @@ export interface CodeExtension {
   decorations?: (context: CodeExtensionContext) => CodeDecoration[]
   /** Columns beside the line numbers. */
   gutters?: CodeGutter[]
+  /**
+   * Components between lines. Unlike decorations, these are asked for the
+   * whole text, since their heights place every line after them; keep
+   * them few (comments, not one per line).
+   */
+  widgets?: (context: CodeExtensionContext) => CodeWidget[]
   /** Bars above or below the text; reactive state read here updates them. */
   panels?: (context: CodeExtensionContext) => CodePanel[]
   /**

@@ -243,6 +243,87 @@ describe('extensions', () => {
     expect(wrapper.find('.count').text()).toBe('4')
   })
 
+  it('makes room between lines for widgets, and keeps presses inside them to themselves', async () => {
+    const { wrapper, editor } = setup([
+      defineCodeExtension({
+        name: 'review',
+        widgets: () => [
+          { id: 'a', line: 1, height: 50, render: () => h('button', { class: 'resolve' }, 'ok') },
+          { id: 'b', line: 3, position: 'above', height: 30, render: () => h('i', 'above') },
+        ],
+      }),
+    ])
+    await nextTick()
+    const shown = wrapper.findAll('.dou-code-editor__widget')
+    expect(shown.map((w) => w.text())).toEqual(['ok', 'above'])
+    // Below line 1: the text's top (8) plus one line; above line 3: past both lines and the first widget.
+    expect(shown[0]!.attributes('style')).toContain('28px)')
+    expect(shown[1]!.attributes('style')).toContain(`${8 + 40 + 50}px)`)
+    const lines = wrapper.findAll('.dou-code-editor__line')
+    expect(lines[1]!.attributes('style')).toContain('margin-top: 50px')
+    expect(lines[2]!.attributes('style')).toContain('margin-top: 30px')
+    expect(wrapper.findAll('.dou-code-editor__number')[1]!.attributes('style')).toContain(
+      'margin-top: 50px',
+    )
+    // A press below the first widget lands on line 2.
+    const content = wrapper.find('.dou-code-editor__content')
+    await content.trigger('pointerdown', {
+      button: 0,
+      pointerType: 'mouse',
+      clientX: 12 + 2 * 8 + 2,
+      clientY: 8 + 20 + 50 + 10,
+    })
+    window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1 }))
+    expect(editor.value!.selection.ranges[0]!.head).toBe(10 + 2)
+    // Inside a widget, nothing moves.
+    await wrapper.find('.resolve').trigger('pointerdown', { button: 0, pointerType: 'mouse' })
+    expect(editor.value!.selection.ranges[0]!.head).toBe(12)
+  })
+
+  it('places inline widgets in the line, with the cursor stepping over them', async () => {
+    const { wrapper, editor, key } = setup(
+      [
+        defineCodeExtension({
+          name: 'swatch',
+          decorations: () => [
+            { type: 'inline', pos: 4, width: 16, render: () => h('b', { class: 'swatch' }) },
+          ],
+        }),
+      ],
+      {},
+      'var a = 1',
+    )
+    await nextTick()
+    const line = wrapper.find('.dou-code-editor__line')
+    expect(line.text()).toBe('var a = 1')
+    expect(line.find('.dou-code-editor__inline .swatch').exists()).toBe(true)
+    // Before the swatch, then after it at the same position, then one character on.
+    const left = () =>
+      Number(
+        /translate\((\d+(?:\.\d+)?)px/.exec(
+          wrapper.find('.dou-code-editor__cursor').attributes('style')!,
+        )![1],
+      )
+    editor.value!.select(3)
+    await nextTick()
+    const before = left()
+    await key('ArrowRight')
+    expect(editor.value!.selection.ranges[0]!.head).toBe(4)
+    expect(left() - before).toBe(8 + 16)
+    await key('ArrowRight')
+    expect(left() - before).toBe(16 + 16)
+    // A press past the swatch counts its width.
+    const content = wrapper.find('.dou-code-editor__content')
+    await content.trigger('pointerdown', {
+      button: 0,
+      pointerType: 'mouse',
+      clientX: 12 + 6 * 8 + 16 + 2,
+      clientY: 18,
+    })
+    window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1 }))
+    expect(editor.value!.selection.ranges[0]!.head).toBe(6)
+  })
+
   it('throws when useCodeEditor is used outside an editor', () => {
     const Lost = defineComponent(() => {
       useCodeEditor()

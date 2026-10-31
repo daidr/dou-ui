@@ -17,8 +17,10 @@ import {
   onMounted,
   provide,
   ref,
+  shallowReactive,
   shallowRef,
   toRaw,
+  type VNodeChild,
   watch,
 } from 'vue'
 import { matchBracket } from './core/brackets'
@@ -508,7 +510,104 @@ const layout = computed<LineLayout>((previous) => {
   return markRaw(new LineLayout(lines, rows, hidden.value))
 })
 
-const total = computed(() => layout.value.total * lineHeight.value)
+// ---------------------------------------------------------------- widgets between lines
+
+/** The widgets' heights as last measured, by key. */
+const widgetHeights = shallowReactive(new Map<string, number>())
+
+interface PlacedWidget {
+  key: string
+  line: number
+  above: boolean
+  render: () => VNodeChild
+  /** The row it sits just before: the line's first row above it, the next line's first row below it. */
+  row: number
+  height: number
+  /** Heights of the widgets before it. */
+  before: number
+}
+
+/** The extensions' widgets on lines that are drawn, in the order they sit, with their heights. */
+const widgets = computed<PlacedWidget[]>(() => {
+  const drawn = layout.value
+  const lh = lineHeight.value
+  const out: PlacedWidget[] = []
+  for (const extension of extensions.value) {
+    if (!extension.widgets) continue
+    for (const widget of extension.widgets(context)) {
+      const n = widget.line
+      if (n < 1 || n > drawn.lines || !drawn.shown(n)) continue
+      const above = widget.position === 'above'
+      const key = `${extension.name}/${widget.id}`
+      out.push({
+        key,
+        line: n,
+        above,
+        render: widget.render,
+        row: drawn.rowOf(n) + (above ? 0 : drawn.rowsOf(n)),
+        height: widgetHeights.get(key) ?? widget.height ?? lh,
+        before: 0,
+      })
+    }
+  }
+  if (!out.length) return out
+  // By row; on one row, the widget below a line before the one above the next.
+  // oxlint-disable-next-line unicorn/no-array-sort -- sorts a fresh array
+  out.sort((a, b) => a.row - b.row || Number(a.above) - Number(b.above) || a.line - b.line)
+  let sum = 0
+  for (const widget of out) {
+    widget.before = sum
+    sum += widget.height
+  }
+  return out
+})
+
+/** How much of the widgets' height comes before row `row`. */
+function widgetsBefore(row: number) {
+  const list = widgets.value
+  let lo = 0
+  let hi = list.length
+  // The first widget past `row`; all before it come first.
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1
+    if (list[mid]!.row <= row) lo = mid + 1
+    else hi = mid
+  }
+  if (!lo) return 0
+  const last = list[lo - 1]!
+  return last.before + last.height
+}
+
+/** The y of row `row` from the text's top, below the widgets before it. */
+const rowTop = (row: number) => row * lineHeight.value + widgetsBefore(row)
+
+/** The row at a y from the text's top; a y over a widget gives the row right after it. */
+function rowAtTextY(y: number) {
+  const list = widgets.value
+  const lh = lineHeight.value
+  if (!list.length) return Math.floor(y / lh)
+  // The last widget that starts at or before `y`.
+  let lo = 0
+  let hi = list.length
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1
+    if (list[mid]!.row * lh + list[mid]!.before <= y) lo = mid + 1
+    else hi = mid
+  }
+  if (!lo) return Math.floor(y / lh)
+  const widget = list[lo - 1]!
+  const end = widget.row * lh + widget.before + widget.height
+  if (y < end) return widget.row
+  return widget.row + Math.floor((y - end) / lh)
+}
+
+const widgetsHeight = computed(() => {
+  const list = widgets.value
+  const last = list[list.length - 1]
+  return last ? last.before + last.height : 0
+})
+
+const total = computed(() => layout.value.total * lineHeight.value + widgetsHeight.value)
 const sizerHeight = computed(() => Math.min(total.value, MAX_HEIGHT) + PAD_Y * 2)
 /** How much faster than the scrollbar the text moves, above `MAX_HEIGHT`. */
 const ratio = computed(() => {
@@ -519,20 +618,68 @@ const ratio = computed(() => {
 /** Offset between the text's own y and where it is drawn in the scaled scroller. */
 const shift = computed(() => scrollTop.value - scrollTop.value * ratio.value)
 /** The y line `n` is drawn at. */
-const yOf = (line: number) => PAD_Y + layout.value.rowOf(line) * lineHeight.value + shift.value
+const yOf = (line: number) => PAD_Y + rowTop(layout.value.rowOf(line)) + shift.value
 /** The row under a y in the content, from the text's top. */
-const rowAtY = (y: number) => Math.floor((y - PAD_Y - shift.value) / lineHeight.value)
+const rowAtY = (y: number) => rowAtTextY(y - PAD_Y - shift.value)
 
 const visibleFrom = computed(() => {
   const top = scrollTop.value * ratio.value + (clip.value?.top ?? 0)
-  const row = Math.floor((top - PAD_Y) / lineHeight.value) - OVERSCAN
+  const row = rowAtTextY(Math.max(0, top - PAD_Y)) - OVERSCAN
   return layout.value.lineAtRow(Math.max(0, row)).n
 })
 const visibleTo = computed(() => {
   const bottom = scrollTop.value * ratio.value + (clip.value?.bottom ?? viewHeight.value)
-  const row = Math.ceil((bottom - PAD_Y) / lineHeight.value) + OVERSCAN
+  const row = rowAtTextY(Math.max(0, bottom - PAD_Y)) + 1 + OVERSCAN
   return layout.value.lineAtRow(row).n
 })
+
+/** The widgets in view, where they are drawn. */
+const shownWidgets = computed(() => {
+  const list = widgets.value
+  if (!list.length) return []
+  const from = layout.value.rowOf(visibleFrom.value)
+  const to = layout.value.rowOf(visibleTo.value) + layout.value.rowsOf(visibleTo.value)
+  const lh = lineHeight.value
+  return list
+    .filter((widget) => widget.row >= from && widget.row <= to)
+    .map((widget) => ({
+      ...widget,
+      top: PAD_Y + widget.row * lh + widget.before + shift.value,
+    }))
+})
+
+/** Room left in the column of lines (and of numbers) before line `n` for the widgets there; none before the first line drawn, which is placed past them. */
+function gapBefore(n: number) {
+  if (n === visibleFrom.value || !widgets.value.length) return 0
+  const row = layout.value.rowOf(n)
+  return widgetsBefore(row) - widgetsBefore(row - 1)
+}
+
+let widgetObserver: ResizeObserver | undefined
+const observedWidgets = new Map<Element, string>()
+/** Measures a widget as drawn, keeping its height so the lines after it are placed below it. */
+function observeWidget(el: Element | null, key: string) {
+  if (!el || observedWidgets.get(el) === key) return
+  observedWidgets.set(el, key)
+  const measureNow = (target: Element) => {
+    const id = observedWidgets.get(target)
+    if (!id || !target.isConnected) return
+    const height = (target as HTMLElement).offsetHeight
+    // Nothing measured means no layout (a hidden editor): keep the guess.
+    if (height && widgetHeights.get(id) !== height) widgetHeights.set(id, height)
+  }
+  measureNow(el)
+  if (typeof ResizeObserver === 'undefined') return
+  widgetObserver ??= new ResizeObserver((entries) => {
+    for (const entry of entries) measureNow(entry.target)
+    for (const [target] of observedWidgets)
+      if (!target.isConnected) {
+        widgetObserver!.unobserve(target)
+        observedWidgets.delete(target)
+      }
+  })
+  widgetObserver.observe(el)
+}
 
 /** The lines in view that are drawn (folded ones left out), with their text; read in runs, once per frame. */
 const shownLines = computed(() => {
@@ -581,23 +728,24 @@ function place(n: number, text: string, col: number) {
   const wrapped = wrapOf(text)
   const sub = rowOfCol(wrapped, col)
   const top = yOf(n) + sub * lineHeight.value
-  if (!sub) return { top, x: measure.x(text, col), sub }
+  // The inline widgets before the column on its row, and one right at it: the cursor goes after them.
+  if (!sub) return { top, x: measure.x(text, col) + inlineWidth(n, 0, col), sub }
+  const start = wrapped.breaks[sub - 1]!
   return {
     top,
-    x: wrapped.indent + measure.x(text, col) - measure.x(text, wrapped.breaks[sub - 1]!),
+    x: wrapped.indent + measure.x(text, col) - measure.x(text, start) + inlineWidth(n, start, col),
     sub,
   }
 }
 
-/** The column nearest to `x` on row `sub` of a line. */
-function colAt(text: string, sub: number, x: number) {
+/** The column nearest to `x` on row `sub` of line `n`. */
+function colAt(n: number, text: string, sub: number, x: number) {
   const wrapped = wrapOf(text)
   const { breaks } = wrapped
-  if (!breaks.length) return measure.col(text, x)
+  if (!breaks.length) return colInRow(n, text, 0, text.length, x)
   const start = sub ? breaks[sub - 1]! : 0
   const end = sub < breaks.length ? breaks[sub]! : text.length
-  const base = measure.x(text, start)
-  const col = measure.col(text, base + Math.max(0, x - (sub ? wrapped.indent : 0)))
+  const col = colInRow(n, text, start, end, Math.max(0, x - (sub ? wrapped.indent : 0)))
   // The end of a row that isn't the last is the start of the next one; stay on this row.
   if (sub < breaks.length && col >= end) return Math.max(start, moveCluster(text, end, -1))
   return Math.max(start, col)
@@ -616,8 +764,10 @@ function spans(n: number, text: string, from: number, to: number, tail = 0) {
     const a = Math.max(from, start)
     const b = Math.min(to, end)
     const base = sub ? wrapped.indent - measure.x(text, start) : 0
-    const left = base + measure.x(text, a)
-    const right = base + measure.x(text, b) + (sub === rows - 1 ? tail : 0)
+    // From after the widgets at `a` to before those at `b`.
+    const left = base + measure.x(text, a) + inlineWidth(n, start, a)
+    const right =
+      base + measure.x(text, b) + inlineWidth(n, start, b - 1) + (sub === rows - 1 ? tail : 0)
     if (right > left) out.push({ top: top + sub * lineHeight.value, left, width: right - left })
   }
   return out
@@ -703,6 +853,13 @@ const contentWidth = computed(() => {
   for (const text of lines.value) {
     if (text.length * measure.cell * 2 < widest) continue
     widest = Math.max(widest, measure.x(text, text.length))
+  }
+  for (const [n, own] of lineDecorations.value.inlines) {
+    const text = lineText(n)
+    widest = Math.max(
+      widest,
+      measure.x(text, text.length) + own.reduce((w, i) => w + widthOf(i), 0),
+    )
   }
   return Math.ceil(widest + PAD_X * 2 + measure.cell)
 })
@@ -884,6 +1041,14 @@ const preview = shallowRef<{ from: number; to: number; insert: string } | null>(
 /** A class over part of a line, `from`–`to` in the line, with a title shown on hover. */
 type Mark = [from: number, to: number, cls: string, title?: string]
 
+/** A widget inside a line, before column `col`. */
+interface Inline {
+  col: number
+  key: string
+  render: () => VNodeChild
+  width?: number
+}
+
 interface Row {
   n: number
   text: string
@@ -901,6 +1066,10 @@ interface Row {
   marksKey?: string
   /** Classes on the whole line, from decorations. */
   lineClass?: string
+  /** Widgets inside the line, by column. */
+  inlines?: Inline[]
+  /** Their keys and columns, as one string, to tell when they changed. */
+  inlinesKey?: string
 }
 
 const rows = computed<Row[]>(() => {
@@ -909,7 +1078,7 @@ const rows = computed<Row[]>(() => {
   const line = p ? doc.value.lineAt(p.from) : null
   const tokensOf = syntaxLines(visibleFrom.value, visibleTo.value)
   const starts = new Set(hidden.value.map(([from]) => from - 1))
-  const { marks, lineClasses } = lineDecorations.value
+  const { marks, lineClasses, inlines } = lineDecorations.value
   return texts.map((text, i) => {
     const n = numbers[i]!
     const tokens = tokensOf(n)
@@ -926,6 +1095,11 @@ const rows = computed<Row[]>(() => {
         marks: own,
         marksKey: own?.map((m) => m.join(',')).join(';'),
         lineClass: lineClasses.get(n),
+        inlines: inlines.get(n),
+        inlinesKey: inlines
+          .get(n)
+          ?.map((item) => `${item.col}:${item.key}`)
+          .join(';'),
       }
     }
     const col = p.from - line!.from
@@ -953,9 +1127,10 @@ const decorations = computed<CodeDecoration[]>(() => {
 const lineDecorations = computed(() => {
   const marks = new Map<number, Mark[]>()
   const lineClasses = new Map<number, string>()
+  const inlines = new Map<number, Inline[]>()
   const list = decorations.value
   const problems = diagnostics.value
-  if (!list.length && !problems.length) return { marks, lineClasses }
+  if (!list.length && !problems.length) return { marks, lineClasses, inlines }
   const text = doc.value
   const first = visibleFrom.value
   const last = visibleTo.value
@@ -981,8 +1156,26 @@ const lineDecorations = computed(() => {
       if (item.line < first || item.line > last) continue
       const had = lineClasses.get(item.line)
       lineClasses.set(item.line, had ? `${had} ${item.class}` : item.class)
+    } else if (item.type === 'inline') {
+      if (item.pos < start || item.pos > end) continue
+      const line = text.lineAt(item.pos)
+      const own = inlines.get(line.number) ?? []
+      own.push({
+        col: item.pos - line.from,
+        key: item.key ?? `@${item.pos}`,
+        render: item.render,
+        width: item.width,
+      })
+      inlines.set(line.number, own)
     } else mark(item.from, item.to, item.class, item.title)
   }
+  // In the order they are drawn: by column, then as given.
+  for (const own of inlines.values())
+    if (own.length > 1) {
+      const order = new Map(own.map((item, i) => [item, i]))
+      // oxlint-disable-next-line unicorn/no-array-sort -- sorts a fresh array
+      own.sort((a, b) => a.col - b.col || order.get(a)! - order.get(b)!)
+    }
   for (const problem of problems) {
     if (problem.from > end) break
     let { from, to } = problem
@@ -995,8 +1188,72 @@ const lineDecorations = computed(() => {
     }
     mark(from, to, `dou-code-editor__problem is-${problem.severity}`)
   }
-  return { marks, lineClasses }
+  return { marks, lineClasses, inlines }
 })
+
+// ---------------------------------------------------------------- widgets inside lines
+
+/** The widths of inline widgets as last measured, by key. */
+const inlineWidths = shallowReactive(new Map<string, number>())
+const widthOf = (item: Inline) => item.width ?? inlineWidths.get(item.key) ?? 0
+
+/** Width of the inline widgets on line `n` at columns `from` to `to`, both included. */
+function inlineWidth(n: number, from: number, to: number) {
+  const own = lineDecorations.value.inlines.get(n)
+  if (!own) return 0
+  let sum = 0
+  for (const item of own) if (item.col >= from && item.col <= to) sum += widthOf(item)
+  return sum
+}
+
+/**
+ * The column nearest to `x` (from the row's left, past its indent) on the
+ * part `start`–`end` of line `n`, stepping over the inline widgets there.
+ */
+function colInRow(n: number, text: string, start: number, end: number, x: number) {
+  const own = lineDecorations.value.inlines.get(n)
+  const x0 = measure.x(text, start)
+  const clamp = (col: number, low: number) => Math.max(low, Math.min(end, col))
+  if (!own) return clamp(measure.col(text, x0 + x), start)
+  let offset = 0
+  let low = start
+  for (const item of own) {
+    if (item.col < start || item.col > end) continue
+    const at = measure.x(text, item.col) - x0 + offset
+    if (x < at) return Math.min(item.col, clamp(measure.col(text, x0 + x - offset), low))
+    const width = widthOf(item)
+    // Over the widget: the cursor goes on its far side, before the character it stands at.
+    if (x < at + width) return item.col
+    offset += width
+    low = item.col
+  }
+  return clamp(measure.col(text, x0 + x - offset), low)
+}
+
+let inlineObserver: ResizeObserver | undefined
+const observedInlines = new Map<Element, string>()
+/** Measures an inline widget as drawn, keeping its width so the text after it is placed past it. */
+function observeInline(el: Element | null, key: string, given: number | undefined) {
+  if (!el || given !== undefined || observedInlines.get(el) === key) return
+  observedInlines.set(el, key)
+  const measureNow = (target: Element) => {
+    const width = (target as HTMLElement).offsetWidth
+    const id = observedInlines.get(target)
+    if (id && target.isConnected && width && inlineWidths.get(id) !== width)
+      inlineWidths.set(id, width)
+  }
+  measureNow(el)
+  if (typeof ResizeObserver === 'undefined') return
+  inlineObserver ??= new ResizeObserver((entries) => {
+    for (const entry of entries) measureNow(entry.target)
+    for (const [target] of observedInlines)
+      if (!target.isConnected) {
+        inlineObserver!.unobserve(target)
+        observedInlines.delete(target)
+      }
+  })
+  inlineObserver.observe(el)
+}
 
 // ---------------------------------------------------------------- syntax
 
@@ -1077,11 +1334,40 @@ function languageAt(pos: number) {
   return hl.languageAt(line.number)
 }
 
-/** A piece of a line, with the classes it is drawn with and the title of a mark over it. */
-type Part = [text: string, cls: string | null, title?: string]
+/**
+ * A piece of a line, with the classes it is drawn with and the title of a
+ * mark over it; or, with `inline`, the line's inline widget of that index
+ * (its text empty).
+ */
+type Part = [text: string, cls: string | null, title?: string, inline?: number]
 
-/** A line cut where its tokens and marks start and end, each piece with its classes. */
+/** A line cut where its tokens and marks start and end, each piece with its classes, and its inline widgets between. */
 function partsOf(row: Row): Part[] {
+  const parts = textParts(row)
+  const own = row.inlines
+  if (!own?.length) return parts
+  const out: Part[] = []
+  let at = 0
+  let next = 0
+  for (const part of parts) {
+    while (next < own.length && own[next]!.col <= at) out.push(['', null, undefined, next++])
+    // A widget inside the piece cuts it.
+    let piece = part
+    while (next < own.length && own[next]!.col < at + piece[0].length) {
+      const cut = own[next]!.col - at
+      out.push([piece[0].slice(0, cut), piece[1], piece[2]])
+      piece = [piece[0].slice(cut), piece[1], piece[2]]
+      at += cut
+      while (next < own.length && own[next]!.col <= at) out.push(['', null, undefined, next++])
+    }
+    out.push(piece)
+    at += piece[0].length
+  }
+  while (next < own.length) out.push(['', null, undefined, next++])
+  return out
+}
+
+function textParts(row: Row): Part[] {
   const base = lineParts(row.text, row.tokens)
   const marks = row.marks
   if (!marks?.length) return base.map(([text, type]) => [text, type && `dou-syntax-${type}`])
@@ -1126,7 +1412,14 @@ function rowParts(row: Row, sub: number) {
   const end = sub < breaks.length ? breaks[sub]! : row.text.length
   const out: Part[] = []
   let at = 0
-  for (const [text, type, title] of partsOf(row)) {
+  const last = sub === breaks.length
+  for (const part of partsOf(row)) {
+    const [text, type, title, inline] = part
+    // A widget goes on the row its column starts; at the very end, on the last row.
+    if (inline !== undefined) {
+      if (at >= start && (at < end || (last && at === end))) out.push(part)
+      continue
+    }
     const from = Math.max(at, start)
     const to = Math.min(at + text.length, end)
     if (to > from) out.push([text.slice(from - at, to - at), type, title])
@@ -1441,7 +1734,9 @@ const searchMarks = computed(() => {
   const text = doc.value
   const drawn = layout.value
   /** Where a line sits in the whole text, from 0 to 1, as drawn (wrapped rows and folds counted). */
-  const share = (pos: number) => (drawn.rowOf(text.lineAt(pos).number) + 0.5) / drawn.total
+  const lh = lineHeight.value
+  const all = total.value
+  const share = (pos: number) => (rowTop(drawn.rowOf(text.lineAt(pos).number)) + lh / 2) / all
   const taken = new Set<number>()
   const out: Array<{ top: number; current: boolean }> = []
   const current = matches.value[currentMatch.value]
@@ -1670,11 +1965,13 @@ const problemMarks = computed(() => {
   if (!list.length) return []
   const text = doc.value
   const drawn = layout.value
+  const lh = lineHeight.value
+  const all = total.value
   const taken = new Set<string>()
   const out: Array<{ top: number; severity: CodeDiagnosticSeverity }> = []
   for (const problem of list) {
-    const top =
-      Math.round(((drawn.rowOf(text.lineAt(problem.from).number) + 0.5) / drawn.total) * 1000) / 10
+    const y = rowTop(drawn.rowOf(text.lineAt(problem.from).number)) + lh / 2
+    const top = Math.round((y / all) * 1000) / 10
     const key = `${top}${problem.severity}`
     if (taken.has(key)) continue
     taken.add(key)
@@ -1896,7 +2193,7 @@ function moveVertically(range: CodeRange, count: number) {
   else {
     const { n, sub } = layout.value.lineAtRow(row)
     const next = text.line(n)
-    head = next.from + colAt(next.text, sub, goal)
+    head = next.from + colAt(next.number, next.text, sub, goal)
   }
   pendingGoals.set(head, goal)
   return head
@@ -2008,7 +2305,7 @@ function posAtCoords(point: { x: number; y: number }) {
   if (!rect) return 0
   const { n, sub } = layout.value.lineAtRow(rowAtY(point.y - rect.top))
   const line = state.value.doc.line(n)
-  return line.from + colAt(line.text, sub, point.x - rect.left - PAD_X)
+  return line.from + colAt(n, line.text, sub, point.x - rect.left - PAD_X)
 }
 
 function coordsAtPos(pos: number) {
@@ -2554,7 +2851,7 @@ const magnifier = computed(() => {
   const left = Math.max(view.left + 4, Math.min(at.x - width / 2, view.right - width - 4))
   const parts = row.wrapped.breaks.length
     ? rowParts(row, at.sub)
-    : row.tokens || row.marks
+    : row.tokens || row.marks || row.inlines
       ? partsOf(row)
       : ([[row.text, null]] as Part[])
   // The text, scaled from the row's left edge, slid so the moving end sits under the caret.
@@ -2562,6 +2859,7 @@ const magnifier = computed(() => {
   const caret = Math.max(4, Math.min(width - 4, at.x - left))
   return {
     parts,
+    inlines: row.inlines ?? [],
     indent: at.sub ? row.wrapped.indent : 0,
     style: {
       transform: `translate(${Math.round(left)}px, ${Math.round(top)}px)`,
@@ -2773,6 +3071,8 @@ onBeforeUnmount(() => {
   if (syntaxJob) cancelIdle(syntaxJob)
   clearTimeout(searchTimer)
   resize?.disconnect()
+  widgetObserver?.disconnect()
+  inlineObserver?.disconnect()
   endDrag()
   onPointerCancel()
   endHandlePress()
@@ -2943,11 +3243,12 @@ defineExpose<CodeEditorExpose>(api)
               v-for="row in rows"
               :key="row.n"
               :class="[ns.e('number'), ns.is('active', row.n === activeLineNumber)]"
-              :style="
-                row.wrapped.breaks.length
-                  ? { height: `${(row.wrapped.breaks.length + 1) * lineHeight}px` }
-                  : undefined
-              "
+              :style="{
+                height: row.wrapped.breaks.length
+                  ? `${(row.wrapped.breaks.length + 1) * lineHeight}px`
+                  : undefined,
+                marginTop: gapBefore(row.n) ? `${gapBefore(row.n)}px` : undefined,
+              }"
             >
               <span v-if="gutterCells" :class="ns.e('cells')">
                 <span
@@ -3047,9 +3348,12 @@ defineExpose<CodeEditorExpose>(api)
                 row.wrapped,
                 row.folded,
                 row.marksKey,
+                row.inlinesKey,
                 row.lineClass,
+                gapBefore(row.n),
               ]"
               :class="[ns.e('line'), ns.is('wrapped', !!row.wrapped.breaks.length), row.lineClass]"
+              :style="gapBefore(row.n) ? { marginTop: `${gapBefore(row.n)}px` } : undefined"
             >
               <template v-if="row.compose"
                 >{{ row.compose[0] }}<span :class="ns.e('compose')">{{ row.compose[1] }}</span
@@ -3063,7 +3367,24 @@ defineExpose<CodeEditorExpose>(api)
                   :style="sub ? { paddingLeft: `${row.wrapped.indent}px` } : undefined"
                 >
                   <template v-for="(part, i) in rowParts(row, sub)" :key="i"
-                    ><span v-if="part[1]" :class="part[1]" :title="part[2]">{{ part[0] }}</span
+                    ><span
+                      v-if="part[3] !== undefined"
+                      :ref="
+                        (el) =>
+                          observeInline(
+                            el as Element | null,
+                            row.inlines![part[3]!]!.key,
+                            row.inlines![part[3]!]!.width,
+                          )
+                      "
+                      :class="ns.e('inline')"
+                      :style="
+                        row.inlines![part[3]!]!.width !== undefined
+                          ? { width: `${row.inlines![part[3]!]!.width}px` }
+                          : undefined
+                      "
+                      ><RenderPart :render="row.inlines![part[3]!]!.render" /></span
+                    ><span v-else-if="part[1]" :class="part[1]" :title="part[2]">{{ part[0] }}</span
                     ><template v-else>{{ part[0] }}</template></template
                   ><span
                     v-if="row.folded && sub === row.wrapped.breaks.length"
@@ -3074,9 +3395,26 @@ defineExpose<CodeEditorExpose>(api)
                   >
                 </div></template
               >
-              <template v-else-if="row.tokens || row.marks"
+              <template v-else-if="row.tokens || row.marks || row.inlines"
                 ><template v-for="(part, i) in partsOf(row)" :key="i"
-                  ><span v-if="part[1]" :class="part[1]" :title="part[2]">{{ part[0] }}</span
+                  ><span
+                    v-if="part[3] !== undefined"
+                    :ref="
+                      (el) =>
+                        observeInline(
+                          el as Element | null,
+                          row.inlines![part[3]!]!.key,
+                          row.inlines![part[3]!]!.width,
+                        )
+                    "
+                    :class="ns.e('inline')"
+                    :style="
+                      row.inlines![part[3]!]!.width !== undefined
+                        ? { width: `${row.inlines![part[3]!]!.width}px` }
+                        : undefined
+                    "
+                    ><RenderPart :render="row.inlines![part[3]!]!.render" /></span
+                  ><span v-else-if="part[1]" :class="part[1]" :title="part[2]">{{ part[0] }}</span
                   ><template v-else>{{ part[0] }}</template></template
                 ></template
               >
@@ -3088,6 +3426,26 @@ defineExpose<CodeEditorExpose>(api)
                 :title="messages.unfold"
                 >⋯</span
               >
+            </div>
+          </div>
+          <div
+            v-if="shownWidgets.length"
+            :class="ns.e('widgets')"
+            @pointerdown.stop
+            @pointermove.stop
+            @mousedown.stop
+          >
+            <div
+              v-for="widget in shownWidgets"
+              :key="widget.key"
+              :ref="(el) => observeWidget(el as Element | null, widget.key)"
+              :class="ns.e('widget')"
+              :style="{
+                transform: `translate(${scrollLeft}px, ${widget.top}px)`,
+                width: `${Math.max(0, viewWidth - gutterWidth)}px`,
+              }"
+            >
+              <RenderPart :render="widget.render" />
             </div>
           </div>
           <div
@@ -3124,7 +3482,12 @@ defineExpose<CodeEditorExpose>(api)
               :style="[magnifier.textStyle, { paddingLeft: `${magnifier.indent}px` }]"
             >
               <template v-for="(part, i) in magnifier.parts" :key="i"
-                ><span v-if="part[1]" :class="part[1]" :title="part[2]">{{ part[0] }}</span
+                ><span
+                  v-if="part[3] !== undefined"
+                  :class="ns.e('inline')"
+                  :style="{ width: `${widthOf(magnifier.inlines[part[3]!]!)}px` }"
+                  ><RenderPart :render="magnifier.inlines[part[3]!]!.render" /></span
+                ><span v-else-if="part[1]" :class="part[1]" :title="part[2]">{{ part[0] }}</span
                 ><template v-else>{{ part[0] }}</template></template
               >
             </div>

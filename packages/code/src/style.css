@@ -567,6 +567,36 @@
     }
   }
 
+  /* components from extensions between lines, held in view while the text scrolls sideways */
+  .dou-code-editor__widgets {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 3;
+  }
+  .dou-code-editor__widget {
+    position: absolute;
+    top: 0;
+    left: 0;
+    box-sizing: border-box;
+    cursor: auto;
+    font-family: var(--dou-font-family);
+    font-size: var(--dou-font-size-sm);
+    line-height: 20px;
+    white-space: normal;
+    user-select: text;
+    -webkit-user-select: text;
+    /* a widget's own margins would sit outside its measured height */
+    display: flow-root;
+  }
+  /* things inside a line from extensions, such as a color swatch */
+  .dou-code-editor__inline {
+    display: inline-block;
+    vertical-align: top;
+    height: var(--dou-code-editor-line-height);
+    white-space: nowrap;
+  }
+
   /* bars from extensions above or below the text, inside the frame */
   .dou-code-editor__panels {
     flex: none;

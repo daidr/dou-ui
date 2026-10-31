@@ -166,8 +166,9 @@ export interface SheetCSVWriteOptions {
   /**
    * Puts a `'` before text starting with `=`, `+`, `-`, `@`, a tab or a
    * line break, so a spreadsheet program opening the file doesn't run it as
-   * a formula. Numbers are written as they are. On by default; `false`
-   * writes such text, and this grid's formulas, as they are.
+   * a formula. Numbers are written as they are, and so are this grid's
+   * formulas with `formatted: false`. On by default; `false` writes such
+   * text as it is.
    */
   escapeFormulas?: boolean
 }
@@ -222,7 +223,10 @@ export function sheetToCSV(sheet: SheetData, options: SheetCSVWriteOptions = {})
       const shown = formatted
         ? (text?.(input) ?? formatValue(value, cellOf(input)?.format, locale))
         : rawText(value)
-      const unsafe = escapeFormulas && typeof value === 'string' && FORMULA_START.test(shown)
+      // written as stored, this grid's formulas stay formulas, to be read back with `formulas`
+      const formula = !formatted && typeof value === 'string' && value.startsWith('=')
+      const unsafe =
+        escapeFormulas && !formula && typeof value === 'string' && FORMULA_START.test(shown)
       fields.push(field(unsafe ? `'${shown}` : shown))
     }
     lines.push(fields.join(delimiter))

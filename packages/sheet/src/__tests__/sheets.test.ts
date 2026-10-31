@@ -177,6 +177,13 @@ describe('CSV', () => {
     )
   })
 
+  it('writes formulas as stored and reads them back', () => {
+    const sheet: SheetData = { name: '表', cells: [[{ value: '=1+2' }, '+1', "'=abc"]] }
+    const text = sheetToCSV(sheet, { formatted: false })
+    expect(text).toBe("=1+2,'+1,'=abc")
+    expect(readCSV(text, { formulas: true })).toEqual([['=1+2', "'+1", "'=abc"]])
+  })
+
   it('reads = as text unless asked for formulas', () => {
     expect(readCSV('=1+1,=')).toEqual([["'=1+1", '=']])
     expect(readCSV('=1+1', { typed: false })).toEqual([["'=1+1"]])

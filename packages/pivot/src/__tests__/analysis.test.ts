@@ -3,14 +3,16 @@ import { describe, expect, it } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import {
   computePivot,
-  parseFormula,
+  parsePivotFormula,
   PivotFormulaError,
   PivotResult,
   PivotSource,
   type PivotConfig,
 } from '../engine'
-import { withTop, withValue } from '../fields/model'
+import { withRank, withValue } from '../fields/model'
+import TopDialog from '../fields/top-dialog.vue'
 import { DouPivot, DouPivotFields } from '../index'
+import { pivotLocales } from '../locale'
 
 const rows = [
   { region: '华东', quarter: 'Q1', amount: 100, cost: 60, cups: 10 },
@@ -34,9 +36,9 @@ const source = () =>
 const at = (r: PivotResult, row: unknown[], column: unknown[] = [], v = 0) =>
   r.shown(r.rows.find(row), r.columns.find(column), v)
 
-describe('parseFormula', () => {
+describe('parsePivotFormula', () => {
   it('reads numbers, names, functions and operators in their order', () => {
-    const f = parseFormula('(amount - cost) / amount * 100 + -1')
+    const f = parsePivotFormula('(amount - cost) / amount * 100 + -1')
     expect(f.terms).toEqual([
       { aggregate: 'sum', field: 'amount' },
       { aggregate: 'sum', field: 'cost' },
@@ -45,7 +47,7 @@ describe('parseFormula', () => {
   })
 
   it('reads functions, brackets and Chinese names', () => {
-    const f = parseFormula('sum(销售额) / count() + avg([unit price])')
+    const f = parsePivotFormula('sum(销售额) / count() + avg([unit price])')
     expect(f.terms).toEqual([
       { aggregate: 'sum', field: '销售额' },
       { aggregate: 'count', field: null },
@@ -54,7 +56,7 @@ describe('parseFormula', () => {
   })
 
   it('leaves a division by zero empty', () => {
-    expect(parseFormula('a / b').evaluate([1, 0])).toBeNaN()
+    expect(parsePivotFormula('a / b').evaluate([1, 0])).toBeNaN()
   })
 
   it.each([
@@ -69,7 +71,7 @@ describe('parseFormula', () => {
   ])('says why %j cannot be read', (text, code) => {
     let error: unknown
     try {
-      parseFormula(text)
+      parsePivotFormula(text)
     } catch (e) {
       error = e
     }
@@ -135,7 +137,7 @@ describe('show', () => {
 
   it('shows differences from the group before, along the columns by default', () => {
     const r = computePivot(source(), config([{ field: 'amount', show: 'difference' }]))
-    expect(r.show(0)).toEqual({ as: 'difference', along: 'columns' })
+    expect(r.show(0)).toEqual({ as: 'difference', axis: 'columns' })
     expect(at(r, ['华东'], ['Q1'])).toBeNaN()
     expect(at(r, ['华东'], ['Q2'])).toBe(100)
     expect(at(r, [], ['Q2'])).toBe(230 - 180)
@@ -148,7 +150,7 @@ describe('show', () => {
       rows: ['region'],
       values: [{ field: 'amount', show: 'difference' }],
     })
-    expect(r.show(0)!.along).toBe('rows')
+    expect(r.show(0)!.axis).toBe('rows')
     // 华东, 华北, 华南 in label order
     const order = [...r.rows.children].map((n) => r.rows.label(n))
     const second = r.rows.find([order[1]])
@@ -311,11 +313,53 @@ describe('the panel model', () => {
     expect(c.values).toEqual(['amount'])
   })
 
-  it('sets a top N and keeps the lists', () => {
+  it('sets a top N or a range and keeps the lists', () => {
     let c: PivotConfig = { rows: ['region'], filters: { region: { exclude: ['华北'] } } }
-    c = withTop(c, 'region', { count: 5 }, false)
+    c = withRank(c, 'region', { top: { count: 5 } }, false)
     expect(c.filters).toEqual({ region: { exclude: ['华北'], top: { count: 5 } } })
-    c = withTop(c, 'region', null, false)
+    // a range takes over from a top N
+    c = withRank(c, 'region', { between: { min: 10 } }, false)
+    expect(c.filters).toEqual({ region: { exclude: ['华北'], between: { min: 10 } } })
+    c = withRank(c, 'region', null, false)
     expect(c.filters).toEqual({ region: { exclude: ['华北'] } })
+  })
+})
+
+const button = (text: string) =>
+  [...document.querySelectorAll<HTMLButtonElement>('button')].find(
+    (b) => b.textContent?.trim() === text,
+  )!
+
+describe('the top N dialog', () => {
+  it('keeps what is set, and clears it', async () => {
+    const open = ref(false)
+    const applied: unknown[] = []
+    const wrapper = mount(
+      defineComponent(
+        () => () =>
+          h(TopDialog, {
+            open: open.value,
+            'onUpdate:open': (v: boolean) => (open.value = v),
+            messages: pivotLocales['zh-CN']!,
+            field: '大区',
+            values: ['销售额'],
+            filter: { top: { count: 7, order: 'asc' } },
+            onApply: (rank: unknown) => applied.push(rank),
+          }),
+      ),
+      { attachTo: document.body },
+    )
+    open.value = true
+    await nextTick()
+    await nextTick()
+    button('确定').click()
+    await nextTick()
+    expect(applied).toEqual([{ top: { count: 7, order: 'asc' } }])
+    open.value = true
+    await nextTick()
+    await nextTick()
+    button('不限').click()
+    expect(applied[1]).toBeNull()
+    wrapper.unmount()
   })
 })

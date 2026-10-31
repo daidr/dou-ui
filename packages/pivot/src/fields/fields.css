@@ -325,4 +325,19 @@
     color: var(--dou-color-text-secondary);
     font-size: var(--dou-font-size-sm);
   }
+
+  /* the dialog that keeps groups by their totals */
+  .dou-pivot-top__range {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .dou-pivot-top__help {
+    margin: 0;
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-sm);
+  }
+  .dou-pivot-top__clear.dou-button {
+    margin-right: auto;
+  }
 }

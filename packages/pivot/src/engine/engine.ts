@@ -1,5 +1,5 @@
 import { BUILTIN_AGGREGATORS, type PivotAggregator } from './aggregate'
-import { checkFormula, type PivotResult } from './compute'
+import { checkPivotFormula, type PivotResult } from './compute'
 import type { PivotConfig } from './types'
 import type { PivotSource } from './source'
 
@@ -49,7 +49,7 @@ export function neededColumns<Row>(
     if (spec.formula !== undefined) {
       let formula
       try {
-        formula = checkFormula(src, spec.formula)
+        formula = checkPivotFormula(src, spec.formula)
       } catch {
         // computing it says what is wrong
         continue

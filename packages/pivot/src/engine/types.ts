@@ -74,7 +74,7 @@ export interface PivotShow {
    * `'columns'` by default for the first three and `'rows'` for the others;
    * the other axis when that one has no fields.
    */
-  along?: 'rows' | 'columns'
+  axis?: 'rows' | 'columns'
 }
 
 /** The colors a mark can take. */
@@ -98,7 +98,7 @@ export type PivotValue =
       aggregate?: PivotAggregateName | (string & {})
       /**
        * A calculated value worked out from other fields, such as `profit / amount`
-       * (see `parseFormula`); `field` and `aggregate` are then left out.
+       * (see `parsePivotFormula`); `field` and `aggregate` are then left out.
        */
       formula?: string
       /** The header; worked out from the field and the aggregate when left out. */

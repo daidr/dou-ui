@@ -4,7 +4,7 @@ import {
   FAST_AGGREGATES,
   type PivotAggregator,
 } from './aggregate'
-import { parseFormula, PivotFormulaError, type PivotFormula } from './formula'
+import { parsePivotFormula, PivotFormulaError, type PivotFormula } from './formula'
 import { IntIndex, typed, type PivotIndexPacket } from './hash'
 import { PivotShown, resolveShow, type PivotResolvedShow } from './show'
 
@@ -70,8 +70,8 @@ export const markOf = (
  * label). Throws a `PivotFormulaError` when it is not well formed, names a
  * field that is not there, or sums up one that is not a number.
  */
-export function checkFormula(source: PivotSource<unknown>, text: string): PivotFormula {
-  const formula = parseFormula(text)
+export function checkPivotFormula(source: PivotSource<unknown>, text: string): PivotFormula {
+  const formula = parsePivotFormula(text)
   const byLabel = new Map<string, string>()
   for (const f of source.fields.values()) if (!byLabel.has(f.label)) byLabel.set(f.label, f.name)
   for (const term of formula.terms) {
@@ -117,7 +117,7 @@ export function resolveConfig(
     // a share or a rank is not in the field's units
     const ownFormat = show && (PERCENT_SHOWS.has(show.as) || show.as === 'rank')
     if (spec.formula !== undefined) {
-      formulas.push(checkFormula(source, spec.formula))
+      formulas.push(checkPivotFormula(source, spec.formula))
       return {
         field: null,
         aggregate: 'formula',
@@ -754,7 +754,7 @@ export class PivotResult {
 
   private shownBy(valueIndex: number, show: PivotShow | null | undefined) {
     const spec = show === undefined ? this.values[valueIndex]?.show : show
-    const key = `${valueIndex}|${spec ? `${spec.as}|${spec.along ?? ''}` : ''}`
+    const key = `${valueIndex}|${spec ? `${spec.as}|${spec.axis ?? ''}` : ''}`
     let shown = this.showing.get(key)
     if (shown === undefined) {
       shown = spec
@@ -794,7 +794,7 @@ export class PivotResult {
    */
   range(valueIndex = 0, show?: PivotShow | null): { min: number; max: number } {
     const spec = show === undefined ? this.values[valueIndex]?.show : show
-    const key = `${valueIndex}|${spec ? `${spec.as}|${spec.along ?? ''}` : ''}`
+    const key = `${valueIndex}|${spec ? `${spec.as}|${spec.axis ?? ''}` : ''}`
     let range = this.ranges.get(key)
     if (!range) {
       const { rows, columns, cells, width } = this

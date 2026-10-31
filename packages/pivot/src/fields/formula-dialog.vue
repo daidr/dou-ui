@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { DouButton, DouDialog, DouForm, DouFormItem, DouInput, DouTextarea } from 'dou-ui'
 import { computed, nextTick, ref, watch } from 'vue'
-import { checkFormula, PivotFormulaError, type PivotSource } from '../engine'
+import { checkPivotFormula, PivotFormulaError, type PivotSource } from '../engine'
 import type { PivotMessages } from '../locale'
 import { format } from '../locale'
 
@@ -29,7 +29,7 @@ watch(open, (now) => {
 
 const error = computed(() => {
   try {
-    checkFormula(props.source, text.value)
+    checkPivotFormula(props.source, text.value)
     return ''
   } catch (e) {
     if (!(e instanceof PivotFormulaError)) return String(e)

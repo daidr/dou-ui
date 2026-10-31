@@ -135,7 +135,7 @@ function tokenize(text: string): Token[] {
  * Reads a formula. Throws a `PivotFormulaError` when it is not well formed.
  * Field names are not checked here (see `computePivot`).
  */
-export function parseFormula(text: string): PivotFormula {
+export function parsePivotFormula(text: string): PivotFormula {
   const tokens = tokenize(text)
   const terms: PivotFormulaTerm[] = []
   let pos = 0

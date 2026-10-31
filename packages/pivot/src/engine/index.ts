@@ -1,11 +1,17 @@
-export { checkFormula, computePivot, PERCENT_SHOWS, PivotResult, resolveConfig } from './compute'
+export {
+  checkPivotFormula,
+  computePivot,
+  PERCENT_SHOWS,
+  PivotResult,
+  resolveConfig,
+} from './compute'
 export type {
   PivotComputeOptions,
   PivotPacket,
   PivotResolvedShow,
   PivotResolvedValue,
 } from './compute'
-export { parseFormula, PivotFormulaError } from './formula'
+export { parsePivotFormula, PivotFormulaError } from './formula'
 export type {
   PivotFormula,
   PivotFormulaAggregate,

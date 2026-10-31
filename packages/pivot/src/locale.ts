@@ -100,11 +100,32 @@ export interface PivotMessages {
     noTop: string
     /** A chip whose field keeps only some groups by their totals: `{field}` and `{top}`. */
     topped: string
+    /** A range of totals on a chip: `{range}`. */
+    between: string
+    /** The item that opens the dialog for any number, or a range of totals. */
+    customTop: string
     /** The button that adds a calculated value, and the item that changes one. */
     addFormula: string
     editFormula: string
     /** The button that opens the panel in a drawer on a narrow screen. */
     open: string
+  }
+  /** The dialog that keeps the groups of a field by their totals. */
+  topDialog: {
+    /** `{field}` */
+    title: string
+    top: string
+    bottom: string
+    between: string
+    /** Which value's totals rank the groups. */
+    by: string
+    count: string
+    min: string
+    max: string
+    help: string
+    clear: string
+    apply: string
+    cancel: string
   }
   /** The dialog that writes a calculated value. */
   formula: {
@@ -217,9 +238,25 @@ const zhCN: PivotMessages = {
     bottomN: '后 {count} 项',
     noTop: '不限',
     topped: '{field} · {top}',
+    between: '合计 {range}',
+    customTop: '自定义…',
     addFormula: '添加计算值',
     editFormula: '编辑公式…',
     open: '字段',
+  },
+  topDialog: {
+    title: '按合计筛选{field}',
+    top: '前 N 项',
+    bottom: '后 N 项',
+    between: '合计范围',
+    by: '按',
+    count: '项数',
+    min: '最小',
+    max: '最大',
+    help: '按合计保留组，被排除的组不计入总计。',
+    clear: '不限',
+    apply: '确定',
+    cancel: '取消',
   },
   formula: {
     title: '计算值',
@@ -337,9 +374,25 @@ const zhTW: PivotMessages = {
     bottomN: '後 {count} 項',
     noTop: '不限',
     topped: '{field} · {top}',
+    between: '合計 {range}',
+    customTop: '自訂…',
     addFormula: '新增計算值',
     editFormula: '編輯公式…',
     open: '欄位',
+  },
+  topDialog: {
+    title: '依合計篩選{field}',
+    top: '前 N 項',
+    bottom: '後 N 項',
+    between: '合計範圍',
+    by: '依',
+    count: '項數',
+    min: '最小',
+    max: '最大',
+    help: '依合計保留群組，被排除的群組不計入總計。',
+    clear: '不限',
+    apply: '確定',
+    cancel: '取消',
   },
   formula: {
     title: '計算值',
@@ -463,9 +516,25 @@ const en: PivotMessages = {
     bottomN: 'Bottom {count}',
     noTop: 'All',
     topped: '{field} · {top}',
+    between: 'Total {range}',
+    customTop: 'Custom…',
     addFormula: 'Add calculated value',
     editFormula: 'Edit formula…',
     open: 'Fields',
+  },
+  topDialog: {
+    title: 'Filter {field} by totals',
+    top: 'Top N',
+    bottom: 'Bottom N',
+    between: 'Range',
+    by: 'By',
+    count: 'Count',
+    min: 'Min',
+    max: 'Max',
+    help: 'Keeps groups by their totals; the groups left out are not in the totals.',
+    clear: 'All',
+    apply: 'Apply',
+    cancel: 'Cancel',
   },
   formula: {
     title: 'Calculated value',
@@ -510,11 +579,12 @@ export const pivotLocales: Record<string, PivotMessages> = {
 }
 
 export type PivotMessagesOverride = Partial<
-  Omit<PivotMessages, 'aggregates' | 'shows' | 'fields' | 'formula' | 'filter'>
+  Omit<PivotMessages, 'aggregates' | 'shows' | 'fields' | 'topDialog' | 'formula' | 'filter'>
 > & {
   aggregates?: Partial<PivotMessages['aggregates']> & Record<string, string>
   shows?: Partial<PivotMessages['shows']>
   fields?: Partial<PivotMessages['fields']>
+  topDialog?: Partial<PivotMessages['topDialog']>
   formula?: Partial<Omit<PivotMessages['formula'], 'errors'>> & {
     errors?: Partial<PivotMessages['formula']['errors']>
   }
@@ -539,6 +609,7 @@ export function usePivotMessages(override?: MaybeRefOrGetter<PivotMessagesOverri
       aggregates: { ...base.aggregates, ...extra.aggregates },
       shows: { ...base.shows, ...extra.shows },
       fields: { ...base.fields, ...extra.fields },
+      topDialog: { ...base.topDialog, ...extra.topDialog },
       formula: {
         ...base.formula,
         ...extra.formula,

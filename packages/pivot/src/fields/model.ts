@@ -4,7 +4,6 @@ import type {
   PivotDimension,
   PivotFilter,
   PivotShowAs,
-  PivotTopFilter,
   PivotValue,
 } from '../engine/types'
 
@@ -190,17 +189,22 @@ export function withValue(
   return { ...config, values }
 }
 
-/** A field's filter with its `top` set or taken away; its lists stay as they are. */
-export function withTop(
+/** Which groups of a field to keep by their totals: the top (or bottom) N, or a range. */
+export type PivotRank = Pick<PivotFilter, 'top' | 'between'>
+
+/** A field's filter with its `top` or `between` set, or both taken away; its lists stay as they are. */
+export function withRank(
   config: PivotConfig,
   field: string,
-  top: PivotTopFilter | null,
+  rank: PivotRank | null,
   inFilters: boolean,
 ): PivotConfig {
-  const old = { ...config.filters?.[field] }
-  if (top) old.top = top
-  else delete old.top
-  return withFilter(config, field, old, inFilters)
+  const next: PivotFilter = { ...config.filters?.[field] }
+  delete next.top
+  delete next.between
+  if (rank?.top) next.top = rank.top
+  else if (rank?.between) next.between = rank.between
+  return withFilter(config, field, next, inFilters)
 }
 
 /** A field's filter replaced; an axis field without a filter left has none. */

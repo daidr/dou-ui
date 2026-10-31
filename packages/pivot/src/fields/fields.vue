@@ -43,6 +43,7 @@ import { format, usePivotMessages } from '../locale'
 import type { PivotFieldsProps } from '../types'
 import FilterList from './filter-list.vue'
 import FormulaDialog from './formula-dialog.vue'
+import TopDialog from './top-dialog.vue'
 import {
   areasOf,
   AREAS,
@@ -53,11 +54,12 @@ import {
   withAggregate,
   withDimension,
   withFilter,
-  withTop,
+  withRank,
   withValue,
   type PivotArea,
   type PivotAreas,
   type PivotFieldItem,
+  type PivotRank,
 } from './model'
 
 defineOptions({ name: 'DouPivotFields' })
@@ -214,13 +216,27 @@ function chipGroup(item: PivotFieldItem) {
   return [by === undefined ? '' : groupText(by), top].filter(Boolean).join(' · ')
 }
 
-/** How a field's top N reads ("前 10 项"), or ''. */
+/** How a field's top N or range reads ("前 10 项", "合计 ≥ 100"), or ''. */
 function topText(name: string) {
-  const top = filterOf(name)?.top
-  if (!top) return ''
+  const filter = filterOf(name)
   const m = messages.value.fields
-  return format(top.order === 'asc' ? m.bottomN : m.topN, { count: top.count })
+  if (filter?.top) {
+    return format(filter.top.order === 'asc' ? m.bottomN : m.topN, { count: filter.top.count })
+  }
+  if (filter?.between) {
+    const write = new Intl.NumberFormat(undefined, { maximumFractionDigits: 6 })
+    const { min, max } = filter.between
+    const range =
+      min !== undefined && max !== undefined
+        ? format(messages.value.rangeLabel, { from: write.format(min), to: write.format(max) })
+        : min !== undefined
+          ? `≥ ${write.format(min)}`
+          : `≤ ${write.format(max ?? 0)}`
+    return format(m.between, { range })
+  }
+  return ''
 }
+
 const chipName = (item: PivotFieldItem) =>
   item.kind === 'dimension' ? itemLabel(item) : chipText(item)
 
@@ -350,8 +366,8 @@ const showKey = (index: number) => {
 }
 function onShow(index: number, key: string | number) {
   const spec = valueSpec(index)?.show
-  const along = typeof spec === 'object' ? spec.along : undefined
-  const show = key === '' ? null : along ? { as: key as PivotShowAs, along } : (key as PivotShowAs)
+  const axis = typeof spec === 'object' ? spec.axis : undefined
+  const show = key === '' ? null : axis ? { as: key as PivotShowAs, axis } : (key as PivotShowAs)
   config.value = withValue(config.value, index, { show: show as PivotShowAs | null })
 }
 const markKey = (index: number) => {
@@ -374,9 +390,10 @@ const TOPS = [
   { key: 'b10', count: 10, order: 'asc' },
 ] as const
 function topKey(name: string) {
-  const top = filterOf(name)?.top
-  if (!top) return ''
-  return `${top.order === 'asc' ? 'b' : 't'}${top.count}`
+  const filter = filterOf(name)
+  if (filter?.between) return 'range'
+  if (!filter?.top) return ''
+  return `${filter.top.order === 'asc' ? 'b' : 't'}${filter.top.count}`
 }
 const topOptions = (name: string) => {
   const m = messages.value.fields
@@ -387,23 +404,39 @@ const topOptions = (name: string) => {
       text: format(t.order === 'asc' ? m.bottomN : m.topN, { count: t.count }),
     })
   }
-  // a top N set in the config that the menu does not offer
+  // a top N or a range set elsewhere, which the list does not offer
   const key = topKey(name)
   if (key && !options.some((o) => o.key === key)) options.push({ key, text: topText(name) })
   return options
 }
 function onTop(item: PivotFieldItem, key: string | number) {
+  if (key === 'range') return
   const match = /^([tb])(\d+)$/.exec(String(key))
   const old = filterOf(item.field)?.top
-  const top = match
-    ? {
-        ...old,
-        count: Number(match[2]),
-        order: match[1] === 'b' ? ('asc' as const) : ('desc' as const),
-      }
-    : null
-  if (top?.order === 'desc') delete (top as { order?: string }).order
-  config.value = withTop(config.value, item.field, top, item.kind === 'filter')
+  setRank(
+    item,
+    match
+      ? {
+          top: {
+            ...(old?.valueIndex ? { valueIndex: old.valueIndex } : {}),
+            count: Number(match[2]),
+            ...(match[1] === 'b' ? { order: 'asc' as const } : {}),
+          },
+        }
+      : null,
+  )
+}
+function setRank(item: PivotFieldItem, rank: PivotRank | null) {
+  config.value = withRank(config.value, item.field, rank, item.kind === 'filter')
+}
+
+/** The field whose top N or range is set in the dialog. */
+const topItem = ref<PivotFieldItem | null>(null)
+const topOpen = ref(false)
+function openTop(item: PivotFieldItem) {
+  topItem.value = item
+  // after the menu has closed and given focus back
+  nextTick(() => (topOpen.value = true))
 }
 
 // ---- calculated values ----
@@ -675,6 +708,9 @@ const filtered = (item: PivotFieldItem) => isFiltering(filterOf(item.field))
                               >{{ option.text }}</DouDropdownItem
                             >
                           </DouDropdownRadioGroup>
+                          <DouDropdownItem divided @click="openTop(item)">{{
+                            messages.fields.customTop
+                          }}</DouDropdownItem>
                         </DouDropdownSub>
                         <DouDropdownItem
                           :checked="dimensionOf(axisOf(item), item.field)?.subtotal !== false"
@@ -788,6 +824,14 @@ const filtered = (item: PivotFieldItem) => isFiltering(filterOf(item.field))
       :messages="messages"
       :initial="formulaInitial"
       @apply="applyFormula"
+    />
+    <TopDialog
+      v-model:open="topOpen"
+      :messages="messages"
+      :field="topItem ? itemLabel(topItem) : ''"
+      :values="areas.values.map((v) => chipText(v))"
+      :filter="topItem ? filterOf(topItem.field) : undefined"
+      @apply="topItem && setRank(topItem, $event)"
     />
   </div>
 </template>

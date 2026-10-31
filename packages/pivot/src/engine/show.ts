@@ -4,10 +4,10 @@ import type { PivotShow, PivotShowAs } from './types'
 /** A way of showing a value with its axis worked out. */
 export interface PivotResolvedShow {
   as: PivotShowAs
-  along: 'rows' | 'columns'
+  axis: 'rows' | 'columns'
 }
 
-const ALONG_COLUMNS: ReadonlySet<PivotShowAs> = new Set([
+const ON_COLUMNS: ReadonlySet<PivotShowAs> = new Set([
   'difference',
   'percentDifference',
   'runningTotal',
@@ -19,12 +19,12 @@ export function resolveShow(
   rows: PivotTree,
   columns: PivotTree,
 ): PivotResolvedShow {
-  let along = show.along ?? (ALONG_COLUMNS.has(show.as) ? 'columns' : 'rows')
-  const has = (axis: 'rows' | 'columns') => (axis === 'rows' ? rows : columns).levels.length > 0
-  if (!show.along && !has(along) && has(along === 'rows' ? 'columns' : 'rows')) {
-    along = along === 'rows' ? 'columns' : 'rows'
+  let axis = show.axis ?? (ON_COLUMNS.has(show.as) ? 'columns' : 'rows')
+  const has = (on: 'rows' | 'columns') => (on === 'rows' ? rows : columns).levels.length > 0
+  if (!show.axis && !has(axis) && has(axis === 'rows' ? 'columns' : 'rows')) {
+    axis = axis === 'rows' ? 'columns' : 'rows'
   }
-  return { as: show.as, along }
+  return { as: show.as, axis }
 }
 
 /** Where each group sits among all the children (its index in `children`). */
@@ -65,15 +65,14 @@ export class PivotShown {
       case 'percentOfColumn':
         return ratio(v, get(0, column))
       case 'percentOfParent': {
-        if (show.along === 'rows')
-          return ratio(v, get(row > 0 ? this.rows.parent[row]! : 0, column))
+        if (show.axis === 'rows') return ratio(v, get(row > 0 ? this.rows.parent[row]! : 0, column))
         return ratio(v, get(row, column > 0 ? this.columns.parent[column]! : 0))
       }
       case 'difference':
       case 'percentDifference': {
         const prev = this.previous(row, column)
         if (prev === null) return Number.NaN
-        const p = show.along === 'rows' ? get(prev, column) : get(row, prev)
+        const p = show.axis === 'rows' ? get(prev, column) : get(row, prev)
         if (show.as === 'difference') return v - p
         return p === 0 ? Number.NaN : (v - p) / Math.abs(p)
       }
@@ -86,21 +85,21 @@ export class PivotShown {
 
   /** The group before this one on the axis, or null for the first and for totals. */
   private previous(row: number, column: number): number | null {
-    const tree = this.show.along === 'rows' ? this.rows : this.columns
-    const node = this.show.along === 'rows' ? row : column
+    const tree = this.show.axis === 'rows' ? this.rows : this.columns
+    const node = this.show.axis === 'rows' ? row : column
     if (node <= 0) return null
     const at = placeOf(tree)[node]!
     return at > tree.childStart[tree.parent[node]!]! ? tree.children[at - 1]! : null
   }
 
   private runningTotal(row: number, column: number) {
-    const alongRows = this.show.along === 'rows'
-    const tree = alongRows ? this.rows : this.columns
-    const node = alongRows ? row : column
-    const other = alongRows ? column : row
-    const read = (n: number) => (alongRows ? this.get(n, other) : this.get(other, n))
+    const onRows = this.show.axis === 'rows'
+    const tree = onRows ? this.rows : this.columns
+    const node = onRows ? row : column
+    const other = onRows ? column : row
+    const read = (n: number) => (onRows ? this.get(n, other) : this.get(other, n))
     if (node <= 0) return read(node)
-    const key = (n: number) => n * (alongRows ? this.columns.size : this.rows.size) + other
+    const key = (n: number) => n * (onRows ? this.columns.size : this.rows.size) + other
     const cached = this.running.get(key(node))
     if (cached !== undefined) return cached
     // add up from the first group (or the last one worked out) to this one
@@ -120,19 +119,19 @@ export class PivotShown {
 
   private rank(row: number, column: number, v: number) {
     if (v !== v) return Number.NaN
-    const alongRows = this.show.along === 'rows'
-    const tree = alongRows ? this.rows : this.columns
-    const node = alongRows ? row : column
+    const onRows = this.show.axis === 'rows'
+    const tree = onRows ? this.rows : this.columns
+    const node = onRows ? row : column
     if (node <= 0) return Number.NaN
-    const other = alongRows ? column : row
+    const other = onRows ? column : row
     const parent = tree.parent[node]!
-    const key = parent * (alongRows ? this.columns.size : this.rows.size) + other
+    const key = parent * (onRows ? this.columns.size : this.rows.size) + other
     let values = this.sorted.get(key)
     if (!values) {
       const list: number[] = []
       for (let k = tree.childStart[parent]!; k < tree.childStart[parent + 1]!; k++) {
         const n = tree.children[k]!
-        const x = alongRows ? this.get(n, other) : this.get(other, n)
+        const x = onRows ? this.get(n, other) : this.get(other, n)
         if (x === x) list.push(x)
       }
       values = Float64Array.from(list)

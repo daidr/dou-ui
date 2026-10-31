@@ -1209,6 +1209,8 @@ watch([allLines, colLines], ([rows, cols]) => {
   else if (row !== a.row || col !== a.col) {
     active.value = { row, col }
     anchor.value = null
+    // it moved with its groups: bring it into view where the lines now put it
+    nextTick(() => ensureVisible(row, col))
   }
 })
 

@@ -1,6 +1,9 @@
 import type { Tone } from 'dou-ui'
 
-/** What a cell holds. A string starting with `=` is a formula. */
+/**
+ * What a cell holds. A string starting with `=` is a formula; text that
+ * starts with `=` is written `'=…` and shows without the `'`.
+ */
 export type SheetValue = string | number | boolean | null
 
 /** A cell with more than a value. */

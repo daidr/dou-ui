@@ -809,6 +809,10 @@
     padding: 0 6px;
     box-sizing: border-box;
     border-top: 1px solid var(--dou-color-border);
+
+    @media (pointer: coarse) {
+      height: 42px;
+    }
     background-color: var(--dou-sheet-header-bg);
   }
 
@@ -830,6 +834,22 @@
 
     &::-webkit-scrollbar {
       display: none;
+    }
+
+    &.has-more-start {
+      mask-image: linear-gradient(to right, transparent, #000 24px);
+    }
+    &.has-more-end {
+      mask-image: linear-gradient(to left, transparent, #000 24px);
+    }
+    &.has-more-start.has-more-end {
+      mask-image: linear-gradient(
+        to right,
+        transparent,
+        #000 24px,
+        #000 calc(100% - 24px),
+        transparent
+      );
     }
   }
 
@@ -877,6 +897,11 @@
 
     &.is-dragging {
       opacity: 0.4;
+    }
+
+    /* a finger gets a taller tab */
+    @media (pointer: coarse) {
+      height: 36px;
     }
 
     .is-readonly & {

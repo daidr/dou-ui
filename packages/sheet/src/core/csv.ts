@@ -106,30 +106,42 @@ export interface SheetCSVReadOptions {
    * that look like codes, `007` or a long card number, stay text either way.
    */
   typed?: boolean
+  /**
+   * The decimal mark of numbers: `,` reads `1,5` as 1.5 and `1.280,5` as
+   * 1280.5. Defaults to `,` when fields are split by `;`, as files written
+   * with a decimal comma are, otherwise `.`.
+   */
+  decimal?: '.' | ','
+  /** Reads fields starting with `=` as formulas; by default they are text. */
+  formulas?: boolean
 }
+
+/** A number written with a decimal comma: `1,5`, `-1.280,5`, `12,5%`. */
+const COMMA_NUMBER = /^([-+]?)(\d{1,3}(?:\.\d{3})+|\d+)(?:,(\d+))?(%?)$/
 
 /** The cells of a CSV, row by row, ready for a sheet's `cells` or `tr.setCells`. */
 export function readCSV(text: string, options: SheetCSVReadOptions = {}): SheetRow[] {
-  const { typed = true } = options
-  return parseCSV(text, options.delimiter).map((fields) =>
+  const { typed = true, formulas = false } = options
+  const delimiter = options.delimiter ?? detectDelimiter(text)
+  const comma = (options.decimal ?? (delimiter === ';' ? ',' : '.')) === ','
+  return parseCSV(text, delimiter).map((fields) =>
     fields.map((field): SheetCellInput => {
       if (field === '') return undefined
-      if (!typed || CODE.test(field.trim()) || field.startsWith("'") || field.startsWith('='))
-        return field
-      const { value, format } = parseInput(field)
+      if (field.startsWith('=') && field.length > 1) return formulas && typed ? field : `'${field}`
+      if (!typed || CODE.test(field.trim()) || field.startsWith("'")) return field
+      let input = field
+      if (comma) {
+        const number = COMMA_NUMBER.exec(field.trim())
+        if (number) {
+          const [, sign, whole, fraction, percent] = number
+          input = `${sign}${whole!.replaceAll('.', '')}${fraction ? `.${fraction}` : ''}${percent}`
+        }
+      }
+      const { value, format } = parseInput(input)
       if (value == null) return undefined
       return format ? { value, format } : value
     }),
   )
-}
-
-/** A sheet named `name` holding a CSV. */
-export function sheetFromCSV(
-  text: string,
-  name: string,
-  options: SheetCSVReadOptions = {},
-): SheetData {
-  return { name, cells: readCSV(text, options) }
 }
 
 export interface SheetCSVWriteOptions {
@@ -151,7 +163,17 @@ export interface SheetCSVWriteOptions {
   newline?: string
   /** Starts with a byte order mark, so programs that guess the encoding read it as UTF-8. */
   bom?: boolean
+  /**
+   * Puts a `'` before text starting with `=`, `+`, `-`, `@`, a tab or a
+   * line break, so a spreadsheet program opening the file doesn't run it as
+   * a formula. Numbers are written as they are. On by default; `false`
+   * writes such text, and this grid's formulas, as they are.
+   */
+  escapeFormulas?: boolean
 }
+
+/** What a spreadsheet program would start a formula with. */
+const FORMULA_START = /^[=+\-@\t\r]/
 
 /** Where a sheet has data: up to its last row and column with something in them. */
 function dataBounds(sheet: SheetData): SheetBounds | null {
@@ -171,7 +193,15 @@ function dataBounds(sheet: SheetData): SheetBounds | null {
 
 /** A sheet, or part of it, as CSV. */
 export function sheetToCSV(sheet: SheetData, options: SheetCSVWriteOptions = {}) {
-  const { delimiter = ',', formatted = true, locale, text, newline = '\r\n', bom } = options
+  const {
+    delimiter = ',',
+    formatted = true,
+    locale,
+    text,
+    newline = '\r\n',
+    bom,
+    escapeFormulas = true,
+  } = options
   const range = typeof options.range === 'string' ? parseRange(options.range) : options.range
   if (options.range != null && !range) throw new RangeError(`"${options.range}" isn't a range`)
   const data = dataBounds(sheet)
@@ -192,7 +222,8 @@ export function sheetToCSV(sheet: SheetData, options: SheetCSVWriteOptions = {})
       const shown = formatted
         ? (text?.(input) ?? formatValue(value, cellOf(input)?.format, locale))
         : rawText(value)
-      fields.push(field(shown))
+      const unsafe = escapeFormulas && typeof value === 'string' && FORMULA_START.test(shown)
+      fields.push(field(unsafe ? `'${shown}` : shown))
     }
     lines.push(fields.join(delimiter))
   }

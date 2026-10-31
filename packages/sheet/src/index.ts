@@ -48,7 +48,7 @@ export {
   splitSheet,
 } from './core/address'
 export { formatClip, parseClip, parseTSV } from './core/clipboard'
-export { detectDelimiter, parseCSV, readCSV, sheetFromCSV, sheetToCSV } from './core/csv'
+export { detectDelimiter, parseCSV, readCSV, sheetToCSV } from './core/csv'
 export type { SheetCSVReadOptions, SheetCSVWriteOptions } from './core/csv'
 export type { SheetClip, SheetClipFormat } from './core/clipboard'
 export { continueValues, fillContinues } from './core/fill'

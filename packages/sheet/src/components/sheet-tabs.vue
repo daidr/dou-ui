@@ -8,7 +8,17 @@ import {
   TrashIcon,
 } from '@dou-ui/icons'
 import { DouButton, isComposing, matchesHotkey, useSortable } from 'dou-ui'
-import { computed, nextTick, ref, shallowRef, useId, useTemplateRef, watch } from 'vue'
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  shallowRef,
+  useId,
+  useTemplateRef,
+  watch,
+} from 'vue'
 import { useSheet } from '../context'
 import { sheetKey } from '../core/transaction'
 import { format } from '../locale'
@@ -39,7 +49,7 @@ const order = computed({
   get: () => keys.value,
   set: () => {},
 })
-const { container, list, listAttrs, itemAttrs } = useSortable<string>({
+const { container, list, listAttrs, itemAttrs, dragging } = useSortable<string>({
   items: order,
   key: (key) => key,
   direction: () => 'horizontal',
@@ -87,6 +97,26 @@ function dragAttrs(key: string, index: number) {
   return rest
 }
 
+// Tabs past either side fade out there, so it shows that the strip scrolls
+
+const more = ref({ start: false, end: false })
+function measureMore() {
+  const el = container.value
+  if (!el) return
+  const start = el.scrollLeft > 1
+  const end = el.scrollLeft + el.clientWidth < el.scrollWidth - 1
+  if (start !== more.value.start || end !== more.value.end) more.value = { start, end }
+}
+let resize: ResizeObserver | undefined
+onMounted(() => {
+  measureMore()
+  if (typeof ResizeObserver === 'undefined' || !container.value) return
+  resize = new ResizeObserver(measureMore)
+  resize.observe(container.value)
+})
+onBeforeUnmount(() => resize?.disconnect())
+watch(keys, () => void nextTick(measureMore))
+
 // Switching ------------------------------------------------------------------------------
 
 const tabs = useTemplateRef<HTMLElement[]>('tab')
@@ -112,20 +142,63 @@ watch(
 )
 
 let lastPointer = 'mouse'
+/** When a finger last switched sheets: a tap right after is the same double tap. */
+let switchedAt = 0
+/** A finger held still on a tab opens its menu; the click that follows is then spent. */
+let holdTimer: ReturnType<typeof setTimeout> | undefined
+let held = false
+const HOLD = 500
+
 function onPointerDown(event: PointerEvent, key: string, index: number) {
   lastPointer = event.pointerType
+  held = false
   itemAttrs(key, index).onPointerdown(event)
+  if (event.pointerType !== 'touch' || !editable.value) return
+  const el = event.currentTarget as HTMLElement
+  const x0 = event.clientX
+  const y0 = event.clientY
+  const stop = () => {
+    clearTimeout(holdTimer)
+    window.removeEventListener('pointermove', onMove)
+    window.removeEventListener('pointerup', stop)
+    window.removeEventListener('pointercancel', stop)
+  }
+  const onMove = (e: PointerEvent) => {
+    if (Math.hypot(e.clientX - x0, e.clientY - y0) > 8) stop()
+  }
+  window.addEventListener('pointermove', onMove)
+  window.addEventListener('pointerup', stop)
+  window.addEventListener('pointercancel', stop)
+  holdTimer = setTimeout(() => {
+    stop()
+    if (dragging.value != null || renaming.value != null) return
+    held = true
+    navigator.vibrate?.(8)
+    const rect = el.getBoundingClientRect()
+    openMenu(indexOf(key), rect.left + rect.width / 2, rect.top)
+  }, HOLD)
 }
 
 function onClick(index: number, event: MouseEvent) {
   if (renaming.value != null) return
-  // a finger on the tab already shown opens its menu: phones have no right click
-  if (lastPointer === 'touch' && index === sheetIndex.value && editable.value) {
+  if (held) {
+    held = false
+    return
+  }
+  if (lastPointer === 'touch' && index === sheetIndex.value) {
+    // a finger on the tab already shown opens its menu: phones have no right click
+    if (!editable.value || Date.now() - switchedAt < 400) return
     const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
     return openMenu(index, rect.left + rect.width / 2, rect.top)
   }
   show(index)
-  if (lastPointer !== 'touch') sheet.focus()
+  if (lastPointer === 'touch') switchedAt = Date.now()
+  else sheet.focus()
+}
+
+/** A double click renames; a finger renames from the menu, as two taps also switch and open it. */
+function onDblClick(index: number) {
+  if (lastPointer !== 'touch') startRename(index)
 }
 
 function onKeydown(event: KeyboardEvent, index: number) {
@@ -352,9 +425,11 @@ function onContextMenu(event: MouseEvent, index: number) {
     <div
       ref="container"
       class="dou-sheet-tabs__list"
+      :class="{ 'has-more-start': more.start, 'has-more-end': more.end }"
       role="tablist"
       :aria-label="messages.sheets"
       v-bind="listAttrs"
+      @scroll.passive="measureMore"
     >
       <div
         v-for="(key, index) in list"
@@ -373,7 +448,7 @@ function onContextMenu(event: MouseEvent, index: number) {
         v-bind="dragAttrs(key, index)"
         @pointerdown="onPointerDown($event, key, index)"
         @click="onClick(indexOf(key), $event)"
-        @dblclick="startRename(indexOf(key))"
+        @dblclick="onDblClick(indexOf(key))"
         @keydown="onKeydown($event, indexOf(key))"
         @contextmenu="onContextMenu($event, indexOf(key))"
       >

@@ -550,9 +550,10 @@ export class SheetTransaction {
   }
 
   /**
-   * Adds a sheet, at the end or at `index`. Its name must not be taken; it
-   * is `Sheet1`, `Sheet2`… when left out. Returns the transaction; the new
-   * sheet is `tr.getSheet(name)`.
+   * Adds a sheet, at the end or at `index`. Its name must not be taken
+   * (`uniqueName` gives one that isn't); it is `Sheet1`, `Sheet2`… when
+   * left out, whatever the language. Returns the transaction; the new sheet
+   * is `tr.getSheet(name)`.
    */
   addSheet(sheet: Partial<SheetData> = {}, index = this.book.sheets.length) {
     const name = sheet.name ?? this.freeName('Sheet')
@@ -600,9 +601,21 @@ export class SheetTransaction {
     // the copy shares the rows: changing either from here on copies them first
     this.ownSheets.delete(original)
     this.ownRows.delete(original)
-    const next = name ?? this.freeName(`${source.name} (`, ')', 2)
+    const next = name ?? this.uniqueName(source.name)
     this.checkName(next)
     return this.step({ type: 'insertSheet', index: index + 1, data: { ...source, name: next } })
+  }
+
+  /**
+   * `name` if no sheet has it, otherwise the name with the first free
+   * number: `门店 (2)`, `门店 (3)`…
+   */
+  uniqueName(name: string) {
+    const taken = new Set(this.book.sheets.map((sheet) => sheet.name))
+    if (!taken.has(name)) return name
+    let n = 2
+    while (taken.has(`${name} (${n})`)) n++
+    return `${name} (${n})`
   }
 
   /** Passes every formula of the workbook through `rewrite`. */
@@ -620,12 +633,12 @@ export class SheetTransaction {
     return this
   }
 
-  /** The first name `prefix` + a number (+ `suffix`) that no sheet has. */
-  private freeName(prefix: string, suffix = '', from = this.book.sheets.length + 1) {
+  /** The first name `prefix` + a number, from the count of sheets on, that no sheet has. */
+  private freeName(prefix: string) {
     const taken = new Set(this.book.sheets.map((sheet) => sheet.name))
-    let n = from
-    while (taken.has(`${prefix}${n}${suffix}`)) n++
-    return `${prefix}${n}${suffix}`
+    let n = this.book.sheets.length + 1
+    while (taken.has(`${prefix}${n}`)) n++
+    return `${prefix}${n}`
   }
 
   private checkName(name: string, id?: string, self = -1) {

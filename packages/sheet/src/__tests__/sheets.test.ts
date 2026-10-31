@@ -73,6 +73,14 @@ describe('sheets in a transaction', () => {
     expect(back.doc).toEqual(book())
   })
 
+  it('gives a free name', () => {
+    const tr = new SheetTransaction(book())
+    expect(tr.uniqueName('门店')).toBe('门店')
+    expect(tr.uniqueName('九月')).toBe('九月 (2)')
+    tr.addSheet({ name: '九月 (2)' })
+    expect(tr.uniqueName('九月')).toBe('九月 (3)')
+  })
+
   it('rewrites only references naming the sheet', () => {
     expect(renameReferences('=A1+表1!A1+"表1!A1"+表10!A1', '表1', '数据')).toBe(
       '=A1+数据!A1+"表1!A1"+表10!A1',
@@ -147,15 +155,47 @@ describe('CSV', () => {
       ],
     }
     expect(sheetToCSV(sheet)).toBe(
-      '名称,金额,\r\n"上海, 静安","¥1,280.00",\r\n"说""好""",TRUE,\r\n,,\r\n,,=A1',
+      '名称,金额,\r\n"上海, 静安","¥1,280.00",\r\n"说""好""",TRUE,\r\n,,\r\n,,\'=A1',
     )
     expect(sheetToCSV(sheet, { formatted: false, range: 'A2:B2', newline: '\n' })).toBe(
       '"上海, 静安",1280',
     )
     expect(sheetToCSV(sheet, { delimiter: ';', range: 'B:C', bom: true })).toBe(
-      '\ufeff金额;\r\n¥1,280.00;\r\nTRUE;\r\n;\r\n;=A1',
+      "\ufeff金额;\r\n¥1,280.00;\r\nTRUE;\r\n;\r\n;'=A1",
     )
     expect(sheetToCSV({ name: '空', cells: [] })).toBe('')
+  })
+
+  it('keeps text that a spreadsheet program would run as a formula from running', () => {
+    const sheet: SheetData = {
+      name: '表',
+      cells: [['=HYPERLINK("x")', '+1', '-2+3', '@SUM(A1)', -2, "'=abc", '静安']],
+    }
+    expect(sheetToCSV(sheet)).toBe(`"'=HYPERLINK(""x"")",'+1,'-2+3,'@SUM(A1),-2,'=abc,静安`)
+    expect(sheetToCSV(sheet, { escapeFormulas: false })).toBe(
+      '"=HYPERLINK(""x"")",+1,-2+3,@SUM(A1),-2,=abc,静安',
+    )
+  })
+
+  it('reads = as text unless asked for formulas', () => {
+    expect(readCSV('=1+1,=')).toEqual([["'=1+1", '=']])
+    expect(readCSV('=1+1', { typed: false })).toEqual([["'=1+1"]])
+    expect(readCSV('=1+1', { formulas: true })).toEqual([['=1+1']])
+  })
+
+  it('reads a decimal comma in files split by semicolons', () => {
+    expect(readCSV('a;b;c;d\n1,5;1.280,5;12,5%;上海')).toEqual([
+      ['a', 'b', 'c', 'd'],
+      [1.5, 1280.5, { value: 0.125, format: '0.0%' }, '上海'],
+    ])
+    expect(readCSV('a,b\n"1,5",2', { decimal: ',' })).toEqual([
+      ['a', 'b'],
+      [1.5, 2],
+    ])
+    expect(readCSV('a;b\n1,5;2', { decimal: '.' })).toEqual([
+      ['a', 'b'],
+      ['1,5', 2],
+    ])
   })
 })
 

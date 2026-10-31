@@ -25,11 +25,11 @@ async function importFile(event) {
   event.target.value = ''
   if (!picked) return
   const cells = readCSV(await picked.text())
-  const base = picked.name.replace(/\.(csv|tsv|txt)$/i, '')
-  const taken = new Set(book.value.sheets.map((sheet) => sheet.name))
-  let name = base
-  for (let n = 2; taken.has(name); n++) name = `${base} (${n})`
-  grid.value.transact((tr) => tr.addSheet({ name, cells }))
+  let name = picked.name.replace(/\.(csv|tsv|txt)$/i, '')
+  grid.value.transact((tr) => {
+    name = tr.uniqueName(name)
+    tr.addSheet({ name, cells })
+  })
   grid.value.showSheet(name)
 }
 

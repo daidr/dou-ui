@@ -11,6 +11,7 @@
         "@vue/tsconfig": "^0.9.1",
         "happy-dom": "^21.0.4",
         "oxlint": "^1.90.0",
+        "playwright": "1.63.0",
         "typescript": "~6.0.3",
         "vite": "^8.3.5",
         "vitest": "^5.0.5",
@@ -28,6 +29,7 @@
         "@dou-ui/form-builder": "workspace:*",
         "@dou-ui/gantt": "workspace:*",
         "@dou-ui/icons": "workspace:*",
+        "@dou-ui/pivot": "workspace:*",
         "@dou-ui/sheet": "workspace:*",
         "@dou-ui/theme": "workspace:*",
         "dou-ui": "workspace:*",
@@ -172,6 +174,17 @@
       "peerDependencies": {
         "dou-ui": "workspace:*",
         "nuxt": "^4.0.0",
+      },
+    },
+    "packages/pivot": {
+      "name": "@dou-ui/pivot",
+      "version": "0.0.0",
+      "dependencies": {
+        "@dou-ui/icons": "workspace:*",
+      },
+      "peerDependencies": {
+        "dou-ui": "workspace:*",
+        "vue": "^3.5.0",
       },
     },
     "packages/resolver": {
@@ -323,6 +336,8 @@
     "@dou-ui/icons": ["@dou-ui/icons@workspace:packages/icons"],
 
     "@dou-ui/nuxt": ["@dou-ui/nuxt@workspace:packages/nuxt"],
+
+    "@dou-ui/pivot": ["@dou-ui/pivot@workspace:packages/pivot"],
 
     "@dou-ui/playground": ["@dou-ui/playground@workspace:playground"],
 
@@ -1293,6 +1308,10 @@
     "picomatch": ["picomatch@4.0.7", "", {}, "sha512-qcJu88Q2IWqJsDD529JKMdwGm/dvInW4HvQnRwiH9JtihJvzGOscDtHE3x1pBKeUOTysQ8kVmLnJ2kJu7yhcGA=="],
 
     "pkg-types": ["pkg-types@2.4.0", "", { "dependencies": { "confbox": "^0.3.1", "exsolve": "^1.1.3", "pathe": "^2.0.3" } }, "sha512-07Fys7iVx0X6TcviMOgogM1Lk33ZyqOezMnU79S+kffWqwolG/5W9V8EgQSeYCIfFTYVgssRbnH630Oa2+soBA=="],
+
+    "playwright": ["playwright@1.63.0", "", { "dependencies": { "playwright-core": "1.63.0" }, "bin": { "playwright": "cli.js" } }, "sha512-+7ziBLidS4NaNCdt57SUDT+wYmmd5fmiQejUic/kb+YsYSCPyOOE9sebzMjNmQrsnNpDJqd4WHvV/8lfKfUDUg=="],
+
+    "playwright-core": ["playwright-core@1.63.0", "", { "bin": { "playwright-core": "cli.js" } }, "sha512-rYCsBF/M5HjUch52bbtVONEFjv6Xu8sm8h72dNlR5bzIE1fvC/bxgspzkjSfU+MweEMmPM8KJebG6nnyxo5mCg=="],
 
     "postcss": ["postcss@8.5.32", "", { "dependencies": { "nanoid": "^3.3.20", "picocolors": "^1.1.1", "source-map-js": "^1.2.2" } }, "sha512-LJlKCCAUFKOuZxipUdYw1NzIITEsPcgyOG9LkvRJvuKj/bRzbuRY0ARXvL0pWGpsZvn8jku+LMep2eU0seHp8g=="],
 

@@ -34,3 +34,72 @@
     text-size-adjust: 100%;
   }
 }
+
+/*
+ * Code tokens. The code editor and code blocks mark each token with one of
+ * these classes; the colors come from the theme, so switching to dark
+ * needs no new highlighting.
+ */
+@layer dou.base {
+  .dou-syntax-keyword {
+    color: var(--dou-color-syntax-keyword);
+  }
+  .dou-syntax-string {
+    color: var(--dou-color-syntax-string);
+  }
+  .dou-syntax-number {
+    color: var(--dou-color-syntax-number);
+  }
+  .dou-syntax-comment {
+    color: var(--dou-color-syntax-comment);
+  }
+  .dou-syntax-function {
+    color: var(--dou-color-syntax-function);
+  }
+  .dou-syntax-type {
+    color: var(--dou-color-syntax-type);
+  }
+  .dou-syntax-variable {
+    color: var(--dou-color-syntax-variable);
+  }
+  .dou-syntax-property {
+    color: var(--dou-color-syntax-property);
+  }
+  .dou-syntax-operator {
+    color: var(--dou-color-syntax-operator);
+  }
+  .dou-syntax-punctuation {
+    color: var(--dou-color-syntax-punctuation);
+  }
+  .dou-syntax-tag {
+    color: var(--dou-color-syntax-tag);
+  }
+  .dou-syntax-attribute {
+    color: var(--dou-color-syntax-attribute);
+  }
+  .dou-syntax-meta {
+    color: var(--dou-color-syntax-meta);
+  }
+  .dou-syntax-invalid {
+    color: var(--dou-color-syntax-invalid);
+    text-decoration: underline wavy color-mix(in oklab, currentColor 60%, transparent);
+    text-decoration-skip-ink: none;
+    text-underline-offset: 3px;
+  }
+  .dou-syntax-heading {
+    color: var(--dou-color-syntax-keyword);
+    font-weight: var(--dou-font-weight-bold);
+  }
+  .dou-syntax-strong {
+    font-weight: var(--dou-font-weight-bold);
+  }
+  .dou-syntax-emphasis {
+    font-style: italic;
+  }
+  .dou-syntax-link {
+    color: var(--dou-color-syntax-function);
+    text-decoration: underline;
+    text-decoration-color: color-mix(in oklab, currentColor 40%, transparent);
+    text-underline-offset: 3px;
+  }
+}

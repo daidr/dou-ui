@@ -110,8 +110,45 @@ export function timeTickFormat(
   }
 }
 
+/** How fine a time must be written for points `step` ms apart: 0 days, 1 minutes, 2 seconds, 4 to 6 parts of a second. */
+const rank = (step: number) =>
+  step < 1000
+    ? 3 + (step >= 100 ? 1 : step >= 10 ? 2 : 3)
+    : step < 60e3
+      ? 2
+      : step < 86400e3
+        ? 1
+        : 0
+
+/**
+ * How precisely a point in time needs writing: as precise as the time
+ * itself (09:30 needs minutes), and as its neighbor is near (points 100ms
+ * apart need tenths of a second, even on a whole second). `digits` are
+ * the digits of a second, from 1 to 3.
+ */
+export function timePrecision(value: number, gap = Number.POSITIVE_INFINITY) {
+  const date = new Date(value)
+  const ms = date.getMilliseconds()
+  const own =
+    ms !== 0
+      ? rank(ms % 100 === 0 ? 100 : ms % 10 === 0 ? 10 : 1)
+      : date.getSeconds() !== 0
+        ? 2
+        : date.getMinutes() !== 0 || date.getHours() !== 0
+          ? 1
+          : 0
+  const r = Math.max(own, gap > 0 ? rank(gap) : 0)
+  const unit: TimeUnit = r === 0 ? 'day' : r === 1 ? 'minute' : 'second'
+  return { unit, digits: (r > 3 ? r - 3 : 0) as 0 | 1 | 2 | 3 }
+}
+
 /** Formats a point in time in full, as precise as `unit` (tooltips, the accessible summary). */
-export function timeFormatFull(locale: string, unit: TimeUnit = 'day'): (value: number) => string {
+export function timeFormatFull(
+  locale: string,
+  unit: TimeUnit = 'day',
+  /** Digits of a second, for times less than a second apart. */
+  digits: 0 | 1 | 2 | 3 = 0,
+): (value: number) => string {
   const options: Intl.DateTimeFormatOptions =
     unit === 'year'
       ? { year: 'numeric' }
@@ -126,6 +163,7 @@ export function timeFormatFull(locale: string, unit: TimeUnit = 'day'): (value: 
               hour: '2-digit',
               minute: '2-digit',
               second: unit === 'second' ? '2-digit' : undefined,
+              fractionalSecondDigits: unit === 'second' && digits ? digits : undefined,
               hourCycle: 'h23',
             }
   const format = dateFormat(locale, options)

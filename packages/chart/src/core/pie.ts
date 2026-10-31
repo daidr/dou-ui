@@ -1,4 +1,4 @@
-import { read, yColumn, type ChartAccessor, type ChartRow } from './data'
+import { read, yColumn, type ChartAccessor, type ChartData, rowOf } from './data'
 import type { Painter } from './painter'
 
 /** A slice of a pie, with its angles in radians clockwise from 12 o'clock. */
@@ -23,7 +23,7 @@ export interface PieSlice {
  * are kept, with no room, so they keep their place and color.
  */
 export function pieSlices(
-  rows: readonly ChartRow[],
+  rows: ChartData,
   value: ChartAccessor,
   label: ChartAccessor | undefined,
   color?: ChartAccessor,
@@ -36,8 +36,8 @@ export function pieSlices(
   for (let i = 0; i < values.length; i++) {
     const v = values[i]!
     if (!(v > 0)) continue
-    const text = label === undefined ? undefined : read(rows[i], label, i)
-    const own = color === undefined ? undefined : read(rows[i], color, i)
+    const text = label === undefined ? undefined : read(rowOf(rows, i), label, i)
+    const own = color === undefined ? undefined : read(rowOf(rows, i), color, i)
     const name = text == null ? `${i + 1}` : String(text)
     const slice = {
       index: i,

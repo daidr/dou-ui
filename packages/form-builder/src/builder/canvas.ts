@@ -10,8 +10,8 @@ import {
   shallowRef,
   watch,
 } from 'vue'
-import type { InjectionKey, PropType, VNode } from 'vue'
-import { DouButton, DouDropdown, DouDropdownItem, DouForm } from 'dou-ui'
+import type { InjectionKey, PropType, Ref, VNode } from 'vue'
+import { DouButton, DouDropdown, DouDropdownItem, DouForm, holdPointer } from 'dou-ui'
 import type { DropdownExpose } from 'dou-ui'
 import {
   ArrowDownIcon,
@@ -29,6 +29,7 @@ import type {
   FormListNode,
   FormNode,
   FormPageNode,
+  FormResponsive,
   FormSectionNode,
 } from '../core/types'
 import { startValue } from '../core/values'
@@ -42,6 +43,8 @@ import { canvasOrder, useBuilderState } from './context'
 import type { BuilderState, BuilderView } from './context'
 import { formNodePlaces } from './core/transaction'
 import { nodeTitle } from './settings'
+import { createDragController } from './drag'
+import type { DragLayer } from './drag'
 
 /**
  * The key a node's value has on the canvas: made from its id, not its
@@ -109,6 +112,11 @@ function useScratch(state: BuilderState) {
 
 const noop = () => {}
 
+const canvasView = (state: BuilderState): BuilderView => ({
+  name: 'canvas',
+  order: () => canvasOrder(state),
+})
+
 /** How many fields the canvas draws right away when it opens. */
 const EAGER_FIELDS = 16
 
@@ -154,7 +162,7 @@ export const FormBuilderCanvas = defineComponent({
     provide(rendererKey, renderer)
     provide(scopeKey, rootScope)
 
-    const view: BuilderView = { name: 'canvas', order: () => canvasOrder(state) }
+    const view = canvasView(state)
 
     // Fields off screen are drawn once they come near it; the first ones
     // right away, so the canvas does not open on placeholders.
@@ -203,6 +211,16 @@ export const FormBuilderCanvas = defineComponent({
       },
     )
 
+    // Drags: the line, the tinted container and the card under the pointer are
+    // moved by the controller directly, without rendering the canvas.
+    const layer: DragLayer = { indicator: null, holder: null, ghost: null }
+    const dragger = createDragController(state, () => scroller.value, layer)
+    state.dragger.value = dragger
+    onBeforeUnmount(() => {
+      dragger.stop()
+      if (state.dragger.value === dragger) state.dragger.value = null
+    })
+
     const active = computed(() => {
       const last = state.selection[state.selection.length - 1]
       return last ? state.domId(last, 'canvas') : undefined
@@ -217,45 +235,68 @@ export const FormBuilderCanvas = defineComponent({
           class: 'dou-form-builder__canvas',
           // A press beside the form selects the form itself.
           onClick: (event: MouseEvent) => {
+            if (dragger.swallowClick()) return
             if (!(event.target as HTMLElement).closest('.dou-form-builder__node'))
               state.select(null)
           },
         },
-        h('div', { class: 'dou-form-builder__paper' }, [
-          h(
-            DouForm,
-            {
-              class: [
-                'dou-form-renderer',
-                `dou-form-renderer--${layout.value}`,
-                (doc.requiredMark ?? true) === true && 'dou-form-renderer--marked',
-              ],
-              model: scratch,
-              layout: layout.value,
-              labelAlign: doc.labelAlign,
-              size: doc.size,
-              requiredMark: doc.requiredMark ?? true,
-              scrollToError: false,
-              onSubmit: noop,
-            },
-            () =>
-              h(
-                'div',
-                {
-                  ref: (el) => (state.canvas.value = el as HTMLElement | null),
-                  class: ['dou-form-renderer__grid', 'dou-form-builder__tree'],
-                  style: { '--dou-form-columns': columns.value },
-                  role: 'tree',
-                  tabindex: 0,
-                  'aria-label': state.messages.canvas.label,
-                  'aria-multiselectable': true,
-                  'aria-activedescendant': active.value,
-                  onKeydown: (event: KeyboardEvent) => state.keydown(event, view),
-                },
-                doc.nodes.length ? designNodes(doc.nodes, columns.value, 0, 1) : [emptyHint(state)],
-              ),
-          ),
-        ]),
+        [
+          h('div', { class: 'dou-form-builder__drop-layer', 'aria-hidden': true }, [
+            h('div', {
+              ref: (el) => (layer.holder = el as HTMLElement | null),
+              class: 'dou-form-builder__drop-holder',
+              hidden: true,
+            }),
+            h('div', {
+              ref: (el) => (layer.indicator = el as HTMLElement | null),
+              class: 'dou-form-builder__drop-line',
+              hidden: true,
+            }),
+            h('div', {
+              ref: (el) => (layer.ghost = el as HTMLElement | null),
+              class: 'dou-form-builder__drag-ghost',
+              hidden: true,
+            }),
+          ]),
+          h('div', { class: 'dou-form-builder__paper' }, [
+            h(
+              DouForm,
+              {
+                class: [
+                  'dou-form-renderer',
+                  `dou-form-renderer--${layout.value}`,
+                  (doc.requiredMark ?? true) === true && 'dou-form-renderer--marked',
+                ],
+                model: scratch,
+                layout: layout.value,
+                labelAlign: doc.labelAlign,
+                size: doc.size,
+                requiredMark: doc.requiredMark ?? true,
+                scrollToError: false,
+                onSubmit: noop,
+              },
+              () =>
+                h(
+                  'div',
+                  {
+                    ref: (el) => (state.canvas.value = el as HTMLElement | null),
+                    class: ['dou-form-renderer__grid', 'dou-form-builder__tree'],
+                    'data-holder': '',
+                    style: { '--dou-form-columns': columns.value },
+                    role: 'tree',
+                    tabindex: 0,
+                    'aria-label': state.messages.canvas.label,
+                    'aria-multiselectable': true,
+                    'aria-activedescendant': active.value,
+                    onKeydown: (event: KeyboardEvent) => state.keydown(event, view),
+                  },
+                  doc.nodes.length
+                    ? designNodes(doc.nodes, columns.value, 0, 1)
+                    : [emptyHint(state)],
+                ),
+            ),
+          ]),
+        ],
       )
     }
   },
@@ -282,6 +323,7 @@ function designNodes(nodes: readonly FormNode[], columns: number, inset: number,
 /** A grid of child nodes, or a hint where there are none. */
 function childGrid(
   state: BuilderState,
+  holder: string,
   nodes: readonly FormNode[],
   columns: number,
   inset: number,
@@ -293,6 +335,7 @@ function childGrid(
       class: 'dou-form-renderer__grid',
       style: { '--dou-form-columns': columns },
       role: 'group',
+      'data-holder': holder,
     },
     nodes.length ? designNodes(nodes, columns, inset, level) : [emptyHint(state)],
   )
@@ -338,9 +381,9 @@ const DesignNode = defineComponent({
 
     function press(event: MouseEvent, id = props.node.id) {
       event.stopPropagation()
+      if (state.dragger.value?.swallowClick()) return
       lazy.pressed = true
-      const many = event.shiftKey || event.metaKey || event.ctrlKey
-      state.select(id, many ? 'toggle' : 'replace')
+      state.pick(id, event, canvasView(state))
       state.canvas.value?.focus({ preventScroll: true })
     }
 
@@ -388,8 +431,24 @@ const DesignNode = defineComponent({
           'aria-label': title,
           'data-node': node.id,
           onClick: press,
+          onPointerdown: (event: PointerEvent) => {
+            // The innermost node takes the press; the buttons and the width handle keep theirs.
+            event.stopPropagation()
+            const target = event.target as HTMLElement
+            if (
+              target.closest(
+                '.dou-form-builder__actions, .dou-form-builder__resize, .dou-form-builder__strip',
+              )
+            )
+              return
+            state.dragger.value?.pressNode(event, node.id)
+          },
         },
-        [body, primary.value ? actionBar(state, node, title) : null],
+        [
+          body,
+          primary.value ? actionBar(state, node, title) : null,
+          primary.value && !isPage(node) ? resizeHandle(state, node, el) : null,
+        ],
       )
     }
   },
@@ -408,7 +467,14 @@ function sectionBody(state: BuilderState, node: FormSectionNode | FormPageNode, 
             h('div', { class: 'dou-form-renderer__section-description' }, node.description),
         ])
       : null,
-    childGrid(state, node.children, columns, props.inset + (bordered ? 1 : 0), props.level + 1),
+    childGrid(
+      state,
+      node.id,
+      node.children,
+      columns,
+      props.inset + (bordered ? 1 : 0),
+      props.level + 1,
+    ),
   ])
 }
 
@@ -441,7 +507,7 @@ function listBody(
           formatMessage(messages.item, { index: 1 }),
         ),
       ),
-      childGrid(state, node.children, columns, props.inset + 1, props.level + 1),
+      childGrid(state, node.id, node.children, columns, props.inset + 1, props.level + 1),
     ]),
     h(
       'div',
@@ -526,6 +592,7 @@ function pagesBody(
               : null,
             childGrid(
               state,
+              shown.id,
               shown.children,
               shown.columns ?? props.columns,
               props.inset,
@@ -659,4 +726,97 @@ function actionBar(state: BuilderState, node: FormNode, title: string) {
     ),
     h('span', { class: 'dou-form-builder__actions-more' }, more),
   ])
+}
+
+/** The form widths the breakpoints of a responsive width start at, as in the renderer's styles. */
+const breakpointWidths = [
+  ['xl', 960],
+  ['lg', 800],
+  ['md', 640],
+  ['sm', 480],
+] as const
+
+/** The key of a responsive width that applies at the form's width now. */
+function activeSpanKey(span: Exclude<FormResponsive<number>, number>, cell: HTMLElement) {
+  const width = cell.closest('.dou-form-renderer')?.getBoundingClientRect().width ?? 0
+  for (const [key, min] of breakpointWidths) if (width >= min && span[key] !== undefined) return key
+  return 'base' as const
+}
+
+/** The handle on the selected node's end edge: drag it to change the width, snapping to columns. */
+function resizeHandle(state: BuilderState, node: FormNode, cell: Ref<HTMLElement | null>) {
+  return h('div', {
+    class: 'dou-form-builder__resize',
+    title: state.messages.drag.resize,
+    'aria-hidden': true,
+    onClick: (event: MouseEvent) => event.stopPropagation(),
+    onPointerdown: (event: PointerEvent) => startResize(event, state, node.id, cell.value),
+  })
+}
+
+function startResize(
+  event: PointerEvent,
+  state: BuilderState,
+  id: string,
+  cell: HTMLElement | null,
+) {
+  if (event.button !== 0 || !cell?.parentElement) return
+  event.preventDefault()
+  event.stopPropagation()
+  const handle = event.currentTarget as HTMLElement
+  // Read the grid once; moving the pointer then only does math.
+  const grid = cell.parentElement
+  const style = getComputedStyle(grid)
+  const columns = Math.max(
+    1,
+    Math.round(Number(style.getPropertyValue('--dou-form-columns')) || 12),
+  )
+  const gap = Number.parseFloat(style.columnGap) || 0
+  const unit = (grid.getBoundingClientRect().width + gap) / columns
+  const left = cell.getBoundingClientRect().left
+  const hold = holdPointer(event, handle)
+  hold.grab()
+  const node = formNodePlaces(state.document).get(id)?.node
+  const span = node?.span
+  const key = span !== undefined && typeof span === 'object' ? activeSpanKey(span, cell) : null
+  const current = () => {
+    const now = formNodePlaces(state.document).get(id)?.node.span
+    if (now === undefined) return columns
+    if (typeof now === 'number') return now
+    return now[key ?? 'base'] ?? now.base ?? columns
+  }
+  let last = current()
+  handle.dataset.value = `${last} / ${columns}`
+  cell.classList.add('is-resizing')
+
+  const onMove = (e: PointerEvent) => {
+    if (e.pointerId !== event.pointerId) return
+    const next = Math.min(columns, Math.max(1, Math.round((e.clientX - left + gap) / unit)))
+    if (next === last) return
+    last = next
+    handle.dataset.value = `${next} / ${columns}`
+    const now = formNodePlaces(state.document).get(id)?.node.span
+    const value =
+      key && now !== undefined && typeof now === 'object'
+        ? { ...now, [key]: next }
+        : next === columns
+          ? undefined
+          : next
+    const tr = state.transaction().update(id, { span: value })
+    tr.setMeta('group', `resize:${id}`)
+    tr.setMeta('origin', 'resize')
+    state.dispatch(tr)
+  }
+  const onUp = (e: PointerEvent) => {
+    if (e.pointerId !== event.pointerId) return
+    window.removeEventListener('pointermove', onMove)
+    window.removeEventListener('pointerup', onUp)
+    window.removeEventListener('pointercancel', onUp)
+    hold.release()
+    delete handle.dataset.value
+    cell.classList.remove('is-resizing')
+  }
+  window.addEventListener('pointermove', onMove)
+  window.addEventListener('pointerup', onUp)
+  window.addEventListener('pointercancel', onUp)
 }

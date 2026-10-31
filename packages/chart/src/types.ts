@@ -1,11 +1,11 @@
-import type { ChartAccessor, ChartRow } from './core/data'
+import type { ChartAccessor, ChartData, ChartRow } from './core/data'
 import type { ChartAxisRole, ChartAxisType, ChartTickValue } from './core/layout'
 import type { ChartSeriesProps } from './core/series'
 import type { ChartMessagesOverride } from './locale'
 
 export interface ChartProps {
   /** The rows to draw. Replace the array to update it; for large data keep it in a `shallowRef`. */
-  data?: readonly ChartRow[]
+  data?: ChartData
   /**
    * The x of each row: a key or a function. Numbers make a number axis,
    * dates (`Date`, `'2026-10-31'`, `'2026-10-31 09:30'`) a time axis, and
@@ -114,7 +114,7 @@ export interface ChartPieProps {
   /** The name of each slice, shown in the legend; defaults to the chart's `x`. */
   label?: ChartAccessor
   /** Rows of this pie alone; defaults to the chart's `data`. */
-  data?: readonly ChartRow[]
+  data?: ChartData
   /** What the pie shows, read out before its slices. */
   name?: string
   /**

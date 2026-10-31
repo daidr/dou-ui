@@ -20,9 +20,9 @@ import {
   watch,
 } from 'vue'
 import { createColorResolver, observeTheme } from './core/colors'
-import { extent, read, type ChartAccessor, type ChartRow } from './core/data'
-import { allX, angleAt, nearestPoint, nearestX, rowAt, sortedOrder } from './core/hit'
-import { numberFormatFull, numberTickFormat, timeFormatFull } from './core/format'
+import { extent, read, rowOf, type ChartAccessor, type ChartRow } from './core/data'
+import { allX, angleAt, nearestPoint, nearestX, neighborGap, rowAt, sortedOrder } from './core/hit'
+import { numberFormatFull, numberTickFormat, timeFormatFull, timePrecision } from './core/format'
 import {
   layoutChart,
   layoutPie,
@@ -150,11 +150,17 @@ function readTheme() {
 }
 
 let stopTheme: (() => void) | undefined
+// a font that loads after the labels were measured makes them wider: measured again
+const fonts = typeof document === 'undefined' ? undefined : document.fonts
 onMounted(() => {
   readTheme()
   stopTheme = observeTheme(readTheme)
+  fonts?.addEventListener?.('loadingdone', readTheme)
 })
-onBeforeUnmount(() => stopTheme?.())
+onBeforeUnmount(() => {
+  stopTheme?.()
+  fonts?.removeEventListener?.('loadingdone', readTheme)
+})
 
 const colors = computed<ChartColors>(() => {
   void themeVersion.value
@@ -704,7 +710,7 @@ function tipOf(a: Active | null): Tip | null {
           }),
           value: slice.value,
           color: sliceColors.value[a.slice],
-          row: (pie.value!.props.data ?? props.data)[slice.index],
+          row: rowOf(pie.value!.props.data ?? props.data, slice.index),
         },
       ],
       anchor: a.pointer ?? [p.cx + Math.sin(middle) * at, p.cy - Math.cos(middle) * at],
@@ -734,16 +740,16 @@ function tipOf(a: Active | null): Tip | null {
     ]
     const sizeOf = s.props.size as ChartAccessor | undefined
     if (sizeOf !== undefined) {
-      const value = Number(read(s.rows[a.row]!, sizeOf, a.row))
+      const value = Number(read(rowOf(s.rows, a.row), sizeOf, a.row))
       const name =
         (s.props.sizeName as string | undefined) ?? (typeof sizeOf === 'string' ? sizeOf : '')
       if (value === value)
         items.push({ name, text: numberFormatFull(locale.value.name)(value), value })
     }
-    for (const item of items) item.row = s.rows[a.row]
+    for (const item of items) item.row = rowOf(s.rows, a.row)
     // a point with a name of its own (a city) is titled by it
     const label = s.props.label as ChartAccessor | undefined
-    const own = label === undefined ? null : read(s.rows[a.row]!, label, a.row)
+    const own = label === undefined ? null : read(rowOf(s.rows, a.row), label, a.row)
     return {
       x: rawX(x),
       title: own == null || own === '' ? s.name : String(own),
@@ -769,7 +775,7 @@ function tipOf(a: Active | null): Tip | null {
       text: valueText(s.axis)(y),
       value: y,
       color: s.color,
-      row: s.rows[row],
+      row: rowOf(s.rows, row),
     })
     if (s.kind.band) band = true
     else {
@@ -1276,8 +1282,8 @@ function rowsIn(x: Window | null, y: Window | null): Pick<ChartBrushEvent, 'rows
         const at = alongY(view.point(value, top))
         if (at < lowY || at > highY) continue
       }
-      rows.push(s.rows[i]!)
-      all.add(s.rows[i]!)
+      rows.push(rowOf(s.rows, i))
+      all.add(rowOf(s.rows, i))
     }
     bySeries.push({ name: s.name, rows })
   }
@@ -1615,6 +1621,41 @@ watch(
   { flush: 'post' },
 )
 
+/*
+ * What makes zooming and the first hover quick (summaries of long lines, a
+ * scatter's grid), worked out once the data has stayed a moment and the
+ * page is idle: live data, replaced many times a second, never pays for it.
+ */
+
+const STEADY = 300
+let steady = 0
+let idle = 0
+function cancelPrepare() {
+  if (steady) clearTimeout(steady)
+  if (idle) (typeof cancelIdleCallback === 'function' ? cancelIdleCallback : clearTimeout)(idle)
+  steady = idle = 0
+}
+watch(
+  series,
+  (list) => {
+    cancelPrepare()
+    if (!list.some((s) => s.kind.prepare)) return
+    const work = () => {
+      idle = 0
+      for (const s of list) if (s.kind.prepare) s.prepared = s.kind.prepare(s)
+    }
+    steady = setTimeout(() => {
+      steady = 0
+      idle =
+        typeof requestIdleCallback === 'function'
+          ? requestIdleCallback(work, { timeout: 1000 })
+          : (setTimeout(work) as unknown as number)
+    }, STEADY) as unknown as number
+  },
+  { flush: 'post' },
+)
+onBeforeUnmount(cancelPrepare)
+
 /* motion: series come in, and move to new values */
 
 const reduced = useReducedMotion()
@@ -1654,15 +1695,28 @@ function pointCount(): number {
 
 /** Whether the chart has been on screen: it comes in when first seen, not while scrolled away. */
 let seen = typeof IntersectionObserver === 'undefined'
+/**
+ * Whether the chart is on screen, or near it. Off screen nothing is drawn
+ * (live data keeps coming), and it is drawn as it is when it comes back.
+ */
+let onScreen = true
+let missed = false
 let watcher: IntersectionObserver | undefined
 onMounted(() => {
-  if (seen || !rootRef.value) return
-  watcher = new IntersectionObserver((entries) => {
-    if (!entries.some((entry) => entry.isIntersecting)) return
-    seen = true
-    watcher?.disconnect()
-    request()
-  })
+  if (typeof IntersectionObserver === 'undefined' || !rootRef.value) return
+  watcher = new IntersectionObserver(
+    (entries) => {
+      const entry = entries[entries.length - 1]
+      if (!entry) return
+      onScreen = entry.isIntersecting
+      if (!onScreen) return
+      // first seen: it comes in now
+      if (!seen || missed) request()
+      seen = true
+      missed = false
+    },
+    { rootMargin: '200px 0px' },
+  )
   watcher.observe(rootRef.value)
 })
 onBeforeUnmount(() => watcher?.disconnect())
@@ -1762,6 +1816,10 @@ function draw() {
   const canvas = canvasRef.value
   const l = layout.value ?? pieLayout.value
   if (!canvas || !l) return
+  if (!onScreen) {
+    missed = true
+    return
+  }
   const now = typeof performance === 'undefined' ? Date.now() : performance.now()
   startMotion(now)
   const dpr = window.devicePixelRatio || 1
@@ -1995,8 +2053,11 @@ function xText(value: number): string {
   }
   if (m0.xKind === 'time') {
     if (xFormat) return xFormat(new Date(value))
-    const span = m0.x ? m0.x[1] - m0.x[0] : 0
-    return timeFormatFull(name, span < 2 * 86400e3 ? 'minute' : 'day')(value)
+    // as precise as the time itself, and as its nearest neighbor needs
+    let gap = Number.POSITIVE_INFINITY
+    for (const s of series.value) gap = Math.min(gap, neighborGap(s.x.values, value))
+    const { unit, digits } = timePrecision(value, gap)
+    return timeFormatFull(name, unit, digits)(value)
   }
   if (xFormat) return xFormat(value)
   // whole numbers on the axis (years) read as the ticks show them
@@ -2125,11 +2186,48 @@ const stripState = computed(() => {
   }
 })
 
+/**
+ * What the strip's sketch is drawn from: its box, all of x and each y axis'
+ * whole span. Kept the same object while they stay, so panning, which only
+ * moves the shown part, doesn't draw the sketch again.
+ */
+interface StripSketch {
+  rect: Rect
+  x: Window
+  y: Record<string, { full: Window; log: boolean }>
+}
+
+const sameWindow = (a: Window, b: Window) => a[0] === b[0] && a[1] === b[1]
+
+const stripSketch = computed<StripSketch | null>((old) => {
+  const l = layout.value
+  if (!l?.strip || !rangePart.value) return null
+  const next: StripSketch = { rect: l.strip, x: l.x.full, y: {} }
+  for (const [name, axis] of Object.entries(l.y)) {
+    if (axis) next.y[name] = { full: axis.full, log: axis.scale.kind === 'log' }
+  }
+  if (
+    old &&
+    old.rect.x === next.rect.x &&
+    old.rect.y === next.rect.y &&
+    old.rect.width === next.rect.width &&
+    old.rect.height === next.rect.height &&
+    sameWindow(old.x, next.x) &&
+    Object.keys(old.y).length === Object.keys(next.y).length &&
+    Object.entries(next.y).every(([name, axis]) => {
+      const was = old.y[name]
+      return !!was && was.log === axis.log && sameWindow(was.full, axis.full)
+    })
+  )
+    return old
+  return next
+})
+
 /** Draws every series shown on the strip, in one quiet ink, over all of x. */
 function paintStrip(canvas: HTMLCanvasElement) {
-  const l = layout.value
-  const strip = l?.strip
-  if (!l || !strip) return
+  const sketch = stripSketch.value
+  if (!sketch) return
+  const strip = sketch.rect
   void themeVersion.value
   const dpr = dprNow()
   const width = Math.round(strip.width * dpr)
@@ -2151,11 +2249,11 @@ function paintStrip(canvas: HTMLCanvasElement) {
   const x =
     m.xKind === 'category'
       ? categoryScale(m.categories, along)
-      : linearScale(l.x.full, along, m.xKind === 'time' ? 'time' : 'linear')
+      : linearScale(sketch.x, along, m.xKind === 'time' ? 'time' : 'linear')
   const ink = resolveColor('var(--dou-chart-range-ink)')
   const length = horizontal ? strip.height : strip.width
   for (const s of series.value) {
-    const axis = l.y[s.axis]
+    const axis = sketch.y[s.axis]
     if (!axis) continue
     const span: [number, number] = horizontal ? [pad, strip.width - pad] : [strip.height - pad, pad]
     // the data's own span, so the sketch fills the strip
@@ -2163,7 +2261,7 @@ function paintStrip(canvas: HTMLCanvasElement) {
     const ends: Window = m.zero[s.axis]
       ? [Math.min(0, data[0]), Math.max(0, data[1])]
       : [data[0], data[1] > data[0] ? data[1] : data[0] + 1]
-    const y = axis.scale.kind === 'log' ? logScale(axis.full, span) : linearScale(ends, span)
+    const y = axis.log ? logScale(axis.full, span) : linearScale(ends, span)
     const step = m.xStep
     const band = x.kind === 'category' ? x.step : step > 0 ? step * Math.abs(x.k) : length / 8
     const view: ChartView = {
@@ -2191,6 +2289,7 @@ function paintStrip(canvas: HTMLCanvasElement) {
 const zoomLayer: ZoomLayerState = {
   brush: computed(() => brushDraft.value ?? selection.value),
   strip: stripState,
+  sketch: stripSketch,
   least: computed(() => {
     const l = layout.value
     if (!l) return 0

@@ -1,10 +1,12 @@
 import {
   extent,
+  byIndex,
   inferXKind,
+  rowCount,
   xColumn,
   yColumn,
   type ChartAccessor,
-  type ChartRow,
+  type ChartData,
   type XColumn,
   type XKind,
 } from './data'
@@ -30,7 +32,7 @@ export function seriesName(input: Pick<SeriesInput, 'index' | 'props'>): string 
 export interface ModelSeries {
   input: SeriesInput
   name: string
-  rows: readonly ChartRow[]
+  rows: ChartData
   axis: ChartValueAxis
   x: XColumn
   y: Float64Array
@@ -68,8 +70,14 @@ function cachedExtent(values: Float64Array): [number, number] | null {
   return extents.get(values)!
 }
 
-/** Places rows by their index when there is no x. */
-const byIndex: ChartAccessor = (_row, index) => index
+/** The first and last number of a sorted column: its extent, without going through it. */
+function ends(values: Float64Array): [number, number] | null {
+  let a = 0
+  let b = values.length - 1
+  while (a <= b && values[a] !== values[a]) a++
+  while (b >= a && values[b] !== values[b]) b--
+  return a <= b ? [values[a]!, values[b]!] : null
+}
 
 const wholes = new WeakMap<Float64Array, boolean>()
 function allIntegers(values: Float64Array): boolean {
@@ -99,7 +107,7 @@ const merge = (a: [number, number] | null, b: [number, number] | null): [number,
 export function buildModel(
   inputs: SeriesInput[],
   chart: {
-    data: readonly ChartRow[]
+    data: ChartData
     x?: ChartAccessor
     xKind?: XKind
     /** The y axis of series that don't name one. */
@@ -118,7 +126,7 @@ export function buildModel(
     xKind = 'linear'
     for (const input of shown) {
       const { rows, x } = sourceOf(input)
-      if (x !== undefined && rows.length) {
+      if (x !== undefined && rowCount(rows)) {
         xKind = inferXKind(rows, x)
         break
       }
@@ -175,7 +183,7 @@ export function buildModel(
   if (kind === 'category') x = categories.length ? [0, categories.length - 1] : null
   else {
     for (const s of series) {
-      x = merge(x, cachedExtent(s.x.values))
+      x = merge(x, s.x.sorted ? ends(s.x.values) : cachedExtent(s.x.values))
       if (s.input.kind.band) {
         const gap = smallestGap(s.x.values)
         if (!(gap >= xStep)) xStep = gap

@@ -26,6 +26,8 @@ export interface ZoomLayerState {
   reset: () => void
   /** A drag on the strip starts: the tooltip goes. */
   start: () => void
+  /** What the strip's sketch is drawn from: a new value only when it has to be drawn again. */
+  sketch: ComputedRef<unknown>
   /** Draws the series, small, on the strip's canvas. */
   paint: (canvas: HTMLCanvasElement) => void
 }
@@ -38,7 +40,8 @@ const { brush, strip } = state
 const canvas = useTemplateRef<HTMLCanvasElement>('canvas')
 
 watchPostEffect(() => {
-  if (canvas.value && strip.value) state.paint(canvas.value)
+  // not on `strip`: moving the shown part leaves the sketch as it is
+  if (canvas.value && state.sketch.value) state.paint(canvas.value)
 })
 
 const px = (r: Rect) => ({

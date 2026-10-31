@@ -67,6 +67,7 @@ const sheetSidebar = ecosystem('电子表格', [
 ])
 const codeSidebar = ecosystem('代码编辑器', [{ text: '介绍', link: '/code/' }])
 const chartSidebar = ecosystem('图表', [{ text: '介绍', link: '/chart/' }])
+const pivotSidebar = ecosystem('数据透视', [{ text: '介绍', link: '/pivot/' }])
 const formBuilderSidebar = ecosystem('表单设计器', [
   { text: '介绍', link: '/form-builder/' },
   { text: '表单描述', link: '/form-builder/document' },
@@ -99,7 +100,7 @@ export default defineConfig({
       {
         text: '生态系统',
         link: '/ecosystem/',
-        activeMatch: '^/(ecosystem|editor|flow|gantt|sheet|chart|form-builder|code)(/|$)',
+        activeMatch: '^/(ecosystem|editor|flow|gantt|sheet|chart|form-builder|code|pivot)(/|$)',
       },
       { text: '图标', link: '/icons/' },
       { text: '集成', link: '/integrations/vite' },
@@ -139,6 +140,7 @@ export default defineConfig({
             { text: '图表', link: '/chart/' },
             { text: '表单设计器', link: '/form-builder/' },
             { text: '代码编辑器', link: '/code/' },
+            { text: '数据透视', link: '/pivot/' },
           ],
         },
       ],
@@ -149,6 +151,7 @@ export default defineConfig({
       '/chart': chartSidebar,
       '/form-builder': formBuilderSidebar,
       '/code': codeSidebar,
+      '/pivot': pivotSidebar,
       '/icons': [
         {
           text: '图标',
@@ -406,6 +409,15 @@ export default defineConfig({
           replacement: r('../../packages/gantt/src/collaboration/index.ts'),
         },
         { find: /^@dou-ui\/chart$/, replacement: r('../../packages/chart/src/index.ts') },
+        {
+          find: /^@dou-ui\/pivot\/engine$/,
+          replacement: r('../../packages/pivot/src/engine/index.ts'),
+        },
+        { find: /^@dou-ui\/pivot$/, replacement: r('../../packages/pivot/src/index.ts') },
+        {
+          find: /^@dou-ui\/pivot\/style\.css$/,
+          replacement: r('../../packages/pivot/src/style.css'),
+        },
         {
           find: /^@dou-ui\/chart\/style\.css$/,
           replacement: r('../../packages/chart/src/style.css'),

@@ -29,6 +29,8 @@ export interface GanttTask<Data extends GanttData = GanttData> {
   collapsed?: boolean
   /** Can't be moved or resized. */
   locked?: boolean
+  /** The id of the resource it is assigned to, for `DouScheduler`. */
+  resource?: string
   /** Your own fields, e.g. for columns. */
   data?: Data
 }

@@ -379,7 +379,8 @@
   .dou-gantt__header {
     position: sticky;
     top: 0;
-    z-index: 2;
+    /* above the bars and pinned titles scrolled under it */
+    z-index: 4;
     box-sizing: border-box;
     height: 56px;
     border-bottom: 1px solid var(--dou-gantt-line-strong);
@@ -1104,6 +1105,90 @@
 
     &:empty {
       display: none;
+    }
+  }
+
+  /* scheduler: rows are resources, as tall as their lanes ------------------- */
+
+  .dou-gantt.is-scheduler .dou-gantt__body {
+    background-image: none;
+  }
+
+  /* without the table, a resource's name sits on its row as a small tag over the bars */
+  .is-scheduler .dou-gantt__row-title:not(.is-summary) {
+    top: calc((var(--dou-gantt-row-height) - 20px) / 2);
+    left: 8px;
+    height: 20px;
+    padding: 0 6px;
+    border: 1px solid var(--dou-gantt-line-strong);
+    border-radius: 4px;
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-sm);
+    font-size: 12px;
+    text-shadow: none;
+  }
+
+  .dou-gantt__lane-row {
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    box-shadow: inset 0 -1px 0 var(--dou-gantt-line);
+    pointer-events: none;
+
+    &.is-hovered {
+      background-color: var(--dou-gantt-hover);
+    }
+    &.is-group {
+      background-color: var(--dou-gantt-hover);
+    }
+  }
+
+  .is-scheduler .dou-gantt__tr {
+    align-items: flex-start;
+
+    > .dou-gantt__td {
+      height: var(--dou-gantt-row-height);
+    }
+    &.is-group {
+      background-color: var(--dou-gantt-hover);
+      font-weight: var(--dou-font-weight-medium);
+    }
+    &.is-overloaded .dou-gantt__cell-text::after {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      margin-left: 6px;
+      border-radius: 50%;
+      background-color: var(--dou-color-warning);
+      vertical-align: middle;
+      content: '';
+    }
+  }
+
+  .dou-gantt__cell-text.is-unassigned {
+    color: var(--dou-color-text-secondary);
+  }
+
+  /* how busy a resource is: darker with more at once, warning past its capacity */
+  .dou-gantt__load {
+    --dou-gantt-load: 1;
+
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1;
+    height: 4px;
+    border-radius: 2px;
+    background-color: color-mix(
+      in oklab,
+      var(--dou-color-text) calc(6% + 14% * var(--dou-gantt-load)),
+      transparent
+    );
+    pointer-events: none;
+
+    &.is-over {
+      background-color: var(--dou-color-warning);
     }
   }
 }

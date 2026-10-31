@@ -35,6 +35,10 @@
       "types": "./dist/types/collaboration/index.d.ts",
       "import": "./dist/collaboration/index.js"
     },
+    "./scheduler": {
+      "types": "./dist/types/scheduler/index.d.ts",
+      "import": "./dist/scheduler/index.js"
+    },
     "./style.css": "./dist/style.css",
     "./package.json": "./package.json"
   },

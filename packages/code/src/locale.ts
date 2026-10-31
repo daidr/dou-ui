@@ -35,6 +35,22 @@ export interface CodeMessages {
   unfolded: string
   foldedAll: string
   unfoldedAll: string
+  /** The toolbar over a selection on touch screens. */
+  editMenu: string
+  cut: string
+  copy: string
+  paste: string
+  selectAll: string
+  /** The bar of symbol keys above a phone's keyboard. */
+  keys: string
+  /** The Tab key on that bar. */
+  indent: string
+  cursorLeft: string
+  cursorRight: string
+  cursorUp: string
+  cursorDown: string
+  undo: string
+  redo: string
   /** Read out after replacing: `{count}`. */
   replaced: string
 }
@@ -63,6 +79,19 @@ export const zhCN: CodeMessages = {
   unfolded: '已展开',
   foldedAll: '已全部折叠',
   unfoldedAll: '已全部展开',
+  editMenu: '编辑',
+  cut: '剪切',
+  copy: '复制',
+  paste: '粘贴',
+  selectAll: '全选',
+  keys: '符号栏',
+  indent: '缩进',
+  cursorLeft: '光标左移',
+  cursorRight: '光标右移',
+  cursorUp: '光标上移',
+  cursorDown: '光标下移',
+  undo: '撤销',
+  redo: '重做',
 }
 
 export const zhTW: CodeMessages = {
@@ -89,6 +118,19 @@ export const zhTW: CodeMessages = {
   unfolded: '已展開',
   foldedAll: '已全部摺疊',
   unfoldedAll: '已全部展開',
+  editMenu: '編輯',
+  cut: '剪下',
+  copy: '拷貝',
+  paste: '貼上',
+  selectAll: '全選',
+  keys: '符號列',
+  indent: '縮排',
+  cursorLeft: '游標左移',
+  cursorRight: '游標右移',
+  cursorUp: '游標上移',
+  cursorDown: '游標下移',
+  undo: '復原',
+  redo: '重做',
 }
 
 export const en: CodeMessages = {
@@ -115,6 +157,19 @@ export const en: CodeMessages = {
   unfolded: 'Unfolded',
   foldedAll: 'Folded all',
   unfoldedAll: 'Unfolded all',
+  editMenu: 'Edit',
+  cut: 'Cut',
+  copy: 'Copy',
+  paste: 'Paste',
+  selectAll: 'Select all',
+  keys: 'Symbols',
+  indent: 'Indent',
+  cursorLeft: 'Move left',
+  cursorRight: 'Move right',
+  cursorUp: 'Move up',
+  cursorDown: 'Move down',
+  undo: 'Undo',
+  redo: 'Redo',
 }
 
 export const codeLocales: Record<string, CodeMessages> = {

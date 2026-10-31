@@ -1,10 +1,18 @@
 import { withInstall } from 'dou-ui'
 import CodeEditor from './code-editor.vue'
+import CodeKeys from './code-keys.vue'
 
 export const DouCodeEditor = withInstall(CodeEditor)
+export const DouCodeKeys = withInstall(CodeKeys)
 export default DouCodeEditor
 
-export type { CodeEditorEmits, CodeEditorExpose, CodeEditorProps } from './types'
+export type {
+  CodeEditorEmits,
+  CodeEditorExpose,
+  CodeEditorProps,
+  CodeKey,
+  CodeKeysProps,
+} from './types'
 export { CodeText, splitLines } from './core/text'
 export type { CodeLine } from './core/text'
 export { ChangeSet } from './core/changes'
@@ -70,5 +78,6 @@ export type { CodeMessages } from './locale'
 declare module 'vue' {
   export interface GlobalComponents {
     DouCodeEditor: typeof DouCodeEditor
+    DouCodeKeys: typeof DouCodeKeys
   }
 }

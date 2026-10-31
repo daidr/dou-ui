@@ -5,7 +5,7 @@
 只是展示一段代码时，用 [CodeBlock 代码块](/components/code-block) 更合适。
 
 ::: tip 开发中
-目前完成的是编辑内核和语法高亮：输入、选择、撤销、大文件、语言、括号与缩进。查找替换、折叠、补全和协同编辑会陆续加入。
+目前完成的是编辑内核、语法高亮、多光标、查找替换、自动换行、折叠和手机触控。补全、对比和协同编辑会陆续加入。
 :::
 
 ## 安装
@@ -274,7 +274,7 @@ const keymap: CodeKeyBinding[] = [
 | `foldCode` / `unfoldCode`                  | 折叠 / 展开光标所在的一段             | `Ctrl` + `Shift` + `[` / `]`                      | `⌥` + `⌘` + `[` / `]`                               |
 | `foldAll` / `unfoldAll`                    | 折叠所有最外层的段 / 全部展开         | 无                                                |                                                     |
 
-`codeCommands.insertText(target, text)` 不是按键命令：它像输入一样在每个光标处输入一个字符，并处理括号补全和右括号对齐，处理了返回 `true`。
+`codeCommands.insertText(target, text)` 不是按键命令：它像输入一样在每个光标处输入一个字符，并处理括号补全和右括号对齐，处理了返回 `true`。`codeCommands.typeText(text)` 返回一个命令，像键盘输入一样输入一段文字，适合做成按钮，符号栏就是用它输入的。
 
 ## 自动换行与折叠
 
@@ -285,6 +285,30 @@ const keymap: CodeKeyBinding[] = [
 <DocDemo src="code/wrap-fold" column />
 
 `Ctrl` + `Shift` + `[` / `]`（Apple 上是 `⌥` + `⌘` + `[` / `]`）折叠、展开光标所在的一段。实例方法 `fold(line?)`、`unfold(line?)`、`foldAll()`、`unfoldAll()` 用代码折叠，`line` 是从 1 开始的行号，和行号栏一致；它们返回 `boolean`，表示有没有折叠或展开。`folds` 是现在折叠着的各段的起始行号。折叠状态变化时触发 `fold-change` 事件，参数也是各段的起始行号，保存下来，之后逐个传给 `fold(line)` 就能恢复。用键盘折叠、展开时，读屏会读出折叠了哪几行。折叠是视图的状态，不影响 `v-model`；不需要折叠时把 `foldable` 设为 `false`。
+
+## 手机触控
+
+在触屏上，轻点放置光标并弹出键盘，光标下方出现一个把手，拖动它移动光标；再点一下光标，弹出粘贴、全选的工具条。长按选中一个词，不松手继续滑动按词扩大选区；选区两端各有一个把手，拖动时手指上方显示放大的当前行。选好后选区上方出现剪切、复制、粘贴、全选的工具条，按 `Esc`、点别处或修改文字后收起。手指在文字上滑动仍然是滚动，只有长按和拖把手才会选择。
+
+编辑器获得焦点时，键盘上方显示一条符号栏：左侧可以横向滑动，有 `Tab`、各种括号和代码里常用的符号，以及撤销、重做；右侧固定四个方向键，按住会连续移动。符号栏输入的括号和引号与键盘输入一样会自动补全。键盘弹出或收起时，编辑器会滚动，让光标留在键盘和符号栏上方。
+
+`keys` 传数组可以改写左侧可以滑动的按键，字符串表示输入它本身的按键；设为 `false` 不显示符号栏。符号栏也可以单独使用：`DouCodeKeys` 通过 `editor` 绑定一个编辑器，放在页面里的任何位置，下面的例子在桌面上把它放在编辑器下方，用鼠标也能点；在触屏上用的是编辑器自带的那一条。
+
+<DocDemo src="code/touch" column />
+
+自定义按键时，`command` 可以是任意命令，比如 `codeCommands.typeText('=>')` 输入一段文字，`codeCommands.toggleComment` 切换注释：
+
+```ts
+import { codeCommands } from '@dou-ui/code'
+
+const keys = [
+  { label: 'Tab', command: codeCommands.insertTab },
+  '(',
+  ')',
+  { label: '=>', command: codeCommands.typeText(' => ') },
+  { label: '//', command: codeCommands.toggleComment, ariaLabel: '切换注释' },
+]
+```
 
 ## 大文件
 
@@ -332,28 +356,29 @@ const doc = shallowRef(CodeText.of(source))
 
 ### Props
 
-| 名称                | 说明                            | 类型                    | 默认值     |
-| ------------------- | ------------------------------- | ----------------------- | ---------- |
-| `v-model`           | 代码                            | `string`                | —          |
-| `v-model:doc`       | 代码，作为 `CodeText`，大文件用 | `CodeText`              | —          |
-| `v-model:selection` | 选区                            | `CodeSelection`         | 开头的光标 |
-| `readonly`          | 只读                            | `boolean`               | `false`    |
-| `disabled`          | 禁用                            | `boolean`               | `false`    |
-| `line-numbers`      | 显示行号                        | `boolean`               | `true`     |
-| `active-line`       | 给光标所在行加底色              | `boolean`               | `true`     |
-| `tab-size`          | 制表位宽度                      | `number`                | `2`        |
-| `indent-with-tabs`  | 用制表符缩进                    | `boolean`               | `false`    |
-| `placeholder`       | 文本为空时的提示                | `string`                | —          |
-| `language`          | 语言                            | `CodeLanguage`          | —          |
-| `close-brackets`    | 输入括号和引号时补上另一半      | `boolean`               | `true`     |
-| `match-brackets`    | 标出光标旁的括号和它的配对      | `boolean`               | `true`     |
-| `searchable`        | 提供查找替换面板                | `boolean`               | `true`     |
-| `wrap`              | 长行自动换行                    | `boolean`               | `false`    |
-| `foldable`          | 显示折叠箭头，允许折叠          | `boolean`               | `true`     |
-| `messages`          | 改写查找面板上的文字            | `Partial<CodeMessages>` | —          |
-| `keymap`            | 额外的按键，比内置的优先        | `CodeKeyBinding[]`      | —          |
-| `autofocus`         | 挂载后获得焦点                  | `boolean`               | `false`    |
-| `aria-label`        | 读屏读出的名称                  | `string`                | —          |
+| 名称                | 说明                                           | 类型                               | 默认值     |
+| ------------------- | ---------------------------------------------- | ---------------------------------- | ---------- |
+| `v-model`           | 代码                                           | `string`                           | —          |
+| `v-model:doc`       | 代码，作为 `CodeText`，大文件用                | `CodeText`                         | —          |
+| `v-model:selection` | 选区                                           | `CodeSelection`                    | 开头的光标 |
+| `readonly`          | 只读                                           | `boolean`                          | `false`    |
+| `disabled`          | 禁用                                           | `boolean`                          | `false`    |
+| `line-numbers`      | 显示行号                                       | `boolean`                          | `true`     |
+| `active-line`       | 给光标所在行加底色                             | `boolean`                          | `true`     |
+| `tab-size`          | 制表位宽度                                     | `number`                           | `2`        |
+| `indent-with-tabs`  | 用制表符缩进                                   | `boolean`                          | `false`    |
+| `placeholder`       | 文本为空时的提示                               | `string`                           | —          |
+| `language`          | 语言                                           | `CodeLanguage`                     | —          |
+| `close-brackets`    | 输入括号和引号时补上另一半                     | `boolean`                          | `true`     |
+| `match-brackets`    | 标出光标旁的括号和它的配对                     | `boolean`                          | `true`     |
+| `searchable`        | 提供查找替换面板                               | `boolean`                          | `true`     |
+| `wrap`              | 长行自动换行                                   | `boolean`                          | `false`    |
+| `foldable`          | 显示折叠箭头，允许折叠                         | `boolean`                          | `true`     |
+| `keys`              | 触屏上键盘上方的符号栏；数组改写可以滑动的按键 | `boolean \| (CodeKey \| string)[]` | `true`     |
+| `messages`          | 改写编辑器上的文字（查找面板、工具条、符号栏） | `Partial<CodeMessages>`            | —          |
+| `keymap`            | 额外的按键，比内置的优先                       | `CodeKeyBinding[]`                 | —          |
+| `autofocus`         | 挂载后获得焦点                                 | `boolean`                          | `false`    |
+| `aria-label`        | 读屏读出的名称                                 | `string`                           | —          |
 
 ### Events
 
@@ -383,3 +408,13 @@ const doc = shallowRef(CodeText.of(source))
 | `fold(line?)`、`unfold(line?)` | 折叠、展开某一行（从 1 开始）开始的一段，不传时用光标所在的行；返回有没有变化 |
 | `foldAll()`、`unfoldAll()`     | 折叠所有最外层的段、全部展开；返回有没有变化                                  |
 | `folds`                        | 现在折叠着的各段的起始行号                                                    |
+
+### DouCodeKeys Props
+
+| 名称       | 说明                                     | 类型                    | 默认值 |
+| ---------- | ---------------------------------------- | ----------------------- | ------ |
+| `editor`   | 按键输入到的编辑器（实例）               | `CodeEditorExpose`      | —      |
+| `keys`     | 可以滑动的按键；末尾的四个方向键一直都在 | `(CodeKey \| string)[]` | —      |
+| `messages` | 改写按键的名称                           | `Partial<CodeMessages>` | —      |
+
+`CodeKey` 的字段：`label` 按键上显示的文字，有图标时是它的名称；`text` 按下时输入的文字，默认是 `label`；`command` 按下时执行的命令，代替输入；`icon` 代替文字显示的图标；`repeat` 按住时连续触发；`ariaLabel` 读屏读出的名称。

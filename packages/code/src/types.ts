@@ -1,3 +1,4 @@
+import type { Component } from 'vue'
 import type { CodeCommand } from './core/commands'
 import type { CodeKeyBinding } from './core/keymap'
 import type { CodeSearchQuery } from './core/search'
@@ -49,10 +50,40 @@ export interface CodeEditorProps {
   foldable?: boolean
   /** Replaces any of the editor's texts, which otherwise follow DouUI's locale. */
   messages?: Partial<CodeMessages>
+  /**
+   * The bar of symbol keys above a phone's keyboard, shown on touch screens
+   * while the editor can be typed in. An array sets the keys that scroll;
+   * a string is a key that types itself. `false` leaves the bar out. On by default.
+   */
+  keys?: boolean | Array<CodeKey | string>
   /** Extra keys, tried before the built-in ones. */
   keymap?: CodeKeyBinding[]
   autofocus?: boolean
   ariaLabel?: string
+}
+
+/** A key on the bar of symbols (`DouCodeKeys`). */
+export interface CodeKey {
+  /** What the key shows, or its name when it shows an icon. */
+  label: string
+  /** Typed when pressed, as from the keyboard: a bracket closes itself. Defaults to `label`. */
+  text?: string
+  /** Run when pressed, instead of typing. */
+  command?: CodeCommand
+  /** Drawn instead of the label. */
+  icon?: Component
+  /** Held down, the key goes on. */
+  repeat?: boolean
+  /** What screen readers read, when the label doesn't say it. */
+  ariaLabel?: string
+}
+
+export interface CodeKeysProps {
+  /** The editor the keys type into. */
+  editor?: (Pick<CodeEditorExpose, 'run'> & Partial<Pick<CodeEditorExpose, 'focus'>>) | null
+  /** The keys that scroll; a string is a key that types itself. The arrow keys at the end always stay. */
+  keys?: Array<CodeKey | string>
+  messages?: Partial<CodeMessages>
 }
 
 export interface CodeEditorEmits {

@@ -67,10 +67,17 @@ export function hiddenLines(doc: CodeText, folds: readonly CodeFold[]): Array<[n
   const ranges = folds
     .map((fold): [number, number] => [doc.lineAt(fold.from).number + 1, doc.lineAt(fold.to).number])
     .filter(([from, to]) => to >= from)
+  return mergeRanges(ranges)
+}
+
+/** Line ranges sorted, with the ones that overlap or touch joined. */
+export function mergeRanges(
+  ranges: ReadonlyArray<readonly [number, number]>,
+): Array<[number, number]> {
   // oxlint-disable-next-line unicorn/no-array-sort -- sorts a fresh array
-  ranges.sort((a, b) => a[0] - b[0])
+  const sorted = ranges.slice().sort((a, b) => a[0] - b[0])
   const out: Array<[number, number]> = []
-  for (const range of ranges) {
+  for (const range of sorted) {
     const last = out[out.length - 1]
     if (last && range[0] <= last[1] + 1) last[1] = Math.max(last[1], range[1])
     else out.push([range[0], range[1]])

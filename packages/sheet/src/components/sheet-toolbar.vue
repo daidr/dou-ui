@@ -1,8 +1,5 @@
 <script setup lang="ts">
 import {
-  AlignBottomIcon,
-  AlignCenterVerticalIcon,
-  AlignTopIcon,
   BaselineIcon,
   BoldIcon,
   CellsMergeIcon,
@@ -10,7 +7,6 @@ import {
   ChevronDownIcon,
   DecimalDecreaseIcon,
   DecimalIncreaseIcon,
-  EraserIcon,
   ItalicIcon,
   PaintBucketIcon,
   PaletteIcon,
@@ -20,6 +16,10 @@ import {
   TextAlignCenterIcon,
   TextAlignLeftIcon,
   TextAlignRightIcon,
+  TextValignBottomIcon,
+  TextValignMiddleIcon,
+  TextValignTopIcon,
+  TypeXIcon,
   UnderlineIcon,
   UndoIcon,
   WrapTextIcon,
@@ -257,9 +257,9 @@ const ALIGN = [
   { value: 'right', icon: TextAlignRightIcon, label: 'alignRight' },
 ] as const
 const VALIGN = [
-  { value: 'top', icon: AlignTopIcon, label: 'alignTop' },
-  { value: 'middle', icon: AlignCenterVerticalIcon, label: 'alignMiddle' },
-  { value: 'bottom', icon: AlignBottomIcon, label: 'alignBottom' },
+  { value: 'top', icon: TextValignTopIcon, label: 'alignTop' },
+  { value: 'middle', icon: TextValignMiddleIcon, label: 'alignMiddle' },
+  { value: 'bottom', icon: TextValignBottomIcon, label: 'alignBottom' },
 ] as const
 
 // what the cell does without a style: numbers right, text left, and the middle
@@ -658,7 +658,7 @@ onBeforeUnmount(() => observer?.disconnect())
             :disabled="disabled"
             @click="clear"
           >
-            <EraserIcon />
+            <TypeXIcon />
           </DouButton>
           <template #content>
             <span class="dou-sheet-toolbar__tip"

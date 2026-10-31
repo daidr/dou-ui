@@ -26,6 +26,8 @@ export interface PivotMessages {
   sortValue: string
   /** Shown, and read out, when no record passes the filters. */
   noData: string
+  /** Shown over the table while a worker sums up. */
+  busy: string
   /** Group labels when a date field is grouped by a period: `{year}`, `{quarter}`, `{week}`. */
   yearLabel: string
   quarterLabel: string
@@ -117,6 +119,7 @@ const zhCN: PivotMessages = {
   sortField: '按{field}排序',
   sortValue: '按这一列排序',
   noData: '没有数据',
+  busy: '正在汇总…',
   yearLabel: '{year} 年',
   quarterLabel: '{year} 年 Q{quarter}',
   weekLabel: '{year} 年第 {week} 周',
@@ -187,6 +190,7 @@ const zhTW: PivotMessages = {
   sortField: '依{field}排序',
   sortValue: '依這一欄排序',
   noData: '沒有資料',
+  busy: '正在彙總…',
   yearLabel: '{year} 年',
   quarterLabel: '{year} 年 Q{quarter}',
   weekLabel: '{year} 年第 {week} 週',
@@ -257,6 +261,7 @@ const en: PivotMessages = {
   sortField: 'Sort by {field}',
   sortValue: 'Sort by this column',
   noData: 'No data',
+  busy: 'Summing up…',
   yearLabel: '{year}',
   quarterLabel: 'Q{quarter} {year}',
   weekLabel: 'Week {week}, {year}',

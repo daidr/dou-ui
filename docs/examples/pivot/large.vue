@@ -1,58 +1,59 @@
 <script setup>
-import { DouButton, DouSpace } from 'dou-ui'
+import { DouSegmentedControl } from 'dou-ui'
 import { DouPivot } from '@dou-ui/pivot'
-import { nextTick, onMounted, ref, shallowRef } from 'vue'
-import { fields, makeOrders } from './orders'
+import { onMounted, ref, shallowRef, watch } from 'vue'
+import { fields, orderColumnSteps } from './orders'
 
-// 大数据放在 shallowRef 里：数组整体替换，不需要逐项响应
-const rows = shallowRef([])
-const took = ref('')
-const loading = ref(0)
+// 大数据放在 shallowRef 里：整体替换，不需要逐项响应
+const data = shallowRef({})
+const count = ref(100_000)
+const loading = ref(false)
 const config = ref({
   rows: ['region', 'city', 'category'],
   columns: ['quarter', 'month'],
   values: ['amount', { field: 'cups', aggregate: 'sum' }],
 })
 
-const frame = () => new Promise((resolve) => requestAnimationFrame(() => resolve()))
-
-async function load(count) {
-  loading.value = count
-  took.value = `正在汇总 ${count.toLocaleString()} 条订单…`
-  // 先让提示显示出来，再在主线程上汇总
-  await frame()
-  await frame()
-  const data = makeOrders(count, count)
-  const start = performance.now()
-  rows.value = data
-  await nextTick()
-  took.value = `${count.toLocaleString()} 条订单，分组、汇总并渲染用时 ${Math.round(performance.now() - start)} ms`
-  loading.value = 0
+let run = 0
+// 按列生成，每生成 2 万条让出一次主线程，生成时页面也能操作
+async function load(n) {
+  const id = ++run
+  loading.value = true
+  const steps = orderColumnSteps(n, n)
+  let step
+  do {
+    await new Promise((resolve) => setTimeout(resolve))
+    if (id !== run) return
+    step = steps.next()
+  } while (!step.done)
+  data.value = step.value
+  loading.value = false
 }
 
-onMounted(() => load(100_000))
+onMounted(() => load(count.value))
+watch(count, load)
 </script>
 
 <template>
   <div class="pivot-demo">
-    <DouSpace>
-      <DouButton
+    <div class="bar">
+      <DouSegmentedControl
+        v-model="count"
         size="sm"
-        :loading="loading === 100_000"
-        :disabled="loading > 0"
-        @click="load(100_000)"
-        >10 万条</DouButton
-      >
-      <DouButton
-        size="sm"
-        :loading="loading === 1_000_000"
-        :disabled="loading > 0"
-        @click="load(1_000_000)"
-        >100 万条</DouButton
-      >
-      <span class="took">{{ took }}</span>
-    </DouSpace>
-    <DouPivot v-model:config="config" :data="rows" :fields="fields" :max-height="440" />
+        :options="[
+          { value: 100_000, label: '10 万条' },
+          { value: 1_000_000, label: '100 万条' },
+        ]"
+      />
+      <span class="note">{{
+        loading
+          ? '正在生成数据…'
+          : count > 100_000
+            ? '在 worker 中汇总，汇总时页面照常响应'
+            : '在页面中直接汇总'
+      }}</span>
+    </div>
+    <DouPivot v-model:config="config" :data="data" :fields="fields" :max-height="440" />
   </div>
 </template>
 
@@ -63,7 +64,13 @@ onMounted(() => load(100_000))
   flex-direction: column;
   gap: 12px;
 }
-.took {
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.note {
   color: var(--dou-color-text-tertiary);
   font-size: var(--dou-font-size-sm);
 }

@@ -4,9 +4,9 @@ import {
   FAST_AGGREGATES,
   type PivotAggregator,
 } from './aggregate'
-import { IntIndex } from './hash'
+import { IntIndex, typed, type PivotIndexPacket } from './hash'
 import type { PivotResolvedField, PivotSource } from './source'
-import { PivotTree, PivotTreeBuilder, type PivotLevel } from './tree'
+import { PivotTree, PivotTreeBuilder, type PivotLevel, type PivotTreePacket } from './tree'
 import type { PivotConfig, PivotDimension, PivotFormat, PivotValueSort } from './types'
 
 /** A value of the config with everything filled in. */
@@ -404,6 +404,63 @@ interface PivotResultInit {
   leafCol: Int32Array
 }
 
+/**
+ * A `PivotResult` as data: typed arrays a worker moves to the page without
+ * copying, or plain arrays from JSON (a result summed up on a server).
+ */
+export interface PivotPacket {
+  rows: PivotTreePacket
+  columns: PivotTreePacket
+  values: {
+    field: string | null
+    aggregate: string
+    integer: boolean
+    implicit?: boolean
+    label?: string
+  }[]
+  matched: number
+  cells: PivotIndexPacket
+  width: number
+  data: ArrayLike<number>[]
+  slotOf: ArrayLike<number>
+  leafRow: ArrayLike<number>
+  leafCol: ArrayLike<number>
+}
+
+const plainArray = (a: ArrayLike<number>) => Array.from(a)
+
+/** A packet with plain arrays in place of typed ones, ready for JSON. */
+function toPlain(packet: PivotPacket): PivotPacket {
+  const tree = (t: PivotTreePacket): PivotTreePacket => ({
+    ...t,
+    parent: plainArray(t.parent),
+    depth: plainArray(t.depth),
+    code: plainArray(t.code),
+    childStart: plainArray(t.childStart),
+    children: plainArray(t.children),
+    enter: plainArray(t.enter),
+    exit: plainArray(t.exit),
+    index: index(t.index),
+    levels: t.levels.map((l) => ({ ...l, rank: plainArray(l.rank) })),
+  })
+  const index = (i: PivotIndexPacket): PivotIndexPacket => ({
+    size: i.size,
+    table: plainArray(i.table),
+    ids: plainArray(i.ids),
+    keys: plainArray(i.keys).slice(0, i.size),
+  })
+  return {
+    ...packet,
+    rows: tree(packet.rows),
+    columns: tree(packet.columns),
+    cells: index(packet.cells),
+    data: packet.data.map((d) => Array.from(d, (v) => (v === v ? v : (null as never)))),
+    slotOf: plainArray(packet.slotOf),
+    leafRow: plainArray(packet.leafRow),
+    leafCol: plainArray(packet.leafCol),
+  }
+}
+
 /** The groups on both axes and every cell's values. */
 export class PivotResult {
   readonly rows: PivotTree
@@ -430,6 +487,83 @@ export class PivotResult {
     this.slotOf = init.slotOf
     this.leafRow = init.leafRow
     this.leafCol = init.leafCol
+  }
+
+  /**
+   * The result as data, to send from a worker or a server. With `plain`,
+   * plain arrays for `JSON.stringify` (typed arrays do not survive it);
+   * empty cells go as `null`.
+   */
+  pack({ plain = false }: { plain?: boolean } = {}): PivotPacket {
+    const packet = this.packTyped()
+    return plain ? toPlain(packet) : packet
+  }
+
+  private packTyped(): PivotPacket {
+    return {
+      rows: this.rows.pack(),
+      columns: this.columns.pack(),
+      values: this.values.map((v) => ({
+        field: v.field?.name ?? null,
+        aggregate: v.aggregate,
+        integer: v.integer,
+        ...(v.implicit ? { implicit: true } : {}),
+        ...(v.label === undefined ? {} : { label: v.label }),
+      })),
+      matched: this.matched,
+      cells: this.cells.pack(),
+      width: this.width,
+      data: this.data,
+      slotOf: this.slotOf,
+      leafRow: this.leafRow,
+      leafCol: this.leafCol,
+    }
+  }
+
+  /** The typed arrays in a packet, to move them instead of copying (`postMessage`'s transfer list). */
+  static transferables(packet: PivotPacket): ArrayBuffer[] {
+    const out = new Set<ArrayBuffer>()
+    const add = (a: ArrayLike<number>) => {
+      if (ArrayBuffer.isView(a) && a.buffer instanceof ArrayBuffer) out.add(a.buffer)
+    }
+    for (const tree of [packet.rows, packet.columns]) {
+      for (const a of [tree.parent, tree.depth, tree.code, tree.childStart, tree.children]) add(a)
+      for (const a of [tree.enter, tree.exit, tree.index.table, tree.index.ids, tree.index.keys])
+        add(a)
+      // a level's order belongs to the source, which keeps it for the next result
+    }
+    for (const a of [packet.cells.table, packet.cells.ids, packet.cells.keys]) add(a)
+    for (const a of [...packet.data, packet.slotOf, packet.leafRow, packet.leafCol]) add(a)
+    return [...out]
+  }
+
+  /**
+   * A result made from `pack()`'s output. Fields are described by
+   * `source` (no record is read), formats come from `config`.
+   */
+  static unpack<Row>(packet: PivotPacket, source: PivotSource<Row>, config?: PivotConfig) {
+    const field = (name: string) => source.field(name) as PivotResolvedField<unknown>
+    const given = config?.values ?? []
+    return new PivotResult({
+      rows: PivotTree.unpack(packet.rows, field),
+      columns: PivotTree.unpack(packet.columns, field),
+      values: packet.values.map((v, i) => {
+        const f = v.field === null ? null : field(v.field)
+        const spec = v.implicit ? undefined : given[i]
+        const format = typeof spec === 'object' ? spec.format : undefined
+        return { ...v, field: f, format: format ?? f?.format }
+      }),
+      matched: packet.matched,
+      cells: IntIndex.unpack(packet.cells),
+      width: packet.width,
+      // JSON wrote NaN (an empty cell) as null
+      data: packet.data.map((d) =>
+        d instanceof Float64Array ? d : Float64Array.from(d, (v) => v ?? Number.NaN),
+      ),
+      slotOf: typed(Int32Array, packet.slotOf),
+      leafRow: typed(Int32Array, packet.leafRow),
+      leafCol: typed(Int32Array, packet.leafCol),
+    })
   }
 
   /**

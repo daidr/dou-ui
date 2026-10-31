@@ -19,6 +19,7 @@
       "@dou-ui/code": ["./packages/code/src/index.ts"],
       "@dou-ui/pivot": ["./packages/pivot/src/index.ts"],
       "@dou-ui/pivot/engine": ["./packages/pivot/src/engine/index.ts"],
+      "@dou-ui/pivot/worker": ["./packages/pivot/src/worker/index.ts"],
       "@dou-ui/form-builder": ["./packages/form-builder/src/index.ts"],
       "@dou-ui/form-builder/renderer": ["./packages/form-builder/src/renderer/index.ts"],
       "@dou-ui/form-builder/collaboration": ["./packages/form-builder/src/collaboration/index.ts"],

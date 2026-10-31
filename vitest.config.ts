@@ -37,6 +37,10 @@ export default defineConfig({
         find: /^@dou-ui\/pivot\/engine$/,
         replacement: r('./packages/pivot/src/engine/index.ts'),
       },
+      {
+        find: /^@dou-ui\/pivot\/worker$/,
+        replacement: r('./packages/pivot/src/worker/index.ts'),
+      },
       { find: /^@dou-ui\/pivot$/, replacement: r('./packages/pivot/src/index.ts') },
       {
         find: /^@dou-ui\/form-builder\/renderer$/,

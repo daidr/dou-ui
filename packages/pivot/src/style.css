@@ -425,6 +425,34 @@
     color: var(--dou-color-text-tertiary);
     pointer-events: none;
   }
+
+  .dou-pivot__veil {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: color-mix(in srgb, var(--dou-pivot-bg) 60%, transparent);
+    pointer-events: none;
+    animation: dou-pivot-veil var(--dou-motion-duration-fast) var(--dou-motion-easing);
+  }
+
+  .dou-pivot__busy {
+    padding: 6px 12px;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-control);
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-sm);
+    color: var(--dou-color-text-secondary);
+    font-size: var(--dou-font-size-sm);
+  }
+
+  @keyframes dou-pivot-veil {
+    from {
+      opacity: 0;
+    }
+  }
 }
 
 /* the tabular layout, column widths */

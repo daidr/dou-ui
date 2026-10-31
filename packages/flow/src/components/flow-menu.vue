@@ -1,19 +1,64 @@
 <script setup lang="ts">
-import { DouContextMenu, DouDropdownItem, DouIcon } from 'dou-ui'
-import { useTemplateRef } from 'vue'
+import { DouContextMenu, DouDropdownItem, DouDropdownRadioGroup, DouIcon } from 'dou-ui'
+import { computed, defineComponent, h, nextTick, useTemplateRef, type PropType } from 'vue'
 import type { FlowMenuItem } from '../core/menu'
 
-defineProps<{ items: FlowMenuItem[] }>()
+const props = defineProps<{ items: FlowMenuItem[] }>()
 const emit = defineEmits<{ select: [key: unknown] }>()
 const open = defineModel<boolean>('open', { default: false })
 
 // Shortcuts mean nothing without a keyboard.
 const coarse = () => typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches
 
+/** Every item marked or not: one choice, read as radio items. */
+const choice = computed(
+  () => props.items.length > 0 && props.items.every((item) => item.checked !== undefined),
+)
+const picked = computed(() => props.items.find((item) => item.checked)?.key)
+
+// One item; `checked` is left to the radio group in a choice.
+const Item = defineComponent({
+  props: { item: { type: Object as PropType<FlowMenuItem>, required: true }, radio: Boolean },
+  setup(itemProps) {
+    return () => {
+      const { item } = itemProps
+      return h(
+        DouDropdownItem,
+        {
+          value: item.key,
+          disabled: item.disabled,
+          tone: item.tone,
+          divided: item.divided,
+          checked: itemProps.radio ? undefined : item.checked,
+          shortcut: coarse() ? undefined : item.shortcut,
+        },
+        {
+          default: () => item.label,
+          prefix: item.icon ? () => h(DouIcon, null, () => h(item.icon!)) : undefined,
+        },
+      )
+    }
+  },
+})
+
 const menu = useTemplateRef<InstanceType<typeof DouContextMenu>>('menu')
 
 defineExpose({
-  open: (x: number, y: number) => menu.value?.open(x, y),
+  /** `focusChecked` puts focus on the option in use, for a menu opened from the keyboard. */
+  open(x: number, y: number, focusChecked = false) {
+    menu.value?.open(x, y)
+    if (!focusChecked) return
+    // after the menu has focused itself
+    void nextTick(() =>
+      nextTick(() => {
+        const panel = document.activeElement
+        const item =
+          panel?.querySelector<HTMLElement>('[aria-checked="true"]') ??
+          panel?.querySelector<HTMLElement>('[role^="menuitem"]:not([aria-disabled="true"])')
+        item?.focus({ preventScroll: true })
+      }),
+    )
+  },
   close: () => menu.value?.close(),
 })
 </script>
@@ -23,21 +68,12 @@ defineExpose({
   <DouContextMenu ref="menu" v-model:open="open" @select="emit('select', $event)">
     <span class="dou-flow-editor__menu-anchor" aria-hidden="true" />
     <template #menu>
-      <DouDropdownItem
-        v-for="item in items"
-        :key="item.key"
-        :value="item.key"
-        :disabled="item.disabled"
-        :tone="item.tone"
-        :divided="item.divided"
-        :checked="item.checked"
-        :shortcut="coarse() ? undefined : item.shortcut"
-      >
-        <template v-if="item.icon" #prefix>
-          <DouIcon><component :is="item.icon" /></DouIcon>
-        </template>
-        {{ item.label }}
-      </DouDropdownItem>
+      <DouDropdownRadioGroup v-if="choice" :model-value="picked">
+        <Item v-for="item in items" :key="item.key" :item="item" radio />
+      </DouDropdownRadioGroup>
+      <template v-else>
+        <Item v-for="item in items" :key="item.key" :item="item" />
+      </template>
     </template>
   </DouContextMenu>
 </template>

@@ -310,6 +310,11 @@ describe('keyboard and names', () => {
   })
 })
 
+const checked = () =>
+  [...document.body.querySelectorAll('[role="menuitemradio"][aria-checked="true"]')].map((el) =>
+    el.textContent!.trim(),
+  )
+
 const edge = (data: Record<string, unknown>) => ({
   id: 'e',
   type: 'connector',
@@ -379,6 +384,49 @@ describe('connector', () => {
       'stroke-dasharray: 6 5',
     )
     expect(root.find('.dou-flow-editor__edge.is-mark').exists()).toBe(true)
+  })
+
+  it('says when the selected connectors differ, and opens one menu after another', async () => {
+    const { root, selection } = setup({
+      nodes: [
+        { id: 'a', type: 'shape', x: 0, y: 0, width: 100, height: 100, data: { shape: 'rect' } },
+        { id: 'b', type: 'shape', x: 300, y: 0, width: 100, height: 100, data: { shape: 'rect' } },
+      ],
+      edges: [
+        { id: 'e', source: { node: 'a', port: 'right' }, target: { node: 'b', port: 'left-in' } },
+        {
+          id: 'f',
+          source: { node: 'a', port: 'bottom' },
+          target: { node: 'b', port: 'bottom-in' },
+          data: { dash: 'dotted' },
+        },
+      ],
+    })
+    await ticks()
+    selection.value = { nodes: [], edges: ['e', 'f'] }
+    await ticks()
+    const buttons = root.findAll('.dou-flow-toolbar button')
+    expect(buttons[1]!.attributes('aria-label')).toBe('线型：多种')
+    expect(buttons[1]!.attributes('aria-haspopup')).toBe('menu')
+    expect(buttons[1]!.attributes('aria-expanded')).toBe('false')
+    await buttons[0]!.trigger('click')
+    await ticks()
+    expect(buttons[0]!.attributes('aria-expanded')).toBe('true')
+    expect(checked()).toEqual(['直线'])
+    // pressing the next button closes this menu and opens that one at once
+    buttons[1]!.element.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
+    await ticks()
+    await buttons[1]!.trigger('click')
+    await ticks()
+    expect(buttons[0]!.attributes('aria-expanded')).toBe('false')
+    expect(buttons[1]!.attributes('aria-expanded')).toBe('true')
+    expect(checked()).toEqual([])
+    // and pressing it again closes it
+    buttons[1]!.element.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
+    await ticks()
+    await buttons[1]!.trigger('click')
+    await ticks()
+    expect(buttons[1]!.attributes('aria-expanded')).toBe('false')
   })
 
   it('joins any two anchors, in either direction', async () => {

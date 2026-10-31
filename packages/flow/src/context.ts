@@ -297,7 +297,14 @@ export interface FlowEditorContext {
    * Opens the editor's menu with these items, e.g. the choices behind a
    * toolbar button; `from` works as in `openMenu`.
    */
-  showMenu: (items: FlowMenuItem[], client: Point, from?: Element) => boolean
+  showMenu: (
+    items: FlowMenuItem[],
+    client: Point,
+    from?: Element,
+    options?: { focusChecked?: boolean },
+  ) => boolean
+  /** The element that opened the menu, while it is open, e.g. to mark a button expanded. */
+  menuFrom: Readonly<ShallowRef<Element | null>>
   toCanvas: (point: Point) => Point
   /** Copies the selected nodes to the clipboard; `false` when none are selected. */
   copy: () => boolean

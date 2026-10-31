@@ -2222,30 +2222,48 @@ let menuPress: { target: EventTarget | null; at: number } | null = null
 const onMenuPress = (event: PointerEvent) => {
   menuPress = { target: event.target, at: Date.now() }
 }
+/** The button that opened the menu, while it is open. */
+const menuFrom = shallowRef<Element | null>(null)
+/** The button that opened the menu last, open or not. */
+let lastMenuFrom: Element | null = null
 watch(menuOpen, (open) => {
   if (open) document.addEventListener('pointerdown', onMenuPress, true)
-  else document.removeEventListener('pointerdown', onMenuPress, true)
+  else {
+    document.removeEventListener('pointerdown', onMenuPress, true)
+    menuFrom.value = null
+  }
 })
 
 function openMenu(target: FlowMenuTarget, client: Point, from?: Element) {
   return showMenu(itemsFor(target), client, from)
 }
 
-function showMenu(items: FlowMenuItem[], client: Point, from?: Element) {
-  // The press on the button that opened the menu closed it: leave it closed.
+function showMenu(
+  items: FlowMenuItem[],
+  client: Point,
+  from?: Element,
+  options: { focusChecked?: boolean } = {},
+) {
+  // The press on the button that opened the menu closed it: leave it
+  // closed. A press on another button opens that one's.
   const press = menuPress
   menuPress = null
   if (
     from &&
+    from === lastMenuFrom &&
     press &&
     Date.now() - press.at < 500 &&
     press.target instanceof Node &&
     from.contains(press.target)
-  )
+  ) {
+    lastMenuFrom = null
     return false
+  }
   if (!items.length) return false
   menuItems.value = items
-  menu.value?.open(client.x, client.y)
+  lastMenuFrom = from ?? null
+  menu.value?.open(client.x, client.y, options.focusChecked)
+  menuFrom.value = from ?? null
   return true
 }
 
@@ -2284,10 +2302,32 @@ const toolbarAnchor = computed(() => {
   )
   if (!bounds) return null
   const { x, y, zoom } = viewport.value
+  const screen = (rect: Rect) => ({
+    left: rect.x * zoom + x,
+    top: rect.y * zoom + y,
+    right: (rect.x + rect.width) * zoom + x,
+    bottom: (rect.y + rect.height) * zoom + y,
+  })
+  // Over edges, keep clear of the nodes around them: they are what the edges join.
+  const reach = 64 / zoom
+  const band = {
+    x: bounds.x - reach * 4,
+    y: bounds.y - reach,
+    width: bounds.width + reach * 8,
+    height: bounds.height + reach * 2,
+  }
+  const avoid = nodes.length
+    ? undefined
+    : shownNodes.value
+        .filter((node) => !hiddenIn.value.has(node.id) && !isContainer(node))
+        .map((node) => rectOf(node))
+        .filter((rect) => intersects(rect, band))
+        .map(screen)
   return {
     x: (bounds.x + bounds.width / 2) * zoom + x,
     top: bounds.y * zoom + y,
     bottom: (bounds.y + bounds.height) * zoom + y,
+    avoid,
   }
 })
 
@@ -3153,6 +3193,7 @@ const context: FlowEditorContext = {
   connectingPath: previewPath,
   openMenu,
   showMenu,
+  menuFrom,
   toCanvas,
   copy,
   cut,

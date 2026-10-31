@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { h, nextTick } from 'vue'
 import { afterEach, describe, expect, it } from 'vitest'
-import { DouDropdown, DouDropdownItem } from '../../../index'
+import { DouDropdown, DouDropdownItem, DouDropdownRadioGroup } from '../../../index'
 
 afterEach(() => {
   document.body.innerHTML = ''
@@ -44,6 +44,35 @@ describe('DouDropdown', () => {
     expect(items()).toHaveLength(4)
     expect(items()[1]!.getAttribute('aria-disabled')).toBe('true')
     expect(menu.querySelector('[role="separator"]')).not.toBeNull()
+    wrapper.unmount()
+  })
+
+  it('moves through checkbox and radio items with the keyboard too', async () => {
+    const wrapper = mount(DouDropdown, {
+      props: {
+        open: false,
+        'onUpdate:open': (value: boolean) => wrapper.setProps({ open: value }),
+      },
+      slots: {
+        default: () => h('button', { id: 'trigger' }, '视图'),
+        menu: () => [
+          h(DouDropdownItem, { value: 'grid', checked: true }, () => '网格'),
+          h(DouDropdownRadioGroup, { modelValue: 'sm' }, () => [
+            h(DouDropdownItem, { value: 'sm' }, () => '小'),
+            h(DouDropdownItem, { value: 'lg' }, () => '大'),
+          ]),
+        ],
+      },
+      attachTo: document.body,
+    })
+    key(wrapper.get('#trigger').element, 'ArrowDown')
+    await nextTick()
+    await nextTick()
+    expect(document.activeElement?.getAttribute('role')).toBe('menuitemcheckbox')
+    key(document.activeElement!, 'ArrowDown')
+    expect(document.activeElement?.getAttribute('role')).toBe('menuitemradio')
+    key(document.activeElement!, 'End')
+    expect(document.activeElement?.textContent).toBe('大')
     wrapper.unmount()
   })
 

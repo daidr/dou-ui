@@ -145,6 +145,8 @@ export interface FlowMessages {
     routes: Record<WhiteboardRoute, string>
     dashes: Record<WhiteboardDash, string>
     arrows: Record<WhiteboardArrow, string>
+    /** The connector buttons' `{value}` when the selected connectors differ. */
+    mixed: string
     /** Announced after a choice; `{value}` is the new one. */
     routeSet: string
     dashSet: string
@@ -258,6 +260,7 @@ const zhCN: FlowMessages = {
     routes: { straight: '直线', elbow: '折线', curve: '曲线' },
     dashes: { solid: '实线', dashed: '虚线', dotted: '点线', 'dash-dot': '点划线' },
     arrows: { none: '无箭头', end: '终点箭头', both: '两端箭头' },
+    mixed: '多种',
     routeSet: '已改为{value}',
     dashSet: '已改为{value}',
     arrowSet: '已改为{value}',
@@ -370,6 +373,7 @@ const zhTW: FlowMessages = {
     routes: { straight: '直線', elbow: '折線', curve: '曲線' },
     dashes: { solid: '實線', dashed: '虛線', dotted: '點線', 'dash-dot': '點劃線' },
     arrows: { none: '無箭頭', end: '終點箭頭', both: '兩端箭頭' },
+    mixed: '多種',
     routeSet: '已改為{value}',
     dashSet: '已改為{value}',
     arrowSet: '已改為{value}',
@@ -482,6 +486,7 @@ const en: FlowMessages = {
     routes: { straight: 'Straight', elbow: 'Elbow', curve: 'Curved' },
     dashes: { solid: 'Solid', dashed: 'Dashed', dotted: 'Dotted', 'dash-dot': 'Dash-dot' },
     arrows: { none: 'No arrows', end: 'Arrow at end', both: 'Arrows at both ends' },
+    mixed: 'Mixed',
     routeSet: 'Changed to {value}',
     dashSet: 'Changed to {value}',
     arrowSet: 'Changed to {value}',

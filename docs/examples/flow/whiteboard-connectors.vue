@@ -27,7 +27,7 @@ const doc = ref<FlowDocument>({
   edges: [
     {
       id: 'a',
-      source: { node: 'plan', port: 'right' },
+      source: { node: 'plan', port: 'top' },
       target: { node: 'show', port: 'left-in' },
       data: { route: 'curve' },
     },
@@ -38,7 +38,7 @@ const doc = ref<FlowDocument>({
     },
     {
       id: 'c',
-      source: { node: 'plan', port: 'right' },
+      source: { node: 'plan', port: 'bottom' },
       target: { node: 'walk', port: 'left-in' },
       data: { route: 'elbow', dash: 'dashed' },
       label: '天晴',

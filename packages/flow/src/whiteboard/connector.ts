@@ -9,11 +9,12 @@ import {
   LineDottedIcon,
   LineSolidIcon,
   MinusIcon,
+  RouteIcon,
 } from '@dou-ui/icons'
 import type { Component } from 'vue'
 import type { FlowEditorContext } from '../context'
 import { bezierEdge, defineEdgeType, stepEdge, type EdgeAnchor } from '../core/edge-types'
-import type { FlowMenuItem, FlowToolbarItem } from '../core/menu'
+import type { FlowToolbarItem } from '../core/menu'
 import type { FlowEdge, Point, PortSide } from '../core/model'
 import { format } from '../locale'
 import type {
@@ -112,79 +113,59 @@ const isConnector = (edge: FlowEdge) => (edge.type ?? 'connector') === 'connecto
 export function connectorToolbar(ctx: FlowEditorContext, edges: FlowEdge[]): FlowToolbarItem[] {
   if (!edges.every(isConnector)) return []
   const t = ctx.messages.value.board
-  const first = data(edges[0]!)
 
-  function set(patch: WhiteboardConnectorData, said: string) {
-    ctx.transact((tr) => {
-      for (const edge of edges) tr.updateEdge(edge.id, { data: { ...edge.data, ...patch } })
-    })
-    ctx.announce(said)
-  }
-
-  /** A button that opens its choices under it. */
-  function choice(
-    key: string,
-    label: string,
-    icon: Component,
-    items: FlowMenuItem[],
+  /**
+   * One button: its label and icon say the value in use, or that the
+   * selected connectors differ; its menu sets one value on all of them.
+   */
+  function choice<V extends string>(
+    key: 'route' | 'dash' | 'arrow',
+    fallback: V,
+    options: { value: V; icon: Component }[],
+    names: Record<V, string>,
+    text: { of: string; set: string },
+    mixedIcon: Component,
   ): FlowToolbarItem {
+    const values = new Set(edges.map((edge) => (data(edge)[key] as V | undefined) ?? fallback))
+    const only = values.size === 1 ? [...values][0]! : null
     return {
       key,
-      label,
-      icon,
-      run(event) {
-        const button = event.currentTarget as HTMLElement
-        const box = button.getBoundingClientRect()
-        ctx.showMenu(items, { x: box.left, y: box.bottom + 4 }, button)
-      },
+      label: format(text.of, { value: only ? names[only] : t.mixed }),
+      icon: only ? options.find((item) => item.value === only)!.icon : mixedIcon,
+      menu: () =>
+        options.map((item) => ({
+          key: `${key}-${item.value}`,
+          label: names[item.value],
+          icon: item.icon,
+          checked: item.value === only,
+          run() {
+            ctx.transact((tr) => {
+              for (const edge of edges)
+                tr.updateEdge(edge.id, { data: { ...edge.data, [key]: item.value } })
+            })
+            ctx.announce(format(text.set, { value: names[item.value] }))
+          },
+        })),
     }
   }
 
-  const route = first.route ?? 'straight'
-  const dash = first.dash ?? 'solid'
-  const arrow = first.arrow ?? 'end'
-  const all = <K extends keyof WhiteboardConnectorData>(
-    key: K,
-    value: unknown,
-    fallback: unknown,
-  ) => edges.every((edge) => (data(edge)[key] ?? fallback) === value)
-
   return [
-    choice(
-      'route',
-      format(t.routeOf, { value: t.routes[route] }),
-      ROUTES.find((item) => item.value === route)!.icon,
-      ROUTES.map((item) => ({
-        key: `route-${item.value}`,
-        label: t.routes[item.value],
-        icon: item.icon,
-        checked: all('route', item.value, 'straight'),
-        run: () => set({ route: item.value }, format(t.routeSet, { value: t.routes[item.value] })),
-      })),
-    ),
+    choice('route', 'straight', ROUTES, t.routes, { of: t.routeOf, set: t.routeSet }, RouteIcon),
     choice(
       'dash',
-      format(t.dashOf, { value: t.dashes[dash] }),
-      DASH_CHOICES.find((item) => item.value === dash)!.icon,
-      DASH_CHOICES.map(({ value, icon }) => ({
-        key: `dash-${value}`,
-        label: t.dashes[value],
-        icon,
-        checked: all('dash', value, 'solid'),
-        run: () => set({ dash: value }, format(t.dashSet, { value: t.dashes[value] })),
-      })),
+      'solid',
+      DASH_CHOICES,
+      t.dashes,
+      { of: t.dashOf, set: t.dashSet },
+      LineDashDotIcon,
     ),
     choice(
       'arrow',
-      format(t.arrowOf, { value: t.arrows[arrow] }),
-      ARROWS.find((item) => item.value === arrow)!.icon,
-      ARROWS.map((item) => ({
-        key: `arrow-${item.value}`,
-        label: t.arrows[item.value],
-        icon: item.icon,
-        checked: all('arrow', item.value, 'end'),
-        run: () => set({ arrow: item.value }, format(t.arrowSet, { value: t.arrows[item.value] })),
-      })),
+      'end',
+      ARROWS,
+      t.arrows,
+      { of: t.arrowOf, set: t.arrowSet },
+      ArrowLeftRightIcon,
     ),
   ]
 }

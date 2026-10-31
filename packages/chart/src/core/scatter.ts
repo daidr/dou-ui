@@ -298,7 +298,7 @@ export const scatterKind: ChartSeriesKind<ScatterStyle> = {
   // the grid for finding dots under the pointer, when there are many
   prepare: (series) => {
     const n = Math.min(series.x.values.length, series.top.length)
-    if (n >= MANY && series.props.size === undefined) pointGrid(series.x.values, series.top)
+    if (n >= MANY && series.props.size === undefined) return pointGrid(series.x.values, series.top)
   },
   // bubbles may be large: keep them inside the plot
   inset: ({ props }) => (props.size === undefined ? 0 : (props.radius ?? BUBBLE) + 1),

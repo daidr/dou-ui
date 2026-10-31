@@ -1,5 +1,5 @@
 import type { Tone } from 'dou-ui'
-import type { ChartAccessor, ChartRow, XColumn } from './data'
+import type { ChartAccessor, ChartData, XColumn } from './data'
 import type { Painter, Rect } from './painter'
 import type { Scale } from './scale'
 
@@ -14,7 +14,7 @@ export interface ChartSeriesProps {
   /** Shown in the legend and the tooltip. Defaults to `y` when that is a key. */
   name?: string
   /** Rows of this series alone; defaults to the chart's `data`. */
-  data?: readonly ChartRow[]
+  data?: ChartData
   /** The x of each row of this series' own `data`; defaults to the chart's `x`. */
   x?: ChartAccessor
   /** Any CSS color. Defaults to the next color of the chart palette. */
@@ -33,7 +33,7 @@ export interface ChartSeries<P = Record<string, unknown>> {
   props: ChartSeriesProps & P
   name: string
   /** The rows the series reads: its own `data`, or the chart's. */
-  rows: readonly ChartRow[]
+  rows: ChartData
   /** The color as a CSS color the canvas understands. */
   color: string
   axis: ChartValueAxis
@@ -52,6 +52,11 @@ export interface ChartSeries<P = Record<string, unknown>> {
   stackEnds: { up: Float64Array; down: Float64Array } | null
   /** For series that share the room of each x (bars): which part is theirs. */
   slot: { index: number; count: number } | null
+  /**
+   * What the kind's `prepare` gave back for this data; `undefined` until
+   * it has run, so `draw` and `hit` must work without it.
+   */
+  prepared?: unknown
 }
 
 /** What a series draws with. */
@@ -113,10 +118,12 @@ export interface ChartSeriesKind<P = Record<string, unknown>> {
    */
   hit?(series: ChartSeries<P>, view: ChartView, px: number, py: number): ChartHit | null
   /**
-   * Work done ahead, when the page is idle after new data is drawn, so the
-   * first `hit` is as quick as the rest: building an index, say.
+   * Work done ahead, once the data has stayed the same a moment and the
+   * page is idle, so `hit` (or `draw`) can be quicker: building an index,
+   * say. What it gives back is kept as `series.prepared`. Not run for data
+   * replaced many times a second (live data).
    */
-  prepare?(series: ChartSeries<P>): void
+  prepare?(series: ChartSeries<P>): unknown
 }
 
 /** A point found under the pointer. */

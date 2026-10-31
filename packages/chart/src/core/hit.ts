@@ -50,6 +50,18 @@ function lowerBound(values: Float64Array, order: Int32Array, value: number): num
   return lo
 }
 
+/** How far `value` is from the nearest other value of `values`; `Infinity` when there is none. */
+export function neighborGap(values: Float64Array, value: number): number {
+  const order = sortedOrder(values)
+  const at = lowerBound(values, order, value)
+  let gap = Number.POSITIVE_INFINITY
+  if (at > 0) gap = value - values[order[at - 1]!]!
+  let next = at
+  while (next < order.length && values[order[next]!]! <= value) next++
+  if (next < order.length) gap = Math.min(gap, values[order[next]!]! - value)
+  return gap
+}
+
 /** The row of `values` whose value is exactly `value`, or -1. */
 export function rowAt(values: Float64Array, value: number): number {
   const order = sortedOrder(values)

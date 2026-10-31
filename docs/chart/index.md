@@ -159,6 +159,7 @@ defineChartSeries({
   inset: (series) => 0, // 每个点周围需要留出的像素，比如气泡的半径
   tooltip: 'axis', // 提示框按位置（'axis'）还是按单个点（'item'）显示
   hit: undefined, // 按单个点显示时，找出指针下的点，默认找 12px 内最近的点
+  prepare: undefined, // 数据不再变化、浏览器空闲时提前做的准备，返回值放在 series.prepared
   props: { radius: { type: Number, default: 5 } }, // 自己的属性
   draw(painter, series, view) {},
 })
@@ -171,6 +172,42 @@ defineChartSeries({
 - `view`：`point(x, value)` 返回这个值画在哪里，`[left, top]`，竖向和横向都一样，自定义系列一般只用它；`x`、`y` 是两个比例尺，`map` 把值换算成沿轴的像素；`horizontal` 表示横向；`band` 是每个位置的宽度（像素）；`plot` 是绘图区域。
 
 内置的折线、面积、柱状和散点系列也通过同一个接口实现。
+
+数据很多时，`hit` 逐个比较所有点会变慢，可以在 `prepare` 里提前建好索引。数据不再变化 300 毫秒后，图表会在浏览器空闲时调用 `prepare`，返回值放在 `series.prepared` 里；数据每秒更新很多次时（实时数据）不会调用。`prepare` 运行之前 `series.prepared` 是 `undefined`，所以 `hit` 和 `draw` 要能在没有它的情况下照常工作：
+
+```ts
+defineChartSeries({
+  type: 'dots',
+  tooltip: 'item',
+  // 按 x 取整分桶：每个整数位置有哪些点
+  prepare(series) {
+    const buckets = new Map<number, number[]>()
+    series.x.values.forEach((x, i) => {
+      const key = Math.round(x)
+      buckets.set(key, [...(buckets.get(key) ?? []), i])
+    })
+    return buckets
+  },
+  hit(series, view, px, py) {
+    const buckets = series.prepared as Map<number, number[]> | undefined
+    const x = Math.round(view.x.invert(px))
+    // 还没有索引时逐个查找
+    const candidates = buckets
+      ? [x - 1, x, x + 1].flatMap((key) => buckets.get(key) ?? [])
+      : series.x.values.map((_, i) => i)
+    let best = null
+    for (const i of candidates) {
+      const [left, top] = view.point(series.x.values[i], series.top[i])
+      const d = Math.hypot(left - px, top - py)
+      if (d <= 12 && (!best || d < best.d)) best = { index: i, radius: 4, d }
+    }
+    return best
+  },
+  draw(painter, series, view) {
+    /* … */
+  },
+})
+```
 
 ## 提示框
 
@@ -240,14 +277,39 @@ defineChartSeries({
 
 <DocDemo src="chart/large" />
 
-一个像素宽的位置最多只能显示出最先、最低、最高和最后四个点，所以图表在每个像素列只画这四个点，画出来和逐点绘制完全一样，绘制量只和图表宽度有关。数据会读成连续的数字数组并缓存，之后的重绘不再读取原始的行数据。
+一个像素宽的位置最多只能显示出最先、最低、最高和最后四个点，所以图表在每个像素列只画这四个点，画出来和逐点绘制完全一样，绘制量只和图表宽度有关。数据会读成连续的数字数组并缓存，之后的重绘不再读取原始的数据。
 
-数据不再变化后，图表会在浏览器空闲时为折线建立分段的最低点和最高点，缩放和平移时整段跳过同一像素列里的点；散点图会建立网格索引，悬停时只查找指针附近的点。在 100 万个点上，缩放和平移每帧不到 8 毫秒。
+数据不再变化后，图表会在浏览器空闲时为折线建立分段的最低点和最高点，缩放和平移时整段跳过同一像素列里的点；散点图会建立网格索引，悬停时只查找指针附近的点。图表滚出屏幕后不再绘制，回到屏幕上时再画。
+
+### 按列给数据
+
+`data` 也可以按列给：一个对象，每个字段是一列，各列一样长。数据本来就是按列来的（例如接口返回的数组、二进制格式）时，不必先拼成一行一行的对象。列是 `Float64Array` 等类型化数组时，图表直接复制整列，不再逐个读取，100 万个点的数据也不占用逐行对象的内存。
+
+```js
+const data = shallowRef({
+  time: new Float64Array([/* … */]),
+  value: new Float64Array([/* … */]),
+})
+```
+
+`x`、`y` 是字段名时直接读取那一列；是函数时，函数拿到的行是由各列拼成的对象。提示框、点击和框选给出的行也是这样拼成的对象，同一行每次都是同一个对象。
+
+### 性能
+
+下面是 bench 在一台普通笔记本的 Chromium 里测出的结果（每帧的工作时间，宽 1200 像素）。不同设备上的数字会不一样，手机通常要慢几倍。
+
+| 场景                              | 时间         |
+| --------------------------------- | ------------ |
+| 100 万个点，按列给数据，首次绘制  | 约 50ms      |
+| 100 万个点，按行给数据，首次绘制  | 约 75ms      |
+| 100 万个点，缩放 / 平移每帧       | 约 6ms / 3ms |
+| 100 万个点，悬停（折线 / 散点）   | 约 2ms       |
+| 保留 1 万个点的实时数据，每次更新 | 约 2ms       |
 
 使用大量数据时：
 
 - 把数据放在 `shallowRef` 里，或用 `markRaw` 标记，避免 Vue 为每一行创建响应式代理。
-- 更新时替换整个数组，不要原地修改：缓存按数组本身区分，原地修改的数组不会重新读取。
+- 更新时替换整个数组（或整个列对象），不要原地修改：缓存按数据本身区分，原地修改的数据不会重新读取。
 - `x`、`y` 用字段名而不是函数。模板里写的箭头函数每次渲染都是新的，无法命中缓存。
 
 ### 实时数据
@@ -256,7 +318,7 @@ defineChartSeries({
 
 <DocDemo src="chart/live" />
 
-沿用的前提是已有的行对象没有被改过，所以要修改某一行时，请换成一个新的对象。只沿用按字段名读取的列：`x`、`y` 是函数时，函数会拿到行的序号，行移动后序号就变了，所以每次都会全部重新读取。
+沿用的前提是已有的行对象没有被改过，所以要修改某一行时，请换成一个新的对象。只沿用按字段名读取的列：`x`、`y` 是函数时，函数会拿到行的序号，行移动后序号就变了，所以每次都会全部重新读取。按列给的数据每次都会全部重新读取，实时数据请按行给。
 
 ## 没有数据
 
@@ -274,7 +336,7 @@ defineChartSeries({
 
 | 名称         | 说明                               | 类型                                        | 默认值             |
 | ------------ | ---------------------------------- | ------------------------------------------- | ------------------ |
-| `data`       | 行数据                             | `object[]`                                  | `[]`               |
+| `data`       | 数据：行数组，或按列给的对象       | `object[] \| Record<string, ArrayLike>`     | `[]`               |
 | `x`          | 横轴的值：字段名，或从行取值的函数 | `string \| (row, index: number) => unknown` | 行的序号           |
 | `height`     | 高度，数字按 px 计算               | `number \| string`                          | `320`              |
 | `aria-label` | 读屏读出的名称，替换自动生成的概要 | `string`                                    | —                  |
@@ -299,22 +361,22 @@ defineChartSeries({
 
 `DouChartLine` 和 `DouChartArea` 的属性相同，`stack` 只对面积图有效。
 
-| 名称             | 说明                               | 类型                                        | 默认值                   |
-| ---------------- | ---------------------------------- | ------------------------------------------- | ------------------------ |
-| `y`              | 纵轴的值：字段名，或从行取值的函数 | `string \| (row, index: number) => unknown` | —                        |
-| `name`           | 系列名称                           | `string`                                    | `y` 的字段名             |
-| `data`           | 这个系列自己的行数据               | `object[]`                                  | 图表的 `data`            |
-| `x`              | 这个系列自己的横轴取值             | `string \| (row, index: number) => unknown` | 图表的 `x`               |
-| `color`          | 颜色，任意 CSS 颜色                | `string`                                    | 色板的下一个色           |
-| `tone`           | 用语气色作为颜色                   | `Tone`                                      | —                        |
-| `axis`           | 对应的数值轴                       | `'y' \| 'y2'`                               | `'y'`                    |
-| `smooth`         | 画成平滑曲线                       | `boolean`                                   | `false`                  |
-| `dots`           | 显示数据点                         | `boolean \| 'auto'`                         | `'auto'`，面积图 `false` |
-| `dashed`         | 画成虚线                           | `boolean`                                   | `false`                  |
-| `line-width`     | 线宽，单位 px                      | `number`                                    | `2`                      |
-| `connect-nulls`  | 跨过缺失的值连线                   | `boolean`                                   | `false`                  |
-| `v-model:hidden` | 隐藏系列，保留它的颜色和图例       | `boolean`                                   | `false`                  |
-| `stack`          | 堆叠分组，名称相同的叠在一起       | `string \| boolean`                         | —                        |
+| 名称             | 说明                                    | 类型                                        | 默认值                   |
+| ---------------- | --------------------------------------- | ------------------------------------------- | ------------------------ |
+| `y`              | 纵轴的值：字段名，或从行取值的函数      | `string \| (row, index: number) => unknown` | —                        |
+| `name`           | 系列名称                                | `string`                                    | `y` 的字段名             |
+| `data`           | 这个系列自己的数据，写法同图表的 `data` | `object[] \| Record<string, ArrayLike>`     | 图表的 `data`            |
+| `x`              | 这个系列自己的横轴取值                  | `string \| (row, index: number) => unknown` | 图表的 `x`               |
+| `color`          | 颜色，任意 CSS 颜色                     | `string`                                    | 色板的下一个色           |
+| `tone`           | 用语气色作为颜色                        | `Tone`                                      | —                        |
+| `axis`           | 对应的数值轴                            | `'y' \| 'y2'`                               | `'y'`                    |
+| `smooth`         | 画成平滑曲线                            | `boolean`                                   | `false`                  |
+| `dots`           | 显示数据点                              | `boolean \| 'auto'`                         | `'auto'`，面积图 `false` |
+| `dashed`         | 画成虚线                                | `boolean`                                   | `false`                  |
+| `line-width`     | 线宽，单位 px                           | `number`                                    | `2`                      |
+| `connect-nulls`  | 跨过缺失的值连线                        | `boolean`                                   | `false`                  |
+| `v-model:hidden` | 隐藏系列，保留它的颜色和图例            | `boolean`                                   | `false`                  |
+| `stack`          | 堆叠分组，名称相同的叠在一起            | `string \| boolean`                         | —                        |
 
 ### Bar Props
 
@@ -342,7 +404,7 @@ defineChartSeries({
 | ---------------- | ------------------------------------ | ------------------------------------------- | ------------- |
 | `value`          | 每一块的值：字段名，或从行取值的函数 | `string \| (row, index: number) => unknown` | —             |
 | `label`          | 每一块的名称                         | `string \| (row, index: number) => unknown` | 图表的 `x`    |
-| `data`           | 饼图自己的行数据                     | `object[]`                                  | 图表的 `data` |
+| `data`           | 饼图自己的数据，写法同图表的 `data`  | `object[] \| Record<string, ArrayLike>`     | 图表的 `data` |
 | `name`           | 饼图的名称，读屏时读在最前面         | `string`                                    | —             |
 | `color`          | 每一块的颜色：CSS 颜色或语气色名称   | `string \| (row, index: number) => string`  | 色板的彩色    |
 | `inner-radius`   | 中间空洞占半径的比例，`0` 是饼图     | `number`                                    | `0`           |
@@ -408,18 +470,18 @@ defineChartSeries({
 
 ### defineChartSeries
 
-| 选项        | 说明                                                          | 类型                                                |
-| ----------- | ------------------------------------------------------------- | --------------------------------------------------- |
-| `type`      | 系列类型，组件名为 `DouChart` 加上首字母大写的类型            | `string`                                            |
-| `zero`      | 数值轴包含 0                                                  | `boolean`                                           |
-| `stackable` | 支持 `stack` 堆叠                                             | `boolean`                                           |
-| `band`      | 在每个位置并排分配空间，x 轴两端留出半个位置                  | `boolean`                                           |
-| `inset`     | 每个点周围需要的空间（像素），坐标轴会放宽到能放下            | `(series) => number`                                |
-| `tooltip`   | 提示框默认按位置还是按单个点显示                              | `'axis' \| 'item'`                                  |
-| `hit`       | 按单个点显示时，找出指针下的点和它的半径                      | `(series, view, x, y) => { index, radius } \| null` |
-| `prepare`   | 数据不再变化、浏览器空闲时提前做的准备，例如为 `hit` 建立索引 | `(series) => void`                                  |
-| `props`     | 组件自己的属性，写法和 Vue 组件的 `props` 相同                | `object`                                            |
-| `draw`      | 绘制                                                          | `(painter, series, view) => void`                   |
+| 选项        | 说明                                                                                        | 类型                                                |
+| ----------- | ------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| `type`      | 系列类型，组件名为 `DouChart` 加上首字母大写的类型                                          | `string`                                            |
+| `zero`      | 数值轴包含 0                                                                                | `boolean`                                           |
+| `stackable` | 支持 `stack` 堆叠                                                                           | `boolean`                                           |
+| `band`      | 在每个位置并排分配空间，x 轴两端留出半个位置                                                | `boolean`                                           |
+| `inset`     | 每个点周围需要的空间（像素），坐标轴会放宽到能放下                                          | `(series) => number`                                |
+| `tooltip`   | 提示框默认按位置还是按单个点显示                                                            | `'axis' \| 'item'`                                  |
+| `hit`       | 按单个点显示时，找出指针下的点和它的半径                                                    | `(series, view, x, y) => { index, radius } \| null` |
+| `prepare`   | 数据不再变化、浏览器空闲时提前做的准备，例如为 `hit` 建立索引；返回值放在 `series.prepared` | `(series) => unknown`                               |
+| `props`     | 组件自己的属性，写法和 Vue 组件的 `props` 相同                                              | `object`                                            |
+| `draw`      | 绘制                                                                                        | `(painter, series, view) => void`                   |
 
 ### Axis Props
 

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { carriesOn, inferXKind, toTime, xColumn, yColumn } from '../core/data'
+import { carriesOn, inferXKind, rowCount, rowOf, toTime, xColumn, yColumn } from '../core/data'
 import { sortedOrder } from '../core/hit'
 import { BREAK, decimate, summarize, visibleRange } from '../core/decimate'
-import { numberTickFormat, timeTickFormat } from '../core/format'
+import { numberTickFormat, timeFormatFull, timePrecision, timeTickFormat } from '../core/format'
 import { areaKind, lineKind } from '../core/line'
 import { buildModel } from '../core/model'
 import { monotoneTangents } from '../core/painter'
@@ -56,6 +56,48 @@ const row = (t: number) => ({ t, v: t % 7 === 0 ? null : Math.sin(t) })
 const fresh = (rows: object[]) => rows.map((r) => ({ ...r }))
 const picked = (r: { indices: Int32Array; length: number }) => [...r.indices.subarray(0, r.length)]
 
+const full = (value: number, gap?: number) => {
+  const { unit, digits } = timePrecision(value, gap)
+  return timeFormatFull('zh-CN', unit, digits)(value)
+}
+
+describe('time in full', () => {
+  it('is as precise as the time and its nearest neighbor need', () => {
+    const sixth = new Date(2026, 9, 6).getTime()
+    expect(full(sixth, 86400e3)).toBe('2026年10月6日')
+    expect(full(sixth + 9.5 * 3600e3, 86400e3)).toBe('2026年10月6日 09:30')
+    // a second apart: seconds, even on a whole minute
+    expect(full(sixth + 12 * 3600e3, 1000)).toBe('2026年10月6日 12:00:00')
+    // a tenth of a second apart: tenths, even on a whole second
+    expect(full(sixth + 12 * 3600e3, 100)).toBe('2026年10月6日 12:00:00.0')
+    expect(full(sixth + 12 * 3600e3 + 250, 100)).toBe('2026年10月6日 12:00:00.25')
+  })
+})
+
+describe('data by column', () => {
+  it('reads columns as they are, typed or not, and puts rows together when asked', () => {
+    const data = {
+      t: new Float64Array([1, 2, 3, 4]),
+      v: [5, null, Number.POSITIVE_INFINITY, '7'],
+      w: new Float32Array([1, Number.NaN, 3, Number.NEGATIVE_INFINITY]),
+      name: ['甲', '乙', '丙', '丁'],
+    }
+    expect(rowCount(data)).toBe(4)
+    expect(inferXKind(data, 't')).toBe('linear')
+    expect(inferXKind(data, 'name')).toBe('category')
+    const x = xColumn(data, 't', 'linear')
+    expect([...x.values]).toEqual([1, 2, 3, 4])
+    expect(x.sorted).toBe(true)
+    expect([...yColumn(data, 'v')]).toEqual([5, Number.NaN, Number.NaN, 7])
+    expect([...yColumn(data, 'w')]).toEqual([1, Number.NaN, 3, Number.NaN])
+    expect([...xColumn(data, 'name', 'category').values]).toEqual([0, 1, 2, 3])
+    // a function gets the row put together from every column
+    expect([...yColumn(data, (r) => r.t * 10)]).toEqual([10, 20, 30, 40])
+    expect(rowOf(data, 1)).toEqual({ t: 2, v: null, w: Number.NaN, name: '乙' })
+    expect(rowOf(data, 1)).toBe(rowOf(data, 1))
+  })
+})
+
 describe('live data', () => {
   it('knows an array that carries on from the last one', () => {
     const a = [1, 2, 3, 4].map(row)
@@ -108,6 +150,8 @@ describe('scales', () => {
   it('rounds a domain out to ticks, without float noise', () => {
     expect(linearDomain(15, 101, { count: 5 })).toEqual([0, 120])
     expect(linearDomain(0.1, 0.7, { count: 6 })).toEqual([0.1, 0.7])
+    // the ends stay close to the data: not a coarser step for a wider span
+    expect(linearDomain(-2, 105, { count: 4 })).toEqual([-20, 120])
     const [lo, hi] = linearDomain(5, 5)
     expect(lo < 5 && hi > 5).toBe(true)
     expect(linearDomain(0, 0)).toEqual([0, 1])

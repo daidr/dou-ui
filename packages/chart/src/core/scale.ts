@@ -68,16 +68,15 @@ export function linearDomain(
     if (min < 0 && max - pad >= 0) min = 0
   }
   if (!nice) return [min, max]
-  // rounding out can make another step the nice one: repeat until it settles
+  // rounded out to the step for the data itself, so the ends stay close to
+  // it; a coarser step only when that would make too many steps
   let step = niceStep(max - min, count)
-  let lo = min
-  let hi = max
-  for (let guard = 0; guard < 4; guard++) {
+  let lo = Math.floor(min / step) * step
+  let hi = Math.ceil(max / step) * step
+  for (let guard = 0; guard < 4 && (hi - lo) / step > count * 2 + 1e-9; guard++) {
+    step = nextNiceStep(step)
     lo = Math.floor(min / step) * step
     hi = Math.ceil(max / step) * step
-    const next = niceStep(hi - lo, count)
-    if (next === step) break
-    step = next
   }
   const decimals = stepDecimals(step)
   return [round(lo, decimals), round(hi, decimals)]

@@ -5,7 +5,8 @@ import { onBeforeUnmount, onMounted, shallowRef } from 'vue'
 
 // 只保留最近的 1 万个读数
 const WINDOW = 10_000
-const start = Date.now() - WINDOW * 100
+// 从整秒开始，每个读数相隔 100 毫秒
+const start = Math.floor(Date.now() / 1000) * 1000 - WINDOW * 100
 let value = 20
 const reading = (time) => {
   value += (Math.random() - 0.5) * 0.6 + (20 - value) * 0.01

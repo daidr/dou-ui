@@ -135,7 +135,7 @@ export function drawLine(
 
 /** For a long line: what lets zooming and panning skip over most of it. */
 function prepare(series: ChartSeries<LineStyle>) {
-  if (series.x.sorted) summarize(series.x.values, series.top)
+  return series.x.sorted ? summarize(series.x.values, series.top) : null
 }
 
 export const lineKind: ChartSeriesKind<LineStyle> = {

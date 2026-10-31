@@ -1,10 +1,12 @@
 import {
   extent,
+  byIndex,
   inferXKind,
+  rowCount,
   xColumn,
   yColumn,
   type ChartAccessor,
-  type ChartRow,
+  type ChartData,
   type XColumn,
   type XKind,
 } from './data'
@@ -30,7 +32,7 @@ export function seriesName(input: Pick<SeriesInput, 'index' | 'props'>): string 
 export interface ModelSeries {
   input: SeriesInput
   name: string
-  rows: readonly ChartRow[]
+  rows: ChartData
   axis: ChartValueAxis
   x: XColumn
   y: Float64Array
@@ -77,9 +79,6 @@ function ends(values: Float64Array): [number, number] | null {
   return a <= b ? [values[a]!, values[b]!] : null
 }
 
-/** Places rows by their index when there is no x. */
-const byIndex: ChartAccessor = (_row, index) => index
-
 const wholes = new WeakMap<Float64Array, boolean>()
 function allIntegers(values: Float64Array): boolean {
   let known = wholes.get(values)
@@ -108,7 +107,7 @@ const merge = (a: [number, number] | null, b: [number, number] | null): [number,
 export function buildModel(
   inputs: SeriesInput[],
   chart: {
-    data: readonly ChartRow[]
+    data: ChartData
     x?: ChartAccessor
     xKind?: XKind
     /** The y axis of series that don't name one. */
@@ -127,7 +126,7 @@ export function buildModel(
     xKind = 'linear'
     for (const input of shown) {
       const { rows, x } = sourceOf(input)
-      if (x !== undefined && rows.length) {
+      if (x !== undefined && rowCount(rows)) {
         xKind = inferXKind(rows, x)
         break
       }

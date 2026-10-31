@@ -20,9 +20,9 @@ import {
   watch,
 } from 'vue'
 import { createColorResolver, observeTheme } from './core/colors'
-import { extent, read, type ChartAccessor, type ChartRow } from './core/data'
-import { allX, angleAt, nearestPoint, nearestX, rowAt, sortedOrder } from './core/hit'
-import { numberFormatFull, numberTickFormat, timeFormatFull } from './core/format'
+import { extent, read, rowOf, type ChartAccessor, type ChartRow } from './core/data'
+import { allX, angleAt, nearestPoint, nearestX, neighborGap, rowAt, sortedOrder } from './core/hit'
+import { numberFormatFull, numberTickFormat, timeFormatFull, timePrecision } from './core/format'
 import {
   layoutChart,
   layoutPie,
@@ -150,11 +150,17 @@ function readTheme() {
 }
 
 let stopTheme: (() => void) | undefined
+// a font that loads after the labels were measured makes them wider: measured again
+const fonts = typeof document === 'undefined' ? undefined : document.fonts
 onMounted(() => {
   readTheme()
   stopTheme = observeTheme(readTheme)
+  fonts?.addEventListener?.('loadingdone', readTheme)
 })
-onBeforeUnmount(() => stopTheme?.())
+onBeforeUnmount(() => {
+  stopTheme?.()
+  fonts?.removeEventListener?.('loadingdone', readTheme)
+})
 
 const colors = computed<ChartColors>(() => {
   void themeVersion.value
@@ -704,7 +710,7 @@ function tipOf(a: Active | null): Tip | null {
           }),
           value: slice.value,
           color: sliceColors.value[a.slice],
-          row: (pie.value!.props.data ?? props.data)[slice.index],
+          row: rowOf(pie.value!.props.data ?? props.data, slice.index),
         },
       ],
       anchor: a.pointer ?? [p.cx + Math.sin(middle) * at, p.cy - Math.cos(middle) * at],
@@ -734,16 +740,16 @@ function tipOf(a: Active | null): Tip | null {
     ]
     const sizeOf = s.props.size as ChartAccessor | undefined
     if (sizeOf !== undefined) {
-      const value = Number(read(s.rows[a.row]!, sizeOf, a.row))
+      const value = Number(read(rowOf(s.rows, a.row), sizeOf, a.row))
       const name =
         (s.props.sizeName as string | undefined) ?? (typeof sizeOf === 'string' ? sizeOf : '')
       if (value === value)
         items.push({ name, text: numberFormatFull(locale.value.name)(value), value })
     }
-    for (const item of items) item.row = s.rows[a.row]
+    for (const item of items) item.row = rowOf(s.rows, a.row)
     // a point with a name of its own (a city) is titled by it
     const label = s.props.label as ChartAccessor | undefined
-    const own = label === undefined ? null : read(s.rows[a.row]!, label, a.row)
+    const own = label === undefined ? null : read(rowOf(s.rows, a.row), label, a.row)
     return {
       x: rawX(x),
       title: own == null || own === '' ? s.name : String(own),
@@ -769,7 +775,7 @@ function tipOf(a: Active | null): Tip | null {
       text: valueText(s.axis)(y),
       value: y,
       color: s.color,
-      row: s.rows[row],
+      row: rowOf(s.rows, row),
     })
     if (s.kind.band) band = true
     else {
@@ -1276,8 +1282,8 @@ function rowsIn(x: Window | null, y: Window | null): Pick<ChartBrushEvent, 'rows
         const at = alongY(view.point(value, top))
         if (at < lowY || at > highY) continue
       }
-      rows.push(s.rows[i]!)
-      all.add(s.rows[i]!)
+      rows.push(rowOf(s.rows, i))
+      all.add(rowOf(s.rows, i))
     }
     bySeries.push({ name: s.name, rows })
   }
@@ -1636,7 +1642,7 @@ watch(
     if (!list.some((s) => s.kind.prepare)) return
     const work = () => {
       idle = 0
-      for (const s of list) s.kind.prepare?.(s)
+      for (const s of list) if (s.kind.prepare) s.prepared = s.kind.prepare(s)
     }
     steady = setTimeout(() => {
       steady = 0
@@ -1689,15 +1695,28 @@ function pointCount(): number {
 
 /** Whether the chart has been on screen: it comes in when first seen, not while scrolled away. */
 let seen = typeof IntersectionObserver === 'undefined'
+/**
+ * Whether the chart is on screen, or near it. Off screen nothing is drawn
+ * (live data keeps coming), and it is drawn as it is when it comes back.
+ */
+let onScreen = true
+let missed = false
 let watcher: IntersectionObserver | undefined
 onMounted(() => {
-  if (seen || !rootRef.value) return
-  watcher = new IntersectionObserver((entries) => {
-    if (!entries.some((entry) => entry.isIntersecting)) return
-    seen = true
-    watcher?.disconnect()
-    request()
-  })
+  if (typeof IntersectionObserver === 'undefined' || !rootRef.value) return
+  watcher = new IntersectionObserver(
+    (entries) => {
+      const entry = entries[entries.length - 1]
+      if (!entry) return
+      onScreen = entry.isIntersecting
+      if (!onScreen) return
+      // first seen: it comes in now
+      if (!seen || missed) request()
+      seen = true
+      missed = false
+    },
+    { rootMargin: '200px 0px' },
+  )
   watcher.observe(rootRef.value)
 })
 onBeforeUnmount(() => watcher?.disconnect())
@@ -1797,6 +1816,10 @@ function draw() {
   const canvas = canvasRef.value
   const l = layout.value ?? pieLayout.value
   if (!canvas || !l) return
+  if (!onScreen) {
+    missed = true
+    return
+  }
   const now = typeof performance === 'undefined' ? Date.now() : performance.now()
   startMotion(now)
   const dpr = window.devicePixelRatio || 1
@@ -2030,11 +2053,11 @@ function xText(value: number): string {
   }
   if (m0.xKind === 'time') {
     if (xFormat) return xFormat(new Date(value))
-    // as fine as what is shown: zoomed in to an hour, to the second
-    const shown = layout.value?.x.scale.domain ?? m0.x
-    const span = shown ? shown[1] - shown[0] : 0
-    const unit = span < 3600e3 ? 'second' : span < 2 * 86400e3 ? 'minute' : 'day'
-    return timeFormatFull(name, unit)(value)
+    // as precise as the time itself, and as its nearest neighbor needs
+    let gap = Number.POSITIVE_INFINITY
+    for (const s of series.value) gap = Math.min(gap, neighborGap(s.x.values, value))
+    const { unit, digits } = timePrecision(value, gap)
+    return timeFormatFull(name, unit, digits)(value)
   }
   if (xFormat) return xFormat(value)
   // whole numbers on the axis (years) read as the ticks show them

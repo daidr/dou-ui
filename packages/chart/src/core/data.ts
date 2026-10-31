@@ -5,6 +5,46 @@ import { inOrder } from './hit'
 export type ChartRow = any
 
 /**
+ * Data given by column instead of by row: a list of values for each key,
+ * all as long as each other. Typed arrays (`Float64Array`) are read
+ * fastest; a key reads its column, a function gets a row put together
+ * from all the columns.
+ */
+export type ChartColumns = Readonly<Record<string, ArrayLike<unknown>>>
+
+/** Data as rows (objects), or as columns. */
+export type ChartData = readonly ChartRow[] | ChartColumns
+
+/** Whether `data` is given by column. */
+export const byColumn = (data: ChartData): data is ChartColumns => !Array.isArray(data)
+
+/** How many rows `data` has: the length of its first column, when by column. */
+export function rowCount(data: ChartData): number {
+  if (!byColumn(data)) return data.length
+  for (const key in data) return data[key]!.length
+  return 0
+}
+
+const columnRows = new WeakMap<ChartColumns, Map<number, Record<string, unknown>>>()
+
+/**
+ * Row `i` of `data`. A row of columns is put together when first asked
+ * for, and is then the same object each time.
+ */
+export function rowOf(data: ChartData, i: number): ChartRow {
+  if (!byColumn(data)) return data[i]
+  let made = columnRows.get(data)
+  if (!made) columnRows.set(data, (made = new Map()))
+  let row = made.get(i)
+  if (!row) {
+    row = {}
+    for (const key in data) row[key] = data[key]![i]
+    made.set(i, row)
+  }
+  return row
+}
+
+/**
  * Picks a value from a row: a key of the row, or a function of the row and
  * its index. Prefer keys for large data: a function written inline in the
  * template is new on every render, so its column can't be cached.
@@ -56,10 +96,14 @@ export function read(row: ChartRow, accessor: ChartAccessor, index: number): unk
   return row == null ? undefined : (row as Record<string, unknown>)[accessor]
 }
 
+/** Places rows by their index when there is no x. */
+export const byIndex: ChartAccessor = (_row, index) => index
+
 /** Guesses how x values are meant from the first one that is there. */
-export function inferXKind(rows: readonly ChartRow[], accessor: ChartAccessor): XKind {
-  for (let i = 0; i < rows.length; i++) {
-    const value = read(rows[i], accessor, i)
+export function inferXKind(rows: ChartData, accessor: ChartAccessor): XKind {
+  const column = byColumn(rows) && typeof accessor === 'string' ? rows[accessor] : null
+  for (let i = 0, n = rowCount(rows); i < n; i++) {
+    const value = column ? column[i] : read(rowOf(rows, i), accessor, i)
     if (value == null || value === '') continue
     if (typeof value === 'number') return 'linear'
     if (value instanceof Date) return 'time'
@@ -113,7 +157,7 @@ export function carriesOn(
 }
 
 function cached<T>(
-  rows: readonly ChartRow[],
+  rows: ChartData,
   scope: string,
   key: unknown,
   build: () => T,
@@ -128,7 +172,9 @@ function cached<T>(
   // only keys read the same row the same wherever it is: a function also gets the index
   const name = typeof key === 'string' ? `${scope}\u0000${key}` : null
   let value: T | null = null
-  if (name && extend) {
+  // live data comes as rows
+  const live = name && extend && !byColumn(rows)
+  if (live) {
     const last = latest.get(name)
     const before = last?.rows.deref()
     const link = before && carriesOn(rows, before)
@@ -136,16 +182,96 @@ function cached<T>(
   }
   value ??= build()
   entries.set(key, value)
-  if (name && extend && typeof WeakRef === 'function')
-    latest.set(name, { rows: new WeakRef(rows), value })
+  if (live && typeof WeakRef === 'function') latest.set(name, { rows: new WeakRef(rows), value })
   return value
 }
 
-/** Reads a number the way y columns do: anything not finite is `NaN`. */
-function toNumber(value: unknown): number {
-  const n =
-    typeof value === 'number' ? value : value == null || value === '' ? Number.NaN : Number(value)
-  return Number.isFinite(n) ? n : Number.NaN
+/*
+ * Reading columns: the loops below run once per row of data that may have
+ * a million rows, so they read a key straight off the row and take a
+ * number as it is without a call. Rows of a raw array are raw themselves,
+ * so they aren't unwrapped one by one.
+ */
+
+type Numbers =
+  | Float64Array
+  | Float32Array
+  | Int32Array
+  | Uint32Array
+  | Int16Array
+  | Uint16Array
+  | Int8Array
+  | Uint8Array
+
+/** Whether a column is a typed array of numbers, which can be copied at once. */
+const isNumbers = (column: unknown): column is Numbers =>
+  ArrayBuffer.isView(column) &&
+  !(column instanceof DataView) &&
+  !(column instanceof BigInt64Array) &&
+  !(column instanceof BigUint64Array)
+
+/** A value that isn't a number, read as one: `NaN` for none. */
+function slowNumber(value: unknown): number {
+  return value == null || value === '' ? Number.NaN : Number(value)
+}
+
+/** Reads the x of each row from `from` on into `values`, as numbers or times (not categories). */
+function readX(
+  rows: ChartData,
+  accessor: ChartAccessor,
+  time: boolean,
+  from: number,
+  values: Float64Array,
+) {
+  if (accessor === byIndex) {
+    for (let i = from; i < values.length; i++) values[i] = i
+    return
+  }
+  if (byColumn(rows)) {
+    const column = typeof accessor === 'string' ? (toRaw(rows[accessor]) ?? []) : null
+    // numbers already: copied at once
+    if (from === 0 && isNumbers(column)) return values.set(column.subarray(0, values.length))
+    for (let i = from, n = values.length; i < n; i++) {
+      const value = column ? column[i] : read(rowOf(rows, i), accessor, i)
+      values[i] = typeof value === 'number' ? value : time ? toTime(value) : slowNumber(value)
+    }
+    return
+  }
+  const key = typeof accessor === 'string' ? accessor : null
+  for (let i = from; i < rows.length; i++) {
+    const row = rows[i]
+    const value = key === null ? read(row, accessor, i) : row == null ? undefined : row[key]
+    values[i] = typeof value === 'number' ? value : time ? toTime(value) : slowNumber(value)
+  }
+}
+
+/** Reads the y of each row from `from` on into `values`; anything not finite is `NaN`. */
+function readY(rows: ChartData, accessor: ChartAccessor, from: number, values: Float64Array) {
+  if (byColumn(rows)) {
+    const column = typeof accessor === 'string' ? (toRaw(rows[accessor]) ?? []) : null
+    if (from === 0 && isNumbers(column)) {
+      values.set(column.subarray(0, values.length))
+      for (let i = 0; i < values.length; i++) {
+        const v = values[i]!
+        if (v - v !== 0) values[i] = Number.NaN
+      }
+      return
+    }
+    for (let i = from, n = values.length; i < n; i++) {
+      const value = column ? column[i] : read(rowOf(rows, i), accessor, i)
+      const v = typeof value === 'number' ? value : slowNumber(value)
+      values[i] = v - v === 0 ? v : Number.NaN
+    }
+    return
+  }
+  const key = typeof accessor === 'string' ? accessor : null
+  for (let i = from; i < rows.length; i++) {
+    const row = rows[i]
+    const value = key === null ? read(row, accessor, i) : row == null ? undefined : row[key]
+    const n = typeof value === 'number' ? value : slowNumber(value)
+    // `n - n` is 0 only for finite numbers
+    values[i] = n - n === 0 ? n : Number.NaN
+  }
 }
 
 /** X columns with a gap somewhere. */
@@ -156,7 +282,7 @@ const gapped = new WeakSet<Float64Array>()
  * accessor and kind: replace the array (don't change it in place) for the
  * chart to see new data.
  */
-export function xColumn(rows: readonly ChartRow[], accessor: ChartAccessor, kind: XKind): XColumn {
+export function xColumn(rows: ChartData, accessor: ChartAccessor, kind: XKind): XColumn {
   const raw = toRaw(rows)
   return cached(
     raw,
@@ -166,53 +292,36 @@ export function xColumn(rows: readonly ChartRow[], accessor: ChartAccessor, kind
     (before, dropped, kept) => {
       // categories and gaps of the dropped rows would linger: built afresh
       if (kind === 'category' || !before.sorted || gapped.has(before.values)) return null
-      const values = new Float64Array(raw.length)
+      const values = new Float64Array(rowCount(raw))
       values.set(before.values.subarray(dropped))
-      let last = kept > 0 ? values[kept - 1]! : -Infinity
-      for (let i = kept; i < raw.length; i++) {
-        const value = read(toRaw(raw[i]), accessor, i)
-        const n =
-          kind === 'time'
-            ? toTime(value)
-            : typeof value === 'number'
-              ? value
-              : value == null || value === ''
-                ? Number.NaN
-                : Number(value)
-        // out of order or missing: built afresh, which works out the rest
-        if (!(n >= last)) return null
-        values[i] = last = n
-      }
+      readX(raw, accessor, kind === 'time', kept, values)
+      // out of order or missing: built afresh, which works out the rest
+      for (let i = kept; i < values.length; i++) if (!(values[i]! >= values[i - 1]!)) return null
       inOrder(values)
       return { kind, values, categories: before.categories, sorted: true }
     },
   )
 }
 
-function buildX(rows: readonly ChartRow[], accessor: ChartAccessor, kind: XKind): XColumn {
-  const values = new Float64Array(rows.length)
+function buildX(rows: ChartData, accessor: ChartAccessor, kind: XKind): XColumn {
+  const values = new Float64Array(rowCount(rows))
   const categories: string[] = []
-  const seen = new Map<string, number>()
-  let sorted = true
-  let gaps = false
-  let last = -Infinity
-  for (let i = 0; i < rows.length; i++) {
-    const value = read(toRaw(rows[i]), accessor, i)
-    let n: number
-    if (kind === 'category') {
+  if (kind === 'category') {
+    const seen = new Map<string, number>()
+    const column = byColumn(rows) && typeof accessor === 'string' ? rows[accessor] : null
+    for (let i = 0; i < values.length; i++) {
+      const value = column ? column[i] : read(rowOf(rows, i), accessor, i)
       const label = value == null ? '' : String(value)
       let at = seen.get(label)
       if (at === undefined) seen.set(label, (at = categories.push(label) - 1))
-      n = at
-    } else if (kind === 'time') n = toTime(value)
-    else
-      n =
-        typeof value === 'number'
-          ? value
-          : value == null || value === ''
-            ? Number.NaN
-            : Number(value)
-    values[i] = n
+      values[i] = at
+    }
+  } else readX(rows, accessor, kind === 'time', 0, values)
+  let sorted = true
+  let gaps = false
+  let last = -Infinity
+  for (let i = 0; i < values.length; i++) {
+    const n = values[i]!
     if (n < last) sorted = false
     if (n === n) last = n
     else gaps = true
@@ -227,21 +336,22 @@ function buildX(rows: readonly ChartRow[], accessor: ChartAccessor, kind: XKind)
  * The y values of `rows` as one typed array; anything that isn't a finite
  * number (`null`, a gap) is `NaN`.
  */
-export function yColumn(rows: readonly ChartRow[], accessor: ChartAccessor): Float64Array {
+export function yColumn(rows: ChartData, accessor: ChartAccessor): Float64Array {
   const raw = toRaw(rows)
-  const column = (from: number, values: Float64Array) => {
-    for (let i = from; i < raw.length; i++) values[i] = toNumber(read(toRaw(raw[i]), accessor, i))
-    return values
-  }
   return cached(
     raw,
     'y',
     accessor,
-    () => column(0, new Float64Array(raw.length)),
+    () => {
+      const values = new Float64Array(rowCount(raw))
+      readY(raw, accessor, 0, values)
+      return values
+    },
     (before, dropped, kept) => {
-      const values = new Float64Array(raw.length)
+      const values = new Float64Array(rowCount(raw))
       values.set(before.subarray(dropped))
-      return column(kept, values)
+      readY(raw, accessor, kept, values)
+      return values
     },
   )
 }

@@ -79,6 +79,9 @@ export interface Case {
   /**
    * The most `act` may take, in ms, at each size: `bun run bench:check`
    * runs the cases that have one, at those sizes, and fails above it.
+   * About twice what a laptop takes, so a slower machine passes: it
+   * catches a change that makes the case several times slower, not a
+   * few percent.
    */
   budget?: Record<number, number>
 }
@@ -634,6 +637,7 @@ export const cases: Record<string, Case> = {
   },
   // a time series of `n` points; the canvas is drawn in the next frame, so `act` waits for it
   chart: {
+    budget: { 1_000_000: 200 },
     render: (n) => chartCase(n),
     // new data: read into columns again and drawn
     prepare: () => {
@@ -642,8 +646,7 @@ export const cases: Record<string, Case> = {
     },
     act: async () => {
       const { data, next } = (window as any).chart
-      data.value = next
-      await drawn()
+      await timedDraw(() => (data.value = next))
     },
   },
   // `n` bars, most narrower than a pixel: merged per pixel column
@@ -655,8 +658,7 @@ export const cases: Record<string, Case> = {
     },
     act: async () => {
       const { data, next } = (window as any).chart
-      data.value = next
-      await drawn()
+      await timedDraw(() => (data.value = next))
     },
   },
   // `n` points scattered over the plot: dots on one pixel drawn once
@@ -668,14 +670,13 @@ export const cases: Record<string, Case> = {
     },
     act: async () => {
       const { data, next } = (window as any).chart
-      data.value = next
-      await drawn()
+      await timedDraw(() => (data.value = next))
     },
   },
   // zoomed in to a tenth of `n` points: a step of the pan, as a drag or the wheel moves it
   'chart-pan': {
     frames: 20,
-    budget: { 1_000_000: 8 },
+    budget: { 1_000_000: 16 },
     render: (n) => chartCase(n, 'line', true),
     act: async () => {
       const { range } = (window as any).chart
@@ -684,10 +685,30 @@ export const cases: Record<string, Case> = {
       await timedDraw(() => (range.value = [a + step, b + step]))
     },
   },
+  // new data given by column, as typed arrays: nothing to read row by row
+  'chart-columns': {
+    budget: { 1_000_000: 120 },
+    render: (n) => chartCase(n),
+    prepare: () => {
+      const state = (window as any).chart
+      const points = state.points()
+      const t = new Float64Array(points.length)
+      const v = new Float64Array(points.length)
+      for (let i = 0; i < points.length; i++) {
+        t[i] = points[i].t
+        v[i] = points[i].v
+      }
+      state.next = { t, v }
+    },
+    act: async () => {
+      const { data, next } = (window as any).chart
+      await timedDraw(() => (data.value = next))
+    },
+  },
   // a live line of the last `n` points: one comes in, the oldest goes
   'chart-live': {
     frames: 20,
-    budget: { 10_000: 4 },
+    budget: { 10_000: 8 },
     render: (n) => chartCase(n),
     act: async () => {
       const { data } = (window as any).chart
@@ -703,7 +724,7 @@ export const cases: Record<string, Case> = {
   // all of `n` points shown, zoomed in by a step
   'chart-zoom': {
     frames: 20,
-    budget: { 1_000_000: 8 },
+    budget: { 1_000_000: 16 },
     render: (n) => chartCase(n, 'line', true),
     prepare: () => {
       ;(window as any).chart.range.value = null
@@ -717,7 +738,7 @@ export const cases: Record<string, Case> = {
   // the pointer over `n` points: the x under it found, the tooltip shown
   'chart-hover': {
     frames: 20,
-    budget: { 1_000_000: 4 },
+    budget: { 1_000_000: 8 },
     render: (n) => chartCase(n),
     act: async (root) => {
       const el = root.querySelector<HTMLElement>('.dou-chart')!
@@ -737,7 +758,7 @@ export const cases: Record<string, Case> = {
   // the pointer over `n` scattered points: the nearest found
   'chart-scatter-hover': {
     frames: 20,
-    budget: { 100_000: 2, 1_000_000: 4 },
+    budget: { 100_000: 4, 1_000_000: 8 },
     render: (n) => chartCase(n, 'scatter'),
     act: async (root) => {
       const el = root.querySelector<HTMLElement>('.dou-chart')!

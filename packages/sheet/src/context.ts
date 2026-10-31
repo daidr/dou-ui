@@ -79,6 +79,34 @@ export interface SheetContext {
   unmerge: () => void
   /** Says `text` to screen readers. */
   announce: (text: string) => void
+  /** The cell being edited, for inputs outside the grid such as the formula bar. */
+  editor: SheetEditorContext
+}
+
+/** Editing the active cell from outside the grid, as the formula bar does. */
+export interface SheetEditorContext {
+  /** The cell being edited and how: `'enter'` began by typing, so the arrows move on (or point, in a formula). */
+  cell: ComputedRef<{ sheet: number; row: number; col: number; mode: 'enter' | 'edit' } | null>
+  /** The text being edited. */
+  text: Readonly<Ref<string>>
+  /** Where the caret is in `text`. */
+  caret: Readonly<Ref<number>>
+  /** The text a cell edits as: its formula, or its value as typed. */
+  textAt: (point: SheetPoint) => string
+  /** Sets the text being edited, starting an edit of the active cell when none is open. */
+  input: (text: string, caret?: number) => boolean
+  /** Tells where the input's caret is, after keys or a click moved it. */
+  moveCaret: (caret: number) => void
+  /** Handles a key the way the cell's editor does (completion, pointing, Enter, Tab, Escape); `true` when it did. */
+  key: (event: KeyboardEvent) => boolean
+  /** Saves the edit, then moves the way Enter (`'down'`) or Tab (`'right'`) do. */
+  commit: (move?: 'up' | 'down' | 'left' | 'right') => void
+  /** Drops the edit. */
+  cancel: () => void
+  /** Lets an input edit the cell: focus moving to it keeps the edit open. Returns a function that undoes it. */
+  attach: (el: HTMLInputElement | HTMLTextAreaElement) => () => void
+  /** The id of the list of functions and argument hints, for `aria-controls`. */
+  helpId: string
 }
 
 export const sheetContextKey: InjectionKey<SheetContext> = Symbol('dou-sheet')

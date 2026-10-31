@@ -59,6 +59,8 @@ import { mergesOf } from './core/merge'
 import { alignOf, fitNumber, formatValue, inputText, parseInput } from './core/format'
 import { SheetHistory, type SheetHistoryView } from './core/history'
 import { SheetFormulaEngine } from './formula/engine'
+import { callAt, canPointAt, formulaReferences, nameAt } from './formula/edit'
+import type { SheetFunction } from './formula/functions'
 import { isSheetError, type SheetErrorCode } from './formula/error'
 import { shownValue } from './formula/values'
 import {
@@ -908,6 +910,30 @@ const editTyped = ref(false)
 const editValue = shallowRef<SheetValue>(null)
 /** Whether editing began with a finger: a type's panel then shows without the keyboard over it. */
 const editByTouch = ref(false)
+/** Where the caret is in the text being edited. */
+const editCaret = ref(0)
+/** Other inputs that edit the cell too, such as the formula bar's. */
+const editInputs = new Set<HTMLTextAreaElement | HTMLInputElement>()
+/** The input the edit is typed in: one of `editInputs` while it has focus, else the cell's editor. */
+function editInput(): HTMLTextAreaElement | HTMLInputElement | undefined {
+  const el = document.activeElement
+  if (el && editInputs.has(el as HTMLTextAreaElement)) return el as HTMLTextAreaElement
+  return editor.value
+}
+/** Whether a formula is being edited, so references are marked and can be pointed at. */
+const formulaEdit = computed(() => !!editing.value && editText.value.startsWith('='))
+/** The references of the formula being edited, each with its color. */
+const refMarks = computed(() => (formulaEdit.value ? formulaReferences(editText.value) : []))
+/**
+ * The reference the arrow keys or the pointer wrote last: moving on
+ * replaces it, so pointing at another cell changes it instead of adding one.
+ */
+const pointing = shallowRef<{
+  start: number
+  end: number
+  anchor: SheetPoint
+  point: SheetPoint
+} | null>(null)
 const panel = shallowRef<InstanceType<typeof CellPanel> | null>(null)
 /** The type of the cell being edited, when it has a panel to show under it. */
 const panelType = computed(() => {
@@ -932,16 +958,68 @@ function beginEdit(mode: 'enter' | 'edit', text?: string) {
   editByTouch.value = lastPointer === 'touch'
   if (text != null) el.value = text
   editText.value = el.value
-  if (document.activeElement !== el) el.focus({ preventScroll: true })
+  // typing in the formula bar keeps the focus there
+  const owner = editInput()
+  if (owner === el && document.activeElement !== el) el.focus({ preventScroll: true })
   if (text != null) el.setSelectionRange(el.value.length, el.value.length)
+  editCaret.value = owner?.selectionStart ?? el.selectionStart
+  pointing.value = null
   fitEditor()
   return true
 }
+
+/** Changes the text being edited and puts the caret at `caret`, in every input that edits. */
+function setEditText(text: string, caret = text.length) {
+  const el = editor.value
+  if (el && el.value !== text) el.value = text
+  editText.value = text
+  editTyped.value = true
+  editCaret.value = caret
+  const input = editInput()
+  if (input) {
+    if (input.value !== text) input.value = text
+    if (input.selectionStart !== caret || input.selectionEnd !== caret)
+      input.setSelectionRange(caret, caret)
+  }
+  fitEditor()
+  void nextTick(syncMirror)
+}
+
+/** Keeps the caret's position, after keys or a click moved it. */
+function syncCaret() {
+  const input = editInput()
+  if (editing.value && input) editCaret.value = input.selectionStart ?? editText.value.length
+  syncMirror()
+}
+
+/**
+ * Writes a reference to the cells from `anchor` to `point` at the caret, or
+ * in place of the one pointed at before. Only where a reference can go.
+ */
+function pointTo(anchor: SheetPoint, point: SheetPoint) {
+  const text = editText.value
+  const p = pointing.value
+  if (!p && !canPointAt(text, editCaret.value)) return false
+  const name = formatRange({ start: anchor, end: point })
+  const start = p ? p.start : editCaret.value
+  const end = p ? p.end : editCaret.value
+  pointing.value = { start, end: start + name.length, anchor, point }
+  setEditText(text.slice(0, start) + name + text.slice(end), start + name.length)
+  scrollToPoint(point)
+  return true
+}
+
+/** Whether a press on a cell would point at it, instead of finishing the edit. */
+const pointable = () =>
+  formulaEdit.value && (!!pointing.value || canPointAt(editText.value, editCaret.value))
 
 function cancelEdit() {
   editing.value = null
   editText.value = ''
   editTyped.value = false
+  editCaret.value = 0
+  pointing.value = null
+  assistShut.value = null
   if (editor.value) editor.value.value = ''
 }
 
@@ -1159,16 +1237,29 @@ function onInput() {
   }
   editText.value = editor.value?.value ?? ''
   editTyped.value = true
+  editCaret.value = editor.value?.selectionStart ?? editText.value.length
+  // typing ends pointing: the next cell pointed at is a new reference
+  pointing.value = null
   fitEditor()
+  syncMirror()
+}
+
+/** What another input that edits typed, as `useSheet().editor.input`. */
+function inputFrom(text: string, caret = text.length) {
+  if (!editing.value && !beginEdit('edit')) return false
+  pointing.value = null
+  setEditText(text, caret)
+  return true
 }
 
 function onCompositionStart() {
   if (!editing.value && !beginEdit('enter') && editor.value) editor.value.value = ''
 }
 
-function onInputBlur() {
+function onInputBlur(event: FocusEvent) {
   focused.value = false
-  // switching windows keeps the edit open
+  // switching windows, or to the formula bar, keeps the edit open
+  if (editInputs.has(event.relatedTarget as HTMLTextAreaElement)) return
   if (editing.value && document.hasFocus()) commitEdit()
 }
 
@@ -1382,6 +1473,24 @@ function editKey(event: KeyboardEvent, mode: 'enter' | 'edit') {
   // a cell type's panel gets the keys first, such as the arrows in a list
   if (panel.value?.onKey(event)) return event.preventDefault()
   const key = event.key
+  const list = assist.value?.kind === 'list' ? assist.value : null
+  if (list && !event.altKey && !event.ctrlKey && !event.metaKey) {
+    if (key === 'ArrowDown' || key === 'ArrowUp') {
+      event.preventDefault()
+      const step = key === 'ArrowDown' ? 1 : -1
+      assistIndex.value = (assistIndex.value + step + list.items.length) % list.items.length
+      return
+    }
+    if (key === 'Tab' || key === 'Enter') {
+      event.preventDefault()
+      return completeName(list.items[assistIndex.value]!)
+    }
+    if (key === 'Escape') {
+      event.preventDefault()
+      assistShut.value = editText.value
+      return
+    }
+  }
   if (key === 'Escape') {
     event.preventDefault()
     cancelEdit()
@@ -1409,11 +1518,193 @@ function editKey(event: KeyboardEvent, mode: 'enter' | 'edit') {
     return
   }
   const arrow = ARROWS[key]
+  const plain = !event.ctrlKey && !event.metaKey && !event.altKey
+  if (arrow && mode === 'enter' && plain && pointable()) {
+    // in a formula, where a reference can go, the arrows point at cells
+    event.preventDefault()
+    const e = editing.value!
+    const p = pointing.value
+    const from = p ? p.point : { row: e.row, col: e.col }
+    const next = movePoint(from, arrow, axes(), filled, false)
+    pointTo(event.shiftKey ? (p?.anchor ?? from) : next, next)
+    return
+  }
   if (arrow && mode === 'enter' && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
     event.preventDefault()
     return commitEdit(arrow)
   }
 }
+
+// Formula help: the functions to pick from while typing a name, and what a call takes --------
+
+/** The functions formulas can call, by name. */
+const functionList = computed(() => {
+  void engineId.value
+  return engine.functionList()
+})
+/** What a function takes and does: its own words, or the built-in help in the grid's language. */
+/** The functions used most, in the order the list shows them before the rest. */
+const COMMON = [
+  'SUM',
+  'AVERAGE',
+  'IF',
+  'COUNT',
+  'MAX',
+  'MIN',
+  'ROUND',
+  'SUMIF',
+  'COUNTIF',
+  'IFERROR',
+  'VLOOKUP',
+  'XLOOKUP',
+  'AND',
+  'OR',
+  'CONCAT',
+  'TODAY',
+]
+const rankOf = (name: string) => {
+  const at = COMMON.indexOf(name)
+  return at === -1 ? COMMON.length : at
+}
+function helpOf(fn: SheetFunction) {
+  const name = fn.name.toUpperCase()
+  const own = messages.value.functions[name]
+  return {
+    name,
+    args: fn.args ?? own?.args ?? [],
+    description: fn.description ?? own?.description ?? '',
+  }
+}
+/** The text the list was closed at with Escape; it stays closed until the text changes. */
+const assistShut = ref<string | null>(null)
+const assistIndex = ref(0)
+const assistId = `${uid}-assist`
+
+/**
+ * What shows under the input while a formula is typed: the functions whose
+ * names start with what is typed, or the arguments of the call the caret is in.
+ */
+const assist = computed(() => {
+  if (!formulaEdit.value) return null
+  const text = editText.value
+  const caret = editCaret.value
+  const name = assistShut.value === text ? null : nameAt(text, caret)
+  if (name) {
+    const prefix = name.text.toUpperCase()
+    const items = functionList.value
+      .filter((fn) => fn.name.toUpperCase().startsWith(prefix))
+      .map(helpOf)
+    // the functions used most come first, so Tab after `=SU` writes SUM
+    items.sort((a, b) => rankOf(a.name) - rankOf(b.name))
+    if (items.length) return { kind: 'list' as const, ...name, items }
+  }
+  const call = callAt(text, caret)
+  const fn = call && functionList.value.find((f) => f.name.toUpperCase() === call.name)
+  if (!call || !fn) return null
+  const help = helpOf(fn)
+  // past the last argument, a repeating one (`…`) goes on
+  const repeat = help.args[help.args.length - 1] === '…'
+  const arg =
+    call.arg < help.args.length - (repeat ? 1 : 0) ? call.arg : repeat ? help.args.length - 2 : -1
+  return { kind: 'hint' as const, ...help, arg }
+})
+watch(
+  () => (assist.value?.kind === 'list' ? `${assist.value.start}:${assist.value.text}` : ''),
+  () => (assistIndex.value = 0),
+)
+watch(assistIndex, (index) => {
+  void nextTick(() =>
+    document.getElementById(`${assistId}-${index}`)?.scrollIntoView({ block: 'nearest' }),
+  )
+})
+
+/** Writes a function's name and its `(` over the name being typed. */
+function completeName(item: { name: string }) {
+  const list = assist.value
+  if (list?.kind !== 'list') return
+  const text = editText.value
+  const insert = `${item.name}(`
+  setEditText(text.slice(0, list.start) + insert + text.slice(list.end), list.start + insert.length)
+}
+
+/**
+ * Where the formula help shows: under the input being typed in, or above it
+ * near the bottom of the window. Fixed, so a formula bar outside the grid has it too.
+ */
+const assistStyle = computed(() => {
+  const e = editing.value
+  if (!assist.value || !e) return ''
+  void editText.value
+  void scroll.value
+  const input = editInput()
+  let box: { left: number; top: number; bottom: number } | undefined
+  if (input && input !== editor.value) box = input.getBoundingClientRect()
+  else {
+    const base = (editor.value?.offsetParent ?? root.value)?.getBoundingClientRect()
+    if (!base) return ''
+    const rect = cellRect(e)
+    const top = base.top + rect.y - 1
+    box = {
+      left: base.left + rect.x - 1,
+      top,
+      bottom: top + Math.max(editorSize.value.height, rect.height) + 1,
+    }
+  }
+  const room = window.innerHeight - box.bottom
+  const left = Math.max(8, Math.min(box.left, window.innerWidth - 328))
+  return room < 200 && box.top > room
+    ? `left:${left}px;bottom:${window.innerHeight - box.top + 4}px`
+    : `left:${left}px;top:${box.bottom + 4}px`
+})
+
+// The formula as it is typed, with its references in their colors, drawn under the editor's text
+
+const mirror = ref<HTMLElement>()
+const mirrorParts = computed(() => {
+  if (!formulaEdit.value) return []
+  const text = editText.value
+  const parts: { text: string; color?: number }[] = []
+  let at = 0
+  for (const mark of refMarks.value) {
+    if (mark.start > at) parts.push({ text: text.slice(at, mark.start) })
+    parts.push({ text: mark.text, color: mark.color })
+    at = mark.end
+  }
+  // a last line break still takes a line
+  parts.push({ text: `${text.slice(at)}\u200b` })
+  return parts
+})
+function syncMirror() {
+  const el = editor.value
+  const m = mirror.value
+  if (!el || !m) return
+  m.scrollLeft = el.scrollLeft
+  m.scrollTop = el.scrollTop
+}
+
+/** The references of the formula being edited that are on the sheet shown, as boxes over the grid. */
+const refRects = computed(() => {
+  const name = sheet.value.name.toLowerCase()
+  const seen = new Set<string>()
+  const out: { rect: ViewRect; color: number; key: string }[] = []
+  const lastRow = rowCount.value - 1
+  const lastCol = colCount.value - 1
+  for (const mark of refMarks.value) {
+    if (mark.sheet != null && mark.sheet.toLowerCase() !== name) continue
+    const b = mark.bounds
+    const key = `${b.top}:${b.left}:${b.bottom}:${b.right}`
+    if (seen.has(key) || b.top > lastRow || b.left > lastCol) continue
+    seen.add(key)
+    const rect = rangeRect({
+      top: b.top,
+      left: b.left,
+      bottom: Math.min(b.bottom, lastRow),
+      right: Math.min(b.right, lastCol),
+    })
+    if (rect) out.push({ rect, color: mark.color, key })
+  }
+  return out
+})
 
 function endOfRow(row: number): SheetPoint {
   const line = sheet.value.cells[row]
@@ -2570,7 +2861,7 @@ function onSelectedLine(hit: Hit) {
 
 interface Drag {
   pointerId: number
-  mode: Hit['area'] | 'fill' | 'resize' | 'move'
+  mode: Hit['area'] | 'fill' | 'resize' | 'move' | 'point'
   touch: boolean
   started: boolean
   /** Whether the drag changed anything, so a long press without it opens the menu. */
@@ -2634,6 +2925,21 @@ function onPointerDown(event: PointerEvent) {
   )
     return
   const hit = hitAt(event.clientX, event.clientY)
+  if (editing.value && hit.area === 'cell' && event.button === 0 && pointable()) {
+    // writing a formula: the cell pressed goes into it, and the input keeps the focus
+    event.preventDefault()
+    lastPointer = event.pointerType
+    const point = { row: hit.row, col: hit.col }
+    if (event.pointerType === 'touch') {
+      // a finger that moves scrolls; a tap points
+      startDrag(event, { mode: 'point', started: false })
+      return
+    }
+    pointTo(event.shiftKey && pointing.value ? pointing.value.anchor : point, point)
+    startDrag(event, { mode: 'point', started: true })
+    frame = requestAnimationFrame(autoScroll)
+    return
+  }
   if (editing.value) commitEdit()
   const touch = event.pointerType === 'touch'
   if (event.button === 2) {
@@ -2782,6 +3088,13 @@ function onPointerMove(event: PointerEvent) {
 function dragTo(hit: Hit) {
   const d = drag.value!
   if (d.mode === 'corner' || d.mode === 'resize') return
+  if (d.mode === 'point') {
+    const p = pointing.value
+    if (p && (p.point.row !== hit.row || p.point.col !== hit.col))
+      pointTo(p.anchor, { row: hit.row, col: hit.col })
+    d.moved = true
+    return
+  }
   if (d.mode === 'fill') {
     fillTarget.value = fillTo(hit)
     d.moved = true
@@ -2913,6 +3226,13 @@ function onPointerUp(event: PointerEvent) {
       if (target) finishFill(target, invert)
       return
     }
+    case 'point':
+      if (!d.started) {
+        const hit = hitAt(d.x0, d.y0)
+        if (hit.area === 'cell')
+          pointTo({ row: hit.row, col: hit.col }, { row: hit.row, col: hit.col })
+      }
+      return
     case 'move':
       if (d.started && d.to != null) return moveSelectedLines(d.axis!, d.to)
       if (!d.touch) {
@@ -3121,6 +3441,37 @@ const context: SheetContext = {
   merge: () => mergeSelection(),
   unmerge: () => unmergeSelection(),
   announce,
+  editor: {
+    cell: computed(() => editing.value),
+    text: editText,
+    caret: editCaret,
+    textAt: (point) => editTextAt(point.row, point.col) ?? '',
+    input: inputFrom,
+    moveCaret: (caret) => {
+      if (!editing.value) return
+      if (caret !== editCaret.value) pointing.value = null
+      editCaret.value = caret
+    },
+    key: (event) => {
+      const e = editing.value
+      if (!e || isComposing(event)) return false
+      editKey(event, e.mode)
+      return event.defaultPrevented
+    },
+    commit: (move) => {
+      commitEdit(move)
+      focusGrid()
+    },
+    cancel: () => {
+      cancelEdit()
+      focusGrid()
+    },
+    attach: (el) => {
+      editInputs.add(el)
+      return () => editInputs.delete(el)
+    },
+    helpId: assistId,
+  },
 }
 provide(sheetContextKey, context)
 
@@ -3441,15 +3792,45 @@ defineExpose<SheetExpose>({
           </div>
         </div>
       </div>
+      <div
+        v-for="mark in refRects"
+        :key="mark.key"
+        class="dou-sheet__ref"
+        :class="`is-ref-${mark.color}`"
+        :style="rectStyle(mark.rect)"
+        aria-hidden="true"
+      />
+      <div
+        v-if="formulaEdit"
+        ref="mirror"
+        class="dou-sheet__input is-open is-mirror"
+        :class="editorClass"
+        :style="inputStyle"
+        aria-hidden="true"
+      >
+        <span
+          v-for="(part, i) in mirrorParts"
+          :key="i"
+          :class="part.color != null && `is-ref-${part.color}`"
+          >{{ part.text }}</span
+        >
+      </div>
       <textarea
         ref="editor"
         class="dou-sheet__input"
-        :class="[editorClass, { 'is-open': editing }]"
+        :class="[editorClass, { 'is-open': editing, 'is-formula': formulaEdit }]"
         :style="inputStyle"
         :aria-label="editing ? format(messages.edit, { cell: formatCell(editing) }) : activeLabel"
         :aria-expanded="panelType ? true : undefined"
         :inputmode="panelType && editByTouch ? 'none' : undefined"
-        :aria-activedescendant="panel?.activeId ?? undefined"
+        :aria-activedescendant="
+          panel?.activeId ??
+          (assist?.kind === 'list' && editInput() === editor
+            ? `${assistId}-${assistIndex}`
+            : undefined)
+        "
+        :aria-autocomplete="formulaEdit ? 'list' : undefined"
+        :aria-controls="assist ? assistId : undefined"
         :aria-describedby="keysHint"
         :readonly="readonly"
         autocomplete="off"
@@ -3457,10 +3838,52 @@ defineExpose<SheetExpose>({
         spellcheck="false"
         rows="1"
         @input="onInput"
+        @keyup="syncCaret"
+        @click="syncCaret"
+        @select="syncCaret"
+        @scroll="syncMirror"
         @compositionstart="onCompositionStart"
         @focus="focused = true"
         @blur="onInputBlur"
       />
+      <div
+        v-if="assist"
+        :id="assistId"
+        class="dou-sheet__assist"
+        :role="assist.kind === 'list' ? 'listbox' : 'tooltip'"
+        :aria-label="assist.kind === 'list' ? messages.functionList : undefined"
+        :style="assistStyle"
+        @pointerdown.prevent
+      >
+        <template v-if="assist.kind === 'list'">
+          <div
+            v-for="(item, i) in assist.items"
+            :id="`${assistId}-${i}`"
+            :key="item.name"
+            class="dou-sheet__assist-item"
+            :class="{ 'is-active': i === assistIndex }"
+            role="option"
+            :aria-selected="i === assistIndex"
+            @pointerenter="assistIndex = i"
+            @click="completeName(item)"
+          >
+            <span class="dou-sheet__assist-name">{{ item.name }}</span>
+            <span class="dou-sheet__assist-text">{{ item.description }}</span>
+          </div>
+        </template>
+        <template v-else>
+          <div class="dou-sheet__assist-call">
+            <span class="dou-sheet__assist-name">{{ assist.name }}</span
+            >(<template v-for="(arg, i) in assist.args" :key="i"
+              ><template v-if="i">, </template
+              ><span :class="{ 'is-current': i === assist.arg }">{{ arg }}</span></template
+            >)
+          </div>
+          <div v-if="assist.description" class="dou-sheet__assist-text">
+            {{ assist.description }}
+          </div>
+        </template>
+      </div>
       <div
         v-if="clipRect"
         class="dou-sheet__mark"

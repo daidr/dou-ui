@@ -1,6 +1,7 @@
 import { useLocale } from 'dou-ui'
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 import type { SheetErrorCode } from './formula/error'
+import { helpEn, helpZhCN, helpZhTW, type SheetFunctionHelp } from './formula/help'
 
 export interface SheetMessages {
   /** The grid's accessible name when none is given. */
@@ -82,6 +83,15 @@ export interface SheetMessages {
   notChecked: string
   /** Why a formula gives an error value, shown on hover and read out. */
   errors: Record<SheetErrorCode, string>
+  /** What the built-in functions take and do, by name, for completion and argument hints. */
+  functions: Record<string, SheetFunctionHelp>
+  /** The formula bar: the box with the cell's address, and the formula box. */
+  nameBox: string
+  formulaBox: string
+  /** An address typed in the name box that isn't one: `{text}` is what was typed. */
+  badAddress: string
+  /** The list of functions while typing a function's name. */
+  functionList: string
   /** The name a new sheet gets: `{n}` is a number. */
   sheetName: string
   /** The sheet tabs' accessible name. */
@@ -226,6 +236,11 @@ const zhCN: SheetMessages = {
     '#CYCLE!': '公式引用了自己',
     '#ERROR!': '公式写法有误',
   },
+  functions: helpZhCN,
+  nameBox: '单元格地址',
+  formulaBox: '编辑栏',
+  badAddress: '“{text}”不是单元格地址',
+  functionList: '函数',
   sheetName: '工作表{n}',
   sheets: '工作表',
   sheetShown: '工作表“{name}”',
@@ -356,6 +371,11 @@ const zhTW: SheetMessages = {
     '#CYCLE!': '公式參照了自己',
     '#ERROR!': '公式寫法有誤',
   },
+  functions: helpZhTW,
+  nameBox: '儲存格位址',
+  formulaBox: '資料編輯列',
+  badAddress: '「{text}」不是儲存格位址',
+  functionList: '函數',
   sheetName: '工作表{n}',
   sheets: '工作表',
   sheetShown: '工作表「{name}」',
@@ -487,6 +507,11 @@ const en: SheetMessages = {
     '#CYCLE!': 'The formula depends on itself',
     '#ERROR!': 'The formula is written wrong',
   },
+  functions: helpEn,
+  nameBox: 'Cell address',
+  formulaBox: 'Formula bar',
+  badAddress: '"{text}" is not a cell address',
+  functionList: 'Functions',
   sheetName: 'Sheet{n}',
   sheets: 'Sheets',
   sheetShown: 'Sheet “{name}”',
@@ -571,8 +596,9 @@ export function useSheetMessages(override?: MaybeRefOrGetter<Partial<SheetMessag
     const out: Record<string, unknown> = { ...base }
     for (const [key, value] of Object.entries(extra)) {
       if (value === undefined) continue
-      // the error reasons can be given one by one
-      out[key] = key === 'errors' ? { ...base.errors, ...(value as object) } : value
+      // error reasons and function help can be given one by one
+      out[key] =
+        key === 'errors' || key === 'functions' ? { ...base[key], ...(value as object) } : value
     }
     return out as unknown as SheetMessages
   })

@@ -138,6 +138,14 @@ export class SheetFormulaEngine {
     if (doc) this.load(doc)
   }
 
+  /** The functions formulas can call, built in and added, by name. */
+  functionList(): SheetFunction[] {
+    // oxlint-disable-next-line unicorn/no-array-sort -- sorts a fresh array
+    return [...this.functions.values()].sort((a, b) =>
+      a.name < b.name ? -1 : a.name > b.name ? 1 : 0,
+    )
+  }
+
   /** Whether a function of this name can be called, built in or added. */
   hasFunction(name: string) {
     return this.functions.has(name.toUpperCase())

@@ -2,14 +2,16 @@ import { withInstall } from 'dou-ui'
 import Sheet from './sheet.vue'
 import SheetTabs from './components/sheet-tabs.vue'
 import SheetToolbar from './components/sheet-toolbar.vue'
+import SheetFormulaBar from './components/sheet-formula-bar.vue'
 
 export const DouSheet = withInstall(Sheet)
 export const DouSheetTabs = withInstall(SheetTabs)
 export const DouSheetToolbar = withInstall(SheetToolbar)
+export const DouSheetFormulaBar = withInstall(SheetFormulaBar)
 export default DouSheet
 
 export { useSheet, sheetContextKey } from './context'
-export type { SheetContext, SheetRect } from './context'
+export type { SheetContext, SheetEditorContext, SheetRect } from './context'
 export { defineSheetExtension, resolveSheetExtensions } from './core/extension'
 export type {
   ResolvedSheetExtensions,
@@ -110,5 +112,6 @@ declare module 'vue' {
     DouSheet: typeof DouSheet
     DouSheetTabs: typeof DouSheetTabs
     DouSheetToolbar: typeof DouSheetToolbar
+    DouSheetFormulaBar: typeof DouSheetFormulaBar
   }
 }

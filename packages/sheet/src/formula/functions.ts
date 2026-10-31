@@ -30,6 +30,13 @@ interface FunctionBase {
   maxArgs?: number
   /** Gives a new result on every recalculation, like `TODAY()`. */
   volatile?: boolean
+  /**
+   * The arguments' names, shown while typing a call: `[name]` may be left
+   * out and `…` repeats the one before, e.g. `['金额', '[税率]']`.
+   */
+  args?: string[]
+  /** What it does, in a few words, shown in the list of functions. */
+  description?: string
 }
 
 /**

@@ -1200,4 +1200,228 @@
   .dou-sheet-toolbar__panel {
     margin-top: 12px;
   }
+
+  /* Formulas being edited ------------------------------------------------------------------ */
+
+  /* each reference of the formula has a color, on the cells and in the text */
+  :where(.dou-sheet, .dou-sheet-formula-bar) {
+    --dou-sheet-ref-0: var(--dou-color-chart-2);
+    --dou-sheet-ref-1: var(--dou-color-chart-3);
+    --dou-sheet-ref-2: var(--dou-color-chart-4);
+    --dou-sheet-ref-3: var(--dou-color-chart-5);
+    --dou-sheet-ref-4: var(--dou-color-chart-6);
+    --dou-sheet-ref-5: var(--dou-color-chart-7);
+    --dou-sheet-ref-6: var(--dou-color-chart-8);
+
+    .is-ref-0 {
+      --dou-sheet-ref: var(--dou-sheet-ref-0);
+    }
+    .is-ref-1 {
+      --dou-sheet-ref: var(--dou-sheet-ref-1);
+    }
+    .is-ref-2 {
+      --dou-sheet-ref: var(--dou-sheet-ref-2);
+    }
+    .is-ref-3 {
+      --dou-sheet-ref: var(--dou-sheet-ref-3);
+    }
+    .is-ref-4 {
+      --dou-sheet-ref: var(--dou-sheet-ref-4);
+    }
+    .is-ref-5 {
+      --dou-sheet-ref: var(--dou-sheet-ref-5);
+    }
+    .is-ref-6 {
+      --dou-sheet-ref: var(--dou-sheet-ref-6);
+    }
+
+    span[class*='is-ref-'] {
+      color: var(--dou-sheet-ref);
+    }
+  }
+
+  .dou-sheet__ref {
+    position: absolute;
+    z-index: 4;
+    box-sizing: border-box;
+    border: 1px solid var(--dou-sheet-ref);
+    background-color: color-mix(in oklab, var(--dou-sheet-ref) 8%, transparent);
+    pointer-events: none;
+  }
+
+  /* the text with its colors sits under the editor, whose own text is clear */
+  .dou-sheet__input.is-mirror {
+    overflow: hidden;
+    color: var(--dou-color-text);
+    pointer-events: none;
+    user-select: none;
+  }
+  .dou-sheet__input.is-open.is-formula {
+    background: transparent;
+    color: transparent;
+    caret-color: var(--dou-color-text);
+    box-shadow: none;
+
+    &::selection {
+      background-color: color-mix(in oklab, var(--dou-color-primary) 24%, transparent);
+    }
+  }
+
+  /* the functions that match the name typed, or what the call takes */
+  .dou-sheet__assist {
+    position: fixed;
+    z-index: 2000;
+    box-sizing: border-box;
+    width: max-content;
+    min-width: 200px;
+    max-width: min(320px, calc(100vw - 16px));
+    max-height: 240px;
+    padding: 4px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border: 1px solid var(--dou-color-border);
+    border-radius: calc(var(--dou-radius-control) + 4px);
+    background-color: light-dark(
+      var(--dou-color-bg-surface),
+      color-mix(in oklab, var(--dou-color-text) 4%, var(--dou-color-bg-surface))
+    );
+    box-shadow: var(--dou-shadow-md);
+    color: var(--dou-color-text);
+    font-family: var(--dou-font-family);
+    font-size: var(--dou-font-size-sm);
+    line-height: var(--dou-font-line-height);
+
+    &:not([role='listbox']) {
+      max-width: min(480px, calc(100vw - 16px));
+      padding: 6px 10px;
+    }
+  }
+  .dou-sheet__assist-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 5px 8px;
+    border-radius: var(--dou-radius-control);
+    cursor: pointer;
+
+    &.is-active {
+      background-color: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+    }
+
+    @media (pointer: coarse) {
+      padding: 8px;
+    }
+  }
+  .dou-sheet__assist-name {
+    font-family: var(--dou-font-family-mono);
+    font-weight: var(--dou-font-weight-bold);
+  }
+  .dou-sheet__assist-text {
+    overflow: hidden;
+    color: var(--dou-color-text-secondary);
+    text-overflow: ellipsis;
+  }
+  .dou-sheet__assist-item .dou-sheet__assist-text {
+    white-space: nowrap;
+  }
+  .dou-sheet__assist-call {
+    font-family: var(--dou-font-family-mono);
+
+    .is-current {
+      font-weight: var(--dou-font-weight-bold);
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+  }
+  .dou-sheet__assist-call + .dou-sheet__assist-text {
+    margin-top: 2px;
+  }
+
+  /* Formula bar --------------------------------------------------------------------------- */
+
+  .dou-sheet-formula-bar {
+    display: flex;
+    flex: none;
+    align-items: stretch;
+    min-width: 0;
+    border-bottom: 1px solid var(--dou-color-border);
+    background-color: var(--dou-color-bg-surface);
+    font-size: var(--dou-font-size-md);
+  }
+  .dou-sheet-formula-bar__name,
+  .dou-sheet-formula-bar__input,
+  .dou-sheet-formula-bar__mirror {
+    box-sizing: border-box;
+    margin: 0;
+    border: 0;
+    outline: none;
+    background: transparent;
+    color: var(--dou-color-text);
+    font: inherit;
+    /* 16px or more on phones, so focusing it doesn't zoom the page */
+    font-size: max(var(--dou-font-size-input-min, 0px), 1em);
+    line-height: 20px;
+  }
+  .dou-sheet-formula-bar__name {
+    flex: none;
+    width: 88px;
+    min-height: 32px;
+    padding: 0 10px;
+    border-right: 1px solid var(--dou-color-border-subtle);
+    font-variant-numeric: tabular-nums;
+
+    &:focus-visible {
+      box-shadow: inset 0 0 0 2px var(--dou-sheet-ring, var(--dou-color-primary));
+    }
+    &.is-invalid {
+      color: var(--dou-color-danger-text);
+      box-shadow: inset 0 0 0 2px var(--dou-color-danger);
+    }
+  }
+  .dou-sheet-formula-bar__mark {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    color: var(--dou-color-text-tertiary);
+    font-size: 16px;
+  }
+  .dou-sheet-formula-bar__box {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+  }
+  .dou-sheet-formula-bar__input,
+  .dou-sheet-formula-bar__mirror {
+    display: block;
+    width: 100%;
+    height: calc(var(--dou-sheet-bar-lines, 1) * 20px + 12px);
+    padding: 6px 10px 6px 0;
+    white-space: pre;
+  }
+  .dou-sheet-formula-bar__input {
+    position: relative;
+    overflow: auto;
+    resize: none;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+    &.is-formula {
+      color: transparent;
+      caret-color: var(--dou-color-text);
+
+      &::selection {
+        background-color: color-mix(in oklab, var(--dou-color-primary) 24%, transparent);
+      }
+    }
+  }
+  .dou-sheet-formula-bar__mirror {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
 }

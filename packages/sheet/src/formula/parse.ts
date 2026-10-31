@@ -47,14 +47,15 @@ export class SheetFormulaSyntaxError extends Error {
   }
 }
 
-type Token =
-  | { kind: 'number'; value: number; at: number }
-  | { kind: 'text'; value: string; at: number }
-  | { kind: 'error'; code: SheetErrorCode; at: number }
-  | { kind: 'ref'; node: Extract<SheetFormulaNode, { type: 'ref' }>; at: number }
-  | { kind: 'name'; value: string; at: number }
-  | { kind: 'op'; value: string; at: number }
-  | { kind: 'end'; at: number }
+type Token = (
+  | { kind: 'number'; value: number }
+  | { kind: 'text'; value: string }
+  | { kind: 'error'; code: SheetErrorCode }
+  | { kind: 'ref'; node: Extract<SheetFormulaNode, { type: 'ref' }> }
+  | { kind: 'name'; value: string }
+  | { kind: 'op'; value: string }
+  | { kind: 'end' }
+) & { at: number; end: number }
 
 const END = '(?![\\p{L}\\p{N}_(!.])'
 const SHEET = "(?:('(?:[^']|'')+'|[\\p{L}_][\\p{L}\\p{N}_.]*)!)?"
@@ -105,9 +106,17 @@ function readRef(match: RegExpExecArray): Extract<SheetFormulaNode, { type: 'ref
   return node
 }
 
-function tokenize(text: string): Token[] {
+/** Splits a formula into tokens; `loose` reads what isn't a formula yet too, as while typing. */
+/** A token before its end is known; per kind, so each keeps its own fields. */
+type WithoutEnd<T> = T extends unknown ? Omit<T, 'end'> : never
+
+function tokenize(text: string, loose = false): Token[] {
   const tokens: Token[] = []
   let i = 0
+  const push = (token: WithoutEnd<Token>, length: number) => {
+    tokens.push({ ...token, end: token.at + length } as Token)
+    i = token.at + length
+  }
   const at = (re: RegExp) => {
     re.lastIndex = i
     return re.exec(text)
@@ -122,7 +131,10 @@ function tokenize(text: string): Token[] {
       let value = ''
       let j = i + 1
       for (; ; j++) {
-        if (j >= text.length) throw new SheetFormulaSyntaxError('Text without its closing quote', i)
+        if (j >= text.length) {
+          if (!loose) throw new SheetFormulaSyntaxError('Text without its closing quote', i)
+          break
+        }
         if (text[j] === '"') {
           if (text[j + 1] === '"') {
             value += '"'
@@ -130,52 +142,80 @@ function tokenize(text: string): Token[] {
           } else break
         } else value += text[j]
       }
-      tokens.push({ kind: 'text', value, at: i })
-      i = j + 1
+      push({ kind: 'text', value, at: i }, Math.min(j + 1, text.length) - i)
       continue
     }
     if (char === '#') {
       const code = ERROR_CODES.find(
         (c) => text.startsWith(c, i) || text.toUpperCase().startsWith(c, i),
       )
-      if (!code) throw new SheetFormulaSyntaxError('Unknown error value', i)
-      tokens.push({ kind: 'error', code, at: i })
-      i += code.length
+      if (code) {
+        push({ kind: 'error', code, at: i }, code.length)
+        continue
+      }
+      if (!loose) throw new SheetFormulaSyntaxError('Unknown error value', i)
+      push({ kind: 'op', value: char, at: i }, 1)
       continue
     }
     // a reference starts with a letter, `$`, a quote, or a digit for rows (`2:3`)
     const ref = OPS.has(char) ? null : at(REF)
     if (ref) {
-      tokens.push({ kind: 'ref', node: readRef(ref), at: i })
-      i += ref[0].length
+      push({ kind: 'ref', node: readRef(ref), at: i }, ref[0].length)
       continue
     }
     const refError = char === "'" || NAME_START.test(char) ? at(SHEET_ERROR) : null
     if (refError) {
-      tokens.push({ kind: 'error', code: '#REF!', at: i })
-      i += refError[0].length
+      push({ kind: 'error', code: '#REF!', at: i }, refError[0].length)
       continue
     }
     const number = (char >= '0' && char <= '9') || char === '.' ? at(NUMBER) : null
     if (number) {
-      tokens.push({ kind: 'number', value: Number(number[0]), at: i })
-      i += number[0].length
+      push({ kind: 'number', value: Number(number[0]), at: i }, number[0].length)
       continue
     }
     const name = at(NAME)
     if (name) {
-      tokens.push({ kind: 'name', value: name[0], at: i })
-      i += name[0].length
+      push({ kind: 'name', value: name[0], at: i }, name[0].length)
       continue
     }
     const two = text.slice(i, i + 2)
     const op = two === '<>' || two === '<=' || two === '>=' ? two : OPS.has(char) ? char : undefined
-    if (!op) throw new SheetFormulaSyntaxError(`Unexpected "${char}"`, i)
-    tokens.push({ kind: 'op', value: op, at: i })
-    i += op.length
+    if (!op && !loose) throw new SheetFormulaSyntaxError(`Unexpected "${char}"`, i)
+    push({ kind: 'op', value: op ?? char, at: i }, (op ?? char).length)
   }
-  tokens.push({ kind: 'end', at: text.length })
+  tokens.push({ kind: 'end', at: text.length, end: text.length })
   return tokens
+}
+
+/** A piece of a formula as written, with where it is in the text (counting the `=`). */
+export type SheetFormulaToken =
+  | { kind: 'number' | 'text' | 'name' | 'op' | 'error'; start: number; end: number; text: string }
+  | {
+      kind: 'ref'
+      start: number
+      end: number
+      text: string
+      ref: Extract<SheetFormulaNode, { type: 'ref' }>
+    }
+
+/**
+ * The pieces of a formula, also one being typed and not finished, e.g. for
+ * coloring it: numbers, "text", names (of functions), references,
+ * operators and brackets, and error values. Spaces are left out.
+ */
+export function formulaTokens(formula: string): SheetFormulaToken[] {
+  const offset = formula.startsWith('=') ? 1 : 0
+  const text = formula.slice(offset)
+  const out: SheetFormulaToken[] = []
+  for (const token of tokenize(text, true)) {
+    if (token.kind === 'end') break
+    const start = token.at + offset
+    const end = token.end + offset
+    const piece = formula.slice(start, end)
+    if (token.kind === 'ref') out.push({ kind: 'ref', start, end, text: piece, ref: token.node })
+    else out.push({ kind: token.kind, start, end, text: piece })
+  }
+  return out
 }
 
 const BINARY: Record<string, [number, BinaryOp]> = {

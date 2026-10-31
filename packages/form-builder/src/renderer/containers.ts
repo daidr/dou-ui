@@ -409,20 +409,26 @@ export function listView(
                   formatMessage(messages.item, { index: index + 1 }),
               },
               {
-                default: ({ item, index }: { item: Record<string, unknown>; index: number }) =>
-                  h(ListItemView, {
+                default: ({ item, index }: { item: Record<string, unknown>; index: number }) => {
+                  // While dragging, `index` is the place the item is shown at;
+                  // its fields still read and write the place it holds in the value.
+                  const raw = toRaw(item)
+                  const at = rows.findIndex((row) => toRaw(row) === raw)
+                  return h(ListItemView, {
                     list: node,
                     render: kit.renderNodes,
                     path: path(),
                     item,
-                    index,
+                    index: at < 0 ? index : at,
+                    position: index,
                     columns: node.columns ?? props.columns,
                     inset: props.inset + 1,
                     blocked: blocked.value,
                     sortable,
                     canRemove,
-                    onRemove: () => remove(index),
-                  }),
+                    onRemove: () => remove(at < 0 ? index : at),
+                  })
+                },
               },
             )
           : h('div', { class: 'dou-form-renderer__list-empty' }, messages.empty),
@@ -461,7 +467,10 @@ const ListItemView = defineComponent({
     render: { type: Function as PropType<NodeKit['renderNodes']>, required: true },
     path: { type: String, required: true },
     item: { type: Object as PropType<Record<string, unknown>>, required: true },
+    /** Where the item is in the value. */
     index: { type: Number, required: true },
+    /** Where the item is shown, which differs while it is dragged. */
+    position: { type: Number, required: true },
     columns: { type: Number, required: true },
     inset: { type: Number, required: true },
     blocked: { type: Object as PropType<ReadonlySet<string>>, required: true },
@@ -478,7 +487,7 @@ const ListItemView = defineComponent({
     })
     return () => {
       const messages = renderer.messages()
-      const number = props.index + 1
+      const number = props.position + 1
       return h('div', { class: 'dou-form-renderer__list-item' }, [
         h('div', { class: 'dou-form-renderer__list-item-header' }, [
           props.sortable

@@ -114,8 +114,8 @@ describe('shikiLanguage', () => {
     expect(lineParts('y */', lines.line(3))[0]).toEqual(['y */', 'comment'])
     expect(lineParts('fn b() {}', lines.line(4))[0]).toEqual(['fn', 'keyword'])
     // two lines with the same text are each read from their own start state
-    const python = shikiLanguage(highlighter, 'python')
-    const third = marked(python, '"""\n"""\nx = 1').split('\n')[2]
+    const py = shikiLanguage(highlighter, 'python')
+    const third = marked(py, '"""\n"""\nx = 1').split('\n')[2]
     expect(third).not.toContain('[string:')
     expect(third).toContain('[number:1]')
     // a mapping of one's own goes first

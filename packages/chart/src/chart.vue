@@ -306,7 +306,8 @@ function reachMarkers(m: ChartModel): ChartModel {
       hi = Math.max(hi, v)
     }
     // a line above all the data, with a label: room over it for the label
-    if (part.props.label && !Array.isArray(value) && part.props.x === undefined && value >= hi)
+    // (a line or a point above all the data, with a label: room over it for the label)
+    if (part.props.label && !Array.isArray(value) && !Array.isArray(part.props.x) && value >= hi)
       hi = value + (value - lo) * 0.1
     if (lo !== known[0] || hi !== known[1]) {
       y ??= { ...m.y }
@@ -687,7 +688,7 @@ const placedMarkers = computed(() => {
       axis: p.axis ?? defaultAxis.value,
       label: p.label,
       tone: p.tone ?? 'neutral',
-      solid: !!p.solid,
+      solid: p.dashed === false,
     })
   }
   return placeMarkers(inputs, {
@@ -708,8 +709,8 @@ const markerLabels = computed(() =>
             ...marker.label,
             key: `marker:${i}`,
             tone: marker.tone,
-            // by a line or a point, maybe over the data: on the surface's color to stay readable
-            backdrop: marker.shape.kind !== 'area',
+            // it may be over the data: on a chip to stay readable
+            backdrop: true,
           },
         ]
       : [],
@@ -2677,14 +2678,29 @@ function exportSVG(options: ChartExportOptions = {}): string {
   const root = rootRef.value
   const style = root && typeof getComputedStyle !== 'undefined' ? getComputedStyle(root) : null
   const svg = new SvgPainter(`${uid}-${drawings++}-`, plainColor)
-  drawSvg(svg, (css) => plainColor(resolveColor(css)), style, options.background !== false)
-  const width = num(frame.value?.width ?? 0)
-  const height = num(frame.value?.height ?? 0)
+  const color = (css: string) => plainColor(resolveColor(css))
+  drawSvg(svg, color, style)
+  const { width, height, padding } = exportSize(options)
+  const background =
+    options.background === false
+      ? ''
+      : `<rect width="${num(width)}" height="${num(height)}"${paintAttribute('fill', color('var(--dou-chart-surface)'))}/>`
   const font = escapeXml(style?.fontFamily || 'sans-serif')
   return (
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="${font}" font-size="12">` +
-    `<title>${escapeXml(label.value)}</title>${svg.markup()}</svg>`
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${num(width)}" height="${num(height)}" viewBox="0 0 ${num(width)} ${num(height)}" font-family="${font}" font-size="12">` +
+    `<title>${escapeXml(label.value)}</title>${background}` +
+    `<g transform="translate(${num(padding)} ${num(padding)})">${svg.markup()}</g></svg>`
   )
+}
+
+/** The exported image's size: the chart's, with the room around it. */
+function exportSize(options: ChartExportOptions) {
+  const padding = Math.max(0, options.padding ?? 16)
+  return {
+    width: (frame.value?.width ?? 0) + padding * 2,
+    height: (frame.value?.height ?? 0) + padding * 2,
+    padding,
+  }
 }
 
 /**
@@ -2696,16 +2712,11 @@ function drawSvg(
   svg: SvgPainter,
   color: (css: string) => string,
   style: CSSStyleDeclaration | null,
-  background: boolean,
 ) {
   const l = frame.value
   const root = rootRef.value
   const width = l?.width ?? 0
   const height = l?.height ?? 0
-  if (background)
-    svg.raw(
-      `<rect width="${num(width)}" height="${num(height)}"${paintAttribute('fill', color('var(--dou-chart-surface)'))}/>`,
-    )
   const texts: string[] = []
   if (l && empty.value) {
     // what the page shows instead: the empty message
@@ -2775,7 +2786,7 @@ function drawSvg(
 /** The chart as a PNG image, from its SVG. */
 async function exportPNG(options: ChartImageOptions = {}): Promise<Blob> {
   const markup = exportSVG(options)
-  const l = frame.value
+  const { width, height } = exportSize(options)
   const ratio = options.pixelRatio ?? 2
   const url = URL.createObjectURL(new Blob([markup], { type: 'image/svg+xml' }))
   try {
@@ -2783,8 +2794,8 @@ async function exportPNG(options: ChartImageOptions = {}): Promise<Blob> {
     image.src = url
     await image.decode()
     const sheet = document.createElement('canvas')
-    sheet.width = Math.max(1, Math.ceil((l?.width ?? image.width) * ratio))
-    sheet.height = Math.max(1, Math.ceil((l?.height ?? image.height) * ratio))
+    sheet.width = Math.max(1, Math.ceil(width * ratio))
+    sheet.height = Math.max(1, Math.ceil(height * ratio))
     const ctx = sheet.getContext('2d')!
     ctx.scale(ratio, ratio)
     ctx.drawImage(image, 0, 0)
@@ -2809,7 +2820,7 @@ defineExpose<ChartExpose>({ exportSVG, exportPNG })
 const serverDrawing = computed(() => {
   if (typeof window !== 'undefined' || !frame.value || empty.value) return ''
   const svg = new SvgPainter(`${uid}-`)
-  drawSvg(svg, (css) => resolveColor(css), null, false)
+  drawSvg(svg, (css) => resolveColor(css), null)
   return svg.markup()
 })
 

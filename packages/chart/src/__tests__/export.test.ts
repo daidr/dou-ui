@@ -228,9 +228,11 @@ describe('exporting', () => {
       h(DouChartMarker, { y: 25, label: '目标' }),
     ])
     const svg = (wrapper.vm as unknown as ChartExpose).exportSVG()
-    expect(svg.startsWith('<svg xmlns="http://www.w3.org/2000/svg" width="600" height="300"')).toBe(
+    // 16px of room around it, by default
+    expect(svg.startsWith('<svg xmlns="http://www.w3.org/2000/svg" width="632" height="332"')).toBe(
       true,
     )
+    expect(svg).toContain('<g transform="translate(16 16)">')
     expect(svg).toContain('<title>图表，横轴从 一月 到 三月')
     // the series, the axis' ticks and title, the legend and the marker's label
     expect(svg).toMatch(/<path d="M[\d. ]+L/)
@@ -238,9 +240,9 @@ describe('exporting', () => {
       expect(svg).toContain(text)
     // a dashed line's swatch is two short strokes
     expect(svg.match(/height="2" rx="0"/g)).toHaveLength(2)
-    expect((wrapper.vm as unknown as ChartExpose).exportSVG({ background: false })).not.toContain(
-      '<rect width="600" height="300"',
-    )
+    const bare = (wrapper.vm as unknown as ChartExpose).exportSVG({ background: false, padding: 0 })
+    expect(bare).toContain('width="600" height="300"')
+    expect(bare).not.toContain('<rect width="600" height="300"')
     wrapper.unmount()
   })
 

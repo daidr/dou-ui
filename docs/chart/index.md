@@ -159,7 +159,7 @@ app.use(DouChart).use(DouChartAxis).use(DouChartLine).use(DouChartBar)
 
 ### 参考线
 
-`y` 超出数据的范围时，数值轴会延伸到它，目标值总能显示出来。线默认是虚线，和数据区分开，`solid` 改成实线。
+`y` 超出数据的范围时，数值轴会延伸到它，目标值总能显示出来。线默认是虚线，和数据区分开，`:dashed="false"` 画成实线。文字放在同色的浅底上，压在数据上也能看清；几个标注的文字靠得太近时会自动错开。
 
 <DocDemo src="chart/marker-line" />
 
@@ -367,7 +367,7 @@ const data = shallowRef({
 
 <DocDemo src="chart/export" />
 
-SVG 和画布用同一套绘制代码，两者画出的图形一致。`exportPNG({ pixelRatio })` 设置每个 CSS 像素对应几个像素，默认是 `2`；`background: false` 不画背景色。PNG 由 SVG 转成，文字使用系统里的字体：页面用网络字体时，导出的文字可能和页面上略有不同。
+SVG 和画布用同一套绘制代码，两者画出的图形一致。导出的图四周默认留出 16px，用 `padding` 修改；`background: false` 不画背景色；`exportPNG({ pixelRatio })` 设置每个 CSS 像素对应几个像素，默认是 `2`。PNG 由 SVG 转成，文字使用系统里的字体：页面用网络字体时，导出的文字可能和页面上略有不同。
 
 ## 服务端渲染
 
@@ -405,10 +405,10 @@ SVG 和画布用同一套绘制代码，两者画出的图形一致。`exportPNG
 
 ### Chart Exposes
 
-| 名称        | 说明                 | 类型                                                                         |
-| ----------- | -------------------- | ---------------------------------------------------------------------------- |
-| `exportSVG` | 当前的图表，SVG 文本 | `(options?: { background?: boolean }) => string`                             |
-| `exportPNG` | 当前的图表，PNG 图片 | `(options?: { background?: boolean, pixelRatio?: number }) => Promise<Blob>` |
+| 名称        | 说明                 | 类型                                                                                           |
+| ----------- | -------------------- | ---------------------------------------------------------------------------------------------- |
+| `exportSVG` | 当前的图表，SVG 文本 | `(options?: { background?: boolean, padding?: number }) => string`                             |
+| `exportPNG` | 当前的图表，PNG 图片 | `(options?: { background?: boolean, padding?: number, pixelRatio?: number }) => Promise<Blob>` |
 
 ### Chart Slots
 
@@ -478,14 +478,14 @@ SVG 和画布用同一套绘制代码，两者画出的图形一致。`exportPNG
 
 ### Marker Props
 
-| 名称    | 说明                                         | 类型                                     | 默认值      |
-| ------- | -------------------------------------------- | ---------------------------------------- | ----------- |
-| `x`     | 横轴上的位置，给出两端时是一段区间           | `number \| string \| Date \| [from, to]` | —           |
-| `y`     | 数值，给出两端时是一段区间；数值轴会延伸到它 | `number \| [number, number]`             | —           |
-| `axis`  | `y` 对应的数值轴                             | `'y' \| 'y2'`                            | `'y'`       |
-| `label` | 显示的文字                                   | `string`                                 | —           |
-| `tone`  | 颜色                                         | `Tone`                                   | `'neutral'` |
-| `solid` | 参考线画成实线                               | `boolean`                                | `false`     |
+| 名称     | 说明                                         | 类型                                     | 默认值      |
+| -------- | -------------------------------------------- | ---------------------------------------- | ----------- |
+| `x`      | 横轴上的位置，给出两端时是一段区间           | `number \| string \| Date \| [from, to]` | —           |
+| `y`      | 数值，给出两端时是一段区间；数值轴会延伸到它 | `number \| [number, number]`             | —           |
+| `axis`   | `y` 对应的数值轴                             | `'y' \| 'y2'`                            | `'y'`       |
+| `label`  | 显示的文字                                   | `string`                                 | —           |
+| `tone`   | 颜色                                         | `Tone`                                   | `'neutral'` |
+| `dashed` | 参考线画成虚线                               | `boolean`                                | `true`      |
 
 ### Tooltip Props
 

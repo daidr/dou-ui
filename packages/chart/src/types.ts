@@ -46,6 +46,8 @@ export interface ChartSlots {
 export interface ChartExportOptions {
   /** Fill the background with the chart's surface color. On by default; `false` leaves it clear. */
   background?: boolean
+  /** Room around the chart, in px. 16 by default. */
+  padding?: number
 }
 
 export interface ChartImageOptions extends ChartExportOptions {
@@ -78,8 +80,8 @@ export interface ChartMarkerProps {
   label?: string
   /** The marker's color. Neutral by default. */
   tone?: Tone
-  /** A solid line; lines are dashed by default so they stand apart from the data. */
-  solid?: boolean
+  /** Draws the line dashed, so it stands apart from the data. On by default; `false` for a solid line. */
+  dashed?: boolean
 }
 
 export interface ChartAxisProps {

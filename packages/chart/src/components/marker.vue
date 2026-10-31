@@ -4,7 +4,7 @@ import type { ChartMarkerProps } from '../types'
 
 defineOptions({ name: 'DouChartMarker', render: renderNothing })
 
-const props = defineProps<ChartMarkerProps>()
+const props = withDefaults(defineProps<ChartMarkerProps>(), { dashed: true })
 
 const el = useOwnNode()
 useChartPart('DouChartMarker', (chart) => chart.addMarker({ props, el }))

@@ -1019,6 +1019,18 @@ export const cases: Record<string, Case> = {
     act: () => (window as any).sheet.value.transact((tr: any) => tr.setValue('A1', 99)),
     budget: { 10_000: 40 },
   },
+  // Conditional formats over all n rows (a color scale, data bars, the top 10% and a formula),
+  // and a cell outside them changed: the ranges' rows are the same, so nothing is read again.
+  'sheet-conditional-edit': {
+    render: (n) => sheet(n, false, true),
+    act: () => (window as any).sheet.value.transact((tr: any) => tr.setValue('A4', '改')),
+    budget: { 100_000: 40 },
+  },
+  // The same, with a cell inside the color scale changed: its range is read again.
+  'sheet-conditional-scale': {
+    render: (n) => sheet(n, false, true),
+    act: () => (window as any).sheet.value.transact((tr: any) => tr.setValue('B4', 999)),
+  },
   // Everything selected: every cell in view is drawn again with the tint.
   'sheet-select-all': {
     render: (n) => sheet(n),
@@ -1305,7 +1317,7 @@ function formulaSheet(n: number) {
     })
 }
 
-function sheet(n: number, typed = false) {
+function sheet(n: number, typed = false, conditional = false) {
   const cells = Array.from({ length: n }, (_, r) =>
     Array.from({ length: 20 }, (__, c) => (c === 0 ? `第 ${r + 1} 行` : (r * 7 + c * 13) % 1000)),
   )
@@ -1322,6 +1334,13 @@ function sheet(n: number, typed = false) {
       (_, i) => `D${i * 10 + 1}:F${i * 10 + 2}`,
     )
   }
+  if (conditional)
+    book.value.sheets[0]!.conditionalFormats = [
+      { range: `B1:B${n}`, scale: ['danger', 'warning', 'success'] },
+      { range: `C1:C${n}`, bar: true },
+      { range: `D1:D${n}`, top: 10, percent: true, style: { bold: true } },
+      { range: `E1:E${n}`, formula: '=E1>F1', style: { tone: 'danger' } },
+    ]
   const grid = ref<SheetExpose>()
   ;(window as any).sheet = grid
   return () =>

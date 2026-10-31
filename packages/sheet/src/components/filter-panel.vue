@@ -2,7 +2,7 @@
 import { SearchIcon, SortAscendingIcon, SortDescendingIcon } from '@dou-ui/icons'
 import { DouButton, DouCheckbox, DouInput, DouSegmentedControl, DouSelect } from 'dou-ui'
 import { computed, nextTick, onMounted, ref, shallowRef, useTemplateRef } from 'vue'
-import type { SheetFilterCondition, SheetFilterRule, SheetSortOrder } from '../core/model'
+import type { SheetCondition, SheetFilterRule, SheetSortOrder } from '../core/model'
 import { format, type SheetMessages } from '../locale'
 
 /*
@@ -66,7 +66,7 @@ function toggleAll(on: boolean) {
 
 // condition ---------------------------------------------------------------------------------
 
-const OPS: SheetFilterCondition['op'][] = [
+const OPS: SheetCondition['op'][] = [
   'eq',
   'ne',
   'gt',
@@ -81,10 +81,10 @@ const OPS: SheetFilterCondition['op'][] = [
   'notBlank',
 ]
 const condition = props.rule && 'condition' in props.rule ? props.rule.condition : undefined
-const op = ref<SheetFilterCondition['op']>(condition?.op ?? (props.numeric ? 'ge' : 'contains'))
+const op = ref<SheetCondition['op']>(condition?.op ?? (props.numeric ? 'ge' : 'contains'))
 const operand = ref(condition?.value == null ? '' : String(condition.value))
 const needsOperand = computed(() => op.value !== 'blank' && op.value !== 'notBlank')
-const opOptions = computed(() => OPS.map((value) => ({ value, label: m.value.ops[value] })))
+const opOptions = computed(() => OPS.map((value) => ({ value, label: props.messages.ops[value] })))
 
 // result ------------------------------------------------------------------------------------
 

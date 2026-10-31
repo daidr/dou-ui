@@ -153,7 +153,7 @@ describe('DouPivot', () => {
 
 describe('layout', () => {
   it('heads open groups over their children, closed ones and subtotals down to the values', () => {
-    const result = computePivot(new PivotSource(sales), {
+    const result = computePivot(new PivotSource(sales, { locale: 'zh-CN' }), {
       columns: ['region', 'city'],
       values: ['amount'],
     })
@@ -161,8 +161,8 @@ describe('layout', () => {
     const closed = new Set([tree.find(['华南'])])
     const lines = columnLines(tree, closed, { values: 1, valuesHere: true, total: true })
     expect(lines.map((l) => [l.kind, tree.path(l.node).join('/')])).toEqual([
-      ['group', '华东/上海'],
       ['group', '华东/杭州'],
+      ['group', '华东/上海'],
       ['subtotal', '华东'],
       ['group', '华南'],
       ['total', ''],

@@ -35,6 +35,8 @@ import {
 import '@dou-ui/gantt/style.css'
 import { DouFlowEditor, type FlowDocument } from '@dou-ui/flow'
 import '@dou-ui/flow/style.css'
+import { DouSheet, type SheetExpose, type SheetWorkbook } from '@dou-ui/sheet'
+import '@dou-ui/sheet/style.css'
 
 export interface Case {
   /** What the case renders, given a size. */
@@ -585,6 +587,52 @@ export const cases: Record<string, Case> = {
     render: (n) => flowEditor(n, 0.2),
     act: (root) => wheel(root, 300, 200),
   },
+  // A sheet of n rows × 20 columns, every cell filled.
+  sheet: {
+    render: (n) => sheet(n),
+    // Scroll a long way down and to the right.
+    act: (root) => {
+      const viewport = root.querySelector('.dou-sheet__viewport')!
+      viewport.scrollTop = viewport.scrollHeight / 2
+      viewport.scrollLeft = 600
+      viewport.dispatchEvent(new Event('scroll'))
+    },
+  },
+  // A short scroll, as one frame of a wheel: only the rows coming in are drawn.
+  'sheet-scroll-step': {
+    render: (n) => sheet(n),
+    act: (root) => {
+      const viewport = root.querySelector('.dou-sheet__viewport')!
+      viewport.scrollTop += 84
+      viewport.dispatchEvent(new Event('scroll'))
+    },
+  },
+  // One cell changed: the rows that stay the same aren't copied or drawn again.
+  'sheet-edit': {
+    render: (n) => sheet(n),
+    act: () => (window as any).sheet.value.transact((tr: any) => tr.setValue(0, 3, 3, 42)),
+  },
+  // Everything selected: every cell in view is drawn again with the tint.
+  'sheet-select-all': {
+    render: (n) => sheet(n),
+    act: () => (window as any).sheet.value.select('A1:T100000'),
+  },
+}
+
+function sheet(n: number) {
+  const cells = Array.from({ length: n }, (_, r) =>
+    Array.from({ length: 20 }, (__, c) => (c === 0 ? `第 ${r + 1} 行` : (r * 7 + c * 13) % 1000)),
+  )
+  const book = ref<SheetWorkbook>({ sheets: [{ name: '表 1', cells }] })
+  const grid = ref<SheetExpose>()
+  ;(window as any).sheet = grid
+  return () =>
+    h(DouSheet, {
+      ref: grid,
+      modelValue: book.value,
+      'onUpdate:modelValue': (value: SheetWorkbook) => (book.value = value),
+      style: 'height: 600px',
+    })
 }
 
 function flowDocument(n: number): FlowDocument {

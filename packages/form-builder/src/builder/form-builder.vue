@@ -11,7 +11,7 @@ import {
   watch,
 } from 'vue'
 import { DouDrawer, DouPopover, DouTabPanel, DouTabs } from 'dou-ui'
-import { PanelLeftIcon, RedoIcon, SlidersIcon, UndoIcon } from '@dou-ui/icons'
+import { ListChecksIcon, PanelLeftIcon, RedoIcon, SlidersIcon, UndoIcon } from '@dou-ui/icons'
 import { resolveFields } from '../fields/builtin'
 import { createBuilderState, builderKey } from './context'
 import { useFormBuilderMessages } from './locale'
@@ -70,9 +70,13 @@ onMounted(() => {
   observer.observe(root.value)
 })
 onBeforeUnmount(() => observer?.disconnect())
+// Picking several nodes by tapping is for phones only.
+watch(compact, (on) => {
+  if (!on) state.tapToggles.value = false
+})
 // A tap on a node (not a drag, and not a node just added) opens its settings.
 function onCanvasClick(event: MouseEvent) {
-  if (!compact.value || state.dragger.value?.swallowClick()) return
+  if (!compact.value || state.tapToggles.value || state.dragger.value?.swallowClick()) return
   const node = (event.target as HTMLElement).closest('.dou-form-builder__node')
   if (!node || (event.target as HTMLElement).closest('.dou-form-builder__actions')) return
   void nextTick(() => {
@@ -211,6 +215,17 @@ defineExpose<FormBuilderExpose>({
               <RedoIcon />
             </button>
             <slot name="toolbar" />
+            <button
+              v-if="compact"
+              type="button"
+              class="dou-form-builder__tool dou-form-builder__select-toggle"
+              :aria-pressed="state.tapToggles.value"
+              :aria-label="messages.actions.selectMany"
+              :title="messages.actions.selectMany"
+              @click="state.tapToggles.value = !state.tapToggles.value"
+            >
+              <ListChecksIcon />
+            </button>
             <button
               v-if="compact"
               type="button"

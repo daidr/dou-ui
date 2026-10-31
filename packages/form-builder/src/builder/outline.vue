@@ -74,8 +74,7 @@ function toggle(id: string) {
 }
 
 function press(event: MouseEvent, id: string) {
-  const many = event.shiftKey || event.metaKey || event.ctrlKey
-  state.select(id, many ? 'toggle' : 'replace')
+  state.pick(id, event, view)
 }
 
 const types = computed(() => state.fields as Map<string, FormFieldType>)

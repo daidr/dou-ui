@@ -244,7 +244,7 @@
     visibility: hidden;
   }
 
-  .dou-form-builder__node.is-dragged {
+  .dou-form-builder__node[data-dragged] {
     opacity: 0.4;
   }
 
@@ -963,10 +963,13 @@
     padding-inline: var(--dou-space-md);
   }
 
-  .dou-form-builder__tool.dou-form-builder__settings-toggle {
-    width: auto;
-    padding-inline: 6px;
+  .dou-form-builder__tool.dou-form-builder__select-toggle {
     margin-inline-start: auto;
+
+    &[aria-pressed='true'] {
+      background: color-mix(in oklab, var(--dou-form-builder-selected) 12%, transparent);
+      color: var(--dou-form-builder-selected);
+    }
   }
 
   /* The panes bring their own padding. */

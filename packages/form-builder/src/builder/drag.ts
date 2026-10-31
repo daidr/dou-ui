@@ -231,8 +231,13 @@ export function createDragController(
   function markDragged(on: boolean) {
     const el = root()
     if (!el) return
-    for (const node of dragged)
-      el.querySelector(`[data-node="${CSS.escape(node.id)}"]`)?.classList.toggle('is-dragged', on)
+    // A data attribute, not a class: rendering the node keeps it.
+    for (const node of dragged) {
+      const item = el.querySelector<HTMLElement>(`[data-node="${CSS.escape(node.id)}"]`)
+      if (!item) continue
+      if (on) item.dataset.dragged = ''
+      else delete item.dataset.dragged
+    }
   }
 
   /** Each frame: scroll near the edges, then find and draw the place under the pointer. */
@@ -460,6 +465,7 @@ export function createDragController(
     )
     source = { kind: 'nodes', ids }
     dragged = ids.map((id) => formNodePlaces(state.document).get(id)!.node)
+    markDragged(true)
     root()?.classList.add('is-dragging')
     showPlace(state.messages.drag.picked)
     return true
@@ -492,6 +498,7 @@ export function createDragController(
   }
 
   function finishKeyboard() {
+    markDragged(false)
     source = null
     target = null
     dragged = []

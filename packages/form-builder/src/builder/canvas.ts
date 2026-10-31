@@ -112,6 +112,11 @@ function useScratch(state: BuilderState) {
 
 const noop = () => {}
 
+const canvasView = (state: BuilderState): BuilderView => ({
+  name: 'canvas',
+  order: () => canvasOrder(state),
+})
+
 /** How many fields the canvas draws right away when it opens. */
 const EAGER_FIELDS = 16
 
@@ -157,7 +162,7 @@ export const FormBuilderCanvas = defineComponent({
     provide(rendererKey, renderer)
     provide(scopeKey, rootScope)
 
-    const view: BuilderView = { name: 'canvas', order: () => canvasOrder(state) }
+    const view = canvasView(state)
 
     // Fields off screen are drawn once they come near it; the first ones
     // right away, so the canvas does not open on placeholders.
@@ -378,8 +383,7 @@ const DesignNode = defineComponent({
       event.stopPropagation()
       if (state.dragger.value?.swallowClick()) return
       lazy.pressed = true
-      const many = event.shiftKey || event.metaKey || event.ctrlKey
-      state.select(id, many ? 'toggle' : 'replace')
+      state.pick(id, event, canvasView(state))
       state.canvas.value?.focus({ preventScroll: true })
     }
 

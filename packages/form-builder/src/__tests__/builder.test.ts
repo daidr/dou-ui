@@ -278,6 +278,19 @@ describe('DouFormBuilder', () => {
     wrapper.unmount()
   })
 
+  it('selects a range with Shift and adds with Ctrl', async () => {
+    const { wrapper, selected } = setup()
+    await flush()
+    const node = (id: string) => wrapper.find(`.dou-form-builder__node[data-node="${id}"]`)
+    await node('city').trigger('click')
+    await node('name').trigger('click', { shiftKey: true })
+    // from city back to name, the pressed one last
+    expect(selected.value).toEqual(['city', 'phone', 'name'])
+    await node('phone').trigger('click', { ctrlKey: true })
+    expect(selected.value).toEqual(['city', 'name'])
+    wrapper.unmount()
+  })
+
   it('walks the nodes with the arrow keys and reorders them', async () => {
     const { wrapper, form, selected } = setup(sample(), ['s'])
     await flush()
@@ -327,6 +340,7 @@ describe('DouFormBuilder', () => {
       'phone',
     ])
     expect(selected.value).toEqual(['city'])
+    expect(wrapper.find('.dou-form-builder__live').text()).toBe('已移到联系人的第 1 位')
     // Escape puts nodes back down where they were
     await tree.trigger('keydown', { key: ' ' })
     await tree.trigger('keydown', { key: 'ArrowDown' })

@@ -34,6 +34,8 @@ export interface FormBuilderMessages {
     remove: string
     /** The button that holds the other actions when a node is too narrow to show them. */
     more: string
+    /** On phones: taps add nodes to the selection instead of replacing it. */
+    selectMany: string
     wrap: string
     addPage: string
     undo: string
@@ -53,6 +55,9 @@ export interface FormBuilderMessages {
     removed: string
     duplicated: string
     moved: string
+    /** After a drag or `moveTo`: `{where}` is the container, `{count}` how many nodes moved. */
+    movedTo: string
+    movedManyTo: string
     wrapped: string
     undone: string
     redone: string
@@ -130,6 +135,7 @@ const zhCN: FormBuilderMessages = {
     duplicate: '复制',
     remove: '删除',
     more: '更多操作',
+    selectMany: '多选',
     wrap: '放进分组',
     addPage: '添加页面',
     undo: '撤销',
@@ -141,6 +147,8 @@ const zhCN: FormBuilderMessages = {
     removed: '已删除 {count} 项',
     duplicated: '已复制 {count} 项',
     moved: '已移到第 {index} 位',
+    movedTo: '已移到{where}的第 {index} 位',
+    movedManyTo: '已把 {count} 个节点移到{where}的第 {index} 位',
     wrapped: '已放进分组',
     undone: '已撤销',
     redone: '已重做',
@@ -280,6 +288,7 @@ const zhTW: FormBuilderMessages = {
     duplicate: '複製',
     remove: '刪除',
     more: '更多操作',
+    selectMany: '多選',
     wrap: '放進分組',
     addPage: '新增頁面',
     undo: '復原',
@@ -291,6 +300,8 @@ const zhTW: FormBuilderMessages = {
     removed: '已刪除 {count} 項',
     duplicated: '已複製 {count} 項',
     moved: '已移到第 {index} 位',
+    movedTo: '已移到{where}的第 {index} 位',
+    movedManyTo: '已把 {count} 个节点移到{where}的第 {index} 位',
     wrapped: '已放進分組',
     undone: '已復原',
     redone: '已重做',
@@ -435,6 +446,7 @@ const en: FormBuilderMessages = {
     duplicate: 'Duplicate',
     remove: 'Delete',
     more: 'More actions',
+    selectMany: 'Select several',
     wrap: 'Put in a section',
     addPage: 'Add page',
     undo: 'Undo',
@@ -446,6 +458,8 @@ const en: FormBuilderMessages = {
     removed: '{count} deleted',
     duplicated: '{count} duplicated',
     moved: 'Moved to position {index}',
+    movedTo: 'Moved to {where}, position {index}',
+    movedManyTo: 'Moved {count} nodes to {where}, position {index}',
     wrapped: 'Put in a section',
     undone: 'Undone',
     redone: 'Redone',

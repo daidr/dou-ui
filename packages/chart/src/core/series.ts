@@ -4,7 +4,8 @@ import type { Painter, Rect } from './painter'
 import type { Scale } from './scale'
 
 /** The y axis a series is measured on. */
-export type ChartValueAxis = 'left' | 'right'
+/** The value axis a series is measured on: `y`, or `y2` for a second kind of values. */
+export type ChartValueAxis = 'y' | 'y2'
 
 /** What every series accepts. */
 export interface ChartSeriesProps {
@@ -20,7 +21,7 @@ export interface ChartSeriesProps {
   color?: string
   /** A tone, for when the color means something (`danger` for errors). */
   tone?: Tone
-  /** The y axis to measure on. */
+  /** The value axis to measure on: `y2` is a second one, on the right (on the top when horizontal). */
   axis?: ChartValueAxis
 }
 
@@ -63,6 +64,8 @@ export interface ChartView {
   horizontal: boolean
   /** The room each x value gets along the x axis, in px: a category's width, or the closest two x apart. */
   band: number
+  /** Where a value at `x` lands, as `[left, top]` in CSS px, whichever way the chart runs. */
+  point(x: number, value: number): [number, number]
   /** The plot area, in CSS px. */
   plot: Rect
   /** Device pixels per CSS px. */
@@ -80,12 +83,12 @@ export interface ChartColors {
 
 /** A kind of series: how it widens the axes and how it draws. */
 export interface ChartSeriesKind<P = Record<string, unknown>> {
-  /** Names the series in class names (`is-bar`): the legend draws its swatch from it. */
-  name: string
+  /** What kind of series it is, in class names (`is-bar`): the legend draws its swatch from it. */
+  type: string
   /** Whether the value axis must reach 0 (areas and bars grow from it). */
   zero?: boolean
   /** Whether series of this kind can stack (`stack` prop). */
-  stacks?: boolean
+  stackable?: boolean
   /**
    * Whether series of this kind share the room of each x side by side
    * (bars): each gets a `slot`, and the x axis leaves half a band of room

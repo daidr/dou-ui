@@ -16,6 +16,8 @@ export interface ChartMessages {
   listSeparator: string
   /** The chart with the range of its x axis: `{chart}`, `{from}`, `{to}`. */
   range: string
+  /** The same, for a `horizontal` chart, whose x axis runs down the side. */
+  rangeDown: string
   /** The summary: `{chart}` (with its range) and `{series}` (the series joined). */
   summary: string
   /** Shown, and read out, when no series has a value. */
@@ -30,6 +32,7 @@ const zhCN: ChartMessages = {
   pie: '{name}：{slices}',
   listSeparator: '；',
   range: '{chart}，横轴从 {from} 到 {to}',
+  rangeDown: '{chart}，纵轴从 {from} 到 {to}',
   summary: '{chart}。{series}',
   empty: '没有数据',
 }
@@ -42,6 +45,7 @@ const zhTW: ChartMessages = {
   pie: '{name}：{slices}',
   listSeparator: '；',
   range: '{chart}，橫軸從 {from} 到 {to}',
+  rangeDown: '{chart}，縱軸從 {from} 到 {to}',
   summary: '{chart}。{series}',
   empty: '沒有資料',
 }
@@ -54,6 +58,7 @@ const en: ChartMessages = {
   pie: '{name}: {slices}',
   listSeparator: '; ',
   range: '{chart}, x from {from} to {to}',
+  rangeDown: '{chart}, x from {from} to {to}',
   summary: '{chart}. {series}',
   empty: 'No data',
 }

@@ -54,7 +54,7 @@ app.use(DouChart).use(DouChartAxis).use(DouChartLine).use(DouChartBar)
 
 不带时区的日期字符串按本地时间读取。时间轴会根据跨度选择刻度：分钟、小时、天、周、月或年，刻度文字只写变化的部分，跨天、跨月、跨年的位置写出完整的日期。
 
-数值轴上 10000 以内的整数（比如年份 2019）不加千分位，并且整数数据之间不会出现小数刻度。也可以用 `<DouChartAxis position="bottom" type="category" />` 指定类型，比如把数字年份当作类目。
+数值轴上 10000 以内的整数（比如年份 2019）不加千分位，并且整数数据之间不会出现小数刻度。也可以用 `<DouChartAxis for="x" type="category" />` 指定类型，比如把数字年份当作类目。
 
 毫秒时间戳是数字，默认会当作数值轴，需要写 `type="time"` 才按日期显示；开发环境下检测到看起来像时间戳的横轴时会在控制台提示。
 
@@ -88,7 +88,9 @@ app.use(DouChart).use(DouChartAxis).use(DouChartLine).use(DouChartBar)
 
 ### 横向
 
-`horizontal` 把横轴放到左侧、数值放到底部，适合类目名称较长或者需要从上往下比较的情况。横向时坐标轴按画出的位置指定：`position="left"` 是类目轴，`position="bottom"` 是数值轴。
+`horizontal` 把 x 轴放到左侧、数值放到底部，适合类目名称较长或者需要从上往下比较的情况。坐标轴和系列的含义不变，只是画的位置变了：`for="x"` 仍然是类目轴，`for="y"` 是底部的数值轴，`axis="y2"` 的系列对应顶部的第二条数值轴。从竖向改成横向只需要加上 `horizontal`。
+
+左侧的类目名称最多占图表宽度的 40%，更长的名称末尾显示省略号，鼠标悬停时显示全文。
 
 <DocDemo src="chart/bar-horizontal" />
 
@@ -100,7 +102,7 @@ app.use(DouChart).use(DouChartAxis).use(DouChartLine).use(DouChartBar)
 
 <DocDemo src="chart/scatter" />
 
-`radius` 是圆点的半径，默认 3.5px。数据点超过 2000 个时，落在同一像素上的点只画一次，并且合并成一次绘制。
+`radius` 是圆点的半径，默认 3.5px。数据点超过 2000 个时，所有圆点会先合成一张图再一次画出，10 万个点重绘约 50ms；这时重叠的地方不再加深。
 
 ### 气泡图
 
@@ -114,6 +116,8 @@ app.use(DouChart).use(DouChartAxis).use(DouChartLine).use(DouChartBar)
 
 <DocDemo src="chart/pie" />
 
+每一块默认依次使用色板里的彩色，跳过第 1 个中性灰。`color` 可以给每一块指定颜色：字段名或函数，返回任意 CSS 颜色，或者 `danger` 这样的语气色名称；返回 `neutral` 时使用色板的中性灰，适合“其他”。色板只有 7 种彩色，块数更多时颜色会重复，建议把较小的几块合并成“其他”，开发环境下会在控制台提示。
+
 `inner-radius` 是中间空洞占半径的比例，设置后画成环形图。默认插槽的内容显示在空洞中间，可以放合计或说明。
 
 <DocDemo src="chart/donut" />
@@ -122,36 +126,37 @@ app.use(DouChart).use(DouChartAxis).use(DouChartLine).use(DouChartBar)
 
 ## 组合图
 
-不同的系列可以放在同一个图表里，比如柱状图配合折线图，再用右侧纵轴显示另一种单位。
+不同的系列可以放在同一个图表里，比如柱状图配合折线图，再用第二条数值轴显示另一种单位。
 
 <DocDemo src="chart/combo" />
 
 ## 坐标轴
 
-`DouChartAxis` 用 `position` 指定位置：`bottom` 是横轴，`left` 和 `right` 是纵轴。
+`DouChartAxis` 用 `for` 指定设置的是哪条轴：`x` 是 x 轴，`y` 是数值轴，`y2` 是第二条数值轴。竖向图里 x 轴在底部，`y` 在左侧，`y2` 在右侧；横向图里 x 轴在左侧，`y` 在底部，`y2` 在顶部。
 
 <DocDemo src="chart/dual-axis" />
 
-系列默认对应左侧纵轴，`axis="right"` 对应右侧纵轴。只写了右侧纵轴时，系列默认对应右侧纵轴。两条纵轴同时出现时，右侧的刻度会和左侧对齐，只画一套网格线。
+系列默认对应 `y`，`axis="y2"` 对应第二条数值轴。只写了 `y2` 时，系列默认对应 `y2`。两条数值轴同时出现时，`y2` 的刻度会和 `y` 对齐，只画一套网格线。
 
 - `min`、`max` 固定坐标轴的范围；不设置时取数据的范围，纵轴还会向外取到整齐的刻度值。
 - `format` 格式化刻度文字，收到的值在数值轴上是数字，时间轴上是 `Date`，类目轴上是类目的文字。不设置时，数值按当前语言格式化，较大的数会写成“12万”这样的短格式。
 - `ticks` 是大致的刻度数量，也可以是具体的刻度值数组。刻度文字放不下时会自动减少刻度。
-- `type="log"` 用对数刻度，适合跨越几个数量级的数据。
-- `grid` 控制网格线，默认只有左侧纵轴有；`title` 是坐标轴的标题；`hidden` 保留坐标轴的范围但不显示。
+- `type="log"` 用对数刻度，适合跨越几个数量级的数据。对数轴上的柱子从轴的起点开始画，小于等于 0 的值不画，开发环境下会提示。
+- `grid` 控制网格线，默认只有 `y` 有（只有 `y2` 时是 `y2`）；`title` 是坐标轴的标题；`hidden` 保留坐标轴的范围但不显示。
 
 ## 自定义系列
 
-`defineChartSeries` 用来定义自己的系列组件。它和内置系列一样放在 `DouChart` 里，共用坐标轴、堆叠、图例和配色，只需要说明两件事：坐标轴怎样包含它的数据（`zero`、`band`），以及怎样画出来。
+`defineChartSeries` 用来定义自己的系列组件。它和内置系列一样放在 `DouChart` 里，共用坐标轴、堆叠、图例和配色，只需要说明两件事：坐标轴怎样包含它的数据（`zero`、`band`、`inset`），以及怎样画出来。
 
 <DocDemo src="chart/custom" />
 
 ```ts
 defineChartSeries({
-  name: 'lollipop', // 组件名为 DouChartLollipop，图例里的类名为 is-lollipop
+  type: 'lollipop', // 组件名为 DouChartLollipop，图例里的类名为 is-lollipop
   zero: true, // 数值轴包含 0
-  stacks: false, // 是否支持 stack
+  stackable: false, // 是否支持 stack
   band: false, // 是否像柱子一样在每个位置并排分配空间
+  inset: (series) => 0, // 每个点周围需要留出的像素，比如气泡的半径
   props: { radius: { type: Number, default: 5 } }, // 自己的属性
   draw(painter, series, view) {},
 })
@@ -161,7 +166,7 @@ defineChartSeries({
 
 - `painter`：canvas 2D 上下文的一部分方法，只通过它绘制。
 - `series`：读取好的数据。`series.x.values` 是横轴的值（类目轴上是类目的序号），`series.top` 是要画的值（堆叠时是这一段的顶端），`series.base` 是堆叠时这一段的底端，`series.rows` 是原始的行数据，`series.props` 是组件的属性，`series.color` 是计算好的颜色。
-- `view`：`x`、`y` 两个比例尺，`map` 把值换算成像素；`horizontal` 表示横向，此时 `x.map` 得到的是纵坐标；`band` 是每个位置的宽度（像素）；`plot` 是绘图区域。
+- `view`：`point(x, value)` 返回这个值画在哪里，`[left, top]`，竖向和横向都一样，自定义系列一般只用它；`x`、`y` 是两个比例尺，`map` 把值换算成沿轴的像素；`horizontal` 表示横向；`band` 是每个位置的宽度（像素）；`plot` 是绘图区域。
 
 内置的折线、面积、柱状和散点系列也通过同一个接口实现。
 
@@ -206,7 +211,7 @@ defineChartSeries({
 | `height`     | 高度，数字按 px 计算               | `number \| string`                          | `320`              |
 | `aria-label` | 读屏读出的名称，替换自动生成的概要 | `string`                                    | —                  |
 | `legend`     | 在图表下方显示图例                 | `boolean`                                   | 多于一个系列时显示 |
-| `horizontal` | 横轴放在左侧，数值放在底部         | `boolean`                                   | `false`            |
+| `horizontal` | x 轴放在左侧，数值放在底部         | `boolean`                                   | `false`            |
 | `messages`   | 替换语言包里的文字                 | `Partial<ChartMessages>`                    | —                  |
 
 ### Chart Slots
@@ -228,7 +233,7 @@ defineChartSeries({
 | `x`             | 这个系列自己的横轴取值             | `string \| (row, index: number) => unknown` | 图表的 `x`               |
 | `color`         | 颜色，任意 CSS 颜色                | `string`                                    | 色板的下一个色           |
 | `tone`          | 用语气色作为颜色                   | `Tone`                                      | —                        |
-| `axis`          | 对应的纵轴                         | `'left' \| 'right'`                         | `'left'`                 |
+| `axis`          | 对应的数值轴                       | `'y' \| 'y2'`                               | `'y'`                    |
 | `smooth`        | 画成平滑曲线                       | `boolean`                                   | `false`                  |
 | `dots`          | 显示数据点                         | `boolean \| 'auto'`                         | `'auto'`，面积图 `false` |
 | `dashed`        | 画成虚线                           | `boolean`                                   | `false`                  |
@@ -263,6 +268,7 @@ defineChartSeries({
 | `label`        | 每一块的名称                         | `string \| (row, index: number) => unknown` | 图表的 `x`    |
 | `data`         | 饼图自己的行数据                     | `object[]`                                  | 图表的 `data` |
 | `name`         | 饼图的名称，读屏时读在最前面         | `string`                                    | —             |
+| `color`        | 每一块的颜色：CSS 颜色或语气色名称   | `string \| (row, index: number) => string`  | 色板的彩色    |
 | `inner-radius` | 中间空洞占半径的比例，`0` 是饼图     | `number`                                    | `0`           |
 
 ### Pie Slots
@@ -273,30 +279,31 @@ defineChartSeries({
 
 ### defineChartSeries
 
-| 选项     | 说明                                           | 类型                              |
-| -------- | ---------------------------------------------- | --------------------------------- |
-| `name`   | 名称，组件名为 `DouChart` 加上首字母大写的名称 | `string`                          |
-| `zero`   | 数值轴包含 0                                   | `boolean`                         |
-| `stacks` | 支持 `stack` 堆叠                              | `boolean`                         |
-| `band`   | 在每个位置并排分配空间，横轴两端留出半个位置   | `boolean`                         |
-| `props`  | 组件自己的属性，写法和 Vue 组件的 `props` 相同 | `object`                          |
-| `draw`   | 绘制                                           | `(painter, series, view) => void` |
+| 选项        | 说明                                               | 类型                              |
+| ----------- | -------------------------------------------------- | --------------------------------- |
+| `type`      | 系列类型，组件名为 `DouChart` 加上首字母大写的类型 | `string`                          |
+| `zero`      | 数值轴包含 0                                       | `boolean`                         |
+| `stackable` | 支持 `stack` 堆叠                                  | `boolean`                         |
+| `band`      | 在每个位置并排分配空间，x 轴两端留出半个位置       | `boolean`                         |
+| `inset`     | 每个点周围需要的空间（像素），坐标轴会放宽到能放下 | `(series) => number`              |
+| `props`     | 组件自己的属性，写法和 Vue 组件的 `props` 相同     | `object`                          |
+| `draw`      | 绘制                                               | `(painter, series, view) => void` |
 
 ### Axis Props
 
-| 名称       | 说明                     | 类型                                          | 默认值                      |
-| ---------- | ------------------------ | --------------------------------------------- | --------------------------- |
-| `position` | 位置                     | `'bottom' \| 'left' \| 'right'`               | —                           |
-| `type`     | 刻度类型                 | `'linear' \| 'log' \| 'time' \| 'category'`   | 横轴按数据判断，纵轴线性    |
-| `min`      | 起点                     | `number \| string \| Date`                    | 数据的最小值                |
-| `max`      | 终点                     | `number \| string \| Date`                    | 数据的最大值                |
-| `zero`     | 纵轴包含 0               | `boolean`                                     | 有面积图、柱状图时为 `true` |
-| `nice`     | 两端取到整齐的刻度值     | `boolean`                                     | 纵轴 `true`，横轴 `false`   |
-| `ticks`    | 刻度数量，或具体的刻度值 | `number \| (number \| string \| Date)[]`      | 按尺寸计算                  |
-| `format`   | 格式化刻度文字           | `(value: number \| Date \| string) => string` | —                           |
-| `grid`     | 显示网格线               | `boolean`                                     | 主数值轴 `true`             |
-| `title`    | 标题                     | `string`                                      | —                           |
-| `hidden`   | 隐藏坐标轴，保留它的范围 | `boolean`                                     | `false`                     |
+| 名称     | 说明                     | 类型                                          | 默认值                      |
+| -------- | ------------------------ | --------------------------------------------- | --------------------------- |
+| `for`    | 哪条轴                   | `'x' \| 'y' \| 'y2'`                          | —                           |
+| `type`   | 刻度类型                 | `'linear' \| 'log' \| 'time' \| 'category'`   | x 轴按数据判断，数值轴线性  |
+| `min`    | 起点                     | `number \| string \| Date`                    | 数据的最小值                |
+| `max`    | 终点                     | `number \| string \| Date`                    | 数据的最大值                |
+| `zero`   | 数值轴包含 0             | `boolean`                                     | 有面积图、柱状图时为 `true` |
+| `nice`   | 两端取到整齐的刻度值     | `boolean`                                     | 数值轴 `true`，x 轴 `false` |
+| `ticks`  | 刻度数量，或具体的刻度值 | `number \| (number \| string \| Date)[]`      | 按尺寸计算                  |
+| `format` | 格式化刻度文字           | `(value: number \| Date \| string) => string` | —                           |
+| `grid`   | 显示网格线               | `boolean`                                     | `y` 为 `true`               |
+| `title`  | 标题                     | `string`                                      | —                           |
+| `hidden` | 隐藏坐标轴，保留它的范围 | `boolean`                                     | `false`                     |
 
 ### CSS 变量
 
@@ -310,4 +317,4 @@ defineChartSeries({
 
 ### 读屏
 
-根元素是 `role="img"`，名称是自动生成的概要：横轴的范围，以及每个系列的名称、数据点个数、最小值和最大值。数值按对应坐标轴的 `format` 读出，和刻度文字一致。可以用 `aria-label` 替换。
+根元素是 `role="img"`，名称是自动生成的概要：x 轴的范围（横向图读作“纵轴”），以及每个系列的名称、数据点个数、最小值和最大值。数值按对应坐标轴的 `format` 读出，和刻度文字一致。可以用 `aria-label` 替换。

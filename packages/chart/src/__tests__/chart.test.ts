@@ -49,7 +49,7 @@ describe('DouChart', () => {
       props: { data: rows, x: 'm' },
       slots: {
         default: () => [
-          h(DouChartAxis, { position: 'right', format: (v: number) => `${v * 100}%` }),
+          h(DouChartAxis, { for: 'y2', format: (v: number) => `${v * 100}%` }),
           h(DouChartLine, { y: 'b', name: '比率' }),
         ],
       },
@@ -89,11 +89,45 @@ describe('DouChart', () => {
     wrapper.unmount()
   })
 
+  it('takes a format written inline without laying out again and again', async () => {
+    const warn = console.warn
+    const seen: string[] = []
+    console.warn = (message: string) => seen.push(String(message))
+    const wrapper = mount(DouChart, {
+      props: {
+        data: [
+          { m: 'a', v: 0.2 },
+          { m: 'b', v: 0.6 },
+        ],
+        x: 'm',
+      },
+      // a new function on every render of the slot
+      slots: {
+        default: () => [
+          h(DouChartLine, { y: 'v' }),
+          h(DouChartAxis, { for: 'y', format: (v: number) => `${Math.round(v * 100)}%` }),
+        ],
+      },
+      attachTo: document.body,
+    })
+    const root = wrapper.find('.dou-chart').element as HTMLElement
+    root.getBoundingClientRect = () => ({ width: 600, height: 300 }) as DOMRect
+    Object.defineProperty(root, 'clientWidth', { value: 600 })
+    Object.defineProperty(root, 'clientHeight', { value: 300 })
+    await wrapper.setProps({ height: 300 })
+    await nextTick()
+    await nextTick()
+    console.warn = warn
+    expect(seen.filter((m) => m.includes('recursive'))).toEqual([])
+    expect(wrapper.findAll('.dou-chart__tick').map((t) => t.text())).toContain('60%')
+    wrapper.unmount()
+  })
+
   it('warns when a part is used outside a chart', () => {
     const warn = console.warn
     const seen: string[] = []
     console.warn = (message: string) => seen.push(message)
-    mount(DouChartAxis, { props: { position: 'left' } })
+    mount(DouChartAxis, { props: { for: 'y' } })
     console.warn = warn
     expect(seen[0]).toContain('<DouChartAxis> must be placed inside <DouChart>')
   })
@@ -114,20 +148,20 @@ describe('layout', () => {
     const model = buildModel(
       [
         { index: 0, kind: lineKind, props: { y: 'a' } as never },
-        { index: 1, kind: lineKind, props: { y: 'b', axis: 'right' } as never },
+        { index: 1, kind: lineKind, props: { y: 'b', axis: 'y2' } as never },
       ],
       { data: rows, x: 'm' },
     )
     const layout = layoutChart({
       model,
-      axes: { x: axis('bottom'), left: axis('left'), right: axis('right') },
+      axes: { x: axis('bottom'), y: axis('left'), y2: axis('right') },
       width: 600,
       height: 300,
       locale: 'zh-CN',
       measure,
     })
-    const left = layout.y.left!
-    const right = layout.y.right!
+    const left = layout.y.y!
+    const right = layout.y.y2!
     expect(layout.plot.x).toBe(4 + Math.max(...left.labels.map((l) => l.width)) + 8)
     expect(right.ticks.length).toBe(left.ticks.length)
     // the same pixel rows
@@ -147,7 +181,7 @@ describe('layout', () => {
     )
     const layout = layoutChart({
       model,
-      axes: { x: axis('bottom'), left: axis('left'), right: null },
+      axes: { x: axis('bottom'), y: axis('left'), y2: null },
       width: 300,
       height: 200,
       locale: 'zh-CN',
@@ -170,7 +204,7 @@ describe('layout', () => {
     })
     const layout = layoutChart({
       model,
-      axes: { x: axis('bottom'), left: axis('left'), right: null },
+      axes: { x: axis('bottom'), y: axis('left'), y2: null },
       width: 1200,
       height: 200,
       locale: 'zh-CN',
@@ -183,10 +217,10 @@ describe('layout', () => {
     const model = buildModel([{ index: 0, kind: lineKind, props: { y: 'a' } as never }], {
       data: rows,
       x: 'm',
-      axis: 'right',
+      axis: 'y2',
     })
-    expect(model.y.right).toEqual([10, 30])
-    expect(model.y.left).toBeNull()
+    expect(model.y.y2).toEqual([10, 30])
+    expect(model.y.y).toBeNull()
   })
 
   it('shows fewer category labels when they do not fit', () => {
@@ -197,7 +231,7 @@ describe('layout', () => {
     })
     const layout = layoutChart({
       model,
-      axes: { x: axis('bottom'), left: axis('left'), right: null },
+      axes: { x: axis('bottom'), y: axis('left'), y2: null },
       width: 400,
       height: 200,
       locale: 'zh-CN',

@@ -30,7 +30,7 @@ export type {
   ChartSlots,
 } from './types'
 export type { ChartAccessor, ChartRow, XColumn as ChartColumn } from './core/data'
-export type { ChartAxisPosition, ChartAxisType, ChartTickValue } from './core/layout'
+export type { ChartAxisRole, ChartAxisType, ChartTickValue } from './core/layout'
 export type { Painter as ChartPainter, Rect as ChartRect } from './core/painter'
 export type { Scale as ChartScale } from './core/scale'
 export type {

@@ -17,9 +17,9 @@ const percent = (value) => `${(value * 100).toFixed(1)}%`
 
 <template>
   <DouChart :data="rows" x="week" :height="300">
-    <DouChartAxis position="left" title="订单数" />
-    <DouChartAxis position="right" title="转化率" :format="percent" />
+    <DouChartAxis for="y" title="订单数" />
+    <DouChartAxis for="y2" title="转化率" :format="percent" />
     <DouChartLine y="orders" name="订单数" />
-    <DouChartLine y="rate" name="转化率" axis="right" dashed />
+    <DouChartLine y="rate" name="转化率" axis="y2" dashed />
   </DouChart>
 </template>

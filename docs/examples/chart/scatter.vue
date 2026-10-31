@@ -15,8 +15,8 @@ const gifts = goods(40, 760, 2.4)
 
 <template>
   <DouChart x="price" :height="300">
-    <DouChartAxis position="bottom" title="价格（元）" />
-    <DouChartAxis position="left" title="月销量" />
+    <DouChartAxis for="x" title="价格（元）" />
+    <DouChartAxis for="y" title="月销量" />
     <DouChartScatter :data="daily" y="sales" name="日用品" />
     <DouChartScatter :data="gifts" y="sales" name="礼品" />
   </DouChart>

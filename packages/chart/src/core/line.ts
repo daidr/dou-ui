@@ -125,13 +125,13 @@ export function drawLine(
 }
 
 export const lineKind: ChartSeriesKind<LineStyle> = {
-  name: 'line',
+  type: 'line',
   draw: (painter, series, view) => drawLine(painter, series, view, false),
 }
 
 export const areaKind: ChartSeriesKind<LineStyle> = {
-  name: 'area',
+  type: 'area',
   zero: true,
-  stacks: true,
+  stackable: true,
   draw: (painter, series, view) => drawLine(painter, series, view, true),
 }

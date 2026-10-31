@@ -6,9 +6,8 @@ import {
   type InjectionKey,
   type VNodeChild,
 } from 'vue'
-import type { AxisConfig } from './core/layout'
 import type { ChartSeriesKind, ChartSeriesProps } from './core/series'
-import type { ChartPieProps } from './types'
+import type { ChartAxisProps, ChartPieProps } from './types'
 
 /** A child component as the chart keeps it. */
 export interface ChartPart<P> {
@@ -26,7 +25,7 @@ export interface PiePart extends ChartPart<ChartPieProps> {
   center: () => VNodeChild
 }
 
-export type AxisPart = ChartPart<Partial<AxisConfig> & Pick<AxisConfig, 'position'>>
+export type AxisPart = ChartPart<ChartAxisProps>
 
 export interface ChartRegistry {
   addSeries(part: SeriesPart): () => void

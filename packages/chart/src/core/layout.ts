@@ -19,7 +19,10 @@ import {
 import type { ChartValueAxis } from './series'
 import { timeInterval, timeTicks } from './time'
 
-export type ChartAxisPosition = 'bottom' | 'left' | 'right'
+/** Where an axis is drawn. */
+export type ChartAxisPosition = 'bottom' | 'top' | 'left' | 'right'
+/** What an axis measures: x, the values, or a second kind of values. */
+export type ChartAxisRole = 'x' | ChartValueAxis
 export type ChartAxisType = 'linear' | 'log' | 'time' | 'category'
 
 /** A tick value as `format` receives it: a number, a `Date` on time axes, the category on category axes. */
@@ -40,11 +43,11 @@ export interface AxisConfig {
   hidden: boolean
 }
 
-/** The axes by what they measure: `x`, and the value axes `left` and `right`. */
+/** The axes by what they measure. */
 export interface ChartAxes {
   x: AxisConfig
-  left: AxisConfig | null
-  right: AxisConfig | null
+  y: AxisConfig | null
+  y2: AxisConfig | null
 }
 
 export interface TickLabel {
@@ -53,6 +56,8 @@ export interface TickLabel {
   left: number
   top: number
   width: number
+  /** Whether the text is longer than `width` and is cut short with an ellipsis. */
+  clipped?: boolean
 }
 
 export interface AxisLayout {
@@ -71,7 +76,7 @@ export interface ChartLayout {
   height: number
   plot: Rect
   x: AxisLayout
-  /** The value axes, by what they measure (with `horizontal`, `left` is drawn at the bottom). */
+  /** The value axes, by what they measure. */
   y: Partial<Record<ChartValueAxis, AxisLayout>>
   legend: LegendItem[]
 }
@@ -103,11 +108,13 @@ const X_TICK_SPACE = 64
 const Y_TICK_SPACE = 48
 /** Room between labels stacked down an axis. */
 const ROW_GAP = 4
+/** The most of the chart's width that category names down the side may take. */
+const SIDE_LABEL_SHARE = 0.4
 
 interface LayoutOptions {
   model: ChartModel
   axes: ChartAxes
-  /** x runs down the left side and values along the bottom. */
+  /** x runs down the left side and values along the bottom (and the top). */
   horizontal?: boolean
   width: number
   height: number
@@ -146,15 +153,34 @@ function legendRoom(legend: LegendItem[]): number {
   return legend.length ? LABEL_GAP + 4 + legend[legend.length - 1]!.top + LABEL_HEIGHT : 0
 }
 
-/** x along the bottom, values up the sides. */
+const shown = (config: AxisConfig | null): config is AxisConfig => !!config && !config.hidden
+
+/**
+ * The value axes for about `count` ticks; the second one gets as many
+ * steps as the first, so both share one set of grid lines.
+ */
+function valueAxes(
+  axes: ChartAxes,
+  model: ChartModel,
+  count: number,
+  locale: string,
+  length: number,
+): { y: ValueAxis | null; y2: ValueAxis | null } {
+  const y = axes.y ? valueAxis('y', axes.y, model, count, locale, length) : null
+  let y2 = axes.y2 ? valueAxis('y2', axes.y2, model, count, locale, length) : null
+  if (y && y2 && !axes.y2!.ticks && !y2.fixed && y.ticks.length > 1)
+    y2 = alignTo(y2, y.ticks.length - 1, axes.y2!, model, locale, length)
+  return { y, y2 }
+}
+
+/** x along the bottom, values up the left side (and the right). */
 function layoutUp(
   { model, axes, width, height, locale, measure }: LayoutOptions,
   legendHeight: number,
 ): Omit<ChartLayout, 'legend'> {
   const xAxis = axes.x
   const xShown = !xAxis.hidden
-  const titleRoom =
-    (axes.left?.title && !axes.left.hidden) || (axes.right?.title && !axes.right.hidden)
+  const titleRoom = (shown(axes.y) && axes.y.title) || (shown(axes.y2) && axes.y2.title)
   // a title sits above the top tick label, which is centered on the plot's top edge
   const top = titleRoom ? LABEL_HEIGHT + LABEL_GAP + LABEL_HEIGHT / 2 : EDGE
   const bottom =
@@ -165,16 +191,9 @@ function layoutUp(
 
   // value axes first: their labels decide how wide the plot is
   const yCount = Math.max(2, Math.floor(plotHeight / Y_TICK_SPACE))
-  const left = axes.left ? valueAxis('left', axes.left, model, yCount, locale, plotHeight) : null
-  let right = axes.right ? valueAxis('right', axes.right, model, yCount, locale, plotHeight) : null
-  // two axes share one set of grid lines: give the right one as many steps as the left
-  if (left && right && !axes.right!.ticks && !right.fixed && left.ticks.length > 1)
-    right = alignTo(right, left.ticks.length - 1, axes.right!, model, locale, plotHeight)
-
-  const leftWidth =
-    left && !axes.left!.hidden ? INSET + labelWidth(left.texts, measure) + LABEL_GAP : EDGE
-  const rightWidth =
-    right && !axes.right!.hidden ? INSET + labelWidth(right.texts, measure) + LABEL_GAP : EDGE
+  const { y, y2 } = valueAxes(axes, model, yCount, locale, plotHeight)
+  const leftWidth = y && shown(axes.y) ? INSET + labelWidth(y.texts, measure) + LABEL_GAP : EDGE
+  const rightWidth = y2 && shown(axes.y2) ? INSET + labelWidth(y2.texts, measure) + LABEL_GAP : EDGE
   const plot: Rect = {
     x: leftWidth,
     y: plotTop,
@@ -183,20 +202,25 @@ function layoutUp(
   }
 
   const yLayout: ChartLayout['y'] = {}
-  for (const axis of [left, right]) {
+  for (const axis of [y, y2]) {
     if (!axis) continue
-    const config = axes[axis.position]!
+    const config = axes[axis.role]!
     const scale = valueScale(axis, [plot.y + plot.height, plot.y])
-    yLayout[axis.position] = {
+    const labels = config.hidden ? [] : placeDown(axis.ticks, axis.texts, scale, height, measure)
+    for (const label of labels)
+      if (axis.role === 'y') alignEnd(label, plot.x)
+      else label.left = plot.x + plot.width + LABEL_GAP
+    yLayout[axis.role] = {
       position: config.position,
       scale,
       ticks: axis.ticks,
-      labels: config.hidden ? [] : placeDown(axis.ticks, axis.texts, scale, height, measure),
+      labels,
       grid: config.grid,
-      title: sideTitle(config, width),
+      title:
+        config.title && !config.hidden
+          ? topTitle(config.title, axis.role === 'y2', width)
+          : undefined,
     }
-    if (axis.position === 'left') for (const label of yLayout.left!.labels) alignEnd(label, plot.x)
-    else for (const label of yLayout.right!.labels) label.left = plot.x + plot.width + LABEL_GAP
   }
 
   const along: [number, number] = [plot.x, plot.x + plot.width]
@@ -222,18 +246,25 @@ function layoutUp(
   return { width, height, plot, x, y: yLayout }
 }
 
-/** x down the left side, values along the bottom: bars with long category names. */
+/**
+ * x down the left side, values along the bottom (and a second kind along
+ * the top): bars with long category names.
+ */
 function layoutAcross(
   { model, axes, width, height, locale, measure }: LayoutOptions,
   legendHeight: number,
 ): Omit<ChartLayout, 'legend'> {
   const xAxis = axes.x
-  const values = axes.left!
   const xShown = !xAxis.hidden
-  const valuesShown = !values.hidden
-  const top = xShown && xAxis.title ? LABEL_HEIGHT + LABEL_GAP : EDGE
+  const yShown = shown(axes.y)
+  const y2Shown = shown(axes.y2)
+  // at the top: a row of titles (x on the left, y2 on the right), then y2's labels
+  const titles = (xShown && xAxis.title) || (y2Shown && axes.y2!.title)
+  const titleRow = titles ? LABEL_HEIGHT + LABEL_GAP : 0
+  const topLabels = y2Shown ? LABEL_HEIGHT + LABEL_GAP : 0
+  const top = Math.max(EDGE, titleRow + topLabels)
   const bottom =
-    (valuesShown ? LABEL_HEIGHT + LABEL_GAP + (values.title ? LABEL_HEIGHT + 4 : 0) : EDGE) +
+    (yShown ? LABEL_HEIGHT + LABEL_GAP + (axes.y!.title ? LABEL_HEIGHT + 4 : 0) : EDGE) +
     legendHeight
   const plotTop = top
   const plotBottom = Math.max(plotTop + 1, height - bottom)
@@ -257,64 +288,80 @@ function layoutAcross(
   }
   x ??= { position: xAxis.position, scale, ticks: [], labels: [], grid: xAxis.grid }
   if (!xShown) x.labels = []
-  const leftWidth = xShown
-    ? INSET +
-      labelWidth(
-        x.labels.map((l) => l.text),
-        measure,
-      ) +
-      LABEL_GAP
-    : EDGE
+  // long names are cut short, so they can't squeeze the plot away
+  const widest = Math.floor(width * SIDE_LABEL_SHARE)
+  for (const label of x.labels)
+    if (label.width > widest) {
+      label.width = widest
+      label.clipped = true
+    }
+  const leftWidth =
+    xShown && x.labels.length ? INSET + labelWidth(x.labels.map((l) => l.width)) + LABEL_GAP : EDGE
 
   let rightWidth = EDGE
   const plot: Rect = { x: leftWidth, y: plotTop, width: 1, height: plotHeight }
-  const labelTop = plotBottom + LABEL_GAP
-  const placeValues = (axis: ValueAxis) => {
-    plot.width = Math.max(1, width - leftWidth - rightWidth)
+  const across = width - leftWidth - EDGE
+  const place = (axis: ValueAxis | null, labelTop: number, visible: boolean) => {
+    if (!axis) return null
     const valueScaleAcross = valueScale(axis, [plot.x, plot.x + plot.width])
-    const labels = valuesShown
+    const labels = visible
       ? placeAcross(axis.ticks, axis.texts, valueScaleAcross, labelTop, width, measure)
       : []
-    return { scale: valueScaleAcross, labels }
+    return { axis, scale: valueScaleAcross, labels }
   }
-  const across = width - leftWidth - EDGE
-  let axis = valueAxis('left', values, model, 2, locale, across)
-  let placed = placeValues(axis)
-  for (
-    let count = Math.max(2, Math.floor((width - leftWidth) / X_TICK_SPACE));
-    count >= 2;
-    count--
-  ) {
-    axis = valueAxis('left', values, model, count, locale, across)
-    placed = placeValues(axis)
-    if (fitAcross(placed.labels)) break
-  }
-  // the last label is centered on the plot's right edge: leave it room
-  const last = placed.labels[placed.labels.length - 1]
-  if (last) {
-    const excess =
-      placed.scale.map(axis.ticks[axis.ticks.length - 1]!) + last.width / 2 + INSET - width
-    if (excess > 0) {
-      rightWidth += Math.ceil(excess)
-      placed = placeValues(axis)
+  const placeAll = (axes2: { y: ValueAxis | null; y2: ValueAxis | null }) => {
+    plot.width = Math.max(1, width - leftWidth - rightWidth)
+    return {
+      y: place(axes2.y, plotBottom + LABEL_GAP, yShown),
+      y2: place(axes2.y2, plotTop - LABEL_GAP - LABEL_HEIGHT, y2Shown),
     }
+  }
+  let values = valueAxes(axes, model, 2, locale, across)
+  let placed = placeAll(values)
+  for (let count = Math.max(2, Math.floor(across / X_TICK_SPACE)); count >= 2; count--) {
+    values = valueAxes(axes, model, count, locale, across)
+    placed = placeAll(values)
+    if ((!placed.y || fitAcross(placed.y.labels)) && (!placed.y2 || fitAcross(placed.y2.labels)))
+      break
+  }
+  // the last labels are centered on the plot's right edge: leave them room
+  let excess = 0
+  for (const p of [placed.y, placed.y2]) {
+    const last = p?.labels[p.labels.length - 1]
+    if (p && last)
+      excess = Math.max(
+        excess,
+        p.scale.map(p.axis.ticks[p.axis.ticks.length - 1]!) + last.width / 2 + INSET - width,
+      )
+  }
+  if (excess > 0) {
+    rightWidth += Math.ceil(excess)
+    placed = placeAll(values)
   }
 
   for (const label of x.labels) alignEnd(label, plot.x)
   x.title =
     xShown && xAxis.title ? { text: xAxis.title, left: INSET, top: 0, align: 'start' } : undefined
-  const valueLayout: AxisLayout = {
-    position: values.position,
-    scale: placed.scale,
-    ticks: axis.ticks,
-    labels: placed.labels,
-    grid: values.grid,
-    title:
-      valuesShown && values.title
-        ? bottomTitle(values.title, width, height, legendHeight)
-        : undefined,
+  const yLayout: ChartLayout['y'] = {}
+  for (const role of ['y', 'y2'] as const) {
+    const p = placed[role]
+    const config = axes[role]
+    if (!p || !config) continue
+    yLayout[role] = {
+      position: config.position,
+      scale: p.scale,
+      ticks: p.axis.ticks,
+      labels: p.labels,
+      grid: config.grid,
+      title:
+        config.title && !config.hidden
+          ? role === 'y'
+            ? bottomTitle(config.title, width, height, legendHeight)
+            : topTitle(config.title, true, width)
+          : undefined,
+    }
   }
-  return { width, height, plot, x, y: { left: valueLayout } }
+  return { width, height, plot, x, y: yLayout }
 }
 
 /** Puts a label's right edge a gap before `edge`. */
@@ -322,15 +369,9 @@ function alignEnd(label: TickLabel, edge: number) {
   label.left = edge - LABEL_GAP - label.width
 }
 
-function sideTitle(config: AxisConfig, width: number): AxisLayout['title'] {
-  if (!config.title || config.hidden) return undefined
-  const left = config.position !== 'right'
-  return {
-    text: config.title,
-    top: 0,
-    left: left ? INSET : width - INSET,
-    align: left ? 'start' : 'end',
-  }
+/** A title at the top: on the left, or (`end`) on the right. */
+function topTitle(text: string, end: boolean, width: number): AxisLayout['title'] {
+  return { text, top: 0, left: end ? width - INSET : INSET, align: end ? 'end' : 'start' }
 }
 
 function bottomTitle(
@@ -423,9 +464,13 @@ export function placeLegend(
   return items
 }
 
-function labelWidth(texts: string[], measure: (text: string) => number): number {
+/** The widest of `texts` (measured), or of `widths`. */
+function labelWidth(texts: string[], measure: (text: string) => number): number
+function labelWidth(widths: number[]): number
+function labelWidth(items: Array<string | number>, measure?: (text: string) => number): number {
   let widest = 0
-  for (const text of texts) widest = Math.max(widest, measure(text))
+  for (const item of items)
+    widest = Math.max(widest, typeof item === 'number' ? item : measure!(item))
   return Math.ceil(widest)
 }
 
@@ -433,7 +478,7 @@ function labelWidth(texts: string[], measure: (text: string) => number): number 
 
 interface ValueAxis {
   /** What it measures. */
-  position: ChartValueAxis
+  role: ChartValueAxis
   kind: 'linear' | 'log'
   domain: [number, number]
   ticks: number[]
@@ -447,7 +492,7 @@ function valueScale(axis: ValueAxis, range: [number, number]): Scale {
 }
 
 function valueAxis(
-  position: ChartValueAxis,
+  role: ChartValueAxis,
   config: AxisConfig,
   model: ChartModel,
   count: number,
@@ -455,8 +500,8 @@ function valueAxis(
   length: number,
 ): ValueAxis {
   const kind = config.type === 'log' ? 'log' : 'linear'
-  const data = model.y[position]
-  const zero = config.zero ?? model.zero[position]
+  const data = model.y[role]
+  const zero = config.zero ?? model.zero[role]
   let [lo, hi] = data
     ? kind === 'linear'
       ? widen(data[0], data[1], model.inset, length)
@@ -483,7 +528,7 @@ function valueAxis(
       ? logTicks(domain[0], domain[1], count)
       : linearTicks(domain[0], domain[1], count))
   return {
-    position,
+    role,
     kind,
     domain,
     ticks,
@@ -502,8 +547,8 @@ function alignTo(
   length: number,
 ): ValueAxis {
   if (axis.kind === 'log') return axis
-  const data = model.y[axis.position]
-  const zero = config.zero ?? model.zero[axis.position]
+  const data = model.y[axis.role]
+  const zero = config.zero ?? model.zero[axis.role]
   let [lo, hi] = data ? widen(data[0], data[1], model.inset, length) : [0, 1]
   if (zero) {
     lo = Math.min(lo, 0)

@@ -3,39 +3,30 @@ import { DouChart, defineChartSeries } from '@dou-ui/chart'
 
 // 棒棒糖图：从 0 画一根细线到数值，顶端一个圆点
 const DouChartLollipop = defineChartSeries({
-  name: 'lollipop',
+  type: 'lollipop',
   zero: true,
   props: { radius: { type: Number, default: 5 } },
   draw(painter, series, view) {
-    const { x, y, horizontal } = view
-    const zero = y.map(0)
+    const { point } = view
     const r = series.props.radius
     painter.save()
     painter.strokeStyle = series.color
     painter.fillStyle = series.color
     painter.lineWidth = 2
-    painter.beginPath()
     for (let i = 0; i < series.top.length; i++) {
       const value = series.top[i]
       if (Number.isNaN(value)) continue
-      const u = x.map(series.x.values[i])
-      const v = y.map(value)
-      const [x0, y0, x1, y1] = horizontal ? [zero, u, v, u] : [u, zero, u, v]
+      // point() 返回 [left, top]，横向图里也一样
+      const [x0, y0] = point(series.x.values[i], 0)
+      const [x1, y1] = point(series.x.values[i], value)
+      painter.beginPath()
       painter.moveTo(x0, y0)
       painter.lineTo(x1, y1)
+      painter.stroke()
+      painter.beginPath()
+      painter.arc(x1, y1, r, 0, Math.PI * 2)
+      painter.fill()
     }
-    painter.stroke()
-    painter.beginPath()
-    for (let i = 0; i < series.top.length; i++) {
-      const value = series.top[i]
-      if (Number.isNaN(value)) continue
-      const u = x.map(series.x.values[i])
-      const v = y.map(value)
-      const [cx, cy] = horizontal ? [v, u] : [u, v]
-      painter.moveTo(cx + r, cy)
-      painter.arc(cx, cy, r, 0, Math.PI * 2)
-    }
-    painter.fill()
     painter.restore()
   },
 })

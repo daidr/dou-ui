@@ -128,7 +128,7 @@ export function buildModel(
       input,
       name,
       rows,
-      axis: input.props.axis ?? chart.axis ?? 'left',
+      axis: input.props.axis ?? chart.axis ?? 'y',
       x: column,
       y,
       top: y,
@@ -175,8 +175,8 @@ export function buildModel(
     }
   }
 
-  const y: ChartModel['y'] = { left: null, right: null }
-  const zero: ChartModel['zero'] = { left: false, right: false }
+  const y: ChartModel['y'] = { y: null, y2: null }
+  const zero: ChartModel['zero'] = { y: false, y2: false }
   for (const s of series) {
     y[s.axis] = merge(y[s.axis], cachedExtent(s.top))
     if (s.base) y[s.axis] = merge(y[s.axis], cachedExtent(s.base))
@@ -240,7 +240,7 @@ function stack(series: ModelSeries[]) {
   const groups = new Map<string, ModelSeries[]>()
   for (const s of series) {
     const name = s.input.props.stack
-    if (!s.input.kind.stacks || name === undefined || name === false) continue
+    if (!s.input.kind.stackable || name === undefined || name === false) continue
     const key = `${s.axis}\u0000${name === true ? '' : name}`
     const group = groups.get(key)
     if (!group) groups.set(key, [s])

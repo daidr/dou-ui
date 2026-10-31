@@ -16,8 +16,8 @@ const rows = [
 
 <template>
   <DouChart :data="rows" x="years" :height="300">
-    <DouChartAxis position="bottom" title="开业年数" />
-    <DouChartAxis position="left" title="坪效（元/㎡）" />
+    <DouChartAxis for="x" title="开业年数" />
+    <DouChartAxis for="y" title="坪效（元/㎡）" />
     <DouChartScatter y="yield" size="stores" name="门店数量" />
   </DouChart>
 </template>

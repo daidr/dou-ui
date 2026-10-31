@@ -12,7 +12,7 @@ const rows = [
 
 <template>
   <DouChart :data="rows" x="quarter" :height="300">
-    <DouChartAxis position="left" title="销售额（万元）" />
+    <DouChartAxis for="y" title="销售额（万元）" />
     <DouChartBar y="online" name="线上" />
     <DouChartBar y="store" name="门店" />
   </DouChart>

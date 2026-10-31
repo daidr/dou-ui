@@ -7,7 +7,7 @@ import { layoutChart, type AxisConfig } from '../core/layout'
 import { buildModel, type SeriesInput } from '../core/model'
 import type { Painter } from '../core/painter'
 import { pieSlices } from '../core/pie'
-import { categoryScale, linearScale } from '../core/scale'
+import { categoryScale, linearScale, logScale } from '../core/scale'
 import { drawScatter, scatterKind } from '../core/scatter'
 import type { ChartSeries, ChartView } from '../core/series'
 
@@ -71,7 +71,7 @@ describe('bars', () => {
     expect(model.x).toEqual([0, 7])
     const layout = layoutChart({
       model,
-      axes: { x: axis('bottom'), left: axis('left'), right: null },
+      axes: { x: axis('bottom'), y: axis('left'), y2: null },
       width: 400,
       height: 200,
       locale: 'zh-CN',
@@ -95,6 +95,7 @@ describe('bars', () => {
       y: linearScale([0, 30], [300, 0]),
       horizontal: false,
       band: 100,
+      point: () => [0, 0],
       plot: { x: 0, y: 0, width: 100, height: 300 },
       dpr: 1,
       colors,
@@ -110,6 +111,34 @@ describe('bars', () => {
     expect(outer.calls.find(([key]) => key === 'moveTo')).toEqual(['moveTo', [22, 199]])
   })
 
+  it('leaves out values at or below 0 on a log axis', () => {
+    const rows = [
+      { k: 'a', v: 10 },
+      { k: 'b', v: -5 },
+      { k: 'c', v: 0 },
+    ]
+    const model = buildModel([input(0, { y: 'v' })], { data: rows, x: 'k' })
+    const [series] = resolve(model)
+    const view: ChartView = {
+      x: categoryScale(['a', 'b', 'c'], [0, 300]),
+      y: logScale([1, 100], [100, 0]),
+      horizontal: false,
+      band: 100,
+      point: () => [0, 0],
+      plot: { x: 0, y: 0, width: 300, height: 100 },
+      dpr: 1,
+      colors,
+    }
+    const warn = console.warn
+    const seen: string[] = []
+    console.warn = (message: string) => seen.push(message)
+    const { painter, calls } = recorder()
+    drawBars(painter, series as never, view)
+    console.warn = warn
+    expect(calls.filter(([key]) => key === 'moveTo')).toHaveLength(1)
+    expect(seen[0]).toContain('log axis')
+  })
+
   it('merges bars thinner than a pixel and a half by pixel column', () => {
     const rows = Array.from({ length: 10_000 }, (_, i) => ({ x: i, v: i % 7 }))
     const model = buildModel([input(0, { y: 'v' })], { data: rows, x: 'x' })
@@ -119,6 +148,7 @@ describe('bars', () => {
       y: linearScale([0, 7], [100, 0]),
       horizontal: false,
       band: 0.02,
+      point: () => [0, 0],
       plot: { x: 0, y: 0, width: 200, height: 100 },
       dpr: 1,
       colors,
@@ -138,7 +168,7 @@ describe('bars', () => {
     const layout = layoutChart({
       model,
       horizontal: true,
-      axes: { x: axis('left'), left: axis('bottom', { grid: true }), right: null },
+      axes: { x: axis('left'), y: axis('bottom', { grid: true }), y2: null },
       width: 400,
       height: 200,
       locale: 'zh-CN',
@@ -149,11 +179,61 @@ describe('bars', () => {
     // the first category at the top, labels ending a gap before the plot
     expect(x.scale.map(0)).toBeLessThan(x.scale.map(1))
     expect(x.labels.map((l) => l.left + l.width)).toEqual([layout.plot.x - 8, layout.plot.x - 8])
-    const values = layout.y.left!
+    const values = layout.y.y!
     expect(values.position).toBe('bottom')
     expect(values.scale.map(0)).toBe(layout.plot.x)
     for (const label of values.labels)
       expect(label.top).toBe(layout.plot.y + layout.plot.height + 8)
+  })
+})
+
+describe('horizontal', () => {
+  it('puts y2 along the top and cuts long names short', () => {
+    const rows = [
+      { k: '一个名字特别特别特别特别特别特别长的类目', v: 3, w: 30 },
+      { k: '短', v: 5, w: 10 },
+    ]
+    const model = buildModel([input(0, { y: 'v' }), input(1, { y: 'w', axis: 'y2' })], {
+      data: rows,
+      x: 'k',
+    })
+    expect(model.y.y2).toEqual([10, 30])
+    const layout = layoutChart({
+      model,
+      horizontal: true,
+      axes: { x: axis('left'), y: axis('bottom', { grid: true }), y2: axis('top') },
+      width: 300,
+      height: 200,
+      locale: 'zh-CN',
+      measure,
+    })
+    const top = layout.y.y2!
+    expect(top.position).toBe('top')
+    for (const label of top.labels) expect(label.top).toBe(layout.plot.y - 8 - 16)
+    // as many steps as the bottom axis, so they share grid lines
+    expect(top.ticks.length).toBe(layout.y.y!.ticks.length)
+    const [long, short] = layout.x.labels
+    expect(long!.clipped).toBe(true)
+    expect(long!.width).toBe(120)
+    expect(short!.clipped).toBeUndefined()
+    expect(layout.plot.x).toBe(4 + 120 + 8)
+  })
+
+  it('reads the x range as running down', async () => {
+    const wrapper = mount(DouChart, {
+      props: {
+        data: [
+          { k: '甲', v: 1 },
+          { k: '乙', v: 2 },
+        ],
+        x: 'k',
+        horizontal: true,
+      },
+      slots: { default: () => h(DouChartBar, { y: 'v' }) },
+    })
+    await nextTick()
+    expect(wrapper.find('.dou-chart').attributes('aria-label')).toMatch(/^图表，纵轴从 甲 到 乙。/)
+    wrapper.unmount()
   })
 })
 
@@ -167,6 +247,7 @@ describe('scatter', () => {
       y: linearScale([0, 4], [40, 0]),
       horizontal: false,
       band: 0,
+      point: () => [0, 0],
       plot: { x: 0, y: 0, width: 90, height: 40 },
       dpr: 1,
       colors,
@@ -188,7 +269,7 @@ describe('scatter', () => {
     expect(model.inset).toBe(21)
     const layout = layoutChart({
       model,
-      axes: { x: axis('bottom'), left: axis('left', { nice: false }), right: null },
+      axes: { x: axis('bottom'), y: axis('left', { nice: false }), y2: null },
       width: 400,
       height: 300,
       locale: 'zh-CN',
@@ -196,7 +277,7 @@ describe('scatter', () => {
     })
     const { plot } = layout
     expect(layout.x.scale.map(10)).toBeCloseTo(plot.x + plot.width - 21)
-    expect(layout.y.left!.scale.map(10)).toBeCloseTo(plot.y + 21)
+    expect(layout.y.y!.scale.map(10)).toBeCloseTo(plot.y + 21)
   })
 })
 
@@ -204,19 +285,37 @@ describe('pie', () => {
   it('goes round from the top, leaving out values of 0 or less', () => {
     const slices = pieSlices(
       [
-        { k: 'a', v: 1 },
+        { k: 'a', v: 1, c: 'danger' },
         { k: 'b', v: 0 },
         { k: 'c', v: 3 },
       ],
       'v',
       'k',
+      'c',
     )
+    expect(slices.map((s) => s.color)).toEqual(['danger', undefined])
     expect(slices.map((s) => [s.label, s.share])).toEqual([
       ['a', 0.25],
       ['c', 0.75],
     ])
     expect(slices[0]!.start).toBe(0)
     expect(slices[1]!.end).toBeCloseTo(Math.PI * 2)
+  })
+
+  it('warns when slices outnumber the palette', async () => {
+    const warn = console.warn
+    const seen: string[] = []
+    console.warn = (message: string) => seen.push(message)
+    const rows = Array.from({ length: 9 }, (_, i) => ({ k: `${i}`, v: i + 1 }))
+    const wrapper = mount(DouChart, {
+      props: { data: rows, x: 'k' },
+      slots: { default: () => h(DouChartPie, { value: 'v' }) },
+    })
+    await nextTick()
+    await nextTick()
+    console.warn = warn
+    expect(seen.some((message) => message.includes('repeats colors after 7'))).toBe(true)
+    wrapper.unmount()
   })
 
   it('reads out each slice and shows its slot in the hole', async () => {
@@ -252,7 +351,7 @@ describe('defineChartSeries', () => {
   it('makes a series that sits in a chart like the built-in ones', async () => {
     const drawn: string[] = []
     const DouChartTick = defineChartSeries({
-      name: 'tick',
+      type: 'tick',
       zero: true,
       props: { size: { type: Number, default: 4 } },
       draw: (_painter, series) => drawn.push(`${series.name}:${series.props.size}`),

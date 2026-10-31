@@ -21,6 +21,8 @@ import {
   type AxisLayout,
   type ChartAxes,
   type ChartAxisPosition,
+  type ChartAxisRole,
+  type TickLabel,
 } from './core/layout'
 import { buildModel, type SeriesInput } from './core/model'
 import { crisp, type Painter } from './core/painter'
@@ -28,6 +30,7 @@ import { drawPie, pieSlices } from './core/pie'
 import type { ChartColors, ChartSeries, ChartValueAxis, ChartView } from './core/series'
 import { chartKey, type AxisPart, type ChartPart, type PiePart, type SeriesPart } from './context'
 import { format, useChartMessages } from './locale'
+import ChartOverlay, { type OverlayState } from './overlay.vue'
 import type { ChartProps, ChartSlots } from './types'
 
 defineOptions({ name: 'DouChart' })
@@ -135,34 +138,40 @@ function measure(text: string): number {
 /* data → model → layout */
 
 const declaredAxes = computed(() => {
-  const declared: Partial<Record<ChartAxisPosition, AxisPart['props']>> = {}
-  for (const part of axisParts.value) declared[part.props.position] = part.props
+  const declared: Partial<Record<ChartAxisRole, AxisPart['props']>> = {}
+  for (const part of axisParts.value) declared[part.props.for] = part.props
   return declared
 })
 
-// with only a right axis written, series that don't say otherwise are measured on it
+// with only a y2 axis written, series that don't say otherwise are measured on it
 const defaultAxis = computed<ChartValueAxis>(() =>
-  !props.horizontal && declaredAxes.value.right && !declaredAxes.value.left ? 'right' : 'left',
+  declaredAxes.value.y2 && !declaredAxes.value.y ? 'y2' : 'y',
 )
 
 const uses = (axis: ChartValueAxis) =>
   seriesParts.value.some((part) => (part.props.axis ?? defaultAxis.value) === axis)
 
-/** The axes by what they measure; with `horizontal`, x is drawn on the left and values at the bottom. */
+/**
+ * The axes by what they measure, and where each is drawn: x at the bottom,
+ * y on the left and y2 on the right; with `horizontal`, x on the left,
+ * y at the bottom and y2 at the top.
+ */
 const axes = computed<ChartAxes>(() => {
   const declared = declaredAxes.value
-  const config = (position: ChartAxisPosition, grid: boolean): AxisConfig => {
-    const given = declared[position]
-    return { ...given, position, grid: given?.grid ?? grid, hidden: given?.hidden ?? false }
+  const places: Record<ChartAxisRole, ChartAxisPosition> = props.horizontal
+    ? { x: 'left', y: 'bottom', y2: 'top' }
+    : { x: 'bottom', y: 'left', y2: 'right' }
+  const config = (role: ChartAxisRole, grid: boolean): AxisConfig => {
+    const { for: _, ...given } = declared[role] ?? ({} as Partial<AxisPart['props']>)
+    const position = places[role]
+    return { ...given, position, grid: given.grid ?? grid, hidden: given.hidden ?? false }
   }
-  if (props.horizontal)
-    return { x: config('left', false), left: config('bottom', true), right: null }
-  const left = declared.left || uses('left') || !uses('right')
+  const y = declared.y || uses('y') || !uses('y2')
   return {
-    x: config('bottom', false),
-    left: left ? config('left', true) : null,
-    // grid lines go with the left axis, or with the right one when it is alone
-    right: declared.right || uses('right') ? config('right', !left) : null,
+    x: config('x', false),
+    y: y ? config('y', true) : null,
+    // grid lines go with y, or with y2 when it is alone
+    y2: declared.y2 || uses('y2') ? config('y2', !y) : null,
   }
 })
 
@@ -189,7 +198,7 @@ const slices = computed(() => {
   const part = pie.value
   if (!part) return []
   const label = part.props.label ?? props.x
-  return pieSlices(toRaw(part.props.data ?? props.data), part.props.value, label)
+  return pieSlices(toRaw(part.props.data ?? props.data), part.props.value, label, part.props.color)
 })
 
 if (process.env.NODE_ENV !== 'production')
@@ -202,7 +211,7 @@ if (process.env.NODE_ENV !== 'production')
 
 /** No series has a value to show. */
 const empty = computed(() =>
-  pie.value ? !slices.value.length : !model.value.y.left && !model.value.y.right,
+  pie.value ? !slices.value.length : !model.value.y.y && !model.value.y.y2,
 )
 
 // a number axis of what look like times in ms: most likely meant as a time axis
@@ -229,10 +238,33 @@ const series = computed<ChartSeries[]>(() => {
   })
 })
 
+const TONES = new Set(['neutral', 'primary', 'success', 'warning', 'danger'])
+/** The colored part of the palette: slices leave the neutral first color for "other". */
+const SLICE_COLORS = 7
+
 const sliceColors = computed(() => {
   void themeVersion.value
-  return slices.value.map((slice) => resolveColor(paletteColor(slice.index)))
+  return slices.value.map((slice) => {
+    const own = slice.color
+    // `neutral` is the palette's own gray, softer than the neutral tone
+    const css = !own
+      ? `var(--dou-color-chart-${(slice.index % SLICE_COLORS) + 2})`
+      : own === 'neutral'
+        ? 'var(--dou-color-chart-1)'
+        : TONES.has(own)
+          ? `var(--dou-color-${own})`
+          : own
+    return resolveColor(css)
+  })
 })
+
+if (process.env.NODE_ENV !== 'production')
+  watch(slices, (list) => {
+    if (list.length > SLICE_COLORS && pie.value && pie.value.props.color === undefined)
+      console.warn(
+        `[@dou-ui/chart] a pie of ${list.length} slices repeats colors after ${SLICE_COLORS}: merge the small ones into one slice, or give each a \`color\`.`,
+      )
+  })
 
 /** The legend: one entry per series, or per slice of a pie. */
 const legendEntries = computed(() => {
@@ -250,7 +282,7 @@ const legendEntries = computed(() => {
   return series.value.map((s) => ({
     text: s.name,
     color: s.color,
-    kind: s.kind.name,
+    kind: s.kind.type,
     dashed: !!s.props.dashed,
   }))
 })
@@ -321,6 +353,9 @@ function draw() {
   const height = Math.round(l.height * dpr)
   if (canvas.width !== width) canvas.width = width
   if (canvas.height !== height) canvas.height = height
+  // set here, not in the template: the chart itself doesn't render again on resize
+  canvas.style.width = `${l.width}px`
+  canvas.style.height = `${l.height}px`
   const ctx = canvas.getContext('2d')
   if (!ctx) return
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
@@ -343,8 +378,8 @@ function paintPie(painter: Painter) {
 
 const holeRatio = computed(() => Math.min(0.95, Math.max(0, pie.value?.props.innerRadius ?? 0)))
 
-/** Whether an axis is drawn across the chart (along the bottom), so its grid lines stand up. */
-const across = (axis: AxisLayout) => axis.position === 'bottom'
+/** Whether an axis is drawn across the chart (along the bottom or top), so its grid lines stand up. */
+const across = (axis: AxisLayout) => axis.position === 'bottom' || axis.position === 'top'
 
 function paint(painter: Painter, dpr: number) {
   const l = layout.value!
@@ -360,7 +395,7 @@ function paint(painter: Painter, dpr: number) {
   painter.lineWidth = 1
   painter.strokeStyle = c.grid
   painter.beginPath()
-  for (const axis of [l.x, l.y.left, l.y.right]) {
+  for (const axis of [l.x, l.y.y, l.y.y2]) {
     if (!axis?.grid) continue
     for (const tick of axis.ticks) {
       const at = crisp(axis.scale.map(tick), dpr)
@@ -396,7 +431,11 @@ function paint(painter: Painter, dpr: number) {
   for (const s of series.value) {
     const y = l.y[s.axis]
     if (!y) continue
-    const view: ChartView = { x: xScale, y: y.scale, horizontal, band, plot, dpr, colors: c }
+    const ys = y.scale
+    const point: ChartView['point'] = horizontal
+      ? (x, value) => [ys.map(value), xScale.map(x)]
+      : (x, value) => [xScale.map(x), ys.map(value)]
+    const view: ChartView = { x: xScale, y: ys, horizontal, band, point, plot, dpr, colors: c }
     s.kind.draw(painter, s, view)
   }
   painter.restore()
@@ -417,7 +456,7 @@ function paint(painter: Painter, dpr: number) {
       painter.lineTo(right, y)
     }
   }
-  const primary = l.y.left ?? l.y.right
+  const primary = l.y.y ?? l.y.y2
   if (primary && primary.scale.kind === 'linear') {
     const [lo, hi] = primary.scale.domain
     if (lo < 0 && hi > 0) {
@@ -496,7 +535,11 @@ const label = computed(() => {
         ? numberTickFormat(name, m0.x!, { years: true })(value)
         : numberFormatFull(name)(value)
     }
-    chart = format(m.range, { chart: m.chart, from: xText(m0.x[0]), to: xText(m0.x[1]) })
+    chart = format(props.horizontal ? m.rangeDown : m.range, {
+      chart: m.chart,
+      from: xText(m0.x[0]),
+      to: xText(m0.x[1]),
+    })
   }
   return format(m.summary, { chart, series: parts.join(m.listSeparator) })
 })
@@ -504,17 +547,11 @@ const label = computed(() => {
 const labels = computed(() => {
   const l = layout.value
   if (!l) return []
-  const out: Array<{ key: string; text: string; left: number; top: number; axis: string }> = []
-  for (const axis of [l.x, l.y.left, l.y.right]) {
+  const out: Array<TickLabel & { key: string; axis: string }> = []
+  for (const axis of [l.x, l.y.y, l.y.y2]) {
     if (!axis) continue
     axis.labels.forEach((tick, i) =>
-      out.push({
-        key: `${axis.position}:${i}`,
-        text: tick.text,
-        left: tick.left,
-        top: tick.top,
-        axis: axis.position,
-      }),
+      out.push({ ...tick, key: `${axis.position}:${i}`, axis: axis.position }),
     )
   }
   return out
@@ -529,7 +566,7 @@ const legend = computed(() => {
 const titles = computed(() => {
   const l = layout.value
   if (!l) return []
-  return [l.x, l.y.left, l.y.right].flatMap((axis) =>
+  return [l.x, l.y.y, l.y.y2].flatMap((axis) =>
     axis?.title ? [{ key: axis.position, ...axis.title }] : [],
   )
 })
@@ -537,8 +574,19 @@ const titles = computed(() => {
 /** The size of what is drawn: a chart with axes, or a pie. */
 const frame = computed(() => layout.value ?? pieLayout.value)
 
-/** The pie's default slot, shown in its hole. */
-const PieCenter = () => pie.value?.center()
+const overlay: OverlayState = {
+  shown: computed(() => !!frame.value && !empty.value),
+  labels,
+  titles,
+  legend,
+  hole: computed(() => {
+    const l = pieLayout.value
+    if (!l || empty.value || !(holeRatio.value > 0)) return null
+    return { left: l.cx, top: l.cy, width: l.radius * holeRatio.value * 2 * 0.8 }
+  }),
+  // the pie's default slot
+  center: () => pie.value?.center(),
+}
 
 const cssLength = (value: number | string) => (typeof value === 'number' ? `${value}px` : value)
 </script>
@@ -552,49 +600,8 @@ const cssLength = (value: number | string) => (typeof value === 'number' ? `${va
     :aria-label="label"
   >
     <div :class="ns.e('parts')" hidden><slot /></div>
-    <canvas
-      ref="canvas"
-      :class="ns.e('canvas')"
-      aria-hidden="true"
-      :style="frame ? { width: `${frame.width}px`, height: `${frame.height}px` } : undefined"
-    />
-    <div v-if="frame && !empty" :class="ns.e('labels')" aria-hidden="true">
-      <span
-        v-for="tick in labels"
-        :key="tick.key"
-        :class="[ns.e('tick'), ns.is(tick.axis)]"
-        :style="{ transform: `translate(${tick.left}px, ${tick.top}px)` }"
-        ><span :class="ns.e('text')">{{ tick.text }}</span></span
-      >
-      <span
-        v-for="title in titles"
-        :key="title.key"
-        :class="[ns.e('title'), ns.is('end', title.align === 'end')]"
-        :style="{ transform: `translate(${title.left}px, ${title.top}px)` }"
-        ><span :class="ns.e('text')">{{ title.text }}</span></span
-      >
-      <span
-        v-for="item in legend"
-        :key="`legend:${item.index}`"
-        :class="[ns.e('legend'), ns.is(item.kind), ns.is('dashed', item.dashed)]"
-        :style="{ transform: `translate(${item.left}px, ${item.top}px)` }"
-        ><span :class="ns.e('swatch')" :style="{ color: item.color }" /><span
-          :class="ns.e('text')"
-          >{{ item.text }}</span
-        ></span
-      >
-    </div>
-    <div
-      v-if="pieLayout && !empty && holeRatio > 0"
-      :class="ns.e('center')"
-      :style="{
-        left: `${pieLayout.cx}px`,
-        top: `${pieLayout.cy}px`,
-        width: `${pieLayout.radius * holeRatio * 2 * 0.8}px`,
-      }"
-    >
-      <PieCenter />
-    </div>
+    <canvas ref="canvas" :class="ns.e('canvas')" aria-hidden="true" />
+    <ChartOverlay :state="overlay" />
     <div v-if="empty" :class="ns.e('empty')">
       <slot name="empty">{{ messages.empty }}</slot>
     </div>

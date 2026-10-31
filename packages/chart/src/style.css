@@ -60,6 +60,20 @@
     will-change: transform;
   }
 
+  /* a long category name, cut short: the whole name shows on hover */
+  .dou-chart__tick.is-clipped {
+    pointer-events: auto;
+
+    /* untrimmed, so the clip doesn't cut the tops and tails of the letters */
+    > .dou-chart__text {
+      min-width: 0;
+      overflow: hidden;
+      line-height: 16px;
+      text-overflow: ellipsis;
+      text-box: normal;
+    }
+  }
+
   .dou-chart__measure {
     visibility: hidden;
     contain: layout style;

@@ -78,7 +78,7 @@ export function drawScatter(painter: Painter, series: ChartSeries<ScatterStyle>,
       painter.beginPath()
       painter.moveTo(at[0] + r, at[1])
       painter.arc(at[0], at[1], r, 0, Math.PI * 2)
-      painter.globalAlpha = 0.24
+      painter.globalAlpha = 0.36
       painter.fill()
       painter.globalAlpha = 0.9
       painter.stroke()
@@ -215,7 +215,7 @@ function stampDots(
 }
 
 export const scatterKind: ChartSeriesKind<ScatterStyle> = {
-  name: 'scatter',
+  type: 'scatter',
   // bubbles may be large: keep them inside the plot
   inset: ({ props }) => (props.size === undefined ? 0 : (props.radius ?? BUBBLE) + 1),
   draw: drawScatter,

@@ -15,7 +15,7 @@ const rows = [
 
 <template>
   <DouChart :data="rows" x="district" horizontal :height="300">
-    <DouChartAxis position="bottom" title="客单价（元）" />
+    <DouChartAxis for="x" title="客单价（元）" />
     <DouChartBar y="price" name="客单价" />
   </DouChart>
 </template>

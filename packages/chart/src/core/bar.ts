@@ -54,6 +54,7 @@ export function drawBars(painter: Painter, series: ChartSeries<BarStyle>, view: 
   const [from, to] = visibleRange(xs, series.x.sorted, sx.domain[0], sx.domain[1])
   const { offset, width } = barPlacement(view.band, series.slot)
   const zero = baseline(sy)
+  const log = sy.kind === 'log'
   const snap = (v: number) => Math.round(v * dpr) / dpr
 
   // a bar is drawn along `u` (the x axis) and `v` (the value axis); swapped when horizontal
@@ -77,7 +78,7 @@ export function drawBars(painter: Painter, series: ChartSeries<BarStyle>, view: 
     for (let i = from; i < to; i++) {
       const value = top[i]!
       const x = xs[i]!
-      if (value !== value || x !== x) continue
+      if (value !== value || x !== x || (log && !(value > 0))) continue
       const v1 = sy.map(value)
       const v0 = base ? sy.map(base[i]!) : zero
       const c = Math.floor(sx.map(x) + offset + width / 2)
@@ -102,6 +103,11 @@ export function drawBars(painter: Painter, series: ChartSeries<BarStyle>, view: 
     const value = top[i]!
     const x = xs[i]!
     if (value !== value || x !== x) continue
+    // a log axis has no 0 to grow from, nor room for values at or below it
+    if (log && !(value > 0)) {
+      warnLog()
+      continue
+    }
     const from0 = base ? base[i]! : 0
     if (value === from0) continue
     const u0 = snap(sx.map(x) + offset)
@@ -142,10 +148,19 @@ function roundedEnd(
   painter.closePath()
 }
 
+let logWarned = false
+function warnLog() {
+  if (process.env.NODE_ENV === 'production' || logWarned) return
+  logWarned = true
+  console.warn(
+    '[@dou-ui/chart] bars on a log axis grow from its start; values at or below 0 are left out.',
+  )
+}
+
 export const barKind: ChartSeriesKind<BarStyle> = {
-  name: 'bar',
+  type: 'bar',
   zero: true,
-  stacks: true,
+  stackable: true,
   band: true,
   draw: drawBars,
 }

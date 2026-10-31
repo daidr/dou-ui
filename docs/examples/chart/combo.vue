@@ -16,9 +16,9 @@ const rows = [
 
 <template>
   <DouChart :data="rows" x="month" :height="300">
-    <DouChartAxis position="left" title="订单数" />
-    <DouChartAxis position="right" title="配送时长（分钟）" />
+    <DouChartAxis for="y" title="订单数" />
+    <DouChartAxis for="y2" title="配送时长（分钟）" />
     <DouChartBar y="orders" name="订单数" />
-    <DouChartLine y="minutes" name="平均配送时长" axis="right" />
+    <DouChartLine y="minutes" name="平均配送时长" axis="y2" />
   </DouChart>
 </template>

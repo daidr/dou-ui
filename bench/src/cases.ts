@@ -147,7 +147,7 @@ function chartCase(n: number, series: 'line' | 'bar' | 'scatter' = 'line') {
         series === 'scatter'
           ? [h(DouChartScatter, { y: 'v' })]
           : [
-              h(DouChartAxis, { position: 'bottom', type: 'time' }),
+              h(DouChartAxis, { for: 'x', type: 'time' }),
               h(series === 'bar' ? DouChartBar : DouChartLine, { y: 'v' }),
             ],
       ),

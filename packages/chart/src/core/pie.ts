@@ -7,6 +7,8 @@ export interface PieSlice {
   index: number
   label: string
   value: number
+  /** Its own color, if the pie reads one. */
+  color?: string
   /** Its part of the whole, 0 to 1. */
   share: number
   start: number
@@ -21,6 +23,7 @@ export function pieSlices(
   rows: readonly ChartRow[],
   value: ChartAccessor,
   label: ChartAccessor | undefined,
+  color?: ChartAccessor,
 ): PieSlice[] {
   const values = yColumn(rows, value)
   let total = 0
@@ -34,9 +37,11 @@ export function pieSlices(
     const share = v / total
     const end = angle + share * Math.PI * 2
     const text = label === undefined ? undefined : read(rows[i], label, i)
+    const own = color === undefined ? undefined : read(rows[i], color, i)
     slices.push({
       index: i,
       label: text == null ? `${i + 1}` : String(text),
+      color: own == null || own === '' ? undefined : String(own),
       value: v,
       share,
       start: angle,

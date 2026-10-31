@@ -1,15 +1,21 @@
+import { RotateCwIcon } from '@dou-ui/icons'
 import { watch, type Ref } from 'vue'
+import type { FlowMenuItem } from '../core/menu'
 import type { FlowEditorContext } from '../context'
 import { defineFlowExtension, type FlowExtension } from '../core/extension'
 import { defineEdgeType } from '../core/edge-types'
 import { createId, type FlowData, type FlowNode, type Point, type Rect } from '../core/model'
-import { defineNodeType } from '../core/node-types'
+import { defineNodeType, type NodeResize } from '../core/node-types'
 import { format, type FlowMessages } from '../locale'
 import BoardNode from './board-node.vue'
 import BoardDraft from './board-draft.vue'
 import WhiteboardToolbar from './whiteboard-toolbar.vue'
 import {
   anchorPorts,
+  imageKey,
+  type WhiteboardImageData,
+  type WhiteboardInkData,
+  type WhiteboardNodeData,
   type WhiteboardShapeData,
   type WhiteboardShapeTool,
   type WhiteboardStickyData,
@@ -17,11 +23,44 @@ import {
   type WhiteboardTool,
   whiteboardKeys,
 } from './model'
+import { imageFiles, insertImages, pickImages, type WhiteboardUpload } from './image'
+import { turn } from './ink'
+import { drawInk, erase } from './pen'
 import { boardState } from './state'
+
+/** The node types the whiteboard adds; only they turn. */
+const BOARD_TYPES = new Set(['shape', 'sticky', 'text', 'ink', 'image'])
 
 /** "Rectangle: text", or just "Rectangle" while it has none. */
 const nameOf = (kind: string, text: string | undefined, t: FlowMessages) =>
   text ? format(t.board.named, { kind, text }) : kind
+
+/**
+ * The editor's corner handle, while the node isn't turned; a turned node
+ * has its own, which grows it along its own sides.
+ */
+const unlessTurned =
+  (min: { minWidth: number; minHeight: number }) =>
+  (node: FlowNode<WhiteboardNodeData>): NodeResize =>
+    node.data?.rotation ? false : min
+
+/** The box around a turned node, so the toolbar over it clears its corners. */
+function turnedBounds(node: FlowNode<WhiteboardNodeData>, rect: Rect): Rect {
+  const degrees = node.data?.rotation
+  if (!degrees) return rect
+  const centre = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }
+  const corners = [
+    { x: rect.x, y: rect.y },
+    { x: rect.x + rect.width, y: rect.y },
+    { x: rect.x, y: rect.y + rect.height },
+    { x: rect.x + rect.width, y: rect.y + rect.height },
+  ].map((corner) => turn(corner, centre, degrees))
+  const xs = corners.map((p) => p.x)
+  const ys = corners.map((p) => p.y)
+  const x = Math.min(...xs)
+  const y = Math.min(...ys)
+  return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y }
+}
 
 /** A rectangle, ellipse or diamond with centred text; `data.shape` says which. */
 export const shapeNode = defineNodeType<WhiteboardShapeData>({
@@ -29,7 +68,8 @@ export const shapeNode = defineNodeType<WhiteboardShapeData>({
   component: BoardNode,
   ports: anchorPorts,
   frame: false,
-  resizable: { minWidth: 24, minHeight: 24 },
+  resizable: unlessTurned({ minWidth: 24, minHeight: 24 }),
+  bounds: turnedBounds,
   size: { width: 160, height: 100 },
   defaults: () => ({ shape: 'rect' }),
   label: (node, t) => nameOf(t.board[node.data?.shape ?? 'rect'], node.data?.text, t),
@@ -41,7 +81,8 @@ export const stickyNode = defineNodeType<WhiteboardStickyData>({
   component: BoardNode,
   ports: anchorPorts,
   frame: false,
-  resizable: { minWidth: 64, minHeight: 64 },
+  resizable: unlessTurned({ minWidth: 64, minHeight: 64 }),
+  bounds: turnedBounds,
   size: { width: 160, height: 160 },
   defaults: () => ({}),
   label: (node, t) => nameOf(t.board.sticky, node.data?.text, t),
@@ -53,10 +94,35 @@ export const textNode = defineNodeType<WhiteboardTextData>({
   component: BoardNode,
   ports: anchorPorts,
   frame: false,
-  resizable: { minWidth: 24, minHeight: 24 },
+  resizable: unlessTurned({ minWidth: 24, minHeight: 24 }),
+  bounds: turnedBounds,
   size: { width: 200, height: 40 },
   defaults: () => ({}),
   label: (node, t) => nameOf(t.board.text, node.data?.text, t),
+})
+
+/** A pen stroke; it stretches with its box. */
+export const inkNode = defineNodeType<WhiteboardInkData>({
+  type: 'ink',
+  component: BoardNode,
+  frame: false,
+  resizable: unlessTurned({ minWidth: 8, minHeight: 8 }),
+  bounds: turnedBounds,
+  defaults: () => ({ points: [], box: [0, 0] }),
+  label: (_, t) => t.board.ink,
+})
+
+/** An image; `data.src` is its address. */
+export const imageNode = defineNodeType<WhiteboardImageData>({
+  type: 'image',
+  component: BoardNode,
+  ports: anchorPorts,
+  frame: false,
+  resizable: unlessTurned({ minWidth: 24, minHeight: 24 }),
+  bounds: turnedBounds,
+  size: { width: 240, height: 180 },
+  defaults: () => ({ src: '' }),
+  label: (node, t) => nameOf(t.board.image, node.data?.alt, t),
 })
 
 const ARROW = { length: 10, spread: 0.45 }
@@ -71,9 +137,9 @@ export const connectorEdge = defineEdgeType({
     const dx = target.x - source.x
     const dy = target.y - source.y
     const angle = Math.atan2(dy, dx)
-    const wing = (turn: number) => ({
-      x: target.x - ARROW.length * Math.cos(angle + turn),
-      y: target.y - ARROW.length * Math.sin(angle + turn),
+    const wing = (spread: number) => ({
+      x: target.x - ARROW.length * Math.cos(angle + spread),
+      y: target.y - ARROW.length * Math.sin(angle + spread),
     })
     const a = wing(ARROW.spread)
     const b = wing(-ARROW.spread)
@@ -119,6 +185,12 @@ export interface WhiteboardKitOptions {
   tool?: Ref<WhiteboardTool>
   /** The built-in toolbar at the top of the editor. Defaults to `true`. */
   toolbar?: boolean
+  /**
+   * Turns an image file that is dropped, pasted or picked into the `src` it
+   * is kept as, e.g. by uploading it and returning its address. Without it,
+   * images are kept in the document as data URLs.
+   */
+  upload?: WhiteboardUpload
 }
 
 /**
@@ -128,7 +200,7 @@ export interface WhiteboardKitOptions {
 export function whiteboardKit(options: WhiteboardKitOptions = {}): FlowExtension {
   return defineFlowExtension({
     name: 'whiteboard',
-    nodeTypes: [shapeNode, stickyNode, textNode],
+    nodeTypes: [shapeNode, stickyNode, textNode, inkNode, imageNode],
     edgeTypes: [connectorEdge],
     edgeType: 'connector',
     layers: { above: [BoardDraft] },
@@ -136,6 +208,7 @@ export function whiteboardKit(options: WhiteboardKitOptions = {}): FlowExtension
 
     setup(ctx) {
       const state = boardState(ctx)
+      state.upload = options.upload
       const stops: (() => void)[] = []
       if (options.tool) {
         const outer = options.tool
@@ -160,8 +233,40 @@ export function whiteboardKit(options: WhiteboardKitOptions = {}): FlowExtension
           if (root) root.toggleAttribute('data-board-panning', panning)
         }),
       )
+      // images dropped on the board or pasted into it
+      const root = ctx.root.value
+      const onDragOver = (event: DragEvent) => {
+        if (ctx.readonly.value || !event.dataTransfer?.types.includes('Files')) return
+        event.preventDefault()
+        event.dataTransfer.dropEffect = 'copy'
+      }
+      const onDrop = (event: DragEvent) => {
+        const files = imageFiles(event.dataTransfer?.files)
+        if (ctx.readonly.value || !files.length) return
+        event.preventDefault()
+        const at = ctx.toCanvas({ x: event.clientX, y: event.clientY })
+        void insertImages(ctx, files, { at })
+      }
+      const onPaste = (event: ClipboardEvent) => {
+        const active = document.activeElement
+        if (ctx.readonly.value || !root || !active || !root.contains(active)) return
+        // pasting into a field is the field's
+        if (active.closest('input, textarea, [contenteditable]')) return
+        const files = imageFiles(event.clipboardData?.files)
+        if (!files.length) return
+        event.preventDefault()
+        event.stopImmediatePropagation()
+        void insertImages(ctx, files)
+      }
+      root?.addEventListener('dragover', onDragOver)
+      root?.addEventListener('drop', onDrop)
+      // before the editor's own paste, which reads nodes from text
+      document.addEventListener('paste', onPaste, true)
       return () => {
         for (const stop of stops) stop()
+        root?.removeEventListener('dragover', onDragOver)
+        root?.removeEventListener('drop', onDrop)
+        document.removeEventListener('paste', onPaste, true)
         delete ctx.root.value?.dataset.boardTool
         ctx.root.value?.removeAttribute('data-board-panning')
       }
@@ -190,6 +295,8 @@ export function whiteboardKit(options: WhiteboardKitOptions = {}): FlowExtension
           },
         }
       }
+      if (tool === 'pen') return drawInk(ctx, press.event)
+      if (tool === 'eraser') return erase(ctx, press.point)
       const start = press.point
       const rectTo = (point: Point, square: boolean) => {
         let width = Math.abs(point.x - start.x)
@@ -234,6 +341,37 @@ export function whiteboardKit(options: WhiteboardKitOptions = {}): FlowExtension
       }
     },
 
+    contextMenu(ctx, target) {
+      if (target.kind !== 'node' || ctx.readonly.value) return []
+      const t = ctx.messages.value.board
+      const items: FlowMenuItem[] = []
+      const node = target.node
+      if (BOARD_TYPES.has(node.type ?? '') && ctx.selection.value.nodes.length <= 1) {
+        const rotation = (node.data?.rotation as number | undefined) ?? 0
+        const rotate = (to: number) => {
+          ctx.transact((tr) => tr.updateData(node.id, { rotation: to || undefined }))
+          ctx.announce(format(t.turned, { degrees: to }))
+        }
+        items.push(
+          {
+            key: 'rotate',
+            label: t.rotate,
+            icon: RotateCwIcon,
+            divided: true,
+            disabled: !!node.locked,
+            run: () => rotate((rotation + 90) % 360),
+          },
+          {
+            key: 'unrotate',
+            label: t.unrotate,
+            disabled: !rotation || !!node.locked,
+            run: () => rotate(0),
+          },
+        )
+      }
+      return items
+    },
+
     keymap(ctx) {
       const state = boardState(ctx)
       const pick = (tool: WhiteboardTool) => () => {
@@ -247,11 +385,15 @@ export function whiteboardKit(options: WhiteboardKitOptions = {}): FlowExtension
         keys[key] = pick(tool as WhiteboardTool)
       return {
         ...keys,
+        [imageKey]: () => {
+          if (ctx.readonly.value) return false
+          pickImages(ctx)
+        },
         enter: () => {
           if (ctx.readonly.value) return false
           const tool = state.tool.value
           // with a drawing tool, Enter puts one down: after the selected node, or mid-view
-          if (tool !== 'select' && tool !== 'hand') {
+          if (tool !== 'select' && tool !== 'hand' && tool !== 'pen' && tool !== 'eraser') {
             const { type, data } = kindOf(tool)
             // text keeps no height, as when drawn
             const size =

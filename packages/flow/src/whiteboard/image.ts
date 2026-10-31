@@ -1,0 +1,115 @@
+import type { FlowEditorContext } from '../context'
+import type { Point } from '../core/model'
+import { format } from '../locale'
+import { boardState } from './state'
+
+/**
+ * Turns a file into the `src` an image node keeps, e.g. by uploading it.
+ * Return `{ src, alt }` to give the image its description; it is the file's
+ * name otherwise.
+ */
+export type WhiteboardUpload = (file: File) => WhiteboardUploaded | Promise<WhiteboardUploaded>
+
+/** An image's address, or its address and description. */
+export type WhiteboardUploaded = string | { src: string; alt?: string }
+
+export interface WhiteboardImageOptions {
+  /** Where the images go, in canvas units; the middle of the view by default. */
+  at?: Point
+  /** Overrides the kit's `upload` option for these images. */
+  upload?: WhiteboardUpload
+}
+
+/** Without an upload, images are kept in the document as data URLs. */
+const readAsDataUrl: WhiteboardUpload = (file) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.addEventListener('load', () => resolve(String(reader.result)))
+    reader.addEventListener('error', () => reject(reader.error))
+    reader.readAsDataURL(file)
+  })
+
+/** An image's own size, or `null` when it can't be loaded. */
+function naturalSize(src: string): Promise<{ width: number; height: number } | null> {
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.addEventListener('load', () =>
+      resolve({ width: img.naturalWidth, height: img.naturalHeight }),
+    )
+    img.addEventListener('error', () => resolve(null))
+    // an image that never answers gets the default size
+    setTimeout(() => resolve(null), 4000)
+    img.src = src
+  })
+}
+
+/** New images are at most this wide or tall, in canvas units. */
+const MAX_SIDE = 320
+
+export const imageFiles = (files: Iterable<File> | null | undefined) =>
+  [...(files ?? [])].filter((file) => file.type.startsWith('image/'))
+
+/**
+ * Adds an image node for each file, centred on `at` and stepped down and
+ * right when there are several. Files go through the kit's `upload` option.
+ */
+export async function insertImages(
+  ctx: FlowEditorContext,
+  files: File[],
+  options: WhiteboardImageOptions = {},
+) {
+  const state = boardState(ctx)
+  const upload = options.upload ?? state.upload ?? readAsDataUrl
+  const at = options.at
+  const t = ctx.messages.value.board
+  const root = ctx.root.value
+  if (!root || ctx.readonly.value) return
+  const box = root.getBoundingClientRect()
+  const centre = at ?? ctx.toCanvas({ x: box.left + box.width / 2, y: box.top + box.height / 2 })
+  state.uploading.value += files.length
+  const ids: string[] = []
+  try {
+    await Promise.all(
+      files.map(async (file, i) => {
+        let src: string
+        let alt = file.name.replace(/\.[^.]+$/, '')
+        try {
+          const done = await upload(file)
+          if (typeof done === 'string') src = done
+          else {
+            src = done.src
+            if (done.alt !== undefined) alt = done.alt
+          }
+        } catch {
+          ctx.announce(format(t.imageFailed, { name: file.name }))
+          return
+        }
+        const size = (await naturalSize(src)) ?? { width: MAX_SIDE, height: MAX_SIDE * 0.75 }
+        const scale = Math.min(1, MAX_SIDE / Math.max(size.width, size.height))
+        const id = ctx.insertNode('image', {
+          at: { x: centre.x + i * 24, y: centre.y + i * 24 },
+          data: { src, alt },
+          size: { width: Math.round(size.width * scale), height: Math.round(size.height * scale) },
+          focus: false,
+        })
+        if (id) ids.push(id)
+      }),
+    )
+  } finally {
+    state.uploading.value -= files.length
+  }
+  if (ids.length > 1) ctx.selection.value = { nodes: ids, edges: [] }
+}
+
+/** Opens the file picker and inserts what is picked, as `insertImages` does. */
+export function pickImages(ctx: FlowEditorContext, options: WhiteboardImageOptions = {}) {
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = 'image/*'
+  input.multiple = true
+  input.addEventListener('change', () => {
+    const files = imageFiles(input.files)
+    if (files.length) void insertImages(ctx, files, options)
+  })
+  input.click()
+}

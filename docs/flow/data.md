@@ -23,6 +23,8 @@ interface FlowNode {
   locked?: boolean
   /** 所在分组的 id，见[分组](./groups) */
   parent?: string
+  /** 层级：大的画在上面，不写算 0，一样时按文档里的顺序；分组不参与 */
+  z?: number
 }
 ```
 

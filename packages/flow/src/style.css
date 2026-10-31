@@ -1067,6 +1067,26 @@
     &[data-board-tool='text'] .dou-flow-editor__node {
       cursor: text;
     }
+    &[data-board-tool='pen'],
+    &[data-board-tool='eraser'] {
+      &,
+      & .dou-flow-editor__node {
+        cursor: crosshair;
+      }
+    }
+  }
+
+  /* a stroke is picked up by its ink, not by the empty box around it */
+  .dou-flow-editor__node:has(> .dou-whiteboard-node.is-ink) {
+    pointer-events: none;
+
+    & .dou-flow-editor__resize {
+      pointer-events: auto;
+    }
+  }
+  /* a turned node draws its own outline, turned with it */
+  .dou-flow-editor__node.is-bare.is-selected:has(.dou-whiteboard-node.is-turned) {
+    outline: none;
   }
 
   .dou-whiteboard-node {
@@ -1107,6 +1127,89 @@
     &.is-text {
       place-items: start stretch;
     }
+  }
+
+  .dou-whiteboard-node {
+    &.is-turned.is-selected {
+      outline: calc(1px / var(--dou-flow-editor-zoom, 1)) solid var(--dou-flow-editor-selected);
+      outline-offset: calc(4px / var(--dou-flow-editor-zoom, 1));
+    }
+    &.is-erasing {
+      opacity: 0.3;
+    }
+  }
+
+  .dou-whiteboard-node__ink {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    fill: var(--dou-flow-whiteboard-ink);
+
+    .dou-whiteboard-node:not(.is-neutral) > & {
+      fill: var(--dou-whiteboard-tone);
+    }
+    & path {
+      pointer-events: visiblePainted;
+    }
+  }
+  /* a wider, unseen edge around the stroke, easier to hit */
+  .dou-whiteboard-node__ink-hit {
+    fill: none;
+    stroke: transparent;
+    stroke-width: 12px;
+    vector-effect: non-scaling-stroke;
+    pointer-events: stroke;
+  }
+
+  .dou-whiteboard-node__image {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: 4px;
+    object-fit: contain;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  /* the turn handle below the node, and the corner handle of a turned node */
+  .dou-whiteboard-node__turn,
+  .dou-whiteboard-node__corner {
+    position: absolute;
+    z-index: 1;
+    box-sizing: border-box;
+    width: 10px;
+    height: 10px;
+    border: 1px solid var(--dou-flow-editor-selected);
+    background: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-sm);
+    pointer-events: auto;
+    touch-action: none;
+    /* the same size on screen at any zoom */
+    scale: calc(1 / var(--dou-flow-editor-zoom, 1));
+
+    /* a larger target for fingers */
+    &::before {
+      content: '';
+      position: absolute;
+      inset: -8px;
+    }
+  }
+  /* below the node, clear of the toolbar that floats above it */
+  .dou-whiteboard-node__turn {
+    bottom: calc(-24px / var(--dou-flow-editor-zoom, 1));
+    left: 50%;
+    border-radius: 50%;
+    cursor: grab;
+    translate: -50% 50%;
+  }
+  .dou-whiteboard-node__corner {
+    right: 0;
+    bottom: 0;
+    border-radius: 3px;
+    cursor: nwse-resize;
+    translate: 50% 50%;
   }
 
   .dou-whiteboard-node__shape {
@@ -1206,6 +1309,24 @@
     }
   }
 
+  .dou-whiteboard-strokes {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 1px;
+    height: 1px;
+    overflow: visible;
+    pointer-events: none;
+  }
+  .dou-whiteboard-strokes__ink {
+    fill: var(--dou-flow-whiteboard-ink);
+  }
+  .dou-whiteboard-strokes__eraser {
+    fill: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+    stroke: var(--dou-color-border-strong);
+    stroke-width: calc(1px / var(--dou-flow-editor-zoom, 1));
+  }
+
   .dou-whiteboard-draft {
     position: absolute;
     top: 0;
@@ -1234,10 +1355,16 @@
     background-color: var(--dou-color-bg-surface);
     box-shadow: var(--dou-shadow-sm);
     translate: -50% 0;
+    /* narrow editors wrap the tools onto a second row */
+    flex-wrap: wrap;
+    justify-content: center;
+    width: max-content;
+    max-width: calc(100% - 24px);
   }
 
   .dou-whiteboard-toolbar__button {
     position: relative;
+    flex: none;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -1284,6 +1411,7 @@
   }
 
   .dou-whiteboard-toolbar__divider {
+    flex: none;
     width: 1px;
     height: 16px;
     margin: 0 2px;

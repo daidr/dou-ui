@@ -57,6 +57,7 @@ const promptNode = defineNodeType({
 | `defaults`  | 新节点的默认数据                                                                                  | `() => object`                               |
 | `label`     | 节点的无障碍名称，默认取 `data.label`；`messages` 是编辑器当前语言的文案                          | `(node, messages) => string`                 |
 | `container` | 能装下其他节点，见[自定义分组](./groups#自定义分组)                                               | `boolean`                                    |
-| `resizable` | 选中时显示调整大小的手柄，可以给出最小尺寸                                                        | `boolean \| { minWidth?, minHeight? }`       |
+| `resizable` | 选中时显示调整大小的手柄，可以给出最小尺寸；写成函数时按节点决定，返回 `false` 不显示             | `NodeResize \| (node) => NodeResize`         |
 | `size`      | 新建时的宽高                                                                                      | `{ width: number, height: number }`          |
 | `frame`     | 设为 `false` 时编辑器不画卡片（边框、底色、阴影），由组件自己画外形，例如圆形；选中时显示一圈细框 | `boolean`                                    |
+| `bounds`    | 节点画到自身方框外时（例如旋转后）在屏幕上占的范围，选中节点上方的工具栏按它定位                  | `(node, rect) => Rect`                       |

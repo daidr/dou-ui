@@ -271,8 +271,20 @@ const keymap: CodeKeyBinding[] = [
 | `openSearch` / `openReplace`               | 打开查找 / 替换面板                   | `Mod` + `F` / `Mod` + `H`                         | `⌘` + `F` / `⌥` + `⌘` + `F`                         |
 | `findNext` / `findPrevious`                | 跳到下一个 / 上一个匹配               | `F3`、`Mod` + `G` / 加 `Shift`                    |                                                     |
 | `closeSearch`                              | 关闭查找面板                          | `Esc`                                             |                                                     |
+| `foldCode` / `unfoldCode`                  | 折叠 / 展开光标所在的一段             | `Ctrl` + `Shift` + `[` / `]`                      | `⌥` + `⌘` + `[` / `]`                               |
+| `foldAll` / `unfoldAll`                    | 折叠所有最外层的段 / 全部展开         | 无                                                |                                                     |
 
 `codeCommands.insertText(target, text)` 不是按键命令：它像输入一样在每个光标处输入一个字符，并处理括号补全和右括号对齐，处理了返回 `true`。
+
+## 自动换行与折叠
+
+`wrap` 让长行在编辑器的宽度处换行，不再横向滚动。换行优先在空格处，中文可以在任意两个字之间断开；一个词比一行还长时从中间断开。换出来的行和原来那一行的缩进对齐。上下方向键按显示出来的行移动，光标在一行长代码里也能逐行上下。
+
+行号旁边的箭头折叠一段代码：鼠标移到行号上时显示，折叠后一直显示。设置了 `language` 时，以左括号结尾的行折叠到对应的右括号之前，右括号留在原处；其他行折叠下面缩进更深的行。折叠后行尾显示 `⋯`，点击它或箭头展开。光标移进被折叠的部分（比如查找跳到那里）时会自动展开。
+
+<DocDemo src="code/wrap-fold" column />
+
+`Ctrl` + `Shift` + `[` / `]`（Apple 上是 `⌥` + `⌘` + `[` / `]`）折叠、展开光标所在的一段。实例方法 `fold(line?)`、`unfold(line?)`、`foldAll()`、`unfoldAll()` 用代码折叠，`folds` 是现在折叠着的各段的起始行号。折叠是视图的状态，不影响 `v-model`；不需要折叠时把 `foldable` 设为 `false`。
 
 ## 大文件
 
@@ -336,6 +348,8 @@ const doc = shallowRef(CodeText.of(source))
 | `close-brackets`    | 输入括号和引号时补上另一半      | `boolean`               | `true`     |
 | `match-brackets`    | 标出光标旁的括号和它的配对      | `boolean`               | `true`     |
 | `searchable`        | 提供查找替换面板                | `boolean`               | `true`     |
+| `wrap`              | 长行自动换行                    | `boolean`               | `false`    |
+| `foldable`          | 显示折叠箭头，允许折叠          | `boolean`               | `true`     |
 | `messages`          | 改写查找面板上的文字            | `Partial<CodeMessages>` | —          |
 | `keymap`            | 额外的按键，比内置的优先        | `CodeKeyBinding[]`      | —          |
 | `autofocus`         | 挂载后获得焦点                  | `boolean`               | `false`    |
@@ -351,17 +365,20 @@ const doc = shallowRef(CodeText.of(source))
 
 ### 实例
 
-| 名称                        | 说明                                                           |
-| --------------------------- | -------------------------------------------------------------- |
-| `state`、`doc`、`selection` | 现在的文本与选区                                               |
-| `transact(run, meta?)`      | 做一次修改，返回结果；没有变化时返回 `null`                    |
-| `run(command)`              | 执行一个命令                                                   |
-| `undo()`、`redo()`          | 撤销、重做，返回是否执行了                                     |
-| `canUndo`、`canRedo`        | 能否撤销、重做                                                 |
-| `select(anchor, head?)`     | 选中一段（不传 `head` 时是光标），或传入整个选区，并滚动到可见 |
-| `scrollIntoView(pos?)`      | 把某个位置（默认主光标）滚动到可见                             |
-| `coordsAtPos(pos)`          | 某个位置在视口中的坐标；所在行没有绘制时为 `null`              |
-| `posAtCoords({ x, y })`     | 视口中某一点最近的文本位置                                     |
-| `focus()`、`blur()`         | 获得、失去焦点                                                 |
-| `openSearch(query?)`        | 打开查找面板，`query` 设置查找的内容与选项                     |
-| `closeSearch()`             | 关闭查找面板                                                   |
+| 名称                           | 说明                                                           |
+| ------------------------------ | -------------------------------------------------------------- |
+| `state`、`doc`、`selection`    | 现在的文本与选区                                               |
+| `transact(run, meta?)`         | 做一次修改，返回结果；没有变化时返回 `null`                    |
+| `run(command)`                 | 执行一个命令                                                   |
+| `undo()`、`redo()`             | 撤销、重做，返回是否执行了                                     |
+| `canUndo`、`canRedo`           | 能否撤销、重做                                                 |
+| `select(anchor, head?)`        | 选中一段（不传 `head` 时是光标），或传入整个选区，并滚动到可见 |
+| `scrollIntoView(pos?)`         | 把某个位置（默认主光标）滚动到可见                             |
+| `coordsAtPos(pos)`             | 某个位置在视口中的坐标；所在行没有绘制时为 `null`              |
+| `posAtCoords({ x, y })`        | 视口中某一点最近的文本位置                                     |
+| `focus()`、`blur()`            | 获得、失去焦点                                                 |
+| `openSearch(query?)`           | 打开查找面板，`query` 设置查找的内容与选项                     |
+| `closeSearch()`                | 关闭查找面板                                                   |
+| `fold(line?)`、`unfold(line?)` | 折叠、展开某一行开始的一段，不传时用光标所在的行               |
+| `foldAll()`、`unfoldAll()`     | 折叠所有最外层的段、全部展开                                   |
+| `folds`                        | 现在折叠着的各段的起始行号                                     |

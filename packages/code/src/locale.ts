@@ -28,6 +28,8 @@ export interface CodeMessages {
   noMatches: string
   /** The regular expression can't be read. */
   invalidRegexp: string
+  /** The marker of a folded block, as a tooltip. */
+  unfold: string
   /** Read out after replacing: `{count}`. */
   replaced: string
 }
@@ -51,6 +53,7 @@ export const zhCN: CodeMessages = {
   noMatches: '无结果',
   invalidRegexp: '正则表达式有误',
   replaced: '已替换 {count} 处',
+  unfold: '展开',
 }
 
 export const zhTW: CodeMessages = {
@@ -72,6 +75,7 @@ export const zhTW: CodeMessages = {
   noMatches: '無結果',
   invalidRegexp: '規則運算式有誤',
   replaced: '已取代 {count} 處',
+  unfold: '展開',
 }
 
 export const en: CodeMessages = {
@@ -93,6 +97,7 @@ export const en: CodeMessages = {
   noMatches: 'No results',
   invalidRegexp: 'Invalid regular expression',
   replaced: 'Replaced {count}',
+  unfold: 'Unfold',
 }
 
 export const codeLocales: Record<string, CodeMessages> = {

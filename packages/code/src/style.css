@@ -110,12 +110,49 @@
   }
 
   .dou-code-editor__number {
+    position: relative;
+    box-sizing: border-box;
     height: var(--dou-code-editor-line-height);
     padding: 0 12px 0 16px;
     text-align: right;
 
     &.is-active {
       color: var(--dou-color-text-secondary);
+    }
+    .dou-code-editor.is-foldable & {
+      padding-right: 24px;
+    }
+  }
+
+  /* a fold toggle in the gutter: shown while the gutter is pointed at, and always on a folded line */
+  .dou-code-editor__fold-toggle {
+    position: absolute;
+    top: 0;
+    right: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: var(--dou-code-editor-line-height);
+    color: var(--dou-color-text-tertiary);
+    font-size: 12px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity var(--dou-motion-duration-fast) var(--dou-motion-easing);
+    .dou-code-editor__gutter:hover &,
+    &.is-folded {
+      opacity: 1;
+    }
+    &:hover {
+      color: var(--dou-color-text);
+    }
+    @media (pointer: coarse) {
+      opacity: 1;
+      &::before {
+        position: absolute;
+        inset: -4px -6px;
+        content: '';
+      }
     }
   }
 
@@ -154,6 +191,36 @@
     padding: 0 12px;
     white-space: pre;
     tab-size: var(--dou-code-editor-tab-size, 2);
+    &.is-wrapped {
+      height: auto;
+    }
+  }
+
+  /* one row of a wrapped line; rows after the first line up with the line's indentation */
+  .dou-code-editor__row {
+    box-sizing: border-box;
+    height: var(--dou-code-editor-line-height);
+  }
+
+  /* stands in for the lines of a folded block; pressing it unfolds them */
+  .dou-code-editor__fold-marker {
+    display: inline-block;
+    box-sizing: border-box;
+    height: 16px;
+    margin-left: 6px;
+    padding: 0 6px;
+    border: 1px solid var(--dou-color-border);
+    border-radius: 4px;
+    background-color: var(--dou-color-bg-muted);
+    color: var(--dou-color-text-secondary);
+    font-size: 12px;
+    line-height: 14px;
+    vertical-align: 1px;
+    cursor: pointer;
+    pointer-events: auto;
+    &:hover {
+      color: var(--dou-color-text);
+    }
   }
 
   /* Bold glyphs can be wider than the cell the cursor is placed by, so the editor keeps one weight. */

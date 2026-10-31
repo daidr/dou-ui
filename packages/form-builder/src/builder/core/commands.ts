@@ -281,3 +281,75 @@ export function wrapNodes(
   chosen.forEach((id, index) => tr.move(id, section.id, index))
   return section.id
 }
+
+/**
+ * Move nodes, in document order, into a container (`null`: the top) so
+ * that they start at `index` of its children as they are now (the moved
+ * nodes counted). Returns whether anything changed.
+ */
+export function moveNodesTo(
+  tr: FormBuilderTransaction,
+  ids: readonly string[],
+  parent: string | null,
+  index: number,
+) {
+  const chosen = topmost(tr.doc, ids)
+  if (!chosen.length) return false
+  const moving = new Set(chosen)
+  const before = formNodePlaces(tr.doc)
+  const siblings = (doc: FormDocument) =>
+    parent === null
+      ? doc.nodes
+      : ((formNodePlaces(doc).get(parent)?.node as FormContainerNode | undefined)?.children ?? [])
+  // The first node at or after `index` that stays: the moved nodes go in front of it.
+  const anchor = siblings(tr.doc)
+    .slice(index)
+    .find((node) => !moving.has(node.id))?.id
+  for (const id of chosen) {
+    const map = formNodePlaces(tr.doc)
+    const own = map.get(id)!
+    const inside = (own.parent?.id ?? null) === parent
+    let target = anchor ? map.get(anchor)!.index : siblings(tr.doc).length
+    if (inside && own.index < target) target--
+    tr.move(id, parent, target)
+  }
+  const after = formNodePlaces(tr.doc)
+  const moved = chosen.some((id) => {
+    const a = before.get(id)!
+    const b = after.get(id)!
+    return a.parent?.id !== b.parent?.id || a.index !== b.index
+  })
+  return moved
+}
+
+/**
+ * Every place nodes can be moved to, in reading order: before each child
+ * of each container and at its end. Places inside the moved nodes, in
+ * pages not shown, or in containers that cannot hold them are left out.
+ */
+export function dropPlaces(
+  document: FormDocument,
+  ids: readonly string[],
+  shown: ShownPage,
+): FormBuilderInsertPlace[] {
+  const map = formNodePlaces(document)
+  const nodes = topmost(document, ids)
+    .map((id) => map.get(id)?.node)
+    .filter((node): node is FormNode => !!node)
+  const moving = new Set(nodes.map((node) => node.id))
+  const result: FormBuilderInsertPlace[] = []
+  const visit = (holder: FormContainerNode | null, children: readonly FormNode[]) => {
+    const fits = nodes.every((node) => canContainFormNode(holder, node))
+    children.forEach((child, index) => {
+      if (fits) result.push({ parent: holder?.id ?? null, index })
+      if (moving.has(child.id) || !isContainer(child)) return
+      if (child.type === 'tabs' || child.type === 'steps') {
+        const page = shown(child as FormContainerNode)
+        if (page) visit(page, page.children)
+      } else visit(child as FormContainerNode, child.children)
+    })
+    if (fits) result.push({ parent: holder?.id ?? null, index: children.length })
+  }
+  visit(null, document.nodes)
+  return result
+}

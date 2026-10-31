@@ -13,13 +13,16 @@ import {
   duplicateNodes,
   insertPlace,
   moveNodes,
+  moveNodesTo,
   namesIn,
+  topmost,
   removeNodes,
   scopeOf,
   wrapNodes,
 } from './core/commands'
 import type { FormBuilderInsertPlace } from './core/commands'
-import { labelOf } from './settings'
+import { labelOf, nodeTitle } from './settings'
+import type { DragController } from './drag'
 
 /** How a click changes the selection: replace it, add or take away the node, or extend it. */
 export type FormBuilderSelectMode = 'replace' | 'toggle' | 'extend'
@@ -64,6 +67,11 @@ export interface FormBuilderContext {
   duplicate: (ids?: readonly string[]) => void
   /** Move nodes, the selected ones by default, one place up (`-1`) or down (`1`). */
   moveBy: (delta: -1 | 1, ids?: readonly string[]) => void
+  /**
+   * Move nodes, the selected ones by default, into a container (`null`:
+   * the top) to start at `index` of its children as they are now.
+   */
+  moveTo: (place: FormBuilderInsertPlace, ids?: readonly string[]) => void
   /** Put nodes of one container into a new section, the selected ones by default. */
   wrap: (ids?: readonly string[]) => void
   /** Add a page to tabs or steps (the selected ones, or the ones around the selection). */
@@ -89,6 +97,15 @@ export interface BuilderState extends FormBuilderContext {
   inspector: Ref<HTMLElement | null>
   /** The canvas's focusable tree, to take focus back. */
   canvas: Ref<HTMLElement | null>
+  /** Taps add to the selection or take from it, for touch screens without Shift or ⌘. */
+  tapToggles: Ref<boolean>
+  /**
+   * A press on a node in a view: Shift selects the range from the last
+   * plain press, ⌘ / Ctrl (or `tapToggles`) adds or removes, else replaces.
+   */
+  pick: (id: string, event: MouseEvent, view: BuilderView) => void
+  /** Drags on the canvas, set by the canvas once it is mounted. */
+  dragger: Ref<DragController | null>
   /** The selection, as a set, for views checking many nodes. */
   selected: ComputedRef<ReadonlySet<string>>
   /** The node the inspector and the action bar are for: the last selected one. */
@@ -143,6 +160,7 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
   const live = shallowRef('')
   const inspector = shallowRef<HTMLElement | null>(null)
   const canvas = shallowRef<HTMLElement | null>(null)
+  const dragger = shallowRef<DragController | null>(null)
 
   // A document from outside, e.g. one loaded or reset by the page, starts a new history.
   watch(options.document, (next) => {
@@ -235,6 +253,31 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
     setSelection([...current.filter((id) => !list.includes(id)), ...list])
   }
 
+  const tapToggles = shallowRef(false)
+  /** Where a Shift range starts: the node of the last press without Shift. */
+  let anchor: string | undefined
+  function pick(id: string, event: MouseEvent, view: BuilderView) {
+    if (event.metaKey || event.ctrlKey || tapToggles.value) {
+      anchor = id
+      return select(id, 'toggle')
+    }
+    const from = anchor && selection.value.includes(anchor) ? anchor : undefined
+    if (event.shiftKey && from) {
+      const order = view.order()
+      const a = order.indexOf(from)
+      const b = order.indexOf(id)
+      if (a >= 0 && b >= 0) {
+        // From the start of the range to the pressed node, which goes last for the inspector.
+        const range: string[] = []
+        const dir = a <= b ? 1 : -1
+        for (let at = a; at !== b + dir; at += dir) range.push(order[at]!)
+        return setSelection(range)
+      }
+    }
+    anchor = id
+    select(id, 'replace')
+  }
+
   const context = () => ({ fields: options.fields(), messages: options.messages() })
   const target = (ids?: readonly string[]) => ids ?? selection.value
 
@@ -283,6 +326,33 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
     dispatch(tr, {
       announce: place
         ? formatMessage(options.messages().announce.moved, { index: place.index + 1 })
+        : undefined,
+    })
+  }
+
+  function moveTo(place: FormBuilderInsertPlace, ids?: readonly string[]) {
+    const tr = transaction()
+    const moving = target(ids)
+    if (!moveNodesTo(tr, moving, place.parent, place.index)) return
+    tr.setMeta('origin', 'drag')
+    const map = formNodePlaces(tr.doc)
+    const moved = topmost(tr.doc, moving)
+    const first = map.get(moved[0] ?? '')
+    const messages = options.messages()
+    const where = first?.parent
+      ? nodeTitle(first.parent, options.fields(), messages)
+      : messages.drag.top
+    dispatch(tr, {
+      selection: [...moving],
+      announce: first
+        ? formatMessage(
+            moved.length > 1 ? messages.announce.movedManyTo : messages.announce.movedTo,
+            {
+              where,
+              index: first.index + 1,
+              count: moved.length,
+            },
+          )
         : undefined,
     })
   }
@@ -406,6 +476,15 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
 
   function keydown(event: KeyboardEvent, view: BuilderView) {
     if (event.isComposing) return
+    // While nodes are picked up, the keys choose where they go.
+    if (dragger.value?.carrying) {
+      if (dragger.value.keydown(event)) event.preventDefault()
+      return
+    }
+    if (event.key === ' ' && !event.repeat && dragger.value?.pickUp()) {
+      event.preventDefault()
+      return
+    }
     for (const [hotkey, run] of keys) {
       if (!matchesHotkey(event, hotkey)) continue
       event.preventDefault()
@@ -442,6 +521,7 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
     remove,
     duplicate,
     moveBy,
+    moveTo,
     wrap,
     addPage,
     selectParent,
@@ -455,6 +535,9 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
     focusInspector,
     inspector,
     canvas,
+    dragger,
+    tapToggles,
+    pick,
     selected,
     focused,
   }

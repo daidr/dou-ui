@@ -177,11 +177,124 @@
   /* Canvas ---------------------------------------------------------------- */
 
   .dou-form-builder__canvas {
+    position: relative;
     flex: 1;
     min-height: 0;
     padding: var(--dou-space-lg);
     overflow: auto;
     background: var(--dou-color-bg-canvas);
+  }
+
+  /* Drags: the layer sits at the start of the scrolled content, so its parts scroll with it. */
+  .dou-form-builder__drop-layer {
+    position: absolute;
+    z-index: 3;
+    inset: 0 auto auto 0;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+  }
+
+  .dou-form-builder__drop-holder {
+    position: absolute;
+    inset: 0 auto auto 0;
+    border-radius: var(--dou-radius-control);
+    background: color-mix(in oklab, var(--dou-form-builder-selected) 6%, transparent);
+    outline: 1px dashed color-mix(in oklab, var(--dou-form-builder-selected) 40%, transparent);
+    outline-offset: 2px;
+  }
+
+  .dou-form-builder__drop-line {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: var(--dou-form-builder-drop-length, 0);
+    height: 2px;
+    margin-block-start: -1px;
+    border-radius: 1px;
+    background: var(--dou-form-builder-selected);
+
+    &[data-vertical='true'] {
+      width: 2px;
+      height: var(--dou-form-builder-drop-length, 0);
+      margin-block-start: 0;
+      margin-inline-start: -1px;
+    }
+  }
+
+  /* The card under the pointer: small, so it does not hide the line. */
+  .dou-form-builder__drag-ghost {
+    position: fixed;
+    inset: 0 auto auto 0;
+    max-width: 200px;
+    padding: 4px 10px;
+    overflow: hidden;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-control);
+    background: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-md);
+    color: var(--dou-color-text);
+    font-size: var(--dou-font-size-sm);
+    line-height: 1.5;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* While the width changes, the count beside the handle takes the place of the buttons. */
+  .dou-form-builder__node.is-resizing > .dou-form-builder__actions {
+    visibility: hidden;
+  }
+
+  .dou-form-builder__node[data-dragged] {
+    opacity: 0.4;
+  }
+
+  /* The handle on the selected node's end edge; a wider band takes the press. */
+  .dou-form-builder__resize {
+    position: absolute;
+    z-index: 2;
+    inset-block: 0;
+    inset-inline-end: calc(var(--dou-form-builder-outset) * -1 - 6px);
+    width: 12px;
+    cursor: ew-resize;
+    touch-action: none;
+
+    &::before {
+      content: '';
+      position: absolute;
+      inset-block: 50% auto;
+      inset-inline-start: 4px;
+      width: 4px;
+      height: 20px;
+      margin-block-start: -10px;
+      border-radius: 2px;
+      background: var(--dou-form-builder-selected);
+    }
+
+    &[data-value]::after {
+      content: attr(data-value);
+      position: absolute;
+      inset-block-start: 50%;
+      inset-inline-end: 16px;
+      padding: 2px 6px;
+      transform: translateY(-50%);
+      border-radius: 4px;
+      background: var(--dou-color-text);
+      color: var(--dou-color-bg-surface);
+      font-size: var(--dou-font-size-sm);
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+  }
+
+  @media (pointer: coarse) {
+    .dou-form-builder__resize {
+      width: 24px;
+      inset-inline-end: calc(var(--dou-form-builder-outset) * -1 - 12px);
+
+      &::before {
+        inset-inline-start: 10px;
+      }
+    }
   }
 
   .dou-form-builder__paper {
@@ -838,4 +951,40 @@
       border-top: 1px solid var(--dou-color-border);
     }
   }
+
+  /* Phones: the canvas alone; the fields and the settings are drawers from the bottom. */
+  .dou-form-builder.is-compact .dou-form-builder__layout {
+    grid-template-rows: minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
+    height: var(--dou-form-builder-height, 640px);
+  }
+
+  .dou-form-builder.is-compact .dou-form-builder__paper {
+    padding-inline: var(--dou-space-md);
+  }
+
+  .dou-form-builder__tool.dou-form-builder__select-toggle {
+    margin-inline-start: auto;
+
+    &[aria-pressed='true'] {
+      background: color-mix(in oklab, var(--dou-form-builder-selected) 12%, transparent);
+      color: var(--dou-form-builder-selected);
+    }
+  }
+
+  /* The panes bring their own padding. */
+  .dou-drawer.dou-form-builder__drawer .dou-drawer__body {
+    padding: 0;
+  }
+
+  .dou-drawer.dou-form-builder__drawer .dou-form-builder__side-tabs {
+    height: 100%;
+  }
+}
+
+/* While dragging, text is not selected and the pointer shows the drag everywhere. */
+:root.dou-form-builder-dragging,
+:root.dou-form-builder-dragging * {
+  cursor: grabbing !important;
+  user-select: none !important;
 }

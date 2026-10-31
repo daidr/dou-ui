@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue'
-import { BrushIcon, CursorIcon, MoveIcon, SquareIcon, TypeIcon } from '@dou-ui/icons'
+import { CursorIcon, MoveIcon, PencilIcon, SquareIcon, TypeIcon } from '@dou-ui/icons'
 
 const tool = ref('select')
 </script>
@@ -13,7 +13,7 @@ const tool = ref('select')
     </DouToggleGroup>
     <DouToolbarSeparator />
     <DouToggleGroup v-model="tool" orientation="vertical" aria-label="绘制">
-      <DouToggle value="pen" aria-label="画笔"><BrushIcon /></DouToggle>
+      <DouToggle value="pen" aria-label="画笔"><PencilIcon /></DouToggle>
       <DouToggle value="rect" aria-label="矩形"><SquareIcon /></DouToggle>
       <DouToggle value="text" aria-label="文字"><TypeIcon /></DouToggle>
     </DouToggleGroup>

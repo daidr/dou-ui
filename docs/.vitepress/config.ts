@@ -48,6 +48,7 @@ const flowSidebar = ecosystem('流程编辑器', [
   { text: '扩展', link: '/flow/extensions' },
   { text: '协同编辑', link: '/flow/collaboration' },
   { text: '白板', link: '/flow/whiteboard' },
+  { text: '导出图片', link: '/flow/export' },
   { text: '大型流程', link: '/flow/performance' },
 ])
 
@@ -101,6 +102,9 @@ export default defineConfig({
             { text: '看板', link: '/blocks/kanban' },
             { text: '文件管理', link: '/blocks/files' },
             { text: 'AI 工作流', link: '/blocks/ai-workflow' },
+            { text: '头脑风暴', link: '/blocks/brainstorm' },
+            { text: '发布排期', link: '/blocks/release-plan' },
+            { text: '会议室预约', link: '/blocks/room-booking' },
           ],
         },
       ],

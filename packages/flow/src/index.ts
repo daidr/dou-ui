@@ -32,8 +32,8 @@ export type { DefaultNodeData } from './components/default-node'
 export { groupNode } from './components/group-node'
 export type { GroupNodeData } from './components/group-node'
 export { containerAt, FlowTree } from './core/groups'
-export { defineNodeType, labelOf, portSide, portsOf } from './core/node-types'
-export type { NodePaletteSpec, NodeTypeSpec, NodeViewProps } from './core/node-types'
+export { defineNodeType, labelOf, portSide, portsOf, resizeOf } from './core/node-types'
+export type { NodePaletteSpec, NodeResize, NodeTypeSpec, NodeViewProps } from './core/node-types'
 export type { FlowMenuItem, FlowMenuTarget, FlowToolbarItem } from './core/menu'
 export { createId, emptyDocument, emptySelection } from './core/model'
 export type {
@@ -63,6 +63,11 @@ export type {
 } from './core/extension'
 export { flowKit } from './kit'
 export type { FlowKitOptions } from './kit'
+export { moveLayer } from './layers'
+export { drawCard } from './export/draw'
+export type { FlowExportOptions, FlowImageOptions } from './export/draw'
+export type { FlowDrawContext, FlowDrawTextOptions } from './export/context'
+export type { LayerMove } from './layers'
 export { flowOrder } from './core/order'
 export {
   canJoin,

@@ -55,6 +55,21 @@ export interface FlowMessages {
   ungroup: string
   /** Takes a node out of the group it is in. */
   leaveGroup: string
+  /**
+   * Moving nodes up and down the stack. `top` and `bottom` say nothing moved
+   * because the nodes already are there; `noneAbove` and `noneBelow`, that
+   * no other node overlaps them that way.
+   */
+  layers: {
+    front: string
+    forward: string
+    backward: string
+    back: string
+    top: string
+    bottom: string
+    noneAbove: string
+    noneBelow: string
+  }
   expand: string
   collapse: string
   /** Between parts of a node's description. */
@@ -108,6 +123,20 @@ export interface FlowMessages {
     picked: string
     /** A node's name when it has text; `{kind}` is what it is, as `rect` or `sticky`. */
     named: string
+    pen: string
+    eraser: string
+    /** The toolbar button that inserts an image. */
+    image: string
+    /** A pen stroke. */
+    ink: string
+    /** `{name}` is the file's name. */
+    imageFailed: string
+    /** `{count}` strokes were erased. */
+    erased: string
+    rotate: string
+    unrotate: string
+    /** `{degrees}` is the node's new turn. */
+    turned: string
   }
 }
 
@@ -154,6 +183,16 @@ const zhCN: FlowMessages = {
   makeGroup: '放进分组',
   ungroup: '取消分组',
   leaveGroup: '移出分组',
+  layers: {
+    front: '置于顶层',
+    forward: '上移一层',
+    backward: '下移一层',
+    back: '置于底层',
+    top: '已经在最上层',
+    bottom: '已经在最底层',
+    noneAbove: '上面没有和它重叠的节点',
+    noneBelow: '下面没有和它重叠的节点',
+  },
   expand: '展开',
   collapse: '收起',
   separator: '，',
@@ -192,6 +231,15 @@ const zhCN: FlowMessages = {
     key: '{tool}（{key}）',
     picked: '已选择{tool}工具',
     named: '{kind}：{text}',
+    pen: '画笔',
+    eraser: '橡皮',
+    image: '图片',
+    ink: '笔迹',
+    imageFailed: '{name} 没能添加',
+    erased: '已擦除 {count} 条笔迹',
+    rotate: '顺时针旋转 90°',
+    unrotate: '取消旋转',
+    turned: '已旋转到 {degrees}°',
   },
 }
 
@@ -238,6 +286,16 @@ const zhTW: FlowMessages = {
   makeGroup: '放進群組',
   ungroup: '取消群組',
   leaveGroup: '移出群組',
+  layers: {
+    front: '移到最上層',
+    forward: '上移一層',
+    backward: '下移一層',
+    back: '移到最下層',
+    top: '已經在最上層',
+    bottom: '已經在最下層',
+    noneAbove: '上面沒有和它重疊的節點',
+    noneBelow: '下面沒有和它重疊的節點',
+  },
   expand: '展開',
   collapse: '收合',
   separator: '，',
@@ -276,6 +334,15 @@ const zhTW: FlowMessages = {
     key: '{tool}（{key}）',
     picked: '已選取{tool}工具',
     named: '{kind}：{text}',
+    pen: '畫筆',
+    eraser: '橡皮擦',
+    image: '圖片',
+    ink: '筆跡',
+    imageFailed: '{name} 未能新增',
+    erased: '已擦除 {count} 條筆跡',
+    rotate: '順時針旋轉 90°',
+    unrotate: '取消旋轉',
+    turned: '已旋轉到 {degrees}°',
   },
 }
 
@@ -322,6 +389,16 @@ const en: FlowMessages = {
   makeGroup: 'Group',
   ungroup: 'Ungroup',
   leaveGroup: 'Remove from group',
+  layers: {
+    front: 'Bring to front',
+    forward: 'Bring forward',
+    backward: 'Send backward',
+    back: 'Send to back',
+    top: 'Already at the front',
+    bottom: 'Already at the back',
+    noneAbove: 'No node above overlaps it',
+    noneBelow: 'No node below overlaps it',
+  },
   expand: 'Expand',
   collapse: 'Collapse',
   separator: ', ',
@@ -360,6 +437,15 @@ const en: FlowMessages = {
     key: '{tool} ({key})',
     picked: '{tool} tool',
     named: '{kind}: {text}',
+    pen: 'Pen',
+    eraser: 'Eraser',
+    image: 'Image',
+    ink: 'Stroke',
+    imageFailed: '{name} could not be added',
+    erased: 'Erased {count} strokes',
+    rotate: 'Rotate 90° clockwise',
+    unrotate: 'Reset rotation',
+    turned: 'Rotated to {degrees}°',
   },
 }
 

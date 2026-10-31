@@ -95,6 +95,21 @@ function warnUnshareable(id: string, key: string, value: unknown) {
   )
 }
 
+let warnedDataUrl = false
+/** A data URL goes into the shared document whole, to everyone, every time it loads. */
+function warnDataUrl(data: unknown) {
+  if (process.env.NODE_ENV === 'production' || warnedDataUrl || !data || typeof data !== 'object')
+    return
+  for (const value of Object.values(data))
+    if (typeof value === 'string' && value.length > 100_000 && value.startsWith('data:')) {
+      warnedDataUrl = true
+      console.warn(
+        `[@dou-ui/flow] a node keeps a data URL of ${Math.round(value.length / 1024)} KB, which every collaborator downloads with the document. Upload such files and keep their address instead, e.g. whiteboardKit({ upload }).`,
+      )
+      return
+    }
+}
+
 /** Writes a node's or edge's fields, only those that changed; `keys` limits which. */
 function write(map: Shared, value: FlowNode | FlowEdge, keys?: Set<string>) {
   const item = value as unknown as Item
@@ -105,6 +120,7 @@ function write(map: Shared, value: FlowNode | FlowEdge, keys?: Set<string>) {
     if (key === 'id' || raw === undefined || (keys && !fresh && !keys.has(key))) continue
     const field = key === 'data' ? sharedData(raw) : raw
     warnUnshareable(value.id, key, field)
+    if (key === 'data') warnDataUrl(field)
     // a new map can't be read before it is in the document
     if (fresh || !same(fields.get(key), field)) fields.set(key, field)
   }

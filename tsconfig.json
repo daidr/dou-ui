@@ -22,6 +22,7 @@
       "@dou-ui/dashboard/widgets": ["./packages/dashboard/src/widgets/index.ts"],
       "@dou-ui/dashboard/chart": ["./packages/dashboard/src/chart/index.ts"],
       "@dou-ui/dashboard/pivot": ["./packages/dashboard/src/pivot/index.ts"],
+      "@dou-ui/dashboard/collaboration": ["./packages/dashboard/src/collaboration/index.ts"],
       "@dou-ui/pivot": ["./packages/pivot/src/index.ts"],
       "@dou-ui/pivot/engine": ["./packages/pivot/src/engine/index.ts"],
       "@dou-ui/pivot/worker": ["./packages/pivot/src/worker/index.ts"],

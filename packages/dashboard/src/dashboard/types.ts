@@ -1,3 +1,4 @@
+import type { DashboardCollaboration } from '../core/collaboration'
 import type { DashboardTransaction } from '../core/transaction'
 import type { DashboardDocument, DashboardPlace } from '../core/types'
 import type {
@@ -47,6 +48,12 @@ export interface DashboardProps {
   messages?: DashboardMessagesOverride
   /** Makes the id of a new widget. Defaults to the type and a few random letters. */
   createId?: (type: string) => string
+  /**
+   * Edit together with others: `collaboration()` from
+   * `@dou-ui/dashboard/collaboration`. The document then comes from the
+   * shared one, and undo only takes back this person's own changes.
+   */
+  collaboration?: DashboardCollaboration
 }
 
 export interface DashboardEmits {

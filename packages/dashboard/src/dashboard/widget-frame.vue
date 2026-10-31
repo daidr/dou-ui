@@ -28,6 +28,21 @@ function clearLinks() {
   for (const link of linked.value) frame.clearFilter(link.key)
 }
 
+/** Others at this widget, when editing together: an outline in the first one's color and their names. */
+const peers = computed(() => frame.peers(props.id))
+const peerText = (peer: { name: string; action: string }) => {
+  const m = messages.value
+  const text =
+    peer.action === 'move'
+      ? m.peerMoving
+      : peer.action === 'resize'
+        ? m.peerResizing
+        : peer.action === 'settings'
+          ? m.peerSettings
+          : '{name}'
+  return format(text, { name: peer.name })
+}
+
 const renaming = ref(false)
 
 // Widgets far out of view show only their title until they come near: with
@@ -67,7 +82,23 @@ function onSelect(value: DropdownValue | undefined) {
 </script>
 
 <template>
-  <div v-if="widget" ref="root" class="dou-dashboard__widget">
+  <!-- outside the frame, which cuts off what overflows it -->
+  <div v-if="widget && peers.length" class="dou-dashboard__peers" aria-hidden="true">
+    <span
+      v-for="peer in peers"
+      :key="peer.client"
+      class="dou-dashboard__peer"
+      :style="{ '--dou-dashboard-peer-color': peer.color }"
+    >
+      {{ peerText(peer) }}
+    </span>
+  </div>
+  <div
+    v-if="widget"
+    ref="root"
+    :class="['dou-dashboard__widget', peers.length && 'has-peers']"
+    :style="peers.length ? { '--dou-dashboard-peer-color': peers[0]!.color } : undefined"
+  >
     <template v-if="!active">
       <div class="dou-dashboard__header">
         <div class="dou-dashboard__title">{{ title }}</div>

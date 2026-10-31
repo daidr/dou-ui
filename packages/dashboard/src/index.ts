@@ -22,7 +22,14 @@ export type {
 export type { DashboardDocument, DashboardPlace, DashboardWidget } from './core/types'
 export { checkDocument, isDashboardPlace, migrateDocument } from './core/document'
 export type { CheckDocumentOptions, DocumentProblem } from './core/document'
-export { applySteps, DashboardTransaction, sameValue } from './core/transaction'
+export { applySteps, DashboardTransaction, replaceWidgets, sameValue } from './core/transaction'
+export type {
+  DashboardCollaboration,
+  DashboardCollaborationHost,
+  DashboardPeer,
+  DashboardPresence,
+  DashboardPresenceAction,
+} from './core/collaboration'
 export type {
   DashboardStep,
   DashboardTransactionMeta,

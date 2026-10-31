@@ -218,6 +218,36 @@
     border-color: var(--dou-color-border-strong);
   }
 
+  /* others editing together: an outline in their color, their names above the top edge */
+  .dou-dashboard__widget.has-peers {
+    outline: 1.5px solid var(--dou-dashboard-peer-color);
+    outline-offset: 2px;
+  }
+  .dou-dashboard__peers {
+    position: absolute;
+    bottom: 100%;
+    left: 12px;
+    z-index: 1;
+    display: flex;
+    gap: 4px;
+    max-width: calc(100% - 24px);
+    margin-bottom: -10px;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .dou-dashboard__peer {
+    flex: none;
+    padding: 0 6px;
+    border-radius: 4px;
+    background-color: var(--dou-dashboard-peer-color);
+    /* the collaborator's color is the app's: pick dark or light text by its lightness */
+    color: white;
+    color: oklch(from var(--dou-dashboard-peer-color) clamp(0.2, (0.66 - l) * 100, 0.99) 0 0);
+    font-size: var(--dou-font-size-sm);
+    line-height: 18px;
+    white-space: nowrap;
+  }
+
   .dou-dashboard__header {
     display: flex;
     flex: none;
@@ -565,12 +595,14 @@
   .dou-dashboard.is-exporting {
     & .dou-dashboard__actions,
     & .dou-dashboard__links .dou-tag__close,
+    & .dou-dashboard__peers,
     & .dou-grid-layout__resize,
     & .dou-dashboard__live {
       display: none;
     }
 
-    & .dou-grid-layout__item {
+    & .dou-grid-layout__item,
+    & .dou-dashboard__widget {
       outline: none;
     }
   }
@@ -582,6 +614,7 @@
 
     .dou-dashboard__actions,
     .dou-dashboard__links .dou-tag__close,
+    .dou-dashboard__peers,
     .dou-grid-layout__resize,
     .dou-dashboard-filter__clear,
     .dou-dashboard-filter__extra {
@@ -591,6 +624,10 @@
     .dou-grid-layout__item {
       outline: none;
       break-inside: avoid;
+    }
+
+    .dou-dashboard__widget {
+      outline: none;
     }
   }
 }

@@ -77,6 +77,7 @@ const dashboardSidebar = ecosystem('仪表盘', [
   { text: '仪表盘', link: '/dashboard/dashboard' },
   { text: '数据与筛选', link: '/dashboard/data' },
   { text: '内置格子', link: '/dashboard/widgets' },
+  { text: '协同编辑', link: '/dashboard/collaboration' },
 ])
 const formBuilderSidebar = ecosystem('表单设计器', [
   { text: '介绍', link: '/form-builder/' },
@@ -455,6 +456,10 @@ export default defineConfig({
         {
           find: /^@dou-ui\/dashboard\/pivot$/,
           replacement: r('../../packages/dashboard/src/pivot/index.ts'),
+        },
+        {
+          find: /^@dou-ui\/dashboard\/collaboration$/,
+          replacement: r('../../packages/dashboard/src/collaboration/index.ts'),
         },
         { find: /^@dou-ui\/dashboard$/, replacement: r('../../packages/dashboard/src/index.ts') },
         {

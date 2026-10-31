@@ -80,16 +80,20 @@
       "devDependencies": {
         "@dou-ui/chart": "workspace:*",
         "@dou-ui/pivot": "workspace:*",
+        "y-protocols": "^1.0.7",
+        "yjs": "^13.6.33",
       },
       "peerDependencies": {
         "@dou-ui/chart": "workspace:*",
         "@dou-ui/pivot": "workspace:*",
         "dou-ui": "workspace:*",
         "vue": "^3.5.0",
+        "yjs": "^13.6.0",
       },
       "optionalPeers": [
         "@dou-ui/chart",
         "@dou-ui/pivot",
+        "yjs",
       ],
     },
     "packages/dou-ui": {

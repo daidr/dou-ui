@@ -43,6 +43,13 @@ function setup(selected: FlowSelection = { nodes: [], edges: [] }) {
   return { wrapper, root, doc, selection }
 }
 
+/** Whether a `selectstart` from `target` was cancelled. */
+function selectstart(target: Node) {
+  const event = new Event('selectstart', { bubbles: true, cancelable: true })
+  target.dispatchEvent(event)
+  return event.defaultPrevented
+}
+
 describe('DouFlowEditor', () => {
   it('renders nodes with their ports and an accessible name', () => {
     const { wrapper, root } = setup()
@@ -53,6 +60,23 @@ describe('DouFlowEditor', () => {
     expect(nodes[0]!.attributes('aria-roledescription')).toBe('节点')
     expect(nodes[0]!.find('[data-port="out"]').classes()).toContain('is-connected')
     expect(nodes[0]!.attributes('style')).toContain('translate(0px, 0px)')
+    wrapper.unmount()
+  })
+
+  it('starts no text selection on the canvas, only in fields', () => {
+    const { wrapper, root } = setup()
+    const node = wrapper.find('[data-node-id="a"]').element
+    // The text node itself, as a browser sends it.
+    expect(selectstart(node.querySelector('*')!.firstChild ?? node)).toBe(true)
+    expect(selectstart(root.element)).toBe(true)
+    const field = document.createElement('input')
+    node.append(field)
+    expect(selectstart(field)).toBe(false)
+    const editable = document.createElement('div')
+    editable.contentEditable = 'true'
+    editable.textContent = '备注'
+    node.append(editable)
+    expect(selectstart(editable.firstChild!)).toBe(false)
     wrapper.unmount()
   })
 

@@ -758,6 +758,12 @@ function onPointerDown(event: PointerEvent) {
   stopAnimation()
   const touch = event.pointerType === 'touch'
   if (touch) {
+    // The first finger of a new touch: any finger still on record lifted
+    // where the editor didn't hear it (outside it, or taken by the browser).
+    if (event.isPrimary) {
+      touches.clear()
+      pinch = null
+    }
     touches.set(event.pointerId, { x: event.clientX, y: event.clientY })
     if (touches.size === 2) {
       startPinch()
@@ -897,6 +903,8 @@ function startPinch() {
   const [a, b] = [...touches.values()] as [Point, Point]
   clearPress()
   endGesture()
+  // Both fingers report back here even when they leave the editor.
+  for (const id of touches.keys()) capture(id)
   pinch = {
     distance: Math.hypot(a.x - b.x, a.y - b.y) || 1,
     mid: local((a.x + b.x) / 2, (a.y + b.y) / 2),

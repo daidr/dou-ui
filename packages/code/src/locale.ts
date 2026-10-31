@@ -30,6 +30,11 @@ export interface CodeMessages {
   invalidRegexp: string
   /** The marker of a folded block, as a tooltip. */
   unfold: string
+  /** Read out after folding: `{from}`, `{to}` are the hidden lines. */
+  folded: string
+  unfolded: string
+  foldedAll: string
+  unfoldedAll: string
   /** Read out after replacing: `{count}`. */
   replaced: string
 }
@@ -54,6 +59,10 @@ export const zhCN: CodeMessages = {
   invalidRegexp: '正则表达式有误',
   replaced: '已替换 {count} 处',
   unfold: '展开',
+  folded: '已折叠第 {from}–{to} 行',
+  unfolded: '已展开',
+  foldedAll: '已全部折叠',
+  unfoldedAll: '已全部展开',
 }
 
 export const zhTW: CodeMessages = {
@@ -76,6 +85,10 @@ export const zhTW: CodeMessages = {
   invalidRegexp: '規則運算式有誤',
   replaced: '已取代 {count} 處',
   unfold: '展開',
+  folded: '已摺疊第 {from}–{to} 行',
+  unfolded: '已展開',
+  foldedAll: '已全部摺疊',
+  unfoldedAll: '已全部展開',
 }
 
 export const en: CodeMessages = {
@@ -98,6 +111,10 @@ export const en: CodeMessages = {
   invalidRegexp: 'Invalid regular expression',
   replaced: 'Replaced {count}',
   unfold: 'Unfold',
+  folded: 'Folded lines {from}–{to}',
+  unfolded: 'Unfolded',
+  foldedAll: 'Folded all',
+  unfoldedAll: 'Unfolded all',
 }
 
 export const codeLocales: Record<string, CodeMessages> = {

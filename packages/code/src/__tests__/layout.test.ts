@@ -211,6 +211,29 @@ describe('folding in the editor', () => {
     expect(editor.value!.unfoldAll()).toBe(true)
     expect(editor.value!.folds).toEqual([])
   })
+  it('reports fold changes and reads them out', async () => {
+    const changes: number[][] = []
+    const { wrapper, editor } = setup(source + '\nfunction b() {\n  three()\n}', {
+      language: typescript,
+      'onFold-change': (lines: number[]) => changes.push(lines),
+    })
+    const live = () => wrapper.find('.dou-code-editor__live').text()
+    editor.value!.fold(1)
+    await nextTick()
+    expect(live()).toBe('已折叠第 2–3 行')
+    editor.value!.transact((tr) => tr.insert(0, '// top\n'))
+    await nextTick()
+    editor.value!.unfold(2)
+    await nextTick()
+    expect(live()).toBe('已展开')
+    editor.value!.foldAll()
+    await nextTick()
+    expect(changes).toEqual([[1], [2], [], [2, 7]])
+    // Restoring saved folds line by line.
+    editor.value!.unfoldAll()
+    for (const line of changes[3]!) editor.value!.fold(line)
+    expect(editor.value!.folds).toEqual([2, 7])
+  })
 })
 
 describe('wrapping in the editor', () => {

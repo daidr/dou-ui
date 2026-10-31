@@ -503,6 +503,12 @@ function foldEnd(n: number) {
   })
 }
 
+/** The lines that start a fold, from 1. */
+const foldStarts = computed(() => folds.value.map((fold) => doc.value.lineAt(fold.from).number))
+watch(foldStarts, (next, prev) => {
+  if (next.length !== prev.length || next.some((n, i) => n !== prev[i])) emit('fold-change', next)
+})
+
 function setFolds(next: CodeFold[]) {
   // oxlint-disable-next-line unicorn/no-array-sort -- sorts a fresh array
   folds.value = next.slice().sort((a, b) => a.from - b.from)
@@ -545,7 +551,13 @@ function foldLine(n: number) {
     )
   }
   setFolds([...folds.value, fold])
+  announce(format(messages.value.folded, { from: n + 1, to: end }))
   return true
+}
+
+/** Reads a fold out; the same words twice in a row are read again. */
+function announce(text: string) {
+  announcement.value = announcement.value === text ? `${text}\u200b` : text
 }
 
 const folding = {
@@ -570,6 +582,7 @@ const folding = {
     })
     if (keep.length === folds.value.length) return false
     folds.value = keep
+    announce(messages.value.unfolded)
     return true
   },
   foldAll() {
@@ -584,6 +597,7 @@ const folding = {
     }
     if (!next.length) return false
     setFolds(next)
+    announce(messages.value.foldedAll)
     // Cursors that ended up hidden go to the top of their block.
     const { selection } = state.value
     const ranges = selection.ranges.map((range) => {
@@ -598,6 +612,7 @@ const folding = {
   unfoldAll() {
     if (!folds.value.length) return false
     folds.value = []
+    announce(messages.value.unfoldedAll)
     return true
   },
 }
@@ -1785,7 +1800,7 @@ defineExpose<CodeEditorExpose>({
   foldAll: () => folding.foldAll(),
   unfoldAll: () => folding.unfoldAll(),
   get folds() {
-    return folds.value.map((fold) => doc.value.lineAt(fold.from).number)
+    return foldStarts.value
   },
 })
 </script>

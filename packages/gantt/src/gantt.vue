@@ -41,6 +41,15 @@ import {
 } from './core/calendar'
 import type { GanttMenuItem, GanttMenuTarget } from './core/menu'
 import { arrowPath, roundedPath, routeLink, type BarBox } from './core/geometry'
+import { baselineSpans } from './core/baseline'
+import {
+  HEADER as EXPORT_HEADER,
+  drawGantt,
+  paddedRange,
+  svgDocument,
+  type ExportColumn,
+} from './export/draw'
+import { readTheme, type ExportTheme } from './export/theme'
 import { GanttHistory } from './core/history'
 import { linkRefusal, linkTypeOf, type GanttLinkRefusal } from './core/links'
 import { createId, spanOf, writeSpan, type GanttLink, type GanttTask } from './core/model'
@@ -51,7 +60,7 @@ import {
   type GanttStep,
   type GanttTransactionMeta,
 } from './core/transaction'
-import { snapStep, type GanttScale } from './core/scale'
+import { DAY_WIDTH_RANGE, levelByName, snapStep, type GanttScale } from './core/scale'
 import { MINUTES_PER_DAY, dayIndex, dayStart, formatTime, parseTime } from './core/time'
 import { buildTree, type GanttRow } from './core/tree'
 import { useTimeAxis } from './time-axis'
@@ -62,7 +71,10 @@ import type {
   GanttEmits,
   GanttExpose,
   GanttInsertOptions,
+  GanttExportOptions,
+  GanttImageOptions,
   GanttMove,
+  GanttPrintOptions,
   GanttProps,
   GanttSlots,
 } from './types'
@@ -437,15 +449,21 @@ function describe(row: GanttRow) {
   const { task, span } = row
   if (!span) return format(m.unscheduled, { title: task.title })
   const start = dateLabel(span.start, span.dateOnly, m)
-  if (row.milestone) return format(m.milestone, { title: task.title, start })
+  if (row.milestone) {
+    const text = format(m.milestone, { title: task.title, start })
+    const change = planChange(row)
+    return change ? format(m.baseline.withChange, { task: text, change }) : text
+  }
   const params = {
     title: task.title,
     dates: datesLabel(span, m),
     duration: spokenDuration(span, calendar.value, m),
     progress: Math.round(row.progress * 100),
   }
-  const text = format(row.summary ? m.summary : m.task, params)
-  return critical.value?.tasks.has(task.id) ? format(m.criticalTask, { task: text }) : text
+  let text = format(row.summary ? m.summary : m.task, params)
+  if (critical.value?.tasks.has(task.id)) text = format(m.criticalTask, { task: text })
+  const change = planChange(row)
+  return change ? format(m.baseline.withChange, { task: text, change }) : text
 }
 
 const bars = computed<Bar[]>(() => {
@@ -485,6 +503,53 @@ const ghosts = computed(() => {
   return out
 })
 
+// Baseline --------------------------------------------------------------------------
+
+/** How far bars move up to make room for the baseline under them, in px. */
+const BASELINE_SHIFT = 4
+
+/** The planned spans, by task. */
+const planned = computed(() =>
+  props.baseline
+    ? baselineSpans(props.baseline, (id) => !!tree.value.byId.get(id)?.milestone)
+    : null,
+)
+const barShift = computed(() => (planned.value ? BASELINE_SHIFT : 0))
+
+/** A thin line under each bar in view, where the baseline had it. */
+const baselineBars = computed(() => {
+  const plans = planned.value
+  if (!plans) return []
+  const out: { id: string; left: number; width: number; top: number; milestone: boolean }[] = []
+  for (const bar of bars.value) {
+    const span = plans.get(bar.row.task.id)
+    if (!span) continue
+    out.push({
+      id: bar.row.task.id,
+      left: xOf(span.start),
+      width: Math.max(2, (span.end - span.start) * ppm.value),
+      top: bar.top,
+      milestone: bar.row.milestone,
+    })
+  }
+  return out
+})
+
+/** How a task's end compares with its plan, as words; empty when on plan. */
+function planChange(row: GanttRow) {
+  const plan = planned.value?.get(row.task.id)
+  const span = row.span
+  if (!plan || !span || plan.end === span.end) return ''
+  const m = messages.value
+  // in calendar time: a slip over a weekend is still a slip
+  const gap = Math.abs(span.end - plan.end)
+  const duration =
+    plan.dateOnly && span.dateOnly
+      ? format(m.days, { count: Math.round(gap / MINUTES_PER_DAY) })
+      : format(m.hours, { count: Math.round((gap / 60) * 10) / 10 })
+  return format(span.end > plan.end ? m.baseline.late : m.baseline.early, { duration })
+}
+
 // Links -----------------------------------------------------------------------------
 
 /** Half the width of a milestone's diamond, where lines meet it. */
@@ -492,7 +557,7 @@ const MILESTONE = 7
 
 function boxOf(row: GanttRow): BarBox | null {
   if (!row.span || row.index < 0) return null
-  const y = row.index * props.rowHeight + props.rowHeight / 2
+  const y = row.index * props.rowHeight + props.rowHeight / 2 - barShift.value
   if (row.milestone) {
     const x = xOf(row.span.start)
     return { left: x - MILESTONE, right: x + MILESTONE, y }
@@ -2117,6 +2182,197 @@ const markers = computed(() => {
   })
 })
 
+// Export and print --------------------------------------------------------------------
+
+/** The widest drawing made, in px; wider ones are zoomed out to fit. */
+const EXPORT_MAX = 16000
+/** Room on a printed page, in px at 96 per inch: A4 less 10mm margins. */
+const PAGE = { landscape: [1047, 718], portrait: [718, 1047] } as const
+
+/** The columns of the table as drawn, at their widths on screen. */
+function exportColumns(): ExportColumn[] {
+  const heads = root.value?.querySelectorAll<HTMLElement>('.dou-gantt__th')
+  return columns.value.map((column, i) => ({
+    title: headerOf(column),
+    width:
+      heads?.[i]?.offsetWidth ||
+      px(column.width) ||
+      (column.key === 'title' ? TITLE_MIN + 80 : FLEX_COLUMN + 32),
+    align: column.align ?? 'start',
+    isTitle: column.key === 'title',
+    text: (row: GanttRow) => cellText(row, column),
+  }))
+}
+
+let measurer: CanvasRenderingContext2D | null | undefined
+function exportTextWidth(theme: ExportTheme) {
+  if (measurer === undefined)
+    try {
+      measurer = document.createElement('canvas').getContext('2d')
+    } catch {
+      measurer = null
+    }
+  return (text: string, bold = false) => {
+    if (!measurer) return text.length * theme.fontSize
+    measurer.font = `${bold ? theme.fontWeight : 400} ${theme.fontSize}px ${theme.fontFamily}`
+    return measurer.measureText(text).width
+  }
+}
+
+function drawChart(options: { range: 'all' | 'view'; table: boolean; dayWidth?: number }) {
+  const theme = readTheme(root.value!)
+  let width = options.dayWidth ?? dayWidth.value
+  let shownRows: readonly GanttRow[] = rows.value
+  let start: number
+  let end: number
+  if (options.range === 'view') {
+    start = origin.value + scrollLeft.value / ppm.value
+    end = start + (viewWidth.value || 800) / ppm.value
+    const top = scrollTop.value
+    const bottom = top + bodyHeight.value
+    shownRows = rows.value.filter(
+      (row) => (row.index + 1) * props.rowHeight > top && row.index * props.rowHeight < bottom,
+    )
+  } else {
+    const known = content.value ?? { start: now.value, end: now.value + MINUTES_PER_DAY }
+    if ((known.end - known.start) * (width / MINUTES_PER_DAY) > EXPORT_MAX)
+      width = (EXPORT_MAX / (known.end - known.start)) * MINUTES_PER_DAY
+    ;({ start, end } = paddedRange(known.start, known.end, width, weekStart.value))
+    // titles beside bars that end last need room too
+    const pxPerMinute = width / MINUTES_PER_DAY
+    const measure = exportTextWidth(theme)
+    let right = known.end
+    for (const row of rows.value) {
+      if (!row.span || props.barLabel === 'none') continue
+      const barWidth = (row.span.end - row.span.start) * pxPerMinute
+      const outside =
+        row.milestone ||
+        row.summary ||
+        props.barLabel === 'outside' ||
+        (props.barLabel === 'auto' && measure(row.task.title) + 20 > barWidth)
+      if (outside)
+        right = Math.max(right, row.span.end + (measure(row.task.title) + 24) / pxPerMinute)
+    }
+    if (right > end) end = paddedRange(known.start, right, width, weekStart.value).end
+  }
+  return drawGantt(
+    {
+      rows: shownRows,
+      links: linkList.value,
+      columns: options.table ? exportColumns() : [],
+      rowHeight: props.rowHeight,
+      dayWidth: width,
+      start,
+      end,
+      calendar: calendar.value,
+      messages: messages.value,
+      weekStart: weekStart.value,
+      now: props.today ? now.value : null,
+      markers: markers.value.map((item) => ({
+        at: parseTime(item.marker.date)!.at,
+        label: item.marker.label,
+        tone: item.marker.tone,
+      })),
+      critical: critical.value,
+      broken: brokenLinks.value,
+      baseline: planned.value,
+      barLabel: props.barLabel,
+      textWidth: exportTextWidth(theme),
+    },
+    theme,
+  )
+}
+
+const exportOptions = (options: GanttExportOptions = {}) => ({
+  range: options.range ?? 'all',
+  table: options.table ?? showTable.value,
+  dayWidth: options.scale ? levelByName(options.scale).base : undefined,
+})
+
+function exportSVG(options?: GanttExportOptions) {
+  return svgDocument(drawChart(exportOptions(options)))
+}
+
+async function exportPNG(options: GanttImageOptions = {}) {
+  const svg = exportSVG(options)
+  const ratio = options.pixelRatio ?? 2
+  const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }))
+  try {
+    const image = new Image()
+    image.src = url
+    await image.decode()
+    const sheet = document.createElement('canvas')
+    sheet.width = Math.ceil(image.width * ratio)
+    sheet.height = Math.ceil(image.height * ratio)
+    const ctx = sheet.getContext('2d')!
+    ctx.scale(ratio, ratio)
+    ctx.drawImage(image, 0, 0)
+    return await new Promise<Blob>((resolve, reject) =>
+      sheet.toBlob(
+        (blob) => (blob ? resolve(blob) : reject(new Error('PNG export failed'))),
+        'image/png',
+      ),
+    )
+  } finally {
+    URL.revokeObjectURL(url)
+  }
+}
+
+const csvCell = (text: string) => (/[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text)
+
+function exportCSV() {
+  const list = columns.value
+  const lines = [list.map((column) => csvCell(headerOf(column))).join(',')]
+  // every task in order, those under a collapsed parent too
+  for (const row of tree.value.byId.values())
+    lines.push(list.map((column) => csvCell(cellText(row, column))).join(','))
+  return lines.join('\r\n')
+}
+
+function print(options: GanttPrintOptions = {}) {
+  const orientation = options.orientation ?? 'landscape'
+  const [pageWidth, pageHeight] = PAGE[orientation]
+  const table = options.table ?? true
+  const columnsWidth = table ? exportColumns().reduce((sum, column) => sum + column.width, 0) : 0
+  const known = content.value ?? { start: now.value, end: now.value + MINUTES_PER_DAY }
+  // the day width that fits the time into what the table leaves of the page
+  let fitted = ((pageWidth - columnsWidth - 48) / (known.end - known.start)) * MINUTES_PER_DAY
+  fitted = Math.min(DAY_WIDTH_RANGE[1], Math.max(DAY_WIDTH_RANGE[0], fitted))
+  const drawing = drawChart({ range: 'all', table, dayWidth: fitted })
+  const perPage = Math.max(
+    1,
+    Math.floor(
+      (pageHeight * Math.max(1, drawing.width / pageWidth) - EXPORT_HEADER) / props.rowHeight,
+    ),
+  )
+  const pages: string[] = []
+  for (let top = 0; top < Math.max(1, drawing.bodyHeight); top += perPage * props.rowHeight)
+    pages.push(
+      `<div class="page">${svgDocument(drawing, { top, height: Math.min(perPage * props.rowHeight, drawing.bodyHeight - top) })}</div>`,
+    )
+  const iframe = document.createElement('iframe')
+  iframe.setAttribute('aria-hidden', 'true')
+  iframe.style.cssText = 'position:fixed;width:0;height:0;border:0;visibility:hidden'
+  document.body.append(iframe)
+  const doc = iframe.contentDocument!
+  doc.open()
+  doc.write(
+    `<!doctype html><html><head><meta charset="utf-8"><title>${document.title}</title><style>` +
+      `@page{size:A4 ${orientation};margin:10mm}html,body{margin:0}` +
+      `.page{break-after:page;print-color-adjust:exact;-webkit-print-color-adjust:exact}` +
+      `.page:last-child{break-after:auto}svg{display:block;width:100%;height:auto}` +
+      `</style></head><body>${pages.join('')}</body></html>`,
+  )
+  doc.close()
+  const win = iframe.contentWindow!
+  const done = () => iframe.remove()
+  win.addEventListener('afterprint', done)
+  // browsers that print without a dialog, or never send afterprint
+  setTimeout(done, 60_000)
+  win.focus()
+  win.print()
+}
+
 function onLinkClick(link: GanttLink, event: MouseEvent) {
   selectedLink.value = link.id
   root.value?.focus({ preventScroll: true })
@@ -2165,6 +2421,10 @@ defineExpose<GanttExpose>({
   focusTask,
   zoomIn,
   zoomOut,
+  exportSVG,
+  exportPNG,
+  exportCSV,
+  print,
 })
 
 const context: GanttContext = {
@@ -2270,6 +2530,7 @@ const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * prop
       'is-dragging-row': rowDrag?.started,
       [`is-dragging-${drag?.mode}`]: drag?.started,
       'is-linking': !!keyLink,
+      'has-baseline': !!planned,
     }"
     :style="{ '--dou-gantt-row-height': `${rowHeight}px` }"
     role="group"
@@ -2501,6 +2762,16 @@ const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * prop
               :d="draftLink.d"
             />
           </svg>
+          <div
+            v-for="plan in baselineBars"
+            :key="`plan:${plan.id}`"
+            class="dou-gantt__baseline"
+            :class="{ 'is-milestone': plan.milestone }"
+            :style="{
+              transform: `translate(${plan.left}px, ${plan.top}px)`,
+              width: plan.milestone ? undefined : `${plan.width}px`,
+            }"
+          />
           <div
             v-for="bar in bars"
             :key="bar.row.task.id"

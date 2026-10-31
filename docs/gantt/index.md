@@ -219,6 +219,57 @@ const broken = findBrokenLinks({ tasks, links }, { calendar })
 
 <DocDemo src="gantt/markers" column />
 
+## 基线
+
+基线是某一时刻保存下来的计划日期。传入 `baseline` 后，每个任务条下方会画一条细的灰线，标出计划中的位置，可以直接看出哪些任务比计划提前或推迟；读屏时也会读出比计划晚或早了多久。
+
+<DocDemo src="gantt/baseline" column />
+
+`takeBaseline(tasks)` 把当前的日期保存成基线，汇总任务按子任务覆盖的范围保存。基线是普通的数组，和任务一起存到服务端即可，需要对比时再传回来；可以保存多份，切换 `baseline` 查看不同时期的计划。
+
+```ts
+import { takeBaseline, type GanttBaselineItem } from '@dou-ui/gantt'
+
+const baseline = ref<GanttBaselineItem[]>()
+baseline.value = takeBaseline(tasks.value) // [{ id, start, end }, …]
+```
+
+## 导出与打印
+
+组件实例上有四个方法，导出的内容和屏幕上一致，颜色跟随当前的亮暗主题：
+
+| 方法                 | 说明                                                                                   |
+| -------------------- | -------------------------------------------------------------------------------------- |
+| `exportSVG(options)` | 返回 SVG 文档字符串，可以在设计软件里继续编辑                                          |
+| `exportPNG(options)` | 返回 PNG 的 `Blob`，默认按 2 倍像素绘制                                                |
+| `exportCSV()`        | 返回 CSV 字符串：表格的列和每个任务显示的文字，收起的子任务也在内                      |
+| `print(options)`     | 打开浏览器的打印对话框：所有行，按纸张宽度自动选择刻度，行多时分成多页，每页都重复表头 |
+
+<DocDemo src="gantt/export" column />
+
+`exportSVG` 和 `exportPNG` 的选项：
+
+| 名称         | 说明                                                            | 默认值           |
+| ------------ | --------------------------------------------------------------- | ---------------- |
+| `range`      | `all` 是全部行和全部任务所在的时间，`view` 是当前看到的行和时间 | `'all'`          |
+| `table`      | 是否画出左侧表格                                                | 跟随当前是否显示 |
+| `scale`      | 按哪个刻度绘制，如 `'week'`                                     | 当前的缩放       |
+| `pixelRatio` | 只用于 PNG，每个 CSS 像素对应的图片像素                         | `2`              |
+
+`print` 的选项是 `orientation`（`landscape` 横向或 `portrait` 纵向，默认横向）和 `table`。时间跨度很长时，导出的图片最宽 16000px，超出时会自动缩小刻度。
+
+方法只返回内容，下载由你决定，例如：
+
+```ts
+const blob = await gantt.value.exportPNG()
+const url = URL.createObjectURL(blob)
+const a = Object.assign(document.createElement('a'), { href: url, download: '排期.png' })
+a.click()
+URL.revokeObjectURL(url)
+```
+
+用表格软件打开 CSV 时，在内容前加上 `\ufeff`（BOM），中文才不会乱码。任务数据本身需要保存为 JSON 时，直接序列化 `tasks` 和 `links` 即可。
+
 ## 时间刻度
 
 不传 `scale` 时，甘特图打开时会选一个能放下全部任务的日宽，并滚动到第一个任务。`v-model:scale` 切换时间刻度：`hour`、`day`、`week`、`month`、`quarter`、`year`。按住 `Ctrl` / `⌘` 滚动滚轮、在触控板上捏合或在触屏上双指捏合可以连续缩放，缩放以指针（或两指中间）所在的时间为中心，日宽跨过某一级的范围时自动换成那一级的表头，`scale` 也随之更新。

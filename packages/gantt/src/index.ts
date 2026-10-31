@@ -33,6 +33,8 @@ export { resolveCalendar, workdaysBetween, workingMinutes } from './core/calenda
 export type { GanttCalendar, WorkCalendar } from './core/calendar'
 export { applyGanttSteps, GanttTransaction } from './core/transaction'
 export type { GanttDocument, GanttStep, GanttTransactionMeta } from './core/transaction'
+export { baselineSpans, takeBaseline } from './core/baseline'
+export type { GanttBaselineItem } from './core/baseline'
 export { computeCriticalPath, computeSchedule, findBrokenLinks } from './core/schedule'
 export type { GanttCriticalPath, GanttSchedule, GanttScheduleOptions } from './core/schedule'
 export type { GanttMenuItem, GanttMenuTarget, GanttPoint } from './core/menu'

@@ -663,6 +663,40 @@
     }
   }
 
+  /* with a baseline, bars move up a little to make room for the plan under them */
+  .dou-gantt.has-baseline {
+    :is(.dou-gantt__bar-row, .dou-gantt__ghost, .dou-gantt__peer) {
+      translate: 0 -4px;
+    }
+  }
+
+  /* where the baseline had a task: a thin line under its bar */
+  .dou-gantt__baseline {
+    --dou-gantt-baseline: color-mix(
+      in oklab,
+      var(--dou-color-text) 24%,
+      var(--dou-color-bg-surface)
+    );
+
+    position: absolute;
+    top: calc((var(--dou-gantt-row-height) + var(--dou-gantt-bar-height)) / 2 - 2px);
+    left: 0;
+    z-index: 1;
+    height: 4px;
+    border-radius: 2px;
+    background-color: var(--dou-gantt-baseline);
+    pointer-events: none;
+
+    &.is-milestone {
+      top: calc((var(--dou-gantt-row-height) + var(--dou-gantt-bar-height)) / 2 - 4px);
+      width: 8px;
+      height: 8px;
+      margin-left: -4px;
+      border-radius: 1px;
+      rotate: 45deg;
+    }
+  }
+
   /* where a drag would push a waiting task */
   .dou-gantt__ghost {
     position: absolute;
@@ -1197,6 +1231,21 @@
 
     &.is-over {
       background-color: var(--dou-color-warning);
+    }
+  }
+
+  /* printed with the page: keep the colors, leave out what only works on screen.
+     print() lays out every row on its own pages */
+  @media print {
+    .dou-gantt {
+      print-color-adjust: exact;
+      -webkit-print-color-adjust: exact;
+    }
+    .dou-gantt__handle,
+    .dou-gantt__progress-handle,
+    .dou-gantt__tip,
+    .dou-gantt__divider {
+      display: none;
     }
   }
 }

@@ -44,9 +44,12 @@ export function dateLabel(at: number, dateOnly: boolean, m: GanttMessages) {
   return dateOnly ? date : format(m.dateTime, { date, time: `${pad(p.hour)}:${pad(p.minute)}` })
 }
 
-/** The last moment of a span as a reader expects it: a date-only span ends on its last day. */
+/**
+ * The last moment of a span as a reader expects it: a date-only span ends
+ * on its last day (a summary ending on a milestone, at noon, on that day).
+ */
 export const endLabel = (span: TaskSpan, m: GanttMessages) =>
-  dateLabel(span.dateOnly ? span.end - MINUTES_PER_DAY : span.end, span.dateOnly, m)
+  dateLabel(span.dateOnly ? span.end - 1 : span.end, span.dateOnly, m)
 
 /** Working days for a date-only span, working hours otherwise. */
 export function durationLabel(span: TaskSpan, calendar: WorkCalendar, m: GanttMessages) {

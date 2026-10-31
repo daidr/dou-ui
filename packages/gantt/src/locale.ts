@@ -45,6 +45,8 @@ export interface GanttMessages {
   progressTip: string
   /** Why a link being drawn can't be made. */
   linkRefusals: { nested: string; duplicate: string; cycle: string }
+  /** Comparing with the `baseline`: `{duration}` is how far the end moved. */
+  baseline: { late: string; early: string; withChange: string }
   /** Shown when `can-move` refuses without a reason. */
   moveRefused: string
   /** The handle between the list and the timeline. */
@@ -159,6 +161,11 @@ const zhCN: GanttMessages = {
     duplicate: '这两个任务之间已经有依赖',
     cycle: '会形成循环依赖',
   },
+  baseline: {
+    late: '比计划晚 {duration}',
+    early: '比计划早 {duration}',
+    withChange: '{task}，{change}',
+  },
   moveRefused: '不能移到这里',
   resizeTable: '调整列表宽度',
   keys: '上下键选择任务，左右键收起或展开，空格选中；Alt 加左右键移动任务，Alt 加 Shift 加左右键调整结束时间；L 添加依赖；F2 重命名，菜单键打开菜单',
@@ -229,6 +236,11 @@ const zhTW: GanttMessages = {
     nested: '不能連到自己的上層或子任務',
     duplicate: '這兩個任務之間已經有相依關係',
     cycle: '會形成循環相依',
+  },
+  baseline: {
+    late: '比計畫晚 {duration}',
+    early: '比計畫早 {duration}',
+    withChange: '{task}，{change}',
   },
   moveRefused: '不能移到這裡',
   resizeTable: '調整列表寬度',
@@ -316,6 +328,11 @@ const en: GanttMessages = {
     nested: 'Can’t link a task to its own parent or subtask',
     duplicate: 'These tasks are already linked',
     cycle: 'This would make a loop',
+  },
+  baseline: {
+    late: '{duration} behind plan',
+    early: '{duration} ahead of plan',
+    withChange: '{task}, {change}',
   },
   moveRefused: 'Can’t move here',
   resizeTable: 'Resize the list',

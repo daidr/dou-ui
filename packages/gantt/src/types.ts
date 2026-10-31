@@ -1,3 +1,4 @@
+import type { GanttBaselineItem } from './core/baseline'
 import type { GanttCalendar } from './core/calendar'
 import type { GanttExtension } from './core/extension'
 import type { GanttLink, GanttTask } from './core/model'
@@ -136,6 +137,11 @@ export interface GanttProps {
   canMove?: (move: GanttMove, doc: GanttDocument) => boolean | string
   /** Vertical marker lines, such as release days. */
   markers?: GanttMarker[]
+  /**
+   * The dates as planned, from `takeBaseline`: each task shows a thin line
+   * under its bar where the plan had it, and reads out how far it moved.
+   */
+  baseline?: GanttBaselineItem[]
   /** Columns, rules, keys and layers added to the chart; see `defineGanttExtension`. */
   extensions?: (GanttExtension | GanttExtension[])[]
   /** Accessible name of the chart. */
@@ -164,6 +170,30 @@ export interface GanttSlots {
   bar?: (props: { task: GanttTask; row: GanttRow }) => unknown
   /** Drawn over the chart, e.g. a panel; it can call `useGantt()`. */
   default?: () => unknown
+}
+
+export interface GanttExportOptions {
+  /**
+   * `all` (the default): every row and the time all tasks cover. `view`:
+   * the rows and the time in view now.
+   */
+  range?: 'all' | 'view'
+  /** Draw the table beside the timeline. Defaults to whether it is shown. */
+  table?: boolean
+  /** The time scale to draw at; defaults to the current zoom. */
+  scale?: GanttScale
+}
+
+export interface GanttImageOptions extends GanttExportOptions {
+  /** Pixels per CSS pixel. Defaults to `2`, sharp on most screens and in print. */
+  pixelRatio?: number
+}
+
+export interface GanttPrintOptions {
+  /** Defaults to `landscape`. */
+  orientation?: 'landscape' | 'portrait'
+  /** Draw the table beside the timeline. Defaults to `true`. */
+  table?: boolean
 }
 
 export interface GanttExpose {
@@ -203,6 +233,17 @@ export interface GanttExpose {
   /** Widens the days by a step, keeping the middle of the view in place. */
   zoomIn: () => void
   zoomOut: () => void
+  /** The chart as an SVG document, in the current theme. */
+  exportSVG: (options?: GanttExportOptions) => string
+  /** The chart as a PNG image. */
+  exportPNG: (options?: GanttImageOptions) => Promise<Blob>
+  /** The table as CSV, every task in order with the texts its columns show. */
+  exportCSV: () => string
+  /**
+   * Prints every row, scaled to the page width, with the header repeated on
+   * each page.
+   */
+  print: (options?: GanttPrintOptions) => void
 }
 
 export type { GanttScale }

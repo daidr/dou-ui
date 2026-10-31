@@ -3,7 +3,6 @@ import { watch, type Ref } from 'vue'
 import type { FlowMenuItem } from '../core/menu'
 import type { FlowEditorContext } from '../context'
 import { defineFlowExtension, type FlowExtension } from '../core/extension'
-import { defineEdgeType } from '../core/edge-types'
 import { createId, type FlowData, type FlowNode, type Point, type Rect } from '../core/model'
 import { defineNodeType, type NodeResize } from '../core/node-types'
 import { format, type FlowMessages } from '../locale'
@@ -24,6 +23,7 @@ import {
   whiteboardKeys,
 } from './model'
 import { imageFiles, insertImages, pickImages, type WhiteboardUpload } from './image'
+import { connectorEdge, connectorToolbar } from './connector'
 import { drawBoardNode } from './draw'
 import { turn } from './ink'
 import { drawInk, erase } from './pen'
@@ -131,31 +131,6 @@ export const imageNode = defineNodeType<WhiteboardImageData>({
   label: (node, t) => nameOf(t.board.image, node.data?.alt, t),
 })
 
-const ARROW = { length: 10, spread: 0.45 }
-const r2 = (v: number) => Math.round(v * 100) / 100
-
-/** A straight line from anchor to anchor, ending in an open arrow. */
-const p = (pt: Point) => `${r2(pt.x)} ${r2(pt.y)}`
-
-export const connectorEdge = defineEdgeType({
-  type: 'connector',
-  route(source, target) {
-    const dx = target.x - source.x
-    const dy = target.y - source.y
-    const angle = Math.atan2(dy, dx)
-    const wing = (spread: number) => ({
-      x: target.x - ARROW.length * Math.cos(angle + spread),
-      y: target.y - ARROW.length * Math.sin(angle + spread),
-    })
-    const a = wing(ARROW.spread)
-    const b = wing(-ARROW.spread)
-    return {
-      path: `M${p(source)}L${p(target)}M${p(a)}L${p(target)}L${p(b)}`,
-      label: { x: (source.x + target.x) / 2, y: (source.y + target.y) / 2 },
-    }
-  },
-})
-
 /** The node type and data each drawing tool adds. */
 function kindOf(tool: WhiteboardShapeTool): { type: string; data: FlowData } {
   if (tool === 'sticky' || tool === 'text') return { type: tool, data: {} }
@@ -208,6 +183,7 @@ export function whiteboardKit(options: WhiteboardKitOptions = {}): FlowExtension
     name: 'whiteboard',
     nodeTypes: [shapeNode, stickyNode, textNode, inkNode, imageNode],
     edgeTypes: [connectorEdge],
+    edgeToolbarItems: connectorToolbar,
     edgeType: 'connector',
     layers: { above: [BoardDraft] },
     overlays: options.toolbar === false ? [] : [WhiteboardToolbar],
@@ -425,3 +401,5 @@ export function whiteboardKit(options: WhiteboardKitOptions = {}): FlowExtension
     },
   })
 }
+
+export { connectorEdge }

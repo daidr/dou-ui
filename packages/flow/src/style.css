@@ -101,6 +101,11 @@
       stroke: var(--dou-color-danger);
       stroke-dasharray: 4 3;
     }
+    /* arrowheads and other marks are never dashed */
+    &.is-mark {
+      stroke-dasharray: none !important;
+      animation: none;
+    }
     /* the edge being drawn */
     &.is-preview {
       stroke: var(--dou-flow-editor-selected);
@@ -117,7 +122,7 @@
     pointer-events: stroke;
     cursor: pointer;
 
-    &:hover + .dou-flow-editor__edge:not(.is-selected) {
+    &:hover ~ .dou-flow-editor__edge:not(.is-selected) {
       stroke: var(--dou-flow-editor-edge-hover);
     }
   }

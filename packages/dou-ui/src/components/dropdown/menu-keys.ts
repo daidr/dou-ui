@@ -1,6 +1,6 @@
 /** The enabled items of a menu, in order. */
 export const menuItems = (menu: HTMLElement | null | undefined) =>
-  [...(menu?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])].filter(
+  [...(menu?.querySelectorAll<HTMLElement>('[role^="menuitem"]') ?? [])].filter(
     (item) => item.getAttribute('aria-disabled') !== 'true',
   )
 

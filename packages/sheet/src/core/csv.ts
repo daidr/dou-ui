@@ -193,7 +193,7 @@ export interface SheetCSVWriteOptions {
 const FORMULA_START = /^[=+\-@\t\r]/
 
 /** Where a sheet has data: up to its last row and column with something in them. */
-function dataBounds(sheet: SheetData): SheetBounds | null {
+export function dataBounds(sheet: SheetData): SheetBounds | null {
   let bottom = -1
   let right = -1
   sheet.cells.forEach((line, row) => {

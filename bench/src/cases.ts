@@ -1045,6 +1045,12 @@ export const cases: Record<string, Case> = {
     render: (n) => sheet(n),
     act: () => (window as any).sheet.value.select('A1:T100000'),
   },
+  // The whole sheet of n rows × 20 columns written as SVG: every cell's look read once per style.
+  'sheet-export-svg': {
+    render: (n) => sheet(n),
+    act: () => (window as any).sheet.value.exportSVG(),
+    budget: { 10_000: 1000 },
+  },
   // n records grouped 8 × 120 cities × 4 by 4 × 12 months, two values: read, summed up and drawn.
   pivot: {
     render: (n) => pivot(n),

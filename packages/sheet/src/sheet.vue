@@ -169,7 +169,12 @@ import SheetMenu from './components/sheet-menu.vue'
 import CellPanel from './components/cell-panel.vue'
 import { builtinCellTypes } from './cell-types'
 import { sheetContextKey, type SheetContext, type SheetEditInputOptions } from './context'
-import { resolveCellType, type SheetCellType, type SheetResolvedType } from './core/cell-type'
+import {
+  resolveCellType,
+  type SheetCellType,
+  type SheetDrawContext,
+  type SheetResolvedType,
+} from './core/cell-type'
 import { ruleMessage, SheetChecks } from './core/validation'
 import {
   cellMatcher,
@@ -182,6 +187,7 @@ import {
   resolveSheetExtensions,
   type ResolvedSheetExtensions,
   type SheetHistoryHandler,
+  type SheetUpdate,
 } from './core/extension'
 import { format } from './locale'
 import { fileIconOf } from './components/file-icons'
@@ -273,12 +279,14 @@ watch(
   () => toRaw(props.modelValue),
   (value) => {
     if (value === doc.value) return
+    const before = doc.value
     doc.value = value
     if (engine.doc !== value) engine.load(value)
     if (value !== sent) {
       // replaced from outside: the history no longer fits it
       history.clear()
       syncHistory()
+      updated(before, value, null)
     }
   },
 )
@@ -1104,6 +1112,8 @@ interface CellView {
   /** A cell type's own content, drawn instead of the text. */
   render?: SheetCellType['render']
   props?: Record<string, unknown>
+  /** A cell type's own content in pictures of the sheet, as SVG markup. */
+  draw?: (draw: SheetDrawContext) => string
   /** What screen readers read for a cell type's own content. */
   label?: string
   /** Why the value doesn't fit the cell's type; shown on hover and read out. */
@@ -1187,6 +1197,7 @@ function cellView(
   let text = ''
   let render: CellView['render']
   let renderProps: CellView['props']
+  let drawBox: CellView['draw']
   let label: string | undefined
   let problem: string | undefined
   let invalid = false
@@ -1251,6 +1262,12 @@ function cellView(
         renderProps = { value, text, setup, readonly: props.readonly }
         label = cellText(input, { sheet: on.key, row, col })
       }
+      // pictures only, where the grid draws the component; errors and empty cells show as text
+      if (definition.draw && !on.marks && !error && value != null && value !== '') {
+        const draw = definition.draw
+        const drawn = value
+        drawBox = (context) => draw(drawn, setup, context)
+      }
     }
     if (!problem) {
       const c = on.checks
@@ -1287,6 +1304,7 @@ function cellView(
     view.props = renderProps
     view.label = label
   }
+  if (drawBox) view.draw = drawBox
   if (problem) view.problem = problem
   if (invalid) view.invalid = true
   if (input && typeof input === 'object' && input.note) view.note = input.note
@@ -1549,6 +1567,15 @@ function apply(tr: SheetTransaction) {
   emit('update:modelValue', tr.doc)
   emit('transaction', tr)
   if (was && tr.doc.sheets[sheetIndex.value] !== was) followSheet(tr, sheetKey(was))
+  updated(tr.before, tr.doc, tr)
+}
+
+/** Tells the extensions' `update` of a change, the workbook already updated. */
+function updated(before: SheetWorkbook, after: SheetWorkbook, tr: SheetTransaction | null) {
+  const hooks = resolved.value.updates
+  if (!hooks.length) return
+  const update: SheetUpdate = { before, doc: after, transaction: tr }
+  for (const hook of hooks) hook(update, context)
 }
 
 /**
@@ -2634,6 +2661,10 @@ function rangeRect(b: SheetBounds): ViewRect | null {
   }
 }
 
+/** The extensions' layers keep to the cells, under the headers and the outlines. */
+const layerClip = computed(
+  () => `clip-path:inset(${headerHeight.value}px 0 0 ${headerWidth.value}px)`,
+)
 const rectStyle = (rect: ViewRect) =>
   `left:${rect.x}px;top:${rect.y}px;width:${rect.width}px;height:${rect.height}px;` +
   (['top', 'right', 'bottom', 'left'] as const)
@@ -3090,14 +3121,22 @@ function applyImport(book: SheetWorkbook, mode: SheetImportMode) {
  * when pasted.
  */
 function insertImport(book: SheetWorkbook) {
-  const cells = book.sheets[0]!.cells
+  // cells put in at the active cell are pasted, as far as the extensions go
+  let clip: { cells: SheetData['cells']; styles?: Record<string, SheetStyle> } | null = {
+    cells: book.sheets[0]!.cells,
+    styles: book.styles,
+  }
+  if (resolved.value.pasteTransforms.length)
+    clip = transformPaste({ cells: clip.cells.map((line) => line ?? []), styles: clip.styles })
+  if (!clip) return false
+  const cells = clip.cells
   const height = cells.length
   const width = Math.max(1, ...cells.map((line) => line?.length ?? 0))
   if (!height) return false
   const { row: top, col: left } = selection.value.active
   const changed = transact(
     (tr) => {
-      const styles = styleNames(tr, book.styles)
+      const styles = styleNames(tr, clip.styles)
       const types = typeNames(tr, book.types)
       const named = renameCells(cells, styles, types, new Map())
       for (let r = 0; r < height; r++)
@@ -3347,6 +3386,16 @@ function styleNames(tr: SheetTransaction, styles: Record<string, SheetStyle> | u
   return names
 }
 
+/** A clip as the extensions' `transformPaste` rewrite it; `null` when one stops it. */
+function transformPaste(clip: SheetClip) {
+  let out: SheetClip | null = clip
+  for (const transform of resolved.value.pasteTransforms) {
+    out = transform(out, context)
+    if (!out) return null
+  }
+  return out
+}
+
 /** Where a clip goes when pasted at the selection. */
 function pasteTargets(clip: SheetClip) {
   const height = clip.cells.length
@@ -3366,9 +3415,11 @@ function pasteTargets(clip: SheetClip) {
 function paste(given: SheetClip) {
   if (props.readonly) return announce(messages.value.readonly)
   if (!given.cells.length) return
+  const transformed = transformPaste(given)
+  if (!transformed?.cells.length) return
   const event: SheetPasteEvent = {
-    clip: given,
-    range: boundsRange(pasteTargets(given)[0]!),
+    clip: transformed,
+    range: boundsRange(pasteTargets(transformed)[0]!),
     defaultPrevented: false,
     preventDefault() {
       this.defaultPrevented = true
@@ -3382,7 +3433,10 @@ function paste(given: SheetClip) {
   const width = Math.max(1, ...clip.cells.map((line) => line.length))
   const ours = clip.from != null
   const mark = clipMark.value
-  const moving = clip.cut != null && mark?.cut === clip.cut ? mark : null
+  const cut = clip.cut != null && mark?.cut === clip.cut ? mark : null
+  // cut cells an extension rewrote can't move as they are: the source is
+  // emptied and the rewritten cells written, in the same step
+  const moving = cut && transformed === given ? cut : null
   const targets = moving
     ? [
         {
@@ -3400,6 +3454,12 @@ function paste(given: SheetClip) {
           { ...moving.bounds, sheet: moving.sheet },
           { row: targets[0]!.top, col: targets[0]!.left },
         )
+      }
+      if (cut) {
+        const b = cut.bounds
+        for (let r = b.top; r <= b.bottom; r++)
+          for (let c = b.left; c <= b.right; c++)
+            tr.setCell({ row: r, col: c, sheet: cut.sheet }, undefined)
       }
       const names = styleNames(tr, clip.styles)
       for (const t of targets)
@@ -3430,11 +3490,11 @@ function paste(given: SheetClip) {
             )
           }
     },
-    { action: moving ? 'cut' : 'paste' },
+    { action: cut ? 'cut' : 'paste' },
     view(),
-    !moving,
+    !cut,
   )
-  if (moving) clipMark.value = null
+  if (cut) clipMark.value = null
   const last = targets[targets.length - 1]!
   if (targets.length === 1)
     setSelection({ active: { row: last.top, col: last.left }, ranges: [boundsRange(last)] })
@@ -6326,6 +6386,14 @@ defineExpose<SheetExpose>({
           </div>
         </div>
         <div
+          v-if="resolved.layers.below.length"
+          class="dou-sheet__layer is-below"
+          :style="layerClip"
+          aria-hidden="true"
+        >
+          <component :is="layer" v-for="(layer, i) in resolved.layers.below" :key="i" />
+        </div>
+        <div
           v-for="mark in refRects"
           :key="mark.key"
           class="dou-sheet__ref"
@@ -6571,6 +6639,14 @@ defineExpose<SheetExpose>({
           @cancel="cancelNote"
           @hover="onNoteHover"
         />
+        <div
+          v-if="resolved.layers.above.length"
+          class="dou-sheet__layer is-above"
+          :style="layerClip"
+          aria-hidden="true"
+        >
+          <component :is="layer" v-for="(layer, i) in resolved.layers.above" :key="i" />
+        </div>
         <component :is="overlay" v-for="(overlay, i) in resolved.overlays" :key="i" />
         <div v-if="notice" class="dou-sheet__notice" role="status">{{ notice }}</div>
         <SheetMenu ref="menu" v-model:open="menuOpen" :items="menuItems" @select="runMenuItem" />

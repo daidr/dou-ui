@@ -1072,6 +1072,19 @@
     }
   }
 
+  /* the extensions' layers, on the cells: under the grid's marks, or over them */
+  .dou-sheet__layer {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    overflow: hidden;
+    pointer-events: none;
+
+    &.is-above {
+      z-index: 4;
+    }
+  }
+
   /* other people on the sheet: their selection, their cell and their name */
   .dou-sheet__peers {
     position: absolute;

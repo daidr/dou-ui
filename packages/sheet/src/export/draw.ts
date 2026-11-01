@@ -4,6 +4,9 @@
  * Plain SVG that design programs read, without `foreignObject`.
  */
 
+import type { Component } from 'vue'
+import type { SheetDrawContext, SheetDrawRect, SheetDrawTextOptions } from '../core/cell-type'
+
 /** The look of a cell's content, in plain colors. */
 export interface DrawLook {
   color: string
@@ -36,6 +39,8 @@ export interface DrawCell {
   merged?: boolean
   /** A select cell's value as a soft tag. */
   tag?: { background: string; color: string; border: string }
+  /** A cell type's own drawing, as SVG markup in the cell's own coordinates. */
+  draw?: (draw: SheetDrawContext) => string
 }
 
 /** The colors and font of the sheet, read from the page. */
@@ -72,6 +77,10 @@ export interface SheetDrawing {
   gridlines: boolean
   background: boolean
   theme: DrawTheme
+  /** Icons as SVG, for cell types' drawings; none without it. */
+  icon?: (icon: Component, box: SheetDrawRect, color: string) => string
+  /** CSS colors as SVG takes them, for cell types' drawings; as they are without it. */
+  color?: (value: string) => string
 }
 
 /** Measures text in a font, in px. */
@@ -218,6 +227,17 @@ export function drawSheet(drawing: SheetDrawing, measure: MeasureText) {
     const x = hx + cell.x
     const y = hy + cell.y
     const { look } = cell
+    if (cell.draw) {
+      const markup = cell.draw(drawContext(cell, drawing, measure))
+      if (!markup) continue
+      // in the cell's own coordinates, and kept to it as the grid keeps a cell's content
+      const id = `c${clips++}`
+      defs.push(
+        `<clipPath id="${id}"><rect width="${n(cell.width)}" height="${n(cell.height)}"/></clipPath>`,
+      )
+      out.push(`<g transform="translate(${n(x)} ${n(y)})" clip-path="url(#${id})">${markup}</g>`)
+      continue
+    }
     if (cell.check !== undefined) {
       const size = 14
       const bx = alignX(look.align, x, cell.width, size)
@@ -357,6 +377,59 @@ function mostCommon(list: string[]) {
     }
   }
   return best
+}
+
+/** What a cell type's `draw` gets for a cell. */
+function drawContext(
+  cell: DrawCell,
+  drawing: SheetDrawing,
+  measure: MeasureText,
+): SheetDrawContext {
+  const { theme } = drawing
+  const look = {
+    color: cell.look.color,
+    background: cell.look.background,
+    align: cell.look.align,
+    valign: cell.look.valign,
+    bold: cell.look.bold,
+    italic: cell.look.italic,
+    fontFamily: theme.fontFamily,
+    fontSize: theme.fontSize,
+  }
+  const text = (
+    value: string,
+    box: SheetDrawRect = { x: 0, y: 0, width: cell.width, height: cell.height },
+    options: SheetDrawTextOptions = {},
+  ) => {
+    const line = firstLine(value)
+    if (!line) return ''
+    const align = options.align ?? look.align
+    const valign = options.valign ?? look.valign
+    const size = options.size ?? look.fontSize
+    const bold = options.bold ?? look.bold
+    const italic = options.italic ?? look.italic
+    const width = measure(
+      line,
+      `${italic ? 'italic ' : ''}${bold ? theme.boldWeight : '400'} ${size}px ${theme.fontFamily}`,
+    )
+    const x = alignX(align, box.x, box.width, width)
+    const y = alignY(valign, box.y, box.height, size * LINE_HEIGHT) + (size * LINE_HEIGHT) / 2
+    let attrs = ` fill="${options.color ?? look.color}"`
+    if (size !== theme.fontSize) attrs += ` font-size="${n(size)}"`
+    if (bold) attrs += ` font-weight="bold"`
+    if (italic) attrs += ` font-style="italic"`
+    return `<text x="${n(x)}" y="${n(y)}" dominant-baseline="central"${attrs}>${escapeXML(line)}</text>`
+  }
+  return {
+    width: cell.width,
+    height: cell.height,
+    formatted: cell.text,
+    look,
+    text,
+    icon: drawing.icon ?? (() => ''),
+    color: drawing.color ?? ((value) => value),
+    escape: escapeXML,
+  }
 }
 
 function textAttrs(look: DrawLook) {

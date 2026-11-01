@@ -3000,14 +3000,23 @@ function onKeydown(event: KeyboardEvent) {
     return
   }
   const horizontal = !!props.horizontal
-  // a funnel's stages and a radar's spokes go one way: every arrow moves on (right, down) or back
-  const single = funnel.value || radar.value
-  const along: Record<string, number> = single
-    ? { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }
+  // the arrows along the x axis move on (right and down) or back (left and up);
+  // the other two change series, where there is another to go to (points of
+  // several series, a heatmap's rows), else they move on and back too
+  const switches =
+    !pie.value &&
+    !tree.value &&
+    !funnel.value &&
+    !radar.value &&
+    trigger.value !== 'axis' &&
+    (series.value.length > 1 || series.value.some((s) => s.kind.categoryY))
+  const forth = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }
+  const along: Record<string, number> = !switches
+    ? forth
     : horizontal
       ? { ArrowDown: 1, ArrowUp: -1 }
       : { ArrowRight: 1, ArrowLeft: -1 }
-  const between: Record<string, number> = single
+  const between: Record<string, number> = !switches
     ? {}
     : horizontal
       ? { ArrowRight: 1, ArrowLeft: -1 }
@@ -3015,7 +3024,12 @@ function onKeydown(event: KeyboardEvent) {
   const step =
     along[event.key] ?? (event.key === 'Home' ? -Infinity : event.key === 'End' ? Infinity : 0)
   const turn = between[event.key] ?? 0
-  if (step && event.shiftKey && brushPart.value && brushAxes.value.x && !pie.value) {
+  // a selection with Shift grows along x: only the arrows that point along it
+  const xArrow = horizontal
+    ? event.key === 'ArrowDown' || event.key === 'ArrowUp'
+    : event.key === 'ArrowRight' || event.key === 'ArrowLeft'
+  const brushing = event.shiftKey && brushPart.value && brushAxes.value.x && !pie.value
+  if (brushing && step && (xArrow || !event.key.startsWith('Arrow'))) {
     event.preventDefault()
     brushWithKeys(step)
     return

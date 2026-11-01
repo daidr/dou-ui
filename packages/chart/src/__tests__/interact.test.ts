@@ -261,6 +261,33 @@ describe('tooltip', () => {
     wrapper.unmount()
   })
 
+  it('moves on with right and down, back with left and up, in a horizontal chart too', async () => {
+    for (const horizontal of [false, true]) {
+      const { wrapper, root } = await sized(() =>
+        h(DouChart, { data: sales, x: 'q', height: 300, horizontal }, () => [
+          h(DouChartBar, { y: 'a', name: '线上' }),
+        ]),
+      )
+      const title = () => wrapper.find('.dou-chart__tooltip-title').text()
+      key(root, 'ArrowRight')
+      await nextTick()
+      expect(title()).toBe('一季度')
+      key(root, 'ArrowDown')
+      await nextTick()
+      expect(title()).toBe('二季度')
+      key(root, 'ArrowRight')
+      await nextTick()
+      expect(title()).toBe('三季度')
+      key(root, 'ArrowUp')
+      await nextTick()
+      expect(title()).toBe('二季度')
+      key(root, 'ArrowLeft')
+      await nextTick()
+      expect(title()).toBe('一季度')
+      wrapper.unmount()
+    }
+  })
+
   it('goes from point to point, and between series, for a scatter', async () => {
     const rows = [
       { x: 1, a: 5, b: 1 },

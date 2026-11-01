@@ -208,6 +208,55 @@ describe('bars', () => {
     for (const label of values.labels)
       expect(label.top).toBe(layout.plot.y + layout.plot.height + 8)
   })
+
+  it('keeps value labels apart on a narrow chart, even with more ticks asked', () => {
+    const rows = [
+      { k: '陆家嘴店', v: 186.4 },
+      { k: '五角场店', v: 97.5 },
+    ]
+    const model = buildModel([input(0, { y: 'v' })], { data: rows, x: 'k' })
+    const apart = (ticks: number | undefined, width: number) => {
+      const labels = layoutChart({
+        model,
+        horizontal: true,
+        axes: {
+          x: axis('left'),
+          y: axis('bottom', { ticks, format: (v: unknown) => `${v} 万元` }),
+          y2: null,
+        },
+        width,
+        height: 240,
+        locale: 'zh-CN',
+        measure,
+      }).y.y!.labels
+      expect(labels.length).toBeGreaterThan(1)
+      for (let i = 1; i < labels.length; i++)
+        expect(labels[i]!.left).toBeGreaterThanOrEqual(labels[i - 1]!.left + labels[i - 1]!.width)
+      return labels.length
+    }
+    apart(undefined, 320)
+    expect(apart(8, 320)).toBeLessThan(8)
+    // wide enough: as many as asked, about
+    expect(apart(4, 900)).toBeGreaterThanOrEqual(4)
+  })
+
+  it('keeps value labels apart down a short chart, even with more ticks asked', () => {
+    const rows = [
+      { k: 'a', v: 1 },
+      { k: 'b', v: 100 },
+    ]
+    const model = buildModel([input(0, { y: 'v' })], { data: rows, x: 'k' })
+    const labels = layoutChart({
+      model,
+      axes: { x: axis('bottom'), y: axis('left', { ticks: 20 }), y2: null },
+      width: 400,
+      height: 120,
+      locale: 'zh-CN',
+      measure,
+    }).y.y!.labels
+    for (let i = 1; i < labels.length; i++)
+      expect(Math.abs(labels[i]!.top - labels[i - 1]!.top)).toBeGreaterThanOrEqual(16)
+  })
 })
 
 const lay = (rows: Record<string, unknown>[], height = 300) =>

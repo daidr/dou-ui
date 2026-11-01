@@ -69,6 +69,9 @@ const isAbort = (error: unknown) =>
  */
 export function createSourceStore(sources: () => DashboardSources | undefined) {
   const entries = new Map<string, Entry>()
+  // nothing loads while rendering on the server: the page is sent before a
+  // load could finish, and a refresh timer would keep the server process alive
+  const server = typeof window === 'undefined'
   let hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden'
 
   function onVisibility() {
@@ -158,6 +161,18 @@ export function createSourceStore(sources: () => DashboardSources | undefined) {
     return { key: `${name}\u0000${stableKey(scoped)}`, scoped }
   }
 
+  /** Loads a newly shown entry, or schedules the refresh of a kept result. */
+  function start(entry: Entry) {
+    const status = entry.state.value.status
+    if (status === 'idle' || (status === 'error' && !entry.controller)) load(entry)
+    else if (entry.users === 1 && !entry.controller) {
+      const every = optionsOf(sources()?.[entry.name] ?? (() => undefined)).interval
+      // a kept result older than its refresh interval loads again
+      if (every && Date.now() - entry.loadedAt >= every) load(entry, true)
+      else schedule(entry)
+    }
+  }
+
   /**
    * Starts showing a source with the filters in effect; loads it unless a
    * result (or a load) for the same source and filters is there already.
@@ -181,14 +196,8 @@ export function createSourceStore(sources: () => DashboardSources | undefined) {
       entries.set(key, entry)
     }
     entry.users++
-    const status = entry.state.value.status
-    if (status === 'idle' || (status === 'error' && !entry.controller)) load(entry)
-    else if (entry.users === 1 && !entry.controller) {
-      const every = optionsOf(sources()?.[name] ?? (() => undefined)).interval
-      // a kept result older than its refresh interval loads again
-      if (every && Date.now() - entry.loadedAt >= every) load(entry, true)
-      else schedule(entry)
-    }
+    // on the server it stays loading until the browser takes over
+    if (!server) start(entry)
     const used = entry
     let released = false
     return {

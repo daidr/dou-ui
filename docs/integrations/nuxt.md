@@ -34,7 +34,8 @@ function save() {
 
 模块做了这些事：
 
-- **组件**：`dou-ui` 的全部组件（`<DouButton>`、`<DouSelect>` 等）都能在模板里直接用，页面只打包它用到的组件。
+- **组件**：`dou-ui` 的全部组件（`<DouButton>`、`<DouSelect>` 等），以及已安装的生态系统包的组件（`<DouChart>`、`<DouEditor>` 等）都能在模板里直接用，页面只打包它用到的组件。
+- **图标**：安装了 `@dou-ui/icons` 时，图标组件（`<SearchIcon />` 等）也能直接用。
 - **指令**：注册 `v-loading` 与 `v-infinite-scroll`。
 - **函数**：自动导入 `toast`、`dialog`、`useDialog`、`useColorMode`、`useCountdown`、`useSortable`，以及 `vLoading`、`vInfiniteScroll`。
 - **样式**：默认引入全量样式表，也可以改成按组件引入。
@@ -50,20 +51,19 @@ export default defineNuxtConfig({
   modules: ['@dou-ui/nuxt'],
   douUI: {
     css: 'on-demand',
-    icons: true,
   },
 })
 ```
 
-| 选项         | 默认值   | 说明                                                                                        |
-| ------------ | -------- | ------------------------------------------------------------------------------------------- |
-| `css`        | `'full'` | 样式的引入方式：`'full'` 全量引入，`'on-demand'` 按组件引入，`false` 不引入，由应用自己处理 |
-| `components` | `true`   | 自动注册组件                                                                                |
-| `directives` | `true`   | 注册 `v-loading` 与 `v-infinite-scroll`                                                     |
-| `imports`    | `true`   | 自动导入函数                                                                                |
-| `icons`      | `false`  | 自动注册 `@dou-ui/icons` 的图标组件，如 `<SearchIcon />`（需要先安装它）                    |
-| `colorMode`  | `true`   | 在 `<head>` 里注入配色模式脚本。传入对象可以设置 `storageKey` 与 `initial`，`false` 关闭    |
-| `exclude`    | `[]`     | 不注册、不导入的名字，例如应用自己也定义了同名组件                                          |
+| 选项         | 默认值   | 说明                                                                                          |
+| ------------ | -------- | --------------------------------------------------------------------------------------------- |
+| `css`        | `'full'` | 样式的引入方式：`'full'` 全量引入，`'on-demand'` 按组件引入，`false` 不引入，由应用自己处理   |
+| `components` | `true`   | 自动注册组件，包括已安装的生态系统包的组件                                                    |
+| `directives` | `true`   | 注册 `v-loading` 与 `v-infinite-scroll`                                                       |
+| `imports`    | `true`   | 自动导入函数                                                                                  |
+| `icons`      | 自动     | 自动注册 `@dou-ui/icons` 的图标组件，如 `<SearchIcon />`。默认在安装了 `@dou-ui/icons` 时开启 |
+| `colorMode`  | `true`   | 在 `<head>` 里注入配色模式脚本。传入对象可以设置 `storageKey` 与 `initial`，`false` 关闭      |
+| `exclude`    | `[]`     | 不注册、不导入的名字，例如应用自己也定义了同名组件                                            |
 
 ### 样式
 
@@ -71,9 +71,29 @@ export default defineNuxtConfig({
 
 两种方式下，样式都由 Nuxt 在服务端渲染时写进页面，首屏不会出现无样式的闪烁。
 
+生态系统的包跟随同一个设置：`'full'` 时引入每个已安装包的 `style.css`；`'on-demand'` 时，用到包里的组件才引入这个包的样式入口 `@dou-ui/<包名>/style`。
+
+### 生态系统的包
+
+安装之后，包里的组件就能在模板里直接用，不需要额外配置：
+
+```sh
+bun add @dou-ui/chart
+```
+
+```vue
+<template>
+  <DouChart :data="visits" x="month">
+    <DouChartLine y="users" name="月活跃用户" />
+  </DouChart>
+</template>
+```
+
+有单独入口的组件从那个入口导入，例如 `<DouFormRenderer>` 从 `@dou-ui/form-builder/renderer` 导入，页面不会带上设计器。
+
 ### 图标
 
-图标默认不注册。打开 `icons` 前先安装图标库：
+安装了图标库，图标组件就会自动注册；不需要时设 `icons: false`：
 
 ```sh
 bun add @dou-ui/icons

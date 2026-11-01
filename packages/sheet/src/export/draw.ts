@@ -126,6 +126,15 @@ export function wrapLines(text: string, width: number, measure: (text: string) =
 }
 
 /** The sheet as an SVG document. */
+/** The size of the image a drawing makes, in CSS px. */
+export function drawingSize(drawing: SheetDrawing) {
+  let width = drawing.headerWidth
+  for (const w of drawing.colWidths) width += w
+  let height = drawing.headerHeight
+  for (const h of drawing.rowHeights) height += h
+  return { width, height }
+}
+
 export function drawSheet(drawing: SheetDrawing, measure: MeasureText) {
   const { theme, colWidths, rowHeights, headerWidth: hx, headerHeight: hy } = drawing
   const xs = [hx]

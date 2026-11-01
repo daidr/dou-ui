@@ -1,11 +1,12 @@
 import { visibleRange } from './decimate'
 import type { Painter } from './painter'
 import { baseline } from './scale'
-import type { ChartSeries, ChartSeriesKind, ChartView } from './series'
+import type { ChartLabelAnchor, ChartSeries, ChartSeriesKind, ChartView } from './series'
 
 export interface BarStyle {
   /** Corner radius of the bar's end, in px. */
   radius?: number
+  labelPosition?: 'outside' | 'inside'
 }
 
 /** The part of each x band that a group of bars takes, alone and side by side. */
@@ -176,10 +177,64 @@ function warnLog() {
   )
 }
 
+/** Bars narrower than this (px) get no labels: they couldn't be told apart. */
+const LABEL_WIDTH = 8
+
+/**
+ * Where bars' labels go: past each bar's end, or in its middle (stacked
+ * bars, by default), with the bar to fit in.
+ */
+export function barLabels(series: ChartSeries<BarStyle>, view: ChartView): ChartLabelAnchor[] {
+  const { x: sx, y: sy, horizontal } = view
+  const { offset, width } = barPlacement(view.band, series.slot)
+  if (width < LABEL_WIDTH) return []
+  const xs = series.x.values
+  const top = series.top
+  const base = series.base
+  const [from, to] = visibleRange(xs, series.x.sorted, sx.domain[0], sx.domain[1])
+  const inside =
+    (series.props.labelPosition ?? (series.stackEnds ? 'inside' : 'outside')) === 'inside'
+  const zero = baseline(sy)
+  // past its end, a label may take its bar's share of the x band, no more
+  const room = view.band / (series.slot?.count ?? 1)
+  const out: ChartLabelAnchor[] = []
+  for (let i = from; i < to; i++) {
+    const value = top[i]!
+    const x = xs[i]!
+    if (value !== value || x !== x) continue
+    const from0 = base ? base[i]! : 0
+    if (value === from0 || (sy.kind === 'log' && !(value > 0))) continue
+    const u = sx.map(x) + offset + width / 2
+    const v1 = sy.map(value)
+    const v0 = base ? sy.map(from0) : zero
+    const up = value > from0
+    if (inside) {
+      const lo = Math.min(v0, v1)
+      const length = Math.abs(v1 - v0)
+      const box = horizontal
+        ? { x: lo, y: u - width / 2, width: length, height: width }
+        : { x: u - width / 2, y: lo, width, height: length }
+      const middle = (v0 + v1) / 2
+      out.push({
+        index: i,
+        at: horizontal ? [middle, u] : [u, middle],
+        side: 'center',
+        box: { ...box, color: series.colors?.[i] ?? series.color },
+      })
+    } else {
+      // past the end away from 0: above a bar going up, below one going down
+      const side = horizontal ? (up ? 'right' : 'left') : up ? 'top' : 'bottom'
+      out.push({ index: i, at: horizontal ? [v1, u] : [u, v1], side, room })
+    }
+  }
+  return out
+}
+
 export const barKind: ChartSeriesKind<BarStyle> = {
   type: 'bar',
   zero: true,
   stackable: true,
   band: true,
   draw: drawBars,
+  labels: barLabels,
 }

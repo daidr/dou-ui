@@ -1,3 +1,4 @@
+import { HashIcon, TableIcon, TypeIcon } from '@dou-ui/icons'
 import { defineDashboardWidget } from '../widget/define'
 import type { DashboardWidgetType } from '../widget/define'
 import Stat from './stat.vue'
@@ -22,6 +23,7 @@ export function statWidget(overrides: WidgetOverrides<StatWidgetProps> = {}) {
   return defineDashboardWidget<StatWidgetProps>({
     type: 'stat',
     label: '统计数字',
+    icon: HashIcon,
     size: { w: 3, h: 2, minW: 2, minH: 2 },
     defaultProps: { value: 0 },
     component: Stat,
@@ -36,6 +38,7 @@ export function textWidget(overrides: WidgetOverrides<TextWidgetProps> = {}) {
   return defineDashboardWidget<TextWidgetProps>({
     type: 'text',
     label: '文字',
+    icon: TypeIcon,
     size: { w: 4, h: 2, minW: 2, minH: 1 },
     defaultProps: { text: '', size: 'md' },
     component: Text,
@@ -50,6 +53,7 @@ export function tableWidget(overrides: WidgetOverrides<TableWidgetProps> = {}) {
   return defineDashboardWidget<TableWidgetProps>({
     type: 'table',
     label: '表格',
+    icon: TableIcon,
     size: { w: 6, h: 4, minW: 3, minH: 3 },
     component: Table,
     settings: TableSettings,

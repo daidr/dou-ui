@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   holdPointer,
+  svgToPNG,
   useElementSize,
   useLocale,
   useNamespace,
@@ -28,6 +29,7 @@ import { numberFormatFull, numberTickFormat, timeFormatFull, timePrecision } fro
 import {
   layoutChart,
   layoutPie,
+  PIE_LABEL_ROOM,
   type AxisConfig,
   type AxisLayout,
   type ChartAxes,
@@ -45,9 +47,19 @@ import {
   type SeriesInput,
 } from './core/model'
 import { drawMarkers, placeMarkers, type MarkerColors, type MarkerInput } from './core/marker'
+import { barPlacement } from './core/bar'
+import {
+  contrast,
+  DATA_LABEL,
+  luminance,
+  placeDataLabels,
+  spread,
+  type DataLabelInput,
+  type PlacedDataLabel,
+} from './core/labels'
 import { crisp, type Painter, type Rect } from './core/painter'
 import { drawPie, FADED, pieSlices, type PieSlice } from './core/pie'
-import { categoryScale, linearScale, logScale, type Scale } from './core/scale'
+import { baseline, categoryScale, linearScale, logScale, type Scale } from './core/scale'
 import { escapeXml, isSvg, num, paintAttribute, SvgPainter } from './core/svg'
 import type { ChartColors, ChartHit, ChartSeries, ChartValueAxis, ChartView } from './core/series'
 import {
@@ -90,6 +102,7 @@ import type {
   ChartProps,
   ChartSelectEvent,
   ChartSlots,
+  ChartLabelFormat,
   ChartTooltipItem,
 } from './types'
 
@@ -182,6 +195,19 @@ function readTheme() {
 }
 
 let stopTheme: (() => void) | undefined
+
+/** A touch screen: the legend's rows go further apart, for a finger. */
+const coarse = ref(false)
+const coarseQuery =
+  typeof window === 'undefined' || !window.matchMedia
+    ? undefined
+    : window.matchMedia('(pointer: coarse)')
+const readCoarse = () => (coarse.value = !!coarseQuery?.matches)
+onMounted(() => {
+  readCoarse()
+  coarseQuery?.addEventListener?.('change', readCoarse)
+})
+onBeforeUnmount(() => coarseQuery?.removeEventListener?.('change', readCoarse))
 // a font that loads after the labels were measured makes them wider: measured again
 const fonts = typeof document === 'undefined' ? undefined : document.fonts
 onMounted(() => {
@@ -259,9 +285,24 @@ const axes = computed<ChartAxes>(() => {
     ? { x: 'left', y: 'bottom', y2: 'top' }
     : { x: 'bottom', y: 'left', y2: 'right' }
   const config = (role: ChartAxisRole, grid: boolean): AxisConfig => {
-    const { for: _, ...given } = declared[role] ?? ({} as Partial<AxisPart['props']>)
+    const {
+      for: _,
+      percent: share,
+      ...given
+    } = declared[role] ?? ({} as Partial<AxisPart['props']>)
     const position = places[role]
-    return { ...given, position, grid: given.grid ?? grid, hidden: given.hidden ?? false }
+    const out: AxisConfig = {
+      ...given,
+      position,
+      grid: given.grid ?? grid,
+      hidden: given.hidden ?? false,
+    }
+    // shares of a whole: up to 100%, written as percentages
+    if (share && role !== 'x') {
+      out.format ??= percentTicks.value.format
+      out.max ??= 1
+    }
+    return out
   }
   const y = declared.y || uses('y') || !uses('y2')
   return {
@@ -285,9 +326,50 @@ const model = computed(() => {
     x: props.x,
     xKind: type === 'log' ? 'linear' : type,
     axis: defaultAxis.value,
+    percent: { y: !!declaredAxes.value.y?.percent, y2: !!declaredAxes.value.y2?.percent },
   })
-  return reachMarkers(built)
+  return labelRoom(reachMarkers(built))
 })
+
+/** Percentages on the ticks of a `percent` axis: whole ones. */
+const percentTicks = computed(
+  () => new Intl.NumberFormat(locale.value.name, { style: 'percent', maximumFractionDigits: 0 }),
+)
+
+/** Room past the data on each value axis for labels outside bars and above points: a part of its span. */
+const LABEL_ROOM = 0.12
+
+/**
+ * The model with room on each value axis for data labels past the bars'
+ * ends and above the points, so the highest one isn't left out.
+ */
+function labelRoom(m: ChartModel): ChartModel {
+  const wanted = new Set<ChartValueAxis>()
+  for (const s of m.series) {
+    const p = s.input.props as { labels?: unknown; labelPosition?: string }
+    if (!p.labels || !s.input.kind.labels || p.labelPosition === 'end') continue
+    // in the bars (stacked ones by default): no room needed past them
+    if (p.labelPosition === 'inside' || (s.stackEnds && s.input.kind.band && !p.labelPosition))
+      continue
+    wanted.add(s.axis)
+  }
+  if (!wanted.size) return m
+  const y = { ...m.y }
+  for (const axis of wanted) {
+    const known = y[axis]
+    if (!known) continue
+    // the span as the axis shows it: from 0, when it grows from there
+    const zero = declaredAxes.value[axis]?.zero ?? m.zero[axis]
+    const lo = zero ? Math.min(known[0], 0) : known[0]
+    const hi = zero ? Math.max(known[1], 0) : known[1]
+    const span = hi - lo || Math.abs(hi) || 1
+    y[axis] = [
+      lo < 0 ? known[0] - span * LABEL_ROOM : known[0],
+      hi > 0 ? known[1] + span * LABEL_ROOM : known[1],
+    ]
+  }
+  return { ...m, y }
+}
 
 /** The model with each value axis reaching the markers' values on it, so a target shows. */
 function reachMarkers(m: ChartModel): ChartModel {
@@ -496,6 +578,30 @@ function toggle(index: number) {
 /** The legend entry the pointer or focus is on: its series is brought forward. */
 const focused = ref<number | null>(null)
 
+/**
+ * Shows only the entry's series (or slice), or all of them again when it
+ * already is the only one: its legend entry clicked with Alt, held down on
+ * a touch screen, or Alt+Enter.
+ */
+function isolate(index: number) {
+  const pieChart = pie.value
+  if (pieChart) {
+    const slice = slices.value[index]
+    if (!slice) return
+    const alone = shownSlices.value.length === 1 && !slice.hidden
+    pieChart.hidden.value = alone
+      ? []
+      : slices.value.filter((other) => other !== slice).map((other) => other.label)
+  } else {
+    const parts = seriesParts.value
+    const part = parts[index]
+    if (!part) return
+    const alone = !part.hidden.value && parts.every((p) => p === part || p.hidden.value)
+    for (const p of parts) p.hidden.value = alone ? false : p !== part
+  }
+  focused.value = null
+}
+
 /* zoom: the stretch of x (and of the values) shown */
 
 const zoomPart = computed(() => (!pie.value && zoomParts.value[0]) || null)
@@ -676,8 +782,10 @@ const layout = computed(() => {
     locale: locale.value.name,
     measure,
     legend: legendEntries.value.map((entry) => entry.text),
+    coarse: coarse.value,
     zoom: { x: xWindow.value, y: zoomAxes.value.y ? yWindow.value : null },
     strip: !!rangePart.value && !empty.value,
+    trailing: endLabelRoom.value,
   })
 })
 
@@ -691,6 +799,8 @@ const pieLayout = computed(() => {
     height,
     measure,
     legend: legendEntries.value.map((entry) => entry.text),
+    coarse: coarse.value,
+    sideLabels: pieLabelsOutside.value ? pieSideWidths.value : undefined,
   })
 })
 
@@ -756,6 +866,351 @@ const markerLabels = computed(() =>
       : [],
   ),
 )
+
+/* data labels: values written by the points and on the bars */
+
+type LabelProps = {
+  labels?: boolean | ChartLabelFormat
+  labelPosition?: string
+  lineWidth?: number
+  dots?: boolean | 'auto'
+}
+
+/** The text of a data label, or `null` for none. */
+function labelText(s: ChartSeries, row: number): string | null {
+  const given = (s.props as LabelProps).labels
+  const value = s.y[row]!
+  if (value !== value) return null
+  const share =
+    s.stackEnds && declaredAxes.value[s.axis]?.percent
+      ? Math.abs(s.top[row]! - s.base![row]!)
+      : undefined
+  if (typeof given === 'function') {
+    const text = given({
+      value,
+      share,
+      low: s.base && !s.stackEnds ? s.base[row] : undefined,
+      name: s.name,
+      row: rowOf(s.rows, row),
+      index: row,
+    })
+    return text == null || text === '' ? null : String(text)
+  }
+  // a share, with a decimal as in the tooltip, unless the axis writes its own
+  if (share !== undefined) {
+    const own = declaredAxes.value[s.axis]?.format
+    return own ? own(share) : percent.value.format(share)
+  }
+  return valueText(s.axis)(value)
+}
+
+/** Series with labels at the end of their line: the room they need past the plot, in px. */
+const endLabelRoom = computed(() => {
+  if (pie.value || props.horizontal) return 0
+  let widest = 0
+  for (const part of seriesParts.value) {
+    const p = part.props as LabelProps
+    if (!p.labels || p.labelPosition !== 'end' || part.hidden.value) continue
+    const s = series.value.find((x) => x.props === part.props)
+    if (!s) continue
+    for (let i = s.y.length - 1; i >= 0; i--) {
+      const text = s.y[i] === s.y[i] ? labelText(s, i) : null
+      if (text === null) continue
+      widest = Math.max(widest, measure(text))
+      break
+    }
+  }
+  return widest ? Math.ceil(widest) + 8 : 0
+})
+
+/* a pie's labels */
+
+/** The most of the chart's width a pie's labels outside may take, each side. */
+const PIE_LABEL_SHARE = 0.26
+
+/**
+ * The smallest a pie gets to keep its labels outside: a share of its size
+ * without them, or a radius in px that still reads. Smaller, they go inside.
+ */
+const PIE_LEAST = 0.6
+const PIE_LEAST_RADIUS = 48
+
+/** Each slice's label: its own text, given by a function; else its name and share. `null` for none. */
+const pieLabelParts = computed<Array<{ text?: string; name: string; share: string } | null>>(() => {
+  const part = pie.value
+  const given = part?.props.labels
+  if (!part || !given) return []
+  return slices.value.map((slice) => {
+    if (slice.hidden) return null
+    const share = percent.value.format(slice.share)
+    if (typeof given !== 'function') return { name: slice.label, share }
+    const text = given({
+      value: slice.value,
+      share: slice.share,
+      name: slice.label,
+      row: rowOf(part.props.data ?? props.data, slice.index),
+      index: slice.index,
+    })
+    return text == null || text === '' ? null : { text: String(text), name: slice.label, share }
+  })
+})
+
+const outsideText = (p: { text?: string; name: string; share: string }) =>
+  p.text ?? `${p.name} ${p.share}`
+
+/** Which side of the pie a slice's label goes, outside it. */
+const sideOf = (slice: { start: number; end: number }) =>
+  Math.sin((slice.start + slice.end) / 2) >= 0 ? 'right' : 'left'
+
+/** The widest label outside the pie on each side, at most a share of the chart's width. */
+const pieSideWidths = computed(() => {
+  const widths = { left: 0, right: 0 }
+  const cap = size.width.value * PIE_LABEL_SHARE
+  slices.value.forEach((slice, k) => {
+    const p = pieLabelParts.value[k]
+    if (!p || !(slice.end > slice.start)) return
+    const side = sideOf(slice)
+    widths[side] = Math.max(widths[side], Math.ceil(Math.min(cap, measure(outsideText(p)))))
+  })
+  return widths
+})
+
+/**
+ * Whether the pie's labels go outside it: as asked (the default), unless
+ * the room they take would leave the pie too small; then inside, where
+ * slices fit them.
+ */
+const pieLabelsOutside = computed(() => {
+  const part = pie.value
+  if (!part?.props.labels || (part.props.labelPosition ?? 'outside') !== 'outside') return false
+  const width = size.width.value
+  const height = size.height.value
+  if (!width || !height) return true
+  void themeVersion.value
+  const base = {
+    width,
+    height,
+    measure,
+    legend: legendEntries.value.map((entry) => entry.text),
+    coarse: coarse.value,
+  }
+  const alone = layoutPie(base).radius
+  const radius = layoutPie({ ...base, sideLabels: pieSideWidths.value }).radius
+  return radius >= Math.min(alone * PIE_LEAST, PIE_LEAST_RADIUS)
+})
+
+/** Each slice's label text, by its place in `slices`; `null` for none. */
+const pieTexts = computed<Array<string | null>>(() => {
+  const outside = pieLabelsOutside.value
+  return pieLabelParts.value.map((p) =>
+    !p ? null : outside ? outsideText(p) : (p.text ?? p.share),
+  )
+})
+
+/** A line from a slice out to its label, in px. */
+type Leader = Array<[number, number]>
+
+/** The pie's labels, and the lines out to those outside it. */
+const pieLabels = computed(() => {
+  const l = pieLayout.value
+  const texts = pieTexts.value
+  const out: {
+    labels: Array<PlacedDataLabel & { ink?: string; width?: number; full?: string }>
+    leaders: Leader[]
+  } = {
+    labels: [],
+    leaders: [],
+  }
+  if (!l || !texts.length || empty.value) return out
+  void themeVersion.value
+  const { cx, cy, radius } = l
+  const list = slices.value
+  if (!pieLabelsOutside.value) {
+    // in each slice, in the middle of its ring: where it fits
+    const inner = radius * holeRatio.value
+    const at = inner > 0 ? (radius + inner) / 2 : radius * 0.62
+    const thickness = radius - inner
+    list.forEach((slice, k) => {
+      const text = texts[k]
+      if (!text || !(slice.end > slice.start)) return
+      const width = measure(text)
+      const arc = (slice.end - slice.start) * at
+      if (arc < width + 8 || thickness < DATA_LABEL + 4) return
+      const middle = (slice.start + slice.end) / 2
+      out.labels.push({
+        key: `slice:${slice.index}`,
+        series: -1,
+        text,
+        left: cx + Math.sin(middle) * at,
+        top: cy - Math.cos(middle) * at - DATA_LABEL / 2,
+        align: 'middle',
+        on: sliceColors.value[k],
+        ink: inkOn(sliceColors.value[k]!),
+      })
+    })
+    return out
+  }
+  // outside: a column of labels either side, each joined to its slice by a line
+  const widths = pieSideWidths.value
+  // the pie's own room, above the legend, less a little at the edges
+  const room = { top: EDGE_ROOM, bottom: cy * 2 - EDGE_ROOM }
+  const sides: Record<'left' | 'right', Array<{ k: number; y: number; middle: number }>> = {
+    left: [],
+    right: [],
+  }
+  list.forEach((slice, k) => {
+    if (!texts[k] || !(slice.end > slice.start)) return
+    const middle = (slice.start + slice.end) / 2
+    const side = sideOf(slice)
+    sides[side].push({ k, y: cy - Math.cos(middle) * (radius + 10), middle })
+  })
+  const capacity = Math.max(1, Math.floor((room.bottom - room.top) / DATA_LABEL))
+  for (const side of ['left', 'right'] as const) {
+    let items = sides[side]
+    // too many to fit: the smallest slices go without
+    if (items.length > capacity) {
+      const kept = [...items]
+      kept.sort((a, b) => list[b.k]!.share - list[a.k]!.share)
+      const keep = new Set(kept.slice(0, capacity))
+      items = items.filter((item) => keep.has(item))
+    }
+    const centers = spread(
+      items.map((item) => item.y),
+      DATA_LABEL,
+      room.top,
+      room.bottom,
+    )
+    const right = side === 'right'
+    const widest = widths[side]
+    const column = right ? cx + radius + PIE_LABEL_ROOM : cx - radius - PIE_LABEL_ROOM
+    items.forEach((item, n) => {
+      const y = centers[n]!
+      const sin = Math.sin(item.middle)
+      const cos = Math.cos(item.middle)
+      // out from the slice to the label's height, then straight across to it; the
+      // turn stays clear of the pie, so the line across doesn't run over it
+      const end = column + (right ? -4 : 4)
+      const clear = Math.sqrt(Math.max(0, (radius + 8) ** 2 - (y - cy) ** 2))
+      const reach = Math.max(Math.abs(sin) * (radius + 10), clear)
+      const turn = right ? Math.min(cx + reach, end) : Math.max(cx - reach, end)
+      out.leaders.push([
+        [cx + sin * (radius + 2), cy - cos * (radius + 2)],
+        [turn, y],
+        [end, y],
+      ])
+      const text = texts[item.k]!
+      const parts = pieLabelParts.value[item.k]!
+      const long = measure(text) > widest + 0.5
+      // longer than there is room for: the name is cut short, so the share still shows
+      const fitted =
+        long && parts.text === undefined
+          ? `${fitText(parts.name, widest - measure(` ${parts.share}`))} ${parts.share}`
+          : text
+      const cut = long && fitted === text
+      out.labels.push({
+        key: `slice:${list[item.k]!.index}`,
+        series: -1,
+        text: fitted,
+        left: column,
+        top: y - DATA_LABEL / 2,
+        align: right ? 'start' : 'end',
+        width: cut ? widest : undefined,
+        full: fitted === text ? undefined : text,
+      })
+    })
+  }
+  return out
+})
+
+/** Room kept clear at the chart's top and bottom edges, in px. */
+const EDGE_ROOM = 4
+
+/** Whether data labels show: not before the chart is first drawn, nor while it comes in. */
+const labelsShown = ref(false)
+
+/** The data labels, placed: the ends of lines first, then the bars', then the points'. */
+const dataLabels = computed<
+  Array<PlacedDataLabel & { ink?: string; width?: number; full?: string }>
+>(() => {
+  if (pie.value) return pieLabels.value.labels
+  const l = layout.value
+  if (!l || empty.value) return []
+  void themeVersion.value
+  const { plot } = l
+  const bounds: Rect = {
+    x: plot.x - 4,
+    y: plot.y - 4,
+    width: plot.width + 8,
+    height: plot.height + 8,
+  }
+  const ends: Array<{ input: DataLabelInput; s: ChartSeries }> = []
+  const bars: DataLabelInput[] = []
+  const points: DataLabelInput[] = []
+  for (const s of series.value) {
+    const p = s.props as LabelProps
+    if (!p.labels || !s.kind.labels) continue
+    const view = viewOf(s)
+    if (!view) continue
+    const lineWidth = p.lineWidth ?? 2
+    // past the dot, when there is one
+    const offset = s.kind.band ? 0 : Math.max(2.5, lineWidth + 0.5)
+    // above: a cap on how many, for a chart of very many points
+    for (const anchor of s.kind.labels(s, view).slice(0, 1000)) {
+      const text = labelText(s, anchor.index)
+      if (text === null) continue
+      const input: DataLabelInput = {
+        key: `${s.index}:${anchor.index}`,
+        series: s.index,
+        text,
+        anchor,
+        offset,
+      }
+      if (p.labelPosition === 'end') ends.push({ input, s })
+      else if (s.kind.band) bars.push(input)
+      else points.push(input)
+    }
+  }
+  const taken: Array<[number, number, number, number]> = []
+  const out: Array<PlacedDataLabel & { ink?: string }> = []
+  if (ends.length) {
+    // each line keeps its label: moved apart rather than left out
+    const centers = spread(
+      ends.map((e) => e.input.anchor.at[1]),
+      DATA_LABEL,
+      plot.y - 4,
+      plot.y + plot.height + 4,
+    )
+    ends.forEach(({ input, s }, k) => {
+      const left = input.anchor.at[0] + 4 + (input.offset ?? 0)
+      const top = centers[k]! - DATA_LABEL / 2
+      taken.push([left, top, left + measure(input.text), top + DATA_LABEL])
+      out.push({
+        key: input.key,
+        series: s.index,
+        text: input.text,
+        left,
+        top,
+        align: 'start',
+        ink: s.color,
+      })
+    })
+  }
+  for (const label of placeDataLabels(bars, bounds, measure, taken))
+    out.push({ ...label, ink: label.on && inkOn(label.on) })
+  out.push(...placeDataLabels(points, bounds, measure, taken))
+  return out
+})
+
+/** Text that reads on a bar of `color`: the page's text color or its surface, whichever stands out more. */
+function inkOn(color: string): string {
+  const bar = luminance(resolveColor(color))
+  const text = luminance(resolveColor('var(--dou-color-text)'))
+  const surface = luminance(resolveColor('var(--dou-chart-surface)'))
+  if (bar === null || text === null || surface === null) return 'var(--dou-color-text)'
+  return contrast(bar, text) >= contrast(bar, surface)
+    ? 'var(--dou-color-text)'
+    : 'var(--dou-chart-surface)'
+}
 
 const markerText = (tone: Tone) =>
   tone === 'neutral' ? 'var(--dou-color-text-secondary)' : `var(--dou-color-${tone}-text)`
@@ -860,6 +1315,55 @@ function hitAt(px: number, py: number): Target | null {
   return null
 }
 
+/** How near a line the pointer comes before its series is brought forward, in px. */
+const NEAR_LINE = 8
+
+/**
+ * The series under the pointer, brought forward while the tooltip shows
+ * all of them: the line it is near, or the bar or area it is over. A
+ * point picked on its own (a scatter's) brings its series forward too.
+ * `null` with a single series, or none under the pointer.
+ */
+const pointed = computed<number | null>(() => {
+  const a = active.value
+  if (!a?.pointer || pie.value || series.value.length < 2) return null
+  if (a.type === 'item') return a.series
+  if (a.type !== 'axis') return null
+  const along = alongX(a.pointer)
+  const value = alongY(a.pointer)
+  let near: { index: number; distance: number } | null = null
+  let over: number | null = null
+  for (const s of series.value) {
+    const row = rowAt(s.x.values, a.x)
+    const view = row < 0 ? null : viewOf(s)
+    const top = view ? s.top[row]! : Number.NaN
+    if (!view || top !== top) continue
+    const end = alongY(view.point(a.x, top))
+    if (s.kind.band) {
+      const { offset, width } = barPlacement(view.band, s.slot)
+      const u = view.x.map(a.x) + offset
+      const start = s.base ? view.y.map(s.base[row]!) : baseline(view.y)
+      if (
+        along >= u &&
+        along <= u + width &&
+        value >= Math.min(start, end) &&
+        value <= Math.max(start, end)
+      )
+        over = s.index
+      continue
+    }
+    const distance = Math.abs(value - end)
+    if (distance <= NEAR_LINE && (!near || distance < near.distance))
+      near = { index: s.index, distance }
+    // an area: over it, between its bottom and its top
+    if (s.kind.zero && !s.kind.band) {
+      const start = s.base ? view.y.map(s.base[row]!) : baseline(view.y)
+      if (value >= Math.min(start, end) && value <= Math.max(start, end)) over = s.index
+    }
+  }
+  return near?.index ?? over
+})
+
 /** The point of `s` nearest to `(px, py)`, within 12px. */
 function nearestOf(s: ChartSeries, view: ChartView, px: number, py: number): ChartHit | null {
   const xs = s.x.values
@@ -928,7 +1432,7 @@ function tipOf(a: Active | null): Tip | null {
       { name: axes.value.x.title ?? 'x', text: xText(x), value: m0x() ? x : undefined },
       {
         name: axes.value[s.axis]?.title ?? (s.axis === 'y2' ? 'y2' : 'y'),
-        text: valueText(s.axis)(y),
+        text: seriesText(s, a.row),
         value: y,
         color: s.colors?.[a.row] ?? s.color,
       },
@@ -957,6 +1461,10 @@ function tipOf(a: Active | null): Tip | null {
   const x = a.x
   const at = l.x.scale.map(x)
   const items: ChartTooltipItem[] = []
+  /** The series under the pointer, brought forward. */
+  const under = pointed.value
+  /** The series of each item. */
+  const owners: number[] = []
   const marks: Tip['marks'] = []
   let band = false
   for (const s of series.value) {
@@ -967,18 +1475,28 @@ function tipOf(a: Active | null): Tip | null {
     if (y !== y) continue
     items.push({
       name: s.name,
-      text: valueText(s.axis)(y),
+      text: seriesText(s, row),
       value: y,
       color: s.colors?.[row] ?? s.color,
       row: rowOf(s.rows, row),
     })
+    owners.push(s.index)
     if (s.kind.band) band = true
     else {
       const [left, top] = view.point(x, s.top[row]!)
-      marks.push({ left, top, color: s.colors?.[row] ?? s.color, radius: 4, ring: false })
+      marks.push({
+        left,
+        top,
+        color: s.colors?.[row] ?? s.color,
+        radius: 4,
+        ring: false,
+        faded: under !== null && s.index !== under,
+      })
     }
   }
   if (!items.length) return null
+  if (under !== null && items.length > 1)
+    for (let k = 0; k < owners.length; k++) if (owners[k] === under) items[k]!.active = true
   const crosshair = tooltipPart.value?.props.crosshair ?? true
   const room = band ? (viewOf(series.value[0]!)?.band ?? 0) : 1
   const across = (start: number, length: number): Rect =>
@@ -1004,6 +1522,7 @@ function tipOf(a: Active | null): Tip | null {
     x: rawX(x),
     title: xText(x),
     items,
+    focused: items.some((item) => item.active),
     anchor,
     clear: a.touch ? across(at - width / 2, width) : undefined,
     marks,
@@ -1817,6 +2336,9 @@ watch(
     seriesParts.value.map((part) => ({ ...part.props })),
     pie.value && { ...pie.value.props },
     focused.value,
+    pointed.value,
+    pieLabels.value,
+    labelsShown.value,
     pie.value && active.value,
     dimmed.value,
   ],
@@ -1944,6 +2466,8 @@ function startMotion(now: number) {
     for (const s of lastSeries) from.set(s.index, { top: s.top, base: s.base, ends: s.stackEnds })
     for (const slice of lastSlices) angles.set(slice.index, [slice.start, slice.end])
   }
+  // labels come in once the series have
+  if (first) labelsShown.value = false
   motion = {
     start: now,
     duration: first ? ENTER : UPDATE,
@@ -2056,6 +2580,7 @@ function draw() {
   // the next frame of the move
   if (done >= 1) motion = null
   else request()
+  if (!motion?.enter) labelsShown.value = true
 }
 
 /** Draws the pie; `still` leaves out what follows the pointer and the legend (an export). */
@@ -2077,6 +2602,18 @@ function paintPie(painter: Painter, t: number, sweep: number, still = false) {
     fade: legendFocus ? FADED : 0.56,
     sweep,
   })
+  // the lines out to the labels, once they show
+  const leaders = pieLabels.value.leaders
+  if (!leaders.length || !(still || labelsShown.value)) return
+  painter.save()
+  painter.strokeStyle = colors.value.baseline
+  painter.lineWidth = 1
+  painter.lineJoin = 'round'
+  painter.beginPath()
+  for (const line of leaders)
+    line.forEach(([x, y], k) => (k ? painter.lineTo(x, y) : painter.moveTo(x, y)))
+  painter.stroke()
+  painter.restore()
 }
 
 const holeRatio = computed(() => Math.min(0.95, Math.max(0, pie.value?.props.innerRadius ?? 0)))
@@ -2173,7 +2710,7 @@ function paint(painter: Painter, dpr: number, t: number, entering: number, still
   }
   const shown = shownSeries(t)
   if (!still) lastSeries = shown
-  const focus = still || focused.value === null ? -1 : focused.value
+  const focus = still ? -1 : (focused.value ?? pointed.value ?? -1)
   const fading = focus >= 0 && shown.some((s) => s.index === focus)
   const vector = isSvg(painter)
   /** Draws `s` faded, all at once; `false` where it can't be. */
@@ -2280,6 +2817,24 @@ function valueText(axis: ChartValueAxis): (value: number) => string {
   return axes.value[axis]?.format ?? numberFormatFull(locale.value.name)
 }
 
+/**
+ * A series' value at `row` as the tooltip writes it: a band's two ends, a
+ * share of a whole stack with its value, or the value as its axis shows it.
+ */
+function seriesText(s: ChartSeries, row: number): string {
+  const y = s.y[row]!
+  if (s.base && !s.stackEnds) {
+    const text = valueText(s.axis)
+    return format(messages.value.band, { from: text(s.base[row]!), to: text(y) })
+  }
+  if (s.stackEnds && axes.value[s.axis] && declaredAxes.value[s.axis]?.percent)
+    return format(messages.value.share, {
+      value: numberFormatFull(locale.value.name)(y),
+      share: percent.value.format(Math.abs(s.top[row]! - s.base![row]!)),
+    })
+  return valueText(s.axis)(y)
+}
+
 /** An x as the axis shows it, in full. */
 function xText(value: number): string {
   const m0 = model.value
@@ -2333,11 +2888,18 @@ const label = computed(() => {
   }
   const count = numberFormatFull(name)
   const parts = m0.series.map((s) => {
-    const range = extent(s.y)
+    let range = extent(s.y)
+    // a band reaches down to its bottom
+    const low = s.base && !s.stackEnds ? extent(s.base) : null
+    if (range && low) range = [Math.min(range[0], low[0]), Math.max(range[1], low[1])]
     if (!range) return format(m.seriesEmpty, { name: s.name })
     let points = 0
     for (let i = 0; i < s.y.length; i++) if (s.y[i] === s.y[i]) points++
-    const text = valueText(s.axis)
+    // a percent axis writes shares; the values themselves are read out
+    const text =
+      s.stackEnds && declaredAxes.value[s.axis]?.percent
+        ? numberFormatFull(name)
+        : valueText(s.axis)
     return format(m.series, {
       name: s.name,
       count: count(points),
@@ -2406,7 +2968,12 @@ const overlay: OverlayState = {
   // the pie's default slot
   center: () => pie.value?.center(),
   toggle,
+  isolate,
+  hint: computed(() => messages.value.legendHint),
   focus: (index) => (focused.value = index),
+  data: dataLabels,
+  dataShown: computed(() => labelsShown.value),
+  dataFocus: computed(() => (pie.value ? null : (focused.value ?? pointed.value))),
   markers: markerLabels,
   empty: computed(() => empty.value && !props.loading),
   emptyContent: () => (slots.empty?.() as VNodeChild) ?? messages.value.empty,
@@ -2814,6 +3381,22 @@ function drawSvg(
       )
     }
   }
+  // data labels, as the page shows them once they have come in
+  if (l && !empty.value) {
+    const ink = color('var(--dou-color-text-secondary)')
+    const weight = style?.getPropertyValue('--dou-font-weight-medium').trim() || '500'
+    for (const value of dataLabels.value) {
+      const text = value.width === undefined ? value.text : fitText(value.text, value.width)
+      texts.push(
+        svgText(text, value.left, value.top, {
+          color: value.ink ? color(value.ink) : ink,
+          size: 12,
+          anchor: value.align,
+          weight: value.on ? weight : undefined,
+        }),
+      )
+    }
+  }
   const on = color('var(--dou-color-text-secondary)')
   const off = color('var(--dou-color-text-disabled)')
   for (const item of legend.value) {
@@ -2826,31 +3409,17 @@ function drawSvg(
   svg.raw(texts.join(''))
 }
 
+const PNG_SOURCE = { scope: '@dou-ui/chart', hint: 'use a smaller padding or exportSVG()' }
+
 /** The chart as a PNG image, from its SVG. */
 async function exportPNG(options: ChartImageOptions = {}): Promise<Blob> {
-  const markup = exportSVG(options)
   const { width, height } = exportSize(options)
-  const ratio = options.pixelRatio ?? 2
-  const url = URL.createObjectURL(new Blob([markup], { type: 'image/svg+xml' }))
-  try {
-    const image = new Image()
-    image.src = url
-    await image.decode()
-    const sheet = document.createElement('canvas')
-    sheet.width = Math.max(1, Math.ceil(width * ratio))
-    sheet.height = Math.max(1, Math.ceil(height * ratio))
-    const ctx = sheet.getContext('2d')!
-    ctx.scale(ratio, ratio)
-    ctx.drawImage(image, 0, 0)
-    return await new Promise<Blob>((resolve, reject) =>
-      sheet.toBlob(
-        (blob) => (blob ? resolve(blob) : reject(new Error('[@dou-ui/chart] PNG export failed'))),
-        'image/png',
-      ),
-    )
-  } finally {
-    URL.revokeObjectURL(url)
-  }
+  return svgToPNG(exportSVG(options), {
+    width,
+    height,
+    pixelRatio: options.pixelRatio,
+    ...PNG_SOURCE,
+  })
 }
 
 defineExpose<ChartExpose>({ exportSVG, exportPNG })

@@ -23,7 +23,7 @@ app.use(DouFormRenderer)
 app.use(DouFormBuilder)
 ```
 
-只需要渲染表单、不需要设计器时，可以从 `@dou-ui/form-builder/renderer` 引入，打包时不会带上设计器的代码。
+只需要渲染表单、不需要设计器时，可以从 `@dou-ui/form-builder/renderer` 引入，打包时不会带上设计器的代码。样式也可以只引入 `@dou-ui/form-builder/renderer/style`，它带上渲染器用到的 `dou-ui` 组件样式，不含设计器的样式。
 
 ## 基础用法
 

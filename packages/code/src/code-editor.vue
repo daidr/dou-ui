@@ -81,6 +81,7 @@ import {
   searchText,
 } from './core/search'
 import { CodeHighlighter } from './language/highlighter'
+import { SyntaxWorkerClient } from './language/worker-client'
 import { format, useCodeMessages } from './locale'
 import CodeKeys from './code-keys.vue'
 import {
@@ -126,10 +127,12 @@ const props = withDefaults(defineProps<CodeEditorProps>(), {
   activeLine: true,
   tabSize: 2,
   language: undefined,
+  worker: null,
   closeBrackets: true,
   matchBrackets: true,
   searchable: true,
   wrap: false,
+  minimap: false,
   foldable: true,
   keys: true,
   messages: undefined,
@@ -240,7 +243,7 @@ function dispatch(tr: CodeTransaction): CodeTransactionResult | null {
   }
   if (!result.changes.empty) {
     if (composing.value) mapComposition(result.changes)
-    highlighter?.update(result.state.doc, result.changes)
+    syntaxChange(result.state.doc, result.changes)
     mapMatches(result.changes)
     updateWrap(before.doc, result.state.doc, result.changes)
     mapFolds(result.changes, result.state.doc)
@@ -438,7 +441,7 @@ function receive(next: string, given?: CodeText) {
     historyTick.value++
   }
   if (composing.value) mapComposition(result.changes)
-  highlighter?.update(result.state.doc, result.changes)
+  syntaxChange(result.state.doc, result.changes)
   updateWrap(result.before.doc, result.state.doc, result.changes)
   mapFolds(result.changes, result.state.doc)
   mapDiagnostics(result.changes, result.state.doc)
@@ -954,23 +957,36 @@ watch(wrapWidth, rebuildWrap, { immediate: true })
  * only where the text has been read already, so folding a whole long text
  * doesn't read all of it first.
  */
+const inStringOrComment = (pos: number) => {
+  const kind = syntaxAt(pos)
+  return kind === 'string' || kind === 'comment'
+}
+
 function foldEnd(n: number) {
+  return foldEnds()(n)
+}
+
+/**
+ * A function giving where folds end in the text as it is now, set up once
+ * for asking about many lines; `lines` holds the lines' texts when the
+ * caller has them.
+ */
+function foldEnds(texts?: readonly string[]) {
   const text = doc.value
   const hl = highlighter
-  const read = !!hl?.ready(n)
-  const language = props.language
-    ? ((read ? languageAt(text.line(n).from) : null) ?? props.language)
-    : null
-  return foldEndAt(text, n, {
-    brackets: language?.brackets,
-    tabSize: props.tabSize,
-    skip: read
-      ? (pos) => {
-          const kind = syntaxAt(pos)
-          return kind === 'string' || kind === 'comment'
-        }
-      : undefined,
-  })
+  const outer = props.language
+  const tabSize = props.tabSize
+  const lineOf = texts ? (k: number) => texts[k - 1]! : undefined
+  return (n: number) => {
+    const read = !!hl?.ready(n)
+    const language = outer ? ((read ? hl!.languageAt(n) : null) ?? outer) : null
+    return foldEndAt(text, n, {
+      brackets: language?.brackets,
+      tabSize,
+      skip: read ? inStringOrComment : undefined,
+      lineText: lineOf,
+    })
+  }
 }
 
 /** The lines that start a fold, from 1. */
@@ -1059,8 +1075,9 @@ const folding = {
     if (!props.foldable) return false
     const text = doc.value
     const next: CodeFold[] = []
+    const endOf = foldEnds(text.lineTexts(1, text.lines))
     for (let n = 1; n < text.lines; n++) {
-      const end = foldEnd(n)
+      const end = endOf(n)
       if (end === null) continue
       next.push({ from: text.line(n).to, to: text.line(end).to })
       n = end
@@ -1387,14 +1404,40 @@ let highlighter: CodeHighlighter | null = null
 /** Bumped when lines in view got their tokens in idle time. */
 const syntaxTick = ref(0)
 
+/** The worker reading ahead, with `worker`. */
+let syntaxWorker: SyntaxWorkerClient | null = null
+
 watch(
-  () => props.language,
-  (language) => {
+  [() => props.language, () => props.worker],
+  ([language, worker]) => {
     highlighter = language ? markRaw(new CodeHighlighter(language, doc.value, props.tabSize)) : null
+    syntaxWorker?.dispose()
+    syntaxWorker =
+      language && worker && typeof window !== 'undefined'
+        ? new SyntaxWorkerClient(worker, language, () => doc.value, props.tabSize, {
+            states(points) {
+              const hl = highlighter
+              if (!hl || hl.language !== language) return
+              hl.adopt(points)
+              syntaxTick.value++
+            },
+            unsupported() {
+              syntaxWorker = null
+              syntaxTick.value++
+            },
+          })
+        : null
     syntaxTick.value++
   },
   { immediate: true },
 )
+onBeforeUnmount(() => syntaxWorker?.dispose())
+
+/** Brings the colors along with a change of the text. */
+function syntaxChange(next: CodeText, changes: ChangeSet) {
+  highlighter?.update(next, changes)
+  syntaxWorker?.change(changes)
+}
 
 /** Gets the tokens of the lines in view, asking idle time for the ones too far ahead. */
 function syntaxLines(from: number, to: number): (n: number) => CodeLineTokens | null {
@@ -1402,7 +1445,8 @@ function syntaxLines(from: number, to: number): (n: number) => CodeLineTokens | 
   const hl = highlighter
   if (!hl) return () => null
   if (!hl.ready(to) && to - hl.frontier > SYNTAX_REACH) {
-    scheduleSyntax(to)
+    if (syntaxWorker) syntaxWorker.want(hl.frontier, to)
+    else scheduleSyntax(to)
     return (n) => (hl.ready(n) ? hl.line(n) : null)
   }
   return (n) => hl.line(n)
@@ -1410,21 +1454,24 @@ function syntaxLines(from: number, to: number): (n: number) => CodeLineTokens | 
 
 let syntaxJob = 0
 let syntaxUntil = 0
+/** Runs `task` when the page is idle, with how long it may take (ms). */
 const idle =
   typeof requestIdleCallback === 'function'
-    ? (task: () => void) => requestIdleCallback(task, { timeout: 100 })
-    : (task: () => void) => window.setTimeout(task, 16)
+    ? (task: (budget: number) => void) =>
+        requestIdleCallback((deadline) => task(deadline.timeRemaining()), { timeout: 100 })
+    : (task: (budget: number) => void) => window.setTimeout(() => task(8), 16)
 const cancelIdle = (id: number) =>
   typeof cancelIdleCallback === 'function' ? cancelIdleCallback(id) : clearTimeout(id)
 
 function scheduleSyntax(until: number) {
   syntaxUntil = Math.max(syntaxUntil, until)
   if (syntaxJob) return
-  syntaxJob = idle(() => {
+  syntaxJob = idle((budget) => {
     syntaxJob = 0
     const hl = highlighter
     if (!hl) return
-    hl.work(performance.now() + 8, syntaxUntil)
+    // the idle time there is, up to 20ms so a key pressed meanwhile waits little; some when it timed out
+    hl.work(performance.now() + Math.min(20, Math.max(4, budget - 1)), syntaxUntil)
     if (hl.ready(syntaxUntil)) {
       syntaxUntil = 0
       syntaxTick.value++
@@ -3780,6 +3827,214 @@ watch(following, (on) => {
   } else unfollow()
 })
 
+// ---------------------------------------------------------------- minimap
+
+/** Height of a row in the minimap, and width of a character, in px. */
+const MINI_ROW = 2
+const MINI_CELL = 1
+/** The minimap's width, padding included. */
+const MINI_WIDTH = 96
+const MINI_PAD = 6
+const minimapCanvas = ref<HTMLCanvasElement>()
+/** The editor's own width, minimap included. */
+const rootWidth = ref(0)
+const minimapOn = computed(() => !!props.minimap && mounted.value && rootWidth.value >= 480)
+
+/** Where the minimap is: the row at its top (fractional), and the part in view as a box. */
+const minimap = computed(() => {
+  if (!minimapOn.value) return null
+  const track = viewHeight.value
+  const lh = lineHeight.value || 1
+  const height = layout.value.total * MINI_ROW
+  const textTop = scrollTop.value * ratio.value
+  const first = rowAtTextY(Math.max(0, textTop - pad.y))
+  const last = rowAtTextY(Math.max(0, textTop + track - pad.y))
+  const range = Math.max(1, total.value + pad.y * 2 - track)
+  const progress = Math.min(1, Math.max(0, textTop / range))
+  const top = height > track ? progress * (height - track) : 0
+  const firstFraction = first + ((textTop - pad.y - rowTop(first)) / lh || 0)
+  return {
+    top,
+    track,
+    height,
+    slider: {
+      top: Math.max(0, firstFraction) * MINI_ROW - top,
+      height: Math.max(MINI_ROW * 4, (last - first + 1) * MINI_ROW),
+    },
+  }
+})
+
+/** Whether a character is drawn two cells wide: CJK, Hangul, full-width forms. */
+const isWideCode = (code: number) =>
+  (code >= 0x1100 && code <= 0x115f) ||
+  (code >= 0x2e80 && code <= 0xa4cf) ||
+  (code >= 0xac00 && code <= 0xd7a3) ||
+  (code >= 0xf900 && code <= 0xfaff) ||
+  (code >= 0xfe30 && code <= 0xfe4f) ||
+  (code >= 0xff00 && code <= 0xff60) ||
+  (code >= 0xffe0 && code <= 0xffe6)
+
+/** The token colors, read from the theme when it changes. */
+let miniColors: { key: string; text: string; types: string[] } | null = null
+function minimapColors(canvas: HTMLCanvasElement) {
+  const style = getComputedStyle(canvas)
+  const key = `${style.color}|${style.getPropertyValue('--dou-color-syntax-keyword')}`
+  if (miniColors?.key === key) return miniColors
+  const swatch = document.createElement('span')
+  swatch.style.display = 'none'
+  canvas.parentElement!.append(swatch)
+  const types = tokenTypes.map((type) => {
+    swatch.style.color = `var(--dou-color-syntax-${type}, currentColor)`
+    return getComputedStyle(swatch).color
+  })
+  swatch.remove()
+  miniColors = { key, text: style.color, types }
+  return miniColors
+}
+
+let miniFrame = 0
+function drawMinimap() {
+  miniFrame = 0
+  const canvas = minimapCanvas.value
+  const map = minimap.value
+  if (!canvas || !map) return
+  const dpr = window.devicePixelRatio || 1
+  const width = MINI_WIDTH
+  const height = map.track
+  if (canvas.width !== Math.round(width * dpr) || canvas.height !== Math.round(height * dpr)) {
+    canvas.width = Math.round(width * dpr)
+    canvas.height = Math.round(height * dpr)
+  }
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+  ctx.clearRect(0, 0, width, height)
+  const colors = minimapColors(canvas)
+  const text = doc.value
+  const lay = layout.value
+  const hl = highlighter
+  const cols = Math.floor((width - MINI_PAD * 2) / MINI_CELL)
+  const tab = props.tabSize
+  const firstRow = Math.max(0, Math.floor(map.top / MINI_ROW))
+  const lastRow = Math.min(lay.total - 1, Math.ceil((map.top + height) / MINI_ROW))
+  const mark = MINI_ROW * 0.75
+  ctx.globalAlpha = 0.7
+  let row = firstRow
+  while (row <= lastRow) {
+    const { n, sub } = lay.lineAtRow(row)
+    const rowText = text.lineText(n)
+    const breaks = wrapRows ? wrapOf(rowText).breaks : []
+    const tokens = hl && (hl.ready(n) || n - hl.frontier <= SYNTAX_REACH) ? hl.line(n) : null
+    const rowsHere = lay.rowsOf(n)
+    for (let k = sub; k < rowsHere && row <= lastRow; k++, row++) {
+      const start = k ? breaks[k - 1]! : 0
+      const end = k < breaks.length ? breaks[k]! : rowText.length
+      const y = row * MINI_ROW - map.top
+      let col = 0
+      let runFrom = -1
+      let runColor = ''
+      let t = 0
+      const flush = () => {
+        if (runFrom < 0) return
+        ctx.fillStyle = runColor
+        ctx.fillRect(MINI_PAD + runFrom * MINI_CELL, y, (col - runFrom) * MINI_CELL, mark)
+        runFrom = -1
+      }
+      for (let i = start; i < end && col < cols; i++) {
+        const code = rowText.charCodeAt(i)
+        if (code === 32 || code === 9) {
+          flush()
+          col += code === 9 ? tab - (col % tab) : 1
+          continue
+        }
+        let color = colors.text
+        if (tokens) {
+          while (t < tokens.length && tokens[t]! <= i) t += 2
+          const type = t < tokens.length ? tokens[t + 1]! : -1
+          if (type >= 0) color = colors.types[type]!
+        }
+        if (runFrom >= 0 && color !== runColor) flush()
+        if (runFrom < 0) {
+          runFrom = col
+          runColor = color
+        }
+        // CJK and other wide characters take two cells, as they do in the text
+        col += code >= 0x1100 && isWideCode(code) ? 2 : 1
+      }
+      flush()
+    }
+  }
+}
+function scheduleMinimap() {
+  if (!miniFrame && minimapOn.value) miniFrame = requestAnimationFrame(drawMinimap)
+}
+watch([minimap, doc, layout, syntaxTick, () => props.tabSize], () => scheduleMinimap(), {
+  flush: 'post',
+})
+// The colors come from the theme: switching it (a class on the page, or the system's) draws again.
+let themeWatch: (() => void) | null = null
+watch(minimapOn, (on) => {
+  themeWatch?.()
+  themeWatch = null
+  if (!on || typeof MutationObserver === 'undefined') return
+  const observer = new MutationObserver(scheduleMinimap)
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['class', 'style', 'data-theme'],
+  })
+  const dark = matchMedia?.('(prefers-color-scheme: dark)')
+  dark?.addEventListener?.('change', scheduleMinimap)
+  themeWatch = () => {
+    observer.disconnect()
+    dark?.removeEventListener?.('change', scheduleMinimap)
+  }
+})
+onBeforeUnmount(() => {
+  if (miniFrame) cancelAnimationFrame(miniFrame)
+  themeWatch?.()
+})
+
+/** Scrolls so that minimap row `row` is in the middle of the view. */
+function scrollToMiniRow(row: number) {
+  const el = scroller.value
+  if (!el) return
+  const lay = layout.value
+  const at = Math.max(0, Math.min(lay.total - 1, Math.floor(row)))
+  const y = pad.y + rowTop(at) - el.clientHeight / 2
+  el.scrollTop = Math.max(0, y / ratio.value)
+  onScroll()
+}
+
+let miniDrag: { y: number; scroll: number; pointer: number } | null = null
+function onMinimapDown(event: PointerEvent) {
+  const map = minimap.value
+  const canvas = event.currentTarget as HTMLElement
+  if (!map || event.button !== 0) return
+  event.preventDefault()
+  const box = canvas.getBoundingClientRect()
+  const y = event.clientY - box.top
+  // A press beside the mark goes there first; dragging then moves the mark.
+  if (y < map.slider.top || y > map.slider.top + map.slider.height)
+    scrollToMiniRow((map.top + y) / MINI_ROW)
+  miniDrag = { y: event.clientY, scroll: scroller.value?.scrollTop ?? 0, pointer: event.pointerId }
+  canvas.setPointerCapture?.(event.pointerId)
+}
+function onMinimapMove(event: PointerEvent) {
+  const map = minimap.value
+  const el = scroller.value
+  if (!miniDrag || !map || !el || event.pointerId !== miniDrag.pointer) return
+  const dy = event.clientY - miniDrag.y
+  const max = el.scrollHeight - el.clientHeight
+  // The mark follows the pointer: over a short text it moves with the rows, over a long one along the track.
+  const room =
+    map.height > map.track ? map.track - map.slider.height : map.height - map.slider.height
+  el.scrollTop = Math.max(0, Math.min(max, miniDrag.scroll + (dy * max) / Math.max(1, room)))
+  onScroll()
+}
+function onMinimapUp(event: PointerEvent) {
+  if (miniDrag?.pointer === event.pointerId) miniDrag = null
+}
+
 // ---------------------------------------------------------------- scrolling
 
 function onScroll() {
@@ -3853,13 +4108,16 @@ onMounted(() => {
   const el = scroller.value!
   viewHeight.value = el.clientHeight
   viewWidth.value = el.clientWidth
+  rootWidth.value = root.value?.clientWidth ?? 0
   if (typeof ResizeObserver !== 'undefined') {
     resize = new ResizeObserver(() => {
       viewHeight.value = el.clientHeight
       viewWidth.value = el.clientWidth
+      rootWidth.value = root.value?.clientWidth ?? 0
       updateClip()
     })
     resize.observe(el)
+    if (root.value) resize.observe(root.value)
   }
   updateClip()
   mounted.value = true
@@ -4065,155 +4323,198 @@ defineExpose<CodeEditorExpose>(api)
     <div v-if="panels.top.length" :class="[ns.e('panels'), ns.is('top', true)]">
       <RenderPart v-for="panel in panels.top" :key="panel.key" :render="panel.render" />
     </div>
-    <div ref="scroller" :class="ns.e('scroller')" @scroll.passive="onScroll">
-      <div
-        :class="ns.e('sizer')"
-        :style="{
-          height: `${sizerHeight}px`,
-          minWidth: `max(100%, ${contentWidth + gutterWidth}px)`,
-        }"
-      >
+    <div :class="ns.e('body')">
+      <div ref="scroller" :class="ns.e('scroller')" @scroll.passive="onScroll">
         <div
-          v-if="gutter && (lineNumbers || foldable || gutterCells)"
-          :class="ns.e('gutter')"
-          aria-hidden="true"
-          @pointerdown="onPointerDown($event, 'gutter')"
-          @pointermove="onPointerMove"
-          @pointerup="onPointerUp($event, 'gutter')"
-          @pointercancel="onPointerCancel"
-          @pointerenter="gutterHover = true"
-          @pointerleave="gutterHover = false"
-          @mousedown.prevent
+          :class="ns.e('sizer')"
+          :style="{
+            height: `${sizerHeight}px`,
+            minWidth: `max(100%, ${contentWidth + gutterWidth}px)`,
+          }"
         >
-          <div :class="ns.e('numbers')" :style="{ transform: `translateY(${yOf(visibleFrom)}px)` }">
-            <div
-              v-for="row in rows"
-              :key="row.n"
-              :class="[ns.e('number'), ns.is('active', row.n === activeLineNumber)]"
-              :style="{
-                height: row.wrapped.breaks.length
-                  ? `${(row.wrapped.breaks.length + 1) * lineHeight}px`
-                  : undefined,
-                marginTop: gapBefore(row.n) ? `${gapBefore(row.n)}px` : undefined,
-              }"
-            >
-              <span v-if="gutterCells" :class="ns.e('cells')">
-                <span
-                  v-for="(column, c) in gutterColumns"
-                  :key="column.name"
-                  :class="[ns.e('cell'), gutterMarkers[c]?.get(row.n)?.class]"
-                  :style="{ width: `${column.width}px` }"
-                  :title="gutterMarkers[c]?.get(row.n)?.title"
-                  :data-gutter-cell="column.onPress ? c : undefined"
-                  :data-line="row.n"
-                >
-                  <template v-if="gutterMarkers[c]?.get(row.n)">
-                    <component
-                      :is="gutterMarkers[c]!.get(row.n)!.icon"
-                      v-if="gutterMarkers[c]!.get(row.n)!.icon"
-                    />
-                    <template v-else>{{ gutterMarkers[c]!.get(row.n)!.text }}</template>
-                  </template>
-                </span>
-              </span>
-              <template v-if="lineNumbers">{{ row.n }}</template>
-              <span
-                v-if="foldable && (row.folded || foldableLines.has(row.n))"
-                :class="[ns.e('fold-toggle'), ns.is('folded', row.folded)]"
-                :data-fold="row.n"
-              >
-                <ChevronRightIcon v-if="row.folded" />
-                <ChevronDownIcon v-else />
-              </span>
-            </div>
-          </div>
-        </div>
-        <div
-          ref="content"
-          :class="ns.e('content')"
-          @pointerdown="onPointerDown($event, 'text')"
-          @pointermove="(onPointerMove($event), onContentHover($event))"
-          @pointerup="onPointerUp($event, 'text')"
-          @pointercancel="onPointerCancel"
-          @pointerleave="onContentLeave"
-          @mousedown.prevent
-        >
-          <div ref="probe" :class="ns.e('probe')" aria-hidden="true" />
           <div
-            v-if="activeLine && activeLineTop !== null && !disabled"
-            :class="ns.e('active-line')"
-            :style="{
-              transform: `translateY(${activeLineTop}px)`,
-              height: activeLineRows > 1 ? `${activeLineRows * lineHeight}px` : undefined,
-            }"
-          />
-          <div :class="ns.e('matches')" aria-hidden="true">
-            <div
-              v-for="box in matchBoxes"
-              :key="box.key"
-              :class="[ns.e('match'), ns.is('current', box.current)]"
-              :style="{
-                transform: `translate(${box.left}px, ${box.top}px)`,
-                width: `${box.width}px`,
-              }"
-            />
-          </div>
-          <div :class="ns.e('brackets')" aria-hidden="true">
-            <div
-              v-for="box in bracketBoxes"
-              :key="box.key"
-              :class="[ns.e('bracket'), ns.is('unmatched', !box.matched)]"
-              :style="{
-                transform: `translate(${box.left}px, ${box.top}px)`,
-                width: `${box.width}px`,
-              }"
-            />
-          </div>
-          <div :class="ns.e('selections')" aria-hidden="true">
-            <div
-              v-for="box in selectionBoxes"
-              :key="box.key"
-              :class="ns.e('selection')"
-              :style="{
-                transform: `translate(${box.left}px, ${box.top}px)`,
-                width: `${box.width}px`,
-              }"
-            />
-          </div>
-          <div
-            :class="ns.e('lines')"
+            v-if="gutter && (lineNumbers || foldable || gutterCells)"
+            :class="ns.e('gutter')"
             aria-hidden="true"
-            :style="{ transform: `translateY(${yOf(visibleFrom)}px)` }"
+            @pointerdown="onPointerDown($event, 'gutter')"
+            @pointermove="onPointerMove"
+            @pointerup="onPointerUp($event, 'gutter')"
+            @pointercancel="onPointerCancel"
+            @pointerenter="gutterHover = true"
+            @pointerleave="gutterHover = false"
+            @mousedown.prevent
           >
             <div
-              v-for="row in rows"
-              :key="row.n"
-              v-memo="[
-                row.text,
-                row.tokens,
-                row.compose?.join('\u0000'),
-                row.wrapped,
-                row.folded,
-                row.marksKey,
-                row.inlinesKey,
-                row.lineClass,
-                gapBefore(row.n),
-              ]"
-              :class="[ns.e('line'), ns.is('wrapped', !!row.wrapped.breaks.length), row.lineClass]"
-              :style="gapBefore(row.n) ? { marginTop: `${gapBefore(row.n)}px` } : undefined"
+              :class="ns.e('numbers')"
+              :style="{ transform: `translateY(${yOf(visibleFrom)}px)` }"
             >
-              <template v-if="row.compose"
-                >{{ row.compose[0] }}<span :class="ns.e('compose')">{{ row.compose[1] }}</span
-                >{{ row.compose[2] }}</template
+              <div
+                v-for="row in rows"
+                :key="row.n"
+                :class="[ns.e('number'), ns.is('active', row.n === activeLineNumber)]"
+                :style="{
+                  height: row.wrapped.breaks.length
+                    ? `${(row.wrapped.breaks.length + 1) * lineHeight}px`
+                    : undefined,
+                  marginTop: gapBefore(row.n) ? `${gapBefore(row.n)}px` : undefined,
+                }"
               >
-              <template v-else-if="row.wrapped.breaks.length"
-                ><div
-                  v-for="(_, sub) in row.wrapped.breaks.length + 1"
-                  :key="sub"
-                  :class="ns.e('row')"
-                  :style="sub ? { paddingLeft: `${row.wrapped.indent}px` } : undefined"
+                <span v-if="gutterCells" :class="ns.e('cells')">
+                  <span
+                    v-for="(column, c) in gutterColumns"
+                    :key="column.name"
+                    :class="[ns.e('cell'), gutterMarkers[c]?.get(row.n)?.class]"
+                    :style="{ width: `${column.width}px` }"
+                    :title="gutterMarkers[c]?.get(row.n)?.title"
+                    :data-gutter-cell="column.onPress ? c : undefined"
+                    :data-line="row.n"
+                  >
+                    <template v-if="gutterMarkers[c]?.get(row.n)">
+                      <component
+                        :is="gutterMarkers[c]!.get(row.n)!.icon"
+                        v-if="gutterMarkers[c]!.get(row.n)!.icon"
+                      />
+                      <template v-else>{{ gutterMarkers[c]!.get(row.n)!.text }}</template>
+                    </template>
+                  </span>
+                </span>
+                <template v-if="lineNumbers">{{ row.n }}</template>
+                <span
+                  v-if="foldable && (row.folded || foldableLines.has(row.n))"
+                  :class="[ns.e('fold-toggle'), ns.is('folded', row.folded)]"
+                  :data-fold="row.n"
                 >
-                  <template v-for="(part, i) in rowParts(row, sub)" :key="i"
+                  <ChevronRightIcon v-if="row.folded" />
+                  <ChevronDownIcon v-else />
+                </span>
+              </div>
+            </div>
+          </div>
+          <div
+            ref="content"
+            :class="ns.e('content')"
+            @pointerdown="onPointerDown($event, 'text')"
+            @pointermove="(onPointerMove($event), onContentHover($event))"
+            @pointerup="onPointerUp($event, 'text')"
+            @pointercancel="onPointerCancel"
+            @pointerleave="onContentLeave"
+            @mousedown.prevent
+          >
+            <div ref="probe" :class="ns.e('probe')" aria-hidden="true" />
+            <div
+              v-if="activeLine && activeLineTop !== null && !disabled"
+              :class="ns.e('active-line')"
+              :style="{
+                transform: `translateY(${activeLineTop}px)`,
+                height: activeLineRows > 1 ? `${activeLineRows * lineHeight}px` : undefined,
+              }"
+            />
+            <div :class="ns.e('matches')" aria-hidden="true">
+              <div
+                v-for="box in matchBoxes"
+                :key="box.key"
+                :class="[ns.e('match'), ns.is('current', box.current)]"
+                :style="{
+                  transform: `translate(${box.left}px, ${box.top}px)`,
+                  width: `${box.width}px`,
+                }"
+              />
+            </div>
+            <div :class="ns.e('brackets')" aria-hidden="true">
+              <div
+                v-for="box in bracketBoxes"
+                :key="box.key"
+                :class="[ns.e('bracket'), ns.is('unmatched', !box.matched)]"
+                :style="{
+                  transform: `translate(${box.left}px, ${box.top}px)`,
+                  width: `${box.width}px`,
+                }"
+              />
+            </div>
+            <div :class="ns.e('selections')" aria-hidden="true">
+              <div
+                v-for="box in selectionBoxes"
+                :key="box.key"
+                :class="ns.e('selection')"
+                :style="{
+                  transform: `translate(${box.left}px, ${box.top}px)`,
+                  width: `${box.width}px`,
+                }"
+              />
+            </div>
+            <div
+              :class="ns.e('lines')"
+              aria-hidden="true"
+              :style="{ transform: `translateY(${yOf(visibleFrom)}px)` }"
+            >
+              <div
+                v-for="row in rows"
+                :key="row.n"
+                v-memo="[
+                  row.text,
+                  row.tokens,
+                  row.compose?.join('\u0000'),
+                  row.wrapped,
+                  row.folded,
+                  row.marksKey,
+                  row.inlinesKey,
+                  row.lineClass,
+                  gapBefore(row.n),
+                ]"
+                :class="[
+                  ns.e('line'),
+                  ns.is('wrapped', !!row.wrapped.breaks.length),
+                  row.lineClass,
+                ]"
+                :style="gapBefore(row.n) ? { marginTop: `${gapBefore(row.n)}px` } : undefined"
+              >
+                <template v-if="row.compose"
+                  >{{ row.compose[0] }}<span :class="ns.e('compose')">{{ row.compose[1] }}</span
+                  >{{ row.compose[2] }}</template
+                >
+                <template v-else-if="row.wrapped.breaks.length"
+                  ><div
+                    v-for="(_, sub) in row.wrapped.breaks.length + 1"
+                    :key="sub"
+                    :class="ns.e('row')"
+                    :style="sub ? { paddingLeft: `${row.wrapped.indent}px` } : undefined"
+                  >
+                    <template v-for="(part, i) in rowParts(row, sub)" :key="i"
+                      ><span
+                        v-if="part[3] !== undefined"
+                        :ref="
+                          (el) =>
+                            observeInline(
+                              el as Element | null,
+                              row.inlines![part[3]!]!.key,
+                              row.inlines![part[3]!]!.width,
+                            )
+                        "
+                        :class="ns.e('inline')"
+                        :style="
+                          row.inlines![part[3]!]!.width !== undefined
+                            ? { width: `${row.inlines![part[3]!]!.width}px` }
+                            : undefined
+                        "
+                        ><RenderPart :render="row.inlines![part[3]!]!.render" /></span
+                      ><span
+                        v-else-if="part[1]"
+                        :class="part[1]"
+                        :title="part[2]"
+                        :style="part[4]"
+                        >{{ part[0] }}</span
+                      ><template v-else>{{ part[0] }}</template></template
+                    ><span
+                      v-if="row.folded && sub === row.wrapped.breaks.length"
+                      :class="ns.e('fold-marker')"
+                      :data-unfold="row.n"
+                      :title="messages.unfold"
+                      >⋯</span
+                    >
+                  </div></template
+                >
+                <template v-else-if="row.tokens || row.marks || row.inlines"
+                  ><template v-for="(part, i) in partsOf(row)" :key="i"
                     ><span
                       v-if="part[3] !== undefined"
                       :ref="
@@ -4235,296 +4536,285 @@ defineExpose<CodeEditorExpose>(api)
                       part[0]
                     }}</span
                     ><template v-else>{{ part[0] }}</template></template
-                  ><span
-                    v-if="row.folded && sub === row.wrapped.breaks.length"
-                    :class="ns.e('fold-marker')"
-                    :data-unfold="row.n"
-                    :title="messages.unfold"
-                    >⋯</span
-                  >
-                </div></template
+                  ></template
+                >
+                <template v-else>{{ row.text }}</template>
+                <span
+                  v-if="row.folded && !row.wrapped.breaks.length"
+                  :class="ns.e('fold-marker')"
+                  :data-unfold="row.n"
+                  :title="messages.unfold"
+                  >⋯</span
+                >
+              </div>
+            </div>
+            <div
+              v-if="placeholder && !doc.length && !composing"
+              :class="ns.e('placeholder')"
+              aria-hidden="true"
+            >
+              {{ placeholder }}
+            </div>
+            <div v-if="focused" :key="blink" :class="ns.e('cursors')" aria-hidden="true">
+              <div
+                v-for="cursor in cursors"
+                :key="cursor.key"
+                :class="ns.e('cursor')"
+                :style="{ transform: `translate(${cursor.left - 1}px, ${cursor.top}px)` }"
+              />
+            </div>
+            <div
+              v-for="handle in handles"
+              :key="handle.kind"
+              :class="[ns.e('handle'), ns.is(handle.kind, true)]"
+              :style="{ transform: `translate(${handle.left}px, ${handle.top}px)` }"
+              aria-hidden="true"
+              @pointerdown="onHandleDown($event, handle.kind)"
+            />
+            <div
+              v-if="magnifier"
+              :class="ns.e('magnifier')"
+              :style="magnifier.style"
+              aria-hidden="true"
+            >
+              <div
+                :class="ns.e('magnifier-text')"
+                :style="[magnifier.textStyle, { paddingLeft: `${magnifier.indent}px` }]"
               >
-              <template v-else-if="row.tokens || row.marks || row.inlines"
-                ><template v-for="(part, i) in partsOf(row)" :key="i"
+                <template v-for="(part, i) in magnifier.parts" :key="i"
                   ><span
                     v-if="part[3] !== undefined"
-                    :ref="
-                      (el) =>
-                        observeInline(
-                          el as Element | null,
-                          row.inlines![part[3]!]!.key,
-                          row.inlines![part[3]!]!.width,
-                        )
-                    "
                     :class="ns.e('inline')"
-                    :style="
-                      row.inlines![part[3]!]!.width !== undefined
-                        ? { width: `${row.inlines![part[3]!]!.width}px` }
-                        : undefined
-                    "
-                    ><RenderPart :render="row.inlines![part[3]!]!.render" /></span
+                    :style="{ width: `${widthOf(magnifier.inlines[part[3]!]!)}px` }"
+                    ><RenderPart :render="magnifier.inlines[part[3]!]!.render" /></span
                   ><span v-else-if="part[1]" :class="part[1]" :title="part[2]" :style="part[4]">{{
                     part[0]
                   }}</span
                   ><template v-else>{{ part[0] }}</template></template
-                ></template
-              >
-              <template v-else>{{ row.text }}</template>
-              <span
-                v-if="row.folded && !row.wrapped.breaks.length"
-                :class="ns.e('fold-marker')"
-                :data-unfold="row.n"
-                :title="messages.unfold"
-                >⋯</span
-              >
-            </div>
-          </div>
-          <div
-            v-if="placeholder && !doc.length && !composing"
-            :class="ns.e('placeholder')"
-            aria-hidden="true"
-          >
-            {{ placeholder }}
-          </div>
-          <div v-if="focused" :key="blink" :class="ns.e('cursors')" aria-hidden="true">
-            <div
-              v-for="cursor in cursors"
-              :key="cursor.key"
-              :class="ns.e('cursor')"
-              :style="{ transform: `translate(${cursor.left - 1}px, ${cursor.top}px)` }"
-            />
-          </div>
-          <div
-            v-for="handle in handles"
-            :key="handle.kind"
-            :class="[ns.e('handle'), ns.is(handle.kind, true)]"
-            :style="{ transform: `translate(${handle.left}px, ${handle.top}px)` }"
-            aria-hidden="true"
-            @pointerdown="onHandleDown($event, handle.kind)"
-          />
-          <div
-            v-if="magnifier"
-            :class="ns.e('magnifier')"
-            :style="magnifier.style"
-            aria-hidden="true"
-          >
-            <div
-              :class="ns.e('magnifier-text')"
-              :style="[magnifier.textStyle, { paddingLeft: `${magnifier.indent}px` }]"
-            >
-              <template v-for="(part, i) in magnifier.parts" :key="i"
-                ><span
-                  v-if="part[3] !== undefined"
-                  :class="ns.e('inline')"
-                  :style="{ width: `${widthOf(magnifier.inlines[part[3]!]!)}px` }"
-                  ><RenderPart :render="magnifier.inlines[part[3]!]!.render" /></span
-                ><span v-else-if="part[1]" :class="part[1]" :title="part[2]" :style="part[4]">{{
-                  part[0]
-                }}</span
-                ><template v-else>{{ part[0] }}</template></template
-              >
-            </div>
-            <div :class="ns.e('magnifier-caret')" :style="{ left: `${magnifier.caret - 1}px` }" />
-          </div>
-          <!-- The boxes about the text: inside the frame, or above the page for a small editor. -->
-          <Teleport :to="floatingTarget || 'body'" :disabled="!floatingTarget">
-            <div
-              :class="[ns.e('floating'), ns.is('outside', !!floatingTarget)]"
-              :style="floatingTarget ? { zIndex: floatingZ } : undefined"
-            >
-              <div
-                v-if="problemStyle"
-                ref="problemEl"
-                :class="ns.e('problems')"
-                role="group"
-                :aria-label="problemBox!.problems.length ? messages.problems : messages.details"
-                :style="problemStyle"
-                @pointerdown.stop.prevent
-                @pointermove.stop
-                @pointerenter="keepProblems"
-                @pointerleave="onContentLeave"
-              >
-                <div
-                  v-for="(item, i) in problemBox!.info"
-                  :key="`info-${i}`"
-                  :class="ns.e('hover')"
                 >
-                  <template v-if="typeof item === 'string'">{{ item }}</template>
-                  <RenderPart v-else :render="item" />
-                </div>
-                <div
-                  v-for="(problem, i) in problemBox!.problems"
-                  :key="i"
-                  :class="[ns.e('problem-item'), ns.is(problem.severity, true)]"
-                >
-                  <component
-                    :is="SEVERITY_ICON[problem.severity]"
-                    :class="ns.e('problem-severity')"
-                  />
-                  <span :class="ns.e('problem-message')"
-                    >{{ problem.message
-                    }}<span v-if="problem.source" :class="ns.e('problem-source')">
-                      {{ problem.source }}</span
-                    ></span
-                  >
-                </div>
-                <div v-if="fixes.length" :class="ns.e('fixes')">
-                  <button
-                    v-for="(fix, i) in fixes"
-                    :key="i"
-                    type="button"
-                    tabindex="-1"
-                    :class="[ns.e('fix'), ns.is('active', i === problemBox!.index)]"
-                    :aria-current="i === problemBox!.index || undefined"
-                    @click="runFix(i)"
-                  >
-                    {{ fix.action.label }}
-                  </button>
-                </div>
               </div>
+              <div :class="ns.e('magnifier-caret')" :style="{ left: `${magnifier.caret - 1}px` }" />
+            </div>
+            <!-- The boxes about the text: inside the frame, or above the page for a small editor. -->
+            <Teleport :to="floatingTarget || 'body'" :disabled="!floatingTarget">
               <div
-                v-if="completionStyle"
-                ref="completionEl"
-                :class="ns.e('completions')"
-                :style="completionStyle"
-                @pointerdown.stop.prevent
-                @pointermove.stop
+                :class="[ns.e('floating'), ns.is('outside', !!floatingTarget)]"
+                :style="floatingTarget ? { zIndex: floatingZ } : undefined"
               >
                 <div
-                  :id="completionId"
-                  ref="completionList"
-                  :class="ns.e('completion-list')"
-                  role="listbox"
-                  :aria-label="messages.completions"
+                  v-if="problemStyle"
+                  ref="problemEl"
+                  :class="ns.e('problems')"
+                  role="group"
+                  :aria-label="problemBox!.problems.length ? messages.problems : messages.details"
+                  :style="problemStyle"
+                  @pointerdown.stop.prevent
+                  @pointermove.stop
+                  @pointerenter="keepProblems"
+                  @pointerleave="onContentLeave"
                 >
                   <div
-                    v-for="(item, i) in completion!.items"
-                    :id="`${completionId}-${i}`"
+                    v-for="(item, i) in problemBox!.info"
+                    :key="`info-${i}`"
+                    :class="ns.e('hover')"
+                  >
+                    <template v-if="typeof item === 'string'">{{ item }}</template>
+                    <RenderPart v-else :render="item" />
+                  </div>
+                  <div
+                    v-for="(problem, i) in problemBox!.problems"
                     :key="i"
-                    role="option"
-                    :aria-selected="i === completion!.index"
-                    :class="[ns.e('completion'), ns.is('active', i === completion!.index)]"
-                    @click="acceptCompletion(i)"
+                    :class="[ns.e('problem-item'), ns.is(problem.severity, true)]"
                   >
                     <component
-                      :is="KIND_ICON[item.option.kind ?? 'text']"
-                      :class="[ns.e('completion-kind'), ns.is(item.option.kind ?? 'text', true)]"
-                      aria-hidden="true"
+                      :is="SEVERITY_ICON[problem.severity]"
+                      :class="ns.e('problem-severity')"
                     />
-                    <span :class="ns.e('completion-label')"
-                      ><template v-for="(part, j) in labelParts(item)" :key="j"
-                        ><mark v-if="part[1]" :class="ns.e('completion-match')">{{ part[0] }}</mark
-                        ><template v-else>{{ part[0] }}</template></template
+                    <span :class="ns.e('problem-message')"
+                      >{{ problem.message
+                      }}<span v-if="problem.source" :class="ns.e('problem-source')">
+                        {{ problem.source }}</span
                       ></span
                     >
-                    <span v-if="item.option.detail" :class="ns.e('completion-detail')">{{
-                      item.option.detail
-                    }}</span>
+                  </div>
+                  <div v-if="fixes.length" :class="ns.e('fixes')">
+                    <button
+                      v-for="(fix, i) in fixes"
+                      :key="i"
+                      type="button"
+                      tabindex="-1"
+                      :class="[ns.e('fix'), ns.is('active', i === problemBox!.index)]"
+                      :aria-current="i === problemBox!.index || undefined"
+                      @click="runFix(i)"
+                    >
+                      {{ fix.action.label }}
+                    </button>
                   </div>
                 </div>
                 <div
-                  v-if="completion!.items[completion!.index]?.option.info"
-                  :class="ns.e('completion-info')"
+                  v-if="completionStyle"
+                  ref="completionEl"
+                  :class="ns.e('completions')"
+                  :style="completionStyle"
+                  @pointerdown.stop.prevent
+                  @pointermove.stop
                 >
-                  {{ completion!.items[completion!.index]!.option.info }}
-                </div>
-              </div>
-              <div
-                v-if="signatureStyle"
-                ref="signatureEl"
-                :class="ns.e('signature')"
-                role="note"
-                :aria-label="messages.signature"
-                :style="signatureStyle"
-                @pointerdown.stop.prevent
-              >
-                <div :class="ns.e('signature-label')">
-                  <template v-for="(part, i) in signatureParts" :key="i"
-                    ><span v-if="part[1]" :class="ns.e('signature-active')">{{ part[0] }}</span
-                    ><template v-else>{{ part[0] }}</template></template
+                  <div
+                    :id="completionId"
+                    ref="completionList"
+                    :class="ns.e('completion-list')"
+                    role="listbox"
+                    :aria-label="messages.completions"
                   >
+                    <div
+                      v-for="(item, i) in completion!.items"
+                      :id="`${completionId}-${i}`"
+                      :key="i"
+                      role="option"
+                      :aria-selected="i === completion!.index"
+                      :class="[ns.e('completion'), ns.is('active', i === completion!.index)]"
+                      @click="acceptCompletion(i)"
+                    >
+                      <component
+                        :is="KIND_ICON[item.option.kind ?? 'text']"
+                        :class="[ns.e('completion-kind'), ns.is(item.option.kind ?? 'text', true)]"
+                        aria-hidden="true"
+                      />
+                      <span :class="ns.e('completion-label')"
+                        ><template v-for="(part, j) in labelParts(item)" :key="j"
+                          ><mark v-if="part[1]" :class="ns.e('completion-match')">{{
+                            part[0]
+                          }}</mark
+                          ><template v-else>{{ part[0] }}</template></template
+                        ></span
+                      >
+                      <span v-if="item.option.detail" :class="ns.e('completion-detail')">{{
+                        item.option.detail
+                      }}</span>
+                    </div>
+                  </div>
+                  <div
+                    v-if="completion!.items[completion!.index]?.option.info"
+                    :class="ns.e('completion-info')"
+                  >
+                    {{ completion!.items[completion!.index]!.option.info }}
+                  </div>
                 </div>
-                <div v-if="signature!.result.info" :class="ns.e('signature-info')">
-                  {{ signature!.result.info }}
+                <div
+                  v-if="signatureStyle"
+                  ref="signatureEl"
+                  :class="ns.e('signature')"
+                  role="note"
+                  :aria-label="messages.signature"
+                  :style="signatureStyle"
+                  @pointerdown.stop.prevent
+                >
+                  <div :class="ns.e('signature-label')">
+                    <template v-for="(part, i) in signatureParts" :key="i"
+                      ><span v-if="part[1]" :class="ns.e('signature-active')">{{ part[0] }}</span
+                      ><template v-else>{{ part[0] }}</template></template
+                    >
+                  </div>
+                  <div v-if="signature!.result.info" :class="ns.e('signature-info')">
+                    {{ signature!.result.info }}
+                  </div>
                 </div>
               </div>
-            </div>
-          </Teleport>
-          <div
-            v-if="menuStyle"
-            ref="menuEl"
-            :class="ns.e('menu')"
-            role="toolbar"
-            :aria-label="messages.editMenu"
-            :style="menuStyle"
-            @pointerdown.stop.prevent
-          >
-            <button
-              v-for="item in menuItems"
-              :key="item.key"
-              type="button"
-              tabindex="-1"
-              :class="ns.e('menu-button')"
-              @click="item.run()"
-            >
-              {{ item.label }}
-            </button>
-          </div>
-          <textarea
-            ref="input"
-            :class="ns.e('input')"
-            :style="{
-              top: `${inputBox.top}px`,
-              left: `${inputBox.left}px`,
-              height: `${inputBox.height}px`,
-            }"
-            :aria-label="ariaLabel"
-            :aria-placeholder="placeholder || undefined"
-            :aria-autocomplete="hasCompletion ? 'list' : undefined"
-            :aria-controls="completion ? completionId : undefined"
-            :readonly="readonly"
-            :disabled="disabled"
-            wrap="off"
-            autocomplete="off"
-            autocorrect="off"
-            autocapitalize="off"
-            spellcheck="false"
-            enterkeyhint="enter"
-            @keydown="onKeydown"
-            @beforeinput="onBeforeInput"
-            @input="onInput"
-            @compositionstart="onCompositionStart"
-            @compositionend="onCompositionEnd"
-            @copy="onCopy"
-            @cut="onCut"
-            @paste="onPaste"
-            @focus="onFocus"
-            @blur="onBlur"
-          />
-          <!-- After the textarea, so Escape then Tab reaches what is inside the widgets. -->
-          <div
-            v-if="shownWidgets.length"
-            :class="ns.e('widgets')"
-            @pointerdown.stop
-            @pointermove.stop
-            @mousedown.stop
-          >
+            </Teleport>
             <div
-              v-for="widget in shownWidgets"
-              :key="widget.key"
-              :ref="(el) => observeWidget(el as Element | null, widget.key)"
-              :class="ns.e('widget')"
-              :role="widget.label ? 'group' : undefined"
-              :aria-label="widget.label"
-              :style="{
-                transform: `translate(${scrollLeft}px, ${widget.top}px)`,
-                width: `${Math.max(0, viewWidth - gutterWidth)}px`,
-              }"
+              v-if="menuStyle"
+              ref="menuEl"
+              :class="ns.e('menu')"
+              role="toolbar"
+              :aria-label="messages.editMenu"
+              :style="menuStyle"
+              @pointerdown.stop.prevent
             >
-              <RenderPart :render="widget.render" />
+              <button
+                v-for="item in menuItems"
+                :key="item.key"
+                type="button"
+                tabindex="-1"
+                :class="ns.e('menu-button')"
+                @click="item.run()"
+              >
+                {{ item.label }}
+              </button>
+            </div>
+            <textarea
+              ref="input"
+              :class="ns.e('input')"
+              :style="{
+                top: `${inputBox.top}px`,
+                left: `${inputBox.left}px`,
+                height: `${inputBox.height}px`,
+              }"
+              :aria-label="ariaLabel"
+              :aria-placeholder="placeholder || undefined"
+              :aria-autocomplete="hasCompletion ? 'list' : undefined"
+              :aria-controls="completion ? completionId : undefined"
+              :readonly="readonly"
+              :disabled="disabled"
+              wrap="off"
+              autocomplete="off"
+              autocorrect="off"
+              autocapitalize="off"
+              spellcheck="false"
+              enterkeyhint="enter"
+              @keydown="onKeydown"
+              @beforeinput="onBeforeInput"
+              @input="onInput"
+              @compositionstart="onCompositionStart"
+              @compositionend="onCompositionEnd"
+              @copy="onCopy"
+              @cut="onCut"
+              @paste="onPaste"
+              @focus="onFocus"
+              @blur="onBlur"
+            />
+            <!-- After the textarea, so Escape then Tab reaches what is inside the widgets. -->
+            <div
+              v-if="shownWidgets.length"
+              :class="ns.e('widgets')"
+              @pointerdown.stop
+              @pointermove.stop
+              @mousedown.stop
+            >
+              <div
+                v-for="widget in shownWidgets"
+                :key="widget.key"
+                :ref="(el) => observeWidget(el as Element | null, widget.key)"
+                :class="ns.e('widget')"
+                :role="widget.label ? 'group' : undefined"
+                :aria-label="widget.label"
+                :style="{
+                  transform: `translate(${scrollLeft}px, ${widget.top}px)`,
+                  width: `${Math.max(0, viewWidth - gutterWidth)}px`,
+                }"
+              >
+                <RenderPart :render="widget.render" />
+              </div>
             </div>
           </div>
         </div>
+      </div>
+      <div
+        v-if="minimapOn && minimap"
+        :class="ns.e('minimap')"
+        aria-hidden="true"
+        @pointerdown="onMinimapDown"
+        @pointermove="onMinimapMove"
+        @pointerup="onMinimapUp"
+        @pointercancel="onMinimapUp"
+      >
+        <canvas ref="minimapCanvas" :class="ns.e('minimap-canvas')" />
+        <div
+          :class="ns.e('minimap-view')"
+          :style="{
+            transform: `translateY(${minimap.slider.top}px)`,
+            height: `${minimap.slider.height}px`,
+          }"
+        />
       </div>
     </div>
     <div v-if="panels.bottom.length" :class="[ns.e('panels'), ns.is('bottom', true)]">

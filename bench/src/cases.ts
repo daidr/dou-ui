@@ -979,9 +979,30 @@ export const cases: Record<string, Case> = {
     },
     act: (root) => codeType(root, 'x'),
   },
+  // Jumping to the end of a highlighted text: lines far past what is read are drawn plain at once.
+  'code-syntax-jump': {
+    render: (n) => codeEditor(n, 'doc', true),
+    budget: { 1_000_000: 60 },
+    act: (root) => {
+      const scroller = root.querySelector('.dou-code-editor__scroller')!
+      scroller.scrollTop = scroller.scrollHeight
+      scroller.dispatchEvent(new Event('scroll'))
+    },
+  },
+  // The same with a worker reading ahead.
+  'code-syntax-worker-jump': {
+    render: (n) => codeEditor(n, 'doc', true, false, true),
+    budget: { 1_000_000: 60 },
+    act: (root) => {
+      const scroller = root.querySelector('.dou-code-editor__scroller')!
+      scroller.scrollTop = scroller.scrollHeight
+      scroller.dispatchEvent(new Event('scroll'))
+    },
+  },
   // Folding every block of the text at once.
   'code-fold-all': {
     render: (n) => codeEditor(n, 'doc', true),
+    budget: { 1_000_000: 400 },
     act: () => {
       const editor = (window as any).codeEditor.value as CodeEditorExpose
       editor.foldAll()
@@ -1357,7 +1378,17 @@ function pivot(n: number) {
     })
 }
 
-function codeEditor(n: number, bind: 'string' | 'doc', highlighted = false, wrap = false) {
+let codeWorker: Worker | undefined
+
+function codeEditor(
+  n: number,
+  bind: 'string' | 'doc',
+  highlighted = false,
+  wrap = false,
+  worker = false,
+) {
+  if (worker)
+    codeWorker ??= new Worker(new URL('./code-worker.ts', import.meta.url), { type: 'module' })
   const source = Array.from(
     { length: n },
     (_, i) => `  const value${i} = compute(${i}, '第 ${i + 1} 行') // ${i % 7 ? '' : 'note'}`,
@@ -1371,6 +1402,7 @@ function codeEditor(n: number, bind: 'string' | 'doc', highlighted = false, wrap
       ref: editor,
       style: 'height: 600px',
       language: highlighted ? typescript : undefined,
+      worker: worker ? codeWorker : null,
       wrap,
       ...(bind === 'string'
         ? { modelValue: code.value, 'onUpdate:modelValue': (value: string) => (code.value = value) }

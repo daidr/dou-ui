@@ -279,3 +279,59 @@ describe('DouCodeEditor', () => {
     expect(wrapper.findAll('.dou-code-editor__line').length).toBeLessThan(200)
   })
 })
+
+/** Gives every element a size, as jsdom lays nothing out. */
+function sized(width: number, height: number) {
+  const proto = HTMLElement.prototype
+  const saved = {
+    w: Object.getOwnPropertyDescriptor(proto, 'clientWidth')!,
+    h: Object.getOwnPropertyDescriptor(proto, 'clientHeight')!,
+  }
+  Object.defineProperty(proto, 'clientWidth', { configurable: true, get: () => width })
+  Object.defineProperty(proto, 'clientHeight', { configurable: true, get: () => height })
+  return () => {
+    Object.defineProperty(proto, 'clientWidth', saved.w)
+    Object.defineProperty(proto, 'clientHeight', saved.h)
+  }
+}
+
+describe('minimap', () => {
+  const text = Array.from({ length: 1000 }, (_, i) => `line ${i}`).join('\n')
+
+  it('shows the text in small beside it, and goes where it is pressed', async () => {
+    const restore = sized(800, 400)
+    try {
+      const { wrapper } = setup(text, { minimap: true })
+      await nextTick()
+      await nextTick()
+      const map = wrapper.find('.dou-code-editor__minimap')
+      expect(map.exists()).toBe(true)
+      expect(map.attributes('aria-hidden')).toBe('true')
+      // the mark covers the rows in view: 400px of 20px rows, 2px each in the minimap
+      const view = wrapper.find('.dou-code-editor__minimap-view').element as HTMLElement
+      expect(parseFloat(view.style.height)).toBeGreaterThanOrEqual(40)
+      const scroller = wrapper.find('.dou-code-editor__scroller').element as HTMLElement
+      // row 500 is at 1000px in the minimap's own scale; pressed there, it comes to the middle
+      map.element.dispatchEvent(
+        new MouseEvent('pointerdown', { bubbles: true, button: 0, clientY: 300 }),
+      )
+      await nextTick()
+      expect(scroller.scrollTop).toBeGreaterThan(0)
+      wrapper.unmount()
+    } finally {
+      restore()
+    }
+  })
+
+  it('is left out of a narrow editor', async () => {
+    const restore = sized(400, 400)
+    try {
+      const { wrapper } = setup(text, { minimap: true })
+      await nextTick()
+      expect(wrapper.find('.dou-code-editor__minimap').exists()).toBe(false)
+      wrapper.unmount()
+    } finally {
+      restore()
+    }
+  })
+})

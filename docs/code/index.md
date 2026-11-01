@@ -5,7 +5,7 @@
 只是展示一段代码时，用 [CodeBlock 代码块](/components/code-block) 更合适。
 
 ::: tip 开发中
-目前完成的是编辑内核、语法高亮、多光标、查找替换、自动换行、折叠、手机触控、扩展（装饰、侧栏、面板、诊断）、补全与提示、对比视图和[协同编辑](/code/collaboration)。Shiki 适配和更多语言也已加入，超大文件的优化会陆续加入。
+目前完成的是编辑内核、语法高亮、多光标、查找替换、自动换行、折叠、手机触控、扩展（装饰、侧栏、面板、诊断）、补全与提示、对比视图和[协同编辑](/code/collaboration)。Shiki 适配和更多语言也已加入；百万行的文件也能流畅打开和编辑，还可以在 worker 里分词、显示小地图。
 :::
 
 ## 安装
@@ -131,15 +131,17 @@ app.use(DouUI, {
 
 需要跨行的信息（比如多行注释）放在状态里：`startState` 返回文本开头的状态，`token` 的第二个参数就是它，可以直接修改。状态应当是普通的对象、数组、字符串和数字，编辑器会复制和比较它，判断从哪一行起不必重读。其他选项：
 
-| 选项          | 说明                                                            |
-| ------------- | --------------------------------------------------------------- |
-| `name`        | 名称，`createCodeHighlighter` 按它和 `aliases` 匹配 `lang`      |
-| `aliases`     | 别名，如 `['js', 'mjs']`                                        |
-| `startState`  | 文本开头的状态                                                  |
-| `comment`     | 注释写法：`{ line: '//', block: ['/*', '*/'] }`                 |
-| `brackets`    | 成对的括号，默认 `'()[]{}'`                                     |
-| `autoClose`   | 输入时自动补上另一半的字符，写成一个字符串，默认是左括号和 `'"` |
-| `indentAfter` | 光标前的文字符合这个正则时，换行多缩进一级                      |
+| 选项          | 说明                                                                       |
+| ------------- | -------------------------------------------------------------------------- |
+| `name`        | 名称，`createCodeHighlighter` 按它和 `aliases` 匹配 `lang`                 |
+| `aliases`     | 别名，如 `['js', 'mjs']`                                                   |
+| `startState`  | 文本开头的状态                                                             |
+| `comment`     | 注释写法：`{ line: '//', block: ['/*', '*/'] }`                            |
+| `brackets`    | 成对的括号，默认 `'()[]{}'`                                                |
+| `autoClose`   | 输入时自动补上另一半的字符，写成一个字符串，默认是左括号和 `'"`            |
+| `indentAfter` | 光标前的文字符合这个正则时，换行多缩进一级                                 |
+| `languageAt`  | 状态里正在使用的语言，用于包含其他语言的语言（HTML 里的 `<script>`）       |
+| `nested`      | 可能包含的语言，和 `languageAt` 一起用；在 worker 里分词时按名称在这里查找 |
 
 ## 编辑辅助
 
@@ -441,6 +443,37 @@ const doc = shallowRef(CodeText.of(source))
 
 编辑器比窗口还高时（没有限制高度），也只绘制窗口里看得见的行。
 
+### 语法高亮
+
+颜色从文本开头往下读出来，每读一行都依赖上一行结束时的状态。编辑器先读看得见的行，其余的在浏览器空闲时接着读，每隔一段记下读到的状态，修改以后从改动的地方重读，遇到和之前相同的状态就停下。跳到还没读到的地方时，这些行先以普通文字显示，读到以后再上色；百万行的文件从头读到尾大约要几秒。
+
+### 在 worker 里分词
+
+传入 `worker`，就由 worker 往下读，页面只读看得见的几行，读好的状态再发回来。在 worker 文件里调用 `@dou-ui/code/worker` 的 `serveCodeHighlighting`，列出要支持的语言；一个 worker 可以同时服务多个编辑器。
+
+```ts
+// highlight.ts
+import { javascript, serveCodeHighlighting } from '@dou-ui/code/worker'
+
+serveCodeHighlighting([javascript])
+```
+
+```vue
+<script setup lang="ts">
+const worker = new Worker(new URL('./highlight.ts', import.meta.url), { type: 'module' })
+</script>
+
+<template>
+  <DouCodeEditor v-model:doc="doc" :language="javascript" :worker="worker" />
+</template>
+```
+
+`@dou-ui/code/worker` 只包含语言和分词，不会引入 Vue 和组件。worker 里没有编辑器用的语言时（按名称查找），编辑器改为自己在空闲时读。自定义语言同样可以放进去；包含其他语言的语言要在 `nested` 里列出它们。
+
+### 小地图
+
+`minimap` 在右侧显示整份代码的缩略图，按语法着色，标出看得见的部分：点击跳到那里，拖动标记滚动。编辑器窄于 480px 时不显示。
+
 ## 只读与禁用
 
 `readonly` 只能选择、浏览和复制，不能修改；`disabled` 不能获得焦点。`placeholder` 在文本为空时显示提示文字。
@@ -521,10 +554,12 @@ const doc = shallowRef(CodeText.of(source))
 | `indent-with-tabs`  | 用制表符缩进                                                      | `boolean`                          | `false`    |
 | `placeholder`       | 文本为空时的提示                                                  | `string`                           | —          |
 | `language`          | 语言                                                              | `CodeLanguage`                     | —          |
+| `worker`            | 在 worker 里分词，见[在 worker 里分词](#在-worker-里分词)         | `Worker`                           | —          |
 | `close-brackets`    | 输入括号和引号时补上另一半                                        | `boolean`                          | `true`     |
 | `match-brackets`    | 标出光标旁的括号和它的配对                                        | `boolean`                          | `true`     |
 | `searchable`        | 提供查找替换面板                                                  | `boolean`                          | `true`     |
 | `wrap`              | 长行自动换行                                                      | `boolean`                          | `false`    |
+| `minimap`           | 在右侧显示小地图，编辑器窄于 480px 时不显示                       | `boolean`                          | `false`    |
 | `foldable`          | 显示折叠箭头，允许折叠                                            | `boolean`                          | `true`     |
 | `keys`              | 触屏上键盘上方的符号栏；数组改写可以滑动的按键                    | `boolean \| (CodeKey \| string)[]` | `true`     |
 | `messages`          | 改写编辑器上的文字（查找面板、工具条、符号栏）                    | `Partial<CodeMessages>`            | —          |

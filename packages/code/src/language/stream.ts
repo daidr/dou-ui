@@ -27,7 +27,13 @@ export class CodeStream {
 
   /** Whether the stream is at the line's first character that isn't whitespace. */
   sol(): boolean {
-    return this.pos === 0 || /^\s*$/.test(this.string.slice(0, this.pos))
+    for (let i = this.pos - 1; i >= 0; i--) {
+      const code = this.string.charCodeAt(i)
+      // as `\s`: tab to carriage return and space, other spaces (the CJK one too) by the regex
+      if (code === 32 || (code >= 9 && code <= 13)) continue
+      if (code < 128 || !SPACE.test(this.string[i]!)) return false
+    }
+    return true
   }
 
   /** The next character, without reading it. */
@@ -96,20 +102,23 @@ export class CodeStream {
   ): boolean | RegExpMatchArray | null {
     if (typeof pattern === 'string') {
       if (this.pos + pattern.length > this.end) return false
-      const head = this.string.slice(this.pos, this.pos + pattern.length)
-      const ok = caseInsensitive ? head.toLowerCase() === pattern.toLowerCase() : head === pattern
+      const ok = caseInsensitive
+        ? this.string.slice(this.pos, this.pos + pattern.length).toLowerCase() ===
+          pattern.toLowerCase()
+        : this.string.startsWith(pattern, this.pos)
       if (ok && consume) this.pos += pattern.length
       return ok
     }
-    // A sticky copy matches right at `pos` without copying the rest of the line.
-    const sticky = stickyOf(pattern)
-    sticky.lastIndex = this.pos
-    let found: RegExpMatchArray | null = sticky.exec(this.string)
-    if (found && this.pos + found[0].length > this.end) {
-      // Past the end a nesting language set: match the part before it only.
-      found = this.string.slice(this.pos, this.end).match(pattern)
-      if (found && found.index !== 0) found = null
-    }
+    // Matched against the rest of the line: slicing a string doesn't copy it, and a
+    // pattern written inside a tokenizer (a new object each time) needs no preparing.
+    const rest =
+      this.pos || this.end < this.string.length
+        ? this.string.slice(this.pos, this.end)
+        : this.string
+    if (pattern.global || pattern.sticky) pattern.lastIndex = 0
+    let found: RegExpMatchArray | null = pattern.exec(rest)
+    if (pattern.global || pattern.sticky) pattern.lastIndex = 0
+    if (found && found.index !== 0) found = null
     if (!found) return null
     if (consume) this.pos += found[0].length
     return found
@@ -142,15 +151,6 @@ export class CodeStream {
   }
 }
 
-export const isSpace = (ch: string) => ch === ' ' || ch === '\t'
+const SPACE = /\s/
 
-const stickies = new WeakMap<RegExp, RegExp>()
-function stickyOf(pattern: RegExp) {
-  let sticky = stickies.get(pattern)
-  if (!sticky) {
-    const source = pattern.source.startsWith('^') ? pattern.source.slice(1) : pattern.source
-    sticky = new RegExp(source, pattern.flags.replace('g', '') + (pattern.sticky ? '' : 'y'))
-    stickies.set(pattern, sticky)
-  }
-  return sticky
-}
+export const isSpace = (ch: string) => ch === ' ' || ch === '\t'

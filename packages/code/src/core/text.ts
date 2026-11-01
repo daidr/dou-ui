@@ -260,6 +260,23 @@ export class CodeText {
     return { number: n, from, to: from + text.length, text }
   }
 
+  /** The text of line `n` (from 1); quicker than `line(n).text`, which also finds where it starts. */
+  lineText(n: number): string {
+    if (n < 1 || n > this.lines) throw new RangeError(`Line ${n} is outside 1–${this.lines}`)
+    let node = this[NODE]
+    let index = n - 1
+    while (node instanceof Branch) {
+      for (const child of node.children) {
+        if (index < child.lines) {
+          node = child
+          break
+        }
+        index -= child.lines
+      }
+    }
+    return node.text[index]!
+  }
+
   /** The line that holds offset `pos`; a line break belongs to the line before it. */
   lineAt(pos: number): CodeLine {
     if (pos < 0 || pos > this.length)

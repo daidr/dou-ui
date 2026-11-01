@@ -51,11 +51,24 @@ function enter(state: HtmlState, language: CodeLanguage, end: string, block: boo
   state.inner = { language, state: language.startState(), end, block }
 }
 
+let lastLine = ''
+let lastLowered = ''
+/** The line in lower case, made once for all the tokens read from it. */
+function lowered(line: string) {
+  if (line !== lastLine) {
+    lastLine = line
+    lastLowered = line.toLowerCase()
+  }
+  return lastLowered
+}
+
 /** Reads one token of the inner language, stopping where it ends. */
 function inner(stream: CodeStream, state: HtmlState): CodeTokenType | null | undefined {
   const at = state.inner!
-  const rest = stream.string.slice(stream.pos)
-  const index = at.end.startsWith('<') ? rest.toLowerCase().indexOf(at.end) : rest.indexOf(at.end)
+  const found = at.end.startsWith('<')
+    ? lowered(stream.string).indexOf(at.end, stream.pos)
+    : stream.string.indexOf(at.end, stream.pos)
+  const index = found < 0 ? -1 : found - stream.pos
   if (index === 0) {
     state.inner = null
     return undefined
@@ -157,6 +170,7 @@ export function createHtml(
   return defineCodeLanguage<HtmlState>({
     name,
     aliases,
+    nested: [javascript, typescript, css, scss],
     startState: () => ({
       in: 'text',
       tag: '',

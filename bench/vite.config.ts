@@ -24,6 +24,7 @@ export default defineConfig({
         find: /^@dou-ui\/gantt\/style\.css$/,
         replacement: r('../packages/gantt/src/style.css'),
       },
+      { find: /^@dou-ui\/code\/worker$/, replacement: r('../packages/code/src/worker/index.ts') },
       { find: /^@dou-ui\/code$/, replacement: r('../packages/code/src/index.ts') },
       {
         find: /^@dou-ui\/code\/style\.css$/,
@@ -59,5 +60,6 @@ export default defineConfig({
       },
     ],
   },
+  worker: { format: 'es' },
   build: { outDir: r('dist'), emptyOutDir: true },
 })

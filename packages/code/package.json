@@ -40,6 +40,10 @@
       "types": "./dist/types/shiki/index.d.ts",
       "import": "./dist/shiki/index.js"
     },
+    "./worker": {
+      "types": "./dist/types/worker/index.d.ts",
+      "import": "./dist/worker/index.js"
+    },
     "./style.css": "./dist/style.css",
     "./package.json": "./package.json"
   },

@@ -146,6 +146,12 @@
     text-box: trim-both cap alphabetic;
   }
 
+  /* a custom label (a swatch, an icon, a tag) centers as a box; trimming is for bare text */
+  .dou-select__value:has(> *) {
+    display: flex;
+    align-items: center;
+  }
+
   .dou-select__placeholder {
     color: var(--dou-color-text-tertiary);
   }

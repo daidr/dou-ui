@@ -19,6 +19,7 @@ export type {
   FlowEditorProps,
   FlowInsertOptions,
   FlowMinimapProps,
+  FlowNodePreview,
   FlowEditorSlots,
   FlowPanelPlacement,
   NodeMetrics,

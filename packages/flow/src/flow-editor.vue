@@ -36,6 +36,7 @@ import {
   type FlowEditorProps,
   type FlowEditorSlots,
   type FlowInsertOptions,
+  type FlowNodePreview,
   type NodeMetrics,
   type PortAnchor,
   type PortState,
@@ -292,14 +293,26 @@ function redo() {
 const metrics = shallowReactive(new Map<string, NodeMetrics>())
 /** Where nodes are drawn while tidying animates them; their real place is already in `doc`. */
 const tween = shallowRef<Map<string, Point> | null>(null)
+/** Nodes shown changed while a handle is dragged, see `previewNode`; the document changes when it is let go. */
+const previews = shallowRef<ReadonlyMap<string, FlowNodePreview>>(new Map())
 const shownNodes = computed(() => {
   const moving = tween.value
-  if (!moving) return doc.value.nodes
+  const changed = previews.value
+  if (!moving && !changed.size) return doc.value.nodes
   return doc.value.nodes.map((node) => {
-    const at = moving.get(node.id)
-    return at ? { ...node, x: at.x, y: at.y } : node
+    const at = moving?.get(node.id)
+    const patch = changed.get(node.id)
+    if (!at && !patch) return node
+    return { ...node, ...(at && { x: at.x, y: at.y }), ...patch }
   })
 })
+
+function previewNode(id: string, patch: FlowNodePreview | null) {
+  const next = new Map(previews.value)
+  if (patch) next.set(id, patch)
+  else if (!next.delete(id)) return
+  previews.value = next
+}
 const nodeById = computed(() => new Map(shownNodes.value.map((node) => [node.id, node])))
 
 // Containers ----------------------------------------------------------------------
@@ -3210,6 +3223,7 @@ const context: FlowEditorContext = {
   tree,
   isContainer,
   gesturing,
+  previewNode,
   connectingPath: previewPath,
   openMenu,
   showMenu,

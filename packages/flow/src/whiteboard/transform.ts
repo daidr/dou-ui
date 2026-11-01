@@ -1,5 +1,5 @@
 import { onBeforeUnmount, ref, type Ref } from 'vue'
-import type { FlowEditorContext } from '../context'
+import type { FlowEditorContext, FlowNodePreview } from '../context'
 import type { FlowNode, Point } from '../core/model'
 import { format } from '../locale'
 import { turn } from './ink'
@@ -116,8 +116,9 @@ function follow(event: PointerEvent, move: Drag, end: Drag, cancel: () => void) 
 
 /**
  * The turn and corner handles of a board node. While a handle is dragged
- * the node only looks changed (`turning`, `sizing`); the document changes
- * once, when it is let go.
+ * the node is only shown changed, through `previewNode`, so its frame,
+ * handles, ports and edges all follow; the document changes once, when it
+ * is let go. `turning` and `sizing` say what is being dragged to.
  */
 export function useTransformHandles(
   ctx: FlowEditorContext,
@@ -129,6 +130,12 @@ export function useTransformHandles(
   const sizing = ref<{ x: number; y: number; width: number; height: number } | null>(null)
   let abort: (() => void) | null = null
   onBeforeUnmount(() => abort?.())
+  // the id held when the drag began, in case the node is swapped meanwhile
+  let held: string | null = null
+  const show = (patch: FlowNodePreview | null) => {
+    if (held) ctx.previewNode(held, patch)
+    if (!patch) held = null
+  }
 
   const rectOf = () => {
     const rect = ctx.getNodeRect(node.value.id)
@@ -141,6 +148,10 @@ export function useTransformHandles(
     event.stopPropagation()
     const rect = rectOf()
     const centre = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }
+    // what it is turned to now: once dragging, the node shows the new turn
+    const data = node.value.data
+    const before = rotation.value
+    held = node.value.id
     abort = follow(
       event,
       (e) => {
@@ -148,15 +159,20 @@ export function useTransformHandles(
         // the handle sits below the centre: straight down is 0°
         const degrees = (Math.atan2(p.y - centre.y, p.x - centre.x) * 180) / Math.PI - 90
         turning.value = snapAngle(degrees, e.shiftKey)
+        show({ data: { ...data, rotation: turning.value || undefined } })
       },
       () => {
         const next = turning.value
         turning.value = null
-        if (next === null || next === rotation.value) return
+        show(null)
+        if (next === null || next === before) return
         ctx.transact((tr) => tr.updateData(node.value.id, { rotation: next || undefined }))
         ctx.announce(format(ctx.messages.value.board.turned, { degrees: next }))
       },
-      () => (turning.value = null),
+      () => {
+        turning.value = null
+        show(null)
+      },
     )
   }
 
@@ -174,7 +190,9 @@ export function useTransformHandles(
     event.preventDefault()
     event.stopPropagation()
     const start = { ...rectOf() }
+    const turned = rotation.value
     const from = ctx.toCanvas({ x: event.clientX, y: event.clientY })
+    held = node.value.id
     abort = follow(
       event,
       (e) => {
@@ -183,11 +201,15 @@ export function useTransformHandles(
         const keep = !!options.keepRatio !== e.shiftKey
         // only the width: a corner works as its side
         const along = options.widthOnly ? { x: handle.x, y: 0 as const } : handle
-        sizing.value = resizeBox(start, rotation.value, along, delta, min, keep)
+        const next = resizeBox(start, turned, along, delta, min, keep)
+        sizing.value = next
+        // text keeps no height: it follows its lines as it widens
+        show(options.widthOnly ? { ...next, height: undefined } : next)
       },
       () => {
         const next = sizing.value
         sizing.value = null
+        show(null)
         if (!next) return
         const patch: Partial<FlowNode> = {
           x: Math.round(next.x),
@@ -198,7 +220,10 @@ export function useTransformHandles(
         patch.height = options.widthOnly ? undefined : Math.round(next.height)
         ctx.transact((tr) => tr.updateNode(node.value.id, patch))
       },
-      () => (sizing.value = null),
+      () => {
+        sizing.value = null
+        show(null)
+      },
     )
   }
 

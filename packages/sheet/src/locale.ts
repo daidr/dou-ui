@@ -393,23 +393,26 @@ const zhCN: SheetMessages = {
     groupCols: '将 {count} 列分组',
     ungroupRows: '取消行分组',
     ungroupCols: '取消列分组',
-    collapse: '折叠分组',
-    expand: '展开分组',
-    collapseRows: '折叠第 {from}–{to} 行',
-    expandRows: '展开第 {from}–{to} 行',
-    collapseCols: '折叠 {from}–{to} 列',
-    expandCols: '展开 {from}–{to} 列',
-    collapsedRows: '已折叠第 {from}–{to} 行',
-    expandedRows: '已展开第 {from}–{to} 行',
-    collapsedCols: '已折叠 {from}–{to} 列',
-    expandedCols: '已展开 {from}–{to} 列',
+    rowLines: '第 {from}–{to} 行',
+    rowLine: '第 {from} 行',
+    colLines: '{from}–{to} 列',
+    colLine: '{from} 列',
+    collapseRows: '折叠{lines}',
+    expandRows: '展开{lines}',
+    collapseCols: '折叠 {lines}',
+    expandCols: '展开 {lines}',
+    collapsedRows: '已折叠{lines}',
+    expandedRows: '已展开{lines}',
+    collapsedCols: '已折叠 {lines}',
+    expandedCols: '已展开 {lines}',
     rowLevel: '行分组显示到第 {level} 级',
     colLevel: '列分组显示到第 {level} 级',
     levelShown: '已显示到第 {level} 级',
     groupedRows: '已将 {count} 行分组',
     groupedCols: '已将 {count} 列分组',
     ungrouped: '已取消分组',
-    crossing: '不能这样分组：会和已有的分组交叉，或超过 8 层',
+    crossing: '不能这样分组：会和分组“{group}”交叉',
+    tooDeep: '不能这样分组：分组最多嵌套 8 层',
   },
   filter: {
     sortAsc: '升序排序',
@@ -714,23 +717,26 @@ const zhTW: SheetMessages = {
     groupCols: '將 {count} 欄設為群組',
     ungroupRows: '取消列群組',
     ungroupCols: '取消欄群組',
-    collapse: '摺疊群組',
-    expand: '展開群組',
-    collapseRows: '摺疊第 {from}–{to} 列',
-    expandRows: '展開第 {from}–{to} 列',
-    collapseCols: '摺疊 {from}–{to} 欄',
-    expandCols: '展開 {from}–{to} 欄',
-    collapsedRows: '已摺疊第 {from}–{to} 列',
-    expandedRows: '已展開第 {from}–{to} 列',
-    collapsedCols: '已摺疊 {from}–{to} 欄',
-    expandedCols: '已展開 {from}–{to} 欄',
+    rowLines: '第 {from}–{to} 列',
+    rowLine: '第 {from} 列',
+    colLines: '{from}–{to} 欄',
+    colLine: '{from} 欄',
+    collapseRows: '摺疊{lines}',
+    expandRows: '展開{lines}',
+    collapseCols: '摺疊 {lines}',
+    expandCols: '展開 {lines}',
+    collapsedRows: '已摺疊{lines}',
+    expandedRows: '已展開{lines}',
+    collapsedCols: '已摺疊 {lines}',
+    expandedCols: '已展開 {lines}',
     rowLevel: '列群組顯示到第 {level} 層',
     colLevel: '欄群組顯示到第 {level} 層',
     levelShown: '已顯示到第 {level} 層',
     groupedRows: '已將 {count} 列設為群組',
     groupedCols: '已將 {count} 欄設為群組',
     ungrouped: '已取消群組',
-    crossing: '無法這樣設定群組：會和現有群組交叉，或超過 8 層',
+    crossing: '無法這樣設定群組：會和群組「{group}」交叉',
+    tooDeep: '無法這樣設定群組：群組最多巢狀 8 層',
   },
   filter: {
     sortAsc: '遞增排序',
@@ -1042,23 +1048,26 @@ const en: SheetMessages = {
     groupCols: 'Group {count} columns',
     ungroupRows: 'Ungroup rows',
     ungroupCols: 'Ungroup columns',
-    collapse: 'Collapse group',
-    expand: 'Expand group',
-    collapseRows: 'Collapse rows {from}–{to}',
-    expandRows: 'Expand rows {from}–{to}',
-    collapseCols: 'Collapse columns {from}–{to}',
-    expandCols: 'Expand columns {from}–{to}',
-    collapsedRows: 'Rows {from}–{to} collapsed',
-    expandedRows: 'Rows {from}–{to} expanded',
-    collapsedCols: 'Columns {from}–{to} collapsed',
-    expandedCols: 'Columns {from}–{to} expanded',
+    rowLines: 'rows {from}–{to}',
+    rowLine: 'row {from}',
+    colLines: 'columns {from}–{to}',
+    colLine: 'column {from}',
+    collapseRows: 'Collapse {lines}',
+    expandRows: 'Expand {lines}',
+    collapseCols: 'Collapse {lines}',
+    expandCols: 'Expand {lines}',
+    collapsedRows: 'Collapsed {lines}',
+    expandedRows: 'Expanded {lines}',
+    collapsedCols: 'Collapsed {lines}',
+    expandedCols: 'Expanded {lines}',
     rowLevel: 'Show row groups to level {level}',
     colLevel: 'Show column groups to level {level}',
     levelShown: 'Showing level {level}',
     groupedRows: '{count} rows grouped',
     groupedCols: '{count} columns grouped',
     ungrouped: 'Ungrouped',
-    crossing: "Can't group these: they would cross a group or nest more than 8 deep",
+    crossing: "Can't group these: they would cross the group of {group}",
+    tooDeep: "Can't group these: groups nest at most 8 deep",
   },
   filter: {
     sortAsc: 'Sort ascending',
@@ -1290,9 +1299,12 @@ export interface SheetGroupMessages {
   groupCols: string
   ungroupRows: string
   ungroupCols: string
-  collapse: string
-  expand: string
-  /** A group's button, and what is read out after pressing it: `{from}`, `{to}`. */
+  /** Lines of a group, for the texts below: `{from}`, `{to}`; one line `{from}`. */
+  rowLines: string
+  rowLine: string
+  colLines: string
+  colLine: string
+  /** A group's button, and what is read out after pressing it: `{lines}`. */
   collapseRows: string
   expandRows: string
   collapseCols: string
@@ -1309,8 +1321,9 @@ export interface SheetGroupMessages {
   groupedRows: string
   groupedCols: string
   ungrouped: string
-  /** Grouping lines that would cross a group, or nest too deep. */
+  /** Grouping lines that would cross the group `{group}`, or nest too deep. */
   crossing: string
+  tooDeep: string
 }
 
 export interface SheetFilterMessages {

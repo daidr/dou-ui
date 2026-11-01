@@ -138,7 +138,10 @@
     background-color: var(--dou-sheet-header-bg);
   }
 
-  .dou-sheet__outline-levels,
+  .dou-sheet__outline-levels {
+    position: absolute;
+  }
+
   .dou-sheet__outline-layer {
     position: absolute;
     overflow: hidden;
@@ -208,11 +211,11 @@
       border-color: var(--dou-color-border);
       color: var(--dou-color-text-tertiary);
     }
-    /* a larger target for a finger, the button looking the same */
+    /* a target of up to 40px for a finger, short of the buttons nearby; the button looks the same */
     @media (pointer: coarse) {
       &::before {
         position: absolute;
-        inset: -4px;
+        inset: var(--dou-sheet-hit, 0);
         content: '';
       }
     }

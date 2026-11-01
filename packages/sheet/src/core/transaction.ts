@@ -37,7 +37,7 @@ import {
 } from './model'
 import { continueValues, type SheetFillMode } from './fill'
 import { mergesOf, overlaps } from './merge'
-import { groupRange, groupsOf, groupSpan, SheetGroups } from './group'
+import { groupRange, groupsOf, groupSpan } from './group'
 import { rangesOf } from './conditional'
 import { sortRows, textCollator, type SheetSortKey } from './data'
 
@@ -564,9 +564,10 @@ export class SheetTransaction {
   }
 
   /**
-   * Groups rows so they can be folded away under the row above them:
-   * `groupRows('3:8')` or `groupRows(2, 6)`. A group may hold other groups,
-   * at most eight deep; one that would cross a group throws a `RangeError`.
+   * Groups rows so they can be folded away: `groupRows('3:8')` or
+   * `groupRows(2, 6)`. A group may hold other groups, at most eight deep;
+   * one beside a group of the same level joins it, and one that would cross
+   * a group, or nest too deep, throws a `RangeError`.
    */
   groupRows(at: SheetLinesAt, count?: number, sheet?: SheetRef) {
     const lines = linesOf('row', at, count)
@@ -595,11 +596,17 @@ export class SheetTransaction {
     return this.ungroupLines('col', lines.from, lines.count, sheet)
   }
 
-  /**
-   * Folds a group away, `collapseGroup('3:8')`, or shows it again with
-   * `collapsed` false. `range` is the group's rows or columns.
-   */
-  collapseGroup(range: string, collapsed = true, sheet: SheetRef = this.sheet) {
+  /** Folds a group away: `collapseGroup('3:8')`, `range` being the group's rows or columns. */
+  collapseGroup(range: string, sheet?: SheetRef) {
+    return this.foldGroup(range, true, sheet)
+  }
+
+  /** Shows a folded group again: `expandGroup('3:8')`. */
+  expandGroup(range: string, sheet?: SheetRef) {
+    return this.foldGroup(range, false, sheet)
+  }
+
+  private foldGroup(range: string, collapsed: boolean, sheet: SheetRef = this.sheet) {
     const index = this.mustIndex(sheet)
     const data = this.book.sheets[index]!
     const span = groupSpan(range)
@@ -607,11 +614,6 @@ export class SheetTransaction {
     if (!group) throw new RangeError(`There is no group "${range}"`)
     if (group.collapsed === collapsed) return this
     return this.setGroups(index, (g, i) => (i === group.index ? { ...g, collapsed } : g))
-  }
-
-  /** Shows a folded group again: `expandGroup('3:8')`. */
-  expandGroup(range: string, sheet?: SheetRef) {
-    return this.collapseGroup(range, false, sheet)
   }
 
   /**
@@ -632,14 +634,26 @@ export class SheetTransaction {
     if (count <= 0) return this
     const index = this.mustIndex(ref)
     const data = this.book.sheets[index]!
-    const end = from + count - 1
-    const before = groupsOf(data).axis(axis)
-    if (before.find(from, end)) return this
-    const group: SheetGroup = { range: groupRange(axis, from, end) }
-    const list = [...(data.groups ?? []), group]
-    if (new SheetGroups(list).axis(axis).dropped > before.dropped)
-      throw new RangeError(`"${group.range}" would cross a group or nest more than eight deep`)
-    return this.updateSheet({ groups: list }, index)
+    let start = from
+    let end = from + count - 1
+    const laid = groupsOf(data).axis(axis)
+    if (laid.find(start, end)) return this
+    const problem = laid.problem(start, end)
+    if (problem === 'deep')
+      throw new RangeError(`"${groupRange(axis, start, end)}" would nest more than eight deep`)
+    if (problem) {
+      const other = groupRange(axis, problem.cross.start, problem.cross.end)
+      throw new RangeError(`"${groupRange(axis, start, end)}" would cross the group "${other}"`)
+    }
+    // groups of the same level right beside it join it, as one group
+    const joined = new Set<number>()
+    for (const g of laid.beside(start, end)) {
+      joined.add(g.index)
+      start = Math.min(start, g.start)
+      end = Math.max(end, g.end)
+    }
+    const kept = (data.groups ?? []).filter((_, i) => !joined.has(i))
+    return this.updateSheet({ groups: [...kept, { range: groupRange(axis, start, end) }] }, index)
   }
 
   private ungroupLines(axis: SheetAxisName, from: number, count: number, ref?: SheetRef) {

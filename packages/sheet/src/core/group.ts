@@ -5,7 +5,8 @@ import type { SheetData, SheetGroup } from './model'
  * Groups of rows or columns that fold away together. A sheet lists them as
  * whole rows (`'3:8'`) or whole columns (`'B:D'`); groups on the same axis
  * nest or stay apart, at most eight deep. A group's button sits on the line
- * before it, the one that usually holds its heading or subtotal.
+ * that holds its heading or subtotal: the one before it, or after it when
+ * the sheet's `groupSummary` says so.
  */
 
 /** How deep groups may nest. */
@@ -75,7 +76,57 @@ export class SheetGroupAxis {
   find(start: number, end: number) {
     return this.list.find((g) => g.start === start && g.end === end)
   }
+
+  /**
+   * The line a group's button sits on: its summary line, before or after
+   * it; the other side when that line is missing or inside a group beside
+   * it; `-1` when neither side will do.
+   */
+  buttonLine(g: SheetGroupLines, count: number, summary: SheetGroupSummary = 'before') {
+    const sides = summary === 'after' ? [g.end + 1, g.start - 1] : [g.start - 1, g.end + 1]
+    for (const line of sides)
+      if (
+        line >= 0 &&
+        line < count &&
+        !this.list.some((o) => o !== g && o.depth >= g.depth && o.start <= line && o.end >= line)
+      )
+        return line
+    return -1
+  }
+
+  /**
+   * Why lines can't be grouped: a group they would cross, or `'deep'` for
+   * nesting more than eight deep; `null` when they can.
+   */
+  problem(start: number, end: number): { cross: SheetGroupLines } | 'deep' | null {
+    let around = 0
+    let inside = 0
+    for (const g of this.list) {
+      const crosses =
+        (g.start < start && g.end >= start && g.end < end) ||
+        (g.start > start && g.start <= end && g.end > end)
+      if (crosses) return { cross: g }
+      if (g.start <= start && g.end >= end) around++
+      else if (g.start >= start && g.end <= end) inside = Math.max(inside, g.depth - around)
+    }
+    return around + 1 + inside > MAX_GROUP_DEPTH ? 'deep' : null
+  }
+
+  /** The groups at a depth that sit right beside these lines, inside the same parent. */
+  beside(start: number, end: number) {
+    const parent = this.list.filter((g) => g.start <= start && g.end >= end).at(-1)
+    const depth = (parent?.depth ?? 0) + 1
+    return this.list.filter(
+      (g) =>
+        g.depth === depth &&
+        (g.end === start - 1 || g.start === end + 1) &&
+        (!parent || (g.start >= parent.start && g.end <= parent.end)),
+    )
+  }
 }
+
+/** Which side of a group holds its heading or subtotal, and its button. */
+export type SheetGroupSummary = 'before' | 'after'
 
 /** The groups of a sheet, laid out per axis. */
 export class SheetGroups {
@@ -139,13 +190,4 @@ export function groupsOf(sheet: SheetData): SheetGroups {
   let groups = cache.get(list)
   if (!groups) cache.set(list, (groups = new SheetGroups(list)))
   return groups
-}
-
-/**
- * The line a group's button sits on: the one before it, or after it when
- * it starts at the first line; `-1` when it spans every line.
- */
-export function groupButtonLine(group: { start: number; end: number }, count: number) {
-  if (group.start > 0) return group.start - 1
-  return group.end + 1 < count ? group.end + 1 : -1
 }

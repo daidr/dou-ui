@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { DouSheet } from '../index'
 import type { SheetSelection } from '../core/selection'
-import type { SheetExpose } from '../types'
-import { groupButtonLine, groupsOf, groupSpan, SheetGroups } from '../core/group'
+import type { SheetExpose, SheetMenuItem } from '../types'
+import { groupsOf, groupSpan, SheetGroups } from '../core/group'
 import type { SheetGroup, SheetWorkbook } from '../core/model'
 import { applySheetSteps, SheetTransaction } from '../core/transaction'
 
@@ -46,10 +46,37 @@ describe('groups', () => {
     expect(deep.rows.dropped).toBe(1)
   })
 
-  it('puts the button on the line before the group, or after it at the top', () => {
-    expect(groupButtonLine({ start: 2, end: 5 }, 100)).toBe(1)
-    expect(groupButtonLine({ start: 0, end: 5 }, 100)).toBe(6)
-    expect(groupButtonLine({ start: 0, end: 99 }, 100)).toBe(-1)
+  it('puts the button on the summary line, or on the other side when that one is taken', () => {
+    const laid = new SheetGroups([
+      { range: '1:6' },
+      { range: '9:11' },
+      { range: '12:14' },
+      { range: '17:20' },
+    ]).rows
+    const [top, a, b, last] = laid.list
+    // the first line has nothing before it
+    expect(laid.buttonLine(top!, 20)).toBe(6)
+    expect(laid.buttonLine(a!, 20)).toBe(7)
+    // the line before 12:14 is inside 9:11: the button goes after it
+    expect(laid.buttonLine(b!, 20)).toBe(14)
+    // the last group spans to the end
+    expect(laid.buttonLine(last!, 20)).toBe(15)
+    expect(laid.buttonLine(b!, 20, 'after')).toBe(14)
+    // after 9:11 is 12:14: back before it
+    expect(laid.buttonLine(a!, 20, 'after')).toBe(7)
+    expect(laid.buttonLine(last!, 20, 'after')).toBe(15)
+    expect(new SheetGroups([{ range: '1:20' }]).rows.buttonLine(top!, 20)).toBe(-1)
+  })
+
+  it('says why lines cannot be grouped', () => {
+    const laid = new SheetGroups([{ range: '3:8' }, { range: '5:6' }]).rows
+    expect(laid.problem(5, 9)).toEqual({ cross: laid.list[0] })
+    expect(laid.problem(0, 9)).toBeNull()
+    const deep = new SheetGroups(
+      Array.from({ length: 8 }, (_, i) => ({ range: `${i + 1}:${20 - i}` })),
+    ).rows
+    expect(deep.problem(9, 10)).toBe('deep')
+    expect(deep.problem(0, 30)).toBe('deep')
   })
 
   it('groups, collapses and ungroups, and undoes it', () => {
@@ -61,6 +88,7 @@ describe('groups', () => {
     expect(() => new SheetTransaction(tr.doc).groupRows('6:10')).toThrow(RangeError)
 
     const folded = new SheetTransaction(tr.doc).collapseGroup('3:8')
+    expect(() => new SheetTransaction(tr.doc).groupRows('2:3')).toThrow(/cross the group "3:8"/)
     expect(groupsAfter(folded)![0]).toEqual({ range: '3:8', collapsed: true })
     expect([...groupsOf(folded.doc.sheets[0]!).rows.hidden]).toEqual([2, 3, 4, 5, 6, 7])
     expect(groupsAfter(new SheetTransaction(folded.doc).expandGroup('3:8'))![0]).toEqual({
@@ -71,6 +99,14 @@ describe('groups', () => {
 
     expect(applySheetSteps(tr.doc, tr.inverse).doc.sheets[0]!.groups).toBeUndefined()
     expect(applySheetSteps(doc, tr.steps).doc.sheets[0]!.groups).toEqual(groupsAfter(tr))
+  })
+
+  it('joins a group to the groups of its level right beside it', () => {
+    const doc = plainBook([{ range: '3:5' }, { range: '10:12', collapsed: true }, { range: '4:4' }])
+    // the groups inside them stay inside
+    expect(ranges(new SheetTransaction(doc).groupRows('6:9'))).toEqual(['4:4', '3:12'])
+    // inside a group, only its own groups join
+    expect(ranges(new SheetTransaction(doc).groupRows('5:5'))).toEqual(['3:5', '10:12', '4:5'])
   })
 
   it('ungroups the outer groups within the lines, or takes the lines out of a group', () => {
@@ -114,6 +150,8 @@ describe('groups', () => {
     expect(ranges(new SheetTransaction(doc).moveRows('10', '1'))).toEqual(['4:9', 'B:C', '1:1'])
   })
 })
+
+const outlineShown = ref(true)
 
 const report = (): SheetWorkbook => ({
   sheets: [
@@ -216,7 +254,55 @@ describe('DouSheet groups', () => {
     await nextTick()
     await key('ArrowRight', { altKey: true, shiftKey: true })
     expect(book.value.sheets[0]!.groups).toHaveLength(2)
-    expect(wrapper.find('.dou-sheet__notice').text()).toContain('不能这样分组')
+    expect(wrapper.find('.dou-sheet__notice').text()).toBe('不能这样分组：会和分组“第 2–4 行”交叉')
+    wrapper.unmount()
+  })
+
+  it('names one line plainly, puts buttons on the summary side and hides the outline', async () => {
+    const data = report()
+    data.sheets[0]!.groups = [{ range: '4:4' }, { range: 'C:C' }]
+    data.sheets[0]!.groupSummary = 'after'
+    const grid = ref<SheetExpose>()
+    const wrapper = mount(
+      defineComponent(
+        () => () => h(DouSheet, { ref: grid, modelValue: data, outline: outlineShown.value }),
+      ),
+      { attachTo: document.body },
+    )
+    await nextTick()
+    const labels = wrapper
+      .findAll('.dou-sheet__outline-button:not(.is-level)')
+      .map((b) => [b.attributes('aria-label'), b.attributes('style')])
+    expect(labels[0]![0]).toBe('折叠第 4 行')
+    // below row 4: at 4 × 28px, in the middle of row 5
+    expect(labels[0]![1]).toContain('top: 119px')
+    expect(labels[1]![0]).toBe('折叠 C 列')
+    outlineShown.value = false
+    await nextTick()
+    expect(wrapper.find('.dou-sheet__outline').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('shows the keys beside the items they act on', async () => {
+    const seen: Record<string, string | undefined>[] = []
+    const { wrapper, grid, key } = setup({
+      menu: (items: SheetMenuItem[]) => {
+        const group = items.find((item) => item.key === 'group')
+        seen.push(
+          Object.fromEntries((group?.children ?? items).map((item) => [item.key, item.shortcut])),
+        )
+        return items
+      },
+    })
+    grid.value!.select('B2')
+    await nextTick()
+    await key('F10', { shiftKey: true })
+    expect(seen[0]!['row-group']).toBe('alt+shift+ArrowRight')
+    expect(seen[0]!['col-group']).toBeUndefined()
+    grid.value!.select('B:B')
+    await nextTick()
+    await key('F10', { shiftKey: true })
+    expect(seen[1]!['col-group']).toBe('alt+shift+ArrowRight')
     wrapper.unmount()
   })
 

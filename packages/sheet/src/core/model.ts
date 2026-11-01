@@ -75,6 +75,12 @@ export interface SheetData {
    */
   groups?: SheetGroup[]
   /**
+   * Where a group's heading or subtotal is, and so its button: on the row
+   * above it (the column left of it) with `'before'`, the default, or below
+   * it (right of it) with `'after'`.
+   */
+  groupSummary?: 'before' | 'after'
+  /**
    * Looks cells take on when they meet a rule, such as a red fill for
    * amounts over budget. Where two formats give the same part of the look,
    * the earlier one wins.

@@ -69,14 +69,7 @@ import { formatClip, parseClip, type SheetClip } from './core/clipboard'
 import { fillContinues, type SheetFillMode } from './core/fill'
 import { SheetAxis } from './core/axis'
 import { mergesOf, type SheetMerges } from './core/merge'
-import {
-  groupButtonLine,
-  groupRange,
-  groupsOf,
-  SheetGroups,
-  OUTLINE_LANE,
-  type SheetGroupLines,
-} from './core/group'
+import { groupRange, groupsOf, SheetGroups, OUTLINE_LANE, type SheetGroupLines } from './core/group'
 import SheetOutline from './components/sheet-outline.vue'
 import { alignOf, fitNumber, formatValue, inputText, parseInput } from './core/format'
 import { SheetHistory, type SheetHistoryView } from './core/history'
@@ -161,6 +154,7 @@ const props = withDefaults(defineProps<SheetProps>(), {
   rowHeight: 28,
   colWidth: 96,
   headers: true,
+  outline: true,
   gridlines: true,
   historyDepth: 100,
   ariaLabel: undefined,
@@ -856,7 +850,7 @@ const headerWidth = computed(() =>
 const headerHeight = computed(() => (props.headers ? props.rowHeight : 0))
 /** The outlines of the groups: a lane per depth, and one for the level buttons by the headers. */
 const outlineSize = (depth: number) =>
-  depth ? (depth + (props.headers ? 1 : 0)) * OUTLINE_LANE : 0
+  depth && props.outline ? (depth + (props.headers ? 1 : 0)) * OUTLINE_LANE : 0
 const rowOutline = computed(() => outlineSize(groups.value.rows.depth))
 const colOutline = computed(() => outlineSize(groups.value.cols.depth))
 
@@ -3253,8 +3247,19 @@ function groupText(axis: SheetAxisName, g: SheetGroupLines, collapsed: boolean, 
       : collapsed
         ? 'collapseCols'
         : 'expandCols'
-  return format(m[key], { from: lineName(axis, g.start), to: lineName(axis, g.end) })
+  return format(m[key], { lines: linesText(axis, g) })
 }
+
+/** A group's lines, as `第 4–6 行`, `第 4 行` or `C 列`. */
+function linesText(axis: SheetAxisName, g: { start: number; end: number }) {
+  const m = messages.value.group
+  const one = g.start === g.end
+  const text = axis === 'row' ? (one ? m.rowLine : m.rowLines) : one ? m.colLine : m.colLines
+  return format(text, { from: lineName(axis, g.start), to: lineName(axis, g.end) })
+}
+
+/** Where the shown sheet's groups keep their headings or subtotals. */
+const groupSummary = computed(() => sheet.value.groupSummary ?? 'before')
 
 /** Folds groups for this view alone, as a read-only grid does. */
 function foldInView(list: { g: SheetGroupLines; collapsed: boolean }[]) {
@@ -3269,9 +3274,14 @@ function toggleGroup(axis: SheetAxisName, g: SheetGroupLines) {
   const collapsed = !g.collapsed
   if (props.readonly) foldInView([{ g, collapsed }])
   else if (
-    !transact((tr) => tr.collapseGroup(groupRange(axis, g.start, g.end), collapsed), {
-      action: 'group',
-    })
+    !transact(
+      (tr) => {
+        const range = groupRange(axis, g.start, g.end)
+        if (collapsed) tr.collapseGroup(range)
+        else tr.expandGroup(range)
+      },
+      { action: 'group' },
+    )
   )
     return
   keepActiveShown()
@@ -3299,27 +3309,31 @@ function keepActiveShown() {
 function groupSelected(axis: SheetAxisName, group: boolean) {
   const { from, count } = linesOf(axis)
   const m = messages.value.group
-  try {
-    const changed = transact(
-      (tr) => {
-        const lines = { from, count }
-        if (group) {
-          if (axis === 'row') tr.groupRows(lines)
-          else tr.groupCols(lines)
-        } else if (axis === 'row') tr.ungroupRows(lines)
-        else tr.ungroupCols(lines)
-      },
-      { action: 'group' },
-    )
-    if (!changed) return
-    announce(
-      group ? format(m[axis === 'row' ? 'groupedRows' : 'groupedCols'], { count }) : m.ungrouped,
-    )
-  } catch (error) {
-    if (!(error instanceof RangeError)) throw error
-    announce(m.crossing)
-    showNotice(m.crossing)
+  const end = from + count - 1
+  // say why lines can't be grouped, before trying
+  const problem = group ? groups.value.axis(axis).problem(from, end) : null
+  if (problem && !groups.value.axis(axis).find(from, end)) {
+    const text =
+      problem === 'deep' ? m.tooDeep : format(m.crossing, { group: linesText(axis, problem.cross) })
+    announce(text)
+    showNotice(text)
+    return
   }
+  const changed = transact(
+    (tr) => {
+      const lines = { from, count }
+      if (group) {
+        if (axis === 'row') tr.groupRows(lines)
+        else tr.groupCols(lines)
+      } else if (axis === 'row') tr.ungroupRows(lines)
+      else tr.ungroupCols(lines)
+    },
+    { action: 'group' },
+  )
+  if (!changed) return
+  announce(
+    group ? format(m[axis === 'row' ? 'groupedRows' : 'groupedCols'], { count }) : m.ungrouped,
+  )
 }
 
 /** Rows (or columns) for the keys: columns when whole columns are selected. */
@@ -3330,7 +3344,10 @@ function groupAtActive(axis: SheetAxisName) {
   const line = axis === 'row' ? active.value.row : active.value.col
   const laid = groups.value.axis(axis)
   const count = axis === 'row' ? rowCount.value : colCount.value
-  return laid.list.find((g) => groupButtonLine(g, count) === line) ?? laid.around(line).at(-1)
+  return (
+    laid.list.find((g) => laid.buttonLine(g, count, groupSummary.value) === line) ??
+    laid.around(line).at(-1)
+  )
 }
 
 /** Menu items for grouping rows (or columns), and folding the group at the active cell. */
@@ -3339,12 +3356,14 @@ function groupItems(axis: SheetAxisName): SheetMenuItem[] {
   const { from, count } = linesOf(axis)
   const laid = groups.value.axis(axis)
   const end = from + count - 1
+  // the keys group rows, or columns when whole columns are selected
+  const keys = groupAxis() === axis
   const out: SheetMenuItem[] = [
     {
       key: `${axis}-group`,
       label: format(m[axis === 'row' ? 'groupRows' : 'groupCols'], { count }),
       icon: axis === 'row' ? RowGroupIcon : ColumnGroupIcon,
-      shortcut: 'alt+shift+ArrowRight',
+      shortcut: keys ? 'alt+shift+ArrowRight' : undefined,
       run: () => groupSelected(axis, true),
     },
   ]
@@ -3353,7 +3372,7 @@ function groupItems(axis: SheetAxisName): SheetMenuItem[] {
       key: `${axis}-ungroup`,
       label: m[axis === 'row' ? 'ungroupRows' : 'ungroupCols'],
       icon: axis === 'row' ? RowUngroupIcon : ColumnUngroupIcon,
-      shortcut: 'alt+shift+ArrowLeft',
+      shortcut: keys ? 'alt+shift+ArrowLeft' : undefined,
       run: () => groupSelected(axis, false),
     })
   const at = groupAtActive(axis)
@@ -4607,6 +4626,7 @@ defineExpose<SheetExpose>({
         axis="row"
         :style="`top:${colOutline}px`"
         :groups="groups.rows"
+        :summary="groupSummary"
         :lines="rows"
         :frozen="frozen.rows"
         :head="headerHeight"
@@ -4624,6 +4644,7 @@ defineExpose<SheetExpose>({
         axis="col"
         :style="`left:${rowOutline}px`"
         :groups="groups.cols"
+        :summary="groupSummary"
         :lines="cols"
         :frozen="frozen.cols"
         :head="headerWidth"

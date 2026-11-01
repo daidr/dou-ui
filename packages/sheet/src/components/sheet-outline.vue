@@ -3,21 +3,23 @@ import { MinusIcon, PlusIcon } from '@dou-ui/icons'
 import { computed } from 'vue'
 import type { SheetAxis } from '../core/axis'
 import {
-  groupButtonLine,
   OUTLINE_LANE as LANE,
   type SheetGroupAxis,
   type SheetGroupLines,
+  type SheetGroupSummary,
 } from '../core/group'
 
 /*
  * The outline beside the row (or column) headers: a lane per depth, a line
- * along each group with a button on the line before it, and the level
+ * along each group with a button on its summary line, and the level
  * buttons by the headers. It follows the grid's scroll from outside it.
  */
 
 const props = defineProps<{
   axis: 'row' | 'col'
   groups: SheetGroupAxis
+  /** Which side of a group its button is on. */
+  summary: SheetGroupSummary
   lines: SheetAxis
   /** Frozen lines, which don't scroll. */
   frozen: number
@@ -63,7 +65,7 @@ const marks = computed(() => {
   const { lines, groups } = props
   const out: Mark[] = []
   for (const g of groups.list) {
-    const at = groupButtonLine(g, lines.count)
+    const at = groups.buttonLine(g, lines.count, props.summary)
     // inside a folded group, or on a hidden line: nothing to show
     if (at >= 0 && lines.hidden(at)) continue
     const lane = (g.depth - 1) * LANE + LANE / 2
@@ -126,8 +128,61 @@ function lineStyle(m: Mark) {
   return place(m.from, m.lane, Math.max(0, m.to - m.from), 6)
 }
 
+/** How far a finger's touch reaches from a button's middle, at most: 40px across. */
+const REACH = 20
+
+/**
+ * The touch target around a button, as an inset: as far as `REACH` each
+ * way, and only halfway to a button nearby, so neighbours don't overlap.
+ */
+function reach(before: number, after: number, start: number, end: number) {
+  const half = BUTTON / 2
+  // the inset counts from inside the button's 1px border
+  const [a1, a2, c1, c2] = [before, after, start, end].map((n) => -(Math.max(half, n) - half + 1))
+  return props.axis === 'row'
+    ? `--dou-sheet-hit:${a1}px ${c2}px ${a2}px ${c1}px`
+    : `--dou-sheet-hit:${c1}px ${a2}px ${c2}px ${a1}px`
+}
+
+const hits = computed(() => {
+  const out = new Map<string, string>()
+  const buttons = marks.value.filter((m) => m.button != null)
+  for (const m of buttons) {
+    let before = REACH
+    let after = REACH
+    let start = REACH
+    let end = REACH
+    for (const o of buttons) {
+      if (o === m) continue
+      const along = o.button! - m.button!
+      const across = o.lane - m.lane
+      if (across === 0) {
+        if (along > 0) after = Math.min(after, along / 2)
+        else before = Math.min(before, -along / 2)
+      } else if (Math.abs(along) < REACH * 2) {
+        if (across > 0) end = Math.min(end, across / 2)
+        else start = Math.min(start, -across / 2)
+      }
+    }
+    out.set(m.key, reach(before, after, start, end))
+  }
+  return out
+})
+
 function buttonStyle(m: Mark) {
-  return place(m.button! - BUTTON / 2, m.lane - BUTTON / 2, BUTTON, BUTTON)
+  return `${place(m.button! - BUTTON / 2, m.lane - BUTTON / 2, BUTTON, BUTTON)};${hits.value.get(m.key)}`
+}
+
+/** A level button: side by side with the others across the lanes, free along the axis. */
+function levelStyle(level: number) {
+  const last = level === levelList.value.length
+  const box = place(
+    props.head / 2 - BUTTON / 2,
+    (level - 1) * LANE + (LANE - BUTTON) / 2,
+    BUTTON,
+    BUTTON,
+  )
+  return `${box};${reach(REACH, REACH, level === 1 ? REACH : LANE / 2, last ? REACH : LANE / 2)}`
 }
 
 const levelList = computed(() =>
@@ -164,9 +219,7 @@ defineExpose({ size: width })
         :key="level"
         type="button"
         class="dou-sheet__outline-button is-level"
-        :style="
-          place(head / 2 - BUTTON / 2, (level - 1) * LANE + (LANE - BUTTON) / 2, BUTTON, BUTTON)
-        "
+        :style="levelStyle(level)"
         :aria-label="levelLabel(level)"
         tabindex="-1"
         @click="emit('level', level)"

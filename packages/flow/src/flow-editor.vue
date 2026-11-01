@@ -1,5 +1,13 @@
 <script setup lang="ts">
-import { holdPointer, layoutGraph, matchesHotkey, useReducedMotion, type Tone } from 'dou-ui'
+import {
+  fitPixelRatio,
+  holdPointer,
+  layoutGraph,
+  matchesHotkey,
+  svgToPNG,
+  useReducedMotion,
+  type Tone,
+} from 'dou-ui'
 import {
   computed,
   customRef,
@@ -77,7 +85,6 @@ import {
   drawFlow,
   pathPoints,
   readImage,
-  svgToPng,
   type DrawEdge,
   type DrawNode,
   type FlowExportOptions,
@@ -3391,7 +3398,9 @@ const unreadable = new Set<string>()
 
 async function exportPNG(options: FlowImageOptions = {}) {
   // a picture drawn from SVG can't load other files: images go in as data
-  const { images } = drawing(options)
+  const { images, width: w, height: h } = drawing(options)
+  // too big for a canvas: fail before reading the images
+  fitPixelRatio(w, h, options.pixelRatio)
   const read = new Map<string, string | null>()
   await Promise.all(
     [...images].map(async (src) => {
@@ -3401,7 +3410,7 @@ async function exportPNG(options: FlowImageOptions = {}) {
     }),
   )
   const { svg, width, height } = drawing(options, (src) => read.get(src) ?? null)
-  return svgToPng(svg, width, height, options.pixelRatio ?? 2)
+  return svgToPNG(svg, { width, height, pixelRatio: options.pixelRatio })
 }
 
 defineExpose<FlowEditorExpose>({

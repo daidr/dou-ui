@@ -26,8 +26,9 @@ DouUI 的组件建立在一组组合式函数上。下面这些已经导出，�
 | `useElementSize` / `useResizeObserver`            | 读取元素尺寸，或在尺寸变化时执行回调                   | [下文](#useelementsize)                                            |
 | `useIntersection`                                 | 元素是否出现在视口或滚动容器中                         | [下文](#useintersection)                                           |
 | `holdPointer`                                     | 触摸拖动开始后不再滚动页面，按下的元素被移除也不中断   | [下文](#holdpointer)                                               |
+| `svgToPNG` / `fitPixelRatio`                      | 把 SVG 画成 PNG，超出画布上限时抛出 `RangeError`       | [下文](#svgtopng)                                                  |
 
-除 `holdPointer` 外，这些函数都要在 `setup` 中调用，组件卸载时自动清理监听。
+除 `holdPointer`、`svgToPNG`、`fitPixelRatio` 外，这些函数都要在 `setup` 中调用，组件卸载时自动清理监听。
 
 ## 自己写一个浮层
 
@@ -167,3 +168,15 @@ function onPointerdown(event: PointerEvent) {
 在手机上，手指按下后滑动默认会滚动页面，浏览器一旦开始滚动就会发出 `pointercancel`，拖动随之中断。`holdPointer` 要在 `pointerdown` 里调用，拖动真正开始时调用 `grab()`，此后这次触摸不再滚动页面；拖动结束或取消时调用 `release()`。在 `grab()` 之前，手指仍然可以正常滚动页面，适合先长按再拖动的列表。
 
 触摸事件始终发往手指按下的那个元素。拖动时这个元素可能被移除，例如条目被拖进了另一个列表，或者虚拟列表滚动后不再渲染它，此后它的事件不会再冒泡到页面。`holdPointer` 会在这个元素上单独监听，并把指针捕获到第二个参数给出的元素上，所以第二个参数应当是拖动期间一直存在的元素，例如列表容器。用鼠标时它什么也不做。Sortable、Tree、Drawer 的拖动都基于它实现。
+
+## svgToPNG
+
+```ts
+import { svgToPNG } from 'dou-ui'
+
+const blob = await svgToPNG(svg, { width: 800, height: 600, pixelRatio: 2 })
+```
+
+`svgToPNG` 把一段 SVG 文档画到画布上，返回 PNG 的 `Blob`。`width`、`height` 是图片的 CSS 尺寸，`pixelRatio` 是每个 CSS 像素对应的图片像素，默认 `2`；`background` 是先填充的底色，默认透明。SVG 里的外部图片不会加载，需要先换成 data URL。
+
+浏览器对画布的尺寸有限制：每边 16384 像素（`CANVAS_MAX_SIDE`），iOS 上总共约 1677 万像素（`CANVAS_MAX_AREA`）。超出时 `svgToPNG` 会自动降低 `pixelRatio`，降到 1 仍然放不下时抛出 `RangeError`，不会生成一张模糊的图。`fitPixelRatio(width, height, pixelRatio?)` 只做这一步计算，返回实际使用的倍数，适合在准备耗时的绘制之前先检查一次。白板、甘特图、图表、仪表盘和电子表格的 `exportPNG()` 都基于它们实现，超出上限时的行为一致。

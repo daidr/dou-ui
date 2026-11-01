@@ -118,6 +118,8 @@ const blob = await dashboard.value.exportPNG({ pixelRatio: 2 })
 
 导出和打印都只包含每个格子当前能看到的部分：透视表、明细表等在格子里滚动的内容，超出格子的行和列不会出现。需要完整数据时，请用这些组件自己的导出功能，例如透视表的 `toCSV()`。
 
+浏览器对画布的尺寸有限制（每边 16384 像素，iOS 上总共约 1677 万像素），图片很大时 `exportPNG()` 会自动降低 `pixelRatio`，降到 1 仍然放不下时会抛出 `RangeError`，不会生成一张模糊的图。仪表盘很长时可能遇到，这时可以改用 `print()`，打印会分页。
+
 ## API
 
 ### Dashboard Methods

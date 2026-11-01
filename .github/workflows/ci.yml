@@ -14,6 +14,9 @@ jobs:
     runs-on: [self-hosted, macOS, ARM64]
     steps:
       - uses: actions/checkout@v4
+        with:
+          # the icon check compares the branch with its base to find the pages it touches
+          fetch-depth: 0
 
       # vue-tsc and other tools run on Node; without it bun stands in and vue-tsc cannot read .vue files
       - uses: actions/setup-node@v4
@@ -43,6 +46,19 @@ jobs:
 
       - name: Build docs
         run: bun run docs:build
+
+      # icons sized or centered unlike their neighbours, on the pages this pull request touches
+      - name: Icon check
+        if: github.event_name == 'pull_request'
+        run: |
+          bunx playwright install chromium
+          (cd docs && bunx vitepress preview --port 4173 > /dev/null 2>&1 &)
+          for i in $(seq 60); do curl -sf http://localhost:4173/ > /dev/null && break; sleep 1; done
+          status=0
+          bun run audit:icons --changed origin/${{ github.base_ref }} --url http://localhost:4173 || status=$?
+          # the bracket keeps pkill from matching this script itself
+          pkill -f "vitepress preview --port 417[3]" || true
+          exit $status
 
   bench:
     runs-on: [self-hosted, macOS, ARM64]

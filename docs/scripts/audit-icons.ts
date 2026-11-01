@@ -18,7 +18,12 @@
  * Needs the docs dev server (`bun run docs:dev`) or a preview server, and
  * Playwright. Exits with 1 when something is found.
  *
- *   bun scripts/audit-icons.ts [paths] [--url <server>] [--json]
+ * `--changed <git ref>` measures only the pages a branch touches since that
+ * ref: changed pages and demos, the docs of a changed ecosystem package, and
+ * for a changed base component its own page plus up to 20 pages whose demos
+ * use it. CI runs it this way on pull requests.
+ *
+ *   bun scripts/audit-icons.ts [paths] [--changed <ref>] [--url <server>] [--json]
  */
 import { fileURLToPath } from 'node:url'
 import { Glob } from 'bun'
@@ -30,8 +35,10 @@ const flag = (name: string) => {
   return i < 0 ? undefined : args.splice(i, 2)[1]
 }
 const base = (flag('--url') ?? 'http://localhost:5173').replace(/\/$/, '')
+const changedSince = flag('--changed')
 const json = args.includes('--json') && !!args.splice(args.indexOf('--json'), 1)
 const only = args
+const docsRoot = fileURLToPath(new URL('..', import.meta.url))
 
 const OFFSET = 0.75
 const SIZE = 0.5
@@ -46,19 +53,71 @@ interface Finding {
 const browser = await chromium.launch()
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
 
-/** Every page of the site, from the markdown files next to this folder. */
+/** The markdown files of the site, relative to the docs folder. */
+async function markdown() {
+  const files = await Array.fromAsync(new Glob('**/*.md').scan({ cwd: docsRoot }))
+  return files.filter((f) => !f.startsWith('node_modules/') && !f.includes('/node_modules/'))
+}
+
+const pageOf = (file: string) => `/${file.replace(/(^|\/)index\.md$/, '$1').replace(/\.md$/, '')}`
+
+/** How many pages a changed base component brings in through the demos that use it. */
+const USERS = 20
+
+/** The pages a branch touches since `ref`. */
+async function changedPages(ref: string) {
+  const diff = Bun.spawnSync(['git', 'diff', '--name-only', `${ref}...HEAD`], {
+    cwd: fileURLToPath(new URL('../..', import.meta.url)),
+  })
+  if (diff.exitCode) throw new Error(diff.stderr.toString())
+  const files = diff.stdout.toString().split('\n').filter(Boolean)
+  const mds = await markdown()
+  const texts = new Map(
+    await Promise.all(mds.map(async (f) => [f, await Bun.file(docsRoot + f).text()] as const)),
+  )
+  const demos = await Array.fromAsync(new Glob('examples/**/*.vue').scan({ cwd: docsRoot }))
+  const demoTexts = new Map(
+    await Promise.all(demos.map(async (f) => [f, await Bun.file(docsRoot + f).text()] as const)),
+  )
+  const showing = (demo: string) => mds.filter((f) => texts.get(f)!.includes(`src="${demo}"`))
+  const out = new Set<string>()
+  for (const file of files) {
+    let m: RegExpExecArray | null
+    if ((m = /^docs\/(.+\.md)$/.exec(file))) {
+      if (texts.has(m[1]!)) out.add(m[1]!)
+    } else if ((m = /^docs\/examples\/(.+)\.vue$/.exec(file))) {
+      for (const md of showing(m[1]!)) out.add(md)
+    } else if (
+      (m =
+        /^packages\/(?:dou-ui\/src\/components\/([\w-]+)\/|theme\/src\/components\/([\w-]+)\.css$)/.exec(
+          file,
+        ))
+    ) {
+      const name = (m[1] ?? m[2])!
+      if (texts.has(`components/${name}.md`)) out.add(`components/${name}.md`)
+      const tag = `Dou${name.replace(/(^|-)(\w)/g, (_, __, c: string) => c.toUpperCase())}`
+      const use = new RegExp(`<${tag}[\\s/>]`)
+      const users = demos
+        .filter((d) => use.test(demoTexts.get(d)!))
+        .flatMap((d) => showing(d.replace(/^examples\//, '').replace(/\.vue$/, '')))
+      for (const md of [...new Set(users)].toSorted().slice(0, USERS)) out.add(md)
+    } else if ((m = /^packages\/([\w-]+)\/src\//.exec(file))) {
+      for (const md of mds) if (md.startsWith(`${m[1]}/`)) out.add(md)
+    }
+  }
+  return [...out].map(pageOf).toSorted()
+}
+
+/** The pages to measure: those named, those a branch touches, or every page. */
 async function pagesOf() {
   if (only.length) return only
-  const root = fileURLToPath(new URL('..', import.meta.url))
-  const files = await Array.fromAsync(new Glob('**/*.md').scan({ cwd: root }))
-  return files
-    .filter((f) => !f.startsWith('node_modules/') && !f.includes('/node_modules/'))
-    .map((f) => `/${f.replace(/(^|\/)index\.md$/, '$1').replace(/\.md$/, '')}`)
-    .toSorted()
+  if (changedSince) return changedPages(changedSince)
+  return (await markdown()).map(pageOf).toSorted()
 }
 
 const findings: Finding[] = []
 const paths = await pagesOf()
+if (!paths.length) process.stdout.write('No pages to measure.\n')
 
 for (const path of paths) {
   try {

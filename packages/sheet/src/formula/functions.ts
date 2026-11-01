@@ -1,4 +1,4 @@
-import { formatValue, parseInput } from '../core/format'
+import { formatValue, isDateFormat, parseInput } from '../core/format'
 import { DIV0, isSheetError, NA, NUM, SheetError, VALUE } from './error'
 import {
   compareValues,
@@ -6,6 +6,7 @@ import {
   dateText,
   isRange,
   serialOf,
+  timeText,
   toBoolean,
   toNumber,
   toText,
@@ -42,18 +43,18 @@ interface FunctionBase {
 /**
  * A formula function. `run` gets each argument as a value, or as a range
  * for a reference to more than one cell (see `numbersOf`, `toNumber` and
- * the other helpers), and returns the result. With `lazy`, it gets each
- * argument as a function to call when needed, as `IF` does to work out
- * only the branch it takes.
+ * the other helpers), and returns the result, or a range as `CHOOSE` can.
+ * With `lazy`, it gets each argument as a function to call when needed, as
+ * `IF` does to work out only the branch it takes.
  */
 export type SheetFunction =
   | (FunctionBase & {
       lazy?: false
-      run: (args: SheetArg[], context: SheetFunctionContext) => SheetResult
+      run: (args: SheetArg[], context: SheetFunctionContext) => SheetArg
     })
   | (FunctionBase & {
       lazy: true
-      run: (args: (() => SheetArg)[], context: SheetFunctionContext) => SheetResult
+      run: (args: (() => SheetArg)[], context: SheetFunctionContext) => SheetArg
     })
 
 /** Declares a formula function; only gives it a type. */
@@ -116,6 +117,12 @@ function roundTo(n: number, digits: number, mode: 'round' | 'up' | 'down' = 'rou
 }
 
 const firstError = (...values: unknown[]) => values.find(isSheetError) as SheetError | undefined
+
+/** Whether a lazy argument was given: not left out, nor left empty between commas. */
+const given = (arg: (() => SheetArg) | undefined) => arg != null && arg() != null
+
+/** A branch's value as `IF` and `CHOOSE` give it: a range stays one, for `SUM(IF(…, A1:A3, B1:B3))`. */
+const passOn = (arg: SheetArg): SheetArg => (isRange(arg) ? arg : (arg ?? 0))
 
 function math(
   name: string,
@@ -318,6 +325,35 @@ function sortedIndex(value: SheetResult, length: number, at: (i: number) => Shee
   return found
 }
 
+/** `XMATCH` in sorted data, halving it each step: exact, or the nearest below or above. */
+function halvingIndex(
+  value: SheetResult,
+  length: number,
+  at: (i: number) => SheetResult,
+  how: 'exact' | 'below' | 'above',
+  descending: boolean,
+) {
+  const get = (i: number) => at(descending ? length - 1 - i : i)
+  const comparable = (v: SheetResult) => v != null && !isSheetError(v) && typeof v === typeof value
+  // the last value not above the one looked for
+  let lo = 0
+  let hi = length - 1
+  let last = -1
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1
+    const v = get(mid)
+    if (comparable(v) && compareValues(v, value) <= 0) {
+      last = mid
+      lo = mid + 1
+    } else hi = mid - 1
+  }
+  let i = -1
+  if (last !== -1 && compareValues(get(last), value) === 0) i = last
+  else if (how === 'below') i = last
+  else if (how === 'above' && last + 1 < length) i = last + 1
+  return i === -1 ? -1 : descending ? length - 1 - i : i
+}
+
 const asRange = (arg: SheetArg): SheetRangeArg =>
   isRange(arg)
     ? arg
@@ -343,11 +379,11 @@ function daysInMonth(year: number, month: number) {
 /** Keeps a result to 15 significant digits, so `CEILING(2.3, 0.1)` is 2.3, not 2.3000000000000003. */
 const tidy = (n: number) => (Number.isFinite(n) ? Number(n.toPrecision(15)) : NUM)
 
-/** Numbers from ranges and values for the statistics, at least `least` of them, or the error. */
-function statsOf(args: SheetArg[], least = 1): number[] | SheetError {
+/** Numbers from ranges and values for the statistics, at least `least` of them, else `few`. */
+function statsOf(args: SheetArg[], least: number, few: SheetError): number[] | SheetError {
   const ns = numbersOf(args)
   if (isSheetError(ns)) return ns
-  return ns.length < least ? DIV0 : ns
+  return ns.length < least ? few : ns
 }
 
 const mean = (ns: number[]) => sum(ns) / ns.length
@@ -388,15 +424,6 @@ function serialArg(arg: SheetArg): number | SheetError | null {
 /** A day number as a date, without its time. */
 const dayText = (serial: number) => dateText(Math.floor(serial))
 
-/** A part of a day as `hh:mm`, or `hh:mm:ss` with seconds. */
-function timeText(fraction: number) {
-  const seconds = Math.round((((fraction % 1) + 1) % 1) * 86_400) % 86_400
-  const h = Math.floor(seconds / 3600)
-  const m = Math.floor((seconds % 3600) / 60)
-  const sec = seconds % 60
-  return sec ? `${pad(h)}:${pad(m)}:${pad(sec)}` : `${pad(h)}:${pad(m)}`
-}
-
 /** The day number of a year, month and day, months past 12 or below 1 rolling over. */
 const serialFor = (year: number, month: number, day: number) =>
   (Date.UTC(year, month - 1, day) - Date.UTC(1899, 11, 30)) / 86_400_000
@@ -418,9 +445,54 @@ function holidaysOf(arg: SheetArg | undefined): Set<number> | SheetError {
   return out
 }
 
-const isWorkday = (serial: number, holidays: Set<number>) => {
+const isWeekday = (serial: number) => {
   const day = weekdayOf(serial)
-  return day !== 0 && day !== 6 && !holidays.has(serial)
+  return day !== 0 && day !== 6
+}
+
+/** The last day number dates can have, 9999-12-31. */
+const LAST_DAY = 2_958_465
+
+/** Monday to Friday from `from` to `to`, both counted, by whole weeks: any seven days hold five. */
+function weekdaysBetween(from: number, to: number) {
+  const weeks = Math.floor((to - from + 1) / 7)
+  let count = weeks * 5
+  for (let day = from + weeks * 7; day <= to; day++) if (isWeekday(day)) count++
+  return count
+}
+
+/** The day `n` weekdays after `day` (before it when negative), by whole weeks. */
+function weekdaysOn(day: number, n: number) {
+  const step = n < 0 ? -1 : 1
+  let left = Math.abs(n)
+  const weeks = left > 0 ? Math.floor((left - 1) / 5) : 0
+  day += step * weeks * 7
+  left -= weeks * 5
+  while (left > 0) {
+    day += step
+    if (isWeekday(day)) left--
+  }
+  return day
+}
+
+/** Holidays on weekdays from `from` to `to`, both counted. */
+function holidaysBetween(holidays: Set<number>, from: number, to: number) {
+  let count = 0
+  for (const day of holidays) if (day >= from && day <= to && isWeekday(day)) count++
+  return count
+}
+
+/** The day `WEEKNUM`'s weeks start on for each type, 0 for Sunday. */
+const WEEK_STARTS: Record<number, number> = {
+  1: 0,
+  2: 1,
+  11: 1,
+  12: 2,
+  13: 3,
+  14: 4,
+  15: 5,
+  16: 6,
+  17: 0,
 }
 
 /** The ISO week number: weeks start on Monday, the first holds the year's first Thursday. */
@@ -436,6 +508,11 @@ function positionsOf(t: string, delimiter: string, ignoreCase: boolean) {
   const hay = ignoreCase ? t.toLowerCase() : t
   const needle = ignoreCase ? delimiter.toLowerCase() : delimiter
   const out: number[] = []
+  // nothing is found before every character and at the end
+  if (!needle) {
+    for (let at = 0; at <= t.length; at++) out.push(at)
+    return out
+  }
   for (let at = hay.indexOf(needle); at !== -1; at = hay.indexOf(needle, at + needle.length))
     out.push(at)
   return out
@@ -540,8 +617,8 @@ export const builtinFunctions: SheetFunction[] = [
     run: ([test, then, otherwise]) => {
       const b = bool(test!())
       if (isSheetError(b)) return b
-      if (b) return scalarOf(then!()) ?? 0
-      return otherwise ? (scalarOf(otherwise()) ?? 0) : false
+      if (b) return passOn(then!())
+      return otherwise ? passOn(otherwise()) : false
     },
   }),
   defineSheetFunction({
@@ -553,7 +630,7 @@ export const builtinFunctions: SheetFunction[] = [
       for (let i = 0; i < args.length; i += 2) {
         const b = bool(args[i]!())
         if (isSheetError(b)) return b
-        if (b) return scalarOf(args[i + 1]!()) ?? 0
+        if (b) return passOn(args[i + 1]!())
       }
       return NA
     },
@@ -774,7 +851,9 @@ export const builtinFunctions: SheetFunction[] = [
       const f = text(format!)
       const error = firstError(v, f)
       if (error) return error
-      return formatValue(v as string | number | boolean | null, f as string, context.locale)
+      // a number in a date or time format is a day number, as `TEXT(B2 + 1/24, "hh:mm")` gives
+      const shown = typeof v === 'number' && isDateFormat(f as string) ? dateText(v) : v
+      return formatValue(shown as string | number | boolean | null, f as string, context.locale)
     },
   }),
   defineSheetFunction({
@@ -1105,8 +1184,8 @@ export const builtinFunctions: SheetFunction[] = [
     name: 'MEDIAN',
     minArgs: 1,
     run: (args) => {
-      const ns = statsOf(args)
-      return isSheetError(ns) ? (ns === DIV0 ? NUM : ns) : percentile(ascending(ns), 0.5)
+      const ns = statsOf(args, 1, NUM)
+      return isSheetError(ns) ? ns : percentile(ascending(ns), 0.5)
     },
   }),
   ...(['LARGE', 'SMALL'] as const).map((name) =>
@@ -1159,7 +1238,7 @@ export const builtinFunctions: SheetFunction[] = [
       name,
       minArgs: 1,
       run: (args) => {
-        const ns = statsOf(args, sample ? 2 : 1)
+        const ns = statsOf(args, sample ? 2 : 1, DIV0)
         if (isSheetError(ns)) return ns
         const v = variance(ns, sample)
         return root ? Math.sqrt(v) : v
@@ -1230,6 +1309,15 @@ export const builtinFunctions: SheetFunction[] = [
     1,
     2,
   ),
+  math(
+    'MROUND',
+    (n, step) => {
+      if (step === 0 || n === 0) return 0
+      if (Math.sign(n) !== Math.sign(step)) return NUM
+      return tidy(roundTo(n / step, 0) * step)
+    },
+    2,
+  ),
   math('TRUNC', (n, d = 0) => roundTo(n, d, 'down'), 1, 2),
   math('SIGN', Math.sign, 1),
   math('PI', () => Math.PI, 0),
@@ -1298,11 +1386,11 @@ export const builtinFunctions: SheetFunction[] = [
       for (let i = 0; i + 1 < cases.length; i += 2) {
         const c = scalarOf(cases[i]!())
         if (isSheetError(c)) return c
-        if (typeof c === typeof v && compareValues(c, v) === 0)
-          return scalarOf(cases[i + 1]!()) ?? 0
+        // the same as `=` finds them: an empty cell is 0 and empty text
+        if (compareValues(c, v) === 0) return passOn(cases[i + 1]!())
       }
       // an odd one at the end is the default
-      return cases.length % 2 ? (scalarOf(cases.at(-1)!()) ?? 0) : NA
+      return cases.length % 2 ? passOn(cases[cases.length - 1]!()) : NA
     },
   }),
   defineSheetFunction({
@@ -1314,7 +1402,7 @@ export const builtinFunctions: SheetFunction[] = [
       if (isSheetError(i)) return i
       const at = Math.floor(i)
       if (at < 1 || at > values.length) return VALUE
-      return scalarOf(values[at - 1]!()) ?? 0
+      return passOn(values[at - 1]!())
     },
   }),
   defineSheetFunction({ name: 'NA', maxArgs: 0, run: () => NA }),
@@ -1379,9 +1467,10 @@ export const builtinFunctions: SheetFunction[] = [
       run: ([value, delimiter, instance, matchMode, matchEnd, ifNotFound]) => {
         const t = text(value!())
         const d = text(delimiter!())
-        const nth = instance ? num(instance()) : 1
-        const mode = matchMode ? num(matchMode()) : 0
-        const end = matchEnd ? bool(matchEnd()) : false
+        // an argument left out, also between commas, takes its default
+        const nth = given(instance) ? num(instance!()) : 1
+        const mode = given(matchMode) ? num(matchMode!()) : 0
+        const end = given(matchEnd) ? bool(matchEnd!()) : false
         const error = firstError(t, d, nth, mode, end)
         if (error) return error
         const source = t as string
@@ -1395,11 +1484,11 @@ export const builtinFunctions: SheetFunction[] = [
         let at: number
         let after: number
         if (k > 0) {
-          if (k > starts.length) return ifNotFound ? (scalarOf(ifNotFound()) ?? 0) : NA
+          if (k > starts.length) return given(ifNotFound) ? (scalarOf(ifNotFound!()) ?? 0) : NA
           at = starts[k - 1]!
           after = at === source.length ? at : at + width
         } else {
-          if (-k > ends.length) return ifNotFound ? (scalarOf(ifNotFound()) ?? 0) : NA
+          if (-k > ends.length) return given(ifNotFound) ? (scalarOf(ifNotFound!()) ?? 0) : NA
           at = ends[ends.length + k]!
           after = end && at === 0 && ends.length + k === 0 ? 0 : at + width
         }
@@ -1495,8 +1584,7 @@ export const builtinFunctions: SheetFunction[] = [
       if (a == null || b == null) return VALUE
       const from = Math.floor(Math.min(a as number, b as number))
       const to = Math.floor(Math.max(a as number, b as number))
-      let count = 0
-      for (let day = from; day <= to; day++) if (isWorkday(day, off as Set<number>)) count++
+      const count = weekdaysBetween(from, to) - holidaysBetween(off as Set<number>, from, to)
       return (a as number) > (b as number) ? -count : count
     },
   }),
@@ -1511,14 +1599,25 @@ export const builtinFunctions: SheetFunction[] = [
       const error = firstError(a, n, off)
       if (error) return error
       if (a == null) return VALUE
-      let left = Math.trunc(n as number)
-      const step = left < 0 ? -1 : 1
-      let day = Math.floor(a as number)
-      while (left !== 0) {
-        day += step
-        if (isWorkday(day, off as Set<number>)) left -= step
+      const count = Math.trunc(n as number)
+      if (!Number.isFinite(count) || Math.abs(count) > LAST_DAY) return NUM
+      const step = count < 0 ? -1 : 1
+      let from = Math.floor(a as number)
+      let day = weekdaysOn(from, count)
+      // each holiday passed on the way puts the day one weekday further
+      for (;;) {
+        const lo = Math.min(from, day)
+        const hi = Math.max(from, day)
+        const passed = holidaysBetween(
+          off as Set<number>,
+          lo + (step > 0 ? 1 : 0),
+          hi - (step < 0 ? 1 : 0),
+        )
+        if (!passed) break
+        from = day
+        day = weekdaysOn(day, passed * step)
       }
-      return dayText(day)
+      return day < 0 || day > LAST_DAY ? NUM : dayText(day)
     },
   }),
   defineSheetFunction({
@@ -1532,12 +1631,13 @@ export const builtinFunctions: SheetFunction[] = [
       if (error) return error
       if (serial == null) return VALUE
       if (t === 21) return isoWeek(serial as number)
-      // the week starts on Sunday (1) or Monday (2); the first holds January 1
-      if (t !== 1 && t !== 2) return NUM
+      // the day the week starts on, 0 for Sunday; the first week holds January 1
+      const start = WEEK_STARTS[t as number]
+      if (start == null) return NUM
       const day = Math.floor(serial as number)
       const year = new Date(day * 86_400_000 + Date.UTC(1899, 11, 30)).getUTCFullYear()
       const first = serialFor(year, 1, 1)
-      const shift = t === 1 ? weekdayOf(first) : (weekdayOf(first) + 6) % 7
+      const shift = (weekdayOf(first) - start + 7) % 7
       return Math.floor((day - first + shift) / 7) + 1
     },
   }),
@@ -1592,10 +1692,15 @@ export const builtinFunctions: SheetFunction[] = [
               : mode === 2
                 ? 'wildcard'
                 : null
-      if (!how || (search !== 1 && search !== -1)) return VALUE
+      if (!how || ![1, -1, 2, -2].includes(search as number)) return VALUE
       const length = Math.max(r.rows, r.cols)
       const at = (i: number) => (r.rows > 1 ? r.at(i, 0) : r.at(0, i))
-      const found = lookupIndex(v, length, at, how, search === -1)
+      // 2 and -2 search data sorted from smallest or from largest, by halves
+      if (Math.abs(search as number) === 2 && how === 'wildcard') return VALUE
+      const found =
+        Math.abs(search as number) === 2
+          ? halvingIndex(v, length, at, how as 'exact' | 'below' | 'above', search === -2)
+          : lookupIndex(v, length, at, how, search === -1)
       return found === -1 ? NA : found + 1
     },
   }),

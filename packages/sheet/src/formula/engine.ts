@@ -1,7 +1,7 @@
 import { rowCountOf, colCountOf, valueOf, type SheetData, type SheetWorkbook } from '../core/model'
 import { parseCell, type SheetCellTarget, type SheetPoint } from '../core/address'
 import { sheetKey, type SheetStep } from '../core/transaction'
-import { CYCLE, isSheetError, NAME, REF, SheetError, SYNTAX, VALUE, DIV0, NUM } from './error'
+import { CYCLE, isSheetError, NA, NAME, REF, SheetError, SYNTAX, VALUE, DIV0, NUM } from './error'
 import {
   builtinFunctions,
   scalarOf,
@@ -14,6 +14,8 @@ import {
   dateText,
   isDateText,
   isRange,
+  isTimeText,
+  timeText,
   toNumber,
   toText,
   type SheetArg,
@@ -518,19 +520,18 @@ export class SheetFormulaEngine {
         return this.range(target, node.top, node.left, node.bottom, node.right)
       }
       case 'unary': {
-        const v = this.scalar(this.ev(node.arg, slot))
-        if (isSheetError(v)) return v
-        if (node.op === '+') return v
-        const n = toNumber(v)
-        if (isSheetError(n)) return n
-        return node.op === '-' ? -n : n / 100
+        const a = this.ev(node.arg, slot)
+        if (isArray(a)) return cellByCell([a], (v) => unary(node.op, v))
+        return unary(node.op, this.scalar(a))
       }
-      case 'binary':
-        return this.binary(
-          node.op,
-          this.scalar(this.ev(node.left, slot)),
-          this.scalar(this.ev(node.right, slot)),
-        )
+      case 'binary': {
+        const a = this.ev(node.left, slot)
+        const b = this.ev(node.right, slot)
+        // a range given to an operator is worked out cell by cell, as in SUMPRODUCT((A1:A9="x")*B1:B9)
+        if (isArray(a) || isArray(b))
+          return cellByCell([a, b], (x, y) => this.binary(node.op, x, y))
+        return this.binary(node.op, this.scalar(a), this.scalar(b))
+      }
       case 'call': {
         const fn = this.functions.get(node.name)
         if (!fn) return NAME
@@ -540,7 +541,7 @@ export class SheetFormulaEngine {
           (fn.maxArgs != null && count > fn.maxArgs)
         )
           return VALUE
-        let out: SheetResult | undefined
+        let out: SheetArg | undefined
         try {
           out = fn.lazy
             ? fn.run(
@@ -588,12 +589,15 @@ export class SheetFormulaEngine {
     switch (op) {
       case '+':
         out = x + y
-        // a date and a number of days is a date
+        // a date and a number of days (or a time) is a date; a time and a time, or a part of a day, a time
         if (isDateText(a) !== isDateText(b)) return dateText(out)
+        if (isTimeText(a) || isTimeText(b)) return clock(out)
         break
       case '-':
         out = x - y
         if (isDateText(a) && !isDateText(b)) return dateText(out)
+        // two times apart is how long between them, as a time too
+        if (isTimeText(a) && !isDateText(b)) return clock(out)
         break
       case '*':
         out = x * y
@@ -607,6 +611,61 @@ export class SheetFormulaEngine {
         out = x ** y
     }
     return Number.isFinite(out) ? out : NUM
+  }
+}
+
+/** A part of a day as a time; a whole day or more, or below nothing, stays a number of days. */
+const clock = (days: number): SheetResult =>
+  days >= 0 && days < 1 ? timeText(days) : Number.isFinite(days) ? days : NUM
+
+/** Whether an argument is a range of more than one cell. */
+const isArray = (arg: SheetArg): arg is SheetRangeArg =>
+  isRange(arg) && (arg.rows > 1 || arg.cols > 1)
+
+function unary(op: string, v: SheetResult): SheetResult {
+  if (isSheetError(v)) return v
+  if (op === '+') return v
+  const n = toNumber(v)
+  if (isSheetError(n)) return n
+  return op === '-' ? -n : n / 100
+}
+
+/** The cell of an argument that goes with `row` and `col` of `cellByCell`'s result. */
+function pick(arg: SheetArg, row: number, col: number): SheetResult {
+  if (!isRange(arg)) return arg
+  const r = arg.rows === 1 ? 0 : row
+  const c = arg.cols === 1 ? 0 : col
+  return r < arg.rows && c < arg.cols ? arg.at(r, c) : NA
+}
+
+/**
+ * Works out an operator for each cell of its ranges, into a range as big as
+ * the biggest. A single value, or a range one row or column across, is used
+ * for every row or column; past the end of a smaller range the cell is `#N/A`.
+ */
+function cellByCell(
+  args: SheetArg[],
+  run: (...values: SheetResult[]) => SheetResult,
+): SheetRangeArg {
+  let rows = 1
+  let cols = 1
+  for (const arg of args)
+    if (isRange(arg)) {
+      rows = Math.max(rows, arg.rows)
+      cols = Math.max(cols, arg.cols)
+    }
+  const values: SheetResult[] = []
+  for (let row = 0; row < rows; row++)
+    for (let col = 0; col < cols; col++) values.push(run(...args.map((arg) => pick(arg, row, col))))
+  return {
+    kind: 'range',
+    rows,
+    cols,
+    at: (row, col) => values[row * cols + col] ?? null,
+    *entries() {
+      for (let i = 0; i < values.length; i++)
+        if (values[i] != null) yield [Math.floor(i / cols), i % cols, values[i]!]
+    },
   }
 }
 

@@ -80,6 +80,7 @@ import { alignOf, fitNumber, formatValue, inputText, parseInput } from './core/f
 import { SheetHistory, type SheetHistoryView } from './core/history'
 import { SheetFormulaEngine } from './formula/engine'
 import {
+  argNameAt,
   callAt,
   canPointAt,
   formulaParts,
@@ -2342,11 +2343,7 @@ const assist = computed(() => {
   const fn = call && functionList.value.find((f) => f.name.toUpperCase() === call.name)
   if (!call || !fn) return null
   const help = helpOf(fn)
-  // past the last argument, a repeating one (`…`) goes on
-  const repeat = help.args[help.args.length - 1] === '…'
-  const arg =
-    call.arg < help.args.length - (repeat ? 1 : 0) ? call.arg : repeat ? help.args.length - 2 : -1
-  return { kind: 'hint' as const, ...help, arg }
+  return { kind: 'hint' as const, ...help, arg: argNameAt(help.args, call.arg, call.count) }
 })
 watch(
   () => (assist.value?.kind === 'list' ? `${assist.value.start}:${assist.value.text}` : ''),

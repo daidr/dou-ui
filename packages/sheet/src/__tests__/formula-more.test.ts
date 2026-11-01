@@ -176,3 +176,120 @@ describe('the second batch of functions', () => {
     expect(calc('=ROUND(NPV(10%, -10000, 3000, 4200, 6800), 2)')).toBe(1188.44)
   })
 })
+
+describe('the second batch, after review', () => {
+  it('finds an empty delimiter at once', () => {
+    const started = performance.now()
+    expect(calc('=TEXTBEFORE("abc", "")')).toBe('')
+    expect(calc('=TEXTAFTER("abc", "")')).toBe('abc')
+    expect(calc('=TEXTBEFORE("abc", "", -1)')).toBe('abc')
+    expect(performance.now() - started).toBeLessThan(200)
+  })
+
+  it('takes the default for arguments left empty between commas', () => {
+    expect(calc('=TEXTBEFORE("a-b", "-", )')).toBe('a')
+    expect(calc('=TEXTAFTER("a-b", "-", , , , "无")')).toBe('b')
+    expect(calc('=TEXTAFTER("a-b", "+", , , , "无")')).toBe('无')
+    expect(calc('=TEXTBEFORE("aXb", "x", , 1)')).toBe('a')
+  })
+
+  it('counts workdays by whole weeks, and stays inside the dates', () => {
+    const started = performance.now()
+    expect(calc('=WORKDAY("2026-01-01", 1e8)')).toBe('#NUM!')
+    expect(calc('=WORKDAY("2026-01-01", -1e8)')).toBe('#NUM!')
+    expect(calc('=NETWORKDAYS("2000-01-01", "9999-12-31")')).toBe(2_087_100)
+    expect(performance.now() - started).toBeLessThan(200)
+    // the same as counting day by day
+    const holidays = [['2026-01-01'], ['2026-01-02'], ['2026-01-10'], ['2026-02-17']]
+    for (const n of [1, 4, 5, 6, 10, 23, 40, -1, -5, -6, -23]) {
+      let day = new Date(Date.UTC(2026, 0, 1))
+      for (let left = Math.abs(n); left;) {
+        day = new Date(day.getTime() + Math.sign(n) * 86_400_000)
+        const text = day.toISOString().slice(0, 10)
+        const weekday = day.getUTCDay()
+        if (weekday && weekday !== 6 && !holidays.some(([h]) => h === text)) left--
+      }
+      expect(calc(`=WORKDAY("2026-01-01", ${n}, A1:A4)`, holidays)).toBe(
+        day.toISOString().slice(0, 10),
+      )
+    }
+    expect(calc('=NETWORKDAYS("2026-01-01", "2026-02-28", A1:A4)', holidays)).toBe(39)
+  })
+
+  it('works ranges out cell by cell inside functions', () => {
+    const cells = [
+      ['上海', 3, 10],
+      ['杭州', 4, 20],
+      ['上海', 5, 30],
+    ]
+    expect(calc('=SUMPRODUCT((A1:A3="上海")*B1:B3)', cells)).toBe(8)
+    expect(calc('=SUMPRODUCT((A1:A3="上海")*B1:B3*C1:C3)', cells)).toBe(180)
+    expect(calc('=SUM(B1:B3*2)', cells)).toBe(24)
+    expect(calc('=SUM(B1:B3*C1:C3)', cells)).toBe(3 * 10 + 4 * 20 + 5 * 30)
+    expect(calc('=SUM(-B1:B3)', cells)).toBe(-12)
+    expect(calc('=SUM(B1:B3+C1:C2)', cells)).toBe('#N/A')
+    // a cell shows one value
+    expect(calc('=B1:B3*2', cells)).toBe('#VALUE!')
+    expect(calc('=SUM(CHOOSE(2, B1:B3, C1:C3))', cells)).toBe(60)
+    expect(calc('=SUM(IF(TRUE, B1:B3, 0))', cells)).toBe(12)
+    expect(calc('=SUM(SWITCH(1, 1, C1:C3))', cells)).toBe(60)
+  })
+
+  it('keeps errors as they are, and compares as = does', () => {
+    expect(calc('=MEDIAN(A1:A2)', [[1], ['=1/0']])).toBe('#DIV/0!')
+    expect(calc('=MEDIAN(A1:A2)', [['x'], ['y']])).toBe('#NUM!')
+    expect(calc('=SWITCH(A5, 0, "零", "其他")')).toBe('零')
+    expect(calc('=SWITCH(A5, "", "空", "其他")')).toBe('空')
+    expect(calc('=SWITCH("1", 1, "数", "其他")')).toBe('其他')
+    expect(calc('=SWITCH("上海", "上海", "沪", "其他")')).toBe('沪')
+  })
+
+  it('searches sorted data by halves, and starts weeks on any day', () => {
+    const up = [[10], [20], [30], [40]]
+    expect(calc('=XMATCH(30, A1:A4, 0, 2)', up)).toBe(3)
+    expect(calc('=XMATCH(25, A1:A4, -1, 2)', up)).toBe(2)
+    expect(calc('=XMATCH(25, A1:A4, 1, 2)', up)).toBe(3)
+    expect(calc('=XMATCH(45, A1:A4, 1, 2)', up)).toBe('#N/A')
+    expect(calc('=XMATCH(25, A1:A4, 0, 2)', up)).toBe('#N/A')
+    const down = [[40], [30], [20], [10]]
+    expect(calc('=XMATCH(30, A1:A4, 0, -2)', down)).toBe(2)
+    expect(calc('=XMATCH(25, A1:A4, -1, -2)', down)).toBe(3)
+    expect(calc('=XMATCH(25, A1:A4, 1, -2)', down)).toBe(2)
+    expect(calc('=XMATCH("a*", A1:A4, 2, 2)', up)).toBe('#VALUE!')
+    // 2026-01-01 is a Thursday
+    expect(calc('=WEEKNUM("2026-01-05", 11)')).toBe(2)
+    expect(calc('=WEEKNUM("2026-01-05", 2)')).toBe(2)
+    expect(calc('=WEEKNUM("2026-01-06", 12)')).toBe(2)
+    expect(calc('=WEEKNUM("2026-01-05", 12)')).toBe(1)
+    expect(calc('=WEEKNUM("2026-01-04", 17)')).toBe(2)
+    expect(calc('=WEEKNUM("2026-01-02", 15)')).toBe(2)
+    expect(calc('=WEEKNUM("2026-01-01", 15)')).toBe(1)
+    expect(calc('=WEEKNUM("2026-01-01", 18)')).toBe('#NUM!')
+  })
+
+  it('keeps times as times when they are added and taken away', () => {
+    const cells = [['2026-03-05', '09:30']]
+    expect(calc('=B1+TIME(1, 0, 0)', cells)).toBe('10:30')
+    expect(calc('=B1+1/24', cells)).toBe('10:30')
+    expect(calc('=TIMEVALUE("09:30")+TIME(1, 0, 0)')).toBe('10:30')
+    expect(calc('="11:00"-B1', cells)).toBe('01:30')
+    expect(calc('=("11:00"-B1)*24', cells)).toBe(1.5)
+    expect(calc('=A1+B1', cells)).toBe('2026-03-05 09:30')
+    expect(calc('=B1+A1', cells)).toBe('2026-03-05 09:30')
+    // past a day, it is a number of days
+    expect(calc('="23:00"+"02:00"')).toBeCloseTo(25 / 24)
+    expect(calc('=B1-"10:00"', cells)).toBeCloseTo(-0.5 / 24)
+    expect(calc('=TEXT(B1+TIME(1, 0, 0), "hh:mm")', cells)).toBe('10:30')
+    expect(calc('=TEXT(0.5, "hh:mm")')).toBe('12:00')
+    expect(calc('=TEXT(46086, "yyyy-mm-dd")')).toBe('2026-03-05')
+  })
+
+  it('rounds to a multiple with MROUND', () => {
+    expect(calc('=MROUND(10, 3)')).toBe(9)
+    expect(calc('=MROUND(-10, -3)')).toBe(-9)
+    expect(calc('=MROUND(1.3, 0.2)')).toBe(1.4)
+    expect(calc('=MROUND(5, -2)')).toBe('#NUM!')
+    expect(calc('=MROUND(5, 0)')).toBe(0)
+    expect(calc('=ROUND(PMT(4.9%/12, 360, 300000), 2)')).toBe(-1592.18)
+  })
+})

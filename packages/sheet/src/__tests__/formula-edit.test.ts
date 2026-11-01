@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
-import { callAt, canPointAt, formulaReferences, formulaTokens, nameAt } from '../formula'
+import { argNameAt, callAt, canPointAt, formulaReferences, formulaTokens, nameAt } from '../formula'
 import {
   defineSheetExtension,
   defineSheetFunction,
@@ -46,8 +46,8 @@ describe('formula editing helpers', () => {
   })
 
   it('finds the call and the argument the caret is in', () => {
-    expect(callAt('=IF(A1>0, SUM(', 14)).toEqual({ name: 'SUM', arg: 0 })
-    expect(callAt('=IF(A1>0, SUM(B1)', 17)).toEqual({ name: 'IF', arg: 1 })
+    expect(callAt('=IF(A1>0, SUM(', 14)).toEqual({ name: 'SUM', arg: 0, count: 1 })
+    expect(callAt('=IF(A1>0, SUM(B1)', 17)).toEqual({ name: 'IF', arg: 1, count: 2 })
     expect(callAt('=(1, 2', 6)).toBeNull()
   })
 
@@ -233,5 +233,34 @@ describe('DouSheetFormulaBar', () => {
     await name.trigger('keydown', { key: 'Escape' })
     expect((name.element as HTMLInputElement).value).toBe('B2')
     expect(name.attributes('aria-invalid')).toBeUndefined()
+  })
+})
+
+const names = (args: string, formula: string) => {
+  const call = callAt(formula, formula.length)!
+  const list = args.split(', ')
+  const at = argNameAt(list, call.arg, call.count)
+  return at === -1 ? null : list[at]
+}
+
+describe('argument hints of repeating arguments', () => {
+  const SWITCH = '表达式, 值1, 结果1, [值2, 结果2], …, [默认值]'
+  const IFS = '条件1, 值1, [条件2, 值2], …'
+
+  it('repeats pairs, and the default only last', () => {
+    expect(names(SWITCH, '=SWITCH(A1,1,"a",2,"b"')).toBe('结果2]')
+    expect(names(SWITCH, '=SWITCH(A1,1,"a",2,"b",')).toBe('[默认值]')
+    expect(names(SWITCH, '=SWITCH(A1,1,"a",2,"b",3,')).toBe('结果2]')
+    expect(names(SWITCH, '=SWITCH(A1,1,"a",2,"b",3,"c",')).toBe('[默认值]')
+    expect(names(IFS, '=IFS(A1,1,A2,2,')).toBe('[条件2')
+    expect(names(IFS, '=IFS(A1,1,A2,2,A3,')).toBe('值2]')
+    expect(names('求和区域, 区域1, 条件1, …', '=SUMIFS(A:A,B:B,1,')).toBe('区域1')
+    expect(names('值1, [值2], …', '=SUM(1,2,3,')).toBe('[值2]')
+    expect(names('数值, [位数]', '=ROUND(1,2,')).toBeNull()
+  })
+
+  it('counts the arguments after the caret too', () => {
+    const formula = '=SWITCH(A1,1,"a",2,"b",3)'
+    expect(callAt(formula, formula.indexOf(',3') + 1)).toEqual({ name: 'SWITCH', arg: 5, count: 6 })
   })
 })

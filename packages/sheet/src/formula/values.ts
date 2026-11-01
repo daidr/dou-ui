@@ -42,6 +42,10 @@ const DAY = 86_400_000
 export const isDateText = (value: unknown): value is string =>
   typeof value === 'string' && DATE.test(value)
 
+/** Whether a value is a time of day as cells write it, such as `09:30`. */
+export const isTimeText = (value: unknown): value is string =>
+  typeof value === 'string' && TIME.test(value)
+
 /** A date or time written in a cell as a day number (a time as part of a day); `null` when it isn't one. */
 export function serialOf(text: string): number | null {
   const date = DATE.exec(text)
@@ -66,6 +70,15 @@ export function dateText(serial: number) {
   if (!seconds) return day
   const time = `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`
   return d.getUTCSeconds() ? `${day} ${time}:${pad(d.getUTCSeconds())}` : `${day} ${time}`
+}
+
+/** A part of a day as `hh:mm`, or `hh:mm:ss` with seconds; a whole day and more wraps round. */
+export function timeText(fraction: number) {
+  const seconds = Math.round((((fraction % 1) + 1) % 1) * 86_400) % 86_400
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  const sec = seconds % 60
+  return sec ? `${pad(h)}:${pad(m)}:${pad(sec)}` : `${pad(h)}:${pad(m)}`
 }
 
 /** The parts of a date, from a date or a day number; `null` when it is neither. */

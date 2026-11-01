@@ -3058,6 +3058,7 @@ function paintRadar(painter: Painter, dpr: number, t: number, still = false) {
     painter.stroke()
   }
   painter.restore()
+  ringValues(painter, r)
   const shown = shownSeries(t)
   if (!still) lastSeries = shown
   const focus = still ? -1 : (focused.value ?? -1)
@@ -3085,6 +3086,46 @@ function paintFunnel(painter: Painter, dpr: number, t: number, still = false) {
   if (!still) lastSeries = shown
   const now = shown.find((one) => one.index === s.index) ?? s
   s.kind.draw(painter, now, funnelView(f, dpr, isSvg(painter)))
+}
+
+/**
+ * A radar's ring values, drawn over the grid and under the series: ringed
+ * with the surface so grid lines don't cut them, while the series' lines
+ * pass over them unbroken.
+ */
+function ringValues(painter: Painter, r: RadarLayout) {
+  if (!r.values.length) return
+  const ink = resolveColor('var(--dou-chart-label)')
+  const surface = colors.value.surface
+  if (isSvg(painter)) {
+    painter.raw(
+      r.values
+        .map((tick) =>
+          svgText(tick.text, tick.left, tick.top, { color: ink, size: 12, halo: surface }),
+        )
+        .join(''),
+    )
+    return
+  }
+  // only the canvas writes text itself: everything else draws shapes
+  const ctx = painter as CanvasRenderingContext2D
+  if (typeof ctx.fillText !== 'function') return
+  const root = rootRef.value
+  const family = root ? getComputedStyle(root).fontFamily : 'sans-serif'
+  ctx.save()
+  ctx.font = `12px ${family}`
+  ctx.textBaseline = 'alphabetic'
+  ctx.lineJoin = 'round'
+  ctx.lineWidth = 3
+  ctx.strokeStyle = surface
+  ctx.fillStyle = ink
+  for (const tick of r.values) {
+    // the same baseline as the page's text and the SVG's
+    const y = tick.top + 8 + 12 * 0.35
+    ctx.strokeText(tick.text, tick.left, y)
+    ctx.fillText(tick.text, tick.left, y)
+  }
+  ctx.restore()
 }
 
 const holeRatio = computed(() => Math.min(0.95, Math.max(0, pie.value?.props.innerRadius ?? 0)))
@@ -3632,11 +3673,8 @@ const labels = computed(() => {
       ...f.rates.map((tick, i) => ({ ...tick, key: `rate:${i}`, axis: 'rate' })),
     ]
   const r = radarLayout.value
-  if (r)
-    return [
-      ...r.labels.map((tick, i) => ({ ...tick, key: `spoke:${i}`, axis: 'spoke' })),
-      ...r.values.map((tick, i) => ({ ...tick, key: `ring:${i}`, axis: 'ring' })),
-    ]
+  // the rings' values are drawn with the grid, under the series (see `ringValues`)
+  if (r) return r.labels.map((tick, i) => ({ ...tick, key: `spoke:${i}`, axis: 'spoke' }))
   const l = layout.value
   if (!l) return []
   const out: Array<TickLabel & { key: string; axis: string }> = []
@@ -4098,12 +4136,9 @@ function drawSvg(
   } else if (radarLayout.value) {
     paintRadar(svg, 1, 1, true)
     const ink = color('var(--dou-chart-label)')
-    const surface = color('var(--dou-chart-surface)')
     for (const tick of labels.value) {
       const text = tick.clipped ? fitText(tick.text, tick.width) : tick.text
-      // a ring's value is over the shapes, ringed with the surface as on the page
-      const halo = tick.axis === 'ring' ? surface : undefined
-      texts.push(svgText(text, tick.left, tick.top, { color: ink, size: 12, halo }))
+      texts.push(svgText(text, tick.left, tick.top, { color: ink, size: 12 }))
     }
   } else if (layout.value) {
     paint(svg, 1, 1, 1, true)

@@ -93,14 +93,6 @@
     will-change: transform;
   }
 
-  /* a radar ring's value: over the shapes, ringed with the surface so lines under it don't cut it */
-  .dou-chart__tick.is-ring {
-    text-shadow:
-      0 0 2px var(--dou-chart-surface),
-      0 0 2px var(--dou-chart-surface),
-      0 0 3px var(--dou-chart-surface);
-  }
-
   /* a funnel stage's value: stronger than the names round it, its digits lined up */
   .dou-chart__tick.is-value {
     color: var(--dou-color-text-secondary);

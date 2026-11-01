@@ -76,6 +76,12 @@ export interface EditorExtension {
   inlines?: Record<string, NodeSpec>
   marks?: Record<string, MarkSpec>
   nodeViews?: Record<string, NodeViewConstructor>
+  /**
+   * Node views that draw Vue components, by node type. Each is made with
+   * `mount`, which renders a component into an element inside the editor's
+   * app, so it can call `useEditor()` and follows the ConfigProvider.
+   */
+  componentViews?: Record<string, (mount: MountComponent) => NodeViewConstructor>
   inputRules?: (context: EditorExtensionContext) => InputRule[]
   /**
    * Keys, written as in `useHotkey` (e.g. `mod+shift+h`, `shift+tab`,
@@ -115,6 +121,16 @@ export interface EditorExtension {
   prepareHTML?: (root: HTMLElement) => void
 }
 
+/**
+ * Renders `component` into `element` with `props` (a reactive object stays
+ * live), inside the editor's app. Returns a function that removes it.
+ */
+export type MountComponent = (
+  component: Component,
+  props: Record<string, unknown>,
+  element: HTMLElement,
+) => () => void
+
 /** Declare an extension; only gives it a type. */
 export function defineEditorExtension(extension: EditorExtension): EditorExtension {
   return extension
@@ -126,6 +142,7 @@ export interface ResolvedEditorExtensions {
   schema: Schema
   context: EditorExtensionContext
   nodeViews: Record<string, NodeViewConstructor>
+  componentViews: Record<string, (mount: MountComponent) => NodeViewConstructor>
   blockOptions: BlockOption[]
   formats: FormatOption[]
   overlays: Component[]
@@ -230,6 +247,10 @@ export function resolveEditorExtensions(
     schema,
     context,
     nodeViews: Object.assign({}, ...extensions.map((extension) => extension.nodeViews ?? {})),
+    componentViews: Object.assign(
+      {},
+      ...extensions.map((extension) => extension.componentViews ?? {}),
+    ),
     blockOptions: extensions.flatMap((extension) => extension.blockOptions ?? []),
     formats: extensions.flatMap((extension) => extension.formats ?? []),
     overlays: extensions.flatMap((extension) => extension.overlays ?? []),

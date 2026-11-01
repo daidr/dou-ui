@@ -25,7 +25,7 @@ import { resolveEditorExtensions } from './core/extension'
 import { slashPlugin, type SlashState } from './core/slash'
 import { writeHTML } from './core/output'
 import { parseHTML } from './core/prepare'
-import { vueNodeView } from './define-block'
+import { componentMounter, vueNodeView } from './define-block'
 import { editorKit } from './extensions/editor-kit'
 import { editorKey, type EditorEmits, type EditorExpose, type EditorProps } from './editor'
 import { useEditorMessages } from './locale'
@@ -76,14 +76,20 @@ provide(editorKey, context)
 
 // block components render outside this component's tree: hand them the context
 const appContext = getCurrentInstance()?.appContext ?? null
-const componentViews = Object.fromEntries(
-  Object.entries(kit.schema.nodes)
-    .filter(([, type]) => type.spec.component)
-    .map(([name, type]) => [
-      name,
-      vueNodeView(type.spec.component as Component, appContext, [[editorKey, context]]),
-    ]),
-)
+const mountComponent = componentMounter(appContext, [[editorKey, context]])
+const componentViews = {
+  ...Object.fromEntries(
+    Object.entries(kit.schema.nodes)
+      .filter(([, type]) => type.spec.component)
+      .map(([name, type]) => [
+        name,
+        vueNodeView(type.spec.component as Component, appContext, [[editorKey, context]]),
+      ]),
+  ),
+  ...Object.fromEntries(
+    Object.entries(kit.componentViews).map(([name, create]) => [name, create(mountComponent)]),
+  ),
+}
 
 const slash = shallowRef<SlashState | null>(null)
 const slashMenu = useTemplateRef<InstanceType<typeof SlashMenu>>('slashMenu')

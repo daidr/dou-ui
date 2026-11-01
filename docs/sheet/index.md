@@ -305,7 +305,7 @@ const book = {
 
 <DocDemo src="sheet/types" column />
 
-要加自己的单元格类型，比如进度条、评分，见[扩展](./extensions)。
+要加自己的单元格类型，比如进度条、评分，见[扩展](./extensions)。自定义的类型在[导出图片和打印](#导出图片与打印)时画成它的 `format` 返回的文字，不画自定义的渲染内容。
 
 ## 排序与筛选
 
@@ -504,9 +504,40 @@ sheet.value.showSheet('十一月')
 | `escapeFormulas` | 在以 `=`、`+`、`-`、`@` 开头的文字前加 `'`                                              | `true`       |
 | `locale`         | 日期格式里星期等文字的语言（`toCSV` 用当前语言）                                        | —            |
 | `text`           | `(input) => string \| undefined`，自己决定单元格写出的文字，返回 `undefined` 时按格式写 | —            |
-| `sheet`          | 要导出的工作表，序号、`id` 或名字（仅 `toCSV`）                                         | 当前显示的   |
+| `sheet`          | 要导出的工作表，序号、`id` 或名字                                                       | 当前显示的   |
 
 不经过组件时，`sheetToCSV(sheetData, options)` 做同样的事，只是单元格类型按值本身写出（可以用 `text` 补上）。`parseCSV(text, delimiter?)` 只拆分字段，不识别类型；`detectDelimiter(text)` 返回判断出的分隔符。
+
+## 导出图片与打印
+
+组件实例的 `exportSVG()` 和 `exportPNG()` 把当前工作表（或 `sheet` 指定的工作表）画成图片，样子和表格里一致：样式、合并单元格、条件格式的颜色和数据条、勾选框和选项标签都会画出来，颜色跟随当前的亮暗主题，选区不会画进去。`exportSVG()` 返回 SVG 文档的字符串，文字仍是文字，可以在设计软件里继续编辑；`exportPNG()` 返回 PNG 的 `Blob`。
+
+`print()` 打开浏览器的打印对话框。表格只渲染看得见的部分，直接打印页面只能打出一屏，`print()` 则会打印整张表：纸张是 A4，表格比竖向的纸宽时自动横向；一页放不下时按先向下、再向右的顺序分页，冻结的行和列在每一页重复，页脚有页码。打印总是使用浅色主题。
+
+<DocDemo src="sheet/export" column />
+
+| 选项          | 说明                                                       | 默认值                   |
+| ------------- | ---------------------------------------------------------- | ------------------------ |
+| `sheet`       | 要画的工作表，序号、`id` 或名字，不必先切换过去            | 当前显示的               |
+| `range`       | 只画这片区域，如 `'A1:F20'`、`'A:D'`                       | 有数据和合并单元格的部分 |
+| `headers`     | 画出列标和行号                                             | `false`                  |
+| `gridlines`   | 画出格线                                                   | 跟随表格的 `gridlines`   |
+| `background`  | 填充底色；`false` 时为透明底，便于放到其他背景上（仅图片） | `true`                   |
+| `pixelRatio`  | 每个 CSS 像素对应的图片像素（仅 `exportPNG`）              | `2`                      |
+| `title`       | 每页顶部的标题（仅 `print`）                               | —                        |
+| `orientation` | 纸张方向，`'portrait'` 或 `'landscape'`（仅 `print`）      | 按表格宽度选择           |
+
+隐藏的行列和被筛选掉的行不会画出来。自定义的单元格类型按 `format` 返回的文字画出。浏览器对画布的尺寸有限制（每边 16384 像素；总像素数在 iPhone 和 iPad 上约 1677 万，其他设备上是 16384 × 16384），区域很大时 `exportPNG()` 会自动降低 `pixelRatio`，降到 1 仍然放不下时会抛出 `RangeError`，不会生成一张模糊的图。这时可以用 `range` 分几次导出，或者改用 `exportSVG()`、`toCSV()`。
+
+方法只返回内容，下载由你决定，例如：
+
+```ts
+const blob = await grid.value.exportPNG()
+const url = URL.createObjectURL(blob)
+const link = Object.assign(document.createElement('a'), { href: url, download: '门店.png' })
+link.click()
+URL.revokeObjectURL(url)
+```
 
 ## 冻结行列
 

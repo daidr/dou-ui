@@ -13,7 +13,13 @@ export default DouSheet
 export { useSheet, sheetContextKey } from './context'
 export { useSheetFormulas } from './formulas'
 export type { SheetFormulas } from './formulas'
-export type { SheetContext, SheetEditorContext, SheetRangeRect, SheetRect } from './context'
+export type {
+  SheetContext,
+  SheetEditInputOptions,
+  SheetEditorContext,
+  SheetRangeRect,
+  SheetRect,
+} from './context'
 export { defineSheetExtension, resolveSheetExtensions } from './core/extension'
 export type {
   ResolvedSheetExtensions,
@@ -39,6 +45,9 @@ export type {
   SheetToolbarTool,
   SheetExpose,
   SheetInvalidCell,
+  SheetExportOptions,
+  SheetImageOptions,
+  SheetPrintOptions,
   SheetMenuContext,
   SheetMenuItem,
   SheetPasteEvent,

@@ -2,6 +2,7 @@ import type { Component } from 'vue'
 import type { SheetCellTarget, SheetRange } from './core/address'
 import type { SheetClip } from './core/clipboard'
 import type { SheetCSVWriteOptions } from './core/csv'
+import type { SheetCommands } from './core/commands'
 import type { SheetExtension } from './core/extension'
 import type { SheetValidation, SheetWorkbook } from './core/model'
 import type { SheetSelection } from './core/selection'
@@ -53,7 +54,13 @@ export interface SheetProps {
 export interface SheetMenuItem {
   /** Unique within the menu. */
   key: string
-  label: string
+  /**
+   * The command it runs (see `commands`): its label, icon, shortcut and
+   * whether it can run now come from the command, unless given here.
+   */
+  command?: string
+  /** Needed unless it has a `command`. */
+  label?: string
   icon?: Component
   /** The shortcut shown beside it, such as `mod+c`; hidden on touch screens. */
   shortcut?: string
@@ -129,6 +136,28 @@ export type SheetToolbarTool =
   | 'clear'
   | '|'
 
+/**
+ * A button of `DouSheetToolbar` added by an extension (its `toolbar`). With
+ * a `command`, it takes the label, icon, shortcut, state and action from
+ * the command; what is given here wins.
+ */
+export interface SheetToolbarItem {
+  /** Unique within the toolbar; `tools` can name it. */
+  key: string
+  command?: string
+  /** Read out, and shown as the tooltip; shown in place of the icon when there is none. */
+  label?: string
+  icon?: Component
+  run?: () => void
+  disabled?: boolean
+  /** For a button that turns something on and off: whether it is on. */
+  pressed?: boolean
+  /** The key that does the same, shown in the tooltip; only a hint. */
+  shortcut?: string
+  /** Opens a menu of these instead of running anything. */
+  children?: SheetMenuItem[]
+}
+
 /** A number format offered in the toolbar's menu. */
 export interface SheetFormatOption {
   label: string
@@ -139,8 +168,12 @@ export interface SheetFormatOption {
 }
 
 export interface SheetToolbarProps {
-  /** The tools, in order; all of them by default. */
-  tools?: SheetToolbarTool[]
+  /**
+   * The tools, in order: built-in ones, the `key` of an extension's item,
+   * or the name of any command (e.g. `'print'`), shown as a button. By
+   * default every built-in tool, then the extensions' items.
+   */
+  tools?: (SheetToolbarTool | (string & {}))[]
   /** The number formats in the menu, instead of the usual ones. */
   formats?: SheetFormatOption[]
 }
@@ -165,6 +198,8 @@ export interface SheetEmits {
 }
 
 export interface SheetExpose {
+  /** The commands, built in and added: run them, or read their state, e.g. from a menu bar outside the grid. */
+  commands: SheetCommands
   /**
    * Makes a change: `run` adds steps to the transaction, which is applied
    * and recorded for undo as one. Cells without a sheet (`'A5'`) are on

@@ -180,6 +180,7 @@ export interface SheetMessages {
   freezeFirstRow: string
   freezeFirstCol: string
   unfreeze: string
+  print: string
 }
 
 const zhCN: SheetMessages = {
@@ -518,6 +519,7 @@ const zhCN: SheetMessages = {
   freezeFirstRow: '冻结首行',
   freezeFirstCol: '冻结首列',
   unfreeze: '取消冻结',
+  print: '打印',
 }
 
 const zhTW: SheetMessages = {
@@ -856,6 +858,7 @@ const zhTW: SheetMessages = {
   freezeFirstRow: '凍結首列',
   freezeFirstCol: '凍結首欄',
   unfreeze: '取消凍結',
+  print: '列印',
 }
 
 const en: SheetMessages = {
@@ -1201,6 +1204,7 @@ const en: SheetMessages = {
   freezeFirstRow: 'First row',
   freezeFirstCol: 'First column',
   unfreeze: 'Unfreeze',
+  print: 'Print',
 }
 
 export const sheetLocales: Record<string, SheetMessages> = {

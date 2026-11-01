@@ -175,7 +175,7 @@ sheet.value.transact((tr) => {
 
 步骤里的工作表用 `id` 记录，没有 `id` 时用名字，所以在另一端应用时不受工作表顺序影响。
 
-组件实例上还有 `select('B2:C4')` 选中并滚动到区域（也可以是 `'B:B'`、`'3:3'`）、`scrollTo('H200')`、`edit('B2')` 打开编辑框、`editNote('B2')` 打开批注输入框、`focus()`、`showSheet(sheet)` 切换工作表和 `toCSV(options?)`。
+组件实例上的 `commands` 可以执行和查询[命令](./extensions#命令)，比如 `sheetRef.value.commands.run('bold')`。组件实例上还有 `select('B2:C4')` 选中并滚动到区域（也可以是 `'B:B'`、`'3:3'`）、`scrollTo('H200')`、`edit('B2')` 打开编辑框、`editNote('B2')` 打开批注输入框、`focus()`、`showSheet(sheet)` 切换工作表和 `toCSV(options?)`。
 
 ## 复制与粘贴
 
@@ -475,11 +475,11 @@ sheet.value.transact((tr) => {
 </DouSheetToolbar>
 ```
 
-可用的名字有 `undo`、`redo`、`format`、`decimals`、`bold`、`italic`、`underline`、`strike`、`color`、`fill`、`align`、`valign`、`wrap`、`merge`、`freeze`、`sort`、`filter`、`conditional`、`validation`、`clear`。`formats` 替换数字格式菜单里的选项，每项是 `{ label, format, example? }`，`example` 是菜单里用这个格式显示的示例值。
+可用的名字有 `undo`、`redo`、`format`、`decimals`、`bold`、`italic`、`underline`、`strike`、`color`、`fill`、`align`、`valign`、`wrap`、`merge`、`freeze`、`sort`、`filter`、`conditional`、`validation`、`clear`。扩展加的按钮写它的 `key`，任何命令写命令名（比如 `'print'`），见[工具栏按钮](./extensions#工具栏按钮)。`formats` 替换数字格式菜单里的选项，每项是 `{ label, format, example? }`，`example` 是菜单里用这个格式显示的示例值。
 
 显示单元格地址和公式的编辑栏是 `DouSheetFormulaBar`，同样放在 `header` 插槽里，可以和工具栏一起用，见[公式](./formulas#编辑栏)。
 
-工具栏只用了 `useSheet()` 提供的方法，自己做工具栏时可以直接调用：`styleAt(cell)` 读取单元格的样式，`styleSelection(patch)` 修改选区的样式，`formatSelection(format)` 设置数字格式，`clearFormatting()`、`merge()`、`unmerge()`，见[扩展](./extensions)。
+工具栏的按钮都通过[命令](./extensions#命令)执行，自己做工具栏时可以用 `commands.run('bold')` 这样调用，也可以直接用 `useSheet()` 提供的方法：`styleAt(cell)` 读取单元格的样式，`styleSelection(patch)` 修改选区的样式，`formatSelection(format)` 设置数字格式，`clearFormatting()`、`merge()`、`unmerge()`，见[扩展](./extensions)。
 
 ### 改样式
 

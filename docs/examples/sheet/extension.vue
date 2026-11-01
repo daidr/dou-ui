@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import {
   DouSheet,
+  DouSheetToolbar,
   defineSheetCellType,
+  defineSheetCommand,
   defineSheetExtension,
   type SheetCellRenderProps,
   type SheetWorkbook,
@@ -62,7 +64,7 @@ const progress = defineSheetExtension({
 
 const pad = (n: number) => String(n).padStart(2, '0')
 
-/** Ctrl / ⌘ + ; 或右键菜单（手机上长按）在当前单元格填入今天的日期。 */
+/** 填入今天的日期：工具栏按钮、右键菜单（手机上长按）和 Ctrl / ⌘ + ; 都运行同一个命令。 */
 function today() {
   const now = new Date()
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
@@ -70,21 +72,19 @@ function today() {
 
 const todayExtension = defineSheetExtension({
   name: 'today',
-  keymap: ({ active, transact }) => ({
-    'mod+;': () => void transact((tr) => tr.updateCell(active.value, { value: today() })),
-  }),
-  contextMenu: ({ active, transact, readonly }) =>
-    readonly.value
-      ? []
-      : [
-          {
-            key: 'today',
-            label: '填入今天',
-            icon: CalendarIcon,
-            shortcut: 'mod+;',
-            run: () => transact((tr) => tr.updateCell(active.value, { value: today() })),
-          },
-        ],
+  commands: {
+    'today.insert': defineSheetCommand({
+      label: '填入今天',
+      icon: CalendarIcon,
+      shortcut: 'mod+;',
+      enabled: ({ readonly }) => !readonly.value,
+      run: ({ active, transact }) =>
+        void transact((tr) => tr.updateCell(active.value, { value: today() })),
+    }),
+  },
+  keymap: () => ({ 'mod+;': 'today.insert' }),
+  contextMenu: () => [{ key: 'today', command: 'today.insert' }],
+  toolbar: () => [{ key: 'today', command: 'today.insert' }],
 })
 
 const extensions = [progress, todayExtension]
@@ -116,7 +116,11 @@ const book = ref<SheetWorkbook>({
 </script>
 
 <template>
-  <DouSheet v-model="book" :extensions="extensions" style="height: 240px" />
+  <DouSheet v-model="book" :extensions="extensions" style="height: 280px">
+    <template #header>
+      <DouSheetToolbar :tools="['undo', 'redo', '|', 'bold', 'italic', '|', 'today']" />
+    </template>
+  </DouSheet>
 </template>
 
 <style scoped>

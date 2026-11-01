@@ -10,8 +10,25 @@ import {
   type VirtualElement,
 } from 'dou-ui'
 import {
+  BoldIcon,
   ChevronDownIcon,
+  PrinterIcon,
   ClipboardPasteIcon,
+  DecimalDecreaseIcon,
+  DecimalIncreaseIcon,
+  ItalicIcon,
+  RedoIcon,
+  StrikethroughIcon,
+  TextAlignCenterIcon,
+  TextAlignLeftIcon,
+  TextAlignRightIcon,
+  TextValignBottomIcon,
+  TextValignMiddleIcon,
+  TextValignTopIcon,
+  TypeXIcon,
+  UnderlineIcon,
+  UndoIcon,
+  WrapTextIcon,
   ColumnGroupIcon,
   ColumnInsertLeftIcon,
   ColumnInsertRightIcon,
@@ -76,7 +93,15 @@ import { mergesOf, type SheetMerges } from './core/merge'
 import { groupRange, groupsOf, SheetGroups, OUTLINE_LANE, type SheetGroupLines } from './core/group'
 import SheetNote from './components/sheet-note.vue'
 import SheetOutline from './components/sheet-outline.vue'
-import { alignOf, fitNumber, formatValue, inputText, parseInput } from './core/format'
+import {
+  alignOf,
+  changeDecimals,
+  fitNumber,
+  formatValue,
+  inputText,
+  parseInput,
+} from './core/format'
+import { createCommands, labelOf, mergeCommands, type SheetCommand } from './core/commands'
 import { SheetHistory, type SheetHistoryView } from './core/history'
 import { SheetFormulaEngine } from './formula/engine'
 import {
@@ -2081,9 +2106,12 @@ function onKeydown(event: KeyboardEvent) {
   const e = editing.value
   if (e) return editKey(event, e.mode)
   for (const keymap of keymaps.value)
-    for (const combo in keymap)
-      if (matchesHotkey(event, combo) && keymap[combo]!(event) !== false)
+    for (const combo in keymap) {
+      if (!matchesHotkey(event, combo)) continue
+      const handler = keymap[combo]!
+      if ((typeof handler === 'string' ? commands.run(handler) : handler(event)) !== false)
         return event.preventDefault()
+    }
   const mod = event.ctrlKey || event.metaKey
   const key = event.key
   const arrow = ARROWS[key]
@@ -2113,25 +2141,14 @@ function onKeydown(event: KeyboardEvent) {
     showSheet(at)
     return announce(format(messages.value.sheetShown, { name: doc.value.sheets[at]!.name }))
   }
-  if (matchesHotkey(event, 'mod+z')) return done(event, travel('undo'))
+  if (matchesHotkey(event, 'mod+z')) return done(event, commands.run('undo'))
   if (matchesHotkey(event, 'mod+shift+z') || matchesHotkey(event, 'mod+y'))
-    return done(event, travel('redo'))
+    return done(event, commands.run('redo'))
   if (matchesHotkey(event, 'mod+a')) return done(event, selectAll())
-  if (matchesHotkey(event, 'mod+shift+l')) {
-    event.preventDefault()
-    if (props.readonly) return announce(messages.value.readonly)
-    return toggleFilter()
-  }
+  if (matchesHotkey(event, 'mod+shift+l')) return keyCommand(event, 'filter')
   for (const [hotkey, name] of STYLE_KEYS)
-    if (matchesHotkey(event, hotkey)) {
-      event.preventDefault()
-      return toggleStyle(name)
-    }
-  if (matchesHotkey(event, 'mod+\\')) {
-    event.preventDefault()
-    if (clearFormatting()) announce(messages.value.formattingCleared)
-    return
-  }
+    if (matchesHotkey(event, hotkey)) return keyCommand(event, name)
+  if (matchesHotkey(event, 'mod+\\')) return keyCommand(event, 'clear')
   if (matchesHotkey(event, 'mod+d') || matchesHotkey(event, 'mod+r')) {
     event.preventDefault()
     if (props.readonly) return announce(messages.value.readonly)
@@ -2204,6 +2221,16 @@ const ARROWS: Record<string, SheetDirection> = {
   ArrowDown: 'down',
   ArrowLeft: 'left',
   ArrowRight: 'right',
+}
+
+/** A key of a built-in command: runs it, or says the grid is read-only. */
+function keyCommand(event: KeyboardEvent, name: string) {
+  event.preventDefault()
+  if (!commands.can(name)) {
+    if (props.readonly) announce(messages.value.readonly)
+    return
+  }
+  commands.run(name)
 }
 
 function done(event: KeyboardEvent, handled: unknown) {
@@ -3651,29 +3678,9 @@ const menuItems = shallowRef<SheetMenuItem[]>([])
 function menuFor(area: SheetMenuContext['area']): SheetMenuItem[] {
   const m = messages.value
   const items: SheetMenuItem[] = [
-    {
-      key: 'cut',
-      label: m.cut,
-      icon: ScissorsIcon,
-      shortcut: 'mod+x',
-      disabled: props.readonly,
-      run: () => void copyToClipboard(true),
-    },
-    {
-      key: 'copy',
-      label: m.copy,
-      icon: CopyIcon,
-      shortcut: 'mod+c',
-      run: () => void copyToClipboard(false),
-    },
-    {
-      key: 'paste',
-      label: m.paste,
-      icon: ClipboardPasteIcon,
-      shortcut: 'mod+v',
-      disabled: props.readonly,
-      run: () => void pasteFromClipboard(),
-    },
+    { key: 'cut', command: 'cut' },
+    { key: 'copy', command: 'copy' },
+    { key: 'paste', command: 'paste' },
   ]
   if (props.readonly) return items.filter((item) => item.key === 'copy')
   const rowLines = linesOf('row')
@@ -3997,10 +4004,10 @@ function menuArea(area: Hit['area']): SheetMenuContext['area'] {
 function openMenu(at: Hit['area'], x: number, y: number) {
   const area = menuArea(at)
   const where = { area, selection: selection.value, sheet: sheetIndex.value }
-  const own = menuFor(area)
-  const added = resolved.value.menus.flatMap((items) => items(context, where))
+  const own = menuFor(area).map(fromCommand)
+  const added = resolved.value.menus.flatMap((items) => items(context, where)).map(fromCommand)
   const items = added.length && own.length ? [...added, ...dividedFirst(own)] : [...added, ...own]
-  menuItems.value = props.menu ? props.menu(items, where) : items
+  menuItems.value = props.menu ? props.menu(items, where).map(fromCommand) : items
   if (menuItems.value.length) menu.value?.open(x, y)
 }
 
@@ -4708,6 +4715,181 @@ function forEachSelected(callback: (point: SheetPoint) => void) {
   }
 }
 
+// Commands ---------------------------------------------------------------------------------
+
+const writable = () => !props.readonly
+const styleCommand = (
+  name: StyleToggle | 'wrap',
+  icon: SheetCommand['icon'],
+  shortcut?: string,
+): SheetCommand<boolean> => ({
+  label: (m) => m[name],
+  icon,
+  shortcut,
+  enabled: writable,
+  pressed: () => !!styleAt(active.value)[name],
+  // with `true` or `false` sets it; without, switches it as the key does
+  run: (_, on) => {
+    if (on === undefined && name !== 'wrap') return toggleStyle(name)
+    return styleSelection({ [name]: (on ?? !styleAt(active.value)[name]) || undefined })
+  },
+})
+const alignCommand = (
+  value: 'left' | 'center' | 'right',
+  icon: SheetCommand['icon'],
+  label: 'alignLeft' | 'alignCenter' | 'alignRight',
+): SheetCommand => ({
+  label: (m) => m[label],
+  icon,
+  enabled: writable,
+  pressed: () =>
+    (styleAt(active.value).align ?? alignOf(valueAt(active.value.row, active.value.col))) === value,
+  run: () => styleSelection({ align: value }),
+})
+const valignCommand = (
+  value: 'top' | 'middle' | 'bottom',
+  icon: SheetCommand['icon'],
+  label: 'alignTop' | 'alignMiddle' | 'alignBottom',
+): SheetCommand => ({
+  label: (m) => m[label],
+  icon,
+  enabled: writable,
+  pressed: () => (styleAt(active.value).valign ?? 'middle') === value,
+  run: () => styleSelection({ valign: value === 'middle' ? undefined : value }),
+})
+
+/** What the sheet can do by name; the toolbar, the menu and the keys go through these. */
+const builtinCommands: Record<string, SheetCommand> = {
+  undo: {
+    label: (m) => m.undo,
+    icon: UndoIcon,
+    shortcut: 'mod+z',
+    enabled: () => writable() && canUndo.value,
+    run: () => travel('undo'),
+  },
+  redo: {
+    label: (m) => m.redo,
+    icon: RedoIcon,
+    shortcut: 'mod+shift+z',
+    enabled: () => writable() && canRedo.value,
+    run: () => travel('redo'),
+  },
+  cut: {
+    label: (m) => m.cut,
+    icon: ScissorsIcon,
+    shortcut: 'mod+x',
+    enabled: writable,
+    run: () => copyToClipboard(true),
+  },
+  copy: {
+    label: (m) => m.copy,
+    icon: CopyIcon,
+    shortcut: 'mod+c',
+    run: () => copyToClipboard(false),
+  },
+  paste: {
+    label: (m) => m.paste,
+    icon: ClipboardPasteIcon,
+    shortcut: 'mod+v',
+    enabled: writable,
+    run: () => pasteFromClipboard(),
+  },
+  bold: styleCommand('bold', BoldIcon, 'mod+b'),
+  italic: styleCommand('italic', ItalicIcon, 'mod+i'),
+  underline: styleCommand('underline', UnderlineIcon, 'mod+u'),
+  strike: styleCommand('strike', StrikethroughIcon, 'mod+shift+x'),
+  wrap: styleCommand('wrap', WrapTextIcon),
+  'align.left': alignCommand('left', TextAlignLeftIcon, 'alignLeft'),
+  'align.center': alignCommand('center', TextAlignCenterIcon, 'alignCenter'),
+  'align.right': alignCommand('right', TextAlignRightIcon, 'alignRight'),
+  'valign.top': valignCommand('top', TextValignTopIcon, 'alignTop'),
+  'valign.middle': valignCommand('middle', TextValignMiddleIcon, 'alignMiddle'),
+  'valign.bottom': valignCommand('bottom', TextValignBottomIcon, 'alignBottom'),
+  'decimals.more': {
+    label: (m) => m.moreDecimals,
+    icon: DecimalIncreaseIcon,
+    enabled: writable,
+    run: () => formatSelection((old, value) => changeDecimals(old, value, 1)),
+  },
+  'decimals.fewer': {
+    label: (m) => m.fewerDecimals,
+    icon: DecimalDecreaseIcon,
+    enabled: writable,
+    run: () => formatSelection((old, value) => changeDecimals(old, value, -1)),
+  },
+  // merges the selection, or splits the merged cells it touches
+  merge: {
+    label: (m) => (merged.value ? m.unmergeCells : m.mergeCells),
+    icon: CellsMergeIcon,
+    enabled: () => writable() && (merged.value || canMerge.value),
+    pressed: () => merged.value,
+    run: () => (merged.value ? unmergeSelection() : mergeSelection()),
+  },
+  'sort.asc': {
+    label: (m) => m.filter.sortAsc,
+    icon: SortAscendingIcon,
+    enabled: writable,
+    run: () => sortSelection('asc'),
+  },
+  'sort.desc': {
+    label: (m) => m.filter.sortDesc,
+    icon: SortDescendingIcon,
+    enabled: writable,
+    run: () => sortSelection('desc'),
+  },
+  filter: {
+    label: (m) => (sheet.value.filter ? m.filter.turnOff : m.filter.turnOn),
+    icon: FilterIcon,
+    shortcut: 'mod+shift+l',
+    enabled: writable,
+    pressed: () => !!sheet.value.filter,
+    run: () => toggleFilter(),
+  },
+  clear: {
+    label: (m) => m.clearFormatting,
+    icon: TypeXIcon,
+    shortcut: 'mod+\\',
+    enabled: writable,
+    run: () => {
+      if (!clearFormatting()) return false
+      announce(messages.value.formattingCleared)
+    },
+  },
+  print: {
+    label: (m) => m.print,
+    icon: PrinterIcon,
+    run: () => print(),
+  },
+}
+
+const commandMap = computed(() => mergeCommands(builtinCommands, resolved.value.commands))
+const commands = createCommands(
+  () => commandMap.value,
+  () => context,
+  builtinCommands,
+)
+
+/** A menu item that names a command, filled in from it. */
+function fromCommand(item: SheetMenuItem): SheetMenuItem {
+  const children = item.children?.map(fromCommand)
+  const name = item.command
+  if (!name) return children ? { ...item, children } : item
+  const command = commandMap.value.get(name)
+  if (!command)
+    throw new Error(
+      `[@dou-ui/sheet] the menu item "${item.key}" runs no command: "${name}" is unknown`,
+    )
+  return {
+    ...item,
+    label: item.label ?? labelOf(command.label, messages.value),
+    icon: item.icon ?? command.icon,
+    shortcut: item.shortcut ?? command.shortcut,
+    disabled: item.disabled ?? !commands.can(name),
+    run: item.run ?? (() => void commands.run(name)),
+    children,
+  }
+}
+
 const context: SheetContext = {
   doc,
   sheetIndex,
@@ -4750,6 +4932,8 @@ const context: SheetContext = {
   filtered: computed(() => !!sheet.value.filter),
   toggleFilter,
   announce,
+  commands,
+  toolbarItems: computed(() => resolved.value.toolbars.flatMap((items) => items(context))),
   editor: {
     cell: computed(() => editing.value),
     text: editText,
@@ -4785,10 +4969,27 @@ const context: SheetContext = {
 }
 provide(sheetContextKey, context)
 
-const keymaps = computed(() => resolved.value.keymaps.map((keymap) => keymap(context)))
+const keymaps = computed(() =>
+  resolved.value.keymaps.map((make) => {
+    const keymap = make(context)
+    // a command named by a key is checked now, not when the key is first pressed
+    for (const combo in keymap) {
+      const handler = keymap[combo]
+      if (typeof handler === 'string' && !commandMap.value.has(handler))
+        throw new Error(
+          `[@dou-ui/sheet] the key "${combo}" runs no command: "${handler}" is unknown`,
+        )
+    }
+    return keymap
+  }),
+)
 
 let cleanups: (() => void)[] = []
 function setupExtensions() {
+  // puts the commands together and reads the keys now, so a clash or a key
+  // naming a command that isn't there is found at once, not on a key press
+  void commandMap.value
+  void keymaps.value
   for (const cleanup of cleanups) cleanup()
   cleanups = []
   for (const setup of resolved.value.setups) {
@@ -4845,6 +5046,7 @@ function editNoteTarget(target?: SheetCellTarget) {
 }
 
 defineExpose<SheetExpose>({
+  commands,
   transact: (run, meta) => transact(run, meta),
   undo: () => travel('undo'),
   redo: () => travel('redo'),

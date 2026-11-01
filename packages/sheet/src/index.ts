@@ -28,6 +28,8 @@ export type {
   SheetHistoryHandler,
   SheetKeyHandler,
 } from './core/extension'
+export { defineSheetCommand } from './core/commands'
+export type { SheetCommand, SheetCommandInfo, SheetCommands, SheetLabel } from './core/commands'
 export { defineSheetCellType, optionOf, resolveCellType } from './core/cell-type'
 export type {
   SheetCellPanelExpose,
@@ -43,6 +45,7 @@ export type {
   SheetToolbarProps,
   SheetToolbarSlots,
   SheetToolbarTool,
+  SheetToolbarItem,
   SheetExpose,
   SheetInvalidCell,
   SheetExportOptions,

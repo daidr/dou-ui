@@ -92,6 +92,8 @@
 
 <DocDemo src="date-picker/display-format" />
 
+在选择器之外按同样的写法显示一个值（比如详情页、表格里），用 `formatDateValue(value, { locale, type?, displayFormat? })`，`locale` 可以从 `useLocale()` 拿到。
+
 ## 一周的第一天
 
 默认取语言包的 `region.weekStart`：`zhCN` 从周一开始，`en` 从周日开始。`week-start` 可以指定 `0`（周日）或 `1`（周一）。星期与月份的名称来自浏览器的 `Intl`，跟随语言包的 `name`，不需要另外翻译。

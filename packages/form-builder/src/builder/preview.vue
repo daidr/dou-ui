@@ -68,6 +68,7 @@ const shown = computed(() => (result.value ? JSON.stringify(result.value, null, 
           :fields="fields"
           :functions="state.functions()"
           :sources="state.sources()"
+          :validators="state.validators()"
           @submit="result = $event"
           @invalid="result = null"
           @reset="result = null"

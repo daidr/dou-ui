@@ -30,6 +30,8 @@ const props = withDefaults(
     readsValue?: boolean
     placeholder?: string
     disabled?: boolean
+    /** Shown and selectable, but not changed; also when the form around is read-only. */
+    readonly?: boolean
   }>(),
   { modelValue: '', names: () => [], itemNames: undefined, placeholder: undefined },
 )
@@ -109,6 +111,7 @@ async function onSelect(option: AutocompleteOption) {
       :highlight="false"
       multiline
       :disabled="disabled"
+      :readonly="readonly"
       :invalid="!!problem"
       :placeholder="placeholder"
       :aria-invalid="problem ? 'true' : undefined"

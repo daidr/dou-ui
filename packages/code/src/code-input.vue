@@ -1,7 +1,14 @@
 <script setup lang="ts">
 import { computed, ref, useAttrs, watchEffect } from 'vue'
 import type { StyleValue } from 'vue'
-import { useFormDisabled, useFormItem, useFormSize, useGlobalConfig, useNamespace } from 'dou-ui'
+import {
+  useFormDisabled,
+  useFormItem,
+  useFormReadonly,
+  useFormSize,
+  useGlobalConfig,
+  useNamespace,
+} from 'dou-ui'
 import CodeEditor from './code-editor.vue'
 import type { CodeKeymap } from './core/keymap'
 import type { CodeTransactionResult } from './core/transaction'
@@ -36,6 +43,7 @@ const config = useGlobalConfig()
 const { formItem } = useFormItem()
 const size = useFormSize(() => props.size)
 const disabled = useFormDisabled(() => props.disabled)
+const readonly = useFormReadonly(() => props.readonly)
 const invalid = computed(() => props.invalid || !!formItem?.invalid.value)
 
 const editor = ref<CodeEditorExpose>()

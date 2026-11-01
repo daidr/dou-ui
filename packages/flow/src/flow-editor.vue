@@ -2301,10 +2301,10 @@ function showMenu(
   lastMenuFrom = from ?? null
   // Beside the button that opened it, so the menu never covers it, even
   // when it has to flip above.
-  const box = from?.getBoundingClientRect()
-  if (box)
-    menu.value?.open(box.left, box.top - 2, {
-      size: { width: box.width, height: box.height + 4 },
+  const rect = from?.getBoundingClientRect()
+  if (rect)
+    menu.value?.open(rect.left, rect.top - 2, {
+      box: { width: rect.width, height: rect.height + 4 },
       focusChecked: options.focusChecked,
     })
   else menu.value?.open(client.x, client.y, { focusChecked: options.focusChecked })

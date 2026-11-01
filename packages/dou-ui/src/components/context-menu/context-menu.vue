@@ -61,9 +61,9 @@ watch(open, (value) => {
   sync()
 })
 
-function show(x: number, y: number, size?: { width: number; height: number }) {
+function show(x: number, y: number, box?: { width: number; height: number }) {
   if (props.disabled) return
-  point.value = { x, y, width: size?.width ?? 0, height: size?.height ?? 0 }
+  point.value = { x, y, width: box?.width ?? 0, height: box?.height ?? 0 }
   if (!open.value) {
     const active = document.activeElement
     restore = active instanceof HTMLElement && !panelRef.value?.contains(active) ? active : null

@@ -45,7 +45,7 @@ const menu = useTemplateRef<InstanceType<typeof DouContextMenu>>('menu')
 
 defineExpose({
   /**
-   * `size` makes (x, y) the top left of a box the menu opens beside, e.g. the
+   * `box` makes (x, y) the top left of a box the menu opens beside, e.g. the
    * button that opened it; `focusChecked` puts focus on the option in use,
    * for a menu opened from the keyboard.
    */
@@ -53,11 +53,11 @@ defineExpose({
     x: number,
     y: number,
     {
-      size,
+      box,
       focusChecked = false,
-    }: { size?: { width: number; height: number }; focusChecked?: boolean } = {},
+    }: { box?: { width: number; height: number }; focusChecked?: boolean } = {},
   ) {
-    menu.value?.open(x, y, size)
+    menu.value?.open(x, y, box)
     if (!focusChecked) return
     // after the menu has focused itself
     void nextTick(() =>

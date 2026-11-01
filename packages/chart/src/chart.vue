@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   holdPointer,
+  svgToPNG,
   useElementSize,
   useLocale,
   useNamespace,
@@ -2826,31 +2827,17 @@ function drawSvg(
   svg.raw(texts.join(''))
 }
 
+const PNG_SOURCE = { scope: '@dou-ui/chart', hint: 'use a smaller padding or exportSVG()' }
+
 /** The chart as a PNG image, from its SVG. */
 async function exportPNG(options: ChartImageOptions = {}): Promise<Blob> {
-  const markup = exportSVG(options)
   const { width, height } = exportSize(options)
-  const ratio = options.pixelRatio ?? 2
-  const url = URL.createObjectURL(new Blob([markup], { type: 'image/svg+xml' }))
-  try {
-    const image = new Image()
-    image.src = url
-    await image.decode()
-    const sheet = document.createElement('canvas')
-    sheet.width = Math.max(1, Math.ceil(width * ratio))
-    sheet.height = Math.max(1, Math.ceil(height * ratio))
-    const ctx = sheet.getContext('2d')!
-    ctx.scale(ratio, ratio)
-    ctx.drawImage(image, 0, 0)
-    return await new Promise<Blob>((resolve, reject) =>
-      sheet.toBlob(
-        (blob) => (blob ? resolve(blob) : reject(new Error('[@dou-ui/chart] PNG export failed'))),
-        'image/png',
-      ),
-    )
-  } finally {
-    URL.revokeObjectURL(url)
-  }
+  return svgToPNG(exportSVG(options), {
+    width,
+    height,
+    pixelRatio: options.pixelRatio,
+    ...PNG_SOURCE,
+  })
 }
 
 defineExpose<ChartExpose>({ exportSVG, exportPNG })

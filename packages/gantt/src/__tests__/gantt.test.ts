@@ -691,4 +691,17 @@ describe('export', () => {
     expect(filled(svg)).toBe(true)
     expect(filled(vm.exportSVG({ table: true, background: false }))).toBe(false)
   })
+
+  it('throws a RangeError when the PNG is too big for a canvas', async () => {
+    const { wrapper, tasks } = setup()
+    tasks.value = Array.from({ length: 1000 }, (_, i) => ({
+      id: `t${i}`,
+      title: `任务 ${i}`,
+      start: '2026-03-02',
+      end: '2026-03-06',
+    }))
+    await nextTick()
+    const vm = wrapper.findComponent(DouGantt).vm as unknown as GanttExpose
+    await expect(vm.exportPNG()).rejects.toThrow(RangeError)
+  })
 })

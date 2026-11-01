@@ -291,39 +291,4 @@ export async function readImage(src: string): Promise<string | null> {
   }
 }
 
-/** The largest canvas side most browsers draw. */
-const MAX_SIDE = 16384
-const MAX_AREA = 16384 * 16384 * 0.25
-
-/** Paints an SVG document on a canvas and returns it as PNG. */
-export async function svgToPng(svg: string, width: number, height: number, ratio: number) {
-  // within what a canvas can hold
-  ratio = Math.min(
-    ratio,
-    MAX_SIDE / Math.max(width, 1),
-    MAX_SIDE / Math.max(height, 1),
-    Math.sqrt(MAX_AREA / Math.max(width * height, 1)),
-  )
-  const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }))
-  try {
-    const image = new Image()
-    image.src = url
-    await image.decode()
-    const sheet = document.createElement('canvas')
-    sheet.width = Math.max(1, Math.round(width * ratio))
-    sheet.height = Math.max(1, Math.round(height * ratio))
-    const pen = sheet.getContext('2d')!
-    pen.scale(ratio, ratio)
-    pen.drawImage(image, 0, 0, width, height)
-    return await new Promise<Blob>((resolve, reject) =>
-      sheet.toBlob(
-        (blob) => (blob ? resolve(blob) : reject(new Error('[@dou-ui/flow] PNG export failed'))),
-        'image/png',
-      ),
-    )
-  } finally {
-    URL.revokeObjectURL(url)
-  }
-}
-
 export type { FlowDrawContext }

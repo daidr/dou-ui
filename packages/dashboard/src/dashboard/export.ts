@@ -1,3 +1,5 @@
+import { fitPixelRatio, svgToPNG } from 'dou-ui'
+
 /** Options of a dashboard's `exportPNG`. */
 export interface DashboardImageOptions {
   /** Pixels per CSS px. 2 by default, sharp on most screens. */
@@ -56,45 +58,29 @@ function cloneStyled(source: Node): Node | null {
   return copy
 }
 
-function loadImage(url: string) {
-  return new Promise<HTMLImageElement>((resolve, reject) => {
-    const img = new Image()
-    img.addEventListener('load', () => resolve(img))
-    img.addEventListener('error', () =>
-      reject(new Error('The dashboard could not be drawn as an image')),
-    )
-    img.src = url
-  })
-}
+const PNG_SOURCE = { scope: '@dou-ui/dashboard', hint: 'use print(), which splits it into pages' }
 
 /** Draws an element as it is shown into a PNG image. */
 export async function elementToPNG(el: HTMLElement, options: DashboardImageOptions = {}) {
-  const { pixelRatio = 2, background = true, padding = 16 } = options
+  const { pixelRatio, background = true, padding = 16 } = options
   const width = el.scrollWidth
   const height = el.scrollHeight
+  const outerWidth = width + padding * 2
+  const outerHeight = height + padding * 2
+  // too big for a canvas: fail before copying every element's style
+  fitPixelRatio(outerWidth, outerHeight, pixelRatio, PNG_SOURCE)
   const copy = cloneStyled(el) as HTMLElement
   copy.style.margin = '0'
   copy.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml')
   const html = new XMLSerializer().serializeToString(copy)
   const svg =
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">` +
-    `<foreignObject x="0" y="0" width="100%" height="100%">${html}</foreignObject></svg>`
-  const img = await loadImage(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`)
-
-  const canvas = document.createElement('canvas')
-  canvas.width = Math.ceil((width + padding * 2) * pixelRatio)
-  canvas.height = Math.ceil((height + padding * 2) * pixelRatio)
-  const ctx = canvas.getContext('2d')!
-  ctx.scale(pixelRatio, pixelRatio)
-  if (background) {
-    ctx.fillStyle = getComputedStyle(document.body).backgroundColor || '#fff'
-    ctx.fillRect(0, 0, width + padding * 2, height + padding * 2)
-  }
-  ctx.drawImage(img, padding, padding, width, height)
-  return new Promise<Blob>((resolve, reject) =>
-    canvas.toBlob(
-      (blob) => (blob ? resolve(blob) : reject(new Error('The image could not be made'))),
-      'image/png',
-    ),
-  )
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${outerWidth}" height="${outerHeight}">` +
+    `<foreignObject x="${padding}" y="${padding}" width="${width}" height="${height}">${html}</foreignObject></svg>`
+  return svgToPNG(svg, {
+    width: outerWidth,
+    height: outerHeight,
+    pixelRatio,
+    ...PNG_SOURCE,
+    background: background ? getComputedStyle(document.body).backgroundColor || '#fff' : undefined,
+  })
 }

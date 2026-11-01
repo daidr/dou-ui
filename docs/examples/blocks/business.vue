@@ -115,6 +115,32 @@ const districts = [
 ]
 const thousand = (value) => `${value} 千人`
 
+/* 门店：指针移到一家门店的柱子上，表格里这一行跟着高亮 */
+const stores = [
+  { name: '陆家嘴店', sales: 186.4, growth: 0.142 },
+  { name: '静安寺店', sales: 172.9, growth: 0.096 },
+  { name: '徐汇滨江店', sales: 151.3, growth: 0.183 },
+  { name: '南京东路店', sales: 139.6, growth: -0.021 },
+  { name: '中山公园店', sales: 118.2, growth: 0.067 },
+  { name: '五角场店', sales: 97.5, growth: 0.214 },
+]
+const storeColumns = [
+  { key: 'name', title: '门店', minWidth: 104 },
+  { key: 'sales', title: '销售额（万元）', align: 'end' },
+  { key: 'growth', title: '同比', align: 'end' },
+]
+const hoveredStore = ref(null)
+// 离开图表时参数是 null
+function hoverStore(event) {
+  hoveredStore.value = event?.x ?? null
+}
+// 高亮用表格自己选中行的底色
+const storeRowStyle = (row) =>
+  row.name === hoveredStore.value
+    ? { '--dou-table-row-bg': 'var(--dou-table-row-selected)' }
+    : undefined
+const wan = (value) => `${value} 万元`
+
 /* 导出走势图 */
 const chart = useTemplateRef('chart')
 async function exportAs(format) {
@@ -203,6 +229,31 @@ async function exportAs(format) {
         </DouChart>
       </DouCard>
     </div>
+
+    <DouCard
+      title="门店"
+      description="1–10 月各门店的销售额，指针移到或点击柱子，表格里对应的行会高亮"
+    >
+      <div class="business__stores">
+        <DouChart :data="stores" x="name" :height="280" horizontal @hover="hoverStore">
+          <DouChartAxis for="y" :format="wan" :ticks="[0, 100, 200]" />
+          <DouChartBar y="sales" name="销售额" />
+        </DouChart>
+        <DouTable
+          :data="stores"
+          :columns="storeColumns"
+          row-key="name"
+          size="sm"
+          :row-style="storeRowStyle"
+        >
+          <template #cell-growth="{ row }">
+            <span :class="row.growth >= 0 ? 'business__up' : 'business__down'">
+              {{ signed(row.growth) }}
+            </span>
+          </template>
+        </DouTable>
+      </div>
+    </DouCard>
   </div>
 </template>
 
@@ -231,6 +282,21 @@ async function exportAs(format) {
 .business__row > *,
 .business__trend {
   min-width: 0;
+}
+.business__stores {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+  align-items: center;
+}
+.business__stores > * {
+  min-width: 0;
+}
+.business__up {
+  color: var(--dou-color-success-text);
+}
+.business__down {
+  color: var(--dou-color-danger-text);
 }
 .business__hole {
   font-size: 20px;

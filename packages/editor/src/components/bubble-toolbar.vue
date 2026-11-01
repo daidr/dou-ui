@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CheckIcon, ChevronDownIcon, LinkIcon, UnlinkIcon } from '@dou-ui/icons'
+import { CheckIcon, ChevronDownIcon, LinkIcon, MessagePlusIcon, UnlinkIcon } from '@dou-ui/icons'
 import {
   DouButton,
   DouDropdown,
@@ -37,7 +37,7 @@ import { blockFromNode } from '../core/model'
 import { isSafeHref } from '../core/schema'
 import { editorKey } from '../editor'
 
-const { view, state, focused, dragging, messages, kit } = inject(editorKey)!
+const { view, state, focused, dragging, messages, kit, comments } = inject(editorKey)!
 const panel = useTemplateRef<HTMLElement>('panel')
 
 // while the pointer is down the selection is still being made
@@ -339,6 +339,19 @@ defineExpose({ editLink })
             <LinkIcon />
           </DouToggle>
         </DouTooltip>
+        <template v-if="comments.writable.value">
+          <DouToolbarSeparator />
+          <DouTooltip :content="messages.comment" shortcut="mod+alt+m" placement="bottom">
+            <DouButton
+              size="sm"
+              variant="ghost"
+              :aria-label="messages.comment"
+              @click="comments.start()"
+            >
+              <MessagePlusIcon />
+            </DouButton>
+          </DouTooltip>
+        </template>
       </DouToolbar>
     </div>
   </Transition>

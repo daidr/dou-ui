@@ -440,6 +440,33 @@ export interface Locale {
     /** Folds it again. */
     collapse: string
   }
+  commentThread: {
+    /** The hint in the box that starts a thread. */
+    placeholder: string
+    /** The hint in the reply box. */
+    replyPlaceholder: string
+    /** Sends what was written. */
+    send: string
+    cancel: string
+    save: string
+    /** Marks the discussion as settled. */
+    resolve: string
+    /** Opens a settled discussion again. */
+    reopen: string
+    /** Shown on a settled discussion; `{name}` is who settled it. */
+    resolvedBy: string
+    /** After a comment that was changed. */
+    edited: string
+    /** The menu of a comment. */
+    more: string
+    edit: string
+    /** Deletes a reply. */
+    delete: string
+    /** Deletes the first comment, and with it the whole discussion. */
+    deleteThread: string
+    /** Asked before the whole discussion goes. */
+    deleteThreadConfirm: string
+  }
   copyButton: {
     copy: string
     /** Said once the text is on the clipboard. */
@@ -520,6 +547,16 @@ export interface Locale {
     nextWeek: string
     prevDay: string
     nextDay: string
+    /** The built-in menu item that removes an event. */
+    deleteEvent: string
+    /** Why a drag was refused when `canMove` gives no reason. */
+    refused: string
+    /** Why a drag onto a day of `disabledDate` was refused. */
+    disabledDay: string
+    /** Read out after an event was moved or resized, with `{title}` and `{range}`. */
+    changed: string
+    /** Read out after an event was removed, with `{title}`. */
+    removed: string
   }
   infiniteScroll: {
     /** Shown at the end of the list while the next page loads. */

@@ -200,7 +200,7 @@ const hostOptions = people.map((name) => ({ value: name, label: name }))
       :messages="messages"
       aria-label="会议室预约"
       class="rooms__chart"
-      @range-select="book"
+      @create="book"
       @task-dblclick="edit"
     >
       <template #resource="{ resource }">

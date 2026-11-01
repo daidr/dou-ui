@@ -245,6 +245,21 @@ export function writeDoc(map: Y.Map<YBlock>, doc: PMNode) {
   })
 }
 
+/** The document a map holds, read without an editor; `null` while the map is empty. */
+export function readDoc(map: Y.Map<YBlock>, schema: Schema): PMNode | null {
+  const children = placeAll(map)
+  const build = (id: string): PMNode => {
+    const content = contentFrom(map.get(id)!, schema)
+    const kids = children.get(id)
+    const parts = kids?.length
+      ? [content, schema.nodes.blockGroup!.create(null, kids.map(build))]
+      : [content]
+    return schema.nodes.block!.create({ id }, parts)
+  }
+  const top = children.get(ROOT) ?? []
+  return top.length ? schema.nodes.doc!.create(null, top.map(build)) : null
+}
+
 export function syncPlugin(binding: Binding): Plugin {
   const { map } = binding
   const ydoc = map.doc!

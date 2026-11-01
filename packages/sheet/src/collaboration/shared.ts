@@ -1,5 +1,13 @@
 import * as Y from 'yjs'
-import { colCountOf, rowCountOf, type SheetData, type SheetWorkbook } from '../core/model'
+import {
+  cellOf,
+  colCountOf,
+  compactCell,
+  rowCountOf,
+  type SheetCellInput,
+  type SheetData,
+  type SheetWorkbook,
+} from '../core/model'
 import {
   anchorCell,
   anchorRange,
@@ -21,7 +29,8 @@ import {
  *   order   Y.Array  sheet ids, in the order of the tabs
  *   sheets  Y.Map    sheet id → Y.Map
  *     rows, cols          Y.Array  line ids, top to bottom and left to right
- *     cells               Y.Map    `${rowId}:${colId}` → cell
+ *     cells               Y.Map    `${rowId}:${colId}` → cell, and
+ *                                  `${rowId}:${colId}#` → the id of its comment thread
  *     rowSizes, colSizes  Y.Map    line id → px
  *     meta                Y.Map    the sheet's other fields: name, freeze, merges, rules…
  *
@@ -49,6 +58,28 @@ export const ANCHORED_META = [
 ] as const
 
 export const cellKey = (row: string, col: string) => `${row}:${col}`
+
+/*
+ * A cell's comment thread is kept beside the cell, under its own key: undo
+ * puts back a cell's value without taking the thread put on it since, and
+ * putting one on doesn't overwrite what someone else typed at the same time.
+ */
+export const threadKey = (key: string) => `${key}#`
+export const isThreadKey = (key: string) => key.endsWith('#')
+/** The cell a key is about: the cell's own key for its thread's. */
+export const cellOfKey = (key: string) => (isThreadKey(key) ? key.slice(0, -1) : key)
+
+/** A cell with the thread kept beside it. */
+export function withThread(cell: SheetCellInput, thread: unknown): SheetCellInput {
+  if (typeof thread !== 'string' || !thread) return cell
+  return compactCell({ ...cellOf(cell), comment: thread })
+}
+
+/** A cell without its thread, and the thread. */
+export function splitThread(cell: SheetCellInput): [SheetCellInput, string | undefined] {
+  if (!cell || typeof cell !== 'object' || !cell.comment) return [cell, undefined]
+  return [compactCell({ ...cell, comment: undefined }), cell.comment]
+}
 
 /** Where a cell kept under `key` is now; `-1` for a line that is gone. */
 export function cellAt(key: string, here: LayoutSheet) {
@@ -293,9 +324,12 @@ export function writeSheet(
   rows.push(here.rows.ids)
   cols.push(here.cols.ids)
   data.cells.forEach((line, r) =>
-    line?.forEach((cell, c) => {
+    line?.forEach((input, c) => {
+      const [cell, thread] = splitThread(input)
+      const key = cellKey(here.rows.ids[r]!, here.cols.ids[c]!)
       const stored = anchorCell(cell, here, layout)
-      if (!isEmpty(stored)) cells.set(cellKey(here.rows.ids[r]!, here.cols.ids[c]!), stored)
+      if (!isEmpty(stored)) cells.set(key, stored)
+      if (thread) cells.set(threadKey(key), thread)
     }),
   )
   for (const [index, size] of Object.entries(data.rowSizes ?? {}))
@@ -353,10 +387,16 @@ export function fillBook(book: SharedMap, workbook: SheetWorkbook) {
 export function readSheet(parts: SharedSheet, here: LayoutSheet, layout: SheetLayout): SheetData {
   const cells: SheetData['cells'] = []
   parts.cells.forEach((stored, key) => {
+    // a thread on an empty cell has no cell of its own
+    if (isThreadKey(key)) {
+      key = cellOfKey(key)
+      if (parts.cells.has(key)) return
+      stored = undefined
+    }
     const { row, col } = cellAt(key, here)
     // the cells of lines someone deleted while someone else wrote them
     if (row < 0 || col < 0) return
-    const cell = resolveCell(stored, here, layout)
+    const cell = withThread(resolveCell(stored, here, layout), parts.cells.get(threadKey(key)))
     if (isEmpty(cell)) return
     while (cells.length < row) cells.push(null)
     const line = (cells[row] ??= [])

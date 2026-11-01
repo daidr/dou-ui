@@ -51,6 +51,13 @@ export interface EditorProps {
   activeComment?: string | null
   /** Whether threads can be started and answered; also while `readonly`. Defaults to `true`. */
   commentable?: boolean
+  /**
+   * An older version of the document, e.g. one the app saved. The editor
+   * then shows the document read-only, with what changed since marked:
+   * blocks added and removed, and in each changed block the text added
+   * and removed.
+   */
+  compare?: Block[] | null
 }
 
 export interface EditorEmits {
@@ -87,6 +94,16 @@ export interface EditorExpose {
   comment: () => boolean
   /** Where each thread is anchored; `null` for a thread whose text was deleted. */
   getCommentAnchors: () => Record<string, CommentAnchor | null>
+  /**
+   * Replace the document with `blocks`, e.g. an older version, as one
+   * change undo takes back. With collaboration only the blocks that differ
+   * are written, and everyone sees it. Returns `false` when nothing differs.
+   */
+  restore: (blocks: PartialBlock[]) => boolean
+  /** With `compare`: scroll to the next change after the one last shown; `false` when there is none. */
+  nextChange: () => boolean
+  /** With `compare`: scroll to the change before the one last shown. */
+  previousChange: () => boolean
 }
 
 /** The comments, as the parts around the editing area see them. */

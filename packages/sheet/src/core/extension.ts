@@ -1,4 +1,5 @@
-import type { Component } from 'vue'
+import type { CommentAction, CommentThread } from 'dou-ui'
+import type { Component, Ref } from 'vue'
 import type { SheetContext } from '../context'
 import type { SheetMenuContext, SheetMenuItem, SheetToolbarItem } from '../types'
 import type { SheetCommand } from './commands'
@@ -40,6 +41,14 @@ export interface SheetUpdate {
    * `null` when a new workbook came in through `v-model`.
    */
   transaction: SheetTransaction | null
+}
+
+/** Where the comment threads live, when not in `v-model:comments`. */
+export interface SheetCommentsProvider {
+  /** The threads, kept up to date. */
+  threads: Readonly<Ref<readonly CommentThread[]>>
+  /** Make a change this user asked for. */
+  apply: (action: CommentAction) => void
 }
 
 /**
@@ -99,6 +108,12 @@ export interface SheetExtension {
    * take no clicks.
    */
   layers?: { below?: Component[]; above?: Component[] }
+  /**
+   * Keeps the comment threads somewhere else than `v-model:comments`, e.g.
+   * in a shared document; `v-model:comments` then only mirrors them. Only
+   * one extension may.
+   */
+  comments?: (context: SheetExtensionContext) => SheetCommentsProvider
   /** Replaces the grid's undo history; the first extension that has one wins. */
   history?: (context: SheetExtensionContext) => SheetHistoryHandler
   /** Runs once the grid is mounted. Return a function to run when it unmounts. */
@@ -149,6 +164,7 @@ export interface ResolvedSheetExtensions {
   overlays: Component[]
   layers: { below: Component[]; above: Component[] }
   history?: SheetExtension['history']
+  comments?: SheetExtension['comments']
 }
 
 type ExtensionList = readonly (SheetExtension | readonly SheetExtension[])[]
@@ -182,6 +198,10 @@ export function resolveSheetExtensions(list: ExtensionList = []): ResolvedSheetE
   const pick = <K extends keyof SheetExtension>(key: K) =>
     extensions.flatMap((e) => (e[key] ? [e[key]] : [])) as NonNullable<SheetExtension[K]>[]
 
+  const keepers = extensions.filter((extension) => extension.comments)
+  if (keepers.length > 1)
+    throw new Error('[@dou-ui/sheet] only one extension may keep the comment threads')
+
   return {
     extensions,
     // the first (highest priority) extension to name a type wins
@@ -211,5 +231,6 @@ export function resolveSheetExtensions(list: ExtensionList = []): ResolvedSheetE
       above: extensions.flatMap((e) => e.layers?.above ?? []),
     },
     history: extensions.find((e) => e.history)?.history,
+    comments: keepers[0]?.comments,
   }
 }

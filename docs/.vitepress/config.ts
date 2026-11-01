@@ -35,6 +35,7 @@ const editorSidebar = ecosystem('块编辑器', [
   { text: '评论', link: '/editor/comments' },
   { text: '表格', link: '/editor/table' },
   { text: '导入与导出', link: '/editor/import-export' },
+  { text: '历史版本', link: '/editor/versions' },
   { text: '协同编辑', link: '/editor/collaboration' },
 ])
 
@@ -67,6 +68,8 @@ const sheetSidebar = ecosystem('电子表格', [
   { text: '公式', link: '/sheet/formulas' },
   { text: '扩展', link: '/sheet/extensions' },
   { text: '导入导出 xlsx', link: '/sheet/xlsx' },
+  { text: '评论', link: '/sheet/comments' },
+  { text: '历史版本', link: '/sheet/versions' },
   { text: '协同编辑', link: '/sheet/collaboration' },
 ])
 const codeSidebar = ecosystem('代码编辑器', [

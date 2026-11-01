@@ -57,6 +57,10 @@ export type { SheetBounds, SheetCellTarget, SheetPoint, SheetRange, SheetRefMap 
 
 export { defineSheetExtension } from './extension'
 export type { SheetExtension, SheetUpdate } from './extension'
+export { keepCommentAnchors, sheetCommentAnchors } from './comments'
+export { diffWorkbooks, restoreWorkbook } from './versions'
+export type { SheetCellChange, WorkbookDiff } from './versions'
+export type { SheetCommentAnchor } from './comments'
 export type { SheetClip } from './clipboard'
 export type { SheetLabel } from './commands'
 export { defineSheetCellType, optionOf } from './cell-type'

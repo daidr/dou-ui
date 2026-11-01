@@ -19,6 +19,11 @@ export interface SheetCell {
   /** A note on the cell. */
   note?: string
   /**
+   * The id of the comment thread about the cell, one of `v-model:comments`.
+   * Copying a cell leaves it behind; cutting moves it.
+   */
+  comment?: string
+  /**
    * What kind of cell it is: `date`, `select`, `checkbox`, a type an
    * extension adds, or a name in the workbook's `types`. It decides how the
    * value shows and how it is edited.

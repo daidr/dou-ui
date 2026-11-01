@@ -623,6 +623,47 @@
     }
   }
 
+  /* a cell's comment thread: a mark in the focus color, under the note's when there is one */
+  .dou-sheet__commented {
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 2;
+    border: 4px solid transparent;
+    border-top-color: var(--dou-color-focus);
+    border-right-color: var(--dou-color-focus);
+    pointer-events: none;
+
+    &.is-below-note {
+      top: 8px;
+    }
+  }
+
+  /* comparing with an older version: the cells that changed, tinted and underlined */
+  .dou-sheet__cell.is-changed {
+    background-image: linear-gradient(
+      color-mix(in oklab, var(--dou-color-warning) 18%, transparent),
+      color-mix(in oklab, var(--dou-color-warning) 18%, transparent)
+    );
+    box-shadow: inset 0 -2px 0 var(--dou-color-warning);
+  }
+
+  /* the thread beside its cell */
+  .dou-sheet-comment {
+    box-sizing: border-box;
+    width: min(320px, calc(100vw - 32px));
+    max-height: min(480px, calc(100vh - 32px));
+    padding: 12px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-container);
+    background-color: var(--dou-color-bg-surface);
+    box-shadow: var(--dou-shadow-md);
+    font-family: var(--dou-font-family);
+    line-height: normal;
+  }
+
   /* a cell's note, beside it */
   .dou-sheet__note {
     box-sizing: border-box;

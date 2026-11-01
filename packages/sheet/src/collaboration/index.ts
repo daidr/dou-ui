@@ -1,4 +1,10 @@
-import { collaborationColors } from 'dou-ui'
+import {
+  applySharedCommentAction,
+  collaborationColors,
+  readSharedComments,
+  type CommentThread,
+  type SharedCommentMap,
+} from 'dou-ui'
 import { nextTick, shallowRef, watch } from 'vue'
 import * as Y from 'yjs'
 import type { SheetBounds, SheetPoint } from '../core/address'
@@ -26,6 +32,7 @@ import {
   anchorMeta,
   cellAt,
   cellKey,
+  cellOfKey,
   fillBook,
   increasingRun,
   isMetaKey,
@@ -36,9 +43,12 @@ import {
   readSheet,
   resolveMeta,
   sheetParts,
+  splitThread,
+  threadKey,
   syncList,
   writeSheet,
   type SharedMap,
+  withThread,
   type SharedParts,
 } from './shared'
 
@@ -68,6 +78,13 @@ export interface CollaborationOptions {
   awareness?: AwarenessLike
   /** This user, shown to the others. Needs `awareness`. */
   user?: CollaborationUser
+  /**
+   * Where the comment threads live, e.g. `ydoc.getMap('comments')`, so
+   * they reach everyone with the workbook. `v-model:comments` then only
+   * mirrors them. Without it, the cells' anchors still travel with the
+   * workbook and the threads are the app's to share.
+   */
+  comments?: Y.Map<unknown>
 }
 
 /** A line by its id, or by number when it is past the lines the sheet has. */
@@ -533,19 +550,29 @@ export function collaboration(options: CollaborationOptions): SheetExtension {
       if (t.lines.row) syncList(lists.rows, here.rows.ids)
       if (t.lines.col) syncList(lists.cols, here.cols.ids)
       // the cells and sizes of removed lines go with them
+      const drop = (key: string) => {
+        lists.cells.delete(key)
+        lists.cells.delete(threadKey(key))
+      }
       for (const row of t.removed.row) {
-        for (const col of here.cols.ids) lists.cells.delete(cellKey(row, col))
-        for (const col of t.removed.col) lists.cells.delete(cellKey(row, col))
+        for (const col of here.cols.ids) drop(cellKey(row, col))
+        for (const col of t.removed.col) drop(cellKey(row, col))
         lists.rowSizes.delete(row)
       }
       for (const col of t.removed.col) {
-        for (const row of here.rows.ids) lists.cells.delete(cellKey(row, col))
+        for (const row of here.rows.ids) drop(cellKey(row, col))
         lists.colSizes.delete(col)
       }
       for (const key of t.cells) {
         const { row, col } = cellAt(key, here)
         if (row < 0 || col < 0) continue
-        const own = sheet.cells[row]?.[col]
+        const [own, thread] = splitThread(sheet.cells[row]?.[col])
+        // the thread first: it changes apart from the cell, as undo leaves it
+        const kept = lists.cells.get(threadKey(key))
+        if (thread !== kept) {
+          if (thread) lists.cells.set(threadKey(key), thread)
+          else lists.cells.delete(threadKey(key))
+        }
         const existing = lists.cells.get(key)
         /*
          * A formula only moved along with inserted or deleted lines reads the
@@ -623,10 +650,13 @@ export function collaboration(options: CollaborationOptions): SheetExtension {
       if (colCountOf(tr.getSheet(id)) !== here.cols.ids.length)
         counts.colCount = here.cols.ids.length
       if (Object.keys(counts).length) tr.updateSheet(counts, id)
-      for (const key of d.cells) {
+      for (const key of new Set(Array.from(d.cells, cellOfKey))) {
         const { row, col } = cellAt(key, here)
         if (row < 0 || col < 0) continue
-        const cell = resolveCell(lists.cells.get(key), here, next)
+        const cell = withThread(
+          resolveCell(lists.cells.get(key), here, next),
+          lists.cells.get(threadKey(key)),
+        )
         const at = { sheet: id, row, col }
         if (!same(tr.getCell(at), cell)) tr.setCell(at, cell)
       }
@@ -660,7 +690,7 @@ export function collaboration(options: CollaborationOptions): SheetExtension {
           if (!hasRefs(stored)) return
           const { row, col } = cellAt(key, here)
           if (row < 0 || col < 0) return
-          const cell = resolveCell(stored, here, next)
+          const cell = withThread(resolveCell(stored, here, next), lists.cells.get(threadKey(key)))
           const at = { sheet: id, row, col }
           if (!same(tr.getCell(at), cell)) tr.setCell(at, cell)
         })
@@ -791,6 +821,16 @@ export function collaboration(options: CollaborationOptions): SheetExtension {
 
   const peers = shallowRef<SheetPeer[]>([])
 
+  // Comments ------------------------------------------------------------------------------
+
+  const commentMap = options.comments
+  const sharedThreads = commentMap as SharedCommentMap | undefined
+  const threads = shallowRef<readonly CommentThread[]>([])
+  const readThreads = () => {
+    if (sharedThreads) threads.value = readSharedComments(sharedThreads)
+  }
+  readThreads()
+
   return defineSheetExtension({
     name: 'collaboration',
     // after the other extensions, so it writes what they added
@@ -814,6 +854,12 @@ export function collaboration(options: CollaborationOptions): SheetExtension {
       if (tr.steps.some((step) => step.type.endsWith('Lines') || step.type.endsWith('Sheet')))
         revision.value++
     },
+    comments: sharedThreads
+      ? () => ({
+          threads,
+          apply: (action) => applySharedCommentAction(sharedThreads, action, untracked),
+        })
+      : undefined,
     history: () => ({
       undo: () => run('undo'),
       redo: () => run('redo'),
@@ -824,6 +870,8 @@ export function collaboration(options: CollaborationOptions): SheetExtension {
     layers: awareness ? { below: [createPeers(peers)] } : undefined,
     setup(sheet) {
       context = sheet
+      commentMap?.observe(readThreads)
+      readThreads()
       parts = partsOf(book)
       if (!parts) {
         // the first to open the workbook brings its sheets, each with an id
@@ -925,6 +973,7 @@ export function collaboration(options: CollaborationOptions): SheetExtension {
       }
 
       return () => {
+        commentMap?.unobserve(readThreads)
         book.unobserveDeep(observe)
         ydoc.off('afterTransaction', flush)
         stopPresence?.()

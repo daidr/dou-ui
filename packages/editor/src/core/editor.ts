@@ -144,6 +144,27 @@ export function replaceBlocks(view: EditorView, blocks: PartialBlock[]) {
   view.dispatch(tr)
 }
 
+/**
+ * Replace the document with `blocks` as one change undo takes back, e.g.
+ * an older version. Only what differs is replaced, so the blocks that stay
+ * keep their place, and with collaboration only they are written.
+ */
+export function restoreBlocks(view: EditorView, blocks: PartialBlock[]) {
+  const state = view.state
+  const next = blocksToDoc(state.schema, blocks)
+  const start = state.doc.content.findDiffStart(next.content)
+  if (start === null) return false
+  const end = state.doc.content.findDiffEnd(next.content)!
+  // the two ends can cross where the same text repeats: widen them to agree
+  const overlap = start - Math.min(end.a, end.b)
+  if (overlap > 0) {
+    end.a += overlap
+    end.b += overlap
+  }
+  view.dispatch(state.tr.replace(start, end.a, next.slice(start, end.b)).scrollIntoView())
+  return true
+}
+
 export function getBlocks(view: EditorView): Block[] {
   return docToBlocks(view.state.doc)
 }

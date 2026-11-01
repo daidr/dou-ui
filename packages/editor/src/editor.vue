@@ -23,7 +23,15 @@ import CommentButton from './components/comment-button.vue'
 import CommentCard from './components/comment-card.vue'
 import SlashMenu from './components/slash-menu.vue'
 import { setFallbackHighlighter, type CodeHighlighter } from './core/highlight'
-import { createEditorView, getBlocks, replaceBlocks, runCommand, setEditable } from './core/editor'
+import { comparePlugin, compareKey } from './core/compare'
+import {
+  createEditorView,
+  getBlocks,
+  replaceBlocks,
+  restoreBlocks,
+  runCommand,
+  setEditable,
+} from './core/editor'
 import type { Block, PartialBlock } from './core/model'
 import { resolveEditorExtensions } from './core/extension'
 import { slashPlugin, type SlashState } from './core/slash'
@@ -53,6 +61,7 @@ const props = withDefaults(defineProps<EditorProps>(), {
   author: undefined,
   activeComment: undefined,
   commentable: true,
+  compare: undefined,
 })
 const emit = defineEmits<EditorEmits>()
 
@@ -78,7 +87,9 @@ const view = shallowRef<EditorView | null>(null)
 const state = shallowRef<EditorState | null>(null)
 const focused = shallowRef(false)
 const dragging = shallowRef(false)
-const editable = computed(() => !props.readonly)
+/** Showing what changed since an older version: read-only, without comments. */
+const comparing = computed(() => !!props.compare)
+const editable = computed(() => !props.readonly && !comparing.value)
 
 const {
   comments,
@@ -168,6 +179,10 @@ onMounted(() => {
         },
       }),
       commentPlugin,
+      comparePlugin({
+        before: () => props.compare,
+        label: () => messages.value.removedBlock,
+      }),
       openLinks,
     ],
     history: props.history,
@@ -176,7 +191,7 @@ onMounted(() => {
     attributes: () => {
       const attrs: Record<string, string> = {}
       if (props.ariaLabel) attrs['aria-label'] = props.ariaLabel
-      if (props.readonly) attrs['aria-readonly'] = 'true'
+      if (!editable.value) attrs['aria-readonly'] = 'true'
       return attrs
     },
     onChange,
@@ -222,6 +237,37 @@ watch(
 )
 
 watch(editable, (value) => view.value && setEditable(view.value, value))
+watch(
+  () => props.compare,
+  () => view.value?.dispatch(view.value.state.tr.setMeta(compareKey, true)),
+)
+
+/** The change last scrolled to, by its place among them. */
+let changeIndex = -1
+watch(
+  () => props.compare,
+  () => (changeIndex = -1),
+)
+function goToChange(step: 1 | -1) {
+  const dom = view.value?.dom
+  if (!dom || !props.compare) return false
+  // a block's own mark, or the first piece of text changed in it
+  const marks = [
+    ...dom.querySelectorAll<HTMLElement>(
+      '.dou-editor__diff-added, .dou-editor__diff-changed, .dou-editor__diff-removed-block, .dou-editor__diff-added-text, .dou-editor__diff-removed',
+    ),
+  ].filter((el, index, list) => {
+    const block = el.closest('[data-block-id]')
+    const previous = list[index - 1]
+    return !previous || previous.closest('[data-block-id]') !== block || !block
+  })
+  const next = changeIndex + step
+  const target = marks[next]
+  if (!target) return false
+  changeIndex = next
+  target.scrollIntoView({ block: 'center' })
+  return true
+}
 
 defineExpose<EditorExpose>({
   get view() {
@@ -236,6 +282,9 @@ defineExpose<EditorExpose>({
   run: (command) => (view.value ? runCommand(view.value, command) : false),
   comment: () => comments.start(),
   getCommentAnchors: anchors,
+  restore: (blocks) => (view.value ? restoreBlocks(view.value, blocks) : false),
+  nextChange: () => goToChange(1),
+  previousChange: () => goToChange(-1),
 })
 
 /*
@@ -263,18 +312,26 @@ const HighlightStyle = () => (highlightCSS.value ? h('style', highlightCSS.value
 <template>
   <div
     ref="root"
-    :class="[ns.b(), { 'is-readonly': readonly, 'is-focused': focused, 'is-dragging': dragging }]"
+    :class="[
+      ns.b(),
+      {
+        'is-readonly': !editable,
+        'is-comparing': comparing,
+        'is-focused': focused,
+        'is-dragging': dragging,
+      },
+    ]"
     :data-dou-editor="scope"
   >
     <HighlightStyle />
     <div ref="mount" :class="ns.e('mount')" />
-    <template v-if="!readonly && view">
+    <template v-if="editable && view">
       <BlockHandle />
       <SlashMenu ref="slashMenu" :slash="slash" />
       <BubbleToolbar ref="bubble" />
       <component :is="overlay" v-for="(overlay, index) in kit.overlays" :key="index" />
     </template>
-    <template v-if="view && comments.enabled.value">
+    <template v-if="view && comments.enabled.value && !comparing">
       <CommentButton v-if="readonly" />
       <CommentCard />
     </template>

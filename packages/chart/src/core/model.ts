@@ -134,6 +134,8 @@ export function buildModel(
 
   // how x is read: as the x axis says, else guessed from the first series with data
   let xKind = chart.xKind
+  // a radar's spokes are its categories, whatever they are written as
+  if (shown.some((input) => input.kind.polar)) xKind = 'category'
   if (!xKind) {
     xKind = 'linear'
     for (const input of shown) {

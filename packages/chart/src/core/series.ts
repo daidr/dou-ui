@@ -92,6 +92,11 @@ export interface ChartView {
   vector?: boolean
   /** The resolved colors of the chart. */
   colors: ChartColors
+  /**
+   * For a radar: its center and radius, and how many spokes. `point`
+   * then takes a spoke (the category's index) and a value.
+   */
+  polar?: { cx: number; cy: number; radius: number; count: number }
 }
 
 export interface ChartColors {
@@ -114,6 +119,12 @@ export interface ChartSeriesKind<P = Record<string, unknown>> {
    * holds the values and `top` the categories' places.
    */
   categoryY?: boolean
+  /**
+   * Whether the series is drawn round a center (a radar): a spoke for each
+   * category, values out from the center. It can't share a chart with
+   * series drawn on axes.
+   */
+  polar?: boolean
   /** Whether series of this kind can stack (`stack` prop). */
   stackable?: boolean
   /**

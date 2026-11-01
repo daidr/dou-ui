@@ -1063,3 +1063,138 @@ export function layoutPie({
     legendBox: placed.box,
   }
 }
+
+/** A radar laid out: its center and radius, its rings and the names round it. */
+export interface RadarLayout {
+  width: number
+  height: number
+  cx: number
+  cy: number
+  radius: number
+  /** How many spokes: one per category. */
+  count: number
+  /** From a value to its distance from the center, in px. */
+  scale: Scale
+  /** The values of the rings. */
+  ticks: number[]
+  /** The spokes' names round the rim. */
+  labels: TickLabel[]
+  /** The rings' values, up the top spoke. */
+  values: TickLabel[]
+  legend: LegendItem[]
+  legendBox?: LegendBox
+}
+
+/** Room between the rim and a spoke's name. */
+const SPOKE_GAP = 8
+/** The most of the chart's width a spoke's name may take, each side. */
+const SPOKE_SHARE = 0.22
+/** Wanted room between rings, in px. */
+const RING_SPACE = 24
+
+/**
+ * Lays out a radar: the legend first, then the largest circle that leaves
+ * room round it for the spokes' names (the categories), with rings at
+ * nice values from the center (0, or the smallest value below it) out.
+ */
+export function layoutRadar({
+  model,
+  axes,
+  width,
+  height,
+  locale,
+  measure,
+  legend: names = [],
+  coarse,
+  legendPlacement = 'bottom',
+  spokes,
+}: Omit<LayoutOptions, 'horizontal' | 'zoom' | 'strip' | 'trailing'> & {
+  /** The spokes' names, in order from 12 o'clock. */
+  spokes: string[]
+}): RadarLayout {
+  const placed = placeLegendIn(names, legendPlacement, width, height, measure, coarse)
+  const { top, bottom, right: legendRight } = placed.room
+  const across = width - legendRight
+  const down = height - top - bottom
+  const count = spokes.length
+  const most = Math.max(24, Math.floor(across * SPOKE_SHARE))
+  const widths = spokes.map((text) => measure(text))
+  const angleOf = (i: number) => (i / Math.max(1, count)) * Math.PI * 2
+  // the names beside the circle take room across; those at the top and bottom, down
+  let side = 0
+  widths.forEach((w, i) => {
+    if (Math.abs(Math.sin(angleOf(i))) >= 0.1) side = Math.max(side, w)
+  })
+  side = Math.min(side, most)
+  const radius = Math.max(
+    1,
+    Math.min(
+      (across - (side + SPOKE_GAP) * 2 - EDGE * 2) / 2,
+      (down - (LABEL_HEIGHT + SPOKE_GAP) * 2 - EDGE * 2) / 2,
+    ),
+  )
+  const cx = across / 2
+  const cy = top + down / 2
+  const config = axes.y ?? { position: 'left' as const, grid: true, hidden: false }
+  const axis = valueAxis(
+    'y',
+    config,
+    model,
+    Math.max(2, Math.floor(radius / RING_SPACE)),
+    locale,
+    radius,
+  )
+  const scale = linearScale(axis.domain, [0, radius])
+  const labels: TickLabel[] = []
+  if (!axes.x.hidden)
+    spokes.forEach((text, i) => {
+      const room = Math.min(widths[i]!, most)
+      const sin = Math.sin(angleOf(i))
+      const cos = Math.cos(angleOf(i))
+      const x = cx + sin * (radius + SPOKE_GAP)
+      const y = cy - cos * (radius + SPOKE_GAP)
+      const where = Math.abs(sin) < 0.1 ? 0 : sin > 0 ? 1 : -1
+      // the names at the top and bottom sit past the rim; those beside it, centered on their spoke
+      const lift = where === 0 ? (cos > 0 ? LABEL_HEIGHT / 2 : -LABEL_HEIGHT / 2) : 0
+      const label: TickLabel = {
+        text,
+        left: where === 0 ? x - room / 2 : where > 0 ? x : x - room,
+        top: y - LABEL_HEIGHT / 2 - lift,
+        width: room,
+      }
+      if (widths[i]! > most) label.clipped = true
+      labels.push(label)
+    })
+  const values: TickLabel[] = []
+  if (!config.hidden)
+    axis.ticks.forEach((tick, i) => {
+      const r = scale.map(tick)
+      // the center needs no number: it is where the rings start
+      if (r < 1) return
+      const text = axis.texts[i]!
+      const label = { text, left: cx + 4, top: cy - r - LABEL_HEIGHT + 2, width: measure(text) }
+      // the top spoke's name is past the rim: the ring's value gives way to it
+      const hits = labels.some(
+        (other) =>
+          label.left < other.left + other.width &&
+          other.left < label.left + label.width &&
+          label.top < other.top + LABEL_HEIGHT &&
+          other.top < label.top + LABEL_HEIGHT,
+      )
+      if (!hits) values.push(label)
+    })
+  return {
+    width,
+    height,
+    cx,
+    cy,
+    radius,
+    count,
+    scale,
+    ticks: axis.ticks,
+    labels,
+    values,
+    legend: placed.legend,
+    legendBox: placed.box,
+  }
+}

@@ -31,6 +31,7 @@ import {
   HEAT_SWATCH,
   layoutChart,
   layoutPie,
+  layoutRadar,
   PIE_LABEL_ROOM,
   type AxisConfig,
   type AxisLayout,
@@ -41,6 +42,7 @@ import {
   type ChartLegendPlacement,
   type ChartTickValue,
   type LegendName,
+  type RadarLayout,
   type TickLabel,
 } from './core/layout'
 import {
@@ -65,6 +67,7 @@ import {
 import { crisp, type Painter, type Rect } from './core/painter'
 import { heatColor, heatRange, heatShare } from './core/heatmap'
 import { drawPie, FADED, pieSlices, type PieSlice } from './core/pie'
+import { nearestSpoke, spokeAngle } from './core/radar'
 import { baseline, categoryScale, linearScale, logScale, type Scale } from './core/scale'
 import { escapeXml, isSvg, num, paintAttribute, SvgPainter } from './core/svg'
 import type { ChartColors, ChartHit, ChartSeries, ChartValueAxis, ChartView } from './core/series'
@@ -440,6 +443,20 @@ if (process.env.NODE_ENV !== 'production')
     if (pies.length > 1 || (pies.length && series.length))
       console.warn(
         '[@dou-ui/chart] a <DouChartPie> is drawn alone: other series and pies are left out.',
+      )
+  })
+
+/* a radar: series round a center, without axes */
+
+/** The chart is a radar: its series are drawn round a center. */
+const radar = computed(() => !pie.value && seriesParts.value.some((part) => part.kind.polar))
+
+if (process.env.NODE_ENV !== 'production')
+  watch(seriesParts, (list) => {
+    const polar = list.filter((part) => part.kind.polar).length
+    if (polar && polar < list.length)
+      console.warn(
+        '[@dou-ui/chart] a <DouChartRadar> is drawn round a center: series on axes are left out of it.',
       )
   })
 
@@ -831,7 +848,7 @@ const legendPlacement = computed<ChartLegendPlacement>(() => {
 const layout = computed(() => {
   const width = size.width.value
   const height = size.height.value
-  if (!width || !height || pie.value) return null
+  if (!width || !height || pie.value || radar.value) return null
   void themeVersion.value
   return layoutChart({
     model: model.value,
@@ -863,6 +880,26 @@ const pieLayout = computed(() => {
     coarse: coarse.value,
     legendPlacement: legendPlacement.value,
     sideLabels: pieLabelsOutside.value ? pieSideWidths.value : undefined,
+  })
+})
+
+const radarLayout = computed(() => {
+  const width = size.width.value
+  const height = size.height.value
+  if (!width || !height || !radar.value) return null
+  void themeVersion.value
+  const m = model.value
+  return layoutRadar({
+    model: m,
+    axes: axes.value,
+    width,
+    height,
+    locale: locale.value.name,
+    measure,
+    legend: legendNames.value,
+    coarse: coarse.value,
+    legendPlacement: legendPlacement.value,
+    spokes: m.categories.map((_, i) => xText(i)),
   })
 })
 
@@ -1344,6 +1381,12 @@ function hitAt(px: number, py: number): Target | null {
     const k = slices.value.findIndex((s) => !s.hidden && angle >= s.start && angle < s.end)
     return k < 0 ? null : { type: 'slice', slice: k }
   }
+  const r = radarLayout.value
+  if (r) {
+    // the spoke nearest the pointer, within the rim and the names round it
+    if (!r.count || Math.hypot(px - r.cx, py - r.cy) > r.radius + 16) return null
+    return { type: 'axis', x: nearestSpoke(angleAt(r.cx, r.cy, px, py), r.count) }
+  }
   const l = layout.value
   if (!l) return null
   const { plot } = l
@@ -1391,7 +1434,7 @@ const NEAR_LINE = 8
  */
 const pointed = computed<number | null>(() => {
   const a = active.value
-  if (!a?.pointer || pie.value || series.value.length < 2) return null
+  if (!a?.pointer || pie.value || radar.value || series.value.length < 2) return null
   if (a.type === 'item') return a.series
   if (a.type !== 'axis') return null
   const along = alongX(a.pointer)
@@ -1481,6 +1524,7 @@ function tipOf(a: Active | null): Tip | null {
       marks: [],
     }
   }
+  if (a.type === 'axis' && radarLayout.value) return radarTip(radarLayout.value, a)
   const l = layout.value
   if (!l) return null
   const { plot } = l
@@ -1594,6 +1638,44 @@ function tipOf(a: Active | null): Tip | null {
     marks,
     band: crosshair && band ? across(at - room / 2, room) : undefined,
     line: crosshair && !band ? across(line, 1) : undefined,
+  }
+}
+
+/** A radar's tooltip: every series along one spoke, a dot on each, beside the outermost. */
+function radarTip(r: RadarLayout, a: Active & { type: 'axis' }): Tip | null {
+  const x = a.x
+  const items: ChartTooltipItem[] = []
+  const marks: Tip['marks'] = []
+  const view = radarView(r, dprNow(), false)
+  let far: [number, number] | null = null
+  let farthest = -1
+  for (const s of series.value) {
+    const row = rowAt(s.x.values, x)
+    if (row < 0) continue
+    const y = s.y[row]!
+    if (y !== y) continue
+    items.push({
+      name: s.name,
+      text: seriesText(s, row),
+      value: y,
+      color: s.color,
+      row: rowOf(s.rows, row),
+    })
+    const [left, top] = view.point(x, s.top[row]!)
+    marks.push({ left, top, color: s.color, radius: 4, ring: false })
+    const out = Math.hypot(left - r.cx, top - r.cy)
+    if (out > farthest) {
+      farthest = out
+      far = [left, top]
+    }
+  }
+  if (!items.length) return null
+  return {
+    x: rawX(x),
+    title: xText(x),
+    items,
+    anchor: a.pointer ?? far ?? [r.cx, r.cy],
+    marks,
   }
 }
 
@@ -2383,7 +2465,11 @@ function moveAlong(step: number): Target | null {
     const xs = xValues.value
     if (!xs.length) return null
     const at = a?.type === 'axis' ? xs.indexOf(a.x) : -1
-    const k = stepTo(at, step, xs.length)
+    // round a radar, past the last spoke to the first
+    const k =
+      radar.value && at >= 0 && Number.isFinite(step)
+        ? (at + step + xs.length) % xs.length
+        : stepTo(at, step, xs.length)
     return { type: 'axis', x: xs[k]! }
   }
   const s =
@@ -2487,7 +2573,7 @@ const live = computed(() => {
 const pointer: PointerState = {
   tip,
   size: computed(() => {
-    const l = layout.value ?? pieLayout.value
+    const l = layout.value ?? pieLayout.value ?? radarLayout.value
     return l && { width: l.width, height: l.height }
   }),
   content: computed(() => tooltipPart.value?.content()),
@@ -2521,6 +2607,8 @@ watch(
     pieLabels.value,
     labelsShown.value,
     pie.value && active.value,
+    radarLayout.value,
+    radar.value && active.value,
     dimmed.value,
   ],
   request,
@@ -2725,7 +2813,7 @@ function shownSlicesAt(t: number): PieSlice[] {
 
 function draw() {
   const canvas = canvasRef.value
-  const l = layout.value ?? pieLayout.value
+  const l = layout.value ?? pieLayout.value ?? radarLayout.value
   if (!canvas || !l) return
   if (!onScreen) {
     missed = true
@@ -2755,6 +2843,7 @@ function draw() {
   const t = easeOut(done)
   const entering = motion?.enter ? t : 1
   if (pieLayout.value) paintPie(ctx, t, entering)
+  else if (radarLayout.value) paintRadar(ctx, dpr, t)
   else paint(ctx, dpr, t, entering)
   // the canvas shows the chart now: the server's image goes
   fromServer.value = false
@@ -2797,6 +2886,69 @@ function paintPie(painter: Painter, t: number, sweep: number, still = false) {
   painter.restore()
 }
 
+/**
+ * Draws the radar: its rings and spokes, the spoke picked, then each
+ * series, those not brought forward faded. `still` leaves out what follows
+ * the pointer and the legend (an export).
+ */
+function paintRadar(painter: Painter, dpr: number, t: number, still = false) {
+  const r = radarLayout.value!
+  const { cx, cy, count } = r
+  const corner = (k: number, out: number): [number, number] => {
+    const angle = spokeAngle(k, count)
+    return [cx + Math.sin(angle) * out, cy - Math.cos(angle) * out]
+  }
+  painter.save()
+  painter.lineWidth = 1
+  painter.strokeStyle = colors.value.grid
+  painter.beginPath()
+  // the rings: polygons through the spokes, so equal values lie on a straight line
+  if (axes.value.y?.grid !== false)
+    for (const tick of r.ticks) {
+      const out = r.scale.map(tick)
+      if (out < 1 || count < 3) continue
+      for (let k = 0; k <= count; k++) {
+        const [x, y] = corner(k % count, out)
+        if (k) painter.lineTo(x, y)
+        else painter.moveTo(x, y)
+      }
+    }
+  // the spokes
+  for (let k = 0; k < count; k++) {
+    const [x, y] = corner(k, r.radius)
+    painter.moveTo(cx, cy)
+    painter.lineTo(x, y)
+  }
+  painter.stroke()
+  // the spoke picked, darker
+  const a = still ? null : active.value
+  if (a?.type === 'axis' && count) {
+    const [x, y] = corner(a.x, r.radius)
+    painter.strokeStyle = colors.value.baseline
+    painter.beginPath()
+    painter.moveTo(cx, cy)
+    painter.lineTo(x, y)
+    painter.stroke()
+  }
+  painter.restore()
+  const shown = shownSeries(t)
+  if (!still) lastSeries = shown
+  const focus = still ? -1 : (focused.value ?? -1)
+  const fading = focus >= 0 && shown.some((s) => s.index === focus)
+  const vector = isSvg(painter)
+  // the one brought forward goes on top
+  const order = fading
+    ? [...shown.filter((s) => s.index !== focus), ...shown.filter((s) => s.index === focus)]
+    : shown
+  for (const s of order) {
+    const view = radarView(r, dpr, vector)
+    painter.save()
+    if (fading && s.index !== focus) painter.globalAlpha = FADED
+    s.kind.draw(painter, s, view)
+    painter.restore()
+  }
+}
+
 const holeRatio = computed(() => Math.min(0.95, Math.max(0, pie.value?.props.innerRadius ?? 0)))
 
 /** Whether an axis is drawn across the chart (along the bottom or top), so its grid lines stand up. */
@@ -2804,6 +2956,8 @@ const across = (axis: AxisLayout) => axis.position === 'bottom' || axis.position
 
 /** The scales and room a series draws with; `vector` for an SVG, which takes no images. */
 function viewOf(s: ChartSeries, dpr = dprNow(), vector = false): ChartView | null {
+  const r = radarLayout.value
+  if (r) return radarView(r, dpr, vector)
   const l = layout.value
   if (!l) return null
   const y = l.y[s.axis]
@@ -2823,6 +2977,28 @@ function viewOf(s: ChartSeries, dpr = dprNow(), vector = false): ChartView | nul
     ? (x, value) => [ys.map(value), xScale.map(x)]
     : (x, value) => [xScale.map(x), ys.map(value)]
   return { x: xScale, y: ys, horizontal, band, point, plot, dpr, vector, colors: colors.value }
+}
+
+/** What a radar's series draw with: a spoke and a value give a point round the center. */
+function radarView(r: RadarLayout, dpr: number, vector: boolean): ChartView {
+  const { cx, cy, radius, count, scale } = r
+  const point: ChartView['point'] = (x, value) => {
+    const angle = spokeAngle(x, count)
+    const out = Math.max(0, scale.map(value))
+    return [cx + Math.sin(angle) * out, cy - Math.cos(angle) * out]
+  }
+  return {
+    x: linearScale([0, count], [0, Math.PI * 2]),
+    y: scale,
+    horizontal: false,
+    band: 0,
+    point,
+    plot: { x: cx - radius, y: cy - radius, width: radius * 2, height: radius * 2 },
+    dpr,
+    vector,
+    colors: colors.value,
+    polar: { cx, cy, radius, count },
+  }
 }
 
 const dprNow = () => (typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1)
@@ -3109,7 +3285,7 @@ const label = computed(() => {
     })
   })
   let chart = m.chart
-  if (m0.x) {
+  if (m0.x && !radar.value) {
     chart = format(props.horizontal ? m.rangeDown : m.range, {
       chart: m.chart,
       from: xText(m0.x[0]),
@@ -3249,6 +3425,12 @@ function withKeys(summary: string): string {
 }
 
 const labels = computed(() => {
+  const r = radarLayout.value
+  if (r)
+    return [
+      ...r.labels.map((tick, i) => ({ ...tick, key: `spoke:${i}`, axis: 'spoke' })),
+      ...r.values.map((tick, i) => ({ ...tick, key: `ring:${i}`, axis: 'ring' })),
+    ]
   const l = layout.value
   if (!l) return []
   const out: Array<TickLabel & { key: string; axis: string }> = []
@@ -3262,7 +3444,7 @@ const labels = computed(() => {
 })
 
 const legend = computed(() => {
-  const l = layout.value ?? pieLayout.value
+  const l = layout.value ?? pieLayout.value ?? radarLayout.value
   if (!l) return []
   return l.legend.map((item) => ({ ...item, ...legendEntries.value[item.index]! }))
 })
@@ -3276,7 +3458,7 @@ const titles = computed(() => {
 })
 
 /** The size of what is drawn: a chart with axes, or a pie. */
-const frame = computed(() => layout.value ?? pieLayout.value)
+const frame = computed(() => layout.value ?? pieLayout.value ?? radarLayout.value)
 
 const overlay: OverlayState = {
   // while the server's drawing shows, its own text does
@@ -3284,7 +3466,7 @@ const overlay: OverlayState = {
   labels,
   titles,
   legend,
-  legendBox: computed(() => (layout.value ?? pieLayout.value)?.legendBox),
+  legendBox: computed(() => (layout.value ?? pieLayout.value ?? radarLayout.value)?.legendBox),
   hole: computed(() => {
     const l = pieLayout.value
     if (!l || empty.value || fromServer.value || !(holeRatio.value > 0)) return null
@@ -3503,6 +3685,8 @@ interface TextStyle {
   size: number
   weight?: string
   anchor?: 'start' | 'middle' | 'end'
+  /** A ring of this color round the letters, so lines under them don't cut them. */
+  halo?: string
 }
 
 /** A line of text whose 16px box starts at `top`, centered on its cap height as in the page. */
@@ -3512,6 +3696,8 @@ function svgText(text: string, x: number, top: number, style: TextStyle): string
   if (style.weight && style.weight !== '400' && style.weight !== 'normal')
     attributes += ` font-weight="${style.weight}"`
   if (style.anchor && style.anchor !== 'start') attributes += ` text-anchor="${style.anchor}"`
+  if (style.halo)
+    attributes += `${paintAttribute('stroke', style.halo)} stroke-width="3" stroke-linejoin="round" paint-order="stroke"`
   return `<text${attributes}>${escapeXml(text)}</text>`
 }
 
@@ -3529,7 +3715,7 @@ function swatch(kind: string, dashed: boolean, left: number, top: number, color:
   const fill = paintAttribute('fill', color)
   const box = (x: number, y: number, width: number, height: number, r: number) =>
     `<rect x="${num(x)}" y="${num(y)}" width="${width}" height="${height}" rx="${r}"${fill}/>`
-  if (kind === 'area') return box(left, top + 4, 12, 8, 2)
+  if (kind === 'area' || kind === 'radar') return box(left, top + 4, 12, 8, 2)
   if (kind === 'bar' || kind === 'pie') return box(left + 2, top + 4, 8, 8, 2)
   if (kind === 'scatter') return `<circle cx="${num(left + 6)}" cy="${num(top + 8)}" r="4"${fill}/>`
   if (dashed) return box(left, top + 7, 4, 2, 0) + box(left + 7, top + 7, 4, 2, 0)
@@ -3686,6 +3872,16 @@ function drawSvg(
     paintPie(svg, 1, 1, true)
     const center = root?.querySelector(`.${ns.e('center')}`)
     if (center && root) texts.push(textsIn(center, root.getBoundingClientRect(), color))
+  } else if (radarLayout.value) {
+    paintRadar(svg, 1, 1, true)
+    const ink = color('var(--dou-chart-label)')
+    const surface = color('var(--dou-chart-surface)')
+    for (const tick of labels.value) {
+      const text = tick.clipped ? fitText(tick.text, tick.width) : tick.text
+      // a ring's value is over the shapes, ringed with the surface as on the page
+      const halo = tick.axis === 'ring' ? surface : undefined
+      texts.push(svgText(text, tick.left, tick.top, { color: ink, size: 12, halo }))
+    }
   } else if (layout.value) {
     paint(svg, 1, 1, 1, true)
     const radius = Number.parseFloat(style?.getPropertyValue('--dou-radius-control') ?? '') || 6

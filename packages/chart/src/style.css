@@ -93,6 +93,14 @@
     will-change: transform;
   }
 
+  /* a radar ring's value: over the shapes, ringed with the surface so lines under it don't cut it */
+  .dou-chart__tick.is-ring {
+    text-shadow:
+      0 0 2px var(--dou-chart-surface),
+      0 0 2px var(--dou-chart-surface),
+      0 0 3px var(--dou-chart-surface);
+  }
+
   /* a long category name, cut short: the whole name shows on hover */
   .dou-chart__tick.is-clipped {
     pointer-events: auto;
@@ -327,7 +335,8 @@
     border-radius: 1px;
     background-color: currentColor;
 
-    .is-area > & {
+    .is-area > &,
+    .is-radar > & {
       height: 8px;
       border-radius: 2px;
     }

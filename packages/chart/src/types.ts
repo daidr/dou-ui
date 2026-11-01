@@ -266,6 +266,15 @@ export interface ChartHeatmapProps extends Omit<ChartSeriesProps, 'color'> {
   labels?: boolean | ChartLabelFormat
 }
 
+export interface ChartRadarProps extends Omit<ChartSeriesProps, 'color' | 'axis'> {
+  /** Any CSS color. Defaults to the next color of the chart palette. */
+  color?: string
+  /** Dots on the corners; by default when there are 12 spokes or fewer. */
+  dots?: boolean
+  /** The width of the outline, in px. */
+  lineWidth?: number
+}
+
 export interface ChartPieProps {
   /** The value of each slice: a key of the row or a function of it. Values of 0 or less are left out. */
   value: ChartAccessor

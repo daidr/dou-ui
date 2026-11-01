@@ -215,7 +215,6 @@ export default defineConfig({
             { text: '组合式函数', link: '/guide/composables' },
             { text: '动效', link: '/guide/motion' },
             { text: '断点', link: '/guide/breakpoints' },
-            { text: '路线图', link: '/guide/roadmap' },
           ],
         },
       ],

@@ -8,7 +8,7 @@ import { buildTree } from './tree'
 import { MINUTES_PER_DAY, MINUTES_PER_HOUR, parseTime } from './time'
 
 /*
- * Reading tasks back from CSV, as `exportCSV` writes it: the columns are
+ * Reading tasks back from CSV, as `toCSV` writes it: the columns are
  * found by their headers, dates are `YYYY-MM-DD` (or with `HH:mm`), the
  * duration is working days or hours and progress is 0–100.
  */
@@ -199,6 +199,9 @@ function headerNames(columns: GanttColumn[], messages: GanttMessages) {
   return names
 }
 
+/** Text `toCSV` wrote behind a `'` so that spreadsheets don't run it as a formula: `'-复盘`. */
+const unquoteFormula = (text: string) => (/^'[=+\-@\t\r]/.test(text) ? text.slice(1) : text)
+
 const pad = (n: string) => n.padStart(2, '0')
 
 const DATE = /^(\d{4})([-/.])(\d{1,2})\2(\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::\d{2})?)?$/
@@ -264,7 +267,7 @@ export function readGanttCSV(text: string, context: ReadCSVContext): GanttCSVRes
   const comma = delimiter === ';'
   const [head, ...lines] = splitCSV(text, delimiter)
   const names = headerNames(columns, messages)
-  const keys = (head ?? []).map((header) => names.get(header.trim().toLowerCase()))
+  const keys = (head ?? []).map((header) => names.get(unquoteFormula(header.trim()).toLowerCase()))
   if (!keys.some((key) => key === 'title'))
     throw new GanttCSVError(
       `[@dou-ui/gantt] No column of the file is the title column; its headers are ${JSON.stringify(head ?? [])}.`,
@@ -276,7 +279,7 @@ export function readGanttCSV(text: string, context: ReadCSVContext): GanttCSVRes
     if (key === SKIP) keys[i] = undefined
   })
   const byKey = new Map(columns.map((column) => [column.key, column]))
-  // a task whose duration and end are both empty is a milestone, as exportCSV writes one
+  // a task whose duration and end are both empty is a milestone, as toCSV writes one
   const timing = keys.some((key) => key === 'end' || key?.startsWith('duration'))
   const warnings: GanttCSVWarning[] = []
   const tasks: GanttTask[] = []
@@ -288,7 +291,7 @@ export function readGanttCSV(text: string, context: ReadCSVContext): GanttCSVRes
     if (fields.every((field) => !field.trim())) return
     const cells = new Map<string, string>()
     keys.forEach((key, i) => {
-      if (key && !cells.has(key)) cells.set(key, fields[i]?.trim() ?? '')
+      if (key && !cells.has(key)) cells.set(key, unquoteFormula(fields[i]?.trim() ?? ''))
     })
     const task: GanttTask = { id: '', title: cells.get('title') ?? '' }
     const unread = new Set<string>()

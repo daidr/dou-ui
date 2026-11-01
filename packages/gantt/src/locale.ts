@@ -54,7 +54,7 @@ export interface GanttMessages {
   /** A duration column's header in exported CSV, where values are bare numbers: `{title}`. */
   daysColumn: string
   hoursColumn: string
-  /** Headers of the columns `exportCSV({ ids: true })` adds: the task's id and its parent's. */
+  /** Headers of the columns `toCSV({ ids: true })` adds: the task's id and its parent's. */
   idColumn: string
   parentColumn: string
   /** The `reason` of a `GanttCSVError` for a file without a title column: `{title}` is its header. */

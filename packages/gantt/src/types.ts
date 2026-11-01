@@ -270,9 +270,9 @@ export interface GanttExpose {
    * for timed tasks, the unit in its header; with both, each value keeps
    * its unit) and progress is 0–100.
    */
-  exportCSV: (options?: GanttCSVExportOptions) => string
+  toCSV: (options?: GanttCSVExportOptions) => string
   /**
-   * Reads tasks from CSV written by `exportCSV` (not with `text`), or by
+   * Reads tasks from CSV written by `toCSV` (not with `text`), or by
    * hand with the same headers or the field keys (`title`, `start`,
    * `end`…). Changes nothing in the chart. Throws a `GanttCSVError` when
    * no header is the title column.

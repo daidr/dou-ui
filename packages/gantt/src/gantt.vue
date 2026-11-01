@@ -2333,11 +2333,22 @@ async function exportPNG(options: GanttImageOptions = {}) {
     height: EXPORT_HEADER + drawing.bodyHeight,
     pixelRatio: options.pixelRatio,
     scope: '@dou-ui/gantt',
-    hint: "export range 'view', a coarser scale, or use exportSVG() / exportCSV()",
+    hint: "export range 'view', a coarser scale, or use exportSVG() / toCSV()",
   })
 }
 
-const csvCell = (text: string) => (/[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text)
+/** What a spreadsheet program would start a formula with; kept in step with `@dou-ui/sheet`. */
+const FORMULA_START = /^[=+\-@\t\r]/
+
+/**
+ * A field of CSV: quoted when it has to be, and text that a spreadsheet
+ * program would run as a formula (`=…`, `-复盘`) behind a `'`. Numbers
+ * stay as they are.
+ */
+function csvCell(text: string) {
+  const safe = FORMULA_START.test(text) && !Number.isFinite(Number(text.trim())) ? `'${text}` : text
+  return /[",\n\r]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe
+}
 
 /** A cell as a spreadsheet reads it: dates as `YYYY-MM-DD`, numbers without units. */
 function csvValue(row: GanttRow, column: GanttColumn, mixed: boolean) {
@@ -2360,7 +2371,7 @@ function csvValue(row: GanttRow, column: GanttColumn, mixed: boolean) {
   return editorValue(row, column)
 }
 
-function exportCSV(options: GanttCSVExportOptions = {}) {
+function toCSV(options: GanttCSVExportOptions = {}) {
   const list = columns.value
   const m = messages.value
   // durations are working days or working hours; the header says which, or each value does when both are in
@@ -2501,7 +2512,7 @@ defineExpose<GanttExpose>({
   zoomOut,
   exportSVG,
   exportPNG,
-  exportCSV,
+  toCSV,
   readCSV: (text: string) => readCSV(text),
   importCSV,
   print,

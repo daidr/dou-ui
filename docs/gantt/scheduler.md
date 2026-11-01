@@ -172,7 +172,7 @@ type SchedulerMenuTarget =
 | `focusTask(id)`                                               | 让某个任务获得焦点                     |
 | `zoomIn()` / `zoomOut()`                                      | 放大 / 缩小时间轴                      |
 
-资源排期目前没有甘特图的 `exportSVG`、`exportPNG`、`exportCSV` 和 `print`，需要导出时可以把 `tasks` 按资源整理后自己生成。
+资源排期目前没有甘特图的 `exportSVG`、`exportPNG`、`toCSV` 和 `print`，需要导出时可以把 `tasks` 按资源整理后自己生成。
 
 ### 函数
 

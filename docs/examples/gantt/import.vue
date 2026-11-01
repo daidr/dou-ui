@@ -28,7 +28,7 @@ const picker = useTemplateRef('picker')
 
 // 带上 ID 和上级任务 ID，导入时才能按 ID 更新，层级和依赖都保留
 function saveCSV() {
-  const csv = gantt.value?.exportCSV({ ids: true })
+  const csv = gantt.value?.toCSV({ ids: true })
   if (csv) downloadBlob(new Blob([csv], { type: 'text/csv' }), '排期.csv')
 }
 

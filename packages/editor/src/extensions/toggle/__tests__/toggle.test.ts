@@ -166,6 +166,36 @@ describe('closed toggles that come back', () => {
     expect(collapsed(again)).toEqual([])
   })
 
+  it('come back open when turned into another type and back', () => {
+    const target = start()
+    for (const type of ['paragraph', 'toggle']) {
+      const tr = new EditorTransaction(target.state)
+      tr.updateBlock('t', { type })
+      applyEditorTransaction(target, tr)
+    }
+    // the arrow and the children agree: open, and one click closes it
+    expect(collapsed(target)).toEqual([])
+    expect(isToggleOpen(target.state, 't')).toBe(true)
+    flipToggle(target, 't')
+    expect(collapsed(target)).toEqual(['t'])
+  })
+
+  it('come back open when the change of type is undone', () => {
+    const target = start()
+    for (const type of ['paragraph', 'toggle']) {
+      const tr = new EditorTransaction(target.state)
+      tr.updateBlock('t', { type })
+      applyEditorTransaction(target, tr)
+    }
+    undo(target.state, target.dispatch)
+    undo(target.state, target.dispatch)
+    expect(docToBlocks(target.state.doc)[1]!.type).toBe('toggle')
+    expect(collapsed(target)).toEqual([])
+    expect(isToggleOpen(target.state, 't')).toBe(true)
+    flipToggle(target, 't')
+    expect(collapsed(target)).toEqual(['t'])
+  })
+
   it('stay closed when dragged by the handle', () => {
     const target = start()
     const range = siblingRangeBetween(target.state.doc, 2, 2)!

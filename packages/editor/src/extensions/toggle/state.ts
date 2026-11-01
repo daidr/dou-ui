@@ -23,14 +23,28 @@ export const toggleKey = new PluginKey<ToggleState>('dou-editor-toggle')
 
 const isToggle = (node: PMNode) => node.firstChild?.type.name === 'toggle'
 
-function decorate(doc: PMNode, closed: ReadonlySet<string>) {
-  if (!closed.size) return DecorationSet.empty
-  const decorations = allBlocks(doc)
-    .filter((info) => isToggle(info.node) && closed.has(info.node.attrs.id))
-    .map((info) =>
-      Decoration.node(info.pos, info.pos + info.node.nodeSize, { class: 'is-collapsed' }),
-    )
-  return DecorationSet.create(doc, decorations)
+/**
+ * The decorations for the closed toggles. A closed toggle turned into
+ * another type is no longer closed: turned back, it starts open like any
+ * toggle added later. Removed toggles stay closed, for when they come back.
+ */
+function rebuild(doc: PMNode, closed: Set<string>): ToggleState {
+  if (!closed.size) return { closed, decorations: DecorationSet.empty }
+  const decorations: Decoration[] = []
+  let kept = closed
+  for (const info of allBlocks(doc)) {
+    const id = info.node.attrs.id as string
+    if (!closed.has(id)) continue
+    if (isToggle(info.node))
+      decorations.push(
+        Decoration.node(info.pos, info.pos + info.node.nodeSize, { class: 'is-collapsed' }),
+      )
+    else {
+      if (kept === closed) kept = new Set(closed)
+      kept.delete(id)
+    }
+  }
+  return { closed: kept, decorations: DecorationSet.create(doc, decorations) }
 }
 
 /** Whether a transaction inserts a toggle that is closed. */
@@ -73,7 +87,7 @@ export function togglePlugin(): Plugin<ToggleState> {
             .filter((info) => isToggle(info.node))
             .map((info) => info.node.attrs.id as string),
         )
-        return { closed, decorations: decorate(state.doc, closed) }
+        return rebuild(state.doc, closed)
       },
       apply(tr: Transaction, value, _old, state) {
         const flip = tr.getMeta(toggleKey) as string | undefined
@@ -106,7 +120,7 @@ export function togglePlugin(): Plugin<ToggleState> {
           })
           if (!stale) return { closed, decorations }
         }
-        return { closed, decorations: decorate(state.doc, closed) }
+        return rebuild(state.doc, closed)
       },
     },
     props: {

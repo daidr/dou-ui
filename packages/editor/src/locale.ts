@@ -21,6 +21,8 @@ export interface EditorMessages {
     toggle: string
     callout: string
     table: string
+    attachment: string
+    embed: string
   }
   /** Short descriptions in the slash menu. */
   hints: {
@@ -38,6 +40,8 @@ export interface EditorMessages {
     toggle: string
     callout: string
     table: string
+    attachment: string
+    embed: string
   }
   /** The image block. */
   image: {
@@ -88,6 +92,46 @@ export interface EditorMessages {
     alignRight: string
     addRow: string
     addColumn: string
+  }
+  /** The color menu of the formatting toolbar. */
+  colors: {
+    label: string
+    text: string
+    background: string
+    none: string
+    names: {
+      gray: string
+      red: string
+      orange: string
+      yellow: string
+      green: string
+      blue: string
+      purple: string
+      pink: string
+    }
+  }
+  /** Aligning paragraphs, headings and quotes. */
+  align: { label: string; left: string; center: string; right: string }
+  /** The attachment block. */
+  attachment: {
+    empty: string
+    upload: string
+    uploading: string
+    failed: string
+    retry: string
+    download: string
+  }
+  /** The embed block. */
+  embed: {
+    empty: string
+    urlPlaceholder: string
+    apply: string
+    invalid: string
+    /** The link is not https. */
+    insecure: string
+    caption: string
+    edit: string
+    cancel: string
   }
   noResults: string
   addBlock: string
@@ -142,6 +186,8 @@ const zhCN: EditorMessages = {
     toggle: '折叠块',
     callout: '提示块',
     table: '表格',
+    attachment: '附件',
+    embed: '嵌入',
   },
   hints: {
     paragraph: '普通的文字',
@@ -158,6 +204,8 @@ const zhCN: EditorMessages = {
     toggle: '可以展开和收起的内容',
     callout: '带图标的醒目说明',
     table: '插入一个表格',
+    attachment: '上传一个文件',
+    embed: '视频、音频或网页',
   },
   image: {
     empty: '添加一张图片',
@@ -200,6 +248,41 @@ const zhCN: EditorMessages = {
   callout: {
     change: '点击更换',
     tones: { info: '说明', tip: '提示', warning: '注意', danger: '警告' },
+  },
+  colors: {
+    label: '颜色',
+    text: '文字颜色',
+    background: '背景色',
+    none: '默认',
+    names: {
+      gray: '灰色',
+      red: '红色',
+      orange: '橙色',
+      yellow: '黄色',
+      green: '绿色',
+      blue: '蓝色',
+      purple: '紫色',
+      pink: '粉色',
+    },
+  },
+  align: { label: '对齐', left: '左对齐', center: '居中', right: '右对齐' },
+  attachment: {
+    empty: '添加附件',
+    upload: '选择文件',
+    uploading: '正在上传…',
+    failed: '上传失败',
+    retry: '重试',
+    download: '下载',
+  },
+  embed: {
+    empty: '嵌入视频、音频或网页',
+    urlPlaceholder: '粘贴链接',
+    apply: '嵌入',
+    invalid: '无法嵌入这个链接',
+    insecure: '只能嵌入 https 开头的链接',
+    edit: '修改链接',
+    cancel: '取消',
+    caption: '添加说明',
   },
   noResults: '没有匹配的块',
   addBlock: '在下方添加块',
@@ -248,6 +331,8 @@ const zhTW: EditorMessages = {
     toggle: '摺疊區塊',
     callout: '提示區塊',
     table: '表格',
+    attachment: '附件',
+    embed: '嵌入',
   },
   hints: {
     paragraph: '一般的文字',
@@ -264,6 +349,8 @@ const zhTW: EditorMessages = {
     toggle: '可以展開和收合的內容',
     callout: '帶圖示的醒目說明',
     table: '插入一個表格',
+    attachment: '上傳一個檔案',
+    embed: '影片、音訊或網頁',
   },
   image: {
     empty: '新增一張圖片',
@@ -306,6 +393,41 @@ const zhTW: EditorMessages = {
   callout: {
     change: '點擊更換',
     tones: { info: '說明', tip: '提示', warning: '注意', danger: '警告' },
+  },
+  colors: {
+    label: '顏色',
+    text: '文字顏色',
+    background: '背景色',
+    none: '預設',
+    names: {
+      gray: '灰色',
+      red: '紅色',
+      orange: '橙色',
+      yellow: '黃色',
+      green: '綠色',
+      blue: '藍色',
+      purple: '紫色',
+      pink: '粉紅色',
+    },
+  },
+  align: { label: '對齊', left: '靠左對齊', center: '置中', right: '靠右對齊' },
+  attachment: {
+    empty: '新增附件',
+    upload: '選擇檔案',
+    uploading: '正在上傳…',
+    failed: '上傳失敗',
+    retry: '重試',
+    download: '下載',
+  },
+  embed: {
+    empty: '嵌入影片、音訊或網頁',
+    urlPlaceholder: '貼上連結',
+    apply: '嵌入',
+    invalid: '無法嵌入這個連結',
+    insecure: '只能嵌入 https 開頭的連結',
+    edit: '修改連結',
+    cancel: '取消',
+    caption: '新增說明',
   },
   noResults: '沒有符合的區塊',
   addBlock: '在下方新增區塊',
@@ -354,6 +476,8 @@ const en: EditorMessages = {
     toggle: 'Toggle',
     callout: 'Callout',
     table: 'Table',
+    attachment: 'File',
+    embed: 'Embed',
   },
   hints: {
     paragraph: 'Plain text',
@@ -370,6 +494,8 @@ const en: EditorMessages = {
     toggle: 'Content that can be shown or hidden',
     callout: 'A note that stands out, with an icon',
     table: 'A grid of rows and columns',
+    attachment: 'Upload a file',
+    embed: 'Video, audio or a web page',
   },
   image: {
     empty: 'Add an image',
@@ -412,6 +538,41 @@ const en: EditorMessages = {
   callout: {
     change: 'click to change',
     tones: { info: 'Info', tip: 'Tip', warning: 'Warning', danger: 'Danger' },
+  },
+  colors: {
+    label: 'Color',
+    text: 'Text color',
+    background: 'Background',
+    none: 'Default',
+    names: {
+      gray: 'Gray',
+      red: 'Red',
+      orange: 'Orange',
+      yellow: 'Yellow',
+      green: 'Green',
+      blue: 'Blue',
+      purple: 'Purple',
+      pink: 'Pink',
+    },
+  },
+  align: { label: 'Align', left: 'Align left', center: 'Center', right: 'Align right' },
+  attachment: {
+    empty: 'Add a file',
+    upload: 'Choose a file',
+    uploading: 'Uploading…',
+    failed: 'Upload failed',
+    retry: 'Retry',
+    download: 'Download',
+  },
+  embed: {
+    empty: 'Embed a video, audio or web page',
+    urlPlaceholder: 'Paste a link',
+    apply: 'Embed',
+    invalid: "This link can't be embedded",
+    insecure: 'Only https links can be embedded',
+    edit: 'Change link',
+    cancel: 'Cancel',
+    caption: 'Add a caption',
   },
   noResults: 'No matching blocks',
   addBlock: 'Add a block below',

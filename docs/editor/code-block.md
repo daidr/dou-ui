@@ -67,7 +67,7 @@ const extensions = [editorKit({ codeBlock: codeEditorBlock() })]
 - `Mod` + `Enter` 在代码块后面新建一个段落；代码为空时按 `Backspace` 把它变成段落。
 - `Esc` 选中整个块，之后可以拖动、复制或删除。有多个光标或打开了搜索时，先退出它们。
 
-语言菜单默认列出 `@dou-ui/code` 内置的语言，块的 `language` 按语言的名称和别名查找，所以 `bash`、`sh` 都显示为 Shell。用 Shiki 支持的其他语言见[代码编辑器的语言](/code/#用-shiki-支持更多语言)，传给 `languages`：
+语言菜单默认列出 `@dou-ui/code` 内置的语言，块的 `language` 按语言的名称和别名查找，所以 `bash`、`sh` 都显示为 Shell。用 Shiki 支持的其他语言见[代码编辑器的语言](/code/languages#用-shiki-支持更多语言)，传给 `languages`：
 
 ```ts
 import { codeEditorBlock, codeEditorLanguages } from '@dou-ui/editor/code'

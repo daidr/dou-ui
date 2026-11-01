@@ -1,6 +1,15 @@
 <script setup lang="ts">
-import { LayoutGridPlusIcon } from '@dou-ui/icons'
-import { DouDialog, DouDrawer, DouEmpty, DouInput, matchesHotkey } from 'dou-ui'
+import { LayoutGridPlusIcon, fileIconOf } from '@dou-ui/icons'
+import type { SheetExporter, SheetWorkbook } from '@dou-ui/sheet/core'
+import {
+  DouDialog,
+  DouDrawer,
+  DouEmpty,
+  DouInput,
+  downloadBlob,
+  matchesHotkey,
+  useLocale,
+} from 'dou-ui'
 import {
   computed,
   nextTick,
@@ -8,6 +17,7 @@ import {
   onMounted,
   provide,
   ref,
+  shallowReactive,
   shallowRef,
   toRaw,
   watch,
@@ -43,7 +53,15 @@ import type { GridItem, GridLayoutOptions } from '../layout/types'
 import { format, useDashboardMessages } from '../locale'
 import { DEFAULT_WIDGET_SIZE, defaultPropsOf } from '../widget/define'
 import type { DashboardWidgetType } from '../widget/define'
-import type { DashboardAddOptions, DashboardEmits, DashboardExpose, DashboardProps } from './types'
+import type {
+  DashboardAddOptions,
+  DashboardEmits,
+  DashboardExportErrorEvent,
+  DashboardExportOptions,
+  DashboardExpose,
+  DashboardSaveOptions,
+  DashboardProps,
+} from './types'
 import { createObservers, observersKey } from './observers'
 import { elementToPNG } from './export'
 import type { DashboardImageOptions } from './export'
@@ -51,7 +69,7 @@ import WidgetBody from './widget-body.vue'
 import WidgetFrame from './widget-frame.vue'
 import WidgetSettings from './widget-settings.vue'
 import { frameContextKey } from './frame-context'
-import type { WidgetAction } from './frame-context'
+import type { FrameExporter, WidgetAction } from './frame-context'
 
 defineOptions({ name: 'DouDashboard' })
 
@@ -125,7 +143,9 @@ function transaction() {
 /** Makes the changes of a transaction, as one undo step (or part of one, by `meta.group`). */
 function dispatch(tr: DashboardTransaction) {
   if (toRaw(tr.before) !== toRaw(model.value))
-    throw new Error('[dou-ui] the transaction was made on another version of the dashboard')
+    throw new Error(
+      '[@dou-ui/dashboard] the transaction was made on another version of the dashboard',
+    )
   if (!tr.changed) return
   const shared = props.collaboration
   if (!shared) {
@@ -603,7 +623,168 @@ provide(frameContextKey, {
   linked: (id) => linksByWidget.value.get(id) ?? NO_LINKS,
   clearFilter: (key) => setFilter(undefined, key, undefined),
   peers: (id) => props.collaboration?.peers?.(id) ?? NO_PEERS,
+  setWorkbook,
+  exporters: (id) => (workbooks.has(id) ? exporterList.value : NO_EXPORTERS),
+  exportTo: exportFromMenu,
+  exporting: (id) => exporting.has(id),
+  setDrawn: (id, drawn) => (drawn ? drawnIds.add(id) : drawnIds.delete(id)),
+  exportError: (id) => exportErrors.get(id),
+  clearExportError: (id) => exportErrors.delete(id),
 })
+
+// ---------------------------------------------------------------------------
+// Exporting a widget's content as a file
+
+/** How each mounted widget gives its content as a workbook; see `setWorkbook`. */
+const workbooks = shallowReactive(new Map<string, () => SheetWorkbook | undefined>())
+function setWorkbook(id: string, get: () => SheetWorkbook | undefined) {
+  workbooks.set(id, get)
+  return () => {
+    if (workbooks.get(id) === get) workbooks.delete(id)
+  }
+}
+
+// the file code comes with the first exporter, in a chunk of its own
+type SheetCore = typeof import('@dou-ui/sheet/core')
+const sheetCore = shallowRef<SheetCore>()
+let loadingCore: Promise<SheetCore> | undefined
+function loadSheetCore() {
+  loadingCore ??= import('@dou-ui/sheet/core').then((core) => (sheetCore.value = core))
+  return loadingCore
+}
+watch(
+  () => props.exporters?.length,
+  (count) => count && void loadSheetCore(),
+  { immediate: true },
+)
+
+const NO_EXPORTERS: FrameExporter[] = []
+const { locale } = useLocale()
+/** The exporters of the menu, without those that draw a sheet's grid. */
+const exporterList = computed<FrameExporter[]>(() => {
+  const core = sheetCore.value
+  if (!core) return NO_EXPORTERS
+  const sheetMessages = core.sheetMessagesFor(locale.value.name)
+  return (props.exporters ?? [])
+    .filter((exporter) => exporter.needs !== 'view')
+    .map((exporter) => ({
+      name: exporter.name,
+      label: typeof exporter.label === 'function' ? exporter.label(sheetMessages) : exporter.label,
+      icon: exporter.icon ?? fileIconOf(exporter.extension),
+    }))
+})
+
+function exporterOf(exporter: string | SheetExporter) {
+  if (typeof exporter !== 'string') return exporter
+  const found = props.exporters?.find((item) => item.name === exporter)
+  if (!found) throw new RangeError(`[@dou-ui/dashboard] there is no exporter "${exporter}"`)
+  return found
+}
+
+/** A widget's file and sheet name: its title, or its type's name. */
+const exportNameOf = (widget: DashboardWidget) => titleOf(widget).trim() || widget.type
+
+/** Why something failed, as people read it: a file error's `reason`, or its message. */
+function reasonOf(error: unknown) {
+  if (error instanceof Error)
+    return 'reason' in error && typeof error.reason === 'string' ? error.reason : error.message
+  return String(error)
+}
+
+/**
+ * A widget's content as a file: its workbook written by the exporter, a
+ * name from `exporters` or an exporter itself. Waits for the data shown,
+ * and draws the widget first when it is far from the view.
+ */
+async function exportWidget(
+  id: string,
+  exporter: string | SheetExporter,
+  options: DashboardExportOptions = {},
+): Promise<Blob> {
+  const chosen = exporterOf(exporter)
+  const widget = widgetMap.value.get(id)
+  if (!widget) throw new RangeError(`[@dou-ui/dashboard] there is no widget "${id}"`)
+  const core = await loadSheetCore()
+  // a widget drawn already that gives no workbook never will: no need to draw them all
+  await settle(5000, !drawnIds.has(id))
+  options.signal?.throwIfAborted()
+  const get = workbooks.get(id)
+  const book = get?.()
+  if (!book)
+    throw new core.SheetFileError(
+      get
+        ? `[@dou-ui/dashboard] the widget "${id}" has no data to export now`
+        : `[@dou-ui/dashboard] the widget "${id}" doesn't give its content as a workbook (setWorkbook)`,
+      'empty',
+      messages.value.nothingToExport,
+    )
+  // sheets without a name take the widget's, as the file does
+  const name = exportNameOf(widget)
+  const named = book.sheets.some((sheet) => !sheet.name)
+    ? { ...book, sheets: book.sheets.map((sheet) => (sheet.name ? sheet : { ...sheet, name })) }
+    : book
+  return core.exportWorkbook(named, chosen, {
+    options: options.options,
+    signal: options.signal,
+    locale: locale.value.name,
+  })
+}
+
+/** The widgets drawn in full; the others show only their title until they come near. */
+const drawnIds = new Set<string>()
+
+/** Why the last export from each widget's menu failed, shown over its content until closed. */
+const exportErrors = shallowReactive(new Map<string, string>())
+/** The widgets exporting now, whose export button waits. */
+const exporting = shallowReactive(new Set<string>())
+
+/**
+ * Exports a widget's content and saves the file in the downloads, as its
+ * menu does. A failure shows over the widget and comes as `exportError`,
+ * and the promise rejects.
+ */
+async function saveWidget(
+  id: string,
+  exporter: string | SheetExporter,
+  options: DashboardSaveOptions = {},
+): Promise<void> {
+  const chosen = exporterOf(exporter)
+  const widget = widgetMap.value.get(id)
+  if (!widget) throw new RangeError(`[@dou-ui/dashboard] there is no widget "${id}"`)
+  const name = options.fileName ?? `${exportNameOf(widget)}.${chosen.extension}`
+  exportErrors.delete(id)
+  exporting.add(id)
+  let blob: Blob
+  try {
+    blob = await exportWidget(id, chosen, options)
+  } catch (error) {
+    const event: DashboardExportErrorEvent = {
+      widget: id,
+      exporter: chosen.name,
+      error,
+      message: format(messages.value.exportFailed, { name, reason: reasonOf(error) }),
+      defaultPrevented: false,
+      preventDefault() {
+        this.defaultPrevented = true
+      },
+    }
+    emit('exportError', event)
+    // the notice is read out itself; told by the app, it is only read out
+    if (event.defaultPrevented) say(event.message)
+    else exportErrors.set(id, event.message)
+    throw error
+  } finally {
+    exporting.delete(id)
+  }
+  downloadBlob(blob, name)
+  say(format(messages.value.exported, { name }))
+}
+
+function exportFromMenu(id: string, name: string) {
+  if (exporting.has(id)) return
+  // the failure is shown over the widget
+  saveWidget(id, name).catch(() => {})
+}
 
 // ---------------------------------------------------------------------------
 // Data and filters
@@ -775,9 +956,9 @@ function onPaste(event: ClipboardEvent) {
 const showAll = ref(false)
 const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
 
-/** Draws every widget and waits for their sources (at most `timeout` ms) and one more frame. */
-async function settle(timeout = 5000) {
-  showAll.value = true
+/** Draws every widget (unless `all` is false) and waits for their sources (at most `timeout` ms) and one more frame. */
+async function settle(timeout = 5000, all = true) {
+  if (all) showAll.value = true
   await nextTick()
   const start = performance.now()
   await nextFrame()
@@ -824,7 +1005,7 @@ function say(text: string) {
 const breakpointName = shallowRef(main.value.name)
 function onBreakpoint(name: string) {
   breakpointName.value = name
-  emit('breakpoint-change', name)
+  emit('breakpointChange', name)
 }
 
 const minHeight = computed(() => {
@@ -872,6 +1053,8 @@ defineExpose<DashboardExpose>({
   clearFilters,
   refresh: (source) => store.reload(source),
   exportPNG,
+  exportWidget: exportWidget as DashboardExpose['exportWidget'],
+  saveWidget: saveWidget as DashboardExpose['saveWidget'],
   print,
 })
 </script>

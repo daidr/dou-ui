@@ -1,7 +1,7 @@
 import { withInstall } from '../../utils/install'
 import ConfigProvider from './config-provider.vue'
 
-export const DouConfigProvider = withInstall(ConfigProvider)
+export const DouConfigProvider = withInstall<typeof ConfigProvider, {}>(ConfigProvider)
 export default DouConfigProvider
 
 export { configProviderKey } from './config-provider'

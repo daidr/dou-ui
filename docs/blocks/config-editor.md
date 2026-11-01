@@ -8,7 +8,7 @@ wide: true
 
 <DocDemo src="blocks/config-editor" column />
 
-用到的组件：[代码编辑器](../code/)与[对比视图](../code/#对比视图)、[PageHeader](../components/page-header)、[SegmentedControl](../components/segmented-control)、[Badge](../components/badge)、[Toast](../components/toast)。
+用到的组件：[代码编辑器](../code/)与[对比视图](../code/diff)、[PageHeader](../components/page-header)、[SegmentedControl](../components/segmented-control)、[Badge](../components/badge)、[Toast](../components/toast)。
 
 - 规则写在一个对象里：哪些配置项必填、值的格式、可选的值。扩展的 `lint` 按缩进读出每一项和它在文本里的位置，把问题标在对应的键或值上；写错地域时，提示里可以直接改成可选的值之一。
 - 扩展的 `completion` 按光标所在的层级补全键名，已经写过的顶层配置不再列出；在 `region:` 后面补全可选的地域。键名作为片段插入，有下一级的配置会换行并缩进。

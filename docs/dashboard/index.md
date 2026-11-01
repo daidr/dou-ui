@@ -71,7 +71,7 @@ app.use(DouGridLayout)
 - 在较窄的断点上拖动或缩放后，这个断点的位置单独保存在 `v-model:layouts` 里（`{ md: [{ id, x, y, w, h }, …] }`），不影响最宽时的布局。清空某个断点就回到推算的布局；后来新加的格子在已保存的断点里按推算的位置出现。
 - 只有 1 列时只能上下换位置和改高度，右边的缩放把手会隐藏。
 - `columns` 和 `breakpoints` 可以换成自己的断点，名字随意，`breakpoints` 写每个断点生效的最小宽度。`columns` 写成一个数字时不分断点。
-- 当前断点可以从组件实例的 `breakpoint` 读到，变化时触发 `breakpoint-change`。服务端渲染和首次测量之前按最宽的断点显示。
+- 当前断点可以从组件实例的 `breakpoint` 读到，变化时触发 `breakpointChange`。服务端渲染和首次测量之前按最宽的断点显示。
 
 ## 从外部拖入
 
@@ -183,9 +183,9 @@ const narrow = deriveLayout(next, 12, { columns: 6 })
 | `update:layouts`    | 在较窄的断点上改动时                   | `GridLayouts`                                |
 | `change`            | 同上，带上原因和断点                   | `{ items, id, reason, breakpoint }`          |
 | `drop`              | 从外部拖入的格子放下后                 | `{ item, data, breakpoint }`                 |
-| `breakpoint-change` | 断点变化时                             | `string`                                     |
-| `drag-start`        | 开始拖动、缩放或拖入（包括用键盘拿起） | `{ id, kind: 'move' \| 'resize' \| 'drop' }` |
-| `drag-end`          | 结束拖动或缩放                         | `{ id, kind, cancelled }`                    |
+| `breakpointChange`  | 断点变化时                             | `string`                                     |
+| `dragStart`         | 开始拖动、缩放或拖入（包括用键盘拿起） | `{ id, kind: 'move' \| 'resize' \| 'drop' }` |
+| `dragEnd`           | 结束拖动或缩放                         | `{ id, kind, cancelled }`                    |
 
 ### GridLayout Slots
 

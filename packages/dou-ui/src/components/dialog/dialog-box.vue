@@ -6,8 +6,13 @@ import { toneIcon } from '../../utils/tone-icons'
 import { DouButton } from '../button'
 import { useLocale } from '../config-provider/use-config'
 import { DouInput } from '../input'
-import Dialog from './dialog.vue'
+import DialogComponent from './dialog.vue'
+import type { HTMLAttributes } from 'vue'
+import type { WithAttributes } from '../../utils/install'
 import type { DialogBoxState } from './dialog-api'
+
+// 让模板里也能写这个组件转交的原生属性
+const Dialog = DialogComponent as WithAttributes<typeof DialogComponent, HTMLAttributes>
 
 defineOptions({ name: 'DouDialogBox' })
 

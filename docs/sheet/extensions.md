@@ -295,6 +295,8 @@ const today = defineSheetExtension({
 | `filter`                                        | 加上或去掉筛选                                                 |
 | `clear`                                         | 清除格式（样式和数字格式），值不变；不是右键菜单里的“清除内容” |
 | `print`                                         | 打印当前工作表                                                 |
+| `find`、`replace`                               | 打开查找、替换面板；可以传查询，见[查找和替换](./#查找和替换)  |
+| `find.next`、`find.previous`                    | 下一个、上一个查找结果                                         |
 | `link`                                          | 插入或编辑当前单元格的链接                                     |
 | `link.open`、`link.remove`                      | 打开当前单元格的链接；删除选区里的链接                         |
 | `lock`                                          | 锁定或取消锁定选区，工作表受保护时不可用                       |
@@ -504,7 +506,7 @@ self.onmessage = async (event: MessageEvent<SheetWorkbook>) => {
 | `cellType(point)`                                       | 单元格的类型 `{ name, definition, setup }`，`definition` 是类型本身；普通单元格为 `undefined`                                                                                                                                                   |
 | `cellRect(point)`                                       | 单元格（或它所在的合并单元格）现在画在哪，看不见时为 `null`                                                                                                                                                                                     |
 | `rangeRect(bounds)`                                     | 区域在视图里露出的部分画在哪，`cut` 标出被视图或冻结窗格挡住的边；完全看不见时为 `null`                                                                                                                                                         |
-| `transact`、`undo`、`redo`、`canUndo`、`canRedo`        | 修改与撤销，同组件实例；只是这里的 `transact` 代表使用者操作，只读时不生效（`history: false` 的除外）                                                                                                                                           |
+| `transact`、`undo`、`redo`、`canUndo`、`canRedo`        | 修改与撤销，同组件实例；只是这里代表使用者操作，只读时不生效：`transact` 返回的事务 `tr.cancelled` 为 `true`（`history: false` 的除外），`undo`、`redo` 返回 `false`                                                                            |
 | `select`、`scrollTo`、`edit`、`focus`                   | 选择、滚动、编辑和聚焦，同组件实例                                                                                                                                                                                                              |
 | `showSheet`、`toCSV`、`exportSVG`、`exportPNG`、`print` | 切换工作表、导出 CSV 和图片、打印，同组件实例                                                                                                                                                                                                   |
 | `styleAt(point)`、`formatAt(point)`                     | 单元格的样式（没有时为 `{}`）和数字格式，合并单元格取左上角                                                                                                                                                                                     |

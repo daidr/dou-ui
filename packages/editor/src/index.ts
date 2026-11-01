@@ -5,12 +5,13 @@ import type { EditorContent } from './define-block'
 export const DouEditor = withInstall(Editor)
 export default DouEditor
 
-export { useEditor } from './editor'
+export { useEditor, useToolbarMenu } from './editor'
 export type {
   EditorComments,
   EditorContext,
   EditorEmits,
   EditorExpose,
+  EditorLinkOpenEvent,
   EditorProps,
   EditorOrigin,
   EditorSelection,
@@ -41,8 +42,10 @@ export type {
   ResolvedEditorExtensions,
 } from './core/extension'
 export {
+  align,
   callout,
   codeBlock,
+  colors,
   divider,
   formatting,
   heading,
@@ -55,6 +58,15 @@ export {
   toggle,
 } from './extensions/editor-kit'
 export type { CalloutTone } from './extensions/callout'
+export { setHighlight, setTextColor, textColors } from './extensions/colors'
+export type { TextColor } from './extensions/colors'
+export { currentAlign, setAlign } from './extensions/align'
+export { alignable } from './core/align'
+export type { BlockAlign } from './core/align'
+export { attachment, formatFileSize, isSafeFileSrc } from './extensions/attachment'
+export type { AttachmentOptions } from './extensions/attachment'
+export { embed, resolveEmbed } from './extensions/embed'
+export type { EmbedOptions, EmbedResolver, EmbedTarget } from './extensions/embed'
 export {
   alignColumns,
   clearCells,
@@ -77,7 +89,7 @@ export type { CodeBlockOptions, CodeHighlighter, CodeLanguage } from './extensio
 export { image, isSafeImageSrc, readAsDataUrl } from './extensions/image'
 export { mention } from './extensions/mention'
 export type { MentionItem, MentionOptions } from './extensions/mention'
-export type { ImageOptions, ImageUploader } from './extensions/image'
+export type { FileUploader, ImageOptions } from './extensions/image'
 export type { BlockViewProps, DefineBlockOptions } from './define-block'
 export { atomInputRule, blockInputRule, markInputRule } from './core/input-rules'
 export type {
@@ -97,6 +109,8 @@ export type {
 export { blocksToDoc, createId, docToBlocks } from './core/model'
 export { diffBlocks, diffText, inlineText } from './core/diff'
 export type { BlockVersionChange, BlocksDiff, TextPart } from './core/diff'
+export { searchDoc } from './core/search'
+export type { EditorMatch, EditorSearchQuery } from './core/search'
 export type { BuiltinContentType, ContentType, MarkType } from './core/schema'
 export { contentDOM, createSchema, isSafeHref, textBlock } from './core/schema'
 export {

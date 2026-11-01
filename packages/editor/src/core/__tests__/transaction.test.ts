@@ -349,3 +349,48 @@ describe('review follow-ups', () => {
     warn.mockRestore()
   })
 })
+
+async function click(prevent: boolean, props: Record<string, unknown> = {}, ctrlKey = true) {
+  const open = vi.spyOn(window, 'open').mockImplementation(() => null)
+  const events: { link: string; block: string }[] = []
+  const api = await editor(
+    [{ id: 'a', content: [{ type: 'text', text: '外滩', link: 'https://ui.daidr.me/sh' }] }],
+    {
+      ...props,
+      onLinkOpen: (event: { link: string; block: string; preventDefault: () => void }) => {
+        events.push({ link: event.link, block: event.block })
+        if (prevent) event.preventDefault()
+      },
+    },
+  )
+  const anchor = api.view!.dom.querySelector('a.dou-editor__link')!
+  const event = new MouseEvent('click', { ctrlKey, bubbles: true, cancelable: true })
+  anchor.dispatchEvent(event)
+  const opened = open.mock.calls.length
+  open.mockRestore()
+  return { navigated: !event.defaultPrevented, events, opened }
+}
+
+describe('linkOpen', () => {
+  it('comes before a link opens, with the link and its block', async () => {
+    const { navigated, events, opened } = await click(false)
+    expect(navigated).toBe(false)
+    expect(events).toEqual([{ link: 'https://ui.daidr.me/sh', block: 'a' }])
+    expect(opened).toBe(1)
+  })
+
+  it('comes on a plain click while read-only, and not while editing', async () => {
+    expect((await click(false, { readonly: true }, false)).opened).toBe(1)
+    wrapper?.unmount()
+    wrapper = undefined
+    const editing = await click(false, {}, false)
+    expect(editing.events).toEqual([])
+    expect(editing.opened).toBe(0)
+  })
+
+  it('keeps the link closed when prevented', async () => {
+    const { events, opened } = await click(true)
+    expect(events).toHaveLength(1)
+    expect(opened).toBe(0)
+  })
+})

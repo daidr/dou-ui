@@ -1,7 +1,8 @@
+import type { ContextMenuItem } from 'dou-ui'
 import type { Component } from 'vue'
 import type { GanttContext } from '../context'
 import type { GanttColumn, GanttMarker, GanttMove } from '../types'
-import type { GanttMenuItem, GanttMenuTarget } from './menu'
+import type { GanttMenuTarget } from './menu'
 import type { GanttLink } from './model'
 import type { GanttDocument, GanttTransaction } from './transaction'
 
@@ -44,7 +45,7 @@ export interface GanttExtension {
    * Items for the context menu, which opens on a right click, the menu key
    * or a long press. They come before the built-in ones.
    */
-  contextMenu?: (context: GanttExtensionContext, target: GanttMenuTarget) => GanttMenuItem[]
+  contextMenu?: (context: GanttExtensionContext, target: GanttMenuTarget) => ContextMenuItem[]
   /** Vertical marker lines, such as a release day; worked out again when what they read changes. */
   markers?: (context: GanttExtensionContext) => GanttMarker[]
   /**

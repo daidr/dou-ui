@@ -14,6 +14,9 @@ export const DouDashboardFilterBar = withInstall(DashboardFilterBar)
 export type {
   DashboardAddOptions,
   DashboardEmits,
+  DashboardExportErrorEvent,
+  DashboardExportOptions,
+  DashboardSaveOptions,
   DashboardExpose,
   DashboardFilterBarProps,
   DashboardPaletteProps,

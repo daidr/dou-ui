@@ -15,6 +15,8 @@ export interface ShikiHighlighterLike {
     ): {
       tokens: Array<{ startIndex: number; endIndex: number; scopes: string[] }>
       ruleStack: ShikiStateStack
+      /** The time limit ran out before the end of the line. */
+      stoppedEarly?: boolean
     }
   }
 }
@@ -99,8 +101,24 @@ export function tokenTypeOfScopes(scopes: readonly string[]): CodeTokenType | nu
   return null
 }
 
-/** Lines longer than this are read in one go only up to it, like the built-in languages. */
+/** How long one line may take to read, in milliseconds, so a huge line doesn't hold up typing. */
 const TIME_LIMIT = 50
+/**
+ * Lines up to this long are read to the end even past the time limit. The
+ * first lines a grammar reads also build its patterns, which on a busy
+ * machine can take longer than the limit; stopping there would cut a block
+ * comment or string in two and color the lines after it wrongly.
+ */
+const ALWAYS_WHOLE = 2000
+
+type ShikiGrammar = ReturnType<ShikiHighlighterLike['getLanguage']>
+/** Reads a line within the time limit, and to its end when it is not too long. */
+function readLine(grammar: ShikiGrammar, text: string, stack: ShikiStateStack | null) {
+  const result = grammar.tokenizeLine(text, stack, TIME_LIMIT)
+  return result.stoppedEarly && text.length <= ALWAYS_WHOLE
+    ? grammar.tokenizeLine(text, stack, 0)
+    : result
+}
 
 /**
  * Turns a language loaded into a Shiki highlighter into one the editor
@@ -137,7 +155,7 @@ export function shikiLanguage(
       if (!line || line.text !== stream.string || stream.pos < line.base) {
         // a new line: read it whole, and keep the state after it
         const text = stream.string.slice(stream.pos, stream.end)
-        const result = grammar.tokenizeLine(text, state.stack, TIME_LIMIT)
+        const result = readLine(grammar, text, state.stack)
         const ends: number[] = []
         const types: Array<CodeTokenType | null> = []
         for (const token of result.tokens) {
@@ -160,7 +178,7 @@ export function shikiLanguage(
       return null
     },
     blankLine(state) {
-      state.stack = grammar.tokenizeLine('', state.stack, TIME_LIMIT).ruleStack
+      state.stack = readLine(grammar, '', state.stack).ruleStack
       state.line = null
     },
     comment: options.comment,

@@ -1,17 +1,11 @@
 import { ImageIcon } from '@dou-ui/icons'
-import { Plugin } from 'prosemirror-state'
+import { fileDropPlugin } from '../../core/file-drop'
 import { defineComponent, h } from 'vue'
 import type { EditorExtension } from '../../core/extension'
 import { escapeHTML, escapeMarkdown } from '../../core/output'
 import { defineBlock } from '../../define-block'
 import ImageBlock from './image-block.vue'
-import {
-  createUploads,
-  imageFiles,
-  isSafeImageSrc,
-  readAsDataUrl,
-  type ImageUploader,
-} from './uploads'
+import { createUploads, isSafeImageSrc, readAsDataUrl, type FileUploader } from './uploads'
 
 export interface ImageOptions {
   /**
@@ -19,7 +13,7 @@ export interface ImageOptions {
    * Without it, images are kept in the document as data URLs, which suits
    * trying things out but makes documents large.
    */
-  upload?: ImageUploader
+  upload?: FileUploader
 }
 
 /** A width in percent, as `blocksToHTML` writes it on the figure. */
@@ -122,28 +116,14 @@ export function image(options: ImageOptions = {}): EditorExtension {
       }
     },
     plugins: () => [
-      new Plugin({
-        props: {
-          handlePaste(view, event) {
-            const files = imageFiles(event.clipboardData)
-            // an image copied from a page comes with its address: keep that
-            if (!files.length || /<img/i.test(event.clipboardData?.getData('text/html') ?? ''))
-              return false
-            uploads.insert(view, files, view.state.selection.from)
-            return true
-          },
-          handleDrop(view, event) {
-            const files = imageFiles(event.dataTransfer)
-            if (!files.length) return false
-            event.preventDefault()
-            const at = view.posAtCoords({ left: event.clientX, top: event.clientY })
-            uploads.insert(view, files, at?.pos ?? view.state.selection.from)
-            return true
-          },
-        },
+      fileDropPlugin({
+        accepts: (file) => file.type.startsWith('image/'),
+        insert: uploads.insert,
+        // an image copied from a page comes with its address: keep that
+        skipPaste: (event) => /<img/i.test(event.clipboardData?.getData('text/html') ?? ''),
       }),
     ],
   }
 }
 
-export { isSafeImageSrc, readAsDataUrl, type ImageUploader }
+export { isSafeImageSrc, readAsDataUrl, type FileUploader }

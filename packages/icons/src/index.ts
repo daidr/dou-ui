@@ -1,5 +1,6 @@
 export * from './generated'
 export { createIcon } from './create-icon'
+export { fileIconOf } from './file-icons'
 export type { IconComponent } from './create-icon'
 export { categories } from './categories'
 export type { IconCategory } from './categories'

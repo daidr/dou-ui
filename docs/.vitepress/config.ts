@@ -31,7 +31,9 @@ const editorSidebar = ecosystem('块编辑器', [
   { text: '扩展', link: '/editor/extensions' },
   { text: '代码块', link: '/editor/code-block' },
   { text: '折叠块与提示块', link: '/editor/toggle-callout' },
+  { text: '文字颜色与对齐', link: '/editor/text-styles' },
   { text: '图片', link: '/editor/image' },
+  { text: '附件与嵌入', link: '/editor/attachment-embed' },
   { text: '提及', link: '/editor/mention' },
   { text: '评论', link: '/editor/comments' },
   { text: '表格', link: '/editor/table' },
@@ -75,6 +77,16 @@ const sheetSidebar = ecosystem('电子表格', [
 ])
 const codeSidebar = ecosystem('代码编辑器', [
   { text: '介绍', link: '/code/' },
+  { text: '语言', link: '/code/languages' },
+  { text: '编辑操作', link: '/code/editing' },
+  { text: '手机触控', link: '/code/touch' },
+  { text: '对比视图', link: '/code/diff' },
+  { text: '代码输入框', link: '/code/input' },
+  { text: '用代码修改', link: '/code/transactions' },
+  { text: '扩展', link: '/code/extensions' },
+  { text: '诊断与补全', link: '/code/assist' },
+  { text: '语言服务', link: '/code/lsp' },
+  { text: '大文件', link: '/code/performance' },
   { text: '协同编辑', link: '/code/collaboration' },
 ])
 const chartSidebar = ecosystem('图表', [{ text: '介绍', link: '/chart/' }])
@@ -364,6 +376,7 @@ export default defineConfig({
             { text: 'PageHeader 页头', link: '/components/page-header' },
             { text: 'Pagination 分页', link: '/components/pagination' },
             { text: 'Command 命令面板', link: '/components/command' },
+            { text: 'FindReplace 查找替换', link: '/components/find-replace' },
             { text: 'BackTop 回到顶部', link: '/components/back-top' },
           ],
         },

@@ -5,10 +5,10 @@ import {
   FileJsonIcon,
   FileSpreadsheetIcon,
   FileTextIcon,
-} from '@dou-ui/icons'
-import type { Component } from 'vue'
+} from './generated'
+import type { IconComponent } from './create-icon'
 
-const BY_EXTENSION: Record<string, Component> = {
+const BY_EXTENSION: Record<string, IconComponent> = {
   csv: FileTextIcon,
   tsv: FileTextIcon,
   txt: FileTextIcon,
@@ -28,7 +28,8 @@ const BY_EXTENSION: Record<string, Component> = {
 }
 
 /**
- * The icon of an exporter that gives none, by the file it writes: so an
- * exporter can be written without loading icons, as in a Worker.
+ * The icon of a file by its extension (`'xlsx'`, `'csv'`), such as for a
+ * menu of file types; the plain file icon for one not listed.
  */
-export const fileIconOf = (extension: string) => BY_EXTENSION[extension.toLowerCase()] ?? FileIcon
+export const fileIconOf = (extension: string): IconComponent =>
+  BY_EXTENSION[extension.toLowerCase()] ?? FileIcon

@@ -5,6 +5,7 @@ import type { SheetClip } from './core/clipboard'
 import type { SheetCSVWriteOptions } from './core/csv'
 import type { SheetCommands } from './core/commands'
 import type { SheetCommentAnchor } from './core/comments'
+import type { SheetSearchQuery, SheetMatch } from './core/find'
 import type { SheetExtension } from './core/extension'
 import type { SheetLinkTarget } from './core/link'
 import type {
@@ -380,7 +381,7 @@ export interface SheetExpose {
    * changed or the change was cancelled, and `tr.cancelled` says it was
    * (`transactionCancel` tells why). Works on a `readonly` grid too: that
    * only stops people using the grid. Protected cells still refuse it
-   * unless `meta.protection` is `false`.
+   * unless `meta.protection` or `meta.history` is `false`.
    */
   transact: (run: (tr: SheetTransaction) => void, meta?: SheetTransactionMeta) => SheetTransaction
   undo: () => boolean
@@ -396,6 +397,20 @@ export interface SheetExpose {
    * no such sheet.
    */
   showSheet: (sheet: SheetRef) => boolean
+  /**
+   * The cells that match a query, in order of sheet, row and column, as
+   * the find panel finds them: hidden rows and columns are skipped.
+   */
+  findCells: (query: SheetSearchQuery) => SheetMatch[]
+  /**
+   * Opens the find panel (`Ctrl/⌘+F`), with a query put in; with `replace`
+   * in it, the replace box opens too, unless the sheet is read-only. Runs
+   * the `find` command, so an extension that overrides it is used; `false`
+   * when it refuses.
+   */
+  openSearch: (query?: Partial<SheetSearchQuery>) => boolean
+  /** Closes the find panel; `false` when it was not open. */
+  closeSearch: () => boolean
   /**
    * The sheet shown (or `sheet`) as CSV: values a spreadsheet can sort and
    * add up by default (what formulas come to, cell types' `plain`), or with

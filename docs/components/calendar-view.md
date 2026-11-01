@@ -12,11 +12,63 @@
 
 ## 周视图与日视图
 
-`view` 切换月、周、日三种视图，配合 `v-model:view` 使用；传入 `views` 时在导航旁显示切换按钮。周视图和日视图沿纵向时间轴排布：`start` 带时间（`YYYY-MM-DD HH:mm`）的日程按时段放置，`end` 是结束的时刻，不填时按一小时算；时间重叠的日程并排显示，过了零点的日程在每一天的列里各画一段。`start` 只写日期的是全天日程，放在顶部的“全天”一行。今天的列里有一条当前时间线。
+`view` 切换月、周、日视图和[列表视图](#列表视图)，配合 `v-model:view` 使用；传入 `views` 时在导航旁显示切换按钮。周视图和日视图沿纵向时间轴排布：`start` 带时间（`YYYY-MM-DD HH:mm`）的日程按时段放置，`end` 是结束的时刻，不填时按一小时算；时间重叠的日程并排显示，过了零点的日程在每一天的列里各画一段。`start` 只写日期的是全天日程，放在顶部的“全天”一行。今天的列里有一条当前时间线。
 
 `hours` 设置时间轴覆盖的时段，`scroll-time` 是打开时滚动到的时间。点击时间轴上的空白处触发 `time-click`，参数是按 `snap`（默认 15 分钟）向下取整的 `YYYY-MM-DD HH:mm`，可以直接作为新日程的 `start`。
 
 <DocDemo src="calendar-view/week" column />
+
+## 列表视图
+
+`view` 为 `'agenda'` 时，按天列出当月的日程，没有日程的日子不显示。每项日程前面是时间，全天日程写“全天”，跨天的日程在每一天都列出，时间是当天的那一段。左右翻页按月，点日期选中这一天，点日程触发 `event-click`。设置 `editable` 时，键盘删除、<DouKbd>Alt</DouKbd> + <DouKbd>←</DouKbd> / <DouKbd>→</DouKbd> 改日期和右键菜单同样可用，触屏上长按日程打开菜单；拖动只在其他视图里。
+
+## 重复日程
+
+组件只显示具体的日程，不理解重复规则。`expandRepeats(events, from, to)` 把带 `repeat` 的日程展开成 `from` 到 `to`（都包含）之间的每一次，没有 `repeat` 的日程原样保留，结果直接传给 `events`。
+
+日历显示哪些日子由 `range-change` 给出，翻页、切换视图时触发，参数是 `{ start, end }`。初值用 `visibleRange(date, view, weekStart)` 算出，它和日历用的是同一套算法，这样服务端渲染的首屏也有日程。`weekStart` 要和日历一致：没有设置 `week-start` 时日历跟随语言，中文是周一（`1`），英文是周日（`0`）；最好像下面这样两边都明确写出来：
+
+```vue
+<script setup lang="ts">
+import { expandRepeats, visibleRange, type RepeatingEvent } from 'dou-ui'
+
+const series = ref<RepeatingEvent[]>([])
+const month = ref('2026-11')
+const range = ref(visibleRange(`${month.value}-01`, 'month', 1))
+const events = computed(() => expandRepeats(series.value, range.value.start, range.value.end))
+</script>
+
+<template>
+  <DouCalendarView
+    v-model:month="month"
+    :events="events"
+    :week-start="1"
+    @range-change="range = $event"
+  />
+</template>
+```
+
+只展开显示出来的日子，所以系列开始得再早也不会变慢。
+
+`repeat` 的字段：
+
+| 名称        | 说明                                                                                                                       | 类型                                   |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| `every`     | 按什么重复                                                                                                                 | `'day' \| 'week' \| 'month' \| 'year'` |
+| `interval`  | 每隔几个单位，例如 `every: 'week', interval: 2` 是隔周，默认 `1`                                                           | `number`                               |
+| `weekdays`  | 按周重复时落在星期几，`0` 是周日；默认是 `start` 那天                                                                      | `number[]`                             |
+| `weekStart` | 按周隔周重复时，一周从星期几开始，决定哪些周算“隔一周”；默认 `0`（周日），和日历的 `week-start` 无关，需要一致时传同一个值 | `number`                               |
+| `until`     | 最后一次最晚在哪天开始，`YYYY-MM-DD`                                                                                       | `string`                               |
+| `count`     | 最多几次，从第一次算起，被 `except` 去掉的也算在内                                                                         | `number`                               |
+| `except`    | 去掉哪些日子的那一次，`YYYY-MM-DD`，例如节假日，或者单独改过的那一次                                                       | `string[]`                             |
+
+每一次的时间和第一次（日程自己的 `start`、`end`）相同，只是换了日期。按月、按年重复时，没有这一天的月份跳过，不会挪到月底，例如 31 号在小月里没有，2 月 29 日只在闰年有。按周重复时，`start` 那天不在 `weekdays` 里就不算一次，系列从它之后第一个符合的日子开始，`count` 也从那里数起。隔周时从 `start` 所在的那一周开始数，一周从 `weekStart` 开始。`interval` 不是正整数、`weekdays` 或 `weekStart` 不在 `0` 到 `6` 之间时，开发时会在控制台提示一次。
+
+展开出的每一次是原日程的副本，去掉了 `repeat`，`id` 写成 `<原 id>@<日期>`，`occurrenceOf(id)` 可以把它读回 `{ id, date }`，不是展开出来的 id 返回 `null`。
+
+展开的结果是算出来的，所以不要用 `v-model:events` 绑定，而是用 `:events` 传入，在 `change` 里自己决定一次修改作用于什么：改整个系列，还是只改这一次（把这天加进 `except`，再另存一项普通日程）。下面的示例是后一种，并且打开时是列表视图：
+
+<DocDemo src="calendar-view/repeat" column />
 
 ## 拖动编辑
 
@@ -68,7 +120,9 @@ const noOverlap = ({ event, start, end }: CalendarMove, events: CalendarEvent[])
 `context-menu` 返回自己的菜单项，排在内置项前面。参数 `target.kind` 是 `event`（带 `event`）、`day`（月视图或“全天”一行里的日子，带 `date`）或 `time`（时间轴上的空白处，带按 `snap` 向下取整的 `start`）。不设置 `editable` 也可以有自己的菜单项。菜单为空时保留浏览器自己的菜单。`event-contextmenu` 在日程的菜单打开前触发，右键、触屏长按松手和菜单键都会触发；调用 `nativeEvent.preventDefault()` 就不打开。后两种情况没有浏览器的右键事件，`nativeEvent` 是一个代替的 `MouseEvent`，坐标是菜单打开的位置。
 
 ```ts
-const contextMenu = (target: CalendarMenuTarget): CalendarMenuItem[] =>
+import type { CalendarMenuTarget, ContextMenuItem } from 'dou-ui'
+
+const contextMenu = (target: CalendarMenuTarget): ContextMenuItem[] =>
   target.kind === 'event'
     ? [{ key: 'details', label: '查看详情', icon: FileTextIcon, run: () => open(target.event.id) }]
     : []
@@ -129,14 +183,14 @@ toTime('2026-10-28 09:00', 'Asia/Shanghai') // Date.parse('2026-10-28T01:00:00Z'
 | `maxEvents`             | 每天最多列几项                                    | `number`                                                             | `3`          |
 | `weekStart`             | 每周从哪天开始，`0` 周日、`1` 周一                | `0 \| 1`                                                             | 跟随语言     |
 | `disabledDate`          | 不可选的日子                                      | `(date: string) => boolean`                                          | —            |
-| `view`（v-model）       | 当前视图                                          | `'month' \| 'week' \| 'day'`                                         | `'month'`    |
+| `view`（v-model）       | 当前视图                                          | `'month' \| 'week' \| 'day' \| 'agenda'`                             | `'month'`    |
 | `views`                 | 可切换的视图，多于一个时显示切换按钮              | `CalendarViewMode[]`                                                 | —            |
 | `hours`                 | 周、日视图时间轴的起止小时                        | `[number, number]`                                                   | `[0, 24]`    |
 | `scrollTime`            | 周、日视图打开时滚动到的时间                      | `string`                                                             | `'08:00'`    |
 | `editable`              | 可以拖动、新建和删除日程，见[拖动编辑](#拖动编辑) | `boolean`                                                            | `false`      |
 | `snap`                  | 时间轴上拖动对齐的分钟数                          | `number`                                                             | `15`         |
 | `canMove`               | 写入前的检查，见[锁定与限制](#锁定与限制)         | `(move: CalendarMove, events: CalendarEvent[]) => boolean \| string` | —            |
-| `contextMenu`           | 自己的菜单项，见[右键菜单](#右键菜单)             | `(target: CalendarMenuTarget) => CalendarMenuItem[]`                 | —            |
+| `contextMenu`           | 自己的菜单项，见[右键菜单](#右键菜单)             | `(target: CalendarMenuTarget) => ContextMenuItem[]`                  | —            |
 | `menu`                  | 设置 `editable` 时在日程菜单里显示“删除日程”      | `boolean`                                                            | `true`       |
 
 `CalendarEvent` 的字段：
@@ -155,14 +209,15 @@ toTime('2026-10-28 09:00', 'Asia/Shanghai') // Date.parse('2026-10-28T01:00:00Z'
 
 ### CalendarView Events
 
-| 名称               | 说明                                                                                  | 参数                                              |
-| ------------------ | ------------------------------------------------------------------------------------- | ------------------------------------------------- |
-| `select`           | 选中一天                                                                              | `(date: string)`                                  |
-| `eventClick`       | 点击一项日程                                                                          | `(event: CalendarEvent)`                          |
-| `timeClick`        | 点击时间轴上的空白处                                                                  | `(start: string)`                                 |
-| `change`           | 移动、调整或删除了一项日程，在 `update:events` 之后触发                               | `(change: CalendarChange)`                        |
-| `create`           | 拖出了一段时间                                                                        | `(range: { start: string; end: string })`         |
-| `eventContextmenu` | 日程的菜单打开前触发（右键、长按、菜单键），`nativeEvent.preventDefault()` 可以不打开 | `(event: CalendarEvent, nativeEvent: MouseEvent)` |
+| 名称               | 说明                                                                                   | 参数                                              |
+| ------------------ | -------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| `select`           | 选中一天                                                                               | `(date: string)`                                  |
+| `eventClick`       | 点击一项日程                                                                           | `(event: CalendarEvent)`                          |
+| `timeClick`        | 点击时间轴上的空白处                                                                   | `(start: string)`                                 |
+| `change`           | 移动、调整或删除了一项日程，在 `update:events` 之后触发                                | `(change: CalendarChange)`                        |
+| `create`           | 拖出了一段时间                                                                         | `(range: { start: string; end: string })`         |
+| `eventContextmenu` | 日程的菜单打开前触发（右键、长按、菜单键），`nativeEvent.preventDefault()` 可以不打开  | `(event: CalendarEvent, nativeEvent: MouseEvent)` |
+| `rangeChange`      | 显示的日子变了，打开时也触发一次；`YYYY-MM-DD`，都包含；初值可以用 `visibleRange` 算出 | `(range: { start: string; end: string })`         |
 
 ```ts
 type CalendarChange =
@@ -180,18 +235,9 @@ type CalendarMenuTarget =
   | { kind: 'event'; event: CalendarEvent }
   | { kind: 'day'; date: string }
   | { kind: 'time'; start: string }
-
-interface CalendarMenuItem {
-  key: string
-  label: string
-  icon?: Component
-  shortcut?: string // 只用来显示，写法同 useHotkey
-  disabled?: boolean
-  tone?: 'danger'
-  divided?: boolean // 上方画一条分隔线
-  run: () => void
-}
 ```
+
+菜单项 `ContextMenuItem` 的字段见 [ContextMenu 的菜单项](./context-menu#用数据写菜单项)。
 
 ### CalendarView Slots
 
@@ -208,10 +254,33 @@ interface CalendarMenuItem {
 | `show`  | 翻到某天或某月 | `(date: string) => void` |
 | `focus` | 聚焦当前日子   | `() => void`             |
 
+### 工具函数
+
+| 名称            | 说明                                                                             | 类型                                                                                           |
+| --------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `expandRepeats` | 把重复日程展开成 `from` 到 `to` 之间的每一次，见[重复日程](#重复日程)            | `(events: RepeatingEvent[], from: string, to: string) => CalendarEvent[]`                      |
+| `occurrenceOf`  | 读出展开出的 id 属于哪个日程、哪一天                                             | `(id: string) => { id: string; date: string } \| null`                                         |
+| `visibleRange`  | 某天在某个视图下显示哪些日子，和 `range-change` 的参数相同；`weekStart` 默认 `0` | `(date: string, view: CalendarViewMode, weekStart?: number) => { start: string; end: string }` |
+
+```ts
+// 带重复规则的日程，字段见重复日程一节
+type RepeatingEvent<Data> = CalendarEvent<Data> & { repeat?: CalendarRepeat }
+
+interface CalendarRepeat {
+  every: 'day' | 'week' | 'month' | 'year'
+  interval?: number
+  weekdays?: number[]
+  weekStart?: number
+  until?: string
+  count?: number
+  except?: string[]
+}
+```
+
 ### 键盘与读屏
 
 - 月份是一个 `role="grid"`，只有当前日子在 Tab 顺序里：方向键按天、按周移动，<DouKbd>Home</DouKbd> / <DouKbd>End</DouKbd> 到本周首尾，<DouKbd>PageUp</DouKbd> / <DouKbd>PageDown</DouKbd> 翻月（加 <DouKbd>Shift</DouKbd> 翻年），<DouKbd>Enter</DouKbd> 选中。
 - 当前日子里的日程可以用 <DouKbd>Tab</DouKbd> 进入。
 - 周视图和日视图的表头日期可以用 <DouKbd>←</DouKbd> / <DouKbd>→</DouKbd> 移动；每件带时间的日程读作标题加起止时间，跨天的再加上起止日期；跨几天的日程只在显示出来的第一天进入 Tab 顺序。
 - 每个日子读作完整日期，有日程时加上“N 项日程”；今天带 `aria-current="date"`，月份标题变化时会被读出。
-- 设置 `editable` 时，焦点在日程上按 <DouKbd>Alt</DouKbd> + <DouKbd>←</DouKbd> / <DouKbd>→</DouKbd> 提前、推后一天；<DouKbd>Alt</DouKbd> + <DouKbd>↑</DouKbd> / <DouKbd>↓</DouKbd> 在时间轴上提前、推后 `snap` 分钟，在月视图里提前、推后一周。再加 <DouKbd>Shift</DouKbd> 只移动结束时间。<DouKbd>Delete</DouKbd> 或 <DouKbd>Backspace</DouKbd> 删除，菜单键或 <DouKbd>Shift</DouKbd> + <DouKbd>F10</DouKbd> 打开菜单。每次修改后会读出日程的新时间，被拒绝时读出原因。
+- 设置 `editable` 时，焦点在日程上按 <DouKbd>Alt</DouKbd> + <DouKbd>←</DouKbd> / <DouKbd>→</DouKbd> 提前、推后一天；<DouKbd>Alt</DouKbd> + <DouKbd>↑</DouKbd> / <DouKbd>↓</DouKbd> 在时间轴上提前、推后 `snap` 分钟，在月视图里提前、推后一周，列表视图里不用。再加 <DouKbd>Shift</DouKbd> 只移动结束时间。<DouKbd>Delete</DouKbd> 或 <DouKbd>Backspace</DouKbd> 删除，菜单键或 <DouKbd>Shift</DouKbd> + <DouKbd>F10</DouKbd> 打开菜单。每次修改后会读出日程的新时间，被拒绝时读出原因；修改后焦点留在这项日程上，应用换了它的 id 时（例如单独改了重复日程的一次）落到它移去的那天。

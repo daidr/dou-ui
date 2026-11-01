@@ -1,6 +1,7 @@
 import { withInstall } from 'dou-ui'
 import Pivot from './pivot.vue'
 import PivotFields from './fields/fields.vue'
+import type { PivotFieldsProps, PivotProps } from './types'
 
 export const DouPivot = withInstall(Pivot)
 export const DouPivotFields = withInstall(PivotFields)
@@ -56,5 +57,12 @@ declare module 'vue' {
   export interface GlobalComponents {
     DouPivot: typeof DouPivot
     DouPivotFields: typeof DouPivotFields
+  }
+}
+
+declare module 'dou-ui' {
+  export interface GenericComponentProps {
+    DouPivot: PivotProps
+    DouPivotFields: PivotFieldsProps
   }
 }

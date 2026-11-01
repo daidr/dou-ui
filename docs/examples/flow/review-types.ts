@@ -14,7 +14,7 @@ const type = (
   name: string,
   icon: Component,
   group: string,
-  data: Omit<DefaultNodeData, 'icon'>,
+  data: DefaultNodeData,
   description?: string,
 ) =>
   defineNodeType<DefaultNodeData>({
@@ -22,7 +22,7 @@ const type = (
     type: name,
     // Components in a reactive document are kept as they are.
     defaults: () => ({ ...data, icon: markRaw(icon) }),
-    palette: { label: data.label!, icon, group, description },
+    palette: { label: data.label as string, icon, group, description },
   })
 
 export const reviewTypes = [

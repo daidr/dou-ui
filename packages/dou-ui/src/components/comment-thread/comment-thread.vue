@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { CheckIcon, MoreHorizontalIcon, RotateCcwIcon } from '@dou-ui/icons'
 import { computed, nextTick, onMounted, ref, useTemplateRef } from 'vue'
+import type { TextareaHTMLAttributes } from 'vue'
+import type { WithAttributes } from '../../utils/install'
 import { isComposing } from '../../utils/keyboard'
 import { useNamespace } from '../../utils/namespace'
 import DouAvatar from '../avatar/avatar.vue'
@@ -9,7 +11,7 @@ import { useLocale } from '../config-provider/use-config'
 import DouDropdown from '../dropdown/dropdown.vue'
 import DouDropdownItem from '../dropdown/dropdown-item.vue'
 import DouRelativeTime from '../relative-time/relative-time.vue'
-import DouTextarea from '../textarea/textarea.vue'
+import DouTextareaComponent from '../textarea/textarea.vue'
 import DouTooltip from '../tooltip/tooltip.vue'
 import {
   applyCommentAction,
@@ -24,6 +26,12 @@ import type {
   CommentThreadProps,
   CommentThreadSlots,
 } from './comment-thread'
+
+// 让模板里也能写这个组件转交的原生属性
+const DouTextarea = DouTextareaComponent as WithAttributes<
+  typeof DouTextareaComponent,
+  TextareaHTMLAttributes
+>
 
 defineOptions({ name: 'DouCommentThread' })
 

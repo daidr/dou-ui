@@ -16,8 +16,21 @@ import {
   VariableIcon,
   WrenchIcon,
   XCircleIcon,
+  LetterCaseIcon,
+  RegexIcon,
+  WholeWordIcon,
 } from '@dou-ui/icons'
-import { holdPointer, isApplePlatform, isComposing, useNamespace, useZIndex } from 'dou-ui'
+import {
+  DouFindReplace,
+  DouToggle,
+  DouTooltip,
+  holdPointer,
+  isApplePlatform,
+  isComposing,
+  useLocale,
+  useNamespace,
+  useZIndex,
+} from 'dou-ui'
 import {
   computed,
   getCurrentInstance,
@@ -103,7 +116,6 @@ import {
 import RenderPart from './render-part'
 import { matchCompletion } from './completion/match'
 import { parseSnippet } from './completion/snippet'
-import SearchPanel from './search-panel.vue'
 import { type CodeLineTokens, type CodeTokenType, lineParts, tokenTypes } from './language/language'
 import type { CodeEditorEmits, CodeEditorExpose, CodeEditorProps } from './types'
 import { diffText } from './view/input'
@@ -225,15 +237,15 @@ function notify(result: CodeTransactionResult) {
   for (const extension of extensions.value) extension.update?.(result, context)
 }
 
-function dispatch(tr: CodeTransaction): CodeTransactionResult | null {
+function dispatch(tr: CodeTransaction): CodeTransactionResult {
   const { action } = tr.meta
   if (!UNHOOKED.has(action ?? ''))
     for (const extension of extensions.value) extension.transaction?.(tr, context)
   const result = tr.resolve()
   const before = state.value
-  if (result.changes.empty && sameSelection(result.state.selection, before.selection)) {
+  if (!result.changed) {
     pendingGoals = new Map()
-    return null
+    return result
   }
   // Someone else's change: what this user has open (menus, the problem box, the goal column) stays.
   const remote = action === 'remote'
@@ -999,7 +1011,7 @@ function foldEnds(texts?: readonly string[]) {
 /** The lines that start a fold, from 1. */
 const foldStarts = computed(() => folds.value.map((fold) => doc.value.lineAt(fold.from).number))
 watch(foldStarts, (next, prev) => {
-  if (next.length !== prev.length || next.some((n, i) => n !== prev[i])) emit('fold-change', next)
+  if (next.length !== prev.length || next.some((n, i) => n !== prev[i])) emit('foldChange', next)
 })
 
 function setFolds(next: CodeFold[]) {
@@ -1799,7 +1811,14 @@ const messages = useCodeMessages(() => props.messages)
 const searchOpen = ref(false)
 const showReplace = ref(false)
 const query = ref<CodeSearchQuery>({ search: '' })
-const panel = ref<InstanceType<typeof SearchPanel>>()
+const panel = ref<InstanceType<typeof DouFindReplace>>()
+const { t: common } = useLocale()
+/** The toggles in the find box. */
+const searchOptions = [
+  { key: 'caseSensitive', icon: LetterCaseIcon },
+  { key: 'wholeWord', icon: WholeWordIcon },
+  { key: 'regexp', icon: RegexIcon },
+] as const
 /** The matches, kept in step with edits between searches. */
 const matches = shallowRef<CodeMatch[]>([])
 const capped = ref(false)
@@ -1880,7 +1899,7 @@ function previousMatch() {
 }
 
 function openSearch(replace = false, given?: Partial<CodeSearchQuery>) {
-  if (!props.searchable) return
+  if (!props.searchable) return false
   menuOpen.value = false
   closeProblems()
   const main = mainRange(state.value.selection)
@@ -1910,6 +1929,7 @@ function openSearch(replace = false, given?: Partial<CodeSearchQuery>) {
   runSearch()
   panel.value?.focus(replace ? 'replace' : 'find')
   nextTick(() => panel.value?.focus(replace ? 'replace' : 'find'))
+  return true
 }
 
 function closeSearch() {
@@ -1949,7 +1969,7 @@ function replaceAll() {
   // Leave a cursor rather than a selection on the last replacement, which would look like a match left over.
   const head = mainRange(state.value.selection).head
   dispatch(transaction().select(head))
-  announcement.value = format(messages.value.replaced, { count: all.length })
+  announcement.value = common('findReplace.replaced', { count: all.length })
   runSearch()
 }
 
@@ -4063,7 +4083,7 @@ watch(minimapOn, (on) => {
   const observer = new MutationObserver(scheduleMinimap)
   observer.observe(document.documentElement, {
     attributes: true,
-    attributeFilter: ['class', 'style', 'data-theme'],
+    attributeFilter: ['class', 'style', 'data-dou-theme'],
   })
   const dark = matchMedia?.('(prefers-color-scheme: dark)')
   dark?.addEventListener?.('change', scheduleMinimap)
@@ -4375,22 +4395,41 @@ defineExpose<CodeEditorExpose>(api)
     }"
   >
     <div v-if="searchOpen" :class="ns.e('search')">
-      <SearchPanel
+      <DouFindReplace
         ref="panel"
-        v-model:query="query"
-        v-model:show-replace="showReplace"
-        :messages="messages"
+        :search="query.search"
+        :replace="query.replace ?? ''"
+        v-model:replacing="showReplace"
         :count="matches.length"
         :current="currentMatch"
         :capped="capped"
-        :error="searchError"
+        :error="searchError && common('findReplace.invalidRegexp')"
         :readonly="readonly || disabled"
+        @update:search="query = { ...query, search: $event }"
+        @update:replace="query = { ...query, replace: $event }"
         @next="nextMatch()"
         @previous="previousMatch()"
-        @replace="replaceOne"
+        @replace-one="replaceOne"
         @replace-all="replaceAll"
         @close="closeSearch"
-      />
+      >
+        <template #options>
+          <DouTooltip
+            v-for="option in searchOptions"
+            :key="option.key"
+            :content="common(`findReplace.${option.key}`)"
+          >
+            <DouToggle
+              :pressed="!!query[option.key]"
+              size="sm"
+              :aria-label="common(`findReplace.${option.key}`)"
+              @update:pressed="query = { ...query, [option.key]: $event }"
+            >
+              <component :is="option.icon" />
+            </DouToggle>
+          </DouTooltip>
+        </template>
+      </DouFindReplace>
     </div>
     <div v-if="problemMarks.length" :class="ns.e('marks')" aria-hidden="true">
       <div

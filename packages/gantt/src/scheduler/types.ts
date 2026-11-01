@@ -1,5 +1,5 @@
+import type { ContextMenuItem } from 'dou-ui'
 import type { GanttCalendar } from '../core/calendar'
-import type { GanttMenuItem } from '../core/menu'
 import type { GanttTask } from '../core/model'
 import type { GanttDocument, GanttTransaction, GanttTransactionMeta } from '../core/transaction'
 import type { GanttMessagesOverride } from '../locale'
@@ -37,7 +37,7 @@ export interface SchedulerProps {
   /** The built-in context menu item: remove. Turn off to keep only `contextMenu`'s items. */
   menu?: boolean
   /** Your own context menu items, shown above the built-in ones; return none to add nothing. */
-  contextMenu?: (target: SchedulerMenuTarget) => GanttMenuItem[]
+  contextMenu?: (target: SchedulerMenuTarget) => ContextMenuItem[]
   ariaLabel?: string
   messages?: GanttMessagesOverride
 }

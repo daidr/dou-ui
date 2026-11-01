@@ -22,6 +22,7 @@ export type {
   FlowNodePreview,
   FlowEditorSlots,
   FlowPanelPlacement,
+  FlowSearchQuery,
   NodeMetrics,
   PortAnchor,
   PortState,
@@ -35,7 +36,7 @@ export type { GroupNodeData } from './components/group-node'
 export { containerAt, FlowTree } from './core/groups'
 export { defineNodeType, labelOf, portSide, portsOf, resizeOf } from './core/node-types'
 export type { NodePaletteSpec, NodeResize, NodeTypeSpec, NodeViewProps } from './core/node-types'
-export type { FlowMenuItem, FlowMenuTarget, FlowToolbarItem } from './core/menu'
+export type { FlowMenuTarget, FlowToolbarItem } from './core/menu'
 export { createId, emptyDocument, emptySelection } from './core/model'
 export type {
   FlowData,

@@ -131,6 +131,7 @@ export type SheetAction =
   | 'sheet'
   | 'import'
   | 'restore'
+  | 'replace'
   | 'undo'
   | 'redo'
   | 'api'
@@ -200,6 +201,8 @@ export interface SheetTransactionMeta {
   /**
    * With `false`, the grid doesn't hold the change to the protection of
    * sheets and the workbook, e.g. for code that fills in a protected form.
+   * A change with `history: false`, such as undo, redo or another person's,
+   * isn't held either: it can't be cancelled.
    */
   protection?: boolean
 }

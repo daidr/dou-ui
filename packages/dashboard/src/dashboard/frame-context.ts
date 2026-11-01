@@ -1,4 +1,5 @@
-import type { InjectionKey } from 'vue'
+import type { SheetWorkbook } from '@dou-ui/sheet/core'
+import type { Component, InjectionKey } from 'vue'
 import type { DashboardPeer } from '../core/collaboration'
 import type { DashboardWidget } from '../core/types'
 import type { DashboardLinkedFilter } from '../data/types'
@@ -6,6 +7,13 @@ import type { DashboardMessages } from '../locale'
 import type { DashboardWidgetType } from '../widget/define'
 
 export type WidgetAction = 'settings' | 'fullscreen' | 'duplicate' | 'remove'
+
+/** An exporter as the export menu lists it. */
+export interface FrameExporter {
+  name: string
+  label: string
+  icon?: Component
+}
 
 /**
  * What a widget's frame reads from its dashboard. The frame looks its widget
@@ -30,6 +38,19 @@ export interface FrameContext {
   clearFilter: (key: string) => void
   /** The others at a widget, when editing together. */
   peers: (id: string) => readonly DashboardPeer[]
+  /** How a widget gives its content as a workbook; returns what undoes it. */
+  setWorkbook: (id: string, get: () => SheetWorkbook | undefined) => () => void
+  /** The exporters a widget's menu lists: none unless it gives a workbook. */
+  exporters: (id: string) => FrameExporter[]
+  /** Writes a widget's content with an exporter, by name, and downloads the file. */
+  exportTo: (id: string, exporter: string) => void
+  /** Tells whether a widget is drawn in full, not only its title. */
+  setDrawn: (id: string, drawn: boolean) => void
+  /** Whether a widget's content is being exported now. */
+  exporting: (id: string) => boolean
+  /** Why the last export from a widget's menu failed. */
+  exportError: (id: string) => string | undefined
+  clearExportError: (id: string) => void
 }
 
 export const frameContextKey: InjectionKey<FrameContext> = Symbol('dou-dashboard-frame')

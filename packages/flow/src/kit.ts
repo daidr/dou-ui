@@ -1,3 +1,4 @@
+import type { ContextMenuItem } from 'dou-ui'
 import {
   ClipboardPasteIcon,
   CopyIcon,
@@ -16,7 +17,6 @@ import { defaultNode } from './components/default-node'
 import { groupNode } from './components/group-node'
 import { bezierEdge, stepEdge, straightEdge } from './core/edge-types'
 import { defineFlowExtension, type FlowExtension } from './core/extension'
-import type { FlowMenuItem } from './core/menu'
 import { layers, stacking } from './layers'
 
 export interface FlowKitOptions {
@@ -41,7 +41,7 @@ const editMenu = defineFlowExtension({
   contextMenu(ctx, target) {
     const t = ctx.messages.value
     const editable = !ctx.readonly.value
-    const items: FlowMenuItem[] = []
+    const items: ContextMenuItem[] = []
     if (target.kind === 'canvas') {
       if (editable)
         items.push({
@@ -205,7 +205,7 @@ const groups = defineFlowExtension({
     const t = ctx.messages.value
     const tree = ctx.tree.value
     const parents = new Set(tree.topmost(ctx.selection.value.nodes).map((id) => tree.parentOf(id)))
-    const items: FlowMenuItem[] = [
+    const items: ContextMenuItem[] = [
       {
         key: 'group',
         label: t.makeGroup,

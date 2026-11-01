@@ -1,8 +1,9 @@
 import { withInstall } from '../../utils/install'
+import type { ButtonAttributes } from '../../utils/install'
 import CheckTagGroup from './check-tag-group.vue'
 import CheckTag from './check-tag.vue'
 
-export const DouCheckTag = withInstall(CheckTag)
+export const DouCheckTag = withInstall<typeof CheckTag, ButtonAttributes>(CheckTag)
 export const DouCheckTagGroup = withInstall(CheckTagGroup)
 export default DouCheckTag
 

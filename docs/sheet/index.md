@@ -66,7 +66,7 @@ app.use(DouSheet)
 
 单元格原来的样式和格式会保留，没有格式时才加上输入带来的格式。`Delete` 或 `Backspace` 清空选中区域的值，样式和格式不动。
 
-`readonly` 只限制使用者在表格里的操作：只能选择、浏览和复制，不能修改。代码里调用组件实例的 `transact`、`undo`、`redo` 不受 `readonly` 限制，照常生效，例如[协同编辑](./collaboration)时其他人的修改；但受保护的单元格仍然拒绝修改，除非设置 `protection: false`（见[保护](#保护)）。
+`readonly` 只限制使用者在表格里的操作：只能选择、浏览和复制，不能修改。代码里调用组件实例的 `transact`、`undo`、`redo` 不受 `readonly` 限制，照常生效，例如[协同编辑](./collaboration)时其他人的修改；但受保护的单元格仍然拒绝修改，除非设置 `protection: false` 或 `history: false`（见[保护](#保护)）。
 
 触屏上编辑框的字号至少是 16px，避免手机在聚焦时自动放大页面。
 
@@ -76,33 +76,36 @@ app.use(DouSheet)
 
 ### 键盘操作
 
-| 按键                                | 作用                                           |
-| ----------------------------------- | ---------------------------------------------- |
-| 方向键                              | 移动一格，跳过隐藏的行和列                     |
-| `Ctrl` / `⌘` + 方向键               | 移到数据区域的边缘，或下一个有内容的单元格     |
-| `Shift` + 方向键                    | 扩大选区；加上 `Ctrl` / `⌘` 一次扩到边缘       |
-| `Enter` / `Tab`（加 `Shift` 反向）  | 下移、右移；选中一片区域时在区域内循环         |
-| `Home` / `End`                      | 行首、本行最后一个有内容的单元格               |
-| `Ctrl` / `⌘` + `Home` / `End`       | `A1`、有内容的最后一格                         |
-| `Page Up` / `Page Down`             | 翻一屏                                         |
-| `Shift` + `Space`、`Ctrl` + `Space` | 选中整行、整列                                 |
-| `Ctrl` / `⌘` + `A`                  | 全选                                           |
-| `F2`                                | 编辑                                           |
-| `Shift` + `F2`                      | 插入或编辑批注                                 |
-| `Ctrl` / `⌘` + `K`                  | 插入或编辑链接                                 |
-| `Ctrl` / `⌘` + `Alt` + `M`          | 打开或发起评论，见[评论](./comments)           |
-| `Delete` / `Backspace`              | 清空选中区域的值                               |
-| `Ctrl` / `⌘` + `C` / `X` / `V`      | 复制、剪切、粘贴                               |
-| `Ctrl` / `⌘` + `D` / `R`            | 向下、向右填充                                 |
-| `Ctrl` / `⌘` + `B` / `I` / `U`      | 加粗、斜体、下划线（按当前单元格切换）         |
-| `Ctrl` / `⌘` + `Shift` + `X`        | 删除线                                         |
-| `Ctrl` / `⌘` + `\`                  | 清除格式                                       |
-| `Ctrl` / `⌘` + `Shift` + `=`        | 选中整行（整列）时，在前面插入同样多的行（列） |
-| `Ctrl` / `⌘` + `-`                  | 选中整行（整列）时，删除它们                   |
-| `Alt` + `Shift` + `→` / `←`         | 分组、取消分组，见[分组](#分组)                |
-| 菜单键、`Shift` + `F10`             | 打开右键菜单                                   |
-| `Ctrl` + `Page Up` / `Page Down`    | 上一个、下一个工作表                           |
-| `Esc`                               | 取消复制的虚线框                               |
+| 按键                                          | 作用                                           |
+| --------------------------------------------- | ---------------------------------------------- |
+| 方向键                                        | 移动一格，跳过隐藏的行和列                     |
+| `Ctrl` / `⌘` + 方向键                         | 移到数据区域的边缘，或下一个有内容的单元格     |
+| `Shift` + 方向键                              | 扩大选区；加上 `Ctrl` / `⌘` 一次扩到边缘       |
+| `Enter` / `Tab`（加 `Shift` 反向）            | 下移、右移；选中一片区域时在区域内循环         |
+| `Home` / `End`                                | 行首、本行最后一个有内容的单元格               |
+| `Ctrl` / `⌘` + `Home` / `End`                 | `A1`、有内容的最后一格                         |
+| `Page Up` / `Page Down`                       | 翻一屏                                         |
+| `Shift` + `Space`、`Ctrl` + `Space`           | 选中整行、整列                                 |
+| `Ctrl` / `⌘` + `A`                            | 全选                                           |
+| `F2`                                          | 编辑                                           |
+| `Shift` + `F2`                                | 插入或编辑批注                                 |
+| `Ctrl` / `⌘` + `K`                            | 插入或编辑链接                                 |
+| `Ctrl` / `⌘` + `Alt` + `M`                    | 打开或发起评论，见[评论](./comments)           |
+| `Delete` / `Backspace`                        | 清空选中区域的值                               |
+| `Ctrl` / `⌘` + `C` / `X` / `V`                | 复制、剪切、粘贴                               |
+| `Ctrl` / `⌘` + `D` / `R`                      | 向下、向右填充                                 |
+| `Ctrl` / `⌘` + `B` / `I` / `U`                | 加粗、斜体、下划线（按当前单元格切换）         |
+| `Ctrl` / `⌘` + `Shift` + `X`                  | 删除线                                         |
+| `Ctrl` / `⌘` + `\`                            | 清除格式                                       |
+| `Ctrl` / `⌘` + `Shift` + `=`                  | 选中整行（整列）时，在前面插入同样多的行（列） |
+| `Ctrl` / `⌘` + `-`                            | 选中整行（整列）时，删除它们                   |
+| `Alt` + `Shift` + `→` / `←`                   | 分组、取消分组，见[分组](#分组)                |
+| 菜单键、`Shift` + `F10`                       | 打开右键菜单                                   |
+| `Ctrl` + `Page Up` / `Page Down`              | 上一个、下一个工作表                           |
+| `Ctrl` / `⌘` + `F`                            | 查找，见[查找和替换](#查找和替换)              |
+| `Ctrl` + `H`（macOS 为 `⌘` + `Option` + `F`） | 替换                                           |
+| `F3`、`Ctrl` / `⌘` + `G`（加 `Shift` 反向）   | 下一个、上一个查找结果                         |
+| `Esc`                                         | 取消复制的虚线框；关闭查找面板                 |
 
 读屏软件会播报当前单元格、选区大小和每次修改的结果。
 
@@ -154,6 +157,7 @@ sheet.value.transact((tr) => {
 | `style`、`freeze`        | 工具栏或快捷键修改样式、格式；工具栏冻结行列                       |
 | `sheet`                  | 标签栏里新建、重命名、复制、移动、删除工作表                       |
 | `import`                 | 导入文件（`importFile`、工具栏的导入按钮、拖入文件）               |
+| `replace`                | 查找面板里的替换、全部替换                                         |
 | `insert`、`delete`       | 插入、删除行列                                                     |
 | `undo`、`redo`           | 撤销、重做                                                         |
 | `api`                    | 组件实例的 `transact`，没有指定 `action`                           |
@@ -181,13 +185,49 @@ sheet.value.transact((tr) => {
 | `setComment(cell, id)`                                                                | 把讨论放到单元格上，`undefined` 去掉，见[评论](./comments#用代码修改)；恢复版本的步骤见 `restoreWorkbook`（[历史版本](./versions#恢复)）                       |
 | `protectSheet(protect, sheet?)`、`updateBook(patch)`                                  | 保护或取消保护工作表；修改工作簿的字段，比如 `{ protect: true }`，见[保护](#保护)                                                                              |
 | `cancel(reason?)`                                                                     | 取消这次修改，在扩展的 `transaction` 里使用，见[取消修改](./extensions#取消修改)                                                                               |
-| `setMeta({ history, group, action, protection })`                                     | `history: false` 不进入撤销记录；同一 `group` 的连续修改合并为一步；`action` 见上表；`protection: false` 不检查保护                                            |
+| `setMeta({ history, group, action, protection })`                                     | `history: false` 不进入撤销记录，也不检查保护；同一 `group` 的连续修改合并为一步；`action` 见上表；`protection: false` 不检查保护                              |
 
 插入、删除和移动行列，以及移动单元格时，所有工作表里指向这些单元格的公式引用都会随之改写：插入行后 `=A5` 变成 `=A6`，区域 `A1:A5` 在中间插入一行后变成 `A1:A6`；删除被引用的单元格后引用变成 `#REF!`，区域只删除一部分时缩小。和复制不同，这时 `$A$1` 这样的固定引用也会跟着改。
 
 步骤里的工作表用 `id` 记录，没有 `id` 时用名字，所以在另一端应用时不受工作表顺序影响。
 
-组件实例上的 `commands` 可以执行和查询[命令](./extensions#命令)，比如 `sheetRef.value.commands.run('bold')`。组件实例上还有 `select('B2:C4')` 选中并滚动到区域（也可以是 `'B:B'`、`'3:3'`）、`scrollTo('H200')`、`edit('B2')` 打开编辑框、`editNote('B2')` 打开批注输入框、`editLink('B2')` 打开链接输入框、`focus()`、`showSheet(sheet)` 切换工作表和 `toCSV(options?)`。
+组件实例上的 `commands` 可以执行和查询[命令](./extensions#命令)，比如 `sheetRef.value.commands.run('bold')`。组件实例上还有 `select('B2:C4')` 选中并滚动到区域（也可以是 `'B:B'`、`'3:3'`）、`scrollTo('H200')`、`edit('B2')` 打开编辑框、`editNote('B2')` 打开批注输入框、`editLink('B2')` 打开链接输入框、`focus()`、`showSheet(sheet)` 切换工作表、`openSearch(query?)` / `closeSearch()` 打开和关闭查找面板、`findCells(query)` 查找单元格（见[查找和替换](#查找和替换)）和 `toCSV(options?)`。
+
+## 查找和替换
+
+按 `Ctrl` / `⌘` + `F` 打开查找面板，`Ctrl` + `H`（macOS 上是 `⌘` + `Option` + `F`）打开替换。表格是虚拟滚动的，浏览器自带的查找只能找到画出来的那几十行，所以表格自己接管了这两个键，没有像其他编辑器那样提供 `searchable` 开关；想换成自己的查找界面时，用扩展替换 `find` 命令（见下文）。输入时会选中当前单元格之后的第一个结果，`Enter` / `Shift` + `Enter` 在结果间前后移动，看得见的结果都会标上底色。面板停在表格右上角，当前结果被它挡住时（比如在冻结的第一行）会移到右下角。超过两万个单元格的表格，等输入停顿一下再查找，打字不会卡顿。
+
+查找框里有四个开关：
+
+- **区分大小写**。
+- **单元格完全匹配**：单元格的全部文字等于查找的内容才算。
+- **查找公式**：默认按单元格显示的文字查找，金额按格式写成 `¥1,280.00`，公式按算出的结果；打开后改为查找输入的内容，公式按公式本身查找，比如找 `B2` 能找到引用了它的公式。
+- **所有工作表**：默认只找当前工作表，打开后找整个工作簿，结果在别的表时会切换过去。
+
+隐藏的行列、筛选掉的行、折叠的分组和被合并单元格盖住的单元格都不参与查找。
+
+替换改的是单元格里输入的内容，替换后的文字和手动输入一样重新识别成数字或日期，原来的数字格式保留。按显示的文字查找时，查到的文字如果只在显示格式里（比如在显示为 `¥12.00`、实际输入 `12` 的单元格里查 `12.00`），就在显示的文字上替换，再像手动输入一样识别：`12.00` 换成 `13.00` 得到 `13`，格式不变；识别出来不是同一类值的（比如把 `¥` 换成别的字）会跳过。下面几种也会跳过：
+
+- 公式算出的结果，打开“查找公式”才能替换公式本身；
+- 受保护工作表里锁定的单元格，见[保护](#保护)；
+- 替换后不符合数据验证（拒绝输入的规则）的。
+
+全部替换作为一步撤销，事务的 `action` 是 `'replace'`。有跳过的时候，表格下方会按原因分别提示数量。只读的表格只能查找。
+
+<DocDemo src="sheet/find" />
+
+查找和替换登记成了命令 `find`、`replace`、`find.next`、`find.previous`，工具栏可以直接写这几个名字，触屏设备上就靠工具栏按钮打开。组件实例的 `openSearch({ search: '白板' })` 打开面板并填好查找内容，带上 `replace` 时同时打开替换框，`closeSearch()` 关闭面板；查询的字段见下表（类型 `SheetSearchQuery`）。`openSearch` 走的是 `find` / `replace` 命令，扩展用 `override` 替换它们，就能换成自己的查找界面，快捷键和工具栏按钮也会跟着走新的实现。只要结果、不要界面时用组件实例的 `findCells(query)`，它按工作表、行、列的顺序返回 `{ sheet, row, col }` 列表（类型 `SheetMatch`），规则和面板相同。
+
+面板上的文字（查找、替换、上一个、结果数等）在 [ConfigProvider](../components/config-provider) 语言包的 `findReplace` 里，表格自己的开关（“单元格完全匹配”“查找公式”“所有工作表”）和跳过的提示在组件 `messages` 的 `find` 里。
+
+| 字段            | 说明                                         | 类型                     |
+| --------------- | -------------------------------------------- | ------------------------ |
+| `search`        | 查找的文字                                   | `string`                 |
+| `replace`       | 替换成的文字                                 | `string`                 |
+| `caseSensitive` | 区分大小写                                   | `boolean`                |
+| `wholeCell`     | 单元格完全匹配                               | `boolean`                |
+| `lookIn`        | 按显示的值（默认）还是按输入的内容和公式查找 | `'values' \| 'formulas'` |
+| `scope`         | 当前工作表（默认）还是整个工作簿             | `'sheet' \| 'workbook'`  |
 
 ## 复制与粘贴
 
@@ -549,7 +589,7 @@ const fixedProtection = defineSheetExtension({
 })
 ```
 
-用代码修改时调用 `tr.protectSheet(true)` 或 `tr.protectSheet({ formatCells: true })`，传 `false` 取消；`tr.updateBook({ protect: true })` 保护工作簿结构；`tr.styleCells('B1:B3', { locked: false })` 解锁单元格。代码的修改同样要遵守保护，需要绕过时（比如程序填写受保护的表单）传 `{ protection: false }`：
+用代码修改时调用 `tr.protectSheet(true)` 或 `tr.protectSheet({ formatCells: true })`，传 `false` 取消；`tr.updateBook({ protect: true })` 保护工作簿结构；`tr.styleCells('B1:B3', { locked: false })` 解锁单元格。代码的修改同样要遵守保护，需要绕过时（比如程序填写受保护的表单）传 `{ protection: false }`。`history: false` 的修改（撤销重做、[协同编辑](./collaboration)里别人的修改）不能取消，同样不检查保护，所以别用它来绕过保护，要绕过就写 `protection: false`：
 
 ```ts
 sheet.value.transact((tr) => tr.setValue('A1', '买家'), { protection: false })

@@ -74,6 +74,20 @@ categories.status // '状态'
 | `categories` | 所属分类，至少一个                       | `IconCategory[]` |
 | `variant`    | 变体。目前只有线性（`stroke`），后续扩展 | `'stroke'`       |
 
+## 文件图标
+
+`fileIconOf(extension)` 按扩展名返回文件图标组件，比如导出菜单里的各种文件类型：`'xlsx'` 是表格文件图标，`'csv'` 是文本文件图标，没有对应的扩展名返回普通的文件图标。电子表格和仪表盘的导出菜单就是这样取图标的。
+
+```vue
+<script setup>
+import { fileIconOf } from '@dou-ui/icons'
+</script>
+
+<template>
+  <component :is="fileIconOf('xlsx')" />
+</template>
+```
+
 ## SVG 文件
 
 不使用 Vue 时，可以直接取用 SVG 源文件。作为图片使用时线宽会随尺寸缩放（24px 时为 1.5px）：

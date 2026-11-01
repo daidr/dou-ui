@@ -26,7 +26,7 @@ interface Client {
   doc: Y.Doc
   awareness: Awareness
   flow: Ref<FlowDocument>
-  extensions: FlowExtension[]
+  extensions: (FlowExtension | FlowExtension[])[]
 }
 
 function createClient(name: string): Client {

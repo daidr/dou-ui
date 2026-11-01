@@ -134,7 +134,7 @@ export interface CodeEditorEmits {
   focus: [event: FocusEvent]
   blur: [event: FocusEvent]
   /** The folds changed: the lines that start one now, from 1. Edits that move a fold to another line count too. */
-  'fold-change': [lines: number[]]
+  foldChange: [lines: number[]]
 }
 
 export interface CodeEditorExpose {
@@ -145,13 +145,13 @@ export interface CodeEditorExpose {
   /**
    * Makes a change: `run` adds changes to the transaction, which is applied
    * and recorded for undo as one. Positions are in the text as it was when
-   * the transaction started. Returns what happened, or `null` when nothing
-   * changed.
+   * the transaction started. Returns what happened, also when nothing
+   * changed: `changed` is then `false` and nothing was applied.
    */
   transact: (
     run: (tr: CodeTransaction) => void,
     meta?: CodeTransactionMeta,
-  ) => CodeTransactionResult | null
+  ) => CodeTransactionResult
   /** Runs a command, e.g. `selectAll`, as if its key were pressed. */
   run: (command: CodeCommand) => boolean
   undo: () => boolean
@@ -168,8 +168,8 @@ export interface CodeEditorExpose {
   posAtCoords: (point: { x: number; y: number }) => number
   focus: () => void
   blur: () => void
-  /** Opens the search panel, filled with `query` or else the selected text. */
-  openSearch: (query?: Partial<CodeSearchQuery>) => void
+  /** Opens the search panel, filled with `query` or else the selected text; `false` when `searchable` is off. */
+  openSearch: (query?: Partial<CodeSearchQuery>) => boolean
   /** Closes the search panel; `false` when it wasn't open. */
   closeSearch: () => boolean
   /** Folds the block starting at a line (from 1), or the one around the cursor; `false` when there is none. */
@@ -236,7 +236,7 @@ export interface CodeDiffProps {
   language?: CodeLanguage | null
   /**
    * `split` puts the two texts side by side, `inline` puts the changes in
-   * one column. `auto` (the default) is `split` when there is room (640px)
+   * one column. `auto` (the default) is `split` when there is room (560px)
    * and `inline` otherwise, as on a phone. Bound with `v-model:mode` when
    * the toolbar's toggle should be kept.
    */

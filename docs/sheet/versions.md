@@ -43,7 +43,7 @@ const book = readBook(ydoc.getMap('book'))
 - 讨论不算修改。同一个单元格的不同写法（`1` 和 `{ value: 1 }`、空文字和空单元格）不算修改。
 - 工作表的保护、命名样式（比如解锁单元格的样式）和工作簿的设置不画在单元格上，用 `diffWorkbooks` 查看。
 
-`nextChange()` 和 `previousChange()` 依次选中下一个、上一个改过的单元格，会切换到别的工作表，没有更多时返回 `false`，可以接在自己的按钮上。`compare` 设为 `null` 回到编辑。
+`nextChange()` 和 `previousChange()` 依次选中下一个、上一个改过的单元格，会切换到别的工作表，没有更多时返回 `false`，可以接在自己的按钮上。对比时[查找](./#查找和替换)只能查找，不能替换。`compare` 设为 `null` 回到编辑。
 
 只想知道改了多少，不需要显示时，用 `diffWorkbooks`：
 

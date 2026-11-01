@@ -122,6 +122,17 @@ export interface EditorExtension {
    */
   overlays?: Component[]
   /**
+   * Controls added to the formatting toolbar, after the marks (e.g. a
+   * color menu). They can call `useEditor()`.
+   */
+  toolbar?: Component[]
+  /**
+   * Entries added to the block menu of the handle, usually a
+   * `DouDropdownSub` or `DouDropdownItem`s. Each gets the block the menu is
+   * for as the `block` prop (a `Block`) and can call `useEditor()`.
+   */
+  blockMenu?: Component[]
+  /**
    * How the extension's blocks, inline nodes and marks are written as HTML
    * and Markdown (`blocksToHTML`, `blocksToMarkdown`).
    */
@@ -160,6 +171,8 @@ export interface ResolvedEditorExtensions {
   blockOptions: BlockOption[]
   formats: FormatOption[]
   overlays: Component[]
+  toolbar: Component[]
+  blockMenu: Component[]
   inputRules: InputRule[]
   keymaps: Record<string, Command>[]
   plugins: Plugin[]
@@ -273,6 +286,8 @@ export function resolveEditorExtensions(
     blockOptions: extensions.flatMap((extension) => extension.blockOptions ?? []),
     formats: extensions.flatMap((extension) => extension.formats ?? []),
     overlays: extensions.flatMap((extension) => extension.overlays ?? []),
+    toolbar: extensions.flatMap((extension) => extension.toolbar ?? []),
+    blockMenu: extensions.flatMap((extension) => extension.blockMenu ?? []),
     inputRules: extensions.flatMap((extension) => extension.inputRules?.(context) ?? []),
     keymaps: extensions.flatMap((extension) =>
       extension.keymap ? [toEditorKeymap(extension.keymap(context))] : [],

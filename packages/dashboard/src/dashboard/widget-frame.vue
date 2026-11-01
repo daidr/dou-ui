@@ -1,6 +1,15 @@
 <script setup lang="ts">
-import { MaximizeIcon, MoreHorizontalIcon } from '@dou-ui/icons'
-import { DouButton, DouDropdown, DouDropdownItem, DouEditable, DouTag, DouTooltip } from 'dou-ui'
+import { DownloadIcon, MaximizeIcon, MoreHorizontalIcon } from '@dou-ui/icons'
+import {
+  DouAlert,
+  DouButton,
+  DouDropdown,
+  DouDropdownItem,
+  DouDropdownSub,
+  DouEditable,
+  DouTag,
+  DouTooltip,
+} from 'dou-ui'
 import type { DropdownValue } from 'dou-ui'
 import { computed, inject, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import GridLayoutHandle from '../grid/grid-handle.vue'
@@ -62,6 +71,9 @@ onMounted(() => {
   })
 })
 onBeforeUnmount(() => stop?.())
+// the dashboard draws everything for an export only when this widget isn't drawn yet
+watch(active, (drawn) => frame.setDrawn(props.id, drawn), { immediate: true })
+onBeforeUnmount(() => frame.setDrawn(props.id, false))
 // drawn in full to export or print the dashboard, and kept that way
 watch(
   () => frame.all(),
@@ -76,8 +88,17 @@ const canFullscreen = computed(() => type.value?.fullscreen !== false)
 
 const emitAction = (action: WidgetAction) => frame.action(props.id, action)
 
+/** The file types this widget's content can be exported as; none unless it gives a workbook. */
+const exporters = computed(() => frame.exporters(props.id))
+const exportError = computed(() => frame.exportError(props.id))
+const exporting = computed(() => frame.exporting(props.id))
+const EXPORT = 'export:'
+const exportOpen = ref(false)
+
 function onSelect(value: DropdownValue | undefined) {
-  if (typeof value === 'string') emitAction(value as WidgetAction)
+  if (typeof value !== 'string') return
+  if (value.startsWith(EXPORT)) frame.exportTo(props.id, value.slice(EXPORT.length))
+  else emitAction(value as WidgetAction)
 }
 </script>
 
@@ -143,6 +164,17 @@ function onSelect(value: DropdownValue | undefined) {
             <DouDropdownItem v-if="canFullscreen" value="fullscreen">
               {{ messages.fullscreen }}
             </DouDropdownItem>
+            <DouDropdownSub v-if="exporters.length" :title="messages.export">
+              <DouDropdownItem
+                v-for="exporter in exporters"
+                :key="exporter.name"
+                :value="EXPORT + exporter.name"
+                :disabled="exporting"
+              >
+                <template v-if="exporter.icon" #prefix><component :is="exporter.icon" /></template>
+                {{ exporter.label }}
+              </DouDropdownItem>
+            </DouDropdownSub>
             <DouDropdownItem value="duplicate" shortcut="mod+d">
               {{ messages.duplicate }}
             </DouDropdownItem>
@@ -151,7 +183,38 @@ function onSelect(value: DropdownValue | undefined) {
             </DouDropdownItem>
           </template>
         </DouDropdown>
-        <DouTooltip v-else-if="canFullscreen" :content="messages.fullscreen">
+        <DouTooltip
+          v-if="!editing && exporters.length"
+          :content="messages.export"
+          :disabled="exportOpen"
+        >
+          <span class="dou-dashboard__trigger">
+            <DouDropdown v-model:open="exportOpen" placement="bottom-end" @select="onSelect">
+              <DouButton
+                size="sm"
+                variant="ghost"
+                :aria-label="messages.export"
+                :loading="exporting"
+                :disabled="exporting"
+              >
+                <DownloadIcon />
+              </DouButton>
+              <template #menu>
+                <DouDropdownItem
+                  v-for="exporter in exporters"
+                  :key="exporter.name"
+                  :value="EXPORT + exporter.name"
+                >
+                  <template v-if="exporter.icon" #prefix
+                    ><component :is="exporter.icon"
+                  /></template>
+                  {{ exporter.label }}
+                </DouDropdownItem>
+              </template>
+            </DouDropdown>
+          </span>
+        </DouTooltip>
+        <DouTooltip v-if="!editing && canFullscreen" :content="messages.fullscreen">
           <DouButton
             size="sm"
             variant="ghost"
@@ -163,6 +226,11 @@ function onSelect(value: DropdownValue | undefined) {
         </DouTooltip>
       </div>
     </component>
+    <div v-if="exportError" class="dou-dashboard__export-error" data-dou-nodrag>
+      <DouAlert tone="danger" closable @close="frame.clearExportError(id)">
+        {{ exportError }}
+      </DouAlert>
+    </div>
     <WidgetBody
       v-if="active"
       :widget="widget"
@@ -170,6 +238,7 @@ function onSelect(value: DropdownValue | undefined) {
       :editing="editing"
       :messages="messages"
       :set-props="frame.setProps"
+      :set-workbook="frame.setWorkbook"
     />
   </div>
 </template>

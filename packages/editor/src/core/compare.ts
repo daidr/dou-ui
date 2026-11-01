@@ -22,7 +22,10 @@ function removedBlock(block: Block, label: (block: Block) => string) {
   el.className = `${CLS}-removed-block`
   el.dataset.diff = 'removed'
   const text = inlineText(block.content).replaceAll('￼', '')
-  el.textContent = text || label(block)
+  // a file, an embed or an image has no text: its name or caption stands for it
+  const { name, caption, alt } = block.props as Record<string, unknown>
+  const named = [name, caption, alt].find((value) => typeof value === 'string' && value)
+  el.textContent = text || (named as string | undefined) || label(block)
   return el
 }
 
@@ -75,13 +78,17 @@ function decorate(doc: PMNode, before: readonly Block[], label: (block: Block) =
       const sameKind =
         change.before.type === change.after.type &&
         JSON.stringify(change.before.props) === JSON.stringify(change.after.props)
-      if (!sameKind || change.after.rows || !content.inlineContent)
+      const inline = content.inlineContent && !change.after.rows
+      const parts = inline
+        ? diffText(inlineText(change.before.content), inlineText(change.after.content))
+        : []
+      // the kind, a table or a file changed, or only the formatting of the same text (a color, a link)
+      if (!sameKind || !inline || parts.every((part) => part.type === 'same'))
         decorations.push(Decoration.node(pos, pos + node.nodeSize, { class: `${CLS}-changed` }))
-      if (content.inlineContent && !change.after.rows) {
+      if (inline) {
         // the content node starts inside the block: one for the block, one for the content
         const start = pos + 2
         let offset = 0
-        const parts = diffText(inlineText(change.before.content), inlineText(change.after.content))
         for (const [index, part] of parts.entries()) {
           const at = start + offset
           if (part.type === 'same') offset += part.text.length

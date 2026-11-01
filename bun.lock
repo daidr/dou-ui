@@ -80,6 +80,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@dou-ui/icons": "workspace:*",
+        "@dou-ui/sheet": "workspace:*",
       },
       "devDependencies": {
         "@dou-ui/chart": "workspace:*",

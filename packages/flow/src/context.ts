@@ -1,3 +1,4 @@
+import type { ContextMenuItem } from 'dou-ui'
 import type { FlowExportOptions, FlowImageOptions } from './export/draw'
 import type { FlowTree } from './core/groups'
 import { inject, type ComputedRef, type InjectionKey, type Ref, type ShallowRef } from 'vue'
@@ -17,7 +18,7 @@ import type {
 import type { FlowConnection, PortTypes, PortTypeSpec } from './core/connect'
 import type { EdgeTypeSpec } from './core/edge-types'
 import type { FlowExtension } from './core/extension'
-import type { FlowMenuItem, FlowMenuTarget } from './core/menu'
+import type { FlowMenuTarget } from './core/menu'
 import type { NodeTypeSpec } from './core/node-types'
 import type { FlowTransaction, FlowTransactionMeta } from './core/transaction'
 
@@ -38,6 +39,13 @@ export interface FlowMinimapProps {
   /** Size of the map in px. */
   width?: number
   height?: number
+}
+
+/** What the find panel looks for: text in the nodes' names. */
+export interface FlowSearchQuery {
+  search: string
+  /** Tell capital letters from small ones. */
+  caseSensitive?: boolean
 }
 
 export interface FlowEditorProps {
@@ -77,6 +85,8 @@ export interface FlowEditorProps {
   fitMinZoom?: number
   /** View, select and pan, but not change anything. */
   readonly?: boolean
+  /** The built-in find panel (`Ctrl/⌘+F`). Off, the keys are left to the page. On by default. */
+  searchable?: boolean
   /** Scrolling pans the canvas; with Ctrl / ⌘ it zooms. Off, only Ctrl / ⌘ + scroll zooms. */
   panOnScroll?: boolean
   /** Looks and connection rules of port types, by the name used in `dataType`. */
@@ -138,6 +148,12 @@ export interface FlowEditorExpose {
   zoomOut: () => void
   /** Centers a node in view without changing the zoom. */
   centerNode: (id: string) => void
+  /** Opens the find panel (`Ctrl/⌘+F`), with a query put in; `false` when `searchable` is off. */
+  openSearch: (query?: Partial<FlowSearchQuery>) => boolean
+  /** Closes the find panel; `false` when it was not open. */
+  closeSearch: () => boolean
+  /** The ids of the nodes whose names contain the search, in reading order. */
+  findNodes: (query: FlowSearchQuery) => string[]
   /**
    * Moves the view like the user's pans do: no further than having the nodes
    * just leave it. `v-model:viewport` goes anywhere.
@@ -322,13 +338,13 @@ export interface FlowEditorContext {
    */
   openMenu: (target: FlowMenuTarget, client: Point, from?: Element) => boolean
   /** The items the context menu has for a target, as `openMenu` shows them. */
-  menuItems: (target: FlowMenuTarget) => FlowMenuItem[]
+  menuItems: (target: FlowMenuTarget) => ContextMenuItem[]
   /**
    * Opens the editor's menu with these items, e.g. the choices behind a
    * toolbar button; `from` works as in `openMenu`.
    */
   showMenu: (
-    items: FlowMenuItem[],
+    items: ContextMenuItem[],
     client: Point,
     from?: Element,
     options?: { focusChecked?: boolean },
@@ -353,7 +369,8 @@ export const flowEditorKey: InjectionKey<FlowEditorContext> = Symbol('dou-flow-e
 /** The surrounding flow editor; for controls and panels placed in its default slot. */
 export function useFlowEditor() {
   const context = inject(flowEditorKey, null)
-  if (!context) throw new Error('[dou-ui] useFlowEditor() must be used inside <DouFlowEditor>')
+  if (!context)
+    throw new Error('[@dou-ui/flow] useFlowEditor() must be used inside <DouFlowEditor>')
   return context
 }
 

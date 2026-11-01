@@ -1,11 +1,21 @@
 import type { EditorState, Command, Plugin } from 'prosemirror-state'
 import type { EditorView } from 'prosemirror-view'
 import type { CommentAction, CommentAuthor, CommentThread } from 'dou-ui'
-import { inject, type ComputedRef, type InjectionKey, type ShallowRef } from 'vue'
+import {
+  inject,
+  onBeforeUnmount,
+  provide,
+  shallowReactive,
+  shallowRef,
+  type ComputedRef,
+  type InjectionKey,
+  type ShallowRef,
+} from 'vue'
 import type { CommentAnchor, CommentRange } from './core/comments'
 import type { EditorExtension, ResolvedEditorExtensions } from './core/extension'
 import type { BlockChanges } from './core/changes'
 import type { Block, PartialBlock } from './core/model'
+import type { EditorSearchQuery } from './core/search'
 import type {
   BlockEdge,
   BlockPatch,
@@ -29,6 +39,8 @@ export interface EditorProps {
   extensions?: (EditorExtension | EditorExtension[])[]
   /** Show the document without editing it. Links stay clickable. */
   readonly?: boolean
+  /** The built-in find panel (`Ctrl/⌘+F`). Off, the keys are left to the browser. On by default. */
+  searchable?: boolean
   /** The hint in the empty block under the cursor. */
   placeholder?: string
   /** Replace any of the built-in texts. */
@@ -115,12 +127,27 @@ export interface EditorEmits {
   transaction: [result: EditorTransactionResult]
   /** The cursor moved to another block, or other blocks were selected. */
   'update:selection': [selection: EditorSelection]
+  /** Before a link opens (Ctrl / ⌘ + click, or a click while read-only); `preventDefault()` keeps it from opening in a new tab. */
+  linkOpen: [event: EditorLinkOpenEvent]
   focus: [event: FocusEvent]
   blur: [event: FocusEvent]
   'update:comments': [threads: CommentThread[]]
   'update:activeComment': [id: string | null]
   /** A change to the comments made here: to send to a server, notify people, keep a log. */
   commentAction: [action: CommentAction]
+}
+
+/**
+ * Before a link is followed. `preventDefault()` stops the editor from
+ * opening it in a new tab, e.g. to use the app's router or ask first.
+ */
+export interface EditorLinkOpenEvent {
+  /** The address as the text's `link` holds it. */
+  link: string
+  /** The id of the block the link is in. */
+  block: string
+  defaultPrevented: boolean
+  preventDefault: () => void
 }
 
 export interface EditorExpose {
@@ -138,6 +165,14 @@ export interface EditorExpose {
   setHTML: (html: string) => void
   /** Run a ProseMirror command, e.g. one of the exported ones. */
   run: (command: Command) => boolean
+  /**
+   * Opens the find panel (`Ctrl/⌘+F`), with a query put in; with `replace`
+   * in it, the replace box opens too. `false` when `searchable` is off or
+   * the editor is not mounted.
+   */
+  openSearch: (query?: Partial<EditorSearchQuery>) => boolean
+  /** Closes the find panel; `false` when it was not open. */
+  closeSearch: () => boolean
   /**
    * Make changes by blocks and ids, applied together as one undo step.
    * Returns what happened, or `null` when nothing changed. Works while
@@ -232,6 +267,30 @@ export interface EditorContext {
 }
 
 export const editorKey: InjectionKey<EditorContext> = Symbol('DouEditor')
+
+const toolbarMenusKey: InjectionKey<Set<ShallowRef<boolean>>> = Symbol('DouEditorToolbarMenus')
+
+/** For the formatting toolbar: the open state of the menus in it. */
+export function provideToolbarMenus(): Set<ShallowRef<boolean>> {
+  const menus = shallowReactive(new Set<ShallowRef<boolean>>())
+  provide(toolbarMenusKey, menus)
+  return menus
+}
+
+/**
+ * The open state for a menu in the formatting toolbar (an extension's
+ * `toolbar` component), to bind with `v-model:open`: the toolbar stays
+ * while the menu is open, though the focus has left the editor.
+ */
+export function useToolbarMenu(): ShallowRef<boolean> {
+  const open = shallowRef(false)
+  const menus = inject(toolbarMenusKey, null)
+  if (menus) {
+    menus.add(open)
+    onBeforeUnmount(() => menus.delete(open))
+  }
+  return open
+}
 
 /** The editor around a block component, for its messages, state and view. */
 export function useEditor(): EditorContext {

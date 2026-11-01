@@ -85,7 +85,8 @@
     }
   },
   "dependencies": {
-    "@dou-ui/icons": "workspace:*"
+    "@dou-ui/icons": "workspace:*",
+    "@dou-ui/sheet": "workspace:*"
   },
   "devDependencies": {
     "@dou-ui/chart": "workspace:*",

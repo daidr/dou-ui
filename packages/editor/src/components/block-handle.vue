@@ -500,6 +500,14 @@ watch(menuOpen, (value) => {
             </template>
           </DouDropdownItem>
         </DouDropdownSub>
+        <template v-if="current">
+          <component
+            :is="entry"
+            v-for="(entry, index) in kit.blockMenu"
+            :key="index"
+            :block="current"
+          />
+        </template>
         <DouDropdownItem :shortcut="touch ? undefined : 'mod+d'" @click="duplicate">
           <template #prefix><CopyIcon /></template>
           {{ messages.duplicate }}

@@ -11,6 +11,7 @@ import { defineEditorExtension } from '../core/extension'
 import { atomInputRule, blockInputRule } from '../core/input-rules'
 import { indentLines } from '../core/output'
 import { blockElement, splitContainer } from '../core/prepare'
+import { alignable } from '../core/align'
 import { textBlock } from '../core/schema'
 
 /** The paragraph itself is part of the frame; this adds its menu entry and shortcut. */
@@ -36,25 +37,27 @@ const headingIcons = { 1: Heading1Icon, 2: Heading2Icon, 3: Heading3Icon }
 export const heading = defineEditorExtension({
   name: 'heading',
   blocks: {
-    heading: textBlock('heading', {
-      attrs: { level: { default: 1 } },
-      normalizeProps: (attrs: { level?: number }) =>
-        attrs.level === undefined
-          ? attrs
-          : { ...attrs, level: Math.min(3, Math.max(1, attrs.level)) },
-      parseDOM: [1, 2, 3, 4, 5, 6].map((level) => ({
-        tag: `h${level}`,
-        attrs: { level: Math.min(level, 3) },
-      })),
-      toDOM: (node) => [
-        `h${node.attrs.level}`,
-        {
-          class: 'dou-editor__content dou-editor__content--heading',
-          'data-content-type': 'heading',
-        },
-        0,
-      ],
-    }),
+    heading: alignable(
+      textBlock('heading', {
+        attrs: { level: { default: 1 } },
+        normalizeProps: (attrs: { level?: number }) =>
+          attrs.level === undefined
+            ? attrs
+            : { ...attrs, level: Math.min(3, Math.max(1, attrs.level)) },
+        parseDOM: [1, 2, 3, 4, 5, 6].map((level) => ({
+          tag: `h${level}`,
+          attrs: { level: Math.min(level, 3) },
+        })),
+        toDOM: (node) => [
+          `h${node.attrs.level}`,
+          {
+            class: 'dou-editor__content dou-editor__content--heading',
+            'data-content-type': 'heading',
+          },
+          0,
+        ],
+      }),
+    ),
   },
   output: {
     blocks: {
@@ -91,14 +94,16 @@ export const heading = defineEditorExtension({
 export const quote = defineEditorExtension({
   name: 'quote',
   blocks: {
-    quote: textBlock('quote', {
-      parseDOM: [{ tag: 'div[data-content-type="quote"]' }, { tag: 'blockquote' }],
-      toDOM: () => [
-        'blockquote',
-        { class: 'dou-editor__content dou-editor__content--quote', 'data-content-type': 'quote' },
-        0,
-      ],
-    }),
+    quote: alignable(
+      textBlock('quote', {
+        parseDOM: [{ tag: 'div[data-content-type="quote"]' }, { tag: 'blockquote' }],
+        toDOM: () => [
+          'blockquote',
+          { class: 'dou-editor__content dou-editor__content--quote', 'data-content-type': 'quote' },
+          0,
+        ],
+      }),
+    ),
   },
   output: {
     blocks: {

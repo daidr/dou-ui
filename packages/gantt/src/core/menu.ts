@@ -1,4 +1,3 @@
-import type { Component } from 'vue'
 import type { GanttLink, GanttTask } from './model'
 
 /** A point on the timeline, in px from its start and from the top of the rows. */
@@ -17,17 +16,3 @@ export type GanttMenuTarget =
   | { kind: 'task'; task: GanttTask; point: GanttPoint; time: number }
   | { kind: 'link'; link: GanttLink; point: GanttPoint; time: number }
   | { kind: 'canvas'; point: GanttPoint; time: number }
-
-export interface GanttMenuItem {
-  /** Unique within the menu. */
-  key: string
-  label: string
-  icon?: Component
-  /** A key to show after the label, written as in `useHotkey`; only shown. */
-  shortcut?: string
-  disabled?: boolean
-  tone?: 'danger'
-  /** Draw a separator above the item. */
-  divided?: boolean
-  run: () => void
-}

@@ -95,6 +95,13 @@ function startResize(event: PointerEvent, side: -1 | 1) {
 
 onBeforeUnmount(() => stop?.())
 
+/** Enter ends the caption, unless it picks a word in an input method. */
+function onCaptionEnter(event: KeyboardEvent) {
+  if (event.isComposing || event.keyCode === 229) return
+  event.preventDefault()
+  ;(event.target as HTMLInputElement).blur()
+}
+
 function onCaption(value: string) {
   props.updateProps({ caption: value })
 }
@@ -145,7 +152,7 @@ function onCaption(value: string) {
           :value="caption"
           :placeholder="text.caption"
           @change="onCaption(($event.target as HTMLInputElement).value)"
-          @keydown.enter.prevent="($event.target as HTMLInputElement).blur()"
+          @keydown.enter="onCaptionEnter"
         />
       </figcaption>
       <figcaption v-else-if="caption" class="dou-editor-image__caption">{{ caption }}</figcaption>
@@ -174,7 +181,7 @@ function onCaption(value: string) {
           autofocus
           @keydown.esc="embedding = false"
         />
-        <DouButton size="sm" variant="solid" type="submit">{{ text.apply }}</DouButton>
+        <DouButton size="sm" variant="solid" native-type="submit">{{ text.apply }}</DouButton>
       </form>
     </div>
 

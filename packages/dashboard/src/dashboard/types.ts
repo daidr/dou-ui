@@ -1,3 +1,5 @@
+import type { SheetExporterOptionsOf } from '@dou-ui/sheet'
+import type { SheetExporter } from '@dou-ui/sheet/core'
 import type { DashboardCollaboration } from '../core/collaboration'
 import type { DashboardTransaction } from '../core/transaction'
 import type { DashboardDocument, DashboardPlace } from '../core/types'
@@ -54,6 +56,43 @@ export interface DashboardProps {
    * shared one, and undo only takes back this person's own changes.
    */
   collaboration?: DashboardCollaboration
+  /**
+   * The file types a widget's content can be exported as, from the menu in
+   * its title bar: exporters of `@dou-ui/sheet`, such as `csvExporter` or
+   * `xlsxExporter` from `@dou-ui/sheet-xlsx`. Only widgets that give their
+   * content as a workbook (`setWorkbook`) have the menu: the built-in
+   * table, pivot table and chart do. Exporters that draw a sheet's grid,
+   * such as PNG, are left out.
+   */
+  exporters?: readonly SheetExporter[]
+}
+
+/** Options of a dashboard's `exportWidget`. */
+export interface DashboardExportOptions<Options = any> {
+  /** The exporter's own options, such as `{ bom: false }` for CSV. */
+  options?: Options
+  /** Calls the export off. */
+  signal?: AbortSignal
+}
+
+/** Options of a dashboard's `saveWidget`: `exportWidget`'s, and the file's name. */
+export interface DashboardSaveOptions<Options = any> extends DashboardExportOptions<Options> {
+  /** The file's name, with its extension; the widget's title by default. */
+  fileName?: string
+}
+
+/** A widget's export from its menu failed. */
+export interface DashboardExportErrorEvent {
+  /** The widget's id. */
+  widget: string
+  /** The exporter's name. */
+  exporter: string
+  error: unknown
+  /** What the dashboard shows over the widget's content, unless `preventDefault()` is called. */
+  message: string
+  defaultPrevented: boolean
+  /** Says the app tells of the failure itself. */
+  preventDefault: () => void
 }
 
 export interface DashboardEmits {
@@ -61,7 +100,9 @@ export interface DashboardEmits {
   'update:filters': [filters: DashboardFilters]
   /** After every change, with the steps that made it and those that undo it. */
   change: [transaction: DashboardTransaction]
-  'breakpoint-change': [breakpoint: string]
+  breakpointChange: [breakpoint: string]
+  /** Exporting a widget from its menu or `saveWidget` failed; the widget tells of it unless prevented. */
+  exportError: [event: DashboardExportErrorEvent]
 }
 
 export interface DashboardAddOptions {
@@ -119,6 +160,42 @@ export interface DashboardExpose {
    * the view) once their data is in, without menus and buttons.
    */
   exportPNG: (options?: DashboardImageOptions) => Promise<Blob>
+  /**
+   * A widget's content as a file: the workbook it gives, written by an
+   * exporter (its name in `exporters`, or the exporter itself). Waits for
+   * the data, and draws the widget first when it is far from the view.
+   * Fails with a `SheetFileError` (`code: 'empty'`) for a widget that
+   * gives no workbook, such as a chart without its fields.
+   */
+  exportWidget: {
+    <Name extends string>(
+      id: string,
+      exporter: Name,
+      options?: DashboardExportOptions<SheetExporterOptionsOf<Name>>,
+    ): Promise<Blob>
+    <Options>(
+      id: string,
+      exporter: SheetExporter<Options>,
+      options?: DashboardExportOptions<Options>,
+    ): Promise<Blob>
+  }
+  /**
+   * Exports as `exportWidget` does and saves the file in the downloads, as
+   * the widget's menu does. A failure shows over the widget and comes as
+   * `exportError`, and the promise rejects.
+   */
+  saveWidget: {
+    <Name extends string>(
+      id: string,
+      exporter: Name,
+      options?: DashboardSaveOptions<SheetExporterOptionsOf<Name>>,
+    ): Promise<void>
+    <Options>(
+      id: string,
+      exporter: SheetExporter<Options>,
+      options?: DashboardSaveOptions<Options>,
+    ): Promise<void>
+  }
   /** Draws every widget, waits for their data, and opens the print dialog. */
   print: () => Promise<void>
 }

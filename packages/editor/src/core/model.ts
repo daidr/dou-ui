@@ -1,4 +1,5 @@
 import { Mark, type NodeType, type Node as PMNode, type Schema } from 'prosemirror-model'
+import { isColor, type TextColor } from './colors'
 import type { ContentType, MarkType } from './schema'
 
 /** A run of text with its formatting. */
@@ -9,9 +10,20 @@ export interface TextContent {
   marks?: MarkType[]
   /** The link target, when the text is a link. */
   link?: string
+  /** The text color, by palette name (e.g. `red`), with the `colors` extension. */
+  color?: TextColor
+  /** The background color, by palette name (e.g. `yellow`), with the `colors` extension. */
+  highlight?: TextColor
   /** The ids of the comment threads about this text. */
   comments?: string[]
 }
+
+/**
+ * For the `colors` extension's marks (internal): a mark that carries one
+ * color is stored on the text run under this name, e.g.
+ * `{ text, color: 'red' }`, and keeps it in its `value` attribute.
+ */
+export type MarkField = 'color' | 'highlight'
 
 /** A line break inside a block (`Shift+Enter`). */
 export interface BreakContent {
@@ -38,6 +50,8 @@ export interface BlockProps {
   language?: string
   /** The tone of a callout: `info`, `tip`, `warning` or `danger`. */
   tone?: string
+  /** How a paragraph, heading or quote lines up; left out when it follows the reading direction. */
+  align?: 'left' | 'center' | 'right'
   [name: string]: unknown
 }
 
@@ -161,6 +175,7 @@ export function inlineOf(node: PMNode): InlineContent[] {
       return
     }
     const marks = child.marks
+      .filter((mark) => !mark.type.spec.field)
       .map((mark) => mark.type.name)
       .filter((name): name is MarkType => name !== 'link' && name !== 'comment')
       // oxlint-disable-next-line unicorn/no-array-sort -- sorts the filtered copy
@@ -170,6 +185,10 @@ export function inlineOf(node: PMNode): InlineContent[] {
     const item: TextContent = { type: 'text', text: child.text ?? '' }
     if (marks.length) item.marks = marks
     if (link) item.link = link
+    for (const mark of child.marks) {
+      const field = mark.type.spec.field as MarkField | undefined
+      if (field) item[field] = mark.attrs.value as TextColor
+    }
     const comments = child.marks
       .filter((mark) => mark.type.name === 'comment')
       .map((mark) => mark.attrs.id as string)
@@ -179,6 +198,8 @@ export function inlineOf(node: PMNode): InlineContent[] {
     if (
       previous?.type === 'text' &&
       previous.link === item.link &&
+      previous.color === item.color &&
+      previous.highlight === item.highlight &&
       String(previous.marks ?? '') === String(item.marks ?? '') &&
       String(previous.comments ?? '') === String(item.comments ?? '')
     )
@@ -188,7 +209,13 @@ export function inlineOf(node: PMNode): InlineContent[] {
   return result
 }
 
-const propsOf = (content: PMNode): BlockProps => ({ ...content.attrs })
+/** A content node's attributes; those its spec lists as `optionalProps` only when set. */
+function propsOf(content: PMNode): BlockProps {
+  const props: BlockProps = { ...content.attrs }
+  for (const name of (content.type.spec.optionalProps as string[] | undefined) ?? [])
+    if (props[name] === null || props[name] === undefined) delete props[name]
+  return props
+}
 
 /**
  * Blocks already read, by node. Nodes never change, so a block that wasn't
@@ -262,6 +289,14 @@ function marksFor(schema: Schema, item: TextContent): Mark[] {
     if (type) marks.push(type.create())
   }
   if (item.link && schema.marks.link) marks.push(schema.marks.link.create({ href: item.link }))
+  for (const type of Object.values(schema.marks)) {
+    const field = type.spec.field as MarkField | undefined
+    const value = field && item[field]
+    if (!value) continue
+    // a color outside the palette is dropped
+    if (!isColor(value)) warnOnce(`"${value}" is not a palette color; dropped`)
+    else marks.push(type.create({ value }))
+  }
   for (const id of item.comments ?? []) marks.push(schema.marks.comment!.create({ id }))
   return Mark.setFrom(marks) as Mark[]
 }
@@ -341,4 +376,13 @@ export function blocksToDoc(schema: Schema, blocks: PartialBlock[]): PMNode {
     null,
     list.map((block) => nodeFromBlock(schema, block)),
   )
+}
+
+const warned = new Set<string>()
+
+/** A development warning, once per message. */
+export function warnOnce(message: string) {
+  if (process.env.NODE_ENV === 'production' || warned.has(message)) return
+  warned.add(message)
+  console.warn(`[@dou-ui/editor] ${message}`)
 }

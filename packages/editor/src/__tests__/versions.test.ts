@@ -8,7 +8,9 @@ import { diffBlocks, diffText } from '../core/diff'
 import type { Block, PartialBlock } from '../core/model'
 import { historyCommands } from '../core/editor'
 import DouEditor from '../editor.vue'
+import { attachment } from '../extensions/attachment'
 import { editorKit } from '../extensions/editor-kit'
+import { embed } from '../extensions/embed'
 import type { EditorExpose } from '../editor'
 
 const wrappers: { unmount: () => void }[] = []
@@ -99,6 +101,61 @@ describe('compare', () => {
     await wrapper.setProps({ compare: null })
     expect(root.querySelector('.dou-editor__diff-removed-block')).toBeNull()
     expect(exposed.view.editable).toBe(true)
+  })
+})
+
+const file = (id: string, name: string): Block =>
+  block(id, '', {
+    type: 'attachment',
+    props: { src: `https://example.com/${name}`, name, size: 1024, mime: 'application/pdf' },
+  })
+const frame = (id: string, caption: string): Block =>
+  block(id, '', { type: 'embed', props: { src: 'https://example.com/route.mp4', caption } })
+
+const filesBefore = () => [
+  block('a', '上海站的活动定在周六'),
+  file('f', '方案.pdf'),
+  frame('e', '上海地图'),
+  file('g', '预算.xlsx'),
+]
+const filesAfter = () => [
+  block('a', '', { content: [{ type: 'text', text: '上海站的活动定在周六', marks: ['bold'] }] }),
+  file('f', '方案二稿.pdf'),
+  frame('e', '上海地图'),
+  file('h', '物料.zip'),
+  frame('k', '会场路线'),
+]
+
+describe('compare with files and embeds', () => {
+  it('marks changed, added and removed files and embeds, and restores them', async () => {
+    const diff = diffBlocks(filesBefore(), filesAfter())
+    expect([diff.added, diff.removed, diff.updated]).toEqual([['h', 'k'], ['g'], ['a', 'f']])
+    const { wrapper, exposed } = mountEditor({
+      modelValue: filesAfter(),
+      compare: filesBefore(),
+      extensions: [editorKit(), attachment(), embed()],
+    })
+    await nextTick()
+    const root = wrapper.element
+    const classes = (id: string) => root.querySelector(`[data-block-id="${id}"]`)!.classList
+    expect(classes('f')).toContain('dou-editor__diff-changed')
+    expect(classes('e')).not.toContain('dou-editor__diff-changed')
+    expect(classes('h')).toContain('dou-editor__diff-added')
+    expect(classes('k')).toContain('dou-editor__diff-added')
+    // only the formatting changed: the text is the same, the block still shows it changed
+    expect(classes('a')).toContain('dou-editor__diff-changed')
+    // a removed file reads as its name
+    expect(root.querySelector('.dou-editor__diff-removed-block')!.textContent).toBe('预算.xlsx')
+
+    expect(exposed.restore(filesBefore())).toBe(true)
+    await wrapper.setProps({ compare: null })
+    expect(diffBlocks(filesBefore(), exposed.getBlocks()).changes).toEqual([])
+    expect(exposed.getBlocks().map((b) => [b.id, b.type])).toEqual([
+      ['a', 'paragraph'],
+      ['f', 'attachment'],
+      ['e', 'embed'],
+      ['g', 'attachment'],
+    ])
   })
 })
 

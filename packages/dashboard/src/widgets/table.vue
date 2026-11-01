@@ -3,12 +3,12 @@ import { DouTable } from 'dou-ui'
 import type { TableColumn } from 'dou-ui'
 import { computed, onMounted, ref } from 'vue'
 import { useDashboardWidget } from '../widget/context'
-import { fieldsOf, rowsOf } from './shared'
+import { fieldsOf, rowsToWorkbook, rowsOf } from './shared'
 import type { TableWidgetColumn, TableWidgetProps } from './types'
 
 defineOptions({ name: 'DouDashboardTableWidget' })
 
-const { props, data, size } = useDashboardWidget<TableWidgetProps>()
+const { props, data, size, setWorkbook } = useDashboardWidget<TableWidgetProps>()
 const rows = computed(() => rowsOf(data.value, props.value.path))
 /** Each row's key: its `rowKey` field, or its place in the list. */
 const keys = computed(() => {
@@ -70,6 +70,18 @@ const columns = computed<TableColumn[]>(() => {
     }
   })
 })
+// the export menu writes the rows as they are, numbers without digit groups
+setWorkbook(() =>
+  rowsToWorkbook(
+    '',
+    columns.value.map((column) => ({
+      key: column.key as string,
+      title: String(column.title),
+      width: typeof column.width === 'number' ? column.width : undefined,
+    })),
+    rows.value,
+  ),
+)
 </script>
 
 <template>

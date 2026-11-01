@@ -188,6 +188,30 @@ export interface SheetMessages {
   freezeFirstCol: string
   unfreeze: string
   print: string
+  /** Find and replace: the commands, and the toggles the panel adds. */
+  find: {
+    find: string
+    replace: string
+    next: string
+    previous: string
+    /** Only cells whose whole text is the search. */
+    wholeCell: string
+    /** Look in formulas, not in the values cells show. */
+    formulas: string
+    /** Look in every sheet, not only the one shown. */
+    workbook: string
+    /** Added after “replaced” for matches in a formula's result, left as they are: `{count}`. */
+    skippedFormula: string
+    /** Added after “replaced” for matches in locked cells of a protected sheet: `{count}`. */
+    skippedProtected: string
+    /** Added after “replaced” for matches whose new value breaks a validation rule: `{count}`. */
+    skippedInvalid: string
+    /**
+     * Added after “replaced” for matches only in the text a number format
+     * shows, such as a currency sign, which no typed value gives: `{count}`.
+     */
+    skippedShown: string
+  }
   /** Files in and out: the export and import menus, and what is read out after. */
   file: SheetFileMessages
 }
@@ -589,6 +613,19 @@ const zhCN: SheetMessages = {
   freezeFirstCol: '冻结首列',
   unfreeze: '取消冻结',
   print: '打印',
+  find: {
+    find: '查找',
+    replace: '替换',
+    next: '查找下一个',
+    previous: '查找上一个',
+    wholeCell: '单元格完全匹配',
+    formulas: '查找公式',
+    workbook: '所有工作表',
+    skippedFormula: '；{count} 处是公式的结果，没有替换（打开“查找公式”可以替换公式）',
+    skippedProtected: '；{count} 处在受保护的单元格里，没有替换',
+    skippedInvalid: '；{count} 处替换后不符合数据验证，没有替换',
+    skippedShown: '；{count} 处查到的文字只在显示格式里，没有替换',
+  },
   file: {
     export: '导出',
     import: '导入',
@@ -1003,6 +1040,19 @@ const zhTW: SheetMessages = {
   freezeFirstCol: '凍結首欄',
   unfreeze: '取消凍結',
   print: '列印',
+  find: {
+    find: '尋找',
+    replace: '取代',
+    next: '尋找下一個',
+    previous: '尋找上一個',
+    wholeCell: '儲存格完全相符',
+    formulas: '尋找公式',
+    workbook: '所有工作表',
+    skippedFormula: '；{count} 處是公式的結果，沒有取代（開啟「尋找公式」可以取代公式）',
+    skippedProtected: '；{count} 處在受保護的儲存格裡，沒有取代',
+    skippedInvalid: '；{count} 處取代後不符合資料驗證，沒有取代',
+    skippedShown: '；{count} 處找到的文字只在顯示格式裡，沒有取代',
+  },
   file: {
     export: '匯出',
     import: '匯入',
@@ -1426,6 +1476,20 @@ const en: SheetMessages = {
   freezeFirstCol: 'First column',
   unfreeze: 'Unfreeze',
   print: 'Print',
+  find: {
+    find: 'Find',
+    replace: 'Replace',
+    next: 'Find next',
+    previous: 'Find previous',
+    wholeCell: 'Match entire cell',
+    formulas: 'Look in formulas',
+    workbook: 'All sheets',
+    skippedFormula:
+      '; {count} are formula results and were left (turn on “Look in formulas” to replace formulas)',
+    skippedProtected: '; {count} are in protected cells and were left',
+    skippedInvalid: '; {count} would break a validation rule and were left',
+    skippedShown: '; {count} match only text the number format shows and were left',
+  },
   file: {
     export: 'Export',
     import: 'Import',

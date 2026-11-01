@@ -365,6 +365,16 @@ describe('clampPan', () => {
     expect(clampPan(at(4900, 0), far, content, size)).toEqual(at(4900, 0))
   })
 
+  it('keeps a zoom in at the edge anchored where it was asked', () => {
+    // At the edge, zoom to 2x about the screen point (200, 150): it stays under the pointer.
+    const edge = at(400, 300)
+    const zoomed = at(200 - (200 - 400) * 2, 150 - (150 - 300) * 2, 2)
+    expect(clampPan(zoomed, edge, content, size)).toEqual(zoomed)
+    // Zooming in while moving further away is held back: no further out than
+    // the view's current centre, here the edge view's centre at 2x.
+    expect(clampPan(at(5000, 5000, 2), edge, content, size)).toEqual(at(600, 450, 2))
+  })
+
   it('leaves the view alone before the editor has a size', () => {
     expect(clampPan(at(1e9, 0), at(0, 0), content, { width: 0, height: 0 })).toEqual(at(1e9, 0))
   })

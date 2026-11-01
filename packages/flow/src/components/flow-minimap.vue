@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useFlowEditor, type FlowMinimapProps } from '../context'
 import { boundsOf } from '../core/geometry'
 import type { Point, Rect } from '../core/model'
@@ -29,9 +29,9 @@ const rects = computed(() =>
   }),
 )
 
-/** `boxes` and some room around them. */
-function framing(boxes: Rect[]): Rect {
-  const all = boundsOf(boxes)!
+/** What the map shows: every node and the view, with some room around. */
+const fitted = computed<Rect>(() => {
+  const all = boundsOf([...rects.value.map((r) => r.rect), visible.value])!
   const pad = Math.max(all.width, all.height) * 0.05
   return {
     x: all.x - pad,
@@ -39,10 +39,7 @@ function framing(boxes: Rect[]): Rect {
     width: all.width + pad * 2,
     height: all.height + pad * 2,
   }
-}
-
-/** What the map shows: every node and the view. */
-const fitted = computed(() => framing([...rects.value.map((r) => r.rect), visible.value]))
+})
 
 /**
  * Held still while the view is dragged: a map that grew to take in the view
@@ -99,17 +96,8 @@ function onPointerDown(event: PointerEvent) {
   if (event.button !== 0) return
   event.stopPropagation()
   dragging.value = true
-  // Room for wherever the view can go: until the nodes just leave it on any side.
-  const { width, height } = visible.value
-  held.value = framing([
-    visible.value,
-    ...rects.value.map(({ rect }) => ({
-      x: rect.x - width,
-      y: rect.y - height,
-      width: rect.width + width * 2,
-      height: rect.height + height * 2,
-    })),
-  ])
+  // The map as it is now: the press lands where it was seen.
+  held.value = fitted.value
   try {
     svg.value!.setPointerCapture(event.pointerId)
   } catch {
@@ -126,12 +114,50 @@ function onPointerUp() {
   dragging.value = false
   held.value = null
 }
+
+const el = ref<HTMLElement>()
+/** How far the map moves away from its edge to clear the other panels there, in px. */
+const lift = ref(0)
+const LIFT_GAP = 8
+
+/**
+ * On a narrow editor the map would cover a panel in the same corner row,
+ * e.g. the controls: then it sits above (or below) them instead.
+ */
+function place() {
+  const self = el.value
+  const root = flow.root.value
+  if (!self || !root) return
+  const upper = props.placement.startsWith('top')
+  const box = self.getBoundingClientRect()
+  // where the map is without the lift
+  const top = box.top + (upper ? -lift.value : lift.value)
+  const bottom = top + box.height
+  let next = 0
+  for (const panel of root.querySelectorAll('.dou-flow-editor__panels > *')) {
+    if (panel === self || panel.classList.contains('dou-flow-minimap')) continue
+    const rect = panel.getBoundingClientRect()
+    if (!rect.width || !rect.height) continue
+    if (rect.right <= box.left || rect.left >= box.right) continue
+    if (rect.bottom <= top || rect.top >= bottom) continue
+    next = Math.max(next, upper ? rect.bottom - top + LIFT_GAP : bottom - rect.top + LIFT_GAP)
+  }
+  lift.value = next
+}
+
+onMounted(() => nextTick(place))
+watch(
+  () => [flow.size.value.width, flow.size.value.height, props.width, props.height, props.placement],
+  () => nextTick(place),
+)
 </script>
 
 <template>
   <div
+    ref="el"
     class="dou-flow-minimap"
     data-flow-overlay
+    :style="lift ? { translate: `0 ${placement.startsWith('top') ? lift : -lift}px` } : undefined"
     :class="[`is-${placement}`, { 'is-dragging': dragging }]"
     role="img"
     :aria-label="messages.minimap"

@@ -324,6 +324,33 @@ describe('DouFlowMinimap', () => {
     wrapper.unmount()
   })
 
+  it('centres the view on the node that is pressed, without moving the map', async () => {
+    const { wrapper } = setup()
+    await nextTick()
+    const svg = wrapper.find('.dou-flow-minimap svg')
+    const el = svg.element as SVGSVGElement
+    el.getBoundingClientRect = () =>
+      ({ left: 0, top: 0, right: 200, bottom: 136, width: 200, height: 136 }) as DOMRect
+    const editor = wrapper.findComponent(DouFlowEditor)
+    const before = svg.attributes('viewBox')
+    const [x, y, w, vh] = before!.split(' ').map(Number) as [number, number, number, number]
+    const node = wrapper.findAll('.dou-flow-minimap__node')[1]!
+    const cx = Number(node.attributes('x')) + Number(node.attributes('width')) / 2
+    const cy = Number(node.attributes('y')) + Number(node.attributes('height')) / 2
+    await svg.trigger('pointerdown', {
+      button: 0,
+      clientX: ((cx - x) / w) * 200,
+      clientY: ((cy - y) / vh) * 136,
+    })
+    expect(svg.attributes('viewBox')).toBe(before)
+    const view = editor.emitted('update:viewport')!.at(-1)![0] as FlowViewport
+    const { width, height } = (editor.vm as any).$el.getBoundingClientRect()
+    expect((width / 2 - view.x) / view.zoom).toBeCloseTo(cx)
+    expect((height / 2 - view.y) / view.zoom).toBeCloseTo(cy)
+    await svg.trigger('pointerup')
+    wrapper.unmount()
+  })
+
   it('holds the map still while dragging and stops the view at its edge', async () => {
     const { wrapper } = setup()
     await nextTick()

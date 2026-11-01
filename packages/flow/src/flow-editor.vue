@@ -3477,6 +3477,7 @@ async function exportPNG(options: FlowImageOptions = {}) {
 }
 
 defineExpose<FlowEditorExpose>({
+  setViewport,
   exportSVG,
   exportPNG,
   transact,

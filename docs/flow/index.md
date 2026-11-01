@@ -137,24 +137,25 @@ app.use(DouFlowEditor)
 
 ### FlowEditor 方法
 
-| 名称                                        | 说明                                                                     | 类型                                           |
-| ------------------------------------------- | ------------------------------------------------------------------------ | ---------------------------------------------- |
-| `transact`                                  | 在一个事务里修改文档，算作一步撤销                                       | `(fn: (tr) => void, meta?) => FlowTransaction` |
-| `undo` / `redo`                             | 撤销、重做                                                               | `() => boolean`                                |
-| `canUndo` / `canRedo`                       | 能否撤销、重做                                                           | `boolean`                                      |
-| `fit`                                       | 显示全部节点，或指定的节点                                               | `(ids?: string[]) => void`                     |
-| `zoomTo` / `zoomIn` / `zoomOut`             | 缩放                                                                     | —                                              |
-| `centerNode`                                | 把节点移到画布中央，不改变缩放                                           | `(id: string) => void`                         |
-| `tidy`                                      | 整理节点，默认整理选中的（两个以上时）或全部，算作一步撤销               | `(ids?: string[]) => void`                     |
-| `toCanvas`                                  | 屏幕坐标转画布坐标                                                       | `(point: Point) => Point`                      |
-| `getNodeRect`                               | 节点在画布上的位置和尺寸                                                 | `(id: string) => Rect \| null`                 |
-| `exportSVG` / `exportPNG`                   | 把流程导出成 SVG 文本或 PNG，见[导出图片](./export)                      | —                                              |
-| `staleEdges`                                | 端口已经对不上的连线，见[端口类型随数据变化](./ports#端口类型随数据变化) | `string[]`                                     |
-| `removeStaleEdges`                          | 删除这些连线，算作一步撤销，返回删除的条数                               | `() => number`                                 |
-| `insertNode`                                | 新建一个节点并选中，见[用代码添加节点](./editing#用代码添加节点)         | `(type, options?) => string \| null`           |
-| `startInsertDrag`                           | 从一次 `pointerdown` 开始拖入新节点，见[拖入节点](./editing#拖入节点)    | `(type, event) => boolean`                     |
-| `editLabel`                                 | 选中一条连线并开始编辑它的标签，见[标签](./edges#标签)                   | `(id: string) => void`                         |
-| `groupNodes` / `ungroupNode` / `leaveGroup` | 放进分组、取消分组、移出分组，见[分组](./groups#方法)                    | —                                              |
+| 名称                                        | 说明                                                                           | 类型                                                  |
+| ------------------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------- |
+| `transact`                                  | 在一个事务里修改文档，算作一步撤销                                             | `(fn: (tr) => void, meta?) => FlowTransaction`        |
+| `undo` / `redo`                             | 撤销、重做                                                                     | `() => boolean`                                       |
+| `canUndo` / `canRedo`                       | 能否撤销、重做                                                                 | `boolean`                                             |
+| `fit`                                       | 显示全部节点，或指定的节点                                                     | `(ids?: string[]) => void`                            |
+| `zoomTo` / `zoomIn` / `zoomOut`             | 缩放                                                                           | —                                                     |
+| `centerNode`                                | 把节点移到画布中央，不改变缩放                                                 | `(id: string) => void`                                |
+| `setViewport`                               | 移动视图，和用户平移一样最远到节点刚好移出视野；`animate` 为 `true` 时动画过渡 | `(viewport: FlowViewport, animate?: boolean) => void` |
+| `tidy`                                      | 整理节点，默认整理选中的（两个以上时）或全部，算作一步撤销                     | `(ids?: string[]) => void`                            |
+| `toCanvas`                                  | 屏幕坐标转画布坐标                                                             | `(point: Point) => Point`                             |
+| `getNodeRect`                               | 节点在画布上的位置和尺寸                                                       | `(id: string) => Rect \| null`                        |
+| `exportSVG` / `exportPNG`                   | 把流程导出成 SVG 文本或 PNG，见[导出图片](./export)                            | —                                                     |
+| `staleEdges`                                | 端口已经对不上的连线，见[端口类型随数据变化](./ports#端口类型随数据变化)       | `string[]`                                            |
+| `removeStaleEdges`                          | 删除这些连线，算作一步撤销，返回删除的条数                                     | `() => number`                                        |
+| `insertNode`                                | 新建一个节点并选中，见[用代码添加节点](./editing#用代码添加节点)               | `(type, options?) => string \| null`                  |
+| `startInsertDrag`                           | 从一次 `pointerdown` 开始拖入新节点，见[拖入节点](./editing#拖入节点)          | `(type, event) => boolean`                            |
+| `editLabel`                                 | 选中一条连线并开始编辑它的标签，见[标签](./edges#标签)                         | `(id: string) => void`                                |
+| `groupNodes` / `ungroupNode` / `leaveGroup` | 放进分组、取消分组、移出分组，见[分组](./groups#方法)                          | —                                                     |
 
 ### FlowControls 属性
 

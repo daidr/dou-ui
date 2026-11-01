@@ -1,4 +1,4 @@
-import type { Mark, NodeType, Node as PMNode, Schema } from 'prosemirror-model'
+import { Mark, type NodeType, type Node as PMNode, type Schema } from 'prosemirror-model'
 import type { ContentType, MarkType } from './schema'
 
 /** A run of text with its formatting. */
@@ -9,6 +9,8 @@ export interface TextContent {
   marks?: MarkType[]
   /** The link target, when the text is a link. */
   link?: string
+  /** The ids of the comment threads about this text. */
+  comments?: string[]
 }
 
 /** A line break inside a block (`Shift+Enter`). */
@@ -160,7 +162,7 @@ export function inlineOf(node: PMNode): InlineContent[] {
     }
     const marks = child.marks
       .map((mark) => mark.type.name)
-      .filter((name): name is MarkType => name !== 'link')
+      .filter((name): name is MarkType => name !== 'link' && name !== 'comment')
       // oxlint-disable-next-line unicorn/no-array-sort -- sorts the filtered copy
       .sort((a, b) => markRank(a) - markRank(b) || a.localeCompare(b))
     const link = child.marks.find((mark) => mark.type.name === 'link')?.attrs.href as
@@ -168,12 +170,17 @@ export function inlineOf(node: PMNode): InlineContent[] {
     const item: TextContent = { type: 'text', text: child.text ?? '' }
     if (marks.length) item.marks = marks
     if (link) item.link = link
+    const comments = child.marks
+      .filter((mark) => mark.type.name === 'comment')
+      .map((mark) => mark.attrs.id as string)
+    if (comments.length) item.comments = comments
     // merge with the previous run when the formatting is the same
     const previous = result.at(-1)
     if (
       previous?.type === 'text' &&
       previous.link === item.link &&
-      String(previous.marks ?? '') === String(item.marks ?? '')
+      String(previous.marks ?? '') === String(item.marks ?? '') &&
+      String(previous.comments ?? '') === String(item.comments ?? '')
     )
       previous.text += item.text
     else result.push(item)
@@ -255,7 +262,8 @@ function marksFor(schema: Schema, item: TextContent): Mark[] {
     if (type) marks.push(type.create())
   }
   if (item.link && schema.marks.link) marks.push(schema.marks.link.create({ href: item.link }))
-  return marks
+  for (const id of item.comments ?? []) marks.push(schema.marks.comment!.create({ id }))
+  return Mark.setFrom(marks) as Mark[]
 }
 
 export function inlineNodes(

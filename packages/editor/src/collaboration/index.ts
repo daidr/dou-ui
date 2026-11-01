@@ -1,5 +1,12 @@
-import { collaborationColors } from 'dou-ui'
-import { TextSelection, type Command } from 'prosemirror-state'
+import {
+  applySharedCommentAction,
+  collaborationColors,
+  readSharedComments,
+  type CommentThread,
+  type SharedCommentMap,
+} from 'dou-ui'
+import { shallowRef } from 'vue'
+import { Plugin, TextSelection, type Command } from 'prosemirror-state'
 import * as Y from 'yjs'
 import {
   defineEditorExtension,
@@ -25,6 +32,13 @@ export interface CollaborationOptions {
   awareness?: AwarenessLike
   /** This user, shown at their cursor to the others. Needs `awareness`. */
   user?: CollaborationUser
+  /**
+   * Where the comment threads live, e.g. `ydoc.getMap('comments')`, so
+   * they reach everyone with the document. `v-model:comments` then only
+   * mirrors them. Without it, the text's anchors still travel with the
+   * document and the threads are the app's to share.
+   */
+  comments?: Y.Map<unknown>
 }
 
 export { collaborationColors }
@@ -76,10 +90,34 @@ export function collaboration(options: CollaborationOptions): EditorExtension {
       return true
     }
 
+  const shared = options.comments
+  const threads = shallowRef<readonly CommentThread[]>([])
+  const readThreads = () => (threads.value = readSharedComments(shared as SharedCommentMap))
+  if (shared) readThreads()
+  // follows the shared threads while the editor is there
+  const commentsPlugin = new Plugin({
+    view: () => {
+      shared!.observe(readThreads)
+      readThreads()
+      return { destroy: () => shared!.unobserve(readThreads) }
+    },
+  })
+
   return defineEditorExtension({
     name: 'collaboration',
     externalDocument: true,
-    plugins: () => [syncPlugin(binding), ...(awareness ? [cursorsPlugin(binding, awareness)] : [])],
+    comments: shared
+      ? () => ({
+          threads,
+          apply: (action) =>
+            applySharedCommentAction(shared as SharedCommentMap, action, binding.untracked),
+        })
+      : undefined,
+    plugins: () => [
+      syncPlugin(binding),
+      ...(awareness ? [cursorsPlugin(binding, awareness)] : []),
+      ...(shared ? [commentsPlugin] : []),
+    ],
     history: () => ({ plugins: [], undo: run('undo'), redo: run('redo') }),
   })
 }

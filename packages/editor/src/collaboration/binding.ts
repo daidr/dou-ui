@@ -398,12 +398,14 @@ export function syncPlugin(binding: Binding): Plugin {
         const meta = tr.getMeta(collaborationKey) as { remote?: boolean } | undefined
         if (!tr.docChanged) return value
         if (meta?.remote) return { remote: true, tracked: false, own: false }
-        // several transactions can arrive at once (e.g. with appended id fixes)
+        // a transaction can come with appended ones (e.g. id fixes), written
+        // together: undone together if any of them is
         const tracked = tr.getMeta('addToHistory') !== false
         const own = tr.getMeta(ownStepKey) === true
-        return value.remote
-          ? { remote: false, tracked, own }
-          : { remote: false, tracked: value.tracked || tracked, own: value.own || own }
+        const appended = !!tr.getMeta('appendedTransaction') && !value.remote
+        return appended
+          ? { remote: false, tracked: value.tracked || tracked, own: value.own || own }
+          : { remote: false, tracked, own }
       },
     },
     view(view) {

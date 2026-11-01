@@ -7,6 +7,7 @@ export default DouEditor
 
 export { useEditor } from './editor'
 export type {
+  EditorComments,
   EditorContext,
   EditorEmits,
   EditorExpose,
@@ -23,12 +24,14 @@ export type {
   EditorTransactionMeta,
 } from './core/transaction'
 export type { BlockChanges } from './core/changes'
+export type { CommentAnchor, CommentRange } from './core/comments'
 export { editorLocales, useEditorMessages } from './locale'
 export type { EditorMessages, EditorMessagesOverride } from './locale'
 export { filterOptions } from './catalog'
 export { defineEditorExtension, labelOf } from './core/extension'
 export type {
   BlockOption,
+  CommentsProvider,
   EditorExtension,
   EditorExtensionContext,
   FormatOption,

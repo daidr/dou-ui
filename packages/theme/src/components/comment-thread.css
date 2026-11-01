@@ -1,0 +1,137 @@
+/*
+ * CommentThread
+ *
+ * A discussion read top to bottom: each comment a small avatar, the name
+ * and a quiet time on one line, the text under it, indented to the name
+ * so the avatars form a column. The thread has no frame of its own; the
+ * card, popover or sidebar it sits in gives it one. A settled thread
+ * steps back to the tertiary color and says who settled it.
+ */
+@layer dou.components {
+  .dou-comment-thread {
+    --dou-comment-thread-gap: 14px;
+    --dou-comment-thread-avatar: 24px;
+    --dou-comment-thread-indent: calc(var(--dou-comment-thread-avatar) + 8px);
+
+    display: flex;
+    flex-direction: column;
+    gap: var(--dou-comment-thread-gap);
+    min-width: 0;
+    color: var(--dou-color-text);
+    font-size: var(--dou-font-size-sm);
+    line-height: var(--dou-font-line-height);
+  }
+
+  .dou-comment-thread__status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 28px;
+    color: var(--dou-color-text-tertiary);
+
+    & > .dou-button {
+      margin-inline-start: auto;
+    }
+  }
+
+  .dou-comment-thread__status-icon {
+    flex: none;
+    width: 16px;
+    height: 16px;
+    color: var(--dou-color-success);
+  }
+
+  .dou-comment-thread__status-text {
+    min-width: 0;
+    overflow-x: clip;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dou-comment-thread__list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--dou-comment-thread-gap);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .dou-comment-thread__comment {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .dou-comment-thread__head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    min-height: 28px;
+  }
+
+  .dou-comment-thread__avatar {
+    flex: none;
+  }
+
+  .dou-comment-thread__author {
+    min-width: 0;
+    overflow-x: clip;
+    font-weight: var(--dou-font-weight-medium);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dou-comment-thread__time,
+  .dou-comment-thread__edited {
+    flex: none;
+    color: var(--dou-color-text-tertiary);
+    font-size: 12px;
+  }
+
+  /* the buttons hold their place, so the row doesn't jump when they show */
+  .dou-comment-thread__actions {
+    display: flex;
+    flex: none;
+    gap: 2px;
+    margin-inline-start: auto;
+    margin-block: -2px;
+  }
+
+  .dou-comment-thread__body {
+    margin: 0;
+    padding-inline-start: var(--dou-comment-thread-indent);
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+
+    .dou-comment-thread.is-resolved & {
+      color: var(--dou-color-text-secondary);
+    }
+  }
+
+  .dou-comment-thread__editor,
+  .dou-comment-thread__confirm {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-inline-start: var(--dou-comment-thread-indent);
+  }
+
+  .dou-comment-thread__confirm {
+    color: var(--dou-color-danger);
+  }
+
+  .dou-comment-thread__composer {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .dou-comment-thread__buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+}

@@ -32,6 +32,7 @@
         "@dou-ui/icons": "workspace:*",
         "@dou-ui/pivot": "workspace:*",
         "@dou-ui/sheet": "workspace:*",
+        "@dou-ui/sheet-xlsx": "workspace:*",
         "@dou-ui/theme": "workspace:*",
         "dou-ui": "workspace:*",
       },
@@ -268,6 +269,16 @@
         "yjs",
       ],
     },
+    "packages/sheet-xlsx": {
+      "name": "@dou-ui/sheet-xlsx",
+      "version": "0.0.0",
+      "dependencies": {
+        "@dou-ui/icons": "workspace:*",
+      },
+      "peerDependencies": {
+        "@dou-ui/sheet": "workspace:*",
+      },
+    },
     "packages/theme": {
       "name": "@dou-ui/theme",
       "version": "0.0.0",
@@ -412,6 +423,8 @@
     "@dou-ui/resolver": ["@dou-ui/resolver@workspace:packages/resolver"],
 
     "@dou-ui/sheet": ["@dou-ui/sheet@workspace:packages/sheet"],
+
+    "@dou-ui/sheet-xlsx": ["@dou-ui/sheet-xlsx@workspace:packages/sheet-xlsx"],
 
     "@dou-ui/theme": ["@dou-ui/theme@workspace:packages/theme"],
 

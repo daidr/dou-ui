@@ -1,4 +1,4 @@
-import { FileSpreadsheetIcon } from '@dou-ui/icons'
+import { FileTextIcon } from '@dou-ui/icons'
 import type { Component } from 'vue'
 import { SheetFormulaEngine } from '../formula/engine'
 import type { SheetFunction } from '../formula/functions'
@@ -299,8 +299,9 @@ export function createFileSource(
   const resultOf = (sheet: number, row: number, col: number): SheetResult => {
     const data = book.sheets[sheet]
     if (!data) return null
-    const key = sheetKey(data)
-    return shownValue(valueOf(input(sheet, row, col)), (r, c) => read(key, r, c), row, col)
+    const value = valueOf(input(sheet, row, col))
+    if (typeof value !== 'string' || !value.startsWith('=')) return value
+    return read(sheetKey(data), row, col)
   }
   const shown = (sheet: number, row: number, col: number): SheetValue => {
     const data = book.sheets[sheet]
@@ -503,7 +504,7 @@ export interface SheetCSVExportOptions {
 export const csvExporter = defineSheetExporter<SheetCSVExportOptions>({
   name: 'csv',
   label: (m) => m.file.csv,
-  icon: FileSpreadsheetIcon,
+  icon: FileTextIcon,
   extension: 'csv',
   mime: 'text/csv',
   scopes: ['sheet', 'selection'],

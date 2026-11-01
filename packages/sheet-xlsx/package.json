@@ -1,0 +1,48 @@
+{
+  "name": "@dou-ui/sheet-xlsx",
+  "version": "0.0.0",
+  "description": "DouUI 电子表格的 .xlsx 导出，不依赖第三方库",
+  "keywords": [
+    "vue",
+    "spreadsheet",
+    "xlsx",
+    "excel",
+    "export"
+  ],
+  "license": "MIT",
+  "author": "daidr <daidr@daidr.me>",
+  "homepage": "https://github.com/daidr/dou-ui#readme",
+  "bugs": "https://github.com/daidr/dou-ui/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/daidr/dou-ui.git",
+    "directory": "packages/sheet-xlsx"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "vite build && vue-tsc -p tsconfig.build.json"
+  },
+  "peerDependencies": {
+    "@dou-ui/sheet": "workspace:*"
+  },
+  "dependencies": {
+    "@dou-ui/icons": "workspace:*"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

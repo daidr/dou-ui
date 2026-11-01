@@ -65,6 +65,7 @@ const sheetSidebar = ecosystem('电子表格', [
   { text: '文档数据', link: '/sheet/data' },
   { text: '公式', link: '/sheet/formulas' },
   { text: '扩展', link: '/sheet/extensions' },
+  { text: '导出 xlsx', link: '/sheet/xlsx' },
   { text: '协同编辑', link: '/sheet/collaboration' },
 ])
 const codeSidebar = ecosystem('代码编辑器', [
@@ -526,6 +527,7 @@ export default defineConfig({
           find: /^@dou-ui\/code\/style\.css$/,
           replacement: r('../../packages/code/src/style.css'),
         },
+        { find: /^@dou-ui\/sheet-xlsx$/, replacement: r('../../packages/sheet-xlsx/src/index.ts') },
         { find: /^@dou-ui\/sheet$/, replacement: r('../../packages/sheet/src/index.ts') },
         {
           find: /^@dou-ui\/sheet\/code$/,

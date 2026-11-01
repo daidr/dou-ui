@@ -188,3 +188,4 @@ declare module 'vue' {
   }
 }
 export type { DrawCell, DrawLook, DrawTheme, SheetDrawing } from './export/draw'
+export { lightColor, plainStyle } from './core/paint'

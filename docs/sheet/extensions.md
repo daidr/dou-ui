@@ -259,6 +259,15 @@ declare module '@dou-ui/sheet' {
 | `signal`                    | `exportFile` 传入的 `signal`，取消时中止                                                                                                  |
 | `view`                      | 只有 `needs: 'view'` 的导出器在表格里导出时才有：`view.drawing(options?)` 返回导出的单元格按表格画出来的布局和颜色                        |
 
+要把样式写成文件自己的格式（而不是叠加了条件格式的 `style`）时，可以读 `book.styles` 里的命名样式，用 `plainStyle(style)` 把 `tone`、`fill` 换成浅色主题下的 `color`、`background`；`lightColor(css)` 把主题变量和 `color-mix(in oklab, …)` 算成 `#rrggbb`，其他颜色原样返回。[`@dou-ui/sheet-xlsx`](./xlsx) 就是这样把条件格式写成文件里的规则的。
+
+```ts
+import { lightColor, plainStyle } from '@dou-ui/sheet'
+
+plainStyle({ bold: true, fill: 'primary' }) // { bold: true, background: '#e6eaf7' }
+lightColor('var(--dou-color-danger)') // '#b2423e'
+```
+
 导入器读文件，返回 `{ book, warnings? }`。`warnings` 列出没能带过来的内容，会在 `import` 事件里交给使用者：
 
 ```ts

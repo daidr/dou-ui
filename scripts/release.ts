@@ -21,6 +21,7 @@ const packages = [
   'flow',
   'gantt',
   'sheet',
+  'sheet-xlsx',
   'chart',
   'form-builder',
   'code',

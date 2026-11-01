@@ -6,6 +6,7 @@
  *
  * - offset: the icon's vertical center sits more than 0.75px from the
  *   center of the control it is in (button, toggle, menu item, tab…).
+ *   Controls taller than 44px (cards) and stacked icon pairs are skipped.
  * - size: the button icons of one toolbar, button group or toggle group are
  *   not all the same size.
  *
@@ -109,8 +110,17 @@ for (const path of paths) {
         const control = icon.closest(CONTROL)
         if (!control || tilted(control)) continue
         const c = control.getBoundingClientRect()
-        // a control that wraps onto lines has no single center to match
-        if (c.height > 56) continue
+        // cards and controls that wrap onto lines have no single center to match
+        if (c.height > 44) continue
+        // icons stacked on purpose (a sort caret pair) sit off center by design
+        const stacked = [...control.querySelectorAll('svg[style*="--dou-icons-stroke"]')].some(
+          (other) => {
+            if (other === icon) return false
+            const o = other.getBoundingClientRect()
+            return o.width > 0 && o.left < r.right && r.left < o.right
+          },
+        )
+        if (stacked) continue
         const style = getComputedStyle(control)
         const top = c.top + parseFloat(style.borderTopWidth) + parseFloat(style.paddingTop)
         const bottom =

@@ -102,10 +102,12 @@ pivotWidget({
 
 ## 导出图片与打印
 
-`exportPNG()` 把整个仪表盘导出为 PNG，`print()` 打开浏览器的打印对话框。两者都会先绘制所有格子（包括离视口较远、还没绘制的），等数据加载完成（最多 5 秒），并去掉菜单、按钮等控件：
+`exportPNG()` 把整个仪表盘导出为 PNG，`print()` 打开浏览器的打印对话框。两者都会先绘制所有格子（包括离视口较远、还没绘制的），等数据加载完成（最多 5 秒），并去掉菜单、按钮等控件。`exportPNG()` 只返回图片，下载成文件可以用 `dou-ui` 的 [`downloadBlob`](../guide/composables#downloadblob)：
 
 ```ts
-const blob = await dashboard.value.exportPNG({ pixelRatio: 2 })
+import { downloadBlob } from 'dou-ui'
+
+downloadBlob(await dashboard.value.exportPNG({ pixelRatio: 2 }), '仪表盘.png')
 ```
 
 | 选项         | 说明                      | 默认值 |

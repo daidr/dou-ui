@@ -11,6 +11,8 @@ export function downloadBlob(blob: Blob, fileName: string) {
   document.body.append(link)
   link.click()
   link.remove()
-  // some browsers start the download only after the click has run its course
-  setTimeout(() => URL.revokeObjectURL(url), 0)
+  // freed a while later: some browsers read the address only after the
+  // click has run its course, and fail the download or lose its name if it
+  // is already gone
+  setTimeout(() => URL.revokeObjectURL(url), 30_000)
 }

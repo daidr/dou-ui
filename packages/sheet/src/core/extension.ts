@@ -5,6 +5,8 @@ import type { SheetCommand } from './commands'
 import type { SheetExporter, SheetImporter } from './file'
 import type { SheetFunction } from '../formula/functions'
 import type { SheetCellType } from './cell-type'
+import type { SheetClip } from './clipboard'
+import type { SheetWorkbook } from './model'
 import type { SheetTransaction } from './transaction'
 
 /** What an extension's hooks receive; the same as `useSheet()`. */
@@ -23,6 +25,20 @@ export interface SheetHistoryHandler {
   redo: () => boolean
   canUndo: () => boolean
   canRedo: () => boolean
+}
+
+/** A change the grid has made, as an extension's `update` sees it. */
+export interface SheetUpdate {
+  /** The workbook before the change. */
+  before: SheetWorkbook
+  /** The workbook now. */
+  doc: SheetWorkbook
+  /**
+   * The change: typing, commands, undo and redo, `transact` and other
+   * people's changes, told apart by `transaction.meta.action`. `null` when
+   * a new workbook came in through `v-model`.
+   */
+  transaction: SheetTransaction | null
 }
 
 /**
@@ -74,6 +90,14 @@ export interface SheetExtension {
    * marks placed with `cellRect`. They can call `useSheet()`.
    */
   overlays?: Component[]
+  /**
+   * Components drawn over the cells, kept out of the headers: `below`
+   * under the grid's own marks, such as the copied range and formula
+   * references, `above` over them; the editor stays on top. They place marks with
+   * `useSheet()`'s `cellRect` and `rangeRect`, which follow the scroll, and
+   * take no clicks.
+   */
+  layers?: { below?: Component[]; above?: Component[] }
   /** Replaces the grid's undo history; the first extension that has one wins. */
   history?: (context: SheetExtensionContext) => SheetHistoryHandler
   /** Runs once the grid is mounted. Return a function to run when it unmounts. */
@@ -84,6 +108,19 @@ export interface SheetExtension {
    * the added steps with the rest.
    */
   transaction?: (tr: SheetTransaction, context: SheetExtensionContext) => void
+  /**
+   * Runs after every change, with the workbook already updated: changes in
+   * the grid, `transact`, undo and redo, other people's changes and a new
+   * `v-model` workbook. For keeping something else in step, such as a save
+   * reminder; to change the change itself use `transaction`.
+   */
+  update?: (update: SheetUpdate, context: SheetExtensionContext) => void
+  /**
+   * Rewrites cells before they are pasted, or imported at the active cell,
+   * in priority order; return `null` to stop it. The grid's `paste` event
+   * comes after, with what the extensions made of it.
+   */
+  transformPaste?: (clip: SheetClip, context: SheetExtensionContext) => SheetClip | null
 }
 
 /** Declares an extension; only gives it a type. */
@@ -104,7 +141,10 @@ export interface ResolvedSheetExtensions {
   menus: NonNullable<SheetExtension['contextMenu']>[]
   setups: NonNullable<SheetExtension['setup']>[]
   transactions: NonNullable<SheetExtension['transaction']>[]
+  updates: NonNullable<SheetExtension['update']>[]
+  pasteTransforms: NonNullable<SheetExtension['transformPaste']>[]
   overlays: Component[]
+  layers: { below: Component[]; above: Component[] }
   history?: SheetExtension['history']
 }
 
@@ -160,7 +200,13 @@ export function resolveSheetExtensions(list: ExtensionList = []): ResolvedSheetE
     menus: pick('contextMenu'),
     setups: pick('setup'),
     transactions: pick('transaction'),
+    updates: pick('update'),
+    pasteTransforms: pick('transformPaste'),
     overlays: extensions.flatMap((e) => e.overlays ?? []),
+    layers: {
+      below: extensions.flatMap((e) => e.layers?.below ?? []),
+      above: extensions.flatMap((e) => e.layers?.above ?? []),
+    },
     history: extensions.find((e) => e.history)?.history,
   }
 }

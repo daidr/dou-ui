@@ -96,6 +96,34 @@ export interface SheetCellType {
    * `source.plain`.
    */
   plain?: (value: SheetValue, setup: SheetTypeSetup) => SheetValue
+  /**
+   * What the cell shows in pictures of the sheet (`png`, `svg` and printing),
+   * as SVG markup in `box`'s place, kept to the cell; by default its text.
+   * A type with `render` draws its own content here, as pictures can't
+   * hold components.
+   */
+  draw?: (value: SheetValue, setup: SheetTypeSetup, box: SheetDrawBox) => string
+}
+
+/** Where and how a cell type's `draw` draws: the cell's place in the picture and its look, in plain colors. */
+export interface SheetDrawBox {
+  x: number
+  y: number
+  width: number
+  height: number
+  /** The text the cell shows. */
+  text: string
+  /** The color of the text. */
+  color: string
+  /** The fill, `null` for none. */
+  background: string | null
+  align: 'left' | 'center' | 'right'
+  valign: 'top' | 'middle' | 'bottom'
+  bold: boolean
+  italic: boolean
+  fontFamily: string
+  /** In px. */
+  fontSize: number
 }
 
 /** Declares a cell type; only gives it a type. */

@@ -2,7 +2,7 @@ import { svgToPNG } from 'dou-ui'
 import type { SheetAxis } from '../core/axis'
 import type { SheetBounds } from '../core/address'
 import { boundsOf, columnName, parseRange } from '../core/address'
-import { optionOf, type SheetCellType } from '../core/cell-type'
+import { optionOf, type SheetCellType, type SheetDrawBox } from '../core/cell-type'
 import { dataBounds } from '../core/csv'
 import type { SheetMerges } from '../core/merge'
 import type { SheetData, SheetTypeSetup } from '../core/model'
@@ -28,6 +28,8 @@ export interface ExportCellView {
   css: string
   render?: SheetCellType['render']
   props?: Record<string, unknown>
+  /** A cell type's own drawing, as SVG markup. */
+  draw?: (box: SheetDrawBox) => string
   label?: string
   hidden?: boolean
 }
@@ -285,12 +287,21 @@ export function createSheetExport(src: SheetExportSource) {
           Number.parseFloat(/--dou-sheet-bar-to:([\d.]+)%/.exec(view.css)?.[1] ?? '0') / 100
         cell.bar = { from, to, color: look.barColor }
       }
-      if (view.render === CellCheck) cell.check = view.props?.value === true
+      if (view.draw) cell.draw = view.draw
+      else if (view.render === CellCheck) cell.check = view.props?.value === true
       else if (view.render === CellOption) {
         const option = view.text ? optionTone(view.props) : undefined
         if (option) cell.tag = reader.tag(option.tone)
       } else if (view.render) cell.text = view.label ?? view.text
-      if (!merged && !cell.text && !look.background && !cell.bar && cell.check === undefined) return
+      if (
+        !merged &&
+        !cell.text &&
+        !look.background &&
+        !cell.bar &&
+        cell.check === undefined &&
+        !cell.draw
+      )
+        return
       cells.push(cell)
     }
     const seen = new Set<SheetBounds>()

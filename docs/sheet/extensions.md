@@ -36,24 +36,64 @@ const extensions = [progress]
 
 ## 扩展的字段
 
-| 名称          | 说明                                                                                                                                           | 类型                                                              |
-| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| `name`        | 扩展的名字                                                                                                                                     | `string`                                                          |
-| `priority`    | 优先级，越大越先处理按键和钩子，默认 `100`                                                                                                     | `number`                                                          |
-| `cellTypes`   | 单元格类型，见下文；和内置类型同名时替换内置的，多个扩展同名时用优先级高的                                                                     | `SheetCellType[]`                                                 |
-| `functions`   | 公式里可以调用的函数，见[自定义函数](./formulas#自定义函数)；和内置函数同名时替换内置的                                                        | `SheetFunction[]`                                                 |
-| `commands`    | 命令，按名字登记，工具栏按钮、菜单项和快捷键都可以引用，见下文                                                                                 | `Record<string, SheetCommand>`                                    |
-| `keymap`      | 表格有焦点、没有在编辑单元格时的快捷键，写法和 `useHotkey` 一样；值是处理函数或命令名。处理函数（或命令）返回 `false` 表示没处理，交给下一个   | `(ctx) => Record<string, ((event) => boolean \| void) \| string>` |
-| `contextMenu` | 右键菜单的项，排在内置项前面；`menu` 属性收到的菜单项里也包括它们                                                                              | `(ctx, menu: SheetMenuContext) => SheetMenuItem[]`                |
-| `toolbar`     | `DouSheetToolbar` 上的按钮，默认排在内置按钮后面，见下文                                                                                       | `(ctx) => SheetToolbarItem[]`                                     |
-| `exporters`   | 导出方式，出现在工具栏的导出菜单里，`exportFile` 可以按名字使用；和内置的 `csv`、`png`、`svg` 同名时替换内置的，在菜单里留在原来的位置，见下文 | `SheetExporter[]`                                                 |
-| `importers`   | 导入方式，用于工具栏的导入按钮、`importFile` 和拖入的文件；比内置的 CSV 先询问                                                                 | `SheetImporter[]`                                                 |
-| `overlays`    | 浮在表格上方的组件，不随表格滚动，可以用 `cellRect` 对准单元格                                                                                 | `Component[]`                                                     |
-| `history`     | 替换表格自带的撤销记录，多个扩展都有时用优先级最高的，见下文                                                                                   | `(ctx) => SheetHistoryHandler`                                    |
-| `setup`       | 表格挂载后调用，可以返回一个函数，在卸载时调用                                                                                                 | `(ctx) => void \| (() => void)`                                   |
-| `transaction` | 表格里的每次修改和 `transact` 生效前按优先级调用，可以继续往里加步骤；撤销时加上的步骤一起撤销                                                 | `(tr, ctx) => void`                                               |
+| 名称             | 说明                                                                                                                                           | 类型                                                              |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `name`           | 扩展的名字                                                                                                                                     | `string`                                                          |
+| `priority`       | 优先级，越大越先处理按键和钩子，默认 `100`                                                                                                     | `number`                                                          |
+| `cellTypes`      | 单元格类型，见下文；和内置类型同名时替换内置的，多个扩展同名时用优先级高的                                                                     | `SheetCellType[]`                                                 |
+| `functions`      | 公式里可以调用的函数，见[自定义函数](./formulas#自定义函数)；和内置函数同名时替换内置的                                                        | `SheetFunction[]`                                                 |
+| `commands`       | 命令，按名字登记，工具栏按钮、菜单项和快捷键都可以引用，见下文                                                                                 | `Record<string, SheetCommand>`                                    |
+| `keymap`         | 表格有焦点、没有在编辑单元格时的快捷键，写法和 `useHotkey` 一样；值是处理函数或命令名。处理函数（或命令）返回 `false` 表示没处理，交给下一个   | `(ctx) => Record<string, ((event) => boolean \| void) \| string>` |
+| `contextMenu`    | 右键菜单的项，排在内置项前面；`menu` 属性收到的菜单项里也包括它们                                                                              | `(ctx, menu: SheetMenuContext) => SheetMenuItem[]`                |
+| `toolbar`        | `DouSheetToolbar` 上的按钮，默认排在内置按钮后面，见下文                                                                                       | `(ctx) => SheetToolbarItem[]`                                     |
+| `exporters`      | 导出方式，出现在工具栏的导出菜单里，`exportFile` 可以按名字使用；和内置的 `csv`、`png`、`svg` 同名时替换内置的，在菜单里留在原来的位置，见下文 | `SheetExporter[]`                                                 |
+| `importers`      | 导入方式，用于工具栏的导入按钮、`importFile` 和拖入的文件；比内置的 CSV 先询问                                                                 | `SheetImporter[]`                                                 |
+| `overlays`       | 浮在表格上方的组件，不随表格滚动，可以用 `cellRect` 对准单元格                                                                                 | `Component[]`                                                     |
+| `layers`         | 画在单元格上的组件，限制在表头以内：`below` 在表格自己的标记（复制的区域、公式引用的区域）下面，`above` 在它们上面，编辑框总在最上面；见下文   | `{ below?: Component[]; above?: Component[] }`                    |
+| `history`        | 替换表格自带的撤销记录，多个扩展都有时用优先级最高的，见下文                                                                                   | `(ctx) => SheetHistoryHandler`                                    |
+| `setup`          | 表格挂载后调用，可以返回一个函数，在卸载时调用                                                                                                 | `(ctx) => void \| (() => void)`                                   |
+| `transaction`    | 表格里的每次修改和 `transact` 生效前按优先级调用，可以继续往里加步骤；撤销时加上的步骤一起撤销                                                 | `(tr, ctx) => void`                                               |
+| `update`         | 每次修改生效后调用，表格已经是新的内容，见下文                                                                                                 | `(update: SheetUpdate, ctx) => void`                              |
+| `transformPaste` | 粘贴和“从当前单元格放入”的导入之前按优先级改写单元格，返回 `null` 取消；组件的 `paste` 事件在它之后，收到改写后的内容                          | `(clip: SheetClip, ctx) => SheetClip \| null`                     |
 
 `ctx` 和组件里 `useSheet()` 拿到的是同一个对象。
+
+`transaction` 和 `update` 的区别是时机：`transaction` 在修改生效前，可以往里加步骤；`update` 在生效后，只用来让别的东西跟上，比如提示“有未保存的修改”。表格里的修改、`transact`、撤销重做、协同编辑里别人的修改，以及通过 `v-model` 换进来的新工作簿都会调用 `update`：
+
+```ts
+interface SheetUpdate {
+  /** 修改前的工作簿 */
+  before: SheetWorkbook
+  /** 现在的工作簿 */
+  doc: SheetWorkbook
+  /** 这次修改，用 transaction.meta.action 区分来源；通过 v-model 换了工作簿时是 null */
+  transaction: SheetTransaction | null
+}
+
+const unsaved = ref(false)
+const saveReminder = defineSheetExtension({
+  name: 'save-reminder',
+  update: ({ transaction }) => {
+    if (transaction) unsaved.value = true
+  },
+})
+```
+
+`transformPaste` 收到的 `SheetClip` 是 `{ cells, styles?, from?, cut? }`，`cells` 按行排列。比如粘贴时去掉文字两端的空格：
+
+```ts
+const trim = defineSheetExtension({
+  name: 'trim',
+  transformPaste: (clip) => ({
+    ...clip,
+    cells: clip.cells.map((line) =>
+      line.map((cell) => (typeof cell === 'string' ? cell.trim() : cell)),
+    ),
+  }),
+})
+```
+
+`layers` 和 `overlays` 一样用 `useSheet()` 的 `cellRect`、`rangeRect` 定位，它们跟着滚动更新；区别是图层画在单元格这一层，不会盖住表头、冻结线外的提示和菜单，也不接收点击。[协同编辑](./collaboration)里别人的选区就画在 `layers.below` 里。
 
 `history` 返回撤销和重做的实现，有它时表格不再记录自己的撤销步骤，撤销按钮、`Ctrl+Z` 和 `undo()` 都交给它。[协同编辑](./collaboration)用它只撤销自己的修改：
 
@@ -71,22 +111,59 @@ interface SheetHistoryHandler {
 
 单元格的 `type` 写类型的名字，或工作簿 `types` 里的名字（见[单元格类型](./#单元格类型)）。一个类型可以提供下面这些字段，都可以不写：
 
-| 名称     | 说明                                                                                                                                                        | 类型                                            |
-| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| `name`   | 类型的名字                                                                                                                                                  | `string`                                        |
-| `parse`  | 把输入的文字读成值，返回 `{ value, format? }`；返回 `undefined` 时按普通单元格读                                                                            | `(text, setup) => SheetInput \| undefined`      |
-| `format` | 值显示成的文字；默认按单元格的 `format` 显示。复制成纯文本和读屏软件也用这段文字                                                                            | `(value, setup) => string \| undefined`         |
-| `edit`   | 编辑框打开时的文字，要能被 `parse` 读回同样的值；默认用 `format` 的结果，没有 `format` 时用值本身                                                           | `(value, setup) => string \| undefined`         |
-| `valid`  | 值是否符合这个类型：返回 `true`，或者返回 `false`、一句原因。不符合的单元格左上角有红色小三角，原因在悬停时显示，读屏也会读出。空单元格总是符合             | `(value, setup, messages) => boolean \| string` |
-| `render` | 代替文字画在单元格里的组件。每个看得见的单元格都会画一个，要尽量轻；里面带 `data-sheet-toggle` 的元素被点击时切换值                                         | `Component`                                     |
-| `panel`  | 编辑时显示在单元格下方的面板，比如日历；发出 `pick` 事件写入值并结束编辑                                                                                    | `Component`                                     |
-| `toggle` | 有它时，空格、`F2`、双击和点 `data-sheet-toggle` 元素会切换值，不打开编辑框。空格切换选区里所有同类单元格：值相同时一起切换，不同时都变成空单元格切换后的值 | `(value, setup) => SheetValue`                  |
-| `align`  | 单元格样式没有指定对齐时的对齐方式                                                                                                                          | `'left' \| 'center' \| 'right'`                 |
-| `plain`  | 写进文件、给其他表格软件打开时用的值，比如评分写成数字；默认是值本身。导出方式通过 `source.plain` 读取                                                      | `(value, setup) => SheetValue`                  |
+| 名称     | 说明                                                                                                                                                           | 类型                                            |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `name`   | 类型的名字                                                                                                                                                     | `string`                                        |
+| `parse`  | 把输入的文字读成值，返回 `{ value, format? }`；返回 `undefined` 时按普通单元格读                                                                               | `(text, setup) => SheetInput \| undefined`      |
+| `format` | 值显示成的文字；默认按单元格的 `format` 显示。复制成纯文本和读屏软件也用这段文字                                                                               | `(value, setup) => string \| undefined`         |
+| `edit`   | 编辑框打开时的文字，要能被 `parse` 读回同样的值；默认用 `format` 的结果，没有 `format` 时用值本身                                                              | `(value, setup) => string \| undefined`         |
+| `valid`  | 值是否符合这个类型：返回 `true`，或者返回 `false`、一句原因。不符合的单元格左上角有红色小三角，原因在悬停时显示，读屏也会读出。空单元格总是符合                | `(value, setup, messages) => boolean \| string` |
+| `render` | 代替文字画在单元格里的组件。每个看得见的单元格都会画一个，要尽量轻；里面带 `data-sheet-toggle` 的元素被点击时切换值                                            | `Component`                                     |
+| `panel`  | 编辑时显示在单元格下方的面板，比如日历；发出 `pick` 事件写入值并结束编辑                                                                                       | `Component`                                     |
+| `toggle` | 有它时，空格、`F2`、双击和点 `data-sheet-toggle` 元素会切换值，不打开编辑框。空格切换选区里所有同类单元格：值相同时一起切换，不同时都变成空单元格切换后的值    | `(value, setup) => SheetValue`                  |
+| `align`  | 单元格样式没有指定对齐时的对齐方式                                                                                                                             | `'left' \| 'center' \| 'right'`                 |
+| `plain`  | 写进文件、给其他表格软件打开时用的值，比如评分写成数字；默认是值本身。导出方式通过 `source.plain` 读取                                                         | `(value, setup) => SheetValue`                  |
+| `draw`   | 导出图片（`png`、`svg`）和打印时画在单元格里的 SVG，代替文字，超出单元格的部分会被裁掉；默认画文字。图片里放不了组件，有 `render` 的类型可以用它画出自己的样子 | `(value, setup, box: SheetDrawBox) => string`   |
 
 `setup` 是这个单元格的类型设置：工作簿 `types` 里对应的那一项，例如 `{ type: 'select', options: [...] }`；直接写类型名时是 `{ type: 'progress' }`。
 
 `parse` 返回 `undefined` 时，文字按普通单元格读：数字、日期、`TRUE` 之类照常识别，其余原样存成文字。所以 `format`、`render` 要能处理不是这个类型的值，例如进度单元格里输入了文字，就只显示文字，`valid` 再把它标出来。`valid` 的第三个参数是当前语言的文案，内置类型用它给出“不是日期”“不在选项里”这样的原因；只返回 `false` 时显示通用的“不符合单元格类型”。
+
+`draw` 的 `box` 给出单元格在图片里的位置和样子，颜色都是具体的颜色值：
+
+```ts
+interface SheetDrawBox {
+  x: number
+  y: number
+  width: number
+  height: number
+  /** 单元格显示的文字 */
+  text: string
+  /** 文字颜色 */
+  color: string
+  /** 底色，没有时是 null */
+  background: string | null
+  align: 'left' | 'center' | 'right'
+  valign: 'top' | 'middle' | 'bottom'
+  bold: boolean
+  italic: boolean
+  fontFamily: string
+  /** px */
+  fontSize: number
+}
+
+const rating = defineSheetCellType({
+  name: 'rating',
+  render: RatingStars,
+  // 图片里画成一排圆点
+  draw: (value, setup, box) =>
+    Array.from(
+      { length: Number(value) || 0 },
+      (_, i) =>
+        `<circle cx="${box.x + 12 + i * 12}" cy="${box.y + box.height / 2}" r="4" fill="${box.color}"/>`,
+    ).join(''),
+})
+```
 
 `render` 组件收到 `value`、`text`（`format` 之后的文字）、`setup` 和 `readonly`。读屏软件读的是 `text`，有 `toggle` 的类型读“已勾选”或“未勾选”，`render` 里的内容不会被读出，可以加 `aria-hidden`。
 

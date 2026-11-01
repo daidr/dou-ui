@@ -56,10 +56,10 @@ export type { SheetCSVReadOptions, SheetCSVWriteOptions } from './csv'
 export type { SheetBounds, SheetCellTarget, SheetPoint, SheetRange, SheetRefMap } from './address'
 
 export { defineSheetExtension } from './extension'
-export type { SheetExtension } from './extension'
+export type { SheetExtension, SheetUpdate } from './extension'
 export type { SheetLabel } from './commands'
 export { defineSheetCellType, optionOf } from './cell-type'
-export type { SheetCellType, SheetResolvedType } from './cell-type'
+export type { SheetCellType, SheetDrawBox, SheetResolvedType } from './cell-type'
 
 export { cellOf, valueOf } from './model'
 

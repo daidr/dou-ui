@@ -4,6 +4,8 @@
  * Plain SVG that design programs read, without `foreignObject`.
  */
 
+import type { SheetDrawBox } from '../core/cell-type'
+
 /** The look of a cell's content, in plain colors. */
 export interface DrawLook {
   color: string
@@ -36,6 +38,8 @@ export interface DrawCell {
   merged?: boolean
   /** A select cell's value as a soft tag. */
   tag?: { background: string; color: string; border: string }
+  /** A cell type's own drawing, as SVG markup in the box's place. */
+  draw?: (box: SheetDrawBox) => string
 }
 
 /** The colors and font of the sheet, read from the page. */
@@ -218,6 +222,31 @@ export function drawSheet(drawing: SheetDrawing, measure: MeasureText) {
     const x = hx + cell.x
     const y = hy + cell.y
     const { look } = cell
+    if (cell.draw) {
+      const markup = cell.draw({
+        x,
+        y,
+        width: cell.width,
+        height: cell.height,
+        text: cell.text,
+        color: look.color,
+        background: look.background,
+        align: look.align,
+        valign: look.valign,
+        bold: look.bold,
+        italic: look.italic,
+        fontFamily: theme.fontFamily,
+        fontSize: theme.fontSize,
+      })
+      if (!markup) continue
+      // kept to its cell, as the grid keeps a cell's content
+      const id = `c${clips++}`
+      defs.push(
+        `<clipPath id="${id}"><rect x="${n(x)}" y="${n(y)}" width="${n(cell.width)}" height="${n(cell.height)}"/></clipPath>`,
+      )
+      out.push(`<g clip-path="url(#${id})">${markup}</g>`)
+      continue
+    }
     if (cell.check !== undefined) {
       const size = 14
       const bx = alignX(look.align, x, cell.width, size)

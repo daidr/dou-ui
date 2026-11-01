@@ -1,13 +1,14 @@
 {
   "name": "@dou-ui/sheet-xlsx",
   "version": "0.0.0",
-  "description": "DouUI 电子表格的 .xlsx 导出，不依赖第三方库",
+  "description": "DouUI 电子表格的 .xlsx 导入导出，不依赖第三方库",
   "keywords": [
     "vue",
     "spreadsheet",
     "xlsx",
     "excel",
-    "export"
+    "export",
+    "import"
   ],
   "license": "MIT",
   "author": "daidr <daidr@daidr.me>",

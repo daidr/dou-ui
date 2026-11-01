@@ -547,7 +547,7 @@ sheet.value.showSheet('十一月')
 <DouSheetToolbar :tools="['import', 'export']" file-name="预算-2026-11" />
 ```
 
-表格自带三种导出方式：`csv`（当前工作表或选区）、`png` 和 `svg`（当前工作表或选区画成图片，见[导出图片与打印](#导出图片与打印)），以及一种导入方式：CSV 和制表符分隔的文本。其他格式通过扩展的 `exporters`、`importers` 加入，加入后同样出现在工具栏里，见[导出器与导入器](./extensions#导出器与导入器)。导出 `.xlsx` 用 [`@dou-ui/sheet-xlsx`](./xlsx)。
+表格自带三种导出方式：`csv`（当前工作表或选区）、`png` 和 `svg`（当前工作表或选区画成图片，见[导出图片与打印](#导出图片与打印)），以及一种导入方式：CSV 和制表符分隔的文本。其他格式通过扩展的 `exporters`、`importers` 加入，加入后同样出现在工具栏里，见[导出器与导入器](./extensions#导出器与导入器)。导入导出 `.xlsx` 用 [`@dou-ui/sheet-xlsx`](./xlsx)。
 
 用代码导入导出时调用组件实例（或 `useSheet()`）的方法：
 
@@ -600,7 +600,7 @@ async function onImport(event: SheetImportEvent) {
 }
 ```
 
-导入或保存文件失败时（没有能读这个文件的导入方式、导入方式出错、`saveFile` 或工具栏导出时图片太大），表格上方会显示一条简短的提示，同时触发 `file-error` 事件。事件里有 `action`（`'import'` 或 `'export'`）、`file`、`importer` 或 `exporter`、`error`，以及表格要显示的提示文字 `message`（跟随当前语言）。想换成自己的提示，比如用 [`toast`](../components/toast)，就在事件里调用 `preventDefault()`，表格就不再显示自带的提示，读屏仍会播报。`error` 是给开发者看的英文错误，不要直接显示给用户。用代码调用时，`importFile` 遇到导入方式出错，或 `saveFile` 导出失败，返回的 Promise 也会 reject。`exportFile` 只返回文件、不下载，它失败时不显示提示，也不触发 `file-error`，由调用方自己 `catch`。
+导入或保存文件失败时（没有能读这个文件的导入方式、导入方式出错、`saveFile` 或工具栏导出时图片太大），表格上方会显示一条简短的提示，同时触发 `file-error` 事件。事件里有 `action`（`'import'` 或 `'export'`）、`file`、`importer` 或 `exporter`、`error`，以及表格要显示的提示文字 `message`（跟随当前语言）。想换成自己的提示，比如用 [`toast`](../components/toast)，就在事件里调用 `preventDefault()`，表格就不再显示自带的提示，读屏仍会播报。`error` 是给开发者看的英文错误，不要直接显示给用户；导入器抛出的 [`SheetFileError`](./extensions#导出器与导入器) 还带有 `code` 和给用户看的 `reason`，表格的提示用的就是 `reason`。用代码调用时，`importFile` 遇到导入方式出错，或 `saveFile` 导出失败，返回的 Promise 也会 reject。`exportFile` 只返回文件、不下载，它失败时不显示提示，也不触发 `file-error`，由调用方自己 `catch`。
 
 ```ts
 import type { SheetFileErrorEvent } from '@dou-ui/sheet'

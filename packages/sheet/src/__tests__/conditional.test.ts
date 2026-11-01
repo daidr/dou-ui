@@ -2,6 +2,7 @@ import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { layStyle, SheetLooks, type SheetLookSource } from '../core/conditional'
+import { textOn } from '../core/paint'
 import type { SheetConditionalFormat, SheetWorkbook } from '../core/model'
 import { SheetTransaction } from '../core/transaction'
 import { SheetFormulaEngine } from '../formula'
@@ -274,6 +275,41 @@ describe('the conditional format dialog', () => {
     apply.click()
     await nextTick()
     expect(wrapper.emitted('apply')?.[0]).toEqual([f])
+    wrapper.unmount()
+  })
+
+  it('gives text on a set background a color that reads on it, in either theme', async () => {
+    expect(textOn('#ffffff')).toBe('#171717')
+    expect(textOn('#1f2a44')).toBe('#ededed')
+    expect(textOn('color-mix(in oklab, #3366cc 10%, #ffffff)')).toBe('#171717')
+    // a theme color follows the theme, along with the text
+    expect(textOn('var(--dou-color-bg-surface)')).toBeUndefined()
+    const wrapper = mount(DouSheet, {
+      props: {
+        modelValue: {
+          sheets: [
+            {
+              name: 'S',
+              cells: [[{ value: 1, style: 'paper' }, { value: 2, style: 'own' }, 3]],
+              conditionalFormats: [
+                { range: 'C1', when: { op: 'gt', value: 0 }, style: { background: '#000000' } },
+              ],
+            },
+          ],
+          styles: {
+            paper: { background: '#ffffff' },
+            own: { background: '#ffffff', color: '#b2423e' },
+          },
+        },
+      },
+      attachTo: document.body,
+    })
+    await nextTick()
+    const cell = (col: number) =>
+      wrapper.find(`[role=row][aria-rowindex="2"] [aria-colindex="${col + 2}"]`).attributes('style')
+    expect(cell(0)).toMatch(/color: (#171717|rgb\(23, 23, 23\))/)
+    expect(cell(1)).toMatch(/color: (#b2423e|rgb\(178, 66, 62\))/)
+    expect(cell(2)).toMatch(/color: (#ededed|rgb\(237, 237, 237\))/)
     wrapper.unmount()
   })
 })

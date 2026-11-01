@@ -59,8 +59,8 @@ function dateFormat(text: string) {
   return undefined
 }
 
-/** Column widths: px to the characters the file counts in. */
-const widthOf = (px: number) => Math.max(0, Math.round(((px - 5) / 7) * 100) / 100)
+/** Column widths: px to the characters the file counts in, which the file format turns back into these px (its padding included). */
+const widthOf = (px: number) => Math.max(0, Math.round((px * 256) / 7) / 256)
 /** Row heights: px to points. */
 const heightOf = (px: number) => Math.round(px * 0.75 * 100) / 100
 

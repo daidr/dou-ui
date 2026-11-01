@@ -55,7 +55,7 @@ import '@dou-ui/flow/style.css'
 import { CodeText, DouCodeEditor, type CodeEditorExpose, typescript } from '@dou-ui/code'
 import '@dou-ui/code/style.css'
 import { DouSheet, exportWorkbook, type SheetExpose, type SheetWorkbook } from '@dou-ui/sheet'
-import { xlsxExporter } from '@dou-ui/sheet-xlsx'
+import { readXlsx, xlsxExporter } from '@dou-ui/sheet-xlsx'
 import '@dou-ui/sheet/style.css'
 import { DouPivot, type PivotCollapsed, type PivotConfig } from '@dou-ui/pivot'
 import '@dou-ui/pivot/style.css'
@@ -1081,6 +1081,19 @@ export const cases: Record<string, Case> = {
       await exportWorkbook(toRaw((window as any).sheetBook.value), xlsxExporter)
     },
     budget: { 100_000: 4000 },
+  },
+  // The same workbook read back from an .xlsx file, written once beforehand.
+  'sheet-import-xlsx': {
+    render: (n) => sheet(n),
+    prepare: async () => {
+      if ((window as any).xlsxBytes) return
+      const blob = await exportWorkbook(toRaw((window as any).sheetBook.value), xlsxExporter)
+      ;(window as any).xlsxBytes = new Uint8Array(await blob.arrayBuffer())
+    },
+    act: async () => {
+      await readXlsx((window as any).xlsxBytes)
+    },
+    budget: { 100_000: 3000 },
   },
   // n records grouped 8 × 120 cities × 4 by 4 × 12 months, two values: read, summed up and drawn.
   pivot: {

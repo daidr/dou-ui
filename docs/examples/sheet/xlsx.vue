@@ -1,9 +1,16 @@
 <script setup>
 import { DouSheet, DouSheetTabs, DouSheetToolbar } from '@dou-ui/sheet'
 import { xlsx } from '@dou-ui/sheet-xlsx'
+import { toast } from 'dou-ui'
 import { ref } from 'vue'
 
 const extensions = [xlsx()]
+
+// 表格放不下、或和原文件不一样的内容，读完时告诉用户；多个工作表会有同一种，去掉重复的
+function onImport(event) {
+  if (event.warnings.length)
+    toast.warning(`与原文件不同：${[...new Set(event.warnings.map((w) => w.message))].join('、')}`)
+}
 
 const book = ref({
   styles: {
@@ -57,11 +64,17 @@ const book = ref({
 </script>
 
 <template>
-  <!-- 导出菜单里多了 XLSX；公式、格式、样式、批注和下拉选项都会带进文件 -->
-  <DouSheet v-model="book" :extensions="extensions" style="height: 260px">
+  <!-- 导出菜单里多了 XLSX，导入按钮和拖入文件也能读 .xlsx；公式、格式、样式、批注和下拉选项都会带进文件 -->
+  <DouSheet
+    v-model="book"
+    :extensions="extensions"
+    file-drop
+    style="height: 260px"
+    @import="onImport"
+  >
     <template #header>
       <DouSheetToolbar
-        :tools="['undo', 'redo', '|', 'bold', 'italic', '|', 'export']"
+        :tools="['undo', 'redo', '|', 'bold', 'italic', '|', 'import', 'export']"
         file-name="门店营收"
       />
     </template>

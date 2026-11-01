@@ -137,6 +137,7 @@ import {
 import { movePoint, stepIndex, type SheetDirection } from './core/nav'
 import { compareForSort, isEmptyValue, meetsRule, textCollator } from './core/data'
 import { layStyle, SheetLooks, type SheetLook } from './core/conditional'
+import { textOn } from './core/paint'
 import FilterPanel from './components/filter-panel.vue'
 import {
   clampPoint,
@@ -179,10 +180,12 @@ import {
   findImporter,
   importerInfo,
   mergeFileHandlers,
+  reasonOf,
   scopeFor,
   toBlob,
   type SheetExporter,
   type SheetFileSource,
+  type SheetImporter,
   type SheetImportResult,
 } from './core/file'
 import type {
@@ -881,6 +884,11 @@ function compileStyle(style: SheetStyle) {
     css += `text-decoration-line:${[style.underline && 'underline', style.strike && 'line-through'].filter(Boolean).join(' ')};`
   if (style.color) css += `color:${style.color};`
   else if (style.tone) cls.push(`is-tone-${style.tone}`)
+  else if (style.background) {
+    // the theme's text on a background that doesn't follow it may not read: a dark page's light text on white
+    const ink = textOn(style.background)
+    if (ink) css += `color:${ink};`
+  }
   if (style.background) css += `background-color:${style.background};`
   else if (style.fill) cls.push(`is-fill-${style.fill}`)
   if (style.align) cls.push(`is-align-${style.align}`)
@@ -2816,7 +2824,7 @@ const exporters = computed(() =>
   ),
 )
 const importers = computed(() =>
-  mergeFileHandlers(
+  mergeFileHandlers<SheetImporter>(
     [csvImporter],
     resolved.value.importers.map(({ extension, importer }) => ({ extension, handler: importer })),
     'importer',
@@ -2875,7 +2883,7 @@ async function saveFile(which: string | SheetExporter, options: SheetSaveFileOpt
     name = options.fileName ?? exportName(exporter, options.scope)
     blob = await exportFile(exporter, options)
   } catch (error) {
-    const reason = error instanceof Error ? error.message : String(error)
+    const reason = reasonOf(error)
     fileFailed(
       { action: 'export', exporter: exporter.name, error },
       format(messages.value.file.exportFailed, { name, reason }),
@@ -2954,7 +2962,7 @@ async function importFile(file: Blob, options: SheetImportFileOptions = {}) {
     )
   } catch (error) {
     if (signal.aborted) return null
-    const reason = error instanceof Error ? error.message : String(error)
+    const reason = reasonOf(error)
     fileFailed(
       { action: 'import', file, importer: importer.name, error },
       format(messages.value.file.importFailed, { name: label, reason }),

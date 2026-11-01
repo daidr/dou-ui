@@ -192,7 +192,7 @@ describe('writeXlsx', () => {
             cells: [['a', 'b'], ['c']],
             merges: ['A1:B1'],
             freeze: { rows: 1, cols: 1 },
-            colSizes: { 0: 180, 1: 0 },
+            colSizes: { 0: 140, 1: 0 },
             rowSizes: { 1: 40 },
           },
         ],
@@ -202,17 +202,17 @@ describe('writeXlsx', () => {
     expect(xml).toContain(
       '<pane xSplit="1" ySplit="1" topLeftCell="B2" activePane="bottomRight" state="frozen"/>',
     )
-    expect(xml).toContain('<col min="1" max="1" width="25" customWidth="1"/>')
-    expect(xml).toContain('<col min="2" max="2" width="13" hidden="1"/>')
+    expect(xml).toContain('<col min="1" max="1" width="20" customWidth="1"/>')
+    expect(xml).toContain('<col min="2" max="2" width="13.71484375" hidden="1"/>')
     expect(xml).toContain('<row r="2" ht="30" customHeight="1">')
-    expect(xml).toContain('defaultRowHeight="21" defaultColWidth="13"')
+    expect(xml).toContain('defaultRowHeight="21" defaultColWidth="13.71484375"')
   })
 
   it('takes the grid sizes from options', async () => {
     const xml = (
       await parts({ sheets: [{ name: 'S', cells: [['a']] }] }, { colWidth: 124, rowHeight: 32 })
     ).sheet()
-    expect(xml).toContain('defaultRowHeight="24" defaultColWidth="17"')
+    expect(xml).toContain('defaultRowHeight="24" defaultColWidth="17.71484375"')
   })
 
   it('writes groups as outline levels, folded ones hidden', async () => {
@@ -537,7 +537,7 @@ describe('writeXlsx', () => {
     })
     const files = await unzip(new Uint8Array(await blob.arrayBuffer()))
     expect(decoder.decode(files.get('xl/worksheets/sheet1.xml'))).toContain(
-      'defaultRowHeight="30" defaultColWidth="27.86"',
+      'defaultRowHeight="30" defaultColWidth="28.5703125"',
     )
   })
 

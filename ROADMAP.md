@@ -566,7 +566,7 @@ CalendarView 补上按时间排布的视图，再补几个写应用时常要自�
 | 命令与工具栏         | ✅   | `defineSheetCommand`，按键、右键菜单、工具栏按名字使用命令，扩展可以替换内置命令，`useSheet().commands`                                                          |
 | 导出器与导入器       | ✅   | `defineSheetExporter`、`defineSheetImporter`，工具栏导出菜单与导入按钮，拖入文件，组件外 `exportWorkbook`，不含组件的入口 `@dou-ui/sheet/core`（Worker、服务端） |
 | 更多扩展钩子         | ⏳   | 扩展的 `update`、`transformPaste`、绘制层 `layers`，以及单元格类型的 `draw`                                                                                      |
-| `@dou-ui/sheet-xlsx` | 🚧   | 不依赖第三方库读写 `.xlsx`。导出已完成：值、公式、格式、样式、合并、冻结、分组、批注、验证、条件格式、筛选；导入待做                                             |
+| `@dou-ui/sheet-xlsx` | ✅   | 不依赖第三方库读写 `.xlsx`：值、公式、格式、样式、合并、冻结、分组、批注、验证、条件格式、筛选；导入时列出放不下的内容                                           |
 | 透视表与仪表盘导出   | ⏳   | 透视表、仪表盘的表格部件直接使用表格的导出器                                                                                                                     |
 
 ## 图表 · 第一阶段 ✅

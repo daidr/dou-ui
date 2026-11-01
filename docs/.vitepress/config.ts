@@ -65,7 +65,7 @@ const sheetSidebar = ecosystem('电子表格', [
   { text: '文档数据', link: '/sheet/data' },
   { text: '公式', link: '/sheet/formulas' },
   { text: '扩展', link: '/sheet/extensions' },
-  { text: '导出 xlsx', link: '/sheet/xlsx' },
+  { text: '导入导出 xlsx', link: '/sheet/xlsx' },
   { text: '协同编辑', link: '/sheet/collaboration' },
 ])
 const codeSidebar = ecosystem('代码编辑器', [

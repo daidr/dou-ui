@@ -1,4 +1,4 @@
-import { flattenTokens, light, mixColors, parseColor } from '@dou-ui/theme'
+import { contrastRatio, dark, flattenTokens, light, mixColors, parseColor } from '@dou-ui/theme'
 import type { SheetStyle } from './model'
 
 /*
@@ -8,6 +8,27 @@ import type { SheetStyle } from './model'
  */
 
 const tokens = new Map(flattenTokens(light))
+
+/** Text for light backgrounds and for dark ones: each theme's own text color. */
+const INK = tokens.get('--dou-color-text') ?? '#171717'
+const PAPER = new Map(flattenTokens(dark)).get('--dou-color-text') ?? '#ededed'
+
+/**
+ * The text color that reads on a background of a set color, whatever the
+ * page's theme: dark on light backgrounds, light on dark ones. `undefined`
+ * for a color it can't work out, such as a theme variable, which follows
+ * the theme along with the text.
+ */
+export function textOn(background: string): string | undefined {
+  if (background.includes('var(')) return undefined
+  // a mix of set colors, as color scales paint, is worked out first
+  const color = lightThemeColor(background)
+  try {
+    return contrastRatio(color, INK) >= contrastRatio(color, PAPER) ? INK : PAPER
+  } catch {
+    return undefined
+  }
+}
 
 /** A tone's text color, as `is-tone-*` colors it. */
 const TONE_TEXT = (tone: string) => `var(--dou-color-${tone}-text)`

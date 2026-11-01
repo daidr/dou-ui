@@ -130,9 +130,13 @@ export interface SheetExporter<Options = any> {
  * so one picked at run time, e.g. by a message, can be passed as it is.
  */
 type OptionsOf<Handler> = Handler extends
-  SheetExporter<infer Options> | SheetImporter<infer Options>
+  SheetExporter<infer Options> | SheetImporter<infer Options, any>
   ? Options
   : never
+
+/** What an importer gives back, as it declares it. */
+type ResultOf<Importer> =
+  Importer extends SheetImporter<any, infer Result> ? Result : SheetImportResult
 
 /** Declares an exporter; only gives it a type. */
 export function defineSheetExporter<Options = any>(
@@ -206,7 +210,10 @@ export interface SheetImportContext {
 }
 
 /** A way to read a file into a workbook, such as CSV; see `defineSheetImporter`. */
-export interface SheetImporter<Options = any> {
+export interface SheetImporter<
+  Options = any,
+  Result extends SheetImportResult = SheetImportResult,
+> {
   /** Unique among the importers; `importFile`'s `importer` takes it. */
   name: string
   /**
@@ -222,18 +229,45 @@ export interface SheetImporter<Options = any> {
   accept: string[]
   /** Tells from the file's first bytes whether it reads it, for files whose name says nothing. */
   sniff?: (head: Uint8Array) => boolean
-  import: (
-    file: Blob,
-    context: SheetImportContext,
-    options?: Options,
-  ) => SheetImportResult | Promise<SheetImportResult>
+  import: (file: Blob, context: SheetImportContext, options?: Options) => Result | Promise<Result>
 }
 
-/** Declares an importer; only gives it a type. */
+/**
+ * Declares an importer; only gives it a type. `defineSheetImporter<Options, Result>`
+ * also says what it gives back, such as warnings it always has.
+ */
 export function defineSheetImporter<Options = any>(
   importer: SheetImporter<Options>,
-): SheetImporter<Options> {
+): SheetImporter<Options>
+export function defineSheetImporter<Options, Result extends SheetImportResult>(
+  importer: SheetImporter<Options, Result>,
+): SheetImporter<Options, Result>
+export function defineSheetImporter(importer: SheetImporter) {
   return importer
+}
+
+/**
+ * An import or export that can't be done, for a reason people can be told:
+ * the grid shows `reason` in its hint, while `message` is for developers.
+ * `code` tells the cases apart, such as `'locked'`.
+ */
+export class SheetFileError<Code extends string = string> extends Error {
+  override name = 'SheetFileError'
+  constructor(
+    message: string,
+    readonly code: Code,
+    readonly reason: string,
+    options?: ErrorOptions,
+  ) {
+    super(message, options)
+  }
+}
+
+/** What to tell people of a failed import or export: an error's `reason` when it gives one. */
+export function reasonOf(error: unknown) {
+  if (error instanceof Error)
+    return 'reason' in error && typeof error.reason === 'string' ? error.reason : error.message
+  return String(error)
 }
 
 /** Whether an importer takes a file, by its name, type or first bytes. */
@@ -501,13 +535,14 @@ export async function readWorkbook<Importer extends SheetImporter>(
   file: Blob,
   importer: Importer,
   options: SheetReadWorkbookOptions<OptionsOf<Importer>> = {},
-): Promise<SheetImportResult> {
+): Promise<ResultOf<Importer>> {
   const messages = options.messages ?? sheetMessagesFor(options.locale)
-  return importer.import(
+  const result = await importer.import(
     file,
     { messages, locale: options.locale, signal: options.signal },
     options.options,
   )
+  return result as ResultOf<Importer>
 }
 
 /** The name of a file without its extension, for a sheet's name. */

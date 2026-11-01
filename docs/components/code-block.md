@@ -6,7 +6,7 @@
 
 `code` 传入代码，`lang` 指定语言。有 `filename` 或 `lang` 时显示标题栏，复制按钮在标题栏右侧；没有标题栏时，复制按钮在鼠标移入时出现在右上角。`copyable` 设为 `false` 可以去掉复制按钮。
 
-CodeBlock 本身不带语法高亮，通过 `highlight` 接入高亮工具。使用 [代码编辑器](/code/) 的语言时，可以用 `@dou-ui/code` 的 `createCodeHighlighter`，代码块和编辑器的颜色一致，见[代码块使用同一套颜色](/code/#代码块使用同一套颜色)。`highlight` 的写法与 [Shiki](https://shiki.style) 的 `codeToHtml` 一致：接收代码和语言，返回 HTML，可以是 Promise。
+CodeBlock 本身不带语法高亮，通过 `highlight` 接入高亮工具。使用 [代码编辑器](/code/) 的语言时，可以用 `@dou-ui/code` 的 `createCodeHighlighter`，代码块和编辑器的颜色一致，见[代码块使用同一套颜色](/code/languages#代码块使用同一套颜色)。`highlight` 的写法与 [Shiki](https://shiki.style) 的 `codeToHtml` 一致：接收代码和语言，返回 HTML，可以是 Promise。
 
 <DocDemo src="code-block/basic" column />
 

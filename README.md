@@ -7,7 +7,7 @@
 - 统一的 Props 约定：`variant`、`tone`、`size` 可以任意组合
 - 内置无障碍支持，文字对比度按 WCAG AA 取值；提供完整的 TypeScript 类型，支持按需引入
 
-设计取舍见 [设计原则](./docs/guide/philosophy.md)，视觉规范见 [视觉语言](./docs/guide/visual-language.md)，组件计划见 [路线图](./docs/guide/roadmap.md)。
+设计取舍见 [设计原则](./docs/guide/philosophy.md)，视觉规范见 [视觉语言](./docs/guide/visual-language.md)，组件计划见 [路线图](./ROADMAP.md)。
 
 > 尚未发布到 npm。首个版本发布前 API 仍可能调整，变化记录在 [更新日志](./CHANGELOG.md)。
 

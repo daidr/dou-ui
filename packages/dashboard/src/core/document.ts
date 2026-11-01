@@ -91,7 +91,8 @@ export function checkDocument(
 export function migrateDocument(input: unknown): DashboardDocument {
   const source = (input && typeof input === 'object' ? input : {}) as Record<string, unknown>
   const version = source.version ?? 1
-  if (version !== 1) throw new Error(`Dashboard version ${String(version)} is not known`)
+  if (version !== 1)
+    throw new Error(`[@dou-ui/dashboard] Dashboard version ${String(version)} is not known`)
   const list = Array.isArray(source.widgets) ? source.widgets : []
   const widgets: DashboardWidget[] = []
   for (const value of list) {

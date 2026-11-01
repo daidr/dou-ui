@@ -72,7 +72,10 @@ export function useDashboardWidget<
   D = unknown,
 >(): DashboardWidgetContext<P, D> {
   const context = inject(widgetContextKey, null)
-  if (!context) throw new Error('useDashboardWidget() is only available inside a dashboard widget')
+  if (!context)
+    throw new Error(
+      '[@dou-ui/dashboard] useDashboardWidget() is only available inside a dashboard widget',
+    )
   return context as DashboardWidgetContext<P, D>
 }
 

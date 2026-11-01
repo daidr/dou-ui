@@ -302,7 +302,8 @@ function newId(type: string) {
   for (;;) {
     const id = props.createId?.(type) ?? `${type}-${Math.random().toString(36).slice(2, 8)}`
     if (!used.has(id)) return id
-    if (props.createId) throw new Error(`createId gave "${id}", which is already in use`)
+    if (props.createId)
+      throw new Error(`[@dou-ui/dashboard] createId gave "${id}", which is already in use`)
   }
 }
 

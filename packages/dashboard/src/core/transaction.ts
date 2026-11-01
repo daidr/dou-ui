@@ -68,7 +68,8 @@ function applyStep(
   const patch: Record<string, unknown> = {}
   const undo: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(step.patch)) {
-    if (PROTECTED.has(key)) throw new Error(`A widget's "${key}" cannot be changed`)
+    if (PROTECTED.has(key))
+      throw new Error(`[@dou-ui/dashboard] A widget's "${key}" cannot be changed`)
     if (sameValue(old[key], value)) continue
     patch[key] = value
     undo[key] = old[key]

@@ -590,6 +590,7 @@ await grid.value.importFile(file, { mode: 'replace' })
 读完、写入之前会触发 `import` 事件，事件里有 `file`、`importer`、`mode`、读到的 `book` 和 `warnings`（导入方式没能带过来的内容，比如边框）。可以修改 `book`，或者调用 `preventDefault()` 不写入。要先让用户确认，就先 `preventDefault()`，等用户同意后再调用 `event.apply()`，按原来的 `mode` 写入，只能写入一次：
 
 ```ts
+import type { SheetImportEvent } from '@dou-ui/sheet'
 import { dialog } from 'dou-ui'
 
 async function onImport(event: SheetImportEvent) {
@@ -602,6 +603,7 @@ async function onImport(event: SheetImportEvent) {
 导入或保存文件失败时（没有能读这个文件的导入方式、导入方式出错、`saveFile` 或工具栏导出时图片太大），表格上方会显示一条简短的提示，同时触发 `file-error` 事件。事件里有 `action`（`'import'` 或 `'export'`）、`file`、`importer` 或 `exporter`、`error`，以及表格要显示的提示文字 `message`（跟随当前语言）。想换成自己的提示，比如用 [`toast`](../components/toast)，就在事件里调用 `preventDefault()`，表格就不再显示自带的提示，读屏仍会播报。`error` 是给开发者看的英文错误，不要直接显示给用户。用代码调用时，`importFile` 遇到导入方式出错，或 `saveFile` 导出失败，返回的 Promise 也会 reject。`exportFile` 只返回文件、不下载，它失败时不显示提示，也不触发 `file-error`，由调用方自己 `catch`。
 
 ```ts
+import type { SheetFileErrorEvent } from '@dou-ui/sheet'
 import { toast } from 'dou-ui'
 
 function onFileError(event: SheetFileErrorEvent) {

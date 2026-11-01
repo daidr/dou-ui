@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useGlobalConfig, useNamespace } from 'dou-ui'
 import { keymap } from 'prosemirror-keymap'
-import { Plugin, type EditorState } from 'prosemirror-state'
+import { Plugin, type EditorState, type Transaction } from 'prosemirror-state'
 import type { EditorView } from 'prosemirror-view'
 import {
   computed,
@@ -29,11 +29,18 @@ import { comparePlugin, compareKey } from './core/compare'
 import {
   createEditorView,
   getBlocks,
+  historyCommands,
+  originKey,
   replaceBlocks,
   restoreBlocks,
   runCommand,
   setEditable,
 } from './core/editor'
+import { diffBlocks } from './core/changes'
+import { isRemote } from './core/plugins'
+import { selectionOf, sameSelection } from './core/selection'
+import { selectBlocks } from './core/block-selection'
+import { applyEditorTransaction, EditorTransaction } from './core/transaction'
 import type { Block, PartialBlock } from './core/model'
 import { resolveEditorExtensions } from './core/extension'
 import { slashPlugin, type SlashState } from './core/slash'
@@ -41,7 +48,15 @@ import { writeHTML } from './core/output'
 import { parseHTML } from './core/prepare'
 import { componentMounter, vueNodeView } from './define-block'
 import { editorKit } from './extensions/editor-kit'
-import { editorKey, type EditorEmits, type EditorExpose, type EditorProps } from './editor'
+import {
+  editorKey,
+  type EditorEmits,
+  type EditorExpose,
+  type EditorProps,
+  type EditorOrigin,
+  type EditorSelection,
+  type EditorTransactionResult,
+} from './editor'
 import { useEditorMessages } from './locale'
 import { useEditorComments } from './use-comments'
 
@@ -59,6 +74,7 @@ const props = withDefaults(defineProps<EditorProps>(), {
   history: true,
   undo: undefined,
   redo: undefined,
+  selection: undefined,
   comments: undefined,
   author: undefined,
   activeComment: undefined,
@@ -132,11 +148,51 @@ const bubble = useTemplateRef<InstanceType<typeof BubbleToolbar>>('bubble')
 // it is not loaded again (that would move the cursor).
 let emitted: Block[] | undefined
 
-function onChange(current: EditorView) {
+// the result of the last change, for `transact` to hand back
+let lastResult: EditorTransactionResult | null = null
+
+function onChange(current: EditorView, tr: Transaction, before: EditorState) {
   const blocks = getBlocks(current)
   emitted = blocks
+  const history = tr.getMeta('history$') as { redo: boolean } | undefined
+  const origin =
+    (tr.getMeta(originKey) as EditorOrigin | undefined) ??
+    (history ? (history.redo ? 'redo' : 'undo') : isRemote(tr) ? 'remote' : undefined)
+  const meta: EditorTransactionResult['meta'] = {
+    history:
+      tr.getMeta('addToHistory') !== false &&
+      origin !== 'remote' &&
+      origin !== 'undo' &&
+      origin !== 'redo',
+  }
+  if (origin !== undefined) meta.origin = origin
+  lastResult = { blocks, changes: diffBlocks(before.doc, current.state.doc), meta }
+  emit('transaction', lastResult)
   emit('update:modelValue', blocks)
   emit('change', blocks)
+}
+
+let selection: EditorSelection = { block: null, blocks: [] }
+
+const warn = (message: string) => {
+  if (process.env.NODE_ENV !== 'production') console.warn(`[@dou-ui/editor] ${message}`)
+}
+
+const lacksId = (blocks: PartialBlock[]): boolean =>
+  blocks.some((block) => !block.id || lacksId(block.children ?? []))
+// until the editor is focused (or a block is, by the program) its selection is no cursor
+let cursorKnown = false
+
+function onUpdate(current: EditorView) {
+  state.value = current.state
+  if (!cursorKnown) {
+    if (!focused.value) return
+    cursorKnown = true
+  }
+  const next = selectionOf(current.state)
+  if (sameSelection(next, selection)) return
+  selection = next
+  emit('update:selection', next)
 }
 
 // a click on a link places the cursor; with Ctrl or ⌘ held it opens the link
@@ -197,7 +253,7 @@ onMounted(() => {
       return attrs
     },
     onChange,
-    onUpdate: (current) => (state.value = current.state),
+    onUpdate,
   })
   view.value = instance
   state.value = instance.state
@@ -212,10 +268,24 @@ onMounted(() => {
   instance.dom.addEventListener('focus', onFocus)
   instance.dom.addEventListener('blur', onBlur)
   if (props.autofocus) instance.focus()
+  // blocks given without ids got them now: hand those back, so events' ids can be looked up
+  if (!kit.externalDocument && props.modelValue && lacksId(props.modelValue)) {
+    const blocks = getBlocks(instance)
+    emitted = blocks
+    emit('update:modelValue', blocks)
+  }
 })
 
 function onFocus(event: FocusEvent) {
   focused.value = true
+  if (!cursorKnown && view.value) {
+    cursorKnown = true
+    const next = selectionOf(view.value.state)
+    if (!sameSelection(next, selection)) {
+      selection = next
+      emit('update:selection', next)
+    }
+  }
   emit('focus', event)
 }
 
@@ -296,10 +366,66 @@ function announce(text: string) {
 }
 
 function restore(blocks: PartialBlock[]) {
-  if (!view.value || props.readonly) return false
-  if (!restoreBlocks(view.value, blocks)) return false
+  // like the other methods it works while `readonly`, and it is the change comparing allows
+  if (!view.value || !restoreBlocks(view.value, blocks)) return false
   announce(messages.value.restored)
   return true
+}
+
+// a selection from outside: the cursor goes to the block, or the blocks are selected
+watch(
+  () => props.selection,
+  (value) => {
+    const current = view.value
+    if (!current || !value || sameSelection(value, selection)) return
+    const known = cursorKnown
+    cursorKnown = true
+    let applied = false
+    if (value.blocks.length > 1) {
+      applied = selectBlocks(value.blocks[0]!, value.blocks.at(-1)!)(
+        current.state,
+        current.dispatch,
+      )
+      if (!applied) warn('`selection.blocks` must be sibling blocks that exist in the document')
+    } else {
+      const id = value.block ?? value.blocks[0]
+      const transaction = new EditorTransaction(current.state)
+      if (id && transaction.focusBlock(id)) {
+        current.dispatch(transaction.tr)
+        applied = true
+      } else if (!id) warn('a selection without blocks cannot be set; the cursor stays where it is')
+    }
+    if (applied) return
+    cursorKnown = known
+    // hand back where the selection really is, so the binding doesn't keep a value that never applied
+    emit('update:selection', { ...selection, blocks: [...selection.blocks] })
+  },
+)
+
+function transact(
+  fn: (tr: EditorTransaction) => void,
+  meta?: EditorTransaction['meta'],
+): EditorTransactionResult | null {
+  const current = view.value
+  // comparing shows a version: nothing changes it but `restore`
+  if (!current || props.compare) return null
+  const transaction = new EditorTransaction(current.state, meta, cursorKnown)
+  fn(transaction)
+  lastResult = null
+  // `focusBlock` places the cursor
+  if (transaction.focused) cursorKnown = true
+  applyEditorTransaction(current, transaction)
+  if (transaction.focused) current.focus()
+  const result = lastResult
+  lastResult = null
+  return result
+}
+
+const history = (action: 'undo' | 'redo', dispatch: boolean) => {
+  const current = view.value
+  if (!current || props.compare) return false
+  const command = historyCommands(current.state)[action]
+  return dispatch ? runCommand(current, command) : command(current.state)
 }
 
 defineExpose<EditorExpose>({
@@ -313,6 +439,42 @@ defineExpose<EditorExpose>({
   getHTML: () => (view.value ? writeHTML(getBlocks(view.value), kit) : ''),
   setHTML: (html: string) => view.value && replaceBlocks(view.value, parseHTML(html, kit)),
   run: (command) => (view.value ? runCommand(view.value, command) : false),
+  transact,
+  getBlock: (id) => (view.value ? new EditorTransaction(view.value.state).getBlock(id) : null),
+  insertBlocks: (blocks, placement) => {
+    let ids: string[] = []
+    transact((tr) => (ids = tr.insertBlocks(blocks, placement)))
+    return ids
+  },
+  updateBlock: (id, patch) => {
+    let ok = false
+    transact((tr) => (ok = tr.updateBlock(id, patch)))
+    return ok
+  },
+  removeBlocks: (ids) => {
+    let ok = false
+    transact((tr) => (ok = tr.removeBlocks(ids)))
+    return ok
+  },
+  moveBlocks: (ids, placement) => {
+    let ok = false
+    transact((tr) => (ok = tr.moveBlocks(ids, placement)))
+    return ok
+  },
+  focusBlock: (id, edge) => {
+    let ok = false
+    transact((tr) => (ok = tr.focusBlock(id, edge)))
+    return ok
+  },
+  getSelection: () => ({ ...selection, blocks: [...selection.blocks] }),
+  undo: () => history('undo', true),
+  redo: () => history('redo', true),
+  get canUndo() {
+    return !!state.value && history('undo', false)
+  },
+  get canRedo() {
+    return !!state.value && history('redo', false)
+  },
   comment: () => comments.start(),
   getCommentAnchors: anchors,
   restore,

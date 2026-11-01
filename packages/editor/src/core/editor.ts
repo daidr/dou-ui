@@ -2,7 +2,7 @@ import { baseKeymap } from 'prosemirror-commands'
 import { history, redo, undo } from 'prosemirror-history'
 import { keymap } from 'prosemirror-keymap'
 import type { Node as PMNode } from 'prosemirror-model'
-import { EditorState, Plugin, PluginKey, type Command } from 'prosemirror-state'
+import { EditorState, Plugin, PluginKey, type Command, type Transaction } from 'prosemirror-state'
 import { EditorView, type NodeViewConstructor } from 'prosemirror-view'
 import { blockSelectionPlugin } from './block-selection'
 import type { ResolvedEditorExtensions } from './extension'
@@ -22,10 +22,10 @@ export interface CreateEditorOptions {
   blocks?: PartialBlock[]
   editable?: boolean
   placeholder: PlaceholderOptions
-  /** Called after each change to the document. */
-  onChange?: (view: EditorView) => void
+  /** Called after each change to the document, with the transaction and the state before it. */
+  onChange?: (view: EditorView, tr: Transaction, before: EditorState) => void
   /** Called after every state change, including the selection. */
-  onUpdate?: (view: EditorView) => void
+  onUpdate?: (view: EditorView, before: EditorState) => void
   /**
    * Extra plugins, placed before the built-in ones so their keys win.
    * The collaboration extension adds its sync and cursor plugins here.
@@ -38,6 +38,9 @@ export interface CreateEditorOptions {
   /** Attributes for the editable element, e.g. an accessible name. */
   attributes?: () => Record<string, string>
 }
+
+/** The transaction meta that names who made a change, for the `transaction` event. */
+export const originKey = 'douOrigin'
 
 const historyKey = new PluginKey<{ undo: Command; redo: Command }>('douHistory')
 
@@ -120,10 +123,11 @@ export function createEditorView(options: CreateEditorOptions): EditorView {
     }),
     // `this`, not `view`: plugins (e.g. collaboration) dispatch while the view is being created
     dispatchTransaction(this: EditorView, tr) {
-      const next = this.state.apply(tr)
+      const before = this.state
+      const next = before.apply(tr)
       this.updateState(next)
-      if (tr.docChanged) options.onChange?.(this)
-      options.onUpdate?.(this)
+      if (next.doc !== before.doc) options.onChange?.(this, tr, before)
+      options.onUpdate?.(this, before)
     },
   })
   viewNodeViews.set(view, nodeViews)
@@ -141,6 +145,7 @@ export function replaceBlocks(view: EditorView, blocks: PartialBlock[]) {
   const doc = blocksToDoc(state.schema, blocks)
   const tr = state.tr.replaceWith(0, state.doc.content.size, doc.content)
   tr.setMeta('addToHistory', false)
+  tr.setMeta(originKey, 'external')
   view.dispatch(tr)
 }
 
@@ -161,7 +166,12 @@ export function restoreBlocks(view: EditorView, blocks: PartialBlock[]) {
     end.a += overlap
     end.b += overlap
   }
-  view.dispatch(state.tr.replace(start, end.a, next.slice(start, end.b)).scrollIntoView())
+  view.dispatch(
+    state.tr
+      .replace(start, end.a, next.slice(start, end.b))
+      .setMeta(originKey, 'restore')
+      .scrollIntoView(),
+  )
   return true
 }
 

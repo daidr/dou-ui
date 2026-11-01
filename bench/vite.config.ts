@@ -59,6 +59,11 @@ export default defineConfig({
         find: /^@dou-ui\/form-builder\/style\.css$/,
         replacement: r('../packages/form-builder/src/style.css'),
       },
+      { find: /^@dou-ui\/editor$/, replacement: r('../packages/editor/src/index.ts') },
+      {
+        find: /^@dou-ui\/editor\/style\.css$/,
+        replacement: r('../packages/editor/src/style.css'),
+      },
       { find: /^@dou-ui\/flow$/, replacement: r('../packages/flow/src/index.ts') },
       {
         find: /^@dou-ui\/flow\/style\.css$/,

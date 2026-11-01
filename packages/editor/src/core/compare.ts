@@ -1,7 +1,7 @@
 import type { Node as PMNode } from 'prosemirror-model'
 import { Plugin, PluginKey } from 'prosemirror-state'
 import { Decoration, DecorationSet } from 'prosemirror-view'
-import { diffBlocks, diffText, inlineText, type BlockChange } from './diff'
+import { diffBlocks, diffText, inlineText, type BlockDiff } from './diff'
 import { docToBlocks, type Block } from './model'
 
 /*
@@ -37,7 +37,7 @@ function removedText(text: string) {
 function decorate(doc: PMNode, before: readonly Block[], label: (block: Block) => string) {
   const { changes } = diffBlocks(before, docToBlocks(doc))
   if (!changes.length) return DecorationSet.empty
-  const byId = new Map<string, BlockChange>()
+  const byId = new Map<string, BlockDiff>()
   /** Removed blocks, by the id of the block they stood before (`null`: the end). */
   const removedAt = new Map<string | null, Block[]>()
   for (const change of changes) {
@@ -70,7 +70,7 @@ function decorate(doc: PMNode, before: readonly Block[], label: (block: Block) =
     const change = byId.get(id)
     if (change?.type === 'added')
       decorations.push(Decoration.node(pos, pos + node.nodeSize, { class: `${CLS}-added` }))
-    else if (change?.type === 'changed') {
+    else if (change?.type === 'updated') {
       const content = node.firstChild!
       const sameKind =
         change.before.type === change.after.type &&

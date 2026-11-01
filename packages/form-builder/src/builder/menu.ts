@@ -27,7 +27,11 @@ export interface NodeMenuEntry {
   divided?: boolean
 }
 
-/** The menu of some nodes: move, copy, group and delete them, then the extensions' items. */
+/**
+ * The menu of some nodes: move, copy, group and delete them, then the
+ * extensions' items. A read-only builder keeps only going to the parent
+ * and the extensions' items.
+ */
 export function nodeMenu(state: BuilderState, ids: readonly string[]): NodeMenuEntry[] {
   const messages = state.messages
   const map = formNodePlaces(state.document)
@@ -49,47 +53,49 @@ export function nodeMenu(state: BuilderState, ids: readonly string[]): NodeMenuE
       icon: CornerLeftUpIcon,
       run: () => state.selectParent(),
     })
-  entries.push(
-    {
-      key: 'up',
-      label: messages.actions.up,
-      shortcut: 'mod+arrowup',
-      icon: ArrowUpIcon,
-      run: () => state.moveBy(-1, ids),
-      disabled: !!one && !one.index,
-    },
-    {
-      key: 'down',
-      label: messages.actions.down,
-      shortcut: 'mod+arrowdown',
-      icon: ArrowDownIcon,
-      run: () => state.moveBy(1, ids),
-      disabled: !!one && one.index >= siblings - 1,
-    },
-    {
-      key: 'duplicate',
-      label: messages.actions.duplicate,
-      shortcut: 'mod+d',
-      icon: CopyIcon,
-      run: () => state.duplicate(ids),
-    },
-  )
-  if (parents.size === 1 && !pages)
+  if (!state.readonly) {
+    entries.push(
+      {
+        key: 'up',
+        label: messages.actions.up,
+        shortcut: 'mod+arrowup',
+        icon: ArrowUpIcon,
+        run: () => state.moveBy(-1, ids),
+        disabled: !!one && !one.index,
+      },
+      {
+        key: 'down',
+        label: messages.actions.down,
+        shortcut: 'mod+arrowdown',
+        icon: ArrowDownIcon,
+        run: () => state.moveBy(1, ids),
+        disabled: !!one && one.index >= siblings - 1,
+      },
+      {
+        key: 'duplicate',
+        label: messages.actions.duplicate,
+        shortcut: 'mod+d',
+        icon: CopyIcon,
+        run: () => state.duplicate(ids),
+      },
+    )
+    if (parents.size === 1 && !pages)
+      entries.push({
+        key: 'wrap',
+        label: messages.actions.wrap,
+        shortcut: 'mod+g',
+        icon: SquareDashedIcon,
+        run: () => state.wrap(ids),
+      })
     entries.push({
-      key: 'wrap',
-      label: messages.actions.wrap,
-      shortcut: 'mod+g',
-      icon: SquareDashedIcon,
-      run: () => state.wrap(ids),
+      key: 'remove',
+      label: messages.actions.remove,
+      shortcut: 'delete',
+      icon: TrashIcon,
+      run: () => state.remove(ids),
+      tone: 'danger',
     })
-  entries.push({
-    key: 'remove',
-    label: messages.actions.remove,
-    shortcut: 'delete',
-    icon: TrashIcon,
-    run: () => state.remove(ids),
-    tone: 'danger',
-  })
+  }
   const nodes: FormNode[] = places.map((place) => place.node)
   const extra = state.extensions().menus.flatMap((menu) => menu(state, nodes))
   extra.forEach((item, index) => entries.push({ ...item, divided: index === 0 }))

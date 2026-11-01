@@ -41,11 +41,11 @@ describe('diffBlocks', () => {
   it('matches blocks by id and puts removed ones where they were', () => {
     const diff = diffBlocks(v1(), v2())
     expect(diff.changes.map((c) => `${c.type}:${c.id}`)).toEqual([
-      'changed:a',
+      'updated:a',
       'removed:b',
       'added:d',
     ])
-    expect([diff.added, diff.removed, diff.changed]).toEqual([1, 1, 1])
+    expect([diff.added, diff.removed, diff.updated]).toEqual([1, 1, 1])
     // comments alone are not a change
     const commented = v1()
     commented[1]!.content = [{ type: 'text', text: '预算三万元', comments: ['t1'] }]
@@ -116,7 +116,7 @@ describe('restore', () => {
     expect(exposed.getBlocks().map((b) => b.id)).toEqual(['a', 'c', 'd'])
   })
 
-  it('reads out the restore, refuses it when read-only, and allows it while comparing', async () => {
+  it('reads out the restore, the one change allowed while comparing', async () => {
     const { wrapper, exposed } = mountEditor({ modelValue: v2(), compare: v1() })
     await nextTick()
     expect(exposed.nextChange()).toBe(true)
@@ -128,8 +128,15 @@ describe('restore', () => {
     await nextTick()
     await nextTick()
     expect(live.text()).toBe('已恢复到这个版本')
+    // comparing, the other methods change nothing
+    expect(exposed.insertBlocks([{ type: 'paragraph' }])).toEqual([])
+    expect(exposed.transact((tr) => tr.removeBlocks(['a']))).toBeNull()
+    expect(exposed.getBlocks().map((b) => b.id)).toEqual(['a', 'b', 'c'])
+    // like them, restore works from code on a read-only editor, as a change with its origin
     await wrapper.setProps({ readonly: true, compare: null })
-    expect(exposed.restore(v2())).toBe(false)
+    expect(exposed.restore(v2())).toBe(true)
+    const event = wrapper.emitted('transaction')!.at(-1)![0] as { meta: { origin?: string } }
+    expect(event.meta.origin).toBe('restore')
   })
 
   it('writes only what differs into a shared document, and reads it back without an editor', async () => {

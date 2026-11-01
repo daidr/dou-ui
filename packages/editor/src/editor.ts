@@ -4,7 +4,15 @@ import type { CommentAction, CommentAuthor, CommentThread } from 'dou-ui'
 import { inject, type ComputedRef, type InjectionKey, type ShallowRef } from 'vue'
 import type { CommentAnchor, CommentRange } from './core/comments'
 import type { EditorExtension, ResolvedEditorExtensions } from './core/extension'
+import type { BlockChanges } from './core/changes'
 import type { Block, PartialBlock } from './core/model'
+import type {
+  BlockEdge,
+  BlockPatch,
+  BlockPlacement,
+  EditorTransaction,
+  EditorTransactionMeta,
+} from './core/transaction'
 import type { EditorMessages, EditorMessagesOverride } from './locale'
 
 export interface EditorProps {
@@ -58,12 +66,55 @@ export interface EditorProps {
    * and removed.
    */
   compare?: Block[] | null
+  /**
+   * The block with the cursor and the selected blocks, bound with
+   * `v-model:selection`. Setting it puts the cursor at the end of `block`,
+   * or selects `blocks` when there are several siblings, without focusing.
+   */
+  selection?: EditorSelection
+}
+
+/**
+ * Who made a change: `'external'` for a new `v-model` value or
+ * `setBlocks`, `'remote'` for a collaborator's, `'restore'` for `restore`,
+ * `'undo'` and `'redo'`, or
+ * the `origin` given to `transact`. Typing and the editor's own commands
+ * leave it out.
+ */
+export type EditorOrigin = 'external' | 'remote' | 'restore' | 'undo' | 'redo' | (string & {})
+
+/** What a change to the document did, as the `transaction` event hands it over. */
+export interface EditorTransactionResult {
+  /** The document after the change, as `update:modelValue` gets it next. */
+  blocks: Block[]
+  /** The blocks the change touched, by id. */
+  changes: BlockChanges
+  meta: {
+    origin?: EditorOrigin
+    /** Whether undo can take the change back: not for others' changes, nor for undo and redo themselves. */
+    history: boolean
+  }
+}
+
+/** Where the selection is, by block. */
+export interface EditorSelection {
+  /** The innermost block at the cursor (the moving end of a selection); `null` while none is. */
+  block: string | null
+  /**
+   * The blocks the selection covers: the selected blocks, or the blocks a
+   * text selection runs across, at the level they share.
+   */
+  blocks: string[]
 }
 
 export interface EditorEmits {
   'update:modelValue': [blocks: Block[]]
   /** The document changed: typing, formatting, moving blocks. */
   change: [blocks: Block[]]
+  /** Every change to the document, with what it touched; `update:modelValue` follows. */
+  transaction: [result: EditorTransactionResult]
+  /** The cursor moved to another block, or other blocks were selected. */
+  'update:selection': [selection: EditorSelection]
   focus: [event: FocusEvent]
   blur: [event: FocusEvent]
   'update:comments': [threads: CommentThread[]]
@@ -88,6 +139,36 @@ export interface EditorExpose {
   /** Run a ProseMirror command, e.g. one of the exported ones. */
   run: (command: Command) => boolean
   /**
+   * Make changes by blocks and ids, applied together as one undo step.
+   * Returns what happened, or `null` when nothing changed. Works while
+   * read-only too.
+   */
+  transact: (
+    fn: (tr: EditorTransaction) => void,
+    meta?: EditorTransactionMeta,
+  ) => EditorTransactionResult | null
+  /** One block, or `null` when there is none with that id. */
+  getBlock: (id: string) => Block | null
+  /**
+   * Insert blocks, by default after the block with the cursor. Returns the
+   * new blocks' ids (an id already in use is replaced). One undo step.
+   */
+  insertBlocks: (blocks: PartialBlock[], placement?: BlockPlacement) => string[]
+  /** Change a block's type, props (merged), content or children. One undo step. */
+  updateBlock: (id: string, patch: BlockPatch) => boolean
+  /** Remove blocks with their children. One undo step. */
+  removeBlocks: (ids: string[]) => boolean
+  /** Move blocks, in the order given, before, after or into another block. One undo step. */
+  moveBlocks: (ids: string[], placement: BlockPlacement) => boolean
+  /** Focus the editor with the cursor at the start or end (the default) of a block, scrolled into view. */
+  focusBlock: (id: string, edge?: BlockEdge) => boolean
+  /** The selection by block, as `v-model:selection` has it. */
+  getSelection: () => EditorSelection
+  undo: () => boolean
+  redo: () => boolean
+  readonly canUndo: boolean
+  readonly canRedo: boolean
+  /**
    * Start a thread on the selected text and open the box for its first
    * comment; with the cursor on commented text, open that thread to reply.
    */
@@ -97,7 +178,10 @@ export interface EditorExpose {
   /**
    * Replace the document with `blocks`, e.g. an older version, as one
    * change undo takes back. With collaboration only the blocks that differ
-   * are written, and everyone sees it. Returns `false` when nothing differs.
+   * are written, and everyone sees it. The `transaction` event has origin
+   * `'restore'`. Like the other methods it works while `readonly`; it is
+   * the one change allowed while comparing. Returns `false` when nothing
+   * differs.
    */
   restore: (blocks: PartialBlock[]) => boolean
   /** With `compare`: scroll to the next change after the one last shown; `false` when there is none. */

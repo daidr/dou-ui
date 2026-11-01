@@ -168,6 +168,30 @@ describe('DouSheet versions', () => {
     wrapper.unmount()
   })
 
+  it('shows what a changed cell held as it showed then: formatted, formulas worked out', async () => {
+    const before: SheetWorkbook = {
+      sheets: [
+        {
+          id: 's',
+          name: 's',
+          cells: [[{ value: 45000, format: '¥#,##0' }, 12600, '=A1+B1']],
+        },
+      ],
+    }
+    const now: SheetWorkbook = {
+      sheets: [{ id: 's', name: 's', cells: [[{ value: 48000, format: '¥#,##0' }, 12600, 60600]] }],
+    }
+    const grid = ref<SheetExpose>()
+    const mounted = mount(
+      defineComponent(() => () => h(DouSheet, { ref: grid, modelValue: now, compare: before })),
+      { attachTo: document.body },
+    )
+    await nextTick()
+    const titles = mounted.findAll('.dou-sheet__cell.is-changed').map((c) => c.attributes('title'))
+    expect(titles).toEqual(['原来：¥45,000', '原来：57600'])
+    mounted.unmount()
+  })
+
   it('restores a version as one change undo takes back', async () => {
     const { wrapper, book, grid } = setup({})
     await nextTick()
@@ -181,7 +205,7 @@ describe('DouSheet versions', () => {
     wrapper.unmount()
   })
 
-  it('restores while comparing, and over protection, but not when read-only', async () => {
+  it('restores while comparing, over protection, and from code on a read-only grid', async () => {
     const protectedBook = v2()
     protectedBook.sheets[0]!.protect = true
     const compared = setup({ compare: v1() })
@@ -192,9 +216,16 @@ describe('DouSheet versions', () => {
     expect(compared.book.value.sheets[0]!.cells[1]![1]).toBe(48000)
     compared.wrapper.unmount()
 
+    // comparing, nothing else changes the workbook, not even code
+    const comparing = setup({ compare: v1() })
+    await nextTick()
+    expect(comparing.grid.value!.transact((tr) => tr.setValue('A1', '改')).changed).toBe(false)
+    expect(comparing.grid.value!.undo()).toBe(false)
+    comparing.wrapper.unmount()
+
     const readonly = setup({ readonly: true })
     await nextTick()
-    expect(readonly.grid.value!.restore(v1())).toBe(false)
+    expect(readonly.grid.value!.restore(v1())).toBe(true)
     readonly.wrapper.unmount()
   })
 })

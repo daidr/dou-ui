@@ -869,7 +869,7 @@ const warned = new Set<string>()
 function warnOnce(key: string, message: string) {
   if (warned.has(key)) return
   warned.add(key)
-  console.warn(`[dou-ui] ${message}`)
+  console.warn(`[@dou-ui/form-builder] ${message}`)
 }
 
 const compiled = new Map<string, CompiledExpression | ExpressionError>()

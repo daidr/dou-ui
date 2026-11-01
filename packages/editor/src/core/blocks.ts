@@ -129,10 +129,16 @@ export function blocksIn(range: SiblingRange): BlockInfo[] {
 /** Every block in document order, outer before inner. */
 export function allBlocks(doc: PMNode): BlockInfo[] {
   const list: BlockInfo[] = []
-  doc.descendants((node, pos) => {
-    if (node.type.name === 'block') list.push(infoAt(node, pos, doc.resolve(pos).depth + 1))
-    return node.type.name === 'block' || node.type.name === 'blockGroup' || node.type.name === 'doc'
-  })
+  // walked by hand: resolving every position would scan the document again each time
+  const visit = (container: PMNode, start: number, depth: number) => {
+    container.forEach((block, offset) => {
+      const pos = start + offset
+      list.push(infoAt(block, pos, depth))
+      if (block.childCount > 1)
+        visit(block.child(1), pos + 1 + block.firstChild!.nodeSize + 1, depth + 2)
+    })
+  }
+  visit(doc, 0, 1)
   return list
 }
 

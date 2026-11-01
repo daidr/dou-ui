@@ -52,7 +52,7 @@ const blocks = readMap(ydoc.getMap('doc'))
 ```ts
 import { diffBlocks } from '@dou-ui/editor'
 
-const { added, removed, changed, changes } = diffBlocks(version.blocks, blocks.value)
+const { added, removed, updated, changes } = diffBlocks(version.blocks, blocks.value)
 // 版本列表里显示“新增 2 段，删除 1 段，修改 3 段”
 ```
 
@@ -60,7 +60,7 @@ const { added, removed, changed, changes } = diffBlocks(version.blocks, blocks.v
 
 ## 恢复
 
-`restore(blocks)` 把文档换成某个版本的内容，算一次修改，可以撤销。只替换有差异的部分；协同编辑时只把这些块写进共享文档，每个人都会同步看到恢复后的内容，别人正在编辑的其他块不受影响。恢复后读屏会读出“已恢复到这个版本”。文档没有差异，或者编辑器是 `readonly` 时返回 `false`；对比时（传了 `compare`）可以直接恢复。
+`restore(blocks)` 把文档换成某个版本的内容，算一次修改，可以撤销。只替换有差异的部分；协同编辑时只把这些块写进共享文档，每个人都会同步看到恢复后的内容，别人正在编辑的其他块不受影响。恢复后读屏会读出“已恢复到这个版本”。文档没有差异时返回 `false`。和其他实例方法一样，`readonly` 时也可以恢复；对比时（传了 `compare`）文档不能修改，`restore` 是唯一能用的修改。恢复会触发 `transaction` 事件，`meta.origin` 为 `'restore'`。
 
 恢复前编辑器不会自动保存版本。想让用户能回到恢复前的样子，在调用前先存一份：
 
@@ -83,11 +83,11 @@ function restore(version: Version) {
 
 ### 实例方法
 
-| 名称             | 说明                                                               | 类型                                  |
-| ---------------- | ------------------------------------------------------------------ | ------------------------------------- |
-| `restore`        | 换成某个版本的内容，可以撤销；没有差异或 `readonly` 时返回 `false` | `(blocks: PartialBlock[]) => boolean` |
-| `nextChange`     | 对比时滚动到下一处差异，没有更多时返回 `false`                     | `() => boolean`                       |
-| `previousChange` | 对比时滚动到上一处差异                                             | `() => boolean`                       |
+| 名称             | 说明                                                 | 类型                                  |
+| ---------------- | ---------------------------------------------------- | ------------------------------------- |
+| `restore`        | 换成某个版本的内容，可以撤销；没有差异时返回 `false` | `(blocks: PartialBlock[]) => boolean` |
+| `nextChange`     | 对比时滚动到下一处差异，没有更多时返回 `false`       | `() => boolean`                       |
+| `previousChange` | 对比时滚动到上一处差异                               | `() => boolean`                       |
 
 ### 工具函数
 
@@ -99,16 +99,16 @@ function restore(version: Version) {
 | `readMap`    | 从共享文档读出当前内容，从 `@dou-ui/editor/collaboration` 引入                                | `(map: Y.Map, extensions?: EditorExtension[]) => Block[]` |
 
 ```ts
-type BlockChange =
+type BlockDiff =
   | { type: 'added'; id: string; after: Block }
   | { type: 'removed'; id: string; before: Block; next: string | null } // next：它原来在哪个块前面，null 是末尾
-  | { type: 'changed'; id: string; before: Block; after: Block }
+  | { type: 'updated'; id: string; before: Block; after: Block }
 
 interface BlocksDiff {
-  changes: BlockChange[]
+  changes: BlockDiff[]
   added: number
   removed: number
-  changed: number
+  updated: number
 }
 
 interface TextPart {

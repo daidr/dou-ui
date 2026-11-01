@@ -6,7 +6,7 @@ export const DouForm = withInstall(Form)
 export const DouFormItem = withInstall(FormItem)
 export default DouForm
 
-export { formItemKey, formKey } from './form'
+export { formItemKey, formKey, showFormErrors } from './form'
 export { useFormDisabled, useFormItem, useFormReadonly, useFormSize } from './use-form-item'
 export type * from './form'
 export { isStandardSchema } from './standard-schema'

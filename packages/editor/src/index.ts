@@ -12,7 +12,18 @@ export type {
   EditorEmits,
   EditorExpose,
   EditorProps,
+  EditorOrigin,
+  EditorSelection,
+  EditorTransactionResult,
 } from './editor'
+export { EditorTransaction } from './core/transaction'
+export type {
+  BlockEdge,
+  BlockPatch,
+  BlockPlacement,
+  EditorTransactionMeta,
+} from './core/transaction'
+export type { BlockChanges } from './core/changes'
 export type { CommentAnchor, CommentRange } from './core/comments'
 export { editorLocales, useEditorMessages } from './locale'
 export type { EditorMessages, EditorMessagesOverride } from './locale'
@@ -85,14 +96,14 @@ export type {
 } from './core/model'
 export { blocksToDoc, createId, docToBlocks } from './core/model'
 export { diffBlocks, diffText, inlineText } from './core/diff'
-export type { BlockChange, BlocksDiff, TextPart } from './core/diff'
+export type { BlockDiff, BlocksDiff, TextPart } from './core/diff'
 export type { BuiltinContentType, ContentType, MarkType } from './core/schema'
 export { contentDOM, createSchema, isSafeHref, textBlock } from './core/schema'
 export {
   duplicateBlocks,
   insertBlockAfter,
   liftBlocks,
-  moveBlocks,
+  swapBlocks,
   moveRangeTo,
   setBlockType,
   sinkBlocks,

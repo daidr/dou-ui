@@ -80,6 +80,7 @@ const groups = computed(() => {
             class="dou-form-builder__palette-item"
             :data-type="entry.type"
             :aria-label="formatMessage(state.messages.palette.add, { label: entry.label })"
+            :disabled="state.readonly"
             @click="!state.dragger.value?.swallowClick() && state.add(entry.type)"
             @pointerdown="state.dragger.value?.pressType($event, entry.type, entry.label)"
           >

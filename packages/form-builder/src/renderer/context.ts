@@ -1,8 +1,8 @@
 import type { Component, InjectionKey, VNode } from 'vue'
-import type { FormModel, FormRules, FormValidateResult } from 'dou-ui'
+import type { FormErrors, FormModel, FormRules, FormValidateResult } from 'dou-ui'
 import type { FormRendererMessages, FormRendererMessagesOverride } from '../locale'
 import type { FormFieldType } from '../fields/define'
-import type { FormDocument, FormNode } from '../core/types'
+import type { FormDocument, FormNode, FormValidator } from '../core/types'
 import type { FormFunction } from '../core/expression'
 
 export interface FormRendererProps {
@@ -21,6 +21,12 @@ export interface FormRendererProps {
   /** Disable every field. */
   disabled?: boolean
   /**
+   * Show the values as text instead of fields, e.g. on a detail page or an
+   * approval. Lists show their items without the buttons, steps show every
+   * page one after another, and the model is never written to.
+   */
+  readonly?: boolean
+  /**
    * Functions the document's expressions can call besides the built-in
    * ones, e.g. `{ tax: (price) => price * 0.06 }`. They get plain values
    * and should not change them; one of the same name replaces a built-in function.
@@ -34,6 +40,12 @@ export interface FormRendererProps {
    * forgets them, e.g. after the options changed on the server.
    */
   sources?: Record<string, FormOptionsLoader>
+  /**
+   * Checks that need code, by the name a rule's `validator` gives, e.g. one
+   * asking the server whether a user name is taken. A validator may return
+   * a promise; only the result of the latest check of a field is shown.
+   */
+  validators?: Record<string, FormValidator>
   /**
    * Submit the values of hidden fields too. By default `submit` hands over
    * a copy of the values without them (see `visibleValues`), so a field
@@ -81,6 +93,14 @@ export interface FormRendererExpose {
   resetFields: (names?: string | string[]) => void
   /** Clear the errors of the given fields, or every field. */
   clearValidate: (names?: string | string[]) => void
+  /**
+   * Show errors by field path, e.g. ones a server returned after submit.
+   * Each stays until the field's value changes or it is checked again; an
+   * empty or `undefined` message clears the field's error. Tabs and steps
+   * mark the pages with errors. Returns the paths with a message that no
+   * field shows, e.g. a hidden field's, to list them above the form.
+   */
+  setErrors: (errors: Partial<FormErrors>) => string[]
   /** Scroll a field into view and focus it. */
   scrollToField: (name: string) => void
   /** Forget the options loaded from a source, or from every source, and load them again. */
@@ -99,6 +119,12 @@ export interface RendererContext {
   changed: (name: string, value: unknown) => void
   /** The functions expressions can call besides the built-in ones. */
   functions: () => Record<string, FormFunction> | undefined
+  /** The validators rules can name. */
+  validators: () => Record<string, FormValidator> | undefined
+  /** Whether values show as text. */
+  readonly: () => boolean
+  /** Whether the controls are read-only, as in a read-only builder's settings. */
+  controlsReadonly: () => boolean
   /** The options from a source, shared by every field asking the same thing. */
   load: (name: string, arg: unknown) => Promise<unknown[]>
   /** Bumped by `reloadSource`, so fields reading it load again. */
@@ -136,6 +162,13 @@ export interface NodeScope {
 export const scopeKey: InjectionKey<NodeScope> = Symbol('DouFormNodeScope')
 
 export const rendererKey: InjectionKey<RendererContext> = Symbol('DouFormRenderer')
+
+/**
+ * Internal: renderers inside make their controls read-only (the form's
+ * own `readonly`) instead of showing values as text, e.g. the settings of
+ * a read-only builder.
+ */
+export const controlsReadonlyKey: InjectionKey<() => boolean> = Symbol('DouFormControlsReadonly')
 
 /** Whether the groups around a node are disabled. */
 export const disabledKey: InjectionKey<() => boolean> = Symbol('DouFormNodeDisabled')

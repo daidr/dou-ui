@@ -1,5 +1,5 @@
 import type { FormFunction } from '../core/expression'
-import type { FormDocument } from '../core/types'
+import type { FormDocument, FormValidator } from '../core/types'
 import type { FormFieldType } from '../fields/define'
 import type { FormOptionsLoader } from '../renderer/context'
 import type { FormBuilderMessagesOverride } from './locale'
@@ -23,6 +23,17 @@ export interface FormBuilderProps {
   functions?: Record<string, FormFunction>
   /** Where options come from, the same as the renderer's, for the preview. */
   sources?: Record<string, FormOptionsLoader>
+  /**
+   * Checks that need code, the same as the renderer's: the preview runs
+   * them, and the rules editor offers their names.
+   */
+  validators?: Record<string, FormValidator>
+  /**
+   * Show the form without letting it change: nodes can be selected, their
+   * settings read and the form previewed, but nothing can be added, moved,
+   * removed or edited.
+   */
+  readonly?: boolean
   /** Pieces of the builder: field types, keys, buttons, menu items, inspector parts. */
   extensions?: (FormBuilderExtension | readonly FormBuilderExtension[])[]
   /** Replaces texts of the builder. */

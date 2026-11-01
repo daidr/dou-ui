@@ -1331,11 +1331,7 @@ function cellView(
   const changed = compared.value?.get(`${row}:${col}`)
   if (changed) {
     view.cls += ' is-changed'
-    const was = valueOf(changed.before)
-    view.was =
-      was == null || was === ''
-        ? messages.value.compare.wasEmpty
-        : format(messages.value.compare.was, { value: String(was) })
+    view.was = wasText(changed)
   }
   return view
 }
@@ -1647,9 +1643,14 @@ function transact(
   before: SheetHistoryView = view(),
   /** Leave the copied range marked, as pasting a copy does. */
   keepMark = false,
+  /** Made by the app's code, not by someone using the grid: `readonly` doesn't stop it. */
+  fromCode = false,
 ) {
   // a change kept out of the history, such as another person's, still reaches a read-only grid
-  if (viewOnly.value && meta?.history !== false && !restoring) return null
+  // a change kept out of the history, such as another person's, still reaches a read-only grid;
+  // comparing, nothing but restoring changes it, not even code
+  if (meta?.history !== false && ((props.readonly && !fromCode) || (props.compare && !restoring)))
+    return null
   const tr = new SheetTransaction(doc.value, sheetIndex.value)
   tr.setMeta({ action: 'api', ...meta })
   run(tr)
@@ -1675,21 +1676,33 @@ function transact(
 /**
  * `transact` for code: gives the transaction whatever came of it, so code
  * reads `tr.changed` and `tr.cancelled` as with the other editors.
+ * `fromCode`: called by the app's code, which `readonly` doesn't stop.
  */
-function transactFor(run: (tr: SheetTransaction) => void, meta?: SheetTransactionMeta) {
+function transactFor(
+  run: (tr: SheetTransaction) => void,
+  meta?: SheetTransactionMeta,
+  fromCode = false,
+) {
   let made: SheetTransaction | undefined
-  transact((tr) => {
-    made = tr
-    run(tr)
-  }, meta)
+  transact(
+    (tr) => {
+      made = tr
+      run(tr)
+    },
+    meta,
+    view(),
+    false,
+    fromCode,
+  )
   // a read-only grid makes no change
   return (
     made ?? new SheetTransaction(doc.value, sheetIndex.value).setMeta({ action: 'api', ...meta })
   )
 }
 
-function travel(direction: 'undo' | 'redo') {
-  if (viewOnly.value) return false
+/** `fromCode`: called by the app's code, which `readonly` doesn't stop; comparing does. */
+function travel(direction: 'undo' | 'redo', fromCode = false) {
+  if ((props.readonly && !fromCode) || props.compare) return false
   const handler = customHistory()
   if (handler) {
     const travelled = handler[direction]()
@@ -2873,7 +2886,14 @@ function typedText(input: SheetCellInput, value: SheetValue) {
   return typed?.definition.format?.(value, typed.setup)
 }
 
-/** A sheet as CSV, with what its cells show. */
+/** A cell's value as its type writes it for other programs, such as `true` for a check; `undefined` for a plain cell. */
+function typedPlain(input: SheetCellInput, value: SheetValue) {
+  const cell = cellOf(input)
+  const typed = cell?.type ? resolveCellType(cell, doc.value, cellTypes.value) : undefined
+  return typed?.definition.plain?.(value, typed.setup)
+}
+
+/** A sheet as CSV, with its cells' values (or what they show, with `text`). */
 function toCSV(options: SheetCSVWriteOptions & { sheet?: SheetRef } = {}) {
   const { sheet: target, ...rest } = options
   const data = doc.value.sheets[target == null ? sheetIndex.value : indexOfSheet(target)]
@@ -2881,7 +2901,8 @@ function toCSV(options: SheetCSVWriteOptions & { sheet?: SheetRef } = {}) {
   const key = sheetKey(data)
   return sheetToCSV(data, {
     locale: lang.value,
-    text: typedText,
+    cellText: typedText,
+    cellPlain: typedPlain,
     result: (row, col) => engine.result(key, row, col),
     ...rest,
   })
@@ -4167,9 +4188,7 @@ function tipAt(point: SheetPoint) {
   const change = compared.value?.get(`${point.row}:${point.col}`)
   const note = noteAt(point)
   if (!change) return note
-  const was = valueOf(change.before)
-  const m = messages.value.compare
-  const text = was == null || was === '' ? m.wasEmpty : format(m.was, { value: String(was) })
+  const text = wasText(change)
   return note ? `${text}\n${note}` : text
 }
 
@@ -4690,6 +4709,41 @@ const compared = computed(() => {
   return out
 })
 
+/** Works out the formulas of the version compared with, for what its cells showed. */
+const compareEngine = computed(() =>
+  props.compare
+    ? new SheetFormulaEngine(props.compare, {
+        functions: resolved.value.functions,
+        locale: lang.value,
+      })
+    : null,
+)
+
+/** What a changed cell showed in the older version, as its cell showed it: formatted, formulas worked out. */
+function wasText(change: SheetCellChange) {
+  const m = messages.value.compare
+  const book = props.compare
+  const old = compareEngine.value
+  const value = old
+    ? shownValue(
+        valueOf(change.before),
+        (row, col) => old.result(change.sheet, row, col),
+        change.row,
+        change.col,
+      )
+    : valueOf(change.before)
+  if (value == null || value === '') return m.wasEmpty
+  const cell = cellOf(change.before)
+  const typed = cell?.type && book ? resolveCellType(cell, book, cellTypes.value) : undefined
+  const text = typed?.definition.toggle
+    ? value === true
+      ? messages.value.checked
+      : messages.value.unchecked
+    : (typed?.definition.format?.(value, typed.setup) ??
+      formatValue(value, cell?.format, lang.value))
+  return format(m.was, { value: text })
+}
+
 /** Selects the changed cell after (or before) the active one, across the sheets. */
 function goToChange(step: 1 | -1) {
   const diff = versionDiff.value
@@ -4715,14 +4769,22 @@ function goToChange(step: 1 | -1) {
 
 /**
  * Brings the workbook to `book`, as one change. Like undo it isn't held by
- * protection, which it restores too; extensions can still cancel it.
+ * protection, which it restores too, nor by `readonly`, as other calls from
+ * code aren't; comparing, it is the one change allowed. Extensions can
+ * still cancel it.
  */
 function restore(book: SheetWorkbook) {
-  if (props.readonly) return false
   if (editing.value) commitEdit(undefined, true)
   restoring = true
   try {
-    const tr = transact((t) => restoreWorkbook(t, book), { action: 'restore', protection: false })
+    // called by the app's code: `readonly` doesn't stop it, as with `transact`
+    const tr = transact(
+      (t) => restoreWorkbook(t, book),
+      { action: 'restore', protection: false },
+      view(),
+      false,
+      true,
+    )
     if (!tr) return false
   } finally {
     restoring = false
@@ -6127,7 +6189,8 @@ const context: SheetContext = {
   cellType: (point) => typeAt(point.row, point.col),
   cellRect: visibleRect,
   rangeRect,
-  transact: transactFor,
+  // the toolbar, tabs and extensions' commands act for the person using the grid
+  transact: (run, meta) => transactFor(run, meta),
   undo: () => travel('undo'),
   redo: () => travel('redo'),
   canUndo,
@@ -6297,9 +6360,9 @@ defineExpose<SheetExpose>({
   exportFile: exportFile as SheetExpose['exportFile'],
   saveFile: saveFile as SheetExpose['saveFile'],
   importFile,
-  transact: transactFor,
-  undo: () => travel('undo'),
-  redo: () => travel('redo'),
+  transact: (run, meta) => transactFor(run, meta, true),
+  undo: () => travel('undo', true),
+  redo: () => travel('redo', true),
   get canUndo() {
     return canUndo.value
   },

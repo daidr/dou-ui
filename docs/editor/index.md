@@ -87,22 +87,22 @@ function reset() {
 
 ### Editor Props
 
-| 名称          | 说明                                                                                    | 类型                           | 默认值          |
-| ------------- | --------------------------------------------------------------------------------------- | ------------------------------ | --------------- |
-| `v-model`     | 文档，见[文档数据](./data)                                                              | `EditorDocument<PartialBlock>` | —               |
-| `readonly`    | 只读                                                                                    | `boolean`                      | `false`         |
-| `searchable`  | 内置的查找面板（`Mod+F`），关闭后按键交还给浏览器，见[快捷操作](./shortcuts#查找和替换) | `boolean`                      | `true`          |
-| `placeholder` | 光标所在空块里的提示文字                                                                | `string`                       | 跟随语言        |
-| `ariaLabel`   | 编辑区域的无障碍名称                                                                    | `string`                       | —               |
-| `autofocus`   | 挂载后获得焦点                                                                          | `boolean`                      | `false`         |
-| `messages`    | 替换内置文字，只写要改的部分即可，例如 `{ types: { paragraph: '段落' } }`               | `EditorMessagesOverride`       | —               |
-| `extensions`  | 使用的扩展，见[扩展](./extensions)，只在创建时读取                                      | `EditorExtension[]`            | `[editorKit()]` |
-| `plugins`     | 额外的 ProseMirror 插件，排在内置插件之前                                               | `Plugin[]`                     | —               |
-| `history`     | 使用内置的撤销记录，使用自己的撤销方案时关闭                                            | `boolean`                      | `true`          |
-| `undo`        | 替换撤销命令                                                                            | `Command`                      | —               |
-| `redo`        | 替换重做命令                                                                            | `Command`                      | —               |
-| `selection`   | 光标所在的块和选中的块，用 `v-model:selection` 绑定，见[跟踪光标](./editing#跟踪光标)   | `EditorSelection`              | —               |
-| `compare`     | 要对比的旧版本，见[历史版本](./versions)                                                | `EditorDocument \| null`       | —               |
+| 名称          | 说明                                                                                    | 类型                                   | 默认值          |
+| ------------- | --------------------------------------------------------------------------------------- | -------------------------------------- | --------------- |
+| `v-model`     | 文档，见[文档数据](./data)                                                              | `EditorDocument<PartialBlock>`         | —               |
+| `readonly`    | 只读                                                                                    | `boolean`                              | `false`         |
+| `searchable`  | 内置的查找面板（`Mod+F`），关闭后按键交还给浏览器，见[快捷操作](./shortcuts#查找和替换) | `boolean`                              | `true`          |
+| `placeholder` | 光标所在空块里的提示文字                                                                | `string`                               | 跟随语言        |
+| `ariaLabel`   | 编辑区域的无障碍名称                                                                    | `string`                               | —               |
+| `autofocus`   | 挂载后获得焦点                                                                          | `boolean`                              | `false`         |
+| `messages`    | 替换内置文字，只写要改的部分即可，例如 `{ types: { paragraph: '段落' } }`               | `EditorMessagesOverride`               | —               |
+| `extensions`  | 使用的扩展，见[扩展](./extensions)，只在创建时读取                                      | `EditorExtension[]`                    | `[editorKit()]` |
+| `plugins`     | 额外的 ProseMirror 插件，排在内置插件之前                                               | `Plugin[]`                             | —               |
+| `history`     | 使用内置的撤销记录，使用自己的撤销方案时关闭                                            | `boolean`                              | `true`          |
+| `undo`        | 替换撤销命令                                                                            | `Command`                              | —               |
+| `redo`        | 替换重做命令                                                                            | `Command`                              | —               |
+| `selection`   | 光标所在的块和选中的块，用 `v-model:selection` 绑定，见[跟踪光标](./editing#跟踪光标)   | `EditorSelection`                      | —               |
+| `compare`     | 要对比的旧版本，见[历史版本](./versions)                                                | `EditorDocument<PartialBlock> \| null` | —               |
 
 ### Editor Events
 

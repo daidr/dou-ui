@@ -42,7 +42,13 @@ import { isRemote } from './core/plugins'
 import { selectionOf, sameSelection } from './core/selection'
 import { selectBlocks } from './core/block-selection'
 import { applyEditorTransaction, EditorTransaction } from './core/transaction'
-import type { Block, EditorDocument, PartialBlock } from './core/model'
+import {
+  blocksToDoc,
+  docToBlocks,
+  type Block,
+  type EditorDocument,
+  type PartialBlock,
+} from './core/model'
 import { resolveEditorExtensions } from './core/extension'
 import {
   previewMatch,
@@ -118,6 +124,14 @@ const focused = shallowRef(false)
 const dragging = shallowRef(false)
 /** Showing what changed since an older version: read-only, without comments. */
 const comparing = computed(() => !!props.compare)
+/**
+ * The older version as whole blocks, matched to the current ones by id. A
+ * block saved without an id gets a new one, so it shows as removed.
+ */
+const compareBlocks = computed(() => {
+  const blocks = props.compare?.blocks
+  return Array.isArray(blocks) ? docToBlocks(blocksToDoc(kit.schema, blocks)) : null
+})
 const editable = computed(() => !props.readonly && !comparing.value)
 
 const {
@@ -326,7 +340,7 @@ onMounted(() => {
       }),
       commentPlugin,
       comparePlugin({
-        before: () => props.compare?.blocks ?? null,
+        before: () => compareBlocks.value,
         label: () => messages.value.removedBlock,
       }),
       openLinks,
@@ -400,10 +414,7 @@ watch(
 )
 
 watch(editable, (value) => view.value && setEditable(view.value, value))
-watch(
-  () => props.compare,
-  () => view.value?.dispatch(view.value.state.tr.setMeta(compareKey, true)),
-)
+watch(compareBlocks, () => view.value?.dispatch(view.value.state.tr.setMeta(compareKey, true)))
 
 /** The change last scrolled to, by its place among them. */
 let changeIndex = -1

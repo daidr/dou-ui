@@ -580,7 +580,7 @@ SVG 和画布用同一套绘制代码，两者画出的图形一致。导出的�
 | `data`            | 数据：行数组，或按列给的对象                             | `object[] \| Record<string, ArrayLike>`     | `[]`               |
 | `x`               | 横轴的值：字段名，或从行取值的函数                       | `string \| (row, index: number) => unknown` | 行的序号           |
 | `height`          | 高度，数字按 px 计算                                     | `number \| string`                          | `320`              |
-| `aria-label`      | 读屏读出的名称，替换自动生成的概要                       | `string`                                    | —                  |
+| `ariaLabel`       | 读屏读出的名称，替换自动生成的概要                       | `string`                                    | —                  |
 | `legend`          | 显示或隐藏图例                                           | `boolean`                                   | 多于一个系列时显示 |
 | `legendPlacement` | 图例的位置；宽度小于 480px 时 `'right'` 改放到下方       | `'top' \| 'bottom' \| 'right'`              | `'bottom'`         |
 | `palette`         | 这个图表自己的配色：CSS 颜色或语气色名称，按顺序循环使用 | `string[]`                                  | 主题的 8 种颜色    |

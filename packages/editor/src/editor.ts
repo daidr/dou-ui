@@ -75,9 +75,10 @@ export interface EditorProps {
    * An older version of the document, e.g. one the app saved. The editor
    * then shows the document read-only, with what changed since marked:
    * blocks added and removed, and in each changed block the text added
-   * and removed.
+   * and removed. Blocks are matched by `id`; a block without one shows as
+   * removed.
    */
-  compare?: EditorDocument | null
+  compare?: EditorDocument<PartialBlock> | null
   /**
    * The block with the cursor and the selected blocks, bound with
    * `v-model:selection`. Setting it puts the cursor at the end of `block`,

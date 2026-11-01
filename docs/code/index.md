@@ -100,7 +100,7 @@ app.use(DouCodeEditor)
 | `teleport`          | 补全列表和说明的渲染位置；`false` 时在编辑器内                           | `string \| HTMLElement \| false`   | `false`    |
 | `messages`          | 改写编辑器中的文字（符号栏、工具条等），默认跟随 ConfigProvider 的语言   | `Partial<CodeMessages>`            | —          |
 | `autofocus`         | 挂载后获得焦点                                                           | `boolean`                          | `false`    |
-| `aria-label`        | 读屏读出的名称                                                           | `string`                           | —          |
+| `ariaLabel`         | 读屏读出的名称                                                           | `string`                           | —          |
 
 ### CodeEditor Events
 

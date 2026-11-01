@@ -11,7 +11,8 @@ import DouEditor from '../editor.vue'
 import { attachment } from '../extensions/attachment'
 import { editorKit } from '../extensions/editor-kit'
 import { embed } from '../extensions/embed'
-import type { EditorExpose } from '../editor'
+import type { EditorExpose, EditorProps } from '../editor'
+import { migrateDocument } from '../document'
 
 const wrappers: { unmount: () => void }[] = []
 afterEach(() => {
@@ -104,6 +105,29 @@ describe('compare', () => {
     await wrapper.setProps({ compare: null })
     expect(root.querySelector('.dou-editor__diff-removed-block')).toBeNull()
     expect(exposed.view.editable).toBe(true)
+  })
+})
+
+describe('compare with a saved version', () => {
+  it('takes blocks as saved, matched by id; one without an id shows as removed', async () => {
+    // a version read back as the docs show: parsed, then migrated
+    const saved = migrateDocument(
+      JSON.parse(
+        JSON.stringify({
+          version: 1,
+          blocks: [{ id: 'a', content: '上海站的活动改到周日' }, { content: '没有 id 的旧段落' }],
+        }),
+      ),
+    )
+    const props: EditorProps = { modelValue: doc(v2()), compare: saved }
+    const { wrapper } = mountEditor({ ...props })
+    await nextTick()
+    const root = wrapper.element
+    expect(root.querySelector('[data-block-id="a"]')!.querySelector('del')).toBeNull()
+    const removed = [...root.querySelectorAll('.dou-editor__diff-removed-block')].map(
+      (el) => el.textContent,
+    )
+    expect(removed).toEqual(['没有 id 的旧段落'])
   })
 })
 

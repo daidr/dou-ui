@@ -42,7 +42,7 @@
 | `keys`          | 触屏上键盘上方的符号栏                         | `boolean \| (CodeKey \| string)[]`       | `false`                      |
 | `messages`      | 改写界面上的文字                               | `Partial<CodeMessages>`                  | —                            |
 | `autofocus`     | 挂载后获得焦点                                 | `boolean`                                | `false`                      |
-| `aria-label`    | 读屏读出的名称                                 | `string`                                 | —                            |
+| `ariaLabel`     | 读屏读出的名称                                 | `string`                                 | —                            |
 
 ### CodeInput Events
 

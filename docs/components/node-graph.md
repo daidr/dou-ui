@@ -111,7 +111,7 @@ NodeGraph 只用来展示。需要拖动节点、连线编辑时，用[流程编
 | `maxZoom`      | 最大缩放比例                                             | `number`                          | `2`            |
 | `legend`       | 在工具栏显示图例按钮                                     | `boolean`                         | `false`        |
 | `height`       | 容器高度，数字单位为 px                                  | `string \| number`                | 和图一样高     |
-| `aria-label`   | 读屏用的名称                                             | `string`                          | `'节点图'`     |
+| `ariaLabel`    | 读屏用的名称                                             | `string`                          | `'节点图'`     |
 
 ### GraphNode
 

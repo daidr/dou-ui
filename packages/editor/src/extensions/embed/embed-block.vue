@@ -89,7 +89,7 @@ function onCaption(value: string) {
         <DouButton v-if="editing" size="sm" variant="ghost" @click="cancel">
           {{ text.cancel }}
         </DouButton>
-        <DouButton size="sm" variant="solid" type="submit">{{ text.apply }}</DouButton>
+        <DouButton size="sm" variant="solid" native-type="submit">{{ text.apply }}</DouButton>
       </form>
       <span v-if="invalid" class="dou-editor-embed__error" role="alert">{{ error }}</span>
     </div>

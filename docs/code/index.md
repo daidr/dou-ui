@@ -5,7 +5,7 @@
 只是展示一段代码时，用 [CodeBlock 代码块](/components/code-block) 更合适。
 
 ::: tip 开发中
-目前完成的是编辑内核、语法高亮、多光标、查找替换、自动换行、折叠、手机触控、扩展（装饰、侧栏、面板、诊断）、补全与提示、对比视图和[协同编辑](/code/collaboration)。Shiki 适配、更多语言和超大文件的优化会陆续加入。
+目前完成的是编辑内核、语法高亮、多光标、查找替换、自动换行、折叠、手机触控、扩展（装饰、侧栏、面板、诊断）、补全与提示、对比视图和[协同编辑](/code/collaboration)。Shiki 适配和更多语言也已加入，超大文件的优化会陆续加入。
 :::
 
 ## 安装
@@ -38,17 +38,21 @@ app.use(DouCodeEditor)
 
 `language` 设置代码的语言。语言决定代码怎么着色，也决定按 `Enter` 时怎么缩进、注释用什么符号、哪些括号成对输入。内置的语言从 `@dou-ui/code` 按需引入，没用到的不会打包。`createCodeHighlighter` 和 Markdown 代码块按名称或别名找语言，不区分大小写：
 
-| 导出         | 语言                                                  | 名称与别名（`lang` 可以写的值）  |
-| ------------ | ----------------------------------------------------- | -------------------------------- |
-| `javascript` | JavaScript                                            | `javascript`、`js`、`mjs`、`cjs` |
-| `typescript` | TypeScript                                            | `typescript`、`ts`、`mts`、`cts` |
-| `jsx`、`tsx` | 带 JSX 的 JavaScript、TypeScript                      | `jsx`、`tsx`                     |
-| `json`       | JSON，也允许注释和末尾逗号                            | `json`、`jsonc`、`json5`         |
-| `css`        | CSS                                                   | `css`                            |
-| `scss`       | SCSS 和 Less：嵌套规则、`//` 注释与 `$` 变量          | `scss`、`less`、`postcss`        |
-| `html`       | HTML，`<script>` 和 `<style>` 里按 JavaScript、CSS 读 | `html`、`htm`、`xml`、`svg`      |
-| `vue`        | Vue 单文件组件，模板里的 `{{ }}` 和指令值按表达式读   | `vue`                            |
-| `markdown`   | Markdown                                              | `markdown`、`md`                 |
+| 导出         | 语言                                                  | 名称与别名（`lang` 可以写的值）                                      |
+| ------------ | ----------------------------------------------------- | -------------------------------------------------------------------- |
+| `javascript` | JavaScript                                            | `javascript`、`js`、`mjs`、`cjs`                                     |
+| `typescript` | TypeScript                                            | `typescript`、`ts`、`mts`、`cts`                                     |
+| `jsx`、`tsx` | 带 JSX 的 JavaScript、TypeScript                      | `jsx`、`tsx`                                                         |
+| `json`       | JSON，也允许注释和末尾逗号                            | `json`、`jsonc`、`json5`                                             |
+| `css`        | CSS                                                   | `css`                                                                |
+| `scss`       | SCSS 和 Less：嵌套规则、`//` 注释与 `$` 变量          | `scss`、`less`、`postcss`                                            |
+| `html`       | HTML，`<script>` 和 `<style>` 里按 JavaScript、CSS 读 | `html`、`htm`、`xml`、`svg`                                          |
+| `vue`        | Vue 单文件组件，模板里的 `{{ }}` 和指令值按表达式读   | `vue`                                                                |
+| `markdown`   | Markdown                                              | `markdown`、`md`                                                     |
+| `python`     | Python 3，含类型标注、装饰器和三引号字符串            | `python`、`py`、`py3`、`pyi`                                         |
+| `shell`      | Shell 脚本（Bash、sh、Zsh），含 here-document         | `shell`、`sh`、`bash`、`zsh`、`shellscript`                          |
+| `sql`        | SQL，常见方言共有的部分，关键字不区分大小写           | `sql`、`postgres`、`postgresql`、`pgsql`、`mysql`、`sqlite`、`plsql` |
+| `yaml`       | YAML，含多行文本、锚点和引用                          | `yaml`、`yml`                                                        |
 
 <DocDemo src="code/languages" column />
 
@@ -59,6 +63,26 @@ import { createMarkdown, typescript, json } from '@dou-ui/code'
 
 const markdown = createMarkdown({ languages: [typescript, json] })
 ```
+
+### 用 Shiki 支持更多语言
+
+内置语言之外的语言可以借助 [Shiki](https://shiki.style) 的语法定义。`@dou-ui/code/shiki` 的 `shikiLanguage` 把 Shiki 高亮器里加载好的语言转成编辑器的语言：仍然按行读取、只重读改动的部分，各种记号映射到上面的语法颜色，所以主题和深色模式照样生效。编辑器不依赖 Shiki，用到时自己安装：
+
+```ts
+import { shikiLanguage } from '@dou-ui/code/shiki'
+import { createHighlighter } from 'shiki'
+
+const highlighter = await createHighlighter({ langs: ['rust'], themes: [] })
+const rust = shikiLanguage(highlighter, 'rust', {
+  comment: { line: '//', block: ['/*', '*/'] },
+})
+```
+
+Shiki 的语法定义里没有注释写法和缩进规则，需要切换注释、换行缩进时，用 `comment`、`brackets`、`autoClose`、`indentAfter` 补上，写法和自定义语言一样。`name`、`aliases` 改变它的名称；`tokenType(scopes)` 可以改变某些作用域对应的颜色种类，返回 `undefined` 时用内置的对应关系，`tokenTypeOfScopes(scopes)` 就是这套对应关系。
+
+`themes: []` 表示不加载 Shiki 的主题：颜色来自编辑器自己的语法颜色变量，Shiki 只负责分出记号。在浏览器里可以用 Shiki 的 JavaScript 正则引擎，不必加载 WebAssembly。下面的示例在打开时才加载 Shiki 和 Rust、Go 两种语法：
+
+<DocDemo src="code/shiki" column />
 
 着色只针对看得见的行，以及它们之前必须读过的行。修改之后从改动的行重新读起，读到某一行开头的状态和修改前一样就停下，所以在长文件里输入只重读一两行。直接跳到很远的地方时，那里先显示为没有颜色的文字，空闲时间读到之后再着色。
 

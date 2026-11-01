@@ -36,6 +36,10 @@
       "types": "./dist/types/collaboration/index.d.ts",
       "import": "./dist/collaboration/index.js"
     },
+    "./shiki": {
+      "types": "./dist/types/shiki/index.d.ts",
+      "import": "./dist/shiki/index.js"
+    },
     "./style.css": "./dist/style.css",
     "./package.json": "./package.json"
   },
@@ -51,7 +55,8 @@
   "peerDependencies": {
     "dou-ui": "workspace:*",
     "vue": "^3.5.0",
-    "yjs": "^13.6.0"
+    "yjs": "^13.6.0",
+    "shiki": "^1.0.0 || ^2.0.0 || ^3.0.0"
   },
   "publishConfig": {
     "access": "public"
@@ -59,10 +64,14 @@
   "peerDependenciesMeta": {
     "yjs": {
       "optional": true
+    },
+    "shiki": {
+      "optional": true
     }
   },
   "devDependencies": {
     "yjs": "^13.6.33",
-    "y-protocols": "^1.0.7"
+    "y-protocols": "^1.0.7",
+    "shiki": "2.5.0"
   }
 }

@@ -1,6 +1,5 @@
 import type { ContextMenuItem } from 'dou-ui'
 import type { GanttCalendar } from '../core/calendar'
-
 import type { GanttTask } from '../core/model'
 import type { GanttDocument, GanttTransaction, GanttTransactionMeta } from '../core/transaction'
 import type { GanttMessagesOverride } from '../locale'

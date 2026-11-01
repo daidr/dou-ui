@@ -125,6 +125,11 @@ export interface CalendarViewEmits {
    * menu key; `nativeEvent.preventDefault()` keeps it closed.
    */
   eventContextmenu: [event: CalendarEvent, nativeEvent: MouseEvent]
+  /**
+   * The days on screen changed, `YYYY-MM-DD` to `YYYY-MM-DD`; also sent
+   * once at the start. Pass them to `expandRepeats`.
+   */
+  rangeChange: [range: CalendarRange]
 }
 
 export interface CalendarDay {

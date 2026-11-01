@@ -73,6 +73,7 @@ const emit = defineEmits<{
   change: [change: CalendarChange]
   create: [range: CalendarRange]
   eventContextmenu: [event: CalendarEvent, nativeEvent: MouseEvent]
+  rangeChange: [range: CalendarRange]
 }>()
 const slots = defineSlots<CalendarViewSlots>()
 
@@ -261,6 +262,25 @@ const weekDays = computed<CalendarDay[]>(() => {
   return Array.from({ length: 7 }, (_, index) => dayOf(addDays(start, index)))
 })
 
+/** The days on screen, first to last, whatever the view. */
+const visible = computed<CalendarRange>(() => {
+  if (view.value === 'month') {
+    const grid = weeks.value
+    return { start: grid[0]![0]!.date, end: grid.at(-1)!.at(-1)!.date }
+  }
+  if (view.value === 'agenda') {
+    const { year, month: m } = parts(`${shown.value}-01`)
+    return { start: `${shown.value}-01`, end: toDateString(year, m, daysInMonth(year, m)) }
+  }
+  const days = weekDays.value
+  return { start: days[0]!.date, end: days.at(-1)!.date }
+})
+watch(
+  () => `${visible.value.start}/${visible.value.end}`,
+  () => emit('rangeChange', { ...visible.value }),
+  { immediate: true },
+)
+
 /** The agenda: the days of the month shown that have events, each with its events. */
 const agenda = computed(() => {
   if (view.value !== 'agenda') return []
@@ -304,8 +324,12 @@ const resizable = (event: CalendarEvent, date: string) =>
   !event.locked &&
   spans.value.get(event)!.start === null &&
   spans.value.get(event)!.to === date
-const keyShortcuts =
-  'Alt+ArrowLeft Alt+ArrowRight Alt+ArrowUp Alt+ArrowDown Alt+Shift+ArrowLeft Alt+Shift+ArrowRight Alt+Shift+ArrowUp Alt+Shift+ArrowDown Delete Backspace Shift+F10'
+/** The agenda moves events by day only: up and down there walk the list. */
+const keyShortcuts = computed(() =>
+  view.value === 'agenda'
+    ? 'Alt+ArrowLeft Alt+ArrowRight Alt+Shift+ArrowLeft Alt+Shift+ArrowRight Delete Backspace Shift+F10'
+    : 'Alt+ArrowLeft Alt+ArrowRight Alt+ArrowUp Alt+ArrowDown Alt+Shift+ArrowLeft Alt+Shift+ArrowRight Alt+Shift+ArrowUp Alt+Shift+ArrowDown Delete Backspace Shift+F10',
+)
 
 /* choosing and moving */
 
@@ -604,12 +628,25 @@ function onPointerDown(event: PointerEvent) {
   if (event.button !== 0 || drag.value) return
   const el = event.target as HTMLElement
   const touch = event.pointerType !== 'mouse'
-  if (touch) touchedAt = Date.now()
-  const cell = el.closest<HTMLElement>('[data-drop]')
-  if (!cell) return
-  const surface = cell.dataset.drop as Surface
   const chip = el.closest<HTMLElement>('[data-event-id]')
   const item = chip ? byId(chip.dataset.eventId) : undefined
+  const cell = el.closest<HTMLElement>('[data-drop]')
+  if (!cell) {
+    // the agenda has nothing to drag: a finger resting on an event opens its menu
+    const day = el.closest<HTMLElement>('[data-agenda-date]')?.dataset.agendaDate
+    if (touch && item && day) {
+      startDrag(event, {
+        kind: 'press',
+        surface: 'day',
+        event: item,
+        span: spans.value.get(item) ?? null,
+        origin: { date: day, minutes: 0 },
+        target: { kind: 'event', event: item },
+      })
+    }
+    return
+  }
+  const surface = cell.dataset.drop as Surface
   let kind: Drag['kind']
   if (item) {
     const span = spans.value.get(item)
@@ -626,12 +663,25 @@ function onPointerDown(event: PointerEvent) {
   if (kind === 'press' && !touch) return
   const origin = pointAt(surface, event.clientX, event.clientY)
   if (!origin) return
-  drag.value = {
+  startDrag(event, {
     kind,
     surface,
     event: item ?? null,
     span: item ? spans.value.get(item)! : null,
     origin,
+    target: targetOf(el, event.clientX, event.clientY),
+  })
+}
+
+/** Starts following a pointer that went down; a finger picks up after a short rest. */
+function startDrag(
+  event: PointerEvent,
+  start: Pick<Drag, 'kind' | 'surface' | 'event' | 'span' | 'origin' | 'target'>,
+) {
+  const touch = event.pointerType !== 'mouse'
+  if (touch) touchedAt = Date.now()
+  drag.value = {
+    ...start,
     pointerId: event.pointerId,
     touch,
     x0: event.clientX,
@@ -642,7 +692,6 @@ function onPointerDown(event: PointerEvent) {
     draft: null,
     range: null,
     refusal: null,
-    target: targetOf(el, event.clientX, event.clientY),
   }
   pointer.value = { x: event.clientX, y: event.clientY }
   hold = holdPointer(event, rootRef.value)
@@ -773,6 +822,10 @@ function remove(event: CalendarEvent) {
   announce(t('calendarView.removed', { title: event.title }))
 }
 
+/** The element of an event on screen. */
+const chipOf = (id: string | undefined) =>
+  id ? rootRef.value?.querySelector<HTMLElement>(`[data-event-id="${CSS.escape(id)}"]`) : null
+
 /**
  * Removes an event from the keyboard, then puts the keyboard on the next
  * event of the same day, or the one before, or else on the day itself.
@@ -786,10 +839,14 @@ async function removeByKey(item: CalendarEvent, chip: HTMLElement) {
     .find((id) => id !== item.id)
   const holder = chip.closest<HTMLElement>('[data-date], [data-agenda-date]')
   const day = holder?.dataset.date ?? holder?.dataset.agendaDate
+  // in the agenda a day without events goes away: fall back to the next day's first event, or the one before's
+  const listed = chip.closest<HTMLElement>('[data-agenda-date]')
+  const neighbour = (listed?.nextElementSibling ?? listed?.previousElementSibling) as
+    HTMLElement | null | undefined
+  const fallback = neighbour?.querySelector<HTMLElement>('[data-event-id]')?.dataset.eventId
   remove(item)
   await nextTick()
-  const next =
-    near && rootRef.value?.querySelector<HTMLElement>(`[data-event-id="${CSS.escape(near)}"]`)
+  const next = chipOf(near) ?? chipOf(fallback)
   if (next) return next.focus()
   if (day) cursor.value = day
   void focusCursor()
@@ -845,9 +902,15 @@ function onContextmenu(event: MouseEvent) {
 
 /* keys on an event */
 
+/**
+ * Puts the keyboard back on an event after a change; when the app stored it
+ * under a new id, e.g. one occurrence of a series, on the day it went to.
+ */
 async function focusEvent(id: string) {
   await nextTick()
-  rootRef.value?.querySelector<HTMLElement>(`[data-event-id="${CSS.escape(id)}"]`)?.focus()
+  const chip = chipOf(id)
+  if (chip) chip.focus()
+  else void focusCursor()
 }
 
 /**
@@ -880,7 +943,7 @@ function onEventKeydown(event: KeyboardEvent) {
   const span = spans.value.get(item)
   if (!event.altKey || !span) return
   const timed = span.start !== null
-  const onAxis = timed && view.value !== 'month'
+  const onAxis = timed && view.value !== 'month' && view.value !== 'agenda'
   const snap = Math.max(1, Math.round(props.snap))
   const keys: Record<string, { days?: number; minutes?: number }> = {
     ArrowLeft: { days: -1 },

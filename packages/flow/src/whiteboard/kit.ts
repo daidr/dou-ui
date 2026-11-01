@@ -1,7 +1,6 @@
 import type { ContextMenuItem } from 'dou-ui'
 import { RotateCwIcon } from '@dou-ui/icons'
 import { watch, type Ref } from 'vue'
-
 import type { FlowEditorContext } from '../context'
 import { defineFlowExtension, type FlowExtension } from '../core/extension'
 import { createId, type FlowData, type FlowNode, type Point, type Rect } from '../core/model'

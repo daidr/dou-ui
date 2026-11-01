@@ -11,7 +11,8 @@ import { dropdownKey } from '../dropdown/dropdown'
 import type { DropdownValue } from '../dropdown/dropdown'
 import { useMenuKeys } from '../dropdown/menu-keys'
 import type { ContextMenuExpose, ContextMenuProps, ContextMenuSlots } from './context-menu'
-import ContextMenuItems from './context-menu-items.vue'
+import DropdownItems from '../dropdown/dropdown-items.vue'
+import { useItemsWarning } from '../dropdown/items-warning'
 import { useTeleport } from '../../utils/teleport'
 
 defineOptions({ name: 'DouContextMenu', inheritAttrs: false })
@@ -24,7 +25,8 @@ const props = withDefaults(defineProps<ContextMenuProps>(), {
 const teleportTarget = useTeleport(() => props.teleport)
 const open = defineModel<boolean>('open', { default: false })
 const emit = defineEmits<{ select: [value: DropdownValue | undefined] }>()
-defineSlots<ContextMenuSlots>()
+const slots = defineSlots<ContextMenuSlots>()
+useItemsWarning('ContextMenu', () => !!props.items && !!slots.menu)
 
 const ns = useNamespace('context-menu')
 const dropdown = useNamespace('dropdown')
@@ -224,7 +226,7 @@ const onMenuKeydown = useMenuKeys(
 
 provide(dropdownKey, {
   select(value) {
-    props.items?.find((item) => item.key === value)?.run()
+    props.items?.find((item) => item.key === value)?.run?.()
     emit('select', value)
     if (props.hideOnSelect) dismiss()
   },
@@ -258,7 +260,7 @@ defineExpose<ContextMenuExpose>({ open: show, close: hide })
         @keydown="onMenuKeydown"
         @contextmenu.prevent
       >
-        <slot name="menu"><ContextMenuItems v-if="items" :items="items" /></slot>
+        <slot name="menu"><DropdownItems v-if="props.items" :items="props.items" /></slot>
       </div>
     </Transition>
   </Teleport>

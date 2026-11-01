@@ -3,7 +3,6 @@ import { ChevronDownIcon, ChevronsDownIcon, ChevronsUpIcon, ChevronUpIcon } from
 import type { FlowEditorContext } from './context'
 import { defineFlowExtension } from './core/extension'
 import { intersects } from './core/geometry'
-
 import type { FlowNode } from './core/model'
 
 export type LayerMove = 'front' | 'forward' | 'backward' | 'back'

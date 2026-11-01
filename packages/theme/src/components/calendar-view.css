@@ -408,6 +408,13 @@
     white-space: nowrap;
   }
 
+  /* a finger needs a taller row; narrow screens stack time over title and get it anyway */
+  @media (pointer: coarse) {
+    .dou-calendar-view__agenda-event {
+      min-height: 40px;
+    }
+  }
+
   @media (max-width: 480px) {
     .dou-calendar-view__agenda-day {
       grid-template-columns: 52px minmax(0, 1fr);

@@ -24,7 +24,7 @@
 
 ## 用数据写菜单项
 
-菜单项在代码里生成时，可以不写 `menu` 插槽，直接传 `items`。每项是一个 `ContextMenuItem`，选中时调用它的 `run`，`select` 事件同样会触发，参数是 `key`。日历视图、流程图和甘特图的菜单项也是这个类型。
+菜单项在代码里生成时，可以不写 `menu` 插槽，直接传 `items`。每项是一个 `ContextMenuItem`，选中时调用它的 `run`，`select` 事件同样会触发，参数是 `key`。[DouDropdown](./dropdown#用数据写菜单项) 的 `items`，以及日历视图、流程图和甘特图的菜单项也是这个类型。同时写了 `menu` 插槽时显示插槽，`items` 不起作用，开发时会在控制台提示一次。
 
 ```vue
 <DouContextMenu :items="items">
@@ -42,19 +42,21 @@ const items: ContextMenuItem[] = [
 ]
 ```
 
-| 名称       | 说明                                                       | 类型                    |
-| ---------- | ---------------------------------------------------------- | ----------------------- |
-| `key`      | 菜单里唯一，也是 `select` 的参数                           | `string`                |
-| `label`    | 文字                                                       | `string`                |
-| `icon`     | 图标                                                       | `Component`             |
-| `shortcut` | 显示在右侧的快捷键，写法和 `useHotkey` 一样；只用于显示    | `string`                |
-| `disabled` | 禁用                                                       | `boolean`               |
-| `tone`     | 色调，`'danger'` 表示危险操作                              | `'neutral' \| 'danger'` |
-| `divided`  | 上方画一条分隔线                                           | `boolean`               |
-| `checked`  | 显示勾选标记，比如当前选中的选项；每一项都写了时菜单是单选 | `boolean`               |
-| `run`      | 选中时调用                                                 | `() => void`            |
+| 名称       | 说明                                                       | 类型               |
+| ---------- | ---------------------------------------------------------- | ------------------ |
+| `key`      | 菜单里唯一，也是 `select` 的参数                           | `string`           |
+| `label`    | 文字                                                       | `string`           |
+| `icon`     | 图标                                                       | `Component`        |
+| `shortcut` | 显示在右侧的快捷键，写法和 `useHotkey` 一样；只用于显示    | `string`           |
+| `disabled` | 禁用                                                       | `boolean`          |
+| `tone`     | 色调，`'danger'` 表示危险操作                              | `DropdownItemTone` |
+| `divided`  | 上方画一条分隔线                                           | `boolean`          |
+| `checked`  | 显示勾选标记，比如当前选中的选项；每一项都写了时菜单是单选 | `boolean`          |
+| `run`      | 选中时调用；不写时在 `select` 里处理                       | `() => void`       |
 
 触屏上不显示 `shortcut`。
+
+`select` 的参数类型是 `string | number | undefined`，因为写在插槽里的 `DouDropdownItem` 的 `value` 可以是数字，也可以不写。用 `items` 时它总是某一项的 `key`，处理函数的参数写成 `DropdownValue | undefined`，或者把要做的事写在 `run` 里。
 
 ## API
 

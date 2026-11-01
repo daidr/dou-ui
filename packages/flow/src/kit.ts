@@ -17,7 +17,6 @@ import { defaultNode } from './components/default-node'
 import { groupNode } from './components/group-node'
 import { bezierEdge, stepEdge, straightEdge } from './core/edge-types'
 import { defineFlowExtension, type FlowExtension } from './core/extension'
-
 import { layers, stacking } from './layers'
 
 export interface FlowKitOptions {

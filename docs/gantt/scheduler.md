@@ -59,6 +59,9 @@ const canMove = (move: SchedulerMove) => !findConflict(tasks.value, move) || '�
 在任务上右键、手机上长按任务后松开，或者按菜单键（`Shift` + `F10`），会打开任务的菜单，内置一项“删除任务”。`context-menu` 可以加上自己的菜单项，排在内置项前面；在一行的空白处右键时，参数是这一行的资源和鼠标下的时间，可以用来加“在此预约”之类的项。`:menu="false"` 关闭内置项。
 
 ```ts
+import type { SchedulerMenuTarget } from '@dou-ui/gantt'
+import type { ContextMenuItem } from 'dou-ui'
+
 function contextMenu(target: SchedulerMenuTarget): ContextMenuItem[] {
   if (target.kind === 'task')
     return [{ key: 'edit', label: '编辑', run: () => openEditor(target.task) }]

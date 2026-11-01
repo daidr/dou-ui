@@ -4,6 +4,8 @@ import { computed, ref } from 'vue'
 
 const month = ref('2026-11')
 const view = ref('agenda')
+// 日历当前显示的日子，由 range-change 告诉我们
+const range = ref(null)
 const last = ref('—')
 
 // 存下来的是规则；显示的是展开后的具体日程
@@ -33,17 +35,9 @@ const series = ref([
   { id: 'trip', title: '上海出差', tone: 'warning', start: '2026-11-17', end: '2026-11-19' },
 ])
 
-// 展开显示的月份，前后各多留一周，周视图跨月时也有日程
-const shift = (date, days) => {
-  const value = new Date(`${date}T00:00:00Z`)
-  value.setUTCDate(value.getUTCDate() + days)
-  return value.toISOString().slice(0, 10)
-}
-const events = computed(() => {
-  const first = `${month.value}-01`
-  const next = shift(first, 32).slice(0, 7)
-  return expandRepeats(series.value, shift(first, -7), shift(`${next}-01`, 6))
-})
+const events = computed(() =>
+  range.value ? expandRepeats(series.value, range.value.start, range.value.end) : [],
+)
 
 // 拖动或删除一次重复日程：只改这一天，把它从规则里排除，另存为一项普通日程
 function onChange(change) {
@@ -74,6 +68,7 @@ function onChange(change) {
     editable
     :hours="[8, 20]"
     @change="onChange"
+    @range-change="range = $event"
   />
   <DouText size="sm" variant="tertiary">最近的修改：{{ last }}</DouText>
 </template>

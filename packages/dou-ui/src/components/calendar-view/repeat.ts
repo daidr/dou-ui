@@ -14,62 +14,136 @@ export interface CalendarRepeat {
   interval?: number
   /**
    * With `week`: the days of the week it falls on, `0` for Sunday to `6`
-   * for Saturday. Defaults to the weekday of `start`.
+   * for Saturday. Defaults to the weekday of `start`. When `start` is not
+   * on one of them, the series begins on the first of them after it.
    */
-  weekdays?: number[]
+  weekdays?: readonly number[]
+  /**
+   * With `week` and an `interval` over 1: the day weeks begin on, which
+   * decides which weeks are "every other". `0` for Sunday, the default.
+   */
+  weekStart?: number
   /** The last day an occurrence may start on, `YYYY-MM-DD`. */
   until?: string
-  /** How many occurrences there are at most, counting the first and the skipped ones. */
+  /** How many occurrences there are at most, counting those left out by `except`. */
   count?: number
   /** Days, `YYYY-MM-DD`, whose occurrence is left out, e.g. a holiday or one moved on its own. */
-  except?: string[]
+  except?: readonly string[]
 }
 
 /** An event that may repeat; without `repeat` it stands for itself. */
 export type RepeatingEvent<Data extends Record<string, unknown> = Record<string, unknown>> =
   CalendarEvent<Data> & { repeat?: CalendarRepeat }
 
-/** Guards against a rule that never reaches the range. */
-const LIMIT = 100_000
+const warned = new Set<string>()
+/** Says once per message, while developing, that a rule can't be followed as written. */
+function warn(message: string) {
+  // the app's bundler replaces this, as for Vue's own warnings
+  if (process.env.NODE_ENV === 'production' || warned.has(message)) return
+  warned.add(message)
+  console.warn(`[dou-ui] expandRepeats: ${message}`)
+}
+
+const isDay = (value: number) => Number.isInteger(value) && value >= 0 && value <= 6
+
+/** The rule's `interval`, `weekStart` and `weekdays`, read leniently with a warning for bad ones. */
+function settle(id: string, rule: CalendarRepeat, first: string) {
+  let interval = rule.interval ?? 1
+  if (!Number.isInteger(interval) || interval < 1) {
+    warn(
+      `event "${id}" has interval ${rule.interval}; it must be a whole number of 1 or more, so 1 is used.`,
+    )
+    interval = 1
+  }
+  let weekStart = rule.weekStart ?? 0
+  if (!isDay(weekStart)) {
+    warn(
+      `event "${id}" has weekStart ${rule.weekStart}; use 0 (Sunday) to 6 (Saturday). 0 is used.`,
+    )
+    weekStart = 0
+  }
+  let weekdays = rule.weekdays?.length ? rule.weekdays : [weekday(first)]
+  if (rule.every === 'week' && weekdays.some((day) => !isDay(day))) {
+    warn(
+      `event "${id}" has weekdays [${weekdays.join(', ')}]; use 0 (Sunday) to 6 (Saturday). The others are left out.`,
+    )
+    weekdays = weekdays.filter(isDay)
+  }
+  return { interval, weekStart, weekdays }
+}
 
 /**
- * The days a rule falls on from `first`, in order, until `last`. A day of
- * the month that a month doesn't have (the 31st, or 29 February outside a
- * leap year) is skipped rather than moved.
+ * The days a rule falls on, in order, from the first one that starts on or
+ * after `lo` until `hi`, each with its number in the series counting from
+ * 1. It goes straight to `lo` rather than counting up from `first`, so a
+ * series that began long ago costs no more than a new one.
+ *
+ * A day of the month that a month doesn't have (the 31st, or 29 February
+ * outside a leap year) is skipped rather than moved, and not counted.
  */
-function* daysOf(first: string, rule: CalendarRepeat, last: string) {
-  const interval = Math.max(1, Math.floor(rule.interval ?? 1))
-  const start = parts(first)
-  for (let step = 0, guard = 0; guard < LIMIT; guard++) {
-    let date: string | null = null
-    if (rule.every === 'day') {
-      date = addDays(first, step * interval)
-      step++
-    } else if (rule.every === 'week') {
-      const days = new Set(rule.weekdays?.length ? rule.weekdays : [weekday(first)])
-      // weeks counted from the one `first` is in, starting on Sunday
-      const week0 = dayIndex(first) - weekday(first)
-      date = addDays(first, step)
-      step++
-      const week = Math.floor((dayIndex(date) - week0) / 7)
-      if (week % interval !== 0 || !days.has(weekday(date))) {
-        if (date > last) return
-        continue
+function* daysOf(
+  id: string,
+  first: string,
+  rule: CalendarRepeat,
+  lo: string,
+  hi: string,
+): Generator<{ date: string; n: number }> {
+  const { interval, weekStart, weekdays } = settle(id, rule, first)
+  const firstIndex = dayIndex(first)
+  const gap = Math.max(0, dayIndex(lo) - firstIndex)
+  if (rule.every === 'day') {
+    let k = Math.ceil(gap / interval)
+    for (let date = addDays(first, k * interval); date <= hi; date = addDays(date, interval))
+      yield { date, n: ++k }
+    return
+  }
+  if (rule.every === 'week') {
+    // weeks are counted from the one `first` is in, starting on `weekStart`
+    // oxlint-disable-next-line unicorn/no-array-sort -- sorts a fresh array
+    const offsets = [...new Set(weekdays.map((day) => (day - weekStart + 7) % 7))].sort(
+      (a, b) => a - b,
+    )
+    if (!offsets.length) return
+    const week0 = firstIndex - ((weekday(first) - weekStart + 7) % 7)
+    // `first` itself is an occurrence only when it is on one of the days
+    const inFirst = offsets.filter((offset) => week0 + offset >= firstIndex).length
+    const span = 7 * interval
+    let period = Math.max(0, Math.floor((firstIndex + gap - week0) / span))
+    let n = period === 0 ? 0 : inFirst + (period - 1) * offsets.length
+    for (; ; period++) {
+      for (const offset of offsets) {
+        const index = week0 + period * span + offset
+        if (index < firstIndex) continue
+        const date = addDays(first, index - firstIndex)
+        if (date > hi) return
+        n++
+        if (date >= lo) yield { date, n }
       }
-    } else {
-      const months = step * interval * (rule.every === 'year' ? 12 : 1)
-      step++
-      const index = start.year * 12 + start.month - 1 + months
-      const year = Math.floor(index / 12)
-      const month = (index % 12) + 1
-      if (start.day > daysInMonth(year, month)) {
-        if (toDateString(year, month, 1) > last) return
-        continue
-      }
-      date = toDateString(year, month, start.day)
     }
-    if (date > last) return
-    yield date
+  }
+  // month and year: months that lack the day are skipped and not counted
+  const start = parts(first)
+  const step = interval * (rule.every === 'year' ? 12 : 1)
+  const base = start.year * 12 + start.month - 1
+  const lack = (k: number) => {
+    const index = base + k * step
+    return start.day > daysInMonth(Math.floor(index / 12), (index % 12) + 1)
+  }
+  const low = parts(lo)
+  let k = Math.max(0, Math.floor((low.year * 12 + low.month - 1 - base) / step) - 1)
+  let n = 0
+  if (start.day <= 28) n = k
+  else for (let j = 0; j < k; j++) if (!lack(j)) n++
+  for (; ; k++) {
+    const index = base + k * step
+    const year = Math.floor(index / 12)
+    const month = (index % 12) + 1
+    if (toDateString(year, month, 1) > hi) return
+    if (lack(k)) continue
+    n++
+    const date = toDateString(year, month, start.day)
+    if (date > hi) return
+    if (date >= lo) yield { date, n }
   }
 }
 
@@ -102,11 +176,10 @@ export function expandRepeats<Data extends Record<string, unknown> = Record<stri
     const length = dayIndex(span.to) - dayIndex(span.from)
     const except = new Set(repeat.except)
     const last = repeat.until && repeat.until < to ? repeat.until : to
-    let count = 0
-    for (const date of daysOf(span.from, repeat, last)) {
-      if (repeat.count !== undefined && count >= repeat.count) break
-      count++
-      if (except.has(date) || !touches(date, addDays(date, length))) continue
+    // an occurrence that starts up to `length` days before `from` still reaches it
+    for (const { date, n } of daysOf(event.id, span.from, repeat, addDays(from, -length), last)) {
+      if (repeat.count !== undefined && n > repeat.count) break
+      if (except.has(date)) continue
       const days = dayIndex(date) - dayIndex(span.from)
       out.push({
         ...(moveEvent(plain, span, { days }) as CalendarEvent<Data>),

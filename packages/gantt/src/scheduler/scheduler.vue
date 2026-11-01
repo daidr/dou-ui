@@ -1,7 +1,13 @@
 <script setup lang="ts">
-import type { ContextMenuItem } from 'dou-ui'
 import { ChevronDownIcon, ChevronRightIcon, TrashIcon } from '@dou-ui/icons'
-import { holdPointer, matchesHotkey, useElementSize, useLocale, type PointerHold } from 'dou-ui'
+import {
+  holdPointer,
+  matchesHotkey,
+  useElementSize,
+  useLocale,
+  type ContextMenuItem,
+  type PointerHold,
+} from 'dou-ui'
 import {
   computed,
   nextTick,
@@ -19,7 +25,6 @@ import TimeGrid from '../components/time-grid.vue'
 import TimeHeader from '../components/time-header.vue'
 import { resolveCalendar } from '../core/calendar'
 import { GanttHistory } from '../core/history'
-
 import { spanOf, writeSpan, type GanttTask, type TaskSpan } from '../core/model'
 import { snapStep, type GanttScale } from '../core/scale'
 import { MINUTES_PER_DAY, parseTime } from '../core/time'

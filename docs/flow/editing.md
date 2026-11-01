@@ -76,9 +76,12 @@ const publish = defineNodeType({
 扩展可以用 `contextMenu` 加自己的项，`target.kind` 说明菜单打开在哪里。多个扩展的项按优先级排列，中间用分隔线隔开；`flowKit()` 的项排在最后。
 
 ```ts
+import { defineFlowExtension } from '@dou-ui/flow'
+import type { ContextMenuItem } from 'dou-ui'
+
 const runFromHere = defineFlowExtension({
   name: 'run-from-here',
-  contextMenu: (ctx, target) =>
+  contextMenu: (ctx, target): ContextMenuItem[] =>
     target.kind === 'node'
       ? [{ key: 'run', label: '从这里运行', icon: PlayIcon, run: () => run(target.node.id) }]
       : [],

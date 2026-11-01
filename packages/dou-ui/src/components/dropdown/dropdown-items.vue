@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { DouDropdownItem, DouDropdownRadioGroup } from '../dropdown'
+import type { ContextMenuItem } from '../context-menu/context-menu'
 import { DouIcon } from '../icon'
-import type { ContextMenuItem } from './context-menu'
+import DouDropdownItem from './dropdown-item.vue'
+import DouDropdownRadioGroup from './dropdown-radio-group.vue'
 
-defineOptions({ name: 'DouContextMenuItems' })
+defineOptions({ name: 'DouDropdownItems' })
 
 const props = defineProps<{ items: ContextMenuItem[] }>()
 

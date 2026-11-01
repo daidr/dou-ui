@@ -138,14 +138,10 @@ const classes = computed(() => [
   ns.is('readonly', props.readonly),
 ])
 
-defineExpose<FormExpose & { [formShowErrorsKey]: typeof showErrors }>({
-  validate,
-  resetFields,
-  clearValidate,
-  scrollToField,
-  setErrors,
-  [formShowErrorsKey]: showErrors,
-})
+const exposed: FormExpose = { validate, resetFields, clearValidate, scrollToField, setErrors }
+// Kept off the public type: read through `showFormErrors`.
+Object.defineProperty(exposed, formShowErrorsKey, { value: showErrors })
+defineExpose<FormExpose>(exposed)
 </script>
 
 <template>

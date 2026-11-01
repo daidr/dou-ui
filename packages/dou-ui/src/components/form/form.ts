@@ -223,8 +223,16 @@ export interface FormItemContext {
 
 export const formKey: InjectionKey<FormContext> = Symbol('DouForm')
 export const formItemKey: InjectionKey<FormItemContext> = Symbol('DouFormItem')
+/** Where a DouForm instance keeps `setErrors` without the dev warning. */
+export const formShowErrorsKey = Symbol('DouFormShowErrors')
+
 /**
- * @internal On a DouForm instance: `setErrors` without the dev warning, for
+ * @internal `setErrors` on a DouForm instance without its dev warning, for
  * a component built on DouForm that warns in its own name.
  */
-export const formShowErrorsKey: unique symbol = Symbol('DouFormShowErrors')
+export function showFormErrors(form: FormExpose, errors: Partial<FormErrors>): string[] {
+  const quiet = (form as unknown as Record<symbol, typeof form.setErrors | undefined>)[
+    formShowErrorsKey
+  ]
+  return (quiet ?? form.setErrors)(errors)
+}

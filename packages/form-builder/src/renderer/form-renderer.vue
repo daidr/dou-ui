@@ -11,7 +11,7 @@ import {
   useTemplateRef,
   watch,
 } from 'vue'
-import { DouForm, formShowErrorsKey } from 'dou-ui'
+import { DouForm, showFormErrors } from 'dou-ui'
 import type { FormErrors, FormInstance, FormModel } from 'dou-ui'
 import { checkVersion, cloneValue, getPath, isSteps, setPath } from '../core/document'
 import { equalValues } from '../core/expression'
@@ -223,7 +223,7 @@ function onReset() {
 function setErrors(errors: Partial<FormErrors>) {
   const form = formRef.value
   const missed = form
-    ? form[formShowErrorsKey](errors)
+    ? showFormErrors(form, errors)
     : Object.keys(errors).filter((path) => errors[path])
   if (missed.length && process.env.NODE_ENV !== 'production')
     console.warn(

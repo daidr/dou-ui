@@ -2341,12 +2341,13 @@ async function exportPNG(options: GanttImageOptions = {}) {
 const FORMULA_START = /^[=+\-@\t\r]/
 
 /**
- * A field of CSV: quoted when it has to be, and text that a spreadsheet
- * program would run as a formula (`=…`, `-复盘`) behind a `'`. Numbers
- * stay as they are.
+ * A field of CSV: quoted when it has to be, and unless `escape` is off,
+ * text that a spreadsheet program would run as a formula (`=…`, `-复盘`)
+ * behind a `'`. Numbers stay as they are.
  */
-function csvCell(text: string) {
-  const safe = FORMULA_START.test(text) && !Number.isFinite(Number(text.trim())) ? `'${text}` : text
+function csvCell(text: string, escape = true) {
+  const safe =
+    escape && FORMULA_START.test(text) && !Number.isFinite(Number(text.trim())) ? `'${text}` : text
   return /[",\n\r]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe
 }
 
@@ -2387,11 +2388,13 @@ function toCSV(options: GanttCSVExportOptions = {}) {
   const cell = (row: GanttRow, column: GanttColumn) =>
     options.text ? cellText(row, column) : csvValue(row, column, mixed)
   const ids = options.ids ? [m.idColumn, m.parentColumn] : []
-  const lines = [[...ids, ...list.map(header)].map(csvCell).join(',')]
+  const escape = options.escapeFormulas !== false
+  const field = (text: string) => csvCell(text, escape)
+  const lines = [[...ids, ...list.map(header)].map(field).join(',')]
   // every task in order, those under a collapsed parent too
   for (const row of tree.value.byId.values()) {
     const own = options.ids ? [row.task.id, row.task.parent ?? ''] : []
-    lines.push([...own, ...list.map((column) => cell(row, column))].map(csvCell).join(','))
+    lines.push([...own, ...list.map((column) => cell(row, column))].map(field).join(','))
   }
   // the byte order mark tells spreadsheets the file is UTF-8
   return (options.bom === false ? '' : '\uFEFF') + lines.join('\r\n')

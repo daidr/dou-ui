@@ -221,6 +221,13 @@ export interface GanttCSVExportOptions {
    * Off by default.
    */
   ids?: boolean
+  /**
+   * Puts a `'` before text a spreadsheet program would run as a formula
+   * (starting with `=`, `+`, `-`, `@`, a tab or a line break), such as a
+   * task named `-复盘`; numbers stay as they are, and `importCSV` takes the
+   * `'` off again. On by default; `false` writes such text as it is.
+   */
+  escapeFormulas?: boolean
 }
 
 export interface GanttExpose {

@@ -779,6 +779,9 @@ describe('export', () => {
     const csv = vm.toCSV({ bom: false, ids: true })
     expect(csv.split('\r\n').slice(1)).toEqual(["r,,'-复盘,2026-03-02,1", "f,,'=1+1,2026-03-03,1"])
     expect(vm.readCSV(csv).tasks.map((task) => task.title)).toEqual(['-复盘', '=1+1'])
+    expect(vm.toCSV({ bom: false, escapeFormulas: false }).split('\r\n')[1]).toBe(
+      '-复盘,2026-03-02,1',
+    )
   })
 
   it('imports nothing while readonly', async () => {

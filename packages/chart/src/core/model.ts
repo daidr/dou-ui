@@ -12,6 +12,7 @@ import {
 } from './data'
 import type { ChartSeriesKind, ChartSeriesProps, ChartValueAxis } from './series'
 import { waterfallSteps } from './waterfall'
+import { warnOnce } from './warn'
 import { boxesOf } from './box'
 
 /** A series as registered by its component. */
@@ -257,8 +258,20 @@ export function buildModel(
     }
   }
 
-  if (kind === 'category' && chart.sort && categories.length > 1)
-    categories = sortCategories(series, categories, chart.sort)
+  if (chart.sort) {
+    // a waterfall adds up in the order of its rows: sorted, its totals would land anywhere
+    if (kind !== 'category')
+      warnOnce(
+        'sort',
+        'an axis `sort` orders the categories of a category x axis; it does nothing here.',
+      )
+    else if (series.some((s) => s.input.kind.waterfall))
+      warnOnce(
+        'sort-waterfall',
+        'a waterfall adds up in the order of its rows, so the x axis `sort` is left out.',
+      )
+    else if (categories.length > 1) categories = sortCategories(series, categories, chart.sort)
+  }
 
   const yCategories = categoriesDown(series)
 
@@ -272,7 +285,7 @@ export function buildModel(
     for (const s of series) {
       x = merge(x, s.x.sorted ? ends(s.x.values) : cachedExtent(s.x.values))
       if (s.input.kind.band) {
-        const gap = smallestGap(s.x.values)
+        const gap = s.input.kind.xStep?.(s as never) ?? smallestGap(s.x.values)
         if (!(gap >= xStep)) xStep = gap
       }
     }
@@ -303,7 +316,7 @@ export function buildModel(
 }
 
 /** How categories along x are ordered: by their totals, or by a comparison of their names. */
-export type ChartCategorySort = 'ascending' | 'descending' | ((a: string, b: string) => number)
+export type ChartCategorySort = 'asc' | 'desc' | ((a: string, b: string) => number)
 
 /** `categories` put in the order `sort` asks for, the series' x moved with them. */
 function sortCategories(
@@ -324,7 +337,7 @@ function sortCategories(
         if (x === x && v === v) totals[x] = totals[x]! + v
       }
     }
-    const sign = sort === 'descending' ? -1 : 1
+    const sign = sort === 'desc' ? -1 : 1
     // ties keep the order they came in
     order.sort((a, b) => sign * (totals[a]! - totals[b]!) || a - b)
   }

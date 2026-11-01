@@ -219,7 +219,8 @@ export function barLabels(
     const u = sx.map(x) + offset + width / 2
     const v1 = sy.map(value)
     const v0 = base ? sy.map(from0) : zero
-    const up = value > from0
+    // which way the bar runs on screen: a reversed axis turns it round
+    const up = horizontal ? v1 > v0 : v1 < v0
     if (inside) {
       const lo = Math.min(v0, v1)
       const length = Math.abs(v1 - v0)

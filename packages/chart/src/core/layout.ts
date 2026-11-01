@@ -703,8 +703,11 @@ function placeDown(
 }
 
 const fitAcross = (labels: TickLabel[]) => {
-  for (let i = 1; i < labels.length; i++)
-    if (labels[i]!.left < labels[i - 1]!.left + labels[i - 1]!.width + LABEL_GAP) return false
+  // left to right, whichever way the axis runs (a reversed one runs right to left)
+  const list = [...labels]
+  list.sort((a, b) => a.left - b.left)
+  for (let i = 1; i < list.length; i++)
+    if (list[i]!.left < list[i - 1]!.left + list[i - 1]!.width + LABEL_GAP) return false
   return true
 }
 

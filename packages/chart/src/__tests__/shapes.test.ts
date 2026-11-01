@@ -26,17 +26,17 @@ const rows = [
 describe('category sort', () => {
   it('orders categories by the total of the series shown', () => {
     const series = [input(0, { y: 'a' }), input(1, { y: 'b' })]
-    const down = buildModel(series, { data: rows, x: 'k', sort: 'descending' })
+    const down = buildModel(series, { data: rows, x: 'k', sort: 'desc' })
     expect(down.categories).toEqual(['浦东', '徐汇', '静安'])
     // each row moves with its category
     expect([...down.series[0]!.x.values]).toEqual([1, 2, 0])
-    const up = buildModel(series, { data: rows, x: 'k', sort: 'ascending' })
+    const up = buildModel(series, { data: rows, x: 'k', sort: 'asc' })
     expect(up.categories).toEqual(['静安', '徐汇', '浦东'])
     // a hidden series does not count
     const only = buildModel([input(0, { y: 'a', hidden: true }), input(1, { y: 'b' })], {
       data: rows,
       x: 'k',
-      sort: 'descending',
+      sort: 'desc',
     })
     expect(only.categories[0]).toBe('浦东')
   })

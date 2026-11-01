@@ -162,8 +162,8 @@ export interface ChartAxisProps {
    */
   reverse?: boolean
   /**
-   * For a category x axis: the order of the categories. `ascending` and
-   * `descending` order them by their totals (the sum of the series shown);
+   * For a category x axis: the order of the categories. `asc` and
+   * `desc` order them by their totals (the sum of the series shown);
    * a function compares two category names. As in the data by default.
    */
   sort?: ChartCategorySort
@@ -206,11 +206,13 @@ export interface ChartDataLabel {
   share?: number
   /** A band's bottom (`y0`). */
   low?: number
-  /** The series' name; for a pie, the slice's. */
+  /** The series' name; for a pie, the slice's; for a tree, the node's. */
   name: string
   row: ChartRow
-  /** The row's index. */
+  /** The row's index; for a treemap's or sunburst's node, its place among its siblings. */
   index: number
+  /** For a treemap's or sunburst's node: its level, 1 for the top. */
+  depth?: number
 }
 
 /** The text of a data label; `null` or `undefined` for none. */
@@ -280,6 +282,8 @@ export interface ChartHistogramProps extends Omit<ChartSeriesProps, 'y' | 'x' | 
   color?: string
   /** Corner radius of the bars' tops, in px. */
   radius?: number
+  /** A pattern over the bars; `none` for none even when the chart's `patterns` is on. */
+  pattern?: ChartPattern | 'none'
   /** Shows each bin's count as text. */
   labels?: boolean | ChartLabelFormat
   /** Where labels go: above each bar (`outside`) or in it (`inside`). */
@@ -414,13 +418,16 @@ export interface ChartTreeProps {
   /** What the whole is, read out first. */
   name?: string
   /**
-   * Each node's color, as a function of its row and level (1 for the top):
-   * a CSS color or a tone; `undefined` takes its parent's, and the top
-   * level the palette's.
+   * Each node's color: a key of its row, or a function of the row and its
+   * level (1 for the top), giving a CSS color or a tone; nothing takes the
+   * parent's color, and the top level the palette's.
    */
-  color?: (row: ChartRow, depth: number) => string | undefined
-  /** Writes each node's name in it, where it fits. */
-  labels?: boolean
+  color?: string | ((row: ChartRow, depth: number) => string | undefined)
+  /**
+   * Writes each node's name in it, where it fits (`true`), or what a
+   * function gives; its `share` is the node's part of the whole.
+   */
+  labels?: boolean | ChartLabelFormat
 }
 
 export type ChartTreemapProps = ChartTreeProps

@@ -20,6 +20,8 @@ export interface TreeNode {
   children: TreeNode[]
   /** The row it was read from; the root has none. */
   row: ChartRow | null
+  /** Its row's place among its siblings' rows, as accessors are given it. */
+  place: number
   /** The place of its top-level node among the top level, which picks its color. */
   group: number
   /** A treemap's rectangle, or a sunburst's arc (angles and radii). */
@@ -40,25 +42,31 @@ export function buildTree(
   data: readonly ChartRow[] | undefined,
   { label, value, children }: TreeAccessors,
 ): { root: TreeNode; nodes: TreeNode[] } {
-  const make = (row: ChartRow | null, depth: number, parent: TreeNode | null): TreeNode => ({
+  const make = (
+    row: ChartRow | null,
+    place: number,
+    depth: number,
+    parent: TreeNode | null,
+  ): TreeNode => ({
     index: -1,
-    name: row ? String(read(row, label, 0) ?? '') : '',
+    name: row ? String(read(row, label, place) ?? '') : '',
     value: 0,
     depth,
     parent,
     children: [],
     row,
+    place,
     group: -1,
     x0: 0,
     y0: 0,
     x1: 0,
     y1: 0,
   })
-  const root = make(null, 0, null)
+  const root = make(null, -1, 0, null)
   const grow = (node: TreeNode, rows: unknown) => {
     if (!Array.isArray(rows)) return
     rows.forEach((row: ChartRow, i) => {
-      const child = make(row, node.depth + 1, node)
+      const child = make(row, i, node.depth + 1, node)
       const kids = read(row, children, i)
       if (Array.isArray(kids) && kids.length) grow(child, kids)
       if (child.children.length) child.value = child.children.reduce((sum, c) => sum + c.value, 0)
@@ -238,9 +246,10 @@ export function drawTreemap(
     if (node.depth === 0) continue
     const w = node.x1 - node.x0
     const h = node.y1 - node.y0
-    if (w <= 0 || h <= 0) continue
+    // under a pixel: nothing to see, and very many of them are slow to draw
+    if (w < 1 || h < 1) continue
     painter.beginPath()
-    roundRect(painter, node.x0, node.y0, w, h, Math.min(4, w / 2, h / 2))
+    roundRect(painter, node.x0, node.y0, w, h, w > 8 && h > 8 ? 4 : 0)
     if (node.children.length) {
       painter.save()
       painter.fillStyle = colors[node.index]!
@@ -252,26 +261,32 @@ export function drawTreemap(
       painter.fill()
     }
   }
-  // a hairline of the surface between neighbors
+  // a hairline of the surface between neighbors, groups and leaves alike
   painter.strokeStyle = surface
   painter.lineWidth = 1
   painter.beginPath()
   for (const node of nodes) {
-    if (node.depth === 0 || node.children.length) continue
+    if (node.depth === 0) continue
     const w = node.x1 - node.x0
     const h = node.y1 - node.y0
-    if (w > 1 && h > 1)
-      roundRect(painter, node.x0 + 0.5, node.y0 + 0.5, w - 1, h - 1, Math.min(3.5, w / 2, h / 2))
+    // square corners on small ones: rounding thousands of them is slow, and unseen
+    if (w > 2 && h > 2)
+      roundRect(painter, node.x0 + 0.5, node.y0 + 0.5, w - 1, h - 1, w > 8 && h > 8 ? 3.5 : 0)
   }
   painter.stroke()
-  const node = nodes[focus]
-  if (node && node.depth > 0) {
-    painter.strokeStyle = ring
-    painter.lineWidth = 2
-    painter.beginPath()
-    roundRect(painter, node.x0 + 1, node.y0 + 1, node.x1 - node.x0 - 2, node.y1 - node.y0 - 2, 3)
-    painter.stroke()
-  }
+  painter.restore()
+  if (focus >= 0) ringTreemap(painter, nodes[focus], ring)
+}
+
+/** Rings a treemap's node: the one under the pointer or picked with the keys. */
+export function ringTreemap(painter: Painter, node: TreeNode | undefined, ring: string) {
+  if (!node || node.depth === 0) return
+  painter.save()
+  painter.strokeStyle = ring
+  painter.lineWidth = 2
+  painter.beginPath()
+  roundRect(painter, node.x0 + 1, node.y0 + 1, node.x1 - node.x0 - 2, node.y1 - node.y0 - 2, 3)
+  painter.stroke()
   painter.restore()
 }
 

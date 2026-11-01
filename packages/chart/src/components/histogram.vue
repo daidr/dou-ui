@@ -20,9 +20,8 @@ useChartPart('DouChartHistogram', (chart) => {
       step: props.step,
     }),
   )
-  const name = computed(
-    () => props.name ?? (typeof props.value === 'string' ? props.value : undefined),
-  )
+  // the bars count rows: named so, not after the values counted
+  const name = computed(() => props.name ?? chart.messages().count)
   const shown = reactive({ ...toRefs(props), name, data: bins, x: 'x', y: 'count' })
   return chart.addSeries({ kind: histogramKind, props: shown as never, el, hidden })
 })

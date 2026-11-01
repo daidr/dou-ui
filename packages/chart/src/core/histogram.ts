@@ -1,6 +1,10 @@
 import { barLabels, drawBars, type BarStyle } from './bar'
-import { niceStep } from './scale'
+import { warnOnce } from './warn'
+import { nextNiceStep, niceStep } from './scale'
 import type { ChartSeriesKind, ChartView } from './series'
+
+/** The most bins a histogram has: more would be thinner than a pixel, and slow. */
+export const MAX_BINS = 1000
 
 /*
  * A histogram: values counted into bins of equal width, and a bar for each
@@ -38,12 +42,23 @@ export function histogramBins(
     if (v > max) max = v
   }
   if (!n) return []
-  const width =
+  if (step !== undefined && !(step > 0))
+    warnOnce('histogram-step', `a histogram's \`step\` must be above 0; ${step} is left out.`)
+  let width =
     step && step > 0
       ? step
       : max > min
-        ? niceStep(max - min, Math.max(1, count ?? Math.ceil(Math.log2(n)) + 1))
+        ? niceStep(max - min, Math.min(MAX_BINS, Math.max(1, count ?? Math.ceil(Math.log2(n)) + 1)))
         : 1
+  // too many bins to draw (or to hold): the narrowest round width that keeps within the most
+  if ((max - Math.floor(min / width) * width) / width > MAX_BINS) {
+    warnOnce(
+      'histogram-bins',
+      `a histogram's \`step\` of ${width} makes more than ${MAX_BINS} bins; they are widened.`,
+    )
+    width = niceStep(max - min, MAX_BINS / 2)
+    while ((max - Math.floor(min / width) * width) / width > MAX_BINS) width = nextNiceStep(width)
+  }
   const start = Math.floor(min / width) * width
   // the largest value falls in the last bin, which includes its end
   const bins = Math.max(1, Math.ceil((max - start) / width - 1e-9))
@@ -84,5 +99,9 @@ export const histogramKind: ChartSeriesKind<BarStyle> = {
     const bin = series.rows as unknown as HistogramBin[]
     const b = bin[row]
     return b ? `${text(b.x0)} – ${text(b.x1)}` : ''
+  },
+  xStep: (series) => {
+    const b = (series.rows as unknown as HistogramBin[])[0]
+    return b ? b.x1 - b.x0 : Number.NaN
   },
 }

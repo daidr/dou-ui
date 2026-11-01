@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, h, reactive, ref, shallowRef } from 'vue'
+import { computed, h, reactive, ref, shallowRef, watch } from 'vue'
+import { warnOnce } from '../core/warn'
 import { numberFormatFull } from '../core/format'
 import { useChartPart, useOwnNode, renderNothing } from '../context'
 import type { ChartGaugeProps, ChartGaugeSlots } from '../types'
@@ -23,16 +24,36 @@ const clamped = computed(() => {
 })
 /** The chart's locale, once the gauge is in one. */
 const localeOf = shallowRef<() => string>(() => 'zh-CN')
+/** No value to show: a dash, and the track empty. */
+const missing = computed(() => !Number.isFinite(props.value))
 const text = computed(() =>
-  props.format ? props.format(props.value) : numberFormatFull(localeOf.value())(props.value),
+  missing.value
+    ? '–'
+    : props.format
+      ? props.format(props.value)
+      : numberFormatFull(localeOf.value())(props.value),
+)
+
+watch(
+  () => [props.value, props.min, props.max] as const,
+  ([value, min, max]) => {
+    if (!Number.isFinite(value))
+      warnOnce('gauge-value', `<DouChartGauge>: \`value\` ${value} is not a number; a dash shows.`)
+    if (!(Number.isFinite(min) && Number.isFinite(max)) || min === max)
+      warnOnce('gauge-range', '<DouChartGauge>: `min` and `max` must be two different numbers.')
+  },
+  { immediate: true },
 )
 
 // a pie of two slices: the value from the start of the track, and the rest of it
 const rows = computed(() => {
   const color = typeof props.color === 'function' ? props.color(props.value) : props.color
+  const part = missing.value ? 0 : Math.abs(clamped.value - props.min)
+  const rest = Math.abs(props.max - clamped.value)
   return [
-    { label: props.name ?? '', part: Math.abs(clamped.value - props.min), color },
-    { label: '', part: Math.abs(props.max - clamped.value), color: 'var(--dou-chart-track)' },
+    { label: props.name ?? '', part, color },
+    // the track shows even with no room between its ends
+    { label: '', part: part || rest ? rest : 1, color: 'var(--dou-chart-track)' },
   ]
 })
 

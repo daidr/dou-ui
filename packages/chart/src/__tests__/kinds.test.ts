@@ -26,6 +26,20 @@ import {
 } from '../core/tree'
 import { waterfallSteps } from '../core/waterfall'
 
+/** What a screen reader reads for the chart. */
+async function summaryOf(props: Record<string, unknown>, part: () => unknown) {
+  const wrapper = mount(DouChart, {
+    props,
+    slots: { default: () => [part()] },
+    attachTo: document.body,
+  })
+  await nextTick()
+  await nextTick()
+  const text = wrapper.find('.dou-chart').attributes('aria-label') ?? ''
+  wrapper.unmount()
+  return text
+}
+
 /** The table a chart lists its data in. */
 async function tableOf(props: Record<string, unknown>, part: () => unknown) {
   const wrapper = mount(DouChart, {
@@ -85,10 +99,28 @@ describe('histogram', () => {
     expect(histogramBins([4, 4, 4])).toEqual([{ x0: 4, x1: 5, x: 4.5, count: 3 }])
   })
 
+  it('widens bins past the most it draws', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const bins = histogramBins([0, 1e6], { step: 1 })
+    expect(bins.length).toBeLessThanOrEqual(1000)
+    expect(bins.reduce((sum, b) => sum + b.count, 0)).toBe(2)
+    warn.mockRestore()
+  })
+
   it('titles each bin by its range in the table', async () => {
     const rows = [1, 2, 2, 3, 7].map((v) => ({ v }))
     const cells = await tableOf({ data: rows }, () => h(DouChartHistogram, { value: 'v', step: 5 }))
     expect(cells.slice(1).map((row) => row.at(-1))).toEqual(['4', '1'])
+    expect(cells.slice(1).map((row) => row[0])).toEqual(['0 – 5', '5 – 10'])
+  })
+
+  it('reads out its bins and the range they cover', async () => {
+    const rows = [2, 3, 7, 14].map((v) => ({ v }))
+    const text = await summaryOf({ data: rows }, () =>
+      h(DouChartHistogram, { value: 'v', step: 5, name: '次数' }),
+    )
+    expect(text).toContain('横轴从 0 到 15')
+    expect(text).toContain('次数：3 个区间，最少 1，最多 2')
   })
 })
 
@@ -110,6 +142,19 @@ describe('box plot', () => {
       h(DouChartBoxplot, { y: 'v', name: '营业额' }),
     )
     expect(cells[1]).toEqual(['徐汇', '中位数 3，四分位 2 ~ 4，范围 1 ~ 5'])
+  })
+
+  it('reads out its groups, from the lowest value to the highest', async () => {
+    const data = [
+      { k: '徐汇', v: [1, 2, 3, 4, 5, 6, 7, 8, 100] },
+      { k: '静安', v: [2, 3, 4] },
+    ]
+    const text = await summaryOf({ data, x: 'k' }, () =>
+      h(DouChartBoxplot, { y: 'v', name: '营业额' }),
+    )
+    expect(text).toContain('营业额：2 组，最小 1，最大 100')
+    const cells = await tableOf({ data, x: 'k' }, () => h(DouChartBoxplot, { y: 'v' }))
+    expect(cells[1]![1]).toContain('异常值 1 个')
   })
 })
 
@@ -169,7 +214,7 @@ describe('trees', () => {
 
   it('lists every node with its path and share', async () => {
     const cells = await tableOf({ data: tree }, () => h(DouChartTreemap, { name: '营业额' }))
-    expect(cells[0]).toEqual(['', '营业额', '占比'])
+    expect(cells[0]).toEqual(['节点', '营业额', '占比'])
     expect(cells[3]).toEqual(['徐汇 / 漕河泾', '2', '20%'])
     const rings = await tableOf({ data: tree }, () => h(DouChartSunburst))
     expect(rings).toHaveLength(5)

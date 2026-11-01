@@ -183,6 +183,12 @@ export interface ChartSeriesKind<P = Record<string, unknown>> {
    */
   xTitle?(series: ChartSeries<P>, row: number, text: (x: number) => string): string
   /**
+   * For a `band` series, how wide one band is in x's units, in place of
+   * the smallest gap between its x values: a histogram's bin width, which
+   * holds with only one bin.
+   */
+  xStep?(series: ChartSeries<P>): number
+  /**
    * Where the series' data labels go (`labels` prop): a point and the side
    * of it the text takes, for each row on screen worth a label. The chart
    * writes the text, and leaves out labels that cover others.

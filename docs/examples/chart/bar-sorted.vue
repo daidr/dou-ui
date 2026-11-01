@@ -14,7 +14,7 @@ const sales = [
 
 <template>
   <DouChart :data="sales" x="kind" horizontal :height="260">
-    <DouChartAxis for="x" sort="descending" />
+    <DouChartAxis for="x" sort="desc" />
     <DouChartAxis for="y" title="销售额（万元）" />
     <DouChartBar y="value" name="销售额" />
   </DouChart>

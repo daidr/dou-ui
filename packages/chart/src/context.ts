@@ -8,6 +8,7 @@ import {
   type VNodeChild,
 } from 'vue'
 import type { ChartData } from './core/data'
+import type { ChartMessages } from './locale'
 import type { ChartSeriesKind, ChartSeriesProps } from './core/series'
 import type {
   ChartAxisProps,
@@ -94,6 +95,8 @@ export interface ChartRegistry {
   data(): ChartData | undefined
   /** The chart's locale, for numbers a part writes itself (a gauge's value). */
   locale(): string
+  /** The chart's messages, for a part that names something itself (a histogram's count). */
+  messages(): ChartMessages
 }
 
 export const chartKey: InjectionKey<ChartRegistry> = Symbol('DouChart')

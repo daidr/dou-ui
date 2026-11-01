@@ -221,11 +221,14 @@ export function lineLabels(series: ChartSeries<LineStyle>, view: ChartView): Cha
   }
   const along = horizontal ? plot.height : plot.width
   if ((to - from) * LABEL_SPACE > along) return []
+  // a reversed value axis: what is above in value is below on screen
+  const [r0, r1] = view.y.range
+  const flipped = horizontal ? r0 > r1 : r0 < r1
   const out: ChartLabelAnchor[] = []
   for (let i = from; i < to; i++) {
     if (!valued(i)) continue
     // below a point that dips under 0, above the others
-    const down = series.y[i]! < 0 && !series.stackEnds
+    const down = (series.y[i]! < 0 && !series.stackEnds) !== flipped
     out.push({
       index: i,
       at: at(i),

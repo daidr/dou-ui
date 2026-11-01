@@ -1,7 +1,8 @@
 import { barPlacement } from './bar'
 import { read, rowCount, rowOf, type ChartAccessor, type ChartData } from './data'
 import { visibleRange } from './decimate'
-import type { Painter } from './painter'
+import { crisp, type Painter } from './painter'
+import { warnOnce } from './warn'
 import type { ChartSeries, ChartSeriesKind, ChartView } from './series'
 
 /*
@@ -80,7 +81,15 @@ export function boxesOf(
   if (!out) {
     out = []
     const n = rowCount(rows)
-    for (let i = 0; i < n; i++) out.push(boxStats(read(rowOf(rows, i), values, i), whisker))
+    for (let i = 0; i < n; i++) {
+      const group = read(rowOf(rows, i), values, i)
+      if (group != null && typeof (group as ArrayLike<unknown>).length !== 'number')
+        warnOnce(
+          'box-values',
+          "a box plot's `y` gives each row an array of values; other values are left out.",
+        )
+      out.push(boxStats(group, whisker))
+    }
     byWhisker.set(key, out)
   }
   return out
@@ -100,8 +109,8 @@ function draw(painter: Painter, series: ChartSeries<BoxStyle>, view: ChartView) 
   const [from, to] = visibleRange(xs, series.x.sorted, sx.domain[0], sx.domain[1])
   const { offset, width } = barPlacement(view.band, series.slot)
   const snap = (v: number) => Math.round(v * dpr) / dpr
-  // a line 1 px wide on the pixel grid
-  const line = (v: number) => snap(v) + 0.5 / dpr
+  // a line 1 px wide on whole device pixels
+  const line = (v: number) => crisp(v, dpr)
   const p = (u: number, v: number): [number, number] => (horizontal ? [v, u] : [u, v])
   const color = series.color
 

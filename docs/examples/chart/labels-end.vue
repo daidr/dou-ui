@@ -16,14 +16,14 @@ const rows = months.map((month, i) => ({
 }))
 const thousand = (value) => `${value} 千人`
 // 写系列的名称和最新的值
-const named = (name) => (value) => `${name} ${value}`
+const named = ({ name, value }) => `${name} ${value}`
 </script>
 
 <template>
   <DouChart :data="rows" x="month" :height="280" :legend="false">
     <DouChartAxis for="y" :format="thousand" />
-    <DouChartLine y="xuhui" name="徐汇店" :labels="named('徐汇店')" label-position="end" />
-    <DouChartLine y="jingan" name="静安店" :labels="named('静安店')" label-position="end" />
-    <DouChartLine y="pudong" name="浦东店" :labels="named('浦东店')" label-position="end" />
+    <DouChartLine y="xuhui" name="徐汇店" :labels="named" label-position="end" />
+    <DouChartLine y="jingan" name="静安店" :labels="named" label-position="end" />
+    <DouChartLine y="pudong" name="浦东店" :labels="named" label-position="end" />
   </DouChart>
 </template>

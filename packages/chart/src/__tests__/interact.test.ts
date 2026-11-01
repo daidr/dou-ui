@@ -369,9 +369,8 @@ describe('legend', () => {
     await entries()[0]!.trigger('click')
     expect(hidden.value).toBe(true)
     expect(entries()[0]!.classes()).toContain('is-off')
-    // the last one shown stays on, and says so
+    // the last one shown stays on
     await nextTick()
-    expect(entries()[1]!.attributes('aria-disabled')).toBe('true')
     await entries()[1]!.trigger('click')
     expect(entries()[1]!.attributes('aria-pressed')).toBe('true')
     await entries()[0]!.trigger('click')

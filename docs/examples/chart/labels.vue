@@ -12,7 +12,7 @@ const rows = [
 ]
 const wan = (value) => `${value} 万元`
 // 标签只写数字，单位看纵轴
-const amount = (value) => value.toFixed(1)
+const amount = ({ value }) => value.toFixed(1)
 </script>
 
 <template>

@@ -147,21 +147,33 @@ export interface ChartLineProps extends Omit<ChartSeriesProps, 'color'> {
    */
   step?: boolean | 'before' | 'after' | 'middle'
   /**
-   * Shows each value as text: `true` writes it as the value axis does, a
-   * function writes its own (`null` or `undefined` leaves it out). Labels
-   * that would cover others are left out.
+   * Shows each value as text: `true` writes it as the value axis does (a
+   * share, with a decimal, on a `percent` axis), a function writes its own
+   * (`null` or `undefined` leaves it out). Labels that would cover others
+   * are left out.
    */
   labels?: boolean | ChartLabelFormat
   /** Where labels go: above each point (`point`), or only beside the last one (`end`). */
   labelPosition?: 'point' | 'end'
 }
 
-/** Text of a data label from its value, row and the row's index; `null` or `undefined` for none. */
-export type ChartLabelFormat = (
-  value: number,
-  row: ChartRow,
-  index: number,
-) => string | null | undefined
+/** What a `labels` function gets: the value, and what it belongs to. */
+export interface ChartDataLabel {
+  /** The value as given. */
+  value: number
+  /** In a stack on a `percent` axis, and for a pie's slice: its part of the whole, 0 to 1. */
+  share?: number
+  /** A band's bottom (`y0`). */
+  low?: number
+  /** The series' name; for a pie, the slice's. */
+  name: string
+  row: ChartRow
+  /** The row's index. */
+  index: number
+}
+
+/** The text of a data label; `null` or `undefined` for none. */
+export type ChartLabelFormat = (label: ChartDataLabel) => string | null | undefined
 
 export interface ChartAreaProps extends ChartLineProps {
   /** Stack on the series before it with the same `stack` name (`true` is one shared stack). */
@@ -235,22 +247,12 @@ export interface ChartPieProps {
    * or its share inside; a function writes its own (`null` or
    * `undefined` leaves it out).
    */
-  labels?: boolean | ((slice: ChartPieLabel) => string | null | undefined)
+  labels?: boolean | ChartLabelFormat
   /**
    * Where labels go: outside the pie, joined to their slice by a line,
    * or inside each slice (left out where a slice is too small).
    */
   labelPosition?: 'outside' | 'inside'
-}
-
-/** A slice, as a pie's `labels` function gets it. */
-export interface ChartPieLabel {
-  label: string
-  value: number
-  /** Its part of the slices shown, 0 to 1. */
-  share: number
-  row: ChartRow
-  index: number
 }
 
 export interface ChartTooltipProps {

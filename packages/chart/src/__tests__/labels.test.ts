@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { h, nextTick } from 'vue'
 import { DouChart, DouChartArea, DouChartAxis, DouChartBar, DouChartLine, DouChartPie } from '..'
 import { barKind, barLabels } from '../core/bar'
@@ -195,15 +195,15 @@ describe('where series put their labels', () => {
 })
 
 /** Mounts a chart with a size, as happy-dom has no layout. */
-async function sized(slots: () => unknown, props: Record<string, unknown> = {}) {
+async function sized(slots: () => unknown, props: Record<string, unknown> = {}, width = 600) {
   const wrapper = mount(DouChart, {
     props: { data: rows, x: 'm', ...props },
     slots: { default: slots as never },
     attachTo: document.body,
   })
   const root = wrapper.find('.dou-chart').element as HTMLElement
-  root.getBoundingClientRect = () => ({ width: 600, height: 300 }) as DOMRect
-  Object.defineProperty(root, 'clientWidth', { value: 600 })
+  root.getBoundingClientRect = () => ({ width, height: 300 }) as DOMRect
+  Object.defineProperty(root, 'clientWidth', { value: width })
   Object.defineProperty(root, 'clientHeight', { value: 300 })
   await wrapper.setProps({ height: 300 })
   await nextTick()
@@ -216,14 +216,19 @@ describe('labels in the chart', () => {
     const wrapper = await sized(() => [
       h(DouChartAxis, { for: 'y', format: (v: number) => `${v} 件` }),
       h(DouChartBar, { y: 'a', labels: true }),
-      h(DouChartBar, { y: 'b', labels: (v: number) => (v > 15 ? `≈${v}` : null) }),
+      h(DouChartBar, {
+        y: 'b',
+        name: '乙',
+        labels: ({ value, name }: { value: number; name: string }) =>
+          value > 15 ? `${name}≈${value}` : null,
+      }),
     ])
     const texts = wrapper.findAll('.dou-chart__value').map((l) => l.text())
-    expect(texts).toEqual(expect.arrayContaining(['30 件', '10 件', '20 件', '≈30', '≈20']))
-    expect(texts).not.toContain('≈10')
+    expect(texts).toEqual(expect.arrayContaining(['30 件', '10 件', '20 件', '乙≈30', '乙≈20']))
+    expect(texts).not.toContain('乙≈10')
     const svg = (wrapper.vm as unknown as ChartExpose).exportSVG()
     expect(svg).toContain('>30 件<')
-    expect(svg).toContain('>≈20<')
+    expect(svg).toContain('>乙≈20<')
     wrapper.unmount()
   })
 
@@ -236,6 +241,7 @@ describe('labels in the chart', () => {
     const ticks = wrapper.findAll('.dou-chart__tick').map((t) => t.text())
     expect(ticks).toContain('100%')
     expect(wrapper.findAll('.dou-chart__value').map((l) => l.text())).toContain('75%')
+    expect(wrapper.findAll('.dou-chart__value').map((l) => l.text())).toContain('25%')
     // the summary reads the values, not shares
     expect(wrapper.find('.dou-chart').attributes('aria-label')).toContain('最小 10，最大 30')
     wrapper.unmount()
@@ -256,16 +262,50 @@ describe('labels in the chart', () => {
     wrapper.unmount()
   })
 
-  it('shows only one series after a double click on its legend entry, and all after another', async () => {
+  it('cuts a long name short on a narrow pie, keeping its share', async () => {
+    const data = [
+      { m: '上海浦东新区张江高科技园区', a: 50 },
+      { m: '二月', a: 30 },
+      { m: '三月', a: 20 },
+    ]
+    const wrapper = await sized(() => [h(DouChartPie, { value: 'a', labels: true })], { data }, 360)
+    const first = wrapper.findAll('.dou-chart__value').find((l) => l.text().startsWith('上海'))!
+    expect(first.text()).toMatch(/… 50%$/)
+    expect(first.attributes('title')).toBe('上海浦东新区张江高科技园区 50%')
+    wrapper.unmount()
+  })
+
+  it('puts a pie’s labels inside when outside they would leave it too small', async () => {
+    const wrapper = await sized(() => [h(DouChartPie, { value: 'a', labels: true })], {}, 120)
+    const texts = wrapper.findAll('.dou-chart__value').map((l) => l.text())
+    expect(texts.every((t) => /^[\d.]+%$/.test(t))).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('shows only one series on Alt+click, Alt+Enter or a held finger, and all after another', async () => {
     const wrapper = await sized(() => [
       h(DouChartLine, { y: 'a', name: '甲' }),
       h(DouChartLine, { y: 'b', name: '乙' }),
     ])
     const entries = () => wrapper.findAll('.dou-chart__legend')
-    await entries()[1]!.trigger('dblclick')
-    expect(entries().map((e) => e.attributes('aria-pressed'))).toEqual(['false', 'true'])
-    await entries()[1]!.trigger('dblclick')
-    expect(entries().map((e) => e.attributes('aria-pressed'))).toEqual(['true', 'true'])
+    const pressed = () => entries().map((e) => e.attributes('aria-pressed'))
+    await entries()[1]!.trigger('click', { altKey: true })
+    expect(pressed()).toEqual(['false', 'true'])
+    await entries()[1]!.trigger('keydown', { key: 'Enter', altKey: true })
+    expect(pressed()).toEqual(['true', 'true'])
+    // the locked entry is still a button that can be pressed, with the hint read out
+    const hint = entries()[0]!.attributes('aria-describedby')!
+    expect(entries()[0]!.attributes('aria-disabled')).toBeUndefined()
+    expect(wrapper.find(`[id="${hint}"]`).text()).toContain('Alt+Enter')
+    vi.useFakeTimers()
+    await entries()[0]!.trigger('pointerdown', { pointerType: 'touch' })
+    vi.advanceTimersByTime(600)
+    await entries()[0]!.trigger('pointerup', { pointerType: 'touch' })
+    await entries()[0]!.trigger('click')
+    vi.useRealTimers()
+    await nextTick()
+    // the click that ends the hold isn't a toggle
+    expect(pressed()).toEqual(['true', 'false'])
     wrapper.unmount()
   })
 })

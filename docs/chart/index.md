@@ -154,9 +154,9 @@ app.use(DouChart).use(DouChartAxis).use(DouChartLine).use(DouChartBar)
 
 ## 数据标签
 
-`labels` 在图上直接写出每个值，按对应数值轴的 `format` 格式化；也可以传一个函数 `(value, row, index) => string`，返回 `null` 或 `undefined` 的不写。会和别的标签重叠、或者超出绘图区的标签不显示，所以数据很密时只会显示一部分。设置了标签的数值轴会在两端多留出一些空间，最高的标签也能放下。
+`labels` 在图上直接写出每个值，按对应数值轴的 `format` 格式化；也可以传一个函数，参数是一个对象 `{ value, share, low, name, row, index }`：`value` 是值，`name` 是系列名称，百分比堆叠时 `share` 是占比，区间面积图的 `low` 是下沿的值；返回 `null` 或 `undefined` 的不写。会和别的标签重叠、或者超出绘图区的标签不显示，所以数据很密时只会显示一部分。设置了标签的数值轴会在两端多留出一些空间，最高的标签也能放下。
 
-柱状图的标签默认写在柱子末端外面，`label-position="inside"` 写在柱子里面，放不下的不写。堆叠的柱子默认写在里面，文字颜色根据柱子的颜色选择深色或浅色。百分比堆叠的标签写占比。
+柱状图的标签默认写在柱子末端外面，`label-position="inside"` 写在柱子里面，放不下的不写。堆叠的柱子默认写在里面，文字颜色根据柱子的颜色选择深色或浅色。百分比堆叠的标签写占比，数值轴没有设置 `format` 时保留一位小数（比如 `33.3%`），刻度仍然是整数百分比。
 
 <DocDemo src="chart/labels" />
 
@@ -164,7 +164,7 @@ app.use(DouChart).use(DouChartAxis).use(DouChartLine).use(DouChartBar)
 
 <DocDemo src="chart/labels-end" />
 
-饼图的 `labels` 默认在外面写每一块的名称和占比，用一条线连到对应的块，饼图相应缩小留出空间；`label-position="inside"` 在每一块里面写占比，太小的块不写。函数的参数是这一块的 `label`、`value`、`share`、`row` 和 `index`。外面的标签太多、一侧放不下时，较小的块不写。
+饼图的 `labels` 默认在外面写每一块的名称和占比，用一条线连到对应的块，饼图相应缩小留出空间；`label-position="inside"` 在每一块里面写占比，太小的块不写。函数的参数是一个对象 `{ value, share, name, row, index }`，`name` 是这一块的名称。外面的标签太多、一侧放不下时，较小的块不写。图表较窄时，太长的名称末尾省略，占比始终完整显示，鼠标移上去可以看到完整的文字；如果留出标签的位置后饼图太小，标签改为写在块里面。
 
 <DocDemo src="chart/pie-labels" />
 
@@ -296,7 +296,9 @@ defineChartSeries({
 
 ## 图例
 
-点击图例可以隐藏或显示对应的系列，坐标轴随之按剩下的系列重新计算。最后一个显示的系列不能隐藏，它的图例按钮带有 `aria-disabled`，鼠标移上去也不再变成可点的样子。鼠标移到图例上，或用键盘聚焦到图例时，对应的系列保持原样，其余的变淡。双击图例只显示这一个系列，再双击一次恢复显示全部。
+点击图例可以隐藏或显示对应的系列，坐标轴随之按剩下的系列重新计算。最后一个显示的系列不能隐藏，鼠标移上去也不再变成可点的样子。鼠标移到图例上，或用键盘聚焦到图例时，对应的系列保持原样，其余的变淡。
+
+按住 Alt（Mac 上是 ⌥）点击图例只显示这一个系列，再点一次恢复显示全部；手机上长按图例效果相同；键盘聚焦到图例时按 Alt+Enter。在手机上，图例的每一项都有足够的点按区域，多行图例的行距也相应加大。
 
 系列的 `v-model:hidden` 绑定它是否隐藏，可以用来设置初始状态或在图表外面控制。饼图的 `v-model:hidden` 是隐藏的各块的名称组成的数组，按 `label` 的文字匹配，所以各块的名称应当不同。饼图隐藏了一些块之后，占比只按显示的块计算，提示框和读屏会注明隐藏了几项。
 
@@ -463,38 +465,38 @@ SVG 和画布用同一套绘制代码，两者画出的图形一致。导出的�
 
 `DouChartLine` 和 `DouChartArea` 的属性相同，`stack` 和 `y0` 只对面积图有效。
 
-| 名称             | 说明                                                         | 类型                                                                            | 默认值                   |
-| ---------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------- | ------------------------ |
-| `y`              | 纵轴的值：字段名，或从行取值的函数                           | `string \| (row, index: number) => unknown`                                     | —                        |
-| `name`           | 系列名称                                                     | `string`                                                                        | `y` 的字段名             |
-| `data`           | 这个系列自己的数据，写法同图表的 `data`                      | `object[] \| Record<string, ArrayLike>`                                         | 图表的 `data`            |
-| `x`              | 这个系列自己的横轴取值                                       | `string \| (row, index: number) => unknown`                                     | 图表的 `x`               |
-| `color`          | 颜色，任意 CSS 颜色                                          | `string`                                                                        | 色板的下一个色           |
-| `tone`           | 用语气色作为颜色                                             | `Tone`                                                                          | —                        |
-| `axis`           | 对应的数值轴                                                 | `'y' \| 'y2'`                                                                   | `'y'`                    |
-| `smooth`         | 画成平滑曲线                                                 | `boolean`                                                                       | `false`                  |
-| `dots`           | 显示数据点                                                   | `boolean \| 'auto'`                                                             | `'auto'`，面积图 `false` |
-| `dashed`         | 画成虚线                                                     | `boolean`                                                                       | `false`                  |
-| `line-width`     | 线宽，单位 px                                                | `number`                                                                        | `2`                      |
-| `connect-nulls`  | 跨过缺失的值连线                                             | `boolean`                                                                       | `false`                  |
-| `step`           | 画成阶梯线                                                   | `boolean \| 'before' \| 'after' \| 'middle'`                                    | `false`                  |
-| `labels`         | 数据标签：`true` 按数值轴的格式写，或返回文字的函数          | `boolean \| (value: number, row, index: number) => string \| null \| undefined` | `false`                  |
-| `label-position` | 标签写在每个点上方，或只写在最后一个点旁边                   | `'point' \| 'end'`                                                              | `'point'`                |
-| `v-model:hidden` | 隐藏系列，保留它的颜色和图例                                 | `boolean`                                                                       | `false`                  |
-| `stack`          | 堆叠分组，名称相同的叠在一起                                 | `string \| boolean`                                                             | —                        |
-| `y0`             | 面积的下边界，画成从 `y0` 到 `y` 的带；不能和 `stack` 一起用 | `string \| (row, index: number) => unknown`                                     | —                        |
+| 名称             | 说明                                                         | 类型                                                                | 默认值                   |
+| ---------------- | ------------------------------------------------------------ | ------------------------------------------------------------------- | ------------------------ |
+| `y`              | 纵轴的值：字段名，或从行取值的函数                           | `string \| (row, index: number) => unknown`                         | —                        |
+| `name`           | 系列名称                                                     | `string`                                                            | `y` 的字段名             |
+| `data`           | 这个系列自己的数据，写法同图表的 `data`                      | `object[] \| Record<string, ArrayLike>`                             | 图表的 `data`            |
+| `x`              | 这个系列自己的横轴取值                                       | `string \| (row, index: number) => unknown`                         | 图表的 `x`               |
+| `color`          | 颜色，任意 CSS 颜色                                          | `string`                                                            | 色板的下一个色           |
+| `tone`           | 用语气色作为颜色                                             | `Tone`                                                              | —                        |
+| `axis`           | 对应的数值轴                                                 | `'y' \| 'y2'`                                                       | `'y'`                    |
+| `smooth`         | 画成平滑曲线                                                 | `boolean`                                                           | `false`                  |
+| `dots`           | 显示数据点                                                   | `boolean \| 'auto'`                                                 | `'auto'`，面积图 `false` |
+| `dashed`         | 画成虚线                                                     | `boolean`                                                           | `false`                  |
+| `line-width`     | 线宽，单位 px                                                | `number`                                                            | `2`                      |
+| `connect-nulls`  | 跨过缺失的值连线                                             | `boolean`                                                           | `false`                  |
+| `step`           | 画成阶梯线                                                   | `boolean \| 'before' \| 'after' \| 'middle'`                        | `false`                  |
+| `labels`         | 数据标签：`true` 按数值轴的格式写，或返回文字的函数          | `boolean \| (label: ChartDataLabel) => string \| null \| undefined` | `false`                  |
+| `label-position` | 标签写在每个点上方，或只写在最后一个点旁边                   | `'point' \| 'end'`                                                  | `'point'`                |
+| `v-model:hidden` | 隐藏系列，保留它的颜色和图例                                 | `boolean`                                                           | `false`                  |
+| `stack`          | 堆叠分组，名称相同的叠在一起                                 | `string \| boolean`                                                 | —                        |
+| `y0`             | 面积的下边界，画成从 `y0` 到 `y` 的带；不能和 `stack` 一起用 | `string \| (row, index: number) => unknown`                         | —                        |
 
 ### Bar Props
 
 `y`、`name`、`data`、`x`、`tone`、`axis`、`v-model:hidden` 和折线图相同。
 
-| 名称             | 说明                                                                                          | 类型                                                                            | 默认值                              |
-| ---------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ----------------------------------- |
-| `color`          | 颜色：一个 CSS 颜色，或按行给每根柱子上色的函数（CSS 颜色或语气色，`undefined` 用系列的颜色） | `string \| (row, index: number) => string \| undefined`                         | 色板的下一个色                      |
-| `stack`          | 堆叠分组，名称相同的叠在一起                                                                  | `string \| boolean`                                                             | —                                   |
-| `radius`         | 柱子末端的圆角，单位 px                                                                       | `number`                                                                        | `2`                                 |
-| `labels`         | 数据标签，写法和折线图相同                                                                    | `boolean \| (value: number, row, index: number) => string \| null \| undefined` | `false`                             |
-| `label-position` | 标签写在柱子末端外面，或柱子里面                                                              | `'outside' \| 'inside'`                                                         | 堆叠时 `'inside'`，否则 `'outside'` |
+| 名称             | 说明                                                                                          | 类型                                                                | 默认值                              |
+| ---------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- | ----------------------------------- |
+| `color`          | 颜色：一个 CSS 颜色，或按行给每根柱子上色的函数（CSS 颜色或语气色，`undefined` 用系列的颜色） | `string \| (row, index: number) => string \| undefined`             | 色板的下一个色                      |
+| `stack`          | 堆叠分组，名称相同的叠在一起                                                                  | `string \| boolean`                                                 | —                                   |
+| `radius`         | 柱子末端的圆角，单位 px                                                                       | `number`                                                            | `2`                                 |
+| `labels`         | 数据标签，写法和折线图相同                                                                    | `boolean \| (label: ChartDataLabel) => string \| null \| undefined` | `false`                             |
+| `label-position` | 标签写在柱子末端外面，或柱子里面                                                              | `'outside' \| 'inside'`                                             | 堆叠时 `'inside'`，否则 `'outside'` |
 
 ### Scatter Props
 
@@ -510,23 +512,36 @@ SVG 和画布用同一套绘制代码，两者画出的图形一致。导出的�
 
 ### Pie Props
 
-| 名称             | 说明                                                                      | 类型                                                                                     | 默认值        |
-| ---------------- | ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ------------- |
-| `value`          | 每一块的值：字段名，或从行取值的函数                                      | `string \| (row, index: number) => unknown`                                              | —             |
-| `label`          | 每一块的名称                                                              | `string \| (row, index: number) => unknown`                                              | 图表的 `x`    |
-| `data`           | 饼图自己的数据，写法同图表的 `data`                                       | `object[] \| Record<string, ArrayLike>`                                                  | 图表的 `data` |
-| `name`           | 饼图的名称，读屏时读在最前面                                              | `string`                                                                                 | —             |
-| `color`          | 每一块的颜色：CSS 颜色或语气色名称                                        | `string \| (row, index: number) => string`                                               | 色板的彩色    |
-| `inner-radius`   | 中间空洞占半径的比例，`0` 是饼图                                          | `number`                                                                                 | `0`           |
-| `labels`         | 每一块的标签：`true` 在外面写名称和占比（在里面写占比），或返回文字的函数 | `boolean \| (slice: { label, value, share, row, index }) => string \| null \| undefined` | `false`       |
-| `label-position` | 标签写在饼图外面（用线连到块上），或每一块里面                            | `'outside' \| 'inside'`                                                                  | `'outside'`   |
-| `v-model:hidden` | 隐藏的各块的名称                                                          | `string[]`                                                                               | `[]`          |
+| 名称             | 说明                                                                      | 类型                                                                | 默认值        |
+| ---------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------- | ------------- |
+| `value`          | 每一块的值：字段名，或从行取值的函数                                      | `string \| (row, index: number) => unknown`                         | —             |
+| `label`          | 每一块的名称                                                              | `string \| (row, index: number) => unknown`                         | 图表的 `x`    |
+| `data`           | 饼图自己的数据，写法同图表的 `data`                                       | `object[] \| Record<string, ArrayLike>`                             | 图表的 `data` |
+| `name`           | 饼图的名称，读屏时读在最前面                                              | `string`                                                            | —             |
+| `color`          | 每一块的颜色：CSS 颜色或语气色名称                                        | `string \| (row, index: number) => string`                          | 色板的彩色    |
+| `inner-radius`   | 中间空洞占半径的比例，`0` 是饼图                                          | `number`                                                            | `0`           |
+| `labels`         | 每一块的标签：`true` 在外面写名称和占比（在里面写占比），或返回文字的函数 | `boolean \| (label: ChartDataLabel) => string \| null \| undefined` | `false`       |
+| `label-position` | 标签写在饼图外面（用线连到块上），或每一块里面                            | `'outside' \| 'inside'`                                             | `'outside'`   |
+| `v-model:hidden` | 隐藏的各块的名称                                                          | `string[]`                                                          | `[]`          |
 
 ### Pie Slots
 
 | 名称      | 说明                       |
 | --------- | -------------------------- |
 | `default` | 显示在环形图空洞中间的内容 |
+
+### ChartDataLabel
+
+`labels` 函数的参数。
+
+| 属性    | 说明                               | 类型       |
+| ------- | ---------------------------------- | ---------- |
+| `value` | 值                                 | `number`   |
+| `share` | 占比，0 到 1：百分比堆叠和饼图才有 | `number`   |
+| `low`   | 下沿的值：设置了 `y0` 的面积图才有 | `number`   |
+| `name`  | 系列的名称；饼图是这一块的名称     | `string`   |
+| `row`   | 对应的一行数据                     | `ChartRow` |
+| `index` | 这一行在数据里的位置               | `number`   |
 
 ### Marker Props
 
@@ -640,6 +655,6 @@ SVG 和画布用同一套绘制代码，两者画出的图形一致。导出的�
 
 图表的名称是自动生成的概要：x 轴的范围（横向图读作“纵轴”），以及每个系列的名称、数据点个数、最小值和最大值，最后提示可以用方向键查看。数值按对应坐标轴的 `format` 读出，和刻度文字一致。可以用 `aria-label` 替换。
 
-有提示框时，图表是可以聚焦的分组（`role="group"`），用方向键移动时读出当前位置的各个值；关闭提示框后是一张图片（`role="img"`）。图例是一组按钮，`aria-pressed` 表示系列是否显示。
+有提示框时，图表是可以聚焦的分组（`role="group"`），用方向键移动时读出当前位置的各个值；关闭提示框后是一张图片（`role="img"`）。图例是一组按钮，`aria-pressed` 表示系列是否显示，每个按钮还会读出“按 Alt+Enter 只显示这一项”的提示。
 
 有 `DouChartZoom` 时，概要里还会提示加号、减号和 0 键；用键盘缩放后读出当前显示的范围。区间条的两个手柄是滑块（`role="slider"`），用方向键移动，Page Up / Page Down 一次移动十步，读出的值是这一端的横轴值。按住 Shift 再按方向键可以按横轴框选。

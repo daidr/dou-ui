@@ -101,6 +101,7 @@ import type {
   ChartProps,
   ChartSelectEvent,
   ChartSlots,
+  ChartLabelFormat,
   ChartTooltipItem,
 } from './types'
 
@@ -193,6 +194,19 @@ function readTheme() {
 }
 
 let stopTheme: (() => void) | undefined
+
+/** A touch screen: the legend's rows go further apart, for a finger. */
+const coarse = ref(false)
+const coarseQuery =
+  typeof window === 'undefined' || !window.matchMedia
+    ? undefined
+    : window.matchMedia('(pointer: coarse)')
+const readCoarse = () => (coarse.value = !!coarseQuery?.matches)
+onMounted(() => {
+  readCoarse()
+  coarseQuery?.addEventListener?.('change', readCoarse)
+})
+onBeforeUnmount(() => coarseQuery?.removeEventListener?.('change', readCoarse))
 // a font that loads after the labels were measured makes them wider: measured again
 const fonts = typeof document === 'undefined' ? undefined : document.fonts
 onMounted(() => {
@@ -565,7 +579,8 @@ const focused = ref<number | null>(null)
 
 /**
  * Shows only the entry's series (or slice), or all of them again when it
- * already is the only one: a double click on its legend entry.
+ * already is the only one: its legend entry clicked with Alt, held down on
+ * a touch screen, or Alt+Enter.
  */
 function isolate(index: number) {
   const pieChart = pie.value
@@ -766,6 +781,7 @@ const layout = computed(() => {
     locale: locale.value.name,
     measure,
     legend: legendEntries.value.map((entry) => entry.text),
+    coarse: coarse.value,
     zoom: { x: xWindow.value, y: zoomAxes.value.y ? yWindow.value : null },
     strip: !!rangePart.value && !empty.value,
     trailing: endLabelRoom.value,
@@ -782,7 +798,8 @@ const pieLayout = computed(() => {
     height,
     measure,
     legend: legendEntries.value.map((entry) => entry.text),
-    sideLabels: Math.min(pieLabelWidth.value, width * PIE_LABEL_SHARE),
+    coarse: coarse.value,
+    sideLabels: pieLabelsOutside.value ? pieSideWidths.value : undefined,
   })
 })
 
@@ -852,31 +869,37 @@ const markerLabels = computed(() =>
 /* data labels: values written by the points and on the bars */
 
 type LabelProps = {
-  labels?: boolean | ((value: number, row: ChartRow, index: number) => string | null | undefined)
+  labels?: boolean | ChartLabelFormat
   labelPosition?: string
   lineWidth?: number
   dots?: boolean | 'auto'
 }
 
-/** What a data label of `s` at `row` shows: a share of a percent stack, else the value. */
-function labelValue(s: ChartSeries, row: number): number {
-  if (s.stackEnds && declaredAxes.value[s.axis]?.percent)
-    return Math.abs(s.top[row]! - s.base![row]!)
-  return s.y[row]!
-}
-
 /** The text of a data label, or `null` for none. */
 function labelText(s: ChartSeries, row: number): string | null {
   const given = (s.props as LabelProps).labels
-  const value = labelValue(s, row)
+  const value = s.y[row]!
   if (value !== value) return null
+  const share =
+    s.stackEnds && declaredAxes.value[s.axis]?.percent
+      ? Math.abs(s.top[row]! - s.base![row]!)
+      : undefined
   if (typeof given === 'function') {
-    const text = given(value, rowOf(s.rows, row), row)
+    const text = given({
+      value,
+      share,
+      low: s.base && !s.stackEnds ? s.base[row] : undefined,
+      name: s.name,
+      row: rowOf(s.rows, row),
+      index: row,
+    })
     return text == null || text === '' ? null : String(text)
   }
-  // a percent axis writes shares as its ticks do, with a decimal
-  if (s.stackEnds && declaredAxes.value[s.axis]?.percent && !axes.value[s.axis]?.format)
-    return percent.value.format(value)
+  // a share, with a decimal as in the tooltip, unless the axis writes its own
+  if (share !== undefined) {
+    const own = declaredAxes.value[s.axis]?.format
+    return own ? own(share) : percent.value.format(share)
+  }
   return valueText(s.axis)(value)
 }
 
@@ -904,39 +927,83 @@ const endLabelRoom = computed(() => {
 /** The most of the chart's width a pie's labels outside may take, each side. */
 const PIE_LABEL_SHARE = 0.26
 
-const pieLabelsOutside = computed(
-  () => !!pie.value?.props.labels && (pie.value.props.labelPosition ?? 'outside') === 'outside',
-)
+/**
+ * The smallest a pie gets to keep its labels outside: a share of its size
+ * without them, or a radius in px that still reads. Smaller, they go inside.
+ */
+const PIE_LEAST = 0.6
+const PIE_LEAST_RADIUS = 48
 
-/** Each slice's label text, by its place in `slices`; `null` for none. */
-const pieTexts = computed<Array<string | null>>(() => {
+/** Each slice's label: its own text, given by a function; else its name and share. `null` for none. */
+const pieLabelParts = computed<Array<{ text?: string; name: string; share: string } | null>>(() => {
   const part = pie.value
   const given = part?.props.labels
   if (!part || !given) return []
-  const outside = pieLabelsOutside.value
   return slices.value.map((slice) => {
     if (slice.hidden) return null
-    if (typeof given === 'function') {
-      const text = given({
-        label: slice.label,
-        value: slice.value,
-        share: slice.share,
-        row: rowOf(part.props.data ?? props.data, slice.index),
-        index: slice.index,
-      })
-      return text == null || text === '' ? null : String(text)
-    }
     const share = percent.value.format(slice.share)
-    return outside ? `${slice.label} ${share}` : share
+    if (typeof given !== 'function') return { name: slice.label, share }
+    const text = given({
+      value: slice.value,
+      share: slice.share,
+      name: slice.label,
+      row: rowOf(part.props.data ?? props.data, slice.index),
+      index: slice.index,
+    })
+    return text == null || text === '' ? null : { text: String(text), name: slice.label, share }
   })
 })
 
-/** The widest label outside the pie, which the pie leaves room for. */
-const pieLabelWidth = computed(() => {
-  if (!pieLabelsOutside.value) return 0
-  let widest = 0
-  for (const text of pieTexts.value) if (text !== null) widest = Math.max(widest, measure(text))
-  return Math.ceil(widest)
+const outsideText = (p: { text?: string; name: string; share: string }) =>
+  p.text ?? `${p.name} ${p.share}`
+
+/** Which side of the pie a slice's label goes, outside it. */
+const sideOf = (slice: { start: number; end: number }) =>
+  Math.sin((slice.start + slice.end) / 2) >= 0 ? 'right' : 'left'
+
+/** The widest label outside the pie on each side, at most a share of the chart's width. */
+const pieSideWidths = computed(() => {
+  const widths = { left: 0, right: 0 }
+  const cap = size.width.value * PIE_LABEL_SHARE
+  slices.value.forEach((slice, k) => {
+    const p = pieLabelParts.value[k]
+    if (!p || !(slice.end > slice.start)) return
+    const side = sideOf(slice)
+    widths[side] = Math.max(widths[side], Math.ceil(Math.min(cap, measure(outsideText(p)))))
+  })
+  return widths
+})
+
+/**
+ * Whether the pie's labels go outside it: as asked (the default), unless
+ * the room they take would leave the pie too small; then inside, where
+ * slices fit them.
+ */
+const pieLabelsOutside = computed(() => {
+  const part = pie.value
+  if (!part?.props.labels || (part.props.labelPosition ?? 'outside') !== 'outside') return false
+  const width = size.width.value
+  const height = size.height.value
+  if (!width || !height) return true
+  void themeVersion.value
+  const base = {
+    width,
+    height,
+    measure,
+    legend: legendEntries.value.map((entry) => entry.text),
+    coarse: coarse.value,
+  }
+  const alone = layoutPie(base).radius
+  const radius = layoutPie({ ...base, sideLabels: pieSideWidths.value }).radius
+  return radius >= Math.min(alone * PIE_LEAST, PIE_LEAST_RADIUS)
+})
+
+/** Each slice's label text, by its place in `slices`; `null` for none. */
+const pieTexts = computed<Array<string | null>>(() => {
+  const outside = pieLabelsOutside.value
+  return pieLabelParts.value.map((p) =>
+    !p ? null : outside ? outsideText(p) : (p.text ?? p.share),
+  )
 })
 
 /** A line from a slice out to its label, in px. */
@@ -947,7 +1014,7 @@ const pieLabels = computed(() => {
   const l = pieLayout.value
   const texts = pieTexts.value
   const out: {
-    labels: Array<PlacedDataLabel & { ink?: string; width?: number }>
+    labels: Array<PlacedDataLabel & { ink?: string; width?: number; full?: string }>
     leaders: Leader[]
   } = {
     labels: [],
@@ -983,7 +1050,7 @@ const pieLabels = computed(() => {
     return out
   }
   // outside: a column of labels either side, each joined to its slice by a line
-  const widest = Math.min(pieLabelWidth.value, l.width * PIE_LABEL_SHARE)
+  const widths = pieSideWidths.value
   // the pie's own room, above the legend, less a little at the edges
   const room = { top: EDGE_ROOM, bottom: cy * 2 - EDGE_ROOM }
   const sides: Record<'left' | 'right', Array<{ k: number; y: number; middle: number }>> = {
@@ -993,7 +1060,7 @@ const pieLabels = computed(() => {
   list.forEach((slice, k) => {
     if (!texts[k] || !(slice.end > slice.start)) return
     const middle = (slice.start + slice.end) / 2
-    const side = Math.sin(middle) >= 0 ? 'right' : 'left'
+    const side = sideOf(slice)
     sides[side].push({ k, y: cy - Math.cos(middle) * (radius + 10), middle })
   })
   const capacity = Math.max(1, Math.floor((room.bottom - room.top) / DATA_LABEL))
@@ -1013,6 +1080,7 @@ const pieLabels = computed(() => {
       room.bottom,
     )
     const right = side === 'right'
+    const widest = widths[side]
     const column = right ? cx + radius + PIE_LABEL_ROOM : cx - radius - PIE_LABEL_ROOM
     items.forEach((item, n) => {
       const y = centers[n]!
@@ -1023,15 +1091,24 @@ const pieLabels = computed(() => {
         [cx + sin * (radius + 10), cy - cos * (radius + 10)],
         [column + (right ? -4 : 4), y],
       ])
+      const text = texts[item.k]!
+      const parts = pieLabelParts.value[item.k]!
+      const long = measure(text) > widest + 0.5
+      // longer than there is room for: the name is cut short, so the share still shows
+      const fitted =
+        long && parts.text === undefined
+          ? `${fitText(parts.name, widest - measure(` ${parts.share}`))} ${parts.share}`
+          : text
+      const cut = long && fitted === text
       out.labels.push({
         key: `slice:${list[item.k]!.index}`,
         series: -1,
-        text: texts[item.k]!,
+        text: fitted,
         left: column,
         top: y - DATA_LABEL / 2,
         align: right ? 'start' : 'end',
-        // longer than there is room for: cut short
-        width: measure(texts[item.k]!) > widest + 0.5 ? widest : undefined,
+        width: cut ? widest : undefined,
+        full: fitted === text ? undefined : text,
       })
     })
   }
@@ -1045,7 +1122,9 @@ const EDGE_ROOM = 4
 const labelsShown = ref(false)
 
 /** The data labels, placed: the ends of lines first, then the bars', then the points'. */
-const dataLabels = computed<Array<PlacedDataLabel & { ink?: string; width?: number }>>(() => {
+const dataLabels = computed<
+  Array<PlacedDataLabel & { ink?: string; width?: number; full?: string }>
+>(() => {
   if (pie.value) return pieLabels.value.labels
   const l = layout.value
   if (!l || empty.value) return []
@@ -2883,6 +2962,7 @@ const overlay: OverlayState = {
   center: () => pie.value?.center(),
   toggle,
   isolate,
+  hint: computed(() => messages.value.legendHint),
   focus: (index) => (focused.value = index),
   data: dataLabels,
   dataShown: computed(() => labelsShown.value),

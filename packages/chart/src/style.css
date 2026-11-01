@@ -264,6 +264,17 @@
       content: '';
     }
 
+    /* held down to show one alone: no callout, no selected text */
+    -webkit-touch-callout: none;
+    user-select: none;
+
+    /* on a touch screen, as tall as a finger needs: rows are that far apart */
+    @media (pointer: coarse) {
+      &::before {
+        inset: -12px -4px;
+      }
+    }
+
     &:hover {
       color: var(--dou-color-text);
     }

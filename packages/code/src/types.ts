@@ -236,7 +236,7 @@ export interface CodeDiffProps {
   language?: CodeLanguage | null
   /**
    * `split` puts the two texts side by side, `inline` puts the changes in
-   * one column. `auto` (the default) is `split` when there is room (640px)
+   * one column. `auto` (the default) is `split` when there is room (560px)
    * and `inline` otherwise, as on a phone. Bound with `v-model:mode` when
    * the toolbar's toggle should be kept.
    */

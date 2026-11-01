@@ -8,7 +8,7 @@ wide: true
 
 <DocDemo src="blocks/code-practice" column />
 
-用到的组件：[代码编辑器](../code/)与[对比视图](../code/#对比视图)、[PageHeader](../components/page-header)、[Card](../components/card)、[SegmentedControl](../components/segmented-control)、[Tag](../components/tag)、[Alert](../components/alert)。
+用到的组件：[代码编辑器](../code/)与[对比视图](../code/diff)、[PageHeader](../components/page-header)、[Card](../components/card)、[SegmentedControl](../components/segmented-control)、[Tag](../components/tag)、[Alert](../components/alert)。
 
 - 代码在 Web Worker 里运行，写出死循环也不会卡住页面，超过 1 秒自动停止。实际使用时，代码通常交给服务器的沙箱运行，页面只显示结果。
 - 编辑器上的检查来自一个扩展的 `lint`：没有定义 `formatPrice` 时标红；留下的 `console.log` 标出提示，提示里的“删除这一行”是诊断的 `actions`。

@@ -45,7 +45,51 @@ editorKit({
 
 字符串同时作为语言的值和显示的名称。粘贴进来的代码会从 `<code class="language-…">` 读取语言；不在列表里的语言也会显示在菜单中。
 
-## 选项
+## 用代码编辑器编辑
+
+`@dou-ui/editor/code` 提供的 `codeEditorBlock` 把代码块换成[代码编辑器](/code/)：输入时即时着色，支持括号匹配、多光标、搜索替换和按语言缩进。它需要安装 `@dou-ui/code` 并引入它的样式：
+
+```ts
+import '@dou-ui/code/style.css'
+import { editorKit } from '@dou-ui/editor'
+import { codeEditorBlock } from '@dou-ui/editor/code'
+
+const extensions = [editorKit({ codeBlock: codeEditorBlock() })]
+```
+
+<DocDemo src="editor/code-editor-block" column />
+
+文档里的数据和内置代码块相同，仍是带 `language` 属性的 `codeBlock`，导出的 HTML 和 Markdown 也一样，两种代码块可以随时切换。代码里的每次修改都作为文档的一步修改，所以撤销和重做与其他块共用一份历史，协同编辑、拖动块也照常工作。
+
+在代码块里：
+
+- 光标在第一行按 `↑`、在开头按 `←` 回到上一个块；在最后一行按 `↓`、在末尾按 `→` 进入下一个块。
+- `Mod` + `Enter` 在代码块后面新建一个段落；代码为空时按 `Backspace` 把它变成段落。
+- `Esc` 选中整个块，之后可以拖动、复制或删除。有多个光标或打开了搜索时，先退出它们。
+
+语言菜单默认列出 `@dou-ui/code` 内置的语言，块的 `language` 按语言的名称和别名查找，所以 `bash`、`sh` 都显示为 Shell。用 Shiki 支持的其他语言见[代码编辑器的语言](/code/#用-shiki-支持更多语言)，传给 `languages`：
+
+```ts
+import { codeEditorBlock, codeEditorLanguages } from '@dou-ui/editor/code'
+
+// rust 由 shikiLanguage(highlighter, 'rust') 得到
+codeEditorBlock({
+  languages: [...codeEditorLanguages, { language: rust, label: 'Rust' }],
+  lineNumbers: true,
+})
+```
+
+| 名称          | 说明                                     | 类型                                     | 默认值                |
+| ------------- | ---------------------------------------- | ---------------------------------------- | --------------------- |
+| `languages`   | 语言菜单中的语言，不带名字时用语言的名称 | `(CodeLanguage \| CodeEditorLanguage)[]` | `codeEditorLanguages` |
+| `lineNumbers` | 显示行号                                 | `boolean`                                | `false`               |
+| `wrap`        | 长行自动换行，否则左右滚动               | `boolean`                                | `false`               |
+| `tabSize`     | 制表符宽度，也是缩进的空格数             | `number`                                 | `2`                   |
+| `extensions`  | 每个代码块的编辑器都使用的扩展，例如补全 | `CodeExtension[]`                        | —                     |
+
+`CodeLanguage` 和 `CodeExtension` 来自 `@dou-ui/code`，`CodeEditorLanguage` 为 `{ language: CodeLanguage; label: string }`。
+
+## 内置代码块的选项
 
 | 名称        | 说明                                   | 类型                                                        | 默认值          |
 | ----------- | -------------------------------------- | ----------------------------------------------------------- | --------------- |

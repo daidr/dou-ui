@@ -35,6 +35,10 @@
       "types": "./dist/types/collaboration/index.d.ts",
       "import": "./dist/collaboration/index.js"
     },
+    "./code": {
+      "types": "./dist/types/code/index.d.ts",
+      "import": "./dist/code/index.js"
+    },
     "./markdown": {
       "types": "./dist/types/markdown/index.d.ts",
       "import": "./dist/markdown/index.js"
@@ -49,12 +53,16 @@
     "build": "vite build && vue-tsc -p tsconfig.build.json && bun scripts/build-style.ts"
   },
   "peerDependencies": {
+    "@dou-ui/code": "workspace:*",
     "dou-ui": "workspace:*",
     "vue": "^3.5.0",
     "yjs": "^13.6.0",
     "markdown-it": "^14.0.0"
   },
   "peerDependenciesMeta": {
+    "@dou-ui/code": {
+      "optional": true
+    },
     "yjs": {
       "optional": true
     },
@@ -78,6 +86,7 @@
     "access": "public"
   },
   "devDependencies": {
+    "@dou-ui/code": "workspace:*",
     "@types/markdown-it": "^14.1.2",
     "markdown-it": "^14.1.0",
     "y-protocols": "^1.0.7",

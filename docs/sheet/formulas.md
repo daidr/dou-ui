@@ -23,6 +23,19 @@
 - 编辑栏和单元格同步：在任一处输入，另一处同时显示，在编辑栏里同样可以点击单元格插入引用、补全函数名。`Enter` 保存，`Esc` 放弃，`Tab` 保存后移到右边的单元格。
 - 在地址框里输入 `B3`、`A1:C4` 或 `表2!A1` 后按 `Enter`，会选中并滚动到那里；地址写错时地址框标红，输入的文字保留并选中，可以直接改，按 `Esc` 恢复；读屏软件会读出提示。
 
+### 代码版编辑栏
+
+`@dou-ui/sheet/code` 提供的 `DouSheetCodeFormulaBar` 用[代码编辑器](/code/)的 `DouCodeInput` 显示公式：函数名、引用、文字、数字和错误值分别着色，括号成对高亮，写错的地方加波浪线，用了不存在的函数也会提示。编辑方式和 `DouSheetFormulaBar` 相同，函数列表、参数提示和点击单元格插入引用照常使用。它需要安装 `@dou-ui/code` 并引入它的样式：
+
+```ts
+import '@dou-ui/code/style.css'
+import { DouSheetCodeFormulaBar } from '@dou-ui/sheet/code'
+```
+
+<DocDemo src="sheet/code-formula-bar" column />
+
+公式的语言 `sheetFormula` 也从 `@dou-ui/sheet/code` 导出，可以交给 `DouCodeInput` 或 `DouCodeEditor` 在别处编辑公式。
+
 ## 写法
 
 公式的写法和常见的表格软件一致，函数名不区分大小写，参数用 `,` 分隔（也可以用 `;`）。

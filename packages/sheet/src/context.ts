@@ -1,3 +1,4 @@
+import type { SheetFunction } from './formula/functions'
 import { inject, type ComputedRef, type InjectionKey, type Ref } from 'vue'
 import type { SheetBounds, SheetPoint } from './core/address'
 import type { SheetResolvedType } from './core/cell-type'
@@ -104,6 +105,19 @@ export interface SheetContext {
   editor: SheetEditorContext
 }
 
+/** How an input outside the grid edits the cell, for `editor.attach`. */
+export interface SheetEditInputOptions {
+  /**
+   * The input shows the text and caret itself, following `editor.text`
+   * and `editor.caret`, and reports its own with `input` and `moveCaret`;
+   * the sheet doesn't write its value. For an input whose element isn't
+   * what holds the text, such as a code editor's.
+   */
+  managed?: boolean
+  /** What the function list and argument hints go under; the input by default. */
+  anchor?: HTMLElement
+}
+
 /** Editing the active cell from outside the grid, as the formula bar does. */
 export interface SheetEditorContext {
   /** The cell being edited and how: `'enter'` began by typing, so the arrows move on (or point, in a formula). */
@@ -125,9 +139,14 @@ export interface SheetEditorContext {
   /** Drops the edit. */
   cancel: () => void
   /** Lets an input edit the cell: focus moving to it keeps the edit open. Returns a function that undoes it. */
-  attach: (el: HTMLInputElement | HTMLTextAreaElement) => () => void
+  attach: (
+    el: HTMLInputElement | HTMLTextAreaElement,
+    options?: SheetEditInputOptions,
+  ) => () => void
   /** The id of the list of functions and argument hints, for `aria-controls`. */
   helpId: string
+  /** The functions formulas can call, built in and added, by name. */
+  functions: ComputedRef<readonly SheetFunction[]>
 }
 
 export const sheetContextKey: InjectionKey<SheetContext> = Symbol('dou-sheet')

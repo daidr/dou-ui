@@ -1,8 +1,8 @@
 import { baseKeymap } from 'prosemirror-commands'
-import { history } from 'prosemirror-history'
+import { history, redo, undo } from 'prosemirror-history'
 import { keymap } from 'prosemirror-keymap'
 import type { Node as PMNode } from 'prosemirror-model'
-import { EditorState, type Command, type Plugin } from 'prosemirror-state'
+import { EditorState, Plugin, PluginKey, type Command } from 'prosemirror-state'
 import { EditorView, type NodeViewConstructor } from 'prosemirror-view'
 import { blockSelectionPlugin } from './block-selection'
 import type { ResolvedEditorExtensions } from './extension'
@@ -39,20 +39,39 @@ export interface CreateEditorOptions {
   attributes?: () => Record<string, string>
 }
 
+const historyKey = new PluginKey<{ undo: Command; redo: Command }>('douHistory')
+
+/**
+ * The undo and redo the editor runs: the built-in history's, or those of
+ * the extension or props that replace it. For node views that edit their
+ * text themselves, so their undo is the document's.
+ */
+export function historyCommands(state: EditorState): {
+  undo: Command
+  redo: Command
+} {
+  return historyKey.getState(state) ?? { undo, redo }
+}
+
 export function createPlugins(options: Omit<CreateEditorOptions, 'element'>): Plugin[] {
   const { kit } = options
   const provider = kit.history
   const builtInHistory = options.history !== false && !provider
+  const commands = {
+    undo: options.undo ?? provider?.undo ?? undo,
+    redo: options.redo ?? provider?.redo ?? redo,
+  }
   return [
+    new Plugin({
+      key: historyKey,
+      state: { init: () => commands, apply: (_tr, value) => value },
+    }),
     ...(options.plugins ?? []),
     ...kit.plugins,
     editorInputRules(kit.inputRules),
     blockSelectionPlugin(),
     ...kit.keymaps.map((bindings) => keymap(bindings)),
-    editorKeymap({
-      undo: options.undo ?? provider?.undo,
-      redo: options.redo ?? provider?.redo,
-    }),
+    editorKeymap(commands),
     keymap(baseKeymap),
     ...(provider?.plugins ?? []),
     ...(builtInHistory ? [history()] : []),

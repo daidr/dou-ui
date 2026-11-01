@@ -11,8 +11,12 @@ export interface EditorKitOptions {
   heading?: boolean
   lists?: boolean
   quote?: boolean
-  /** Options for the code block, e.g. its highlighter, or `false` to leave it out. */
-  codeBlock?: boolean | CodeBlockOptions
+  /**
+   * Options for the code block, e.g. its highlighter, or `false` to leave
+   * it out. Another code block extension takes its place, e.g.
+   * `codeEditorBlock()` from `@dou-ui/editor/code`.
+   */
+  codeBlock?: boolean | CodeBlockOptions | EditorExtension
   divider?: boolean
   toggle?: boolean
   callout?: boolean
@@ -31,7 +35,10 @@ export function editorKit(options: EditorKitOptions = {}): EditorExtension[] {
     heading,
     lists,
     quote,
-    codeBlock: codeBlock(typeof code === 'object' ? code : {}),
+    codeBlock:
+      typeof code === 'object' && 'name' in code
+        ? code
+        : codeBlock(typeof code === 'object' ? code : {}),
     divider,
     toggle,
     callout,

@@ -1,14 +1,12 @@
 import {
   boundsOf,
   columnName,
-  isSheetError,
   lightThemeColor,
   meetsRule,
   parseRange,
   plainStyle,
   quoteSheet,
   renameReferencesAll,
-  serialOf,
   textCollator,
   type SheetBounds,
   type SheetColor,
@@ -20,7 +18,8 @@ import {
   type SheetStyle,
   type SheetValidation,
   type SheetValue,
-} from '@dou-ui/sheet'
+} from '@dou-ui/sheet/core'
+import { isSheetError, serialOf } from '@dou-ui/sheet/formula'
 import { argb, StyleSheet } from './styles'
 import { attrs, esc, HEAD, NS, NS_PKG, NS_R } from './xml'
 import { pause, SLICE, zip, type ZipEntry } from './zip'

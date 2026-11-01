@@ -59,6 +59,7 @@ import {
   SortDescendingIcon,
   SortIcon,
   CellsSplitIcon,
+  FileTextIcon,
   TrashIcon,
   UnfoldVerticalIcon,
 } from '@dou-ui/icons'
@@ -167,7 +168,8 @@ import {
   type ResolvedSheetExtensions,
   type SheetHistoryHandler,
 } from './core/extension'
-import { format, useSheetMessages } from './locale'
+import { format } from './locale'
+import { useSheetMessages } from './use-messages'
 import { sheetToCSV, type SheetCSVWriteOptions } from './core/csv'
 import { createSheetExport, type SheetExportTarget } from './export'
 import {
@@ -2812,7 +2814,7 @@ function imageScope(source: SheetFileSource) {
 
 const exporters = computed(() =>
   mergeFileHandlers(
-    [csvExporter, pngExporter, svgExporter],
+    [{ ...csvExporter, icon: FileTextIcon }, pngExporter, svgExporter],
     resolved.value.exporters.map(({ extension, exporter }) => ({ extension, handler: exporter })),
     'exporter',
   ),

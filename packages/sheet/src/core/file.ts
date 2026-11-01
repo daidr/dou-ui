@@ -1,4 +1,3 @@
-import { FileTextIcon } from '@dou-ui/icons'
 import type { Component } from 'vue'
 import { SheetFormulaEngine } from '../formula/engine'
 import type { SheetFunction } from '../formula/functions'
@@ -6,7 +5,7 @@ import { shownValue, type SheetResult } from '../formula/values'
 import { sheetMessagesFor, type SheetMessages } from '../locale'
 import { boundsOf, parseRange, type SheetBounds } from './address'
 import { resolveCellType, type SheetCellType, type SheetResolvedType } from './cell-type'
-import { builtinCellTypes } from '../cell-types'
+import { plainCellTypes } from './plain-cell-types'
 import { dataBounds, readCSV, sheetToCSV } from './csv'
 import type { SheetExtension } from './extension'
 import { resolveSheetExtensions } from './extension'
@@ -105,6 +104,11 @@ export interface SheetExporter<Options = any> {
   name: string
   /** Its name in the toolbar's export menu. */
   label: SheetLabel
+  /**
+   * Its icon in the toolbar's export menu. Give it where the exporter goes
+   * into an extension, not on the exporter itself, so that a Worker that only
+   * writes files doesn't load the icon, and Vue with it.
+   */
   icon?: Component
   /** The file name's extension, without the dot, e.g. `xlsx`. */
   extension: string
@@ -271,7 +275,7 @@ export interface SheetFileSourceOptions {
 /** The cell types by name: the built-in ones, then these, the first named winning. */
 export function cellTypeMap(added: readonly SheetCellType[] = []) {
   const map = new Map<string, SheetCellType>()
-  for (const type of builtinCellTypes) map.set(type.name, type)
+  for (const type of plainCellTypes) map.set(type.name, type)
   const seen = new Set<string>()
   for (const type of added) {
     if (seen.has(type.name)) continue
@@ -518,7 +522,6 @@ export interface SheetCSVExportOptions {
 export const csvExporter = defineSheetExporter<SheetCSVExportOptions>({
   name: 'csv',
   label: (m) => m.file.csv,
-  icon: FileTextIcon,
   extension: 'csv',
   mime: 'text/csv',
   scopes: ['sheet', 'selection'],

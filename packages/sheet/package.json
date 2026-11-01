@@ -37,6 +37,10 @@
       "types": "./dist/types/formula/index.d.ts",
       "import": "./dist/formula/index.js"
     },
+    "./core": {
+      "types": "./dist/types/core/index.d.ts",
+      "import": "./dist/core/index.js"
+    },
     "./collaboration": {
       "types": "./dist/types/collaboration/index.d.ts",
       "import": "./dist/collaboration/index.js"

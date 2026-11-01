@@ -203,7 +203,7 @@ commands.get('today.insert') // { name, label, icon, shortcut, toggle }
 
 ## 导出器与导入器
 
-导出器把工作簿写成一种文件，导入器把一种文件读成工作簿。它们只读写数据，不依赖表格组件，所以也可以在脚本、Worker 或服务端使用。
+导出器把工作簿写成一种文件，导入器把一种文件读成工作簿。它们只读写数据，不依赖表格组件，所以也可以在脚本、Worker 或服务端使用（见[不含组件的入口](#不含组件的入口)）。
 
 ```ts
 import { defineSheetExporter, defineSheetExtension } from '@dou-ui/sheet'
@@ -234,7 +234,7 @@ declare module '@dou-ui/sheet' {
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
 | `name`      | 名字，`exportFile(name)` 用它；两个扩展不能重名                                                                              | `string`                                                          |
 | `label`     | 导出菜单里的名字                                                                                                             | `string \| ((messages) => string)`                                |
-| `icon`      | 图标                                                                                                                         | `Component`                                                       |
+| `icon`      | 导出菜单里的图标；导出器也在 Worker 里用时，见下面的说明                                                                     | `Component`                                                       |
 | `extension` | 文件扩展名，不带点，下载时用                                                                                                 | `string`                                                          |
 | `mime`      | 文件类型，返回字符串时用它包成 `Blob`                                                                                        | `string`                                                          |
 | `scopes`    | 能导出什么，第一个是默认的范围；有多种时工具栏的导出菜单让用户选；默认三种都可以                                             | `('workbook' \| 'sheet' \| 'selection')[]`                        |
@@ -295,9 +295,53 @@ const json = defineSheetImporter({
 不经过组件时，`exportWorkbook(book, exporter, options?)` 写出 `Blob`，会计算公式，`needs: 'view'` 的导出器在这里会报错；`options` 里的 `extensions` 提供工作簿用到的单元格类型和函数，`scope`、`sheet`（序号、`id` 或名字，默认第一张）、`range`、`signal` 和组件的 `exportFile` 一样，`colWidth`、`rowHeight` 是工作簿配合的列宽行高（和表格的 `col-width`、`row-height` 一样，默认 96、28），`options` 交给导出器。`readWorkbook(file, importer, options?)` 只读出 `{ book, warnings }`，不写进任何表格。内置的 CSV 导出器和导入器是 `csvExporter`、`csvImporter`，也可以这样用：
 
 ```ts
-import { csvExporter, exportWorkbook } from '@dou-ui/sheet'
+import { csvExporter, exportWorkbook } from '@dou-ui/sheet/core'
 
 const blob = await exportWorkbook(book, csvExporter, { scope: 'sheet', sheet: 1 })
+```
+
+### 不含组件的入口
+
+`@dou-ui/sheet` 带着表格组件，引入它就会加载 Vue 和组件。在 Worker 或服务端只读写数据时，从 `@dou-ui/sheet/core` 引入，它不加载 Vue，也不加载任何组件：
+
+| 内容         | 导出                                                                                                                             |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| 文件读写     | `exportWorkbook`、`readWorkbook`、`createFileSource`、`csvExporter`、`csvImporter`、`defineSheetExporter`、`defineSheetImporter` |
+| 单元格与区域 | `parseCell`、`parseRange`、`formatCell`、`formatRange`、`columnName`、`quoteSheet`、`renameReferencesAll` 等                     |
+| 值与样式     | `cellOf`、`valueOf`、`formatValue`、`parseInput`、`meetsRule`、`plainStyle`、`lightThemeColor` 等                                |
+| 修改         | `SheetTransaction`、`applySheetSteps`、`compactSheetSteps`、`sheetKey`                                                           |
+| 单元格类型   | `defineSheetCellType`、`optionOf`                                                                                                |
+| 文案         | `sheetMessagesFor`、`sheetLocales`                                                                                               |
+
+这些在 `@dou-ui/sheet` 里也都有，在页面里用哪个都一样。公式引擎在 [`@dou-ui/sheet/formula`](./formulas#单独使用计算引擎)，同样不含组件。
+
+```ts
+// export.worker.ts
+import { csvExporter, exportWorkbook, type SheetWorkbook } from '@dou-ui/sheet/core'
+
+self.onmessage = async (event: MessageEvent<SheetWorkbook>) => {
+  self.postMessage(await exportWorkbook(event.data, csvExporter))
+}
+```
+
+图标是 Vue 组件，所以导出器本身不带 `icon`，放进扩展时再给，Worker 只引入导出器就不会加载图标和 Vue：
+
+```ts
+// json.ts：Worker 和页面都引入它
+import { defineSheetExporter } from '@dou-ui/sheet/core'
+
+export const json = defineSheetExporter({ name: 'json' /* … */ })
+```
+
+```ts
+// 页面里
+import { FileJsonIcon } from '@dou-ui/icons'
+import { defineSheetExtension } from '@dou-ui/sheet'
+import { json } from './json'
+
+const extensions = [
+  defineSheetExtension({ name: 'json', exporters: [{ ...json, icon: FileJsonIcon }] }),
+]
 ```
 
 ## 快捷键

@@ -11,6 +11,7 @@ export default defineConfig({
       entry: {
         index: 'src/index.ts',
         'formula/index': 'src/formula/index.ts',
+        'core/index': 'src/core/index.ts',
         'collaboration/index': 'src/collaboration/index.ts',
         'code/index': 'src/code/index.ts',
       },

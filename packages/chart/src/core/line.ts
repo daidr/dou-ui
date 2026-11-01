@@ -1,7 +1,7 @@
 import { BREAK, decimate, summarize, visibleRange } from './decimate'
 import { tracePoints, type Painter } from './painter'
 import { baseline } from './scale'
-import type { ChartSeries, ChartSeriesKind, ChartView } from './series'
+import type { ChartLabelAnchor, ChartSeries, ChartSeriesKind, ChartView } from './series'
 
 /** Room a point needs before dots are shown on their own (`dots: 'auto'`). */
 const DOT_SPACE = 16
@@ -14,6 +14,57 @@ export interface LineStyle {
   dashed?: boolean
   lineWidth?: number
   connectNulls?: boolean
+  step?: boolean | 'before' | 'after' | 'middle'
+  labelPosition?: 'point' | 'end'
+  /** An area's bottom of its own (a band); the model reads it into `base`. */
+  y0?: unknown
+}
+
+/** Room a point needs before each gets a label. */
+const LABEL_SPACE = 12
+
+type StepMode = 'before' | 'after' | 'middle'
+
+/**
+ * The corners of a line that steps through `count` points: `after` holds
+ * each value until the next x, `before` takes the next value at once,
+ * `middle` changes halfway. Gives the corners' x, the values (`ys`, and
+ * `bs` for an area's bottom, stepped the same way) and how many there are.
+ */
+export function stepPoints(
+  px: ArrayLike<number>,
+  ys: ArrayLike<number>,
+  bs: ArrayLike<number>,
+  count: number,
+  mode: StepMode,
+): { x: Float64Array; y: Float64Array; b: Float64Array; count: number } {
+  const per = mode === 'middle' ? 3 : 2
+  const n = count > 0 ? (count - 1) * per + 1 : 0
+  const x = new Float64Array(n)
+  const y = new Float64Array(n)
+  const b = new Float64Array(n)
+  let k = 0
+  const put = (u: number, i: number) => {
+    x[k] = u
+    y[k] = ys[i]!
+    b[k] = bs[i]!
+    k++
+  }
+  for (let i = 0; i < count; i++) {
+    if (i > 0) {
+      const u0 = px[i - 1]!
+      const u1 = px[i]!
+      if (mode === 'after') put(u1, i - 1)
+      else if (mode === 'before') put(u0, i)
+      else {
+        const m = (u0 + u1) / 2
+        put(m, i - 1)
+        put(m, i)
+      }
+    }
+    put(px[i]!, i)
+  }
+  return { x, y, b, count: k }
 }
 
 let bufferX = new Float64Array(1024)
@@ -53,8 +104,12 @@ export function drawLine(
   if (length === 0) return
 
   const shown = to - from
-  const smooth = !!style.smooth && shown * SMOOTH_SPACE <= along
+  const step: StepMode | null =
+    style.step === true ? 'after' : style.step ? (style.step as StepMode) : null
+  const smooth = !step && !!style.smooth && shown * SMOOTH_SPACE <= along
   const lineWidth = style.lineWidth ?? 2
+  // an area with a bottom of its own: a band, with a line along both edges
+  const band = area && !!series.base && !series.stackEnds
 
   // where an area without a stack grows from
   const floorY = baseline(sy)
@@ -76,41 +131,49 @@ export function drawLine(
     count++
   }
 
+  // the runs as drawn: their corners, when the line steps
+  const drawn = runs.map(([a, b]) => {
+    const xsRun = bufferX.subarray(a, b)
+    const ysRun = bufferY.subarray(a, b)
+    const bsRun = bufferB.subarray(a, b)
+    if (!step) return { x: xsRun, y: ysRun, b: bsRun, count: b - a }
+    return stepPoints(xsRun, ysRun, bsRun, b - a, step)
+  })
+
   if (area) {
     painter.save()
     painter.fillStyle = series.color
-    painter.globalAlpha = series.base ? 0.18 : 0.1
+    painter.globalAlpha *= series.base ? 0.18 : 0.1
     painter.beginPath()
-    for (const [a, b] of runs) {
-      const xsRun = bufferX.subarray(a, b)
-      tracePoints(painter, xsRun, bufferY.subarray(a, b), b - a, { smooth, swap })
-      tracePoints(painter, xsRun, bufferB.subarray(a, b), b - a, {
-        smooth,
-        swap,
-        reverse: true,
-        join: true,
-      })
+    for (const run of drawn) {
+      tracePoints(painter, run.x, run.y, run.count, { smooth, swap })
+      tracePoints(painter, run.x, run.b, run.count, { smooth, swap, reverse: true, join: true })
       painter.closePath()
     }
     painter.fill()
     painter.restore()
   }
 
-  painter.save()
-  painter.strokeStyle = series.color
-  painter.lineWidth = lineWidth
-  painter.lineJoin = 'round'
-  painter.lineCap = 'round'
-  if (style.dashed) painter.setLineDash([lineWidth * 3, lineWidth * 2.5])
-  painter.beginPath()
-  for (const [a, b] of runs)
-    tracePoints(painter, bufferX.subarray(a, b), bufferY.subarray(a, b), b - a, { smooth, swap })
-  painter.stroke()
-  painter.restore()
+  if (lineWidth > 0) {
+    painter.save()
+    painter.strokeStyle = series.color
+    painter.lineWidth = lineWidth
+    painter.lineJoin = 'round'
+    painter.lineCap = 'round'
+    if (style.dashed) painter.setLineDash([lineWidth * 3, lineWidth * 2.5])
+    painter.beginPath()
+    for (const run of drawn) {
+      tracePoints(painter, run.x, run.y, run.count, { smooth, swap })
+      if (band) tracePoints(painter, run.x, run.b, run.count, { smooth, swap })
+    }
+    painter.stroke()
+    painter.restore()
+  }
 
-  const dots = style.dots ?? 'auto'
+  // a band's edges are a range, not points: dots only when asked for
+  const dots = style.dots ?? (band ? false : 'auto')
   // a point standing alone (a gap on both sides) is invisible without its dot
-  const every = dots === true || (dots === 'auto' && shown * DOT_SPACE <= along)
+  const every = dots === true || (dots === 'auto' && !band && shown * DOT_SPACE <= along)
   const lonely = runs.some(([a, b]) => b - a === 1)
   if (every || lonely) {
     const r = Math.max(2.5, lineWidth + 0.5)
@@ -133,6 +196,42 @@ export function drawLine(
   }
 }
 
+/**
+ * Where a line's labels go: above each point when there is room for them
+ * all, or beside the last point shown (`end`).
+ */
+export function lineLabels(series: ChartSeries<LineStyle>, view: ChartView): ChartLabelAnchor[] {
+  const { x: sx, plot, horizontal } = view
+  const xs = series.x.values
+  const top = series.top
+  const [from, to] = visibleRange(xs, series.x.sorted, sx.domain[0], sx.domain[1])
+  const at = (i: number) => view.point(xs[i]!, top[i]!)
+  const valued = (i: number) => xs[i] === xs[i] && top[i] === top[i]
+  if (series.props.labelPosition === 'end') {
+    let last = -1
+    for (let i = to - 1; i >= from; i--)
+      if (valued(i) && (!series.x.sorted || last < 0 || xs[i]! > xs[last]!)) {
+        last = i
+        if (series.x.sorted) break
+      }
+    return last < 0 ? [] : [{ index: last, at: at(last), side: horizontal ? 'bottom' : 'right' }]
+  }
+  const along = horizontal ? plot.height : plot.width
+  if ((to - from) * LABEL_SPACE > along) return []
+  const out: ChartLabelAnchor[] = []
+  for (let i = from; i < to; i++) {
+    if (!valued(i)) continue
+    // below a point that dips under 0, above the others
+    const down = series.y[i]! < 0 && !series.stackEnds
+    out.push({
+      index: i,
+      at: at(i),
+      side: horizontal ? (down ? 'left' : 'right') : down ? 'bottom' : 'top',
+    })
+  }
+  return out
+}
+
 /** For a long line: what lets zooming and panning skip over most of it. */
 function prepare(series: ChartSeries<LineStyle>) {
   return series.x.sorted ? summarize(series.x.values, series.top) : null
@@ -142,6 +241,7 @@ export const lineKind: ChartSeriesKind<LineStyle> = {
   type: 'line',
   draw: (painter, series, view) => drawLine(painter, series, view, false),
   prepare,
+  labels: lineLabels,
 }
 
 export const areaKind: ChartSeriesKind<LineStyle> = {
@@ -150,4 +250,5 @@ export const areaKind: ChartSeriesKind<LineStyle> = {
   stackable: true,
   draw: (painter, series, view) => drawLine(painter, series, view, true),
   prepare,
+  labels: lineLabels,
 }

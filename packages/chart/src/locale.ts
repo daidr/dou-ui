@@ -18,6 +18,10 @@ export interface ChartMessages {
   itemSeparator: string
   /** A slice's value in its tooltip: `{value}`, `{share}` (a percentage). */
   share: string
+  /** A band's two ends in its tooltip: `{from}`, `{to}`. */
+  band: string
+  /** Read out with each legend entry: how to show it alone. */
+  legendHint: string
   /** Under a pie with slices turned off: `{count}`. */
   hiddenSlices: string
   /** The summary of a chart that can be explored with the keys: `{summary}`. */
@@ -50,6 +54,8 @@ const zhCN: ChartMessages = {
   listSeparator: '；',
   itemSeparator: '，',
   share: '{value}（{share}）',
+  band: '{from} ~ {to}',
+  legendHint: '按 Alt+Enter 或按住 Alt 点击只显示这一项，再按一次恢复全部',
   hiddenSlices: '已隐藏 {count} 项，占比只按显示的部分计算',
   keys: '{summary}。用方向键逐个查看数据',
   zoomKeys: '{summary}。用方向键逐个查看数据，加号和减号缩放，0 复位',
@@ -72,6 +78,8 @@ const zhTW: ChartMessages = {
   listSeparator: '；',
   itemSeparator: '，',
   share: '{value}（{share}）',
+  band: '{from} ~ {to}',
+  legendHint: '按 Alt+Enter 或按住 Alt 點擊只顯示這一項，再按一次恢復全部',
   hiddenSlices: '已隱藏 {count} 項，占比只按顯示的部分計算',
   keys: '{summary}。用方向鍵逐個查看資料',
   zoomKeys: '{summary}。用方向鍵逐個查看資料，加號和減號縮放，0 復位',
@@ -94,6 +102,8 @@ const en: ChartMessages = {
   listSeparator: '; ',
   itemSeparator: ', ',
   share: '{value} ({share})',
+  band: '{from} – {to}',
+  legendHint: 'Alt+Enter or Alt+click shows only this one; again shows all',
   hiddenSlices: '{count} hidden; shares are of the slices shown',
   keys: '{summary}. Use the arrow keys to read each point',
   zoomKeys: '{summary}. Use the arrow keys to read each point, plus and minus to zoom, 0 to reset',

@@ -8,6 +8,8 @@ import type { ChartTooltipItem, ChartTooltipSlots } from './types'
 export interface Tip {
   title?: string
   items: ChartTooltipItem[]
+  /** One of the items' series is under the pointer: the others are muted. */
+  focused?: boolean
   /** Where the tooltip points from, in px from the chart's top left. */
   anchor: [number, number]
   /** A hairline across the plot at the x. */
@@ -15,7 +17,15 @@ export interface Tip {
   /** A shaded band over the x's room, for bars. */
   band?: Rect
   /** Rings and dots on the points. */
-  marks: Array<{ left: number; top: number; color: string; radius: number; ring: boolean }>
+  marks: Array<{
+    left: number
+    top: number
+    color: string
+    radius: number
+    ring: boolean
+    /** Its series is faded: another one is under the pointer. */
+    faded?: boolean
+  }>
   /** Above the anchor rather than below, out from under a finger. */
   above?: boolean
   /** A place to keep clear of (the x under a finger): the tooltip goes beside it. */
@@ -104,7 +114,7 @@ const px = (r: Rect) => ({
     <span
       v-for="(mark, i) in tip.marks"
       :key="i"
-      :class="[ns.e('mark'), ns.is('ring', mark.ring)]"
+      :class="[ns.e('mark'), ns.is('ring', mark.ring), ns.is('faded', !!mark.faded)]"
       :style="{
         transform: `translate(${mark.left - mark.radius}px, ${mark.top - mark.radius}px)`,
         width: `${mark.radius * 2}px`,
@@ -121,7 +131,11 @@ const px = (r: Rect) => ({
         <div v-if="tip.title" :class="ns.e('tooltip-title')">
           <span :class="ns.e('text')">{{ tip.title }}</span>
         </div>
-        <div v-for="(item, i) in tip.items" :key="i" :class="ns.e('tooltip-item')">
+        <div
+          v-for="(item, i) in tip.items"
+          :key="i"
+          :class="[ns.e('tooltip-item'), ns.is('muted', tip.focused && !item.active)]"
+        >
           <span v-if="item.color" :class="ns.e('tooltip-swatch')" :style="{ color: item.color }" />
           <span :class="[ns.e('tooltip-name'), ns.e('text')]">{{ item.name }}</span>
           <span :class="[ns.e('tooltip-value'), ns.e('text')]">{{ item.text }}</span>

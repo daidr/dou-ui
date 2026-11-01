@@ -110,6 +110,8 @@ const SWATCH = 12
 const SWATCH_GAP = 6
 const LEGEND_GAP = 16
 const LEGEND_ROW_GAP = 4
+/** Rows 40px apart on a touch screen: each entry's hit area reaches 12px past its text, above and below. */
+const LEGEND_ROW_GAP_COARSE = 24
 /** The range strip's height (its width when horizontal), and the room before it. */
 export const STRIP = 32
 const STRIP_GAP = 12
@@ -132,6 +134,8 @@ interface LayoutOptions {
   measure: (text: string) => number
   /** Names for a legend under the chart, or none. */
   legend?: string[]
+  /** Rows of the legend far enough apart for a finger to press each (on a touch screen). */
+  coarse?: boolean
   /**
    * The stretches shown when zoomed in: of x in the scale's numbers
    * (category indices, ms), of the values in those of `y` (or `y2` when
@@ -140,6 +144,8 @@ interface LayoutOptions {
   zoom?: { x?: Window | null; y?: Window | null }
   /** Leave room for a range strip. */
   strip?: boolean
+  /** Room past the plot's end along x, in px, for labels at the ends of lines. */
+  trailing?: number
 }
 
 const asNumber = (value: number | string | Date | undefined, kind: XKind | 'log') =>
@@ -157,7 +163,7 @@ function widen(lo: number, hi: number, inset: number, length: number): [number, 
 /** Places the axes and works out the plot area, the scales and the tick labels. */
 export function layoutChart(options: LayoutOptions): ChartLayout {
   const { width, height, measure } = options
-  const legend = placeLegend(options.legend ?? [], width, measure)
+  const legend = placeLegend(options.legend ?? [], width, measure, options.coarse)
   const legendHeight = legendRoom(legend)
   for (const item of legend) item.top += height - legendHeight + LABEL_GAP + 4
   const room = options.strip ? STRIP + STRIP_GAP : 0
@@ -319,7 +325,7 @@ function alignZero(
 
 /** x along the bottom, values up the left side (and the right). */
 function layoutUp(
-  { model, axes, width, height, locale, measure, zoom }: LayoutOptions,
+  { model, axes, width, height, locale, measure, zoom, trailing = 0 }: LayoutOptions,
   legendHeight: number,
 ): Omit<ChartLayout, 'legend'> {
   const xAxis = axes.x
@@ -341,7 +347,7 @@ function layoutUp(
       ? INSET + (config.labelWidth ?? labelWidth(axis.texts, measure)) + LABEL_GAP
       : EDGE
   const leftWidth = side(y, axes.y)
-  const rightWidth = side(y2, axes.y2)
+  const rightWidth = side(y2, axes.y2) + trailing
   const plot: Rect = {
     x: leftWidth,
     y: plotTop,
@@ -357,7 +363,7 @@ function layoutUp(
     const labels = config.hidden ? [] : placeDown(axis.ticks, axis.texts, scale, height, measure)
     for (const label of labels)
       if (axis.role === 'y') alignEnd(label, plot.x)
-      else label.left = plot.x + plot.width + LABEL_GAP
+      else label.left = plot.x + plot.width + trailing + LABEL_GAP
     yLayout[axis.role] = {
       position: config.position,
       scale,
@@ -597,6 +603,7 @@ export function placeLegend(
   names: string[],
   width: number,
   measure: (text: string) => number,
+  coarse = false,
 ): LegendItem[] {
   const items: LegendItem[] = []
   let row: LegendItem[] = []
@@ -615,7 +622,7 @@ export function placeLegend(
     const w = SWATCH + SWATCH_GAP + measure(text)
     if (row.length && rowWidth + LEGEND_GAP + w > width - INSET * 2) {
       finish()
-      top += LABEL_HEIGHT + LEGEND_ROW_GAP
+      top += LABEL_HEIGHT + (coarse ? LEGEND_ROW_GAP_COARSE : LEGEND_ROW_GAP)
     }
     const item = { index, text, left: 0, top, width: w }
     rowWidth += (row.length ? LEGEND_GAP : 0) + w
@@ -687,11 +694,23 @@ function valueAxis(
     if (min !== undefined) domain[0] = min
     if (max !== undefined) domain[1] = max
   }
-  const ticks =
-    explicitTicks(config, kind) ??
+  const given = explicitTicks(config, kind)
+  let ticks =
+    given ??
     (kind === 'log'
       ? logTicks(domain[0], domain[1], count)
       : linearTicks(domain[0], domain[1], count))
+  // nice ends are ticks: an end the ticks' step falls short of reaches the next one
+  if (!given && kind === 'linear' && (config.nice ?? true) && ticks.length > 1) {
+    const step = ticks[1]! - ticks[0]!
+    const decimals = stepDecimals(step)
+    const from = min ?? Number((Math.floor(domain[0] / step + 1e-9) * step).toFixed(decimals))
+    const to = max ?? Number((Math.ceil(domain[1] / step - 1e-9) * step).toFixed(decimals))
+    if (from !== domain[0] || to !== domain[1]) {
+      domain = [from, to]
+      ticks = linearTicks(from, to, count)
+    }
+  }
   return {
     role,
     kind,
@@ -876,17 +895,34 @@ export interface PieLayout {
   legend: LegendItem[]
 }
 
-/** A pie as large as fits above its legend. */
+/** Room from a pie's edge to the labels outside it: the line out, and the gap before the text. */
+export const PIE_LABEL_ROOM = 24
+
+/**
+ * A pie as large as fits above its legend; with labels outside, as large
+ * as leaves room for the widest of them on each side, moved over towards
+ * the side with the narrower labels.
+ */
 export function layoutPie({
   width,
   height,
   measure,
   legend: names = [],
-}: Pick<LayoutOptions, 'width' | 'height' | 'measure' | 'legend'>): PieLayout {
-  const legend = placeLegend(names, width, measure)
+  coarse,
+  sideLabels = { left: 0, right: 0 },
+}: Pick<LayoutOptions, 'width' | 'height' | 'measure' | 'legend' | 'coarse'> & {
+  /** The widest label outside the pie on each side, in px; 0 for none. */
+  sideLabels?: { left: number; right: number }
+}): PieLayout {
+  const legend = placeLegend(names, width, measure, coarse)
   const legendHeight = legendRoom(legend)
   for (const item of legend) item.top += height - legendHeight + LABEL_GAP + 4
   const room = height - legendHeight - EDGE * 2
-  const radius = Math.max(1, Math.min(width - EDGE * 2, room) / 2)
-  return { width, height, cx: width / 2, cy: EDGE + room / 2, radius, legend }
+  // labels outside: room for them on their side, and for the lines out above and below
+  const left = sideLabels.left > 0 ? sideLabels.left + PIE_LABEL_ROOM : 0
+  const right = sideLabels.right > 0 ? sideLabels.right + PIE_LABEL_ROOM : 0
+  const across = width - left - right
+  const down = left || right ? room - LABEL_HEIGHT : room
+  const radius = Math.max(1, Math.min(across - EDGE * 2, down) / 2)
+  return { width, height, cx: left + across / 2, cy: EDGE + room / 2, radius, legend }
 }

@@ -55,7 +55,7 @@ export interface EditorProps {
   comments?: CommentThread[]
   /** Who is commenting. Without it comments can be read but not written. */
   author?: CommentAuthor
-  /** The id of the thread shown beside its text, bound with `v-model:active-comment`. */
+  /** The id of the thread shown beside its text, bound with `v-model:activeComment`. */
   activeComment?: string | null
   /** Whether threads can be started and answered; also while `readonly`. Defaults to `true`. */
   commentable?: boolean

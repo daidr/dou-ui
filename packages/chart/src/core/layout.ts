@@ -109,7 +109,15 @@ export interface LegendItem {
   width: number
   /** The name is longer than the room down the side, and is cut short. */
   clipped?: boolean
+  /** The swatch's width, when wider than a series' (a heatmap's scale). */
+  swatch?: number
 }
+
+/** A legend entry's name, or its name and a wider swatch (a heatmap's scale). */
+export type LegendName = string | { text: string; swatch: number }
+
+const nameText = (name: LegendName) => (typeof name === 'string' ? name : name.text)
+const swatchOf = (name: LegendName) => (typeof name === 'string' ? SWATCH : name.swatch)
 
 /** Height of a line of tick text, and the room between it and the plot. */
 export const LABEL_HEIGHT = 16
@@ -121,6 +129,8 @@ export const INSET = 4
 /** A legend entry: the swatch, the room after it, and the room to the next entry. */
 const SWATCH = 12
 const SWATCH_GAP = 6
+/** A heatmap's scale in the legend: wide enough to read from light to dark. */
+export const HEAT_SWATCH = 40
 const LEGEND_GAP = 16
 const LEGEND_ROW_GAP = 4
 /** Rows 40px apart on a touch screen: each entry's hit area reaches 12px past its text, above and below. */
@@ -150,7 +160,7 @@ interface LayoutOptions {
   locale: string
   measure: (text: string) => number
   /** Names for a legend, or none. */
-  legend?: string[]
+  legend?: LegendName[]
   /** Rows of the legend far enough apart for a finger to press each (on a touch screen). */
   coarse?: boolean
   /** Where the legend goes: under the chart (the default), above it, or down its right side. */
@@ -222,7 +232,7 @@ export function layoutChart(options: LayoutOptions): ChartLayout {
  * rows (or the chart's height, down the side), its entries scroll.
  */
 export function placeLegendIn(
-  names: string[],
+  names: LegendName[],
   at: ChartLegendPlacement,
   width: number,
   height: number,
@@ -238,8 +248,9 @@ export function placeLegendIn(
       Math.floor(width * LEGEND_SIDE_SHARE) - LEGEND_GAP,
     )
     const step = LABEL_HEIGHT + Math.max(rowGap, LEGEND_ROW_GAP + 4)
-    const legend = names.map((text, index) => {
-      const full = SWATCH + SWATCH_GAP + measure(text)
+    const legend = names.map((name, index) => {
+      const text = nameText(name)
+      const full = swatchOf(name) + SWATCH_GAP + measure(text)
       const item: LegendItem = {
         index,
         text,
@@ -248,6 +259,7 @@ export function placeLegendIn(
         width: Math.min(full, widest),
       }
       if (full > widest) item.clipped = true
+      if (typeof name !== 'string') item.swatch = name.swatch
       return item
     })
     const boxWidth = Math.max(...legend.map((item) => item.width))
@@ -293,9 +305,11 @@ function valueAxes(
   locale: string,
   length: number,
   zoom?: Window | null,
+  /** The values run across (a horizontal chart). */
+  across = false,
 ): { y: ValueAxis | null; y2: ValueAxis | null } {
-  let y = axes.y ? valueAxis('y', axes.y, model, count, locale, length) : null
-  let y2 = axes.y2 ? valueAxis('y2', axes.y2, model, count, locale, length) : null
+  let y = axes.y ? valueAxis('y', axes.y, model, count, locale, length, across) : null
+  let y2 = axes.y2 ? valueAxis('y2', axes.y2, model, count, locale, length, across) : null
   if (y && y2 && !axes.y2!.ticks && !y2.fixed && y.ticks.length > 1) {
     const both = alignZero(y, y2, axes.y!, axes.y2!, model, locale, length)
     if (both) ({ y, y2 } = both)
@@ -577,10 +591,10 @@ function layoutAcross(
       y2: place(axes2.y2, plotTop - LABEL_GAP - LABEL_HEIGHT, y2Shown),
     }
   }
-  let values = valueAxes(axes, model, 2, locale, across, zoom?.y)
+  let values = valueAxes(axes, model, 2, locale, across, zoom?.y, true)
   let placed = placeAll(values)
   for (let count = Math.max(2, Math.floor(across / X_TICK_SPACE)); count >= 2; count--) {
-    values = valueAxes(axes, model, count, locale, across, zoom?.y)
+    values = valueAxes(axes, model, count, locale, across, zoom?.y, true)
     placed = placeAll(values)
     if ((!placed.y || fitAcross(placed.y.labels)) && (!placed.y2 || fitAcross(placed.y2.labels)))
       break
@@ -696,7 +710,7 @@ const fitDown = (labels: TickLabel[]) => {
 
 /** Entries in rows that fit `width`, each row centered; `top` counts from the first row. */
 export function placeLegend(
-  names: string[],
+  names: LegendName[],
   width: number,
   measure: (text: string) => number,
   coarse = false,
@@ -714,13 +728,15 @@ export function placeLegend(
     row = []
     rowWidth = 0
   }
-  names.forEach((text, index) => {
-    const w = SWATCH + SWATCH_GAP + measure(text)
+  names.forEach((name, index) => {
+    const text = nameText(name)
+    const w = swatchOf(name) + SWATCH_GAP + measure(text)
     if (row.length && rowWidth + LEGEND_GAP + w > width - INSET * 2) {
       finish()
       top += LABEL_HEIGHT + (coarse ? LEGEND_ROW_GAP_COARSE : LEGEND_ROW_GAP)
     }
-    const item = { index, text, left: 0, top, width: w }
+    const item: LegendItem = { index, text, left: 0, top, width: w }
+    if (typeof name !== 'string') item.swatch = name.swatch
     rowWidth += (row.length ? LEGEND_GAP : 0) + w
     row.push(item)
     items.push(item)
@@ -765,7 +781,22 @@ function valueAxis(
   count: number,
   locale: string,
   length: number,
+  across = false,
 ): ValueAxis {
+  const listed = model.yCategories?.[role]
+  if (listed) {
+    // categories along the axis (a heatmap's rows): one band each, the first
+    // at the top (at the left, across)
+    const ticks = listed.map((_, i) => i)
+    return {
+      role,
+      kind: 'linear',
+      domain: across ? [-0.5, listed.length - 0.5] : [listed.length - 0.5, -0.5],
+      ticks,
+      texts: listed.map((label) => (config.format ? config.format(label) : label)),
+      fixed: true,
+    }
+  }
   count = tickCount(config, count)
   const kind = config.type === 'log' ? 'log' : 'linear'
   const data = model.y[role]

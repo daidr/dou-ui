@@ -20,6 +20,8 @@ export interface SeriesInput {
     stack?: string | boolean
     /** An area's bottom of its own: a band from it up to `y`. */
     y0?: ChartAccessor
+    /** A heatmap's value of each cell (its `y` names the row's category). */
+    value?: ChartAccessor
   } & Record<string, unknown>
   /** Turned off (in the legend): left out of the axes and not drawn. */
   hidden?: boolean
@@ -44,6 +46,8 @@ export interface ModelSeries {
   base: Float64Array | null
   stackEnds: { up: Float64Array; down: Float64Array } | null
   slot: { index: number; count: number } | null
+  /** A heatmap's categories down the value axis, as read. */
+  yColumn?: XColumn
 }
 
 export interface ChartModel {
@@ -56,6 +60,8 @@ export interface ChartModel {
   y: Record<ChartValueAxis, [number, number] | null>
   /** Whether each y axis must reach 0. */
   zero: Record<ChartValueAxis, boolean>
+  /** The categories of value axes that list them (a heatmap's rows), first at the top; `null` for number axes. */
+  yCategories: Record<ChartValueAxis, string[] | null>
   /** Whether every x is a whole number (years, counts): the x axis then has no ticks in between. */
   xIntegers: boolean
   /**
@@ -144,8 +150,27 @@ export function buildModel(
     const { rows, x } = sourceOf(input)
     // no x: rows are placed by their index
     const column = xColumn(rows, x ?? byIndex, x === undefined ? 'linear' : kind)
-    const y = yColumn(rows, input.props.y)
     const name = seriesName(input)
+    if (input.kind.categoryY) {
+      // a heatmap: `y` names a category, `value` is the cell's value
+      const value = input.props.value
+      const values = value === undefined ? new Float64Array(rowCount(rows)) : yColumn(rows, value)
+      const places = xColumn(rows, input.props.y, 'category')
+      return {
+        input,
+        name,
+        rows,
+        axis: input.props.axis ?? chart.axis ?? 'y',
+        x: column,
+        y: values,
+        top: places.values,
+        base: null,
+        stackEnds: null,
+        slot: null,
+        yColumn: places,
+      }
+    }
+    const y = yColumn(rows, input.props.y)
     const y0 = input.props.y0
     return {
       input,
@@ -183,6 +208,8 @@ export function buildModel(
     }
   }
 
+  const yCategories = categoriesDown(series)
+
   stack(series, chart.percent ?? {})
   assignSlots(series)
 
@@ -202,6 +229,7 @@ export function buildModel(
   const y: ChartModel['y'] = { y: null, y2: null }
   const zero: ChartModel['zero'] = { y: false, y2: false }
   for (const s of series) {
+    if (yCategories[s.axis]) continue
     y[s.axis] = merge(y[s.axis], cachedExtent(s.top))
     if (s.base) y[s.axis] = merge(y[s.axis], cachedExtent(s.base))
     // a band floats where its values are; what grows from 0 makes the axis reach it
@@ -215,7 +243,38 @@ export function buildModel(
       inset,
       s.input.kind.inset?.({ props: s.input.props, rows: s.rows, x: s.x, y: s.y }) ?? 0,
     )
-  return { series, xKind: kind, categories, x, y, zero, xIntegers, xStep, inset }
+  for (const axis of ['y', 'y2'] as const) {
+    const list = yCategories[axis]
+    if (list) y[axis] = list.length ? [0, list.length - 1] : null
+  }
+  return { series, xKind: kind, categories, x, y, zero, yCategories, xIntegers, xStep, inset }
+}
+
+/**
+ * The categories down each value axis of series that list them
+ * (heatmaps), merged in order of first appearance; each series' `top`
+ * then gives its rows' places among them.
+ */
+function categoriesDown(series: ModelSeries[]): ChartModel['yCategories'] {
+  const out: ChartModel['yCategories'] = { y: null, y2: null }
+  for (const axis of ['y', 'y2'] as const) {
+    const own = series.filter((s) => s.axis === axis && s.yColumn)
+    if (!own.length) continue
+    const at = new Map<string, number>()
+    for (const s of own)
+      for (const label of s.yColumn!.categories) if (!at.has(label)) at.set(label, at.size)
+    for (const s of own) {
+      const { values, categories } = s.yColumn!
+      const top = new Float64Array(values.length)
+      for (let i = 0; i < values.length; i++) {
+        const v = values[i]!
+        top[i] = v === v ? at.get(categories[v]!)! : Number.NaN
+      }
+      s.top = top
+    }
+    out[axis] = [...at.keys()]
+  }
+  return out
 }
 
 const gaps = new WeakMap<Float64Array, number>()

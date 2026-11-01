@@ -28,6 +28,7 @@ import { allX, angleAt, nearestPoint, nearestX, neighborGap, rowAt, sortedOrder 
 import { joinGroup, tellGroup, type SharedX } from './core/sync'
 import { numberFormatFull, numberTickFormat, timeFormatFull, timePrecision } from './core/format'
 import {
+  HEAT_SWATCH,
   layoutChart,
   layoutPie,
   PIE_LABEL_ROOM,
@@ -39,6 +40,7 @@ import {
   type ChartAxisRole,
   type ChartLegendPlacement,
   type ChartTickValue,
+  type LegendName,
   type TickLabel,
 } from './core/layout'
 import {
@@ -46,6 +48,7 @@ import {
   seriesName,
   smallestGap,
   type ChartModel,
+  type ModelSeries,
   type SeriesInput,
 } from './core/model'
 import { drawMarkers, placeMarkers, type MarkerColors, type MarkerInput } from './core/marker'
@@ -60,6 +63,7 @@ import {
   type PlacedDataLabel,
 } from './core/labels'
 import { crisp, type Painter, type Rect } from './core/painter'
+import { heatColor, heatRange, heatShare } from './core/heatmap'
 import { drawPie, FADED, pieSlices, type PieSlice } from './core/pie'
 import { baseline, categoryScale, linearScale, logScale, type Scale } from './core/scale'
 import { escapeXml, isSvg, num, paintAttribute, SvgPainter } from './core/svg'
@@ -278,6 +282,11 @@ const defaultAxis = computed<ChartValueAxis>(() =>
 
 const uses = (axis: ChartValueAxis) =>
   seriesParts.value.some((part) => (part.props.axis ?? defaultAxis.value) === axis)
+/** Whether a value axis lists categories (a heatmap's rows): no grid lines across it by default. */
+const listsCategories = (axis: ChartValueAxis) =>
+  seriesParts.value.some(
+    (part) => part.kind.categoryY && (part.props.axis ?? defaultAxis.value) === axis,
+  )
 
 /**
  * The axes by what they measure, and where each is drawn: x at the bottom,
@@ -312,9 +321,9 @@ const axes = computed<ChartAxes>(() => {
   const y = declared.y || uses('y') || !uses('y2')
   return {
     x: config('x', false),
-    y: y ? config('y', true) : null,
+    y: y ? config('y', !listsCategories('y')) : null,
     // grid lines go with y, or with y2 when it is alone
-    y2: declared.y2 || uses('y2') ? config('y2', !y) : null,
+    y2: declared.y2 || uses('y2') ? config('y2', !y && !listsCategories('y2')) : null,
   }
 })
 
@@ -353,6 +362,8 @@ function labelRoom(m: ChartModel): ChartModel {
   for (const s of m.series) {
     const p = s.input.props as { labels?: unknown; labelPosition?: string }
     if (!p.labels || !s.input.kind.labels || p.labelPosition === 'end') continue
+    // in cells: nothing past them
+    if (s.input.kind.categoryY) continue
     // in the bars (stacked ones by default): no room needed past them
     if (p.labelPosition === 'inside' || (s.stackEnds && s.input.kind.band && !p.labelPosition))
       continue
@@ -556,20 +567,45 @@ const legendEntries = computed(() => {
       dashed: false,
       off: slice.hidden,
       locked: last && !slice.hidden,
+      scale: undefined as string[] | undefined,
     }))
   }
-  if (!(props.legend ?? seriesParts.value.length > 1)) return []
+  // a heatmap's scale says what its colors mean, even alone
+  const scaled = seriesParts.value.some((part) => part.kind.categoryY)
+  if (!(props.legend ?? (seriesParts.value.length > 1 || scaled))) return []
   const last = seriesParts.value.filter((part) => !part.hidden.value).length === 1
-  return seriesParts.value.map((part, index) => ({
-    text: seriesName({ index, props: part.props }),
-    color: seriesColor(part.props, index),
-    kind: part.kind.type,
-    dashed: !!part.props.dashed,
-    off: part.hidden.value,
-    // the last one shown can't be turned off
-    locked: last && !part.hidden.value,
-  }))
+  return seriesParts.value.map((part, index) => {
+    const color = seriesColor(part.props, index)
+    const entry = {
+      text: seriesName({ index, props: part.props }),
+      color,
+      kind: part.kind.type,
+      dashed: !!part.props.dashed,
+      off: part.hidden.value,
+      // the last one shown can't be turned off
+      locked: last && !part.hidden.value,
+      /** A heatmap's scale: its colors, least to most. */
+      scale: undefined as string[] | undefined,
+    }
+    const s = part.kind.categoryY ? series.value.find((one) => one.index === index) : undefined
+    const range = s && heatRange(s)
+    if (s && range) {
+      // its scale, from least to most, and the values at its ends
+      const text = heatText(s)
+      const surface = colors.value.surface
+      entry.text = `${text(range[0])} – ${text(range[1])}`
+      entry.scale = [0, 0.5, 1].map((t) => heatColor(s.color, surface, t))
+    }
+    return entry
+  })
 })
+
+/** The legend's names for the layout: a heatmap's scale takes a wider swatch. */
+const legendNames = computed<LegendName[]>(() =>
+  legendEntries.value.map((entry) =>
+    entry.scale ? { text: entry.text, swatch: HEAT_SWATCH } : entry.text,
+  ),
+)
 
 /** Turns an entry's series (or slice) on or off; the last one shown stays on. */
 function toggle(index: number) {
@@ -805,7 +841,7 @@ const layout = computed(() => {
     height,
     locale: locale.value.name,
     measure,
-    legend: legendEntries.value.map((entry) => entry.text),
+    legend: legendNames.value,
     coarse: coarse.value,
     legendPlacement: legendPlacement.value,
     zoom: { x: xWindow.value, y: zoomAxes.value.y ? yWindow.value : null },
@@ -823,7 +859,7 @@ const pieLayout = computed(() => {
     width,
     height,
     measure,
-    legend: legendEntries.value.map((entry) => entry.text),
+    legend: legendNames.value,
     coarse: coarse.value,
     legendPlacement: legendPlacement.value,
     sideLabels: pieLabelsOutside.value ? pieSideWidths.value : undefined,
@@ -922,6 +958,7 @@ function labelText(s: ChartSeries, row: number): string | null {
     })
     return text == null || text === '' ? null : String(text)
   }
+  if (s.kind.categoryY) return heatText(s)(value)
   // a share, with a decimal as in the tooltip, unless the axis writes its own
   if (share !== undefined) {
     const own = declaredAxes.value[s.axis]?.format
@@ -1017,7 +1054,7 @@ const pieLabelsOutside = computed(() => {
     width,
     height,
     measure,
-    legend: legendEntries.value.map((entry) => entry.text),
+    legend: legendNames.value,
     coarse: coarse.value,
     legendPlacement: legendPlacement.value,
   }
@@ -1456,6 +1493,7 @@ function tipOf(a: Active | null): Tip | null {
     const y = s.y[a.row]!
     if (x !== x || y !== y) return null
     const [left, top] = view.point(x, s.top[a.row]!)
+    if (s.kind.categoryY) return heatTip(s, view, a.row, x, left, top)
     const items: ChartTooltipItem[] = [
       { name: axes.value.x.title ?? 'x', text: xText(x), value: m0x() ? x : undefined },
       {
@@ -1556,6 +1594,40 @@ function tipOf(a: Active | null): Tip | null {
     marks,
     band: crosshair && band ? across(at - room / 2, room) : undefined,
     line: crosshair && !band ? across(line, 1) : undefined,
+  }
+}
+
+/** A heatmap cell's tooltip: where it is (its x and row) as the title, its value in its color, the cell ringed. */
+function heatTip(
+  s: ChartSeries,
+  view: ChartView,
+  row: number,
+  x: number,
+  left: number,
+  top: number,
+): Tip {
+  const value = s.y[row]!
+  const range = heatRange(s)
+  const color = range ? heatColor(s.color, colors.value.surface, heatShare(value, range)) : s.color
+  const item: ChartTooltipItem = { name: s.name, text: heatText(s)(value), value, color }
+  item.row = rowOf(s.rows, row)
+  const across = view.band
+  const down = Math.abs(view.y.map(0) - view.y.map(1))
+  const [width, height] = view.horizontal ? [down, across] : [across, down]
+  // the ring reaches a little past the cell, over the gap around it
+  const ring = 1
+  return {
+    x: rawX(x),
+    title: `${xText(x)}${messages.value.itemSeparator}${yCategoryText(s.axis, s.top[row]!)}`,
+    items: [item],
+    anchor: [left + width / 2, top],
+    marks: [],
+    cell: {
+      x: left - width / 2 - ring,
+      y: top - height / 2 - ring,
+      width: width + ring * 2 - 1,
+      height: height + ring * 2 - 1,
+    },
   }
 }
 
@@ -2317,9 +2389,11 @@ function moveAlong(step: number): Target | null {
   const s =
     (a?.type === 'item' && series.value.find((x) => x.index === a.series)) || series.value[0]
   if (!s) return null
-  const order = pointsOf(s)
+  const mine = a?.type === 'item' && a.series === s.index
+  // a heatmap's cells: along its row
+  const order = s.kind.categoryY && mine ? pointsOf(s, s.top[a.row]) : pointsOf(s)
   if (!order.length) return null
-  const at = a?.type === 'item' && a.series === s.index ? order.indexOf(a.row) : -1
+  const at = mine ? order.indexOf(a.row) : -1
   const k = stepTo(at, step, order.length)
   return itemOf(s, order[k]!)
 }
@@ -2328,13 +2402,14 @@ function moveAlong(step: number): Target | null {
 function moveBetween(turn: number): Target | null | undefined {
   const a = active.value
   if (pie.value || trigger.value === 'axis') return undefined
+  const from = a?.type === 'item' ? series.value.find((x) => x.index === a.series) : undefined
+  if (from?.kind.categoryY && a?.type === 'item') return heatRow(from, a.row, turn)
   const list = series.value.filter((s) => pointsOf(s).length)
   if (!list.length) return null
   const at = a?.type === 'item' ? list.findIndex((s) => s.index === a.series) : -1
   const s = list[at < 0 ? 0 : (at + turn + list.length) % list.length]!
   const order = pointsOf(s)
   if (a?.type !== 'item') return itemOf(s, order[0]!)
-  const from = series.value.find((x) => x.index === a.series)
   const x = from ? from.x.values[a.row]! : 0
   let best = order[0]!
   for (const row of order)
@@ -2342,12 +2417,36 @@ function moveBetween(turn: number): Target | null | undefined {
   return itemOf(s, best)
 }
 
-/** The rows of `s` with a value, from the smallest x. */
-function pointsOf(s: ChartSeries): number[] {
+/** The rows of `s` with a value, from the smallest x; for a heatmap, only those in its row `place`. */
+function pointsOf(s: ChartSeries, place?: number): number[] {
   const order = sortedOrder(s.x.values)
   const out: number[] = []
-  for (const row of order) if (s.top[row] === s.top[row]) out.push(row)
+  for (const row of order)
+    if (s.top[row] === s.top[row] && (place === undefined || s.top[row] === place)) out.push(row)
   return out
+}
+
+/**
+ * The heatmap cell a row up or down from `row` (across, when horizontal),
+ * at the same x: `turn` 1 is up (right), as the keys go. Rows without a
+ * cell there are passed over; at the edge it stays.
+ */
+function heatRow(s: ChartSeries, row: number, turn: number): Target {
+  const view = viewOf(s)
+  const x = s.x.values[row]!
+  // which way the next category lies on screen
+  let step = turn
+  if (view) {
+    const [l0, t0] = view.point(x, 0)
+    const [l1, t1] = view.point(x, 1)
+    if ((props.horizontal ? l1 - l0 : t0 - t1) < 0) step = -turn
+  }
+  const n = model.value.yCategories[s.axis]?.length ?? 0
+  for (let place = s.top[row]! + step; place >= 0 && place < n; place += step) {
+    for (let i = 0; i < s.y.length; i++)
+      if (s.top[i] === place && s.x.values[i] === x && s.y[i] === s.y[i]) return itemOf(s, i)
+  }
+  return itemOf(s, row)
 }
 
 function itemOf(s: ChartSeries, row: number): Target {
@@ -2743,7 +2842,8 @@ function paint(painter: Painter, dpr: number, t: number, entering: number, still
   const c = colors.value
   const right = plot.x + plot.width
   const bottom = plot.y + plot.height
-  const xLine = !axes.value.x.hidden
+  // a heatmap's cells end the plot themselves: no line under them
+  const xLine = !axes.value.x.hidden && !series.value.some((s) => s.kind.categoryY)
   const horizontal = !!props.horizontal
 
   // grid lines, under everything
@@ -2859,7 +2959,9 @@ function paint(painter: Painter, dpr: number, t: number, entering: number, still
     }
   }
   const primary = l.y.y ?? l.y.y2
-  if (primary && primary.scale.kind === 'linear') {
+  // categories along it (a heatmap's) have no 0
+  const listed = model.value.yCategories[l.y.y ? 'y' : 'y2']
+  if (primary && primary.scale.kind === 'linear' && !listed) {
     const [lo, hi] = primary.scale.domain
     if (lo < 0 && hi > 0) {
       const at = crisp(primary.scale.map(0), dpr)
@@ -2894,6 +2996,21 @@ function fadeOn(main: CanvasRenderingContext2D, width: number, height: number, d
 
 /* what is read out */
 
+/** A heatmap's values, as its `format` writes them. */
+function heatText(s: Pick<ChartSeries, 'props'>): (value: number) => string {
+  return (
+    (s.props.format as ((value: number) => string) | undefined) ??
+    numberFormatFull(locale.value.name)
+  )
+}
+
+/** The category down the value axis at `place` (a heatmap's row), as the axis writes it. */
+function yCategoryText(axis: ChartValueAxis, place: number): string {
+  const label = model.value.yCategories[axis]?.[place] ?? ''
+  const own = axes.value[axis]?.format
+  return own ? own(label) : label
+}
+
 /** Values as their axis shows them. */
 function valueText(axis: ChartValueAxis): (value: number) => string {
   return axes.value[axis]?.format ?? numberFormatFull(locale.value.name)
@@ -2905,6 +3022,7 @@ function valueText(axis: ChartValueAxis): (value: number) => string {
  */
 function seriesText(s: ChartSeries, row: number): string {
   const y = s.y[row]!
+  if (s.kind.categoryY) return heatText(s)(y)
   if (s.base && !s.stackEnds) {
     const text = valueText(s.axis)
     return format(messages.value.band, { from: text(s.base[row]!), to: text(y) })
@@ -2970,6 +3088,7 @@ const label = computed(() => {
   }
   const count = numberFormatFull(name)
   const parts = m0.series.map((s) => {
+    if (s.input.kind.categoryY) return heatSummary(s)
     let range = extent(s.y)
     // a band reaches down to its bottom
     const low = s.base && !s.stackEnds ? extent(s.base) : null
@@ -3000,6 +3119,26 @@ const label = computed(() => {
   return withKeys(format(m.summary, { chart, series: parts.join(m.listSeparator) }))
 })
 
+/** What is read out for a heatmap: its size, its range, and where its largest value is. */
+function heatSummary(s: ModelSeries): string {
+  const m = messages.value
+  const count = numberFormatFull(locale.value.name)
+  let top = -1
+  for (let i = 0; i < s.y.length; i++)
+    if (s.y[i] === s.y[i] && (top < 0 || s.y[i]! > s.y[top]!)) top = i
+  const range = extent(s.y)
+  if (!range || top < 0) return format(m.seriesEmpty, { name: s.name })
+  const text = heatText(s.input)
+  return format(m.heatmap, {
+    name: s.name,
+    columns: count(allX([s.x.values]).length),
+    rows: count(model.value.yCategories[s.axis]?.length ?? 0),
+    min: text(range[0]),
+    max: text(range[1]),
+    at: `${xText(s.x.values[top]!)}${m.itemSeparator}${yCategoryText(s.axis, s.top[top]!)}`,
+  })
+}
+
 /* the table view: the data as rows and columns, in the chart's place */
 
 /** The most rows the table shows: more would take long to lay out, and to read. */
@@ -3026,6 +3165,23 @@ const tableCells = computed<{ head: string[]; rows: string[][] }>(() => {
   }
   const list = series.value
   const xHead = axes.value.x.title ?? (typeof props.x === 'string' ? props.x : '')
+  // a heatmap as its grid: a row per category down, a column per x
+  const heat = list.find((s) => s.kind.categoryY)
+  if (heat) {
+    const xs = allX([heat.x.values])
+    const down = model.value.yCategories[heat.axis] ?? []
+    const cells = down.map(() => xs.map(() => ''))
+    const text = heatText(heat)
+    for (let i = 0; i < heat.y.length; i++) {
+      const at = xs.indexOf(heat.x.values[i]!)
+      const row = cells[heat.top[i]!]
+      if (at >= 0 && row && heat.y[i] === heat.y[i]) row[at] = text(heat.y[i]!)
+    }
+    return {
+      head: [axes.value[heat.axis]?.title ?? '', ...xs.map((x) => xText(x))],
+      rows: down.map((_, k) => [yCategoryText(heat.axis, k), ...cells[k]!]),
+    }
+  }
   // points on their own (a scatter's): one row each, with its series
   if (list.some((s) => s.kind.tooltip === 'item')) {
     const rows: string[][] = []
@@ -3380,6 +3536,24 @@ function swatch(kind: string, dashed: boolean, left: number, top: number, color:
   return box(left, top + 7, 12, 2, 1)
 }
 
+/** A heatmap's scale in the legend, as the page draws it. */
+function scaleSwatch(
+  svg: SvgPainter,
+  stops: string[],
+  left: number,
+  top: number,
+  width: number,
+): string {
+  const id = svg.id('scale')
+  const marks = stops
+    .map(
+      (stop, i) =>
+        `<stop offset="${num(i / Math.max(1, stops.length - 1))}"${paintAttribute('stop-color', stop)}/>`,
+    )
+    .join('')
+  return `<defs><linearGradient id="${id}">${marks}</linearGradient></defs><rect x="${num(left)}" y="${num(top + 4)}" width="${width}" height="8" rx="2" fill="url(#${id})"/>`
+}
+
 /** The texts in an element of the chart (a donut's center), where the page shows them. */
 function textsIn(el: Element, origin: DOMRect, color: (css: string) => string): string {
   const out: string[] = []
@@ -3572,10 +3746,13 @@ function drawSvg(
   const box = l?.legendBox
   for (const item of legend.value) {
     if (box && item.top + 16 > box.y + box.height + 0.5) continue
-    const mark = swatch(item.kind, item.dashed, item.left, item.top, color(item.color))
+    const room = (item.swatch ?? 12) + 6
+    const mark = item.scale
+      ? scaleSwatch(svg, item.scale, item.left, item.top, item.swatch ?? HEAT_SWATCH)
+      : swatch(item.kind, item.dashed, item.left, item.top, color(item.color))
     texts.push(item.off ? `<g opacity="0.32">${mark}</g>` : mark)
-    const text = item.clipped ? fitText(item.text, item.width - 18) : item.text
-    texts.push(svgText(text, item.left + 18, item.top, { color: item.off ? off : on, size: 12 }))
+    const text = item.clipped ? fitText(item.text, item.width - room) : item.text
+    texts.push(svgText(text, item.left + room, item.top, { color: item.off ? off : on, size: 12 }))
   }
   svg.raw(texts.join(''))
 }

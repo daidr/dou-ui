@@ -248,6 +248,24 @@ export interface ChartScatterProps extends ChartSeriesProps {
   radius?: number
 }
 
+export interface ChartHeatmapProps extends Omit<ChartSeriesProps, 'color'> {
+  /** The category of each row down the side (a key or a function): one row of cells each, the first at the top. */
+  y: ChartAccessor
+  /** The value of each cell, a key or a function: the larger, the stronger its color. */
+  value: ChartAccessor
+  /**
+   * The color the scale runs to, from the chart's surface: any CSS color.
+   * Defaults to the palette's, as other series.
+   */
+  color?: string
+  /** The values the scale runs between; by default the smallest and largest. Values past it take its ends. */
+  range?: [number, number]
+  /** How values are written, in the tooltip, the labels and the scale; by default as numbers. */
+  format?: (value: number) => string
+  /** Writes each cell's value in it, where it fits; a function writes its own text. */
+  labels?: boolean | ChartLabelFormat
+}
+
 export interface ChartPieProps {
   /** The value of each slice: a key of the row or a function of it. Values of 0 or less are left out. */
   value: ChartAccessor

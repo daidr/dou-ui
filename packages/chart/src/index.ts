@@ -4,6 +4,7 @@ import Axis from './components/axis.vue'
 import Bar from './components/bar.vue'
 import Line from './components/line.vue'
 import Pie from './components/pie.vue'
+import Heatmap from './components/heatmap.vue'
 import Scatter from './components/scatter.vue'
 import Tooltip from './components/tooltip.vue'
 import Zoom from './components/zoom.vue'
@@ -19,6 +20,7 @@ export const DouChartArea = withInstall(Area)
 export const DouChartBar = withInstall(Bar)
 export const DouChartScatter = withInstall(Scatter)
 export const DouChartPie = withInstall(Pie)
+export const DouChartHeatmap = withInstall(Heatmap)
 export const DouChartTooltip = withInstall(Tooltip)
 export const DouChartZoom = withInstall(Zoom)
 export const DouChartBrush = withInstall(Brush)
@@ -39,6 +41,7 @@ export type {
   ChartBrushProps,
   ChartExportOptions,
   ChartExpose,
+  ChartHeatmapProps,
   ChartImageOptions,
   ChartInterval,
   ChartLineProps,
@@ -90,6 +93,7 @@ declare module 'vue' {
     DouChartArea: typeof DouChartArea
     DouChartBar: typeof DouChartBar
     DouChartScatter: typeof DouChartScatter
+    DouChartHeatmap: typeof DouChartHeatmap
     DouChartPie: typeof DouChartPie
     DouChartTooltip: typeof DouChartTooltip
     DouChartZoom: typeof DouChartZoom

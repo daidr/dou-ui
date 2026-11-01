@@ -8,6 +8,11 @@ export interface ChartMessages {
   series: string
   /** Read out for a series without points: `{name}`. */
   seriesEmpty: string
+  /**
+   * Read out for a heatmap: `{name}`, `{columns}` × `{rows}` cells, the
+   * smallest `{min}` and largest `{max}` value and where it is, `{at}`.
+   */
+  heatmap: string
   /** Read out for a slice of a pie: `{label}`, `{value}`, `{share}` (a percentage). */
   slice: string
   /** Read out for a pie with a `name`: `{name}`, `{slices}`. */
@@ -63,6 +68,7 @@ const zhCN: ChartMessages = {
   chart: '图表',
   series: '{name}：{count} 个数据点，最小 {min}，最大 {max}',
   seriesEmpty: '{name}：没有数据',
+  heatmap: '{name}：{columns} × {rows} 格，最小 {min}，最大 {max}（{at}）',
   slice: '{label} {value}（{share}）',
   pie: '{name}：{slices}',
   listSeparator: '；',
@@ -94,6 +100,7 @@ const zhTW: ChartMessages = {
   chart: '圖表',
   series: '{name}：{count} 個資料點，最小 {min}，最大 {max}',
   seriesEmpty: '{name}：沒有資料',
+  heatmap: '{name}：{columns} × {rows} 格，最小 {min}，最大 {max}（{at}）',
   slice: '{label} {value}（{share}）',
   pie: '{name}：{slices}',
   listSeparator: '；',
@@ -125,6 +132,7 @@ const en: ChartMessages = {
   chart: 'Chart',
   series: '{name}: {count} points, from {min} to {max}',
   seriesEmpty: '{name}: no data',
+  heatmap: '{name}: {columns} × {rows} cells, from {min} to {max} ({at})',
   slice: '{label} {value} ({share})',
   pie: '{name}: {slices}',
   listSeparator: '; ',

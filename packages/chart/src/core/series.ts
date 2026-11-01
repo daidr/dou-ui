@@ -107,6 +107,13 @@ export interface ChartSeriesKind<P = Record<string, unknown>> {
   type: string
   /** Whether the value axis must reach 0 (areas and bars grow from it). */
   zero?: boolean
+  /**
+   * Whether the series places its rows by category on the value axis too
+   * (a heatmap): `y` names a category, `value` gives each cell's value.
+   * The value axis then lists the categories, the first at the top; `y`
+   * holds the values and `top` the categories' places.
+   */
+  categoryY?: boolean
   /** Whether series of this kind can stack (`stack` prop). */
   stackable?: boolean
   /**

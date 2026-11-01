@@ -348,6 +348,13 @@
       border-radius: 50%;
     }
 
+    /* a heatmap's scale: its colors from least to most */
+    .is-heatmap > & {
+      height: 8px;
+      border-radius: 2px;
+      box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--dou-color-text) 8%, transparent);
+    }
+
     .is-dashed > & {
       background: repeating-linear-gradient(to right, currentColor 0 4px, transparent 4px 7px);
     }
@@ -464,6 +471,7 @@
 
   .dou-chart__crosshair,
   .dou-chart__band,
+  .dou-chart__cell,
   .dou-chart__mark,
   .dou-chart__tooltip {
     position: absolute;
@@ -477,6 +485,14 @@
 
   .dou-chart__band {
     background-color: color-mix(in oklab, var(--dou-color-text) 5%, transparent);
+  }
+
+  /* a heatmap's cell: ringed in ink, with the surface between ring and cell */
+  .dou-chart__cell {
+    box-sizing: border-box;
+    border: 2px solid var(--dou-color-text);
+    border-radius: 4px;
+    box-shadow: inset 0 0 0 1px var(--dou-chart-surface);
   }
 
   /* a dot on a line's point, ringed with the surface so it stands off the line */
@@ -552,6 +568,8 @@
     height: 8px;
     border-radius: 2px;
     background-color: currentColor;
+    /* a hairline, so a color close to the tooltip's own (a heatmap's least) still shows */
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--dou-color-text) 8%, transparent);
   }
 
   /* untrimmed, so cutting a long name short doesn't cut the tops and tails of the letters */

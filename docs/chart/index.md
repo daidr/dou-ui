@@ -132,6 +132,18 @@ app.use(DouChart).use(DouChartAxis).use(DouChartLine).use(DouChartBar)
 
 <DocDemo src="chart/bubble" />
 
+## 热力图
+
+`DouChartHeatmap` 把数据画成一格一格的矩阵：图表的 `x` 决定每格所在的列，`y` 决定所在的行，`value` 是格子的值。值越大颜色越深，颜色从背景色过渡到系列的颜色，深浅的变化在视觉上是均匀的。纵轴按数据中出现的顺序列出各行，第一行在最上面。
+
+<DocDemo src="chart/heatmap" />
+
+热力图默认显示图例，图例画出色阶和最小、最大值。颜色默认在数据的最小值和最大值之间变化，`range` 可以指定范围，超出范围的值按两端的颜色画，几张热力图用同一个范围时颜色可以互相比较。`format` 决定提示框、数据标签、读屏和数据表里值的写法。`labels` 在每格中间写上值，文字颜色按格子的深浅自动选择，放不下的格子不写。
+
+<DocDemo src="chart/heatmap-labels" />
+
+用键盘浏览时，左右方向键沿着同一行移动，上下方向键在同一列里换行。读屏会读出格子数、值的范围和最大值所在的格子；数据表按行列排成和图上一样的矩阵。
+
 ## 饼图
 
 `DouChartPie` 画一个饼图，`value` 是每一块的值，`label` 是每一块的名称，不写时使用图表的 `x`。各块按数据的顺序从 12 点钟方向顺时针排列，小于等于 0 的值不画。饼图没有坐标轴，下方的图例列出每一块。
@@ -539,6 +551,19 @@ SVG 和画布用同一套绘制代码，两者画出的图形一致。导出的�
 | `size-name` | 提示框里大小这一项的名称                               | `string`                                                | `size` 的字段名    |
 | `label`     | 每个点的名称，用作提示框的标题                         | `string \| (row, index: number) => unknown`             | 系列名称           |
 | `radius`    | 圆点半径，单位 px；有 `size` 时是最大气泡的半径        | `number`                                                | `3.5`，气泡为 `24` |
+
+### Heatmap Props
+
+`name`、`data`、`x`、`tone`、`axis`、`v-model:hidden` 和折线图相同。
+
+| 名称     | 说明                                               | 类型                                                                | 默认值             |
+| -------- | -------------------------------------------------- | ------------------------------------------------------------------- | ------------------ |
+| `y`      | 每格所在的行：字段名，或从行取值的函数             | `string \| (row, index: number) => unknown`                         | —                  |
+| `value`  | 每格的值                                           | `string \| (row, index: number) => unknown`                         | —                  |
+| `color`  | 色阶最深一端的颜色，任意 CSS 颜色                  | `string`                                                            | 色板的下一个色     |
+| `range`  | 色阶对应的值的范围                                 | `[number, number]`                                                  | 数据的最小、最大值 |
+| `format` | 值的写法，用于提示框、数据标签、图例、读屏和数据表 | `(value: number) => string`                                         | 按语言写数字       |
+| `labels` | 在每格中间写上值，写法和折线图相同                 | `boolean \| (label: ChartDataLabel) => string \| null \| undefined` | `false`            |
 
 ### Pie Props
 

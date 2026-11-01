@@ -7,6 +7,7 @@ export type GraphNodeStatus = 'wait' | 'process' | 'finish' | 'error' | 'blocked
 export type GraphNodeKind = 'task' | 'milestone'
 export type GraphNodeShape = 'pill' | 'card'
 export type NodeGraphSize = Size
+export type NodeGraphDirection = 'horizontal' | 'vertical'
 
 export interface GraphNode {
   id: string
@@ -49,11 +50,18 @@ export interface NodeGraphProps {
   selected?: string | string[] | null
   selectable?: boolean | 'multiple'
   size?: NodeGraphSize
-  /** `column` widens nodes to the widest in their column; a number fixes every node's width. */
+  /** Which way edges run: `horizontal` left to right, `vertical` top to bottom. */
+  direction?: NodeGraphDirection
+  /**
+   * `column` widens nodes to the widest in their rank (a column left to
+   * right, a row top to bottom); a number fixes every node's width.
+   */
   nodeWidth?: 'column' | 'auto' | number
   /** The widest a node grows to before its label is cut off, in px. */
   maxNodeWidth?: number
+  /** Horizontal space between nodes: between ranks left to right, within a rank top to bottom. */
   columnGap?: number
+  /** Vertical space between nodes: within a rank left to right, between ranks top to bottom. */
   rowGap?: number
   highlight?: NodeGraphHighlight
   /** Show `blocked` for nodes in progress while a predecessor is not finished. */

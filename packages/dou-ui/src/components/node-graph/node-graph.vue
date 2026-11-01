@@ -13,6 +13,7 @@ import type {
   NodeGraphExpose,
   NodeGraphProps,
   NodeGraphSlots,
+  GraphEdge,
   GraphNode,
   GraphNodeSlotProps,
   GraphNodeStatus,
@@ -22,6 +23,7 @@ defineOptions({ name: 'DouNodeGraph' })
 
 const props = withDefaults(defineProps<NodeGraphProps>(), {
   selectable: true,
+  direction: 'horizontal',
   nodeWidth: 'column',
   maxNodeWidth: 320,
   highlight: 'hover',
@@ -130,34 +132,36 @@ function box(el: HTMLElement) {
 function measure() {
   if (typeof window === 'undefined') return
   const column = rank(dag.value.order, dag.value.edges)
-  const natural = new Map<string, number>()
+  // Every write, then every read: one layout for all nodes, not one each.
+  const els: [string, HTMLElement, string, string][] = []
   for (const node of props.nodes) {
     const el = nodeEls.get(node.id)
-    if (!el) continue
-    const { width: w, height: h } = el.style
-    el.style.width = typeof props.nodeWidth === 'number' ? `${props.nodeWidth}px` : 'max-content'
-    el.style.height = ''
-    natural.set(node.id, Math.min(box(el).width, props.maxNodeWidth))
-    Object.assign(el.style, { width: w, height: h })
+    if (el) els.push([node.id, el, el.style.width, el.style.height])
   }
+  const free = typeof props.nodeWidth === 'number' ? `${props.nodeWidth}px` : 'max-content'
+  for (const [, el] of els) Object.assign(el.style, { width: free, height: '' })
+  const natural = new Map<string, number>()
+  for (const [id, el] of els) natural.set(id, Math.min(box(el).width, props.maxNodeWidth))
   const columnWidth = new Map<number, number>()
   for (const [id, width] of natural) {
     const c = column.get(id) ?? 0
     columnWidth.set(c, Math.max(columnWidth.get(c) ?? 0, width))
   }
-  const next = new Map<string, { width: number; height: number }>()
-  for (const node of props.nodes) {
-    const el = nodeEls.get(node.id)
-    const own = natural.get(node.id)
+  const widths = new Map<string, number>()
+  for (const [id, el] of els) {
+    const own = natural.get(id)
     // Not laid out, e.g. hidden or without a DOM: keep the estimate.
-    if (!el || !own) continue
-    const width = props.nodeWidth === 'column' ? columnWidth.get(column.get(node.id) ?? 0)! : own
-    const { width: w, height: h } = el.style
+    if (!own) continue
+    const width = props.nodeWidth === 'column' ? columnWidth.get(column.get(id) ?? 0)! : own
+    widths.set(id, width)
     el.style.width = `${width}px`
-    el.style.height = ''
-    next.set(node.id, { width, height: box(el).height })
-    Object.assign(el.style, { width: w, height: h })
   }
+  const next = new Map<string, { width: number; height: number }>()
+  for (const [id, el] of els) {
+    const width = widths.get(id)
+    if (width) next.set(id, { width, height: box(el).height })
+  }
+  for (const [, el, width, height] of els) Object.assign(el.style, { width, height })
   const prev = sizes.value
   const same =
     prev.size === next.size &&
@@ -167,24 +171,42 @@ function measure() {
   if (!same) sizes.value = next
 }
 
-const layout = computed(() =>
-  layoutGraph(
-    props.nodes.map((node) => ({
-      id: node.id,
-      ...(sizes.value.get(node.id) ?? estimate(node)),
-      // Edges meet a card at its title line, level with a capsule's middle.
-      anchor: metric.value.height / 2,
-    })),
+const vertical = computed(() => props.direction === 'vertical')
+
+const layout = computed(() => {
+  const nodes = props.nodes.map((node) => ({
+    id: node.id,
+    ...(sizes.value.get(node.id) ?? estimate(node)),
+  }))
+  // The gaps keep their sides on screen: between ranks is a column gap
+  // left to right and a row gap top to bottom.
+  const rankGap = vertical.value ? props.rowGap : props.columnGap
+  const laneGap = (vertical.value ? props.columnGap : props.rowGap) ?? metric.value.rowGap
+  if (vertical.value)
+    // Every node is centred on a lane as wide as the widest node, half a
+    // lane apart: fans stay symmetric and no edge wobbles by a few px.
+    return layoutGraph(nodes, dag.value.edges, {
+      direction: 'vertical',
+      columnGap: rankGap ?? metric.value.columnGap,
+      rowGap: laneGap,
+      grid: (Math.max(0, ...nodes.map((n) => n.width)) + laneGap) / 2,
+      // Along the flow nodes keep their height; the edge leaves a capsule
+      // in a row of cards from its own bottom.
+      equalWidth: false,
+    })
+  return layoutGraph(
+    // Edges meet a card at its title line, level with a capsule's middle.
+    nodes.map((node) => ({ ...node, anchor: metric.value.height / 2 })),
     dag.value.edges,
     {
-      columnGap: props.columnGap ?? metric.value.columnGap,
-      rowGap: props.rowGap ?? metric.value.rowGap,
+      columnGap: rankGap ?? metric.value.columnGap,
+      rowGap: laneGap,
       // Half the pitch of one-line nodes.
-      grid: (metric.value.height + (props.rowGap ?? metric.value.rowGap)) / 2,
+      grid: (metric.value.height + laneGap) / 2,
       equalWidth: props.nodeWidth === 'column',
     },
-  ),
-)
+  )
+})
 
 const contentWidth = computed(() => layout.value.width + PAD * 2)
 const contentHeight = computed(() => layout.value.height + PAD * 2)
@@ -209,7 +231,14 @@ function setNodeRef(id: string, el: unknown) {
 }
 
 watch(
-  () => [props.nodes, props.edges, size.value, props.nodeWidth, props.maxNodeWidth],
+  () => [
+    props.nodes,
+    props.edges,
+    size.value,
+    props.nodeWidth,
+    props.maxNodeWidth,
+    props.direction,
+  ],
   () => nextTick(measure),
   { deep: true },
 )
@@ -367,11 +396,16 @@ function onPointerUp(event: PointerEvent) {
   dragging.value = false
 }
 
+const canvasRef = ref<HTMLElement | null>(null)
 const canvasStyle = computed<CSSProperties>(() => ({
   width: `${contentWidth.value}px`,
   height: `${contentHeight.value}px`,
-  transform: `translate(${x.value}px, ${y.value}px) scale(${zoom.value})`,
 }))
+// Set straight on the element: a frame of panning re-renders no node.
+const transform = computed(() => `translate(${x.value}px, ${y.value}px) scale(${zoom.value})`)
+watch([canvasRef, transform], ([el, value]) => el && (el.style.transform = value), {
+  flush: 'sync',
+})
 // Leave the page's own swipe alone along an axis the graph does not pan.
 const touchAction = computed(() => {
   if (props.zoomable || (canPanX.value && canPanY.value)) return 'none'
@@ -528,15 +562,17 @@ const tabbable = computed(() => {
   return first ?? layout.value.columns[0]?.[0] ?? null
 })
 
+/** The middle of a node across the flow. */
+const across = (n: { x: number; y: number; width: number; height: number }) =>
+  vertical.value ? n.x + n.width / 2 : n.y + n.height / 2
+
 function nearest(ids: string[], from: string) {
   const nodes = layout.value.nodes
-  const origin = nodes.get(from)!
-  const centre = origin.y + origin.height / 2
+  const origin = across(nodes.get(from)!)
   let best: string | undefined
   let bestDistance = Infinity
   for (const id of ids) {
-    const node = nodes.get(id)!
-    const d = Math.abs(node.y + node.height / 2 - centre)
+    const d = Math.abs(across(nodes.get(id)!) - origin)
     if (d < bestDistance) [best, bestDistance] = [id, d]
   }
   return best
@@ -546,18 +582,22 @@ function onKeydown(node: GraphNode, event: KeyboardEvent) {
   const placed = layout.value.nodes.get(node.id)!
   const column = layout.value.columns[placed.column]!
   const index = column.indexOf(node.id)
+  // Along the flow to the next or previous node; across it within the rank.
+  const [next, prev, after, before] = vertical.value
+    ? ['ArrowDown', 'ArrowUp', 'ArrowRight', 'ArrowLeft']
+    : ['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp']
   let target: string | undefined
   switch (event.key) {
-    case 'ArrowRight':
+    case next:
       target = nearest(succs.value.get(node.id)!, node.id)
       break
-    case 'ArrowLeft':
+    case prev:
       target = nearest(preds.value.get(node.id)!, node.id)
       break
-    case 'ArrowDown':
+    case after:
       target = column[index + 1]
       break
-    case 'ArrowUp':
+    case before:
       target = column[index - 1]
       break
     case 'Enter':
@@ -629,16 +669,25 @@ function nodeClasses(node: GraphNode) {
 
 const progressOf = (node: GraphNode) => Math.min(100, Math.max(0, Number(node.progress) || 0))
 
+const edgeStatus = computed(() => {
+  const map = new Map<string, GraphEdge['status']>()
+  for (const e of props.edges) {
+    const key = `${e.from}\u0000${e.to}`
+    if (!map.has(key)) map.set(key, e.status)
+  }
+  return map
+})
+
 const edges = computed(() =>
   layout.value.edges.map((edge, i) => {
-    const source = props.edges.find((e) => e.from === edge.from && e.to === edge.to)
+    const status = edgeStatus.value.get(`${edge.from}\u0000${edge.to}`)
     return {
       ...edge,
       key: `${edge.from}->${edge.to}-${i}`,
       classes: [
         ns.e('edge'),
-        ns.is('active', source?.status === 'active' || edgeInChain(edge.from, edge.to)),
-        ns.is('muted', source?.status === 'muted'),
+        ns.is('active', status === 'active' || edgeInChain(edge.from, edge.to)),
+        ns.is('muted', status === 'muted'),
         ns.is('dimmed', !!chain.value && !edgeInChain(edge.from, edge.to)),
       ],
     }
@@ -649,6 +698,7 @@ const hasToolbar = computed(() => props.zoomable || props.legend || !!slots.tool
 const classes = computed(() => [
   ns.b(),
   ns.m(size.value),
+  ns.is('vertical', vertical.value),
   ns.is('pannable', canPanX.value || canPanY.value),
   ns.is('dragging', dragging.value),
   ns.is('highlighting', !!chain.value),
@@ -671,7 +721,7 @@ defineExpose<NodeGraphExpose>({ scrollToNode, fit, zoomTo, resetView, relayout: 
     @pointerup="onPointerUp"
     @pointercancel="onPointerUp"
   >
-    <div :class="ns.e('canvas')" :style="canvasStyle">
+    <div ref="canvasRef" :class="ns.e('canvas')" :style="canvasStyle">
       <svg :class="ns.e('edges')" :width="contentWidth" :height="contentHeight" aria-hidden="true">
         <g :transform="`translate(${PAD} ${PAD})`">
           <path v-for="edge in edges" :key="edge.key" :class="edge.classes" :d="edge.path" />

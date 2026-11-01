@@ -132,6 +132,27 @@ describe('DouNodeGraph', () => {
     wrapper.unmount()
   })
 
+  it('flows top to bottom with the arrow keys turned', async () => {
+    const wrapper = mount(DouNodeGraph, {
+      props: { nodes, edges, direction: 'vertical' },
+      attachTo: document.body,
+    })
+    expect(wrapper.classes()).toContain('is-vertical')
+    const top = (label: string) =>
+      parseFloat((find(wrapper, label).element as HTMLElement).style.top)
+    expect(top('设计')).toBeGreaterThan(top('需求'))
+    expect(top('设计')).toBe(top('开发'))
+
+    await find(wrapper, '需求').trigger('keydown', { key: 'ArrowDown' })
+    const focused = document.activeElement as HTMLElement
+    expect(['设计', '开发']).toContain(focused.textContent!.trim())
+    await (
+      focused.textContent!.includes('设计') ? find(wrapper, '设计') : find(wrapper, '开发')
+    ).trigger('keydown', { key: 'ArrowUp' })
+    expect(document.activeElement!.textContent).toContain('需求')
+    wrapper.unmount()
+  })
+
   it('fills the slots', () => {
     const wrapper = mount(DouNodeGraph, {
       props: { nodes, edges },

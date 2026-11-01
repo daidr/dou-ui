@@ -1,5 +1,8 @@
 /**
- * Layered layout for small directed acyclic graphs, flowing left to right.
+ * Layered layout for small directed acyclic graphs, flowing left to right,
+ * or top to bottom with `direction: 'vertical'`: then the graph is laid out
+ * as a horizontal one with x and y swapped, so all below reads "columns"
+ * for ranks and "rows" for the lanes across them.
  *
  * 1. Columns: each node sits one column after its furthest predecessor.
  *    Sources move right to just before their nearest successor.
@@ -21,8 +24,9 @@ export interface LayoutNode {
   width: number
   height: number
   /**
-   * Where edges meet the node and rows line up, from its top edge. Half
-   * the height by default; a tall node passes the middle of its first line.
+   * Where edges meet the node and rows line up, from its top edge (its
+   * left edge when vertical). Half the height (width) by default; a tall
+   * node passes the middle of its first line.
    */
   anchor?: number
 }
@@ -33,13 +37,15 @@ export interface LayoutEdge {
 }
 
 export interface LayoutOptions {
-  /** Horizontal space between columns. */
+  /** `horizontal` flows left to right, `vertical` top to bottom. */
+  direction?: 'horizontal' | 'vertical'
+  /** Space between columns, along the flow. */
   columnGap: number
-  /** Vertical space between nodes in a column. */
+  /** Space between nodes in a column, across the flow. */
   rowGap: number
-  /** Vertical space between edges passing through a column. */
+  /** Space between edges passing through a column. */
   edgeGap?: number
-  /** Widen every node to the widest one in its column. */
+  /** Stretch every node along the flow to the longest one in its column. */
   equalWidth?: boolean
   /**
    * The row grid every anchor snaps to, in px. Half the pitch of a
@@ -61,7 +67,10 @@ export interface PlacedNode {
 export interface PlacedEdge {
   from: string
   to: string
-  /** The SVG path, from the right edge of `from` to the left edge of `to`. */
+  /**
+   * The SVG path, from the right edge of `from` to the left edge of `to`
+   * (bottom to top when vertical).
+   */
   path: string
 }
 
@@ -265,8 +274,12 @@ export function layoutGraph(
   options: LayoutOptions,
 ): GraphLayout {
   const { columnGap, rowGap, edgeGap = 8, equalWidth = true } = options
+  const vertical = options.direction === 'vertical'
   const grid = options.grid ?? (rowGap + 32) / 2
-  const byId = new Map(nodes.map((n) => [n.id, n]))
+  // Below, `width` runs along the flow and `height` across it.
+  const byId = new Map(
+    nodes.map((n) => [n.id, vertical ? { ...n, width: n.height, height: n.width } : n]),
+  )
   const ids = [...byId.keys()]
   const dag = acyclic(ids, edges)
   const column = rank(dag.order, dag.edges)
@@ -358,50 +371,63 @@ export function layoutGraph(
     for (const item of layer) {
       if (item.edge >= 0) continue
       const node = byId.get(item.id)!
+      const along = { x: left[c]!, width: equalWidth ? widths[c]! : node.width }
+      const across = { y: item.y - item.anchor - top, height: node.height }
       placed.set(item.id, {
         id: item.id,
         column: c,
-        x: left[c]!,
-        y: item.y - item.anchor - top,
-        width: equalWidth ? widths[c]! : node.width,
-        height: node.height,
+        ...(vertical
+          ? { x: across.y, y: along.x, width: across.height, height: along.width }
+          : { ...along, ...across }),
       })
     }
   })
 
+  // A placed node in flow coordinates: x along, y across.
+  const flat = (id: string) => {
+    const node = placed.get(id)!
+    return vertical ? { x: node.y, y: node.x, width: node.height } : node
+  }
+  // A point in flow coordinates (x along, y across) as SVG path numbers.
+  const at = (x: number, y: number) => (vertical ? `${y} ${x}` : `${x} ${y}`)
   const anchors = new Map([...items.values()].map((item) => [item.id, item.anchor]))
   const placedEdges = dag.edges.map((edge, e) => {
     const chain = chains[e]!
-    const from = placed.get(edge.from)!
-    const to = placed.get(edge.to)!
+    const from = flat(edge.from)
+    const to = flat(edge.to)
     // Points in order: leave `from`, cross every waypoint column, enter `to`.
-    const points: [number, number][] = [[from.x + from.width, from.y + anchors.get(from.id)!]]
+    const points: [number, number][] = [[from.x + from.width, from.y + anchors.get(edge.from)!]]
     for (const waypoint of chain.slice(1, -1)) {
       const c = Number(waypoint.id.split(':')[1])
       points.push([left[c]!, waypoint.y - top], [left[c]! + widths[c]!, waypoint.y - top])
     }
-    points.push([to.x, to.y + anchors.get(to.id)!])
-    let path = `M${points[0]![0]} ${points[0]![1]}`
+    points.push([to.x, to.y + anchors.get(edge.to)!])
+    let path = `M${at(...points[0]!)}`
     for (let i = 1; i < points.length; i++) {
       const [x1, y1] = points[i - 1]!
       const [x2, y2] = points[i]!
       // Odd steps cross a gap between columns; even ones run along a column.
-      if (i % 2 === 0 || y1 === y2) path += `H${x2}`
+      if (i % 2 === 0 || y1 === y2) path += `${vertical ? 'V' : 'H'}${x2}`
       else {
         const mid = (x2 - x1) / 2
-        path += `C${x1 + mid} ${y1} ${x2 - mid} ${y2} ${x2} ${y2}`
+        path += `C${at(x1 + mid, y1)} ${at(x2 - mid, y2)} ${at(x2, y2)}`
       }
     }
     return { from: edge.from, to: edge.to, path }
   })
 
-  const width = widths.length ? left.at(-1)! + widths.at(-1)! : 0
+  let length = widths.length ? left.at(-1)! + widths.at(-1)! : 0
+  if (!equalWidth)
+    length = Math.max(
+      length,
+      ...[...placed.values()].map((n) => (vertical ? n.y + n.height : n.x + n.width)),
+    )
   return {
     nodes: placed,
     edges: placedEdges,
     dropped: dag.dropped,
     columns: ordered.map((layer) => layer.filter((item) => item.edge < 0).map((item) => item.id)),
-    width: equalWidth ? width : Math.max(width, ...[...placed.values()].map((n) => n.x + n.width)),
-    height: bottom - top,
+    width: vertical ? bottom - top : length,
+    height: vertical ? length : bottom - top,
   }
 }

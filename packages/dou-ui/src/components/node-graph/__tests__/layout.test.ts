@@ -53,6 +53,46 @@ describe('layoutGraph', () => {
     expect(layout.height).toBe(32 * 2 + 20)
   })
 
+  it('lays ranks out top to bottom when vertical, fanning out symmetrically', () => {
+    const layout = layoutGraph(
+      [size('a'), size('b', 120), size('c')],
+      [
+        { from: 'a', to: 'b' },
+        { from: 'a', to: 'c' },
+      ],
+      { ...options, direction: 'vertical', equalWidth: false, grid: 70 },
+    )
+    const [a, b, c] = ['a', 'b', 'c'].map((id) => layout.nodes.get(id)!)
+    expect(a!.y).toBe(0)
+    expect(b!.y).toBe(32 + 56)
+    expect(c!.y).toBe(b!.y)
+    expect(b!.width).toBe(120)
+    // siblings a whole lane (two grid steps) apart, the source halfway
+    expect(c!.x + 40 - (b!.x + 60)).toBe(140)
+    expect(a!.x + 40).toBe((b!.x + 60 + c!.x + 40) / 2)
+    expect(layout.height).toBe(32 + 56 + 32)
+    expect(layout.width).toBe(c!.x + 80 - b!.x)
+    // from the bottom middle of `a` to the top middle of `b`
+    const path = layout.edges.find((e) => e.to === 'b')!.path
+    expect(path.startsWith(`M${a!.x + 40} 32C`)).toBe(true)
+    expect(path.endsWith(`${b!.x + 60} ${b!.y}`)).toBe(true)
+  })
+
+  it('runs a long edge down through the ranks it crosses when vertical', () => {
+    const layout = layoutGraph(
+      [size('a'), size('b'), size('c')],
+      [
+        { from: 'a', to: 'b' },
+        { from: 'b', to: 'c' },
+        { from: 'a', to: 'c' },
+      ],
+      { ...options, direction: 'vertical', equalWidth: false },
+    )
+    const path = layout.edges.find((e) => e.from === 'a' && e.to === 'c')!.path
+    expect(path).toMatch(/V\d/)
+    expect(path).not.toMatch(/H/)
+  })
+
   it('keeps node widths with equalWidth off', () => {
     const layout = layoutGraph(
       [size('a'), size('b', 120), size('c')],

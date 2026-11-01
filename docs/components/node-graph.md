@@ -1,12 +1,12 @@
 # NodeGraph 节点图
 
-按依赖关系从左到右展示一组节点和它们之间的连线。
+按依赖关系从左到右（或从上到下）展示一组节点和它们之间的连线。
 
 NodeGraph 只用来展示。需要拖动节点、连线编辑时，用[流程编辑器](/flow/)。
 
 ## 基础用法
 
-`nodes` 是节点，`edges` 是连线，`from` 指向 `to`。节点按依赖深度分列，跨列的连线从节点之间的空隙穿过。
+`nodes` 是节点，`edges` 是连线，`from` 指向 `to`。节点按依赖深度分层，跨层的连线从节点之间的空隙穿过。
 
 <DocDemo src="node-graph/basic" />
 
@@ -28,7 +28,15 @@ NodeGraph 只用来展示。需要拖动节点、连线编辑时，用[流程编
 
 <DocDemo src="node-graph/content" />
 
-默认 `node-width="column"`，同一列的节点等宽；`auto` 让每个节点按内容决定宽度；传数字则所有节点固定宽度。
+默认 `node-width="column"`，同一层的节点等宽；`auto` 让每个节点按内容决定宽度；传数字则所有节点固定宽度。
+
+## 方向
+
+`direction="vertical"` 让连线从上往下走，节点按层一行一行排开，连线从节点底部出发、进入下一层节点的顶部。每个节点都对齐到等宽的竖向轨道上，分叉和汇合依然左右对称。
+
+<DocDemo src="node-graph/direction" />
+
+`column-gap` 和 `row-gap` 始终指屏幕上的左右间距和上下间距：从左到右时 `column-gap` 是层与层之间的距离，从上到下时 `row-gap` 才是。
 
 ## 卡片
 
@@ -76,33 +84,34 @@ NodeGraph 只用来展示。需要拖动节点、连线编辑时，用[流程编
 
 每个节点都是一个按钮，可选择时带 `aria-pressed`。节点的读屏文字包含名称、类型、状态、进度和它依赖的节点，比如“确认议程，进行中，依赖 预订场地，邀请嘉宾”，不靠颜色传达状态。
 
-整张图只占一个 Tab 位置。进入后用 ← → 移到前驱或后继，↑ ↓ 在同一列内移动，Enter 或空格选中。焦点移到视野外的节点时，图会自动平移过去。
+整张图只占一个 Tab 位置。进入后用 ← → 移到前驱或后继，↑ ↓ 在同一层内移动，Enter 或空格选中；从上到下时换过来，↑ ↓ 移到前驱或后继，← → 在同一层内移动。焦点移到视野外的节点时，图会自动平移过去。
 
 ## API
 
 ### Props
 
-| 名称             | 说明                                         | 类型                              | 默认值     |
-| ---------------- | -------------------------------------------- | --------------------------------- | ---------- |
-| `nodes`          | 节点                                         | `GraphNode[]`                     | —          |
-| `edges`          | 连线                                         | `GraphEdge[]`                     | —          |
-| `selected`       | 选中的节点，`v-model:selected`               | `string \| string[] \| null`      | `null`     |
-| `selectable`     | 是否可选，`multiple` 为多选                  | `boolean \| 'multiple'`           | `true`     |
-| `size`           | 尺寸，单行节点高 28 / 32 / 40                | `'sm' \| 'md' \| 'lg'`            | 跟随全局   |
-| `node-width`     | 节点宽度：同列等宽、按内容、固定值           | `'column' \| 'auto' \| number`    | `'column'` |
-| `max-node-width` | 节点最大宽度，超出时截断标题                 | `number`                          | `320`      |
-| `column-gap`     | 列间距                                       | `number`                          | 按尺寸     |
-| `row-gap`        | 行间距                                       | `number`                          | 按尺寸     |
-| `highlight`      | 高亮哪个节点的上下游链路                     | `'none' \| 'hover' \| 'selected'` | `'hover'`  |
-| `auto-blocked`   | 自动把前驱未完成的进行中节点显示为 `blocked` | `boolean`                         | `false`    |
-| `pannable`       | 是否可以平移                                 | `boolean`                         | `true`     |
-| `zoomable`       | 是否可以缩放                                 | `boolean`                         | `false`    |
-| `zoom`           | 缩放比例，`v-model:zoom`                     | `number`                          | `1`        |
-| `min-zoom`       | 最小缩放比例                                 | `number`                          | `0.25`     |
-| `max-zoom`       | 最大缩放比例                                 | `number`                          | `2`        |
-| `legend`         | 在工具栏显示图例按钮                         | `boolean`                         | `false`    |
-| `height`         | 容器高度，数字单位为 px                      | `string \| number`                | 和图一样高 |
-| `aria-label`     | 读屏用的名称                                 | `string`                          | `'节点图'` |
+| 名称             | 说明                                                     | 类型                              | 默认值         |
+| ---------------- | -------------------------------------------------------- | --------------------------------- | -------------- |
+| `nodes`          | 节点                                                     | `GraphNode[]`                     | —              |
+| `edges`          | 连线                                                     | `GraphEdge[]`                     | —              |
+| `selected`       | 选中的节点，`v-model:selected`                           | `string \| string[] \| null`      | `null`         |
+| `selectable`     | 是否可选，`multiple` 为多选                              | `boolean \| 'multiple'`           | `true`         |
+| `size`           | 尺寸，单行节点高 28 / 32 / 40                            | `'sm' \| 'md' \| 'lg'`            | 跟随全局       |
+| `direction`      | 连线方向：`horizontal` 从左到右，`vertical` 从上到下     | `'horizontal' \| 'vertical'`      | `'horizontal'` |
+| `node-width`     | 节点宽度：同层等宽、按内容、固定值                       | `'column' \| 'auto' \| number`    | `'column'`     |
+| `max-node-width` | 节点最大宽度，超出时截断标题                             | `number`                          | `320`          |
+| `column-gap`     | 左右间距：从左到右时是层间距，从上到下时是同层节点的间距 | `number`                          | 按尺寸和方向   |
+| `row-gap`        | 上下间距：从左到右时是同层节点的间距，从上到下时是层间距 | `number`                          | 按尺寸和方向   |
+| `highlight`      | 高亮哪个节点的上下游链路                                 | `'none' \| 'hover' \| 'selected'` | `'hover'`      |
+| `auto-blocked`   | 自动把前驱未完成的进行中节点显示为 `blocked`             | `boolean`                         | `false`        |
+| `pannable`       | 是否可以平移                                             | `boolean`                         | `true`         |
+| `zoomable`       | 是否可以缩放                                             | `boolean`                         | `false`        |
+| `zoom`           | 缩放比例，`v-model:zoom`                                 | `number`                          | `1`            |
+| `min-zoom`       | 最小缩放比例                                             | `number`                          | `0.25`         |
+| `max-zoom`       | 最大缩放比例                                             | `number`                          | `2`            |
+| `legend`         | 在工具栏显示图例按钮                                     | `boolean`                         | `false`        |
+| `height`         | 容器高度，数字单位为 px                                  | `string \| number`                | 和图一样高     |
+| `aria-label`     | 读屏用的名称                                             | `string`                          | `'节点图'`     |
 
 ### GraphNode
 

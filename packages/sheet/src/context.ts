@@ -65,6 +65,9 @@ export interface SheetContext {
   focus: SheetExpose['focus']
   showSheet: SheetExpose['showSheet']
   toCSV: SheetExpose['toCSV']
+  exportSVG: SheetExpose['exportSVG']
+  exportPNG: SheetExpose['exportPNG']
+  print: SheetExpose['print']
   /** How a cell of the sheet shown looks: its style, or `{}`. A merged cell has its top left cell's. */
   styleAt: (point: SheetPoint) => SheetStyle
   /** A cell's number or date format. */

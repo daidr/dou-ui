@@ -62,7 +62,7 @@ import {
 import { formatClip, parseClip, type SheetClip } from './core/clipboard'
 import { fillContinues, type SheetFillMode } from './core/fill'
 import { SheetAxis } from './core/axis'
-import { mergesOf } from './core/merge'
+import { mergesOf, type SheetMerges } from './core/merge'
 import { alignOf, fitNumber, formatValue, inputText, parseInput } from './core/format'
 import { SheetHistory, type SheetHistoryView } from './core/history'
 import { SheetFormulaEngine } from './formula/engine'
@@ -118,6 +118,7 @@ import {
 } from './core/extension'
 import { format, useSheetMessages } from './locale'
 import { sheetToCSV, type SheetCSVWriteOptions } from './core/csv'
+import { createSheetExport, type SheetExportTarget } from './export'
 import type {
   SheetEmits,
   SheetSlots,
@@ -242,6 +243,13 @@ const resultAt = (row: number, col: number) => engine.result(sheetKey(sheet.valu
 /** What a cell of the sheet shown comes to: its formula's result, or its value. */
 const valueAt = (row: number, col: number) =>
   shownValue(valueOf(sheet.value.cells[row]?.[col]), resultAt, row, col)
+/** What a cell of any sheet comes to. */
+function valueIn(data: SheetData) {
+  if (data === sheet.value) return valueAt
+  const key = sheetKey(data)
+  const result = (row: number, col: number) => engine.result(key, row, col)
+  return (row: number, col: number) => shownValue(valueOf(data.cells[row]?.[col]), result, row, col)
+}
 
 // Conditional formats ------------------------------------------------------------------------
 
@@ -250,16 +258,19 @@ const valueAt = (row: number, col: number) =>
  * worked out again after every change: a rule can depend on any cell.
  */
 const looks = computed<SheetLooks>((previous) => {
-  const data = sheet.value
   // results change with any cell of the workbook
   void doc.value
   void engineId.value
+  return looksOf(sheet.value, previous)
+})
+/** The looks the conditional formats of a sheet give its cells. */
+function looksOf(data: SheetData, previous?: SheetLooks) {
   const key = sheetKey(data)
   return new SheetLooks(
     data.conditionalFormats,
     {
-      valueAt,
-      textAt: (row, col) => cellText(data.cells[row]?.[col], { row, col }),
+      valueAt: valueIn(data),
+      textAt: (row, col) => cellText(data.cells[row]?.[col], { sheet: key, row, col }),
       evaluate: (formula) => engine.evaluate(formula, key),
       // a large range is read again only when one of its cells changed
       cellStamp: (row, col) => {
@@ -275,7 +286,7 @@ const looks = computed<SheetLooks>((previous) => {
     },
     previous,
   )
-})
+}
 /** What a row's conditional looks are, for `v-memo`: rules can look past the row. */
 function looksKey(row: number) {
   const l = looks.value
@@ -387,8 +398,11 @@ const listTypes = computed(() => {
   )
 })
 const listSetups = new WeakMap<object, SheetResolvedType>()
-function listTypeAt(row: number, col: number): SheetResolvedType | undefined {
-  const c = checks.value
+function listTypeAt(
+  row: number,
+  col: number,
+  c: SheetChecks = checks.value,
+): SheetResolvedType | undefined {
   const types = listTypes.value
   if (c.empty || !types) return undefined
   const options = c.optionsAt(row, col)
@@ -409,31 +423,38 @@ function listTypeAt(row: number, col: number): SheetResolvedType | undefined {
 // Filtering --------------------------------------------------------------------------------
 
 /** The filter's range on the sheet shown, kept inside it. */
-const filterBounds = computed(() => {
-  const range = sheet.value.filter && parseRange(sheet.value.filter.range)
+const filterBounds = computed(() => filterBoundsOf(sheet.value))
+/** A sheet's filter range, kept inside it. */
+function filterBoundsOf(data: SheetData) {
+  const range = data.filter && parseRange(data.filter.range)
   if (!range) return null
   const b = boundsOf(range)
-  const bottom = Math.min(b.bottom, rowCountOf(sheet.value) - 1)
-  const right = Math.min(b.right, colCountOf(sheet.value) - 1)
+  const bottom = Math.min(b.bottom, rowCountOf(data) - 1)
+  const right = Math.min(b.right, colCountOf(data) - 1)
   return b.top > bottom || b.left > right ? null : { ...b, bottom, right }
-})
+}
 
-/** The rows of the filter's range that its rules hide, but for column `skip`'s rule. */
-function rowsFilteredOut(skip?: number) {
+/**
+ * The rows of the filter's range that its rules hide, but for column
+ * `skip`'s rule; on the sheet shown, or on `data`.
+ */
+function rowsFilteredOut(skip?: number, data = sheet.value) {
   const out = new Set<number>()
-  const f = sheet.value.filter
-  const b = filterBounds.value
+  const f = data.filter
+  const b = data === sheet.value ? filterBounds.value : filterBoundsOf(data)
   if (!f?.columns || !b) return out
   const collator = textCollator(lang.value)
   const rules = Object.entries(f.columns)
     .map(([key, rule]) => ({ col: Number(key), rule }))
     .filter(({ col }) => col !== skip && col >= b.left && col <= b.right)
   if (!rules.length) return out
-  const cells = sheet.value.cells
+  const { cells } = data
+  const valueOfCell = valueIn(data)
+  const key = sheetKey(data)
   for (let row = b.top + 1; row <= b.bottom; row++) {
     for (const { col, rule } of rules) {
-      const value = valueAt(row, col)
-      const text = isEmptyValue(value) ? '' : cellText(cells[row]?.[col], { row, col })
+      const value = valueOfCell(row, col)
+      const text = isEmptyValue(value) ? '' : cellText(cells[row]?.[col], { sheet: key, row, col })
       if (!meetsRule(rule, value, text, collator)) {
         out.add(row)
         break
@@ -980,6 +1001,22 @@ watch(
   { immediate: true },
 )
 
+/** Where the cells drawn are: a sheet's key, its looks, rules and merges, and whether the selection shows. */
+interface CellsOn {
+  key: string | number
+  looks: SheetLooks
+  checks: SheetChecks
+  merges: SheetMerges
+  marks: boolean
+}
+const shownCells = computed<CellsOn>(() => ({
+  key: sheetKey(sheet.value),
+  looks: looks.value,
+  checks: checks.value,
+  merges: merges.value,
+  marks: true,
+}))
+
 /**
  * A cell as drawn. `span` is the merge it shows, for the merged cell
  * itself; the cells a merge covers are drawn empty and see-through, and
@@ -991,8 +1028,9 @@ function cellView(
   line: SheetData['cells'][number],
   width: number,
   span?: SheetBounds,
+  on: CellsOn = shownCells.value,
 ): CellView {
-  if (!span && merges.value.size && merges.value.at(row, col))
+  if (!span && on.merges.size && on.merges.at(row, col))
     return { col, text: '', cls: 'dou-sheet__cell is-covered', css: '', hidden: true }
   const input = line?.[col]
   let cls = 'dou-sheet__cell'
@@ -1003,7 +1041,7 @@ function cellView(
   let label: string | undefined
   let problem: string | undefined
   let invalid = false
-  const look = looks.value.lookAt(row, col)
+  const look = on.looks.lookAt(row, col)
   if (look?.bar) {
     cls += ' has-bar'
     css += barCss(look.bar)
@@ -1013,13 +1051,13 @@ function cellView(
     let value = cell ? (cell.value ?? null) : (input as SheetValue)
     let error = false
     if (typeof value === 'string' && value.startsWith('=')) {
-      const result = resultAt(row, col)
+      const result = engine.result(on.key, row, col)
       error = isSheetError(result)
       value = isSheetError(result) ? result.code : result
     }
     const typed = cell?.type
       ? resolveCellType(cell, doc.value, cellTypes.value)
-      : listTypeAt(row, col)
+      : listTypeAt(row, col, on.checks)
     text = error
       ? (value as string)
       : (typed?.definition.format?.(value, typed.setup) ??
@@ -1062,11 +1100,11 @@ function cellView(
       if (definition.render) {
         render = definition.render
         renderProps = { value, text, setup, readonly: props.readonly }
-        label = cellText(input, { row, col })
+        label = cellText(input, { sheet: on.key, row, col })
       }
     }
     if (!problem) {
-      const c = checks.value
+      const c = on.checks
       const rule = c.empty ? undefined : c.ruleAt(row, col)
       if (rule && !c.fits(row, col, value, text)) {
         cls += ' is-invalid'
@@ -1082,15 +1120,18 @@ function cellView(
   }
   const bottom = span ? span.bottom : row
   const right = span ? span.right : col
-  for (const b of selectedBounds.value) {
-    if (!inBounds(b, row, col)) continue
-    if (!cls.includes(' is-selected')) cls += ' is-selected'
-    if (row === b.top) cls += ' is-edge-top'
-    if (bottom === b.bottom) cls += ' is-edge-bottom'
-    if (col === b.left) cls += ' is-edge-left'
-    if (right === b.right) cls += ' is-edge-right'
+  // the selection, on the grid only
+  if (on.marks) {
+    for (const b of selectedBounds.value) {
+      if (!inBounds(b, row, col)) continue
+      if (!cls.includes(' is-selected')) cls += ' is-selected'
+      if (row === b.top) cls += ' is-edge-top'
+      if (bottom === b.bottom) cls += ' is-edge-bottom'
+      if (col === b.left) cls += ' is-edge-left'
+      if (right === b.right) cls += ' is-edge-right'
+    }
+    if (row === active.value.row && col === active.value.col) cls += ' is-active'
   }
-  if (row === active.value.row && col === active.value.col) cls += ' is-active'
   const view: CellView = { col, text, cls, css }
   if (render) {
     view.render = render
@@ -2548,6 +2589,57 @@ function toCSV(options: SheetCSVWriteOptions & { sheet?: SheetRef } = {}) {
     ...rest,
   })
 }
+
+// Images and printing --------------------------------------------------------------------
+
+/** What export draws: the sheet shown, or another one laid out as it would be shown. */
+function exportTarget(which?: SheetRef): SheetExportTarget {
+  if (which == null) {
+    const on: CellsOn = { ...shownCells.value, marks: false }
+    return {
+      data: sheet.value,
+      rows: rows.value,
+      cols: cols.value,
+      frozen: frozen.value,
+      merges: merges.value,
+      cellView: (row, col, line, width, span) => cellView(row, col, line, width, span, on),
+    }
+  }
+  const data = doc.value.sheets[indexOfSheet(which)]
+  if (!data) throw new RangeError(`There is no sheet "${which}"`)
+  if (data === sheet.value) return exportTarget()
+  // another sheet, laid out as it would be shown
+  const sizes: Record<number, number> = { ...data.rowSizes }
+  for (const row of rowsFilteredOut(undefined, data)) sizes[row] = 0
+  const rowAxis = new SheetAxis(rowCountOf(data), props.rowHeight, sizes)
+  const colAxis = new SheetAxis(colCountOf(data), props.colWidth, data.colSizes ?? NO_SIZES)
+  const merged = mergesOf(data)
+  const on: CellsOn = {
+    key: sheetKey(data),
+    looks: looksOf(data),
+    checks: checksOf(data),
+    merges: merged,
+    marks: false,
+  }
+  return {
+    data,
+    rows: rowAxis,
+    cols: colAxis,
+    frozen: {
+      rows: Math.max(0, Math.min(rowAxis.count, data.freeze?.rows ?? 0)),
+      cols: Math.max(0, Math.min(colAxis.count, data.freeze?.cols ?? 0)),
+    },
+    merges: merged,
+    cellView: (row, col, line, width, span) => cellView(row, col, line, width, span, on),
+  }
+}
+
+const { exportSVG, exportPNG, print } = createSheetExport({
+  root: () => root.value,
+  target: exportTarget,
+  rowHeight: () => props.rowHeight,
+  gridlines: () => props.gridlines,
+})
 
 function onCopy(event: ClipboardEvent) {
   if (editing.value || !event.clipboardData) return
@@ -4135,6 +4227,9 @@ const context: SheetContext = {
   focus: () => focusGrid(),
   showSheet,
   toCSV,
+  exportSVG,
+  exportPNG,
+  print,
   styleAt,
   formatAt,
   styleSelection,
@@ -4250,6 +4345,9 @@ defineExpose<SheetExpose>({
   focus: () => focusGrid(),
   showSheet,
   toCSV,
+  exportSVG,
+  exportPNG,
+  print,
   copy: () => copyToClipboard(false),
   cut: () => copyToClipboard(true),
   paste: async (clip) => (clip ? paste(clip) : pasteFromClipboard()),

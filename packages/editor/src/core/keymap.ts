@@ -11,7 +11,7 @@ import {
   joinBackward,
   joinForward,
   liftBlocks,
-  moveBlocks,
+  swapBlocks,
   newlineInCode,
   setBlockType,
   sinkBlocks,
@@ -54,7 +54,7 @@ export function editorKeymap(options: KeymapOptions = {}): Plugin {
     'Mod-Alt-0': setBlockType('paragraph'),
 
     'Mod-d': duplicateBlocks,
-    'Mod-Shift-ArrowUp': moveBlocks(-1),
-    'Mod-Shift-ArrowDown': moveBlocks(1),
+    'Mod-Shift-ArrowUp': swapBlocks(-1),
+    'Mod-Shift-ArrowDown': swapBlocks(1),
   })
 }

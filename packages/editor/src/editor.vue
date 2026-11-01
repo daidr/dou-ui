@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useGlobalConfig, useNamespace } from 'dou-ui'
 import { keymap } from 'prosemirror-keymap'
-import { Plugin, type EditorState } from 'prosemirror-state'
+import { Plugin, type EditorState, type Transaction } from 'prosemirror-state'
 import type { EditorView } from 'prosemirror-view'
 import {
   computed,
@@ -19,7 +19,19 @@ import BlockHandle from './components/block-handle.vue'
 import BubbleToolbar from './components/bubble-toolbar.vue'
 import SlashMenu from './components/slash-menu.vue'
 import { setFallbackHighlighter, type CodeHighlighter } from './core/highlight'
-import { createEditorView, getBlocks, replaceBlocks, runCommand, setEditable } from './core/editor'
+import {
+  createEditorView,
+  getBlocks,
+  historyCommands,
+  originKey,
+  replaceBlocks,
+  runCommand,
+  setEditable,
+} from './core/editor'
+import { diffBlocks } from './core/changes'
+import { isRemote } from './core/plugins'
+import { selectionOf, sameSelection } from './core/selection'
+import { applyEditorTransaction, EditorTransaction } from './core/transaction'
 import type { Block, PartialBlock } from './core/model'
 import { resolveEditorExtensions } from './core/extension'
 import { slashPlugin, type SlashState } from './core/slash'
@@ -27,7 +39,14 @@ import { writeHTML } from './core/output'
 import { parseHTML } from './core/prepare'
 import { componentMounter, vueNodeView } from './define-block'
 import { editorKit } from './extensions/editor-kit'
-import { editorKey, type EditorEmits, type EditorExpose, type EditorProps } from './editor'
+import {
+  editorKey,
+  type EditorEmits,
+  type EditorExpose,
+  type EditorProps,
+  type EditorSelection,
+  type EditorTransactionResult,
+} from './editor'
 import { useEditorMessages } from './locale'
 
 defineOptions({ name: 'DouEditor' })
@@ -99,11 +118,33 @@ const bubble = useTemplateRef<InstanceType<typeof BubbleToolbar>>('bubble')
 // it is not loaded again (that would move the cursor).
 let emitted: Block[] | undefined
 
-function onChange(current: EditorView) {
+// the result of the last change, for `transact` to hand back
+let lastResult: EditorTransactionResult | null = null
+
+function onChange(current: EditorView, tr: Transaction, before: EditorState) {
   const blocks = getBlocks(current)
   emitted = blocks
+  const origin =
+    (tr.getMeta(originKey) as string | undefined) ?? (isRemote(tr) ? 'remote' : undefined)
+  lastResult = {
+    blocks,
+    changes: diffBlocks(before.doc, current.state.doc),
+    history: tr.getMeta('addToHistory') !== false && origin !== 'remote',
+  }
+  if (origin !== undefined) lastResult.origin = origin
+  emit('transaction', lastResult)
   emit('update:modelValue', blocks)
   emit('change', blocks)
+}
+
+let selection: EditorSelection = { block: null, blocks: [] }
+
+function onUpdate(current: EditorView) {
+  state.value = current.state
+  const next = selectionOf(current.state)
+  if (sameSelection(next, selection)) return
+  selection = next
+  emit('selectionChange', next)
 }
 
 // a click on a link places the cursor; with Ctrl or ⌘ held it opens the link
@@ -150,10 +191,11 @@ onMounted(() => {
       return attrs
     },
     onChange,
-    onUpdate: (current) => (state.value = current.state),
+    onUpdate,
   })
   view.value = instance
   state.value = instance.state
+  selection = selectionOf(instance.state)
   // code blocks without their own highlighter use the one DouCodeBlock uses
   watch(
     () =>
@@ -193,6 +235,28 @@ watch(
 
 watch(editable, (value) => view.value && setEditable(view.value, value))
 
+function transact(
+  fn: (tr: EditorTransaction) => void,
+  meta?: EditorTransaction['meta'],
+): EditorTransactionResult | null {
+  const current = view.value
+  if (!current) return null
+  const transaction = new EditorTransaction(current.state, meta)
+  fn(transaction)
+  lastResult = null
+  applyEditorTransaction(current, transaction)
+  const result = lastResult
+  lastResult = null
+  return result
+}
+
+const history = (action: 'undo' | 'redo', dispatch: boolean) => {
+  const current = view.value
+  if (!current) return false
+  const command = historyCommands(current.state)[action]
+  return dispatch ? runCommand(current, command) : command(current.state)
+}
+
 defineExpose<EditorExpose>({
   get view() {
     return view.value
@@ -204,6 +268,43 @@ defineExpose<EditorExpose>({
   getHTML: () => (view.value ? writeHTML(getBlocks(view.value), kit) : ''),
   setHTML: (html: string) => view.value && replaceBlocks(view.value, parseHTML(html, kit)),
   run: (command) => (view.value ? runCommand(view.value, command) : false),
+  transact,
+  getBlock: (id) => (view.value ? new EditorTransaction(view.value.state).getBlock(id) : null),
+  insertBlocks: (blocks, placement) => {
+    let ids: string[] = []
+    transact((tr) => (ids = tr.insertBlocks(blocks, placement)))
+    return ids
+  },
+  updateBlock: (id, patch) => {
+    let ok = false
+    transact((tr) => (ok = tr.updateBlock(id, patch)))
+    return ok
+  },
+  removeBlocks: (ids) => {
+    let ok = false
+    transact((tr) => (ok = tr.removeBlocks(ids)))
+    return ok
+  },
+  moveBlocks: (ids, placement) => {
+    let ok = false
+    transact((tr) => (ok = tr.moveBlocks(ids, placement)))
+    return ok
+  },
+  focusBlock: (id, edge) => {
+    let ok = false
+    transact((tr) => (ok = tr.focusBlock(id, edge)))
+    if (ok) view.value?.focus()
+    return ok
+  },
+  getSelection: () => ({ ...selection, blocks: [...selection.blocks] }),
+  undo: () => history('undo', true),
+  redo: () => history('redo', true),
+  get canUndo() {
+    return !!state.value && history('undo', false)
+  },
+  get canRedo() {
+    return !!state.value && history('redo', false)
+  },
 })
 </script>
 

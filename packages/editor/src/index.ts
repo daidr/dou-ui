@@ -6,7 +6,22 @@ export const DouEditor = withInstall(Editor)
 export default DouEditor
 
 export { useEditor } from './editor'
-export type { EditorContext, EditorEmits, EditorExpose, EditorProps } from './editor'
+export type {
+  EditorContext,
+  EditorEmits,
+  EditorExpose,
+  EditorProps,
+  EditorSelection,
+  EditorTransactionResult,
+} from './editor'
+export { EditorTransaction } from './core/transaction'
+export type {
+  BlockEdge,
+  BlockPatch,
+  BlockPlacement,
+  EditorTransactionMeta,
+} from './core/transaction'
+export type { BlockChanges } from './core/changes'
 export { editorLocales, useEditorMessages } from './locale'
 export type { EditorMessages, EditorMessagesOverride } from './locale'
 export { filterOptions } from './catalog'
@@ -82,7 +97,7 @@ export {
   duplicateBlocks,
   insertBlockAfter,
   liftBlocks,
-  moveBlocks,
+  swapBlocks,
   moveRangeTo,
   setBlockType,
   sinkBlocks,

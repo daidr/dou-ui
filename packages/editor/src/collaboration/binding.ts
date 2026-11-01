@@ -10,6 +10,7 @@ import type { EditorView } from 'prosemirror-view'
 import * as Y from 'yjs'
 import { blockAround, findBlockById } from '../core/blocks'
 import { createId } from '../core/model'
+import { ownStepKey } from '../core/transaction'
 import { placeOf } from './cursors'
 import { keysBetween, orderKeys } from './order'
 import { cellAt, cellStart, clearTable, readTable, writeTable } from './table'
@@ -207,9 +208,12 @@ function keepCellSelection(state: EditorState, tr: Transaction) {
 
 /* the binding */
 
-export const collaborationKey = new PluginKey<{ remote: boolean; tracked: boolean }>(
-  'dou-editor-collaboration',
-)
+export const collaborationKey = new PluginKey<{
+  remote: boolean
+  tracked: boolean
+  /** An undo step of its own (`transact`). */
+  own: boolean
+}>('dou-editor-collaboration')
 
 export interface Binding {
   map: Y.Map<YBlock>
@@ -384,14 +388,17 @@ export function syncPlugin(binding: Binding): Plugin {
   return new Plugin({
     key: collaborationKey,
     state: {
-      init: () => ({ remote: false, tracked: false }),
+      init: () => ({ remote: false, tracked: false, own: false }),
       apply(tr, value) {
         const meta = tr.getMeta(collaborationKey) as { remote?: boolean } | undefined
         if (!tr.docChanged) return value
-        if (meta?.remote) return { remote: true, tracked: false }
+        if (meta?.remote) return { remote: true, tracked: false, own: false }
         // several transactions can arrive at once (e.g. with appended id fixes)
         const tracked = tr.getMeta('addToHistory') !== false
-        return { remote: false, tracked: value.remote ? tracked : value.tracked || tracked }
+        const own = tr.getMeta(ownStepKey) === true
+        return value.remote
+          ? { remote: false, tracked, own }
+          : { remote: false, tracked: value.tracked || tracked, own: value.own || own }
       },
     },
     view(view) {
@@ -429,7 +436,9 @@ export function syncPlugin(binding: Binding): Plugin {
           }
           // read before writing: the map still holds the previous text
           binding.selectionBefore = placeOf(binding, previous.doc, previous.selection.head)
+          if (state.own) binding.stopCapturing?.()
           writeMap(current, state.tracked)
+          if (state.own) binding.stopCapturing?.()
         },
         destroy() {
           map.unobserveDeep(observer)

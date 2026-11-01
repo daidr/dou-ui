@@ -79,6 +79,8 @@ import {
   type FormSectionNode,
 } from '@dou-ui/form-builder'
 import '@dou-ui/form-builder/style.css'
+import { DouEditor, type EditorExpose, type PartialBlock } from '@dou-ui/editor'
+import '@dou-ui/editor/style.css'
 
 export interface Case {
   /** What the case renders, given a size. */
@@ -1260,6 +1262,54 @@ export const cases: Record<string, Case> = {
     },
     budget: { 1000: 16 },
   },
+  // A document of n blocks: headings, lists, to-dos, nested blocks, code blocks and tables.
+  editor: {
+    render: (n) => blockEditor(n),
+  },
+  // One key typed in the middle, handing the blocks back through v-model.
+  'editor-type': {
+    render: (n) => blockEditor(n),
+    prepare: () => editorCursor(),
+    act: () => {
+      const view = editorApi().view!
+      view.dispatch(view.state.tr.insertText('字'))
+      return nextTick()
+    },
+    frames: 20,
+    budget: { 2000: 25 },
+  },
+  // The cursor moved to another block: menus and the selection event follow.
+  'editor-move-cursor': {
+    render: (n) => blockEditor(n),
+    prepare: () => editorCursor(),
+    act: () => {
+      const api = editorApi()
+      const index = ((window as any).editorIndex = ((window as any).editorIndex ?? 0) + 7)
+      const blocks = (window as any).editorIds as string[]
+      api.focusBlock(blocks[(blocks.length >> 1) + (index % 40)]!)
+      return nextTick()
+    },
+    frames: 20,
+    budget: { 2000: 8 },
+  },
+  // Blocks inserted through the API: one undo step, ids handed back.
+  'editor-insert': {
+    render: (n) => blockEditor(n),
+    act: () => {
+      const api = editorApi()
+      const blocks = (window as any).editorIds as string[]
+      api.insertBlocks(
+        [
+          { type: 'heading', props: { level: 2 }, content: '新的小节' },
+          { type: 'paragraph', content: '插入的段落' },
+        ],
+        { after: blocks[blocks.length >> 1]! },
+      )
+      return nextTick()
+    },
+    frames: 20,
+    budget: { 2000: 30 },
+  },
 }
 
 /** n tiles of mixed sizes, packed row by row. */
@@ -1714,4 +1764,73 @@ function formHandwritten(n: number) {
         ]),
       ),
     )
+}
+
+/** n top-level blocks: every 10th a heading, every 25th code, every 50th a 5 × 4 table. */
+function editorBlocks(n: number): PartialBlock[] {
+  const blocks: PartialBlock[] = []
+  for (let i = 0; i < n; i++) {
+    const id = `b${i}`
+    if (i % 50 === 49) {
+      blocks.push({
+        id,
+        type: 'table',
+        rows: Array.from({ length: 5 }, (_, r) => ({
+          cells: Array.from({ length: 4 }, (_cell, c) => (r ? `${label(i + r + c)}` : `列 ${c + 1}`)),
+        })),
+      })
+    } else if (i % 25 === 24) {
+      blocks.push({
+        id,
+        type: 'codeBlock',
+        props: { language: 'ts' },
+        content: Array.from({ length: 6 }, (_, l) => `const value${l} = compute(${i}, ${l})`).join(
+          '\n',
+        ),
+      })
+    } else if (i % 10 === 0) {
+      blocks.push({ id, type: 'heading', props: { level: 2 }, content: `第 ${i / 10 + 1} 节` })
+    } else if (i % 10 < 4) {
+      blocks.push({
+        id,
+        type: i % 2 ? 'bulletItem' : 'checkItem',
+        content: `${label(i)}：要做的事`,
+        children: i % 10 === 3 ? [{ id: `${id}c`, content: '缩进的说明' }] : [],
+      })
+    } else {
+      blocks.push({
+        id,
+        content: [
+          { type: 'text', text: `${label(i)}，这是第 ${i} 段，` },
+          { type: 'text', text: '加粗的部分', marks: ['bold'] },
+          { type: 'text', text: '，后面还有一些普通的文字，让一行接近换行的长度。' },
+        ],
+      })
+    }
+  }
+  return blocks
+}
+
+function blockEditor(n: number) {
+  const blocks = editorBlocks(n)
+  ;(window as any).editorIds = blocks.map((block) => block.id)
+  const value = shallowRef<PartialBlock[]>(blocks)
+  const editor = ref<EditorExpose>()
+  ;(window as any).blockEditor = editor
+  return () =>
+    h(DouEditor, {
+      ref: editor,
+      modelValue: value.value,
+      'onUpdate:modelValue': (next: PartialBlock[]) => (value.value = next),
+    })
+}
+
+const editorApi = () => (window as any).blockEditor.value as EditorExpose
+
+/** The cursor in a paragraph in the middle of the document. */
+function editorCursor() {
+  const ids = (window as any).editorIds as string[]
+  const middle = ids.length >> 1
+  const id = ids.slice(middle).find((_, i) => (middle + i) % 10 >= 4 && (middle + i) % 25 < 24)!
+  editorApi().focusBlock(id)
 }

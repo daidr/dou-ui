@@ -183,7 +183,34 @@ export function inlineOf(node: PMNode): InlineContent[] {
 
 const propsOf = (content: PMNode): BlockProps => ({ ...content.attrs })
 
+/**
+ * Blocks already read, by node. Nodes never change, so a block that wasn't
+ * edited is the same object as last time: reading a large document after
+ * typing one key only builds the blocks on the path to that key.
+ */
+const blockCache = new WeakMap<PMNode, Block>()
+
+const freeze = <T>(value: T): T => {
+  if (value && typeof value === 'object' && !Object.isFrozen(value)) {
+    Object.freeze(value)
+    for (const item of Object.values(value)) freeze(item)
+  }
+  return value
+}
+
+/** A block of the document; shared between reads, so read-only. */
 export function blockFromNode(node: PMNode): Block {
+  let block = blockCache.get(node)
+  if (!block) {
+    block = readBlock(node)
+    // in development a change to a shared block throws, instead of corrupting later reads
+    if (process.env.NODE_ENV !== 'production') freeze(block)
+    blockCache.set(node, block)
+  }
+  return block
+}
+
+function readBlock(node: PMNode): Block {
   const content = node.firstChild!
   const group = node.childCount > 1 ? node.child(1) : null
   const children: Block[] = []
@@ -258,7 +285,7 @@ export function inlineNodes(
  * The attributes a content type declares, taken from `props` where given.
  * A spec's `normalizeProps` can clamp them, e.g. a heading's level.
  */
-function contentAttrs(type: NodeType, props: BlockProps = {}) {
+export function contentAttrs(type: NodeType, props: BlockProps = {}) {
   const attrs: Record<string, unknown> = {}
   for (const name of Object.keys(type.spec.attrs ?? {})) {
     if (props[name] !== undefined) attrs[name] = props[name]

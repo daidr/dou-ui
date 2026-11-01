@@ -27,6 +27,7 @@ const editorSidebar = ecosystem('块编辑器', [
   { text: '介绍', link: '/editor/' },
   { text: '文档数据', link: '/editor/data' },
   { text: '快捷操作', link: '/editor/shortcuts' },
+  { text: '用代码修改', link: '/editor/editing' },
   { text: '扩展', link: '/editor/extensions' },
   { text: '代码块', link: '/editor/code-block' },
   { text: '折叠块与提示块', link: '/editor/toggle-callout' },

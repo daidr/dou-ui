@@ -24,6 +24,7 @@ export const toggleKey = new PluginKey<ToggleState>('dou-editor-toggle')
 const isToggle = (node: PMNode) => node.firstChild?.type.name === 'toggle'
 
 function decorate(doc: PMNode, closed: ReadonlySet<string>) {
+  if (!closed.size) return DecorationSet.empty
   const decorations = allBlocks(doc)
     .filter((info) => isToggle(info.node) && closed.has(info.node.attrs.id))
     .map((info) =>
@@ -79,6 +80,8 @@ export function togglePlugin(): Plugin<ToggleState> {
           }
         }
         if (!changed && !tr.docChanged) return value
+        // typing moves the closed toggles' decorations along; no need to look for them again
+        if (!changed) return { closed, decorations: value.decorations.map(tr.mapping, tr.doc) }
         return { closed, decorations: decorate(state.doc, closed) }
       },
     },

@@ -587,7 +587,14 @@ export function mergeFileHandlers<T extends { name: string }>(
     owner.set(handler.name, extension)
     own.push(handler)
   }
-  const rest = builtin.filter((handler) => !owner.has(handler.name))
-  // exporters keep the built-in ones first, as the menu shows them; importers ask the added ones first
-  return kind === 'exporter' ? [...rest, ...own] : [...own, ...rest]
+  if (kind === 'importer')
+    // importers ask the added ones first
+    return [...own, ...builtin.filter((handler) => !owner.has(handler.name))]
+  // exporters keep the built-in ones first, as the menu shows them, one replaced in its place
+  const byName = new Map(own.map((handler) => [handler.name, handler]))
+  const builtinNames = new Set(builtin.map((handler) => handler.name))
+  return [
+    ...builtin.map((handler) => byName.get(handler.name) ?? handler),
+    ...own.filter((handler) => !builtinNames.has(handler.name)),
+  ]
 }

@@ -36,22 +36,22 @@ const extensions = [progress]
 
 ## 扩展的字段
 
-| 名称          | 说明                                                                                                                                         | 类型                                                              |
-| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| `name`        | 扩展的名字                                                                                                                                   | `string`                                                          |
-| `priority`    | 优先级，越大越先处理按键和钩子，默认 `100`                                                                                                   | `number`                                                          |
-| `cellTypes`   | 单元格类型，见下文；和内置类型同名时替换内置的，多个扩展同名时用优先级高的                                                                   | `SheetCellType[]`                                                 |
-| `functions`   | 公式里可以调用的函数，见[自定义函数](./formulas#自定义函数)；和内置函数同名时替换内置的                                                      | `SheetFunction[]`                                                 |
-| `commands`    | 命令，按名字登记，工具栏按钮、菜单项和快捷键都可以引用，见下文                                                                               | `Record<string, SheetCommand>`                                    |
-| `keymap`      | 表格有焦点、没有在编辑单元格时的快捷键，写法和 `useHotkey` 一样；值是处理函数或命令名。处理函数（或命令）返回 `false` 表示没处理，交给下一个 | `(ctx) => Record<string, ((event) => boolean \| void) \| string>` |
-| `contextMenu` | 右键菜单的项，排在内置项前面；`menu` 属性收到的菜单项里也包括它们                                                                            | `(ctx, menu: SheetMenuContext) => SheetMenuItem[]`                |
-| `toolbar`     | `DouSheetToolbar` 上的按钮，默认排在内置按钮后面，见下文                                                                                     | `(ctx) => SheetToolbarItem[]`                                     |
-| `exporters`   | 导出方式，出现在工具栏的导出菜单里，`exportFile` 可以按名字使用；和内置的 `csv`、`png`、`svg` 同名时替换内置的，见下文                       | `SheetExporter[]`                                                 |
-| `importers`   | 导入方式，用于工具栏的导入按钮、`importFile` 和拖入的文件；比内置的 CSV 先询问                                                               | `SheetImporter[]`                                                 |
-| `overlays`    | 浮在表格上方的组件，不随表格滚动，可以用 `cellRect` 对准单元格                                                                               | `Component[]`                                                     |
-| `history`     | 替换表格自带的撤销记录，多个扩展都有时用优先级最高的，见下文                                                                                 | `(ctx) => SheetHistoryHandler`                                    |
-| `setup`       | 表格挂载后调用，可以返回一个函数，在卸载时调用                                                                                               | `(ctx) => void \| (() => void)`                                   |
-| `transaction` | 表格里的每次修改和 `transact` 生效前按优先级调用，可以继续往里加步骤；撤销时加上的步骤一起撤销                                               | `(tr, ctx) => void`                                               |
+| 名称          | 说明                                                                                                                                           | 类型                                                              |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `name`        | 扩展的名字                                                                                                                                     | `string`                                                          |
+| `priority`    | 优先级，越大越先处理按键和钩子，默认 `100`                                                                                                     | `number`                                                          |
+| `cellTypes`   | 单元格类型，见下文；和内置类型同名时替换内置的，多个扩展同名时用优先级高的                                                                     | `SheetCellType[]`                                                 |
+| `functions`   | 公式里可以调用的函数，见[自定义函数](./formulas#自定义函数)；和内置函数同名时替换内置的                                                        | `SheetFunction[]`                                                 |
+| `commands`    | 命令，按名字登记，工具栏按钮、菜单项和快捷键都可以引用，见下文                                                                                 | `Record<string, SheetCommand>`                                    |
+| `keymap`      | 表格有焦点、没有在编辑单元格时的快捷键，写法和 `useHotkey` 一样；值是处理函数或命令名。处理函数（或命令）返回 `false` 表示没处理，交给下一个   | `(ctx) => Record<string, ((event) => boolean \| void) \| string>` |
+| `contextMenu` | 右键菜单的项，排在内置项前面；`menu` 属性收到的菜单项里也包括它们                                                                              | `(ctx, menu: SheetMenuContext) => SheetMenuItem[]`                |
+| `toolbar`     | `DouSheetToolbar` 上的按钮，默认排在内置按钮后面，见下文                                                                                       | `(ctx) => SheetToolbarItem[]`                                     |
+| `exporters`   | 导出方式，出现在工具栏的导出菜单里，`exportFile` 可以按名字使用；和内置的 `csv`、`png`、`svg` 同名时替换内置的，在菜单里留在原来的位置，见下文 | `SheetExporter[]`                                                 |
+| `importers`   | 导入方式，用于工具栏的导入按钮、`importFile` 和拖入的文件；比内置的 CSV 先询问                                                                 | `SheetImporter[]`                                                 |
+| `overlays`    | 浮在表格上方的组件，不随表格滚动，可以用 `cellRect` 对准单元格                                                                                 | `Component[]`                                                     |
+| `history`     | 替换表格自带的撤销记录，多个扩展都有时用优先级最高的，见下文                                                                                   | `(ctx) => SheetHistoryHandler`                                    |
+| `setup`       | 表格挂载后调用，可以返回一个函数，在卸载时调用                                                                                                 | `(ctx) => void \| (() => void)`                                   |
+| `transaction` | 表格里的每次修改和 `transact` 生效前按优先级调用，可以继续往里加步骤；撤销时加上的步骤一起撤销                                                 | `(tr, ctx) => void`                                               |
 
 `ctx` 和组件里 `useSheet()` 拿到的是同一个对象。
 
@@ -310,11 +310,11 @@ const blob = await exportWorkbook(book, csvExporter, { scope: 'sheet', sheet: 1 
 | 单元格与区域 | `parseCell`、`parseRange`、`formatCell`、`formatRange`、`columnName`、`quoteSheet`、`renameReferencesAll` 等                     |
 | 值与样式     | `cellOf`、`valueOf`、`formatValue`、`parseInput`、`meetsRule`、`plainStyle`、`lightThemeColor` 等                                |
 | 修改         | `SheetTransaction`、`applySheetSteps`、`compactSheetSteps`、`sheetKey`                                                           |
-| 扩展         | `defineSheetExtension`：把工作簿用到的单元格类型和函数交给 `exportWorkbook`                                                      |
 | 单元格类型   | `defineSheetCellType`、`optionOf`                                                                                                |
+| 扩展         | `defineSheetExtension`                                                                                                           |
 | 文案         | `sheetMessagesFor`、`sheetLocales`                                                                                               |
 
-这些在 `@dou-ui/sheet` 里也都有，在页面里用哪个都一样。公式引擎在 [`@dou-ui/sheet/formula`](./formulas#单独使用计算引擎)，同样不含组件。
+这些在 `@dou-ui/sheet` 里也都有，在页面里用哪个都一样。工作簿用到自定义的单元格类型或函数时，用 `defineSheetExtension` 把它们包成扩展，交给 `exportWorkbook` 的 `extensions`。公式引擎在 [`@dou-ui/sheet/formula`](./formulas#单独使用计算引擎)，同样不含组件。
 
 ```ts
 // export.worker.ts

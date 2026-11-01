@@ -45,8 +45,6 @@ import {
   CellsMergeIcon,
   FilterIcon,
   FilterXIcon,
-  FileCodeIcon,
-  FileImageIcon,
   FoldVerticalIcon,
   PlusIcon,
   RowGroupIcon,
@@ -2786,7 +2784,6 @@ const selectionRange = () => rangeName(lastBounds())
 const pngExporter = defineSheetExporter<SheetImageOptions>({
   name: 'png',
   label: (m) => m.file.png,
-  icon: FileImageIcon,
   extension: 'png',
   mime: 'image/png',
   scopes: ['sheet', 'selection'],
@@ -2796,7 +2793,6 @@ const pngExporter = defineSheetExporter<SheetImageOptions>({
 const svgExporter = defineSheetExporter<SheetExportOptions>({
   name: 'svg',
   label: (m) => m.file.svg,
-  icon: FileCodeIcon,
   extension: 'svg',
   mime: 'image/svg+xml',
   scopes: ['sheet', 'selection'],

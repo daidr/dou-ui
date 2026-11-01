@@ -354,6 +354,19 @@ describe('DouSheet files', () => {
     expect(icons.json).toBe(FileJsonIcon)
     expect(context().importAccept.value).toContain('.csv')
     wrapper.unmount()
+    // one that replaces a built-in one keeps its place in the menu
+    const own = setup({
+      extensions: [
+        defineSheetExtension({
+          name: 'csv',
+          exporters: [jsonOut, { ...csvExporter, label: '我的 CSV' }],
+        }),
+      ],
+    })
+    const menu = own.context().exporters.value
+    expect(menu.map((e) => e.name)).toEqual(['csv', 'png', 'svg', 'json'])
+    expect(menu[0]).toMatchObject({ label: '我的 CSV', icon: FileTextIcon })
+    own.wrapper.unmount()
     const twice = [
       defineSheetExtension({ name: 'a', exporters: [jsonOut] }),
       defineSheetExtension({ name: 'b', exporters: [jsonOut] }),

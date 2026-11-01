@@ -22,6 +22,8 @@
       transparent
     );
     --dou-editor-control-hover: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+    --dou-editor-match: color-mix(in oklab, var(--dou-color-warning) 22%, transparent);
+    --dou-editor-match-current: color-mix(in oklab, var(--dou-color-warning-text) 80%, transparent);
     /* text a comment thread is about: a warm tint and an underline, stronger while its thread is open */
     --dou-editor-comment-bg: color-mix(in oklab, var(--dou-color-warning) 18%, transparent);
     --dou-editor-comment-bg-active: color-mix(in oklab, var(--dou-color-warning) 36%, transparent);
@@ -1786,5 +1788,28 @@
   .dou-editor-colors__letter {
     display: block;
     text-box: trim-both cap alphabetic;
+  }
+
+  /* find: the panel stays at the top right while the page scrolls; it takes no room in the flow */
+  .dou-editor__search {
+    position: sticky;
+    top: 8px;
+    z-index: 5;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+    height: 0;
+    container-type: inline-size;
+    pointer-events: none;
+    > * {
+      pointer-events: auto;
+    }
+  }
+  .dou-editor__match {
+    border-radius: 2px;
+    background-color: var(--dou-editor-match);
+    &.is-current {
+      box-shadow: 0 0 0 1px var(--dou-editor-match-current);
+    }
   }
 }

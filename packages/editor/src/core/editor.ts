@@ -31,6 +31,11 @@ export interface CreateEditorOptions {
    * The collaboration extension adds its sync and cursor plugins here.
    */
   plugins?: Plugin[]
+  /**
+   * Key plugins placed after the extensions' keys, so an extension can
+   * take one of their keys, and before the built-in ones.
+   */
+  keymaps?: Plugin[]
   /** Leave out the built-in undo history (collaboration brings its own). */
   history?: boolean
   undo?: KeymapOptions['undo']
@@ -74,6 +79,7 @@ export function createPlugins(options: Omit<CreateEditorOptions, 'element'>): Pl
     editorInputRules(kit.inputRules),
     blockSelectionPlugin(),
     ...kit.keymaps.map((bindings) => keymap(bindings)),
+    ...(options.keymaps ?? []),
     editorKeymap(commands),
     keymap(baseKeymap),
     ...(provider?.plugins ?? []),

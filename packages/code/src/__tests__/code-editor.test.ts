@@ -271,9 +271,13 @@ describe('DouCodeEditor', () => {
           }),
       ),
     )
-    editor.value!.transact((tr) => tr.insert(1, 'yz'))
+    expect(editor.value!.transact((tr) => tr.insert(1, 'yz')).changed).toBe(true)
     await nextTick()
     expect(doc.value.toString()).toBe('xyz')
+    // nothing to do: the result says so, and nothing is applied
+    const idle = editor.value!.transact(() => {})
+    expect(idle.changed).toBe(false)
+    expect(idle.state.doc).toBe(idle.before.doc)
     doc.value = CodeText.of('new')
     await nextTick()
     expect(editor.value!.doc).toBe(doc.value)

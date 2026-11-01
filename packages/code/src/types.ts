@@ -145,13 +145,13 @@ export interface CodeEditorExpose {
   /**
    * Makes a change: `run` adds changes to the transaction, which is applied
    * and recorded for undo as one. Positions are in the text as it was when
-   * the transaction started. Returns what happened, or `null` when nothing
-   * changed.
+   * the transaction started. Returns what happened, also when nothing
+   * changed: `changed` is then `false` and nothing was applied.
    */
   transact: (
     run: (tr: CodeTransaction) => void,
     meta?: CodeTransactionMeta,
-  ) => CodeTransactionResult | null
+  ) => CodeTransactionResult
   /** Runs a command, e.g. `selectAll`, as if its key were pressed. */
   run: (command: CodeCommand) => boolean
   undo: () => boolean
@@ -168,8 +168,8 @@ export interface CodeEditorExpose {
   posAtCoords: (point: { x: number; y: number }) => number
   focus: () => void
   blur: () => void
-  /** Opens the search panel, filled with `query` or else the selected text. */
-  openSearch: (query?: Partial<CodeSearchQuery>) => void
+  /** Opens the search panel, filled with `query` or else the selected text; `false` when `searchable` is off. */
+  openSearch: (query?: Partial<CodeSearchQuery>) => boolean
   /** Closes the search panel; `false` when it wasn't open. */
   closeSearch: () => boolean
   /** Folds the block starting at a line (from 1), or the one around the cursor; `false` when there is none. */

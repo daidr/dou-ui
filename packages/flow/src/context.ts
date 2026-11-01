@@ -41,6 +41,13 @@ export interface FlowMinimapProps {
   height?: number
 }
 
+/** What the find panel looks for: text in the nodes' names. */
+export interface FlowSearchQuery {
+  search: string
+  /** Tell capital letters from small ones. */
+  caseSensitive?: boolean
+}
+
 export interface FlowEditorProps {
   /**
    * What the editor is made of: node types, port types, rules, keys and
@@ -78,6 +85,8 @@ export interface FlowEditorProps {
   fitMinZoom?: number
   /** View, select and pan, but not change anything. */
   readonly?: boolean
+  /** The built-in find panel (`Ctrl/⌘+F`). Off, the keys are left to the page. On by default. */
+  searchable?: boolean
   /** Scrolling pans the canvas; with Ctrl / ⌘ it zooms. Off, only Ctrl / ⌘ + scroll zooms. */
   panOnScroll?: boolean
   /** Looks and connection rules of port types, by the name used in `dataType`. */
@@ -139,6 +148,12 @@ export interface FlowEditorExpose {
   zoomOut: () => void
   /** Centers a node in view without changing the zoom. */
   centerNode: (id: string) => void
+  /** Opens the find panel (`Ctrl/⌘+F`), with a query put in; `false` when `searchable` is off. */
+  openSearch: (query?: Partial<FlowSearchQuery>) => boolean
+  /** Closes the find panel; `false` when it was not open. */
+  closeSearch: () => boolean
+  /** The ids of the nodes whose names contain the search, in reading order. */
+  findNodes: (query: FlowSearchQuery) => string[]
   /**
    * Moves the view like the user's pans do: no further than having the nodes
    * just leave it. `v-model:viewport` goes anywhere.

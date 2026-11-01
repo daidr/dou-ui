@@ -127,4 +127,36 @@ describe('shikiLanguage', () => {
     expect(marked(plain, 'fn main() {}')).toContain('[function:main]')
     highlighter.dispose()
   })
+
+  it('reads a line to its end when the time limit runs out on a short line', () => {
+    // a grammar that, like a busy machine, runs out of time on every limited read
+    const limits: (number | undefined)[] = []
+    const stack = { equals: () => true }
+    const fake = {
+      getLanguage: () => ({
+        tokenizeLine(line: string, _state: unknown, timeLimit?: number) {
+          limits.push(timeLimit)
+          const early = timeLimit !== 0
+          return {
+            tokens: [
+              {
+                startIndex: 0,
+                endIndex: early ? 2 : line.length,
+                scopes: early ? ['source.fake'] : ['source.fake', 'comment.block.fake'],
+              },
+            ],
+            ruleStack: stack,
+            stoppedEarly: early,
+          }
+        },
+      }),
+    }
+    const language = shikiLanguage(fake, 'fake')
+    expect(marked(language, '/* 戴兜')).toBe('[comment:/* 戴兜]')
+    expect(limits).toEqual([50, 0])
+    // a huge line stays cut, so typing next to it stays quick
+    limits.length = 0
+    marked(language, 'x'.repeat(5000))
+    expect(limits).toEqual([50])
+  })
 })

@@ -29,6 +29,7 @@
       "@dou-ui/code/worker": ["./packages/code/src/worker/index.ts"],
       "@dou-ui/code/collaboration": ["./packages/code/src/collaboration/index.ts"],
       "@dou-ui/code/shiki": ["./packages/code/src/shiki/index.ts"],
+      "@dou-ui/code/lsp": ["./packages/code/src/lsp/index.ts"],
       "@dou-ui/dashboard": ["./packages/dashboard/src/index.ts"],
       "@dou-ui/dashboard/layout": ["./packages/dashboard/src/layout/index.ts"],
       "@dou-ui/dashboard/widgets": ["./packages/dashboard/src/widgets/index.ts"],

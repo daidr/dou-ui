@@ -130,12 +130,52 @@ export const highlight = defineEditorExtension({
 | `blockOptions`     | 块菜单和“转换为”菜单中的选项                                                                                 | `BlockOption[]`                        |
 | `formats`          | 格式工具栏中的按钮                                                                                           | `FormatOption[]`                       |
 | `overlays`         | 可编辑时渲染在编辑区域旁的组件，例如提及的候选列表                                                           | `Component[]`                          |
+| `toolbar`          | 放在格式工具栏末尾的组件，例如颜色和对齐菜单                                                                 | `Component[]`                          |
+| `blockMenu`        | 放在块菜单里的组件，会收到当前块的 `block`（id、类型和 `props`）                                             | `Component[]`                          |
 | `output`           | 块、行内节点和文字格式写成 HTML 与 Markdown 的方式，见[导入与导出](./import-export)                          | `EditorExtensionOutput`                |
 | `prepareHTML`      | 读入 HTML 前整理它（粘贴和导入时），见[导入与导出](./import-export)                                          | `(root: HTMLElement) => void`          |
 
 `context` 里有根据全部扩展生成的 `schema`。
 
 块类型的节点定义除了 ProseMirror 的字段，还可以设置 `continues`（同 `defineBlock`）和 `component`（渲染块的 Vue 组件）。
+
+`toolbar` 里的组件可以用 `useEditor()` 拿到编辑器的 `view` 和 `state`。组件里有下拉菜单时，用 `useToolbarMenu()` 得到的值绑定菜单的 `v-model:open`，菜单打开、焦点离开编辑器时工具栏不会收起：
+
+```vue
+<script setup lang="ts">
+import { useEditor, useToolbarMenu } from '@dou-ui/editor'
+import { DouButton, DouDropdown, DouDropdownItem } from 'dou-ui'
+
+const { view } = useEditor()
+const open = useToolbarMenu()
+</script>
+
+<template>
+  <DouDropdown v-model:open="open">
+    <DouButton size="sm" variant="ghost">插入</DouButton>
+    <template #menu>
+      <DouDropdownItem @click="view?.focus()">上海</DouDropdownItem>
+    </template>
+  </DouDropdown>
+</template>
+```
+
+只有图标的按钮要加提示时，用 `DouTooltip` 包一层 `span`，再把下拉菜单放进去。提示不能放在 `DouDropdown` 和按钮之间，否则菜单打不开。菜单打开时关掉提示，免得两者重叠：
+
+```vue
+<template>
+  <DouTooltip content="插入" :disabled="open">
+    <span>
+      <DouDropdown v-model:open="open">
+        <DouButton size="sm" variant="ghost" aria-label="插入"><PlusIcon /></DouButton>
+        <template #menu>…</template>
+      </DouDropdown>
+    </span>
+  </DouTooltip>
+</template>
+```
+
+用鼠标打开工具栏里的菜单后，焦点仍在正文：这时按 `Esc` 关闭菜单，方向键和 `Enter` 进入菜单，不会作用在正文上。
 
 ### 菜单选项
 

@@ -1,3 +1,4 @@
+import { alignable } from './align'
 import { Schema, type DOMOutputSpec, type MarkSpec, type NodeSpec } from 'prosemirror-model'
 
 /**
@@ -60,10 +61,12 @@ const frame: Record<string, NodeSpec> = {
     toDOM: () => ['div', { class: 'dou-editor__group', role: 'group' }, 0],
   },
 
-  paragraph: textBlock('paragraph', {
-    group: 'blockContent',
-    parseDOM: [{ tag: 'div[data-content-type="paragraph"]' }, { tag: 'p' }],
-  }),
+  paragraph: alignable(
+    textBlock('paragraph', {
+      group: 'blockContent',
+      parseDOM: [{ tag: 'div[data-content-type="paragraph"]' }, { tag: 'p' }],
+    }),
+  ),
 }
 
 const inlineFrame: Record<string, NodeSpec> = {

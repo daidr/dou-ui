@@ -22,7 +22,7 @@ const type = (
     type: name,
     // Components in a reactive document are kept as they are.
     defaults: () => ({ ...data, icon: markRaw(icon) }),
-    palette: { label: data.label!, icon, group, description },
+    palette: { label: data.label as string, icon, group, description },
   })
 
 export const reviewTypes = [

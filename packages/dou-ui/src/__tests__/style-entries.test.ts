@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { styleDeps, stylesheetOrder } from '../../scripts/style-deps'
+import { styleDeps, styleDirsFor, stylesheetOrder } from '../../scripts/style-deps'
 
 const deps = styleDeps()
 const theme = (name: string) =>
@@ -35,5 +35,38 @@ describe('per-component style entries', () => {
     // `.dou-prose` styles Markdown content, not a component.
     const unused = stylesheetOrder().filter((name) => !used.has(name))
     expect(unused).toEqual(['typography'])
+  })
+})
+
+const sheetsOf = (pkg: string) =>
+  new Set(
+    styleDirsFor(resolve(import.meta.dirname, `../../../${pkg}/src`)).flatMap((dir) =>
+      deps.get(dir)!,
+    ),
+  )
+
+describe('style entries of the packages built on dou-ui', () => {
+  it('cover the components each package renders', () => {
+    // The chart's loading state.
+    expect([...sheetsOf('chart')]).toContain('spinner')
+    // The editor's toolbar, menus and buttons.
+    expect([...sheetsOf('editor')]).toEqual(
+      expect.arrayContaining(['button', 'dropdown', 'toolbar', 'tooltip']),
+    )
+    // Every field the form renderer can show.
+    expect([...sheetsOf('form-builder')]).toEqual(
+      expect.arrayContaining(['input', 'select', 'date-picker', 'upload', 'switch', 'rate']),
+    )
+  })
+
+  it('leave out entries another one already covers', () => {
+    const dirs = styleDirsFor(resolve(import.meta.dirname, '../../../sheet/src'))
+    for (const dir of dirs) {
+      const others = dirs.filter((other) => other !== dir)
+      const covered = others.some((other) =>
+        deps.get(dir)!.every((sheet) => deps.get(other)!.includes(sheet)),
+      )
+      expect([dir, covered]).toEqual([dir, false])
+    }
   })
 })

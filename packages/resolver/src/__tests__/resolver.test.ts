@@ -1,11 +1,17 @@
 import { existsSync } from 'node:fs'
 import { resolve as resolvePath } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import * as DouUI from '../../../dou-ui/src/index'
 import * as Icons from '../../../icons/src/index'
-import { DouUIApiResolver, DouUIResolver, componentDirs, functionDirs } from '../index'
+import {
+  DouUIApiResolver,
+  DouUIResolver,
+  componentDirs,
+  functionDirs,
+  packageComponents,
+} from '../index'
 
-const [components, directives] = DouUIResolver()
+const [components, directives] = DouUIResolver({ icons: false })
 const resolve = (name: string) => components!.resolve(name)
 
 describe('DouUIResolver', () => {
@@ -38,6 +44,63 @@ describe('DouUIResolver', () => {
     expect(resolve('RouterLink')).toBeUndefined()
     expect(resolve('DouNothing')).toBeUndefined()
     expect(resolve('SearchIcon')).toBeUndefined()
+    expect(resolve('constructor')).toBeUndefined()
+    expect(resolve('toString')).toBeUndefined()
+  })
+
+  it('resolves the components of the packages built on dou-ui', () => {
+    expect(resolve('DouChartLine')).toEqual({
+      name: 'DouChartLine',
+      from: '@dou-ui/chart',
+      sideEffects: '@dou-ui/chart/style',
+    })
+    expect(resolve('DouEditor')?.from).toBe('@dou-ui/editor')
+    // A component with a lighter entry of its own is imported from there.
+    expect(resolve('DouFormRenderer')?.from).toBe('@dou-ui/form-builder/renderer')
+    expect(resolve('DouFormBuilder')?.from).toBe('@dou-ui/form-builder')
+    expect(resolve('DouScheduler')).toEqual({
+      name: 'DouScheduler',
+      from: '@dou-ui/gantt/scheduler',
+      sideEffects: '@dou-ui/gantt/style',
+    })
+    const [plain] = DouUIResolver({ importStyle: false, icons: false })
+    expect(plain!.resolve('DouSheet')).toEqual({ name: 'DouSheet', from: '@dou-ui/sheet' })
+  })
+
+  it('knows every component the packages built on dou-ui export', async () => {
+    for (const [name, { from, style }] of Object.entries(packageComponents)) {
+      const pkg = /^@dou-ui\/[a-z-]+/.exec(from)![0]
+      expect(style).toBe(`${pkg}/style`)
+      const entry = await import(/* @vite-ignore */ from)
+      expect([name, typeof entry[name]]).toEqual([name, 'object'])
+    }
+    // A sample from each package.
+    for (const name of [
+      'DouChart',
+      'DouCodeEditor',
+      'DouDashboard',
+      'DouEditor',
+      'DouFlowEditor',
+      'DouFormBuilder',
+      'DouGantt',
+      'DouPivot',
+      'DouSheet',
+    ]) {
+      expect(packageComponents).toHaveProperty(name)
+    }
+  })
+
+  it('resolves icons when @dou-ui/icons can be found from the project', () => {
+    const cwd = vi.spyOn(process, 'cwd')
+    try {
+      // `dou-ui` depends on the icons, so they can be found from there.
+      cwd.mockReturnValue(resolvePath(import.meta.dirname, '../../../dou-ui'))
+      expect(DouUIResolver()[0]!.resolve('SearchIcon')?.from).toBe('@dou-ui/icons')
+      cwd.mockReturnValue(resolvePath(import.meta.dirname, '../../../theme'))
+      expect(DouUIResolver()[0]!.resolve('SearchIcon')).toBeUndefined()
+    } finally {
+      cwd.mockRestore()
+    }
   })
 
   it('can skip styles, exclude names and resolve icons', () => {

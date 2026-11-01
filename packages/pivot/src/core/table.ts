@@ -60,13 +60,20 @@ export interface PivotCSVOptions {
   text?: boolean
   /** Start with a byte order mark, so spreadsheets read the file as UTF-8. Defaults to `true`. */
   bom?: boolean
+  /**
+   * Put a `'` before labels a spreadsheet program would run as a formula
+   * (starting with `=`, `+`, `-`, `@`, a tab or a line break). Defaults to
+   * `true`; `false` writes them as they are.
+   */
+  escapeFormulas?: boolean
 }
 
 /** The grid as CSV. Labels that a spreadsheet would read as a formula get a `'` in front. */
 export function gridToCSV(grid: PivotGrid, options: PivotCSVOptions = {}) {
+  const escape = options.escapeFormulas !== false
   const field = (cell: PivotGridCell | null) => {
     let s = plainText(cell, !!options.text)
-    if (cell && cell.kind !== 'value' && FORMULA_START.test(s)) s = `'${s}`
+    if (escape && cell && cell.kind !== 'value' && FORMULA_START.test(s)) s = `'${s}`
     return /[",\r\n]/.test(s) ? `"${s.replaceAll('"', '""')}"` : s
   }
   const lines = grid.cells.map((row) => row.map(field).join(','))

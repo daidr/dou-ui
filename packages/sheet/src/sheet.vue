@@ -1582,9 +1582,11 @@ function transact(
   before: SheetHistoryView = view(),
   /** Leave the copied range marked, as pasting a copy does. */
   keepMark = false,
+  /** Made by the app's code, not by someone using the grid: `readonly` doesn't stop it. */
+  fromCode = false,
 ) {
   // a change kept out of the history, such as another person's, still reaches a read-only grid
-  if (props.readonly && meta?.history !== false) return null
+  if (props.readonly && !fromCode && meta?.history !== false) return null
   const tr = new SheetTransaction(doc.value, sheetIndex.value)
   tr.setMeta({ action: 'api', ...meta })
   run(tr)
@@ -2760,7 +2762,7 @@ function toCSV(options: SheetCSVWriteOptions & { sheet?: SheetRef } = {}) {
   return sheetToCSV(data, {
     locale: lang.value,
     cellText: typedText,
-    cellValue: typedPlain,
+    cellPlain: typedPlain,
     result: (row, col) => engine.result(key, row, col),
     ...rest,
   })
@@ -5463,6 +5465,7 @@ const context: SheetContext = {
   cellType: (point) => typeAt(point.row, point.col),
   cellRect: visibleRect,
   rangeRect,
+  // the toolbar, tabs and extensions' commands act for the person using the grid
   transact: (run, meta) => transact(run, meta),
   undo: () => travel('undo'),
   redo: () => travel('redo'),
@@ -5619,7 +5622,7 @@ defineExpose<SheetExpose>({
   exportFile: exportFile as SheetExpose['exportFile'],
   saveFile: saveFile as SheetExpose['saveFile'],
   importFile,
-  transact: (run, meta) => transact(run, meta),
+  transact: (run, meta) => transact(run, meta, view(), false, true),
   undo: () => travel('undo'),
   redo: () => travel('redo'),
   get canUndo() {

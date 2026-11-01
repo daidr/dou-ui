@@ -152,14 +152,16 @@ describe('DouSheet', () => {
     expect(cells()[1]).toEqual([undefined, undefined])
   })
 
-  it('changes nothing when read-only', async () => {
+  it('lets no one change it when read-only, but still takes changes from code', async () => {
     const { key, type, cells, grid } = setup({ readonly: true })
     await key('ArrowDown')
     await type('x')
     await key('Enter')
     await key('Delete')
     expect(cells()[1]![0]).toBe('显示器')
-    expect(grid.value!.transact((tr) => tr.setValue('A1', 'x'))).toBeNull()
+    expect(grid.value!.transact((tr) => tr.setValue('A2', '键盘'))).not.toBeNull()
+    await nextTick()
+    expect(cells()[1]![0]).toBe('键盘')
   })
 
   it('applies transactions and selects by name', async () => {

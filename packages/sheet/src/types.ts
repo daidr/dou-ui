@@ -24,7 +24,10 @@ export interface SheetProps {
   selection?: SheetSelection
   /** The index of the sheet shown; bind with `v-model:active-sheet`. Defaults to 0. */
   activeSheet?: number
-  /** Show the cells without letting anyone change them; selecting still works. */
+  /**
+   * Show the cells without letting people change them in the grid;
+   * selecting still works. Changes made with `transact` still apply.
+   */
   readonly?: boolean
   /** The default row height, in px. */
   rowHeight?: number
@@ -325,8 +328,8 @@ export interface SheetExpose {
   /**
    * Makes a change: `run` adds steps to the transaction, which is applied
    * and recorded for undo as one. Cells without a sheet (`'A5'`) are on
-   * the sheet shown. Returns it, or `null` when nothing changed
-   * or the grid is read-only.
+   * the sheet shown. Returns it, or `null` when nothing changed. Works
+   * on a `readonly` grid too: that only stops people using the grid.
    */
   transact: (
     run: (tr: SheetTransaction) => void,
@@ -346,8 +349,9 @@ export interface SheetExpose {
    */
   showSheet: (sheet: SheetRef) => boolean
   /**
-   * The sheet shown (or `sheet`) as CSV, with the text its cells show, as
-   * their formats and cell types write it.
+   * The sheet shown (or `sheet`) as CSV: values a spreadsheet can sort and
+   * add up by default (what formulas come to, cell types' `plain`), or with
+   * `text`, the text the cells show, as their formats and cell types write it.
    */
   toCSV: (options?: SheetCSVWriteOptions & { sheet?: SheetRef }) => string
   /**

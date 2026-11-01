@@ -190,11 +190,11 @@ export interface SheetCSVWriteOptions {
     col: number,
   ) => string | undefined
   /**
-   * Without `text`: the value to write for a cell, e.g. its cell type's
-   * `plain`; `undefined` writes its value, or its formula's result. Not
-   * asked for formulas written with `formulas`.
+   * Without `text`: the value to write for a cell, as a cell type's `plain`
+   * gives it; `null` writes nothing, `undefined` writes its value, or its
+   * formula's result. Not asked for formulas written with `formulas`.
    */
-  cellValue?: (
+  cellPlain?: (
     input: SheetCellInput,
     value: SheetValue,
     row: number,
@@ -245,7 +245,7 @@ export function sheetToCSV(sheet: SheetData, options: SheetCSVWriteOptions = {})
     locale,
     result,
     cellText,
-    cellValue,
+    cellPlain,
     newline = '\r\n',
     bom = true,
     escapeFormulas = true,
@@ -281,7 +281,8 @@ export function sheetToCSV(sheet: SheetData, options: SheetCSVWriteOptions = {})
         shown = own ?? formatValue(value, cellOf(input)?.format, locale)
         textual = typeof value === 'string' || (own !== undefined && typeof value !== 'number')
       } else {
-        const own = cellValue?.(input, value, row, col) ?? value
+        const given = cellPlain?.(input, value, row, col)
+        const own = given === undefined ? value : given
         // read back with `formulas`, text that would read as something else keeps its `'`
         shown = formulas ? inputText(own ?? undefined) : plainText(own)
         textual = typeof own === 'string'

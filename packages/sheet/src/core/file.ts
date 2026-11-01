@@ -565,6 +565,10 @@ export interface SheetCSVExportOptions {
   text?: boolean
   /** Writes formulas as written instead of what they come to. Ignored with `text`. */
   formulas?: boolean
+  /** Line breaks between rows; `\r\n` by default. */
+  newline?: string
+  /** Puts a `'` before text a spreadsheet program would run as a formula. On by default. */
+  escapeFormulas?: boolean
 }
 
 /** CSV: one sheet (or the selected cells), with the cells' values. */
@@ -585,11 +589,13 @@ export const csvExporter = defineSheetExporter<SheetCSVExportOptions>({
       locale: source.locale,
       result: (row, col) => source.result(index, row, col),
       cellText: (_input, _value, row, col) => source.text(index, row, col),
-      cellValue: (_input, _value, row, col) => source.plain(index, row, col),
+      cellPlain: (_input, _value, row, col) => source.plain(index, row, col),
       delimiter: options.delimiter,
       text: options.text,
       formulas: options.formulas,
       bom: options.bom,
+      newline: options.newline,
+      escapeFormulas: options.escapeFormulas,
     })
   },
 })

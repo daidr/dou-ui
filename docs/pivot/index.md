@@ -286,7 +286,7 @@ filters: {
 | `toGrid()`              | 每个格子的文字、数值和类型，用来自己生成别的格式                                            |
 | `print(options?)`       | 打开浏览器的打印对话框，打印整张表                                                          |
 
-数值去掉了汇总时的浮点误差（按 15 位有效数字取整，`1592.0200000000002` 写成 `1592.02`）。CSV 默认以字节顺序标记开头，这样电子表格软件能按 UTF-8 打开，`{ bom: false }` 可以去掉。组名以 `=`、`+`、`-`、`@` 开头时，前面会加上 `'`，防止在电子表格里被当成公式运行。
+数值去掉了汇总时的浮点误差（按 15 位有效数字取整，`1592.0200000000002` 写成 `1592.02`）。CSV 默认以字节顺序标记开头，这样电子表格软件能按 UTF-8 打开，`{ bom: false }` 可以去掉。组名以 `=`、`+`、`-`、`@` 开头时，前面会加上 `'`，防止在电子表格里被当成公式运行；确定文件不会被表格软件打开时，可以用 `{ escapeFormulas: false }` 原样写出。
 
 这些方法只返回内容，下载成文件可以用 `dou-ui` 的 [`downloadBlob`](../guide/composables#downloadblob)，例如 `downloadBlob(new Blob([pivot.value.toCSV()], { type: 'text/csv' }), '销售.csv')`。
 
@@ -503,19 +503,19 @@ result.get(east, result.columns.find(['Q1']), 1) // 华东 Q1 的第 2 个值
 
 ### Pivot Methods
 
-| 名称                              | 说明                                                      | 类型                                |
-| --------------------------------- | --------------------------------------------------------- | ----------------------------------- |
-| `result`                          | 当前的汇总结果                                            | `PivotResult`                       |
-| `expandAll({ axis? })`            | 展开所有组                                                | `(options?) => void`                |
-| `collapseAll({ axis?, depth? })`  | 折叠从第 `depth` 层开始的所有组                           | `(options?) => void`                |
-| `toggle(axis, path, open?)`       | 展开或折叠一个组                                          | `(axis, path, open?) => void`       |
-| `selectAll()`                     | 选中全部格子                                              | `() => void`                        |
-| `copy({ all? })`                  | 复制选中的格子，`all` 复制整张表                          | `(options?) => Promise<void>`       |
-| `toCSV({ text?, bom? })`          | 导出 CSV                                                  | `(options?) => string`              |
-| `toSheet({ name? })`              | 导出给 `DouSheet` 的工作簿                                | `(options?) => PivotSheetWorkbook`  |
-| `toChartRows(options?)`           | 导出给图表的行数据和系列，`options.valueIndex` 只取一个值 | `(options?) => { x, rows, series }` |
-| `toGrid()`                        | 每个格子的 `text`、`kind`、`value`、`total` 和合并范围    | `() => PivotGrid`                   |
-| `print({ title?, orientation? })` | 打印整张表                                                | `(options?) => void`                |
+| 名称                                      | 说明                                                      | 类型                                |
+| ----------------------------------------- | --------------------------------------------------------- | ----------------------------------- |
+| `result`                                  | 当前的汇总结果                                            | `PivotResult`                       |
+| `expandAll({ axis? })`                    | 展开所有组                                                | `(options?) => void`                |
+| `collapseAll({ axis?, depth? })`          | 折叠从第 `depth` 层开始的所有组                           | `(options?) => void`                |
+| `toggle(axis, path, open?)`               | 展开或折叠一个组                                          | `(axis, path, open?) => void`       |
+| `selectAll()`                             | 选中全部格子                                              | `() => void`                        |
+| `copy({ all? })`                          | 复制选中的格子，`all` 复制整张表                          | `(options?) => Promise<void>`       |
+| `toCSV({ text?, bom?, escapeFormulas? })` | 导出 CSV                                                  | `(options?) => string`              |
+| `toSheet({ name? })`                      | 导出给 `DouSheet` 的工作簿                                | `(options?) => PivotSheetWorkbook`  |
+| `toChartRows(options?)`                   | 导出给图表的行数据和系列，`options.valueIndex` 只取一个值 | `(options?) => { x, rows, series }` |
+| `toGrid()`                                | 每个格子的 `text`、`kind`、`value`、`total` 和合并范围    | `() => PivotGrid`                   |
+| `print({ title?, orientation? })`         | 打印整张表                                                | `(options?) => void`                |
 
 ### Worker 与引擎
 

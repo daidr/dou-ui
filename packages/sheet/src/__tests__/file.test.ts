@@ -68,6 +68,12 @@ describe('exportWorkbook', () => {
       { extensions: [starsExtension], options: { formulas: true, bom: false } },
     )
     expect(await written.text()).toBe('1,2,=A1+B1,=A1/4')
+    const lines = await exportWorkbook(
+      { sheets: [{ name: '表', cells: [['+1'], ['b']] }] },
+      csvExporter,
+      { options: { newline: '\n', escapeFormulas: false, bom: false } },
+    )
+    expect(await lines.text()).toBe('+1\nb')
     const shown = await exportWorkbook(book(), csvExporter, {
       extensions: [starsExtension],
       options: { text: true },

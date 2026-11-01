@@ -76,6 +76,7 @@ import { nearestSpoke, spokeAngle } from './core/radar'
 import { FUNNEL_BAR } from './core/funnel'
 import { isTotal } from './core/waterfall'
 import { boxes } from './core/box'
+import { CHART_PATTERNS, patternCss, type ChartPattern } from './core/pattern'
 import {
   buildTree,
   drawSunburst,
@@ -805,11 +806,40 @@ const series = computed<ChartSeries[]>(() => {
       kind: s.input.kind,
       props: p,
       color: seriesColor(p, index),
+      pattern: seriesPattern(p, s.input.kind, index),
     }
     shown.colors = itemColors(shown)
     return shown
   })
 })
+
+/** The kinds whose fill can take a pattern: bars and areas. */
+const FILLED = new Set(['bar', 'area'])
+
+/** A series' pattern: its own, or with the chart's `patterns`, one by its place. */
+function seriesPattern(
+  p: SeriesPart['props'],
+  kind: { type: string },
+  index: number,
+): ChartPattern | null {
+  if (!FILLED.has(kind.type)) return null
+  const own = p.pattern as ChartPattern | 'none' | undefined
+  if (own) return own === 'none' ? null : own
+  return props.patterns ? CHART_PATTERNS[index % CHART_PATTERNS.length]! : null
+}
+
+/** A pattern as a legend swatch shows it, over the swatch's color. */
+const swatchPattern = (pattern: ChartPattern | null | undefined) =>
+  pattern
+    ? patternCss(pattern, 'color-mix(in oklab, var(--dou-chart-surface) 70%, transparent)')
+    : undefined
+
+/** Each slice's pattern, by its place, with the chart's `patterns`. */
+const slicePatterns = computed(() =>
+  props.patterns
+    ? slices.value.map((slice) => CHART_PATTERNS[slice.index % CHART_PATTERNS.length]!)
+    : undefined,
+)
 
 /** The colored part of the palette: slices leave the neutral first color for "other". */
 const SLICE_COLORS = 7
@@ -855,6 +885,7 @@ const legendEntries = computed(() => {
       off: slice.hidden,
       locked: last && !slice.hidden,
       scale: undefined as string[] | undefined,
+      pattern: swatchPattern(slicePatterns.value?.[slice.index]),
     }))
   }
   // a heatmap's scale says what its colors mean, even alone
@@ -873,6 +904,7 @@ const legendEntries = computed(() => {
       locked: last && !part.hidden.value,
       /** A heatmap's scale: its colors, least to most. */
       scale: undefined as string[] | undefined,
+      pattern: swatchPattern(seriesPattern(part.props, part.kind, index)),
     }
     const s = part.kind.categoryY ? series.value.find((one) => one.index === index) : undefined
     const range = s && heatRange(s)
@@ -3350,6 +3382,7 @@ function paintPie(painter: Painter, t: number, sweep: number, still = false) {
     fade: legendFocus ? FADED : 0.56,
     sweep,
     from: pieArc.value[0],
+    patterns: slicePatterns.value,
   })
   // the lines out to the labels, once they show
   const leaders = pieLabels.value.leaders

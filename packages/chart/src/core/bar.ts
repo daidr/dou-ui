@@ -1,5 +1,6 @@
 import { visibleRange } from './decimate'
 import type { Painter } from './painter'
+import { fillPattern } from './pattern'
 import { baseline } from './scale'
 import type { ChartLabelAnchor, ChartSeries, ChartSeriesKind, ChartView } from './series'
 
@@ -143,10 +144,12 @@ export function drawBars(
       painter.beginPath()
       for (const i of rows) bar(i)
       painter.fill()
+      if (series.pattern) fillPattern(painter, series.pattern, view.plot, view.colors.surface)
     }
   } else {
     for (let i = from; i < to; i++) bar(i)
     painter.fill()
+    if (series.pattern) fillPattern(painter, series.pattern, view.plot, view.colors.surface)
   }
   painter.restore()
 }

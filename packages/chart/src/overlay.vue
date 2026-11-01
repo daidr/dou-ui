@@ -39,6 +39,8 @@ export interface OverlayState {
       /** A heatmap's scale: its colors, least to most, in a swatch `swatch` px wide. */
       scale?: string[]
       swatch?: number
+      /** The pattern over its color, as a CSS background image and its size. */
+      pattern?: { image: string; size?: string }
     }>
   >
   /** Where the legend shows; its entries scroll in it when they don't all fit. */
@@ -245,7 +247,13 @@ const focusVisible = (e: FocusEvent) => (e.target as Element).matches(':focus-vi
                   width: `${item.swatch}px`,
                   background: `linear-gradient(to right, ${item.scale.join(', ')})`,
                 }
-              : { color: item.color }
+              : item.pattern
+                ? {
+                    color: item.color,
+                    backgroundImage: item.pattern.image,
+                    backgroundSize: item.pattern.size,
+                  }
+                : { color: item.color }
           "
         /><span :class="ns.e('text')">{{ item.text }}</span>
       </button>

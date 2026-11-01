@@ -17,16 +17,11 @@ bun add dou-ui @dou-ui/chart
 引入样式，再注册组件：
 
 ```ts
-import "dou-ui/style.css";
-import "@dou-ui/chart/style.css";
-import {
-  DouChart,
-  DouChartAxis,
-  DouChartBar,
-  DouChartLine,
-} from "@dou-ui/chart";
+import 'dou-ui/style.css'
+import '@dou-ui/chart/style.css'
+import { DouChart, DouChartAxis, DouChartBar, DouChartLine } from '@dou-ui/chart'
 
-app.use(DouChart).use(DouChartAxis).use(DouChartLine).use(DouChartBar);
+app.use(DouChart).use(DouChartAxis).use(DouChartLine).use(DouChartBar)
 ```
 
 用到哪种系列就注册哪个组件：`DouChartLine`、`DouChartArea`、`DouChartBar`、`DouChartScatter`、`DouChartPie`。
@@ -334,17 +329,17 @@ app.use(DouChart).use(DouChartAxis).use(DouChartLine).use(DouChartBar);
 
 ```ts
 defineChartSeries({
-  type: "lollipop", // 组件名为 DouChartLollipop，图例里的类名为 is-lollipop
+  type: 'lollipop', // 组件名为 DouChartLollipop，图例里的类名为 is-lollipop
   zero: true, // 数值轴包含 0
   stackable: false, // 是否支持 stack
   band: false, // 是否像柱子一样在每个位置并排分配空间
   inset: (series) => 0, // 每个点周围需要留出的像素，比如气泡的半径
-  tooltip: "axis", // 提示框按位置（'axis'）还是按单个点（'item'）显示
+  tooltip: 'axis', // 提示框按位置（'axis'）还是按单个点（'item'）显示
   hit: undefined, // 按单个点显示时，找出指针下的点，默认找 12px 内最近的点
   prepare: undefined, // 数据不再变化、浏览器空闲时提前做的准备，返回值放在 series.prepared
   props: { radius: { type: Number, default: 5 } }, // 自己的属性
   draw(painter, series, view) {},
-});
+})
 ```
 
 `draw` 收到三个参数：
@@ -359,36 +354,36 @@ defineChartSeries({
 
 ```ts
 defineChartSeries({
-  type: "dots",
-  tooltip: "item",
+  type: 'dots',
+  tooltip: 'item',
   // 按 x 取整分桶：每个整数位置有哪些点
   prepare(series) {
-    const buckets = new Map<number, number[]>();
+    const buckets = new Map<number, number[]>()
     series.x.values.forEach((x, i) => {
-      const key = Math.round(x);
-      buckets.set(key, [...(buckets.get(key) ?? []), i]);
-    });
-    return buckets;
+      const key = Math.round(x)
+      buckets.set(key, [...(buckets.get(key) ?? []), i])
+    })
+    return buckets
   },
   hit(series, view, px, py) {
-    const buckets = series.prepared as Map<number, number[]> | undefined;
-    const x = Math.round(view.x.invert(px));
+    const buckets = series.prepared as Map<number, number[]> | undefined
+    const x = Math.round(view.x.invert(px))
     // 还没有索引时逐个查找
     const candidates = buckets
       ? [x - 1, x, x + 1].flatMap((key) => buckets.get(key) ?? [])
-      : series.x.values.map((_, i) => i);
-    let best = null;
+      : series.x.values.map((_, i) => i)
+    let best = null
     for (const i of candidates) {
-      const [left, top] = view.point(series.x.values[i], series.top[i]);
-      const d = Math.hypot(left - px, top - py);
-      if (d <= 12 && (!best || d < best.d)) best = { index: i, radius: 4, d };
+      const [left, top] = view.point(series.x.values[i], series.top[i])
+      const d = Math.hypot(left - px, top - py)
+      if (d <= 12 && (!best || d < best.d)) best = { index: i, radius: 4, d }
     }
-    return best;
+    return best
   },
   draw(painter, series, view) {
     /* … */
   },
-});
+})
 ```
 
 ## 提示框
@@ -483,13 +478,9 @@ defineChartSeries({
 
 ```js
 const data = shallowRef({
-  time: new Float64Array([
-    /* … */
-  ]),
-  value: new Float64Array([
-    /* … */
-  ]),
-});
+  time: new Float64Array([/* … */]),
+  value: new Float64Array([/* … */]),
+})
 ```
 
 `x`、`y` 是字段名时直接读取那一列；是函数时，函数拿到的行是由各列拼成的对象。提示框、点击和框选给出的行也是这样拼成的对象，同一行每次都是同一个对象。
@@ -554,6 +545,14 @@ SVG 和画布用同一套绘制代码，两者画出的图形一致。导出的�
 
 服务端不知道图表的宽度，所以按 `ssr-width`（默认 `640`）画出，再等比缩放到图表的区域里；`height` 是 CSS 长度时按 `320` 计算。浏览器接管页面后，图表按实际宽度画在画布上，然后去掉这张 SVG，不再播放入场动画。环形图中间插槽的内容在浏览器接管之后显示。
 
+## 图案填充
+
+`patterns` 给每个有填充的系列（柱状图、面积图）和饼图的每一块加上不同的图案：斜线、圆点、交叉线、横线等，图例里同样显示图案。打印成黑白、颜色接近或者有色觉障碍时，靠图案也能分清各个系列。
+
+<DocDemo src="chart/patterns" />
+
+图案按系列的顺序依次分配。系列的 `pattern` 可以指定自己的图案，可选 `diagonal`、`dots`、`crosshatch`、`horizontal`、`backslash`、`grid`、`vertical`；设为 `none` 时这个系列不加图案。柱子上的图案用背景色画在柱子上，面积图的图案用系列的颜色画在浅色的填充上。
+
 ## 主题
 
 图表的颜色都来自主题：系列颜色是 `--dou-color-chart-1` 到 `--dou-color-chart-8`，第 1 个是中性色，其余是低饱和的色相，并且明度错开，常见的色觉障碍下也能区分。切换暗色主题时图表会自动重绘。
@@ -579,6 +578,7 @@ SVG 和画布用同一套绘制代码，两者画出的图形一致。导出的�
 | `legend`           | 显示或隐藏图例                                           | `boolean`                                   | 多于一个系列时显示 |
 | `legend-placement` | 图例的位置；宽度小于 480px 时 `'right'` 改放到下方       | `'top' \| 'bottom' \| 'right'`              | `'bottom'`         |
 | `palette`          | 这个图表自己的配色：CSS 颜色或语气色名称，按顺序循环使用 | `string[]`                                  | 主题的 8 种颜色    |
+| `patterns`         | 给柱状图、面积图和饼图的每一块加上不同的图案             | `boolean`                                   | `false`            |
 | `v-model:table`    | 在图表的位置显示数据表                                   | `boolean`                                   | `false`            |
 | `horizontal`       | x 轴放在左侧，数值放在底部                               | `boolean`                                   | `false`            |
 | `messages`         | 替换语言包里的文字                                       | `Partial<ChartMessages>`                    | —                  |
@@ -629,6 +629,7 @@ SVG 和画布用同一套绘制代码，两者画出的图形一致。导出的�
 | `label-position` | 标签写在每个点上方，或只写在最后一个点旁边                   | `'point' \| 'end'`                                                  | `'point'`                |
 | `v-model:hidden` | 隐藏系列，保留它的颜色和图例                                 | `boolean`                                                           | `false`                  |
 | `stack`          | 堆叠分组，名称相同的叠在一起                                 | `string \| boolean`                                                 | —                        |
+| `pattern`        | 仅面积图：填充上的图案，`none` 表示不加                      | `ChartPattern \| 'none'`                                            | 图表的 `patterns`        |
 | `y0`             | 面积的下边界，画成从 `y0` 到 `y` 的带；不能和 `stack` 一起用 | `string \| (row, index: number) => unknown`                         | —                        |
 
 ### Bar Props
@@ -642,6 +643,7 @@ SVG 和画布用同一套绘制代码，两者画出的图形一致。导出的�
 | `radius`         | 柱子末端的圆角，单位 px                                                                       | `number`                                                            | `2`                                 |
 | `labels`         | 数据标签，写法和折线图相同                                                                    | `boolean \| (label: ChartDataLabel) => string \| null \| undefined` | `false`                             |
 | `label-position` | 标签写在柱子末端外面，或柱子里面                                                              | `'outside' \| 'inside'`                                             | 堆叠时 `'inside'`，否则 `'outside'` |
+| `pattern`        | 柱子上的图案，`none` 表示不加                                                                 | `ChartPattern \| 'none'`                                            | 图表的 `patterns`                   |
 
 ### Boxplot Props
 

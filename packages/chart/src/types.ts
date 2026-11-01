@@ -1,4 +1,5 @@
 import type { ChartAccessor, ChartData, ChartRow } from './core/data'
+import type { ChartPattern } from './core/pattern'
 import type {
   ChartAxisRole,
   ChartAxisType,
@@ -37,6 +38,11 @@ export interface ChartProps {
    * theme's eight: CSS colors or tones. A pie takes them from the first.
    */
   palette?: string[]
+  /**
+   * Gives each series with a fill (bars, areas) and each slice a pattern
+   * over its color, so they can be told apart in print or in grays.
+   */
+  patterns?: boolean
   /**
    * Lay x down the left side and values along the bottom: bars that are
    * easier to read across, with room for long category names. Axes and
@@ -211,6 +217,8 @@ export interface ChartDataLabel {
 export type ChartLabelFormat = (label: ChartDataLabel) => string | null | undefined
 
 export interface ChartAreaProps extends ChartLineProps {
+  /** A pattern over the fill; `none` for none even when the chart's `patterns` is on. */
+  pattern?: ChartPattern | 'none'
   /** Stack on the series before it with the same `stack` name (`true` is one shared stack). */
   stack?: string | boolean
   /**
@@ -228,6 +236,8 @@ export interface ChartAreaProps extends ChartLineProps {
 export type ChartItemColor = (row: ChartRow, index: number) => string | undefined
 
 export interface ChartBarProps extends ChartSeriesProps {
+  /** A pattern over the bars; `none` for none even when the chart's `patterns` is on. */
+  pattern?: ChartPattern | 'none'
   /**
    * Any CSS color for all the bars, or a function that gives each bar its own
    * (a CSS color or a tone; `undefined` keeps the series' color, as in the legend).

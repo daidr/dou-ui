@@ -1,5 +1,6 @@
 import { BREAK, decimate, summarize, visibleRange } from './decimate'
 import { tracePoints, type Painter } from './painter'
+import { fillPattern } from './pattern'
 import { baseline } from './scale'
 import type { ChartLabelAnchor, ChartSeries, ChartSeriesKind, ChartView } from './series'
 
@@ -152,6 +153,8 @@ export function drawLine(
     }
     painter.fill()
     painter.restore()
+    // on a light fill, the pattern is in the series' color (the path is still the area's)
+    if (series.pattern) fillPattern(painter, series.pattern, view.plot, series.color, 0.5)
   }
 
   if (lineWidth > 0) {

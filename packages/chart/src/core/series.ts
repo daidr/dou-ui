@@ -1,5 +1,6 @@
 import type { Tone } from 'dou-ui'
 import type { ChartAccessor, ChartData, XColumn } from './data'
+import type { ChartPattern } from './pattern'
 import type { Painter, Rect } from './painter'
 import type { Scale } from './scale'
 
@@ -62,6 +63,8 @@ export interface ChartSeries<P = Record<string, unknown>> {
   stackEnds: { up: Float64Array; down: Float64Array } | null
   /** For series that share the room of each x (bars): which part is theirs. */
   slot: { index: number; count: number } | null
+  /** The pattern drawn over its fill, if any (the chart's `patterns`, or its own `pattern`). */
+  pattern?: ChartPattern | null
   /**
    * What the kind's `prepare` gave back for this data; `undefined` until
    * it has run, so `draw` and `hit` must work without it.

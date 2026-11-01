@@ -1,5 +1,6 @@
 import { read, yColumn, type ChartAccessor, type ChartData, rowOf } from './data'
 import type { Painter } from './painter'
+import { fillPattern, type ChartPattern } from './pattern'
 
 /** A slice of a pie, with its angles in radians clockwise from 12 o'clock. */
 export interface PieSlice {
@@ -124,6 +125,7 @@ export function drawPie(
     fade = FADED,
     sweep = 1,
     from = 0,
+    patterns,
   }: {
     cx: number
     cy: number
@@ -137,6 +139,8 @@ export function drawPie(
     sweep?: number
     /** Where the slices start: coming in, they sweep round from there. */
     from?: number
+    /** The pattern over each slice, by its `index`. */
+    patterns?: Array<ChartPattern | null>
   },
 ) {
   const turn = (angle: number) => from + (angle - from) * sweep
@@ -154,6 +158,11 @@ export function drawPie(
     else painter.lineTo(cx, cy)
     painter.closePath()
     painter.fill()
+    const pattern = patterns?.[slice.index]
+    if (pattern) {
+      const box = { x: cx - radius, y: cy - radius, width: radius * 2, height: radius * 2 }
+      fillPattern(painter, pattern, box, surface)
+    }
     painter.restore()
   })
   if (shown.length < 2) return

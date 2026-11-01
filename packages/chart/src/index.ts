@@ -99,6 +99,7 @@ export type {
   ChartTickValue,
 } from './core/layout'
 export type { ChartCategorySort } from './core/model'
+export type { ChartPattern } from './core/pattern'
 export type { Painter as ChartPainter, Rect as ChartRect } from './core/painter'
 export type { Scale as ChartScale } from './core/scale'
 export type {

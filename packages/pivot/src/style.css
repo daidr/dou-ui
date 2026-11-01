@@ -413,9 +413,15 @@
         left: calc(4px + (100% - 8px) * var(--dou-pivot-bar-start));
         width: calc((100% - 8px) * var(--dou-pivot-bar-size));
         border-radius: 3px;
-        background-color: light-dark(
-          color-mix(in oklab, var(--dou-pivot-tone) var(--dou-pivot-bar-strength), transparent),
-          color-mix(in oklab, var(--dou-pivot-tone) var(--dou-pivot-bar-strength-dark), transparent)
+        background-color: color-mix(
+          in oklab,
+          var(--dou-pivot-tone)
+            calc(
+              var(--dou-pivot-bar-strength) +
+                (var(--dou-pivot-bar-strength-dark) - var(--dou-pivot-bar-strength)) *
+                var(--dou-scheme-dark)
+            ),
+          transparent
         );
         content: '';
       }

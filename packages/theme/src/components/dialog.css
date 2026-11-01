@@ -7,10 +7,11 @@
  */
 @layer dou.components {
   .dou-dialog {
-    --dou-dialog-mask: light-dark(rgb(0 0 0 / 0.32), rgb(0 0 0 / 0.64));
-    --dou-dialog-bg: light-dark(
-      var(--dou-color-bg-surface),
-      color-mix(in oklab, var(--dou-color-text) 3%, var(--dou-color-bg-surface))
+    --dou-dialog-mask: rgb(0 0 0 / calc(0.32 + 0.32 * var(--dou-scheme-dark)));
+    --dou-dialog-bg: color-mix(
+      in oklab,
+      var(--dou-color-text) calc(3% * var(--dou-scheme-dark)),
+      var(--dou-color-bg-surface)
     );
     --dou-dialog-width: 480px;
     --dou-dialog-top: 12vh;

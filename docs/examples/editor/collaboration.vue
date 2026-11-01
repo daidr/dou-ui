@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { DouEditor, editorKit } from '@dou-ui/editor'
 import { collaboration, fillMap } from '@dou-ui/editor/collaboration'
-import { DouSwitch } from 'dou-ui'
+import { DouSwitch, type CommentThread } from 'dou-ui'
 import { onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
 import { applyAwarenessUpdate, Awareness, encodeAwarenessUpdate } from 'y-protocols/awareness'
 import * as Y from 'yjs'
@@ -20,15 +20,15 @@ function setOnline(value: boolean) {
   if (value) for (const apply of pending.splice(0)) apply()
 }
 
-function createClient(name: string) {
+function createClient(id: string, name: string) {
   const doc = new Y.Doc()
   const awareness = new Awareness(doc)
-  return { name, doc, awareness }
+  return { id, name, doc, awareness }
 }
 
 // Yjs 的 Awareness 会启动定时器，所以只在浏览器里创建
 function createDemo() {
-  const clients = [createClient('戴兜'), createClient('阿青')]
+  const clients = [createClient('dai', '戴兜'), createClient('qing', '阿青')]
   const [first, second] = clients as [
     ReturnType<typeof createClient>,
     ReturnType<typeof createClient>,
@@ -37,7 +37,10 @@ function createDemo() {
   // 文档第一次创建时写入初始内容，通常在服务器上完成
   fillMap(first.doc.getMap('document'), [
     { type: 'heading', props: { level: 2 }, content: '上海周末出行计划' },
-    { type: 'paragraph', content: '两个人一起改，各自的光标会显示在对方的编辑器里。' },
+    {
+      type: 'paragraph',
+      content: '两个人一起改，各自的光标会显示在对方的编辑器里。选中文字可以发起评论。',
+    },
     { type: 'checkItem', content: '订好周五晚上的车票' },
     { type: 'checkItem', content: '提前预约博物馆' },
     { type: 'checkItem', content: '带上充电宝和雨伞' },
@@ -72,12 +75,15 @@ function createDemo() {
 
   const editors = clients.map((client) => ({
     name: client.name,
+    author: { id: client.id, name: client.name },
+    threads: ref<CommentThread[]>([]),
     extensions: [
       editorKit(),
       collaboration({
         map: client.doc.getMap('document'),
         awareness: client.awareness,
         user: { name: client.name },
+        comments: client.doc.getMap('comments'),
       }),
     ],
   }))
@@ -110,7 +116,12 @@ onBeforeUnmount(() => {
     <div class="collab-demo__editors">
       <section v-for="editor in demo?.editors" :key="editor.name" class="collab-demo__pane">
         <div class="collab-demo__name">{{ editor.name }}</div>
-        <DouEditor :extensions="editor.extensions" :aria-label="`${editor.name}的编辑器`" />
+        <DouEditor
+          v-model:comments="editor.threads.value"
+          :extensions="editor.extensions"
+          :author="editor.author"
+          :aria-label="`${editor.name}的编辑器`"
+        />
       </section>
     </div>
   </div>

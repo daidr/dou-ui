@@ -18,7 +18,7 @@ const key = (root: Element, name: string) =>
   root.dispatchEvent(new KeyboardEvent('keydown', { key: name, bubbles: true }))
 
 /** Two charts in one tooltip group (or none), each with a size, as happy-dom has no layout. */
-async function pair(group?: string) {
+async function pair(group?: string, onHover?: (event: unknown) => void) {
   const wrapper = mount(
     defineComponent(
       () => () =>
@@ -27,7 +27,7 @@ async function pair(group?: string) {
             h(DouChartBar, { y: 'a', name: '线上' }),
             h(DouChartTooltip, { group }),
           ]),
-          h(DouChart, { data: visits, x: 'q', height: 300 }, () => [
+          h(DouChart, { data: visits, x: 'q', height: 300, onHover }, () => [
             h(DouChartLine, { y: 'v', name: '访客' }),
             h(DouChartTooltip, { group }),
           ]),
@@ -92,6 +92,19 @@ describe('tooltips in a group', () => {
     key(roots[0]!, 'Escape')
     await nextTick()
     expect(charts[1]!.find('.dou-chart__tooltip').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('tell hover only in the chart the pointer or keys are on', async () => {
+    const hovered: unknown[] = []
+    const { wrapper, roots } = await pair('sales', (event) => hovered.push(event))
+    key(roots[0]!, 'End')
+    await nextTick()
+    // the second chart follows to 三季度, but nothing was hovered there
+    expect(hovered).toEqual([])
+    key(roots[1]!, 'ArrowRight')
+    await nextTick()
+    expect(hovered).toHaveLength(1)
     wrapper.unmount()
   })
 

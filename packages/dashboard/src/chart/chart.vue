@@ -7,7 +7,7 @@ import {
   DouChartPie,
   DouChartTooltip,
 } from '@dou-ui/chart'
-import type { ChartSelectEvent } from '@dou-ui/chart'
+import type { ChartPointEvent } from '@dou-ui/chart'
 import { computed } from 'vue'
 import { useDashboardWidget } from '../widget/context'
 import { filterValueOf, rowsOf } from '../widgets/shared'
@@ -33,7 +33,7 @@ const barColor = computed(() => {
     filterValueOf(row[x]) === value ? undefined : 'var(--dou-color-border-strong)'
 })
 
-function onSelect(event: ChartSelectEvent) {
+function onSelect(event: ChartPointEvent) {
   const key = props.value.filter
   if (!key) return
   const value = filterValueOf(event.x)

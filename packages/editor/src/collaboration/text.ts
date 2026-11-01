@@ -5,13 +5,34 @@ import type * as Y from 'yjs'
 
 export type Attributes = Record<string, unknown>
 
+/*
+ * A text can be in several comment threads at once, each added and
+ * removed on its own, also by two people at the same time: every thread
+ * is its own attribute, `comment:<thread id>`.
+ */
+const COMMENT = 'comment'
+const COMMENT_PREFIX = 'comment:'
+
 export function markAttributes(marks: readonly Mark[], schema: Schema): Attributes {
   // every mark is named, so `insert` doesn't inherit formatting from the left
+  // (comment attributes the text doesn't have are cleared by `insert` itself)
   const attributes: Attributes = {}
-  for (const name of Object.keys(schema.marks)) attributes[name] = null
-  for (const mark of marks)
-    attributes[mark.type.name] = Object.keys(mark.attrs).length ? { ...mark.attrs } : true
+  for (const name of Object.keys(schema.marks)) if (name !== COMMENT) attributes[name] = null
+  for (const mark of marks) {
+    if (mark.type.name === COMMENT) attributes[COMMENT_PREFIX + mark.attrs.id] = true
+    else attributes[mark.type.name] = Object.keys(mark.attrs).length ? { ...mark.attrs } : true
+  }
   return attributes
+}
+
+/** The comment attributes of the inline content from `from` to `to`. */
+function commentAttributes(node: PMNode, from: number, to: number): Set<string> {
+  const keys = new Set<string>()
+  node.nodesBetween(from, to, (child) => {
+    for (const mark of child.marks)
+      if (mark.type.name === COMMENT) keys.add(COMMENT_PREFIX + mark.attrs.id)
+  })
+  return keys
 }
 
 interface Embed {
@@ -43,6 +64,11 @@ export function insertInline(text: Y.Text, at: number, content: PMNode, from: nu
 function marksFrom(attributes: Attributes | undefined, schema: Schema): Mark[] {
   const marks: Mark[] = []
   for (const [name, value] of Object.entries(attributes ?? {})) {
+    if (name.startsWith(COMMENT_PREFIX)) {
+      if (value === true && schema.marks[COMMENT])
+        marks.push(schema.marks[COMMENT].create({ id: name.slice(COMMENT_PREFIX.length) }))
+      continue
+    }
     const type = schema.marks[name]
     if (!type || value === null || value === undefined) continue
     marks.push(type.create(value === true ? null : (value as Attributes)))
@@ -82,10 +108,15 @@ export function updateText(text: Y.Text, before: PMNode, after: PMNode) {
   if (sameText) {
     // only the formatting changed: keep the characters, so edits on them merge
     const schema = after.type.schema
+    const comments = commentAttributes(before, start, end.a)
     after.content.forEach((child, pos) => {
       const from = Math.max(pos, start)
       const to = Math.min(pos + child.nodeSize, end.b)
-      if (from < to) text.format(from, to - from, markAttributes(child.marks, schema))
+      if (from >= to) return
+      const attributes = markAttributes(child.marks, schema)
+      // threads taken off this text
+      for (const key of comments) if (!(key in attributes)) attributes[key] = null
+      text.format(from, to - from, attributes)
     })
     return
   }

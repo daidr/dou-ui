@@ -730,6 +730,18 @@ const arts: Record<string, string | ((id: string) => string)> = {
     circle(71, 75, 5, 'g ring2') +
     bar(90, 48, 64, 'k', 7) +
     bar(90, 64, 48, 't'),
+  // a discussion: two comments, the first with its resolve check, then the reply box
+  'comment-thread':
+    avatar(42, 26, 9) +
+    bar(58, 24, 30, 'k') +
+    text(94, 28, '1小时前', 'tx3 small', 'start') +
+    check(162, 26, 'ln') +
+    bar(58, 38, 98) +
+    avatar(42, 58, 9) +
+    bar(58, 56, 24, 'k') +
+    text(88, 60, '刚刚', 'tx3 small', 'start') +
+    bar(58, 70, 72) +
+    field(33, 84, 136, 22, 28),
   badge:
     rect(40, 36, 48, 48, 'p', 10) +
     icon('bell', 64, 60, 26) +

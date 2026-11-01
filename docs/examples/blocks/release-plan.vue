@@ -179,7 +179,7 @@ async function exportAs(kind: unknown) {
   if (!chart) return
   if (kind === 'png') download(await chart.exportPNG(), '会员中心 2.0 排期.png')
   else if (kind === 'svg') download(chart.exportSVG(), '会员中心 2.0 排期.svg', 'image/svg+xml')
-  else if (kind === 'csv') download(chart.exportCSV(), '会员中心 2.0 排期.csv', 'text/csv')
+  else if (kind === 'csv') download(chart.toCSV(), '会员中心 2.0 排期.csv', 'text/csv')
   else if (kind === 'print') chart.print()
 }
 </script>

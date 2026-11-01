@@ -76,7 +76,7 @@ export interface SchedulerEmits {
   /** Sent before the menu opens; `event.preventDefault()` keeps it closed. */
   taskContextmenu: [task: GanttTask, event: MouseEvent]
   /** A time range was drawn on an empty part of a row; add a task for it if you like. */
-  rangeSelect: [range: SchedulerRange]
+  create: [range: SchedulerRange]
 }
 
 export interface SchedulerSlots {

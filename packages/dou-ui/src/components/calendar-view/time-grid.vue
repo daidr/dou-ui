@@ -24,6 +24,8 @@ const props = defineProps<{
   refused: boolean
   /** The stretch of time being drawn. */
   drawing: CalendarRange | null
+  /** The minutes a press on the time axis is rounded down to. */
+  snap: number
 }>()
 const emit = defineEmits<{
   choose: [day: CalendarDay]
@@ -54,17 +56,42 @@ const weekdayFormat = computed(() => formatter({ weekday: 'short' }))
 const fullDate = computed(() => formatter({ dateStyle: 'full' }))
 
 const isTimed = (event: CalendarEvent) => props.spans.get(event)!.start !== null
-const columns = computed(() =>
-  props.days.map((day) => ({
+
+/*
+ * A drag changes one or two days at a time: each day keeps its layout
+ * while its events and their times stay the same, so a busy week does not
+ * lay out every column again on every step.
+ */
+const serials = new WeakMap<CalendarEvent, number>()
+let serial = 0
+const serialOf = (event: CalendarEvent) => {
+  let value = serials.get(event)
+  if (value === undefined) serials.set(event, (value = ++serial))
+  return value
+}
+const layouts = new Map<string, { key: string; placed: ReturnType<typeof layoutDay> }>()
+function layoutOn(date: string, events: CalendarEvent[]) {
+  const segments = events
+    .filter(isTimed)
+    .map((event) => ({ event, ...segmentOn(props.spans.get(event)!, date) }))
+  const key = segments.map((item) => `${serialOf(item.event)}:${item.start}-${item.end}`).join()
+  const cached = layouts.get(date)
+  if (cached?.key === key) return cached.placed
+  const placed = layoutDay(segments)
+  layouts.set(date, { key, placed })
+  return placed
+}
+
+const columns = computed(() => {
+  // forget the days no longer shown
+  for (const date of layouts.keys())
+    if (!props.days.some((day) => day.date === date)) layouts.delete(date)
+  return props.days.map((day) => ({
     day,
     allDay: day.events.filter((event) => !isTimed(event)),
-    timed: layoutDay(
-      day.events
-        .filter(isTimed)
-        .map((event) => ({ event, ...segmentOn(props.spans.get(event)!, day.date) })),
-    ),
-  })),
-)
+    timed: layoutOn(day.date, day.events),
+  }))
+})
 const hasAllDay = computed(() => columns.value.some((column) => column.allDay.length))
 
 /** The stretch being drawn, cut into a piece for each day on the time axis or in the all-day row. */
@@ -144,20 +171,41 @@ async function scrollToStart() {
   el.scrollTop = Math.max(0, ((minutes - first.value * 60) / 60) * hourHeight() - 8)
 }
 
+/* the time axis keeps a swipe to itself only when it has something to scroll */
+const overflowing = ref(false)
+let resizeObserver: ResizeObserver | undefined
+function measure() {
+  const el = scrollerRef.value
+  overflowing.value = !!el && el.scrollHeight > el.clientHeight + 1
+}
+
 onMounted(() => {
+  measure()
+  if (typeof ResizeObserver !== 'undefined' && scrollerRef.value) {
+    resizeObserver = new ResizeObserver(measure)
+    resizeObserver.observe(scrollerRef.value)
+  }
   tick()
   timer = setInterval(tick, 60_000)
   void scrollToStart()
 })
-onBeforeUnmount(() => clearInterval(timer))
+onBeforeUnmount(() => {
+  clearInterval(timer)
+  resizeObserver?.disconnect()
+})
+watch(
+  () => props.hours,
+  () => nextTick(measure),
+)
 watch(() => props.days.length, scrollToStart)
 
 function onColumnClick(event: MouseEvent, day: CalendarDay) {
   if (day.disabled) return
   const target = event.currentTarget as HTMLElement
   const y = event.clientY - target.getBoundingClientRect().top
-  const minutes = first.value * 60 + Math.floor(((y / hourHeight()) * 60) / 30) * 30
-  const clamped = Math.min(Math.max(minutes, first.value * 60), last.value * 60 - 30)
+  const step = Math.max(1, Math.round(props.snap))
+  const minutes = first.value * 60 + Math.floor(((y / hourHeight()) * 60) / step) * step
+  const clamped = Math.min(Math.max(minutes, first.value * 60), last.value * 60 - step)
   const time = `${String(Math.floor(clamped / 60)).padStart(2, '0')}:${String(clamped % 60).padStart(2, '0')}`
   emit('timeClick', `${day.date} ${time}`)
 }
@@ -234,7 +282,7 @@ function onColumnClick(event: MouseEvent, day: CalendarDay) {
         </button>
       </div>
     </div>
-    <div ref="scroller" :class="ns.e('scroller')">
+    <div ref="scroller" :class="[ns.e('scroller'), ns.is('overflowing', overflowing)]">
       <div :class="ns.e('time-body')">
         <div :class="ns.e('hours')" aria-hidden="true">
           <span v-for="hour in hourList" :key="hour" :class="ns.e('hour')">
@@ -312,7 +360,8 @@ function onColumnClick(event: MouseEvent, day: CalendarDay) {
             aria-hidden="true"
           >
             <span v-if="column.day.date === drawn.span.from" :class="ns.e('event-time')">
-              {{ timeText(drawn.span.start!) }} – {{ timeText(drawn.span.end!) }}
+              {{ timeText(drawn.span.start!)
+              }}<span :class="ns.e('event-end')"> – {{ timeText(drawn.span.end!) }}</span>
             </span>
           </span>
           <span

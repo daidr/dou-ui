@@ -127,7 +127,7 @@
       border-left: 1px solid var(--dou-calendar-view-line);
     }
 
-    &:hover:not(.is-disabled) {
+    &:hover:not(.is-disabled, .is-drawing) {
       background-color: color-mix(in oklab, var(--dou-color-text) 3%, transparent);
     }
 
@@ -374,7 +374,11 @@
   .dou-calendar-view__scroller {
     max-height: var(--dou-calendar-view-time-height);
     overflow-y: auto;
-    overscroll-behavior: contain;
+
+    /* only an axis that scrolls keeps a swipe from going on to the page */
+    &.is-overflowing {
+      overscroll-behavior: contain;
+    }
   }
 
   .dou-calendar-view__time-body {
@@ -647,6 +651,7 @@
     font-size: var(--dou-font-size-sm);
     line-height: 1.35;
     pointer-events: none;
+    container-type: inline-size;
 
     &.is-refused {
       border-color: var(--dou-color-danger);

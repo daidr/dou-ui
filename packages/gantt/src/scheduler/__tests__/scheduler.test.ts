@@ -40,7 +40,7 @@ function setup(extra: Record<string, unknown> = {}) {
           selection: selection.value,
           'onUpdate:selection': (value: string[]) => (selection.value = value),
           resources,
-          onRangeSelect: (range: SchedulerRange) => ranges.push(range),
+          onCreate: (range: SchedulerRange) => ranges.push(range),
           ...extra,
         }),
     ),
@@ -311,6 +311,23 @@ describe('DouScheduler', () => {
     expect(wrapper.find('[aria-live]').text()).toBe('已添加新预约')
     await pressKey(wrapper.find('.dou-gantt').element, 'z', { ctrlKey: true })
     expect(tasks.value.some((item) => item.id === 'n')).toBe(false)
+  })
+
+  it('sends taskContextmenu before a menu opened by the menu key', async () => {
+    const seen: string[] = []
+    const onTaskContextmenu = (item: GanttTask, event: MouseEvent) => {
+      seen.push(item.id)
+      event.preventDefault()
+    }
+    const { wrapper } = setup({ onTaskContextmenu })
+    await nextTick()
+    const bar = wrapper.find('.dou-gantt__bar[data-task="a"]')
+    await bar.trigger('click')
+    await pressKey(bar.element, 'F10', { shiftKey: true })
+    await nextTick()
+    expect(seen).toEqual(['a'])
+    expect(document.querySelector('[role="menuitem"]')).toBeNull()
+    wrapper.unmount()
   })
 
   it('opens a menu with your items before the built-in one', async () => {

@@ -79,7 +79,7 @@ const kinds = { move: '移动', resize: '调整时长', remove: '删除' }
     :can-move="canMove"
     :context-menu="contextMenu"
     @create="(range) => add(range)"
-    @change="(change) => (last = `${kinds[change.kind]}「${change.event.title}」`)"
+    @change="(change) => (last = `${kinds[change.kind]}“${change.event.title}”`)"
   />
   <DouText size="sm" variant="tertiary">最近的修改：{{ last }}</DouText>
 </template>

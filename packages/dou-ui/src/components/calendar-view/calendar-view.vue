@@ -2,6 +2,7 @@
 import { ChevronLeftIcon, ChevronRightIcon, TrashIcon } from '@dou-ui/icons'
 import {
   computed,
+  getCurrentInstance,
   nextTick,
   onBeforeUnmount,
   ref,
@@ -279,7 +280,8 @@ const resizable = (event: CalendarEvent, date: string) =>
   !event.locked &&
   spans.value.get(event)!.start === null &&
   spans.value.get(event)!.to === date
-const keyShortcuts = 'Alt+ArrowLeft Alt+ArrowRight Alt+ArrowUp Alt+ArrowDown Delete'
+const keyShortcuts =
+  'Alt+ArrowLeft Alt+ArrowRight Alt+ArrowUp Alt+ArrowDown Alt+Shift+ArrowLeft Alt+Shift+ArrowRight Alt+Shift+ArrowUp Alt+Shift+ArrowDown Delete Backspace Shift+F10'
 
 /* choosing and moving */
 
@@ -392,15 +394,20 @@ const tip = computed(() => {
   return d.range ? rangeText({ id: '', title: '', ...d.range }) : ''
 })
 
-/** Below the pointer, on its left once past the middle of the window so it stays in view. */
+/**
+ * Beside the pointer, where it stays in view: on its left once past the
+ * middle of the window, and above it for a finger, which would cover it,
+ * or near the bottom of the window.
+ */
 const tipStyle = computed(() => {
   const d = drag.value
-  if (!d) return {}
-  const left = typeof window !== 'undefined' && d.x > window.innerWidth / 2
+  if (!d || typeof window === 'undefined') return {}
+  const left = d.x > window.innerWidth / 2
+  const above = d.touch || d.y + 16 + 40 > window.innerHeight
   return {
     left: `${left ? d.x - 12 : d.x + 12}px`,
-    top: `${d.y + 16}px`,
-    transform: left ? 'translateX(-100%)' : undefined,
+    top: `${above ? d.y - (d.touch ? 40 : 16) : d.y + 16}px`,
+    transform: `translate(${left ? '-100%' : '0'}, ${above ? '-100%' : '0'})`,
   }
 })
 
@@ -470,9 +477,30 @@ function refusalOf(kind: CalendarMove['kind'], event: CalendarEvent | null, next
     }
   }
   if (!props.canMove) return null
-  const answer = props.canMove({ kind, event, start: next.start, end: next.end })
+  const answer = props.canMove({ kind, event, start: next.start, end: next.end }, events.value)
   if (answer === true) return null
   return typeof answer === 'string' && answer ? answer : t('calendarView.refused')
+}
+
+const DAY = 24 * 60
+/** The minutes the time axis covers, as the time grid draws it. */
+const axis = computed(() => {
+  const from = Math.max(0, Math.min(23, Math.floor(props.hours[0])))
+  const to = Math.max(from + 1, Math.min(24, Math.ceil(props.hours[1])))
+  return { from: from * 60, to: to * 60 }
+})
+
+/**
+ * Where a timed event moved on the time axis starts: an event that sits
+ * within one day stays inside the hours shown, so it is never written to a
+ * time the axis can't show. One that runs over midnight moves freely.
+ */
+function fitHours(span: EventSpan, start: number) {
+  const { from, to } = axis.value
+  const length = stampsOf(span).end - stampsOf(span).start
+  if (span.from !== span.to || length > to - from) return start
+  const day = Math.floor(start / DAY)
+  return day * DAY + Math.min(Math.max(start - day * DAY, from), to - length)
 }
 
 const roundTo = (value: number, by: number) => Math.round(value / by) * by
@@ -495,7 +523,7 @@ function update(d: Drag) {
     } else {
       const { start } = stampsOf(d.span!)
       if (d.kind === 'move') {
-        const next = roundTo(start + now - origin, snap)
+        const next = fitHours(d.span!, roundTo(start + now - origin, snap))
         draft = moveEvent(d.event!, d.span!, { minutes: next - start })
       } else {
         draft = { ...d.event!, end: formatStamp(Math.max(start + snap, roundTo(now, snap))) }
@@ -592,6 +620,9 @@ function onPointerDown(event: PointerEvent) {
   window.addEventListener('pointerup', onDragEnd)
   window.addEventListener('pointercancel', stopDrag)
   window.addEventListener('keydown', onDragKey, true)
+  // switching away mid-drag drops it
+  window.addEventListener('blur', stopDrag)
+  document.addEventListener('visibilitychange', stopDrag)
   // a finger picks an event up after a short rest; moving sooner scrolls instead
   if (touch) {
     const d = drag.value
@@ -639,7 +670,8 @@ function onDragEnd(event: PointerEvent) {
   setTimeout(() => (swallow = false))
   // a finger rested and let go without moving: the menu
   if (d.touch && still) {
-    if (d.target) showMenu(d.target, event.clientX, event.clientY)
+    if (d.target && menuAllowed(d.target, event.clientX, event.clientY))
+      showMenu(d.target, event.clientX, event.clientY)
     return
   }
   if (d.refusal) return announce(d.refusal)
@@ -657,6 +689,8 @@ function stopDrag() {
   window.removeEventListener('pointerup', onDragEnd)
   window.removeEventListener('pointercancel', stopDrag)
   window.removeEventListener('keydown', onDragKey, true)
+  window.removeEventListener('blur', stopDrag)
+  if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', stopDrag)
   drag.value = null
 }
 
@@ -708,6 +742,27 @@ function remove(event: CalendarEvent) {
   announce(t('calendarView.removed', { title: event.title }))
 }
 
+/**
+ * Removes an event from the keyboard, then puts the keyboard on the next
+ * event of the same day, or the one before, or else on the day itself.
+ */
+async function removeByKey(item: CalendarEvent, chip: HTMLElement) {
+  const siblings = [...(chip.parentElement?.querySelectorAll<HTMLElement>('[data-event-id]') ?? [])]
+  const index = siblings.indexOf(chip)
+  // oxlint-disable-next-line unicorn/no-array-reverse -- reverses a fresh slice
+  const near = [...siblings.slice(index + 1), ...siblings.slice(0, index).reverse()]
+    .map((el) => el.dataset.eventId!)
+    .find((id) => id !== item.id)
+  const day = chip.closest<HTMLElement>('[data-date]')?.dataset.date
+  remove(item)
+  await nextTick()
+  const next =
+    near && rootRef.value?.querySelector<HTMLElement>(`[data-event-id="${CSS.escape(near)}"]`)
+  if (next) return next.focus()
+  if (day) cursor.value = day
+  void focusCursor()
+}
+
 /* the menu */
 
 const menuRef = useTemplateRef<InstanceType<typeof DouContextMenu>>('menu')
@@ -715,6 +770,19 @@ const menuOpen = ref(false)
 const menuItems = shallowRef<CalendarMenuItem[]>([])
 // shortcuts mean nothing without a keyboard
 const coarse = () => typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches
+
+/**
+ * Sends `eventContextmenu` before an event's menu opens; `false` when the
+ * app kept it closed. A resting finger or the menu key has no browser event
+ * of its own, so it gets a stand-in.
+ */
+function menuAllowed(target: CalendarMenuTarget, x: number, y: number, native?: MouseEvent) {
+  if (target.kind !== 'event') return true
+  const event =
+    native ?? new MouseEvent('contextmenu', { cancelable: true, clientX: x, clientY: y })
+  emit('eventContextmenu', target.event, event)
+  return !event.defaultPrevented
+}
 
 /** Opens the menu for a target; `false` when it would be empty. */
 function showMenu(target: CalendarMenuTarget, x: number, y: number) {
@@ -745,10 +813,7 @@ function onContextmenu(event: MouseEvent) {
   if (Date.now() - touchedAt < 1000) return event.preventDefault()
   const target = targetOf(event.target as HTMLElement, event.clientX, event.clientY)
   if (!target) return
-  if (target.kind === 'event') {
-    emit('eventContextmenu', target.event, event)
-    if (event.defaultPrevented) return
-  }
+  if (!menuAllowed(target, event.clientX, event.clientY, event)) return
   if (showMenu(target, event.clientX, event.clientY)) event.preventDefault()
 }
 
@@ -775,13 +840,15 @@ function onEventKeydown(event: KeyboardEvent) {
   }
   if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
     const rect = chip.getBoundingClientRect()
-    if (showMenu({ kind: 'event', event: item }, rect.left, rect.bottom)) done()
+    const target = { kind: 'event', event: item } as const
+    if (!menuAllowed(target, rect.left, rect.bottom)) return done()
+    if (showMenu(target, rect.left, rect.bottom)) done()
     return
   }
   if (!canEdit(item)) return
   if (event.key === 'Delete' || event.key === 'Backspace') {
     done()
-    remove(item)
+    removeByKey(item, chip)
     return
   }
   const span = spans.value.get(item)
@@ -804,12 +871,16 @@ function onEventKeydown(event: KeyboardEvent) {
     kind = 'resize'
     if (timed) {
       const { start, end } = stampsOf(span)
-      const delta = (by.days ?? 0) * 24 * 60 + (by.minutes ?? 0)
+      const delta = (by.days ?? 0) * DAY + (by.minutes ?? 0)
       next = { ...item, end: formatStamp(Math.max(start + snap, end + delta)) }
     } else {
       const last = addDays(span.to, by.days ?? 0)
       next = { ...item, end: last < span.from ? span.from : last }
     }
+  } else if (onAxis) {
+    const { start } = stampsOf(span)
+    const at = fitHours(span, start + (by.days ?? 0) * DAY + (by.minutes ?? 0))
+    next = moveEvent(item, span, { minutes: at - start })
   } else {
     next = moveEvent(item, span, by)
   }
@@ -823,6 +894,23 @@ function onEventKeydown(event: KeyboardEvent) {
 }
 
 onBeforeUnmount(stopDrag)
+
+// Editing without anywhere to write the change: each drop springs back. Say so once while developing.
+const instance = getCurrentInstance()
+watch(
+  () => props.editable,
+  (editable) => {
+    if (process.env.NODE_ENV === 'production' || !editable) return
+    const bound = instance?.vnode.props ?? {}
+    const has = (...names: string[]) => names.some((name) => name in bound)
+    if (has('events') && !has('onUpdate:events', 'onChange')) {
+      console.warn(
+        '[dou-ui] CalendarView is editable but nothing receives the changes, so they spring back. Bind v-model:events, or listen to change.',
+      )
+    }
+  },
+  { immediate: true },
+)
 
 defineExpose<CalendarViewExpose>({
   show: (date) => (cursor.value = date.length === 7 ? `${date}-01` : date),
@@ -878,6 +966,7 @@ defineExpose<CalendarViewExpose>({
       :dragged="dragged"
       :refused="refused"
       :drawing="drawing"
+      :snap="snap"
       @choose="choose"
       @event-click="emit('eventClick', $event)"
       @time-click="emit('timeClick', $event)"

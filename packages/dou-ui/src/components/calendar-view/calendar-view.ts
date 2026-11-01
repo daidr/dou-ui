@@ -101,11 +101,11 @@ export interface CalendarViewProps {
   /** The minutes a drag on the time axis snaps to. */
   snap?: number
   /**
-   * The last check before a change is written or a stretch of time drawn.
-   * Return `true` to allow it; anything else refuses it, and a string is
-   * shown as the reason.
+   * The last check before a change is written or a stretch of time drawn,
+   * with the events as they are now. Return `true` to allow it; anything
+   * else refuses it, and a string is shown as the reason.
    */
-  canMove?: (move: CalendarMove) => boolean | string
+  canMove?: (move: CalendarMove, events: CalendarEvent[]) => boolean | string
   /** Your own menu items, listed before the built-in ones. */
   contextMenu?: (target: CalendarMenuTarget) => CalendarMenuItem[]
   /** Show the built-in "Delete event" in an event's menu when `editable`. */
@@ -124,14 +124,17 @@ export interface CalendarViewEmits {
   select: [date: string]
   /** An event was pressed. */
   eventClick: [event: CalendarEvent]
-  /** An empty spot on the time axis was pressed: `YYYY-MM-DD HH:mm`, rounded down to the half hour. */
+  /** An empty spot on the time axis was pressed: `YYYY-MM-DD HH:mm`, rounded down to `snap`. */
   timeClick: [start: string]
   'update:events': [events: CalendarEvent[]]
   /** An event was moved, resized or removed; `update:events` carries the whole new list. */
   change: [change: CalendarChange]
   /** A stretch of time was drawn: add an event for it, or ask for a title first. */
   create: [range: CalendarRange]
-  /** Before an event's menu opens; `event.preventDefault()` keeps it closed. */
+  /**
+   * Before an event's menu opens, by right click, a resting finger or the
+   * menu key; `nativeEvent.preventDefault()` keeps it closed.
+   */
   eventContextmenu: [event: CalendarEvent, nativeEvent: MouseEvent]
 }
 

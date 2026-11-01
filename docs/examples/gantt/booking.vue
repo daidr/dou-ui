@@ -60,6 +60,6 @@ function book(range: SchedulerRange) {
     scale="hour"
     :load="false"
     style="height: 320px"
-    @range-select="book"
+    @create="book"
   />
 </template>

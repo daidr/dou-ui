@@ -119,7 +119,7 @@ describe('DouCalendarView editing', () => {
   })
 
   it('refuses what canMove refuses, with its reason', async () => {
-    const canMove = vi.fn<(move: unknown) => string>(() => '只能在上午')
+    const canMove = vi.fn<(move: unknown, events: unknown) => string>(() => '只能在上午')
     const w = make({ canMove })
     layOut(w)
     chip(w, 'a').element.dispatchEvent(pointer('pointerdown', 350, 9 * 48 + 10))
@@ -132,6 +132,7 @@ describe('DouCalendarView editing', () => {
     // the press was 12 minutes into the hour, so the event lands at 14:45
     expect(canMove).toHaveBeenLastCalledWith(
       expect.objectContaining({ kind: 'move', start: '2026-10-28 14:45', end: '2026-10-28 15:45' }),
+      expect.any(Array),
     )
   })
 
@@ -200,5 +201,58 @@ describe('DouCalendarView editing', () => {
     window.dispatchEvent(pointer('pointerup', 350, 12 * 48))
     await chip(w, 'a').trigger('keydown', { key: 'Delete' })
     expect(events(w)).toEqual(EVENTS)
+  })
+
+  it('keeps the keyboard near after a delete', async () => {
+    const w = make({
+      events: [
+        ...EVENTS,
+        { id: 'd', title: '周会', start: '2026-10-28 11:00', end: '2026-10-28 12:00' },
+      ],
+    })
+    ;(chip(w, 'a').element as HTMLElement).focus()
+    await chip(w, 'a').trigger('keydown', { key: 'Delete' })
+    await nextTick()
+    expect((document.activeElement as HTMLElement).dataset.eventId).toBe('d')
+    await chip(w, 'd').trigger('keydown', { key: 'Backspace' })
+    await nextTick()
+    await nextTick()
+    expect((document.activeElement as HTMLElement).dataset.date).toBe('2026-10-28')
+  })
+
+  it('sends eventContextmenu for the menu key too, and lets it keep the menu closed', async () => {
+    const onEventContextmenu = vi.fn<(event: CalendarEvent, native: MouseEvent) => void>(
+      (_event, native) => native.preventDefault(),
+    )
+    const w = make({ onEventContextmenu })
+    await chip(w, 'a').trigger('keydown', { key: 'F10', shiftKey: true })
+    await nextTick()
+    expect(onEventContextmenu).toHaveBeenCalledTimes(1)
+    expect(document.querySelector('[role="menuitem"]')).toBeNull()
+  })
+
+  it('keeps moves inside the hours shown and rounds clicks to snap', async () => {
+    const onTimeClick = vi.fn<(start: string) => void>()
+    const w = make({
+      hours: [9, 20],
+      onTimeClick,
+      events: [{ id: 'a', title: '评审', start: '2026-10-28 09:00', end: '2026-10-28 10:00' }],
+    })
+    await chip(w, 'a').trigger('keydown', { key: 'ArrowUp', altKey: true })
+    expect(events(w)[0]!.start).toBe('2026-10-28 09:00')
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(
+      new DOMRect(0, 0, 100, 11 * 48),
+    )
+    // 48px an hour: 60px is 10:15 from the top of a 9:00 axis
+    await w.findAll('[data-drop="time"]')[2]!.trigger('click', { clientY: 60 })
+    expect(onTimeClick).toHaveBeenCalledWith('2026-10-28 10:15')
+    vi.restoreAllMocks()
+  })
+
+  it('warns once when nothing receives the changes', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    wrapper = mount(DouCalendarView, { props: { editable: true, events: EVENTS } })
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('v-model:events'))
+    warn.mockRestore()
   })
 })

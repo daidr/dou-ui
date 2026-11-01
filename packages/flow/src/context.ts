@@ -133,6 +133,11 @@ export interface FlowEditorExpose {
   zoomOut: () => void
   /** Centers a node in view without changing the zoom. */
   centerNode: (id: string) => void
+  /**
+   * Moves the view like the user's pans do: no further than having the nodes
+   * just leave it. `v-model:viewport` goes anywhere.
+   */
+  setViewport: (viewport: FlowViewport, animate?: boolean) => void
   /** Converts a point on screen (client coordinates) to canvas coordinates. */
   toCanvas: (point: Point) => Point
   /** A node's measured box in canvas coordinates. */
@@ -242,6 +247,8 @@ export interface FlowEditorContext {
   doc: Ref<FlowDocument>
   selection: Ref<FlowSelection>
   viewport: Ref<FlowViewport>
+  /** See `FlowEditorExpose.setViewport`; writing `viewport` goes anywhere. */
+  setViewport: FlowEditorExpose['setViewport']
   readonly: ComputedRef<boolean>
   messages: ComputedRef<FlowMessages>
   minZoom: ComputedRef<number>

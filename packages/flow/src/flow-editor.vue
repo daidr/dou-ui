@@ -44,6 +44,7 @@ import {
 import { bezierEdge, type EdgeAnchor, type EdgeRoute, type EdgeTypeSpec } from './core/edge-types'
 import {
   boundsOf,
+  clampPan,
   intersects,
   intersectsTurned,
   rectFrom,
@@ -751,8 +752,15 @@ function stopAnimation() {
   animation = 0
 }
 
-function setViewport(next: FlowViewport, animate = false) {
+/** `next`, kept within reach of the nodes; see `clampPan`. */
+function reachable(next: FlowViewport) {
+  return clampPan(next, viewport.value, boundsOf(shownNodes.value.map(rectOf)), size.value)
+}
+
+/** Moves the view, as far as the nodes allow; `v-model:viewport` alone can go further. */
+function setViewport(target: FlowViewport, animate = false) {
   stopAnimation()
+  const next = reachable(target)
   if (!animate || reducedMotion.value || typeof requestAnimationFrame === 'undefined') {
     viewport.value = next
     return
@@ -1671,7 +1679,7 @@ function autoPan(client: Point) {
     )
       return
     const { x, y, zoom } = viewport.value
-    viewport.value = { x: x + vx, y: y + vy, zoom }
+    viewport.value = reachable({ x: x + vx, y: y + vy, zoom })
     if (g.kind === 'box') updateBox(g)
     else if (g.kind === 'connect') updateLink(g)
     else moveDrag(g)
@@ -3225,6 +3233,7 @@ const context: FlowEditorContext = {
   doc: currentDoc,
   selection,
   viewport,
+  setViewport,
   readonly: computed(() => props.readonly),
   messages,
   minZoom: computed(() => props.minZoom),
@@ -3468,6 +3477,7 @@ async function exportPNG(options: FlowImageOptions = {}) {
 }
 
 defineExpose<FlowEditorExpose>({
+  setViewport,
   exportSVG,
   exportPNG,
   transact,

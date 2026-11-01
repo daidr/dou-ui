@@ -1,4 +1,4 @@
-import type { Point, Rect } from './model'
+import type { FlowViewport, Point, Rect } from './model'
 
 export function boundsOf(rects: readonly Rect[]): Rect | null {
   if (!rects.length) return null
@@ -172,4 +172,67 @@ export function intersectsTurned(box: Rect, rect: Rect, degrees: number): boolea
     Math.min(...ys) < rect.y + rect.height &&
     Math.max(...ys) > rect.y
   )
+}
+
+/** The part of the canvas a viewport shows on a screen of `size`. */
+function viewOf(view: FlowViewport, size: { width: number; height: number }): Rect {
+  return {
+    x: -view.x / view.zoom,
+    y: -view.y / view.zoom,
+    width: size.width / view.zoom,
+    height: size.height / view.zoom,
+  }
+}
+
+/** Whether `inner` lies in `outer`, give or take rounding. */
+function within(inner: Rect, outer: Rect) {
+  const e = 1e-6 * Math.max(1, outer.width, outer.height)
+  return (
+    inner.x >= outer.x - e &&
+    inner.y >= outer.y - e &&
+    inner.x + inner.width <= outer.x + outer.width + e &&
+    inner.y + inner.height <= outer.y + outer.height + e
+  )
+}
+
+/**
+ * Keeps a pan within reach of the nodes: the view may go as far as having
+ * the nodes just leave it on the opposite side, a screen of room to draw in,
+ * and no further, so the canvas never runs off to coordinates the browser
+ * can't draw (it clamps lengths at about 3.3e7 px, and the layer and the
+ * nodes stop lining up long before). With no nodes, the origin is kept in
+ * view. A view already outside, e.g. set through `v-model:viewport` or left
+ * there when nodes were removed, isn't pulled back: it can only move closer.
+ * Zooming in is left as it is: it stays inside the view, so it never goes
+ * further out.
+ */
+export function clampPan(
+  next: FlowViewport,
+  current: FlowViewport,
+  content: Rect | null,
+  size: { width: number; height: number },
+): FlowViewport {
+  if (!size.width || !size.height) return next
+  // Zooming in shows part of what is already on screen; keep it as asked,
+  // so the point under the pointer or fingers stays put even at the edge.
+  if (next.zoom > current.zoom && within(viewOf(next, size), viewOf(current, size))) return next
+  const area = content ?? { x: 0, y: 0, width: 0, height: 0 }
+  // How far out the view is now, at the new zoom: the same centre.
+  const before = {
+    x: size.width / 2 - ((size.width / 2 - current.x) / current.zoom) * next.zoom,
+    y: size.height / 2 - ((size.height / 2 - current.y) / current.zoom) * next.zoom,
+  }
+  const axis = (value: number, now: number, start: number, length: number, screen: number) => {
+    // `value` is the screen offset of the canvas origin, so the view's near
+    // edge on the canvas is -value / zoom: kept between start - screen / zoom
+    // (the nodes touch the far edge) and start + length (they touch the near one).
+    const lo = 0 - (start + length) * next.zoom
+    const hi = screen - start * next.zoom
+    return Math.min(Math.max(value, Math.min(lo, now)), Math.max(hi, now))
+  }
+  return {
+    x: axis(next.x, before.x, area.x, area.width, size.width),
+    y: axis(next.y, before.y, area.y, area.height, size.height),
+    zoom: next.zoom,
+  }
 }

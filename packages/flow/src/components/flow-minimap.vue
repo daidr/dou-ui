@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useFlowEditor, type FlowMinimapProps } from '../context'
 import { boundsOf } from '../core/geometry'
 import type { Point, Rect } from '../core/model'
@@ -30,7 +30,7 @@ const rects = computed(() =>
 )
 
 /** What the map shows: every node and the view, with some room around. */
-const world = computed<Rect>(() => {
+const fitted = computed<Rect>(() => {
   const all = boundsOf([...rects.value.map((r) => r.rect), visible.value])!
   const pad = Math.max(all.width, all.height) * 0.05
   return {
@@ -40,6 +40,14 @@ const world = computed<Rect>(() => {
     height: all.height + pad * 2,
   }
 })
+
+/**
+ * Held still while the view is dragged: a map that grew to take in the view
+ * as it went would slide away under the pointer, sending the view further
+ * each time.
+ */
+const held = ref<Rect | null>(null)
+const world = computed(() => held.value ?? fitted.value)
 
 /** Canvas units per map pixel; the map keeps the canvas's proportions. */
 const scale = computed(() =>
@@ -62,27 +70,34 @@ const shade = computed(() => {
 const svg = ref<SVGSVGElement>()
 const dragging = ref(false)
 
+/** How far along a side `at` is, from 0 to 1, staying on it when past its ends. */
+const along = (at: number, start: number, length: number) =>
+  length ? Math.min(1, Math.max(0, (at - start) / length)) : 0.5
+
+/** The point of the map under the pointer; past its edges, the nearest point on them. */
 function toWorld(event: PointerEvent): Point {
   const box = svg.value!.getBoundingClientRect()
   const [x, y, w, h] = viewBox.value.split(' ').map(Number) as [number, number, number, number]
   return {
-    x: x + ((event.clientX - box.left) / box.width) * w,
-    y: y + ((event.clientY - box.top) / box.height) * h,
+    x: x + along(event.clientX, box.left, box.width) * w,
+    y: y + along(event.clientY, box.top, box.height) * h,
   }
 }
 
-/** Centres the view on a point of the map. */
+/** Centres the view on a point of the map, as far as the nodes allow. */
 function moveTo(event: PointerEvent) {
   const p = toWorld(event)
   const { zoom } = flow.viewport.value
   const { width, height } = flow.size.value
-  flow.viewport.value = { x: width / 2 - p.x * zoom, y: height / 2 - p.y * zoom, zoom }
+  flow.setViewport({ x: width / 2 - p.x * zoom, y: height / 2 - p.y * zoom, zoom })
 }
 
 function onPointerDown(event: PointerEvent) {
   if (event.button !== 0) return
   event.stopPropagation()
   dragging.value = true
+  // The map as it is now: the press lands where it was seen.
+  held.value = fitted.value
   try {
     svg.value!.setPointerCapture(event.pointerId)
   } catch {
@@ -97,13 +112,78 @@ function onPointerMove(event: PointerEvent) {
 
 function onPointerUp() {
   dragging.value = false
+  held.value = null
 }
+
+const el = ref<HTMLElement>()
+/** How far the map moves away from its edge to clear the other panels there, in px. */
+const lift = ref(0)
+const LIFT_GAP = 8
+
+/**
+ * On a narrow editor the map would cover a panel in the same corner row,
+ * e.g. the controls: then it sits above (or below) them instead.
+ */
+function place() {
+  const self = el.value
+  const root = flow.root.value
+  if (!self || !root) return
+  const upper = props.placement.startsWith('top')
+  const box = self.getBoundingClientRect()
+  // where the map is without the lift
+  const top = box.top + (upper ? -lift.value : lift.value)
+  const bottom = top + box.height
+  let next = 0
+  for (const panel of root.querySelectorAll('.dou-flow-editor__panels > *')) {
+    if (panel === self || panel.classList.contains('dou-flow-minimap')) continue
+    const rect = panel.getBoundingClientRect()
+    if (!rect.width || !rect.height) continue
+    if (rect.right <= box.left || rect.left >= box.right) continue
+    if (rect.bottom <= top || rect.top >= bottom) continue
+    next = Math.max(next, upper ? rect.bottom - top + LIFT_GAP : bottom - rect.top + LIFT_GAP)
+  }
+  lift.value = next
+}
+
+// Panels come, go and change size after the map is shown (controls put in
+// later, undo hidden when made read-only…): place it again each time.
+let resizes: ResizeObserver | undefined
+let changes: MutationObserver | undefined
+function watchPanels() {
+  const panels = el.value?.parentElement
+  if (!panels) return
+  resizes?.disconnect()
+  if (typeof ResizeObserver !== 'undefined') {
+    resizes = new ResizeObserver(() => place())
+    for (const panel of panels.children) if (panel !== el.value) resizes.observe(panel)
+  }
+  place()
+}
+
+onMounted(() => {
+  nextTick(watchPanels)
+  const panels = el.value?.parentElement
+  if (panels && typeof MutationObserver !== 'undefined') {
+    changes = new MutationObserver(watchPanels)
+    changes.observe(panels, { childList: true })
+  }
+})
+onBeforeUnmount(() => {
+  resizes?.disconnect()
+  changes?.disconnect()
+})
+watch(
+  () => [flow.size.value.width, flow.size.value.height, props.width, props.height, props.placement],
+  () => nextTick(place),
+)
 </script>
 
 <template>
   <div
+    ref="el"
     class="dou-flow-minimap"
     data-flow-overlay
+    :style="lift ? { translate: `0 ${placement.startsWith('top') ? lift : -lift}px` } : undefined"
     :class="[`is-${placement}`, { 'is-dragging': dragging }]"
     role="img"
     :aria-label="messages.minimap"

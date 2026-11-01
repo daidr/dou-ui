@@ -1649,7 +1649,7 @@ function transact(
   keepMark = false,
 ) {
   // a change kept out of the history, such as another person's, still reaches a read-only grid
-  if (viewOnly.value && meta?.history !== false) return null
+  if (viewOnly.value && meta?.history !== false && !restoring) return null
   const tr = new SheetTransaction(doc.value, sheetIndex.value)
   tr.setMeta({ action: 'api', ...meta })
   run(tr)
@@ -4159,6 +4159,20 @@ function noteAt(point: SheetPoint) {
   return cell && typeof cell === 'object' ? cell.note : undefined
 }
 
+/**
+ * What a finger tapping a cell is shown: its note, and while comparing,
+ * what it held in the older version, as a pointer resting on it sees.
+ */
+function tipAt(point: SheetPoint) {
+  const change = compared.value?.get(`${point.row}:${point.col}`)
+  const note = noteAt(point)
+  if (!change) return note
+  const was = valueOf(change.before)
+  const m = messages.value.compare
+  const text = was == null || was === '' ? m.wasEmpty : format(m.was, { value: String(was) })
+  return note ? `${text}\n${note}` : text
+}
+
 /** The cell a note belongs to: the top left of a merge. */
 function noteHome(point: SheetPoint): SheetPoint {
   const span = merges.value.cell(point)
@@ -4582,6 +4596,9 @@ function openThreadAt(point: SheetPoint) {
   return comments.isOpen(thread) ? thread : undefined
 }
 
+/** The last request to put the cursor in the card that a card took. */
+const commentFocused = ref(0)
+
 /** The card's cell, on the sheet shown. */
 const commentCell = computed(() => {
   const at = comments.cell.value
@@ -4696,23 +4713,25 @@ function goToChange(step: 1 | -1) {
   return true
 }
 
-/** Brings the workbook to `book`, as one change. */
+/**
+ * Brings the workbook to `book`, as one change. Like undo it isn't held by
+ * protection, which it restores too; extensions can still cancel it.
+ */
 function restore(book: SheetWorkbook) {
   if (props.readonly) return false
   if (editing.value) commitEdit(undefined, true)
-  const before = view()
-  const tr = new SheetTransaction(doc.value, sheetIndex.value)
-  tr.setMeta({ action: 'restore' })
-  restoreWorkbook(tr, book)
-  if (!tr.changed) return false
-  for (const hook of resolved.value.transactions) hook(tr, context)
-  clipMark.value = null
-  apply(tr)
-  if (!customHistory()) history.record(tr, before, view())
-  syncHistory()
+  restoring = true
+  try {
+    const tr = transact((t) => restoreWorkbook(t, book), { action: 'restore', protection: false })
+    if (!tr) return false
+  } finally {
+    restoring = false
+  }
   announce(messages.value.compare.restored)
   return true
 }
+/** Set while a version is restored: comparing, the grid is read-only but can still restore. */
+let restoring = false
 
 /** Menu items for the active cell's thread. */
 function commentItems(): SheetMenuItem[] {
@@ -5721,8 +5740,8 @@ function onClick(event: MouseEvent) {
   // tapping a cell with a thread opens it
   if (home) comments.show(home)
   if (home && openThreadAt(home)) return
-  // a finger can't rest on a cell: tapping one shows its note
-  if (home && noteAt(home)) {
+  // a finger can't rest on a cell: tapping one shows its note, or what it held
+  if (home && tipAt(home)) {
     clearTimeout(noteTimer)
     noteShown.value = { ...home, by: 'tap' }
   }
@@ -6955,7 +6974,7 @@ defineExpose<SheetExpose>({
           v-if="noteShown"
           :key="`${noteShown.row}:${noteShown.col}:${noteShown.by === 'edit'}`"
           :anchor="noteAnchor"
-          :note="noteAt(noteShown) ?? ''"
+          :note="(noteShown.by === 'tap' ? tipAt(noteShown) : noteAt(noteShown)) ?? ''"
           :editing="noteShown.by === 'edit'"
           :messages="messages.note"
           @save="saveNote"
@@ -6972,6 +6991,8 @@ defineExpose<SheetExpose>({
           :readonly="!comments.writable.value"
           :label="messages.comment.label"
           :focus-request="comments.focusRequest.value"
+          :focus-handled="commentFocused"
+          @focused="commentFocused = $event"
           :grid="() => viewport ?? null"
           @action="comments.apply"
           @close="closeComment"

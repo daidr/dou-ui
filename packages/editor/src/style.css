@@ -41,8 +41,11 @@
       --dou-editor-gutter: 0px;
     }
 
-    /* comparing: a narrow gutter for the bars beside changed blocks */
-    &.is-comparing {
+    /*
+     * comparing: the bars beside changed blocks sit in the gutter, the one
+     * editing has; a read-only editor, which has none, gets a narrow one
+     */
+    &.is-readonly.is-comparing {
       --dou-editor-gutter: 16px;
     }
 
@@ -55,6 +58,16 @@
     &.is-dragging * {
       cursor: grabbing;
     }
+  }
+
+  /* what is read out after restoring a version or going to a change; not shown */
+  .dou-editor__live {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 
   .dou-editor__surface {
@@ -566,7 +579,8 @@
     }
   }
 
-  .dou-editor.is-readonly .dou-editor__link {
+  .dou-editor.is-readonly .dou-editor__link,
+  .dou-editor.is-comparing .dou-editor__link {
     cursor: pointer;
   }
 

@@ -116,6 +116,22 @@ describe('restore', () => {
     expect(exposed.getBlocks().map((b) => b.id)).toEqual(['a', 'c', 'd'])
   })
 
+  it('reads out the restore, refuses it when read-only, and allows it while comparing', async () => {
+    const { wrapper, exposed } = mountEditor({ modelValue: v2(), compare: v1() })
+    await nextTick()
+    expect(exposed.nextChange()).toBe(true)
+    await nextTick()
+    await nextTick()
+    const live = wrapper.find('.dou-editor__live')
+    expect(live.text()).toBe('修改 上海站的活动改到周日')
+    expect(exposed.restore(v1())).toBe(true)
+    await nextTick()
+    await nextTick()
+    expect(live.text()).toBe('已恢复到这个版本')
+    await wrapper.setProps({ readonly: true, compare: null })
+    expect(exposed.restore(v2())).toBe(false)
+  })
+
   it('writes only what differs into a shared document, and reads it back without an editor', async () => {
     const ydoc = new Y.Doc()
     const map = ydoc.getMap('doc')

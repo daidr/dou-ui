@@ -8,7 +8,12 @@ import {
   type SheetData,
   type SheetWorkbook,
 } from './model'
-import { sheetKey, type SheetPatch, type SheetTransaction } from './transaction'
+import {
+  sheetKey,
+  type SheetBookPatch,
+  type SheetPatch,
+  type SheetTransaction,
+} from './transaction'
 
 /*
  * Versions of a workbook: what changed between two, and going back to one.
@@ -37,19 +42,43 @@ export interface WorkbookDiff {
   addedSheets: string[]
   /** The keys of the sheets only the older version has. */
   removedSheets: string[]
-  /** The keys of the sheets whose other settings (name, sizes, merges, rules…) differ. */
+  /** The keys of the sheets whose other settings (name, sizes, merges, rules, protection…) differ. */
   changedSheets: string[]
+  /** The named styles (in `styles`) that differ, such as one now unlocking its cells. */
+  changedStyles: string[]
+  /** The named cell types (in `types`) that differ. */
+  changedTypes: string[]
+  /** Whether the workbook's own settings, such as `protect`, differ. */
+  bookChanged: boolean
 }
 
-/** A cell without its thread, as versions compare it; empty text is an empty cell. */
-const bare = (cell: SheetCellInput) => {
+/**
+ * A cell as versions compare it: without its thread, fields left
+ * `undefined` dropped, and an empty value (`''` or `null`) taken for none,
+ * so `{ value: 1 }` and `1` are the same cell.
+ */
+const bare = (cell: SheetCellInput): SheetCellInput => {
   const own = cellOf(cell)
-  const out = own?.comment ? compactCell({ ...own, comment: undefined }) : (cell ?? undefined)
-  return out === '' ? undefined : out
+  if (!own) return undefined
+  const { comment: _comment, ...rest } = own
+  if (rest.value === '' || rest.value === null) rest.value = undefined
+  return compactCell(rest) ?? undefined
 }
 
-const same = (a: unknown, b: unknown) =>
-  a === b || JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
+/** JSON with the keys of objects in order, so the order they were written in doesn't count. */
+const stable = (value: unknown): string =>
+  JSON.stringify(value ?? null, (_key, item: unknown) =>
+    item && typeof item === 'object' && !Array.isArray(item)
+      ? Object.fromEntries(
+          Object.entries(item as Record<string, unknown>)
+            .filter(([, v]) => v !== undefined)
+            // oxlint-disable-next-line unicorn/no-array-sort -- sorts a fresh array
+            .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
+        )
+      : item,
+  )
+
+const same = (a: unknown, b: unknown) => a === b || stable(a) === stable(b)
 
 const sameCell = (a: SheetCellInput, b: SheetCellInput) => same(bare(a), bare(b))
 
@@ -73,11 +102,32 @@ function changedCells(before: SheetData, after: SheetData) {
   return out
 }
 
+/** The workbook's own settings, such as `protect`. */
+function bookSettings(book: SheetWorkbook) {
+  const { sheets: _sheets, styles: _styles, types: _types, ...rest } = book
+  return rest
+}
+
+/** The names whose entries differ between two records of named things. */
+function changedNames(a: Record<string, unknown> = {}, b: Record<string, unknown> = {}) {
+  return [...new Set([...Object.keys(a), ...Object.keys(b)])].filter(
+    (name) => !same(a[name], b[name]),
+  )
+}
+
 /** What changed from `before` to `after`. */
 export function diffWorkbooks(before: SheetWorkbook, after: SheetWorkbook): WorkbookDiff {
   const old = new Map(before.sheets.map((sheet) => [sheetKey(sheet), sheet]))
   const now = new Set(after.sheets.map(sheetKey))
-  const diff: WorkbookDiff = { cells: [], addedSheets: [], removedSheets: [], changedSheets: [] }
+  const diff: WorkbookDiff = {
+    cells: [],
+    addedSheets: [],
+    removedSheets: [],
+    changedSheets: [],
+    changedStyles: [],
+    changedTypes: [],
+    bookChanged: !same(bookSettings(before), bookSettings(after)),
+  }
   for (const sheet of after.sheets) {
     const key = sheetKey(sheet)
     const was = old.get(key)
@@ -102,6 +152,8 @@ export function diffWorkbooks(before: SheetWorkbook, after: SheetWorkbook): Work
       diff.changedSheets.push(key)
   }
   for (const key of old.keys()) if (!now.has(key)) diff.removedSheets.push(key)
+  diff.changedStyles = changedNames(before.styles, after.styles)
+  diff.changedTypes = changedNames(before.types, after.types)
   return diff
 }
 
@@ -115,8 +167,9 @@ function withoutThreads(sheet: SheetData): SheetData {
 
 /**
  * Adds the steps that bring the workbook to `book`, writing only what
- * differs: cells, sizes and settings of the sheets in both, sheets added
- * and removed, their order, and the named styles and types.
+ * differs: cells, sizes and settings of the sheets in both (protection
+ * too), sheets added and removed, their order, the workbook's settings,
+ * and the named styles and types.
  */
 export function restoreWorkbook(tr: SheetTransaction, book: SheetWorkbook) {
   const wanted = book.sheets.map(sheetKey)
@@ -161,14 +214,13 @@ export function restoreWorkbook(tr: SheetTransaction, book: SheetWorkbook) {
     }
   }
 
-  for (const field of ['styles', 'types'] as const) {
-    const a: Record<string, unknown> = tr.doc[field] ?? {}
-    const b: Record<string, unknown> = book[field] ?? {}
-    for (const name of new Set([...Object.keys(a), ...Object.keys(b)])) {
-      if (same(a[name], b[name])) continue
-      if (field === 'styles') tr.setStyle(name, b[name] as never)
-      else tr.setType(name, b[name] as never)
-    }
-  }
+  const was = bookSettings(tr.doc) as Record<string, unknown>
+  const next = bookSettings(book) as Record<string, unknown>
+  const patch: Record<string, unknown> = {}
+  for (const name of changedNames(was, next)) patch[name] = next[name]
+  if (Object.keys(patch).length) tr.updateBook(patch as SheetBookPatch)
+  for (const name of changedNames(tr.doc.styles, book.styles))
+    tr.setStyle(name, book.styles?.[name])
+  for (const name of changedNames(tr.doc.types, book.types)) tr.setType(name, book.types?.[name])
   return tr
 }

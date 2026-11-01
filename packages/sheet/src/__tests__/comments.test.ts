@@ -165,6 +165,9 @@ describe('DouSheet comments', () => {
     await nextTick()
     expect(active.value).toBe('t1')
     expect(card()!.textContent).toContain('场地费是含税的吗？')
+    await nextTick()
+    // the cursor is in the reply box
+    expect(card()!.contains(document.activeElement)).toBe(true)
     await key('Escape', {}, document.activeElement ?? document.body)
     expect(active.value).toBeNull()
 
@@ -224,6 +227,21 @@ describe('DouSheet comments', () => {
     const created = actions.find((action) => action.type === 'create')!
     const id = created.type === 'create' ? created.thread.id : ''
     expect(cells()[1]![1]).toEqual({ value: 48000, comment: id })
+    wrapper.unmount()
+  })
+
+  it('leaves out of the anchors a thread taken out of comments by code', async () => {
+    const { wrapper, grid, threads, cells } = setup()
+    await nextTick()
+    expect(Object.keys(grid.value!.getCommentAnchors())).toEqual(['t1'])
+    threads.value = []
+    await nextTick()
+    expect(grid.value!.getCommentAnchors()).toEqual({})
+    expect(wrapper.findAll('.dou-sheet__commented')).toHaveLength(0)
+    // the cell still names it, until code takes it off
+    expect(cells()[1]![0]).toEqual({ value: '场地', comment: 't1' })
+    grid.value!.transact((tr) => tr.setComment('A2', undefined), { history: false })
+    expect(cells()[1]![0]).toBe('场地')
     wrapper.unmount()
   })
 

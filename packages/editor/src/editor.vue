@@ -6,9 +6,11 @@ import type { EditorView } from 'prosemirror-view'
 import {
   computed,
   getCurrentInstance,
+  nextTick,
   onBeforeUnmount,
   onMounted,
   provide,
+  ref,
   shallowRef,
   toRaw,
   useTemplateRef,
@@ -266,6 +268,37 @@ function goToChange(step: 1 | -1) {
   if (!target) return false
   changeIndex = next
   target.scrollIntoView({ block: 'center' })
+  const m = messages.value
+  // a block added or removed, or one whose text or kind changed
+  const kind = target.matches('.dou-editor__diff-added')
+    ? m.changeAdded
+    : target.matches('.dou-editor__diff-removed-block')
+      ? m.changeRemoved
+      : m.changeChanged
+  announce(`${kind} ${changeText(target)}`)
+  return true
+}
+
+/** The text of a change: what was removed, or its block as it is now. */
+function changeText(target: HTMLElement) {
+  if (target.matches('.dou-editor__diff-removed-block')) return target.textContent ?? ''
+  const block = (target.closest('[data-block-id]') ?? target).cloneNode(true) as HTMLElement
+  for (const el of block.querySelectorAll('[data-diff="removed"]')) el.remove()
+  return block.textContent ?? ''
+}
+
+/** What the live region reads out: a version restored, the change gone to. */
+const spoken = ref('')
+function announce(text: string) {
+  // the same words twice still get read
+  spoken.value = ''
+  void nextTick(() => (spoken.value = text))
+}
+
+function restore(blocks: PartialBlock[]) {
+  if (!view.value || props.readonly) return false
+  if (!restoreBlocks(view.value, blocks)) return false
+  announce(messages.value.restored)
   return true
 }
 
@@ -282,7 +315,7 @@ defineExpose<EditorExpose>({
   run: (command) => (view.value ? runCommand(view.value, command) : false),
   comment: () => comments.start(),
   getCommentAnchors: anchors,
-  restore: (blocks) => (view.value ? restoreBlocks(view.value, blocks) : false),
+  restore,
   nextChange: () => goToChange(1),
   previousChange: () => goToChange(-1),
 })
@@ -315,7 +348,8 @@ const HighlightStyle = () => (highlightCSS.value ? h('style', highlightCSS.value
     :class="[
       ns.b(),
       {
-        'is-readonly': !editable,
+        // comparing keeps the editor's own gutter, so the text doesn't move
+        'is-readonly': readonly,
         'is-comparing': comparing,
         'is-focused': focused,
         'is-dragging': dragging,
@@ -331,6 +365,7 @@ const HighlightStyle = () => (highlightCSS.value ? h('style', highlightCSS.value
       <BubbleToolbar ref="bubble" />
       <component :is="overlay" v-for="(overlay, index) in kit.overlays" :key="index" />
     </template>
+    <div :class="ns.e('live')" aria-live="polite">{{ spoken }}</div>
     <template v-if="view && comments.enabled.value && !comparing">
       <CommentButton v-if="readonly" />
       <CommentCard />

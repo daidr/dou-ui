@@ -61,10 +61,51 @@ describe('diffWorkbooks', () => {
     expect(diff.changedSheets).toEqual(['budget'])
   })
 
-  it('takes empty text for an empty cell', () => {
-    const a: SheetWorkbook = { sheets: [{ id: 's', name: 's', cells: [['甲', '']] }] }
-    const b: SheetWorkbook = { sheets: [{ id: 's', name: 's', cells: [['甲']] }] }
+  it('takes the ways of writing one cell for the same cell', () => {
+    const a: SheetWorkbook = {
+      sheets: [
+        {
+          id: 's',
+          name: 's',
+          cells: [
+            ['甲', '', { value: 1 }, null, { value: 2, note: undefined }, { style: 'x', value: 3 }],
+          ],
+        },
+      ],
+    }
+    const b: SheetWorkbook = {
+      sheets: [
+        {
+          id: 's',
+          name: 's',
+          cells: [['甲', null, 1, { value: '' }, 2, { value: 3, style: 'x' }]],
+        },
+      ],
+    }
     expect(diffWorkbooks(a, b).cells).toEqual([])
+    expect(restoreWorkbook(new SheetTransaction(b), a).changed).toBe(false)
+  })
+
+  it('counts protection, named styles and the workbook settings', () => {
+    const a = v1()
+    const b = v1()
+    b.protect = true
+    b.sheets[0]!.protect = { insertRows: true }
+    b.styles = { ...b.styles, open: { locked: false } }
+    b.sheets[0]!.cells[1]![0] = { value: '场地', link: 'https://example.com' }
+    const diff = diffWorkbooks(a, b)
+    expect(diff.cells.map((c) => c.address)).toEqual(['A2'])
+    expect(diff.changedSheets).toEqual(['budget'])
+    expect(diff.changedStyles).toEqual(['open'])
+    expect(diff.bookChanged).toBe(true)
+    // and restoring brings each back
+    const tr = restoreWorkbook(new SheetTransaction(b), a)
+    expect(diffWorkbooks(tr.doc, a)).toMatchObject({
+      cells: [],
+      changedSheets: [],
+      changedStyles: [],
+      bookChanged: false,
+    })
   })
 })
 
@@ -138,5 +179,22 @@ describe('DouSheet versions', () => {
     expect(diffWorkbooks(book.value, v2()).cells).toEqual([])
     expect(book.value.sheets.map((s) => s.name)).toEqual(['预算', '人员'])
     wrapper.unmount()
+  })
+
+  it('restores while comparing, and over protection, but not when read-only', async () => {
+    const protectedBook = v2()
+    protectedBook.sheets[0]!.protect = true
+    const compared = setup({ compare: v1() })
+    compared.book.value = protectedBook
+    await nextTick()
+    expect(compared.grid.value!.restore(v1())).toBe(true)
+    expect(compared.book.value.sheets[0]!.protect).toBeUndefined()
+    expect(compared.book.value.sheets[0]!.cells[1]![1]).toBe(48000)
+    compared.wrapper.unmount()
+
+    const readonly = setup({ readonly: true })
+    await nextTick()
+    expect(readonly.grid.value!.restore(v1())).toBe(false)
+    readonly.wrapper.unmount()
   })
 })

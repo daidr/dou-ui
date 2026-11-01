@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { DouSheet, type SheetWorkbook } from '@dou-ui/sheet'
-import type { CommentThread } from 'dou-ui'
+import { DouCheckbox, type CommentThread } from 'dou-ui'
 import { computed, onMounted, ref, useTemplateRef, watch } from 'vue'
 
 const me = { id: 'dai', name: '戴兜' }
@@ -46,6 +46,9 @@ const threads = ref<CommentThread[]>([
 ])
 const active = ref<string | null>(null)
 const open = computed(() => threads.value.filter((thread) => !thread.resolved))
+// 已解决的讨论也列出来，点开后可以在卡片上重新打开
+const showResolved = ref(false)
+const listed = computed(() => (showResolved.value ? threads.value : open.value))
 const sheet = useTemplateRef<InstanceType<typeof DouSheet>>('sheet')
 
 // 每条讨论所在的单元格，表格或评论变化时重新读取
@@ -72,16 +75,21 @@ watch([threads, book], readCells, { flush: 'post' })
       style="height: 300px"
     />
     <aside class="sheet-comments-demo__side" aria-label="评论">
-      <div class="sheet-comments-demo__title">评论 {{ open.length }}</div>
+      <div class="sheet-comments-demo__head">
+        <span class="sheet-comments-demo__title">评论 {{ open.length }}</span>
+        <DouCheckbox v-model="showResolved" size="sm">显示已解决</DouCheckbox>
+      </div>
       <button
-        v-for="thread in open"
+        v-for="thread in listed"
         :key="thread.id"
         type="button"
         class="sheet-comments-demo__item"
         :class="{ 'is-active': thread.id === active }"
         @click="active = thread.id"
       >
-        <span class="sheet-comments-demo__cell">{{ cells[thread.id] }}</span>
+        <span class="sheet-comments-demo__cell">
+          {{ cells[thread.id] }}<template v-if="thread.resolved"> · 已解决</template>
+        </span>
         <span class="sheet-comments-demo__text">
           {{ thread.comments[0]?.author.name }}：{{ thread.comments[0]?.body }}
         </span>
@@ -89,7 +97,7 @@ watch([threads, book], readCells, { flush: 'post' })
           {{ thread.comments.length - 1 }} 条回复
         </span>
       </button>
-      <p v-if="!open.length" class="sheet-comments-demo__empty">右键单元格，选择“添加评论”。</p>
+      <p v-if="!listed.length" class="sheet-comments-demo__empty">右键单元格，选择“添加评论”。</p>
     </aside>
   </div>
 </template>
@@ -114,6 +122,13 @@ watch([threads, book], readCells, { flush: 'post' })
   min-width: 0;
 }
 
+.sheet-comments-demo__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .sheet-comments-demo__title {
   color: var(--dou-color-text-secondary);
   font-size: var(--dou-font-size-sm);
@@ -135,10 +150,7 @@ watch([threads, book], readCells, { flush: 'post' })
   cursor: pointer;
 
   &:hover {
-    background-color: var(
-      --dou-color-fill-hover,
-      color-mix(in oklab, currentColor 4%, transparent)
-    );
+    background-color: color-mix(in oklab, currentColor 4%, transparent);
   }
 
   &.is-active {
@@ -154,7 +166,7 @@ watch([threads, book], readCells, { flush: 'post' })
 }
 
 .sheet-comments-demo__text {
-  overflow: hidden;
+  overflow-x: clip;
   text-overflow: ellipsis;
   white-space: nowrap;
 }

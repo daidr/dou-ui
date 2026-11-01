@@ -114,24 +114,25 @@ export const highlight = defineEditorExtension({
 
 ### 扩展的字段
 
-| 名称               | 说明                                                                                                         | 类型                                   |
-| ------------------ | ------------------------------------------------------------------------------------------------------------ | -------------------------------------- |
-| `name`             | 扩展的名称，同一个扩展不能添加两次                                                                           | `string`                               |
-| `priority`         | 优先级，默认为 `100`。数值大的先执行，快捷键冲突时它的生效                                                   | `number`                               |
-| `blocks`           | 新的块类型，键是类型名称，值是 ProseMirror 节点定义                                                          | `Record<string, NodeSpec>`             |
-| `inlines`          | 新的行内节点，例如提及                                                                                       | `Record<string, NodeSpec>`             |
-| `marks`            | 新的文字格式                                                                                                 | `Record<string, MarkSpec>`             |
-| `nodeViews`        | ProseMirror 节点视图                                                                                         | `Record<string, NodeViewConstructor>`  |
-| `inputRules`       | 输入规则，例如 Markdown 快捷输入                                                                             | `(context) => InputRule[]`             |
-| `keymap`           | 快捷键，写法和 `useHotkey` 一样（如 `mod+shift+h`、`shift+tab`、`enter`）；命令返回 `false` 时交给下一个扩展 | `(context) => Record<string, Command>` |
-| `plugins`          | ProseMirror 插件                                                                                             | `(context) => Plugin[]`                |
-| `history`          | 替换内置的撤销记录，只能有一个扩展提供，协同编辑扩展会用到                                                   | `(context) => HistoryProvider`         |
-| `externalDocument` | 文档保存在编辑器之外（例如协同编辑的共享文档），`v-model` 只同步输出                                         | `boolean`                              |
-| `blockOptions`     | 块菜单和“转换为”菜单中的选项                                                                                 | `BlockOption[]`                        |
-| `formats`          | 格式工具栏中的按钮                                                                                           | `FormatOption[]`                       |
-| `overlays`         | 可编辑时渲染在编辑区域旁的组件，例如提及的候选列表                                                           | `Component[]`                          |
-| `output`           | 块、行内节点和文字格式写成 HTML 与 Markdown 的方式，见[导入与导出](./import-export)                          | `EditorExtensionOutput`                |
-| `prepareHTML`      | 读入 HTML 前整理它（粘贴和导入时），见[导入与导出](./import-export)                                          | `(root: HTMLElement) => void`          |
+| 名称               | 说明                                                                                                                                                       | 类型                                   |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| `name`             | 扩展的名称，同一个扩展不能添加两次                                                                                                                         | `string`                               |
+| `priority`         | 优先级，默认为 `100`。数值大的先执行，快捷键冲突时它的生效                                                                                                 | `number`                               |
+| `blocks`           | 新的块类型，键是类型名称，值是 ProseMirror 节点定义                                                                                                        | `Record<string, NodeSpec>`             |
+| `inlines`          | 新的行内节点，例如提及                                                                                                                                     | `Record<string, NodeSpec>`             |
+| `marks`            | 新的文字格式                                                                                                                                               | `Record<string, MarkSpec>`             |
+| `nodeViews`        | ProseMirror 节点视图                                                                                                                                       | `Record<string, NodeViewConstructor>`  |
+| `inputRules`       | 输入规则，例如 Markdown 快捷输入                                                                                                                           | `(context) => InputRule[]`             |
+| `keymap`           | 快捷键，写法和 `useHotkey` 一样（如 `mod+shift+h`、`shift+tab`、`enter`）；命令返回 `false` 时交给下一个扩展                                               | `(context) => Record<string, Command>` |
+| `plugins`          | ProseMirror 插件                                                                                                                                           | `(context) => Plugin[]`                |
+| `comments`         | 把讨论保存在 `v-model:comments` 以外的地方（比如共享文档），这时 `v-model:comments` 只反映它；只能有一个扩展提供，协同编辑扩展会用到，见[评论](./comments) | `(context) => CommentsProvider`        |
+| `history`          | 替换内置的撤销记录，只能有一个扩展提供，协同编辑扩展会用到                                                                                                 | `(context) => HistoryProvider`         |
+| `externalDocument` | 文档保存在编辑器之外（例如协同编辑的共享文档），`v-model` 只同步输出                                                                                       | `boolean`                              |
+| `blockOptions`     | 块菜单和“转换为”菜单中的选项                                                                                                                               | `BlockOption[]`                        |
+| `formats`          | 格式工具栏中的按钮                                                                                                                                         | `FormatOption[]`                       |
+| `overlays`         | 可编辑时渲染在编辑区域旁的组件，例如提及的候选列表                                                                                                         | `Component[]`                          |
+| `output`           | 块、行内节点和文字格式写成 HTML 与 Markdown 的方式，见[导入与导出](./import-export)                                                                        | `EditorExtensionOutput`                |
+| `prepareHTML`      | 读入 HTML 前整理它（粘贴和导入时），见[导入与导出](./import-export)                                                                                        | `(root: HTMLElement) => void`          |
 
 `context` 里有根据全部扩展生成的 `schema`。
 

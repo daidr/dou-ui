@@ -98,17 +98,18 @@ function reset() {
 
 ### 实例方法
 
-| 名称        | 说明                                                   | 类型                                  |
-| ----------- | ------------------------------------------------------ | ------------------------------------- |
-| `view`      | ProseMirror 的 `EditorView`，挂载后可用                | `EditorView \| null`                  |
-| `focus`     | 获得焦点                                               | `() => void`                          |
-| `blur`      | 失去焦点                                               | `() => void`                          |
-| `getBlocks` | 读取当前文档                                           | `() => Block[]`                       |
-| `setBlocks` | 替换整个文档，不进入撤销记录                           | `(blocks: PartialBlock[]) => void`    |
-| `getHTML`   | 把当前文档写成 HTML，见[导入与导出](./import-export)   | `() => string`                        |
-| `setHTML`   | 用 HTML 替换整个文档，不进入撤销记录                   | `(html: string) => void`              |
-| `run`       | 执行一个 ProseMirror 命令，返回是否执行了              | `(command: Command) => boolean`       |
-| `restore`   | 换成某个版本的内容，可以撤销，见[历史版本](./versions) | `(blocks: PartialBlock[]) => boolean` |
+| 名称                           | 说明                                                   | 类型                                  |
+| ------------------------------ | ------------------------------------------------------ | ------------------------------------- |
+| `view`                         | ProseMirror 的 `EditorView`，挂载后可用                | `EditorView \| null`                  |
+| `focus`                        | 获得焦点                                               | `() => void`                          |
+| `blur`                         | 失去焦点                                               | `() => void`                          |
+| `getBlocks`                    | 读取当前文档                                           | `() => Block[]`                       |
+| `setBlocks`                    | 替换整个文档，不进入撤销记录                           | `(blocks: PartialBlock[]) => void`    |
+| `getHTML`                      | 把当前文档写成 HTML，见[导入与导出](./import-export)   | `() => string`                        |
+| `setHTML`                      | 用 HTML 替换整个文档，不进入撤销记录                   | `(html: string) => void`              |
+| `run`                          | 执行一个 ProseMirror 命令，返回是否执行了              | `(command: Command) => boolean`       |
+| `restore`                      | 换成某个版本的内容，可以撤销，见[历史版本](./versions) | `(blocks: PartialBlock[]) => boolean` |
+| `nextChange`、`previousChange` | 对比时跳到下一处、上一处差异，见[历史版本](./versions) | `() => boolean`                       |
 
 ### CSS 变量
 

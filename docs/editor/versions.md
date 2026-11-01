@@ -45,7 +45,7 @@ const blocks = readMap(ydoc.getMap('doc'))
 
 块按 `id` 对应，所以移动过的块不算修改，只在内容变了时标出。评论不算修改。`compare` 设为 `null` 回到编辑。
 
-`nextChange()` 和 `previousChange()` 依次滚动到下一处、上一处差异，没有更多时返回 `false`，可以接在自己的按钮上。
+`nextChange()` 和 `previousChange()` 依次滚动到下一处、上一处差异，读屏会读出这处是新增、删除还是修改，以及其中的文字；没有更多时返回 `false`，可以接在自己的按钮上。
 
 只想知道改了多少，不需要显示时，用 `diffBlocks`：
 
@@ -60,7 +60,7 @@ const { added, removed, changed, changes } = diffBlocks(version.blocks, blocks.v
 
 ## 恢复
 
-`restore(blocks)` 把文档换成某个版本的内容，算一次修改，可以撤销。只替换有差异的部分；协同编辑时只把这些块写进共享文档，每个人都会同步看到恢复后的内容，别人正在编辑的其他块不受影响。文档没有差异时返回 `false`。
+`restore(blocks)` 把文档换成某个版本的内容，算一次修改，可以撤销。只替换有差异的部分；协同编辑时只把这些块写进共享文档，每个人都会同步看到恢复后的内容，别人正在编辑的其他块不受影响。恢复后读屏会读出“已恢复到这个版本”。文档没有差异，或者编辑器是 `readonly` 时返回 `false`；对比时（传了 `compare`）可以直接恢复。
 
 恢复前编辑器不会自动保存版本。想让用户能回到恢复前的样子，在调用前先存一份：
 
@@ -83,19 +83,20 @@ function restore(version: Version) {
 
 ### 实例方法
 
-| 名称             | 说明                                                 | 类型                                  |
-| ---------------- | ---------------------------------------------------- | ------------------------------------- |
-| `restore`        | 换成某个版本的内容，可以撤销；没有差异时返回 `false` | `(blocks: PartialBlock[]) => boolean` |
-| `nextChange`     | 对比时滚动到下一处差异，没有更多时返回 `false`       | `() => boolean`                       |
-| `previousChange` | 对比时滚动到上一处差异                               | `() => boolean`                       |
+| 名称             | 说明                                                               | 类型                                  |
+| ---------------- | ------------------------------------------------------------------ | ------------------------------------- |
+| `restore`        | 换成某个版本的内容，可以撤销；没有差异或 `readonly` 时返回 `false` | `(blocks: PartialBlock[]) => boolean` |
+| `nextChange`     | 对比时滚动到下一处差异，没有更多时返回 `false`                     | `() => boolean`                       |
+| `previousChange` | 对比时滚动到上一处差异                                             | `() => boolean`                       |
 
 ### 工具函数
 
-| 名称         | 说明                                                           | 类型                                                      |
-| ------------ | -------------------------------------------------------------- | --------------------------------------------------------- |
-| `diffBlocks` | 两个版本之间新增、删除、修改的块                               | `(before: Block[], after: Block[]) => BlocksDiff`         |
-| `diffText`   | 逐字对比两段文字                                               | `(before: string, after: string) => TextPart[]`           |
-| `readMap`    | 从共享文档读出当前内容，从 `@dou-ui/editor/collaboration` 引入 | `(map: Y.Map, extensions?: EditorExtension[]) => Block[]` |
+| 名称         | 说明                                                                                          | 类型                                                      |
+| ------------ | --------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `diffBlocks` | 两个版本之间新增、删除、修改的块                                                              | `(before: Block[], after: Block[]) => BlocksDiff`         |
+| `diffText`   | 逐字对比两段文字                                                                              | `(before: string, after: string) => TextPart[]`           |
+| `inlineText` | 块的文字内容转成字符串：换行是 `\n`，提及等行内节点各占一个 `￼`，和 `diffText` 的位置一一对应 | `(content: InlineContent[]) => string`                    |
+| `readMap`    | 从共享文档读出当前内容，从 `@dou-ui/editor/collaboration` 引入                                | `(map: Y.Map, extensions?: EditorExtension[]) => Block[]` |
 
 ```ts
 type BlockChange =

@@ -112,6 +112,12 @@ export interface EditorMessages {
   commentThread: string
   /** Shown for a removed block that has no text, such as a divider, when comparing versions. */
   removedBlock: string
+  /** Read out once a version is restored. */
+  restored: string
+  /** Read out, before the text, when going to a change while comparing. */
+  changeAdded: string
+  changeRemoved: string
+  changeChanged: string
   formatting: string
   /** The name of the slash menu's list. */
   blockTypes: string
@@ -215,6 +221,10 @@ const zhCN: EditorMessages = {
   comment: '评论',
   commentThread: '评论',
   removedBlock: '已删除的内容',
+  restored: '已恢复到这个版本',
+  changeAdded: '新增',
+  changeRemoved: '删除',
+  changeChanged: '修改',
   formatting: '文字格式',
   blockTypes: '块类型',
 }
@@ -317,6 +327,10 @@ const zhTW: EditorMessages = {
   comment: '評論',
   commentThread: '評論',
   removedBlock: '已刪除的內容',
+  restored: '已還原到這個版本',
+  changeAdded: '新增',
+  changeRemoved: '刪除',
+  changeChanged: '修改',
   formatting: '文字格式',
   blockTypes: '區塊類型',
 }
@@ -419,6 +433,10 @@ const en: EditorMessages = {
   comment: 'Comment',
   commentThread: 'Comments',
   removedBlock: 'Removed content',
+  restored: 'Restored this version',
+  changeAdded: 'Added',
+  changeRemoved: 'Removed',
+  changeChanged: 'Changed',
   formatting: 'Text formatting',
   blockTypes: 'Block types',
 }

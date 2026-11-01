@@ -27,6 +27,8 @@ const props = defineProps<{
   label: string
   /** Bumped to put the cursor in the reply box. */
   focusRequest: number
+  /** The last request the cursor was put there for; a card opened for a newer one takes it. */
+  focusHandled: number
   /** What belongs to the grid: a press there is the grid's, not outside the card. */
   grid: () => HTMLElement | null
 }>()
@@ -35,14 +37,29 @@ const emit = defineEmits<{
   action: [action: CommentAction]
   /** Escape, the cancel button, or a press outside. `refocus` asks for the grid's focus back. */
   close: [refocus: boolean]
+  /** The request the cursor was put in the reply box for. */
+  focused: [request: number]
 }>()
 
 const panel = shallowRef<HTMLElement | null>(null)
 const threadView = shallowRef<InstanceType<typeof DouCommentThread> | null>(null)
 
+/**
+ * Beside the cell, or under it (above when there's no room below) on a
+ * screen too narrow for the card on either side, so it never covers the
+ * cell it is about.
+ */
+function side(): 'right-start' | 'bottom-start' {
+  if (typeof window === 'undefined') return 'right-start'
+  const anchor = props.anchor.getBoundingClientRect()
+  const width = panel.value?.offsetWidth ?? 340
+  const room = Math.max(window.innerWidth - anchor.right, anchor.left)
+  return room >= width + 6 ? 'right-start' : 'bottom-start'
+}
+
 const { style, placement } = useFloating(() => props.anchor, panel, {
   open: true,
-  placement: 'right-start',
+  placement: side,
   offset: 6,
 })
 const zIndex = useZIndex().next()
@@ -63,13 +80,17 @@ useLayer({
   onOutside: () => emit('close', false),
 })
 
+// asked to (the keyboard shortcut, a thread just started): the reply box,
+// also when the card opens for the request
 watch(
   () => props.focusRequest,
-  async () => {
+  async (request) => {
+    if (request <= props.focusHandled) return
+    emit('focused', request)
     await nextTick()
     threadView.value?.focus()
   },
-  { flush: 'post' },
+  { flush: 'post', immediate: true },
 )
 
 defineExpose({ panel })

@@ -138,23 +138,25 @@ sheet.value.transact((tr) => {
 
 每次修改，不论来自输入、撤销还是 `transact`，都会更新 `v-model` 并触发 `transaction` 事件；被保护或扩展取消的修改不会生效，触发的是 `transaction-cancel` 事件。事件参数里的 `steps` 是这次修改的步骤，`inverse` 是撤销它的步骤，可以用来同步到服务端；另一端用 `applySheetSteps(doc, steps)` 应用，在服务端从不含组件的 `@dou-ui/sheet/core` 引入它（见[不含组件的入口](./extensions#不含组件的入口)）。`meta.action` 说明修改的来源：
 
-| `action`                 | 来源                                                 |
-| ------------------------ | ---------------------------------------------------- |
-| `input`                  | 在单元格里输入                                       |
-| `paste`、`cut`           | 粘贴；粘贴剪切的内容（移动单元格）                   |
-| `fill`、`clear`          | 填充柄、`Ctrl` + `D` / `R`；清空内容                 |
-| `resize`、`hide`、`move` | 调整行高列宽；隐藏、取消隐藏；移动行列               |
-| `merge`                  | 合并、取消合并单元格                                 |
-| `group`                  | 分组、取消分组、折叠和展开分组                       |
-| `note`                   | 插入、编辑和删除批注                                 |
-| `link`                   | 插入、编辑和删除链接                                 |
-| `protect`                | 锁定单元格，保护工作表和工作簿结构                   |
-| `style`、`freeze`        | 工具栏或快捷键修改样式、格式；工具栏冻结行列         |
-| `sheet`                  | 标签栏里新建、重命名、复制、移动、删除工作表         |
-| `import`                 | 导入文件（`importFile`、工具栏的导入按钮、拖入文件） |
-| `insert`、`delete`       | 插入、删除行列                                       |
-| `undo`、`redo`           | 撤销、重做                                           |
-| `api`                    | 组件实例的 `transact`，没有指定 `action`             |
+| `action`                 | 来源                                                               |
+| ------------------------ | ------------------------------------------------------------------ |
+| `input`                  | 在单元格里输入                                                     |
+| `paste`、`cut`           | 粘贴；粘贴剪切的内容（移动单元格）                                 |
+| `fill`、`clear`          | 填充柄、`Ctrl` + `D` / `R`；清空内容                               |
+| `resize`、`hide`、`move` | 调整行高列宽；隐藏、取消隐藏；移动行列                             |
+| `merge`                  | 合并、取消合并单元格                                               |
+| `group`                  | 分组、取消分组、折叠和展开分组                                     |
+| `note`                   | 插入、编辑和删除批注                                               |
+| `link`                   | 插入、编辑和删除链接                                               |
+| `comment`                | 发起、删除讨论时写入或去掉单元格的 `comment`，见[评论](./comments) |
+| `restore`                | 恢复到某个版本，见[历史版本](./versions)                           |
+| `protect`                | 锁定单元格，保护工作表和工作簿结构                                 |
+| `style`、`freeze`        | 工具栏或快捷键修改样式、格式；工具栏冻结行列                       |
+| `sheet`                  | 标签栏里新建、重命名、复制、移动、删除工作表                       |
+| `import`                 | 导入文件（`importFile`、工具栏的导入按钮、拖入文件）               |
+| `insert`、`delete`       | 插入、删除行列                                                     |
+| `undo`、`redo`           | 撤销、重做                                                         |
+| `api`                    | 组件实例的 `transact`，没有指定 `action`                           |
 
 | 方法                                                                                  | 说明                                                                                                                                                           |
 | ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -176,6 +178,7 @@ sheet.value.transact((tr) => {
 | `renameSheet(sheet, name)`、`moveSheet(sheet, index)`、`duplicateSheet(sheet, name?)` | 重命名、移动、复制工作表                                                                                                                                       |
 | `styleCells(range, patch)`、`formatCells(range, format)`                              | 修改区域的样式、数字格式，见[改样式](#改样式)                                                                                                                  |
 | `setStyle(name, style)`                                                               | 添加、修改或（传 `undefined`）删除一个命名样式                                                                                                                 |
+| `setComment(cell, id)`                                                                | 把讨论放到单元格上，`undefined` 去掉，见[评论](./comments#用代码修改)；恢复版本的步骤见 `restoreWorkbook`（[历史版本](./versions#恢复)）                       |
 | `protectSheet(protect, sheet?)`、`updateBook(patch)`                                  | 保护或取消保护工作表；修改工作簿的字段，比如 `{ protect: true }`，见[保护](#保护)                                                                              |
 | `cancel(reason?)`                                                                     | 取消这次修改，在扩展的 `transaction` 里使用，见[取消修改](./extensions#取消修改)                                                                               |
 | `setMeta({ history, group, action, protection })`                                     | `history: false` 不进入撤销记录；同一 `group` 的连续修改合并为一步；`action` 见上表；`protection: false` 不检查保护                                            |

@@ -659,14 +659,18 @@
   /* the thread beside its cell */
   .dou-sheet-comment {
     box-sizing: border-box;
-    width: min(320px, calc(100vw - 32px));
+    width: min(340px, calc(100vw - 32px));
     max-height: min(480px, calc(100vh - 32px));
     padding: 12px;
     overflow-y: auto;
     overscroll-behavior: contain;
     border: 1px solid var(--dou-color-border);
     border-radius: var(--dou-radius-container);
-    background-color: var(--dou-color-bg-surface);
+    /* as the block editor's thread card: a shade lighter than the page in dark */
+    background-color: light-dark(
+      var(--dou-color-bg-surface),
+      color-mix(in oklab, var(--dou-color-text) 4%, var(--dou-color-bg-surface))
+    );
     box-shadow: var(--dou-shadow-md);
     font-family: var(--dou-font-family);
     line-height: normal;

@@ -187,19 +187,20 @@ const problems = checkDocument(doc, { widgets })
 
 ### Dashboard Props
 
-| 名称          | 说明                                      | 类型                               | 默认值                         |
-| ------------- | ----------------------------------------- | ---------------------------------- | ------------------------------ |
-| `v-model`     | 仪表盘文档                                | `DashboardDocument`                | `{ version: 1, widgets: [] }`  |
-| `widgets`     | 注册的格子类型                            | `DashboardWidgetType[]`            | `[]`                           |
-| `editable`    | 能否添加、移动、缩放、修改和删除格子      | `boolean`                          | `false`                        |
-| `columns`     | 列数：一个数字，或按断点分别给出          | `number \| Record<string, number>` | `{ lg: 12, md: 6, sm: 1 }`     |
-| `breakpoints` | 每个断点从多宽开始（仪表盘自身的宽度）    | `Record<string, number>`           | `{ lg: 1024, md: 640, sm: 0 }` |
-| `row-height`  | 一行的高度（px）                          | `number`                           | `80`                           |
-| `gap`         | 格子之间的间距（px），或 `[横向, 纵向]`   | `number \| [number, number]`       | `16`                           |
-| `compact`     | `'vertical'` 自动往上靠，`false` 自由摆放 | `'vertical' \| false`              | `'vertical'`                   |
-| `label`       | 仪表盘的无障碍名称                        | `string`                           | —                              |
-| `messages`    | 替换语言包里的文字                        | `DashboardMessagesOverride`        | —                              |
-| `create-id`   | 生成新格子的 id                           | `(type: string) => string`         | 类型加几个随机字母             |
+| 名称            | 说明                                          | 类型                               | 默认值                         |
+| --------------- | --------------------------------------------- | ---------------------------------- | ------------------------------ |
+| `v-model`       | 仪表盘文档                                    | `DashboardDocument`                | `{ version: 1, widgets: [] }`  |
+| `widgets`       | 注册的格子类型                                | `DashboardWidgetType[]`            | `[]`                           |
+| `editable`      | 能否添加、移动、缩放、修改和删除格子          | `boolean`                          | `false`                        |
+| `columns`       | 列数：一个数字，或按断点分别给出              | `number \| Record<string, number>` | `{ lg: 12, md: 6, sm: 1 }`     |
+| `breakpoints`   | 每个断点从多宽开始（仪表盘自身的宽度）        | `Record<string, number>`           | `{ lg: 1024, md: 640, sm: 0 }` |
+| `row-height`    | 一行的高度（px）                              | `number`                           | `80`                           |
+| `gap`           | 格子之间的间距（px），或 `[横向, 纵向]`       | `number \| [number, number]`       | `16`                           |
+| `compact`       | `'vertical'` 自动往上靠，`false` 自由摆放     | `'vertical' \| false`              | `'vertical'`                   |
+| `label`         | 仪表盘的无障碍名称                            | `string`                           | —                              |
+| `messages`      | 替换语言包里的文字                            | `DashboardMessagesOverride`        | —                              |
+| `create-id`     | 生成新格子的 id                               | `(type: string) => string`         | 类型加几个随机字母             |
+| `collaboration` | 与他人协同编辑，见[协同编辑](./collaboration) | `DashboardCollaboration`           | —                              |
 
 ### Dashboard Events
 

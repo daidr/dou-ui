@@ -54,6 +54,9 @@ export interface DashboardMessages {
   paletteItem: string
   /** In the title bar of a widget that set a filter: `{value}`. */
   filteredBy: string
+  peerMoving: string
+  peerResizing: string
+  peerSettings: string
   /** The button clearing that filter: `{value}`. */
   clearFilter: string
   /** The filter bar's accessible name. */
@@ -129,6 +132,9 @@ const zhCN: DashboardMessages = {
   palette: '添加格子',
   paletteItem: '添加{label}',
   filteredBy: '已按 {value} 筛选',
+  peerMoving: '{name} 正在移动',
+  peerResizing: '{name} 正在调整大小',
+  peerSettings: '{name} 正在修改设置',
   clearFilter: '清除筛选：{value}',
   filterBar: '筛选',
   linkedFilter: '{title}：{value}',
@@ -195,6 +201,9 @@ const zhTW: DashboardMessages = {
   palette: '新增格子',
   paletteItem: '新增{label}',
   filteredBy: '已按 {value} 篩選',
+  peerMoving: '{name} 正在移動',
+  peerResizing: '{name} 正在調整大小',
+  peerSettings: '{name} 正在修改設定',
   clearFilter: '清除篩選：{value}',
   filterBar: '篩選',
   linkedFilter: '{title}：{value}',
@@ -262,6 +271,9 @@ const en: DashboardMessages = {
   palette: 'Add widget',
   paletteItem: 'Add {label}',
   filteredBy: 'Filtered by {value}',
+  peerMoving: '{name} is moving it',
+  peerResizing: '{name} is resizing it',
+  peerSettings: '{name} is changing its settings',
   clearFilter: 'Clear filter: {value}',
   filterBar: 'Filters',
   linkedFilter: '{title}: {value}',

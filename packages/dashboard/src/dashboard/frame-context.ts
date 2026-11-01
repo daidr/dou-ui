@@ -1,4 +1,5 @@
 import type { InjectionKey } from 'vue'
+import type { DashboardPeer } from '../core/collaboration'
 import type { DashboardWidget } from '../core/types'
 import type { DashboardLinkedFilter } from '../data/types'
 import type { DashboardMessages } from '../locale'
@@ -27,6 +28,8 @@ export interface FrameContext {
   /** The filters a widget set, shown in its title bar. */
   linked: (id: string) => DashboardLinkedFilter[]
   clearFilter: (key: string) => void
+  /** The others at a widget, when editing together. */
+  peers: (id: string) => readonly DashboardPeer[]
 }
 
 export const frameContextKey: InjectionKey<FrameContext> = Symbol('dou-dashboard-frame')

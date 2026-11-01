@@ -13,9 +13,20 @@ import {
   watch,
 } from 'vue'
 import { DashboardHistory } from '../core/history'
-import { applySteps, cloneJson, DashboardTransaction, sameValue } from '../core/transaction'
+import {
+  applySteps,
+  cloneJson,
+  DashboardTransaction,
+  replaceWidgets,
+  sameValue,
+} from '../core/transaction'
 import type { DashboardStep, DashboardTransactionMeta } from '../core/transaction'
 import type { DashboardDocument, DashboardPlace, DashboardWidget } from '../core/types'
+import type {
+  DashboardPeer,
+  DashboardPresence,
+  DashboardPresenceAction,
+} from '../core/collaboration'
 import { dataContextKey } from '../data/context'
 import { filterText, isEmptyFilter } from '../data/filters'
 import { createSourceStore, sameSource } from '../data/store'
@@ -26,7 +37,7 @@ import type {
 } from '../data/types'
 import GridLayout from '../grid/grid-layout.vue'
 import { DEFAULT_BREAKPOINTS, DEFAULT_COLUMNS, gridTiers } from '../grid/tiers'
-import type { GridDropEvent, GridLayoutExpose, GridLayouts } from '../grid/types'
+import type { GridDragEvent, GridDropEvent, GridLayoutExpose, GridLayouts } from '../grid/types'
 import { findPlace, fitItem, moveItem } from '../layout/engine'
 import type { GridItem, GridLayoutOptions } from '../layout/types'
 import { format, useDashboardMessages } from '../locale'
@@ -116,9 +127,13 @@ function dispatch(tr: DashboardTransaction) {
   if (toRaw(tr.before) !== toRaw(model.value))
     throw new Error('[dou-ui] the transaction was made on another version of the dashboard')
   if (!tr.changed) return
-  history.record(tr)
-  historyVersion.value++
+  const shared = props.collaboration
+  if (!shared) {
+    history.record(tr)
+    historyVersion.value++
+  }
   commit(tr)
+  shared?.transaction(tr)
 }
 
 /** Steps made into a transaction and dispatched, for the dashboard's own changes. */
@@ -129,6 +144,7 @@ function run(steps: DashboardStep[], meta: DashboardTransactionMeta) {
 }
 
 function undo() {
+  if (props.collaboration) return props.collaboration.undo()
   const tr = history.undo(model.value)
   historyVersion.value++
   if (!tr) return false
@@ -137,6 +153,7 @@ function undo() {
 }
 
 function redo() {
+  if (props.collaboration) return props.collaboration.redo()
   const tr = history.redo(model.value)
   historyVersion.value++
   if (!tr) return false
@@ -144,8 +161,12 @@ function redo() {
   return true
 }
 
-const canUndo = computed(() => (historyVersion.value, history.canUndo))
-const canRedo = computed(() => (historyVersion.value, history.canRedo))
+const canUndo = computed(() =>
+  props.collaboration ? props.collaboration.canUndo() : (historyVersion.value, history.canUndo),
+)
+const canRedo = computed(() =>
+  props.collaboration ? props.collaboration.canRedo() : (historyVersion.value, history.canRedo),
+)
 
 // ---------------------------------------------------------------------------
 // The grid: widgets as items, places by breakpoint
@@ -466,6 +487,108 @@ function onAction(id: string, action: WidgetAction) {
   else removeWidget(id)
 }
 
+// ---------------------------------------------------------------------------
+// Editing together
+
+/** Changes from others wait while a widget is dragged here; then the shared document is read again. */
+let held = false
+
+function applyShared(doc: DashboardDocument, origin: 'remote' | 'undo' | 'redo') {
+  if (dragging.value) {
+    held = true
+    return
+  }
+  const tr = replaceWidgets(new DashboardTransaction(model.value), doc)
+  if (!tr.changed) return
+  tr.setMeta('history', false).setMeta('origin', origin)
+  const ids = new Set(tr.doc.widgets.map((widget) => widget.id))
+  if (settingsId.value && !ids.has(settingsId.value)) settingsId.value = undefined
+  if (fullscreenId.value && !ids.has(fullscreenId.value)) fullscreenId.value = undefined
+  commit(tr)
+}
+
+// one written in the template is new on every render: each one starts over and clears undo
+let setupTimes: number[] = []
+let setupWarned = false
+function warnRepeatedSetup() {
+  if (process.env.NODE_ENV === 'production' || setupWarned) return
+  const now = Date.now()
+  setupTimes = [...setupTimes.filter((time) => now - time < 1000), now]
+  if (setupTimes.length < 4) return
+  setupWarned = true
+  console.warn(
+    '[@dou-ui/dashboard] collaboration keeps being replaced, which starts it over and clears undo each time. Create it once in <script setup> instead of in the template.',
+  )
+}
+
+watch(
+  () => props.collaboration,
+  (shared, _, onCleanup) => {
+    if (shared) warnRepeatedSetup()
+    history.clear()
+    historyVersion.value++
+    if (!shared) return
+    const stop = shared.setup({ document: () => model.value, apply: applyShared })
+    onCleanup(() => {
+      shared.presence?.(null)
+      stop()
+    })
+  },
+  { immediate: true },
+)
+
+/** The widget being moved or resized here, and how. */
+const drag = shallowRef<GridDragEvent>()
+function onDragStart(event: GridDragEvent) {
+  dragging.value = true
+  drag.value = event
+}
+function onDragEnd() {
+  dragging.value = false
+  drag.value = undefined
+  if (!held) return
+  held = false
+  // after the drop's own change, which the grid hands over in a microtask
+  queueMicrotask(() => queueMicrotask(() => props.collaboration?.sync()))
+}
+
+/** The widget whose item, or a control in it, has focus. */
+const focused = ref<string>()
+function onFocusIn(event: FocusEvent) {
+  const item = (event.target as HTMLElement).closest?.<HTMLElement>('[data-grid-id]')
+  focused.value = item?.closest('.dou-dashboard') === root.value ? item?.dataset.gridId : undefined
+}
+function onFocusOut(event: FocusEvent) {
+  if (!root.value?.contains(event.relatedTarget as Node | null)) focused.value = undefined
+}
+
+/** What this person is doing, shown to the others. */
+const presence = computed<DashboardPresence | null>(() => {
+  const moving = drag.value
+  if (moving && moving.kind !== 'drop' && widgetMap.value.has(moving.id))
+    return { widget: moving.id, action: moving.kind as DashboardPresenceAction }
+  if (settingsId.value) return { widget: settingsId.value, action: 'settings' }
+  if (focused.value && widgetMap.value.has(focused.value))
+    return { widget: focused.value, action: 'focus' }
+  return null
+})
+watch(
+  [presence, () => props.collaboration] as const,
+  ([current, shared], previous) => {
+    if (!shared?.presence) return
+    const [before, sharedBefore] = previous ?? []
+    if (
+      sharedBefore === shared &&
+      before?.widget === current?.widget &&
+      before?.action === current?.action
+    )
+      return
+    shared.presence(current)
+  },
+  { immediate: true },
+)
+const NO_PEERS: readonly DashboardPeer[] = []
+
 provide(frameContextKey, {
   widget: (id) => widgetMap.value.get(id),
   type: typeOf,
@@ -479,6 +602,7 @@ provide(frameContextKey, {
   rename,
   linked: (id) => linksByWidget.value.get(id) ?? NO_LINKS,
   clearFilter: (key) => setFilter(undefined, key, undefined),
+  peers: (id) => props.collaboration?.peers?.(id) ?? NO_PEERS,
 })
 
 // ---------------------------------------------------------------------------
@@ -763,6 +887,8 @@ defineExpose<DashboardExpose>({
     @copy="onCopy($event)"
     @cut="onCopy($event, true)"
     @paste="onPaste"
+    @focusin="onFocusIn"
+    @focusout="onFocusOut"
   >
     <GridLayout
       ref="grid"
@@ -781,8 +907,8 @@ defineExpose<DashboardExpose>({
       @update:model-value="(list) => gather({ items: list })"
       @update:layouts="(next) => gather({ layouts: next })"
       @drop="onDrop"
-      @drag-start="dragging = true"
-      @drag-end="dragging = false"
+      @drag-start="onDragStart"
+      @drag-end="onDragEnd"
       @breakpoint-change="onBreakpoint"
     >
       <template #item="{ item }">

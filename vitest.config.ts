@@ -44,6 +44,10 @@ export default defineConfig({
         find: /^@dou-ui\/dashboard\/pivot$/,
         replacement: r('./packages/dashboard/src/pivot/index.ts'),
       },
+      {
+        find: /^@dou-ui\/dashboard\/collaboration$/,
+        replacement: r('./packages/dashboard/src/collaboration/index.ts'),
+      },
       { find: /^@dou-ui\/dashboard$/, replacement: r('./packages/dashboard/src/index.ts') },
       { find: /^@dou-ui\/sheet$/, replacement: r('./packages/sheet/src/index.ts') },
       {

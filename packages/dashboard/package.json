@@ -8,7 +8,8 @@
     "dashboard",
     "grid-layout",
     "drag-and-drop",
-    "resizable"
+    "resizable",
+    "collaboration"
   ],
   "license": "MIT",
   "author": "daidr <daidr@daidr.me>",
@@ -47,6 +48,10 @@
       "types": "./dist/types/pivot/index.d.ts",
       "import": "./dist/pivot/index.js"
     },
+    "./collaboration": {
+      "types": "./dist/types/collaboration/index.d.ts",
+      "import": "./dist/collaboration/index.js"
+    },
     "./style.css": "./dist/style.css",
     "./package.json": "./package.json"
   },
@@ -60,13 +65,17 @@
     "@dou-ui/chart": "workspace:*",
     "@dou-ui/pivot": "workspace:*",
     "dou-ui": "workspace:*",
-    "vue": "^3.5.0"
+    "vue": "^3.5.0",
+    "yjs": "^13.6.0"
   },
   "peerDependenciesMeta": {
     "@dou-ui/chart": {
       "optional": true
     },
     "@dou-ui/pivot": {
+      "optional": true
+    },
+    "yjs": {
       "optional": true
     }
   },
@@ -75,7 +84,9 @@
   },
   "devDependencies": {
     "@dou-ui/chart": "workspace:*",
-    "@dou-ui/pivot": "workspace:*"
+    "@dou-ui/pivot": "workspace:*",
+    "y-protocols": "^1.0.7",
+    "yjs": "^13.6.33"
   },
   "publishConfig": {
     "access": "public"

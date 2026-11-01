@@ -14,11 +14,12 @@ export default defineConfig({
         'widgets/index': 'src/widgets/index.ts',
         'chart/index': 'src/chart/index.ts',
         'pivot/index': 'src/pivot/index.ts',
+        'collaboration/index': 'src/collaboration/index.ts',
       },
       formats: ['es'],
     },
     rollupOptions: {
-      external: ['vue', 'dou-ui', /^@dou-ui\//],
+      external: ['vue', 'dou-ui', /^@dou-ui\//, 'yjs'],
       output: {
         // keep the source module structure so bundlers can tree-shake
         preserveModules: true,

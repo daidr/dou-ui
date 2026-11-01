@@ -166,3 +166,56 @@ export function applySteps(
 
 /** A deep copy of a JSON value (also of a reactive one). */
 export const cloneJson = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T
+
+/** The indexes of the longest strictly increasing run of `values`. */
+function longestRun(values: readonly number[]): Set<number> {
+  const tails: number[] = []
+  const previous: number[] = []
+  values.forEach((value, index) => {
+    let low = 0
+    let high = tails.length
+    while (low < high) {
+      const mid = (low + high) >> 1
+      if (values[tails[mid]!]! < value) low = mid + 1
+      else high = mid
+    }
+    previous[index] = low > 0 ? tails[low - 1]! : -1
+    tails[low] = index
+  })
+  const kept = new Set<number>()
+  let index = tails.length ? tails[tails.length - 1]! : -1
+  while (index >= 0) {
+    kept.add(index)
+    index = previous[index]!
+  }
+  return kept
+}
+
+/**
+ * Adds the steps that turn the transaction's document into `next`: widgets
+ * that are gone are removed, new ones added, changed keys updated, and the
+ * fewest widgets taken out and put back to match the order. Unchanged
+ * widgets keep their objects.
+ */
+export function replaceWidgets(tr: DashboardTransaction, next: DashboardDocument) {
+  const wanted = new Map(next.widgets.map((widget, index) => [widget.id, index]))
+  for (const widget of tr.doc.widgets) {
+    const index = wanted.get(widget.id)
+    // a widget whose type changed is a new widget
+    if (index === undefined || next.widgets[index]!.type !== widget.type) tr.remove(widget.id)
+  }
+  const current = tr.doc.widgets
+  const kept = longestRun(current.map((widget) => wanted.get(widget.id)!))
+  for (const [index, widget] of current.entries()) if (!kept.has(index)) tr.remove(widget.id)
+  next.widgets.forEach((widget, index) => {
+    const there = tr.doc.widgets[index]
+    if (there?.id !== widget.id) return void tr.add(widget, index)
+    const patch: Record<string, unknown> = {}
+    const old = there as unknown as Record<string, unknown>
+    const item = widget as unknown as Record<string, unknown>
+    for (const key of new Set([...Object.keys(old), ...Object.keys(item)]))
+      if (!PROTECTED.has(key)) patch[key] = item[key]
+    tr.update(widget.id, patch as DashboardWidgetPatch)
+  })
+  return tr
+}

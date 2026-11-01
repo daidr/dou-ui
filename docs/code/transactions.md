@@ -39,7 +39,15 @@ editor.value.transact((tr) => {
 
 ## 监听修改
 
-每次修改之后触发 `transaction` 事件，参数中的 `meta.action` 说明修改的来源：
+文字或选区变化后触发 `transaction` 事件。只移动光标或改变选区时也会触发，这时 `changes.empty` 为 `true`；判断文字是否改变，请使用 `!result.changes.empty`：
+
+```ts
+function onTransaction(result: CodeTransactionResult) {
+  if (!result.changes.empty) dirty.value = true
+}
+```
+
+参数中的 `meta.action` 说明变化的来源，可能没有值（例如调用 `select()` 时）：
 
 | `meta.action`  | 来源                   |
 | -------------- | ---------------------- |
@@ -48,6 +56,7 @@ editor.value.transact((tr) => {
 | `paste`、`cut` | 粘贴、剪切             |
 | `drop`         | 拖放                   |
 | `indent`       | 缩进                   |
+| `select`       | 改变选区               |
 | `undo`、`redo` | 撤销、重做             |
 | `external`     | `v-model` 传入了新的值 |
 | `remote`       | 协同编辑中其他人的修改 |
@@ -107,41 +116,44 @@ const keymap: CodeKeymap = {
 
 ### codeCommands
 
-| 命令                                       | 作用                                  |
-| ------------------------------------------ | ------------------------------------- |
-| `cursorCharLeft` / `cursorCharRight`       | 左右移动一个字符                      |
-| `cursorWordLeft` / `cursorWordRight`       | 按词移动                              |
-| `cursorLineStart` / `cursorLineEnd`        | 移到行首 / 行尾                       |
-| `cursorLineUp` / `cursorLineDown`          | 上下移动一行                          |
-| `cursorPageUp` / `cursorPageDown`          | 翻一屏                                |
-| `cursorDocStart` / `cursorDocEnd`          | 移到文本开头 / 结尾                   |
-| `select…`（如 `selectWordLeft`）           | 和同名的 `cursor…` 一样移动，扩大选区 |
-| `selectAll`                                | 全选                                  |
-| `simplifySelection`                        | 只保留主选区                          |
-| `deleteCharBackward` / `deleteCharForward` | 删除前 / 后一个字符                   |
-| `deleteWordBackward` / `deleteWordForward` | 删除前 / 后一个词                     |
-| `deleteLineStart` / `deleteLineEnd`        | 删到行首 / 行尾                       |
-| `deleteLine`                               | 删除所在行                            |
-| `insertNewline`                            | 换行并保留缩进                        |
-| `insertTab`                                | 插入缩进                              |
-| `indentMore` / `indentLess`                | 增加 / 减少缩进                       |
-| `undo` / `redo`                            | 撤销 / 重做                           |
-| `toggleComment`                            | 注释或取消注释                        |
-| `moveLineUp` / `moveLineDown`              | 上移 / 下移所在行                     |
-| `copyLineUp` / `copyLineDown`              | 向上 / 向下复制所在行                 |
-| `cursorMatchingBracket`                    | 移到配对的括号                        |
-| `selectNextOccurrence`                     | 加选下一个相同的词                    |
-| `selectAllOccurrences`                     | 选中所有相同的词                      |
-| `addCursorAbove` / `addCursorBelow`        | 在上一行 / 下一行添加光标             |
-| `openSearch` / `openReplace`               | 打开查找 / 替换面板                   |
-| `findNext` / `findPrevious`                | 下一个 / 上一个匹配                   |
-| `closeSearch`                              | 关闭查找面板                          |
-| `foldCode` / `unfoldCode`                  | 折叠 / 展开光标所在的一段             |
-| `foldAll` / `unfoldAll`                    | 折叠所有最外层的段 / 全部展开         |
-| `startCompletion`                          | 打开补全                              |
-| `showHover`                                | 显示光标处的说明                      |
-| `nextDiagnostic` / `previousDiagnostic`    | 下一个 / 上一个问题                   |
-| `showFixes`                                | 显示修复办法                          |
-| `typeText(text)`                           | 返回输入一段文字的命令                |
+| 命令                                        | 作用                                  |
+| ------------------------------------------- | ------------------------------------- |
+| `cursorCharLeft` / `cursorCharRight`        | 左右移动一个字符                      |
+| `cursorWordLeft` / `cursorWordRight`        | 按词移动                              |
+| `cursorLineStart` / `cursorLineEnd`         | 移到行首 / 行尾                       |
+| `cursorLineUp` / `cursorLineDown`           | 上下移动一行                          |
+| `cursorPageUp` / `cursorPageDown`           | 翻一屏                                |
+| `cursorDocStart` / `cursorDocEnd`           | 移到文本开头 / 结尾                   |
+| `select…`（如 `selectWordLeft`）            | 和同名的 `cursor…` 一样移动，扩大选区 |
+| `selectAll`                                 | 全选                                  |
+| `simplifySelection`                         | 只保留主选区                          |
+| `deleteCharBackward` / `deleteCharForward`  | 删除前 / 后一个字符                   |
+| `deleteWordBackward` / `deleteWordForward`  | 删除前 / 后一个词                     |
+| `deleteLineStart` / `deleteLineEnd`         | 删到行首 / 行尾                       |
+| `deleteLine`                                | 删除所在行                            |
+| `insertNewline`                             | 换行并保留缩进                        |
+| `insertTab`                                 | 插入缩进                              |
+| `indentMore` / `indentLess`                 | 增加 / 减少缩进                       |
+| `undo` / `redo`                             | 撤销 / 重做                           |
+| `toggleComment`                             | 注释或取消注释                        |
+| `moveLineUp` / `moveLineDown`               | 上移 / 下移所在行                     |
+| `copyLineUp` / `copyLineDown`               | 向上 / 向下复制所在行                 |
+| `cursorMatchingBracket`                     | 移到配对的括号                        |
+| `selectNextOccurrence`                      | 加选下一个相同的词                    |
+| `selectAllOccurrences`                      | 选中所有相同的词                      |
+| `addCursorAbove` / `addCursorBelow`         | 在上一行 / 下一行添加光标             |
+| `openSearch` / `openReplace`                | 打开查找 / 替换面板                   |
+| `findNext` / `findPrevious`                 | 下一个 / 上一个匹配                   |
+| `closeSearch`                               | 关闭查找面板                          |
+| `foldCode` / `unfoldCode`                   | 折叠 / 展开光标所在的一段             |
+| `foldAll` / `unfoldAll`                     | 折叠所有最外层的段 / 全部展开         |
+| `startCompletion`                           | 打开补全                              |
+| `showHover`                                 | 显示光标处的说明                      |
+| `nextDiagnostic` / `previousDiagnostic`     | 下一个 / 上一个问题                   |
+| `showFixes`                                 | 显示修复办法                          |
+| `nextSnippetField` / `previousSnippetField` | 跳到代码片段的下一个 / 上一个占位     |
+| `typeText(text)`                            | 返回输入一段文字的命令                |
+
+`codeCommands.insertText(target, text)` 不是命令，不能交给 `run()`；在按钮中输入文字请使用 `typeText`。
 
 默认快捷键见[编辑操作 · 快捷键](./editing#快捷键)。

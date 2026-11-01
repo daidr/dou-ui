@@ -32,7 +32,7 @@
 | `disabled`       | 禁用                                           | `boolean`                                | 跟随表单，否则 `false`       |
 | `readonly`       | 只读                                           | `boolean`                                | 跟随表单，否则 `false`       |
 | `placeholder`    | 为空时的提示文字                               | `string`                                 | —                            |
-| `language`       | 语言                                           | `CodeLanguage`                           | —                            |
+| `language`       | 语言                                           | `CodeLanguage \| null`                   | —                            |
 | `extensions`     | 扩展                                           | `CodeExtension[]`                        | —                            |
 | `diagnostics`    | 要显示的问题                                   | `CodeDiagnostic[]`                       | —                            |
 | `keymap`         | 额外的快捷键                                   | `CodeKeymap`                             | —                            |
@@ -49,7 +49,7 @@
 | 名称          | 说明                                                         | 参数                    |
 | ------------- | ------------------------------------------------------------ | ----------------------- |
 | `enter`       | 单行时按 `Enter`、多行时按 `Mod` + `Enter`，且补全列表未打开 | —                       |
-| `transaction` | 每次修改之后触发                                             | `CodeTransactionResult` |
+| `transaction` | 文字或选区变化后触发                                         | `CodeTransactionResult` |
 | `focus`       | 获得焦点时触发                                               | `FocusEvent`            |
 | `blur`        | 失去焦点时触发                                               | `FocusEvent`            |
 

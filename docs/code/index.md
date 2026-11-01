@@ -32,12 +32,14 @@ app.use(DouCodeEditor)
 
 ## 编辑辅助
 
-设置 `language` 后，编辑器会（`Mod` 在 Apple 设备上是 `⌘`，在其他系统上是 `Ctrl`）：
+设置 `language` 后，编辑器会：
 
 - 按 `Enter` 时保留缩进，在左括号或 HTML 开始标签之后多缩进一级。
 - 输入左括号或引号时补上另一半，有选区时用它们包住选区。
 - 标出光标旁的括号和与它配对的括号，找不到配对时标为红色。
 - 按 `Mod` + `/` 注释或取消注释所在的行。
+
+`Mod` 在 Apple 设备上是 `⌘`，在其他系统上是 `Ctrl`。
 
 `close-brackets` 设为 `false` 关闭括号补全，`match-brackets` 设为 `false` 关闭括号配对标记。
 
@@ -74,7 +76,7 @@ app.use(DouCodeEditor)
 | `v-model`           | 代码；`v-model.lazy` 在失去焦点时才更新                                  | `string`                           | —          |
 | `v-model:doc`       | 以 `CodeText` 绑定代码，见[大文件](./performance)                        | `CodeText`                         | —          |
 | `v-model:selection` | 选区，见[选区](./editing#选区)                                           | `CodeSelection`                    | 开头的光标 |
-| `language`          | 语言，见[语言](./languages)                                              | `CodeLanguage`                     | —          |
+| `language`          | 语言，见[语言](./languages)                                              | `CodeLanguage \| null`             | —          |
 | `readonly`          | 只读                                                                     | `boolean`                          | `false`    |
 | `disabled`          | 禁用                                                                     | `boolean`                          | `false`    |
 | `placeholder`       | 内容为空时的提示文字                                                     | `string`                           | —          |
@@ -102,12 +104,12 @@ app.use(DouCodeEditor)
 
 ### Events
 
-| 名称          | 说明                                       | 参数                                    |
-| ------------- | ------------------------------------------ | --------------------------------------- |
-| `transaction` | 每次修改之后触发，包括撤销和外部传入的新值 | `CodeTransactionResult`                 |
-| `fold-change` | 折叠状态变化时触发                         | `number[]`（各段的起始行号，从 1 开始） |
-| `focus`       | 获得焦点时触发                             | `FocusEvent`                            |
-| `blur`        | 失去焦点时触发                             | `FocusEvent`                            |
+| 名称          | 说明                                           | 参数                                    |
+| ------------- | ---------------------------------------------- | --------------------------------------- |
+| `transaction` | 文字或选区变化后触发，包括撤销和外部传入的新值 | `CodeTransactionResult`                 |
+| `fold-change` | 折叠状态变化时触发                             | `number[]`（各段的起始行号，从 1 开始） |
+| `focus`       | 获得焦点时触发                                 | `FocusEvent`                            |
+| `blur`        | 失去焦点时触发                                 | `FocusEvent`                            |
 
 ### 实例
 

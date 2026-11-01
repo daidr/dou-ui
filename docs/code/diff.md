@@ -54,7 +54,7 @@ const hunks = diffText('上海\n戴兜\n', '上海\n阿青\n')
 | `original`           | 原文                             | `string`                                             | `''`     |
 | `v-model`            | 修改后的文本                     | `string`                                             | `''`     |
 | `v-model:mode`       | 显示方式                         | `'split' \| 'inline' \| 'auto'`                      | `'auto'` |
-| `language`           | 语言                             | `CodeLanguage`                                       | —        |
+| `language`           | 语言                             | `CodeLanguage \| null`                               | —        |
 | `editable`           | 允许在并排视图的右侧修改         | `boolean`                                            | `false`  |
 | `collapse-unchanged` | 收起未改动的行                   | `boolean \| { context?: number, minLines?: number }` | `true`   |
 | `ignore-whitespace`  | 只有空白不同的行视为相同         | `boolean`                                            | `false`  |

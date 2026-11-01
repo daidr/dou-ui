@@ -82,17 +82,29 @@ app.use(DouUI, {
 编辑器不依赖 Shiki，需要时自行安装：
 
 ```ts
+import type { CodeLanguage } from '@dou-ui/code'
 import { shikiLanguage } from '@dou-ui/code/shiki'
 import { createHighlighter } from 'shiki'
+import { createJavaScriptRegexEngine } from 'shiki/engine/javascript'
+import { onMounted, shallowRef } from 'vue'
 
-const highlighter = await createHighlighter({ langs: ['rust'], themes: [] })
-const rust = shikiLanguage(highlighter, 'rust', {
-  comment: { line: '//', block: ['/*', '*/'] },
+// 加载完成之前没有语言，代码显示为普通文字
+const rust = shallowRef<CodeLanguage | null>(null)
+
+onMounted(async () => {
+  const highlighter = await createHighlighter({
+    langs: ['rust'],
+    themes: [],
+    engine: createJavaScriptRegexEngine(),
+  })
+  rust.value = shikiLanguage(highlighter, 'rust', {
+    comment: { line: '//', block: ['/*', '*/'] },
+  })
 })
 ```
 
 - `themes: []` 表示不加载 Shiki 的主题，Shiki 只负责分出记号。
-- 在浏览器中可以使用 Shiki 的 JavaScript 正则引擎，不必加载 WebAssembly。
+- `engine: createJavaScriptRegexEngine()` 使用 Shiki 的 JavaScript 正则引擎，在浏览器中不必加载 WebAssembly。
 - Shiki 的语法定义中没有注释写法和缩进规则。需要切换注释、换行缩进时，用 `comment`、`brackets`、`autoClose`、`indentAfter` 补充。
 
 ## 自定义语言

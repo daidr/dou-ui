@@ -9,12 +9,12 @@
 <DocDemo src="code/extension" column />
 
 ```ts
-import { defineCodeExtension } from '@dou-ui/code'
+import { defineCodeExtension, type CodeDecoration } from '@dou-ui/code'
 
 const todo = defineCodeExtension({
   name: 'todo',
   decorations(editor) {
-    const out = []
+    const out: CodeDecoration[] = []
     for (let n = editor.visible.from; n <= editor.visible.to; n++) {
       const line = editor.doc.line(n)
       const at = line.text.indexOf('TODO')

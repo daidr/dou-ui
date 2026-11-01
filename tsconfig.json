@@ -20,6 +20,7 @@
       "@dou-ui/sheet/collaboration": ["./packages/sheet/src/collaboration/index.ts"],
       "@dou-ui/sheet/code": ["./packages/sheet/src/code/index.ts"],
       "@dou-ui/code": ["./packages/code/src/index.ts"],
+      "@dou-ui/code/worker": ["./packages/code/src/worker/index.ts"],
       "@dou-ui/dashboard": ["./packages/dashboard/src/index.ts"],
       "@dou-ui/dashboard/layout": ["./packages/dashboard/src/layout/index.ts"],
       "@dou-ui/dashboard/widgets": ["./packages/dashboard/src/widgets/index.ts"],

@@ -80,6 +80,12 @@ export interface CodeLanguageSpec<S> {
   indentAfter?: RegExp
   /** The language that is active in a state, for languages that hold others (a `<script>` in HTML). */
   languageAt?: (state: S) => CodeLanguage | null
+  /**
+   * The languages this one may hold, for languages with `languageAt`. A
+   * worker sends states with the languages in them by name; these are the
+   * ones the names are looked up in.
+   */
+  nested?: readonly CodeLanguage[]
 }
 
 /** A language: how to read its tokens, and a few facts for editing it. */
@@ -96,6 +102,7 @@ export interface CodeLanguage<S = any> {
   readonly autoClose: string
   readonly indentAfter?: RegExp
   languageAt(state: S): CodeLanguage | null
+  readonly nested: readonly CodeLanguage[]
 }
 
 const isPlain = (value: unknown): value is Record<string, unknown> =>
@@ -166,6 +173,7 @@ export function defineCodeLanguage<S = Record<string, never>>(
     autoClose: spec.autoClose ?? openers + '\'"',
     indentAfter: spec.indentAfter,
     languageAt: spec.languageAt ?? (() => null),
+    nested: spec.nested ?? [],
   })
 }
 

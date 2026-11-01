@@ -1,0 +1,35 @@
+// The worker DouCodeEditor starts on its own (`worker: true`): the built-in languages.
+import {
+  css,
+  html,
+  javascript,
+  json,
+  jsx,
+  markdown,
+  python,
+  scss,
+  serveCodeHighlighting,
+  shell,
+  sql,
+  tsx,
+  typescript,
+  vue,
+  yaml,
+} from './index'
+
+serveCodeHighlighting([
+  javascript,
+  typescript,
+  jsx,
+  tsx,
+  css,
+  scss,
+  json,
+  html,
+  vue,
+  markdown,
+  python,
+  shell,
+  sql,
+  yaml,
+])

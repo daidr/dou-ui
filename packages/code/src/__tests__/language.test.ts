@@ -203,6 +203,58 @@ describe('CodeHighlighter', () => {
     for (const [read, fresh] of checks) expect(read).toEqual(fresh)
   })
 
+  it('keeps tokens right with few kept states and a small cache', () => {
+    let seed = 11
+    const random = () => (seed = (seed * 16807) % 2147483647) / 2147483647
+    const pieces = [
+      '/*',
+      '*/',
+      '`',
+      '${',
+      '}',
+      '\n',
+      '\n\n\n',
+      'x',
+      '"',
+      '//',
+      '<a>',
+      '{',
+      'a\nb\n',
+    ]
+    let doc = CodeText.of(
+      Array.from({ length: 120 }, (_, i) => sample[i % sample.length]).join('\n'),
+    )
+    for (const interval of [1, 3, 8]) {
+      const hl = new CodeHighlighter(tsx, doc, { interval, cache: 5 })
+      for (let round = 0; round < 400; round++) {
+        const from = Math.floor(random() * (doc.length + 1))
+        const to = Math.min(doc.length, from + Math.floor(random() * (random() < 0.1 ? 80 : 6)))
+        const insert = random() < 0.3 ? '' : pieces[Math.floor(random() * pieces.length)]!
+        const changes = ChangeSet.of([{ from, to, insert }], doc.length)
+        doc = changes.apply(doc)
+        hl.update(doc, changes)
+        if (random() < 0.5) hl.line(1 + Math.floor(random() * doc.lines))
+        if (random() < 0.2) hl.work(Infinity, Math.floor(random() * doc.lines))
+        if (round % 25 !== 0) continue
+        const [read, fresh] = compare(hl, doc)
+        expect(read).toEqual(fresh)
+      }
+    }
+  })
+
+  it('takes in states read elsewhere', () => {
+    const doc = CodeText.of(
+      Array.from({ length: 300 }, (_, i) => sample[i % sample.length]).join('\n'),
+    )
+    const there = new CodeHighlighter(tsx, doc)
+    there.work(Infinity, 250)
+    const here = new CodeHighlighter(tsx, doc)
+    here.line(10)
+    here.adopt(structuredClone(there.checkpoints(10)))
+    expect(here.frontier).toBe(250)
+    expect(compare(here, doc)[0]).toEqual(compare(there, doc)[0])
+  })
+
   it('stops rereading once a line starts as it did before', () => {
     const lines = Array.from({ length: 1000 }, (_, i) => `let a${i} = ${i}`)
     let doc = CodeText.of(lines.join('\n'))

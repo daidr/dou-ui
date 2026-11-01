@@ -45,6 +45,15 @@ export interface CodeEditorProps {
   placeholder?: string
   /** The language: colors its tokens, and tells how to indent, comment and pair brackets. */
   language?: CodeLanguage | null
+  /**
+   * Reads the code for its colors in a worker, so a long file opened far
+   * down is colored without the page doing the reading. `true` uses the
+   * editor's own worker, which knows the built-in languages; a function
+   * makes your own (`serveCodeHighlighting` from `@dou-ui/code/worker`),
+   * called in the browser once the editor is mounted. The editor ends the
+   * worker when it unmounts or no longer uses it.
+   */
+  worker?: boolean | (() => Worker)
   /** Typing an opening bracket or quote also types its partner. On by default. */
   closeBrackets?: boolean
   /** Outlines the bracket next to the cursor and its partner. On by default. */
@@ -53,6 +62,12 @@ export interface CodeEditorProps {
   searchable?: boolean
   /** Wraps long lines at the editor's width instead of scrolling sideways. */
   wrap?: boolean
+  /**
+   * Shows the whole text in small at the right, with the part in view
+   * marked: press it to go there, drag the mark to scroll. Left out when
+   * the editor is narrower than 480px.
+   */
+  minimap?: boolean
   /** Shows fold toggles beside the line numbers, and lets blocks be folded. On by default. */
   foldable?: boolean
   /** Replaces any of the editor's texts, which otherwise follow DouUI's locale. */

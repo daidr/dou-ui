@@ -38,6 +38,7 @@ export function createMarkdown(options: MarkdownOptions = {}): CodeLanguage<Mark
   return defineCodeLanguage<MarkdownState>({
     name: 'markdown',
     aliases: ['md'],
+    nested: languages,
     startState: () => ({ fence: '', inner: null }),
     copyState: (state) => ({
       fence: state.fence,

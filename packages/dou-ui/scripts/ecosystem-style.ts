@@ -13,7 +13,6 @@
  */
 import { existsSync, readFileSync } from 'node:fs'
 import { mkdir } from 'node:fs/promises'
-import { bundleCss as bundle } from '../../../scripts/bundle-css'
 import { reachableFiles, styleDirsFor } from './style-deps'
 
 /** The subpaths of a package (`renderer`) whose entry exports components. */
@@ -29,7 +28,15 @@ export function componentSubpaths(packageRoot: URL): string[] {
 }
 
 async function bundleCss(entry: URL, outdir: URL) {
-  await bundle(entry.pathname, new URL('style.css', `${outdir.href}/`).pathname)
+  const result = await Bun.build({
+    entrypoints: [entry.pathname],
+    outdir: outdir.pathname,
+    minify: true,
+  })
+  if (!result.success) {
+    for (const log of result.logs) console.error(log)
+    process.exit(1)
+  }
 }
 
 /** The other packages built on `dou-ui` an entry imports (`@dou-ui/code`). */

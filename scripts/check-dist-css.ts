@@ -1,22 +1,24 @@
 /**
- * Fail when a published stylesheet lost native `light-dark()`.
+ * Fail when a published stylesheet uses `light-dark()`.
  *
- * Lowering it turns each value into custom properties (`--buncss-light`,
- * `--lightningcss-light`, ...) that are only defined where the bundler saw a
- * `color-scheme` declaration, which leaves the default light theme without
- * those values. Run after `bun run build`.
+ * Components take their light and dark values from the `--dou-scheme-dark`
+ * token, never from `color-scheme`: bundlers lower `light-dark()` into
+ * custom properties that only switch on where `color-scheme` is declared,
+ * which left the default light theme on `:root` without those values. The
+ * source is checked by a test; this catches anything a build step adds.
+ * Run after `bun run build`.
  */
 import { Glob } from 'bun'
 
 const root = new URL('../', import.meta.url).pathname
-const lowered = /--[a-z]+css-(?:light|dark)\b/
+// Bun still writes the `--buncss-light/dark` switches next to each `color-scheme`; only reading them matters.
+const forbidden = /light-dark\(|var\(--[a-z]+css-(?:light|dark)\b/
 const problems: string[] = []
 let checked = 0
 
 for await (const file of new Glob('packages/*/dist/**/*.css').scan(root)) {
   checked++
-  const css = await Bun.file(`${root}${file}`).text()
-  const match = css.match(lowered)
+  const match = (await Bun.file(`${root}${file}`).text()).match(forbidden)
   if (match) problems.push(`${file}: contains ${match[0]}`)
 }
 
@@ -25,8 +27,8 @@ if (checked === 0) {
   process.exit(1)
 }
 if (problems.length) {
-  console.error('light-dark() was lowered in published stylesheets:')
+  console.error('Published stylesheets depend on color-scheme; use --dou-scheme-dark instead:')
   for (const problem of problems) console.error(`  ${problem}`)
   process.exit(1)
 }
-process.stdout.write(`checked ${checked} stylesheets: light-dark() kept as written\n`)
+process.stdout.write(`checked ${checked} stylesheets: no light-dark()\n`)

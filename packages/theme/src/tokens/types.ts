@@ -14,6 +14,19 @@
  *   control.height.md      -> --dou-control-height-md
  */
 export interface ThemeTokens {
+  /**
+   * Which side of the light / dark split the theme is on, as a number so
+   * styles can mix between a light and a dark value with it:
+   * `calc(4% * var(--dou-scheme-dark))` is `0%` in a light theme and `4%`
+   * in a dark one. Components take their light and dark variants from this
+   * token rather than from `color-scheme`, so a theme is decided by its
+   * tokens alone, under any selector.
+   */
+  scheme: {
+    /** `'0'` in light themes, `'1'` in dark ones. */
+    dark: string
+  }
+
   color: {
     /** Brand / main call to action. */
     primary: ToneTokens

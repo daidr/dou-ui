@@ -7,9 +7,10 @@
  */
 @layer dou.components {
   .dou-dropdown {
-    --dou-dropdown-bg: light-dark(
-      var(--dou-color-bg-surface),
-      color-mix(in oklab, var(--dou-color-text) 4%, var(--dou-color-bg-surface))
+    --dou-dropdown-bg: color-mix(
+      in oklab,
+      var(--dou-color-text) calc(4% * var(--dou-scheme-dark)),
+      var(--dou-color-bg-surface)
     );
     --dou-dropdown-inset: 4px;
     --dou-dropdown-item-height: var(--dou-control-height-md);

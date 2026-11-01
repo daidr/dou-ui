@@ -12,9 +12,10 @@
     --dou-sparkline-inset: 3px;
     --dou-sparkline-stroke: 1.5px;
     /* the top of the area fill; a little stronger on dark backgrounds */
-    --dou-sparkline-area-top: light-dark(
-      color-mix(in oklab, currentColor 22%, transparent),
-      color-mix(in oklab, currentColor 36%, transparent)
+    --dou-sparkline-area-top: color-mix(
+      in oklab,
+      currentColor calc(22% + 14% * var(--dou-scheme-dark)),
+      transparent
     );
     --dou-sparkline-bar-radius: 3px;
     --dou-sparkline-dot: 5px;

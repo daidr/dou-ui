@@ -16,9 +16,10 @@
     --dou-editor-gutter: 56px;
     --dou-editor-indent: 24px;
     --dou-editor-block-gap: 2px;
-    --dou-editor-selected: light-dark(
-      color-mix(in oklab, var(--dou-color-focus) 12%, transparent),
-      color-mix(in oklab, var(--dou-color-focus) 22%, transparent)
+    --dou-editor-selected: color-mix(
+      in oklab,
+      var(--dou-color-focus) calc(12% + 10% * var(--dou-scheme-dark)),
+      transparent
     );
     --dou-editor-control-hover: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
 
@@ -497,7 +498,11 @@
   /* highlighted tokens, as in DouCodeBlock */
   .dou-editor__token {
     color: var(--shiki-light, inherit);
-    color: light-dark(var(--shiki-light, inherit), var(--shiki-dark, inherit));
+    color: color-mix(
+      in oklab,
+      var(--shiki-dark, currentColor) calc(100% * var(--dou-scheme-dark)),
+      var(--shiki-light, currentColor)
+    );
     font-style: var(--shiki-light-font-style, inherit);
     font-weight: var(--shiki-light-font-weight, inherit);
   }
@@ -984,9 +989,10 @@
 
     &:hover,
     &.is-active {
-      background-color: light-dark(
-        color-mix(in oklab, var(--dou-color-text) 6%, var(--dou-color-bg-surface)),
-        color-mix(in oklab, var(--dou-color-text) 12%, var(--dou-color-bg-surface))
+      background-color: color-mix(
+        in oklab,
+        var(--dou-color-text) calc(6% + 6% * var(--dou-scheme-dark)),
+        var(--dou-color-bg-surface)
       );
       color: var(--dou-color-text);
     }
@@ -1071,9 +1077,10 @@
     padding: 3px;
     border: 1px solid var(--dou-color-border);
     border-radius: calc(var(--dou-radius-control) + 2px);
-    background-color: light-dark(
-      var(--dou-color-bg-surface),
-      color-mix(in oklab, var(--dou-color-text) 4%, var(--dou-color-bg-surface))
+    background-color: color-mix(
+      in oklab,
+      var(--dou-color-text) calc(4% * var(--dou-scheme-dark)),
+      var(--dou-color-bg-surface)
     );
     box-shadow: var(--dou-shadow-md);
     font-size: var(--dou-font-size-sm);
@@ -1122,9 +1129,10 @@
     padding: 4px;
     border: 1px solid var(--dou-color-border);
     border-radius: calc(var(--dou-radius-control) + 4px);
-    background-color: light-dark(
-      var(--dou-color-bg-surface),
-      color-mix(in oklab, var(--dou-color-text) 4%, var(--dou-color-bg-surface))
+    background-color: color-mix(
+      in oklab,
+      var(--dou-color-text) calc(4% * var(--dou-scheme-dark)),
+      var(--dou-color-bg-surface)
     );
     box-shadow: var(--dou-shadow-md);
     color: var(--dou-color-text);

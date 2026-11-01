@@ -8,6 +8,7 @@ import {
   DouChartPie,
   DouChartScatter,
   DouChartTooltip,
+  type ChartPointEvent,
 } from '..'
 import { allX, angleAt, nearestPoint, nearestX, rowAt, sortedOrder } from '../core/hit'
 import { buildModel } from '../core/model'
@@ -347,6 +348,133 @@ describe('select', () => {
     root.dispatchEvent(new MouseEvent('click', { clientX: 2, clientY: 2, bubbles: true }))
     expect(picked).toHaveLength(2)
     wrapper.unmount()
+  })
+})
+
+/** Waits out the frame that follows the pointer. */
+const frame = () => new Promise((done) => setTimeout(done, 40))
+
+describe('hover', () => {
+  it('tells what the pointer or the keys move onto, once each, and null when they leave', async () => {
+    const hovered: unknown[] = []
+    const { wrapper, root } = await sized(() =>
+      h(
+        DouChart,
+        { data: sales, x: 'q', height: 300, onHover: (event: unknown) => hovered.push(event) },
+        () => [h(DouChartBar, { y: 'a', name: '线上' })],
+      ),
+    )
+    const width = (wrapper.vm.$el as HTMLElement).clientWidth
+    const move = (x: number) =>
+      root.dispatchEvent(
+        new PointerEvent('pointermove', { clientX: x, clientY: 150, bubbles: true }),
+      )
+    // over the third quarter, then a little further over the same quarter
+    move(width * 0.75)
+    await frame()
+    move(width * 0.78)
+    await frame()
+    await nextTick()
+    expect(hovered).toHaveLength(1)
+    expect(hovered[0]).toMatchObject({
+      x: '三季度',
+      title: '三季度',
+      items: [{ name: '线上', value: 140, row: sales[2] }],
+    })
+    root.dispatchEvent(new PointerEvent('pointerleave', { bubbles: true }))
+    await nextTick()
+    expect(hovered).toEqual([hovered[0], null])
+    // the keys, like the pointer
+    key(root, 'ArrowRight')
+    await nextTick()
+    expect((hovered[2] as { x: string }).x).toBe('一季度')
+    key(root, 'Escape')
+    await nextTick()
+    expect(hovered).toHaveLength(4)
+    expect(hovered[3]).toBeNull()
+    wrapper.unmount()
+  })
+
+  it('tells again when the data under a still pointer changes, and null when taken away', async () => {
+    const hovered: Array<ChartPointEvent | null> = []
+    const data = ref(sales)
+    const shown = ref(true)
+    const { wrapper, root } = await sized(() =>
+      shown.value
+        ? h(
+            DouChart,
+            {
+              data: data.value,
+              x: 'q',
+              height: 300,
+              onHover: (event: ChartPointEvent | null) => hovered.push(event),
+            },
+            () => [h(DouChartBar, { y: 'a', name: '线上' })],
+          )
+        : h('div'),
+    )
+    key(root, 'End')
+    await nextTick()
+    expect(hovered.at(-1)?.x).toBe('三季度')
+    // the same place, other rows: reversed, then with new values
+    data.value = sales.toReversed()
+    await nextTick()
+    await nextTick()
+    expect(hovered).toHaveLength(2)
+    expect(hovered[1]).toMatchObject({ x: '一季度', items: [{ value: 120, row: sales[0] }] })
+    const tenfold = data.value.map((row) => ({ ...row, a: row.a * 10 }))
+    data.value = tenfold
+    await nextTick()
+    await nextTick()
+    expect(hovered).toHaveLength(3)
+    expect(hovered[2]).toMatchObject({ x: '一季度', items: [{ value: 1200, row: tenfold[2] }] })
+    // the same data again: nothing new to tell
+    data.value = [...tenfold]
+    await nextTick()
+    await nextTick()
+    expect(hovered).toHaveLength(3)
+    shown.value = false
+    await nextTick()
+    expect(hovered).toHaveLength(4)
+    expect(hovered[3]).toBeNull()
+    wrapper.unmount()
+  })
+
+  it('gives a pie slice and a scatter point, as select does', async () => {
+    const hovered: Array<ChartPointEvent | null> = []
+    const onHover = (event: ChartPointEvent | null) => hovered.push(event)
+    const rows = [
+      { k: '房租', v: 3 },
+      { k: '餐饮', v: 1 },
+    ]
+    const pie = await sized(() =>
+      h(DouChart, { data: rows, x: 'k', height: 300, onHover }, () =>
+        h(DouChartPie, { value: 'v' }),
+      ),
+    )
+    key(pie.root, 'ArrowRight')
+    key(pie.root, 'ArrowRight')
+    await nextTick()
+    expect(hovered.at(-1)).toMatchObject({ x: '餐饮', items: [{ row: rows[1] }] })
+    pie.wrapper.unmount()
+
+    const points = [
+      { x: 1, a: 5 },
+      { x: 3, a: 2 },
+    ]
+    const scatter = await sized(() =>
+      h(DouChart, { data: points, x: 'x', height: 300, onHover }, () =>
+        h(DouChartScatter, { y: 'a', name: '甲' }),
+      ),
+    )
+    key(scatter.root, 'End')
+    await nextTick()
+    expect(hovered.at(-1)).toMatchObject({
+      x: 3,
+      title: '甲',
+      items: [{ row: points[1] }, { value: 2 }],
+    })
+    scatter.wrapper.unmount()
   })
 })
 

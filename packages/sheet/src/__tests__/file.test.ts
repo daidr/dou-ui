@@ -55,8 +55,31 @@ describe('exportWorkbook', () => {
       options: { bom: false },
     })
     expect(blob.type).toBe('text/csv')
+    // values, the cell type's plain one for its cells
     expect(await blob.text()).toBe(
-      '项目,金额,完成\r\n场地,"¥1,280.00",★★\r\n餐饮,640.5,TRUE\r\n合计,1920.5,',
+      '项目,金额,完成\r\n场地,1280,2\r\n餐饮,640.5,TRUE\r\n合计,1920.5,',
+    )
+    // with `formulas`, the formula as written, the type not asked
+    const written = await exportWorkbook(
+      {
+        sheets: [{ name: '表', cells: [[1, 2, '=A1+B1', { value: '=A1/4', type: 'stars' }]] }],
+      },
+      csvExporter,
+      { extensions: [starsExtension], options: { formulas: true, bom: false } },
+    )
+    expect(await written.text()).toBe('1,2,=A1+B1,=A1/4')
+    const lines = await exportWorkbook(
+      { sheets: [{ name: '表', cells: [['+1'], ['b']] }] },
+      csvExporter,
+      { options: { newline: '\n', escapeFormulas: false, bom: false } },
+    )
+    expect(await lines.text()).toBe('+1\nb')
+    const shown = await exportWorkbook(book(), csvExporter, {
+      extensions: [starsExtension],
+      options: { text: true },
+    })
+    expect(await shown.text()).toBe(
+      '\ufeff项目,金额,完成\r\n场地,"¥1,280.00",★★\r\n餐饮,640.5,TRUE\r\n合计,1920.5,',
     )
   })
 
@@ -253,7 +276,7 @@ describe('DouSheet files', () => {
     const { wrapper, sheet } = setup()
     const selected = await sheet().exportFile('csv', {
       scope: 'selection',
-      options: { bom: false },
+      options: { bom: false, text: true },
     })
     expect(await selected.text()).toBe('场地,"¥1,280.00"\r\n餐饮,640.5')
     await expect(sheet().exportFile('nope')).rejects.toThrow(/no exporter "nope"/)

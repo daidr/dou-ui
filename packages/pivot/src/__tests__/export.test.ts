@@ -142,6 +142,7 @@ describe('the table as cells', () => {
       widths: [100, 100],
     }
     expect(gridToCSV(grid, { bom: false })).toBe("'=1+1,-1")
+    expect(gridToCSV(grid, { bom: false, escapeFormulas: false })).toBe('=1+1,-1')
     expect(gridToTSV(grid)).toBe('=1+1\t-1')
   })
 

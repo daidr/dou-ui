@@ -20,9 +20,10 @@
       var(--dou-color-bg-surface)
     );
     /* the block is paper on light themes and a lifted gray on dark ones */
-    --dou-segmented-control-indicator-bg: light-dark(
-      var(--dou-color-bg-surface),
-      color-mix(in oklab, var(--dou-color-text) 12%, var(--dou-color-bg-surface))
+    --dou-segmented-control-indicator-bg: color-mix(
+      in oklab,
+      var(--dou-color-text) calc(12% * var(--dou-scheme-dark)),
+      var(--dou-color-bg-surface)
     );
 
     position: relative;

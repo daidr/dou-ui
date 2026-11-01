@@ -5,7 +5,7 @@ import {
   joinBackward,
   joinForward,
   liftBlocks,
-  moveBlocks,
+  swapBlocks,
   setBlockType,
   sinkBlocks,
   splitBlock,
@@ -236,20 +236,20 @@ describe('block types', () => {
 describe('moving and duplicating', () => {
   it('swaps a block with its neighbour', () => {
     const state = at(stateOf([p('a', 'A'), p('b', 'B'), p('c', 'C')]), 'b', 1)
-    const up = run(state, moveBlocks(-1)).state
+    const up = run(state, swapBlocks(-1)).state
     expect(shapeOf(up)).toEqual([
       ['paragraph', 'B'],
       ['paragraph', 'A'],
       ['paragraph', 'C'],
     ])
     expect(cursor(up)).toEqual({ id: 'b', offset: 1 })
-    const down = run(state, moveBlocks(1)).state
+    const down = run(state, swapBlocks(1)).state
     expect(shapeOf(down)).toEqual([
       ['paragraph', 'A'],
       ['paragraph', 'C'],
       ['paragraph', 'B'],
     ])
-    expect(run(at(state, 'a'), moveBlocks(-1)).ok).toBe(false)
+    expect(run(at(state, 'a'), swapBlocks(-1)).ok).toBe(false)
   })
 
   it('duplicates blocks with fresh ids', () => {

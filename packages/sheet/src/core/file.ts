@@ -557,11 +557,21 @@ export interface SheetCSVExportOptions {
   delimiter?: string
   /** Starts with a byte order mark, so programs that guess the encoding read it as UTF-8. On by default. */
   bom?: boolean
-  /** Writes the values as stored (formulas as written) instead of what the cells show. */
-  formatted?: boolean
+  /**
+   * Writes what the cells show (`¥1,280.00`, `2026年3月5日`) instead of
+   * values a spreadsheet can sort and add up (`1280`, `2026-03-05`, what
+   * formulas come to). Off by default.
+   */
+  text?: boolean
+  /** Writes formulas as written instead of what they come to. Ignored with `text`. */
+  formulas?: boolean
+  /** Line breaks between rows; `\r\n` by default. */
+  newline?: string
+  /** Puts a `'` before text a spreadsheet program would run as a formula. On by default. */
+  escapeFormulas?: boolean
 }
 
-/** CSV: one sheet (or the selected cells), with what the cells show. */
+/** CSV: one sheet (or the selected cells), with the cells' values. */
 export const csvExporter = defineSheetExporter<SheetCSVExportOptions>({
   name: 'csv',
   label: (m) => m.file.csv,
@@ -578,10 +588,14 @@ export const csvExporter = defineSheetExporter<SheetCSVExportOptions>({
       },
       locale: source.locale,
       result: (row, col) => source.result(index, row, col),
-      text: (_input, _value, row, col) => source.text(index, row, col),
+      cellText: (_input, _value, row, col) => source.text(index, row, col),
+      cellPlain: (_input, _value, row, col) => source.plain(index, row, col),
       delimiter: options.delimiter,
-      formatted: options.formatted,
-      bom: options.bom ?? true,
+      text: options.text,
+      formulas: options.formulas,
+      bom: options.bom,
+      newline: options.newline,
+      escapeFormulas: options.escapeFormulas,
     })
   },
 })

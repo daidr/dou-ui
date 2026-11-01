@@ -187,6 +187,11 @@ export interface LogicSettingsContext {
   scope: LogicScope
   /** The node's type, for a field. */
   type?: FormFieldType
+  /**
+   * The names of the validators given to the builder, offered by a
+   * `validator` rule; left out, any name can be typed.
+   */
+  validators?: readonly string[]
 }
 
 /** When a node shows, is disabled or required, and the value a field works out. */
@@ -230,7 +235,7 @@ function names(targets: LogicSettingsContext['scope']['targets'], scope: 'values
 }
 
 /** The kinds of check the rules editor offers, each writing its own keys of a rule. */
-export const ruleKinds = ['type', 'range', 'pattern', 'check'] as const
+export const ruleKinds = ['type', 'range', 'pattern', 'check', 'validator'] as const
 export type RuleKind = (typeof ruleKinds)[number]
 
 /** The checks of a field or a list, as a list of rules. */
@@ -283,6 +288,12 @@ export function ruleSettings(context: LogicSettingsContext): FormNode[] {
           placeholder: 'value >= values.start',
         },
       }),
+      field('select', 'validator', s.ruleValidator!, {
+        help: s.ruleValidatorHelp,
+        visibleWhen: when('validator'),
+        // Given validators, only their names can be picked, so none is mistyped.
+        props: { options: [...(context.validators ?? [])], creatable: !context.validators },
+      }),
       text('message', s.ruleMessage!),
       field('select', 'trigger', s.ruleTrigger!, {
         default: 'auto',
@@ -302,13 +313,15 @@ export function ruleToItem(rule: FormRuleSpec): RuleItem {
   const kind: RuleKind =
     rule.check !== undefined
       ? 'check'
-      : rule.pattern !== undefined
-        ? 'pattern'
-        : rule.type !== undefined
-          ? 'type'
-          : rule.min !== undefined || rule.max !== undefined
-            ? 'range'
-            : 'type'
+      : rule.validator !== undefined
+        ? 'validator'
+        : rule.pattern !== undefined
+          ? 'pattern'
+          : rule.type !== undefined
+            ? 'type'
+            : rule.min !== undefined || rule.max !== undefined
+              ? 'range'
+              : 'type'
   return { ...rule, kind }
 }
 
@@ -317,6 +330,7 @@ const KIND_KEYS: Record<RuleKind, (keyof FormRuleSpec)[]> = {
   range: ['min', 'max'],
   pattern: ['pattern', 'flags'],
   check: ['check'],
+  validator: ['validator'],
 }
 
 /** A row of the rules editor as a rule: only the keys of its kind, and the message and trigger. */

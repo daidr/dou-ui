@@ -379,7 +379,8 @@ export function createDragController(
   }
 
   function pressNode(event: PointerEvent, id: string) {
-    if (event.button !== 0 || event.shiftKey || event.metaKey || event.ctrlKey) return
+    if (state.readonly || event.button !== 0 || event.shiftKey || event.metaKey || event.ctrlKey)
+      return
     track(event, {
       touchHold: true,
       start: () => {
@@ -401,7 +402,7 @@ export function createDragController(
   }
 
   function pressType(event: PointerEvent, type: string, label: string) {
-    if (event.button !== 0) return
+    if (state.readonly || event.button !== 0) return
     // On touch the palette scrolls and a tap adds: only a mouse or a pen drags from it.
     if (event.pointerType === 'touch') return
     // No text selection while dragging from the palette; the click still adds.
@@ -451,6 +452,7 @@ export function createDragController(
   }
 
   function pickUp() {
+    if (state.readonly) return false
     const ids = topmost(state.document, state.selection)
     if (!ids.length) return false
     const list = dropPlaces(state.document, ids, state.shownPage)

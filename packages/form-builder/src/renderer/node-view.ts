@@ -10,7 +10,7 @@ import {
   watch,
 } from 'vue'
 import type { Component, CSSProperties, PropType, VNode, VNodeChild } from 'vue'
-import { DouFormItem } from 'dou-ui'
+import { DouFormItem, useLocale } from 'dou-ui'
 import type { FormItemExpose } from 'dou-ui'
 import {
   cloneValue,
@@ -23,7 +23,13 @@ import {
   isTabs,
   setPath,
 } from '../core/document'
-import { equalValues, related, truthy, tryCompileExpression } from '../core/expression'
+import {
+  equalValues,
+  isEmptyValue,
+  related,
+  truthy,
+  tryCompileExpression,
+} from '../core/expression'
 import { rulesOf } from '../core/rules'
 import type {
   FormFieldNode,
@@ -33,6 +39,9 @@ import type {
   FormSectionNode,
 } from '../core/types'
 import { fieldProps, formFieldKey } from '../fields/define'
+import type { FormFieldType } from '../fields/define'
+import { formatOptions, formatValue } from '../fields/format'
+import type { FormFormatContext } from '../fields/format'
 import { disabledKey, pathIn, rendererKey, rootScope, scopeKey } from './context'
 import type { Condition, NodeKit, NodeProps, NodeScope, RendererContext } from './context'
 import { listView, stepsView, tabsView } from './containers'
@@ -63,7 +72,9 @@ const warned = new Set<string>()
 function warnUnknown(type: string) {
   if (warned.has(type)) return
   warned.add(type)
-  console.warn(`[dou-ui] form field type "${type}" is not registered; pass it in \`fields\``)
+  console.warn(
+    `[@dou-ui/form-builder] form field type "${type}" is not registered; pass it in \`fields\``,
+  )
 }
 
 /** The nodes of one grid: the document's, a group's, a page's or a list item's. */
@@ -232,6 +243,7 @@ function fieldView(
     const name = field().name
     return name ? pathIn(scope, name) : undefined
   }
+  const fullPath = () => path() ?? ''
   const type = computed(() => renderer.fields().get(field().type))
   const item = shallowRef<FormItemExpose>()
   onScopeDispose(renderer.trackError(path, () => item.value?.error))
@@ -292,7 +304,7 @@ function fieldView(
   function fit(list: unknown[]) {
     const name = path()
     const fitValue = type.value?.fitValue
-    if (!fitValue || !name || field().source?.keep) return
+    if (!fitValue || !name || field().source?.keep || renderer.readonly()) return
     const model = renderer.model()
     const value = getPath(model, name)
     const fitted = fitValue(value, list)
@@ -314,13 +326,15 @@ function fieldView(
     rulesOf(field(), {
       required: required.value,
       functions: renderer.functions(),
+      validators: renderer.validators(),
       item: scope.prefix() ? scope.item : undefined,
+      path: fullPath,
     }),
   )
 
   // Inside a list, a formula is worked out per item; formulas outside
   // lists are the renderer's, worked out in order across the form.
-  if (scope.prefix())
+  if (scope.prefix() && !renderer.readonly())
     watch(
       () => {
         const node = field()
@@ -387,6 +401,54 @@ function fieldView(
     return `calc(${width}px - ${props.inset} * (var(--dou-space-lg) + 1px))`
   }
 
+  const { locale } = useLocale()
+  /** What a read-only field shows: a formula's result is worked out, since nothing writes it. */
+  function shownValue(node: FormFieldNode, name: string) {
+    const blockedFormula = scope.prefix() && scope.blocked().has(node.name!)
+    if (node.formula && !blockedFormula) {
+      const expression = tryCompileExpression(node.formula)
+      if (expression)
+        return expression.evaluate({
+          values: renderer.model(),
+          item: scope.item(),
+          functions: renderer.functions(),
+        })
+    }
+    return getPath(renderer.model(), name)
+  }
+  function readonlyView(node: FormFieldNode, spec: FormFieldType, bound: Record<string, unknown>) {
+    const name = path()!
+    const value = shownValue(node, name)
+    let content: VNodeChild
+    if (isEmptyValue(value))
+      content = h(
+        'span',
+        { class: 'dou-form-renderer__value is-empty' },
+        renderer.messages().noValue,
+      )
+    else if (spec.readonlyComponent) {
+      const extra: Record<string, unknown> = { modelValue: value }
+      if (declares(spec.readonlyComponent, 'readonly')) extra.readonly = true
+      content = h(spec.readonlyComponent, { ...bound, ...extra })
+    } else {
+      const context: FormFormatContext = {
+        node,
+        messages: renderer.messages(),
+        locale: locale.value,
+      }
+      const format = spec.format ?? (spec.optionsProp ? formatOptions(spec.optionsProp) : undefined)
+      const text = format ? format(value, settings.value, context) : formatValue(value, context)
+      content = text
+        ? h('span', { class: 'dou-form-renderer__value' }, text)
+        : h('span', { class: 'dou-form-renderer__value is-empty' }, renderer.messages().noValue)
+    }
+    return h(
+      DouFormItem,
+      { ref: item, label: node.label, prop: name, labelWidth: labelWidth() },
+      () => content,
+    )
+  }
+
   return () => {
     const node = field()
     const spec = type.value
@@ -397,6 +459,8 @@ function fieldView(
     const bound: Record<string, unknown> = spec.toProps
       ? { ...spec.toProps(settings.value, node) }
       : { ...settings.value }
+    if (renderer.readonly() && spec.kind !== 'display' && node.name)
+      return readonlyView(node, spec, bound)
     if (request.value && declares(spec.component, 'loading')) bound.loading = loading.value
     if (disabled.value) bound.disabled = true
     if (spec.kind === 'display' || !node.name) return h(spec.component, bound)

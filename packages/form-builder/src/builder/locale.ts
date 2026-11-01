@@ -22,6 +22,8 @@ export interface FormBuilderMessages {
     label: string
     /** Shown on an empty form or container. */
     empty: string
+    /** Shown on an empty form or container of a `readonly` builder. */
+    readonlyEmpty: string
   }
   /** The tabs of the side panel. */
   /** `side` names the pane, or the button that opens it, holding the fields and the outline. */
@@ -128,6 +130,8 @@ export interface FormBuilderMessages {
     copied: string
     cancel: string
     apply: string
+    /** Closes the dialog of a `readonly` builder, which cannot apply anything. */
+    close: string
     syntax: string
     /** `{line}`, `{column}`. */
     syntaxAt: string
@@ -203,7 +207,7 @@ const zhCN: FormBuilderMessages = {
   groups: { input: '输入', choice: '选择', more: '更多', display: '展示', layout: '布局' },
   palette: { search: '搜索字段', empty: '没有匹配的字段', add: '添加{label}' },
   outline: { label: '表单结构', expand: '展开', collapse: '收起' },
-  canvas: { label: '表单画布', empty: '点击字段添加到这里' },
+  canvas: { label: '表单画布', empty: '点击字段添加到这里', readonlyEmpty: '这里还没有内容' },
   panels: { side: '字段与结构', fields: '字段', outline: '结构', settings: '设置' },
   actions: {
     parent: '选中上一级',
@@ -317,6 +321,7 @@ const zhCN: FormBuilderMessages = {
     copied: '已复制',
     cancel: '取消',
     apply: '应用',
+    close: '关闭',
     syntax: 'JSON 格式有误',
     syntaxAt: '第 {line} 行第 {column} 列：JSON 格式有误',
     fine: '没有发现问题',
@@ -341,6 +346,8 @@ const zhCN: FormBuilderMessages = {
       'not-a-page': '标签页和分步里只能放页面',
       empty: '里面还是空的',
       'formula-cycle': '公式互相引用：{text}',
+      'unknown-validator': '没有校验函数“{text}”',
+      'check-and-validator': '同一条规则不能同时写表达式和校验函数',
     },
   },
   drag: {
@@ -432,6 +439,8 @@ const zhCN: FormBuilderMessages = {
     ruleFlags: '标志',
     ruleCheck: '表达式',
     ruleCheckHelp: 'value 是这个字段的值，values 是整个表单；结果为真时通过',
+    ruleValidator: '校验函数',
+    ruleValidatorHelp: '由使用表单的代码通过 validators 提供，可以请求接口',
     ruleMessage: '出错时的提示',
     ruleTrigger: '检查时机',
   },
@@ -450,7 +459,13 @@ const zhCN: FormBuilderMessages = {
       datetime: '日期和时间',
     },
     variant: { title: '标题', body: '正文', caption: '小字' },
-    ruleKind: { type: '格式', range: '范围', pattern: '正则', check: '表达式' },
+    ruleKind: {
+      type: '格式',
+      range: '范围',
+      pattern: '正则',
+      check: '表达式',
+      validator: '校验函数',
+    },
     ruleType: { email: '邮箱', url: '网址', number: '数字', integer: '整数', string: '文字' },
     ruleTrigger: { auto: '默认', change: '输入时', blur: '离开时' },
     tone: { neutral: '中性', primary: '强调', success: '成功', warning: '警告', danger: '危险' },
@@ -492,7 +507,7 @@ const zhTW: FormBuilderMessages = {
   groups: { input: '輸入', choice: '選擇', more: '更多', display: '展示', layout: '版面' },
   palette: { search: '搜尋欄位', empty: '沒有符合的欄位', add: '新增{label}' },
   outline: { label: '表單結構', expand: '展開', collapse: '收合' },
-  canvas: { label: '表單畫布', empty: '點選欄位新增到這裡' },
+  canvas: { label: '表單畫布', empty: '點選欄位新增到這裡', readonlyEmpty: '這裡還沒有內容' },
   panels: { side: '欄位與結構', fields: '欄位', outline: '結構', settings: '設定' },
   actions: {
     parent: '選取上一層',
@@ -606,6 +621,7 @@ const zhTW: FormBuilderMessages = {
     copied: '已複製',
     cancel: '取消',
     apply: '套用',
+    close: '關閉',
     syntax: 'JSON 格式有誤',
     syntaxAt: '第 {line} 行第 {column} 欄：JSON 格式有誤',
     fine: '沒有發現問題',
@@ -630,6 +646,8 @@ const zhTW: FormBuilderMessages = {
       'not-a-page': '分頁和步驟裡只能放頁面',
       empty: '裡面還是空的',
       'formula-cycle': '公式互相參照：{text}',
+      'unknown-validator': '沒有校驗函式「{text}」',
+      'check-and-validator': '同一條規則不能同時寫運算式和校驗函式',
     },
   },
   drag: {
@@ -721,6 +739,8 @@ const zhTW: FormBuilderMessages = {
     ruleFlags: '旗標',
     ruleCheck: '運算式',
     ruleCheckHelp: 'value 是這個欄位的值，values 是整個表單；結果為真時通過',
+    ruleValidator: '校驗函式',
+    ruleValidatorHelp: '由使用表單的程式碼透過 validators 提供，可以請求介面',
     ruleMessage: '出錯時的提示',
     ruleTrigger: '檢查時機',
   },
@@ -739,7 +759,13 @@ const zhTW: FormBuilderMessages = {
       datetime: '日期和時間',
     },
     variant: { title: '標題', body: '內文', caption: '小字' },
-    ruleKind: { type: '格式', range: '範圍', pattern: '正規', check: '運算式' },
+    ruleKind: {
+      type: '格式',
+      range: '範圍',
+      pattern: '正規',
+      check: '運算式',
+      validator: '校驗函式',
+    },
     ruleType: { email: '電子郵件', url: '網址', number: '數字', integer: '整數', string: '文字' },
     ruleTrigger: { auto: '預設', change: '輸入時', blur: '離開時' },
     tone: { neutral: '中性', primary: '強調', success: '成功', warning: '警告', danger: '危險' },
@@ -781,7 +807,11 @@ const en: FormBuilderMessages = {
   groups: { input: 'Input', choice: 'Choice', more: 'More', display: 'Display', layout: 'Layout' },
   palette: { search: 'Search fields', empty: 'No field matches', add: 'Add {label}' },
   outline: { label: 'Form outline', expand: 'Expand', collapse: 'Collapse' },
-  canvas: { label: 'Form canvas', empty: 'Click a field to add it here' },
+  canvas: {
+    label: 'Form canvas',
+    empty: 'Click a field to add it here',
+    readonlyEmpty: 'There is nothing in here yet',
+  },
   panels: {
     side: 'Fields and outline',
     fields: 'Fields',
@@ -909,6 +939,7 @@ const en: FormBuilderMessages = {
     copied: 'Copied',
     cancel: 'Cancel',
     apply: 'Apply',
+    close: 'Close',
     syntax: 'The JSON is not valid',
     syntaxAt: 'Line {line}, column {column}: the JSON is not valid',
     fine: 'No problems found',
@@ -933,6 +964,8 @@ const en: FormBuilderMessages = {
       'not-a-page': 'Tabs and steps hold pages only',
       empty: 'It is empty',
       'formula-cycle': 'The formulas read each other: {text}',
+      'unknown-validator': 'There is no validator “{text}”',
+      'check-and-validator': 'A rule cannot have both an expression and a validator',
     },
   },
   drag: {
@@ -1024,6 +1057,8 @@ const en: FormBuilderMessages = {
     ruleFlags: 'Flags',
     ruleCheck: 'Expression',
     ruleCheckHelp: 'value is this field’s value and values the whole form; passes when true',
+    ruleValidator: 'Validator',
+    ruleValidatorHelp: 'Given in code through validators; may ask the server',
     ruleMessage: 'Message on error',
     ruleTrigger: 'Check on',
   },
@@ -1042,7 +1077,13 @@ const en: FormBuilderMessages = {
       datetime: 'Date and time',
     },
     variant: { title: 'Heading', body: 'Body', caption: 'Caption' },
-    ruleKind: { type: 'Format', range: 'Range', pattern: 'Pattern', check: 'Expression' },
+    ruleKind: {
+      type: 'Format',
+      range: 'Range',
+      pattern: 'Pattern',
+      check: 'Expression',
+      validator: 'Validator',
+    },
     ruleType: {
       email: 'Email',
       url: 'URL',

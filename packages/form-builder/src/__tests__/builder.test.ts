@@ -223,7 +223,7 @@ describe('builder commands', () => {
   })
 })
 
-function setup(start = sample(), selection: string[] = []) {
+function setup(start = sample(), selection: string[] = [], extra: Record<string, unknown> = {}) {
   const form = ref(start)
   const selected = ref(selection)
   const wrapper = mount(
@@ -235,6 +235,7 @@ function setup(start = sample(), selection: string[] = []) {
           'onUpdate:modelValue': (next: FormDocument) => (form.value = next),
           selection: selected.value,
           'onUpdate:selection': (next: string[]) => (selected.value = next),
+          ...extra,
         }),
     },
     { attachTo: document.body },
@@ -360,6 +361,91 @@ describe('DouFormBuilder', () => {
     await flush()
     expect(api().canUndo).toBe(false)
     expect(api().document.nodes.map((node) => node.id)).toEqual(['only'])
+    wrapper.unmount()
+  })
+
+  it('only shows the form when read-only', async () => {
+    const { wrapper, form, selected, api } = setup(sample(), [], { readonly: true })
+    await flush()
+    expect(wrapper.classes()).toContain('is-readonly')
+    // No palette: the side panel is the outline alone.
+    expect(wrapper.find('.dou-form-builder__palette').exists()).toBe(false)
+    expect(wrapper.find('.dou-form-builder__outline').exists()).toBe(true)
+    await wrapper.find('.dou-form-builder__node[data-node="phone"]').trigger('click')
+    expect(selected.value).toEqual(['phone'])
+    expect(wrapper.find('.dou-form-builder__actions').exists()).toBe(false)
+    expect(wrapper.find('.dou-form-builder__resize').exists()).toBe(false)
+    const tree = wrapper.find('[role="tree"].dou-form-builder__tree')
+    await tree.trigger('keydown', { key: 'Delete' })
+    await tree.trigger('keydown', { key: 'd', code: 'KeyD', ctrlKey: true })
+    await tree.trigger('keydown', { key: 'ArrowDown', ctrlKey: true })
+    await flush()
+    expect(form.value).toEqual(sample())
+    // Arrows still move the selection.
+    await tree.trigger('keydown', { key: 'ArrowDown' })
+    expect(selected.value).toEqual(['city'])
+    // The commands change nothing; the settings can be read, not changed.
+    expect(api().readonly).toBe(true)
+    expect(api().add('input')).toBeUndefined()
+    api().remove(['city'])
+    await flush()
+    expect(form.value).toEqual(sample())
+    expect(api().canUndo).toBe(false)
+    const inputs = wrapper.findAll('.dou-form-builder__inspector input')
+    expect(inputs.length).toBeGreaterThan(0)
+    const texts = inputs.filter((input) => (input.element as HTMLInputElement).type === 'text')
+    expect(texts.every((input) => (input.element as HTMLInputElement).readOnly)).toBe(true)
+    expect(inputs.some((input) => (input.element as HTMLInputElement).disabled)).toBe(false)
+    expect(wrapper.find('.dou-form-builder__inspector .dou-form-renderer__list-add').exists()).toBe(
+      false,
+    )
+    wrapper.unmount()
+  })
+
+  it('shows conditions and expressions without ways to change them when read-only', async () => {
+    const { wrapper } = setup(
+      doc([
+        { id: 'a', type: 'input', name: 'name', label: '姓名' },
+        {
+          id: 'b',
+          type: 'input',
+          name: 'nick',
+          label: '昵称',
+          visibleWhen: "values.name == '戴兜'",
+          formula: 'values.name',
+        },
+      ]),
+      ['b'],
+      { readonly: true },
+    )
+    await flush()
+    const inspector = wrapper.find('.dou-form-builder__inspector')
+    expect(inspector.find('.dou-form-builder__condition-row').exists()).toBe(true)
+    expect(inspector.find('.dou-form-builder__condition-footer').exists()).toBe(false)
+    expect(inspector.find('.dou-form-builder__condition-row button').exists()).toBe(false)
+    const expression = inspector.find('.dou-form-builder__expression-input textarea')
+    expect((expression.element as HTMLTextAreaElement).readOnly).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('offers the validators by name in the rules editor', async () => {
+    const { wrapper } = setup(
+      doc([
+        {
+          id: 'u',
+          type: 'input',
+          name: 'username',
+          label: '用户名',
+          rules: [{ validator: 'usernameFree', message: '已被占用' }],
+        },
+      ]),
+      ['u'],
+      { validators: { usernameFree: () => true } },
+    )
+    await flush()
+    const inspector = wrapper.find('.dou-form-builder__inspector')
+    expect(inspector.text()).toContain('校验函数')
+    expect(inspector.html()).toContain('usernameFree')
     wrapper.unmount()
   })
 })

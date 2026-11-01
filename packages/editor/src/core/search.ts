@@ -7,6 +7,7 @@ import {
   type Transaction,
 } from 'prosemirror-state'
 import { Decoration, DecorationSet } from 'prosemirror-view'
+import { originKey } from './editor'
 
 /** What to look for in the editor's text. */
 export interface EditorSearchQuery {
@@ -240,7 +241,8 @@ export function replaceMatches(
   matches: readonly EditorMatch[],
   query: EditorSearchQuery,
 ): Transaction {
-  const tr = state.tr
+  // the `transaction` event tells a replacement from typing
+  const tr = state.tr.setMeta(originKey, 'replace')
   for (let i = matches.length - 1; i >= 0; i--) {
     const m = matches[i]!
     const text = replacementFor(state.doc, m, query)

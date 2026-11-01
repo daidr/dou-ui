@@ -76,9 +76,11 @@ describe('the find panel', () => {
     await nextTick()
     await inputs()[1]!.trigger('keydown', { key: 'Enter', ctrlKey: true })
     expect(shape(editor().getBlocks())[1]).toEqual(['paragraph', 'blackboard and black'])
-    const view = editor().view!
-    const { undo } = await import('prosemirror-history')
-    undo(view.state, view.dispatch)
+    // one `transaction` event for the whole replacement, marked as one
+    const events = wrapper.emitted('transaction') as [{ meta: { origin?: string } }][]
+    expect(events.length).toBe(2)
+    expect(events[1]![0].meta.origin).toBe('replace')
+    expect(editor().undo()).toBe(true)
     expect(shape(editor().getBlocks())[1]).toEqual(['paragraph', 'Whiteboard and white'])
     wrapper.unmount()
   })

@@ -86,14 +86,10 @@ export function parseHTML(html: string, kit: ResolvedEditorExtensions): Block[] 
   const doc = new DOMParser().parseFromString(html, 'text/html')
   prepareElement(doc.body, kit)
   const blocks = docToBlocks(PMDOMParser.fromSchema(kit.schema).parse(doc.body))
-  const fill = (list: Block[]) => {
-    for (const block of list) {
-      block.id ||= createId()
-      fill(block.children)
-    }
-  }
-  fill(blocks)
-  return blocks
+  // read blocks are shared and read-only: copy the ones without an id
+  const fill = (list: Block[]): Block[] =>
+    list.map((block) => ({ ...block, id: block.id || createId(), children: fill(block.children) }))
+  return fill(blocks)
 }
 
 /** Pasted HTML goes through the extensions' `prepareHTML` too. */

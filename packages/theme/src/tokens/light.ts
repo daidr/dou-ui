@@ -9,6 +9,7 @@ import type { ThemeTokens } from './types'
  * it never shouts.
  */
 export const light: ThemeTokens = {
+  scheme: { dark: '0' },
   color: {
     neutral: { DEFAULT: '#171717', on: '#ffffff', text: '#171717' },
     primary: { DEFAULT: '#3f56b5', on: '#ffffff', text: '#3f56b5' },

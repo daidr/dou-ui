@@ -239,6 +239,67 @@ describe('DouForm', () => {
     wrapper.unmount()
   })
 
+  it('shows errors set from outside until the value changes', async () => {
+    const { wrapper, model, vm, items } = setup({}, { name: { required: true } })
+    model.name = 'douui'
+    await nextTick()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const missed = vm.setErrors({
+      name: '这个名称已被占用',
+      plan: '方案已下架',
+      missing: '没有这个字段',
+      gone: undefined,
+    })
+    expect(missed).toEqual(['missing'])
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(warn.mock.calls[0]![0]).toContain('"missing"')
+    warn.mockRestore()
+    await nextTick()
+    expect(items[0]!.get('.dou-form-item__error').text()).toBe('这个名称已被占用')
+    expect(items[0]!.get('input').attributes('aria-invalid')).toBe('true')
+    expect(items[2]!.get('.dou-form-item__error').text()).toBe('方案已下架')
+    // Editing the value checks the rules again, which pass.
+    model.name = 'douui-2'
+    await flushPromises()
+    expect(items[0]!.classes()).not.toContain('is-error')
+    // An empty message clears only that field.
+    vm.setErrors({ plan: '' })
+    await nextTick()
+    expect(items[2]!.classes()).not.toContain('is-error')
+    wrapper.unmount()
+  })
+
+  it('reads a path written with brackets', async () => {
+    const model = reactive({ items: [{ what: '' }] })
+    const wrapper = mount(DouForm, {
+      props: { model },
+      slots: {
+        default: () =>
+          h(DouFormItem, { prop: 'items.0.what' }, () =>
+            h(DouInput, {
+              modelValue: model.items[0]!.what,
+              'onUpdate:modelValue': (value: string) => (model.items[0]!.what = value),
+            }),
+          ),
+      },
+    })
+    const form = wrapper.vm as unknown as FormInstance
+    expect(form.setErrors({ 'items[0].what': '没有这个物品' })).toEqual([])
+    await nextTick()
+    expect(wrapper.get('.dou-form-item__error').text()).toBe('没有这个物品')
+    wrapper.unmount()
+  })
+
+  it('lets a later check replace an error set from outside', async () => {
+    const { wrapper, vm, items } = setup({}, { name: { required: true } })
+    vm.setErrors({ name: '服务端错误' })
+    await nextTick()
+    await vm.validate('name')
+    await flushPromises()
+    expect(items[0]!.get('.dou-form-item__error').text()).toBe('此项为必填项')
+    wrapper.unmount()
+  })
+
   it('keeps only the latest result of an async check', async () => {
     const resolvers: ((value: string | boolean) => void)[] = []
     const { wrapper, vm, items } = setup(

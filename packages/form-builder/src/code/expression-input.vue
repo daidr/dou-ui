@@ -23,6 +23,8 @@ const props = withDefaults(
     readsValue?: boolean
     placeholder?: string
     disabled?: boolean
+    /** Shown and selectable, but not changed; also when the form around is read-only. */
+    readonly?: boolean
   }>(),
   { modelValue: '', names: () => [], itemNames: undefined, placeholder: undefined },
 )
@@ -70,6 +72,7 @@ const problem = computed(() => {
       :extensions="extensions"
       :placeholder="placeholder"
       :disabled="disabled"
+      :readonly="readonly"
       :invalid="!!problem"
       :aria-describedby="problem ? errorId : undefined"
       multiline

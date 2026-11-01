@@ -26,7 +26,10 @@ export interface SheetProps {
   selection?: SheetSelection
   /** The index of the sheet shown; bind with `v-model:active-sheet`. Defaults to 0. */
   activeSheet?: number
-  /** Show the cells without letting anyone change them; selecting still works. */
+  /**
+   * Show the cells without letting people change them in the grid;
+   * selecting still works. Changes made with `transact` still apply.
+   */
   readonly?: boolean
   /** The default row height, in px. */
   rowHeight?: number
@@ -351,8 +354,10 @@ export interface SheetExpose {
    * Makes a change: `run` adds steps to the transaction, which is applied
    * and recorded for undo as one. Cells without a sheet (`'A5'`) are on
    * the sheet shown. Returns it: `tr.changed` is `false` when nothing
-   * changed, the grid is read-only or the change was cancelled, and
-   * `tr.cancelled` says it was (`transactionCancel` tells why).
+   * changed or the change was cancelled, and `tr.cancelled` says it was
+   * (`transactionCancel` tells why). Works on a `readonly` grid too: that
+   * only stops people using the grid. Protected cells still refuse it
+   * unless `meta.protection` is `false`.
    */
   transact: (run: (tr: SheetTransaction) => void, meta?: SheetTransactionMeta) => SheetTransaction
   undo: () => boolean
@@ -383,8 +388,9 @@ export interface SheetExpose {
   /** Closes the find panel; `false` when it was not open. */
   closeSearch: () => boolean
   /**
-   * The sheet shown (or `sheet`) as CSV, with the text its cells show, as
-   * their formats and cell types write it.
+   * The sheet shown (or `sheet`) as CSV: values a spreadsheet can sort and
+   * add up by default (what formulas come to, cell types' `plain`), or with
+   * `text`, the text the cells show, as their formats and cell types write it.
    */
   toCSV: (options?: SheetCSVWriteOptions & { sheet?: SheetRef }) => string
   /**

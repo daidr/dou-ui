@@ -7,6 +7,7 @@ import {
   type Ref,
   type VNodeChild,
 } from 'vue'
+import type { ChartData } from './core/data'
 import type { ChartSeriesKind, ChartSeriesProps } from './core/series'
 import type {
   ChartAxisProps,
@@ -75,6 +76,8 @@ export interface ChartRegistry {
   addBrush(part: BrushPart): () => void
   addRange(part: RangePart): () => void
   addMarker(part: MarkerPart): () => void
+  /** The chart's `data`, for a part that works its rows out from it (a histogram's bins). */
+  data(): ChartData | undefined
 }
 
 export const chartKey: InjectionKey<ChartRegistry> = Symbol('DouChart')

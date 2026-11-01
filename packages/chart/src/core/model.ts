@@ -11,6 +11,7 @@ import {
   type XKind,
 } from './data'
 import type { ChartSeriesKind, ChartSeriesProps, ChartValueAxis } from './series'
+import { waterfallSteps } from './waterfall'
 
 /** A series as registered by its component. */
 export interface SeriesInput {
@@ -179,6 +180,19 @@ export function buildModel(
       }
     }
     const y = yColumn(rows, input.props.y)
+    if (input.kind.waterfall) {
+      const steps = waterfallSteps(rows, y, input.props.total as ChartAccessor | undefined)
+      return {
+        input,
+        name,
+        rows,
+        axis: input.props.axis ?? chart.axis ?? 'y',
+        x: column,
+        ...steps,
+        stackEnds: null,
+        slot: null,
+      }
+    }
     const y0 = input.props.y0
     return {
       input,

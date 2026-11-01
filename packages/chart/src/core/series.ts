@@ -130,6 +130,12 @@ export interface ChartSeriesKind<P = Record<string, unknown>> {
    * another, without axes. It is drawn alone, as a pie is.
    */
   funnel?: boolean
+  /**
+   * Whether the series is a waterfall: each value a change, drawn from the
+   * running total before it (`base`) to the one after (`top`); rows its
+   * `total` marks are drawn from 0 to the running total.
+   */
+  waterfall?: boolean
   /** Whether series of this kind can stack (`stack` prop). */
   stackable?: boolean
   /**
@@ -162,6 +168,11 @@ export interface ChartSeriesKind<P = Record<string, unknown>> {
    * replaced many times a second (live data).
    */
   prepare?(series: ChartSeries<P>): unknown
+  /**
+   * The tooltip's title for row `row`, in place of its x as the axis
+   * writes it (`text`): a histogram's bin, from its start to its end.
+   */
+  xTitle?(series: ChartSeries<P>, row: number, text: (x: number) => string): string
   /**
    * Where the series' data labels go (`labels` prop): a point and the side
    * of it the text takes, for each row on screen worth a label. The chart

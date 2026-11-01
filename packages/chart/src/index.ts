@@ -7,6 +7,8 @@ import Pie from './components/pie.vue'
 import Heatmap from './components/heatmap.vue'
 import Radar from './components/radar.vue'
 import Funnel from './components/funnel.vue'
+import Waterfall from './components/waterfall.vue'
+import Histogram from './components/histogram.vue'
 import Scatter from './components/scatter.vue'
 import Tooltip from './components/tooltip.vue'
 import Zoom from './components/zoom.vue'
@@ -25,6 +27,8 @@ export const DouChartPie = withInstall(Pie)
 export const DouChartHeatmap = withInstall(Heatmap)
 export const DouChartRadar = withInstall(Radar)
 export const DouChartFunnel = withInstall(Funnel)
+export const DouChartWaterfall = withInstall(Waterfall)
+export const DouChartHistogram = withInstall(Histogram)
 export const DouChartTooltip = withInstall(Tooltip)
 export const DouChartZoom = withInstall(Zoom)
 export const DouChartBrush = withInstall(Brush)
@@ -47,6 +51,7 @@ export type {
   ChartExpose,
   ChartFunnelProps,
   ChartHeatmapProps,
+  ChartHistogramProps,
   ChartImageOptions,
   ChartInterval,
   ChartLineProps,
@@ -61,6 +66,7 @@ export type {
   ChartTooltipItem,
   ChartTooltipProps,
   ChartTooltipSlots,
+  ChartWaterfallProps,
   ChartZoomAxis,
   ChartZoomProps,
 } from './types'
@@ -103,6 +109,8 @@ declare module 'vue' {
     DouChartHeatmap: typeof DouChartHeatmap
     DouChartRadar: typeof DouChartRadar
     DouChartFunnel: typeof DouChartFunnel
+    DouChartWaterfall: typeof DouChartWaterfall
+    DouChartHistogram: typeof DouChartHistogram
     DouChartPie: typeof DouChartPie
     DouChartTooltip: typeof DouChartTooltip
     DouChartZoom: typeof DouChartZoom

@@ -72,6 +72,7 @@ import { heatColor, heatRange, heatShare } from './core/heatmap'
 import { drawPie, FADED, pieSlices, sliceOuter, type PieSlice } from './core/pie'
 import { nearestSpoke, spokeAngle } from './core/radar'
 import { FUNNEL_BAR } from './core/funnel'
+import { isTotal } from './core/waterfall'
 import { baseline, categoryScale, linearScale, logScale, type Scale } from './core/scale'
 import { escapeXml, isSvg, num, paintAttribute, SvgPainter } from './core/svg'
 import type { ChartColors, ChartHit, ChartSeries, ChartValueAxis, ChartView } from './core/series'
@@ -197,6 +198,7 @@ provide(chartKey, {
   addBrush: adder(brushParts),
   addRange: adder(rangeParts),
   addMarker: adder(markerParts),
+  data: () => props.data,
 })
 
 /* theme: colors are read from CSS and read again when the theme changes */
@@ -527,10 +529,24 @@ function seriesColor(p: SeriesPart['props'], index: number): string {
 /** A color given as a CSS color or a tone name, as the canvas takes it. */
 const itemColor = (color: string) => resolveColor(toneOrColor(color))
 
+/**
+ * A waterfall's colors, unless it has its own: rises in the success tone,
+ * falls in the danger tone, totals in the series' color.
+ */
+function waterfallColors(s: ChartSeries): Array<string | undefined> | null {
+  if (typeof s.props.color === 'string') return null
+  const rise = itemColor('success')
+  const fall = itemColor('danger')
+  const out: Array<string | undefined> = []
+  for (let i = 0; i < s.y.length; i++)
+    out.push(isTotal(s, i) ? undefined : s.y[i]! < 0 ? fall : rise)
+  return out
+}
+
 /** The colors of single bars or points, by row, when `color` is a function. */
 function itemColors(s: ChartSeries): Array<string | undefined> | null {
   const of = s.props.color
-  if (typeof of !== 'function') return null
+  if (typeof of !== 'function') return s.kind.waterfall ? waterfallColors(s) : null
   const out: Array<string | undefined> = []
   // a few colors for many rows: each worked out once
   const seen = new Map<string, string>()
@@ -1058,7 +1074,7 @@ function labelText(s: ChartSeries, row: number): string | null {
     const text = given({
       value,
       share,
-      low: s.base && !s.stackEnds ? s.base[row] : undefined,
+      low: s.base && !s.stackEnds && !s.kind.waterfall ? s.base[row] : undefined,
       name: s.name,
       row: rowOf(s.rows, row),
       index: row,
@@ -1066,6 +1082,8 @@ function labelText(s: ChartSeries, row: number): string | null {
     return text == null || text === '' ? null : String(text)
   }
   if (s.kind.categoryY) return heatText(s)(value)
+  // a waterfall's change says which way it went
+  if (s.kind.waterfall && !isTotal(s, row)) return signed(valueText(s.axis), value)
   // a share, with a decimal as in the tooltip, unless the axis writes its own
   if (share !== undefined) {
     const own = declaredAxes.value[s.axis]?.format
@@ -1680,12 +1698,15 @@ function tipOf(a: Active | null): Tip | null {
   const owners: number[] = []
   const marks: Tip['marks'] = []
   let band = false
+  /** A title of a series' own (a histogram's bin), in place of the x. */
+  let title: string | undefined
   for (const s of series.value) {
     const row = rowAt(s.x.values, x)
     const view = viewOf(s)
     if (row < 0 || !view) continue
     const y = s.y[row]!
     if (y !== y) continue
+    title ??= s.kind.xTitle?.(s, row, xText)
     items.push({
       name: s.name,
       text: seriesText(s, row),
@@ -1733,7 +1754,7 @@ function tipOf(a: Active | null): Tip | null {
   const width = band ? room : 24
   return {
     x: rawX(x),
-    title: xText(x),
+    title: title ?? xText(x),
     items,
     focused: items.some((item) => item.active),
     anchor,
@@ -3412,6 +3433,10 @@ function yCategoryText(axis: ChartValueAxis, place: number): string {
   return own ? own(label) : label
 }
 
+/** A change as text, with `+` before a rise (a fall has its minus already). */
+const signed = (text: (value: number) => string, value: number) =>
+  value > 0 ? `+${text(value)}` : text(value)
+
 /** Values as their axis shows them. */
 function valueText(axis: ChartValueAxis): (value: number) => string {
   return axes.value[axis]?.format ?? numberFormatFull(locale.value.name)
@@ -3424,6 +3449,14 @@ function valueText(axis: ChartValueAxis): (value: number) => string {
 function seriesText(s: ChartSeries, row: number): string {
   const y = s.y[row]!
   if (s.kind.categoryY) return heatText(s)(y)
+  if (s.kind.waterfall) {
+    const text = valueText(s.axis)
+    if (isTotal(s, row)) return text(y)
+    return format(messages.value.waterfallStep, {
+      change: signed(text, y),
+      total: text(s.top[row]!),
+    })
+  }
   if (s.base && !s.stackEnds) {
     const text = valueText(s.axis)
     return format(messages.value.band, { from: text(s.base[row]!), to: text(y) })

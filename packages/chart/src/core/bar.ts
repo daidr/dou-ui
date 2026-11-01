@@ -46,14 +46,19 @@ export function barPlacement(
  * one bar from the lowest to the highest value there, which looks the
  * same and keeps a million bars as cheap as a few hundred.
  */
-export function drawBars(painter: Painter, series: ChartSeries<BarStyle>, view: ChartView) {
+export function drawBars(
+  painter: Painter,
+  series: ChartSeries<BarStyle>,
+  view: ChartView,
+  placement = barPlacement(view.band, series.slot),
+) {
   const { x: sx, y: sy, dpr, horizontal } = view
   const xs = series.x.values
   const top = series.top
   const base = series.base
   const ends = series.stackEnds
   const [from, to] = visibleRange(xs, series.x.sorted, sx.domain[0], sx.domain[1])
-  const { offset, width } = barPlacement(view.band, series.slot)
+  const { offset, width } = placement
   const zero = baseline(sy)
   const log = sy.kind === 'log'
   const snap = (v: number) => Math.round(v * dpr) / dpr
@@ -184,9 +189,13 @@ const LABEL_WIDTH = 8
  * Where bars' labels go: past each bar's end, or in its middle (stacked
  * bars, by default), with the bar to fit in.
  */
-export function barLabels(series: ChartSeries<BarStyle>, view: ChartView): ChartLabelAnchor[] {
+export function barLabels(
+  series: ChartSeries<BarStyle>,
+  view: ChartView,
+  placement = barPlacement(view.band, series.slot),
+): ChartLabelAnchor[] {
   const { x: sx, y: sy, horizontal } = view
-  const { offset, width } = barPlacement(view.band, series.slot)
+  const { offset, width } = placement
   if (width < LABEL_WIDTH) return []
   const xs = series.x.values
   const top = series.top

@@ -25,6 +25,8 @@ export interface ChartMessages {
   share: string
   /** A band's two ends in its tooltip: `{from}`, `{to}`. */
   band: string
+  /** A waterfall's change and the running total after it: `{change}`, `{total}`. */
+  waterfallStep: string
   /** Read out with each legend entry: how to show it alone. */
   legendHint: string
   /** Under a pie with slices turned off: `{count}`. */
@@ -79,6 +81,7 @@ const zhCN: ChartMessages = {
   itemSeparator: '，',
   share: '{value}（{share}）',
   band: '{from} ~ {to}',
+  waterfallStep: '{change}，累计 {total}',
   legendHint: '按 Alt+Enter 或按住 Alt 点击只显示这一项，再按一次恢复全部',
   hiddenSlices: '已隐藏 {count} 项，占比只按显示的部分计算',
   keys: '{summary}。用方向键逐个查看数据',
@@ -113,6 +116,7 @@ const zhTW: ChartMessages = {
   itemSeparator: '，',
   share: '{value}（{share}）',
   band: '{from} ~ {to}',
+  waterfallStep: '{change}，累計 {total}',
   legendHint: '按 Alt+Enter 或按住 Alt 點擊只顯示這一項，再按一次恢復全部',
   hiddenSlices: '已隱藏 {count} 項，占比只按顯示的部分計算',
   keys: '{summary}。用方向鍵逐個查看資料',
@@ -147,6 +151,7 @@ const en: ChartMessages = {
   itemSeparator: ', ',
   share: '{value} ({share})',
   band: '{from} – {to}',
+  waterfallStep: '{change}, total {total}',
   legendHint: 'Alt+Enter or Alt+click shows only this one; again shows all',
   hiddenSlices: '{count} hidden; shares are of the slices shown',
   keys: '{summary}. Use the arrow keys to read each point',

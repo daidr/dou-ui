@@ -247,6 +247,47 @@ export interface ChartBarProps extends ChartSeriesProps {
   labelPosition?: 'outside' | 'inside'
 }
 
+export interface ChartHistogramProps extends Omit<ChartSeriesProps, 'y' | 'x' | 'color'> {
+  /** The value of each row, counted into bins: a key of the row or a function of it. */
+  value: ChartAccessor
+  /** About how many bins: their width is a round number near the span over it. Defaults by the number of values. */
+  bins?: number
+  /** The width of each bin, exactly; takes the place of `bins`. */
+  step?: number
+  /** Any CSS color for the bars. */
+  color?: string
+  /** Corner radius of the bars' tops, in px. */
+  radius?: number
+  /** Shows each bin's count as text. */
+  labels?: boolean | ChartLabelFormat
+  /** Where labels go: above each bar (`outside`) or in it (`inside`). */
+  labelPosition?: 'outside' | 'inside'
+}
+
+export interface ChartWaterfallProps extends ChartSeriesProps {
+  /** The change of each row; for a total row, it is not read. */
+  y: ChartAccessor
+  /**
+   * Whether a row is a total: a key of the row or a function of it. A total
+   * row is a bar from 0 up to the running total of the rows before it.
+   */
+  total?: ChartAccessor
+  /**
+   * Any CSS color for all the bars, or a function that gives each bar its
+   * own. By default, rises are in the success tone, falls in the danger
+   * tone and totals in the series' color.
+   */
+  color?: string | ChartItemColor
+  /** Corner radius of the bars, in px. */
+  radius?: number
+  /** Dashed lines from each bar to the next, at the total they share. */
+  connectors?: boolean
+  /** Shows each change (with its sign) and each total as text. */
+  labels?: boolean | ChartLabelFormat
+  /** Where labels go: past the bar's end (`outside`) or in it (`inside`). */
+  labelPosition?: 'outside' | 'inside'
+}
+
 export interface ChartScatterProps extends ChartSeriesProps {
   /** Any CSS color for all the points, or a function that gives each point its own, as for bars. */
   color?: string | ChartItemColor

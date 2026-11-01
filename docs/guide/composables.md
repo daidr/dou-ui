@@ -192,4 +192,4 @@ import { downloadBlob } from 'dou-ui'
 downloadBlob(new Blob([csv], { type: 'text/csv' }), '门店.csv')
 ```
 
-`downloadBlob(blob, fileName)` 让浏览器把 `blob` 下载成名为 `fileName` 的文件，下载开始后会释放临时地址。它只在调用时用到 `document`，所以可以放心地在服务端渲染的组件里引入。
+`downloadBlob(blob, fileName)` 让浏览器把 `blob` 下载成名为 `fileName` 的文件，30 秒后释放临时地址：部分浏览器在点击结束后才读取地址，立即释放会让下载失败或丢掉文件名。它只在调用时用到 `document`，所以可以放心地在服务端渲染的组件里引入。

@@ -531,7 +531,7 @@ const data = shallowRef({
 
 ## 导出
 
-通过 ref 调用 `exportSVG()` 得到 SVG 文本，`exportPNG()` 得到 PNG 图片的 `Blob`。导出的是图表当前的样子：隐藏的系列、缩放的范围和当前主题的颜色都和页面上一致，刻度文字、标题、图例和标注的文字都在里面；提示框、十字线和框选这些跟随指针的内容不导出。
+通过 ref 调用 `exportSVG()` 得到 SVG 文本，`exportPNG()` 得到 PNG 图片的 `Blob`。导出的是图表当前的样子：隐藏的系列、缩放的范围和当前主题的颜色都和页面上一致，刻度文字、标题、图例和标注的文字都在里面；提示框、十字线和框选这些跟随指针的内容不导出。下载成文件可以用 `dou-ui` 的 [`downloadBlob`](../guide/composables#downloadblob)。
 
 <DocDemo src="chart/export" />
 

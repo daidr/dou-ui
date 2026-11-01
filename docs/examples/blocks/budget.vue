@@ -8,7 +8,7 @@ import {
   valueOf,
 } from '@dou-ui/sheet'
 import { CheckCircleIcon, DownloadIcon } from '@dou-ui/icons'
-import { toast } from 'dou-ui'
+import { downloadBlob, toast } from 'dou-ui'
 import { computed, ref, shallowRef } from 'vue'
 
 const head = (value) => ({ value, style: 'head' })
@@ -178,12 +178,7 @@ function check() {
   }
 }
 function download() {
-  const url = URL.createObjectURL(new Blob([grid.value.toCSV()], { type: 'text/csv' }))
-  const a = document.createElement('a')
-  a.href = url
-  a.download = '市场部预算.csv'
-  a.click()
-  setTimeout(() => URL.revokeObjectURL(url), 1000)
+  downloadBlob(new Blob([grid.value.toCSV()], { type: 'text/csv' }), '市场部预算.csv')
 }
 </script>
 

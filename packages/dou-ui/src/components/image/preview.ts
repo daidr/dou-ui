@@ -1,3 +1,4 @@
+import { downloadBlob } from '../../utils/download'
 import type { PreviewImage, PreviewSource } from './image'
 
 export const normalizePreview = (list: PreviewSource = []): PreviewImage[] =>
@@ -11,6 +12,7 @@ export const clampScale = (value: number, min: number, max: number) =>
 export const stepScale = (scale: number, direction: 1 | -1) =>
   direction > 0 ? scale * 1.25 : scale / 1.25
 
+/** Opens a link to save, for a picture that can't be fetched. */
 function save(href: string, name: string) {
   const link = document.createElement('a')
   link.href = href
@@ -33,9 +35,7 @@ export async function downloadImage(src: string) {
   try {
     const response = await fetch(url)
     if (!response.ok) throw new Error(String(response.status))
-    const blobUrl = URL.createObjectURL(await response.blob())
-    save(blobUrl, name)
-    setTimeout(() => URL.revokeObjectURL(blobUrl), 1000)
+    downloadBlob(await response.blob(), name)
   } catch {
     save(url.href, name)
   }

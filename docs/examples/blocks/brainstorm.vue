@@ -11,7 +11,7 @@ import {
 } from '@dou-ui/flow'
 import { whiteboardKit } from '@dou-ui/flow/whiteboard'
 import { DownloadIcon, HeartIcon } from '@dou-ui/icons'
-import { useElementSize, type Tone } from 'dou-ui'
+import { downloadBlob, useElementSize, type Tone } from 'dou-ui'
 import { computed, defineComponent, h, ref, useTemplateRef } from 'vue'
 
 // 每个人的便签用自己的颜色
@@ -195,13 +195,7 @@ function focusNote(id: string) {
 
 async function exportImage() {
   if (!editor.value) return
-  const url = URL.createObjectURL(await editor.value.exportPNG())
-  const a = document.createElement('a')
-  a.href = url
-  a.download = '开业活动头脑风暴.png'
-  a.click()
-  // 下载开始之后再释放，立即释放会让部分浏览器下载失败或丢掉文件名
-  setTimeout(() => URL.revokeObjectURL(url), 10_000)
+  downloadBlob(await editor.value.exportPNG(), '开业活动头脑风暴.png')
 }
 
 const root = useTemplateRef('root')

@@ -10,7 +10,7 @@ import {
   type GanttTask,
 } from '@dou-ui/gantt'
 import { DownloadIcon, RedoIcon, UndoIcon } from '@dou-ui/icons'
-import { toast } from 'dou-ui'
+import { downloadBlob, toast } from 'dou-ui'
 import { computed, ref, useTemplateRef } from 'vue'
 import { day } from '../gantt/dates'
 
@@ -171,10 +171,7 @@ function saveBaseline() {
 
 /* 导出 */
 function download(data: Blob | string, name: string, type = 'text/plain') {
-  const url = URL.createObjectURL(typeof data === 'string' ? new Blob([data], { type }) : data)
-  const a = Object.assign(document.createElement('a'), { href: url, download: name })
-  a.click()
-  setTimeout(() => URL.revokeObjectURL(url), 1000)
+  downloadBlob(typeof data === 'string' ? new Blob([data], { type }) : data, name)
 }
 
 async function exportAs(kind: unknown) {

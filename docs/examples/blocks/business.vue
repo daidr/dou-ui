@@ -9,6 +9,7 @@ import {
   DouChartPie,
 } from '@dou-ui/chart'
 import { DownloadIcon } from '@dou-ui/icons'
+import { downloadBlob } from 'dou-ui'
 import { computed, ref, useTemplateRef } from 'vue'
 
 // 示例数据：一家连锁茶饮品牌在上海的经营情况，固定种子的随机数，每次打开都一样
@@ -116,19 +117,11 @@ const thousand = (value) => `${value} 千人`
 
 /* 导出走势图 */
 const chart = useTemplateRef('chart')
-function save(data, name) {
-  const url = URL.createObjectURL(data)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = name
-  a.click()
-  setTimeout(() => URL.revokeObjectURL(url), 1000)
-}
 async function exportAs(format) {
   if (!chart.value) return
   const name = `${category.value ?? '全部品类'}${metric.value === 'sales' ? '销售额' : '订单数'}`
-  if (format === 'png') save(await chart.value.exportPNG(), `${name}.png`)
-  else save(new Blob([chart.value.exportSVG()], { type: 'image/svg+xml' }), `${name}.svg`)
+  if (format === 'png') downloadBlob(await chart.value.exportPNG(), `${name}.png`)
+  else downloadBlob(new Blob([chart.value.exportSVG()], { type: 'image/svg+xml' }), `${name}.svg`)
 }
 </script>
 

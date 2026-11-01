@@ -288,6 +288,8 @@ filters: {
 
 数值去掉了汇总时的浮点误差（按 15 位有效数字取整，`1592.0200000000002` 写成 `1592.02`）。CSV 默认以字节顺序标记开头，这样电子表格软件能按 UTF-8 打开，`{ bom: false }` 可以去掉。组名以 `=`、`+`、`-`、`@` 开头时，前面会加上 `'`，防止在电子表格里被当成公式运行。
 
+这些方法只返回内容，下载成文件可以用 `dou-ui` 的 [`downloadBlob`](../guide/composables#downloadblob)，例如 `downloadBlob(new Blob([pivot.value.toCSV()], { type: 'text/csv' }), '销售.csv')`。
+
 ### 转成电子表格
 
 `toSheet()` 返回的对象可以直接作为 `DouSheet` 的 `v-model`，之后可以在表格里继续编辑、加公式。两个包互不依赖，各自单独安装。

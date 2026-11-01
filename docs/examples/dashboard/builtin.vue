@@ -4,7 +4,7 @@ import { chartWidget } from '@dou-ui/dashboard/chart'
 import { pivotWidget } from '@dou-ui/dashboard/pivot'
 import { statWidget, tableWidget, textWidget } from '@dou-ui/dashboard/widgets'
 import { DownloadIcon, PrinterIcon } from '@dou-ui/icons'
-import { DouButton, DouSwitch, DouTooltip } from 'dou-ui'
+import { DouButton, DouSwitch, DouTooltip, downloadBlob } from 'dou-ui'
 import { ref } from 'vue'
 import { cityNames, regionNames, sources } from './sales-data'
 
@@ -94,13 +94,7 @@ const doc = ref({
 })
 
 async function download() {
-  const blob = await dashboard.value.exportPNG()
-  const link = document.createElement('a')
-  link.href = URL.createObjectURL(blob)
-  link.download = 'dashboard.png'
-  link.click()
-  // released later: the download starts after this, and needs the address until then
-  setTimeout(() => URL.revokeObjectURL(link.href), 1000)
+  downloadBlob(await dashboard.value.exportPNG(), 'dashboard.png')
 }
 </script>
 

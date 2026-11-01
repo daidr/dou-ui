@@ -23,8 +23,7 @@ PNG 默认按 2 倍像素导出，`pixelRatio` 可以改。图片节点的图片
 
 浏览器对画布的尺寸有限制（每边 16384 像素；总像素数在 iPhone 和 iPad 上约 1677 万，其他设备上是 16384 × 16384），图片很大时 `exportPNG()` 会自动降低 `pixelRatio`，降到 1 仍然放不下时会抛出 `RangeError`，不会生成一张模糊的图。这时可以用 `range: 'view'` 或 `range: 'selection'` 分几次导出，或者改用 `exportSVG()`。
 
-> [!NOTE]
-> 下载导出的文件时，用 `URL.createObjectURL` 生成地址后不要在 `click()` 之后立即释放，部分浏览器会因此下载失败或丢掉文件名。可以延后几秒再调用 `URL.revokeObjectURL`，如上面示例所示。
+导出的方法只返回内容，下载可以用 `dou-ui` 的 [`downloadBlob`](../guide/composables#downloadblob)，如上面示例所示。
 
 ## 自定义节点
 

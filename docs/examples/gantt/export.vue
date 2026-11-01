@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { DouGantt, type GanttLink, type GanttTask } from '@dou-ui/gantt'
-import { DouButton, DouSpace } from 'dou-ui'
+import { DouButton, DouSpace, downloadBlob } from 'dou-ui'
 import { ref, useTemplateRef } from 'vue'
 import { day } from './dates'
 
@@ -20,14 +20,7 @@ const links = ref<GanttLink[]>([
 const gantt = useTemplateRef('gantt')
 
 function save(data: Blob | string, name: string, type = 'text/plain') {
-  const blob = typeof data === 'string' ? new Blob([data], { type }) : data
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = name
-  a.click()
-  // 下载开始后再释放，立即释放会让部分浏览器下载失败
-  setTimeout(() => URL.revokeObjectURL(url), 1000)
+  downloadBlob(typeof data === 'string' ? new Blob([data], { type }) : data, name)
 }
 
 async function savePNG() {

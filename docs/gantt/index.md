@@ -268,15 +268,12 @@ CSV 默认写入表格软件能排序和计算的值：日期是 `2026-03-02`（
 | `text` | 改为写入表格里显示的文字，如 `3月2日`、`5 天`           | `false` |
 | `bom`  | 在开头加上 BOM，表格软件才会按 UTF-8 读取，中文不会乱码 | `true`  |
 
-方法只返回内容，下载由你决定，例如：
+方法只返回内容，下载由你决定，可以用 `dou-ui` 的 [`downloadBlob`](../guide/composables#downloadblob)：
 
 ```ts
-const blob = await gantt.value.exportPNG()
-const url = URL.createObjectURL(blob)
-const a = Object.assign(document.createElement('a'), { href: url, download: '排期.png' })
-a.click()
-// 下载开始后再释放，立即释放会让部分浏览器下载失败
-setTimeout(() => URL.revokeObjectURL(url), 1000)
+import { downloadBlob } from 'dou-ui'
+
+downloadBlob(await gantt.value.exportPNG(), '排期.png')
 ```
 
 任务数据本身需要保存为 JSON 时，直接序列化 `tasks` 和 `links` 即可。

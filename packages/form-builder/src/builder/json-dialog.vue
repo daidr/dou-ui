@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, shallowRef, useTemplateRef, watch } from 'vue'
-import { DouButton, DouDialog, DouTextarea } from 'dou-ui'
+import { DouButton, DouDialog, DouTextarea, downloadBlob } from 'dou-ui'
 import { CopyCheckIcon, CopyIcon, DownloadIcon, FileUpIcon, IndentIcon } from '@dou-ui/icons'
 import { checkDocument, checkDocumentShape, migrateDocument } from '../core/check'
 import type { DocumentProblem } from '../core/check'
@@ -166,13 +166,7 @@ async function copy() {
 }
 
 function download() {
-  const blob = new Blob([draft.value], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = 'form.json'
-  link.click()
-  setTimeout(() => URL.revokeObjectURL(url), 0)
+  downloadBlob(new Blob([draft.value], { type: 'application/json' }), 'form.json')
 }
 </script>
 

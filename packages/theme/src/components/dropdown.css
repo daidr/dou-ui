@@ -14,6 +14,11 @@
     --dou-dropdown-inset: 4px;
     --dou-dropdown-item-height: var(--dou-control-height-md);
     --dou-dropdown-item-radius: var(--dou-radius-control);
+    --dou-dropdown-item-padding-x: 8px;
+    --dou-dropdown-item-gap: 8px;
+    /* the column of check and radio marks; it sits 2px into the gap so the mark looks centered */
+    --dou-dropdown-indicator-size: 16px;
+    --dou-dropdown-indicator-pull: -2px;
     --dou-dropdown-item-active-bg: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
 
     min-width: 160px;
@@ -33,10 +38,10 @@
   .dou-dropdown__item {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--dou-dropdown-item-gap, 8px);
     box-sizing: border-box;
     height: var(--dou-dropdown-item-height);
-    padding: 0 8px;
+    padding: 0 var(--dou-dropdown-item-padding-x, 8px);
     border-radius: var(--dou-dropdown-item-radius);
     color: var(--dou-color-text);
     line-height: 1;
@@ -98,9 +103,9 @@
     flex-shrink: 0;
     align-items: center;
     justify-content: center;
-    width: 16px;
-    height: 16px;
-    margin-inline-end: -2px;
+    width: var(--dou-dropdown-indicator-size, 16px);
+    height: var(--dou-dropdown-indicator-size, 16px);
+    margin-inline-end: var(--dou-dropdown-indicator-pull, -2px);
     color: var(--dou-color-text);
 
     & > svg {
@@ -115,7 +120,10 @@
       > [role='group'] > .dou-dropdown__item > .dou-dropdown__indicator
     )
     > .dou-dropdown__item:not(:has(> .dou-dropdown__indicator)) {
-    padding-inline-start: calc(8px + 16px - 2px + 8px);
+    padding-inline-start: calc(
+      var(--dou-dropdown-item-padding-x, 8px) + var(--dou-dropdown-indicator-size, 16px) +
+        var(--dou-dropdown-indicator-pull, -2px) + var(--dou-dropdown-item-gap, 8px)
+    );
   }
 
   .dou-dropdown__item.is-checked > .dou-dropdown__indicator--radio::before {

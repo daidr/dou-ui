@@ -2,7 +2,13 @@ import { svgToPNG } from 'dou-ui'
 import type { SheetAxis } from '../core/axis'
 import type { SheetBounds } from '../core/address'
 import { boundsOf, columnName, parseRange } from '../core/address'
-import { optionOf, type SheetCellType } from '../core/cell-type'
+import { h, render, type Component } from 'vue'
+import {
+  optionOf,
+  type SheetCellType,
+  type SheetDrawContext,
+  type SheetDrawRect,
+} from '../core/cell-type'
 import { dataBounds } from '../core/csv'
 import type { SheetMerges } from '../core/merge'
 import type { SheetData, SheetTypeSetup } from '../core/model'
@@ -28,6 +34,8 @@ export interface ExportCellView {
   css: string
   render?: SheetCellType['render']
   props?: Record<string, unknown>
+  /** A cell type's own drawing, as SVG markup. */
+  draw?: (draw: SheetDrawContext) => string
   label?: string
   hidden?: boolean
 }
@@ -67,6 +75,8 @@ function shownLines(axis: SheetAxis, from: number, to: number) {
 }
 
 const read = (el: Element) => getComputedStyle(el)
+
+const at = (value: number) => String(Math.round(value * 100) / 100)
 
 /** A fill as a plain color, `null` for none. */
 function fillOf(value: string) {
@@ -168,7 +178,30 @@ function exportReader(root: HTMLElement, light: boolean, gridlines: boolean) {
     }
     return found
   }
-  return { theme, look, tag, done: () => box.remove() }
+  // icons drawn once each, as SVG with their color left to fill in
+  const icons = new Map<Component, string>()
+  const icon = (component: Component, area: SheetDrawRect, fill: string) => {
+    let markup = icons.get(component)
+    if (markup === undefined) {
+      const holder = make('')
+      try {
+        render(h(component), holder)
+        markup = holder.querySelector('svg')?.outerHTML ?? ''
+      } catch {
+        markup = ''
+      }
+      render(null, holder)
+      icons.set(component, markup)
+    }
+    if (!markup) return ''
+    return markup
+      .replace(/^<svg\b([^>]*)>/, (_, attrs: string) => {
+        const kept = attrs.replace(/\s(width|height|x|y|class|style|aria-[\w-]+|role)="[^"]*"/g, '')
+        return `<svg${kept} x="${at(area.x)}" y="${at(area.y)}" width="${at(area.width)}" height="${at(area.height)}">`
+      })
+      .replace(/currentColor/g, fill)
+  }
+  return { theme, look, tag, color, icon, done: () => box.remove() }
 }
 
 /** A select cell's option tone, or `undefined` when its value isn't one of the options. */
@@ -285,12 +318,21 @@ export function createSheetExport(src: SheetExportSource) {
           Number.parseFloat(/--dou-sheet-bar-to:([\d.]+)%/.exec(view.css)?.[1] ?? '0') / 100
         cell.bar = { from, to, color: look.barColor }
       }
-      if (view.render === CellCheck) cell.check = view.props?.value === true
+      if (view.draw) cell.draw = view.draw
+      else if (view.render === CellCheck) cell.check = view.props?.value === true
       else if (view.render === CellOption) {
         const option = view.text ? optionTone(view.props) : undefined
         if (option) cell.tag = reader.tag(option.tone)
-      } else if (view.render) cell.text = view.label ?? view.text
-      if (!merged && !cell.text && !look.background && !cell.bar && cell.check === undefined) return
+      } else if (view.render && !view.cls.includes(' is-error')) cell.text = view.label ?? view.text
+      if (
+        !merged &&
+        !cell.text &&
+        !look.background &&
+        !cell.bar &&
+        cell.check === undefined &&
+        !cell.draw
+      )
+        return
       cells.push(cell)
     }
     const seen = new Set<SheetBounds>()
@@ -344,22 +386,30 @@ export function createSheetExport(src: SheetExportSource) {
       gridlines: options.gridlines,
       background: options.background,
       theme: reader.theme,
+      icon: reader.icon,
+      color: reader.color,
     }
   }
 
-  /** The cells of a sheet laid out as the grid draws them, in plain colors. */
-  function drawingOf(options: SheetExportOptions = {}) {
+  /**
+   * The cells of a sheet laid out as the grid draws them, in plain colors,
+   * given to `use` while the page's styles can still be read, as cell
+   * types' drawings read colors.
+   */
+  function drawingOf<T>(options: SheetExportOptions, use: (drawing: SheetDrawing) => T): T {
     const t = src.target(options.sheet)
     const b = exportBounds(options.range, t)
     const gridlines = options.gridlines ?? src.gridlines()
     const reader = exportReader(src.root() ?? document.body, false, gridlines)
     try {
-      return exportDrawing(
-        shownLines(t.rows, b.top, b.bottom),
-        shownLines(t.cols, b.left, b.right),
-        { headers: options.headers ?? false, gridlines, background: options.background ?? true },
-        reader,
-        t,
+      return use(
+        exportDrawing(
+          shownLines(t.rows, b.top, b.bottom),
+          shownLines(t.cols, b.left, b.right),
+          { headers: options.headers ?? false, gridlines, background: options.background ?? true },
+          reader,
+          t,
+        ),
       )
     } finally {
       reader.done()
@@ -368,8 +418,10 @@ export function createSheetExport(src: SheetExportSource) {
 
   /** The sheet as an SVG document, and its size. */
   function exportImage(options: SheetExportOptions) {
-    const laid = drawingOf(options)
-    return { svg: drawSheet(laid, measureText), ...drawingSize(laid) }
+    return drawingOf(options, (laid) => ({
+      svg: drawSheet(laid, measureText),
+      ...drawingSize(laid),
+    }))
   }
 
   function exportSVG(options: SheetExportOptions = {}) {
@@ -456,5 +508,10 @@ export function createSheetExport(src: SheetExportSource) {
     win.print()
   }
 
-  return { exportSVG, exportPNG, print, drawing: drawingOf }
+  return {
+    exportSVG,
+    exportPNG,
+    print,
+    drawing: (options: SheetExportOptions = {}) => drawingOf(options, (laid) => laid),
+  }
 }

@@ -820,7 +820,8 @@ export function collaboration(options: CollaborationOptions): SheetExtension {
       canUndo: () => undoManager.undoStack.length > 0,
       canRedo: () => undoManager.redoStack.length > 0,
     }),
-    overlays: awareness ? [createPeers(peers)] : undefined,
+    // over the cells, under the grid's own marks, and kept out of the headers
+    layers: awareness ? { below: [createPeers(peers)] } : undefined,
     setup(sheet) {
       context = sheet
       parts = partsOf(book)

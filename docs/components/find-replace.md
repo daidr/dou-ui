@@ -4,7 +4,7 @@
 
 ## 基础用法
 
-`v-model:search` 是要查找的文字，`count` 和 `current` 告诉面板一共有几处、当前是第几处（从 0 开始，没有当前项时传 `-1`）。面板发出 `next`、`previous`、`replace`、`replace-all` 和 `close`，由使用方去移动、替换和关闭。
+`v-model:search` 是要查找的文字，`count` 和 `current` 告诉面板一共有几处、当前是第几处（从 0 开始，没有当前项时传 `-1`）。面板发出 `next`、`previous`、`replace-one`、`replace-all` 和 `close`，由使用方去移动、替换和关闭：比如收到 `close` 后用 `v-if` 收起面板。示例里关闭后可以点“查找”按钮或在列表上按 `Ctrl/⌘+F` 重新打开。
 
 <DocDemo src="find-replace/basic" />
 
@@ -47,6 +47,7 @@
 | `count`     | 一共有几处                                                           | `number`  | `0`     |
 | `current`   | 当前是第几处，从 0 开始；没有时为 `-1`                               | `number`  | `-1`    |
 | `capped`    | 实际不止 `count` 处，结果数显示为“超过 …个”                          | `boolean` | `false` |
+| `searching` | 正在查找（比如等输入停顿后再查），结果数先留空                       | `boolean` | `false` |
 | `error`     | 无法查找的原因，比如正则表达式写错了；显示在结果数的位置，查找框变红 | `string`  | —       |
 | `readonly`  | 只查找，没有替换框                                                   | `boolean` | `false` |
 
@@ -56,7 +57,7 @@
 | ------------- | -------------- | ---- |
 | `next`        | 到下一处       | —    |
 | `previous`    | 到上一处       | —    |
-| `replace`     | 替换当前这一处 | —    |
+| `replace-one` | 替换当前这一处 | —    |
 | `replace-all` | 全部替换       | —    |
 | `close`       | 关闭面板       | —    |
 
@@ -67,6 +68,8 @@
 | `options` | 查找框里的选项开关 |
 
 ### Exposes
+
+组件实例的类型是 `FindReplaceInstance`。
 
 | 名称    | 说明                                         | 类型                                    |
 | ------- | -------------------------------------------- | --------------------------------------- |

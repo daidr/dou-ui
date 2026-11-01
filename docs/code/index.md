@@ -178,7 +178,7 @@ app.use(DouUI, {
 
 <DocDemo src="code/search" column />
 
-`openSearch(query?)` 用代码打开面板，并可以带上查找的内容与选项，带上 `replace` 时同时展开替换框；`closeSearch()` 关闭面板。`searchable` 设为 `false` 不提供查找面板，`Mod` + `F` 交还给浏览器。面板上的文字跟随 ConfigProvider 的语言包，`messages` 属性可以单独改写其中几条。
+`openSearch(query?)` 用代码打开面板，并可以带上查找的内容与选项，带上 `replace` 时同时展开替换框；`closeSearch()` 关闭面板。触屏设备上没有这些按键，需要时自己放一个按钮调用 `openSearch()`。`searchable` 设为 `false` 不提供查找面板，`Mod` + `F` 交还给浏览器，`openSearch()` 也返回 `false`。面板是 [FindReplace](../components/find-replace)，上面的文字（包括区分大小写、全词匹配、正则表达式这几个开关）在 [ConfigProvider](../components/config-provider) 语言包的 `findReplace` 里。
 
 在编辑器之外查找文本，可以直接用 `searchText`：
 
@@ -602,8 +602,8 @@ const createWorker = () =>
 | `coordsAtPos(pos)`             | 某个位置在视口中的坐标；所在行没有绘制时为 `null`                             |
 | `posAtCoords({ x, y })`        | 视口中某一点最近的文本位置                                                    |
 | `focus()`、`blur()`            | 获得、失去焦点                                                                |
-| `openSearch(query?)`           | 打开查找面板，`query` 设置查找的内容与选项                                    |
-| `closeSearch()`                | 关闭查找面板                                                                  |
+| `openSearch(query?)`           | 打开查找面板，`query` 设置查找的内容与选项；`searchable` 关闭时返回 `false`   |
+| `closeSearch()`                | 关闭查找面板；没有打开时返回 `false`                                          |
 | `fold(line?)`、`unfold(line?)` | 折叠、展开某一行（从 1 开始）开始的一段，不传时用光标所在的行；返回有没有变化 |
 | `foldAll()`、`unfoldAll()`     | 折叠所有最外层的段、全部展开；返回有没有变化                                  |
 | `folds`                        | 现在折叠着的各段的起始行号                                                    |

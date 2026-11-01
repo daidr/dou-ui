@@ -2,6 +2,7 @@ import { mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, describe, expect, it } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { DouFlowEditor, flowKit } from '../index'
+import { whiteboardKit } from '../whiteboard'
 import type { FlowDocument, FlowEditorExpose, FlowSelection } from '../index'
 
 const mounted: VueWrapper[] = []
@@ -19,7 +20,7 @@ const sample = (): FlowDocument => ({
   edges: [],
 })
 
-function setup() {
+function setup(props: Record<string, unknown> = {}) {
   const doc = ref(sample())
   const selection = ref<FlowSelection>({ nodes: [], edges: [] })
   const wrapper = mount(
@@ -31,6 +32,7 @@ function setup() {
           selection: selection.value,
           'onUpdate:selection': (value: FlowSelection) => (selection.value = value),
           extensions: [flowKit()],
+          ...props,
         }),
     ),
     { attachTo: document.body },
@@ -45,10 +47,10 @@ function setup() {
 describe('finding nodes', () => {
   it('lists nodes by name, in reading order', () => {
     const { editor } = setup()
-    expect(editor.findNodes('笔记')).toEqual(['a', 'b'])
-    expect(editor.findNodes('notes')).toEqual(['d'])
-    expect(editor.findNodes('notes', { caseSensitive: true })).toEqual([])
-    expect(editor.findNodes('')).toEqual([])
+    expect(editor.findNodes({ search: '笔记' })).toEqual(['a', 'b'])
+    expect(editor.findNodes({ search: 'notes' })).toEqual(['d'])
+    expect(editor.findNodes({ search: 'notes', caseSensitive: true })).toEqual([])
+    expect(editor.findNodes({ search: '' })).toEqual([])
   })
 
   it('opens with Ctrl+F, selects and centers each match in turn', async () => {
@@ -73,12 +75,47 @@ describe('finding nodes', () => {
 
   it('opens from code with a search put in', async () => {
     const { editor, selection, input } = setup()
-    editor.openSearch('上海')
+    editor.openSearch({ search: '上海' })
     await nextTick()
     await nextTick()
     expect(input().element.value).toBe('上海')
     expect(selection.value.nodes).toEqual(['c'])
     expect(editor.closeSearch()).toBe(true)
     expect(editor.closeSearch()).toBe(false)
+  })
+
+  it('leaves Ctrl/⌘+F to the page when searchable is off', async () => {
+    const { root, editor, input } = setup({ searchable: false })
+    await root.trigger('keydown', { key: 'f', ctrlKey: true })
+    expect(input().exists()).toBe(false)
+    expect(editor.openSearch({ search: '上海' })).toBe(false)
+    await nextTick()
+    expect(input().exists()).toBe(false)
+  })
+
+  it('turns the halo with a turned node', async () => {
+    const { editor, wrapper } = setup({
+      extensions: [flowKit(), whiteboardKit()],
+      modelValue: {
+        nodes: [
+          {
+            id: 't',
+            type: 'shape',
+            x: 0,
+            y: 0,
+            width: 120,
+            height: 60,
+            data: { shape: 'rect', text: '订周六上午的票', rotation: 90 },
+          },
+        ],
+        edges: [],
+      },
+    })
+    editor.openSearch({ search: '票' })
+    await nextTick()
+    await nextTick()
+    const halo = wrapper.find<HTMLElement>('.dou-flow-editor__found')
+    expect(halo.element.style.rotate).toBe('90deg')
+    expect(halo.element.style.width).toBe('120px')
   })
 })

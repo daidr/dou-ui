@@ -2,7 +2,7 @@
 import { LetterCaseIcon, RegexIcon, WholeWordIcon } from '@dou-ui/icons'
 import { DouFindReplace, DouToggle, DouTooltip, useLocale } from 'dou-ui'
 import type { Node as PMNode } from 'prosemirror-model'
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   currentMatch,
   matchAfter,
@@ -83,6 +83,49 @@ function replaceAll() {
   v.dispatch(replaceMatches(v.state, list, query.value))
 }
 
+// The panel floats over the text: scrolling to a match keeps it below the panel, and a
+// match the panel still covers, as one in the first line, moves the panel down past it.
+const shift = ref(0)
+let margin: unknown
+onMounted(() => {
+  const v = view.value
+  const el = panel.value?.$el as HTMLElement | undefined
+  if (!v || !el) return
+  margin = v.someProp('scrollMargin')
+  const top = el.getBoundingClientRect().height + 16
+  v.setProps({ scrollMargin: { top, bottom: 8, left: 8, right: 8 } })
+})
+onBeforeUnmount(() => {
+  const v = view.value
+  if (v && !v.isDestroyed) v.setProps({ scrollMargin: margin as number | undefined })
+})
+watch(
+  [current, state],
+  () => {
+    const v = view.value
+    const el = panel.value?.$el as HTMLElement | undefined
+    const m = current.value >= 0 ? search.value?.matches[current.value] : undefined
+    if (!v || !el || !m) return (shift.value = 0)
+    let start, end
+    try {
+      start = v.coordsAtPos(m.from)
+      end = v.coordsAtPos(m.to)
+    } catch {
+      return (shift.value = 0)
+    }
+    const box = el.getBoundingClientRect()
+    const top = box.top - shift.value
+    const bottom = box.bottom - shift.value
+    const covered =
+      start.top < bottom &&
+      end.bottom > top &&
+      Math.min(start.left, end.left) < box.right &&
+      Math.max(start.right, end.right) > box.left
+    shift.value = covered ? Math.ceil(Math.max(start.bottom, end.bottom) - top + 6) : 0
+  },
+  { flush: 'post' },
+)
+
 defineExpose({
   focus: (which?: 'find' | 'replace') => panel.value?.focus(which),
   next: () => go(1),
@@ -93,6 +136,7 @@ defineExpose({
 <template>
   <DouFindReplace
     ref="panel"
+    :style="shift ? { transform: `translateY(${shift}px)` } : undefined"
     v-model:replacing="replacing"
     :search="query.search"
     :replace="query.replace ?? ''"
@@ -105,7 +149,7 @@ defineExpose({
     @update:replace="setQuery({ replace: $event })"
     @next="go(1)"
     @previous="go(-1)"
-    @replace="replaceOne"
+    @replace-one="replaceOne"
     @replace-all="replaceAll"
     @close="emit('close')"
   >

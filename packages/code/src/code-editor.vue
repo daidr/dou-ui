@@ -1892,7 +1892,7 @@ function previousMatch() {
 }
 
 function openSearch(replace = false, given?: Partial<CodeSearchQuery>) {
-  if (!props.searchable) return
+  if (!props.searchable) return false
   menuOpen.value = false
   closeProblems()
   const main = mainRange(state.value.selection)
@@ -1922,6 +1922,7 @@ function openSearch(replace = false, given?: Partial<CodeSearchQuery>) {
   runSearch()
   panel.value?.focus(replace ? 'replace' : 'find')
   nextTick(() => panel.value?.focus(replace ? 'replace' : 'find'))
+  return true
 }
 
 function closeSearch() {
@@ -4380,7 +4381,7 @@ defineExpose<CodeEditorExpose>(api)
         @update:replace="query = { ...query, replace: $event }"
         @next="nextMatch()"
         @previous="previousMatch()"
-        @replace="replaceOne"
+        @replace-one="replaceOne"
         @replace-all="replaceAll"
         @close="closeSearch"
       >

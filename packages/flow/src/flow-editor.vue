@@ -42,6 +42,7 @@ import {
   type FlowEditorSlots,
   type FlowInsertOptions,
   type FlowNodePreview,
+  type FlowSearchQuery,
   type NodeMetrics,
   type PortAnchor,
   type PortState,
@@ -117,6 +118,7 @@ const props = withDefaults(defineProps<FlowEditorProps>(), {
   direction: 'horizontal',
   fitMinZoom: 0.5,
   readonly: false,
+  searchable: true,
   panOnScroll: true,
   edgeType: undefined,
   simpleZoom: 0.4,
@@ -2955,7 +2957,7 @@ function onKeydown(event: KeyboardEvent) {
     } else if (key === 'y' && !props.readonly) redo()
     else if (key === 'a') selectAll()
     // Ctrl/⌘ + G is for groups here, so the next match is F3 only
-    else if (key === 'f' && !event.altKey) openSearch()
+    else if (key === 'f' && !event.altKey && props.searchable) openSearch()
     // Copy, cut and paste come as clipboard events; see onClipboard.
     else if (key === 'c' || key === 'x' || key === 'v') return
     else if (key === 'd' && !props.readonly) {
@@ -3066,22 +3068,20 @@ function announce(text: string) {
 // Find -----------------------------------------------------------------------------
 
 const findOpen = ref(false)
-const findQuery = ref({ search: '', caseSensitive: false })
+const findQuery = ref<FlowSearchQuery>({ search: '', caseSensitive: false })
 const findPanel = ref<InstanceType<typeof DouFindReplace>>()
 
 /** The nodes whose names contain the text, in reading order. */
-function findNodes(search: string, options: { caseSensitive?: boolean } = {}) {
+function findNodes({ search, caseSensitive }: FlowSearchQuery) {
   if (!search) return []
-  const fold = (text: string) => (options.caseSensitive ? text : text.toLowerCase())
+  const fold = (text: string) => (caseSensitive ? text : text.toLowerCase())
   const wanted = fold(search)
   return readingOrder()
     .filter((node) => fold(nameOf(node)).includes(wanted))
     .map((node) => node.id)
 }
 
-const found = computed(() =>
-  findOpen.value ? findNodes(findQuery.value.search, findQuery.value) : [],
-)
+const found = computed(() => (findOpen.value ? findNodes(findQuery.value) : []))
 /** The match that is the one node selected; `-1` when none is. */
 const currentFound = computed(() => {
   const { nodes } = selection.value
@@ -3091,7 +3091,7 @@ const currentFound = computed(() => {
 const foundRects = computed(() =>
   found.value.flatMap((id) => {
     const rect = getNodeRect(id)
-    return rect ? [{ id, rect }] : []
+    return rect ? [{ id, rect, rotation: nodeRotation(id) }] : []
   }),
 )
 
@@ -3113,9 +3113,10 @@ function stepFound(step: 1 | -1) {
   return true
 }
 
-/** Opens the panel, with `search` put in. */
-function openSearch(search?: string) {
-  if (search !== undefined) findQuery.value = { ...findQuery.value, search }
+/** Opens the panel, with a query put in. */
+function openSearch(query?: Partial<FlowSearchQuery>) {
+  if (!props.searchable) return false
+  if (query) findQuery.value = { ...findQuery.value, ...query }
   findOpen.value = true
   void nextTick(() => findPanel.value?.focus())
   return true
@@ -3126,6 +3127,35 @@ function closeSearch() {
   findOpen.value = false
   root.value?.focus({ preventScroll: true })
   return true
+}
+
+// The panel sits top right, below whatever else is there, such as a toolbar or controls.
+const panelsLayer = useTemplateRef<HTMLElement>('panelsLayer')
+const findBox = useTemplateRef<HTMLElement>('findBox')
+const FIND_INSET = 12
+const findTop = ref(FIND_INSET)
+function placeFind() {
+  const layer = panelsLayer.value
+  const box = findBox.value
+  const panel = box?.firstElementChild as HTMLElement | null | undefined
+  if (!layer || !box || !panel) return
+  const area = layer.getBoundingClientRect()
+  const width = panel.offsetWidth
+  const height = panel.offsetHeight
+  const right = area.right - FIND_INSET
+  const left = right - width
+  const others = [...layer.children]
+    // the selection's toolbar moves with the nodes; the panel stays put for it
+    .filter((el) => el !== box && !el.classList.contains('dou-flow-toolbar'))
+    .map((el) => el.getBoundingClientRect())
+    .filter((r) => r.width && r.height)
+    // oxlint-disable-next-line unicorn/no-array-sort -- sorts the list built here
+    .sort((a, b) => a.top - b.top)
+  let top = area.top + FIND_INSET
+  for (const r of others)
+    if (r.left < right && r.right > left && r.top < top + height && r.bottom > top)
+      top = r.bottom + 8
+  findTop.value = Math.round(top - area.top)
 }
 
 // typing a search selects the first match, as a preview
@@ -3181,6 +3211,8 @@ function holdTouch(event: TouchEvent) {
 
 /** The editor's size on screen, for the minimap. */
 const size = ref({ width: 0, height: 0 })
+// the find panel finds its place again as the editor changes size
+watch([findOpen, size], () => findOpen.value && void nextTick(placeFind), { flush: 'post' })
 let sizeObserver: ResizeObserver | undefined
 
 onMounted(() => {
@@ -3628,7 +3660,8 @@ defineExpose<FlowEditorExpose>({
         class="dou-flow-editor__found"
         :class="{ 'is-current': found[currentFound] === mark.id }"
         :style="{
-          transform: `translate(${mark.rect.x}px, ${mark.rect.y}px)`,
+          translate: `${mark.rect.x}px ${mark.rect.y}px`,
+          rotate: mark.rotation ? `${mark.rotation}deg` : undefined,
           width: `${mark.rect.width}px`,
           height: `${mark.rect.height}px`,
         }"
@@ -3791,9 +3824,21 @@ defineExpose<FlowEditorExpose>({
       </svg>
     </div>
     <div v-if="marquee" class="dou-flow-editor__marquee" :style="marquee" />
-    <div class="dou-flow-editor__panels">
+    <div ref="panelsLayer" class="dou-flow-editor__panels">
       <slot />
-      <div v-if="findOpen" class="dou-flow-editor__find">
+      <component :is="overlay" v-for="(overlay, i) in resolved.overlays" :key="i" />
+      <FlowToolbar
+        v-if="toolbarItems.length && toolbarAnchor"
+        :groups="toolbarItems"
+        :anchor="toolbarAnchor"
+        :size="size"
+      />
+      <div
+        v-if="findOpen"
+        ref="findBox"
+        class="dou-flow-editor__find"
+        :style="{ top: `${findTop}px` }"
+      >
         <DouFindReplace
           ref="findPanel"
           :search="findQuery.search"
@@ -3819,13 +3864,6 @@ defineExpose<FlowEditorExpose>({
           </template>
         </DouFindReplace>
       </div>
-      <component :is="overlay" v-for="(overlay, i) in resolved.overlays" :key="i" />
-      <FlowToolbar
-        v-if="toolbarItems.length && toolbarAnchor"
-        :groups="toolbarItems"
-        :anchor="toolbarAnchor"
-        :size="size"
-      />
     </div>
     <FlowMenu ref="menu" v-model:open="menuOpen" :items="menuItems" @select="runMenuItem" />
     <FlowQuickAdd :state="quickAdd" @choose="chooseQuickAdd">

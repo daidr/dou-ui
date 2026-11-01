@@ -925,6 +925,11 @@
     > * {
       pointer-events: auto;
     }
+    /* moved down, off the current match; keeps clear of the scroll bar */
+    &.is-below {
+      top: auto;
+      bottom: 14px;
+    }
     /* a narrow grid: a bar above the cells, as wide as the grid */
     &.is-docked {
       position: static;

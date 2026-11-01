@@ -3,7 +3,7 @@ import type { SheetCellTarget, SheetRange } from './core/address'
 import type { SheetClip } from './core/clipboard'
 import type { SheetCSVWriteOptions } from './core/csv'
 import type { SheetCommands } from './core/commands'
-import type { SheetFindQuery, SheetFound } from './core/find'
+import type { SheetSearchQuery, SheetMatch } from './core/find'
 import type { SheetExtension } from './core/extension'
 import type {
   SheetCSVExportOptions,
@@ -350,7 +350,16 @@ export interface SheetExpose {
    * The cells that match a query, in order of sheet, row and column, as
    * the find panel finds them: hidden rows and columns are skipped.
    */
-  findCells: (query: SheetFindQuery) => SheetFound[]
+  findCells: (query: SheetSearchQuery) => SheetMatch[]
+  /**
+   * Opens the find panel (`Ctrl/⌘+F`), with a query put in; with `replace`
+   * in it, the replace box opens too, unless the sheet is read-only. Runs
+   * the `find` command, so an extension that overrides it is used; `false`
+   * when it refuses.
+   */
+  openSearch: (query?: Partial<SheetSearchQuery>) => boolean
+  /** Closes the find panel; `false` when it was not open. */
+  closeSearch: () => boolean
   /**
    * The sheet shown (or `sheet`) as CSV, with the text its cells show, as
    * their formats and cell types write it.

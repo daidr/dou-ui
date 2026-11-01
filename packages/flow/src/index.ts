@@ -22,6 +22,7 @@ export type {
   FlowNodePreview,
   FlowEditorSlots,
   FlowPanelPlacement,
+  FlowSearchQuery,
   NodeMetrics,
   PortAnchor,
   PortState,

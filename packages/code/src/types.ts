@@ -168,8 +168,8 @@ export interface CodeEditorExpose {
   posAtCoords: (point: { x: number; y: number }) => number
   focus: () => void
   blur: () => void
-  /** Opens the search panel, filled with `query` or else the selected text. */
-  openSearch: (query?: Partial<CodeSearchQuery>) => void
+  /** Opens the search panel, filled with `query` or else the selected text; `false` when `searchable` is off. */
+  openSearch: (query?: Partial<CodeSearchQuery>) => boolean
   /** Closes the search panel; `false` when it wasn't open. */
   closeSearch: () => boolean
   /** Folds the block starting at a line (from 1), or the one around the cursor; `false` when there is none. */

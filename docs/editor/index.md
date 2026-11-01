@@ -72,19 +72,20 @@ function reset() {
 
 ### Props
 
-| 名称          | 说明                                                                      | 类型                     | 默认值          |
-| ------------- | ------------------------------------------------------------------------- | ------------------------ | --------------- |
-| `modelValue`  | 文档内容，用 `v-model` 绑定                                               | `PartialBlock[]`         | —               |
-| `readonly`    | 只读                                                                      | `boolean`                | `false`         |
-| `placeholder` | 光标所在空块里的提示文字                                                  | `string`                 | 跟随语言        |
-| `ariaLabel`   | 编辑区域的无障碍名称                                                      | `string`                 | —               |
-| `autofocus`   | 挂载后获得焦点                                                            | `boolean`                | `false`         |
-| `messages`    | 替换内置文字，只写要改的部分即可，例如 `{ types: { paragraph: '段落' } }` | `EditorMessagesOverride` | —               |
-| `extensions`  | 使用的扩展，见[扩展](./extensions)，只在创建时读取                        | `EditorExtension[]`      | `[editorKit()]` |
-| `plugins`     | 额外的 ProseMirror 插件，排在内置插件之前                                 | `Plugin[]`               | —               |
-| `history`     | 使用内置的撤销记录，使用自己的撤销方案时关闭                              | `boolean`                | `true`          |
-| `undo`        | 替换撤销命令                                                              | `Command`                | —               |
-| `redo`        | 替换重做命令                                                              | `Command`                | —               |
+| 名称          | 说明                                                                                    | 类型                     | 默认值          |
+| ------------- | --------------------------------------------------------------------------------------- | ------------------------ | --------------- |
+| `modelValue`  | 文档内容，用 `v-model` 绑定                                                             | `PartialBlock[]`         | —               |
+| `readonly`    | 只读                                                                                    | `boolean`                | `false`         |
+| `searchable`  | 内置的查找面板（`Mod+F`），关闭后按键交还给浏览器，见[快捷操作](./shortcuts#查找和替换) | `boolean`                | `true`          |
+| `placeholder` | 光标所在空块里的提示文字                                                                | `string`                 | 跟随语言        |
+| `ariaLabel`   | 编辑区域的无障碍名称                                                                    | `string`                 | —               |
+| `autofocus`   | 挂载后获得焦点                                                                          | `boolean`                | `false`         |
+| `messages`    | 替换内置文字，只写要改的部分即可，例如 `{ types: { paragraph: '段落' } }`               | `EditorMessagesOverride` | —               |
+| `extensions`  | 使用的扩展，见[扩展](./extensions)，只在创建时读取                                      | `EditorExtension[]`      | `[editorKit()]` |
+| `plugins`     | 额外的 ProseMirror 插件，排在内置插件之前                                               | `Plugin[]`               | —               |
+| `history`     | 使用内置的撤销记录，使用自己的撤销方案时关闭                                            | `boolean`                | `true`          |
+| `undo`        | 替换撤销命令                                                                            | `Command`                | —               |
+| `redo`        | 替换重做命令                                                                            | `Command`                | —               |
 
 ### Events
 
@@ -97,18 +98,18 @@ function reset() {
 
 ### 实例方法
 
-| 名称          | 说明                                                                                            | 类型                                              |
-| ------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------- |
-| `view`        | ProseMirror 的 `EditorView`，挂载后可用                                                         | `EditorView \| null`                              |
-| `focus`       | 获得焦点                                                                                        | `() => void`                                      |
-| `blur`        | 失去焦点                                                                                        | `() => void`                                      |
-| `getBlocks`   | 读取当前文档                                                                                    | `() => Block[]`                                   |
-| `setBlocks`   | 替换整个文档，不进入撤销记录                                                                    | `(blocks: PartialBlock[]) => void`                |
-| `getHTML`     | 把当前文档写成 HTML，见[导入与导出](./import-export)                                            | `() => string`                                    |
-| `setHTML`     | 用 HTML 替换整个文档，不进入撤销记录                                                            | `(html: string) => void`                          |
-| `run`         | 执行一个 ProseMirror 命令，返回是否执行了                                                       | `(command: Command) => boolean`                   |
-| `openSearch`  | 打开查找面板，可以填好查询；带 `replace` 时同时打开替换框，见[快捷操作](./shortcuts#查找和替换) | `(query?: Partial<EditorSearchQuery>) => boolean` |
-| `closeSearch` | 关闭查找面板，没有打开时返回 `false`                                                            | `() => boolean`                                   |
+| 名称          | 说明                                                                                                                             | 类型                                              |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| `view`        | ProseMirror 的 `EditorView`，挂载后可用                                                                                          | `EditorView \| null`                              |
+| `focus`       | 获得焦点                                                                                                                         | `() => void`                                      |
+| `blur`        | 失去焦点                                                                                                                         | `() => void`                                      |
+| `getBlocks`   | 读取当前文档                                                                                                                     | `() => Block[]`                                   |
+| `setBlocks`   | 替换整个文档，不进入撤销记录                                                                                                     | `(blocks: PartialBlock[]) => void`                |
+| `getHTML`     | 把当前文档写成 HTML，见[导入与导出](./import-export)                                                                             | `() => string`                                    |
+| `setHTML`     | 用 HTML 替换整个文档，不进入撤销记录                                                                                             | `(html: string) => void`                          |
+| `run`         | 执行一个 ProseMirror 命令，返回是否执行了                                                                                        | `(command: Command) => boolean`                   |
+| `openSearch`  | 打开查找面板，可以填好查询；带 `replace` 时同时打开替换框，`searchable` 关闭时返回 `false`，见[快捷操作](./shortcuts#查找和替换) | `(query?: Partial<EditorSearchQuery>) => boolean` |
+| `closeSearch` | 关闭查找面板，没有打开时返回 `false`                                                                                             | `() => boolean`                                   |
 
 ### CSS 变量
 

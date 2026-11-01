@@ -34,7 +34,7 @@ const doc = ref<FlowDocument>({
   <DouFlowEditor ref="editor" v-model="doc" aria-label="门店收货流程">
     <DouFlowControls />
   </DouFlowEditor>
-  <DouButton style="align-self: flex-start" @click="editor?.openSearch('质检')"
+  <DouButton style="align-self: flex-start" @click="editor?.openSearch({ search: '质检' })"
     >查找“质检”</DouButton
   >
 </template>

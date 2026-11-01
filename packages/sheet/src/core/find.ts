@@ -1,5 +1,5 @@
 /** What to look for in the cells, and how. */
-export interface SheetFindQuery {
+export interface SheetSearchQuery {
   /** The text to find. */
   search: string
   /** What `replace` puts in place of each match. */
@@ -19,7 +19,7 @@ export interface SheetFindQuery {
 }
 
 /** A cell that matches, on the sheet with index `sheet`. */
-export interface SheetFound {
+export interface SheetMatch {
   sheet: number
   row: number
   col: number
@@ -31,7 +31,7 @@ const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&
  * Tells whether a cell's text matches the query; `null` when there is
  * nothing to look for.
  */
-export function cellMatcher(query: SheetFindQuery): ((text: string) => boolean) | null {
+export function cellMatcher(query: SheetSearchQuery): ((text: string) => boolean) | null {
   const { search } = query
   if (!search) return null
   if (query.caseSensitive)
@@ -46,7 +46,7 @@ export function cellMatcher(query: SheetFindQuery): ((text: string) => boolean) 
  * The text with every match of the query replaced; the text as it is when
  * nothing in it matches. With `wholeCell` the whole text is replaced.
  */
-export function replaceInText(text: string, query: SheetFindQuery): string {
+export function replaceInText(text: string, query: SheetSearchQuery): string {
   const test = cellMatcher(query)
   if (!test || !test(text)) return text
   const replace = query.replace ?? ''
@@ -57,11 +57,11 @@ export function replaceInText(text: string, query: SheetFindQuery): string {
 }
 
 /** Whether `a` comes before `b`: by sheet, then row, then column. */
-export const foundBefore = (a: SheetFound, b: SheetFound) =>
+export const foundBefore = (a: SheetMatch, b: SheetMatch) =>
   a.sheet !== b.sheet ? a.sheet < b.sheet : a.row !== b.row ? a.row < b.row : a.col < b.col
 
 /** The index of the first match at or after `at` (wrapping round to the first); `-1` for none. */
-export function foundFrom(list: readonly SheetFound[], at: SheetFound): number {
+export function foundFrom(list: readonly SheetMatch[], at: SheetMatch): number {
   if (!list.length) return -1
   let lo = 0
   let hi = list.length

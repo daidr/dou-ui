@@ -20,6 +20,8 @@ export interface EditorProps {
   extensions?: (EditorExtension | EditorExtension[])[]
   /** Show the document without editing it. Links stay clickable. */
   readonly?: boolean
+  /** The built-in find panel (`Ctrl/⌘+F`). Off, the keys are left to the browser. On by default. */
+  searchable?: boolean
   /** The hint in the empty block under the cursor. */
   placeholder?: string
   /** Replace any of the built-in texts. */
@@ -65,7 +67,8 @@ export interface EditorExpose {
   run: (command: Command) => boolean
   /**
    * Opens the find panel (`Ctrl/⌘+F`), with a query put in; with `replace`
-   * in it, the replace box opens too.
+   * in it, the replace box opens too. `false` when `searchable` is off or
+   * the editor is not mounted.
    */
   openSearch: (query?: Partial<EditorSearchQuery>) => boolean
   /** Closes the find panel; `false` when it was not open. */

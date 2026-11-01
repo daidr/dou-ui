@@ -59,6 +59,7 @@ app.use(DouFlowEditor)
 - 单指拖动空白处平移，双指捏合缩放。
 - 单指拖动节点移动它。
 - 长按空白处后拖动框选，长按节点把它加入选择。
+- 查找没有手势，需要时自己放一个按钮调用 `openSearch()`，见[查找节点](#查找节点)。
 
 ### 键盘
 
@@ -82,9 +83,13 @@ app.use(DouFlowEditor)
 
 ## 查找节点
 
-节点多的时候，按 `Ctrl` / `⌘` + `F` 在画布右上角打开查找框，按节点显示的名字查找（白板里是形状和便签上的文字）。找到的节点套上一圈底色，当前这一个会被选中并移到画布中央，缩放不变；`Enter` / `Shift` + `Enter` 或 `F3` / `Shift` + `F3` 在结果之间按阅读顺序前后移动，`Esc` 关闭。流程图只查找，没有替换。
+节点多的时候，按 `Ctrl` / `⌘` + `F` 在画布右上角打开查找框，按节点显示的名字查找（白板里是形状和便签上的文字）。右上角已有工具栏、控制条之类的面板时，查找框排在它们下面。找到的节点套上一圈底色，当前这一个会被选中并移到画布中央，缩放不变；`Enter` / `Shift` + `Enter` 或 `F3` / `Shift` + `F3` 在结果之间按阅读顺序前后移动，`Esc` 关闭。流程图只查找，没有替换。
 
-也可以用组件实例的 `openSearch(text?)` 打开查找框，`findNodes(text)` 只返回匹配的节点 id，可以自己决定怎么展示。
+其他编辑器的下一个结果还可以用 `Ctrl` / `⌘` + `G`，流程图里这个键已经用来分组，所以只有 `F3`。
+
+组件实例的 `openSearch({ search: '质检' })` 打开查找框并填好查询，触屏设备上没有快捷键，可以像下面的示例一样放一个按钮调用它；`closeSearch()` 关闭查找框。只要结果时用 `findNodes({ search })`，它只返回匹配的节点 id，可以自己决定怎么展示。查询的类型是 `FlowSearchQuery`（`search` 和 `caseSensitive`）。应用有自己的全局搜索时，把 `searchable` 设为 `false`，`Ctrl` / `⌘` + `F` 就留给页面。
+
+面板上的文字在 [ConfigProvider](../components/config-provider) 语言包的 `findReplace` 里。
 
 <DocDemo src="flow/find" column />
 
@@ -110,29 +115,30 @@ app.use(DouFlowEditor)
 
 ### FlowEditor 属性
 
-| 名称                    | 说明                                                                       | 类型                                     | 默认值                     |
-| ----------------------- | -------------------------------------------------------------------------- | ---------------------------------------- | -------------------------- |
-| `v-model`               | 文档数据                                                                   | `FlowDocument`                           | `{ nodes: [], edges: [] }` |
-| `v-model:selection`     | 选中的节点和连线                                                           | `FlowSelection`                          | `{ nodes: [], edges: [] }` |
-| `v-model:viewport`      | 画布的位置和缩放                                                           | `FlowViewport`                           | `{ x: 0, y: 0, zoom: 1 }`  |
-| `extensions`            | 扩展，见[扩展](./extensions)                                               | `(FlowExtension \| FlowExtension[])[]`   | `[flowKit()]`              |
-| `node-types`            | 节点类型，见[自定义节点](./custom-nodes)                                   | `NodeTypeSpec[]`                         | —                          |
-| `grid`                  | 吸附网格和方向键的步长，`0` 关闭网格吸附                                   | `number`                                 | `8`                        |
-| `guides`                | 拖动时与其他节点对齐、端口吸附                                             | `boolean`                                | `true`                     |
-| `min-zoom` / `max-zoom` | 缩放范围                                                                   | `number`                                 | `0.1` / `4`                |
-| `direction`             | 流程的方向，“整理”按它排列：`horizontal` 从左到右，`vertical` 从上到下     | `'horizontal' \| 'vertical'`             | `'horizontal'`             |
-| `fit-view`              | 节点测量完成后缩放到能看到全部节点                                         | `boolean`                                | `false`                    |
-| `fit-min-zoom`          | `fit-view` 最多缩小到多少，`0` 表示总是显示全部                            | `number`                                 | `0.5`                      |
-| `edge-type`             | 没写 `type` 的连线用哪种画法，不设时用扩展的 `edgeType`，见[连线](./edges) | `string`                                 | —                          |
-| `edge-types`            | 扩展之外的连线类型                                                         | `EdgeTypeSpec[]`                         | —                          |
-| `simple-zoom`           | 低于这个缩放比例时只画节点的外框和名字，见[大型流程](./performance)        | `number`                                 | `0.4`                      |
-| `port-types`            | 端口类型的外观和连接规则，见[端口类型与连接规则](./ports)                  | `PortTypes`                              | —                          |
-| `acyclic`               | 不允许连出环                                                               | `boolean`                                | `false`                    |
-| `can-connect`           | 连线前的最后一道检查，返回 `false` 或一段说明拒绝                          | `(connection, doc) => boolean \| string` | —                          |
-| `readonly`              | 只读                                                                       | `boolean`                                | `false`                    |
-| `pan-on-scroll`         | 滚轮平移画布；关闭后只有 `Ctrl` / `⌘` + 滚轮缩放                           | `boolean`                                | `true`                     |
-| `aria-label`            | 画布的无障碍名称                                                           | `string`                                 | —                          |
-| `messages`              | 覆盖编辑器的文案，只需写要改的部分                                         | `FlowMessagesOverride`                   | —                          |
+| 名称                    | 说明                                                                            | 类型                                     | 默认值                     |
+| ----------------------- | ------------------------------------------------------------------------------- | ---------------------------------------- | -------------------------- |
+| `v-model`               | 文档数据                                                                        | `FlowDocument`                           | `{ nodes: [], edges: [] }` |
+| `v-model:selection`     | 选中的节点和连线                                                                | `FlowSelection`                          | `{ nodes: [], edges: [] }` |
+| `v-model:viewport`      | 画布的位置和缩放                                                                | `FlowViewport`                           | `{ x: 0, y: 0, zoom: 1 }`  |
+| `extensions`            | 扩展，见[扩展](./extensions)                                                    | `(FlowExtension \| FlowExtension[])[]`   | `[flowKit()]`              |
+| `node-types`            | 节点类型，见[自定义节点](./custom-nodes)                                        | `NodeTypeSpec[]`                         | —                          |
+| `grid`                  | 吸附网格和方向键的步长，`0` 关闭网格吸附                                        | `number`                                 | `8`                        |
+| `guides`                | 拖动时与其他节点对齐、端口吸附                                                  | `boolean`                                | `true`                     |
+| `min-zoom` / `max-zoom` | 缩放范围                                                                        | `number`                                 | `0.1` / `4`                |
+| `direction`             | 流程的方向，“整理”按它排列：`horizontal` 从左到右，`vertical` 从上到下          | `'horizontal' \| 'vertical'`             | `'horizontal'`             |
+| `fit-view`              | 节点测量完成后缩放到能看到全部节点                                              | `boolean`                                | `false`                    |
+| `fit-min-zoom`          | `fit-view` 最多缩小到多少，`0` 表示总是显示全部                                 | `number`                                 | `0.5`                      |
+| `edge-type`             | 没写 `type` 的连线用哪种画法，不设时用扩展的 `edgeType`，见[连线](./edges)      | `string`                                 | —                          |
+| `edge-types`            | 扩展之外的连线类型                                                              | `EdgeTypeSpec[]`                         | —                          |
+| `simple-zoom`           | 低于这个缩放比例时只画节点的外框和名字，见[大型流程](./performance)             | `number`                                 | `0.4`                      |
+| `port-types`            | 端口类型的外观和连接规则，见[端口类型与连接规则](./ports)                       | `PortTypes`                              | —                          |
+| `acyclic`               | 不允许连出环                                                                    | `boolean`                                | `false`                    |
+| `can-connect`           | 连线前的最后一道检查，返回 `false` 或一段说明拒绝                               | `(connection, doc) => boolean \| string` | —                          |
+| `readonly`              | 只读                                                                            | `boolean`                                | `false`                    |
+| `searchable`            | 内置的查找框（`Ctrl` / `⌘` + `F`），关闭后按键留给页面，见[查找节点](#查找节点) | `boolean`                                | `true`                     |
+| `pan-on-scroll`         | 滚轮平移画布；关闭后只有 `Ctrl` / `⌘` + 滚轮缩放                                | `boolean`                                | `true`                     |
+| `aria-label`            | 画布的无障碍名称                                                                | `string`                                 | —                          |
+| `messages`              | 覆盖编辑器的文案，只需写要改的部分                                              | `FlowMessagesOverride`                   | —                          |
 
 ### FlowEditor 事件
 
@@ -147,28 +153,28 @@ app.use(DouFlowEditor)
 
 ### FlowEditor 方法
 
-| 名称                                        | 说明                                                                           | 类型                                                                  |
-| ------------------------------------------- | ------------------------------------------------------------------------------ | --------------------------------------------------------------------- |
-| `transact`                                  | 在一个事务里修改文档，算作一步撤销                                             | `(fn: (tr) => void, meta?) => FlowTransaction`                        |
-| `undo` / `redo`                             | 撤销、重做                                                                     | `() => boolean`                                                       |
-| `canUndo` / `canRedo`                       | 能否撤销、重做                                                                 | `boolean`                                                             |
-| `fit`                                       | 显示全部节点，或指定的节点                                                     | `(ids?: string[]) => void`                                            |
-| `zoomTo` / `zoomIn` / `zoomOut`             | 缩放                                                                           | —                                                                     |
-| `centerNode`                                | 把节点移到画布中央，不改变缩放                                                 | `(id: string) => void`                                                |
-| `openSearch`                                | 打开查找框，可以填好查找的文字                                                 | `(search?: string) => boolean`                                        |
-| `closeSearch`                               | 关闭查找框，没有打开时返回 `false`                                             | `() => boolean`                                                       |
-| `findNodes`                                 | 名字包含这段文字的节点 id，按阅读顺序                                          | `(search: string, options?: { caseSensitive?: boolean }) => string[]` |
-| `setViewport`                               | 移动视图，和用户平移一样最远到节点刚好移出视野；`animate` 为 `true` 时动画过渡 | `(viewport: FlowViewport, animate?: boolean) => void`                 |
-| `tidy`                                      | 整理节点，默认整理选中的（两个以上时）或全部，算作一步撤销                     | `(ids?: string[]) => void`                                            |
-| `toCanvas`                                  | 屏幕坐标转画布坐标                                                             | `(point: Point) => Point`                                             |
-| `getNodeRect`                               | 节点在画布上的位置和尺寸                                                       | `(id: string) => Rect \| null`                                        |
-| `exportSVG` / `exportPNG`                   | 把流程导出成 SVG 文本或 PNG，见[导出图片](./export)                            | —                                                                     |
-| `staleEdges`                                | 端口已经对不上的连线，见[端口类型随数据变化](./ports#端口类型随数据变化)       | `string[]`                                                            |
-| `removeStaleEdges`                          | 删除这些连线，算作一步撤销，返回删除的条数                                     | `() => number`                                                        |
-| `insertNode`                                | 新建一个节点并选中，见[用代码添加节点](./editing#用代码添加节点)               | `(type, options?) => string \| null`                                  |
-| `startInsertDrag`                           | 从一次 `pointerdown` 开始拖入新节点，见[拖入节点](./editing#拖入节点)          | `(type, event) => boolean`                                            |
-| `editLabel`                                 | 选中一条连线并开始编辑它的标签，见[标签](./edges#标签)                         | `(id: string) => void`                                                |
-| `groupNodes` / `ungroupNode` / `leaveGroup` | 放进分组、取消分组、移出分组，见[分组](./groups#方法)                          | —                                                                     |
+| 名称                                        | 说明                                                                           | 类型                                                  |
+| ------------------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------- |
+| `transact`                                  | 在一个事务里修改文档，算作一步撤销                                             | `(fn: (tr) => void, meta?) => FlowTransaction`        |
+| `undo` / `redo`                             | 撤销、重做                                                                     | `() => boolean`                                       |
+| `canUndo` / `canRedo`                       | 能否撤销、重做                                                                 | `boolean`                                             |
+| `fit`                                       | 显示全部节点，或指定的节点                                                     | `(ids?: string[]) => void`                            |
+| `zoomTo` / `zoomIn` / `zoomOut`             | 缩放                                                                           | —                                                     |
+| `centerNode`                                | 把节点移到画布中央，不改变缩放                                                 | `(id: string) => void`                                |
+| `openSearch`                                | 打开查找框，可以填好查询；`searchable` 关闭时返回 `false`                      | `(query?: Partial<FlowSearchQuery>) => boolean`       |
+| `closeSearch`                               | 关闭查找框，没有打开时返回 `false`                                             | `() => boolean`                                       |
+| `findNodes`                                 | 名字包含查找文字的节点 id，按阅读顺序                                          | `(query: FlowSearchQuery) => string[]`                |
+| `setViewport`                               | 移动视图，和用户平移一样最远到节点刚好移出视野；`animate` 为 `true` 时动画过渡 | `(viewport: FlowViewport, animate?: boolean) => void` |
+| `tidy`                                      | 整理节点，默认整理选中的（两个以上时）或全部，算作一步撤销                     | `(ids?: string[]) => void`                            |
+| `toCanvas`                                  | 屏幕坐标转画布坐标                                                             | `(point: Point) => Point`                             |
+| `getNodeRect`                               | 节点在画布上的位置和尺寸                                                       | `(id: string) => Rect \| null`                        |
+| `exportSVG` / `exportPNG`                   | 把流程导出成 SVG 文本或 PNG，见[导出图片](./export)                            | —                                                     |
+| `staleEdges`                                | 端口已经对不上的连线，见[端口类型随数据变化](./ports#端口类型随数据变化)       | `string[]`                                            |
+| `removeStaleEdges`                          | 删除这些连线，算作一步撤销，返回删除的条数                                     | `() => number`                                        |
+| `insertNode`                                | 新建一个节点并选中，见[用代码添加节点](./editing#用代码添加节点)               | `(type, options?) => string \| null`                  |
+| `startInsertDrag`                           | 从一次 `pointerdown` 开始拖入新节点，见[拖入节点](./editing#拖入节点)          | `(type, event) => boolean`                            |
+| `editLabel`                                 | 选中一条连线并开始编辑它的标签，见[标签](./edges#标签)                         | `(id: string) => void`                                |
+| `groupNodes` / `ungroupNode` / `leaveGroup` | 放进分组、取消分组、移出分组，见[分组](./groups#方法)                          | —                                                     |
 
 ### FlowControls 属性
 

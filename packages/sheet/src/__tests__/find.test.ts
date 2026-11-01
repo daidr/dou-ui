@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import {
   defineSheetExtension,
@@ -213,7 +213,7 @@ describe('the find panel', () => {
     // the price became a number again; the subtotals are formulas and stay
     expect(cells()[4]![1]).toBe(40)
     expect(cells()[1]![3]).toBe('=B2*C2')
-    expect(wrapper.find('.dou-sheet__notice').text()).toContain('另有 2 处')
+    expect(wrapper.find('.dou-sheet__notice').text()).toContain('2 处是公式的结果')
     await toggle('查找公式')
     await type(0, 'C')
     await type(1, 'D')
@@ -222,6 +222,66 @@ describe('the find panel', () => {
       ctrlKey: true,
     })
     expect(cells()[1]![3]).toBe('=B2*D2')
+    wrapper.unmount()
+  })
+
+  it('replaces in the text a number format shows, keeping the format', async () => {
+    const { wrapper, doc, grid, type, cells } = setup()
+    doc.value.sheets[0]!.cells[1]![1] = { value: 12, format: '¥#,##0.00' }
+    doc.value.sheets[0]!.cells[3]![1] = { value: 15, format: '¥#,##0.00' }
+    await nextTick()
+    await grid().trigger('keydown', { key: 'h', ctrlKey: true })
+    await type(0, '¥1')
+    await type(1, '$1')
+    await wrapper.findAll('.dou-find-replace__input')[1]!.trigger('keydown', {
+      key: 'Enter',
+      ctrlKey: true,
+    })
+    // “$12.00” doesn't read back as a number, so the cells stay, and the notice says why
+    expect(cells()[1]![1]).toEqual({ value: 12, format: '¥#,##0.00' })
+    expect(wrapper.find('.dou-sheet__notice').text()).toContain('2 处查到的文字只在显示格式里')
+    await type(0, '12.00')
+    await type(1, '13.00')
+    await wrapper.findAll('.dou-find-replace__input')[1]!.trigger('keydown', {
+      key: 'Enter',
+      ctrlKey: true,
+    })
+    expect(cells()[1]![1]).toEqual({ value: 13, format: '¥#,##0.00' })
+    expect(cells()[3]![1]).toEqual({ value: 15, format: '¥#,##0.00' })
+    wrapper.unmount()
+  })
+
+  it('waits for a pause in typing before searching a big workbook', async () => {
+    vi.useFakeTimers()
+    try {
+      const { wrapper, doc, grid, status, type } = setup()
+      doc.value.sheets[0]!.cells = Array.from({ length: 2000 }, (_, row) =>
+        Array.from({ length: 12 }, (__, col) => (row === 1500 && col === 3 ? '上海' : row * col)),
+      )
+      doc.value.sheets[0]!.rowCount = 2000
+      doc.value.sheets[0]!.colCount = 12
+      await nextTick()
+      await grid().trigger('keydown', { key: 'f', ctrlKey: true })
+      await type(0, '上海')
+      expect(status()).toBe('')
+      vi.advanceTimersByTime(200)
+      await nextTick()
+      expect(status()).toBe('1/1')
+      wrapper.unmount()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('opens and closes from code', async () => {
+    const { wrapper, sheet, panel, inputs } = setup()
+    expect(sheet().openSearch({ search: '白板', replace: '黑板' })).toBe(true)
+    await nextTick()
+    expect(inputs().map((i) => i.element.value)).toEqual(['白板', '黑板'])
+    expect(sheet().closeSearch()).toBe(true)
+    await nextTick()
+    expect(panel().exists()).toBe(false)
+    expect(sheet().closeSearch()).toBe(false)
     wrapper.unmount()
   })
 

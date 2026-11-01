@@ -46,6 +46,7 @@ const props = withDefaults(defineProps<EditorProps>(), {
   modelValue: undefined,
   extensions: undefined,
   readonly: false,
+  searchable: true,
   placeholder: undefined,
   messages: undefined,
   ariaLabel: undefined,
@@ -111,7 +112,7 @@ const searchSkip = (node: { type: { name: string } }) => node.type.name in kit.c
 /** Opens the panel, with the replace box for `replace`. A selection on one line becomes the search. */
 function openSearch(replace = false, given?: Partial<EditorSearchQuery>) {
   const v = view.value
-  if (!v) return false
+  if (!v || !props.searchable) return false
   const old = searchKey.getState(v.state)?.query ?? { search: '' }
   const query = { ...old, ...given }
   const { from, to, empty } = v.state.selection
@@ -141,8 +142,7 @@ function closeSearch() {
 function findAgain(step: 1 | -1) {
   if (!searchOpen.value) {
     const v = view.value
-    if (!v || !searchKey.getState(v.state)?.query.search) return false
-    openSearch()
+    if (!v || !searchKey.getState(v.state)?.query.search || !openSearch()) return false
   }
   void nextTick(() => (step > 0 ? searchBar.value?.next() : searchBar.value?.previous()))
   return true

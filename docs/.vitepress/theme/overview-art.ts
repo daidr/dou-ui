@@ -1094,9 +1094,9 @@ const arts: Record<string, string | ((id: string) => string)> = {
     bar(74, 86, 20, 'w') +
     bar(102, 86, 30) +
     bar(36, 100, 56) +
-    rect(52, 12, 128, 30, 'p f', 6) +
+    rect(52, 12, 128, 30, 'p f', 9) +
     icon('chevron-right', 63, 27, 12, 'ico-3') +
-    rect(72, 18, 54, 18, 'p', 5) +
+    rect(72, 18, 54, 18, 'p', 3) +
     bar(78, 25, 22, 'k') +
     bar(131, 25, 10, 't') +
     icon('chevron-up', 151, 27, 11) +

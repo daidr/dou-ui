@@ -107,4 +107,14 @@ describe('the find panel', () => {
     expect(editor().closeSearch()).toBe(true)
     wrapper.unmount()
   })
+
+  it('leaves the keys to the browser when searchable is off', async () => {
+    const { wrapper, editor, key } = setup({ searchable: false })
+    await nextTick()
+    expect(key({ key: 'f', ctrlKey: true })).toBe(true)
+    expect(editor().openSearch({ search: '白板' })).toBe(false)
+    await nextTick()
+    expect(wrapper.find('.dou-find-replace').exists()).toBe(false)
+    wrapper.unmount()
+  })
 })

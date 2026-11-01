@@ -18,13 +18,18 @@
     max-width: 100%;
     padding: 4px;
     border: 1px solid var(--dou-color-border);
-    border-radius: var(--dou-radius-control);
+    /* concentric with the boxes inside, 4px padding and the 1px border in */
+    border-radius: calc(var(--dou-radius-control) + 5px);
     background-color: var(--dou-color-bg-surface);
     box-shadow: var(--dou-shadow-md);
     color: var(--dou-color-text);
     font-family: var(--dou-font-family);
     font-size: var(--dou-font-size-sm);
     line-height: normal;
+  }
+  /* the buttons keep their size; the boxes give way in a narrow panel */
+  .dou-find-replace .dou-button {
+    flex: none;
   }
   .dou-find-replace__rows {
     display: flex;
@@ -58,11 +63,10 @@
     &.is-invalid {
       border-color: var(--dou-color-danger);
     }
+    /* square, 3px in from the box's edges; an icon-only button is as wide as it is high */
     .dou-toggle {
+      --dou-button-height: calc(var(--dou-control-height-sm) - 6px);
       flex: none;
-      width: calc(var(--dou-control-height-sm) - 6px);
-      height: calc(var(--dou-control-height-sm) - 6px);
-      padding: 0;
     }
   }
   .dou-find-replace__input {
@@ -94,18 +98,19 @@
       color: var(--dou-color-text-tertiary);
     }
   }
-  /* fingers get 36px targets, like the other toolbars */
+  /*
+   * fingers get 40px targets: the buttons grow to 40px, and the toggles,
+   * 34px to fit in the 40px box, take taps from 40px around as icon buttons do
+   */
   @media (pointer: coarse) {
     .dou-find-replace .dou-find-replace__field {
       height: 40px;
       .dou-toggle {
-        width: 34px;
-        height: 34px;
+        --dou-button-height: 34px;
       }
     }
-    .dou-find-replace .dou-button {
-      min-width: 36px;
-      min-height: 36px;
+    .dou-find-replace .dou-button:not(.dou-toggle) {
+      --dou-button-height: 40px;
     }
   }
   @container (max-width: 480px) {

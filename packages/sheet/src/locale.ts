@@ -191,8 +191,15 @@ export interface SheetMessages {
     formulas: string
     /** Look in every sheet, not only the one shown. */
     workbook: string
-    /** Added after “replaced” when some matches were left: `{count}`. */
-    skipped: string
+    /** Added after “replaced” for matches in a formula's result, left as they are: `{count}`. */
+    skippedFormula: string
+    /** Added after “replaced” for matches whose new value breaks a validation rule: `{count}`. */
+    skippedInvalid: string
+    /**
+     * Added after “replaced” for matches only in the text a number format
+     * shows, such as a currency sign, which no typed value gives: `{count}`.
+     */
+    skippedShown: string
   }
   /** Files in and out: the export and import menus, and what is read out after. */
   file: SheetFileMessages
@@ -543,7 +550,9 @@ const zhCN: SheetMessages = {
     wholeCell: '单元格完全匹配',
     formulas: '查找公式',
     workbook: '所有工作表',
-    skipped: '，另有 {count} 处是公式的结果或不符合数据验证，没有替换',
+    skippedFormula: '；{count} 处是公式的结果，没有替换（打开“查找公式”可以替换公式）',
+    skippedInvalid: '；{count} 处替换后不符合数据验证，没有替换',
+    skippedShown: '；{count} 处查到的文字只在显示格式里，没有替换',
   },
   file: {
     export: '导出',
@@ -907,7 +916,9 @@ const zhTW: SheetMessages = {
     wholeCell: '儲存格完全相符',
     formulas: '尋找公式',
     workbook: '所有工作表',
-    skipped: '，另有 {count} 處是公式的結果或不符合資料驗證，沒有取代',
+    skippedFormula: '；{count} 處是公式的結果，沒有取代（開啟「尋找公式」可以取代公式）',
+    skippedInvalid: '；{count} 處取代後不符合資料驗證，沒有取代',
+    skippedShown: '；{count} 處找到的文字只在顯示格式裡，沒有取代',
   },
   file: {
     export: '匯出',
@@ -1278,7 +1289,10 @@ const en: SheetMessages = {
     wholeCell: 'Match entire cell',
     formulas: 'Look in formulas',
     workbook: 'All sheets',
-    skipped: '; {count} more are formula results or break a validation rule and were left',
+    skippedFormula:
+      '; {count} are formula results and were left (turn on “Look in formulas” to replace formulas)',
+    skippedInvalid: '; {count} would break a validation rule and were left',
+    skippedShown: '; {count} match only text the number format shows and were left',
   },
   file: {
     export: 'Export',

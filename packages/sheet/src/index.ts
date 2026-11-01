@@ -163,7 +163,7 @@ export { changeDecimals, formatValue, parseInput } from './core/format'
 export type { SheetInput } from './core/format'
 export { isSelected, selectCell } from './core/selection'
 export type { SheetSelection } from './core/selection'
-export type { SheetFindQuery, SheetFound } from './core/find'
+export type { SheetSearchQuery, SheetMatch } from './core/find'
 export { applySheetSteps, compactSheetSteps, sheetKey, SheetTransaction } from './core/transaction'
 export type {
   SheetAction,

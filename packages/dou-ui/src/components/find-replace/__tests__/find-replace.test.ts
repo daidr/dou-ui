@@ -33,7 +33,7 @@ describe('DouFindReplace', () => {
     await replace!.trigger('keydown', { key: 'Enter', ctrlKey: true })
     await wrapper.trigger('keydown', { key: 'Escape' })
     expect(Object.keys(wrapper.emitted())).toEqual(
-      expect.arrayContaining(['next', 'previous', 'replace', 'replaceAll', 'close']),
+      expect.arrayContaining(['next', 'previous', 'replaceOne', 'replaceAll', 'close']),
     )
     await find!.setValue('b')
     expect(wrapper.emitted('update:search')![0]).toEqual(['b'])

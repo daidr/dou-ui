@@ -8,13 +8,13 @@ import {
   ReplaceIcon,
 } from '@dou-ui/icons'
 import { computed, nextTick, ref } from 'vue'
-import { isApplePlatform } from '../../composables/use-hotkey'
+import { isApplePlatform, useApplePlatform } from '../../composables/use-hotkey'
 import { isComposing } from '../../utils/keyboard'
 import { useNamespace } from '../../utils/namespace'
 import { DouButton } from '../button'
 import { useLocale } from '../config-provider/use-config'
 import { DouTooltip } from '../tooltip'
-import type { FindReplaceProps } from './find-replace'
+import type { FindReplaceExpose, FindReplaceProps, FindReplaceSlots } from './find-replace'
 
 defineOptions({ name: 'DouFindReplace' })
 
@@ -22,20 +22,18 @@ const props = withDefaults(defineProps<FindReplaceProps>(), {
   count: 0,
   current: -1,
   capped: false,
+  searching: false,
   error: undefined,
   readonly: false,
 })
 const emit = defineEmits<{
   next: []
   previous: []
-  replace: []
+  replaceOne: []
   replaceAll: []
   close: []
 }>()
-defineSlots<{
-  /** Toggles inside the find box, such as “match case”; use `DouToggle` with `size="sm"`. */
-  options?: () => unknown
-}>()
+defineSlots<FindReplaceSlots>()
 
 /** The text to find. */
 const search = defineModel<string>('search', { default: '' })
@@ -46,16 +44,17 @@ const replacing = defineModel<boolean>('replacing', { default: false })
 
 const ns = useNamespace('find-replace')
 const { t } = useLocale()
-const apple = isApplePlatform()
+// known after mounting, so the server-rendered hint matches the first client render
+const apple = useApplePlatform()
 /** The key that shows the replace box; ⌘H hides the app on Apple platforms. */
-const replaceKey = apple ? 'mod+alt+f' : 'mod+h'
+const replaceKey = computed(() => (apple.value ? 'mod+alt+f' : 'mod+h'))
 
 const findInput = ref<HTMLInputElement>()
 const replaceInput = ref<HTMLInputElement>()
 
 const status = computed(() => {
   if (props.error) return props.error
-  if (!search.value) return ''
+  if (!search.value || props.searching) return ''
   if (!props.count) return t('findReplace.noMatches')
   if (props.capped) return t('findReplace.matchMany', { count: props.count })
   if (props.current >= 0)
@@ -76,15 +75,16 @@ function onReplaceKeydown(event: KeyboardEvent) {
   if (isComposing(event)) return
   if (event.key === 'Enter') {
     event.preventDefault()
-    if (apple ? event.metaKey : event.ctrlKey) emit('replaceAll')
-    else emit('replace')
+    if (isApplePlatform() ? event.metaKey : event.ctrlKey) emit('replaceAll')
+    else emit('replaceOne')
   }
 }
 
 /** Keys anywhere in the panel, its buttons included: Esc closes, the find keys move between the boxes. */
 function onKeydown(event: KeyboardEvent) {
   if (isComposing(event)) return
-  const mod = apple ? event.metaKey : event.ctrlKey
+  const mac = isApplePlatform()
+  const mod = mac ? event.metaKey : event.ctrlKey
   const key = event.key.toLowerCase()
   if (event.key === 'Escape') {
     event.preventDefault()
@@ -93,7 +93,7 @@ function onKeydown(event: KeyboardEvent) {
   } else if (
     !props.readonly &&
     ((mod && !event.altKey && key === 'h') ||
-      (apple && event.metaKey && event.altKey && event.code === 'KeyF'))
+      (mac && event.metaKey && event.altKey && event.code === 'KeyF'))
   ) {
     event.preventDefault()
     event.stopPropagation()
@@ -115,10 +115,7 @@ function focus(which: 'find' | 'replace' = 'find') {
   })
 }
 
-defineExpose({
-  /** Puts the focus in the find box, or the replace box, with its text selected. */
-  focus,
-})
+defineExpose<FindReplaceExpose>({ focus })
 </script>
 
 <template>
@@ -211,7 +208,7 @@ defineExpose({
             size="sm"
             :disabled="!count"
             :aria-label="t('findReplace.replaceOne')"
-            @click="emit('replace')"
+            @click="emit('replaceOne')"
           >
             <ReplaceIcon />
           </DouButton>

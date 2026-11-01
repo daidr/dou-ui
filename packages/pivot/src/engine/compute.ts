@@ -137,7 +137,7 @@ export function resolveConfig(
       ? undefined
       : (options.aggregators?.[name] ?? BUILTIN_AGGREGATORS[name])
     if (!FAST_AGGREGATES.has(name) && !aggregator) {
-      throw new Error(`[DouPivot] 没有名为 "${name}" 的汇总方式`)
+      throw new Error(`[@dou-ui/pivot] 没有名为 "${name}" 的汇总方式`)
     }
     return {
       field,

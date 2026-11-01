@@ -98,7 +98,7 @@ describe('DouGridLayout', () => {
     const { wrapper, items } = setup()
     const onChange = vi.fn<(...args: any[]) => void>()
     const onStart = vi.fn<(...args: any[]) => void>()
-    await wrapper.setProps({ onChange, 'onDrag-start': onStart })
+    await wrapper.setProps({ onChange, onDragStart: onStart })
     const a = itemEl(wrapper, 'a').element
     pointer('pointerdown', a, 10, 10)
     pointer('pointermove', window, 12, 11)
@@ -131,7 +131,7 @@ describe('DouGridLayout', () => {
   it('cancels a drag with Escape', async () => {
     const { wrapper, items } = setup()
     const onEnd = vi.fn<(...args: any[]) => void>()
-    await wrapper.setProps({ 'onDrag-end': onEnd })
+    await wrapper.setProps({ onDragEnd: onEnd })
     const a = itemEl(wrapper, 'a').element
     pointer('pointerdown', a, 10, 10)
     pointer('pointermove', window, 490, 10)
@@ -159,7 +159,7 @@ describe('DouGridLayout', () => {
     const onStart = vi.fn<(...args: any[]) => void>()
     const wrapper = mount(DouGridLayout, {
       attachTo: document.body,
-      props: { modelValue: items.value, editable: true, handle: true, 'onDrag-start': onStart },
+      props: { modelValue: items.value, editable: true, handle: true, onDragStart: onStart },
       slots: {
         item: ({ item }: { item: GridItem }) =>
           h('div', { class: 'card' }, [h(DouGridLayoutHandle, { class: 'title' }, () => item.id)]),
@@ -182,7 +182,7 @@ describe('DouGridLayout', () => {
     const onStart = vi.fn<(...args: any[]) => void>()
     const wrapper = mount(DouGridLayout, {
       attachTo: document.body,
-      props: { modelValue: start(), editable: true, 'onDrag-start': onStart },
+      props: { modelValue: start(), editable: true, onDragStart: onStart },
       slots: { item: () => h('div', [h('span', { class: 'out', 'data-dou-nodrag': '' }, 'x')]) },
     })
     pointer('pointerdown', wrapper.get('[data-grid-id="a"] .out').element, 10, 10)

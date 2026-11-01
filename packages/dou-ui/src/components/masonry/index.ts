@@ -1,3 +1,4 @@
+import type { MasonryProps } from './masonry'
 import { withInstall } from '../../utils/install'
 import Masonry from './masonry.vue'
 
@@ -10,5 +11,11 @@ export { placeItems } from './masonry'
 declare module 'vue' {
   export interface GlobalComponents {
     DouMasonry: typeof DouMasonry
+  }
+}
+
+declare module '../config-provider/config-provider' {
+  export interface GenericComponentProps {
+    DouMasonry: MasonryProps
   }
 }

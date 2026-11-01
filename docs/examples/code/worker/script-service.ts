@@ -8,7 +8,7 @@ const api: Record<string, { params: string; info: string }> = {
 }
 const keywords = ['const', 'let', 'return', 'if', 'else', 'for', 'of', 'function']
 
-type ServiceRequest =
+type WorkerRequest =
   | { id: number; type: 'complete'; text: string; pos: number }
   | { id: number; type: 'lint'; text: string }
 
@@ -53,7 +53,7 @@ function lint(text: string) {
   return out
 }
 
-self.addEventListener('message', (event: MessageEvent<ServiceRequest>) => {
+self.addEventListener('message', (event: MessageEvent<WorkerRequest>) => {
   const request = event.data
   const result =
     request.type === 'complete' ? complete(request.text, request.pos) : lint(request.text)

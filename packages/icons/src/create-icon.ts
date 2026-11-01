@@ -1,5 +1,5 @@
 import { defineComponent, h } from 'vue'
-import type { PropType } from 'vue'
+import type { PropType, SVGAttributes } from 'vue'
 import type { IconNode } from './types'
 
 const pascal = (name: string) =>
@@ -23,7 +23,11 @@ const DOT_STROKE = 'calc(var(--dou-icons-stroke) * 1.5)'
  * Turn drawn shapes on the 24 × 24 grid into a Vue component. Every icon in
  * the set is made with this, and so can your own.
  */
-export function createIcon(name: string, node: IconNode) {
+export function createIcon(name: string, node: IconNode): IconComponent {
+  return defineIcon(name, node) as IconComponent
+}
+
+function defineIcon(name: string, node: IconNode) {
   return defineComponent({
     name: `${pascal(name)}Icon`,
     props: {
@@ -78,4 +82,33 @@ export function createIcon(name: string, node: IconNode) {
   })
 }
 
-export type IconComponent = ReturnType<typeof createIcon>
+type IconInstance = InstanceType<ReturnType<typeof defineIcon>>
+
+/**
+ * 图标组件。根元素就是 `<svg>`，所以模板里也能写 `id`、`role`、`focusable`、`@click` 等 SVG 属性和事件；
+ * 与 `size`、`strokeWidth`、`label` 同名的以图标的 prop 为准。
+ */
+export type IconComponent = {
+  new (...args: any[]): IconInstance & {
+    $props: Omit<SVGAttributes, keyof IconInstance['$props']>
+  }
+} & ReturnType<typeof defineIcon>
+
+/**
+ * 图标上可以写的 `data-*`。模板类型检查会把 `data-foo` 转成 `dataFoo`，两种都接受。
+ * 驼峰的一种只用一条 `data${Capitalize<string>}`：拆成按首字母的几十条能拦住裸写的 `data`，
+ * 但每个属性都要逐条比较，使用者的类型检查会慢上一截，不值得。
+ */
+interface IconDataAttributes {
+  [key: `data-${string}`]: unknown
+  [key: `data${Capitalize<string>}`]: unknown
+}
+
+// 单独使用图标时也要能写 aria-* 与 data-*（例如 `<SearchIcon aria-hidden="true" />`），
+// 否则开启 checkUnknownProps 后会报错。与 dou-ui 里的同名声明合并，两边内容一致。
+declare module 'vue' {
+  interface AriaAttributes {
+    'aria-description'?: string
+  }
+  interface AllowedComponentProps extends AriaAttributes, IconDataAttributes {}
+}

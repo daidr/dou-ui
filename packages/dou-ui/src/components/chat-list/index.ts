@@ -1,3 +1,4 @@
+import type { ChatListProps } from './chat-list'
 import { withInstall } from '../../utils/install'
 import ChatList from './chat-list.vue'
 import type { ChatListExpose } from './chat-list'
@@ -12,5 +13,11 @@ export type ChatListInstance = ChatListExpose
 declare module 'vue' {
   export interface GlobalComponents {
     DouChatList: typeof DouChatList
+  }
+}
+
+declare module '../config-provider/config-provider' {
+  export interface GenericComponentProps {
+    DouChatList: ChatListProps
   }
 }

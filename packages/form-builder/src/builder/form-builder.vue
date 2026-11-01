@@ -27,7 +27,9 @@ import { resolveFormBuilderExtensions } from './extension'
 import FormBuilderJson from './json-dialog.vue'
 import FormBuilderPreview from './preview.vue'
 import { useFormBuilderMessages } from './locale'
-import { FormBuilderCanvas } from './canvas'
+import { FormBuilderCanvas as FormBuilderCanvasComponent } from './canvas'
+import type { HTMLAttributes } from 'vue'
+import type { WithAttributes } from 'dou-ui'
 import FormBuilderInspector from './inspector.vue'
 import FormBuilderOutline from './outline.vue'
 import FormBuilderPalette from './palette.vue'
@@ -37,6 +39,12 @@ import type {
   FormBuilderProps,
   FormBuilderSlots,
 } from './types'
+
+// 让模板里也能写这个组件转交的原生属性
+const FormBuilderCanvas = FormBuilderCanvasComponent as WithAttributes<
+  typeof FormBuilderCanvasComponent,
+  HTMLAttributes
+>
 
 defineOptions({ name: 'DouFormBuilder' })
 

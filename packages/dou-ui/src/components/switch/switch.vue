@@ -1,4 +1,5 @@
 <script setup lang="ts" generic="T extends SwitchValue = boolean">
+import type { ButtonAttributes, ForwardedAttributes } from '../../utils/install'
 import { computed, ref, useAttrs, useId, watch } from 'vue'
 import type { Ref, StyleValue } from 'vue'
 import { useNamespace } from '../../utils/namespace'
@@ -7,10 +8,21 @@ import type { SwitchEmits, SwitchProps, SwitchSlots, SwitchValue } from './switc
 
 defineOptions({ name: 'DouSwitch', inheritAttrs: false })
 
-const props = withDefaults(defineProps<SwitchProps<T>>(), {
-  disabled: false,
-  loading: false,
-})
+const props = withDefaults(
+  defineProps<
+    SwitchProps<T> &
+      /* @vue-ignore */ ForwardedAttributes<
+        // 属性落在开关的 <button> 上
+        ButtonAttributes,
+        SwitchProps,
+        keyof SwitchEmits & string
+      >
+  >(),
+  {
+    disabled: false,
+    loading: false,
+  },
+)
 // Declared by hand rather than with `defineModel`, so the update carries
 // `T` and not `T | undefined`.
 const emit = defineEmits<SwitchEmits<T>>()

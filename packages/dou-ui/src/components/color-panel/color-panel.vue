@@ -4,7 +4,9 @@ import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
 import { DouFieldGroup } from '../field-group'
 import { useFormDisabled, useFormItem } from '../form/use-form-item'
-import DouInput from '../input/input.vue'
+import DouInputComponent from '../input/input.vue'
+import type { InputHTMLAttributes } from 'vue'
+import type { WithAttributes } from '../../utils/install'
 import DouSelect from '../select/select.vue'
 import { ALPHA, CHANNELS, formatLabel } from '../color-picker/channels'
 import type { Channel } from '../color-picker/channels'
@@ -21,6 +23,9 @@ import {
 } from '../color-picker/color'
 import type { Color, ColorFormat, ColorSpace, Coords } from '../color-picker/color'
 import type { ColorPanelExpose, ColorPanelMode, ColorPanelProps } from './color-panel'
+
+// 让模板里也能写这个组件转交的原生属性
+const DouInput = DouInputComponent as WithAttributes<typeof DouInputComponent, InputHTMLAttributes>
 
 defineOptions({ name: 'DouColorPanel' })
 

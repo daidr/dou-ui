@@ -1,4 +1,6 @@
 <script setup lang="ts" generic="T">
+import type { HTMLAttributes } from 'vue'
+import type { ForwardedAttributes } from '../../utils/install'
 import {
   computed,
   nextTick,
@@ -25,7 +27,12 @@ import type {
 
 defineOptions({ name: 'DouMasonry' })
 
-const props = withDefaults(defineProps<MasonryProps<T>>(), { columns: 3, gap: 'md' })
+const props = withDefaults(
+  defineProps<
+    MasonryProps<T> & /* @vue-ignore */ ForwardedAttributes<HTMLAttributes, MasonryProps<T>>
+  >(),
+  { columns: 3, gap: 'md' },
+)
 defineSlots<MasonrySlots<T>>()
 
 const ns = useNamespace('masonry')

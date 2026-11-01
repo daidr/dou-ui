@@ -215,7 +215,7 @@ describe('folding in the editor', () => {
     const changes: number[][] = []
     const { wrapper, editor } = setup(source + '\nfunction b() {\n  three()\n}', {
       language: typescript,
-      'onFold-change': (lines: number[]) => changes.push(lines),
+      onFoldChange: (lines: number[]) => changes.push(lines),
     })
     const live = () => wrapper.find('.dou-code-editor__live').text()
     editor.value!.fold(1)

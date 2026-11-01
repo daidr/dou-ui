@@ -1,8 +1,8 @@
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "types": ["bun", "vite/client"],
     "allowJs": true,
+    "types": ["bun", "vite/client"],
     "paths": {
       "dou-ui": ["./packages/dou-ui/src/index.ts"],
       "@dou-ui/theme": ["./packages/theme/src/index.ts"],
@@ -28,8 +28,8 @@
       "@dou-ui/code": ["./packages/code/src/index.ts"],
       "@dou-ui/code/worker": ["./packages/code/src/worker/index.ts"],
       "@dou-ui/code/collaboration": ["./packages/code/src/collaboration/index.ts"],
-      "@dou-ui/code/lsp": ["./packages/code/src/lsp/index.ts"],
       "@dou-ui/code/shiki": ["./packages/code/src/shiki/index.ts"],
+      "@dou-ui/code/lsp": ["./packages/code/src/lsp/index.ts"],
       "@dou-ui/dashboard": ["./packages/dashboard/src/index.ts"],
       "@dou-ui/dashboard/layout": ["./packages/dashboard/src/layout/index.ts"],
       "@dou-ui/dashboard/widgets": ["./packages/dashboard/src/widgets/index.ts"],
@@ -46,7 +46,12 @@
       "@dou-ui/resolver": ["./packages/resolver/src/index.ts"]
     }
   },
+  "vueCompilerOptions": {
+    "checkUnknownProps": true,
+    "checkUnknownEvents": true
+  },
   "include": [
+    "types",
     "packages/*/src",
     "packages/*/scripts",
     "packages/*/vite.config.ts",

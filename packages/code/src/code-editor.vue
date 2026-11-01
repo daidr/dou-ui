@@ -999,7 +999,7 @@ function foldEnds(texts?: readonly string[]) {
 /** The lines that start a fold, from 1. */
 const foldStarts = computed(() => folds.value.map((fold) => doc.value.lineAt(fold.from).number))
 watch(foldStarts, (next, prev) => {
-  if (next.length !== prev.length || next.some((n, i) => n !== prev[i])) emit('fold-change', next)
+  if (next.length !== prev.length || next.some((n, i) => n !== prev[i])) emit('foldChange', next)
 })
 
 function setFolds(next: CodeFold[]) {

@@ -157,7 +157,7 @@ export function parseColor(value: string): Rgb {
   }
   const rgb = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)/.exec(input)
   if (rgb) return [rgb[1], rgb[2], rgb[3]].map((n) => Number(n) / 255) as Rgb
-  throw new Error(`[dou-ui] unsupported color "${value}": use #rrggbb or rgb()`)
+  throw new Error(`[@dou-ui/theme] unsupported color "${value}": use #rrggbb or rgb()`)
 }
 
 function toHex(rgb: Rgb): string {

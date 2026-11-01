@@ -14,7 +14,7 @@ const type = (
   name: string,
   icon: Component,
   group: string,
-  data: Omit<DefaultNodeData, 'icon'>,
+  data: DefaultNodeData,
   description?: string,
 ) =>
   defineNodeType<DefaultNodeData>({

@@ -258,8 +258,8 @@ const parts = (option: AutocompleteOption) =>
 const inputAttrs = computed(() => ({
   role: 'combobox',
   autocomplete: 'off',
-  'aria-autocomplete': 'list',
-  'aria-haspopup': 'listbox',
+  'aria-autocomplete': 'list' as const,
+  'aria-haspopup': 'listbox' as const,
   'aria-expanded': open.value,
   'aria-controls': rendered.value ? listboxId : undefined,
   'aria-activedescendant': open.value && active.value >= 0 ? optionId(active.value) : undefined,

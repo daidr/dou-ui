@@ -123,7 +123,7 @@ interface SheetHistoryHandler {
 
 ### 取消修改
 
-在 `transaction` 里调用 `tr.cancel(reason?)` 取消这次修改：它的步骤都不会生效，也不进撤销记录，后面的扩展不再收到它，`update` 也不会调用。表格下方会显示 `reason`，读屏也会读出；不写时显示“这次修改没有生效”。组件触发 `transaction-cancel` 事件，`tr.cancelReason` 是取消的原因。`transact` 返回这次的事务：被取消时 `tr.cancelled` 为 `true`，`tr.changed` 为 `false`。比如 A 列由系统填写，不让人改：
+在 `transaction` 里调用 `tr.cancel(reason?)` 取消这次修改：它的步骤都不会生效，也不进撤销记录，后面的扩展不再收到它，`update` 也不会调用。表格下方会显示 `reason`，读屏也会读出；不写时显示“这次修改没有生效”。组件触发 `transactionCancel` 事件，`tr.cancelReason` 是取消的原因。`transact` 返回这次的事务：被取消时 `tr.cancelled` 为 `true`，`tr.changed` 为 `false`。比如 A 列由系统填写，不让人改：
 
 ```ts
 const systemColumn = defineSheetExtension({

@@ -160,7 +160,7 @@ gantt.value.transact((tr) => {
 })
 ```
 
-每次修改，不论来自拖动、撤销还是 `transact`，都会更新 `v-model` 并触发 `transaction` 事件；被扩展[取消](./extensions#取消修改)的修改不会生效，触发的是 `transaction-cancel` 事件。事件参数里的 `steps` 是这次修改的步骤列表，`inverse` 是撤销它的步骤，可以用来同步到服务端或做协同编辑；另一端用 `applyGanttSteps(doc, steps)` 应用。
+每次修改，不论来自拖动、撤销还是 `transact`，都会更新 `v-model` 并触发 `transaction` 事件；被扩展[取消](./extensions#取消修改)的修改不会生效，触发的是 `transactionCancel` 事件。事件参数里的 `steps` 是这次修改的步骤列表，`inverse` 是撤销它的步骤，可以用来同步到服务端或做协同编辑；另一端用 `applyGanttSteps(doc, steps)` 应用。
 
 | 方法                           | 说明                                                                                 |
 | ------------------------------ | ------------------------------------------------------------------------------------ |
@@ -418,5 +418,5 @@ gantt.value.importCSV(sheetToCSV(book.sheets[0]))
 | `scrollToDate` / `scrollToToday` / `scrollToTask` | 滚动到某个时间、现在或某个任务                                                | —                                                 |
 | `focusTask`                                       | 让键盘停在某个任务上，滚动到它并聚焦任务条                                    | `(id: string) => void`                            |
 | `zoomIn` / `zoomOut`                              | 放大、缩小时间轴，视图中间的时间不动                                          | `() => void`                                      |
-| `exportSVG` / `exportPNG` / `exportCSV`           | 导出 SVG 文本、PNG 或 CSV 文本，见[导出与打印](#导出与打印)                   | —                                                 |
+| `exportSVG` / `exportPNG` / `toCSV`               | 导出 SVG 文本、PNG 或 CSV 文本，见[导出与打印](#导出与打印)                   | —                                                 |
 | `print`                                           | 打印全部行                                                                    | `(options?: GanttPrintOptions) => void`           |

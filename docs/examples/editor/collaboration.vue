@@ -38,22 +38,22 @@ function createDemo() {
   fillMap(first.doc.getMap('document'), {
     version: 1,
     blocks: [
-    { type: 'heading', props: { level: 2 }, content: '上海周末出行计划' },
-    {
-      type: 'paragraph',
-      content: '两个人一起改，各自的光标会显示在对方的编辑器里。选中文字可以发起评论。',
-    },
-    { type: 'checkItem', content: '订好周五晚上的车票' },
-    { type: 'checkItem', content: '提前预约博物馆' },
-    { type: 'checkItem', content: '带上充电宝和雨伞' },
-    {
-      type: 'table',
-      rows: [
-        { cells: ['时间', '安排', '负责'] },
-        { cells: ['周六上午', '博物馆', '戴兜'] },
-        { cells: ['周六下午', '外滩散步', '阿青'] },
-      ],
-    },
+      { type: 'heading', props: { level: 2 }, content: '上海周末出行计划' },
+      {
+        type: 'paragraph',
+        content: '两个人一起改，各自的光标会显示在对方的编辑器里。选中文字可以发起评论。',
+      },
+      { type: 'checkItem', content: '订好周五晚上的车票' },
+      { type: 'checkItem', content: '提前预约博物馆' },
+      { type: 'checkItem', content: '带上充电宝和雨伞' },
+      {
+        type: 'table',
+        rows: [
+          { cells: ['时间', '安排', '负责'] },
+          { cells: ['周六上午', '博物馆', '戴兜'] },
+          { cells: ['周六下午', '外滩散步', '阿青'] },
+        ],
+      },
     ],
   })
   Y.applyUpdate(second.doc, Y.encodeStateAsUpdate(first.doc))

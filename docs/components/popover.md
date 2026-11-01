@@ -50,7 +50,7 @@
 | `title`   | 标题，替代 `title`                     |
 | `content` | 正文，替代 `content`；参数 `{ close }` |
 
-### 方法
+### Exposes
 
 | 名称      | 说明 |
 | --------- | ---- |

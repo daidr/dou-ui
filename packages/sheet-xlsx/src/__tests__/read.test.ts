@@ -374,6 +374,7 @@ describe('readXlsx', () => {
 
   it('keeps links, protection and unlocked cells', async () => {
     const source: SheetWorkbook = {
+      version: 1,
       protect: true,
       styles: { blank: { locked: false } },
       sheets: [

@@ -46,7 +46,7 @@ function book(range: SchedulerRange) {
 
 ## 限制移动
 
-`can-move` 在任务被拖动、改时长、换资源或用键盘移动之前调用，参数里的 `resource` 是任务将要去的资源。返回 `true` 表示允许；返回其他值会拒绝这次修改，返回字符串时会在拖动提示里显示原因。上面的会议室示例用它禁止同一间会议室的预约重叠：
+`canMove` 在任务被拖动、改时长、换资源或用键盘移动之前调用，参数里的 `resource` 是任务将要去的资源。返回 `true` 表示允许；返回其他值会拒绝这次修改，返回字符串时会在拖动提示里显示原因。上面的会议室示例用它禁止同一间会议室的预约重叠：
 
 ```ts
 import { findConflict, type SchedulerMove } from '@dou-ui/gantt/scheduler'
@@ -58,7 +58,7 @@ const canMove = (move: SchedulerMove) => !findConflict(plan.value.tasks, move) |
 
 ## 右键菜单
 
-在任务上右键、手机上长按任务后松开，或者按菜单键（`Shift` + `F10`），会打开任务的菜单，内置一项“删除任务”。`context-menu` 可以加上自己的菜单项，排在内置项前面；在一行的空白处右键时，参数是这一行的资源和鼠标下的时间，可以用来加“在此预约”之类的项。`:menu="false"` 关闭内置项。
+在任务上右键、手机上长按任务后松开，或者按菜单键（`Shift` + `F10`），会打开任务的菜单，内置一项“删除任务”。`contextMenu` 可以加上自己的菜单项，排在内置项前面；在一行的空白处右键时，参数是这一行的资源和鼠标下的时间，可以用来加“在此预约”之类的项。`:menu="false"` 关闭内置项。
 
 ```ts
 function contextMenu(target: SchedulerMenuTarget): GanttMenuItem[] {
@@ -68,7 +68,7 @@ function contextMenu(target: SchedulerMenuTarget): GanttMenuItem[] {
 }
 ```
 
-排期视图没有任务表格，不能就地改名；需要编辑任务时，可以在 `task-dblclick` 或自己的菜单项里打开表单。
+排期视图没有任务表格，不能就地改名；需要编辑任务时，可以在 `taskDblclick` 或自己的菜单项里打开表单。
 
 ## 键盘
 
@@ -127,13 +127,13 @@ interface SchedulerResource {
 
 ### Scheduler Events
 
-| 名称               | 说明                                                        | 参数                                   |
-| ------------------ | ----------------------------------------------------------- | -------------------------------------- |
-| `transaction`      | 每次修改后触发，包括撤销和重做                              | `(tr: GanttTransaction)`               |
-| `task-click`       | 点击任务                                                    | `(task: GanttTask, event: MouseEvent)` |
-| `task-dblclick`    | 双击任务                                                    | `(task: GanttTask, event: MouseEvent)` |
-| `task-contextmenu` | 在任务上打开菜单前触发，`event.preventDefault()` 可以不打开 | `(task: GanttTask, event: MouseEvent)` |
-| `create`           | 在空白处拖出一段时间                                        | `(range: SchedulerRange)`              |
+| 名称              | 说明                                                        | 参数                                   |
+| ----------------- | ----------------------------------------------------------- | -------------------------------------- |
+| `transaction`     | 每次修改后触发，包括撤销和重做                              | `(tr: GanttTransaction)`               |
+| `taskClick`       | 点击任务                                                    | `(task: GanttTask, event: MouseEvent)` |
+| `taskDblclick`    | 双击任务                                                    | `(task: GanttTask, event: MouseEvent)` |
+| `taskContextmenu` | 在任务上打开菜单前触发，`event.preventDefault()` 可以不打开 | `(task: GanttTask, event: MouseEvent)` |
+| `create`          | 在空白处拖出一段时间                                        | `(range: SchedulerRange)`              |
 
 ```ts
 interface SchedulerRange {

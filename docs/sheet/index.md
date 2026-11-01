@@ -135,7 +135,7 @@ sheet.value.transact((tr) => {
 
 单元格用名字（`'A5'`）或从 0 开始的坐标（`{ row, col }`）指定，没写工作表时指当前显示的那张。要写到别的表，在名字前加 `表名!`，表名有空格时用单引号括起来；坐标则写成 `{ sheet, row, col }`，`sheet` 是工作表的序号、`id` 或名字。区域可以写 `'A1:C4'`、整列 `'B:D'`、整行 `'2:3'`。
 
-每次修改，不论来自输入、撤销还是 `transact`，都会更新 `v-model` 并触发 `transaction` 事件；被保护或扩展取消的修改不会生效，触发的是 `transaction-cancel` 事件。事件参数里的 `steps` 是这次修改的步骤，`inverse` 是撤销它的步骤，可以用来同步到服务端；另一端用 `applySheetSteps(doc, steps)` 应用，在服务端从不含组件的 `@dou-ui/sheet/core` 引入它（见[不含组件的入口](./extensions#不含组件的入口)）。`meta.action` 说明修改的来源：
+每次修改，不论来自输入、撤销还是 `transact`，都会更新 `v-model` 并触发 `transaction` 事件；被保护或扩展取消的修改不会生效，触发的是 `transactionCancel` 事件。事件参数里的 `steps` 是这次修改的步骤，`inverse` 是撤销它的步骤，可以用来同步到服务端；另一端用 `applySheetSteps(doc, steps)` 应用，在服务端从不含组件的 `@dou-ui/sheet/core` 引入它（见[不含组件的入口](./extensions#不含组件的入口)）。`meta.action` 说明修改的来源：
 
 | `action`                 | 来源                                                 |
 | ------------------------ | ---------------------------------------------------- |
@@ -343,7 +343,7 @@ const cells = [
 
 选中带链接的单元格时，下方显示链接地址，点地址打开链接：网址在新标签页打开，单元格引用会切到那个工作表并选中那片区域。按住 `Ctrl` / `⌘` 点单元格也会打开链接。指向的工作表不存在时，表格下方会提示找不到。
 
-打开链接之前会触发 `link-open` 事件，参数里有 `link`、`linkTarget` 的结果 `target` 和单元格 `cell`；调用 `event.preventDefault()` 后表格不再自己打开，可以改用应用的路由，或者先让用户确认：
+打开链接之前会触发 `linkOpen` 事件，参数里有 `link`、`linkTarget` 的结果 `target` 和单元格 `cell`；调用 `event.preventDefault()` 后表格不再自己打开，可以改用应用的路由，或者先让用户确认：
 
 ```ts
 function onLinkOpen(event: SheetLinkOpenEvent) {
@@ -550,7 +550,7 @@ const fixedProtection = defineSheetExtension({
 sheet.value.transact((tr) => tr.setValue('A1', '买家'), { protection: false })
 ```
 
-`checkProtection(tr)` 检查一次修改是否违反保护，返回第一个不允许的地方 `{ reason, sheet, row, col }`，可以在扩展里使用；在 `transaction-cancel` 事件里调用它，可以分清修改是被保护还是被扩展取消的，以及卡在哪个单元格。`isLocked(cell, book)` 判断 `cells` 里的一个单元格是否锁定，`protectionOf(sheet)` 返回工作表的保护选项，没有保护时是 `null`，保护为 `true` 时是 `{}`。
+`checkProtection(tr)` 检查一次修改是否违反保护，返回第一个不允许的地方 `{ reason, sheet, row, col }`，可以在扩展里使用；在 `transactionCancel` 事件里调用它，可以分清修改是被保护还是被扩展取消的，以及卡在哪个单元格。`isLocked(cell, book)` 判断 `cells` 里的一个单元格是否锁定，`protectionOf(sheet)` 返回工作表的保护选项，没有保护时是 `null`，保护为 `true` 时是 `{}`。
 
 ## 工具栏
 

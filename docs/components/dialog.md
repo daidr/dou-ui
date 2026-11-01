@@ -113,7 +113,7 @@ const dialog = useDialog()
 | `title`   | 标题，替代 `title`         |
 | `footer`  | 底部操作；参数 `{ close }` |
 
-### 方法
+### Exposes
 
 | 名称      | 说明                       |
 | --------- | -------------------------- |

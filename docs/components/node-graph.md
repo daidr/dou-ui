@@ -18,7 +18,7 @@ NodeGraph 只用来展示。需要拖动节点、连线编辑时，用[流程编
 
 `kind: 'milestone'` 把状态点换成旗帜，表示里程碑。`incomplete` 在节点右端加一个标记，表示还有未完成的子任务。
 
-`auto-blocked` 让组件自己推断：进行中的节点只要有前驱没完成，就显示为 `blocked`。
+`autoBlocked` 让组件自己推断：进行中的节点只要有前驱没完成，就显示为 `blocked`。
 
 <DocDemo src="node-graph/status" />
 
@@ -36,7 +36,7 @@ NodeGraph 只用来展示。需要拖动节点、连线编辑时，用[流程编
 
 <DocDemo src="node-graph/direction" />
 
-`column-gap` 和 `row-gap` 始终指屏幕上的左右间距和上下间距：从左到右时层间距由 `column-gap` 设置，从上到下时层间距由 `row-gap` 设置。
+`columnGap` 和 `rowGap` 始终指屏幕上的左右间距和上下间距：从左到右时层间距由 `columnGap` 设置，从上到下时层间距由 `rowGap` 设置。
 
 ## 卡片
 
@@ -76,7 +76,7 @@ NodeGraph 只用来展示。需要拖动节点、连线编辑时，用[流程编
 
 ## 综合示例
 
-一个 App 发版流程，用上了上面的所有特性：图标、附加信息、进度、卡片说明、未完成标记、里程碑、`auto-blocked`、多选、悬停详情、`corner` 评论数、工具栏里的“关键路径”开关（切换连线的 `active` 和 `muted`），以及缩放和图例。“复盘”节点设为 `disabled`，不能选中。
+一个 App 发版流程，用上了上面的所有特性：图标、附加信息、进度、卡片说明、未完成标记、里程碑、`autoBlocked`、多选、悬停详情、`corner` 评论数、工具栏里的“关键路径”开关（切换连线的 `active` 和 `muted`），以及缩放和图例。“复盘”节点设为 `disabled`，不能选中。
 
 <DocDemo src="node-graph/complex" column />
 
@@ -90,28 +90,28 @@ NodeGraph 只用来展示。需要拖动节点、连线编辑时，用[流程编
 
 ### Props
 
-| 名称             | 说明                                                     | 类型                              | 默认值         |
-| ---------------- | -------------------------------------------------------- | --------------------------------- | -------------- |
-| `nodes`          | 节点                                                     | `GraphNode[]`                     | —              |
-| `edges`          | 连线                                                     | `GraphEdge[]`                     | —              |
-| `selected`       | 选中的节点，`v-model:selected`                           | `string \| string[] \| null`      | `null`         |
-| `selectable`     | 是否可选，`multiple` 为多选                              | `boolean \| 'multiple'`           | `true`         |
-| `size`           | 尺寸，单行节点高 28 / 32 / 40                            | `'sm' \| 'md' \| 'lg'`            | 跟随全局       |
-| `direction`      | 连线方向：`horizontal` 从左到右，`vertical` 从上到下     | `'horizontal' \| 'vertical'`      | `'horizontal'` |
-| `node-width`     | 节点宽度：同层等宽（仅从左到右）、按内容、固定值         | `'rank' \| 'auto' \| number`      | `'rank'`       |
-| `max-node-width` | 节点最大宽度，超出时截断标题                             | `number`                          | `320`          |
-| `column-gap`     | 左右间距：从左到右时是层间距，从上到下时是同层节点的间距 | `number`                          | 按尺寸和方向   |
-| `row-gap`        | 上下间距：从左到右时是同层节点的间距，从上到下时是层间距 | `number`                          | 按尺寸和方向   |
-| `highlight`      | 高亮哪个节点的上下游链路                                 | `'none' \| 'hover' \| 'selected'` | `'hover'`      |
-| `auto-blocked`   | 自动把前驱未完成的进行中节点显示为 `blocked`             | `boolean`                         | `false`        |
-| `pannable`       | 是否可以平移                                             | `boolean`                         | `true`         |
-| `zoomable`       | 是否可以缩放                                             | `boolean`                         | `false`        |
-| `zoom`           | 缩放比例，`v-model:zoom`                                 | `number`                          | `1`            |
-| `min-zoom`       | 最小缩放比例                                             | `number`                          | `0.25`         |
-| `max-zoom`       | 最大缩放比例                                             | `number`                          | `2`            |
-| `legend`         | 在工具栏显示图例按钮                                     | `boolean`                         | `false`        |
-| `height`         | 容器高度，数字单位为 px                                  | `string \| number`                | 和图一样高     |
-| `aria-label`     | 读屏用的名称                                             | `string`                          | `'节点图'`     |
+| 名称           | 说明                                                     | 类型                              | 默认值         |
+| -------------- | -------------------------------------------------------- | --------------------------------- | -------------- |
+| `nodes`        | 节点                                                     | `GraphNode[]`                     | —              |
+| `edges`        | 连线                                                     | `GraphEdge[]`                     | —              |
+| `selected`     | 选中的节点，`v-model:selected`                           | `string \| string[] \| null`      | `null`         |
+| `selectable`   | 是否可选，`multiple` 为多选                              | `boolean \| 'multiple'`           | `true`         |
+| `size`         | 尺寸，单行节点高 28 / 32 / 40                            | `'sm' \| 'md' \| 'lg'`            | 跟随全局       |
+| `direction`    | 连线方向：`horizontal` 从左到右，`vertical` 从上到下     | `'horizontal' \| 'vertical'`      | `'horizontal'` |
+| `nodeWidth`    | 节点宽度：同层等宽（仅从左到右）、按内容、固定值         | `'rank' \| 'auto' \| number`      | `'rank'`       |
+| `maxNodeWidth` | 节点最大宽度，超出时截断标题                             | `number`                          | `320`          |
+| `columnGap`    | 左右间距：从左到右时是层间距，从上到下时是同层节点的间距 | `number`                          | 按尺寸和方向   |
+| `rowGap`       | 上下间距：从左到右时是同层节点的间距，从上到下时是层间距 | `number`                          | 按尺寸和方向   |
+| `highlight`    | 高亮哪个节点的上下游链路                                 | `'none' \| 'hover' \| 'selected'` | `'hover'`      |
+| `autoBlocked`  | 自动把前驱未完成的进行中节点显示为 `blocked`             | `boolean`                         | `false`        |
+| `pannable`     | 是否可以平移                                             | `boolean`                         | `true`         |
+| `zoomable`     | 是否可以缩放                                             | `boolean`                         | `false`        |
+| `zoom`         | 缩放比例，`v-model:zoom`                                 | `number`                          | `1`            |
+| `minZoom`      | 最小缩放比例                                             | `number`                          | `0.25`         |
+| `maxZoom`      | 最大缩放比例                                             | `number`                          | `2`            |
+| `legend`       | 在工具栏显示图例按钮                                     | `boolean`                         | `false`        |
+| `height`       | 容器高度，数字单位为 px                                  | `string \| number`                | 和图一样高     |
+| `aria-label`   | 读屏用的名称                                             | `string`                          | `'节点图'`     |
 
 ### GraphNode
 

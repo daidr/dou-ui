@@ -6,6 +6,7 @@ const head = (value) => ({ value, style: 'head' })
 const blank = (value) => ({ value, style: 'blank' })
 
 const book = ref({
+  version: 1,
   styles: {
     head: { bold: true, fill: 'neutral' },
     // 要填写的格子不锁定

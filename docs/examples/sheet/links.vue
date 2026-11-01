@@ -5,6 +5,7 @@ import { ref } from 'vue'
 const head = (value) => ({ value, style: 'head' })
 
 const book = ref({
+  version: 1,
   styles: { head: { bold: true, fill: 'neutral' } },
   sheets: [
     {

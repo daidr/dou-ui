@@ -57,6 +57,21 @@ describe('source store', () => {
     store.dispose()
   })
 
+  it('loads nothing and starts no refresh timer while rendering on the server', () => {
+    vi.stubGlobal('window', undefined)
+    try {
+      const load = vi.fn(() => 1)
+      const store = createSourceStore(() => ({ live: { load, interval: 1000 } }))
+      const handle = store.use('live', {})
+      expect(load).not.toHaveBeenCalled()
+      expect(handle.entry.state.value.status).toBe('idle')
+      handle.release()
+      store.dispose()
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('passes only the filters a source uses, and keeps results to come back to', async () => {
     const load = vi.fn<(context: any) => unknown>(({ filters }: { filters: DashboardFilters }) => ({
       ...filters,

@@ -74,6 +74,16 @@ describe('DouButton', () => {
     expect(wrapper.classes()).toContain('is-icon-only')
   })
 
+  it('sizes an icon in the default slot as an icon next to a trailing icon', () => {
+    const wrapper = mount(DouButton, {
+      slots: { default: () => h('svg', { class: 'icon' }), trailing: () => h('i', 'T') },
+    })
+    expect(wrapper.classes()).not.toContain('is-icon-only')
+    expect(wrapper.find('.dou-button__label').exists()).toBe(false)
+    expect(wrapper.findAll('.dou-button__icon')).toHaveLength(2)
+    expect(wrapper.find('.dou-button__icon .icon').exists()).toBe(true)
+  })
+
   it('keeps text, even wrapped in an element, as the label', () => {
     const wrapper = mount(DouButton, {
       slots: { default: () => [h('svg'), h('span', 'Save')] },

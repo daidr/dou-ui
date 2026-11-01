@@ -1378,11 +1378,6 @@
     flex: 1;
     text-align: start;
   }
-  .dou-sheet-toolbar__check {
-    display: inline-flex;
-    width: 1em;
-    margin-inline-end: 6px;
-  }
   .dou-sheet-toolbar__example {
     margin-inline-start: 16px;
     color: var(--dou-color-text-tertiary);
@@ -1936,9 +1931,22 @@
     &.is-italic {
       font-style: italic;
     }
-    &.is-bar {
+    &.is-cell-bar {
       background-position: 3px center;
       background-size: calc(100% - 6px) 10px;
+    }
+    /* the bar color as a rounded chip, inset evenly on every side */
+    &.is-bar {
+      padding: 4px;
+      background-size: 0 0;
+
+      &::before {
+        width: 100%;
+        height: 100%;
+        border-radius: 2px;
+        background-image: inherit;
+        content: '';
+      }
     }
     &.is-tone-neutral {
       color: var(--dou-color-neutral-text);

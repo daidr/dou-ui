@@ -37,8 +37,9 @@ export const toneKey = (tone: Tone) =>
 
 export const scaleSwatch = (colors: readonly SheetColor[]) =>
   `linear-gradient(to right, ${colors.map(fillColor).join(', ')})`
+/** A data bar color as a chip; it fills its box so it sits centered like the scale swatches. */
 export const barSwatch = (color: SheetColor) =>
-  `linear-gradient(to right, ${barColor(color)} 65%, transparent 65%)`
+  `linear-gradient(${barColor(color)}, ${barColor(color)})`
 
 /** Whether two styles set the same parts the same way. */
 export function sameStyle(a: SheetStyle, b: SheetStyle) {
@@ -84,9 +85,10 @@ export function formatSample(
 ): { cls: string[]; css: string } {
   if ('scale' in f) return { cls: [], css: `background-image:${scaleSwatch(f.scale)}` }
   if ('bar' in f) {
+    // like the bar on a cell: from the start, behind the number
     const color = barColor(f.bar === true ? 'neutral' : f.bar)
     return {
-      cls: ['is-bar'],
+      cls: ['is-cell-bar'],
       css: `background-image:linear-gradient(to right, ${color} 70%, transparent 70%)`,
     }
   }

@@ -40,7 +40,7 @@ const round = ref(0)
   <div class="demo">
     <div>
       <DouButton size="sm" variant="soft" @click="round++">
-        <RefreshIcon />
+        <template #leading><RefreshIcon /></template>
         重新加载
       </DouButton>
     </div>

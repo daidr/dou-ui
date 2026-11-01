@@ -50,9 +50,14 @@ function hasText(nodes: unknown): boolean {
 }
 
 // Read while rendering: slot content can change from one render to the next.
+/** The default slot holds only an icon, so it is sized and centered like one. */
+function iconLabel() {
+  return !!slots.default && !hasText(slots.default())
+}
+
 function iconOnly() {
   if (slots.trailing) return false
-  if (slots.default) return !slots.leading && !hasText(slots.default())
+  if (slots.default) return !slots.leading && iconLabel()
   return !!(slots.leading || props.loading)
 }
 
@@ -78,7 +83,7 @@ function onClick(event: MouseEvent) {
       <slot name="leading" />
     </span>
     <template v-if="slots.default">
-      <span v-if="!iconOnly()" :class="ns.e('label')"><slot /></span>
+      <span v-if="!iconLabel()" :class="ns.e('label')"><slot /></span>
       <span v-else-if="!loading" :class="ns.e('icon')"><slot /></span>
     </template>
     <span v-if="slots.trailing" :class="ns.e('icon')">

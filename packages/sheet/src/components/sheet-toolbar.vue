@@ -3,7 +3,6 @@ import {
   BaselineIcon,
   BoldIcon,
   CellsMergeIcon,
-  CheckIcon,
   ChevronDownIcon,
   DecimalDecreaseIcon,
   DecimalIncreaseIcon,
@@ -35,6 +34,7 @@ import {
   DouColorPanel,
   DouDropdown,
   DouDropdownItem,
+  DouDropdownRadioGroup,
   DouDropdownSub,
   DouPopover,
   DouToggle,
@@ -572,20 +572,20 @@ onBeforeUnmount(() => observer?.disconnect())
             <template #trailing><ChevronDownIcon /></template>
           </DouButton>
           <template #menu>
-            <DouDropdownItem
-              v-for="option in formats"
-              :key="option.label"
-              class="dou-sheet-toolbar__format-item"
-              @click="setFormat(option)"
-            >
-              <span class="dou-sheet-toolbar__check">
-                <CheckIcon v-if="option === formatShown" />
-              </span>
-              {{ option.label }}
-              <template #suffix>
-                <span class="dou-sheet-toolbar__example">{{ exampleOf(option) }}</span>
-              </template>
-            </DouDropdownItem>
+            <DouDropdownRadioGroup :model-value="formatShown ? formats.indexOf(formatShown) : -1">
+              <DouDropdownItem
+                v-for="(option, i) in formats"
+                :key="option.label"
+                :value="i"
+                class="dou-sheet-toolbar__format-item"
+                @click="setFormat(option)"
+              >
+                {{ option.label }}
+                <template #suffix>
+                  <span class="dou-sheet-toolbar__example">{{ exampleOf(option) }}</span>
+                </template>
+              </DouDropdownItem>
+            </DouDropdownRadioGroup>
           </template>
         </DouDropdown>
 
@@ -741,11 +741,17 @@ onBeforeUnmount(() => observer?.disconnect())
                 <template #trailing><ChevronDownIcon /></template>
               </DouButton>
               <template #menu>
-                <DouDropdownItem v-for="v in VALIGN" :key="v.value" @click="setValign(v.value)">
-                  <template #prefix><component :is="v.icon" /></template>
-                  {{ m[v.label] }}
-                  <template v-if="v.value === valign" #suffix><CheckIcon /></template>
-                </DouDropdownItem>
+                <DouDropdownRadioGroup :model-value="valign">
+                  <DouDropdownItem
+                    v-for="v in VALIGN"
+                    :key="v.value"
+                    :value="v.value"
+                    @click="setValign(v.value)"
+                  >
+                    <template #prefix><component :is="v.icon" /></template>
+                    {{ m[v.label] }}
+                  </DouDropdownItem>
+                </DouDropdownRadioGroup>
               </template>
             </DouDropdown>
           </span>
@@ -803,14 +809,10 @@ onBeforeUnmount(() => observer?.disconnect())
                 <DouDropdownItem
                   v-for="item in freezeItems"
                   :key="item.key"
+                  :checked="(freeze.rows ?? 0) === item.rows && (freeze.cols ?? 0) === item.cols"
                   @click="setFreeze(item.rows, item.cols)"
                 >
                   {{ item.label }}
-                  <template
-                    v-if="(freeze.rows ?? 0) === item.rows && (freeze.cols ?? 0) === item.cols"
-                    #suffix
-                    ><CheckIcon
-                  /></template>
                 </DouDropdownItem>
                 <DouDropdownItem divided :disabled="!frozen" @click="setFreeze(0, 0)">
                   {{ m.unfreeze }}

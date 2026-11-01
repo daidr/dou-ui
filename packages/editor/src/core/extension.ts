@@ -2,8 +2,8 @@ import type { InputRule } from 'prosemirror-inputrules'
 import type { MarkSpec, NodeSpec, Schema } from 'prosemirror-model'
 import type { Command, Plugin } from 'prosemirror-state'
 import type { NodeViewConstructor } from 'prosemirror-view'
-import { parseHotkey } from 'dou-ui'
-import type { Component } from 'vue'
+import { parseHotkey, type CommentAction, type CommentThread } from 'dou-ui'
+import type { Component, Ref } from 'vue'
 import type { EditorMessages } from '../locale'
 import type { BlockProps } from './model'
 import type { EditorExtensionOutput } from './output'
@@ -39,6 +39,14 @@ export interface FormatOption {
   icon: Component
   /** The shortcut shown in its tooltip, written as in `useHotkey`, e.g. `mod+b`. */
   hotkey?: string
+}
+
+/** Where the comment threads live, when not in `v-model:comments`. */
+export interface CommentsProvider {
+  /** The threads, kept up to date. */
+  threads: Readonly<Ref<readonly CommentThread[]>>
+  /** Make a change this user asked for. */
+  apply: (action: CommentAction) => void
 }
 
 export interface EditorExtensionContext {
@@ -98,6 +106,12 @@ export interface EditorExtension {
   externalDocument?: boolean
   /** Replace the built-in undo history. Only one extension may. */
   history?: (context: EditorExtensionContext) => HistoryProvider
+  /**
+   * Keep the comment threads somewhere else than `v-model:comments`, e.g.
+   * in a shared document. `v-model:comments` then only mirrors them.
+   * Only one extension may.
+   */
+  comments?: (context: EditorExtensionContext) => CommentsProvider
   /** Entries for the slash menu and the “turn into” menus. */
   blockOptions?: BlockOption[]
   /** Toggles for the formatting toolbar. */
@@ -150,6 +164,7 @@ export interface ResolvedEditorExtensions {
   keymaps: Record<string, Command>[]
   plugins: Plugin[]
   history: HistoryProvider | null
+  comments: CommentsProvider | null
   externalDocument: boolean
 }
 
@@ -242,6 +257,10 @@ export function resolveEditorExtensions(
   if (providers.length > 1)
     throw new Error('[@dou-ui/editor] only one extension may replace the undo history')
 
+  const keepers = extensions.filter((extension) => extension.comments)
+  if (keepers.length > 1)
+    throw new Error('[@dou-ui/editor] only one extension may keep the comment threads')
+
   return {
     extensions,
     schema,
@@ -260,6 +279,7 @@ export function resolveEditorExtensions(
     ),
     plugins: extensions.flatMap((extension) => extension.plugins?.(context) ?? []),
     history: providers[0]?.history?.(context) ?? null,
+    comments: keepers[0]?.comments?.(context) ?? null,
     externalDocument: extensions.some((extension) => extension.externalDocument),
   }
 }

@@ -22,6 +22,10 @@
       transparent
     );
     --dou-editor-control-hover: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+    /* text a comment thread is about: a warm tint and an underline, stronger while its thread is open */
+    --dou-editor-comment-bg: color-mix(in oklab, var(--dou-color-warning) 18%, transparent);
+    --dou-editor-comment-bg-active: color-mix(in oklab, var(--dou-color-warning) 36%, transparent);
+    --dou-editor-comment-line: color-mix(in oklab, var(--dou-color-warning) 72%, transparent);
 
     position: relative;
     box-sizing: border-box;
@@ -564,6 +568,35 @@
 
   .dou-editor.is-readonly .dou-editor__link {
     cursor: pointer;
+  }
+
+  /* comments: which threads are highlighted is set per editor, by thread id */
+
+  .dou-editor__comment {
+    border-bottom: 2px solid transparent;
+    transition: background-color var(--dou-motion-duration-fast) var(--dou-motion-easing);
+  }
+
+  .dou-editor__comment-pending {
+    background-color: color-mix(in oklab, var(--dou-color-focus) 16%, transparent);
+  }
+
+  .dou-editor-comment {
+    box-sizing: border-box;
+    width: min(340px, calc(100vw - 32px));
+    max-height: min(480px, calc(100vh - 32px));
+    padding: 12px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border: 1px solid var(--dou-color-border);
+    border-radius: var(--dou-radius-container);
+    background-color: light-dark(
+      var(--dou-color-bg-surface),
+      color-mix(in oklab, var(--dou-color-text) 4%, var(--dou-color-bg-surface))
+    );
+    box-shadow: var(--dou-shadow-md);
+    font-family: var(--dou-font-family);
+    line-height: normal;
   }
 
   /* hints in empty blocks */

@@ -26,7 +26,7 @@ const resources = [{ id: 'xiaoman', title: '林小满', capacity: 2 }]
 
 ## 预约
 
-在一行的空白处拖出一段时间，会触发 `range-select` 事件，参数是资源和这段时间。组件不会自己新建任务，在事件里按需要添加即可。用 `transact` 添加时，新任务和拖动一样计入撤销记录，读屏也会播报：
+在一行的空白处拖出一段时间，会触发 `create` 事件，参数是资源和这段时间。组件不会自己新建任务，在事件里按需要添加即可。用 `transact` 添加时，新任务和拖动一样计入撤销记录，读屏也会播报：
 
 <DocDemo src="gantt/booking" />
 
@@ -131,7 +131,7 @@ interface SchedulerResource {
 | `task-click`       | 点击任务                                                    | `(task: GanttTask, event: MouseEvent)` |
 | `task-dblclick`    | 双击任务                                                    | `(task: GanttTask, event: MouseEvent)` |
 | `task-contextmenu` | 在任务上打开菜单前触发，`event.preventDefault()` 可以不打开 | `(task: GanttTask, event: MouseEvent)` |
-| `range-select`     | 在空白处拖出一段时间                                        | `(range: SchedulerRange)`              |
+| `create`           | 在空白处拖出一段时间                                        | `(range: SchedulerRange)`              |
 
 ```ts
 interface SchedulerRange {

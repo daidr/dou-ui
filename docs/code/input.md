@@ -16,7 +16,7 @@
 
 ## 在表单中使用
 
-放在 `DouFormItem` 中时，代码输入框和 `DouInput` 一样使用表单项的 `id`、说明和校验状态，`size` 和 `disabled` 也跟随表单。
+放在 `DouFormItem` 中时，代码输入框和 `DouInput` 一样使用表单项的 `id`、说明和校验状态，`size`、`disabled` 和 `readonly` 也跟随表单。
 
 ## API
 
@@ -30,7 +30,7 @@
 | `size`           | 尺寸                                           | `'sm' \| 'md' \| 'lg'`                   | 跟随表单，否则 `'md'`        |
 | `invalid`        | 显示为错误状态                                 | `boolean`                                | `false`                      |
 | `disabled`       | 禁用                                           | `boolean`                                | 跟随表单，否则 `false`       |
-| `readonly`       | 只读                                           | `boolean`                                | `false`                      |
+| `readonly`       | 只读                                           | `boolean`                                | 跟随表单，否则 `false`       |
 | `placeholder`    | 为空时的提示文字                               | `string`                                 | —                            |
 | `language`       | 语言                                           | `CodeLanguage`                           | —                            |
 | `extensions`     | 扩展                                           | `CodeExtension[]`                        | —                            |

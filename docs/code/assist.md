@@ -6,32 +6,14 @@
 
 问题显示为文字下的波浪线、行号左侧的图标和滚动条上的标记。鼠标悬停时显示说明和修复办法。
 
-<DocDemo src="code/extension" column />
+<DocDemo src="code/lint" column />
 
 问题有两个来源：
 
 - `diagnostics` 属性传入的问题。
 - 扩展的 `lint` 返回的问题。`lint` 在挂载时运行，之后在文字停止变化片刻后再次运行，可以返回 Promise。
 
-```ts
-const noVar = defineCodeExtension({
-  name: 'no-var',
-  lint: (editor) =>
-    [...editor.doc.toString().matchAll(/\bvar\b/g)].map((match) => ({
-      from: match.index,
-      to: match.index + 3,
-      severity: 'warning',
-      message: '用 let 或 const 代替 var',
-      actions: [
-        {
-          label: '改成 let',
-          run: (context, problem) =>
-            context.transact((tr) => tr.replace(problem.from, problem.to, 'let')),
-        },
-      ],
-    })),
-})
-```
+两种来源的问题都按下面的方式处理：
 
 - 已经找到的问题会跟随后续的修改移动，直到下一次检查或传入新的 `diagnostics`。
 - 异步的 `lint` 返回时如果文字已经改变，这次结果会被丢弃。

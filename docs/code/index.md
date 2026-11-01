@@ -32,7 +32,7 @@ app.use(DouCodeEditor)
 
 ## 编辑辅助
 
-设置 `language` 后，编辑器会：
+设置 `language` 后，编辑器会（`Mod` 在 Apple 设备上是 `⌘`，在其他系统上是 `Ctrl`）：
 
 - 按 `Enter` 时保留缩进，在左括号或 HTML 开始标签之后多缩进一级。
 - 输入左括号或引号时补上另一半，有选区时用它们包住选区。

@@ -2,11 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { downloadBlob } from '../download'
 
 describe('downloadBlob', () => {
-  let revoke: ReturnType<typeof vi.fn>
+  let revoke: ReturnType<typeof vi.fn<(url: string) => void>>
 
   beforeEach(() => {
     vi.useFakeTimers()
-    revoke = vi.fn()
+    revoke = vi.fn<(url: string) => void>()
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test')
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(revoke)
   })

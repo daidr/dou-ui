@@ -175,6 +175,18 @@ function measure() {
 
 const vertical = computed(() => props.direction === 'vertical')
 
+/**
+ * Top to bottom: lanes are as wide as the widest node, leaving out the
+ * ones over one and a half times the usual (median) width.
+ */
+function laneWidth(nodes: { width: number }[]) {
+  const widths = nodes.map((n) => n.width)
+  // oxlint-disable-next-line unicorn/no-array-sort -- sorts a copy
+  widths.sort((a, b) => a - b)
+  const usual = widths[(widths.length - 1) >> 1] ?? metric.value.height
+  return Math.max(usual, ...widths.filter((w) => w <= usual * 1.5))
+}
+
 const layout = computed(() => {
   const nodes = props.nodes.map((node) => ({
     id: node.id,
@@ -185,16 +197,15 @@ const layout = computed(() => {
   const rankGap = vertical.value ? props.rowGap : props.columnGap
   const laneGap = (vertical.value ? props.columnGap : props.rowGap) ?? metric.value.rowGap
   if (vertical.value)
-    // The same row grid as left to right, so the smallest bend an edge can
-    // take is the same either way; nodes in a row sit equally far apart,
-    // as far as the widest pair needs, so fans stay symmetric and a long
-    // title only spreads out its own row.
+    // Nodes line up on lanes as wide as all but the unusually long nodes,
+    // half a lane apart, as capsules do on rows left to right: fans stay
+    // symmetric and no edge bends by just a few px. A longer node spans
+    // more lanes, which only widens the gaps beside it.
     return layoutGraph(nodes, dag.value.edges, {
       direction: 'vertical',
       rankGap: rankGap ?? metric.value.columnGap,
       laneGap,
-      grid: (metric.value.height + laneGap) / 2,
-      evenSpacing: true,
+      grid: (laneWidth(nodes) + laneGap) / 2,
       // Along the flow nodes keep their height; the edge leaves a capsule
       // in a row of cards from its own bottom.
       equalWidth: false,

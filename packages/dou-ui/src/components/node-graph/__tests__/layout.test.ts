@@ -4,6 +4,21 @@ import { acyclic, layoutGraph, rank } from '../layout'
 const size = (id: string, width = 80) => ({ id, width, height: 32 })
 const options = { rankGap: 56, laneGap: 20 }
 
+const fan = (widths: number[]) => {
+  const ids = widths.map((_, i) => `c${i}`)
+  const layout = layoutGraph(
+    [size('p'), ...widths.map((w, i) => size(ids[i]!, w))],
+    ids.map((to) => ({ from: 'p', to })),
+    { ...options, direction: 'vertical', equalWidth: false, grid: 26 },
+  )
+  const centre = (id: string) => {
+    const n = layout.nodes.get(id)!
+    return n.x + n.width / 2
+  }
+  const xs = layout.ranks[1]!.map(centre)
+  return { layout, xs, gaps: xs.slice(1).map((x, i) => x - xs[i]!), parent: centre('p') }
+}
+
 describe('layoutGraph', () => {
   it('puts each node one column after its furthest predecessor', () => {
     const { order, edges } = acyclic(
@@ -78,20 +93,68 @@ describe('layoutGraph', () => {
     expect(path.endsWith(`${b!.x + 60} ${b!.y}`)).toBe(true)
   })
 
-  it('fans out symmetrically when one sibling is a bit wider, with evenSpacing', () => {
+  it('fans out symmetrically when one sibling is a bit wider', () => {
+    const { xs, gaps, parent } = fan([98, 98, 98, 112])
+    expect(gaps).toEqual(gaps.toReversed())
+    expect(parent).toBe((xs[0]! + xs.at(-1)!) / 2)
+  })
+
+  it('keeps a two-level fan symmetric top to bottom with a wider node', () => {
     const layout = layoutGraph(
-      [size('p'), size('a', 98), size('b', 98), size('c', 98), size('d', 112)],
-      ['a', 'b', 'c', 'd'].map((to) => ({ from: 'p', to })),
-      { ...options, direction: 'vertical', equalWidth: false, grid: 26, evenSpacing: true },
+      [size('r'), size('a'), size('b', 112), size('a1'), size('a2', 120), size('b1'), size('b2')],
+      [
+        { from: 'r', to: 'a' },
+        { from: 'r', to: 'b' },
+        { from: 'a', to: 'a1' },
+        { from: 'a', to: 'a2' },
+        { from: 'b', to: 'b1' },
+        { from: 'b', to: 'b2' },
+      ],
+      { ...options, direction: 'vertical', equalWidth: false, grid: 26 },
     )
-    const centre = (id: string) => {
+    const x = (id: string) => {
       const n = layout.nodes.get(id)!
       return n.x + n.width / 2
     }
-    const xs = ['a', 'b', 'c', 'd'].map(centre)
-    const gaps = xs.slice(1).map((x, i) => x - xs[i]!)
-    expect(new Set(gaps).size).toBe(1)
-    expect(centre('p')).toBe((xs[0]! + xs[3]!) / 2)
+    expect(x('r')).toBe((x('a') + x('b')) / 2)
+    expect(x('a')).toBe((x('a1') + x('a2')) / 2)
+    expect(x('b')).toBe((x('b1') + x('b2')) / 2)
+  })
+
+  it('keeps a fan with a long edge through it symmetric top to bottom', () => {
+    const layout = layoutGraph(
+      [size('a'), size('b', 112), size('c'), size('d')],
+      [
+        { from: 'a', to: 'b' },
+        { from: 'a', to: 'c' },
+        { from: 'b', to: 'd' },
+        { from: 'c', to: 'd' },
+        { from: 'a', to: 'd' },
+      ],
+      { ...options, direction: 'vertical', equalWidth: false, grid: 26 },
+    )
+    // where each edge out of `a` reaches the next rank
+    const ends = layout.edges
+      .filter((e) => e.from === 'a')
+      .map((e) => {
+        const [, x, command, rest] = /^M([-\d.]+) [-\d.]+([CV])([^A-Z]*)/.exec(e.path)!
+        return command === 'V' ? Number(x) : Number(rest!.trim().split(/\s+/)[4])
+      })
+      .toSorted((p, q) => p - q)
+    const a = layout.nodes.get('a')!
+    expect(ends).toHaveLength(3)
+    expect(ends[1]! - ends[0]!).toBe(ends[2]! - ends[1]!)
+    expect(a.x + a.width / 2).toBe(ends[1])
+  })
+
+  it('widens only the gaps beside a long node, mirrored', () => {
+    const { layout, gaps, xs, parent } = fan([98, 98, 98, 320, 98, 98])
+    expect(gaps).toEqual(gaps.toReversed())
+    expect(parent).toBe((xs[0]! + xs.at(-1)!) / 2)
+    // two short nodes stay a short pitch apart: 98 + 20 rounded up to six grid steps
+    expect(Math.min(...gaps)).toBe(156)
+    const packed = 5 * 98 + 320 + 5 * 20
+    expect(layout.width).toBeLessThan(packed * 1.5)
   })
 
   it('runs a long edge down through the ranks it crosses when vertical', () => {

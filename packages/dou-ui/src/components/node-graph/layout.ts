@@ -48,12 +48,6 @@ export interface LayoutOptions {
   /** Stretch every node along the flow to the longest one in its column. */
   equalWidth?: boolean
   /**
-   * Space neighbouring nodes in a column equally, as far apart as the
-   * furthest two: fans stay symmetric when nodes differ in size across the
-   * flow, at the cost of room.
-   */
-  evenSpacing?: boolean
-  /**
    * The row grid every anchor snaps to, in px. Half the pitch of a
    * one-line node keeps fans symmetric and curves free of small wobbles.
    * Defaults to half the pitch of a 32px node, `(laneGap + 32) / 2`.
@@ -240,15 +234,36 @@ function untangle(layers: Item[][]) {
  * steps, `y - s` must not decrease: isotonic regression, solved by
  * pooling adjacent violators, then rounded to whole steps.
  */
-function place(
-  layer: Item[],
-  targets: number[],
-  gap: (a: Item, b: Item) => number,
-  grid: number,
-  even: boolean,
-) {
+/**
+ * Runs of items in a layer fed by one node, or feeding one: the fans,
+ * edges passing through included. Each is the index of its first and last
+ * item; a run broken by an item outside the fan is left alone.
+ */
+function fans(layer: Item[]) {
+  const index = new Map(layer.map((item, i) => [item, i]))
+  const seen = new Set<Item>()
+  const runs: [number, number][] = []
+  for (const item of layer) {
+    for (const hub of [...item.preds, ...item.succs]) {
+      if (seen.has(hub)) continue
+      seen.add(hub)
+      for (const side of [hub.succs, hub.preds]) {
+        const at = side.flatMap((n) => (index.has(n) ? [index.get(n)!] : []))
+        if (at.length < 2) continue
+        const first = Math.min(...at)
+        const last = Math.max(...at)
+        if (last - first + 1 === at.length) runs.push([first, last])
+      }
+    }
+  }
+  return runs
+}
+
+/**
+ * The least distance between neighbouring items of a layer, in grid steps.
+ */
+function spacing(layer: Item[], gap: (a: Item, b: Item) => number, grid: number) {
   const steps: number[] = []
-  let widest = 0
   for (let i = 1; i < layer.length; i++) {
     const a = layer[i - 1]!
     const b = layer[i]!
@@ -257,19 +272,33 @@ function place(
     // Nodes sit a whole pitch (two steps) apart, as two capsules do, so the
     // middle of any two siblings is on the grid too and a source centred
     // on them fans out symmetrically even when one of them is tall.
-    if (a.edge < 0 && b.edge < 0) {
-      n += n % 2
-      widest = Math.max(widest, n)
-    }
+    if (a.edge < 0 && b.edge < 0) n += n % 2
     steps.push(n)
   }
+  // In a fan the gaps mirror each other: the i-th from either end are both
+  // as wide as the wider one, and a gap in the very middle is a whole number
+  // of pitches. So its hub sits on the grid right in the middle and the
+  // curves pair up even when one node is larger or an edge passes through;
+  // only the gaps beside a larger node grow.
+  const runs = fans(layer)
+  for (let changed = runs.length > 0, pass = 0; changed && pass < 8; pass++) {
+    changed = false
+    for (const [first, last] of runs) {
+      for (let i = first, j = last - 1; i <= j; i++, j--) {
+        let n = Math.max(steps[i]!, steps[j]!)
+        if (i === j) n += n % 2
+        if (steps[i] !== n || steps[j] !== n) changed = true
+        steps[i] = steps[j] = n
+      }
+    }
+  }
+  return steps
+}
+
+function place(layer: Item[], targets: number[], gap: (a: Item, b: Item) => number, grid: number) {
+  const steps = spacing(layer, gap, grid)
   const offsets: number[] = [0]
-  steps.forEach((n, i) => {
-    const real = layer[i]!.edge < 0 && layer[i + 1]!.edge < 0
-    // With `even`, neighbouring nodes all sit as far apart as the furthest
-    // two, so a fan of three or more is symmetric when one node is wider.
-    offsets.push(offsets[i]! + (even && real ? widest : n))
-  })
+  steps.forEach((n, i) => offsets.push(offsets[i]! + n))
   const blocks: { sum: number; count: number }[] = []
   targets.forEach((t, i) => {
     blocks.push({ sum: t / grid - offsets[i]!, count: 1 })
@@ -298,7 +327,7 @@ export function layoutGraph(
   edges: LayoutEdge[],
   options: LayoutOptions,
 ): GraphLayout {
-  const { rankGap, laneGap, edgeGap = 8, equalWidth = true, evenSpacing = false } = options
+  const { rankGap, laneGap, edgeGap = 8, equalWidth = true } = options
   const vertical = options.direction === 'vertical'
   const grid = options.grid ?? (laneGap + 32) / 2
   // Below, `width` runs along the flow and `height` across it.
@@ -352,7 +381,6 @@ export function layoutGraph(
       layer.map(() => 0),
       gap,
       grid,
-      evenSpacing,
     )
   const relax = (layer: Item[], neighbours: (item: Item) => Item[]) =>
     place(
@@ -365,13 +393,49 @@ export function layoutGraph(
       ),
       gap,
       grid,
-      evenSpacing,
     )
   for (let pass = 0; pass < 4; pass++) {
     for (const layer of ordered.slice(1)) relax(layer, (item) => item.preds)
     for (let i = ordered.length - 2; i >= 0; i--) relax(ordered[i]!, (item) => item.succs)
   }
   for (const layer of ordered) relax(layer, (item) => [...item.preds, ...item.succs])
+
+  // The grid can leave a node half a step off the middle of its fan, when
+  // the two ends are an odd number of steps apart. Put it right in the
+  // middle where it fits: from the bottom up a node follows what it feeds,
+  // then from the top down one fed by more than it feeds follows those.
+  // Neighbours stay at least as far apart as placing them asked for, so
+  // the gaps in a fan keep mirroring each other.
+  const fits = (layer: Item[], steps: number[], i: number, y: number) =>
+    (i === 0 || y - layer[i - 1]!.y >= steps[i - 1]! * grid) &&
+    (i === layer.length - 1 || layer[i + 1]!.y - y >= steps[i]! * grid)
+  const centre = (layer: Item[], side: (item: Item) => Item[]) => {
+    const steps = spacing(layer, gap, grid)
+    let moved = false
+    layer.forEach((item, i) => {
+      const ys = side(item).map((n) => n.y)
+      // oxlint-disable-next-line unicorn/no-array-sort -- sorts a copy
+      ys.sort((a, b) => a - b)
+      if (!ys.length) return
+      // Only to the middle of a mirror image, never to some uneven mean.
+      const y = (ys[0]! + ys.at(-1)!) / 2
+      if (ys.some((v, k) => v + ys[ys.length - 1 - k]! !== 2 * y)) return
+      if (y === item.y || !Number.isInteger(y) || !fits(layer, steps, i, y)) return
+      item.y = y
+      moved = true
+    })
+    return moved
+  }
+  for (let pass = 0, moved = true; moved && pass < 4; pass++) {
+    moved = false
+    for (let c = ordered.length - 2; c >= 0; c--)
+      moved =
+        centre(ordered[c]!, (item) => (item.succs.length >= item.preds.length ? item.succs : [])) ||
+        moved
+    for (const layer of ordered.slice(1))
+      moved =
+        centre(layer, (item) => (item.preds.length > item.succs.length ? item.preds : [])) || moved
+  }
 
   // Columns.
   const widths = ordered.map((layer) =>

@@ -44,7 +44,7 @@ const extensions = [flowKit(), marks]
 | `layers`           | 画在画布坐标里的组件，`below` 在连线下方，`above` 在节点上方，跟着画布移动和缩放                                                                            | `{ below?: Component[], above?: Component[] }`              |
 | `drawLayer`        | 导出图片时画在节点上方的内容，对应 `layers.above`；返回画布坐标下的 SVG 标记，见[导出图片](./export#扩展的图层)                                             | `(ctx, draw: FlowDrawContext, nodes: FlowNode[]) => string` |
 | `overlays`         | 浮在编辑器上方的组件，不随画布移动，比如面板；根元素加上 `data-flow-overlay` 后，选中节点的浮动工具栏会避开它；画布里的元素（例如节点上的手柄）加上它也一样 | `Component[]`                                               |
-| `contextMenu`      | 右键菜单的项，见[右键菜单](./editing#右键菜单)                                                                                                              | `(ctx, target) => FlowMenuItem[]`                           |
+| `contextMenu`      | 右键菜单的项，见[右键菜单](./editing#右键菜单)                                                                                                              | `(ctx, target) => ContextMenuItem[]`                        |
 | `toolbarItems`     | 选中节点上方工具栏的按钮，见[工具栏](./editing#工具栏)                                                                                                      | `(ctx, nodes) => FlowToolbarItem[]`                         |
 | `edgeToolbarItems` | 只选中连线时工具栏的按钮，见[工具栏](./editing#工具栏)                                                                                                      | `(ctx, edges) => FlowToolbarItem[]`                         |
 | `setup`            | 编辑器挂载后调用，可以返回一个函数，在卸载时调用                                                                                                            | `(ctx) => void \| (() => void)`                             |

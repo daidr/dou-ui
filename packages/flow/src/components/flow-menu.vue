@@ -1,45 +1,10 @@
 <script setup lang="ts">
-import { DouContextMenu, DouDropdownItem, DouDropdownRadioGroup, DouIcon } from 'dou-ui'
-import { computed, defineComponent, h, nextTick, useTemplateRef, type PropType } from 'vue'
-import type { FlowMenuItem } from '../core/menu'
+import type { ContextMenuItem } from 'dou-ui'
+import { DouContextMenu } from 'dou-ui'
+import { nextTick, useTemplateRef } from 'vue'
 
-const props = defineProps<{ items: FlowMenuItem[] }>()
-const emit = defineEmits<{ select: [key: unknown] }>()
+defineProps<{ items: ContextMenuItem[] }>()
 const open = defineModel<boolean>('open', { default: false })
-
-// Shortcuts mean nothing without a keyboard.
-const coarse = () => typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches
-
-/** Every item marked or not: one choice, read as radio items. */
-const choice = computed(
-  () => props.items.length > 0 && props.items.every((item) => item.checked !== undefined),
-)
-const picked = computed(() => props.items.find((item) => item.checked)?.key)
-
-// One item; `checked` is left to the radio group in a choice.
-const Item = defineComponent({
-  props: { item: { type: Object as PropType<FlowMenuItem>, required: true }, radio: Boolean },
-  setup(itemProps) {
-    return () => {
-      const { item } = itemProps
-      return h(
-        DouDropdownItem,
-        {
-          value: item.key,
-          disabled: item.disabled,
-          tone: item.tone,
-          divided: item.divided,
-          checked: itemProps.radio ? undefined : item.checked,
-          shortcut: coarse() ? undefined : item.shortcut,
-        },
-        {
-          default: () => item.label,
-          prefix: item.icon ? () => h(DouIcon, null, () => h(item.icon!)) : undefined,
-        },
-      )
-    }
-  },
-})
 
 const menu = useTemplateRef<InstanceType<typeof DouContextMenu>>('menu')
 
@@ -76,15 +41,7 @@ defineExpose({
 
 <template>
   <!-- The editor opens the menu itself; the empty anchor only gives it a place in the page. -->
-  <DouContextMenu ref="menu" v-model:open="open" @select="emit('select', $event)">
+  <DouContextMenu ref="menu" v-model:open="open" :items="items">
     <span class="dou-flow-editor__menu-anchor" aria-hidden="true" />
-    <template #menu>
-      <DouDropdownRadioGroup v-if="choice" :model-value="picked">
-        <Item v-for="item in items" :key="item.key" :item="item" radio />
-      </DouDropdownRadioGroup>
-      <template v-else>
-        <Item v-for="item in items" :key="item.key" :item="item" />
-      </template>
-    </template>
   </DouContextMenu>
 </template>

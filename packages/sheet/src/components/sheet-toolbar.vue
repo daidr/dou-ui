@@ -153,7 +153,7 @@ function extraTool(item: SheetToolbarItem): ExtraTool {
     icon: item.icon ?? info?.icon,
     shortcut: item.shortcut ?? info?.shortcut,
     pressed: item.pressed ?? (name && info!.toggle ? sheet.commands.active(name) : undefined),
-    disabled: disabled.value || (item.disabled ?? (name ? !sheet.commands.can(name) : false)),
+    disabled: item.disabled ?? (name ? !sheet.commands.can(name) : false),
     run: item.run ?? (name ? () => void sheet.commands.run(name) : undefined),
     children: item.children,
   }
@@ -161,9 +161,33 @@ function extraTool(item: SheetToolbarItem): ExtraTool {
 /** The extensions' items, by key. */
 const extensionItems = computed(() => {
   const map = new Map<string, SheetToolbarItem>()
-  for (const item of sheet.toolbarItems.value) map.set(item.key, item)
+  for (const item of sheet.toolbarItems.value) {
+    if (BUILT_IN.has(item.key) || map.has(item.key))
+      throw new Error(
+        `[@dou-ui/sheet] the toolbar item "${item.key}" is added twice, or has the name of a built-in tool`,
+      )
+    map.set(item.key, item)
+  }
   return map
 })
+
+/**
+ * Built-in tools of one button that an extension's command replaced: they
+ * are drawn from the command, with its label, icon and state.
+ */
+const SINGLE = new Set([
+  'undo',
+  'redo',
+  'bold',
+  'italic',
+  'underline',
+  'strike',
+  'wrap',
+  'merge',
+  'filter',
+  'clear',
+])
+const replaced = (tool: string) => SINGLE.has(tool) && sheet.commands.get(tool)?.builtin === false
 
 /** The tools to show, without separators at either end or two in a row. */
 const tools = computed(() => {
@@ -179,6 +203,10 @@ const tools = computed(() => {
 const extras = computed(() => {
   const map = new Map<string, ExtraTool>()
   for (const tool of tools.value) {
+    if (replaced(tool)) {
+      map.set(tool, extraTool({ key: tool, command: tool }))
+      continue
+    }
     if (tool === '|' || BUILT_IN.has(tool)) continue
     const item = extensionItems.value.get(tool)
     if (item) map.set(tool, extraTool(item))
@@ -596,6 +624,104 @@ onBeforeUnmount(() => observer?.disconnect())
       <slot name="start" />
       <template v-for="(tool, i) in tools" :key="tool === '|' ? `|${i}` : tool">
         <DouToolbarSeparator v-if="tool === '|'" />
+
+        <template v-else-if="extras.get(tool)?.children">
+          <template v-for="item in [extras.get(tool)!]" :key="item.key">
+            <DouTooltip
+              :content="item.label"
+              :disabled="menuOpen === tool || !item.icon"
+              placement="bottom"
+            >
+              <span class="dou-sheet-toolbar__trigger">
+                <DouDropdown
+                  :open="menuOpen === tool"
+                  placement="bottom-start"
+                  :disabled="item.disabled"
+                  @update:open="onMenu(tool, $event)"
+                >
+                  <DouButton
+                    variant="ghost"
+                    class="dou-sheet-toolbar__menu"
+                    :aria-label="item.label"
+                  >
+                    <component :is="item.icon" v-if="item.icon" />
+                    <span v-else class="dou-sheet-toolbar__text">{{ item.label }}</span>
+                    <template #trailing><ChevronDownIcon /></template>
+                  </DouButton>
+                  <template #menu>
+                    <template v-for="child in item.children" :key="child.key">
+                      <DouDropdownSub
+                        v-if="child.children?.length"
+                        :title="childLabel(child)"
+                        :divided="child.divided"
+                      >
+                        <DouDropdownItem
+                          v-for="grand in child.children"
+                          :key="grand.key"
+                          :disabled="childDisabled(grand)"
+                          :divided="grand.divided"
+                          :tone="grand.tone"
+                          @click="runChild(grand)"
+                        >
+                          <template v-if="childIcon(grand)" #prefix>
+                            <component :is="childIcon(grand)" />
+                          </template>
+                          {{ childLabel(grand) }}
+                        </DouDropdownItem>
+                      </DouDropdownSub>
+                      <DouDropdownItem
+                        v-else
+                        :disabled="childDisabled(child)"
+                        :divided="child.divided"
+                        :tone="child.tone"
+                        @click="runChild(child)"
+                      >
+                        <template v-if="childIcon(child)" #prefix>
+                          <component :is="childIcon(child)" />
+                        </template>
+                        {{ childLabel(child) }}
+                      </DouDropdownItem>
+                    </template>
+                  </template>
+                </DouDropdown>
+              </span>
+            </DouTooltip>
+          </template>
+        </template>
+
+        <template v-else-if="extras.get(tool)">
+          <template v-for="item in [extras.get(tool)!]" :key="item.key">
+            <DouTooltip
+              :content="item.label"
+              :shortcut="item.shortcut"
+              :disabled="!item.icon && !item.shortcut"
+              placement="bottom"
+            >
+              <DouToggle
+                v-if="item.pressed !== undefined"
+                :pressed="item.pressed"
+                :aria-label="item.label"
+                :aria-keyshortcuts="item.shortcut"
+                :disabled="item.disabled"
+                @update:pressed="runExtra(item)"
+              >
+                <component :is="item.icon" v-if="item.icon" />
+                <span v-else class="dou-sheet-toolbar__text">{{ item.label }}</span>
+              </DouToggle>
+              <DouButton
+                v-else
+                variant="ghost"
+                :aria-label="item.label"
+                :aria-keyshortcuts="item.shortcut"
+                :disabled="item.disabled"
+                @click="runExtra(item)"
+              >
+                <component :is="item.icon" v-if="item.icon" />
+                <span v-else class="dou-sheet-toolbar__text">{{ item.label }}</span>
+              </DouButton>
+            </DouTooltip>
+          </template>
+        </template>
 
         <template v-else-if="tool === 'undo' || tool === 'redo'">
           <DouTooltip
@@ -1035,104 +1161,6 @@ onBeforeUnmount(() => observer?.disconnect())
             <TypeXIcon />
           </DouButton>
         </DouTooltip>
-
-        <template v-else-if="extras.get(tool)?.children">
-          <template v-for="item in [extras.get(tool)!]" :key="item.key">
-            <DouTooltip
-              :content="item.label"
-              :disabled="menuOpen === tool || !item.icon"
-              placement="bottom"
-            >
-              <span class="dou-sheet-toolbar__trigger">
-                <DouDropdown
-                  :open="menuOpen === tool"
-                  placement="bottom-start"
-                  :disabled="item.disabled"
-                  @update:open="onMenu(tool, $event)"
-                >
-                  <DouButton
-                    variant="ghost"
-                    class="dou-sheet-toolbar__menu"
-                    :aria-label="item.label"
-                  >
-                    <component :is="item.icon" v-if="item.icon" />
-                    <span v-else class="dou-sheet-toolbar__text">{{ item.label }}</span>
-                    <template #trailing><ChevronDownIcon /></template>
-                  </DouButton>
-                  <template #menu>
-                    <template v-for="child in item.children" :key="child.key">
-                      <DouDropdownSub
-                        v-if="child.children?.length"
-                        :title="childLabel(child)"
-                        :divided="child.divided"
-                      >
-                        <DouDropdownItem
-                          v-for="grand in child.children"
-                          :key="grand.key"
-                          :disabled="childDisabled(grand)"
-                          :divided="grand.divided"
-                          :tone="grand.tone"
-                          @click="runChild(grand)"
-                        >
-                          <template v-if="childIcon(grand)" #prefix>
-                            <component :is="childIcon(grand)" />
-                          </template>
-                          {{ childLabel(grand) }}
-                        </DouDropdownItem>
-                      </DouDropdownSub>
-                      <DouDropdownItem
-                        v-else
-                        :disabled="childDisabled(child)"
-                        :divided="child.divided"
-                        :tone="child.tone"
-                        @click="runChild(child)"
-                      >
-                        <template v-if="childIcon(child)" #prefix>
-                          <component :is="childIcon(child)" />
-                        </template>
-                        {{ childLabel(child) }}
-                      </DouDropdownItem>
-                    </template>
-                  </template>
-                </DouDropdown>
-              </span>
-            </DouTooltip>
-          </template>
-        </template>
-
-        <template v-else-if="extras.get(tool)">
-          <template v-for="item in [extras.get(tool)!]" :key="item.key">
-            <DouTooltip
-              :content="item.label"
-              :shortcut="item.shortcut"
-              :disabled="!item.icon && !item.shortcut"
-              placement="bottom"
-            >
-              <DouToggle
-                v-if="item.pressed !== undefined"
-                :pressed="item.pressed"
-                :aria-label="item.label"
-                :aria-keyshortcuts="item.shortcut"
-                :disabled="item.disabled"
-                @update:pressed="runExtra(item)"
-              >
-                <component :is="item.icon" v-if="item.icon" />
-                <span v-else class="dou-sheet-toolbar__text">{{ item.label }}</span>
-              </DouToggle>
-              <DouButton
-                v-else
-                variant="ghost"
-                :aria-label="item.label"
-                :aria-keyshortcuts="item.shortcut"
-                :disabled="item.disabled"
-                @click="runExtra(item)"
-              >
-                <component :is="item.icon" v-if="item.icon" />
-                <span v-else class="dou-sheet-toolbar__text">{{ item.label }}</span>
-              </DouButton>
-            </DouTooltip>
-          </template>
-        </template>
       </template>
       <slot name="end" />
     </DouToolbar>

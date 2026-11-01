@@ -49,6 +49,8 @@ export interface SheetCommandInfo {
   shortcut?: string
   /** Whether it turns something on and off (it has `active`). */
   toggle: boolean
+  /** Whether it is the sheet's own, not added or replaced by an extension. */
+  builtin: boolean
 }
 
 /** The commands of a sheet, by name, for `useSheet().commands`. */
@@ -104,6 +106,7 @@ export function mergeCommands(
 export function createCommands(
   commands: () => ReadonlyMap<string, SheetCommand>,
   context: () => SheetContext,
+  builtin: Readonly<Record<string, SheetCommand>> = {},
 ): SheetCommands {
   const find = (name: string) => {
     const command = commands().get(name)
@@ -133,6 +136,7 @@ export function createCommands(
         icon: command.icon,
         shortcut: command.shortcut,
         toggle: !!command.active,
+        builtin: builtin[name] === command,
       }
     },
     has: (name) => commands().has(name),

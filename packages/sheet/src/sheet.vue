@@ -12,6 +12,7 @@ import {
 import {
   BoldIcon,
   ChevronDownIcon,
+  PrinterIcon,
   ClipboardPasteIcon,
   DecimalDecreaseIcon,
   DecimalIncreaseIcon,
@@ -4856,6 +4857,7 @@ const builtinCommands: Record<string, SheetCommand> = {
   },
   print: {
     label: (m) => m.print,
+    icon: PrinterIcon,
     run: () => print(),
   },
 }
@@ -4864,6 +4866,7 @@ const commandMap = computed(() => mergeCommands(builtinCommands, resolved.value.
 const commands = createCommands(
   () => commandMap.value,
   () => context,
+  builtinCommands,
 )
 
 /** A menu item that names a command, filled in from it. */
@@ -4966,10 +4969,25 @@ const context: SheetContext = {
 }
 provide(sheetContextKey, context)
 
-const keymaps = computed(() => resolved.value.keymaps.map((keymap) => keymap(context)))
+const keymaps = computed(() =>
+  resolved.value.keymaps.map((make) => {
+    const keymap = make(context)
+    // a command named by a key is checked now, not when the key is first pressed
+    for (const combo in keymap) {
+      const handler = keymap[combo]
+      if (typeof handler === 'string' && !commandMap.value.has(handler))
+        throw new Error(
+          `[@dou-ui/sheet] the key "${combo}" runs no command: "${handler}" is unknown`,
+        )
+    }
+    return keymap
+  }),
+)
 
 let cleanups: (() => void)[] = []
 function setupExtensions() {
+  // reads the keys now, so a key naming a command that isn't there is found at once
+  void keymaps.value
   for (const cleanup of cleanups) cleanup()
   cleanups = []
   for (const setup of resolved.value.setups) {

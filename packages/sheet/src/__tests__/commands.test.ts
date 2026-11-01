@@ -152,7 +152,7 @@ describe('commands', () => {
     })
     const { wrapper, doc, grid, button } = setup({ extensions: [loud] })
     await grid().trigger('keydown', { key: 'b', ctrlKey: true })
-    await button('加粗').trigger('click')
+    await button('强调').trigger('click')
     expect(ran).toBe(2)
     expect(doc.value.styles).toBeUndefined()
     wrapper.unmount()
@@ -172,5 +172,56 @@ describe('commands', () => {
     expect(labels[0]).toContain('加粗')
     expect(labels.some((text) => text?.includes('剪切'))).toBe(true)
     wrapper.unmount()
+  })
+
+  it('keeps commands that can run usable in a read-only grid', () => {
+    const view = defineSheetExtension({
+      name: 'view',
+      commands: { 'view.share': { label: '分享', run: () => {} } },
+      toolbar: () => [{ key: 'share', command: 'view.share' }],
+    })
+    const { wrapper, button } = setup(
+      { readonly: true, extensions: [view] },
+      { tools: ['bold', 'print', 'share'] },
+    )
+    expect(button('加粗').attributes('disabled')).toBeDefined()
+    expect(button('打印').attributes('disabled')).toBeUndefined()
+    expect(button('打印').find('svg').exists()).toBe(true)
+    expect(button('分享').attributes('disabled')).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('refuses toolbar items whose key is taken', () => {
+    const one = defineSheetExtension({
+      name: 'one',
+      toolbar: () => [{ key: 'bold', label: '粗', run: () => {} }],
+    })
+    expect(() => setup({ extensions: [one] })).toThrow(/toolbar item "bold"/)
+    const item = { key: 'same', label: '同', run: () => {} }
+    const twice = [
+      { name: 'x', toolbar: () => [item] },
+      { name: 'y', toolbar: () => [item] },
+    ]
+    expect(() => setup({ extensions: twice })).toThrow(/toolbar item "same"/)
+    document.body.innerHTML = ''
+  })
+
+  it('draws a replaced built-in tool from its command', () => {
+    const loud = defineSheetExtension({
+      name: 'loud',
+      commands: {
+        bold: { label: '强调', override: true, active: () => true, run: () => {} },
+      },
+    })
+    const { wrapper, button } = setup({ extensions: [loud] })
+    expect(button('加粗').exists()).toBe(false)
+    expect(button('强调').attributes('aria-pressed')).toBe('true')
+    wrapper.unmount()
+  })
+
+  it('checks the commands keys name when the grid mounts', () => {
+    const typo = defineSheetExtension({ name: 'typo', keymap: () => ({ 'mod+k': 'nope.go' }) })
+    expect(() => setup({ extensions: [typo] })).toThrow(/"mod\+k" runs no command: "nope.go"/)
+    document.body.innerHTML = ''
   })
 })

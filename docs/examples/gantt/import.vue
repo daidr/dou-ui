@@ -63,7 +63,7 @@ function report({ tasks: read, warnings }: GanttCSVResult) {
     .map(({ row, column, text }) => `第 ${row} 行“${HEADERS[column] ?? column}”列的 ${text}`)
     .join('、')
   const more = warnings.length > 3 ? ` 等 ${warnings.length} 处` : ''
-  toast.warning(`已导入 ${read.length} 个任务，${where}${more}无法识别，这些值没有写入`, {
+  toast.warning(`已导入 ${read.length} 个任务，${where}${more} 无法识别，这些值没有写入`, {
     action: undo,
   })
 }

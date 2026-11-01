@@ -100,7 +100,11 @@ interface CommentAuthor {
 
 ### 工具函数
 
-| 名称                 | 说明                                   | 类型                                                                   |
-| -------------------- | -------------------------------------- | ---------------------------------------------------------------------- |
-| `applyCommentAction` | 把一次修改应用到讨论列表，返回新的数组 | `(threads: CommentThread[], action: CommentAction) => CommentThread[]` |
-| `createCommentId`    | 生成随机 id                            | `() => string`                                                         |
+| 名称                       | 说明                                                                      | 类型                                                                       |
+| -------------------------- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `applyCommentAction`       | 把一次修改应用到讨论列表，返回新的数组                                    | `(threads: CommentThread[], action: CommentAction) => CommentThread[]`     |
+| `createCommentId`          | 生成随机 id                                                               | `() => string`                                                             |
+| `applySharedCommentAction` | 把一次修改写进共享的 Yjs `Y.Map`，在一个事务里完成，`origin` 作为事务来源 | `(map: SharedCommentMap, action: CommentAction, origin?: unknown) => void` |
+| `readSharedComments`       | 从共享的 `Y.Map` 读出全部讨论，讨论和回复按时间排序                       | `(map: SharedCommentMap) => CommentThread[]`                               |
+
+后两个函数用于自己用 Yjs 同步讨论的场景（编辑器的 `collaboration({ comments })` 内部用的就是它们）。`SharedCommentMap` 是 `Y.Map` 的结构类型，直接传入 `Y.Map` 即可，`dou-ui` 不依赖 yjs。map 里每条讨论存为 `t:<讨论 id>`，每条评论存为 `c:<评论 id>`，两个人同时回复不会互相覆盖。这个 map 应只用来保存讨论。

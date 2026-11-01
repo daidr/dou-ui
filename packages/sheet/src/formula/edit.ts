@@ -106,17 +106,22 @@ export function canPointAt(formula: string, caret: number) {
 }
 
 /** The function call the caret is in, innermost first, and which of its arguments, from 0. */
-export function callAt(formula: string, caret: number): { name: string; arg: number } | null {
+export function callAt(
+  formula: string,
+  caret: number,
+): { name: string; arg: number; count: number } | null {
   if (!formula.startsWith('=')) return null
-  const stack: { name: string | null; arg: number }[] = []
+  const tokens = formulaTokens(formula)
+  const stack: { name: string | null; arg: number; open: number }[] = []
   let last: SheetFormulaToken | undefined
-  for (const token of formulaTokens(formula)) {
+  for (const [i, token] of tokens.entries()) {
     if (token.start >= caret) break
     if (token.kind === 'op') {
       if (token.text === '(')
         stack.push({
           name: last?.kind === 'name' && last.end === token.start ? last.text.toUpperCase() : null,
           arg: 0,
+          open: i,
         })
       else if (token.text === ')') stack.pop()
       else if ((token.text === ',' || token.text === ';') && stack.length)
@@ -126,9 +131,45 @@ export function callAt(formula: string, caret: number): { name: string; arg: num
   }
   for (let i = stack.length - 1; i >= 0; i--) {
     const call = stack[i]!
-    if (call.name) return { name: call.name, arg: call.arg }
+    if (!call.name) continue
+    // all its arguments, also those after the caret, up to its `)`
+    let count = 1
+    let depth = 0
+    for (const token of tokens.slice(call.open + 1)) {
+      if (token.kind !== 'op') continue
+      if (token.text === '(') depth++
+      else if (token.text === ')') {
+        if (!depth--) break
+      } else if ((token.text === ',' || token.text === ';') && !depth) count++
+    }
+    return { name: call.name, arg: call.arg, count }
   }
   return null
+}
+
+/** The number an argument's name ends with, such as `2` of `[值2`. */
+const numberOf = (name: string) => /(\d+)\]?$/.exec(name.replace(/^\[/, ''))?.[1]
+
+/**
+ * Which of a function's argument names the argument at `index` (of `count`)
+ * is, or -1. After `…` the names before it repeat as a group, such as the
+ * pairs of `SUMIFS` or `SWITCH`, numbered alike (`区域1, 条件1`); names after
+ * `…`, such as `SWITCH`'s default, are the last arguments when the pairs come out even.
+ */
+export function argNameAt(args: string[], index: number, count: number): number {
+  const more = args.indexOf('…')
+  if (more === -1) return index < args.length ? index : -1
+  if (index < more) return index
+  const last = numberOf(args[more - 1] ?? '')
+  let group = 1
+  if (last != null) while (group < more && numberOf(args[more - 1 - group]!) === last) group++
+  const tail = args.length - more - 1
+  if (tail && count - tail >= more && (count - tail - more) % group === 0) {
+    const fromEnd = count - index
+    if (fromEnd <= tail) return args.length - fromEnd
+  }
+  const start = more - group
+  return start + ((index - start) % group)
 }
 
 /**

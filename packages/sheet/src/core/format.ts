@@ -169,7 +169,7 @@ function tokensOf(format: string) {
 }
 
 /** Whether a format has date parts, outside quoted and escaped text. */
-const isDateFormat = (format: string) => /[ymdhs]/i.test(format.replace(/"[^"]*"?|\\./g, ''))
+export const isDateFormat = (format: string) => /[ymdhs]/i.test(format.replace(/"[^"]*"?|\\./g, ''))
 
 const weekdayNames = new Map<string, Intl.DateTimeFormat>()
 

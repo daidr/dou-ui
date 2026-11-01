@@ -150,8 +150,8 @@ export interface CodeCompletion {
   kind?: CodeCompletionKind
   /** Short, after the label, e.g. a type. */
   detail?: string
-  /** Longer, beside the list while this entry is picked. */
-  info?: string
+  /** Longer, below the list while this entry is picked: text, or a function returning VNodes. */
+  info?: string | (() => VNodeChild)
   /** What goes into the text, if not the label. */
   insert?: string
   /** Inserted as a snippet instead: `${1:name}` places to fill in, Tab to the next, `$0` where it ends. */
@@ -203,7 +203,8 @@ export interface CodeSignatureResult {
   params: Array<[number, number]>
   /** Which parameter the cursor is at, from 0. */
   active: number
-  info?: string
+  /** Shown under the signature: text, or a function returning VNodes. */
+  info?: string | (() => VNodeChild)
 }
 
 export interface CodeExtension {
@@ -312,6 +313,12 @@ export interface CodeExtensionContext extends CodeEditorExpose {
   readonly focused: boolean
   /** Reads a message out to screen readers. */
   announce: (message: string) => void
+  /**
+   * Runs the linter of the extension named `name` again now (every linter
+   * without a name), for problems that arrive by themselves, such as ones a
+   * server pushes.
+   */
+  relint: (name?: string) => void
 }
 
 /** Types an extension; returns it as it is. */

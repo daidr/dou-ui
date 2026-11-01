@@ -209,7 +209,7 @@ function signatureHelp(text: string, offset: number) {
         signatures: [
           {
             label: signature.label,
-            documentation: signature.doc,
+            documentation: { kind: 'markdown', value: signature.doc },
             parameters: signature.params.map((label) => ({ label })),
           },
         ],

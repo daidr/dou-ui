@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { CodeText, type CodeEditorExpose, type CodeExtension, DouCodeEditor } from '../index'
 import {
@@ -64,6 +64,18 @@ function setup(extensions: CodeExtension[], initial: string) {
   input.focus()
   return { wrapper, code, editor, input }
 }
+
+const diag = (version: number | undefined, message: string) => ({
+  method: 'textDocument/publishDiagnostics',
+  params: {
+    uri: 'file:///a',
+    ...(version === undefined ? {} : { version }),
+    diagnostics: [
+      { range: { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } }, message },
+    ],
+  },
+})
+const messages = (editor: CodeEditorExpose) => editor.diagnostics.map((d) => d.message)
 
 afterEach(() => {
   document.body.innerHTML = ''
@@ -235,8 +247,11 @@ describe('createLanguageClient', () => {
     expect(completions!.from).toBe(4)
     expect(completions!.options).toMatchObject([
       { label: 'zeta', kind: 'function', snippet: 'zeta($1)' },
-      { label: 'alpha', kind: 'variable', detail: 'number', info: 'The **first**.' },
+      { label: 'alpha', kind: 'variable', detail: 'number' },
     ])
+    const info = mount(defineComponent(() => completions!.options[1]!.info as () => any))
+    expect(info.find('strong').text()).toBe('first')
+    expect(info.text()).not.toContain('**')
     // Server order breaks ties: alpha (sortText 1) above zeta.
     expect(completions!.options[1]!.boost!).toBeGreaterThan(completions!.options[0]!.boost!)
     expect((server.last('textDocument/completion')!.params as any).context).toEqual({
@@ -344,5 +359,137 @@ describe('createLanguageClient', () => {
     await flush()
     expect(server.received.find((m) => m.id === 'c1')).toMatchObject({ result: [null, null] })
     expect(server.received.find((m) => m.id === 'c2')).toMatchObject({ error: { code: -32601 } })
+  })
+
+  it('shows a second round of problems pushed for the same text', async () => {
+    const server = fakeServer(full)
+    const client = createLanguageClient({ transport: server.transport })
+    const { editor } = setup([client.document({ uri: 'file:///a', languageId: 'x' })], 'let x')
+    await flush()
+    server.push(diag(1, 'syntax'))
+    await flush()
+    expect(messages(editor.value!)).toEqual(['syntax'])
+    server.push(diag(1, 'semantic'))
+    await flush()
+    expect(messages(editor.value!)).toEqual(['semantic'])
+  })
+
+  it('takes the newest unversioned push as the problems of the text now', async () => {
+    const server = fakeServer(full)
+    const client = createLanguageClient({ transport: server.transport })
+    const { editor } = setup([client.document({ uri: 'file:///a', languageId: 'x' })], 'abc')
+    await flush()
+    server.push(diag(undefined, 'v1'))
+    await flush()
+    editor.value!.transact((tr) => tr.replace(0, 0, 'Z'))
+    await new Promise((resolve) => setTimeout(resolve, 400))
+    server.push(diag(undefined, 'stale'))
+    await flush()
+    server.push(diag(undefined, 'fresh'))
+    await flush()
+    expect(messages(editor.value!)).toEqual(['fresh'])
+  })
+
+  it('ends a closed connection for good and opens documents again on the next one', async () => {
+    const servers: Array<ReturnType<typeof fakeServer>> = []
+    const client = createLanguageClient({
+      transport: () => {
+        const server = fakeServer(full)
+        servers.push(server)
+        return server.transport
+      },
+    })
+    const a = setup([client.document({ uri: 'file:///a', languageId: 'x' })], 'abc')
+    await flush()
+    client.close()
+    await flush()
+    expect(servers[0]!.isClosed()).toBe(true)
+    // Detached: no more messages for the closed connection.
+    a.editor.value!.transact((tr) => tr.replace(0, 0, 'Z'))
+    expect(servers[0]!.methods()).not.toContain('textDocument/didChange')
+    a.wrapper.unmount()
+    const b = setup([client.document({ uri: 'file:///b', languageId: 'x' })], 'abc')
+    await flush()
+    expect(servers[1]!.methods()).toContain('textDocument/didOpen')
+    b.wrapper.unmount()
+    await flush()
+    expect(servers[1]!.methods().slice(-2)).toEqual(['shutdown', 'exit'])
+    expect(servers[1]!.isClosed()).toBe(true)
+  })
+
+  it('ends waiting requests when the connection breaks', async () => {
+    const server = fakeServer(full)
+    let broken: (() => void) | undefined
+    server.transport.onClose = (listener) => {
+      broken = listener
+      return () => (broken = undefined)
+    }
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const client = createLanguageClient({ transport: () => server.transport })
+    const doc = client.document({ uri: 'file:///a', languageId: 'x' })
+    const { editor } = setup([doc], 'abc')
+    await flush()
+    const send = server.transport.send
+    server.transport.send = (message) => {
+      if (message.method === 'textDocument/hover') server.received.push(message)
+      else send(message)
+    }
+    const found = doc.hover!({ pos: 1, signal: new AbortController().signal }, editor.value as any)
+    await flush()
+    broken!()
+    expect(await found).toBeNull()
+    expect(server.isClosed()).toBe(true)
+    expect(warn.mock.calls[0]![0]).toContain('[@dou-ui/code]')
+    warn.mockRestore()
+  })
+
+  it('opens documents only when the server asks for it, and sends nothing then', async () => {
+    const server = fakeServer({ textDocumentSync: { change: 2 }, hoverProvider: true })
+    const client = createLanguageClient({ transport: server.transport })
+    const doc = client.document({ uri: 'file:///a', languageId: 'x' })
+    const { editor } = setup([doc], 'abc')
+    await flush()
+    expect(server.methods()).not.toContain('textDocument/didOpen')
+    expect(
+      await doc.hover!({ pos: 1, signal: new AbortController().signal }, editor.value as any),
+    ).toBeNull()
+    expect(server.methods()).not.toContain('textDocument/hover')
+
+    const other = fakeServer({ textDocumentSync: { openClose: true, change: 0 } })
+    const second = createLanguageClient({ transport: other.transport })
+    const { editor: e2 } = setup([second.document({ uri: 'file:///b', languageId: 'x' })], 'abc')
+    await flush()
+    expect(other.methods()).toContain('textDocument/didOpen')
+    e2.value!.transact((tr) => tr.replace(0, 0, 'Z'))
+    expect(other.methods()).not.toContain('textDocument/didChange')
+  })
+
+  it('turns choices and variables in snippets into fields and defaults', async () => {
+    const server = fakeServer(full, {
+      'textDocument/completion': () => [
+        {
+          label: 'log',
+          insertTextFormat: 2,
+          insertText: 'log(${1|info,warn|}, $TM_FILENAME${TM_SELECTED_TEXT:text}$0)',
+          documentation: 'Plain: `x` stays **as is**',
+        },
+      ],
+    })
+    const client = createLanguageClient({ transport: server.transport })
+    const doc = client.document({ uri: 'file:///a', languageId: 'x' })
+    const { editor } = setup([doc], '')
+    await flush()
+    const found = await doc.completion!(
+      {
+        pos: 0,
+        word: { from: 0, to: 0, text: '' },
+        explicit: true,
+        signal: new AbortController().signal,
+      },
+      editor.value as any,
+    )
+    expect(found!.options[0]!.snippet).toBe('log(${1:info}, text$0)')
+    // A plain string is plain text, marks and all.
+    expect(found!.options[0]!.info).toBe('Plain: `x` stays **as is**')
   })
 })

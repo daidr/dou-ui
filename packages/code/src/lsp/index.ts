@@ -52,6 +52,11 @@ export interface LspTransport {
   onMessage: (listener: (message: LspMessage) => void) => () => void
   /** Ends the connection, e.g. terminates the worker. */
   close?: () => void
+  /**
+   * Listens for the connection breaking by itself, e.g. the worker failing
+   * or the socket closing; returns a function that stops listening.
+   */
+  onClose?: (listener: () => void) => () => void
 }
 
 export interface LanguageClientOptions {
@@ -60,6 +65,10 @@ export interface LanguageClientOptions {
    * editor using the client mounts, and the connection is shut down and
    * closed when the last one unmounts; a later editor starts a new one.
    * A transport given as it is stays open until `close()`.
+   *
+   * Editors still mounted when the connection ends (`close()`, or the
+   * server stopping by itself) stay without the server until they mount
+   * again.
    */
   transport: LspTransport | (() => LspTransport)
   /** The workspace folder, sent as `rootUri`. */
@@ -111,6 +120,11 @@ export function workerTransport(worker: Worker): LspTransport {
       return () => worker.removeEventListener('message', handle)
     },
     close: () => worker.terminate(),
+    onClose: (listener) => {
+      const handle = () => listener()
+      worker.addEventListener('error', handle)
+      return () => worker.removeEventListener('error', handle)
+    },
   }
 }
 
@@ -142,6 +156,11 @@ export function socketTransport(socket: WebSocket): LspTransport {
       return () => socket.removeEventListener('message', handle)
     },
     close: () => socket.close(),
+    onClose: (listener) => {
+      const handle = () => listener()
+      socket.addEventListener('close', handle)
+      return () => socket.removeEventListener('close', handle)
+    },
   }
 }
 
@@ -195,6 +214,10 @@ const CLIENT_CAPABILITIES = {
 export function createLanguageClient(options: LanguageClientOptions): LanguageClient {
   let transport: LspTransport | null = null
   let stopListening: (() => void) | null = null
+  /** Counts connections: a document that opened on an earlier one doesn't count toward this one. */
+  let generation = 0
+  /** The mounted documents, told when their connection ends. */
+  const attached = new Set<() => void>()
   let ready: Promise<void> | null = null
   let capabilities: Record<string, any> | null = null
   let users = 0
@@ -256,7 +279,15 @@ export function createLanguageClient(options: LanguageClientOptions): LanguageCl
   function connect() {
     if (ready) return ready
     transport = typeof options.transport === 'function' ? options.transport() : options.transport
-    stopListening = transport.onMessage(receive)
+    const stopMessages = transport.onMessage(receive)
+    const stopClose = transport.onClose?.(() => {
+      warn('the connection to the language server closed')
+      drop(false)
+    })
+    stopListening = () => {
+      stopMessages()
+      stopClose?.()
+    }
     ready = rawRequest<{ capabilities?: Record<string, any> }>('initialize', {
       processId: null,
       clientInfo: { name: 'DouCodeEditor' },
@@ -271,7 +302,8 @@ export function createLanguageClient(options: LanguageClientOptions): LanguageCl
     return ready
   }
 
-  function disconnect() {
+  /** Ends the connection: `shutdown` asks the server to stop first, otherwise it is already gone. */
+  function drop(shutdown: boolean) {
     if (!transport) return
     const ending = transport
     const stop = stopListening
@@ -280,13 +312,22 @@ export function createLanguageClient(options: LanguageClientOptions): LanguageCl
     stopListening = null
     ready = null
     capabilities = null
+    generation++
+    users = 0
     for (const waiting of pending.values()) waiting.reject(new Error('The language server closed'))
     pending.clear()
+    for (const detach of attached) detach()
+    attached.clear()
     // Ask it to shut down, then exit; a server that doesn't answer is closed all the same.
     const finish = () => {
       ending.send({ jsonrpc: '2.0', method: 'exit' })
       stop?.()
       ending.close?.()
+    }
+    if (!shutdown) {
+      stop?.()
+      ending.close?.()
+      return
     }
     if (!wasReady) return finish()
     const id = ++nextId
@@ -316,20 +357,26 @@ export function createLanguageClient(options: LanguageClientOptions): LanguageCl
     return () => set.delete(listener)
   }
 
-  function acquire() {
+  function acquire(detach: () => void) {
     users++
-    return connect()
-  }
-  function release() {
-    users--
-    if (users === 0 && owned) disconnect()
+    attached.add(detach)
+    const at = generation
+    return {
+      ready: connect(),
+      release: () => {
+        // That connection has ended already; this document no longer counts.
+        if (at !== generation) return
+        attached.delete(detach)
+        users--
+        if (users === 0 && owned) drop(true)
+      },
+    }
   }
 
   const client: LanguageClient = {
     document: (documentOptions) =>
       documentExtension(documentOptions, {
         acquire,
-        release,
         send: (method, params) => send({ method, params }),
         request: rawRequest,
         onNotification,
@@ -341,17 +388,14 @@ export function createLanguageClient(options: LanguageClientOptions): LanguageCl
     get capabilities() {
       return capabilities
     },
-    close: () => {
-      users = 0
-      disconnect()
-    },
+    close: () => drop(true),
   }
   return client
 }
 
 interface Connection {
-  acquire: () => Promise<void>
-  release: () => void
+  /** Counts the document in, connecting if needed; `detach` runs when the connection ends before `release`. */
+  acquire: (detach: () => void) => { ready: Promise<void>; release: () => void }
   /** Sends a notification on the open connection. */
   send: (method: string, params: unknown) => void
   request: <T>(method: string, params: unknown, signal?: AbortSignal) => Promise<T>
@@ -394,22 +438,41 @@ const KIND: Record<number, CodeCompletionKind> = {
   25: 'type',
 }
 
-/** `textDocumentSync` as its kind: 0 none, 1 whole text, 2 changes only. */
-function syncKind(capabilities: Record<string, any> | null): number {
+/** `textDocumentSync`: whether documents are opened and closed, and how changes go (0 none, 1 whole text, 2 changes only). */
+function syncOf(capabilities: Record<string, any> | null): { open: boolean; change: number } {
   const sync = capabilities?.textDocumentSync
-  if (typeof sync === 'number') return sync
-  if (sync && typeof sync === 'object') return sync.openClose === false ? 0 : (sync.change ?? 0)
-  return 0
+  if (typeof sync === 'number') return { open: sync > 0, change: sync }
+  if (sync && typeof sync === 'object') return { open: !!sync.openClose, change: sync.change ?? 0 }
+  return { open: false, change: 0 }
 }
 
 type Markup = string | { kind?: string; language?: string; value: string }
 
-/** Plain text of documentation, for places that show text only. */
-function plainText(markup: Markup | Markup[] | null | undefined): string {
-  if (!markup) return ''
-  if (Array.isArray(markup)) return markup.map(plainText).filter(Boolean).join('\n\n')
-  if (typeof markup === 'string') return markup
-  return markup.value
+/** A completion's or signature's `documentation`: a plain string is plain text there. */
+function documentation(value: string | Markup | null | undefined): string | (() => VNodeChild) {
+  if (!value) return ''
+  return lspMarkup(typeof value === 'string' ? { kind: 'plaintext', value } : value)
+}
+
+/**
+ * An LSP snippet as the editor reads them: a choice `${1|a,b|}` becomes
+ * field 1 holding its first option, and a variable (`$TM_FILENAME`,
+ * `${TM_SELECTED_TEXT:default}`) its default, or nothing.
+ */
+function fromLspSnippet(snippet: string): string {
+  return (
+    snippet
+      .replace(/(?<!\\)\$\{(\d+)\|((?:[^|\\]|\\.)*)\|\}/g, (_, index: string, choices: string) => {
+        const first = /^(?:[^,\\]|\\.)*/.exec(choices)![0].replace(/\\([,|\\])/g, '$1')
+        return `\${${index}:${first.replace(/[$}\\]/g, '\\$&')}}`
+      })
+      // Bare variables first: a braced one's default must not run into the name before it.
+      .replace(/(?<!\\)\$([A-Za-z_]\w*)/g, '')
+      .replace(
+        /(?<!\\)\$\{([A-Za-z_]\w*)(?::((?:[^}\\]|\\.)*))?\}/g,
+        (_, _name, fallback?: string) => fallback ?? '',
+      )
+  )
 }
 
 /** Inline Markdown: `code` and **bold**; other marks are left as typed. */
@@ -437,7 +500,7 @@ function inline(text: string): VNodeChild[] {
  */
 function lspMarkup(markup: Markup | Markup[]): string | (() => VNodeChild) {
   const list = Array.isArray(markup) ? markup : [markup]
-  const blocks: Array<{ code: boolean; text: string }> = []
+  const blocks: Array<{ code: boolean; text: string; plain?: boolean }> = []
   for (const part of list) {
     if (typeof part === 'object' && part.language !== undefined) {
       blocks.push({ code: true, text: part.value })
@@ -445,7 +508,7 @@ function lspMarkup(markup: Markup | Markup[]): string | (() => VNodeChild) {
     }
     const value = typeof part === 'string' ? part : part.value
     if (typeof part === 'object' && part.kind === 'plaintext') {
-      blocks.push({ code: false, text: value })
+      blocks.push({ code: false, text: value, plain: true })
       continue
     }
     const pieces = value.split(/^```[^\n]*\n([\s\S]*?)^```[ \t]*$/m)
@@ -458,7 +521,8 @@ function lspMarkup(markup: Markup | Markup[]): string | (() => VNodeChild) {
     }))
     .filter((block) => block.text)
   if (!kept.length) return ''
-  if (kept.length === 1 && !kept[0]!.code && !/[`*]/.test(kept[0]!.text)) return kept[0]!.text
+  const only = kept.length === 1 ? kept[0]! : null
+  if (only && !only.code && (only.plain || !/[`*]/.test(only.text))) return only.text
   return () =>
     h(
       'div',
@@ -466,7 +530,11 @@ function lspMarkup(markup: Markup | Markup[]): string | (() => VNodeChild) {
       kept.map((block) =>
         block.code
           ? h('pre', { class: 'dou-code-lsp-markup__code' }, block.text)
-          : h('p', { class: 'dou-code-lsp-markup__text' }, inline(block.text)),
+          : h(
+              'p',
+              { class: 'dou-code-lsp-markup__text' },
+              block.plain ? block.text : inline(block.text),
+            ),
       ),
     )
 }
@@ -506,29 +574,35 @@ function documentExtension(
 ): CodeExtension {
   const { uri, languageId } = options
   const textDocument = { uri }
+  const name = `lsp:${uri}`
   let version = 0
+  /** The document is open on the server: changes and requests go there. */
   let opened = false
   let mounted = false
-  /** The problems the server last sent, and for which version. */
+  let editor: CodeExtensionContext | null = null
+  /** The problems the server last pushed, and for which version. */
   let published: { version: number; items: any[] } | null = null
+  /** Linters waiting for the problems of their version to be pushed. */
   let waiting: Array<() => void> = []
   /** For pulled problems: the server's id of the last answer, to get `unchanged` back. */
   let resultId: string | undefined
   let pulled: any[] = []
   let stopDiagnostics: (() => void) | null = null
-  let opening: Promise<boolean> | null = null
+  let opening: Promise<boolean> = Promise.resolve(false)
+  let release: (() => void) | null = null
 
-  const can = (name: string) => !!connection.capabilities()?.[name]
+  const can = (capability: string) => opened && !!connection.capabilities()?.[capability]
 
-  /** Resolves once the document is open on the server; `false` when the editor went away first or the server failed. */
-  function whenOpen(): Promise<boolean> {
-    return opening ?? Promise.resolve(false)
+  function wake() {
+    const runs = waiting
+    waiting = []
+    for (const run of runs) run()
   }
 
   function lint(context: CodeExtensionContext) {
     const doc = context.doc
-    return whenOpen().then((open): Promise<CodeDiagnostic[] | null> | CodeDiagnostic[] | null => {
-      if (!open || context.doc !== doc) return null
+    return opening.then((open): Promise<CodeDiagnostic[] | null> | CodeDiagnostic[] | null => {
+      if (!open || !opened || context.doc !== doc) return null
       if (can('diagnosticProvider')) {
         return connection
           .request<any>('textDocument/diagnostic', {
@@ -542,36 +616,49 @@ function documentExtension(
           })
           .catch(() => null)
       }
-      // Pushed problems: wait until the server sends them for this version.
+      // Pushed problems: those of this version, once the server sends them.
       const at = version
+      if (published?.version === at) return toDiagnostics(doc, published.items)
       return new Promise<CodeDiagnostic[] | null>((resolve) => {
-        const check = () => {
-          if (!published || published.version < at) return false
-          resolve(published.version === at ? toDiagnostics(doc, published.items) : null)
-          return true
-        }
-        if (check()) return
         const run = () => {
-          if (!mounted) resolve(null)
-          else if (!check()) waiting.push(run)
+          if (!mounted || !opened || version !== at) resolve(null)
+          else if (published?.version === at) resolve(toDiagnostics(doc, published.items))
+          else waiting.push(run)
         }
         waiting.push(run)
       })
     })
   }
 
-  function openDocument(context: CodeExtensionContext): Promise<boolean> {
-    return connection.acquire().then(
+  function onPublish(params: any) {
+    if (params?.uri !== uri || !opened) return
+    // Without a version, the newest problems are taken to be about the text now.
+    published = { version: params.version ?? version, items: params.diagnostics ?? [] }
+    if (waiting.length) wake()
+    // Nobody is waiting: a second round for the same text, or problems found
+    // again for other reasons. The linter runs again and takes them.
+    else if (published.version === version) editor?.relint(name)
+  }
+
+  /** The connection ended under the document: it stays without the server until mounted again. */
+  function detach() {
+    opened = false
+    opening = Promise.resolve(false)
+    release = null
+    wake()
+  }
+
+  function openDocument(context: CodeExtensionContext, ready: Promise<void>): Promise<boolean> {
+    return ready.then(
       () => {
-        if (!mounted) return false
-        const sync = syncKind(connection.capabilities())
+        if (!mounted || !release) return false
         version = 1
-        opened = sync !== 0
+        opened = syncOf(connection.capabilities()).open
         if (opened)
           connection.send('textDocument/didOpen', {
             textDocument: { uri, languageId, version, text: context.doc.toString() },
           })
-        return true
+        return opened
       },
       () => false,
     )
@@ -580,7 +667,8 @@ function documentExtension(
   function update(result: CodeTransactionResult) {
     if (!opened || result.changes.empty) return
     version++
-    const sync = syncKind(connection.capabilities())
+    const sync = syncOf(connection.capabilities()).change
+    if (sync === 0) return
     let contentChanges: unknown[]
     if (sync === 2) {
       // Each change is in the text before the step: going from the last
@@ -606,7 +694,7 @@ function documentExtension(
     request: Parameters<NonNullable<CodeExtension['completion']>>[0],
     context: CodeExtensionContext,
   ): Promise<CodeCompletionResult | null> {
-    if (!(await whenOpen()) || !can('completionProvider') || request.signal.aborted) return null
+    if (!(await opening) || !can('completionProvider') || request.signal.aborted) return null
     const doc = context.doc
     const triggers: string[] =
       connection.capabilities()?.completionProvider?.triggerCharacters ?? []
@@ -645,7 +733,7 @@ function documentExtension(
       const detail = [item.labelDetails?.detail, item.detail ?? item.labelDetails?.description]
         .filter(Boolean)
         .join(' ')
-      const info = plainText(item.documentation)
+      const info = documentation(item.documentation)
       const option: CodeCompletion = {
         label: item.label,
         boost: (items.length - rank.get(index)!) / items.length + (item.preselect ? 5 : 0),
@@ -654,7 +742,7 @@ function documentExtension(
       if (kind) option.kind = kind
       if (detail) option.detail = detail
       if (info) option.info = info
-      if (format === 2) option.snippet = text
+      if (format === 2) option.snippet = fromLspSnippet(text)
       else if (text !== item.label) option.insert = text
       return option
     })
@@ -665,7 +753,7 @@ function documentExtension(
     request: { pos: number; signal: AbortSignal },
     context: CodeExtensionContext,
   ): Promise<CodeHoverResult | null> {
-    if (!(await whenOpen()) || !can('hoverProvider') || request.signal.aborted) return null
+    if (!(await opening) || !can('hoverProvider') || request.signal.aborted) return null
     const doc = context.doc
     let found: any
     try {
@@ -692,7 +780,7 @@ function documentExtension(
     request: { pos: number; signal: AbortSignal },
     context: CodeExtensionContext,
   ): Promise<CodeSignatureResult | null> {
-    if (!(await whenOpen()) || !can('signatureHelpProvider') || request.signal.aborted) return null
+    if (!(await opening) || !can('signatureHelpProvider') || request.signal.aborted) return null
     let found: any
     try {
       found = await connection.request(
@@ -719,14 +807,14 @@ function documentExtension(
       params,
       active: one.activeParameter ?? found.activeParameter ?? 0,
     }
-    const info = plainText(one.documentation)
+    const info = documentation(one.documentation)
     if (info) result.info = info
     return result
   }
 
   function goToDefinition(context: CodeExtensionContext): CodeCommand {
     return (target) => {
-      if (!opened || !can('definitionProvider')) return false
+      if (!can('definitionProvider')) return false
       const doc = target.state.doc
       const head = target.state.selection.ranges[target.state.selection.main]!.head
       connection
@@ -748,9 +836,9 @@ function documentExtension(
   }
 
   return defineCodeExtension({
-    name: `lsp:${uri}`,
+    name,
     get completionTriggers() {
-      return connection.capabilities()?.completionProvider?.triggerCharacters ?? []
+      return opened ? (connection.capabilities()?.completionProvider?.triggerCharacters ?? []) : []
     },
     keymap: (context) => ({ F12: goToDefinition(context) }),
     update,
@@ -764,28 +852,25 @@ function documentExtension(
           `the document ${uri} is used by two editors at once; give each its own client.document()`,
         )
       mounted = true
+      editor = context
       published = null
       resultId = undefined
       pulled = []
-      stopDiagnostics = connection.onNotification('textDocument/publishDiagnostics', (params) => {
-        if (params?.uri !== uri) return
-        published = { version: params.version ?? version, items: params.diagnostics ?? [] }
-        const runs = waiting
-        waiting = []
-        for (const run of runs) run()
-      })
-      opening = openDocument(context)
+      stopDiagnostics = connection.onNotification('textDocument/publishDiagnostics', onPublish)
+      const session = connection.acquire(detach)
+      release = session.release
+      opening = openDocument(context, session.ready)
       return () => {
         mounted = false
         stopDiagnostics?.()
         stopDiagnostics = null
-        const runs = waiting
-        waiting = []
-        for (const run of runs) run()
         if (opened) connection.send('textDocument/didClose', { textDocument })
         opened = false
-        opening = null
-        connection.release()
+        opening = Promise.resolve(false)
+        wake()
+        editor = null
+        release?.()
+        release = null
       }
     },
   })

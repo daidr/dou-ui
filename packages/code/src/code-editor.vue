@@ -342,11 +342,11 @@ const LINT_DELAY = 300
 let lintTimer = 0
 const linting = computed(() => extensions.value.some((extension) => extension.lint))
 
-function runLint() {
-  clearTimeout(lintTimer)
+function runLint(name?: string) {
+  if (name === undefined) clearTimeout(lintTimer)
   const text = doc.value
   for (const extension of extensions.value) {
-    if (!extension.lint) continue
+    if (!extension.lint || (name !== undefined && extension.name !== name)) continue
     let found: ReturnType<NonNullable<CodeExtension['lint']>>
     try {
       found = extension.lint(context)
@@ -4323,6 +4323,9 @@ const api: CodeExtensionContext = {
     return focused.value
   },
   announce,
+  relint: (name) => {
+    if (mounted.value) runLint(name)
+  },
 }
 context = api
 provide(CODE_EDITOR_KEY, api)
@@ -4758,7 +4761,16 @@ defineExpose<CodeEditorExpose>(api)
                     v-if="completion!.items[completion!.index]?.option.info"
                     :class="ns.e('completion-info')"
                   >
-                    {{ completion!.items[completion!.index]!.option.info }}
+                    <template
+                      v-if="typeof completion!.items[completion!.index]!.option.info === 'string'"
+                      >{{ completion!.items[completion!.index]!.option.info }}</template
+                    >
+                    <RenderPart
+                      v-else
+                      :render="
+                        completion!.items[completion!.index]!.option.info as () => VNodeChild
+                      "
+                    />
                   </div>
                 </div>
                 <div
@@ -4777,7 +4789,10 @@ defineExpose<CodeEditorExpose>(api)
                     >
                   </div>
                   <div v-if="signature!.result.info" :class="ns.e('signature-info')">
-                    {{ signature!.result.info }}
+                    <template v-if="typeof signature!.result.info === 'string'">{{
+                      signature!.result.info
+                    }}</template>
+                    <RenderPart v-else :render="signature!.result.info" />
                   </div>
                 </div>
               </div>

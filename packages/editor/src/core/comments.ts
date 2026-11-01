@@ -25,7 +25,7 @@ export interface CommentAnchor {
   to: number
 }
 
-interface CommentPluginState {
+export interface CommentPluginState {
   /** The text a thread is being started on, until its first comment is sent. */
   pending: CommentRange | null
   decorations: DecorationSet

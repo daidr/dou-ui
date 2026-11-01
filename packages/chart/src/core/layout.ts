@@ -458,7 +458,8 @@ function layoutUp(
   const yCount = Math.max(2, Math.floor(plotHeight / Y_TICK_SPACE))
   // fewer and fewer ticks until their labels have a row each, whatever `ticks` asks
   const roomy = (axis: ValueAxis | null) => {
-    if (!axis || axis.ticks.length < 2) return true
+    // a heatmap's rows are named one each, as before: fewer ticks can't thin them
+    if (!axis || axis.ticks.length < 2 || model.yCategories?.[axis.role]) return true
     const scale = valueScale(axis, [plotHeight, 0])
     // ticks run in order, so neighbors on the axis are neighbors in the list
     const at = axis.ticks.map((t) => scale.map(t))

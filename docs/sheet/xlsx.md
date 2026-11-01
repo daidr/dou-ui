@@ -1,6 +1,6 @@
-# 导出 xlsx
+# 导入导出 xlsx
 
-`@dou-ui/sheet-xlsx` 是电子表格的一个扩展，把工作簿写成 `.xlsx` 文件，常见的表格软件都能直接打开。它不依赖其他库，压缩用的是运行环境自带的 `CompressionStream`：2023 年以后的主流浏览器、Node 18 以上、Bun 和 Deno 都有，没有时导出会报错并说明原因。
+`@dou-ui/sheet-xlsx` 是电子表格的一个扩展，把工作簿写成 `.xlsx` 文件，也能把 `.xlsx` 文件读成工作簿，常见的表格软件都能打开它写的文件。它不依赖其他库，压缩和解压用的是运行环境自带的 `CompressionStream` 和 `DecompressionStream`：2023 年以后的主流浏览器、Node 18 以上、Bun 和 Deno 都有，没有时会报错并说明原因。
 
 ## 安装
 
@@ -10,7 +10,7 @@ bun add @dou-ui/sheet-xlsx
 
 ## 基础用法
 
-把 `xlsx()` 加到表格的 `extensions` 里，工具栏的导出菜单就会多出 XLSX：
+把 `xlsx()` 加到表格的 `extensions` 里，工具栏的导出菜单就会多出 XLSX，导入按钮和拖入文件也能读 `.xlsx` 文件：
 
 ```vue
 <script setup lang="ts">
@@ -25,13 +25,15 @@ const extensions = [xlsx()]
 <template>
   <DouSheet v-model="book" :extensions="extensions">
     <template #header>
-      <DouSheetToolbar :tools="['export']" />
+      <DouSheetToolbar :tools="['import', 'export']" />
     </template>
   </DouSheet>
 </template>
 ```
 
 <DocDemo src="sheet/xlsx" column />
+
+## 导出
 
 可以导出整个工作簿、当前工作表或选区。工具栏的导出菜单里，XLSX 有子菜单，可以选择整个工作簿或当前工作表，选中了一片区域时还可以选择选区。用代码导出时和其他导出方式一样，默认导出整个工作簿：
 
@@ -55,12 +57,12 @@ const blob = await exportWorkbook(book, xlsxExporter, { colWidth: 120 })
 
 ## 选项
 
-选项可以在 `xlsx(options)` 里给出，作为每次导出的默认值；`exportFile` 的 `options` 会覆盖它们。
+选项可以在 `xlsx(options)` 里给出，作为每次导出和导入的默认值；`exportFile`、`importFile` 的 `options` 会覆盖它们。
 
-| 名称       | 说明                                                                                                     | 默认值                             |
-| ---------- | -------------------------------------------------------------------------------------------------------- | ---------------------------------- |
-| `formulas` | 写入公式和计算结果；`false` 时只写结果，适合用了扩展函数、其他软件算不出来的公式。导出选区时总是只写结果 | `true`                             |
-| `label`    | 导出菜单里的名字（只在 `xlsx()` 里）                                                                     | 由表格文案 `file.csv` 得出，见下文 |
+| 名称       | 说明                                                                                                                                                                                           | 默认值                             |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| `formulas` | 导出时写入公式和计算结果，`false` 时只写结果，适合用了扩展函数、其他软件算不出来的公式，导出选区时总是只写结果；导入时读入公式，`false` 时只读文件里存的计算结果，适合用了表格没有的函数的文件 | `true`                             |
+| `label`    | 导出菜单里的名字，也是导入提示里这种文件的叫法（只在 `xlsx()` 里）                                                                                                                             | 由表格文案 `file.csv` 得出，见下文 |
 
 导出菜单里的名字默认由表格的文案 `file.csv` 得出，把其中的“CSV”换成“XLSX”、`.csv` 换成 `.xlsx`，如 `CSV 文件 (.csv)` 得出 `XLSX 文件 (.xlsx)`。改过 `file.csv`、里面不再有“CSV”时，名字是 `XLSX (.xlsx)`，这时用 `label` 指定。
 
@@ -83,6 +85,60 @@ const blob = await exportWorkbook(book, xlsxExporter, { colWidth: 120 })
 - 下拉选项或列表验证的某个值里有逗号或引号时，文件里的列表会把它拆开，这条列表验证就不写。
 - 公式依赖自己（`#CYCLE!`）时，结果写成 `#VALUE!`；结果不是有限的数时写成 `#NUM!`；写错的公式按文字写入。
 
+## 导入
+
+加了 `xlsx()` 以后，工具栏的导入按钮、拖入文件和 `importFile` 都能读 `.xlsx` 文件，写入方式（追加、替换、从当前单元格放入）和其他文件一样，见[导入与导出](./index#导入与导出)。读完、写入之前触发的 `import` 事件里，`warnings` 列出文件里有、表格放不下的内容，可以据此提示用户：
+
+```ts
+import type { SheetImportEvent } from '@dou-ui/sheet'
+import { toast } from 'dou-ui'
+
+function onImport(event: SheetImportEvent) {
+  if (event.warnings.length)
+    toast.warning(`没有导入：${event.warnings.map((w) => w.message).join('、')}`)
+}
+```
+
+不经过组件时，把 `xlsxImporter` 交给 `readWorkbook`，得到 `{ book, warnings }`；也可以直接调用 `readXlsx(file, options?)`，`file` 可以是 `Blob`、`ArrayBuffer` 或 `Uint8Array`，`options` 里除了上面的 `formulas`，还有 `locale`（警告和错误用的语言）、`messages`（替换其中的文字）和 `signal`：
+
+```ts
+import { readWorkbook } from '@dou-ui/sheet/core'
+import { readXlsx, xlsxImporter } from '@dou-ui/sheet-xlsx'
+
+const { book, warnings } = await readWorkbook(file, xlsxImporter)
+// 或者
+const result = await readXlsx(await file.arrayBuffer(), { locale: 'en' })
+```
+
+读进来的内容和写进文件的内容一一对应：值、公式、数字格式、样式、合并单元格、冻结的行列、列宽行高、隐藏的行列、分级显示（读成分组）、批注、数据验证、条件格式和筛选。有几处会换成表格的写法：
+
+- 日期和时间读成 `2026-03-05`、`2026-03-05 09:30`、`09:30` 这样的文字，格式不是这种写法时保留格式，比如 `yyyy/m/d`。
+- 样式按文件里不同的样子读成工作簿的命名样式 `style1`、`style2`……；文件里的默认字色和底边对齐不算样式。主题颜色换成具体的颜色。
+- 新函数的前缀（如 `_xlfn.XLOOKUP`）会去掉；共享公式读成每个单元格自己的公式。
+- 被筛选掉的行不读成隐藏行，筛选会再次把它们隐藏；折叠的分组读成折叠，不另记为隐藏。
+- 条件格式按文件里的优先级排好，先写的先生效。
+
+表格放不下的内容不会读进来，按种类和工作表列在 `warnings` 里，每项是 `{ code, message, count, sheet }`，`message` 跟随语言：
+
+| `code`        | 内容                                             |
+| ------------- | ------------------------------------------------ |
+| `border`      | 边框                                             |
+| `font`        | 不同的字号（字体在不同电脑上本来就不同，不计入） |
+| `richText`    | 单元格里部分文字的格式，文字本身会读入           |
+| `image`       | 图片和形状                                       |
+| `chart`       | 图表，包括只有图表的工作表                       |
+| `pivot`       | 数据透视表，它算出的值会读入                     |
+| `macro`       | 宏                                               |
+| `hyperlink`   | 超链接，单元格的文字会读入                       |
+| `hiddenSheet` | 隐藏的工作表，读入后会显示出来                   |
+| `external`    | 引用其他文件的公式，读成文件里存的计算结果       |
+| `name`        | 定义的名称，用到它们的公式会显示错误             |
+| `conditional` | 表格没有的条件格式，如图标集                     |
+| `validation`  | 表格没有的数据验证，如文本长度                   |
+| `filter`      | 表格没有的筛选条件，如按颜色筛选                 |
+
+文件读不了时，导入会失败，表格显示的原因跟随语言：不是 `.xlsx` 文件（比如旧的 `.xls`）、文件已损坏，或者文件设了密码。
+
 ## 大文件
 
-10 万行 × 20 列的工作表在桌面浏览器里大约 2 秒导出完，文件约 4 MB。生成和压缩都是一段一段做的，每段约 50 毫秒，段与段之间让页面处理输入和绘制，传入的 `signal` 取消时会在下一段停下。
+10 万行 × 20 列的工作表在桌面浏览器里大约 2 秒导出完，文件约 4 MB；读入同样的文件大约 1.5 秒。生成、压缩、解压和读取都是一段一段做的，每段约 50 毫秒，段与段之间让页面处理输入和绘制，传入的 `signal` 取消时会在下一段停下。

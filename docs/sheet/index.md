@@ -547,7 +547,7 @@ sheet.value.showSheet('十一月')
 <DouSheetToolbar :tools="['import', 'export']" file-name="预算-2026-11" />
 ```
 
-表格自带三种导出方式：`csv`（当前工作表或选区）、`png` 和 `svg`（当前工作表或选区画成图片，见[导出图片与打印](#导出图片与打印)），以及一种导入方式：CSV 和制表符分隔的文本。其他格式通过扩展的 `exporters`、`importers` 加入，加入后同样出现在工具栏里，见[导出器与导入器](./extensions#导出器与导入器)。导出 `.xlsx` 用 [`@dou-ui/sheet-xlsx`](./xlsx)。
+表格自带三种导出方式：`csv`（当前工作表或选区）、`png` 和 `svg`（当前工作表或选区画成图片，见[导出图片与打印](#导出图片与打印)），以及一种导入方式：CSV 和制表符分隔的文本。其他格式通过扩展的 `exporters`、`importers` 加入，加入后同样出现在工具栏里，见[导出器与导入器](./extensions#导出器与导入器)。导入导出 `.xlsx` 用 [`@dou-ui/sheet-xlsx`](./xlsx)。
 
 用代码导入导出时调用组件实例（或 `useSheet()`）的方法：
 

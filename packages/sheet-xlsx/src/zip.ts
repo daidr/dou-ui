@@ -170,9 +170,15 @@ export async function zip(entries: readonly ZipEntry[], pacing?: ZipPacing): Pro
   return out
 }
 
-/** Reads the files of a zip, by path. Only stored and deflated files, as .xlsx files have. */
-export async function unzip(bytes: Uint8Array): Promise<Map<string, Uint8Array>> {
-  streams()
+/** A file in a zip, as its directory lists it. */
+export interface ZipFile {
+  path: string
+  /** Read it: its bytes, unpacked. */
+  read(pacing?: ZipPacing): Promise<Uint8Array>
+}
+
+/** The files of a zip, by path, each read when asked for. Only stored and deflated files, as .xlsx files have. */
+export function zipFiles(bytes: Uint8Array): Map<string, ZipFile> {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
   let end = -1
   for (let i = bytes.length - 22; i >= Math.max(0, bytes.length - 22 - 65_535); i--)
@@ -184,10 +190,10 @@ export async function unzip(bytes: Uint8Array): Promise<Map<string, Uint8Array>>
     throw new Error("[@dou-ui/sheet-xlsx] the file isn't a zip, so it isn't an .xlsx file")
   const count = view.getUint16(end + 10, true)
   let at = view.getUint32(end + 16, true)
-  const files = new Map<string, Uint8Array>()
+  const files = new Map<string, ZipFile>()
   const decoder = new TextDecoder()
   for (let n = 0; n < count; n++) {
-    if (view.getUint32(at, true) !== 0x02014b50)
+    if (at + 46 > bytes.length || view.getUint32(at, true) !== 0x02014b50)
       throw new Error('[@dou-ui/sheet-xlsx] the zip is damaged')
     const method = view.getUint16(at + 10, true)
     const packedSize = view.getUint32(at + 20, true)
@@ -195,14 +201,29 @@ export async function unzip(bytes: Uint8Array): Promise<Map<string, Uint8Array>>
     const extraLength = view.getUint16(at + 30, true)
     const commentLength = view.getUint16(at + 32, true)
     const local = view.getUint32(at + 42, true)
-    const name = decoder.decode(bytes.subarray(at + 46, at + 46 + nameLength))
+    const path = decoder.decode(bytes.subarray(at + 46, at + 46 + nameLength))
+    at += 46 + nameLength + extraLength + commentLength
+    if (local + 30 > bytes.length) throw new Error('[@dou-ui/sheet-xlsx] the zip is damaged')
     const start = local + 30 + view.getUint16(local + 26, true) + view.getUint16(local + 28, true)
     const packed = bytes.subarray(start, start + packedSize)
-    if (method === 0) files.set(name, packed.slice())
-    else if (method === 8)
-      files.set(name, await through([packed], new DecompressionStream('deflate-raw')))
-    else throw new Error(`[@dou-ui/sheet-xlsx] "${name}" is packed in a way that can't be read`)
-    at += 46 + nameLength + extraLength + commentLength
+    files.set(path, {
+      path,
+      async read(pacing) {
+        if (method === 0) return packed.slice()
+        if (method !== 8)
+          throw new Error(`[@dou-ui/sheet-xlsx] "${path}" is packed in a way that can't be read`)
+        streams()
+        return through([packed], new DecompressionStream('deflate-raw'), pacing)
+      },
+    })
   }
   return files
+}
+
+/** Reads all the files of a zip, by path. */
+export async function unzip(bytes: Uint8Array): Promise<Map<string, Uint8Array>> {
+  streams()
+  const out = new Map<string, Uint8Array>()
+  for (const [path, file] of zipFiles(bytes)) out.set(path, await file.read())
+  return out
 }

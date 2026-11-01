@@ -11,9 +11,11 @@ import {
 import {
   ChevronDownIcon,
   ClipboardPasteIcon,
+  ColumnGroupIcon,
   ColumnInsertLeftIcon,
   ColumnInsertRightIcon,
   ColumnRemoveIcon,
+  ColumnUngroupIcon,
   CopyIcon,
   EraserIcon,
   EyeIcon,
@@ -21,16 +23,20 @@ import {
   CellsMergeIcon,
   FilterIcon,
   FilterXIcon,
+  FoldVerticalIcon,
   PlusIcon,
+  RowGroupIcon,
   RowInsertBottomIcon,
   RowInsertTopIcon,
   RowRemoveIcon,
+  RowUngroupIcon,
   ScissorsIcon,
   SortAscendingIcon,
   SortDescendingIcon,
   SortIcon,
   CellsSplitIcon,
   TrashIcon,
+  UnfoldVerticalIcon,
 } from '@dou-ui/icons'
 import {
   computed,
@@ -63,6 +69,8 @@ import { formatClip, parseClip, type SheetClip } from './core/clipboard'
 import { fillContinues, type SheetFillMode } from './core/fill'
 import { SheetAxis } from './core/axis'
 import { mergesOf, type SheetMerges } from './core/merge'
+import { groupRange, groupsOf, SheetGroups, OUTLINE_LANE, type SheetGroupLines } from './core/group'
+import SheetOutline from './components/sheet-outline.vue'
 import { alignOf, fitNumber, formatValue, inputText, parseInput } from './core/format'
 import { SheetHistory, type SheetHistoryView } from './core/history'
 import { SheetFormulaEngine } from './formula/engine'
@@ -146,6 +154,7 @@ const props = withDefaults(defineProps<SheetProps>(), {
   rowHeight: 28,
   colWidth: 96,
   headers: true,
+  outline: true,
   gridlines: true,
   historyDepth: 100,
   ariaLabel: undefined,
@@ -486,15 +495,41 @@ watch(filterKey, () => (filteredRows.value = rowsFilteredOut()), {
   // at once, so what a change of the filter shows can be read out right after it
   flush: 'sync',
 })
-/** The row heights drawn: the sheet's, and 0 for the rows the filter hides. */
-const shownRowSizes = computed(() => {
-  const sizes = sheet.value.rowSizes ?? NO_SIZES
-  const hidden = filteredRows.value
-  if (!hidden.size) return sizes
+/**
+ * Groups folded on a read-only grid: there they fold for this view alone,
+ * by sheet and range, and the data stays as it is.
+ */
+const viewFolds = shallowRef<ReadonlyMap<string, boolean>>(new Map())
+watch(
+  () => props.readonly,
+  () => (viewFolds.value = new Map()),
+)
+const foldKey = (data: SheetData, range: string) => `${sheetKey(data)}\u0000${range}`
+
+/** A sheet's groups as shown, with the folds of a read-only view. */
+function shownGroupsOf(data: SheetData) {
+  const folds = viewFolds.value
+  if (!folds.size || !data.groups?.length) return groupsOf(data)
+  return new SheetGroups(data.groups, (g) => folds.get(foldKey(data, g.range)) ?? !!g.collapsed)
+}
+const groups = computed(() => shownGroupsOf(sheet.value))
+
+/** Sizes with every line of `hidden` at 0. */
+function hideIn(sizes: Record<number, number>, ...hidden: ReadonlySet<number>[]) {
+  if (hidden.every((set) => !set.size)) return sizes
   const out: Record<number, number> = { ...sizes }
-  for (const row of hidden) out[row] = 0
+  for (const set of hidden) for (const line of set) out[line] = 0
   return out
-})
+}
+
+/** The row heights drawn: the sheet's, and 0 for the rows a filter or a folded group hides. */
+const shownRowSizes = computed(() =>
+  hideIn(sheet.value.rowSizes ?? NO_SIZES, filteredRows.value, groups.value.rows.hidden),
+)
+/** The column widths drawn: the sheet's, and 0 for the columns of folded groups. */
+const shownColSizes = computed(() =>
+  hideIn(sheet.value.colSizes ?? NO_SIZES, groups.value.cols.hidden),
+)
 
 /** The filter buttons on the headings shown: one per column of the range. */
 const filterButtons = computed(() => {
@@ -768,11 +803,7 @@ function sizesOf(axis: SheetAxisName, sizes: Record<number, number>) {
   return s && s.axis === axis ? { ...sizes, [s.index]: s.size } : sizes
 }
 const rows = useAxis(() => [rowCount.value, props.rowHeight, sizesOf('row', shownRowSizes.value)])
-const cols = useAxis(() => [
-  colCount.value,
-  props.colWidth,
-  sizesOf('col', sheet.value.colSizes ?? NO_SIZES),
-])
+const cols = useAxis(() => [colCount.value, props.colWidth, sizesOf('col', shownColSizes.value)])
 
 const styleCache = computed(() => {
   const cache = new Map<string, { cls: string; css: string; align: boolean }>()
@@ -817,6 +848,28 @@ const headerWidth = computed(() =>
   props.headers ? Math.max(40, String(rowCount.value).length * 8 + 16) : 0,
 )
 const headerHeight = computed(() => (props.headers ? props.rowHeight : 0))
+/** The outlines of the groups: a lane per depth, and one for the level buttons by the headers. */
+const outlineSize = (depth: number) =>
+  depth && props.outline ? (depth + (props.headers ? 1 : 0)) * OUTLINE_LANE : 0
+const rowOutline = computed(() => outlineSize(groups.value.rows.depth))
+const colOutline = computed(() => outlineSize(groups.value.cols.depth))
+
+/**
+ * Whether the line before is hidden, marked between the headers; lines a
+ * folded group hides have its button instead.
+ */
+function afterHidden(axis: SheetAxisName, line: number) {
+  const lines = axis === 'row' ? rows.value : cols.value
+  return line > 0 && lines.hidden(line - 1) && !groups.value.axis(axis).hidden.has(line - 1)
+}
+
+/** Wheeling over an outline scrolls the grid. */
+function onOutlineWheel(event: WheelEvent) {
+  const el = viewport.value
+  if (!el) return
+  event.preventDefault()
+  el.scrollBy({ left: event.deltaX, top: event.deltaY })
+}
 const frozen = computed(() => ({
   rows: Math.max(0, Math.min(rowCount.value, sheet.value.freeze?.rows ?? 0)),
   cols: Math.max(0, Math.min(colCount.value, sheet.value.freeze?.cols ?? 0)),
@@ -2028,6 +2081,12 @@ function onKeydown(event: KeyboardEvent) {
     return event.preventDefault()
   // with nothing to open it does nothing, rather than scroll the page
   if ((key === 'ArrowDown' || key === 'ArrowUp') && event.altKey) return event.preventDefault()
+  // Alt + Shift + → groups the selected rows (or whole columns), ← takes them out
+  if ((key === 'ArrowRight' || key === 'ArrowLeft') && event.altKey && event.shiftKey && !mod) {
+    event.preventDefault()
+    if (props.readonly) return announce(messages.value.readonly)
+    return groupSelected(groupAxis(), key === 'ArrowRight')
+  }
   if (arrow && !event.altKey) {
     event.preventDefault()
     if (event.shiftKey) return extend(arrow, mod)
@@ -2612,10 +2671,15 @@ function exportTarget(which?: SheetRef): SheetExportTarget {
   if (!data) throw new RangeError(`There is no sheet "${which}"`)
   if (data === sheet.value) return exportTarget()
   // another sheet, laid out as it would be shown
-  const sizes: Record<number, number> = { ...data.rowSizes }
-  for (const row of rowsFilteredOut(undefined, data)) sizes[row] = 0
-  const rowAxis = new SheetAxis(rowCountOf(data), props.rowHeight, sizes)
-  const colAxis = new SheetAxis(colCountOf(data), props.colWidth, data.colSizes ?? NO_SIZES)
+  const folded = shownGroupsOf(data)
+  const rowSizes = hideIn(
+    data.rowSizes ?? NO_SIZES,
+    rowsFilteredOut(undefined, data),
+    folded.rows.hidden,
+  )
+  const colSizes = hideIn(data.colSizes ?? NO_SIZES, folded.cols.hidden)
+  const rowAxis = new SheetAxis(rowCountOf(data), props.rowHeight, rowSizes)
+  const colAxis = new SheetAxis(colCountOf(data), props.colWidth, colSizes)
   const merged = mergesOf(data)
   const on: CellsOn = {
     key: sheetKey(data),
@@ -3160,6 +3224,168 @@ function moveSelectedLines(axis: SheetAxisName, to: number) {
   announce(format(messages.value[axis === 'row' ? 'rowsMoved' : 'colsMoved'], { count }))
 }
 
+// Groups ---------------------------------------------------------------------------------
+
+const lineName = (axis: SheetAxisName, line: number) =>
+  axis === 'row' ? line + 1 : columnName(line)
+
+/** The text of a group's button, or with `after`, what is read out after pressing it. */
+function groupText(axis: SheetAxisName, g: SheetGroupLines, collapsed: boolean, after = false) {
+  const m = messages.value.group
+  const key = after
+    ? axis === 'row'
+      ? collapsed
+        ? 'collapsedRows'
+        : 'expandedRows'
+      : collapsed
+        ? 'collapsedCols'
+        : 'expandedCols'
+    : axis === 'row'
+      ? collapsed
+        ? 'collapseRows'
+        : 'expandRows'
+      : collapsed
+        ? 'collapseCols'
+        : 'expandCols'
+  return format(m[key], { lines: linesText(axis, g) })
+}
+
+/** A group's lines, as `第 4–6 行`, `第 4 行` or `C 列`. */
+function linesText(axis: SheetAxisName, g: { start: number; end: number }) {
+  const m = messages.value.group
+  const one = g.start === g.end
+  const text = axis === 'row' ? (one ? m.rowLine : m.rowLines) : one ? m.colLine : m.colLines
+  return format(text, { from: lineName(axis, g.start), to: lineName(axis, g.end) })
+}
+
+/** Where the shown sheet's groups keep their headings or subtotals. */
+const groupSummary = computed(() => sheet.value.groupSummary ?? 'before')
+
+/** Folds groups for this view alone, as a read-only grid does. */
+function foldInView(list: { g: SheetGroupLines; collapsed: boolean }[]) {
+  const folds = new Map(viewFolds.value)
+  for (const { g, collapsed } of list)
+    folds.set(foldKey(sheet.value, sheet.value.groups![g.index]!.range), collapsed)
+  viewFolds.value = folds
+}
+
+/** Folds a group away or shows it again. */
+function toggleGroup(axis: SheetAxisName, g: SheetGroupLines) {
+  const collapsed = !g.collapsed
+  if (props.readonly) foldInView([{ g, collapsed }])
+  else if (
+    !transact(
+      (tr) => {
+        const range = groupRange(axis, g.start, g.end)
+        if (collapsed) tr.collapseGroup(range)
+        else tr.expandGroup(range)
+      },
+      { action: 'group' },
+    )
+  )
+    return
+  keepActiveShown()
+  announce(groupText(axis, g, collapsed, true))
+}
+
+/** Shows the groups of an axis down to a level, as the level buttons do. */
+function showGroupLevel(axis: SheetAxisName, level: number) {
+  if (props.readonly)
+    foldInView(groups.value.axis(axis).list.map((g) => ({ g, collapsed: g.depth >= level })))
+  else transact((tr) => tr.showGroupLevel(axis, level), { action: 'group' })
+  keepActiveShown()
+  announce(format(messages.value.group.levelShown, { level }))
+}
+
+/** After lines fold away under the active cell, moves it to the nearest line still shown. */
+function keepActiveShown() {
+  const { row, col } = active.value
+  const r = rows.value.hidden(row) ? rows.value.visibleFrom(row, -1) : row
+  const c = cols.value.hidden(col) ? cols.value.visibleFrom(col, -1) : col
+  if (r !== row || c !== col) setSelection(selectCell({ row: r, col: c }))
+}
+
+/** Groups the selected rows (or columns), or takes them out of their groups. */
+function groupSelected(axis: SheetAxisName, group: boolean) {
+  const { from, count } = linesOf(axis)
+  const m = messages.value.group
+  const end = from + count - 1
+  // say why lines can't be grouped, before trying
+  const problem = group ? groups.value.axis(axis).problem(from, end) : null
+  if (problem && !groups.value.axis(axis).find(from, end)) {
+    const text =
+      problem === 'deep' ? m.tooDeep : format(m.crossing, { group: linesText(axis, problem.cross) })
+    announce(text)
+    showNotice(text)
+    return
+  }
+  const changed = transact(
+    (tr) => {
+      const lines = { from, count }
+      if (group) {
+        if (axis === 'row') tr.groupRows(lines)
+        else tr.groupCols(lines)
+      } else if (axis === 'row') tr.ungroupRows(lines)
+      else tr.ungroupCols(lines)
+    },
+    { action: 'group' },
+  )
+  if (!changed) return
+  announce(
+    group ? format(m[axis === 'row' ? 'groupedRows' : 'groupedCols'], { count }) : m.ungrouped,
+  )
+}
+
+/** Rows (or columns) for the keys: columns when whole columns are selected. */
+const groupAxis = (): SheetAxisName => (whole(lastBounds(), 'col') ? 'col' : 'row')
+
+/** The innermost group around the active cell's line, or whose button is on it. */
+function groupAtActive(axis: SheetAxisName) {
+  const line = axis === 'row' ? active.value.row : active.value.col
+  const laid = groups.value.axis(axis)
+  const count = axis === 'row' ? rowCount.value : colCount.value
+  return (
+    laid.list.find((g) => laid.buttonLine(g, count, groupSummary.value) === line) ??
+    laid.around(line).at(-1)
+  )
+}
+
+/** Menu items for grouping rows (or columns), and folding the group at the active cell. */
+function groupItems(axis: SheetAxisName): SheetMenuItem[] {
+  const m = messages.value.group
+  const { from, count } = linesOf(axis)
+  const laid = groups.value.axis(axis)
+  const end = from + count - 1
+  // the keys group rows, or columns when whole columns are selected
+  const keys = groupAxis() === axis
+  const out: SheetMenuItem[] = [
+    {
+      key: `${axis}-group`,
+      label: format(m[axis === 'row' ? 'groupRows' : 'groupCols'], { count }),
+      icon: axis === 'row' ? RowGroupIcon : ColumnGroupIcon,
+      shortcut: keys ? 'alt+shift+ArrowRight' : undefined,
+      run: () => groupSelected(axis, true),
+    },
+  ]
+  if (laid.list.some((g) => g.start <= end && g.end >= from))
+    out.push({
+      key: `${axis}-ungroup`,
+      label: m[axis === 'row' ? 'ungroupRows' : 'ungroupCols'],
+      icon: axis === 'row' ? RowUngroupIcon : ColumnUngroupIcon,
+      shortcut: keys ? 'alt+shift+ArrowLeft' : undefined,
+      run: () => groupSelected(axis, false),
+    })
+  const at = groupAtActive(axis)
+  if (at)
+    out.push({
+      key: `${axis}-fold`,
+      label: groupText(axis, at, !at.collapsed),
+      icon: at.collapsed ? UnfoldVerticalIcon : FoldVerticalIcon,
+      run: () => toggleGroup(axis, at),
+    })
+  return out
+}
+
 // Menu -----------------------------------------------------------------------------------
 
 const menu = ref<InstanceType<typeof SheetMenu>>()
@@ -3284,7 +3510,13 @@ function menuFor(area: SheetMenuContext['area']): SheetMenuItem[] {
   }
   if (area === 'row' || area === 'col') {
     const lines = area === 'row' ? [...insertRows, ...deleteRows] : [...insertCols, ...deleteCols]
-    return [...items, ...dividedFirst(lines), ...visibility(area), clear]
+    return [
+      ...items,
+      ...dividedFirst(lines),
+      ...visibility(area),
+      ...dividedFirst(groupItems(area)),
+      clear,
+    ]
   }
   const remove = [...deleteRows, ...deleteCols]
   return [
@@ -3308,6 +3540,12 @@ function menuFor(area: SheetMenuContext['area']): SheetMenuItem[] {
         ]
       : []),
     ...mergeItems(),
+    {
+      key: 'group',
+      label: m.group.group,
+      icon: RowGroupIcon,
+      children: [...groupItems('row'), ...dividedFirst(groupItems('col'))],
+    },
     ...dataItems(),
     clear,
   ]
@@ -4377,476 +4615,524 @@ defineExpose<SheetExpose>({
     }"
   >
     <slot name="header" />
-    <div
-      ref="root"
-      class="dou-sheet__main"
-      @keydown="onKeydown"
-      @copy="onCopy"
-      @cut="onCut"
-      @paste="onPaste"
-    >
+    <div class="dou-sheet__frame" :style="`padding:${colOutline}px 0 0 ${rowOutline}px`">
       <div
-        ref="viewport"
-        class="dou-sheet__viewport"
-        role="grid"
-        tabindex="-1"
-        :aria-label="ariaLabel ?? messages.sheet"
-        :aria-rowcount="rowCount + (headers ? 1 : 0)"
-        :aria-colcount="colCount + (headers ? 1 : 0)"
-        :aria-readonly="readonly || undefined"
-        :aria-multiselectable="true"
-        :aria-activedescendant="activeId"
-        :aria-describedby="describedBy"
-        @scroll="onScroll"
-        @pointerdown="onPointerDown"
-        @click="onClick"
-        @dblclick="onDblClick"
-        @contextmenu="onContextMenu"
-        @pointermove="onHover"
-        @pointerleave="edgeHover = null"
-        @focus="focused = true"
-        @blur="focused = false"
+        v-if="rowOutline && colOutline"
+        class="dou-sheet__outline-corner"
+        :style="`width:${rowOutline}px;height:${colOutline}px`"
+      />
+      <SheetOutline
+        v-if="rowOutline"
+        axis="row"
+        :style="`top:${colOutline}px`"
+        :groups="groups.rows"
+        :summary="groupSummary"
+        :lines="rows"
+        :frozen="frozen.rows"
+        :head="headerHeight"
+        :scroll="scroll.top"
+        :view="viewHeight - headerHeight - frozenHeight"
+        :levels="headers"
+        :before="colOutline"
+        :label="(g: SheetGroupLines) => groupText('row', g, !g.collapsed)"
+        :level-label="(level: number) => format(messages.group.rowLevel, { level })"
+        @toggle="(g: SheetGroupLines) => toggleGroup('row', g)"
+        @level="(level: number) => showGroupLevel('row', level)"
+        @wheel="onOutlineWheel"
+      />
+      <SheetOutline
+        v-if="colOutline"
+        axis="col"
+        :style="`left:${rowOutline}px`"
+        :groups="groups.cols"
+        :summary="groupSummary"
+        :lines="cols"
+        :frozen="frozen.cols"
+        :head="headerWidth"
+        :scroll="scroll.left"
+        :view="viewWidth - headerWidth - frozenWidth"
+        :levels="headers"
+        :before="rowOutline"
+        :label="(g: SheetGroupLines) => groupText('col', g, !g.collapsed)"
+        :level-label="(level: number) => format(messages.group.colLevel, { level })"
+        @toggle="(g: SheetGroupLines) => toggleGroup('col', g)"
+        @level="(level: number) => showGroupLevel('col', level)"
+        @wheel="onOutlineWheel"
+      />
+      <div
+        ref="root"
+        class="dou-sheet__main"
+        @keydown="onKeydown"
+        @copy="onCopy"
+        @cut="onCut"
+        @paste="onPaste"
       >
         <div
-          class="dou-sheet__head"
-          role="rowgroup"
-          :style="`width:${totalWidth}px;height:${headerHeight + frozenHeight}px`"
-        >
-          <div
-            v-if="headers"
-            class="dou-sheet__row is-header"
-            role="row"
-            aria-rowindex="1"
-            :style="`width:${totalWidth}px;height:${headerHeight}px`"
-          >
-            <div
-              class="dou-sheet__corner"
-              role="columnheader"
-              :aria-label="messages.selectAll"
-              :style="`width:${headerWidth}px`"
-            />
-            <div
-              v-for="col in frozenColList"
-              :key="col"
-              class="dou-sheet__col-head is-frozen"
-              :class="{
-                'is-freeze-edge': col === frozen.cols - 1,
-                'is-marked': headerMarks.colsMarked.has(col),
-                'is-full': headerMarks.colsFull.has(col),
-                'is-after-hidden': col > 0 && cols.hidden(col - 1),
-              }"
-              role="columnheader"
-              :aria-colindex="col + 2"
-              :style="`width:${cols.size(col)}px;left:${headerWidth + cols.offset(col)}px`"
-            >
-              {{ columnName(col) }}
-            </div>
-            <div
-              v-for="col in bodyCols"
-              :key="col"
-              class="dou-sheet__col-head"
-              :class="{
-                'is-marked': headerMarks.colsMarked.has(col),
-                'is-full': headerMarks.colsFull.has(col),
-                'is-after-hidden': col > 0 && cols.hidden(col - 1),
-              }"
-              role="columnheader"
-              :aria-colindex="col + 2"
-              :style="`width:${cols.size(col)}px;left:${headerWidth + cols.offset(col)}px`"
-            >
-              {{ columnName(col) }}
-            </div>
-          </div>
-          <div
-            v-for="row in frozenRowList"
-            :key="row"
-            v-memo="[
-              sheet.cells[row],
-              memoBase,
-              resultsOf(row),
-              rowMarks(row),
-              mergeKey(row),
-              looksKey(row),
-              sheet.validations,
-              checksKey(row),
-            ]"
-            class="dou-sheet__row is-frozen"
-            :class="{ 'is-freeze-edge': row === frozen.rows - 1 }"
-            role="row"
-            :aria-rowindex="row + (headers ? 2 : 1)"
-            :style="`width:${totalWidth}px;height:${rows.size(row)}px`"
-          >
-            <div
-              v-if="headers"
-              class="dou-sheet__row-head"
-              :class="{
-                'is-marked': headerMarks.rowsMarked.has(row),
-                'is-full': headerMarks.rowsFull.has(row),
-                'is-after-hidden': row > 0 && rows.hidden(row - 1),
-              }"
-              role="rowheader"
-              :style="`width:${headerWidth}px`"
-            >
-              {{ row + 1 }}
-            </div>
-            <div
-              v-for="cell in rowCells(row, frozenColList)"
-              :id="cell.id"
-              :key="cell.key ?? cell.col"
-              :class="[cell.cls, 'is-frozen']"
-              role="gridcell"
-              :aria-colindex="cell.col + (headers ? 2 : 1)"
-              :aria-selected="cell.cls.includes('is-selected') || undefined"
-              :aria-hidden="cell.hidden || undefined"
-              :aria-rowspan="cell.rowspan"
-              :aria-colspan="cell.colspan"
-              :title="cell.problem"
-              :aria-invalid="cell.invalid || undefined"
-              :style="cell.css"
-            >
-              <template v-if="cell.render">
-                <span class="dou-sheet__content" aria-hidden="true">
-                  <component :is="cell.render" v-bind="cell.props" />
-                </span>
-                <span class="dou-sheet__sr-only">{{ cell.label }}</span>
-              </template>
-              <span v-else class="dou-sheet__text">{{ cell.text }}</span>
-              <span v-if="cell.problem" class="dou-sheet__sr-only">（{{ cell.problem }}）</span>
-              <span v-if="cell.invalid" class="dou-sheet__invalid" aria-hidden="true" />
-            </div>
-            <div
-              v-for="cell in rowCells(row, bodyCols)"
-              :id="cell.id"
-              :key="cell.key ?? cell.col"
-              :class="cell.cls"
-              role="gridcell"
-              :aria-colindex="cell.col + (headers ? 2 : 1)"
-              :aria-selected="cell.cls.includes('is-selected') || undefined"
-              :aria-hidden="cell.hidden || undefined"
-              :aria-rowspan="cell.rowspan"
-              :aria-colspan="cell.colspan"
-              :title="cell.problem"
-              :aria-invalid="cell.invalid || undefined"
-              :style="cell.css"
-            >
-              <template v-if="cell.render">
-                <span class="dou-sheet__content" aria-hidden="true">
-                  <component :is="cell.render" v-bind="cell.props" />
-                </span>
-                <span class="dou-sheet__sr-only">{{ cell.label }}</span>
-              </template>
-              <span v-else class="dou-sheet__text">{{ cell.text }}</span>
-              <span v-if="cell.problem" class="dou-sheet__sr-only">（{{ cell.problem }}）</span>
-              <span v-if="cell.invalid" class="dou-sheet__invalid" aria-hidden="true" />
-            </div>
-          </div>
-        </div>
-        <div
-          class="dou-sheet__body"
-          role="rowgroup"
-          :style="`width:${totalWidth}px;height:${bodyHeight}px`"
-        >
-          <div
-            v-for="row in bodyRows"
-            :key="row"
-            v-memo="[
-              sheet.cells[row],
-              memoBase,
-              resultsOf(row),
-              rowMarks(row),
-              mergeKey(row),
-              looksKey(row),
-              sheet.validations,
-              checksKey(row),
-            ]"
-            class="dou-sheet__row"
-            role="row"
-            :aria-rowindex="row + (headers ? 2 : 1)"
-            :style="`width:${totalWidth}px;height:${rows.size(row)}px;top:${rows.offset(row) - frozenHeight}px`"
-          >
-            <div
-              v-if="headers"
-              class="dou-sheet__row-head"
-              :class="{
-                'is-marked': headerMarks.rowsMarked.has(row),
-                'is-full': headerMarks.rowsFull.has(row),
-                'is-after-hidden': row > 0 && rows.hidden(row - 1),
-              }"
-              role="rowheader"
-              :style="`width:${headerWidth}px`"
-            >
-              {{ row + 1 }}
-            </div>
-            <div
-              v-for="cell in rowCells(row, frozenColList)"
-              :id="cell.id"
-              :key="cell.key ?? cell.col"
-              :class="[cell.cls, 'is-frozen']"
-              role="gridcell"
-              :aria-colindex="cell.col + (headers ? 2 : 1)"
-              :aria-selected="cell.cls.includes('is-selected') || undefined"
-              :aria-hidden="cell.hidden || undefined"
-              :aria-rowspan="cell.rowspan"
-              :aria-colspan="cell.colspan"
-              :title="cell.problem"
-              :aria-invalid="cell.invalid || undefined"
-              :style="cell.css"
-            >
-              <template v-if="cell.render">
-                <span class="dou-sheet__content" aria-hidden="true">
-                  <component :is="cell.render" v-bind="cell.props" />
-                </span>
-                <span class="dou-sheet__sr-only">{{ cell.label }}</span>
-              </template>
-              <span v-else class="dou-sheet__text">{{ cell.text }}</span>
-              <span v-if="cell.problem" class="dou-sheet__sr-only">（{{ cell.problem }}）</span>
-              <span v-if="cell.invalid" class="dou-sheet__invalid" aria-hidden="true" />
-            </div>
-            <div
-              v-for="cell in rowCells(row, bodyCols)"
-              :id="cell.id"
-              :key="cell.key ?? cell.col"
-              :class="cell.cls"
-              role="gridcell"
-              :aria-colindex="cell.col + (headers ? 2 : 1)"
-              :aria-selected="cell.cls.includes('is-selected') || undefined"
-              :aria-hidden="cell.hidden || undefined"
-              :aria-rowspan="cell.rowspan"
-              :aria-colspan="cell.colspan"
-              :title="cell.problem"
-              :aria-invalid="cell.invalid || undefined"
-              :style="cell.css"
-            >
-              <template v-if="cell.render">
-                <span class="dou-sheet__content" aria-hidden="true">
-                  <component :is="cell.render" v-bind="cell.props" />
-                </span>
-                <span class="dou-sheet__sr-only">{{ cell.label }}</span>
-              </template>
-              <span v-else class="dou-sheet__text">{{ cell.text }}</span>
-              <span v-if="cell.problem" class="dou-sheet__sr-only">（{{ cell.problem }}）</span>
-              <span v-if="cell.invalid" class="dou-sheet__invalid" aria-hidden="true" />
-            </div>
-          </div>
-        </div>
-      </div>
-      <div
-        v-for="mark in refRects"
-        :key="mark.key"
-        class="dou-sheet__ref"
-        :class="`is-ref-${mark.color}`"
-        :style="rectStyle(mark.rect)"
-        aria-hidden="true"
-      />
-      <div
-        v-if="formulaEdit"
-        ref="mirror"
-        class="dou-sheet__input is-open is-mirror"
-        :class="editorClass"
-        :style="inputStyle"
-        aria-hidden="true"
-      >
-        <span v-for="(part, i) in mirrorParts" :key="i" :class="partClass(part)">{{
-          part.text
-        }}</span>
-      </div>
-      <textarea
-        ref="editor"
-        class="dou-sheet__input"
-        :class="[editorClass, { 'is-open': editing, 'is-formula': formulaEdit }]"
-        :style="inputStyle"
-        :aria-label="editing ? format(messages.edit, { cell: formatCell(editing) }) : activeLabel"
-        :aria-expanded="panelType ? true : undefined"
-        :inputmode="panelType && editByTouch ? 'none' : undefined"
-        :aria-activedescendant="
-          panel?.activeId ??
-          (assist?.kind === 'list' && editInput() === editor
-            ? `${assistId}-${assistIndex}`
-            : undefined)
-        "
-        :aria-autocomplete="formulaEdit ? 'list' : undefined"
-        :aria-controls="assist ? assistId : undefined"
-        :aria-describedby="describedBy"
-        :readonly="readonly"
-        autocomplete="off"
-        autocapitalize="off"
-        spellcheck="false"
-        rows="1"
-        @input="onInput"
-        @keyup="syncCaret"
-        @click="syncCaret"
-        @select="syncCaret"
-        @scroll="syncMirror"
-        @compositionstart="onCompositionStart"
-        @focus="focused = true"
-        @blur="onInputBlur"
-      />
-      <div
-        v-if="assist"
-        :id="assistId"
-        class="dou-sheet__assist"
-        :role="assist.kind === 'list' ? 'listbox' : 'tooltip'"
-        :aria-label="assist.kind === 'list' ? messages.functionList : undefined"
-        :style="assistStyle"
-        @pointerdown.prevent
-      >
-        <template v-if="assist.kind === 'list'">
-          <div
-            v-for="(item, i) in assist.items"
-            :id="`${assistId}-${i}`"
-            :key="item.name"
-            class="dou-sheet__assist-item"
-            :class="{ 'is-active': i === assistIndex }"
-            role="option"
-            :aria-selected="i === assistIndex"
-            @pointerenter="assistIndex = i"
-            @click="completeName(item)"
-          >
-            <span class="dou-sheet__assist-name">{{ item.name }}</span>
-            <span class="dou-sheet__assist-text">{{ item.description }}</span>
-          </div>
-        </template>
-        <template v-else>
-          <div class="dou-sheet__assist-call">
-            <span class="dou-sheet__assist-name">{{ assist.name }}</span
-            >(<template v-for="(arg, i) in assist.args" :key="i"
-              ><template v-if="i">, </template
-              ><span :class="{ 'is-current': i === assist.arg }">{{ arg }}</span></template
-            >)
-          </div>
-          <div v-if="assist.description" class="dou-sheet__assist-text">
-            {{ assist.description }}
-          </div>
-        </template>
-      </div>
-      <div
-        v-if="clipRect"
-        class="dou-sheet__mark"
-        :class="{ 'is-cut': clipMark?.cut }"
-        :style="rectStyle(clipRect)"
-        aria-hidden="true"
-      />
-      <div
-        v-if="fillPreview"
-        class="dou-sheet__mark is-fill"
-        :style="rectStyle(fillPreview)"
-        aria-hidden="true"
-      />
-      <div
-        v-if="fillClearRect"
-        class="dou-sheet__clearing"
-        :style="rectStyle(fillClearRect)"
-        aria-hidden="true"
-      />
-      <div
-        v-if="moveMark"
-        class="dou-sheet__guide"
-        :style="`left:${moveMark.x}px;top:${moveMark.y}px;width:${moveMark.width}px;height:${moveMark.height}px`"
-        aria-hidden="true"
-      />
-      <div
-        v-if="sizeMark"
-        class="dou-sheet__guide is-thin"
-        :style="`left:${sizeMark.x}px;top:${sizeMark.y}px;width:${sizeMark.width}px;height:${sizeMark.height}px`"
-        aria-hidden="true"
-      />
-      <div
-        v-if="fillRect"
-        class="dou-sheet__fill"
-        :class="{ 'is-dragging': fillTarget }"
-        :style="`left:${fillRect.x}px;top:${fillRect.y}px`"
-        :title="messages.fillHandle"
-        aria-hidden="true"
-        @pointerdown="onFillDown"
-        @dblclick.stop="fillDownToData"
-      />
-      <div
-        v-if="fillHint"
-        class="dou-sheet__fill-hint"
-        :class="{ 'is-flipped': fillHint.flip }"
-        :style="`left:${fillHint.x}px;top:${fillHint.y}px`"
-        aria-hidden="true"
-      >
-        {{ fillHint.text }}
-      </div>
-      <div
-        v-if="prompt"
-        :id="promptId"
-        class="dou-sheet__prompt"
-        :style="`left:${prompt.x}px;top:${prompt.y}px;max-width:${prompt.width}px;transform:${prompt.shift}`"
-      >
-        <span v-if="prompt.problem" :id="`${promptId}-problem`" class="dou-sheet__prompt-problem">{{
-          prompt.problem
-        }}</span>
-        <span v-if="prompt.text" :id="`${promptId}-text`">{{ prompt.text }}</span>
-      </div>
-      <button
-        v-if="panelButton"
-        type="button"
-        class="dou-sheet__panel-button"
-        :style="`left:${panelButton.x}px;top:${panelButton.y}px`"
-        :aria-label="messages.openPanel"
-        tabindex="-1"
-        @pointerdown.stop.prevent
-        @click="openPanel"
-      >
-        <ChevronDownIcon />
-      </button>
-      <DouPopover
-        v-for="button in filterButtons"
-        :key="button.col"
-        :open="filterOpen === button.col"
-        trigger="click"
-        placement="bottom-end"
-        :width="260"
-        @update:open="(open: boolean) => (filterOpen = open ? button.col : null)"
-      >
-        <button
-          type="button"
-          class="dou-sheet__filter-button"
-          :class="{ 'is-active': button.active || button.sorted }"
-          :style="`left:${button.x}px;top:${button.y}px`"
-          :aria-label="button.label"
-          :aria-pressed="button.active"
+          ref="viewport"
+          class="dou-sheet__viewport"
+          role="grid"
           tabindex="-1"
-          @pointerdown.stop
+          :aria-label="ariaLabel ?? messages.sheet"
+          :aria-rowcount="rowCount + (headers ? 1 : 0)"
+          :aria-colcount="colCount + (headers ? 1 : 0)"
+          :aria-readonly="readonly || undefined"
+          :aria-multiselectable="true"
+          :aria-activedescendant="activeId"
+          :aria-describedby="describedBy"
+          @scroll="onScroll"
+          @pointerdown="onPointerDown"
+          @click="onClick"
+          @dblclick="onDblClick"
+          @contextmenu="onContextMenu"
+          @pointermove="onHover"
+          @pointerleave="edgeHover = null"
+          @focus="focused = true"
+          @blur="focused = false"
         >
-          <SortAscendingIcon v-if="button.sorted === 'asc' && !button.active" />
-          <SortDescendingIcon v-else-if="button.sorted === 'desc' && !button.active" />
-          <FilterIcon v-else-if="button.active" />
-          <ChevronDownIcon v-else />
+          <div
+            class="dou-sheet__head"
+            role="rowgroup"
+            :style="`width:${totalWidth}px;height:${headerHeight + frozenHeight}px`"
+          >
+            <div
+              v-if="headers"
+              class="dou-sheet__row is-header"
+              role="row"
+              aria-rowindex="1"
+              :style="`width:${totalWidth}px;height:${headerHeight}px`"
+            >
+              <div
+                class="dou-sheet__corner"
+                role="columnheader"
+                :aria-label="messages.selectAll"
+                :style="`width:${headerWidth}px`"
+              />
+              <div
+                v-for="col in frozenColList"
+                :key="col"
+                class="dou-sheet__col-head is-frozen"
+                :class="{
+                  'is-freeze-edge': col === frozen.cols - 1,
+                  'is-marked': headerMarks.colsMarked.has(col),
+                  'is-full': headerMarks.colsFull.has(col),
+                  'is-after-hidden': afterHidden('col', col),
+                }"
+                role="columnheader"
+                :aria-colindex="col + 2"
+                :style="`width:${cols.size(col)}px;left:${headerWidth + cols.offset(col)}px`"
+              >
+                {{ columnName(col) }}
+              </div>
+              <div
+                v-for="col in bodyCols"
+                :key="col"
+                class="dou-sheet__col-head"
+                :class="{
+                  'is-marked': headerMarks.colsMarked.has(col),
+                  'is-full': headerMarks.colsFull.has(col),
+                  'is-after-hidden': afterHidden('col', col),
+                }"
+                role="columnheader"
+                :aria-colindex="col + 2"
+                :style="`width:${cols.size(col)}px;left:${headerWidth + cols.offset(col)}px`"
+              >
+                {{ columnName(col) }}
+              </div>
+            </div>
+            <div
+              v-for="row in frozenRowList"
+              :key="row"
+              v-memo="[
+                sheet.cells[row],
+                memoBase,
+                resultsOf(row),
+                rowMarks(row),
+                mergeKey(row),
+                looksKey(row),
+                sheet.validations,
+                checksKey(row),
+              ]"
+              class="dou-sheet__row is-frozen"
+              :class="{ 'is-freeze-edge': row === frozen.rows - 1 }"
+              role="row"
+              :aria-rowindex="row + (headers ? 2 : 1)"
+              :style="`width:${totalWidth}px;height:${rows.size(row)}px`"
+            >
+              <div
+                v-if="headers"
+                class="dou-sheet__row-head"
+                :class="{
+                  'is-marked': headerMarks.rowsMarked.has(row),
+                  'is-full': headerMarks.rowsFull.has(row),
+                  'is-after-hidden': afterHidden('row', row),
+                }"
+                role="rowheader"
+                :style="`width:${headerWidth}px`"
+              >
+                {{ row + 1 }}
+              </div>
+              <div
+                v-for="cell in rowCells(row, frozenColList)"
+                :id="cell.id"
+                :key="cell.key ?? cell.col"
+                :class="[cell.cls, 'is-frozen']"
+                role="gridcell"
+                :aria-colindex="cell.col + (headers ? 2 : 1)"
+                :aria-selected="cell.cls.includes('is-selected') || undefined"
+                :aria-hidden="cell.hidden || undefined"
+                :aria-rowspan="cell.rowspan"
+                :aria-colspan="cell.colspan"
+                :title="cell.problem"
+                :aria-invalid="cell.invalid || undefined"
+                :style="cell.css"
+              >
+                <template v-if="cell.render">
+                  <span class="dou-sheet__content" aria-hidden="true">
+                    <component :is="cell.render" v-bind="cell.props" />
+                  </span>
+                  <span class="dou-sheet__sr-only">{{ cell.label }}</span>
+                </template>
+                <span v-else class="dou-sheet__text">{{ cell.text }}</span>
+                <span v-if="cell.problem" class="dou-sheet__sr-only">（{{ cell.problem }}）</span>
+                <span v-if="cell.invalid" class="dou-sheet__invalid" aria-hidden="true" />
+              </div>
+              <div
+                v-for="cell in rowCells(row, bodyCols)"
+                :id="cell.id"
+                :key="cell.key ?? cell.col"
+                :class="cell.cls"
+                role="gridcell"
+                :aria-colindex="cell.col + (headers ? 2 : 1)"
+                :aria-selected="cell.cls.includes('is-selected') || undefined"
+                :aria-hidden="cell.hidden || undefined"
+                :aria-rowspan="cell.rowspan"
+                :aria-colspan="cell.colspan"
+                :title="cell.problem"
+                :aria-invalid="cell.invalid || undefined"
+                :style="cell.css"
+              >
+                <template v-if="cell.render">
+                  <span class="dou-sheet__content" aria-hidden="true">
+                    <component :is="cell.render" v-bind="cell.props" />
+                  </span>
+                  <span class="dou-sheet__sr-only">{{ cell.label }}</span>
+                </template>
+                <span v-else class="dou-sheet__text">{{ cell.text }}</span>
+                <span v-if="cell.problem" class="dou-sheet__sr-only">（{{ cell.problem }}）</span>
+                <span v-if="cell.invalid" class="dou-sheet__invalid" aria-hidden="true" />
+              </div>
+            </div>
+          </div>
+          <div
+            class="dou-sheet__body"
+            role="rowgroup"
+            :style="`width:${totalWidth}px;height:${bodyHeight}px`"
+          >
+            <div
+              v-for="row in bodyRows"
+              :key="row"
+              v-memo="[
+                sheet.cells[row],
+                memoBase,
+                resultsOf(row),
+                rowMarks(row),
+                mergeKey(row),
+                looksKey(row),
+                sheet.validations,
+                checksKey(row),
+              ]"
+              class="dou-sheet__row"
+              role="row"
+              :aria-rowindex="row + (headers ? 2 : 1)"
+              :style="`width:${totalWidth}px;height:${rows.size(row)}px;top:${rows.offset(row) - frozenHeight}px`"
+            >
+              <div
+                v-if="headers"
+                class="dou-sheet__row-head"
+                :class="{
+                  'is-marked': headerMarks.rowsMarked.has(row),
+                  'is-full': headerMarks.rowsFull.has(row),
+                  'is-after-hidden': afterHidden('row', row),
+                }"
+                role="rowheader"
+                :style="`width:${headerWidth}px`"
+              >
+                {{ row + 1 }}
+              </div>
+              <div
+                v-for="cell in rowCells(row, frozenColList)"
+                :id="cell.id"
+                :key="cell.key ?? cell.col"
+                :class="[cell.cls, 'is-frozen']"
+                role="gridcell"
+                :aria-colindex="cell.col + (headers ? 2 : 1)"
+                :aria-selected="cell.cls.includes('is-selected') || undefined"
+                :aria-hidden="cell.hidden || undefined"
+                :aria-rowspan="cell.rowspan"
+                :aria-colspan="cell.colspan"
+                :title="cell.problem"
+                :aria-invalid="cell.invalid || undefined"
+                :style="cell.css"
+              >
+                <template v-if="cell.render">
+                  <span class="dou-sheet__content" aria-hidden="true">
+                    <component :is="cell.render" v-bind="cell.props" />
+                  </span>
+                  <span class="dou-sheet__sr-only">{{ cell.label }}</span>
+                </template>
+                <span v-else class="dou-sheet__text">{{ cell.text }}</span>
+                <span v-if="cell.problem" class="dou-sheet__sr-only">（{{ cell.problem }}）</span>
+                <span v-if="cell.invalid" class="dou-sheet__invalid" aria-hidden="true" />
+              </div>
+              <div
+                v-for="cell in rowCells(row, bodyCols)"
+                :id="cell.id"
+                :key="cell.key ?? cell.col"
+                :class="cell.cls"
+                role="gridcell"
+                :aria-colindex="cell.col + (headers ? 2 : 1)"
+                :aria-selected="cell.cls.includes('is-selected') || undefined"
+                :aria-hidden="cell.hidden || undefined"
+                :aria-rowspan="cell.rowspan"
+                :aria-colspan="cell.colspan"
+                :title="cell.problem"
+                :aria-invalid="cell.invalid || undefined"
+                :style="cell.css"
+              >
+                <template v-if="cell.render">
+                  <span class="dou-sheet__content" aria-hidden="true">
+                    <component :is="cell.render" v-bind="cell.props" />
+                  </span>
+                  <span class="dou-sheet__sr-only">{{ cell.label }}</span>
+                </template>
+                <span v-else class="dou-sheet__text">{{ cell.text }}</span>
+                <span v-if="cell.problem" class="dou-sheet__sr-only">（{{ cell.problem }}）</span>
+                <span v-if="cell.invalid" class="dou-sheet__invalid" aria-hidden="true" />
+              </div>
+            </div>
+          </div>
+        </div>
+        <div
+          v-for="mark in refRects"
+          :key="mark.key"
+          class="dou-sheet__ref"
+          :class="`is-ref-${mark.color}`"
+          :style="rectStyle(mark.rect)"
+          aria-hidden="true"
+        />
+        <div
+          v-if="formulaEdit"
+          ref="mirror"
+          class="dou-sheet__input is-open is-mirror"
+          :class="editorClass"
+          :style="inputStyle"
+          aria-hidden="true"
+        >
+          <span v-for="(part, i) in mirrorParts" :key="i" :class="partClass(part)">{{
+            part.text
+          }}</span>
+        </div>
+        <textarea
+          ref="editor"
+          class="dou-sheet__input"
+          :class="[editorClass, { 'is-open': editing, 'is-formula': formulaEdit }]"
+          :style="inputStyle"
+          :aria-label="editing ? format(messages.edit, { cell: formatCell(editing) }) : activeLabel"
+          :aria-expanded="panelType ? true : undefined"
+          :inputmode="panelType && editByTouch ? 'none' : undefined"
+          :aria-activedescendant="
+            panel?.activeId ??
+            (assist?.kind === 'list' && editInput() === editor
+              ? `${assistId}-${assistIndex}`
+              : undefined)
+          "
+          :aria-autocomplete="formulaEdit ? 'list' : undefined"
+          :aria-controls="assist ? assistId : undefined"
+          :aria-describedby="describedBy"
+          :readonly="readonly"
+          autocomplete="off"
+          autocapitalize="off"
+          spellcheck="false"
+          rows="1"
+          @input="onInput"
+          @keyup="syncCaret"
+          @click="syncCaret"
+          @select="syncCaret"
+          @scroll="syncMirror"
+          @compositionstart="onCompositionStart"
+          @focus="focused = true"
+          @blur="onInputBlur"
+        />
+        <div
+          v-if="assist"
+          :id="assistId"
+          class="dou-sheet__assist"
+          :role="assist.kind === 'list' ? 'listbox' : 'tooltip'"
+          :aria-label="assist.kind === 'list' ? messages.functionList : undefined"
+          :style="assistStyle"
+          @pointerdown.prevent
+        >
+          <template v-if="assist.kind === 'list'">
+            <div
+              v-for="(item, i) in assist.items"
+              :id="`${assistId}-${i}`"
+              :key="item.name"
+              class="dou-sheet__assist-item"
+              :class="{ 'is-active': i === assistIndex }"
+              role="option"
+              :aria-selected="i === assistIndex"
+              @pointerenter="assistIndex = i"
+              @click="completeName(item)"
+            >
+              <span class="dou-sheet__assist-name">{{ item.name }}</span>
+              <span class="dou-sheet__assist-text">{{ item.description }}</span>
+            </div>
+          </template>
+          <template v-else>
+            <div class="dou-sheet__assist-call">
+              <span class="dou-sheet__assist-name">{{ assist.name }}</span
+              >(<template v-for="(arg, i) in assist.args" :key="i"
+                ><template v-if="i">, </template
+                ><span :class="{ 'is-current': i === assist.arg }">{{ arg }}</span></template
+              >)
+            </div>
+            <div v-if="assist.description" class="dou-sheet__assist-text">
+              {{ assist.description }}
+            </div>
+          </template>
+        </div>
+        <div
+          v-if="clipRect"
+          class="dou-sheet__mark"
+          :class="{ 'is-cut': clipMark?.cut }"
+          :style="rectStyle(clipRect)"
+          aria-hidden="true"
+        />
+        <div
+          v-if="fillPreview"
+          class="dou-sheet__mark is-fill"
+          :style="rectStyle(fillPreview)"
+          aria-hidden="true"
+        />
+        <div
+          v-if="fillClearRect"
+          class="dou-sheet__clearing"
+          :style="rectStyle(fillClearRect)"
+          aria-hidden="true"
+        />
+        <div
+          v-if="moveMark"
+          class="dou-sheet__guide"
+          :style="`left:${moveMark.x}px;top:${moveMark.y}px;width:${moveMark.width}px;height:${moveMark.height}px`"
+          aria-hidden="true"
+        />
+        <div
+          v-if="sizeMark"
+          class="dou-sheet__guide is-thin"
+          :style="`left:${sizeMark.x}px;top:${sizeMark.y}px;width:${sizeMark.width}px;height:${sizeMark.height}px`"
+          aria-hidden="true"
+        />
+        <div
+          v-if="fillRect"
+          class="dou-sheet__fill"
+          :class="{ 'is-dragging': fillTarget }"
+          :style="`left:${fillRect.x}px;top:${fillRect.y}px`"
+          :title="messages.fillHandle"
+          aria-hidden="true"
+          @pointerdown="onFillDown"
+          @dblclick.stop="fillDownToData"
+        />
+        <div
+          v-if="fillHint"
+          class="dou-sheet__fill-hint"
+          :class="{ 'is-flipped': fillHint.flip }"
+          :style="`left:${fillHint.x}px;top:${fillHint.y}px`"
+          aria-hidden="true"
+        >
+          {{ fillHint.text }}
+        </div>
+        <div
+          v-if="prompt"
+          :id="promptId"
+          class="dou-sheet__prompt"
+          :style="`left:${prompt.x}px;top:${prompt.y}px;max-width:${prompt.width}px;transform:${prompt.shift}`"
+        >
+          <span
+            v-if="prompt.problem"
+            :id="`${promptId}-problem`"
+            class="dou-sheet__prompt-problem"
+            >{{ prompt.problem }}</span
+          >
+          <span v-if="prompt.text" :id="`${promptId}-text`">{{ prompt.text }}</span>
+        </div>
+        <button
+          v-if="panelButton"
+          type="button"
+          class="dou-sheet__panel-button"
+          :style="`left:${panelButton.x}px;top:${panelButton.y}px`"
+          :aria-label="messages.openPanel"
+          tabindex="-1"
+          @pointerdown.stop.prevent
+          @click="openPanel"
+        >
+          <ChevronDownIcon />
         </button>
-        <template #content>
-          <FilterPanel
-            v-if="filterOpen === button.col"
-            :values="filterValues.values"
-            :numeric="filterValues.numeric"
-            :rule="sheet.filter?.columns?.[button.col]"
-            :sorted="
-              sheet.filter?.sorted?.col === button.col ? sheet.filter.sorted.order : undefined
-            "
-            :messages="messages"
-            :readonly="readonly"
-            @sort="(order: SheetSortOrder) => sortFilterColumn(button.col, order)"
-            @apply="(rule: SheetFilterRule | undefined) => applyFilter(button.col, rule)"
-          />
-        </template>
-      </DouPopover>
-      <CellPanel
-        v-if="panelType"
-        ref="panel"
-        :resolved="panelType"
-        :value="editValue"
-        :text="editText"
-        :typed="editTyped"
-        :anchor="editor"
-        @pick="pickValue"
-      />
-      <component :is="overlay" v-for="(overlay, i) in resolved.overlays" :key="i" />
-      <div v-if="notice" class="dou-sheet__notice" role="status">{{ notice }}</div>
-      <SheetMenu ref="menu" v-model:open="menuOpen" :items="menuItems" @select="runMenuItem" />
-      <span :id="keysHint" class="dou-sheet__sr-only">{{ messages.keys }}</span>
-      <div class="dou-sheet__sr-only" aria-live="polite">{{ live }}</div>
+        <DouPopover
+          v-for="button in filterButtons"
+          :key="button.col"
+          :open="filterOpen === button.col"
+          trigger="click"
+          placement="bottom-end"
+          :width="260"
+          @update:open="(open: boolean) => (filterOpen = open ? button.col : null)"
+        >
+          <button
+            type="button"
+            class="dou-sheet__filter-button"
+            :class="{ 'is-active': button.active || button.sorted }"
+            :style="`left:${button.x}px;top:${button.y}px`"
+            :aria-label="button.label"
+            :aria-pressed="button.active"
+            tabindex="-1"
+            @pointerdown.stop
+          >
+            <SortAscendingIcon v-if="button.sorted === 'asc' && !button.active" />
+            <SortDescendingIcon v-else-if="button.sorted === 'desc' && !button.active" />
+            <FilterIcon v-else-if="button.active" />
+            <ChevronDownIcon v-else />
+          </button>
+          <template #content>
+            <FilterPanel
+              v-if="filterOpen === button.col"
+              :values="filterValues.values"
+              :numeric="filterValues.numeric"
+              :rule="sheet.filter?.columns?.[button.col]"
+              :sorted="
+                sheet.filter?.sorted?.col === button.col ? sheet.filter.sorted.order : undefined
+              "
+              :messages="messages"
+              :readonly="readonly"
+              @sort="(order: SheetSortOrder) => sortFilterColumn(button.col, order)"
+              @apply="(rule: SheetFilterRule | undefined) => applyFilter(button.col, rule)"
+            />
+          </template>
+        </DouPopover>
+        <CellPanel
+          v-if="panelType"
+          ref="panel"
+          :resolved="panelType"
+          :value="editValue"
+          :text="editText"
+          :typed="editTyped"
+          :anchor="editor"
+          @pick="pickValue"
+        />
+        <component :is="overlay" v-for="(overlay, i) in resolved.overlays" :key="i" />
+        <div v-if="notice" class="dou-sheet__notice" role="status">{{ notice }}</div>
+        <SheetMenu ref="menu" v-model:open="menuOpen" :items="menuItems" @select="runMenuItem" />
+        <span :id="keysHint" class="dou-sheet__sr-only">{{ messages.keys }}</span>
+        <div class="dou-sheet__sr-only" aria-live="polite">{{ live }}</div>
+      </div>
     </div>
     <slot name="footer" />
   </div>

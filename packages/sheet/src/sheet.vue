@@ -3472,6 +3472,7 @@ function hoverNote(event: PointerEvent) {
 
 /** The pointer moving onto the note keeps it; leaving it lets it go. */
 function onNoteHover(inside: boolean) {
+  onNote = inside
   if (inside) clearTimeout(noteTimer)
   else if (noteShown.value?.by === 'hover') hideNote(NOTE_HIDE)
 }
@@ -3569,7 +3570,12 @@ watch(active, (point) => {
   if (!noteAt(home) || now?.by === 'hover') return
   clearTimeout(noteTimer)
   noteTimer = setTimeout(() => {
-    if (!noteShown.value && !editing.value && sameCell(noteHome(active.value), home))
+    if (
+      !noteShown.value &&
+      !editing.value &&
+      focusInside() &&
+      sameCell(noteHome(active.value), home)
+    )
       noteShown.value = { ...home, by: 'active' }
   }, NOTE_SHOW)
 })
@@ -3577,12 +3583,34 @@ watch(editing, (on) => {
   if (on) hideNote()
 })
 
-/** Escape closes a note being read, as it closes any overlay. */
+/** Whether focus is in the grid, or in what it shows, such as a note. */
+const focusInside = () => !!root.value?.contains(document.activeElement)
+
+/** Whether the pointer is on the note being read. */
+let onNote = false
+watch(noteShown, (note) => {
+  if (!note) onNote = false
+})
+
+/**
+ * Escape closes a note being read, as it closes any overlay. It is the
+ * grid's own Escape only when focus is in the grid or the pointer is on
+ * the note; otherwise it still reaches what has focus, such as a dialog.
+ */
 function onNoteEscape(event: KeyboardEvent) {
   if (event.key !== 'Escape' || event.isComposing || noteShown.value?.by === 'edit') return
+  hideNote()
+  if (!focusInside() && !onNote) return
   event.preventDefault()
   event.stopPropagation()
-  hideNote()
+}
+
+/** A note shown for the active cell goes when focus leaves the grid. */
+function onFocusout(event: FocusEvent) {
+  const next = event.relatedTarget
+  if (next instanceof Node && root.value?.contains(next)) return
+  const by = noteShown.value?.by
+  if (by === 'active' || by === 'tap') hideNote()
 }
 watch(
   () => !!noteShown.value && noteShown.value.by !== 'edit',
@@ -4912,6 +4940,7 @@ defineExpose<SheetExpose>({
         ref="root"
         class="dou-sheet__main"
         @keydown="onKeydown"
+        @focusout="onFocusout"
         @copy="onCopy"
         @cut="onCut"
         @paste="onPaste"

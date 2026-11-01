@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { DouSheet } from '../index'
 import type { SheetExpose, SheetMenuItem } from '../types'
@@ -176,15 +176,33 @@ describe('DouSheet notes', () => {
   it('shows the active cell’s note after a pause, and Escape closes it', async () => {
     const { wrapper, grid, key } = setup()
     grid.value!.select('A1')
+    grid.value!.focus()
     await nextTick()
     await key('ArrowDown')
     expect(document.querySelector('.dou-sheet__note')).toBeNull()
     await new Promise((resolve) => setTimeout(resolve, 350))
     await nextTick()
     expect(document.querySelector('.dou-sheet__note-text')?.textContent).toBe('上海展览中心 2 号厅')
+    // with focus in the grid, Escape is the grid's alone
+    const outside = vi.fn()
+    window.addEventListener('keydown', outside)
     await key('Escape')
+    window.removeEventListener('keydown', outside)
     await nextTick()
     expect(document.querySelector('.dou-sheet__note')).toBeNull()
+    expect(outside).not.toHaveBeenCalled()
+    // a note shown for the active cell goes when focus leaves the grid
+    grid.value!.select('B3')
+    await new Promise((resolve) => setTimeout(resolve, 350))
+    await nextTick()
+    expect(document.querySelector('.dou-sheet__note')).not.toBeNull()
+    const other = document.createElement('button')
+    document.body.append(other)
+    other.focus()
+    await nextTick()
+    expect(document.querySelector('.dou-sheet__note')).toBeNull()
+    other.remove()
+    grid.value!.focus()
     // moving on hides it at once
     await key('ArrowDown')
     await new Promise((resolve) => setTimeout(resolve, 350))

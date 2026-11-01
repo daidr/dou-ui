@@ -1,4 +1,9 @@
-import { csvExporter, defineSheetExporter, type SheetWorkbook } from '@dou-ui/sheet/core'
+import {
+  csvExporter,
+  defineSheetExporter,
+  SheetFileError,
+  type SheetWorkbook,
+} from '@dou-ui/sheet/core'
 import { mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
@@ -145,7 +150,11 @@ describe('exporting widgets', () => {
   it('refuses a widget without a workbook and an exporter it lacks', async () => {
     const { wrapper, api } = setup()
     await flush()
-    await expect(api().exportWidget('plain', 'csv')).rejects.toThrow(/nothing to export/)
+    await expect(api().exportWidget('plain', 'csv')).rejects.toThrow(/doesn't give its content/)
+    await expect(api().exportWidget('plain', 'csv')).rejects.toMatchObject({
+      code: 'empty',
+      reason: '没有可导出的数据',
+    })
     await expect(api().exportWidget('nope', 'csv')).rejects.toThrow(/no widget "nope"/)
     await expect(api().exportWidget('table', 'xlsx')).rejects.toThrow(/no exporter "xlsx"/)
     wrapper.unmount()
@@ -195,8 +204,8 @@ describe('exporting widgets', () => {
     expect(errors).toHaveLength(1)
     expect(errors[0]!.widget).toBe('broken')
     expect(errors[0]!.exporter).toBe('csv')
-    expect(errors[0]!.message).toBe('导出失败：没有数据')
-    expect(frame().find('[role="alert"]').text()).toContain('导出失败：没有数据')
+    expect(errors[0]!.message).toBe('无法导出 坏的.csv：没有数据')
+    expect(frame().find('[role="alert"]').text()).toContain('无法导出 坏的.csv：没有数据')
     await frame().find('[role="alert"] button').trigger('click')
     expect(frame().find('[role="alert"]').exists()).toBe(false)
     wrapper.unmount()
@@ -217,4 +226,109 @@ describe('exporting widgets', () => {
     expect(frame().find('[role="alert"]').exists()).toBe(false)
     wrapper.unmount()
   })
+
+  it('waits for the data, and draws a widget far from the view first', async () => {
+    let done = false
+    const { wrapper, api } = setup({
+      sources: {
+        rows: () =>
+          new Promise((resolve) =>
+            setTimeout(() => {
+              done = true
+              resolve(rows)
+            }, 30),
+          ),
+      },
+    })
+    const book = await bookOf(await api().exportWidget('table', json))
+    expect(done).toBe(true)
+    expect(book.sheets[0]!.cells).toHaveLength(4)
+    wrapper.unmount()
+  })
+
+  it('names the sheet as the file: the title, or the type when there is none', async () => {
+    const untitled = list.map((w) => (w.id === 'table' ? { ...w, title: undefined } : w))
+    const { wrapper, api } = setup({ modelValue: { version: 1, widgets: untitled } })
+    await flush()
+    const book = await bookOf(await api().exportWidget('table', json))
+    expect(book.sheets[0]!.name).toBe('表格')
+    wrapper.unmount()
+  })
+
+  it('has no export button on a chart without its fields', async () => {
+    const empty = list.map((w) =>
+      w.id === 'chart' ? { ...w, props: { source: 'rows', kind: 'bar' } } : w,
+    )
+    const { wrapper, api } = setup({ modelValue: { version: 1, widgets: empty } })
+    await flush()
+    expect(wrapper.find('[data-grid-id="chart"]').find('button[aria-label="导出"]').exists()).toBe(
+      false,
+    )
+    await expect(api().exportWidget('chart', 'csv')).rejects.toBeInstanceOf(SheetFileError)
+    wrapper.unmount()
+  })
+
+  it('tells why with the reason of a file error, not its message', async () => {
+    const locked = defineSheetExporter({
+      name: 'locked',
+      label: '锁住的',
+      extension: 'txt',
+      mime: 'text/plain',
+      export: () => {
+        throw new SheetFileError('dev message', 'locked', '文件被占用')
+      },
+    })
+    const { wrapper, api, errors } = setup({ exporters: [csvExporter, locked] })
+    await flush()
+    await expect(api().saveWidget('table', 'locked')).rejects.toThrow('dev message')
+    expect(errors[0]!.message).toBe('无法导出 订单.txt：文件被占用')
+    await nextTick()
+    expect(wrapper.find('[data-grid-id="table"] [role="alert"]').text()).toContain('文件被占用')
+    wrapper.unmount()
+  })
+
+  it('shows the button waiting while exporting, and exports once', async () => {
+    let calls = 0
+    let finish: ((text: string) => void) | undefined
+    const slow = defineSheetExporter({
+      name: 'slow',
+      label: '慢的',
+      extension: 'txt',
+      mime: 'text/plain',
+      export: () => {
+        calls++
+        return new Promise<string>((resolve) => (finish = resolve))
+      },
+    })
+    const { wrapper } = setup({ exporters: [slow] })
+    await flush()
+    const frame = () => wrapper.find('[data-grid-id="table"]')
+    const pick = async () => {
+      await frame().find('button[aria-label="导出"]').trigger('click')
+      await flush()
+      ;[...document.querySelectorAll<HTMLElement>('[role="menuitem"]')]
+        .find((el) => el.textContent?.includes('慢的'))
+        ?.click()
+      await flush()
+    }
+    await pick()
+    const button = frame().find<HTMLButtonElement>('button[aria-label="导出"]')
+    expect(button.element.disabled).toBe(true)
+    await pick()
+    expect(calls).toBe(1)
+    finish!('x')
+    await flush()
+    expect(frame().find<HTMLButtonElement>('button[aria-label="导出"]').element.disabled).toBe(
+      false,
+    )
+    wrapper.unmount()
+  })
 })
+
+// the exporter's options are typed by its name or by the exporter
+export function typed(api: DashboardExpose) {
+  void api.exportWidget('table', 'csv', { options: { bom: false } })
+  // @ts-expect-error CSV's bom is a boolean
+  void api.exportWidget('table', 'csv', { options: { bom: 'x' } })
+  void api.saveWidget('table', json, { fileName: '订单.json' })
+}

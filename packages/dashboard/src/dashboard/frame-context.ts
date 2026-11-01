@@ -44,6 +44,8 @@ export interface FrameContext {
   exporters: (id: string) => FrameExporter[]
   /** Writes a widget's content with an exporter, by name, and downloads the file. */
   exportTo: (id: string, exporter: string) => void
+  /** Whether a widget's content is being exported now. */
+  exporting: (id: string) => boolean
   /** Why the last export from a widget's menu failed. */
   exportError: (id: string) => string | undefined
   clearExportError: (id: string) => void

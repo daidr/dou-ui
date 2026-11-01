@@ -48,7 +48,8 @@ function sheetValueOf(value: unknown): SheetValue {
 
 /**
  * Rows of data as a workbook, for the dashboard's export menu: one sheet,
- * a bold head row with the columns' titles, a row per row of data.
+ * a bold head row with the columns' titles, a row per row of data. An
+ * empty `name` takes the widget's title.
  */
 export function rowsToWorkbook(
   name: string,

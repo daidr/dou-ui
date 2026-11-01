@@ -64,11 +64,13 @@ export interface DashboardWidgetContext<P extends object = Record<string, unknow
   sources: ComputedRef<string[]>
   /**
    * Gives the dashboard the widget's content as a workbook, read when it is
-   * exported with one of the dashboard's `exporters`; return `undefined`
-   * when there is nothing to write. A widget that never calls it has no
+   * exported with one of the dashboard's `exporters`; a sheet without a
+   * name takes the widget's title. Returning `undefined` fails the export
+   * with "no data to export"; `null` takes the export menu away, such as
+   * while the widget isn't set up. A widget that never calls it has no
    * export menu. Undone when the widget goes.
    */
-  setWorkbook: (get: () => SheetWorkbook | undefined) => void
+  setWorkbook: (get: (() => SheetWorkbook | undefined) | null) => void
 }
 
 export const widgetContextKey: InjectionKey<DashboardWidgetContext<any, any>> =
@@ -174,7 +176,7 @@ export function provideWidgetContext(source: ContextSource): DashboardWidgetCont
     sources: computed(() => data?.sourceNames() ?? []),
     setWorkbook: (get) => {
       undoWorkbook?.()
-      undoWorkbook = source.setWorkbook?.(id.value, get)
+      undoWorkbook = get ? source.setWorkbook?.(id.value, get) : undefined
     },
   }
   let undoWorkbook: (() => void) | undefined

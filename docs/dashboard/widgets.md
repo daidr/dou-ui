@@ -102,7 +102,7 @@ pivotWidget({
 
 ## 导出格子的数据
 
-`exporters` 传入电子表格的导出器后，表格、图表和透视表格子的标题栏会多出一个“导出”按钮（编辑时在格子菜单里），选一种文件就会下载这个格子的数据，文件名取格子的标题。导出器来自 `@dou-ui/sheet`（`csvExporter`）和 `@dou-ui/sheet-xlsx`（`xlsxExporter`），也可以用自己写的，写法见电子表格的[导出器与导入器](../sheet/extensions#导出器与导入器)。
+`exporters` 传入电子表格的导出器后，表格、图表和透视表格子的标题栏会多出一个“导出”按钮（编辑时在格子菜单里），选一种文件就会下载这个格子的数据，文件名和工作表名取格子的标题。导出器来自 `@dou-ui/sheet`（`csvExporter`）和 `@dou-ui/sheet-xlsx`（`xlsxExporter`），也可以用自己写的，写法见电子表格的[导出器与导入器](../sheet/extensions#导出器与导入器)。在代码里导入它们时，需要另外安装 `@dou-ui/sheet` 和 `@dou-ui/sheet-xlsx`：
 
 ```vue
 <script setup>
@@ -122,22 +122,35 @@ const exporters = [xlsxExporter, csvExporter]
 导出的是格子拿到的全部数据，不受格子大小和滚动的限制：
 
 - 表格：一行表头，之后每条数据一行，数字不带千位分隔，日期写成 `2026-10-05`。
-- 图表：横轴一列，每个系列一列，表头用 `labels` 里的名字。
+- 图表：横轴一列，每个系列一列，表头用 `labels` 里的名字。还没选横轴或系列的图表没有导出按钮。
 - 透视表：和屏幕上一样，表头合并并冻结，数字带格式，折叠的组只有一行。
 
-需要导出文件的代码在第一次传入 `exporters` 时单独加载，不传时不会打包进来。画出表格样子的导出器（如 PNG）不会出现在菜单里。
+导出时会先等格子的数据加载完；离视口较远、还没绘制的格子会先画出来。导出期间按钮显示加载中，不会重复导出。失败时格子内容上方显示原因，可以关闭。
 
-自己写的格子类型调用 `useDashboardWidget()` 的 `setWorkbook` 交出数据，就会有导出按钮。它收到一个函数，导出时才调用，返回电子表格的工作簿，没有数据时返回 `undefined`：
+导出文件的代码在第一次传入 `exporters` 时单独加载，不传时不会加载。画出表格样子的导出器（如 PNG）不会出现在菜单里。
+
+### 自己的格子类型
+
+自己写的格子类型调用 `useDashboardWidget()` 的 `setWorkbook` 交出数据，就会有导出按钮。它收到一个函数，导出时才调用，返回电子表格的工作簿；工作表没写名字时用格子的标题。函数返回 `undefined` 时导出失败，提示“没有可导出的数据”；传 `null` 会去掉导出按钮，比如格子还没设置好时：
 
 ```ts
-const { widget, setWorkbook } = useDashboardWidget()
+const { props, setWorkbook } = useDashboardWidget()
 
-setWorkbook(() => ({
-  sheets: [{ name: widget.value.title || '数据', cells: [['城市', '人数'], ...rows.value] }],
-}))
+watch(
+  () => !!props.value.field,
+  (ready) =>
+    setWorkbook(
+      ready ? () => ({ sheets: [{ name: '', cells: [['城市', '人数'], ...rows.value] }] }) : null,
+    ),
+  { immediate: true },
+)
 ```
 
-代码里用实例的 `exportWidget(id, exporter, options?)` 导出，`exporter` 是 `exporters` 里的名字或导出器本身，返回 `Promise<Blob>`。离视口较远、还没绘制的格子还没有交出数据，这时会报错。从菜单导出失败时会触发 `export-error`，格子标题栏显示原因；调用 `event.preventDefault()` 可以改为自己提示。
+### 在代码里导出
+
+实例的 `saveWidget(id, exporter, options?)` 和菜单一样导出并下载，`exporter` 是 `exporters` 里的名字或导出器本身；`options.fileName` 指定文件名，默认是格子的标题加扩展名。失败时格子上显示原因、触发 `exportError`，返回的 Promise 也会 reject。调用 `event.preventDefault()` 可以不显示，改为自己提示，读屏仍会读出原因。
+
+只需要文件内容时用 `exportWidget(id, exporter, options?)`，它返回 `Promise<Blob>`，不下载、不提示。两者的 `options.options` 是导出器自己的选项，类型按导出器推断，比如 CSV 的 `{ bom: false }`；`options.signal` 用来取消。格子没有交出数据时，两者都以 `SheetFileError` 失败，`code` 是 `'empty'`。
 
 ## 导出图片与打印
 
@@ -163,21 +176,6 @@ downloadBlob(await dashboard.value.exportPNG({ pixelRatio: 2 }), '仪表盘.png'
 
 ## API
 
-### Dashboard Methods
-
-| 名称                                   | 说明                                                                                                  |
-| -------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `exportPNG(options?)`                  | 导出为 PNG，返回 `Promise<Blob>`                                                                      |
-| `exportWidget(id, exporter, options?)` | 用导出器导出格子的数据，返回 `Promise<Blob>`；`options` 可给 `options`（导出器自己的选项）和 `signal` |
-| `print()`                              | 绘制所有格子、等数据加载完后打开打印对话框                                                            |
-
-### useDashboardWidget
-
-| 名称               | 说明                                                               |
-| ------------------ | ------------------------------------------------------------------ |
-| `sources`          | 仪表盘里数据源的名字，用于设置面板里选择                           |
-| `setWorkbook(get)` | 交出格子的数据，供标题栏的导出按钮使用；`get` 返回电子表格的工作簿 |
-
 ### Dashboard Props
 
 | 名称        | 说明                                         | 类型              | 默认值 |
@@ -186,6 +184,22 @@ downloadBlob(await dashboard.value.exportPNG({ pixelRatio: 2 }), '仪表盘.png'
 
 ### Dashboard Events
 
-| 名称           | 说明                                       | 参数                                                     |
-| -------------- | ------------------------------------------ | -------------------------------------------------------- |
-| `export-error` | 从菜单导出失败时；默认在格子标题栏显示原因 | `{ widget, exporter, error, message, preventDefault() }` |
+| 名称          | 说明                                                         | 参数                                                                       |
+| ------------- | ------------------------------------------------------------ | -------------------------------------------------------------------------- |
+| `exportError` | 从菜单或 `saveWidget` 导出失败时；默认在格子内容上方显示原因 | `{ widget, exporter, error, message, defaultPrevented, preventDefault() }` |
+
+### Dashboard Methods
+
+| 名称                                   | 说明                                                                           |
+| -------------------------------------- | ------------------------------------------------------------------------------ |
+| `exportPNG(options?)`                  | 导出为 PNG，返回 `Promise<Blob>`                                               |
+| `exportWidget(id, exporter, options?)` | 用导出器导出格子的数据，返回 `Promise<Blob>`；`options` 有 `options`、`signal` |
+| `saveWidget(id, exporter, options?)`   | 导出格子的数据并下载，失败时提示；`options` 另有 `fileName`                    |
+| `print()`                              | 绘制所有格子、等数据加载完后打开打印对话框                                     |
+
+### useDashboardWidget
+
+| 名称               | 说明                                                                                       |
+| ------------------ | ------------------------------------------------------------------------------------------ |
+| `sources`          | 仪表盘里数据源的名字，用于设置面板里选择                                                   |
+| `setWorkbook(get)` | 交出格子的数据，供标题栏的导出按钮使用；`get` 返回电子表格的工作簿，传 `null` 去掉导出按钮 |

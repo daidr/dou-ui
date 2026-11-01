@@ -2,7 +2,7 @@ import { parseClip } from '@dou-ui/sheet'
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
-import { DouPivot, type PivotCollapsed, type PivotConfig } from '../index'
+import { DouPivot, type PivotCellEvent, type PivotCollapsed, type PivotConfig } from '../index'
 import type { PivotExpose } from '../types'
 import {
   gridMerges,
@@ -246,14 +246,15 @@ describe('selecting and copying', () => {
     expect(wrapper.find('.dou-pivot__live').text()).toBe('已复制 4 个格子')
     // DouSheet reads the numbers back as numbers
     const clip = parseClip({ html: data.get('text/html') })!
+    // whole numbers drop the optional decimals, which Excel would show as a trailing point
     const f = '#,##0.##'
     expect(clip.cells).toEqual([
       [
-        { value: 15, format: f },
-        { value: 20, format: f },
+        { value: 15, format: '#,##0' },
+        { value: 20, format: '#,##0' },
       ],
       [
-        { value: 3, format: f },
+        { value: 3, format: '#,##0' },
         { value: 7.5, format: f },
       ],
     ])
@@ -279,9 +280,9 @@ describe('selecting and copying', () => {
     const clip = parseClip({ html: data.get('text/html') })!
     expect(clip.cells[2]).toEqual([
       '华东',
-      { value: 15, format: '#,##0.##' },
-      { value: 20, format: '#,##0.##' },
-      { value: 35, format: '#,##0.##', style: 'pivot-total' },
+      { value: 15, format: '#,##0' },
+      { value: 20, format: '#,##0' },
+      { value: 35, format: '#,##0', style: 'pivot-total' },
     ])
     expect(clip.styles?.['pivot-head']).toEqual({ bold: true })
   })
@@ -347,9 +348,9 @@ describe('gridToHTML', () => {
   })
 })
 
-describe('cell-click labels', () => {
+describe('cellClick labels', () => {
   it('gives the groups as the table writes them beside their values', async () => {
-    const clicks: { row: unknown[]; labels: { row: string[]; column: string[] } }[] = []
+    const clicks: PivotCellEvent<any>[] = []
     const dated = [
       { day: new Date(2026, 0, 5), channel: '外卖', amount: 10 },
       { day: new Date(2026, 1, 9), channel: '门店', amount: 4 },
@@ -359,7 +360,7 @@ describe('cell-click labels', () => {
         data: dated,
         fields: [{ name: 'day', type: 'date' }],
         config: { rows: [{ field: 'day', by: 'month' }], columns: ['channel'], values: ['amount'] },
-        onCellClick: (cell: never) => clicks.push(cell),
+        onCellClick: (cell: PivotCellEvent<any>) => clicks.push(cell),
       },
       attachTo: document.body,
     })

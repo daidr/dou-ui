@@ -204,10 +204,10 @@ const problems = checkDocument(doc, { widgets })
 
 ### Dashboard Events
 
-| 名称                | 说明         | 参数                                    |
-| ------------------- | ------------ | --------------------------------------- |
-| `change`            | 每次修改之后 | `{ before, doc, steps, inverse, meta }` |
-| `breakpoint-change` | 断点变化时   | `string`                                |
+| 名称               | 说明         | 参数                                    |
+| ------------------ | ------------ | --------------------------------------- |
+| `change`           | 每次修改之后 | `{ before, doc, steps, inverse, meta }` |
+| `breakpointChange` | 断点变化时   | `string`                                |
 
 ### Dashboard Methods
 

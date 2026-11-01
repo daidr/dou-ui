@@ -162,7 +162,7 @@ values: [
 { field: 'amount', show: { as: 'difference', axis: 'rows' } } // 和上一行的组比较
 ```
 
-组的先后按组名的顺序，不受按数值排序的影响。百分比默认保留一位小数，差值带正负号；`format` 可以另外指定。表头会在值的名称后面加上显示方式，比如“销售额 · 占行合计”。`cell-click` 的 `value` 是显示的数字。
+组的先后按组名的顺序，不受按数值排序的影响。百分比默认保留一位小数，差值带正负号；`format` 可以另外指定。表头会在值的名称后面加上显示方式，比如“销售额 · 占行合计”。`cellClick` 的 `value` 是显示的数字。
 
 ### 计算值
 
@@ -253,7 +253,7 @@ filters: {
 
 ## 查看明细
 
-点击一个数字（或用方向键选中后按 Enter）会触发 `cell-click`，参数里有这一格的行组、列组、值的序号和数值；`row` 和 `column` 是组的原始值（日期按月分组时是 `'2026-01'`），`labels` 是表格里写出的文字。`records()` 返回汇总进这一格的记录，`indices()` 返回它们在 `data` 里的下标。下面的例子在抽屉里用表格列出这些订单：
+点击一个数字（或用方向键选中后按 Enter）会触发 `cellClick`，参数里有这一格的行组、列组、值的序号和数值；`row` 和 `column` 是组的原始值（日期按月分组时是 `'2026-01'`），`labels` 是表格里写出的文字。`records()` 返回汇总进这一格的记录，`indices()` 返回它们在 `data` 里的下标。下面的例子在抽屉里用表格列出这些订单：
 
 <DocDemo src="pivot/details" />
 
@@ -360,7 +360,7 @@ const data = shallowRef({
 })
 ```
 
-所有列的长度应当相同。`cell-click` 的 `records()` 会按下标把各列的值拼成对象。
+所有列的长度应当相同。`cellClick` 的 `records()` 会按下标把各列的值拼成对象。
 
 ### 在 worker 中汇总
 
@@ -423,7 +423,7 @@ const engine = {
 }
 ```
 
-这时 `data` 只需要给出字段（例如 `{ region: [], amount: [] }` 配合 `fields`），用来显示字段名和格式；`cell-click` 的 `records()` 拿不到服务端的记录，按 `row` 和 `column` 向服务端查询即可。
+这时 `data` 只需要给出字段（例如 `{ region: [], amount: [] }` 配合 `fields`），用来显示字段名和格式；`cellClick` 的 `records()` 拿不到服务端的记录，按 `row` 和 `column` 向服务端查询即可。
 
 ## 键盘
 
@@ -454,24 +454,24 @@ result.get(east, result.columns.find(['Q1']), 1) // 华东 Q1 的第 2 个值
 
 ### Pivot Props
 
-| 名称               | 说明                                                                   | 类型                                      | 默认值         |
-| ------------------ | ---------------------------------------------------------------------- | ----------------------------------------- | -------------- |
-| `data`             | 记录：对象数组，或按列给出的数组                                       | `object[] \| PivotColumns`                | —              |
-| `fields`           | 字段的说明                                                             | `PivotField[]`                            | 从记录的键推断 |
-| `config`           | 字段放在哪里，支持 `v-model:config`                                    | `PivotConfig`                             | `{}`           |
-| `collapsed`        | 折叠的组，支持 `v-model:collapsed`                                     | `PivotCollapsed`                          | `{}`           |
-| `max-height`       | 最大高度，数字按 px 计算；内容更少时随内容变矮                         | `number \| string`                        | `480`          |
-| `size`             | 行高：28、32、40px                                                     | `'sm' \| 'md' \| 'lg'`                    | `'md'`         |
-| `row-header-width` | 行头的宽度（px），窄屏上会自动收窄                                     | `number`                                  | `200`          |
-| `column-width`     | 每个数值列的最小宽度（px），表格较宽时会适当加宽                       | `number`                                  | `120`          |
-| `layout`           | 紧凑式或表格式布局                                                     | `'compact' \| 'tabular'`                  | `'compact'`    |
-| `resizable`        | 能否拖动调整列宽                                                       | `boolean`                                 | `true`         |
-| `worker`           | 是否在 worker 中汇总；`'auto'` 超过 10 万条时使用                      | `boolean \| 'auto'`                       | `'auto'`       |
-| `engine`           | 在别处汇总：自己的 worker 或服务端                                     | `PivotEngine`                             | —              |
-| `aggregators`      | 自定义的汇总方式                                                       | `PivotAggregator[]`                       | —              |
-| `highlight`        | 标出一个行分组和一个列分组，路径同 `cell-click` 给出的 `row`、`column` | `{ row?: unknown[]; column?: unknown[] }` | —              |
-| `aria-label`       | 读屏读出的名称                                                         | `string`                                  | `'数据透视表'` |
-| `messages`         | 替换语言包里的文字                                                     | `PivotMessagesOverride`                   | —              |
+| 名称               | 说明                                                                  | 类型                                      | 默认值         |
+| ------------------ | --------------------------------------------------------------------- | ----------------------------------------- | -------------- |
+| `data`             | 记录：对象数组，或按列给出的数组                                      | `object[] \| PivotColumns`                | —              |
+| `fields`           | 字段的说明                                                            | `PivotField[]`                            | 从记录的键推断 |
+| `config`           | 字段放在哪里，支持 `v-model:config`                                   | `PivotConfig`                             | `{}`           |
+| `collapsed`        | 折叠的组，支持 `v-model:collapsed`                                    | `PivotCollapsed`                          | `{}`           |
+| `max-height`       | 最大高度，数字按 px 计算；内容更少时随内容变矮                        | `number \| string`                        | `480`          |
+| `size`             | 行高：28、32、40px                                                    | `'sm' \| 'md' \| 'lg'`                    | `'md'`         |
+| `row-header-width` | 行头的宽度（px），窄屏上会自动收窄                                    | `number`                                  | `200`          |
+| `column-width`     | 每个数值列的最小宽度（px），表格较宽时会适当加宽                      | `number`                                  | `120`          |
+| `layout`           | 紧凑式或表格式布局                                                    | `'compact' \| 'tabular'`                  | `'compact'`    |
+| `resizable`        | 能否拖动调整列宽                                                      | `boolean`                                 | `true`         |
+| `worker`           | 是否在 worker 中汇总；`'auto'` 超过 10 万条时使用                     | `boolean \| 'auto'`                       | `'auto'`       |
+| `engine`           | 在别处汇总：自己的 worker 或服务端                                    | `PivotEngine`                             | —              |
+| `aggregators`      | 自定义的汇总方式                                                      | `PivotAggregator[]`                       | —              |
+| `highlight`        | 标出一个行分组和一个列分组，路径同 `cellClick` 给出的 `row`、`column` | `{ row?: unknown[]; column?: unknown[] }` | —              |
+| `aria-label`       | 读屏读出的名称                                                        | `string`                                  | `'数据透视表'` |
+| `messages`         | 替换语言包里的文字                                                    | `PivotMessagesOverride`                   | —              |
 
 ### PivotFields Props
 
@@ -490,7 +490,7 @@ result.get(east, result.columns.find(['Q1']), 1) // 华东 Q1 的第 2 个值
 | ------------------ | -------------------------- | ---------------- |
 | `update:config`    | 在表格里排序时             | `PivotConfig`    |
 | `update:collapsed` | 展开或折叠组时             | `PivotCollapsed` |
-| `cell-click`       | 点击数字，或选中后按 Enter | `PivotCellEvent` |
+| `cellClick`        | 点击数字，或选中后按 Enter | `PivotCellEvent` |
 
 ### PivotCellEvent
 

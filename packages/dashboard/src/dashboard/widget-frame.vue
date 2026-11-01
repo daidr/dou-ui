@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { DownloadIcon, MaximizeIcon, MoreHorizontalIcon } from '@dou-ui/icons'
 import {
+  DouAlert,
   DouButton,
   DouDropdown,
   DouDropdownItem,
@@ -87,6 +88,7 @@ const emitAction = (action: WidgetAction) => frame.action(props.id, action)
 /** The file types this widget's content can be exported as; none unless it gives a workbook. */
 const exporters = computed(() => frame.exporters(props.id))
 const exportError = computed(() => frame.exportError(props.id))
+const exporting = computed(() => frame.exporting(props.id))
 const EXPORT = 'export:'
 const exportOpen = ref(false)
 
@@ -149,18 +151,6 @@ function onSelect(value: DropdownValue | undefined) {
           {{ format(messages.filteredBy, { value: linkLabel }) }}
         </DouTag>
       </div>
-      <div v-if="exportError" class="dou-dashboard__links" role="alert" data-dou-nodrag>
-        <DouTag
-          size="sm"
-          tone="danger"
-          closable
-          :close-label="messages.dismiss"
-          :title="exportError"
-          @close="frame.clearExportError(id)"
-        >
-          {{ exportError }}
-        </DouTag>
-      </div>
       <div class="dou-dashboard__actions" data-dou-nodrag>
         <DouDropdown v-if="editing" placement="bottom-end" @select="onSelect">
           <DouButton size="sm" variant="ghost" :aria-label="messages.widgetMenu">
@@ -176,7 +166,9 @@ function onSelect(value: DropdownValue | undefined) {
                 v-for="exporter in exporters"
                 :key="exporter.name"
                 :value="EXPORT + exporter.name"
+                :disabled="exporting"
               >
+                <template v-if="exporter.icon" #prefix><component :is="exporter.icon" /></template>
                 {{ exporter.label }}
               </DouDropdownItem>
             </DouDropdownSub>
@@ -195,7 +187,13 @@ function onSelect(value: DropdownValue | undefined) {
         >
           <span class="dou-dashboard__trigger">
             <DouDropdown v-model:open="exportOpen" placement="bottom-end" @select="onSelect">
-              <DouButton size="sm" variant="ghost" :aria-label="messages.export">
+              <DouButton
+                size="sm"
+                variant="ghost"
+                :aria-label="messages.export"
+                :loading="exporting"
+                :disabled="exporting"
+              >
                 <DownloadIcon />
               </DouButton>
               <template #menu>
@@ -204,6 +202,9 @@ function onSelect(value: DropdownValue | undefined) {
                   :key="exporter.name"
                   :value="EXPORT + exporter.name"
                 >
+                  <template v-if="exporter.icon" #prefix
+                    ><component :is="exporter.icon"
+                  /></template>
                   {{ exporter.label }}
                 </DouDropdownItem>
               </template>
@@ -222,6 +223,11 @@ function onSelect(value: DropdownValue | undefined) {
         </DouTooltip>
       </div>
     </component>
+    <div v-if="exportError" class="dou-dashboard__notice" data-dou-nodrag>
+      <DouAlert tone="danger" closable @close="frame.clearExportError(id)">
+        {{ exportError }}
+      </DouAlert>
+    </div>
     <WidgetBody
       v-if="active"
       :widget="widget"

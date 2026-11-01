@@ -16,11 +16,11 @@ defineOptions({ name: 'DouDashboardPivotWidget' })
 
 defineProps<{ fields?: readonly PivotField[] }>()
 
-const { props, data, size, setFilter, ownFilters, editing, setProps, widget, setWorkbook } =
+const { props, data, size, setFilter, ownFilters, editing, setProps, setWorkbook } =
   useDashboardWidget<PivotWidgetProps>()
 const pivot = shallowRef<PivotExpose>()
 // the export menu writes the table as it shows: merged heads, totals, number formats
-setWorkbook(() => pivot.value?.toSheet({ name: widget.value.title || undefined }))
+setWorkbook(() => pivot.value?.toSheet({ name: '' }))
 const rows = computed(() => rowsOf(data.value, props.value.path))
 // sorting in the table works while viewing too; only while editing is it saved
 const config = shallowRef<PivotConfig | undefined>(props.value.config)

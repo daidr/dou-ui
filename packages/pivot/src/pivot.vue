@@ -82,7 +82,7 @@ const props = withDefaults(defineProps<PivotProps<Row>>(), {
 })
 const config = defineModel<PivotConfig>('config', { default: () => ({}) })
 const collapsed = defineModel<PivotCollapsed>('collapsed', { default: () => ({}) })
-const emit = defineEmits<{ 'cell-click': [cell: PivotCellEvent<Row>] }>()
+const emit = defineEmits<{ cellClick: [cell: PivotCellEvent<Row>] }>()
 
 const { locale } = useLocale()
 const messages = usePivotMessages(() => props.messages)
@@ -1053,7 +1053,7 @@ function onClick(event: MouseEvent) {
     return
   }
   const column = colLines.value[col]
-  if (column) emit('cell-click', cellEvent(line, column))
+  if (column) emit('cellClick', cellEvent(line, column))
 }
 
 function ensureVisible(row: number, col: number) {
@@ -1161,7 +1161,7 @@ function onKeydown(event: KeyboardEvent) {
         if (isGroup) toggleNode('rows', line.node, event.altKey)
       } else if (event.key === 'Enter') {
         const column = colLines.value[a.col]
-        if (column) emit('cell-click', cellEvent(line, column))
+        if (column) emit('cellClick', cellEvent(line, column))
       }
       break
     default:

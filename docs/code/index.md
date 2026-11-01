@@ -312,7 +312,7 @@ const keymap: CodeKeymap = {
 
 <DocDemo src="code/wrap-fold" column />
 
-`Ctrl` + `Shift` + `[` / `]`（Apple 上是 `⌥` + `⌘` + `[` / `]`）折叠、展开光标所在的一段。实例方法 `fold(line?)`、`unfold(line?)`、`foldAll()`、`unfoldAll()` 用代码折叠，`line` 是从 1 开始的行号，和行号栏一致；它们返回 `boolean`，表示有没有折叠或展开。`folds` 是现在折叠着的各段的起始行号。折叠状态变化时触发 `fold-change` 事件，参数也是各段的起始行号，保存下来，之后逐个传给 `fold(line)` 就能恢复。用键盘折叠、展开时，读屏会读出折叠了哪几行。折叠是视图的状态，不影响 `v-model`；不需要折叠时把 `foldable` 设为 `false`。
+`Ctrl` + `Shift` + `[` / `]`（Apple 上是 `⌥` + `⌘` + `[` / `]`）折叠、展开光标所在的一段。实例方法 `fold(line?)`、`unfold(line?)`、`foldAll()`、`unfoldAll()` 用代码折叠，`line` 是从 1 开始的行号，和行号栏一致；它们返回 `boolean`，表示有没有折叠或展开。`folds` 是现在折叠着的各段的起始行号。折叠状态变化时触发 `foldChange` 事件，参数也是各段的起始行号，保存下来，之后逐个传给 `fold(line)` 就能恢复。用键盘折叠、展开时，读屏会读出折叠了哪几行。折叠是视图的状态，不影响 `v-model`；不需要折叠时把 `foldable` 设为 `false`。
 
 ## 手机触控
 
@@ -687,7 +687,7 @@ const createWorker = () =>
 | `transaction` | 每次修改之后，包括撤销和外部的新值     | `CodeTransactionResult`                 |
 | `focus`       | 获得焦点                               | `FocusEvent`                            |
 | `blur`        | 失去焦点                               | `FocusEvent`                            |
-| `fold-change` | 折叠状态变化，包括修改让折叠的段换了行 | `number[]`（各段的起始行号，从 1 开始） |
+| `foldChange`  | 折叠状态变化，包括修改让折叠的段换了行 | `number[]`（各段的起始行号，从 1 开始） |
 
 ### 实例
 

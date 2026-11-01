@@ -66,6 +66,7 @@ import {
   CellsSplitIcon,
   TrashIcon,
   UnfoldVerticalIcon,
+  fileIconOf,
 } from '@dou-ui/icons'
 import {
   computed,
@@ -184,7 +185,6 @@ import {
   type SheetUpdate,
 } from './core/extension'
 import { format } from './locale'
-import { fileIconOf } from './components/file-icons'
 import { useSheetMessages } from './use-messages'
 import { sheetToCSV, type SheetCSVWriteOptions } from './core/csv'
 import { createSheetExport, type SheetExportTarget } from './export'

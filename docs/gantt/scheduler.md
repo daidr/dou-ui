@@ -125,14 +125,13 @@ interface SchedulerResource {
 
 ### 事件
 
-| 名称               | 说明                                                                              | 参数                                   |
-| ------------------ | --------------------------------------------------------------------------------- | -------------------------------------- |
-| `transaction`      | 每次修改后触发，包括撤销和重做                                                    | `(tr: GanttTransaction)`               |
-| `cancel`           | 扩展取消了一次修改，`tr.cancelReason` 是原因，见[取消修改](./extensions#取消修改) | `(tr: GanttTransaction)`               |
-| `task-click`       | 点击任务                                                                          | `(task: GanttTask, event: MouseEvent)` |
-| `task-dblclick`    | 双击任务                                                                          | `(task: GanttTask, event: MouseEvent)` |
-| `task-contextmenu` | 在任务上打开菜单前触发，`event.preventDefault()` 可以不打开                       | `(task: GanttTask, event: MouseEvent)` |
-| `range-select`     | 在空白处拖出一段时间                                                              | `(range: SchedulerRange)`              |
+| 名称               | 说明                                                        | 参数                                   |
+| ------------------ | ----------------------------------------------------------- | -------------------------------------- |
+| `transaction`      | 每次修改后触发，包括撤销和重做                              | `(tr: GanttTransaction)`               |
+| `task-click`       | 点击任务                                                    | `(task: GanttTask, event: MouseEvent)` |
+| `task-dblclick`    | 双击任务                                                    | `(task: GanttTask, event: MouseEvent)` |
+| `task-contextmenu` | 在任务上打开菜单前触发，`event.preventDefault()` 可以不打开 | `(task: GanttTask, event: MouseEvent)` |
+| `range-select`     | 在空白处拖出一段时间                                        | `(range: SchedulerRange)`              |
 
 ```ts
 interface SchedulerRange {

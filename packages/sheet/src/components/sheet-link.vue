@@ -122,9 +122,8 @@ function onFocusout(event: FocusEvent) {
   else cancel(true)
 }
 
-/** A web address opens as any link does; a place in the workbook is gone to. */
+/** A web address opens through the grid, so the app can take it over. */
 function onOpen(event: MouseEvent) {
-  if (href.value && !event.defaultPrevented) return
   event.preventDefault()
   emit('open')
 }
@@ -174,16 +173,27 @@ function onOpen(event: MouseEvent) {
       </form>
       <template v-else>
         <span class="dou-sheet__link-icon" aria-hidden="true"><LinkIcon /></span>
+        <!-- a place in the workbook isn't a page: a button, so no router takes the click -->
         <a
+          v-if="href"
           class="dou-sheet__link-address"
-          :href="href ?? '#'"
-          :target="href ? '_blank' : undefined"
-          :rel="href ? 'noopener noreferrer' : undefined"
+          :href="href"
+          target="_blank"
+          rel="noopener noreferrer"
           :title="`${messages.open}: ${link}`"
           @click="onOpen"
         >
           {{ shown }}
         </a>
+        <button
+          v-else
+          type="button"
+          class="dou-sheet__link-address"
+          :title="`${messages.open}: ${link}`"
+          @click="emit('open')"
+        >
+          {{ shown }}
+        </button>
         <div v-if="editable" class="dou-sheet__link-buttons">
           <DouTooltip :content="messages.edit" placement="top">
             <DouButton size="sm" variant="ghost" :aria-label="messages.edit" @click="emit('edit')">

@@ -1,5 +1,5 @@
 <script setup>
-import { DouSheet } from '@dou-ui/sheet'
+import { DouSheet, DouSheetTabs } from '@dou-ui/sheet'
 import { ref } from 'vue'
 
 const head = (value) => ({ value, style: 'head' })
@@ -38,5 +38,9 @@ const book = ref({
 </script>
 
 <template>
-  <DouSheet v-model="book" style="height: 280px" />
+  <DouSheet v-model="book" style="height: 320px">
+    <template #footer>
+      <DouSheetTabs />
+    </template>
+  </DouSheet>
 </template>

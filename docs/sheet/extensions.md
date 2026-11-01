@@ -123,7 +123,7 @@ interface SheetHistoryHandler {
 
 ### 取消修改
 
-在 `transaction` 里调用 `tr.cancel(reason?)` 取消这次修改：它的步骤都不会生效，也不进撤销记录，后面的扩展不再收到它，`update` 也不会调用。表格下方会显示 `reason`，读屏也会读出；不写时显示“这次修改没有生效”。组件触发 `cancel` 事件，`tr.cancelReason` 是取消的原因，`transact` 返回 `null`。比如 A 列由系统填写，不让人改：
+在 `transaction` 里调用 `tr.cancel(reason?)` 取消这次修改：它的步骤都不会生效，也不进撤销记录，后面的扩展不再收到它，`update` 也不会调用。表格下方会显示 `reason`，读屏也会读出；不写时显示“这次修改没有生效”。组件触发 `transaction-cancel` 事件，`tr.cancelReason` 是取消的原因。`transact` 返回 `null`，和没有改动任何内容时一样；要知道原因就监听这个事件。比如 A 列由系统填写，不让人改：
 
 ```ts
 const systemColumn = defineSheetExtension({
@@ -255,7 +255,7 @@ const today = defineSheetExtension({
 
 只读时表格不会替扩展的命令禁用：修改表格的命令要自己在 `enabled` 里判断 `readonly`，像上面那样；打印、导出这类不改表格的命令在只读表格里照常可用。
 
-表格自带的一部分功能登记成了命令（见下表），这些功能的工具栏按钮和快捷键都通过命令执行；数字格式、颜色、冻结、条件格式和数据验证这些工具不是命令。用 `override` 替换后，快捷键和工具栏按钮都会运行新的实现。只有一个按钮的工具（`undo`、`redo`、`bold`、`italic`、`underline`、`strike`、`wrap`、`merge`、`filter`、`clear`）会按新命令的文字、图标和 `pressed` 显示；对齐、垂直对齐、小数位和排序这类组合工具保持原来的外观，只用新命令的 `run`、`enabled` 和 `pressed`：
+表格自带的一部分功能登记成了命令（见下表），这些功能的工具栏按钮和快捷键都通过命令执行；数字格式、颜色、冻结、条件格式和数据验证这些工具不是命令。用 `override` 替换后，快捷键和工具栏按钮都会运行新的实现。只有一个按钮的工具（`undo`、`redo`、`bold`、`italic`、`underline`、`strike`、`wrap`、`merge`、`link`、`filter`、`clear`）会按新命令的文字、图标和 `pressed` 显示；对齐、垂直对齐、小数位和排序这类组合工具保持原来的外观，只用新命令的 `run`、`enabled` 和 `pressed`：
 
 | 命令                                            | 作用                                                           |
 | ----------------------------------------------- | -------------------------------------------------------------- |
@@ -270,6 +270,10 @@ const today = defineSheetExtension({
 | `filter`                                        | 加上或去掉筛选                                                 |
 | `clear`                                         | 清除格式（样式和数字格式），值不变；不是右键菜单里的“清除内容” |
 | `print`                                         | 打印当前工作表                                                 |
+| `link`                                          | 插入或编辑当前单元格的链接                                     |
+| `link.open`、`link.remove`                      | 打开当前单元格的链接；删除选区里的链接                         |
+| `lock`                                          | 锁定或取消锁定选区，工作表受保护时不可用                       |
+| `protect.sheet`、`protect.workbook`             | 开关：保护或取消保护当前工作表、工作簿结构                     |
 
 在扩展或组件里用 `useSheet().commands` 执行和查询命令：
 

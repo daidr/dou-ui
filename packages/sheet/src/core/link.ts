@@ -10,7 +10,8 @@ import { parseRange, splitSheet, type SheetRange } from './address'
 export type SheetLinkTarget =
   { kind: 'web'; href: string } | { kind: 'cell'; sheet?: string; range: SheetRange }
 
-const WEB = /^(?:https?:\/\/|mailto:|tel:)/i
+/** A web address, or an e-mail or phone one with something after its scheme. */
+const WEB = /^(?:https?:\/\/|(?:mailto|tel):\S)/i
 /** Text that reads as a web address, for typed text to become a link. */
 const TYPED = /^(?:https?:\/\/|mailto:)[^\s<>"]+$/i
 

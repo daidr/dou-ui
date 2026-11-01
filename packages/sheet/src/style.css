@@ -639,8 +639,16 @@
     padding: 8px 10px;
     font-size: var(--dou-font-size-sm);
     line-height: 20px;
+    /* it covers the cells under it only where it has something to press */
+    pointer-events: none;
+
+    a,
+    button {
+      pointer-events: auto;
+    }
 
     &.is-editing {
+      pointer-events: auto;
       padding: 4px;
     }
   }
@@ -688,11 +696,26 @@
     padding: 4px 4px 4px 10px;
     font-size: var(--dou-font-size-sm);
     line-height: 20px;
+    /* it covers the cells under it only where it has something to press */
+    pointer-events: none;
+
+    a,
+    button {
+      pointer-events: auto;
+    }
 
     &.is-editing {
+      pointer-events: auto;
       display: block;
       width: 288px;
       padding: 8px;
+    }
+
+    /* a finger gets buttons it can hit */
+    @media (pointer: coarse) {
+      .dou-button {
+        --dou-button-height: 40px;
+      }
     }
   }
   .dou-sheet__link-icon {
@@ -708,6 +731,12 @@
   .dou-sheet__link-address {
     min-width: 0;
     overflow: hidden;
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
     color: var(--dou-color-text);
     text-decoration-line: underline;
     text-decoration-color: color-mix(in oklab, currentColor 28%, transparent);

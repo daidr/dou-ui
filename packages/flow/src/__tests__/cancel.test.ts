@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { defineFlowExtension, DouFlowEditor, FlowTransaction } from '../index'
 import type { FlowDocument, FlowEditorExpose } from '../index'
@@ -35,7 +35,7 @@ describe('cancelling a change', () => {
             modelValue: doc.value,
             'onUpdate:modelValue': (value: FlowDocument) => (doc.value = value),
             extensions: [guard],
-            onCancel: (tr: FlowTransaction) => cancels.push(tr),
+            onTransactionCancel: (tr: FlowTransaction) => cancels.push(tr),
             onTransaction: (tr: FlowTransaction) => seen.push(tr),
           }),
       ),
@@ -57,10 +57,15 @@ describe('cancelling a change', () => {
     expect(editor.canUndo).toBe(true)
   })
 
-  it("can't cancel a change kept out of the history", () => {
+  it("can't cancel a change kept out of the history, and says so once", () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const tr = new FlowTransaction(sample())
     tr.setMeta({ history: false }).cancel('不行')
+    tr.cancel('还是不行')
     expect(tr.cancelled).toBe(false)
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(warn.mock.calls[0]![0]).toContain('[@dou-ui/flow]')
+    warn.mockRestore()
     expect(new FlowTransaction(sample()).cancel().cancelled).toBe(true)
   })
 })

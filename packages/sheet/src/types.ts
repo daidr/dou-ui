@@ -4,6 +4,7 @@ import type { SheetClip } from './core/clipboard'
 import type { SheetCSVWriteOptions } from './core/csv'
 import type { SheetCommands } from './core/commands'
 import type { SheetExtension } from './core/extension'
+import type { SheetLinkTarget } from './core/link'
 import type {
   SheetCSVExportOptions,
   SheetExporter,
@@ -200,6 +201,20 @@ export interface SheetMenuContext {
  * The `paste` event, before anything is written. `clip` can be changed or
  * replaced, and `preventDefault()` stops the paste.
  */
+/**
+ * Before a link is followed, from its card, the menu, Ctrl / ⌘ + click or the
+ * `link.open` command. `preventDefault()` keeps the grid from opening a web
+ * address in a new tab or going to the cells, e.g. to use the app's router.
+ */
+export interface SheetLinkOpenEvent {
+  link: string
+  target: SheetLinkTarget
+  /** The cell with the link: the sheet's index, its row and column. */
+  cell: { sheet: number; row: number; col: number }
+  defaultPrevented: boolean
+  preventDefault: () => void
+}
+
 export interface SheetPasteEvent {
   clip: SheetClip
   /** Where the clip goes: the first range when one cell fills several. */
@@ -317,9 +332,11 @@ export interface SheetEmits {
    * An extension's `transaction` hook cancelled a change, or a protected
    * cell refused it; `tr.cancelReason` says why, and the grid shows it.
    */
-  cancel: [tr: SheetTransaction]
+  transactionCancel: [tr: SheetTransaction]
   /** Before pasting: change what is pasted, or stop it. */
   paste: [event: SheetPasteEvent]
+  /** Before a link is followed: take it over, or stop it. */
+  linkOpen: [event: SheetLinkOpenEvent]
   /** After a file is read, before it is written in: change it, or stop it. */
   import: [event: SheetImportEvent]
   /** An import or export failed; the grid shows a short message too. */
@@ -411,6 +428,8 @@ export interface SheetExpose {
   edit: (cell?: SheetCellTarget) => void
   /** Selects a cell, the active one by default, and opens the box to write its note. */
   editNote: (cell?: SheetCellTarget) => void
+  /** Selects a cell, the active one by default, and opens the box to write its link. */
+  editLink: (cell?: SheetCellTarget) => void
   focus: () => void
   /** Copies (or cuts) the selection to the system clipboard. */
   copy: () => Promise<void>

@@ -1,11 +1,12 @@
 import {
   cellOf,
   type SheetCell,
+  type SheetCellInput,
   type SheetData,
   type SheetProtection,
   type SheetWorkbook,
 } from './model'
-import { SheetTransaction, type SheetStep } from './transaction'
+import { SheetTransaction, sheetKey, type SheetStep } from './transaction'
 
 /*
  * Protection. A protected sheet keeps its locked cells, its lines and its
@@ -52,9 +53,9 @@ export function protectionOf(sheet: SheetData | undefined): SheetProtection | nu
   return protect === true ? NONE : protect
 }
 
-/** Whether a cell is locked: unless its style says `locked: false`. */
-export function isLocked(cell: SheetCell | undefined, book: SheetWorkbook) {
-  const name = cell?.style
+/** Whether a cell is locked: unless its style says `locked: false`. Takes a cell as `cells` hold it. */
+export function isLocked(cell: SheetCellInput, book: SheetWorkbook) {
+  const name = cellOf(cell)?.style
   return !name || book.styles?.[name]?.locked !== false
 }
 
@@ -79,51 +80,90 @@ export function checkProtection(tr: SheetTransaction): SheetProtectionCheck | nu
   // a change that turns protection on is checked from there
   if (!hasProtection(tr.before) && !hasProtection(tr.doc)) return null
   const replay = new SheetTransaction(tr.before)
-  // once lines move or a sheet is renamed, formulas and rules follow them
-  let moved = false
-  for (const step of tr.steps) {
-    const refusal = checkStep(step, replay.doc, moved)
+  const { steps } = tr
+  for (let i = 0; i < steps.length; i++) {
+    const step = steps[i]!
+    const refusal = checkStep(step, replay.doc)
     if (refusal) return refusal
-    if (MOVING.has(step.type) || (step.type === 'updateSheet' && 'name' in step.patch)) moved = true
+    // when lines move or a sheet is renamed, formulas and rules follow them:
+    // the steps that do exactly that go ahead, anything more is checked
+    const follow = following(step, replay.doc)
     replay.step(step)
+    if (follow && sameSteps(steps, i + 1, follow)) {
+      for (const next of follow) replay.step(next)
+      i += follow.length
+    }
   }
   return null
 }
 
-const MOVING = new Set<SheetStep['type']>(['insertLines', 'removeLines', 'moveLines'])
-/** Sheet fields whose references follow lines that move. */
-const FOLLOWING = new Set(['merges', 'filter', 'groups', 'conditionalFormats', 'validations'])
+/**
+ * The steps that follow `step` when the transaction makes it: formulas,
+ * rules, merges and groups moved along with lines, or naming a sheet anew.
+ */
+function following(step: SheetStep, book: SheetWorkbook): SheetStep[] | null {
+  const own = new SheetTransaction(book)
+  // the transaction's own ways of making these steps, with what follows them
+  const make = own as unknown as {
+    insertLines: (axis: string, index: number, count: number, sheet: string) => void
+    deleteLines: (axis: string, index: number, count: number, sheet: string) => void
+    moveLines: (axis: string, from: number, count: number, to: number, sheet: string) => void
+  }
+  try {
+    switch (step.type) {
+      case 'insertLines':
+        if (step.cells || step.sizes) return null
+        make.insertLines(step.axis, step.index, step.count, step.sheet)
+        break
+      case 'removeLines':
+        make.deleteLines(step.axis, step.index, step.count, step.sheet)
+        break
+      case 'moveLines':
+        make.moveLines(step.axis, step.from, step.count, step.to, step.sheet)
+        break
+      case 'removeSheet':
+        own.removeSheet(step.sheet)
+        break
+      case 'updateSheet': {
+        const keys = Object.keys(step.patch)
+        if (keys.length !== 1 || keys[0] !== 'name' || !step.patch.name) return null
+        own.renameSheet(step.sheet, step.patch.name)
+        break
+      }
+      default:
+        return null
+    }
+  } catch {
+    return null
+  }
+  return own.steps.slice(1)
+}
 
-const isFormula = (cell: SheetCell | undefined) =>
-  typeof cell?.value === 'string' && cell.value.startsWith('=')
-
-/** Whether a cell only had its formula's references moved along, all else kept. */
-const followed = (a: SheetCell | undefined, b: SheetCell | undefined) =>
-  isFormula(a) &&
-  isFormula(b) &&
-  a?.style === b?.style &&
-  a?.format === b?.format &&
-  sameContent({ ...a, value: undefined }, { ...b, value: undefined })
+function sameSteps(steps: readonly SheetStep[], from: number, expected: SheetStep[]) {
+  if (!expected.length) return false
+  if (from + expected.length > steps.length) return false
+  return expected.every((step, i) => JSON.stringify(step) === JSON.stringify(steps[from + i]))
+}
 
 function sheetOf(book: SheetWorkbook, key: string) {
   return book.sheets.find((sheet) => (sheet.id ?? sheet.name) === key)
 }
 
-function checkStep(
-  step: SheetStep,
-  book: SheetWorkbook,
-  moved: boolean,
-): SheetProtectionCheck | null {
+function checkStep(step: SheetStep, book: SheetWorkbook): SheetProtectionCheck | null {
   switch (step.type) {
     case 'updateBook':
       return null
     case 'setType':
-      return null
+      // a named type changed in place changes every cell using it
+      if (!book.types?.[step.name]) return null
+      return lockedUsing(book, (cell) => cell.type === step.name)
     case 'setStyle': {
-      // a style changed in place locks or unlocks every cell using it
+      // a style changed in place locks or unlocks, and restyles, every cell using it
       const old = book.styles?.[step.name]
-      if (!old || (old.locked !== false) === (step.style?.locked !== false)) return null
-      return book.sheets.some((sheet) => sheet.protect) ? { reason: 'lock' } : null
+      if (!old) return null
+      if ((old.locked !== false) !== (step.style?.locked !== false))
+        return book.sheets.some((sheet) => sheet.protect) ? { reason: 'lock' } : null
+      return lockedUsing(book, (cell) => cell.style === step.name)
     }
     case 'insertSheet':
     case 'removeSheet':
@@ -145,7 +185,7 @@ function checkStep(
       const where = { ...at, row: step.row, col: step.col }
       const locked = isLocked(old, book)
       if (locked !== isLocked(next, book)) return { reason: 'lock', ...where }
-      if (!locked || (moved && followed(old, next))) return null
+      if (!locked) return null
       if (!sameContent(old, next)) return { reason: 'cell', ...where }
       return protect.formatCells ? null : { reason: 'format', ...where }
     }
@@ -155,16 +195,22 @@ function checkStep(
     case 'insertLines':
       if (step.axis === 'row') return protect.insertRows ? null : { reason: 'insertRows', ...at }
       return protect.insertColumns ? null : { reason: 'insertColumns', ...at }
-    case 'removeLines':
-      if (step.axis === 'row') return protect.deleteRows ? null : { reason: 'deleteRows', ...at }
-      return protect.deleteColumns ? null : { reason: 'deleteColumns', ...at }
+    case 'removeLines': {
+      const row = step.axis === 'row'
+      if (!(row ? protect.deleteRows : protect.deleteColumns))
+        return { reason: row ? 'deleteRows' : 'deleteColumns', ...at }
+      // lines may go only without the locked cells in them
+      return lockedIn(sheet, book, (r, c) => {
+        const n = row ? r : c
+        return n >= step.index && n < step.index + step.count
+      })
+    }
     case 'moveLines':
       return { reason: 'sheet', ...at }
     case 'updateSheet': {
       for (const key of Object.keys(step.patch) as (keyof typeof step.patch)[]) {
         // a rename is the workbook's to allow
         if (FREE_FIELDS.has(key) || key === 'name' || sheet[key] === step.patch[key]) continue
-        if (moved && FOLLOWING.has(key)) continue
         if (key === 'filter') {
           if (!protect.filter) return { reason: 'filter', ...at }
           continue
@@ -180,6 +226,44 @@ function checkStep(
       return null
     }
   }
+}
+
+/** The first locked cell holding something on `sheet` where `where` says, as a refusal. */
+function lockedIn(
+  sheet: SheetData,
+  book: SheetWorkbook,
+  where: (row: number, col: number) => boolean,
+): SheetProtectionCheck | null {
+  for (const [row, line] of sheet.cells.entries()) {
+    if (!line) continue
+    for (const [col, input] of line.entries()) {
+      const cell = cellOf(input)
+      if (cell == null || !where(row, col) || !isLocked(cell, book)) continue
+      return { reason: 'cell', sheet: sheetKey(sheet), row, col }
+    }
+  }
+  return null
+}
+
+/**
+ * The first locked cell that `uses` a style or type on a sheet that keeps
+ * its locked cells' look, as a refusal.
+ */
+function lockedUsing(
+  book: SheetWorkbook,
+  uses: (cell: SheetCell) => boolean,
+): SheetProtectionCheck | null {
+  for (const sheet of book.sheets) {
+    const protect = protectionOf(sheet)
+    if (!protect || protect.formatCells) continue
+    for (const [row, line] of sheet.cells.entries())
+      for (const [col, input] of (line ?? []).entries()) {
+        const cell = cellOf(input)
+        if (cell && uses(cell) && isLocked(cell, book))
+          return { reason: 'format', sheet: sheetKey(sheet), row, col }
+      }
+  }
+  return null
 }
 
 function sameGroups(a: SheetData['groups'], b: SheetData['groups']) {

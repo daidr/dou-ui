@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
-import { DouSheet, linkTarget, type SheetWorkbook } from '../index'
+import { DouSheet, linkTarget, type SheetLinkOpenEvent, type SheetWorkbook } from '../index'
 import { formatClip, parseClip } from '../core/clipboard'
 import { SheetFormulaEngine } from '../formula/engine'
 import type { SheetExpose } from '../types'
@@ -67,6 +67,7 @@ describe('linkTarget', () => {
     })
     expect(linkTarget('mailto:daidr@daidr.me')?.kind).toBe('web')
     expect(linkTarget('tel:10086')?.kind).toBe('web')
+    expect(linkTarget('mailto:')).toBe(null)
     expect(linkTarget("#'汇总 表'!B2:C3")).toEqual({
       kind: 'cell',
       sheet: '汇总 表',
@@ -140,6 +141,43 @@ describe('links in the grid', () => {
     expect(wrapper.find('.dou-sheet__cell.is-active').text()).toBe('120')
   })
 
+  it('lets the app take a link over, and says when one goes nowhere', async () => {
+    const open = vi.spyOn(window, 'open').mockReturnValue(null)
+    const events: SheetLinkOpenEvent[] = []
+    const { grid, wrapper, doc, focus } = setup({
+      onLinkOpen: (event: SheetLinkOpenEvent) => {
+        events.push(event)
+        if (event.target.kind === 'web') event.preventDefault()
+      },
+    })
+    expect(grid.value!.commands.run('link.open')).toBe(true)
+    expect(open).not.toHaveBeenCalled()
+    expect(events[0]).toMatchObject({
+      link: 'https://ui.daidr.me',
+      cell: { sheet: 0, row: 0, col: 0 },
+    })
+    // a place in the workbook is a button, not a page address
+    grid.value!.select('B1')
+    await focus()
+    const card = wrapper.find('.dou-sheet__link')
+    expect(card.find('a').exists()).toBe(false)
+    expect(card.find('button.dou-sheet__link-address').text()).toBe('#汇总!B1')
+    // a sheet that is gone
+    doc.value = { ...doc.value, sheets: [doc.value.sheets[0]!] }
+    await nextTick()
+    grid.value!.commands.run('link.open')
+    await nextTick()
+    expect(wrapper.find('.dou-sheet__notice').text()).toBe('找不到链接指向的位置：#汇总!B1')
+  })
+
+  it('opens the box for a cell from code', async () => {
+    const { wrapper, grid } = setup()
+    grid.value!.editLink('A2')
+    await nextTick()
+    await nextTick()
+    expect(wrapper.find('.dou-sheet__link.is-editing').exists()).toBe(true)
+  })
+
   it('writes and takes off links from the box', async () => {
     const { wrapper, grid, key, focus, cells } = setup()
     grid.value!.select('A2')
@@ -162,12 +200,45 @@ describe('links in the grid', () => {
   })
 
   it('turns a typed web address into a link', async () => {
-    const { key, type, cells } = setup()
+    const { key, type, cells, input } = setup()
     await key('ArrowDown')
     await key('ArrowRight')
     await type('https://ui.daidr.me')
     await key('Enter')
     expect(cells()[1]![1]).toEqual({ value: 'https://ui.daidr.me', link: 'https://ui.daidr.me' })
+    // typed again, the link follows; text that isn't an address takes it off
+    await key('ArrowUp')
+    await key('F2')
+    input.value = 'https://ui.daidr.me/sheet/'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    await key('Enter')
+    expect(cells()[1]![1]).toEqual({
+      value: 'https://ui.daidr.me/sheet/',
+      link: 'https://ui.daidr.me/sheet/',
+    })
+    await key('ArrowUp')
+    await type('上海')
+    await key('Enter')
+    expect(cells()[1]![1]).toBe('上海')
+    // a link given otherwise stays
+    await key('ArrowUp')
+    await key('ArrowUp')
+    await key('ArrowLeft')
+    await type('主页')
+    await key('Enter')
+    expect(cells()[0]![0]).toEqual({ value: '主页', link: 'https://ui.daidr.me' })
+  })
+
+  it('puts the card away with Escape until another cell is active', async () => {
+    const { wrapper, key, focus } = setup()
+    await focus()
+    expect(wrapper.find('.dou-sheet__link').exists()).toBe(true)
+    await key('Escape')
+    expect(wrapper.find('.dou-sheet__link').exists()).toBe(false)
+    await key('ArrowRight')
+    expect(wrapper.find('.dou-sheet__link').exists()).toBe(true)
+    await key('ArrowLeft')
+    expect(wrapper.find('.dou-sheet__link').exists()).toBe(true)
   })
 })
 

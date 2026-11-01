@@ -155,9 +155,9 @@ export interface GanttEmits {
   transaction: [tr: GanttTransaction]
   /**
    * An extension's `transaction` hook cancelled a change; `tr.cancelReason`
-   * says why. The editor reads the reason out; show it if people should see it.
+   * says why, and the editor shows it and reads it out.
    */
-  cancel: [tr: GanttTransaction]
+  transactionCancel: [tr: GanttTransaction]
   /** A link was drawn by dragging from one bar to another. */
   link: [link: GanttLink]
   taskClick: [task: GanttTask, event: MouseEvent]

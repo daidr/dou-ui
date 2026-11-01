@@ -99,9 +99,9 @@ export interface FlowEditorEmits {
   transaction: [tr: FlowTransaction]
   /**
    * An extension's `transaction` hook cancelled a change; `tr.cancelReason`
-   * says why. The editor reads the reason out; show it if people should see it.
+   * says why, and the editor shows it and reads it out.
    */
-  cancel: [tr: FlowTransaction]
+  transactionCancel: [tr: FlowTransaction]
   nodeClick: [node: FlowNode, event: MouseEvent]
   nodeDblclick: [node: FlowNode, event: MouseEvent]
   nodeContextmenu: [node: FlowNode, event: MouseEvent]

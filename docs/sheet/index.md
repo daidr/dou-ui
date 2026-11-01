@@ -133,7 +133,7 @@ sheet.value.transact((tr) => {
 
 单元格用名字（`'A5'`）或从 0 开始的坐标（`{ row, col }`）指定，没写工作表时指当前显示的那张。要写到别的表，在名字前加 `表名!`，表名有空格时用单引号括起来；坐标则写成 `{ sheet, row, col }`，`sheet` 是工作表的序号、`id` 或名字。区域可以写 `'A1:C4'`、整列 `'B:D'`、整行 `'2:3'`。
 
-每次修改，不论来自输入、撤销还是 `transact`，都会更新 `v-model` 并触发 `transaction` 事件；被保护或扩展取消的修改不会生效，触发的是 `cancel` 事件。事件参数里的 `steps` 是这次修改的步骤，`inverse` 是撤销它的步骤，可以用来同步到服务端；另一端用 `applySheetSteps(doc, steps)` 应用，在服务端从不含组件的 `@dou-ui/sheet/core` 引入它（见[不含组件的入口](./extensions#不含组件的入口)）。`meta.action` 说明修改的来源：
+每次修改，不论来自输入、撤销还是 `transact`，都会更新 `v-model` 并触发 `transaction` 事件；被保护或扩展取消的修改不会生效，触发的是 `transaction-cancel` 事件。事件参数里的 `steps` 是这次修改的步骤，`inverse` 是撤销它的步骤，可以用来同步到服务端；另一端用 `applySheetSteps(doc, steps)` 应用，在服务端从不含组件的 `@dou-ui/sheet/core` 引入它（见[不含组件的入口](./extensions#不含组件的入口)）。`meta.action` 说明修改的来源：
 
 | `action`                 | 来源                                                 |
 | ------------------------ | ---------------------------------------------------- |
@@ -339,9 +339,20 @@ const cells = [
 
 <DocDemo src="sheet/links" column />
 
-选中带链接的单元格时，下方显示链接地址，点地址打开链接：网址在新标签页打开，单元格引用会切到那个工作表并选中那片区域。按住 `Ctrl` / `⌘` 点单元格也会打开链接。`javascript:` 这类可以运行脚本的地址不会被打开，写进 `link` 也只当作普通文字。
+选中带链接的单元格时，下方显示链接地址，点地址打开链接：网址在新标签页打开，单元格引用会切到那个工作表并选中那片区域。按住 `Ctrl` / `⌘` 点单元格也会打开链接。指向的工作表不存在时，表格下方会提示找不到。
 
-在右键菜单里选“插入链接”（已有链接时是“编辑链接”），或者按 `Ctrl` / `⌘` + `K`，单元格下方会出现输入框，可以修改显示的文本和链接地址。按 `Enter` 或点“保存”保存，按 `Esc` 或点“取消”放弃；地址清空后保存就会删除链接。“删除链接”去掉选区里所有的链接，单元格的值保留。在单元格里直接输入 `https://` 或 `mailto:` 开头的地址时，它会自动成为链接。
+打开链接之前会触发 `link-open` 事件，参数里有 `link`、`linkTarget` 的结果 `target` 和单元格 `cell`；调用 `event.preventDefault()` 后表格不再自己打开，可以改用应用的路由，或者先让用户确认：
+
+`````ts
+function onLinkOpen(event: SheetLinkOpenEvent) {
+  if (event.target.kind === 'web' && event.target.href.startsWith(location.origin)) {
+    event.preventDefault()
+    router.push(event.target.href.slice(location.origin.length))
+  }
+}
+````javascript:` 这类可以运行脚本的地址不会被打开，写进 `link` 也只当作普通文字。
+
+在右键菜单里选“插入链接”（已有链接时是“编辑链接”），或者按 `Ctrl` / `⌘` + `K`，单元格下方会出现输入框，可以修改显示的文本和链接地址。按 `Enter` 或点“保存”保存，按 `Esc` 或点“取消”放弃；地址清空后保存就会删除链接。“删除链接”去掉选区里所有的链接，单元格的值保留。在单元格里直接输入 `https://` 或 `mailto:` 开头的地址时，它会自动成为链接；之后重新输入时，这样得来的链接跟着变：输入的还是地址就换成新地址，不是地址就去掉。用输入框或代码设置的链接，重新输入值时保留。组件实例的 `editLink(cell?)` 选中单元格并打开输入框，可以接在自己的按钮上。
 
 公式 `HYPERLINK(地址, 名称)` 也能让单元格成为链接：单元格显示名称，不写名称时显示地址。地址可以来自其他单元格，比如 `=HYPERLINK(A2, "下载")`，跟着 A2 一起变化。这样的链接由公式决定，要改就改公式；在输入框里给它填的地址会写进单元格的 `link`，优先于公式给出的地址。
 
@@ -383,7 +394,7 @@ const book = {
   },
   sheets: [{ name: '任务', cells: [[{ value: '进行中', type: 'status' }]] }],
 }
-```
+`````
 
 选中带列表或日历的单元格时，右侧会出现一个展开按钮；也可以按 `Alt` + `↓` 展开。输入的文字和选项一致时（不区分大小写）记为该选项。读不懂的值照常写入，比如日期单元格里的“明天”、不在选项里的文字，这样的单元格左上角会有一个红色小三角，鼠标悬停时显示原因，读屏也会读出。在手机上展开列表或日历时不会弹出键盘。
 
@@ -506,7 +517,27 @@ const book = {
 
 不允许的修改不会生效，表格下方会提示原因，比如“单元格受保护，不能修改”，读屏也会读出。粘贴和填充只写入单元格的值，保留目标单元格原有的样式和格式，这样不会把未锁定的单元格变成锁定的。受保护的工作表在标签上显示一个锁。撤销和重做不受保护的限制。
 
-工具栏的“保护”菜单和工作表标签的右键菜单里可以锁定或取消锁定所选单元格、保护或取消保护工作表、保护或取消保护工作簿结构。锁定和解锁单元格要在保护工作表之前做。保护只防止在表格里误改，没有密码，任何能编辑表格的人都能取消；需要真正限制修改时，应该在保存数据的地方检查权限。
+工具栏的“保护”菜单里可以锁定或取消锁定所选单元格、保护或取消保护工作表、保护或取消保护工作簿结构；单元格的右键菜单里也能锁定和取消锁定，工作表标签的右键菜单里也能保护工作表和工作簿结构。锁定和解锁单元格要在保护工作表之前做。保护只防止在表格里误改，没有密码；需要真正限制修改时，应该在保存数据的地方检查权限。不想让人在表格里取消保护时，用扩展把两个保护命令换成不可用的，工具栏、单元格和标签的右键菜单里对应的项都会变灰；也可以在 `tools` 里去掉 `protect`：
+
+```ts
+const fixedProtection = defineSheetExtension({
+  name: 'fixed-protection',
+  commands: {
+    'protect.sheet': defineSheetCommand({
+      label: (m) => m.protect.unprotectSheet,
+      override: true,
+      enabled: () => false,
+      run: () => false,
+    }),
+    'protect.workbook': defineSheetCommand({
+      label: (m) => m.protect.unprotectBook,
+      override: true,
+      enabled: () => false,
+      run: () => false,
+    }),
+  },
+})
+```
 
 用代码修改时调用 `tr.protectSheet(true)` 或 `tr.protectSheet({ formatCells: true })`，传 `false` 取消；`tr.updateBook({ protect: true })` 保护工作簿结构；`tr.styleCells('B1:B3', { locked: false })` 解锁单元格。代码的修改同样要遵守保护，需要绕过时（比如程序填写受保护的表单）传 `{ protection: false }`：
 
@@ -514,7 +545,7 @@ const book = {
 sheet.value.transact((tr) => tr.setValue('A1', '买家'), { protection: false })
 ```
 
-`checkProtection(tr)` 检查一次修改是否违反保护，返回第一个不允许的地方，可以在扩展里使用；`isLocked(cell, book)` 判断单元格是否锁定。
+`checkProtection(tr)` 检查一次修改是否违反保护，返回第一个不允许的地方 `{ reason, sheet, row, col }`，可以在扩展里使用；在 `transaction-cancel` 事件里调用它，可以分清修改是被保护还是被扩展取消的，以及卡在哪个单元格。`isLocked(cell, book)` 判断 `cells` 里的一个单元格是否锁定，`protectionOf(sheet)` 返回工作表的保护选项，没有保护时是 `null`，保护为 `true` 时是 `{}`。
 
 ## 工具栏
 

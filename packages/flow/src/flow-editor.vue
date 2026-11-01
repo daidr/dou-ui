@@ -248,7 +248,7 @@ function check(tr: FlowTransaction) {
   for (const hook of resolved.value.transactions) {
     hook(tr, context)
     if (tr.cancelled) {
-      emit('cancel', tr)
+      emit('transactionCancel', tr)
       refuse(tr.cancelReason ?? messages.value.changeCancelled)
       return false
     }

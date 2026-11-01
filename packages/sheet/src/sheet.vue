@@ -220,6 +220,7 @@ import type {
   SheetInvalidCell,
   SheetMenuContext,
   SheetMenuItem,
+  SheetLinkOpenEvent,
   SheetPasteEvent,
   SheetProps,
 } from './types'
@@ -1619,7 +1620,7 @@ function transact(
   for (const hook of [...resolved.value.transactions, holdProtection]) {
     hook(tr, context)
     if (tr.cancelled) {
-      emit('cancel', tr)
+      emit('transactionCancel', tr)
       showNotice(tr.cancelReason ?? messages.value.changeCancelled)
       // what the caller says next, such as "pasted", would be wrong
       refusing = true
@@ -1765,6 +1766,12 @@ const panelType = computed(() => {
 
 /** The protection of the sheet shown, `null` when it has none. */
 const protection = computed(() => protectionOf(sheet.value))
+/**
+ * Whether paste and fill write only what cells hold, keeping their look: on a
+ * protected sheet whose locked cells' format is kept, so an unlocked cell
+ * doesn't take a locked one's style.
+ */
+const keepsLook = computed(() => !!protection.value && !protection.value.formatCells)
 
 /** Whether a cell can't be changed: its sheet is protected and the cell is locked. */
 function lockedAt(point: SheetPoint) {
@@ -1887,8 +1894,7 @@ function commitEdit(move?: SheetDirection, leaving = false) {
       tr.updateCell(at, {
         value: value ?? undefined,
         format: old?.format ?? parsed.format,
-        // a web address typed into a cell becomes its link
-        link: old?.link ?? (typeof value === 'string' && isTypedLink(value) ? value : undefined),
+        link: typedLink(old, value),
       })
     },
     { action: 'input' },
@@ -2290,6 +2296,11 @@ function onKeydown(event: KeyboardEvent) {
   }
   switch (key) {
     case 'Escape':
+      if (linkCard.value) {
+        // the link card goes, as any overlay does, until another cell is active
+        event.preventDefault()
+        linkDismissed.value = pointKey(linkCard.value)
+      }
       if (clipMark.value) {
         event.preventDefault()
         clipMark.value = null
@@ -3415,6 +3426,17 @@ function styleNames(tr: SheetTransaction, styles: Record<string, SheetStyle> | u
   return names
 }
 
+/** `style`, or a style like it, that locks a cell as `old` was locked. */
+function lockedLike(tr: SheetTransaction, style: string | undefined, old: SheetCell | undefined) {
+  const locked = isLocked(old, tr.doc)
+  if (isLocked({ style }, tr.doc) === locked) return style
+  const look: SheetStyle = { ...(style ? tr.doc.styles?.[style] : undefined) }
+  if (locked) delete look.locked
+  else look.locked = false
+  if (!Object.keys(look).length) return undefined
+  return styleNames(tr, { [style ?? 'unlocked']: look }).get(style ?? 'unlocked')
+}
+
 /** A clip as the extensions' `transformPaste` rewrite it; `null` when one stops it. */
 function transformPaste(clip: SheetClip) {
   let out: SheetClip | null = clip
@@ -3490,7 +3512,7 @@ function paste(given: SheetClip) {
           for (let c = b.left; c <= b.right; c++)
             tr.setCell({ row: r, col: c, sheet: cut.sheet }, undefined)
       }
-      const keepLook = !!protection.value
+      const keepLook = keepsLook.value
       const names = keepLook ? new Map<string, string>() : styleNames(tr, clip.styles)
       for (const t of targets)
         for (let r = t.top; r <= t.bottom; r++)
@@ -3528,7 +3550,9 @@ function paste(given: SheetClip) {
               )
               continue
             }
-            const style = cell?.style ? (names.get(cell.style) ?? cell.style) : undefined
+            let style = cell?.style ? (names.get(cell.style) ?? cell.style) : undefined
+            // on a protected sheet a cell stays locked or unlocked as it was
+            if (protection.value) style = lockedLike(tr, style, cellOf(tr.getCell(at)))
             tr.setCell(
               at,
               cell ? compactCell({ ...cell, value: value ?? undefined, style }) : undefined,
@@ -3695,7 +3719,7 @@ function finishFill(target: { bounds: SheetBounds; clear: SheetBounds | null }, 
   } else if (!same) {
     if (
       transact(
-        (tr) => tr.fill(b, t, { mode: fillMode(b, t, invert), keepStyle: !!protection.value }),
+        (tr) => tr.fill(b, t, { mode: fillMode(b, t, invert), keepStyle: keepsLook.value }),
         { action: 'fill' },
       )
     )
@@ -3720,7 +3744,7 @@ function fillFromEdge(direction: 'down' | 'right') {
     source.top = source.bottom = b.top - 1
     return void transact(
       (tr) =>
-        tr.fill(source, { ...b, top: b.top - 1 }, { mode: 'copy', keepStyle: !!protection.value }),
+        tr.fill(source, { ...b, top: b.top - 1 }, { mode: 'copy', keepStyle: keepsLook.value }),
       fillMeta,
     )
   }
@@ -3729,15 +3753,11 @@ function fillFromEdge(direction: 'down' | 'right') {
     source.left = source.right = b.left - 1
     return void transact(
       (tr) =>
-        tr.fill(
-          source,
-          { ...b, left: b.left - 1 },
-          { mode: 'copy', keepStyle: !!protection.value },
-        ),
+        tr.fill(source, { ...b, left: b.left - 1 }, { mode: 'copy', keepStyle: keepsLook.value }),
       fillMeta,
     )
   }
-  transact((tr) => tr.fill(source, b, { mode: 'copy', keepStyle: !!protection.value }), fillMeta)
+  transact((tr) => tr.fill(source, b, { mode: 'copy', keepStyle: keepsLook.value }), fillMeta)
 }
 
 /** Double-clicking the fill handle fills down as far as the column beside it has data. */
@@ -4260,6 +4280,22 @@ const focusWithin = ref(false)
 const linkEditing = shallowRef<SheetPoint | null>(null)
 
 /**
+ * A cell's link after typing `value` into it: a web address typed becomes the
+ * link, and a link that came from typing follows what is typed next; a link
+ * given otherwise stays.
+ */
+function typedLink(old: SheetCell | undefined, value: SheetValue | undefined) {
+  if (old?.link && old.link !== old.value) return old.link
+  return typeof value === 'string' && isTypedLink(value) ? value : undefined
+}
+
+/** The cell whose link card Escape put away, until another cell is active. */
+const linkDismissed = ref<string | null>(null)
+const pointKey = (point: { row: number; col: number }) =>
+  `${sheetIndex.value}:${point.row}:${point.col}`
+watch(active, () => (linkDismissed.value = null))
+
+/**
  * The link card: under the active cell while it has a link and the grid
  * has focus, or the box writing a link.
  */
@@ -4269,6 +4305,7 @@ const linkCard = computed(() => {
   if (!focusWithin.value || editing.value || drag.value?.started || panelType.value) return null
   if (noteShown.value?.by === 'edit') return null
   const home = noteHome(active.value)
+  if (linkDismissed.value === pointKey(home)) return null
   const link = linkAt(home)
   return link ? { ...home, link, editing: false } : null
 })
@@ -4363,13 +4400,28 @@ function removeLinks() {
  * workbook is shown and selected.
  */
 function followLink(point: SheetPoint = noteHome(active.value)) {
-  const target = linkTarget(linkAt(point))
-  if (!target) return false
+  const link = linkAt(point)
+  const target = linkTarget(link)
+  if (!link || !target) return false
+  const event: SheetLinkOpenEvent = {
+    link,
+    target,
+    cell: { sheet: sheetIndex.value, row: point.row, col: point.col },
+    defaultPrevented: false,
+    preventDefault() {
+      this.defaultPrevented = true
+    },
+  }
+  emit('linkOpen', event)
+  if (event.defaultPrevented) return true
   if (target.kind === 'web') {
     window.open(target.href, '_blank', 'noopener,noreferrer')
     return true
   }
-  return goToLink(target)
+  if (goToLink(target)) return true
+  // such as a sheet that is gone: say so rather than do nothing
+  showNotice(format(messages.value.link.missing, { link }))
+  return false
 }
 
 function goToLink(target: Extract<SheetLinkTarget, { kind: 'cell' }>) {
@@ -5959,6 +6011,13 @@ function editNoteTarget(target?: SheetCellTarget) {
   editNote()
 }
 
+function editLinkTarget(target?: SheetCellTarget) {
+  const point = target == null ? active.value : toPoint(target)
+  if (!point) return
+  select(selectCell(clampPoint(point, rowCount.value, colCount.value)))
+  editLink()
+}
+
 defineExpose<SheetExpose>({
   commands,
   exportFile: exportFile as SheetExpose['exportFile'],
@@ -5977,6 +6036,7 @@ defineExpose<SheetExpose>({
   scrollTo: scrollToTarget,
   edit: editTarget,
   editNote: editNoteTarget,
+  editLink: editLinkTarget,
   focus: () => focusGrid(),
   showSheet,
   toCSV,

@@ -7,6 +7,8 @@ import {
   DouSheet,
   DouSheetTabs,
   DouSheetToolbar,
+  isLocked,
+  protectionOf,
   SheetTransaction,
   type SheetExtension,
   type SheetWorkbook,
@@ -49,7 +51,7 @@ function setup(props: Record<string, unknown> = {}, book = form()) {
             ref: grid,
             modelValue: doc.value,
             'onUpdate:modelValue': (value: SheetWorkbook) => (doc.value = value),
-            onCancel: (tr: SheetTransaction) => cancels.push(tr),
+            onTransactionCancel: (tr: SheetTransaction) => cancels.push(tr),
             ...props,
           },
           {
@@ -133,6 +135,58 @@ describe('checkProtection', () => {
     ).toBe('cell')
   })
 
+  it('deletes lines only without locked cells, even when deleting is allowed', () => {
+    const book = form()
+    book.sheets[0]!.protect = { deleteRows: true, deleteColumns: true }
+    expect(run(book, (tr) => tr.deleteRows(0, 1))).toBe('cell')
+    expect(run(book, (tr) => tr.deleteCols('B'))).toBe('cell')
+    expect(run(book, (tr) => tr.deleteRows(5, 2))).toBe(null)
+  })
+
+  it('lets formulas follow moved lines and renamed sheets, and nothing more', () => {
+    const book = form()
+    book.sheets[0]!.protect = { insertRows: true }
+    book.sheets[0]!.cells[3] = [{ value: '=说明!A1', style: 'head' }]
+    // the references follow
+    expect(run(book, (tr) => tr.insertRows(1, 1))).toBe(null)
+    expect(run(book, (tr) => tr.renameSheet(1, '附录'))).toBe(null)
+    // what comes after them is checked as any change
+    expect(
+      run(book, (tr) => {
+        tr.renameSheet(1, '附录')
+        tr.setValue('A4', '=999')
+      }),
+    ).toBe('cell')
+    expect(
+      run(book, (tr) => {
+        tr.insertRows(5, 1)
+        tr.addValidation({ range: 'B1', list: ['上海'] })
+      }),
+    ).toBe('sheet')
+  })
+
+  it('keeps the look of locked cells from styles and types changed in place', () => {
+    const book = { ...form(), types: { city: { type: 'select', options: ['上海'] } } }
+    book.sheets[0]!.cells[0]![0] = { value: '客户', style: 'head', type: 'city' }
+    expect(run(book, (tr) => tr.setStyle('head', { bold: true, tone: 'danger' }))).toBe('format')
+    expect(run(book, (tr) => tr.setType('city', { type: 'select', options: ['北京'] }))).toBe(
+      'format',
+    )
+    // a style only unlocked cells use
+    expect(run(book, (tr) => tr.setStyle('blank', { locked: false, italic: true }))).toBe(null)
+    book.sheets[0]!.protect = { formatCells: true }
+    expect(run(book, (tr) => tr.setStyle('head', { bold: true, tone: 'danger' }))).toBe(null)
+  })
+
+  it('tells locked cells as `cells` hold them', () => {
+    const book = form()
+    expect(isLocked('客户', book)).toBe(true)
+    expect(isLocked(3, book)).toBe(true)
+    expect(isLocked({ value: 1, style: 'blank' }, book)).toBe(false)
+    expect(protectionOf(book.sheets[0])).toEqual({})
+    expect(protectionOf(book.sheets[1])).toBe(null)
+  })
+
   it('keeps the sheets of a protected workbook', () => {
     const book = { ...form(), protect: true }
     expect(run(book, (tr) => tr.addSheet({ name: '新表' }))).toBe('structure')
@@ -163,8 +217,14 @@ describe('protected sheets in the grid', () => {
     expect(cancels.at(-1)?.cancelReason).toBe('单元格受保护，不能修改')
   })
 
-  it('pastes only what the cells hold, keeping their look', async () => {
-    const { grid, cells } = setup()
+  it.each([
+    ['pastes only what the cells hold, keeping their look', true, 'blank'],
+    // the look comes along, and the cell stays unlocked
+    ['pastes the look too when the format of cells may change', { formatCells: true }, 'head 2'],
+  ] as const)('%s', async (_, protect, style) => {
+    const book = form()
+    book.sheets[0]!.protect = protect
+    const { grid, cells, doc } = setup({}, book)
     grid.value!.select('B1')
     grid.value!.transact((tr) => tr.setCell('B1', { value: '戴兜', style: 'blank' }))
     // copied from a locked cell with its own style
@@ -180,7 +240,8 @@ describe('protected sheets in the grid', () => {
     })
     document.querySelector('.dou-sheet__main')!.dispatchEvent(event)
     await nextTick()
-    expect(cells()[0]![1]).toEqual({ value: '新客户', style: 'blank' })
+    expect(cells()[0]![1]).toEqual({ value: '新客户', style })
+    expect(doc.value.styles![style]!.locked).toBe(false)
   })
 
   it('lets code fill a protected form with `protection: false`', () => {

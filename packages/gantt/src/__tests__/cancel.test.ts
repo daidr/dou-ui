@@ -32,7 +32,7 @@ describe('cancelling a change', () => {
             tasks: tasks.value,
             'onUpdate:tasks': (value: GanttTask[]) => (tasks.value = value),
             extensions: [guard],
-            onCancel: (tr: GanttTransaction) => cancels.push(tr),
+            onTransactionCancel: (tr: GanttTransaction) => cancels.push(tr),
             onTransaction: (tr: GanttTransaction) => seen.push(tr),
           }),
       ),

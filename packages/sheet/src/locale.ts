@@ -454,6 +454,7 @@ const zhCN: SheetMessages = {
     saved: '已保存链接',
     removed: '已删除链接',
     jumped: '已跳到 {cell}',
+    missing: '找不到链接指向的位置：{link}',
   },
   protect: {
     menu: '保护',
@@ -856,6 +857,7 @@ const zhTW: SheetMessages = {
     saved: '已儲存連結',
     removed: '已刪除連結',
     jumped: '已跳到 {cell}',
+    missing: '找不到連結指向的位置：{link}',
   },
   protect: {
     menu: '保護',
@@ -1266,6 +1268,7 @@ const en: SheetMessages = {
     saved: 'Link saved',
     removed: 'Link removed',
     jumped: 'Went to {cell}',
+    missing: "Can't find where the link goes: {link}",
   },
   protect: {
     menu: 'Protect',
@@ -1615,6 +1618,8 @@ export interface SheetLinkMessages {
   saved: string
   removed: string
   jumped: string
+  /** Shown when a link into the workbook goes nowhere, such as to a sheet that is gone: `{link}`. */
+  missing: string
 }
 
 export interface SheetProtectMessages {

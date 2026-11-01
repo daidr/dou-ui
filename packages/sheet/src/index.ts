@@ -92,6 +92,7 @@ export type {
   SheetPrintOptions,
   SheetMenuContext,
   SheetMenuItem,
+  SheetLinkOpenEvent,
   SheetPasteEvent,
   SheetProps,
 } from './types'

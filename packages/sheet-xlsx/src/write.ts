@@ -823,7 +823,6 @@ function filteredOut(source: SheetFileSource, index: number, data: SheetData, la
   return out
 }
 
-/** Cell names, with runs down a column written as ranges. */
 /** A part of a sheet's protection as the file writes it: `0` for what people may still do. */
 const kept = (allowed: boolean | undefined) => (allowed ? 0 : undefined)
 
@@ -848,6 +847,7 @@ function protectionXML(protect: true | SheetProtection) {
   })}/>`
 }
 
+/** Cell names, with runs down a column written as ranges. */
 function compactRefs(refs: string[]) {
   const byCol = new Map<string, number[]>()
   for (const ref of refs) {

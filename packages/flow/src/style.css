@@ -518,7 +518,6 @@
     }
   }
 
-  .dou-flow-editor__end,
   .dou-flow-editor__notice {
     position: absolute;
     bottom: 12px;
@@ -538,6 +537,7 @@
     transform: translateX(-50%);
   }
 
+  .dou-flow-editor__end,
   .dou-flow-editor__live {
     position: absolute;
     width: 1px;

@@ -40,11 +40,13 @@ function moveUp() {
   if (index > 0) editor.value!.moveBlocks([id], { before: list[index - 1]! })
 }
 
-function onTransaction(result: EditorTransactionResult) {
-  const parts = Object.entries(result.changes)
-    .filter(([, ids]) => ids.length)
-    .map(([kind, ids]) => `${kind} ${ids.length}`)
-  last.value = `${result.origin ?? '输入'}：${parts.join('，') || '无'}`
+const kinds = { added: '新增', removed: '删除', updated: '修改', moved: '移动' } as const
+
+function onTransaction({ changes }: EditorTransactionResult) {
+  last.value = (Object.keys(kinds) as (keyof typeof kinds)[])
+    .filter((kind) => changes[kind].length)
+    .map((kind) => `${kinds[kind]} ${changes[kind].length} 个块`)
+    .join('，')
 }
 </script>
 

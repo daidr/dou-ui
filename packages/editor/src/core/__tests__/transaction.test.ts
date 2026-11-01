@@ -1,4 +1,5 @@
 import { mount } from '@vue/test-utils'
+import { TextSelection } from 'prosemirror-state'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 import DouEditor from '../../editor.vue'
@@ -153,6 +154,19 @@ describe('removeBlocks and moveBlocks', () => {
     // out of its group: the emptied group goes
     api.moveBlocks(['b', 'a1'], { parent: null })
     expect(ids(api.getBlocks())).toEqual(['c', 'a', 'b', 'a1'])
+  })
+
+  it('keeps the cursor in a moved block', async () => {
+    const api = await editor([p('a', 'Alpha'), p('b', 'Beta'), p('c', 'Gamma')])
+    api.focusBlock('c', 'start')
+    const { state } = api.view!
+    api.view!.dispatch(
+      state.tr.setSelection(TextSelection.create(state.doc, state.selection.from + 2)),
+    )
+    api.moveBlocks(['c'], { before: 'a' })
+    expect(api.getSelection().block).toBe('c')
+    const { $from } = api.view!.state.selection
+    expect($from.parentOffset).toBe(2)
   })
 
   it('moves a block to the place right after its neighbour', async () => {

@@ -1776,7 +1776,9 @@ function editorBlocks(n: number): PartialBlock[] {
         id,
         type: 'table',
         rows: Array.from({ length: 5 }, (_, r) => ({
-          cells: Array.from({ length: 4 }, (_cell, c) => (r ? `${label(i + r + c)}` : `列 ${c + 1}`)),
+          cells: Array.from({ length: 4 }, (_cell, c) =>
+            r ? `${label(i + r + c)}` : `列 ${c + 1}`,
+          ),
         })),
       })
     } else if (i % 25 === 24) {

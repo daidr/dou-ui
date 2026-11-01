@@ -112,7 +112,7 @@ export class EditorTransaction {
       return node
     })
     const target = placement ?? this.defaultPlacement()
-    if (!insertNodes(tr, target, nodes)) return []
+    if (insertNodes(tr, target, nodes) === null) return []
     return ids
   }
 
@@ -205,9 +205,33 @@ export class EditorTransaction {
     }
     // insert the moved blocks first, then delete the originals: the document never empties
     const nodes = infos.map((info) => info.node)
+    // a selection inside a moved block goes along with it
+    const { anchor: anchorPos, head } = tr.selection
+    const nodeSelected = tr.selection instanceof NodeSelection
+    const carried = infos.findIndex(
+      (info) =>
+        anchorPos > info.pos &&
+        anchorPos < info.pos + info.node.nodeSize &&
+        head > info.pos &&
+        head < info.pos + info.node.nodeSize,
+    )
     const base = tr.steps.length
-    if (!insertNodes(tr, placement, nodes)) return false
+    const at = insertNodes(tr, placement, nodes)
+    if (at === null) return false
+    const inserted = tr.steps.length
     deleteInfos(tr, infos, base)
+    if (carried >= 0) {
+      const info = infos[carried]!
+      let start = at
+      for (let i = 0; i < carried; i++) start += nodes[i]!.nodeSize
+      const moved = tr.mapping.slice(inserted).map(start, 1)
+      const shift = (pos: number) => moved + (pos - info.pos)
+      tr.setSelection(
+        nodeSelected
+          ? NodeSelection.create(tr.doc, shift(anchorPos))
+          : TextSelection.create(tr.doc, shift(anchorPos), shift(head)),
+      )
+    }
     return true
   }
 
@@ -305,34 +329,34 @@ function deleteInfos(tr: Transaction, infos: BlockInfo[], base = tr.steps.length
 }
 
 /** Insert block nodes at a placement. Returns `false` when the placement can't be found. */
-function insertNodes(tr: Transaction, placement: BlockPlacement, nodes: PMNode[]): boolean {
+function insertNodes(tr: Transaction, placement: BlockPlacement, nodes: PMNode[]): number | null {
   const schema = tr.doc.type.schema
+  let at: number
   if ('before' in placement || 'after' in placement) {
     const id = 'before' in placement ? placement.before : placement.after
     const info = findBlockById(tr.doc, id)
     if (!info) {
       warn(`no block with the id "${id}" to insert next to`)
-      return false
+      return null
     }
-    tr.insert('before' in placement ? info.pos : info.pos + info.node.nodeSize, nodes)
-    return true
+    at = 'before' in placement ? info.pos : info.pos + info.node.nodeSize
+  } else if (placement.parent === null) {
+    at = childPos(0, tr.doc, placement.index)
+  } else {
+    const info = findBlockById(tr.doc, placement.parent)
+    if (!info) {
+      warn(`no block with the id "${placement.parent}" to insert into`)
+      return null
+    }
+    if (!info.group) {
+      at = info.contentPos + info.content.nodeSize
+      tr.insert(at, schema.nodes.blockGroup!.create(null, nodes))
+      return at + 1
+    }
+    at = childPos(info.contentPos + info.content.nodeSize + 1, info.group, placement.index)
   }
-  if (placement.parent === null) {
-    tr.insert(childPos(0, tr.doc, placement.index), nodes)
-    return true
-  }
-  const info = findBlockById(tr.doc, placement.parent)
-  if (!info) {
-    warn(`no block with the id "${placement.parent}" to insert into`)
-    return false
-  }
-  if (!info.group) {
-    tr.insert(info.contentPos + info.content.nodeSize, schema.nodes.blockGroup!.create(null, nodes))
-    return true
-  }
-  const groupStart = info.contentPos + info.content.nodeSize + 1
-  tr.insert(childPos(groupStart, info.group, placement.index), nodes)
-  return true
+  tr.insert(at, nodes)
+  return at
 }
 
 /** The position before the child at `index` of a container whose content starts at `start`. */

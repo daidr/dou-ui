@@ -144,7 +144,10 @@ const Panel = defineComponent({
 | `moveCaret(caret)`          | 输入框的光标被按键或点击移动后告诉表格                                                   |
 | `key(event)`                | 按单元格编辑时的规则处理按键（补全、插入引用、`Enter`、`Tab`、`Esc`），处理了返回 `true` |
 | `commit(move?)`、`cancel()` | 保存或放弃编辑，之后键盘回到表格                                                         |
-| `attach(el)`                | 登记输入框：焦点移到它上面时编辑不结束，函数列表显示在它下方；返回取消登记的函数         |
+| `attach(el, options?)`      | 登记输入框：焦点移到它上面时编辑不结束，函数列表显示在它下方；返回取消登记的函数         |
 | `helpId`                    | 函数列表和参数提示的 id，用于 `aria-controls`                                            |
+| `functions`                 | 公式可以调用的函数，包括内置的和扩展添加的                                               |
+
+`attach` 的 `options`：`managed: true` 表示输入框自己按 `text` 和 `caret` 显示文字和光标，表格不改写它的值，适合文字不在这个元素里的输入框（例如代码编辑器）；`anchor` 是函数列表摆放在其下方的元素，默认是输入框本身。`DouSheetCodeFormulaBar` 就是这样接入的。
 
 `cellRect` 和 `rangeRect` 的坐标从表格左上角算起，包括列标和行号，已经减去滚动的距离，可以直接给浮层组件用 `position: absolute` 摆放。

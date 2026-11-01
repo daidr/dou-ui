@@ -15,6 +15,10 @@ export default defineConfig({
         find: /^@dou-ui\/editor\/collaboration$/,
         replacement: r('./packages/editor/src/collaboration/index.ts'),
       },
+      {
+        find: /^@dou-ui\/editor\/code$/,
+        replacement: r('./packages/editor/src/code/index.ts'),
+      },
       { find: /^@dou-ui\/editor$/, replacement: r('./packages/editor/src/index.ts') },
       { find: /^@dou-ui\/chart$/, replacement: r('./packages/chart/src/index.ts') },
       { find: /^@dou-ui\/flow$/, replacement: r('./packages/flow/src/index.ts') },
@@ -49,6 +53,7 @@ export default defineConfig({
         replacement: r('./packages/dashboard/src/collaboration/index.ts'),
       },
       { find: /^@dou-ui\/dashboard$/, replacement: r('./packages/dashboard/src/index.ts') },
+      { find: /^@dou-ui\/sheet\/code$/, replacement: r('./packages/sheet/src/code/index.ts') },
       { find: /^@dou-ui\/sheet$/, replacement: r('./packages/sheet/src/index.ts') },
       {
         find: /^@dou-ui\/sheet\/formula$/,

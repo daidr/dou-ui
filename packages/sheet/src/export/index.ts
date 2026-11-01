@@ -1,3 +1,4 @@
+import { svgToPNG } from 'dou-ui'
 import type { SheetAxis } from '../core/axis'
 import type { SheetBounds } from '../core/address'
 import { boundsOf, columnName, parseRange } from '../core/address'
@@ -11,6 +12,7 @@ import type { SheetExportOptions, SheetImageOptions, SheetPrintOptions } from '.
 import { plainColor } from './color'
 import {
   drawSheet,
+  drawingSize,
   escapeXML,
   type DrawCell,
   type DrawLook,
@@ -191,10 +193,6 @@ const measureText: MeasureText = (text, font) => {
   return exportMeasure.measureText(text).width
 }
 
-/** The most pixels a canvas takes in every browser: a side, and in all (iOS Safari). */
-const MAX_SIDE = 16384
-const MAX_AREA = 16_777_216
-
 /** A4 less 10mm margins, in px at 96 per inch: [width, height]. */
 const PAGE = { portrait: [718, 1047], landscape: [1047, 718] } as const
 
@@ -349,7 +347,8 @@ export function createSheetExport(src: SheetExportSource) {
     }
   }
 
-  function exportSVG(options: SheetExportOptions = {}) {
+  /** The sheet as an SVG document, and its size. */
+  function exportImage(options: SheetExportOptions) {
     const t = src.target(options.sheet)
     const b = exportBounds(options.range, t)
     const gridlines = options.gridlines ?? src.gridlines()
@@ -362,48 +361,25 @@ export function createSheetExport(src: SheetExportSource) {
         reader,
         t,
       )
-      return drawSheet(drawing, measureText)
+      return { svg: drawSheet(drawing, measureText), ...drawingSize(drawing) }
     } finally {
       reader.done()
     }
   }
 
+  function exportSVG(options: SheetExportOptions = {}) {
+    return exportImage(options).svg
+  }
+
   async function exportPNG(options: SheetImageOptions = {}) {
-    const svg = exportSVG(options)
-    const [, w, h] = /width="([\d.]+)" height="([\d.]+)"/.exec(svg)!
-    const width = Number(w)
-    const height = Number(h)
-    // a big sheet is drawn at fewer pixels, down to one per CSS pixel
-    const fits = Math.min(
-      MAX_SIDE / width,
-      MAX_SIDE / height,
-      Math.sqrt(MAX_AREA / (width * height)),
-    )
-    if (fits < 1)
-      throw new RangeError(
-        `The image would be ${width}×${height}px, more than a canvas can hold; export a smaller range or use exportSVG()`,
-      )
-    const ratio = Math.min(options.pixelRatio ?? 2, fits)
-    const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }))
-    try {
-      const image = new Image()
-      image.src = url
-      await image.decode()
-      const canvas = document.createElement('canvas')
-      canvas.width = Math.max(1, Math.floor(width * ratio))
-      canvas.height = Math.max(1, Math.floor(height * ratio))
-      const ctx = canvas.getContext('2d')!
-      ctx.scale(ratio, ratio)
-      ctx.drawImage(image, 0, 0, width, height)
-      return await new Promise<Blob>((resolve, reject) =>
-        canvas.toBlob(
-          (blob) => (blob ? resolve(blob) : reject(new Error('PNG export failed'))),
-          'image/png',
-        ),
-      )
-    } finally {
-      URL.revokeObjectURL(url)
-    }
+    const { svg, width, height } = exportImage(options)
+    return svgToPNG(svg, {
+      width,
+      height,
+      pixelRatio: options.pixelRatio,
+      scope: '@dou-ui/sheet',
+      hint: 'export a smaller range a part at a time, or use exportSVG() / toCSV()',
+    })
   }
 
   function print(options: SheetPrintOptions = {}) {

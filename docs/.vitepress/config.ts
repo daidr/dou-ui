@@ -130,6 +130,9 @@ export default defineConfig({
             { text: '仪表盘', link: '/blocks/dashboard' },
             { text: '经营看板', link: '/blocks/business' },
             { text: '实时监控', link: '/blocks/monitoring' },
+            { text: '运营大盘', link: '/blocks/ops-board' },
+            { text: '服务大盘', link: '/blocks/services' },
+            { text: '可自定义的首页', link: '/blocks/home' },
             { text: '门店对比', link: '/blocks/compare' },
             { text: '销售分析', link: '/blocks/sales-analysis' },
             { text: '工单统计', link: '/blocks/ticket-stats' },
@@ -141,6 +144,8 @@ export default defineConfig({
             { text: '文件管理', link: '/blocks/files' },
             { text: 'AI 工作流', link: '/blocks/ai-workflow' },
             { text: '头脑风暴', link: '/blocks/brainstorm' },
+            { text: '代码练习', link: '/blocks/code-practice' },
+            { text: '配置编辑', link: '/blocks/config-editor' },
             { text: '发布排期', link: '/blocks/release-plan' },
             { text: '会议室预约', link: '/blocks/room-booking' },
             { text: '活动报名表', link: '/blocks/event-signup' },
@@ -404,6 +409,10 @@ export default defineConfig({
           replacement: r('../../packages/editor/src/collaboration/index.ts'),
         },
         {
+          find: /^@dou-ui\/editor\/code$/,
+          replacement: r('../../packages/editor/src/code/index.ts'),
+        },
+        {
           find: /^@dou-ui\/editor\/markdown$/,
           replacement: r('../../packages/editor/src/markdown/index.ts'),
         },
@@ -515,6 +524,10 @@ export default defineConfig({
           replacement: r('../../packages/code/src/style.css'),
         },
         { find: /^@dou-ui\/sheet$/, replacement: r('../../packages/sheet/src/index.ts') },
+        {
+          find: /^@dou-ui\/sheet\/code$/,
+          replacement: r('../../packages/sheet/src/code/index.ts'),
+        },
         {
           find: /^@dou-ui\/sheet\/collaboration$/,
           replacement: r('../../packages/sheet/src/collaboration/index.ts'),

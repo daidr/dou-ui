@@ -79,7 +79,14 @@ import SheetOutline from './components/sheet-outline.vue'
 import { alignOf, fitNumber, formatValue, inputText, parseInput } from './core/format'
 import { SheetHistory, type SheetHistoryView } from './core/history'
 import { SheetFormulaEngine } from './formula/engine'
-import { callAt, canPointAt, formulaReferences, nameAt } from './formula/edit'
+import {
+  callAt,
+  canPointAt,
+  formulaParts,
+  formulaReferences,
+  nameAt,
+  partClass,
+} from './formula/edit'
 import type { SheetFunction } from './formula/functions'
 import { isSheetError, type SheetErrorCode } from './formula/error'
 import { shownValue } from './formula/values'
@@ -121,7 +128,7 @@ import {
 import SheetMenu from './components/sheet-menu.vue'
 import CellPanel from './components/cell-panel.vue'
 import { builtinCellTypes } from './cell-types'
-import { sheetContextKey, type SheetContext } from './context'
+import { sheetContextKey, type SheetContext, type SheetEditInputOptions } from './context'
 import { resolveCellType, type SheetCellType, type SheetResolvedType } from './core/cell-type'
 import { ruleMessage, SheetChecks } from './core/validation'
 import {
@@ -1588,7 +1595,10 @@ const editByTouch = ref(false)
 /** Where the caret is in the text being edited. */
 const editCaret = ref(0)
 /** Other inputs that edit the cell too, such as the formula bar's. */
-const editInputs = new Set<HTMLTextAreaElement | HTMLInputElement>()
+const editInputs = new Map<HTMLTextAreaElement | HTMLInputElement, SheetEditInputOptions>()
+/** Whether an input shows the text and caret itself, from `editor.text` and `editor.caret`. */
+const managed = (el: HTMLTextAreaElement | HTMLInputElement | undefined) =>
+  !!el && !!editInputs.get(el)?.managed
 /** The input the edit is typed in: one of `editInputs` while it has focus, else the cell's editor. */
 function editInput(): HTMLTextAreaElement | HTMLInputElement | undefined {
   const el = document.activeElement
@@ -1637,7 +1647,9 @@ function beginEdit(mode: 'enter' | 'edit', text?: string) {
   const owner = editInput()
   if (owner === el && document.activeElement !== el) el.focus({ preventScroll: true })
   if (text != null) el.setSelectionRange(el.value.length, el.value.length)
-  editCaret.value = owner?.selectionStart ?? el.selectionStart
+  editCaret.value = managed(owner)
+    ? editText.value.length
+    : (owner?.selectionStart ?? el.selectionStart)
   pointing.value = null
   fitEditor()
   return true
@@ -1651,7 +1663,7 @@ function setEditText(text: string, caret = text.length) {
   editTyped.value = true
   editCaret.value = caret
   const input = editInput()
-  if (input) {
+  if (input && !managed(input)) {
     if (input.value !== text) input.value = text
     if (input.selectionStart !== caret || input.selectionEnd !== caret)
       input.setSelectionRange(caret, caret)
@@ -1663,7 +1675,8 @@ function setEditText(text: string, caret = text.length) {
 /** Keeps the caret's position, after keys or a click moved it. */
 function syncCaret() {
   const input = editInput()
-  if (editing.value && input) editCaret.value = input.selectionStart ?? editText.value.length
+  if (editing.value && input && !managed(input))
+    editCaret.value = input.selectionStart ?? editText.value.length
   syncMirror()
 }
 
@@ -2355,7 +2368,8 @@ const assistStyle = computed(() => {
   void scroll.value
   const input = editInput()
   let box: { left: number; top: number; bottom: number } | undefined
-  if (input && input !== editor.value) box = input.getBoundingClientRect()
+  if (input && input !== editor.value)
+    box = (editInputs.get(input)?.anchor ?? input).getBoundingClientRect()
   else {
     const base = (editor.value?.offsetParent ?? root.value)?.getBoundingClientRect()
     if (!base) return ''
@@ -2377,20 +2391,9 @@ const assistStyle = computed(() => {
 // The formula as it is typed, with its references in their colors, drawn under the editor's text
 
 const mirror = ref<HTMLElement>()
-const mirrorParts = computed(() => {
-  if (!formulaEdit.value) return []
-  const text = editText.value
-  const parts: { text: string; color?: number }[] = []
-  let at = 0
-  for (const mark of refMarks.value) {
-    if (mark.start > at) parts.push({ text: text.slice(at, mark.start) })
-    parts.push({ text: mark.text, color: mark.color })
-    at = mark.end
-  }
-  // a last line break still takes a line
-  parts.push({ text: `${text.slice(at)}\u200b` })
-  return parts
-})
+const mirrorParts = computed(() =>
+  formulaEdit.value ? formulaParts(editText.value, refMarks.value) : [],
+)
 function syncMirror() {
   const el = editor.value
   const m = mirror.value
@@ -4485,11 +4488,12 @@ const context: SheetContext = {
       cancelEdit()
       focusGrid()
     },
-    attach: (el) => {
-      editInputs.add(el)
+    attach: (el, options = {}) => {
+      editInputs.set(el, options)
       return () => editInputs.delete(el)
     },
     helpId: assistId,
+    functions: functionList,
   },
 }
 provide(sheetContextKey, context)
@@ -4899,12 +4903,9 @@ defineExpose<SheetExpose>({
           :style="inputStyle"
           aria-hidden="true"
         >
-          <span
-            v-for="(part, i) in mirrorParts"
-            :key="i"
-            :class="part.color != null && `is-ref-${part.color}`"
-            >{{ part.text }}</span
-          >
+          <span v-for="(part, i) in mirrorParts" :key="i" :class="partClass(part)">{{
+            part.text
+          }}</span>
         </div>
         <textarea
           ref="editor"

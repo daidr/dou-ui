@@ -14,7 +14,7 @@ import {
   type InjectionKey,
   type PropType,
 } from 'vue'
-import type { BlockOption, EditorExtension, Label } from './core/extension'
+import type { BlockOption, EditorExtension, Label, MountComponent } from './core/extension'
 import type { BlockProps } from './core/model'
 
 /** What a block's Vue component receives. */
@@ -78,6 +78,25 @@ function readDataAttrs(dom: HTMLElement, names: string[]) {
     }
   }
   return attrs
+}
+
+/** Renders components inside an app, with values provided to them. */
+export function componentMounter(
+  appContext: AppContext | null,
+  provides: [InjectionKey<unknown>, unknown][] = [],
+): MountComponent {
+  return (component, props, element) => {
+    const Root = defineComponent({
+      setup() {
+        for (const [key, value] of provides) provide(key, value)
+        return () => h(component, { ...props })
+      },
+    })
+    const vnode = h(Root)
+    vnode.appContext = appContext
+    render(vnode, element)
+    return () => render(null, element)
+  }
 }
 
 /**

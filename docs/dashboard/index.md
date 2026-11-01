@@ -8,6 +8,8 @@ wide: true
 
 这一页介绍其中的网格布局 `DouGridLayout`。它只负责摆放，不关心格子里放什么，可以单独用来做可自定义的首页、卡片墙等。格子类型、编辑与撤销见[仪表盘](./dashboard.md)。
 
+几个完整页面的写法见区块中的[运营大盘](../blocks/ops-board)、[服务大盘](../blocks/services)和[可自定义的首页](../blocks/home)。
+
 ## 安装
 
 仪表盘是单独的包，需要和 `dou-ui` 一起使用：

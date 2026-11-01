@@ -224,6 +224,16 @@ describe('DouSheet export', () => {
     wrapper.unmount()
   })
 
+  it('throws a RangeError when the PNG is too big for a canvas', async () => {
+    const { wrapper, grid } = setup()
+    await nextTick()
+    // 800 rows of 28px: taller than a canvas side even at one pixel per px
+    await expect(grid.value!.exportPNG({ range: 'A1:A800' })).rejects.toThrow(
+      /^\[@dou-ui\/sheet\] The image would be .*; export a smaller range/,
+    )
+    wrapper.unmount()
+  })
+
   it('draws and prints another sheet without showing it', async () => {
     const data = book()
     data.sheets.push({

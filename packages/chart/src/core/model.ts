@@ -16,7 +16,11 @@ import type { ChartSeriesKind, ChartSeriesProps, ChartValueAxis } from './series
 export interface SeriesInput {
   index: number
   kind: ChartSeriesKind<any>
-  props: ChartSeriesProps & { stack?: string | boolean } & Record<string, unknown>
+  props: ChartSeriesProps & {
+    stack?: string | boolean
+    /** An area's bottom of its own: a band from it up to `y`. */
+    y0?: ChartAccessor
+  } & Record<string, unknown>
   /** Turned off (in the legend): left out of the axes and not drawn. */
   hidden?: boolean
 }
@@ -112,6 +116,8 @@ export function buildModel(
     xKind?: XKind
     /** The y axis of series that don't name one. */
     axis?: ChartValueAxis
+    /** Value axes whose stacks show each part's share of the whole (0 to 1). */
+    percent?: Partial<Record<ChartValueAxis, boolean>>
   },
 ): ChartModel {
   const shown = inputs.filter((input) => !input.hidden)
@@ -140,6 +146,7 @@ export function buildModel(
     const column = xColumn(rows, x ?? byIndex, x === undefined ? 'linear' : kind)
     const y = yColumn(rows, input.props.y)
     const name = seriesName(input)
+    const y0 = input.props.y0
     return {
       input,
       name,
@@ -148,7 +155,8 @@ export function buildModel(
       x: column,
       y,
       top: y,
-      base: null,
+      // a band: its bottom is read like its top
+      base: y0 === undefined ? null : yColumn(rows, y0),
       stackEnds: null,
       slot: null,
     }
@@ -175,7 +183,7 @@ export function buildModel(
     }
   }
 
-  stack(series)
+  stack(series, chart.percent ?? {})
   assignSlots(series)
 
   let x: [number, number] | null = null
@@ -196,7 +204,8 @@ export function buildModel(
   for (const s of series) {
     y[s.axis] = merge(y[s.axis], cachedExtent(s.top))
     if (s.base) y[s.axis] = merge(y[s.axis], cachedExtent(s.base))
-    if (s.input.kind.zero) zero[s.axis] = true
+    // a band floats where its values are; what grows from 0 makes the axis reach it
+    if (s.input.kind.zero && s.input.props.y0 === undefined) zero[s.axis] = true
   }
 
   const xIntegers = kind === 'linear' && series.every((s) => allIntegers(s.x.values))
@@ -250,13 +259,22 @@ function assignSlots(series: ModelSeries[]) {
 /**
  * Stacks series that share a `stack` name, the same axis and the same x
  * values: each sits on the ones before it, positives upwards and
- * negatives downwards. A gap counts as 0 for the ones above.
+ * negatives downwards. A gap counts as 0 for the ones above. On a
+ * `percent` axis, each stack is then scaled to reach 1 at every x: what
+ * it reaches up and down together.
  */
-function stack(series: ModelSeries[]) {
+function stack(series: ModelSeries[], percent: Partial<Record<ChartValueAxis, boolean>>) {
   const groups = new Map<string, ModelSeries[]>()
   for (const s of series) {
     const name = s.input.props.stack
     if (!s.input.kind.stackable || name === undefined || name === false) continue
+    if (s.input.props.y0 !== undefined) {
+      if (process.env.NODE_ENV !== 'production')
+        console.warn(
+          `[@dou-ui/chart] series "${s.name}" has both \`y0\` and \`stack\`: a band can't stack, so it is drawn unstacked.`,
+        )
+      continue
+    }
     const key = `${s.axis}\u0000${name === true ? '' : name}`
     const group = groups.get(key)
     if (!group) groups.set(key, [s])
@@ -290,6 +308,18 @@ function stack(series: ModelSeries[]) {
       s.base = base
       s.top = top
       s.stackEnds = { up, down }
+    }
+    if (!percent[group[0]!.axis]) continue
+    for (let i = 0; i < length; i++) {
+      const total = up[i]! - down[i]!
+      if (!(total > 0)) continue
+      for (const s of group) {
+        const base = s.base!
+        base[i] = base[i]! / total
+        s.top[i] = s.top[i]! / total
+      }
+      up[i] = up[i]! / total
+      down[i] = down[i]! / total
     }
   }
 }

@@ -1693,6 +1693,30 @@
     pointer-events: none;
   }
 
+  /* the formula bar with the code input (`@dou-ui/sheet/code`) */
+  .dou-sheet-code-bar__box {
+    flex: 1;
+    min-width: 0;
+
+    & .dou-code-input {
+      --dou-code-input-height: 32px;
+    }
+    & .dou-code-editor {
+      --dou-code-editor-bg: transparent;
+      --dou-code-editor-border: transparent;
+      --dou-code-editor-border-focus: transparent;
+      --dou-code-editor-padding-x: 0px;
+      --dou-code-editor-padding-y: 6px;
+      --dou-code-editor-font-size: max(var(--dou-font-size-input-min, 0px), 1em);
+      border-radius: 0;
+      font-family: var(--dou-font-family-mono);
+    }
+  }
+  .dou-sheet-code-bar__ref,
+  .dou-sheet-code-bar__ref * {
+    color: var(--dou-sheet-ref);
+  }
+
   /* Filter ----------------------------------------------------------------------------------- */
 
   /* on the right of each heading of the filter's range */

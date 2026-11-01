@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { DouSpinner, useNamespace, type Tone } from 'dou-ui'
-import type { ComputedRef, VNodeChild } from 'vue'
+import { onBeforeUnmount, useId, type ComputedRef, type VNodeChild } from 'vue'
 import type { TickLabel } from './core/layout'
+import type { PlacedDataLabel } from './core/labels'
 import type { MarkerLabel } from './core/marker'
 
 /**
@@ -34,6 +35,10 @@ export interface OverlayState {
   >
   /** Turns the series (or slice) at `index` on or off. */
   toggle: (index: number) => void
+  /** Shows only the series (or slice) at `index`, or all again. */
+  isolate: (index: number) => void
+  /** How to show one entry alone, read out with each entry. */
+  hint: ComputedRef<string>
   /** Brings the series at `index` forward while the pointer or focus is on its entry; `null` to stop. */
   focus: (index: number | null) => void
   /** Where the donut's hole is, if there is one to fill. */
@@ -41,6 +46,12 @@ export interface OverlayState {
   center: () => VNodeChild
   /** The markers' labels. */
   markers: ComputedRef<Array<MarkerLabel & { key: string; tone: Tone; backdrop: boolean }>>
+  /** Data labels: values by the points and on the bars; `ink` is their color, when not the default; `full`, their text before it was cut short. */
+  data: ComputedRef<Array<PlacedDataLabel & { ink?: string; width?: number; full?: string }>>
+  /** Whether the data labels show (not while the series come in). */
+  dataShown: ComputedRef<boolean>
+  /** The series brought forward: the other series' labels are faded too. */
+  dataFocus: ComputedRef<number | null>
   /** No series has a value: the empty message shows. */
   empty: ComputedRef<boolean>
   emptyContent: () => VNodeChild
@@ -51,8 +62,68 @@ defineOptions({ name: 'DouChartOverlay' })
 
 const { state } = defineProps<{ state: OverlayState }>()
 const ns = useNamespace('chart')
-const { shown, labels, titles, legend, hole, toggle, focus, markers, empty, loading } = state
+const {
+  shown,
+  labels,
+  titles,
+  legend,
+  hole,
+  toggle,
+  isolate,
+  hint,
+  focus,
+  markers,
+  data,
+  dataShown,
+  dataFocus,
+  empty,
+  loading,
+} = state
 const Center = () => state.center()
+const hintId = useId()
+
+/* the legend: a click turns an entry on or off; with Alt, or held down on a touch screen, it shows only that one */
+
+/** How long a finger stays on an entry to show only it, in ms. */
+const HOLD = 500
+let holdTimer: ReturnType<typeof setTimeout> | undefined
+/** A hold just showed one entry alone: the click that ends it isn't a toggle. */
+let held = false
+
+function holdLegend(index: number) {
+  letGo()
+  held = false
+  holdTimer = setTimeout(() => {
+    holdTimer = undefined
+    held = true
+    isolate(index)
+  }, HOLD)
+}
+
+function letGo() {
+  if (holdTimer) clearTimeout(holdTimer)
+  holdTimer = undefined
+}
+
+function onLegendClick(event: MouseEvent, index: number) {
+  if (held) {
+    held = false
+    return
+  }
+  if (event.altKey) isolate(index)
+  else toggle(index)
+}
+
+function onLegendKey(event: KeyboardEvent, index: number) {
+  if (!event.altKey || (event.key !== 'Enter' && event.key !== ' ')) return
+  event.preventDefault()
+  isolate(index)
+}
+/** No callout menu over an entry while it is held down. */
+function noMenu(event: Event) {
+  if (holdTimer || held) event.preventDefault()
+}
+onBeforeUnmount(letGo)
 const Empty = () => state.emptyContent()
 // a click focuses the entry too: only keyboard focus brings its series forward
 const focusVisible = (e: FocusEvent) => (e.target as Element).matches(':focus-visible')
@@ -90,6 +161,25 @@ const focusVisible = (e: FocusEvent) => (e.target as Element).matches(':focus-vi
       :style="{ transform: `translate(${marker.left}px, ${marker.top}px)` }"
       ><span :class="ns.e('text')">{{ marker.text }}</span></span
     >
+    <span
+      v-for="label in data"
+      :key="`data:${label.key}`"
+      :class="[
+        ns.e('value'),
+        ns.is(label.align),
+        ns.is('inside', !!label.on),
+        ns.is('hidden', !dataShown),
+        ns.is('faded', dataFocus !== null && dataFocus !== label.series),
+        ns.is('clipped', label.width !== undefined),
+      ]"
+      :style="{
+        transform: `translate(${label.left}px, ${label.top}px)`,
+        color: label.ink,
+        width: label.width === undefined ? undefined : `${label.width}px`,
+      }"
+      :title="label.full ?? (label.width === undefined ? undefined : label.text)"
+      ><span :class="ns.e('text')">{{ label.text }}</span></span
+    >
   </div>
   <div v-if="shown && legend.length" :class="ns.e('legends')">
     <button
@@ -105,10 +195,16 @@ const focusVisible = (e: FocusEvent) => (e.target as Element).matches(':focus-vi
       ]"
       :style="{ transform: `translate(${item.left}px, ${item.top}px)` }"
       :aria-pressed="!item.off"
-      :aria-disabled="item.locked || undefined"
-      @click="toggle(item.index)"
+      :aria-describedby="hintId"
+      aria-keyshortcuts="Alt+Enter"
+      @click="(e) => onLegendClick(e, item.index)"
+      @keydown="(e) => onLegendKey(e, item.index)"
+      @pointerdown="(e) => e.pointerType === 'touch' && holdLegend(item.index)"
+      @pointerup="letGo"
+      @pointercancel="letGo"
+      @contextmenu="noMenu"
       @pointerenter="(e) => e.pointerType !== 'touch' && !item.off && focus(item.index)"
-      @pointerleave="focus(null)"
+      @pointerleave="(letGo(), focus(null))"
       @focus="(e) => focusVisible(e) && !item.off && focus(item.index)"
       @blur="focus(null)"
     >
@@ -116,6 +212,7 @@ const focusVisible = (e: FocusEvent) => (e.target as Element).matches(':focus-vi
         item.text
       }}</span>
     </button>
+    <span :id="hintId" hidden>{{ hint }}</span>
   </div>
   <div
     v-if="hole"

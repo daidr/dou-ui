@@ -529,7 +529,7 @@
     min-width: 0;
 
     &.is-range {
-      width: 232px;
+      width: 272px;
     }
   }
 
@@ -565,6 +565,14 @@
     justify-content: space-between;
     gap: 8px;
     height: 100%;
+    container-type: inline-size;
+  }
+
+  /* a narrow widget steps the number down a size, so a unit stays beside it */
+  @container (max-width: 200px) {
+    .dou-dashboard-stat .dou-statistic {
+      --dou-statistic-value-size: 22px;
+    }
   }
 
   .dou-dashboard-stat__spark {

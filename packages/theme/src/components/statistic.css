@@ -52,6 +52,7 @@
     color: var(--dou-color-text-secondary);
     font-size: max(var(--dou-font-size-md), calc(var(--dou-statistic-value-size) * 0.58));
     font-weight: var(--dou-font-weight-regular);
+    white-space: nowrap;
   }
 
   .dou-statistic__decimal {

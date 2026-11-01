@@ -560,7 +560,7 @@ sheet.value.showSheet('十一月')
 | `title`       | 每页顶部的标题（仅 `print`）                               | —                        |
 | `orientation` | 纸张方向，`'portrait'` 或 `'landscape'`（仅 `print`）      | 按表格宽度选择           |
 
-隐藏的行列和被筛选掉的行不会画出来。自定义的单元格类型按 `format` 返回的文字画出。浏览器对画布的尺寸有限制（每边 16384 像素，iOS 上总共约 1677 万像素），区域很大时 `exportPNG()` 会自动降低 `pixelRatio`，降到 1 仍然放不下时会抛出 `RangeError`。这时可以用 `range` 分几次导出，或者改用 `exportSVG()`、`toCSV()`。
+隐藏的行列和被筛选掉的行不会画出来。自定义的单元格类型按 `format` 返回的文字画出。浏览器对画布的尺寸有限制（每边 16384 像素；总像素数在 iPhone 和 iPad 上约 1677 万，其他设备上是 16384 × 16384），区域很大时 `exportPNG()` 会自动降低 `pixelRatio`，降到 1 仍然放不下时会抛出 `RangeError`，不会生成一张模糊的图。这时可以用 `range` 分几次导出，或者改用 `exportSVG()`、`toCSV()`。
 
 方法只返回内容，下载由你决定，例如：
 

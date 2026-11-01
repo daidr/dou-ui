@@ -9,7 +9,14 @@ import {
   PlusIcon,
   TrashIcon,
 } from '@dou-ui/icons'
-import { holdPointer, matchesHotkey, useElementSize, useLocale, type PointerHold } from 'dou-ui'
+import {
+  holdPointer,
+  matchesHotkey,
+  svgToPNG,
+  useElementSize,
+  useLocale,
+  type PointerHold,
+} from 'dou-ui'
 import {
   computed,
   nextTick,
@@ -2318,28 +2325,14 @@ function exportSVG(options?: GanttExportOptions) {
 }
 
 async function exportPNG(options: GanttImageOptions = {}) {
-  const svg = exportSVG(options)
-  const ratio = options.pixelRatio ?? 2
-  const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }))
-  try {
-    const image = new Image()
-    image.src = url
-    await image.decode()
-    const sheet = document.createElement('canvas')
-    sheet.width = Math.ceil(image.width * ratio)
-    sheet.height = Math.ceil(image.height * ratio)
-    const ctx = sheet.getContext('2d')!
-    ctx.scale(ratio, ratio)
-    ctx.drawImage(image, 0, 0)
-    return await new Promise<Blob>((resolve, reject) =>
-      sheet.toBlob(
-        (blob) => (blob ? resolve(blob) : reject(new Error('PNG export failed'))),
-        'image/png',
-      ),
-    )
-  } finally {
-    URL.revokeObjectURL(url)
-  }
+  const drawing = drawChart(exportOptions(options))
+  return svgToPNG(svgDocument(drawing), {
+    width: drawing.width,
+    height: EXPORT_HEADER + drawing.bodyHeight,
+    pixelRatio: options.pixelRatio,
+    scope: '@dou-ui/gantt',
+    hint: "export range 'view', a coarser scale, or use exportSVG() / exportCSV()",
+  })
 }
 
 const csvCell = (text: string) => (/[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text)

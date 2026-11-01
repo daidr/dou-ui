@@ -1,3 +1,4 @@
+import { TablePivotIcon } from '@dou-ui/icons'
 import type { PivotField } from '@dou-ui/pivot'
 import { defineComponent, h } from 'vue'
 import { defineDashboardWidget } from '../widget/define'
@@ -23,6 +24,7 @@ export function pivotWidget(options: PivotWidgetOptions = {}) {
   return defineDashboardWidget<PivotWidgetProps>({
     type: 'pivot',
     label: '透视表',
+    icon: TablePivotIcon,
     size: { w: 6, h: 5, minW: 4, minH: 3 },
     defaultProps: { config: {} },
     component: defineComponent({

@@ -8,6 +8,8 @@ export default DouDatePicker
 
 export type * from './date-picker'
 export type { DateUnit } from './date'
+export { formatDateValue } from './format'
+export type { FormatDateValueOptions } from './format'
 export type DatePickerInstance = InstanceType<typeof DatePicker>
 export type CalendarInstance = InstanceType<typeof Calendar>
 

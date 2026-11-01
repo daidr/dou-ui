@@ -2,10 +2,16 @@ import { computed, inject, nextTick, shallowReactive, shallowRef, toRaw, watch }
 import type { ComputedRef, InjectionKey, Ref } from 'vue'
 import { matchesHotkey } from 'dou-ui'
 import { isContainer, isPage } from '../core/document'
-import type { FormContainerNode, FormDocument, FormNode, FormPageNode } from '../core/types'
+import type {
+  FormContainerNode,
+  FormDocument,
+  FormNode,
+  FormPageNode,
+  FormValidator,
+} from '../core/types'
 import type { FormFunction } from '../core/expression'
 import type { FormFieldType } from '../fields/define'
-import type { FormOptionsLoader, FormValidator } from '../renderer/context'
+import type { FormOptionsLoader } from '../renderer/context'
 import type { FormBuilderHistoryHandler, ResolvedFormBuilderExtensions } from './extension'
 import { formatMessage } from '../locale'
 import type { FormBuilderMessages } from './locale'
@@ -155,14 +161,19 @@ export const builderKey: InjectionKey<BuilderState> = Symbol('DouFormBuilder')
 /** Inside a builder: its document, selection and commands. */
 export function useFormBuilder(): FormBuilderContext {
   const state = inject(builderKey, undefined)
-  if (!state) throw new Error('[dou-ui] useFormBuilder() must be called inside a DouFormBuilder')
+  if (!state)
+    throw new Error(
+      '[@dou-ui/form-builder] useFormBuilder() must be called inside a DouFormBuilder',
+    )
   return state
 }
 
 export function useBuilderState(): BuilderState {
   const state = inject(builderKey, undefined)
   if (!state)
-    throw new Error('[dou-ui] the parts of a form builder must be placed inside a DouFormBuilder')
+    throw new Error(
+      '[@dou-ui/form-builder] the parts of a form builder must be placed inside a DouFormBuilder',
+    )
   return state
 }
 
@@ -273,7 +284,9 @@ export function createBuilderState(options: CreateBuilderOptions): BuilderState 
 
   function dispatch(tr: FormBuilderTransaction, dispatchOptions: FormBuilderDispatchOptions = {}) {
     if (tr.before !== doc.value)
-      throw new Error('[dou-ui] the transaction was made on another version of the form')
+      throw new Error(
+        '[@dou-ui/form-builder] the transaction was made on another version of the form',
+      )
     const before = selection.value.slice()
     if (tr.changed) for (const hook of options.extensions().transactions) hook(tr, self)
     if (tr.changed) {

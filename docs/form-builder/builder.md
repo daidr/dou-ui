@@ -134,18 +134,20 @@ const extensions = [codeExpressions()]
 
 ## 只读
 
-`readonly` 让设计器只用来查看一张表单的结构，比如给没有编辑权限的人看，或者展示历史版本：可以选中节点、在属性面板里查看设置、打开结构树、预览和查看 JSON，但不能添加、拖动、删除、撤销，属性面板里的设置都不可用，左侧面板只有结构树。
+`readonly` 让设计器只用来查看一张表单的结构，比如给没有编辑权限的人看，或者展示历史版本：可以选中节点、在属性面板里查看设置、打开结构树、预览和查看 JSON，但不能添加、拖动、删除、撤销，属性面板里的设置只能查看、选中和复制，左侧面板只有结构树。
 
 <DocDemo src="form-builder/builder-readonly" column />
 
-只读时 `add`、`remove`、`moveTo`、`replace`、`undo` 这些修改表单的方法什么都不做，`readonly` 属性可以从实例或 `useFormBuilder()` 读到。直接交给 `dispatch` 的事务仍然生效，比如[协同编辑](./collaboration)时其他人的修改。扩展加的按钮、菜单项和快捷键不会被自动禁用，修改表单的要自己判断 `readonly`。
+只读时 `add`、`remove`、`moveTo`、`replace`、`undo` 这些修改表单的方法什么都不做，`readonly` 属性可以从实例或 `useFormBuilder()` 读到。直接交给 `dispatch` 的事务仍然生效，比如[协同编辑](./collaboration)时其他人的修改。扩展加的按钮、菜单项、快捷键和属性面板里的部分（`inspector`）不会被自动禁用，修改表单的要自己判断 `useFormBuilder().readonly`。`expressionInput` 换上的输入框会收到 `readonly`，只读时应当只能查看。
 
 ## JSON
 
 工具栏上的 `{ }` 按钮打开表单的 JSON，可以复制、下载，也可以粘贴或打开一个文件来替换整张表单（只读时只能查看、复制和下载）。修改时下方会按路径列出问题，比如 `nodes[0].children[1].label 应为文字`：
 
 - 结构不对（值的类型错了、缺少 `id`、`type`、`children`），或者 id 重复、页面放错了位置，这些问题会让设计器无法工作，改好之前不能应用；
-- 字段名重复、表达式引用了不存在的字段、字段类型没有注册等问题只做提示，仍然可以应用，应用之后可以在设计器里接着改。
+- 字段名重复、表达式引用了不存在的字段、字段类型没有注册、规则用了 `validators` 里没有的校验函数等问题只做提示，仍然可以应用，应用之后可以在设计器里接着改。
+
+给了 `validators` 时，属性面板里的校验函数只能从这些名字里选，JSON 里写了别的名字会被指出来；没给时可以输入任意名字，不做检查。
 
 应用之后是一步撤销。代码里也可以用同样的检查：`checkDocumentShape(data)` 按路径列出结构问题，`checkDocument(document)` 列出内容问题，`documentPaths(document)` 给出每个节点 id 对应的路径；`replace(document)` 换掉整张表单，并记为一步撤销。
 
@@ -167,7 +169,7 @@ const extensions = [codeExpressions()]
 | `transaction`     | 每次修改提交前调用，可以往事务里追加步骤，它们和原来的修改是同一步撤销；撤销和重做不经过这里                                                            |
 | `setup`           | 设计器挂载后调用，返回的函数在卸载时调用                                                                                                                |
 | `marks`           | 节点上的标记：`key`、`label`、`color`，画布上显示为同色的框和名字，结构树里显示为圆点；渲染时读取，里面用到的响应式数据变化时会更新                     |
-| `expressionInput` | 替换表达式输入框（公式、表达式规则、写成表达式的条件）；取第一个提供它的扩展，`codeExpressions()` 就是这样换成代码输入框                                |
+| `expressionInput` | 替换表达式输入框（公式、表达式规则、写成表达式的条件），设计器只读时收到 `readonly`；取第一个提供它的扩展，`codeExpressions()` 就是这样换成代码输入框   |
 | `history`         | 替换内置的撤销记录，返回 `undo`、`redo`、`canUndo`、`canRedo`；只取第一个提供它的扩展，[协同编辑](./collaboration)就是这样只撤销自己的修改              |
 
 扩展里的函数拿到的参数和 `useFormBuilder()` 是同一个对象。扩展带来的字段类型也要交给渲染器，`resolveFormBuilderFields(fields, extensions)` 把两处的字段类型合在一起：

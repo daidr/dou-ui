@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, useTemplateRef, watchEffect } from 'vue'
+import { computed, onBeforeUnmount, provide, useTemplateRef, watchEffect } from 'vue'
 import { DouButton } from 'dou-ui'
 import type { FormRules } from 'dou-ui'
 import { CopyIcon, PlusIcon, SquareDashedIcon, TrashIcon } from '@dou-ui/icons'
@@ -10,6 +10,7 @@ import { normalizeOptions } from '../fields/components'
 import type { FormFieldType } from '../fields/define'
 import { formatMessage } from '../locale'
 import FormRenderer from '../renderer/form-renderer.vue'
+import { controlsReadonlyKey } from '../renderer/context'
 import { useBuilderState } from './context'
 import type { FormBuilderTransaction } from './core/transaction'
 import { scopeOf } from './core/commands'
@@ -39,6 +40,8 @@ import { spanField } from './span-field'
 defineOptions({ name: 'DouFormBuilderInspector' })
 
 const state = useBuilderState()
+// A read-only builder's settings can be read, not changed: the controls stay legible.
+provide(controlsReadonlyKey, () => state.readonly)
 const root = useTemplateRef<HTMLElement>('root')
 watchEffect(() => (state.inspector.value = root.value))
 onBeforeUnmount(() => {
@@ -186,9 +189,12 @@ const logicForm = memo(
         : [],
     ),
 )
-const validatorNames = computed(() => Object.keys(state.validators() ?? {}))
+const validatorNames = computed(() => {
+  const given = state.validators()
+  return given ? Object.keys(given) : undefined
+})
 const ruleForm = memo(
-  () => [holdsValue.value, logic.value, messages.value, validatorNames.value.join()],
+  () => [holdsValue.value, logic.value, messages.value, validatorNames.value?.join()],
   () =>
     settingsDocument(
       holdsValue.value
@@ -394,12 +400,7 @@ const canWrap = computed(() => {
     </div>
     <div class="dou-form-builder__inspector-body">
       <template v-if="count > 1">
-        <FormRenderer
-          :form="spanForm"
-          :model="spanModel"
-          :fields="extra"
-          :disabled="state.readonly"
-        />
+        <FormRenderer :form="spanForm" :model="spanModel" :fields="extra" />
         <div v-if="!state.readonly" class="dou-form-builder__inspector-actions">
           <DouButton size="sm" variant="outline" @click="state.duplicate()">
             <template #leading><CopyIcon /></template>
@@ -422,7 +423,6 @@ const canWrap = computed(() => {
           :model="nodeModel"
           :fields="rendererFields"
           :rules="nameRules"
-          :disabled="state.readonly"
         />
         <DouButton
           v-if="holdsPages && !state.readonly"
@@ -441,7 +441,6 @@ const canWrap = computed(() => {
             :form="typeForm"
             :model="typeModel"
             :fields="rendererFields"
-            :disabled="state.readonly"
           />
         </template>
         <template v-if="ruleForm.nodes.length">
@@ -451,7 +450,6 @@ const canWrap = computed(() => {
             :form="ruleForm"
             :model="ruleModel"
             :fields="rendererFields"
-            :disabled="state.readonly"
           />
         </template>
         <div class="dou-form-builder__inspector-section">{{ messages.inspector.logic }}</div>
@@ -460,16 +458,9 @@ const canWrap = computed(() => {
           :form="logicForm"
           :model="logicModel"
           :fields="rendererFields"
-          :disabled="state.readonly"
         />
       </template>
-      <FormRenderer
-        v-else
-        :form="formForm"
-        :model="formModel"
-        :fields="extra"
-        :disabled="state.readonly"
-      />
+      <FormRenderer v-else :form="formForm" :model="formModel" :fields="extra" />
       <template v-for="section in sections" :key="section.key">
         <div class="dou-form-builder__inspector-section">{{ section.title }}</div>
         <component :is="section.component" v-bind="section.props" />

@@ -1,7 +1,13 @@
 import { describe, expect, it, vi } from 'vitest'
 import { nextTick, reactive } from 'vue'
 import { mount } from '@vue/test-utils'
-import { checkDocumentShape, defineFormField, DouFormRenderer, toFormRule } from '../index'
+import {
+  checkDocument,
+  checkDocumentShape,
+  defineFormField,
+  DouFormRenderer,
+  toFormRule,
+} from '../index'
 import type { FormDocument, FormValidator } from '../index'
 
 const doc = (nodes: FormDocument['nodes'], extra: Partial<FormDocument> = {}): FormDocument => ({
@@ -87,6 +93,21 @@ describe('validators', () => {
     warn.mockRestore()
   })
 
+  it('reports a validator nobody gave, and one beside a check', () => {
+    const form = doc([
+      { id: 'a', type: 'input', name: 'a', rules: [{ validator: 'takn' }] },
+      { id: 'b', type: 'input', name: 'b', rules: [{ check: 'value != 1', validator: 'taken' }] },
+    ])
+    const codes = (validators?: string[]) =>
+      checkDocument(form, { validators }).map((problem) => [problem.code, problem.path])
+    expect(codes(['taken'])).toEqual([
+      ['unknown-validator', 'nodes[0].rules[0].validator'],
+      ['check-and-validator', 'nodes[1].rules[0]'],
+    ])
+    // Without names, a validator is not looked up.
+    expect(codes()).toEqual([['check-and-validator', 'nodes[1].rules[0]']])
+  })
+
   it('accepts validator in a document’s rules', () => {
     expect(
       checkDocumentShape(
@@ -139,6 +160,67 @@ describe('setErrors', () => {
     expect(wrapper.findAll('.dou-form-renderer__tab-error')).toHaveLength(0)
     wrapper.unmount()
   })
+
+  it('returns the paths no field shows', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const wrapper = mount(DouFormRenderer, {
+      props: {
+        form: doc([
+          { id: 'a', type: 'input', name: 'name' },
+          { id: 'b', type: 'input', name: 'nick', visibleWhen: 'false' },
+        ]),
+        model: { name: 'x' },
+      },
+    })
+    await flush()
+    expect(
+      (wrapper.vm as any).setErrors({
+        name: '重名',
+        nick: '昵称不可用',
+        typo: '没有',
+        gone: undefined,
+      }),
+    ).toEqual(['nick', 'typo'])
+    expect(warn).toHaveBeenCalledTimes(1)
+    warn.mockRestore()
+  })
+
+  it('marks the steps that hold errors', async () => {
+    const wrapper = mount(DouFormRenderer, {
+      attachTo: document.body,
+      props: {
+        form: doc([
+          {
+            id: 's',
+            type: 'steps',
+            children: [
+              {
+                id: 'p1',
+                type: 'page',
+                title: '账号',
+                children: [{ id: 'a', type: 'input', name: 'account' }],
+              },
+              {
+                id: 'p2',
+                type: 'page',
+                title: '确认',
+                children: [{ id: 'b', type: 'input', name: 'note' }],
+              },
+            ],
+          },
+        ]),
+        model: { account: 'daidr', note: '' },
+      },
+    })
+    await flush()
+    ;(wrapper.vm as any).setErrors({ account: '账号已被占用' })
+    await flush()
+    const steps = wrapper.findAll('.dou-steps__item')
+    expect(steps[0]!.classes()).toContain('is-error')
+    expect(steps[0]!.text()).toContain('出错')
+    expect(steps[1]!.classes()).not.toContain('is-error')
+    wrapper.unmount()
+  })
 })
 
 describe('readonly', () => {
@@ -157,6 +239,7 @@ describe('readonly', () => {
       price: 3,
       volume: [20, 80],
       at: '09:30',
+      written: '2026-11-01',
     }
     const wrapper = mount(DouFormRenderer, {
       props: {
@@ -199,6 +282,12 @@ describe('readonly', () => {
           { id: 'k', type: 'input-number', name: 'price', props: { precision: 2 } },
           { id: 'l', type: 'slider', name: 'volume', props: { range: true } },
           { id: 'm', type: 'time-picker', name: 'at' },
+          {
+            id: 'w',
+            type: 'date-picker',
+            name: 'written',
+            props: { displayFormat: 'YYYY[年]MM[月]DD[日]' },
+          },
           { id: 'n', type: 'textarea', name: 'note' },
         ]),
       },
@@ -216,8 +305,9 @@ describe('readonly', () => {
       '2026 年第 4 季度',
       '浙江 / 杭州',
       '3.00',
-      '20 – 80',
+      '20 ~ 80',
       '09:30',
+      '2026年11月01日',
       '—',
     ])
     expect(wrapper.find('input').exists()).toBe(false)
@@ -294,6 +384,49 @@ describe('readonly', () => {
     expect(wrapper.find('.dou-steps').exists()).toBe(false)
     expect(wrapper.text()).toContain('第一步')
     expect(wrapper.text()).toContain('第二步')
+  })
+
+  it('shows only the last level of a cascader with showLastOnly', async () => {
+    const wrapper = mount(DouFormRenderer, {
+      props: {
+        readonly: true,
+        model: { area: ['zj', 'hz'] },
+        form: doc([
+          {
+            id: 'j',
+            type: 'cascader',
+            name: 'area',
+            props: {
+              showLastOnly: true,
+              options: [{ value: 'zj', label: '浙江', children: [{ value: 'hz', label: '杭州' }] }],
+            },
+          },
+        ]),
+      },
+    })
+    await flush()
+    expect(values(wrapper)).toEqual(['杭州'])
+  })
+
+  it('warns once when an object value of a type has no format', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const price = defineFormField({ type: 'price', component: { render: () => null } })
+    const wrapper = mount(DouFormRenderer, {
+      props: {
+        readonly: true,
+        fields: [price],
+        model: { a: { amount: 12, currency: 'CNY' }, b: { amount: 3 } },
+        form: doc([
+          { id: 'a', type: 'price', name: 'a' },
+          { id: 'b', type: 'price', name: 'b' },
+        ]),
+      },
+    })
+    await flush()
+    expect(values(wrapper)[0]).toBe('{"amount":12,"currency":"CNY"}')
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(warn.mock.calls[0]![0]).toContain('"price"')
+    warn.mockRestore()
   })
 
   it('uses a type’s own format or component', async () => {

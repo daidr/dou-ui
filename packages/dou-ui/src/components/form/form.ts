@@ -134,10 +134,11 @@ export interface FormExpose {
   /**
    * Show errors by field path, e.g. ones a server returned after submit.
    * Each stays until the field's value changes or it is checked again; an
-   * empty message clears the field's error. Paths with no field in the
-   * form are left out.
+   * empty or `undefined` message clears the field's error. `items[0].name`
+   * is read as `items.0.name`. Returns the paths with a message that no
+   * field in the form shows, e.g. to list them above the form.
    */
-  setErrors: (errors: FormErrors) => void
+  setErrors: (errors: Partial<FormErrors>) => string[]
 }
 
 export interface FormItemProps {

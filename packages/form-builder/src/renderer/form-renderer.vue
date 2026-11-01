@@ -2,6 +2,7 @@
 import {
   computed,
   effectScope,
+  inject,
   nextTick,
   provide,
   reactive,
@@ -17,7 +18,7 @@ import { equalValues } from '../core/expression'
 import { fillValues, visibleValues } from '../core/values'
 import { resolveFields } from '../fields/builtin'
 import { useFormRendererMessages } from '../locale'
-import { rendererKey } from './context'
+import { controlsReadonlyKey, rendererKey } from './context'
 import type {
   FormRendererEmits,
   FormRendererExpose,
@@ -32,6 +33,8 @@ defineOptions({ name: 'DouFormRenderer' })
 const props = withDefaults(defineProps<FormRendererProps>(), { disabled: false, readonly: false })
 const emit = defineEmits<FormRendererEmits>()
 const slots = defineSlots<FormRendererSlots>()
+
+const controlsReadonly = inject(controlsReadonlyKey, () => false)
 
 const own = reactive<FormModel>({})
 // `reactive` hands back the same proxy for an object it has seen, and
@@ -50,7 +53,7 @@ function warnCycle(cycle: string[]) {
   if (warnedCycles.has(key)) return
   warnedCycles.add(key)
   console.warn(
-    `[dou-ui] form formulas read each other in a circle (${key}); they are not worked out`,
+    `[@dou-ui/form-builder] form formulas read each other in a circle (${key}); they are not worked out`,
   )
 }
 
@@ -119,7 +122,7 @@ function load(name: string, arg: unknown) {
       : Promise.reject(new Error(`there is no source "${name}" in \`sources\``))
     result.catch((error: unknown) => {
       if (loaded.get(key) === result) loaded.delete(key)
-      console.warn(`[dou-ui] form option source "${name}" failed:`, error)
+      console.warn(`[@dou-ui/form-builder] form option source "${name}" failed:`, error)
     })
     loaded.set(key, result)
   }
@@ -183,6 +186,7 @@ provide(rendererKey, {
   functions: () => props.functions,
   validators: () => props.validators,
   readonly: () => props.readonly,
+  controlsReadonly,
   load,
   sourceVersion: (name) => everyVersion.value + (versions[name] ?? 0),
   messages: () => messages.value,
@@ -222,7 +226,8 @@ defineExpose<FormRendererExpose>({
   validate,
   resetFields,
   clearValidate: (names) => formRef.value?.clearValidate(names),
-  setErrors: (errors) => formRef.value?.setErrors(errors),
+  setErrors: (errors) =>
+    formRef.value?.setErrors(errors) ?? Object.keys(errors).filter((path) => errors[path]),
   scrollToField,
   reloadSource,
   getValues,
@@ -245,6 +250,7 @@ defineExpose<FormRendererExpose>({
     :size="form.size"
     :required-mark="readonly ? false : (form.requiredMark ?? true)"
     :disabled="disabled"
+    :readonly="controlsReadonly()"
     :scroll-to-error="false"
     @submit="emit('submit', getValues())"
     @invalid="onInvalid"

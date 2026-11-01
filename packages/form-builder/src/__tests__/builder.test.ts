@@ -384,7 +384,7 @@ describe('DouFormBuilder', () => {
     // Arrows still move the selection.
     await tree.trigger('keydown', { key: 'ArrowDown' })
     expect(selected.value).toEqual(['city'])
-    // The commands change nothing; the settings are disabled.
+    // The commands change nothing; the settings can be read, not changed.
     expect(api().readonly).toBe(true)
     expect(api().add('input')).toBeUndefined()
     api().remove(['city'])
@@ -393,7 +393,38 @@ describe('DouFormBuilder', () => {
     expect(api().canUndo).toBe(false)
     const inputs = wrapper.findAll('.dou-form-builder__inspector input')
     expect(inputs.length).toBeGreaterThan(0)
-    expect(inputs.every((input) => (input.element as HTMLInputElement).disabled)).toBe(true)
+    const texts = inputs.filter((input) => (input.element as HTMLInputElement).type === 'text')
+    expect(texts.every((input) => (input.element as HTMLInputElement).readOnly)).toBe(true)
+    expect(inputs.some((input) => (input.element as HTMLInputElement).disabled)).toBe(false)
+    expect(wrapper.find('.dou-form-builder__inspector .dou-form-renderer__list-add').exists()).toBe(
+      false,
+    )
+    wrapper.unmount()
+  })
+
+  it('shows conditions and expressions without ways to change them when read-only', async () => {
+    const { wrapper } = setup(
+      doc([
+        { id: 'a', type: 'input', name: 'name', label: '姓名' },
+        {
+          id: 'b',
+          type: 'input',
+          name: 'nick',
+          label: '昵称',
+          visibleWhen: "values.name == '戴兜'",
+          formula: 'values.name',
+        },
+      ]),
+      ['b'],
+      { readonly: true },
+    )
+    await flush()
+    const inspector = wrapper.find('.dou-form-builder__inspector')
+    expect(inspector.find('.dou-form-builder__condition-row').exists()).toBe(true)
+    expect(inspector.find('.dou-form-builder__condition-footer').exists()).toBe(false)
+    expect(inspector.find('.dou-form-builder__condition-row button').exists()).toBe(false)
+    const expression = inspector.find('.dou-form-builder__expression-input textarea')
+    expect((expression.element as HTMLTextAreaElement).readOnly).toBe(true)
     wrapper.unmount()
   })
 

@@ -68,7 +68,7 @@ schema 自己决定空值是否合法，必填标记则无法从 schema 推断�
 
 <DocDemo src="form/server-errors" column style="max-width: 420px" />
 
-`setErrors` 只设置传入的字段，其他字段的错误不变；某个字段传空字符串即清除它的错误；表单里没有的路径会被忽略。提交后需要定位到出错的字段时，接着调用 `scrollToField`。
+`setErrors` 只设置传入的字段，其他字段的错误不变；某个字段传空字符串或 `undefined` 即清除它的错误。`items[0].name` 这样的方括号写法按 `items.0.name` 处理。表单里找不到字段的路径不会显示，`setErrors` 把它们作为数组返回，开发环境下还会在控制台提示；这些错误可以放在表单上方的提示里，免得用户看不到。提交后需要定位到出错的字段时，接着调用 `scrollToField`。
 
 `DouFormItem` 的 `error` 也会直接显示，不经过规则，但它一直显示到你自己把它清空为止，适合由外部状态决定的错误：
 
@@ -128,6 +128,8 @@ schema 自己决定空值是否合法，必填标记则无法从 schema 推断�
 
 详情页常用同一张表单展示数据。`readonly` 让内部所有输入类控件只读：值照常显示、文字可以选中复制，但不能修改，选择器不会展开，清除按钮也不出现。和 `disabled` 不同，只读的控件不变灰，仍可获得焦点，并带有 `aria-readonly`。
 
+表单渲染器的 `readonly` 表现不同：它把值换成文字，并隐藏必填标记和字段说明，见[表单渲染器的只读展示](/form-builder/#只读展示)。
+
 <DocDemo src="form/readonly" column />
 
 ## 可访问性
@@ -181,13 +183,13 @@ const readonly = useFormReadonly(() => props.readonly)
 
 ### Form 实例方法
 
-| 名称            | 说明                                       | 类型                                                          |
-| --------------- | ------------------------------------------ | ------------------------------------------------------------- |
-| `validate`      | 校验指定字段或全部字段，永不 reject        | `(props?: string \| string[]) => Promise<FormValidateResult>` |
-| `resetFields`   | 恢复指定字段或全部字段的初始值，并清除错误 | `(props?: string \| string[]) => void`                        |
-| `clearValidate` | 清除指定字段或全部字段的错误               | `(props?: string \| string[]) => void`                        |
-| `scrollToField` | 滚动到字段并聚焦                           | `(prop: string) => void`                                      |
-| `setErrors`     | 按字段路径显示错误，如服务端返回的错误     | `(errors: Record<string, string>) => void`                    |
+| 名称            | 说明                                                       | 类型                                                          |
+| --------------- | ---------------------------------------------------------- | ------------------------------------------------------------- |
+| `validate`      | 校验指定字段或全部字段，永不 reject                        | `(props?: string \| string[]) => Promise<FormValidateResult>` |
+| `resetFields`   | 恢复指定字段或全部字段的初始值，并清除错误                 | `(props?: string \| string[]) => void`                        |
+| `clearValidate` | 清除指定字段或全部字段的错误                               | `(props?: string \| string[]) => void`                        |
+| `scrollToField` | 滚动到字段并聚焦                                           | `(prop: string) => void`                                      |
+| `setErrors`     | 按字段路径显示错误，如服务端返回的错误，返回没能显示的路径 | `(errors: Record<string, string \| undefined>) => string[]`   |
 
 `FormValidateResult` 为 `{ valid: boolean; errors: Record<string, string> }`。
 

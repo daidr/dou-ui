@@ -1,8 +1,7 @@
 import type { FormRule } from 'dou-ui'
 import { isEmptyValue, truthy, tryCompileExpression } from './expression'
 import type { FormFunction } from './expression'
-import type { FormFieldNode, FormListNode, FormRuleSpec } from './types'
-import type { FormValidator } from '../renderer/context'
+import type { FormFieldNode, FormListNode, FormRuleSpec, FormValidator } from './types'
 
 const patterns = new Map<string, RegExp | null>()
 
@@ -15,7 +14,9 @@ function compile(source: string, flags = ''): RegExp | null {
       pattern = new RegExp(source, flags.replace(/[gy]/g, ''))
     } catch {
       pattern = null
-      console.warn(`[dou-ui] form rule pattern /${source}/${flags} does not compile; it is ignored`)
+      console.warn(
+        `[@dou-ui/form-builder] form rule pattern /${source}/${flags} does not compile; it is ignored`,
+      )
     }
     patterns.set(key, pattern)
   }
@@ -24,9 +25,11 @@ function compile(source: string, flags = ''): RegExp | null {
 
 const warnedValidators = new Set<string>()
 function warnValidator(name: string) {
-  if (warnedValidators.has(name)) return
+  if (process.env.NODE_ENV === 'production' || warnedValidators.has(name)) return
   warnedValidators.add(name)
-  console.warn(`[dou-ui] there is no validator "${name}" in \`validators\`; the rule passes`)
+  console.warn(
+    `[@dou-ui/form-builder] there is no validator "${name}" in \`validators\`; the rule passes`,
+  )
 }
 
 /** One rule as data, as the form's own rule. */

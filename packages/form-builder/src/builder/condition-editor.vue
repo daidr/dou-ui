@@ -7,6 +7,7 @@ import {
   DouSegmentedControl,
   DouSelect,
   DouTooltip,
+  useFormReadonly,
 } from 'dou-ui'
 import type { SelectValue } from 'dou-ui'
 import { BracesIcon, CloseIcon, FilterIcon, PlusIcon } from '@dou-ui/icons'
@@ -36,6 +37,8 @@ const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 
 const state = useBuilderState()
 const words = computed(() => state.messages.condition)
+// Read-only, the rows show as they are, without buttons to change them.
+const readonly = useFormReadonly(() => state.readonly)
 
 const condition = shallowRef<Condition>({ join: 'and', rows: [] })
 const asText = shallowRef(false)
@@ -194,6 +197,13 @@ const textValue = computed({
 
 <template>
   <div class="dou-form-builder__condition">
+    <!-- Read-only, a condition not set shows a dash. -->
+    <div
+      v-if="readonly && !asText && !condition.rows.length"
+      class="dou-form-builder__condition-empty"
+    >
+      —
+    </div>
     <template v-if="!asText">
       <DouSegmentedControl
         v-if="condition.rows.length > 1"
@@ -223,7 +233,7 @@ const textValue = computed({
             class="dou-form-builder__condition-field"
             @update:model-value="pickField(index, $event)"
           />
-          <DouTooltip :content="words.remove">
+          <DouTooltip v-if="!readonly" :content="words.remove">
             <DouButton
               :aria-label="words.remove"
               :disabled="disabled"
@@ -303,8 +313,9 @@ const textValue = computed({
       :names="names"
       :item-names="itemNames"
       :disabled="disabled"
+      :readonly="readonly"
     />
-    <div class="dou-form-builder__condition-footer">
+    <div v-if="!readonly" class="dou-form-builder__condition-footer">
       <DouButton
         v-if="!asText"
         size="sm"

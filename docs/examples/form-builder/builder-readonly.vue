@@ -35,6 +35,13 @@ const form = ref<FormDocument>({
         ],
       },
     },
+    {
+      id: 'parking',
+      type: 'switch',
+      name: 'parking',
+      label: '需要停车位',
+      visibleWhen: "values.city == 'sh'",
+    },
     { id: 'note', type: 'textarea', name: 'note', label: '备注', help: '选填，会转给活动负责人' },
   ],
 })

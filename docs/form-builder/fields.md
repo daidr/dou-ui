@@ -73,9 +73,9 @@ const chips = defineFormField<{ options: string[] }>({
 
 渲染器 `readonly` 时，字段的值显示成文字。空值（`null`、空文字、空数组）直接显示“—”，不会交给 `format`。其余的值：
 
-- 类型有 `format(value, props, context)` 时用它返回的文字。`props` 是合并后的设置，从来源加载的选项也已经放进去了；`context` 有 `node`、渲染器的文字 `messages`（如 `yes`、`no`、列表分隔符 `separator`）和 `dou-ui` 当前的 `locale`。
+- 类型有 `format(value, props, context)` 时用它返回的文字。`props` 是合并后的设置，从来源加载的选项也已经放进去了；`context` 有 `node`、渲染器的文字 `messages`（如 `yes`、`no`、列表分隔符 `separator`、范围两端之间的 `rangeSeparator`）和 `dou-ui` 当前的 `locale`。
 - 没有 `format` 但有 `optionsProp` 时，显示选中选项的文字。
-- 都没有时显示值本身：列表用分隔符连起来，`true` / `false` 显示“是”“否”。`formatValue(value, context)` 就是这个默认的做法，自己的 `format` 处理不了的值可以交给它。
+- 都没有时显示值本身：列表用分隔符连起来，`true` / `false` 显示“是”“否”，对象取它的 `label` 或 `name`，两者都没有时只能显示成 JSON，开发环境下会在控制台提示给类型加 `format` 或 `readonlyComponent`。`formatValue(value, context)` 就是这个默认的做法，自己的 `format` 处理不了的值可以交给它。
 
 ```ts
 const money = defineFormField({
@@ -85,4 +85,4 @@ const money = defineFormField({
 })
 ```
 
-内置类型里，`rate` 只读时仍然显示星星，`color-picker` 显示色块和色值，`upload` 显示文件名，有 `url` 的文件名可以点开。
+内置类型里，日期和选择器显示得一样（同样遵循 `displayFormat`），范围的两端用 `rangeSeparator` 连接；`rate` 只读时仍然显示星星，`color-picker` 显示色块和色值，`upload` 显示文件名，有 `url` 的文件名可以点开。

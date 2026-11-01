@@ -100,6 +100,8 @@ const analysis = computed<{ document?: FormDocument; findings: Finding[] }>(() =
     problems = checkDocument(document, {
       fields: [...state.fields.values()],
       functions: state.functionNames.value,
+      // Names are checked only when the builder was given validators.
+      validators: state.validators() ? Object.keys(state.validators()!) : undefined,
     })
   } catch {
     // Content too far off its shape to read; the shape problems say why.

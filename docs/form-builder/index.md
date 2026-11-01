@@ -69,11 +69,18 @@ app.use(DouFormBuilder)
 
 ### 来自服务端的错误
 
-有些错误要提交之后才知道。把服务端返回的错误按字段路径交给实例方法 `setErrors`，它们显示在对应的字段上，改动这个字段或再次检查它时消失。错误在其他标签页里时，标签上同样会出现提示点。
+有些错误要提交之后才知道。把服务端返回的错误按字段路径交给实例方法 `setErrors`，它们显示在对应的字段上，改动这个字段或再次检查它时消失。错误在其他标签页或其他步骤里时，标签和步骤条上同样会标出来。
 
 <DocDemo src="form-builder/server-errors" column />
 
-`setErrors` 只设置传入的字段，传空字符串清除某个字段的错误，表单里没有的路径会被忽略。
+`setErrors` 只设置传入的字段，传空字符串或 `undefined` 清除某个字段的错误，`items[0].name` 这样的方括号写法按 `items.0.name` 处理。需要带用户去看时，接着调用 `scrollToField(第一个路径)`，它会切到字段所在的标签页或步骤。
+
+没有对应字段的路径不会显示，比如写错的名字、当前隐藏的字段。`setErrors` 把这些路径作为数组返回，开发环境下还会在控制台提示；把它们放在表单上方的提示里，用户才不会漏看：
+
+```ts
+const missed = renderer.value.setErrors(errors)
+if (missed.length) notice.value = missed.map((path) => errors[path]).join('；')
+```
 
 ## 只读展示
 
@@ -83,7 +90,7 @@ app.use(DouFormBuilder)
 
 只读时渲染器不会写 `model`：缺少的字段不会填上默认值，公式字段显示的是现算的结果。切回可编辑时才填上默认值，所以同一个 `model` 可以先展示、再编辑。
 
-自定义字段类型用 `format(value, props, context)` 决定显示的文字，需要文字以外的样子时提供 `readonlyComponent`，见[自定义字段](./fields#自定义字段)。`readonly` 和 `disabled` 不同：`disabled` 仍然显示输入控件，只是不能操作。
+自定义字段类型用 `format(value, props, context)` 决定显示的文字，需要文字以外的样子时提供 `readonlyComponent`，见[自定义字段](./fields#自定义字段)。`readonly` 和 `disabled` 不同：`disabled` 仍然显示输入控件，只是不能操作。它也不同于 `DouForm` 的 `readonly`：那里保留输入控件、只是不能修改，见[表单的只读](/components/form#只读)；渲染器的 `readonly` 把控件整个换成文字。
 
 ## 自定义字段
 
@@ -138,13 +145,13 @@ app.use(DouFormBuilder)
 
 ### 实例方法
 
-| 名称          | 说明                                                           | 类型                                                          |
-| ------------- | -------------------------------------------------------------- | ------------------------------------------------------------- |
-| model         | 字段写入的对象                                                 | `Record<string, any>`                                         |
-| validate      | 检查给定字段或全部字段，不会抛错                               | `(names?: string \| string[]) => Promise<FormValidateResult>` |
-| resetFields   | 恢复为初始值并清除错误；不传 `names` 时分步表单回到第一步      | `(names?: string \| string[]) => void`                        |
-| clearValidate | 清除错误                                                       | `(names?: string \| string[]) => void`                        |
-| setErrors     | 按字段路径显示错误，见[来自服务端的错误](#来自服务端的错误)    | `(errors: Record<string, string>) => void`                    |
-| scrollToField | 滚动到字段并聚焦                                               | `(name: string) => void`                                      |
-| reloadSource  | 重新加载一个或全部选项来源，见[联动与表达式](./logic#选项来源) | `(name?: string) => void`                                     |
-| getValues     | 和 `submit` 相同的值的拷贝                                     | `() => Record<string, any>`                                   |
+| 名称          | 说明                                                                            | 类型                                                          |
+| ------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| model         | 字段写入的对象                                                                  | `Record<string, any>`                                         |
+| validate      | 检查给定字段或全部字段，不会抛错                                                | `(names?: string \| string[]) => Promise<FormValidateResult>` |
+| resetFields   | 恢复为初始值并清除错误；不传 `names` 时分步表单回到第一步                       | `(names?: string \| string[]) => void`                        |
+| clearValidate | 清除错误                                                                        | `(names?: string \| string[]) => void`                        |
+| setErrors     | 按字段路径显示错误，返回没能显示的路径，见[来自服务端的错误](#来自服务端的错误) | `(errors: Record<string, string \| undefined>) => string[]`   |
+| scrollToField | 滚动到字段并聚焦                                                                | `(name: string) => void`                                      |
+| reloadSource  | 重新加载一个或全部选项来源，见[联动与表达式](./logic#选项来源)                  | `(name?: string) => void`                                     |
+| getValues     | 和 `submit` 相同的值的拷贝                                                      | `() => Record<string, any>`                                   |

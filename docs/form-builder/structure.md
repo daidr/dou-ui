@@ -40,19 +40,21 @@
 
 ## 检查描述
 
-设计器在保存或渲染之前，可以用 `checkDocument(form, { fields, functions })` 找出描述里的问题。它返回问题列表，每项带 `code`、出问题的节点 `nodeId`、出错的原文 `text`；表达式的问题还带属性名 `property`（如 `visibleWhen`、`rules.0.check`）和表达式自己的问题 `expression`。
+设计器在保存或渲染之前，可以用 `checkDocument(form, { fields, functions, validators })` 找出描述里的问题，`validators` 是校验函数的名字，给了才检查规则里的 `validator`。它返回问题列表，每项带 `code`、出问题的节点 `nodeId`、出错的原文 `text`；表达式的问题还带属性名 `property`（如 `visibleWhen`、`rules.0.check`）和表达式自己的问题 `expression`。
 
-| code             | 含义                                       |
-| ---------------- | ------------------------------------------ |
-| `version`        | 不认识的 `version`                         |
-| `duplicate-id`   | 节点 id 重复                               |
-| `missing-name`   | 存值的字段没有 `name`                      |
-| `duplicate-name` | 同一层里字段名重复，列表的项单独算一层     |
-| `unknown-type`   | 没有注册这种字段类型                       |
-| `misplaced-page` | `page` 不在 `tabs` 或 `steps` 里           |
-| `not-a-page`     | `tabs` 或 `steps` 里放了 `page` 以外的节点 |
-| `expression`     | 表达式无法解析，或读了不存在的字段、函数   |
-| `formula-cycle`  | 公式互相引用                               |
+| code                  | 含义                                                         |
+| --------------------- | ------------------------------------------------------------ |
+| `version`             | 不认识的 `version`                                           |
+| `duplicate-id`        | 节点 id 重复                                                 |
+| `missing-name`        | 存值的字段没有 `name`                                        |
+| `duplicate-name`      | 同一层里字段名重复，列表的项单独算一层                       |
+| `unknown-type`        | 没有注册这种字段类型                                         |
+| `misplaced-page`      | `page` 不在 `tabs` 或 `steps` 里                             |
+| `not-a-page`          | `tabs` 或 `steps` 里放了 `page` 以外的节点                   |
+| `expression`          | 表达式无法解析，或读了不存在的字段、函数                     |
+| `formula-cycle`       | 公式互相引用                                                 |
+| `unknown-validator`   | 规则的 `validator` 不在给出的 `validators` 里                |
+| `check-and-validator` | 同一条规则同时写了 `check` 和 `validator`，只有 `check` 生效 |
 
 `message` 是给开发者看的英文说明。界面文字可以从 `useFormRendererMessages()` 取，它按当前语言给出每个 `code` 的文字，`{text}` 换成问题的原文：
 

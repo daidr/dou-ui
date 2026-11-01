@@ -272,10 +272,23 @@
     }
   }
 
+  /*
+   * Beside the label, a value's first line is centered on the label's line
+   * the way the label is: both trimmed to the cap height, so the centers
+   * match whatever the font's ascent and descent.
+   */
   .dou-form-renderer--readonly:is(.dou-form-renderer--horizontal, .dou-form-renderer--inline)
-    .dou-form-item__control
-    > :is(.dou-form-renderer__value, .dou-form-renderer__color, .dou-form-renderer__files) {
-    padding-block: calc((var(--dou-form-item-control-height) - 1lh) / 2);
+    .dou-form-item__control {
+    align-items: flex-start;
+
+    & > .dou-form-renderer__value {
+      padding-block: calc((var(--dou-form-item-control-height) - 1cap) / 2);
+      text-box: trim-both cap alphabetic;
+    }
+
+    & > :is(.dou-form-renderer__color, .dou-form-renderer__files) {
+      padding-block: calc((var(--dou-form-item-control-height) - 1lh) / 2);
+    }
   }
 
   .dou-form-renderer__color {

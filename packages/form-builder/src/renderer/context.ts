@@ -1,8 +1,8 @@
 import type { Component, InjectionKey, VNode } from 'vue'
-import type { FormModel, FormRules, FormValidateResult, FormValidatorResult } from 'dou-ui'
+import type { FormErrors, FormModel, FormRules, FormValidateResult } from 'dou-ui'
 import type { FormRendererMessages, FormRendererMessagesOverride } from '../locale'
 import type { FormFieldType } from '../fields/define'
-import type { FormDocument, FormNode } from '../core/types'
+import type { FormDocument, FormNode, FormValidator } from '../core/types'
 import type { FormFunction } from '../core/expression'
 
 export interface FormRendererProps {
@@ -56,27 +56,6 @@ export interface FormRendererProps {
   messages?: FormRendererMessagesOverride
 }
 
-/** What a validator gets besides the value. */
-export interface FormValidatorContext {
-  /** The whole form's values. */
-  values: FormModel
-  /** Inside a list, the item the field belongs to; else `null`. */
-  item: unknown
-  /** The path of the field, e.g. `username` or `guests.2.phone`. */
-  path: string
-}
-
-/**
- * A check of a field's value. Return `true` or nothing to pass, `false` to
- * fail with the rule's `message`, or a string to fail with that string.
- * May be async. Like the other checks of a rule, it is skipped while the
- * value is empty; that is `required`'s job.
- */
-export type FormValidator = (
-  value: unknown,
-  context: FormValidatorContext,
-) => FormValidatorResult | Promise<FormValidatorResult>
-
 /** Loads the options of a field, given the result of its `source.arg`. */
 export type FormOptionsLoader = (arg: any) => unknown[] | Promise<unknown[]>
 
@@ -117,9 +96,11 @@ export interface FormRendererExpose {
   /**
    * Show errors by field path, e.g. ones a server returned after submit.
    * Each stays until the field's value changes or it is checked again; an
-   * empty message clears the field's error. Tabs mark the pages with errors.
+   * empty or `undefined` message clears the field's error. Tabs and steps
+   * mark the pages with errors. Returns the paths with a message that no
+   * field shows, e.g. a hidden field's, to list them above the form.
    */
-  setErrors: (errors: Record<string, string>) => void
+  setErrors: (errors: Partial<FormErrors>) => string[]
   /** Scroll a field into view and focus it. */
   scrollToField: (name: string) => void
   /** Forget the options loaded from a source, or from every source, and load them again. */
@@ -142,6 +123,8 @@ export interface RendererContext {
   validators: () => Record<string, FormValidator> | undefined
   /** Whether values show as text. */
   readonly: () => boolean
+  /** Whether the controls are read-only, as in a read-only builder's settings. */
+  controlsReadonly: () => boolean
   /** The options from a source, shared by every field asking the same thing. */
   load: (name: string, arg: unknown) => Promise<unknown[]>
   /** Bumped by `reloadSource`, so fields reading it load again. */
@@ -179,6 +162,13 @@ export interface NodeScope {
 export const scopeKey: InjectionKey<NodeScope> = Symbol('DouFormNodeScope')
 
 export const rendererKey: InjectionKey<RendererContext> = Symbol('DouFormRenderer')
+
+/**
+ * Internal: renderers inside make their controls read-only (the form's
+ * own `readonly`) instead of showing values as text, e.g. the settings of
+ * a read-only builder.
+ */
+export const controlsReadonlyKey: InjectionKey<() => boolean> = Symbol('DouFormControlsReadonly')
 
 /** Whether the groups around a node are disabled. */
 export const disabledKey: InjectionKey<() => boolean> = Symbol('DouFormNodeDisabled')

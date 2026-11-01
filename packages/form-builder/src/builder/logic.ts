@@ -187,7 +187,10 @@ export interface LogicSettingsContext {
   scope: LogicScope
   /** The node's type, for a field. */
   type?: FormFieldType
-  /** The names of the validators given to the builder, offered by a `validator` rule. */
+  /**
+   * The names of the validators given to the builder, offered by a
+   * `validator` rule; left out, any name can be typed.
+   */
   validators?: readonly string[]
 }
 
@@ -288,7 +291,8 @@ export function ruleSettings(context: LogicSettingsContext): FormNode[] {
       field('select', 'validator', s.ruleValidator!, {
         help: s.ruleValidatorHelp,
         visibleWhen: when('validator'),
-        props: { options: [...(context.validators ?? [])], creatable: true },
+        // Given validators, only their names can be picked, so none is mistyped.
+        props: { options: [...(context.validators ?? [])], creatable: !context.validators },
       }),
       text('message', s.ruleMessage!),
       field('select', 'trigger', s.ruleTrigger!, {

@@ -78,9 +78,20 @@ function clearValidate(paths?: string | string[]) {
   for (const item of pick(paths)) item.clear()
 }
 
-function setErrors(errors: FormErrors) {
+function setErrors(errors: Partial<FormErrors>) {
   const byPath = new Map(pick().map((item) => [item.prop()!, item]))
-  for (const [path, message] of Object.entries(errors)) byPath.get(path)?.setError(message ?? '')
+  const missed: string[] = []
+  for (const [path, message] of Object.entries(errors)) {
+    // `items[0].name`, as many servers write it, is `items.0.name` here.
+    const item = byPath.get(path) ?? byPath.get(path.replace(/\[(\d+)\]/g, '.$1'))
+    if (item) item.setError(message ?? '')
+    else if (message) missed.push(path)
+  }
+  if (missed.length && process.env.NODE_ENV !== 'production')
+    console.warn(
+      `[dou-ui] DouForm.setErrors: no field shows ${missed.map((path) => `"${path}"`).join(', ')}. Show these errors elsewhere, e.g. above the form.`,
+    )
+  return missed
 }
 
 function scrollToField(prop: string) {

@@ -27,6 +27,8 @@ export interface DocumentProblem {
     | 'empty'
     | 'expression'
     | 'formula-cycle'
+    | 'unknown-validator'
+    | 'check-and-validator'
   /** The node at fault; none for the document's own problems. */
   nodeId?: string
   /**
@@ -50,6 +52,11 @@ export interface CheckDocumentOptions {
   fields?: readonly FormFieldType<any>[]
   /** Functions the expressions can call besides the built-in ones. */
   functions?: readonly string[]
+  /**
+   * The names of the validators given to the renderer. Left out, a rule's
+   * `validator` is not checked against them.
+   */
+  validators?: readonly string[]
 }
 
 const EXPRESSIONS = ['visibleWhen', 'disabledWhen', 'requiredWhen', 'formula'] as const
@@ -58,8 +65,8 @@ const EXPRESSIONS = ['visibleWhen', 'disabledWhen', 'requiredWhen', 'formula'] a
  * The problems of a document, for an editor to point at, before it is
  * saved or rendered: ids used twice, fields without a name or sharing one,
  * types nobody registered, pages outside tabs and steps, expressions that
- * do not parse or read fields that are not there, and formulas that read
- * each other.
+ * do not parse or read fields that are not there, formulas that read
+ * each other, and rules naming a validator nobody gave.
  */
 export function checkDocument(
   document: FormDocument,
@@ -159,9 +166,27 @@ export function checkDocument(
         (node as Partial<Record<(typeof EXPRESSIONS)[number], string>>)[key],
       ])
       if (isField(node) || isList(node))
-        (node.rules ?? []).forEach((rule, order) =>
-          expressions.push([`rules.${order}.check`, rule.check]),
-        )
+        (node.rules ?? []).forEach((rule, order) => {
+          expressions.push([`rules.${order}.check`, rule.check])
+          if (rule.validator === undefined) return
+          const rulePath = `${path}.rules[${order}]`
+          if (rule.check)
+            problems.push({
+              code: 'check-and-validator',
+              nodeId: node.id,
+              path: rulePath,
+              text: rule.validator,
+              message: 'A rule has both check and validator; only check runs',
+            })
+          else if (options.validators && !options.validators.includes(rule.validator))
+            problems.push({
+              code: 'unknown-validator',
+              nodeId: node.id,
+              path: `${rulePath}.validator`,
+              text: rule.validator,
+              message: `There is no validator "${rule.validator}"`,
+            })
+        })
       if (isField(node) && node.source?.arg) expressions.push(['source.arg', node.source.arg])
       for (const [property, source] of expressions) {
         if (!source) continue
@@ -259,13 +284,15 @@ const migrations: Record<number, (document: any) => any> = {}
  */
 export function migrateDocument(document: unknown): FormDocument {
   if (document === null || typeof document !== 'object' || Array.isArray(document))
-    throw new Error('[dou-ui] a form document must be an object')
+    throw new Error('[@dou-ui/form-builder] a form document must be an object')
   let current = document as { version?: unknown } & Record<string, unknown>
   if (current.version === undefined) current = { ...current, version: 1 }
   while (current.version !== 1) {
     const step = typeof current.version === 'number' ? migrations[current.version] : undefined
     if (!step)
-      throw new Error(`[dou-ui] form document version ${String(current.version)} is not known`)
+      throw new Error(
+        `[@dou-ui/form-builder] form document version ${String(current.version)} is not known`,
+      )
     current = step(current)
   }
   return current as unknown as FormDocument

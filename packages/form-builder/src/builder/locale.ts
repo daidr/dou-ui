@@ -346,6 +346,8 @@ const zhCN: FormBuilderMessages = {
       'not-a-page': '标签页和分步里只能放页面',
       empty: '里面还是空的',
       'formula-cycle': '公式互相引用：{text}',
+      'unknown-validator': '没有校验函数“{text}”',
+      'check-and-validator': '同一条规则不能同时写表达式和校验函数',
     },
   },
   drag: {
@@ -644,6 +646,8 @@ const zhTW: FormBuilderMessages = {
       'not-a-page': '分頁和步驟裡只能放頁面',
       empty: '裡面還是空的',
       'formula-cycle': '公式互相參照：{text}',
+      'unknown-validator': '沒有校驗函式「{text}」',
+      'check-and-validator': '同一條規則不能同時寫運算式和校驗函式',
     },
   },
   drag: {
@@ -960,6 +964,8 @@ const en: FormBuilderMessages = {
       'not-a-page': 'Tabs and steps hold pages only',
       empty: 'It is empty',
       'formula-cycle': 'The formulas read each other: {text}',
+      'unknown-validator': 'There is no validator “{text}”',
+      'check-and-validator': 'A rule cannot have both an expression and a validator',
     },
   },
   drag: {

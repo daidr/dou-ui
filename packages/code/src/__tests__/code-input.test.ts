@@ -99,6 +99,20 @@ describe('DouCodeInput', () => {
     expect(wrapper.find('.dou-code-input--sm').exists()).toBe(true)
   })
 
+  it('is read-only inside a read-only form', async () => {
+    const wrapper = mount(
+      defineComponent(
+        () => () =>
+          h(DouForm, { readonly: true }, () =>
+            h(DouFormItem, { label: '公式' }, () => h(DouCodeInput, { modelValue: '1 + 1' })),
+          ),
+      ),
+    )
+    await nextTick()
+    expect(wrapper.find('textarea').element.readOnly).toBe(true)
+    wrapper.unmount()
+  })
+
   it('shows the completion list above the page', async () => {
     const words = defineCodeExtension({
       name: 'words',

@@ -442,7 +442,9 @@ describe('checkDocument', () => {
     expect(migrateDocument(current as any)).toBe(current)
     expect(() => migrateDocument({ version: 9, nodes: [] })).toThrow(/version 9/)
     expect(migrateDocument({ nodes: [] })).toEqual({ version: 1, nodes: [] })
-    expect(() => migrateDocument(null)).toThrow(/\[dou-ui\] a form document must be an object/)
+    expect(() => migrateDocument(null)).toThrow(
+      /\[@dou-ui\/form-builder\] a form document must be an object/,
+    )
   })
 })
 

@@ -1,10 +1,9 @@
 import { defineComponent, h } from 'vue'
 import type { PropType } from 'vue'
-import { DouLink } from 'dou-ui'
-import type { Locale } from 'dou-ui'
+import { DouLink, formatDateValue } from 'dou-ui'
+import type { DatePickerType, Locale } from 'dou-ui'
 import type { FormFieldNode } from '../core/types'
 import type { FormRendererMessages } from '../locale'
-import { formatMessage } from '../locale'
 
 /** What a field type's `format` gets besides the value and the settings. */
 export interface FormFormatContext {
@@ -40,6 +39,15 @@ function labelsOf(options: unknown, into = new Map<unknown, string>()) {
   return into
 }
 
+const warnedTypes = new Set<string>()
+function warnObject(type: string) {
+  if (process.env.NODE_ENV === 'production' || warnedTypes.has(type)) return
+  warnedTypes.add(type)
+  console.warn(
+    `[@dou-ui/form-builder] a value of field type "${type}" is an object and shows as JSON when read-only; give the type a \`format\` or \`readonlyComponent\``,
+  )
+}
+
 /** Plain text of any value: lists joined, `true` and `false` as yes and no. */
 export function formatValue(value: unknown, context: FormFormatContext): string {
   if (value === null || value === undefined) return ''
@@ -54,6 +62,7 @@ export function formatValue(value: unknown, context: FormFormatContext): string 
     const record = value as { label?: unknown; name?: unknown }
     if (typeof record.label === 'string') return record.label
     if (typeof record.name === 'string') return record.name
+    warnObject(context.node.type)
     return JSON.stringify(value)
   }
   return String(value)
@@ -68,7 +77,10 @@ export const formatOptions =
     return Array.isArray(value) ? value.map(label).join(context.messages.separator) : label(value)
   }
 
-/** A path through levels of options as their labels, or a list of such paths. */
+/**
+ * A path through levels of options as their labels, or a list of such
+ * paths; only the last label with `showLastOnly`, as the cascader shows it.
+ */
 export function formatPath(
   value: unknown,
   props: Record<string, unknown>,
@@ -91,7 +103,7 @@ export function formatPath(
       labels.push(option?.label ?? formatValue(step, context))
       level = option?.children
     }
-    return labels.join(separator)
+    return props.showLastOnly ? (labels[labels.length - 1] ?? '') : labels.join(separator)
   }
   return Array.isArray(value[0])
     ? (value as unknown[][]).map(one).join(context.messages.separator)
@@ -121,36 +133,33 @@ export function formatNumber(value: unknown, props: Record<string, unknown>) {
   return precision === undefined ? String(value) : value.toFixed(precision)
 }
 
-/** One number, or both ends of a range. */
-export function formatRange(value: unknown, _props: Record<string, unknown>) {
-  return Array.isArray(value) ? value.join(' – ') : String(value)
+/** One number or time, or both ends of a range. */
+export function formatRange(
+  value: unknown,
+  _props: Record<string, unknown>,
+  context: FormFormatContext,
+) {
+  return Array.isArray(value)
+    ? value.map((item) => formatValue(item, context)).join(context.messages.rangeSeparator)
+    : formatValue(value, context)
 }
 
-/** A date written the way the locale (or `displayFormat`) writes it; a range as both ends. */
+/** A date written the way the date picker writes it (`displayFormat`, else the locale's); a range as both ends. */
 export function formatDate(
   value: unknown,
   props: Record<string, unknown>,
   context: FormFormatContext,
 ): string {
-  if (Array.isArray(value)) return value.map((item) => formatDate(item, props, context)).join(' ~ ')
+  if (Array.isArray(value))
+    return value
+      .map((item) => formatDate(item, props, context))
+      .join(context.messages.rangeSeparator)
   if (typeof value !== 'string') return formatValue(value, context)
-  const quarter = /^(\d{4})-Q([1-4])$/.exec(value)
-  if (quarter)
-    return formatMessage(context.locale.datePicker.quarter, {
-      year: quarter[1]!,
-      quarter: quarter[2]!,
-    })
-  const day = /^(\d{4})(?:-(\d{2}))?(?:-(\d{2}))?([ T].*)?$/.exec(value)
-  if (!day) return value
-  const [, year, month, date, time] = day
-  const region = context.locale.region
-  const own = typeof props.displayFormat === 'string' ? props.displayFormat : undefined
-  const pattern = date ? (own ?? region.date) : month ? (own ?? region.month) : (own ?? region.year)
-  const text = pattern
-    .replace(/YYYY/g, year!)
-    .replace(/MM/g, month ?? '')
-    .replace(/DD/g, date ?? '')
-  return time ? `${text} ${time.slice(1)}` : text
+  return formatDateValue(value, {
+    locale: context.locale,
+    type: typeof props.type === 'string' ? (props.type as DatePickerType) : undefined,
+    displayFormat: typeof props.displayFormat === 'string' ? props.displayFormat : undefined,
+  })
 }
 
 /** A color, with a swatch before its text. */

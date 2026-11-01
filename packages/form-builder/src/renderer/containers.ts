@@ -251,9 +251,17 @@ export function stepsView(
     const index = current.value
     const messages = renderer.messages()
     const last = index >= list.length - 1
+    // A step holding errors, e.g. ones set after submit, is marked like a tab.
+    const errorPaths = renderer.errorPaths()
+    const failing = new Set(
+      list
+        .filter((step) => errorPaths.some((path) => holdsPath(step.children, path, scope.prefix())))
+        .map((step) => step.id),
+    )
     const items: StepItem[] = list.map((step, at) => ({
       title: step.title,
       disabled: at > reached.value,
+      status: failing.has(step.id) ? 'error' : undefined,
     }))
     const footer: VNodeChild[] = []
     if (index > 0)
@@ -274,6 +282,7 @@ export function stepsView(
       )
     else if (renderer.footerOwner() === props.node.id) footer.push(renderer.footer() as VNodeChild)
     return h('div', { class: 'dou-form-renderer__steps' }, [
+      // A step's status is read out with its title, "error" included.
       h(DouSteps, {
         items,
         current: index,
@@ -377,7 +386,7 @@ export function listView(
     const cycles = findItemFormulaCycles(list())
     for (const cycle of cycles)
       console.warn(
-        `[dou-ui] form formulas of list "${list().name}" read each other in a circle (${cycle.join(' -> ')}); they are not worked out`,
+        `[@dou-ui/form-builder] form formulas of list "${list().name}" read each other in a circle (${cycle.join(' -> ')}); they are not worked out`,
       )
     return new Set(cycles.flat())
   })
@@ -423,7 +432,8 @@ export function listView(
     const node = list()
     const rows = items.value
     const messages = renderer.messages()
-    const readonly = renderer.readonly()
+    // Read-only controls (a read-only builder's settings) show the items without the buttons too.
+    const readonly = renderer.readonly() || renderer.controlsReadonly()
     const off = disabled.value
     const canAdd = !off && (node.max === undefined || rows.length < node.max)
     const canRemove = !off && rows.length > (node.min ?? 0)

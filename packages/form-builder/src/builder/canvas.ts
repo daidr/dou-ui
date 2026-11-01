@@ -154,6 +154,7 @@ export const FormBuilderCanvas = defineComponent({
       functions: () => undefined,
       validators: () => undefined,
       readonly: () => false,
+      controlsReadonly: () => false,
       load: () => Promise.resolve([]),
       sourceVersion: () => 0,
       messages: () => rendererMessages.value,

@@ -72,7 +72,9 @@ const warned = new Set<string>()
 function warnUnknown(type: string) {
   if (warned.has(type)) return
   warned.add(type)
-  console.warn(`[dou-ui] form field type "${type}" is not registered; pass it in \`fields\``)
+  console.warn(
+    `[@dou-ui/form-builder] form field type "${type}" is not registered; pass it in \`fields\``,
+  )
 }
 
 /** The nodes of one grid: the document's, a group's, a page's or a list item's. */

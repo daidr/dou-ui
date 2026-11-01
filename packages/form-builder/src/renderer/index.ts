@@ -10,8 +10,6 @@ export type {
   FormRendererProps,
   FormRendererSlots,
   FormOptionsLoader,
-  FormValidator,
-  FormValidatorContext,
 } from './context'
 export { findFormulaCycles, findItemFormulaCycles } from '../core/formulas'
 export { checkDocument, checkDocumentShape, migrateDocument } from '../core/check'
@@ -83,6 +81,8 @@ export type {
   FormSectionNode,
   FormStepsNode,
   FormTabsNode,
+  FormValidator,
+  FormValidatorContext,
 } from '../core/types'
 
 export type FormRendererInstance = InstanceType<typeof FormRenderer>

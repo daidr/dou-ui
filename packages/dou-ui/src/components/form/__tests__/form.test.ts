@@ -243,7 +243,17 @@ describe('DouForm', () => {
     const { wrapper, model, vm, items } = setup({}, { name: { required: true } })
     model.name = 'douui'
     await nextTick()
-    vm.setErrors({ name: '这个名称已被占用', plan: '方案已下架', missing: '没有这个字段' })
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const missed = vm.setErrors({
+      name: '这个名称已被占用',
+      plan: '方案已下架',
+      missing: '没有这个字段',
+      gone: undefined,
+    })
+    expect(missed).toEqual(['missing'])
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(warn.mock.calls[0]![0]).toContain('"missing"')
+    warn.mockRestore()
     await nextTick()
     expect(items[0]!.get('.dou-form-item__error').text()).toBe('这个名称已被占用')
     expect(items[0]!.get('input').attributes('aria-invalid')).toBe('true')
@@ -256,6 +266,27 @@ describe('DouForm', () => {
     vm.setErrors({ plan: '' })
     await nextTick()
     expect(items[2]!.classes()).not.toContain('is-error')
+    wrapper.unmount()
+  })
+
+  it('reads a path written with brackets', async () => {
+    const model = reactive({ items: [{ what: '' }] })
+    const wrapper = mount(DouForm, {
+      props: { model },
+      slots: {
+        default: () =>
+          h(DouFormItem, { prop: 'items.0.what' }, () =>
+            h(DouInput, {
+              modelValue: model.items[0]!.what,
+              'onUpdate:modelValue': (value: string) => (model.items[0]!.what = value),
+            }),
+          ),
+      },
+    })
+    const form = wrapper.vm as unknown as FormInstance
+    expect(form.setErrors({ 'items[0].what': '没有这个物品' })).toEqual([])
+    await nextTick()
+    expect(wrapper.get('.dou-form-item__error').text()).toBe('没有这个物品')
     wrapper.unmount()
   })
 

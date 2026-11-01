@@ -188,6 +188,15 @@ export interface SheetExpose {
    * their formats and cell types write it.
    */
   toCSV: (options?: SheetCSVWriteOptions & { sheet?: SheetRef }) => string
+  /** The sheet shown as an SVG document, as the grid draws it, in the current theme. */
+  toSVG: (options?: SheetImageOptions) => string
+  /** The sheet shown as a PNG image. */
+  toPNG: (options?: SheetPNGOptions) => Promise<Blob>
+  /**
+   * Opens the browser's print dialog for the sheet shown: on A4 pages, in
+   * the light theme, with the frozen rows and columns on every page.
+   */
+  print: (options?: SheetPrintOptions) => void
   /** Opens the editor on a cell, the active one by default. */
   edit: (cell?: SheetCellTarget) => void
   focus: () => void
@@ -204,6 +213,39 @@ export interface SheetExpose {
    * sheet, or on `sheet`. Use it to check a workbook before sending it.
    */
   findInvalid: (sheet?: SheetRef) => SheetInvalidCell[]
+}
+
+/** Options of `toSVG` and `toPNG`. */
+export interface SheetImageOptions {
+  /**
+   * The cells drawn, such as `'A1:F20'` or `'A:D'`. By default from `A1`
+   * to the last row and column with data or a merge.
+   */
+  range?: string
+  /** Draws the column letters and row numbers. */
+  headers?: boolean
+  /** Draws the grid lines; by default as the grid shows them. */
+  gridlines?: boolean
+  /** Fills the background; `false` leaves it see-through. Defaults to `true`. */
+  background?: boolean
+}
+
+export interface SheetPNGOptions extends SheetImageOptions {
+  /** Image pixels per CSS pixel. Defaults to `2`; less for a sheet too big for that. */
+  pixelRatio?: number
+}
+
+export interface SheetPrintOptions {
+  /** The cells printed, as for `toSVG`. */
+  range?: string
+  /** Prints the column letters and row numbers. */
+  headers?: boolean
+  /** Prints the grid lines; by default as the grid shows them. */
+  gridlines?: boolean
+  /** A heading on every page. */
+  title?: string
+  /** By default landscape when the cells are wider than a portrait page. */
+  orientation?: 'portrait' | 'landscape'
 }
 
 /** A cell whose value breaks a validation rule. */

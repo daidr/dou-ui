@@ -125,7 +125,7 @@ const Panel = defineComponent({
 | `rangeRect(bounds)`                              | 区域在视图里露出的部分画在哪，`cut` 标出被视图或冻结窗格挡住的边；完全看不见时为 `null`       |
 | `transact`、`undo`、`redo`、`canUndo`、`canRedo` | 修改与撤销，同组件实例                                                                        |
 | `select`、`scrollTo`、`edit`、`focus`            | 选择、滚动、编辑和聚焦，同组件实例                                                            |
-| `showSheet`、`toCSV`                             | 切换工作表、导出 CSV，同组件实例                                                              |
+| `showSheet`、`toCSV`、`toSVG`、`toPNG`、`print`  | 切换工作表、导出 CSV 和图片、打印，同组件实例                                                 |
 | `styleAt(point)`、`formatAt(point)`              | 单元格的样式（没有时为 `{}`）和数字格式，合并单元格取左上角                                   |
 | `styleSelection(patch)`                          | 修改选区的样式，规则同 `tr.styleCells`，`null` 去掉样式；返回是否有改动                       |
 | `formatSelection(format)`                        | 设置选区的数字格式，也可以传函数逐格计算，同 `tr.formatCells`                                 |

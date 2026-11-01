@@ -508,6 +508,36 @@ sheet.value.showSheet('十一月')
 
 不经过组件时，`sheetToCSV(sheetData, options)` 做同样的事，只是单元格类型按值本身写出（可以用 `text` 补上）。`parseCSV(text, delimiter?)` 只拆分字段，不识别类型；`detectDelimiter(text)` 返回判断出的分隔符。
 
+## 导出图片与打印
+
+组件实例的 `toSVG()` 和 `toPNG()` 把当前工作表画成图片，样子和表格里一致：样式、合并单元格、条件格式的颜色和数据条、勾选框和选项标签都会画出来，颜色跟随当前的亮暗主题，选区不会画进去。`toSVG()` 返回 SVG 文档的字符串，文字仍是文字，可以在设计软件里继续编辑；`toPNG()` 返回 PNG 的 `Blob`。
+
+`print()` 打开浏览器的打印对话框。表格只渲染看得见的部分，直接打印页面只能打出一屏，`print()` 则会打印整张表：纸张是 A4，表格比竖向的纸宽时自动横向；一页放不下时按先向下、再向右的顺序分页，冻结的行和列在每一页重复，页脚有页码。打印总是使用浅色主题。
+
+<DocDemo src="sheet/export" column />
+
+| 选项          | 说明                                                       | 默认值                   |
+| ------------- | ---------------------------------------------------------- | ------------------------ |
+| `range`       | 只画这片区域，如 `'A1:F20'`、`'A:D'`                       | 有数据和合并单元格的部分 |
+| `headers`     | 画出列标和行号                                             | `false`                  |
+| `gridlines`   | 画出格线                                                   | 跟随表格的 `gridlines`   |
+| `background`  | 填充底色；`false` 时为透明底，便于放到其他背景上（仅图片） | `true`                   |
+| `pixelRatio`  | 每个 CSS 像素对应的图片像素（仅 `toPNG`）                  | `2`                      |
+| `title`       | 每页顶部的标题（仅 `print`）                               | —                        |
+| `orientation` | 纸张方向，`'portrait'` 或 `'landscape'`（仅 `print`）      | 按表格宽度选择           |
+
+隐藏的行列和被筛选掉的行不会画出来。自定义的单元格类型按 `format` 返回的文字画出。浏览器对画布的尺寸有限制（每边 16384 像素，iOS 上总共约 1677 万像素），区域很大时 `toPNG()` 会自动降低 `pixelRatio`，降到 1 仍然放不下时会抛出 `RangeError`。这时可以用 `range` 分几次导出，或者改用 `toSVG()`、`toCSV()`。
+
+方法只返回内容，下载由你决定，例如：
+
+```ts
+const blob = await grid.value.toPNG()
+const url = URL.createObjectURL(blob)
+const link = Object.assign(document.createElement('a'), { href: url, download: '门店.png' })
+link.click()
+URL.revokeObjectURL(url)
+```
+
 ## 冻结行列
 
 工作表的 `freeze` 让前几行、前几列在滚动时固定在顶部和左侧，适合表头和名称列。冻结的边线比普通格线深一些，滚动之后边线旁会出现一道浅阴影，表示有内容在下面。

@@ -118,6 +118,7 @@ import {
 } from './core/extension'
 import { format, useSheetMessages } from './locale'
 import { sheetToCSV, type SheetCSVWriteOptions } from './core/csv'
+import { createSheetExport } from './export'
 import type {
   SheetEmits,
   SheetSlots,
@@ -2549,6 +2550,21 @@ function toCSV(options: SheetCSVWriteOptions & { sheet?: SheetRef } = {}) {
   })
 }
 
+// Images and printing --------------------------------------------------------------------
+
+const { toSVG, toPNG, print } = createSheetExport({
+  root: () => root.value,
+  sheet: () => sheet.value,
+  sheetSize,
+  rows: () => rows.value,
+  cols: () => cols.value,
+  frozen: () => frozen.value,
+  merges: () => merges.value,
+  rowHeight: () => props.rowHeight,
+  gridlines: () => props.gridlines,
+  cellView,
+})
+
 function onCopy(event: ClipboardEvent) {
   if (editing.value || !event.clipboardData) return
   event.preventDefault()
@@ -4135,6 +4151,9 @@ const context: SheetContext = {
   focus: () => focusGrid(),
   showSheet,
   toCSV,
+  toSVG,
+  toPNG,
+  print,
   styleAt,
   formatAt,
   styleSelection,
@@ -4250,6 +4269,9 @@ defineExpose<SheetExpose>({
   focus: () => focusGrid(),
   showSheet,
   toCSV,
+  toSVG,
+  toPNG,
+  print,
   copy: () => copyToClipboard(false),
   cut: () => copyToClipboard(true),
   paste: async (clip) => (clip ? paste(clip) : pasteFromClipboard()),

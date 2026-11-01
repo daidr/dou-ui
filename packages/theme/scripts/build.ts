@@ -6,6 +6,7 @@
  */
 import { rm } from 'node:fs/promises'
 import { Glob } from 'bun'
+import { bundleCss } from '../../../scripts/bundle-css'
 
 const root = new URL('../', import.meta.url).pathname
 const dist = `${root}dist`
@@ -16,18 +17,11 @@ await run(['bun', 'scripts/gen.ts'])
 const cssEntries = ['src/index.css', 'src/core.css', 'src/generated/tokens.css']
 for await (const file of new Glob('src/components/*.css').scan(root)) cssEntries.push(file)
 
-const css = await Bun.build({
-  entrypoints: cssEntries.map((file) => `${root}${file}`),
-  root: `${root}src`,
-  outdir: dist,
-  minify: true,
-  naming: '[dir]/[name].[ext]',
-})
-assertOk(css, 'css')
-
-// tokens.css is exposed at the package root, not under generated/
-await Bun.write(`${dist}/tokens.css`, Bun.file(`${dist}/generated/tokens.css`))
-await rm(`${dist}/generated`, { recursive: true, force: true })
+for (const file of cssEntries) {
+  // tokens.css is exposed at the package root, not under generated/
+  const out = file === 'src/generated/tokens.css' ? 'tokens.css' : file.slice('src/'.length)
+  await bundleCss(`${root}${file}`, `${dist}/${out}`)
+}
 
 const js = await Bun.build({
   entrypoints: [`${root}src/index.ts`],

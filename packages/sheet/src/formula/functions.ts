@@ -588,7 +588,7 @@ export const builtinFunctions: SheetFunction[] = [
     run: (args) => {
       const ns = numbersOf(args)
       if (isSheetError(ns)) return ns
-      return ns.length ? sum(ns) / ns.length : DIV0
+      return ns.length ? asInputs(args, sum(ns) / ns.length) : DIV0
     },
   }),
   defineSheetFunction({
@@ -1222,7 +1222,7 @@ export const builtinFunctions: SheetFunction[] = [
     minArgs: 1,
     run: (args) => {
       const ns = statsOf(args, 1, NUM)
-      return isSheetError(ns) ? ns : percentile(ascending(ns), 0.5)
+      return isSheetError(ns) ? ns : asInputs(args, percentile(ascending(ns), 0.5))
     },
   }),
   ...(['LARGE', 'SMALL'] as const).map((name) =>

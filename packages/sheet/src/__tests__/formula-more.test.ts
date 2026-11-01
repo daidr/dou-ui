@@ -298,6 +298,10 @@ describe('the second batch, after review', () => {
     expect(calc('=MIN(B1:B3)', cells)).toBe('2026-01-20')
     expect(calc('=MAX(A1:A2)', cells)).toBe('09:30')
     expect(calc('=COUNT(A1:C3)', cells)).toBe(6)
+    expect(calc('=AVERAGE("09:30", "18:00")')).toBe('13:45')
+    expect(calc('=MEDIAN(A1:A2)', cells)).toBe('05:22:30')
+    expect(calc('=AVERAGE("2026-03-01", "2026-03-03")')).toBe('2026-03-02')
+    expect(calc('=AVERAGE(1, 2)')).toBe(1.5)
     expect(calc('=B1-MIN(B1:B3)', cells)).toBe(44)
   })
 

@@ -1,8 +1,9 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { canJoin, displacedEdges, joinRefusal, reaches, typesMatch } from '../core/connect'
 import { flowOrder } from '../core/order'
 import { bezierPath } from '../core/edge-types'
-import { snapBox } from '../core/geometry'
+import { intersectsTurned, snapBox, turnedBox } from '../core/geometry'
+import { defineNodeType, nodeBounds, resizeOf } from '../core/node-types'
 import { FlowHistory } from '../core/history'
 import type { FlowDocument } from '../core/model'
 import { applyFlowSteps, compactFlowSteps, FlowTransaction } from '../core/transaction'
@@ -291,5 +292,49 @@ describe('flowOrder', () => {
       ],
     })
     expect(order.map((n) => n.id)).toEqual(['a', 'b', 'c'])
+  })
+})
+
+describe('turned nodes', () => {
+  const rect = { x: 0, y: 0, width: 200, height: 20 }
+
+  it('takes the box around a turned rectangle', () => {
+    const box = turnedBox(rect, 90)
+    expect(box.x).toBeCloseTo(90)
+    expect(box.y).toBeCloseTo(-90)
+    expect(box.width).toBeCloseTo(20)
+    expect(box.height).toBeCloseTo(200)
+    expect(turnedBox(rect, 0)).toBe(rect)
+  })
+
+  it('tells whether a box meets a turned rectangle', () => {
+    // inside the upright box, outside the turned one
+    expect(intersectsTurned({ x: 2, y: 2, width: 38, height: 16 }, rect, 90)).toBe(false)
+    expect(intersectsTurned({ x: 95, y: 60, width: 10, height: 20 }, rect, 90)).toBe(true)
+    // inside the box around it at 45°, but off its sides
+    expect(intersectsTurned({ x: 10, y: -60, width: 10, height: 10 }, rect, 45)).toBe(false)
+    expect(intersectsTurned({ x: 95, y: 5, width: 10, height: 10 }, rect, 45)).toBe(true)
+  })
+
+  it('bounds a turned node, and leaves its resizing to it', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const spec = defineNodeType<{ turn?: number }>({
+      type: 'turned',
+      component: {},
+      frame: false,
+      resizable: true,
+      rotation: (node) => node.data?.turn ?? 0,
+    })
+    expect(warn).not.toHaveBeenCalled()
+    const node = { id: 'n', type: 'turned', x: 0, y: 0, data: { turn: 90 } }
+    expect(nodeBounds(spec, node, rect).height).toBeCloseTo(200)
+    expect(resizeOf(spec, node)).toBeNull()
+    expect(resizeOf(spec, { ...node, data: {} })).toEqual({})
+    // a card the editor draws doesn't turn
+    defineNodeType({ type: 'card', component: {}, rotation: () => 10 })
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('"card" has rotation but not frame: false'),
+    )
+    warn.mockRestore()
   })
 })

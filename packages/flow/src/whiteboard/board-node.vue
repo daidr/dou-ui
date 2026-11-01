@@ -309,14 +309,12 @@ function onKeydown(event: KeyboardEvent) {
       />
       <Teleport :to="state.handles.value" :disabled="!state.handles.value">
         <div class="dou-whiteboard-node__frame" :style="frameStyle" aria-hidden="true">
-          <!-- data-flow-overlay: the selection's toolbar keeps clear of it,
-               when it floats below the node or the node is turned upside down -->
-          <span
-            class="dou-whiteboard-node__turn"
-            data-dou-nodrag
-            data-flow-overlay
-            @pointerdown="startTurn"
-          />
+          <!-- data-flow-overlay on its target: the selection's toolbar keeps
+               clear of where a finger can take it, when it floats below the
+               node or the node is turned upside down -->
+          <span class="dou-whiteboard-node__turn" data-dou-nodrag @pointerdown="startTurn">
+            <span class="dou-whiteboard-node__target" data-flow-overlay />
+          </span>
           <span
             v-for="handle in cornerHandles"
             :key="`${handle.x},${handle.y}`"

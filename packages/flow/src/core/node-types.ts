@@ -58,8 +58,10 @@ export interface NodeTypeSpec<Data extends FlowData = FlowData> {
   frame?: boolean
   /**
    * How far the node is drawn turned about its centre, in degrees clockwise;
-   * `0` by default. The editor doesn't turn the node itself, its component
-   * does: this tells the editor and other people's outlines how it is drawn.
+   * `0` by default. The component turns what it draws, and `draw` turns its
+   * export; the editor follows: the selection outline, picking with a box,
+   * what is drawn in view, the toolbar and other people's outlines. For
+   * nodes with `frame: false`. A turned node has no editor resize handle.
    */
   rotation?: (node: FlowNode<Data>) => number
   /**
@@ -89,6 +91,10 @@ export interface NodePaletteSpec {
 export function defineNodeType<Data extends FlowData = FlowData>(
   spec: NodeTypeSpec<Data>,
 ): NodeTypeSpec<Data> {
+  if (process.env.NODE_ENV !== 'production' && spec.rotation && spec.frame !== false)
+    console.warn(
+      `[@dou-ui/flow] the node type "${spec.type}" has rotation but not frame: false: the card the editor draws around it does not turn`,
+    )
   return spec
 }
 
@@ -108,6 +114,8 @@ export function resizeOf(
   spec: NodeTypeSpec | undefined,
   node: FlowNode,
 ): { minWidth?: number; minHeight?: number } | null {
+  // the editor's handle grows a node along the page, not along a turned node's sides
+  if (spec?.rotation?.(node)) return null
   const value = typeof spec?.resizable === 'function' ? spec.resizable(node) : spec?.resizable
   if (!value) return null
   return value === true ? {} : value

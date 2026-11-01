@@ -42,7 +42,15 @@ import {
   type PortState,
 } from './context'
 import { bezierEdge, type EdgeAnchor, type EdgeRoute, type EdgeTypeSpec } from './core/edge-types'
-import { boundsOf, intersects, rectFrom, snapBox, type Guide, type SnapLink } from './core/geometry'
+import {
+  boundsOf,
+  intersects,
+  intersectsTurned,
+  rectFrom,
+  snapBox,
+  type Guide,
+  type SnapLink,
+} from './core/geometry'
 import {
   canJoin,
   displacedEdges,
@@ -1536,7 +1544,9 @@ function updateBox(g: Extract<Gesture, { kind: 'box' }>) {
     .filter((node) => {
       if (hiddenIn.value.has(node.id)) return false
       const rect = rectOf(node)
-      return isContainer(node) ? inside(rect) : intersects(box, rect)
+      if (isContainer(node)) return inside(rect)
+      // a turned node is picked by what it covers, not by its upright box
+      return intersectsTurned(box, rect, specOf(node).rotation?.(node) ?? 0)
     })
     .map((n) => n.id)
   const nodes = [...new Set([...g.base.nodes, ...hit])]
@@ -3172,7 +3182,8 @@ const drawnNodes = computed(() => {
     if (hidden.has(node.id)) return false
     const m = metrics.get(node.id)
     if (!m || keep.has(node.id) || node.id === focusedNode.value) return true
-    return intersects({ x: node.x, y: node.y, width: m.width, height: m.height }, area)
+    const rect = { x: node.x, y: node.y, width: m.width, height: m.height }
+    return intersects(nodeBounds(specOf(node), node, rect), area)
   })
 })
 

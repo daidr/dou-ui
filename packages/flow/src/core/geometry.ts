@@ -150,3 +150,26 @@ export function turnedBox(rect: Rect, degrees: number): Rect {
   ].map((corner) => turn(corner, centre, degrees))
   return boundsOf(corners.map((p) => ({ ...p, width: 0, height: 0 })))!
 }
+
+/** Whether `box` and `rect` turned by `degrees` about its centre overlap. */
+export function intersectsTurned(box: Rect, rect: Rect, degrees: number): boolean {
+  if (!degrees) return intersects(box, rect)
+  if (!intersects(box, turnedBox(rect, degrees))) return false
+  // Upright, the box's axes already part them if they can; the turned
+  // rectangle's own axes are the only others that can.
+  const centre = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }
+  const corners = [
+    { x: box.x, y: box.y },
+    { x: box.x + box.width, y: box.y },
+    { x: box.x, y: box.y + box.height },
+    { x: box.x + box.width, y: box.y + box.height },
+  ].map((corner) => turn(corner, centre, -degrees))
+  const xs = corners.map((p) => p.x)
+  const ys = corners.map((p) => p.y)
+  return (
+    Math.min(...xs) < rect.x + rect.width &&
+    Math.max(...xs) > rect.x &&
+    Math.min(...ys) < rect.y + rect.height &&
+    Math.max(...ys) > rect.y
+  )
+}

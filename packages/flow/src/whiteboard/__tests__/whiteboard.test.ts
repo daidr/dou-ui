@@ -795,6 +795,61 @@ describe('resize handles', () => {
     expect(style).not.toContain('transform')
   })
 
+  it('turns the selection outline with a turned node, with no editor resize handle', async () => {
+    const { root, selection } = setup({
+      nodes: [
+        {
+          id: 'a',
+          type: 'shape',
+          x: 0,
+          y: 0,
+          width: 100,
+          height: 50,
+          data: { shape: 'rect', rotation: 30 },
+        },
+      ],
+      edges: [],
+    })
+    await ticks()
+    selection.value = { nodes: ['a'], edges: [] }
+    await ticks()
+    const frame = root.find('[data-node-id="a"]')
+    expect(frame.classes()).toContain('is-turned')
+    expect(frame.attributes('style')).toContain('--dou-flow-node-rotation: 30deg')
+    expect(frame.find('.dou-flow-editor__resize').exists()).toBe(false)
+  })
+
+  it('picks a turned node with a box by what it covers, not by its upright box', async () => {
+    const { root, selection } = setup({
+      nodes: [
+        // turned upright: it covers x 90–110, y -90–110
+        {
+          id: 'a',
+          type: 'shape',
+          x: 0,
+          y: 0,
+          width: 200,
+          height: 20,
+          data: { shape: 'rect', rotation: 90 },
+        },
+      ],
+      edges: [],
+    })
+    await ticks()
+    const box = async (from: [number, number], to: [number, number]) => {
+      root.element.dispatchEvent(pointer('pointerdown', ...from, { shiftKey: true }))
+      root.element.dispatchEvent(pointer('pointermove', ...to, { shiftKey: true }))
+      root.element.dispatchEvent(pointer('pointerup', ...to, { shiftKey: true }))
+      await ticks()
+    }
+    // the upright box, where nothing is drawn
+    await box([2, 2], [40, 18])
+    expect(selection.value.nodes).toEqual([])
+    // where the turned node is drawn, outside its upright box
+    await box([95, 60], [105, 80])
+    expect(selection.value.nodes).toEqual(['a'])
+  })
+
   it('drops a preview once its node leaves the document', async () => {
     let ctx: FlowEditorContext | undefined
     const grab = defineFlowExtension({

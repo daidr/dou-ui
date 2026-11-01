@@ -11,9 +11,11 @@ import {
 import {
   ChevronDownIcon,
   ClipboardPasteIcon,
+  ColumnGroupIcon,
   ColumnInsertLeftIcon,
   ColumnInsertRightIcon,
   ColumnRemoveIcon,
+  ColumnUngroupIcon,
   CopyIcon,
   EraserIcon,
   EyeIcon,
@@ -22,12 +24,12 @@ import {
   FilterIcon,
   FilterXIcon,
   FoldVerticalIcon,
-  ListTreeIcon,
-  ListXIcon,
   PlusIcon,
+  RowGroupIcon,
   RowInsertBottomIcon,
   RowInsertTopIcon,
   RowRemoveIcon,
+  RowUngroupIcon,
   ScissorsIcon,
   SortAscendingIcon,
   SortDescendingIcon,
@@ -3341,7 +3343,7 @@ function groupItems(axis: SheetAxisName): SheetMenuItem[] {
     {
       key: `${axis}-group`,
       label: format(m[axis === 'row' ? 'groupRows' : 'groupCols'], { count }),
-      icon: ListTreeIcon,
+      icon: axis === 'row' ? RowGroupIcon : ColumnGroupIcon,
       shortcut: 'alt+shift+ArrowRight',
       run: () => groupSelected(axis, true),
     },
@@ -3350,7 +3352,7 @@ function groupItems(axis: SheetAxisName): SheetMenuItem[] {
     out.push({
       key: `${axis}-ungroup`,
       label: m[axis === 'row' ? 'ungroupRows' : 'ungroupCols'],
-      icon: ListXIcon,
+      icon: axis === 'row' ? RowUngroupIcon : ColumnUngroupIcon,
       shortcut: 'alt+shift+ArrowLeft',
       run: () => groupSelected(axis, false),
     })
@@ -3522,7 +3524,7 @@ function menuFor(area: SheetMenuContext['area']): SheetMenuItem[] {
     {
       key: 'group',
       label: m.group.group,
-      icon: ListTreeIcon,
+      icon: RowGroupIcon,
       children: [...groupItems('row'), ...dividedFirst(groupItems('col'))],
     },
     ...dataItems(),

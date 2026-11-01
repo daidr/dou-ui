@@ -56,7 +56,7 @@ import {
 } from 'vue'
 import { useSheet } from '../context'
 import { boundsOf, columnName, formatRange, inBounds, parseRange } from '../core/address'
-import { alignOf, changeDecimals, formatValue } from '../core/format'
+import { changeDecimals, formatValue } from '../core/format'
 import { rangesOf, ruleRangeText } from '../core/conditional'
 import type {
   SheetConditionalFormat,
@@ -79,6 +79,8 @@ import {
 import { format } from '../locale'
 import type {
   SheetFormatOption,
+  SheetMenuItem,
+  SheetToolbarItem,
   SheetToolbarProps,
   SheetToolbarSlots,
   SheetToolbarTool,
@@ -122,14 +124,98 @@ const DEFAULT_TOOLS: SheetToolbarTool[] = [
   'clear',
 ]
 
+const BUILT_IN = new Set<string>(DEFAULT_TOOLS)
+
+/** A tool that isn't built in, ready to draw: an extension's item, or a command by name. */
+interface ExtraTool {
+  key: string
+  label: string
+  icon?: Component
+  shortcut?: string
+  /** `undefined` for a plain button. */
+  pressed?: boolean
+  disabled: boolean
+  run?: () => void
+  children?: SheetMenuItem[]
+}
+
+/** An item filled in from its command. */
+function extraTool(item: SheetToolbarItem): ExtraTool {
+  const name = item.command
+  const info = name ? sheet.commands.get(name) : undefined
+  if (name && !info)
+    throw new Error(
+      `[@dou-ui/sheet] the toolbar item "${item.key}" runs no command: "${name}" is unknown`,
+    )
+  return {
+    key: item.key,
+    label: item.label ?? info?.label ?? item.key,
+    icon: item.icon ?? info?.icon,
+    shortcut: item.shortcut ?? info?.shortcut,
+    pressed: item.pressed ?? (name && info!.toggle ? sheet.commands.active(name) : undefined),
+    disabled: disabled.value || (item.disabled ?? (name ? !sheet.commands.can(name) : false)),
+    run: item.run ?? (name ? () => void sheet.commands.run(name) : undefined),
+    children: item.children,
+  }
+}
+/** The extensions' items, by key. */
+const extensionItems = computed(() => {
+  const map = new Map<string, SheetToolbarItem>()
+  for (const item of sheet.toolbarItems.value) map.set(item.key, item)
+  return map
+})
+
 /** The tools to show, without separators at either end or two in a row. */
 const tools = computed(() => {
-  const out: SheetToolbarTool[] = []
-  for (const tool of props.tools ?? DEFAULT_TOOLS)
+  const list = props.tools ?? [...DEFAULT_TOOLS, '|', ...extensionItems.value.keys()]
+  const out: string[] = []
+  for (const tool of list)
     if (tool !== '|' || (out.length && out[out.length - 1] !== '|')) out.push(tool)
   if (out[out.length - 1] === '|') out.pop()
   return out
 })
+
+/** The tools that aren't built in, by name. */
+const extras = computed(() => {
+  const map = new Map<string, ExtraTool>()
+  for (const tool of tools.value) {
+    if (tool === '|' || BUILT_IN.has(tool)) continue
+    const item = extensionItems.value.get(tool)
+    if (item) map.set(tool, extraTool(item))
+    else if (sheet.commands.has(tool)) map.set(tool, extraTool({ key: tool, command: tool }))
+    else
+      throw new Error(
+        `[@dou-ui/sheet] the toolbar has no tool "${tool}": it is no built-in tool, item of an extension or command`,
+      )
+  }
+  return map
+})
+
+/** Runs a command from a tool, then gives the keys back to the grid after a press. */
+function run(name: string, arg?: unknown) {
+  sheet.commands.run(name, arg)
+  done()
+}
+const can = (name: string) => sheet.commands.can(name)
+const on = (name: string) => sheet.commands.active(name)
+
+function runExtra(item: ExtraTool) {
+  item.run?.()
+  done()
+}
+function runChild(child: SheetMenuItem) {
+  const name = child.command
+  if (child.run) child.run()
+  else if (name) sheet.commands.run(name)
+  done()
+}
+const childLabel = (child: SheetMenuItem) =>
+  child.label ??
+  (child.command ? (sheet.commands.get(child.command)?.label ?? child.key) : child.key)
+const childIcon = (child: SheetMenuItem) =>
+  child.icon ?? (child.command ? sheet.commands.get(child.command)?.icon : undefined)
+const childDisabled = (child: SheetMenuItem) =>
+  child.disabled ?? (child.command ? !sheet.commands.can(child.command) : false)
 
 const disabled = computed(() => sheet.readonly.value)
 const style = computed<SheetStyle>(() => sheet.styleAt(active.value))
@@ -151,8 +237,8 @@ function done() {
   if (pointer) void nextTick(() => sheet.focus())
 }
 
-const menuOpen = ref<SheetToolbarTool | null>(null)
-function onMenu(tool: SheetToolbarTool, open: boolean) {
+const menuOpen = ref<string | null>(null)
+function onMenu(tool: string, open: boolean) {
   if (open) menuOpen.value = tool
   else if (menuOpen.value === tool) {
     menuOpen.value = null
@@ -169,12 +255,7 @@ const STYLE: Record<StyleToggle, { icon: Component; key: string }> = {
   underline: { icon: UnderlineIcon, key: 'mod+u' },
   strike: { icon: StrikethroughIcon, key: 'mod+shift+x' },
 }
-const isStyleTool = (tool: SheetToolbarTool): tool is StyleToggle => tool in STYLE
-
-function toggle(name: StyleToggle, on: boolean) {
-  sheet.styleSelection({ [name]: on || undefined })
-  done()
-}
+const isStyleTool = (tool: string): tool is StyleToggle => tool in STYLE
 
 // Number formats --------------------------------------------------------------------------
 
@@ -212,11 +293,6 @@ const exampleOf = (option: SheetFormatOption) =>
 
 function setFormat(option: SheetFormatOption) {
   sheet.formatSelection(option.format)
-  done()
-}
-
-function decimals(by: number) {
-  sheet.formatSelection((old, value) => changeDecimals(old, value, by))
   done()
 }
 
@@ -290,18 +366,12 @@ const VALIGN = [
 ] as const
 
 // what the cell does without a style: numbers right, text left, and the middle
-const align = computed(() => style.value.align ?? alignOf(sheet.value(active.value)))
-const valign = computed(() => style.value.valign ?? 'middle')
+const align = computed(() => ALIGN.find((a) => on(`align.${a.value}`))?.value ?? null)
+const valign = computed(() => VALIGN.find((v) => on(`valign.${v.value}`))?.value ?? 'middle')
 const valignIcon = computed(() => VALIGN.find((v) => v.value === valign.value)!.icon)
 
 function setAlign(value: ToggleValue | ToggleValue[] | null) {
-  if (typeof value !== 'string') return
-  sheet.styleSelection({ align: value as SheetStyle['align'] })
-  done()
-}
-function setValign(value: SheetStyle['valign']) {
-  sheet.styleSelection({ valign: value === 'middle' ? undefined : value })
-  done()
+  if (typeof value === 'string') run(`align.${value}`)
 }
 
 // Conditional formats ---------------------------------------------------------------------
@@ -449,12 +519,6 @@ function addBar(tone: Tone) {
 
 // Merge and freeze ------------------------------------------------------------------------
 
-function toggleMerge() {
-  if (sheet.merged.value) sheet.unmerge()
-  else sheet.merge()
-  done()
-}
-
 const freeze = computed(() => sheet.sheet.value.freeze ?? {})
 function setFreeze(rows: number, cols: number) {
   sheet.transact(
@@ -490,11 +554,6 @@ const freezeItems = computed(() => {
   return items
 })
 const frozen = computed(() => !!(freeze.value.rows || freeze.value.cols))
-
-function clear() {
-  if (sheet.clearFormatting()) sheet.announce(m.value.formattingCleared)
-  done()
-}
 
 // Too narrow for every tool: one row that scrolls sideways, faded at the side with more
 
@@ -547,8 +606,8 @@ onBeforeUnmount(() => observer?.disconnect())
             <DouButton
               variant="ghost"
               :aria-label="m[tool]"
-              :disabled="disabled || !(tool === 'undo' ? sheet.canUndo.value : sheet.canRedo.value)"
-              @click="(tool === 'undo' ? sheet.undo() : sheet.redo(), done())"
+              :disabled="!can(tool)"
+              @click="run(tool)"
             >
               <UndoIcon v-if="tool === 'undo'" />
               <RedoIcon v-else />
@@ -599,8 +658,8 @@ onBeforeUnmount(() => observer?.disconnect())
             <DouButton
               variant="ghost"
               :aria-label="by < 0 ? m.fewerDecimals : m.moreDecimals"
-              :disabled="disabled"
-              @click="decimals(by)"
+              :disabled="!can(by < 0 ? 'decimals.fewer' : 'decimals.more')"
+              @click="run(by < 0 ? 'decimals.fewer' : 'decimals.more')"
             >
               <DecimalDecreaseIcon v-if="by < 0" />
               <DecimalIncreaseIcon v-else />
@@ -615,10 +674,10 @@ onBeforeUnmount(() => observer?.disconnect())
           placement="bottom"
         >
           <DouToggle
-            :pressed="!!style[tool]"
+            :pressed="on(tool)"
             :aria-label="m[tool]"
-            :disabled="disabled"
-            @update:pressed="toggle(tool, $event)"
+            :disabled="!can(tool)"
+            @update:pressed="run(tool, $event)"
           >
             <component :is="STYLE[tool].icon" />
           </DouToggle>
@@ -746,7 +805,8 @@ onBeforeUnmount(() => observer?.disconnect())
                     v-for="v in VALIGN"
                     :key="v.value"
                     :value="v.value"
-                    @click="setValign(v.value)"
+                    :disabled="!can(`valign.${v.value}`)"
+                    @click="run(`valign.${v.value}`)"
                   >
                     <template #prefix><component :is="v.icon" /></template>
                     {{ m[v.label] }}
@@ -759,10 +819,10 @@ onBeforeUnmount(() => observer?.disconnect())
 
         <DouTooltip v-else-if="tool === 'wrap'" :content="m.wrap" placement="bottom">
           <DouToggle
-            :pressed="!!style.wrap"
+            :pressed="on('wrap')"
             :aria-label="m.wrap"
-            :disabled="disabled"
-            @update:pressed="(sheet.styleSelection({ wrap: $event || undefined }), done())"
+            :disabled="!can('wrap')"
+            @update:pressed="run('wrap', $event)"
           >
             <WrapTextIcon />
           </DouToggle>
@@ -770,14 +830,14 @@ onBeforeUnmount(() => observer?.disconnect())
 
         <DouTooltip
           v-else-if="tool === 'merge'"
-          :content="sheet.merged.value ? m.unmergeCells : m.mergeCells"
+          :content="sheet.commands.get('merge')?.label"
           placement="bottom"
         >
           <DouToggle
-            :pressed="sheet.merged.value"
+            :pressed="on('merge')"
             :aria-label="m.mergeCells"
-            :disabled="disabled || (!sheet.merged.value && !sheet.canMerge.value)"
-            @update:pressed="toggleMerge"
+            :disabled="!can('merge')"
+            @update:pressed="run('merge')"
           >
             <CellsMergeIcon />
           </DouToggle>
@@ -844,11 +904,11 @@ onBeforeUnmount(() => observer?.disconnect())
                 <template #trailing><ChevronDownIcon /></template>
               </DouButton>
               <template #menu>
-                <DouDropdownItem @click="sheet.sort('asc')">
+                <DouDropdownItem :disabled="!can('sort.asc')" @click="run('sort.asc')">
                   <template #prefix><SortAscendingIcon /></template>
                   {{ m.filter.sortAsc }}
                 </DouDropdownItem>
-                <DouDropdownItem @click="sheet.sort('desc')">
+                <DouDropdownItem :disabled="!can('sort.desc')" @click="run('sort.desc')">
                   <template #prefix><SortDescendingIcon /></template>
                   {{ m.filter.sortDesc }}
                 </DouDropdownItem>
@@ -859,14 +919,14 @@ onBeforeUnmount(() => observer?.disconnect())
 
         <DouTooltip
           v-else-if="tool === 'filter'"
-          :content="sheet.filtered.value ? m.filter.turnOff : m.filter.turnOn"
+          :content="sheet.commands.get('filter')?.label"
           placement="bottom"
         >
           <DouToggle
-            :pressed="sheet.filtered.value"
+            :pressed="on('filter')"
             :aria-label="m.filter.turnOn"
-            :disabled="disabled"
-            @update:pressed="(sheet.toggleFilter(), done())"
+            :disabled="!can('filter')"
+            @update:pressed="run('filter')"
           >
             <FilterIcon />
           </DouToggle>
@@ -969,12 +1029,110 @@ onBeforeUnmount(() => observer?.disconnect())
           <DouButton
             variant="ghost"
             :aria-label="m.clearFormatting"
-            :disabled="disabled"
-            @click="clear"
+            :disabled="!can('clear')"
+            @click="run('clear')"
           >
             <TypeXIcon />
           </DouButton>
         </DouTooltip>
+
+        <template v-else-if="extras.get(tool)?.children">
+          <template v-for="item in [extras.get(tool)!]" :key="item.key">
+            <DouTooltip
+              :content="item.label"
+              :disabled="menuOpen === tool || !item.icon"
+              placement="bottom"
+            >
+              <span class="dou-sheet-toolbar__trigger">
+                <DouDropdown
+                  :open="menuOpen === tool"
+                  placement="bottom-start"
+                  :disabled="item.disabled"
+                  @update:open="onMenu(tool, $event)"
+                >
+                  <DouButton
+                    variant="ghost"
+                    class="dou-sheet-toolbar__menu"
+                    :aria-label="item.label"
+                  >
+                    <component :is="item.icon" v-if="item.icon" />
+                    <span v-else class="dou-sheet-toolbar__text">{{ item.label }}</span>
+                    <template #trailing><ChevronDownIcon /></template>
+                  </DouButton>
+                  <template #menu>
+                    <template v-for="child in item.children" :key="child.key">
+                      <DouDropdownSub
+                        v-if="child.children?.length"
+                        :title="childLabel(child)"
+                        :divided="child.divided"
+                      >
+                        <DouDropdownItem
+                          v-for="grand in child.children"
+                          :key="grand.key"
+                          :disabled="childDisabled(grand)"
+                          :divided="grand.divided"
+                          :tone="grand.tone"
+                          @click="runChild(grand)"
+                        >
+                          <template v-if="childIcon(grand)" #prefix>
+                            <component :is="childIcon(grand)" />
+                          </template>
+                          {{ childLabel(grand) }}
+                        </DouDropdownItem>
+                      </DouDropdownSub>
+                      <DouDropdownItem
+                        v-else
+                        :disabled="childDisabled(child)"
+                        :divided="child.divided"
+                        :tone="child.tone"
+                        @click="runChild(child)"
+                      >
+                        <template v-if="childIcon(child)" #prefix>
+                          <component :is="childIcon(child)" />
+                        </template>
+                        {{ childLabel(child) }}
+                      </DouDropdownItem>
+                    </template>
+                  </template>
+                </DouDropdown>
+              </span>
+            </DouTooltip>
+          </template>
+        </template>
+
+        <template v-else-if="extras.get(tool)">
+          <template v-for="item in [extras.get(tool)!]" :key="item.key">
+            <DouTooltip
+              :content="item.label"
+              :shortcut="item.shortcut"
+              :disabled="!item.icon && !item.shortcut"
+              placement="bottom"
+            >
+              <DouToggle
+                v-if="item.pressed !== undefined"
+                :pressed="item.pressed"
+                :aria-label="item.label"
+                :aria-keyshortcuts="item.shortcut"
+                :disabled="item.disabled"
+                @update:pressed="runExtra(item)"
+              >
+                <component :is="item.icon" v-if="item.icon" />
+                <span v-else class="dou-sheet-toolbar__text">{{ item.label }}</span>
+              </DouToggle>
+              <DouButton
+                v-else
+                variant="ghost"
+                :aria-label="item.label"
+                :aria-keyshortcuts="item.shortcut"
+                :disabled="item.disabled"
+                @click="runExtra(item)"
+              >
+                <component :is="item.icon" v-if="item.icon" />
+                <span v-else class="dou-sheet-toolbar__text">{{ item.label }}</span>
+              </DouButton>
+            </DouTooltip>
+          </template>
+        </template>
       </template>
       <slot name="end" />
     </DouToolbar>

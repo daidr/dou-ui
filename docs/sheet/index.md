@@ -475,11 +475,11 @@ sheet.value.transact((tr) => {
 </DouSheetToolbar>
 ```
 
-可用的名字有 `undo`、`redo`、`format`、`decimals`、`bold`、`italic`、`underline`、`strike`、`color`、`fill`、`align`、`valign`、`wrap`、`merge`、`freeze`、`sort`、`filter`、`conditional`、`validation`、`clear`。`formats` 替换数字格式菜单里的选项，每项是 `{ label, format, example? }`，`example` 是菜单里用这个格式显示的示例值。
+可用的名字有 `undo`、`redo`、`format`、`decimals`、`bold`、`italic`、`underline`、`strike`、`color`、`fill`、`align`、`valign`、`wrap`、`merge`、`freeze`、`sort`、`filter`、`conditional`、`validation`、`clear`。扩展加的按钮写它的 `key`，任何命令写命令名（比如 `'print'`），见[工具栏按钮](./extensions#工具栏按钮)。`formats` 替换数字格式菜单里的选项，每项是 `{ label, format, example? }`，`example` 是菜单里用这个格式显示的示例值。
 
 显示单元格地址和公式的编辑栏是 `DouSheetFormulaBar`，同样放在 `header` 插槽里，可以和工具栏一起用，见[公式](./formulas#编辑栏)。
 
-工具栏只用了 `useSheet()` 提供的方法，自己做工具栏时可以直接调用：`styleAt(cell)` 读取单元格的样式，`styleSelection(patch)` 修改选区的样式，`formatSelection(format)` 设置数字格式，`clearFormatting()`、`merge()`、`unmerge()`，见[扩展](./extensions)。
+工具栏的按钮都通过[命令](./extensions#命令)执行，自己做工具栏时可以用 `commands.run('bold')` 这样调用，也可以直接用 `useSheet()` 提供的方法：`styleAt(cell)` 读取单元格的样式，`styleSelection(patch)` 修改选区的样式，`formatSelection(format)` 设置数字格式，`clearFormatting()`、`merge()`、`unmerge()`，见[扩展](./extensions)。
 
 ### 改样式
 

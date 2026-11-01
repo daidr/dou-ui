@@ -1,8 +1,8 @@
 # 扩展
 
-扩展把单元格类型、快捷键、右键菜单项、浮在表格上的组件和修改钩子打包在一起，用 `extensions` 传给表格，适合把一组相关的定制放在一处，在多个表格之间复用。
+扩展把单元格类型、命令、快捷键、右键菜单项、工具栏按钮、浮在表格上的组件和修改钩子打包在一起，用 `extensions` 传给表格，适合把一组相关的定制放在一处，在多个表格之间复用。
 
-下面的例子用了两个扩展：一个加了“进度”单元格类型，画成进度条，输入 `60` 或 `60%` 都记为 0.6，右键菜单里多一项“标为完成”，作用于选中的所有进度单元格；另一个用 `Ctrl` / `⌘` + `;` 或右键菜单（手机上长按）在当前单元格填入今天的日期。
+下面的例子用了两个扩展：一个加了“进度”单元格类型，画成进度条，输入 `60` 或 `60%` 都记为 0.6，右键菜单里多一项“标为完成”，作用于选中的所有进度单元格；另一个定义了“填入今天”命令，工具栏按钮、右键菜单（手机上长按）和 `Ctrl` / `⌘` + `;` 都运行它。
 
 <DocDemo src="sheet/extension" column />
 
@@ -36,18 +36,20 @@ const extensions = [progress]
 
 ## 扩展的字段
 
-| 名称          | 说明                                                                                                         | 类型                                                  |
-| ------------- | ------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------- |
-| `name`        | 扩展的名字                                                                                                   | `string`                                              |
-| `priority`    | 优先级，越大越先处理按键和钩子，默认 `100`                                                                   | `number`                                              |
-| `cellTypes`   | 单元格类型，见下文；和内置类型同名时替换内置的，多个扩展同名时用优先级高的                                   | `SheetCellType[]`                                     |
-| `functions`   | 公式里可以调用的函数，见[自定义函数](./formulas#自定义函数)；和内置函数同名时替换内置的                      | `SheetFunction[]`                                     |
-| `keymap`      | 表格有焦点、没有在编辑单元格时的快捷键，写法和 `useHotkey` 一样；处理函数返回 `false` 表示没处理，交给下一个 | `(ctx) => Record<string, (event) => boolean \| void>` |
-| `contextMenu` | 右键菜单的项，排在内置项前面；`menu` 属性收到的菜单项里也包括它们                                            | `(ctx, menu: SheetMenuContext) => SheetMenuItem[]`    |
-| `overlays`    | 浮在表格上方的组件，不随表格滚动，可以用 `cellRect` 对准单元格                                               | `Component[]`                                         |
-| `history`     | 替换表格自带的撤销记录，多个扩展都有时用优先级最高的，见下文                                                 | `(ctx) => SheetHistoryHandler`                        |
-| `setup`       | 表格挂载后调用，可以返回一个函数，在卸载时调用                                                               | `(ctx) => void \| (() => void)`                       |
-| `transaction` | 表格里的每次修改和 `transact` 生效前按优先级调用，可以继续往里加步骤；撤销时加上的步骤一起撤销               | `(tr, ctx) => void`                                   |
+| 名称          | 说明                                                                                                                                         | 类型                                                              |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `name`        | 扩展的名字                                                                                                                                   | `string`                                                          |
+| `priority`    | 优先级，越大越先处理按键和钩子，默认 `100`                                                                                                   | `number`                                                          |
+| `cellTypes`   | 单元格类型，见下文；和内置类型同名时替换内置的，多个扩展同名时用优先级高的                                                                   | `SheetCellType[]`                                                 |
+| `functions`   | 公式里可以调用的函数，见[自定义函数](./formulas#自定义函数)；和内置函数同名时替换内置的                                                      | `SheetFunction[]`                                                 |
+| `commands`    | 命令，按名字登记，工具栏按钮、菜单项和快捷键都可以引用，见下文                                                                               | `Record<string, SheetCommand>`                                    |
+| `keymap`      | 表格有焦点、没有在编辑单元格时的快捷键，写法和 `useHotkey` 一样；值是处理函数或命令名。处理函数（或命令）返回 `false` 表示没处理，交给下一个 | `(ctx) => Record<string, ((event) => boolean \| void) \| string>` |
+| `contextMenu` | 右键菜单的项，排在内置项前面；`menu` 属性收到的菜单项里也包括它们                                                                            | `(ctx, menu: SheetMenuContext) => SheetMenuItem[]`                |
+| `toolbar`     | `DouSheetToolbar` 上的按钮，默认排在内置按钮后面，见下文                                                                                     | `(ctx) => SheetToolbarItem[]`                                     |
+| `overlays`    | 浮在表格上方的组件，不随表格滚动，可以用 `cellRect` 对准单元格                                                                               | `Component[]`                                                     |
+| `history`     | 替换表格自带的撤销记录，多个扩展都有时用优先级最高的，见下文                                                                                 | `(ctx) => SheetHistoryHandler`                                    |
+| `setup`       | 表格挂载后调用，可以返回一个函数，在卸载时调用                                                                                               | `(ctx) => void \| (() => void)`                                   |
+| `transaction` | 表格里的每次修改和 `transact` 生效前按优先级调用，可以继续往里加步骤；撤销时加上的步骤一起撤销                                               | `(tr, ctx) => void`                                               |
 
 `ctx` 和组件里 `useSheet()` 拿到的是同一个对象。
 
@@ -104,9 +106,94 @@ const Panel = defineComponent({
 })
 ```
 
+## 命令
+
+命令是表格能做的一件事，有名字、文字和图标。工具栏按钮、右键菜单项和快捷键只要写上命令名，文字、图标、快捷键提示、能不能用、是否按下都从命令里来，同一件事只写一遍：
+
+```ts
+import { defineSheetCommand, defineSheetExtension } from '@dou-ui/sheet'
+
+const today = defineSheetExtension({
+  name: 'today',
+  commands: {
+    'today.insert': defineSheetCommand({
+      label: '填入今天',
+      icon: CalendarIcon,
+      shortcut: 'mod+;',
+      enabled: ({ readonly }) => !readonly.value,
+      run: ({ active, transact }) => {
+        transact((tr) => tr.updateCell(active.value, { value: '2026-11-01' }))
+      },
+    }),
+  },
+  keymap: () => ({ 'mod+;': 'today.insert' }),
+  contextMenu: () => [{ key: 'today', command: 'today.insert' }],
+  toolbar: () => [{ key: 'today', command: 'today.insert' }],
+})
+```
+
+| 名称       | 说明                                                                             | 类型                                        |
+| ---------- | -------------------------------------------------------------------------------- | ------------------------------------------- |
+| `label`    | 名字，显示在菜单和提示里；写成函数时跟着语言变化                                 | `string \| ((messages) => string)`          |
+| `icon`     | 图标                                                                             | `Component`                                 |
+| `shortcut` | 显示在旁边的快捷键，只是提示，按键要在 `keymap` 里绑定                           | `string`                                    |
+| `run`      | 执行命令，`arg` 是调用时传入的参数；返回 `false` 表示没做任何事                  | `(ctx, arg?) => boolean \| void \| Promise` |
+| `enabled`  | 现在能不能执行，不能时按钮和菜单项变灰，默认总是可以                             | `(ctx) => boolean`                          |
+| `active`   | 开关类命令现在是否打开，比如当前单元格是否加粗；有它时工具栏按钮是可以按下的开关 | `(ctx) => boolean`                          |
+| `override` | 替换同名的内置命令；没有它时和内置命令重名会抛出错误，以免无意中替换             | `boolean`                                   |
+
+命令名建议以扩展名开头，比如 `today.insert`。两个扩展登记了同名命令时会抛出错误。
+
+表格自带的功能也是命令，工具栏按钮和快捷键都通过它们执行，所以用 `override` 替换后，按钮和快捷键都会改用你的实现：
+
+| 命令                                            | 作用                                            |
+| ----------------------------------------------- | ----------------------------------------------- |
+| `undo`、`redo`                                  | 撤销、重做                                      |
+| `cut`、`copy`、`paste`                          | 剪切、复制、粘贴                                |
+| `bold`、`italic`、`underline`、`strike`、`wrap` | 切换样式；传 `true` 或 `false` 时直接设为开或关 |
+| `align.left`、`align.center`、`align.right`     | 水平对齐                                        |
+| `valign.top`、`valign.middle`、`valign.bottom`  | 垂直对齐                                        |
+| `decimals.more`、`decimals.fewer`               | 增加、减少小数位数                              |
+| `merge`                                         | 合并选区，选区碰到合并单元格时取消合并          |
+| `sort.asc`、`sort.desc`                         | 按当前列升序、降序排序                          |
+| `filter`                                        | 加上或去掉筛选                                  |
+| `clear`                                         | 清除格式                                        |
+| `print`                                         | 打印当前工作表                                  |
+
+在扩展或组件里用 `useSheet().commands` 执行和查询命令：
+
+```ts
+const { commands } = useSheet()
+
+commands.run('bold', true) // 加粗选区
+commands.can('merge') // 现在能否合并
+commands.active('filter') // 是否有筛选
+commands.get('today.insert') // { name, label, icon, shortcut, toggle }
+```
+
+`run` 在命令不能执行或没做任何事时返回 `false`，异步命令开始执行就返回 `true`。命令名不存在时抛出错误。
+
+## 工具栏按钮
+
+扩展的 `toolbar` 返回 `DouSheetToolbar` 上的按钮。没有指定 `tools` 时，它们作为最后一组排在内置按钮后面；指定了 `tools` 时，在里面写按钮的 `key` 决定位置。`tools` 里也可以直接写任何命令名，比如 `'print'`，会显示成一个按钮。
+
+| 名称       | 说明                                                               | 类型              |
+| ---------- | ------------------------------------------------------------------ | ----------------- |
+| `key`      | 在工具栏里唯一，`tools` 用它指定位置                               | `string`          |
+| `command`  | 运行的命令；文字、图标、快捷键提示和状态都从命令来，下面写了的优先 | `string`          |
+| `label`    | 读屏和提示里的名字；没有图标时直接显示文字                         | `string`          |
+| `icon`     | 图标                                                               | `Component`       |
+| `run`      | 点击时执行，没有 `command` 时需要                                  | `() => void`      |
+| `disabled` | 是否不可用                                                         | `boolean`         |
+| `pressed`  | 开关按钮是否按下；命令有 `active` 时自动跟随                       | `boolean`         |
+| `shortcut` | 提示里显示的快捷键                                                 | `string`          |
+| `children` | 有它时按钮打开一个菜单，菜单项和右键菜单的一样，也可以写 `command` | `SheetMenuItem[]` |
+
+右键菜单项同样可以只写 `{ key, command }`，`label`、`icon`、`shortcut`、`disabled` 和 `run` 不写时从命令来。
+
 ## 快捷键
 
-扩展的快捷键先于表格自己的按键处理，多个扩展按 `priority` 从高到低依次询问。处理函数没有返回 `false` 时，按键就算处理过了，表格会阻止它的默认行为。正在编辑单元格时不会触发。
+扩展的快捷键先于表格自己的按键处理，多个扩展按 `priority` 从高到低依次询问。值可以是处理函数，也可以是命令名。处理函数（或命令）没有返回 `false` 时，按键就算处理过了，表格会阻止它的默认行为；命令不能执行时按键交给下一个。正在编辑单元格时不会触发。
 
 ## useSheet
 
@@ -132,6 +219,8 @@ const Panel = defineComponent({
 | `clearFormatting()`                                     | 去掉选区的样式和数字格式                                                                      |
 | `merged`、`canMerge`、`merge()`、`unmerge()`            | 选区是否碰到合并单元格、能否合并；合并（会提示清空了几格）、取消合并                          |
 | `announce(text)`                                        | 让读屏软件播报一段文字                                                                        |
+| `commands`                                              | 执行和查询命令，见[命令](#命令)                                                               |
+| `toolbarItems`                                          | 扩展加到工具栏上的按钮，按优先级排列；自己做工具栏时用                                        |
 | `editor`                                                | 正在编辑的单元格，供表格外的输入框使用，见下文                                                |
 
 `editor` 让表格外的输入框和单元格一起编辑，`DouSheetFormulaBar` 就是用它做的：

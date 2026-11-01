@@ -1,6 +1,7 @@
 import type { Component } from 'vue'
 import type { SheetContext } from '../context'
-import type { SheetMenuContext, SheetMenuItem } from '../types'
+import type { SheetMenuContext, SheetMenuItem, SheetToolbarItem } from '../types'
+import type { SheetCommand } from './commands'
 import type { SheetFunction } from '../formula/functions'
 import type { SheetCellType } from './cell-type'
 import type { SheetTransaction } from './transaction'
@@ -39,12 +40,24 @@ export interface SheetExtension {
    */
   functions?: SheetFunction[]
   /**
-   * Keys, written as in `useHotkey` (e.g. `mod+b`, `alt+arrowdown`), while the
-   * grid has focus and no cell is being edited. They come before the grid's own.
+   * Commands, by name: things toolbar items, menu items and keys can refer
+   * to. Start the names with the extension's, e.g. `xlsx.export`. A name the
+   * sheet already has replaces that command only with `override: true`.
    */
-  keymap?: (context: SheetExtensionContext) => Record<string, SheetKeyHandler>
+  commands?: Record<string, SheetCommand>
+  /**
+   * Keys, written as in `useHotkey` (e.g. `mod+b`, `alt+arrowdown`), while the
+   * grid has focus and no cell is being edited: a handler, or the name of a
+   * command to run. They come before the grid's own.
+   */
+  keymap?: (context: SheetExtensionContext) => Record<string, SheetKeyHandler | string>
   /** Items for the right-click menu, put before the built-in ones. */
   contextMenu?: (context: SheetExtensionContext, menu: SheetMenuContext) => SheetMenuItem[]
+  /**
+   * Items for `DouSheetToolbar`: after the built-in tools, or where its
+   * `tools` names them by `key`.
+   */
+  toolbar?: (context: SheetExtensionContext) => SheetToolbarItem[]
   /**
    * Components drawn over the grid, not scrolled with it, e.g. a panel or
    * marks placed with `cellRect`. They can call `useSheet()`.
@@ -72,7 +85,9 @@ export interface ResolvedSheetExtensions {
   extensions: SheetExtension[]
   cellTypes: SheetCellType[]
   functions: SheetFunction[]
+  commands: { extension: string; commands: Record<string, SheetCommand> }[]
   keymaps: NonNullable<SheetExtension['keymap']>[]
+  toolbars: NonNullable<SheetExtension['toolbar']>[]
   menus: NonNullable<SheetExtension['contextMenu']>[]
   setups: NonNullable<SheetExtension['setup']>[]
   transactions: NonNullable<SheetExtension['transaction']>[]
@@ -118,7 +133,11 @@ export function resolveSheetExtensions(list: ExtensionList = []): ResolvedSheetE
     // added in reverse, so the highest priority one is added last and wins
     // oxlint-disable-next-line unicorn/no-array-reverse -- reverses a fresh array
     functions: extensions.flatMap((e) => e.functions ?? []).reverse(),
+    commands: extensions.flatMap((e) =>
+      e.commands ? [{ extension: e.name, commands: e.commands }] : [],
+    ),
     keymaps: pick('keymap'),
+    toolbars: pick('toolbar'),
     menus: pick('contextMenu'),
     setups: pick('setup'),
     transactions: pick('transaction'),

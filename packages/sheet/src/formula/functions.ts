@@ -24,6 +24,11 @@ export interface SheetFunctionContext {
   now: Date
   /** The language dates are written in, for `TEXT`. */
   locale?: string
+  /**
+   * Makes the cell whose formula is running a link to `target`, as
+   * `HYPERLINK` does: an address as a cell's `link` takes.
+   */
+  link?: (target: string) => void
 }
 
 interface FunctionBase {
@@ -737,6 +742,18 @@ export const builtinFunctions: SheetFunction[] = [
   ),
 
   // text
+  defineSheetFunction({
+    name: 'HYPERLINK',
+    minArgs: 1,
+    maxArgs: 2,
+    run: ([location, name], context) => {
+      const target = toText(scalarOf(location!))
+      if (isSheetError(target)) return target
+      const shown = name === undefined ? target : scalarOf(name)
+      if (!isSheetError(shown)) context.link?.(target)
+      return shown ?? ''
+    },
+  }),
   defineSheetFunction({
     name: 'CONCAT',
     run: (args) => {

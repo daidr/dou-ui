@@ -11,6 +11,7 @@ export default defineConfig({
       entry: {
         index: 'src/index.ts',
         'collaboration/index': 'src/collaboration/index.ts',
+        'lsp/index': 'src/lsp/index.ts',
         'shiki/index': 'src/shiki/index.ts',
         'worker/index': 'src/worker/index.ts',
       },

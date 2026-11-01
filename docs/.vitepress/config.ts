@@ -520,6 +520,10 @@ export default defineConfig({
           replacement: r('../../packages/code/src/shiki/index.ts'),
         },
         {
+          find: /^@dou-ui\/code\/lsp$/,
+          replacement: r('../../packages/code/src/lsp/index.ts'),
+        },
+        {
           find: /^@dou-ui\/code\/collaboration$/,
           replacement: r('../../packages/code/src/collaboration/index.ts'),
         },

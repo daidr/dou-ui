@@ -72,8 +72,8 @@ describe('comment anchors', () => {
   })
 })
 
-function setup(props: Record<string, unknown> = {}) {
-  const book = ref(plan())
+function setup(props: Record<string, unknown> = {}, start: SheetWorkbook = plan()) {
+  const book = ref(start)
   const threads = ref<CommentThread[]>([thread()])
   const active = ref<string | null>(null)
   const actions: CommentAction[] = []
@@ -192,6 +192,38 @@ describe('DouSheet comments', () => {
     await nextTick()
     expect(cells()[4]![3]).toBe('场地')
     expect(cells()[1]![0]).toEqual({ value: '场地', comment: 't1' })
+    wrapper.unmount()
+  })
+
+  it('keeps threads on a protected sheet, where locked cells can still be commented on', async () => {
+    const start = plan()
+    start.styles = { open: { locked: false } }
+    start.sheets[0]!.protect = true
+    start.sheets[0]!.cells[1]![0] = { value: '场地', comment: 't1', style: 'open' }
+    const { wrapper, grid, key, cells, actions } = setup({}, start)
+    // pasting over an unlocked cell keeps its thread
+    grid.value!.select('B3')
+    await nextTick()
+    const copied = new DataTransfer()
+    const target = wrapper.find('.dou-sheet__main').element
+    target.dispatchEvent(
+      Object.assign(new Event('copy', { bubbles: true }), { clipboardData: copied }),
+    )
+    grid.value!.select('A2')
+    await nextTick()
+    target.dispatchEvent(
+      Object.assign(new Event('paste', { bubbles: true }), { clipboardData: copied }),
+    )
+    await nextTick()
+    expect(cells()[1]![0]).toMatchObject({ value: 12600, comment: 't1' })
+    // a locked cell takes a thread
+    grid.value!.select('B2')
+    await nextTick()
+    await key('m', { ctrlKey: true, altKey: true })
+    await send('合同里写的是不含税')
+    const created = actions.find((action) => action.type === 'create')!
+    const id = created.type === 'create' ? created.thread.id : ''
+    expect(cells()[1]![1]).toEqual({ value: 48000, comment: id })
     wrapper.unmount()
   })
 

@@ -117,7 +117,7 @@ describe('DouSheet versions', () => {
     expect(changed[0]!.attributes('title')).toBe('原来：48000')
     expect(changed[1]!.attributes('title')).toBe('原来为空')
     expect(wrapper.find('.dou-sheet').classes()).toContain('is-comparing')
-    expect(grid.value!.transact((tr) => tr.setValue('A1', '改'))).toBeNull()
+    expect(grid.value!.transact((tr) => tr.setValue('A1', '改')).changed).toBe(false)
 
     expect(grid.value!.nextChange()).toBe(true)
     expect(grid.value!.nextChange()).toBe(true)

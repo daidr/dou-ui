@@ -1,6 +1,9 @@
 import {
+  boundsOf,
   columnName,
+  linkTarget,
   parseCell,
+  parseRange,
   SheetFileError,
   shiftFormula,
   type SheetCell,
@@ -10,6 +13,7 @@ import {
   type SheetFilterRule,
   type SheetImportResult,
   type SheetImportWarning,
+  type SheetProtection,
   type SheetRuleRange,
   type SheetStyle,
   type SheetValidation,
@@ -30,6 +34,7 @@ import {
   childOf,
   childrenOf,
   isNotOff,
+  isOff,
   isOn,
   parseXml,
   XmlReader,
@@ -355,7 +360,7 @@ export async function readXlsx(
     const xml = await readText(rel.path)
     if (xml == null) throw failed('damaged')
     const sheetRels = await relsOf(rel.path)
-    const data = await readSheet(xml, name, {
+    const { data, links, passwords } = await readSheet(xml, name, {
       strings,
       richText,
       looks,
@@ -367,6 +372,8 @@ export async function readXlsx(
       date1904,
       tableRef,
     })
+    warnings.add('hyperlink', name, addLinks(data, links, sheetRels))
+    warnings.add('password', name, passwords)
     // notes, kept in another part
     const comments = await readNode(ofType(sheetRels, 'comments'))
     if (comments) addNotes(data, comments)
@@ -385,6 +392,12 @@ export async function readXlsx(
   if (!sheets.length) sheets.push({ name: 'Sheet1', cells: [] })
   const book: SheetWorkbook = { sheets }
   if (styleNames.size) book.styles = styles
+  const lock = childOf(workbook, 'workbookProtection')
+  if (lock && isOn(lock.attrs.lockStructure)) {
+    book.protect = true
+    const a = lock.attrs
+    if (a.workbookPassword || a.workbookHashValue) warnings.add('password')
+  }
   signal?.throwIfAborted()
   return { book, warnings: warnings.all }
 }
@@ -405,7 +418,11 @@ interface SheetContext {
 }
 
 /** One sheet's part, read a piece at a time. */
-async function readSheet(xml: string, name: string, context: SheetContext): Promise<SheetData> {
+async function readSheet(
+  xml: string,
+  name: string,
+  context: SheetContext,
+): Promise<{ data: SheetData; links: Record<string, string>[]; passwords: number }> {
   const { strings, richText, looks, differentials, styleName, keepFormulas, warnings, pacing } =
     context
   const { date1904, tableRef } = context
@@ -425,7 +442,8 @@ async function readSheet(xml: string, name: string, context: SheetContext): Prom
   let rich = 0
   let external = 0
   let tableFormulas = 0
-  let links = 0
+  const links: Record<string, string>[] = []
+  let passwords = 0
   const dates = new Map<number, string>()
   const times = new Map<number, string>()
   // shared formulas by number: their text and the cell they were written for
@@ -530,7 +548,6 @@ async function readSheet(xml: string, name: string, context: SheetContext): Prom
       }
       switch (tag) {
         case 'extLst':
-        case 'sheetProtection':
           if (!empty) skip = 1
           return
         case 'row': {
@@ -678,8 +695,18 @@ async function readSheet(xml: string, name: string, context: SheetContext): Prom
           if (empty) closeValidation()
           break
         case 'hyperlink':
-          links++
+          links.push(attrsOf(raw))
           break
+        case 'sheetProtection': {
+          const a = attrsOf(raw)
+          if (!isOn(a.sheet)) break
+          // in the file each part says what is kept from people, so `0` allows it
+          const allow: SheetProtection = {}
+          for (const [key, part] of PROTECTION_PARTS) if (isOff(a[key])) allow[part] = true
+          data.protect = Object.keys(allow).length ? allow : true
+          if (a.password || a.hashValue) passwords++
+          break
+        }
       }
     },
     close(tag: string) {
@@ -826,8 +853,57 @@ async function readSheet(xml: string, name: string, context: SheetContext): Prom
   warnings.add('richText', name, rich)
   warnings.add('external', name, external)
   warnings.add('table', name, tableFormulas)
-  warnings.add('hyperlink', name, links)
-  return data
+  return { data, links, passwords }
+}
+
+/** The parts of a sheet's protection in the file, with the names the sheet gives them. */
+const PROTECTION_PARTS: [string, keyof SheetProtection][] = [
+  ['formatCells', 'formatCells'],
+  ['formatColumns', 'formatColumns'],
+  ['formatRows', 'formatRows'],
+  ['insertColumns', 'insertColumns'],
+  ['insertRows', 'insertRows'],
+  ['deleteColumns', 'deleteColumns'],
+  ['deleteRows', 'deleteRows'],
+  ['autoFilter', 'filter'],
+]
+
+/**
+ * Puts a sheet's links on their cells: a web address from the sheet's
+ * relationships, a place in the workbook as `#` and its reference. Gives
+ * how many couldn't be kept, such as links to other files.
+ */
+function addLinks(
+  data: SheetData,
+  links: Record<string, string>[],
+  rels: Map<string, { path: string; external: boolean }>,
+) {
+  let dropped = 0
+  for (const a of links) {
+    const rel = a.id ? rels.get(a.id) : undefined
+    const place = a.location ? `#${a.location}` : ''
+    const link = rel ? (rel.external ? rel.path + place : '') : place
+    const range = a.ref ? parseRange(a.ref) : null
+    if (!range || !link || !linkTarget(link)) {
+      dropped++
+      continue
+    }
+    const b = boundsOf(range)
+    // a link over many cells is each one's; a whole column's stays with its first cells
+    const bottom = Math.min(b.bottom, b.top + 999)
+    for (let r = b.top; r <= bottom; r++)
+      for (let c = b.left; c <= b.right && c <= b.left + 99; c++) {
+        const line = (data.cells[r] ??= [])
+        const cell = line[c]
+        line[c] =
+          cell != null && typeof cell === 'object'
+            ? { ...cell, link }
+            : cell == null || cell === ''
+              ? { link }
+              : { value: cell, link }
+      }
+  }
+  return dropped
 }
 
 /** A cell with only what it has. */

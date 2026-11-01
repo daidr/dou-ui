@@ -19,6 +19,7 @@ export type SheetXlsxWarningCode =
   | 'table'
   | 'macro'
   | 'hyperlink'
+  | 'password'
   | 'hiddenSheet'
   | 'external'
   | 'name'
@@ -36,7 +37,8 @@ const zhCN: SheetXlsxMessages = {
     pivot: '数据透视表',
     table: '表格对象和引用它的公式',
     macro: '宏',
-    hyperlink: '超链接',
+    hyperlink: '指向其他文件的超链接',
+    password: '工作表和工作簿保护的密码',
     hiddenSheet: '隐藏的工作表',
     external: '引用其他文件的公式',
     name: '定义的名称',
@@ -59,7 +61,8 @@ const zhTW: SheetXlsxMessages = {
     pivot: '樞紐分析表',
     table: '表格物件和參照它的公式',
     macro: '巨集',
-    hyperlink: '超連結',
+    hyperlink: '指向其他檔案的超連結',
+    password: '工作表和活頁簿保護的密碼',
     hiddenSheet: '隱藏的工作表',
     external: '參照其他檔案的公式',
     name: '定義的名稱',
@@ -82,7 +85,8 @@ const en: SheetXlsxMessages = {
     pivot: 'Pivot tables',
     table: 'Tables and formulas that refer to them',
     macro: 'Macros',
-    hyperlink: 'Hyperlinks',
+    hyperlink: 'Hyperlinks to other files',
+    password: 'Passwords of sheet and workbook protection',
     hiddenSheet: 'Hidden sheets',
     external: 'Formulas that refer to other files',
     name: 'Defined names',

@@ -22,6 +22,7 @@ import type { SheetSelection } from '../core/selection'
 import {
   sheetKey,
   type SheetAxisName,
+  type SheetBookPatch,
   type SheetPatch,
   type SheetTransaction,
 } from '../core/transaction'
@@ -35,6 +36,7 @@ import {
   cellOfKey,
   fillBook,
   increasingRun,
+  isBookKey,
   isMetaKey,
   layoutSheet,
   makeIds,
@@ -437,6 +439,8 @@ export function collaboration(options: CollaborationOptions): SheetExtension {
     const fresh = new Set<string>()
     const styles = new Set<string>()
     const types = new Set<string>()
+    /** The workbook's own settings that changed, such as `protect`. */
+    const bookKeys = new Set<string>()
 
     // follow the lines through the steps, so each cell is known by the ids it had when written
     for (const step of tr.steps) {
@@ -446,6 +450,8 @@ export function collaboration(options: CollaborationOptions): SheetExtension {
         sheetsChanged = true
         if (step.data.id != null) fresh.add(step.data.id)
       } else if (step.type === 'removeSheet' || step.type === 'moveSheet') sheetsChanged = true
+      else if (step.type === 'updateBook')
+        for (const key of Object.keys(step.patch)) bookKeys.add(key)
       else {
         const here = fresh.has(step.sheet) ? undefined : layout.sheets.get(step.sheet)
         if (!here) continue
@@ -602,6 +608,12 @@ export function collaboration(options: CollaborationOptions): SheetExtension {
 
     writeNamed(styles, shared.styles, tr.doc.styles)
     writeNamed(types, shared.types, tr.doc.types)
+    for (const key of bookKeys) {
+      if (!isBookKey(key)) continue
+      const value = (tr.doc as unknown as Json)[key]
+      if (value === undefined) book.delete(key)
+      else if (!same(book.get(key), value)) book.set(key, value)
+    }
   }
 
   // Applying the shared workbook to the grid ---------------------------------------------
@@ -715,6 +727,17 @@ export function collaboration(options: CollaborationOptions): SheetExtension {
     for (const name of typeNames) {
       const value = shared.types.get(name) as SheetTypeSetup | undefined
       if (!same(tr.doc.types?.[name], value)) tr.setType(name, value)
+    }
+    if (dirty.all) {
+      // the workbook's own settings, such as `protect`
+      const patch: Json = {}
+      const keys = new Set([...Object.keys(tr.doc), ...book.keys()])
+      for (const key of keys) {
+        if (!isBookKey(key)) continue
+        const value = book.get(key)
+        if (!same((tr.doc as unknown as Json)[key], value)) patch[key] = value
+      }
+      if (Object.keys(patch).length) tr.updateBook(patch as SheetBookPatch)
     }
   }
 

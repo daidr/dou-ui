@@ -5,6 +5,8 @@ export const DouCalendarView = withInstall(CalendarView)
 export default DouCalendarView
 
 export type * from './calendar-view'
+export { expandRepeats, occurrenceOf } from './repeat'
+export type { CalendarRepeat, RepeatingEvent } from './repeat'
 export type CalendarViewInstance = InstanceType<typeof CalendarView>
 
 declare module 'vue' {

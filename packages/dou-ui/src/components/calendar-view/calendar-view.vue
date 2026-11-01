@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { ContextMenuItem } from '../context-menu/context-menu'
 import { ChevronLeftIcon, ChevronRightIcon, TrashIcon } from '@dou-ui/icons'
 import {
   computed,
@@ -16,15 +17,20 @@ import { holdPointer } from '../../utils/pointer'
 import type { PointerHold } from '../../utils/pointer'
 import { useLocale } from '../config-provider/use-config'
 import { DouContextMenu } from '../context-menu'
-import { addDays, addMonths, parts, today, toDateString, weekday } from '../date-picker/date'
-import { DouDropdownItem } from '../dropdown'
-import { DouIcon } from '../icon'
+import {
+  addDays,
+  addMonths,
+  daysInMonth,
+  parts,
+  today,
+  toDateString,
+  weekday,
+} from '../date-picker/date'
 import { DouSegmentedControl } from '../segmented-control'
 import type {
   CalendarChange,
   CalendarDay,
   CalendarEvent,
-  CalendarMenuItem,
   CalendarMenuTarget,
   CalendarMove,
   CalendarRange,
@@ -255,6 +261,24 @@ const weekDays = computed<CalendarDay[]>(() => {
   return Array.from({ length: 7 }, (_, index) => dayOf(addDays(start, index)))
 })
 
+/** The agenda: the days of the month shown that have events, each with its events. */
+const agenda = computed(() => {
+  if (view.value !== 'agenda') return []
+  const first = `${shown.value}-01`
+  const { year, month: m } = parts(first)
+  return Array.from({ length: daysInMonth(year, m) }, (_, index) =>
+    dayOf(addDays(first, index)),
+  ).filter((day) => day.events.length)
+})
+
+/** When an event takes place on one day of the agenda. */
+function agendaTime(event: CalendarEvent, date: string) {
+  const span = spans.value.get(event)!
+  if (span.start === null) return t('calendarView.allDay')
+  const { start, end } = segmentOn(span, date)
+  return `${timeText(start)}–${timeText(end)}`
+}
+
 const viewOptions = computed(() =>
   (props.views ?? []).map((value) => ({ value, label: t(`calendarView.${value}`) })),
 )
@@ -302,6 +326,8 @@ function choose(day: CalendarDay) {
   model.value = day.date
   emit('select', day.date)
 }
+
+const weekdayOf = (date: string) => formatter({ weekday: 'short' }).format(asDate(date))
 
 function step(direction: 1 | -1) {
   if (view.value === 'week') cursor.value = addDays(cursor.value, direction * 7)
@@ -394,13 +420,13 @@ const tip = computed(() => {
   return d.range ? rangeText({ id: '', title: '', ...d.range }) : ''
 })
 
+/** Where the pointer is, kept apart from the drag so the tip follows it between snaps. */
+const pointer = ref({ x: 0, y: 0 })
 /**
  * Beside the pointer, where it stays in view: on its left once past the
  * middle of the window, and above it for a finger, which would cover it,
  * or near the bottom of the window.
  */
-/** Where the pointer is, kept apart from the drag so the tip follows it between snaps. */
-const pointer = ref({ x: 0, y: 0 })
 const tipStyle = computed(() => {
   const d = drag.value
   if (!d || typeof window === 'undefined') return {}
@@ -758,7 +784,8 @@ async function removeByKey(item: CalendarEvent, chip: HTMLElement) {
   const near = [...siblings.slice(index + 1), ...siblings.slice(0, index).reverse()]
     .map((el) => el.dataset.eventId!)
     .find((id) => id !== item.id)
-  const day = chip.closest<HTMLElement>('[data-date]')?.dataset.date
+  const holder = chip.closest<HTMLElement>('[data-date], [data-agenda-date]')
+  const day = holder?.dataset.date ?? holder?.dataset.agendaDate
   remove(item)
   await nextTick()
   const next =
@@ -772,9 +799,7 @@ async function removeByKey(item: CalendarEvent, chip: HTMLElement) {
 
 const menuRef = useTemplateRef<InstanceType<typeof DouContextMenu>>('menu')
 const menuOpen = ref(false)
-const menuItems = shallowRef<CalendarMenuItem[]>([])
-// shortcuts mean nothing without a keyboard
-const coarse = () => typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches
+const menuItems = shallowRef<ContextMenuItem[]>([])
 
 /**
  * Sends `eventContextmenu` before an event's menu opens; `false` when the
@@ -807,10 +832,6 @@ function showMenu(target: CalendarMenuTarget, x: number, y: number) {
   menuItems.value = items
   menuRef.value?.open(x, y)
   return true
-}
-
-function onMenuSelect(key: unknown) {
-  menuItems.value.find((item) => item.key === key)?.run()
 }
 
 function onContextmenu(event: MouseEvent) {
@@ -965,8 +986,58 @@ defineExpose<CalendarViewExpose>({
         </button>
       </div>
     </div>
+    <div
+      v-if="view === 'agenda'"
+      ref="grid"
+      role="list"
+      :class="ns.e('agenda')"
+      :aria-label="title"
+    >
+      <p v-if="!agenda.length" :class="ns.e('agenda-empty')">{{ t('calendarView.empty') }}</p>
+      <div
+        v-for="day in agenda"
+        :key="day.date"
+        role="listitem"
+        :data-agenda-date="day.date"
+        :class="[ns.e('agenda-day'), ns.is('today', day.today), ns.is('selected', day.selected)]"
+      >
+        <button
+          type="button"
+          :class="ns.e('agenda-date')"
+          :data-date="day.date"
+          :disabled="day.disabled"
+          :aria-label="dayLabel(day)"
+          :aria-current="day.today ? 'date' : undefined"
+          :aria-pressed="day.selected"
+          @click="choose(day)"
+        >
+          <span :class="ns.e('number')">{{ day.day }}</span>
+          <span :class="ns.e('agenda-weekday')">{{ weekdayOf(day.date) }}</span>
+        </button>
+        <div :class="ns.e('agenda-events')">
+          <button
+            v-for="event in day.events"
+            :key="event.id"
+            type="button"
+            :data-event-id="event.id"
+            :class="[
+              ns.e('agenda-event'),
+              `${ns.e('event')}--${event.tone ?? 'primary'}`,
+              ns.is('locked', !!editable && !!event.locked),
+            ]"
+            :aria-keyshortcuts="editable && !event.locked ? keyShortcuts : undefined"
+            @click="emit('eventClick', event)"
+          >
+            <span :class="ns.e('agenda-time')">{{ agendaTime(event, day.date) }}</span>
+            <span :class="ns.e('agenda-title')">
+              <slot name="event" :event="event" :day="day">{{ event.title }}</slot>
+            </span>
+          </button>
+        </div>
+      </div>
+    </div>
     <TimeGrid
-      v-if="view !== 'month'"
+      v-else-if="view !== 'month'"
       :days="weekDays"
       :spans="spans"
       :hours="hours"
@@ -1082,24 +1153,8 @@ defineExpose<CalendarViewExpose>({
       {{ tip }}
     </div>
     <!-- The calendar opens the menu itself; the empty anchor only gives it a place in the page. -->
-    <DouContextMenu ref="menu" v-model:open="menuOpen" @select="onMenuSelect">
+    <DouContextMenu ref="menu" v-model:open="menuOpen" :items="menuItems">
       <span :class="ns.e('menu-anchor')" aria-hidden="true" />
-      <template #menu>
-        <DouDropdownItem
-          v-for="item in menuItems"
-          :key="item.key"
-          :value="item.key"
-          :disabled="item.disabled"
-          :tone="item.tone"
-          :divided="item.divided"
-          :shortcut="coarse() ? undefined : item.shortcut"
-        >
-          <template v-if="item.icon" #prefix>
-            <DouIcon><component :is="item.icon" /></DouIcon>
-          </template>
-          {{ item.label }}
-        </DouDropdownItem>
-      </template>
     </DouContextMenu>
   </div>
 </template>

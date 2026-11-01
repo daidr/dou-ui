@@ -35,7 +35,7 @@ const extensions = [owners, quietDays('2026-11-09', '2026-11-11', '团建')]
 | `keymap`      | 甘特图有焦点时的快捷键，写法和 `useHotkey` 一样；处理函数返回 `false` 表示没处理，交给下一个                               | `(ctx) => Record<string, (event) => boolean \| void>` |
 | `markers`     | 标记线，和 `markers` 属性画在一起；读到的数据变化时重新计算                                                                | `(ctx) => GanttMarker[]`                              |
 | `layers`      | 画在时间轴坐标里的组件，`below` 在依赖线下方，`above` 在任务条上方，跟着时间轴滚动                                         | `{ below?: Component[], above?: Component[] }`        |
-| `contextMenu` | 右键菜单的项，排在内置项前面，`target.kind` 是 `task`、`link` 或 `canvas`，带 `point` 和 `time`，见[右键菜单](./#右键菜单) | `(ctx, target) => GanttMenuItem[]`                    |
+| `contextMenu` | 右键菜单的项，排在内置项前面，`target.kind` 是 `task`、`link` 或 `canvas`，带 `point` 和 `time`，见[右键菜单](./#右键菜单) | `(ctx, target) => ContextMenuItem[]`                  |
 | `overlays`    | 浮在甘特图上方的组件，不随时间轴滚动，比如面板                                                                             | `Component[]`                                         |
 | `setup`       | 甘特图挂载后调用，可以返回一个函数，在卸载时调用                                                                           | `(ctx) => void \| (() => void)`                       |
 | `transaction` | 每次修改生效前按优先级调用，可以继续往里加步骤；撤销和重做也会经过这里                                                     | `(tr, ctx) => void`                                   |

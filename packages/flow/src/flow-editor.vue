@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { ContextMenuItem } from 'dou-ui'
 import {
   fitPixelRatio,
   holdPointer,
@@ -70,7 +71,7 @@ import {
   type FlowPressHandler,
 } from './core/extension'
 import { flowKit } from './kit'
-import type { FlowMenuItem, FlowMenuTarget, FlowToolbarItem } from './core/menu'
+import type { FlowMenuTarget, FlowToolbarItem } from './core/menu'
 import { readClipboard, writeClipboard } from './core/clipboard'
 import {
   createId,
@@ -2261,11 +2262,11 @@ function clientCenter(): Point {
 // Menus and the toolbar ----------------------------------------------------------------
 
 const menu = useTemplateRef<InstanceType<typeof FlowMenu>>('menu')
-const menuItems = shallowRef<FlowMenuItem[]>([])
+const menuItems = shallowRef<ContextMenuItem[]>([])
 
 /** The extensions' items for a target, a separator between each extension's. */
 function itemsFor(target: FlowMenuTarget) {
-  const items: FlowMenuItem[] = []
+  const items: ContextMenuItem[] = []
   for (const fn of resolved.value.menus) {
     const list = fn(context, target)
     // a separator between extensions, never above the first item
@@ -2300,7 +2301,7 @@ function openMenu(target: FlowMenuTarget, client: Point, from?: Element) {
 }
 
 function showMenu(
-  items: FlowMenuItem[],
+  items: ContextMenuItem[],
   client: Point,
   from?: Element,
   options: { focusChecked?: boolean } = {},
@@ -2334,10 +2335,6 @@ function showMenu(
   else menu.value?.open(client.x, client.y, { focusChecked: options.focusChecked })
   menuFrom.value = from ?? null
   return true
-}
-
-function runMenuItem(key: unknown) {
-  menuItems.value.find((item) => item.key === key)?.run()
 }
 
 onMounted(() => {
@@ -3703,7 +3700,7 @@ defineExpose<FlowEditorExpose>({
         :size="size"
       />
     </div>
-    <FlowMenu ref="menu" v-model:open="menuOpen" :items="menuItems" @select="runMenuItem" />
+    <FlowMenu ref="menu" v-model:open="menuOpen" :items="menuItems" />
     <FlowQuickAdd :state="quickAdd" @choose="chooseQuickAdd">
       <template v-if="$slots.quickAdd" #default="scope">
         <slot name="quickAdd" v-bind="scope" />

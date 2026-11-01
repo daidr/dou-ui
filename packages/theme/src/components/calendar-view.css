@@ -271,6 +271,154 @@
   }
 
   /*
+   * Agenda: the month's busy days as a list, the date on the left and the
+   * day's events beside it, each led by a short bar in its tone.
+   */
+  .dou-calendar-view__agenda {
+    overflow: hidden;
+    border: 1px solid var(--dou-calendar-view-line);
+    border-radius: var(--dou-radius-container);
+    background-color: var(--dou-color-bg-surface);
+  }
+
+  .dou-calendar-view__agenda-empty {
+    margin: 0;
+    padding: 32px 16px;
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+    text-align: center;
+  }
+
+  .dou-calendar-view__agenda-day {
+    display: grid;
+    grid-template-columns: 72px minmax(0, 1fr);
+    align-items: start;
+
+    & + & {
+      border-top: 1px solid var(--dou-calendar-view-line);
+    }
+
+    &.is-selected {
+      background-color: color-mix(in oklab, var(--dou-color-text) 4%, transparent);
+    }
+  }
+
+  .dou-calendar-view__agenda-date {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 10px 4px;
+    margin: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+
+    &:focus-visible {
+      outline: none;
+      box-shadow: inset 0 0 0 2px var(--dou-color-focus);
+    }
+
+    &:disabled {
+      color: var(--dou-color-text-disabled);
+      cursor: not-allowed;
+    }
+
+    & .dou-calendar-view__number {
+      align-self: center;
+      font-size: var(--dou-font-size-md);
+    }
+  }
+
+  .dou-calendar-view__agenda-day.is-today .dou-calendar-view__number {
+    background-color: var(--dou-color-neutral);
+    color: var(--dou-color-neutral-on);
+    font-weight: var(--dou-font-weight-medium);
+  }
+
+  .dou-calendar-view__agenda-weekday {
+    color: var(--dou-color-text-tertiary);
+    font-size: 12px;
+  }
+
+  .dou-calendar-view__agenda-events {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px 8px 6px 0;
+  }
+
+  .dou-calendar-view__agenda-event {
+    display: grid;
+    grid-template-columns: 112px minmax(0, 1fr);
+    align-items: center;
+    gap: 12px;
+    box-sizing: border-box;
+    min-height: 32px;
+    padding: 4px 8px 4px 12px;
+    margin: 0;
+    border: 0;
+    border-radius: var(--dou-radius-control);
+    background: none;
+    color: inherit;
+    font: inherit;
+    font-size: var(--dou-font-size-sm);
+    text-align: start;
+    cursor: pointer;
+    position: relative;
+    transition: background-color var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    /* the tone, as a short bar before the time */
+    &::before {
+      position: absolute;
+      top: 8px;
+      bottom: 8px;
+      left: 2px;
+      width: 2px;
+      border-radius: 1px;
+      background-color: var(--dou-calendar-view-tone, var(--dou-color-primary));
+      content: '';
+    }
+
+    &:hover {
+      background-color: color-mix(
+        in oklab,
+        var(--dou-calendar-view-tone, var(--dou-color-primary)) 8%,
+        transparent
+      );
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-focus);
+      outline-offset: -2px;
+    }
+  }
+
+  .dou-calendar-view__agenda-time {
+    color: var(--dou-color-text-secondary);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .dou-calendar-view__agenda-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  @media (max-width: 480px) {
+    .dou-calendar-view__agenda-day {
+      grid-template-columns: 52px minmax(0, 1fr);
+    }
+    .dou-calendar-view__agenda-event {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 0;
+    }
+  }
+
+  /*
    * Week and day views: day columns along a vertical time axis. Hour lines
    * are drawn as a background, so the columns stay empty boxes that a
    * click can read a time from.

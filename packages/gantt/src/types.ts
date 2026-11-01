@@ -1,3 +1,4 @@
+import type { ContextMenuItem } from 'dou-ui'
 import type { GanttBaselineItem } from './core/baseline'
 import type { GanttCalendar } from './core/calendar'
 import type { GanttCSVImportOptions, GanttCSVResult } from './core/csv'
@@ -8,7 +9,7 @@ import type { GanttSchedule } from './core/schedule'
 import type { GanttScale } from './core/scale'
 import type { GanttDocument, GanttTransaction, GanttTransactionMeta } from './core/transaction'
 import type { GanttRow } from './core/tree'
-import type { GanttMenuItem, GanttMenuTarget } from './core/menu'
+import type { GanttMenuTarget } from './core/menu'
 import type { GanttMessagesOverride } from './locale'
 
 /** A column of the task table; written like a column of `DouTable`. */
@@ -120,7 +121,7 @@ export interface GanttProps {
    * Your own context menu items, shown first; the extensions' and the
    * built-in ones follow. Return none to add nothing.
    */
-  contextMenu?: (target: GanttMenuTarget) => GanttMenuItem[]
+  contextMenu?: (target: GanttMenuTarget) => ContextMenuItem[]
   /** Highlight the critical path: the tasks with no slack, and the links that drive them. */
   critical?: boolean
   /** Show the plan without changing it: no dragging, no new links, no undo keys. */

@@ -1,6 +1,7 @@
+import type { ContextMenuItem } from 'dou-ui'
 import { RotateCwIcon } from '@dou-ui/icons'
 import { watch, type Ref } from 'vue'
-import type { FlowMenuItem } from '../core/menu'
+
 import type { FlowEditorContext } from '../context'
 import { defineFlowExtension, type FlowExtension } from '../core/extension'
 import { createId, type FlowData, type FlowNode, type Point, type Rect } from '../core/model'
@@ -301,7 +302,7 @@ export function whiteboardKit(options: WhiteboardKitOptions = {}): FlowExtension
     contextMenu(ctx, target) {
       if (target.kind !== 'node' || ctx.readonly.value) return []
       const t = ctx.messages.value.board
-      const items: FlowMenuItem[] = []
+      const items: ContextMenuItem[] = []
       const node = target.node
       if (BOARD_TYPES.has(node.type ?? '') && ctx.selection.value.nodes.length <= 1) {
         const rotation = (node.data?.rotation as number | undefined) ?? 0

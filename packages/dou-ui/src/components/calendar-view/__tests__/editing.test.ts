@@ -262,4 +262,25 @@ describe('DouCalendarView editing', () => {
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('v-model:events'))
     warn.mockRestore()
   })
+
+  it('lists the month by day in the agenda, and edits from there too', async () => {
+    const onEventClick = vi.fn<(event: CalendarEvent) => void>()
+    const w = make({ view: 'agenda', onEventClick })
+    const days = w.findAll('.dou-calendar-view__agenda-day')
+    expect(days.map((day) => day.attributes('data-agenda-date'))).toEqual([
+      '2026-10-26',
+      '2026-10-27',
+      '2026-10-28',
+    ])
+    expect(days[1]!.findAll('.dou-calendar-view__agenda-event').map((el) => el.text())).toEqual([
+      '全天出差',
+      '14:00–15:00大会',
+    ])
+    await chip(w, 'a').trigger('click')
+    expect(onEventClick).toHaveBeenCalledWith(EVENTS[0])
+    await chip(w, 'a').trigger('keydown', { key: 'ArrowRight', altKey: true })
+    expect(events(w)[0]).toMatchObject({ start: '2026-10-29 09:00' })
+    await w.setProps({ events: [] })
+    expect(w.get('.dou-calendar-view__agenda-empty').text()).toBe('这个月没有日程')
+  })
 })

@@ -65,7 +65,7 @@ app.use(DouGantt)
 ```
 
 ```ts
-const contextMenu = (target: GanttMenuTarget): GanttMenuItem[] =>
+const contextMenu = (target: GanttMenuTarget): ContextMenuItem[] =>
   target.kind === 'task'
     ? [{ key: 'details', label: '查看详情', icon: FileTextIcon, run: () => open(target.task.id) }]
     : []

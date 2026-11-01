@@ -200,29 +200,19 @@ moveLayer(ctx, 'front') // 'front' | 'forward' | 'backward' | 'back'
 | `description` | 补充说明，搜索时也会匹配 | `string`    |
 | `keywords`    | 其他能搜到它的词         | `string[]`  |
 
-### FlowMenuItem
+### 菜单项
 
-| 名称       | 说明                                                                              | 类型                    |
-| ---------- | --------------------------------------------------------------------------------- | ----------------------- |
-| `key`      | 菜单里唯一                                                                        | `string`                |
-| `label`    | 文字                                                                              | `string`                |
-| `icon`     | 图标                                                                              | `Component`             |
-| `shortcut` | 显示在右侧的快捷键，写法和 `useHotkey` 一样；只用于显示，按键要在 `keymap` 里绑定 | `string`                |
-| `disabled` | 禁用                                                                              | `boolean`               |
-| `tone`     | `'danger'` 表示危险操作                                                           | `'neutral' \| 'danger'` |
-| `divided`  | 上方画一条分隔线                                                                  | `boolean`               |
-| `checked`  | 显示勾选标记，比如当前选中的选项；每一项都写了时菜单是单选                        | `boolean`               |
-| `run`      | 选中时调用                                                                        | `() => void`            |
+菜单项是 dou-ui 导出的 `ContextMenuItem`，字段见 [ContextMenu 的菜单项](/components/context-menu#用数据写菜单项)。`shortcut` 只用于显示，按键要在 `keymap` 里绑定。
 
 ### FlowToolbarItem
 
-| 名称       | 说明                                                                                            | 类型             |
-| ---------- | ----------------------------------------------------------------------------------------------- | ---------------- |
-| `key`      | 工具栏里唯一                                                                                    | `string`         |
-| `label`    | 提示文字，也是读屏器读的名字                                                                    | `string`         |
-| `icon`     | 图标                                                                                            | `Component`      |
-| `run`      | 点击时调用                                                                                      | `() => void`     |
-| `disabled` | 禁用                                                                                            | `boolean`        |
-| `pressed`  | 开关一类的按钮是否打开                                                                          | `boolean`        |
-| `shortcut` | 做同样事情的快捷键，显示在提示里，写法和 `useHotkey` 一样；只用于显示，按键要在 `keymap` 里绑定 | `string`         |
-| `children` | 代替 `run`：点击时在按钮下方弹出这些菜单项。既没有 `run` 也没有菜单项时，开发环境会警告一次     | `FlowMenuItem[]` |
+| 名称       | 说明                                                                                            | 类型                |
+| ---------- | ----------------------------------------------------------------------------------------------- | ------------------- |
+| `key`      | 工具栏里唯一                                                                                    | `string`            |
+| `label`    | 提示文字，也是读屏器读的名字                                                                    | `string`            |
+| `icon`     | 图标                                                                                            | `Component`         |
+| `run`      | 点击时调用                                                                                      | `() => void`        |
+| `disabled` | 禁用                                                                                            | `boolean`           |
+| `pressed`  | 开关一类的按钮是否打开                                                                          | `boolean`           |
+| `shortcut` | 做同样事情的快捷键，显示在提示里，写法和 `useHotkey` 一样；只用于显示，按键要在 `keymap` 里绑定 | `string`            |
+| `children` | 代替 `run`：点击时在按钮下方弹出这些菜单项。既没有 `run` 也没有菜单项时，开发环境会警告一次     | `ContextMenuItem[]` |

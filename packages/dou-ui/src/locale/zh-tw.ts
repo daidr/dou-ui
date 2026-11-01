@@ -365,6 +365,8 @@ export const zhTW: Locale = {
     month: '月',
     week: '週',
     day: '日',
+    agenda: '列表',
+    empty: '這個月沒有行程',
     allDay: '全天',
     prevWeek: '上一週',
     nextWeek: '下一週',

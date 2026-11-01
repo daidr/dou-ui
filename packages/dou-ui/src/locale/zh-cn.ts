@@ -365,6 +365,8 @@ export const zhCN: Locale = {
     month: '月',
     week: '周',
     day: '日',
+    agenda: '列表',
+    empty: '这个月没有日程',
     allDay: '全天',
     prevWeek: '上一周',
     nextWeek: '下一周',

@@ -18,6 +18,39 @@
 
 <DocDemo src="calendar-view/week" column />
 
+## 列表视图
+
+`view` 为 `'agenda'` 时，按天列出当月的日程，没有日程的日子不显示。每项日程前面是时间，全天日程写“全天”，跨天的日程在每一天都列出，时间是当天的那一段。左右翻页按月，点日期选中这一天，点日程触发 `event-click`。设置 `editable` 时，键盘删除、<DouKbd>Alt</DouKbd> + <DouKbd>←</DouKbd> / <DouKbd>→</DouKbd> 改日期和右键菜单同样可用，拖动只在其他视图里。
+
+## 重复日程
+
+组件只显示具体的日程，不理解重复规则。`expandRepeats(events, from, to)` 把带 `repeat` 的日程展开成 `from` 到 `to`（都包含）之间的每一次，没有 `repeat` 的日程原样保留，结果直接传给 `events`：
+
+```ts
+import { expandRepeats } from 'dou-ui'
+
+const events = computed(() => expandRepeats(series.value, '2026-11-01', '2026-11-30'))
+```
+
+`repeat` 的字段：
+
+| 名称       | 说明                                                                 | 类型                                   |
+| ---------- | -------------------------------------------------------------------- | -------------------------------------- |
+| `every`    | 按什么重复                                                           | `'day' \| 'week' \| 'month' \| 'year'` |
+| `interval` | 每隔几个单位，例如 `every: 'week', interval: 2` 是隔周，默认 `1`     | `number`                               |
+| `weekdays` | 按周重复时落在星期几，`0` 是周日；默认是 `start` 那天                | `number[]`                             |
+| `until`    | 最后一次最晚在哪天开始，`YYYY-MM-DD`                                 | `string`                               |
+| `count`    | 最多几次，从第一次算起，被 `except` 去掉的也算在内                   | `number`                               |
+| `except`   | 去掉哪些日子的那一次，`YYYY-MM-DD`，例如节假日，或者单独改过的那一次 | `string[]`                             |
+
+每一次的时间和第一次（日程自己的 `start`、`end`）相同，只是换了日期。按月、按年重复时，没有这一天的月份跳过，不会挪到月底，例如 31 号在小月里没有，2 月 29 日只在闰年有。按周隔周时，从第一次所在的那一周开始数。
+
+展开出的每一次是原日程的副本，去掉了 `repeat`，`id` 写成 `<原 id>@<日期>`，`occurrenceOf(id)` 可以把它读回 `{ id, date }`，不是展开出来的 id 返回 `null`。
+
+展开的结果是算出来的，所以不要用 `v-model:events` 绑定，而是用 `:events` 传入，在 `change` 里自己决定一次修改作用于什么：改整个系列，还是只改这一次（把这天加进 `except`，再另存一项普通日程）。下面的示例是后一种，并且打开时是列表视图：
+
+<DocDemo src="calendar-view/repeat" column />
+
 ## 拖动编辑
 
 设置 `editable` 后可以直接在日历上修改日程，改动通过 `v-model:events` 写回：
@@ -68,7 +101,7 @@ const noOverlap = ({ event, start, end }: CalendarMove, events: CalendarEvent[])
 `context-menu` 返回自己的菜单项，排在内置项前面。参数 `target.kind` 是 `event`（带 `event`）、`day`（月视图或“全天”一行里的日子，带 `date`）或 `time`（时间轴上的空白处，带按 `snap` 向下取整的 `start`）。不设置 `editable` 也可以有自己的菜单项。菜单为空时保留浏览器自己的菜单。`event-contextmenu` 在日程的菜单打开前触发，右键、触屏长按松手和菜单键都会触发；调用 `nativeEvent.preventDefault()` 就不打开。后两种情况没有浏览器的右键事件，`nativeEvent` 是一个代替的 `MouseEvent`，坐标是菜单打开的位置。
 
 ```ts
-const contextMenu = (target: CalendarMenuTarget): CalendarMenuItem[] =>
+const contextMenu = (target: CalendarMenuTarget): ContextMenuItem[] =>
   target.kind === 'event'
     ? [{ key: 'details', label: '查看详情', icon: FileTextIcon, run: () => open(target.event.id) }]
     : []
@@ -136,7 +169,7 @@ toTime('2026-10-28 09:00', 'Asia/Shanghai') // Date.parse('2026-10-28T01:00:00Z'
 | `editable`              | 可以拖动、新建和删除日程，见[拖动编辑](#拖动编辑) | `boolean`                                                            | `false`      |
 | `snap`                  | 时间轴上拖动对齐的分钟数                          | `number`                                                             | `15`         |
 | `canMove`               | 写入前的检查，见[锁定与限制](#锁定与限制)         | `(move: CalendarMove, events: CalendarEvent[]) => boolean \| string` | —            |
-| `contextMenu`           | 自己的菜单项，见[右键菜单](#右键菜单)             | `(target: CalendarMenuTarget) => CalendarMenuItem[]`                 | —            |
+| `contextMenu`           | 自己的菜单项，见[右键菜单](#右键菜单)             | `(target: CalendarMenuTarget) => ContextMenuItem[]`                  | —            |
 | `menu`                  | 设置 `editable` 时在日程菜单里显示“删除日程”      | `boolean`                                                            | `true`       |
 
 `CalendarEvent` 的字段：
@@ -180,18 +213,9 @@ type CalendarMenuTarget =
   | { kind: 'event'; event: CalendarEvent }
   | { kind: 'day'; date: string }
   | { kind: 'time'; start: string }
-
-interface CalendarMenuItem {
-  key: string
-  label: string
-  icon?: Component
-  shortcut?: string // 只用来显示，写法同 useHotkey
-  disabled?: boolean
-  tone?: 'danger'
-  divided?: boolean // 上方画一条分隔线
-  run: () => void
-}
 ```
+
+菜单项 `ContextMenuItem` 的字段见 [ContextMenu 的菜单项](./context-menu#用数据写菜单项)。
 
 ### CalendarView Slots
 
@@ -207,6 +231,13 @@ interface CalendarMenuItem {
 | ------- | -------------- | ------------------------ |
 | `show`  | 翻到某天或某月 | `(date: string) => void` |
 | `focus` | 聚焦当前日子   | `() => void`             |
+
+### 工具函数
+
+| 名称            | 说明                                                                  | 类型                                                                      |
+| --------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `expandRepeats` | 把重复日程展开成 `from` 到 `to` 之间的每一次，见[重复日程](#重复日程) | `(events: RepeatingEvent[], from: string, to: string) => CalendarEvent[]` |
+| `occurrenceOf`  | 读出展开出的 id 属于哪个日程、哪一天                                  | `(id: string) => { id: string; date: string } \| null`                    |
 
 ### 键盘与读屏
 

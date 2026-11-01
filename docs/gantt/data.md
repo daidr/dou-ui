@@ -1,6 +1,16 @@
 # 文档数据
 
-甘特图的数据是两个扁平数组：任务和依赖，分别用 `v-model:tasks` 和 `v-model:links` 绑定。层级用任务的 `parent` 表示，不嵌套，这样增删改都只动一条记录。
+甘特图的数据是一份普通的 JSON，用 `v-model` 绑定，可以直接存储和传输。任务和依赖是两个扁平数组，层级用任务的 `parent` 表示，不嵌套，这样增删改都只动一条记录。
+
+```ts
+interface GanttDocument {
+  version: 1 // 数据格式的版本
+  tasks: GanttTask[]
+  links: GanttLink[]
+}
+```
+
+资源视图 `DouScheduler` 用同一份数据，它只读写 `tasks`，`links` 原样保留。
 
 ## 任务
 
@@ -117,3 +127,16 @@ const columns = [
   },
 ]
 ```
+
+## 检查与迁移
+
+文档里的 `version` 是数据格式的版本，目前是 `1`。保存或打开一份排期之前，可以先检查：
+
+```ts
+import { checkDocument, migrateDocument } from '@dou-ui/gantt'
+
+const plan = migrateDocument(JSON.parse(saved))
+const problems = checkDocument(plan)
+```
+
+`checkDocument` 找出版本不对、任务或依赖缺少 `id` 或 `id` 重复、`parent` 指向不存在的任务或绕成一圈、读不懂的日期和 `lag`，以及有问题的依赖：指向不存在的任务、连到自己、连在汇总任务和它里面的任务之间、两个任务之间重复连接、绕成一圈。每一项带 `code`、`path`（如 `tasks[2].start`）和出问题的 `taskId` 或 `linkId`。`migrateDocument` 补全旧数据或手写数据缺少的部分（`version`、`tasks`、`links`），丢掉不是对象的任务和依赖；遇到比当前更新的版本时报错。

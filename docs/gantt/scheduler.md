@@ -49,7 +49,7 @@ function book(range: SchedulerRange) {
 ```ts
 import { findConflict, type SchedulerMove } from '@dou-ui/gantt/scheduler'
 
-const canMove = (move: SchedulerMove) => !findConflict(tasks.value, move) || '这段时间已有预约'
+const canMove = (move: SchedulerMove) => !findConflict(plan.value.tasks, move) || '这段时间已有预约'
 ```
 
 `findConflict(tasks, place)` 返回同一资源上和 `place` 时间重叠的第一个任务，没有时返回 `undefined`。`place` 的写法和 `SchedulerMove` 相同，`task` 是正在移动的任务，不会和自己冲突；首尾相接不算重叠，没有 `resource` 时不检查。新建预约前也可以用它检查，这时不传 `task`。
@@ -89,27 +89,27 @@ function contextMenu(target: SchedulerMenuTarget): GanttMenuItem[] {
 
 ### Props
 
-| 名称                | 说明                                                     | 类型                                                             | 默认值         |
-| ------------------- | -------------------------------------------------------- | ---------------------------------------------------------------- | -------------- |
-| `v-model:tasks`     | 任务，写法和甘特图相同                                   | `GanttTask[]`                                                    | `[]`           |
-| `v-model:selection` | 选中的任务 id                                            | `string[]`                                                       | `[]`           |
-| `v-model:scale`     | 时间刻度                                                 | `GanttScale`                                                     | 按内容自动缩放 |
-| `resources`         | 资源，按顺序排成行                                       | `SchedulerResource[]`                                            | —              |
-| `calendar`          | 工作日历                                                 | `GanttCalendar`                                                  | —              |
-| `range`             | 固定时间轴的范围                                         | `[string, string]`                                               | —              |
-| `today`             | 显示当前时间线                                           | `boolean`                                                        | `true`         |
-| `week-start`        | 一周的第一天                                             | `0 \| 1`                                                         | 跟随语言       |
-| `markers`           | 标记线                                                   | `GanttMarker[]`                                                  | —              |
-| `table`             | 显示左侧的资源列表                                       | `boolean`                                                        | `true`         |
-| `table-width`       | 资源列表的宽度                                           | `number`                                                         | `200`          |
-| `row-height`        | 只有一道时的行高，每多一道增加 28px                      | `number`                                                         | `36`           |
-| `load`              | 显示负载条                                               | `boolean`                                                        | `true`         |
-| `readonly`          | 只读                                                     | `boolean`                                                        | `false`        |
-| `can-move`          | 移动前的检查，见上文                                     | `(move: SchedulerMove, doc: GanttDocument) => boolean \| string` | —              |
-| `menu`              | 菜单里显示内置的“删除任务”                               | `boolean`                                                        | `true`         |
-| `context-menu`      | 自己的菜单项                                             | `(target: SchedulerMenuTarget) => GanttMenuItem[]`               | —              |
-| `aria-label`        | 读屏名称                                                 | `string`                                                         | `'资源排期'`   |
-| `messages`          | 覆盖文案，如表头 `{ scheduler: { resource: '会议室' } }` | `GanttMessagesOverride`                                          | —              |
+| 名称                | 说明                                                     | 类型                                                             | 默认值                                 |
+| ------------------- | -------------------------------------------------------- | ---------------------------------------------------------------- | -------------------------------------- |
+| `v-model`           | 排期，和甘特图的是同一种数据，只读写其中的 `tasks`       | `GanttDocument`                                                  | `{ version: 1, tasks: [], links: [] }` |
+| `v-model:selection` | 选中的任务 id                                            | `string[]`                                                       | `[]`                                   |
+| `v-model:scale`     | 时间刻度                                                 | `GanttScale`                                                     | 按内容自动缩放                         |
+| `resources`         | 资源，按顺序排成行                                       | `SchedulerResource[]`                                            | —                                      |
+| `calendar`          | 工作日历                                                 | `GanttCalendar`                                                  | —                                      |
+| `range`             | 固定时间轴的范围                                         | `[string, string]`                                               | —                                      |
+| `today`             | 显示当前时间线                                           | `boolean`                                                        | `true`                                 |
+| `weekStart`         | 一周的第一天                                             | `0 \| 1`                                                         | 跟随语言                               |
+| `markers`           | 标记线                                                   | `GanttMarker[]`                                                  | —                                      |
+| `table`             | 显示左侧的资源列表                                       | `boolean`                                                        | `true`                                 |
+| `tableWidth`        | 资源列表的宽度                                           | `number`                                                         | `200`                                  |
+| `rowHeight`         | 只有一道时的行高，每多一道增加 28px                      | `number`                                                         | `36`                                   |
+| `load`              | 显示负载条                                               | `boolean`                                                        | `true`                                 |
+| `readonly`          | 只读                                                     | `boolean`                                                        | `false`                                |
+| `canMove`           | 移动前的检查，见上文                                     | `(move: SchedulerMove, doc: GanttDocument) => boolean \| string` | —                                      |
+| `menu`              | 菜单里显示内置的“删除任务”                               | `boolean`                                                        | `true`                                 |
+| `contextMenu`       | 自己的菜单项                                             | `(target: SchedulerMenuTarget) => GanttMenuItem[]`               | —                                      |
+| `ariaLabel`         | 读屏名称                                                 | `string`                                                         | `'资源排期'`                           |
+| `messages`          | 覆盖文案，如表头 `{ scheduler: { resource: '会议室' } }` | `GanttMessagesOverride`                                          | —                                      |
 
 ```ts
 interface SchedulerResource {

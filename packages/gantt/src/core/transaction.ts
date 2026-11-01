@@ -9,10 +9,15 @@ import { buildTree } from './tree'
  * `transaction` event all work on the same small vocabulary.
  */
 
+/** An empty document, the chart's `v-model` when none is bound. */
+export const emptyGanttDocument = (): GanttDocument => ({ version: 1, tasks: [], links: [] })
+
 type Patch<T> = { [K in keyof T]?: T[K] | undefined }
 
 /** The tasks and links together, as a transaction sees them. */
 export interface GanttDocument {
+  /** The version of the format; see `migrateDocument`. */
+  version: 1
   tasks: GanttTask[]
   links: GanttLink[]
 }
@@ -95,7 +100,7 @@ export class GanttTransaction {
 
   get doc(): GanttDocument {
     if (!this.steps.length) return this.before
-    return { tasks: this.tasks, links: this.links }
+    return { ...this.before, tasks: this.tasks, links: this.links }
   }
 
   /** Whether the change makes any change: it has steps and wasn't cancelled. */

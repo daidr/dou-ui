@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { spanOf, type GanttTask } from '@dou-ui/gantt'
+import { spanOf, type GanttDocument } from '@dou-ui/gantt'
 import {
   DouScheduler,
   type SchedulerMove,
@@ -18,18 +18,22 @@ const resources: SchedulerResource[] = [
 
 const at = (offset: number, time: string) => `${workday(offset)} ${time}`
 
-const tasks = ref<GanttTask[]>([
-  { id: 'm1', title: '周会', resource: 'r302', start: at(0, '09:30'), end: at(0, '10:30') },
-  { id: 'm2', title: '面试', resource: 'r301', start: at(0, '10:00'), end: at(0, '11:00') },
-  { id: 'm3', title: '评审', resource: 'r301', start: at(0, '14:00'), end: at(0, '15:30') },
-  { id: 'm4', title: '培训', resource: 'r501', start: at(0, '13:00'), end: at(0, '17:00') },
-  { id: 'm5', title: '一对一', resource: 'r302', start: at(0, '16:00'), end: at(0, '16:30') },
-])
+const plan = ref<GanttDocument>({
+  version: 1,
+  tasks: [
+    { id: 'm1', title: '周会', resource: 'r302', start: at(0, '09:30'), end: at(0, '10:30') },
+    { id: 'm2', title: '面试', resource: 'r301', start: at(0, '10:00'), end: at(0, '11:00') },
+    { id: 'm3', title: '评审', resource: 'r301', start: at(0, '14:00'), end: at(0, '15:30') },
+    { id: 'm4', title: '培训', resource: 'r501', start: at(0, '13:00'), end: at(0, '17:00') },
+    { id: 'm5', title: '一对一', resource: 'r302', start: at(0, '16:00'), end: at(0, '16:30') },
+  ],
+  links: [],
+})
 
 // 同一间会议室的预约不能重叠
 function taken(range: SchedulerMove | SchedulerRange, except?: string) {
   const own = spanOf({ id: '', title: '', start: range.start, end: range.end })!
-  return tasks.value.some((item) => {
+  return plan.value.tasks.some((item) => {
     if (item.id === except || item.resource !== range.resource) return false
     const span = spanOf(item)
     return !!span && span.start < own.end && own.start < span.end
@@ -53,7 +57,7 @@ function book(range: SchedulerRange) {
 <template>
   <DouScheduler
     ref="scheduler"
-    v-model:tasks="tasks"
+    v-model="plan"
     :resources="resources"
     :calendar="{ hours: ['09:00', '18:00'] }"
     :can-move="canMove"

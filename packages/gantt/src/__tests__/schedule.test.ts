@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import type { GanttLink, GanttTask } from '../core/model'
 import { computeCriticalPath, computeSchedule, findBrokenLinks } from '../core/schedule'
+import type { GanttDocument } from '../core/transaction'
 
 // 2026-03-02 is a Monday
-const doc = (tasks: GanttTask[], links: GanttLink[]) => ({ tasks, links })
+const doc = (tasks: GanttTask[], links: GanttLink[]): GanttDocument => ({
+  version: 1,
+  tasks,
+  links,
+})
 
 describe('schedule', () => {
   it('pushes a follower past the end of what it waits for, keeping its working days', () => {

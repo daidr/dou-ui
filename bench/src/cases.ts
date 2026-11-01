@@ -38,6 +38,7 @@ import {
   DouGantt,
   computeCriticalPath,
   computeSchedule,
+  type GanttDocument,
   type GanttExpose,
   type GanttLink,
   type GanttTask,
@@ -251,16 +252,14 @@ function chartCase(n: number, series: 'line' | 'bar' | 'scatter' = 'line', zoom 
 
 function gantt(n: number, props: Record<string, unknown> = {}) {
   const { tasks, links } = plan(n)
-  const state = { tasks: ref(tasks), links: ref(links) }
+  const state = { doc: ref<GanttDocument>({ version: 1, tasks, links }) }
   const chart = ref<GanttExpose>()
   ;(window as any).gantt = { chart, state }
   return () =>
     h(DouGantt, {
       ref: chart,
-      tasks: state.tasks.value,
-      'onUpdate:tasks': (value: GanttTask[]) => (state.tasks.value = value),
-      links: state.links.value,
-      'onUpdate:links': (value: GanttLink[]) => (state.links.value = value),
+      modelValue: state.doc.value,
+      'onUpdate:modelValue': (value: GanttDocument) => (state.doc.value = value),
       style: 'height: 600px',
       ...props,
     })
@@ -833,7 +832,7 @@ export const cases: Record<string, Case> = {
     render: (n) => gantt(n),
     act: () => {
       const { state } = (window as any).gantt
-      const doc = { tasks: state.tasks.value, links: state.links.value }
+      const doc = state.doc.value
       computeSchedule(
         {
           ...doc,
@@ -849,7 +848,7 @@ export const cases: Record<string, Case> = {
     render: (n) => gantt(n),
     act: () => {
       const { state } = (window as any).gantt
-      computeCriticalPath({ tasks: state.tasks.value, links: state.links.value })
+      computeCriticalPath(state.doc.value)
     },
   },
   // A flow of n nodes in a grid and about 1.6 edges per node, most of it off screen.

@@ -8,8 +8,9 @@ import type { GanttMessages } from './locale'
 
 /** The surrounding Gantt chart, as `useGantt()` and extensions see it. */
 export interface GanttContext {
-  tasks: Ref<GanttTask[]>
-  links: Ref<GanttLink[]>
+  /** The tasks and links as they are now; change them with `transact`. */
+  tasks: ComputedRef<GanttTask[]>
+  links: ComputedRef<GanttLink[]>
   selection: Ref<string[]>
   /** The task the keyboard is on. */
   active: Ref<string | null>

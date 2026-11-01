@@ -3,7 +3,8 @@ import { describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { defineGanttExtension, takeBaseline, useGantt } from '../index'
 import { DouGantt } from '../index'
-import type { GanttExpose, GanttLink, GanttTask } from '../index'
+import type { GanttExpose, GanttTask } from '../index'
+import { bind, planRef } from './plan-ref'
 
 const sample = (): GanttTask[] => [
   { id: 'p', title: '发布' },
@@ -13,8 +14,7 @@ const sample = (): GanttTask[] => [
 ]
 
 function setup(extra: Record<string, unknown> = {}) {
-  const tasks = ref(sample())
-  const links = ref<GanttLink[]>([
+  const { doc, tasks, links } = planRef(sample(), [
     { id: 'l1', from: 'a', to: 'b' },
     { id: 'l2', from: 'b', to: 'm' },
   ])
@@ -23,10 +23,7 @@ function setup(extra: Record<string, unknown> = {}) {
     defineComponent(
       () => () =>
         h(DouGantt, {
-          tasks: tasks.value,
-          'onUpdate:tasks': (value: GanttTask[]) => (tasks.value = value),
-          links: links.value,
-          'onUpdate:links': (value: GanttLink[]) => (links.value = value),
+          ...bind(doc),
           selection: selection.value,
           'onUpdate:selection': (value: string[]) => (selection.value = value),
           ...extra,
@@ -34,7 +31,7 @@ function setup(extra: Record<string, unknown> = {}) {
     ),
     { attachTo: document.body },
   )
-  return { wrapper, tasks, links, selection }
+  return { wrapper, doc, tasks, links, selection }
 }
 
 // happy-dom lays nothing out: the chart sits at 0 and a day is 40px wide
@@ -95,7 +92,7 @@ describe('DouGantt', () => {
     wrapper.unmount()
   })
 
-  it('collapses a summary through v-model:tasks', async () => {
+  it('collapses a summary through v-model', async () => {
     const { wrapper, tasks } = setup()
     await nextTick()
     await wrapper.find('.dou-gantt__toggle').trigger('click')
@@ -544,13 +541,12 @@ describe('extension lifecycle', () => {
   it('sets up once when the list is written inline', async () => {
     let setups = 0
     const watcher = defineGanttExtension({ name: 'watcher', setup: () => void setups++ })
-    const tasks = ref(sample())
+    const { doc, tasks } = planRef(sample())
     mount(
       defineComponent(
         () => () =>
           h(DouGantt, {
-            tasks: tasks.value,
-            'onUpdate:tasks': (value: GanttTask[]) => (tasks.value = value),
+            ...bind(doc),
             // a new list on every render
             extensions: [watcher],
           }),
@@ -567,13 +563,12 @@ describe('extension lifecycle', () => {
 
   it('warns once when the extensions keep being made anew', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    const tasks = ref(sample())
+    const { doc, tasks } = planRef(sample())
     mount(
       defineComponent(
         () => () =>
           h(DouGantt, {
-            tasks: tasks.value,
-            'onUpdate:tasks': (value: GanttTask[]) => (tasks.value = value),
+            ...bind(doc),
             // a new extension on every render, as when made in the template
             extensions: [defineGanttExtension({ name: 'fresh', setup: () => {} })],
           }),

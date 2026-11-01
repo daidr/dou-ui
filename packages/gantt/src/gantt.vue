@@ -64,6 +64,7 @@ import { applyGanttCSV, readGanttCSV, type GanttCSVImportOptions } from './core/
 import { createId, spanOf, writeSpan, type GanttLink, type GanttTask } from './core/model'
 import { computeCriticalPath, computeSchedule, findBrokenLinks } from './core/schedule'
 import {
+  emptyGanttDocument,
   GanttTransaction,
   type GanttDocument,
   type GanttStep,
@@ -109,8 +110,9 @@ const props = withDefaults(defineProps<GanttProps>(), {
   menu: true,
   addRow: true,
 })
-const tasks = defineModel<GanttTask[]>('tasks', { default: () => [] })
-const links = defineModel<GanttLink[]>('links', { default: () => [] })
+const model = defineModel<GanttDocument>({ default: emptyGanttDocument })
+const tasks = computed(() => model.value.tasks)
+const links = computed(() => model.value.links)
 const selection = defineModel<string[]>('selection', { default: () => [] })
 const scale = defineModel<GanttScale>('scale')
 const emit = defineEmits<GanttEmits>()
@@ -157,8 +159,7 @@ const editable = computed(() => !props.readonly)
  * in the same tick (a drag, then undo) build on the latest commit instead.
  */
 let latest: GanttDocument | null = null
-const docOf = (): GanttDocument =>
-  latest ?? { tasks: toRaw(tasks.value), links: toRaw(links.value) }
+const docOf = (): GanttDocument => latest ?? toRaw(model.value)
 
 /** The last transaction committed, for reading out what an extension's undo changed. */
 let lastCommit: GanttTransaction | null = null
@@ -181,8 +182,7 @@ function commit(tr: GanttTransaction) {
   lastCommit = tr
   if (!latest) void nextTick(() => (latest = null))
   latest = tr.doc
-  if (tr.touches('tasks')) tasks.value = tr.doc.tasks
-  if (tr.touches('links')) links.value = tr.doc.links
+  model.value = tr.doc
   if (tr.touches('tasks')) {
     const ids = new Set(tr.doc.tasks.map((task) => task.id))
     const kept = selection.value.filter((id) => ids.has(id))
@@ -287,7 +287,11 @@ const tree = computed(() => buildTree(shown.value))
 const rows = computed(() => tree.value.rows)
 const calendar = computed(() => resolveCalendar(props.calendar))
 const selected = computed(() => new Set(selection.value))
-const shownDoc = computed<GanttDocument>(() => ({ tasks: shown.value, links: linkList.value }))
+const shownDoc = computed<GanttDocument>(() => ({
+  version: 1,
+  tasks: shown.value,
+  links: linkList.value,
+}))
 
 /** While dragging with automatic scheduling: the tasks the drop would push, and where to. */
 /** The tasks a drag is about to change, with the ones it would push, as they would be written. */

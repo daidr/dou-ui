@@ -14,28 +14,30 @@ const scales = [
   { label: '年', value: 'year' },
 ]
 
-const tasks = ref([
-  { id: 'q1', title: '会员体系改版' },
-  { id: 'research', parent: 'q1', title: '用户访谈', start: day(-20), end: day(-6), progress: 1 },
-  { id: 'plan', parent: 'q1', title: '方案与原型', start: day(-5), end: day(12), progress: 0.4 },
-  { id: 'build', parent: 'q1', title: '开发', start: day(13), end: day(48) },
-  { id: 'beta', parent: 'q1', title: '灰度', start: day(49), end: day(62) },
-  { id: 'ga', parent: 'q1', title: '全量', type: 'milestone', start: day(63) },
-])
-const links = ref([
-  { id: 'a', from: 'research', to: 'plan' },
-  { id: 'b', from: 'plan', to: 'build' },
-  { id: 'c', from: 'build', to: 'beta' },
-  { id: 'd', from: 'beta', to: 'ga' },
-])
+const plan = ref({
+  version: 1,
+  tasks: [
+    { id: 'q1', title: '会员体系改版' },
+    { id: 'research', parent: 'q1', title: '用户访谈', start: day(-20), end: day(-6), progress: 1 },
+    { id: 'plan', parent: 'q1', title: '方案与原型', start: day(-5), end: day(12), progress: 0.4 },
+    { id: 'build', parent: 'q1', title: '开发', start: day(13), end: day(48) },
+    { id: 'beta', parent: 'q1', title: '灰度', start: day(49), end: day(62) },
+    { id: 'ga', parent: 'q1', title: '全量', type: 'milestone', start: day(63) },
+  ],
+  links: [
+    { id: 'a', from: 'research', to: 'plan' },
+    { id: 'b', from: 'plan', to: 'build' },
+    { id: 'c', from: 'build', to: 'beta' },
+    { id: 'd', from: 'beta', to: 'ga' },
+  ],
+})
 </script>
 
 <template>
   <div class="demo">
     <DouSegmentedControl v-model="scale" :options="scales" size="sm" />
     <DouGantt
-      v-model:tasks="tasks"
-      v-model:links="links"
+      v-model="plan"
       v-model:scale="scale"
       :columns="[{ key: 'title' }, { key: 'duration', width: 72 }]"
       :table-width="220"

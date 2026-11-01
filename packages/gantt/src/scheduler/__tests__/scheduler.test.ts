@@ -11,6 +11,7 @@ import {
   type SchedulerResource,
 } from '..'
 import type { SchedulerMenuTarget, SchedulerMove, SchedulerRange } from '../types'
+import { bind, planRef } from '../../__tests__/plan-ref'
 
 const resources: SchedulerResource[] = [
   { id: 'dai', title: '戴兜', group: '设计' },
@@ -28,15 +29,14 @@ const sample = (): GanttTask[] => [
 ]
 
 function setup(extra: Record<string, unknown> = {}) {
-  const tasks = ref(sample())
+  const { doc, tasks } = planRef(sample())
   const selection = ref<string[]>([])
   const ranges: SchedulerRange[] = []
   const wrapper = mount(
     defineComponent(
       () => () =>
         h(DouScheduler, {
-          tasks: tasks.value,
-          'onUpdate:tasks': (value: GanttTask[]) => (tasks.value = value),
+          ...bind(doc),
           selection: selection.value,
           'onUpdate:selection': (value: string[]) => (selection.value = value),
           resources,

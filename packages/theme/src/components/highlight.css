@@ -8,9 +8,10 @@
   .dou-highlight__mark {
     padding: 0 1px;
     border-radius: 2px;
-    background-color: light-dark(
-      color-mix(in oklab, var(--dou-color-warning) 24%, transparent),
-      color-mix(in oklab, var(--dou-color-warning) 38%, transparent)
+    background-color: color-mix(
+      in oklab,
+      var(--dou-color-warning) calc(24% + 14% * var(--dou-scheme-dark)),
+      transparent
     );
     color: inherit;
     box-decoration-break: clone;

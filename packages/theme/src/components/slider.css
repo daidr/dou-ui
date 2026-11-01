@@ -285,17 +285,25 @@
     left: 50%;
     padding: 2px 8px;
     border: 1px solid
-      light-dark(
-        var(--dou-color-neutral),
+      color-mix(
+        in oklab,
         color-mix(in oklab, var(--dou-color-text) 6%, var(--dou-color-border-strong))
+          calc(100% * var(--dou-scheme-dark)),
+        var(--dou-color-neutral)
       );
     border-radius: var(--dou-radius-control);
-    background-color: light-dark(
-      var(--dou-color-neutral),
+    background-color: color-mix(
+      in oklab,
       color-mix(in oklab, var(--dou-color-text) 12%, var(--dou-color-bg-surface))
+        calc(100% * var(--dou-scheme-dark)),
+      var(--dou-color-neutral)
     );
     box-shadow: var(--dou-shadow-md);
-    color: light-dark(var(--dou-color-neutral-on), var(--dou-color-text));
+    color: color-mix(
+      in oklab,
+      var(--dou-color-text) calc(100% * var(--dou-scheme-dark)),
+      var(--dou-color-neutral-on)
+    );
     font-size: var(--dou-font-size-sm);
     font-variant-numeric: tabular-nums;
     line-height: 1.5;

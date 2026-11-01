@@ -768,6 +768,32 @@ describe('resize handles', () => {
     expect(layer.find('.dou-whiteboard-node__frame').attributes('style')).toContain('width: 100px')
   })
 
+  it('turns the corner handles about the node, not about the board', async () => {
+    const { root, selection } = setup({
+      nodes: [
+        {
+          id: 'a',
+          type: 'image',
+          x: 200,
+          y: 40,
+          width: 160,
+          height: 90,
+          data: { src: 'x.png', rotation: 30 },
+        },
+      ],
+      edges: [],
+    })
+    await ticks()
+    selection.value = { nodes: ['a'], edges: [] }
+    await ticks()
+    const style = root.find('.dou-whiteboard-node__frame').attributes('style')!
+    // placed by `translate`, which comes before `rotate`: a `transform` would
+    // come after it and turn the offset too, carrying the corners off the node
+    expect(style).toContain('translate: 200px 40px')
+    expect(style).toContain('rotate: 30deg')
+    expect(style).not.toContain('transform')
+  })
+
   it('drops a preview once its node leaves the document', async () => {
     let ctx: FlowEditorContext | undefined
     const grab = defineFlowExtension({

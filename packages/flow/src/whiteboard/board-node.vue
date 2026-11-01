@@ -70,7 +70,9 @@ const cornerHandles = computed(() => resizeHandles.value.filter((h) => h.x && h.
 const frameStyle = computed(() => {
   const rect = ctx.getNodeRect(props.node.id) ?? { ...props.node, width: 0, height: 0 }
   return {
-    transform: `translate(${rect.x}px, ${rect.y}px)`,
+    // `translate`, not `transform`: it applies before `rotate`, so the box
+    // turns about its own centre and its offset is not turned with it
+    translate: `${rect.x}px ${rect.y}px`,
     width: `${rect.width}px`,
     height: `${rect.height}px`,
     rotate: rotation.value ? `${rotation.value}deg` : undefined,

@@ -53,10 +53,11 @@ export interface NodeGraphProps {
   /** Which way edges run: `horizontal` left to right, `vertical` top to bottom. */
   direction?: NodeGraphDirection
   /**
-   * `column` widens nodes to the widest in their rank (a column left to
-   * right, a row top to bottom); a number fixes every node's width.
+   * `rank` widens nodes to the widest in their column, left to right only;
+   * top to bottom every node keeps its own width. A number fixes every
+   * node's width.
    */
-  nodeWidth?: 'column' | 'auto' | number
+  nodeWidth?: 'rank' | 'auto' | number
   /** The widest a node grows to before its label is cut off, in px. */
   maxNodeWidth?: number
   /** Horizontal space between nodes: between ranks left to right, within a rank top to bottom. */

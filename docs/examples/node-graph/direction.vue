@@ -9,10 +9,9 @@ const directions = [
 const nodes = [
   { id: 'pull', label: '拉取代码', status: 'finish' },
   { id: 'install', label: '安装依赖', status: 'finish' },
-  { id: 'lint', label: '代码检查', status: 'finish' },
-  { id: 'test', label: '单元测试', status: 'process', extra: '3 分钟' },
+  { id: 'test', label: '单元测试', status: 'process' },
   { id: 'types', label: '类型检查', status: 'finish' },
-  { id: 'build', label: '构建', status: 'process' },
+  { id: 'build', label: '构建', status: 'process', extra: '3 分钟' },
   { id: 'image', label: '打包镜像' },
   { id: 'sh', label: '部署上海' },
   { id: 'bj', label: '部署北京' },
@@ -20,10 +19,8 @@ const nodes = [
 ]
 const edges = [
   { from: 'pull', to: 'install' },
-  { from: 'install', to: 'lint' },
   { from: 'install', to: 'test' },
   { from: 'install', to: 'types' },
-  { from: 'lint', to: 'build' },
   { from: 'test', to: 'build' },
   { from: 'types', to: 'build' },
   { from: 'build', to: 'image' },

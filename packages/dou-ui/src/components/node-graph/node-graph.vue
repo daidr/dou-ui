@@ -24,7 +24,7 @@ defineOptions({ name: 'DouNodeGraph' })
 const props = withDefaults(defineProps<NodeGraphProps>(), {
   selectable: true,
   direction: 'horizontal',
-  nodeWidth: 'column',
+  nodeWidth: 'rank',
   maxNodeWidth: 320,
   highlight: 'hover',
   autoBlocked: false,
@@ -152,7 +152,9 @@ function measure() {
     const own = natural.get(id)
     // Not laid out, e.g. hidden or without a DOM: keep the estimate.
     if (!own) continue
-    const width = props.nodeWidth === 'column' ? columnWidth.get(column.get(id) ?? 0)! : own
+    // Top to bottom edges leave from the middle of a node: nothing to line up.
+    const width =
+      props.nodeWidth === 'rank' && !vertical.value ? columnWidth.get(column.get(id) ?? 0)! : own
     widths.set(id, width)
     el.style.width = `${width}px`
   }
@@ -183,13 +185,14 @@ const layout = computed(() => {
   const rankGap = vertical.value ? props.rowGap : props.columnGap
   const laneGap = (vertical.value ? props.columnGap : props.rowGap) ?? metric.value.rowGap
   if (vertical.value)
-    // Every node is centred on a lane as wide as the widest node, half a
-    // lane apart: fans stay symmetric and no edge wobbles by a few px.
+    // The grid is half the pitch of the narrowest node: a wider node takes
+    // a whole number of pitches, siblings an even number of steps apart, so
+    // fans stay symmetric, and no edge wobbles by just a few px.
     return layoutGraph(nodes, dag.value.edges, {
       direction: 'vertical',
-      columnGap: rankGap ?? metric.value.columnGap,
-      rowGap: laneGap,
-      grid: (Math.max(0, ...nodes.map((n) => n.width)) + laneGap) / 2,
+      rankGap: rankGap ?? metric.value.columnGap,
+      laneGap,
+      grid: nodes.length ? (Math.min(...nodes.map((n) => n.width)) + laneGap) / 2 : 1,
       // Along the flow nodes keep their height; the edge leaves a capsule
       // in a row of cards from its own bottom.
       equalWidth: false,
@@ -199,11 +202,11 @@ const layout = computed(() => {
     nodes.map((node) => ({ ...node, anchor: metric.value.height / 2 })),
     dag.value.edges,
     {
-      columnGap: rankGap ?? metric.value.columnGap,
-      rowGap: laneGap,
+      rankGap: rankGap ?? metric.value.columnGap,
+      laneGap,
       // Half the pitch of one-line nodes.
       grid: (metric.value.height + laneGap) / 2,
-      equalWidth: props.nodeWidth === 'column',
+      equalWidth: props.nodeWidth === 'rank',
     },
   )
 })
@@ -397,15 +400,24 @@ function onPointerUp(event: PointerEvent) {
 }
 
 const canvasRef = ref<HTMLElement | null>(null)
+const transform = computed(() => `translate(${x.value}px, ${y.value}px) scale(${zoom.value})`)
+/** Until mounted the transform is rendered, so server output has it too. */
+const mounted = ref(false)
 const canvasStyle = computed<CSSProperties>(() => ({
   width: `${contentWidth.value}px`,
   height: `${contentHeight.value}px`,
+  // Left out, not undefined: an undefined key would clear it on every patch.
+  ...(mounted.value ? {} : { transform: transform.value }),
 }))
-// Set straight on the element: a frame of panning re-renders no node.
-const transform = computed(() => `translate(${x.value}px, ${y.value}px) scale(${zoom.value})`)
-watch([canvasRef, transform], ([el, value]) => el && (el.style.transform = value), {
-  flush: 'sync',
-})
+// After that it is set straight on the element: a frame of panning
+// re-renders no node.
+watch(
+  [canvasRef, transform, mounted],
+  ([el, value, live]) => {
+    if (el && live) el.style.transform = value
+  },
+  { flush: 'post' },
+)
 // Leave the page's own swipe alone along an axis the graph does not pan.
 const touchAction = computed(() => {
   if (props.zoomable || (canPanX.value && canPanY.value)) return 'none'
@@ -462,6 +474,7 @@ watch(
 
 let rootObserver: ResizeObserver | undefined
 onMounted(() => {
+  mounted.value = true
   measure()
   // Known right away, so a parent's onMounted can already call fit().
   viewport.value = { width: rootRef.value!.clientWidth, height: rootRef.value!.clientHeight }
@@ -559,7 +572,7 @@ const tabbable = computed(() => {
   const ids = byId.value
   if (focused.value && ids.has(focused.value)) return focused.value
   const first = [...selectedIds.value].find((id) => ids.has(id))
-  return first ?? layout.value.columns[0]?.[0] ?? null
+  return first ?? layout.value.ranks[0]?.[0] ?? null
 })
 
 /** The middle of a node across the flow. */
@@ -580,7 +593,7 @@ function nearest(ids: string[], from: string) {
 
 function onKeydown(node: GraphNode, event: KeyboardEvent) {
   const placed = layout.value.nodes.get(node.id)!
-  const column = layout.value.columns[placed.column]!
+  const column = layout.value.ranks[placed.rank]!
   const index = column.indexOf(node.id)
   // Along the flow to the next or previous node; across it within the rank.
   const [next, prev, after, before] = vertical.value

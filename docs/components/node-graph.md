@@ -28,15 +28,15 @@ NodeGraph 只用来展示。需要拖动节点、连线编辑时，用[流程编
 
 <DocDemo src="node-graph/content" />
 
-默认 `node-width="column"`，同一层的节点等宽；`auto` 让每个节点按内容决定宽度；传数字则所有节点固定宽度。
+默认 `node-width="rank"`，从左到右时同一层的节点等宽，从上到下时各自按内容决定宽度；`auto` 让每个节点按内容决定宽度；传数字则所有节点固定宽度。
 
 ## 方向
 
-`direction="vertical"` 让连线从上往下走，节点按层一行一行排开，连线从节点底部出发、进入下一层节点的顶部。每个节点都对齐到等宽的竖向轨道上，分叉和汇合依然左右对称。
+`direction="vertical"` 让连线从上往下走，节点按层一行一行排开，连线从节点底部出发、进入下一层节点的顶部。同一层的节点从左到右排开，分叉和汇合保持左右对称。
 
 <DocDemo src="node-graph/direction" />
 
-`column-gap` 和 `row-gap` 始终指屏幕上的左右间距和上下间距：从左到右时 `column-gap` 是层与层之间的距离，从上到下时 `row-gap` 才是。
+`column-gap` 和 `row-gap` 始终指屏幕上的左右间距和上下间距：从左到右时层间距由 `column-gap` 设置，从上到下时层间距由 `row-gap` 设置。
 
 ## 卡片
 
@@ -98,7 +98,7 @@ NodeGraph 只用来展示。需要拖动节点、连线编辑时，用[流程编
 | `selectable`     | 是否可选，`multiple` 为多选                              | `boolean \| 'multiple'`           | `true`         |
 | `size`           | 尺寸，单行节点高 28 / 32 / 40                            | `'sm' \| 'md' \| 'lg'`            | 跟随全局       |
 | `direction`      | 连线方向：`horizontal` 从左到右，`vertical` 从上到下     | `'horizontal' \| 'vertical'`      | `'horizontal'` |
-| `node-width`     | 节点宽度：同层等宽、按内容、固定值                       | `'column' \| 'auto' \| number`    | `'column'`     |
+| `node-width`     | 节点宽度：同层等宽（仅从左到右）、按内容、固定值         | `'rank' \| 'auto' \| number`      | `'rank'`       |
 | `max-node-width` | 节点最大宽度，超出时截断标题                             | `number`                          | `320`          |
 | `column-gap`     | 左右间距：从左到右时是层间距，从上到下时是同层节点的间距 | `number`                          | 按尺寸和方向   |
 | `row-gap`        | 上下间距：从左到右时是同层节点的间距，从上到下时是层间距 | `number`                          | 按尺寸和方向   |

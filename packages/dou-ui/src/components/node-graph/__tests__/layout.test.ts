@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { acyclic, layoutGraph, rank } from '../layout'
 
 const size = (id: string, width = 80) => ({ id, width, height: 32 })
-const options = { columnGap: 56, rowGap: 20 }
+const options = { rankGap: 56, laneGap: 20 }
 
 describe('layoutGraph', () => {
   it('puts each node one column after its furthest predecessor', () => {

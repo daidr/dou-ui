@@ -39,10 +39,10 @@ export interface LayoutEdge {
 export interface LayoutOptions {
   /** `horizontal` flows left to right, `vertical` top to bottom. */
   direction?: 'horizontal' | 'vertical'
-  /** Space between columns, along the flow. */
-  columnGap: number
-  /** Space between nodes in a column, across the flow. */
-  rowGap: number
+  /** Space between ranks (the columns left to right, the rows top to bottom), along the flow. */
+  rankGap: number
+  /** Space between nodes in a rank, across the flow. */
+  laneGap: number
   /** Space between edges passing through a column. */
   edgeGap?: number
   /** Stretch every node along the flow to the longest one in its column. */
@@ -50,14 +50,15 @@ export interface LayoutOptions {
   /**
    * The row grid every anchor snaps to, in px. Half the pitch of a
    * one-line node keeps fans symmetric and curves free of small wobbles.
-   * Defaults to half the pitch of a 32px node, `(rowGap + 32) / 2`.
+   * Defaults to half the pitch of a 32px node, `(laneGap + 32) / 2`.
    */
   grid?: number
 }
 
 export interface PlacedNode {
   id: string
-  column: number
+  /** Which rank the node is in, from 0. */
+  rank: number
   x: number
   y: number
   width: number
@@ -79,7 +80,8 @@ export interface GraphLayout {
   edges: PlacedEdge[]
   /** Edges left out because they would close a cycle. */
   dropped: LayoutEdge[]
-  columns: string[][]
+  /** The nodes of each rank, in order across the flow. */
+  ranks: string[][]
   width: number
   height: number
 }
@@ -273,9 +275,9 @@ export function layoutGraph(
   edges: LayoutEdge[],
   options: LayoutOptions,
 ): GraphLayout {
-  const { columnGap, rowGap, edgeGap = 8, equalWidth = true } = options
+  const { rankGap, laneGap, edgeGap = 8, equalWidth = true } = options
   const vertical = options.direction === 'vertical'
-  const grid = options.grid ?? (rowGap + 32) / 2
+  const grid = options.grid ?? (laneGap + 32) / 2
   // Below, `width` runs along the flow and `height` across it.
   const byId = new Map(
     nodes.map((n) => [n.id, vertical ? { ...n, width: n.height, height: n.width } : n]),
@@ -318,7 +320,7 @@ export function layoutGraph(
   })
 
   const ordered = untangle(layers)
-  const gap = (a: Item, b: Item) => (a.edge >= 0 && b.edge >= 0 ? edgeGap : rowGap)
+  const gap = (a: Item, b: Item) => (a.edge >= 0 && b.edge >= 0 ? edgeGap : laneGap)
 
   // Start each column stacked around the middle, then relax.
   for (const layer of ordered)
@@ -353,7 +355,7 @@ export function layoutGraph(
   const left: number[] = []
   widths.reduce((x, w) => {
     left.push(x)
-    return x + w + columnGap
+    return x + w + rankGap
   }, 0)
 
   let top = Infinity
@@ -375,7 +377,7 @@ export function layoutGraph(
       const across = { y: item.y - item.anchor - top, height: node.height }
       placed.set(item.id, {
         id: item.id,
-        column: c,
+        rank: c,
         ...(vertical
           ? { x: across.y, y: along.x, width: across.height, height: along.width }
           : { ...along, ...across }),
@@ -426,7 +428,7 @@ export function layoutGraph(
     nodes: placed,
     edges: placedEdges,
     dropped: dag.dropped,
-    columns: ordered.map((layer) => layer.filter((item) => item.edge < 0).map((item) => item.id)),
+    ranks: ordered.map((layer) => layer.filter((item) => item.edge < 0).map((item) => item.id)),
     width: vertical ? bottom - top : length,
     height: vertical ? length : bottom - top,
   }

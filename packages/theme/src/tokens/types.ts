@@ -24,7 +24,7 @@ export interface ThemeTokens {
    */
   scheme: {
     /** `'0'` in light themes, `'1'` in dark ones. */
-    dark: string
+    dark: '0' | '1'
   }
 
   color: {

@@ -43,6 +43,14 @@ Token 名称表示**用途**，例如 `color.primary`、`color.bg.surface`、`ra
 
 主题完全由 Token 决定，不依赖页面的 `color-scheme`，所以用 `themeToCss` 挂到任意选择器上的主题都能直接使用。从 `dark` 派生的主题（包括 `createTheme` 生成的暗色主题）会带上 `1`。
 
+DouUI 组件只看 Token。页面底色、原生控件和滚动条仍然跟随 `color-scheme`：内置的 `[data-dou-theme="dark"]` 已经声明了 `color-scheme: dark`，自定义的暗色主题要在自己的选择器上加上它：
+
+```css
+[data-dou-theme='brand-dark'] {
+  color-scheme: dark;
+}
+```
+
 ## 覆盖单个 Token
 
 Token 就是普通的 CSS 变量，不在级联层中的样式可以直接覆盖：

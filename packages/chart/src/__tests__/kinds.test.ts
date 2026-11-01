@@ -13,6 +13,7 @@ import {
 } from '..'
 import { boxStats } from '../core/box'
 import { histogramBins } from '../core/histogram'
+import type { ChartData } from '../core/data'
 import type { Painter } from '../core/painter'
 import { CHART_PATTERNS, fillPattern, patternCss } from '../core/pattern'
 import {
@@ -197,7 +198,7 @@ describe('patterns', () => {
 })
 
 /** A chart rendered as on the server: nothing of a page there. */
-async function serverHtml(part: () => unknown, data?: unknown) {
+async function serverHtml(part: () => unknown, data?: ChartData) {
   for (const name of ['window', 'document', 'Element', 'HTMLElement', 'HTMLCanvasElement', 'Node'])
     vi.stubGlobal(name, undefined)
   try {

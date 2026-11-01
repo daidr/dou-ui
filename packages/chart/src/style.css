@@ -107,6 +107,54 @@
     }
   }
 
+  /* a data label: a value by its point, past its bar or in it */
+  .dou-chart__value {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: flex;
+    align-items: center;
+    height: 16px;
+    color: var(--dou-color-text-secondary);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    transition: opacity var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    &.is-middle {
+      translate: -50% 0;
+    }
+
+    &.is-end {
+      translate: -100% 0;
+    }
+
+    &.is-inside {
+      font-weight: var(--dou-font-weight-medium);
+    }
+
+    &.is-faded {
+      opacity: 0.24;
+    }
+
+    /* a pie's long slice name, cut short: the whole label shows on hover */
+    &.is-clipped {
+      pointer-events: auto;
+
+      > .dou-chart__text {
+        min-width: 0;
+        overflow: hidden;
+        line-height: 16px;
+        text-overflow: ellipsis;
+        text-box: normal;
+      }
+    }
+
+    &.is-hidden {
+      opacity: 0;
+      transition: none;
+    }
+  }
+
   /* a marker's label: by its line, at its band's corner, over its point */
   .dou-chart__marker {
     position: absolute;
@@ -331,6 +379,10 @@
     background-color: currentColor;
     box-shadow: 0 0 0 1px color-mix(in oklab, currentColor 24%, transparent);
 
+    &.is-faded {
+      opacity: 0.32;
+    }
+
     /* around one point of a scatter */
     &.is-ring {
       border-color: currentColor;
@@ -374,6 +426,15 @@
 
     & + & {
       margin-top: 4px;
+    }
+  }
+
+  /* another series is under the pointer */
+  .dou-chart__tooltip-item.is-muted {
+    color: var(--dou-color-text-tertiary);
+
+    > .dou-chart__tooltip-value {
+      color: var(--dou-color-text-secondary);
     }
   }
 

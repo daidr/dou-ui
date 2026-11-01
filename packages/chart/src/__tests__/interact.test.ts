@@ -240,6 +240,26 @@ describe('tooltip', () => {
     wrapper.unmount()
   })
 
+  it('brings the series under the pointer forward, and mutes the others in the tooltip', async () => {
+    const { wrapper, root } = await sized(() =>
+      h(DouChart, { data: sales, x: 'q', height: 300 }, () => [
+        h(DouChartBar, { y: 'a', name: '线上' }),
+        h(DouChartBar, { y: 'b', name: '门店' }),
+      ]),
+    )
+    // low on the first bar of the first quarter
+    const left = root.querySelector('.dou-chart__tick.is-bottom') as HTMLElement
+    const center = Number(/translate\(([\d.]+)px/.exec(left.style.transform)![1]) + 16
+    root.dispatchEvent(
+      new PointerEvent('pointermove', { clientX: center - 20, clientY: 240, bubbles: true }),
+    )
+    await new Promise((done) => setTimeout(done, 40))
+    await nextTick()
+    const items = wrapper.findAll('.dou-chart__tooltip-item')
+    expect(items.map((item) => item.classes().includes('is-muted'))).toEqual([false, true])
+    wrapper.unmount()
+  })
+
   it('goes from point to point, and between series, for a scatter', async () => {
     const rows = [
       { x: 1, a: 5, b: 1 },

@@ -140,6 +140,8 @@ interface LayoutOptions {
   zoom?: { x?: Window | null; y?: Window | null }
   /** Leave room for a range strip. */
   strip?: boolean
+  /** Room past the plot's end along x, in px, for labels at the ends of lines. */
+  trailing?: number
 }
 
 const asNumber = (value: number | string | Date | undefined, kind: XKind | 'log') =>
@@ -319,7 +321,7 @@ function alignZero(
 
 /** x along the bottom, values up the left side (and the right). */
 function layoutUp(
-  { model, axes, width, height, locale, measure, zoom }: LayoutOptions,
+  { model, axes, width, height, locale, measure, zoom, trailing = 0 }: LayoutOptions,
   legendHeight: number,
 ): Omit<ChartLayout, 'legend'> {
   const xAxis = axes.x
@@ -341,7 +343,7 @@ function layoutUp(
       ? INSET + (config.labelWidth ?? labelWidth(axis.texts, measure)) + LABEL_GAP
       : EDGE
   const leftWidth = side(y, axes.y)
-  const rightWidth = side(y2, axes.y2)
+  const rightWidth = side(y2, axes.y2) + trailing
   const plot: Rect = {
     x: leftWidth,
     y: plotTop,
@@ -357,7 +359,7 @@ function layoutUp(
     const labels = config.hidden ? [] : placeDown(axis.ticks, axis.texts, scale, height, measure)
     for (const label of labels)
       if (axis.role === 'y') alignEnd(label, plot.x)
-      else label.left = plot.x + plot.width + LABEL_GAP
+      else label.left = plot.x + plot.width + trailing + LABEL_GAP
     yLayout[axis.role] = {
       position: config.position,
       scale,
@@ -876,17 +878,30 @@ export interface PieLayout {
   legend: LegendItem[]
 }
 
-/** A pie as large as fits above its legend. */
+/** Room from a pie's edge to the labels outside it: the line out, and the gap before the text. */
+export const PIE_LABEL_ROOM = 24
+
+/**
+ * A pie as large as fits above its legend; with labels outside, as large
+ * as leaves room for the widest of them on both sides.
+ */
 export function layoutPie({
   width,
   height,
   measure,
   legend: names = [],
-}: Pick<LayoutOptions, 'width' | 'height' | 'measure' | 'legend'>): PieLayout {
+  sideLabels = 0,
+}: Pick<LayoutOptions, 'width' | 'height' | 'measure' | 'legend'> & {
+  /** The widest label outside the pie, in px: room is left for it on both sides. */
+  sideLabels?: number
+}): PieLayout {
   const legend = placeLegend(names, width, measure)
   const legendHeight = legendRoom(legend)
   for (const item of legend) item.top += height - legendHeight + LABEL_GAP + 4
   const room = height - legendHeight - EDGE * 2
-  const radius = Math.max(1, Math.min(width - EDGE * 2, room) / 2)
+  // labels outside: room for them either side, and for the lines out above and below
+  const across = sideLabels > 0 ? width - (sideLabels + PIE_LABEL_ROOM) * 2 : width
+  const down = sideLabels > 0 ? room - LABEL_HEIGHT : room
+  const radius = Math.max(1, Math.min(across - EDGE * 2, down) / 2)
   return { width, height, cx: width / 2, cy: EDGE + room / 2, radius, legend }
 }

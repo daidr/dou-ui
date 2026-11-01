@@ -139,6 +139,30 @@ export interface ChartSeriesKind<P = Record<string, unknown>> {
    * replaced many times a second (live data).
    */
   prepare?(series: ChartSeries<P>): unknown
+  /**
+   * Where the series' data labels go (`labels` prop): a point and the side
+   * of it the text takes, for each row on screen worth a label. The chart
+   * writes the text, and leaves out labels that cover others.
+   */
+  labels?(series: ChartSeries<P>, view: ChartView): ChartLabelAnchor[]
+}
+
+/** Where a data label goes. */
+export interface ChartLabelAnchor {
+  /** The row's index in the series' rows. */
+  index: number
+  /** The point the label is beside, in CSS px. */
+  at: [number, number]
+  /** Which side of `at` the text goes; `center` puts it on `at`, inside `box`. */
+  side: 'top' | 'bottom' | 'left' | 'right' | 'center'
+  /** For `center`: the shape the text must fit in (a bar), and its color. */
+  box?: Rect & { color: string }
+  /**
+   * The most room the label may take across its side, in px: its width
+   * above or below the point, its height beside it. A bar's label stays
+   * within the room of its bar.
+   */
+  room?: number
 }
 
 /** A point found under the pointer. */

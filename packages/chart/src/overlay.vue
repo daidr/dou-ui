@@ -2,6 +2,7 @@
 import { DouSpinner, useNamespace, type Tone } from 'dou-ui'
 import type { ComputedRef, VNodeChild } from 'vue'
 import type { TickLabel } from './core/layout'
+import type { PlacedDataLabel } from './core/labels'
 import type { MarkerLabel } from './core/marker'
 
 /**
@@ -34,6 +35,8 @@ export interface OverlayState {
   >
   /** Turns the series (or slice) at `index` on or off. */
   toggle: (index: number) => void
+  /** Shows only the series (or slice) at `index`, or all again. */
+  isolate: (index: number) => void
   /** Brings the series at `index` forward while the pointer or focus is on its entry; `null` to stop. */
   focus: (index: number | null) => void
   /** Where the donut's hole is, if there is one to fill. */
@@ -41,6 +44,12 @@ export interface OverlayState {
   center: () => VNodeChild
   /** The markers' labels. */
   markers: ComputedRef<Array<MarkerLabel & { key: string; tone: Tone; backdrop: boolean }>>
+  /** Data labels: values by the points and on the bars; `ink` is their color, when not the default. */
+  data: ComputedRef<Array<PlacedDataLabel & { ink?: string; width?: number }>>
+  /** Whether the data labels show (not while the series come in). */
+  dataShown: ComputedRef<boolean>
+  /** The series brought forward: the other series' labels are faded too. */
+  dataFocus: ComputedRef<number | null>
   /** No series has a value: the empty message shows. */
   empty: ComputedRef<boolean>
   emptyContent: () => VNodeChild
@@ -51,7 +60,22 @@ defineOptions({ name: 'DouChartOverlay' })
 
 const { state } = defineProps<{ state: OverlayState }>()
 const ns = useNamespace('chart')
-const { shown, labels, titles, legend, hole, toggle, focus, markers, empty, loading } = state
+const {
+  shown,
+  labels,
+  titles,
+  legend,
+  hole,
+  toggle,
+  isolate,
+  focus,
+  markers,
+  data,
+  dataShown,
+  dataFocus,
+  empty,
+  loading,
+} = state
 const Center = () => state.center()
 const Empty = () => state.emptyContent()
 // a click focuses the entry too: only keyboard focus brings its series forward
@@ -90,6 +114,25 @@ const focusVisible = (e: FocusEvent) => (e.target as Element).matches(':focus-vi
       :style="{ transform: `translate(${marker.left}px, ${marker.top}px)` }"
       ><span :class="ns.e('text')">{{ marker.text }}</span></span
     >
+    <span
+      v-for="label in data"
+      :key="`data:${label.key}`"
+      :class="[
+        ns.e('value'),
+        ns.is(label.align),
+        ns.is('inside', !!label.on),
+        ns.is('hidden', !dataShown),
+        ns.is('faded', dataFocus !== null && dataFocus !== label.series),
+        ns.is('clipped', label.width !== undefined),
+      ]"
+      :style="{
+        transform: `translate(${label.left}px, ${label.top}px)`,
+        color: label.ink,
+        width: label.width === undefined ? undefined : `${label.width}px`,
+      }"
+      :title="label.width === undefined ? undefined : label.text"
+      ><span :class="ns.e('text')">{{ label.text }}</span></span
+    >
   </div>
   <div v-if="shown && legend.length" :class="ns.e('legends')">
     <button
@@ -107,6 +150,7 @@ const focusVisible = (e: FocusEvent) => (e.target as Element).matches(':focus-vi
       :aria-pressed="!item.off"
       :aria-disabled="item.locked || undefined"
       @click="toggle(item.index)"
+      @dblclick="isolate(item.index)"
       @pointerenter="(e) => e.pointerType !== 'touch' && !item.off && focus(item.index)"
       @pointerleave="focus(null)"
       @focus="(e) => focusVisible(e) && !item.off && focus(item.index)"

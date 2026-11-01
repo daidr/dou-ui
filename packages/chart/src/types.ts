@@ -107,6 +107,12 @@ export interface ChartAxisProps {
   nice?: boolean
   /** About how many ticks to show, or exactly which values. */
   ticks?: number | ChartTickValue[]
+  /**
+   * Stacks on this value axis show each part's share of the whole: every
+   * stack reaches 100%, and tick labels show percentages unless `format`
+   * is given. The tooltip shows both the value and its share.
+   */
+  percent?: boolean
   /** Formats tick labels: numbers, `Date`s on time axes, the category on category axes. */
   format?: (value: any) => string
   /** Lines across the plot at each tick. On for `y` (or `y2` when it is alone), off for the others. */
@@ -134,11 +140,38 @@ export interface ChartLineProps extends Omit<ChartSeriesProps, 'color'> {
   lineWidth?: number
   /** Join the line across gaps (`null` values) instead of breaking it. */
   connectNulls?: boolean
+  /**
+   * Steps from point to point instead of a slope: `after` (or `true`) keeps
+   * each value until the next x, `before` takes the next value at once,
+   * `middle` changes halfway. `smooth` doesn't apply.
+   */
+  step?: boolean | 'before' | 'after' | 'middle'
+  /**
+   * Shows each value as text: `true` writes it as the value axis does, a
+   * function writes its own (`null` or `undefined` leaves it out). Labels
+   * that would cover others are left out.
+   */
+  labels?: boolean | ChartLabelFormat
+  /** Where labels go: above each point (`point`), or only beside the last one (`end`). */
+  labelPosition?: 'point' | 'end'
 }
+
+/** Text of a data label from its value, row and the row's index; `null` or `undefined` for none. */
+export type ChartLabelFormat = (
+  value: number,
+  row: ChartRow,
+  index: number,
+) => string | null | undefined
 
 export interface ChartAreaProps extends ChartLineProps {
   /** Stack on the series before it with the same `stack` name (`true` is one shared stack). */
   stack?: string | boolean
+  /**
+   * The bottom of the area for each row, a key or a function: the area is
+   * then a band from it up to `y` (a forecast's range, a day's low and
+   * high) instead of growing from 0. Not with `stack`.
+   */
+  y0?: ChartAccessor
 }
 
 /**
@@ -157,6 +190,14 @@ export interface ChartBarProps extends ChartSeriesProps {
   stack?: string | boolean
   /** Corner radius of the bar's end, in px. In a stack, only the outermost bar is rounded. */
   radius?: number
+  /** Shows each value as text, as for lines. */
+  labels?: boolean | ChartLabelFormat
+  /**
+   * Where labels go: past the bar's end (`outside`) or in it (`inside`).
+   * Stacked bars default to `inside`, the others to `outside`. A label
+   * that doesn't fit inside its bar is left out.
+   */
+  labelPosition?: 'outside' | 'inside'
 }
 
 export interface ChartScatterProps extends ChartSeriesProps {
@@ -189,6 +230,27 @@ export interface ChartPieProps {
   color?: ChartAccessor<string | undefined>
   /** The size of the hole, as a part of the radius: `0` is a pie, `0.6` a donut. */
   innerRadius?: number
+  /**
+   * Shows text by each slice: `true` writes its name and share outside,
+   * or its share inside; a function writes its own (`null` or
+   * `undefined` leaves it out).
+   */
+  labels?: boolean | ((slice: ChartPieLabel) => string | null | undefined)
+  /**
+   * Where labels go: outside the pie, joined to their slice by a line,
+   * or inside each slice (left out where a slice is too small).
+   */
+  labelPosition?: 'outside' | 'inside'
+}
+
+/** A slice, as a pie's `labels` function gets it. */
+export interface ChartPieLabel {
+  label: string
+  value: number
+  /** Its part of the slices shown, 0 to 1. */
+  share: number
+  row: ChartRow
+  index: number
 }
 
 export interface ChartTooltipProps {
@@ -216,6 +278,8 @@ export interface ChartTooltipItem {
   color?: string
   /** The row the value comes from. */
   row?: ChartRow
+  /** Its series is the one under the pointer, brought forward. */
+  active?: boolean
 }
 
 export interface ChartTooltipSlots {

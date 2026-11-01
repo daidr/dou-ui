@@ -1,3 +1,4 @@
+import type { CheckboxProps } from './checkbox'
 import { withInstall } from '../../utils/install'
 import Checkbox from './checkbox.vue'
 import CheckboxGroup from './checkbox-group.vue'
@@ -14,5 +15,11 @@ declare module 'vue' {
   export interface GlobalComponents {
     DouCheckbox: typeof DouCheckbox
     DouCheckboxGroup: typeof DouCheckboxGroup
+  }
+}
+
+declare module '../config-provider/config-provider' {
+  export interface GenericComponentProps {
+    DouCheckbox: CheckboxProps
   }
 }

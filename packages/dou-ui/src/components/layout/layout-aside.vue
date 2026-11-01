@@ -4,7 +4,9 @@ import { SidebarCollapseIcon, SidebarExpandIcon } from '@dou-ui/icons'
 import { computed, inject, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
-import DouDrawer from '../drawer/drawer.vue'
+import DouDrawerComponent from '../drawer/drawer.vue'
+import type { HTMLAttributes } from 'vue'
+import type { WithAttributes } from '../../utils/install'
 import { layoutKey } from './layout'
 import type {
   LayoutAsideProps,
@@ -12,6 +14,9 @@ import type {
   LayoutAsideSlots,
   LayoutDrawer,
 } from './layout'
+
+// 让模板里也能写这个组件转交的原生属性
+const DouDrawer = DouDrawerComponent as WithAttributes<typeof DouDrawerComponent, HTMLAttributes>
 
 defineOptions({ name: 'DouLayoutAside' })
 

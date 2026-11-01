@@ -1,4 +1,6 @@
 <script setup lang="ts" generic="Row = Record<string, unknown>">
+import type { HTMLAttributes } from 'vue'
+import type { ForwardedAttributes } from 'dou-ui'
 import {
   DouButton,
   DouCheckbox,
@@ -64,7 +66,13 @@ import {
 
 defineOptions({ name: 'DouPivotFields' })
 
-const props = withDefaults(defineProps<PivotFieldsProps<Row>>(), { drawer: 'auto' })
+const props = withDefaults(
+  defineProps<
+    PivotFieldsProps<Row> &
+      /* @vue-ignore */ ForwardedAttributes<HTMLAttributes, PivotFieldsProps<Row>>
+  >(),
+  { drawer: 'auto' },
+)
 const config = defineModel<PivotConfig>('config', { default: () => ({}) })
 
 const messages = usePivotMessages(() => props.messages)

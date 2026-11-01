@@ -30,7 +30,7 @@ function setup(initial: PivotConfig, extra: Record<string, unknown> = {}) {
           'onUpdate:config': (value: PivotConfig) => (config.value = value),
           collapsed: collapsed.value,
           'onUpdate:collapsed': (value: PivotCollapsed) => (collapsed.value = value),
-          onCellClick: (cell: PivotCellEvent<any>) => clicks.push(cell),
+          onCellClick: (cell: PivotCellEvent<unknown>) => clicks.push(cell as PivotCellEvent),
           ...extra,
         }),
     ),

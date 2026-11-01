@@ -187,6 +187,6 @@ export interface SheetRangeRect extends SheetRect {
 /** The surrounding sheet; for overlays, cell types' components and the grid's slots. */
 export function useSheet() {
   const context = inject(sheetContextKey, null)
-  if (!context) throw new Error('[dou-ui] useSheet() must be used inside <DouSheet>')
+  if (!context) throw new Error('[@dou-ui/sheet] useSheet() must be used inside <DouSheet>')
   return context
 }

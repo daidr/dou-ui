@@ -1,4 +1,6 @@
 <script setup lang="ts" generic="Row = Record<string, unknown>">
+import type { HTMLAttributes } from 'vue'
+import type { ForwardedAttributes } from 'dou-ui'
 import { useElementSize, useLocale } from 'dou-ui'
 import { ArrowDownIcon, ArrowUpIcon, ChevronRightIcon } from '@dou-ui/icons'
 import {
@@ -63,6 +65,7 @@ import type {
   PivotChartRows,
   PivotChartRowsOptions,
   PivotCopyOptions,
+  PivotEmits,
   PivotExpose,
   PivotPrintOptions,
   PivotProps,
@@ -71,15 +74,25 @@ import type {
 
 defineOptions({ name: 'DouPivot' })
 
-const props = withDefaults(defineProps<PivotProps<Row>>(), {
-  layout: 'compact',
-  resizable: true,
-  worker: 'auto',
-  maxHeight: 480,
-  size: 'md',
-  rowHeaderWidth: 200,
-  columnWidth: 120,
-})
+const props = withDefaults(
+  defineProps<
+    PivotProps<Row> &
+      /* @vue-ignore */ ForwardedAttributes<
+        HTMLAttributes,
+        PivotProps<Row>,
+        keyof PivotEmits & string
+      >
+  >(),
+  {
+    layout: 'compact',
+    resizable: true,
+    worker: 'auto',
+    maxHeight: 480,
+    size: 'md',
+    rowHeaderWidth: 200,
+    columnWidth: 120,
+  },
+)
 const config = defineModel<PivotConfig>('config', { default: () => ({}) })
 const collapsed = defineModel<PivotCollapsed>('collapsed', { default: () => ({}) })
 const emit = defineEmits<{ cellClick: [cell: PivotCellEvent<Row>] }>()
@@ -129,7 +142,8 @@ const engineConfig = computed<PivotConfig>(() => {
   const values = (c.values ?? []).filter((v) => {
     const name = typeof v === 'string' ? undefined : v.aggregate
     if (!name || FAST_AGGREGATES.has(name) || BUILTIN_AGGREGATORS[name] || custom[name]) return true
-    if (import.meta.env?.DEV) console.warn(`[DouPivot] 没有名为 "${name}" 的汇总方式，已跳过这个值`)
+    if (import.meta.env?.DEV)
+      console.warn(`[@dou-ui/pivot] 没有名为 "${name}" 的汇总方式，已跳过这个值`)
     return false
   })
   const next: PivotConfig = {
@@ -232,7 +246,7 @@ watch(
       if (props.engine) console.error(error)
       else {
         // the own worker failed: sum up on the page from now on
-        console.warn('[DouPivot] worker 不可用，改为在页面中汇总', error)
+        console.warn('[@dou-ui/pivot] worker 不可用，改为在页面中汇总', error)
         ownEngine?.dispose?.()
         ownEngine = null
         ownEngineReady = null

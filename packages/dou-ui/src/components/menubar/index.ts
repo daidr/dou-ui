@@ -1,9 +1,10 @@
 import { withInstall } from '../../utils/install'
+import type { ButtonAttributes } from '../../utils/install'
 import Menubar from './menubar.vue'
 import MenubarMenu from './menubar-menu.vue'
 
 export const DouMenubar = withInstall(Menubar)
-export const DouMenubarMenu = withInstall(MenubarMenu)
+export const DouMenubarMenu = withInstall<typeof MenubarMenu, ButtonAttributes>(MenubarMenu)
 export default DouMenubar
 
 export type * from './menubar'

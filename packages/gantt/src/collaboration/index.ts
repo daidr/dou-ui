@@ -76,7 +76,7 @@ function checkSharable(id: string, key: string, value: unknown) {
   if (!path) return
   warned.add(`${id}:${key}`)
   console.warn(
-    `[@dou-ui/gantt/collaboration] "${id}" has a value at ${path} that can't be shared: only JSON values reach the others. Keep components and functions out of the shared fields, for example by looking them up by name.`,
+    `[@dou-ui/gantt] "${id}" has a value at ${path} that can't be shared: only JSON values reach the others. Keep components and functions out of the shared fields, for example by looking them up by name.`,
   )
 }
 

@@ -354,6 +354,11 @@ export const zhCN: Locale = {
     nextWeek: '下一周',
     prevDay: '前一天',
     nextDay: '后一天',
+    deleteEvent: '删除日程',
+    refused: '不能移到这里',
+    disabledDay: '这天不可选',
+    changed: '{title}，{range}',
+    removed: '已删除{title}',
   },
   infiniteScroll: {
     loading: '加载中',

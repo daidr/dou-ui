@@ -59,6 +59,7 @@
     color: var(--dou-color-text);
     font: inherit;
     font-size: var(--dou-font-size-sm);
+    white-space: nowrap;
     cursor: pointer;
     transition-property: border-color, background-color;
     transition-duration: var(--dou-motion-duration-fast);
@@ -126,7 +127,7 @@
       border-left: 1px solid var(--dou-calendar-view-line);
     }
 
-    &:hover:not(.is-disabled) {
+    &:hover:not(.is-disabled, .is-drawing) {
       background-color: color-mix(in oklab, var(--dou-color-text) 3%, transparent);
     }
 
@@ -373,7 +374,11 @@
   .dou-calendar-view__scroller {
     max-height: var(--dou-calendar-view-time-height);
     overflow-y: auto;
-    overscroll-behavior: contain;
+
+    /* only an axis that scrolls keeps a swipe from going on to the page */
+    &.is-overflowing {
+      overscroll-behavior: contain;
+    }
   }
 
   .dou-calendar-view__time-body {
@@ -541,5 +546,166 @@
       background-color: var(--dou-color-danger);
       content: '';
     }
+  }
+
+  /*
+   * Editing. An event being dragged lifts off the sheet with a shadow and
+   * follows the pointer without easing; one that can't go where it is gets
+   * a danger outline and a tip says why. A stretch being drawn is a dashed
+   * outline on the time axis, or a wash over the days.
+   */
+  .dou-calendar-view.is-editable {
+    -webkit-user-select: none;
+    user-select: none;
+
+    & .dou-calendar-view__event {
+      -webkit-touch-callout: none;
+    }
+
+    & .dou-calendar-view__event:not(.dou-calendar-view__timed) {
+      position: relative;
+    }
+  }
+
+  .dou-calendar-view.is-dragging-move,
+  .dou-calendar-view.is-dragging-move * {
+    cursor: grabbing;
+  }
+  .dou-calendar-view.is-dragging-resize * {
+    cursor: ns-resize;
+  }
+  .dou-calendar-view--month.is-dragging-resize *,
+  .dou-calendar-view.is-dragging-resize .dou-calendar-view__all-day * {
+    cursor: ew-resize;
+  }
+  .dou-calendar-view.is-dragging-create * {
+    cursor: cell;
+  }
+
+  .dou-calendar-view__event.is-dragging {
+    z-index: 3;
+    box-shadow: var(--dou-shadow-md);
+  }
+
+  .dou-calendar-view__event.is-refused {
+    --dou-calendar-view-tone: var(--dou-color-danger);
+
+    outline: 1px solid var(--dou-color-danger);
+    outline-offset: -1px;
+  }
+
+  .dou-calendar-view__event.is-locked {
+    cursor: default;
+  }
+
+  /* the end of an event: a strip along its bottom, or its right edge in a row of days */
+  .dou-calendar-view__resize {
+    position: absolute;
+    z-index: 1;
+    touch-action: none;
+  }
+
+  .dou-calendar-view__resize--y {
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 6px;
+    cursor: ns-resize;
+  }
+
+  .dou-calendar-view__resize--x {
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 6px;
+    cursor: ew-resize;
+  }
+
+  @media (pointer: coarse) {
+    .dou-calendar-view__resize--y {
+      height: 12px;
+    }
+    .dou-calendar-view__resize--x {
+      width: 12px;
+    }
+  }
+
+  .dou-calendar-view__drawing {
+    position: absolute;
+    top: calc(var(--dou-calendar-view-from) * var(--dou-calendar-view-hour-height) + 1px);
+    right: 2px;
+    left: 2px;
+    z-index: 2;
+    box-sizing: border-box;
+    height: calc(var(--dou-calendar-view-length) * var(--dou-calendar-view-hour-height) - 2px);
+    min-height: 20px;
+    padding: 3px 6px;
+    border: 1px dashed var(--dou-color-primary);
+    border-radius: 4px;
+    background-color: color-mix(
+      in oklab,
+      var(--dou-color-primary) 10%,
+      var(--dou-color-bg-surface)
+    );
+    color: color-mix(in oklab, var(--dou-color-primary) 70%, var(--dou-color-text));
+    font-size: var(--dou-font-size-sm);
+    line-height: 1.35;
+    pointer-events: none;
+    container-type: inline-size;
+
+    &.is-refused {
+      border-color: var(--dou-color-danger);
+      background-color: color-mix(
+        in oklab,
+        var(--dou-color-danger) 10%,
+        var(--dou-color-bg-surface)
+      );
+      color: color-mix(in oklab, var(--dou-color-danger) 70%, var(--dou-color-text));
+    }
+
+    & .dou-calendar-view__event-time {
+      display: block;
+    }
+  }
+
+  .dou-calendar-view__day.is-drawing,
+  .dou-calendar-view__all-day-cell.is-drawing {
+    background-color: color-mix(in oklab, var(--dou-color-primary) 8%, transparent);
+
+    &.is-refused {
+      background-color: color-mix(in oklab, var(--dou-color-danger) 8%, transparent);
+    }
+  }
+
+  .dou-calendar-view__tip {
+    position: fixed;
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    height: 22px;
+    padding: 0 8px;
+    border-radius: var(--dou-radius-control);
+    background-color: var(--dou-color-neutral);
+    box-shadow: var(--dou-shadow-md);
+    color: var(--dou-color-neutral-on);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    pointer-events: none;
+
+    &.is-refused {
+      background-color: var(--dou-color-danger);
+      color: var(--dou-color-danger-on);
+    }
+  }
+
+  .dou-calendar-view__live,
+  .dou-calendar-view__menu-anchor {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 }

@@ -520,6 +520,16 @@ export interface Locale {
     nextWeek: string
     prevDay: string
     nextDay: string
+    /** The built-in menu item that removes an event. */
+    deleteEvent: string
+    /** Why a drag was refused when `canMove` gives no reason. */
+    refused: string
+    /** Why a drag onto a day of `disabledDate` was refused. */
+    disabledDay: string
+    /** Read out after an event was moved or resized, with `{title}` and `{range}`. */
+    changed: string
+    /** Read out after an event was removed, with `{title}`. */
+    removed: string
   }
   infiniteScroll: {
     /** Shown at the end of the list while the next page loads. */

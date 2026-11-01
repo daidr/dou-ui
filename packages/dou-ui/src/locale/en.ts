@@ -354,6 +354,11 @@ export const en: Locale = {
     nextWeek: 'Next week',
     prevDay: 'Previous day',
     nextDay: 'Next day',
+    deleteEvent: 'Delete event',
+    refused: "Can't move here",
+    disabledDay: "This day can't be chosen",
+    changed: '{title}, {range}',
+    removed: 'Deleted {title}',
   },
   infiniteScroll: {
     loading: 'Loading',

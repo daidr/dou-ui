@@ -354,6 +354,11 @@ export const zhTW: Locale = {
     nextWeek: '下一週',
     prevDay: '前一天',
     nextDay: '後一天',
+    deleteEvent: '刪除行程',
+    refused: '無法移到這裡',
+    disabledDay: '這天不可選',
+    changed: '{title}，{range}',
+    removed: '已刪除{title}',
   },
   infiniteScroll: {
     loading: '載入中',

@@ -1179,6 +1179,7 @@ function onRowUp(event: PointerEvent) {
   if (d.touch && d.started && Math.abs(d.y - d.y0) < THRESHOLD.touch) {
     // held, then let go without moving: the row's menu
     stopRowDrag()
+    if (!menuAllowed(task(d.id), d.clientX, event.clientY)) return
     return void showMenu({ kind: 'task', task: task(d.id) }, d.clientX, event.clientY)
   }
   if (d.started) {
@@ -1584,6 +1585,7 @@ function onDragEnd(event: PointerEvent) {
   // a finger held on a bar and let go without moving: the task's menu
   if (d.touch && d.started && d.mode === 'move' && Math.abs(d.x - d.x0) < THRESHOLD.touch) {
     stopDrag()
+    if (!menuAllowed(task(d.id), event.clientX, event.clientY)) return
     return void showMenu({ kind: 'task', task: task(d.id) }, event.clientX, event.clientY)
   }
   if (d.started) {
@@ -1901,10 +1903,22 @@ const onRootPointerdown = (event: PointerEvent) => {
   if (event.pointerType === 'touch') touchedAt = Date.now()
 }
 
+/**
+ * A menu opened by a resting finger or by the menu key has no browser event:
+ * it gets a stand-in, so `taskContextmenu` comes first in every case and
+ * `preventDefault()` keeps the menu closed.
+ */
+function menuAllowed(item: GanttTask, x: number, y: number) {
+  const event = new MouseEvent('contextmenu', { cancelable: true, clientX: x, clientY: y })
+  emit('taskContextmenu', item, event)
+  return !event.defaultPrevented
+}
+
 function onTaskContextmenu(row: GanttRow, event: MouseEvent) {
+  // a finger's long press opens the menu, and sends the event, when it lets go
+  if (Date.now() - touchedAt < 1000) return event.preventDefault()
   emit('taskContextmenu', row.task, event)
   if (event.defaultPrevented) return
-  if (Date.now() - touchedAt < 1000) return event.preventDefault()
   if (showMenu({ kind: 'task', task: row.task }, event.clientX, event.clientY))
     event.preventDefault()
 }
@@ -1933,6 +1947,7 @@ function openKeyMenu() {
     root.value?.querySelector(`.dou-gantt__tr[data-row="${CSS.escape(row.task.id)}"]`)
   const rect = el?.getBoundingClientRect()
   if (!rect) return false
+  if (!menuAllowed(row.task, rect.left + 8, rect.bottom + 4)) return true
   return showMenu({ kind: 'task', task: row.task }, rect.left + 8, rect.bottom + 4)
 }
 

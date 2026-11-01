@@ -112,18 +112,6 @@ const tipPlacement = computed(() => (place.value.top < props.anchor.top ? 'top' 
 
 /** The buttons by key, to tell which one opened the menu. */
 const buttons = shallowReactive(new Map<string, Element>())
-
-/**
- * The button whose menu just closed: its tip waits until the pointer
- * leaves, so it does not pop up under the press that closed the menu.
- */
-const held = ref<string | null>(null)
-watch(menuFrom, (now, before) => {
-  if (now || !before) return
-  for (const [key, button] of buttons) if (button === before) held.value = key
-})
-const tipOff = (key: string) =>
-  held.value === key || (!!menuFrom.value && menuFrom.value === buttons.get(key))
 function setButton(key: string, button: unknown) {
   if (button instanceof Element) buttons.set(key, button)
   else buttons.delete(key)
@@ -150,13 +138,13 @@ const hidden = computed(
   >
     <template v-for="(group, i) in groups" :key="i">
       <span v-if="i > 0" class="dou-flow-controls__divider" />
-      <!-- The tip stands aside while the button's menu is open, and until the pointer leaves after. -->
+      <!-- The tip stands aside while the button's menu is open. -->
       <DouTooltip
         v-for="item in group"
         :key="item.key"
         :content="item.label"
         :shortcut="item.shortcut"
-        :disabled="tipOff(item.key)"
+        :disabled="!!menuFrom && menuFrom === buttons.get(item.key)"
         :placement="tipPlacement"
       >
         <button
@@ -172,7 +160,6 @@ const hidden = computed(
             opensMenu(item) ? !!menuFrom && menuFrom === buttons.get(item.key) : undefined
           "
           @click="press(item, $event)"
-          @pointerleave="held === item.key && (held = null)"
         >
           <component :is="item.icon" />
         </button>

@@ -11,6 +11,7 @@ import { liftBlocks, sinkBlocks, splitBlock } from '../../core/commands'
 import { createEditorView, getBlocks } from '../../core/editor'
 import { resolveEditorExtensions } from '../../core/extension'
 import type { Block, PartialBlock } from '../../core/model'
+import { applyEditorTransaction, EditorTransaction } from '../../core/transaction'
 import DouEditor from '../../editor.vue'
 import { editorKit } from '../../extensions/editor-kit'
 
@@ -302,6 +303,21 @@ describe('collaboration', () => {
     expect(expectSame(a.view, b.view)).toBe('b:one B c:two a:Hello')
     b.kit.history!.undo(b.view.state, b.view.dispatch)
     expect(expectSame(a.view, b.view)).toBe('a:Hello b:one B c:two')
+  })
+
+  it('undoes a transact as one step of its own, apart from typing around it', () => {
+    const { a, b } = pair()
+    typeAt(a.view, 'a', 5, ' A')
+    const tr = new EditorTransaction(a.view.state)
+    tr.updateBlock('b', { content: 'uno' })
+    tr.insertBlocks([{ id: 'n', content: 'new' }], { after: 'c' })
+    applyEditorTransaction(a.view, tr)
+    typeAt(a.view, 'a', 7, '!')
+    expect(expectSame(a.view, b.view)).toBe('a:Hello A! b:uno c:two n:new')
+    a.kit.history!.undo(a.view.state, a.view.dispatch)
+    expect(expectSame(a.view, b.view)).toBe('a:Hello A b:uno c:two n:new')
+    a.kit.history!.undo(a.view.state, a.view.dispatch)
+    expect(expectSame(a.view, b.view)).toBe('a:Hello A b:one c:two')
   })
 
   it('starts from an empty shared document', () => {

@@ -10,6 +10,8 @@ import type { EditorView } from 'prosemirror-view'
 import * as Y from 'yjs'
 import { blockAround, findBlockById } from '../core/blocks'
 import { createId } from '../core/model'
+import { originKey } from '../core/editor'
+import { ownStepKey } from '../core/transaction'
 import { placeOf } from './cursors'
 import { keysBetween, orderKeys } from './order'
 import { cellAt, cellStart, clearTable, readTable, writeTable } from './table'
@@ -207,9 +209,12 @@ function keepCellSelection(state: EditorState, tr: Transaction) {
 
 /* the binding */
 
-export const collaborationKey = new PluginKey<{ remote: boolean; tracked: boolean }>(
-  'dou-editor-collaboration',
-)
+export const collaborationKey = new PluginKey<{
+  remote: boolean
+  tracked: boolean
+  /** An undo step of its own (`transact`). */
+  own: boolean
+}>('dou-editor-collaboration')
 
 export interface Binding {
   map: Y.Map<YBlock>
@@ -222,6 +227,8 @@ export interface Binding {
   stopCapturing?: () => void
   /** Where the cursor was before the change being written, for undo to return to. */
   selectionBefore?: unknown
+  /** Set while the undo manager takes a step back or forward. */
+  undoing?: 'undo' | 'redo'
 }
 
 export function createBinding(map: Y.Map<YBlock>): Binding {
@@ -304,6 +311,8 @@ export function syncPlugin(binding: Binding): Plugin {
       if (to !== end.a || from !== start) keepCellSelection(view.state, tr)
       tr.setMeta(collaborationKey, { remote: true })
       tr.setMeta('remote', true)
+      // this user's undo comes back through the shared document too
+      if (binding.undoing) tr.setMeta(originKey, binding.undoing)
       tr.setMeta('addToHistory', false)
       view.dispatch(tr)
     }
@@ -384,16 +393,19 @@ export function syncPlugin(binding: Binding): Plugin {
   return new Plugin({
     key: collaborationKey,
     state: {
-      init: () => ({ remote: false, tracked: false }),
+      init: () => ({ remote: false, tracked: false, own: false }),
       apply(tr, value) {
         const meta = tr.getMeta(collaborationKey) as { remote?: boolean } | undefined
         if (!tr.docChanged) return value
-        if (meta?.remote) return { remote: true, tracked: false }
+        if (meta?.remote) return { remote: true, tracked: false, own: false }
         // a transaction can come with appended ones (e.g. id fixes), written
         // together: undone together if any of them is
         const tracked = tr.getMeta('addToHistory') !== false
+        const own = tr.getMeta(ownStepKey) === true
         const appended = !!tr.getMeta('appendedTransaction') && !value.remote
-        return { remote: false, tracked: appended ? value.tracked || tracked : tracked }
+        return appended
+          ? { remote: false, tracked: value.tracked || tracked, own: value.own || own }
+          : { remote: false, tracked, own }
       },
     },
     view(view) {
@@ -431,7 +443,9 @@ export function syncPlugin(binding: Binding): Plugin {
           }
           // read before writing: the map still holds the previous text
           binding.selectionBefore = placeOf(binding, previous.doc, previous.selection.head)
+          if (state.own) binding.stopCapturing?.()
           writeMap(current, state.tracked)
+          if (state.own) binding.stopCapturing?.()
         },
         destroy() {
           map.unobserveDeep(observer)

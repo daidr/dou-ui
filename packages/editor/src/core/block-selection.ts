@@ -16,7 +16,7 @@ import {
   type BlockInfo,
   type SiblingRange,
 } from './blocks'
-import { duplicateBlocks, liftBlocks, moveBlocks, removeBlocks, sinkBlocks } from './commands'
+import { duplicateBlocks, liftBlocks, swapBlocks, deleteBlocks, sinkBlocks } from './commands'
 
 /**
  * Whole blocks selected with `Esc` or from the block handle. The selected
@@ -122,7 +122,7 @@ function keepSelected(command: Command): (view: EditorView) => boolean {
 const removeSelected = (view: EditorView) => {
   const range = blockSelectionRange(view.state)
   if (!range) return false
-  const tr = removeBlocks(view.state.tr, blocksIn(range)).setMeta(blockSelectionKey, null)
+  const tr = deleteBlocks(view.state.tr, blocksIn(range)).setMeta(blockSelectionKey, null)
   view.dispatch(tr.scrollIntoView())
   return true
 }
@@ -135,8 +135,8 @@ const blockKeys = keydownHandler({
   Backspace: (_state, _dispatch, view) => removeSelected(view!),
   Delete: (_state, _dispatch, view) => removeSelected(view!),
   'Mod-d': (_state, _dispatch, view) => keepSelected(duplicateBlocks)(view!),
-  'Mod-Shift-ArrowUp': (_state, _dispatch, view) => keepSelected(moveBlocks(-1))(view!),
-  'Mod-Shift-ArrowDown': (_state, _dispatch, view) => keepSelected(moveBlocks(1))(view!),
+  'Mod-Shift-ArrowUp': (_state, _dispatch, view) => keepSelected(swapBlocks(-1))(view!),
+  'Mod-Shift-ArrowDown': (_state, _dispatch, view) => keepSelected(swapBlocks(1))(view!),
   Tab: (_state, _dispatch, view) => keepSelected(sinkBlocks)(view!),
   'Shift-Tab': (_state, _dispatch, view) => keepSelected(liftBlocks)(view!),
   Escape: (state, dispatch) => clearBlockSelection(state, dispatch),

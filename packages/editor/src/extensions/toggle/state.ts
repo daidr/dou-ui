@@ -1,4 +1,4 @@
-import type { Node as PMNode } from 'prosemirror-model'
+import type { Node as PMNode, Slice } from 'prosemirror-model'
 import {
   Plugin,
   PluginKey,
@@ -23,13 +23,43 @@ export const toggleKey = new PluginKey<ToggleState>('dou-editor-toggle')
 
 const isToggle = (node: PMNode) => node.firstChild?.type.name === 'toggle'
 
-function decorate(doc: PMNode, closed: ReadonlySet<string>) {
-  const decorations = allBlocks(doc)
-    .filter((info) => isToggle(info.node) && closed.has(info.node.attrs.id))
-    .map((info) =>
-      Decoration.node(info.pos, info.pos + info.node.nodeSize, { class: 'is-collapsed' }),
-    )
-  return DecorationSet.create(doc, decorations)
+/**
+ * The decorations for the closed toggles. A closed toggle turned into
+ * another type is no longer closed: turned back, it starts open like any
+ * toggle added later. Removed toggles stay closed, for when they come back.
+ */
+function rebuild(doc: PMNode, closed: Set<string>): ToggleState {
+  if (!closed.size) return { closed, decorations: DecorationSet.empty }
+  const decorations: Decoration[] = []
+  let kept = closed
+  for (const info of allBlocks(doc)) {
+    const id = info.node.attrs.id as string
+    if (!closed.has(id)) continue
+    if (isToggle(info.node))
+      decorations.push(
+        Decoration.node(info.pos, info.pos + info.node.nodeSize, { class: 'is-collapsed' }),
+      )
+    else {
+      if (kept === closed) kept = new Set(closed)
+      kept.delete(id)
+    }
+  }
+  return { closed: kept, decorations: DecorationSet.create(doc, decorations) }
+}
+
+/** Whether a transaction inserts a toggle that is closed. */
+function insertsClosed(tr: Transaction, closed: ReadonlySet<string>): boolean {
+  if (!closed.size) return false
+  return tr.steps.some((step) => {
+    const slice = (step as { slice?: Slice }).slice
+    let found = false
+    slice?.content.descendants((node) => {
+      if (found) return false
+      if (isToggle(node) && closed.has(node.attrs.id as string)) found = true
+      return !found && (node.type.name === 'block' || node.type.name === 'blockGroup')
+    })
+    return found
+  })
 }
 
 /** Toggles around the cursor open, so the cursor never sits in hidden text. */
@@ -57,7 +87,7 @@ export function togglePlugin(): Plugin<ToggleState> {
             .filter((info) => isToggle(info.node))
             .map((info) => info.node.attrs.id as string),
         )
-        return { closed, decorations: decorate(state.doc, closed) }
+        return rebuild(state.doc, closed)
       },
       apply(tr: Transaction, value, _old, state) {
         const flip = tr.getMeta(toggleKey) as string | undefined
@@ -79,7 +109,18 @@ export function togglePlugin(): Plugin<ToggleState> {
           }
         }
         if (!changed && !tr.docChanged) return value
-        return { closed, decorations: decorate(state.doc, closed) }
+        // typing moves the closed toggles' decorations along; no need to look for them again,
+        // unless a closed toggle came back (moved, pasted, or its removal undone)
+        if (!changed && !insertsClosed(tr, closed)) {
+          const decorations = value.decorations.map(tr.mapping, tr.doc)
+          // a closed toggle turned into another type keeps its block: look again
+          const stale = decorations.find().some((decoration) => {
+            const node = tr.doc.nodeAt(decoration.from)
+            return !node || !isToggle(node)
+          })
+          if (!stale) return { closed, decorations }
+        }
+        return rebuild(state.doc, closed)
       },
     },
     props: {

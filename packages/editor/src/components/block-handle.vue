@@ -29,9 +29,9 @@ import {
 import {
   duplicateBlocks,
   insertBlockAfter,
-  moveBlocks,
+  swapBlocks,
   moveRangeTo,
-  removeBlocks,
+  deleteBlocks,
   setBlockType,
 } from '../core/commands'
 import { blockFromNode } from '../core/model'
@@ -210,7 +210,7 @@ function add(event: MouseEvent) {
   if (!empty || info.content.type.name !== 'paragraph') {
     insertBlockAfter(info.pos)(current.state, current.dispatch)
     // Alt+click adds the block above instead
-    if (event.altKey) moveBlocks(-1)(current.state, current.dispatch)
+    if (event.altKey) swapBlocks(-1)(current.state, current.dispatch)
   } else {
     const tr = current.state.tr.setSelection(
       TextSelection.create(current.state.doc, info.contentPos + 1),
@@ -252,14 +252,14 @@ const turnInto = (option: BlockOption) =>
   keep((instance) => setBlockType(option.type, option.props)(instance.state, instance.dispatch))
 const duplicate = () => keep((instance) => duplicateBlocks(instance.state, instance.dispatch))
 const move = (direction: -1 | 1) =>
-  keep((instance) => moveBlocks(direction)(instance.state, instance.dispatch))
+  keep((instance) => swapBlocks(direction)(instance.state, instance.dispatch))
 
 function remove() {
   after(() => {
     const instance = view.value
     const range = instance && blockSelectionRange(instance.state)
     if (!instance || !range) return
-    const tr = removeBlocks(instance.state.tr, blocksIn(range)).setMeta(blockSelectionKey, null)
+    const tr = deleteBlocks(instance.state.tr, blocksIn(range)).setMeta(blockSelectionKey, null)
     instance.dispatch(tr.scrollIntoView())
     position.value = null
   })
@@ -267,7 +267,7 @@ function remove() {
 
 const canMove = (direction: -1 | 1) => {
   const instance = view.value
-  return !!instance && !!state.value && moveBlocks(direction)(instance.state)
+  return !!instance && !!state.value && swapBlocks(direction)(instance.state)
 }
 
 /* dragging */

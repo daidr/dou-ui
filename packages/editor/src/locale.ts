@@ -106,6 +106,10 @@ export interface EditorMessages {
   linkPlaceholder: string
   applyLink: string
   removeLink: string
+  /** Starts a comment thread on the selected text. */
+  comment: string
+  /** The name of the card that shows a thread. */
+  commentThread: string
   formatting: string
   /** The name of the slash menu's list. */
   blockTypes: string
@@ -206,6 +210,8 @@ const zhCN: EditorMessages = {
   linkPlaceholder: '粘贴或输入链接',
   applyLink: '确定',
   removeLink: '移除链接',
+  comment: '评论',
+  commentThread: '评论',
   formatting: '文字格式',
   blockTypes: '块类型',
 }
@@ -305,6 +311,8 @@ const zhTW: EditorMessages = {
   linkPlaceholder: '貼上或輸入連結',
   applyLink: '確定',
   removeLink: '移除連結',
+  comment: '評論',
+  commentThread: '評論',
   formatting: '文字格式',
   blockTypes: '區塊類型',
 }
@@ -404,6 +412,8 @@ const en: EditorMessages = {
   linkPlaceholder: 'Paste or type a link',
   applyLink: 'Apply',
   removeLink: 'Remove link',
+  comment: 'Comment',
+  commentThread: 'Comments',
   formatting: 'Text formatting',
   blockTypes: 'Block types',
 }

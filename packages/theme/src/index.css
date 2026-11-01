@@ -35,6 +35,7 @@
 @import './components/color-picker.css';
 @import './components/color-mode.css';
 @import './components/command.css';
+@import './components/comment-thread.css';
 @import './components/copy-button.css';
 @import './components/date-picker.css';
 @import './components/descriptions.css';

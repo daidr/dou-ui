@@ -80,6 +80,24 @@ const inlineFrame: Record<string, NodeSpec> = {
   },
 }
 
+/**
+ * Where a comment thread is anchored: the text it is about carries the
+ * thread's id. A text can be in several threads, so the mark excludes
+ * nothing, not even itself; typing at its edge doesn't extend it.
+ */
+const commentMark: MarkSpec = {
+  attrs: { id: {} },
+  excludes: '',
+  inclusive: false,
+  parseDOM: [
+    {
+      tag: 'span[data-comment]',
+      getAttrs: (dom) => ({ id: (dom as HTMLElement).dataset.comment }),
+    },
+  ],
+  toDOM: (mark) => ['span', { class: 'dou-editor__comment', 'data-comment': mark.attrs.id }, 0],
+}
+
 export interface SchemaParts {
   blocks: Record<string, NodeSpec>
   /** Nodes inside blocks, e.g. table rows and cells. */
@@ -104,7 +122,17 @@ export function createSchema({ blocks, nodes: inner = {}, inlines, marks }: Sche
     if (name in nodes) throw new Error(`[@dou-ui/editor] "${name}" is a built-in node`)
     nodes[name] = { inline: true, ...spec, group: spec.group ? `inline ${spec.group}` : 'inline' }
   }
-  return new Schema({ nodes, marks })
+  if ('comment' in marks) throw new Error('[@dou-ui/editor] "comment" is a built-in mark')
+  // any text can be commented on, also text whose mark excludes all others (inline code)
+  const others = Object.keys(marks).join(' ')
+  const specs = Object.fromEntries(
+    Object.entries(marks).map(([name, spec]) => [
+      name,
+      spec.excludes === '_' ? { ...spec, excludes: others } : spec,
+    ]),
+  )
+  // first, so a comment wraps the formatting of the text it is about
+  return new Schema({ nodes, marks: { comment: commentMark, ...specs } })
 }
 
 /** Links may only point to web pages, mail, phone numbers or relative paths. */

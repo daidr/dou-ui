@@ -43,6 +43,8 @@
 - `@dou-ui/editor` 新增表格：行列菜单、列宽、对齐、表头行与表头列、合并单元格，可以导入导出 HTML 与 Markdown
 - Dropdown 无论以哪种方式打开，点击菜单以外的地方都会关闭（之前 `trigger="manual"` 的菜单不会）
 - `@dou-ui/editor` 的表格可以拖动把手移动整行整列；手机上把手与按钮更大，不提供拖动调整列宽
+- 新增 CommentThread 评论讨论：回复、编辑、删除、标记已解决，每次修改以 `CommentAction` 给出，`applyCommentAction` 可在别处重放
+- `@dou-ui/editor` 支持评论：选中文字发起讨论，被评论的文字随文档保存并高亮，讨论放在 `v-model:comments`，只读时也能评论；协同扩展的 `comments` 选项同步讨论
 - `@dou-ui/editor/collaboration` 支持表格：行、列、格子与合并单元格分开同步，移动行列和编辑格子不会互相覆盖，其他人的光标也会显示在格子里
 - `@dou-ui/editor` 支持导入导出 HTML 与 Markdown（`blocksToHTML`、`htmlToBlocks`，以及 `@dou-ui/editor/markdown`），写法由各扩展声明
 - `@dou-ui/sheet`：电子表格，横纵虚拟滚动、冻结行列、多区域选择、直接输入与输入法、数字与日期格式、命名样式、事务与撤销重做；复制粘贴（与其他表格软件互通）、填充柄、行列宽高拖动与自适应、插入删除隐藏移动行列、右键菜单（可自定义）；插入、删除、移动行列与剪切粘贴时公式引用随之改写；`paste` 事件可修改或取消粘贴，`meta.action` 标明每次修改的来源；合并单元格（行列操作时随之移动）；单元格类型 `date`（日历）、`select`（选项列表，选项可带语气色）、`checkbox`，工作簿 `types` 命名类型设置；`defineSheetExtension` 扩展（单元格类型、快捷键、右键菜单、浮层、修改钩子）与 `useSheet()`；多工作表：`DouSheetTabs` 标签栏（新建、重命名、复制、删除、拖动排序，均可撤销），`header` / `footer` 插槽，重命名和删除工作表时公式引用随之改写，每个工作表记住各自的选区和滚动位置；CSV 读写（`readCSV`、`sheetToCSV`、组件实例的 `toCSV`，自动识别分隔符，前导零和长数字保持文字）；`DouSheetToolbar` 格式工具栏（数字格式与小数位、粗斜体、下划线、删除线、文字与填充颜色、对齐、换行、合并、冻结、清除格式，可选按钮与插槽），`tr.styleCells` / `tr.formatCells` 修改区域样式与格式（相同外观共用一个样式），`Ctrl` + `B` / `I` / `U` 快捷键；大事务（如一次改动 20 万个单元格）不再变慢；公式：自研解析与按需计算，修改后只重新计算受影响的公式（长依赖链不爆栈），64 个常用函数（数学、逻辑、文字、日期、条件统计、查找），错误值与循环引用 `#CYCLE!`，`defineSheetFunction` 与扩展的 `functions` 自定义函数，复制、CSV 与读屏使用计算结果，`@dou-ui/sheet/formula` 单独提供计算引擎 `SheetFormulaEngine`

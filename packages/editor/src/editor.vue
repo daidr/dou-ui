@@ -13,10 +13,14 @@ import {
   toRaw,
   useTemplateRef,
   watch,
+  h,
+  useId,
   type Component,
 } from 'vue'
 import BlockHandle from './components/block-handle.vue'
 import BubbleToolbar from './components/bubble-toolbar.vue'
+import CommentButton from './components/comment-button.vue'
+import CommentCard from './components/comment-card.vue'
 import SlashMenu from './components/slash-menu.vue'
 import { setFallbackHighlighter, type CodeHighlighter } from './core/highlight'
 import { createEditorView, getBlocks, replaceBlocks, runCommand, setEditable } from './core/editor'
@@ -29,6 +33,7 @@ import { componentMounter, vueNodeView } from './define-block'
 import { editorKit } from './extensions/editor-kit'
 import { editorKey, type EditorEmits, type EditorExpose, type EditorProps } from './editor'
 import { useEditorMessages } from './locale'
+import { useEditorComments } from './use-comments'
 
 defineOptions({ name: 'DouEditor' })
 
@@ -44,6 +49,10 @@ const props = withDefaults(defineProps<EditorProps>(), {
   history: true,
   undo: undefined,
   redo: undefined,
+  comments: undefined,
+  author: undefined,
+  activeComment: undefined,
+  commentable: true,
 })
 const emit = defineEmits<EditorEmits>()
 
@@ -71,7 +80,18 @@ const focused = shallowRef(false)
 const dragging = shallowRef(false)
 const editable = computed(() => !props.readonly)
 
-const context = { view, state, focused, dragging, editable, messages, root, kit }
+const {
+  comments,
+  plugin: commentPlugin,
+  anchors,
+} = useEditorComments({
+  props,
+  emit,
+  view,
+  provider: kit.comments,
+})
+
+const context = { view, state, focused, dragging, editable, messages, root, kit, comments }
 provide(editorKey, context)
 
 // block components render outside this component's tree: hand them the context
@@ -137,7 +157,17 @@ onMounted(() => {
         onChange: (value) => (slash.value = value),
         onKey: (event) => slashMenu.value?.onKey(event) ?? false,
       }),
-      keymap({ 'Mod-k': () => bubble.value?.editLink() ?? false }),
+      keymap({
+        'Mod-k': () => bubble.value?.editLink() ?? false,
+        'Mod-Alt-m': () => comments.start(),
+        // with the thread card open, Escape in the text closes it, and only that
+        Escape: () => {
+          if (!comments.pending.value && !comments.active.value) return false
+          comments.close()
+          return true
+        },
+      }),
+      commentPlugin,
       openLinks,
     ],
     history: props.history,
@@ -204,20 +234,49 @@ defineExpose<EditorExpose>({
   getHTML: () => (view.value ? writeHTML(getBlocks(view.value), kit) : ''),
   setHTML: (html: string) => view.value && replaceBlocks(view.value, parseHTML(html, kit)),
   run: (command) => (view.value ? runCommand(view.value, command) : false),
+  comment: () => comments.start(),
+  getCommentAnchors: anchors,
 })
+
+/*
+ * Highlights for the threads that are open: by thread id, in one rule,
+ * so a thread resolved or opened restyles its text without redrawing it.
+ */
+const scope = useId()
+/** An id as a CSS identifier: no quotes or `<`, which server rendering would escape. */
+const ident = (id: string) =>
+  id.replace(/[^a-zA-Z0-9_]|^[\d-]/gu, (char) => `\\${char.codePointAt(0)!.toString(16)} `)
+const highlighted = (id: string) => `[data-dou-editor=${ident(scope)}] [data-comment=${ident(id)}]`
+const highlightCSS = computed(() => {
+  if (!comments.enabled.value) return ''
+  const open = comments.threads.value.filter((thread) => !thread.resolved)
+  if (!open.length) return ''
+  let css = `${open.map((thread) => highlighted(thread.id)).join(',')}{background-color:var(--dou-editor-comment-bg);border-bottom-color:var(--dou-editor-comment-line)}`
+  const active = comments.active.value
+  if (active && open.some((thread) => thread.id === active))
+    css += `${highlighted(active)}{background-color:var(--dou-editor-comment-bg-active)}`
+  return css
+})
+const HighlightStyle = () => (highlightCSS.value ? h('style', highlightCSS.value) : null)
 </script>
 
 <template>
   <div
     ref="root"
     :class="[ns.b(), { 'is-readonly': readonly, 'is-focused': focused, 'is-dragging': dragging }]"
+    :data-dou-editor="scope"
   >
+    <HighlightStyle />
     <div ref="mount" :class="ns.e('mount')" />
     <template v-if="!readonly && view">
       <BlockHandle />
       <SlashMenu ref="slashMenu" :slash="slash" />
       <BubbleToolbar ref="bubble" />
       <component :is="overlay" v-for="(overlay, index) in kit.overlays" :key="index" />
+    </template>
+    <template v-if="view && comments.enabled.value">
+      <CommentButton v-if="readonly" />
+      <CommentCard />
     </template>
   </div>
 </template>

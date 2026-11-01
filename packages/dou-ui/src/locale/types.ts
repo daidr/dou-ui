@@ -440,6 +440,33 @@ export interface Locale {
     /** Folds it again. */
     collapse: string
   }
+  commentThread: {
+    /** The hint in the box that starts a thread. */
+    placeholder: string
+    /** The hint in the reply box. */
+    replyPlaceholder: string
+    /** Sends what was written. */
+    send: string
+    cancel: string
+    save: string
+    /** Marks the discussion as settled. */
+    resolve: string
+    /** Opens a settled discussion again. */
+    reopen: string
+    /** Shown on a settled discussion; `{name}` is who settled it. */
+    resolvedBy: string
+    /** After a comment that was changed. */
+    edited: string
+    /** The menu of a comment. */
+    more: string
+    edit: string
+    /** Deletes a reply. */
+    delete: string
+    /** Deletes the first comment, and with it the whole discussion. */
+    deleteThread: string
+    /** Asked before the whole discussion goes. */
+    deleteThreadConfirm: string
+  }
   copyButton: {
     copy: string
     /** Said once the text is on the clipboard. */

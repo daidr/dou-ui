@@ -51,7 +51,7 @@ function onChange(value: SelectValue | SelectValue[] | null | undefined) {
     <template #option="{ option }">
       <span :class="ns.e('option')">
         <component :is="icons[option.value as ColorMode]" :class="ns.e('icon')" />
-        <span :class="ns.e('label')">{{ option.label }}</span>
+        {{ option.label }}
       </span>
     </template>
   </DouSelect>

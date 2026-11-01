@@ -189,7 +189,10 @@ function writeEnd(end: RefEnd) {
 
 /** A sheet's name as a reference writes it: quoted unless it is a plain word. */
 export function quoteSheet(name: string) {
-  return /^[\p{L}_][\p{L}\p{N}_.]*$/u.test(name) && !parseCell(name)
+  // names that read as a cell, `AB12` or `R1C1`, are quoted too
+  return /^[\p{L}_][\p{L}\p{N}_.]*$/u.test(name) &&
+    !parseCell(name) &&
+    !/^[rc]\d*([rc]\d*)?$/i.test(name)
     ? name
     : `'${name.replaceAll("'", "''")}'`
 }
@@ -315,13 +318,14 @@ export function renameReferences(formula: string, from: string, to: string) {
 /**
  * A formula with references to several sheets renamed at once, by old
  * name: `{ 预算: '预算 (2)' }`. Names that swap or chain are each renamed
- * once.
+ * once. A name mapped to itself has its references written again, quoted
+ * as `quoteSheet` quotes it.
  */
 export function renameReferencesAll(formula: string, names: ReadonlyMap<string, string>) {
   if (!names.size) return formula
   return eachRef(formula, (named, a, b, text) => {
     const to = named == null ? undefined : names.get(named)
-    return to != null && to !== named ? writeRef(to, a, b, a === b) : text
+    return to != null ? writeRef(to, a, b, a === b) : text
   })
 }
 

@@ -58,6 +58,7 @@ export default defineConfig({
       },
       { find: /^@dou-ui\/dashboard$/, replacement: r('./packages/dashboard/src/index.ts') },
       { find: /^@dou-ui\/sheet\/code$/, replacement: r('./packages/sheet/src/code/index.ts') },
+      { find: /^@dou-ui\/sheet-xlsx$/, replacement: r('./packages/sheet-xlsx/src/index.ts') },
       { find: /^@dou-ui\/sheet$/, replacement: r('./packages/sheet/src/index.ts') },
       {
         find: /^@dou-ui\/sheet\/formula$/,

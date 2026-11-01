@@ -256,8 +256,18 @@ declare module '@dou-ui/sheet' {
 | `format(sheet, row, col)`   | 数字格式                                                                                                                                  |
 | `cellType(sheet, row, col)` | 单元格类型，普通单元格为 `undefined`                                                                                                      |
 | `locale`、`messages`        | 语言和文案                                                                                                                                |
+| `colWidth`、`rowHeight`     | 表格默认的列宽、行高（px），没有单独设过大小的列和行用它们；在表格里导出时取自 `col-width`、`row-height`                                  |
 | `signal`                    | `exportFile` 传入的 `signal`，取消时中止                                                                                                  |
 | `view`                      | 只有 `needs: 'view'` 的导出器在表格里导出时才有：`view.drawing(options?)` 返回导出的单元格按表格画出来的布局和颜色                        |
+
+要把样式写成文件自己的格式（而不是叠加了条件格式的 `style`）时，可以读 `book.styles` 里的命名样式，用 `plainStyle(style)` 把 `tone`、`fill` 换成浅色主题下的 `color`、`background`；`lightThemeColor(css)` 把主题变量和 `color-mix(in oklab, …)` 算成 `#rrggbb`，其他颜色原样返回。[`@dou-ui/sheet-xlsx`](./xlsx) 用它们把条件格式写成文件里的规则。
+
+```ts
+import { lightThemeColor, plainStyle } from '@dou-ui/sheet'
+
+plainStyle({ bold: true, fill: 'primary' }) // { bold: true, background: '#e6eaf7' }
+lightThemeColor('var(--dou-color-danger)') // '#b2423e'
+```
 
 导入器读文件，返回 `{ book, warnings? }`。`warnings` 列出没能带过来的内容，会在 `import` 事件里交给使用者：
 
@@ -282,7 +292,7 @@ const json = defineSheetImporter({
 | `sniff`    | 按文件开头的字节判断能不能读，用于文件名看不出来的情况                                                                | `(head: Uint8Array) => boolean`                                                |
 | `import`   | 读文件；`context` 里有 `messages`、`locale` 和 `signal`（导入被取消或表格卸载时中止）；出错时抛出错误，表格会提示原因 | `(file, context, options?) => SheetImportResult \| Promise<SheetImportResult>` |
 
-不经过组件时，`exportWorkbook(book, exporter, options?)` 写出 `Blob`，会计算公式，`needs: 'view'` 的导出器在这里会报错；`options` 里的 `extensions` 提供工作簿用到的单元格类型和函数，`scope`、`sheet`（序号、`id` 或名字，默认第一张）、`range`、`signal` 和组件的 `exportFile` 一样，`options` 交给导出器。`readWorkbook(file, importer, options?)` 只读出 `{ book, warnings }`，不写进任何表格。内置的 CSV 导出器和导入器是 `csvExporter`、`csvImporter`，也可以这样用：
+不经过组件时，`exportWorkbook(book, exporter, options?)` 写出 `Blob`，会计算公式，`needs: 'view'` 的导出器在这里会报错；`options` 里的 `extensions` 提供工作簿用到的单元格类型和函数，`scope`、`sheet`（序号、`id` 或名字，默认第一张）、`range`、`signal` 和组件的 `exportFile` 一样，`colWidth`、`rowHeight` 是工作簿配合的列宽行高（和表格的 `col-width`、`row-height` 一样，默认 96、28），`options` 交给导出器。`readWorkbook(file, importer, options?)` 只读出 `{ book, warnings }`，不写进任何表格。内置的 CSV 导出器和导入器是 `csvExporter`、`csvImporter`，也可以这样用：
 
 ```ts
 import { csvExporter, exportWorkbook } from '@dou-ui/sheet'

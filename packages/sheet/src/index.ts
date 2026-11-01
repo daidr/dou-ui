@@ -99,6 +99,7 @@ export {
   moveReferences,
   dropReferences,
   renameReferences,
+  renameReferencesAll,
   parseCell,
   parseRange,
   quoteSheet,
@@ -188,3 +189,4 @@ declare module 'vue' {
   }
 }
 export type { DrawCell, DrawLook, DrawTheme, SheetDrawing } from './export/draw'
+export { lightThemeColor, plainStyle } from './core/paint'

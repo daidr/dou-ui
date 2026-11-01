@@ -8,6 +8,7 @@ import {
   formatRange,
   parseCSV,
   readCSV,
+  quoteSheet,
   renameReferences,
   SheetTransaction,
   sheetToCSV,
@@ -85,6 +86,18 @@ describe('sheets in a transaction', () => {
     expect(renameReferences('=A1+表1!A1+"表1!A1"+表10!A1', '表1', '数据')).toBe(
       '=A1+数据!A1+"表1!A1"+表10!A1',
     )
+  })
+
+  it('quotes sheet names that read as a cell', () => {
+    expect(['AB12', 'R1C1', 'r2', 'C', '数据', 'Q1'].map(quoteSheet)).toEqual([
+      "'AB12'",
+      "'R1C1'",
+      "'r2'",
+      "'C'",
+      '数据',
+      "'Q1'",
+    ])
+    expect(renameReferences('=表1!A1', '表1', 'R1C1')).toBe("='R1C1'!A1")
   })
 
   it('duplicates a sheet, and the copy changes on its own', () => {

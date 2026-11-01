@@ -50,12 +50,12 @@ function mixPart(arg: string): { color: string; amount?: number } {
  * worked out: theme variables and `color-mix(in oklab, …)` of them. Other
  * colors, such as `red`, are given back as they are.
  */
-export function lightColor(css: string): string {
+export function lightThemeColor(css: string): string {
   const text = css.trim()
   const variable = /^var\(\s*(--[\w-]+)\s*(?:,\s*(.+))?\)$/.exec(text)
   if (variable) {
     const value = tokens.get(variable[1]!) ?? variable[2]
-    return value ? lightColor(value) : text
+    return value ? lightThemeColor(value) : text
   }
   const mix = /^color-mix\(\s*in\s+oklab\s*,(.*)\)$/i.exec(text)
   if (mix) {
@@ -64,8 +64,8 @@ export function lightColor(css: string): string {
     const a = mixPart(first)
     const b = mixPart(second)
     const amount = a.amount ?? (b.amount != null ? 1 - b.amount : 0.5)
-    const from = lightColor(a.color)
-    const to = lightColor(b.color)
+    const from = lightThemeColor(a.color)
+    const to = lightThemeColor(b.color)
     try {
       return mixColors(from, to, amount)
     } catch {
@@ -89,7 +89,7 @@ export function plainStyle(style: SheetStyle): SheetStyle {
   const out: SheetStyle = { ...rest }
   const color = rest.color ?? (tone ? TONE_TEXT(tone) : undefined)
   const background = rest.background ?? (fill ? TONE_FILL[fill] : undefined)
-  if (color) out.color = lightColor(color)
-  if (background) out.background = lightColor(background)
+  if (color) out.color = lightThemeColor(color)
+  if (background) out.background = lightThemeColor(background)
   return out
 }

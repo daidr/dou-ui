@@ -2,6 +2,7 @@ import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import {
+  createFileSource,
   csvExporter,
   csvImporter,
   defineSheetCellType,
@@ -11,6 +12,7 @@ import {
   DouSheet,
   DouSheetToolbar,
   exportWorkbook,
+  isSheetError,
   readWorkbook,
   useSheet,
   type SheetContext,
@@ -101,6 +103,13 @@ describe('exportWorkbook', () => {
 })
 
 describe('file source', () => {
+  it('gives errors as SheetError in result, as their code in plain', () => {
+    const source = createFileSource({ sheets: [{ name: 'S', cells: [['=1/0', '=A1']] }] })
+    expect(isSheetError(source.result(0, 0, 0))).toBe(true)
+    expect(source.plain(0, 0, 0)).toBe('#DIV/0!')
+    expect(source.result(0, 0, 1)).toBe(source.result(0, 0, 0))
+  })
+
   it('gives styles in plain colors, with what conditional formats add', async () => {
     let seen: unknown[] = []
     const probe = defineSheetExporter({

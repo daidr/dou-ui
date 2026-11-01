@@ -4,9 +4,8 @@
  * A muted panel with a hairline edge. Rows are blocks, so whitespace
  * between them in the markup never shows; each line keeps its own
  * spaces. Highlighted tokens follow shiki's dual-theme properties
- * (`--shiki-light` / `--shiki-dark`) through `light-dark()`, which reads
- * the color scheme of the nearest theme, so a light block inside a dark
- * page stays right. Marked lines take a quiet wash and an ink bar.
+ * (`--shiki-light` / `--shiki-dark`), picked by `--dou-scheme-dark` of
+ * the nearest theme, so a light block inside a dark page stays right. Marked lines take a quiet wash and an ink bar.
  */
 @layer dou.components {
   .dou-code-block {
@@ -149,7 +148,11 @@
 
     & span {
       color: var(--shiki-light, inherit);
-      color: light-dark(var(--shiki-light, inherit), var(--shiki-dark, inherit));
+      color: color-mix(
+        in oklab,
+        var(--shiki-dark, currentColor) calc(100% * var(--dou-scheme-dark)),
+        var(--shiki-light, currentColor)
+      );
       font-style: var(--shiki-light-font-style, inherit);
       font-weight: var(--shiki-light-font-weight, inherit);
     }

@@ -159,6 +159,33 @@ export function stepsView(
 ) {
   provide(disabledKey, () => disabled.value)
   const pages = shownPages(props, condition)
+  // Read-only, there is nothing to fill in step by step: every page shows, under its title.
+  if (renderer.readonly()) {
+    const uid = useId()
+    return () =>
+      h(
+        'div',
+        { class: 'dou-form-renderer__steps is-readonly' },
+        pages.value.map((node) => {
+          const titleId = `dou-form-step-${uid}-${node.id}`
+          return h(
+            'div',
+            {
+              key: node.id,
+              class: 'dou-form-renderer__section',
+              role: 'group',
+              'aria-labelledby': titleId,
+            },
+            [
+              h('div', { class: 'dou-form-renderer__section-header' }, [
+                h('div', { id: titleId, class: 'dou-form-renderer__section-title' }, node.title),
+              ]),
+              pageOf(kit, node, props),
+            ],
+          )
+        }),
+      )
+  }
   const chosen = shallowRef<string>()
   /** How far people got: the steps up to here can be opened again. */
   const reached = shallowRef(0)
@@ -224,9 +251,17 @@ export function stepsView(
     const index = current.value
     const messages = renderer.messages()
     const last = index >= list.length - 1
+    // A step holding errors, e.g. ones set after submit, is marked like a tab.
+    const errorPaths = renderer.errorPaths()
+    const failing = new Set(
+      list
+        .filter((step) => errorPaths.some((path) => holdsPath(step.children, path, scope.prefix())))
+        .map((step) => step.id),
+    )
     const items: StepItem[] = list.map((step, at) => ({
       title: step.title,
       disabled: at > reached.value,
+      status: failing.has(step.id) ? 'error' : undefined,
     }))
     const footer: VNodeChild[] = []
     if (index > 0)
@@ -247,6 +282,7 @@ export function stepsView(
       )
     else if (renderer.footerOwner() === props.node.id) footer.push(renderer.footer() as VNodeChild)
     return h('div', { class: 'dou-form-renderer__steps' }, [
+      // A step's status is read out with its title, "error" included.
       h(DouSteps, {
         items,
         current: index,
@@ -318,8 +354,12 @@ function listGhost(el: HTMLElement): HTMLElement {
 }
 
 /** The rules of a list itself: its own, and its bounds on the number of items. */
-function listRules(node: FormListNode, renderer: RendererContext): FormRule[] {
-  const rules = rulesOf(node, { functions: renderer.functions() })
+function listRules(node: FormListNode, renderer: RendererContext, path: () => string): FormRule[] {
+  const rules = rulesOf(node, {
+    functions: renderer.functions(),
+    validators: renderer.validators(),
+    path,
+  })
   const bounds: FormRule = {}
   if (node.min !== undefined && node.min > 0) bounds.min = node.min
   if (node.max !== undefined) bounds.max = node.max
@@ -346,11 +386,11 @@ export function listView(
     const cycles = findItemFormulaCycles(list())
     for (const cycle of cycles)
       console.warn(
-        `[dou-ui] form formulas of list "${list().name}" read each other in a circle (${cycle.join(' -> ')}); they are not worked out`,
+        `[@dou-ui/form-builder] form formulas of list "${list().name}" read each other in a circle (${cycle.join(' -> ')}); they are not worked out`,
       )
     return new Set(cycles.flat())
   })
-  const rules = computed(() => listRules(list(), renderer))
+  const rules = computed(() => listRules(list(), renderer, path))
 
   function write(next: Record<string, unknown>[]) {
     const name = path()
@@ -392,17 +432,19 @@ export function listView(
     const node = list()
     const rows = items.value
     const messages = renderer.messages()
+    // Read-only controls (a read-only builder's settings) show the items without the buttons too.
+    const readonly = renderer.readonly() || renderer.controlsReadonly()
     const off = disabled.value
     const canAdd = !off && (node.max === undefined || rows.length < node.max)
     const canRemove = !off && rows.length > (node.min ?? 0)
-    const sortable = node.sortable !== false && !off && rows.length > 1
+    const sortable = node.sortable !== false && !off && !readonly && rows.length > 1
     const labelId = node.label ? `dou-form-list-${uid}` : undefined
     const required = node.required || rules.value.some((rule) => rule.required)
     return h(
       'div',
       {
         ref: root,
-        class: ['dou-form-renderer__list', off && 'is-disabled'],
+        class: ['dou-form-renderer__list', off && 'is-disabled', readonly && 'is-readonly'],
         role: 'group',
         'aria-labelledby': labelId,
         'aria-disabled': off || undefined,
@@ -455,34 +497,41 @@ export function listView(
                     blocked: blocked.value,
                     sortable,
                     canRemove,
+                    readonly,
                     onRemove: () => remove(at < 0 ? index : at),
                   })
                 },
               },
             )
-          : h('div', { class: 'dou-form-renderer__list-empty' }, messages.empty),
+          : h(
+              'div',
+              { class: 'dou-form-renderer__list-empty' },
+              readonly ? messages.noValue : messages.empty,
+            ),
         // After the items, so a reset puts their values back before the
         // list puts back its own items; its errors show under the button.
-        h(
-          DouFormItem,
-          {
-            ref: footer,
-            class: 'dou-form-renderer__list-footer',
-            prop: path(),
-            rules: rules.value,
-          },
-          () =>
-            h(
-              DouButton,
+        readonly
+          ? null
+          : h(
+              DouFormItem,
               {
-                class: 'dou-form-renderer__list-add',
-                variant: 'outline',
-                disabled: !canAdd,
-                onClick: add,
+                ref: footer,
+                class: 'dou-form-renderer__list-footer',
+                prop: path(),
+                rules: rules.value,
               },
-              { leading: () => h(PlusIcon), default: () => node.addText ?? messages.add },
+              () =>
+                h(
+                  DouButton,
+                  {
+                    class: 'dou-form-renderer__list-add',
+                    variant: 'outline',
+                    disabled: !canAdd,
+                    onClick: add,
+                  },
+                  { leading: () => h(PlusIcon), default: () => node.addText ?? messages.add },
+                ),
             ),
-        ),
       ],
     )
   }
@@ -505,6 +554,8 @@ const ListItemView = defineComponent({
     blocked: { type: Object as PropType<ReadonlySet<string>>, required: true },
     sortable: Boolean,
     canRemove: Boolean,
+    /** Without the remove button. */
+    readonly: Boolean,
   },
   emits: ['remove'],
   setup(props, { emit }) {
@@ -530,18 +581,20 @@ const ListItemView = defineComponent({
             { class: 'dou-form-renderer__list-item-title' },
             formatMessage(messages.item, { index: number }),
           ),
-          h(
-            DouButton,
-            {
-              class: 'dou-form-renderer__list-remove',
-              variant: 'ghost',
-              size: 'sm',
-              disabled: !props.canRemove,
-              'aria-label': formatMessage(messages.remove, { index: number }),
-              onClick: () => emit('remove'),
-            },
-            { leading: () => h(TrashIcon) },
-          ),
+          props.readonly
+            ? null
+            : h(
+                DouButton,
+                {
+                  class: 'dou-form-renderer__list-remove',
+                  variant: 'ghost',
+                  size: 'sm',
+                  disabled: !props.canRemove,
+                  'aria-label': formatMessage(messages.remove, { index: number }),
+                  onClick: () => emit('remove'),
+                },
+                { leading: () => h(TrashIcon) },
+              ),
         ]),
         h(
           'div',

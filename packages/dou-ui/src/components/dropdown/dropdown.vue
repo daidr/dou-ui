@@ -7,6 +7,8 @@ import { dropdownHostKey, dropdownKey } from './dropdown'
 import { menuItems, useMenuKeys } from './menu-keys'
 import type { DropdownExpose, DropdownProps, DropdownSlots, DropdownValue } from './dropdown'
 import { useTeleport } from '../../utils/teleport'
+import DropdownItems from './dropdown-items.vue'
+import { useItemsWarning } from './items-warning'
 
 defineOptions({ name: 'DouDropdown', inheritAttrs: false })
 
@@ -24,7 +26,8 @@ const props = withDefaults(defineProps<DropdownProps>(), {
 const teleportTarget = useTeleport(() => props.teleport)
 const open = defineModel<boolean>('open', { default: false })
 const emit = defineEmits<{ select: [value: DropdownValue | undefined] }>()
-defineSlots<DropdownSlots>()
+const slots = defineSlots<DropdownSlots>()
+useItemsWarning('Dropdown', () => !!props.items && !!slots.menu)
 
 const ns = useNamespace('dropdown')
 const id = `dou-dropdown-${useId()}`
@@ -96,6 +99,7 @@ function onMenuKeydown(event: KeyboardEvent) {
 
 provide(dropdownKey, {
   select(value) {
+    props.items?.find((item) => item.key === value)?.run?.()
     emit('select', value)
     if (!props.hideOnSelect) return
     // Focus may be in a submenu, outside the panel: it goes back to the trigger too.
@@ -129,7 +133,7 @@ defineExpose<DropdownExpose>({ open: () => popup.show(), close: () => popup.hide
         v-bind="{ ...$attrs, ...panelListeners }"
         @keydown="onMenuKeydown"
       >
-        <slot name="menu" />
+        <slot name="menu"><DropdownItems v-if="props.items" :items="props.items" /></slot>
       </div>
     </Transition>
   </Teleport>

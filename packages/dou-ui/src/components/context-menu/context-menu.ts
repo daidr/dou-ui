@@ -1,4 +1,30 @@
-import type { DropdownValue } from '../dropdown/dropdown'
+import type { Component } from 'vue'
+import type { DropdownItemTone, DropdownValue } from '../dropdown/dropdown'
+
+/**
+ * A menu item written as data, for menus that are built in code: the
+ * `items` of `DouContextMenu` and `DouDropdown`, and the menus of the
+ * calendar, flow and Gantt components.
+ */
+export interface ContextMenuItem {
+  /** Unique within the menu; also what `select` reports. */
+  key: string
+  label: string
+  icon?: Component
+  /** A key to show after the label, written as in `useHotkey`; only shown. */
+  shortcut?: string
+  disabled?: boolean
+  tone?: DropdownItemTone
+  /** Draw a separator above the item. */
+  divided?: boolean
+  /**
+   * Shows a check mark on the option in use. When every item of a menu has
+   * it, the menu is one choice and its items are read as radio items.
+   */
+  checked?: boolean
+  /** Called when the item is chosen; leave it out to handle `select` instead. */
+  run?: () => void
+}
 
 export interface ContextMenuProps {
   /** Whether the menu is open, bound with `v-model:open`. */
@@ -9,6 +35,11 @@ export interface ContextMenuProps {
   hideOnSelect?: boolean
   /** Where to render the menu; `false` keeps it in place. */
   teleport?: string | HTMLElement | false
+  /**
+   * The items as data, in place of the `menu` slot; a chosen item's `run`
+   * is called. Ignored when the `menu` slot is given.
+   */
+  items?: ContextMenuItem[]
 }
 
 export interface ContextMenuEmits {

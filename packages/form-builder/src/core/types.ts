@@ -1,4 +1,11 @@
-import type { FormLabelAlign, FormLayout, FormRequiredMark, Size } from 'dou-ui'
+import type {
+  FormLabelAlign,
+  FormLayout,
+  FormModel,
+  FormRequiredMark,
+  FormValidatorResult,
+  Size,
+} from 'dou-ui'
 
 /** The form widths a responsive value switches at: 480, 640, 800 and 960px. */
 export type FormBreakpoint = 'sm' | 'md' | 'lg' | 'xl'
@@ -196,7 +203,34 @@ export interface FormRuleSpec {
    * and `pattern` it skips an empty value; that is `required`'s job.
    */
   check?: string
+  /**
+   * The name of a check given to the renderer's `validators`, for what an
+   * expression cannot do, e.g. asking the server whether a name is taken.
+   * Skips an empty value too. Ignored when the rule has a `check`.
+   */
+  validator?: string
   /** Replaces the default message. */
   message?: string
   trigger?: 'change' | 'blur'
 }
+
+/** What a validator gets besides the value. */
+export interface FormValidatorContext {
+  /** The whole form's values. */
+  values: FormModel
+  /** Inside a list, the item the field belongs to; else `null`. */
+  item: unknown
+  /** The path of the field, e.g. `username` or `guests.2.phone`. */
+  path: string
+}
+
+/**
+ * A check of a field's value. Return `true` or nothing to pass, `false` to
+ * fail with the rule's `message`, or a string to fail with that string.
+ * May be async. Like the other checks of a rule, it is skipped while the
+ * value is empty; that is `required`'s job.
+ */
+export type FormValidator = (
+  value: unknown,
+  context: FormValidatorContext,
+) => FormValidatorResult | Promise<FormValidatorResult>

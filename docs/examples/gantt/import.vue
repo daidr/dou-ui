@@ -39,9 +39,9 @@ async function readText(file: File) {
     import('@dou-ui/sheet-xlsx'),
     import('@dou-ui/sheet/core'),
   ])
-  const { book } = await readXlsx(file)
+  const { book } = await readXlsx(file, { formulas: false })
   // 写入保存的值，日期是 2026-03-02 这样的写法
-  return sheetToCSV(book.sheets[0]!, { formatted: false })
+  return sheetToCSV(book.sheets[0]!)
 }
 
 const HEADERS: Record<string, string> = {

@@ -1,8 +1,8 @@
+import type { ContextMenuItem } from 'dou-ui'
 import { ChevronDownIcon, ChevronsDownIcon, ChevronsUpIcon, ChevronUpIcon } from '@dou-ui/icons'
 import type { FlowEditorContext } from './context'
 import { defineFlowExtension } from './core/extension'
 import { intersects } from './core/geometry'
-import type { FlowMenuItem } from './core/menu'
 import type { FlowNode } from './core/model'
 
 export type LayerMove = 'front' | 'forward' | 'backward' | 'back'
@@ -131,7 +131,7 @@ export const layers = defineFlowExtension({
   contextMenu(ctx, target) {
     if (target.kind !== 'node' || ctx.readonly.value) return []
     const t = ctx.messages.value.layers
-    return LAYER_KEYS.map(([move, shortcut, icon], i): FlowMenuItem => ({
+    return LAYER_KEYS.map(([move, shortcut, icon], i): ContextMenuItem => ({
       key: `layer-${move}`,
       label: t[move],
       icon,

@@ -1610,9 +1610,11 @@ function transact(
   before: SheetHistoryView = view(),
   /** Leave the copied range marked, as pasting a copy does. */
   keepMark = false,
+  /** Made by the app's code, not by someone using the grid: `readonly` doesn't stop it. */
+  fromCode = false,
 ) {
   // a change kept out of the history, such as another person's, still reaches a read-only grid
-  if (props.readonly && meta?.history !== false) return null
+  if (props.readonly && !fromCode && meta?.history !== false) return null
   const tr = new SheetTransaction(doc.value, sheetIndex.value)
   tr.setMeta({ action: 'api', ...meta })
   run(tr)
@@ -1638,21 +1640,33 @@ function transact(
 /**
  * `transact` for code: gives the transaction whatever came of it, so code
  * reads `tr.changed` and `tr.cancelled` as with the other editors.
+ * `fromCode`: called by the app's code, which `readonly` doesn't stop.
  */
-function transactFor(run: (tr: SheetTransaction) => void, meta?: SheetTransactionMeta) {
+function transactFor(
+  run: (tr: SheetTransaction) => void,
+  meta?: SheetTransactionMeta,
+  fromCode = false,
+) {
   let made: SheetTransaction | undefined
-  transact((tr) => {
-    made = tr
-    run(tr)
-  }, meta)
+  transact(
+    (tr) => {
+      made = tr
+      run(tr)
+    },
+    meta,
+    view(),
+    false,
+    fromCode,
+  )
   // a read-only grid makes no change
   return (
     made ?? new SheetTransaction(doc.value, sheetIndex.value).setMeta({ action: 'api', ...meta })
   )
 }
 
-function travel(direction: 'undo' | 'redo') {
-  if (props.readonly) return false
+/** `fromCode`: called by the app's code, which `readonly` doesn't stop. */
+function travel(direction: 'undo' | 'redo', fromCode = false) {
+  if (props.readonly && !fromCode) return false
   const handler = customHistory()
   if (handler) {
     const travelled = handler[direction]()
@@ -2828,7 +2842,14 @@ function typedText(input: SheetCellInput, value: SheetValue) {
   return typed?.definition.format?.(value, typed.setup)
 }
 
-/** A sheet as CSV, with what its cells show. */
+/** A cell's value as its type writes it for other programs, such as `true` for a check; `undefined` for a plain cell. */
+function typedPlain(input: SheetCellInput, value: SheetValue) {
+  const cell = cellOf(input)
+  const typed = cell?.type ? resolveCellType(cell, doc.value, cellTypes.value) : undefined
+  return typed?.definition.plain?.(value, typed.setup)
+}
+
+/** A sheet as CSV, with its cells' values (or what they show, with `text`). */
 function toCSV(options: SheetCSVWriteOptions & { sheet?: SheetRef } = {}) {
   const { sheet: target, ...rest } = options
   const data = doc.value.sheets[target == null ? sheetIndex.value : indexOfSheet(target)]
@@ -2836,7 +2857,8 @@ function toCSV(options: SheetCSVWriteOptions & { sheet?: SheetRef } = {}) {
   const key = sheetKey(data)
   return sheetToCSV(data, {
     locale: lang.value,
-    text: typedText,
+    cellText: typedText,
+    cellPlain: typedPlain,
     result: (row, col) => engine.result(key, row, col),
     ...rest,
   })
@@ -5880,7 +5902,8 @@ const context: SheetContext = {
   cellType: (point) => typeAt(point.row, point.col),
   cellRect: visibleRect,
   rangeRect,
-  transact: transactFor,
+  // the toolbar, tabs and extensions' commands act for the person using the grid
+  transact: (run, meta) => transactFor(run, meta),
   undo: () => travel('undo'),
   redo: () => travel('redo'),
   canUndo,
@@ -6043,9 +6066,9 @@ defineExpose<SheetExpose>({
   exportFile: exportFile as SheetExpose['exportFile'],
   saveFile: saveFile as SheetExpose['saveFile'],
   importFile,
-  transact: transactFor,
-  undo: () => travel('undo'),
-  redo: () => travel('redo'),
+  transact: (run, meta) => transactFor(run, meta, true),
+  undo: () => travel('undo', true),
+  redo: () => travel('redo', true),
   get canUndo() {
     return canUndo.value
   },

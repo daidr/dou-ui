@@ -14,7 +14,8 @@ import type { TimeParts } from '../time-picker/time'
 import TimeColumns from '../time-picker/time-columns.vue'
 import DouCalendar from './calendar.vue'
 import { inBounds, parseDate, today } from './date'
-import { datePattern, formatWith, parseWith } from './pattern'
+import { formatDateValue } from './format'
+import { datePattern, parseWith } from './pattern'
 import type {
   CalendarExpose,
   DatePickerExpose,
@@ -95,12 +96,11 @@ const pattern = computed(() => {
 })
 
 function display(value: string) {
-  if (props.type === 'quarter' && /^\d{4}-Q[1-4]$/.test(value)) {
-    return t('datePicker.quarter', { year: value.slice(0, 4), quarter: value[6]! })
-  }
-  const parts = pattern.value
-  if (!parts || !value) return value
-  return formatWith(value.slice(0, 10), parts) + value.slice(10)
+  return formatDateValue(value, {
+    locale: locale.value,
+    type: props.type,
+    displayFormat: props.displayFormat,
+  })
 }
 
 /**

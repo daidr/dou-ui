@@ -1,9 +1,10 @@
+import type { ContextMenuItem } from 'dou-ui'
 import type { Component } from 'vue'
 import type { FlowEditorContext } from '../context'
 import type { FlowDrawContext } from '../export/context'
 import type { FlowConnection, PortTypes } from './connect'
 import type { EdgeTypeSpec } from './edge-types'
-import type { FlowMenuItem, FlowMenuTarget, FlowToolbarItem } from './menu'
+import type { FlowMenuTarget, FlowToolbarItem } from './menu'
 import type { FlowDocument, FlowEdge, FlowNode, Point } from './model'
 import type { NodeTypeSpec } from './node-types'
 import type { FlowTransaction } from './transaction'
@@ -92,7 +93,7 @@ export interface FlowExtension {
    * canvas, or the context menu key. Extensions' items follow each other
    * in priority order; an empty list leaves them out.
    */
-  contextMenu?: (context: FlowExtensionContext, target: FlowMenuTarget) => FlowMenuItem[]
+  contextMenu?: (context: FlowExtensionContext, target: FlowMenuTarget) => ContextMenuItem[]
   /** Buttons for the toolbar that floats above the selected nodes. */
   toolbarItems?: (context: FlowExtensionContext, nodes: FlowNode[]) => FlowToolbarItem[]
   /** Buttons for the toolbar that floats above the selected edges, when no node is selected. */

@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import { ChevronDownIcon, ChevronRightIcon, TrashIcon } from '@dou-ui/icons'
-import { holdPointer, matchesHotkey, useElementSize, useLocale, type PointerHold } from 'dou-ui'
+import {
+  holdPointer,
+  matchesHotkey,
+  useElementSize,
+  useLocale,
+  type ContextMenuItem,
+  type PointerHold,
+} from 'dou-ui'
 import {
   computed,
   nextTick,
@@ -18,7 +25,6 @@ import TimeGrid from '../components/time-grid.vue'
 import TimeHeader from '../components/time-header.vue'
 import { resolveCalendar } from '../core/calendar'
 import { GanttHistory } from '../core/history'
-import type { GanttMenuItem } from '../core/menu'
 import { spanOf, writeSpan, type GanttTask, type TaskSpan } from '../core/model'
 import { snapStep, type GanttScale } from '../core/scale'
 import { MINUTES_PER_DAY, parseTime } from '../core/time'
@@ -925,7 +931,7 @@ onBeforeUnmount(() => {
 // Menu -------------------------------------------------------------------------------------
 
 const menu = useTemplateRef<InstanceType<typeof GanttMenu>>('menu')
-const menuItems = shallowRef<GanttMenuItem[]>([])
+const menuItems = shallowRef<ContextMenuItem[]>([])
 const menuOpen = ref(false)
 
 /** The moment under a point on screen, or the task's start when it is off the timeline. */
@@ -940,7 +946,7 @@ const taskTarget = (task: GanttTask, row: ResourceRow) =>
 
 /** Your items, then the built-in one, a separator between them. */
 function itemsFor(target: SchedulerMenuTarget) {
-  const items: GanttMenuItem[] = [...(props.contextMenu?.(target) ?? [])]
+  const items: ContextMenuItem[] = [...(props.contextMenu?.(target) ?? [])]
   if (props.menu && editable.value && target.kind === 'task') {
     const ids = selected.value.has(target.task.id) ? selection.value : [target.task.id]
     const m = messages.value.menu
@@ -970,10 +976,6 @@ function showMenu(on: SchedulerMenuTarget, x: number, y: number) {
   menuItems.value = items
   menu.value?.open(x, y)
   return true
-}
-
-function runMenuItem(key: unknown) {
-  menuItems.value.find((item) => item.key === key)?.run()
 }
 
 /** When a finger last went down: its long press opens the menu itself, not the browser's. */
@@ -1467,7 +1469,7 @@ defineExpose<SchedulerExpose>({
       @pointerdown="onDividerDown"
       @keydown="onDividerKey"
     />
-    <GanttMenu ref="menu" v-model:open="menuOpen" :items="menuItems" @select="runMenuItem" />
+    <GanttMenu ref="menu" v-model:open="menuOpen" :items="menuItems" />
     <slot />
   </div>
 </template>

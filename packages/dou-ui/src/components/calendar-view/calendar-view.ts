@@ -1,4 +1,4 @@
-import type { Component } from 'vue'
+import type { ContextMenuItem } from '../context-menu/context-menu'
 import type { Tone } from '../../utils/types'
 
 export interface CalendarEvent<Data extends Record<string, unknown> = Record<string, unknown>> {
@@ -59,22 +59,11 @@ export type CalendarMenuTarget =
   | { kind: 'day'; date: string }
   | { kind: 'time'; start: string }
 
-export interface CalendarMenuItem {
-  /** Unique within the menu. */
-  key: string
-  label: string
-  icon?: Component
-  /** A key to show after the label, written as in `useHotkey`; only shown. */
-  shortcut?: string
-  disabled?: boolean
-  tone?: 'danger'
-  /** Draw a separator above the item. */
-  divided?: boolean
-  run: () => void
-}
-
-/** A month as a grid of days, or a week or a day along a time axis. */
-export type CalendarViewMode = 'month' | 'week' | 'day'
+/**
+ * A month as a grid of days, a week or a day along a time axis, or the
+ * month's events as a list by day.
+ */
+export type CalendarViewMode = 'month' | 'week' | 'day' | 'agenda'
 
 export interface CalendarViewProps {
   /** The chosen day, bound with `v-model`. */
@@ -107,7 +96,7 @@ export interface CalendarViewProps {
    */
   canMove?: (move: CalendarMove, events: CalendarEvent[]) => boolean | string
   /** Your own menu items, listed before the built-in ones. */
-  contextMenu?: (target: CalendarMenuTarget) => CalendarMenuItem[]
+  contextMenu?: (target: CalendarMenuTarget) => ContextMenuItem[]
   /** Show the built-in "Delete event" in an event's menu when `editable`. */
   menu?: boolean
   /** The most events listed in a day before the rest fold into "+N". */
@@ -136,6 +125,11 @@ export interface CalendarViewEmits {
    * menu key; `nativeEvent.preventDefault()` keeps it closed.
    */
   eventContextmenu: [event: CalendarEvent, nativeEvent: MouseEvent]
+  /**
+   * The days on screen changed, `YYYY-MM-DD` to `YYYY-MM-DD`; also sent
+   * once at the start. Pass them to `expandRepeats`.
+   */
+  rangeChange: [range: CalendarRange]
 }
 
 export interface CalendarDay {

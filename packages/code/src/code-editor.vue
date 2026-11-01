@@ -237,15 +237,15 @@ function notify(result: CodeTransactionResult) {
   for (const extension of extensions.value) extension.update?.(result, context)
 }
 
-function dispatch(tr: CodeTransaction): CodeTransactionResult | null {
+function dispatch(tr: CodeTransaction): CodeTransactionResult {
   const { action } = tr.meta
   if (!UNHOOKED.has(action ?? ''))
     for (const extension of extensions.value) extension.transaction?.(tr, context)
   const result = tr.resolve()
   const before = state.value
-  if (result.changes.empty && sameSelection(result.state.selection, before.selection)) {
+  if (!result.changed) {
     pendingGoals = new Map()
-    return null
+    return result
   }
   // Someone else's change: what this user has open (menus, the problem box, the goal column) stays.
   const remote = action === 'remote'
@@ -4061,7 +4061,7 @@ watch(minimapOn, (on) => {
   const observer = new MutationObserver(scheduleMinimap)
   observer.observe(document.documentElement, {
     attributes: true,
-    attributeFilter: ['class', 'style', 'data-theme'],
+    attributeFilter: ['class', 'style', 'data-dou-theme'],
   })
   const dark = matchMedia?.('(prefers-color-scheme: dark)')
   dark?.addEventListener?.('change', scheduleMinimap)

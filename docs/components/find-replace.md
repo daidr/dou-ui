@@ -4,7 +4,7 @@
 
 ## 基础用法
 
-`v-model:search` 是要查找的文字，`count` 和 `current` 告诉面板一共有几处、当前是第几处（从 0 开始，没有当前项时传 `-1`）。面板发出 `next`、`previous`、`replace-one`、`replace-all` 和 `close`，由使用方去移动、替换和关闭：比如收到 `close` 后用 `v-if` 收起面板。示例里关闭后可以点“查找”按钮或在列表上按 `Ctrl/⌘+F` 重新打开。
+`v-model:search` 是要查找的文字，`count` 和 `current` 告诉面板一共有几处、当前是第几处（从 0 开始，没有当前项时传 `-1`）。面板发出 `next`、`previous`、`replaceOne`、`replaceAll` 和 `close`，由使用方去移动、替换和关闭：比如收到 `close` 后用 `v-if` 收起面板。示例里关闭后可以点“查找”按钮或在列表上按 `Ctrl/⌘+F` 重新打开。
 
 <DocDemo src="find-replace/basic" />
 
@@ -53,13 +53,13 @@
 
 ### Events
 
-| 名称          | 说明           | 参数 |
-| ------------- | -------------- | ---- |
-| `next`        | 到下一处       | —    |
-| `previous`    | 到上一处       | —    |
-| `replace-one` | 替换当前这一处 | —    |
-| `replace-all` | 全部替换       | —    |
-| `close`       | 关闭面板       | —    |
+| 名称         | 说明           | 参数 |
+| ------------ | -------------- | ---- |
+| `next`       | 到下一处       | —    |
+| `previous`   | 到上一处       | —    |
+| `replaceOne` | 替换当前这一处 | —    |
+| `replaceAll` | 全部替换       | —    |
+| `close`      | 关闭面板       | —    |
 
 ### Slots
 

@@ -585,8 +585,12 @@ describe('transports', () => {
     const client = createLanguageClient({ transport: server.transport })
     await client.request('custom/ping')
     broken!()
-    await expect(client.request('custom/ping')).rejects.toThrow()
-    await expect(client.request('custom/ping')).rejects.toThrow()
+    await expect(client.request('custom/ping')).rejects.toThrow(
+      'The connection to the language server ended',
+    )
+    await expect(client.request('custom/ping')).rejects.toThrow(
+      'The connection to the language server ended',
+    )
     expect(
       warn.mock.calls.filter((call) => String(call[0]).includes('as a function')),
     ).toHaveLength(1)

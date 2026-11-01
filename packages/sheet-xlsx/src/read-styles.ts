@@ -1,5 +1,5 @@
 import type { SheetStyle } from '@dou-ui/sheet/core'
-import { childOf, childrenOf, isNotOff, isOn, type XmlNode } from './xml-read'
+import { childOf, childrenOf, isNotOff, isOff, isOn, type XmlNode } from './xml-read'
 
 /** The 56 colors older files name by number, from 8; 0 to 7 are the first eight again. */
 const PALETTE = [
@@ -284,6 +284,9 @@ export function readStyles(sheet: XmlNode | undefined, theme: (string | undefine
       if (valign) style.valign = valign
       if (isOn(alignment.attrs.wrapText)) style.wrap = true
     }
+    // cells are locked unless this says otherwise
+    const protection = childOf(xf, 'protection')
+    if (protection && isOff(protection.attrs.locked)) style.locked = false
     const plain = !Object.keys(style).length
     return {
       style: plain ? undefined : style,

@@ -19,6 +19,12 @@ export interface SheetCell {
   /** A note on the cell. */
   note?: string
   /**
+   * Where the cell links to: a web address (`https:`, `http:`, `mailto:`
+   * or `tel:`), or a place in the workbook written `#` and a reference,
+   * such as `#A20` or `#'汇总'!B2`. Other addresses are not followed.
+   */
+  link?: string
+  /**
    * What kind of cell it is: `date`, `select`, `checkbox`, a type an
    * extension adds, or a name in the workbook's `types`. It decides how the
    * value shows and how it is edited.
@@ -91,6 +97,32 @@ export interface SheetData {
    * Where two rules cover a cell, the earlier one applies.
    */
   validations?: SheetValidation[]
+  /**
+   * Keeps the locked cells from being changed: every cell but those whose
+   * style says `locked: false`, such as the blanks of a form to fill in.
+   * Rows, columns and the sheet's rules can't be changed either, except
+   * what the options allow. Code changes it with `tr.protectSheet`.
+   */
+  protect?: boolean | SheetProtection
+}
+
+/**
+ * What people may still do on a protected sheet besides changing unlocked
+ * cells. Everything is `false` by default.
+ */
+export interface SheetProtection {
+  /** Change the look and number format of locked cells, and merge cells. */
+  formatCells?: boolean
+  /** Change column widths and hide columns. */
+  formatColumns?: boolean
+  /** Change row heights and hide rows. */
+  formatRows?: boolean
+  insertRows?: boolean
+  insertColumns?: boolean
+  deleteRows?: boolean
+  deleteColumns?: boolean
+  /** Use the sheet's filter to pick which rows show. Sorting moves cells, so only unlocked ones. */
+  filter?: boolean
 }
 
 /** Rows or columns that fold away together. */
@@ -310,6 +342,11 @@ export interface SheetStyle {
   valign?: 'top' | 'middle' | 'bottom'
   /** Wrap long text onto more lines instead of cutting it off. */
   wrap?: boolean
+  /**
+   * With `false`, the cell can still be changed while its sheet is
+   * protected. Cells are locked by default.
+   */
+  locked?: boolean
 }
 
 /**
@@ -334,6 +371,11 @@ export interface SheetWorkbook {
   styles?: Record<string, SheetStyle>
   /** Named cell types with their settings, which cells refer to with `type`. */
   types?: Record<string, SheetTypeSetup>
+  /**
+   * Keeps the sheets as they are: none can be added, removed, moved or
+   * renamed. Code changes it with `tr.updateBook({ protect })`.
+   */
+  protect?: boolean
 }
 
 export const DEFAULT_ROWS = 1000

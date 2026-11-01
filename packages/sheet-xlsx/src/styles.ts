@@ -65,6 +65,9 @@ export class StyleSheet {
             wrapText: style.wrap,
           })}/>`
         : ''
+    // cells are locked unless their style says otherwise
+    const open = style?.locked === false ? '<protection locked="0"/>' : ''
+    const inner = align + open
     const xf = `<xf${attrs({
       numFmtId,
       fontId,
@@ -75,8 +78,9 @@ export class StyleSheet {
       applyFont: fontId ? 1 : undefined,
       applyFill: fillId ? 1 : undefined,
       applyAlignment: align ? 1 : undefined,
+      applyProtection: open ? 1 : undefined,
       quotePrefix: quote,
-    })}${align ? `>${align}</xf>` : '/>'}`
+    })}${inner ? `>${inner}</xf>` : '/>'}`
     let id = this.xfIds.get(xf)
     if (id == null) {
       id = this.xfs.push(xf) - 1

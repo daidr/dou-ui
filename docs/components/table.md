@@ -259,11 +259,12 @@
 
 ### CSS 变量
 
-| 变量                         | 说明                   |
-| ---------------------------- | ---------------------- |
-| `--dou-table-cell-height`    | 行高                   |
-| `--dou-table-cell-padding-x` | 单元格水平内边距       |
-| `--dou-table-head-bg`        | 表头底色               |
-| `--dou-table-row-hover`      | 悬停行底色             |
-| `--dou-table-row-selected`   | 选中行底色             |
-| `--dou-table-fixed-shadow`   | 固定列交界处的阴影颜色 |
+| 变量                         | 说明                                                      |
+| ---------------------------- | --------------------------------------------------------- |
+| `--dou-table-cell-height`    | 行高                                                      |
+| `--dou-table-cell-padding-x` | 单元格水平内边距                                          |
+| `--dou-table-head-bg`        | 表头底色                                                  |
+| `--dou-table-row-bg`         | 行底色，可以在 `row-style` 里给单独一行设置，固定列跟着变 |
+| `--dou-table-row-hover`      | 悬停行底色                                                |
+| `--dou-table-row-selected`   | 选中行底色                                                |
+| `--dou-table-fixed-shadow`   | 固定列交界处的阴影颜色                                    |

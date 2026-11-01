@@ -18,16 +18,19 @@ const decision = defineBlock({
 
 const extensions = [editorKit(), decision]
 
-const blocks = ref([
-  { type: 'heading', props: { level: 2 }, content: '周末出游会议' },
-  { type: 'paragraph', content: '戴兜记录，点击状态可以切换。' },
-  { type: 'decision', props: { state: 'yes' }, content: '周六上午去上海博物馆东馆。' },
-  { type: 'decision', props: { state: 'open' }, content: '周日是否去崇明，看天气再定。' },
-  { type: 'decision', props: { state: 'no' }, content: '不自驾，全程坐地铁。' },
-  { type: 'paragraph', content: '' },
-])
+const doc = ref({
+  version: 1,
+  blocks: [
+    { type: 'heading', props: { level: 2 }, content: '周末出游会议' },
+    { type: 'paragraph', content: '戴兜记录，点击状态可以切换。' },
+    { type: 'decision', props: { state: 'yes' }, content: '周六上午去上海博物馆东馆。' },
+    { type: 'decision', props: { state: 'open' }, content: '周日是否去崇明，看天气再定。' },
+    { type: 'decision', props: { state: 'no' }, content: '不自驾，全程坐地铁。' },
+    { type: 'paragraph', content: '' },
+  ],
+})
 </script>
 
 <template>
-  <DouEditor v-model="blocks" :extensions="extensions" aria-label="会议记录" />
+  <DouEditor v-model="doc" :extensions="extensions" aria-label="会议记录" />
 </template>

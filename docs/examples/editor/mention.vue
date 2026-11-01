@@ -19,20 +19,23 @@ async function search(query: string) {
 
 const extensions = [editorKit(), mention({ search })]
 
-const blocks = ref([
-  { type: 'heading', props: { level: 2 }, content: '首页改版评审' },
-  {
-    type: 'paragraph',
-    content: [
-      { type: 'text', text: '视觉稿已更新，请 ' },
-      { type: 'inline', name: 'mention', props: { id: 'aqing', label: '阿青' } },
-      { type: 'text', text: ' 周四前确认实现难度。' },
-    ],
-  },
-  { type: 'paragraph', content: '' },
-])
+const doc = ref({
+  version: 1,
+  blocks: [
+    { type: 'heading', props: { level: 2 }, content: '首页改版评审' },
+    {
+      type: 'paragraph',
+      content: [
+        { type: 'text', text: '视觉稿已更新，请 ' },
+        { type: 'inline', name: 'mention', props: { id: 'aqing', label: '阿青' } },
+        { type: 'text', text: ' 周四前确认实现难度。' },
+      ],
+    },
+    { type: 'paragraph', content: '' },
+  ],
+})
 </script>
 
 <template>
-  <DouEditor v-model="blocks" :extensions="extensions" aria-label="评审记录" />
+  <DouEditor v-model="doc" :extensions="extensions" aria-label="评审记录" />
 </template>

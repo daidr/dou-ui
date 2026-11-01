@@ -12,13 +12,15 @@ const highlight = (code: string, lang: string) =>
 
 const extensions = [editorKit({ codeBlock: { highlight } })]
 
-const blocks = ref([
-  { type: 'heading', props: { level: 2 }, content: '读取行程' },
-  { type: 'paragraph', content: '戴兜写的小工具，把上海周末的行程按日期排好。' },
-  {
-    type: 'codeBlock',
-    props: { language: 'typescript' },
-    content: `interface Stop {
+const doc = ref({
+  version: 1,
+  blocks: [
+    { type: 'heading', props: { level: 2 }, content: '读取行程' },
+    { type: 'paragraph', content: '戴兜写的小工具，把上海周末的行程按日期排好。' },
+    {
+      type: 'codeBlock',
+      props: { language: 'typescript' },
+      content: `interface Stop {
   place: string
   date: string
 }
@@ -26,11 +28,12 @@ const blocks = ref([
 export function byDate(stops: Stop[]) {
   return [...stops].sort((a, b) => a.date.localeCompare(b.date))
 }`,
-  },
-  { type: 'paragraph', content: '' },
-])
+    },
+    { type: 'paragraph', content: '' },
+  ],
+})
 </script>
 
 <template>
-  <DouEditor v-model="blocks" :extensions="extensions" aria-label="代码示例" />
+  <DouEditor v-model="doc" :extensions="extensions" aria-label="代码示例" />
 </template>

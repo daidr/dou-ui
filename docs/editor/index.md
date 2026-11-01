@@ -24,7 +24,7 @@ app.use(DouEditor)
 
 ## 基础用法
 
-`v-model` 绑定一个块数组，格式见[文档数据](./data)。
+`v-model` 绑定一份文档，里面的 `blocks` 是块数组，格式见[文档数据](./data)。
 
 <DocDemo src="editor/basic" column />
 
@@ -43,7 +43,7 @@ app.use(DouEditor)
 
 ## 读取和修改内容
 
-`v-model` 会在每次修改后更新。也可以通过组件实例读取或替换内容：
+`v-model` 会在每次修改后更新。也可以通过组件实例读取或替换其中的块：
 
 ```vue
 <script setup lang="ts">
@@ -74,7 +74,7 @@ function reset() {
 
 | 名称          | 说明                                                                                  | 类型                     | 默认值          |
 | ------------- | ------------------------------------------------------------------------------------- | ------------------------ | --------------- |
-| `modelValue`  | 文档内容，用 `v-model` 绑定                                                           | `PartialBlock[]`         | —               |
+| `v-model`     | 文档，见[文档数据](./data)                                                            | `EditorDocument<PartialBlock>` | —               |
 | `readonly`    | 只读                                                                                  | `boolean`                | `false`         |
 | `placeholder` | 光标所在空块里的提示文字                                                              | `string`                 | 跟随语言        |
 | `ariaLabel`   | 编辑区域的无障碍名称                                                                  | `string`                 | —               |
@@ -91,8 +91,8 @@ function reset() {
 
 | 名称                | 说明                                                                                                             | 参数                                |
 | ------------------- | ---------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
-| `update:modelValue` | 文档修改后触发                                                                                                   | `(blocks: Block[])`                 |
-| `change`            | 同上，不绑定 `v-model` 时使用。和 `update:modelValue` 一样每次修改都会触发，不像表单控件的 `change` 那样等到失焦 | `(blocks: Block[])`                 |
+| `update:modelValue` | 文档修改后触发                                                                                                   | `(doc: EditorDocument)`             |
+| `change`            | 同上，不绑定 `v-model` 时使用。和 `update:modelValue` 一样每次修改都会触发，不像表单控件的 `change` 那样等到失焦 | `(doc: EditorDocument)`             |
 | `transaction`       | 每次修改后触发，在 `update:modelValue` 之前，给出修改涉及的块和来源，见[跟踪修改](./editing#跟踪修改)            | `(result: EditorTransactionResult)` |
 | `update:selection`  | 光标移到另一个块，或选中的块变化时触发，见[跟踪光标](./editing#跟踪光标)                                         | `(selection: EditorSelection)`      |
 | `focus`             | 获得焦点                                                                                                         | `(event: FocusEvent)`               |
@@ -105,8 +105,8 @@ function reset() {
 | `view`                | ProseMirror 的 `EditorView`，挂载后可用                                       | `EditorView \| null`                                                                                     |
 | `focus`               | 获得焦点                                                                      | `() => void`                                                                                             |
 | `blur`                | 失去焦点                                                                      | `() => void`                                                                                             |
-| `getBlocks`           | 读取当前文档                                                                  | `() => Block[]`                                                                                          |
-| `setBlocks`           | 替换整个文档，不进入撤销记录                                                  | `(blocks: PartialBlock[]) => void`                                                                       |
+| `getBlocks`           | 读取当前文档的块                                                              | `() => Block[]`                                                                                          |
+| `setBlocks`           | 替换全部的块，不进入撤销记录                                                  | `(blocks: PartialBlock[]) => void`                                                                       |
 | `getHTML`             | 把当前文档写成 HTML，见[导入与导出](./import-export)                          | `() => string`                                                                                           |
 | `setHTML`             | 用 HTML 替换整个文档，不进入撤销记录                                          | `(html: string) => void`                                                                                 |
 | `run`                 | 执行一个 ProseMirror 命令，返回是否执行了                                     | `(command: Command) => boolean`                                                                          |

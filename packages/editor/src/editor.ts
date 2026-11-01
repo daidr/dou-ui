@@ -5,7 +5,7 @@ import { inject, type ComputedRef, type InjectionKey, type ShallowRef } from 'vu
 import type { CommentAnchor, CommentRange } from './core/comments'
 import type { EditorExtension, ResolvedEditorExtensions } from './core/extension'
 import type { BlockChanges } from './core/changes'
-import type { Block, PartialBlock } from './core/model'
+import type { Block, EditorDocument, PartialBlock } from './core/model'
 import type {
   BlockEdge,
   BlockPatch,
@@ -17,11 +17,11 @@ import type { EditorMessages, EditorMessagesOverride } from './locale'
 
 export interface EditorProps {
   /**
-   * The document as a list of blocks, bound with `v-model`. With
-   * collaboration the shared document is the source of truth: leave
-   * `v-model` out and read changes from the `change` event.
+   * The document, bound with `v-model`. With collaboration the shared
+   * document is the source of truth: leave `v-model` out and read changes
+   * from the `change` event.
    */
-  modelValue?: PartialBlock[]
+  modelValue?: EditorDocument<PartialBlock>
   /**
    * Blocks, marks, shortcuts and menu entries. Defaults to `[editorKit()]`;
    * read once, when the editor mounts.
@@ -100,9 +100,9 @@ export interface EditorSelection {
 }
 
 export interface EditorEmits {
-  'update:modelValue': [blocks: Block[]]
+  'update:modelValue': [document: EditorDocument]
   /** The document changed: typing, formatting, moving blocks. */
-  change: [blocks: Block[]]
+  change: [document: EditorDocument]
   /** Every change to the document, with what it touched; `update:modelValue` follows. */
   transaction: [result: EditorTransactionResult]
   /** The cursor moved to another block, or other blocks were selected. */

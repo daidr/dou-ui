@@ -80,6 +80,16 @@ export interface Block {
   children: Block[]
 }
 
+/**
+ * The document the editor edits, bound with `v-model`: plain JSON to store
+ * and send as it is. The editor writes full blocks; it reads partial ones.
+ */
+export interface EditorDocument<B extends PartialBlock = Block> {
+  /** The version of the format; see `migrateDocument`. */
+  version: 1
+  blocks: B[]
+}
+
 /** A block to insert: everything but the type is optional. */
 export interface PartialBlock {
   id?: string

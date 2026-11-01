@@ -119,7 +119,10 @@ describe('toggle', () => {
   it('opens in a read-only editor', async () => {
     const wrapper = mount(DouEditor, {
       attachTo: document.body,
-      props: { readonly: true, modelValue: [toggle('t', 'Title', [{ id: 'c', content: 'x' }])] },
+      props: {
+        readonly: true,
+        modelValue: { version: 1, blocks: [toggle('t', 'Title', [{ id: 'c', content: 'x' }])] },
+      },
     })
     await nextTick()
     const button = wrapper.find('.dou-editor-toggle__button')
@@ -211,7 +214,12 @@ describe('callout', () => {
   it('keeps its tone and reads it back from HTML', async () => {
     const wrapper = mount(DouEditor, {
       attachTo: document.body,
-      props: { modelValue: [{ type: 'callout', props: { tone: 'warning' }, content: 'Note' }] },
+      props: {
+        modelValue: {
+          version: 1,
+          blocks: [{ type: 'callout', props: { tone: 'warning' }, content: 'Note' }],
+        },
+      },
     })
     await nextTick()
     expect(wrapper.find('.dou-editor-callout').classes()).toContain('is-warning')

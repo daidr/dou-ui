@@ -10,7 +10,7 @@ import { findBlockById } from '../../core/blocks'
 import { liftBlocks, sinkBlocks, splitBlock } from '../../core/commands'
 import { createEditorView, getBlocks } from '../../core/editor'
 import { resolveEditorExtensions } from '../../core/extension'
-import type { Block, PartialBlock } from '../../core/model'
+import type { Block, EditorDocument, PartialBlock } from '../../core/model'
 import { applyEditorTransaction, EditorTransaction } from '../../core/transaction'
 import DouEditor from '../../editor.vue'
 import { editorKit } from '../../extensions/editor-kit'
@@ -372,15 +372,17 @@ describe('collaboration', () => {
       attachTo: document.body,
       props: {
         extensions: [editorKit(), collaboration({ map: doc.getMap('document') })],
-        modelValue: [{ id: 'x', content: 'Ignored' }],
+        modelValue: { version: 1, blocks: [{ id: 'x', content: 'Ignored' }] },
       },
     })
     await nextTick()
     expect(wrapper.element.textContent).toContain('Shared')
     expect(wrapper.element.textContent).not.toContain('Ignored')
-    const emitted = wrapper.emitted('update:modelValue')!.at(-1)![0] as Block[]
+    const emitted = (wrapper.emitted('update:modelValue')!.at(-1)![0] as EditorDocument).blocks
     expect(emitted[0]!.id).toBe('a')
-    await wrapper.setProps({ modelValue: [{ id: 'y', content: 'Also ignored' }] })
+    await wrapper.setProps({
+      modelValue: { version: 1, blocks: [{ id: 'y', content: 'Also ignored' }] },
+    })
     expect(wrapper.element.textContent).toContain('Shared')
     wrapper.unmount()
   })

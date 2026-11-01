@@ -22,14 +22,17 @@ const photo =
       '</svg>',
   )
 
-const blocks = ref([
-  { type: 'heading', props: { level: 2 }, content: '周末去崇明' },
-  { type: 'paragraph', content: '戴兜拍的东滩傍晚，拖动图片两侧可以调整宽度。' },
-  { type: 'image', props: { src: photo, caption: '东滩湿地', width: 70 } },
-  { type: 'paragraph', content: '' },
-])
+const doc = ref({
+  version: 1,
+  blocks: [
+    { type: 'heading', props: { level: 2 }, content: '周末去崇明' },
+    { type: 'paragraph', content: '戴兜拍的东滩傍晚，拖动图片两侧可以调整宽度。' },
+    { type: 'image', props: { src: photo, caption: '东滩湿地', width: 70 } },
+    { type: 'paragraph', content: '' },
+  ],
+})
 </script>
 
 <template>
-  <DouEditor v-model="blocks" :extensions="extensions" aria-label="游记" />
+  <DouEditor v-model="doc" :extensions="extensions" aria-label="游记" />
 </template>

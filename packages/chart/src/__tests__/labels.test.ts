@@ -271,7 +271,6 @@ describe('labels in the chart', () => {
     const wrapper = await sized(() => [h(DouChartPie, { value: 'a', labels: true })], { data }, 360)
     const first = wrapper.findAll('.dou-chart__value').find((l) => l.text().startsWith('上海'))!
     expect(first.text()).toMatch(/… 50%$/)
-    expect(first.attributes('title')).toBe('上海浦东新区张江高科技园区 50%')
     wrapper.unmount()
   })
 

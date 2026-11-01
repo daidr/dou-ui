@@ -53,8 +53,8 @@ export interface OverlayState {
   center: () => VNodeChild
   /** The markers' labels. */
   markers: ComputedRef<Array<MarkerLabel & { key: string; tone: Tone; backdrop: boolean }>>
-  /** Data labels: values by the points and on the bars; `ink` is their color, when not the default; `full`, their text before it was cut short. */
-  data: ComputedRef<Array<PlacedDataLabel & { ink?: string; width?: number; full?: string }>>
+  /** Data labels: values by the points and on the bars; `ink` is their color, when not the default. */
+  data: ComputedRef<Array<PlacedDataLabel & { ink?: string; width?: number }>>
   /** Whether the data labels show (not while the series come in). */
   dataShown: ComputedRef<boolean>
   /** The series brought forward: the other series' labels are faded too. */
@@ -149,7 +149,6 @@ const focusVisible = (e: FocusEvent) => (e.target as Element).matches(':focus-vi
         transform: `translate(${tick.left}px, ${tick.top}px)`,
         width: tick.clipped ? `${tick.width}px` : undefined,
       }"
-      :title="tick.clipped ? tick.text : undefined"
       ><span :class="ns.e('text')">{{ tick.text }}</span></span
     >
     <span
@@ -187,7 +186,6 @@ const focusVisible = (e: FocusEvent) => (e.target as Element).matches(':focus-vi
         color: label.ink,
         width: label.width === undefined ? undefined : `${label.width}px`,
       }"
-      :title="label.full ?? (label.width === undefined ? undefined : label.text)"
       ><span :class="ns.e('text')">{{ label.text }}</span></span
     >
   </div>

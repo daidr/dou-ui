@@ -1042,7 +1042,7 @@ const pieLabels = computed(() => {
   const l = pieLayout.value
   const texts = pieTexts.value
   const out: {
-    labels: Array<PlacedDataLabel & { ink?: string; width?: number; full?: string }>
+    labels: Array<PlacedDataLabel & { ink?: string; width?: number }>
     leaders: Leader[]
   } = {
     labels: [],
@@ -1142,7 +1142,6 @@ const pieLabels = computed(() => {
         top: y - DATA_LABEL / 2,
         align: right ? 'start' : 'end',
         width: cut ? widest : undefined,
-        full: fitted === text ? undefined : text,
       })
     })
   }
@@ -1156,9 +1155,7 @@ const EDGE_ROOM = 4
 const labelsShown = ref(false)
 
 /** The data labels, placed: the ends of lines first, then the bars', then the points'. */
-const dataLabels = computed<
-  Array<PlacedDataLabel & { ink?: string; width?: number; full?: string }>
->(() => {
+const dataLabels = computed<Array<PlacedDataLabel & { ink?: string; width?: number }>>(() => {
   if (pie.value) return pieLabels.value.labels
   const l = layout.value
   if (!l || empty.value) return []

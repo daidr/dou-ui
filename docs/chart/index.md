@@ -164,7 +164,7 @@ app.use(DouChart).use(DouChartAxis).use(DouChartLine).use(DouChartBar)
 
 <DocDemo src="chart/labels-end" />
 
-饼图的 `labels` 默认在外面写每一块的名称和占比，用一条线连到对应的块，饼图相应缩小留出空间；`label-position="inside"` 在每一块里面写占比，太小的块不写。函数的参数是一个对象 `{ value, share, name, row, index }`，`name` 是这一块的名称。外面的标签太多、一侧放不下时，较小的块不写。图表较窄时，太长的名称末尾省略，占比始终完整显示，鼠标移上去可以看到完整的文字；如果留出标签的位置后饼图太小，标签改为写在块里面。
+饼图的 `labels` 默认在外面写每一块的名称和占比，用一条线连到对应的块，饼图相应缩小留出空间；`label-position="inside"` 在每一块里面写占比，太小的块不写。函数的参数是一个对象 `{ value, share, name, row, index }`，`name` 是这一块的名称。外面的标签太多、一侧放不下时，较小的块不写。图表较窄时，太长的名称末尾省略，占比始终完整显示，完整的名称在这一块的提示框里；如果留出标签的位置后饼图太小，标签改为写在块里面。
 
 <DocDemo src="chart/pie-labels" />
 

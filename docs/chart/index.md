@@ -172,6 +172,18 @@ app.use(DouChart).use(DouChartAxis).use(DouChartLine).use(DouChartBar)
 
 <DocDemo src="chart/donut" />
 
+### 角度
+
+`start-angle` 和 `end-angle` 是饼图起止的角度，单位是度，0 是 12 点钟方向，顺时针为正，默认是 `0` 到 `360`。从 `-90` 到 `90` 画成半环，饼图按半环的大小排布，空洞里的内容放在平边上方。
+
+<DocDemo src="chart/pie-half" />
+
+### 玫瑰图
+
+`rose` 让每一块的角度相同，用半径表示值：半径和值的平方根成正比，面积和值成正比。适合比较各块的大小，比如一周中每天的订单。
+
+<DocDemo src="chart/pie-rose" />
+
 一个图表里只画一个饼图，饼图和其他系列不能放在同一个图表里。读屏会读出每一块的名称、值和占比，`name` 会读在最前面。
 
 ## 组合图
@@ -211,6 +223,18 @@ app.use(DouChart).use(DouChartAxis).use(DouChartLine).use(DouChartBar)
 - `ticks` 是大致的刻度数量，也可以是具体的刻度值数组。刻度文字放不下时会自动减少刻度。
 - `type="log"` 用对数刻度，适合跨越几个数量级的数据。对数轴上的柱子从轴的起点开始画，小于等于 0 的值不画，开发环境下会提示。
 - `grid` 控制网格线，默认只有 `y` 有（只有 `y2` 时是 `y2`）；`title` 是坐标轴的标题；`hidden` 保留坐标轴的范围但不显示。
+
+### 反向
+
+`reverse` 让坐标轴反过来：数值轴从上往下增大，适合排名这样第 1 名放在最上面的数据；x 轴从右往左排列，横向图里从下往上排列。
+
+<DocDemo src="chart/axis-reverse" />
+
+### 类目排序
+
+类目 x 轴默认按数据里出现的顺序排列。`sort="descending"` 按每个类目的合计值（显示中的系列之和）从大到小排列，`ascending` 从小到大；也可以传一个比较两个类目名称的函数。数据本身不需要提前排序。
+
+<DocDemo src="chart/bar-sorted" />
 
 ## 标注
 
@@ -611,6 +635,9 @@ SVG 和画布用同一套绘制代码，两者画出的图形一致。导出的�
 | `name`           | 饼图的名称，读屏时读在最前面                                              | `string`                                                            | —             |
 | `color`          | 每一块的颜色：CSS 颜色或语气色名称                                        | `string \| (row, index: number) => string`                          | 色板的彩色    |
 | `inner-radius`   | 中间空洞占半径的比例，`0` 是饼图                                          | `number`                                                            | `0`           |
+| `start-angle`    | 起始角度，单位是度，0 是 12 点钟方向，顺时针为正                          | `number`                                                            | `0`           |
+| `end-angle`      | 结束角度，单位是度                                                        | `number`                                                            | `360`         |
+| `rose`           | 画成玫瑰图：每一块角度相同，用半径表示值                                  | `boolean`                                                           | `false`       |
 | `labels`         | 每一块的标签：`true` 在外面写名称和占比（在里面写占比），或返回文字的函数 | `boolean \| (label: ChartDataLabel) => string \| null \| undefined` | `false`       |
 | `label-position` | 标签写在饼图外面（用线连到块上），或每一块里面                            | `'outside' \| 'inside'`                                             | `'outside'`   |
 | `v-model:hidden` | 隐藏的各块的名称                                                          | `string[]`                                                          | `[]`          |
@@ -715,21 +742,23 @@ SVG 和画布用同一套绘制代码，两者画出的图形一致。导出的�
 
 ### Axis Props
 
-| 名称          | 说明                                                                 | 类型                                          | 默认值                      |
-| ------------- | -------------------------------------------------------------------- | --------------------------------------------- | --------------------------- |
-| `for`         | 哪条轴                                                               | `'x' \| 'y' \| 'y2'`                          | —                           |
-| `type`        | 刻度类型                                                             | `'linear' \| 'log' \| 'time' \| 'category'`   | x 轴按数据判断，数值轴线性  |
-| `min`         | 起点                                                                 | `number \| string \| Date`                    | 数据的最小值                |
-| `max`         | 终点                                                                 | `number \| string \| Date`                    | 数据的最大值                |
-| `zero`        | 数值轴包含 0                                                         | `boolean`                                     | 有面积图、柱状图时为 `true` |
-| `percent`     | 这条数值轴上的堆叠按占比画，叠满 100%，刻度显示百分比                | `boolean`                                     | `false`                     |
-| `nice`        | 两端取到整齐的刻度值                                                 | `boolean`                                     | 数值轴 `true`，x 轴 `false` |
-| `ticks`       | 刻度数量，或具体的刻度值                                             | `number \| (number \| string \| Date)[]`      | 按尺寸计算                  |
-| `format`      | 格式化刻度文字                                                       | `(value: number \| Date \| string) => string` | —                           |
-| `grid`        | 显示网格线                                                           | `boolean`                                     | `y` 为 `true`               |
-| `title`       | 标题                                                                 | `string`                                      | —                           |
-| `hidden`      | 隐藏坐标轴，保留它的范围                                             | `boolean`                                     | `false`                     |
-| `label-width` | 竖排刻度文字占的宽度（px），上下排列的图表设成一样的值可以对齐绘图区 | `number`                                      | 按文字测量                  |
+| 名称          | 说明                                                                 | 类型                                                              | 默认值                      |
+| ------------- | -------------------------------------------------------------------- | ----------------------------------------------------------------- | --------------------------- |
+| `for`         | 哪条轴                                                               | `'x' \| 'y' \| 'y2'`                                              | —                           |
+| `type`        | 刻度类型                                                             | `'linear' \| 'log' \| 'time' \| 'category'`                       | x 轴按数据判断，数值轴线性  |
+| `min`         | 起点                                                                 | `number \| string \| Date`                                        | 数据的最小值                |
+| `max`         | 终点                                                                 | `number \| string \| Date`                                        | 数据的最大值                |
+| `zero`        | 数值轴包含 0                                                         | `boolean`                                                         | 有面积图、柱状图时为 `true` |
+| `percent`     | 这条数值轴上的堆叠按占比画，叠满 100%，刻度显示百分比                | `boolean`                                                         | `false`                     |
+| `nice`        | 两端取到整齐的刻度值                                                 | `boolean`                                                         | 数值轴 `true`，x 轴 `false` |
+| `ticks`       | 刻度数量，或具体的刻度值                                             | `number \| (number \| string \| Date)[]`                          | 按尺寸计算                  |
+| `format`      | 格式化刻度文字                                                       | `(value: number \| Date \| string) => string`                     | —                           |
+| `grid`        | 显示网格线                                                           | `boolean`                                                         | `y` 为 `true`               |
+| `title`       | 标题                                                                 | `string`                                                          | —                           |
+| `hidden`      | 隐藏坐标轴，保留它的范围                                             | `boolean`                                                         | `false`                     |
+| `label-width` | 竖排刻度文字占的宽度（px），上下排列的图表设成一样的值可以对齐绘图区 | `number`                                                          | 按文字测量                  |
+| `reverse`     | 反向：数值轴从上往下增大，x 轴从右往左（横向图从下往上）             | `boolean`                                                         | `false`                     |
+| `sort`        | 类目 x 轴的顺序：按合计值升序、降序，或比较类目名称的函数            | `'ascending' \| 'descending' \| (a: string, b: string) => number` | 数据中的顺序                |
 
 ### CSS 变量
 

@@ -124,6 +124,12 @@ export function buildModel(
     axis?: ChartValueAxis
     /** Value axes whose stacks show each part's share of the whole (0 to 1). */
     percent?: Partial<Record<ChartValueAxis, boolean>>
+    /**
+     * The order of the categories along x: by their totals (the sum of the
+     * shown series' values), or as a function of two category names orders
+     * them. As they come in the data when not given.
+     */
+    sort?: ChartCategorySort
   },
 ): ChartModel {
   const shown = inputs.filter((input) => !input.hidden)
@@ -210,6 +216,9 @@ export function buildModel(
     }
   }
 
+  if (kind === 'category' && chart.sort && categories.length > 1)
+    categories = sortCategories(series, categories, chart.sort)
+
   const yCategories = categoriesDown(series)
 
   stack(series, chart.percent ?? {})
@@ -250,6 +259,52 @@ export function buildModel(
     if (list) y[axis] = list.length ? [0, list.length - 1] : null
   }
   return { series, xKind: kind, categories, x, y, zero, yCategories, xIntegers, xStep, inset }
+}
+
+/** How categories along x are ordered: by their totals, or by a comparison of their names. */
+export type ChartCategorySort = 'ascending' | 'descending' | ((a: string, b: string) => number)
+
+/** `categories` put in the order `sort` asks for, the series' x moved with them. */
+function sortCategories(
+  series: ModelSeries[],
+  categories: string[],
+  sort: ChartCategorySort,
+): string[] {
+  const order = categories.map((_, i) => i)
+  if (typeof sort === 'function') order.sort((a, b) => sort(categories[a]!, categories[b]!))
+  else {
+    const totals = new Float64Array(categories.length)
+    for (const s of series) {
+      // a heatmap's values are cells, not amounts along x
+      if (s.input.kind.categoryY) continue
+      for (let i = 0; i < s.y.length; i++) {
+        const x = s.x.values[i]!
+        const v = s.y[i]!
+        if (x === x && v === v) totals[x] = totals[x]! + v
+      }
+    }
+    const sign = sort === 'descending' ? -1 : 1
+    // ties keep the order they came in
+    order.sort((a, b) => sign * (totals[a]! - totals[b]!) || a - b)
+  }
+  const place = new Float64Array(categories.length)
+  order.forEach((from, to) => (place[from] = to))
+  const sorted = order.map((i) => categories[i]!)
+  const moved = new Map<XColumn, XColumn>()
+  for (const s of series) {
+    let column = moved.get(s.x)
+    if (!column) {
+      const values = new Float64Array(s.x.values.length)
+      for (let i = 0; i < values.length; i++) {
+        const v = s.x.values[i]!
+        values[i] = v === v ? place[v]! : v
+      }
+      column = { ...s.x, values, categories: sorted, sorted: false }
+      moved.set(s.x, column)
+    }
+    s.x = column
+  }
+  return sorted
 }
 
 /**

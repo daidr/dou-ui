@@ -380,6 +380,11 @@
     justify-content: center;
     text-align: center;
     translate: -50% -50%;
+
+    /* in a half donut: on its flat edge, above the center */
+    &.is-above {
+      translate: -50% calc(-100% - 4px);
+    }
   }
 
   .dou-chart__empty {

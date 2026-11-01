@@ -6,6 +6,7 @@ import type {
   ChartTickValue,
 } from './core/layout'
 import type { Tone } from 'dou-ui'
+import type { ChartCategorySort } from './core/model'
 import type { ChartSeriesProps, ChartValueAxis } from './core/series'
 import type { ChartMessagesOverride } from './locale'
 
@@ -149,6 +150,17 @@ export interface ChartAxisProps {
    * Give charts stacked one above another the same value to line up their plots.
    */
   labelWidth?: number
+  /**
+   * Runs the axis the other way: values down from the top (a ranking, 1st
+   * at the top), x from the right (from the bottom, on a horizontal chart).
+   */
+  reverse?: boolean
+  /**
+   * For a category x axis: the order of the categories. `ascending` and
+   * `descending` order them by their totals (the sum of the series shown);
+   * a function compares two category names. As in the data by default.
+   */
+  sort?: ChartCategorySort
 }
 
 export interface ChartLineProps extends Omit<ChartSeriesProps, 'color'> {
@@ -312,6 +324,18 @@ export interface ChartPieProps {
    * or inside each slice (left out where a slice is too small).
    */
   labelPosition?: 'outside' | 'inside'
+  /**
+   * Where the slices start and end, in degrees clockwise from 12 o'clock:
+   * `-90` to `90` makes a half pie (a half donut, with `inner-radius`).
+   * The whole turn by default.
+   */
+  startAngle?: number
+  endAngle?: number
+  /**
+   * A rose: each slice takes the same angle and reaches out by its value,
+   * its area in proportion to it.
+   */
+  rose?: boolean
 }
 
 export interface ChartTooltipProps {

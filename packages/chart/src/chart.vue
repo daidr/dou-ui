@@ -28,6 +28,7 @@ import { allX, angleAt, nearestPoint, nearestX, neighborGap, rowAt, sortedOrder 
 import { joinGroup, tellGroup, type SharedX } from './core/sync'
 import { numberFormatFull, numberTickFormat, timeFormatFull, timePrecision } from './core/format'
 import {
+  arcBox,
   HEAT_SWATCH,
   layoutChart,
   layoutFunnel,
@@ -68,7 +69,7 @@ import {
 } from './core/labels'
 import { crisp, type Painter, type Rect } from './core/painter'
 import { heatColor, heatRange, heatShare } from './core/heatmap'
-import { drawPie, FADED, pieSlices, type PieSlice } from './core/pie'
+import { drawPie, FADED, pieSlices, sliceOuter, type PieSlice } from './core/pie'
 import { nearestSpoke, spokeAngle } from './core/radar'
 import { FUNNEL_BAR } from './core/funnel'
 import { baseline, categoryScale, linearScale, logScale, type Scale } from './core/scale'
@@ -347,6 +348,7 @@ const model = computed(() => {
     xKind: type === 'log' ? 'linear' : type,
     axis: defaultAxis.value,
     percent: { y: !!declaredAxes.value.y?.percent, y2: !!declaredAxes.value.y2?.percent },
+    sort: declaredAxes.value.x?.sort,
   })
   return labelRoom(reachMarkers(built))
 })
@@ -435,7 +437,16 @@ const slices = computed(() => {
     label,
     part.props.color,
     part.hidden.value,
+    { start: pieArc.value[0], end: pieArc.value[1], rose: !!part.props.rose },
   )
+})
+
+/** The part of the turn the pie takes, in radians clockwise from 12 o'clock. */
+const pieArc = computed<[number, number]>(() => {
+  const p = pie.value?.props
+  const start = ((p?.startAngle ?? 0) * Math.PI) / 180
+  const end = p?.endAngle === undefined ? start + Math.PI * 2 : (p.endAngle * Math.PI) / 180
+  return [start, Math.min(end, start + Math.PI * 2)]
 })
 
 /** The slices that take room: not turned off. */
@@ -890,6 +901,7 @@ const pieLayout = computed(() => {
     coarse: coarse.value,
     legendPlacement: legendPlacement.value,
     sideLabels: pieLabelsOutside.value ? pieSideWidths.value : undefined,
+    arc: pieArc.value,
   })
 })
 
@@ -1152,6 +1164,7 @@ const pieLabelsOutside = computed(() => {
     legend: legendNames.value,
     coarse: coarse.value,
     legendPlacement: legendPlacement.value,
+    arc: pieArc.value,
   }
   const alone = layoutPie(base).radius
   const radius = layoutPie({ ...base, sideLabels: pieSideWidths.value }).radius
@@ -1187,11 +1200,13 @@ const pieLabels = computed(() => {
   if (!pieLabelsOutside.value) {
     // in each slice, in the middle of its ring: where it fits
     const inner = radius * holeRatio.value
-    const at = inner > 0 ? (radius + inner) / 2 : radius * 0.62
-    const thickness = radius - inner
     list.forEach((slice, k) => {
       const text = texts[k]
       if (!text || !(slice.end > slice.start)) return
+      // a rose's slice reaches only as far as its value
+      const outer = sliceOuter(slice, inner, radius)
+      const at = inner > 0 ? (outer + inner) / 2 : outer * 0.62
+      const thickness = outer - inner
       const width = measure(text)
       const arc = (slice.end - slice.start) * at
       if (arc < width + 8 || thickness < DATA_LABEL + 4) return
@@ -1212,7 +1227,7 @@ const pieLabels = computed(() => {
   // outside: a column of labels either side, each joined to its slice by a line
   const widths = pieSideWidths.value
   // the pie's own room, above the legend, less a little at the edges
-  const room = { top: EDGE_ROOM, bottom: cy * 2 - EDGE_ROOM }
+  const room = { top: EDGE_ROOM, bottom: l.bottom + EDGE_ROOM }
   const sides: Record<'left' | 'right', Array<{ k: number; y: number; middle: number }>> = {
     left: [],
     right: [],
@@ -1252,8 +1267,11 @@ const pieLabels = computed(() => {
       const clear = Math.sqrt(Math.max(0, (radius + 8) ** 2 - (y - cy) ** 2))
       const reach = Math.max(Math.abs(sin) * (radius + 10), clear)
       const turn = right ? Math.min(cx + reach, end) : Math.max(cx - reach, end)
+      // a rose's slice ends short of the rim: the line starts at its edge
+      const hole = radius * holeRatio.value
+      const edge = sliceOuter(list[item.k]!, hole, radius)
       out.leaders.push([
-        [cx + sin * (radius + 2), cy - cos * (radius + 2)],
+        [cx + sin * (edge + 2), cy - cos * (edge + 2)],
         [turn, y],
         [end, y],
       ])
@@ -1434,9 +1452,15 @@ function hitAt(px: number, py: number): Target | null {
   const p = pieLayout.value
   if (p) {
     const r = Math.hypot(px - p.cx, py - p.cy)
-    if (r > p.radius || r < p.radius * holeRatio.value) return null
-    const angle = angleAt(p.cx, p.cy, px, py)
-    const k = slices.value.findIndex((s) => !s.hidden && angle >= s.start && angle < s.end)
+    const inner = p.radius * holeRatio.value
+    if (r > p.radius || r < inner) return null
+    // the pointer's angle on the pie's turn, which may start before 12 o'clock
+    let angle = angleAt(p.cx, p.cy, px, py)
+    while (angle < pieArc.value[0]) angle += Math.PI * 2
+    while (angle >= pieArc.value[0] + Math.PI * 2) angle -= Math.PI * 2
+    const k = slices.value.findIndex(
+      (s) => !s.hidden && angle >= s.start && angle < s.end && r <= sliceOuter(s, inner, p.radius),
+    )
     return k < 0 ? null : { type: 'slice', slice: k }
   }
   const f = funnelLayout.value
@@ -1579,7 +1603,9 @@ function tipOf(a: Active | null): Tip | null {
     const slice = slices.value[a.slice]
     if (!p || !slice || slice.hidden) return null
     const middle = (slice.start + slice.end) / 2
-    const at = p.radius * (holeRatio.value > 0 ? (1 + holeRatio.value) / 2 : 0.6)
+    const inner = p.radius * holeRatio.value
+    const outer = sliceOuter(slice, inner, p.radius)
+    const at = inner > 0 ? (inner + outer) / 2 : outer * 0.6
     const off = slices.value.length - shownSlices.value.length
     return {
       x: slice.label,
@@ -2998,6 +3024,7 @@ function paintPie(painter: Painter, t: number, sweep: number, still = false) {
     focus: focus?.index,
     fade: legendFocus ? FADED : 0.56,
     sweep,
+    from: pieArc.value[0],
   })
   // the lines out to the labels, once they show
   const leaders = pieLabels.value.leaders
@@ -3718,7 +3745,14 @@ const overlay: OverlayState = {
   hole: computed(() => {
     const l = pieLayout.value
     if (!l || empty.value || fromServer.value || !(holeRatio.value > 0)) return null
-    return { left: l.cx, top: l.cy, width: l.radius * holeRatio.value * 2 * 0.8 }
+    // a half donut opening downward: what goes in it sits on its flat edge
+    const box = arcBox(pieArc.value[0], pieArc.value[1])
+    return {
+      left: l.cx,
+      top: l.cy,
+      width: l.radius * holeRatio.value * 2 * 0.8,
+      above: box.bottom < 0.01,
+    }
   }),
   // the pie's default slot
   center: () => pie.value?.center(),

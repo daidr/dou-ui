@@ -52,7 +52,7 @@ export interface OverlayState {
   /** Brings the series at `index` forward while the pointer or focus is on its entry; `null` to stop. */
   focus: (index: number | null) => void
   /** Where the donut's hole is, if there is one to fill. */
-  hole: ComputedRef<{ left: number; top: number; width: number } | null>
+  hole: ComputedRef<{ left: number; top: number; width: number; above?: boolean } | null>
   center: () => VNodeChild
   /** The markers' labels. */
   markers: ComputedRef<Array<MarkerLabel & { key: string; tone: Tone; backdrop: boolean }>>
@@ -254,7 +254,7 @@ const focusVisible = (e: FocusEvent) => (e.target as Element).matches(':focus-vi
   </div>
   <div
     v-if="hole"
-    :class="ns.e('center')"
+    :class="[ns.e('center'), ns.is('above', !!hole.above)]"
     :style="{ left: `${hole.left}px`, top: `${hole.top}px`, width: `${hole.width}px` }"
   >
     <Center />

@@ -44,7 +44,13 @@ export interface AxisConfig {
   hidden: boolean
   /** The room for tick labels down the side, in px, whatever they measure. */
   labelWidth?: number
+  /** Runs the other way: its scale's range is turned round. */
+  reverse?: boolean
 }
+
+/** `range` as the axis runs: turned round when it is reversed. */
+const runs = (config: AxisConfig | null | undefined, range: [number, number]): [number, number] =>
+  config?.reverse ? [range[1], range[0]] : range
 
 /** The axes by what they measure. */
 export interface ChartAxes {
@@ -465,7 +471,7 @@ function layoutUp(
   for (const axis of [y, y2]) {
     if (!axis) continue
     const config = axes[axis.role]!
-    const scale = valueScale(axis, [plot.y + plot.height, plot.y])
+    const scale = valueScale(axis, runs(config, [plot.y + plot.height, plot.y]))
     const labels = config.hidden ? [] : placeDown(axis.ticks, axis.texts, scale, height, measure)
     for (const label of labels)
       if (axis.role === 'y') alignEnd(label, plot.x)
@@ -486,7 +492,7 @@ function layoutUp(
 
   const along: [number, number] = [plot.x, plot.x + plot.width]
   const count = Math.max(2, Math.floor(plot.width / X_TICK_SPACE))
-  const { scale, full } = xScale(xAxis, model, along, count, zoom?.x)
+  const { scale, full } = xScale(xAxis, model, runs(xAxis, along), count, zoom?.x)
   const labelTop = plot.y + plot.height + LABEL_GAP
   let x: AxisLayout | undefined
   for (const { ticks, texts } of xTickChoices(
@@ -539,7 +545,7 @@ function layoutAcross(
   const { scale, full } = xScale(
     xAxis,
     model,
-    down,
+    runs(xAxis, down),
     Math.max(2, Math.floor(plotHeight / Y_TICK_SPACE)),
     zoom?.x,
   )
@@ -578,7 +584,7 @@ function layoutAcross(
   const across = width - leftWidth - EDGE
   const place = (axis: ValueAxis | null, labelTop: number, visible: boolean) => {
     if (!axis) return null
-    const valueScaleAcross = valueScale(axis, [plot.x, plot.x + plot.width])
+    const valueScaleAcross = valueScale(axis, runs(axes[axis.role], [plot.x, plot.x + plot.width]))
     const labels = visible
       ? placeAcross(axis.ticks, axis.texts, valueScaleAcross, labelTop, width, measure)
       : []
@@ -1019,8 +1025,33 @@ export interface PieLayout {
   cx: number
   cy: number
   radius: number
+  /** The lowest the pie's labels may go: above the legend. */
+  bottom: number
   legend: LegendItem[]
   legendBox?: LegendBox
+}
+
+/**
+ * The box round the part of a circle of radius 1 from `start` to `end`
+ * (radians clockwise from 12 o'clock), its center included, in units of
+ * the radius from the center: a half circle is half as tall as a whole.
+ */
+export function arcBox(start: number, end: number) {
+  let [left, right, top, bottom] = [0, 0, 0, 0]
+  const take = (angle: number) => {
+    const x = Math.sin(angle)
+    const y = -Math.cos(angle)
+    left = Math.min(left, x)
+    right = Math.max(right, x)
+    top = Math.min(top, y)
+    bottom = Math.max(bottom, y)
+  }
+  take(start)
+  take(end)
+  // the quarters it passes: the top, the right, the bottom, the left
+  for (let k = Math.ceil(start / (Math.PI / 2)); k * (Math.PI / 2) <= end; k++)
+    take(k * (Math.PI / 2))
+  return { left, right, top, bottom }
 }
 
 /** Room from a pie's edge to the labels outside it: the line out, and the gap before the text. */
@@ -1039,9 +1070,12 @@ export function layoutPie({
   coarse,
   legendPlacement = 'bottom',
   sideLabels = { left: 0, right: 0 },
+  arc = [0, Math.PI * 2],
 }: Pick<LayoutOptions, 'width' | 'height' | 'measure' | 'legend' | 'coarse' | 'legendPlacement'> & {
   /** The widest label outside the pie on each side, in px; 0 for none. */
   sideLabels?: { left: number; right: number }
+  /** The part of the turn the pie takes (a half donut's), in radians from 12 o'clock. */
+  arc?: [number, number]
 }): PieLayout {
   const placed = placeLegendIn(names, legendPlacement, width, height, measure, coarse)
   const { top, bottom, right: legendRight } = placed.room
@@ -1052,13 +1086,19 @@ export function layoutPie({
   const right = sideLabels.right > 0 ? sideLabels.right + PIE_LABEL_ROOM : 0
   const across = inner - left - right
   const down = left || right ? room - LABEL_HEIGHT : room
-  const radius = Math.max(1, Math.min(across - EDGE * 2, down) / 2)
+  // a part of a circle (a half donut) takes only its own box: it grows to fill the room
+  const box = arcBox(arc[0], arc[1])
+  const radius = Math.max(
+    1,
+    Math.min((across - EDGE * 2) / (box.right - box.left || 1), down / (box.bottom - box.top || 1)),
+  )
   return {
     width,
     height,
-    cx: left + across / 2,
-    cy: top + EDGE + room / 2,
+    cx: left + across / 2 - ((box.left + box.right) / 2) * radius,
+    cy: top + EDGE + room / 2 - ((box.top + box.bottom) / 2) * radius,
     radius,
+    bottom: height - bottom - EDGE,
     legend: placed.legend,
     legendBox: placed.box,
   }

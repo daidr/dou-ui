@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { DouSpinner, useNamespace, type Tone } from 'dou-ui'
+import { DouSpinner, DouTooltip, useNamespace, type Tone } from 'dou-ui'
 import { onBeforeUnmount, useId, type ComputedRef, type VNodeChild } from 'vue'
 import type { TickLabel } from './core/layout'
 import type { PlacedDataLabel } from './core/labels'
+import type { LegendBox } from './core/layout'
 import type { MarkerLabel } from './core/marker'
 
 /**
@@ -31,8 +32,14 @@ export interface OverlayState {
       off: boolean
       /** The last one shown: it can't be turned off. */
       locked: boolean
+      /** The room it takes, swatch and name, in px. */
+      width: number
+      /** Its name is cut short to the room down the side. */
+      clipped?: boolean
     }>
   >
+  /** Where the legend shows; its entries scroll in it when they don't all fit. */
+  legendBox: ComputedRef<LegendBox | undefined>
   /** Turns the series (or slice) at `index` on or off. */
   toggle: (index: number) => void
   /** Shows only the series (or slice) at `index`, or all again. */
@@ -46,8 +53,8 @@ export interface OverlayState {
   center: () => VNodeChild
   /** The markers' labels. */
   markers: ComputedRef<Array<MarkerLabel & { key: string; tone: Tone; backdrop: boolean }>>
-  /** Data labels: values by the points and on the bars; `ink` is their color, when not the default; `full`, their text before it was cut short. */
-  data: ComputedRef<Array<PlacedDataLabel & { ink?: string; width?: number; full?: string }>>
+  /** Data labels: values by the points and on the bars; `ink` is their color, when not the default. */
+  data: ComputedRef<Array<PlacedDataLabel & { ink?: string; width?: number }>>
   /** Whether the data labels show (not while the series come in). */
   dataShown: ComputedRef<boolean>
   /** The series brought forward: the other series' labels are faded too. */
@@ -67,6 +74,7 @@ const {
   labels,
   titles,
   legend,
+  legendBox,
   hole,
   toggle,
   isolate,
@@ -124,6 +132,8 @@ function noMenu(event: Event) {
   if (holdTimer || held) event.preventDefault()
 }
 onBeforeUnmount(letGo)
+/** Room around the legend's entries in its box, so a focus ring isn't cut off where it scrolls. */
+const LEGEND_PAD = 4
 const Empty = () => state.emptyContent()
 // a click focuses the entry too: only keyboard focus brings its series forward
 const focusVisible = (e: FocusEvent) => (e.target as Element).matches(':focus-visible')
@@ -139,7 +149,6 @@ const focusVisible = (e: FocusEvent) => (e.target as Element).matches(':focus-vi
         transform: `translate(${tick.left}px, ${tick.top}px)`,
         width: tick.clipped ? `${tick.width}px` : undefined,
       }"
-      :title="tick.clipped ? tick.text : undefined"
       ><span :class="ns.e('text')">{{ tick.text }}</span></span
     >
     <span
@@ -177,41 +186,60 @@ const focusVisible = (e: FocusEvent) => (e.target as Element).matches(':focus-vi
         color: label.ink,
         width: label.width === undefined ? undefined : `${label.width}px`,
       }"
-      :title="label.full ?? (label.width === undefined ? undefined : label.text)"
       ><span :class="ns.e('text')">{{ label.text }}</span></span
     >
   </div>
-  <div v-if="shown && legend.length" :class="ns.e('legends')">
-    <button
+  <div
+    v-if="shown && legend.length && legendBox"
+    :class="[ns.e('legends'), ns.is('scroll', legendBox.scroll)]"
+    :style="{
+      left: `${legendBox.x - LEGEND_PAD}px`,
+      top: `${legendBox.y - LEGEND_PAD}px`,
+      width: `${legendBox.width + LEGEND_PAD * 2}px`,
+      height: `${legendBox.height + LEGEND_PAD * 2}px`,
+    }"
+  >
+    <!-- a name cut short shows in full on hover and focus; on a phone the legend goes where names aren't cut -->
+    <DouTooltip
       v-for="item in legend"
       :key="`legend:${item.index}`"
-      type="button"
-      :class="[
-        ns.e('legend'),
-        ns.is(item.kind),
-        ns.is('dashed', item.dashed),
-        ns.is('off', item.off),
-        ns.is('locked', item.locked),
-      ]"
-      :style="{ transform: `translate(${item.left}px, ${item.top}px)` }"
-      :aria-pressed="!item.off"
-      :aria-describedby="hintId"
-      aria-keyshortcuts="Alt+Enter"
-      @click="(e) => onLegendClick(e, item.index)"
-      @keydown="(e) => onLegendKey(e, item.index)"
-      @pointerdown="(e) => e.pointerType === 'touch' && holdLegend(item.index)"
-      @pointerup="letGo"
-      @pointercancel="letGo"
-      @contextmenu="noMenu"
-      @pointerenter="(e) => e.pointerType !== 'touch' && !item.off && focus(item.index)"
-      @pointerleave="(letGo(), focus(null))"
-      @focus="(e) => focusVisible(e) && !item.off && focus(item.index)"
-      @blur="focus(null)"
+      :content="item.text"
+      :disabled="!item.clipped"
     >
-      <span :class="ns.e('swatch')" :style="{ color: item.color }" /><span :class="ns.e('text')">{{
-        item.text
-      }}</span>
-    </button>
+      <button
+        type="button"
+        :class="[
+          ns.e('legend'),
+          ns.is(item.kind),
+          ns.is('dashed', item.dashed),
+          ns.is('off', item.off),
+          ns.is('locked', item.locked),
+          ns.is('clipped', !!item.clipped),
+        ]"
+        :style="{
+          transform: `translate(${item.left - legendBox.x + LEGEND_PAD}px, ${item.top - legendBox.y + LEGEND_PAD}px)`,
+          width: item.clipped ? `${item.width}px` : undefined,
+        }"
+        :aria-pressed="!item.off"
+        :aria-describedby="hintId"
+        aria-keyshortcuts="Alt+Enter"
+        @click="(e) => onLegendClick(e, item.index)"
+        @keydown="(e) => onLegendKey(e, item.index)"
+        @pointerdown="(e) => e.pointerType === 'touch' && holdLegend(item.index)"
+        @pointerup="letGo"
+        @pointercancel="letGo"
+        @contextmenu="noMenu"
+        @pointerenter="(e) => e.pointerType !== 'touch' && !item.off && focus(item.index)"
+        @pointerleave="(letGo(), focus(null))"
+        @focus="(e) => focusVisible(e) && !item.off && focus(item.index)"
+        @blur="focus(null)"
+      >
+        <span :class="ns.e('swatch')" :style="{ color: item.color }" /><span
+          :class="ns.e('text')"
+          >{{ item.text }}</span
+        >
+      </button>
+    </DouTooltip>
     <span :id="hintId" hidden>{{ hint }}</span>
   </div>
   <div

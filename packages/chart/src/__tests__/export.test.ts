@@ -262,6 +262,27 @@ describe('exporting', () => {
     wrapper.unmount()
   })
 
+  it('takes series and slice colors from the chart’s own palette, in turn', async () => {
+    const lines = await sized(
+      () => [h(DouChartBar, { y: 'a' }), h(DouChartBar, { y: 'a', name: '乙' })],
+      {
+        palette: ['#0a7f6f', 'warning'],
+      },
+    )
+    const svg = (lines.vm as unknown as ChartExpose).exportSVG()
+    expect(svg).toContain('fill="#0a7f6f"')
+    expect(svg).toContain('style="fill:var(--dou-color-warning)"')
+    lines.unmount()
+    const pie = await sized(() => h(DouChartPie, { value: 'a' }), {
+      palette: ['#0a7f6f', '#7f0a3c'],
+    })
+    const slices = (pie.vm as unknown as ChartExpose).exportSVG()
+    // three slices of two colors: the third takes the first again
+    expect(slices.match(/fill="#0a7f6f"/g)!.length).toBeGreaterThanOrEqual(2)
+    expect(slices).toContain('fill="#7f0a3c"')
+    pie.unmount()
+  })
+
   it('exports a pie', async () => {
     const wrapper = await sized(() => h(DouChartPie, { value: 'a' }))
     const svg = (wrapper.vm as unknown as ChartExpose).exportSVG()

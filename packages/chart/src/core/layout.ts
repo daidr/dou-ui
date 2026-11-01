@@ -84,8 +84,19 @@ export interface ChartLayout {
   /** The value axes, by what they measure. */
   y: Partial<Record<ChartValueAxis, AxisLayout>>
   legend: LegendItem[]
+  /** The room the legend shows in; its entries scroll in it when they don't all fit. */
+  legendBox?: LegendBox
   /** Where the range strip goes: under the chart, or down its right side when horizontal. */
   strip?: Rect
+}
+
+/** Where a chart's legend goes. */
+export type ChartLegendPlacement = 'top' | 'bottom' | 'right'
+
+/** The room a legend shows in, in px from the chart's top left. */
+export interface LegendBox extends Rect {
+  /** Its entries take more room than it has: they scroll in it. */
+  scroll: boolean
 }
 
 /** A legend entry, placed. */
@@ -96,6 +107,8 @@ export interface LegendItem {
   left: number
   top: number
   width: number
+  /** The name is longer than the room down the side, and is cut short. */
+  clipped?: boolean
 }
 
 /** Height of a line of tick text, and the room between it and the plot. */
@@ -112,6 +125,10 @@ const LEGEND_GAP = 16
 const LEGEND_ROW_GAP = 4
 /** Rows 40px apart on a touch screen: each entry's hit area reaches 12px past its text, above and below. */
 const LEGEND_ROW_GAP_COARSE = 24
+/** The most rows a legend above or below the chart shows; more scroll. */
+const LEGEND_ROWS = 3
+/** The most of the chart's width a legend down the side may take. */
+const LEGEND_SIDE_SHARE = 0.3
 /** The range strip's height (its width when horizontal), and the room before it. */
 export const STRIP = 32
 const STRIP_GAP = 12
@@ -132,10 +149,12 @@ interface LayoutOptions {
   height: number
   locale: string
   measure: (text: string) => number
-  /** Names for a legend under the chart, or none. */
+  /** Names for a legend, or none. */
   legend?: string[]
   /** Rows of the legend far enough apart for a finger to press each (on a touch screen). */
   coarse?: boolean
+  /** Where the legend goes: under the chart (the default), above it, or down its right side. */
+  legendPlacement?: ChartLegendPlacement
   /**
    * The stretches shown when zoomed in: of x in the scale's numbers
    * (category indices, ms), of the values in those of `y` (or `y2` when
@@ -163,31 +182,102 @@ function widen(lo: number, hi: number, inset: number, length: number): [number, 
 /** Places the axes and works out the plot area, the scales and the tick labels. */
 export function layoutChart(options: LayoutOptions): ChartLayout {
   const { width, height, measure } = options
-  const legend = placeLegend(options.legend ?? [], width, measure, options.coarse)
-  const legendHeight = legendRoom(legend)
-  for (const item of legend) item.top += height - legendHeight + LABEL_GAP + 4
+  const placed = placeLegendIn(
+    options.legend ?? [],
+    options.legendPlacement ?? 'bottom',
+    width,
+    height,
+    measure,
+  )
+  const { legend, box: legendBox } = placed
+  const { bottom: legendHeight, top: legendTop, right: legendRight } = placed.room
   const room = options.strip ? STRIP + STRIP_GAP : 0
   if (options.horizontal) {
     // the strip down the right side, as tall as the plot
-    const layout = layoutAcross({ ...options, width: width - room }, legendHeight)
+    const inner = width - room - legendRight
+    const layout = layoutAcross({ ...options, width: inner }, legendHeight, legendTop)
     const { plot } = layout
     const strip = room
-      ? { x: width - STRIP, y: plot.y, width: STRIP, height: plot.height }
+      ? { x: inner + STRIP_GAP, y: plot.y, width: STRIP, height: plot.height }
       : undefined
-    return { ...layout, width, legend, strip }
+    return { ...layout, width, legend, legendBox, strip }
   }
   // the strip under the x axis, above the legend
-  const layout = layoutUp(options, legendHeight + room)
+  const layout = layoutUp(
+    { ...options, width: width - legendRight },
+    legendHeight + room,
+    legendTop,
+  )
   const { plot } = layout
   const strip = room
     ? { x: plot.x, y: height - legendHeight - STRIP, width: plot.width, height: STRIP }
     : undefined
-  return { ...layout, legend, strip }
+  return { ...layout, width, legend, legendBox, strip }
 }
 
-/** The height a legend takes under the chart, with the gap above it. */
-function legendRoom(legend: LegendItem[]): number {
-  return legend.length ? LABEL_GAP + 4 + legend[legend.length - 1]!.top + LABEL_HEIGHT : 0
+/**
+ * Places a legend's entries where it goes: in rows under or above the
+ * chart, or one under another down its right side. Gives the room it
+ * takes from the chart on each side, and the box it shows in: past three
+ * rows (or the chart's height, down the side), its entries scroll.
+ */
+export function placeLegendIn(
+  names: string[],
+  at: ChartLegendPlacement,
+  width: number,
+  height: number,
+  measure: (text: string) => number,
+  coarse = false,
+): { legend: LegendItem[]; box?: LegendBox; room: { top: number; bottom: number; right: number } } {
+  const rowGap = coarse ? LEGEND_ROW_GAP_COARSE : LEGEND_ROW_GAP
+  const room = { top: 0, bottom: 0, right: 0 }
+  if (!names.length) return { legend: [], room }
+  if (at === 'right') {
+    const widest = Math.max(
+      SWATCH + SWATCH_GAP + 24,
+      Math.floor(width * LEGEND_SIDE_SHARE) - LEGEND_GAP,
+    )
+    const step = LABEL_HEIGHT + Math.max(rowGap, LEGEND_ROW_GAP + 4)
+    const legend = names.map((text, index) => {
+      const full = SWATCH + SWATCH_GAP + measure(text)
+      const item: LegendItem = {
+        index,
+        text,
+        left: 0,
+        top: index * step,
+        width: Math.min(full, widest),
+      }
+      if (full > widest) item.clipped = true
+      return item
+    })
+    const boxWidth = Math.max(...legend.map((item) => item.width))
+    const content = (legend.length - 1) * step + LABEL_HEIGHT
+    const boxHeight = Math.min(content, height - EDGE * 2)
+    const box: LegendBox = {
+      x: width - INSET - boxWidth,
+      y: EDGE,
+      width: boxWidth,
+      height: boxHeight,
+      scroll: content > boxHeight + 0.5,
+    }
+    for (const item of legend) {
+      item.left += box.x
+      item.top += box.y
+    }
+    room.right = boxWidth + LEGEND_GAP
+    return { legend, box, room }
+  }
+  const legend = placeLegend(names, width, measure, coarse)
+  const rowStep = LABEL_HEIGHT + rowGap
+  const content = legend[legend.length - 1]!.top + LABEL_HEIGHT
+  const boxHeight = Math.min(content, (LEGEND_ROWS - 1) * rowStep + LABEL_HEIGHT)
+  const gap = LABEL_GAP + 4
+  const y = at === 'top' ? INSET : height - boxHeight
+  for (const item of legend) item.top += y
+  const box: LegendBox = { x: 0, y, width, height: boxHeight, scroll: content > boxHeight + 0.5 }
+  if (at === 'top') room.top = INSET + boxHeight + gap - EDGE
+  else room.bottom = boxHeight + gap
+  return { legend, box, room }
 }
 
 const shown = (config: AxisConfig | null): config is AxisConfig => !!config && !config.hidden
@@ -327,12 +417,14 @@ function alignZero(
 function layoutUp(
   { model, axes, width, height, locale, measure, zoom, trailing = 0 }: LayoutOptions,
   legendHeight: number,
+  /** Room taken at the top: a legend above the chart. */
+  topRoom = 0,
 ): Omit<ChartLayout, 'legend'> {
   const xAxis = axes.x
   const xShown = !xAxis.hidden
   const titleRoom = (shown(axes.y) && axes.y.title) || (shown(axes.y2) && axes.y2.title)
   // a title sits above the top tick label, which is centered on the plot's top edge
-  const top = titleRoom ? LABEL_HEIGHT + LABEL_GAP + LABEL_HEIGHT / 2 : EDGE
+  const top = (titleRoom ? LABEL_HEIGHT + LABEL_GAP + LABEL_HEIGHT / 2 : EDGE) + topRoom
   const bottom =
     (xShown ? LABEL_HEIGHT + LABEL_GAP + (xAxis.title ? LABEL_HEIGHT + 4 : 0) : EDGE) + legendHeight
   const plotTop = top
@@ -373,7 +465,7 @@ function layoutUp(
       full: axis.full ?? axis.domain,
       title:
         config.title && !config.hidden
-          ? topTitle(config.title, axis.role === 'y2', width)
+          ? topTitle(config.title, axis.role === 'y2', width, topRoom)
           : undefined,
     }
   }
@@ -409,6 +501,8 @@ function layoutUp(
 function layoutAcross(
   { model, axes, width, height, locale, measure, zoom }: LayoutOptions,
   legendHeight: number,
+  /** Room taken at the top: a legend above the chart. */
+  topRoom = 0,
 ): Omit<ChartLayout, 'legend'> {
   const xAxis = axes.x
   const xShown = !xAxis.hidden
@@ -418,7 +512,7 @@ function layoutAcross(
   const titles = (xShown && xAxis.title) || (y2Shown && axes.y2!.title)
   const titleRow = titles ? LABEL_HEIGHT + LABEL_GAP : 0
   const topLabels = y2Shown ? LABEL_HEIGHT + LABEL_GAP : 0
-  const top = Math.max(EDGE, titleRow + topLabels)
+  const top = Math.max(EDGE, titleRow + topLabels) + topRoom
   const bottom =
     (yShown ? LABEL_HEIGHT + LABEL_GAP + (axes.y!.title ? LABEL_HEIGHT + 4 : 0) : EDGE) +
     legendHeight
@@ -508,7 +602,9 @@ function layoutAcross(
 
   for (const label of x.labels) alignEnd(label, plot.x)
   x.title =
-    xShown && xAxis.title ? { text: xAxis.title, left: INSET, top: 0, align: 'start' } : undefined
+    xShown && xAxis.title
+      ? { text: xAxis.title, left: INSET, top: topRoom, align: 'start' }
+      : undefined
   const yLayout: ChartLayout['y'] = {}
   for (const role of ['y', 'y2'] as const) {
     const p = placed[role]
@@ -525,7 +621,7 @@ function layoutAcross(
         config.title && !config.hidden
           ? role === 'y'
             ? bottomTitle(config.title, width, height, legendHeight)
-            : topTitle(config.title, true, width)
+            : topTitle(config.title, true, width, topRoom)
           : undefined,
     }
   }
@@ -538,8 +634,8 @@ function alignEnd(label: TickLabel, edge: number) {
 }
 
 /** A title at the top: on the left, or (`end`) on the right. */
-function topTitle(text: string, end: boolean, width: number): AxisLayout['title'] {
-  return { text, top: 0, left: end ? width - INSET : INSET, align: end ? 'end' : 'start' }
+function topTitle(text: string, end: boolean, width: number, top = 0): AxisLayout['title'] {
+  return { text, top, left: end ? width - INSET : INSET, align: end ? 'end' : 'start' }
 }
 
 function bottomTitle(
@@ -893,6 +989,7 @@ export interface PieLayout {
   cy: number
   radius: number
   legend: LegendItem[]
+  legendBox?: LegendBox
 }
 
 /** Room from a pie's edge to the labels outside it: the line out, and the gap before the text. */
@@ -909,20 +1006,29 @@ export function layoutPie({
   measure,
   legend: names = [],
   coarse,
+  legendPlacement = 'bottom',
   sideLabels = { left: 0, right: 0 },
-}: Pick<LayoutOptions, 'width' | 'height' | 'measure' | 'legend' | 'coarse'> & {
+}: Pick<LayoutOptions, 'width' | 'height' | 'measure' | 'legend' | 'coarse' | 'legendPlacement'> & {
   /** The widest label outside the pie on each side, in px; 0 for none. */
   sideLabels?: { left: number; right: number }
 }): PieLayout {
-  const legend = placeLegend(names, width, measure, coarse)
-  const legendHeight = legendRoom(legend)
-  for (const item of legend) item.top += height - legendHeight + LABEL_GAP + 4
-  const room = height - legendHeight - EDGE * 2
+  const placed = placeLegendIn(names, legendPlacement, width, height, measure, coarse)
+  const { top, bottom, right: legendRight } = placed.room
+  const room = height - top - bottom - EDGE * 2
+  const inner = width - legendRight
   // labels outside: room for them on their side, and for the lines out above and below
   const left = sideLabels.left > 0 ? sideLabels.left + PIE_LABEL_ROOM : 0
   const right = sideLabels.right > 0 ? sideLabels.right + PIE_LABEL_ROOM : 0
-  const across = width - left - right
+  const across = inner - left - right
   const down = left || right ? room - LABEL_HEIGHT : room
   const radius = Math.max(1, Math.min(across - EDGE * 2, down) / 2)
-  return { width, height, cx: left + across / 2, cy: EDGE + room / 2, radius, legend }
+  return {
+    width,
+    height,
+    cx: left + across / 2,
+    cy: top + EDGE + room / 2,
+    radius,
+    legend: placed.legend,
+    legendBox: placed.box,
+  }
 }

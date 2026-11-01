@@ -25,6 +25,7 @@ import {
 import { createColorResolver, observeTheme } from './core/colors'
 import { extent, read, rowOf, type ChartAccessor, type ChartRow } from './core/data'
 import { allX, angleAt, nearestPoint, nearestX, neighborGap, rowAt, sortedOrder } from './core/hit'
+import { joinGroup, tellGroup, type SharedX } from './core/sync'
 import { numberFormatFull, numberTickFormat, timeFormatFull, timePrecision } from './core/format'
 import {
   layoutChart,
@@ -36,6 +37,7 @@ import {
   type ChartLayout,
   type ChartAxisPosition,
   type ChartAxisRole,
+  type ChartLegendPlacement,
   type ChartTickValue,
   type TickLabel,
 } from './core/layout'
@@ -89,6 +91,7 @@ import {
 import { format, useChartMessages } from './locale'
 import ChartOverlay, { type OverlayState } from './overlay.vue'
 import ChartPointer, { type PointerState, type Tip } from './pointer.vue'
+import ChartTable, { type TableState } from './table.vue'
 import ChartStatic, { type StaticState } from './static.vue'
 import ChartZoomLayer, { type ZoomLayerState } from './zoom-layer.vue'
 import type { Tone } from 'dou-ui'
@@ -119,6 +122,8 @@ const slots = defineSlots<ChartSlots>()
 const emit = defineEmits<{
   /** A bar, point or slice was clicked, or Enter pressed on it: what the tooltip shows there. */
   select: [event: ChartSelectEvent]
+  /** The table view was closed with Escape. */
+  'update:table': [value: boolean]
 }>()
 
 const ns = useNamespace('chart')
@@ -447,7 +452,22 @@ watch(model, (m) => {
 
 const TONES = new Set(['neutral', 'primary', 'success', 'warning', 'danger'])
 
-const paletteColor = (index: number) => `var(--dou-color-chart-${(index % 8) + 1})`
+/** A color given as a CSS color or a tone name, as CSS. */
+const toneOrColor = (color: string) =>
+  color === 'neutral'
+    ? 'var(--dou-color-chart-1)'
+    : TONES.has(color)
+      ? `var(--dou-color-${color})`
+      : color
+
+/** The chart's own palette (`palette`), when one is given. */
+const ownPalette = computed(() => (props.palette?.length ? props.palette : null))
+
+/** The palette's color for the series at `index`: the chart's own, or the theme's eight. */
+function paletteColor(index: number): string {
+  const own = ownPalette.value
+  return own ? toneOrColor(own[index % own.length]!) : `var(--dou-color-chart-${(index % 8) + 1})`
+}
 
 /** A series' color: its own, its tone's, or the palette's by its place among all series. */
 function seriesColor(p: SeriesPart['props'], index: number): string {
@@ -456,14 +476,7 @@ function seriesColor(p: SeriesPart['props'], index: number): string {
 }
 
 /** A color given as a CSS color or a tone name, as the canvas takes it. */
-const itemColor = (color: string) =>
-  resolveColor(
-    color === 'neutral'
-      ? 'var(--dou-color-chart-1)'
-      : TONES.has(color)
-        ? `var(--dou-color-${color})`
-        : color,
-  )
+const itemColor = (color: string) => resolveColor(toneOrColor(color))
 
 /** The colors of single bars or points, by row, when `color` is a function. */
 function itemColors(s: ChartSeries): Array<string | undefined> | null {
@@ -506,25 +519,26 @@ const SLICE_COLORS = 7
 
 const sliceColors = computed(() => {
   void themeVersion.value
+  const palette = ownPalette.value
   return slices.value.map((slice) => {
     const own = slice.color
-    // `neutral` is the palette's own gray, softer than the neutral tone
-    const css = !own
-      ? `var(--dou-color-chart-${(slice.index % SLICE_COLORS) + 2})`
-      : own === 'neutral'
-        ? 'var(--dou-color-chart-1)'
-        : TONES.has(own)
-          ? `var(--dou-color-${own})`
-          : own
+    // `neutral` is the palette's own gray, softer than the neutral tone; a
+    // palette of the chart's own is taken in order, its first color too
+    const css = own
+      ? toneOrColor(own)
+      : palette
+        ? toneOrColor(palette[slice.index % palette.length]!)
+        : `var(--dou-color-chart-${(slice.index % SLICE_COLORS) + 2})`
     return resolveColor(css)
   })
 })
 
 if (process.env.NODE_ENV !== 'production')
   watch(slices, (list) => {
-    if (list.length > SLICE_COLORS && pie.value && pie.value.props.color === undefined)
+    const count = ownPalette.value?.length ?? SLICE_COLORS
+    if (list.length > count && pie.value && pie.value.props.color === undefined)
       console.warn(
-        `[@dou-ui/chart] a pie of ${list.length} slices repeats colors after ${SLICE_COLORS}: merge the small ones into one slice, or give each a \`color\`.`,
+        `[@dou-ui/chart] a pie of ${list.length} slices repeats colors after ${count}: merge the small ones into one slice, or give each a \`color\`.`,
       )
   })
 
@@ -768,6 +782,16 @@ function resetZoom(announce = false) {
 /** Read out after zooming with the keys. */
 const zoomNote = ref('')
 
+/** Below this width, a legend down the right side goes under the chart: it would leave the plot too narrow. */
+const LEGEND_SIDE_LEAST = 480
+/** Where the legend goes: as asked, else under the chart. */
+const legendPlacement = computed<ChartLegendPlacement>(() => {
+  const asked = props.legendPlacement ?? 'bottom'
+  return asked === 'right' && size.width.value && size.width.value < LEGEND_SIDE_LEAST
+    ? 'bottom'
+    : asked
+})
+
 const layout = computed(() => {
   const width = size.width.value
   const height = size.height.value
@@ -783,6 +807,7 @@ const layout = computed(() => {
     measure,
     legend: legendEntries.value.map((entry) => entry.text),
     coarse: coarse.value,
+    legendPlacement: legendPlacement.value,
     zoom: { x: xWindow.value, y: zoomAxes.value.y ? yWindow.value : null },
     strip: !!rangePart.value && !empty.value,
     trailing: endLabelRoom.value,
@@ -800,6 +825,7 @@ const pieLayout = computed(() => {
     measure,
     legend: legendEntries.value.map((entry) => entry.text),
     coarse: coarse.value,
+    legendPlacement: legendPlacement.value,
     sideLabels: pieLabelsOutside.value ? pieSideWidths.value : undefined,
   })
 })
@@ -993,6 +1019,7 @@ const pieLabelsOutside = computed(() => {
     measure,
     legend: legendEntries.value.map((entry) => entry.text),
     coarse: coarse.value,
+    legendPlacement: legendPlacement.value,
   }
   const alone = layoutPie(base).radius
   const radius = layoutPie({ ...base, sideLabels: pieSideWidths.value }).radius
@@ -1015,7 +1042,7 @@ const pieLabels = computed(() => {
   const l = pieLayout.value
   const texts = pieTexts.value
   const out: {
-    labels: Array<PlacedDataLabel & { ink?: string; width?: number; full?: string }>
+    labels: Array<PlacedDataLabel & { ink?: string; width?: number }>
     leaders: Leader[]
   } = {
     labels: [],
@@ -1115,7 +1142,6 @@ const pieLabels = computed(() => {
         top: y - DATA_LABEL / 2,
         align: right ? 'start' : 'end',
         width: cut ? widest : undefined,
-        full: fitted === text ? undefined : text,
       })
     })
   }
@@ -1129,9 +1155,7 @@ const EDGE_ROOM = 4
 const labelsShown = ref(false)
 
 /** The data labels, placed: the ends of lines first, then the bars', then the points'. */
-const dataLabels = computed<
-  Array<PlacedDataLabel & { ink?: string; width?: number; full?: string }>
->(() => {
+const dataLabels = computed<Array<PlacedDataLabel & { ink?: string; width?: number }>>(() => {
   if (pie.value) return pieLabels.value.labels
   const l = layout.value
   if (!l || empty.value) return []
@@ -1247,7 +1271,9 @@ const markerColors = computed(() => {
 
 const tooltipPart = computed(() => tooltipParts.value[0] ?? null)
 /** Whether the chart follows the pointer and can be focused. */
-const interactive = computed(() => !tooltipPart.value?.props.disabled && !empty.value)
+const interactive = computed(
+  () => !tooltipPart.value?.props.disabled && !empty.value && !props.table,
+)
 const trigger = computed(
   () =>
     tooltipPart.value?.props.trigger ??
@@ -1265,6 +1291,8 @@ type Active = Target & {
   pointer: [number, number] | null
   /** Picked with a finger: the tooltip goes above it, where the hand doesn't cover it. */
   touch?: boolean
+  /** Shown because another chart of the tooltip's `group` points at this x. */
+  synced?: boolean
 }
 
 const active = shallowRef<Active | null>(null)
@@ -1572,14 +1600,67 @@ const m0x = () => model.value.xKind !== 'category'
 function setActive(next: Target | null, pointer: [number, number] | null, touch = false) {
   const a = active.value
   if (!next) {
-    if (a) active.value = null
+    if (a) {
+      active.value = null
+      if (!a.synced) tellX(null)
+    }
     zoomNote.value = ''
     return
   }
   zoomNote.value = ''
   // the same thing under a pointer that moved: only the tooltip moves
   active.value = { ...next, pointer, touch } as Active
+  if (next.type === 'axis' && (a?.type !== 'axis' || a.x !== next.x || a.synced)) tellX(next.x)
 }
+
+/* charts whose tooltips share a group follow one another's x */
+
+const group = computed(() => tooltipPart.value?.props.group)
+
+/** The x of this chart as the group shares it: a category's name, else its number. */
+function sharedX(x: number): SharedX {
+  return model.value.xKind === 'category' ? (model.value.categories[x] ?? null) : x
+}
+
+/** Tells the group this chart's x, or that it shows none. */
+function tellX(x: number | null) {
+  const name = group.value
+  if (name) tellGroup(name, x === null ? null : sharedX(x), follow)
+}
+
+/** Shows the x another chart of the group points at, if this chart has it. */
+function follow(x: SharedX) {
+  const a = active.value
+  // this chart's own pointer or keys win
+  if (a && !a.synced) return
+  const mine = x === null || !interactive.value || trigger.value !== 'axis' ? null : localX(x)
+  if (mine === null) {
+    if (a) active.value = null
+    return
+  }
+  active.value = { type: 'axis', x: mine, pointer: null, synced: true }
+}
+
+/** The x of this chart that `x` from the group names: the same category, or the same number. */
+function localX(x: string | number): number | null {
+  const m = model.value
+  if (m.xKind === 'category') {
+    const k = typeof x === 'string' ? m.categories.indexOf(x) : -1
+    return k < 0 ? null : k
+  }
+  if (typeof x !== 'number') return null
+  // only an x some series has: no tooltip of values that aren't there
+  for (const s of series.value) if (rowAt(s.x.values, x) >= 0) return x
+  return null
+}
+
+watch(
+  group,
+  (name, _, onCleanup) => {
+    if (name) onCleanup(joinGroup(name, follow))
+  },
+  { immediate: true },
+)
 
 /* pointer: a mouse hovers; a finger taps, and a tap elsewhere closes */
 
@@ -2295,7 +2376,8 @@ watch([series, slices], () => {
 const live = computed(() => {
   if (zoomNote.value) return zoomNote.value
   const t = tip.value
-  if (!t || active.value?.pointer) return ''
+  // read out only what the keys picked here, not what another chart points at
+  if (!t || active.value?.pointer || active.value?.synced) return ''
   const items = t.items
     .map((item) => `${item.name} ${item.text}`)
     .join(messages.value.itemSeparator)
@@ -2918,6 +3000,92 @@ const label = computed(() => {
   return withKeys(format(m.summary, { chart, series: parts.join(m.listSeparator) }))
 })
 
+/* the table view: the data as rows and columns, in the chart's place */
+
+/** The most rows the table shows: more would take long to lay out, and to read. */
+const TABLE_ROWS = 1000
+
+/** The table's head, and every row's cells (the first is the row's head). */
+const tableCells = computed<{ head: string[]; rows: string[][] }>(() => {
+  if (!props.table || empty.value) return { head: [], rows: [] }
+  const m = messages.value
+  if (pie.value) {
+    const value = numberFormatFull(locale.value.name)
+    const title =
+      typeof (pie.value.props.label ?? props.x) === 'string'
+        ? String(pie.value.props.label ?? props.x)
+        : ''
+    return {
+      head: [title, pie.value.props.name ?? m.tableValue, m.tableShare],
+      rows: shownSlices.value.map((slice) => [
+        slice.label,
+        value(slice.value),
+        percent.value.format(slice.share),
+      ]),
+    }
+  }
+  const list = series.value
+  const xHead = axes.value.x.title ?? (typeof props.x === 'string' ? props.x : '')
+  // points on their own (a scatter's): one row each, with its series
+  if (list.some((s) => s.kind.tooltip === 'item')) {
+    const rows: string[][] = []
+    for (const s of list)
+      for (let i = 0; i < s.y.length; i++) {
+        const x = s.x.values[i]!
+        if (x !== x || s.y[i] !== s.y[i]) continue
+        rows.push([s.name, xText(x), seriesText(s, i)])
+      }
+    return { head: [m.tableSeries, xHead, axes.value.y?.title ?? m.tableValue], rows }
+  }
+  // each x a row, each series a column
+  const xs = allX(list.map((s) => s.x.values))
+  return {
+    // a value's unit is in its axis' title (“销售额（万元）”): its column says it too
+    head: [xHead, ...list.map((s) => withUnit(s.name, axes.value[s.axis]?.title))],
+    rows: xs.map((x) => [
+      xText(x),
+      ...list.map((s) => {
+        const row = rowAt(s.x.values, x)
+        return row < 0 || s.y[row] !== s.y[row] ? '' : seriesText(s, row)
+      }),
+    ]),
+  }
+})
+
+/** `name` with the unit at the end of `title` (in brackets), if it hasn't one already. */
+function withUnit(name: string, title: string | undefined): string {
+  const unit = title && /\s*[(（][^()（）]+[)）]\s*$/.exec(title)?.[0].trim()
+  return unit && !name.endsWith(unit) ? `${name}${unit}` : name
+}
+
+/** The table's caption: the chart's name, else what its series are. */
+const tableCaption = computed(() => {
+  if (props.ariaLabel) return props.ariaLabel
+  const m = messages.value
+  const names = pie.value
+    ? [pie.value.props.name].filter((name): name is string => !!name)
+    : series.value.map((s) => s.name)
+  return names.length ? format(m.tableOf, { names: names.join(m.nameSeparator) }) : m.table
+})
+
+const table: TableState = {
+  shown: computed(() => !!props.table && !fromServer.value),
+  caption: tableCaption,
+  head: computed(() => tableCells.value.head),
+  rows: computed(() => tableCells.value.rows.slice(0, TABLE_ROWS)),
+  more: computed(() => {
+    const count = tableCells.value.rows.length
+    if (count <= TABLE_ROWS) return ''
+    const number = numberFormatFull(locale.value.name)
+    return format(messages.value.tableMore, { shown: number(TABLE_ROWS), count: number(count) })
+  }),
+  close: () => {
+    emit('update:table', false)
+    // back on the chart, where the keys were
+    rootRef.value?.focus()
+  },
+}
+
 /** The summary, and how to explore it when the chart can be. */
 function withKeys(summary: string): string {
   if (!interactive.value) return summary
@@ -2960,6 +3128,7 @@ const overlay: OverlayState = {
   labels,
   titles,
   legend,
+  legendBox: computed(() => (layout.value ?? pieLayout.value)?.legendBox),
   hole: computed(() => {
     const l = pieLayout.value
     if (!l || empty.value || fromServer.value || !(holeRatio.value > 0)) return null
@@ -3399,12 +3568,14 @@ function drawSvg(
   }
   const on = color('var(--dou-color-text-secondary)')
   const off = color('var(--dou-color-text-disabled)')
+  // the entries in sight: where they scroll, those at the top
+  const box = l?.legendBox
   for (const item of legend.value) {
+    if (box && item.top + 16 > box.y + box.height + 0.5) continue
     const mark = swatch(item.kind, item.dashed, item.left, item.top, color(item.color))
     texts.push(item.off ? `<g opacity="0.32">${mark}</g>` : mark)
-    texts.push(
-      svgText(item.text, item.left + 18, item.top, { color: item.off ? off : on, size: 12 }),
-    )
+    const text = item.clipped ? fitText(item.text, item.width - 18) : item.text
+    texts.push(svgText(text, item.left + 18, item.top, { color: item.off ? off : on, size: 12 }))
   }
   svg.raw(texts.join(''))
 }
@@ -3476,9 +3647,10 @@ const cssLength = (value: number | string) => (typeof value === 'number' ? `${va
       ns.is('zoomed', zoomOn && zoomed),
       ns.is('brushing', !!brushPart && !zoomOn),
       ns.is('loading', !!loading),
+      ns.is('table', table.shown.value),
     ]"
     :style="{ height: cssLength(height), touchAction }"
-    :role="fromServer ? undefined : interactive ? 'group' : 'img'"
+    :role="fromServer ? undefined : interactive || table.shown.value ? 'group' : 'img'"
     :aria-roledescription="interactive && !fromServer ? messages.chart : undefined"
     :aria-label="fromServer ? undefined : label"
     :aria-busy="loading || undefined"
@@ -3501,5 +3673,6 @@ const cssLength = (value: number | string) => (typeof value === 'number' ? `${va
     <ChartOverlay :state="overlay" />
     <ChartZoomLayer :state="zoomLayer" />
     <ChartPointer :state="pointer" />
+    <ChartTable :state="table" />
   </div>
 </template>

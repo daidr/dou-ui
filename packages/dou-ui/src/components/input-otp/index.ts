@@ -1,7 +1,8 @@
+import type { InputHTMLAttributes } from 'vue'
 import { withInstall } from '../../utils/install'
 import InputOtp from './input-otp.vue'
 
-export const DouInputOtp = withInstall(InputOtp)
+export const DouInputOtp = withInstall<typeof InputOtp, InputHTMLAttributes>(InputOtp)
 export default DouInputOtp
 
 export type * from './input-otp'

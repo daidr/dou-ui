@@ -1,4 +1,6 @@
 <script setup lang="ts" generic="T">
+import type { HTMLAttributes } from 'vue'
+import type { ForwardedAttributes } from '../../utils/install'
 import { computed } from 'vue'
 import type { ComponentPublicInstance } from 'vue'
 import { useNamespace } from '../../utils/namespace'
@@ -8,14 +10,24 @@ import { useSortable } from './use-sortable'
 
 defineOptions({ name: 'DouSortable' })
 
-const props = withDefaults(defineProps<SortableProps<T>>(), {
-  direction: 'vertical',
-  handle: false,
-  disabled: false,
-  animation: true,
-  tag: 'div',
-  itemTag: 'div',
-})
+const props = withDefaults(
+  defineProps<
+    SortableProps<T> &
+      /* @vue-ignore */ ForwardedAttributes<
+        HTMLAttributes,
+        SortableProps<T>,
+        keyof SortableEmits<T> & string
+      >
+  >(),
+  {
+    direction: 'vertical',
+    handle: false,
+    disabled: false,
+    animation: true,
+    tag: 'div',
+    itemTag: 'div',
+  },
+)
 const emit = defineEmits<SortableEmits<T>>()
 const slots = defineSlots<SortableSlots<T>>()
 

@@ -17,7 +17,7 @@ const summary = computed(() =>
     const source = doc.value.nodes.find((n) => n.id === id)
     const sourceKind = source && kinds[source.type!]
     const output = sourceKind?.outputs.find((o) => o.key === key)
-    if (!source || !output) return match
+    if (!source || !sourceKind || !output) return match
     return `${(source.data?.title as string) ?? sourceKind.label}的${output.label}`
   }),
 )

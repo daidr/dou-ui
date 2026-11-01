@@ -67,7 +67,7 @@ function onPanelKeydown(event: KeyboardEvent) {
 const triggerProps = computed(() => ({
   ...popup.triggerListeners.value,
   onKeydown: onTriggerKeydown,
-  'aria-haspopup': 'dialog',
+  'aria-haspopup': 'dialog' as const,
   'aria-expanded': props.trigger === 'hover' ? undefined : open.value,
   'aria-controls': rendered.value ? id : undefined,
 }))

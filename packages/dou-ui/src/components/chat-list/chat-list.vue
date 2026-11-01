@@ -1,4 +1,6 @@
 <script setup lang="ts" generic="T">
+import type { HTMLAttributes } from 'vue'
+import type { ForwardedAttributes } from '../../utils/install'
 import { ArrowDownIcon } from '@dou-ui/icons'
 import { onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
 import { DouVirtualList } from '../virtual-list'
@@ -10,14 +12,24 @@ import type { ChatListEmits, ChatListExpose, ChatListProps, ChatListSlots } from
 
 defineOptions({ name: 'DouChatList' })
 
-const props = withDefaults(defineProps<ChatListProps<T>>(), {
-  autoScroll: true,
-  threshold: 24,
-  showScrollButton: true,
-  items: undefined,
-  itemKey: undefined,
-  estimateSize: 120,
-})
+const props = withDefaults(
+  defineProps<
+    ChatListProps<T> &
+      /* @vue-ignore */ ForwardedAttributes<
+        HTMLAttributes,
+        ChatListProps<T>,
+        keyof ChatListEmits & string
+      >
+  >(),
+  {
+    autoScroll: true,
+    threshold: 24,
+    showScrollButton: true,
+    items: undefined,
+    itemKey: undefined,
+    estimateSize: 120,
+  },
+)
 const emit = defineEmits<ChatListEmits>()
 defineSlots<ChatListSlots<T>>()
 

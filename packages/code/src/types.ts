@@ -134,7 +134,7 @@ export interface CodeEditorEmits {
   focus: [event: FocusEvent]
   blur: [event: FocusEvent]
   /** The folds changed: the lines that start one now, from 1. Edits that move a fold to another line count too. */
-  'fold-change': [lines: number[]]
+  foldChange: [lines: number[]]
 }
 
 export interface CodeEditorExpose {

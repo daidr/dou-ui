@@ -1,4 +1,6 @@
 <script setup lang="ts" generic="T extends CheckboxModelValue = boolean">
+import type { InputHTMLAttributes } from 'vue'
+import type { ForwardedAttributes } from '../../utils/install'
 import { CheckIcon, MinusIcon } from '@dou-ui/icons'
 import { computed, inject, ref, useAttrs, watch } from 'vue'
 import type { Ref, StyleValue } from 'vue'
@@ -9,10 +11,21 @@ import type { CheckboxEmits, CheckboxModelValue, CheckboxProps, CheckboxSlots } 
 
 defineOptions({ name: 'DouCheckbox', inheritAttrs: false })
 
-const props = withDefaults(defineProps<CheckboxProps<T>>(), {
-  indeterminate: false,
-  disabled: false,
-})
+const props = withDefaults(
+  defineProps<
+    CheckboxProps<T> &
+      /* @vue-ignore */ ForwardedAttributes<
+        // 类型固定，自动填充对开关没有意义；它们的取值联合太大，withDefaults 展不开
+        Omit<InputHTMLAttributes, 'type' | 'autocomplete'>,
+        CheckboxProps,
+        keyof CheckboxEmits & string
+      >
+  >(),
+  {
+    indeterminate: false,
+    disabled: false,
+  },
+)
 // Declared by hand rather than with `defineModel`, so the update carries
 // `T` and not `T | undefined`.
 const emit = defineEmits<CheckboxEmits<T>>()

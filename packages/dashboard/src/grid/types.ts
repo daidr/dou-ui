@@ -93,11 +93,11 @@ export interface GridDragEndEvent extends GridDragEvent {
 export interface GridLayoutEmits {
   'update:modelValue': [items: GridItem[]]
   change: [event: GridChangeEvent]
-  'drag-start': [event: GridDragEvent]
-  'drag-end': [event: GridDragEndEvent]
+  dragStart: [event: GridDragEvent]
+  dragEnd: [event: GridDragEndEvent]
   drop: [event: GridDropEvent]
   'update:layouts': [layouts: GridLayouts]
-  'breakpoint-change': [breakpoint: string]
+  breakpointChange: [breakpoint: string]
 }
 
 export interface GridLayoutExpose {

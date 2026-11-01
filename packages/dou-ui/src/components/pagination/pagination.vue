@@ -4,13 +4,21 @@ import { computed, reactive, ref, watch } from 'vue'
 import { useNamespace } from '../../utils/namespace'
 import { useLocale } from '../config-provider/use-config'
 import { useFormDisabled, useFormSize } from '../form/use-form-item'
-import DouInputNumber from '../input-number/input-number.vue'
+import DouInputNumberComponent from '../input-number/input-number.vue'
+import type { InputHTMLAttributes } from 'vue'
+import type { WithAttributes } from '../../utils/install'
 import DouPopover from '../popover/popover.vue'
 import DouSelect from '../select/select.vue'
 import PaginationGap from './pagination-gap.vue'
 import type { SelectValue } from '../select/select'
 import type { PaginationProps } from './pagination'
 import { paginationRange } from './range'
+
+// 让模板里也能写这个组件转交的原生属性
+const DouInputNumber = DouInputNumberComponent as WithAttributes<
+  typeof DouInputNumberComponent,
+  InputHTMLAttributes
+>
 
 defineOptions({ name: 'DouPagination' })
 

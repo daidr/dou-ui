@@ -174,7 +174,7 @@ function onCaption(value: string) {
           autofocus
           @keydown.esc="embedding = false"
         />
-        <DouButton size="sm" variant="solid" type="submit">{{ text.apply }}</DouButton>
+        <DouButton size="sm" variant="solid" native-type="submit">{{ text.apply }}</DouButton>
       </form>
     </div>
 

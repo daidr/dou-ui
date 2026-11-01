@@ -1,7 +1,8 @@
+import type { InputHTMLAttributes } from 'vue'
 import { withInstall } from '../../utils/install'
 import InputTag from './input-tag.vue'
 
-export const DouInputTag = withInstall(InputTag)
+export const DouInputTag = withInstall<typeof InputTag, InputHTMLAttributes>(InputTag)
 export default DouInputTag
 
 export type * from './input-tag'

@@ -6,6 +6,7 @@ import type { CommentAnchor, CommentRange } from './core/comments'
 import type { EditorExtension, ResolvedEditorExtensions } from './core/extension'
 import type { BlockChanges } from './core/changes'
 import type { Block, PartialBlock } from './core/model'
+import type { EditorSearchQuery } from './core/search'
 import type {
   BlockEdge,
   BlockPatch,
@@ -29,6 +30,8 @@ export interface EditorProps {
   extensions?: (EditorExtension | EditorExtension[])[]
   /** Show the document without editing it. Links stay clickable. */
   readonly?: boolean
+  /** The built-in find panel (`Ctrl/⌘+F`). Off, the keys are left to the browser. On by default. */
+  searchable?: boolean
   /** The hint in the empty block under the cursor. */
   placeholder?: string
   /** Replace any of the built-in texts. */
@@ -130,6 +133,14 @@ export interface EditorExpose {
   setHTML: (html: string) => void
   /** Run a ProseMirror command, e.g. one of the exported ones. */
   run: (command: Command) => boolean
+  /**
+   * Opens the find panel (`Ctrl/⌘+F`), with a query put in; with `replace`
+   * in it, the replace box opens too. `false` when `searchable` is off or
+   * the editor is not mounted.
+   */
+  openSearch: (query?: Partial<EditorSearchQuery>) => boolean
+  /** Closes the find panel; `false` when it was not open. */
+  closeSearch: () => boolean
   /**
    * Make changes by blocks and ids, applied together as one undo step.
    * Returns what happened, or `null` when nothing changed. Works while

@@ -20,7 +20,7 @@ editor.value.transact((tr) => {
 
 - 同一次修改中的所有位置都按修改**之前**的文本计算，不需要考虑前面的插入或删除带来的偏移。各处修改不能重叠。
 - 没有调用 `tr.select()` 时，选区跟随修改移动。
-- `transact` 返回这次修改的结果；没有任何变化时返回 `null`。
+- `transact` 总是返回这次修改的结果。文本和选区都没有变化时，结果的 `changed` 为 `false`，编辑器不会应用任何改动。
 
 ## 读取文本
 
@@ -113,6 +113,7 @@ const keymap: CodeKeymap = {
 | `before`  | 修改前的文本与选区                                     |
 | `state`   | 修改后的文本与选区                                     |
 | `meta`    | 修改的来源等信息                                       |
+| `changed` | 文本或选区是否变化；为 `false` 时没有应用任何改动      |
 
 ### codeCommands
 

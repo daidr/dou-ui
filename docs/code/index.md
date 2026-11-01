@@ -98,7 +98,7 @@ app.use(DouCodeEditor)
 | `extensions`        | 扩展，见[扩展](./extensions)                                             | `CodeExtension[]`                  | —          |
 | `diagnostics`       | 要显示的问题，见[诊断](./assist#诊断)                                    | `CodeDiagnostic[]`                 | —          |
 | `teleport`          | 补全列表和说明的渲染位置；`false` 时在编辑器内                           | `string \| HTMLElement \| false`   | `false`    |
-| `messages`          | 改写编辑器中的文字，默认跟随 ConfigProvider 的语言                       | `Partial<CodeMessages>`            | —          |
+| `messages`          | 改写编辑器中的文字（符号栏、工具条等），默认跟随 ConfigProvider 的语言   | `Partial<CodeMessages>`            | —          |
 | `autofocus`         | 挂载后获得焦点                                                           | `boolean`                          | `false`    |
 | `aria-label`        | 读屏读出的名称                                                           | `string`                           | —          |
 
@@ -113,24 +113,24 @@ app.use(DouCodeEditor)
 
 ### 实例
 
-| 名称                           | 说明                                                              |
-| ------------------------------ | ----------------------------------------------------------------- |
-| `state`、`doc`、`selection`    | 当前的文本与选区                                                  |
-| `transact(run, meta?)`         | 做一次修改，见[用代码修改](./transactions)；没有变化时返回 `null` |
-| `run(command)`                 | 执行一个命令                                                      |
-| `undo()`、`redo()`             | 撤销、重做，返回是否执行                                          |
-| `canUndo`、`canRedo`           | 能否撤销、重做                                                    |
-| `select(anchor, head?)`        | 选中一段或放置光标，也可以传入整个选区；会滚动到可见              |
-| `scrollIntoView(pos?)`         | 把某个位置（默认是主光标）滚动到可见                              |
-| `coordsAtPos(pos)`             | 某个位置在视口中的坐标；所在行没有绘制时返回 `null`               |
-| `posAtCoords({ x, y })`        | 视口中某一点最近的文本位置                                        |
-| `focus()`、`blur()`            | 获得、失去焦点                                                    |
-| `openSearch(query?)`           | 打开查找面板                                                      |
-| `closeSearch()`                | 关闭查找面板                                                      |
-| `fold(line?)`、`unfold(line?)` | 折叠、展开某一行开始的一段，不传时用光标所在行；返回是否有变化    |
-| `foldAll()`、`unfoldAll()`     | 折叠所有最外层的段、全部展开；返回是否有变化                      |
-| `folds`                        | 当前折叠的各段的起始行号                                          |
-| `diagnostics`                  | 当前的所有问题，按位置排序                                        |
+| 名称                           | 说明                                                           |
+| ------------------------------ | -------------------------------------------------------------- |
+| `state`、`doc`、`selection`    | 当前的文本与选区                                               |
+| `transact(run, meta?)`         | 做一次修改，返回结果，见[用代码修改](./transactions)           |
+| `run(command)`                 | 执行一个命令                                                   |
+| `undo()`、`redo()`             | 撤销、重做，返回是否执行                                       |
+| `canUndo`、`canRedo`           | 能否撤销、重做                                                 |
+| `select(anchor, head?)`        | 选中一段或放置光标，也可以传入整个选区；会滚动到可见           |
+| `scrollIntoView(pos?)`         | 把某个位置（默认是主光标）滚动到可见                           |
+| `coordsAtPos(pos)`             | 某个位置在视口中的坐标；所在行没有绘制时返回 `null`            |
+| `posAtCoords({ x, y })`        | 视口中某一点最近的文本位置                                     |
+| `focus()`、`blur()`            | 获得、失去焦点                                                 |
+| `openSearch(query?)`           | 打开查找面板；`searchable` 关闭时返回 `false`                  |
+| `closeSearch()`                | 关闭查找面板；没有打开时返回 `false`                           |
+| `fold(line?)`、`unfold(line?)` | 折叠、展开某一行开始的一段，不传时用光标所在行；返回是否有变化 |
+| `foldAll()`、`unfoldAll()`     | 折叠所有最外层的段、全部展开；返回是否有变化                   |
+| `folds`                        | 当前折叠的各段的起始行号                                       |
+| `diagnostics`                  | 当前的所有问题，按位置排序                                     |
 
 ### CSS 变量
 

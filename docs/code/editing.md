@@ -42,7 +42,11 @@
 - 使用正则表达式时，替换文字可以用 `$1`、`$<name>` 引用分组，`$&` 表示整个匹配，`$$` 表示 `$`。
 - 只读的编辑器只能查找。
 
-用代码打开面板时调用 `openSearch(query?)`，`query` 可以带上查找内容和选项，带上 `replace` 时同时展开替换框。`searchable` 设为 `false` 时不提供查找面板，`Mod` + `F` 交还给浏览器。
+用代码打开面板时调用 `openSearch(query?)`，`query` 可以带上查找内容和选项，带上 `replace` 时同时展开替换框。触屏设备上没有这些按键，需要时自己放一个按钮调用 `openSearch()`。
+
+`searchable` 设为 `false` 时不提供查找面板，`Mod` + `F` 交还给浏览器，`openSearch()` 返回 `false`。
+
+查找面板是 [FindReplace](/components/find-replace) 组件，面板上的文字在 [ConfigProvider](/components/config-provider) 语言包的 `findReplace` 中。
 
 ### 在编辑器之外查找
 

@@ -371,6 +371,7 @@ export default defineConfig({
             { text: 'PageHeader 页头', link: '/components/page-header' },
             { text: 'Pagination 分页', link: '/components/pagination' },
             { text: 'Command 命令面板', link: '/components/command' },
+            { text: 'FindReplace 查找替换', link: '/components/find-replace' },
             { text: 'BackTop 回到顶部', link: '/components/back-top' },
           ],
         },

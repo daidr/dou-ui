@@ -6,6 +6,7 @@ import {
   normalizeSelection,
   rangeFrom,
   rangeTo,
+  sameSelection,
   selectionOf,
 } from './selection'
 import type { CodeText } from './text'
@@ -125,7 +126,8 @@ export class CodeTransaction {
       this.nextSelection ?? mapSelection(this.start.selection, changes),
       doc.length,
     )
-    return { changes, state: { doc, selection }, before: this.start, meta: this.meta }
+    const changed = !changes.empty || !sameSelection(selection, this.start.selection)
+    return { changes, state: { doc, selection }, before: this.start, meta: this.meta, changed }
   }
 }
 
@@ -135,4 +137,6 @@ export interface CodeTransactionResult {
   readonly state: CodeState
   readonly before: CodeState
   readonly meta: CodeTransactionMeta
+  /** Whether the text or the selection changed; when neither did, nothing was applied. */
+  readonly changed: boolean
 }

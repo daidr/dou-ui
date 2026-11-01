@@ -98,16 +98,16 @@ watch(
   },
 )
 
-// a thread resolved or removed from the card: back to the text
-watch(open, async (value, was) => {
-  if (value || !was) return
-  await nextTick()
-  if (focusLost()) view.value?.focus()
-})
+// a thread resolved or removed from the card: back to the text, once
+// the card is gone (focus can sit in it while it fades out)
+function onClosed() {
+  const el = document.activeElement
+  if (!el || el === document.body) view.value?.focus()
+}
 </script>
 
 <template>
-  <Transition name="dou-floating">
+  <Transition name="dou-floating" @after-leave="onClosed">
     <div
       v-if="open"
       ref="panel"

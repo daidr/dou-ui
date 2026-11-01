@@ -160,6 +160,12 @@ onMounted(() => {
       keymap({
         'Mod-k': () => bubble.value?.editLink() ?? false,
         'Mod-Alt-m': () => comments.start(),
+        // with the thread card open, Escape in the text closes it, and only that
+        Escape: () => {
+          if (!comments.pending.value && !comments.active.value) return false
+          comments.close()
+          return true
+        },
       }),
       commentPlugin,
       openLinks,

@@ -3405,8 +3405,10 @@ function paste(given: SheetClip) {
   const width = Math.max(1, ...clip.cells.map((line) => line.length))
   const ours = clip.from != null
   const mark = clipMark.value
-  // cut cells an extension rewrote are pasted as they now are, not moved
-  const moving = transformed === given && clip.cut != null && mark?.cut === clip.cut ? mark : null
+  const cut = clip.cut != null && mark?.cut === clip.cut ? mark : null
+  // cut cells an extension rewrote can't move as they are: the source is
+  // emptied and the rewritten cells written, in the same step
+  const moving = cut && transformed === given ? cut : null
   const targets = moving
     ? [
         {
@@ -3424,6 +3426,12 @@ function paste(given: SheetClip) {
           { ...moving.bounds, sheet: moving.sheet },
           { row: targets[0]!.top, col: targets[0]!.left },
         )
+      }
+      if (cut) {
+        const b = cut.bounds
+        for (let r = b.top; r <= b.bottom; r++)
+          for (let c = b.left; c <= b.right; c++)
+            tr.setCell({ row: r, col: c, sheet: cut.sheet }, undefined)
       }
       const names = styleNames(tr, clip.styles)
       for (const t of targets)
@@ -3454,11 +3462,11 @@ function paste(given: SheetClip) {
             )
           }
     },
-    { action: moving ? 'cut' : 'paste' },
+    { action: cut ? 'cut' : 'paste' },
     view(),
-    !moving,
+    !cut,
   )
-  if (moving) clipMark.value = null
+  if (cut) clipMark.value = null
   const last = targets[targets.length - 1]!
   if (targets.length === 1)
     setSelection({ active: { row: last.top, col: last.left }, ranges: [boundsRange(last)] })

@@ -120,7 +120,8 @@ export interface SheetExtension {
    * Rewrites cells before they are pasted, or imported at the active cell,
    * in priority order; return `null` to stop it. A paste's `paste` event
    * comes after, with what the extensions made of it; an import has none.
-   * Cut cells that come back rewritten are pasted, not moved.
+   * Cut cells that come back rewritten still leave their place, in the
+   * same step, but formulas pointing at them don't follow.
    */
   transformPaste?: (clip: SheetClip, context: SheetExtensionContext) => SheetClip | null
 }

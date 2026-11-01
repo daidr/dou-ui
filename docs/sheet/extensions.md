@@ -93,7 +93,7 @@ update: ({ transaction }, ctx) => {
 }
 ```
 
-`transformPaste` 收到的 `SheetClip` 是 `{ cells, styles?, from?, cut? }`，`cells` 按行排列。剪切后在表格里粘贴本来是移动单元格；改写了内容时，改为按改写后的内容粘贴，原来的单元格不动。比如粘贴时去掉文字两端的空格：
+`transformPaste` 收到的 `SheetClip` 是 `{ cells, styles?, from?, cut? }`，`cells` 按行排列。剪切后在表格里粘贴是移动单元格，公式里的引用会跟着移动；改写了内容时，原来的单元格照样清空，放下的是改写后的内容，这时引用不跟着移动。两种情况都只算一步撤销。比如粘贴时去掉文字两端的空格：
 
 ```ts
 const trim = defineSheetExtension({

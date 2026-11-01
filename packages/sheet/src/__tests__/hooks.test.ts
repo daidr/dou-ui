@@ -137,7 +137,7 @@ describe('extension transformPaste', () => {
     wrapper.unmount()
   })
 
-  it('pastes cut cells it rewrote instead of moving them', async () => {
+  it('still takes cut cells away when it rewrites them, in one step', async () => {
     const data = new Map<string, string>()
     const fire = async (target: HTMLElement, type: string) => {
       const event = new Event(type, { bubbles: true, cancelable: true })
@@ -171,9 +171,14 @@ describe('extension transformPaste', () => {
     grid.value!.select('A4')
     await nextTick()
     await fire(main, 'paste')
-    // rewritten: pasted as it now is, and the cut cell stays
+    // rewritten: the new cells go down and the cut cell is emptied
     expect(doc.value.sheets[0]!.cells[3]![0]).toBe('上海')
+    expect(doc.value.sheets[0]!.cells[0]![0]).toBeUndefined()
+    expect(wrapper.find('.dou-sheet__mark.is-cut').exists()).toBe(false)
+    grid.value!.undo()
+    await nextTick()
     expect(doc.value.sheets[0]!.cells[0]![0]).toBe('上海')
+    expect(doc.value.sheets[0]!.cells[3]?.[0]).toBeUndefined()
     rewrite = false
     grid.value!.select('B1')
     await nextTick()

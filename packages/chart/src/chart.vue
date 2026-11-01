@@ -30,6 +30,7 @@ import { numberFormatFull, numberTickFormat, timeFormatFull, timePrecision } fro
 import {
   HEAT_SWATCH,
   layoutChart,
+  layoutFunnel,
   layoutPie,
   layoutRadar,
   PIE_LABEL_ROOM,
@@ -41,6 +42,7 @@ import {
   type ChartAxisRole,
   type ChartLegendPlacement,
   type ChartTickValue,
+  type FunnelLayout,
   type LegendName,
   type RadarLayout,
   type TickLabel,
@@ -68,6 +70,7 @@ import { crisp, type Painter, type Rect } from './core/painter'
 import { heatColor, heatRange, heatShare } from './core/heatmap'
 import { drawPie, FADED, pieSlices, type PieSlice } from './core/pie'
 import { nearestSpoke, spokeAngle } from './core/radar'
+import { FUNNEL_BAR } from './core/funnel'
 import { baseline, categoryScale, linearScale, logScale, type Scale } from './core/scale'
 import { escapeXml, isSvg, num, paintAttribute, SvgPainter } from './core/svg'
 import type { ChartColors, ChartHit, ChartSeries, ChartValueAxis, ChartView } from './core/series'
@@ -448,8 +451,13 @@ if (process.env.NODE_ENV !== 'production')
 
 /* a radar: series round a center, without axes */
 
+/** The chart is a funnel: its first funnel's stages, one under another. */
+const funnel = computed(() => !pie.value && seriesParts.value.some((part) => part.kind.funnel))
+
 /** The chart is a radar: its series are drawn round a center. */
-const radar = computed(() => !pie.value && seriesParts.value.some((part) => part.kind.polar))
+const radar = computed(
+  () => !pie.value && !funnel.value && seriesParts.value.some((part) => part.kind.polar),
+)
 
 if (process.env.NODE_ENV !== 'production')
   watch(seriesParts, (list) => {
@@ -458,6 +466,8 @@ if (process.env.NODE_ENV !== 'production')
       console.warn(
         '[@dou-ui/chart] a <DouChartRadar> is drawn round a center: series on axes are left out of it.',
       )
+    if (list.some((part) => part.kind.funnel) && list.length > 1)
+      console.warn('[@dou-ui/chart] a <DouChartFunnel> is drawn alone: other series are left out.')
   })
 
 /** No series has a value to show. */
@@ -848,7 +858,7 @@ const legendPlacement = computed<ChartLegendPlacement>(() => {
 const layout = computed(() => {
   const width = size.width.value
   const height = size.height.value
-  if (!width || !height || pie.value || radar.value) return null
+  if (!width || !height || pie.value || radar.value || funnel.value) return null
   void themeVersion.value
   return layoutChart({
     model: model.value,
@@ -900,6 +910,54 @@ const radarLayout = computed(() => {
     coarse: coarse.value,
     legendPlacement: legendPlacement.value,
     spokes: m.categories.map((_, i) => xText(i)),
+  })
+})
+
+/** The funnel drawn: the first one, if the chart is a funnel. */
+const funnelSeries = computed(() =>
+  funnel.value ? (series.value.find((s) => s.kind.funnel) ?? null) : null,
+)
+
+/** Each stage's value (`NaN` without one), and its share of the stage before it and of the first. */
+const funnelStages = computed(() => {
+  const s = funnelSeries.value
+  const n = model.value.categories.length
+  const values = Array.from({ length: n }, () => Number.NaN)
+  if (s)
+    for (let i = 0; i < s.y.length; i++) {
+      const x = s.x.values[i]!
+      if (x === x && s.y[i] === s.y[i]) values[x] = s.y[i]!
+    }
+  const first = values.find((v) => v === v)
+  return values.map((value, k) => {
+    const before = k > 0 ? values[k - 1]! : Number.NaN
+    return {
+      value,
+      row: s ? rowAt(s.x.values, k) : -1,
+      step: k > 0 && before > 0 && value === value ? value / before : null,
+      total: first !== undefined && first > 0 && value === value ? value / first : null,
+    }
+  })
+})
+
+const funnelLayout = computed(() => {
+  const width = size.width.value
+  const height = size.height.value
+  const s = funnelSeries.value
+  if (!width || !height || !s) return null
+  void themeVersion.value
+  const stages = funnelStages.value
+  return layoutFunnel({
+    width,
+    height,
+    measure,
+    legend: legendNames.value,
+    coarse: coarse.value,
+    legendPlacement: legendPlacement.value,
+    stages: model.value.categories.map((_, i) => xText(i)),
+    values: stages.map((stage) => (stage.row < 0 ? '' : seriesText(s, stage.row))),
+    rates: stages.map((stage) => (stage.step === null ? null : percent.value.format(stage.step))),
+    max: Math.max(0, ...stages.map((stage) => (stage.value === stage.value ? stage.value : 0))),
   })
 })
 
@@ -1381,6 +1439,13 @@ function hitAt(px: number, py: number): Target | null {
     const k = slices.value.findIndex((s) => !s.hidden && angle >= s.start && angle < s.end)
     return k < 0 ? null : { type: 'slice', slice: k }
   }
+  const f = funnelLayout.value
+  if (f) {
+    // anywhere along a stage's row: its bar, its name or its value
+    const k = Math.floor((py - f.plot.y) / f.step)
+    if (k < 0 || k >= f.count || funnelStages.value[k]!.row < 0) return null
+    return { type: 'axis', x: k }
+  }
   const r = radarLayout.value
   if (r) {
     // the spoke nearest the pointer, within the rim and the names round it
@@ -1434,7 +1499,8 @@ const NEAR_LINE = 8
  */
 const pointed = computed<number | null>(() => {
   const a = active.value
-  if (!a?.pointer || pie.value || radar.value || series.value.length < 2) return null
+  if (!a?.pointer || pie.value || radar.value || funnel.value || series.value.length < 2)
+    return null
   if (a.type === 'item') return a.series
   if (a.type !== 'axis') return null
   const along = alongX(a.pointer)
@@ -1525,6 +1591,7 @@ function tipOf(a: Active | null): Tip | null {
     }
   }
   if (a.type === 'axis' && radarLayout.value) return radarTip(radarLayout.value, a)
+  if (a.type === 'axis' && funnelLayout.value) return funnelTip(funnelLayout.value, a)
   const l = layout.value
   if (!l) return null
   const { plot } = l
@@ -1638,6 +1705,47 @@ function tipOf(a: Active | null): Tip | null {
     marks,
     band: crosshair && band ? across(at - room / 2, room) : undefined,
     line: crosshair && !band ? across(line, 1) : undefined,
+  }
+}
+
+/** A funnel stage's tooltip: its value, and what it kept of the stage before and of the first; its row shaded. */
+function funnelTip(f: FunnelLayout, a: Active & { type: 'axis' }): Tip | null {
+  const s = funnelSeries.value
+  const stage = funnelStages.value[a.x]
+  if (!s || !stage || stage.row < 0) return null
+  const m = messages.value
+  const row = rowOf(s.rows, stage.row)
+  const items: ChartTooltipItem[] = [
+    { name: s.name, text: seriesText(s, stage.row), value: stage.value, color: s.color, row },
+  ]
+  if (stage.step !== null)
+    items.push({
+      name: m.stageRate,
+      text: percent.value.format(stage.step),
+      value: stage.step,
+      row,
+    })
+  if (stage.total !== null && a.x > 0)
+    items.push({
+      name: m.totalRate,
+      text: percent.value.format(stage.total),
+      value: stage.total,
+      row,
+    })
+  const top = f.plot.y + f.step * a.x
+  // the row shaded from the names to the values
+  const texts = [...f.names, ...f.values, ...f.rates]
+  const from = Math.min(f.plot.x, ...texts.map((t) => t.left)) - 4
+  const to = Math.max(f.plot.x + f.plot.width, ...texts.map((t) => t.left + t.width)) + 4
+  const view = funnelView(f, dprNow(), false)
+  const [right, middle] = view.point(a.x, stage.value)
+  return {
+    x: rawX(a.x),
+    title: xText(a.x),
+    items,
+    anchor: a.pointer ?? [right, middle],
+    marks: [],
+    band: { x: from, y: top, width: to - from, height: f.step },
   }
 }
 
@@ -2365,7 +2473,8 @@ function onKeydown(event: KeyboardEvent) {
     event.preventDefault()
     return
   }
-  const horizontal = !!props.horizontal
+  // a funnel's stages go down
+  const horizontal = !!props.horizontal || funnel.value
   const along: Record<string, number> = horizontal
     ? { ArrowDown: 1, ArrowUp: -1 }
     : { ArrowRight: 1, ArrowLeft: -1 }
@@ -2573,7 +2682,7 @@ const live = computed(() => {
 const pointer: PointerState = {
   tip,
   size: computed(() => {
-    const l = layout.value ?? pieLayout.value ?? radarLayout.value
+    const l = layout.value ?? pieLayout.value ?? radarLayout.value ?? funnelLayout.value
     return l && { width: l.width, height: l.height }
   }),
   content: computed(() => tooltipPart.value?.content()),
@@ -2608,6 +2717,7 @@ watch(
     labelsShown.value,
     pie.value && active.value,
     radarLayout.value,
+    funnelLayout.value,
     radar.value && active.value,
     dimmed.value,
   ],
@@ -2813,7 +2923,7 @@ function shownSlicesAt(t: number): PieSlice[] {
 
 function draw() {
   const canvas = canvasRef.value
-  const l = layout.value ?? pieLayout.value ?? radarLayout.value
+  const l = layout.value ?? pieLayout.value ?? radarLayout.value ?? funnelLayout.value
   if (!canvas || !l) return
   if (!onScreen) {
     missed = true
@@ -2844,6 +2954,7 @@ function draw() {
   const entering = motion?.enter ? t : 1
   if (pieLayout.value) paintPie(ctx, t, entering)
   else if (radarLayout.value) paintRadar(ctx, dpr, t)
+  else if (funnelLayout.value) paintFunnel(ctx, dpr, t)
   else paint(ctx, dpr, t, entering)
   // the canvas shows the chart now: the server's image goes
   fromServer.value = false
@@ -2949,6 +3060,17 @@ function paintRadar(painter: Painter, dpr: number, t: number, still = false) {
   }
 }
 
+/** Draws the funnel, as it comes in: its bars grow from the middle. */
+function paintFunnel(painter: Painter, dpr: number, t: number, still = false) {
+  const f = funnelLayout.value!
+  const s = funnelSeries.value
+  if (!s) return
+  const shown = shownSeries(t)
+  if (!still) lastSeries = shown
+  const now = shown.find((one) => one.index === s.index) ?? s
+  s.kind.draw(painter, now, funnelView(f, dpr, isSvg(painter)))
+}
+
 const holeRatio = computed(() => Math.min(0.95, Math.max(0, pie.value?.props.innerRadius ?? 0)))
 
 /** Whether an axis is drawn across the chart (along the bottom or top), so its grid lines stand up. */
@@ -2958,6 +3080,8 @@ const across = (axis: AxisLayout) => axis.position === 'bottom' || axis.position
 function viewOf(s: ChartSeries, dpr = dprNow(), vector = false): ChartView | null {
   const r = radarLayout.value
   if (r) return radarView(r, dpr, vector)
+  const f = funnelLayout.value
+  if (f) return funnelView(f, dpr, vector)
   const l = layout.value
   if (!l) return null
   const y = l.y[s.axis]
@@ -2998,6 +3122,23 @@ function radarView(r: RadarLayout, dpr: number, vector: boolean): ChartView {
     vector,
     colors: colors.value,
     polar: { cx, cy, radius, count },
+  }
+}
+
+/** What a funnel draws with: a stage and a value give the right end of its bar, at its middle. */
+function funnelView(f: FunnelLayout, dpr: number, vector: boolean): ChartView {
+  const { plot, step, scale } = f
+  const cx = plot.x + plot.width / 2
+  return {
+    x: linearScale([0, f.count], [plot.y, plot.y + plot.height]),
+    y: scale,
+    horizontal: false,
+    band: step * FUNNEL_BAR,
+    point: (x, value) => [cx + scale.map(value), plot.y + step * x + step / 2],
+    plot,
+    dpr,
+    vector,
+    colors: colors.value,
   }
 }
 
@@ -3262,6 +3403,30 @@ const label = computed(() => {
       }),
     )
   }
+  const fs = funnelSeries.value
+  if (fs) {
+    const stages = funnelStages.value
+      .flatMap((stage, k) => {
+        if (stage.row < 0) return []
+        const value = seriesText(fs, stage.row)
+        return stage.step === null
+          ? [`${xText(k)} ${value}`]
+          : [
+              format(m.slice, {
+                label: xText(k),
+                value,
+                share: `${m.stageRate} ${percent.value.format(stage.step)}`,
+              }),
+            ]
+      })
+      .join(m.listSeparator)
+    return withKeys(
+      format(m.summary, {
+        chart: m.chart,
+        series: format(m.pie, { name: fs.name, slices: stages }),
+      }),
+    )
+  }
   const count = numberFormatFull(name)
   const parts = m0.series.map((s) => {
     if (s.input.kind.categoryY) return heatSummary(s)
@@ -3341,6 +3506,24 @@ const tableCells = computed<{ head: string[]; rows: string[][] }>(() => {
   }
   const list = series.value
   const xHead = axes.value.x.title ?? (typeof props.x === 'string' ? props.x : '')
+  // a funnel: each stage, its value and what it kept
+  const fs = funnelSeries.value
+  if (fs)
+    return {
+      head: [xHead, fs.name, m.stageRate, m.totalRate],
+      rows: funnelStages.value.flatMap((stage, k) =>
+        stage.row < 0
+          ? []
+          : [
+              [
+                xText(k),
+                seriesText(fs, stage.row),
+                stage.step === null ? '' : percent.value.format(stage.step),
+                stage.total === null ? '' : percent.value.format(stage.total),
+              ],
+            ],
+      ),
+    }
   // a heatmap as its grid: a row per category down, a column per x
   const heat = list.find((s) => s.kind.categoryY)
   if (heat) {
@@ -3425,6 +3608,13 @@ function withKeys(summary: string): string {
 }
 
 const labels = computed(() => {
+  const f = funnelLayout.value
+  if (f)
+    return [
+      ...f.names.map((tick, i) => ({ ...tick, key: `stage:${i}`, axis: 'stage' })),
+      ...f.values.map((tick, i) => ({ ...tick, key: `value:${i}`, axis: 'value' })),
+      ...f.rates.map((tick, i) => ({ ...tick, key: `rate:${i}`, axis: 'rate' })),
+    ]
   const r = radarLayout.value
   if (r)
     return [
@@ -3444,7 +3634,7 @@ const labels = computed(() => {
 })
 
 const legend = computed(() => {
-  const l = layout.value ?? pieLayout.value ?? radarLayout.value
+  const l = layout.value ?? pieLayout.value ?? radarLayout.value ?? funnelLayout.value
   if (!l) return []
   return l.legend.map((item) => ({ ...item, ...legendEntries.value[item.index]! }))
 })
@@ -3458,7 +3648,9 @@ const titles = computed(() => {
 })
 
 /** The size of what is drawn: a chart with axes, or a pie. */
-const frame = computed(() => layout.value ?? pieLayout.value ?? radarLayout.value)
+const frame = computed(
+  () => layout.value ?? pieLayout.value ?? radarLayout.value ?? funnelLayout.value,
+)
 
 const overlay: OverlayState = {
   // while the server's drawing shows, its own text does
@@ -3466,7 +3658,9 @@ const overlay: OverlayState = {
   labels,
   titles,
   legend,
-  legendBox: computed(() => (layout.value ?? pieLayout.value ?? radarLayout.value)?.legendBox),
+  legendBox: computed(
+    () => (layout.value ?? pieLayout.value ?? radarLayout.value ?? funnelLayout.value)?.legendBox,
+  ),
   hole: computed(() => {
     const l = pieLayout.value
     if (!l || empty.value || fromServer.value || !(holeRatio.value > 0)) return null
@@ -3872,6 +4066,19 @@ function drawSvg(
     paintPie(svg, 1, 1, true)
     const center = root?.querySelector(`.${ns.e('center')}`)
     if (center && root) texts.push(textsIn(center, root.getBoundingClientRect(), color))
+  } else if (funnelLayout.value) {
+    paintFunnel(svg, 1, 1, true)
+    const ink = color('var(--dou-chart-label)')
+    const strong = color('var(--dou-color-text-secondary)')
+    for (const tick of labels.value) {
+      const text = tick.clipped ? fitText(tick.text, tick.width) : tick.text
+      texts.push(
+        svgText(text, tick.left, tick.top, {
+          color: tick.axis === 'value' ? strong : ink,
+          size: 12,
+        }),
+      )
+    }
   } else if (radarLayout.value) {
     paintRadar(svg, 1, 1, true)
     const ink = color('var(--dou-chart-label)')

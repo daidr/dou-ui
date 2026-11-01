@@ -1198,3 +1198,120 @@ export function layoutRadar({
     legendBox: placed.box,
   }
 }
+
+/** A funnel laid out: where its stages go, and their names and values beside them. */
+export interface FunnelLayout {
+  width: number
+  height: number
+  /** Where the bars go: the widest takes its whole width. */
+  plot: Rect
+  /** How many stages, and the height of each one's row. */
+  count: number
+  step: number
+  /** From a value to half its bar's width, in px. */
+  scale: Scale
+  /** The stages' names, on the left. */
+  names: TickLabel[]
+  /** Their values, on the right, and the share each kept of the one before it. */
+  values: TickLabel[]
+  rates: TickLabel[]
+  legend: LegendItem[]
+  legendBox?: LegendBox
+}
+
+/** Room between a funnel's bars and the text beside them, and between a value and its rate. */
+const FUNNEL_GAP = 12
+const RATE_GAP = 8
+/** The most of the chart's width the names may take. */
+const FUNNEL_NAME_SHARE = 0.3
+/** The tallest a stage's row grows, in px: a few stages don't fill a tall chart with bars. */
+const FUNNEL_STEP = 64
+
+/**
+ * Lays out a funnel: the legend, then the names in a column on the left
+ * and the values (with rates) on the right, and the bars between them.
+ */
+export function layoutFunnel({
+  width,
+  height,
+  measure,
+  legend: names = [],
+  coarse,
+  legendPlacement = 'bottom',
+  stages,
+  values: written,
+  rates: rateTexts,
+  max,
+}: Pick<LayoutOptions, 'width' | 'height' | 'measure' | 'legend' | 'coarse' | 'legendPlacement'> & {
+  stages: string[]
+  values: string[]
+  /** The share each stage kept of the one before, written; `null` for the first. */
+  rates: Array<string | null>
+  /** The largest value: its bar is the widest. */
+  max: number
+}): FunnelLayout {
+  const placed = placeLegendIn(names, legendPlacement, width, height, measure, coarse)
+  const { top, bottom, right: legendRight } = placed.room
+  const across = width - legendRight
+  const count = stages.length
+  const most = Math.floor(across * FUNNEL_NAME_SHARE)
+  const nameWidths = stages.map((text) => Math.min(measure(text), most))
+  const valueWidths = written.map((text) => measure(text))
+  const rateWidths = rateTexts.map((text) => (text ? measure(text) : 0))
+  const valueColumn = Math.max(0, ...valueWidths)
+  const rateColumn = Math.max(0, ...rateWidths)
+  const left = INSET + Math.max(0, ...nameWidths) + FUNNEL_GAP
+  const right = FUNNEL_GAP + valueColumn + (rateColumn ? RATE_GAP + rateColumn : 0) + INSET
+  const room = Math.max(1, height - top - bottom - EDGE * 2)
+  const step = count ? Math.min(FUNNEL_STEP, room / count) : room
+  const plotHeight = step * count
+  const plot: Rect = {
+    x: left,
+    y: top + EDGE + (room - plotHeight) / 2,
+    width: Math.max(1, across - left - right),
+    height: plotHeight,
+  }
+  const scale = linearScale([0, max > 0 ? max : 1], [0, plot.width / 2])
+  const middle = (i: number) => plot.y + step * i + step / 2 - LABEL_HEIGHT / 2
+  const labels = stages.map((text, i) => {
+    const label: TickLabel = {
+      text,
+      left: plot.x - FUNNEL_GAP - nameWidths[i]!,
+      top: middle(i),
+      width: nameWidths[i]!,
+    }
+    if (measure(text) > most) label.clipped = true
+    return label
+  })
+  const valueLeft = plot.x + plot.width + FUNNEL_GAP
+  const values = written.map((text, i) => ({
+    text,
+    // right-aligned in their column, so the digits line up
+    left: valueLeft + valueColumn - valueWidths[i]!,
+    top: middle(i),
+    width: valueWidths[i]!,
+  }))
+  const rates: TickLabel[] = []
+  rateTexts.forEach((text, i) => {
+    if (!text) return
+    rates.push({
+      text,
+      left: valueLeft + valueColumn + RATE_GAP + rateColumn - rateWidths[i]!,
+      top: middle(i),
+      width: rateWidths[i]!,
+    })
+  })
+  return {
+    width,
+    height,
+    plot,
+    count,
+    step,
+    scale,
+    names: labels,
+    values,
+    rates,
+    legend: placed.legend,
+    legendBox: placed.box,
+  }
+}

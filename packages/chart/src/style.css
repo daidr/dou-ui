@@ -101,6 +101,16 @@
       0 0 3px var(--dou-chart-surface);
   }
 
+  /* a funnel stage's value: stronger than the names round it, its digits lined up */
+  .dou-chart__tick.is-value {
+    color: var(--dou-color-text-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .dou-chart__tick.is-rate {
+    font-variant-numeric: tabular-nums;
+  }
+
   /* a long category name, cut short: the whole name shows on hover */
   .dou-chart__tick.is-clipped {
     pointer-events: auto;

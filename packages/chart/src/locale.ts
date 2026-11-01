@@ -60,6 +60,10 @@ export interface ChartMessages {
   tableValue: string
   /** The table view's head over a pie's shares. */
   tableShare: string
+  /** A funnel stage's share of the stage before it, in its tooltip, table and summary. */
+  stageRate: string
+  /** A funnel stage's share of the first stage. */
+  totalRate: string
   /** Under a table cut short: `{shown}` rows of `{count}`. */
   tableMore: string
 }
@@ -93,6 +97,8 @@ const zhCN: ChartMessages = {
   tableSeries: '系列',
   tableValue: '值',
   tableShare: '占比',
+  stageRate: '转化率',
+  totalRate: '总转化率',
   tableMore: '只显示前 {shown} 行，共 {count} 行',
 }
 
@@ -125,6 +131,8 @@ const zhTW: ChartMessages = {
   tableSeries: '系列',
   tableValue: '值',
   tableShare: '佔比',
+  stageRate: '轉化率',
+  totalRate: '總轉化率',
   tableMore: '只顯示前 {shown} 列，共 {count} 列',
 }
 
@@ -157,6 +165,8 @@ const en: ChartMessages = {
   tableSeries: 'Series',
   tableValue: 'Value',
   tableShare: 'Share',
+  stageRate: 'Conversion',
+  totalRate: 'Overall',
   tableMore: 'Showing the first {shown} of {count} rows',
 }
 

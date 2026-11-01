@@ -275,6 +275,13 @@ export interface ChartRadarProps extends Omit<ChartSeriesProps, 'color' | 'axis'
   lineWidth?: number
 }
 
+export interface ChartFunnelProps extends Omit<ChartSeriesProps, 'color' | 'axis'> {
+  /** Any CSS color, for every stage. Defaults to the next color of the chart palette. */
+  color?: string
+  /** Corner radius of the bars, in px. */
+  radius?: number
+}
+
 export interface ChartPieProps {
   /** The value of each slice: a key of the row or a function of it. Values of 0 or less are left out. */
   value: ChartAccessor

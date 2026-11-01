@@ -125,6 +125,11 @@ export interface ChartSeriesKind<P = Record<string, unknown>> {
    * series drawn on axes.
    */
   polar?: boolean
+  /**
+   * Whether the series is a funnel: its rows are stages, one bar under
+   * another, without axes. It is drawn alone, as a pie is.
+   */
+  funnel?: boolean
   /** Whether series of this kind can stack (`stack` prop). */
   stackable?: boolean
   /**

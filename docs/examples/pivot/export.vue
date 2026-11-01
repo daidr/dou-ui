@@ -1,6 +1,7 @@
 <script setup>
 import { DouPivot } from '@dou-ui/pivot'
 import { CopyIcon, DownloadIcon, PrinterIcon } from '@dou-ui/icons'
+import { downloadBlob } from 'dou-ui'
 import { ref } from 'vue'
 import { fields, orders } from './orders'
 
@@ -20,12 +21,7 @@ async function copyAll() {
 }
 
 function download() {
-  const blob = new Blob([pivot.value.toCSV()], { type: 'text/csv' })
-  const link = document.createElement('a')
-  link.href = URL.createObjectURL(blob)
-  link.download = '销售额.csv'
-  link.click()
-  setTimeout(() => URL.revokeObjectURL(link.href), 1000)
+  downloadBlob(new Blob([pivot.value.toCSV()], { type: 'text/csv' }), '销售额.csv')
 }
 </script>
 

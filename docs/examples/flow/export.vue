@@ -1,21 +1,14 @@
 <script setup lang="ts">
 import { DouFlowEditor, flowKit, type FlowDocument, type FlowSelection } from '@dou-ui/flow'
 import { whiteboardKit } from '@dou-ui/flow/whiteboard'
-import { DouButton, DouSpace } from 'dou-ui'
+import { DouButton, DouSpace, downloadBlob } from 'dou-ui'
 import { ref, useTemplateRef } from 'vue'
 
 const extensions = [flowKit(), whiteboardKit()]
 const editor = useTemplateRef('editor')
 
 function save(data: Blob | string, name: string) {
-  const blob = typeof data === 'string' ? new Blob([data], { type: 'image/svg+xml' }) : data
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = name
-  a.click()
-  // 下载开始之后再释放，立即释放会让部分浏览器下载失败或丢掉文件名
-  setTimeout(() => URL.revokeObjectURL(url), 10_000)
+  downloadBlob(typeof data === 'string' ? new Blob([data], { type: 'image/svg+xml' }) : data, name)
 }
 
 async function savePNG() {

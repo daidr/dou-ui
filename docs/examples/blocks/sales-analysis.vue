@@ -2,7 +2,7 @@
 import { DouChart, DouChartAxis, DouChartBar } from '@dou-ui/chart'
 import { DownloadIcon } from '@dou-ui/icons'
 import { DouPivot, DouPivotFields } from '@dou-ui/pivot'
-import { toast } from 'dou-ui'
+import { downloadBlob, toast } from 'dou-ui'
 import { computed, ref, shallowRef, useTemplateRef } from 'vue'
 import { fields, orders } from '../pivot/orders'
 
@@ -98,12 +98,7 @@ function showDetails(next) {
 
 /* 导出 */
 function save(text, name, type) {
-  const url = URL.createObjectURL(new Blob([text], { type }))
-  const a = document.createElement('a')
-  a.href = url
-  a.download = name
-  a.click()
-  setTimeout(() => URL.revokeObjectURL(url), 1000)
+  downloadBlob(new Blob([text], { type }), name)
 }
 async function exportAs(kind) {
   const name = views.find((item) => item.value === view.value).label

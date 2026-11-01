@@ -1,6 +1,6 @@
 <script setup>
 import { DouChart, DouChartBar, DouChartLine, DouChartMarker } from '@dou-ui/chart'
-import { DouButton, DouSpace } from 'dou-ui'
+import { DouButton, DouSpace, downloadBlob } from 'dou-ui'
 import { useTemplateRef } from 'vue'
 
 const rows = [
@@ -12,22 +12,12 @@ const rows = [
 
 const chart = useTemplateRef('chart')
 
-function save(data, name) {
-  const url = URL.createObjectURL(data)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = name
-  a.click()
-  // 下载开始后再释放，立即释放会让部分浏览器下载失败
-  setTimeout(() => URL.revokeObjectURL(url), 1000)
-}
-
 async function savePNG() {
-  if (chart.value) save(await chart.value.exportPNG(), '季度收支.png')
+  if (chart.value) downloadBlob(await chart.value.exportPNG(), '季度收支.png')
 }
 function saveSVG() {
   if (!chart.value) return
-  save(new Blob([chart.value.exportSVG()], { type: 'image/svg+xml' }), '季度收支.svg')
+  downloadBlob(new Blob([chart.value.exportSVG()], { type: 'image/svg+xml' }), '季度收支.svg')
 }
 </script>
 

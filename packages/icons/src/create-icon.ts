@@ -85,9 +85,8 @@ function defineIcon(name: string, node: IconNode) {
 type IconInstance = InstanceType<ReturnType<typeof defineIcon>>
 
 /**
- * 图标组件。根元素就是 `<svg>`，所以模板里也能写 `id`、`title`、`role`、`@click` 等 SVG 属性和事件；
+ * 图标组件。根元素就是 `<svg>`，所以模板里也能写 `id`、`role`、`focusable`、`@click` 等 SVG 属性和事件；
  * 与 `size`、`strokeWidth`、`label` 同名的以图标的 prop 为准。
- * 给模板看的构造签名放在前面，`InstanceType` 读到的仍是图标自己的 props。
  */
 export type IconComponent = {
   new (...args: any[]): IconInstance & {

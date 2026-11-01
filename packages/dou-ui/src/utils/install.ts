@@ -4,15 +4,21 @@ import { configProviderKey } from '../components/config-provider/config-provider
 
 type InstanceProps<I> = I extends { $props: infer P } ? P : {}
 
+/** 类型标记：记下组件原本的类型，`ComponentDefaults` 从这里取 props。只存在于类型里。 */
+export declare const ownComponent: unique symbol
+
 /**
  * 组件在模板里可以写的属性：自己的 props 之外，再加上它转交给元素的原生属性和事件 `A`。
  * 与 props、事件同名的项以组件自己的为准。
  *
- * 只影响模板的类型检查（例如开启 checkUnknownProps 时 `<DouInput placeholder="…">` 不报错），
- * `InstanceType`、`ComponentDefaults` 读到的仍是组件自己的 props。
+ * 只影响类型（例如开启 checkUnknownProps 时 `<DouInput placeholder="…">` 不报错）。
+ * 给模板看的构造签名放在前面，所以 `InstanceType` 的 `$props` 也带着这些属性；
+ * 要只看组件自己的 props，用各组件导出的 `XxxInstance`，`ComponentDefaults` 则经由 `ownComponent` 取原本的类型。
  */
 export type WithAttributes<T, A> = T extends abstract new (...args: any) => infer I
-  ? { new (...args: any[]): I & { $props: Omit<A, keyof InstanceProps<I>> } } & T
+  ? { new (...args: any[]): I & { $props: Omit<A, keyof InstanceProps<I>> } } & T & {
+        readonly [ownComponent]?: T
+      }
   : T
 
 /**

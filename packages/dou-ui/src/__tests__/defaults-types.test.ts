@@ -23,11 +23,25 @@ describe('ComponentDefaults', () => {
       // @ts-expect-error nor its class
       DouTable: { class: 'x' },
     }
+    const forwarded: ComponentDefaults = {
+      // @ts-expect-error what a component passes on to its element is not a prop either
+      DouInput: { placeholder: 'x' },
+      // @ts-expect-error
+      DouButton: { autofocus: true },
+      // @ts-expect-error
+      DouLink: { target: '_blank' },
+      // @ts-expect-error
+      DouTag: { id: 'x' },
+    }
+    // @ts-expect-error nor a native listener
+    const listener: ComponentDefaults = { DouInput: { onKeydown: () => {} } }
+    const own: ComponentDefaults = { DouInput: { clearable: true }, DouLink: { external: true } }
     const generic: ComponentDefaults = {
       DouCheckbox: { indeterminate: true },
       DouSwitch: { size: 'sm' },
     }
-    expect(defaults).toBeTruthy()
+    expect([defaults, forwarded, listener]).toHaveLength(3)
+    expect(own.DouInput?.clearable).toBe(true)
     expect(generic.DouSwitch?.size).toBe('sm')
   })
 })

@@ -7,6 +7,7 @@ import type {
   VNodeProps,
 } from 'vue'
 import type { Locale } from '../../locale/types'
+import type { ownComponent } from '../../utils/install'
 import type { Size } from '../../utils/types'
 import type { MotionMode } from '../../composables/use-motion'
 
@@ -64,9 +65,14 @@ type OwnProps<P> = Omit<
 
 type PropsOf<K, T> = K extends keyof GenericComponentProps
   ? GenericComponentProps[K]
-  : T extends abstract new (...args: never) => { $props: infer P }
-    ? OwnProps<P>
-    : Record<string, unknown>
+  : // 组件原本的类型：`withInstall` 加在前面给模板看的构造签名带着透传的原生属性
+    T extends { readonly [ownComponent]?: infer C }
+    ? InstanceProps<C>
+    : InstanceProps<T>
+
+type InstanceProps<T> = T extends abstract new (...args: never) => { $props: infer P }
+  ? OwnProps<P>
+  : Record<string, unknown>
 
 /** Default props for each DouUI component. */
 export type ComponentDefaults = {

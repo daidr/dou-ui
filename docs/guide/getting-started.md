@@ -89,7 +89,13 @@ Token 默认挂在 `:root` 上。给任意元素加上 `data-dou-theme` 即可�
 
 ```vue
 <DouButton aria-label="关闭" data-testid="close" />
-<DouInput v-model="city" placeholder="城市" maxlength="20" @keydown.enter="search" />
+<DouInput
+  v-model="city"
+  placeholder="城市"
+  maxlength="20"
+  autocomplete="address-level2"
+  @keydown.enter="search"
+/>
 ```
 
 普通元素上的 `data-*` 不在 Vue 的元素属性类型里，需要时在 `vueCompilerOptions` 里加上 `"dataAttributes": ["data-*"]`。

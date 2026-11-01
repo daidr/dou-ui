@@ -35,7 +35,7 @@ import { blockAround } from '../core/blocks'
 import { setBlockType } from '../core/commands'
 import { blockFromNode } from '../core/model'
 import { isSafeHref } from '../core/schema'
-import { editorKey } from '../editor'
+import { editorKey, provideToolbarMenus } from '../editor'
 
 const { view, state, focused, dragging, messages, kit, comments } = inject(editorKey)!
 const panel = useTemplateRef<HTMLElement>('panel')
@@ -43,6 +43,8 @@ const panel = useTemplateRef<HTMLElement>('panel')
 // while the pointer is down the selection is still being made
 const pressing = shallowRef(false)
 const menuOpen = shallowRef(false)
+// the extensions' menus keep the toolbar too
+const toolbarMenus = provideToolbarMenus()
 const linking = shallowRef<{ from: number; to: number } | null>(null)
 const href = shallowRef('')
 const linkInput = useTemplateRef<InstanceType<typeof DouInput>>('linkInput')
@@ -65,6 +67,7 @@ const open = computed(
   () =>
     !!linking.value ||
     menuOpen.value ||
+    [...toolbarMenus].some((menu) => menu.value) ||
     (focused.value && formattable.value && !pressing.value && !dragging.value),
 )
 
@@ -329,6 +332,10 @@ defineExpose({ editLink })
             </DouToggle>
           </DouTooltip>
         </DouToggleGroup>
+        <template v-if="kit.toolbar.length">
+          <DouToolbarSeparator v-if="marks.length" />
+          <component :is="control" v-for="(control, index) in kit.toolbar" :key="index" />
+        </template>
         <DouToolbarSeparator v-if="linkMark" />
         <DouTooltip v-if="linkMark" :content="messages.link" shortcut="mod+k" placement="bottom">
           <DouToggle

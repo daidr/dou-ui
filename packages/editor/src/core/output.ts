@@ -1,5 +1,6 @@
 import type { ResolvedEditorExtensions } from './extension'
-import type { Block, InlineContent, PartialBlock } from './model'
+import type { Block, InlineContent, MarkField, PartialBlock } from './model'
+import { isAlign } from './align'
 import { isSafeHref } from './schema'
 
 /** What a block's writer gets besides the block. */
@@ -41,10 +42,15 @@ export interface InlineOutput {
   markdown?: (props: Record<string, unknown>) => string
 }
 
-/** How a mark is written: the text between an opening and a closing string. */
+/**
+ * How a mark is written: the text between an opening and a closing string.
+ * A mark with a value (a color) gives a function of the value.
+ */
+export type MarkTags = [open: string, close: string]
+
 export interface MarkOutput {
-  html?: [open: string, close: string]
-  markdown?: [open: string, close: string]
+  html?: MarkTags | ((value: string) => MarkTags)
+  markdown?: MarkTags | ((value: string) => MarkTags)
 }
 
 /** What an extension contributes to `blocksToHTML` and `blocksToMarkdown`. */
@@ -58,10 +64,18 @@ interface Outputs {
   blocks: Record<string, BlockOutput>
   inlines: Record<string, InlineOutput>
   marks: Record<string, MarkOutput>
+  /** Marks stored as a field of the text run, by field: `color` → `textColor`. */
+  fields: [field: MarkField, mark: string][]
 }
 
+const tagsOf = (tags: MarkOutput['html'] | undefined, value: string): MarkTags | undefined =>
+  typeof tags === 'function' ? tags(value) : tags
+
 function outputsOf(kit: ResolvedEditorExtensions): Outputs {
-  const outputs: Outputs = { blocks: {}, inlines: {}, marks: {} }
+  const fields = Object.values(kit.schema.marks)
+    .filter((type) => type.spec.field)
+    .map((type) => [type.spec.field as MarkField, type.name] as [MarkField, string])
+  const outputs: Outputs = { blocks: {}, inlines: {}, marks: {}, fields }
   // extensions that come first win, as with their keys
   for (let index = kit.extensions.length - 1; index >= 0; index--) {
     const extension = kit.extensions[index]!
@@ -115,7 +129,14 @@ function inlineHTML(content: InlineContent[], outputs: Outputs): string {
       let text = escapeHTML(item.text)
       const marks = item.marks ?? []
       for (let index = marks.length - 1; index >= 0; index--) {
-        const tags = outputs.marks[marks[index]!]?.html
+        const tags = tagsOf(outputs.marks[marks[index]!]?.html, '')
+        if (tags) text = tags[0] + text + tags[1]
+      }
+      // highlight inside the color, both inside a link
+      for (let index = outputs.fields.length - 1; index >= 0; index--) {
+        const [field, mark] = outputs.fields[index]!
+        const value = item[field]
+        const tags = value && tagsOf(outputs.marks[mark]?.html, value)
         if (tags) text = tags[0] + text + tags[1]
       }
       if (item.link && isSafeHref(item.link))
@@ -127,6 +148,12 @@ function inlineHTML(content: InlineContent[], outputs: Outputs): string {
 }
 
 const closingTag = (group: string) => `</${group.split(/\s/)[0]}>`
+
+/** An aligned block's first element gets `style="text-align: …"`. */
+function withAlign(html: string, align: unknown): string {
+  if (!isAlign(align)) return html
+  return html.replace(/^<([a-z][a-z0-9]*)/i, `<$1 style="text-align: ${align}"`)
+}
 
 /** Top-level blocks go on lines of their own, so the HTML stays readable. */
 function blocksHTML(blocks: Block[], outputs: Outputs, top = false): string {
@@ -150,9 +177,10 @@ function blocksHTML(blocks: Block[], outputs: Outputs, top = false): string {
       index,
       inline: (content) => inlineHTML(content, outputs),
     }
-    result += output?.html
+    const html = output?.html
       ? output.html(block, context)
       : `<p>${context.content}</p>${context.children}`
+    result += withAlign(html, block.props.align)
   })
   if (group) result += newline + closingTag(group)
   return result
@@ -213,6 +241,10 @@ function keysOf(item: InlineContent, outputs: Outputs): string[] {
   if (item.type !== 'text') return []
   const keys: string[] = []
   if (item.link && isSafeHref(item.link)) keys.push(`link:${item.link}`)
+  for (const [field, mark] of outputs.fields) {
+    const value = item[field]
+    if (value && hasOutput(mark, outputs)) keys.push(`${mark}=${value}`)
+  }
   for (const mark of item.marks ?? [])
     if (mark !== 'code' && hasOutput(mark, outputs)) keys.push(mark)
   return keys
@@ -249,7 +281,11 @@ function inlineMarkdown(content: InlineContent[], outputs: Outputs): string {
       result += '['
       return
     }
-    const tags = outputs.marks[key]!
+    const [name, value = ''] = key.split('=') as [string, string?]
+    const tags = {
+      markdown: tagsOf(outputs.marks[name]!.markdown, value),
+      html: tagsOf(outputs.marks[name]!.html, value),
+    }
     const { text, after } = span(start, key)
     const delimiter = tags.markdown
     const usable =

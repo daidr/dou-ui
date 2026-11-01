@@ -47,17 +47,19 @@ const blocks: PartialBlock[] = [
 
 | `type`         | 说明     | `props`                                                   |
 | -------------- | -------- | --------------------------------------------------------- |
-| `paragraph`    | 正文     | —                                                         |
-| `heading`      | 标题     | `level`：`1`、`2` 或 `3`                                  |
+| `paragraph`    | 正文     | `align`：对齐方式，见[文字颜色与对齐](./text-styles)      |
+| `heading`      | 标题     | `level`：`1`、`2` 或 `3`；`align`                         |
 | `bulletItem`   | 无序列表 | —                                                         |
 | `numberedItem` | 有序列表 | —                                                         |
 | `checkItem`    | 待办事项 | `checked`：是否完成                                       |
-| `quote`        | 引用     | —                                                         |
+| `quote`        | 引用     | `align`                                                   |
 | `codeBlock`    | 代码     | `language`：语言名称，默认为空字符串                      |
 | `divider`      | 分隔线   | —                                                         |
 | `toggle`       | 折叠块   | —                                                         |
 | `callout`      | 提示块   | `tone`：`info`、`tip`、`warning` 或 `danger`，默认 `info` |
 | `table`        | 表格     | 表头设置与列信息，内容在 `rows` 里，见[表格](./table)     |
+
+`align` 只在设置了对齐时出现，没有对齐的块 `props` 里没有这一项。图片、附件和嵌入等块由各自的扩展提供，见对应页面。
 
 通过[扩展](./extensions)增加的块类型也使用同样的格式，`props` 由扩展定义。
 
@@ -69,15 +71,23 @@ const blocks: PartialBlock[] = [
 
 ```ts
 type InlineContent =
-  | { type: 'text'; text: string; marks?: MarkType[]; link?: string }
+  | {
+      type: 'text'
+      text: string
+      marks?: MarkType[]
+      link?: string
+      color?: string
+      highlight?: string
+    }
   | { type: 'break' }
   | { type: 'inline'; name: string; props: Record<string, unknown> }
 ```
 
 - `marks` 是文字的格式，可选 `'bold'`、`'italic'`、`'underline'`、`'strike'`、`'code'`，按这个顺序排列。
 - `link` 是链接地址，只接受 `http`、`https`、`mailto`、`tel` 和相对地址，其他协议（例如 `javascript:`）会被忽略。
+- `color` 和 `highlight` 是文字颜色和背景色，取值是调色板里的颜色名，例如 `'red'`，见[文字颜色与对齐](./text-styles)。
 - `{ type: 'break' }` 是块内换行，用 `Shift+Enter` 输入。
 - `{ type: 'inline' }` 是扩展提供的行内节点，`name` 是节点名称，`props` 是它的属性，例如[提及](./mention)。没有添加对应扩展时，这样的片段会被忽略。
-- 格式和链接都相同的相邻片段会合并成一个。
+- 格式、链接和颜色都相同的相邻片段会合并成一个。
 
 代码块里的文字不带格式，换行直接写在 `text` 里。分隔线没有文字，`content` 为空数组。

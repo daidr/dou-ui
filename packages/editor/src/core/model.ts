@@ -9,9 +9,20 @@ export interface TextContent {
   marks?: MarkType[]
   /** The link target, when the text is a link. */
   link?: string
+  /** The text color, by palette name (e.g. `red`), with the `colors` extension. */
+  color?: string
+  /** The background color, by palette name (e.g. `yellow`), with the `colors` extension. */
+  highlight?: string
   /** The ids of the comment threads about this text. */
   comments?: string[]
 }
+
+/**
+ * A mark spec field: marks that carry one value (a color) are stored on
+ * the text run under this name, e.g. `{ text, color: 'red' }`, and keep
+ * the value in their `value` attribute.
+ */
+export type MarkField = 'color' | 'highlight'
 
 /** A line break inside a block (`Shift+Enter`). */
 export interface BreakContent {
@@ -38,6 +49,8 @@ export interface BlockProps {
   language?: string
   /** The tone of a callout: `info`, `tip`, `warning` or `danger`. */
   tone?: string
+  /** How a paragraph, heading or quote lines up; left out when it follows the reading direction. */
+  align?: 'left' | 'center' | 'right'
   [name: string]: unknown
 }
 
@@ -161,6 +174,7 @@ export function inlineOf(node: PMNode): InlineContent[] {
       return
     }
     const marks = child.marks
+      .filter((mark) => !mark.type.spec.field)
       .map((mark) => mark.type.name)
       .filter((name): name is MarkType => name !== 'link' && name !== 'comment')
       // oxlint-disable-next-line unicorn/no-array-sort -- sorts the filtered copy
@@ -170,6 +184,10 @@ export function inlineOf(node: PMNode): InlineContent[] {
     const item: TextContent = { type: 'text', text: child.text ?? '' }
     if (marks.length) item.marks = marks
     if (link) item.link = link
+    for (const mark of child.marks) {
+      const field = mark.type.spec.field as MarkField | undefined
+      if (field) item[field] = mark.attrs.value as string
+    }
     const comments = child.marks
       .filter((mark) => mark.type.name === 'comment')
       .map((mark) => mark.attrs.id as string)
@@ -179,6 +197,8 @@ export function inlineOf(node: PMNode): InlineContent[] {
     if (
       previous?.type === 'text' &&
       previous.link === item.link &&
+      previous.color === item.color &&
+      previous.highlight === item.highlight &&
       String(previous.marks ?? '') === String(item.marks ?? '') &&
       String(previous.comments ?? '') === String(item.comments ?? '')
     )
@@ -188,7 +208,13 @@ export function inlineOf(node: PMNode): InlineContent[] {
   return result
 }
 
-const propsOf = (content: PMNode): BlockProps => ({ ...content.attrs })
+/** A content node's attributes; those its spec lists as `optionalProps` only when set. */
+function propsOf(content: PMNode): BlockProps {
+  const props: BlockProps = { ...content.attrs }
+  for (const name of (content.type.spec.optionalProps as string[] | undefined) ?? [])
+    if (props[name] === null || props[name] === undefined) delete props[name]
+  return props
+}
 
 /**
  * Blocks already read, by node. Nodes never change, so a block that wasn't
@@ -262,6 +288,11 @@ function marksFor(schema: Schema, item: TextContent): Mark[] {
     if (type) marks.push(type.create())
   }
   if (item.link && schema.marks.link) marks.push(schema.marks.link.create({ href: item.link }))
+  for (const type of Object.values(schema.marks)) {
+    const field = type.spec.field as MarkField | undefined
+    const value = field && item[field]
+    if (value) marks.push(type.create({ value }))
+  }
   for (const id of item.comments ?? []) marks.push(schema.marks.comment!.create({ id }))
   return Mark.setFrom(marks) as Mark[]
 }

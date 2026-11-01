@@ -31,7 +31,7 @@ app.use(DouEditor)
 - 输入 `/` 打开块菜单，继续输入可以筛选，`Enter` 选中。在空块里会转换当前块，在有内容的块里会在下方插入新块。
 - 鼠标移到块上，左侧出现手柄：点击 `+` 在下方添加块；拖动 <code>⋮⋮</code> 移动块，点击它打开块菜单，可以转换类型、复制、移动和删除。
 - 在手机等触屏设备上，光标所在的块左侧出现 <code>⋮⋮</code>：按住拖动可以移动块，点一下打开块菜单，菜单里的“上移”“下移”适合小幅调整。
-- 选中文字后，上方出现格式工具栏，可以设置粗体、斜体、链接等，也可以转换所在块的类型。
+- 选中文字后，上方出现格式工具栏，可以设置粗体、斜体、链接、颜色和对齐，也可以转换所在块的类型。
 - 粘贴网页或其他编辑器的内容时，标题、列表（包括嵌套列表和任务列表）、引用、代码和链接都会保留。
 - 行首输入 `#`、`-`、`1.`、`[]` 等 Markdown 标记会转换块的类型，`Tab` 和 `Shift+Tab` 调整缩进。完整列表见[快捷操作](./shortcuts)。
 
@@ -40,6 +40,21 @@ app.use(DouEditor)
 `readonly` 让文档只能阅读：手柄、块菜单和工具栏都不会出现，待办事项不能勾选，链接可以直接点击打开。
 
 <DocDemo src="editor/readonly" column />
+
+## 打开链接
+
+编辑时按住 `Ctrl` / `⌘` 点击链接，或者在只读状态下点击链接，链接会在新标签页打开。打开之前会触发 `link-open` 事件，参数里有链接地址 `link` 和链接所在块的 id `block`。调用 `event.preventDefault()` 后编辑器不再自己打开，可以改用应用的路由，或者先让用户确认：
+
+```ts
+import type { EditorLinkOpenEvent } from '@dou-ui/editor'
+
+function onLinkOpen(event: EditorLinkOpenEvent) {
+  if (event.link.startsWith('/')) {
+    event.preventDefault()
+    router.push(event.link)
+  }
+}
+```
 
 ## 读取和修改内容
 
@@ -95,6 +110,7 @@ function reset() {
 | `change`            | 同上，不绑定 `v-model` 时使用。和 `update:modelValue` 一样每次修改都会触发，不像表单控件的 `change` 那样等到失焦 | `(blocks: Block[])`                 |
 | `transaction`       | 每次修改后触发，在 `update:modelValue` 之前，给出修改涉及的块和来源，见[跟踪修改](./editing#跟踪修改)            | `(result: EditorTransactionResult)` |
 | `update:selection`  | 光标移到另一个块，或选中的块变化时触发，见[跟踪光标](./editing#跟踪光标)                                         | `(selection: EditorSelection)`      |
+| `link-open`         | 打开链接之前触发，见[打开链接](#打开链接)                                                                        | `(event: EditorLinkOpenEvent)`      |
 | `focus`             | 获得焦点                                                                                                         | `(event: FocusEvent)`               |
 | `blur`              | 失去焦点                                                                                                         | `(event: FocusEvent)`               |
 

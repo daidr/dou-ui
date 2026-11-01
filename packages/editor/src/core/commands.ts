@@ -75,8 +75,10 @@ export function setBlockType(type: ContentType, props: BlockProps = {}): Command
       if (content.isAtom) {
         tr.replaceWith(from, from + content.nodeSize, nodeType.create(attrs))
       } else {
-        // only this content node: the block's children keep their type
-        tr.setBlockType(from + 1, from + content.nodeSize - 1, nodeType, attrs)
+        // only this content node: the block's children keep their type; alignment stays
+        const align = content.attrs.align
+        const kept = align != null && nodeType.spec.attrs?.align ? { ...attrs, align } : attrs
+        tr.setBlockType(from + 1, from + content.nodeSize - 1, nodeType, kept)
       }
     }
     const { from, to } = state.selection

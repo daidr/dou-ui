@@ -50,6 +50,7 @@ import {
   type EditorExpose,
   type EditorProps,
   type EditorOrigin,
+  type EditorLinkOpenEvent,
   type EditorSelection,
   type EditorTransactionResult,
 } from './editor'
@@ -188,14 +189,33 @@ function onUpdate(current: EditorView) {
   emit('update:selection', next)
 }
 
-// a click on a link places the cursor; with Ctrl or ⌘ held it opens the link
+// a click on a link places the cursor; with Ctrl or ⌘ held, or while read-only, it opens the link
 const openLinks = new Plugin({
   props: {
-    handleClick(_view, _pos, event) {
-      const link = (event.target as HTMLElement).closest<HTMLAnchorElement>('a.dou-editor__link')
-      if (!link?.href || !(event.metaKey || event.ctrlKey)) return false
-      window.open(link.href, '_blank', 'noopener')
-      return true
+    handleDOMEvents: {
+      click(clicked, event) {
+        const link = (event.target as HTMLElement).closest<HTMLAnchorElement>('a.dou-editor__link')
+        if (!link?.href || !(event.metaKey || event.ctrlKey || !clicked.editable)) return false
+        event.preventDefault()
+        const $pos = clicked.state.doc.resolve(clicked.posAtDOM(link, 0))
+        let block = ''
+        for (let depth = $pos.depth; depth > 0; depth--)
+          if ($pos.node(depth).type.name === 'block') {
+            block = $pos.node(depth).attrs.id as string
+            break
+          }
+        const opening: EditorLinkOpenEvent = {
+          link: link.getAttribute('href') ?? link.href,
+          block,
+          defaultPrevented: false,
+          preventDefault() {
+            this.defaultPrevented = true
+          },
+        }
+        emit('linkOpen', opening)
+        if (!opening.defaultPrevented) window.open(link.href, '_blank', 'noopener,noreferrer')
+        return true
+      },
     },
   },
 })

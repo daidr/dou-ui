@@ -1,6 +1,8 @@
 import type { EditorExtension } from '../core/extension'
 import { divider, heading, paragraph, quote } from './blocks'
+import { align } from './align'
 import { callout } from './callout'
+import { colors } from './colors'
 import { codeBlock, type CodeBlockOptions } from './code-block'
 import { formatting, link } from './formatting'
 import { lists } from './lists'
@@ -23,6 +25,10 @@ export interface EditorKitOptions {
   table?: boolean
   formatting?: boolean
   link?: boolean
+  /** Text and background colors. */
+  colors?: boolean
+  /** Aligning paragraphs, headings and quotes. */
+  align?: boolean
 }
 
 /**
@@ -45,6 +51,8 @@ export function editorKit(options: EditorKitOptions = {}): EditorExtension[] {
     table,
     formatting,
     link,
+    colors,
+    align,
   }
   return [
     paragraph,
@@ -55,7 +63,9 @@ export function editorKit(options: EditorKitOptions = {}): EditorExtension[] {
 }
 
 export {
+  align,
   callout,
+  colors,
   codeBlock,
   divider,
   formatting,

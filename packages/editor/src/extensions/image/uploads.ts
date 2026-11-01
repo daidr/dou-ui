@@ -33,14 +33,26 @@ export interface Upload {
   failed: boolean
 }
 
-function setSrc(view: EditorView, id: string, src: string) {
+/** What blocks hold uploaded files: an image or an attachment. */
+export interface UploadTarget {
+  /** The block type. */
+  type: string
+  /** Whether an uploader's address may be stored. */
+  isSafe: (src: string) => boolean
+  /** Props taken from the file when it is picked, e.g. its name and size. */
+  propsOf?: (file: File) => Record<string, unknown>
+}
+
+const imageTarget: UploadTarget = { type: 'image', isSafe: (src) => isSafeImageSrc(src) }
+
+function setAttrs(view: EditorView, id: string, type: string, attrs: Record<string, unknown>) {
   const block = findBlockById(view.state.doc, id)
-  if (!block || block.content.type.name !== 'image') return
+  if (!block || block.content.type.name !== type) return
   const tr = view.state.tr.setNodeMarkup(block.contentPos, undefined, {
     ...block.content.attrs,
-    src,
+    ...attrs,
   })
-  // the image appearing is part of adding it, not a step of its own
+  // the file appearing is part of adding it, not a step of its own
   tr.setMeta('addToHistory', false)
   view.dispatch(tr)
 }
@@ -50,17 +62,21 @@ function setSrc(view: EditorView, id: string, src: string) {
  * the finished address is written into it, so other collaborators never
  * see a half-done image.
  */
-export function createUploads(upload: ImageUploader) {
+export function createUploads(upload: ImageUploader, target: UploadTarget = imageTarget) {
   const items = reactive(new Map<string, Upload>())
+  const setSrc = (view: EditorView, id: string, src: string) =>
+    setAttrs(view, id, target.type, { src })
 
-  function start(view: EditorView, id: string, file: File) {
+  /** Upload a file into the block `id`; `describe` writes its props (name, size) first. */
+  function start(view: EditorView, id: string, file: File, describe = true) {
+    if (describe && target.propsOf) setAttrs(view, id, target.type, target.propsOf(file))
     const old = items.get(id)
     if (old) URL.revokeObjectURL(old.preview)
     const preview = URL.createObjectURL(file)
     items.set(id, { preview, failed: false })
     upload(file)
       .then((src) => {
-        if (!isSafeImageSrc(src)) throw new Error(`[@dou-ui/editor] unsafe image address: ${src}`)
+        if (!target.isSafe(src)) throw new Error(`[@dou-ui/editor] unsafe address: ${src}`)
         setSrc(view, id, src)
         items.delete(id)
         URL.revokeObjectURL(preview)
@@ -70,14 +86,17 @@ export function createUploads(upload: ImageUploader) {
       })
   }
 
-  /** Insert one image block per file after the block at `pos` and upload them. */
+  /** Insert one block per file after the block at `pos` and upload them. */
   function insert(view: EditorView, files: File[], pos: number) {
     const { schema } = view.state
     const info = blockAround(view.state.doc.resolve(Math.min(pos, view.state.doc.content.size)))
     const tr = view.state.tr
     const ids = files.map(() => createId())
-    const blocks: PMNode[] = ids.map((id) =>
-      schema.nodes.block!.create({ id }, schema.nodes.image!.create()),
+    const blocks: PMNode[] = ids.map((id, index) =>
+      schema.nodes.block!.create(
+        { id },
+        schema.nodes[target.type]!.create(target.propsOf?.(files[index]!) ?? null),
+      ),
     )
     if (!info) {
       tr.insert(view.state.doc.content.size, blocks)
@@ -92,7 +111,7 @@ export function createUploads(upload: ImageUploader) {
       tr.insert(info.pos + info.node.nodeSize, blocks)
     }
     view.dispatch(tr.scrollIntoView())
-    files.forEach((file, index) => start(view, ids[index]!, file))
+    files.forEach((file, index) => start(view, ids[index]!, file, false))
   }
 
   return { items, start, insert, setSrc }

@@ -243,6 +243,9 @@ describe('bars', () => {
   it('keeps value labels a row apart down short charts, whatever ticks are asked', () => {
     // [height, ticks, the largest value]
     const cases: Array<[number, number | undefined, number]> = [
+      [40, undefined, 7],
+      [50, undefined, 2000],
+      [60, undefined, 100],
       [80, 20, 2000],
       [80, undefined, 2000],
       [90, 20, 2000],
@@ -263,14 +266,14 @@ describe('bars', () => {
         locale: 'zh-CN',
         measure,
       }).y.y!.labels
-      expect(labels.length).toBeGreaterThan(1)
+      expect(labels.length).toBeGreaterThan(0)
       // a label's height and the gap between rows
       for (let i = 1; i < labels.length; i++)
         expect(Math.abs(labels[i]!.top - labels[i - 1]!.top)).toBeGreaterThanOrEqual(19.5)
     }
   })
 
-  it('lays out quickly however many ticks are asked across a narrow chart', () => {
+  it('lays out quickly however many ticks are asked', () => {
     const model = buildModel([input(0, { y: 'v' })], {
       data: [
         { k: 'a', v: 0 },
@@ -278,17 +281,23 @@ describe('bars', () => {
       ],
       x: 'k',
     })
-    const start = performance.now()
-    layoutChart({
-      model,
-      horizontal: true,
-      axes: { x: axis('left'), y: axis('bottom', { ticks: 1000 }), y2: null },
-      width: 390,
-      height: 240,
-      locale: 'zh-CN',
-      measure,
-    })
-    expect(performance.now() - start).toBeLessThan(100)
+    for (const horizontal of [true, false]) {
+      const start = performance.now()
+      layoutChart({
+        model,
+        horizontal,
+        axes: {
+          x: axis(horizontal ? 'left' : 'bottom'),
+          y: axis(horizontal ? 'bottom' : 'left', { ticks: 100000 }),
+          y2: null,
+        },
+        width: 390,
+        height: 240,
+        locale: 'zh-CN',
+        measure,
+      })
+      expect(performance.now() - start).toBeLessThan(100)
+    }
   })
 
   it('keeps value labels apart down a short chart, even with more ticks asked', () => {

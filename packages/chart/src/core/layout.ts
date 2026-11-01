@@ -465,14 +465,21 @@ function layoutUp(
     return at.every((v, i) => i === 0 || Math.abs(v - at[i - 1]!) >= LABEL_HEIGHT + ROW_GAP - 0.5)
   }
   const asked = [axes.y?.ticks, axes.y2?.ticks].filter((t): t is number => typeof t === 'number')
-  let values = valueAxes(axes, model, yCount, locale, plotHeight, zoom?.y)
   // never more than there are rows for, however many are asked
   const rows = Math.max(2, Math.floor(plotHeight / (LABEL_HEIGHT + ROW_GAP)) + 1)
-  for (let most = Math.min(Math.max(yCount, ...asked), rows); most >= 2; most--) {
+  let values = valueAxes(axes, model, yCount, locale, plotHeight, zoom?.y, false, rows)
+  for (let most = Math.min(Math.max(yCount, ...asked), rows); most >= 1; most--) {
     values = valueAxes(axes, model, yCount, locale, plotHeight, zoom?.y, false, most)
     if (roomy(values.y) && roomy(values.y2)) break
   }
-  const { y, y2 } = values
+  // too short for even two: only the top one
+  const topOnly = (axis: ValueAxis | null) => {
+    if (!axis || roomy(axis)) return axis
+    const last = axis.ticks.length - 1
+    return { ...axis, ticks: [axis.ticks[last]!], texts: [axis.texts[last]!] }
+  }
+  const y = topOnly(values.y)
+  const y2 = topOnly(values.y2)
   const side = (axis: ValueAxis | null, config: AxisConfig | null) =>
     axis && shown(config)
       ? INSET + (config.labelWidth ?? labelWidth(axis.texts, measure)) + LABEL_GAP

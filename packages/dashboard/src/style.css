@@ -319,12 +319,15 @@
     flex: none;
   }
 
-  /* a failed export, over the content: wraps, its close button always in view */
-  .dou-dashboard__notice {
+  /* a failed export, over the content: a long reason scrolls inside, the close button stays */
+  .dou-dashboard__export-error {
     flex: none;
-    max-height: 50%;
     padding: 0 8px 8px;
-    overflow-y: auto;
+
+    & .dou-alert__description {
+      max-height: 4.5lh;
+      overflow-y: auto;
+    }
   }
 
   .dou-dashboard__body {
@@ -626,7 +629,7 @@
   .dou-dashboard.is-exporting {
     & .dou-dashboard__actions,
     & .dou-dashboard__links .dou-tag__close,
-    & .dou-dashboard__notice,
+    & .dou-dashboard__export-error,
     & .dou-dashboard__peers,
     & .dou-grid-layout__resize,
     & .dou-dashboard__live {
@@ -646,7 +649,7 @@
 
     .dou-dashboard__actions,
     .dou-dashboard__links .dou-tag__close,
-    .dou-dashboard__notice,
+    .dou-dashboard__export-error,
     .dou-dashboard__peers,
     .dou-grid-layout__resize,
     .dou-dashboard-filter__clear,

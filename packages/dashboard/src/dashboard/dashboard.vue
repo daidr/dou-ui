@@ -625,6 +625,7 @@ provide(frameContextKey, {
   exporters: (id) => (workbooks.has(id) ? exporterList.value : NO_EXPORTERS),
   exportTo: exportFromMenu,
   exporting: (id) => exporting.has(id),
+  setDrawn: (id, drawn) => (drawn ? drawnIds.add(id) : drawnIds.delete(id)),
   exportError: (id) => exportErrors.get(id),
   clearExportError: (id) => exportErrors.delete(id),
 })
@@ -702,7 +703,8 @@ async function exportWidget(
   const widget = widgetMap.value.get(id)
   if (!widget) throw new RangeError(`[@dou-ui/dashboard] there is no widget "${id}"`)
   const core = await loadSheetCore()
-  await settle(5000, !workbooks.has(id))
+  // a widget drawn already that gives no workbook never will: no need to draw them all
+  await settle(5000, !drawnIds.has(id))
   options.signal?.throwIfAborted()
   const get = workbooks.get(id)
   const book = get?.()
@@ -725,6 +727,9 @@ async function exportWidget(
     locale: locale.value.name,
   })
 }
+
+/** The widgets drawn in full; the others show only their title until they come near. */
+const drawnIds = new Set<string>()
 
 /** Why the last export from each widget's menu failed, shown over its content until closed. */
 const exportErrors = shallowReactive(new Map<string, string>())

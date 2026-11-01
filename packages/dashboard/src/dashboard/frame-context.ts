@@ -44,6 +44,8 @@ export interface FrameContext {
   exporters: (id: string) => FrameExporter[]
   /** Writes a widget's content with an exporter, by name, and downloads the file. */
   exportTo: (id: string, exporter: string) => void
+  /** Tells whether a widget is drawn in full, not only its title. */
+  setDrawn: (id: string, drawn: boolean) => void
   /** Whether a widget's content is being exported now. */
   exporting: (id: string) => boolean
   /** Why the last export from a widget's menu failed. */

@@ -107,7 +107,9 @@ function fitFormat(format: string, value: number) {
   const optional = /\.(0*)#+/
   const match = optional.exec(format)
   if (!match) return format
-  const scaled = value * 10 ** match[1]!.length
+  // a percentage shows the value a hundred times over
+  const shown = format.includes('%') ? value * 100 : value
+  const scaled = shown * 10 ** match[1]!.length
   if (Math.abs(scaled - Math.round(scaled)) > 1e-9) return format
   return format.replace(/\.(0*)#+/g, (_, zeros: string) => (zeros ? `.${zeros}` : ''))
 }

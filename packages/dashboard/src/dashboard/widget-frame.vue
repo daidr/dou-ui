@@ -71,6 +71,9 @@ onMounted(() => {
   })
 })
 onBeforeUnmount(() => stop?.())
+// the dashboard draws everything for an export only when this widget isn't drawn yet
+watch(active, (drawn) => frame.setDrawn(props.id, drawn), { immediate: true })
+onBeforeUnmount(() => frame.setDrawn(props.id, false))
 // drawn in full to export or print the dashboard, and kept that way
 watch(
   () => frame.all(),
@@ -223,7 +226,7 @@ function onSelect(value: DropdownValue | undefined) {
         </DouTooltip>
       </div>
     </component>
-    <div v-if="exportError" class="dou-dashboard__notice" data-dou-nodrag>
+    <div v-if="exportError" class="dou-dashboard__export-error" data-dou-nodrag>
       <DouAlert tone="danger" closable @close="frame.clearExportError(id)">
         {{ exportError }}
       </DouAlert>

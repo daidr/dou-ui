@@ -4,6 +4,8 @@ import { defineComponent, h, nextTick, ref } from 'vue'
 import { defaultNode, defineFlowExtension, defineNodeType, DouFlowEditor, flowKit } from '../index'
 import type { FlowDocument, FlowEditorExpose, FlowExtension, FlowSelection } from '../index'
 
+const Icon = defineComponent(() => () => h('svg'))
+
 const note = defineNodeType({
   ...defaultNode,
   type: 'note',
@@ -234,6 +236,46 @@ describe('toolbar', () => {
     expect(buttons.map((b) => b.attributes('aria-label'))).toEqual(['复制一份', '删除', '更多'])
     await buttons[0]!.trigger('click')
     expect(doc.value.nodes).toHaveLength(3)
+  })
+
+  it('shows pressed, shortcut and children of extension buttons', async () => {
+    const picked: string[] = []
+    const extra = defineFlowExtension({
+      name: 'extra',
+      toolbarItems: () => [
+        { key: 'pin', label: '固定', icon: Icon, pressed: true, shortcut: 'mod+l', run() {} },
+        {
+          key: 'size',
+          label: '大小',
+          icon: Icon,
+          children: ['小', '大'].map((label) => ({
+            key: label,
+            label,
+            checked: label === '小',
+            run: () => picked.push(label),
+          })),
+        },
+      ],
+    })
+    const { root, selection } = setup([flowKit(), extra])
+    selection.value = { nodes: ['a'], edges: [] }
+    await nextTick()
+    const button = (label: string) =>
+      root.findAll('.dou-flow-toolbar button').find((b) => b.attributes('aria-label') === label)!
+    expect(button('复制一份').attributes('aria-keyshortcuts')).toBe('Control+D')
+    const pin = button('固定')
+    expect(pin.attributes('aria-pressed')).toBe('true')
+    expect(pin.classes()).toContain('is-active')
+    expect(pin.attributes('aria-keyshortcuts')).toBe('Control+L')
+    const size = button('大小')
+    expect(size.attributes('aria-pressed')).toBeUndefined()
+    expect(size.attributes('aria-haspopup')).toBe('menu')
+    await size.trigger('click')
+    await nextTick()
+    expect(size.attributes('aria-expanded')).toBe('true')
+    expect(menuItems()).toEqual(['小', '大'])
+    ;(document.body.querySelectorAll('.dou-dropdown__item')[1] as HTMLElement).click()
+    expect(picked).toEqual(['大'])
   })
 
   it('is hidden while read only, or without the kit toolbar', async () => {

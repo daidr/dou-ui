@@ -20,13 +20,13 @@ const props = defineProps<{
 
 const { messages, root, showMenu, menuFrom } = useFlowEditor()
 
-// A button with `menu` opens its choices under it; a click from the
+// A button with `children` opens its choices under it; a click from the
 // keyboard (no pointer, `detail` 0) puts focus on the one in use.
 function press(item: FlowToolbarItem, event: MouseEvent) {
-  if (!item.menu) return item.run?.(event)
+  if (!item.children) return item.run?.(event)
   const button = event.currentTarget as HTMLElement
   const box = button.getBoundingClientRect()
-  showMenu(item.menu(), { x: box.left, y: box.bottom + 4 }, button, {
+  showMenu(item.children, { x: box.left, y: box.bottom + 4 }, button, {
     focusChecked: event.detail === 0,
   })
 }
@@ -123,6 +123,7 @@ const hidden = computed(
         v-for="item in group"
         :key="item.key"
         :content="item.label"
+        :shortcut="item.shortcut"
         :disabled="!!menuFrom && menuFrom === buttons.get(item.key)"
         :placement="tipPlacement"
       >
@@ -130,12 +131,14 @@ const hidden = computed(
           :ref="(button) => setButton(item.key, button)"
           type="button"
           class="dou-flow-controls__button"
-          :class="{ 'is-active': item.active }"
+          :class="{ 'is-active': item.pressed }"
           :disabled="item.disabled"
           :aria-label="item.label"
-          :aria-pressed="item.menu ? undefined : (item.active ?? undefined)"
-          :aria-haspopup="item.menu ? 'menu' : undefined"
-          :aria-expanded="item.menu ? !!menuFrom && menuFrom === buttons.get(item.key) : undefined"
+          :aria-pressed="item.children ? undefined : (item.pressed ?? undefined)"
+          :aria-haspopup="item.children ? 'menu' : undefined"
+          :aria-expanded="
+            item.children ? !!menuFrom && menuFrom === buttons.get(item.key) : undefined
+          "
           @click="press(item, $event)"
         >
           <component :is="item.icon" />

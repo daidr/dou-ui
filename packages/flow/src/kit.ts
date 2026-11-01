@@ -144,16 +144,31 @@ const editToolbar = defineFlowExtension({
   priority: 0,
   edgeToolbarItems(ctx) {
     const t = ctx.messages.value
-    return [{ key: 'delete', label: t.delete, icon: TrashIcon, run: ctx.deleteSelection }]
-  },
-  toolbarItems(ctx, nodes) {
-    const t = ctx.messages.value
     return [
-      { key: 'duplicate', label: t.duplicate, icon: CopyPlusIcon, run: ctx.duplicate },
       {
         key: 'delete',
         label: t.delete,
         icon: TrashIcon,
+        shortcut: 'delete',
+        run: ctx.deleteSelection,
+      },
+    ]
+  },
+  toolbarItems(ctx, nodes) {
+    const t = ctx.messages.value
+    return [
+      {
+        key: 'duplicate',
+        label: t.duplicate,
+        icon: CopyPlusIcon,
+        shortcut: 'mod+d',
+        run: ctx.duplicate,
+      },
+      {
+        key: 'delete',
+        label: t.delete,
+        icon: TrashIcon,
+        shortcut: 'delete',
         disabled: nodes.every((node) => node.locked),
         run: ctx.deleteSelection,
       },

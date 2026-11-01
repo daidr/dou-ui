@@ -32,15 +32,21 @@ export interface FlowToolbarItem {
   /** Shown as a tooltip and read by screen readers. */
   label: string
   icon: Component
-  /** Pressed state, for toggles. */
-  active?: boolean
-  disabled?: boolean
-  /** Called on click. */
+  /** Called on click; gets the click, e.g. to place something by the button. */
   run?: (event: MouseEvent) => void
+  disabled?: boolean
+  /** For a button that turns something on and off: whether it is on. */
+  pressed?: boolean
+  /**
+   * The key that does the same, as a hotkey like `mod+d`: shown in the
+   * tooltip and given to screen readers as `aria-keyshortcuts`. It is only
+   * a hint; bind the key with `keymap`.
+   */
+  shortcut?: string
   /**
    * Choices to show under the button instead of `run`: the editor places
    * the menu, marks the button as opening one, and closes it on a second
    * click. Give the items `checked` to mark the one in use.
    */
-  menu?: () => FlowMenuItem[]
+  children?: FlowMenuItem[]
 }

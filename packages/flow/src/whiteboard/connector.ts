@@ -134,20 +134,19 @@ export function connectorToolbar(ctx: FlowEditorContext, edges: FlowEdge[]): Flo
       key,
       label: format(text.of, { value: only ? names[only] : t.mixed }),
       icon: only ? options.find((item) => item.value === only)!.icon : mixedIcon,
-      menu: () =>
-        options.map((item) => ({
-          key: `${key}-${item.value}`,
-          label: names[item.value],
-          icon: item.icon,
-          checked: item.value === only,
-          run() {
-            ctx.transact((tr) => {
-              for (const edge of edges)
-                tr.updateEdge(edge.id, { data: { ...edge.data, [key]: item.value } })
-            })
-            ctx.announce(format(text.set, { value: names[item.value] }))
-          },
-        })),
+      children: options.map((item) => ({
+        key: `${key}-${item.value}`,
+        label: names[item.value],
+        icon: item.icon,
+        checked: item.value === only,
+        run() {
+          ctx.transact((tr) => {
+            for (const edge of edges)
+              tr.updateEdge(edge.id, { data: { ...edge.data, [key]: item.value } })
+          })
+          ctx.announce(format(text.set, { value: names[item.value] }))
+        },
+      })),
     }
   }
 

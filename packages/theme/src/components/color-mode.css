@@ -29,9 +29,14 @@
     color: var(--dou-color-text-tertiary);
   }
 
+  /* a block-level row, so the option's text trim does not shift the icon */
   .dou-color-mode-select__option {
-    display: inline-flex;
+    display: flex;
     align-items: center;
     gap: 8px;
+  }
+
+  .dou-color-mode-select__label {
+    text-box: trim-both cap alphabetic;
   }
 }

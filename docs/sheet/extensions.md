@@ -386,7 +386,7 @@ const json = defineSheetImporter({
   label: 'JSON',
   accept: ['.json', 'application/json'],
   async import(file) {
-    return { book: { sheets: JSON.parse(await file.text()) } }
+    return { book: { version: 1, sheets: JSON.parse(await file.text()) } }
   },
 })
 ```

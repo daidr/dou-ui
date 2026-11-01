@@ -17,6 +17,7 @@ import type { SheetExpose } from '../types'
 import { PencilIcon } from '@dou-ui/icons'
 
 const book = (): SheetWorkbook => ({
+  version: 1,
   sheets: [
     {
       name: '门店',
@@ -77,7 +78,7 @@ describe('extension update', () => {
     await nextTick()
     grid.value!.undo()
     await nextTick()
-    doc.value = { sheets: [{ name: '新', cells: [['苏州']] }] }
+    doc.value = { version: 1, sheets: [{ name: '新', cells: [['苏州']] }] }
     await nextTick()
     expect(seen).toEqual([
       ['api', '上海', '北京'],
@@ -198,7 +199,7 @@ describe('extension transformPaste', () => {
       label: 'plain',
       accept: ['.plain'],
       import: async (file) => ({
-        book: { sheets: [{ name: 'x', cells: [[await file.text()]] }] },
+        book: { version: 1, sheets: [{ name: 'x', cells: [[await file.text()]] }] },
       }),
     })
     const extension = defineSheetExtension({

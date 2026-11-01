@@ -282,3 +282,31 @@ describe('cell type draw', () => {
     wrapper.unmount()
   })
 })
+
+describe('extension transact', () => {
+  it('is refused on a read-only grid and says so, unlike the component', async () => {
+    let ctx: Parameters<NonNullable<SheetExtension['setup']>>[0] | undefined
+    const { doc, grid } = setup(
+      [
+        defineSheetExtension({
+          name: 'test',
+          setup: (context) => {
+            ctx = context
+          },
+        }),
+      ],
+      { readonly: true },
+    )
+    const refused = ctx!.transact((tr) => tr.setCell('A1', '北京'))
+    expect(refused.cancelled).toBe(true)
+    expect(refused.changed).toBe(false)
+    expect(doc.value.sheets[0]!.cells[0]![0]).toBe('上海')
+    // kept out of the history, such as another person's change: it goes ahead
+    const remote = ctx!.transact((tr) => tr.setCell('A1', '北京'), { history: false })
+    expect(remote.changed).toBe(true)
+    await nextTick()
+    const own = grid.value!.transact((tr) => tr.setCell('A2', '苏州'))
+    expect(own.cancelled).toBe(false)
+    expect(doc.value.sheets[0]!.cells[1]![0]).toBe('苏州')
+  })
+})

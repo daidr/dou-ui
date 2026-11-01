@@ -262,7 +262,7 @@ function diagnostics(text: string) {
 
 // ---- 协议 ----
 
-const reply = (message: Message) =>
+const reply = (message: Omit<Message, 'jsonrpc'> & { result?: unknown; error?: unknown }) =>
   // oxlint-disable-next-line unicorn/require-post-message-target-origin -- a worker's postMessage has no target origin
   self.postMessage({ jsonrpc: '2.0', ...message })
 
@@ -332,6 +332,9 @@ self.addEventListener('message', ({ data }: MessageEvent<Message>) => {
   if (data.id === undefined) return notifications[data.method!]?.(data.params)
   const handler = handlers[data.method!]
   if (!handler)
-    return reply({ id: data.id, error: { code: -32601, message: `不支持 ${data.method}` } } as any)
-  reply({ id: data.id, result: handler(data.params) ?? null } as any)
+    return reply({ id: data.id, error: { code: -32601, message: `不支持 ${data.method}` } })
+  reply({ id: data.id, result: handler(data.params) ?? null })
 })
+
+// 导出消息类型，也让这个文件成为模块，里面的类型不和全局的同名类型混在一起
+export type { Message }

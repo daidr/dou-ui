@@ -1,4 +1,4 @@
-import { h, type VNodeChild } from 'vue'
+import type { VNodeChild } from 'vue'
 import type { CodeCommand } from '../core/commands'
 import type { CodeText } from '../core/text'
 import type { CodeTransactionResult } from '../core/transaction'
@@ -14,6 +14,7 @@ import {
   type CodeSignatureResult,
   defineCodeExtension,
 } from '../extension'
+import { type Markup, lspMarkup } from './markup'
 
 /** A position as the protocol counts it: line and character (UTF-16 code units), both from 0. */
 export interface LspPosition {
@@ -89,9 +90,19 @@ export interface LanguageDocumentOptions {
   openLocation?: (location: LspLocation) => void
 }
 
+/** A document's extension, with its commands. */
+export interface LanguageDocument extends CodeExtension {
+  /**
+   * Goes to the definition of the name at the cursor: a command for
+   * `editor.run()`, a key of `DouCodeKeys` or your own button. Also on
+   * `F12`, and in the touch toolbar when the cursor is on a name.
+   */
+  goToDefinition: CodeCommand
+}
+
 export interface LanguageClient {
   /** An extension that opens a document on the server and shows what it says about it. One per editor. */
-  document: (options: LanguageDocumentOptions) => CodeExtension
+  document: (options: LanguageDocumentOptions) => LanguageDocument
   /** Sends a request once the server is ready; `signal` cancels it (`$/cancelRequest`). */
   request: <T = unknown>(method: string, params?: unknown, signal?: AbortSignal) => Promise<T>
   /** Sends a notification once the server is ready. */
@@ -159,7 +170,11 @@ export function socketTransport(socket: WebSocket): LspTransport {
     onClose: (listener) => {
       const handle = () => listener()
       socket.addEventListener('close', handle)
-      return () => socket.removeEventListener('close', handle)
+      socket.addEventListener('error', handle)
+      return () => {
+        socket.removeEventListener('close', handle)
+        socket.removeEventListener('error', handle)
+      }
     },
   }
 }
@@ -177,6 +192,9 @@ export function fromLspPosition(doc: CodeText, position: LspPosition): number {
   const line = doc.line(position.line + 1)
   return line.from + Math.max(0, Math.min(position.character, line.to - line.from))
 }
+
+/** What waiting requests are rejected with when the connection ends. */
+const CLOSED = new Error('The connection to the language server ended')
 
 const CLIENT_CAPABILITIES = {
   general: { positionEncodings: ['utf-16'] },
@@ -292,13 +310,24 @@ export function createLanguageClient(options: LanguageClientOptions): LanguageCl
       processId: null,
       clientInfo: { name: 'DouCodeEditor' },
       rootUri: options.rootUri ?? null,
+      workspaceFolders: options.rootUri
+        ? [
+            {
+              uri: options.rootUri,
+              name: options.rootUri.replace(/\/+$/, '').split('/').pop() || options.rootUri,
+            },
+          ]
+        : null,
       capabilities: CLIENT_CAPABILITIES,
       initializationOptions: options.initializationOptions,
     }).then((result) => {
       capabilities = result?.capabilities ?? {}
       send({ method: 'initialized', params: {} })
     })
-    ready.catch((error: unknown) => warn('the language server failed to start', error))
+    ready.catch((error: unknown) => {
+      // Closed before it answered, e.g. its editor unmounted at once: nothing went wrong.
+      if (error !== CLOSED) warn('the language server failed to start', error)
+    })
     return ready
   }
 
@@ -314,7 +343,7 @@ export function createLanguageClient(options: LanguageClientOptions): LanguageCl
     capabilities = null
     generation++
     users = 0
-    for (const waiting of pending.values()) waiting.reject(new Error('The language server closed'))
+    for (const waiting of pending.values()) waiting.reject(CLOSED)
     pending.clear()
     for (const detach of attached) detach()
     attached.clear()
@@ -446,8 +475,6 @@ function syncOf(capabilities: Record<string, any> | null): { open: boolean; chan
   return { open: false, change: 0 }
 }
 
-type Markup = string | { kind?: string; language?: string; value: string }
-
 /** A completion's or signature's `documentation`: a plain string is plain text there. */
 function documentation(value: string | Markup | null | undefined): string | (() => VNodeChild) {
   if (!value) return ''
@@ -473,70 +500,6 @@ function fromLspSnippet(snippet: string): string {
         (_, _name, fallback?: string) => fallback ?? '',
       )
   )
-}
-
-/** Inline Markdown: `code` and **bold**; other marks are left as typed. */
-function inline(text: string): VNodeChild[] {
-  const out: VNodeChild[] = []
-  const pattern = /`([^`]+)`|\*\*([^*]+)\*\*/g
-  let at = 0
-  for (const match of text.matchAll(pattern)) {
-    if (match.index > at) out.push(text.slice(at, match.index))
-    out.push(
-      match[1] !== undefined
-        ? h('code', { class: 'dou-code-lsp-markup__inline' }, match[1])
-        : h('strong', match[2]),
-    )
-    at = match.index + match[0].length
-  }
-  if (at < text.length) out.push(text.slice(at))
-  return out
-}
-
-/**
- * The server's documentation as content for the hover box: Markdown's code
- * fences become code blocks, `code` and **bold** are kept, the rest shows
- * as text. Nothing is read as HTML.
- */
-function lspMarkup(markup: Markup | Markup[]): string | (() => VNodeChild) {
-  const list = Array.isArray(markup) ? markup : [markup]
-  const blocks: Array<{ code: boolean; text: string; plain?: boolean }> = []
-  for (const part of list) {
-    if (typeof part === 'object' && part.language !== undefined) {
-      blocks.push({ code: true, text: part.value })
-      continue
-    }
-    const value = typeof part === 'string' ? part : part.value
-    if (typeof part === 'object' && part.kind === 'plaintext') {
-      blocks.push({ code: false, text: value, plain: true })
-      continue
-    }
-    const pieces = value.split(/^```[^\n]*\n([\s\S]*?)^```[ \t]*$/m)
-    pieces.forEach((piece, index) => blocks.push({ code: index % 2 === 1, text: piece }))
-  }
-  const kept = blocks
-    .map((block) => ({
-      ...block,
-      text: block.code ? block.text.replace(/\n$/, '') : block.text.trim(),
-    }))
-    .filter((block) => block.text)
-  if (!kept.length) return ''
-  const only = kept.length === 1 ? kept[0]! : null
-  if (only && !only.code && (only.plain || !/[`*]/.test(only.text))) return only.text
-  return () =>
-    h(
-      'div',
-      { class: 'dou-code-lsp-markup' },
-      kept.map((block) =>
-        block.code
-          ? h('pre', { class: 'dou-code-lsp-markup__code' }, block.text)
-          : h(
-              'p',
-              { class: 'dou-code-lsp-markup__text' },
-              block.plain ? block.text : inline(block.text),
-            ),
-      ),
-    )
 }
 
 /** The edit's range: the plain one, or the `insert` side of an insert-or-replace edit. */
@@ -568,10 +531,20 @@ function toDiagnostics(doc: CodeText, items: any[]): CodeDiagnostic[] {
   })
 }
 
+/** Whether the cursor touches a name, for the touch toolbar's button. */
+function onName(context: CodeExtensionContext) {
+  const { ranges, main } = context.selection
+  const range = ranges[main]!
+  if (range.anchor !== range.head) return false
+  const line = context.doc.lineAt(range.head)
+  const col = range.head - line.from
+  return /[\w$]/.test(line.text[col] ?? '') || /[\w$]/.test(line.text[col - 1] ?? '')
+}
+
 function documentExtension(
   options: LanguageDocumentOptions,
   connection: Connection,
-): CodeExtension {
+): LanguageDocument {
   const { uri, languageId } = options
   const textDocument = { uri }
   const name = `lsp:${uri}`
@@ -619,6 +592,8 @@ function documentExtension(
       // Pushed problems: those of this version, once the server sends them.
       const at = version
       if (published?.version === at) return toDiagnostics(doc, published.items)
+      // Waits for an earlier version give up now, so a server that never pushes doesn't pile them up.
+      wake()
       return new Promise<CodeDiagnostic[] | null>((resolve) => {
         const run = () => {
           if (!mounted || !opened || version !== at) resolve(null)
@@ -812,35 +787,38 @@ function documentExtension(
     return result
   }
 
-  function goToDefinition(context: CodeExtensionContext): CodeCommand {
-    return (target) => {
-      if (!can('definitionProvider')) return false
-      const doc = target.state.doc
-      const head = target.state.selection.ranges[target.state.selection.main]!.head
-      connection
-        .request<any>('textDocument/definition', {
-          textDocument,
-          position: toLspPosition(doc, head),
-        })
-        .then((found) => {
-          const location = firstLocation(found)
-          if (!location || !mounted) return
-          if (location.uri !== uri) return options.openLocation?.(location)
-          // Moved on meanwhile: the answer is about a text that is gone.
-          if (context.doc !== doc) return
-          context.select(fromLspPosition(doc, location.range.start))
-        })
-        .catch(() => {})
-      return true
-    }
+  const goToDefinition: CodeCommand = (target) => {
+    const context = editor
+    if (!context || !can('definitionProvider')) return false
+    const doc = target.state.doc
+    const head = target.state.selection.ranges[target.state.selection.main]!.head
+    connection
+      .request<any>('textDocument/definition', {
+        textDocument,
+        position: toLspPosition(doc, head),
+      })
+      .then((found) => {
+        const location = firstLocation(found)
+        if (!location || editor !== context) return
+        if (location.uri !== uri) return options.openLocation?.(location)
+        // Moved on meanwhile: the answer is about a text that is gone.
+        if (context.doc !== doc) return
+        context.select(fromLspPosition(doc, location.range.start))
+      })
+      .catch(() => {})
+    return true
   }
 
-  return defineCodeExtension({
+  const extension = defineCodeExtension({
     name,
     get completionTriggers() {
       return opened ? (connection.capabilities()?.completionProvider?.triggerCharacters ?? []) : []
     },
-    keymap: (context) => ({ F12: goToDefinition(context) }),
+    keymap: () => ({ F12: goToDefinition }),
+    menu: (context) =>
+      can('definitionProvider') && onName(context)
+        ? [{ label: context.messages.goToDefinition, run: (ctx) => void ctx.run(goToDefinition) }]
+        : [],
     update,
     lint,
     completion,
@@ -874,4 +852,5 @@ function documentExtension(
       }
     },
   })
+  return Object.assign(extension, { goToDefinition })
 }

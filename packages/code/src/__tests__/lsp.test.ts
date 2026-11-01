@@ -492,4 +492,114 @@ describe('createLanguageClient', () => {
     // A plain string is plain text, marks and all.
     expect(found!.options[0]!.info).toBe('Plain: `x` stays **as is**')
   })
+
+  it('goes to a definition from a command and from the touch toolbar', async () => {
+    const server = fakeServer(full, {
+      'textDocument/definition': () => ({
+        uri: 'file:///a',
+        range: { start: { line: 0, character: 6 }, end: { line: 0, character: 7 } },
+      }),
+    })
+    const client = createLanguageClient({ transport: server.transport })
+    const doc = client.document({ uri: 'file:///a', languageId: 'x' })
+    const { editor } = setup([doc], 'const x = 1\nx')
+    await flush()
+    editor.value!.select(12)
+    expect(editor.value!.run(doc.goToDefinition)).toBe(true)
+    await flush()
+    expect(editor.value!.selection.ranges[0]!.head).toBe(6)
+    // On a name the toolbar offers it; on a space it doesn't.
+    const items = doc.menu!(editor.value as any)
+    expect(items.map((item) => item.label)).toEqual(['跳到定义'])
+    editor.value!.select(9)
+    expect(doc.menu!(editor.value as any)).toEqual([])
+  })
+
+  it('sends the workspace folder and stays quiet when unmounted before the server answers', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const server = fakeServer(full)
+    const send = server.transport.send
+    // The server never answers `initialize`.
+    server.transport.send = (message) => {
+      if (message.method === 'initialize') server.received.push(message)
+      else send(message)
+    }
+    const client = createLanguageClient({
+      transport: () => server.transport,
+      rootUri: 'file:///work/shop',
+    })
+    const { wrapper } = setup([client.document({ uri: 'file:///a', languageId: 'x' })], '')
+    await flush()
+    expect((server.last('initialize')!.params as any).workspaceFolders).toEqual([
+      { uri: 'file:///work/shop', name: 'shop' },
+    ])
+    wrapper.unmount()
+    await flush()
+    expect(warn).not.toHaveBeenCalled()
+    warn.mockRestore()
+  })
+})
+
+const render = (content: string | (() => any)) =>
+  mount(defineComponent(() => (typeof content === 'string' ? () => content : content)))
+
+describe('documentation', () => {
+  it('draws Markdown, links only to web addresses, and nothing as HTML', async () => {
+    const server = fakeServer(
+      { textDocumentSync: 1, hoverProvider: true },
+      {
+        'textDocument/hover': () => ({
+          contents: {
+            kind: 'markdown',
+            value: [
+              '# Title',
+              'An _important_ *note* with \\*stars\\* and <b>tags</b>.',
+              '',
+              '- one',
+              '- [docs](https://example.com) and [bad](javascript:alert(1))',
+              '',
+              '---',
+              '1. first',
+              '2. second',
+            ].join('\n'),
+          },
+        }),
+      },
+    )
+    const client = createLanguageClient({ transport: server.transport })
+    const doc = client.document({ uri: 'file:///a', languageId: 'x' })
+    const { editor } = setup([doc], 'abc')
+    await flush()
+    const hover = await doc.hover!(
+      { pos: 1, signal: new AbortController().signal },
+      editor.value as any,
+    )
+    const view = render(hover!.content)
+    expect(view.find('strong').text()).toBe('Title')
+    expect(view.findAll('em').map((em) => em.text())).toEqual(['important', 'note'])
+    expect(view.text()).toContain('*stars*')
+    expect(view.find('b').exists()).toBe(false)
+    expect(view.text()).toContain('<b>tags</b>')
+    expect(view.findAll('ul li').map((li) => li.text())).toEqual(['one', 'docs and bad'])
+    expect(view.findAll('a').map((a) => a.attributes('href'))).toEqual(['https://example.com'])
+    expect(view.find('hr').exists()).toBe(true)
+    expect(view.findAll('ol li').map((li) => li.text())).toEqual(['first', 'second'])
+  })
+})
+
+describe('editor', () => {
+  it('doesn’t run the linters again when given the same extensions in a new array', async () => {
+    let runs = 0
+    const linter = { name: 'count', lint: () => (runs++, []) }
+    const list = ref([linter])
+    mount(
+      defineComponent(() => () => h(DouCodeEditor, { modelValue: 'a', extensions: list.value })),
+      { attachTo: document.body },
+    )
+    await flush()
+    const before = runs
+    list.value = [linter]
+    await flush()
+    expect(runs).toBe(before)
+  })
 })

@@ -365,9 +365,10 @@ const keys = [
 | `transaction` | 每次修改应用之前调用，可以在同一次修改里追加改动；撤销、重做、新的 `v-model` 值和其他人的修改不经过这里                                                |
 | `update`      | 每一步应用之后调用，参数是这一步的结果（`changes`、`state`、`before`、`meta`），包括撤销、重做、新的 `v-model` 值和其他人的修改，用 `meta.action` 区分 |
 | `history`     | 返回 `{ undo, redo, canUndo, canRedo, close? }`，替换内置的撤销记录，比如协同时只撤销自己的修改；有多个时用第一个                                      |
+| `menu`        | 返回触屏选区工具栏里加的按钮（`{ label, run }`），排在剪切、复制、粘贴、全选后面；选区变化时重新调用                                                   |
 | `setup`       | 编辑器挂载后调用一次，返回的函数在卸载时调用                                                                                                           |
 
-这些函数的参数是编辑器的上下文：它就是编辑器实例（`doc`、`selection`、`transact`、`run` 等都在上面），另外还有 `visible`（可见的行，`{ from, to }` 是行号，不是文本位置，两端都包含）、`diagnostics`（现在的所有问题）、`announce(message)`（让读屏读出一句话）和 `relint(name?)`（马上重新运行名为 `name` 的扩展的 `lint`，不传时运行全部）。`decorations` 和 `panels` 在绘制时调用，里面读到的响应式数据变化时会重新调用；`decorations` 只需要给出可见的行，大文件里也不会变慢。
+这些函数的参数是编辑器的上下文：它就是编辑器实例（`doc`、`selection`、`transact`、`run` 等都在上面），另外还有 `visible`（可见的行，`{ from, to }` 是行号，不是文本位置，两端都包含）、`diagnostics`（现在的所有问题）、`messages`（编辑器用的文案，跟随 DouUI 的语言或 `messages` 属性）、`announce(message)`（让读屏读出一句话）和 `relint(name?)`（马上重新运行名为 `name` 的扩展的 `lint`，不传时运行全部）。`decorations` 和 `panels` 在绘制时调用，里面读到的响应式数据变化时会重新调用；`decorations` 只需要给出可见的行，大文件里也不会变慢。
 
 `mark` 和 `line` 只改变文字的样子，比如颜色、底色、下划线、边框，不改变字的大小和粗细，这样光标仍然落在字符上。`mark` 的 `style` 是一组行内样式，适合放每个人不同的颜色这类没法写成固定 class 的值，比如 `{ '--my-color': '#3b6ea8' }`；几个 `mark` 重叠时，后面的覆盖前面的。
 
@@ -436,29 +437,91 @@ const client = createLanguageClient({
 const server = client.document({ uri: 'file:///report.js', languageId: 'javascript' })
 ```
 
-编辑器挂载后，扩展向语言服务打开这个文件，之后每次改动只发送改了的部分（语言服务只接受整段文本时发送整段）。语言服务回答的补全、悬停说明、参数提示和问题（推送的和按需拉取的都支持）会显示在编辑器里，说明里的 Markdown 代码块和行内代码会照样显示，按 `F12` 跳到光标处名字的定义。具体用到哪些，看语言服务在初始化时说明了自己支持什么。
+编辑器挂载后，扩展向语言服务打开这个文件，之后每次改动只发送改了的部分（语言服务只接受整段文本时发送整段）。语言服务回答的补全、悬停说明、参数提示和问题（推送的和按需拉取的都支持）会显示在编辑器里，说明里的 Markdown（代码块、列表、链接、粗体、斜体等）会照样排版，链接只认 `http`、`https` 地址。具体用到哪些，看语言服务在初始化时说明了自己支持什么。
 
-语言服务可以在 Web Worker 里运行，不会阻塞页面，也不需要服务器；也可以在服务器上运行，用 `socketTransport(new WebSocket(url))` 连接，每帧一条 JSON 消息。其他连接方式实现 `{ send, onMessage, close?, onClose? }` 即可，收发的是消息对象；`onClose` 用来通知连接自己断开了（worker 出错、WebSocket 关闭），这时还在等待的请求都会结束。
+跳到光标处名字的定义：按 `F12`；触屏上点一下名字，在弹出的工具栏里选“跳到定义”。`server.goToDefinition` 是同一个命令，可以交给 `editor.run()`、放进 `DouCodeKeys` 的按键，或者放在你自己的按钮上。
 
 下面的例子在 worker 里运行一个小型语言服务，认识这份脚本里的几个函数：输入时会弹出补全，悬停在函数名上能看到说明，填写参数时有提示，`sendMail` 会被标出来，把光标放在 `line` 上按 `F12` 会跳到它的定义。
 
 <DocDemo src="code/lsp" column />
 
-`transport` 是函数时，第一个用到这个连接的编辑器挂载时才调用它，最后一个卸载后关闭语言服务；直接传入的连接一直保持，直到调用 `client.close()`。连接关闭或断开时还挂载着的编辑器不再连接语言服务，重新挂载后才会再打开文件。同一个连接可以给多个文件使用，每个编辑器用自己的 `client.document()`。
+#### 连接
 
-| 名称                                       | 说明                                                                                                                                 |
-| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `createLanguageClient(options)`            | 连接语言服务。`options` 是 `{ transport, rootUri?, initializationOptions? }`                                                         |
-| `client.document(options)`                 | 一个文件的扩展。`options` 是 `{ uri, languageId, openLocation? }`；定义在别的文件里时调用 `openLocation({ uri, range })`，由你打开它 |
-| `client.request(method, params?, signal?)` | 发送其他请求，返回 Promise；`signal` 中止时通知语言服务取消                                                                          |
-| `client.notify(method, params?)`           | 发送通知                                                                                                                             |
-| `client.onNotification(method, fn)`        | 收听语言服务的通知，比如 `window/logMessage`；返回取消收听的函数                                                                     |
-| `client.capabilities`                      | 语言服务初始化时说明的能力，回复之前是 `null`                                                                                        |
-| `client.close()`                           | 关闭语言服务和连接                                                                                                                   |
-| `workerTransport(worker)`                  | 通过 Web Worker 连接                                                                                                                 |
-| `socketTransport(socket)`                  | 通过 WebSocket 连接；打开之前发送的消息会等它打开                                                                                    |
-| `toLspPosition(doc, pos)`                  | 把文本位置换成协议里的 `{ line, character }`（都从 0 开始，按 UTF-16 计数）                                                          |
-| `fromLspPosition(doc, position)`           | 反过来换成文本位置                                                                                                                   |
+语言服务可以在 Web Worker 里运行，不会阻塞页面，也不需要服务器；也可以在服务器上运行，通过 WebSocket 连接，每帧一条 JSON 消息：
+
+```ts
+import { createLanguageClient, socketTransport } from '@dou-ui/code/lsp'
+
+const client = createLanguageClient({
+  transport: () => socketTransport(new WebSocket('wss://example.com/lsp')),
+  rootUri: 'file:///workspace',
+})
+```
+
+`transport` 写成函数时，第一个用到这个连接的编辑器挂载时才调用它（服务端渲染时不会创建 worker 或 WebSocket），最后一个卸载后关闭语言服务，之后再挂载会重新连接；直接传入的连接一直保持，直到调用 `client.close()`，关闭后不能再用。同一个连接可以给多个文件使用，每个编辑器用自己的 `client.document()`。
+
+连接自己断开时（worker 出错、WebSocket 关闭或连不上），还在等待的请求都会结束，开发环境下会给出一次警告。连接关闭或断开时还挂载着的编辑器不再连接语言服务，重新挂载后才会再打开文件。其他连接方式实现 `{ send, onMessage, close?, onClose? }` 即可，收发的是消息对象。
+
+多数语言服务通过标准输入输出通信，每条消息前带 `Content-Length` 头。在浏览器里使用时，需要在服务器上做一个转接：把 WebSocket 收到的每条消息加上头写给语言服务，把语言服务的输出按头拆开发回去。下面是用 Node.js 和 `ws` 写的最小示例：
+
+```ts
+import { spawn } from 'node:child_process'
+import { WebSocketServer } from 'ws'
+
+new WebSocketServer({ port: 3001 }).on('connection', (socket) => {
+  // 每个连接启动一个语言服务进程
+  const server = spawn('typescript-language-server', ['--stdio'])
+  let buffer = Buffer.alloc(0)
+  server.stdout.on('data', (chunk: Buffer) => {
+    buffer = Buffer.concat([buffer, chunk])
+    for (;;) {
+      const end = buffer.indexOf('\r\n\r\n')
+      if (end < 0) break
+      const length = Number(/Content-Length: (\d+)/i.exec(buffer.subarray(0, end).toString())?.[1])
+      if (buffer.length < end + 4 + length) break
+      socket.send(buffer.subarray(end + 4, end + 4 + length).toString())
+      buffer = buffer.subarray(end + 4 + length)
+    }
+  })
+  socket.on('message', (data) => {
+    const body = Buffer.from(data.toString())
+    server.stdin.write(`Content-Length: ${body.length}\r\n\r\n`)
+    server.stdin.write(body)
+  })
+  socket.on('close', () => server.kill())
+  server.on('exit', () => socket.close())
+})
+```
+
+::: warning 注意
+语言服务能读写它所在机器上的文件，有的还会执行项目里的代码。对外开放转接时要先确认用户身份，并把语言服务限制在单独的目录或容器里。
+:::
+
+#### API
+
+| 名称                                       | 说明                                                                                                                           |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| `createLanguageClient(options)`            | 连接语言服务。`options` 是 `{ transport, rootUri?, initializationOptions? }`；`rootUri` 也作为唯一的工作区文件夹发送           |
+| `client.document(options)`                 | 一个文件的扩展。`options` 是 `{ uri, languageId, openLocation? }`；定义在别的文件里时调用 `openLocation(location)`，由你打开它 |
+| `server.goToDefinition`                    | `client.document()` 返回的扩展上的命令：跳到光标处名字的定义                                                                   |
+| `client.request(method, params?, signal?)` | 发送其他请求，返回 Promise；`signal` 中止时通知语言服务取消                                                                    |
+| `client.notify(method, params?)`           | 发送通知                                                                                                                       |
+| `client.onNotification(method, fn)`        | 收听语言服务的通知，比如 `window/logMessage`；返回取消收听的函数                                                               |
+| `client.capabilities`                      | 语言服务初始化时说明的能力，回复之前是 `null`                                                                                  |
+| `client.close()`                           | 关闭语言服务和连接                                                                                                             |
+| `workerTransport(worker)`                  | 通过 Web Worker 连接；worker 出错时视为断开                                                                                    |
+| `socketTransport(socket)`                  | 通过 WebSocket 连接；打开之前发送的消息会等它打开                                                                              |
+| `toLspPosition(doc, pos)`                  | 把文本位置换成协议里的 `LspPosition`                                                                                           |
+| `fromLspPosition(doc, position)`           | 反过来换成文本位置                                                                                                             |
+
+| 类型           | 形状                                                                                                                                        |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `LspTransport` | `{ send(message), onMessage(listener) => 取消函数, close?(), onClose?(listener) => 取消函数 }`，`message` 是 JSON-RPC 消息对象 `LspMessage` |
+| `LspPosition`  | `{ line, character }`，都从 0 开始，按 UTF-16 计数，和编辑器的位置一致                                                                      |
+| `LspRange`     | `{ start: LspPosition, end: LspPosition }`                                                                                                  |
+| `LspLocation`  | `{ uri, range: LspRange }`                                                                                                                  |
+
+目前还不支持：补全项的附加修改（比如选中补全项时自动加上 `import`，会被忽略）、补全项按需取说明、代码操作、重命名和格式化。这些可以用 `client.request()` 自己发送。
 
 ## 大文件
 

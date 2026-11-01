@@ -1,3 +1,4 @@
+import type { CodeMessages } from './locale'
 import { type Component, type InjectionKey, type VNodeChild, inject } from 'vue'
 import type { CodeKeymap } from './core/keymap'
 import type { CodeSelection } from './core/selection'
@@ -295,8 +296,20 @@ export interface CodeExtension {
    * each time.
    */
   history?: (context: CodeExtensionContext) => CodeHistoryHandler
+  /**
+   * Buttons added to the toolbar shown over the selection on touch screens,
+   * after cut, copy, paste and select all. Read again as the selection
+   * changes.
+   */
+  menu?: (context: CodeExtensionContext) => CodeMenuItem[]
   /** Runs once the editor is mounted. Return a function to run when it unmounts. */
   setup?: (context: CodeExtensionContext) => void | (() => void)
+}
+
+/** A button of the touch toolbar, from an extension's `menu`. */
+export interface CodeMenuItem {
+  label: string
+  run: (context: CodeExtensionContext) => void
 }
 
 /** What an extension sees of the editor: its instance, plus a little more. */
@@ -311,6 +324,8 @@ export interface CodeExtensionContext extends CodeEditorExpose {
   readonly diagnostics: readonly CodeDiagnostic[]
   /** Whether the editor has focus; reading it in reactive code follows it. */
   readonly focused: boolean
+  /** The editor's texts, in DouUI's locale or as given by the `messages` prop. */
+  readonly messages: CodeMessages
   /** Reads a message out to screen readers. */
   announce: (message: string) => void
   /**

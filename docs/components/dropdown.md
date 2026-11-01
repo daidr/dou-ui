@@ -38,6 +38,8 @@
 
 `v-model:checked` 让菜单项成为勾选项，`DouDropdownRadioGroup` 让一组菜单项成为单选项，示例见 [Menubar](./menubar#勾选项、单选项与快捷键)。
 
+几项可以同时打开、各自开关时用勾选项，标记是勾；一组里只能选中一项时用单选项，标记是圆点。比如“冻结首行”和“冻结首列”可以同时生效，用勾选项；数字格式只能是其中一种，用单选项。标记显示在每行开头的同一列里，同一个菜单里不带标记的普通项会和它们的文字对齐。
+
 ## 分裂按钮
 
 `DouDropdownButton` 把主操作和更多操作并排放在一起：左半边是普通按钮，点击触发 `click`；右半边是箭头，展开 `menu` 插槽里的菜单，选中时触发 `select`。`variant`、`tone`、`size` 同时作用于两半，`loading` 只作用于左半边。
@@ -158,10 +160,13 @@
 
 ### CSS 变量
 
-| 变量                            | 说明       |
-| ------------------------------- | ---------- |
-| `--dou-dropdown-bg`             | 菜单底色   |
-| `--dou-dropdown-inset`          | 菜单内边距 |
-| `--dou-dropdown-item-height`    | 行高       |
-| `--dou-dropdown-item-radius`    | 行圆角     |
-| `--dou-dropdown-item-active-bg` | 高亮行底色 |
+| 变量                            | 说明                     |
+| ------------------------------- | ------------------------ |
+| `--dou-dropdown-bg`             | 菜单底色                 |
+| `--dou-dropdown-inset`          | 菜单内边距               |
+| `--dou-dropdown-item-height`    | 行高                     |
+| `--dou-dropdown-item-radius`    | 行圆角                   |
+| `--dou-dropdown-item-active-bg` | 高亮行底色               |
+| `--dou-dropdown-item-padding-x` | 行左右内边距             |
+| `--dou-dropdown-item-gap`       | 行内图标、文字之间的间距 |
+| `--dou-dropdown-indicator-size` | 勾、圆点那一列的宽度     |

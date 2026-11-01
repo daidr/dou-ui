@@ -12,6 +12,7 @@ export default defineConfig({
         index: 'src/index.ts',
         'collaboration/index': 'src/collaboration/index.ts',
         'shiki/index': 'src/shiki/index.ts',
+        'worker/index': 'src/worker/index.ts',
       },
       formats: ['es'],
     },

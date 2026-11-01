@@ -38,27 +38,20 @@ const tone = computed<Tone>(
 )
 const writable = computed(() => ['shape', 'sticky', 'text'].includes(kind.value))
 
-const MIN: Record<Kind, number> = { shape: 24, sticky: 64, text: 24, ink: 8, image: 24 }
+const MIN: Record<Kind, number> = { shape: 24, sticky: 64, text: 40, ink: 8, image: 24 }
 const rotation = computed(() => props.data.rotation ?? 0)
-const { turning, sizing, startTurn, startResize } = useTransformHandles(
+const { turning, startTurn, startResize } = useTransformHandles(
   ctx,
   toRef(props, 'node'),
   rotation,
   { width: MIN[kind.value], height: MIN[kind.value] },
 )
-/** The turn shown: the one being dragged, or the stored one. */
-const shownRotation = computed(() => turning.value ?? rotation.value)
-const transform = computed(() => {
-  const style: Record<string, string> = {}
-  if (shownRotation.value) style.rotate = `${shownRotation.value}deg`
-  const size = sizing.value
-  if (size) {
-    style.width = `${size.width}px`
-    style.height = `${size.height}px`
-    style.translate = `${size.x - props.node.x}px ${size.y - props.node.y}px`
-  }
-  return style
-})
+/*
+ * A handle being dragged shows the node changed through the editor, so
+ * `node` and `data` already are what it is dragged to: the node's own frame,
+ * its ports and its edges follow along with it.
+ */
+const transform = computed(() => (rotation.value ? { rotate: `${rotation.value}deg` } : undefined))
 /**
  * The resize handles: an image keeps its proportions, from its corners; text
  * only widens, so it has no top or bottom side; the rest has every corner
@@ -71,12 +64,24 @@ const resizeHandles = computed(() =>
       ? RESIZE_HANDLES.filter((h) => h.x)
       : RESIZE_HANDLES,
 )
+const sideHandles = computed(() => resizeHandles.value.filter((h) => !h.x || !h.y))
+const cornerHandles = computed(() => resizeHandles.value.filter((h) => h.x && h.y))
+/** The node's box, turned with it, for the handles drawn above every node. */
+const frameStyle = computed(() => {
+  const rect = ctx.getNodeRect(props.node.id) ?? { ...props.node, width: 0, height: 0 }
+  return {
+    transform: `translate(${rect.x}px, ${rect.y}px)`,
+    width: `${rect.width}px`,
+    height: `${rect.height}px`,
+    rotate: rotation.value ? `${rotation.value}deg` : undefined,
+  }
+})
 const CURSORS = ['ew-resize', 'nwse-resize', 'ns-resize', 'nesw-resize'] as const
 /** The resize cursor along a handle's way out, turned with the node. */
 function cursorOf(handle: ResizeHandle) {
   // text only widens, from a corner too
   if (kind.value === 'text') handle = { x: handle.x, y: 0 }
-  const degrees = (Math.atan2(handle.y, handle.x) * 180) / Math.PI + shownRotation.value
+  const degrees = (Math.atan2(handle.y, handle.x) * 180) / Math.PI + rotation.value
   return CURSORS[((Math.round(degrees / 45) % 4) + 4) % 4]
 }
 function onResize(event: PointerEvent, handle: ResizeHandle) {
@@ -108,11 +113,7 @@ const ink = computed(() => {
 const erasing = computed(() => state.erasing.value.has(props.node.id))
 
 // drawn in the node's own units, half the 1.5px stroke in from the edge
-const box = computed(() => ({ w: props.node.width ?? 160, h: props.node.height ?? 100 }))
-/** The size shown: the one being dragged to, or the stored one. */
-const shown = computed(() =>
-  sizing.value ? { w: sizing.value.width, h: sizing.value.height } : box.value,
-)
+const shown = computed(() => ({ w: props.node.width ?? 160, h: props.node.height ?? 100 }))
 const diamond = computed(() => {
   const { w, h } = shown.value
   const i = 1
@@ -137,7 +138,7 @@ watch(
 const textStyle = computed(() => {
   const m = textMetrics.value
   if (!m || kind.value === 'text') return undefined
-  const height = sizing.value?.height ?? box.value.h
+  const height = shown.value.h
   return { '-webkit-line-clamp': Math.max(1, Math.floor((height - m.padding + 0.5) / m.line)) }
 })
 
@@ -211,7 +212,7 @@ function onKeydown(event: KeyboardEvent) {
       `is-${tone}`,
       {
         'is-editing': editing,
-        'is-turned': !!shownRotation,
+        'is-turned': !!rotation,
         'is-turning': turning !== null,
         'is-selected': selected,
         'is-erasing': erasing,
@@ -292,26 +293,32 @@ function onKeydown(event: KeyboardEvent) {
       </template>
     </div>
     <template v-if="handles">
+      <!-- the sides stay on the node, under its anchors; the turn and the
+           corners go above every node, so a neighbour never covers them -->
       <span
-        class="dou-whiteboard-node__turn"
-        data-dou-nodrag
-        aria-hidden="true"
-        @pointerdown="startTurn"
-      />
-      <span
-        v-for="handle in resizeHandles"
+        v-for="handle in sideHandles"
         :key="`${handle.x},${handle.y}`"
-        :class="
-          handle.x && handle.y
-            ? 'dou-whiteboard-node__corner'
-            : ['dou-whiteboard-node__side', handle.x ? 'is-x' : 'is-y']
-        "
+        :class="['dou-whiteboard-node__side', handle.x ? 'is-x' : 'is-y']"
         :style="{ left: place(handle.x), top: place(handle.y), cursor: cursorOf(handle) }"
         :data-handle="`${handle.x},${handle.y}`"
         data-dou-nodrag
         aria-hidden="true"
         @pointerdown="onResize($event, handle)"
       />
+      <Teleport :to="state.handles.value" :disabled="!state.handles.value">
+        <div class="dou-whiteboard-node__frame" :style="frameStyle" aria-hidden="true">
+          <span class="dou-whiteboard-node__turn" data-dou-nodrag @pointerdown="startTurn" />
+          <span
+            v-for="handle in cornerHandles"
+            :key="`${handle.x},${handle.y}`"
+            class="dou-whiteboard-node__corner"
+            :style="{ left: place(handle.x), top: place(handle.y), cursor: cursorOf(handle) }"
+            :data-handle="`${handle.x},${handle.y}`"
+            data-dou-nodrag
+            @pointerdown="onResize($event, handle)"
+          />
+        </div>
+      </Teleport>
     </template>
   </div>
 </template>

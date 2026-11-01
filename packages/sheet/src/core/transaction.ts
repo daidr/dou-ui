@@ -114,6 +114,7 @@ export type SheetAction =
   | 'hide'
   | 'merge'
   | 'group'
+  | 'note'
   | 'sort'
   | 'filter'
   | 'format'
@@ -295,6 +296,29 @@ export class SheetTransaction {
         const cell = line[col]
         if (cell != null && cell !== '' && (typeof cell !== 'object' || cell.value != null))
           this.setValue({ sheet: index, row, col }, undefined)
+      }
+    }
+    return this
+  }
+
+  /** Writes a cell's note; empty text or `undefined` takes it off. */
+  setNote(at: SheetCellAt, note: string | undefined) {
+    return this.updateCell(at, { note: note?.trim() ? note : undefined })
+  }
+
+  /** Takes the notes off the cells in a range, keeping what they hold. */
+  clearNotes(at: SheetRangeAt) {
+    const { index, bounds } = this.rangeAt(at)
+    const { cells } = this.book.sheets[index]!
+    const last = Math.min(bounds.bottom, cells.length - 1)
+    for (let row = bounds.top; row <= last; row++) {
+      const line = cells[row]
+      if (!line) continue
+      const end = Math.min(bounds.right, line.length - 1)
+      for (let col = bounds.left; col <= end; col++) {
+        const cell = line[col]
+        if (cell && typeof cell === 'object' && cell.note != null)
+          this.setNote({ sheet: index, row, col }, undefined)
       }
     }
     return this

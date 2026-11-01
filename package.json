@@ -21,6 +21,7 @@
     "check": "bun fmt --check && bun run lint && bun run typecheck && bun run test",
     "release": "bun scripts/release.ts",
     "bench": "bun run gen && vite build bench && node bench/run.mjs",
+    "audit:icons": "bun docs/scripts/audit-icons.ts",
     "bench:check": "bun run gen && vite build bench && node bench/run.mjs --check"
   },
   "devDependencies": {

@@ -4,7 +4,14 @@ import { defineComponent, h, nextTick, ref } from 'vue'
 import { connectorEdge, whiteboardKit, type WhiteboardTool } from '..'
 import { fitInk, inkHit, inkOutline, strokeNode, turn, unpack } from '../ink'
 import { resizeBox, snapAngle } from '../transform'
-import { defineFlowExtension, defineNodeType, DouFlowEditor, flowKit } from '../../index'
+import {
+  defineFlowExtension,
+  defineNodeType,
+  DouFlowEditor,
+  flowKit,
+  useFlowEditor,
+} from '../../index'
+import type { FlowEditorContext } from '../../index'
 import type { FlowDocument, FlowExtension, FlowSelection, FlowViewport } from '../../index'
 
 // jsdom lays nothing out: an element is as large as its style says, or 200 × 60.
@@ -687,6 +694,122 @@ describe('resize handles', () => {
     handle.dispatchEvent(pointer('pointerup', 200, 40, { shiftKey: true }))
     await ticks()
     expect(flow.value.nodes[0]).toMatchObject({ width: 200, height: 40 })
+  })
+
+  it('moves the node frame, its outline and its edges along while dragging', async () => {
+    const { root, flow, selection, key } = setup({
+      nodes: [
+        { id: 'a', type: 'image', x: 0, y: 0, width: 200, height: 100, data: { src: 'a.png' } },
+        { id: 'b', type: 'shape', x: 400, y: 0, width: 100, height: 100, data: { shape: 'rect' } },
+      ],
+      edges: [{ id: 'e', type: 'connector', source: { node: 'a' }, target: { node: 'b' } }],
+    })
+    await ticks()
+    selection.value = { nodes: ['a'], edges: [] }
+    await ticks()
+    const frame = () => root.find('[data-node-id="a"]')
+    const path = () => root.find('[data-edge-id="e"] .dou-flow-editor__edge').attributes('d')
+    const before = path()
+    const handle = at(root, '1,1').element
+    handle.dispatchEvent(pointer('pointerdown', 200, 100))
+    handle.dispatchEvent(pointer('pointermove', 100, 50))
+    await ticks()
+    // the frame that draws the outline is the size being dragged to, not the board node alone
+    expect(frame().attributes('style')).toContain('width: 100px')
+    expect(frame().attributes('style')).toContain('height: 50px')
+    expect(frame().find('.dou-whiteboard-node').attributes('style') ?? '').not.toContain('width')
+    expect(path()).not.toBe(before)
+    // the handles sit on the frame's corners, so they move with it
+    expect(at(root, '1,1').attributes('style')).toContain('left: 100%')
+    // the document waits for the pointer to let go
+    expect(flow.value.nodes[0]).toMatchObject({ width: 200, height: 100 })
+    handle.dispatchEvent(pointer('pointerup', 100, 50))
+    await ticks()
+    expect(flow.value.nodes[0]).toMatchObject({ x: 0, y: 0, width: 100, height: 50 })
+    expect(frame().attributes('style')).toContain('width: 100px')
+    const after = path()
+
+    // Escape puts the frame and the edge back where they were
+    const again = at(root, '-1,-1').element
+    again.dispatchEvent(pointer('pointerdown', 0, 0))
+    again.dispatchEvent(pointer('pointermove', -100, -50))
+    await ticks()
+    expect(frame().attributes('style')).toContain('width: 200px')
+    expect(frame().attributes('style')).toContain('translate(-100px, -50px)')
+    key('Escape')
+    await ticks()
+    expect(frame().attributes('style')).toContain('width: 100px')
+    expect(frame().attributes('style')).toContain('translate(0px, 0px)')
+    expect(path()).toBe(after)
+    expect(flow.value.nodes[0]).toMatchObject({ x: 0, y: 0, width: 100, height: 50 })
+  })
+
+  it('draws the turn and corner handles above every node', async () => {
+    const { root, selection } = setup({
+      nodes: [
+        { id: 'a', type: 'shape', x: 0, y: 0, width: 100, height: 100, data: { shape: 'rect' } },
+        // a neighbour drawn after it, over where its turn handle sits
+        { id: 'b', type: 'sticky', x: 0, y: 110, width: 100, height: 100, data: {} },
+      ],
+      edges: [],
+    })
+    await ticks()
+    selection.value = { nodes: ['a'], edges: [] }
+    await ticks()
+    const layer = root.find('.dou-whiteboard-handles')
+    expect(layer.findAll('.dou-whiteboard-node__corner')).toHaveLength(4)
+    expect(layer.find('.dou-whiteboard-node__turn').exists()).toBe(true)
+    // after the nodes, so on top of them
+    const nodes = root.findAll('.dou-flow-editor__node')
+    const after = nodes.at(-1)!.element.compareDocumentPosition(layer.element)
+    expect(after & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    // the sides stay on the node, under its anchors
+    expect(root.find('[data-node-id="a"]').findAll('.dou-whiteboard-node__side')).toHaveLength(4)
+    expect(layer.find('.dou-whiteboard-node__frame').attributes('style')).toContain('width: 100px')
+  })
+
+  it('drops a preview once its node leaves the document', async () => {
+    let ctx: FlowEditorContext | undefined
+    const grab = defineFlowExtension({
+      name: 'grab',
+      layers: {
+        above: [
+          defineComponent(() => {
+            ctx = useFlowEditor()
+            return () => null
+          }),
+        ],
+      },
+    })
+    const node = { id: 'a', type: 'shape', x: 0, y: 0, width: 100, height: 100, data: {} }
+    const { root, flow } = setup({ nodes: [node], edges: [] }, [grab])
+    await ticks()
+    ctx!.previewNode('a', { width: 300 })
+    await ticks()
+    expect(root.find('[data-node-id="a"]').attributes('style')).toContain('width: 300px')
+    flow.value = { nodes: [], edges: [] }
+    await ticks()
+    flow.value = { nodes: [node], edges: [] }
+    await ticks()
+    expect(root.find('[data-node-id="a"]').attributes('style')).toContain('width: 100px')
+  })
+
+  it('lets text reflow while it widens', async () => {
+    const { root, selection } = setup({
+      nodes: [{ id: 't', type: 'text', x: 0, y: 0, width: 100, data: { text: '戴兜' } }],
+      edges: [],
+    })
+    await ticks()
+    selection.value = { nodes: ['t'], edges: [] }
+    await ticks()
+    const handle = at(root, '1,0').element
+    handle.dispatchEvent(pointer('pointerdown', 100, 30))
+    handle.dispatchEvent(pointer('pointermove', 160, 30))
+    await ticks()
+    const style = root.find('[data-node-id="t"]').attributes('style')
+    expect(style).toContain('width: 160px')
+    expect(style).not.toContain('height')
+    handle.dispatchEvent(pointer('pointerup', 160, 30))
   })
 
   it('only widens text, turned or not, and keeps no height', async () => {

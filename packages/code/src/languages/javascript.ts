@@ -43,6 +43,22 @@ const IDENT = /^[\p{L}_$][\p{L}\p{N}_$]*/u
 const NUMBER =
   /^(?:0[xX][\da-fA-F_]+|0[bB][01_]+|0[oO][0-7_]+|(?:\d[\d_]*(?:\.[\d_]*)?|\.\d[\d_]*)(?:[eE][+-]?\d+)?)n?/
 
+const KEY_COLON = /^\s*:/
+const CALL = /^\s*\(/
+const KEY_AFTER = /^\s*\??:(?!:)/
+const SOFT_KEYWORDS = words('get set from as of async')
+const AFTER_SOFT = /^\s*[(=:,;)]/
+const AFTER_TS_KEYWORD = /^\s*[(=:,;.)]/
+const OPTIONAL_CALL = /^\s*(?:\?\.)?\(/
+const ARROW = /^\s*=\s*(?:async\s*)?(?:\([^)]*\)|\w+)\s*=>/
+const OPERATOR = '+-*/%=&|^!<>?~:'
+const isOperator = (ch: string) => OPERATOR.includes(ch)
+const isDigit = (ch: string | undefined) => ch !== undefined && ch >= '0' && ch <= '9'
+/** The character after the stream's position, without reading past the line. */
+const after = (stream: CodeStream) =>
+  stream.pos + 1 < stream.string.length ? stream.string[stream.pos + 1] : undefined
+const ahead = (stream: CodeStream, pattern: RegExp) => !!stream.match(pattern, false)
+
 function readString(stream: CodeStream, quote: string) {
   let escaped = false
   let ch: string | undefined
@@ -68,7 +84,11 @@ function readRegex(stream: CodeStream) {
   }
 }
 
-const top = (state: JavaScriptState) => state.stack[state.stack.length - 1]
+// reading past a string's end is slow in some engines, so an empty stack is checked first
+const top = (state: JavaScriptState) => {
+  const stack = state.stack
+  return stack.length ? stack[stack.length - 1] : undefined
+}
 const pop = (state: JavaScriptState) => {
   state.stack = state.stack.slice(0, -1)
 }
@@ -185,7 +205,7 @@ function code(
     stream.next()
     readString(stream, ch)
     // A quoted key: `{ 'a': 1 }`.
-    const isKey = key && !!stream.match(/^\s*:/, false)
+    const isKey = key && !!stream.match(KEY_COLON, false)
     state.expr = false
     return isKey ? 'property' : 'string'
   }
@@ -194,7 +214,7 @@ function code(
     state.stack += '`'
     return 'string'
   }
-  if (/\d/.test(ch) || (ch === '.' && /\d/.test(stream.string[stream.pos + 1] ?? ''))) {
+  if (isDigit(ch) || (ch === '.' && isDigit(after(stream)))) {
     if (stream.match(NUMBER)) {
       state.expr = false
       return 'number'
@@ -206,23 +226,21 @@ function code(
   const word = stream.match(IDENT)
   if (word) {
     const name = word[0]
-    const ahead = (pattern: RegExp) => !!stream.match(pattern, false)
     state.expr = BEFORE_EXPRESSION.has(name)
-    if (dot) return ahead(/^\s*\(/) ? 'function' : 'property'
-    if (key && ahead(/^\s*\??:(?!:)/)) return 'property'
+    if (dot) return ahead(stream, CALL) ? 'function' : 'property'
+    if (key && ahead(stream, KEY_AFTER)) return 'property'
     if (KEYWORDS.has(name)) {
       // `get`, `set`, `from`, `as`, `of` are only keywords in some places; as names they stay names.
-      if (/^(?:get|set|from|as|of|async)$/.test(name) && ahead(/^\s*[(=:,;)]/))
-        return ahead(/^\s*\(/) ? 'function' : 'variable'
+      if (SOFT_KEYWORDS.has(name) && ahead(stream, AFTER_SOFT))
+        return ahead(stream, CALL) ? 'function' : 'variable'
       return 'keyword'
     }
     if (options.typescript) {
       if (TS_TYPES.has(name)) return 'type'
-      if (TS_KEYWORDS.has(name) && !ahead(/^\s*[(=:,;.)]/)) return 'keyword'
+      if (TS_KEYWORDS.has(name) && !ahead(stream, AFTER_TS_KEYWORD)) return 'keyword'
     }
-    if (ahead(/^\s*(?:\?\.)?\(/) || ahead(/^\s*=\s*(?:async\s*)?(?:\([^)]*\)|\w+)\s*=>/))
-      return 'function'
-    if (/^[A-Z]/.test(name)) return 'type'
+    if (ahead(stream, OPTIONAL_CALL) || ahead(stream, ARROW)) return 'function'
+    if (name.charCodeAt(0) >= 65 && name.charCodeAt(0) <= 90) return 'type'
     return 'variable'
   }
   if (ch === '#') {
@@ -274,15 +292,16 @@ function code(
     state.dot = true
     return 'punctuation'
   }
-  if (ch === '?' && stream.peek() === '.' && !/\d/.test(stream.string[stream.pos + 1] ?? '')) {
+  if (ch === '?' && stream.peek() === '.' && !isDigit(after(stream))) {
     stream.next()
     state.dot = true
     return 'operator'
   }
-  if (/[+\-*/%=&|^!<>?~:]/.test(ch)) {
-    stream.eatWhile(/[+\-*/%=&|^!<>?~:]/)
+  if (OPERATOR.includes(ch)) {
+    stream.eatWhile(isOperator)
     // `x++` and `x--` end an expression; other operators start one.
-    state.expr = !/^(?:\+\+|--)$/.test(stream.current())
+    const op = stream.current()
+    state.expr = op !== '++' && op !== '--'
     return 'operator'
   }
   state.expr = false

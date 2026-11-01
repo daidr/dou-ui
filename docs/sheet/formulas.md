@@ -51,20 +51,29 @@ import { DouSheetCodeFormulaBar } from '@dou-ui/sheet/code'
 | `= <> < > <= >=`                     | 比较，结果是 `TRUE` 或 `FALSE`；比较文字时不区分大小写             |
 | `SUM(A1:A9)`、`IF(A1>0, "正", "负")` | 函数调用，可以嵌套；省略的参数写成空，比如 `XLOOKUP(1,A:A,B:B,,1)` |
 
+在函数的参数里，运算符可以作用于整个区域，逐个单元格计算，得到同样大小的一组值：`=SUM(A1:A4*2)` 是 `A1` 到 `A4` 的两倍之和，`=SUMPRODUCT((A1:A9="上海")*B1:B9)` 是 `A` 列为“上海”的行在 `B` 列的合计。区域和单个值计算时，单个值用于每个单元格；两个区域大小不同时，超出较小区域的部分是 `#N/A`。单元格本身只显示一个值，所以 `=A1:A4*2` 直接写在单元格里得到 `#VALUE!`。
+
 运算顺序从先到后是：负号、`%`、`^`、`* /`、`+ -`、`&`、比较。负号先于乘方，所以 `=-2^2` 是 `4`，和常见的表格软件一样；`2^3^2` 从左往右算，是 `64`。
 
 ## 值的类型
 
 公式里的值是数字、文字、`TRUE` / `FALSE`、空或错误值。需要数字的地方，`TRUE` 当作 `1`，空单元格当作 `0`，能读成数字的文字（`"12"`、`"1,280"`、`"12%"`）按数字算，其他文字得到 `#VALUE!`。
 
-日期和时间按单元格的写法保存为文字（`'2026-03-05'`、`'2026-03-05 09:30'`），参与计算时按天数算：日期加减天数得到日期，两个日期相减得到相差的天数。
+日期和时间按单元格的写法保存为文字（`'2026-03-05'`、`'09:30'`、`'2026-03-05 09:30'`），参与计算时按天数算，时间是一天的几分之几（`09:30` 是 `0.3958…`）：
 
-| `A1` 是 `2026-03-05` 时 | 结果         |
-| ----------------------- | ------------ |
-| `=A1+30`                | `2026-04-04` |
-| `=A1-"2026-03-01"`      | `4`          |
-| `=A1>"2026-01-01"`      | `TRUE`       |
-| `=YEAR(A1)`             | `2026`       |
+- 日期加减天数得到日期，日期加时间得到日期和时间；两个日期相减得到相差的天数。
+- 时间加减时间或天数得到时间，两个时间相减得到间隔的时长，也写成时间（`01:30`）。结果满一天或小于 0 时不能写成时间，得到天数；时长要换成小时，乘以 24 即可。
+
+| `A1` 是 `2026-03-05`，`B1` 是 `09:30` 时 | 结果               |
+| ---------------------------------------- | ------------------ |
+| `=A1+30`                                 | `2026-04-04`       |
+| `=A1-"2026-03-01"`                       | `4`                |
+| `=A1+B1`                                 | `2026-03-05 09:30` |
+| `=B1+TIME(1, 0, 0)`                      | `10:30`            |
+| `="11:00"-B1`                            | `01:30`            |
+| `=("11:00"-B1)*24`                       | `1.5`              |
+| `=A1>"2026-01-01"`                       | `TRUE`             |
+| `=YEAR(A1)`                              | `2026`             |
 
 结果按单元格的 `format` 显示，比如公式单元格设了 `¥#,##0`，结果就显示为金额。单元格只引用一个空单元格时显示 `0`。
 
@@ -85,23 +94,33 @@ import { DouSheetCodeFormulaBar } from '@dou-ui/sheet/code'
 
 ## 函数
 
-| 类别     | 函数                                                                                                                                           |
-| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| 数学     | `SUM` `PRODUCT` `AVERAGE` `MIN` `MAX` `COUNT` `COUNTA` `COUNTBLANK` `ABS` `INT` `SQRT` `POWER` `MOD` `ROUND` `ROUNDUP` `ROUNDDOWN`             |
-| 逻辑     | `IF` `IFS` `IFERROR` `IFNA` `AND` `OR` `NOT` `ISBLANK` `ISNUMBER` `ISTEXT` `ISERROR` `ISNA`                                                    |
-| 文字     | `CONCAT` `CONCATENATE` `TEXTJOIN` `LEFT` `RIGHT` `MID` `LEN` `TRIM` `UPPER` `LOWER` `EXACT` `REPT` `SUBSTITUTE` `FIND` `SEARCH` `TEXT` `VALUE` |
-| 日期     | `TODAY` `NOW` `DATE` `YEAR` `MONTH` `DAY` `WEEKDAY` `DATEDIF`                                                                                  |
-| 条件统计 | `SUMIF` `AVERAGEIF` `COUNTIF` `SUMIFS` `AVERAGEIFS` `COUNTIFS`                                                                                 |
-| 查找     | `VLOOKUP` `HLOOKUP` `MATCH` `INDEX` `XLOOKUP`                                                                                                  |
+| 类别     | 函数                                                                                                                                                                                                                                 |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 数学     | `SUM` `PRODUCT` `SUMPRODUCT` `ABS` `INT` `TRUNC` `SIGN` `SQRT` `POWER` `EXP` `LN` `LOG` `LOG10` `PI` `MOD` `ROUND` `ROUNDUP` `ROUNDDOWN` `CEILING` `FLOOR` `MROUND` `RAND` `RANDBETWEEN`                                             |
+| 统计     | `AVERAGE` `MEDIAN` `MIN` `MAX` `LARGE` `SMALL` `RANK` `RANK.EQ` `COUNT` `COUNTA` `COUNTBLANK` `STDEV` `STDEV.S` `STDEV.P` `VAR` `VAR.S` `VAR.P` `PERCENTILE` `PERCENTILE.INC`                                                        |
+| 逻辑     | `IF` `IFS` `SWITCH` `CHOOSE` `IFERROR` `IFNA` `AND` `OR` `XOR` `NOT` `NA` `ISBLANK` `ISNUMBER` `ISTEXT` `ISLOGICAL` `ISERROR` `ISERR` `ISNA` `ISEVEN` `ISODD`                                                                        |
+| 文字     | `CONCAT` `CONCATENATE` `TEXTJOIN` `LEFT` `RIGHT` `MID` `LEN` `TRIM` `CLEAN` `UPPER` `LOWER` `PROPER` `EXACT` `REPT` `SUBSTITUTE` `REPLACE` `FIND` `SEARCH` `TEXTBEFORE` `TEXTAFTER` `TEXT` `VALUE` `CHAR` `CODE` `UNICHAR` `UNICODE` |
+| 日期     | `TODAY` `NOW` `DATE` `TIME` `YEAR` `MONTH` `DAY` `HOUR` `MINUTE` `SECOND` `WEEKDAY` `WEEKNUM` `ISOWEEKNUM` `DATEDIF` `DAYS` `EDATE` `EOMONTH` `NETWORKDAYS` `WORKDAY` `DATEVALUE` `TIMEVALUE`                                        |
+| 条件统计 | `SUMIF` `AVERAGEIF` `COUNTIF` `SUMIFS` `AVERAGEIFS` `COUNTIFS` `MAXIFS` `MINIFS`                                                                                                                                                     |
+| 查找     | `VLOOKUP` `HLOOKUP` `MATCH` `XMATCH` `INDEX` `XLOOKUP` `ROWS` `COLUMNS`                                                                                                                                                              |
+| 财务     | `PMT` `FV` `PV` `NPV`                                                                                                                                                                                                                |
 
-函数的参数和结果和常见的表格软件一致，下面只列出需要注意的地方：
+函数的参数和结果和常见的表格软件一致，下面按表格的类别列出需要注意的地方：
 
-- `SUM`、`AVERAGE` 这类函数在区域里只算数字，文字和空单元格跳过；直接写在参数里的 `"2"`、`TRUE` 会按数字算。
-- `IF`、`IFS`、`IFERROR` 只计算用到的那个分支，`=IF(A1=0, 0, B1/A1)` 不会因为 `A1` 是 0 而出错。
-- `ROUND` 按十进制四舍五入，`ROUND(1.005, 2)` 是 `1.01`，负数向远离 0 的方向舍入。
+- `SUM`、`AVERAGE` 这类函数在区域里只算数字、日期和时间，其他文字和空单元格跳过；直接写在参数里的 `"2"`、`TRUE` 会按数字算。参数全是时间时，`SUM` 的结果也是时间，满一天时得到天数；汇总工时这类可能超过一天的时长，写成 `=SUM(B1:B9)*24` 得到小时数。参数全是日期或全是时间时，`AVERAGE`、`MEDIAN`、`MAX`、`MIN` 的结果是日期或时间。
+- `TODAY()`、`NOW()`、`RAND()`、`RANDBETWEEN()` 每次修改后都会重新计算。
+- `ROUND` 按十进制四舍五入，`ROUND(1.005, 2)` 是 `1.01`，负数向远离 0 的方向舍入；`MROUND` 同样四舍五入到基数的倍数。
+- `RANK` 和 `RANK.EQ`、`STDEV` 和 `STDEV.S`、`VAR` 和 `VAR.S`、`PERCENTILE` 和 `PERCENTILE.INC` 结果相同，两种写法都可以用。
+- `IF`、`IFS`、`SWITCH`、`CHOOSE`、`IFERROR` 只计算用到的那个分支，`=IF(A1=0, 0, B1/A1)` 不会因为 `A1` 是 0 而出错。分支可以是区域，比如 `=SUM(CHOOSE(2, A1:A9, B1:B9))`。
+- `SWITCH` 的参数个数为偶数时，最后一个是没有匹配时的默认值。它判断相等的方式和 `=` 相同，空单元格等于 `0`，也等于 `""`。
+- `TEXT` 的格式写法和单元格的 `format` 一样；数字用日期或时间的格式时按天数读，比如 `=TEXT(0.5, "hh:mm")` 是 `12:00`。
+- `CHAR`、`CODE` 按 Unicode 计算，`CHAR` 只接受 1 到 255；更大的编码用 `UNICHAR`、`UNICODE`。
+- `TEXTBEFORE`、`TEXTAFTER` 的分隔符为空文字时，`TEXTBEFORE` 得到空文字，`TEXTAFTER` 得到整段文字。
+- 返回日期或时间的函数（`DATE`、`TIME`、`EDATE`、`EOMONTH`、`WORKDAY`、`DATEVALUE`、`TIMEVALUE`）得到的是 `2026-03-05`、`09:30` 这样的值，和在单元格里输入的日期、时间相同，可以接着计算，见[值的类型](#值的类型)。`DATEVALUE` 能读懂单元格输入时能读懂的写法，比如 `2026/3/5`。
+- `NETWORKDAYS`、`WORKDAY` 把周六、周日当作休息日，第三个参数可以给出假日所在的区域。`WEEKNUM` 的第二个参数是 `1`（周日开始，默认）、`2`（周一开始）、`11` 到 `17`（依次从周一到周日开始）或 `21`（ISO 周，和 `ISOWEEKNUM` 相同）。
 - `SUMIF`、`COUNTIF` 等的条件可以是一个值，也可以是 `">=80"`、`"<>完成"`、`"上海*"` 这样的文字：`*` 匹配任意多个字，`?` 匹配一个字，`~*` 表示 `*` 本身；`""` 匹配空单元格。日期也可以比较，比如 `">=2026-02-01"`。
-- `VLOOKUP` 和 `MATCH` 默认按近似查找，要求第一列从小到大排好；精确查找要把最后一个参数写成 `FALSE`（`MATCH` 是 `0`）。`XLOOKUP` 默认精确查找，第五个参数 `-1` / `1` 找下一个较小 / 较大的值，`2` 用通配符。
-- `TODAY()`、`NOW()` 每次修改后都会重新计算。`TEXT` 的格式写法和单元格的 `format` 一样。
+- `VLOOKUP` 和 `MATCH` 默认按近似查找，要求第一列从小到大排好；精确查找要把最后一个参数写成 `FALSE`（`MATCH` 是 `0`）。`XLOOKUP` 默认精确查找，第五个参数 `-1` / `1` 找下一个较小 / 较大的值，`2` 用通配符。`XMATCH` 的查找方向是 `1`（从前往后，默认）、`-1`（从后往前）、`2` / `-2`（在从小到大 / 从大到小排好的数据里二分查找）。
+- `PMT`、`FV`、`PV` 的符号表示钱的方向：收到的钱为正，付出的钱为负。按月计算时把年利率除以 12，比如 30 万贷款 30 年，`=PMT(4.9%/12, 360, 300000)` 的月供约为 `-1592.18`。
 
 ## 计算方式
 

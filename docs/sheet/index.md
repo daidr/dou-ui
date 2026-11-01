@@ -88,6 +88,7 @@ app.use(DouSheet)
 | `Shift` + `Space`、`Ctrl` + `Space` | 选中整行、整列                                 |
 | `Ctrl` / `⌘` + `A`                  | 全选                                           |
 | `F2`                                | 编辑                                           |
+| `Shift` + `F2`                      | 插入或编辑批注                                 |
 | `Delete` / `Backspace`              | 清空选中区域的值                               |
 | `Ctrl` / `⌘` + `C` / `X` / `V`      | 复制、剪切、粘贴                               |
 | `Ctrl` / `⌘` + `D` / `R`            | 向下、向右填充                                 |
@@ -141,6 +142,7 @@ sheet.value.transact((tr) => {
 | `resize`、`hide`、`move` | 调整行高列宽；隐藏、取消隐藏；移动行列       |
 | `merge`                  | 合并、取消合并单元格                         |
 | `group`                  | 分组、取消分组、折叠和展开分组               |
+| `note`                   | 插入、编辑和删除批注                         |
 | `style`、`freeze`        | 工具栏或快捷键修改样式、格式；工具栏冻结行列 |
 | `sheet`                  | 标签栏里新建、重命名、复制、移动、删除工作表 |
 | `insert`、`delete`       | 插入、删除行列                               |
@@ -173,7 +175,7 @@ sheet.value.transact((tr) => {
 
 步骤里的工作表用 `id` 记录，没有 `id` 时用名字，所以在另一端应用时不受工作表顺序影响。
 
-组件实例上还有 `select('B2:C4')` 选中并滚动到区域（也可以是 `'B:B'`、`'3:3'`）、`scrollTo('H200')`、`edit('B2')` 打开编辑框、`focus()`、`showSheet(sheet)` 切换工作表和 `toCSV(options?)`。
+组件实例上还有 `select('B2:C4')` 选中并滚动到区域（也可以是 `'B:B'`、`'3:3'`）、`scrollTo('H200')`、`edit('B2')` 打开编辑框、`editNote('B2')` 打开批注输入框、`focus()`、`showSheet(sheet)` 切换工作表和 `toCSV(options?)`。
 
 ## 复制与粘贴
 
@@ -249,10 +251,10 @@ import type { SheetMenuContext, SheetMenuItem } from '@dou-ui/sheet'
 
 function menu(items: SheetMenuItem[], context: SheetMenuContext) {
   const own: SheetMenuItem = {
-    key: 'note',
-    label: '添加备注',
+    key: 'link',
+    label: '复制单元格链接',
     divided: true,
-    run: () => addNote(context.selection.active),
+    run: () => copyLink(context.selection.active),
   }
   return context.area === 'cell' ? [...items, own] : items
 }
@@ -300,6 +302,22 @@ const sheet = {
 | `collapseGroup(range, sheet?)`、`expandGroup(range, sheet?)` | 折叠、展开一个分组，`range` 是分组的行或列，没有这个分组时抛出 `RangeError`                                               |
 | `showGroupLevel('row' \| 'col', level, sheet?)`              | 按层级显示，和数字按钮一样                                                                                                |
 
+## 批注
+
+单元格可以带一段批注，写在单元格的 `note` 里。带批注的单元格右上角有一个小三角；鼠标停在单元格上时，批注显示在单元格旁边，移到批注上可以选中和复制其中的文字。用方向键移到带批注的单元格，停一会儿也会显示。触屏上点一下单元格就会显示批注。选中其他单元格、滚动或按 `Esc` 时收起。读屏读单元格时会一起读出批注。
+
+```ts
+const cells = [[{ value: '场地', note: '上海展览中心 2 号厅，含两天布展。' }]]
+```
+
+<DocDemo src="sheet/notes" column />
+
+在右键菜单里选“插入批注”（已有批注时是“编辑批注”），或者按 `Shift` + `F2`，单元格旁边会出现输入框。按 `Ctrl` / `⌘` + `Enter` 或点“保存”保存，按 `Esc` 或点“取消”放弃；点到别处时直接保存。批注清空后保存就会删除。选区里有批注时，菜单里还有“删除批注”，一次删掉选区里所有的批注。
+
+合并单元格的批注写在它左上角的单元格上。清除内容（`Delete`）不会删除批注；复制粘贴、填充、排序时批注跟着单元格走；CSV 和导出的图片里不包含批注。只读的表格可以查看批注，不能修改。
+
+用代码修改时调用 `tr.setNote('B3', '文字')`，传空文字或 `undefined` 删除；`tr.clearNotes('A1:D20')` 删除一片区域里的批注。组件实例的 `editNote(cell?)` 选中单元格并打开输入框，可以接在自己的按钮上。
+
 ## 合并单元格
 
 工作表的 `merges` 列出合并的区域，例如 `['A1:B1']`。合并后显示左上角单元格的内容，其余单元格被盖住。选区碰到合并区域时会扩大到把它整个包含进来，方向键移动时把合并区域当作一个单元格。
@@ -336,7 +354,7 @@ const book = {
 }
 ```
 
-选中带列表或日历的单元格时，右侧会出现一个展开按钮；也可以按 `Alt` + `↓` 展开。输入的文字和选项一致时（不区分大小写）记为该选项。读不懂的值照常写入，比如日期单元格里的“明天”、不在选项里的文字，这样的单元格右上角会有一个红色小三角，鼠标悬停时显示原因，读屏也会读出。在手机上展开列表或日历时不会弹出键盘。
+选中带列表或日历的单元格时，右侧会出现一个展开按钮；也可以按 `Alt` + `↓` 展开。输入的文字和选项一致时（不区分大小写）记为该选项。读不懂的值照常写入，比如日期单元格里的“明天”、不在选项里的文字，这样的单元格左上角会有一个红色小三角，鼠标悬停时显示原因，读屏也会读出。在手机上展开列表或日历时不会弹出键盘。
 
 <DocDemo src="sheet/types" column />
 

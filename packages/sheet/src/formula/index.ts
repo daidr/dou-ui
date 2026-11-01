@@ -16,7 +16,7 @@ export {
   SheetFormulaSyntaxError,
 } from './parse'
 export type { BinaryOp, SheetFormulaNode, SheetFormulaToken } from './parse'
-export { callAt, canPointAt, formulaReferences, nameAt } from './edit'
+export { argNameAt, callAt, canPointAt, formulaReferences, nameAt } from './edit'
 export type { SheetFormulaRefMark } from './edit'
 export type { SheetFunctionHelp } from './help'
 export {

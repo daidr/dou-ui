@@ -667,9 +667,10 @@
     border: 1px solid var(--dou-color-border);
     border-radius: var(--dou-radius-container);
     /* as the block editor's thread card: a shade lighter than the page in dark */
-    background-color: light-dark(
-      var(--dou-color-bg-surface),
-      color-mix(in oklab, var(--dou-color-text) 4%, var(--dou-color-bg-surface))
+    background-color: color-mix(
+      in oklab,
+      var(--dou-color-text) calc(4% * var(--dou-scheme-dark)),
+      var(--dou-color-bg-surface)
     );
     box-shadow: var(--dou-shadow-md);
     font-family: var(--dou-font-family);

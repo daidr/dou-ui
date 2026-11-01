@@ -138,7 +138,8 @@ import type {
   ChartInterval,
   ChartMarkerProps,
   ChartProps,
-  ChartSelectEvent,
+  ChartEmits,
+  ChartPointEvent,
   ChartSlots,
   ChartLabelFormat,
   ChartTooltipItem,
@@ -154,17 +155,7 @@ const props = withDefaults(defineProps<ChartProps>(), {
   legend: undefined,
 })
 const slots = defineSlots<ChartSlots>()
-const emit = defineEmits<{
-  /** A bar, point or slice was clicked, or Enter pressed on it: what the tooltip shows there. */
-  select: [event: ChartSelectEvent]
-  /**
-   * The pointer, a finger or the arrow keys moved onto a bar, point or slice
-   * (what `select` would give there), or off the chart (`null`).
-   */
-  hover: [event: ChartSelectEvent | null]
-  /** The table view was closed with Escape. */
-  'update:table': [value: boolean]
-}>()
+const emit = defineEmits<ChartEmits>()
 
 const ns = useNamespace('chart')
 const { locale } = useLocale()
@@ -2311,7 +2302,7 @@ function rawX(x: number): unknown {
 }
 
 /** What `select` and `hover` give: what the tooltip shows there. */
-const eventOf = (t: Tip): ChartSelectEvent => ({ x: t.x, title: t.title, items: t.items })
+const eventOf = (t: Tip): ChartPointEvent => ({ x: t.x, title: t.title, items: t.items })
 
 /** Tells the page what was picked: what the tooltip shows there. */
 function select(t: Tip) {
@@ -2319,25 +2310,52 @@ function select(t: Tip) {
 }
 
 /**
- * What this chart's own pointer, finger or keys are on, as a key that changes
- * only when that does (not when the pointer moves over the same thing). An x
- * shown because another chart of the group points at it is not hovered here.
+ * What `hover` tells: what the tooltip shows for this chart's own pointer,
+ * finger or keys. An x shown because another chart of the group points at it
+ * is not hovered here. Worked out only when someone listens; it follows the
+ * data too, so a hovered bar whose data is replaced or changed is told again.
  */
-const hoverKey = computed(() => {
+const hovering = computed<ChartPointEvent | null>(() => {
+  if (!instance?.vnode.props?.onHover) return null
   const a = active.value
-  if (!a || a.synced || !interactive.value) return ''
-  if (a.type === 'axis') return `axis:${a.x}`
-  return a.type === 'item' ? `item:${a.series}:${a.row}` : `slice:${a.slice}`
+  if (!a || a.synced || !interactive.value) return null
+  const t = tipOf(a)
+  return t && eventOf(t)
 })
-/** Whether the page was last told of something hovered, so `null` is told once. */
-let hoverTold = false
 
-watch(hoverKey, (key) => {
-  if (!instance?.vnode.props?.onHover) return
-  const t = key ? tipOf(active.value) : null
-  if (!t && !hoverTold) return
-  hoverTold = !!t
-  emit('hover', t && eventOf(t))
+/** The same value: a `Date` by its time. */
+const sameValue = (a: unknown, b: unknown) =>
+  Object.is(a, b) || (a instanceof Date && b instanceof Date && a.getTime() === b.getTime())
+
+/** Whether two `hover` events say the same: so a pointer moving over one bar tells it once. */
+function sameHover(a: ChartPointEvent | null, b: ChartPointEvent | null) {
+  if (!a || !b) return a === b
+  return (
+    sameValue(a.x, b.x) &&
+    a.title === b.title &&
+    a.items.length === b.items.length &&
+    a.items.every(
+      (item, i) =>
+        item.name === b.items[i]!.name &&
+        item.text === b.items[i]!.text &&
+        item.row === b.items[i]!.row &&
+        sameValue(item.value, b.items[i]!.value),
+    )
+  )
+}
+
+/** What the page was last told, so it hears each change once. */
+let hoverTold: ChartPointEvent | null = null
+
+watch(hovering, (next) => {
+  if (sameHover(next, hoverTold)) return
+  hoverTold = next
+  emit('hover', next)
+})
+
+// a chart taken away while hovered lets the page know, so nothing stays highlighted
+onBeforeUnmount(() => {
+  if (hoverTold) emit('hover', null)
 })
 
 /** Whether anyone listens to `select`: then what can be picked shows a pointing hand. */

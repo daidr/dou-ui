@@ -8,7 +8,7 @@ import {
   DouChartPie,
   DouChartScatter,
   DouChartTooltip,
-  type ChartSelectEvent,
+  type ChartPointEvent,
 } from '..'
 import { allX, angleAt, nearestPoint, nearestX, rowAt, sortedOrder } from '../core/hit'
 import { buildModel } from '../core/model'
@@ -395,9 +395,54 @@ describe('hover', () => {
     wrapper.unmount()
   })
 
+  it('tells again when the data under a still pointer changes, and null when taken away', async () => {
+    const hovered: Array<ChartPointEvent | null> = []
+    const data = ref(sales)
+    const shown = ref(true)
+    const { wrapper, root } = await sized(() =>
+      shown.value
+        ? h(
+            DouChart,
+            {
+              data: data.value,
+              x: 'q',
+              height: 300,
+              onHover: (event: ChartPointEvent | null) => hovered.push(event),
+            },
+            () => [h(DouChartBar, { y: 'a', name: '线上' })],
+          )
+        : h('div'),
+    )
+    key(root, 'End')
+    await nextTick()
+    expect(hovered.at(-1)?.x).toBe('三季度')
+    // the same place, other rows: reversed, then with new values
+    data.value = sales.toReversed()
+    await nextTick()
+    await nextTick()
+    expect(hovered).toHaveLength(2)
+    expect(hovered[1]).toMatchObject({ x: '一季度', items: [{ value: 120, row: sales[0] }] })
+    const tenfold = data.value.map((row) => ({ ...row, a: row.a * 10 }))
+    data.value = tenfold
+    await nextTick()
+    await nextTick()
+    expect(hovered).toHaveLength(3)
+    expect(hovered[2]).toMatchObject({ x: '一季度', items: [{ value: 1200, row: tenfold[2] }] })
+    // the same data again: nothing new to tell
+    data.value = [...tenfold]
+    await nextTick()
+    await nextTick()
+    expect(hovered).toHaveLength(3)
+    shown.value = false
+    await nextTick()
+    expect(hovered).toHaveLength(4)
+    expect(hovered[3]).toBeNull()
+    wrapper.unmount()
+  })
+
   it('gives a pie slice and a scatter point, as select does', async () => {
-    const hovered: Array<ChartSelectEvent | null> = []
-    const onHover = (event: ChartSelectEvent | null) => hovered.push(event)
+    const hovered: Array<ChartPointEvent | null> = []
+    const onHover = (event: ChartPointEvent | null) => hovered.push(event)
     const rows = [
       { k: '房租', v: 3 },
       { k: '餐饮', v: 1 },

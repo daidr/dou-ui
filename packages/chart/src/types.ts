@@ -517,13 +517,28 @@ export interface ChartTooltipSlots {
   }) => unknown
 }
 
-/** What `select` gives: what the tooltip shows where it was clicked. */
-export interface ChartSelectEvent {
+/**
+ * What `select` and `hover` give: a bar, point or slice (or an x with every
+ * series at it), as the tooltip shows it there.
+ */
+export interface ChartPointEvent {
   /** The x as given: the category, a `Date` on a time axis, or the number; a slice's label. */
   x: unknown
   title?: string
   /** One per series at the x, or the one point or slice. */
   items: ChartTooltipItem[]
+}
+
+export interface ChartEmits {
+  /** A bar, point or slice was clicked, or Enter pressed on it: what the tooltip shows there. */
+  select: [event: ChartPointEvent]
+  /**
+   * The tooltip moved to something else (by pointer, finger or the arrow keys),
+   * or what it shows there changed with the data; `null` when it closes.
+   */
+  hover: [event: ChartPointEvent | null]
+  /** The table view was closed with Escape. */
+  'update:table': [value: boolean]
 }
 
 export interface ChartPieSlots {

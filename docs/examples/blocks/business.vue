@@ -117,17 +117,16 @@ const thousand = (value) => `${value} 千人`
 
 /* 门店：指针移到一家门店的柱子上，表格里这一行跟着高亮 */
 const stores = [
-  { name: '陆家嘴店', sales: 186.4, orders: 78.2, growth: 0.142 },
-  { name: '静安寺店', sales: 172.9, orders: 71.5, growth: 0.096 },
-  { name: '徐汇滨江店', sales: 151.3, orders: 64.8, growth: 0.183 },
-  { name: '南京东路店', sales: 139.6, orders: 61.1, growth: -0.021 },
-  { name: '中山公园店', sales: 118.2, orders: 52.4, growth: 0.067 },
-  { name: '五角场店', sales: 97.5, orders: 44.9, growth: 0.214 },
+  { name: '陆家嘴店', sales: 186.4, growth: 0.142 },
+  { name: '静安寺店', sales: 172.9, growth: 0.096 },
+  { name: '徐汇滨江店', sales: 151.3, growth: 0.183 },
+  { name: '南京东路店', sales: 139.6, growth: -0.021 },
+  { name: '中山公园店', sales: 118.2, growth: 0.067 },
+  { name: '五角场店', sales: 97.5, growth: 0.214 },
 ]
 const storeColumns = [
   { key: 'name', title: '门店', minWidth: 104 },
-  { key: 'sales', title: '销售额', align: 'end' },
-  { key: 'orders', title: '订单数', align: 'end' },
+  { key: 'sales', title: '销售额（万元）', align: 'end' },
   { key: 'growth', title: '同比', align: 'end' },
 ]
 const hoveredStore = ref(null)
@@ -233,11 +232,11 @@ async function exportAs(format) {
 
     <DouCard
       title="门店"
-      description="1–10 月的销售额（万元）和订单数（千单），指针移到柱子上，对应的行会高亮"
+      description="1–10 月各门店的销售额，指针移到或点击柱子，表格里对应的行会高亮"
     >
       <div class="business__stores">
-        <DouChart :data="stores" x="name" :height="280" @hover="hoverStore">
-          <DouChartAxis for="y" :format="wan" :ticks="4" />
+        <DouChart :data="stores" x="name" :height="280" horizontal @hover="hoverStore">
+          <DouChartAxis for="y" :format="wan" :ticks="[0, 100, 200]" />
           <DouChartBar y="sales" name="销售额" />
         </DouChart>
         <DouTable

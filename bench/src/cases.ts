@@ -1048,7 +1048,7 @@ export const cases: Record<string, Case> = {
   // The whole sheet of n rows × 20 columns written as SVG: every cell's look read once per style.
   'sheet-export-svg': {
     render: (n) => sheet(n),
-    act: () => (window as any).sheet.value.toSVG(),
+    act: () => (window as any).sheet.value.exportSVG(),
     budget: { 10_000: 1000 },
   },
   // n records grouped 8 × 120 cities × 4 by 4 × 12 months, two values: read, summed up and drawn.

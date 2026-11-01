@@ -202,7 +202,7 @@ describe('DouSheet export', () => {
   it('draws the cells with data, without the selection or hidden rows', async () => {
     const { wrapper, grid } = setup()
     await nextTick()
-    const svg = grid.value!.toSVG()
+    const svg = grid.value!.exportSVG()
     const doc = parse(svg)
     const texts = [...doc.querySelectorAll('text')].map((t) => t.textContent)
     expect(texts).toEqual(['门店', '销售额', '上海静安', '¥196,800', '合计', '上海徐汇', '¥98,400'])
@@ -217,10 +217,42 @@ describe('DouSheet export', () => {
     const { wrapper, grid } = setup()
     await nextTick()
     const texts = [
-      ...parse(grid.value!.toSVG({ range: 'B1:B2', headers: true })).querySelectorAll('text'),
+      ...parse(grid.value!.exportSVG({ range: 'B1:B2', headers: true })).querySelectorAll('text'),
     ].map((t) => t.textContent)
     expect(texts).toEqual(['销售额', '¥196,800', 'B', '1', '2'])
-    expect(() => grid.value!.toSVG({ range: 'nope' })).toThrow(RangeError)
+    expect(() => grid.value!.exportSVG({ range: 'nope' })).toThrow(RangeError)
+    wrapper.unmount()
+  })
+
+  it('draws and prints another sheet without showing it', async () => {
+    const data = book()
+    data.sheets.push({
+      name: '仓库',
+      rowSizes: { 0: 40 },
+      cells: [
+        ['仓库', '库存'],
+        ['浦东', { value: '=B3*2', format: '0' }],
+        ['徐汇', 12],
+      ],
+    })
+    const { wrapper, grid } = setup(data)
+    await nextTick()
+    const doc = parse(grid.value!.exportSVG({ sheet: '仓库' }))
+    expect([...doc.querySelectorAll('text')].map((t) => t.textContent)).toEqual([
+      '仓库',
+      '库存',
+      '浦东',
+      '24',
+      '徐汇',
+      '12',
+    ])
+    expect(doc.documentElement.getAttribute('height')).toBe(String(40 + 2 * 28))
+    expect(parse(grid.value!.exportSVG({ sheet: 1 })).documentElement.outerHTML).toBe(
+      doc.documentElement.outerHTML,
+    )
+    // the sheet shown stays the same
+    expect(wrapper.text()).toContain('上海静安')
+    expect(() => grid.value!.exportSVG({ sheet: '没有' })).toThrow(RangeError)
     wrapper.unmount()
   })
 

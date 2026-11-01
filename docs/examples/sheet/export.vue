@@ -60,15 +60,15 @@ function download(blob, name) {
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
-async function exportPNG() {
-  const blob = await grid.value.toPNG()
+async function savePNG() {
+  const blob = await grid.value.exportPNG()
   URL.revokeObjectURL(preview.value)
   preview.value = URL.createObjectURL(blob)
   download(blob, '门店.png')
 }
 
-function exportSVG() {
-  const svg = grid.value.toSVG()
+function saveSVG() {
+  const svg = grid.value.exportSVG()
   download(new Blob([svg], { type: 'image/svg+xml' }), '门店.svg')
 }
 
@@ -77,11 +77,11 @@ onBeforeUnmount(() => URL.revokeObjectURL(preview.value))
 
 <template>
   <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px">
-    <DouButton variant="outline" @click="exportPNG">
+    <DouButton variant="outline" @click="savePNG">
       <template #leading><DownloadIcon /></template>
       导出 PNG
     </DouButton>
-    <DouButton variant="outline" @click="exportSVG">
+    <DouButton variant="outline" @click="saveSVG">
       <template #leading><DownloadIcon /></template>
       导出 SVG
     </DouButton>

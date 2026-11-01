@@ -188,13 +188,17 @@ export interface SheetExpose {
    * their formats and cell types write it.
    */
   toCSV: (options?: SheetCSVWriteOptions & { sheet?: SheetRef }) => string
-  /** The sheet shown as an SVG document, as the grid draws it, in the current theme. */
-  toSVG: (options?: SheetImageOptions) => string
-  /** The sheet shown as a PNG image. */
-  toPNG: (options?: SheetPNGOptions) => Promise<Blob>
   /**
-   * Opens the browser's print dialog for the sheet shown: on A4 pages, in
-   * the light theme, with the frozen rows and columns on every page.
+   * The sheet shown (or `sheet`) as an SVG document, as the grid draws it,
+   * in the current theme.
+   */
+  exportSVG: (options?: SheetExportOptions) => string
+  /** The sheet shown (or `sheet`) as a PNG image. */
+  exportPNG: (options?: SheetImageOptions) => Promise<Blob>
+  /**
+   * Opens the browser's print dialog for the sheet shown (or `sheet`): on
+   * A4 pages, in the light theme, with the frozen rows and columns on
+   * every page.
    */
   print: (options?: SheetPrintOptions) => void
   /** Opens the editor on a cell, the active one by default. */
@@ -215,8 +219,10 @@ export interface SheetExpose {
   findInvalid: (sheet?: SheetRef) => SheetInvalidCell[]
 }
 
-/** Options of `toSVG` and `toPNG`. */
-export interface SheetImageOptions {
+/** Options of `exportSVG` and `exportPNG`. */
+export interface SheetExportOptions {
+  /** The sheet drawn, by index, `id` or name; the one shown by default. */
+  sheet?: SheetRef
   /**
    * The cells drawn, such as `'A1:F20'` or `'A:D'`. By default from `A1`
    * to the last row and column with data or a merge.
@@ -230,13 +236,16 @@ export interface SheetImageOptions {
   background?: boolean
 }
 
-export interface SheetPNGOptions extends SheetImageOptions {
+/** Options of `exportPNG`. */
+export interface SheetImageOptions extends SheetExportOptions {
   /** Image pixels per CSS pixel. Defaults to `2`; less for a sheet too big for that. */
   pixelRatio?: number
 }
 
 export interface SheetPrintOptions {
-  /** The cells printed, as for `toSVG`. */
+  /** The sheet printed, by index, `id` or name; the one shown by default. */
+  sheet?: SheetRef
+  /** The cells printed, as for `exportSVG`. */
   range?: string
   /** Prints the column letters and row numbers. */
   headers?: boolean

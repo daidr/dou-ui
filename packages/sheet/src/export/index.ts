@@ -6,7 +6,8 @@ import { dataBounds } from '../core/csv'
 import type { SheetMerges } from '../core/merge'
 import type { SheetData, SheetTypeSetup } from '../core/model'
 import { CellCheck, CellOption } from '../components/cell-renders'
-import type { SheetImageOptions, SheetPNGOptions, SheetPrintOptions } from '../types'
+import type { SheetRef } from '../core/transaction'
+import type { SheetExportOptions, SheetImageOptions, SheetPrintOptions } from '../types'
 import { plainColor } from './color'
 import {
   drawSheet,
@@ -29,17 +30,13 @@ export interface ExportCellView {
   hidden?: boolean
 }
 
-/** What of the grid images and pages are drawn from: the sheet shown, as it is laid out. */
-export interface SheetExportSource {
-  root: () => HTMLElement | undefined
-  sheet: () => SheetData
-  sheetSize: () => { rows: number; cols: number }
-  rows: () => SheetAxis
-  cols: () => SheetAxis
-  frozen: () => { rows: number; cols: number }
-  merges: () => SheetMerges
-  rowHeight: () => number
-  gridlines: () => boolean
+/** A sheet as images and pages draw it: its data, laid out, and its cells as the grid draws them. */
+export interface SheetExportTarget {
+  data: SheetData
+  rows: SheetAxis
+  cols: SheetAxis
+  frozen: { rows: number; cols: number }
+  merges: SheetMerges
   cellView: (
     row: number,
     col: number,
@@ -47,6 +44,15 @@ export interface SheetExportSource {
     width: number,
     span?: SheetBounds,
   ) => ExportCellView
+}
+
+/** What of the grid images and pages are drawn from. */
+export interface SheetExportSource {
+  root: () => HTMLElement | undefined
+  /** The sheet shown, or the one named. */
+  target: (sheet?: SheetRef) => SheetExportTarget
+  rowHeight: () => number
+  gridlines: () => boolean
 }
 
 type ExportReader = ReturnType<typeof exportReader>
@@ -214,54 +220,51 @@ function pagesOf(list: number[], size: (i: number) => number, room: number) {
   return pages
 }
 
-/** `toSVG`, `toPNG` and `print` of a grid. */
-export function createSheetExport(src: SheetExportSource) {
-  /** The cells an image or print shows: `range`, or the cells with data and the merges. */
-  function exportBounds(range: string | undefined): SheetBounds {
-    const lastRow = src.sheetSize().rows - 1
-    const lastCol = src.sheetSize().cols - 1
-    if (range != null) {
-      const parsed = parseRange(range)
-      if (!parsed) throw new RangeError(`"${range}" isn't a range`)
-      const b = boundsOf(parsed)
-      return {
-        top: Math.max(0, b.top),
-        left: Math.max(0, b.left),
-        bottom: Math.min(lastRow, b.bottom),
-        right: Math.min(lastCol, b.right),
-      }
-    }
-    const b = dataBounds(src.sheet()) ?? { top: 0, left: 0, bottom: 0, right: 0 }
-    for (const m of src.merges().list) {
-      b.bottom = Math.max(b.bottom, m.bottom)
-      b.right = Math.max(b.right, m.right)
-    }
+/** The cells an image or print shows: `range`, or the cells with data and the merges. */
+function exportBounds(range: string | undefined, t: SheetExportTarget): SheetBounds {
+  const lastRow = t.rows.count - 1
+  const lastCol = t.cols.count - 1
+  if (range != null) {
+    const parsed = parseRange(range)
+    if (!parsed) throw new RangeError(`"${range}" isn't a range`)
+    const b = boundsOf(parsed)
     return {
-      top: 0,
-      left: 0,
+      top: Math.max(0, b.top),
+      left: Math.max(0, b.left),
       bottom: Math.min(lastRow, b.bottom),
       right: Math.min(lastCol, b.right),
     }
   }
-
+  const b = dataBounds(t.data) ?? { top: 0, left: 0, bottom: 0, right: 0 }
+  for (const m of t.merges.list) {
+    b.bottom = Math.max(b.bottom, m.bottom)
+    b.right = Math.max(b.right, m.right)
+  }
+  return {
+    top: 0,
+    left: 0,
+    bottom: Math.min(lastRow, b.bottom),
+    right: Math.min(lastCol, b.right),
+  }
+}
+/** `exportSVG`, `exportPNG` and `print` of a grid. */
+export function createSheetExport(src: SheetExportSource) {
   /** What to draw for some rows and columns, in this order, each list sorted. */
   function exportDrawing(
     rowList: number[],
     colList: number[],
     options: { headers: boolean; gridlines: boolean; background: boolean },
     reader: ExportReader,
+    t: SheetExportTarget,
   ): SheetDrawing {
-    const r = src.rows()
-    const c = src.cols()
-    const merges = src.merges()
-    const data = src.sheet()
+    const { rows: r, cols: c, merges, data } = t
     const rowAt = new Map(rowList.map((row, i) => [row, i]))
     const colAt = new Map(colList.map((col, i) => [col, i]))
     const ys = [0]
     for (const row of rowList) ys.push(ys[ys.length - 1]! + r.size(row))
     const xs = [0]
     for (const col of colList) xs.push(xs[xs.length - 1]! + c.size(col))
-    const f = src.frozen()
+    const f = t.frozen
     const cells: DrawCell[] = []
     const add = (
       view: ExportCellView,
@@ -299,7 +302,7 @@ export function createSheetExport(src: SheetExportSource) {
         const m = merges.size ? merges.at(row, col) : undefined
         if (!m)
           return add(
-            src.cellView(row, col, line, c.size(col)),
+            t.cellView(row, col, line, c.size(col)),
             xs[ci]!,
             ys[ri]!,
             c.size(col),
@@ -312,7 +315,7 @@ export function createSheetExport(src: SheetExportSource) {
         while (last + 1 < rowList.length && rowList[last + 1]! <= m.bottom) last++
         let right = ci
         while (right + 1 < colList.length && colList[right + 1]! <= m.right) right++
-        const view = src.cellView(
+        const view = t.cellView(
           m.top,
           m.left,
           data.cells[m.top],
@@ -346,16 +349,18 @@ export function createSheetExport(src: SheetExportSource) {
     }
   }
 
-  function toSVG(options: SheetImageOptions = {}) {
-    const b = exportBounds(options.range)
+  function exportSVG(options: SheetExportOptions = {}) {
+    const t = src.target(options.sheet)
+    const b = exportBounds(options.range, t)
     const gridlines = options.gridlines ?? src.gridlines()
     const reader = exportReader(src.root() ?? document.body, false, gridlines)
     try {
       const drawing = exportDrawing(
-        shownLines(src.rows(), b.top, b.bottom),
-        shownLines(src.cols(), b.left, b.right),
+        shownLines(t.rows, b.top, b.bottom),
+        shownLines(t.cols, b.left, b.right),
         { headers: options.headers ?? false, gridlines, background: options.background ?? true },
         reader,
+        t,
       )
       return drawSheet(drawing, measureText)
     } finally {
@@ -363,8 +368,8 @@ export function createSheetExport(src: SheetExportSource) {
     }
   }
 
-  async function toPNG(options: SheetPNGOptions = {}) {
-    const svg = toSVG(options)
+  async function exportPNG(options: SheetImageOptions = {}) {
+    const svg = exportSVG(options)
     const [, w, h] = /width="([\d.]+)" height="([\d.]+)"/.exec(svg)!
     const width = Number(w)
     const height = Number(h)
@@ -376,7 +381,7 @@ export function createSheetExport(src: SheetExportSource) {
     )
     if (fits < 1)
       throw new RangeError(
-        `The image would be ${width}×${height}px, more than a canvas can hold; export a smaller range or use toSVG()`,
+        `The image would be ${width}×${height}px, more than a canvas can hold; export a smaller range or use exportSVG()`,
       )
     const ratio = Math.min(options.pixelRatio ?? 2, fits)
     const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }))
@@ -402,12 +407,11 @@ export function createSheetExport(src: SheetExportSource) {
   }
 
   function print(options: SheetPrintOptions = {}) {
-    const b = exportBounds(options.range)
+    const t = src.target(options.sheet)
+    const b = exportBounds(options.range, t)
     const gridlines = options.gridlines ?? src.gridlines()
     const headers = options.headers ?? false
-    const r = src.rows()
-    const c = src.cols()
-    const f = src.frozen()
+    const { rows: r, cols: c, frozen: f } = t
     const rowList = shownLines(r, b.top, b.bottom)
     const colList = shownLines(c, b.left, b.right)
     // the frozen rows and columns are printed on every page
@@ -438,6 +442,7 @@ export function createSheetExport(src: SheetExportSource) {
             [...repeatCols, ...cols],
             { headers, gridlines, background: true },
             reader,
+            t,
           )
           pages.push(
             `<div class="page">${title ? `<h1>${escapeXML(title)}</h1>` : ''}${drawSheet(drawing, measureText)}</div>`,
@@ -470,5 +475,5 @@ export function createSheetExport(src: SheetExportSource) {
     win.print()
   }
 
-  return { toSVG, toPNG, print }
+  return { exportSVG, exportPNG, print }
 }

@@ -112,27 +112,27 @@ const Panel = defineComponent({
 
 在扩展的钩子、浮层组件、单元格类型的组件和表格的 `header`、`footer` 插槽里，`useSheet()` 返回当前表格的状态和操作：
 
-| 名称                                             | 说明                                                                                          |
-| ------------------------------------------------ | --------------------------------------------------------------------------------------------- |
-| `doc`、`sheet`、`sheetIndex`                     | 工作簿、当前显示的工作表和它的序号                                                            |
-| `selection`、`active`                            | 选区和键盘所在的单元格                                                                        |
-| `readonly`、`messages`                           | 只读状态、当前语言的文案                                                                      |
-| `focused`                                        | 表格或单元格编辑框是否有键盘焦点                                                              |
-| `value(point)`、`result(point)`                  | 当前工作表里一个单元格的值（公式单元格是公式本身），和它的计算结果                            |
-| `forEachSelected(callback)`                      | 依次处理选中的每个单元格，合并单元格只算一次（左上角）                                        |
-| `cellType(point)`                                | 单元格的类型 `{ name, definition, setup }`，`definition` 是类型本身；普通单元格为 `undefined` |
-| `cellRect(point)`                                | 单元格（或它所在的合并单元格）现在画在哪，看不见时为 `null`                                   |
-| `rangeRect(bounds)`                              | 区域在视图里露出的部分画在哪，`cut` 标出被视图或冻结窗格挡住的边；完全看不见时为 `null`       |
-| `transact`、`undo`、`redo`、`canUndo`、`canRedo` | 修改与撤销，同组件实例                                                                        |
-| `select`、`scrollTo`、`edit`、`focus`            | 选择、滚动、编辑和聚焦，同组件实例                                                            |
-| `showSheet`、`toCSV`、`toSVG`、`toPNG`、`print`  | 切换工作表、导出 CSV 和图片、打印，同组件实例                                                 |
-| `styleAt(point)`、`formatAt(point)`              | 单元格的样式（没有时为 `{}`）和数字格式，合并单元格取左上角                                   |
-| `styleSelection(patch)`                          | 修改选区的样式，规则同 `tr.styleCells`，`null` 去掉样式；返回是否有改动                       |
-| `formatSelection(format)`                        | 设置选区的数字格式，也可以传函数逐格计算，同 `tr.formatCells`                                 |
-| `clearFormatting()`                              | 去掉选区的样式和数字格式                                                                      |
-| `merged`、`canMerge`、`merge()`、`unmerge()`     | 选区是否碰到合并单元格、能否合并；合并（会提示清空了几格）、取消合并                          |
-| `announce(text)`                                 | 让读屏软件播报一段文字                                                                        |
-| `editor`                                         | 正在编辑的单元格，供表格外的输入框使用，见下文                                                |
+| 名称                                                    | 说明                                                                                          |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `doc`、`sheet`、`sheetIndex`                            | 工作簿、当前显示的工作表和它的序号                                                            |
+| `selection`、`active`                                   | 选区和键盘所在的单元格                                                                        |
+| `readonly`、`messages`                                  | 只读状态、当前语言的文案                                                                      |
+| `focused`                                               | 表格或单元格编辑框是否有键盘焦点                                                              |
+| `value(point)`、`result(point)`                         | 当前工作表里一个单元格的值（公式单元格是公式本身），和它的计算结果                            |
+| `forEachSelected(callback)`                             | 依次处理选中的每个单元格，合并单元格只算一次（左上角）                                        |
+| `cellType(point)`                                       | 单元格的类型 `{ name, definition, setup }`，`definition` 是类型本身；普通单元格为 `undefined` |
+| `cellRect(point)`                                       | 单元格（或它所在的合并单元格）现在画在哪，看不见时为 `null`                                   |
+| `rangeRect(bounds)`                                     | 区域在视图里露出的部分画在哪，`cut` 标出被视图或冻结窗格挡住的边；完全看不见时为 `null`       |
+| `transact`、`undo`、`redo`、`canUndo`、`canRedo`        | 修改与撤销，同组件实例                                                                        |
+| `select`、`scrollTo`、`edit`、`focus`                   | 选择、滚动、编辑和聚焦，同组件实例                                                            |
+| `showSheet`、`toCSV`、`exportSVG`、`exportPNG`、`print` | 切换工作表、导出 CSV 和图片、打印，同组件实例                                                 |
+| `styleAt(point)`、`formatAt(point)`                     | 单元格的样式（没有时为 `{}`）和数字格式，合并单元格取左上角                                   |
+| `styleSelection(patch)`                                 | 修改选区的样式，规则同 `tr.styleCells`，`null` 去掉样式；返回是否有改动                       |
+| `formatSelection(format)`                               | 设置选区的数字格式，也可以传函数逐格计算，同 `tr.formatCells`                                 |
+| `clearFormatting()`                                     | 去掉选区的样式和数字格式                                                                      |
+| `merged`、`canMerge`、`merge()`、`unmerge()`            | 选区是否碰到合并单元格、能否合并；合并（会提示清空了几格）、取消合并                          |
+| `announce(text)`                                        | 让读屏软件播报一段文字                                                                        |
+| `editor`                                                | 正在编辑的单元格，供表格外的输入框使用，见下文                                                |
 
 `editor` 让表格外的输入框和单元格一起编辑，`DouSheetFormulaBar` 就是用它做的：
 

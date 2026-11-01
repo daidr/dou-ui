@@ -141,6 +141,8 @@ export default defineConfig({
             { text: '文件管理', link: '/blocks/files' },
             { text: 'AI 工作流', link: '/blocks/ai-workflow' },
             { text: '头脑风暴', link: '/blocks/brainstorm' },
+            { text: '代码练习', link: '/blocks/code-practice' },
+            { text: '配置编辑', link: '/blocks/config-editor' },
             { text: '发布排期', link: '/blocks/release-plan' },
             { text: '会议室预约', link: '/blocks/room-booking' },
             { text: '活动报名表', link: '/blocks/event-signup' },
@@ -404,6 +406,10 @@ export default defineConfig({
           replacement: r('../../packages/editor/src/collaboration/index.ts'),
         },
         {
+          find: /^@dou-ui\/editor\/code$/,
+          replacement: r('../../packages/editor/src/code/index.ts'),
+        },
+        {
           find: /^@dou-ui\/editor\/markdown$/,
           replacement: r('../../packages/editor/src/markdown/index.ts'),
         },
@@ -515,6 +521,10 @@ export default defineConfig({
           replacement: r('../../packages/code/src/style.css'),
         },
         { find: /^@dou-ui\/sheet$/, replacement: r('../../packages/sheet/src/index.ts') },
+        {
+          find: /^@dou-ui\/sheet\/code$/,
+          replacement: r('../../packages/sheet/src/code/index.ts'),
+        },
         {
           find: /^@dou-ui\/sheet\/collaboration$/,
           replacement: r('../../packages/sheet/src/collaboration/index.ts'),

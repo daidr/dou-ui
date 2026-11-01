@@ -492,6 +492,18 @@ const doc = shallowRef(CodeText.of(source))
 
 <DocDemo src="code/input" column />
 
+## 在其他组件里使用
+
+几个生态包提供了用代码编辑器编辑的版本，都放在各自的 `code` 子路径下，需要时再安装 `@dou-ui/code`：
+
+| 用在哪里   | 引入                                               | 说明                                                                                                             |
+| ---------- | -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| 块编辑器   | `codeEditorBlock` from `@dou-ui/editor/code`       | 文档里的代码块直接用代码编辑器编辑，见[代码块](/editor/code-block#用代码编辑器编辑)                              |
+| 电子表格   | `DouSheetCodeFormulaBar` from `@dou-ui/sheet/code` | 编辑栏里的公式着色、括号匹配、标出写错的地方，见[编辑栏](/sheet/formulas#代码版编辑栏)                           |
+| 表单设计器 | `codeExpressions` from `@dou-ui/form-builder/code` | 表达式写在代码输入框里，带字段名补全和诊断，见[用代码输入框写表达式](/form-builder/builder#用代码输入框写表达式) |
+
+区块里的[代码练习](/blocks/code-practice)和[配置编辑](/blocks/config-editor)是两个完整的页面示例。
+
 ## API
 
 ### Props

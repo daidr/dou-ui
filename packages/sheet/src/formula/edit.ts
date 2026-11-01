@@ -157,3 +157,68 @@ export function nameAt(
   }
   return null
 }
+
+/** A piece of a formula being typed, as it is colored in the edit box and the formula bar. */
+export interface SheetFormulaPart {
+  text: string
+  /** The reference's color, as in `SheetFormulaRefMark`. */
+  color?: number
+  /** The syntax color (`dou-syntax-…`) of what isn't a reference. */
+  syntax?:
+    | 'function'
+    | 'string'
+    | 'number'
+    | 'invalid'
+    | 'keyword'
+    | 'variable'
+    | 'operator'
+    | 'punctuation'
+}
+
+/**
+ * A formula cut into its colored pieces: references in their colors, and
+ * function names, "text", numbers, error values and operators in the
+ * syntax colors of `@dou-ui/code`, so the cell and either formula bar color
+ * it alike. Ends with a zero-width space, so a last line break still takes
+ * a line.
+ */
+export function formulaParts(
+  formula: string,
+  marks: readonly SheetFormulaRefMark[] = formulaReferences(formula),
+): SheetFormulaPart[] {
+  const parts: SheetFormulaPart[] = []
+  if (!formula.startsWith('=')) return [{ text: `${formula}​` }]
+  const colors = new Map(marks.map((mark) => [mark.start, mark.color]))
+  const tokens = formulaTokens(formula)
+  parts.push({ text: '=', syntax: 'operator' })
+  let at = 1
+  for (const [i, token] of tokens.entries()) {
+    if (token.start > at) parts.push({ text: formula.slice(at, token.start) })
+    const part: SheetFormulaPart = { text: token.text }
+    if (token.kind === 'ref') {
+      const color = colors.get(token.start)
+      if (color == null) part.syntax = 'variable'
+      else part.color = color
+    } else if (token.kind === 'number') part.syntax = 'number'
+    else if (token.kind === 'text') part.syntax = 'string'
+    else if (token.kind === 'error') part.syntax = 'invalid'
+    else if (token.kind === 'name')
+      part.syntax =
+        tokens[i + 1]?.text === '('
+          ? 'function'
+          : /^(?:TRUE|FALSE)$/i.test(token.text)
+            ? 'keyword'
+            : 'variable'
+    else part.syntax = /^[(),;{}]$/.test(token.text) ? 'punctuation' : 'operator'
+    parts.push(part)
+    at = token.end
+  }
+  parts.push({ text: `${formula.slice(at)}​` })
+  return parts
+}
+
+/** The class a piece of `formulaParts` is shown with. */
+export function partClass(part: SheetFormulaPart): string | undefined {
+  if (part.color != null) return `is-ref-${part.color}`
+  return part.syntax && `dou-syntax-${part.syntax}`
+}

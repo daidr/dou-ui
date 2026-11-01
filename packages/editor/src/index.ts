@@ -18,6 +18,7 @@ export type {
   FormatOption,
   HistoryProvider,
   Label,
+  MountComponent,
   ResolvedEditorExtensions,
 } from './core/extension'
 export {
@@ -50,7 +51,8 @@ export {
 } from './extensions/table'
 export type { TableAlign, TableColumn } from './extensions/table'
 export type { EditorKitOptions } from './extensions/editor-kit'
-export { defineBlock, EditorContent, vueNodeView } from './define-block'
+export { componentMounter, defineBlock, EditorContent, vueNodeView } from './define-block'
+export { historyCommands } from './core/editor'
 export { defaultLanguages } from './extensions/code-block'
 export type { CodeBlockOptions, CodeHighlighter, CodeLanguage } from './extensions/code-block'
 export { image, isSafeImageSrc, readAsDataUrl } from './extensions/image'

@@ -441,6 +441,59 @@
     }
   }
 
+  /* the code block edited in the code editor (`@dou-ui/editor/code`) */
+  .dou-editor-code-editor.dou-editor__content--codeBlock {
+    padding: 0;
+    overflow: visible;
+    white-space: normal;
+    transition: border-color var(--dou-motion-duration-fast) var(--dou-motion-easing);
+
+    &:has(> .dou-code-editor.is-focused) {
+      border-color: color-mix(in oklab, var(--dou-color-focus) 70%, var(--dou-color-text));
+    }
+
+    /* a row above the code, so the buttons never cover a line */
+    & > .dou-editor-code__bar {
+      position: relative;
+      top: auto;
+      right: auto;
+      z-index: 3;
+      justify-content: flex-end;
+      padding: 4px 6px 0 8px;
+      background: none;
+      opacity: 1;
+
+      /* the language on the left, the copy button on the right */
+      & > :not(:last-child) {
+        margin-inline-end: auto;
+      }
+    }
+  }
+
+  /* on touch screens the language button takes taps from 40px around its centre, as icon buttons do */
+  @media (pointer: coarse) {
+    .dou-editor-code__language:not(.is-static) {
+      position: relative;
+
+      &::after {
+        position: absolute;
+        inset: min(0px, calc(50% - 20px)) 0;
+        content: '';
+      }
+    }
+  }
+
+  .dou-editor-code__editor.dou-code-editor {
+    --dou-code-editor-bg: transparent;
+    --dou-code-editor-gutter-bg: var(--dou-color-bg-muted);
+    --dou-code-editor-border: transparent;
+    --dou-code-editor-border-focus: transparent;
+    --dou-code-editor-padding-x: 16px;
+    --dou-code-editor-padding-y: 8px;
+    border: none;
+    border-radius: inherit;
+  }
+
   /* highlighted tokens, as in DouCodeBlock */
   .dou-editor__token {
     color: var(--shiki-light, inherit);
@@ -553,6 +606,11 @@
 
   .dou-editor__block.is-selected .dou-editor__block.is-selected {
     background-color: transparent;
+  }
+
+  /* a code block paints over the tint: tint it too */
+  .dou-editor__block.is-selected > .dou-editor__content--codeBlock {
+    background-image: linear-gradient(var(--dou-editor-selected), var(--dou-editor-selected));
   }
 
   .is-block-selecting {

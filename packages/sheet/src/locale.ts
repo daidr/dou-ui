@@ -91,6 +91,9 @@ export interface SheetMessages {
   formulaBox: string
   /** An address typed in the name box that isn't one: `{text}` is what was typed. */
   badAddress: string
+  /** The formula bar's code input: text that isn't a formula. */
+  formulaSyntax: string
+  unknownFunction: string
   /** The list of functions while typing a function's name. */
   functionList: string
   /** Sorting and filtering. */
@@ -248,6 +251,8 @@ const zhCN: SheetMessages = {
   nameBox: '单元格地址',
   formulaBox: '编辑栏',
   badAddress: '“{text}”不是单元格地址',
+  formulaSyntax: '公式写得不完整或有误',
+  unknownFunction: '没有名为 {name} 的函数',
   functionList: '函数',
   ops: {
     eq: '等于',
@@ -543,6 +548,8 @@ const zhTW: SheetMessages = {
   nameBox: '儲存格位址',
   formulaBox: '資料編輯列',
   badAddress: '「{text}」不是儲存格位址',
+  formulaSyntax: '公式寫得不完整或有誤',
+  unknownFunction: '沒有名為 {name} 的函數',
   functionList: '函數',
   ops: {
     eq: '等於',
@@ -839,6 +846,8 @@ const en: SheetMessages = {
   nameBox: 'Cell address',
   formulaBox: 'Formula bar',
   badAddress: '"{text}" is not a cell address',
+  formulaSyntax: 'The formula is unfinished or mistyped',
+  unknownFunction: 'There is no function named {name}',
   functionList: 'Functions',
   ops: {
     eq: 'Equals',

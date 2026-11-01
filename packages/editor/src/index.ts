@@ -11,6 +11,7 @@ export type {
   EditorEmits,
   EditorExpose,
   EditorProps,
+  EditorOrigin,
   EditorSelection,
   EditorTransactionResult,
 } from './editor'

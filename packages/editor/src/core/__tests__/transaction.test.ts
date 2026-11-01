@@ -41,6 +41,13 @@ describe('insertBlocks', () => {
     expect(api.getBlocks()[2]!.id).toBe(created[1])
   })
 
+  it('goes to the end while the editor never had a cursor', async () => {
+    const api = await editor([p('a'), p('b'), p('c')])
+    expect(api.getSelection()).toEqual({ block: null, blocks: [] })
+    api.insertBlocks([{ id: 'x' }])
+    expect(ids(api.getBlocks())).toEqual(['a', 'b', 'c', 'x'])
+  })
+
   it('goes before, after or into a block, at an index', async () => {
     const api = await editor([p('a', 'A', [p('a1', 'A1')]), p('b', 'B')])
     api.insertBlocks([{ id: 'x' }], { before: 'b' })
@@ -203,8 +210,8 @@ describe('transact', () => {
       },
       { origin: 'outline' },
     )!
-    expect(result.origin).toBe('outline')
-    expect(result.history).toBe(true)
+    expect(result.meta.origin).toBe('outline')
+    expect(result.meta.history).toBe(true)
     expect(result.changes).toEqual({ added: ['x'], removed: ['b'], updated: ['a'], moved: ['c'] })
     expect(results).toEqual([result])
     expect(ids(api.getBlocks())).toEqual(['c', 'a', 'x'])
@@ -216,7 +223,7 @@ describe('transact', () => {
     const api = await editor([p('a', 'A')])
     expect(api.transact(() => {})).toBeNull()
     const result = api.transact((tr) => tr.updateBlock('a', { content: 'B' }), { history: false })
-    expect(result!.history).toBe(false)
+    expect(result!.meta.history).toBe(false)
     expect(api.canUndo).toBe(false)
   })
 
@@ -236,16 +243,16 @@ describe('transact', () => {
       onTransaction: (result: EditorTransactionResult) => results.push(result),
     })
     api.setBlocks([p('a', 'A'), p('b', 'B')])
-    expect(results[0]).toMatchObject({ origin: 'external', history: false })
+    expect(results[0]).toMatchObject({ meta: { origin: 'external', history: false } })
   })
 })
 
-describe('selectionChange', () => {
+describe('v-model:selection', () => {
   it('follows the cursor from block to block, not within one', async () => {
     const api = await editor([p('a', 'Alpha'), p('b', 'Beta', [p('b1', 'Inner')])])
     const seen: EditorSelection[] = []
     await wrapper!.setProps({
-      onSelectionChange: (selection: EditorSelection) => seen.push(selection),
+      'onUpdate:selection': (selection: EditorSelection) => seen.push(selection),
     })
     api.focusBlock('b')
     api.focusBlock('b', 'start')
@@ -269,5 +276,56 @@ describe('diffBlocks', () => {
       updated: [],
       moved: ['a'],
     })
+  })
+})
+
+describe('review follow-ups', () => {
+  it('names undo and redo, which undo cannot take back', async () => {
+    const api = await editor([p('a', 'A')])
+    const results: EditorTransactionResult[] = []
+    await wrapper!.setProps({
+      onTransaction: (result: EditorTransactionResult) => results.push(result),
+    })
+    api.insertBlocks([{ content: 'B' }], { after: 'a' })
+    api.undo()
+    api.redo()
+    expect(results.map((result) => [result.meta.origin, result.meta.history])).toEqual([
+      [undefined, true],
+      ['undo', false],
+      ['redo', false],
+    ])
+  })
+
+  it('hands back the ids it gave blocks without one', async () => {
+    wrapper = mount(DouEditor, {
+      attachTo: document.body,
+      props: { modelValue: [{ content: 'x' }] },
+    })
+    await nextTick()
+    const emitted = wrapper.emitted('update:modelValue')![0]![0] as Block[]
+    expect(emitted[0]!.id).toBeTruthy()
+    expect(wrapper.emitted('transaction')).toBeUndefined()
+  })
+
+  it('takes a selection from v-model:selection', async () => {
+    const api = await editor([p('a', 'A'), p('b', 'B'), p('c', 'C')])
+    await wrapper!.setProps({ selection: { block: 'b', blocks: ['b'] } })
+    expect(api.getSelection()).toEqual({ block: 'b', blocks: ['b'] })
+    await wrapper!.setProps({ selection: { block: 'c', blocks: ['a', 'b', 'c'] } })
+    expect(api.getSelection().blocks).toEqual(['a', 'b', 'c'])
+  })
+
+  it('focuses the editor after focusBlock inside transact', async () => {
+    const api = await editor([p('a', 'A')])
+    api.transact((tr) => tr.focusBlock('a'))
+    expect(api.view!.hasFocus()).toBe(true)
+  })
+
+  it('refuses rows on a paragraph and text on a divider', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const api = await editor([p('a', 'A'), { id: 'd', type: 'divider' }])
+    expect(api.updateBlock('a', { rows: [{ cells: ['x'] }] })).toBe(false)
+    expect(api.updateBlock('d', { content: 'x' })).toBe(false)
+    warn.mockRestore()
   })
 })

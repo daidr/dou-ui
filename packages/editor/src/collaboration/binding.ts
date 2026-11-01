@@ -10,6 +10,7 @@ import type { EditorView } from 'prosemirror-view'
 import * as Y from 'yjs'
 import { blockAround, findBlockById } from '../core/blocks'
 import { createId } from '../core/model'
+import { originKey } from '../core/editor'
 import { ownStepKey } from '../core/transaction'
 import { placeOf } from './cursors'
 import { keysBetween, orderKeys } from './order'
@@ -226,6 +227,8 @@ export interface Binding {
   stopCapturing?: () => void
   /** Where the cursor was before the change being written, for undo to return to. */
   selectionBefore?: unknown
+  /** Set while the undo manager takes a step back or forward. */
+  undoing?: 'undo' | 'redo'
 }
 
 export function createBinding(map: Y.Map<YBlock>): Binding {
@@ -308,6 +311,8 @@ export function syncPlugin(binding: Binding): Plugin {
       if (to !== end.a || from !== start) keepCellSelection(view.state, tr)
       tr.setMeta(collaborationKey, { remote: true })
       tr.setMeta('remote', true)
+      // this user's undo comes back through the shared document too
+      if (binding.undoing) tr.setMeta(originKey, binding.undoing)
       tr.setMeta('addToHistory', false)
       view.dispatch(tr)
     }

@@ -60,7 +60,9 @@ export type BlockEdge = 'start' | 'end'
  */
 export const ownStepKey = 'douOwnStep'
 
-const warn = (message: string) => console.warn(`[@dou-ui/editor] ${message}`)
+const warn = (message: string) => {
+  if (process.env.NODE_ENV !== 'production') console.warn(`[@dou-ui/editor] ${message}`)
+}
 
 /**
  * Changes made by blocks and ids, applied together as one undo step. Ids
@@ -70,11 +72,18 @@ export class EditorTransaction {
   /** The ProseMirror transaction underneath, for anything the methods don't cover. */
   readonly tr: Transaction
   readonly meta: EditorTransactionMeta
+  /** `focusBlock` was called: the editor takes focus once the changes are applied. */
+  focused = false
 
   constructor(
     /** The state the changes start from. */
     readonly before: EditorState,
     meta: EditorTransactionMeta = {},
+    /**
+     * Whether the selection was placed by the user or the program. An editor
+     * that never had focus has its selection at the start, which is no cursor.
+     */
+    private readonly hasCursor = true,
   ) {
     this.tr = before.tr
     this.meta = { ...meta }
@@ -141,6 +150,15 @@ export class EditorTransaction {
     const nodeType = schema.nodes[typeName]
     if (!nodeType?.isInGroup('blockContent')) {
       warn(`updateBlock: unknown block type "${typeName}"`)
+      return false
+    }
+    const rowsSpec = !!nodeType.spec.rows
+    if (patch.rows !== undefined && !rowsSpec) {
+      warn(`updateBlock: a "${typeName}" block has no rows`)
+      return false
+    }
+    if (patch.content !== undefined && (rowsSpec || !nodeType.inlineContent)) {
+      warn(`updateBlock: a "${typeName}" block has no text content`)
       return false
     }
     const props = { ...content.attrs, ...patch.props }
@@ -244,11 +262,13 @@ export class EditorTransaction {
       return false
     }
     tr.setSelection(selectionIn(tr, info, edge)).scrollIntoView()
+    this.focused = true
     return true
   }
 
   /** After the selection's block, or at the end. */
   private defaultPlacement(): BlockPlacement {
+    if (!this.hasCursor && !this.tr.selectionSet) return { parent: null }
     // selected blocks are only known before the first change
     const range = this.tr.docChanged ? null : blockSelectionRange(this.before)
     const id = range

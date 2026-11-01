@@ -65,7 +65,14 @@ export function collaboration(options: CollaborationOptions): EditorExtension {
     (_state, dispatch) => {
       const stack = action === 'undo' ? undoManager.undoStack : undoManager.redoStack
       if (!stack.length) return false
-      if (dispatch) undoManager[action]()
+      if (dispatch) {
+        binding.undoing = action
+        try {
+          undoManager[action]()
+        } finally {
+          binding.undoing = undefined
+        }
+      }
       return true
     }
 

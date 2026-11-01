@@ -24,7 +24,7 @@ editor.value!.removeBlocks([id])
 editor.value!.focusBlock('summary')
 ```
 
-`insertBlocks` 不指定位置时插在光标所在的块后面，选中了多个块时插在最后一个后面，编辑器里没有光标时插在文档末尾。块的位置用下面三种写法之一：
+`insertBlocks` 不指定位置时插在光标所在的块后面，选中了多个块时插在最后一个后面，编辑器还没有获得过焦点（也没有调用过 `focusBlock`）时没有光标，插在文档末尾。块的位置用下面几种写法之一：
 
 | 写法                          | 位置                                                        |
 | ----------------------------- | ----------------------------------------------------------- |
@@ -55,28 +55,35 @@ editor.value!.transact(
 )
 ```
 
-第二个参数可以设置 `history: false`，修改不进入撤销记录，适合程序自动做的整理；`origin` 会原样出现在 `transaction` 事件里，用来区分修改的来源。需要块方法以外的修改时，`tr.tr` 是底层的 ProseMirror 事务。
+第二个参数可以设置 `history: false`，修改不进入撤销记录，适合程序自动做的整理；`origin` 会原样出现在 `transaction` 事件的 `meta.origin` 里，用来区分修改的来源。回调里调用了 `tr.focusBlock` 时，修改完成后编辑器会获得焦点。需要块方法以外的修改时，`tr.tr` 是底层的 ProseMirror 事务。
+
+`transact` 返回这次修改的结果，和 `transaction` 事件给出的相同；回调里什么都没改（比如 id 都没找到）时返回 `null`。
 
 ## 跟踪修改
 
 `transaction` 事件在每次修改后触发，比 `update:modelValue` 早一步，给出修改涉及的块：
 
 ```ts
-function onTransaction({ changes, origin }: EditorTransactionResult) {
-  // changes.added / removed / updated / moved 都是块的 id
-  if (origin !== 'remote') save(changes)
+function onTransaction({ blocks, changes, meta }: EditorTransactionResult) {
+  // changes.added / removed / updated / moved 都是块的 id，blocks 是修改后的整个文档
+  if (meta.origin !== 'remote') save(blocks, changes)
 }
 ```
 
 - `updated` 是类型、属性、文字或表格内容变了的块，子块的变化不算在父块上。
 - `moved` 是换了父块，或者在兄弟块中换了位置的块。只列出真正移动的那些：把一个块移到末尾时，只有它在 `moved` 里，其他块不算。
-- `origin` 是传给 `transact` 的值；外部修改 `v-model` 或调用 `setBlocks` 时为 `'external'`，协同编辑中别人的修改为 `'remote'`，用户输入和编辑器自己的操作没有 `origin`。
+- `meta.origin` 是传给 `transact` 的值；外部修改 `v-model` 或调用 `setBlocks` 时为 `'external'`，协同编辑中别人的修改为 `'remote'`，撤销、重做为 `'undo'`、`'redo'`，用户输入和编辑器自己的操作没有 `origin`。
+- `meta.history` 表示这次修改能不能撤销：别人的修改、撤销和重做本身，以及设置了 `history: false` 的修改为 `false`。
+
+传入 `v-model` 的块没有写 `id` 时，编辑器挂载后会生成 id，并通过 `update:modelValue` 交回一次（不触发 `transaction`，也不进入撤销记录），这样事件里的 id 都能在自己的数据里找到。
 
 没有修改的块，在前后两次 `v-model` 里是同一个对象，可以直接用 `===` 判断某个块有没有变化。这些对象是共享的，不要直接修改它们，开发环境下修改会报错。要改内容，调用上面的方法，或者给 `v-model` 一个新的数组。
 
 ## 跟踪光标
 
-`selectionChange` 在光标移到另一个块、或者选中的块变化时触发。`block` 是光标所在的最内层的块，`blocks` 是选区覆盖的块。在同一个块里移动光标不会触发。下面的目录用它高亮光标所在的小节，点击标题用 `focusBlock` 跳过去：
+`v-model:selection` 绑定光标所在的位置：`block` 是光标所在的最内层的块，`blocks` 是选区覆盖的块。光标移到另一个块、或者选中的块变化时更新，在同一个块里移动光标不会更新。编辑器还没获得过焦点时为 `{ block: null, blocks: [] }`。
+
+从外部设置它会把光标放到 `block` 的末尾，`blocks` 有多个同级块时选中这些块，但不会让编辑器获得焦点；需要获得焦点时用 `focusBlock`。下面的目录用它高亮光标所在的小节，点击标题用 `focusBlock` 跳过去：
 
 <DocDemo src="editor/outline" column />
 

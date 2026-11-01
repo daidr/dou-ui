@@ -53,23 +53,25 @@ function onSelection(selection: EditorSelection) {
 <template>
   <div class="outline-demo">
     <nav class="outline-demo__nav" aria-label="目录">
-      <button
+      <DouButton
         v-for="item in headings"
         :key="item.id"
-        type="button"
+        size="sm"
+        variant="ghost"
         :class="{ 'is-active': item.id === active }"
+        :aria-current="item.id === active ? 'location' : undefined"
         :style="{ paddingInlineStart: `${(item.level - 2) * 12 + 8}px` }"
         @click="editor?.focusBlock(item.id)"
       >
         {{ item.text || '无标题' }}
-      </button>
+      </DouButton>
     </nav>
     <DouEditor
       ref="editor"
       v-model="blocks"
       aria-label="活动方案"
       class="outline-demo__editor"
-      @selection-change="onSelection"
+      @update:selection="onSelection"
     />
   </div>
 </template>
@@ -88,25 +90,18 @@ function onSelection(selection: EditorSelection) {
   border-inline-end: 1px solid var(--dou-color-border);
   padding-inline-end: 8px;
 
-  & button {
-    border: 0;
-    border-radius: var(--dou-radius-control);
-    background: none;
-    padding-block: 4px;
-    padding-inline-end: 8px;
+  & .dou-button {
+    justify-content: flex-start;
     color: var(--dou-color-text-secondary);
-    font: inherit;
-    font-size: var(--dou-font-size-sm);
-    text-align: start;
-    cursor: pointer;
-
-    &:hover {
-      background: var(--dou-color-bg-muted);
-    }
+    font-weight: 400;
 
     &.is-active {
       color: var(--dou-color-text);
       font-weight: 600;
+    }
+
+    @media (pointer: coarse) {
+      min-height: 40px;
     }
   }
 }

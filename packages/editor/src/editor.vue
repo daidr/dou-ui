@@ -31,6 +31,7 @@ import {
 import { diffBlocks } from './core/changes'
 import { isRemote } from './core/plugins'
 import { selectionOf, sameSelection } from './core/selection'
+import { selectBlocks } from './core/block-selection'
 import { applyEditorTransaction, EditorTransaction } from './core/transaction'
 import type { Block, PartialBlock } from './core/model'
 import { resolveEditorExtensions } from './core/extension'
@@ -44,6 +45,7 @@ import {
   type EditorEmits,
   type EditorExpose,
   type EditorProps,
+  type EditorOrigin,
   type EditorSelection,
   type EditorTransactionResult,
 } from './editor'
@@ -63,6 +65,7 @@ const props = withDefaults(defineProps<EditorProps>(), {
   history: true,
   undo: undefined,
   redo: undefined,
+  selection: undefined,
 })
 const emit = defineEmits<EditorEmits>()
 
@@ -124,14 +127,19 @@ let lastResult: EditorTransactionResult | null = null
 function onChange(current: EditorView, tr: Transaction, before: EditorState) {
   const blocks = getBlocks(current)
   emitted = blocks
+  const history = tr.getMeta('history$') as { redo: boolean } | undefined
   const origin =
-    (tr.getMeta(originKey) as string | undefined) ?? (isRemote(tr) ? 'remote' : undefined)
-  lastResult = {
-    blocks,
-    changes: diffBlocks(before.doc, current.state.doc),
-    history: tr.getMeta('addToHistory') !== false && origin !== 'remote',
+    (tr.getMeta(originKey) as EditorOrigin | undefined) ??
+    (history ? (history.redo ? 'redo' : 'undo') : isRemote(tr) ? 'remote' : undefined)
+  const meta: EditorTransactionResult['meta'] = {
+    history:
+      tr.getMeta('addToHistory') !== false &&
+      origin !== 'remote' &&
+      origin !== 'undo' &&
+      origin !== 'redo',
   }
-  if (origin !== undefined) lastResult.origin = origin
+  if (origin !== undefined) meta.origin = origin
+  lastResult = { blocks, changes: diffBlocks(before.doc, current.state.doc), meta }
   emit('transaction', lastResult)
   emit('update:modelValue', blocks)
   emit('change', blocks)
@@ -139,12 +147,21 @@ function onChange(current: EditorView, tr: Transaction, before: EditorState) {
 
 let selection: EditorSelection = { block: null, blocks: [] }
 
+const lacksId = (blocks: PartialBlock[]): boolean =>
+  blocks.some((block) => !block.id || lacksId(block.children ?? []))
+// until the editor is focused (or a block is, by the program) its selection is no cursor
+let cursorKnown = false
+
 function onUpdate(current: EditorView) {
   state.value = current.state
+  if (!cursorKnown) {
+    if (!focused.value) return
+    cursorKnown = true
+  }
   const next = selectionOf(current.state)
   if (sameSelection(next, selection)) return
   selection = next
-  emit('selectionChange', next)
+  emit('update:selection', next)
 }
 
 // a click on a link places the cursor; with Ctrl or ⌘ held it opens the link
@@ -195,7 +212,6 @@ onMounted(() => {
   })
   view.value = instance
   state.value = instance.state
-  selection = selectionOf(instance.state)
   // code blocks without their own highlighter use the one DouCodeBlock uses
   watch(
     () =>
@@ -207,10 +223,24 @@ onMounted(() => {
   instance.dom.addEventListener('focus', onFocus)
   instance.dom.addEventListener('blur', onBlur)
   if (props.autofocus) instance.focus()
+  // blocks given without ids got them now: hand those back, so events' ids can be looked up
+  if (!kit.externalDocument && props.modelValue && lacksId(props.modelValue)) {
+    const blocks = getBlocks(instance)
+    emitted = blocks
+    emit('update:modelValue', blocks)
+  }
 })
 
 function onFocus(event: FocusEvent) {
   focused.value = true
+  if (!cursorKnown && view.value) {
+    cursorKnown = true
+    const next = selectionOf(view.value.state)
+    if (!sameSelection(next, selection)) {
+      selection = next
+      emit('update:selection', next)
+    }
+  }
   emit('focus', event)
 }
 
@@ -235,16 +265,37 @@ watch(
 
 watch(editable, (value) => view.value && setEditable(view.value, value))
 
+// a selection from outside: the cursor goes to the block, or the blocks are selected
+watch(
+  () => props.selection,
+  (value) => {
+    const current = view.value
+    if (!current || !value || sameSelection(value, selection)) return
+    cursorKnown = true
+    if (value.blocks.length > 1) {
+      selectBlocks(value.blocks[0]!, value.blocks.at(-1)!)(current.state, current.dispatch)
+      return
+    }
+    const id = value.block ?? value.blocks[0]
+    if (!id) return
+    const transaction = new EditorTransaction(current.state)
+    if (transaction.focusBlock(id)) current.dispatch(transaction.tr)
+  },
+)
+
 function transact(
   fn: (tr: EditorTransaction) => void,
   meta?: EditorTransaction['meta'],
 ): EditorTransactionResult | null {
   const current = view.value
   if (!current) return null
-  const transaction = new EditorTransaction(current.state, meta)
+  const transaction = new EditorTransaction(current.state, meta, cursorKnown)
   fn(transaction)
   lastResult = null
+  // `focusBlock` places the cursor
+  if (transaction.focused) cursorKnown = true
   applyEditorTransaction(current, transaction)
+  if (transaction.focused) current.focus()
   const result = lastResult
   lastResult = null
   return result
@@ -293,7 +344,6 @@ defineExpose<EditorExpose>({
   focusBlock: (id, edge) => {
     let ok = false
     transact((tr) => (ok = tr.focusBlock(id, edge)))
-    if (ok) view.value?.focus()
     return ok
   },
   getSelection: () => ({ ...selection, blocks: [...selection.blocks] }),

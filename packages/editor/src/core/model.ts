@@ -198,13 +198,13 @@ const freeze = <T>(value: T): T => {
   return value
 }
 
-/** A block of the document; shared between reads, so read-only. */
+/** A block of the document; shared between reads, so frozen. */
 export function blockFromNode(node: PMNode): Block {
   let block = blockCache.get(node)
   if (!block) {
     block = readBlock(node)
-    // in development a change to a shared block throws, instead of corrupting later reads
-    if (process.env.NODE_ENV !== 'production') freeze(block)
+    // a change to a shared block throws, instead of corrupting later reads
+    freeze(block)
     blockCache.set(node, block)
   }
   return block

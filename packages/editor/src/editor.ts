@@ -45,22 +45,33 @@ export interface EditorProps {
   /** Undo and redo commands to replace the built-in ones. */
   undo?: Command
   redo?: Command
+  /**
+   * The block with the cursor and the selected blocks, bound with
+   * `v-model:selection`. Setting it puts the cursor at the end of `block`,
+   * or selects `blocks` when there are several siblings, without focusing.
+   */
+  selection?: EditorSelection
 }
+
+/**
+ * Who made a change: `'external'` for a new `v-model` value or
+ * `setBlocks`, `'remote'` for a collaborator's, `'undo'` and `'redo'`, or
+ * the `origin` given to `transact`. Typing and the editor's own commands
+ * leave it out.
+ */
+export type EditorOrigin = 'external' | 'remote' | 'undo' | 'redo' | (string & {})
 
 /** What a change to the document did, as the `transaction` event hands it over. */
 export interface EditorTransactionResult {
-  /** The document after the change. */
+  /** The document after the change, as `update:modelValue` gets it next. */
   blocks: Block[]
   /** The blocks the change touched, by id. */
   changes: BlockChanges
-  /**
-   * Who made the change: the `origin` given to `transact`, `'external'` for
-   * a new `v-model` value or `setBlocks`, `'remote'` for a collaborator's.
-   * Typing and the editor's own commands leave it out.
-   */
-  origin?: string
-  /** Whether undo can take the change back. */
-  history: boolean
+  meta: {
+    origin?: EditorOrigin
+    /** Whether undo can take the change back: not for others' changes, nor for undo and redo themselves. */
+    history: boolean
+  }
 }
 
 /** Where the selection is, by block. */
@@ -81,7 +92,7 @@ export interface EditorEmits {
   /** Every change to the document, with what it touched; `update:modelValue` follows. */
   transaction: [result: EditorTransactionResult]
   /** The cursor moved to another block, or other blocks were selected. */
-  selectionChange: [selection: EditorSelection]
+  'update:selection': [selection: EditorSelection]
   focus: [event: FocusEvent]
   blur: [event: FocusEvent]
 }
@@ -125,7 +136,7 @@ export interface EditorExpose {
   moveBlocks: (ids: string[], placement: BlockPlacement) => boolean
   /** Focus the editor with the cursor at the start or end (the default) of a block, scrolled into view. */
   focusBlock: (id: string, edge?: BlockEdge) => boolean
-  /** The selection by block, as the `selectionChange` event hands it over. */
+  /** The selection by block, as `v-model:selection` has it. */
   getSelection: () => EditorSelection
   undo: () => boolean
   redo: () => boolean

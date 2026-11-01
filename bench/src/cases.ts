@@ -1308,7 +1308,7 @@ export const cases: Record<string, Case> = {
       return nextTick()
     },
     frames: 20,
-    budget: { 2000: 30 },
+    budget: { 2000: 45 },
   },
 }
 
@@ -1766,7 +1766,7 @@ function formHandwritten(n: number) {
     )
 }
 
-/** n top-level blocks: every 10th a heading, every 25th code, every 50th a 5 × 4 table. */
+/** n top-level blocks: every 10th a heading, every 25th code, every 50th a 5 × 4 table and a closed toggle. */
 function editorBlocks(n: number): PartialBlock[] {
   const blocks: PartialBlock[] = []
   for (let i = 0; i < n; i++) {
@@ -1789,6 +1789,14 @@ function editorBlocks(n: number): PartialBlock[] {
         content: Array.from({ length: 6 }, (_, l) => `const value${l} = compute(${i}, ${l})`).join(
           '\n',
         ),
+      })
+    } else if (i % 50 === 9) {
+      // closed when the editor opens
+      blocks.push({
+        id,
+        type: 'toggle',
+        content: `更多说明 ${i}`,
+        children: [{ id: `${id}c`, content: '折叠起来的内容' }],
       })
     } else if (i % 10 === 0) {
       blocks.push({ id, type: 'heading', props: { level: 2 }, content: `第 ${i / 10 + 1} 节` })

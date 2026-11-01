@@ -12,6 +12,10 @@ import { cursor, shapeOf } from '../../../core/__tests__/helpers'
 import DouEditor from '../../../editor.vue'
 import { editorKit } from '../../editor-kit'
 import { flipToggle, isToggleOpen } from '../state'
+import { undo } from 'prosemirror-history'
+import { siblingRangeBetween } from '../../../core/blocks'
+import { moveRangeTo } from '../../../core/commands'
+import { applyEditorTransaction, EditorTransaction } from '../../../core/transaction'
 
 let view: EditorView | undefined
 
@@ -124,6 +128,40 @@ describe('toggle', () => {
     expect(button.attributes('aria-expanded')).toBe('true')
     expect(wrapper.find('.is-collapsed').exists()).toBe(false)
     wrapper.unmount()
+  })
+})
+
+const start = () =>
+  create([{ id: 'p', content: 'Top' }, toggle('t', 'Title', [{ id: 'c', content: 'x' }])])
+
+describe('closed toggles that come back', () => {
+  it('stay closed when moved', () => {
+    const target = start()
+    const tr = new EditorTransaction(target.state)
+    tr.moveBlocks(['t'], { before: 'p' })
+    applyEditorTransaction(target, tr)
+    expect(collapsed(target)).toEqual(['t'])
+    expect(isToggleOpen(target.state, 't')).toBe(false)
+  })
+
+  it('stay closed when their removal is undone', () => {
+    const target = start()
+    const tr = new EditorTransaction(target.state)
+    tr.removeBlocks(['t'])
+    applyEditorTransaction(target, tr)
+    expect(collapsed(target)).toEqual([])
+    undo(target.state, target.dispatch)
+    expect(collapsed(target)).toEqual(['t'])
+  })
+
+  it('stay closed when dragged by the handle', () => {
+    const target = start()
+    const range = siblingRangeBetween(target.state.doc, 2, 2)!
+    const info = findBlockById(target.state.doc, 't')!
+    const from = siblingRangeBetween(target.state.doc, info.pos + 1, info.pos + 1)!
+    expect(moveRangeTo(from, range.start)(target.state, target.dispatch)).toBe(true)
+    expect(docToBlocks(target.state.doc).map((block) => block.id)).toEqual(['t', 'p'])
+    expect(collapsed(target)).toEqual(['t'])
   })
 })
 

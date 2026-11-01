@@ -278,6 +278,42 @@ describe('toolbar', () => {
     expect(picked).toEqual(['大'])
   })
 
+  it('marks the built-in more button as opening the node menu', async () => {
+    const { root, selection } = setup()
+    selection.value = { nodes: ['a'], edges: [] }
+    await nextTick()
+    const more = root.find('.dou-flow-toolbar button[aria-label="更多"]')
+    expect(more.attributes('aria-haspopup')).toBe('menu')
+    expect(more.attributes('aria-expanded')).toBe('false')
+    await more.trigger('click')
+    await nextTick()
+    expect(more.attributes('aria-expanded')).toBe('true')
+    expect(menuItems().length).toBeGreaterThan(0)
+  })
+
+  it('warns once about a button that does nothing', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const extra = defineFlowExtension({
+      name: 'idle',
+      toolbarItems: () => [
+        { key: 'idle', label: '空', icon: Icon },
+        { key: 'empty', label: '空菜单', icon: Icon, children: [] },
+      ],
+    })
+    const { root, selection, doc } = setup([flowKit(), extra])
+    selection.value = { nodes: ['a'], edges: [] }
+    await nextTick()
+    doc.value = { ...doc.value, nodes: doc.value.nodes.map((node) => ({ ...node, x: node.x + 1 })) }
+    await nextTick()
+    const messages = warn.mock.calls.map((call) => String(call[0]))
+    expect(messages.filter((text) => text.includes('"idle"'))).toHaveLength(1)
+    expect(messages.filter((text) => text.includes('"empty"'))).toHaveLength(1)
+    expect(messages[0]).toMatch(/^\[@dou-ui\/flow\]/)
+    const empty = root.find('.dou-flow-toolbar button[aria-label="空菜单"]')
+    expect(empty.attributes('aria-haspopup')).toBeUndefined()
+    warn.mockRestore()
+  })
+
   it('is hidden while read only, or without the kit toolbar', async () => {
     for (const [extensions, props] of [
       [undefined, { readonly: true }],

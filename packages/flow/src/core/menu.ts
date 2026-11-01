@@ -15,7 +15,7 @@ export interface FlowMenuItem {
   /** A key to show after the label, written as in `useHotkey`; only shown. */
   shortcut?: string
   disabled?: boolean
-  tone?: 'danger'
+  tone?: 'neutral' | 'danger'
   /** Draw a separator above the item. */
   divided?: boolean
   /**
@@ -32,8 +32,8 @@ export interface FlowToolbarItem {
   /** Shown as a tooltip and read by screen readers. */
   label: string
   icon: Component
-  /** Called on click; gets the click, e.g. to place something by the button. */
-  run?: (event: MouseEvent) => void
+  /** Called on click. */
+  run?: () => void
   disabled?: boolean
   /** For a button that turns something on and off: whether it is on. */
   pressed?: boolean

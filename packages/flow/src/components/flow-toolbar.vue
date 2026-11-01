@@ -20,16 +20,36 @@ const props = defineProps<{
 
 const { messages, root, showMenu, menuFrom } = useFlowEditor()
 
+const opensMenu = (item: FlowToolbarItem) => !!item.children?.length
+
 // A button with `children` opens its choices under it; a click from the
 // keyboard (no pointer, `detail` 0) puts focus on the one in use.
 function press(item: FlowToolbarItem, event: MouseEvent) {
-  if (!item.children) return item.run?.(event)
+  if (!opensMenu(item)) return item.run?.()
   const button = event.currentTarget as HTMLElement
   const box = button.getBoundingClientRect()
-  showMenu(item.children, { x: box.left, y: box.bottom + 4 }, button, {
+  showMenu(item.children!, { x: box.left, y: box.bottom + 4 }, button, {
     focusChecked: event.detail === 0,
   })
 }
+// By key: extensions give new item objects on every update.
+const warned = new Set<string>()
+/** Says once when a button does nothing when pressed. */
+function warnOnce(item: FlowToolbarItem) {
+  // the app's bundler replaces this, as for Vue's own warnings
+  if (process.env.NODE_ENV === 'production' || warned.has(item.key)) return
+  if (item.run || opensMenu(item)) return
+  warned.add(item.key)
+  console.warn(
+    `[@dou-ui/flow] the toolbar item "${item.key}" has no run or children: pressing it does nothing`,
+  )
+}
+watch(
+  () => props.groups,
+  (groups) => groups.flat().forEach(warnOnce),
+  { immediate: true },
+)
+
 const el = useTemplateRef<HTMLElement>('el')
 const box = ref({ width: 0, height: 0 })
 
@@ -134,10 +154,10 @@ const hidden = computed(
           :class="{ 'is-active': item.pressed }"
           :disabled="item.disabled"
           :aria-label="item.label"
-          :aria-pressed="item.children ? undefined : (item.pressed ?? undefined)"
-          :aria-haspopup="item.children ? 'menu' : undefined"
+          :aria-pressed="opensMenu(item) ? undefined : (item.pressed ?? undefined)"
+          :aria-haspopup="opensMenu(item) ? 'menu' : undefined"
           :aria-expanded="
-            item.children ? !!menuFrom && menuFrom === buttons.get(item.key) : undefined
+            opensMenu(item) ? !!menuFrom && menuFrom === buttons.get(item.key) : undefined
           "
           @click="press(item, $event)"
         >

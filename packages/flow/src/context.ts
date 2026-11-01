@@ -306,6 +306,8 @@ export interface FlowEditorContext {
    * and pressing that button again closes it.
    */
   openMenu: (target: FlowMenuTarget, client: Point, from?: Element) => boolean
+  /** The items the context menu has for a target, as `openMenu` shows them. */
+  menuItems: (target: FlowMenuTarget) => FlowMenuItem[]
   /**
    * Opens the editor's menu with these items, e.g. the choices behind a
    * toolbar button; `from` works as in `openMenu`.

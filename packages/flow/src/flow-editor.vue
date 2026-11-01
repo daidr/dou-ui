@@ -3229,6 +3229,7 @@ const context: FlowEditorContext = {
   previewNode,
   connectingPath: previewPath,
   openMenu,
+  menuItems: itemsFor,
   showMenu,
   menuFrom,
   toCanvas,

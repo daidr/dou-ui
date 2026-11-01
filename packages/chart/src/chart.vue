@@ -1086,10 +1086,16 @@ const pieLabels = computed(() => {
       const y = centers[n]!
       const sin = Math.sin(item.middle)
       const cos = Math.cos(item.middle)
+      // out from the slice to the label's height, then straight across to it; the
+      // turn stays clear of the pie, so the line across doesn't run over it
+      const end = column + (right ? -4 : 4)
+      const clear = Math.sqrt(Math.max(0, (radius + 8) ** 2 - (y - cy) ** 2))
+      const reach = Math.max(Math.abs(sin) * (radius + 10), clear)
+      const turn = right ? Math.min(cx + reach, end) : Math.max(cx - reach, end)
       out.leaders.push([
         [cx + sin * (radius + 2), cy - cos * (radius + 2)],
-        [cx + sin * (radius + 10), cy - cos * (radius + 10)],
-        [column + (right ? -4 : 4), y],
+        [turn, y],
+        [end, y],
       ])
       const text = texts[item.k]!
       const parts = pieLabelParts.value[item.k]!

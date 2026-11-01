@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useFlowEditor, type FlowMinimapProps } from '../context'
 import { boundsOf } from '../core/geometry'
 import type { Point, Rect } from '../core/model'
@@ -145,7 +145,33 @@ function place() {
   lift.value = next
 }
 
-onMounted(() => nextTick(place))
+// Panels come, go and change size after the map is shown (controls put in
+// later, undo hidden when made read-only…): place it again each time.
+let resizes: ResizeObserver | undefined
+let changes: MutationObserver | undefined
+function watchPanels() {
+  const panels = el.value?.parentElement
+  if (!panels) return
+  resizes?.disconnect()
+  if (typeof ResizeObserver !== 'undefined') {
+    resizes = new ResizeObserver(() => place())
+    for (const panel of panels.children) if (panel !== el.value) resizes.observe(panel)
+  }
+  place()
+}
+
+onMounted(() => {
+  nextTick(watchPanels)
+  const panels = el.value?.parentElement
+  if (panels && typeof MutationObserver !== 'undefined') {
+    changes = new MutationObserver(watchPanels)
+    changes.observe(panels, { childList: true })
+  }
+})
+onBeforeUnmount(() => {
+  resizes?.disconnect()
+  changes?.disconnect()
+})
 watch(
   () => [flow.size.value.width, flow.size.value.height, props.width, props.height, props.placement],
   () => nextTick(place),

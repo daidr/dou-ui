@@ -5,6 +5,7 @@ import {
   defineFlowExtension,
   defineNodeType,
   DouFlowEditor,
+  DouFlowControls,
   DouFlowMinimap,
   flowKit,
   useFlowEditor,
@@ -305,6 +306,10 @@ describe('extensions made in the template', () => {
   })
 })
 
+/** A box as `getBoundingClientRect` gives it. */
+const rect = (top: number, left: number, width: number, height: number) =>
+  ({ top, left, width, height, right: left + width, bottom: top + height }) as DOMRect
+
 describe('DouFlowMinimap', () => {
   it('draws every node and moves the view where it is pressed', async () => {
     const { wrapper } = setup(undefined, { nodes: ['b'], edges: [] })
@@ -349,6 +354,41 @@ describe('DouFlowMinimap', () => {
     expect((height / 2 - view.y) / view.zoom).toBeCloseTo(cy)
     await svg.trigger('pointerup')
     wrapper.unmount()
+  })
+
+  it('moves above controls that show up after it', async () => {
+    const shown = ref(false)
+    const wrapper = mount(
+      defineComponent(
+        () => () =>
+          h(DouFlowEditor, { modelValue: sample() }, () => [
+            h(DouFlowMinimap),
+            shown.value ? h(DouFlowControls) : null,
+          ]),
+      ),
+      { attachTo: document.body },
+    )
+    await nextTick()
+    const map = wrapper.find('.dou-flow-minimap')
+    ;(map.element as HTMLElement).getBoundingClientRect = () => rect(400, 200, 202, 138)
+    expect((map.element as HTMLElement).style.translate).toBe('')
+    const original = HTMLElement.prototype.getBoundingClientRect
+    HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement) {
+      return this.classList.contains('dou-flow-controls')
+        ? rect(504, 20, 250, 34)
+        : original.call(this)
+    }
+    try {
+      shown.value = true
+      await nextTick()
+      await new Promise((resolve) => setTimeout(resolve))
+      await nextTick()
+      // 138 + 400 - 504 + 8: clear of the controls with a gap.
+      expect((map.element as HTMLElement).style.translate).toBe('0 -42px')
+    } finally {
+      HTMLElement.prototype.getBoundingClientRect = original
+      wrapper.unmount()
+    }
   })
 
   it('holds the map still while dragging and stops the view at its edge', async () => {

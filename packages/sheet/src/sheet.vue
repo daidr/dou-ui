@@ -192,6 +192,7 @@ import type {
   SheetImageOptions,
   SheetImportEvent,
   SheetImportMode,
+  SheetFileErrorEvent,
   SheetImportFileOptions,
   SheetSaveFileOptions,
   SheetSlots,
@@ -2875,12 +2876,32 @@ async function saveFile(which: string | SheetExporter, options: SheetSaveFileOpt
     blob = await exportFile(exporter, options)
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error)
-    showNotice(format(messages.value.file.exportFailed, { name, reason }))
-    emit('fileError', { action: 'export', exporter: exporter.name, error })
+    fileFailed(
+      { action: 'export', exporter: exporter.name, error },
+      format(messages.value.file.exportFailed, { name, reason }),
+    )
     throw error
   }
   downloadBlob(blob, name)
   announce(format(messages.value.file.exported, { name }))
+}
+
+/** Tells of a failed import or export with `file-error`, and over the grid unless a listener says it will. */
+function fileFailed(
+  detail: Pick<SheetFileErrorEvent, 'action' | 'file' | 'exporter' | 'importer' | 'error'>,
+  message: string,
+) {
+  const event: SheetFileErrorEvent = {
+    ...detail,
+    message,
+    defaultPrevented: false,
+    preventDefault() {
+      this.defaultPrevented = true
+    },
+  }
+  emit('fileError', event)
+  if (event.defaultPrevented) announce(message)
+  else showNotice(message)
 }
 
 /** Aborted when the grid goes, so a file still being read isn't written into it. */
@@ -2917,12 +2938,10 @@ async function importFile(file: Blob, options: SheetImportFileOptions = {}) {
   if (!importer) {
     if (options.importer != null)
       throw new Error(`[@dou-ui/sheet] there is no importer "${options.importer}"`)
-    showNotice(format(messages.value.file.unknownFile, { name }))
-    emit('fileError', {
-      action: 'import',
-      file,
-      error: new Error(`[@dou-ui/sheet] no importer reads "${name}"`),
-    })
+    fileFailed(
+      { action: 'import', file, error: new Error(`[@dou-ui/sheet] no importer reads "${name}"`) },
+      format(messages.value.file.unknownFile, { name }),
+    )
     return null
   }
   const label = name || labelOf(importer.label, messages.value)
@@ -2936,13 +2955,10 @@ async function importFile(file: Blob, options: SheetImportFileOptions = {}) {
   } catch (error) {
     if (signal.aborted) return null
     const reason = error instanceof Error ? error.message : String(error)
-    showNotice(format(messages.value.file.importFailed, { name: label, reason }))
-    emit('fileError', {
-      action: 'import',
-      file,
-      importer: importer.name,
-      error,
-    })
+    fileFailed(
+      { action: 'import', file, importer: importer.name, error },
+      format(messages.value.file.importFailed, { name: label, reason }),
+    )
     throw error
   }
   if (signal.aborted) return null
@@ -3021,6 +3037,7 @@ function applyImport(book: SheetWorkbook, mode: SheetImportMode) {
           ...data,
           name: names[i]!,
           cells: renameCells(data.cells, styles, types, moved),
+          ...renameRules(data, styles, moved),
         }),
       )
     },
@@ -3104,6 +3121,36 @@ function typeNames(tr: SheetTransaction, types: Record<string, SheetTypeSetup> |
     names.set(name, next)
   }
   return names
+}
+
+/**
+ * A sheet's conditional formats and validations with the sheets their
+ * formulas and lists name, and the styles they name, changed.
+ */
+function renameRules(data: SheetData, styles: Map<string, string>, sheets: Map<string, string>) {
+  const out: Pick<SheetData, 'conditionalFormats' | 'validations'> = {}
+  const formula = (text: string) => renameReferencesAll(text, sheets)
+  if (data.conditionalFormats?.length)
+    out.conditionalFormats = data.conditionalFormats.map((rule) => {
+      let next = rule
+      if ('formula' in next && formula(next.formula) !== next.formula)
+        next = { ...next, formula: formula(next.formula) }
+      if ('style' in next && typeof next.style === 'string') {
+        const to = styles.get(next.style)
+        if (to && to !== next.style) next = { ...next, style: to }
+      }
+      return next
+    })
+  if (data.validations?.length)
+    out.validations = data.validations.map((rule) => {
+      let next = rule
+      if ('formula' in next && formula(next.formula) !== next.formula)
+        next = { ...next, formula: formula(next.formula) }
+      if ('list' in next && typeof next.list === 'string' && formula(next.list) !== next.list)
+        next = { ...next, list: formula(next.list) }
+      return next
+    })
+  return out
 }
 
 const anyRenamed = (names: Map<string, string>) => [...names].some(([from, to]) => from !== to)

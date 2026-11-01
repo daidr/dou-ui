@@ -369,6 +369,54 @@ describe('DouSheet files', () => {
     wrapper.unmount()
   })
 
+  it('renames the sheets and styles the imported rules name, too', async () => {
+    const { wrapper, doc, sheet } = setup({ extensions: [jsonExtension] }, undefined, {
+      styles: { hl: { bold: true } },
+      sheets: [{ name: '选项', cells: [['x']] }],
+    })
+    await sheet().importFile(
+      json({
+        styles: { hl: { italic: true } },
+        sheets: [
+          { name: '选项', cells: [['a'], ['b']] },
+          {
+            name: '录入',
+            cells: [['a']],
+            validations: [{ range: 'A1:A9', list: '=选项!A1:A2' }],
+            conditionalFormats: [
+              { range: 'A1:A9', formula: '=选项!A1="a"', style: 'hl' },
+              { range: 'A1:A9', when: { op: 'eq', value: 'b' }, style: 'hl' },
+            ],
+          },
+        ],
+      }),
+    )
+    await nextTick()
+    const added = doc.value.sheets[2]!
+    expect(added.validations![0]).toMatchObject({ list: "='选项 (2)'!A1:A2" })
+    expect(added.conditionalFormats![0]).toMatchObject({
+      formula: '=\'选项 (2)\'!A1="a"',
+      style: 'hl 2',
+    })
+    expect(added.conditionalFormats![1]).toMatchObject({ style: 'hl 2' })
+    wrapper.unmount()
+  })
+
+  it('leaves the message to a file-error listener that asks', async () => {
+    const said: string[] = []
+    const { wrapper, sheet } = setup({
+      onFileError: (event: SheetFileErrorEvent) => {
+        said.push(event.message)
+        event.preventDefault()
+      },
+    })
+    expect(await sheet().importFile(new File(['x'], '表.xlsx'))).toBeNull()
+    await nextTick()
+    expect(said).toEqual(['不支持导入“表.xlsx”'])
+    expect(wrapper.find('.dou-sheet__notice').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
   it("brings cell types along: the file's for replace, renamed when they clash for append and insert", async () => {
     const host: SheetWorkbook = {
       types: { s: { type: 'select', options: ['host'] } },
@@ -451,7 +499,7 @@ describe('DouSheet files', () => {
     })
     expect(await sheet().importFile(new File(['x'], '表.xlsx'))).toBeNull()
     await nextTick()
-    expect(wrapper.text()).toContain('没有能读取“表.xlsx”的导入方式')
+    expect(wrapper.text()).toContain('不支持导入“表.xlsx”')
     await expect(sheet().importFile(new File(['x'], 'a.bad'))).rejects.toThrow('boom')
     await expect(sheet().saveFile('csv', { scope: 'workbook' })).rejects.toThrow(/workbook/)
     expect(errors.map((e) => [e.action, e.importer ?? e.exporter ?? null])).toEqual([

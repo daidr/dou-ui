@@ -118,6 +118,11 @@ export interface SheetFileErrorEvent {
   importer?: string
   /** What went wrong; for a file no importer takes, an error saying so. */
   error: unknown
+  /** What the grid tells the user, in its language, e.g. “不支持导入“报表.xlsx””. */
+  message: string
+  defaultPrevented: boolean
+  /** Keeps the grid from showing `message`, for a message of your own; screen readers still hear it. */
+  preventDefault: () => void
 }
 
 /** How `importFile` writes what it read: as new sheets, instead of every sheet, or at the active cell. */

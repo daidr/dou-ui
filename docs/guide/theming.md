@@ -104,7 +104,7 @@ const css =
 
 没有传入的语气保持默认值。颜色接受 `#rrggbb`、`#rgb` 与 `rgb()` 写法。第二个参数可以换掉起点主题，比如 `createTheme({ primary }, { light: myLight, dark: myDark })`。
 
-只需要单个语气时可以用 `createTone(color, base)`，`base` 决定按亮色还是暗色处理。`contrastRatio(a, b)` 返回两个颜色的对比度，可以用来检查自己定义的 Token。
+只需要单个语气时可以用 `createTone(color, base)`，`base` 决定按亮色还是暗色处理。`contrastRatio(a, b)` 返回两个颜色的对比度，可以用来检查自己定义的 Token。`mixColors(color, base, amount)` 按 OKLab 把 `amount`（0–1）的 `color` 混进 `base`，和 CSS 的 `color-mix(in oklab, color amount%, base)` 一致，返回 `#rrggbb`，适合在画布、导出的文件这类用不了 CSS 变量的地方算出主题色的浅色版本。
 
 ## 层叠顺序
 

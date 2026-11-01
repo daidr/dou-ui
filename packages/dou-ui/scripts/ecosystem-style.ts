@@ -13,7 +13,7 @@
  */
 import { existsSync, readFileSync } from 'node:fs'
 import { mkdir } from 'node:fs/promises'
-import { styleDirsFor } from './style-deps'
+import { reachableFiles, styleDirsFor } from './style-deps'
 
 /** The subpaths of a package (`renderer`) whose entry exports components. */
 export function componentSubpaths(packageRoot: URL): string[] {
@@ -39,9 +39,23 @@ async function bundleCss(entry: URL, outdir: URL) {
   }
 }
 
-async function writeEntry(target: URL, index: URL, css: string) {
+/** The other packages built on `dou-ui` an entry imports (`@dou-ui/code`). */
+function packagesUsedBy(index: URL, self: string): string[] {
+  const used = new Set<string>()
+  for (const file of reachableFiles(index.pathname)) {
+    for (const m of readFileSync(file, 'utf8').matchAll(/from\s+['"](@dou-ui\/[a-z-]+)['"/]/g)) {
+      const name = m[1]!
+      if (name !== self && !['@dou-ui/icons', '@dou-ui/theme'].includes(name)) used.add(name)
+    }
+  }
+  return [...used].toSorted()
+}
+
+async function writeEntry(target: URL, index: URL, css: string, self: string) {
   const lines = [
     ...styleDirsFor(index.pathname).map((dir) => `import 'dou-ui/components/${dir}/style'`),
+    // Components of another package, e.g. the code input in a formula bar.
+    ...packagesUsedBy(index, self).map((name) => `import '${name}/style'`),
     `import '${css}'`,
     '',
   ]
@@ -52,11 +66,13 @@ async function writeEntry(target: URL, index: URL, css: string) {
 }
 
 export async function buildPackageStyle(packageRoot: URL) {
+  const { name } = JSON.parse(readFileSync(new URL('package.json', packageRoot), 'utf8'))
   await bundleCss(new URL('src/style.css', packageRoot), new URL('dist', packageRoot))
   await writeEntry(
     new URL('dist/style.js', packageRoot),
     new URL('src/index.ts', packageRoot),
     './style.css',
+    name,
   )
   for (const subpath of componentSubpaths(packageRoot)) {
     const ownCss = new URL(`src/${subpath}/style.css`, packageRoot)
@@ -65,6 +81,7 @@ export async function buildPackageStyle(packageRoot: URL) {
       new URL(`dist/${subpath}/style.js`, packageRoot),
       new URL(`src/${subpath}/index.ts`, packageRoot),
       existsSync(ownCss) ? './style.css' : '../style.css',
+      name,
     )
   }
 }

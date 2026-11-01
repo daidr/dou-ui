@@ -114,7 +114,7 @@ export const chipField = defineFormField({
 
 ```ts
 import { codeExpressions } from '@dou-ui/form-builder/code'
-import '@dou-ui/code/style.css'
+import '@dou-ui/code/style'
 
 const extensions = [codeExpressions()]
 // <DouFormBuilder v-model="form" :extensions="extensions" />

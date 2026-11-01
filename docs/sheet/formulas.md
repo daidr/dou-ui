@@ -28,7 +28,7 @@
 `@dou-ui/sheet/code` 提供的 `DouSheetCodeFormulaBar` 用[代码编辑器](/code/)的 `DouCodeInput` 显示公式：颜色和单元格里相同，另外括号成对高亮，写错的地方加波浪线，用了不存在的函数也会提示。编辑方式和 `DouSheetFormulaBar` 相同，函数列表、参数提示和点击单元格插入引用照常使用。它需要安装 `@dou-ui/code` 并引入它的样式：
 
 ```ts
-import '@dou-ui/code/style.css'
+import '@dou-ui/code/style'
 import { DouSheetCodeFormulaBar } from '@dou-ui/sheet/code'
 ```
 

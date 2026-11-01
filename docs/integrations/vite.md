@@ -88,10 +88,11 @@ bun add @dou-ui/chart
 
 有单独入口的组件从那个入口导入，样式也用那个入口自己的样式入口：
 
-| 组件                | 导入自                          | 样式入口                              |
-| ------------------- | ------------------------------- | ------------------------------------- |
-| `<DouFormRenderer>` | `@dou-ui/form-builder/renderer` | `@dou-ui/form-builder/renderer/style` |
-| `<DouScheduler>`    | `@dou-ui/gantt/scheduler`       | `@dou-ui/gantt/scheduler/style`       |
+| 组件                       | 导入自                          | 样式入口                                                   |
+| -------------------------- | ------------------------------- | ---------------------------------------------------------- |
+| `<DouFormRenderer>`        | `@dou-ui/form-builder/renderer` | `@dou-ui/form-builder/renderer/style`                      |
+| `<DouScheduler>`           | `@dou-ui/gantt/scheduler`       | `@dou-ui/gantt/scheduler/style`                            |
+| `<DouSheetCodeFormulaBar>` | `@dou-ui/sheet/code`            | `@dou-ui/sheet/code/style`，同时带上 `@dou-ui/code` 的样式 |
 
 这样只渲染表单时，脚本和样式都不会带上设计器。
 

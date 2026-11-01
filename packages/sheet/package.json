@@ -22,7 +22,8 @@
   "type": "module",
   "sideEffects": [
     "*.css",
-    "./dist/style.js"
+    "./dist/style.js",
+    "./dist/*/style.js"
   ],
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -43,6 +44,10 @@
     "./code": {
       "types": "./dist/types/code/index.d.ts",
       "import": "./dist/code/index.js"
+    },
+    "./code/style": {
+      "types": "./dist/code/style.d.ts",
+      "import": "./dist/code/style.js"
     },
     "./style": {
       "types": "./dist/style.d.ts",

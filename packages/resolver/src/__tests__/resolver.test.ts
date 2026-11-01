@@ -67,6 +67,11 @@ describe('DouUIResolver', () => {
       from: '@dou-ui/gantt/scheduler',
       sideEffects: '@dou-ui/gantt/scheduler/style',
     })
+    expect(resolve('DouSheetCodeFormulaBar')).toEqual({
+      name: 'DouSheetCodeFormulaBar',
+      from: '@dou-ui/sheet/code',
+      sideEffects: '@dou-ui/sheet/code/style',
+    })
     const [plain] = DouUIResolver({ importStyle: false, icons: false })
     expect(plain!.resolve('DouSheet')).toEqual({ name: 'DouSheet', from: '@dou-ui/sheet' })
   })

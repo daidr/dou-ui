@@ -138,7 +138,7 @@ function exportDirs(): Map<string, string> {
 const dynamicImportPattern = /import\(\s*['"](\.[^'"]+)['"]\s*\)/g
 
 /** `entry` and every file of its package it imports, followed transitively. */
-function reachableFiles(entry: string): string[] {
+export function reachableFiles(entry: string): string[] {
   const seen = new Set<string>()
   const queue = [entry]
   while (queue.length) {

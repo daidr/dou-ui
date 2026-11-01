@@ -212,7 +212,9 @@ describe('CSV', () => {
     asked.length = 0
     expect(sheetToCSV(sheet, { cellPlain, formulas: true, bom: false })).toBe("'=cmd,'=cmd,=1+2")
     expect(asked).toEqual([5, 'a'])
-    expect(sheetToCSV(sheet, { text: true, cellText: () => '@x', bom: false })).toBe("@x,'@x,'@x")
+    expect(sheetToCSV(sheet, { text: true, cellText: () => '@x', bom: false })).toBe("'@x,'@x,'@x")
+    // a number's own text isn't escaped
+    expect(sheetToCSV({ name: '表', cells: [[-5]] }, { text: true, bom: false })).toBe('-5')
     // null is an empty cell; undefined leaves the value
     expect(sheetToCSV(sheet, { cellPlain: emptyFive, formulas: true, bom: false })).toBe(',a,=1+2')
   })

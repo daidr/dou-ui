@@ -1599,8 +1599,9 @@ function transact(
   return tr
 }
 
-function travel(direction: 'undo' | 'redo') {
-  if (props.readonly) return false
+/** `fromCode`: called by the app's code, which `readonly` doesn't stop. */
+function travel(direction: 'undo' | 'redo', fromCode = false) {
+  if (props.readonly && !fromCode) return false
   const handler = customHistory()
   if (handler) {
     const travelled = handler[direction]()
@@ -5623,8 +5624,8 @@ defineExpose<SheetExpose>({
   saveFile: saveFile as SheetExpose['saveFile'],
   importFile,
   transact: (run, meta) => transact(run, meta, view(), false, true),
-  undo: () => travel('undo'),
-  redo: () => travel('redo'),
+  undo: () => travel('undo', true),
+  redo: () => travel('redo', true),
   get canUndo() {
     return canUndo.value
   },

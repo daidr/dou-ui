@@ -62,7 +62,7 @@ export interface PivotCSVOptions {
   bom?: boolean
   /**
    * Put a `'` before labels a spreadsheet program would run as a formula
-   * (starting with `=`, `+`, `-`, `@`, a tab or a line break). Defaults to
+   * (starting with `=`, `+`, `-`, `@`, a tab or a carriage return). Defaults to
    * `true`; `false` writes them as they are.
    */
   escapeFormulas?: boolean

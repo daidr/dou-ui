@@ -209,8 +209,8 @@ export interface SheetCSVWriteOptions {
   bom?: boolean
   /**
    * Puts a `'` before text starting with `=`, `+`, `-`, `@`, a tab or a
-   * line break, so a spreadsheet program opening the file doesn't run it as
-   * a formula. Numbers are written as they are, and so are this grid's
+   * carriage return, so a spreadsheet program opening the file doesn't run
+   * it as a formula. Numbers are written as they are, and so are this grid's
    * formulas with `formulas`. On by default; `false` writes such text as
    * it is.
    */
@@ -279,7 +279,10 @@ export function sheetToCSV(sheet: SheetData, options: SheetCSVWriteOptions = {})
       } else if (text) {
         const own = cellText?.(input, value, row, col)
         shown = own ?? formatValue(value, cellOf(input)?.format, locale)
-        textual = typeof value === 'string' || (own !== undefined && typeof value !== 'number')
+        // a cell type's own text is text, even for a number
+        textual =
+          typeof value === 'string' ||
+          (own !== undefined && own !== formatValue(value, cellOf(input)?.format, locale))
       } else {
         const given = cellPlain?.(input, value, row, col)
         const own = given === undefined ? value : given

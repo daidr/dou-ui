@@ -18,7 +18,7 @@ import { pivotWidget } from '@dou-ui/dashboard/pivot' // 需要 @dou-ui/pivot
 const widgets = [statWidget(), textWidget(), tableWidget(), chartWidget(), pivotWidget()]
 ```
 
-每个函数都可以传入要改的部分，例如 `statWidget({ type: 'kpi', label: '指标', size: { w: 2, h: 2 } })`。内置格子都带有图标，显示在添加格子的面板里，也可以用 `icon` 换成别的。图表和透视表格子还需要引入它们自己的样式 `@dou-ui/chart/style.css`、`@dou-ui/pivot/style.css`。
+每个函数都可以传入要改的部分，例如 `statWidget({ type: 'kpi', label: '指标', size: { w: 2, h: 2 } })`。内置格子都带有图标，显示在添加格子的面板里，也可以用 `icon` 换成别的。图表和透视表格子还需要引入它们自己的样式：和全量的 `dou-ui/style.css` 一起用时引入 `@dou-ui/chart/style.css`、`@dou-ui/pivot/style.css`；按需引入时引入 `@dou-ui/chart/style`、`@dou-ui/pivot/style`，它们会带上用到的 `dou-ui` 组件样式。
 
 下面各类型的设置都保存在格子的 `props` 里，是普通的 JSON。字段名写成 `total.amount` 这样的路径时，按层级读取数据。
 

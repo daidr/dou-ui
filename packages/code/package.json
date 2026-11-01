@@ -22,7 +22,8 @@
   },
   "type": "module",
   "sideEffects": [
-    "*.css"
+    "*.css",
+    "./dist/style.js"
   ],
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -39,6 +40,10 @@
     "./shiki": {
       "types": "./dist/types/shiki/index.d.ts",
       "import": "./dist/shiki/index.js"
+    },
+    "./style": {
+      "types": "./dist/style.d.ts",
+      "import": "./dist/style.js"
     },
     "./style.css": "./dist/style.css",
     "./package.json": "./package.json"

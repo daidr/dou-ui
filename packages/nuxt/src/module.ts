@@ -7,7 +7,13 @@ import {
   resolvePath,
   useLogger,
 } from '@nuxt/kit'
-import { componentDirs, directives, functionDirs, iconNames } from '@dou-ui/resolver'
+import {
+  componentDirs,
+  directives,
+  functionDirs,
+  iconNames,
+  packageComponents,
+} from '@dou-ui/resolver'
 import type { GlobalConfig, UseColorModeOptions } from 'dou-ui'
 
 export interface ModuleOptions {
@@ -22,8 +28,9 @@ export interface ModuleOptions {
    */
   css?: 'full' | 'on-demand' | false
   /**
-   * Register every component of `dou-ui` (`<DouButton>`, …) for templates.
-   * Only the ones a page uses end up in its bundle.
+   * Register every component of `dou-ui` (`<DouButton>`, …) for templates,
+   * and those of the installed packages built on it (`<DouChart>`,
+   * `<DouEditor>`, …). Only the ones a page uses end up in its bundle.
    *
    * @default true
    */
@@ -43,9 +50,9 @@ export interface ModuleOptions {
   imports?: boolean
   /**
    * Register the icons of `@dou-ui/icons` (`<SearchIcon />`, …) for
-   * templates. Install `@dou-ui/icons` first.
+   * templates.
    *
-   * @default false
+   * @default true when `@dou-ui/icons` is installed
    */
   icons?: boolean
   /**
@@ -77,6 +84,12 @@ declare module '@nuxt/schema' {
   }
 }
 
+const installed = (name: string) =>
+  resolvePath(name, { fallbackToOriginal: false }).then(
+    () => true,
+    () => false,
+  )
+
 export default defineNuxtModule<ModuleOptions>({
   meta: {
     name: '@dou-ui/nuxt',
@@ -88,7 +101,6 @@ export default defineNuxtModule<ModuleOptions>({
     components: true,
     directives: true,
     imports: true,
-    icons: false,
     colorMode: true,
     exclude: [],
   },
@@ -97,31 +109,66 @@ export default defineNuxtModule<ModuleOptions>({
     const excluded = new Set(options.exclude)
     const onDemand = options.css === 'on-demand'
 
+    // The packages built on `dou-ui` that the app has installed, with the
+    // components each one brings.
+    const packages = new Map<string, { name: string; from: string; style: string }[]>()
+    if (options.components) {
+      for (const [name, { package: pkg, from, style }] of Object.entries(packageComponents)) {
+        packages.set(pkg, [...(packages.get(pkg) ?? []), { name, from, style }])
+      }
+      for (const pkg of packages.keys()) {
+        if (!(await installed(pkg))) packages.delete(pkg)
+      }
+    }
+
     // Style entries import `.css`, which only the bundler understands.
-    nuxt.options.build.transpile.push('dou-ui', '@dou-ui/theme', '@dou-ui/icons')
-    if (options.css === 'full') nuxt.options.css.unshift('dou-ui/style.css')
+    nuxt.options.build.transpile.push(
+      'dou-ui',
+      '@dou-ui/theme',
+      '@dou-ui/icons',
+      ...packages.keys(),
+    )
+    if (options.css === 'full') {
+      nuxt.options.css.unshift(
+        'dou-ui/style.css',
+        ...[...packages.keys()].map((pkg) => `${pkg}/style.css`),
+      )
+    }
 
     // Where each name comes from. With on-demand styles, a small module per
     // style entry imports the entry and re-exports what it styles.
-    const entries = new Map<string, Set<string>>()
-    const from = (name: string, dir: string | null) => {
-      if (!onDemand || dir === null) return 'dou-ui'
-      const names = entries.get(dir) ?? new Set()
-      entries.set(dir, names.add(name))
-      return `#build/dou-ui/${dir}.mjs`
+    const entries = new Map<string, { style: string; from: string; names: Set<string> }>()
+    const through = (name: string, from: string, style: string, file: string) => {
+      const entry = entries.get(file) ?? { style, from, names: new Set() }
+      entries.set(file, entry)
+      entry.names.add(name)
+      return `#build/dou-ui/${file}.mjs`
     }
+    const from = (name: string, dir: string | null) =>
+      !onDemand || dir === null
+        ? 'dou-ui'
+        : through(name, 'dou-ui', `dou-ui/components/${dir}/style`, dir)
 
     if (options.components) {
       for (const [name, dir] of Object.entries(componentDirs)) {
         if (!excluded.has(name)) addComponent({ name, export: name, filePath: from(name, dir) })
       }
+      for (const components of packages.values()) {
+        for (const { name, from: source, style } of components) {
+          if (excluded.has(name)) continue
+          // `@dou-ui/gantt/scheduler` → `packages/gantt-scheduler`
+          const file = `packages/${source.slice('@dou-ui/'.length).replaceAll('/', '-')}`
+          const filePath = onDemand ? through(name, source, style, file) : source
+          addComponent({ name, export: name, filePath })
+        }
+      }
     }
 
-    if (options.icons) {
-      const installed = await resolvePath('@dou-ui/icons', { fallbackToOriginal: false }).catch(
-        () => undefined,
-      )
-      if (!installed) logger.warn('`icons` is on, but `@dou-ui/icons` is not installed.')
+    const icons = options.icons ?? (await installed('@dou-ui/icons'))
+    if (icons) {
+      if (options.icons && !(await installed('@dou-ui/icons'))) {
+        logger.warn('`icons` is on, but `@dou-ui/icons` is not installed.')
+      }
       for (const name of iconNames) {
         // Below the app's own components, so a local `SearchIcon.vue` wins.
         if (!excluded.has(name)) {
@@ -151,11 +198,11 @@ export default defineNuxtModule<ModuleOptions>({
           }))
       : []
 
-    for (const [dir, names] of entries) {
+    for (const [file, { style, from: source, names }] of entries) {
       addTemplate({
-        filename: `dou-ui/${dir}.mjs`,
+        filename: `dou-ui/${file}.mjs`,
         getContents: () =>
-          `import 'dou-ui/components/${dir}/style'\nexport { ${[...names].join(', ')} } from 'dou-ui'\n`,
+          `import '${style}'\nexport { ${[...names].join(', ')} } from '${source}'\n`,
       })
     }
 

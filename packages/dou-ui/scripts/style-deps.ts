@@ -22,9 +22,12 @@ export function stylesheetOrder(): string[] {
 const blockOf = (className: string) => className.split(/__|--/)[0]!
 
 /**
- * For each stylesheet, the blocks its rules are written for: the last class
- * of each selector's first compound, so `.dou-popover.dou-popconfirm` counts
- * for Popconfirm only.
+ * For each stylesheet, the blocks its rules are written for, read from each
+ * selector's first compound. A compound with several classes counts for one
+ * of them: the stylesheet's own block, else one written as an element or a
+ * modifier, else the last. So `.dou-popover.dou-popconfirm` counts for
+ * Popconfirm only, and `.dou-chat-input__submit.dou-button` for ChatInput
+ * only.
  */
 function stylesheetBlocks(name: string): Set<string> {
   const css = readFileSync(join(themeSrc, 'components', `${name}.css`), 'utf8').replace(
@@ -36,8 +39,12 @@ function stylesheetBlocks(name: string): Set<string> {
   for (const match of css.matchAll(/^\s*([^@&\s{};][^{};]*)\{/gm)) {
     for (const selector of match[1]!.split(',')) {
       const compound = selector.trim().split(/[\s>+~]/)[0] ?? ''
-      const last = [...compound.matchAll(/\.(dou-[a-z0-9_-]+)/g)].at(-1)
-      if (last) blocks.add(blockOf(last[1]!))
+      const classes = [...compound.matchAll(/\.(dou-[a-z0-9_-]+)/g)].map((m) => m[1]!)
+      const own =
+        classes.find((c) => blockOf(c) === `dou-${name}`) ??
+        classes.find((c) => /__|--/.test(c)) ??
+        classes.at(-1)
+      if (own) blocks.add(blockOf(own))
     }
   }
   return blocks
@@ -96,4 +103,109 @@ export function styleDeps(): Map<string, string[]> {
     )
   }
   return result
+}
+
+const stripComments = (code: string) =>
+  code
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/^\s*\/\/.*$/gm, '')
+
+/** Every name `dou-ui` exports from a component directory, mapped to that directory. */
+function exportDirs(): Map<string, string> {
+  const result = new Map<string, string>()
+  const componentsDir = join(src, 'components')
+  for (const dir of readdirSync(componentsDir).toSorted()) {
+    const entry = join(componentsDir, dir, 'index.ts')
+    if (!existsSync(entry)) continue
+    const code = stripComments(readFileSync(entry, 'utf8'))
+    for (const m of code.matchAll(/^export (?:const|function|class) ([A-Za-z0-9_$]+)/gm)) {
+      result.set(m[1]!, dir)
+    }
+    for (const m of code.matchAll(/^export \{([^}]*)\}/gm)) {
+      for (const part of m[1]!.split(',')) {
+        const name = part
+          .trim()
+          .split(/\s+as\s+/)
+          .at(-1)!
+        if (name && !name.startsWith('type ')) result.set(name, dir)
+      }
+    }
+  }
+  return result
+}
+
+const dynamicImportPattern = /import\(\s*['"](\.[^'"]+)['"]\s*\)/g
+
+/** `entry` and every file of its package it imports, followed transitively. */
+export function reachableFiles(entry: string): string[] {
+  const seen = new Set<string>()
+  const queue = [entry]
+  while (queue.length) {
+    const file = queue.pop()!
+    if (seen.has(file)) continue
+    seen.add(file)
+    const code = stripComments(readFileSync(file, 'utf8'))
+    for (const m of [...code.matchAll(importPattern), ...code.matchAll(dynamicImportPattern)]) {
+      const target = resolveImport(file, (m[1] ?? m[2])!)
+      if (target && /\.(ts|vue)$/.test(target) && !target.includes('__tests__')) queue.push(target)
+    }
+  }
+  return [...seen]
+}
+
+/**
+ * The component directories of `dou-ui` whose style entries an entry of a
+ * package built on it needs (`src/index.ts`, `src/renderer/index.ts`): those
+ * of the components and functions it imports from `dou-ui`, and of the
+ * `dou-*` classes it writes itself, in every file the entry reaches. Entries
+ * already covered by another one are left out; the rest keep the cascade
+ * order.
+ */
+export function styleDirsFor(entry: string): string[] {
+  const exported = exportDirs()
+  const deps = styleDeps()
+  const order = stylesheetOrder()
+  const sheetOf = new Map<string, string>()
+  for (const name of order) for (const block of stylesheetBlocks(name)) sheetOf.set(block, name)
+
+  const dirs = new Set<string>()
+  const sheets = new Set<string>()
+  for (const file of reachableFiles(entry)) {
+    const code = stripComments(readFileSync(file, 'utf8'))
+    for (const m of code.matchAll(/import\s+(?:type\s+)?\{([^}]*)\}\s+from\s+['"]dou-ui['"]/g)) {
+      if (/^import\s+type\s/.test(m[0])) continue
+      for (const part of m[1]!.split(',')) {
+        const name = part.trim().split(/\s+as\s+/)[0]!
+        const dir = name.startsWith('type ') ? undefined : exported.get(name)
+        if (dir) dirs.add(dir)
+      }
+    }
+    for (const m of code.matchAll(/\bdou-[a-z0-9]+(?:-[a-z0-9]+)*(?:__[a-z0-9-]+)?/g)) {
+      const sheet = sheetOf.get(blockOf(m[0]))
+      if (sheet) sheets.add(sheet)
+    }
+  }
+  // A class written by hand brings the entry of the component it belongs to.
+  for (const sheet of sheets) {
+    if (deps.has(sheet)) dirs.add(sheet)
+    else {
+      const dir = [...deps].find(([, needs]) => needs.includes(sheet))?.[0]
+      if (dir) dirs.add(dir)
+    }
+  }
+
+  const covered = (dir: string) =>
+    [...dirs].some(
+      (other) =>
+        other !== dir &&
+        deps.get(dir)!.every((sheet) => deps.get(other)!.includes(sheet)) &&
+        // Of two entries that cover each other, keep the first by name.
+        (deps.get(other)!.length > deps.get(dir)!.length || other < dir),
+    )
+  const position = (dir: string) => {
+    const index = order.indexOf(dir)
+    return index >= 0 ? index : Math.max(...deps.get(dir)!.map((sheet) => order.indexOf(sheet)))
+  }
+  return [...dirs].filter((dir) => !covered(dir)).toSorted((a, b) => position(a) - position(b))
 }

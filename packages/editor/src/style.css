@@ -1588,22 +1588,86 @@
   .dou-editor,
   .dou-editor-menu,
   .dou-editor-palette {
-    --dou-editor-color-gray: light-dark(#6b6f76, #a3a7ad);
-    --dou-editor-highlight-gray: light-dark(#ececeb, #3a3b3d);
-    --dou-editor-color-red: light-dark(#b4453f, #e58a84);
-    --dou-editor-highlight-red: light-dark(#f8e3e1, #4a2826);
-    --dou-editor-color-orange: light-dark(#b0622a, #e0975f);
-    --dou-editor-highlight-orange: light-dark(#f9e7d8, #4a3222);
-    --dou-editor-color-yellow: light-dark(#94761b, #d4b44f);
-    --dou-editor-highlight-yellow: light-dark(#f8efc8, #4a4020);
-    --dou-editor-color-green: light-dark(#3f7f4f, #7fbf8c);
-    --dou-editor-highlight-green: light-dark(#e1f0e2, #253d2b);
-    --dou-editor-color-blue: light-dark(#3b6ea8, #7fa7d9);
-    --dou-editor-highlight-blue: light-dark(#e1ebf7, #23334a);
-    --dou-editor-color-purple: light-dark(#7a52a3, #b69ad6);
-    --dou-editor-highlight-purple: light-dark(#ece4f5, #352a47);
-    --dou-editor-color-pink: light-dark(#a8467a, #dd8ab4);
-    --dou-editor-highlight-pink: light-dark(#f6e2ec, #46283a);
+    --dou-editor-color-gray: color-mix(
+      in srgb,
+      #a3a7ad calc(100% * var(--dou-scheme-dark)),
+      #6b6f76
+    );
+    --dou-editor-highlight-gray: color-mix(
+      in srgb,
+      #3a3b3d calc(100% * var(--dou-scheme-dark)),
+      #ececeb
+    );
+    --dou-editor-color-red: color-mix(
+      in srgb,
+      #e58a84 calc(100% * var(--dou-scheme-dark)),
+      #b4453f
+    );
+    --dou-editor-highlight-red: color-mix(
+      in srgb,
+      #4a2826 calc(100% * var(--dou-scheme-dark)),
+      #f8e3e1
+    );
+    --dou-editor-color-orange: color-mix(
+      in srgb,
+      #e0975f calc(100% * var(--dou-scheme-dark)),
+      #b0622a
+    );
+    --dou-editor-highlight-orange: color-mix(
+      in srgb,
+      #4a3222 calc(100% * var(--dou-scheme-dark)),
+      #f9e7d8
+    );
+    --dou-editor-color-yellow: color-mix(
+      in srgb,
+      #d4b44f calc(100% * var(--dou-scheme-dark)),
+      #94761b
+    );
+    --dou-editor-highlight-yellow: color-mix(
+      in srgb,
+      #4a4020 calc(100% * var(--dou-scheme-dark)),
+      #f8efc8
+    );
+    --dou-editor-color-green: color-mix(
+      in srgb,
+      #7fbf8c calc(100% * var(--dou-scheme-dark)),
+      #3f7f4f
+    );
+    --dou-editor-highlight-green: color-mix(
+      in srgb,
+      #253d2b calc(100% * var(--dou-scheme-dark)),
+      #e1f0e2
+    );
+    --dou-editor-color-blue: color-mix(
+      in srgb,
+      #7fa7d9 calc(100% * var(--dou-scheme-dark)),
+      #3b6ea8
+    );
+    --dou-editor-highlight-blue: color-mix(
+      in srgb,
+      #23334a calc(100% * var(--dou-scheme-dark)),
+      #e1ebf7
+    );
+    --dou-editor-color-purple: color-mix(
+      in srgb,
+      #b69ad6 calc(100% * var(--dou-scheme-dark)),
+      #7a52a3
+    );
+    --dou-editor-highlight-purple: color-mix(
+      in srgb,
+      #352a47 calc(100% * var(--dou-scheme-dark)),
+      #ece4f5
+    );
+    --dou-editor-color-pink: color-mix(
+      in srgb,
+      #dd8ab4 calc(100% * var(--dou-scheme-dark)),
+      #a8467a
+    );
+    --dou-editor-highlight-pink: color-mix(
+      in srgb,
+      #46283a calc(100% * var(--dou-scheme-dark)),
+      #f6e2ec
+    );
   }
 
   /* also exported HTML shown in a container with `dou-editor-palette` */

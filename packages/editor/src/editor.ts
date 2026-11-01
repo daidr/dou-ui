@@ -62,7 +62,7 @@ export interface EditorEmits {
   'update:comments': [threads: CommentThread[]]
   'update:activeComment': [id: string | null]
   /** A change to the comments made here: to send to a server, notify people, keep a log. */
-  comment: [action: CommentAction]
+  commentAction: [action: CommentAction]
 }
 
 export interface EditorExpose {
@@ -80,7 +80,10 @@ export interface EditorExpose {
   setHTML: (html: string) => void
   /** Run a ProseMirror command, e.g. one of the exported ones. */
   run: (command: Command) => boolean
-  /** Start a thread on the selected text and open the box for its first comment. */
+  /**
+   * Start a thread on the selected text and open the box for its first
+   * comment; with the cursor on commented text, open that thread to reply.
+   */
   comment: () => boolean
   /** Where each thread is anchored; `null` for a thread whose text was deleted. */
   getCommentAnchors: () => Record<string, CommentAnchor | null>
@@ -98,9 +101,11 @@ export interface EditorComments {
   active: ComputedRef<string | null>
   /** The text a new thread is being started on. */
   pending: ShallowRef<CommentRange | null>
+  /** Goes up when the open thread's reply box should take focus. */
+  focusRequest: ShallowRef<number>
   /** The selected text, also in a read-only editor; `null` when there is none. */
   selection: () => CommentRange | null
-  /** Start a thread on the selected text. */
+  /** Start a thread on the selected text, or open the one the cursor is in. */
   start: () => boolean
   apply: (action: CommentAction) => void
   open: (id: string | null) => void

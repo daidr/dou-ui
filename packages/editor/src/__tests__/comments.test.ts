@@ -104,7 +104,7 @@ describe('DouEditor comments', () => {
     const [threads] = wrapper.emitted('update:comments')!.at(-1) as [CommentThread[]]
     expect(threads).toHaveLength(1)
     expect(threads[0]!.comments[0]).toMatchObject({ author: dai, body: '数字要核对' })
-    const action = wrapper.emitted('comment')![0]![0] as CommentAction
+    const action = wrapper.emitted('commentAction')![0]![0] as CommentAction
     expect(action.type).toBe('create')
     expect(wrapper.emitted('update:activeComment')!.at(-1)).toEqual([threads[0]!.id])
     expect(getBlocks(view)[0]!.content).toEqual([
@@ -160,6 +160,47 @@ describe('DouEditor comments', () => {
     expect(document.querySelector('.dou-editor-comment')?.textContent).toContain('看一下')
     click(info.contentPos + 4)
     expect(wrapper.emitted('update:activeComment')!.at(-1)).toEqual([null])
+  })
+
+  it('escape in the editor closes the card; selecting other text does too', async () => {
+    const { wrapper, view } = mountEditor({
+      modelValue: [
+        {
+          id: 'a',
+          content: [
+            { type: 'text', text: '收入', comments: ['t1'] },
+            { type: 'text', text: '和支出' },
+          ],
+        },
+      ],
+      comments: [thread('t1')],
+      author: dai,
+    })
+    const open = async () => {
+      await wrapper.setProps({ activeComment: 't1' })
+      await flush()
+      expect(document.querySelector('.dou-editor-comment')).not.toBeNull()
+    }
+    await open()
+    view.dom.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    expect(wrapper.emitted('update:activeComment')!.at(-1)).toEqual([null])
+    await open()
+    select(view, 'a', '支出')
+    expect(wrapper.emitted('update:activeComment')!.at(-1)).toEqual([null])
+  })
+
+  it('the shortcut on commented text opens its thread', async () => {
+    const { wrapper, view } = mountEditor({
+      modelValue: [{ id: 'a', content: [{ type: 'text', text: '收入', comments: ['t1'] }] }],
+      comments: [thread('t1')],
+      author: dai,
+    })
+    const info = findBlockById(view.state.doc, 'a')!
+    view.dispatch(
+      view.state.tr.setSelection(TextSelection.create(view.state.doc, info.contentPos + 2)),
+    )
+    expect((wrapper.vm as unknown as { comment: () => boolean }).comment()).toBe(true)
+    expect(wrapper.emitted('update:activeComment')!.at(-1)).toEqual(['t1'])
   })
 
   it('removing a thread takes its anchor off the text', async () => {

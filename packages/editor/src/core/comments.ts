@@ -41,6 +41,8 @@ export interface CommentPluginOptions {
   /** A click on text that is in threads, with their ids, innermost first; `[]` elsewhere. */
   onClick: (ids: string[]) => void
   onPending: (range: CommentRange | null) => void
+  /** Text got selected (a range, not a cursor). */
+  onSelect: () => void
 }
 
 const pendingDecorations = (doc: PMNode, range: CommentRange | null) =>
@@ -210,9 +212,17 @@ export function commentPlugin(options: CommentPluginOptions): Plugin<CommentPlug
     view: () => {
       let last: CommentRange | null = null
       return {
-        update(view) {
+        update(view, previous) {
           const pending = commentKey.getState(view.state)!.pending
           if (pending !== last) options.onPending((last = pending))
+          const { selection } = view.state
+          // a selection made by the user, not one moved along by an edit
+          if (
+            !selection.empty &&
+            view.state.doc === previous.doc &&
+            !selection.eq(previous.selection)
+          )
+            options.onSelect()
         },
       }
     },

@@ -35,7 +35,7 @@ export type CommentAction =
   | { type: 'create'; thread: CommentThread }
   | { type: 'reply'; threadId: string; comment: CommentItem }
   | { type: 'edit'; threadId: string; commentId: string; body: string; editedAt: string }
-  /** Deletes a reply; deleting the first comment removes the whole thread instead. */
+  /** Deletes a reply. The first comment isn't deleted on its own: the thread goes with it, by `remove`. */
   | { type: 'delete'; threadId: string; commentId: string }
   | { type: 'resolve'; threadId: string; by: CommentAuthor; at: string }
   | { type: 'reopen'; threadId: string }
@@ -60,8 +60,8 @@ export function applyCommentAction(
 ): CommentThread[] {
   if (action.type === 'create')
     return [...threads.filter((thread) => thread.id !== action.thread.id), action.thread]
-  if (action.type === 'remove' || (action.type === 'delete' && startsThread(threads, action)))
-    return threads.filter((thread) => thread.id !== action.threadId)
+  if (action.type === 'remove') return threads.filter((thread) => thread.id !== action.threadId)
+  if (action.type === 'delete' && startsThread(threads, action)) return [...threads]
   return threads.map((thread) => {
     if (thread.id !== action.threadId) return thread
     switch (action.type) {
@@ -96,7 +96,7 @@ export function applyCommentAction(
  * one entry of a flat `Y.Map` holding plain values, so two people
  * replying, editing or resolving at once never overwrite each other:
  *
- *   `t:<threadId>`   { resolved? }
+ *   `t:<threadId>`   { first, resolved? }   first: the id of the comment that started it
  *   `c:<commentId>`  { ...comment, thread: threadId }
  *
  * Comments of a thread that is gone are left out when reading.
@@ -112,6 +112,8 @@ export interface SharedCommentMap {
 }
 
 interface SharedThread {
+  /** The comment that started the thread: first, whatever the clocks said when replies were written. */
+  first?: string
   resolved?: CommentThread['resolved']
 }
 
@@ -126,11 +128,13 @@ const byTime = (a: CommentItem, b: CommentItem) =>
 /** The threads a shared map holds, oldest first. */
 export function readSharedComments(map: SharedCommentMap): CommentThread[] {
   const threads = new Map<string, CommentThread>()
+  const firsts = new Map<string, string | undefined>()
   const comments: SharedComment[] = []
   map.forEach((value, key) => {
     if (key.startsWith('t:')) {
       const id = key.slice(2)
       const shared = value as SharedThread
+      firsts.set(id, shared.first)
       threads.set(
         id,
         shared.resolved ? { id, comments: [], resolved: shared.resolved } : { id, comments: [] },
@@ -139,7 +143,12 @@ export function readSharedComments(map: SharedCommentMap): CommentThread[] {
   })
   // oxlint-disable-next-line unicorn/no-array-sort -- sorts the collected copy
   comments.sort(byTime)
-  for (const { thread, ...comment } of comments) threads.get(thread)?.comments.push(comment)
+  for (const { thread, ...comment } of comments) {
+    const list = threads.get(thread)?.comments
+    if (!list) continue
+    if (comment.id === firsts.get(thread)) list.unshift(comment)
+    else list.push(comment)
+  }
   const list = [...threads.values()].filter((thread) => thread.comments.length)
   // oxlint-disable-next-line unicorn/no-array-sort -- sorts the filtered copy
   return list.sort((a, b) => byTime(a.comments[0]!, b.comments[0]!))
@@ -155,7 +164,8 @@ export function applySharedCommentAction(
     switch (action.type) {
       case 'create': {
         const { id, comments, resolved } = action.thread
-        map.set(threadKey(id), resolved ? { resolved } : {})
+        const first = comments[0]?.id
+        map.set(threadKey(id), resolved ? { first, resolved } : { first })
         for (const comment of comments) map.set(commentKey(comment.id), { ...comment, thread: id })
         return
       }
@@ -174,10 +184,8 @@ export function applySharedCommentAction(
         return
       }
       case 'delete': {
-        const first = readSharedComments(map).find((thread) => thread.id === action.threadId)
-          ?.comments[0]
-        if (first?.id === action.commentId) removeThread(action.threadId)
-        else map.delete(commentKey(action.commentId))
+        const thread = map.get(threadKey(action.threadId)) as SharedThread | undefined
+        if (thread?.first !== action.commentId) map.delete(commentKey(action.commentId))
         return
       }
       case 'resolve':
@@ -193,16 +201,15 @@ export function applySharedCommentAction(
         )
         return
       }
-      case 'remove':
-        removeThread(action.threadId)
+      case 'remove': {
+        const gone: string[] = [threadKey(action.threadId)]
+        map.forEach((value, key) => {
+          if (key.startsWith('c:') && (value as SharedComment).thread === action.threadId)
+            gone.push(key)
+        })
+        for (const key of gone) map.delete(key)
+      }
     }
-  }
-  const removeThread = (id: string) => {
-    const gone: string[] = [threadKey(id)]
-    map.forEach((value, key) => {
-      if (key.startsWith('c:') && (value as SharedComment).thread === id) gone.push(key)
-    })
-    for (const key of gone) map.delete(key)
   }
   if (map.doc) map.doc.transact(run, origin)
   else run()

@@ -1,6 +1,6 @@
 # CommentThread 评论讨论
 
-一条讨论：发起的评论和后面的回复，可以回复、编辑和删除自己的评论、标记为已解决。适合放在文档、表格、任务旁边的评论区，[块编辑器](/editor/comments)和电子表格的评论也用它显示。
+一条讨论：发起的评论和后面的回复，可以回复、编辑和删除自己的评论、标记为已解决。适合放在文档、表格、任务旁边的评论区，[块编辑器的评论](/editor/comments)也用它显示。
 
 ## 基础用法
 
@@ -10,7 +10,7 @@
 
 ## 发起讨论
 
-`thread` 为 `null` 时只显示输入框，发送后得到一条新的讨论。
+`thread` 为 `null` 时只显示输入框，发送后得到一条新的讨论。`placeholder` 只用于这个输入框，之后的回复框总是显示“回复”。
 
 <DocDemo src="comment-thread/new" />
 
@@ -56,27 +56,27 @@ interface CommentAuthor {
 
 `CommentAction` 是下面几种之一：
 
-| `type`    | 其他字段                                    | 说明                                       |
-| --------- | ------------------------------------------- | ------------------------------------------ |
-| `create`  | `thread`                                    | 发起讨论，`thread` 带着第一条评论          |
-| `reply`   | `threadId`、`comment`                       | 回复                                       |
-| `edit`    | `threadId`、`commentId`、`body`、`editedAt` | 编辑评论                                   |
-| `delete`  | `threadId`、`commentId`                     | 删除一条回复；删除第一条评论时删除整条讨论 |
-| `resolve` | `threadId`、`by`、`at`                      | 标记为已解决                               |
-| `reopen`  | `threadId`                                  | 重新打开                                   |
-| `remove`  | `threadId`                                  | 删除整条讨论                               |
+| `type`    | 其他字段                                    | 说明                                                          |
+| --------- | ------------------------------------------- | ------------------------------------------------------------- |
+| `create`  | `thread`                                    | 发起讨论，`thread` 带着第一条评论                             |
+| `reply`   | `threadId`、`comment`                       | 回复                                                          |
+| `edit`    | `threadId`、`commentId`、`body`、`editedAt` | 编辑评论                                                      |
+| `delete`  | `threadId`、`commentId`                     | 删除一条回复。第一条评论不单独删除，要连同讨论一起用 `remove` |
+| `resolve` | `threadId`、`by`、`at`                      | 标记为已解决                                                  |
+| `reopen`  | `threadId`                                  | 重新打开                                                      |
+| `remove`  | `threadId`                                  | 删除整条讨论                                                  |
 
 ## API
 
 ### Props
 
-| 名称          | 说明                                                         | 类型                    | 默认值  |
-| ------------- | ------------------------------------------------------------ | ----------------------- | ------- |
-| `thread`      | 讨论，支持 `v-model:thread`；`null` 时只显示发起讨论的输入框 | `CommentThread \| null` | `null`  |
-| `author`      | 当前用户，只能编辑和删除自己的评论                           | `CommentAuthor`         | —       |
-| `readonly`    | 只显示评论，没有输入框、解决按钮和菜单                       | `boolean`               | `false` |
-| `placeholder` | 输入框的提示文字，默认为“写评论”或“回复”                     | `string`                | —       |
-| `autofocus`   | 挂载后聚焦输入框                                             | `boolean`               | `false` |
+| 名称          | 说明                                                                               | 类型                    | 默认值  |
+| ------------- | ---------------------------------------------------------------------------------- | ----------------------- | ------- |
+| `thread`      | 讨论，支持 `v-model:thread`，不绑定时组件自己保存；`null` 时只显示发起讨论的输入框 | `CommentThread \| null` | `null`  |
+| `author`      | 当前用户，只能编辑和删除自己的评论；不传时只能查看                                 | `CommentAuthor`         | —       |
+| `readonly`    | 只显示评论，没有输入框、解决按钮和菜单                                             | `boolean`               | `false` |
+| `placeholder` | 发起讨论时输入框的提示文字，默认为“写评论”；回复框不受影响                         | `string`                | —       |
+| `autofocus`   | 挂载后聚焦输入框                                                                   | `boolean`               | `false` |
 
 ### Events
 

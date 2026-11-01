@@ -5,6 +5,7 @@ import { computed, shallowRef, watch, type ShallowRef } from 'vue'
 import {
   anchorComment,
   commentAnchors,
+  commentsAt,
   commentPlugin,
   setPendingComment,
   unanchorComment,
@@ -86,10 +87,29 @@ export function useEditorComments(options: {
     return range && hasText(current.state, range) ? range : null
   }
 
+  const focusRequest = shallowRef(0)
+
+  /** The open thread the cursor is in, innermost first. */
+  function threadAtCursor(): string | null {
+    const current = view.value
+    if (!current) return null
+    const ids = commentsAt(current.state, current.state.selection.from)
+    return ids.find((id) => isOpen(id)) ?? null
+  }
+
   function start(): boolean {
     const current = view.value
+    if (!current || !enabled.value) return false
     const range = selection()
-    if (!current || !range || !writable.value) return false
+    if (!range) {
+      // on commented text: open its thread, ready to reply
+      const id = threadAtCursor()
+      if (!id) return false
+      open(id)
+      focusRequest.value++
+      return true
+    }
+    if (!writable.value) return false
     open(null)
     setPendingComment(current, range)
     return true
@@ -107,30 +127,30 @@ export function useEditorComments(options: {
       const range = pending.value
       if (!current || !range) return
       anchorComment(current, range, action.thread.id)
-    } else if (
-      current &&
-      (action.type === 'remove' ||
-        (action.type === 'delete' &&
-          threads.value.find((thread) => thread.id === action.threadId)?.comments[0]?.id ===
-            action.commentId))
-    )
-      unanchorComment(current, action.threadId)
+    } else if (current && action.type === 'remove') unanchorComment(current, action.threadId)
     if (provider) provider.apply(action)
     else emit('update:comments', applyCommentAction(threads.value, action))
-    emit('comment', action)
-    if (action.type === 'create') open(action.thread.id)
-    else if (action.type === 'remove' || action.type === 'resolve') open(null)
+    emit('commentAction', action)
+    if (action.type === 'create') {
+      open(action.thread.id)
+      focusRequest.value++
+    } else if (action.type === 'remove' || action.type === 'resolve') open(null)
+  }
+
+  const isOpen = (id: string) => {
+    const thread = threads.value.find((item) => item.id === id)
+    return !!thread && !thread.resolved
   }
 
   const plugin = commentPlugin({
     known: () => (enabled.value ? known.value : null),
     onClick: (ids) => {
-      const first = ids.find((id) => {
-        const thread = threads.value.find((item) => item.id === id)
-        return thread && !thread.resolved
-      })
       if (pending.value && view.value) setPendingComment(view.value, null)
-      open(first ?? null)
+      open(ids.find(isOpen) ?? null)
+    },
+    // selecting other text (the formatting toolbar shows) closes an open thread
+    onSelect: () => {
+      if (!pending.value) open(null)
     },
     onPending: (range) => (pending.value = range),
   })
@@ -149,6 +169,7 @@ export function useEditorComments(options: {
     author: computed(() => props.author),
     active,
     pending,
+    focusRequest,
     selection,
     start,
     apply,

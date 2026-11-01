@@ -1,6 +1,6 @@
 # 评论
 
-给 `DouEditor` 传入 `v-model:comments`，就可以对文档里的文字发起讨论。选中文字后，点击格式工具栏上的评论按钮（或按 `Ctrl/⌘+Alt+M`），在旁边写下第一条评论；被评论的文字会高亮，点击高亮的文字打开讨论，可以回复、编辑、删除和标记为已解决。
+给 `DouEditor` 传入 `v-model:comments`，就可以对文档里的文字发起讨论。选中文字后，点击格式工具栏上的评论按钮（或按 `Ctrl/⌘+Alt+M`），在旁边写下第一条评论；被评论的文字会高亮，点击高亮的文字打开讨论，可以回复、编辑、删除和标记为已解决。用键盘时，把光标移到高亮的文字里按 `Ctrl/⌘+Alt+M` 打开讨论，焦点会落在回复框里；按 `Esc` 关闭讨论回到正文。
 
 <DocDemo src="editor/comments" column />
 
@@ -62,14 +62,14 @@ const active = ref<string | null>(null)
 
 ## 保存到服务器
 
-每次修改评论都会触发 `comment` 事件，参数是这次修改（`CommentAction`，见 [CommentThread](/components/comment-thread#数据格式)），比如“回复了某条讨论”。可以直接发给服务器，也可以用来通知被回复的人。
+每次修改评论都会触发 `comment-action` 事件，参数是这次修改（`CommentAction`，见 [CommentThread](/components/comment-thread#数据格式)），比如“回复了某条讨论”。可以直接发给服务器，也可以用来通知被回复的人。
 
 ```vue
 <DouEditor
   v-model="blocks"
   v-model:comments="threads"
   :author="me"
-  @comment="(action) => api.post('/comments', action)"
+  @comment-action="(action) => api.post('/comments', action)"
 />
 ```
 
@@ -100,12 +100,12 @@ collaboration({
 
 ### Props
 
-| 名称            | 说明                                                  | 类型              | 默认值 |
-| --------------- | ----------------------------------------------------- | ----------------- | ------ |
-| `comments`      | 所有讨论，支持 `v-model:comments`；不传时没有评论功能 | `CommentThread[]` | —      |
-| `author`        | 当前用户；不传时只能查看讨论                          | `CommentAuthor`   | —      |
-| `activeComment` | 打开的讨论，支持 `v-model:active-comment`             | `string \| null`  | —      |
-| `commentable`   | 能否发起和回复讨论，`readonly` 时同样有效             | `boolean`         | `true` |
+| 名称            | 说明                                                                                                       | 类型              | 默认值 |
+| --------------- | ---------------------------------------------------------------------------------------------------------- | ----------------- | ------ |
+| `comments`      | 所有讨论，支持 `v-model:comments`；不传时没有评论功能（用 `collaboration({ comments })` 共享讨论时不用传） | `CommentThread[]` | —      |
+| `author`        | 当前用户；不传时只能查看讨论                                                                               | `CommentAuthor`   | —      |
+| `activeComment` | 打开的讨论，支持 `v-model:active-comment`                                                                  | `string \| null`  | —      |
+| `commentable`   | 能否发起和回复讨论，`readonly` 时同样有效                                                                  | `boolean`         | `true` |
 
 ### Events
 
@@ -113,14 +113,14 @@ collaboration({
 | ---------------------- | ------------------ | ------------------------------------ |
 | `update:comments`      | 讨论变化           | `(threads: CommentThread[]) => void` |
 | `update:activeComment` | 打开的讨论变化     | `(id: string \| null) => void`       |
-| `comment`              | 在这里做的一次修改 | `(action: CommentAction) => void`    |
+| `comment-action`       | 在这里做的一次修改 | `(action: CommentAction) => void`    |
 
 ### Methods
 
-| 名称                | 说明                                                         | 类型                                          |
-| ------------------- | ------------------------------------------------------------ | --------------------------------------------- |
-| `comment`           | 对选中的文字发起讨论，打开输入框；没有选中文字时返回 `false` | `() => boolean`                               |
-| `getCommentAnchors` | 每条讨论所在的位置，原文已删除的为 `null`                    | `() => Record<string, CommentAnchor \| null>` |
+| 名称                | 说明                                                                                                                                | 类型                                          |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| `comment`           | 对选中的文字发起讨论，打开输入框；光标在被评论的文字里时打开那条讨论；都不是时返回 `false`                                          | `() => boolean`                               |
+| `getCommentAnchors` | 每条讨论所在的位置，原文已删除的为 `null`。返回值不是响应式的，在 `change`（包括协同时别人的修改）和 `update:comments` 之后重新读取 | `() => Record<string, CommentAnchor \| null>` |
 
 ```ts
 interface CommentAnchor {

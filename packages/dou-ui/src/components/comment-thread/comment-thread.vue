@@ -16,6 +16,7 @@ import {
   createCommentId,
   type CommentAction,
   type CommentItem,
+  type CommentThread,
 } from './comments'
 import type {
   CommentThreadEmits,
@@ -27,12 +28,17 @@ import type {
 defineOptions({ name: 'DouCommentThread' })
 
 const props = withDefaults(defineProps<CommentThreadProps>(), {
-  thread: null,
+  author: undefined,
   readonly: false,
   placeholder: undefined,
   autofocus: false,
 })
-const emit = defineEmits<CommentThreadEmits>()
+// without `v-model:thread`, the thread is kept here
+const thread = defineModel<CommentThread | null>('thread', { default: null })
+const emit = defineEmits<{
+  action: CommentThreadEmits['action']
+  cancel: CommentThreadEmits['cancel']
+}>()
 defineSlots<CommentThreadSlots>()
 
 const ns = useNamespace('comment-thread')
@@ -41,16 +47,33 @@ const { t } = useLocale()
 /** A week: older comments show their date instead of "3 days ago". */
 const WEEK = 7 * 24 * 3600 * 1000
 
-const resolved = computed(() => props.thread?.resolved)
-const canWrite = computed(() => !props.readonly && !resolved.value)
+const resolved = computed(() => thread.value?.resolved)
+/** Who may change things: nobody when read-only, or when no `author` says who is writing. */
+const writer = computed(() => (props.readonly ? undefined : props.author))
+const canWrite = computed(() => !!writer.value && !resolved.value)
+
+const root = useTemplateRef<HTMLElement>('root')
 
 function act(action: CommentAction) {
   emit('action', action)
-  if (action.type === 'create') emit('update:thread', action.thread)
-  else if (props.thread) {
-    const next = applyCommentAction([props.thread], action)[0] ?? null
-    emit('update:thread', next)
-  }
+  if (action.type === 'create') thread.value = action.thread
+  else if (thread.value) thread.value = applyCommentAction([thread.value], action)[0] ?? null
+  void keepFocus()
+}
+
+/**
+ * The button or box that held focus can go with a change (the edit box
+ * once saved, the reply box once resolved): focus moves on to the reply
+ * box, or the reopen button, instead of falling to the page.
+ */
+async function keepFocus() {
+  await nextTick()
+  const el = root.value
+  const now = document.activeElement
+  if (!el || (now && now !== document.body && !el.contains(now))) return
+  if (now && now !== document.body && el.contains(now) && now.isConnected) return
+  if (box.value) focus()
+  else el.querySelector<HTMLElement>(`.${ns.e('status')} button`)?.focus({ preventScroll: true })
 }
 
 const now = () => new Date().toISOString()
@@ -61,29 +84,36 @@ const box = useTemplateRef<InstanceType<typeof DouTextarea>>('box')
 
 function send() {
   const body = draft.value.trim()
-  if (!body) return
+  const author = writer.value
+  if (!body || !author) return
   const comment: CommentItem = {
     id: createCommentId(),
-    author: { ...props.author },
+    author: { ...author },
     body,
     createdAt: now(),
   }
   draft.value = ''
-  if (props.thread) act({ type: 'reply', threadId: props.thread.id, comment })
+  if (thread.value) act({ type: 'reply', threadId: thread.value.id, comment })
   else act({ type: 'create', thread: { id: createCommentId(), comments: [comment] } })
 }
 
-function onBoxKeydown(event: KeyboardEvent) {
-  // keys typed here are not the page's (or the editor's around it)
+/** A key handled here: not the page's too. */
+function handled(event: KeyboardEvent) {
+  event.preventDefault()
   event.stopPropagation()
+}
+
+function onBoxKeydown(event: KeyboardEvent) {
   if (isComposing(event)) return
   if (event.key === 'Enter' && !event.shiftKey) {
-    event.preventDefault()
+    handled(event)
     send()
   } else if (event.key === 'Escape') {
-    event.preventDefault()
-    if (draft.value) draft.value = ''
-    else emit('cancel')
+    // an empty box lets Escape go on, to close the popover or drawer around
+    if (draft.value) {
+      handled(event)
+      draft.value = ''
+    } else emit('cancel')
   }
 }
 
@@ -106,22 +136,22 @@ function startEdit(comment: CommentItem) {
 function saveEdit() {
   const id = editing.value
   const body = editDraft.value.trim()
-  if (!id || !props.thread || !body) return
+  if (!id || !thread.value || !body) return
   editing.value = null
-  const before = props.thread.comments.find((comment) => comment.id === id)
-  if (before?.body === body) return
-  act({ type: 'edit', threadId: props.thread.id, commentId: id, body, editedAt: now() })
+  const before = thread.value.comments.find((comment) => comment.id === id)
+  if (before?.body === body) return void keepFocus()
+  act({ type: 'edit', threadId: thread.value.id, commentId: id, body, editedAt: now() })
 }
 
 function onEditKeydown(event: KeyboardEvent) {
-  event.stopPropagation()
   if (isComposing(event)) return
   if (event.key === 'Enter' && !event.shiftKey) {
-    event.preventDefault()
+    handled(event)
     saveEdit()
   } else if (event.key === 'Escape') {
-    event.preventDefault()
+    handled(event)
     editing.value = null
+    void keepFocus()
   }
 }
 
@@ -129,33 +159,34 @@ function onEditKeydown(event: KeyboardEvent) {
 const confirming = ref(false)
 
 function onMenu(comment: CommentItem, index: number, value: unknown) {
-  if (!props.thread) return
+  if (!thread.value) return
   if (value === 'edit') startEdit(comment)
   else if (value === 'delete') {
     if (index === 0) confirming.value = true
-    else act({ type: 'delete', threadId: props.thread.id, commentId: comment.id })
+    else act({ type: 'delete', threadId: thread.value.id, commentId: comment.id })
   }
 }
 
 function removeThread() {
-  if (!props.thread) return
+  if (!thread.value) return
   confirming.value = false
-  act({ type: 'remove', threadId: props.thread.id })
+  act({ type: 'remove', threadId: thread.value.id })
 }
 
 function resolve() {
-  if (props.thread)
-    act({ type: 'resolve', threadId: props.thread.id, by: { ...props.author }, at: now() })
+  const by = writer.value
+  if (thread.value && by)
+    act({ type: 'resolve', threadId: thread.value.id, by: { ...by }, at: now() })
 }
 
 function reopen() {
-  if (props.thread) act({ type: 'reopen', threadId: props.thread.id })
+  if (thread.value) act({ type: 'reopen', threadId: thread.value.id })
 }
 
-const placeholderText = computed(
-  () =>
-    props.placeholder ??
-    (props.thread ? t('commentThread.replyPlaceholder') : t('commentThread.placeholder')),
+const placeholderText = computed(() =>
+  thread.value
+    ? t('commentThread.replyPlaceholder')
+    : (props.placeholder ?? t('commentThread.placeholder')),
 )
 
 const focus = () => box.value?.textarea?.focus({ preventScroll: true })
@@ -166,14 +197,14 @@ defineExpose<CommentThreadExpose>({ focus })
 </script>
 
 <template>
-  <div :class="[ns.b(), { 'is-resolved': !!resolved, 'is-new': !thread }]">
+  <div ref="root" role="group" :class="[ns.b(), { 'is-resolved': !!resolved, 'is-new': !thread }]">
     <slot name="header" />
     <div v-if="resolved" :class="ns.e('status')">
       <CheckIcon :class="ns.e('status-icon')" />
       <span :class="ns.e('status-text')">{{
         t('commentThread.resolvedBy', { name: resolved.by.name })
       }}</span>
-      <DouButton v-if="!readonly" variant="ghost" size="sm" @click="reopen">
+      <DouButton v-if="writer" variant="ghost" size="sm" @click="reopen">
         <template #leading><RotateCcwIcon /></template>
         {{ t('commentThread.reopen') }}
       </DouButton>
@@ -197,7 +228,7 @@ defineExpose<CommentThreadExpose>({ focus })
           <span v-if="comment.editedAt" :class="ns.e('edited')">{{
             t('commentThread.edited')
           }}</span>
-          <div v-if="!readonly" :class="ns.e('actions')">
+          <div v-if="writer" :class="ns.e('actions')">
             <DouTooltip v-if="index === 0 && !resolved" :content="t('commentThread.resolve')">
               <DouButton
                 variant="ghost"
@@ -209,7 +240,7 @@ defineExpose<CommentThreadExpose>({ focus })
               </DouButton>
             </DouTooltip>
             <DouDropdown
-              v-if="comment.author.id === author.id && !resolved"
+              v-if="comment.author.id === writer.id && !resolved"
               placement="bottom-end"
               @select="(value) => onMenu(comment, index, value)"
             >
@@ -267,6 +298,7 @@ defineExpose<CommentThreadExpose>({ focus })
         v-model="draft"
         :autosize="{ minRows: 1, maxRows: 8 }"
         :placeholder="placeholderText"
+        :aria-label="placeholderText"
         size="sm"
         @keydown="onBoxKeydown"
       />

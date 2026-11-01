@@ -2,11 +2,12 @@
 import {
   DouCommentThread,
   useFloating,
+  useLayer,
   useZIndex,
   type CommentThread,
   type VirtualElement,
 } from 'dou-ui'
-import { computed, inject, nextTick, onBeforeUnmount, onMounted, shallowRef, watch } from 'vue'
+import { computed, inject, nextTick, shallowRef, watch } from 'vue'
 import { commentRange, type CommentRange } from '../core/comments'
 import { editorKey } from '../editor'
 
@@ -63,32 +64,46 @@ const zIndex = shallowRef(0)
 watch(open, (value) => value && (zIndex.value = next()), { immediate: true })
 watch(state, () => open.value && void nextTick(update))
 
-const author = computed(() => comments.author.value ?? { id: '', name: '' })
+const threadView = shallowRef<InstanceType<typeof DouCommentThread> | null>(null)
 
-function close(refocus: boolean) {
+/** Focus was in the card, or went nowhere when what held it went away. */
+const focusLost = () => {
+  const el = document.activeElement
+  return !el || el === document.body || !!panel.value?.contains(el)
+}
+
+function close() {
+  const refocus = focusLost()
   comments.close()
   if (refocus) view.value?.focus()
 }
 
-function onKeydown(event: KeyboardEvent) {
-  if (event.key === 'Escape' && !event.defaultPrevented) {
-    event.preventDefault()
-    close(true)
-  }
-}
+// the card is a layer: Escape goes to a menu opened from it first, and a
+// press on such a menu isn't outside. A press on the editor's text is the
+// editor's: it opens the thread there, or closes the card.
+useLayer({
+  open,
+  elements: () => [panel.value, view.value?.dom],
+  onEscape: () => close(),
+  onOutside: () => comments.close(),
+})
 
-// pressing anywhere but the card or the editor's text closes it; a press on
-// the text is the editor's: it opens the thread there, or closes the card
-function onPointerDown(event: PointerEvent) {
-  if (!open.value) return
-  const target = event.target as Node
-  if (panel.value?.contains(target) || view.value?.dom.contains(target)) return
-  // menus the card opened (a comment's actions) are teleported out of it
-  if ((target as Element).closest?.('.dou-floating')) return
-  close(false)
-}
-onMounted(() => document.addEventListener('pointerdown', onPointerDown, true))
-onBeforeUnmount(() => document.removeEventListener('pointerdown', onPointerDown, true))
+// asked to (by the keyboard shortcut, or a thread just started): the reply box
+watch(
+  () => comments.focusRequest.value,
+  async () => {
+    await nextTick()
+    await nextTick()
+    threadView.value?.focus()
+  },
+)
+
+// a thread resolved or removed from the card: back to the text
+watch(open, async (value, was) => {
+  if (value || !was) return
+  await nextTick()
+  if (focusLost()) view.value?.focus()
+})
 </script>
 
 <template>
@@ -101,16 +116,16 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onPointerDown,
       :aria-label="messages.commentThread"
       :style="[style, { zIndex }]"
       :data-placement="placement"
-      @keydown="onKeydown"
     >
       <DouCommentThread
+        ref="threadView"
         :key="thread?.id ?? 'new'"
         :thread="thread"
-        :author="author"
+        :author="comments.author.value"
         :readonly="!comments.writable.value"
         :autofocus="!thread"
         @action="comments.apply"
-        @cancel="close(true)"
+        @cancel="close"
       />
     </div>
   </Transition>

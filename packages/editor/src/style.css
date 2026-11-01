@@ -22,14 +22,8 @@
     );
     --dou-editor-control-hover: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
     /* text a comment thread is about: a warm tint and an underline, stronger while its thread is open */
-    --dou-editor-comment-bg: light-dark(
-      color-mix(in oklab, var(--dou-color-warning) 16%, transparent),
-      color-mix(in oklab, var(--dou-color-warning) 20%, transparent)
-    );
-    --dou-editor-comment-bg-active: light-dark(
-      color-mix(in oklab, var(--dou-color-warning) 34%, transparent),
-      color-mix(in oklab, var(--dou-color-warning) 38%, transparent)
-    );
+    --dou-editor-comment-bg: color-mix(in oklab, var(--dou-color-warning) 18%, transparent);
+    --dou-editor-comment-bg-active: color-mix(in oklab, var(--dou-color-warning) 36%, transparent);
     --dou-editor-comment-line: color-mix(in oklab, var(--dou-color-warning) 72%, transparent);
 
     position: relative;
@@ -579,7 +573,7 @@
   }
 
   .dou-editor__comment-pending {
-    background-color: var(--dou-editor-selected);
+    background-color: color-mix(in oklab, var(--dou-color-focus) 16%, transparent);
   }
 
   .dou-editor-comment {

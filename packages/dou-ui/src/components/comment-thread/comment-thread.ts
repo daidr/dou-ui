@@ -10,15 +10,19 @@ export {
 
 export interface CommentThreadProps {
   /**
-   * The discussion, bound with `v-model:thread`. `null` shows only the box
-   * to write the first comment; sending it creates the thread.
+   * The discussion, bound with `v-model:thread`; kept inside when not bound.
+   * `null` shows only the box to write the first comment; sending it
+   * creates the thread.
    */
   thread?: CommentThread | null
-  /** Who is writing. Only their own comments can be edited and deleted. */
-  author: CommentAuthor
+  /**
+   * Who is writing. Only their own comments can be edited and deleted;
+   * without it the thread can only be read.
+   */
+  author?: CommentAuthor
   /** Show the discussion without the reply box, the resolve button or the menus. */
   readonly?: boolean
-  /** The hint in the empty box. Defaults to "Comment" for a new thread and "Reply" otherwise. */
+  /** The hint in the box that starts a thread (`thread` is `null`). Replies always read "Reply". */
   placeholder?: string
   /** Focus the box once mounted, e.g. when the thread opens beside the text it is about. */
   autofocus?: boolean

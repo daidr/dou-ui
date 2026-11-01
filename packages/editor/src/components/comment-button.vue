@@ -47,6 +47,8 @@ watch(open, (value) => value && (zIndex.value = next()), { immediate: true })
 
 function read() {
   range.value = comments.selection()
+  // selecting other text closes an open thread, as in an editable editor
+  if (range.value && comments.active.value && !comments.pending.value) comments.open(null)
 }
 function onPointerDown(event: PointerEvent) {
   if (event.button === 0 && view.value?.dom.contains(event.target as Node)) pressing.value = true

@@ -196,24 +196,18 @@ describe('patterns', () => {
   })
 })
 
-describe('on the server', () => {
-  async function serverHtml(part: () => unknown, data?: unknown) {
-    for (const name of [
-      'window',
-      'document',
-      'Element',
-      'HTMLElement',
-      'HTMLCanvasElement',
-      'Node',
-    ])
-      vi.stubGlobal(name, undefined)
-    try {
-      return await renderToString(h(DouChart, { data, height: 240, ssrWidth: 480 }, () => [part()]))
-    } finally {
-      vi.unstubAllGlobals()
-    }
+/** A chart rendered as on the server: nothing of a page there. */
+async function serverHtml(part: () => unknown, data?: unknown) {
+  for (const name of ['window', 'document', 'Element', 'HTMLElement', 'HTMLCanvasElement', 'Node'])
+    vi.stubGlobal(name, undefined)
+  try {
+    return await renderToString(h(DouChart, { data, height: 240, ssrWidth: 480 }, () => [part()]))
+  } finally {
+    vi.unstubAllGlobals()
   }
+}
 
+describe('on the server', () => {
   it('draws a treemap, a sunburst and a gauge into the SVG', async () => {
     for (const html of [
       await serverHtml(() => h(DouChartTreemap), tree),

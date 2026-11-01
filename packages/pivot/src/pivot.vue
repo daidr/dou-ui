@@ -129,7 +129,8 @@ const engineConfig = computed<PivotConfig>(() => {
   const values = (c.values ?? []).filter((v) => {
     const name = typeof v === 'string' ? undefined : v.aggregate
     if (!name || FAST_AGGREGATES.has(name) || BUILTIN_AGGREGATORS[name] || custom[name]) return true
-    if (import.meta.env?.DEV) console.warn(`[DouPivot] 没有名为 "${name}" 的汇总方式，已跳过这个值`)
+    if (import.meta.env?.DEV)
+      console.warn(`[@dou-ui/pivot] 没有名为 "${name}" 的汇总方式，已跳过这个值`)
     return false
   })
   const next: PivotConfig = {
@@ -232,7 +233,7 @@ watch(
       if (props.engine) console.error(error)
       else {
         // the own worker failed: sum up on the page from now on
-        console.warn('[DouPivot] worker 不可用，改为在页面中汇总', error)
+        console.warn('[@dou-ui/pivot] worker 不可用，改为在页面中汇总', error)
         ownEngine?.dispose?.()
         ownEngine = null
         ownEngineReady = null

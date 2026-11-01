@@ -25,6 +25,7 @@ import {
   type SheetData,
   type SheetFilter,
   type SheetFilterRule,
+  type SheetGroup,
   type SheetRow,
   type SheetRuleRange,
   type SheetStyle,
@@ -36,6 +37,7 @@ import {
 } from './model'
 import { continueValues, type SheetFillMode } from './fill'
 import { mergesOf, overlaps } from './merge'
+import { groupRange, groupsOf, groupSpan } from './group'
 import { rangesOf } from './conditional'
 import { sortRows, textCollator, type SheetSortKey } from './data'
 
@@ -111,6 +113,7 @@ export type SheetAction =
   | 'delete'
   | 'hide'
   | 'merge'
+  | 'group'
   | 'sort'
   | 'filter'
   | 'format'
@@ -561,6 +564,147 @@ export class SheetTransaction {
   }
 
   /**
+   * Groups rows so they can be folded away: `groupRows('3:8')` or
+   * `groupRows(2, 6)`. A group may hold other groups, at most eight deep;
+   * one beside a group of the same level joins it, and one that would cross
+   * a group, or nest too deep, throws a `RangeError`.
+   */
+  groupRows(at: SheetLinesAt, count?: number, sheet?: SheetRef) {
+    const lines = linesOf('row', at, count)
+    return this.groupLines('row', lines.from, lines.count, sheet)
+  }
+
+  /** Groups columns so they can be folded away: `groupCols('B:D')`. */
+  groupCols(at: SheetLinesAt, count?: number, sheet?: SheetRef) {
+    const lines = linesOf('col', at, count)
+    return this.groupLines('col', lines.from, lines.count, sheet)
+  }
+
+  /**
+   * Takes rows out of their groups: the groups that lie within them go (the
+   * outer ones, when groups nest); without any, the rows leave the innermost
+   * group they are in, which may split it in two.
+   */
+  ungroupRows(at: SheetLinesAt, count?: number, sheet?: SheetRef) {
+    const lines = linesOf('row', at, count)
+    return this.ungroupLines('row', lines.from, lines.count, sheet)
+  }
+
+  /** Takes columns out of their groups, as `ungroupRows` does rows. */
+  ungroupCols(at: SheetLinesAt, count?: number, sheet?: SheetRef) {
+    const lines = linesOf('col', at, count)
+    return this.ungroupLines('col', lines.from, lines.count, sheet)
+  }
+
+  /** Folds a group away: `collapseGroup('3:8')`, `range` being the group's rows or columns. */
+  collapseGroup(range: string, sheet?: SheetRef) {
+    return this.foldGroup(range, true, sheet)
+  }
+
+  /** Shows a folded group again: `expandGroup('3:8')`. */
+  expandGroup(range: string, sheet?: SheetRef) {
+    return this.foldGroup(range, false, sheet)
+  }
+
+  private foldGroup(range: string, collapsed: boolean, sheet: SheetRef = this.sheet) {
+    const index = this.mustIndex(sheet)
+    const data = this.book.sheets[index]!
+    const span = groupSpan(range)
+    const group = span && groupsOf(data).axis(span.axis).find(span.start, span.end)
+    if (!group) throw new RangeError(`There is no group "${range}"`)
+    if (group.collapsed === collapsed) return this
+    return this.setGroups(index, (g, i) => (i === group.index ? { ...g, collapsed } : g))
+  }
+
+  /**
+   * Shows the groups of an axis down to a level, as the outline's level
+   * buttons do: level 1 folds every group, level 2 shows the outer groups
+   * with theirs folded, and one past the deepest shows them all.
+   */
+  showGroupLevel(axis: SheetAxisName, level: number, sheet: SheetRef = this.sheet) {
+    const index = this.mustIndex(sheet)
+    const laid = groupsOf(this.book.sheets[index]!).axis(axis)
+    const fold = new Map<number, boolean>()
+    for (const g of laid.list) if (g.collapsed !== g.depth >= level) fold.set(g.index, !g.collapsed)
+    if (!fold.size) return this
+    return this.setGroups(index, (g, i) => (fold.has(i) ? { ...g, collapsed: fold.get(i) } : g))
+  }
+
+  private groupLines(axis: SheetAxisName, from: number, count: number, ref?: SheetRef) {
+    if (count <= 0) return this
+    const index = this.mustIndex(ref)
+    const data = this.book.sheets[index]!
+    let start = from
+    let end = from + count - 1
+    const laid = groupsOf(data).axis(axis)
+    if (laid.find(start, end)) return this
+    const problem = laid.problem(start, end)
+    if (problem === 'deep')
+      throw new RangeError(`"${groupRange(axis, start, end)}" would nest more than eight deep`)
+    if (problem) {
+      const other = groupRange(axis, problem.cross.start, problem.cross.end)
+      throw new RangeError(`"${groupRange(axis, start, end)}" would cross the group "${other}"`)
+    }
+    // groups of the same level right beside it join it, as one group
+    const joined = new Set<number>()
+    for (const g of laid.beside(start, end)) {
+      joined.add(g.index)
+      start = Math.min(start, g.start)
+      end = Math.max(end, g.end)
+    }
+    const kept = (data.groups ?? []).filter((_, i) => !joined.has(i))
+    return this.updateSheet({ groups: [...kept, { range: groupRange(axis, start, end) }] }, index)
+  }
+
+  private ungroupLines(axis: SheetAxisName, from: number, count: number, ref?: SheetRef) {
+    if (count <= 0) return this
+    const index = this.mustIndex(ref)
+    const data = this.book.sheets[index]!
+    const laid = groupsOf(data).axis(axis)
+    const end = from + count - 1
+    const within = laid.list.filter((g) => g.start >= from && g.end <= end)
+    if (within.length) {
+      // the outer ones: those not inside another that goes
+      const gone = new Set<number>()
+      for (const g of within)
+        if (
+          !within.some((o) => o !== g && o.depth < g.depth && o.start <= g.start && o.end >= g.end)
+        )
+          gone.add(g.index)
+      return this.setGroups(index, (g, i) => (gone.has(i) ? null : g))
+    }
+    // the lines leave the deepest groups they touch
+    const touching = laid.list.filter((g) => g.start <= end && g.end >= from)
+    if (!touching.length) return this
+    const deepest = Math.max(...touching.map((g) => g.depth))
+    const parts = new Map<number, SheetGroup[]>()
+    for (const g of touching) {
+      if (g.depth !== deepest) continue
+      const group = data.groups![g.index]!
+      const split: SheetGroup[] = []
+      const keep = (a: number, b: number) => split.push({ ...group, range: groupRange(axis, a, b) })
+      if (g.start < from) keep(g.start, from - 1)
+      if (g.end > end) keep(end + 1, g.end)
+      parts.set(g.index, split)
+    }
+    return this.setGroups(index, (g, i) => parts.get(i) ?? g)
+  }
+
+  /** Rewrites a sheet's groups: each to itself, another, several or none. */
+  private setGroups(
+    index: number,
+    map: (group: SheetGroup, index: number) => SheetGroup | SheetGroup[] | null,
+  ) {
+    const next: SheetGroup[] = []
+    this.book.sheets[index]!.groups?.forEach((g, i) => {
+      const out = map(g, i)
+      if (Array.isArray(out)) next.push(...out)
+      else if (out) next.push(out)
+    })
+    return this.updateSheet({ groups: next.length ? next : undefined }, index)
+  }
+
+  /**
    * Adds empty rows before `at`: `insertRows(4, 2)` or `insertRows('5:6')`
    * both add two rows where row 5 was. Frozen rows and the row count grow
    * with them, and formulas pointing below follow their cells.
@@ -714,6 +858,7 @@ export class SheetTransaction {
     this.moveFilter(index, map)
     this.moveRules('conditionalFormats', index, map)
     this.moveRules('validations', index, map)
+    this.moveGroups(index, map)
     const merges = sheet.merges
     if (!merges?.length) return this
     const next: string[] = []
@@ -752,6 +897,22 @@ export class SheetTransaction {
     }
     if (next.length !== rules.length || next.some((rule, i) => rule !== rules[i]))
       this.updateSheet({ [key]: next.length ? next : undefined }, index)
+  }
+
+  /** Moves a sheet's groups with their lines; a group goes when its lines do. */
+  private moveGroups(index: number, map: SheetRefMap) {
+    const groups = this.book.sheets[index]!.groups
+    if (!groups?.length) return
+    const next: SheetGroup[] = []
+    for (const group of groups) {
+      const range = parseRange(group.range)
+      const moved = range && map(boundsOf(range))
+      if (!moved) continue
+      const text = rangeText('bounds' in moved ? moved.bounds : moved)
+      next.push(text === group.range ? group : { ...group, range: text })
+    }
+    if (next.length !== groups.length || next.some((g, i) => g !== groups[i]))
+      this.updateSheet({ groups: next.length ? next : undefined }, index)
   }
 
   /** Moves a sheet's filter with its rows and columns; it goes when its range does. */

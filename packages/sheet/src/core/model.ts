@@ -69,6 +69,18 @@ export interface SheetData {
   /** A filter on a range: rows whose cells don't match its rules are hidden. */
   filter?: SheetFilter
   /**
+   * Rows or columns that fold away together, such as the detail rows under
+   * a subtotal. Groups on the same axis nest or stay apart, at most eight
+   * deep.
+   */
+  groups?: SheetGroup[]
+  /**
+   * Where a group's heading or subtotal is, and so its button: on the row
+   * above it (the column left of it) with `'before'`, the default, or below
+   * it (right of it) with `'after'`.
+   */
+  groupSummary?: 'before' | 'after'
+  /**
    * Looks cells take on when they meet a rule, such as a red fill for
    * amounts over budget. Where two formats give the same part of the look,
    * the earlier one wins.
@@ -79,6 +91,14 @@ export interface SheetData {
    * Where two rules cover a cell, the earlier one applies.
    */
   validations?: SheetValidation[]
+}
+
+/** Rows or columns that fold away together. */
+export interface SheetGroup {
+  /** Whole rows such as `'3:8'`, or whole columns such as `'B:D'`. */
+  range: string
+  /** Folded: its rows or columns are hidden until it is expanded. */
+  collapsed?: boolean
 }
 
 /**

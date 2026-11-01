@@ -266,6 +266,23 @@ describe('collaboration', () => {
     expect(a.book.value.sheets[0]!.conditionalFormats![0]!.range).toBe('B3:B4')
   })
 
+  it('keeps groups on their lines when the other side changes lines', async () => {
+    const { a, b, offline, online } = await pair()
+    await offline()
+    a.grid().transact((tr) => tr.groupRows('2:4').groupCols('C:D').collapseGroup('2:4'))
+    b.grid().transact((tr) => tr.insertRows(1).insertCols(0))
+    await online()
+    for (const side of [a, b])
+      expect(side.book.value.sheets[0]!.groups).toEqual([
+        { range: '3:5', collapsed: true },
+        { range: 'D:E' },
+      ])
+    // a group goes with its lines
+    b.grid().transact((tr) => tr.deleteCols('D:E'))
+    await flush()
+    expect(a.book.value.sheets[0]!.groups).toEqual([{ range: '3:5', collapsed: true }])
+  })
+
   it('reads #REF! where a formula pointed at a row the other side deleted', async () => {
     const { a, b, offline, online } = await pair()
     await offline()

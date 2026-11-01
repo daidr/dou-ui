@@ -55,7 +55,17 @@
     }
   }
 
-  /* the grid, between what the header and footer slots hold */
+  /* the grid and the outlines of its groups, between what the header and footer slots hold */
+  .dou-sheet__frame {
+    position: relative;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    box-sizing: border-box;
+    min-height: 0;
+  }
+
+  /* the grid */
   .dou-sheet__main {
     position: relative;
     flex: 1;
@@ -96,6 +106,119 @@
     }
     .dou-sheet__head > & {
       position: relative;
+    }
+  }
+
+  /* outlines of groups -------------------------------------------------------- */
+
+  .dou-sheet__outline {
+    position: absolute;
+    background-color: var(--dou-sheet-header-bg);
+
+    &.is-row {
+      bottom: 0;
+      left: 0;
+      border-right: 1px solid var(--dou-sheet-line-strong);
+    }
+    &.is-col {
+      top: 0;
+      right: 0;
+      border-bottom: 1px solid var(--dou-sheet-line-strong);
+    }
+  }
+
+  .dou-sheet__outline-corner {
+    position: absolute;
+    top: 0;
+    left: 0;
+    box-sizing: border-box;
+    border-right: 1px solid var(--dou-sheet-line-strong);
+    border-bottom: 1px solid var(--dou-sheet-line-strong);
+    background-color: var(--dou-sheet-header-bg);
+  }
+
+  /* above the lines, so a finger's reach past the headers still lands on a level */
+  .dou-sheet__outline-levels {
+    position: absolute;
+    z-index: 1;
+  }
+
+  .dou-sheet__outline-layer {
+    position: absolute;
+    overflow: hidden;
+  }
+
+  .dou-sheet__outline-inner {
+    position: absolute;
+    inset: 0;
+  }
+
+  .dou-sheet__outline-line {
+    position: absolute;
+    box-sizing: border-box;
+    border: 0 solid var(--dou-sheet-freeze-line);
+
+    .is-row & {
+      border-left-width: 1px;
+      &.is-tick-end {
+        border-bottom-width: 1px;
+      }
+      &.is-tick-start {
+        border-top-width: 1px;
+      }
+    }
+    .is-col & {
+      border-top-width: 1px;
+      &.is-tick-end {
+        border-right-width: 1px;
+      }
+      &.is-tick-start {
+        border-left-width: 1px;
+      }
+    }
+  }
+
+  .dou-sheet__outline-button {
+    position: absolute;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    padding: 0;
+    border: 1px solid var(--dou-sheet-freeze-line);
+    border-radius: 3px;
+    background-color: var(--dou-color-bg-surface);
+    color: var(--dou-color-text-secondary);
+    font: inherit;
+    font-size: 10px;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+
+    & svg {
+      width: 10px;
+      height: 10px;
+    }
+    &:hover {
+      background-color: var(--dou-color-bg-muted);
+      color: var(--dou-color-text);
+    }
+    &:focus-visible {
+      outline: 2px solid var(--dou-color-primary);
+      outline-offset: 1px;
+    }
+    &.is-level {
+      border-color: var(--dou-color-border);
+      color: var(--dou-color-text-tertiary);
+    }
+    /* a target of up to 40px for a finger, short of the buttons nearby; the button looks the same */
+    @media (pointer: coarse) {
+      &::before {
+        position: absolute;
+        inset: var(--dou-sheet-hit, 0);
+        content: '';
+      }
     }
   }
 

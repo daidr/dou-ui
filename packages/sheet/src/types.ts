@@ -23,6 +23,11 @@ export interface SheetProps {
   colWidth?: number
   /** Show the column letters and row numbers. */
   headers?: boolean
+  /**
+   * Show the outline of the groups beside the headers. Without it, groups
+   * stay folded or shown as they are, and fold from the menu and the keys.
+   */
+  outline?: boolean
   /** Draw lines between cells. */
   gridlines?: boolean
   /** How many changes undo can go back. */

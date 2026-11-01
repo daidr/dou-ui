@@ -1138,7 +1138,6 @@ export const cases: Record<string, Case> = {
     frames: 20,
     budget: { 200: 8 },
   },
-  // Floating n tiles up, the work done after every drop.
   // A dashboard of n widgets in view mode: frames, title bars and contents.
   dashboard: {
     render: (n) => dashboard(n),
@@ -1156,6 +1155,39 @@ export const cases: Record<string, Case> = {
     frames: 20,
     budget: { 200: 8 },
   },
+  // Dragging a widget by its title bar across the dashboard while editing:
+  // every step moves the widget, pushes the others aside and draws only the
+  // frames that moved.
+  'dashboard-drag': {
+    render: (n) => dashboard(n, true),
+    prepare: (root) => {
+      const header = root.querySelector<HTMLElement>('[data-grid-id="w0"] .dou-dashboard__header')!
+      const box = header.getBoundingClientRect()
+      const at = (type: string, target: EventTarget, x: number) =>
+        target.dispatchEvent(
+          new PointerEvent(type, {
+            bubbles: true,
+            clientX: x,
+            clientY: box.top + box.height / 2,
+            pointerId: 1,
+            pointerType: 'mouse',
+            isPrimary: true,
+          }),
+        )
+      at('pointerdown', header, box.left + 10)
+      at('pointermove', window, box.left + 20)
+      let step = 0
+      ;(window as any).dashboardStep = () => {
+        step = (step + 1) % 10
+        const column = root.getBoundingClientRect().width / 12
+        at('pointermove', window, box.left + 10 + step * column)
+        return nextTick()
+      }
+    },
+    act: () => (window as any).dashboardStep(),
+    frames: 20,
+    budget: { 200: 8 },
+  },
   // A filter changed on 200 widgets sharing 20 sources: 20 loads, and every
   // widget draws its new data.
   'dashboard-filter': {
@@ -1169,6 +1201,7 @@ export const cases: Record<string, Case> = {
     frames: 20,
     budget: { 200: 8 },
   },
+  // Floating n tiles up, the work done after every drop.
   'grid-compact': {
     render: () => () => h('div'),
     act: () => {

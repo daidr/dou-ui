@@ -21,7 +21,9 @@
   },
   "type": "module",
   "sideEffects": [
-    "*.css"
+    "*.css",
+    "./dist/style.js",
+    "./dist/*/style.js"
   ],
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -35,6 +37,10 @@
       "types": "./dist/types/renderer/index.d.ts",
       "import": "./dist/renderer/index.js"
     },
+    "./renderer/style": {
+      "types": "./dist/renderer/style.d.ts",
+      "import": "./dist/renderer/style.js"
+    },
     "./collaboration": {
       "types": "./dist/types/collaboration/index.d.ts",
       "import": "./dist/collaboration/index.js"
@@ -42,6 +48,10 @@
     "./code": {
       "types": "./dist/types/code/index.d.ts",
       "import": "./dist/code/index.js"
+    },
+    "./style": {
+      "types": "./dist/style.d.ts",
+      "import": "./dist/style.js"
     },
     "./style.css": "./dist/style.css",
     "./package.json": "./package.json"

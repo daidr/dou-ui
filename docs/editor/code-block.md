@@ -50,7 +50,7 @@ editorKit({
 `@dou-ui/editor/code` 提供的 `codeEditorBlock` 把代码块换成[代码编辑器](/code/)：输入时即时着色，支持括号匹配、多光标、搜索替换和按语言缩进。它需要安装 `@dou-ui/code` 并引入它的样式：
 
 ```ts
-import '@dou-ui/code/style.css'
+import '@dou-ui/code/style'
 import { editorKit } from '@dou-ui/editor'
 import { codeEditorBlock } from '@dou-ui/editor/code'
 

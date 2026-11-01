@@ -21,7 +21,8 @@
   },
   "type": "module",
   "sideEffects": [
-    "*.css"
+    "*.css",
+    "./dist/style.js"
   ],
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -30,6 +31,10 @@
     ".": {
       "types": "./dist/types/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./style": {
+      "types": "./dist/style.d.ts",
+      "import": "./dist/style.js"
     },
     "./style.css": "./dist/style.css",
     "./package.json": "./package.json"

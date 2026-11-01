@@ -422,6 +422,44 @@ const keys = [
 
 <DocDemo src="code/worker" column />
 
+### 接入语言服务
+
+已有遵循语言服务器协议（LSP）的语言服务时，用 `@dou-ui/code/lsp` 接入，不用自己写扩展。`createLanguageClient` 连上一个语言服务，`client.document()` 为一个文件生成扩展，交给编辑器的 `extensions`：
+
+```ts
+import { createLanguageClient, workerTransport } from '@dou-ui/code/lsp'
+
+const client = createLanguageClient({
+  transport: () =>
+    workerTransport(new Worker(new URL('./server.ts', import.meta.url), { type: 'module' })),
+})
+const server = client.document({ uri: 'file:///report.js', languageId: 'javascript' })
+```
+
+编辑器挂载后，扩展向语言服务打开这个文件，之后每次改动只发送改了的部分（语言服务只接受整段文本时发送整段）。语言服务回答的补全、悬停说明、参数提示和问题会显示在编辑器里，按 `F12` 跳到光标处名字的定义。具体用到哪些，看语言服务在初始化时说明了自己支持什么。
+
+语言服务可以在 Web Worker 里运行，页面不卡，也不需要服务器；也可以在服务器上运行，用 `socketTransport(new WebSocket(url))` 连接，每帧一条 JSON 消息。其他连接方式实现 `{ send, onMessage, close? }` 即可，收发的是消息对象。
+
+下面的例子在 worker 里运行一个小型语言服务，认识这份脚本里的几个函数：输入时会弹出补全，悬停在函数名上能看到说明，填写参数时有提示，`sendMail` 会被标出来，把光标放在 `line` 上按 `F12` 会跳到它的定义。
+
+<DocDemo src="code/lsp" column />
+
+`transport` 是函数时，第一个用到这个连接的编辑器挂载时才调用它，最后一个卸载后关闭语言服务；直接传入的连接一直保持，直到调用 `client.close()`。同一个连接可以给多个文件使用，每个编辑器用自己的 `client.document()`。
+
+| 名称                                       | 说明                                                                                                                                 |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `createLanguageClient(options)`            | 连接语言服务。`options` 是 `{ transport, rootUri?, initializationOptions? }`                                                         |
+| `client.document(options)`                 | 一个文件的扩展。`options` 是 `{ uri, languageId, openLocation? }`；定义在别的文件里时调用 `openLocation({ uri, range })`，由你打开它 |
+| `client.request(method, params?, signal?)` | 发送其他请求，返回 Promise；`signal` 中止时通知语言服务取消                                                                          |
+| `client.notify(method, params?)`           | 发送通知                                                                                                                             |
+| `client.onNotification(method, fn)`        | 收听语言服务的通知，比如 `window/logMessage`；返回取消收听的函数                                                                     |
+| `client.capabilities`                      | 语言服务初始化时说明的能力，回复之前是 `null`                                                                                        |
+| `client.close()`                           | 关闭语言服务和连接                                                                                                                   |
+| `workerTransport(worker)`                  | 通过 Web Worker 连接                                                                                                                 |
+| `socketTransport(socket)`                  | 通过 WebSocket 连接；打开之前发送的消息会等它打开                                                                                    |
+| `toLspPosition(doc, pos)`                  | 把文本位置换成协议里的 `{ line, character }`（都从 0 开始，按 UTF-16 计数）                                                          |
+| `fromLspPosition(doc, position)`           | 反过来换成文本位置                                                                                                                   |
+
 ## 大文件
 
 编辑器只绘制看得见的行，文本保存在按行组织的平衡树里：按行号或位置查找、插入、删除都只走一条路径，打开文件时也不复制内容。滚动时只绘制新进入视野的行；修改一行只重画这一行。

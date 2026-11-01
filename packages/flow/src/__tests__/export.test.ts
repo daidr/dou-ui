@@ -289,8 +289,9 @@ describe('exportSVG', () => {
     const svg = editor.value!.exportSVG()
     expect(svg).toContain('<g transform="rotate(30 100 30)"><polygon')
     expect(svg).toContain('周六有空？')
-    // the stroke, stretched to the node's size
-    expect(svg).toMatch(/<path d="M[^"]+" fill="[^"]*" transform="scale\(10 6\)"\/>/)
+    // the stroke, its points fitted to the node's size: no stretched outline
+    expect(svg).toMatch(/<path d="M[^"]+" fill="[^"]*"\/>/)
+    expect(svg).not.toContain('scale(')
     expect(svg).toContain('<image href="https://example.com/a.png"')
     // the turned box is what the drawing covers
     expect(svg).toMatch(/viewBox="-\d+ -\d+ /)

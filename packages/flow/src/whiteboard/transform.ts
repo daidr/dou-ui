@@ -14,25 +14,58 @@ export function snapAngle(degrees: number, shift: boolean) {
   return normalizeAngle(Math.abs(degrees - right) < 4 ? right : degrees)
 }
 
+/** A resize handle: the side or corner it sits on, `-1`, `0` or `1` along each axis. */
+export interface ResizeHandle {
+  x: -1 | 0 | 1
+  y: -1 | 0 | 1
+}
+
+/** The eight handles, corners first. */
+export const RESIZE_HANDLES: readonly ResizeHandle[] = [
+  { x: -1, y: -1 },
+  { x: 1, y: -1 },
+  { x: 1, y: 1 },
+  { x: -1, y: 1 },
+  { x: 0, y: -1 },
+  { x: 1, y: 0 },
+  { x: 0, y: 1 },
+  { x: -1, y: 0 },
+]
+
 /**
- * The box a turned node gets when its corner handle is dragged by `delta`
- * (canvas units): the size grows along the node's own axes, and the corner
- * across from the handle stays where it is.
+ * The box a node gets when `handle` is dragged by `delta` (canvas units),
+ * turned by `rotation` or not: it grows along the node's own axes, and the
+ * corner or side across from the handle stays where it is. With `keepRatio`
+ * a corner keeps the box's proportions.
  */
-export function resizeTurned(
+export function resizeBox(
   start: { x: number; y: number; width: number; height: number },
   rotation: number,
+  handle: ResizeHandle,
   delta: Point,
   min: { width: number; height: number },
+  keepRatio = false,
 ) {
   const local = turn(delta, { x: 0, y: 0 }, -rotation)
-  const width = Math.max(min.width, start.width + local.x)
-  const height = Math.max(min.height, start.height + local.y)
+  let width = handle.x ? Math.max(min.width, start.width + handle.x * local.x) : start.width
+  let height = handle.y ? Math.max(min.height, start.height + handle.y * local.y) : start.height
+  if (keepRatio && handle.x && handle.y && start.width && start.height) {
+    // the pointer taken onto the box's diagonal, so the corner stays under
+    // it; no smaller than the least size
+    const w = start.width + handle.x * local.x
+    const h = start.height + handle.y * local.y
+    const along = (w * start.width + h * start.height) / (start.width ** 2 + start.height ** 2)
+    const scale = Math.max(along, min.width / start.width, min.height / start.height)
+    width = start.width * scale
+    height = start.height * scale
+  }
   const centre = { x: start.x + start.width / 2, y: start.y + start.height / 2 }
-  // the top left corner, on screen, stays put
-  const corner = turn({ x: start.x, y: start.y }, centre, rotation)
-  const offset = turn({ x: width / 2, y: height / 2 }, { x: 0, y: 0 }, rotation)
-  const next = { x: corner.x + offset.x, y: corner.y + offset.y }
+  // the point across from the handle, on screen, stays put
+  const across = (w: number, h: number) =>
+    turn({ x: (-handle.x * w) / 2, y: (-handle.y * h) / 2 }, { x: 0, y: 0 }, rotation)
+  const from = across(start.width, start.height)
+  const to = across(width, height)
+  const next = { x: centre.x + from.x - to.x, y: centre.y + from.y - to.y }
   return { x: next.x - width / 2, y: next.y - height / 2, width, height }
 }
 
@@ -127,7 +160,16 @@ export function useTransformHandles(
     )
   }
 
-  function startResize(event: PointerEvent) {
+  /**
+   * Drags `handle`. `options.keepRatio` says whether a corner keeps the
+   * proportions: Shift turns it the other way. `options.widthOnly` changes
+   * only the width, for text whose height follows its lines.
+   */
+  function startResize(
+    event: PointerEvent,
+    handle: ResizeHandle,
+    options: { keepRatio?: boolean; widthOnly?: boolean } = {},
+  ) {
     if (ctx.readonly.value || node.value.locked || event.button !== 0) return
     event.preventDefault()
     event.stopPropagation()
@@ -138,20 +180,23 @@ export function useTransformHandles(
       (e) => {
         const p = ctx.toCanvas({ x: e.clientX, y: e.clientY })
         const delta = { x: p.x - from.x, y: p.y - from.y }
-        sizing.value = resizeTurned(start, rotation.value, delta, min)
+        const keep = !!options.keepRatio !== e.shiftKey
+        // only the width: a corner works as its side
+        const along = options.widthOnly ? { x: handle.x, y: 0 as const } : handle
+        sizing.value = resizeBox(start, rotation.value, along, delta, min, keep)
       },
       () => {
         const next = sizing.value
         sizing.value = null
         if (!next) return
-        ctx.transact((tr) =>
-          tr.updateNode(node.value.id, {
-            x: Math.round(next.x),
-            y: Math.round(next.y),
-            width: Math.round(next.width),
-            height: Math.round(next.height),
-          }),
-        )
+        const patch: Partial<FlowNode> = {
+          x: Math.round(next.x),
+          y: Math.round(next.y),
+          width: Math.round(next.width),
+        }
+        // text keeps no height: it follows its lines
+        patch.height = options.widthOnly ? undefined : Math.round(next.height)
+        ctx.transact((tr) => tr.updateNode(node.value.id, patch))
       },
       () => (sizing.value = null),
     )

@@ -62,6 +62,36 @@ export function strokeNode(
   }
 }
 
+/**
+ * A stroke's points in a box of `width` by `height`: the line itself
+ * stretches, but the room left around it for the pen's width does not, so
+ * a stretched stroke keeps its thickness.
+ */
+export function fitInk(
+  points: readonly InkPoint[],
+  box: readonly [number, number],
+  width: number,
+  height: number,
+  size = INK_SIZE,
+): InkPoint[] {
+  const pad = widthAt(size, 1) / 2 + 1
+  const axis = (from: number, to: number) => {
+    const span = from - pad * 2
+    // a flat stroke has no span to stretch: it stays centred
+    return span > 0.01
+      ? { scale: (to - pad * 2) / span, shift: 0 }
+      : { scale: 1, shift: (to - from) / 2 }
+  }
+  const ax = axis(box[0], width)
+  const ay = axis(box[1], height)
+  if (ax.scale === 1 && ay.scale === 1 && !ax.shift && !ay.shift) return [...points]
+  return points.map((p) => ({
+    x: pad + (p.x - pad) * ax.scale + ax.shift,
+    y: pad + (p.y - pad) * ay.scale + ay.shift,
+    pressure: p.pressure,
+  }))
+}
+
 /** The triples of `data.points` as points. */
 export function unpack(flat: readonly number[]): InkPoint[] {
   const out: InkPoint[] = []
@@ -147,14 +177,13 @@ export function inkHit(node: FlowNode, point: Point, radius: number): boolean {
   // into the stroke's own units: undo the turn, then the stretch
   const centre = { x: node.x + width / 2, y: node.y + height / 2 }
   const local = turn(point, centre, -(data.rotation ?? 0))
-  const sx = width / (data.box[0] || 1)
-  const sy = height / (data.box[1] || 1)
-  const points = unpack(data.points).map((p) => ({
-    x: node.x + p.x * sx,
-    y: node.y + p.y * sy,
+  const size = data.size ?? INK_SIZE
+  const points = fitInk(unpack(data.points), data.box, width, height, size).map((p) => ({
+    x: node.x + p.x,
+    y: node.y + p.y,
     pressure: p.pressure,
   }))
-  const reach = radius + ((data.size ?? INK_SIZE) * Math.max(sx, sy)) / 2
+  const reach = radius + size / 2
   if (points.length === 1)
     return Math.hypot(local.x - points[0]!.x, local.y - points[0]!.y) <= reach
   for (let i = 1; i < points.length; i++)

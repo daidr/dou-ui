@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { ChangeSet } from '../core/changes'
 import { CodeText } from '../core/text'
 import { CodeHighlighter } from '../language/highlighter'
-import { defineCodeLanguage, tokenizeLine } from '../language/language'
+import { type CodeLanguage, defineCodeLanguage, tokenizeLine } from '../language/language'
 import { SyntaxWorkerClient } from '../language/worker-client'
 import { html } from '../languages/html'
+import { createMarkdown, markdown } from '../languages/markdown'
+import { python } from '../languages/python'
 import { serveCodeHighlighting } from '../worker'
 
 /** A worker and the page, in one thread: messages are copied as postMessage copies them. */
@@ -19,19 +21,23 @@ function deliver(to: Set<(event: MessageEvent) => void>, data: unknown) {
 function pair() {
   const pageListeners = new Set<(event: MessageEvent) => void>()
   const workerListeners = new Set<(event: MessageEvent) => void>()
+  const errorListeners = new Set<(event: Event) => void>()
   const worker = {
     postMessage: (data: unknown) => deliver(workerListeners, data),
-    addEventListener: (_: string, listener: (event: MessageEvent) => void) =>
-      pageListeners.add(listener),
-    removeEventListener: (_: string, listener: (event: MessageEvent) => void) =>
-      pageListeners.delete(listener),
+    addEventListener: (type: string, listener: (event: MessageEvent) => void) =>
+      (type === 'error' ? errorListeners : pageListeners).add(listener),
+    removeEventListener: (type: string, listener: (event: MessageEvent) => void) =>
+      (type === 'error' ? errorListeners : pageListeners).delete(listener),
   } as unknown as Worker
   const scope = {
     postMessage: (data: unknown) => deliver(pageListeners, data),
     addEventListener: (_: string, listener: (event: MessageEvent) => void) =>
       workerListeners.add(listener),
   }
-  return { worker, scope }
+  const fail = () => {
+    for (const listener of errorListeners) listener(new Event('error'))
+  }
+  return { worker, scope, fail }
 }
 
 const page = Array.from({ length: 400 }, (_, i) =>
@@ -51,18 +57,23 @@ function fresh(doc: CodeText) {
   )
 }
 
-function connect(doc: CodeText, worker: Worker) {
-  const hl = new CodeHighlighter(html, doc)
+function connect(doc: CodeText, worker: Worker, language: CodeLanguage = html) {
+  const hl = new CodeHighlighter(language, doc)
   const text = () => hl.text
   let resolve: (() => void) | null = null
-  let unsupported = false
-  const client = new SyntaxWorkerClient(worker, html, text, 2, {
+  let missing: string | null = null
+  let failed = false
+  const client = new SyntaxWorkerClient(worker, language, text, 2, {
     states(points) {
       hl.adopt(points as Array<[number, never]>)
       resolve?.()
     },
-    unsupported() {
-      unsupported = true
+    unsupported(name) {
+      missing = name ?? ''
+      resolve?.()
+    },
+    failed() {
+      failed = true
       resolve?.()
     },
   })
@@ -71,7 +82,14 @@ function connect(doc: CodeText, worker: Worker) {
       resolve = done
       client.want(hl.frontier, until)
     })
-  return { hl, client, want, isUnsupported: () => unsupported }
+  return {
+    hl,
+    client,
+    want,
+    missing: () => missing,
+    isUnsupported: () => missing !== null,
+    isFailed: () => failed,
+  }
 }
 
 describe('serveCodeHighlighting', () => {
@@ -95,12 +113,31 @@ describe('serveCodeHighlighting', () => {
     client.dispose()
   })
 
-  it('says so for a language it wasn’t given', async () => {
+  it('says so for a language it wasn’t given, naming it', async () => {
     const { worker, scope } = pair()
     serveCodeHighlighting([], scope)
-    const { want, isUnsupported } = connect(CodeText.of(page), worker)
+    const { want, missing } = connect(CodeText.of(page), worker)
     await want(100)
-    expect(isUnsupported()).toBe(true)
+    expect(missing()).toBe('html')
+  })
+
+  it('says so for a language of the same name holding other languages', async () => {
+    const { worker, scope } = pair()
+    // the worker's Markdown highlights no fenced code; the page's highlights Python
+    serveCodeHighlighting([markdown], scope)
+    const withPython = createMarkdown({ languages: [python] })
+    const { want, missing } = connect(CodeText.of('```python\nx = 1\n```'), worker, withPython)
+    await want(3)
+    expect(missing()).toBe('python')
+  })
+
+  it('says so when the worker fails', async () => {
+    const { worker, fail } = pair()
+    const { want, isFailed } = connect(CodeText.of(page), worker)
+    const asked = want(100)
+    fail()
+    await asked
+    expect(isFailed()).toBe(true)
   })
 
   it('leaves states that can’t be sent to the page', async () => {
@@ -119,6 +156,7 @@ describe('serveCodeHighlighting', () => {
       const client = new SyntaxWorkerClient(worker, odd, () => hl.text, 2, {
         states: () => done(),
         unsupported: () => ((unsupported = true), done()),
+        failed: () => done(),
       })
       client.want(hl.frontier, 2)
     })

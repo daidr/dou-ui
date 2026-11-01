@@ -449,26 +449,36 @@ const doc = shallowRef(CodeText.of(source))
 
 ### 在 worker 里分词
 
-传入 `worker`，就由 worker 往下读，页面只读看得见的几行，读好的状态再发回来。在 worker 文件里调用 `@dou-ui/code/worker` 的 `serveCodeHighlighting`，列出要支持的语言；一个 worker 可以同时服务多个编辑器。
+加上 `worker`，就由 worker 往下读，页面只读看得见的几行，读好的状态再发回来。编辑器自带的 worker 认识所有内置语言，多个编辑器共用一个，最后一个编辑器卸载时结束：
+
+```vue
+<template>
+  <DouCodeEditor v-model:doc="doc" :language="javascript" worker />
+</template>
+```
+
+用自定义语言或者想自己打包 worker 时，`worker` 传一个创建 worker 的函数。编辑器挂载以后才调用它，所以服务端渲染时不会碰到 `Worker`；它创建的 worker 归这个编辑器所有，编辑器卸载或者换掉 `worker` 时调用 `terminate()` 结束它，不用自己关闭。在 worker 文件里调用 `@dou-ui/code/worker` 的 `serveCodeHighlighting`，列出要支持的语言：
 
 ```ts
 // highlight.ts
 import { javascript, serveCodeHighlighting } from '@dou-ui/code/worker'
+import { myLanguage } from './my-language'
 
-serveCodeHighlighting([javascript])
+serveCodeHighlighting([javascript, myLanguage])
 ```
 
 ```vue
 <script setup lang="ts">
-const worker = new Worker(new URL('./highlight.ts', import.meta.url), { type: 'module' })
+const createWorker = () =>
+  new Worker(new URL('./highlight.ts', import.meta.url), { type: 'module' })
 </script>
 
 <template>
-  <DouCodeEditor v-model:doc="doc" :language="javascript" :worker="worker" />
+  <DouCodeEditor v-model:doc="doc" :language="myLanguage" :worker="createWorker" />
 </template>
 ```
 
-`@dou-ui/code/worker` 只包含语言和分词，不会引入 Vue 和组件。worker 里没有编辑器用的语言时（按名称查找），编辑器改为自己在空闲时读。自定义语言同样可以放进去；包含其他语言的语言要在 `nested` 里列出它们。
+`@dou-ui/code/worker` 只包含语言和分词，不会引入 Vue 和组件。包含其他语言的语言要在 `nested` 里列出它们。worker 里没有编辑器用的语言（按名称查找，包括它包含的语言），或者 worker 无法启动时，编辑器改为自己在空闲时读，开发环境下会在控制台说明缺少哪种语言。
 
 ### 小地图
 
@@ -554,7 +564,7 @@ const worker = new Worker(new URL('./highlight.ts', import.meta.url), { type: 'm
 | `indent-with-tabs`  | 用制表符缩进                                                      | `boolean`                          | `false`    |
 | `placeholder`       | 文本为空时的提示                                                  | `string`                           | —          |
 | `language`          | 语言                                                              | `CodeLanguage`                     | —          |
-| `worker`            | 在 worker 里分词，见[在 worker 里分词](#在-worker-里分词)         | `Worker`                           | —          |
+| `worker`            | 在 worker 里分词：`true` 用自带的 worker，函数创建自己的 worker   | `boolean \| (() => Worker)`        | `false`    |
 | `close-brackets`    | 输入括号和引号时补上另一半                                        | `boolean`                          | `true`     |
 | `match-brackets`    | 标出光标旁的括号和它的配对                                        | `boolean`                          | `true`     |
 | `searchable`        | 提供查找替换面板                                                  | `boolean`                          | `true`     |

@@ -1,7 +1,7 @@
 <script setup>
 import { CodeText, DouCodeEditor, javascript } from '@dou-ui/code'
 import { DouSegmentedControl, DouSpace, DouSwitch, DouText } from 'dou-ui'
-import { computed, shallowRef, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue'
 
 const size = shallowRef(100_000)
 const minimap = shallowRef(true)
@@ -29,11 +29,15 @@ const make = (count) => {
 const doc = shallowRef(make(size.value))
 watch(size, (count) => (doc.value = make(count)))
 
-// 读颜色的 worker，所有编辑器共用一个；在浏览器里才创建
-const worker =
-  typeof Worker === 'undefined'
-    ? null
-    : new Worker(new URL('./worker/highlight.ts', import.meta.url), { type: 'module' })
+// 小地图在编辑器窄于 480px 时不显示，这时开关也停用
+const editor = useTemplateRef('editor')
+const wide = shallowRef(true)
+let observer
+onMounted(() => {
+  observer = new ResizeObserver(([entry]) => (wide.value = entry.contentRect.width >= 480))
+  observer.observe(editor.value.$el)
+})
+onBeforeUnmount(() => observer?.disconnect())
 
 const info = computed(
   () => `${doc.value.lines.toLocaleString()} 行，约 ${Math.round(doc.value.length / 1e6)} MB`,
@@ -51,12 +55,14 @@ const info = computed(
           { label: '100 万行', value: 1_000_000 },
         ]"
       />
-      <DouSwitch v-model="minimap">小地图</DouSwitch>
+      <DouSwitch v-model="minimap" :disabled="!wide">小地图</DouSwitch>
+      <DouText v-if="!wide" variant="secondary" size="sm">编辑器较窄，不显示小地图</DouText>
     </DouSpace>
     <DouCodeEditor
+      ref="editor"
       v-model:doc="doc"
       :language="javascript"
-      :worker="worker"
+      worker
       :minimap="minimap"
       style="height: 400px"
       aria-label="大文件示例"

@@ -46,11 +46,14 @@ export interface CodeEditorProps {
   /** The language: colors its tokens, and tells how to indent, comment and pair brackets. */
   language?: CodeLanguage | null
   /**
-   * A worker that reads the code for its colors (`serveCodeHighlighting`
-   * from `@dou-ui/code/worker`), so a long file opened far down is colored
-   * without the page doing the reading. One worker can serve many editors.
+   * Reads the code for its colors in a worker, so a long file opened far
+   * down is colored without the page doing the reading. `true` uses the
+   * editor's own worker, which knows the built-in languages; a function
+   * makes your own (`serveCodeHighlighting` from `@dou-ui/code/worker`),
+   * called in the browser once the editor is mounted. The editor ends the
+   * worker when it unmounts or no longer uses it.
    */
-  worker?: Worker | null
+  worker?: boolean | (() => Worker)
   /** Typing an opening bracket or quote also types its partner. On by default. */
   closeBrackets?: boolean
   /** Outlines the bracket next to the cursor and its partner. On by default. */

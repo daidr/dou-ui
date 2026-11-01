@@ -112,8 +112,11 @@ export function serveCodeHighlighting(
     if (!message || typeof message !== 'object') return
     if (message.t === 'open') {
       const language = known.get(message.language)
-      if (!language) {
-        send({ t: 'unsupported', id: message.id })
+      // the same name with other languages inside (Markdown's fenced code) would read differently
+      const inside = language ? languagesIn(language) : null
+      const missing = inside ? message.nested.find((name) => !inside.has(name)) : message.language
+      if (!language || missing) {
+        send({ t: 'unsupported', id: message.id, missing: missing! })
         return
       }
       opening.set(message.id, { language, tabSize: message.tabSize, lines: [] })

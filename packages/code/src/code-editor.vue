@@ -81,7 +81,7 @@ import {
   searchText,
 } from './core/search'
 import { CodeHighlighter } from './language/highlighter'
-import { SyntaxWorkerClient } from './language/worker-client'
+import { ownWorker, SyntaxWorkerClient } from './language/worker-client'
 import { format, useCodeMessages } from './locale'
 import CodeKeys from './code-keys.vue'
 import {
@@ -127,7 +127,7 @@ const props = withDefaults(defineProps<CodeEditorProps>(), {
   activeLine: true,
   tabSize: 2,
   language: undefined,
-  worker: null,
+  worker: false,
   closeBrackets: true,
   matchBrackets: true,
   searchable: true,
@@ -1404,34 +1404,95 @@ let highlighter: CodeHighlighter | null = null
 /** Bumped when lines in view got their tokens in idle time. */
 const syntaxTick = ref(0)
 
-/** The worker reading ahead, with `worker`. */
-let syntaxWorker: SyntaxWorkerClient | null = null
-
 watch(
-  [() => props.language, () => props.worker],
-  ([language, worker]) => {
+  () => props.language,
+  (language) => {
     highlighter = language ? markRaw(new CodeHighlighter(language, doc.value, props.tabSize)) : null
-    syntaxWorker?.dispose()
-    syntaxWorker =
-      language && worker && typeof window !== 'undefined'
-        ? new SyntaxWorkerClient(worker, language, () => doc.value, props.tabSize, {
-            states(points) {
-              const hl = highlighter
-              if (!hl || hl.language !== language) return
-              hl.adopt(points)
-              syntaxTick.value++
-            },
-            unsupported() {
-              syntaxWorker = null
-              syntaxTick.value++
-            },
-          })
-        : null
     syntaxTick.value++
   },
   { immediate: true },
 )
-onBeforeUnmount(() => syntaxWorker?.dispose())
+
+/** The worker reading ahead, with `worker`, and how to let go of it. */
+let syntaxWorker: SyntaxWorkerClient | null = null
+let releaseWorker: (() => void) | null = null
+let workerJob = 0
+
+function stopSyntaxWorker() {
+  syntaxWorker?.dispose()
+  syntaxWorker = null
+  releaseWorker?.()
+  releaseWorker = null
+}
+
+/** Reading goes back to the page, saying why while developing. */
+function workerFallback(message: string, error?: unknown) {
+  stopSyntaxWorker()
+  syntaxTick.value++
+  if (process.env.NODE_ENV !== 'production')
+    console.warn(
+      `[@dou-ui/code] ${message}: colors are read on the page instead.`,
+      ...(error ? [error] : []),
+    )
+}
+
+function attachWorker(worker: Worker, release: () => void) {
+  const language = props.language!
+  releaseWorker = release
+  syntaxWorker = new SyntaxWorkerClient(worker, language, () => doc.value, props.tabSize, {
+    states(points) {
+      const hl = highlighter
+      if (!hl || hl.language !== language) return
+      hl.adopt(points)
+      syntaxTick.value++
+    },
+    unsupported(missing) {
+      workerFallback(
+        missing
+          ? `the worker has no language named "${missing}" (for "${language.name}"); pass it to serveCodeHighlighting in the worker`
+          : `the states of "${language.name}" can't be sent from the worker; keep them to plain data`,
+      )
+    },
+    failed(error) {
+      workerFallback('the highlighting worker failed', error)
+    },
+  })
+  syntaxTick.value++
+}
+
+// The worker starts in the browser only, once the editor is there; the editor ends it.
+watch(
+  [() => props.language, () => props.worker, mounted],
+  ([language, option, isMounted]) => {
+    stopSyntaxWorker()
+    const job = ++workerJob
+    if (!language || !option || !isMounted || typeof Worker === 'undefined') return
+    if (option === true) {
+      ownWorker().then(
+        ({ worker, release }) => {
+          if (job === workerJob) attachWorker(worker, release)
+          else release()
+        },
+        (error) =>
+          job === workerJob && workerFallback('the built-in worker could not start', error),
+      )
+      return
+    }
+    let worker: Worker
+    try {
+      worker = option()
+    } catch (error) {
+      workerFallback('the worker could not start', error)
+      return
+    }
+    attachWorker(worker, () => worker.terminate())
+  },
+  { immediate: true },
+)
+onBeforeUnmount(() => {
+  workerJob++
+  stopSyntaxWorker()
+})
 
 /** Brings the colors along with a change of the text. */
 function syntaxChange(next: CodeText, changes: ChangeSet) {

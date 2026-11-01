@@ -10,7 +10,8 @@ import type { CodeLanguage } from './language'
 export type WireChange = [from: number, to: number, insert: string]
 
 export type ToWorker =
-  | { t: 'open'; id: number; language: string; tabSize: number }
+  /** `nested`: the names of the languages it may hold, which the worker's language must hold too. */
+  | { t: 'open'; id: number; language: string; nested: string[]; tabSize: number }
   /** The text, in pieces of whole lines; `done` on the last. */
   | { t: 'text'; id: number; lines: string[]; done: boolean }
   | { t: 'change'; id: number; changes: WireChange[]; length: number }
@@ -19,7 +20,8 @@ export type ToWorker =
 
 export type FromWorker =
   | { t: 'states'; id: number; version: number; points: Array<[line: number, state: unknown]> }
-  | { t: 'unsupported'; id: number }
+  /** The worker hasn't the language named `missing`, or (without it) can't send its states. */
+  | { t: 'unsupported'; id: number; missing?: string }
 
 const LANGUAGE = '$codeLanguage'
 

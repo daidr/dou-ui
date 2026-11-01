@@ -35,10 +35,20 @@ export class SyntaxWorkerClient {
     private readonly tabSize: number,
     private readonly handlers: {
       states: (points: Array<[line: number, state: unknown]>) => void
-      unsupported: () => void
+      /** The worker hasn't the language named `missing`, or can't send its states (no `missing`). */
+      unsupported: (missing?: string) => void
+      /** The worker could not run (it failed to load, or threw). */
+      failed: (error: unknown) => void
     },
   ) {
     this.languages = languagesIn(language)
+    worker.addEventListener('error', this.fail)
+  }
+
+  private fail = (event: Event) => {
+    if (this.closed) return
+    this.dispose()
+    this.handlers.failed((event as ErrorEvent).error ?? (event as ErrorEvent).message ?? event)
   }
 
   private post(message: ToWorker) {
@@ -53,7 +63,14 @@ export class SyntaxWorkerClient {
   private open() {
     this.opened = true
     this.worker.addEventListener('message', this.listen)
-    this.post({ t: 'open', id: this.id, language: this.language.name, tabSize: this.tabSize })
+    const nested = [...this.languages.keys()].filter((name) => name !== this.language.name)
+    this.post({
+      t: 'open',
+      id: this.id,
+      language: this.language.name,
+      nested,
+      tabSize: this.tabSize,
+    })
     this.sending = true
     const doc = this.text()
     let from = 1
@@ -82,7 +99,7 @@ export class SyntaxWorkerClient {
     if (this.closed || !message || message.id !== this.id) return
     if (message.t === 'unsupported') {
       this.dispose()
-      this.handlers.unsupported()
+      this.handlers.unsupported(message.missing)
       return
     }
     if (message.t !== 'states') return
@@ -126,10 +143,37 @@ export class SyntaxWorkerClient {
     if (this.closed) return
     this.closed = true
     if (this.timer) clearTimeout(this.timer)
+    this.worker.removeEventListener('error', this.fail)
     if (!this.opened) return
     this.worker.removeEventListener('message', this.listen)
     this.sending = false
     this.queue = []
     this.post({ t: 'close', id: this.id })
+  }
+}
+
+/** DouCodeEditor's own worker, with the built-in languages: one for all editors, ended when none uses it. */
+let own: { worker: Worker; users: number } | null = null
+
+export async function ownWorker(): Promise<{ worker: Worker; release: () => void }> {
+  const { default: CodeWorker } = await import('../worker/default?worker&inline')
+  if (!own) {
+    const entry = { worker: new CodeWorker(), users: 0 }
+    // a worker that failed isn't handed out again: the next editor starts another
+    entry.worker.addEventListener('error', () => own === entry && (own = null))
+    own = entry
+  }
+  const entry = own
+  entry.users++
+  let released = false
+  return {
+    worker: entry.worker,
+    release() {
+      if (released) return
+      released = true
+      if (--entry.users > 0) return
+      entry.worker.terminate()
+      if (own === entry) own = null
+    },
   }
 }

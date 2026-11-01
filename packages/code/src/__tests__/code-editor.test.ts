@@ -1,7 +1,13 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
-import { CodeText, DouCodeEditor, type CodeEditorExpose, type CodeSelection } from '../index'
+import {
+  CodeText,
+  DouCodeEditor,
+  javascript,
+  type CodeEditorExpose,
+  type CodeSelection,
+} from '../index'
 
 function setup(initial = 'const a = 1\nconst b = 2', extra: Record<string, unknown> = {}) {
   const code = ref(initial)
@@ -332,6 +338,53 @@ describe('minimap', () => {
       wrapper.unmount()
     } finally {
       restore()
+    }
+  })
+})
+
+describe('worker', () => {
+  it('makes its worker once mounted in a browser, and ends it when unmounted', async () => {
+    vi.stubGlobal('Worker', function Worker() {})
+    try {
+      const terminate = vi.fn<() => void>()
+      const make = vi.fn<() => Worker>(
+        () =>
+          ({
+            postMessage() {},
+            addEventListener() {},
+            removeEventListener() {},
+            terminate,
+          }) as unknown as Worker,
+      )
+      const { wrapper } = setup('const a = 1', { language: javascript, worker: make })
+      await nextTick()
+      expect(make).toHaveBeenCalledTimes(1)
+      wrapper.unmount()
+      expect(terminate).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('reads on the page, saying why, when the worker can’t start', async () => {
+    vi.stubGlobal('Worker', function Worker() {})
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const { wrapper } = setup('const a = 1', {
+        language: javascript,
+        worker: () => {
+          throw new Error('blocked')
+        },
+      })
+      await nextTick()
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining('could not start'),
+        expect.any(Error),
+      )
+      expect(wrapper.find('.dou-syntax-keyword').exists()).toBe(true)
+    } finally {
+      warn.mockRestore()
+      vi.unstubAllGlobals()
     }
   })
 })

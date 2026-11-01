@@ -1378,8 +1378,6 @@ function pivot(n: number) {
     })
 }
 
-let codeWorker: Worker | undefined
-
 function codeEditor(
   n: number,
   bind: 'string' | 'doc',
@@ -1387,8 +1385,6 @@ function codeEditor(
   wrap = false,
   worker = false,
 ) {
-  if (worker)
-    codeWorker ??= new Worker(new URL('./code-worker.ts', import.meta.url), { type: 'module' })
   const source = Array.from(
     { length: n },
     (_, i) => `  const value${i} = compute(${i}, '第 ${i + 1} 行') // ${i % 7 ? '' : 'note'}`,
@@ -1402,7 +1398,7 @@ function codeEditor(
       ref: editor,
       style: 'height: 600px',
       language: highlighted ? typescript : undefined,
-      worker: worker ? codeWorker : null,
+      worker,
       wrap,
       ...(bind === 'string'
         ? { modelValue: code.value, 'onUpdate:modelValue': (value: string) => (code.value = value) }

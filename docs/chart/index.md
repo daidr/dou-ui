@@ -24,7 +24,7 @@ import { DouChart, DouChartAxis, DouChartBar, DouChartLine } from '@dou-ui/chart
 app.use(DouChart).use(DouChartAxis).use(DouChartLine).use(DouChartBar)
 ```
 
-用到哪种系列就注册哪个组件：`DouChartLine`、`DouChartArea`、`DouChartBar`、`DouChartScatter`、`DouChartPie`。
+用到哪种图就注册哪个组件，比如 `DouChartLine`、`DouChartBar`、`DouChartPie`，其余组件见下文各节。
 
 ## 基础用法
 

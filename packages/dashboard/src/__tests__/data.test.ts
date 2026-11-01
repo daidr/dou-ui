@@ -60,7 +60,7 @@ describe('source store', () => {
   it('loads nothing and starts no refresh timer while rendering on the server', () => {
     vi.stubGlobal('window', undefined)
     try {
-      const load = vi.fn(() => 1)
+      const load = vi.fn<() => number>(() => 1)
       const store = createSourceStore(() => ({ live: { load, interval: 1000 } }))
       const handle = store.use('live', {})
       expect(load).not.toHaveBeenCalled()

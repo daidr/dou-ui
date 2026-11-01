@@ -1,5 +1,8 @@
 /**
- * Layered layout for small directed acyclic graphs, flowing left to right.
+ * Layered layout for small directed acyclic graphs, flowing left to right,
+ * or top to bottom with `direction: 'vertical'`: then the graph is laid out
+ * as a horizontal one with x and y swapped, so all below reads "columns"
+ * for ranks and "rows" for the lanes across them.
  *
  * 1. Columns: each node sits one column after its furthest predecessor.
  *    Sources move right to just before their nearest successor.
@@ -21,8 +24,9 @@ export interface LayoutNode {
   width: number
   height: number
   /**
-   * Where edges meet the node and rows line up, from its top edge. Half
-   * the height by default; a tall node passes the middle of its first line.
+   * Where edges meet the node and rows line up, from its top edge (its
+   * left edge when vertical). Half the height (width) by default; a tall
+   * node passes the middle of its first line.
    */
   anchor?: number
 }
@@ -33,25 +37,28 @@ export interface LayoutEdge {
 }
 
 export interface LayoutOptions {
-  /** Horizontal space between columns. */
-  columnGap: number
-  /** Vertical space between nodes in a column. */
-  rowGap: number
-  /** Vertical space between edges passing through a column. */
+  /** `horizontal` flows left to right, `vertical` top to bottom. */
+  direction?: 'horizontal' | 'vertical'
+  /** Space between ranks (the columns left to right, the rows top to bottom), along the flow. */
+  rankGap: number
+  /** Space between nodes in a rank, across the flow. */
+  laneGap: number
+  /** Space between edges passing through a column. */
   edgeGap?: number
-  /** Widen every node to the widest one in its column. */
+  /** Stretch every node along the flow to the longest one in its column. */
   equalWidth?: boolean
   /**
    * The row grid every anchor snaps to, in px. Half the pitch of a
    * one-line node keeps fans symmetric and curves free of small wobbles.
-   * Defaults to half the pitch of a 32px node, `(rowGap + 32) / 2`.
+   * Defaults to half the pitch of a 32px node, `(laneGap + 32) / 2`.
    */
   grid?: number
 }
 
 export interface PlacedNode {
   id: string
-  column: number
+  /** Which rank the node is in, from 0. */
+  rank: number
   x: number
   y: number
   width: number
@@ -61,7 +68,10 @@ export interface PlacedNode {
 export interface PlacedEdge {
   from: string
   to: string
-  /** The SVG path, from the right edge of `from` to the left edge of `to`. */
+  /**
+   * The SVG path, from the right edge of `from` to the left edge of `to`
+   * (bottom to top when vertical).
+   */
   path: string
 }
 
@@ -70,7 +80,8 @@ export interface GraphLayout {
   edges: PlacedEdge[]
   /** Edges left out because they would close a cycle. */
   dropped: LayoutEdge[]
-  columns: string[][]
+  /** The nodes of each rank, in order across the flow. */
+  ranks: string[][]
   width: number
   height: number
 }
@@ -223,19 +234,71 @@ function untangle(layers: Item[][]) {
  * steps, `y - s` must not decrease: isotonic regression, solved by
  * pooling adjacent violators, then rounded to whole steps.
  */
-function place(layer: Item[], targets: number[], gap: (a: Item, b: Item) => number, grid: number) {
-  const offsets: number[] = [0]
+/**
+ * Runs of items in a layer fed by one node, or feeding one: the fans,
+ * edges passing through included. Each is the index of its first and last
+ * item; a run broken by an item outside the fan is left alone.
+ */
+function fans(layer: Item[]) {
+  const index = new Map(layer.map((item, i) => [item, i]))
+  const seen = new Set<Item>()
+  const runs: [number, number][] = []
+  for (const item of layer) {
+    for (const hub of [...item.preds, ...item.succs]) {
+      if (seen.has(hub)) continue
+      seen.add(hub)
+      for (const side of [hub.succs, hub.preds]) {
+        const at = side.flatMap((n) => (index.has(n) ? [index.get(n)!] : []))
+        if (at.length < 2) continue
+        const first = Math.min(...at)
+        const last = Math.max(...at)
+        if (last - first + 1 === at.length) runs.push([first, last])
+      }
+    }
+  }
+  return runs
+}
+
+/**
+ * The least distance between neighbouring items of a layer, in grid steps.
+ */
+function spacing(layer: Item[], gap: (a: Item, b: Item) => number, grid: number) {
+  const steps: number[] = []
   for (let i = 1; i < layer.length; i++) {
     const a = layer[i - 1]!
     const b = layer[i]!
     const span = a.height - a.anchor + gap(a, b) + b.anchor
-    let steps = Math.max(1, Math.ceil(span / grid - 1e-6))
+    let n = Math.max(1, Math.ceil(span / grid - 1e-6))
     // Nodes sit a whole pitch (two steps) apart, as two capsules do, so the
     // middle of any two siblings is on the grid too and a source centred
     // on them fans out symmetrically even when one of them is tall.
-    if (a.edge < 0 && b.edge < 0) steps += steps % 2
-    offsets.push(offsets[i - 1]! + steps)
+    if (a.edge < 0 && b.edge < 0) n += n % 2
+    steps.push(n)
   }
+  // In a fan the gaps mirror each other: the i-th from either end are both
+  // as wide as the wider one, and a gap in the very middle is a whole number
+  // of pitches. So its hub sits on the grid right in the middle and the
+  // curves pair up even when one node is larger or an edge passes through;
+  // only the gaps beside a larger node grow.
+  const runs = fans(layer)
+  for (let changed = runs.length > 0, pass = 0; changed && pass < 8; pass++) {
+    changed = false
+    for (const [first, last] of runs) {
+      for (let i = first, j = last - 1; i <= j; i++, j--) {
+        let n = Math.max(steps[i]!, steps[j]!)
+        if (i === j) n += n % 2
+        if (steps[i] !== n || steps[j] !== n) changed = true
+        steps[i] = steps[j] = n
+      }
+    }
+  }
+  return steps
+}
+
+function place(layer: Item[], targets: number[], gap: (a: Item, b: Item) => number, grid: number) {
+  const steps = spacing(layer, gap, grid)
+  const offsets: number[] = [0]
+  steps.forEach((n, i) => offsets.push(offsets[i]! + n))
   const blocks: { sum: number; count: number }[] = []
   targets.forEach((t, i) => {
     blocks.push({ sum: t / grid - offsets[i]!, count: 1 })
@@ -264,9 +327,13 @@ export function layoutGraph(
   edges: LayoutEdge[],
   options: LayoutOptions,
 ): GraphLayout {
-  const { columnGap, rowGap, edgeGap = 8, equalWidth = true } = options
-  const grid = options.grid ?? (rowGap + 32) / 2
-  const byId = new Map(nodes.map((n) => [n.id, n]))
+  const { rankGap, laneGap, edgeGap = 8, equalWidth = true } = options
+  const vertical = options.direction === 'vertical'
+  const grid = options.grid ?? (laneGap + 32) / 2
+  // Below, `width` runs along the flow and `height` across it.
+  const byId = new Map(
+    nodes.map((n) => [n.id, vertical ? { ...n, width: n.height, height: n.width } : n]),
+  )
   const ids = [...byId.keys()]
   const dag = acyclic(ids, edges)
   const column = rank(dag.order, dag.edges)
@@ -305,7 +372,7 @@ export function layoutGraph(
   })
 
   const ordered = untangle(layers)
-  const gap = (a: Item, b: Item) => (a.edge >= 0 && b.edge >= 0 ? edgeGap : rowGap)
+  const gap = (a: Item, b: Item) => (a.edge >= 0 && b.edge >= 0 ? edgeGap : laneGap)
 
   // Start each column stacked around the middle, then relax.
   for (const layer of ordered)
@@ -333,6 +400,43 @@ export function layoutGraph(
   }
   for (const layer of ordered) relax(layer, (item) => [...item.preds, ...item.succs])
 
+  // The grid can leave a node half a step off the middle of its fan, when
+  // the two ends are an odd number of steps apart. Put it right in the
+  // middle where it fits: from the bottom up a node follows what it feeds,
+  // then from the top down one fed by more than it feeds follows those.
+  // Neighbours stay at least as far apart as placing them asked for, so
+  // the gaps in a fan keep mirroring each other.
+  const fits = (layer: Item[], steps: number[], i: number, y: number) =>
+    (i === 0 || y - layer[i - 1]!.y >= steps[i - 1]! * grid) &&
+    (i === layer.length - 1 || layer[i + 1]!.y - y >= steps[i]! * grid)
+  const centre = (layer: Item[], side: (item: Item) => Item[]) => {
+    const steps = spacing(layer, gap, grid)
+    let moved = false
+    layer.forEach((item, i) => {
+      const ys = side(item).map((n) => n.y)
+      // oxlint-disable-next-line unicorn/no-array-sort -- sorts a copy
+      ys.sort((a, b) => a - b)
+      if (!ys.length) return
+      // Only to the middle of a mirror image, never to some uneven mean.
+      const y = (ys[0]! + ys.at(-1)!) / 2
+      if (ys.some((v, k) => v + ys[ys.length - 1 - k]! !== 2 * y)) return
+      if (y === item.y || !Number.isInteger(y) || !fits(layer, steps, i, y)) return
+      item.y = y
+      moved = true
+    })
+    return moved
+  }
+  for (let pass = 0, moved = true; moved && pass < 4; pass++) {
+    moved = false
+    for (let c = ordered.length - 2; c >= 0; c--)
+      moved =
+        centre(ordered[c]!, (item) => (item.succs.length >= item.preds.length ? item.succs : [])) ||
+        moved
+    for (const layer of ordered.slice(1))
+      moved =
+        centre(layer, (item) => (item.preds.length > item.succs.length ? item.preds : [])) || moved
+  }
+
   // Columns.
   const widths = ordered.map((layer) =>
     Math.max(0, ...layer.filter((item) => item.edge < 0).map((item) => byId.get(item.id)!.width)),
@@ -340,7 +444,7 @@ export function layoutGraph(
   const left: number[] = []
   widths.reduce((x, w) => {
     left.push(x)
-    return x + w + columnGap
+    return x + w + rankGap
   }, 0)
 
   let top = Infinity
@@ -358,50 +462,63 @@ export function layoutGraph(
     for (const item of layer) {
       if (item.edge >= 0) continue
       const node = byId.get(item.id)!
+      const along = { x: left[c]!, width: equalWidth ? widths[c]! : node.width }
+      const across = { y: item.y - item.anchor - top, height: node.height }
       placed.set(item.id, {
         id: item.id,
-        column: c,
-        x: left[c]!,
-        y: item.y - item.anchor - top,
-        width: equalWidth ? widths[c]! : node.width,
-        height: node.height,
+        rank: c,
+        ...(vertical
+          ? { x: across.y, y: along.x, width: across.height, height: along.width }
+          : { ...along, ...across }),
       })
     }
   })
 
+  // A placed node in flow coordinates: x along, y across.
+  const flat = (id: string) => {
+    const node = placed.get(id)!
+    return vertical ? { x: node.y, y: node.x, width: node.height } : node
+  }
+  // A point in flow coordinates (x along, y across) as SVG path numbers.
+  const at = (x: number, y: number) => (vertical ? `${y} ${x}` : `${x} ${y}`)
   const anchors = new Map([...items.values()].map((item) => [item.id, item.anchor]))
   const placedEdges = dag.edges.map((edge, e) => {
     const chain = chains[e]!
-    const from = placed.get(edge.from)!
-    const to = placed.get(edge.to)!
+    const from = flat(edge.from)
+    const to = flat(edge.to)
     // Points in order: leave `from`, cross every waypoint column, enter `to`.
-    const points: [number, number][] = [[from.x + from.width, from.y + anchors.get(from.id)!]]
+    const points: [number, number][] = [[from.x + from.width, from.y + anchors.get(edge.from)!]]
     for (const waypoint of chain.slice(1, -1)) {
       const c = Number(waypoint.id.split(':')[1])
       points.push([left[c]!, waypoint.y - top], [left[c]! + widths[c]!, waypoint.y - top])
     }
-    points.push([to.x, to.y + anchors.get(to.id)!])
-    let path = `M${points[0]![0]} ${points[0]![1]}`
+    points.push([to.x, to.y + anchors.get(edge.to)!])
+    let path = `M${at(...points[0]!)}`
     for (let i = 1; i < points.length; i++) {
       const [x1, y1] = points[i - 1]!
       const [x2, y2] = points[i]!
       // Odd steps cross a gap between columns; even ones run along a column.
-      if (i % 2 === 0 || y1 === y2) path += `H${x2}`
+      if (i % 2 === 0 || y1 === y2) path += `${vertical ? 'V' : 'H'}${x2}`
       else {
         const mid = (x2 - x1) / 2
-        path += `C${x1 + mid} ${y1} ${x2 - mid} ${y2} ${x2} ${y2}`
+        path += `C${at(x1 + mid, y1)} ${at(x2 - mid, y2)} ${at(x2, y2)}`
       }
     }
     return { from: edge.from, to: edge.to, path }
   })
 
-  const width = widths.length ? left.at(-1)! + widths.at(-1)! : 0
+  let length = widths.length ? left.at(-1)! + widths.at(-1)! : 0
+  if (!equalWidth)
+    length = Math.max(
+      length,
+      ...[...placed.values()].map((n) => (vertical ? n.y + n.height : n.x + n.width)),
+    )
   return {
     nodes: placed,
     edges: placedEdges,
     dropped: dag.dropped,
-    columns: ordered.map((layer) => layer.filter((item) => item.edge < 0).map((item) => item.id)),
-    width: equalWidth ? width : Math.max(width, ...[...placed.values()].map((n) => n.x + n.width)),
-    height: bottom - top,
+    ranks: ordered.map((layer) => layer.filter((item) => item.edge < 0).map((item) => item.id)),
+    width: vertical ? bottom - top : length,
+    height: vertical ? length : bottom - top,
   }
 }

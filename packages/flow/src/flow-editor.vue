@@ -910,18 +910,15 @@ function tidy(ids?: string[]) {
   const nodes = doc.value.nodes.filter((node) => blocks.has(node.id))
   const bounds = boundsOf(nodes.map(rectOf))
   if (!bounds || nodes.length < 2) return
-  // A vertical flow is laid out as a horizontal one with x and y swapped.
   const vertical = props.direction === 'vertical'
   const gap = TIDY_GAP[vertical ? 'vertical' : 'horizontal']
   const across = vertical ? (['top', 'bottom'] as const) : (['left', 'right'] as const)
   const layout = layoutGraph(
     nodes.map((node) => {
       const m = metrics.get(node.id)
-      const rect = rectOf(node)
-      const width = vertical ? rect.height : rect.width
-      const height = vertical ? rect.width : rect.height
+      const { width, height } = rectOf(node)
       // Ranks line up on the first port facing along the flow, so edges between levelled ports run straight.
-      let offset = height / 2
+      let offset = (vertical ? width : height) / 2
       for (const port of m?.ports.values() ?? [])
         if ((across as readonly string[]).includes(port.side)) {
           offset = vertical ? port.x : port.y
@@ -934,7 +931,13 @@ function tidy(ids?: string[]) {
       const to = blockOf(e.target.node)
       return from && to && from !== to && blocks.has(from) && blocks.has(to) ? [{ from, to }] : []
     }),
-    { columnGap: gap.rank, rowGap: gap.row, equalWidth: false, grid: props.grid || 8 },
+    {
+      direction: props.direction,
+      rankGap: gap.rank,
+      laneGap: gap.row,
+      equalWidth: false,
+      grid: props.grid || 8,
+    },
   )
   const snap = (v: number) => (props.grid ? Math.round(v / props.grid) * props.grid : Math.round(v))
   const origin = { x: snap(bounds.x), y: snap(bounds.y) }
@@ -943,9 +946,7 @@ function tidy(ids?: string[]) {
   for (const node of nodes) {
     const placed = layout.nodes.get(node.id)
     if (!placed || node.locked) continue
-    const x = vertical ? placed.y : placed.x
-    const y = vertical ? placed.x : placed.y
-    const to = { x: origin.x + snap(x), y: origin.y + snap(y) }
+    const to = { x: origin.x + snap(placed.x), y: origin.y + snap(placed.y) }
     if (to.x !== node.x || to.y !== node.y) moved.set(node.id, to)
   }
   if (!moved.size) return

@@ -1,5 +1,5 @@
 import { boundsOf, parseRange, type SheetBounds, type SheetRange } from './address'
-import { formatValue, inputText, parseInput } from './format'
+import { formatValue, generalNumber, inputText, parseInput } from './format'
 import {
   cellOf,
   valueOf,
@@ -159,33 +159,57 @@ export interface SheetCSVWriteOptions {
   range?: string | SheetRange
   /**
    * Writes what each cell shows, with its format (`¥1,280.00`,
-   * `2026年3月5日`); `false` writes the values as stored (`1280`,
-   * `2026-03-05`, formulas as written).
+   * `2026年3月5日`), instead of values a spreadsheet can sort and add up
+   * (`1280`, `2026-03-05`, what formulas come to). Off by default.
    */
-  formatted?: boolean
-  /** The language dates are shown in. */
+  text?: boolean
+  /**
+   * Writes formulas as written (`=A1+B1`) instead of what they come to,
+   * to read back with `readCSV(text, { formulas: true })`. Ignored with
+   * `text`. Off by default.
+   */
+  formulas?: boolean
+  /** The language dates are shown in, with `text`. */
   locale?: string
   /**
    * What a formula comes to, by its row and column in the sheet, e.g. from
-   * `SheetFormulaEngine.result`; with `formatted`, the formula itself by default.
+   * `SheetFormulaEngine.result`; without it, formulas are written as written.
    */
   result?: (row: number, col: number) => SheetResult
   /**
-   * A cell's text, e.g. as its cell type shows it; `undefined` uses its
-   * format. `value` is its value, or its formula's result; `row` and `col`
-   * are where it is in the sheet.
+   * With `text`: a cell's text, e.g. as its cell type shows it; `undefined`
+   * uses its format. `value` is its value, or its formula's result; `row`
+   * and `col` are where it is in the sheet.
    */
-  text?: (input: SheetCellInput, value: SheetValue, row: number, col: number) => string | undefined
+  cellText?: (
+    input: SheetCellInput,
+    value: SheetValue,
+    row: number,
+    col: number,
+  ) => string | undefined
+  /**
+   * Without `text`: the value to write for a cell, e.g. its cell type's
+   * `plain`; `undefined` writes its value, or its formula's result.
+   */
+  cellValue?: (
+    input: SheetCellInput,
+    value: SheetValue,
+    row: number,
+    col: number,
+  ) => SheetValue | undefined
   /** Line breaks between rows; `\r\n` by default, as the format asks. */
   newline?: string
-  /** Starts with a byte order mark, so programs that guess the encoding read it as UTF-8. */
+  /**
+   * Starts with a byte order mark, so programs that guess the encoding read
+   * it as UTF-8. On by default.
+   */
   bom?: boolean
   /**
    * Puts a `'` before text starting with `=`, `+`, `-`, `@`, a tab or a
    * line break, so a spreadsheet program opening the file doesn't run it as
    * a formula. Numbers are written as they are, and so are this grid's
-   * formulas with `formatted: false`. On by default; `false` writes such
-   * text as it is.
+   * formulas with `formulas`. On by default; `false` writes such text as
+   * it is.
    */
   escapeFormulas?: boolean
 }
@@ -213,12 +237,14 @@ export function dataBounds(sheet: SheetData): SheetBounds | null {
 export function sheetToCSV(sheet: SheetData, options: SheetCSVWriteOptions = {}) {
   const {
     delimiter = ',',
-    formatted = true,
+    text = false,
+    formulas = false,
     locale,
-    text,
     result,
+    cellText,
+    cellValue,
     newline = '\r\n',
-    bom,
+    bom = true,
     escapeFormulas = true,
   } = options
   const range = typeof options.range === 'string' ? parseRange(options.range) : options.range
@@ -238,12 +264,18 @@ export function sheetToCSV(sheet: SheetData, options: SheetCSVWriteOptions = {})
     for (let col = b.left; col <= right; col++) {
       const input = line?.[col]
       const stored = valueOf(input)
-      const value = formatted ? shownValue(stored, result, row, col) : stored
-      const shown = formatted
-        ? (text?.(input, value, row, col) ?? formatValue(value, cellOf(input)?.format, locale))
-        : rawText(value)
-      // written as stored, this grid's formulas stay formulas, to be read back with `formulas`
-      const formula = !formatted && typeof value === 'string' && value.startsWith('=')
+      // written as written, this grid's formulas stay formulas, to be read back with `formulas`
+      const formula = !text && formulas && typeof stored === 'string' && stored.startsWith('=')
+      const value = formula ? stored : shownValue(stored, result, row, col)
+      let shown: string
+      if (text)
+        shown =
+          cellText?.(input, value, row, col) ?? formatValue(value, cellOf(input)?.format, locale)
+      else {
+        const own = cellValue?.(input, value, row, col) ?? value
+        // read back with `formulas`, text that would read as something else keeps its `'`
+        shown = formulas ? inputText(own ?? undefined) : plainText(own)
+      }
       const unsafe =
         escapeFormulas && !formula && typeof value === 'string' && FORMULA_START.test(shown)
       fields.push(field(unsafe ? `'${shown}` : shown))
@@ -253,9 +285,11 @@ export function sheetToCSV(sheet: SheetData, options: SheetCSVWriteOptions = {})
   return (bom ? '\ufeff' : '') + lines.join(newline)
 }
 
-/** A value as stored, as text: numbers in full, `TRUE` / `FALSE`, text and formulas as they are. */
-function rawText(value: ReturnType<typeof valueOf>) {
+/** A value for another program: numbers in full, `TRUE` / `FALSE`, text as it is. */
+function plainText(value: SheetValue | undefined) {
   if (value == null) return ''
-  if (typeof value === 'string') return value
-  return inputText(value)
+  if (typeof value === 'boolean') return value ? 'TRUE' : 'FALSE'
+  if (typeof value === 'number') return generalNumber(value)
+  // text starting with `=` is stored with a `'` to tell it from a formula
+  return value.startsWith("'=") ? value.slice(1) : value
 }

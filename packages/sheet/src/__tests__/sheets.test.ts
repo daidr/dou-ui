@@ -167,16 +167,18 @@ describe('CSV', () => {
         [undefined, undefined, '=A1'],
       ],
     }
+    // values by default, with a byte order mark
     expect(sheetToCSV(sheet)).toBe(
-      '名称,金额,\r\n"上海, 静安","¥1,280.00",\r\n"说""好""",TRUE,\r\n,,\r\n,,\'=A1',
+      '﻿名称,金额,\r\n"上海, 静安",1280,\r\n"说""好""",TRUE,\r\n,,\r\n,,\'=A1',
     )
-    expect(sheetToCSV(sheet, { formatted: false, range: 'A2:B2', newline: '\n' })).toBe(
-      '"上海, 静安",1280',
+    expect(sheetToCSV(sheet, { text: true, range: 'A2:B2', newline: '\n', bom: false })).toBe(
+      '"上海, 静安","¥1,280.00"',
     )
-    expect(sheetToCSV(sheet, { delimiter: ';', range: 'B:C', bom: true })).toBe(
-      "\ufeff金额;\r\n¥1,280.00;\r\nTRUE;\r\n;\r\n;'=A1",
+    expect(sheetToCSV(sheet, { delimiter: ';', range: 'B:C', text: true })).toBe(
+      "﻿金额;\r\n¥1,280.00;\r\nTRUE;\r\n;\r\n;'=A1",
     )
-    expect(sheetToCSV({ name: '空', cells: [] })).toBe('')
+    expect(sheetToCSV({ name: '空', cells: [] })).toBe('﻿')
+    expect(sheetToCSV({ name: '空', cells: [] }, { bom: false })).toBe('')
   })
 
   it('keeps text that a spreadsheet program would run as a formula from running', () => {
@@ -184,15 +186,17 @@ describe('CSV', () => {
       name: '表',
       cells: [['=HYPERLINK("x")', '+1', '-2+3', '@SUM(A1)', -2, "'=abc", '静安']],
     }
-    expect(sheetToCSV(sheet)).toBe(`"'=HYPERLINK(""x"")",'+1,'-2+3,'@SUM(A1),-2,'=abc,静安`)
-    expect(sheetToCSV(sheet, { escapeFormulas: false })).toBe(
+    expect(sheetToCSV(sheet, { bom: false })).toBe(
+      `"'=HYPERLINK(""x"")",'+1,'-2+3,'@SUM(A1),-2,'=abc,静安`,
+    )
+    expect(sheetToCSV(sheet, { escapeFormulas: false, bom: false })).toBe(
       '"=HYPERLINK(""x"")",+1,-2+3,@SUM(A1),-2,=abc,静安',
     )
   })
 
   it('writes formulas as stored and reads them back', () => {
     const sheet: SheetData = { name: '表', cells: [[{ value: '=1+2' }, '+1', "'=abc"]] }
-    const text = sheetToCSV(sheet, { formatted: false })
+    const text = sheetToCSV(sheet, { formulas: true, bom: false })
     expect(text).toBe("=1+2,'+1,'=abc")
     expect(readCSV(text, { formulas: true })).toEqual([['=1+2', "'+1", "'=abc"]])
   })
@@ -350,7 +354,7 @@ describe('DouSheetTabs', () => {
 
   it('writes the sheet shown as CSV', () => {
     const { wrapper, grid } = setup(false)
-    expect(grid.value!.toCSV({ sheet: '十月' })).toBe('静安,12')
+    expect(grid.value!.toCSV({ sheet: '十月', bom: false })).toBe('静安,12')
     wrapper.unmount()
   })
 })

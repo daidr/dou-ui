@@ -403,10 +403,11 @@ describe('SheetFormulaEngine', () => {
   it('writes results into CSV', () => {
     const doc = book()
     const engine = new SheetFormulaEngine(doc)
-    const csv = sheetToCSV(doc.sheets[0]!, { result: (row, col) => engine.result(0, row, col) })
+    const result = (row: number, col: number) => engine.result(0, row, col)
+    const csv = sheetToCSV(doc.sheets[0]!, { result, bom: false })
     expect(csv).toBe('10,20,30\r\n60,70,30')
-    // stored, the formulas stay
-    expect(sheetToCSV(doc.sheets[0]!, { formatted: false })).toContain('=A1+B1')
+    // with `formulas`, the formulas stay
+    expect(sheetToCSV(doc.sheets[0]!, { result, formulas: true })).toContain('=A1+B1')
   })
 })
 
@@ -467,7 +468,10 @@ describe('DouSheet with formulas', () => {
     grid.value!.undo()
     await nextTick()
     expect(texts()[2]).toBe('1920')
-    expect(grid.value!.toCSV()).toBe('"1,280",640,1920\r\n#DIV/0!,#ERROR!,#NAME?')
+    expect(grid.value!.toCSV({ text: true, bom: false })).toBe(
+      '"1,280",640,1920\r\n#DIV/0!,#ERROR!,#NAME?',
+    )
+    expect(grid.value!.toCSV({ bom: false })).toBe('1280,640,1920\r\n#DIV/0!,#ERROR!,#NAME?')
     wrapper.unmount()
   })
 

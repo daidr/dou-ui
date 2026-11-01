@@ -2744,7 +2744,14 @@ function typedText(input: SheetCellInput, value: SheetValue) {
   return typed?.definition.format?.(value, typed.setup)
 }
 
-/** A sheet as CSV, with what its cells show. */
+/** A cell's value as its type writes it for other programs, such as `true` for a check; `undefined` for a plain cell. */
+function typedPlain(input: SheetCellInput, value: SheetValue) {
+  const cell = cellOf(input)
+  const typed = cell?.type ? resolveCellType(cell, doc.value, cellTypes.value) : undefined
+  return typed?.definition.plain?.(value, typed.setup)
+}
+
+/** A sheet as CSV, with its cells' values (or what they show, with `text`). */
 function toCSV(options: SheetCSVWriteOptions & { sheet?: SheetRef } = {}) {
   const { sheet: target, ...rest } = options
   const data = doc.value.sheets[target == null ? sheetIndex.value : indexOfSheet(target)]
@@ -2752,7 +2759,8 @@ function toCSV(options: SheetCSVWriteOptions & { sheet?: SheetRef } = {}) {
   const key = sheetKey(data)
   return sheetToCSV(data, {
     locale: lang.value,
-    text: typedText,
+    cellText: typedText,
+    cellValue: typedPlain,
     result: (row, col) => engine.result(key, row, col),
     ...rest,
   })

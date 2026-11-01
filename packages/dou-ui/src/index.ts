@@ -59,8 +59,8 @@ export { useNamespace, withInstall } from './utils'
 export { isComposing } from './utils/keyboard'
 export { holdPointer } from './utils/pointer'
 export type { PointerHold } from './utils/pointer'
-export { CANVAS_MAX_AREA, CANVAS_MAX_SIDE, fitPixelRatio, svgToPNG } from './utils/png'
-export type { SvgToPNGOptions } from './utils/png'
+export { CANVAS_MAX_SIDE, canvasMaxArea, fitPixelRatio, svgToPNG } from './utils/png'
+export type { PNGExportSource, SvgToPNGOptions } from './utils/png'
 export type { Size, Tone, WithInstall } from './utils'
 export { DouUI }
 export default DouUI

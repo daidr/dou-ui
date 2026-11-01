@@ -2827,10 +2827,17 @@ function drawSvg(
   svg.raw(texts.join(''))
 }
 
+const PNG_SOURCE = { scope: '@dou-ui/chart', hint: 'use a smaller padding or exportSVG()' }
+
 /** The chart as a PNG image, from its SVG. */
 async function exportPNG(options: ChartImageOptions = {}): Promise<Blob> {
   const { width, height } = exportSize(options)
-  return svgToPNG(exportSVG(options), { width, height, pixelRatio: options.pixelRatio })
+  return svgToPNG(exportSVG(options), {
+    width,
+    height,
+    pixelRatio: options.pixelRatio,
+    ...PNG_SOURCE,
+  })
 }
 
 defineExpose<ChartExpose>({ exportSVG, exportPNG })

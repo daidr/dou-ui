@@ -2325,12 +2325,13 @@ function exportSVG(options?: GanttExportOptions) {
 }
 
 async function exportPNG(options: GanttImageOptions = {}) {
-  const svg = exportSVG(options)
-  const [, width, height] = /width="([\d.]+)" height="([\d.]+)"/.exec(svg)!
-  return svgToPNG(svg, {
-    width: Number(width),
-    height: Number(height),
+  const drawing = drawChart(exportOptions(options))
+  return svgToPNG(svgDocument(drawing), {
+    width: drawing.width,
+    height: EXPORT_HEADER + drawing.bodyHeight,
     pixelRatio: options.pixelRatio,
+    scope: '@dou-ui/gantt',
+    hint: "export range 'view', a coarser scale, or use exportSVG() / exportCSV()",
   })
 }
 

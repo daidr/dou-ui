@@ -58,6 +58,8 @@ function cloneStyled(source: Node): Node | null {
   return copy
 }
 
+const PNG_SOURCE = { scope: '@dou-ui/dashboard', hint: 'use print(), which splits it into pages' }
+
 /** Draws an element as it is shown into a PNG image. */
 export async function elementToPNG(el: HTMLElement, options: DashboardImageOptions = {}) {
   const { pixelRatio, background = true, padding = 16 } = options
@@ -66,7 +68,7 @@ export async function elementToPNG(el: HTMLElement, options: DashboardImageOptio
   const outerWidth = width + padding * 2
   const outerHeight = height + padding * 2
   // too big for a canvas: fail before copying every element's style
-  fitPixelRatio(outerWidth, outerHeight, pixelRatio)
+  fitPixelRatio(outerWidth, outerHeight, pixelRatio, PNG_SOURCE)
   const copy = cloneStyled(el) as HTMLElement
   copy.style.margin = '0'
   copy.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml')
@@ -78,6 +80,7 @@ export async function elementToPNG(el: HTMLElement, options: DashboardImageOptio
     width: outerWidth,
     height: outerHeight,
     pixelRatio,
+    ...PNG_SOURCE,
     background: background ? getComputedStyle(document.body).backgroundColor || '#fff' : undefined,
   })
 }

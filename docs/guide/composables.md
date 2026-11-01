@@ -179,4 +179,6 @@ const blob = await svgToPNG(svg, { width: 800, height: 600, pixelRatio: 2 })
 
 `svgToPNG` 把一段 SVG 文档画到画布上，返回 PNG 的 `Blob`。`width`、`height` 是图片的 CSS 尺寸，`pixelRatio` 是每个 CSS 像素对应的图片像素，默认 `2`；`background` 是先填充的底色，默认透明。SVG 里的外部图片不会加载，需要先换成 data URL。
 
-浏览器对画布的尺寸有限制：每边 16384 像素（`CANVAS_MAX_SIDE`），iOS 上总共约 1677 万像素（`CANVAS_MAX_AREA`）。超出时 `svgToPNG` 会自动降低 `pixelRatio`，降到 1 仍然放不下时抛出 `RangeError`，不会生成一张模糊的图。`fitPixelRatio(width, height, pixelRatio?)` 只做这一步计算，返回实际使用的倍数，适合在准备耗时的绘制之前先检查一次。白板、甘特图、图表、仪表盘和电子表格的 `exportPNG()` 都基于它们实现，超出上限时的行为一致。
+浏览器对画布的尺寸有限制：每边 16384 像素（`CANVAS_MAX_SIDE`）；总像素数在 iPhone 和 iPad 上约 1677 万，其他设备上是 16384 × 16384，`canvasMaxArea()` 返回当前设备的值。超出时 `svgToPNG` 会自动降低 `pixelRatio`，降到 1 仍然放不下时抛出 `RangeError`，不会生成一张模糊的图。宽高或 `pixelRatio` 不是正数时也抛出 `RangeError`。SVG 无法解析时抛出的错误会说明是 SVG 没能画成图片，原始错误在 `cause` 里。
+
+`fitPixelRatio(width, height, pixelRatio?, source?)` 只做这一步计算，返回实际使用的倍数，适合在准备耗时的绘制之前先检查一次。两个函数都可以传 `scope` 和 `hint`：`scope` 加在错误信息前面，例如 `[@dou-ui/chart]`，`hint` 接在超限的错误后面，说明可以怎么办。白板、甘特图、图表和仪表盘的 `exportPNG()` 都基于它们实现，超出上限时的行为一致。

@@ -258,8 +258,10 @@ export interface ChartHeatmapProps extends Omit<ChartSeriesProps, 'color'> {
    * Defaults to the palette's, as other series.
    */
   color?: string
-  /** The values the scale runs between; by default the smallest and largest. Values past it take its ends. */
-  range?: [number, number]
+  /** The value the scale starts at, as an axis' `min`; by default the smallest. Values below take its lightest color. */
+  min?: number
+  /** The value the scale ends at; by default the largest. Values above take its strongest color. */
+  max?: number
   /** How values are written, in the tooltip, the labels and the scale; by default as numbers. */
   format?: (value: number) => string
   /** Writes each cell's value in it, where it fits; a function writes its own text. */

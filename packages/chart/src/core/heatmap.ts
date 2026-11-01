@@ -10,8 +10,10 @@ import type { ChartHit, ChartLabelAnchor, ChartSeries, ChartSeriesKind, ChartVie
  */
 
 export interface HeatmapStyle {
-  /** The values the scale runs between; by default the smallest and largest. */
-  range?: [number, number]
+  /** The value the scale starts at; by default the smallest. */
+  min?: number
+  /** The value the scale ends at; by default the largest. */
+  max?: number
 }
 
 /** The room between cells, in px: the surface shows through as a grid. */
@@ -21,13 +23,16 @@ const RADIUS = 2
 /** How much of the color the smallest value takes, so it still shows on the surface. */
 const LEAST = 0.06
 
-/** The values a heatmap's scale runs between: as given, or the data's. */
+/** The values a heatmap's scale runs between: `min` and `max` as given, else the data's ends. */
 export function heatRange(
   series: Pick<ChartSeries<HeatmapStyle>, 'props' | 'y'>,
 ): [number, number] | null {
-  const given = series.props.range
-  if (given && given[1] > given[0]) return given
-  return extent(series.y)
+  const { min, max } = series.props
+  const data = extent(series.y)
+  const lo = Number.isFinite(min) ? min! : data?.[0]
+  const hi = Number.isFinite(max) ? max! : data?.[1]
+  if (lo === undefined || hi === undefined) return null
+  return hi > lo ? [lo, hi] : data
 }
 
 /** Where `value` falls on the scale, 0 to 1. */

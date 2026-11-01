@@ -48,7 +48,9 @@ describe('heatmap', () => {
     expect(middle).toMatch(/^rgb\((\d+), \1, \1\)$/)
     const y = Float64Array.from([3, 1, 7])
     expect(heatRange({ props: {} as never, y })).toEqual([1, 7])
-    expect(heatRange({ props: { range: [0, 10] } as never, y })).toEqual([0, 10])
+    expect(heatRange({ props: { min: 0, max: 10 } as never, y })).toEqual([0, 10])
+    // one end given: the other is the data's
+    expect(heatRange({ props: { min: 0 } as never, y })).toEqual([0, 7])
   })
 
   it('lists its rows down the value axis in the order they come, the first at the top', () => {
@@ -85,7 +87,7 @@ describe('heatmap', () => {
       ]),
     )
     expect(wrapper.find('.dou-chart').attributes('aria-label')).toContain(
-      '达成率：3 × 2 格，最小 80%，最大 120%（二季度，上海静安店）',
+      '达成率：2 行 3 列，最小 80%，最大 120%（上海静安店，二季度）',
     )
     // a heatmap alone still has a legend: its scale
     const legend = wrapper.findAll('.dou-chart__legend')
@@ -104,25 +106,25 @@ describe('heatmap', () => {
     const live = () => wrapper.find('.dou-chart__live').text()
     key(root, 'ArrowRight')
     await nextTick()
-    expect(live()).toBe('一季度，上海徐汇店，达成率 80%')
+    expect(live()).toBe('上海徐汇店，一季度，达成率 80%')
     expect(wrapper.find('.dou-chart__cell').exists()).toBe(true)
     key(root, 'ArrowRight')
     await nextTick()
-    expect(live()).toBe('二季度，上海徐汇店，达成率 110%')
+    expect(live()).toBe('上海徐汇店，二季度，达成率 110%')
     // the first store has no third quarter: right stays at its row's end
     key(root, 'ArrowRight')
     await nextTick()
-    expect(live()).toBe('二季度，上海徐汇店，达成率 110%')
+    expect(live()).toBe('上海徐汇店，二季度，达成率 110%')
     key(root, 'ArrowDown')
     await nextTick()
-    expect(live()).toBe('二季度，上海静安店，达成率 120%')
+    expect(live()).toBe('上海静安店，二季度，达成率 120%')
     key(root, 'End')
     await nextTick()
-    expect(live()).toBe('三季度，上海静安店，达成率 100%')
+    expect(live()).toBe('上海静安店，三季度，达成率 100%')
     // up from a column the row above has no cell in: it stays
     key(root, 'ArrowUp')
     await nextTick()
-    expect(live()).toBe('三季度，上海静安店，达成率 100%')
+    expect(live()).toBe('上海静安店，三季度，达成率 100%')
     wrapper.unmount()
   })
 

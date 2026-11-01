@@ -956,7 +956,7 @@ const funnelLayout = computed(() => {
     legendPlacement: legendPlacement.value,
     stages: model.value.categories.map((_, i) => xText(i)),
     values: stages.map((stage) => (stage.row < 0 ? '' : seriesText(s, stage.row))),
-    rates: stages.map((stage) => (stage.step === null ? null : percent.value.format(stage.step))),
+    rates: stages.map((stage) => (stage.step === null ? null : rate.value.format(stage.step))),
     max: Math.max(0, ...stages.map((stage) => (stage.value === stage.value ? stage.value : 0))),
   })
 })
@@ -1555,6 +1555,16 @@ const percent = computed(
   () => new Intl.NumberFormat(locale.value.name, { style: 'percent', maximumFractionDigits: 1 }),
 )
 
+/** A funnel's rates: always one decimal, so a column of them lines up. */
+const rate = computed(
+  () =>
+    new Intl.NumberFormat(locale.value.name, {
+      style: 'percent',
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    }),
+)
+
 /** What is shown for the active x, point or slice. */
 const tip = computed<Tip | null>(() => {
   if (!interactive.value) return null
@@ -1721,14 +1731,14 @@ function funnelTip(f: FunnelLayout, a: Active & { type: 'axis' }): Tip | null {
   if (stage.step !== null)
     items.push({
       name: m.stageRate,
-      text: percent.value.format(stage.step),
+      text: rate.value.format(stage.step),
       value: stage.step,
       row,
     })
   if (stage.total !== null && a.x > 0)
     items.push({
       name: m.totalRate,
-      text: percent.value.format(stage.total),
+      text: rate.value.format(stage.total),
       value: stage.total,
       row,
     })
@@ -1808,7 +1818,8 @@ function heatTip(
   const ring = 1
   return {
     x: rawX(x),
-    title: `${xText(x)}${messages.value.itemSeparator}${yCategoryText(s.axis, s.top[row]!)}`,
+    // the row, then the column, as the table reads
+    title: `${yCategoryText(s.axis, s.top[row]!)}${messages.value.itemSeparator}${xText(x)}`,
     items: [item],
     anchor: [left + width / 2, top],
     marks: [],
@@ -2473,14 +2484,19 @@ function onKeydown(event: KeyboardEvent) {
     event.preventDefault()
     return
   }
-  // a funnel's stages go down
-  const horizontal = !!props.horizontal || funnel.value
-  const along: Record<string, number> = horizontal
-    ? { ArrowDown: 1, ArrowUp: -1 }
-    : { ArrowRight: 1, ArrowLeft: -1 }
-  const between: Record<string, number> = horizontal
-    ? { ArrowRight: 1, ArrowLeft: -1 }
-    : { ArrowUp: 1, ArrowDown: -1 }
+  const horizontal = !!props.horizontal
+  // a funnel's stages and a radar's spokes go one way: every arrow moves on (right, down) or back
+  const single = funnel.value || radar.value
+  const along: Record<string, number> = single
+    ? { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }
+    : horizontal
+      ? { ArrowDown: 1, ArrowUp: -1 }
+      : { ArrowRight: 1, ArrowLeft: -1 }
+  const between: Record<string, number> = single
+    ? {}
+    : horizontal
+      ? { ArrowRight: 1, ArrowLeft: -1 }
+      : { ArrowUp: 1, ArrowDown: -1 }
   const step =
     along[event.key] ?? (event.key === 'Home' ? -Infinity : event.key === 'End' ? Infinity : 0)
   const turn = between[event.key] ?? 0
@@ -3415,7 +3431,7 @@ const label = computed(() => {
               format(m.slice, {
                 label: xText(k),
                 value,
-                share: `${m.stageRate} ${percent.value.format(stage.step)}`,
+                share: `${m.stageRate} ${rate.value.format(stage.step)}`,
               }),
             ]
       })
@@ -3476,7 +3492,7 @@ function heatSummary(s: ModelSeries): string {
     rows: count(model.value.yCategories[s.axis]?.length ?? 0),
     min: text(range[0]),
     max: text(range[1]),
-    at: `${xText(s.x.values[top]!)}${m.itemSeparator}${yCategoryText(s.axis, s.top[top]!)}`,
+    at: `${yCategoryText(s.axis, s.top[top]!)}${m.itemSeparator}${xText(s.x.values[top]!)}`,
   })
 }
 
@@ -3518,8 +3534,8 @@ const tableCells = computed<{ head: string[]; rows: string[][] }>(() => {
               [
                 xText(k),
                 seriesText(fs, stage.row),
-                stage.step === null ? '' : percent.value.format(stage.step),
-                stage.total === null ? '' : percent.value.format(stage.total),
+                stage.step === null ? '' : rate.value.format(stage.step),
+                stage.total === null ? '' : rate.value.format(stage.total),
               ],
             ],
       ),

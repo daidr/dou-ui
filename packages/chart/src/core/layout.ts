@@ -1079,7 +1079,7 @@ export interface RadarLayout {
   ticks: number[]
   /** The spokes' names round the rim. */
   labels: TickLabel[]
-  /** The rings' values, up the top spoke. */
+  /** The rings' values, between the first two spokes. */
   values: TickLabel[]
   legend: LegendItem[]
   legendBox?: LegendBox
@@ -1172,8 +1172,13 @@ export function layoutRadar({
       // the center needs no number: it is where the rings start
       if (r < 1) return
       const text = axis.texts[i]!
-      const label = { text, left: cx + 4, top: cy - r - LABEL_HEIGHT + 2, width: measure(text) }
-      // the top spoke's name is past the rim: the ring's value gives way to it
+      // halfway between the first two spokes, just outside its ring: clear of the spokes and the dots on them
+      const half = Math.PI / Math.max(2, count)
+      const out = r * Math.cos(half)
+      const x = cx + Math.sin(half) * out
+      const y = cy - Math.cos(half) * out
+      const label = { text, left: x + 2, top: y - LABEL_HEIGHT, width: measure(text) }
+      // a spoke's name past the rim: the ring's value gives way to it
       const hits = labels.some(
         (other) =>
           label.left < other.left + other.width &&

@@ -82,6 +82,9 @@ describe('radar', () => {
     expect(bottom!.top).toBeGreaterThan(r.cy + r.radius)
     expect(left!.left).toBeGreaterThanOrEqual(0)
     expect(r.cy + r.radius + 8 + 16).toBeLessThanOrEqual(360)
+    // every ring but the center has its value, the outermost too, between the first two spokes
+    expect(r.values).toHaveLength(r.ticks.length - 1)
+    for (const value of r.values) expect(value.left).toBeGreaterThan(r.cx)
     // the rings' values don't run into the top name
     for (const value of r.values)
       expect(value.top + 16 <= top!.top || value.top >= top!.top + 16).toBe(true)
@@ -108,9 +111,13 @@ describe('radar', () => {
     key(root, 'ArrowLeft')
     await nextTick()
     expect(live()).toBe('价格，旗舰款 50，轻薄款 90')
-    key(root, 'ArrowRight')
+    // down and up move round the spokes too
+    key(root, 'ArrowDown')
     await nextTick()
     expect(live()).toBe('性能，旗舰款 90，轻薄款 70')
+    key(root, 'ArrowUp')
+    await nextTick()
+    expect(live()).toBe('价格，旗舰款 50，轻薄款 90')
     wrapper.unmount()
   })
 

@@ -22,7 +22,8 @@ const percent = (value) => `${Math.round(value * 100)}%`
       value="rate"
       name="达成率"
       tone="success"
-      :range="[0.6, 1.2]"
+      :min="0.6"
+      :max="1.2"
       :format="percent"
       labels
     />

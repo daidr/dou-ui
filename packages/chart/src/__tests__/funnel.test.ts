@@ -63,9 +63,12 @@ describe('funnel', () => {
       ]),
     )
     expect(wrapper.find('.dou-chart').attributes('aria-label')).toContain(
-      '人数：浏览 1,000；领券 500（转化率 50%）；下单 200（转化率 40%）',
+      '人数：浏览 1,000；领券 500（转化率 50.0%）；下单 200（转化率 40.0%）',
     )
-    expect(wrapper.findAll('.dou-chart__tick.is-rate').map((t) => t.text())).toEqual(['50%', '40%'])
+    expect(wrapper.findAll('.dou-chart__tick.is-rate').map((t) => t.text())).toEqual([
+      '50.0%',
+      '40.0%',
+    ])
     const live = () => wrapper.find('.dou-chart__live').text()
     key(root, 'ArrowDown')
     await nextTick()
@@ -73,11 +76,12 @@ describe('funnel', () => {
     key(root, 'ArrowDown')
     key(root, 'ArrowDown')
     await nextTick()
-    expect(live()).toBe('下单，人数 200，转化率 40%，总转化率 20%')
+    expect(live()).toBe('下单，人数 200，转化率 40.0%，总转化率 20.0%')
     expect(wrapper.find('.dou-chart__band').exists()).toBe(true)
-    key(root, 'ArrowUp')
+    // left and right move between the stages too
+    key(root, 'ArrowLeft')
     await nextTick()
-    expect(live()).toBe('领券，人数 500，转化率 50%，总转化率 50%')
+    expect(live()).toBe('领券，人数 500，转化率 50.0%，总转化率 50.0%')
     wrapper.unmount()
   })
 
@@ -94,9 +98,9 @@ describe('funnel', () => {
       .map((tr) => tr.findAll('th, td').map((c) => c.text()))
     expect(cells).toEqual([
       ['step', '人数', '转化率', '总转化率'],
-      ['浏览', '1,000', '', '100%'],
-      ['领券', '500', '50%', '50%'],
-      ['下单', '200', '40%', '20%'],
+      ['浏览', '1,000', '', '100.0%'],
+      ['领券', '500', '50.0%', '50.0%'],
+      ['下单', '200', '40.0%', '20.0%'],
     ])
     wrapper.unmount()
   })

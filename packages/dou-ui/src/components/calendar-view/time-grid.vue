@@ -57,41 +57,17 @@ const fullDate = computed(() => formatter({ dateStyle: 'full' }))
 
 const isTimed = (event: CalendarEvent) => props.spans.get(event)!.start !== null
 
-/*
- * A drag changes one or two days at a time: each day keeps its layout
- * while its events and their times stay the same, so a busy week does not
- * lay out every column again on every step.
- */
-const serials = new WeakMap<CalendarEvent, number>()
-let serial = 0
-const serialOf = (event: CalendarEvent) => {
-  let value = serials.get(event)
-  if (value === undefined) serials.set(event, (value = ++serial))
-  return value
-}
-const layouts = new Map<string, { key: string; placed: ReturnType<typeof layoutDay> }>()
-function layoutOn(date: string, events: CalendarEvent[]) {
-  const segments = events
-    .filter(isTimed)
-    .map((event) => ({ event, ...segmentOn(props.spans.get(event)!, date) }))
-  const key = segments.map((item) => `${serialOf(item.event)}:${item.start}-${item.end}`).join()
-  const cached = layouts.get(date)
-  if (cached?.key === key) return cached.placed
-  const placed = layoutDay(segments)
-  layouts.set(date, { key, placed })
-  return placed
-}
-
-const columns = computed(() => {
-  // forget the days no longer shown
-  for (const date of layouts.keys())
-    if (!props.days.some((day) => day.date === date)) layouts.delete(date)
-  return props.days.map((day) => ({
+const columns = computed(() =>
+  props.days.map((day) => ({
     day,
     allDay: day.events.filter((event) => !isTimed(event)),
-    timed: layoutOn(day.date, day.events),
-  }))
-})
+    timed: layoutDay(
+      day.events
+        .filter(isTimed)
+        .map((event) => ({ event, ...segmentOn(props.spans.get(event)!, day.date) })),
+    ),
+  })),
+)
 const hasAllDay = computed(() => columns.value.some((column) => column.allDay.length))
 
 /** The stretch being drawn, cut into a piece for each day on the time axis or in the all-day row. */

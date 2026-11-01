@@ -48,13 +48,18 @@
 ```ts
 const canMove = ({ start }: CalendarMove) => start >= today || '不能排在今天之前'
 
-// 同一时间只能有一项日程
+// 同一时间只能有一项日程。endOf 给出日程的结束时间，没有 end 时按开始后一小时算
+const endOf = (event: CalendarEvent) => {
+  if (event.end) return event.end
+  if (event.start.length < 16) return event.start
+  const at = new Date(`${event.start.replace(' ', 'T')}:00Z`)
+  at.setUTCHours(at.getUTCHours() + 1)
+  return at.toISOString().slice(0, 16).replace('T', ' ')
+}
 const noOverlap = ({ event, start, end }: CalendarMove, events: CalendarEvent[]) =>
   !events.some((other) => other !== event && other.start < end && start < endOf(other)) ||
   '这段时间已有日程'
 ```
-
-上面的 `endOf` 是自己写的小函数，返回日程的结束时间（没有 `end` 时按开始后一小时算）。
 
 ### 右键菜单
 

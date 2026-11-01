@@ -399,14 +399,17 @@ const tip = computed(() => {
  * middle of the window, and above it for a finger, which would cover it,
  * or near the bottom of the window.
  */
+/** Where the pointer is, kept apart from the drag so the tip follows it between snaps. */
+const pointer = ref({ x: 0, y: 0 })
 const tipStyle = computed(() => {
   const d = drag.value
   if (!d || typeof window === 'undefined') return {}
-  const left = d.x > window.innerWidth / 2
-  const above = d.touch || d.y + 16 + 40 > window.innerHeight
+  const { x, y } = pointer.value
+  const left = x > window.innerWidth / 2
+  const above = d.touch || y + 16 + 40 > window.innerHeight
   return {
-    left: `${left ? d.x - 12 : d.x + 12}px`,
-    top: `${above ? d.y - (d.touch ? 40 : 16) : d.y + 16}px`,
+    left: `${left ? x - 12 : x + 12}px`,
+    top: `${above ? y - (d.touch ? 40 : 16) : y + 16}px`,
     transform: `translate(${left ? '-100%' : '0'}, ${above ? '-100%' : '0'})`,
   }
 })
@@ -615,6 +618,7 @@ function onPointerDown(event: PointerEvent) {
     refusal: null,
     target: targetOf(el, event.clientX, event.clientY),
   }
+  pointer.value = { x: event.clientX, y: event.clientY }
   hold = holdPointer(event, rootRef.value)
   window.addEventListener('pointermove', onDragMove)
   window.addEventListener('pointerup', onDragEnd)
@@ -649,6 +653,7 @@ function onDragMove(event: PointerEvent) {
   if (!d || event.pointerId !== d.pointerId) return
   d.x = event.clientX
   d.y = event.clientY
+  pointer.value = { x: d.x, y: d.y }
   const far = Math.hypot(d.x - d.x0, d.y - d.y0) > THRESHOLD[d.touch ? 'touch' : 'mouse']
   if (!d.started) {
     // a finger that moves before resting scrolls the page
@@ -872,7 +877,13 @@ function onEventKeydown(event: KeyboardEvent) {
     if (timed) {
       const { start, end } = stampsOf(span)
       const delta = (by.days ?? 0) * DAY + (by.minutes ?? 0)
-      next = { ...item, end: formatStamp(Math.max(start + snap, end + delta)) }
+      let last = Math.max(start + snap, end + delta)
+      // an event within one day on the time axis ends by the end of the hours shown
+      if (onAxis && span.from === span.to) {
+        const day = Math.floor(start / DAY)
+        last = Math.min(last, day * DAY + axis.value.to)
+      }
+      next = { ...item, end: formatStamp(last) }
     } else {
       const last = addDays(span.to, by.days ?? 0)
       next = { ...item, end: last < span.from ? span.from : last }

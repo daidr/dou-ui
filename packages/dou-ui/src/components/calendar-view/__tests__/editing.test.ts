@@ -95,6 +95,10 @@ describe('DouCalendarView editing', () => {
     window.dispatchEvent(pointer('pointermove', 450, 10.5 * 48 + 10))
     await nextTick()
     expect(w.get('.dou-calendar-view__tip').text()).toContain('10:30')
+    // within the same slot the tip still follows the pointer
+    window.dispatchEvent(pointer('pointermove', 452, 10.5 * 48 + 12))
+    await nextTick()
+    expect(w.get('.dou-calendar-view__tip').attributes('style')).toContain('left: 464px')
     window.dispatchEvent(pointer('pointerup', 450, 10.5 * 48 + 10))
     await nextTick()
     expect(events(w)[0]).toMatchObject({ start: '2026-10-29 10:30', end: '2026-10-29 11:30' })
@@ -240,6 +244,9 @@ describe('DouCalendarView editing', () => {
     })
     await chip(w, 'a').trigger('keydown', { key: 'ArrowUp', altKey: true })
     expect(events(w)[0]!.start).toBe('2026-10-28 09:00')
+    for (let i = 0; i < 50; i++)
+      await chip(w, 'a').trigger('keydown', { key: 'ArrowDown', altKey: true, shiftKey: true })
+    expect(events(w)[0]!.end).toBe('2026-10-28 20:00')
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(
       new DOMRect(0, 0, 100, 11 * 48),
     )

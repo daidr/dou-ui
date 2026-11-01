@@ -4,6 +4,8 @@ import { h, nextTick } from 'vue'
 import { renderToString } from 'vue/server-renderer'
 import {
   DouChart,
+  DouChartAxis,
+  DouChartBar,
   DouChartBoxplot,
   DouChartGauge,
   DouChartHistogram,
@@ -55,6 +57,18 @@ async function tableOf(props: Record<string, unknown>, part: () => unknown) {
   wrapper.unmount()
   return cells
 }
+
+describe('axis sort', () => {
+  it('warns when a value axis is given a sort', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    await summaryOf({ data: [{ k: '徐汇', v: 1 }], x: 'k' }, () => [
+      h(DouChartAxis, { for: 'y', sort: 'desc' }),
+      h(DouChartBar, { y: 'v' }),
+    ])
+    expect(warn.mock.calls.some(([text]) => String(text).includes('for="y"'))).toBe(true)
+    warn.mockRestore()
+  })
+})
 
 describe('waterfall', () => {
   it('floats each change from the running total, and totals from 0', () => {

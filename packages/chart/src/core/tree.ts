@@ -359,6 +359,22 @@ const ARC_GAP = 1.5
  * Draws a sunburst round `(cx, cy)`, sweeping in with `sweep` (0 to 1).
  * Nodes other than `focus`, its ancestors and its descendants are faded.
  */
+/** How much of a sunburst shows off the branch pointed at. */
+export const SUNBURST_FADE = 0.4
+
+/** A node with its ancestors and all its descendants: what stays lit when it is pointed at. */
+export function sunburstBranch(node: TreeNode): TreeNode[] {
+  const out: TreeNode[] = []
+  for (let a = node.parent; a; a = a.parent) out.push(a)
+  const stack = [node]
+  while (stack.length) {
+    const n = stack.pop()!
+    out.push(n)
+    for (const c of n.children) stack.push(c)
+  }
+  return out
+}
+
 export function drawSunburst(
   painter: Painter,
   nodes: TreeNode[],
@@ -383,7 +399,7 @@ export function drawSunburst(
   for (const node of nodes) {
     if (node.depth === 0 || !(node.x1 > node.x0)) continue
     painter.save()
-    if (!lit(node)) painter.globalAlpha *= 0.4
+    if (!lit(node)) painter.globalAlpha *= SUNBURST_FADE
     painter.fillStyle = colors[node.index]!
     painter.beginPath()
     painter.arc(cx, cy, node.y1, at(node.x0), at(node.x1))
@@ -399,8 +415,12 @@ export function drawSunburst(
   for (const node of nodes) {
     if (node.depth === 0 || !(node.x1 > node.x0)) continue
     const a = at(node.x0)
-    painter.moveTo(cx + Math.cos(a) * node.y0, cy + Math.sin(a) * node.y0)
-    painter.lineTo(cx + Math.cos(a) * node.y1, cy + Math.sin(a) * node.y1)
+    // arcs too thin to show beside a gap run together, but a group's edge stays
+    const wide = (node.x1 - node.x0) * sweep * node.y1 >= ARC_GAP * 3
+    if (wide || !node.parent || node.parent.depth === 0 || node.x0 === node.parent.x0) {
+      painter.moveTo(cx + Math.cos(a) * node.y0, cy + Math.sin(a) * node.y0)
+      painter.lineTo(cx + Math.cos(a) * node.y1, cy + Math.sin(a) * node.y1)
+    }
     painter.moveTo(cx + Math.cos(at(node.x0)) * node.y0, cy + Math.sin(at(node.x0)) * node.y0)
     painter.arc(cx, cy, node.y0, at(node.x0), at(node.x1))
   }

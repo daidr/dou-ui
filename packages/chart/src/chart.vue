@@ -20,6 +20,7 @@ import {
   useId,
   useTemplateRef,
   watch,
+  watchEffect,
   type VNodeChild,
 } from 'vue'
 import { createColorResolver, observeTheme } from './core/colors'
@@ -81,6 +82,8 @@ import { CHART_PATTERNS, patternCss, type ChartPattern } from './core/pattern'
 import {
   buildTree,
   drawSunburst,
+  SUNBURST_FADE,
+  sunburstBranch,
   drawTreemap,
   hasHeader,
   ringTreemap,
@@ -378,6 +381,16 @@ const model = computed(() => {
   })
   return labelRoom(reachMarkers(built))
 })
+
+if (process.env.NODE_ENV !== 'production')
+  watchEffect(() => {
+    for (const axis of ['y', 'y2'] as const)
+      if (declaredAxes.value[axis]?.sort !== undefined)
+        warnOnce(
+          `sort-${axis}`,
+          `<DouChartAxis for="${axis}">: \`sort\` orders a category x axis only, so it is left out here.`,
+        )
+  })
 
 /** Percentages on the ticks of a `percent` axis: whole ones. */
 const percentTicks = computed(
@@ -710,51 +723,66 @@ function treeTip(index: number, pointer: [number, number] | null): Tip | null {
   }
 }
 
-/** Draws the tree, as it comes in: a treemap fades in, a sunburst sweeps round. */
 /**
- * A treemap as drawn without a ring, kept while its layout and colors stay:
- * pointing at a node then only draws its ring over it, however many nodes.
+ * The tree as drawn with nothing pointed at, kept while its layout and
+ * colors stay: pointing at a node then draws only that node's part over
+ * it (a treemap's ring, a sunburst's branch), however many nodes.
  */
 let treeImage: { key: unknown[]; canvas: HTMLCanvasElement } | null = null
 
+/** The kept image of the tree, drawn again when `key` changes; null without a canvas. */
+function treeImageOf(key: unknown[], dpr: number, render: (ctx: CanvasRenderingContext2D) => void) {
+  const l = treeLayout.value!
+  if (treeImage && key.every((k, i) => k === treeImage!.key[i])) return treeImage.canvas
+  const canvas = treeImage?.canvas ?? document.createElement('canvas')
+  canvas.width = Math.round(l.width * dpr)
+  canvas.height = Math.round(l.height * dpr)
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return null
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+  ctx.clearRect(0, 0, l.width, l.height)
+  render(ctx)
+  treeImage = { key, canvas }
+  return canvas
+}
+
+/** Draws the tree, as it comes in: a treemap fades in, a sunburst sweeps round. */
 function paintTree(painter: Painter, t: number, still = false, dpr = 1) {
   const l = treeLayout.value!
   const a = still ? null : active.value
   const focus = a?.type === 'slice' ? a.slice : -1
-  if (tree.value?.shape === 'treemap') {
-    const ring = resolveColor('var(--dou-color-text)')
-    const style = { surface: colors.value.surface, ring, t }
-    // an export, or coming in: drawn as it is
-    if (still || t < 1 || isSvg(painter) || typeof document === 'undefined') {
-      drawTreemap(painter, l.nodes, treeColors.value, { ...style, focus })
-      return
-    }
-    const key = [l, treeColors.value, colors.value.surface, dpr]
-    if (!treeImage || key.some((k, i) => k !== treeImage!.key[i])) {
-      const canvas = treeImage?.canvas ?? document.createElement('canvas')
-      canvas.width = Math.round(l.width * dpr)
-      canvas.height = Math.round(l.height * dpr)
-      const ctx = canvas.getContext('2d')
-      if (!ctx) {
-        drawTreemap(painter, l.nodes, treeColors.value, { ...style, focus })
-        return
-      }
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-      ctx.clearRect(0, 0, l.width, l.height)
-      drawTreemap(ctx, l.nodes, treeColors.value, style)
-      treeImage = { key, canvas }
-    }
-    painter.drawImage(treeImage.canvas, 0, 0, l.width, l.height)
-    ringTreemap(painter, l.nodes[focus], ring)
+  const shape = tree.value?.shape
+  const surface = colors.value.surface
+  const ring = resolveColor('var(--dou-color-text)')
+  const sunburst = { cx: l.cx, cy: l.cy, surface }
+  const direct = () =>
+    shape === 'treemap'
+      ? drawTreemap(painter, l.nodes, treeColors.value, { surface, ring, t, focus })
+      : drawSunburst(painter, l.nodes, treeColors.value, { ...sunburst, focus, sweep: t })
+  // an export, or coming in: drawn as it is
+  if (still || t < 1 || isSvg(painter) || typeof document === 'undefined') return direct()
+  const image = treeImageOf([shape, l, treeColors.value, surface, dpr], dpr, (ctx) =>
+    shape === 'treemap'
+      ? drawTreemap(ctx, l.nodes, treeColors.value, { surface, ring, t })
+      : drawSunburst(ctx, l.nodes, treeColors.value, sunburst),
+  )
+  if (!image) return direct()
+  const node = l.nodes[focus]
+  if (shape === 'treemap') {
+    painter.drawImage(image, 0, 0, l.width, l.height)
+    ringTreemap(painter, node, ring)
     return
-  } else
-    drawSunburst(painter, l.nodes, treeColors.value, {
-      cx: l.cx,
-      cy: l.cy,
-      surface: colors.value.surface,
-      focus,
-      sweep: t,
-    })
+  }
+  if (!node) {
+    painter.drawImage(image, 0, 0, l.width, l.height)
+    return
+  }
+  // a sunburst: all of it faded, then the node's branch over it as it is
+  painter.save()
+  painter.globalAlpha *= SUNBURST_FADE
+  painter.drawImage(image, 0, 0, l.width, l.height)
+  painter.restore()
+  drawSunburst(painter, sunburstBranch(node), treeColors.value, sunburst)
 }
 
 /* a radar: series round a center, without axes */

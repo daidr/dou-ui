@@ -411,6 +411,9 @@ const snapTo = (v: number) => (props.grid ? Math.round(v / props.grid) * props.g
 // Forget nodes that are gone.
 watch(nodeById, (nodes) => {
   for (const id of metrics.keys()) if (!nodes.has(id)) metrics.delete(id)
+  // a preview of a node that is gone, e.g. removed by a peer, is dropped with it
+  const kept = [...previews.value].filter(([id]) => nodes.has(id))
+  if (kept.length < previews.value.size) previews.value = new Map(kept)
 })
 
 function rectOf(node: FlowNode): Rect {

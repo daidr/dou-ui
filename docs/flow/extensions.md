@@ -78,7 +78,19 @@ interface FlowPressHandler {
 
 拖动节点、调整连线和改变分组大小时，编辑器每一帧都会提交一次修改。`ctx.gesturing` 在这期间为 `true`，松手后变回 `false`，需要把一次拖动当作一个修改来处理时（例如同步到服务器）可以等它变回 `false`。正在拉出的连线在 `ctx.connectingPath` 里，是画布坐标下的 SVG 路径，没有在连线时为 `null`。
 
-自己做的手柄如果想松手时才提交一次修改，拖动过程中用 `ctx.previewNode(id, patch)` 把节点显示成改动后的样子，`patch` 可以包含 `x`、`y`、`width`、`height` 和 `data`。节点的外框、端口、连线和 `getNodeRect` 都会跟着变，文档本身不变；松手或取消时传 `null` 恢复，再用 `transact` 提交。白板的缩放和旋转手柄就是这样做的。
+自己做的手柄如果想松手时才提交一次修改，拖动过程中用 `ctx.previewNode(id, patch)` 把节点显示成改动后的样子，`patch` 可以包含 `x`、`y`、`width`、`height` 和 `data`。节点的外框、端口、连线和 `getNodeRect` 都会跟着变，文档本身不变。白板的缩放和旋转手柄就是这样做的。
+
+```ts
+// 拖动中：只改显示
+ctx.previewNode(node.id, { data: { ...node.data, rotation } })
+// 松手：先恢复，再提交一次
+ctx.previewNode(node.id, null)
+ctx.transact((tr) => tr.updateData(node.id, { rotation }))
+```
+
+- `patch.data` 会整体替换节点的 `data`，不会合并，所以要像上面那样带上原有字段。
+- 松手、按 Esc 取消或手柄卸载时都要传 `null` 恢复，否则节点会一直显示成预览的样子。节点从文档里删除时，它的预览会一起丢弃。
+- 预览只在本地显示，协作的其他人要等提交后才看到。预览期间文档没有变化，`ctx.gesturing` 保持 `false`。
 
 ## 图层组件
 

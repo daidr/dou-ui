@@ -38,7 +38,7 @@ const tone = computed<Tone>(
 )
 const writable = computed(() => ['shape', 'sticky', 'text'].includes(kind.value))
 
-const MIN: Record<Kind, number> = { shape: 24, sticky: 64, text: 24, ink: 8, image: 24 }
+const MIN: Record<Kind, number> = { shape: 24, sticky: 64, text: 40, ink: 8, image: 24 }
 const rotation = computed(() => props.data.rotation ?? 0)
 const { turning, startTurn, startResize } = useTransformHandles(
   ctx,
@@ -64,6 +64,18 @@ const resizeHandles = computed(() =>
       ? RESIZE_HANDLES.filter((h) => h.x)
       : RESIZE_HANDLES,
 )
+const sideHandles = computed(() => resizeHandles.value.filter((h) => !h.x || !h.y))
+const cornerHandles = computed(() => resizeHandles.value.filter((h) => h.x && h.y))
+/** The node's box, turned with it, for the handles drawn above every node. */
+const frameStyle = computed(() => {
+  const rect = ctx.getNodeRect(props.node.id) ?? { ...props.node, width: 0, height: 0 }
+  return {
+    transform: `translate(${rect.x}px, ${rect.y}px)`,
+    width: `${rect.width}px`,
+    height: `${rect.height}px`,
+    rotate: rotation.value ? `${rotation.value}deg` : undefined,
+  }
+})
 const CURSORS = ['ew-resize', 'nwse-resize', 'ns-resize', 'nesw-resize'] as const
 /** The resize cursor along a handle's way out, turned with the node. */
 function cursorOf(handle: ResizeHandle) {
@@ -281,26 +293,32 @@ function onKeydown(event: KeyboardEvent) {
       </template>
     </div>
     <template v-if="handles">
+      <!-- the sides stay on the node, under its anchors; the turn and the
+           corners go above every node, so a neighbour never covers them -->
       <span
-        class="dou-whiteboard-node__turn"
-        data-dou-nodrag
-        aria-hidden="true"
-        @pointerdown="startTurn"
-      />
-      <span
-        v-for="handle in resizeHandles"
+        v-for="handle in sideHandles"
         :key="`${handle.x},${handle.y}`"
-        :class="
-          handle.x && handle.y
-            ? 'dou-whiteboard-node__corner'
-            : ['dou-whiteboard-node__side', handle.x ? 'is-x' : 'is-y']
-        "
+        :class="['dou-whiteboard-node__side', handle.x ? 'is-x' : 'is-y']"
         :style="{ left: place(handle.x), top: place(handle.y), cursor: cursorOf(handle) }"
         :data-handle="`${handle.x},${handle.y}`"
         data-dou-nodrag
         aria-hidden="true"
         @pointerdown="onResize($event, handle)"
       />
+      <Teleport :to="state.handles.value" :disabled="!state.handles.value">
+        <div class="dou-whiteboard-node__frame" :style="frameStyle" aria-hidden="true">
+          <span class="dou-whiteboard-node__turn" data-dou-nodrag @pointerdown="startTurn" />
+          <span
+            v-for="handle in cornerHandles"
+            :key="`${handle.x},${handle.y}`"
+            class="dou-whiteboard-node__corner"
+            :style="{ left: place(handle.x), top: place(handle.y), cursor: cursorOf(handle) }"
+            :data-handle="`${handle.x},${handle.y}`"
+            data-dou-nodrag
+            @pointerdown="onResize($event, handle)"
+          />
+        </div>
+      </Teleport>
     </template>
   </div>
 </template>

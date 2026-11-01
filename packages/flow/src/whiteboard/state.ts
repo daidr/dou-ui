@@ -22,6 +22,11 @@ export interface WhiteboardState {
   erasing: ShallowRef<ReadonlySet<string>>
   /** Where the eraser is, while it is pressed. */
   eraser: ShallowRef<Point | null>
+  /**
+   * Where the turn and corner handles of the selected node are drawn: a
+   * layer above every node, so a neighbour never covers them.
+   */
+  handles: ShallowRef<HTMLElement | null>
   /** Images being uploaded. */
   uploading: Ref<number>
   /** The kit's `upload` option. */
@@ -43,6 +48,7 @@ export function boardState(context: FlowEditorContext): WhiteboardState {
       ink: shallowRef(null),
       erasing: shallowRef(new Set()),
       eraser: shallowRef(null),
+      handles: shallowRef(null),
       uploading: ref(0),
     }
     states.set(context, state)

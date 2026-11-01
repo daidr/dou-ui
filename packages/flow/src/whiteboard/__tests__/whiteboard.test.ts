@@ -4,7 +4,14 @@ import { defineComponent, h, nextTick, ref } from 'vue'
 import { connectorEdge, whiteboardKit, type WhiteboardTool } from '..'
 import { fitInk, inkHit, inkOutline, strokeNode, turn, unpack } from '../ink'
 import { resizeBox, snapAngle } from '../transform'
-import { defineFlowExtension, defineNodeType, DouFlowEditor, flowKit } from '../../index'
+import {
+  defineFlowExtension,
+  defineNodeType,
+  DouFlowEditor,
+  flowKit,
+  useFlowEditor,
+} from '../../index'
+import type { FlowEditorContext } from '../../index'
 import type { FlowDocument, FlowExtension, FlowSelection, FlowViewport } from '../../index'
 
 // jsdom lays nothing out: an element is as large as its style says, or 200 × 60.
@@ -735,6 +742,56 @@ describe('resize handles', () => {
     expect(frame().attributes('style')).toContain('translate(0px, 0px)')
     expect(path()).toBe(after)
     expect(flow.value.nodes[0]).toMatchObject({ x: 0, y: 0, width: 100, height: 50 })
+  })
+
+  it('draws the turn and corner handles above every node', async () => {
+    const { root, selection } = setup({
+      nodes: [
+        { id: 'a', type: 'shape', x: 0, y: 0, width: 100, height: 100, data: { shape: 'rect' } },
+        // a neighbour drawn after it, over where its turn handle sits
+        { id: 'b', type: 'sticky', x: 0, y: 110, width: 100, height: 100, data: {} },
+      ],
+      edges: [],
+    })
+    await ticks()
+    selection.value = { nodes: ['a'], edges: [] }
+    await ticks()
+    const layer = root.find('.dou-whiteboard-handles')
+    expect(layer.findAll('.dou-whiteboard-node__corner')).toHaveLength(4)
+    expect(layer.find('.dou-whiteboard-node__turn').exists()).toBe(true)
+    // after the nodes, so on top of them
+    const nodes = root.findAll('.dou-flow-editor__node')
+    const after = nodes.at(-1)!.element.compareDocumentPosition(layer.element)
+    expect(after & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    // the sides stay on the node, under its anchors
+    expect(root.find('[data-node-id="a"]').findAll('.dou-whiteboard-node__side')).toHaveLength(4)
+    expect(layer.find('.dou-whiteboard-node__frame').attributes('style')).toContain('width: 100px')
+  })
+
+  it('drops a preview once its node leaves the document', async () => {
+    let ctx: FlowEditorContext | undefined
+    const grab = defineFlowExtension({
+      name: 'grab',
+      layers: {
+        above: [
+          defineComponent(() => {
+            ctx = useFlowEditor()
+            return () => null
+          }),
+        ],
+      },
+    })
+    const node = { id: 'a', type: 'shape', x: 0, y: 0, width: 100, height: 100, data: {} }
+    const { root, flow } = setup({ nodes: [node], edges: [] }, [grab])
+    await ticks()
+    ctx!.previewNode('a', { width: 300 })
+    await ticks()
+    expect(root.find('[data-node-id="a"]').attributes('style')).toContain('width: 300px')
+    flow.value = { nodes: [], edges: [] }
+    await ticks()
+    flow.value = { nodes: [node], edges: [] }
+    await ticks()
+    expect(root.find('[data-node-id="a"]').attributes('style')).toContain('width: 100px')
   })
 
   it('lets text reflow while it widens', async () => {

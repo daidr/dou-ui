@@ -17,16 +17,11 @@ bun add dou-ui @dou-ui/chart
 引入样式，再注册组件：
 
 ```ts
-import "dou-ui/style.css";
-import "@dou-ui/chart/style.css";
-import {
-  DouChart,
-  DouChartAxis,
-  DouChartBar,
-  DouChartLine,
-} from "@dou-ui/chart";
+import 'dou-ui/style.css'
+import '@dou-ui/chart/style.css'
+import { DouChart, DouChartAxis, DouChartBar, DouChartLine } from '@dou-ui/chart'
 
-app.use(DouChart).use(DouChartAxis).use(DouChartLine).use(DouChartBar);
+app.use(DouChart).use(DouChartAxis).use(DouChartLine).use(DouChartBar)
 ```
 
 用到哪种系列就注册哪个组件：`DouChartLine`、`DouChartArea`、`DouChartBar`、`DouChartScatter`、`DouChartPie`。
@@ -140,6 +135,14 @@ app.use(DouChart).use(DouChartAxis).use(DouChartLine).use(DouChartBar);
 <DocDemo src="chart/histogram" />
 
 每个区间包含起点、不包含终点，最后一个区间同时包含终点。相邻的柱子之间只留一条细缝，提示框的标题是区间的范围。直方图的横轴是数值轴，图表不需要写 `x`。
+
+## 箱线图
+
+`DouChartBoxplot` 用五个数概括每个类目的一组值，适合比较几组数据的分布。`y` 给出每一行的一组值（数组），箱子从下四分位画到上四分位，中间的粗线是中位数。
+
+<DocDemo src="chart/boxplot" />
+
+须线伸到离箱子不超过 1.5 倍箱长的最远的值，更远的值是异常值，单独画成圆点。`whisker` 可以改变这个倍数，设为 `Infinity` 时须线伸到最小值和最大值，不再区分异常值。提示框列出上限、上四分位、中位数、下四分位、下限和异常值。
 
 ## 散点图
 
@@ -298,17 +301,17 @@ app.use(DouChart).use(DouChartAxis).use(DouChartLine).use(DouChartBar);
 
 ```ts
 defineChartSeries({
-  type: "lollipop", // 组件名为 DouChartLollipop，图例里的类名为 is-lollipop
+  type: 'lollipop', // 组件名为 DouChartLollipop，图例里的类名为 is-lollipop
   zero: true, // 数值轴包含 0
   stackable: false, // 是否支持 stack
   band: false, // 是否像柱子一样在每个位置并排分配空间
   inset: (series) => 0, // 每个点周围需要留出的像素，比如气泡的半径
-  tooltip: "axis", // 提示框按位置（'axis'）还是按单个点（'item'）显示
+  tooltip: 'axis', // 提示框按位置（'axis'）还是按单个点（'item'）显示
   hit: undefined, // 按单个点显示时，找出指针下的点，默认找 12px 内最近的点
   prepare: undefined, // 数据不再变化、浏览器空闲时提前做的准备，返回值放在 series.prepared
   props: { radius: { type: Number, default: 5 } }, // 自己的属性
   draw(painter, series, view) {},
-});
+})
 ```
 
 `draw` 收到三个参数：
@@ -323,36 +326,36 @@ defineChartSeries({
 
 ```ts
 defineChartSeries({
-  type: "dots",
-  tooltip: "item",
+  type: 'dots',
+  tooltip: 'item',
   // 按 x 取整分桶：每个整数位置有哪些点
   prepare(series) {
-    const buckets = new Map<number, number[]>();
+    const buckets = new Map<number, number[]>()
     series.x.values.forEach((x, i) => {
-      const key = Math.round(x);
-      buckets.set(key, [...(buckets.get(key) ?? []), i]);
-    });
-    return buckets;
+      const key = Math.round(x)
+      buckets.set(key, [...(buckets.get(key) ?? []), i])
+    })
+    return buckets
   },
   hit(series, view, px, py) {
-    const buckets = series.prepared as Map<number, number[]> | undefined;
-    const x = Math.round(view.x.invert(px));
+    const buckets = series.prepared as Map<number, number[]> | undefined
+    const x = Math.round(view.x.invert(px))
     // 还没有索引时逐个查找
     const candidates = buckets
       ? [x - 1, x, x + 1].flatMap((key) => buckets.get(key) ?? [])
-      : series.x.values.map((_, i) => i);
-    let best = null;
+      : series.x.values.map((_, i) => i)
+    let best = null
     for (const i of candidates) {
-      const [left, top] = view.point(series.x.values[i], series.top[i]);
-      const d = Math.hypot(left - px, top - py);
-      if (d <= 12 && (!best || d < best.d)) best = { index: i, radius: 4, d };
+      const [left, top] = view.point(series.x.values[i], series.top[i])
+      const d = Math.hypot(left - px, top - py)
+      if (d <= 12 && (!best || d < best.d)) best = { index: i, radius: 4, d }
     }
-    return best;
+    return best
   },
   draw(painter, series, view) {
     /* … */
   },
-});
+})
 ```
 
 ## 提示框
@@ -447,13 +450,9 @@ defineChartSeries({
 
 ```js
 const data = shallowRef({
-  time: new Float64Array([
-    /* … */
-  ]),
-  value: new Float64Array([
-    /* … */
-  ]),
-});
+  time: new Float64Array([/* … */]),
+  value: new Float64Array([/* … */]),
+})
 ```
 
 `x`、`y` 是字段名时直接读取那一列；是函数时，函数拿到的行是由各列拼成的对象。提示框、点击和框选给出的行也是这样拼成的对象，同一行每次都是同一个对象。
@@ -606,6 +605,16 @@ SVG 和画布用同一套绘制代码，两者画出的图形一致。导出的�
 | `radius`         | 柱子末端的圆角，单位 px                                                                       | `number`                                                            | `2`                                 |
 | `labels`         | 数据标签，写法和折线图相同                                                                    | `boolean \| (label: ChartDataLabel) => string \| null \| undefined` | `false`                             |
 | `label-position` | 标签写在柱子末端外面，或柱子里面                                                              | `'outside' \| 'inside'`                                             | 堆叠时 `'inside'`，否则 `'outside'` |
+
+### Boxplot Props
+
+`name`、`data`、`x`、`tone`、`axis`、`v-model:hidden` 和折线图相同。
+
+| 名称      | 说明                                         | 类型                                        | 默认值         |
+| --------- | -------------------------------------------- | ------------------------------------------- | -------------- |
+| `y`       | 每一行的一组值：字段名，或从行取值的函数     | `string \| (row, index: number) => unknown` | —              |
+| `color`   | 箱子的颜色                                   | `string`                                    | 色板的下一个色 |
+| `whisker` | 须线最远伸到箱子外几倍箱长，更远的值是异常值 | `number`                                    | `1.5`          |
 
 ### Histogram Props
 

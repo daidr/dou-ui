@@ -73,6 +73,7 @@ import { drawPie, FADED, pieSlices, sliceOuter, type PieSlice } from './core/pie
 import { nearestSpoke, spokeAngle } from './core/radar'
 import { FUNNEL_BAR } from './core/funnel'
 import { isTotal } from './core/waterfall'
+import { boxes } from './core/box'
 import { baseline, categoryScale, linearScale, logScale, type Scale } from './core/scale'
 import { escapeXml, isSvg, num, paintAttribute, SvgPainter } from './core/svg'
 import type { ChartColors, ChartHit, ChartSeries, ChartValueAxis, ChartView } from './core/series'
@@ -1707,6 +1708,13 @@ function tipOf(a: Active | null): Tip | null {
     const y = s.y[row]!
     if (y !== y) continue
     title ??= s.kind.xTitle?.(s, row, xText)
+    if (s.kind.box) {
+      const own = boxItems(s, row)
+      items.push(...own)
+      for (const _ of own) owners.push(s.index)
+      band = true
+      continue
+    }
     items.push({
       name: s.name,
       text: seriesText(s, row),
@@ -1842,6 +1850,39 @@ function radarTip(r: RadarLayout, a: Active & { type: 'axis' }): Tip | null {
     anchor: a.pointer ?? far ?? [r.cx, r.cy],
     marks,
   }
+}
+
+/**
+ * A box plot's numbers in the tooltip, top to bottom as drawn, and how many
+ * values are past the whiskers. Beside other series, each says whose it is.
+ */
+function boxItems(s: ChartSeries, row: number): ChartTooltipItem[] {
+  const box = boxes(s)[row]
+  if (!box) return []
+  const m = messages.value
+  const text = valueText(s.axis)
+  const own = series.value.length > 1 ? `${s.name} ` : ''
+  const data = rowOf(s.rows, row)
+  const items: ChartTooltipItem[] = (
+    [
+      [m.boxHigh, box.high],
+      [m.boxQ3, box.q3],
+      [m.boxMedian, box.median],
+      [m.boxQ1, box.q1],
+      [m.boxLow, box.low],
+    ] as const
+  ).map(([name, value]) => ({ name: own + name, text: text(value), value, row: data }))
+  items[2]!.color = s.color
+  if (box.outliers.length)
+    items.push({
+      name: own + format(m.boxOutliers, { count: box.outliers.length }),
+      // a few of them: a long list would bury the box's own numbers
+      text:
+        box.outliers.slice(0, 6).map(text).join(m.nameSeparator) +
+        (box.outliers.length > 6 ? '…' : ''),
+      row: data,
+    })
+  return items
 }
 
 /** A heatmap cell's tooltip: where it is (its x and row) as the title, its value in its color, the cell ringed. */
@@ -3449,6 +3490,18 @@ function valueText(axis: ChartValueAxis): (value: number) => string {
 function seriesText(s: ChartSeries, row: number): string {
   const y = s.y[row]!
   if (s.kind.categoryY) return heatText(s)(y)
+  if (s.kind.box) {
+    const box = boxes(s)[row]
+    if (!box) return ''
+    const text = valueText(s.axis)
+    return format(messages.value.box, {
+      median: text(box.median),
+      q1: text(box.q1),
+      q3: text(box.q3),
+      low: text(box.low),
+      high: text(box.high),
+    })
+  }
   if (s.kind.waterfall) {
     const text = valueText(s.axis)
     if (isTotal(s, row)) return text(y)

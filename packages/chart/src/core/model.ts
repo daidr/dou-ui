@@ -12,6 +12,7 @@ import {
 } from './data'
 import type { ChartSeriesKind, ChartSeriesProps, ChartValueAxis } from './series'
 import { waterfallSteps } from './waterfall'
+import { boxesOf } from './box'
 
 /** A series as registered by its component. */
 export interface SeriesInput {
@@ -177,6 +178,32 @@ export function buildModel(
         stackEnds: null,
         slot: null,
         yColumn: places,
+      }
+    }
+    if (input.kind.box) {
+      const list = boxesOf(rows, input.props.y, input.props.whisker as number | undefined)
+      const n = list.length
+      const [y, top, base] = [new Float64Array(n), new Float64Array(n), new Float64Array(n)]
+      list.forEach((box, i) => {
+        if (!box) {
+          y[i] = top[i] = base[i] = Number.NaN
+          return
+        }
+        y[i] = box.median
+        base[i] = Math.min(box.low, ...box.outliers)
+        top[i] = Math.max(box.high, ...box.outliers)
+      })
+      return {
+        input,
+        name,
+        rows,
+        axis: input.props.axis ?? chart.axis ?? 'y',
+        x: column,
+        y,
+        top,
+        base,
+        stackEnds: null,
+        slot: null,
       }
     }
     const y = yColumn(rows, input.props.y)

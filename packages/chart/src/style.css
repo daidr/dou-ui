@@ -352,6 +352,17 @@
       border-radius: 2px;
     }
 
+    /* a box plot: its box, outlined over a light fill */
+    .is-box > & {
+      box-sizing: border-box;
+      width: 8px;
+      height: 10px;
+      margin-inline: 2px;
+      border: 1px solid currentColor;
+      border-radius: 1px;
+      background-color: color-mix(in srgb, currentColor 16%, transparent);
+    }
+
     .is-scatter > & {
       width: 8px;
       height: 8px;

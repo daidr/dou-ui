@@ -247,6 +247,18 @@ export interface ChartBarProps extends ChartSeriesProps {
   labelPosition?: 'outside' | 'inside'
 }
 
+export interface ChartBoxplotProps extends ChartSeriesProps {
+  /** Each row's group of values, an array: a key of the row or a function of it. */
+  y: ChartAccessor
+  /** Any CSS color for the boxes. */
+  color?: string
+  /**
+   * How far the whiskers reach past the box, in box lengths; values past
+   * them are drawn as dots of their own. `Infinity` reaches all the values.
+   */
+  whisker?: number
+}
+
 export interface ChartHistogramProps extends Omit<ChartSeriesProps, 'y' | 'x' | 'color'> {
   /** The value of each row, counted into bins: a key of the row or a function of it. */
   value: ChartAccessor

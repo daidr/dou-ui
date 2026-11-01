@@ -136,6 +136,12 @@ export interface ChartSeriesKind<P = Record<string, unknown>> {
    * `total` marks are drawn from 0 to the running total.
    */
   waterfall?: boolean
+  /**
+   * Whether the series is a box plot: `y` gives each row a group of values,
+   * summed up in a box; `y` holds the medians, and `base` and `top` the
+   * smallest and largest values, so the axis reaches them.
+   */
+  box?: boolean
   /** Whether series of this kind can stack (`stack` prop). */
   stackable?: boolean
   /**

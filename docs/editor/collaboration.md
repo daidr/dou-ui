@@ -67,6 +67,10 @@ fillMap(doc.getMap('document'), blocks)
 
 这一步只在创建共享文档时做一次，通常放在服务器上。如果两端同时往同一个空文档里写入，内容会出现两份。使用了自定义块时，把同样的 `extensions` 作为第三个参数传入。
 
+## 评论
+
+传入 `comments` 后，[评论](./comments)也放在共享文档里，新的讨论和回复会实时出现在每个人那里。下面的示例里两个人都可以选中文字发起讨论。
+
 ## 撤销
 
 协同编辑时，撤销和重做只针对当前用户自己的修改，不会撤销其他人的输入。`collaboration` 扩展会替换内置的撤销记录，不需要再设置 `history`、`undo` 和 `redo`。
@@ -100,6 +104,7 @@ fillMap(doc.getMap('document'), blocks)
 | `map`       | 保存文档的共享 `Y.Map`，每个块是其中的一项                                   | `Y.Map`             |
 | `awareness` | 用于同步光标和选区（`y-protocols` 的 `Awareness`），不传时不显示其他人的光标 | `Awareness`         |
 | `user`      | 当前用户，显示在其他人看到的光标上                                           | `CollaborationUser` |
+| `comments`  | 保存[评论](./comments)的共享 `Y.Map`，不传时讨论由应用自己同步               | `Y.Map`             |
 
 ```ts
 interface CollaborationUser {

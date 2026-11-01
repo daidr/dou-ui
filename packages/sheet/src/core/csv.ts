@@ -173,7 +173,9 @@ export interface SheetCSVWriteOptions {
   locale?: string
   /**
    * What a formula comes to, by its row and column in the sheet, e.g. from
-   * `SheetFormulaEngine.result`; without it, formulas are written as written.
+   * `SheetFormulaEngine.result`. Without it a formula is written as text,
+   * with a `'` before it unless `escapeFormulas` is off; for formulas a
+   * spreadsheet can work out, use `formulas`.
    */
   result?: (row: number, col: number) => SheetResult
   /**
@@ -189,7 +191,8 @@ export interface SheetCSVWriteOptions {
   ) => string | undefined
   /**
    * Without `text`: the value to write for a cell, e.g. its cell type's
-   * `plain`; `undefined` writes its value, or its formula's result.
+   * `plain`; `undefined` writes its value, or its formula's result. Not
+   * asked for formulas written with `formulas`.
    */
   cellValue?: (
     input: SheetCellInput,
@@ -268,16 +271,22 @@ export function sheetToCSV(sheet: SheetData, options: SheetCSVWriteOptions = {})
       const formula = !text && formulas && typeof stored === 'string' && stored.startsWith('=')
       const value = formula ? stored : shownValue(stored, result, row, col)
       let shown: string
-      if (text)
-        shown =
-          cellText?.(input, value, row, col) ?? formatValue(value, cellOf(input)?.format, locale)
-      else {
+      // whether what is written is text, which a spreadsheet program might run as a formula
+      let textual: boolean
+      if (formula) {
+        shown = stored
+        textual = false
+      } else if (text) {
+        const own = cellText?.(input, value, row, col)
+        shown = own ?? formatValue(value, cellOf(input)?.format, locale)
+        textual = typeof value === 'string' || (own !== undefined && typeof value !== 'number')
+      } else {
         const own = cellValue?.(input, value, row, col) ?? value
         // read back with `formulas`, text that would read as something else keeps its `'`
         shown = formulas ? inputText(own ?? undefined) : plainText(own)
+        textual = typeof own === 'string'
       }
-      const unsafe =
-        escapeFormulas && !formula && typeof value === 'string' && FORMULA_START.test(shown)
+      const unsafe = escapeFormulas && textual && FORMULA_START.test(shown)
       fields.push(field(unsafe ? `'${shown}` : shown))
     }
     lines.push(fields.join(delimiter))

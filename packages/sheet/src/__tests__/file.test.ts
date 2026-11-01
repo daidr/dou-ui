@@ -59,6 +59,15 @@ describe('exportWorkbook', () => {
     expect(await blob.text()).toBe(
       '项目,金额,完成\r\n场地,1280,2\r\n餐饮,640.5,TRUE\r\n合计,1920.5,',
     )
+    // with `formulas`, the formula as written, the type not asked
+    const written = await exportWorkbook(
+      {
+        sheets: [{ name: '表', cells: [[1, 2, '=A1+B1', { value: '=A1/4', type: 'stars' }]] }],
+      },
+      csvExporter,
+      { extensions: [starsExtension], options: { formulas: true, bom: false } },
+    )
+    expect(await written.text()).toBe('1,2,=A1+B1,=A1/4')
     const shown = await exportWorkbook(book(), csvExporter, {
       extensions: [starsExtension],
       options: { text: true },

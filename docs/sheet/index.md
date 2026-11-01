@@ -643,7 +643,7 @@ function onFileError(event: SheetFileErrorEvent) {
 | `cellValue`      | `(input, value, row, col) => value \| undefined`，不带 `text` 时自己决定写出的值，返回 `undefined` 时写单元格的值 | —            |
 | `sheet`          | 要导出的工作表，序号、`id` 或名字                                                                                 | 当前显示的   |
 
-不经过组件时，`sheetToCSV(sheetData, options)` 做同样的事，只是公式要用 `result` 给出结果才能写成计算结果（见[公式](./formulas)），单元格类型按值本身写出（可以用 `cellText`、`cellValue` 补上）。工具栏的导出菜单和 `exportFile('csv')` 用同一套选项。`parseCSV(text, delimiter?)` 只拆分字段，不识别类型；`detectDelimiter(text)` 返回判断出的分隔符。
+不经过组件时，`sheetToCSV(sheetData, options)` 做同样的事，只是公式要用 `result` 给出结果才能写成计算结果（见[公式](./formulas)），没有 `result` 时公式当作文字写出，前面加 `'`；要按原文写出公式用 `formulas: true`。单元格类型按值本身写出（可以用 `cellText`、`cellValue` 补上）。工具栏的导出菜单和 `exportFile('csv')` 用同一套选项。`parseCSV(text, delimiter?)` 只拆分字段，不识别类型；`detectDelimiter(text)` 返回判断出的分隔符。
 
 ## 导出图片与打印
 

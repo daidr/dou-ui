@@ -201,6 +201,17 @@ describe('CSV', () => {
     expect(readCSV(text, { formulas: true })).toEqual([['=1+2', "'+1", "'=abc"]])
   })
 
+  it('keeps what cellValue and cellText give from running as a formula, and asks neither for written formulas', () => {
+    const sheet: SheetData = { name: '表', cells: [[5, 'a', '=1+2']] }
+    const asked: unknown[] = []
+    const cellValue = (_input: unknown, value: unknown) => (asked.push(value), '=cmd')
+    expect(sheetToCSV(sheet, { cellValue, bom: false })).toBe("'=cmd,'=cmd,'=cmd")
+    asked.length = 0
+    expect(sheetToCSV(sheet, { cellValue, formulas: true, bom: false })).toBe("'=cmd,'=cmd,=1+2")
+    expect(asked).toEqual([5, 'a'])
+    expect(sheetToCSV(sheet, { text: true, cellText: () => '@x', bom: false })).toBe("@x,'@x,'@x")
+  })
+
   it('reads = as text unless asked for formulas', () => {
     expect(readCSV('=1+1,=')).toEqual([["'=1+1", '=']])
     expect(readCSV('=1+1', { typed: false })).toEqual([["'=1+1"]])

@@ -63,5 +63,6 @@ export { CANVAS_MAX_SIDE, canvasMaxArea, fitPixelRatio, svgToPNG } from './utils
 export { downloadBlob } from './utils/download'
 export type { PNGExportSource, SvgToPNGOptions } from './utils/png'
 export type { Size, Tone, WithInstall } from './utils'
+export type { DataAttributes } from './attributes'
 export { DouUI }
 export default DouUI

@@ -75,7 +75,7 @@ export class PivotFormulaError extends Error {
     readonly at: number,
     readonly detail = '',
   ) {
-    super(`[DouPivot] 计算值：${MESSAGES[code].replace('{detail}', detail)}`)
+    super(`[@dou-ui/pivot] 计算值：${MESSAGES[code].replace('{detail}', detail)}`)
     this.name = 'PivotFormulaError'
   }
 }

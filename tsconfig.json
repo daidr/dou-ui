@@ -1,6 +1,7 @@
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
+    "allowJs": true,
     "types": ["bun", "vite/client"],
     "paths": {
       "dou-ui": ["./packages/dou-ui/src/index.ts"],
@@ -10,7 +11,10 @@
       "@dou-ui/editor": ["./packages/editor/src/index.ts"],
       "@dou-ui/editor/collaboration": ["./packages/editor/src/collaboration/index.ts"],
       "@dou-ui/editor/code": ["./packages/editor/src/code/index.ts"],
+      "@dou-ui/editor/markdown": ["./packages/editor/src/markdown/index.ts"],
       "@dou-ui/flow": ["./packages/flow/src/index.ts"],
+      "@dou-ui/flow/collaboration": ["./packages/flow/src/collaboration/index.ts"],
+      "@dou-ui/flow/whiteboard": ["./packages/flow/src/whiteboard/index.ts"],
       "@dou-ui/chart": ["./packages/chart/src/index.ts"],
       "@dou-ui/gantt": ["./packages/gantt/src/index.ts"],
       "@dou-ui/gantt/collaboration": ["./packages/gantt/src/collaboration/index.ts"],
@@ -23,6 +27,8 @@
       "@dou-ui/sheet-xlsx": ["./packages/sheet-xlsx/src/index.ts"],
       "@dou-ui/code": ["./packages/code/src/index.ts"],
       "@dou-ui/code/worker": ["./packages/code/src/worker/index.ts"],
+      "@dou-ui/code/collaboration": ["./packages/code/src/collaboration/index.ts"],
+      "@dou-ui/code/shiki": ["./packages/code/src/shiki/index.ts"],
       "@dou-ui/dashboard": ["./packages/dashboard/src/index.ts"],
       "@dou-ui/dashboard/layout": ["./packages/dashboard/src/layout/index.ts"],
       "@dou-ui/dashboard/widgets": ["./packages/dashboard/src/widgets/index.ts"],
@@ -40,6 +46,7 @@
     }
   },
   "include": [
+    "types",
     "packages/*/src",
     "packages/*/scripts",
     "packages/*/vite.config.ts",
@@ -48,6 +55,7 @@
     "bench/src",
     "bench/vite.config.ts",
     "docs/.vitepress",
+    "docs/examples",
     "vitest.config.ts"
   ]
 }

@@ -14,7 +14,9 @@ function compile(source: string, flags = ''): RegExp | null {
       pattern = new RegExp(source, flags.replace(/[gy]/g, ''))
     } catch {
       pattern = null
-      console.warn(`[dou-ui] form rule pattern /${source}/${flags} does not compile; it is ignored`)
+      console.warn(
+        `[@dou-ui/form-builder] form rule pattern /${source}/${flags} does not compile; it is ignored`,
+      )
     }
     patterns.set(key, pattern)
   }

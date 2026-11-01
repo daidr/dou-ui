@@ -80,3 +80,9 @@ Token 默认挂在 `:root` 上。给任意元素加上 `data-dou-theme` 即可�
   }
 }
 ```
+
+打开之后，`aria-*` 和 `data-*` 仍然可以直接写在任何组件上，它们和其他没有声明的属性一样透传给组件；声明了 `ariaLabel` 的组件照常收到这个 prop。`aria-*` 的名字和取值依旧受检，写成 `aria-lable` 会报错。
+
+```vue
+<DouButton aria-label="关闭" data-testid="close" />
+```

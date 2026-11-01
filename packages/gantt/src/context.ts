@@ -62,6 +62,6 @@ export const ganttKey: InjectionKey<GanttContext> = Symbol('dou-gantt')
 /** The surrounding Gantt chart; for layers, overlays and the chart's slots. */
 export function useGantt() {
   const context = inject(ganttKey, null)
-  if (!context) throw new Error('[dou-ui] useGantt() must be used inside <DouGantt>')
+  if (!context) throw new Error('[@dou-ui/gantt] useGantt() must be used inside <DouGantt>')
   return context
 }

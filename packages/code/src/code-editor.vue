@@ -351,7 +351,7 @@ function runLint() {
     try {
       found = extension.lint(context)
     } catch (error) {
-      console.error(`[DouCodeEditor] ${extension.name}: lint failed`, error)
+      console.error(`[@dou-ui/code] ${extension.name}: lint failed`, error)
       continue
     }
     // A linter that answers at once is shown at once, without a frame of old problems.
@@ -365,7 +365,7 @@ function runLint() {
         if (doc.value === text) setDiagnostics(extension.name, list)
       })
       .catch((error: unknown) =>
-        console.error(`[DouCodeEditor] ${extension.name}: lint failed`, error),
+        console.error(`[@dou-ui/code] ${extension.name}: lint failed`, error),
       )
   }
 }
@@ -992,7 +992,7 @@ function foldEnds(texts?: readonly string[]) {
 /** The lines that start a fold, from 1. */
 const foldStarts = computed(() => folds.value.map((fold) => doc.value.lineAt(fold.from).number))
 watch(foldStarts, (next, prev) => {
-  if (next.length !== prev.length || next.some((n, i) => n !== prev[i])) emit('fold-change', next)
+  if (next.length !== prev.length || next.some((n, i) => n !== prev[i])) emit('foldChange', next)
 })
 
 function setFolds(next: CodeFold[]) {
@@ -2125,7 +2125,7 @@ function showInfo(pos: number, keyboard: boolean) {
     try {
       answer = extension.hover({ pos, signal: abort.signal }, context)
     } catch (error) {
-      console.error(`[DouCodeEditor] ${extension.name}: hover failed`, error)
+      console.error(`[@dou-ui/code] ${extension.name}: hover failed`, error)
       continue
     }
     if (answer && 'then' in answer) {
@@ -2137,7 +2137,7 @@ function showInfo(pos: number, keyboard: boolean) {
         })
         .catch((error: unknown) => {
           if (!abort.signal.aborted)
-            console.error(`[DouCodeEditor] ${extension.name}: hover failed`, error)
+            console.error(`[@dou-ui/code] ${extension.name}: hover failed`, error)
         })
     } else add(answer)
   }
@@ -2479,7 +2479,7 @@ function startCompletion(explicit: boolean) {
     try {
       answer = extension.completion!(request, context)
     } catch (error) {
-      console.error(`[DouCodeEditor] ${extension.name}: completion failed`, error)
+      console.error(`[@dou-ui/code] ${extension.name}: completion failed`, error)
       continue
     }
     if (answer && 'then' in answer) {
@@ -2493,7 +2493,7 @@ function startCompletion(explicit: boolean) {
         .catch((error: unknown) => {
           waiting--
           if (!abort.signal.aborted)
-            console.error(`[DouCodeEditor] ${extension.name}: completion failed`, error)
+            console.error(`[@dou-ui/code] ${extension.name}: completion failed`, error)
           apply()
         })
     } else if (answer) results.push(answer)
@@ -2706,13 +2706,13 @@ function updateSignature() {
         answers.push(
           Promise.resolve(answer).catch((error: unknown) => {
             if (!abort.signal.aborted)
-              console.error(`[DouCodeEditor] ${extension.name}: signature failed`, error)
+              console.error(`[@dou-ui/code] ${extension.name}: signature failed`, error)
             return null
           }),
         )
       else answers.push(answer)
     } catch (error) {
-      console.error(`[DouCodeEditor] ${extension.name}: signature failed`, error)
+      console.error(`[@dou-ui/code] ${extension.name}: signature failed`, error)
     }
   }
   const show = (result: CodeSignatureResult | null | undefined) => {

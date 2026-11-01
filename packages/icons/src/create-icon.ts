@@ -79,3 +79,56 @@ export function createIcon(name: string, node: IconNode) {
 }
 
 export type IconComponent = ReturnType<typeof createIcon>
+
+type Upper =
+  | 'A'
+  | 'B'
+  | 'C'
+  | 'D'
+  | 'E'
+  | 'F'
+  | 'G'
+  | 'H'
+  | 'I'
+  | 'J'
+  | 'K'
+  | 'L'
+  | 'M'
+  | 'N'
+  | 'O'
+  | 'P'
+  | 'Q'
+  | 'R'
+  | 'S'
+  | 'T'
+  | 'U'
+  | 'V'
+  | 'W'
+  | 'X'
+  | 'Y'
+  | 'Z'
+  | '0'
+  | '1'
+  | '2'
+  | '3'
+  | '4'
+  | '5'
+  | '6'
+  | '7'
+  | '8'
+  | '9'
+
+/** 图标上可以写的 `data-*`；模板类型检查会把 `data-foo` 转成 `dataFoo`，两种都接受。 */
+interface IconDataAttributes {
+  [key: `data-${string}`]: unknown
+  [key: `data${Upper}${string}`]: unknown
+}
+
+// 单独使用图标时也要能写 aria-* 与 data-*（例如 `<SearchIcon aria-hidden="true" />`），
+// 否则开启 checkUnknownProps 后会报错。与 dou-ui 里的同名声明合并，两边内容一致。
+declare module 'vue' {
+  interface AriaAttributes {
+    'aria-description'?: string
+  }
+  interface AllowedComponentProps extends AriaAttributes, IconDataAttributes {}
+}

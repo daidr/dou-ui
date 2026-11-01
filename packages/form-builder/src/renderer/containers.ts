@@ -346,7 +346,7 @@ export function listView(
     const cycles = findItemFormulaCycles(list())
     for (const cycle of cycles)
       console.warn(
-        `[dou-ui] form formulas of list "${list().name}" read each other in a circle (${cycle.join(' -> ')}); they are not worked out`,
+        `[@dou-ui/form-builder] form formulas of list "${list().name}" read each other in a circle (${cycle.join(' -> ')}); they are not worked out`,
       )
     return new Set(cycles.flat())
   })

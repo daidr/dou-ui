@@ -50,7 +50,7 @@ function warnCycle(cycle: string[]) {
   if (warnedCycles.has(key)) return
   warnedCycles.add(key)
   console.warn(
-    `[dou-ui] form formulas read each other in a circle (${key}); they are not worked out`,
+    `[@dou-ui/form-builder] form formulas read each other in a circle (${key}); they are not worked out`,
   )
 }
 
@@ -116,7 +116,7 @@ function load(name: string, arg: unknown) {
       : Promise.reject(new Error(`there is no source "${name}" in \`sources\``))
     result.catch((error: unknown) => {
       if (loaded.get(key) === result) loaded.delete(key)
-      console.warn(`[dou-ui] form option source "${name}" failed:`, error)
+      console.warn(`[@dou-ui/form-builder] form option source "${name}" failed:`, error)
     })
     loaded.set(key, result)
   }

@@ -3,7 +3,7 @@ import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { DouPivot, type PivotCollapsed, type PivotConfig } from '../index'
-import type { PivotExpose } from '../types'
+import type { PivotCellEvent, PivotExpose } from '../types'
 import {
   gridMerges,
   gridToCSV,
@@ -346,9 +346,9 @@ describe('gridToHTML', () => {
   })
 })
 
-describe('cell-click labels', () => {
+describe('cellClick labels', () => {
   it('gives the groups as the table writes them beside their values', async () => {
-    const clicks: { row: unknown[]; labels: { row: string[]; column: string[] } }[] = []
+    const clicks: PivotCellEvent<unknown>[] = []
     const dated = [
       { day: new Date(2026, 0, 5), channel: '外卖', amount: 10 },
       { day: new Date(2026, 1, 9), channel: '门店', amount: 4 },
@@ -358,7 +358,7 @@ describe('cell-click labels', () => {
         data: dated,
         fields: [{ name: 'day', type: 'date' }],
         config: { rows: [{ field: 'day', by: 'month' }], columns: ['channel'], values: ['amount'] },
-        onCellClick: (cell: never) => clicks.push(cell),
+        onCellClick: (cell: PivotCellEvent<unknown>) => clicks.push(cell),
       },
       attachTo: document.body,
     })

@@ -1,6 +1,13 @@
 <script setup>
 import { ref } from 'vue'
-import { DouChart, DouChartAxis, DouChartBar, DouChartLine, DouChartZoom } from '@dou-ui/chart'
+import {
+  DouChart,
+  DouChartAxis,
+  DouChartBar,
+  DouChartLine,
+  DouChartTooltip,
+  DouChartZoom,
+} from '@dou-ui/chart'
 
 // 上海店近 90 天的客流和客单价
 const start = new Date(2026, 7, 3)
@@ -10,7 +17,8 @@ const rows = Array.from({ length: 90 }, (_, i) => ({
   price: Math.round(86 + 6 * Math.sin(i / 9 + 1) - (i % 7 >= 5 ? 4 : 0)),
 }))
 
-// 两个图表绑定同一个值，缩放和平移一起变化；刻度文字的宽度设成一样，绘图区左边对齐
+// 两个图表绑定同一个值，缩放和平移一起变化；提示框同属一个 group，指针在哪天，两个图表都显示这一天；
+// 刻度文字的宽度设成一样，绘图区左边对齐
 const range = ref(null)
 </script>
 
@@ -20,11 +28,13 @@ const range = ref(null)
       <DouChartAxis for="y" title="客流（人次）" :label-width="40" />
       <DouChartBar y="visits" name="客流" />
       <DouChartZoom v-model:x="range" />
+      <DouChartTooltip group="store" />
     </DouChart>
     <DouChart :data="rows" x="date" :height="200">
       <DouChartAxis for="y" title="客单价（元）" :label-width="40" />
       <DouChartLine y="price" name="客单价" />
       <DouChartZoom v-model:x="range" />
+      <DouChartTooltip group="store" />
     </DouChart>
   </div>
 </template>

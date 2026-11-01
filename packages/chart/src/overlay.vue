@@ -3,6 +3,7 @@ import { DouSpinner, useNamespace, type Tone } from 'dou-ui'
 import { onBeforeUnmount, useId, type ComputedRef, type VNodeChild } from 'vue'
 import type { TickLabel } from './core/layout'
 import type { PlacedDataLabel } from './core/labels'
+import type { LegendBox } from './core/layout'
 import type { MarkerLabel } from './core/marker'
 
 /**
@@ -31,8 +32,14 @@ export interface OverlayState {
       off: boolean
       /** The last one shown: it can't be turned off. */
       locked: boolean
+      /** The room it takes, swatch and name, in px. */
+      width: number
+      /** Its name is cut short to the room down the side. */
+      clipped?: boolean
     }>
   >
+  /** Where the legend shows; its entries scroll in it when they don't all fit. */
+  legendBox: ComputedRef<LegendBox | undefined>
   /** Turns the series (or slice) at `index` on or off. */
   toggle: (index: number) => void
   /** Shows only the series (or slice) at `index`, or all again. */
@@ -67,6 +74,7 @@ const {
   labels,
   titles,
   legend,
+  legendBox,
   hole,
   toggle,
   isolate,
@@ -124,6 +132,8 @@ function noMenu(event: Event) {
   if (holdTimer || held) event.preventDefault()
 }
 onBeforeUnmount(letGo)
+/** Room around the legend's entries in its box, so a focus ring isn't cut off where it scrolls. */
+const LEGEND_PAD = 4
 const Empty = () => state.emptyContent()
 // a click focuses the entry too: only keyboard focus brings its series forward
 const focusVisible = (e: FocusEvent) => (e.target as Element).matches(':focus-visible')
@@ -181,7 +191,16 @@ const focusVisible = (e: FocusEvent) => (e.target as Element).matches(':focus-vi
       ><span :class="ns.e('text')">{{ label.text }}</span></span
     >
   </div>
-  <div v-if="shown && legend.length" :class="ns.e('legends')">
+  <div
+    v-if="shown && legend.length && legendBox"
+    :class="[ns.e('legends'), ns.is('scroll', legendBox.scroll)]"
+    :style="{
+      left: `${legendBox.x - LEGEND_PAD}px`,
+      top: `${legendBox.y - LEGEND_PAD}px`,
+      width: `${legendBox.width + LEGEND_PAD * 2}px`,
+      height: `${legendBox.height + LEGEND_PAD * 2}px`,
+    }"
+  >
     <button
       v-for="item in legend"
       :key="`legend:${item.index}`"
@@ -192,8 +211,13 @@ const focusVisible = (e: FocusEvent) => (e.target as Element).matches(':focus-vi
         ns.is('dashed', item.dashed),
         ns.is('off', item.off),
         ns.is('locked', item.locked),
+        ns.is('clipped', !!item.clipped),
       ]"
-      :style="{ transform: `translate(${item.left}px, ${item.top}px)` }"
+      :style="{
+        transform: `translate(${item.left - legendBox.x + LEGEND_PAD}px, ${item.top - legendBox.y + LEGEND_PAD}px)`,
+        width: item.clipped ? `${item.width}px` : undefined,
+      }"
+      :title="item.clipped ? item.text : undefined"
       :aria-pressed="!item.off"
       :aria-describedby="hintId"
       aria-keyshortcuts="Alt+Enter"

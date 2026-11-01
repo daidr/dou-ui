@@ -17,14 +17,30 @@ export interface ChartProps {
   height?: number | string
   /** The chart's accessible name, read out instead of the generated summary. */
   ariaLabel?: string
-  /** A legend under the chart. Shown when there is more than one series, or slice of a pie. */
-  legend?: boolean
+  /**
+   * The legend: shown when there is more than one series, or slice of a
+   * pie. `true` or `false` shows or hides it; `top`, `bottom` (the default
+   * place) or `right` also says where it goes. Entries that don't fit in
+   * three rows (or down the chart's height) scroll.
+   */
+  legend?: boolean | 'top' | 'bottom' | 'right'
+  /**
+   * Colors the series (and a pie's slices) take in turn, in place of the
+   * theme's eight: CSS colors or tones. A pie takes them from the first.
+   */
+  palette?: string[]
   /**
    * Lay x down the left side and values along the bottom: bars that are
    * easier to read across, with room for long category names. Axes and
    * series keep their meaning (`x`, `y`, `y2`); only where they are drawn changes.
    */
   horizontal?: boolean
+  /**
+   * Shows the data as a table in the chart's place (`v-model:table`): each
+   * x a row and each series a column, with values as the axes write them.
+   * For readers who'd rather go through the numbers, or copy them.
+   */
+  table?: boolean
   /** Texts to override. */
   messages?: ChartMessagesOverride
   /** Shows that data is on its way: what is drawn fades and a spinner turns over it. */
@@ -266,6 +282,12 @@ export interface ChartTooltipProps {
   crosshair?: boolean
   /** No tooltip: the chart doesn't follow the pointer and can't be focused. */
   disabled?: boolean
+  /**
+   * Charts whose tooltips have the same `group` follow one pointer: the x
+   * under it in one chart shows, with its tooltip, in the others. Charts
+   * of a group match x by its value (a category's name, a time, a number).
+   */
+  group?: string
 }
 
 /** One line of a tooltip. */

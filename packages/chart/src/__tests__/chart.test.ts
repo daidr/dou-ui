@@ -2,7 +2,7 @@ import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { DouChart, DouChartArea, DouChartAxis, DouChartLine } from '..'
-import { layoutChart, type AxisConfig } from '../core/layout'
+import { layoutChart, placeLegendIn, type AxisConfig } from '../core/layout'
 import { lineKind } from '../core/line'
 import { buildModel } from '../core/model'
 
@@ -171,6 +171,29 @@ describe('layout', () => {
       left.ticks.map((t) => left.scale.map(t)),
     )
     expect(layout.x.labels.map((l) => l.text)).toEqual(['一月', '二月', '三月'])
+  })
+
+  it('puts a legend above, below or down the side, scrolling what doesn’t fit', () => {
+    const names = Array.from({ length: 30 }, (_, i) => `系列${i + 1}`)
+    const below = placeLegendIn(names, 'bottom', 300, 200, measure)
+    // three rows show, the rest scroll
+    expect(below.box!.scroll).toBe(true)
+    expect(below.box!.height).toBe(16 * 3 + 4 * 2)
+    expect(below.room.bottom).toBeGreaterThan(below.box!.height)
+    const above = placeLegendIn(['甲', '乙'], 'top', 300, 200, measure)
+    expect(above.room.top).toBeGreaterThan(0)
+    expect(above.room.bottom).toBe(0)
+    expect(above.box!.scroll).toBe(false)
+    const side = placeLegendIn(['很长很长很长很长的系列名称', '乙'], 'right', 300, 200, measure)
+    // at most 30% of the width, the long name cut short
+    expect(side.room.right).toBeLessThanOrEqual(300 * 0.3 + 16)
+    expect(side.legend[0]!.clipped).toBe(true)
+    expect(side.legend[1]!.top).toBeGreaterThan(side.legend[0]!.top)
+    // on a touch screen, rows far enough apart for a finger
+    const coarse = placeLegendIn(names, 'bottom', 300, 200, measure, true)
+    expect(
+      coarse.legend.find((item) => item.top > coarse.legend[0]!.top)!.top - coarse.legend[0]!.top,
+    ).toBe(40)
   })
 
   it('puts a legend under the chart and keeps labels off the sides', () => {

@@ -8,6 +8,7 @@ const steps = ['收货', '质检', '入库', '上架']
 
 const editor = ref<InstanceType<typeof DouFlowEditor>>()
 const doc = ref<FlowDocument>({
+  version: 1,
   nodes: stores.flatMap((store, row) =>
     steps.map((step, column) => ({
       id: `${row}-${column}`,

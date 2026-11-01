@@ -25,10 +25,10 @@ const versions: Version[] = [
     doc: {
       version: 1,
       blocks: [
-      { ...paragraph('title', '上海门店开业方案'), type: 'heading', props: { level: 2 } },
-      paragraph('date', '新店计划在十一月最后一个周末开业。'),
-      paragraph('gift', '前五十位顾客赠送帆布袋。'),
-      paragraph('staff', '店员从总店抽调两人。'),
+        { ...paragraph('title', '上海门店开业方案'), type: 'heading', props: { level: 2 } },
+        paragraph('date', '新店计划在十一月最后一个周末开业。'),
+        paragraph('gift', '前五十位顾客赠送帆布袋。'),
+        paragraph('staff', '店员从总店抽调两人。'),
       ],
     },
   },
@@ -38,10 +38,10 @@ const versions: Version[] = [
     doc: {
       version: 1,
       blocks: [
-      { ...paragraph('title', '上海门店开业方案'), type: 'heading', props: { level: 2 } },
-      paragraph('date', '新店计划在十二月第一个周末开业。'),
-      paragraph('gift', '前一百位顾客赠送帆布袋。'),
-      paragraph('price', '开业当天全场八折。'),
+        { ...paragraph('title', '上海门店开业方案'), type: 'heading', props: { level: 2 } },
+        paragraph('date', '新店计划在十二月第一个周末开业。'),
+        paragraph('gift', '前一百位顾客赠送帆布袋。'),
+        paragraph('price', '开业当天全场八折。'),
       ],
     },
   },

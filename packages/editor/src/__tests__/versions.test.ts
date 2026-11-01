@@ -210,7 +210,9 @@ describe('restore', () => {
     expect(exposed.restore(doc(v1()))).toBe(true)
     await nextTick()
     expect(readMap(map).blocks.map((b) => b.id)).toEqual(['a', 'b', 'c'])
-    expect(readMap(map).blocks[0]!.content).toEqual([{ type: 'text', text: '上海站的活动定在周六' }])
+    expect(readMap(map).blocks[0]!.content).toEqual([
+      { type: 'text', text: '上海站的活动定在周六' },
+    ])
     // a block that is the same in both is left as it is
     expect(map.get('c')).toBe(untouched)
   })

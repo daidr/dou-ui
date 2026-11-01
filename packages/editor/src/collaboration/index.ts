@@ -13,13 +13,7 @@ import {
   resolveEditorExtensions,
   type EditorExtension,
 } from '../core/extension'
-import {
-  blocksToDoc,
-  docToBlocks,
-  type Block,
-  type EditorDocument,
-  type PartialBlock,
-} from '../core/model'
+import { blocksToDoc, docToBlocks, type EditorDocument, type PartialBlock } from '../core/model'
 import { editorKit } from '../extensions/editor-kit'
 import { createBinding, readDoc, syncPlugin, writeDoc, type YBlock } from './binding'
 import { cursorsPlugin, positionOf, type AwarenessLike } from './cursors'

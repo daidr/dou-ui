@@ -41,7 +41,7 @@ app.use(DouCodeEditor)
 
 `Mod` 在 Apple 设备上是 `⌘`，在其他系统上是 `Ctrl`。
 
-`close-brackets` 设为 `false` 关闭括号补全，`match-brackets` 设为 `false` 关闭括号配对标记。
+`closeBrackets` 设为 `false` 关闭括号补全，`matchBrackets` 设为 `false` 关闭括号配对标记。
 
 ## 只读与禁用
 
@@ -51,7 +51,7 @@ app.use(DouCodeEditor)
 
 ## 外观
 
-`line-numbers` 控制是否显示行号，`active-line` 控制是否给光标所在行加底色。`tab-size` 设置制表位宽度，也是一级缩进的宽度；`indent-with-tabs` 设为 `true` 时用制表符缩进。
+`lineNumbers` 控制是否显示行号，`activeLine` 控制是否给光标所在行加底色。`tabSize` 设置制表位宽度，也是一级缩进的宽度；`indentWithTabs` 设为 `true` 时用制表符缩进。
 
 字号、行高、背景色等通过 CSS 变量调整，见下方 [CSS 变量](#css-变量)。行高请使用整数像素。
 
@@ -69,7 +69,7 @@ app.use(DouCodeEditor)
 
 ## API
 
-### Props
+### CodeEditor Props
 
 | 名称                | 说明                                                                     | 类型                               | 默认值     |
 | ------------------- | ------------------------------------------------------------------------ | ---------------------------------- | ---------- |
@@ -80,14 +80,14 @@ app.use(DouCodeEditor)
 | `readonly`          | 只读                                                                     | `boolean`                          | `false`    |
 | `disabled`          | 禁用                                                                     | `boolean`                          | `false`    |
 | `placeholder`       | 内容为空时的提示文字                                                     | `string`                           | —          |
-| `line-numbers`      | 显示行号                                                                 | `boolean`                          | `true`     |
+| `lineNumbers`       | 显示行号                                                                 | `boolean`                          | `true`     |
 | `gutter`            | 显示行号左侧的栏（行号、折叠箭头、问题图标）；关闭后问题只有波浪线       | `boolean`                          | `true`     |
-| `active-line`       | 给光标所在行加底色                                                       | `boolean`                          | `true`     |
-| `tab-size`          | 制表位宽度                                                               | `number`                           | `2`        |
-| `indent-with-tabs`  | 用制表符缩进                                                             | `boolean`                          | `false`    |
-| `tab-indents`       | `Tab` 用于缩进；关闭后 `Tab` 移到下一个控件，补全和片段中仍然可用        | `boolean`                          | `true`     |
-| `close-brackets`    | 输入括号和引号时补上另一半                                               | `boolean`                          | `true`     |
-| `match-brackets`    | 标出光标旁的括号和它的配对                                               | `boolean`                          | `true`     |
+| `activeLine`        | 给光标所在行加底色                                                       | `boolean`                          | `true`     |
+| `tabSize`           | 制表位宽度                                                               | `number`                           | `2`        |
+| `indentWithTabs`    | 用制表符缩进                                                             | `boolean`                          | `false`    |
+| `tabIndents`        | `Tab` 用于缩进；关闭后 `Tab` 移到下一个控件，补全和片段中仍然可用        | `boolean`                          | `true`     |
+| `closeBrackets`     | 输入括号和引号时补上另一半                                               | `boolean`                          | `true`     |
+| `matchBrackets`     | 标出光标旁的括号和它的配对                                               | `boolean`                          | `true`     |
 | `searchable`        | 提供查找替换面板，见[查找与替换](./editing#查找与替换)                   | `boolean`                          | `true`     |
 | `wrap`              | 长行自动换行                                                             | `boolean`                          | `false`    |
 | `foldable`          | 允许折叠代码                                                             | `boolean`                          | `true`     |
@@ -102,7 +102,7 @@ app.use(DouCodeEditor)
 | `autofocus`         | 挂载后获得焦点                                                           | `boolean`                          | `false`    |
 | `aria-label`        | 读屏读出的名称                                                           | `string`                           | —          |
 
-### Events
+### CodeEditor Events
 
 | 名称          | 说明                                           | 参数                                    |
 | ------------- | ---------------------------------------------- | --------------------------------------- |
@@ -111,7 +111,7 @@ app.use(DouCodeEditor)
 | `focus`       | 获得焦点时触发                                 | `FocusEvent`                            |
 | `blur`        | 失去焦点时触发                                 | `FocusEvent`                            |
 
-### 实例
+### CodeEditor Exposes
 
 | 名称                           | 说明                                                           |
 | ------------------------------ | -------------------------------------------------------------- |

@@ -1,5 +1,11 @@
 <script setup lang="ts">
-import { DouGantt, type GanttDocument, type GanttExpose, type GanttLink, type GanttTask } from '@dou-ui/gantt'
+import {
+  DouGantt,
+  type GanttDocument,
+  type GanttExpose,
+  type GanttLink,
+  type GanttTask,
+} from '@dou-ui/gantt'
 import { RedoIcon, UndoIcon } from '@dou-ui/icons'
 import { DouButton, DouSpace, DouSwitch, DouText } from 'dou-ui'
 import { computed, ref, useTemplateRef } from 'vue'

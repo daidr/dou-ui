@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { nextTick } from 'vue'
 import { attachment, formatFileSize, isSafeFileSrc } from '..'
 import { blocksToHTML, htmlToBlocks } from '../../../core/convert'
-import type { Block, PartialBlock } from '../../../core/model'
+import type { Block, EditorDocument, PartialBlock } from '../../../core/model'
 import DouEditor from '../../../editor.vue'
 import { blocksToMarkdown } from '../../../markdown'
 import { editorKit } from '../../editor-kit'
@@ -77,7 +77,7 @@ describe('attachment', () => {
           image({ upload: async () => 'https://example.com/a.png' }),
           attachment({ upload }),
         ],
-        modelValue: [{ id: 'a', content: '' }],
+        modelValue: { version: 1, blocks: [{ id: 'a', content: '' }] },
       },
     })
     await nextTick()
@@ -86,7 +86,7 @@ describe('attachment', () => {
     )!
     paste(surface, [new File(['%PDF'], '方案.pdf', { type: 'application/pdf' })])
     await nextTick()
-    let blocks = wrapper.emitted('update:modelValue')!.at(-1)![0] as Block[]
+    let blocks = (wrapper.emitted('update:modelValue')!.at(-1)![0] as EditorDocument<Block>).blocks
     expect(blocks[0]).toMatchObject({
       type: 'attachment',
       props: { src: '', name: '方案.pdf', size: 4, mime: 'application/pdf' },
@@ -97,7 +97,7 @@ describe('attachment', () => {
     finish!('https://example.com/方案.pdf')
     await flush()
     await nextTick()
-    blocks = wrapper.emitted('update:modelValue')!.at(-1)![0] as Block[]
+    blocks = (wrapper.emitted('update:modelValue')!.at(-1)![0] as EditorDocument<Block>).blocks
     expect(blocks[0]!.props.src).toBe('https://example.com/方案.pdf')
     const link = (wrapper.element as HTMLElement).querySelector<HTMLAnchorElement>(
       '.dou-editor-attachment__download',
@@ -108,7 +108,7 @@ describe('attachment', () => {
     paste(surface, [new File(['x'], 'shot.png', { type: 'image/png' })])
     await flush()
     await nextTick()
-    blocks = wrapper.emitted('update:modelValue')!.at(-1)![0] as Block[]
+    blocks = (wrapper.emitted('update:modelValue')!.at(-1)![0] as EditorDocument<Block>).blocks
     expect(blocks.map((block) => block.type)).toContain('image')
     wrapper.unmount()
   })
@@ -122,7 +122,7 @@ describe('attachment', () => {
           attachment({ upload: async (picked) => `https://example.com/${picked.name}` }),
           image({ upload: async (picked) => `https://example.com/${picked.name}` }),
         ],
-        modelValue: [{ id: 'a', content: '' }],
+        modelValue: { version: 1, blocks: [{ id: 'a', content: '' }] },
       },
     })
     await nextTick()
@@ -136,7 +136,8 @@ describe('attachment', () => {
     ])
     await flush()
     await nextTick()
-    const blocks = wrapper.emitted('update:modelValue')!.at(-1)![0] as Block[]
+    const blocks = (wrapper.emitted('update:modelValue')!.at(-1)![0] as EditorDocument<Block>)
+      .blocks
     expect(blocks.map((block) => [block.type, block.props.src])).toEqual([
       ['image', 'https://example.com/a.png'],
       ['attachment', 'https://example.com/b.pdf'],

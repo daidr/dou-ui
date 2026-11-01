@@ -20,31 +20,31 @@
 
 ## API
 
-### Props
+### CodeInput Props
 
-| 名称             | 说明                                           | 类型                                     | 默认值                       |
-| ---------------- | ---------------------------------------------- | ---------------------------------------- | ---------------------------- |
-| `v-model`        | 代码；单行时换行会变为空格                     | `string`                                 | —                            |
-| `multiline`      | 允许多行，随内容增高                           | `boolean`                                | `false`                      |
-| `autosize`       | 多行时最少、最多显示的行数                     | `{ minRows?: number, maxRows?: number }` | `{ minRows: 1, maxRows: 6 }` |
-| `size`           | 尺寸                                           | `'sm' \| 'md' \| 'lg'`                   | 跟随表单，否则 `'md'`        |
-| `invalid`        | 显示为错误状态                                 | `boolean`                                | `false`                      |
-| `disabled`       | 禁用                                           | `boolean`                                | 跟随表单，否则 `false`       |
-| `readonly`       | 只读                                           | `boolean`                                | 跟随表单，否则 `false`       |
-| `placeholder`    | 为空时的提示文字                               | `string`                                 | —                            |
-| `language`       | 语言                                           | `CodeLanguage \| null`                   | —                            |
-| `extensions`     | 扩展                                           | `CodeExtension[]`                        | —                            |
-| `diagnostics`    | 要显示的问题                                   | `CodeDiagnostic[]`                       | —                            |
-| `keymap`         | 额外的快捷键                                   | `CodeKeymap`                             | —                            |
-| `close-brackets` | 输入括号和引号时补上另一半                     | `boolean`                                | `true`                       |
-| `tab-size`       | 制表位宽度                                     | `number`                                 | `2`                          |
-| `teleport`       | 补全列表和说明的渲染位置；`false` 时在输入框内 | `string \| HTMLElement \| false`         | 全局配置，否则 `body`        |
-| `keys`           | 触屏上键盘上方的符号栏                         | `boolean \| (CodeKey \| string)[]`       | `false`                      |
-| `messages`       | 改写界面上的文字                               | `Partial<CodeMessages>`                  | —                            |
-| `autofocus`      | 挂载后获得焦点                                 | `boolean`                                | `false`                      |
-| `aria-label`     | 读屏读出的名称                                 | `string`                                 | —                            |
+| 名称            | 说明                                           | 类型                                     | 默认值                       |
+| --------------- | ---------------------------------------------- | ---------------------------------------- | ---------------------------- |
+| `v-model`       | 代码；单行时换行会变为空格                     | `string`                                 | —                            |
+| `multiline`     | 允许多行，随内容增高                           | `boolean`                                | `false`                      |
+| `autosize`      | 多行时最少、最多显示的行数                     | `{ minRows?: number, maxRows?: number }` | `{ minRows: 1, maxRows: 6 }` |
+| `size`          | 尺寸                                           | `'sm' \| 'md' \| 'lg'`                   | 跟随表单，否则 `'md'`        |
+| `invalid`       | 显示为错误状态                                 | `boolean`                                | `false`                      |
+| `disabled`      | 禁用                                           | `boolean`                                | 跟随表单，否则 `false`       |
+| `readonly`      | 只读                                           | `boolean`                                | 跟随表单，否则 `false`       |
+| `placeholder`   | 为空时的提示文字                               | `string`                                 | —                            |
+| `language`      | 语言                                           | `CodeLanguage \| null`                   | —                            |
+| `extensions`    | 扩展                                           | `CodeExtension[]`                        | —                            |
+| `diagnostics`   | 要显示的问题                                   | `CodeDiagnostic[]`                       | —                            |
+| `keymap`        | 额外的快捷键                                   | `CodeKeymap`                             | —                            |
+| `closeBrackets` | 输入括号和引号时补上另一半                     | `boolean`                                | `true`                       |
+| `tabSize`       | 制表位宽度                                     | `number`                                 | `2`                          |
+| `teleport`      | 补全列表和说明的渲染位置；`false` 时在输入框内 | `string \| HTMLElement \| false`         | 全局配置，否则 `body`        |
+| `keys`          | 触屏上键盘上方的符号栏                         | `boolean \| (CodeKey \| string)[]`       | `false`                      |
+| `messages`      | 改写界面上的文字                               | `Partial<CodeMessages>`                  | —                            |
+| `autofocus`     | 挂载后获得焦点                                 | `boolean`                                | `false`                      |
+| `aria-label`    | 读屏读出的名称                                 | `string`                                 | —                            |
 
-### Events
+### CodeInput Events
 
 | 名称          | 说明                                                         | 参数                    |
 | ------------- | ------------------------------------------------------------ | ----------------------- |
@@ -53,4 +53,4 @@
 | `focus`       | 获得焦点时触发                                               | `FocusEvent`            |
 | `blur`        | 失去焦点时触发                                               | `FocusEvent`            |
 
-实例的属性和方法与 [DouCodeEditor](./#实例) 相同。
+实例的属性和方法与 [DouCodeEditor](./#codeeditor-exposes) 相同。

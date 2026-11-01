@@ -546,6 +546,7 @@ sheet.value.transact((tr) => {
 
 ```ts
 const book = {
+  version: 1,
   styles: { blank: { locked: false } },
   sheets: [
     {

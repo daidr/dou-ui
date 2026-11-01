@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 import { embed, resolveEmbed } from '..'
 import { blocksToHTML, htmlToBlocks } from '../../../core/convert'
-import type { Block } from '../../../core/model'
+import type { Block, EditorDocument } from '../../../core/model'
 import DouEditor from '../../../editor.vue'
 import { blocksToMarkdown } from '../../../markdown'
 import { editorKit } from '../../editor-kit'
@@ -104,7 +104,7 @@ describe('embed', () => {
   it('takes a link in the empty block and refuses one it cannot embed', async () => {
     const wrapper = mount(DouEditor, {
       attachTo: document.body,
-      props: { extensions, modelValue: [{ id: 'e', type: 'embed' }] },
+      props: { extensions, modelValue: { version: 1, blocks: [{ id: 'e', type: 'embed' }] } },
     })
     await nextTick()
     const input = wrapper.find('.dou-editor-embed input')
@@ -116,7 +116,8 @@ describe('embed', () => {
     expect(wrapper.find('.dou-editor-embed__error').exists()).toBe(false)
     await wrapper.find('.dou-editor-embed form').trigger('submit')
     await nextTick()
-    const blocks = wrapper.emitted('update:modelValue')!.at(-1)![0] as Block[]
+    const blocks = (wrapper.emitted('update:modelValue')!.at(-1)![0] as EditorDocument<Block>)
+      .blocks
     expect(blocks[0]!.props.src).toBe('https://example.com/map')
     const frame = wrapper.find('.dou-editor-embed iframe')
     expect(frame.attributes('src')).toBe('https://example.com/map')

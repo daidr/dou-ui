@@ -20,13 +20,13 @@
 
 ## 列表视图
 
-`view` 为 `'agenda'` 时，按天列出当月的日程，没有日程的日子不显示。每项日程前面是时间，全天日程写“全天”，跨天的日程在每一天都列出，时间是当天的那一段。左右翻页按月，点日期选中这一天，点日程触发 `event-click`。设置 `editable` 时，键盘删除、<DouKbd>Alt</DouKbd> + <DouKbd>←</DouKbd> / <DouKbd>→</DouKbd> 改日期和右键菜单同样可用，触屏上长按日程打开菜单；拖动只在其他视图里。
+`view` 为 `'agenda'` 时，按天列出当月的日程，没有日程的日子不显示。每项日程前面是时间，全天日程写“全天”，跨天的日程在每一天都列出，时间是当天的那一段。左右翻页按月，点日期选中这一天，点日程触发 `eventClick`。设置 `editable` 时，键盘删除、<DouKbd>Alt</DouKbd> + <DouKbd>←</DouKbd> / <DouKbd>→</DouKbd> 改日期和右键菜单同样可用，触屏上长按日程打开菜单；拖动只在其他视图里。
 
 ## 重复日程
 
 组件只显示具体的日程，不理解重复规则。`expandRepeats(events, from, to)` 把带 `repeat` 的日程展开成 `from` 到 `to`（都包含）之间的每一次，没有 `repeat` 的日程原样保留，结果直接传给 `events`。
 
-日历显示哪些日子由 `range-change` 给出，翻页、切换视图时触发，参数是 `{ start, end }`。初值用 `visibleRange(date, view, weekStart)` 算出，它和日历用的是同一套算法，这样服务端渲染的首屏也有日程。`weekStart` 要和日历一致：没有设置 `week-start` 时日历跟随语言，中文是周一（`1`），英文是周日（`0`）；最好像下面这样两边都明确写出来：
+日历显示哪些日子由 `rangeChange` 给出，翻页、切换视图时触发，参数是 `{ start, end }`。初值用 `visibleRange(date, view, weekStart)` 算出，它和日历用的是同一套算法，这样服务端渲染的首屏也有日程。`weekStart` 要和日历一致：没有设置 `weekStart` 时日历跟随语言，中文是周一（`1`），英文是周日（`0`）；最好像下面这样两边都明确写出来：
 
 ```vue
 <script setup lang="ts">
@@ -52,15 +52,15 @@ const events = computed(() => expandRepeats(series.value, range.value.start, ran
 
 `repeat` 的字段：
 
-| 名称        | 说明                                                                                                                       | 类型                                   |
-| ----------- | -------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
-| `every`     | 按什么重复                                                                                                                 | `'day' \| 'week' \| 'month' \| 'year'` |
-| `interval`  | 每隔几个单位，例如 `every: 'week', interval: 2` 是隔周，默认 `1`                                                           | `number`                               |
-| `weekdays`  | 按周重复时落在星期几，`0` 是周日；默认是 `start` 那天                                                                      | `number[]`                             |
-| `weekStart` | 按周隔周重复时，一周从星期几开始，决定哪些周算“隔一周”；默认 `0`（周日），和日历的 `week-start` 无关，需要一致时传同一个值 | `number`                               |
-| `until`     | 最后一次最晚在哪天开始，`YYYY-MM-DD`                                                                                       | `string`                               |
-| `count`     | 最多几次，从第一次算起，被 `except` 去掉的也算在内                                                                         | `number`                               |
-| `except`    | 去掉哪些日子的那一次，`YYYY-MM-DD`，例如节假日，或者单独改过的那一次                                                       | `string[]`                             |
+| 名称        | 说明                                                                                                                      | 类型                                   |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| `every`     | 按什么重复                                                                                                                | `'day' \| 'week' \| 'month' \| 'year'` |
+| `interval`  | 每隔几个单位，例如 `every: 'week', interval: 2` 是隔周，默认 `1`                                                          | `number`                               |
+| `weekdays`  | 按周重复时落在星期几，`0` 是周日；默认是 `start` 那天                                                                     | `number[]`                             |
+| `weekStart` | 按周隔周重复时，一周从星期几开始，决定哪些周算“隔一周”；默认 `0`（周日），和日历的 `weekStart` 无关，需要一致时传同一个值 | `number`                               |
+| `until`     | 最后一次最晚在哪天开始，`YYYY-MM-DD`                                                                                      | `string`                               |
+| `count`     | 最多几次，从第一次算起，被 `except` 去掉的也算在内                                                                        | `number`                               |
+| `except`    | 去掉哪些日子的那一次，`YYYY-MM-DD`，例如节假日，或者单独改过的那一次                                                      | `string[]`                             |
 
 每一次的时间和第一次（日程自己的 `start`、`end`）相同，只是换了日期。按月、按年重复时，没有这一天的月份跳过，不会挪到月底，例如 31 号在小月里没有，2 月 29 日只在闰年有。按周重复时，`start` 那天不在 `weekdays` 里就不算一次，系列从它之后第一个符合的日子开始，`count` 也从那里数起。隔周时从 `start` 所在的那一周开始数，一周从 `weekStart` 开始。`interval` 不是正整数、`weekdays` 或 `weekStart` 不在 `0` 到 `6` 之间时，开发时会在控制台提示一次。
 
@@ -256,11 +256,11 @@ type CalendarMenuTarget =
 
 ### 工具函数
 
-| 名称            | 说明                                                                             | 类型                                                                                           |
-| --------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `expandRepeats` | 把重复日程展开成 `from` 到 `to` 之间的每一次，见[重复日程](#重复日程)            | `(events: RepeatingEvent[], from: string, to: string) => CalendarEvent[]`                      |
-| `occurrenceOf`  | 读出展开出的 id 属于哪个日程、哪一天                                             | `(id: string) => { id: string; date: string } \| null`                                         |
-| `visibleRange`  | 某天在某个视图下显示哪些日子，和 `range-change` 的参数相同；`weekStart` 默认 `0` | `(date: string, view: CalendarViewMode, weekStart?: number) => { start: string; end: string }` |
+| 名称            | 说明                                                                            | 类型                                                                                           |
+| --------------- | ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `expandRepeats` | 把重复日程展开成 `from` 到 `to` 之间的每一次，见[重复日程](#重复日程)           | `(events: RepeatingEvent[], from: string, to: string) => CalendarEvent[]`                      |
+| `occurrenceOf`  | 读出展开出的 id 属于哪个日程、哪一天                                            | `(id: string) => { id: string; date: string } \| null`                                         |
+| `visibleRange`  | 某天在某个视图下显示哪些日子，和 `rangeChange` 的参数相同；`weekStart` 默认 `0` | `(date: string, view: CalendarViewMode, weekStart?: number) => { start: string; end: string }` |
 
 ```ts
 // 带重复规则的日程，字段见重复日程一节

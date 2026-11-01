@@ -122,7 +122,7 @@ interface SheetCell {
   value?: SheetValue
   style?: string // 样式的名字
   format?: string // 数字或日期格式
-  note?: string // 备注
+  note?: string // 批注
   type?: string // 单元格类型：date、select、checkbox、扩展加的类型，或 types 里的名字
 }
 ```

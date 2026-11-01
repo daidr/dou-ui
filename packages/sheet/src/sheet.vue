@@ -7,6 +7,7 @@ import {
   useLocale,
   useElementSize,
   type PointerHold,
+  type VirtualElement,
 } from 'dou-ui'
 import {
   ChevronDownIcon,
@@ -18,6 +19,9 @@ import {
   ColumnUngroupIcon,
   CopyIcon,
   EraserIcon,
+  MessagePlusIcon,
+  MessageTextIcon,
+  MessageXIcon,
   EyeIcon,
   EyeOffIcon,
   CellsMergeIcon,
@@ -70,6 +74,7 @@ import { fillContinues, type SheetFillMode } from './core/fill'
 import { SheetAxis } from './core/axis'
 import { mergesOf, type SheetMerges } from './core/merge'
 import { groupRange, groupsOf, SheetGroups, OUTLINE_LANE, type SheetGroupLines } from './core/group'
+import SheetNote from './components/sheet-note.vue'
 import SheetOutline from './components/sheet-outline.vue'
 import { alignOf, fitNumber, formatValue, inputText, parseInput } from './core/format'
 import { SheetHistory, type SheetHistoryView } from './core/history'
@@ -839,8 +844,10 @@ const scroll = shallowRef({ top: 0, left: 0 })
 function onScroll() {
   const el = viewport.value
   if (!el) return
-  if (el.scrollTop !== scroll.value.top || el.scrollLeft !== scroll.value.left)
-    scroll.value = { top: el.scrollTop, left: el.scrollLeft }
+  if (el.scrollTop === scroll.value.top && el.scrollLeft === scroll.value.left) return
+  scroll.value = { top: el.scrollTop, left: el.scrollLeft }
+  // a note read in passing goes with the cell; one being written follows it
+  if (noteShown.value) hideNote()
 }
 
 /** Wide enough for the longest row number. */
@@ -1023,6 +1030,8 @@ interface CellView {
   problem?: string
   /** Whether the value breaks its type or a rule, which a corner mark shows. */
   invalid?: boolean
+  /** The cell's note, which the other corner's mark shows. */
+  note?: string
   /** Left out for screen readers: a cell under a merge, or a merge's piece in another pane. */
   hidden?: boolean
   rowspan?: number
@@ -1200,6 +1209,7 @@ function cellView(
   }
   if (problem) view.problem = problem
   if (invalid) view.invalid = true
+  if (input && typeof input === 'object' && input.note) view.note = input.note
   return view
 }
 
@@ -1269,6 +1279,8 @@ function addMergedCells(row: number, list: number[], views: CellView[]) {
       view.render = undefined
       view.hidden = true
     }
+    // the note's mark is in the top right corner of the whole merge
+    if (right !== m.right || paneTop !== m.top) view.note = undefined
     view.cls += ' is-merged'
     view.key = `m${m.left}`
     if (home && active.value.row === m.top && active.value.col === m.left) view.id = activeId.value
@@ -2154,6 +2166,8 @@ function onKeydown(event: KeyboardEvent) {
       return moveWithin(event.shiftKey ? 'left' : 'right')
     case 'F2':
       event.preventDefault()
+      // Shift + F2 writes the cell's note
+      if (event.shiftKey) return editNote()
       return editActive()
     case 'Delete':
     case 'Backspace':
@@ -3386,6 +3400,166 @@ function groupItems(axis: SheetAxisName): SheetMenuItem[] {
   return out
 }
 
+// Notes ----------------------------------------------------------------------------------
+
+/** The note showing: read on hover or after a tap, or being written. */
+interface NoteShown extends SheetPoint {
+  by: 'hover' | 'tap' | 'edit'
+}
+const noteShown = shallowRef<NoteShown | null>(null)
+let noteTimer: ReturnType<typeof setTimeout> | undefined
+
+/** A cell's note; a merged cell's is on its top left cell. */
+function noteAt(point: SheetPoint) {
+  const cell = sheet.value.cells[point.row]?.[point.col]
+  return cell && typeof cell === 'object' ? cell.note : undefined
+}
+
+/** The cell a note belongs to: the top left of a merge. */
+function noteHome(point: SheetPoint): SheetPoint {
+  const span = merges.value.cell(point)
+  return { row: span.top, col: span.left }
+}
+
+const sameCell = (a: SheetPoint | null | undefined, b: SheetPoint) =>
+  !!a && a.row === b.row && a.col === b.col
+
+/** Where the note's cell is on the page, for the note to sit beside. */
+const noteAnchor: VirtualElement = {
+  getBoundingClientRect() {
+    const at = noteShown.value
+    const el = viewport.value
+    if (!at || !el) return new DOMRect()
+    const box = el.getBoundingClientRect()
+    const r = cellRect(at)
+    return new DOMRect(
+      box.left + el.clientLeft + r.x,
+      box.top + el.clientTop + r.y,
+      r.width,
+      r.height,
+    )
+  },
+}
+
+/** Hides a note being read, not one being written; `after` some ms. */
+function hideNote(after = 0) {
+  clearTimeout(noteTimer)
+  if (after) noteTimer = setTimeout(hideNote, after)
+  else if (noteShown.value?.by !== 'edit') noteShown.value = null
+}
+
+/** How long the pointer rests on a cell before its note shows, and leaves before it goes. */
+const NOTE_SHOW = 300
+const NOTE_HIDE = 200
+
+/** A mouse resting on a cell with a note shows it; moving on to another one switches at once. */
+function hoverNote(event: PointerEvent) {
+  if (noteShown.value?.by === 'edit' || drag.value) return
+  const hit = hitAt(event.clientX, event.clientY)
+  const point = hit.area === 'cell' ? noteHome(hit) : null
+  if (point && sameCell(noteShown.value, point)) return clearTimeout(noteTimer)
+  if (!point || !noteAt(point)) {
+    if (noteShown.value) hideNote(NOTE_HIDE)
+    else clearTimeout(noteTimer)
+    return
+  }
+  clearTimeout(noteTimer)
+  const show = () => (noteShown.value = { ...point, by: 'hover' })
+  if (noteShown.value) show()
+  else noteTimer = setTimeout(show, NOTE_SHOW)
+}
+
+/** The pointer moving onto the note keeps it; leaving it lets it go. */
+function onNoteHover(inside: boolean) {
+  if (inside) clearTimeout(noteTimer)
+  else if (noteShown.value?.by === 'hover') hideNote(NOTE_HIDE)
+}
+
+/** Opens the box to write the note of a cell, the active one by default. */
+function editNote(at: SheetPoint = active.value) {
+  if (props.readonly) return announce(messages.value.readonly)
+  const point = noteHome(at)
+  clearTimeout(noteTimer)
+  scrollToPoint(point)
+  noteShown.value = { ...point, by: 'edit' }
+}
+
+/** Keeps what was written; `leaving` when focus left the box for something else. */
+function saveNote(text: string, leaving: boolean) {
+  const at = noteShown.value
+  noteShown.value = null
+  if (!at) return
+  const before = noteAt(at) ?? ''
+  const after = text.trim() ? text : ''
+  if (after !== before) {
+    const m = messages.value.note
+    if (transact((tr) => tr.setNote(at, after || undefined), { action: 'note' }))
+      announce(after ? m.saved : m.removed)
+  }
+  if (!leaving) focusGrid()
+}
+
+function cancelNote(leaving: boolean) {
+  noteShown.value = null
+  if (!leaving) focusGrid()
+}
+
+/** How many notes the selection holds. */
+function notesSelected() {
+  let count = 0
+  forEachSelected((point) => {
+    if (noteAt(point)) count++
+  })
+  return count
+}
+
+function removeNotes() {
+  if (props.readonly) return announce(messages.value.readonly)
+  const count = notesSelected()
+  if (!count) return
+  const ranges = selection.value.ranges
+  const m = messages.value.note
+  if (
+    transact(
+      (tr) => {
+        for (const range of ranges) tr.clearNotes(boundsOf(range))
+      },
+      { action: 'note' },
+    )
+  )
+    announce(count === 1 ? m.removed : format(m.removedMany, { count }))
+}
+
+/** Menu items for the note of the active cell, and taking the selection's notes off. */
+function noteItems(): SheetMenuItem[] {
+  const m = messages.value.note
+  const has = !!noteAt(noteHome(active.value))
+  const items: SheetMenuItem[] = [
+    {
+      key: 'note',
+      label: has ? m.edit : m.add,
+      icon: has ? MessageTextIcon : MessagePlusIcon,
+      shortcut: 'shift+F2',
+      divided: true,
+      run: () => editNote(),
+    },
+  ]
+  const count = notesSelected()
+  if (count)
+    items.push({
+      key: 'note-remove',
+      label: count === 1 ? m.remove : format(m.removeMany, { count }),
+      icon: MessageXIcon,
+      run: removeNotes,
+    })
+  return items
+}
+
+// a tapped note goes once another cell is chosen
+watch(active, (point) => {
+  if (noteShown.value?.by === 'tap' && !sameCell(noteShown.value, noteHome(point))) hideNote()
+})
+
 // Menu -----------------------------------------------------------------------------------
 
 const menu = ref<InstanceType<typeof SheetMenu>>()
@@ -3546,6 +3720,7 @@ function menuFor(area: SheetMenuContext['area']): SheetMenuItem[] {
       icon: RowGroupIcon,
       children: [...groupItems('row'), ...dividedFirst(groupItems('col'))],
     },
+    ...noteItems(),
     ...dataItems(),
     clear,
   ]
@@ -4256,9 +4431,16 @@ function onPointerCancel() {
 
 /** The cursor over the edges between headers, which resize. */
 function onHover(event: PointerEvent) {
-  if (event.pointerType !== 'mouse' || drag.value || props.readonly) return
+  if (event.pointerType !== 'mouse' || drag.value) return
+  hoverNote(event)
+  if (props.readonly) return
   const edge = edgeAt(hitAt(event.clientX, event.clientY), false)
   edgeHover.value = edge?.axis ?? null
+}
+
+function onLeave() {
+  edgeHover.value = null
+  if (noteShown.value?.by === 'hover') hideNote(NOTE_HIDE)
 }
 
 /** A tap selects a cell; a tap on the cell already selected edits it. */
@@ -4287,6 +4469,7 @@ function onClick(event: MouseEvent) {
     sel.active.row === hit.row &&
     sel.active.col === hit.col
   if (again && !props.readonly) {
+    hideNote()
     // inside the tap, so phones show their keyboard
     editActive()
     return
@@ -4294,6 +4477,12 @@ function onClick(event: MouseEvent) {
   press(hit, { shiftKey: false, ctrlKey: false, metaKey: false })
   focusGrid()
   announce(activeLabel.value)
+  // a finger can't rest on a cell: tapping one shows its note
+  const home = hit.area === 'cell' ? noteHome(hit) : null
+  if (home && noteAt(home)) {
+    clearTimeout(noteTimer)
+    noteShown.value = { ...home, by: 'tap' }
+  }
 }
 
 /** The cell an element is drawn in, read from the grid's row and column numbers. */
@@ -4571,6 +4760,13 @@ function editTarget(target?: SheetCellTarget) {
   beginEdit('edit', editTextAt(active.value.row, active.value.col))
 }
 
+function editNoteTarget(target?: SheetCellTarget) {
+  const point = target == null ? active.value : toPoint(target)
+  if (!point) return
+  select(selectCell(clampPoint(point, rowCount.value, colCount.value)))
+  editNote()
+}
+
 defineExpose<SheetExpose>({
   transact: (run, meta) => transact(run, meta),
   undo: () => travel('undo'),
@@ -4584,6 +4780,7 @@ defineExpose<SheetExpose>({
   select: selectTarget,
   scrollTo: scrollToTarget,
   edit: editTarget,
+  editNote: editNoteTarget,
   focus: () => focusGrid(),
   showSheet,
   toCSV,
@@ -4685,7 +4882,7 @@ defineExpose<SheetExpose>({
           @dblclick="onDblClick"
           @contextmenu="onContextMenu"
           @pointermove="onHover"
-          @pointerleave="edgeHover = null"
+          @pointerleave="onLeave"
           @focus="focused = true"
           @blur="focused = false"
         >
@@ -4795,6 +4992,12 @@ defineExpose<SheetExpose>({
                 <span v-else class="dou-sheet__text">{{ cell.text }}</span>
                 <span v-if="cell.problem" class="dou-sheet__sr-only">（{{ cell.problem }}）</span>
                 <span v-if="cell.invalid" class="dou-sheet__invalid" aria-hidden="true" />
+                <template v-if="cell.note">
+                  <span class="dou-sheet__noted" aria-hidden="true" />
+                  <span v-if="!cell.hidden" class="dou-sheet__sr-only">{{
+                    format(messages.note.cellNote, { note: cell.note })
+                  }}</span>
+                </template>
               </div>
               <div
                 v-for="cell in rowCells(row, bodyCols)"
@@ -4820,6 +5023,12 @@ defineExpose<SheetExpose>({
                 <span v-else class="dou-sheet__text">{{ cell.text }}</span>
                 <span v-if="cell.problem" class="dou-sheet__sr-only">（{{ cell.problem }}）</span>
                 <span v-if="cell.invalid" class="dou-sheet__invalid" aria-hidden="true" />
+                <template v-if="cell.note">
+                  <span class="dou-sheet__noted" aria-hidden="true" />
+                  <span v-if="!cell.hidden" class="dou-sheet__sr-only">{{
+                    format(messages.note.cellNote, { note: cell.note })
+                  }}</span>
+                </template>
               </div>
             </div>
           </div>
@@ -4883,6 +5092,12 @@ defineExpose<SheetExpose>({
                 <span v-else class="dou-sheet__text">{{ cell.text }}</span>
                 <span v-if="cell.problem" class="dou-sheet__sr-only">（{{ cell.problem }}）</span>
                 <span v-if="cell.invalid" class="dou-sheet__invalid" aria-hidden="true" />
+                <template v-if="cell.note">
+                  <span class="dou-sheet__noted" aria-hidden="true" />
+                  <span v-if="!cell.hidden" class="dou-sheet__sr-only">{{
+                    format(messages.note.cellNote, { note: cell.note })
+                  }}</span>
+                </template>
               </div>
               <div
                 v-for="cell in rowCells(row, bodyCols)"
@@ -4908,6 +5123,12 @@ defineExpose<SheetExpose>({
                 <span v-else class="dou-sheet__text">{{ cell.text }}</span>
                 <span v-if="cell.problem" class="dou-sheet__sr-only">（{{ cell.problem }}）</span>
                 <span v-if="cell.invalid" class="dou-sheet__invalid" aria-hidden="true" />
+                <template v-if="cell.note">
+                  <span class="dou-sheet__noted" aria-hidden="true" />
+                  <span v-if="!cell.hidden" class="dou-sheet__sr-only">{{
+                    format(messages.note.cellNote, { note: cell.note })
+                  }}</span>
+                </template>
               </div>
             </div>
           </div>
@@ -5126,6 +5347,17 @@ defineExpose<SheetExpose>({
           :typed="editTyped"
           :anchor="editor"
           @pick="pickValue"
+        />
+        <SheetNote
+          v-if="noteShown"
+          :key="`${noteShown.row}:${noteShown.col}:${noteShown.by === 'edit'}`"
+          :anchor="noteAnchor"
+          :note="noteAt(noteShown) ?? ''"
+          :editing="noteShown.by === 'edit'"
+          :messages="messages.note"
+          @save="saveNote"
+          @cancel="cancelNote"
+          @hover="onNoteHover"
         />
         <component :is="overlay" v-for="(overlay, i) in resolved.overlays" :key="i" />
         <div v-if="notice" class="dou-sheet__notice" role="status">{{ notice }}</div>

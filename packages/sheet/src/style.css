@@ -597,16 +597,71 @@
   }
 
   /* a value that doesn't fit its cell's type: a small mark in the corner */
-  .dou-sheet__invalid {
+  /* corner marks: a broken value at the top left, a note at the top right */
+  .dou-sheet__invalid,
+  .dou-sheet__noted {
     position: absolute;
     top: 0;
-    right: 0;
     z-index: 2;
     border: 4px solid transparent;
-    border-top-color: var(--dou-color-danger);
-    border-right-color: var(--dou-color-danger);
-    content: '';
     pointer-events: none;
+  }
+  .dou-sheet__invalid {
+    left: 0;
+    border-top-color: var(--dou-color-danger);
+    border-left-color: var(--dou-color-danger);
+  }
+  .dou-sheet__noted {
+    right: 0;
+    border-top-color: var(--dou-color-warning);
+    border-right-color: var(--dou-color-warning);
+  }
+
+  /* a cell's note, beside it */
+  .dou-sheet__note {
+    box-sizing: border-box;
+    width: 224px;
+    max-width: calc(100vw - 16px);
+    padding: 8px 10px;
+    font-size: var(--dou-font-size-sm);
+    line-height: 20px;
+
+    &.is-editing {
+      padding: 4px;
+    }
+  }
+  .dou-sheet__note-text {
+    max-height: 240px;
+    margin: 0;
+    overflow: auto;
+    color: var(--dou-color-text);
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+  }
+  .dou-sheet__note-input {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 68px;
+    max-height: 240px;
+    padding: 4px 6px;
+    border: 0;
+    border-radius: calc(var(--dou-radius-control) - 2px);
+    outline: none;
+    background: transparent;
+    color: var(--dou-color-text);
+    font: inherit;
+    /* 16px or more on phones, so focusing it doesn't zoom the page */
+    font-size: max(var(--dou-font-size-input-min, 0px), 1em);
+    line-height: 20px;
+    resize: none;
+  }
+  .dou-sheet__note-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 4px;
+    padding: 4px 2px 2px;
+    border-top: 1px solid var(--dou-color-border-subtle);
   }
 
   /* a select cell's value in its option's tone, as a quiet tag */

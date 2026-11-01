@@ -157,6 +157,11 @@ const slots = defineSlots<ChartSlots>()
 const emit = defineEmits<{
   /** A bar, point or slice was clicked, or Enter pressed on it: what the tooltip shows there. */
   select: [event: ChartSelectEvent]
+  /**
+   * The pointer, a finger or the arrow keys moved onto a bar, point or slice
+   * (what `select` would give there), or off the chart (`null`).
+   */
+  hover: [event: ChartSelectEvent | null]
   /** The table view was closed with Escape. */
   'update:table': [value: boolean]
 }>()
@@ -2305,10 +2310,35 @@ function rawX(x: number): unknown {
   return kind === 'category' ? model.value.categories[x] : kind === 'time' ? new Date(x) : x
 }
 
+/** What `select` and `hover` give: what the tooltip shows there. */
+const eventOf = (t: Tip): ChartSelectEvent => ({ x: t.x, title: t.title, items: t.items })
+
 /** Tells the page what was picked: what the tooltip shows there. */
 function select(t: Tip) {
-  emit('select', { x: t.x, title: t.title, items: t.items })
+  emit('select', eventOf(t))
 }
+
+/**
+ * What this chart's own pointer, finger or keys are on, as a key that changes
+ * only when that does (not when the pointer moves over the same thing). An x
+ * shown because another chart of the group points at it is not hovered here.
+ */
+const hoverKey = computed(() => {
+  const a = active.value
+  if (!a || a.synced || !interactive.value) return ''
+  if (a.type === 'axis') return `axis:${a.x}`
+  return a.type === 'item' ? `item:${a.series}:${a.row}` : `slice:${a.slice}`
+})
+/** Whether the page was last told of something hovered, so `null` is told once. */
+let hoverTold = false
+
+watch(hoverKey, (key) => {
+  if (!instance?.vnode.props?.onHover) return
+  const t = key ? tipOf(active.value) : null
+  if (!t && !hoverTold) return
+  hoverTold = !!t
+  emit('hover', t && eventOf(t))
+})
 
 /** Whether anyone listens to `select`: then what can be picked shows a pointing hand. */
 const selectable = () => !!instance?.vnode.props?.onSelect

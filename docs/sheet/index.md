@@ -89,6 +89,7 @@ app.use(DouSheet)
 | `Ctrl` / `⌘` + `A`                            | 全选                                           |
 | `F2`                                          | 编辑                                           |
 | `Shift` + `F2`                                | 插入或编辑批注                                 |
+| `Ctrl` / `⌘` + `K`                            | 插入或编辑链接                                 |
 | `Delete` / `Backspace`                        | 清空选中区域的值                               |
 | `Ctrl` / `⌘` + `C` / `X` / `V`                | 复制、剪切、粘贴                               |
 | `Ctrl` / `⌘` + `D` / `R`                      | 向下、向右填充                                 |
@@ -121,6 +122,8 @@ sheet.value.transact((tr) => {
 })
 ```
 
+`transact` 返回这次的事务：没有改动、表格只读或修改被[取消](./extensions#取消修改)时 `tr.changed` 为 `false`，被取消时 `tr.cancelled` 为 `true`。
+
 行和列也可以按显示的写法指定，数字仍是从 0 开始的序号：
 
 ```ts
@@ -135,7 +138,7 @@ sheet.value.transact((tr) => {
 
 单元格用名字（`'A5'`）或从 0 开始的坐标（`{ row, col }`）指定，没写工作表时指当前显示的那张。要写到别的表，在名字前加 `表名!`，表名有空格时用单引号括起来；坐标则写成 `{ sheet, row, col }`，`sheet` 是工作表的序号、`id` 或名字。区域可以写 `'A1:C4'`、整列 `'B:D'`、整行 `'2:3'`。
 
-每次修改，不论来自输入、撤销还是 `transact`，都会更新 `v-model` 并触发 `transaction` 事件。事件参数里的 `steps` 是这次修改的步骤，`inverse` 是撤销它的步骤，可以用来同步到服务端；另一端用 `applySheetSteps(doc, steps)` 应用，在服务端从不含组件的 `@dou-ui/sheet/core` 引入它（见[不含组件的入口](./extensions#不含组件的入口)）。`meta.action` 说明修改的来源：
+每次修改，不论来自输入、撤销还是 `transact`，都会更新 `v-model` 并触发 `transaction` 事件；被保护或扩展取消的修改不会生效，触发的是 `transaction-cancel` 事件。事件参数里的 `steps` 是这次修改的步骤，`inverse` 是撤销它的步骤，可以用来同步到服务端；另一端用 `applySheetSteps(doc, steps)` 应用，在服务端从不含组件的 `@dou-ui/sheet/core` 引入它（见[不含组件的入口](./extensions#不含组件的入口)）。`meta.action` 说明修改的来源：
 
 | `action`                 | 来源                                                 |
 | ------------------------ | ---------------------------------------------------- |
@@ -146,6 +149,8 @@ sheet.value.transact((tr) => {
 | `merge`                  | 合并、取消合并单元格                                 |
 | `group`                  | 分组、取消分组、折叠和展开分组                       |
 | `note`                   | 插入、编辑和删除批注                                 |
+| `link`                   | 插入、编辑和删除链接                                 |
+| `protect`                | 锁定单元格，保护工作表和工作簿结构                   |
 | `style`、`freeze`        | 工具栏或快捷键修改样式、格式；工具栏冻结行列         |
 | `sheet`                  | 标签栏里新建、重命名、复制、移动、删除工作表         |
 | `import`                 | 导入文件（`importFile`、工具栏的导入按钮、拖入文件） |
@@ -174,13 +179,15 @@ sheet.value.transact((tr) => {
 | `renameSheet(sheet, name)`、`moveSheet(sheet, index)`、`duplicateSheet(sheet, name?)` | 重命名、移动、复制工作表                                                                                                                                       |
 | `styleCells(range, patch)`、`formatCells(range, format)`                              | 修改区域的样式、数字格式，见[改样式](#改样式)                                                                                                                  |
 | `setStyle(name, style)`                                                               | 添加、修改或（传 `undefined`）删除一个命名样式                                                                                                                 |
-| `setMeta({ history, group, action })`                                                 | `history: false` 不进入撤销记录；同一 `group` 的连续修改合并为一步；`action` 见上表                                                                            |
+| `protectSheet(protect, sheet?)`、`updateBook(patch)`                                  | 保护或取消保护工作表；修改工作簿的字段，比如 `{ protect: true }`，见[保护](#保护)                                                                              |
+| `cancel(reason?)`                                                                     | 取消这次修改，在扩展的 `transaction` 里使用，见[取消修改](./extensions#取消修改)                                                                               |
+| `setMeta({ history, group, action, protection })`                                     | `history: false` 不进入撤销记录；同一 `group` 的连续修改合并为一步；`action` 见上表；`protection: false` 不检查保护                                            |
 
 插入、删除和移动行列，以及移动单元格时，所有工作表里指向这些单元格的公式引用都会随之改写：插入行后 `=A5` 变成 `=A6`，区域 `A1:A5` 在中间插入一行后变成 `A1:A6`；删除被引用的单元格后引用变成 `#REF!`，区域只删除一部分时缩小。和复制不同，这时 `$A$1` 这样的固定引用也会跟着改。
 
 步骤里的工作表用 `id` 记录，没有 `id` 时用名字，所以在另一端应用时不受工作表顺序影响。
 
-组件实例上的 `commands` 可以执行和查询[命令](./extensions#命令)，比如 `sheetRef.value.commands.run('bold')`。组件实例上还有 `select('B2:C4')` 选中并滚动到区域（也可以是 `'B:B'`、`'3:3'`）、`scrollTo('H200')`、`edit('B2')` 打开编辑框、`editNote('B2')` 打开批注输入框、`focus()`、`showSheet(sheet)` 切换工作表、`openSearch(query?)` / `closeSearch()` 打开和关闭查找面板、`findCells(query)` 查找单元格（见[查找和替换](#查找和替换)）和 `toCSV(options?)`。
+组件实例上的 `commands` 可以执行和查询[命令](./extensions#命令)，比如 `sheetRef.value.commands.run('bold')`。组件实例上还有 `select('B2:C4')` 选中并滚动到区域（也可以是 `'B:B'`、`'3:3'`）、`scrollTo('H200')`、`edit('B2')` 打开编辑框、`editNote('B2')` 打开批注输入框、`editLink('B2')` 打开链接输入框、`focus()`、`showSheet(sheet)` 切换工作表、`openSearch(query?)` / `closeSearch()` 打开和关闭查找面板、`findCells(query)` 查找单元格（见[查找和替换](#查找和替换)）和 `toCSV(options?)`。
 
 ## 查找和替换
 
@@ -198,6 +205,7 @@ sheet.value.transact((tr) => {
 替换改的是单元格里输入的内容，替换后的文字和手动输入一样重新识别成数字或日期，原来的数字格式保留。按显示的文字查找时，查到的文字如果只在显示格式里（比如在显示为 `¥12.00`、实际输入 `12` 的单元格里查 `12.00`），就在显示的文字上替换，再像手动输入一样识别：`12.00` 换成 `13.00` 得到 `13`，格式不变；识别出来不是同一类值的（比如把 `¥` 换成别的字）会跳过。下面几种也会跳过：
 
 - 公式算出的结果，打开“查找公式”才能替换公式本身；
+- 受保护工作表里锁定的单元格，见[保护](#保护)；
 - 替换后不符合数据验证（拒绝输入的规则）的。
 
 全部替换作为一步撤销，事务的 `action` 是 `'replace'`。有跳过的时候，表格下方会按原因分别提示数量。只读的表格只能查找。
@@ -358,6 +366,44 @@ const cells = [[{ value: '场地', note: '上海展览中心 2 号厅，含两�
 
 用代码修改时调用 `tr.setNote('B3', '文字')`，传空文字或 `undefined` 删除；`tr.clearNotes('A1:D20')` 删除一片区域里的批注。组件实例的 `editNote(cell?)` 选中单元格并打开输入框，可以接在自己的按钮上。
 
+## 链接
+
+单元格的 `link` 是它的链接，可以是网址（`https://`、`http://`）、`mailto:`、`tel:` 地址，也可以是 `#` 加单元格引用，指向工作簿里的位置，比如 `'#汇总!B2'`。值可以是任何内容，文字、数字、日期都可以带链接。带链接的单元格文字显示为强调色并加下划线。
+
+```ts
+const cells = [
+  [
+    { value: '门店主页', link: 'https://ui.daidr.me' },
+    { value: '看汇总', link: '#汇总!B2' },
+  ],
+]
+```
+
+<DocDemo src="sheet/links" column />
+
+选中带链接的单元格时，下方显示链接地址，点地址打开链接：网址在新标签页打开，单元格引用会切到那个工作表并选中那片区域。按住 `Ctrl` / `⌘` 点单元格也会打开链接。指向的工作表不存在时，表格下方会提示找不到。
+
+打开链接之前会触发 `link-open` 事件，参数里有 `link`、`linkTarget` 的结果 `target` 和单元格 `cell`；调用 `event.preventDefault()` 后表格不再自己打开，可以改用应用的路由，或者先让用户确认：
+
+```ts
+function onLinkOpen(event: SheetLinkOpenEvent) {
+  if (event.target.kind === 'web' && event.target.href.startsWith(location.origin)) {
+    event.preventDefault()
+    router.push(event.target.href.slice(location.origin.length))
+  }
+}
+```
+
+`javascript:` 这类可以运行脚本的地址不会被打开，写进 `link` 也只当作普通文字。
+
+在右键菜单里选“插入链接”（已有链接时是“编辑链接”），或者按 `Ctrl` / `⌘` + `K`，单元格下方会出现输入框，可以修改显示的文本和链接地址。按 `Enter` 或点“保存”保存，按 `Esc` 或点“取消”放弃；地址清空后保存就会删除链接。“删除链接”去掉选区里所有的链接，单元格的值保留。在单元格里直接输入 `https://` 或 `mailto:` 开头的地址时，它会自动成为链接；之后重新输入时，这样得来的链接跟着变：输入的还是地址就换成新地址，不是地址就去掉。用输入框或代码设置的链接，重新输入值时保留。组件实例的 `editLink(cell?)` 选中单元格并打开输入框，可以接在自己的按钮上。
+
+公式 `HYPERLINK(地址, 名称)` 也能让单元格成为链接：单元格显示名称，不写名称时显示地址。地址可以来自其他单元格，比如 `=HYPERLINK(A2, "下载")`，跟着 A2 一起变化。这样的链接由公式决定，要改就改公式；在输入框里给它填的地址会写进单元格的 `link`，优先于公式给出的地址。
+
+复制带链接的单元格时，链接一起复制，粘贴到其他程序里也是链接；从网页或其他程序复制来的链接同样会保留。导入导出 xlsx 时链接会保留，见[导入导出 xlsx](./xlsx)。
+
+用代码修改时调用 `tr.updateCell('B2', { link: 'https://ui.daidr.me' })`，传 `link: undefined` 删除。`linkTarget(link)` 返回链接指向哪里，打不开的链接返回 `null`，可以用来做自己的链接按钮。
+
 ## 合并单元格
 
 工作表的 `merges` 列出合并的区域，例如 `['A1:B1']`。合并后显示左上角单元格的内容，其余单元格被盖住。选区碰到合并区域时会扩大到把它整个包含进来，方向键移动时把合并区域当作一个单元格。
@@ -485,6 +531,66 @@ sheet.value.transact((tr) => {
 })
 ```
 
+## 保护
+
+保护工作表后，其中锁定的单元格不能修改，行列也不能插入、删除或调整大小；保护工作簿结构后，工作表不能添加、删除、移动或重命名。适合做只让人填几个空的表单，或者防止误改公式和标题。
+
+单元格默认是锁定的，所以只要给需要填写的单元格一个 `locked: false` 的样式，再保护工作表：
+
+```ts
+const book = {
+  styles: { blank: { locked: false } },
+  sheets: [
+    {
+      name: '报价单',
+      protect: true,
+      cells: [
+        [
+          { value: '客户', style: 'head' },
+          { value: '戴兜', style: 'blank' },
+        ],
+      ],
+    },
+  ],
+}
+```
+
+<DocDemo src="sheet/protect" column />
+
+`protect` 写成对象时可以放开其中几项，比如 `{ formatColumns: true, insertRows: true }` 允许调整列宽和插入行，可用的选项见[文档数据](./data#工作表)。工作簿的 `protect: true` 保护工作簿结构。
+
+不允许的修改不会生效，表格下方会提示原因，比如“单元格受保护，不能修改”，读屏也会读出。粘贴和填充只写入单元格的值，保留目标单元格原有的样式和格式，这样不会把未锁定的单元格变成锁定的。受保护的工作表在标签上显示一个锁。撤销和重做不受保护的限制。
+
+工具栏的“保护”菜单里可以锁定或取消锁定所选单元格、保护或取消保护工作表、保护或取消保护工作簿结构；单元格的右键菜单里也能锁定和取消锁定，工作表标签的右键菜单里也能保护工作表和工作簿结构。锁定和解锁单元格要在保护工作表之前做。保护只防止在表格里误改，没有密码；需要真正限制修改时，应该在保存数据的地方检查权限。不想让人在表格里取消保护时，用扩展把两个保护命令换成不可用的，工具栏、单元格和标签的右键菜单里对应的项都会变灰；也可以在 `tools` 里去掉 `protect`：
+
+```ts
+const fixedProtection = defineSheetExtension({
+  name: 'fixed-protection',
+  commands: {
+    'protect.sheet': defineSheetCommand({
+      label: (m) => m.protect.unprotectSheet,
+      override: true,
+      enabled: () => false,
+      run: () => false,
+    }),
+    'protect.workbook': defineSheetCommand({
+      label: (m) => m.protect.unprotectBook,
+      override: true,
+      enabled: () => false,
+      run: () => false,
+    }),
+  },
+})
+```
+
+用代码修改时调用 `tr.protectSheet(true)` 或 `tr.protectSheet({ formatCells: true })`，传 `false` 取消；`tr.updateBook({ protect: true })` 保护工作簿结构；`tr.styleCells('B1:B3', { locked: false })` 解锁单元格。代码的修改同样要遵守保护，需要绕过时（比如程序填写受保护的表单）传 `{ protection: false }`：
+
+```ts
+sheet.value.transact((tr) => tr.setValue('A1', '买家'), { protection: false })
+```
+
+`checkProtection(tr)` 检查一次修改是否违反保护，返回第一个不允许的地方 `{ reason, sheet, row, col }`，可以在扩展里使用；在 `transaction-cancel` 事件里调用它，可以分清修改是被保护还是被扩展取消的，以及卡在哪个单元格。`isLocked(cell, book)` 判断 `cells` 里的一个单元格是否锁定，`protectionOf(sheet)` 返回工作表的保护选项，没有保护时是 `null`，保护为 `true` 时是 `{}`。
+
 ## 工具栏
 
 把 `DouSheetToolbar` 放进 `header` 插槽，表格上方会出现格式工具栏。按钮作用于选区，按下的状态跟着当前单元格（键盘所在的那一格）：
@@ -496,9 +602,11 @@ sheet.value.transact((tr) => {
 - 水平对齐、垂直对齐和自动换行。没有设置对齐时，按下的是单元格本来的对齐方式，比如数字靠右。
 - 合并单元格：选区是合并单元格时按钮处于按下状态，再按一次取消合并。
 - 冻结：冻结首行、首列，或冻结到当前单元格所在的行、列。
+- 链接：插入或编辑当前单元格的链接，见[链接](#链接)。
 - 排序和筛选：同右键菜单里的“排序”和“筛选”。
 - 条件格式：突出显示大于、小于、介于、等于某个值或包含某段文字的单元格，以及重复值、按公式判断、前几项、后几项、高于或低于平均值；给选区加数据条或色阶；清除规则，或在“管理规则”里编辑、调整顺序、删除规则，见[条件格式](#条件格式)。
 - 数据验证：设置当前单元格或选区的验证规则，见[数据验证](#数据验证)。
+- 保护：锁定单元格、保护工作表和工作簿结构，见[保护](#保护)。
 - 清除格式：去掉样式和数字格式，值不变。
 
 <DocDemo src="sheet/toolbar" column />
@@ -515,7 +623,7 @@ sheet.value.transact((tr) => {
 </DouSheetToolbar>
 ```
 
-可用的名字有 `undo`、`redo`、`format`、`decimals`、`bold`、`italic`、`underline`、`strike`、`color`、`fill`、`align`、`valign`、`wrap`、`merge`、`freeze`、`sort`、`filter`、`conditional`、`validation`、`clear`，以及默认不显示的 `export`、`import`（见[导入与导出](#导入与导出)）。扩展加的按钮写它的 `key`，任何命令写命令名（比如 `'print'`），见[工具栏按钮](./extensions#工具栏按钮)。`formats` 替换数字格式菜单里的选项，每项是 `{ label, format, example? }`，`example` 是菜单里用这个格式显示的示例值。
+可用的名字有 `undo`、`redo`、`format`、`decimals`、`bold`、`italic`、`underline`、`strike`、`color`、`fill`、`align`、`valign`、`wrap`、`merge`、`freeze`、`link`、`sort`、`filter`、`conditional`、`validation`、`protect`、`clear`，以及默认不显示的 `export`、`import`（见[导入与导出](#导入与导出)）。扩展加的按钮写它的 `key`，任何命令写命令名（比如 `'print'`），见[工具栏按钮](./extensions#工具栏按钮)。`formats` 替换数字格式菜单里的选项，每项是 `{ label, format, example? }`，`example` 是菜单里用这个格式显示的示例值。
 
 显示单元格地址和公式的编辑栏是 `DouSheetFormulaBar`，同样放在 `header` 插槽里，可以和工具栏一起用，见[公式](./formulas#编辑栏)。
 

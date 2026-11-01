@@ -4,6 +4,7 @@ import { defineComponent, h, nextTick, ref, type VNodeChild } from 'vue'
 import {
   DouChart,
   DouChartBar,
+  DouChartBrush,
   DouChartLine,
   DouChartPie,
   DouChartScatter,
@@ -258,6 +259,57 @@ describe('tooltip', () => {
     await nextTick()
     const items = wrapper.findAll('.dou-chart__tooltip-item')
     expect(items.map((item) => item.classes().includes('is-muted'))).toEqual([false, true])
+    wrapper.unmount()
+  })
+
+  it('moves on with right and down, back with left and up, in a horizontal chart too', async () => {
+    for (const horizontal of [false, true]) {
+      const { wrapper, root } = await sized(() =>
+        h(DouChart, { data: sales, x: 'q', height: 300, horizontal }, () => [
+          h(DouChartBar, { y: 'a', name: '线上' }),
+        ]),
+      )
+      const title = () => wrapper.find('.dou-chart__tooltip-title').text()
+      key(root, 'ArrowRight')
+      await nextTick()
+      expect(title()).toBe('一季度')
+      key(root, 'ArrowDown')
+      await nextTick()
+      expect(title()).toBe('二季度')
+      key(root, 'ArrowRight')
+      await nextTick()
+      expect(title()).toBe('三季度')
+      key(root, 'ArrowUp')
+      await nextTick()
+      expect(title()).toBe('二季度')
+      key(root, 'ArrowLeft')
+      await nextTick()
+      expect(title()).toBe('一季度')
+      wrapper.unmount()
+    }
+  })
+
+  it('grows a selection with Shift and any arrow that moves on, in a chart of one series', async () => {
+    const months = [1, 2, 3, 4, 5].map((m) => ({ m: `${m}月`, v: m * 10 }))
+    const events: Array<{ x?: unknown[] }> = []
+    const { wrapper, root } = await sized(() =>
+      h(DouChart, { data: months, x: 'm', height: 300 }, () => [
+        h(DouChartLine, { y: 'v', name: '访客' }),
+        h(DouChartBrush, { onSelect: (e: { x?: unknown[] }) => events.push(e) }),
+      ]),
+    )
+    const shift = (name: string) =>
+      root.dispatchEvent(new KeyboardEvent('keydown', { key: name, shiftKey: true, bubbles: true }))
+    key(root, 'ArrowRight')
+    shift('ArrowRight')
+    await nextTick()
+    expect(events.at(-1)?.x).toEqual(['1月', '2月'])
+    shift('ArrowDown')
+    await nextTick()
+    expect(events.at(-1)?.x).toEqual(['1月', '3月'])
+    shift('ArrowUp')
+    await nextTick()
+    expect(events.at(-1)?.x).toEqual(['1月', '2月'])
     wrapper.unmount()
   })
 

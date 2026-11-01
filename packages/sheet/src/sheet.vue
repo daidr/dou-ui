@@ -31,6 +31,13 @@ import {
   TextValignMiddleIcon,
   TextValignTopIcon,
   TypeXIcon,
+  LockIcon,
+  LockKeyholeIcon,
+  UnlockIcon,
+  ShieldLockIcon,
+  LinkIcon,
+  UnlinkIcon,
+  ExternalLinkIcon,
   UnderlineIcon,
   UndoIcon,
   WrapTextIcon,
@@ -104,6 +111,7 @@ import { SheetAxis } from './core/axis'
 import { mergesOf, type SheetMerges } from './core/merge'
 import { groupRange, groupsOf, SheetGroups, OUTLINE_LANE, type SheetGroupLines } from './core/group'
 import SheetNote from './components/sheet-note.vue'
+import SheetLink from './components/sheet-link.vue'
 import SheetOutline from './components/sheet-outline.vue'
 import {
   alignOf,
@@ -136,6 +144,7 @@ import {
   isBlank,
   rowCountOf,
   valueOf,
+  type SheetCell,
   type SheetCellInput,
   type SheetData,
   type SheetFilterRule,
@@ -166,6 +175,8 @@ import {
   type SheetStylePatch,
   type SheetTransactionMeta,
 } from './core/transaction'
+import { checkProtection, isLocked, protectionOf } from './core/protect'
+import { isTypedLink, linkTarget, type SheetLinkTarget } from './core/link'
 import SheetMenu from './components/sheet-menu.vue'
 import CellPanel from './components/cell-panel.vue'
 import { builtinCellTypes } from './cell-types'
@@ -227,6 +238,7 @@ import type {
   SheetInvalidCell,
   SheetMenuContext,
   SheetMenuItem,
+  SheetLinkOpenEvent,
   SheetPasteEvent,
   SheetProps,
 } from './types'
@@ -1211,11 +1223,14 @@ function cellView(
     const cell = typeof input === 'object' ? input : null
     let value = cell ? (cell.value ?? null) : (input as SheetValue)
     let error = false
+    let link = cell?.link
     if (typeof value === 'string' && value.startsWith('=')) {
       const result = engine.result(on.key, row, col)
       error = isSheetError(result)
       value = isSheetError(result) ? result.code : result
+      link ??= engine.link(on.key, row, col)
     }
+    if (link && !error && linkTarget(link)) cls += ' is-link'
     const typed = cell?.type
       ? resolveCellType(cell, doc.value, cellTypes.value)
       : listTypeAt(row, col, on.checks)
@@ -1594,6 +1609,19 @@ function followSheet(tr: SheetTransaction, key: string) {
 }
 let renamed = false
 
+/**
+ * Cancels a change to what is protected, after the extensions had their
+ * say. Changes kept out of the history, such as other people's, go ahead.
+ */
+function holdProtection(tr: SheetTransaction) {
+  if (tr.meta.protection === false || tr.meta.history === false) return
+  const check = checkProtection(tr)
+  if (!check) return
+  tr.cancel(messages.value.protect.refused[check.reason])
+  if (check.row != null && check.col != null && check.sheet === sheetKey(sheet.value))
+    scrollToPoint({ row: check.row, col: check.col })
+}
+
 function transact(
   run: (tr: SheetTransaction) => void,
   meta?: SheetTransactionMeta,
@@ -1607,12 +1635,38 @@ function transact(
   tr.setMeta({ action: 'api', ...meta })
   run(tr)
   if (!tr.changed) return null
-  for (const hook of resolved.value.transactions) hook(tr, context)
+  for (const hook of [...resolved.value.transactions, holdProtection]) {
+    hook(tr, context)
+    if (tr.cancelled) {
+      emit('transactionCancel', tr)
+      showNotice(tr.cancelReason ?? messages.value.changeCancelled)
+      // what the caller says next, such as "pasted", would be wrong
+      refusing = true
+      void nextTick(() => (refusing = false))
+      return null
+    }
+  }
   if (!keepMark) clipMark.value = null
   apply(tr)
   if (!customHistory()) history.record(tr, before, view())
   syncHistory()
   return tr
+}
+
+/**
+ * `transact` for code: gives the transaction whatever came of it, so code
+ * reads `tr.changed` and `tr.cancelled` as with the other editors.
+ */
+function transactFor(run: (tr: SheetTransaction) => void, meta?: SheetTransactionMeta) {
+  let made: SheetTransaction | undefined
+  transact((tr) => {
+    made = tr
+    run(tr)
+  }, meta)
+  // a read-only grid makes no change
+  return (
+    made ?? new SheetTransaction(doc.value, sheetIndex.value).setMeta({ action: 'api', ...meta })
+  )
 }
 
 function travel(direction: 'undo' | 'redo') {
@@ -1744,9 +1798,28 @@ const panelType = computed(() => {
   return typed?.definition.panel ? typed : undefined
 })
 
+/** The protection of the sheet shown, `null` when it has none. */
+const protection = computed(() => protectionOf(sheet.value))
+/**
+ * Whether paste and fill write only what cells hold, keeping their look: on a
+ * protected sheet whose locked cells' format is kept, so an unlocked cell
+ * doesn't take a locked one's style.
+ */
+const keepsLook = computed(() => !!protection.value && !protection.value.formatCells)
+
+/** Whether a cell can't be changed: its sheet is protected and the cell is locked. */
+function lockedAt(point: SheetPoint) {
+  if (!protection.value) return false
+  return isLocked(cellOf(sheet.value.cells[point.row]?.[point.col]), doc.value)
+}
+
 function beginEdit(mode: 'enter' | 'edit', text?: string) {
   if (props.readonly) {
     announce(messages.value.readonly)
+    return false
+  }
+  if (lockedAt(active.value)) {
+    showNotice(messages.value.protect.refused.cell)
     return false
   }
   const el = editor.value
@@ -1851,9 +1924,11 @@ function commitEdit(move?: SheetDirection, leaving = false) {
     (tr) => {
       const at = { sheet: e.sheet, row: e.row, col: e.col }
       const old = cellOf(tr.getCell(at))
+      const value = parsed.value
       tr.updateCell(at, {
-        value: parsed.value ?? undefined,
+        value: value ?? undefined,
         format: old?.format ?? parsed.format,
+        link: typedLink(old, value),
       })
     },
     { action: 'input' },
@@ -2242,6 +2317,10 @@ function onKeydown(event: KeyboardEvent) {
     return keyCommand(event, 'find.next')
   if (matchesHotkey(event, 'shift+f3') || matchesHotkey(event, 'mod+shift+g'))
     return keyCommand(event, 'find.previous')
+  if (matchesHotkey(event, 'mod+k')) {
+    event.preventDefault()
+    return editLink()
+  }
   if (matchesHotkey(event, 'mod+d') || matchesHotkey(event, 'mod+r')) {
     event.preventDefault()
     if (props.readonly) return announce(messages.value.readonly)
@@ -2262,6 +2341,11 @@ function onKeydown(event: KeyboardEvent) {
   }
   switch (key) {
     case 'Escape':
+      if (linkCard.value) {
+        // the link card goes, as any overlay does, until another cell is active
+        event.preventDefault()
+        linkDismissed.value = pointKey(linkCard.value)
+      }
       if (clipMark.value) {
         event.preventDefault()
         clipMark.value = null
@@ -3387,6 +3471,17 @@ function styleNames(tr: SheetTransaction, styles: Record<string, SheetStyle> | u
   return names
 }
 
+/** `style`, or a style like it, that locks a cell as `old` was locked. */
+function lockedLike(tr: SheetTransaction, style: string | undefined, old: SheetCell | undefined) {
+  const locked = isLocked(old, tr.doc)
+  if (isLocked({ style }, tr.doc) === locked) return style
+  const look: SheetStyle = { ...(style ? tr.doc.styles?.[style] : undefined) }
+  if (locked) delete look.locked
+  else look.locked = false
+  if (!Object.keys(look).length) return undefined
+  return styleNames(tr, { [style ?? 'unlocked']: look }).get(style ?? 'unlocked')
+}
+
 /** A clip as the extensions' `transformPaste` rewrite it; `null` when one stops it. */
 function transformPaste(clip: SheetClip) {
   let out: SheetClip | null = clip
@@ -3462,7 +3557,8 @@ function paste(given: SheetClip) {
           for (let c = b.left; c <= b.right; c++)
             tr.setCell({ row: r, col: c, sheet: cut.sheet }, undefined)
       }
-      const names = styleNames(tr, clip.styles)
+      const keepLook = keepsLook.value
+      const names = keepLook ? new Map<string, string>() : styleNames(tr, clip.styles)
       for (const t of targets)
         for (let r = t.top; r <= t.bottom; r++)
           for (let c = t.left; c <= t.right; c++) {
@@ -3477,6 +3573,7 @@ function paste(given: SheetClip) {
               tr.updateCell(at, {
                 value: cell?.value ?? undefined,
                 format: cell?.format ?? old?.format,
+                link: cell?.link ?? old?.link,
               })
               continue
             }
@@ -3484,7 +3581,23 @@ function paste(given: SheetClip) {
             let value = cell?.value
             if (typeof value === 'string' && value.startsWith('='))
               value = shiftFormula(value, r - dr - clip.from!.row, c - dc - clip.from!.col)
-            const style = cell?.style ? (names.get(cell.style) ?? cell.style) : undefined
+            if (keepLook) {
+              // a protected sheet keeps its look: only what the cells hold is pasted
+              const old = cellOf(tr.getCell(at))
+              tr.setCell(
+                at,
+                compactCell({
+                  ...cell,
+                  value: value ?? undefined,
+                  style: old?.style,
+                  format: old?.format,
+                }),
+              )
+              continue
+            }
+            let style = cell?.style ? (names.get(cell.style) ?? cell.style) : undefined
+            // on a protected sheet a cell stays locked or unlocked as it was
+            if (protection.value) style = lockedLike(tr, style, cellOf(tr.getCell(at)))
             tr.setCell(
               at,
               cell ? compactCell({ ...cell, value: value ?? undefined, style }) : undefined,
@@ -3512,6 +3625,7 @@ const boundsRange = (b: SheetBounds): SheetRange => ({
 const notice = ref('')
 let noticeTimer: ReturnType<typeof setTimeout> | undefined
 function showNotice(text: string) {
+  if (refusing) return
   notice.value = text
   announce(text)
   clearTimeout(noticeTimer)
@@ -3648,7 +3762,12 @@ function finishFill(target: { bounds: SheetBounds; clear: SheetBounds | null }, 
     if (transact((tr) => tr.clearValues(target.clear!), { action: 'clear' }))
       announce(format(messages.value.cleared, { range: rangeName(target.clear) }))
   } else if (!same) {
-    if (transact((tr) => tr.fill(b, t, { mode: fillMode(b, t, invert) }), { action: 'fill' }))
+    if (
+      transact(
+        (tr) => tr.fill(b, t, { mode: fillMode(b, t, invert), keepStyle: keepsLook.value }),
+        { action: 'fill' },
+      )
+    )
       announce(format(messages.value.filled, { range: rangeName(t) }))
   }
   const now = selection.value.active
@@ -3669,7 +3788,8 @@ function fillFromEdge(direction: 'down' | 'right') {
     // one row: copies the row above
     source.top = source.bottom = b.top - 1
     return void transact(
-      (tr) => tr.fill(source, { ...b, top: b.top - 1 }, { mode: 'copy' }),
+      (tr) =>
+        tr.fill(source, { ...b, top: b.top - 1 }, { mode: 'copy', keepStyle: keepsLook.value }),
       fillMeta,
     )
   }
@@ -3677,11 +3797,12 @@ function fillFromEdge(direction: 'down' | 'right') {
     if (b.left === 0) return
     source.left = source.right = b.left - 1
     return void transact(
-      (tr) => tr.fill(source, { ...b, left: b.left - 1 }, { mode: 'copy' }),
+      (tr) =>
+        tr.fill(source, { ...b, left: b.left - 1 }, { mode: 'copy', keepStyle: keepsLook.value }),
       fillMeta,
     )
   }
-  transact((tr) => tr.fill(source, b, { mode: 'copy' }), fillMeta)
+  transact((tr) => tr.fill(source, b, { mode: 'copy', keepStyle: keepsLook.value }), fillMeta)
 }
 
 /** Double-clicking the fill handle fills down as far as the column beside it has data. */
@@ -4186,6 +4307,219 @@ watch(editing, (on) => {
   if (on) hideNote()
 })
 
+// Links ----------------------------------------------------------------------------------
+
+/** Where a cell links to: its own `link`, or where its `HYPERLINK` formula points. */
+function linkAt(point: SheetPoint): string | undefined {
+  const cell = cellOf(sheet.value.cells[point.row]?.[point.col])
+  if (cell?.link) return cell.link
+  const value = cell?.value
+  if (typeof value === 'string' && value.startsWith('='))
+    return engine.link(sheetKey(sheet.value), point.row, point.col)
+  return undefined
+}
+
+/** Whether focus is in the grid or what it shows, for the active cell's link to show. */
+const focusWithin = ref(false)
+/** The cell whose link is being written, or `null`. */
+const linkEditing = shallowRef<SheetPoint | null>(null)
+
+/**
+ * A cell's link after typing `value` into it: a web address typed becomes the
+ * link, and a link that came from typing follows what is typed next; a link
+ * given otherwise stays.
+ */
+function typedLink(old: SheetCell | undefined, value: SheetValue | undefined) {
+  if (old?.link && old.link !== old.value) return old.link
+  return typeof value === 'string' && isTypedLink(value) ? value : undefined
+}
+
+/** Whether the last press was a finger: the link card then sits at the grid's foot, off the cells. */
+const touching = ref(false)
+
+/** The cell whose link card Escape put away, until another cell is active. */
+const linkDismissed = ref<string | null>(null)
+const pointKey = (point: { row: number; col: number }) =>
+  `${sheetIndex.value}:${point.row}:${point.col}`
+watch(active, () => (linkDismissed.value = null))
+
+/**
+ * The link card: under the active cell while it has a link and the grid
+ * has focus, or the box writing a link.
+ */
+const linkCard = computed(() => {
+  const at = linkEditing.value
+  if (at) return { ...at, link: linkAt(at) ?? '', editing: true }
+  if (!focusWithin.value || editing.value || drag.value?.started || panelType.value) return null
+  if (noteShown.value?.by === 'edit') return null
+  const home = noteHome(active.value)
+  if (linkDismissed.value === pointKey(home)) return null
+  const link = linkAt(home)
+  return link ? { ...home, link, editing: false } : null
+})
+
+/** Where the link's cell is on the page, for the card to sit under. */
+const linkAnchor: VirtualElement = {
+  getBoundingClientRect() {
+    const at = linkCard.value
+    const el = viewport.value
+    if (!at || !el) return new DOMRect()
+    const box = el.getBoundingClientRect()
+    const r = cellRect(at)
+    return new DOMRect(
+      box.left + el.clientLeft + r.x,
+      box.top + el.clientTop + r.y,
+      r.width,
+      r.height,
+    )
+  },
+}
+
+/** The text a link's box offers to change: the cell's value, or `null` for a formula. */
+function linkText(point: SheetPoint): string | null {
+  const value = valueOf(sheet.value.cells[point.row]?.[point.col])
+  if (typeof value === 'string' && value.startsWith('=')) return null
+  return value == null ? '' : formatValue(value, formatAt(point), lang.value)
+}
+
+/** Whether the link of a cell can be changed. */
+const linkEditable = (point: SheetPoint) => !props.readonly && !lockedAt(point)
+
+/** Opens the box to write the link of the active cell. */
+function editLink(at: SheetPoint = active.value) {
+  if (props.readonly) return announce(messages.value.readonly)
+  const point = noteHome(at)
+  if (lockedAt(point)) return showNotice(messages.value.protect.refused.cell)
+  if (editing.value) commitEdit(undefined, true)
+  scrollToPoint(point)
+  hideNote()
+  linkEditing.value = point
+}
+
+/** Writes a link, and the text shown when the box offered it; an empty address takes the link off. */
+function saveLink(link: string, text: string | null, leaving: boolean) {
+  const at = linkEditing.value
+  linkEditing.value = null
+  if (!at) return
+  const m = messages.value.link
+  const changed = transact(
+    (tr) => {
+      const old = cellOf(tr.getCell(at))
+      const patch: Partial<SheetCell> = { link: link || undefined }
+      if (text !== null) {
+        // the text as typed, read as any cell reads it; without any, the address shows
+        const typed = text.trim() ? text : link
+        if (typed !== linkText(at)) patch.value = parseInput(typed).value ?? undefined
+      }
+      if (old?.link === patch.link && !('value' in patch)) return
+      tr.updateCell(at, patch)
+    },
+    { action: 'link' },
+  )
+  if (changed) announce(link ? m.saved : m.removed)
+  if (!leaving) focusGrid()
+}
+
+function cancelLink(leaving: boolean) {
+  linkEditing.value = null
+  if (!leaving) focusGrid()
+}
+
+/** Takes the links off the selected cells, keeping what they show. */
+function removeLinks() {
+  if (props.readonly) return announce(messages.value.readonly)
+  const points: SheetPoint[] = []
+  forEachSelected((point) => {
+    if (cellOf(sheet.value.cells[point.row]?.[point.col])?.link) points.push(point)
+  })
+  if (!points.length) return false
+  const changed = transact(
+    (tr) => {
+      for (const point of points) tr.updateCell(point, { link: undefined })
+    },
+    { action: 'link' },
+  )
+  if (changed) announce(messages.value.link.removed)
+  focusGrid()
+}
+
+/**
+ * Follows a cell's link: a web address opens in a new tab; a place in the
+ * workbook is shown and selected.
+ */
+function followLink(point: SheetPoint = noteHome(active.value)) {
+  const link = linkAt(point)
+  const target = linkTarget(link)
+  if (!link || !target) return false
+  const event: SheetLinkOpenEvent = {
+    link,
+    target,
+    cell: { sheet: sheetIndex.value, row: point.row, col: point.col },
+    defaultPrevented: false,
+    preventDefault() {
+      this.defaultPrevented = true
+    },
+  }
+  emit('linkOpen', event)
+  if (event.defaultPrevented) return true
+  if (target.kind === 'web') {
+    window.open(target.href, '_blank', 'noopener,noreferrer')
+    return true
+  }
+  if (goToLink(target)) return true
+  // such as a sheet that is gone: say so rather than do nothing
+  showNotice(format(messages.value.link.missing, { link }))
+  return false
+}
+
+function goToLink(target: Extract<SheetLinkTarget, { kind: 'cell' }>) {
+  const range = target.range
+  const go = () => {
+    setSelection({ active: range.start, ranges: [range] })
+    scrollToPoint(range.start)
+    focusGrid()
+    announce(format(messages.value.link.jumped, { cell: rangeName(boundsOf(range)) }))
+  }
+  const at =
+    target.sheet == null
+      ? sheetIndex.value
+      : doc.value.sheets.findIndex((s) => s.name === target.sheet)
+  if (at === -1) return false
+  if (at === sheetIndex.value) go()
+  // another sheet first brings back where it was left; the link's cells come after
+  else if (showSheet(at)) void nextTick(go)
+  else return false
+  return true
+}
+
+/** Menu items for the active cell's link, and taking the selection's links off. */
+function linkItems(): SheetMenuItem[] {
+  const m = messages.value.link
+  const home = noteHome(active.value)
+  const has = !!cellOf(sheet.value.cells[home.row]?.[home.col])?.link
+  const items: SheetMenuItem[] = [
+    {
+      key: 'link',
+      label: has ? m.edit : m.add,
+      icon: LinkIcon,
+      shortcut: 'mod+k',
+      disabled: !linkEditable(home),
+      run: () => editLink(),
+    },
+  ]
+  if (linkTarget(linkAt(home)))
+    items.push({ key: 'link-open', label: m.open, icon: ExternalLinkIcon, run: () => followLink() })
+  if (has)
+    items.push({
+      key: 'link-remove',
+      label: m.remove,
+      icon: UnlinkIcon,
+      disabled: !linkEditable(home),
+      run: () => removeLinks(),
+    })
+  return items
+}
+
 /** Whether focus is in the grid, or in what it shows, such as a note. */
 const focusInside = () => !!root.value?.contains(document.activeElement)
 
@@ -4212,6 +4546,7 @@ function onNoteEscape(event: KeyboardEvent) {
 function onFocusout(event: FocusEvent) {
   const next = event.relatedTarget
   if (next instanceof Node && root.value?.contains(next)) return
+  focusWithin.value = false
   const by = noteShown.value?.by
   if (by === 'active' || by === 'tap') hideNote()
 }
@@ -4384,7 +4719,16 @@ function menuFor(area: SheetMenuContext['area']): SheetMenuItem[] {
       children: [...groupItems('row'), ...dividedFirst(groupItems('col'))],
     },
     ...noteItems(),
+    ...linkItems(),
     ...dataItems(),
+    {
+      key: 'lock',
+      label: activeLocked.value ? messages.value.protect.unlock : messages.value.protect.lock,
+      icon: activeLocked.value ? UnlockIcon : LockIcon,
+      divided: true,
+      disabled: !commands.can('lock'),
+      run: () => void commands.run('lock'),
+    },
     clear,
   ]
 }
@@ -4529,6 +4873,37 @@ function changeSelected(run: (tr: SheetTransaction, b: SheetBounds) => void) {
 
 const styleSelection = (patch: SheetStylePatch | null) =>
   changeSelected((tr, b) => tr.styleCells(b, patch))
+
+// Protection -----------------------------------------------------------------------------
+
+/** Whether the active cell is locked, which it is unless its style says otherwise. */
+const activeLocked = computed(() => styleAt(active.value).locked !== false)
+
+/** Locks the selected cells, or unlocks them, for when the sheet is protected. */
+function lockSelection(locked: boolean) {
+  if (!changeSelected((tr, b) => tr.styleCells(b, { locked: locked ? undefined : false }))) return
+  const m = messages.value.protect
+  announce(locked ? m.locked : m.unlocked)
+}
+
+/** Protects the sheet shown, or stops protecting it. */
+function toggleSheetProtection() {
+  if (props.readonly) return announce(messages.value.readonly)
+  const on = !sheet.value.protect
+  const name = sheet.value.name
+  if (!transact((tr) => tr.protectSheet(on), { action: 'protect' })) return
+  const m = messages.value.protect
+  announce(format(on ? m.sheetProtected : m.sheetUnprotected, { name }))
+}
+
+/** Protects the workbook's sheets from being added, removed, moved or renamed, or stops it. */
+function toggleBookProtection() {
+  if (props.readonly) return announce(messages.value.readonly)
+  const on = !doc.value.protect
+  if (!transact((tr) => tr.updateBook({ protect: on || undefined }), { action: 'protect' })) return
+  const m = messages.value.protect
+  announce(on ? m.bookProtected : m.bookUnprotected)
+}
 
 const formatSelection: SheetContext['formatSelection'] = (to) =>
   changeSelected((tr, b) => tr.formatCells(b, to))
@@ -4738,6 +5113,7 @@ function startDrag(event: PointerEvent, init: Partial<Drag> & Pick<Drag, 'mode' 
 }
 
 function onPointerDown(event: PointerEvent) {
+  touching.value = event.pointerType === 'touch'
   const el = viewport.value
   if (!el || (event.button !== 0 && event.button !== 2)) return
   lastPointer = event.pointerType
@@ -4790,6 +5166,11 @@ function onPointerDown(event: PointerEvent) {
     // keeps the focus where it is and stops text from being selected
     event.preventDefault()
     focusGrid()
+    // Ctrl / ⌘ + click follows a link instead of adding the cell to the selection
+    if (hit.area === 'cell' && (event.ctrlKey || event.metaKey) && !event.shiftKey) {
+      const point = noteHome(hit)
+      if (linkTarget(linkAt(point))) return void followLink(point)
+    }
     if (
       !props.readonly &&
       onSelectedLine(hit) &&
@@ -5204,7 +5585,10 @@ onBeforeUnmount(stopDrag)
 // Announcements --------------------------------------------------------------------------
 
 const live = ref('')
+/** Set while a cancelled change is being told of, so what follows doesn't say it was made. */
+let refusing = false
 function announce(text: string) {
+  if (refusing) return
   live.value = ''
   void nextTick(() => (live.value = text))
 }
@@ -5504,7 +5888,7 @@ function closeFind() {
 }
 
 /** Why a match is left as it is when replacing; `'same'` when the replacement changes nothing. */
-type ReplaceSkip = 'formula' | 'invalid' | 'shown' | 'same'
+type ReplaceSkip = 'formula' | 'protected' | 'invalid' | 'shown' | 'same'
 
 /**
  * What replacing does to a cell: its new value, or why it stays. A
@@ -5523,6 +5907,8 @@ function replacementAt(
   const formulas = findQuery.value.lookIn === 'formulas'
   const value = valueOf(input)
   if (!formulas && typeof value === 'string' && value.startsWith('=')) return 'formula'
+  // a locked cell of a protected sheet would cancel the whole change
+  if (protectionOf(data) && isLocked(input, doc.value)) return 'protected'
   const cell = cellOf(input)
   const typed = cell?.type ? resolveCellType(cell, doc.value, cellTypes.value) : undefined
   const parse = (text: string) => typed?.definition.parse?.(text, typed.setup) ?? parseInput(text)
@@ -5552,7 +5938,13 @@ function writeReplacements(list: readonly SheetMatch[]) {
     if (!c) made.set(data, (c = checksOf(data)))
     return c
   }
-  const skipped: Record<ReplaceSkip, number> = { formula: 0, invalid: 0, shown: 0, same: 0 }
+  const skipped: Record<ReplaceSkip, number> = {
+    formula: 0,
+    protected: 0,
+    invalid: 0,
+    shown: 0,
+    same: 0,
+  }
   for (const f of list) {
     const to = replacementAt(f, checksFor)
     if (typeof to === 'string') skipped[to]++
@@ -5572,9 +5964,10 @@ function writeReplacements(list: readonly SheetMatch[]) {
 /** Says how many were replaced, and why any were left: shown as a notice then. */
 function tellReplaced(result: { replaced: number; skipped: Record<ReplaceSkip, number> }) {
   const m = messages.value.find
-  const { formula, invalid, shown: onlyShown } = result.skipped
+  const { formula, protected: locked, invalid, shown: onlyShown } = result.skipped
   const why = [
     formula && format(m.skippedFormula, { count: formula }),
+    locked && format(m.skippedProtected, { count: locked }),
     invalid && format(m.skippedInvalid, { count: invalid }),
     onlyShown && format(m.skippedShown, { count: onlyShown }),
   ].filter(Boolean)
@@ -5838,6 +6231,47 @@ const builtinCommands: Record<string, SheetCommand> = {
       announce(messages.value.formattingCleared)
     },
   },
+  link: {
+    label: (m) => m.link.add,
+    icon: LinkIcon,
+    shortcut: 'mod+k',
+    enabled: () => linkEditable(noteHome(active.value)),
+    run: () => editLink(),
+  },
+  'link.open': {
+    label: (m) => m.link.open,
+    icon: ExternalLinkIcon,
+    enabled: () => !!linkTarget(linkAt(noteHome(active.value))),
+    run: () => followLink(),
+  },
+  'link.remove': {
+    label: (m) => m.link.remove,
+    icon: UnlinkIcon,
+    enabled: writable,
+    run: () => removeLinks(),
+  },
+  // locks the selection, or unlocks it when the active cell is locked
+  lock: {
+    label: (m) => (activeLocked.value ? m.protect.unlock : m.protect.lock),
+    icon: LockIcon,
+    // cells keep their lock while the sheet is protected
+    enabled: () => writable() && !protection.value,
+    run: () => lockSelection(!activeLocked.value),
+  },
+  'protect.sheet': {
+    label: (m) => (sheet.value.protect ? m.protect.unprotectSheet : m.protect.protectSheet),
+    icon: ShieldLockIcon,
+    enabled: writable,
+    pressed: () => !!sheet.value.protect,
+    run: () => toggleSheetProtection(),
+  },
+  'protect.workbook': {
+    label: (m) => (doc.value.protect ? m.protect.unprotectBook : m.protect.protectBook),
+    icon: LockKeyholeIcon,
+    enabled: writable,
+    pressed: () => !!doc.value.protect,
+    run: () => toggleBookProtection(),
+  },
   print: {
     label: (m) => m.print,
     icon: PrinterIcon,
@@ -5915,7 +6349,7 @@ const context: SheetContext = {
   cellType: (point) => typeAt(point.row, point.col),
   cellRect: visibleRect,
   rangeRect,
-  transact: (run, meta) => transact(run, meta),
+  transact: transactFor,
   undo: () => travel('undo'),
   redo: () => travel('redo'),
   canUndo,
@@ -6066,6 +6500,13 @@ function editNoteTarget(target?: SheetCellTarget) {
   editNote()
 }
 
+function editLinkTarget(target?: SheetCellTarget) {
+  const point = target == null ? active.value : toPoint(target)
+  if (!point) return
+  select(selectCell(clampPoint(point, rowCount.value, colCount.value)))
+  editLink()
+}
+
 defineExpose<SheetExpose>({
   commands,
   findCells: (query) => findCells(query).found,
@@ -6075,7 +6516,7 @@ defineExpose<SheetExpose>({
   exportFile: exportFile as SheetExpose['exportFile'],
   saveFile: saveFile as SheetExpose['saveFile'],
   importFile,
-  transact: (run, meta) => transact(run, meta),
+  transact: transactFor,
   undo: () => travel('undo'),
   redo: () => travel('redo'),
   get canUndo() {
@@ -6088,6 +6529,7 @@ defineExpose<SheetExpose>({
   scrollTo: scrollToTarget,
   edit: editTarget,
   editNote: editNoteTarget,
+  editLink: editLinkTarget,
   focus: () => focusGrid(),
   showSheet,
   toCSV,
@@ -6204,6 +6646,7 @@ defineExpose<SheetExpose>({
         ref="root"
         class="dou-sheet__main"
         @keydown="onKeydown"
+        @focusin="focusWithin = true"
         @focusout="onFocusout"
         @copy="onCopy"
         @cut="onCut"
@@ -6723,6 +7166,23 @@ defineExpose<SheetExpose>({
           :typed="editTyped"
           :anchor="editor"
           @pick="pickValue"
+        />
+        <SheetLink
+          v-if="linkCard"
+          :key="`${linkCard.row}:${linkCard.col}:${linkCard.editing}`"
+          :anchor="linkAnchor"
+          :link="linkCard.link"
+          :text="linkCard.editing ? linkText(linkCard) : null"
+          :editing="linkCard.editing"
+          :docked="touching && !linkCard.editing"
+          :editable="linkEditable(linkCard)"
+          :removable="!!cellOf(sheet.cells[linkCard.row]?.[linkCard.col])?.link"
+          :messages="messages.link"
+          @open="followLink(linkCard)"
+          @edit="editLink(linkCard)"
+          @remove="removeLinks"
+          @save="saveLink"
+          @cancel="cancelLink"
         />
         <SheetNote
           v-if="noteShown"

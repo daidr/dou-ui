@@ -251,6 +251,27 @@ describe('the find panel', () => {
     wrapper.unmount()
   })
 
+  it('leaves locked cells of a protected sheet, and says so', async () => {
+    const { wrapper, doc, grid, type, cells } = setup()
+    doc.value.styles = { open: { locked: false } }
+    doc.value.sheets[0]!.protect = true
+    doc.value.sheets[0]!.cells[4]![0] = { value: '白板', style: 'open' }
+    await nextTick()
+    await grid().trigger('keydown', { key: 'h', ctrlKey: true })
+    await type(0, '白板')
+    await type(1, '黑板')
+    await wrapper.findAll('.dou-find-replace__input')[1]!.trigger('keydown', {
+      key: 'Enter',
+      ctrlKey: true,
+    })
+    // the unlocked cell is replaced; the locked ones stay, and the change isn't cancelled
+    expect(cells()[4]![0]).toEqual({ value: '黑板', style: 'open' })
+    expect(cells()[1]![0]).toBe('白板笔')
+    expect(cells()[3]![0]).toBe('白板擦')
+    expect(wrapper.find('.dou-sheet__notice').text()).toContain('2 处在受保护的单元格里')
+    wrapper.unmount()
+  })
+
   it('waits for a pause in typing before searching a big workbook', async () => {
     vi.useFakeTimers()
     try {

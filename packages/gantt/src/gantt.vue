@@ -60,6 +60,7 @@ import {
 import { readTheme, type ExportTheme } from './export/theme'
 import { GanttHistory } from './core/history'
 import { linkRefusal, linkTypeOf, type GanttLinkRefusal } from './core/links'
+import { applyGanttCSV, readGanttCSV, type GanttCSVImportOptions } from './core/csv'
 import { createId, spanOf, writeSpan, type GanttLink, type GanttTask } from './core/model'
 import { computeCriticalPath, computeSchedule, findBrokenLinks } from './core/schedule'
 import {
@@ -91,7 +92,7 @@ import type {
   GanttImageOptions,
   GanttMove,
   GanttPrintOptions,
-  GanttCSVOptions,
+  GanttCSVExportOptions,
   GanttProps,
   GanttSlots,
 } from './types'
@@ -162,8 +163,21 @@ const docOf = (): GanttDocument =>
 /** The last transaction committed, for reading out what an extension's undo changed. */
 let lastCommit: GanttTransaction | null = null
 
+/** Runs the extensions' `transaction` hooks; `false` when one cancelled the change. */
+function check(tr: GanttTransaction) {
+  for (const hook of resolved.value.transactions) {
+    hook(tr, context)
+    if (tr.cancelled) {
+      emit('transactionCancel', tr)
+      refuse(tr.cancelReason ?? messages.value.changeCancelled)
+      return false
+    }
+  }
+  return true
+}
+
 function commit(tr: GanttTransaction) {
-  for (const hook of resolved.value.transactions) hook(tr, context)
+  if (!check(tr)) return false
   lastCommit = tr
   if (!latest) void nextTick(() => (latest = null))
   latest = tr.doc
@@ -177,6 +191,7 @@ function commit(tr: GanttTransaction) {
   if (selectedLink.value && !tr.doc.links.some((link) => link.id === selectedLink.value))
     selectedLink.value = null
   emit('transaction', tr)
+  return true
 }
 
 /** Tasks a transaction gave dates to. */
@@ -209,7 +224,7 @@ function transact(fn: (tr: GanttTransaction) => void, meta?: GanttTransactionMet
   if (!tr.changed) return tr
   pushFollowers(tr)
   const before = selection.value
-  commit(tr)
+  if (!commit(tr)) return tr
   if (!customHistory) history.record(tr, before, selection.value)
   syncHistory()
   return tr
@@ -795,7 +810,8 @@ function editorValue(row: GanttRow, column: GanttColumn) {
       return task.start ?? ''
     case 'end':
       return span
-        ? formatTime(span.dateOnly ? span.end - MINUTES_PER_DAY : span.end, span.dateOnly)
+        ? // a date-only span ends on its last day; a summary ending on a milestone, on that day
+          formatTime(span.dateOnly ? span.end - 1 : span.end, span.dateOnly)
         : ''
     case 'duration': {
       if (!span) return ''
@@ -2195,9 +2211,29 @@ function onNavigationKey(event: KeyboardEvent) {
 
 // Announcements for screen readers.
 const live = ref('')
+/** Set while a cancelled change is being told of, so what follows doesn't say it was made. */
+let refusing = false
 function announce(text: string) {
+  if (refusing) return
   live.value = ''
   void nextTick(() => (live.value = text))
+}
+/** Why the last change didn't go ahead, shown for a moment over the editor. */
+const notice = ref('')
+let noticeTimer: ReturnType<typeof setTimeout> | undefined
+onBeforeUnmount(() => clearTimeout(noticeTimer))
+/** Says why a change didn't go ahead, once while the same one repeats, as in a drag. */
+let lastRefusal = { text: '', at: 0 }
+function refuse(text: string) {
+  const at = Date.now()
+  if (refusing || (text === lastRefusal.text && at - lastRefusal.at < 1000)) return
+  lastRefusal = { text, at }
+  announce(text)
+  notice.value = text
+  clearTimeout(noticeTimer)
+  noticeTimer = setTimeout(() => (notice.value = ''), 3200)
+  refusing = true
+  void nextTick(() => (refusing = false))
 }
 const keysHint = `${useId()}-keys`
 
@@ -2346,11 +2382,23 @@ async function exportPNG(options: GanttImageOptions = {}) {
     height: EXPORT_HEADER + drawing.bodyHeight,
     pixelRatio: options.pixelRatio,
     scope: '@dou-ui/gantt',
-    hint: "export range 'view', a coarser scale, or use exportSVG() / exportCSV()",
+    hint: "export range 'view', a coarser scale, or use exportSVG() / toCSV()",
   })
 }
 
-const csvCell = (text: string) => (/[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text)
+/** What a spreadsheet program would start a formula with; kept in step with `@dou-ui/sheet`. */
+const FORMULA_START = /^[=+\-@\t\r]/
+
+/**
+ * A field of CSV: quoted when it has to be, and unless `escape` is off,
+ * text that a spreadsheet program would run as a formula (`=…`, `-复盘`)
+ * behind a `'`. Numbers stay as they are.
+ */
+function csvCell(text: string, escape = true) {
+  const safe =
+    escape && FORMULA_START.test(text) && !Number.isFinite(Number(text.trim())) ? `'${text}` : text
+  return /[",\n\r]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe
+}
 
 /** A cell as a spreadsheet reads it: dates as `YYYY-MM-DD`, numbers without units. */
 function csvValue(row: GanttRow, column: GanttColumn, mixed: boolean) {
@@ -2373,7 +2421,7 @@ function csvValue(row: GanttRow, column: GanttColumn, mixed: boolean) {
   return editorValue(row, column)
 }
 
-function exportCSV(options: GanttCSVOptions = {}) {
+function toCSV(options: GanttCSVExportOptions = {}) {
   const list = columns.value
   const m = messages.value
   // durations are working days or working hours; the header says which, or each value does when both are in
@@ -2388,12 +2436,35 @@ function exportCSV(options: GanttCSVOptions = {}) {
   }
   const cell = (row: GanttRow, column: GanttColumn) =>
     options.text ? cellText(row, column) : csvValue(row, column, mixed)
-  const lines = [list.map((column) => csvCell(header(column))).join(',')]
+  const ids = options.ids ? [m.idColumn, m.parentColumn] : []
+  const escape = options.escapeFormulas !== false
+  const field = (text: string) => csvCell(text, escape)
+  const lines = [[...ids, ...list.map(header)].map(field).join(',')]
   // every task in order, those under a collapsed parent too
-  for (const row of tree.value.byId.values())
-    lines.push(list.map((column) => csvCell(cell(row, column))).join(','))
+  for (const row of tree.value.byId.values()) {
+    const own = options.ids ? [row.task.id, row.task.parent ?? ''] : []
+    lines.push([...own, ...list.map((column) => cell(row, column))].map(field).join(','))
+  }
   // the byte order mark tells spreadsheets the file is UTF-8
   return (options.bom === false ? '' : '\uFEFF') + lines.join('\r\n')
+}
+
+function readCSV(text: string, outer?: (id: string) => boolean) {
+  return readGanttCSV(text, {
+    columns: columns.value,
+    messages: messages.value,
+    calendar: calendar.value,
+    outer,
+  })
+}
+
+function importCSV(text: string, options: GanttCSVImportOptions = {}) {
+  if (!editable.value) return null
+  const mode = options.mode ?? 'replace'
+  // appended tasks may go under the chart's own
+  const result = readCSV(text, mode === 'append' ? (id) => tree.value.byId.has(id) : undefined)
+  transact((tr) => applyGanttCSV(tr, result, mode, calendar.value))
+  return result
 }
 
 const escapeHTML = (text: string) =>
@@ -2493,7 +2564,9 @@ defineExpose<GanttExpose>({
   zoomOut,
   exportSVG,
   exportPNG,
-  exportCSV,
+  toCSV,
+  readCSV: (text: string) => readCSV(text),
+  importCSV,
   print,
 })
 
@@ -2612,6 +2685,7 @@ const rowStyle = (row: GanttRow) => ({ transform: `translateY(${row.index * prop
   >
     <span :id="keysHint" class="dou-gantt__sr-only">{{ messages.keys }}</span>
     <div class="dou-gantt__sr-only" aria-live="polite">{{ live }}</div>
+    <div v-if="notice" class="dou-gantt__notice" aria-hidden="true">{{ notice }}</div>
     <div
       v-if="showTable"
       ref="tablePane"

@@ -70,8 +70,34 @@ export class FlowTransaction {
     return { ...this.before, nodes: this.nodes, edges: this.edges }
   }
 
+  /** Whether the change makes any change: it has steps and wasn't cancelled. */
   get changed() {
-    return this.steps.length > 0
+    return this.steps.length > 0 && !this.stopped
+  }
+
+  private stopped: { reason?: string } | null = null
+
+  /**
+   * Stops the change: none of it is applied or kept for undo, and the
+   * editor fires `transactionCancel` and says why. For an extension's `transaction`
+   * hook, e.g. to keep people from changing what they may not; hooks after
+   * it don't run. A change kept out of the history (`meta.history: false`),
+   * such as undo, redo or another person's, can't be cancelled and goes ahead.
+   */
+  cancel(reason?: string) {
+    if (this.meta.history !== false) this.stopped = { reason }
+    else warnUncancellable()
+    return this
+  }
+
+  /** Whether `cancel` stopped it. */
+  get cancelled() {
+    return this.stopped !== null
+  }
+
+  /** What `cancel` was given, to tell people why. */
+  get cancelReason() {
+    return this.stopped?.reason
   }
 
   getNode(id: string) {
@@ -252,4 +278,15 @@ export function compactFlowSteps(steps: readonly FlowStep[]): FlowStep[] {
     out.push(step)
   }
   return out.filter((step): step is FlowStep => step != null)
+}
+
+let warnedUncancellable = false
+/** Says once that cancelling a change kept out of the history does nothing. */
+function warnUncancellable() {
+  // the app's bundler replaces this, as for Vue's own warnings
+  if (process.env.NODE_ENV === 'production' || warnedUncancellable) return
+  warnedUncancellable = true
+  console.warn(
+    "[@dou-ui/flow] a change kept out of the history (undo, redo or another person's) can't be cancelled; it goes ahead",
+  )
 }

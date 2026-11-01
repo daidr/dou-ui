@@ -15,6 +15,8 @@ export interface CodeMessages {
   copy: string
   paste: string
   selectAll: string
+  /** Toolbar button of a language server (`@dou-ui/code/lsp`): go to where the name is defined. */
+  goToDefinition: string
   /** The bar of symbol keys above a phone's keyboard. */
   keys: string
   /** The Tab key on that bar. */
@@ -81,6 +83,7 @@ export const zhCN: CodeMessages = {
   copy: '复制',
   paste: '粘贴',
   selectAll: '全选',
+  goToDefinition: '跳到定义',
   keys: '符号栏',
   indent: '缩进',
   cursorLeft: '光标左移',
@@ -128,6 +131,7 @@ export const zhTW: CodeMessages = {
   copy: '拷貝',
   paste: '貼上',
   selectAll: '全選',
+  goToDefinition: '跳至定義',
   keys: '符號列',
   indent: '縮排',
   cursorLeft: '游標左移',
@@ -175,6 +179,7 @@ export const en: CodeMessages = {
   copy: 'Copy',
   paste: 'Paste',
   selectAll: 'Select all',
+  goToDefinition: 'Go to definition',
   keys: 'Symbols',
   indent: 'Indent',
   cursorLeft: 'Move left',

@@ -98,8 +98,34 @@ export class GanttTransaction {
     return { tasks: this.tasks, links: this.links }
   }
 
+  /** Whether the change makes any change: it has steps and wasn't cancelled. */
   get changed() {
-    return this.steps.length > 0
+    return this.steps.length > 0 && !this.stopped
+  }
+
+  private stopped: { reason?: string } | null = null
+
+  /**
+   * Stops the change: none of it is applied or kept for undo, and the
+   * editor fires `transactionCancel` and says why. For an extension's `transaction`
+   * hook, e.g. to keep people from changing what they may not; hooks after
+   * it don't run. A change kept out of the history (`meta.history: false`),
+   * such as undo, redo or another person's, can't be cancelled and goes ahead.
+   */
+  cancel(reason?: string) {
+    if (this.meta.history !== false) this.stopped = { reason }
+    else warnUncancellable()
+    return this
+  }
+
+  /** Whether `cancel` stopped it. */
+  get cancelled() {
+    return this.stopped !== null
+  }
+
+  /** What `cancel` was given, to tell people why. */
+  get cancelReason() {
+    return this.stopped?.reason
   }
 
   /** Whether the tasks, or the links, changed. */
@@ -115,16 +141,20 @@ export class GanttTransaction {
     return this.links[this.indexOf('links', id)]
   }
 
-  /** A task's or link's position in its list, `-1` when there is none. */
+  /**
+   * A task's or link's position in its list, `-1` when there is none. The
+   * positions are kept as tasks and links come and go, and checked when
+   * read: one that moved since is found again with the rest.
+   */
   private indexOf(kind: 'tasks' | 'links', id: string) {
+    const list: readonly { id: string }[] = kind === 'tasks' ? this.tasks : this.links
     let at = this.at[kind]
-    if (!at) {
-      at = new Map()
-      const list = kind === 'tasks' ? this.tasks : this.links
-      // the first one wins, as with `find`
-      for (let i = list.length - 1; i >= 0; i--) at.set(list[i]!.id, i)
-      this.at[kind] = at
-    }
+    const known = at?.get(id)
+    if (at && (known === undefined || list[known]?.id === id)) return known ?? -1
+    at = new Map()
+    // the first one wins, as with `find`
+    for (let i = list.length - 1; i >= 0; i--) at.set(list[i]!.id, i)
+    this.at[kind] = at
     return at.get(id) ?? -1
   }
 
@@ -258,15 +288,16 @@ export class GanttTransaction {
       case 'addTask': {
         if (this.getTask(step.task.id)) return null
         const list = this.writable('tasks')
-        list.splice(clampIndex(step.index, list.length), 0, step.task)
-        this.at.tasks = null
+        const at = clampIndex(step.index, list.length)
+        list.splice(at, 0, step.task)
+        // the rest may have moved by one: `indexOf` checks the positions it reads
+        this.at.tasks?.set(step.task.id, at)
         return { type: 'removeTask', id: step.task.id }
       }
       case 'removeTask': {
         const index = this.indexOf('tasks', step.id)
         if (index < 0) return null
         const [task] = this.writable('tasks').splice(index, 1)
-        this.at.tasks = null
         return { type: 'addTask', task: task!, index }
       }
       case 'updateTask': {
@@ -281,15 +312,16 @@ export class GanttTransaction {
       case 'addLink': {
         if (this.getLink(step.link.id)) return null
         const list = this.writable('links')
-        list.splice(clampIndex(step.index, list.length), 0, step.link)
-        this.at.links = null
+        const at = clampIndex(step.index, list.length)
+        list.splice(at, 0, step.link)
+        // the rest may have moved by one: `indexOf` checks the positions it reads
+        this.at.links?.set(step.link.id, at)
         return { type: 'removeLink', id: step.link.id }
       }
       case 'removeLink': {
         const index = this.indexOf('links', step.id)
         if (index < 0) return null
         const [link] = this.writable('links').splice(index, 1)
-        this.at.links = null
         return { type: 'addLink', link: link!, index }
       }
       case 'updateLink': {
@@ -350,4 +382,15 @@ export function compactSteps(steps: readonly GanttStep[]): GanttStep[] {
     out.push(step)
   }
   return out
+}
+
+let warnedUncancellable = false
+/** Says once that cancelling a change kept out of the history does nothing. */
+function warnUncancellable() {
+  // the app's bundler replaces this, as for Vue's own warnings
+  if (process.env.NODE_ENV === 'production' || warnedUncancellable) return
+  warnedUncancellable = true
+  console.warn(
+    "[@dou-ui/gantt] a change kept out of the history (undo, redo or another person's) can't be cancelled; it goes ahead",
+  )
 }

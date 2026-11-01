@@ -365,9 +365,10 @@ const keys = [
 | `transaction` | 每次修改应用之前调用，可以在同一次修改里追加改动；撤销、重做、新的 `v-model` 值和其他人的修改不经过这里                                                |
 | `update`      | 每一步应用之后调用，参数是这一步的结果（`changes`、`state`、`before`、`meta`），包括撤销、重做、新的 `v-model` 值和其他人的修改，用 `meta.action` 区分 |
 | `history`     | 返回 `{ undo, redo, canUndo, canRedo, close? }`，替换内置的撤销记录，比如协同时只撤销自己的修改；有多个时用第一个                                      |
+| `menu`        | 返回触屏选区工具栏里加的按钮（`{ label, run }`），排在剪切、复制、粘贴、全选后面；选区变化时重新调用                                                   |
 | `setup`       | 编辑器挂载后调用一次，返回的函数在卸载时调用                                                                                                           |
 
-这些函数的参数是编辑器的上下文：它就是编辑器实例（`doc`、`selection`、`transact`、`run` 等都在上面），另外还有 `visible`（可见的行，`{ from, to }` 是行号，不是文本位置，两端都包含）、`diagnostics`（现在的所有问题）和 `announce(message)`（让读屏读出一句话）。`decorations` 和 `panels` 在绘制时调用，里面读到的响应式数据变化时会重新调用；`decorations` 只需要给出可见的行，大文件里也不会变慢。
+这些函数的参数是编辑器的上下文：它就是编辑器实例（`doc`、`selection`、`transact`、`run` 等都在上面），另外还有 `visible`（可见的行，`{ from, to }` 是行号，不是文本位置，两端都包含）、`diagnostics`（现在的所有问题）、`messages`（编辑器用的文案，跟随 DouUI 的语言或 `messages` 属性）、`announce(message)`（让读屏读出一句话）和 `relint(name?)`（马上重新运行名为 `name` 的扩展的 `lint`，不传时运行全部）。`decorations` 和 `panels` 在绘制时调用，里面读到的响应式数据变化时会重新调用；`decorations` 只需要给出可见的行，大文件里也不会变慢。
 
 `mark` 和 `line` 只改变文字的样子，比如颜色、底色、下划线、边框，不改变字的大小和粗细，这样光标仍然落在字符上。`mark` 的 `style` 是一组行内样式，适合放每个人不同的颜色这类没法写成固定 class 的值，比如 `{ '--my-color': '#3b6ea8' }`；几个 `mark` 重叠时，后面的覆盖前面的。
 
@@ -389,7 +390,7 @@ const keys = [
 
 问题的形状是 `{ from, to, severity, message, source?, actions? }`，`from`、`to` 是文本里的位置，`severity` 是 `error`、`warning`、`info`、`hint` 之一。问题在文字下面画波浪线，在行号左侧显示图标，在滚动条上留下标记；鼠标停在上面会显示说明和 `actions` 里的修复办法。
 
-问题有两个来源：`diagnostics` 属性，以及扩展的 `lint`。`lint` 在编辑器挂载时运行，之后在文字停止变化一小会儿后再运行；返回的是 Promise 时，如果结果回来时文字又改过了，这次结果会被丢掉，等下一次运行。两次运行之间，已经找到的问题会跟着修改移动。从 `diagnostics` 属性传入的问题也一样，直到传入新的数组。
+问题有两个来源：`diagnostics` 属性，以及扩展的 `lint`。`lint` 在编辑器挂载时运行，之后在文字停止变化一小会儿后再运行；返回的是 Promise 时，如果结果回来时文字又改过了，这次结果会被丢掉，等下一次运行。问题不是在运行时算出、而是自己送来的（比如语言服务推送），在上下文上调用 `relint(name)` 让这个扩展的 `lint` 马上再运行一次，取走新的结果。两次运行之间，已经找到的问题会跟着修改移动。从 `diagnostics` 属性传入的问题也一样，直到传入新的数组。
 
 `F8` / `Shift` + `F8` 跳到下一个 / 上一个问题并显示说明，读屏会读出行号和内容；`Mod` + `.` 显示光标处问题的修复办法，用上下键选择，`Enter` 执行，`Esc` 关闭。触屏上点一下有问题的文字就会显示说明。
 
@@ -406,13 +407,13 @@ const keys = [
 
 `word` 是光标前的词（`{ from, to, text }`）。`from` 是补全替换的起点，从 `from` 到光标的文字用来筛选和排序 `options`：开头一致的排在前面，其次是按词首字母匹配的，比如 `gebi` 能找到 `getElementById`。继续输入时编辑器直接用已有的结果重新筛选，同时再调用一次 `completion`；新结果回来之前文字又变了，旧的结果会被丢掉，`signal` 也会中止。`hover` 和 `signature` 也一样：鼠标移开或光标移动后，还没回来的结果会被丢掉，`signal` 会中止。
 
-补全项是 `{ label, kind?, detail?, info?, insert?, snippet?, boost? }`。`kind` 决定前面的图标，可以是 `keyword`、`function`、`method`、`variable`、`property`、`constant`、`class`、`type`、`module`、`snippet`、`text`；`detail` 显示在右侧，`info` 显示在列表底部；`insert` 是实际插入的文字，默认等于 `label`；`boost` 用来调整排序。
+补全项是 `{ label, kind?, detail?, info?, insert?, snippet?, boost? }`。`kind` 决定前面的图标，可以是 `keyword`、`function`、`method`、`variable`、`property`、`constant`、`class`、`type`、`module`、`snippet`、`text`；`detail` 显示在右侧，`info` 显示在列表底部，可以是文字，也可以是返回 VNode 的函数；`insert` 是实际插入的文字，默认等于 `label`；`boost` 用来调整排序。
 
 `snippet` 是带占位的片段：`${1:name}` 是第 1 个占位，里面预先填着 `name`；再次出现的 `$1` 和它同步填写；`$0` 是最后光标停下的地方。片段里的换行会带上当前行的缩进，制表符按编辑器的缩进方式写出。插入后选中第一个占位，`Tab` / `Shift` + `Tab` 在占位之间前后跳转，同号的占位会一起选中、一起修改；到 `$0`，或在没有 `$0` 时从最后一个占位再按 `Tab`（光标停在片段末尾），或按 `Esc` 后结束。在占位里输入时弹出的补全列表不会拦下 `Tab`，`Tab` 仍然跳到下一个占位；用方向键选过列表里的项之后，`Tab` 才插入这一项。
 
 补全列表打开时，`↑` `↓` 选择，`PageUp` / `PageDown` 一次移动多项，`Enter` 或 `Tab` 插入，`Esc` 关闭；`Ctrl` + `Space` 或 `Alt` + `Esc` 主动打开补全（Apple 设备上 `Ctrl` + `Space` 通常用来切换输入法）。列表打开和换选中项时，读屏会读出选中的项。
 
-`hover` 的 `content` 可以是文字，也可以是返回 VNode 的函数；它和这里的问题显示在同一个说明框里，在上面。`signature` 的 `params` 是各个参数在 `label` 里的 `[from, to]`，`active` 是正在填写的参数，会加粗显示。
+`hover` 的 `content` 可以是文字，也可以是返回 VNode 的函数；它和这里的问题显示在同一个说明框里，在上面。`signature` 的 `params` 是各个参数在 `label` 里的 `[from, to]`，`active` 是正在填写的参数，会加粗显示；`info` 显示在下面，和补全项的 `info` 一样可以是文字或返回 VNode 的函数。
 
 <DocDemo src="code/completion" column />
 
@@ -421,6 +422,106 @@ const keys = [
 补全和检查可能很耗时，比如要分析整个文件。这时可以把它们放进 Web Worker，扩展只负责发送请求、返回 Promise：编辑器会等结果回来，文字又变了就丢掉旧结果，`signal` 也会中止，这时可以不再等这次回复。下面的例子把文本和光标位置发给 worker，worker 算出补全项和问题再发回来。worker 每次收到的是整段文本；文件很大时，可以改为只发送改动（`transaction` 事件里的 `changes`），由 worker 维护一份副本。
 
 <DocDemo src="code/worker" column />
+
+### 接入语言服务
+
+已有遵循语言服务器协议（LSP）的语言服务时，用 `@dou-ui/code/lsp` 接入，不用自己写扩展。`createLanguageClient` 连上一个语言服务，`client.document()` 为一个文件生成扩展，交给编辑器的 `extensions`：
+
+```ts
+import { createLanguageClient, workerTransport } from '@dou-ui/code/lsp'
+
+const client = createLanguageClient({
+  transport: () =>
+    workerTransport(new Worker(new URL('./server.ts', import.meta.url), { type: 'module' })),
+})
+const server = client.document({ uri: 'file:///report.js', languageId: 'javascript' })
+```
+
+编辑器挂载后，扩展向语言服务打开这个文件，之后每次改动只发送改了的部分（语言服务只接受整段文本时发送整段）。语言服务回答的补全、悬停说明、参数提示和问题（推送的和按需拉取的都支持）会显示在编辑器里，说明里的 Markdown（代码块、列表、链接、粗体、斜体等）会照样排版，链接只认 `http`、`https` 地址。具体用到哪些，看语言服务在初始化时说明了自己支持什么。
+
+跳到光标处名字的定义：按 `F12`；触屏上点一下名字放下光标，再点一下光标，在弹出的工具栏里选“跳到定义”。`server.goToDefinition` 是同一个命令，可以交给 `editor.run()`、放进 `DouCodeKeys` 的按键，或者放在你自己的按钮上。
+
+下面的例子在 worker 里运行一个小型语言服务，认识这份脚本里的几个函数：输入时会弹出补全，悬停在函数名上能看到说明，填写参数时有提示，`sendMail` 会被标出来，把光标放在 `line` 上按 `F12`（手机上点一下 `line`，再点光标，选“跳到定义”）会跳到它的定义。
+
+<DocDemo src="code/lsp" column />
+
+#### 连接
+
+语言服务可以在 Web Worker 里运行，不会阻塞页面，也不需要服务器；也可以在服务器上运行，通过 WebSocket 连接，每帧一条 JSON 消息：
+
+```ts
+import { createLanguageClient, socketTransport } from '@dou-ui/code/lsp'
+
+const client = createLanguageClient({
+  transport: () => socketTransport(new WebSocket('wss://example.com/lsp')),
+  rootUri: 'file:///workspace',
+})
+```
+
+`transport` 写成函数时，第一个用到这个连接的编辑器挂载时才调用它（服务端渲染时不会创建 worker 或 WebSocket），最后一个卸载后关闭语言服务，之后再挂载会重新连接；直接传入的连接一直保持，直到调用 `client.close()`；它关闭或断开后不能再用，之后的请求会直接失败，需要自动重连时把 `transport` 写成函数。同一个连接可以给多个文件使用，每个编辑器用自己的 `client.document()`。
+
+连接自己断开时（worker 加载失败、WebSocket 关闭或连不上），还在等待的请求都会结束，开发环境下会给出一次警告。连接关闭或断开时还挂载着的编辑器不再连接语言服务，重新挂载后才会再打开文件。其他连接方式实现 `{ send, onMessage, close?, onClose? }` 即可，收发的是消息对象。
+
+多数语言服务通过标准输入输出通信，每条消息前带 `Content-Length` 头。在浏览器里使用时，需要在服务器上做一个转接：把 WebSocket 收到的每条消息加上头写给语言服务，把语言服务的输出按头拆开发回去。下面是用 Node.js 和 `ws` 写的最小示例：
+
+```ts
+import { spawn } from 'node:child_process'
+import { WebSocketServer } from 'ws'
+
+new WebSocketServer({ port: 3001 }).on('connection', (socket) => {
+  // 每个连接启动一个语言服务进程
+  const server = spawn('typescript-language-server', ['--stdio'])
+  let buffer = Buffer.alloc(0)
+  server.stdout.on('data', (chunk: Buffer) => {
+    buffer = Buffer.concat([buffer, chunk])
+    for (;;) {
+      const end = buffer.indexOf('\r\n\r\n')
+      if (end < 0) break
+      const length = Number(/Content-Length: (\d+)/i.exec(buffer.subarray(0, end).toString())?.[1])
+      if (buffer.length < end + 4 + length) break
+      socket.send(buffer.subarray(end + 4, end + 4 + length).toString())
+      buffer = buffer.subarray(end + 4 + length)
+    }
+  })
+  socket.on('message', (data) => {
+    const body = Buffer.from(data.toString())
+    server.stdin.write(`Content-Length: ${body.length}\r\n\r\n`)
+    server.stdin.write(body)
+  })
+  socket.on('close', () => server.kill())
+  server.on('exit', () => socket.close())
+})
+```
+
+::: warning 注意
+语言服务能读写它所在机器上的文件，有的还会执行项目里的代码。对外开放转接时要先确认用户身份，并把语言服务限制在单独的目录或容器里。
+:::
+
+#### API
+
+| 名称                                       | 说明                                                                                                                           |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| `createLanguageClient(options)`            | 连接语言服务。`options` 是 `{ transport, rootUri?, initializationOptions? }`；`rootUri` 也作为唯一的工作区文件夹发送           |
+| `client.document(options)`                 | 一个文件的扩展。`options` 是 `{ uri, languageId, openLocation? }`；定义在别的文件里时调用 `openLocation(location)`，由你打开它 |
+| `server.goToDefinition`                    | `client.document()` 返回的扩展上的命令：跳到光标处名字的定义                                                                   |
+| `client.request(method, params?, signal?)` | 发送其他请求，返回 Promise；`signal` 中止时通知语言服务取消                                                                    |
+| `client.notify(method, params?)`           | 发送通知                                                                                                                       |
+| `client.onNotification(method, fn)`        | 收听语言服务的通知，比如 `window/logMessage`；返回取消收听的函数                                                               |
+| `client.capabilities`                      | 语言服务初始化时说明的能力，回复之前是 `null`                                                                                  |
+| `client.close()`                           | 关闭语言服务和连接                                                                                                             |
+| `workerTransport(worker)`                  | 通过 Web Worker 连接；worker 加载失败时视为断开，处理请求时抛出的错误只给出警告，不关闭它                                      |
+| `socketTransport(socket)`                  | 通过 WebSocket 连接；打开之前发送的消息会等它打开                                                                              |
+| `toLspPosition(doc, pos)`                  | 把文本位置换成协议里的 `LspPosition`                                                                                           |
+| `fromLspPosition(doc, position)`           | 反过来换成文本位置                                                                                                             |
+
+| 类型           | 形状                                                                                                                                        |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `LspTransport` | `{ send(message), onMessage(listener) => 取消函数, close?(), onClose?(listener) => 取消函数 }`，`message` 是 JSON-RPC 消息对象 `LspMessage` |
+| `LspPosition`  | `{ line, character }`，都从 0 开始，按 UTF-16 计数，和编辑器的位置一致                                                                      |
+| `LspRange`     | `{ start: LspPosition, end: LspPosition }`                                                                                                  |
+| `LspLocation`  | `{ uri, range: LspRange }`                                                                                                                  |
+
+目前还不支持：补全项的附加修改（比如选中补全项时自动加上 `import`，会被忽略）、补全项按需取说明、代码操作、重命名和格式化。这些可以用 `client.request()` 自己发送。
 
 ## 大文件
 

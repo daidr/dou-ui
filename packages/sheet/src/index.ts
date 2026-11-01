@@ -92,6 +92,7 @@ export type {
   SheetPrintOptions,
   SheetMenuContext,
   SheetMenuItem,
+  SheetLinkOpenEvent,
   SheetPasteEvent,
   SheetProps,
 } from './types'
@@ -144,6 +145,7 @@ export type {
   SheetFilter,
   SheetFilterRule,
   SheetFreeze,
+  SheetProtection,
   SheetRow,
   SheetRuleRange,
   SheetSelectOption,
@@ -164,12 +166,17 @@ export type { SheetInput } from './core/format'
 export { isSelected, selectCell } from './core/selection'
 export type { SheetSelection } from './core/selection'
 export type { SheetSearchQuery, SheetMatch } from './core/find'
+export { checkProtection, isLocked, protectionOf } from './core/protect'
+export { linkTarget } from './core/link'
+export type { SheetLinkTarget } from './core/link'
+export type { SheetProtectionCheck, SheetProtectionRefusal } from './core/protect'
 export { applySheetSteps, compactSheetSteps, sheetKey, SheetTransaction } from './core/transaction'
 export type {
   SheetAction,
   SheetAxisName,
   SheetCellAt,
   SheetLinesAt,
+  SheetBookPatch,
   SheetPatch,
   SheetRangeAt,
   SheetRef,

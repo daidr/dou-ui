@@ -1,3 +1,4 @@
+import type { CodeMessages } from './locale'
 import { type Component, type InjectionKey, type VNodeChild, inject } from 'vue'
 import type { CodeKeymap } from './core/keymap'
 import type { CodeSelection } from './core/selection'
@@ -150,8 +151,8 @@ export interface CodeCompletion {
   kind?: CodeCompletionKind
   /** Short, after the label, e.g. a type. */
   detail?: string
-  /** Longer, beside the list while this entry is picked. */
-  info?: string
+  /** Longer, below the list while this entry is picked: text, or a function returning VNodes. */
+  info?: string | (() => VNodeChild)
   /** What goes into the text, if not the label. */
   insert?: string
   /** Inserted as a snippet instead: `${1:name}` places to fill in, Tab to the next, `$0` where it ends. */
@@ -203,7 +204,8 @@ export interface CodeSignatureResult {
   params: Array<[number, number]>
   /** Which parameter the cursor is at, from 0. */
   active: number
-  info?: string
+  /** Shown under the signature: text, or a function returning VNodes. */
+  info?: string | (() => VNodeChild)
 }
 
 export interface CodeExtension {
@@ -294,8 +296,20 @@ export interface CodeExtension {
    * each time.
    */
   history?: (context: CodeExtensionContext) => CodeHistoryHandler
+  /**
+   * Buttons added to the toolbar shown over the selection on touch screens,
+   * after cut, copy, paste and select all. Read again as the selection
+   * changes.
+   */
+  menu?: (context: CodeExtensionContext) => CodeMenuItem[]
   /** Runs once the editor is mounted. Return a function to run when it unmounts. */
   setup?: (context: CodeExtensionContext) => void | (() => void)
+}
+
+/** A button of the touch toolbar, from an extension's `menu`. */
+export interface CodeMenuItem {
+  label: string
+  run: (context: CodeExtensionContext) => void
 }
 
 /** What an extension sees of the editor: its instance, plus a little more. */
@@ -310,8 +324,16 @@ export interface CodeExtensionContext extends CodeEditorExpose {
   readonly diagnostics: readonly CodeDiagnostic[]
   /** Whether the editor has focus; reading it in reactive code follows it. */
   readonly focused: boolean
+  /** The editor's texts, in DouUI's locale or as given by the `messages` prop. */
+  readonly messages: CodeMessages
   /** Reads a message out to screen readers. */
   announce: (message: string) => void
+  /**
+   * Runs the linter of the extension named `name` again now (every linter
+   * without a name), for problems that arrive by themselves, such as ones a
+   * server pushes.
+   */
+  relint: (name?: string) => void
 }
 
 /** Types an extension; returns it as it is. */

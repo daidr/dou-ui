@@ -1,4 +1,4 @@
-import { h, nextTick, reactive, ref, shallowRef } from 'vue'
+import { h, nextTick, reactive, ref, shallowRef, toRaw } from 'vue'
 import type { VNode } from 'vue'
 import {
   DouButton,
@@ -54,7 +54,8 @@ import { DouFlowEditor, type FlowDocument } from '@dou-ui/flow'
 import '@dou-ui/flow/style.css'
 import { CodeText, DouCodeEditor, type CodeEditorExpose, typescript } from '@dou-ui/code'
 import '@dou-ui/code/style.css'
-import { DouSheet, type SheetExpose, type SheetWorkbook } from '@dou-ui/sheet'
+import { DouSheet, exportWorkbook, type SheetExpose, type SheetWorkbook } from '@dou-ui/sheet'
+import { xlsxExporter } from '@dou-ui/sheet-xlsx'
 import '@dou-ui/sheet/style.css'
 import { DouPivot, type PivotCollapsed, type PivotConfig } from '@dou-ui/pivot'
 import '@dou-ui/pivot/style.css'
@@ -1072,6 +1073,15 @@ export const cases: Record<string, Case> = {
     act: () => (window as any).sheet.value.exportSVG(),
     budget: { 10_000: 1000 },
   },
+  // The whole sheet of n rows × 20 columns written as an .xlsx file, compressed.
+  'sheet-export-xlsx': {
+    render: (n) => sheet(n),
+    act: async () => {
+      // the plain workbook, as the grid hands it to exporters
+      await exportWorkbook(toRaw((window as any).sheetBook.value), xlsxExporter)
+    },
+    budget: { 100_000: 4000 },
+  },
   // n records grouped 8 × 120 cities × 4 by 4 × 12 months, two values: read, summed up and drawn.
   pivot: {
     render: (n) => pivot(n),
@@ -1508,6 +1518,7 @@ function sheet(n: number, typed = false, conditional = false) {
     ]
   const grid = ref<SheetExpose>()
   ;(window as any).sheet = grid
+  ;(window as any).sheetBook = book
   return () =>
     h(DouSheet, {
       ref: grid,

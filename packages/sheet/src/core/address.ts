@@ -189,7 +189,10 @@ function writeEnd(end: RefEnd) {
 
 /** A sheet's name as a reference writes it: quoted unless it is a plain word. */
 export function quoteSheet(name: string) {
-  return /^[\p{L}_][\p{L}\p{N}_.]*$/u.test(name) && !parseCell(name)
+  // names that read as a cell, `AB12` or `R1C1`, are quoted too
+  return /^[\p{L}_][\p{L}\p{N}_.]*$/u.test(name) &&
+    !parseCell(name) &&
+    !/^[rc]\d*([rc]\d*)?$/i.test(name)
     ? name
     : `'${name.replaceAll("'", "''")}'`
 }

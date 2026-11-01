@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { createFileSource, exportWorkbook, type SheetWorkbook } from '@dou-ui/sheet'
 import { unzip, zip } from '../zip'
 import { writeXlsx, xlsx, xlsxExporter } from '../index'
@@ -48,6 +48,17 @@ describe('zip', () => {
     expect(decoder.decode(files.get('a.txt'))).toBe('hello')
     expect(decoder.decode(files.get('目录/b.txt'))).toBe(big)
     expect([...files.get('c.bin')!]).toEqual([0, 1, 2, 255])
+  })
+
+  it('says what it needs when the platform has no CompressionStream', async () => {
+    vi.stubGlobal('CompressionStream', undefined)
+    try {
+      await expect(zip([{ path: 'a', data: 'a' }])).rejects.toThrow(
+        '[@dou-ui/sheet-xlsx] needs CompressionStream',
+      )
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 
   it('refuses what is not a zip', async () => {
@@ -120,7 +131,7 @@ describe('writeXlsx', () => {
     expect(kept).toContain('<c t="e"><f>1/0</f><v>#DIV/0!</v></c>')
     // not a formula: kept as its text
     expect(kept).toContain('<c t="s">')
-    const values = (await parts(book, {}, { formulas: 'values' })).sheet()
+    const values = (await parts(book, {}, { formulas: false })).sheet()
     expect(values).not.toContain('<f>')
     expect(values).toContain('<c><v>6</v></c>')
     expect(values).toContain('<c t="e"><v>#DIV/0!</v></c>')
@@ -199,7 +210,7 @@ describe('writeXlsx', () => {
 
   it('takes the grid sizes from options', async () => {
     const xml = (
-      await parts({ sheets: [{ name: 'S', cells: [['a']] }] }, {}, { colWidth: 124, rowHeight: 32 })
+      await parts({ sheets: [{ name: 'S', cells: [['a']] }] }, { colWidth: 124, rowHeight: 32 })
     ).sheet()
     expect(xml).toContain('defaultRowHeight="24" defaultColWidth="17"')
   })
@@ -353,7 +364,7 @@ describe('writeXlsx', () => {
       '<filterColumn colId="1"><customFilters><customFilter operator="greaterThan" val="100"/>',
     )
     expect(text('xl/workbook.xml')).toContain(
-      'localSheetId="0" hidden="1">\'销售\'!$A$1:$B$9</definedName>',
+      'localSheetId="0" hidden="1">销售!$A$1:$B$9</definedName>',
     )
   })
 
@@ -416,10 +427,107 @@ describe('writeXlsx', () => {
       ],
     })
     const workbook = text('xl/workbook.xml')!
-    expect(workbook).toContain('name="计划_2026" sheetId="1"')
+    // a name that is fine keeps it; a changed one takes a number
+    expect(workbook).toContain('name="计划_2026 (2)" sheetId="1"')
     expect(workbook).toContain(`name="${'x'.repeat(31)}" sheetId="2"`)
-    expect(workbook).toContain('name="计划_2026 (2)" sheetId="3"')
+    expect(workbook).toContain('name="计划_2026" sheetId="3"')
     expect(files.has('xl/worksheets/sheet3.xml')).toBe(true)
+  })
+
+  it('changes the formulas that refer to a sheet whose name changed', async () => {
+    const { sheet } = await parts({
+      sheets: [
+        {
+          name: '一季度/二季度',
+          cells: [[10]],
+          conditionalFormats: [
+            { range: 'A1', formula: "='一季度/二季度'!A1>5", style: { bold: true } },
+          ],
+        },
+        {
+          name: '汇总',
+          cells: [["='一季度/二季度'!A1*2", '=SUM(一季度/二季度!A1:A1)']],
+          validations: [{ range: 'C1', list: "='一季度/二季度'!A1:A3" }],
+        },
+      ],
+    })
+    expect(sheet(1)).toContain('<formula>一季度_二季度!A1&gt;5</formula>')
+    const xml = sheet(2)
+    expect(xml).toContain('<f>一季度_二季度!A1*2</f><v>20</v>')
+    expect(xml).toContain('<formula1>一季度_二季度!A1:A3</formula1>')
+  })
+
+  it('quotes sheet names that read as cells', async () => {
+    const { text } = await parts({
+      sheets: [
+        { name: 'AB12', cells: [['a']], filter: { range: 'A1:A3' } },
+        { name: 'R1C1', cells: [['a']], filter: { range: 'A1:A3' } },
+      ],
+    })
+    const workbook = text('xl/workbook.xml')!
+    expect(workbook).toContain("'AB12'!$A$1:$A$3")
+    expect(workbook).toContain("'R1C1'!$A$1:$A$3")
+  })
+
+  it('refuses a workbook without sheets', async () => {
+    await expect(writeXlsx(createFileSource({ sheets: [] }))).rejects.toThrow(
+      '[@dou-ui/sheet-xlsx] a workbook needs at least one sheet',
+    )
+  })
+
+  it('writes dates formulas come to as dates', async () => {
+    const xml = (
+      await parts({ sheets: [{ name: 'S', cells: [['2026-03-02', '=A1+1', '=DATE(2026,3,4)']] }] })
+    ).sheet()
+    expect(xml).toMatch(
+      /<c s="(\d+)"><f>A1\+1<\/f><v>46084<\/v><\/c><c s="\1"><f>DATE\(2026,3,4\)<\/f><v>46085<\/v>/,
+    )
+  })
+
+  it('writes numbers the file cannot hold as #NUM!', async () => {
+    const xml = (
+      await parts({ sheets: [{ name: 'S', cells: [[Number.NaN, Infinity, '=B1']] }] })
+    ).sheet()
+    expect(xml).toContain(
+      '<row r="1"><c t="e"><v>#NUM!</v></c><c t="e"><v>#NUM!</v></c><c t="e"><f>B1</f><v>#NUM!</v></c></row>',
+    )
+  })
+
+  it('keeps text that reads as a formula text when edited elsewhere', async () => {
+    const { sheet, text } = await parts({ sheets: [{ name: 'S', cells: [["'=1+1"]] }] })
+    expect(sheet()).toMatch(/<c s="[1-9]\d*" t="s">/)
+    expect(text('xl/styles.xml')).toContain('quotePrefix="1"')
+  })
+
+  it('leaves out lists whose values hold a comma or a quote', async () => {
+    const xml = (
+      await parts({
+        types: { area: { type: 'select', options: ['上海,浦东', '上海,静安'] } },
+        sheets: [
+          {
+            name: 'S',
+            cells: [[{ value: '上海,浦东', type: 'area' }]],
+            validations: [
+              { range: 'B1:B3', list: ['a"b', 'c'] },
+              { range: 'C1:C3', list: ['甲', '乙'] },
+            ],
+          },
+        ],
+      })
+    ).sheet()
+    expect(xml).toContain('<dataValidations count="1">')
+    expect(xml).toContain('<formula1>&quot;甲,乙&quot;</formula1>')
+  })
+
+  it('takes the grid sizes from the source', async () => {
+    const blob = await exportWorkbook({ sheets: [{ name: 'S', cells: [['a']] }] }, xlsxExporter, {
+      colWidth: 200,
+      rowHeight: 40,
+    })
+    const files = await unzip(new Uint8Array(await blob.arrayBuffer()))
+    expect(decoder.decode(files.get('xl/worksheets/sheet1.xml'))).toContain(
+      'defaultRowHeight="30" defaultColWidth="27.86"',
+    )
   })
 
   it('stops when the export is called off', async () => {
@@ -435,7 +543,7 @@ describe('writeXlsx', () => {
 
 describe('xlsx()', () => {
   it('adds the exporter, with its options as defaults', async () => {
-    const extension = xlsx({ formulas: 'values' })
+    const extension = xlsx({ formulas: false })
     const exporter = extension.exporters![0]!
     expect(exporter.name).toBe('xlsx')
     const blob = await exportWorkbook({ sheets: [{ name: 'S', cells: [[1, '=A1+1']] }] }, exporter)

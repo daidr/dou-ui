@@ -2849,6 +2849,8 @@ async function exportFile(which: string | SheetExporter, options: SheetExportFil
     cellTypes: cellTypes.value,
     locale: lang.value,
     messages: messages.value,
+    colWidth: props.colWidth,
+    rowHeight: props.rowHeight,
     signal: options.signal,
     view:
       exporter.needs === 'view'

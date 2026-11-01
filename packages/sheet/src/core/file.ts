@@ -56,6 +56,9 @@ export interface SheetFileSource {
   /** The language dates and numbers are written in. */
   locale?: string
   messages: SheetMessages
+  /** The grid's default column width and row height in px, for columns and rows without their own. */
+  colWidth: number
+  rowHeight: number
   /** A cell's value as stored: for a formula, the formula. */
   value: (sheet: number, row: number, col: number) => SheetValue
   /** What a cell comes to: its formula's result (an error as a `SheetError`), or its value. */
@@ -255,6 +258,10 @@ export interface SheetFileSourceOptions {
   functions?: readonly SheetFunction[]
   locale?: string
   messages?: SheetMessages
+  /** The grid's default column width in px; `96` by default. */
+  colWidth?: number
+  /** The grid's default row height in px; `28` by default. */
+  rowHeight?: number
   /** Works out a formula as if it were in a cell of a sheet, by key, for conditional formats; with `result`. */
   evaluate?: (formula: string, key: string) => unknown
   signal?: AbortSignal
@@ -369,6 +376,8 @@ export function createFileSource(
     book,
     scope,
     sheets,
+    colWidth: options.colWidth ?? 96,
+    rowHeight: options.rowHeight ?? 28,
     locale,
     messages: options.messages ?? sheetMessagesFor(locale),
     value: (sheet, row, col) => valueOf(input(sheet, row, col)),
@@ -399,6 +408,9 @@ export interface SheetExportWorkbookOptions<Options = any> {
   range?: string
   locale?: string
   messages?: SheetMessages
+  /** The default column width and row height in px the workbook is laid out with, as `DouSheet`'s `col-width` and `row-height`. */
+  colWidth?: number
+  rowHeight?: number
   signal?: AbortSignal
   /** Passed on to the exporter. */
   options?: Options
@@ -456,6 +468,8 @@ export async function exportWorkbook<Options>(
     functions: resolved.functions,
     locale: options.locale,
     messages: options.messages,
+    colWidth: options.colWidth,
+    rowHeight: options.rowHeight,
     signal: options.signal,
   })
   return toBlob(await exporter.export(source, options.options), exporter.mime)

@@ -26,6 +26,8 @@ const BUILTIN_FORMATS: Record<string, number> = {
 export interface CellLook {
   style?: SheetStyle
   format?: string
+  /** Text that reads as a formula, kept as text when edited in other programs. */
+  quote?: boolean
 }
 
 /** A list element with its count, `''` when empty. */
@@ -51,7 +53,7 @@ export class StyleSheet {
   private dxfIds = new Map<string, number>()
 
   /** The number of a look, `0` for the plain one. */
-  look({ style, format }: CellLook) {
+  look({ style, format, quote }: CellLook) {
     const numFmtId = format ? this.format(format) : 0
     const fontId = style ? this.font(style) : 0
     const fillId = style ? this.fill(argb(style.background)) : 0
@@ -73,6 +75,7 @@ export class StyleSheet {
       applyFont: fontId ? 1 : undefined,
       applyFill: fillId ? 1 : undefined,
       applyAlignment: align ? 1 : undefined,
+      quotePrefix: quote,
     })}${align ? `>${align}</xf>` : '/>'}`
     let id = this.xfIds.get(xf)
     if (id == null) {

@@ -6,9 +6,74 @@
 
 const encoder = new TextEncoder()
 
-async function through(bytes: Uint8Array[], stream: CompressionStream | DecompressionStream) {
-  const out = new Blob(bytes as BlobPart[]).stream().pipeThrough(stream)
-  return new Uint8Array(await new Response(out).arrayBuffer())
+/** Lets the page handle what is waiting, such as input, before going on. */
+export const pause = () => new Promise<void>((resolve) => setTimeout(resolve))
+
+/** How long work goes on before letting the page go on, in ms. */
+export const SLICE = 50
+
+/** What `zip` and `unzip` need of the platform, checked so the error says so. */
+function streams() {
+  if (typeof CompressionStream !== 'function' || typeof DecompressionStream !== 'function')
+    throw new Error(
+      '[@dou-ui/sheet-xlsx] needs CompressionStream (browsers since 2023, Node 18, Bun, Deno) to write and read .xlsx files',
+    )
+}
+
+/** The bytes the stream's other end gives. */
+async function collect(readable: ReadableStream<Uint8Array>) {
+  const pieces: Uint8Array[] = []
+  let size = 0
+  const reader = readable.getReader()
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    pieces.push(value)
+    size += value.length
+  }
+  const out = new Uint8Array(size)
+  let at = 0
+  for (const piece of pieces) {
+    out.set(piece, at)
+    at += piece.length
+  }
+  return out
+}
+
+/** How `zip` goes on with a big file: when to let the page go on, and when to stop. */
+export interface ZipPacing {
+  signal?: AbortSignal
+  /** When work last let the page go on, from `performance.now()`; kept up to date. */
+  lastPause: { at: number }
+}
+
+// a file goes through the compressor this much at a time, so the page can go on in between
+const PIECE = 1 << 18
+
+/** Bytes through a compressor or decompressor, a piece at a time, letting the page go on between pieces. */
+async function through(
+  bytes: Uint8Array[],
+  stream: CompressionStream | DecompressionStream,
+  pacing?: ZipPacing,
+) {
+  const result = collect(stream.readable)
+  const writer = stream.writable.getWriter()
+  try {
+    for (const bytesPiece of bytes)
+      for (let at = 0; at < bytesPiece.length; at += PIECE) {
+        await writer.write(bytesPiece.subarray(at, at + PIECE) as Uint8Array<ArrayBuffer>)
+        if (pacing && performance.now() - pacing.lastPause.at > SLICE) {
+          await pause()
+          pacing.signal?.throwIfAborted()
+          pacing.lastPause.at = performance.now()
+        }
+      }
+    await writer.close()
+  } catch (error) {
+    await writer.abort(error).catch(() => {})
+    throw error
+  }
+  return result
 }
 
 /** The deflated bytes of a gzip stream, with the CRC-32 and size of what went in. */
@@ -38,7 +103,8 @@ export interface ZipEntry {
  * Packs files into a zip, compressed. The files' times are left at the
  * zip format's first day, so the same files give the same bytes.
  */
-export async function zip(entries: readonly ZipEntry[]): Promise<Uint8Array> {
+export async function zip(entries: readonly ZipEntry[], pacing?: ZipPacing): Promise<Uint8Array> {
+  streams()
   const parts: Uint8Array[] = []
   const central: Uint8Array[] = []
   let offset = 0
@@ -51,7 +117,9 @@ export async function zip(entries: readonly ZipEntry[]): Promise<Uint8Array> {
           ? entry.data
           : [entry.data]
     // gzip is deflate with the CRC-32 and size after it, worked out by the platform
-    const { packed, crc, length } = fromGzip(await through(raw, new CompressionStream('gzip')))
+    const { packed, crc, length } = fromGzip(
+      await through(raw, new CompressionStream('gzip'), pacing),
+    )
     // DOS date 1980-01-01, time 00:00
     const time = 0
     const date = (0 << 9) | (1 << 5) | 1
@@ -104,6 +172,7 @@ export async function zip(entries: readonly ZipEntry[]): Promise<Uint8Array> {
 
 /** Reads the files of a zip, by path. Only stored and deflated files, as .xlsx files have. */
 export async function unzip(bytes: Uint8Array): Promise<Map<string, Uint8Array>> {
+  streams()
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
   let end = -1
   for (let i = bytes.length - 22; i >= Math.max(0, bytes.length - 22 - 65_535); i--)

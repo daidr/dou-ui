@@ -2,10 +2,12 @@ import {
   boundsOf,
   columnName,
   isSheetError,
-  lightColor,
+  lightThemeColor,
   meetsRule,
   parseRange,
   plainStyle,
+  quoteSheet,
+  renameReferencesAll,
   serialOf,
   textCollator,
   type SheetBounds,
@@ -21,21 +23,17 @@ import {
 } from '@dou-ui/sheet'
 import { argb, StyleSheet } from './styles'
 import { attrs, esc, HEAD, NS, NS_PKG, NS_R } from './xml'
-import { zip, type ZipEntry } from './zip'
+import { pause, SLICE, zip, type ZipEntry } from './zip'
 
 /** Options of the .xlsx exporter. */
 export interface SheetXlsxExportOptions {
   /**
-   * `'keep'` writes formulas with what they came to, so other programs
-   * show the results until they work them out again; `'values'` writes
-   * only the results, e.g. for formulas with functions only this grid
-   * has. `'keep'` by default; exporting the selection always writes values.
+   * Writes formulas, with what they came to so other programs show the
+   * results until they work them out again; `false` writes only the
+   * results, e.g. for formulas with functions only this grid has. `true`
+   * by default; exporting the selection always writes the results.
    */
-  formulas?: 'keep' | 'values'
-  /** The grid's default column width in px, as `DouSheet`'s `col-width`. `96` by default. */
-  colWidth?: number
-  /** The grid's default row height in px, as `DouSheet`'s `row-height`. `28` by default. */
-  rowHeight?: number
+  formulas?: boolean
 }
 
 /** An error as the file can hold it: a formula that depends on itself as `#VALUE!`. */
@@ -49,9 +47,6 @@ function maxLevel(levels: Map<number, number>) {
   for (const level of levels.values()) if (level > max) max = level
   return max || undefined
 }
-
-/** Lets the page handle what is waiting, such as input, before going on. */
-const pause = () => new Promise<void>((resolve) => setTimeout(resolve))
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/
 const DATE_TIME = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2})?$/
@@ -76,19 +71,55 @@ const rangeText = (b: SheetBounds) =>
     ? cellName(b.top, b.left)
     : `${cellName(b.top, b.left)}:${cellName(b.bottom, b.right)}`
 
-/** Sheet names other programs take: at most 31 characters, none of `[]:*?/\`, each different. */
+const ILLEGAL = /[[\]:*?/\\]/g
+/** Whether other programs take a sheet name as it is. */
+const legalName = (name: string) =>
+  name.length > 0 &&
+  name.length <= 31 &&
+  !/[[\]:*?/\\]/.test(name) &&
+  !name.startsWith("'") &&
+  !name.endsWith("'")
+
+/**
+ * Sheet names other programs take: at most 31 characters, none of
+ * `[]:*?/\`, no `'` at either end, each different ignoring case. Names
+ * that are fine stay as they are; the others are changed, with a number
+ * after them when that makes them the same as another.
+ */
 function sheetNames(names: string[]) {
+  const out: (string | undefined)[] = []
   const taken = new Set<string>()
-  return names.map((name) => {
-    const base = name.replace(/[[\]:*?/\\]/g, '_').slice(0, 31) || 'Sheet'
+  for (const [i, name] of names.entries())
+    if (legalName(name) && !taken.has(name.toLowerCase())) {
+      out[i] = name
+      taken.add(name.toLowerCase())
+    }
+  for (const [i, name] of names.entries()) {
+    if (out[i] != null) continue
+    const base = name.replace(ILLEGAL, '_').replace(/^'|'$/g, '_').slice(0, 31) || 'Sheet'
     let next = base
     for (let n = 2; taken.has(next.toLowerCase()); n++) {
       const tail = ` (${n})`
       next = base.slice(0, 31 - tail.length) + tail
     }
     taken.add(next.toLowerCase())
-    return next
-  })
+    out[i] = next
+  }
+  return out as string[]
+}
+
+/**
+ * A list of values written in the rule itself, `"a,b"`, or `null` when it
+ * can't be: a value with a comma or a quote would split or end it, and
+ * the file holds at most 255 characters.
+ */
+function inlineList(options: readonly unknown[]) {
+  const values = options.map((o) =>
+    String(typeof o === 'object' && o !== null ? (o as { value: unknown }).value : o),
+  )
+  if (values.some((v) => v.includes(',') || v.includes('"'))) return null
+  const list = `"${values.join(',')}"`
+  return list.length <= 255 ? list : null
 }
 
 /** The ranges of a rule, as the file lists them. */
@@ -130,9 +161,9 @@ const CELL_IS: Partial<Record<SheetCondition['op'], string>> = {
 /** A tone's soft fill or plain color as the light theme paints it, for scales and bars. */
 function toneColor(color: SheetColor, share: number) {
   const tones = ['neutral', 'primary', 'success', 'warning', 'danger']
-  if (!tones.includes(color)) return lightColor(color)
+  if (!tones.includes(color)) return lightThemeColor(color)
   const base = color === 'neutral' ? 'var(--dou-color-text)' : `var(--dou-color-${color})`
-  return lightColor(`color-mix(in oklab, ${base} ${share}%, var(--dou-color-bg-surface))`)
+  return lightThemeColor(`color-mix(in oklab, ${base} ${share}%, var(--dou-color-bg-surface))`)
 }
 
 /** Writes the cells a source exports as an .xlsx file. */
@@ -141,6 +172,8 @@ export async function writeXlsx(
   options: SheetXlsxExportOptions = {},
 ): Promise<Uint8Array> {
   const book = source.book
+  if (!source.sheets.length)
+    throw new Error('[@dou-ui/sheet-xlsx] a workbook needs at least one sheet to be written')
   const styles = new StyleSheet()
   const strings: string[] = []
   const stringIds = new Map<string, number>()
@@ -167,14 +200,15 @@ export async function writeXlsx(
     typeof style === 'string' ? styleNamed(style) : plainStyle(style)
 
   // a cell's look by its style's name and format, each pair worked out once
-  const looks = new Map<string | undefined, Map<string | undefined, number>>()
-  const lookOf = (name: string | undefined, format: string | undefined) => {
+  const looks = new Map<string | undefined, Map<string, number>>()
+  const lookOf = (name: string | undefined, format: string | undefined, quote: boolean) => {
     let byFormat = looks.get(name)
     if (!byFormat) looks.set(name, (byFormat = new Map()))
-    let id = byFormat.get(format)
+    const key = (quote ? "'" : '') + (format ?? '')
+    let id = byFormat.get(key)
     if (id == null) {
-      id = styles.look({ style: styleNamed(name), format })
-      byFormat.set(format, id)
+      id = styles.look({ style: styleNamed(name), format, quote })
+      byFormat.set(key, id)
     }
     return id
   }
@@ -194,12 +228,19 @@ export async function writeXlsx(
   // what `plainCell` gives besides the cell's content, kept out of a new object per cell
   let plainKind: string | undefined
   let plainFormat: string | undefined
-  /** A value's content; its type and format go to `plainKind` and `plainFormat`. */
+  let plainQuote = false
+  /** A value's content; its type, format and quoting go to `plainKind`, `plainFormat` and `plainQuote`. */
   function plainCell(value: SheetValue | undefined, format: string | undefined) {
     plainKind = undefined
     plainFormat = format
+    plainQuote = false
     if (value == null || value === '') return ''
-    if (typeof value === 'number') return Number.isFinite(value) ? `<v>${value}</v>` : ''
+    if (typeof value === 'number') {
+      if (Number.isFinite(value)) return `<v>${value}</v>`
+      // what the file can't hold as a number, such as dividing by zero worked out by hand
+      plainKind = 'e'
+      return '<v>#NUM!</v>'
+    }
     if (typeof value === 'boolean') {
       plainKind = 'b'
       return `<v>${value ? 1 : 0}</v>`
@@ -211,18 +252,26 @@ export async function writeXlsx(
       return `<v>${date.serial}</v>`
     }
     plainKind = 's'
-    return `<v>${shared(value.startsWith("'=") ? value.slice(1) : value)}</v>`
+    if (value.startsWith("'=")) {
+      plainQuote = true
+      return `<v>${shared(value.slice(1))}</v>`
+    }
+    return `<v>${shared(value)}</v>`
   }
 
   const selection = source.scope === 'selection'
-  const keepFormulas = !selection && options.formulas !== 'values'
-  const colWidth = options.colWidth ?? 96
-  const rowHeight = options.rowHeight ?? 28
+  const keepFormulas = !selection && options.formulas !== false
+  const { colWidth, rowHeight } = source
   const names = sheetNames(source.sheets.map((s) => s.data.name))
+  // sheets whose names changed: formulas referring to them follow
+  const renamed = new Map<string, string>()
+  for (const [i, { data }] of source.sheets.entries())
+    if (names[i] !== data.name) renamed.set(data.name, names[i]!)
+  const rename = (formula: string) => renameReferencesAll(formula, renamed)
   const entries: ZipEntry[] = []
   const sheetFiles: { name: string; hidden: boolean; filter?: string }[] = []
 
-  let lastPause = performance.now()
+  const pacing = { signal: source.signal, lastPause: { at: performance.now() } }
   for (const [n, { index, data, bounds }] of source.sheets.entries()) {
     source.signal?.throwIfAborted()
     // the selection goes in at A1; a whole sheet keeps its places
@@ -290,7 +339,7 @@ export async function writeXlsx(
       })
 
     // cells, row by row; list cells for the types that pick from a list
-    const lists = new Map<string, { values: string; cells: string[] }>()
+    const lists = new Map<string, { values: string; cells: string[] } | null>()
     const notes: { ref: string; row: number; col: number; text: string }[] = []
     const rows: string[] = []
     // the column a cell written next is in without saying so
@@ -326,10 +375,10 @@ export async function writeXlsx(
       if (rows.length >= 1000) {
         flush()
         // a big sheet takes a while: let the page go on and the export be called off
-        if (performance.now() - lastPause > 50) {
+        if (performance.now() - pacing.lastPause.at > SLICE) {
           await pause()
           source.signal?.throwIfAborted()
-          lastPause = performance.now()
+          pacing.lastPause.at = performance.now()
         }
       }
       rows.push(
@@ -356,19 +405,19 @@ export async function writeXlsx(
 
       // a type that picks from a list: its values become the cell's list
       if (typed?.name === 'select' && Array.isArray(typed.setup.options)) {
-        const values = typed.setup.options
-          .map((o) => String(typeof o === 'object' && o !== null ? o.value : o))
-          .join(',')
         const key = cell?.type as string
-        if (values.length <= 253 && !values.includes('"')) {
-          const list = lists.get(key) ?? { values, cells: [] }
-          list.cells.push(at(row, col))
+        let list = lists.get(key)
+        if (list === undefined) {
+          const values = inlineList(typed.setup.options)
+          list = values == null ? null : { values, cells: [] }
           lists.set(key, list)
         }
+        list?.cells.push(at(row, col))
       }
 
       let body = ''
       let kind: string | undefined
+      let quote = false
       if (typed?.definition.plain) {
         body = plainCell(source.plain(index, row, col), format)
         kind = plainKind
@@ -380,17 +429,24 @@ export async function writeXlsx(
           kind = 's'
           body = `<v>${shared(value)}</v>`
         } else if (keepFormulas) {
-          body = `<f>${esc(formulaText(value))}</f>`
+          body = `<f>${esc(formulaText(rename(value)))}</f>`
+          // what it came to; a date as its day number and a date format, as other programs give it
           if (isSheetError(result)) {
             kind = 'e'
             body += `<v>${errorCode(result.code)}</v>`
-          } else if (typeof result === 'number') body += `<v>${result}</v>`
-          else if (typeof result === 'boolean') {
-            kind = 'b'
-            body += `<v>${result ? 1 : 0}</v>`
           } else if (typeof result === 'string') {
-            kind = 'str'
-            body += `<v>${esc(result)}</v>`
+            const first = result.charCodeAt(0)
+            const date = first >= 48 && first <= 57 ? dateOf(result) : null
+            if (date) {
+              body += `<v>${date.serial}</v>`
+              format ??= date.format
+            } else {
+              kind = 'str'
+              body += `<v>${esc(result)}</v>`
+            }
+          } else if (result != null) {
+            body += plainCell(result, format)
+            kind = plainKind
           }
         } else if (isSheetError(result)) {
           kind = 'e'
@@ -404,9 +460,10 @@ export async function writeXlsx(
         body = plainCell(value, format)
         kind = plainKind
         format = plainFormat
+        quote = plainQuote
       }
 
-      const s = styleName || format ? lookOf(styleName, format) : 0
+      const s = styleName || format || quote ? lookOf(styleName, format, quote) : 0
       if (!body && !s) return ''
       // a cell right after the one before goes without its name, which halves the file
       const named = col !== nextCol
@@ -445,12 +502,14 @@ export async function writeXlsx(
     const hasLevels = rowLevels.size || colLevels.size
 
     // a list from a cell type, where the cell has no rule of its own
-    const typeLists = [...lists.values()].map(
-      ({ values, cells }) =>
-        `<dataValidation type="list" allowBlank="1" showErrorMessage="1" sqref="${esc(
-          compactRefs(cells),
-        )}"><formula1>${esc(`"${values}"`)}</formula1></dataValidation>`,
-    )
+    const typeLists = [...lists.values()]
+      .filter((list) => list != null)
+      .map(
+        ({ values, cells }) =>
+          `<dataValidation type="list" allowBlank="1" showErrorMessage="1" sqref="${esc(
+            compactRefs(cells),
+          )}"><formula1>${esc(values)}</formula1></dataValidation>`,
+      )
     const validations = [...typeLists, ...(extra?.validations ?? [])]
 
     const relsList: string[] = []
@@ -548,7 +607,9 @@ export async function writeXlsx(
       })
       .join('')
 
-    const validations = (data.validations ?? []).map(validationXML).filter(Boolean)
+    const validations = (data.validations ?? [])
+      .map((rule) => validationXML(rule, rename))
+      .filter(Boolean)
     return { filter, conditional, validations }
   }
 
@@ -586,7 +647,7 @@ export async function writeXlsx(
     }
     if ('formula' in rule)
       return `<cfRule${attrs({ type: 'expression', dxfId: dxf(), priority })}><formula>${esc(
-        formulaText(rule.formula),
+        formulaText(rename(rule.formula)),
       )}</formula></cfRule>`
     if ('top' in rule || 'bottom' in rule) {
       const rank = rule.top ?? rule.bottom ?? 10
@@ -635,7 +696,7 @@ export async function writeXlsx(
     .map((s, i) =>
       s.filter
         ? `<definedName name="_xlnm._FilterDatabase" localSheetId="${i}" hidden="1">${esc(
-            `${quoteName(s.name)}!${absolute(s.filter)}`,
+            `${quoteSheet(s.name)}!${absolute(s.filter)}`,
           )}</definedName>`
         : '',
     )
@@ -715,7 +776,7 @@ export async function writeXlsx(
   // the content types first, as some readers expect
   entries.unshift(entries.pop()!)
   source.signal?.throwIfAborted()
-  return zip(entries)
+  return zip(entries, pacing)
 }
 
 /** The rows of a sheet's filter that its rules hide, as the grid hides them. */
@@ -768,7 +829,7 @@ function compactRefs(refs: string[]) {
 }
 
 /** A validation as the file writes it, `''` for one it can't hold. */
-function validationXML(rule: SheetValidation) {
+function validationXML(rule: SheetValidation, rename: (formula: string) => string) {
   const common = {
     allowBlank: 1,
     showErrorMessage: 1,
@@ -780,16 +841,12 @@ function validationXML(rule: SheetValidation) {
   }
   if ('list' in rule) {
     const list =
-      typeof rule.list === 'string'
-        ? formulaText(rule.list)
-        : `"${rule.list
-            .map((o) => String(typeof o === 'object' && o !== null ? o.value : o))
-            .join(',')}"`
-    if (list.length > 255) return ''
+      typeof rule.list === 'string' ? formulaText(rename(rule.list)) : inlineList(rule.list)
+    if (list == null || list.length > 255) return ''
     return `<dataValidation${attrs({ type: 'list', ...common })}>${body(list)}</dataValidation>`
   }
   if ('formula' in rule)
-    return `<dataValidation${attrs({ type: 'custom', ...common })}>${body(formulaText(rule.formula))}</dataValidation>`
+    return `<dataValidation${attrs({ type: 'custom', ...common })}>${body(formulaText(rename(rule.formula)))}</dataValidation>`
   const { op, value, to } = rule.when
   const operator = CELL_IS[op]
   const numeric = typeof value === 'number' || (typeof value === 'string' && !!dateFormat(value))
@@ -861,8 +918,6 @@ function customFilter(condition: SheetCondition) {
   }
 }
 
-const quoteName = (name: string) =>
-  /^[A-Za-z_][A-Za-z0-9_.]*$/.test(name) ? name : `'${name.replaceAll("'", "''")}'`
 const absolute = (range: string) =>
   range
     .replaceAll('$', '')

@@ -27,6 +27,7 @@ import {
   treePath,
 } from '../core/tree'
 import { waterfallSteps } from '../core/waterfall'
+import { forgetWarnings } from '../core/warn'
 
 /** What a screen reader reads for the chart. */
 async function summaryOf(props: Record<string, unknown>, part: () => unknown) {
@@ -60,13 +61,24 @@ async function tableOf(props: Record<string, unknown>, part: () => unknown) {
 
 describe('axis sort', () => {
   it('warns when a value axis is given a sort', async () => {
+    forgetWarnings()
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    await summaryOf({ data: [{ k: '徐汇', v: 1 }], x: 'k' }, () => [
-      h(DouChartAxis, { for: 'y', sort: 'desc' }),
-      h(DouChartBar, { y: 'v' }),
-    ])
-    expect(warn.mock.calls.some(([text]) => String(text).includes('for="y"'))).toBe(true)
-    warn.mockRestore()
+    const wrapper = mount(DouChart, {
+      props: { data: [{ k: '徐汇', v: 1 }], x: 'k' },
+      slots: {
+        default: () => [h(DouChartAxis, { for: 'y', sort: 'desc' }), h(DouChartBar, { y: 'v' })],
+      },
+      attachTo: document.body,
+    })
+    try {
+      // the axis joins the chart once mounted; the warning follows on a later tick
+      await vi.waitFor(() =>
+        expect(warn.mock.calls.some(([text]) => String(text).includes('for="y"'))).toBe(true),
+      )
+    } finally {
+      wrapper.unmount()
+      warn.mockRestore()
+    }
   })
 })
 

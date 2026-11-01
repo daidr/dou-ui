@@ -6,3 +6,8 @@ export function warnOnce(key: string, text: string) {
   warned.add(key)
   console.warn(`[@dou-ui/chart] ${text}`)
 }
+
+/** Forgets what was warned about, so a test sees each warning afresh. */
+export function forgetWarnings() {
+  warned.clear()
+}

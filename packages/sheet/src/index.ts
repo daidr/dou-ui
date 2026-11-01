@@ -29,6 +29,29 @@ export type {
   SheetKeyHandler,
 } from './core/extension'
 export { defineSheetCommand } from './core/commands'
+export {
+  createFileSource,
+  csvExporter,
+  csvImporter,
+  defineSheetExporter,
+  defineSheetImporter,
+  exportWorkbook,
+  readWorkbook,
+} from './core/file'
+export type {
+  SheetCSVExportOptions,
+  SheetExporter,
+  SheetExportScope,
+  SheetExportWorkbookOptions,
+  SheetFileSheet,
+  SheetFileSource,
+  SheetFileSourceOptions,
+  SheetImportContext,
+  SheetImporter,
+  SheetImportResult,
+  SheetImportWarning,
+  SheetReadWorkbookOptions,
+} from './core/file'
 export type { SheetCommand, SheetCommandInfo, SheetCommands, SheetLabel } from './core/commands'
 export { defineSheetCellType, optionOf, resolveCellType } from './core/cell-type'
 export type {
@@ -47,6 +70,10 @@ export type {
   SheetToolbarTool,
   SheetToolbarItem,
   SheetExpose,
+  SheetFileOptions,
+  SheetImportEvent,
+  SheetImportMode,
+  SheetImportOptions,
   SheetInvalidCell,
   SheetExportOptions,
   SheetImageOptions,
@@ -142,8 +169,8 @@ export type { SheetFunction, SheetFunctionContext } from './formula/functions'
 export { isSheetError, SheetError } from './formula/error'
 export type { SheetErrorCode } from './formula/error'
 export type { SheetArg, SheetRangeArg, SheetResult } from './formula/values'
-export { sheetLocales, useSheetMessages } from './locale'
-export type { SheetMessages } from './locale'
+export { messagesFor, sheetLocales, useSheetMessages } from './locale'
+export type { SheetFileMessages, SheetMessages } from './locale'
 
 declare module 'vue' {
   export interface GlobalComponents {

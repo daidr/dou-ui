@@ -4,6 +4,7 @@ import type { SheetBounds, SheetPoint } from './core/address'
 import type { SheetResolvedType } from './core/cell-type'
 import type { SheetData, SheetSortOrder, SheetStyle, SheetValue, SheetWorkbook } from './core/model'
 import type { SheetResult } from './formula/values'
+import type { SheetExporter, SheetImporter } from './core/file'
 import type { SheetSelection } from './core/selection'
 import type { SheetStylePatch } from './core/transaction'
 import type { SheetMessages } from './locale'
@@ -106,6 +107,15 @@ export interface SheetContext {
   announce: (text: string) => void
   /** What the sheet can do by name, built in and added by extensions: run them, or read their state. */
   commands: SheetExpose['commands']
+  exportFile: SheetExpose['exportFile']
+  saveFile: SheetExpose['saveFile']
+  importFile: SheetExpose['importFile']
+  /** The exporters: the built-in ones (CSV, PNG, SVG), then the extensions'. */
+  exporters: ComputedRef<SheetExporter[]>
+  /** The importers, in the order they are asked: the extensions', then the built-in CSV one. */
+  importers: ComputedRef<SheetImporter[]>
+  /** What a file picker for the importers accepts, such as `.csv,text/csv`. */
+  importAccept: ComputedRef<string>
   /** The items extensions add to the toolbar, in priority order. */
   toolbarItems: ComputedRef<SheetToolbarItem[]>
   /** The cell being edited, for inputs outside the grid such as the formula bar. */

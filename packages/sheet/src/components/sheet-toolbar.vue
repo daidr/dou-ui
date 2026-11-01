@@ -6,6 +6,7 @@ import {
   ChevronDownIcon,
   DecimalDecreaseIcon,
   DecimalIncreaseIcon,
+  DownloadIcon,
   FilterIcon,
   ItalicIcon,
   PaintBucketIcon,
@@ -27,6 +28,7 @@ import {
   TypeXIcon,
   UnderlineIcon,
   UndoIcon,
+  UploadIcon,
   WrapTextIcon,
 } from '@dou-ui/icons'
 import {
@@ -124,7 +126,7 @@ const DEFAULT_TOOLS: SheetToolbarTool[] = [
   'clear',
 ]
 
-const BUILT_IN = new Set<string>(DEFAULT_TOOLS)
+const BUILT_IN = new Set<string>([...DEFAULT_TOOLS, 'export', 'import'])
 
 /** A tool that isn't built in, ready to draw: an extension's item, or a command by name. */
 interface ExtraTool {
@@ -294,6 +296,33 @@ function onMenu(tool: string, open: boolean) {
     menuOpen.value = null
     done()
   }
+}
+
+// Export and import --------------------------------------------------------------------
+
+const exportItems = computed(() =>
+  sheet.exporters.value.map((exporter) => ({
+    name: exporter.name,
+    label: typeof exporter.label === 'function' ? exporter.label(m.value) : exporter.label,
+    icon: exporter.icon,
+  })),
+)
+function exportWith(name: string) {
+  void sheet.saveFile(name)
+  done()
+}
+
+const picker = useTemplateRef<HTMLInputElement>('picker')
+function pickFile() {
+  picker.value?.click()
+}
+function onPicked(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  // the same file can be picked again
+  input.value = ''
+  done()
+  if (file) void sheet.importFile(file)
 }
 
 // Bold, italic, underline, strikethrough ------------------------------------------------
@@ -1155,6 +1184,52 @@ onBeforeUnmount(() => observer?.disconnect())
         </DouTooltip>
 
         <DouTooltip
+          v-else-if="tool === 'export'"
+          :content="m.file.export"
+          :disabled="menuOpen === tool"
+          placement="bottom"
+        >
+          <span class="dou-sheet-toolbar__trigger">
+            <DouDropdown
+              :open="menuOpen === tool"
+              placement="bottom-start"
+              @update:open="onMenu(tool, $event)"
+            >
+              <DouButton
+                variant="ghost"
+                class="dou-sheet-toolbar__menu"
+                :aria-label="m.file.export"
+              >
+                <DownloadIcon />
+                <template #trailing><ChevronDownIcon /></template>
+              </DouButton>
+              <template #menu>
+                <DouDropdownItem
+                  v-for="item in exportItems"
+                  :key="item.name"
+                  @click="exportWith(item.name)"
+                >
+                  <template v-if="item.icon" #prefix><component :is="item.icon" /></template>
+                  {{ item.label }}
+                </DouDropdownItem>
+              </template>
+            </DouDropdown>
+          </span>
+        </DouTooltip>
+
+        <DouTooltip v-else-if="tool === 'import'" :content="m.file.import" placement="bottom">
+          <DouButton
+            variant="ghost"
+            :aria-label="m.file.import"
+            aria-haspopup="dialog"
+            :disabled="disabled"
+            @click="pickFile"
+          >
+            <UploadIcon />
+          </DouButton>
+        </DouTooltip>
+
+        <DouTooltip
           v-else-if="tool === 'validation'"
           :content="m.validation.title"
           placement="bottom"
@@ -1188,6 +1263,15 @@ onBeforeUnmount(() => observer?.disconnect())
       </template>
       <slot name="end" />
     </DouToolbar>
+    <input
+      ref="picker"
+      type="file"
+      class="dou-sheet-toolbar__picker"
+      :accept="sheet.importAccept.value"
+      tabindex="-1"
+      aria-hidden="true"
+      @change="onPicked"
+    />
     <FormatDialog
       v-model:open="dialogOpen"
       :format="dialogFormat"

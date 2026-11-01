@@ -172,9 +172,10 @@ export interface SheetCSVWriteOptions {
   result?: (row: number, col: number) => SheetResult
   /**
    * A cell's text, e.g. as its cell type shows it; `undefined` uses its
-   * format. `value` is its value, or its formula's result.
+   * format. `value` is its value, or its formula's result; `row` and `col`
+   * are where it is in the sheet.
    */
-  text?: (input: SheetCellInput, value: SheetValue) => string | undefined
+  text?: (input: SheetCellInput, value: SheetValue, row: number, col: number) => string | undefined
   /** Line breaks between rows; `\r\n` by default, as the format asks. */
   newline?: string
   /** Starts with a byte order mark, so programs that guess the encoding read it as UTF-8. */
@@ -239,7 +240,7 @@ export function sheetToCSV(sheet: SheetData, options: SheetCSVWriteOptions = {})
       const stored = valueOf(input)
       const value = formatted ? shownValue(stored, result, row, col) : stored
       const shown = formatted
-        ? (text?.(input, value) ?? formatValue(value, cellOf(input)?.format, locale))
+        ? (text?.(input, value, row, col) ?? formatValue(value, cellOf(input)?.format, locale))
         : rawText(value)
       // written as stored, this grid's formulas stay formulas, to be read back with `formulas`
       const formula = !formatted && typeof value === 'string' && value.startsWith('=')

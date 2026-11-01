@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   DouPopover,
+  downloadBlob,
   holdPointer,
   isComposing,
   matchesHotkey,
@@ -44,6 +45,7 @@ import {
   CellsMergeIcon,
   FilterIcon,
   FilterXIcon,
+  ImageIcon,
   FoldVerticalIcon,
   PlusIcon,
   RowGroupIcon,
@@ -130,6 +132,7 @@ import {
   type SheetStyle,
   type SheetTypeSetup,
   type SheetValue,
+  type SheetWorkbook,
 } from './core/model'
 import { movePoint, stepIndex, type SheetDirection } from './core/nav'
 import { compareForSort, isEmptyValue, meetsRule, textCollator } from './core/data'
@@ -165,8 +168,27 @@ import {
 import { format, useSheetMessages } from './locale'
 import { sheetToCSV, type SheetCSVWriteOptions } from './core/csv'
 import { createSheetExport, type SheetExportTarget } from './export'
+import {
+  createFileSource,
+  csvExporter,
+  csvImporter,
+  defineSheetExporter,
+  findImporter,
+  mergeFileHandlers,
+  scopeFor,
+  toBlob,
+  type SheetExporter,
+  type SheetFileSource,
+  type SheetImportResult,
+} from './core/file'
 import type {
   SheetEmits,
+  SheetExportOptions,
+  SheetFileOptions,
+  SheetImageOptions,
+  SheetImportEvent,
+  SheetImportMode,
+  SheetImportOptions,
   SheetSlots,
   SheetExpose,
   SheetInvalidCell,
@@ -192,6 +214,7 @@ const props = withDefaults(defineProps<SheetProps>(), {
   messages: undefined,
   menu: undefined,
   extensions: () => [],
+  fileDrop: false,
 })
 const emit = defineEmits<SheetEmits>()
 defineSlots<SheetSlots>()
@@ -2746,6 +2769,233 @@ const { exportSVG, exportPNG, print } = createSheetExport({
   gridlines: () => props.gridlines,
 })
 
+// Files in and out -----------------------------------------------------------------------
+
+/** The selected cells as a range name, such as `B2:D9`. */
+const selectionRange = () => rangeName(lastBounds())
+
+/** PNG and SVG need the grid's drawing, so they are made here rather than in `core/file`. */
+const pngExporter = defineSheetExporter<SheetImageOptions>({
+  name: 'png',
+  label: (m) => m.file.png,
+  icon: ImageIcon,
+  extension: 'png',
+  mime: 'image/png',
+  scopes: ['sheet', 'selection'],
+  export: (source, options) => exportPNG({ ...options, ...imageScope(source) }),
+})
+const svgExporter = defineSheetExporter<SheetExportOptions>({
+  name: 'svg',
+  label: (m) => m.file.svg,
+  icon: ImageIcon,
+  extension: 'svg',
+  mime: 'image/svg+xml',
+  scopes: ['sheet', 'selection'],
+  export: (source, options) => exportSVG({ ...options, ...imageScope(source) }),
+})
+/** The sheet and cells an image draws, from what the source exports. */
+function imageScope(source: SheetFileSource) {
+  const { index, bounds } = source.sheets[0]!
+  return {
+    sheet: index,
+    range: source.scope === 'selection' && bounds ? rangeName(bounds) : undefined,
+  }
+}
+
+const exporters = computed(() =>
+  mergeFileHandlers(
+    [csvExporter, pngExporter, svgExporter],
+    resolved.value.exporters.map(({ extension, exporter }) => ({ extension, handler: exporter })),
+    'exporter',
+  ),
+)
+const importers = computed(() =>
+  mergeFileHandlers(
+    [csvImporter],
+    resolved.value.importers.map(({ extension, importer }) => ({ extension, handler: importer })),
+    'importer',
+  ),
+)
+
+/** Writes a file with an exporter, by name or itself. */
+async function exportFile(which: string | SheetExporter, options: SheetFileOptions = {}) {
+  const exporter = typeof which === 'string' ? exporters.value.find((e) => e.name === which) : which
+  if (!exporter) throw new Error(`[@dou-ui/sheet] there is no exporter "${String(which)}"`)
+  const scope = scopeFor(exporter, options.scope)
+  const index = options.sheet == null ? sheetIndex.value : indexOfSheet(options.sheet)
+  if (index === -1) throw new RangeError(`[@dou-ui/sheet] there is no sheet "${options.sheet}"`)
+  let bounds: SheetBounds | undefined
+  const range = options.range ?? (scope === 'selection' ? selectionRange() : undefined)
+  if (range != null) {
+    const parsed = parseRange(range)
+    if (!parsed) throw new RangeError(`[@dou-ui/sheet] "${range}" isn't a range`)
+    bounds = boundsOf(parsed)
+  }
+  const source = createFileSource(doc.value, {
+    scope,
+    sheet: index,
+    bounds,
+    result: (key, row, col) => engine.result(key, row, col),
+    cellTypes: cellTypes.value,
+    locale: lang.value,
+    messages: messages.value,
+  })
+  return toBlob(await exporter.export(source, options.options), exporter.mime)
+}
+
+/** The file name a toolbar export saves as: the workbook's first sheet, or the sheet exported. */
+function exportName(exporter: SheetExporter) {
+  const scope = scopeFor(exporter)
+  const name = (scope === 'workbook' ? doc.value.sheets[0] : sheet.value)?.name || 'sheet'
+  return `${name}.${exporter.extension}`
+}
+
+/** Exports with an exporter and saves the file, as the toolbar's export menu does. */
+async function saveFile(
+  which: string | SheetExporter,
+  options: SheetFileOptions & { fileName?: string } = {},
+) {
+  const exporter = typeof which === 'string' ? exporters.value.find((e) => e.name === which) : which
+  if (!exporter) throw new Error(`[@dou-ui/sheet] there is no exporter "${String(which)}"`)
+  const blob = await exportFile(exporter, options)
+  const name = options.fileName ?? exportName(exporter)
+  downloadBlob(blob, name)
+  announce(format(messages.value.file.exported, { name }))
+}
+
+/**
+ * Reads a file into the workbook with the first importer that takes it
+ * (or the one named), as one change undo takes back. Returns what was
+ * read, or `null` when nothing was imported.
+ */
+async function importFile(file: Blob, options: SheetImportOptions = {}) {
+  const name = 'name' in file ? String((file as File).name) : ''
+  if (props.readonly) {
+    announce(messages.value.readonly)
+    return null
+  }
+  const importer =
+    options.importer == null
+      ? await findImporter(importers.value, file)
+      : importers.value.find((i) => i.name === options.importer)
+  if (!importer) {
+    if (options.importer != null)
+      throw new Error(`[@dou-ui/sheet] there is no importer "${options.importer}"`)
+    announce(format(messages.value.file.unknownFile, { name }))
+    return null
+  }
+  let result: SheetImportResult
+  try {
+    result = await importer.import(
+      file,
+      { messages: messages.value, locale: lang.value },
+      options.options,
+    )
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error)
+    announce(format(messages.value.file.importFailed, { name, reason }))
+    throw error
+  }
+  const mode = options.mode ?? 'append'
+  const event: SheetImportEvent = {
+    file,
+    importer: importer.name,
+    mode,
+    book: result.book,
+    warnings: result.warnings ?? [],
+    defaultPrevented: false,
+    preventDefault() {
+      this.defaultPrevented = true
+    },
+  }
+  emit('import', event)
+  if (event.defaultPrevented) return null
+  if (!applyImport(event.book, mode)) return null
+  announce(format(messages.value.file.imported, { name: name || importer.name }))
+  return { book: event.book, warnings: event.warnings }
+}
+
+/** Writes an imported workbook in: as new sheets, instead of every sheet, or at the active cell. */
+function applyImport(book: SheetWorkbook, mode: SheetImportMode) {
+  if (!book.sheets.length) return false
+  if (mode === 'insert') {
+    const first = book.sheets[0]!
+    // as a block copied from a sheet: the cells come with their own formats and styles,
+    // and formulas move along as they would when pasted
+    paste({
+      cells: first.cells.map((line) => [...(line ?? [])]),
+      styles: book.styles,
+      from: { row: 0, col: 0 },
+    })
+    return true
+  }
+  const before = doc.value.sheets.length
+  const added = transact(
+    (tr) => {
+      const names = styleNames(tr, book.styles)
+      for (const [name, setup] of Object.entries(book.types ?? {}))
+        if (!tr.doc.types?.[name]) tr.setType(name, setup)
+      const taken = new Set(mode === 'replace' ? [] : tr.doc.sheets.map((s) => s.name))
+      const incoming = book.sheets.map((data) => {
+        let name = data.name || 'Sheet'
+        for (let n = 2; taken.has(name); n++) name = `${data.name || 'Sheet'} (${n})`
+        taken.add(name)
+        const { id: _id, ...rest } = data
+        return { ...rest, name, cells: renameStyles(data.cells, names) }
+      })
+      if (mode === 'append') {
+        for (const data of incoming) tr.addSheet(data)
+        return
+      }
+      // instead of every sheet: plain steps, so formulas aren't rewritten as when
+      // a sheet is removed or renamed (the new sheets may have the old names)
+      const old = tr.doc.sheets.map(sheetKey)
+      for (let i = old.length - 1; i > 0; i--) tr.step({ type: 'removeSheet', sheet: old[i]! })
+      // the one left steps aside, as a workbook always has a sheet
+      const aside = `\u0000${old[0]}`
+      tr.step({ type: 'updateSheet', sheet: old[0]!, patch: { name: aside, id: undefined } })
+      incoming.forEach((data, index) => tr.step({ type: 'insertSheet', index: index + 1, data }))
+      tr.step({ type: 'removeSheet', sheet: aside })
+    },
+    { action: 'import' },
+  )
+  if (!added) return false
+  showSheet(mode === 'replace' ? 0 : before)
+  return true
+}
+
+/** Cells with their style names changed, as `styleNames` merged them. */
+function renameStyles(cells: SheetData['cells'], names: Map<string, string>) {
+  if (![...names].some(([from, to]) => from !== to)) return cells
+  return cells.map((line) =>
+    line?.map((input) => {
+      const cell = cellOf(input)
+      const to = cell?.style && names.get(cell.style)
+      return to && to !== cell.style ? { ...cell, style: to } : input
+    }),
+  )
+}
+
+/** The `accept` of a file picker for every importer. */
+const importAccept = computed(() =>
+  [...new Set(importers.value.flatMap((i) => i.accept))].join(','),
+)
+
+// a file dropped on the grid goes in at the active cell
+function onDragOver(event: DragEvent) {
+  if (!props.fileDrop || props.readonly || !event.dataTransfer?.types.includes('Files')) return
+  event.preventDefault()
+  event.dataTransfer.dropEffect = 'copy'
+}
+function onDrop(event: DragEvent) {
+  const file = props.fileDrop && !props.readonly ? event.dataTransfer?.files[0] : undefined
+  if (!file) return
+  event.preventDefault()
+  const at = hitAt(event.clientX, event.clientY)
+  if (at.area === 'cell') select(selectCell({ row: at.row, col: at.col }))
+  void importFile(file, { mode: 'insert' })
+}
+
 function onCopy(event: ClipboardEvent) {
   if (editing.value || !event.clipboardData) return
   event.preventDefault()
@@ -4933,6 +5183,12 @@ const context: SheetContext = {
   toggleFilter,
   announce,
   commands,
+  exportFile: (exporter, options) => exportFile(exporter, options),
+  saveFile: (exporter, options) => saveFile(exporter, options),
+  importFile,
+  exporters,
+  importers,
+  importAccept,
   toolbarItems: computed(() => resolved.value.toolbars.flatMap((items) => items(context))),
   editor: {
     cell: computed(() => editing.value),
@@ -5047,6 +5303,9 @@ function editNoteTarget(target?: SheetCellTarget) {
 
 defineExpose<SheetExpose>({
   commands,
+  exportFile: (exporter, options) => exportFile(exporter, options),
+  saveFile: (exporter, options) => saveFile(exporter, options),
+  importFile,
   transact: (run, meta) => transact(run, meta),
   undo: () => travel('undo'),
   redo: () => travel('redo'),
@@ -5143,6 +5402,8 @@ defineExpose<SheetExpose>({
         @copy="onCopy"
         @cut="onCut"
         @paste="onPaste"
+        @dragover="onDragOver"
+        @drop="onDrop"
       >
         <div
           ref="viewport"

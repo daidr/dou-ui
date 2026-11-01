@@ -4,6 +4,12 @@ import type { SheetClip } from './core/clipboard'
 import type { SheetCSVWriteOptions } from './core/csv'
 import type { SheetCommands } from './core/commands'
 import type { SheetExtension } from './core/extension'
+import type {
+  SheetExporter,
+  SheetExportScope,
+  SheetImportResult,
+  SheetImportWarning,
+} from './core/file'
 import type { SheetValidation, SheetWorkbook } from './core/model'
 import type { SheetSelection } from './core/selection'
 import type { SheetRef, SheetTransaction, SheetTransactionMeta } from './core/transaction'
@@ -48,6 +54,54 @@ export interface SheetProps {
    * the list once, in `<script setup>`; arrays inside are flattened.
    */
   extensions?: (SheetExtension | SheetExtension[])[]
+  /**
+   * Reads a file dropped on the grid with the importers, putting its
+   * first sheet at the cell it was dropped on.
+   */
+  fileDrop?: boolean
+}
+
+/** Where `exportFile` takes the cells from, and what it passes the exporter. */
+export interface SheetFileOptions<Options = any> {
+  /**
+   * Every sheet, the sheet shown (or `sheet`), or the selected cells; by
+   * default the first the exporter can do.
+   */
+  scope?: SheetExportScope
+  /** The sheet, by index, `id` or name; the one shown by default. */
+  sheet?: SheetRef
+  /** The cells to write, such as `'A1:F20'`; the selection for `'selection'`. */
+  range?: string
+  /** Passed on to the exporter, such as CSV's `delimiter`. */
+  options?: Options
+}
+
+/** How `importFile` writes what it read: as new sheets, instead of every sheet, or at the active cell. */
+export type SheetImportMode = 'append' | 'replace' | 'insert'
+
+export interface SheetImportOptions<Options = any> {
+  /** `'append'` by default. */
+  mode?: SheetImportMode
+  /** The importer, by name; by default the first that takes the file. */
+  importer?: string
+  /** Passed on to the importer. */
+  options?: Options
+}
+
+/**
+ * The `import` event, after a file is read and before it is written in.
+ * `book` can be changed, and `preventDefault()` stops it.
+ */
+export interface SheetImportEvent {
+  file: Blob
+  /** The name of the importer that read it. */
+  importer: string
+  mode: SheetImportMode
+  book: SheetWorkbook
+  /** What the importer couldn't bring over. */
+  warnings: SheetImportWarning[]
+  defaultPrevented: boolean
+  preventDefault: () => void
 }
 
 /** An item of the right-click menu. */
@@ -134,6 +188,8 @@ export type SheetToolbarTool =
   | 'conditional'
   | 'validation'
   | 'clear'
+  | 'export'
+  | 'import'
   | '|'
 
 /**
@@ -195,6 +251,8 @@ export interface SheetEmits {
   transaction: [tr: SheetTransaction]
   /** Before pasting: change what is pasted, or stop it. */
   paste: [event: SheetPasteEvent]
+  /** After a file is read, before it is written in: change it, or stop it. */
+  import: [event: SheetImportEvent]
 }
 
 export interface SheetExpose {
@@ -241,6 +299,25 @@ export interface SheetExpose {
    * every page.
    */
   print: (options?: SheetPrintOptions) => void
+  /**
+   * Writes a file with an exporter (by name, such as `'csv'`, or itself):
+   * the workbook, a sheet or the selected cells.
+   */
+  exportFile: <Options = any>(
+    exporter: string | SheetExporter<Options>,
+    options?: SheetFileOptions<Options>,
+  ) => Promise<Blob>
+  /** Exports as `exportFile` does and saves the file in the downloads, as the toolbar does. */
+  saveFile: <Options = any>(
+    exporter: string | SheetExporter<Options>,
+    options?: SheetFileOptions<Options> & { fileName?: string },
+  ) => Promise<void>
+  /**
+   * Reads a file into the workbook, as one change undo takes back. Returns
+   * what was read, or `null` when nothing was written (no importer takes
+   * the file, the grid is read-only, or the `import` event stopped it).
+   */
+  importFile: (file: Blob, options?: SheetImportOptions) => Promise<SheetImportResult | null>
   /** Opens the editor on a cell, the active one by default. */
   edit: (cell?: SheetCellTarget) => void
   /** Selects a cell, the active one by default, and opens the box to write its note. */

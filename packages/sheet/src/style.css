@@ -1368,6 +1368,9 @@
     display: inline-flex;
     flex: none;
   }
+  .dou-sheet-toolbar__picker {
+    display: none;
+  }
 
   /* the number format: as wide as its longest name, so the tools after it stay put */
   .dou-sheet-toolbar__format {

@@ -90,6 +90,12 @@ export interface SheetCellType {
   toggle?: (value: SheetValue, setup: SheetTypeSetup) => SheetValue
   /** Where the content sits when the cell's style doesn't say. */
   align?: 'left' | 'center' | 'right'
+  /**
+   * The value written into files for other spreadsheet programs, such as a
+   * number for a rating; by default the value itself. Exporters read it as
+   * `source.plain`.
+   */
+  plain?: (value: SheetValue, setup: SheetTypeSetup) => SheetValue
 }
 
 /** Declares a cell type; only gives it a type. */

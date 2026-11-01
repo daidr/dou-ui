@@ -181,6 +181,8 @@ export interface SheetMessages {
   freezeFirstCol: string
   unfreeze: string
   print: string
+  /** Files in and out: the export and import menus, and what is read out after. */
+  file: SheetFileMessages
 }
 
 const zhCN: SheetMessages = {
@@ -520,6 +522,17 @@ const zhCN: SheetMessages = {
   freezeFirstCol: '冻结首列',
   unfreeze: '取消冻结',
   print: '打印',
+  file: {
+    export: '导出',
+    import: '导入',
+    csv: 'CSV 文件 (.csv)',
+    png: '图片 (.png)',
+    svg: '矢量图 (.svg)',
+    exported: '已导出 {name}',
+    imported: '已导入 {name}',
+    importFailed: '无法读取“{name}”：{reason}',
+    unknownFile: '没有能读取“{name}”的导入方式',
+  },
 }
 
 const zhTW: SheetMessages = {
@@ -859,6 +872,17 @@ const zhTW: SheetMessages = {
   freezeFirstCol: '凍結首欄',
   unfreeze: '取消凍結',
   print: '列印',
+  file: {
+    export: '匯出',
+    import: '匯入',
+    csv: 'CSV 檔案 (.csv)',
+    png: '圖片 (.png)',
+    svg: '向量圖 (.svg)',
+    exported: '已匯出 {name}',
+    imported: '已匯入 {name}',
+    importFailed: '無法讀取「{name}」：{reason}',
+    unknownFile: '沒有能讀取「{name}」的匯入方式',
+  },
 }
 
 const en: SheetMessages = {
@@ -1205,12 +1229,40 @@ const en: SheetMessages = {
   freezeFirstCol: 'First column',
   unfreeze: 'Unfreeze',
   print: 'Print',
+  file: {
+    export: 'Export',
+    import: 'Import',
+    csv: 'CSV file (.csv)',
+    png: 'Image (.png)',
+    svg: 'Vector image (.svg)',
+    exported: 'Exported {name}',
+    imported: 'Imported {name}',
+    importFailed: "Couldn't read “{name}”: {reason}",
+    unknownFile: 'No importer reads “{name}”',
+  },
 }
 
 export const sheetLocales: Record<string, SheetMessages> = {
   'zh-CN': zhCN,
   'zh-TW': zhTW,
   en,
+}
+
+/** The texts of exporting and importing files. */
+export interface SheetFileMessages {
+  export: string
+  import: string
+  /** The built-in exporters and importers. */
+  csv: string
+  png: string
+  svg: string
+  /** Read out after a file is written or read: `{name}`. */
+  exported: string
+  imported: string
+  /** A file that couldn't be read: `{name}`, `{reason}`. */
+  importFailed: string
+  /** A file no importer takes: `{name}`. */
+  unknownFile: string
 }
 
 /** The texts of conditional formats. */
@@ -1432,6 +1484,15 @@ export interface SheetFilterMessages {
  * The spreadsheet's texts, picked by the name of DouUI's current locale.
  * Pass `messages` to override any of them.
  */
+/** The texts for a language, such as `zh-CN`; Chinese or English by its first part, English otherwise. */
+export function messagesFor(locale = 'zh-CN'): SheetMessages {
+  return (
+    sheetLocales[locale] ??
+    sheetLocales[locale.split('-')[0]!] ??
+    (locale.startsWith('zh') ? zhCN : en)
+  )
+}
+
 export function useSheetMessages(override?: MaybeRefOrGetter<Partial<SheetMessages> | undefined>) {
   const { locale } = useLocale()
   return computed<SheetMessages>(() => {

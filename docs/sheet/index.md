@@ -134,20 +134,21 @@ sheet.value.transact((tr) => {
 
 每次修改，不论来自输入、撤销还是 `transact`，都会更新 `v-model` 并触发 `transaction` 事件。事件参数里的 `steps` 是这次修改的步骤，`inverse` 是撤销它的步骤，可以用来同步到服务端；另一端用 `applySheetSteps(doc, steps)` 应用。`meta.action` 说明修改的来源：
 
-| `action`                 | 来源                                         |
-| ------------------------ | -------------------------------------------- |
-| `input`                  | 在单元格里输入                               |
-| `paste`、`cut`           | 粘贴；粘贴剪切的内容（移动单元格）           |
-| `fill`、`clear`          | 填充柄、`Ctrl` + `D` / `R`；清空内容         |
-| `resize`、`hide`、`move` | 调整行高列宽；隐藏、取消隐藏；移动行列       |
-| `merge`                  | 合并、取消合并单元格                         |
-| `group`                  | 分组、取消分组、折叠和展开分组               |
-| `note`                   | 插入、编辑和删除批注                         |
-| `style`、`freeze`        | 工具栏或快捷键修改样式、格式；工具栏冻结行列 |
-| `sheet`                  | 标签栏里新建、重命名、复制、移动、删除工作表 |
-| `insert`、`delete`       | 插入、删除行列                               |
-| `undo`、`redo`           | 撤销、重做                                   |
-| `api`                    | 组件实例的 `transact`，没有指定 `action`     |
+| `action`                 | 来源                                                 |
+| ------------------------ | ---------------------------------------------------- |
+| `input`                  | 在单元格里输入                                       |
+| `paste`、`cut`           | 粘贴；粘贴剪切的内容（移动单元格）                   |
+| `fill`、`clear`          | 填充柄、`Ctrl` + `D` / `R`；清空内容                 |
+| `resize`、`hide`、`move` | 调整行高列宽；隐藏、取消隐藏；移动行列               |
+| `merge`                  | 合并、取消合并单元格                                 |
+| `group`                  | 分组、取消分组、折叠和展开分组                       |
+| `note`                   | 插入、编辑和删除批注                                 |
+| `style`、`freeze`        | 工具栏或快捷键修改样式、格式；工具栏冻结行列         |
+| `sheet`                  | 标签栏里新建、重命名、复制、移动、删除工作表         |
+| `import`                 | 导入文件（`importFile`、工具栏的导入按钮、拖入文件） |
+| `insert`、`delete`       | 插入、删除行列                                       |
+| `undo`、`redo`           | 撤销、重做                                           |
+| `api`                    | 组件实例的 `transact`，没有指定 `action`             |
 
 | 方法                                                                                  | 说明                                                                                                                                                           |
 | ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -475,7 +476,7 @@ sheet.value.transact((tr) => {
 </DouSheetToolbar>
 ```
 
-可用的名字有 `undo`、`redo`、`format`、`decimals`、`bold`、`italic`、`underline`、`strike`、`color`、`fill`、`align`、`valign`、`wrap`、`merge`、`freeze`、`sort`、`filter`、`conditional`、`validation`、`clear`。扩展加的按钮写它的 `key`，任何命令写命令名（比如 `'print'`），见[工具栏按钮](./extensions#工具栏按钮)。`formats` 替换数字格式菜单里的选项，每项是 `{ label, format, example? }`，`example` 是菜单里用这个格式显示的示例值。
+可用的名字有 `undo`、`redo`、`format`、`decimals`、`bold`、`italic`、`underline`、`strike`、`color`、`fill`、`align`、`valign`、`wrap`、`merge`、`freeze`、`sort`、`filter`、`conditional`、`validation`、`clear`，以及默认不显示的 `export`、`import`（见[导入与导出](#导入与导出)）。扩展加的按钮写它的 `key`，任何命令写命令名（比如 `'print'`），见[工具栏按钮](./extensions#工具栏按钮)。`formats` 替换数字格式菜单里的选项，每项是 `{ label, format, example? }`，`example` 是菜单里用这个格式显示的示例值。
 
 显示单元格地址和公式的编辑栏是 `DouSheetFormulaBar`，同样放在 `header` 插槽里，可以和工具栏一起用，见[公式](./formulas#编辑栏)。
 
@@ -530,6 +531,50 @@ sheet.value.showSheet('十一月')
 
 重命名后，所有公式里指向它的引用会改成新名字，比如 `=九月!B2` 变成 `='九月 上海'!B2`；删除后，指向它的引用变成 `#REF!`。工作簿至少保留一个工作表，删除最后一个时不做任何事。增删和移动工作表后，表格继续显示原来那一张；它被删除时显示原来位置上的那一张。
 
+## 导入与导出
+
+工具栏的 `export` 是导出菜单，列出所有导出方式，选中后直接下载文件；`import` 按钮打开文件选择框，读入的文件作为新工作表加在最后。两者默认不在工具栏上，用 `tools` 加上：
+
+```vue-html
+<DouSheetToolbar :tools="['undo', 'redo', '|', 'bold', 'italic', '|', 'import', 'export']" />
+```
+
+<DocDemo src="sheet/csv" column />
+
+表格自带三种导出方式：`csv`（当前工作表或选区）、`png` 和 `svg`（当前工作表或选区画成图片，见[导出图片与打印](#导出图片与打印)），以及一种导入方式：CSV 和制表符分隔的文本。其他格式通过扩展的 `exporters`、`importers` 加入，加入后同样出现在工具栏里，见[导出器与导入器](./extensions#导出器与导入器)。
+
+用代码导入导出时调用组件实例（或 `useSheet()`）的方法：
+
+```ts
+// 返回 Blob，下载与否由你决定
+const blob = await grid.value.exportFile('csv', { scope: 'selection' })
+// 导出并下载，和工具栏一样；文件名默认取工作表名
+await grid.value.saveFile('png', { fileName: '门店.png' })
+// 读入文件，返回读到的内容；没有写入时返回 null
+await grid.value.importFile(file, { mode: 'replace' })
+```
+
+| `exportFile` 选项 | 说明                                                                        | 默认值               |
+| ----------------- | --------------------------------------------------------------------------- | -------------------- |
+| `scope`           | 导出什么：`'workbook'` 整个工作簿、`'sheet'` 一张工作表、`'selection'` 选区 | 导出方式支持的第一种 |
+| `sheet`           | 工作表，序号、`id` 或名字                                                   | 当前显示的           |
+| `range`           | 只导出这片区域，如 `'A1:F20'`                                               | 选区或有数据的部分   |
+| `options`         | 交给导出方式的选项，比如 CSV 的 `{ delimiter, bom, formatted }`             | —                    |
+
+`importFile` 的 `mode` 决定读入的内容放在哪里，三种都能一步撤销：
+
+| `mode`             | 说明                                                                               |
+| ------------------ | ---------------------------------------------------------------------------------- |
+| `'append'`（默认） | 作为新工作表加在最后，和已有工作表重名时加上序号；样式和已有的同名但不同时自动改名 |
+| `'replace'`        | 换掉所有工作表                                                                     |
+| `'insert'`         | 把第一张工作表的内容从当前单元格开始粘贴，和粘贴一样会触发 `paste` 事件            |
+
+`importer` 指定用哪种导入方式，默认按文件名、类型和开头的内容找第一个能读的；找不到时读屏会提示，返回 `null`。只读时不能导入。
+
+读完、写入之前会触发 `import` 事件，事件里有 `file`、`importer`、`mode`、读到的 `book` 和 `warnings`（导入方式没能带过来的内容，比如边框）。可以修改 `book`，或者调用 `preventDefault()` 不写入，比如先让用户确认，或者用 `DouMessage` 提示警告。
+
+设置 `file-drop` 后，把文件拖到表格上会读入它，第一张工作表的内容从放下的单元格开始粘贴。
+
 ## CSV
 
 `readCSV(text, options?)` 把 CSV 读成二维数组，可以直接作为工作表的 `cells`，比如 `tr.addSheet({ name, cells: readCSV(text) })`。数字、日期、百分比和 `TRUE` / `FALSE` 按输入时的规则识别，比如 `2026/3/5` 读成日期并保留写法；`007`、很长的卡号这类带前导零或超过 15 位的数字保持文字，以免丢失。以 `=` 开头的内容默认按文字读入（存成 `'=…`），不会变成公式。
@@ -544,8 +589,6 @@ sheet.value.showSheet('十一月')
 组件实例的 `toCSV()` 把当前工作表写成 CSV，内容和单元格显示的一致（带格式，单元格类型按它自己的写法）。只到最后一个有数据的行和列，用 `range` 可以只导出一部分，`sheet` 指定别的工作表。导出的文件要给表格软件打开时，加上 `bom: true`，否则中文可能被当成其他编码。
 
 以 `=`、`+`、`-`、`@` 开头的文字在表格软件里打开时会被当成公式执行，这可能被用来插入恶意链接或命令。导出时默认在这样的文字前面加上 `'`，数字不受影响；`formatted: false` 时表格里的公式按原文写出，不加 `'`，可以用 `readCSV(text, { formulas: true })` 读回来。加上的 `'` 会留在文字里，所以导出的文件如果只是给 `readCSV` 原样读回，应设置 `escapeFormulas: false`。确定文件不会被表格软件打开时，可以设置 `escapeFormulas: false` 原样写出。
-
-<DocDemo src="sheet/csv" column />
 
 | 导出选项         | 说明                                                                                    | 默认值       |
 | ---------------- | --------------------------------------------------------------------------------------- | ------------ |
@@ -582,14 +625,12 @@ sheet.value.showSheet('十一月')
 
 隐藏的行列和被筛选掉的行不会画出来。自定义的单元格类型按 `format` 返回的文字画出。浏览器对画布的尺寸有限制（每边 16384 像素；总像素数在 iPhone 和 iPad 上约 1677 万，其他设备上是 16384 × 16384），区域很大时 `exportPNG()` 会自动降低 `pixelRatio`，降到 1 仍然放不下时会抛出 `RangeError`，不会生成一张模糊的图。这时可以用 `range` 分几次导出，或者改用 `exportSVG()`、`toCSV()`。
 
-方法只返回内容，下载由你决定，例如：
+方法只返回内容，下载由你决定。要和工具栏一样直接下载，可以用 `saveFile('png')`，或者 `dou-ui` 的 `downloadBlob`：
 
 ```ts
-const blob = await grid.value.exportPNG()
-const url = URL.createObjectURL(blob)
-const link = Object.assign(document.createElement('a'), { href: url, download: '门店.png' })
-link.click()
-URL.revokeObjectURL(url)
+import { downloadBlob } from 'dou-ui'
+
+downloadBlob(await grid.value.exportPNG(), '门店.png')
 ```
 
 ## 冻结行列

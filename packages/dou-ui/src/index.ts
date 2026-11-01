@@ -60,6 +60,7 @@ export { isComposing } from './utils/keyboard'
 export { holdPointer } from './utils/pointer'
 export type { PointerHold } from './utils/pointer'
 export { CANVAS_MAX_SIDE, canvasMaxArea, fitPixelRatio, svgToPNG } from './utils/png'
+export { downloadBlob } from './utils/download'
 export type { PNGExportSource, SvgToPNGOptions } from './utils/png'
 export type { Size, Tone, WithInstall } from './utils'
 export { DouUI }

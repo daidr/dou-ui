@@ -10,9 +10,12 @@ const ctx = useFlowEditor()
 const state = boardState(ctx)
 const ink = computed(() => (state.ink.value ? inkOutline(state.ink.value) : ''))
 const eraserRadius = computed(() => 8 / ctx.viewport.value.zoom)
+// the selected node's turn and corner handles are moved in here, above every node
+const handles = (el: unknown) => (state.handles.value = (el as HTMLElement | null) ?? null)
 </script>
 
 <template>
+  <div :ref="handles" class="dou-whiteboard-handles" />
   <div
     v-if="state.draft.value"
     class="dou-whiteboard-draft"

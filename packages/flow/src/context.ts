@@ -232,6 +232,9 @@ export interface NodeMetrics {
   ports: Map<string, PortAnchor>
 }
 
+/** What `previewNode` can show changed: the box, and the data. */
+export type FlowNodePreview = Partial<Pick<FlowNode, 'x' | 'y' | 'width' | 'height' | 'data'>>
+
 /** How a port shows while an edge is being drawn. */
 export type PortState = 'active' | 'valid' | 'candidate' | 'refused'
 
@@ -283,6 +286,16 @@ export interface FlowEditorContext {
    * changes on every frame until the pointer is let go.
    */
   gesturing: ComputedRef<boolean>
+  /**
+   * Shows a node as if `patch` were applied, without changing the document:
+   * its frame, ports, edges and `getNodeRect` all follow. For handles that
+   * change the document once, when let go; `null` shows it as it is again,
+   * and must be passed when the drag ends or is cancelled. `patch.data`
+   * replaces the node's data, it is not merged. Only this editor shows it:
+   * peers see the change once it is committed. A preview is dropped when
+   * its node leaves the document.
+   */
+  previewNode: (id: string, patch: FlowNodePreview | null) => void
   /** The edge being drawn, as an SVG path in canvas coordinates. */
   connectingPath: ComputedRef<string | null>
   /** The editor's element. */

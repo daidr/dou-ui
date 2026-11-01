@@ -1217,6 +1217,18 @@
     }
   }
 
+  /* above every node: the selected node's box, holding its turn and corner handles */
+  .dou-whiteboard-handles,
+  .dou-whiteboard-node__frame {
+    position: absolute;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+  }
+  .dou-whiteboard-node__frame {
+    box-sizing: border-box;
+  }
+
   /* the turn handle below the node, and the resize handles on its corners */
   .dou-whiteboard-node__turn,
   .dou-whiteboard-node__corner {
@@ -1251,6 +1263,11 @@
     border-radius: 50%;
     cursor: grab;
     translate: -50% 50%;
+
+    /* clear of the bottom anchor's larger target */
+    @media (pointer: coarse) {
+      bottom: calc(-40px / var(--dou-flow-editor-zoom, 1));
+    }
   }
   /* placed by left and top on the corner, centred on it */
   .dou-whiteboard-node__corner {
@@ -1272,12 +1289,21 @@
       width: calc(100% - 20px / var(--dou-flow-editor-zoom, 1));
       height: calc(8px / var(--dou-flow-editor-zoom, 1));
     }
+    /* 40px for a finger, but never more than half the node, which stays draggable */
     @media (pointer: coarse) {
       &.is-x {
-        width: calc(16px / var(--dou-flow-editor-zoom, 1));
+        width: clamp(
+          calc(16px / var(--dou-flow-editor-zoom, 1)),
+          50%,
+          calc(40px / var(--dou-flow-editor-zoom, 1))
+        );
       }
       &.is-y {
-        height: calc(16px / var(--dou-flow-editor-zoom, 1));
+        height: clamp(
+          calc(16px / var(--dou-flow-editor-zoom, 1)),
+          50%,
+          calc(40px / var(--dou-flow-editor-zoom, 1))
+        );
       }
     }
   }
@@ -1327,8 +1353,9 @@
     .is-sticky > &:not(.dou-whiteboard-node__field) {
       clip-path: inset(16px 0);
     }
+    /* room at the sides for the anchors, so their dots never sit on the letters */
     .is-text > & {
-      padding: 4px 2px;
+      padding: 4px 8px;
       font-size: var(--dou-font-size-lg);
       text-align: start;
     }

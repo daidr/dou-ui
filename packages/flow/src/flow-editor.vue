@@ -2255,19 +2255,20 @@ function itemsFor(target: FlowMenuTarget) {
 const menuOpen = ref(false)
 /** The last press while the menu was open, which closed it. */
 let menuPress: { target: EventTarget | null; at: number } | null = null
+// Listens on the window while mounted, in capture, so it sees the press
+// before the menu closes on it: a listener added and removed as the menu
+// opens and closes would be gone by then.
 const onMenuPress = (event: PointerEvent) => {
-  menuPress = { target: event.target, at: Date.now() }
+  menuPress = menuOpen.value ? { target: event.target, at: Date.now() } : null
 }
+// The press counts only for the click it starts.
+const onMenuClick = () => (menuPress = null)
 /** The button that opened the menu, while it is open. */
 const menuFrom = shallowRef<Element | null>(null)
 /** The button that opened the menu last, open or not. */
 let lastMenuFrom: Element | null = null
 watch(menuOpen, (open) => {
-  if (open) document.addEventListener('pointerdown', onMenuPress, true)
-  else {
-    document.removeEventListener('pointerdown', onMenuPress, true)
-    menuFrom.value = null
-  }
+  if (!open) menuFrom.value = null
 })
 
 function openMenu(target: FlowMenuTarget, client: Point, from?: Element) {
@@ -2298,7 +2299,15 @@ function showMenu(
   if (!items.length) return false
   menuItems.value = items
   lastMenuFrom = from ?? null
-  menu.value?.open(client.x, client.y, options.focusChecked)
+  // Beside the button that opened it, so the menu never covers it, even
+  // when it has to flip above.
+  const box = from?.getBoundingClientRect()
+  if (box)
+    menu.value?.open(box.left, box.top - 2, {
+      size: { width: box.width, height: box.height + 4 },
+      focusChecked: options.focusChecked,
+    })
+  else menu.value?.open(client.x, client.y, { focusChecked: options.focusChecked })
   menuFrom.value = from ?? null
   return true
 }
@@ -2307,7 +2316,14 @@ function runMenuItem(key: unknown) {
   menuItems.value.find((item) => item.key === key)?.run()
 }
 
-onBeforeUnmount(() => document.removeEventListener('pointerdown', onMenuPress, true))
+onMounted(() => {
+  window.addEventListener('pointerdown', onMenuPress, true)
+  window.addEventListener('click', onMenuClick)
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('pointerdown', onMenuPress, true)
+  window.removeEventListener('click', onMenuClick)
+})
 
 const toolbarItems = computed<FlowToolbarItem[][]>(() => {
   if (props.readonly || gesture.value || keyLink.value || quickAdd.value) return []

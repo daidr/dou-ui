@@ -63,6 +63,7 @@ function setup(
     ),
     { attachTo: document.body },
   )
+  mounted.push(wrapper)
   const root = wrapper.find('.dou-flow-editor')
   const editor = wrapper.findComponent(DouFlowEditor).vm as unknown as FlowEditorExpose
   return { wrapper, root, editor, doc, selection, events }
@@ -85,7 +86,9 @@ async function rightClick(el: Element, init: MouseEventInit = {}) {
   return event
 }
 
+const mounted: { unmount: () => void }[] = []
 afterEach(() => {
+  for (const wrapper of mounted.splice(0)) wrapper.unmount()
   document.body.innerHTML = ''
 })
 
@@ -289,6 +292,39 @@ describe('toolbar', () => {
     await nextTick()
     expect(more.attributes('aria-expanded')).toBe('true')
     expect(menuItems().length).toBeGreaterThan(0)
+  })
+
+  it('closes a button menu on a second click, as a mouse presses it', async () => {
+    const { root, selection } = setup()
+    selection.value = { nodes: ['a'], edges: [] }
+    await nextTick()
+    const more = root.find('.dou-flow-toolbar button[aria-label="更多"]')
+    await more.trigger('click')
+    await nextTick()
+    expect(more.attributes('aria-expanded')).toBe('true')
+    // the press closes the menu, then the click comes
+    more.element.dispatchEvent(
+      new PointerEvent('pointerdown', { bubbles: true, composed: true, button: 0 }),
+    )
+    await nextTick()
+    await nextTick()
+    await more.trigger('click')
+    await nextTick()
+    expect(more.attributes('aria-expanded')).toBe('false')
+    // and the next click opens it again
+    await more.trigger('click')
+    await nextTick()
+    expect(more.attributes('aria-expanded')).toBe('true')
+    // a press that closes the menu but clicks elsewhere (e.g. on a tip that
+    // popped up under it) does not swallow the next click on the button
+    more.element.dispatchEvent(
+      new PointerEvent('pointerdown', { bubbles: true, composed: true, button: 0 }),
+    )
+    await nextTick()
+    root.find('.dou-flow-toolbar').element.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await more.trigger('click')
+    await nextTick()
+    expect(more.attributes('aria-expanded')).toBe('true')
   })
 
   it('warns once about a button that does nothing', async () => {

@@ -33,10 +33,12 @@ const targetRef = ref<ComponentPublicInstance | null>(null)
 const panelRef = ref<HTMLElement | null>(null)
 const target = () => onlyChildElement(targetRef.value)
 
-// The menu hangs off a zero-size box at the point that opened it.
-const point = ref({ x: 0, y: 0 })
+// The menu hangs off a zero-size box at the point that opened it, or off
+// the box it was given, e.g. a button's, so that flipping keeps it clear.
+const point = ref({ x: 0, y: 0, width: 0, height: 0 })
 const anchor = {
-  getBoundingClientRect: () => new DOMRect(point.value.x, point.value.y, 0, 0),
+  getBoundingClientRect: () =>
+    new DOMRect(point.value.x, point.value.y, point.value.width, point.value.height),
 }
 const floating = useFloating(() => anchor, panelRef, {
   open,
@@ -59,9 +61,9 @@ watch(open, (value) => {
   sync()
 })
 
-function show(x: number, y: number) {
+function show(x: number, y: number, size?: { width: number; height: number }) {
   if (props.disabled) return
-  point.value = { x, y }
+  point.value = { x, y, width: size?.width ?? 0, height: size?.height ?? 0 }
   if (!open.value) {
     const active = document.activeElement
     restore = active instanceof HTMLElement && !panelRef.value?.contains(active) ? active : null

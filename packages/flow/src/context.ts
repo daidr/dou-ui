@@ -302,8 +302,9 @@ export interface FlowEditorContext {
   root: Readonly<ShallowRef<HTMLElement | null>>
   /**
    * Opens the context menu for a target at a point on screen; `false` when
-   * no extension has items for it. Pass the button that opens it as `from`,
-   * and pressing that button again closes it.
+   * no extension has items for it. Pass the button that opens it as `from`:
+   * the menu then opens below the button instead of at the point, or above
+   * it when there is no room, and pressing the button again closes it.
    */
   openMenu: (target: FlowMenuTarget, client: Point, from?: Element) => boolean
   /** The items the context menu has for a target, as `openMenu` shows them. */

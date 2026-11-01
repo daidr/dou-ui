@@ -25,7 +25,11 @@ export interface ContextMenuSlots {
 }
 
 export interface ContextMenuExpose {
-  /** Open the menu at a point in the viewport. */
-  open: (x: number, y: number) => void
+  /**
+   * Open the menu at a point in the viewport. With `size`, the point is the
+   * top left of a box, e.g. the button that opened it: the menu opens below
+   * the box, or above it when there is no room, and never covers it.
+   */
+  open: (x: number, y: number, size?: { width: number; height: number }) => void
   close: () => void
 }

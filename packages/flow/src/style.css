@@ -958,6 +958,14 @@
     border-radius: calc(var(--dou-radius-control) + 2px);
     background-color: var(--dou-color-bg-surface);
     box-shadow: var(--dou-shadow-md);
+
+    /* a finger needs a bigger target */
+    @media (pointer: coarse) {
+      & .dou-flow-controls__button {
+        min-width: 40px;
+        height: 40px;
+      }
+    }
   }
 
   /* the editor opens its menu at a point; the anchor only places it in the page */

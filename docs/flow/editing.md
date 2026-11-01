@@ -116,7 +116,9 @@ const size = defineFlowExtension({
 })
 ```
 
-开关一类的按钮用 `pressed` 表示是否打开，编辑器据此给按钮加上按下的样式和 `aria-pressed`。有快捷键做同样的事时写在 `shortcut` 里，提示中会显示它，它只是提示，按键要在 `keymap` 里绑定：
+不在工具栏里的按钮可以调用 `ctx.showMenu(items, point, button)` 自己弹出菜单：菜单开在按钮下方，放不下时翻到按钮上方，再点一次按钮关上；`ctx.menuItems(target)` 返回右键菜单在某个目标上会显示的项，内置的“更多”按钮就是把它作为 `children`。
+
+开关一类的按钮用 `pressed` 表示是否打开，编辑器据此给按钮加上按下的样式和 `aria-pressed`。按钮的操作也有快捷键时，把它写在 `shortcut` 里，提示中会显示出来。`shortcut` 只用于显示，按键要在 `keymap` 里绑定：
 
 ```ts
 /** 固定或取消固定选中的节点 */
@@ -139,8 +141,6 @@ const pin = defineFlowExtension({
   keymap: (ctx) => ({ 'shift+l': () => togglePin(ctx) }),
 })
 ```
-
-不在工具栏里的按钮可以调用 `ctx.showMenu(items, point, button)` 自己弹出菜单；`ctx.menuItems(target)` 返回右键菜单在某个目标上会显示的项，内置的“更多”按钮就是把它作为 `children`。
 
 ## 层级
 
@@ -202,27 +202,27 @@ moveLayer(ctx, 'front') // 'front' | 'forward' | 'backward' | 'back'
 
 ### FlowMenuItem
 
-| 名称       | 说明                                                       | 类型                    |
-| ---------- | ---------------------------------------------------------- | ----------------------- |
-| `key`      | 菜单里唯一                                                 | `string`                |
-| `label`    | 文字                                                       | `string`                |
-| `icon`     | 图标                                                       | `Component`             |
-| `shortcut` | 显示在右侧的快捷键，写法和 `useHotkey` 一样，只显示不绑定  | `string`                |
-| `disabled` | 禁用                                                       | `boolean`               |
-| `tone`     | `'danger'` 表示危险操作                                    | `'neutral' \| 'danger'` |
-| `divided`  | 上方画一条分隔线                                           | `boolean`               |
-| `checked`  | 显示勾选标记，比如当前选中的选项；每一项都写了时菜单是单选 | `boolean`               |
-| `run`      | 选中时调用                                                 | `() => void`            |
+| 名称       | 说明                                                                              | 类型                    |
+| ---------- | --------------------------------------------------------------------------------- | ----------------------- |
+| `key`      | 菜单里唯一                                                                        | `string`                |
+| `label`    | 文字                                                                              | `string`                |
+| `icon`     | 图标                                                                              | `Component`             |
+| `shortcut` | 显示在右侧的快捷键，写法和 `useHotkey` 一样；只用于显示，按键要在 `keymap` 里绑定 | `string`                |
+| `disabled` | 禁用                                                                              | `boolean`               |
+| `tone`     | `'danger'` 表示危险操作                                                           | `'neutral' \| 'danger'` |
+| `divided`  | 上方画一条分隔线                                                                  | `boolean`               |
+| `checked`  | 显示勾选标记，比如当前选中的选项；每一项都写了时菜单是单选                        | `boolean`               |
+| `run`      | 选中时调用                                                                        | `() => void`            |
 
 ### FlowToolbarItem
 
-| 名称       | 说明                                                                                        | 类型             |
-| ---------- | ------------------------------------------------------------------------------------------- | ---------------- |
-| `key`      | 工具栏里唯一                                                                                | `string`         |
-| `label`    | 提示文字，也是读屏器读的名字                                                                | `string`         |
-| `icon`     | 图标                                                                                        | `Component`      |
-| `run`      | 点击时调用                                                                                  | `() => void`     |
-| `disabled` | 禁用                                                                                        | `boolean`        |
-| `pressed`  | 开关一类的按钮是否打开                                                                      | `boolean`        |
-| `shortcut` | 做同样事情的快捷键，写法和 `useHotkey` 一样；只做提示                                       | `string`         |
-| `children` | 代替 `run`：点击时在按钮下方弹出这些菜单项。既没有 `run` 也没有菜单项时，开发环境会警告一次 | `FlowMenuItem[]` |
+| 名称       | 说明                                                                                            | 类型             |
+| ---------- | ----------------------------------------------------------------------------------------------- | ---------------- |
+| `key`      | 工具栏里唯一                                                                                    | `string`         |
+| `label`    | 提示文字，也是读屏器读的名字                                                                    | `string`         |
+| `icon`     | 图标                                                                                            | `Component`      |
+| `run`      | 点击时调用                                                                                      | `() => void`     |
+| `disabled` | 禁用                                                                                            | `boolean`        |
+| `pressed`  | 开关一类的按钮是否打开                                                                          | `boolean`        |
+| `shortcut` | 做同样事情的快捷键，显示在提示里，写法和 `useHotkey` 一样；只用于显示，按键要在 `keymap` 里绑定 | `string`         |
+| `children` | 代替 `run`：点击时在按钮下方弹出这些菜单项。既没有 `run` 也没有菜单项时，开发环境会警告一次     | `FlowMenuItem[]` |

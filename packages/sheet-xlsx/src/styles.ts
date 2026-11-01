@@ -1,4 +1,4 @@
-import type { SheetStyle } from '@dou-ui/sheet'
+import type { SheetStyle } from '@dou-ui/sheet/core'
 import { attrs, esc, HEAD, NS } from './xml'
 
 /** A color as the file writes it, `FFRRGGBB`; `undefined` for colors it can't write. */

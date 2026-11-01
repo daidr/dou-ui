@@ -17,6 +17,7 @@
       "@dou-ui/gantt/scheduler": ["./packages/gantt/src/scheduler/index.ts"],
       "@dou-ui/sheet": ["./packages/sheet/src/index.ts"],
       "@dou-ui/sheet/formula": ["./packages/sheet/src/formula/index.ts"],
+      "@dou-ui/sheet/core": ["./packages/sheet/src/core/index.ts"],
       "@dou-ui/sheet/collaboration": ["./packages/sheet/src/collaboration/index.ts"],
       "@dou-ui/sheet/code": ["./packages/sheet/src/code/index.ts"],
       "@dou-ui/sheet-xlsx": ["./packages/sheet-xlsx/src/index.ts"],

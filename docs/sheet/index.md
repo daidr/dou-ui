@@ -132,7 +132,7 @@ sheet.value.transact((tr) => {
 
 单元格用名字（`'A5'`）或从 0 开始的坐标（`{ row, col }`）指定，没写工作表时指当前显示的那张。要写到别的表，在名字前加 `表名!`，表名有空格时用单引号括起来；坐标则写成 `{ sheet, row, col }`，`sheet` 是工作表的序号、`id` 或名字。区域可以写 `'A1:C4'`、整列 `'B:D'`、整行 `'2:3'`。
 
-每次修改，不论来自输入、撤销还是 `transact`，都会更新 `v-model` 并触发 `transaction` 事件。事件参数里的 `steps` 是这次修改的步骤，`inverse` 是撤销它的步骤，可以用来同步到服务端；另一端用 `applySheetSteps(doc, steps)` 应用。`meta.action` 说明修改的来源：
+每次修改，不论来自输入、撤销还是 `transact`，都会更新 `v-model` 并触发 `transaction` 事件。事件参数里的 `steps` 是这次修改的步骤，`inverse` 是撤销它的步骤，可以用来同步到服务端；另一端用 `applySheetSteps(doc, steps)` 应用，在服务端从不含组件的 `@dou-ui/sheet/core` 引入它（见[不含组件的入口](./extensions#不含组件的入口)）。`meta.action` 说明修改的来源：
 
 | `action`                 | 来源                                                 |
 | ------------------------ | ---------------------------------------------------- |

@@ -45,8 +45,6 @@ import {
   CellsMergeIcon,
   FilterIcon,
   FilterXIcon,
-  FileCodeIcon,
-  FileImageIcon,
   FoldVerticalIcon,
   PlusIcon,
   RowGroupIcon,
@@ -167,7 +165,9 @@ import {
   type ResolvedSheetExtensions,
   type SheetHistoryHandler,
 } from './core/extension'
-import { format, useSheetMessages } from './locale'
+import { format } from './locale'
+import { fileIconOf } from './components/file-icons'
+import { useSheetMessages } from './use-messages'
 import { sheetToCSV, type SheetCSVWriteOptions } from './core/csv'
 import { createSheetExport, type SheetExportTarget } from './export'
 import {
@@ -2784,7 +2784,6 @@ const selectionRange = () => rangeName(lastBounds())
 const pngExporter = defineSheetExporter<SheetImageOptions>({
   name: 'png',
   label: (m) => m.file.png,
-  icon: FileImageIcon,
   extension: 'png',
   mime: 'image/png',
   scopes: ['sheet', 'selection'],
@@ -2794,7 +2793,6 @@ const pngExporter = defineSheetExporter<SheetImageOptions>({
 const svgExporter = defineSheetExporter<SheetExportOptions>({
   name: 'svg',
   label: (m) => m.file.svg,
-  icon: FileCodeIcon,
   extension: 'svg',
   mime: 'image/svg+xml',
   scopes: ['sheet', 'selection'],
@@ -5420,7 +5418,12 @@ const context: SheetContext = {
   exportFile: exportFile as SheetExpose['exportFile'],
   saveFile: saveFile as SheetExpose['saveFile'],
   importFile,
-  exporters: computed(() => exporters.value.map((e) => exporterInfo(e, messages.value))),
+  exporters: computed(() =>
+    exporters.value.map((e) => {
+      const info = exporterInfo(e, messages.value)
+      return { ...info, icon: info.icon ?? fileIconOf(info.extension) }
+    }),
+  ),
   importers: computed(() => importers.value.map((i) => importerInfo(i, messages.value))),
   importAccept,
   toolbarItems: computed(() => resolved.value.toolbars.flatMap((items) => items(context))),

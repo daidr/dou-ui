@@ -177,7 +177,8 @@ export type { SheetFunction, SheetFunctionContext } from './formula/functions'
 export { isSheetError, SheetError } from './formula/error'
 export type { SheetErrorCode } from './formula/error'
 export type { SheetArg, SheetRangeArg, SheetResult } from './formula/values'
-export { sheetMessagesFor, sheetLocales, useSheetMessages } from './locale'
+export { sheetMessagesFor, sheetLocales } from './locale'
+export { useSheetMessages } from './use-messages'
 export type { SheetFileMessages, SheetMessages } from './locale'
 
 declare module 'vue' {

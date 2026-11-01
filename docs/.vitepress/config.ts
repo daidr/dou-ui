@@ -542,6 +542,10 @@ export default defineConfig({
           replacement: r('../../packages/sheet/src/formula/index.ts'),
         },
         {
+          find: /^@dou-ui\/sheet\/core$/,
+          replacement: r('../../packages/sheet/src/core/index.ts'),
+        },
+        {
           find: /^@dou-ui\/sheet\/style\.css$/,
           replacement: r('../../packages/sheet/src/style.css'),
         },

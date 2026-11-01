@@ -39,9 +39,6 @@
   "peerDependencies": {
     "@dou-ui/sheet": "workspace:*"
   },
-  "dependencies": {
-    "@dou-ui/icons": "workspace:*"
-  },
   "publishConfig": {
     "access": "public"
   }

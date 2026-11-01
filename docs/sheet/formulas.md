@@ -221,7 +221,7 @@ const total = computed(() => formulas.result(0, 'A3'))
 不显示表格时，也可以用 `SheetFormulaEngine` 计算工作簿里的公式，比如在服务端生成报表：
 
 ```ts
-import { SheetTransaction } from '@dou-ui/sheet'
+import { SheetTransaction } from '@dou-ui/sheet/core'
 import { SheetFormulaEngine } from '@dou-ui/sheet/formula'
 
 const engine = new SheetFormulaEngine(book, { functions: [TAX] })

@@ -32,6 +32,11 @@ export default defineConfig({
       },
       { find: /^@dou-ui\/sheet-xlsx$/, replacement: r('../packages/sheet-xlsx/src/index.ts') },
       { find: /^@dou-ui\/sheet$/, replacement: r('../packages/sheet/src/index.ts') },
+      { find: /^@dou-ui\/sheet\/core$/, replacement: r('../packages/sheet/src/core/index.ts') },
+      {
+        find: /^@dou-ui\/sheet\/formula$/,
+        replacement: r('../packages/sheet/src/formula/index.ts'),
+      },
       { find: /^@dou-ui\/dashboard$/, replacement: r('../packages/dashboard/src/index.ts') },
       {
         find: /^@dou-ui\/dashboard\/style\.css$/,

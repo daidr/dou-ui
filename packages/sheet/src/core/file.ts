@@ -1,4 +1,3 @@
-import { FileTextIcon } from '@dou-ui/icons'
 import type { Component } from 'vue'
 import { SheetFormulaEngine } from '../formula/engine'
 import type { SheetFunction } from '../formula/functions'
@@ -6,7 +5,7 @@ import { shownValue, type SheetResult } from '../formula/values'
 import { sheetMessagesFor, type SheetMessages } from '../locale'
 import { boundsOf, parseRange, type SheetBounds } from './address'
 import { resolveCellType, type SheetCellType, type SheetResolvedType } from './cell-type'
-import { builtinCellTypes } from '../cell-types'
+import { plainCellTypes } from './plain-cell-types'
 import { dataBounds, readCSV, sheetToCSV } from './csv'
 import type { SheetExtension } from './extension'
 import { resolveSheetExtensions } from './extension'
@@ -105,6 +104,10 @@ export interface SheetExporter<Options = any> {
   name: string
   /** Its name in the toolbar's export menu. */
   label: SheetLabel
+  /**
+   * Its icon in the toolbar's export menu; by default a file icon for its
+   * `extension`, so an exporter needn't load icons (and Vue), as in a Worker.
+   */
   icon?: Component
   /** The file name's extension, without the dot, e.g. `xlsx`. */
   extension: string
@@ -121,6 +124,15 @@ export interface SheetExporter<Options = any> {
   /** Writes the file. A string is wrapped in a `Blob` of `mime`. */
   export: (source: SheetFileSource, options?: Options) => Blob | string | Promise<Blob | string>
 }
+
+/**
+ * The options an exporter or importer takes; for either of two, either's,
+ * so one picked at run time, e.g. by a message, can be passed as it is.
+ */
+type OptionsOf<Handler> = Handler extends
+  SheetExporter<infer Options> | SheetImporter<infer Options>
+  ? Options
+  : never
 
 /** Declares an exporter; only gives it a type. */
 export function defineSheetExporter<Options = any>(
@@ -271,7 +283,7 @@ export interface SheetFileSourceOptions {
 /** The cell types by name: the built-in ones, then these, the first named winning. */
 export function cellTypeMap(added: readonly SheetCellType[] = []) {
   const map = new Map<string, SheetCellType>()
-  for (const type of builtinCellTypes) map.set(type.name, type)
+  for (const type of plainCellTypes) map.set(type.name, type)
   const seen = new Set<string>()
   for (const type of added) {
     if (seen.has(type.name)) continue
@@ -434,10 +446,10 @@ export const toBlob = (out: Blob | string, mime: string) =>
  * Writes a workbook with an exporter, without a grid: in a script, a
  * worker or on a server. Formulas are worked out on the way.
  */
-export async function exportWorkbook<Options>(
+export async function exportWorkbook<Exporter extends SheetExporter>(
   book: SheetWorkbook,
-  exporter: SheetExporter<Options>,
-  options: SheetExportWorkbookOptions<Options> = {},
+  exporter: Exporter,
+  options: SheetExportWorkbookOptions<OptionsOf<Exporter>> = {},
 ): Promise<Blob> {
   if (exporter.needs === 'view')
     throw new Error(
@@ -485,10 +497,10 @@ export interface SheetReadWorkbookOptions<Options = any> {
 }
 
 /** Reads a file with an importer, without a grid. */
-export async function readWorkbook<Options>(
+export async function readWorkbook<Importer extends SheetImporter>(
   file: Blob,
-  importer: SheetImporter<Options>,
-  options: SheetReadWorkbookOptions<Options> = {},
+  importer: Importer,
+  options: SheetReadWorkbookOptions<OptionsOf<Importer>> = {},
 ): Promise<SheetImportResult> {
   const messages = options.messages ?? sheetMessagesFor(options.locale)
   return importer.import(
@@ -518,7 +530,6 @@ export interface SheetCSVExportOptions {
 export const csvExporter = defineSheetExporter<SheetCSVExportOptions>({
   name: 'csv',
   label: (m) => m.file.csv,
-  icon: FileTextIcon,
   extension: 'csv',
   mime: 'text/csv',
   scopes: ['sheet', 'selection'],
@@ -576,7 +587,14 @@ export function mergeFileHandlers<T extends { name: string }>(
     owner.set(handler.name, extension)
     own.push(handler)
   }
-  const rest = builtin.filter((handler) => !owner.has(handler.name))
-  // exporters keep the built-in ones first, as the menu shows them; importers ask the added ones first
-  return kind === 'exporter' ? [...rest, ...own] : [...own, ...rest]
+  if (kind === 'importer')
+    // importers ask the added ones first
+    return [...own, ...builtin.filter((handler) => !owner.has(handler.name))]
+  // exporters keep the built-in ones first, as the menu shows them, one replaced in its place
+  const byName = new Map(own.map((handler) => [handler.name, handler]))
+  const builtinNames = new Set(builtin.map((handler) => handler.name))
+  return [
+    ...builtin.map((handler) => byName.get(handler.name) ?? handler),
+    ...own.filter((handler) => !builtinNames.has(handler.name)),
+  ]
 }

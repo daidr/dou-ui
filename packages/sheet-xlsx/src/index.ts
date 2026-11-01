@@ -1,10 +1,6 @@
-import { FileSpreadsheetIcon } from '@dou-ui/icons'
-import {
-  defineSheetExporter,
-  defineSheetExtension,
-  type SheetExtension,
-  type SheetLabel,
-} from '@dou-ui/sheet'
+import type { SheetExtension, SheetLabel } from '@dou-ui/sheet'
+// only the file side of the sheet, so that a Worker writing .xlsx files loads no components
+import { defineSheetExporter } from '@dou-ui/sheet/core'
 import { writeXlsx, type SheetXlsxExportOptions } from './write'
 
 export { writeXlsx, type SheetXlsxExportOptions } from './write'
@@ -30,7 +26,6 @@ const defaultLabel: SheetLabel = (m) =>
 export const xlsxExporter = defineSheetExporter<SheetXlsxExportOptions>({
   name: 'xlsx',
   label: defaultLabel,
-  icon: FileSpreadsheetIcon,
   extension: 'xlsx',
   mime: MIME,
   scopes: ['workbook', 'sheet', 'selection'],
@@ -51,7 +46,7 @@ export interface SheetXlsxOptions extends SheetXlsxExportOptions {
  */
 export function xlsx(options: SheetXlsxOptions = {}): SheetExtension {
   const { label, ...defaults } = options
-  return defineSheetExtension({
+  return {
     name: 'xlsx',
     exporters: [
       {
@@ -60,5 +55,5 @@ export function xlsx(options: SheetXlsxOptions = {}): SheetExtension {
         export: (source, own) => xlsxExporter.export(source, { ...defaults, ...own }),
       },
     ],
-  })
+  }
 }

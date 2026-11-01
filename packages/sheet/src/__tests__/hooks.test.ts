@@ -14,6 +14,7 @@ import {
   type SheetWorkbook,
 } from '../index'
 import type { SheetExpose } from '../types'
+import { PencilIcon } from '@dou-ui/icons'
 
 const book = (): SheetWorkbook => ({
   sheets: [
@@ -118,6 +119,74 @@ describe('extension transformPaste', () => {
     wrapper.unmount()
   })
 
+  it('tells the paste event where the rewritten cells go', async () => {
+    const ranges: string[] = []
+    const wider = defineSheetExtension({
+      name: 'wider',
+      transformPaste: (clip) => ({ ...clip, cells: clip.cells.map((line) => [...line, 'x', 'y']) }),
+    })
+    const { wrapper, doc, grid, paste } = setup([wider], {
+      onPaste: (event: SheetPasteEvent) =>
+        ranges.push(`${event.range.start.col}:${event.range.end.col}`),
+    })
+    grid.value!.select('A3')
+    await nextTick()
+    await paste('a')
+    expect(ranges).toEqual(['0:2'])
+    expect(doc.value.sheets[0]!.cells[2]).toEqual(['a', 'x', 'y'])
+    wrapper.unmount()
+  })
+
+  it('pastes cut cells it rewrote instead of moving them', async () => {
+    const data = new Map<string, string>()
+    const fire = async (target: HTMLElement, type: string) => {
+      const event = new Event(type, { bubbles: true, cancelable: true })
+      Object.defineProperty(event, 'clipboardData', {
+        value: {
+          setData: (k: string, v: string) => data.set(k, v),
+          getData: (k: string) => data.get(k) ?? '',
+        },
+      })
+      target.dispatchEvent(event)
+      await nextTick()
+    }
+    let rewrite = true
+    const upper = defineSheetExtension({
+      name: 'upper',
+      transformPaste: (clip) =>
+        rewrite
+          ? {
+              ...clip,
+              cells: clip.cells.map((line) =>
+                line.map((cell) => (typeof cell === 'string' ? cell.toUpperCase() : cell)),
+              ),
+            }
+          : clip,
+    })
+    const { wrapper, doc, grid } = setup([upper])
+    const main = wrapper.find<HTMLElement>('.dou-sheet__main').element
+    grid.value!.select('A1')
+    await nextTick()
+    await fire(main, 'cut')
+    grid.value!.select('A4')
+    await nextTick()
+    await fire(main, 'paste')
+    // rewritten: pasted as it now is, and the cut cell stays
+    expect(doc.value.sheets[0]!.cells[3]![0]).toBe('上海')
+    expect(doc.value.sheets[0]!.cells[0]![0]).toBe('上海')
+    rewrite = false
+    grid.value!.select('B1')
+    await nextTick()
+    await fire(main, 'cut')
+    grid.value!.select('B5')
+    await nextTick()
+    await fire(main, 'paste')
+    // left alone: moved
+    expect(doc.value.sheets[0]!.cells[4]![1]).toBe(120)
+    expect(doc.value.sheets[0]!.cells[0]![1]).toBeUndefined()
+    wrapper.unmount()
+  })
+
   it('rewrites cells imported at the active cell too', async () => {
     const plain = defineSheetImporter({
       name: 'plain',
@@ -168,25 +237,41 @@ describe('extension layers', () => {
 })
 
 describe('cell type draw', () => {
-  it('draws a cell type of its own in pictures, kept to its cell', async () => {
+  it('draws a cell type of its own in pictures, in its own coordinates and kept to its cell', async () => {
     const stars = defineSheetCellType({
       name: 'stars',
       format: (value) => '★'.repeat(Number(value) || 0),
       render: defineComponent(() => () => h('span', 'stars')),
-      draw: (value, _setup, box) =>
-        `<circle cx="${box.x + 10}" cy="${box.y + box.height / 2}" r="${Number(value)}" fill="${box.color}"/>`,
+      draw: (value, _setup, draw) =>
+        `<circle cx="10" cy="${draw.height / 2}" r="${Number(value)}" fill="${draw.color('var(--dou-color-primary)')}"/>` +
+        draw.text(`R&D <${draw.formatted}>`, {
+          x: 20,
+          y: 0,
+          width: draw.width - 20,
+          height: draw.height,
+        }) +
+        draw.icon(PencilIcon, { x: 0, y: 0, width: 12, height: 12 }, draw.look.color),
     })
     const { wrapper, grid } = setup([defineSheetExtension({ name: 'stars', cellTypes: [stars] })])
-    grid.value!.transact((tr) => tr.setCell('A2', { value: 3, type: 'stars' }))
+    grid.value!.transact((tr) => {
+      tr.setCell('A2', { value: 3, type: 'stars' })
+      tr.setCell('B2', { value: '=1/0', type: 'stars' })
+    })
     await nextTick()
     const svg = grid.value!.exportSVG()
     const doc = new DOMParser().parseFromString(svg, 'image/svg+xml')
-    const circle = doc.querySelector('g[clip-path] > circle')!
+    expect(doc.querySelector('parsererror')).toBeNull()
+    const group = doc.querySelector('g[clip-path]')!
+    expect(group.getAttribute('transform')).toBe('translate(0 28)')
+    const circle = group.querySelector('circle')!
     expect(circle.getAttribute('cx')).toBe('10')
-    expect(circle.getAttribute('cy')).toBe(String(28 + 14))
-    expect(circle.getAttribute('r')).toBe('3')
-    // instead of its text
-    expect([...doc.querySelectorAll('text')].map((t) => t.textContent)).not.toContain('★★★')
+    expect(circle.getAttribute('cy')).toBe('14')
+    expect(circle.getAttribute('fill')).not.toContain('var(')
+    expect(group.querySelector('text')!.textContent).toBe('R&D <★★★>')
+    expect(group.querySelector('svg')).not.toBeNull()
+    // a formula error is drawn as its text, not by the type
+    expect(doc.querySelectorAll('g[clip-path]').length).toBe(1)
+    expect([...doc.querySelectorAll('text')].map((t) => t.textContent)).toContain('#DIV/0!')
     // the grid still shows the component
     expect(wrapper.find('.dou-sheet__cell.is-type-stars').text()).toContain('stars')
     wrapper.unmount()

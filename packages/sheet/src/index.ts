@@ -64,7 +64,9 @@ export type {
   SheetCellPanelProps,
   SheetCellRenderProps,
   SheetCellType,
-  SheetDrawBox,
+  SheetDrawContext,
+  SheetDrawRect,
+  SheetDrawTextOptions,
   SheetResolvedType,
 } from './core/cell-type'
 export type {

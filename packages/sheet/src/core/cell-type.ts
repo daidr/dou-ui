@@ -98,32 +98,66 @@ export interface SheetCellType {
   plain?: (value: SheetValue, setup: SheetTypeSetup) => SheetValue
   /**
    * What the cell shows in pictures of the sheet (`png`, `svg` and printing),
-   * as SVG markup in `box`'s place, kept to the cell; by default its text.
-   * A type with `render` draws its own content here, as pictures can't
-   * hold components.
+   * as SVG markup in the cell's own coordinates, from its top left corner,
+   * kept to the cell. Text put in the markup must go through `draw.escape`.
+   * Not asked for empty cells or formula errors, which show as text. By
+   * default the cell's text; a type with `render` draws its own content
+   * here, as pictures can't hold components.
    */
-  draw?: (value: SheetValue, setup: SheetTypeSetup, box: SheetDrawBox) => string
+  draw?: (value: SheetValue, setup: SheetTypeSetup, draw: SheetDrawContext) => string
 }
 
-/** Where and how a cell type's `draw` draws: the cell's place in the picture and its look, in plain colors. */
-export interface SheetDrawBox {
+/** A place in a cell's picture, in the cell's own coordinates. */
+export interface SheetDrawRect {
   x: number
   y: number
   width: number
   height: number
-  /** The text the cell shows. */
-  text: string
-  /** The color of the text. */
-  color: string
-  /** The fill, `null` for none. */
-  background: string | null
-  align: 'left' | 'center' | 'right'
-  valign: 'top' | 'middle' | 'bottom'
-  bold: boolean
-  italic: boolean
-  fontFamily: string
+}
+
+/** How `draw.text` writes text; by default as the cell's look says. */
+export interface SheetDrawTextOptions {
+  align?: 'left' | 'center' | 'right'
+  valign?: 'top' | 'middle' | 'bottom'
+  /** A color as SVG takes it, e.g. from `draw.color`. */
+  color?: string
+  bold?: boolean
+  italic?: boolean
   /** In px. */
-  fontSize: number
+  size?: number
+}
+
+/** What a cell type's `draw` gets: the cell's size and look, and tools to draw with. */
+export interface SheetDrawContext {
+  /** The cell's size. */
+  width: number
+  height: number
+  /** The text the cell shows, as `format` gives it. */
+  formatted: string
+  /** The cell's look, in colors SVG takes. */
+  look: {
+    color: string
+    /** The fill, `null` for none. */
+    background: string | null
+    align: 'left' | 'center' | 'right'
+    valign: 'top' | 'middle' | 'bottom'
+    bold: boolean
+    italic: boolean
+    fontFamily: string
+    /** In px. */
+    fontSize: number
+  }
+  /** Text on one line in a box (the whole cell by default), escaped, in the cell's look unless `options` say otherwise. */
+  text: (value: string, box?: SheetDrawRect, options?: SheetDrawTextOptions) => string
+  /** An icon component, e.g. from `@dou-ui/icons`, as SVG. */
+  icon: (icon: Component, box: SheetDrawRect, color: string) => string
+  /**
+   * A CSS color, also one with variables such as `var(--dou-color-primary)`,
+   * as a color every SVG reader understands, read in the sheet's theme.
+   */
+  color: (value: string) => string
+  /** Escapes text for SVG markup. */
+  escape: (text: string) => string
 }
 
 /** Declares a cell type; only gives it a type. */

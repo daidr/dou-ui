@@ -57,9 +57,16 @@ export type { SheetBounds, SheetCellTarget, SheetPoint, SheetRange, SheetRefMap 
 
 export { defineSheetExtension } from './extension'
 export type { SheetExtension, SheetUpdate } from './extension'
+export type { SheetClip } from './clipboard'
 export type { SheetLabel } from './commands'
 export { defineSheetCellType, optionOf } from './cell-type'
-export type { SheetCellType, SheetDrawBox, SheetResolvedType } from './cell-type'
+export type {
+  SheetCellType,
+  SheetDrawContext,
+  SheetDrawRect,
+  SheetDrawTextOptions,
+  SheetResolvedType,
+} from './cell-type'
 
 export { cellOf, valueOf } from './model'
 

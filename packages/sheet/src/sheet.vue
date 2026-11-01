@@ -162,7 +162,7 @@ import { sheetContextKey, type SheetContext, type SheetEditInputOptions } from '
 import {
   resolveCellType,
   type SheetCellType,
-  type SheetDrawBox,
+  type SheetDrawContext,
   type SheetResolvedType,
 } from './core/cell-type'
 import { ruleMessage, SheetChecks } from './core/validation'
@@ -1096,7 +1096,7 @@ interface CellView {
   render?: SheetCellType['render']
   props?: Record<string, unknown>
   /** A cell type's own content in pictures of the sheet, as SVG markup. */
-  draw?: (box: SheetDrawBox) => string
+  draw?: (draw: SheetDrawContext) => string
   /** What screen readers read for a cell type's own content. */
   label?: string
   /** Why the value doesn't fit the cell's type; shown on hover and read out. */
@@ -1245,11 +1245,11 @@ function cellView(
         renderProps = { value, text, setup, readonly: props.readonly }
         label = cellText(input, { sheet: on.key, row, col })
       }
-      // pictures only: the grid draws the component
-      if (definition.draw && !on.marks) {
+      // pictures only, where the grid draws the component; errors and empty cells show as text
+      if (definition.draw && !on.marks && !error && value != null && value !== '') {
         const draw = definition.draw
         const drawn = value
-        drawBox = (box) => draw(drawn, setup, box)
+        drawBox = (context) => draw(drawn, setup, context)
       }
     }
     if (!problem) {
@@ -3391,7 +3391,7 @@ function paste(given: SheetClip) {
   if (!transformed?.cells.length) return
   const event: SheetPasteEvent = {
     clip: transformed,
-    range: boundsRange(pasteTargets(given)[0]!),
+    range: boundsRange(pasteTargets(transformed)[0]!),
     defaultPrevented: false,
     preventDefault() {
       this.defaultPrevented = true
@@ -3405,7 +3405,8 @@ function paste(given: SheetClip) {
   const width = Math.max(1, ...clip.cells.map((line) => line.length))
   const ours = clip.from != null
   const mark = clipMark.value
-  const moving = clip.cut != null && mark?.cut === clip.cut ? mark : null
+  // cut cells an extension rewrote are pasted as they now are, not moved
+  const moving = transformed === given && clip.cut != null && mark?.cut === clip.cut ? mark : null
   const targets = moving
     ? [
         {

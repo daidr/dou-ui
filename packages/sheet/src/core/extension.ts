@@ -35,8 +35,9 @@ export interface SheetUpdate {
   doc: SheetWorkbook
   /**
    * The change: typing, commands, undo and redo, `transact` and other
-   * people's changes, told apart by `transaction.meta.action`. `null` when
-   * a new workbook came in through `v-model`.
+   * people's changes. `transaction.meta.action` says what made it, and
+   * other people's changes in collaboration have `meta.origin` `'remote'`.
+   * `null` when a new workbook came in through `v-model`.
    */
   transaction: SheetTransaction | null
 }
@@ -117,8 +118,9 @@ export interface SheetExtension {
   update?: (update: SheetUpdate, context: SheetExtensionContext) => void
   /**
    * Rewrites cells before they are pasted, or imported at the active cell,
-   * in priority order; return `null` to stop it. The grid's `paste` event
-   * comes after, with what the extensions made of it.
+   * in priority order; return `null` to stop it. A paste's `paste` event
+   * comes after, with what the extensions made of it; an import has none.
+   * Cut cells that come back rewritten are pasted, not moved.
    */
   transformPaste?: (clip: SheetClip, context: SheetExtensionContext) => SheetClip | null
 }

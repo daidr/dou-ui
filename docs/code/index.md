@@ -457,7 +457,7 @@ const doc = shallowRef(CodeText.of(source))
 </template>
 ```
 
-用自定义语言或者想自己打包 worker 时，`worker` 传一个创建 worker 的函数。编辑器挂载以后才调用它，所以服务端渲染时不会碰到 `Worker`；它创建的 worker 归这个编辑器所有，编辑器卸载或者换掉 `worker` 时调用 `terminate()` 结束它，不用自己关闭。在 worker 文件里调用 `@dou-ui/code/worker` 的 `serveCodeHighlighting`，列出要支持的语言：
+用自定义语言或者想自己打包 worker 时，`worker` 传一个创建 worker 的函数。编辑器挂载以后才调用它，所以服务端渲染时不会碰到 `Worker`；它创建的 worker 由编辑器结束：编辑器卸载或者换掉 `worker` 时调用 `terminate()`，不用自己关闭。所以函数每次都要新建一个 worker，不要把已经结束的 worker 再交给编辑器；几个编辑器拿到同一个 worker 时，最后一个用它的编辑器卸载时才结束。在 worker 文件里调用 `@dou-ui/code/worker` 的 `serveCodeHighlighting`，列出要支持的语言：
 
 ```ts
 // highlight.ts
@@ -477,6 +477,8 @@ const createWorker = () =>
   <DouCodeEditor v-model:doc="doc" :language="myLanguage" :worker="createWorker" />
 </template>
 ```
+
+自带的 worker 打包在组件里，用到时才加载，以 `blob:` 地址启动。站点设置了内容安全策略（CSP）时，需要在 `worker-src` 中允许 `blob:`。如果不能放开，可以像上面这样用函数加载自己的 worker 文件。自带的 worker 无法启动时，编辑器会在控制台给出提示，并改为在页面中读。
 
 `@dou-ui/code/worker` 只包含语言和分词，不会引入 Vue 和组件。包含其他语言的语言要在 `nested` 里列出它们。worker 里没有编辑器用的语言（按名称查找，包括它包含的语言），或者 worker 无法启动时，编辑器改为自己在空闲时读，开发环境下会在控制台说明缺少哪种语言。
 

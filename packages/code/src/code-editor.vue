@@ -81,7 +81,7 @@ import {
   searchText,
 } from './core/search'
 import { CodeHighlighter } from './language/highlighter'
-import { ownWorker, SyntaxWorkerClient } from './language/worker-client'
+import { holdWorker, ownWorker, SyntaxWorkerClient } from './language/worker-client'
 import { format, useCodeMessages } from './locale'
 import CodeKeys from './code-keys.vue'
 import {
@@ -1485,7 +1485,7 @@ watch(
       workerFallback('the worker could not start', error)
       return
     }
-    attachWorker(worker, () => worker.terminate())
+    attachWorker(worker, holdWorker(worker))
   },
   { immediate: true },
 )

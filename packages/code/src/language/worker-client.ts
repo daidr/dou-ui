@@ -177,3 +177,23 @@ export async function ownWorker(): Promise<{ worker: Worker; release: () => void
     },
   }
 }
+
+/** Editors using each worker made by a `worker` function: one handed to several ends with the last. */
+const holders = new Map<Worker, number>()
+
+/** Counts an editor using `worker`; the returned function lets go, ending the worker after the last. */
+export function holdWorker(worker: Worker): () => void {
+  holders.set(worker, (holders.get(worker) ?? 0) + 1)
+  let released = false
+  return () => {
+    if (released) return
+    released = true
+    const left = holders.get(worker)! - 1
+    if (left > 0) {
+      holders.set(worker, left)
+      return
+    }
+    holders.delete(worker)
+    worker.terminate()
+  }
+}

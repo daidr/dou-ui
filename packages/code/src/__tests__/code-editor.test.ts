@@ -366,6 +366,28 @@ describe('worker', () => {
     }
   })
 
+  it('ends a worker handed to several editors with the last of them', async () => {
+    vi.stubGlobal('Worker', function Worker() {})
+    try {
+      const terminate = vi.fn<() => void>()
+      const shared = {
+        postMessage() {},
+        addEventListener() {},
+        removeEventListener() {},
+        terminate,
+      } as unknown as Worker
+      const a = setup('const a = 1', { language: javascript, worker: () => shared })
+      const b = setup('const b = 2', { language: javascript, worker: () => shared })
+      await nextTick()
+      a.wrapper.unmount()
+      expect(terminate).not.toHaveBeenCalled()
+      b.wrapper.unmount()
+      expect(terminate).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('reads on the page, saying why, when the worker can’t start', async () => {
     vi.stubGlobal('Worker', function Worker() {})
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})

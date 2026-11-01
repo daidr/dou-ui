@@ -45,7 +45,7 @@ describe('diffBlocks', () => {
       'removed:b',
       'added:d',
     ])
-    expect([diff.added, diff.removed, diff.updated]).toEqual([1, 1, 1])
+    expect([diff.added, diff.removed, diff.updated]).toEqual([['d'], ['b'], ['a']])
     // comments alone are not a change
     const commented = v1()
     commented[1]!.content = [{ type: 'text', text: '预算三万元', comments: ['t1'] }]

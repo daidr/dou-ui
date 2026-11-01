@@ -96,7 +96,7 @@ export type {
 } from './core/model'
 export { blocksToDoc, createId, docToBlocks } from './core/model'
 export { diffBlocks, diffText, inlineText } from './core/diff'
-export type { BlockDiff, BlocksDiff, TextPart } from './core/diff'
+export type { BlockVersionChange, BlocksDiff, TextPart } from './core/diff'
 export type { BuiltinContentType, ContentType, MarkType } from './core/schema'
 export { contentDOM, createSchema, isSafeHref, textBlock } from './core/schema'
 export {

@@ -8,7 +8,7 @@ import type { Block, InlineContent } from './model'
  */
 
 /** One block that differs between two versions. */
-export type BlockDiff =
+export type BlockVersionChange =
   | { type: 'added'; id: string; after: Block }
   /** `next`: the block of the newer version it stood before; `null` at the end. */
   | { type: 'removed'; id: string; before: Block; next: string | null }
@@ -17,10 +17,11 @@ export type BlockDiff =
 
 export interface BlocksDiff {
   /** The changed blocks, in the order of the newer version, removed ones where they were. */
-  changes: BlockDiff[]
-  added: number
-  removed: number
-  updated: number
+  changes: BlockVersionChange[]
+  /** The ids of the blocks added, removed and updated, as the `transaction` event's `changes` has them. */
+  added: string[]
+  removed: string[]
+  updated: string[]
 }
 
 /** Every block of a tree, parents before their children. */
@@ -56,10 +57,10 @@ export function diffBlocks(before: readonly Block[], after: readonly Block[]): B
   const now = flatten(after)
   const oldById = new Map(old.map((block) => [block.id, block]))
   const nowIds = new Set(now.map((block) => block.id))
-  const changes: BlockDiff[] = []
-  let added = 0
-  let removed = 0
-  let updated = 0
+  const changes: BlockVersionChange[] = []
+  const added: string[] = []
+  const removed: string[] = []
+  const updated: string[] = []
   // removed blocks go before the first block that followed them and is still there
   const removedBefore = new Map<string | null, Block[]>()
   let pending: Block[] = []
@@ -73,7 +74,7 @@ export function diffBlocks(before: readonly Block[], after: readonly Block[]): B
   const putRemoved = (next: string | null) => {
     for (const block of removedBefore.get(next) ?? []) {
       changes.push({ type: 'removed', id: block.id, before: block, next })
-      removed++
+      removed.push(block.id)
     }
   }
   for (const block of now) {
@@ -81,10 +82,10 @@ export function diffBlocks(before: readonly Block[], after: readonly Block[]): B
     const was = oldById.get(block.id)
     if (!was) {
       changes.push({ type: 'added', id: block.id, after: block })
-      added++
+      added.push(block.id)
     } else if (own(was) !== own(block)) {
       changes.push({ type: 'updated', id: block.id, before: was, after: block })
-      updated++
+      updated.push(block.id)
     }
   }
   putRemoved(null)

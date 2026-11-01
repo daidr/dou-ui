@@ -1646,7 +1646,6 @@ function transact(
   /** Made by the app's code, not by someone using the grid: `readonly` doesn't stop it. */
   fromCode = false,
 ) {
-  // a change kept out of the history, such as another person's, still reaches a read-only grid
   // a change kept out of the history, such as another person's, still reaches a read-only grid;
   // comparing, nothing but restoring changes it, not even code
   if (meta?.history !== false && ((props.readonly && !fromCode) || (props.compare && !restoring)))

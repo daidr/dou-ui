@@ -53,7 +53,7 @@ const blocks = readMap(ydoc.getMap('doc'))
 import { diffBlocks } from '@dou-ui/editor'
 
 const { added, removed, updated, changes } = diffBlocks(version.blocks, blocks.value)
-// 版本列表里显示“新增 2 段，删除 1 段，修改 3 段”
+// 版本列表里显示“新增 2 段，删除 1 段，修改 3 段”：added.length 等
 ```
 
 `changes` 按当前文档的顺序列出每个改动的块，删除的块排在它原来后面那个块之前。逐字对比文字用 `diffText(before, after)`。
@@ -99,16 +99,17 @@ function restore(version: Version) {
 | `readMap`    | 从共享文档读出当前内容，从 `@dou-ui/editor/collaboration` 引入                                | `(map: Y.Map, extensions?: EditorExtension[]) => Block[]` |
 
 ```ts
-type BlockDiff =
+type BlockVersionChange =
   | { type: 'added'; id: string; after: Block }
   | { type: 'removed'; id: string; before: Block; next: string | null } // next：它原来在哪个块前面，null 是末尾
   | { type: 'updated'; id: string; before: Block; after: Block }
 
 interface BlocksDiff {
-  changes: BlockDiff[]
-  added: number
-  removed: number
-  updated: number
+  changes: BlockVersionChange[]
+  /** 新增、删除、修改的块的 id，和 transaction 事件里的 changes 一样；要数量时取 length */
+  added: string[]
+  removed: string[]
+  updated: string[]
 }
 
 interface TextPart {

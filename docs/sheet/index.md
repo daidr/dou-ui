@@ -120,7 +120,7 @@ sheet.value.transact((tr) => {
 })
 ```
 
-`transact` 返回这次的事务：没有改动、表格只读或修改被[取消](./extensions#取消修改)时 `tr.changed` 为 `false`，被取消时 `tr.cancelled` 为 `true`。
+`transact` 返回这次的事务：没有改动、对比时（传了 `compare`）或修改被[取消](./extensions#取消修改)时 `tr.changed` 为 `false`，被取消时 `tr.cancelled` 为 `true`。
 
 行和列也可以按显示的写法指定，数字仍是从 0 开始的序号：
 

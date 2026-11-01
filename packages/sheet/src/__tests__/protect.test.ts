@@ -252,6 +252,13 @@ describe('protected sheets in the grid', () => {
     expect(cells()[0]![0]).toEqual({ value: '买家', style: 'head' })
   })
 
+  it('keeps protected cells from code on a read-only grid too, unless told otherwise', () => {
+    const { grid, cells } = setup({ readonly: true })
+    expect(grid.value!.transact((tr) => tr.setValue('A1', '买家')).cancelled).toBe(true)
+    grid.value!.transact((tr) => tr.setValue('A1', '买家'), { protection: false })
+    expect(cells()[0]![0]).toEqual({ value: '买家', style: 'head' })
+  })
+
   it('protects and unprotects from the commands, and locks cells', async () => {
     const { wrapper, grid, doc } = setup({}, { ...form(), sheets: [{ name: '表', cells: [] }] })
     const sheet = () => doc.value.sheets[0]!

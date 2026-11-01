@@ -6,6 +6,7 @@ import { light } from './light'
  * page, with surfaces separated by hairline borders rather than shadow.
  */
 export const dark = defineTheme(light, {
+  scheme: { dark: '1' },
   color: {
     neutral: { DEFAULT: '#ededed', on: '#0a0a0a', text: '#ededed' },
     primary: { DEFAULT: '#4c66cb', on: '#ffffff', text: '#768ad7' },

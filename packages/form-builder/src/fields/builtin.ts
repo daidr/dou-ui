@@ -29,6 +29,17 @@ import {
   TextField,
 } from './components'
 import type { FormOption } from './components'
+import {
+  ColorValue,
+  FilesValue,
+  formatDate,
+  formatNumber,
+  formatOptions,
+  formatPath,
+  formatRange,
+  formatText,
+  formatToggle,
+} from './format'
 
 const text = () => ''
 const none = () => null
@@ -41,9 +52,9 @@ const listWhen = (key: string) => (props: Record<string, unknown>) => (props[key
  * prefix: `input-number` renders `DouInputNumber`.
  */
 export const builtinFields: FormFieldType<any>[] = [
-  defineFormField({ type: 'input', component: DouInput, empty: text }),
+  defineFormField({ type: 'input', component: DouInput, empty: text, format: formatText }),
   defineFormField({ type: 'textarea', component: DouTextarea, empty: text }),
-  defineFormField({ type: 'input-number', component: DouInputNumber }),
+  defineFormField({ type: 'input-number', component: DouInputNumber, format: formatNumber }),
   defineFormField({
     type: 'select',
     optionsProp: 'options',
@@ -66,8 +77,18 @@ export const builtinFields: FormFieldType<any>[] = [
     fitValue: fitToOptions,
     empty: list,
   }),
-  defineFormField({ type: 'checkbox', component: CheckboxField, empty: () => false }),
-  defineFormField({ type: 'switch', component: DouSwitch, empty: () => false }),
+  defineFormField({
+    type: 'checkbox',
+    component: CheckboxField,
+    empty: () => false,
+    format: formatToggle,
+  }),
+  defineFormField({
+    type: 'switch',
+    component: DouSwitch,
+    empty: () => false,
+    format: formatToggle,
+  }),
   defineFormField({
     type: 'segmented-control',
     component: DouSegmentedControl,
@@ -79,20 +100,37 @@ export const builtinFields: FormFieldType<any>[] = [
   defineFormField({
     type: 'slider',
     component: DouSlider,
+    format: formatRange,
     empty: (props: { range?: boolean; min?: number; max?: number }) => {
       const min = props.min ?? 0
       return props.range ? [min, props.max ?? 100] : min
     },
   }),
-  defineFormField({ type: 'rate', component: DouRate, empty: () => 0 }),
-  defineFormField({ type: 'date-picker', component: DouDatePicker, empty: none }),
-  defineFormField({ type: 'time-picker', component: DouTimePicker, empty: none }),
-  defineFormField({ type: 'color-picker', component: DouColorPicker, empty: none }),
+  defineFormField({ type: 'rate', component: DouRate, empty: () => 0, readonlyComponent: DouRate }),
+  defineFormField({
+    type: 'date-picker',
+    component: DouDatePicker,
+    empty: none,
+    format: formatDate,
+  }),
+  defineFormField({
+    type: 'time-picker',
+    component: DouTimePicker,
+    empty: none,
+    format: formatRange,
+  }),
+  defineFormField({
+    type: 'color-picker',
+    component: DouColorPicker,
+    empty: none,
+    readonlyComponent: ColorValue,
+  }),
   defineFormField({
     type: 'cascader',
     optionsProp: 'options',
     fitValue: fitPathToOptions,
     component: DouCascader,
+    format: formatPath,
     defaultProps: { options: [] },
     empty: none,
   }),
@@ -101,12 +139,18 @@ export const builtinFields: FormFieldType<any>[] = [
     optionsProp: 'data',
     fitValue: fitToOptions,
     component: DouTreeSelect,
+    format: formatOptions('data'),
     defaultProps: { data: [] },
     empty: listWhen('multiple'),
   }),
   defineFormField({ type: 'input-tag', component: DouInputTag, empty: list }),
   defineFormField({ type: 'input-otp', component: DouInputOtp, empty: text }),
-  defineFormField({ type: 'upload', component: DouUpload, empty: list }),
+  defineFormField({
+    type: 'upload',
+    component: DouUpload,
+    empty: list,
+    readonlyComponent: FilesValue,
+  }),
   defineFormField({ type: 'text', kind: 'display', component: TextField }),
   defineFormField({ type: 'divider', kind: 'display', component: DividerField }),
   defineFormField({ type: 'alert', kind: 'display', component: AlertField }),

@@ -26,6 +26,31 @@ Token 名称表示**用途**，例如 `color.primary`、`color.bg.surface`、`ra
 亮色主题里 `text` 基本等于 `DEFAULT`；暗色主题里同一个颜色无法既衬托白字、又在深色页面上作为文字清晰可读，所以 `text` 更亮一些。三者的对比度都按 WCAG AA（正文 4.5:1）取值。
 悬停、按下、浅色背景等状态由组件通过 `color-mix()` 计算，修改一个颜色后相关状态会一起更新。
 
+## 亮色与暗色
+
+`scheme.dark`（`--dou-scheme-dark`）表示主题属于亮色还是暗色：亮色主题是 `0`，暗色主题是 `1`。少数样式在两种主题下取不同的值，比如暗色主题里浮层要比页面稍亮才能分出层次，组件用这个 Token 在两个值之间取舍：
+
+```css
+.my-panel {
+  /* 亮色主题里是表面色，暗色主题里混入 4% 的文字颜色 */
+  background: color-mix(
+    in oklab,
+    var(--dou-color-text) calc(4% * var(--dou-scheme-dark)),
+    var(--dou-color-bg-surface)
+  );
+}
+```
+
+主题完全由 Token 决定，不依赖页面的 `color-scheme`，所以用 `themeToCss` 挂到任意选择器上的主题都能直接使用。从 `dark` 派生的主题（包括 `createTheme` 生成的暗色主题）会带上 `1`。
+
+DouUI 组件只看 Token。页面底色、原生控件和滚动条仍然跟随 `color-scheme`：内置的 `[data-dou-theme="dark"]` 已经声明了 `color-scheme: dark`，自定义的暗色主题要在自己的选择器上加上它：
+
+```css
+[data-dou-theme='brand-dark'] {
+  color-scheme: dark;
+}
+```
+
 ## 覆盖单个 Token
 
 Token 就是普通的 CSS 变量，不在级联层中的样式可以直接覆盖：

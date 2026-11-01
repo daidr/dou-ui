@@ -22,6 +22,16 @@ export interface FormRendererMessages {
   empty: string
   /** Read out after the title of a tab whose fields have errors. */
   invalid: string
+  /** What a `readonly` renderer shows for a field without a value. */
+  noValue: string
+  /** A `readonly` renderer's text for `true`, e.g. a switch that is on. */
+  yes: string
+  /** A `readonly` renderer's text for `false`. */
+  no: string
+  /** Between the items of a list of values in a `readonly` renderer. */
+  separator: string
+  /** Between both ends of a range of dates, times or numbers in a `readonly` renderer. */
+  rangeSeparator: string
   /** What an editor shows for each problem of an expression; `{text}` is the source at fault. */
   expression: Record<ExpressionProblem['code'], string>
   /** What an editor shows for each problem of a document; `{text}` is the id, name or type at fault. */
@@ -38,6 +48,11 @@ const zhCN: FormRendererMessages = {
   item: '第 {index} 项',
   empty: '还没有内容',
   invalid: '有错误',
+  noValue: '—',
+  yes: '是',
+  no: '否',
+  separator: '、',
+  rangeSeparator: ' ~ ',
   expression: {
     'unexpected-character': '这里不能出现“{text}”',
     'unterminated-string': '文字缺少结尾的引号',
@@ -61,6 +76,8 @@ const zhCN: FormRendererMessages = {
     empty: '这里还没有内容',
     expression: '表达式有误：{text}',
     'formula-cycle': '公式互相引用：{text}',
+    'unknown-validator': '没有校验函数“{text}”',
+    'check-and-validator': '同一条规则不能同时写表达式和校验函数',
   },
 }
 
@@ -74,6 +91,11 @@ const zhTW: FormRendererMessages = {
   item: '第 {index} 項',
   empty: '還沒有內容',
   invalid: '有錯誤',
+  noValue: '—',
+  yes: '是',
+  no: '否',
+  separator: '、',
+  rangeSeparator: ' ~ ',
   expression: {
     'unexpected-character': '這裡不能出現「{text}」',
     'unterminated-string': '文字缺少結尾的引號',
@@ -97,6 +119,8 @@ const zhTW: FormRendererMessages = {
     empty: '這裡還沒有內容',
     expression: '運算式有誤：{text}',
     'formula-cycle': '公式互相引用：{text}',
+    'unknown-validator': '沒有校驗函式「{text}」',
+    'check-and-validator': '同一條規則不能同時寫運算式和校驗函式',
   },
 }
 
@@ -110,6 +134,11 @@ const en: FormRendererMessages = {
   item: 'Item {index}',
   empty: 'Nothing here yet',
   invalid: 'has errors',
+  noValue: '—',
+  yes: 'Yes',
+  no: 'No',
+  separator: ', ',
+  rangeSeparator: ' – ',
   expression: {
     'unexpected-character': '“{text}” can’t go here',
     'unterminated-string': 'The text is missing its closing quote',
@@ -133,6 +162,8 @@ const en: FormRendererMessages = {
     empty: 'There is nothing in here yet',
     expression: 'The expression is wrong: {text}',
     'formula-cycle': 'The formulas read each other: {text}',
+    'unknown-validator': 'There is no validator “{text}”',
+    'check-and-validator': 'A rule cannot have both an expression and a validator',
   },
 }
 

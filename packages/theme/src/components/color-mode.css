@@ -29,9 +29,21 @@
     color: var(--dou-color-text-tertiary);
   }
 
+  /*
+   * A flex row, not inline: the option label trims its line to the cap
+   * height, which would leave an inline row's icon sitting high. The text
+   * trims itself instead, so icon and text center on the same line.
+   */
   .dou-color-mode-select__option {
-    display: inline-flex;
+    display: flex;
     align-items: center;
     gap: 8px;
+  }
+
+  .dou-color-mode-select__label {
+    min-width: 0;
+    overflow-x: clip;
+    text-overflow: ellipsis;
+    text-box: trim-both cap alphabetic;
   }
 }

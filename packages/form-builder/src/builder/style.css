@@ -1277,6 +1277,17 @@
     display: none;
   }
 
+  /* Read-only there is no add button: a list or a condition not set shows a dash. */
+  .dou-form-builder.is-readonly .dou-form-builder__inspector .dou-form-renderer__list-empty,
+  .dou-form-builder__condition-empty {
+    display: block;
+    padding: 0;
+    border: 0;
+    color: var(--dou-color-text-tertiary);
+    font-size: var(--dou-font-size-sm);
+    text-align: start;
+  }
+
   .dou-form-builder__condition-row {
     display: flex;
     flex-direction: column;

@@ -12,7 +12,18 @@ export type {
   EditorEmits,
   EditorExpose,
   EditorProps,
+  EditorOrigin,
+  EditorSelection,
+  EditorTransactionResult,
 } from './editor'
+export { EditorTransaction } from './core/transaction'
+export type {
+  BlockEdge,
+  BlockPatch,
+  BlockPlacement,
+  EditorTransactionMeta,
+} from './core/transaction'
+export type { BlockChanges } from './core/changes'
 export type { CommentAnchor, CommentRange } from './core/comments'
 export { editorLocales, useEditorMessages } from './locale'
 export type { EditorMessages, EditorMessagesOverride } from './locale'
@@ -90,7 +101,7 @@ export {
   duplicateBlocks,
   insertBlockAfter,
   liftBlocks,
-  moveBlocks,
+  swapBlocks,
   moveRangeTo,
   setBlockType,
   sinkBlocks,

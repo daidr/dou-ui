@@ -66,7 +66,7 @@ app.use(DouSheet)
 
 单元格原来的样式和格式会保留，没有格式时才加上输入带来的格式。`Delete` 或 `Backspace` 清空选中区域的值，样式和格式不动。
 
-`readonly` 只允许选择、浏览和复制，不能修改。代码里用 `history: false` 提交的修改（例如[协同编辑](./collaboration)时其他人的修改）仍然会生效。
+`readonly` 只限制使用者在表格里的操作：只能选择、浏览和复制，不能修改。代码里调用组件实例的 `transact`、`undo`、`redo` 不受 `readonly` 限制，照常生效，例如[协同编辑](./collaboration)时其他人的修改；但受保护的单元格仍然拒绝修改，除非设置 `protection: false`（见[保护](#保护)）。
 
 触屏上编辑框的字号至少是 16px，避免手机在聚焦时自动放大页面。
 
@@ -674,7 +674,7 @@ await grid.value.importFile(file, { mode: 'replace' })
 | `scope`           | 导出什么：`'workbook'` 整个工作簿、`'sheet'` 一张工作表、`'selection'` 选区 | 导出方式支持的第一种 |
 | `sheet`           | 工作表，序号、`id` 或名字                                                   | 当前显示的           |
 | `range`           | 只导出这片区域，如 `'A1:F20'`                                               | 选区或有数据的部分   |
-| `options`         | 交给导出方式的选项，比如 CSV 的 `{ delimiter, bom, formatted }`             | —                    |
+| `options`         | 交给导出方式的选项，比如 CSV 的 `{ delimiter, bom, text, formulas }`        | —                    |
 | `signal`          | 取消导出用的 `AbortSignal`，导出方式从 `source.signal` 读取                 | —                    |
 
 `importFile` 的 `mode` 决定读入的内容放在哪里，三种都能一步撤销：
@@ -732,23 +732,25 @@ function onFileError(event: SheetFileErrorEvent) {
 | `decimal`   | 小数点。`','` 时 `1,5` 读成 1.5、`1.280,5` 读成 1280.5；用分号分隔的文件通常是这种写法 | 分隔符是 `;` 时为 `','`，否则 `'.'`  |
 | `formulas`  | 以 `=` 开头的内容读成公式                                                              | `false`                              |
 
-组件实例的 `toCSV()` 把当前工作表写成 CSV，内容和单元格显示的一致（带格式，单元格类型按它自己的写法）。只到最后一个有数据的行和列，用 `range` 可以只导出一部分，`sheet` 指定别的工作表。导出的文件要给表格软件打开时，加上 `bom: true`，否则中文可能被当成其他编码。
+组件实例的 `toCSV()` 把当前工作表写成 CSV。默认写表格软件能排序、求和的值：数字不带格式（`1280`），日期写成 `2026-03-05`，公式写计算结果，单元格类型按它的 `plain` 写。加上 `text: true` 改为写单元格显示的文字（`¥1,280.00`、`2026年3月5日`，单元格类型按它自己的写法）。只到最后一个有数据的行和列，用 `range` 可以只导出一部分，`sheet` 指定别的工作表。开头默认带字节顺序标记，表格软件打开时中文不会被当成其他编码。
 
-以 `=`、`+`、`-`、`@` 开头的文字在表格软件里打开时会被当成公式执行，这可能被用来插入恶意链接或命令。导出时默认在这样的文字前面加上 `'`，数字不受影响；`formatted: false` 时表格里的公式按原文写出，不加 `'`，可以用 `readCSV(text, { formulas: true })` 读回来。加上的 `'` 会留在文字里，所以导出的文件如果只是给 `readCSV` 原样读回，应设置 `escapeFormulas: false`。确定文件不会被表格软件打开时，可以设置 `escapeFormulas: false` 原样写出。
+以 `=`、`+`、`-`、`@`、制表符或回车开头的文字在表格软件里打开时会被当成公式执行，这可能被用来插入恶意链接或命令。导出时默认在这样的文字前面加上 `'`，数字不受影响。`formulas: true` 时表格里的公式按原文写出，不加 `'`，可以用 `readCSV(text, { formulas: true })` 读回来。加上的 `'` 会留在文字里，所以导出的文件如果只是给 `readCSV` 原样读回，应设置 `escapeFormulas: false`。确定文件不会被表格软件打开时，可以设置 `escapeFormulas: false` 原样写出。
 
-| 导出选项         | 说明                                                                                    | 默认值       |
-| ---------------- | --------------------------------------------------------------------------------------- | ------------ |
-| `delimiter`      | 分隔符                                                                                  | `','`        |
-| `range`          | 只导出这片区域，如 `'A1:D20'`、`'B:D'`                                                  | 有数据的部分 |
-| `formatted`      | 写单元格显示的文字；`false` 写存储的值（`1280`、`2026-03-05`、公式原文）                | `true`       |
-| `newline`        | 行之间的换行                                                                            | `'\r\n'`     |
-| `bom`            | 在开头加上字节顺序标记                                                                  | `false`      |
-| `escapeFormulas` | 在以 `=`、`+`、`-`、`@` 开头的文字前加 `'`                                              | `true`       |
-| `locale`         | 日期格式里星期等文字的语言（`toCSV` 用当前语言）                                        | —            |
-| `text`           | `(input) => string \| undefined`，自己决定单元格写出的文字，返回 `undefined` 时按格式写 | —            |
-| `sheet`          | 要导出的工作表，序号、`id` 或名字                                                       | 当前显示的   |
+| 导出选项         | 说明                                                                                                                                                             | 默认值       |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
+| `delimiter`      | 分隔符                                                                                                                                                           | `','`        |
+| `range`          | 只导出这片区域，如 `'A1:D20'`、`'B:D'`                                                                                                                           | 有数据的部分 |
+| `text`           | 写单元格显示的文字，而不是值                                                                                                                                     | `false`      |
+| `formulas`       | 公式按原文写出，而不是计算结果；`text` 时不起作用                                                                                                                | `false`      |
+| `newline`        | 行之间的换行                                                                                                                                                     | `'\r\n'`     |
+| `bom`            | 在开头加上字节顺序标记                                                                                                                                           | `true`       |
+| `escapeFormulas` | 在以 `=`、`+`、`-`、`@`、制表符或回车开头的文字前加 `'`                                                                                                          | `true`       |
+| `locale`         | `text` 时日期格式里星期等文字的语言（`toCSV` 用当前语言）                                                                                                        | —            |
+| `cellText`       | `(input, value, row, col) => string \| undefined`，`text` 时自己决定单元格写出的文字，返回 `undefined` 时按格式写                                                | —            |
+| `cellPlain`      | `(input, value, row, col) => value \| undefined`，不带 `text` 时自己决定写出的值，和单元格类型的 `plain` 对应；返回 `null` 写空，返回 `undefined` 时写单元格的值 | —            |
+| `sheet`          | 要导出的工作表，序号、`id` 或名字                                                                                                                                | 当前显示的   |
 
-不经过组件时，`sheetToCSV(sheetData, options)` 做同样的事，只是单元格类型按值本身写出（可以用 `text` 补上）。`parseCSV(text, delimiter?)` 只拆分字段，不识别类型；`detectDelimiter(text)` 返回判断出的分隔符。
+不经过组件时，`sheetToCSV(sheetData, options)` 做同样的事，只是公式要用 `result` 给出结果才能写成计算结果（见[公式](./formulas)），没有 `result` 时公式当作文字写出，前面加 `'`；要按原文写出公式用 `formulas: true`。单元格类型按值本身写出（可以用 `cellText`、`cellPlain` 补上）。工具栏的导出菜单和 `exportFile('csv', { options })` 能用其中的 `delimiter`、`text`、`formulas`、`newline`、`bom`、`escapeFormulas`，导出范围用 `exportFile` 自己的 `scope`、`sheet`、`range`。`parseCSV(text, delimiter?)` 只拆分字段，不识别类型；`detectDelimiter(text)` 返回判断出的分隔符。
 
 ## 导出图片与打印
 

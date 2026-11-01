@@ -277,7 +277,7 @@ export const deleteSelectedAtom: Command = (state, dispatch) => {
   if (!(selection instanceof NodeSelection) || !selection.node.isAtom) return false
   const info = blockAround(selection.$from)
   if (!info) return false
-  if (dispatch) dispatch(removeBlocks(state.tr, [info]).scrollIntoView())
+  if (dispatch) dispatch(deleteBlocks(state.tr, [info]).scrollIntoView())
   return true
 }
 
@@ -374,7 +374,7 @@ function restoreSelection(tr: Transaction, state: EditorState, from: number, to:
 /* moving, duplicating and removing blocks */
 
 /** `Mod+Shift+↑/↓`: swap the selected blocks with their neighbour. */
-export function moveBlocks(direction: -1 | 1): Command {
+export function swapBlocks(direction: -1 | 1): Command {
   return (state, dispatch) => {
     const range = selectedRange(state)
     if (!range) return false
@@ -429,7 +429,7 @@ export function moveRangeTo(range: SiblingRange, target: number): Command {
 }
 
 /** Remove blocks, keeping at least one empty paragraph in the document. */
-export function removeBlocks(tr: Transaction, blocks: BlockInfo[]): Transaction {
+export function deleteBlocks(tr: Transaction, blocks: BlockInfo[]): Transaction {
   // oxlint-disable-next-line unicorn/no-array-sort -- sorts a copy
   const sorted = [...blocks].sort((a, b) => b.pos - a.pos)
   for (const block of sorted) {

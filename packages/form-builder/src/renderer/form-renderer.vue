@@ -2,6 +2,7 @@
 import {
   computed,
   effectScope,
+  inject,
   nextTick,
   provide,
   reactive,
@@ -10,14 +11,14 @@ import {
   useTemplateRef,
   watch,
 } from 'vue'
-import { DouForm } from 'dou-ui'
-import type { FormInstance, FormModel } from 'dou-ui'
+import { DouForm, showFormErrors } from 'dou-ui'
+import type { FormErrors, FormInstance, FormModel } from 'dou-ui'
 import { checkVersion, cloneValue, getPath, isSteps, setPath } from '../core/document'
 import { equalValues } from '../core/expression'
 import { fillValues, visibleValues } from '../core/values'
 import { resolveFields } from '../fields/builtin'
 import { useFormRendererMessages } from '../locale'
-import { rendererKey } from './context'
+import { controlsReadonlyKey, rendererKey } from './context'
 import type {
   FormRendererEmits,
   FormRendererExpose,
@@ -29,9 +30,11 @@ import { FormNodeView, nodeKey } from './node-view'
 
 defineOptions({ name: 'DouFormRenderer' })
 
-const props = withDefaults(defineProps<FormRendererProps>(), { disabled: false })
+const props = withDefaults(defineProps<FormRendererProps>(), { disabled: false, readonly: false })
 const emit = defineEmits<FormRendererEmits>()
 const slots = defineSlots<FormRendererSlots>()
+
+const controlsReadonly = inject(controlsReadonlyKey, () => false)
 
 const own = reactive<FormModel>({})
 // `reactive` hands back the same proxy for an object it has seen, and
@@ -55,12 +58,13 @@ function warnCycle(cycle: string[]) {
 }
 
 // Fill in the fields the model has no value for, before the form items
-// mount and take the values as the ones to reset to.
+// mount and take the values as the ones to reset to. A read-only form
+// shows the values as they are, so a field left empty does not show a default.
 watch(
-  [() => props.form, model, fields],
-  ([document, target, types]) => {
+  [() => props.form, model, fields, () => props.readonly],
+  ([document, target, types, readonly]) => {
     checkVersion(document)
-    fillValues(document.nodes, target, types)
+    if (!readonly) fillValues(document.nodes, target, types)
   },
   {
     immediate: true,
@@ -76,8 +80,10 @@ const formulas = computed(() => {
   return formulasOf(props.form)
 })
 watch(
-  [formulas, model, () => props.functions],
-  ([list, target, functions], _, onCleanup) => {
+  [formulas, model, () => props.functions, () => props.readonly],
+  ([list, target, functions, readonly], _, onCleanup) => {
+    // A read-only form works formulas out as it shows them, and writes nothing.
+    if (readonly) return
     const scope = effectScope()
     scope.run(() => {
       for (const { name, expression } of list)
@@ -168,7 +174,9 @@ const errorPaths = computed(() => {
 })
 
 /** A form that is a series of steps shows the default slot on its last step. */
-const footerOwner = computed(() => props.form.nodes.find(isSteps)?.id)
+const footerOwner = computed(() =>
+  props.readonly ? undefined : props.form.nodes.find(isSteps)?.id,
+)
 
 provide(rendererKey, {
   model: () => model.value,
@@ -176,6 +184,9 @@ provide(rendererKey, {
   labelWidth: () => labelWidth.value,
   changed: (name, value) => emit('change', name, value),
   functions: () => props.functions,
+  validators: () => props.validators,
+  readonly: () => props.readonly,
+  controlsReadonly,
   load,
   sourceVersion: (name) => everyVersion.value + (versions[name] ?? 0),
   messages: () => messages.value,
@@ -208,6 +219,19 @@ function onReset() {
   emit('reset')
 }
 
+/** Shows errors through the form, warning in the renderer's own name about the ones it cannot show. */
+function setErrors(errors: Partial<FormErrors>) {
+  const form = formRef.value
+  const missed = form
+    ? showFormErrors(form, errors)
+    : Object.keys(errors).filter((path) => errors[path])
+  if (missed.length && process.env.NODE_ENV !== 'production')
+    console.warn(
+      `[@dou-ui/form-builder] DouFormRenderer.setErrors: no field shows ${missed.map((path) => `"${path}"`).join(', ')}. Show these errors elsewhere, e.g. above the form.`,
+    )
+  return missed
+}
+
 defineExpose<FormRendererExpose>({
   get model() {
     return model.value
@@ -215,6 +239,7 @@ defineExpose<FormRendererExpose>({
   validate,
   resetFields,
   clearValidate: (names) => formRef.value?.clearValidate(names),
+  setErrors,
   scrollToField,
   reloadSource,
   getValues,
@@ -227,21 +252,27 @@ defineExpose<FormRendererExpose>({
     :class="[
       'dou-form-renderer',
       `dou-form-renderer--${layout}`,
-      (form.requiredMark ?? true) === true && 'dou-form-renderer--marked',
+      (form.requiredMark ?? true) === true && !readonly && 'dou-form-renderer--marked',
+      readonly && 'dou-form-renderer--readonly',
     ]"
     :model="model"
     :rules="rules"
     :layout="layout"
     :label-align="form.labelAlign"
     :size="form.size"
-    :required-mark="form.requiredMark ?? true"
+    :required-mark="readonly ? false : (form.requiredMark ?? true)"
     :disabled="disabled"
+    :readonly="controlsReadonly()"
     :scroll-to-error="false"
     @submit="emit('submit', getValues())"
     @invalid="onInvalid"
     @reset="onReset"
   >
-    <div class="dou-form-renderer__grid" :style="{ '--dou-form-columns': columns }">
+    <div
+      :key="readonly ? 'readonly' : 'edit'"
+      class="dou-form-renderer__grid"
+      :style="{ '--dou-form-columns': columns }"
+    >
       <FormNodeView
         v-for="node in form.nodes"
         :key="nodeKey(node)"

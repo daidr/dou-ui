@@ -23,6 +23,8 @@ export { builtinFields, resolveFields } from '../fields/builtin'
 export { defineFormField, fieldProps, useFormField } from '../fields/define'
 export type { FormFieldContext, FormFieldProps, FormFieldType } from '../fields/define'
 export { normalizeOptions } from '../fields/components'
+export { formatValue } from '../fields/format'
+export type { FormFormatContext } from '../fields/format'
 export { fitPathToOptions, fitToOptions } from '../fields/options'
 export type { FormOption } from '../fields/components'
 export {
@@ -80,6 +82,8 @@ export type {
   FormSectionNode,
   FormStepsNode,
   FormTabsNode,
+  FormValidator,
+  FormValidatorContext,
 } from '../core/types'
 
 export type FormRendererInstance = InstanceType<typeof FormRenderer>

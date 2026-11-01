@@ -68,6 +68,20 @@ Token 默认挂在 `:root` 上。给任意元素加上 `data-dou-theme` 即可�
 <html data-dou-theme="dark"></html>
 ```
 
+没有设置 `data-dou-theme` 时使用亮色主题，DouUI 会在 `:root` 上声明 `color-scheme: light`。因此页面里的 `<meta name="color-scheme" content="light dark">` 不再生效：想跟随系统切换亮色和暗色，请用 [`useColorMode()`](/components/color-mode)，它会替你维护 `data-dou-theme`。页面样式表里自己写的 `color-scheme` 会覆盖这条声明，但 Token 不会随之改变，所以切换暗色请用 `data-dou-theme`，不要只改 `color-scheme`。
+
+## 浏览器要求
+
+发布的样式直接使用 `light-dark()` 和原生 CSS 嵌套，要求以下版本起的浏览器：
+
+| 浏览器              | 最低版本 |
+| ------------------- | -------- |
+| Chrome / Edge       | 123      |
+| Firefox             | 120      |
+| Safari / iOS Safari | 17.5     |
+
+需要支持更旧的浏览器时，调低打包工具的构建目标即可（例如 Vite 的 `build.cssTarget`），它会把这些写法改写成旧浏览器能识别的形式，改写后亮色和暗色主题仍然正确。
+
 ## 类型检查
 
 组件的 props、事件和插槽都有类型。不过 Vue 默认把没有声明的属性当作普通 HTML 属性透传给根元素，所以 prop 名写错了（比如把 `tone` 写成 `type`）不会报错，只是悄悄不生效。建议在应用的 `tsconfig.json` 里打开下面两个选项，让 `vue-tsc` 和编辑器指出写错的 prop 和事件：

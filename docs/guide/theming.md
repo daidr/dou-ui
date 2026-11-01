@@ -77,6 +77,14 @@ const brand = defineTheme(light, {
 const css = themeToCss(brand, '[data-dou-theme="brand"]')
 ```
 
+`themeToCss` 只输出 Token，不输出 `color-scheme`。用自己的选择器定义暗色主题时（例如 `[data-dou-theme="brand-dark"]`），请在同一个选择器上写 `color-scheme: dark`，否则组件里按亮暗取色的样式会沿用页面根元素的亮色：
+
+```css
+[data-dou-theme='brand-dark'] {
+  color-scheme: dark;
+}
+```
+
 ## 从品牌色生成
 
 只想换品牌色时，用 `createTheme` 传入颜色，会同时得到亮色和暗色两套主题。每个颜色会生成一组语气 Token：

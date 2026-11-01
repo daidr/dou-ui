@@ -51,6 +51,24 @@ describe('DouTooltip', () => {
     wrapper.unmount()
   })
 
+  it('does not show on the focus a press gives, so it cannot take the release', async () => {
+    const wrapper = mount(DouTooltip, {
+      props: { content: '提示' },
+      slots: { default: () => h('button', '触发') },
+      attachTo: document.body,
+    })
+    const button = wrapper.get('button')
+    await button.trigger('pointerdown', { pointerType: 'mouse' })
+    await button.trigger('focusin')
+    expect(wrapper.emitted('update:open')).toBeUndefined()
+    // focus later, e.g. from the keyboard, shows it again
+    vi.advanceTimersByTime(0)
+    await button.trigger('focusout')
+    await button.trigger('focusin')
+    expect(wrapper.emitted('update:open')?.at(-1)).toEqual([true])
+    wrapper.unmount()
+  })
+
   it('stays away on touch, where a tap would leave it up', async () => {
     const wrapper = mount(DouTooltip, {
       props: { content: '提示' },

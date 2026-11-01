@@ -93,7 +93,9 @@ const runFromHere = defineFlowExtension({
 
 只选中连线时，工具栏出现在连线上方，内置一个删除按钮，并尽量不盖住旁边的节点；扩展用 `edgeToolbarItems(ctx, edges)` 加按钮。
 
-一个按钮要给出几个选项时，用 `menu` 代替 `run`，返回菜单项。编辑器在按钮下方弹出菜单，给按钮加上 `aria-haspopup` 和 `aria-expanded`，再点一次关上，点另一个按钮直接换成它的菜单。每一项都写了 `checked` 时，菜单是单选，读屏读作单选项；用键盘打开时焦点落在当前选中的那一项上。白板[连接线](./whiteboard#连接线)的走向、线型和箭头就是这样做的：
+选中的内容不变时，文档每改一次，`toolbarItems` 和 `edgeToolbarItems` 都会重新调用一次，所以里面只根据传进来的节点或连线拼出按钮，不要做请求数据之类耗时的事；菜单要用的数据先放进节点的 `data` 或扩展自己的状态里。
+
+一个按钮要给出几个选项时，用 `children` 代替 `run`，写上菜单项。编辑器在按钮下方弹出菜单，给按钮加上 `aria-haspopup` 和 `aria-expanded`，再点一次关上，点另一个按钮直接换成它的菜单。每一项都写了 `checked` 时，菜单是单选，读屏读作单选项；用键盘打开时焦点落在当前选中的那一项上。白板[连接线](./whiteboard#连接线)的走向、线型和箭头就是这样做的：
 
 ```ts
 const size = defineFlowExtension({
@@ -103,21 +105,27 @@ const size = defineFlowExtension({
       key: 'size',
       label: '大小',
       icon: MaximizeIcon,
-      menu: () =>
-        (['sm', 'md', 'lg'] as const).map((value) => ({
-          key: value,
-          label: names[value],
-          checked: nodes.every((node) => node.data?.size === value),
-          run: () => resize(nodes, value),
-        })),
+      children: (['sm', 'md', 'lg'] as const).map((value) => ({
+        key: value,
+        label: names[value],
+        checked: nodes.every((node) => node.data?.size === value),
+        run: () => resize(nodes, value),
+      })),
     },
   ],
 })
 ```
 
-不在工具栏里的按钮可以调用 `ctx.showMenu(items, point, button)` 自己弹出菜单。
+不在工具栏里的按钮可以调用 `ctx.showMenu(items, point, button)` 自己弹出菜单：菜单开在按钮下方，放不下时翻到按钮上方，再点一次按钮关上；`ctx.menuItems(target)` 返回右键菜单在某个目标上会显示的项，内置的“更多”按钮就是把它作为 `children`。
+
+开关一类的按钮用 `pressed` 表示是否打开，编辑器据此给按钮加上按下的样式和 `aria-pressed`。按钮的操作也有快捷键时，把它写在 `shortcut` 里，提示中会显示出来。`shortcut` 只用于显示，按键要在 `keymap` 里绑定：
 
 ```ts
+/** 固定或取消固定选中的节点 */
+function togglePin(ctx: FlowExtensionContext) {
+  // ...
+}
+
 const pin = defineFlowExtension({
   name: 'pin',
   toolbarItems: (ctx, nodes) => [
@@ -125,10 +133,12 @@ const pin = defineFlowExtension({
       key: 'pin',
       label: '固定位置',
       icon: PinIcon,
-      active: nodes.every((node) => node.locked),
-      run: () => togglePin(nodes),
+      pressed: nodes.every((node) => node.locked),
+      shortcut: 'shift+l',
+      run: () => togglePin(ctx),
     },
   ],
+  keymap: (ctx) => ({ 'shift+l': () => togglePin(ctx) }),
 })
 ```
 
@@ -192,26 +202,27 @@ moveLayer(ctx, 'front') // 'front' | 'forward' | 'backward' | 'back'
 
 ### FlowMenuItem
 
-| 名称       | 说明                                                       | 类型         |
-| ---------- | ---------------------------------------------------------- | ------------ |
-| `key`      | 菜单里唯一                                                 | `string`     |
-| `label`    | 文字                                                       | `string`     |
-| `icon`     | 图标                                                       | `Component`  |
-| `shortcut` | 显示在右侧的快捷键，写法和 `useHotkey` 一样，只显示不绑定  | `string`     |
-| `disabled` | 禁用                                                       | `boolean`    |
-| `tone`     | `'danger'` 表示危险操作                                    | `'danger'`   |
-| `divided`  | 上方画一条分隔线                                           | `boolean`    |
-| `checked`  | 显示勾选标记，比如当前选中的选项；每一项都写了时菜单是单选 | `boolean`    |
-| `run`      | 选中时调用                                                 | `() => void` |
+| 名称       | 说明                                                                              | 类型                    |
+| ---------- | --------------------------------------------------------------------------------- | ----------------------- |
+| `key`      | 菜单里唯一                                                                        | `string`                |
+| `label`    | 文字                                                                              | `string`                |
+| `icon`     | 图标                                                                              | `Component`             |
+| `shortcut` | 显示在右侧的快捷键，写法和 `useHotkey` 一样；只用于显示，按键要在 `keymap` 里绑定 | `string`                |
+| `disabled` | 禁用                                                                              | `boolean`               |
+| `tone`     | `'danger'` 表示危险操作                                                           | `'neutral' \| 'danger'` |
+| `divided`  | 上方画一条分隔线                                                                  | `boolean`               |
+| `checked`  | 显示勾选标记，比如当前选中的选项；每一项都写了时菜单是单选                        | `boolean`               |
+| `run`      | 选中时调用                                                                        | `() => void`            |
 
 ### FlowToolbarItem
 
-| 名称       | 说明                                       | 类型                          |
-| ---------- | ------------------------------------------ | ----------------------------- |
-| `key`      | 工具栏里唯一                               | `string`                      |
-| `label`    | 提示文字，也是读屏器读的名字               | `string`                      |
-| `icon`     | 图标                                       | `Component`                   |
-| `active`   | 按下状态，用于开关                         | `boolean`                     |
-| `disabled` | 禁用                                       | `boolean`                     |
-| `run`      | 点击时调用                                 | `(event: MouseEvent) => void` |
-| `menu`     | 代替 `run`：点击时在按钮下方弹出这些菜单项 | `() => FlowMenuItem[]`        |
+| 名称       | 说明                                                                                            | 类型             |
+| ---------- | ----------------------------------------------------------------------------------------------- | ---------------- |
+| `key`      | 工具栏里唯一                                                                                    | `string`         |
+| `label`    | 提示文字，也是读屏器读的名字                                                                    | `string`         |
+| `icon`     | 图标                                                                                            | `Component`      |
+| `run`      | 点击时调用                                                                                      | `() => void`     |
+| `disabled` | 禁用                                                                                            | `boolean`        |
+| `pressed`  | 开关一类的按钮是否打开                                                                          | `boolean`        |
+| `shortcut` | 做同样事情的快捷键，显示在提示里，写法和 `useHotkey` 一样；只用于显示，按键要在 `keymap` 里绑定 | `string`         |
+| `children` | 代替 `run`：点击时在按钮下方弹出这些菜单项。既没有 `run` 也没有菜单项时，开发环境会警告一次     | `FlowMenuItem[]` |

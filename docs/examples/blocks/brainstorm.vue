@@ -166,7 +166,7 @@ const brainstorm = defineFlowExtension({
         // 名称不变，是否已赞同由按下状态表达
         label: '赞同',
         icon: HeartIcon,
-        active: voted,
+        pressed: voted,
         run() {
           ctx.transact((tr) => {
             for (const node of nodes) {

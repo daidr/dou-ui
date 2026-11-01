@@ -4,6 +4,8 @@ import { defineComponent, h, nextTick, ref } from 'vue'
 import { defaultNode, defineFlowExtension, defineNodeType, DouFlowEditor, flowKit } from '../index'
 import type { FlowDocument, FlowEditorExpose, FlowExtension, FlowSelection } from '../index'
 
+const Icon = defineComponent(() => () => h('svg'))
+
 const note = defineNodeType({
   ...defaultNode,
   type: 'note',
@@ -61,6 +63,7 @@ function setup(
     ),
     { attachTo: document.body },
   )
+  mounted.push(wrapper)
   const root = wrapper.find('.dou-flow-editor')
   const editor = wrapper.findComponent(DouFlowEditor).vm as unknown as FlowEditorExpose
   return { wrapper, root, editor, doc, selection, events }
@@ -83,7 +86,9 @@ async function rightClick(el: Element, init: MouseEventInit = {}) {
   return event
 }
 
+const mounted: { unmount: () => void }[] = []
 afterEach(() => {
+  for (const wrapper of mounted.splice(0)) wrapper.unmount()
   document.body.innerHTML = ''
 })
 
@@ -234,6 +239,115 @@ describe('toolbar', () => {
     expect(buttons.map((b) => b.attributes('aria-label'))).toEqual(['复制一份', '删除', '更多'])
     await buttons[0]!.trigger('click')
     expect(doc.value.nodes).toHaveLength(3)
+  })
+
+  it('shows pressed, shortcut and children of extension buttons', async () => {
+    const picked: string[] = []
+    const extra = defineFlowExtension({
+      name: 'extra',
+      toolbarItems: () => [
+        { key: 'pin', label: '固定', icon: Icon, pressed: true, shortcut: 'mod+l', run() {} },
+        {
+          key: 'size',
+          label: '大小',
+          icon: Icon,
+          children: ['小', '大'].map((label) => ({
+            key: label,
+            label,
+            checked: label === '小',
+            run: () => picked.push(label),
+          })),
+        },
+      ],
+    })
+    const { root, selection } = setup([flowKit(), extra])
+    selection.value = { nodes: ['a'], edges: [] }
+    await nextTick()
+    const button = (label: string) =>
+      root.findAll('.dou-flow-toolbar button').find((b) => b.attributes('aria-label') === label)!
+    expect(button('复制一份').attributes('aria-keyshortcuts')).toBe('Control+D')
+    const pin = button('固定')
+    expect(pin.attributes('aria-pressed')).toBe('true')
+    expect(pin.classes()).toContain('is-active')
+    expect(pin.attributes('aria-keyshortcuts')).toBe('Control+L')
+    const size = button('大小')
+    expect(size.attributes('aria-pressed')).toBeUndefined()
+    expect(size.attributes('aria-haspopup')).toBe('menu')
+    await size.trigger('click')
+    await nextTick()
+    expect(size.attributes('aria-expanded')).toBe('true')
+    expect(menuItems()).toEqual(['小', '大'])
+    ;(document.body.querySelectorAll('.dou-dropdown__item')[1] as HTMLElement).click()
+    expect(picked).toEqual(['大'])
+  })
+
+  it('marks the built-in more button as opening the node menu', async () => {
+    const { root, selection } = setup()
+    selection.value = { nodes: ['a'], edges: [] }
+    await nextTick()
+    const more = root.find('.dou-flow-toolbar button[aria-label="更多"]')
+    expect(more.attributes('aria-haspopup')).toBe('menu')
+    expect(more.attributes('aria-expanded')).toBe('false')
+    await more.trigger('click')
+    await nextTick()
+    expect(more.attributes('aria-expanded')).toBe('true')
+    expect(menuItems().length).toBeGreaterThan(0)
+  })
+
+  it('closes a button menu on a second click, as a mouse presses it', async () => {
+    const { root, selection } = setup()
+    selection.value = { nodes: ['a'], edges: [] }
+    await nextTick()
+    const more = root.find('.dou-flow-toolbar button[aria-label="更多"]')
+    await more.trigger('click')
+    await nextTick()
+    expect(more.attributes('aria-expanded')).toBe('true')
+    // the press closes the menu, then the click comes
+    more.element.dispatchEvent(
+      new PointerEvent('pointerdown', { bubbles: true, composed: true, button: 0 }),
+    )
+    await nextTick()
+    await nextTick()
+    await more.trigger('click')
+    await nextTick()
+    expect(more.attributes('aria-expanded')).toBe('false')
+    // and the next click opens it again
+    await more.trigger('click')
+    await nextTick()
+    expect(more.attributes('aria-expanded')).toBe('true')
+    // a press that closes the menu but clicks elsewhere (e.g. on a tip that
+    // popped up under it) does not swallow the next click on the button
+    more.element.dispatchEvent(
+      new PointerEvent('pointerdown', { bubbles: true, composed: true, button: 0 }),
+    )
+    await nextTick()
+    root.find('.dou-flow-toolbar').element.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await more.trigger('click')
+    await nextTick()
+    expect(more.attributes('aria-expanded')).toBe('true')
+  })
+
+  it('warns once about a button that does nothing', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const extra = defineFlowExtension({
+      name: 'idle',
+      toolbarItems: () => [
+        { key: 'idle', label: '空', icon: Icon },
+        { key: 'empty', label: '空菜单', icon: Icon, children: [] },
+      ],
+    })
+    const { root, selection, doc } = setup([flowKit(), extra])
+    selection.value = { nodes: ['a'], edges: [] }
+    await nextTick()
+    doc.value = { ...doc.value, nodes: doc.value.nodes.map((node) => ({ ...node, x: node.x + 1 })) }
+    await nextTick()
+    const messages = warn.mock.calls.map((call) => String(call[0]))
+    expect(messages.filter((text) => text.includes('"idle"'))).toHaveLength(1)
+    expect(messages.filter((text) => text.includes('"empty"'))).toHaveLength(1)
+    expect(messages[0]).toMatch(/^\[@dou-ui\/flow\]/)
+    const empty = root.find('.dou-flow-toolbar button[aria-label="空菜单"]')
+    expect(empty.attributes('aria-haspopup')).toBeUndefined()
+    warn.mockRestore()
   })
 
   it('is hidden while read only, or without the kit toolbar', async () => {

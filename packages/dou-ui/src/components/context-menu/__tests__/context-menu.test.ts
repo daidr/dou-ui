@@ -56,6 +56,31 @@ const touch = (type: string, target: EventTarget, x = 60, y = 40) =>
   )
 
 describe('DouContextMenu', () => {
+  it('opens below a box it is given, or above it when there is no room', async () => {
+    // a 800 × 600 viewport and a 200px tall menu
+    const html = document.documentElement
+    vi.spyOn(html, 'clientWidth', 'get').mockReturnValue(800)
+    vi.spyOn(html, 'clientHeight', 'get').mockReturnValue(600)
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(160)
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(200)
+    const wrapper = make()
+    const button = { width: 40, height: 30 }
+    const placed = async (y: number) => {
+      ;(wrapper.vm as unknown as { open: (...args: unknown[]) => void }).open(100, y, button)
+      await nextTick()
+      await nextTick()
+      const top = parseFloat(menu()!.style.top)
+      return { top, bottom: top + 200 }
+    }
+    const below = await placed(100)
+    expect(below.top).toBeGreaterThanOrEqual(130)
+    const above = await placed(500)
+    expect(above.bottom).toBeLessThanOrEqual(500)
+    expect(above.top).toBeGreaterThanOrEqual(0)
+    wrapper.unmount()
+    vi.restoreAllMocks()
+  })
+
   it('opens a menu at the pointer instead of the browser menu', async () => {
     const wrapper = make()
     const event = rightClick(wrapper.get('#area').element)

@@ -144,31 +144,40 @@ const editToolbar = defineFlowExtension({
   priority: 0,
   edgeToolbarItems(ctx) {
     const t = ctx.messages.value
-    return [{ key: 'delete', label: t.delete, icon: TrashIcon, run: ctx.deleteSelection }]
-  },
-  toolbarItems(ctx, nodes) {
-    const t = ctx.messages.value
     return [
-      { key: 'duplicate', label: t.duplicate, icon: CopyPlusIcon, run: ctx.duplicate },
       {
         key: 'delete',
         label: t.delete,
         icon: TrashIcon,
+        shortcut: 'delete',
+        run: ctx.deleteSelection,
+      },
+    ]
+  },
+  toolbarItems(ctx, nodes) {
+    const t = ctx.messages.value
+    // the node menu, as a right click on the first selected node opens it
+    const first = nodes[0]!
+    const more = ctx.menuItems({ kind: 'node', node: first, point: { x: first.x, y: first.y } })
+    return [
+      {
+        key: 'duplicate',
+        label: t.duplicate,
+        icon: CopyPlusIcon,
+        shortcut: 'mod+d',
+        run: ctx.duplicate,
+      },
+      {
+        key: 'delete',
+        label: t.delete,
+        icon: TrashIcon,
+        shortcut: 'delete',
         disabled: nodes.every((node) => node.locked),
         run: ctx.deleteSelection,
       },
-      {
-        key: 'more',
-        label: t.more,
-        icon: MoreHorizontalIcon,
-        run(event) {
-          const button = event.currentTarget as HTMLElement
-          const box = button.getBoundingClientRect()
-          const node = nodes[0]!
-          const point = ctx.toCanvas({ x: box.left, y: box.bottom })
-          ctx.openMenu({ kind: 'node', node, point }, { x: box.left, y: box.bottom + 4 }, button)
-        },
-      },
+      ...(more.length
+        ? [{ key: 'more', label: t.more, icon: MoreHorizontalIcon, children: more }]
+        : []),
     ]
   },
 })

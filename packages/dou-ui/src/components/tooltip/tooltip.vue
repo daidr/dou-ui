@@ -81,14 +81,26 @@ function onPointerType(event: PointerEvent) {
   touch = event.pointerType === 'touch'
 }
 
+// Focus that comes with a press shows no tip: the pointer is already there
+// and hovering shows it. Opened at once under the pointer, it could take the
+// release, and the click that started it would be lost.
+let pressing = false
+function onPointerdown(event: PointerEvent) {
+  onPointerType(event)
+  pressing = true
+  setTimeout(() => (pressing = false))
+}
+const focusin = (handler?: (event: Event) => void) =>
+  handler && ((event: Event) => pressing || handler(event))
+
 const triggerProps = computed(() => ({
   ...triggerListeners.value,
   onMouseenter: notTouch(triggerListeners.value.onMouseenter),
-  onFocusin: notTouch(triggerListeners.value.onFocusin),
+  onFocusin: notTouch(focusin(triggerListeners.value.onFocusin)),
   onMouseleave: leave(triggerListeners.value.onMouseleave),
   onFocusout: leave(triggerListeners.value.onFocusout),
   onPointerenter: onPointerType,
-  onPointerdown: onPointerType,
+  onPointerdown,
   onPointermove,
   'aria-describedby': open.value ? id : undefined,
   ...(props.shortcut && { 'aria-keyshortcuts': ariaHotkey(props.shortcut, apple.value) }),

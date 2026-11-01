@@ -62,7 +62,12 @@ export type {
   ChartRow,
   XColumn as ChartXColumn,
 } from './core/data'
-export type { ChartAxisRole, ChartAxisType, ChartTickValue } from './core/layout'
+export type {
+  ChartAxisRole,
+  ChartAxisType,
+  ChartLegendPlacement,
+  ChartTickValue,
+} from './core/layout'
 export type { Painter as ChartPainter, Rect as ChartRect } from './core/painter'
 export type { Scale as ChartScale } from './core/scale'
 export type {

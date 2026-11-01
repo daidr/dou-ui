@@ -37,6 +37,7 @@ import {
   type ChartLayout,
   type ChartAxisPosition,
   type ChartAxisRole,
+  type ChartLegendPlacement,
   type ChartTickValue,
   type TickLabel,
 } from './core/layout'
@@ -781,8 +782,15 @@ function resetZoom(announce = false) {
 /** Read out after zooming with the keys. */
 const zoomNote = ref('')
 
-/** Where the legend goes: `legend="top"` and the like; else under the chart. */
-const legendAt = computed(() => (typeof props.legend === 'string' ? props.legend : 'bottom'))
+/** Below this width, a legend down the right side goes under the chart: it would leave the plot too narrow. */
+const LEGEND_SIDE_LEAST = 480
+/** Where the legend goes: as asked, else under the chart. */
+const legendPlacement = computed<ChartLegendPlacement>(() => {
+  const asked = props.legendPlacement ?? 'bottom'
+  return asked === 'right' && size.width.value && size.width.value < LEGEND_SIDE_LEAST
+    ? 'bottom'
+    : asked
+})
 
 const layout = computed(() => {
   const width = size.width.value
@@ -799,7 +807,7 @@ const layout = computed(() => {
     measure,
     legend: legendEntries.value.map((entry) => entry.text),
     coarse: coarse.value,
-    legendAt: legendAt.value,
+    legendPlacement: legendPlacement.value,
     zoom: { x: xWindow.value, y: zoomAxes.value.y ? yWindow.value : null },
     strip: !!rangePart.value && !empty.value,
     trailing: endLabelRoom.value,
@@ -817,7 +825,7 @@ const pieLayout = computed(() => {
     measure,
     legend: legendEntries.value.map((entry) => entry.text),
     coarse: coarse.value,
-    legendAt: legendAt.value,
+    legendPlacement: legendPlacement.value,
     sideLabels: pieLabelsOutside.value ? pieSideWidths.value : undefined,
   })
 })
@@ -1011,7 +1019,7 @@ const pieLabelsOutside = computed(() => {
     measure,
     legend: legendEntries.value.map((entry) => entry.text),
     coarse: coarse.value,
-    legendAt: legendAt.value,
+    legendPlacement: legendPlacement.value,
   }
   const alone = layoutPie(base).radius
   const radius = layoutPie({ ...base, sideLabels: pieSideWidths.value }).radius
@@ -3035,7 +3043,8 @@ const tableCells = computed<{ head: string[]; rows: string[][] }>(() => {
   // each x a row, each series a column
   const xs = allX(list.map((s) => s.x.values))
   return {
-    head: [xHead, ...list.map((s) => s.name)],
+    // a value's unit is in its axis' title (“销售额（万元）”): its column says it too
+    head: [xHead, ...list.map((s) => withUnit(s.name, axes.value[s.axis]?.title))],
     rows: xs.map((x) => [
       xText(x),
       ...list.map((s) => {
@@ -3046,9 +3055,25 @@ const tableCells = computed<{ head: string[]; rows: string[][] }>(() => {
   }
 })
 
+/** `name` with the unit at the end of `title` (in brackets), if it hasn't one already. */
+function withUnit(name: string, title: string | undefined): string {
+  const unit = title && /\s*[(（][^()（）]+[)）]\s*$/.exec(title)?.[0].trim()
+  return unit && !name.endsWith(unit) ? `${name}${unit}` : name
+}
+
+/** The table's caption: the chart's name, else what its series are. */
+const tableCaption = computed(() => {
+  if (props.ariaLabel) return props.ariaLabel
+  const m = messages.value
+  const names = pie.value
+    ? [pie.value.props.name].filter((name): name is string => !!name)
+    : series.value.map((s) => s.name)
+  return names.length ? format(m.tableOf, { names: names.join(m.nameSeparator) }) : m.table
+})
+
 const table: TableState = {
   shown: computed(() => !!props.table && !fromServer.value),
-  caption: computed(() => props.ariaLabel ?? messages.value.table),
+  caption: tableCaption,
   head: computed(() => tableCells.value.head),
   rows: computed(() => tableCells.value.rows.slice(0, TABLE_ROWS)),
   more: computed(() => {
@@ -3089,7 +3114,6 @@ const legend = computed(() => {
   return l.legend.map((item) => ({ ...item, ...legendEntries.value[item.index]! }))
 })
 
-/** Where the legend goes. */
 const titles = computed(() => {
   const l = layout.value
   if (!l) return []

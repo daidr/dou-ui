@@ -49,6 +49,32 @@ async function pair(group?: string) {
   return { wrapper, roots, charts }
 }
 
+/** Where the legend box starts, in px, on a chart `width` wide with the legend asked down the side. */
+async function sideLegendLeft(width: number) {
+  const wrapper = mount(DouChart, {
+    props: { data: sales, x: 'q', height: 300, legendPlacement: 'right' },
+    slots: {
+      default: () => [
+        h(DouChartBar, { y: 'a', name: '线上' }),
+        h(DouChartBar, { y: 'b', name: '门店' }),
+      ],
+    },
+    attachTo: document.body,
+  })
+  const root = wrapper.find('.dou-chart').element as HTMLElement
+  root.getBoundingClientRect = () => ({ left: 0, top: 0, width, height: 300 }) as DOMRect
+  Object.defineProperty(root, 'clientWidth', { value: width })
+  Object.defineProperty(root, 'clientHeight', { value: 300 })
+  root.style.width = `${width}px`
+  window.dispatchEvent(new Event('resize'))
+  await new Promise((done) => setTimeout(done, 20))
+  await nextTick()
+  const box = wrapper.find('.dou-chart__legends').element as HTMLElement
+  const left = Number.parseFloat(box.style.left)
+  wrapper.unmount()
+  return left
+}
+
 describe('tooltips in a group', () => {
   it('show the same category in each chart, read out only in the one with the keys', async () => {
     const { wrapper, roots, charts } = await pair('sales')
@@ -77,5 +103,13 @@ describe('tooltips in a group', () => {
     expect(charts[0]!.find('.dou-chart__tooltip').exists()).toBe(true)
     expect(charts[1]!.find('.dou-chart__tooltip').exists()).toBe(false)
     wrapper.unmount()
+  })
+
+  it('keeps a legend down the side only on a chart wide enough for it', async () => {
+    const wide = await sideLegendLeft(800)
+    const narrow = await sideLegendLeft(390)
+    // down the side: the box starts near the right edge; under the chart: across its width
+    expect(wide).toBeGreaterThan(600)
+    expect(narrow).toBeLessThan(0)
   })
 })

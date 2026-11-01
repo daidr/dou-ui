@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { DouSpinner, useNamespace, type Tone } from 'dou-ui'
+import { DouSpinner, DouTooltip, useNamespace, type Tone } from 'dou-ui'
 import { onBeforeUnmount, useId, type ComputedRef, type VNodeChild } from 'vue'
 import type { TickLabel } from './core/layout'
 import type { PlacedDataLabel } from './core/labels'
@@ -201,41 +201,47 @@ const focusVisible = (e: FocusEvent) => (e.target as Element).matches(':focus-vi
       height: `${legendBox.height + LEGEND_PAD * 2}px`,
     }"
   >
-    <button
+    <!-- a name cut short shows in full on hover and focus; on a phone the legend goes where names aren't cut -->
+    <DouTooltip
       v-for="item in legend"
       :key="`legend:${item.index}`"
-      type="button"
-      :class="[
-        ns.e('legend'),
-        ns.is(item.kind),
-        ns.is('dashed', item.dashed),
-        ns.is('off', item.off),
-        ns.is('locked', item.locked),
-        ns.is('clipped', !!item.clipped),
-      ]"
-      :style="{
-        transform: `translate(${item.left - legendBox.x + LEGEND_PAD}px, ${item.top - legendBox.y + LEGEND_PAD}px)`,
-        width: item.clipped ? `${item.width}px` : undefined,
-      }"
-      :title="item.clipped ? item.text : undefined"
-      :aria-pressed="!item.off"
-      :aria-describedby="hintId"
-      aria-keyshortcuts="Alt+Enter"
-      @click="(e) => onLegendClick(e, item.index)"
-      @keydown="(e) => onLegendKey(e, item.index)"
-      @pointerdown="(e) => e.pointerType === 'touch' && holdLegend(item.index)"
-      @pointerup="letGo"
-      @pointercancel="letGo"
-      @contextmenu="noMenu"
-      @pointerenter="(e) => e.pointerType !== 'touch' && !item.off && focus(item.index)"
-      @pointerleave="(letGo(), focus(null))"
-      @focus="(e) => focusVisible(e) && !item.off && focus(item.index)"
-      @blur="focus(null)"
+      :content="item.text"
+      :disabled="!item.clipped"
     >
-      <span :class="ns.e('swatch')" :style="{ color: item.color }" /><span :class="ns.e('text')">{{
-        item.text
-      }}</span>
-    </button>
+      <button
+        type="button"
+        :class="[
+          ns.e('legend'),
+          ns.is(item.kind),
+          ns.is('dashed', item.dashed),
+          ns.is('off', item.off),
+          ns.is('locked', item.locked),
+          ns.is('clipped', !!item.clipped),
+        ]"
+        :style="{
+          transform: `translate(${item.left - legendBox.x + LEGEND_PAD}px, ${item.top - legendBox.y + LEGEND_PAD}px)`,
+          width: item.clipped ? `${item.width}px` : undefined,
+        }"
+        :aria-pressed="!item.off"
+        :aria-describedby="hintId"
+        aria-keyshortcuts="Alt+Enter"
+        @click="(e) => onLegendClick(e, item.index)"
+        @keydown="(e) => onLegendKey(e, item.index)"
+        @pointerdown="(e) => e.pointerType === 'touch' && holdLegend(item.index)"
+        @pointerup="letGo"
+        @pointercancel="letGo"
+        @contextmenu="noMenu"
+        @pointerenter="(e) => e.pointerType !== 'touch' && !item.off && focus(item.index)"
+        @pointerleave="(letGo(), focus(null))"
+        @focus="(e) => focusVisible(e) && !item.off && focus(item.index)"
+        @blur="focus(null)"
+      >
+        <span :class="ns.e('swatch')" :style="{ color: item.color }" /><span
+          :class="ns.e('text')"
+          >{{ item.text }}</span
+        >
+      </button>
+    </DouTooltip>
     <span :id="hintId" hidden>{{ hint }}</span>
   </div>
   <div

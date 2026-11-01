@@ -43,8 +43,12 @@ export interface ChartMessages {
   summary: string
   /** Shown, and read out, when no series has a value. */
   empty: string
-  /** The table view's caption when the chart has no `aria-label`. */
+  /** The table view's caption when the chart has no `aria-label` nor named series. */
   table: string
+  /** The table view's caption from its series' names: `{names}`. */
+  tableOf: string
+  /** Joins the series' names in the table's caption. */
+  nameSeparator: string
   /** The table view's head over the series' names, for a scatter's points. */
   tableSeries: string
   /** The table view's head over the values, for a scatter's points and a pie. */
@@ -78,6 +82,8 @@ const zhCN: ChartMessages = {
   summary: '{chart}。{series}',
   empty: '没有数据',
   table: '图表数据',
+  tableOf: '{names}的数据',
+  nameSeparator: '、',
   tableSeries: '系列',
   tableValue: '值',
   tableShare: '占比',
@@ -107,6 +113,8 @@ const zhTW: ChartMessages = {
   summary: '{chart}。{series}',
   empty: '沒有資料',
   table: '圖表資料',
+  tableOf: '{names}的資料',
+  nameSeparator: '、',
   tableSeries: '系列',
   tableValue: '值',
   tableShare: '佔比',
@@ -136,6 +144,8 @@ const en: ChartMessages = {
   summary: '{chart}. {series}',
   empty: 'No data',
   table: 'Chart data',
+  tableOf: 'Data of {names}',
+  nameSeparator: ', ',
   tableSeries: 'Series',
   tableValue: 'Value',
   tableShare: 'Share',

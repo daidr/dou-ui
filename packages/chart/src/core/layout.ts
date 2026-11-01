@@ -91,7 +91,7 @@ export interface ChartLayout {
 }
 
 /** Where a chart's legend goes. */
-export type ChartLegendPosition = 'top' | 'bottom' | 'right'
+export type ChartLegendPlacement = 'top' | 'bottom' | 'right'
 
 /** The room a legend shows in, in px from the chart's top left. */
 export interface LegendBox extends Rect {
@@ -154,7 +154,7 @@ interface LayoutOptions {
   /** Rows of the legend far enough apart for a finger to press each (on a touch screen). */
   coarse?: boolean
   /** Where the legend goes: under the chart (the default), above it, or down its right side. */
-  legendAt?: ChartLegendPosition
+  legendPlacement?: ChartLegendPlacement
   /**
    * The stretches shown when zoomed in: of x in the scale's numbers
    * (category indices, ms), of the values in those of `y` (or `y2` when
@@ -184,7 +184,7 @@ export function layoutChart(options: LayoutOptions): ChartLayout {
   const { width, height, measure } = options
   const placed = placeLegendIn(
     options.legend ?? [],
-    options.legendAt ?? 'bottom',
+    options.legendPlacement ?? 'bottom',
     width,
     height,
     measure,
@@ -223,7 +223,7 @@ export function layoutChart(options: LayoutOptions): ChartLayout {
  */
 export function placeLegendIn(
   names: string[],
-  at: ChartLegendPosition,
+  at: ChartLegendPlacement,
   width: number,
   height: number,
   measure: (text: string) => number,
@@ -1006,13 +1006,13 @@ export function layoutPie({
   measure,
   legend: names = [],
   coarse,
-  legendAt = 'bottom',
+  legendPlacement = 'bottom',
   sideLabels = { left: 0, right: 0 },
-}: Pick<LayoutOptions, 'width' | 'height' | 'measure' | 'legend' | 'coarse' | 'legendAt'> & {
+}: Pick<LayoutOptions, 'width' | 'height' | 'measure' | 'legend' | 'coarse' | 'legendPlacement'> & {
   /** The widest label outside the pie on each side, in px; 0 for none. */
   sideLabels?: { left: number; right: number }
 }): PieLayout {
-  const placed = placeLegendIn(names, legendAt, width, height, measure, coarse)
+  const placed = placeLegendIn(names, legendPlacement, width, height, measure, coarse)
   const { top, bottom, right: legendRight } = placed.room
   const room = height - top - bottom - EDGE * 2
   const inner = width - legendRight

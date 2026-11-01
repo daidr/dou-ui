@@ -11,13 +11,13 @@ const rows = ['第一周', '第二周', '第三周', '第四周'].map((week, w) 
   return row
 })
 
-const position = ref('right')
+const placement = ref('right')
 </script>
 
 <template>
   <div class="demo">
     <DouSegmentedControl
-      v-model="position"
+      v-model="placement"
       :options="[
         { value: 'top', label: '上方' },
         { value: 'bottom', label: '下方' },
@@ -25,7 +25,7 @@ const position = ref('right')
       ]"
       size="sm"
     />
-    <DouChart :data="rows" x="week" :height="300" :legend="position">
+    <DouChart :data="rows" x="week" :height="300" :legend-placement="placement">
       <DouChartAxis for="y" title="销售额（万元）" />
       <DouChartBar v-for="store in stores" :key="store" :y="store" :name="store" stack />
     </DouChart>

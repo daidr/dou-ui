@@ -1,5 +1,10 @@
 import type { ChartAccessor, ChartData, ChartRow } from './core/data'
-import type { ChartAxisRole, ChartAxisType, ChartTickValue } from './core/layout'
+import type {
+  ChartAxisRole,
+  ChartAxisType,
+  ChartLegendPlacement,
+  ChartTickValue,
+} from './core/layout'
 import type { Tone } from 'dou-ui'
 import type { ChartSeriesProps, ChartValueAxis } from './core/series'
 import type { ChartMessagesOverride } from './locale'
@@ -17,13 +22,15 @@ export interface ChartProps {
   height?: number | string
   /** The chart's accessible name, read out instead of the generated summary. */
   ariaLabel?: string
+  /** The legend: shown when there is more than one series, or slice of a pie; `true` or `false` shows or hides it. */
+  legend?: boolean
   /**
-   * The legend: shown when there is more than one series, or slice of a
-   * pie. `true` or `false` shows or hides it; `top`, `bottom` (the default
-   * place) or `right` also says where it goes. Entries that don't fit in
-   * three rows (or down the chart's height) scroll.
+   * Where the legend goes: `bottom` (the default), `top` or `right`.
+   * Entries that don't fit in three rows (or down the chart's height)
+   * scroll. On a chart narrower than 480px, `right` goes to the bottom,
+   * where it doesn't squeeze the plot.
    */
-  legend?: boolean | 'top' | 'bottom' | 'right'
+  legendPlacement?: ChartLegendPlacement
   /**
    * Colors the series (and a pie's slices) take in turn, in place of the
    * theme's eight: CSS colors or tones. A pie takes them from the first.

@@ -27,17 +27,18 @@ describe('table view', () => {
   it('writes each x as a row and each series as a column, as the axes format them', async () => {
     const wrapper = await mounted(() => [
       h(DouChartAxis, { for: 'x', title: '季度' }),
-      h(DouChartAxis, { for: 'y', format: (v: number) => `${v} 件` }),
+      h(DouChartAxis, { for: 'y', title: '销量（件）', format: (v: number) => `${v} 件` }),
       h(DouChartBar, { y: 'a', name: '线上' }),
       h(DouChartLine, { y: 'b', name: '门店' }),
     ])
     expect(cells(wrapper)).toEqual([
-      ['季度', '线上', '门店'],
+      ['季度', '线上（件）', '门店（件）'],
       ['一季度', '120 件', '90 件'],
       ['二季度', '150 件', ''],
       ['三季度', '140 件', '110 件'],
     ])
-    expect(wrapper.find('caption').text()).toBe('图表数据')
+    // named by its series, so charts on one page tell apart
+    expect(wrapper.find('caption').text()).toBe('线上、门店的数据')
     expect(wrapper.find('th[scope="row"]').exists()).toBe(true)
     // the chart's own keys and tooltip are off while the table shows
     expect(wrapper.find('.dou-chart').classes()).toContain('is-table')

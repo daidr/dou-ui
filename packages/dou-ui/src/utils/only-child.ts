@@ -29,7 +29,12 @@ export const OnlyChild = defineComponent({
   setup(_, { slots, attrs }) {
     return () => {
       const child = firstElement(slots.default?.() ?? [])
-      return child ? cloneVNode(child, attrs, true) : null
+      if (!child) return null
+      // ids that describe the element are a list: the element's own stay with the ones given
+      const own = child.props?.['aria-describedby'] as string | undefined
+      const given = attrs['aria-describedby'] as string | undefined
+      const describedBy = [own, given].filter(Boolean).join(' ') || undefined
+      return cloneVNode(child, { ...attrs, 'aria-describedby': describedBy }, true)
     }
   },
 })

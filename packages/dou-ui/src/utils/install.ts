@@ -1,5 +1,5 @@
 import { hasInjectionContext, inject } from 'vue'
-import type { App, Component, HTMLAttributes, Plugin } from 'vue'
+import type { App, ButtonHTMLAttributes, Component, HTMLAttributes, Plugin } from 'vue'
 import { configProviderKey } from '../components/config-provider/config-provider'
 
 type InstanceProps<I> = I extends { $props: infer P } ? P : {}
@@ -14,6 +14,12 @@ type InstanceProps<I> = I extends { $props: infer P } ? P : {}
 export type WithAttributes<T, A> = T extends abstract new (...args: any) => infer I
   ? { new (...args: any[]): I & { $props: Omit<A, keyof InstanceProps<I>> } } & T
   : T
+
+/**
+ * 渲染成按钮的组件转交的属性。不含 `type`：组件自己定好了按钮的类型（DouButton 用 `nativeType`），
+ * 原生 `type` 会覆盖它，写成 `submit` 还会提交表单。
+ */
+export type ButtonAttributes = Omit<ButtonHTMLAttributes, 'type'>
 
 /**
  * 泛型组件的类型不能在导出时改写，改在 `defineProps` 里用交叉类型并上它，

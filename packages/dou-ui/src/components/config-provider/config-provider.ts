@@ -1,4 +1,11 @@
-import type { App, ComputedRef, GlobalComponents, InjectionKey } from 'vue'
+import type {
+  AllowedComponentProps,
+  ComponentCustomProps,
+  ComputedRef,
+  GlobalComponents,
+  InjectionKey,
+  VNodeProps,
+} from 'vue'
 import type { Locale } from '../../locale/types'
 import type { Size } from '../../utils/types'
 import type { MotionMode } from '../../composables/use-motion'
@@ -43,17 +50,28 @@ export interface ResolvedGlobalConfig {
   motion: MotionMode
 }
 
-// 泛型组件是函数；`withInstall` 并上的插件签名的第一个参数是 App，要去掉
-type PropsOf<T> = T extends abstract new (...args: never) => { $props: infer P }
-  ? P
-  : T extends (props: infer P, ...rest: never) => unknown
-    ? Exclude<P, App>
+/**
+ * 泛型组件自己的 props。泛型组件的类型是函数，参数里还并着透传的原生属性，
+ * 推不出只属于组件的 props，所以各自在这里登记，`ComponentDefaults` 按它取。
+ */
+export interface GenericComponentProps {}
+
+// 透传给根元素的属性（class、style、aria-*、data-*、key、ref 等）不是 prop，默认值填不进去
+type OwnProps<P> = Omit<
+  P,
+  keyof VNodeProps | keyof AllowedComponentProps | keyof ComponentCustomProps
+>
+
+type PropsOf<K, T> = K extends keyof GenericComponentProps
+  ? GenericComponentProps[K]
+  : T extends abstract new (...args: never) => { $props: infer P }
+    ? OwnProps<P>
     : Record<string, unknown>
 
 /** Default props for each DouUI component. */
 export type ComponentDefaults = {
   [K in keyof GlobalComponents as K extends `Dou${string}` ? K : never]?: Partial<
-    PropsOf<GlobalComponents[K]>
+    PropsOf<K, GlobalComponents[K]>
   >
 }
 

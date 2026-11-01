@@ -38,6 +38,7 @@ import { useSortable } from '../sortable/use-sortable'
 import TableRow, { CellContent } from './table-row'
 import type {
   TableColumn,
+  TableEmits,
   TableExpose,
   TableProps,
   TableRowDropEvent,
@@ -54,13 +55,7 @@ const props = withDefaults(
       /* @vue-ignore */ ForwardedAttributes<
         HTMLAttributes,
         TableProps<T>,
-        | 'rowDrop'
-        | 'rowClick'
-        | 'rowDblclick'
-        | 'rowContextmenu'
-        | 'cellClick'
-        | 'columnResize'
-        | 'loadError'
+        keyof TableEmits & string
       >
   >(),
   {

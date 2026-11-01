@@ -16,6 +16,7 @@ import { useNamespace } from '../../utils/namespace'
 import { createOffsets } from './virtual-list'
 import type {
   VirtualListAlign,
+  VirtualListEmits,
   VirtualListExpose,
   VirtualListKey,
   VirtualListProps,
@@ -30,7 +31,7 @@ const props = withDefaults(
       /* @vue-ignore */ ForwardedAttributes<
         HTMLAttributes,
         VirtualListProps<T>,
-        'scroll' | 'endReached'
+        keyof VirtualListEmits & string
       >
   >(),
   {

@@ -2,8 +2,11 @@ import type { AnchorHTMLAttributes, ButtonHTMLAttributes } from 'vue'
 import { withInstall } from '../../utils/install'
 import Text from './text.vue'
 
-// `as` 可以换成链接或按钮，这时也能写它们的属性
-export const DouText = withInstall<typeof Text, AnchorHTMLAttributes & ButtonHTMLAttributes>(Text)
+// `as` 可以换成链接或按钮，这时也能写它们的属性；不含 type，与按钮类组件一致
+export const DouText = withInstall<
+  typeof Text,
+  Omit<AnchorHTMLAttributes & ButtonHTMLAttributes, 'type'>
+>(Text)
 export default DouText
 
 export type * from './text'

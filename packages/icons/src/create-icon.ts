@@ -1,5 +1,5 @@
 import { defineComponent, h } from 'vue'
-import type { PropType } from 'vue'
+import type { PropType, SVGAttributes } from 'vue'
 import type { IconNode } from './types'
 
 const pascal = (name: string) =>
@@ -23,7 +23,11 @@ const DOT_STROKE = 'calc(var(--dou-icons-stroke) * 1.5)'
  * Turn drawn shapes on the 24 × 24 grid into a Vue component. Every icon in
  * the set is made with this, and so can your own.
  */
-export function createIcon(name: string, node: IconNode) {
+export function createIcon(name: string, node: IconNode): IconComponent {
+  return defineIcon(name, node) as IconComponent
+}
+
+function defineIcon(name: string, node: IconNode) {
   return defineComponent({
     name: `${pascal(name)}Icon`,
     props: {
@@ -78,50 +82,27 @@ export function createIcon(name: string, node: IconNode) {
   })
 }
 
-export type IconComponent = ReturnType<typeof createIcon>
+type IconInstance = InstanceType<ReturnType<typeof defineIcon>>
 
-type Upper =
-  | 'A'
-  | 'B'
-  | 'C'
-  | 'D'
-  | 'E'
-  | 'F'
-  | 'G'
-  | 'H'
-  | 'I'
-  | 'J'
-  | 'K'
-  | 'L'
-  | 'M'
-  | 'N'
-  | 'O'
-  | 'P'
-  | 'Q'
-  | 'R'
-  | 'S'
-  | 'T'
-  | 'U'
-  | 'V'
-  | 'W'
-  | 'X'
-  | 'Y'
-  | 'Z'
-  | '0'
-  | '1'
-  | '2'
-  | '3'
-  | '4'
-  | '5'
-  | '6'
-  | '7'
-  | '8'
-  | '9'
+/**
+ * 图标组件。根元素就是 `<svg>`，所以模板里也能写 `id`、`title`、`role`、`@click` 等 SVG 属性和事件；
+ * 与 `size`、`strokeWidth`、`label` 同名的以图标的 prop 为准。
+ * 给模板看的构造签名放在前面，`InstanceType` 读到的仍是图标自己的 props。
+ */
+export type IconComponent = {
+  new (...args: any[]): IconInstance & {
+    $props: Omit<SVGAttributes, keyof IconInstance['$props']>
+  }
+} & ReturnType<typeof defineIcon>
 
-/** 图标上可以写的 `data-*`；模板类型检查会把 `data-foo` 转成 `dataFoo`，两种都接受。 */
+/**
+ * 图标上可以写的 `data-*`。模板类型检查会把 `data-foo` 转成 `dataFoo`，两种都接受。
+ * 驼峰的一种只用一条 `data${Capitalize<string>}`：拆成按首字母的几十条能拦住裸写的 `data`，
+ * 但每个属性都要逐条比较，使用者的类型检查会慢上一截，不值得。
+ */
 interface IconDataAttributes {
   [key: `data-${string}`]: unknown
-  [key: `data${Upper}${string}`]: unknown
+  [key: `data${Capitalize<string>}`]: unknown
 }
 
 // 单独使用图标时也要能写 aria-* 与 data-*（例如 `<SearchIcon aria-hidden="true" />`），

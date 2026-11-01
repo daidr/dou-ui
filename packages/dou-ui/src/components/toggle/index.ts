@@ -1,9 +1,9 @@
-import type { ButtonHTMLAttributes } from 'vue'
 import { withInstall } from '../../utils/install'
+import type { ButtonAttributes } from '../../utils/install'
 import Toggle from './toggle.vue'
 import ToggleGroup from './toggle-group.vue'
 
-export const DouToggle = withInstall<typeof Toggle, ButtonHTMLAttributes>(Toggle)
+export const DouToggle = withInstall<typeof Toggle, ButtonAttributes>(Toggle)
 export const DouToggleGroup = withInstall(ToggleGroup)
 export default DouToggle
 

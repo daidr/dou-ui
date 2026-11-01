@@ -1,6 +1,5 @@
 <script setup lang="ts" generic="T extends SwitchValue = boolean">
-import type { InputHTMLAttributes } from 'vue'
-import type { ForwardedAttributes } from '../../utils/install'
+import type { ButtonAttributes, ForwardedAttributes } from '../../utils/install'
 import { computed, ref, useAttrs, useId, watch } from 'vue'
 import type { Ref, StyleValue } from 'vue'
 import { useNamespace } from '../../utils/namespace'
@@ -13,8 +12,8 @@ const props = withDefaults(
   defineProps<
     SwitchProps<T> &
       /* @vue-ignore */ ForwardedAttributes<
-        // 类型固定，自动填充对开关没有意义；它们的取值联合太大，withDefaults 展不开
-        Omit<InputHTMLAttributes, 'type' | 'autocomplete'>,
+        // 属性落在开关的 <button> 上
+        ButtonAttributes,
         SwitchProps,
         keyof SwitchEmits & string
       >

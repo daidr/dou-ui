@@ -65,6 +65,7 @@ import type {
   PivotChartRows,
   PivotChartRowsOptions,
   PivotCopyOptions,
+  PivotEmits,
   PivotExpose,
   PivotPrintOptions,
   PivotProps,
@@ -76,7 +77,11 @@ defineOptions({ name: 'DouPivot' })
 const props = withDefaults(
   defineProps<
     PivotProps<Row> &
-      /* @vue-ignore */ ForwardedAttributes<HTMLAttributes, PivotProps<Row>, 'cellClick'>
+      /* @vue-ignore */ ForwardedAttributes<
+        HTMLAttributes,
+        PivotProps<Row>,
+        keyof PivotEmits & string
+      >
   >(),
   {
     layout: 'compact',

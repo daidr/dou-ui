@@ -84,7 +84,8 @@ Token 默认挂在 `:root` 上。给任意元素加上 `data-dou-theme` 即可�
 打开之后，组件上照样可以写这些属性：
 
 - `aria-*` 和 `data-*` 可以写在任何组件上。`aria-*` 的名字和取值依旧受检，写成 `aria-lable` 会报错。
-- 组件转交给元素的原生属性和事件，比如 DouInput 的 `placeholder`、`maxlength`、`@keydown`，DouButton 的 `type`、`autofocus`。与组件自己的 prop、事件同名时以组件的为准，例如 DouSelect 的 `change` 收到的是选中的值。
+- 组件转交给元素的原生属性和事件，比如 DouInput 的 `placeholder`、`maxlength`、`@keydown`，DouButton 的 `form`、`autofocus`。与组件自己的 prop、事件同名时以组件的为准，例如 DouSelect 的 `change` 收到的是选中的值。按钮类组件不接受原生 `type`，DouButton 的按钮类型用 `nativeType`。
+- 图标的根元素就是 `<svg>`，`id`、`role`、`focusable`、`@click` 等 SVG 属性和事件都能写。
 
 ```vue
 <DouButton aria-label="关闭" data-testid="close" />

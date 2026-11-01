@@ -1,13 +1,18 @@
 <script setup lang="ts">
 import {
+  DouFindReplace,
+  DouToggle,
+  DouTooltip,
   fitPixelRatio,
   holdPointer,
   layoutGraph,
   matchesHotkey,
   svgToPNG,
+  useLocale,
   useReducedMotion,
   type Tone,
 } from 'dou-ui'
+import { LetterCaseIcon } from '@dou-ui/icons'
 import {
   computed,
   customRef,
@@ -125,6 +130,7 @@ const emit = defineEmits<FlowEditorEmits>()
 defineSlots<FlowEditorSlots>()
 
 const messages = useFlowMessages(() => props.messages)
+const { t: common } = useLocale()
 const reducedMotion = useReducedMotion()
 const root = useTemplateRef<HTMLElement>('root')
 
@@ -2948,6 +2954,8 @@ function onKeydown(event: KeyboardEvent) {
       else undo()
     } else if (key === 'y' && !props.readonly) redo()
     else if (key === 'a') selectAll()
+    // Ctrl/⌘ + G is for groups here, so the next match is F3 only
+    else if (key === 'f' && !event.altKey) openSearch()
     // Copy, cut and paste come as clipboard events; see onClipboard.
     else if (key === 'c' || key === 'x' || key === 'v') return
     else if (key === 'd' && !props.readonly) {
@@ -2964,6 +2972,9 @@ function onKeydown(event: KeyboardEvent) {
   if (event.altKey && !key.startsWith('Arrow')) return
 
   switch (key) {
+    case 'F3':
+      if (!stepFound(event.shiftKey ? -1 : 1)) return
+      break
     case 'Tab': {
       if (!onCanvas) return
       const order = readingOrder()
@@ -2984,7 +2995,7 @@ function onKeydown(event: KeyboardEvent) {
       return
     }
     case 'Escape':
-      if (cancelDrag()) break
+      if (cancelDrag() || closeSearch()) break
       if (!selection.value.nodes.length && !selection.value.edges.length) return
       setSelection(emptySelection())
       break
@@ -3051,6 +3062,79 @@ function announce(text: string) {
   live.value = ''
   void nextTick(() => (live.value = text))
 }
+
+// Find -----------------------------------------------------------------------------
+
+const findOpen = ref(false)
+const findQuery = ref({ search: '', caseSensitive: false })
+const findPanel = ref<InstanceType<typeof DouFindReplace>>()
+
+/** The nodes whose names contain the text, in reading order. */
+function findNodes(search: string, options: { caseSensitive?: boolean } = {}) {
+  if (!search) return []
+  const fold = (text: string) => (options.caseSensitive ? text : text.toLowerCase())
+  const wanted = fold(search)
+  return readingOrder()
+    .filter((node) => fold(nameOf(node)).includes(wanted))
+    .map((node) => node.id)
+}
+
+const found = computed(() =>
+  findOpen.value ? findNodes(findQuery.value.search, findQuery.value) : [],
+)
+/** The match that is the one node selected; `-1` when none is. */
+const currentFound = computed(() => {
+  const { nodes } = selection.value
+  return nodes.length === 1 ? found.value.indexOf(nodes[0]!) : -1
+})
+/** The matches' boxes, in canvas coordinates, to mark them. */
+const foundRects = computed(() =>
+  found.value.flatMap((id) => {
+    const rect = getNodeRect(id)
+    return rect ? [{ id, rect }] : []
+  }),
+)
+
+/** Selects a match and brings it to the middle of the view. */
+function goToFound(index: number) {
+  const id = found.value[index]
+  if (!id) return
+  setSelection({ nodes: [id], edges: [] })
+  centerNode(id)
+  const node = nodeById.value.get(id)
+  if (node) announce(nameOf(node))
+}
+
+function stepFound(step: 1 | -1) {
+  const list = found.value
+  if (!list.length) return false
+  const i = currentFound.value
+  goToFound(i >= 0 ? (i + step + list.length) % list.length : step > 0 ? 0 : list.length - 1)
+  return true
+}
+
+/** Opens the panel, with `search` put in. */
+function openSearch(search?: string) {
+  if (search !== undefined) findQuery.value = { ...findQuery.value, search }
+  findOpen.value = true
+  void nextTick(() => findPanel.value?.focus())
+  return true
+}
+
+function closeSearch() {
+  if (!findOpen.value) return false
+  findOpen.value = false
+  root.value?.focus({ preventScroll: true })
+  return true
+}
+
+// typing a search selects the first match, as a preview
+watch(
+  () => [findQuery.value.search, findQuery.value.caseSensitive],
+  () => {
+    if (findOpen.value && found.value.length && currentFound.value < 0) goToFound(0)
+  },
+)
 
 // Lifecycle --------------------------------------------------------------------------
 
@@ -3478,6 +3562,9 @@ async function exportPNG(options: FlowImageOptions = {}) {
 
 defineExpose<FlowEditorExpose>({
   setViewport,
+  openSearch,
+  closeSearch,
+  findNodes,
   exportSVG,
   exportPNG,
   transact,
@@ -3535,6 +3622,18 @@ defineExpose<FlowEditorExpose>({
   >
     <div class="dou-flow-editor__layer" :style="layerStyle">
       <component :is="layer" v-for="(layer, i) in resolved.below" :key="`below-${i}`" />
+      <div
+        v-for="mark in foundRects"
+        :key="`found-${mark.id}`"
+        class="dou-flow-editor__found"
+        :class="{ 'is-current': found[currentFound] === mark.id }"
+        :style="{
+          transform: `translate(${mark.rect.x}px, ${mark.rect.y}px)`,
+          width: `${mark.rect.width}px`,
+          height: `${mark.rect.height}px`,
+        }"
+        aria-hidden="true"
+      />
       <!-- Containers sit under the edges. -->
       <template v-for="node in drawnContainers" :key="node.id">
         <div
@@ -3694,6 +3793,32 @@ defineExpose<FlowEditorExpose>({
     <div v-if="marquee" class="dou-flow-editor__marquee" :style="marquee" />
     <div class="dou-flow-editor__panels">
       <slot />
+      <div v-if="findOpen" class="dou-flow-editor__find">
+        <DouFindReplace
+          ref="findPanel"
+          :search="findQuery.search"
+          :count="found.length"
+          :current="currentFound"
+          readonly
+          @update:search="findQuery = { ...findQuery, search: $event }"
+          @next="stepFound(1)"
+          @previous="stepFound(-1)"
+          @close="closeSearch"
+        >
+          <template #options>
+            <DouTooltip :content="common('findReplace.caseSensitive')">
+              <DouToggle
+                :pressed="findQuery.caseSensitive"
+                size="sm"
+                :aria-label="common('findReplace.caseSensitive')"
+                @update:pressed="findQuery = { ...findQuery, caseSensitive: $event }"
+              >
+                <LetterCaseIcon />
+              </DouToggle>
+            </DouTooltip>
+          </template>
+        </DouFindReplace>
+      </div>
       <component :is="overlay" v-for="(overlay, i) in resolved.overlays" :key="i" />
       <FlowToolbar
         v-if="toolbarItems.length && toolbarAnchor"

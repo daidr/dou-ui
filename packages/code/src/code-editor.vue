@@ -16,8 +16,21 @@ import {
   VariableIcon,
   WrenchIcon,
   XCircleIcon,
+  LetterCaseIcon,
+  RegexIcon,
+  WholeWordIcon,
 } from '@dou-ui/icons'
-import { holdPointer, isApplePlatform, isComposing, useNamespace, useZIndex } from 'dou-ui'
+import {
+  DouFindReplace,
+  DouToggle,
+  DouTooltip,
+  holdPointer,
+  isApplePlatform,
+  isComposing,
+  useLocale,
+  useNamespace,
+  useZIndex,
+} from 'dou-ui'
 import {
   computed,
   getCurrentInstance,
@@ -103,7 +116,6 @@ import {
 import RenderPart from './render-part'
 import { matchCompletion } from './completion/match'
 import { parseSnippet } from './completion/snippet'
-import SearchPanel from './search-panel.vue'
 import { type CodeLineTokens, type CodeTokenType, lineParts, tokenTypes } from './language/language'
 import type { CodeEditorEmits, CodeEditorExpose, CodeEditorProps } from './types'
 import { diffText } from './view/input'
@@ -1792,7 +1804,14 @@ const messages = useCodeMessages(() => props.messages)
 const searchOpen = ref(false)
 const showReplace = ref(false)
 const query = ref<CodeSearchQuery>({ search: '' })
-const panel = ref<InstanceType<typeof SearchPanel>>()
+const panel = ref<InstanceType<typeof DouFindReplace>>()
+const { t: common } = useLocale()
+/** The toggles in the find box. */
+const searchOptions = [
+  { key: 'caseSensitive', icon: LetterCaseIcon },
+  { key: 'wholeWord', icon: WholeWordIcon },
+  { key: 'regexp', icon: RegexIcon },
+] as const
 /** The matches, kept in step with edits between searches. */
 const matches = shallowRef<CodeMatch[]>([])
 const capped = ref(false)
@@ -1942,7 +1961,7 @@ function replaceAll() {
   // Leave a cursor rather than a selection on the last replacement, which would look like a match left over.
   const head = mainRange(state.value.selection).head
   dispatch(transaction().select(head))
-  announcement.value = format(messages.value.replaced, { count: all.length })
+  announcement.value = common('findReplace.replaced', { count: all.length })
   runSearch()
 }
 
@@ -4347,22 +4366,41 @@ defineExpose<CodeEditorExpose>(api)
     }"
   >
     <div v-if="searchOpen" :class="ns.e('search')">
-      <SearchPanel
+      <DouFindReplace
         ref="panel"
-        v-model:query="query"
-        v-model:show-replace="showReplace"
-        :messages="messages"
+        :search="query.search"
+        :replace="query.replace ?? ''"
+        v-model:replacing="showReplace"
         :count="matches.length"
         :current="currentMatch"
         :capped="capped"
-        :error="searchError"
+        :error="searchError && common('findReplace.invalidRegexp')"
         :readonly="readonly || disabled"
+        @update:search="query = { ...query, search: $event }"
+        @update:replace="query = { ...query, replace: $event }"
         @next="nextMatch()"
         @previous="previousMatch()"
         @replace="replaceOne"
         @replace-all="replaceAll"
         @close="closeSearch"
-      />
+      >
+        <template #options>
+          <DouTooltip
+            v-for="option in searchOptions"
+            :key="option.key"
+            :content="common(`findReplace.${option.key}`)"
+          >
+            <DouToggle
+              :pressed="!!query[option.key]"
+              size="sm"
+              :aria-label="common(`findReplace.${option.key}`)"
+              @update:pressed="query = { ...query, [option.key]: $event }"
+            >
+              <component :is="option.icon" />
+            </DouToggle>
+          </DouTooltip>
+        </template>
+      </DouFindReplace>
     </div>
     <div v-if="problemMarks.length" :class="ns.e('marks')" aria-hidden="true">
       <div

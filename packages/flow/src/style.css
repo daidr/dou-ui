@@ -518,6 +518,35 @@
     }
   }
 
+  /* the find panel, top right; the nodes it found get a tinted halo */
+  .dou-flow-editor__find {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    left: 12px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+    container-type: inline-size;
+    pointer-events: none;
+    > * {
+      pointer-events: auto;
+    }
+  }
+  .dou-flow-editor__found {
+    position: absolute;
+    top: 0;
+    left: 0;
+    box-sizing: border-box;
+    border-radius: var(--dou-flow-editor-node-radius);
+    outline: 4px solid color-mix(in oklab, var(--dou-color-warning) 35%, transparent);
+    outline-offset: 2px;
+    pointer-events: none;
+    &.is-current {
+      outline-color: color-mix(in oklab, var(--dou-color-warning) 70%, transparent);
+    }
+  }
+
   .dou-flow-editor__end,
   .dou-flow-editor__live {
     position: absolute;

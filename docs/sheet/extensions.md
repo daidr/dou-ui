@@ -167,6 +167,8 @@ const today = defineSheetExtension({
 | `filter`                                        | 加上或去掉筛选                                                 |
 | `clear`                                         | 清除格式（样式和数字格式），值不变；不是右键菜单里的“清除内容” |
 | `print`                                         | 打印当前工作表                                                 |
+| `find`、`replace`                               | 打开查找、替换面板；可以传查询，见[查找和替换](./#查找和替换)  |
+| `find.next`、`find.previous`                    | 下一个、上一个查找结果                                         |
 
 在扩展或组件里用 `useSheet().commands` 执行和查询命令：
 

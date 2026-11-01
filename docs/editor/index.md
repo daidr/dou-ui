@@ -97,24 +97,28 @@ function reset() {
 
 ### 实例方法
 
-| 名称        | 说明                                                 | 类型                               |
-| ----------- | ---------------------------------------------------- | ---------------------------------- |
-| `view`      | ProseMirror 的 `EditorView`，挂载后可用              | `EditorView \| null`               |
-| `focus`     | 获得焦点                                             | `() => void`                       |
-| `blur`      | 失去焦点                                             | `() => void`                       |
-| `getBlocks` | 读取当前文档                                         | `() => Block[]`                    |
-| `setBlocks` | 替换整个文档，不进入撤销记录                         | `(blocks: PartialBlock[]) => void` |
-| `getHTML`   | 把当前文档写成 HTML，见[导入与导出](./import-export) | `() => string`                     |
-| `setHTML`   | 用 HTML 替换整个文档，不进入撤销记录                 | `(html: string) => void`           |
-| `run`       | 执行一个 ProseMirror 命令，返回是否执行了            | `(command: Command) => boolean`    |
+| 名称          | 说明                                                                                            | 类型                                              |
+| ------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| `view`        | ProseMirror 的 `EditorView`，挂载后可用                                                         | `EditorView \| null`                              |
+| `focus`       | 获得焦点                                                                                        | `() => void`                                      |
+| `blur`        | 失去焦点                                                                                        | `() => void`                                      |
+| `getBlocks`   | 读取当前文档                                                                                    | `() => Block[]`                                   |
+| `setBlocks`   | 替换整个文档，不进入撤销记录                                                                    | `(blocks: PartialBlock[]) => void`                |
+| `getHTML`     | 把当前文档写成 HTML，见[导入与导出](./import-export)                                            | `() => string`                                    |
+| `setHTML`     | 用 HTML 替换整个文档，不进入撤销记录                                                            | `(html: string) => void`                          |
+| `run`         | 执行一个 ProseMirror 命令，返回是否执行了                                                       | `(command: Command) => boolean`                   |
+| `openSearch`  | 打开查找面板，可以填好查询；带 `replace` 时同时打开替换框，见[快捷操作](./shortcuts#查找和替换) | `(query?: Partial<EditorSearchQuery>) => boolean` |
+| `closeSearch` | 关闭查找面板，没有打开时返回 `false`                                                            | `() => boolean`                                   |
 
 ### CSS 变量
 
-| 变量                       | 说明                                 |
-| -------------------------- | ------------------------------------ |
-| `--dou-editor-font-size`   | 正文字号                             |
-| `--dou-editor-line-height` | 正文行高                             |
-| `--dou-editor-gutter`      | 左侧留给手柄的宽度，只读时为 `0`     |
-| `--dou-editor-indent`      | 每一级缩进的宽度，也是列表符号的宽度 |
-| `--dou-editor-block-gap`   | 块上下的间距                         |
-| `--dou-editor-selected`    | 选中的块的底色                       |
+| 变量                         | 说明                                 |
+| ---------------------------- | ------------------------------------ |
+| `--dou-editor-font-size`     | 正文字号                             |
+| `--dou-editor-match`         | 查找结果的底色                       |
+| `--dou-editor-match-current` | 当前查找结果的描边                   |
+| `--dou-editor-line-height`   | 正文行高                             |
+| `--dou-editor-gutter`        | 左侧留给手柄的宽度，只读时为 `0`     |
+| `--dou-editor-indent`        | 每一级缩进的宽度，也是列表符号的宽度 |
+| `--dou-editor-block-gap`     | 块上下的间距                         |
+| `--dou-editor-selected`      | 选中的块的底色                       |

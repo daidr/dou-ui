@@ -14,6 +14,8 @@
     --dou-sheet-header-bg: var(--dou-color-bg-canvas);
     --dou-sheet-ring: var(--dou-color-primary);
     --dou-sheet-tint: color-mix(in oklab, var(--dou-color-primary) 8%, transparent);
+    --dou-sheet-found: color-mix(in oklab, var(--dou-color-warning) 22%, transparent);
+    --dou-sheet-found-current: color-mix(in oklab, var(--dou-color-warning) 45%, transparent);
     --dou-sheet-header-marked: color-mix(
       in oklab,
       var(--dou-color-text) 6%,
@@ -895,6 +897,46 @@
     inset: 0 0 auto;
     height: 2px;
     border-block-width: 1px;
+  }
+
+  /* cells the find panel matches; the current one is stronger, under the selection's ring */
+  .dou-sheet__found {
+    position: absolute;
+    z-index: 3;
+    box-sizing: border-box;
+    background-color: var(--dou-sheet-found);
+    pointer-events: none;
+    &.is-current {
+      background-color: var(--dou-sheet-found-current);
+    }
+  }
+
+  /* the find panel: top right over the grid, the whole width of a narrow one */
+  .dou-sheet__find {
+    position: absolute;
+    top: 6px;
+    right: 14px;
+    left: 6px;
+    z-index: 8;
+    display: flex;
+    justify-content: flex-end;
+    container-type: inline-size;
+    pointer-events: none;
+    > * {
+      pointer-events: auto;
+    }
+    /* a narrow grid: a bar above the cells, as wide as the grid */
+    &.is-docked {
+      position: static;
+      padding: 6px;
+      border-bottom: 1px solid var(--dou-sheet-line-strong);
+      > .dou-find-replace {
+        flex: 1 1 auto;
+        border: 0;
+        box-shadow: none;
+        padding: 0;
+      }
+    }
   }
 
   /* the copied (or cut) range, and where a fill would reach */

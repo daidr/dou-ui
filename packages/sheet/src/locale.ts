@@ -179,6 +179,21 @@ export interface SheetMessages {
   freezeFirstCol: string
   unfreeze: string
   print: string
+  /** Find and replace: the commands, and the toggles the panel adds. */
+  find: {
+    find: string
+    replace: string
+    next: string
+    previous: string
+    /** Only cells whose whole text is the search. */
+    wholeCell: string
+    /** Look in formulas, not in the values cells show. */
+    formulas: string
+    /** Look in every sheet, not only the one shown. */
+    workbook: string
+    /** Added after “replaced” when some matches were left: `{count}`. */
+    skipped: string
+  }
   /** Files in and out: the export and import menus, and what is read out after. */
   file: SheetFileMessages
 }
@@ -520,6 +535,16 @@ const zhCN: SheetMessages = {
   freezeFirstCol: '冻结首列',
   unfreeze: '取消冻结',
   print: '打印',
+  find: {
+    find: '查找',
+    replace: '替换',
+    next: '查找下一个',
+    previous: '查找上一个',
+    wholeCell: '单元格完全匹配',
+    formulas: '查找公式',
+    workbook: '所有工作表',
+    skipped: '，另有 {count} 处是公式的结果或不符合数据验证，没有替换',
+  },
   file: {
     export: '导出',
     import: '导入',
@@ -874,6 +899,16 @@ const zhTW: SheetMessages = {
   freezeFirstCol: '凍結首欄',
   unfreeze: '取消凍結',
   print: '列印',
+  find: {
+    find: '尋找',
+    replace: '取代',
+    next: '尋找下一個',
+    previous: '尋找上一個',
+    wholeCell: '儲存格完全相符',
+    formulas: '尋找公式',
+    workbook: '所有工作表',
+    skipped: '，另有 {count} 處是公式的結果或不符合資料驗證，沒有取代',
+  },
   file: {
     export: '匯出',
     import: '匯入',
@@ -1235,6 +1270,16 @@ const en: SheetMessages = {
   freezeFirstCol: 'First column',
   unfreeze: 'Unfreeze',
   print: 'Print',
+  find: {
+    find: 'Find',
+    replace: 'Replace',
+    next: 'Find next',
+    previous: 'Find previous',
+    wholeCell: 'Match entire cell',
+    formulas: 'Look in formulas',
+    workbook: 'All sheets',
+    skipped: '; {count} more are formula results or break a validation rule and were left',
+  },
   file: {
     export: 'Export',
     import: 'Import',

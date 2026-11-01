@@ -76,6 +76,8 @@ export type {
   TextContent,
 } from './core/model'
 export { blocksToDoc, createId, docToBlocks } from './core/model'
+export { searchDoc } from './core/search'
+export type { EditorMatch, EditorSearchQuery } from './core/search'
 export type { BuiltinContentType, ContentType, MarkType } from './core/schema'
 export { contentDOM, createSchema, isSafeHref, textBlock } from './core/schema'
 export {

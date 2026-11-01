@@ -21,6 +21,8 @@
       color-mix(in oklab, var(--dou-color-focus) 22%, transparent)
     );
     --dou-editor-control-hover: color-mix(in oklab, var(--dou-color-text) 6%, transparent);
+    --dou-editor-match: color-mix(in oklab, var(--dou-color-warning) 22%, transparent);
+    --dou-editor-match-current: color-mix(in oklab, var(--dou-color-warning-text) 80%, transparent);
 
     position: relative;
     box-sizing: border-box;
@@ -1354,5 +1356,28 @@
 
   .dou-editor__remote-selection {
     background-color: color-mix(in oklab, var(--dou-editor-cursor-color) 20%, transparent);
+  }
+
+  /* find: the panel stays at the top right while the page scrolls; it takes no room in the flow */
+  .dou-editor__search {
+    position: sticky;
+    top: 8px;
+    z-index: 5;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+    height: 0;
+    container-type: inline-size;
+    pointer-events: none;
+    > * {
+      pointer-events: auto;
+    }
+  }
+  .dou-editor__match {
+    border-radius: 2px;
+    background-color: var(--dou-editor-match);
+    &.is-current {
+      box-shadow: 0 0 0 1px var(--dou-editor-match-current);
+    }
   }
 }

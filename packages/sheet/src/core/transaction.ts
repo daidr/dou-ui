@@ -123,6 +123,7 @@ export type SheetAction =
   | 'freeze'
   | 'sheet'
   | 'import'
+  | 'replace'
   | 'undo'
   | 'redo'
   | 'api'

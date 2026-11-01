@@ -3,6 +3,7 @@ import type { SheetCellTarget, SheetRange } from './core/address'
 import type { SheetClip } from './core/clipboard'
 import type { SheetCSVWriteOptions } from './core/csv'
 import type { SheetCommands } from './core/commands'
+import type { SheetFindQuery, SheetFound } from './core/find'
 import type { SheetExtension } from './core/extension'
 import type {
   SheetCSVExportOptions,
@@ -345,6 +346,11 @@ export interface SheetExpose {
    * no such sheet.
    */
   showSheet: (sheet: SheetRef) => boolean
+  /**
+   * The cells that match a query, in order of sheet, row and column, as
+   * the find panel finds them: hidden rows and columns are skipped.
+   */
+  findCells: (query: SheetFindQuery) => SheetFound[]
   /**
    * The sheet shown (or `sheet`) as CSV, with the text its cells show, as
    * their formats and cell types write it.

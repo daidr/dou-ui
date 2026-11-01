@@ -453,7 +453,6 @@
   }
 }
 
-/* the search panel: a small floating surface in the editor's top right corner */
 @layer dou.components {
   /* problems: a wavy line under the text in the problem's color, quieter for hints */
   .dou-code-editor__problem {
@@ -1041,128 +1040,6 @@
       transform: scale(1.12);
       transition-duration: var(--dou-motion-duration-slow);
       transition-timing-function: var(--dou-motion-easing-spring);
-    }
-  }
-
-  .dou-code-search {
-    display: flex;
-    gap: 2px;
-    align-items: flex-start;
-    box-sizing: border-box;
-    max-width: 100%;
-    padding: 4px;
-    border: 1px solid var(--dou-color-border);
-    border-radius: var(--dou-radius-control);
-    background-color: var(--dou-color-bg-surface);
-    box-shadow: var(--dou-shadow-md);
-    font-family: var(--dou-font-family);
-    font-size: var(--dou-font-size-sm);
-    line-height: normal;
-  }
-  .dou-code-search__rows {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    min-width: 0;
-  }
-  .dou-code-search__row {
-    display: flex;
-    gap: 2px;
-    align-items: center;
-    min-width: 0;
-  }
-  .dou-code-search__field {
-    display: flex;
-    flex: 1 1 auto;
-    gap: 1px;
-    align-items: center;
-    box-sizing: border-box;
-    width: 260px;
-    min-width: 0;
-    height: var(--dou-control-height-sm);
-    padding-right: 2px;
-    border: 1px solid var(--dou-color-border);
-    border-radius: var(--dou-radius-control);
-    background-color: var(--dou-color-bg-surface);
-    transition: border-color var(--dou-motion-duration-fast) var(--dou-motion-easing);
-    &:focus-within {
-      border-color: var(--dou-color-focus);
-    }
-    &.is-invalid {
-      border-color: var(--dou-color-danger);
-    }
-    .dou-toggle {
-      flex: none;
-      width: calc(var(--dou-control-height-sm) - 6px);
-      height: calc(var(--dou-control-height-sm) - 6px);
-      padding: 0;
-    }
-  }
-  .dou-code-search__input {
-    flex: 1 1 auto;
-    min-width: 0;
-    height: 100%;
-    padding: 0 8px;
-    border: 0;
-    outline: none;
-    background: transparent;
-    color: var(--dou-color-text);
-    font: inherit;
-    font-family: var(--dou-font-family-mono);
-    font-size: max(var(--dou-font-size-input-min), var(--dou-font-size-sm));
-    &::placeholder {
-      color: var(--dou-color-text-tertiary);
-      font-family: var(--dou-font-family);
-    }
-  }
-  /* fingers get 36px targets, like the other toolbars */
-  @media (pointer: coarse) {
-    .dou-code-search .dou-code-search__field {
-      height: 40px;
-      .dou-toggle {
-        width: 34px;
-        height: 34px;
-      }
-    }
-    .dou-code-search .dou-button {
-      min-width: 36px;
-      min-height: 36px;
-    }
-  }
-  @container (max-width: 480px) {
-    .dou-code-search {
-      flex: 1 1 auto;
-    }
-    .dou-code-search .dou-code-search__rows {
-      flex: 1 1 auto;
-    }
-    .dou-code-search .dou-code-search__field {
-      width: auto;
-    }
-    /* the find box gets its own line; the count and the buttons go under it */
-    .dou-code-search .dou-code-search__row:first-child {
-      flex-wrap: wrap;
-      row-gap: 4px;
-      > .dou-code-search__field {
-        flex-basis: 100%;
-      }
-    }
-    .dou-code-search .dou-code-search__status {
-      min-width: 0;
-      margin-right: auto;
-      padding: 0 4px;
-    }
-  }
-  .dou-code-search__status {
-    flex: none;
-    min-width: 64px;
-    padding: 0 6px;
-    color: var(--dou-color-text-secondary);
-    font-size: var(--dou-font-size-sm);
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
-    &.is-empty {
-      color: var(--dou-color-text-tertiary);
     }
   }
 }

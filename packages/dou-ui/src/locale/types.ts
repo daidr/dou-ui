@@ -674,6 +674,37 @@ export interface Locale {
     previousVersion: string
     nextVersion: string
   }
+  findReplace: {
+    /** Names the panel. */
+    label: string
+    /** The find box. */
+    find: string
+    /** The replace box. */
+    replace: string
+    /** Shows or hides the replace box. */
+    toggleReplace: string
+    previous: string
+    next: string
+    /** Replaces the current match. */
+    replaceOne: string
+    replaceAll: string
+    close: string
+    /** Where the current match is among all, with `{index}` and `{count}`. */
+    matchIndex: string
+    /** How many matches, when none is current, with `{count}`. */
+    matchCount: string
+    /** More matches than were counted, with `{count}`. */
+    matchMany: string
+    noMatches: string
+    /** Common options, for the toggles put in the find box. */
+    caseSensitive: string
+    wholeWord: string
+    regexp: string
+    /** The regular expression can't be read. */
+    invalidRegexp: string
+    /** Said after replacing, with `{count}`. */
+    replaced: string
+  }
   form: {
     /** Shown after the label of an optional field when `requiredMark` is `'optional'`. */
     optional: string

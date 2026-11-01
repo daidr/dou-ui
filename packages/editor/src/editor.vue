@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useGlobalConfig, useNamespace } from 'dou-ui'
+import { isApplePlatform, useGlobalConfig, useNamespace } from 'dou-ui'
 import { keymap } from 'prosemirror-keymap'
 import { Plugin, type EditorState } from 'prosemirror-state'
 import type { EditorView } from 'prosemirror-view'
@@ -8,7 +8,9 @@ import {
   getCurrentInstance,
   onBeforeUnmount,
   onMounted,
+  nextTick,
   provide,
+  ref,
   shallowRef,
   toRaw,
   useTemplateRef,
@@ -17,11 +19,19 @@ import {
 } from 'vue'
 import BlockHandle from './components/block-handle.vue'
 import BubbleToolbar from './components/bubble-toolbar.vue'
+import SearchBar from './components/search-bar.vue'
 import SlashMenu from './components/slash-menu.vue'
 import { setFallbackHighlighter, type CodeHighlighter } from './core/highlight'
 import { createEditorView, getBlocks, replaceBlocks, runCommand, setEditable } from './core/editor'
 import type { Block, PartialBlock } from './core/model'
 import { resolveEditorExtensions } from './core/extension'
+import {
+  previewMatch,
+  searchKey,
+  searchPlugin,
+  setSearch,
+  type EditorSearchQuery,
+} from './core/search'
 import { slashPlugin, type SlashState } from './core/slash'
 import { writeHTML } from './core/output'
 import { parseHTML } from './core/prepare'
@@ -91,6 +101,64 @@ const componentViews = {
   ),
 }
 
+// find and replace: the panel over the text, the matches marked in it
+const searchOpen = ref(false)
+const searchReplacing = ref(false)
+const searchBar = useTemplateRef<InstanceType<typeof SearchBar>>('searchBar')
+/** Blocks that draw their own text, such as a code block in the code editor, are not searched. */
+const searchSkip = (node: { type: { name: string } }) => node.type.name in kit.componentViews
+
+/** Opens the panel, with the replace box for `replace`. A selection on one line becomes the search. */
+function openSearch(replace = false, given?: Partial<EditorSearchQuery>) {
+  const v = view.value
+  if (!v) return false
+  const old = searchKey.getState(v.state)?.query ?? { search: '' }
+  const query = { ...old, ...given }
+  const { from, to, empty } = v.state.selection
+  if (given?.search === undefined && !empty) {
+    const text = v.state.doc.textBetween(from, to, '\n')
+    if (text && !text.includes('\n')) query.search = text
+  }
+  if ((replace || given?.replace !== undefined) && editable.value) searchReplacing.value = true
+  searchOpen.value = true
+  v.dispatch(setSearch(v.state.tr, { query, active: true }))
+  const preview = previewMatch(v.state)
+  if (preview) v.dispatch(preview)
+  void nextTick(() => searchBar.value?.focus(replace && editable.value ? 'replace' : 'find'))
+  return true
+}
+
+function closeSearch() {
+  const v = view.value
+  if (!searchOpen.value || !v) return false
+  searchOpen.value = false
+  v.dispatch(setSearch(v.state.tr, { active: false }))
+  v.focus()
+  return true
+}
+
+/** Goes to the next (or previous) match; with the panel shut, opens it on the last search. */
+function findAgain(step: 1 | -1) {
+  if (!searchOpen.value) {
+    const v = view.value
+    if (!v || !searchKey.getState(v.state)?.query.search) return false
+    openSearch()
+  }
+  void nextTick(() => (step > 0 ? searchBar.value?.next() : searchBar.value?.previous()))
+  return true
+}
+
+const replaceKey = isApplePlatform() ? 'Mod-Alt-f' : 'Mod-h'
+const searchKeys = keymap({
+  'Mod-f': () => openSearch(),
+  [replaceKey]: () => openSearch(true),
+  F3: () => findAgain(1),
+  'Mod-g': () => findAgain(1),
+  'Shift-F3': () => findAgain(-1),
+  'Mod-Shift-g': () => findAgain(-1),
+  Escape: () => closeSearch(),
+})
+
 const slash = shallowRef<SlashState | null>(null)
 const slashMenu = useTemplateRef<InstanceType<typeof SlashMenu>>('slashMenu')
 const bubble = useTemplateRef<InstanceType<typeof BubbleToolbar>>('bubble')
@@ -139,7 +207,9 @@ onMounted(() => {
       }),
       keymap({ 'Mod-k': () => bubble.value?.editLink() ?? false }),
       openLinks,
+      searchPlugin({ skip: searchSkip }),
     ],
+    keymaps: [searchKeys],
     history: props.history,
     undo: props.undo,
     redo: props.redo,
@@ -204,6 +274,8 @@ defineExpose<EditorExpose>({
   getHTML: () => (view.value ? writeHTML(getBlocks(view.value), kit) : ''),
   setHTML: (html: string) => view.value && replaceBlocks(view.value, parseHTML(html, kit)),
   run: (command) => (view.value ? runCommand(view.value, command) : false),
+  openSearch: (query) => openSearch(query?.replace !== undefined, query),
+  closeSearch,
 })
 </script>
 
@@ -212,6 +284,15 @@ defineExpose<EditorExpose>({
     ref="root"
     :class="[ns.b(), { 'is-readonly': readonly, 'is-focused': focused, 'is-dragging': dragging }]"
   >
+    <div v-if="searchOpen && view" :class="ns.e('search')">
+      <SearchBar
+        ref="searchBar"
+        v-model:replacing="searchReplacing"
+        :readonly="readonly"
+        :skip="searchSkip"
+        @close="closeSearch"
+      />
+    </div>
     <div ref="mount" :class="ns.e('mount')" />
     <template v-if="!readonly && view">
       <BlockHandle />

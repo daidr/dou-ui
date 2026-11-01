@@ -114,6 +114,7 @@
 @import './components/virtual-list.css';
 @import './components/watermark.css';
 @import './components/field-group.css';
+@import './components/find-replace.css';
 @import './components/shimmer.css';
 @import './components/stream-text.css';
 @import './components/chat-bubble.css';

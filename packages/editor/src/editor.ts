@@ -3,6 +3,7 @@ import type { EditorView } from 'prosemirror-view'
 import { inject, type ComputedRef, type InjectionKey, type ShallowRef } from 'vue'
 import type { EditorExtension, ResolvedEditorExtensions } from './core/extension'
 import type { Block, PartialBlock } from './core/model'
+import type { EditorSearchQuery } from './core/search'
 import type { EditorMessages, EditorMessagesOverride } from './locale'
 
 export interface EditorProps {
@@ -62,6 +63,13 @@ export interface EditorExpose {
   setHTML: (html: string) => void
   /** Run a ProseMirror command, e.g. one of the exported ones. */
   run: (command: Command) => boolean
+  /**
+   * Opens the find panel (`Ctrl/⌘+F`), with a query put in; with `replace`
+   * in it, the replace box opens too.
+   */
+  openSearch: (query?: Partial<EditorSearchQuery>) => boolean
+  /** Closes the find panel; `false` when it was not open. */
+  closeSearch: () => boolean
 }
 
 /** What the parts around the editing area (menus, handle, toolbar) share. */

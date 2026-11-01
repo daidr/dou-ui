@@ -133,6 +133,12 @@ export interface FlowEditorExpose {
   zoomOut: () => void
   /** Centers a node in view without changing the zoom. */
   centerNode: (id: string) => void
+  /** Opens the find panel (`Ctrl/⌘+F`), with `search` put in. */
+  openSearch: (search?: string) => boolean
+  /** Closes the find panel; `false` when it was not open. */
+  closeSearch: () => boolean
+  /** The ids of the nodes whose names contain `search`, in reading order. */
+  findNodes: (search: string, options?: { caseSensitive?: boolean }) => string[]
   /**
    * Moves the view like the user's pans do: no further than having the nodes
    * just leave it. `v-model:viewport` goes anywhere.

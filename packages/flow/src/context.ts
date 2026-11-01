@@ -1,3 +1,4 @@
+import type { ContextMenuItem } from 'dou-ui'
 import type { FlowExportOptions, FlowImageOptions } from './export/draw'
 import type { FlowTree } from './core/groups'
 import { inject, type ComputedRef, type InjectionKey, type Ref, type ShallowRef } from 'vue'
@@ -17,7 +18,7 @@ import type {
 import type { FlowConnection, PortTypes, PortTypeSpec } from './core/connect'
 import type { EdgeTypeSpec } from './core/edge-types'
 import type { FlowExtension } from './core/extension'
-import type { FlowMenuItem, FlowMenuTarget } from './core/menu'
+import type { FlowMenuTarget } from './core/menu'
 import type { NodeTypeSpec } from './core/node-types'
 import type { FlowTransaction, FlowTransactionMeta } from './core/transaction'
 
@@ -322,13 +323,13 @@ export interface FlowEditorContext {
    */
   openMenu: (target: FlowMenuTarget, client: Point, from?: Element) => boolean
   /** The items the context menu has for a target, as `openMenu` shows them. */
-  menuItems: (target: FlowMenuTarget) => FlowMenuItem[]
+  menuItems: (target: FlowMenuTarget) => ContextMenuItem[]
   /**
    * Opens the editor's menu with these items, e.g. the choices behind a
    * toolbar button; `from` works as in `openMenu`.
    */
   showMenu: (
-    items: FlowMenuItem[],
+    items: ContextMenuItem[],
     client: Point,
     from?: Element,
     options?: { focusChecked?: boolean },

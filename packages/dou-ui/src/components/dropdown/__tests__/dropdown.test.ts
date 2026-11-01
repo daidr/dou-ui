@@ -1,6 +1,6 @@
 import { mount } from '@vue/test-utils'
 import { h, nextTick } from 'vue'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DouDropdown, DouDropdownItem, DouDropdownRadioGroup } from '../../../index'
 
 afterEach(() => {
@@ -144,5 +144,44 @@ describe('DouDropdown', () => {
     expect(wrapper.props('open')).toBe(false)
     expect(document.activeElement?.id).toBe('trigger')
     wrapper.unmount()
+  })
+
+  it('renders items given as data, runs the chosen one, and prefers a menu slot', async () => {
+    const rename = vi.fn<() => void>()
+    const onSelect = vi.fn<(value: unknown) => void>()
+    const wrapper = mount(DouDropdown, {
+      props: {
+        open: false,
+        'onUpdate:open': (value: boolean) => wrapper.setProps({ open: value }),
+        items: [
+          { key: 'rename', label: '重命名', run: rename },
+          { key: 'delete', label: '删除', tone: 'danger' as const, divided: true },
+        ],
+        onSelect,
+      },
+      slots: { default: () => h('button', { id: 'trigger' }, '更多') },
+      attachTo: document.body,
+    })
+    await wrapper.get('#trigger').trigger('click')
+    expect(items().map((el) => el.textContent?.trim())).toEqual(['重命名', '删除'])
+    items()[0]!.click()
+    expect(rename).toHaveBeenCalledTimes(1)
+    expect(onSelect).toHaveBeenCalledWith('rename')
+    await wrapper.get('#trigger').trigger('click')
+    // no run: select alone
+    items()[1]!.click()
+    expect(onSelect).toHaveBeenLastCalledWith('delete')
+    wrapper.unmount()
+
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const both = mount(DouDropdown, {
+      props: { items: [{ key: 'x', label: 'x' }] },
+      slots: { default: () => h('button', '更多'), menu: () => h(DouDropdownItem, () => '插槽') },
+      attachTo: document.body,
+    })
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(String(warn.mock.calls[0]![0])).toContain('`items` is ignored')
+    warn.mockRestore()
+    both.unmount()
   })
 })

@@ -213,4 +213,58 @@ describe('DouContextMenu', () => {
       expect(wrapper.emitted('update:open')).toBeUndefined()
     })
   })
+
+  it('renders items given as data and runs the chosen one', async () => {
+    const copy = vi.fn<() => void>()
+    const onSelect = vi.fn<(value: unknown) => void>()
+    const wrapper = mount(DouContextMenu, {
+      props: {
+        items: [
+          { key: 'copy', label: '复制', shortcut: 'mod+c', run: copy },
+          {
+            key: 'delete',
+            label: '删除',
+            tone: 'danger',
+            divided: true,
+            disabled: true,
+            run: () => {},
+          },
+        ],
+        onSelect,
+      },
+      slots: { default: () => h('div', { id: 'area' }, '文件列表') },
+      attachTo: document.body,
+    })
+    rightClick(wrapper.get('#area').element)
+    await nextTick()
+    const items = [...menu()!.querySelectorAll<HTMLElement>('[role^="menuitem"]')]
+    expect(items.map((item) => item.textContent?.trim())).toEqual([
+      expect.stringContaining('复制'),
+      '删除',
+    ])
+    expect(items[1]!.getAttribute('aria-disabled')).toBe('true')
+    items[0]!.click()
+    await nextTick()
+    expect(copy).toHaveBeenCalledTimes(1)
+    expect(onSelect).toHaveBeenCalledWith('copy')
+    wrapper.unmount()
+  })
+
+  it('reads a menu whose items all have checked as one choice', async () => {
+    const wrapper = mount(DouContextMenu, {
+      props: {
+        items: [
+          { key: 'a', label: '按名称', checked: true, run: () => {} },
+          { key: 'b', label: '按时间', checked: false, run: () => {} },
+        ],
+      },
+      slots: { default: () => h('div', { id: 'area' }, '文件列表') },
+      attachTo: document.body,
+    })
+    rightClick(wrapper.get('#area').element)
+    await nextTick()
+    const radios = menu()!.querySelectorAll('[role="menuitemradio"]')
+    expect([...radios].map((item) => item.getAttribute('aria-checked'))).toEqual(['true', 'false'])
+    wrapper.unmount()
+  })
 })

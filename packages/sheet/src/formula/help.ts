@@ -46,6 +46,7 @@ export const helpZhCN = read({
   ISTEXT: ['值', '判断值是否为文本'],
   ISERROR: ['值', '判断值是否为错误值'],
   ISNA: ['值', '判断值是否为 #N/A'],
+  HYPERLINK: ['链接地址, [显示文字]', '让单元格成为链接，显示给定的文字'],
   CONCAT: ['文字1, [文字2], …', '将多个文本或区域中的文本合并'],
   CONCATENATE: ['文字1, [文字2], …', '将多个文本合并为一个'],
   TEXTJOIN: ['分隔符, 跳过空值, 文字1, …', '用分隔符将多个文本合并，可跳过空值'],
@@ -187,6 +188,7 @@ export const helpZhTW = read({
   ISTEXT: ['值', '判斷值是否為文字'],
   ISERROR: ['值', '判斷值是否為錯誤值'],
   ISNA: ['值', '判斷值是否為 #N/A'],
+  HYPERLINK: ['連結位址, [顯示文字]', '讓儲存格成為連結，顯示給定的文字'],
   CONCAT: ['文字1, [文字2], …', '將多個文字或範圍中的文字合併'],
   CONCATENATE: ['文字1, [文字2], …', '將多個文字合併為一個'],
   TEXTJOIN: ['分隔符號, 略過空值, 文字1, …', '用分隔符號將多個文字合併，可略過空值'],
@@ -337,6 +339,7 @@ export const helpEn = read({
   ISTEXT: ['value', 'Checks whether a value is text'],
   ISERROR: ['value', 'Checks whether a value is an error'],
   ISNA: ['value', 'Checks whether a value is #N/A'],
+  HYPERLINK: ['link location, [friendly name]', 'Makes the cell a link, showing the given text'],
   CONCAT: ['text1, [text2], …', 'Joins text from values and ranges'],
   CONCATENATE: ['text1, [text2], …', 'Joins several texts into one'],
   TEXTJOIN: [

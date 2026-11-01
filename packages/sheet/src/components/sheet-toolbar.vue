@@ -30,6 +30,8 @@ import {
   UndoIcon,
   UploadIcon,
   WrapTextIcon,
+  LinkIcon,
+  ShieldLockIcon,
 } from '@dou-ui/icons'
 import {
   DouButton,
@@ -118,16 +120,21 @@ const DEFAULT_TOOLS: SheetToolbarTool[] = [
   '|',
   'merge',
   'freeze',
+  'link',
   '|',
   'sort',
   'filter',
   'conditional',
   'validation',
+  'protect',
   '|',
   'clear',
 ]
 
 const BUILT_IN = new Set<string>([...DEFAULT_TOOLS, 'export', 'import'])
+
+/** The protect menu: locking the selection, then protecting the sheet and the workbook. */
+const PROTECT_COMMANDS = ['lock', 'protect.sheet', 'protect.workbook'] as const
 
 /** A tool that isn't built in, ready to draw: an extension's item, or a command by name. */
 interface ExtraTool {
@@ -207,6 +214,7 @@ const SINGLE = new Set([
   'merge',
   'filter',
   'clear',
+  'link',
 ])
 const replaced = (tool: string) => SINGLE.has(tool) && sheet.commands.get(tool)?.builtin === false
 
@@ -1046,6 +1054,62 @@ onBeforeUnmount(() => observer?.disconnect())
           >
             <CellsMergeIcon />
           </DouToggle>
+        </DouTooltip>
+
+        <DouTooltip
+          v-else-if="tool === 'link'"
+          :content="m.link.add"
+          shortcut="mod+k"
+          placement="bottom"
+        >
+          <DouButton
+            variant="ghost"
+            :aria-label="m.link.add"
+            :disabled="!can('link')"
+            @click="run('link')"
+          >
+            <LinkIcon />
+          </DouButton>
+        </DouTooltip>
+
+        <DouTooltip
+          v-else-if="tool === 'protect'"
+          :content="m.protect.menu"
+          :disabled="menuOpen === tool"
+          placement="bottom"
+        >
+          <span class="dou-sheet-toolbar__trigger">
+            <DouDropdown
+              :open="menuOpen === tool"
+              placement="bottom-start"
+              :disabled="disabled"
+              @update:open="onMenu(tool, $event)"
+            >
+              <DouButton
+                variant="ghost"
+                class="dou-sheet-toolbar__menu"
+                :class="{ 'is-on': on('protect.sheet') }"
+                :aria-label="m.protect.menu"
+              >
+                <ShieldLockIcon />
+                <template #trailing><ChevronDownIcon /></template>
+              </DouButton>
+              <template #menu>
+                <DouDropdownItem
+                  v-for="name in PROTECT_COMMANDS"
+                  :key="name"
+                  :disabled="!can(name)"
+                  :divided="name === 'protect.sheet'"
+                  @click="run(name)"
+                >
+                  <template #prefix>
+                    <component :is="sheet.commands.get(name)?.icon" />
+                  </template>
+                  {{ sheet.commands.get(name)?.label }}
+                </DouDropdownItem>
+              </template>
+            </DouDropdown>
+          </span>
         </DouTooltip>
 
         <DouTooltip

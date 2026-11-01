@@ -2,7 +2,22 @@ import { describe, expect, it } from 'vitest'
 import { acyclic, layoutGraph, rank } from '../layout'
 
 const size = (id: string, width = 80) => ({ id, width, height: 32 })
-const options = { columnGap: 56, rowGap: 20 }
+const options = { rankGap: 56, laneGap: 20 }
+
+const fan = (widths: number[]) => {
+  const ids = widths.map((_, i) => `c${i}`)
+  const layout = layoutGraph(
+    [size('p'), ...widths.map((w, i) => size(ids[i]!, w))],
+    ids.map((to) => ({ from: 'p', to })),
+    { ...options, direction: 'vertical', equalWidth: false, grid: 26 },
+  )
+  const centre = (id: string) => {
+    const n = layout.nodes.get(id)!
+    return n.x + n.width / 2
+  }
+  const xs = layout.ranks[1]!.map(centre)
+  return { layout, xs, gaps: xs.slice(1).map((x, i) => x - xs[i]!), parent: centre('p') }
+}
 
 describe('layoutGraph', () => {
   it('puts each node one column after its furthest predecessor', () => {
@@ -51,6 +66,110 @@ describe('layoutGraph', () => {
     expect(a!.y + 16).toBe((b!.y + c!.y + 32) / 2)
     expect(layout.width).toBe(80 + 56 + 120)
     expect(layout.height).toBe(32 * 2 + 20)
+  })
+
+  it('lays ranks out top to bottom when vertical, fanning out symmetrically', () => {
+    const layout = layoutGraph(
+      [size('a'), size('b', 120), size('c')],
+      [
+        { from: 'a', to: 'b' },
+        { from: 'a', to: 'c' },
+      ],
+      { ...options, direction: 'vertical', equalWidth: false, grid: 70 },
+    )
+    const [a, b, c] = ['a', 'b', 'c'].map((id) => layout.nodes.get(id)!)
+    expect(a!.y).toBe(0)
+    expect(b!.y).toBe(32 + 56)
+    expect(c!.y).toBe(b!.y)
+    expect(b!.width).toBe(120)
+    // siblings a whole lane (two grid steps) apart, the source halfway
+    expect(c!.x + 40 - (b!.x + 60)).toBe(140)
+    expect(a!.x + 40).toBe((b!.x + 60 + c!.x + 40) / 2)
+    expect(layout.height).toBe(32 + 56 + 32)
+    expect(layout.width).toBe(c!.x + 80 - b!.x)
+    // from the bottom middle of `a` to the top middle of `b`
+    const path = layout.edges.find((e) => e.to === 'b')!.path
+    expect(path.startsWith(`M${a!.x + 40} 32C`)).toBe(true)
+    expect(path.endsWith(`${b!.x + 60} ${b!.y}`)).toBe(true)
+  })
+
+  it('fans out symmetrically when one sibling is a bit wider', () => {
+    const { xs, gaps, parent } = fan([98, 98, 98, 112])
+    expect(gaps).toEqual(gaps.toReversed())
+    expect(parent).toBe((xs[0]! + xs.at(-1)!) / 2)
+  })
+
+  it('keeps a two-level fan symmetric top to bottom with a wider node', () => {
+    const layout = layoutGraph(
+      [size('r'), size('a'), size('b', 112), size('a1'), size('a2', 120), size('b1'), size('b2')],
+      [
+        { from: 'r', to: 'a' },
+        { from: 'r', to: 'b' },
+        { from: 'a', to: 'a1' },
+        { from: 'a', to: 'a2' },
+        { from: 'b', to: 'b1' },
+        { from: 'b', to: 'b2' },
+      ],
+      { ...options, direction: 'vertical', equalWidth: false, grid: 26 },
+    )
+    const x = (id: string) => {
+      const n = layout.nodes.get(id)!
+      return n.x + n.width / 2
+    }
+    expect(x('r')).toBe((x('a') + x('b')) / 2)
+    expect(x('a')).toBe((x('a1') + x('a2')) / 2)
+    expect(x('b')).toBe((x('b1') + x('b2')) / 2)
+  })
+
+  it('keeps a fan with a long edge through it symmetric top to bottom', () => {
+    const layout = layoutGraph(
+      [size('a'), size('b', 112), size('c'), size('d')],
+      [
+        { from: 'a', to: 'b' },
+        { from: 'a', to: 'c' },
+        { from: 'b', to: 'd' },
+        { from: 'c', to: 'd' },
+        { from: 'a', to: 'd' },
+      ],
+      { ...options, direction: 'vertical', equalWidth: false, grid: 26 },
+    )
+    // where each edge out of `a` reaches the next rank
+    const ends = layout.edges
+      .filter((e) => e.from === 'a')
+      .map((e) => {
+        const [, x, command, rest] = /^M([-\d.]+) [-\d.]+([CV])([^A-Z]*)/.exec(e.path)!
+        return command === 'V' ? Number(x) : Number(rest!.trim().split(/\s+/)[4])
+      })
+      .toSorted((p, q) => p - q)
+    const a = layout.nodes.get('a')!
+    expect(ends).toHaveLength(3)
+    expect(ends[1]! - ends[0]!).toBe(ends[2]! - ends[1]!)
+    expect(a.x + a.width / 2).toBe(ends[1])
+  })
+
+  it('widens only the gaps beside a long node, mirrored', () => {
+    const { layout, gaps, xs, parent } = fan([98, 98, 98, 320, 98, 98])
+    expect(gaps).toEqual(gaps.toReversed())
+    expect(parent).toBe((xs[0]! + xs.at(-1)!) / 2)
+    // two short nodes stay a short pitch apart: 98 + 20 rounded up to six grid steps
+    expect(Math.min(...gaps)).toBe(156)
+    const packed = 5 * 98 + 320 + 5 * 20
+    expect(layout.width).toBeLessThan(packed * 1.5)
+  })
+
+  it('runs a long edge down through the ranks it crosses when vertical', () => {
+    const layout = layoutGraph(
+      [size('a'), size('b'), size('c')],
+      [
+        { from: 'a', to: 'b' },
+        { from: 'b', to: 'c' },
+        { from: 'a', to: 'c' },
+      ],
+      { ...options, direction: 'vertical', equalWidth: false },
+    )
+    const path = layout.edges.find((e) => e.from === 'a' && e.to === 'c')!.path
+    expect(path).toMatch(/V\d/)
+    expect(path).not.toMatch(/H/)
   })
 
   it('keeps node widths with equalWidth off', () => {

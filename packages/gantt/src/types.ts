@@ -154,6 +154,11 @@ export interface GanttProps {
 export interface GanttEmits {
   /** Every change to tasks or links, with its steps; sent after the `update:` events. */
   transaction: [tr: GanttTransaction]
+  /**
+   * An extension's `transaction` hook cancelled a change; `tr.cancelReason`
+   * says why, and the editor shows it and reads it out.
+   */
+  transactionCancel: [tr: GanttTransaction]
   /** A link was drawn by dragging from one bar to another. */
   link: [link: GanttLink]
   taskClick: [task: GanttTask, event: MouseEvent]

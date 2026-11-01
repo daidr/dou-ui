@@ -236,7 +236,7 @@ async function exportAs(format) {
     >
       <div class="business__stores">
         <DouChart :data="stores" x="name" :height="280" horizontal @hover="hoverStore">
-          <DouChartAxis for="y" :format="wan" :ticks="[0, 100, 200]" />
+          <DouChartAxis for="y" :format="wan" :ticks="4" />
           <DouChartBar y="sales" name="销售额" />
         </DouChart>
         <DouTable

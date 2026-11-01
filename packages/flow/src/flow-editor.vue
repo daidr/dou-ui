@@ -243,14 +243,28 @@ const currentDoc = customRef<FlowDocument>(() => ({
   set: (value) => (doc.value = value),
 }))
 
+/** Runs the extensions' `transaction` hooks; `false` when one cancelled the change. */
+function check(tr: FlowTransaction) {
+  for (const hook of resolved.value.transactions) {
+    hook(tr, context)
+    if (tr.cancelled) {
+      emit('transactionCancel', tr)
+      refuse(tr.cancelReason ?? messages.value.changeCancelled)
+      return false
+    }
+  }
+  return true
+}
+
 function commit(tr: FlowTransaction) {
-  for (const hook of resolved.value.transactions) hook(tr, context)
+  if (!check(tr)) return false
   if (!latest) void nextTick(() => (latest = null))
   latest = tr.doc
   doc.value = tr.doc
   const removes = tr.steps.some((s) => s.type === 'removeNode' || s.type === 'removeEdge')
   if (removes) setSelection(pruneSelection(tr.doc))
   emit('transaction', tr)
+  return true
 }
 
 function transact(fn: (tr: FlowTransaction) => void, meta?: FlowTransactionMeta) {
@@ -259,7 +273,7 @@ function transact(fn: (tr: FlowTransaction) => void, meta?: FlowTransactionMeta)
   fn(tr)
   if (!tr.changed) return tr
   const before = selection.value
-  commit(tr)
+  if (!commit(tr)) return tr
   if (!customHistory) history.record(tr, before, selection.value)
   syncHistory()
   return tr
@@ -910,18 +924,15 @@ function tidy(ids?: string[]) {
   const nodes = doc.value.nodes.filter((node) => blocks.has(node.id))
   const bounds = boundsOf(nodes.map(rectOf))
   if (!bounds || nodes.length < 2) return
-  // A vertical flow is laid out as a horizontal one with x and y swapped.
   const vertical = props.direction === 'vertical'
   const gap = TIDY_GAP[vertical ? 'vertical' : 'horizontal']
   const across = vertical ? (['top', 'bottom'] as const) : (['left', 'right'] as const)
   const layout = layoutGraph(
     nodes.map((node) => {
       const m = metrics.get(node.id)
-      const rect = rectOf(node)
-      const width = vertical ? rect.height : rect.width
-      const height = vertical ? rect.width : rect.height
+      const { width, height } = rectOf(node)
       // Ranks line up on the first port facing along the flow, so edges between levelled ports run straight.
-      let offset = height / 2
+      let offset = (vertical ? width : height) / 2
       for (const port of m?.ports.values() ?? [])
         if ((across as readonly string[]).includes(port.side)) {
           offset = vertical ? port.x : port.y
@@ -934,7 +945,13 @@ function tidy(ids?: string[]) {
       const to = blockOf(e.target.node)
       return from && to && from !== to && blocks.has(from) && blocks.has(to) ? [{ from, to }] : []
     }),
-    { columnGap: gap.rank, rowGap: gap.row, equalWidth: false, grid: props.grid || 8 },
+    {
+      direction: props.direction,
+      rankGap: gap.rank,
+      laneGap: gap.row,
+      equalWidth: false,
+      grid: props.grid || 8,
+    },
   )
   const snap = (v: number) => (props.grid ? Math.round(v / props.grid) * props.grid : Math.round(v))
   const origin = { x: snap(bounds.x), y: snap(bounds.y) }
@@ -943,9 +960,7 @@ function tidy(ids?: string[]) {
   for (const node of nodes) {
     const placed = layout.nodes.get(node.id)
     if (!placed || node.locked) continue
-    const x = vertical ? placed.y : placed.x
-    const y = vertical ? placed.x : placed.y
-    const to = { x: origin.x + snap(x), y: origin.y + snap(y) }
+    const to = { x: origin.x + snap(placed.x), y: origin.y + snap(placed.y) }
     if (to.x !== node.x || to.y !== node.y) moved.set(node.id, to)
   }
   if (!moved.size) return
@@ -3047,9 +3062,29 @@ const end = useTemplateRef<HTMLElement>('end')
 
 // Announcements for screen readers.
 const live = ref('')
+/** Set while a cancelled change is being told of, so what follows doesn't say it was made. */
+let refusing = false
 function announce(text: string) {
+  if (refusing) return
   live.value = ''
   void nextTick(() => (live.value = text))
+}
+/** Why the last change didn't go ahead, shown for a moment over the editor. */
+const notice = ref('')
+let noticeTimer: ReturnType<typeof setTimeout> | undefined
+onBeforeUnmount(() => clearTimeout(noticeTimer))
+/** Says why a change didn't go ahead, once while the same one repeats, as in a drag. */
+let lastRefusal = { text: '', at: 0 }
+function refuse(text: string) {
+  const at = Date.now()
+  if (refusing || (text === lastRefusal.text && at - lastRefusal.at < 1000)) return
+  lastRefusal = { text, at }
+  announce(text)
+  notice.value = text
+  clearTimeout(noticeTimer)
+  noticeTimer = setTimeout(() => (notice.value = ''), 3200)
+  refusing = true
+  void nextTick(() => (refusing = false))
 }
 
 // Lifecycle --------------------------------------------------------------------------
@@ -3728,5 +3763,6 @@ defineExpose<FlowEditorExpose>({
     </Teleport>
     <span ref="end" class="dou-flow-editor__end" tabindex="-1" />
     <div class="dou-flow-editor__live" aria-live="polite">{{ live }}</div>
+    <div v-if="notice" class="dou-flow-editor__notice" aria-hidden="true">{{ notice }}</div>
   </div>
 </template>

@@ -102,7 +102,7 @@ import { DouSheetCodeFormulaBar } from '@dou-ui/sheet/code'
 | 文字     | `CONCAT` `CONCATENATE` `TEXTJOIN` `LEFT` `RIGHT` `MID` `LEN` `TRIM` `CLEAN` `UPPER` `LOWER` `PROPER` `EXACT` `REPT` `SUBSTITUTE` `REPLACE` `FIND` `SEARCH` `TEXTBEFORE` `TEXTAFTER` `TEXT` `VALUE` `CHAR` `CODE` `UNICHAR` `UNICODE` |
 | 日期     | `TODAY` `NOW` `DATE` `TIME` `YEAR` `MONTH` `DAY` `HOUR` `MINUTE` `SECOND` `WEEKDAY` `WEEKNUM` `ISOWEEKNUM` `DATEDIF` `DAYS` `EDATE` `EOMONTH` `NETWORKDAYS` `WORKDAY` `DATEVALUE` `TIMEVALUE`                                        |
 | 条件统计 | `SUMIF` `AVERAGEIF` `COUNTIF` `SUMIFS` `AVERAGEIFS` `COUNTIFS` `MAXIFS` `MINIFS`                                                                                                                                                     |
-| 查找     | `VLOOKUP` `HLOOKUP` `MATCH` `XMATCH` `INDEX` `XLOOKUP` `ROWS` `COLUMNS`                                                                                                                                                              |
+| 查找     | `VLOOKUP` `HLOOKUP` `MATCH` `XMATCH` `INDEX` `XLOOKUP` `ROWS` `COLUMNS` `HYPERLINK`                                                                                                                                                  |
 | 财务     | `PMT` `FV` `PV` `NPV`                                                                                                                                                                                                                |
 
 函数的参数和结果和常见的表格软件一致，下面按表格的类别列出需要注意的地方：
@@ -120,6 +120,7 @@ import { DouSheetCodeFormulaBar } from '@dou-ui/sheet/code'
 - `NETWORKDAYS`、`WORKDAY` 把周六、周日当作休息日，第三个参数可以给出假日所在的区域。`WEEKNUM` 的第二个参数是 `1`（周日开始，默认）、`2`（周一开始）、`11` 到 `17`（依次从周一到周日开始）或 `21`（ISO 周，和 `ISOWEEKNUM` 相同）。
 - `SUMIF`、`COUNTIF` 等的条件可以是一个值，也可以是 `">=80"`、`"<>完成"`、`"上海*"` 这样的文字：`*` 匹配任意多个字，`?` 匹配一个字，`~*` 表示 `*` 本身；`""` 匹配空单元格。日期也可以比较，比如 `">=2026-02-01"`。
 - `VLOOKUP` 和 `MATCH` 默认按近似查找，要求第一列从小到大排好；精确查找要把最后一个参数写成 `FALSE`（`MATCH` 是 `0`）。`XLOOKUP` 默认精确查找，第五个参数 `-1` / `1` 找下一个较小 / 较大的值，`2` 用通配符。`XMATCH` 的查找方向是 `1`（从前往后，默认）、`-1`（从后往前）、`2` / `-2`（在从小到大 / 从大到小排好的数据里二分查找）。
+- `HYPERLINK(地址, 名称)` 显示名称，并让单元格成为链接，见[链接](./#链接)。
 - `PMT`、`FV`、`PV` 的符号表示钱的方向：收到的钱为正，付出的钱为负。按月计算时把年利率除以 12，比如 30 万贷款 30 年，`=PMT(4.9%/12, 360, 300000)` 的月供约为 `-1592.18`。
 
 ## 计算方式

@@ -159,7 +159,7 @@ describe('DouSheet', () => {
     await key('Enter')
     await key('Delete')
     expect(cells()[1]![0]).toBe('显示器')
-    expect(grid.value!.transact((tr) => tr.setValue('A2', '键盘'))).not.toBeNull()
+    expect(grid.value!.transact((tr) => tr.setValue('A2', '键盘')).changed).toBe(true)
     await nextTick()
     expect(cells()[1]![0]).toBe('键盘')
     // the keys don't undo it; code does
@@ -310,8 +310,10 @@ describe('DouSheet', () => {
       'delete',
       'group',
       'note',
+      'link',
       'sort',
       'filter',
+      'lock',
       'clear',
     ])
   })

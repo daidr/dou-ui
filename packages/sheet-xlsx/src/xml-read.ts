@@ -47,6 +47,8 @@ export function attrsOf(raw: string) {
 
 /** A yes-or-no attribute, which files write as `1` or `true`. */
 export const isOn = (value: string | undefined) => value === '1' || value === 'true'
+/** Whether a true-or-false attribute is off; one left out is neither. */
+export const isOff = (value: string | undefined) => value === '0' || value === 'false'
 
 /** An attribute that is on unless it says `0` or `false`. */
 export const isNotOff = (value: string | undefined) => value !== '0' && value !== 'false'

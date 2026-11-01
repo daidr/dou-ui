@@ -111,11 +111,10 @@ export default defineNuxtModule<ModuleOptions>({
 
     // The packages built on `dou-ui` that the app has installed, with the
     // components each one brings.
-    const packages = new Map<string, [name: string, from: string][]>()
+    const packages = new Map<string, { name: string; from: string; style: string }[]>()
     if (options.components) {
-      for (const [name, { from, style }] of Object.entries(packageComponents)) {
-        const pkg = style.slice(0, -'/style'.length)
-        packages.set(pkg, [...(packages.get(pkg) ?? []), [name, from]])
+      for (const [name, { package: pkg, from, style }] of Object.entries(packageComponents)) {
+        packages.set(pkg, [...(packages.get(pkg) ?? []), { name, from, style }])
       }
       for (const pkg of packages.keys()) {
         if (!(await installed(pkg))) packages.delete(pkg)
@@ -154,12 +153,12 @@ export default defineNuxtModule<ModuleOptions>({
       for (const [name, dir] of Object.entries(componentDirs)) {
         if (!excluded.has(name)) addComponent({ name, export: name, filePath: from(name, dir) })
       }
-      for (const [pkg, components] of packages) {
-        for (const [name, source] of components) {
+      for (const components of packages.values()) {
+        for (const { name, from: source, style } of components) {
           if (excluded.has(name)) continue
           // `@dou-ui/gantt/scheduler` → `packages/gantt-scheduler`
           const file = `packages/${source.slice('@dou-ui/'.length).replaceAll('/', '-')}`
-          const filePath = onDemand ? through(name, source, `${pkg}/style`, file) : source
+          const filePath = onDemand ? through(name, source, style, file) : source
           addComponent({ name, export: name, filePath })
         }
       }

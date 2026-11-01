@@ -22,7 +22,8 @@
   "type": "module",
   "sideEffects": [
     "*.css",
-    "./dist/style.js"
+    "./dist/style.js",
+    "./dist/*/style.js"
   ],
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -39,6 +40,10 @@
     "./scheduler": {
       "types": "./dist/types/scheduler/index.d.ts",
       "import": "./dist/scheduler/index.js"
+    },
+    "./scheduler/style": {
+      "types": "./dist/scheduler/style.d.ts",
+      "import": "./dist/scheduler/style.js"
     },
     "./style": {
       "types": "./dist/style.d.ts",

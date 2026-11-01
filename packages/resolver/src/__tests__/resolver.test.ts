@@ -56,21 +56,25 @@ describe('DouUIResolver', () => {
     })
     expect(resolve('DouEditor')?.from).toBe('@dou-ui/editor')
     // A component with a lighter entry of its own is imported from there.
-    expect(resolve('DouFormRenderer')?.from).toBe('@dou-ui/form-builder/renderer')
+    expect(resolve('DouFormRenderer')).toEqual({
+      name: 'DouFormRenderer',
+      from: '@dou-ui/form-builder/renderer',
+      sideEffects: '@dou-ui/form-builder/renderer/style',
+    })
     expect(resolve('DouFormBuilder')?.from).toBe('@dou-ui/form-builder')
     expect(resolve('DouScheduler')).toEqual({
       name: 'DouScheduler',
       from: '@dou-ui/gantt/scheduler',
-      sideEffects: '@dou-ui/gantt/style',
+      sideEffects: '@dou-ui/gantt/scheduler/style',
     })
     const [plain] = DouUIResolver({ importStyle: false, icons: false })
     expect(plain!.resolve('DouSheet')).toEqual({ name: 'DouSheet', from: '@dou-ui/sheet' })
   })
 
   it('knows every component the packages built on dou-ui export', async () => {
-    for (const [name, { from, style }] of Object.entries(packageComponents)) {
-      const pkg = /^@dou-ui\/[a-z-]+/.exec(from)![0]
-      expect(style).toBe(`${pkg}/style`)
+    for (const [name, { package: pkg, from, style }] of Object.entries(packageComponents)) {
+      expect(from.startsWith(pkg)).toBe(true)
+      expect([`${pkg}/style`, `${from}/style`]).toContain(style)
       const entry = await import(/* @vite-ignore */ from)
       expect([name, typeof entry[name]]).toEqual([name, 'object'])
     }
@@ -98,6 +102,9 @@ describe('DouUIResolver', () => {
       expect(DouUIResolver()[0]!.resolve('SearchIcon')?.from).toBe('@dou-ui/icons')
       cwd.mockReturnValue(resolvePath(import.meta.dirname, '../../../theme'))
       expect(DouUIResolver()[0]!.resolve('SearchIcon')).toBeUndefined()
+      // `root` points at the project when Vite runs elsewhere.
+      const root = resolvePath(import.meta.dirname, '../../../dou-ui')
+      expect(DouUIResolver({ root })[0]!.resolve('SearchIcon')?.from).toBe('@dou-ui/icons')
     } finally {
       cwd.mockRestore()
     }

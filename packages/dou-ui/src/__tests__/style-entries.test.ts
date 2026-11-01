@@ -15,6 +15,11 @@ describe('per-component style entries', () => {
     expect(missing).toEqual([])
   })
 
+  it('count a rule for the stylesheet it is written in', () => {
+    // `.dou-chat-input__submit.dou-button` styles the chat input's button.
+    expect(deps.get('button')).toEqual(['button'])
+  })
+
   it('pull in the stylesheets of what a component renders', () => {
     expect(deps.get('select')).toEqual(['overlay', 'select', 'spinner', 'tag'])
     expect(deps.get('drawer')).toContain('dialog') // the shared close button
@@ -38,9 +43,9 @@ describe('per-component style entries', () => {
   })
 })
 
-const sheetsOf = (pkg: string) =>
+const sheetsOf = (pkg: string, entry = 'index.ts') =>
   new Set(
-    styleDirsFor(resolve(import.meta.dirname, `../../../${pkg}/src`)).flatMap((dir) =>
+    styleDirsFor(resolve(import.meta.dirname, `../../../${pkg}/src/${entry}`)).flatMap((dir) =>
       deps.get(dir)!,
     ),
   )
@@ -54,13 +59,21 @@ describe('style entries of the packages built on dou-ui', () => {
       expect.arrayContaining(['button', 'dropdown', 'toolbar', 'tooltip']),
     )
     // Every field the form renderer can show.
-    expect([...sheetsOf('form-builder')]).toEqual(
+    expect([...sheetsOf('form-builder', 'renderer/index.ts')]).toEqual(
       expect.arrayContaining(['input', 'select', 'date-picker', 'upload', 'switch', 'rate']),
     )
   })
 
+  it('bring only what a subpath entry reaches', () => {
+    const renderer = sheetsOf('form-builder', 'renderer/index.ts')
+    const builder = sheetsOf('form-builder')
+    // The designer's drawer and tree are not part of the renderer.
+    expect(builder.size).toBeGreaterThan(renderer.size)
+    for (const sheet of renderer) expect(builder.has(sheet)).toBe(true)
+  })
+
   it('leave out entries another one already covers', () => {
-    const dirs = styleDirsFor(resolve(import.meta.dirname, '../../../sheet/src'))
+    const dirs = styleDirsFor(resolve(import.meta.dirname, '../../../sheet/src/index.ts'))
     for (const dir of dirs) {
       const others = dirs.filter((other) => other !== dir)
       const covered = others.some((other) =>

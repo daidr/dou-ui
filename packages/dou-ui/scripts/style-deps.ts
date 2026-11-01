@@ -22,9 +22,12 @@ export function stylesheetOrder(): string[] {
 const blockOf = (className: string) => className.split(/__|--/)[0]!
 
 /**
- * For each stylesheet, the blocks its rules are written for: the last class
- * of each selector's first compound, so `.dou-popover.dou-popconfirm` counts
- * for Popconfirm only.
+ * For each stylesheet, the blocks its rules are written for, read from each
+ * selector's first compound. A compound with several classes counts for one
+ * of them: the stylesheet's own block, else one written as an element or a
+ * modifier, else the last. So `.dou-popover.dou-popconfirm` counts for
+ * Popconfirm only, and `.dou-chat-input__submit.dou-button` for ChatInput
+ * only.
  */
 function stylesheetBlocks(name: string): Set<string> {
   const css = readFileSync(join(themeSrc, 'components', `${name}.css`), 'utf8').replace(
@@ -36,8 +39,12 @@ function stylesheetBlocks(name: string): Set<string> {
   for (const match of css.matchAll(/^\s*([^@&\s{};][^{};]*)\{/gm)) {
     for (const selector of match[1]!.split(',')) {
       const compound = selector.trim().split(/[\s>+~]/)[0] ?? ''
-      const last = [...compound.matchAll(/\.(dou-[a-z0-9_-]+)/g)].at(-1)
-      if (last) blocks.add(blockOf(last[1]!))
+      const classes = [...compound.matchAll(/\.(dou-[a-z0-9_-]+)/g)].map((m) => m[1]!)
+      const own =
+        classes.find((c) => blockOf(c) === `dou-${name}`) ??
+        classes.find((c) => /__|--/.test(c)) ??
+        classes.at(-1)
+      if (own) blocks.add(blockOf(own))
     }
   }
   return blocks
@@ -128,24 +135,34 @@ function exportDirs(): Map<string, string> {
   return result
 }
 
-function sourceFiles(dir: string): string[] {
-  const files: string[] = []
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    if (entry.name === '__tests__') continue
-    const path = join(dir, entry.name)
-    if (entry.isDirectory()) files.push(...sourceFiles(path))
-    else if (/\.(ts|vue)$/.test(entry.name) && !entry.name.endsWith('.d.ts')) files.push(path)
+const dynamicImportPattern = /import\(\s*['"](\.[^'"]+)['"]\s*\)/g
+
+/** `entry` and every file of its package it imports, followed transitively. */
+function reachableFiles(entry: string): string[] {
+  const seen = new Set<string>()
+  const queue = [entry]
+  while (queue.length) {
+    const file = queue.pop()!
+    if (seen.has(file)) continue
+    seen.add(file)
+    const code = stripComments(readFileSync(file, 'utf8'))
+    for (const m of [...code.matchAll(importPattern), ...code.matchAll(dynamicImportPattern)]) {
+      const target = resolveImport(file, (m[1] ?? m[2])!)
+      if (target && /\.(ts|vue)$/.test(target) && !target.includes('__tests__')) queue.push(target)
+    }
   }
-  return files
+  return [...seen]
 }
 
 /**
- * The component directories of `dou-ui` whose style entries a package built
- * on it needs: those of the components and functions it imports from
- * `dou-ui`, and of the `dou-*` classes it writes itself. Entries already
- * covered by another one are left out; the rest keep the cascade order.
+ * The component directories of `dou-ui` whose style entries an entry of a
+ * package built on it needs (`src/index.ts`, `src/renderer/index.ts`): those
+ * of the components and functions it imports from `dou-ui`, and of the
+ * `dou-*` classes it writes itself, in every file the entry reaches. Entries
+ * already covered by another one are left out; the rest keep the cascade
+ * order.
  */
-export function styleDirsFor(packageSrc: string): string[] {
+export function styleDirsFor(entry: string): string[] {
   const exported = exportDirs()
   const deps = styleDeps()
   const order = stylesheetOrder()
@@ -154,7 +171,7 @@ export function styleDirsFor(packageSrc: string): string[] {
 
   const dirs = new Set<string>()
   const sheets = new Set<string>()
-  for (const file of sourceFiles(packageSrc)) {
+  for (const file of reachableFiles(entry)) {
     const code = stripComments(readFileSync(file, 'utf8'))
     for (const m of code.matchAll(/import\s+(?:type\s+)?\{([^}]*)\}\s+from\s+['"]dou-ui['"]/g)) {
       if (/^import\s+type\s/.test(m[0])) continue

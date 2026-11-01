@@ -22,7 +22,8 @@
   "type": "module",
   "sideEffects": [
     "*.css",
-    "./dist/style.js"
+    "./dist/style.js",
+    "./dist/*/style.js"
   ],
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -35,6 +36,10 @@
     "./renderer": {
       "types": "./dist/types/renderer/index.d.ts",
       "import": "./dist/renderer/index.js"
+    },
+    "./renderer/style": {
+      "types": "./dist/renderer/style.d.ts",
+      "import": "./dist/renderer/style.js"
     },
     "./collaboration": {
       "types": "./dist/types/collaboration/index.d.ts",

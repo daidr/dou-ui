@@ -119,6 +119,8 @@ sheet.value.transact((tr) => {
 })
 ```
 
+`transact` 返回这次的事务：没有改动、表格只读或修改被[取消](./extensions#取消修改)时 `tr.changed` 为 `false`，被取消时 `tr.cancelled` 为 `true`。
+
 行和列也可以按显示的写法指定，数字仍是从 0 开始的序号：
 
 ```ts
@@ -181,7 +183,7 @@ sheet.value.transact((tr) => {
 
 步骤里的工作表用 `id` 记录，没有 `id` 时用名字，所以在另一端应用时不受工作表顺序影响。
 
-组件实例上的 `commands` 可以执行和查询[命令](./extensions#命令)，比如 `sheetRef.value.commands.run('bold')`。组件实例上还有 `select('B2:C4')` 选中并滚动到区域（也可以是 `'B:B'`、`'3:3'`）、`scrollTo('H200')`、`edit('B2')` 打开编辑框、`editNote('B2')` 打开批注输入框、`focus()`、`showSheet(sheet)` 切换工作表和 `toCSV(options?)`。
+组件实例上的 `commands` 可以执行和查询[命令](./extensions#命令)，比如 `sheetRef.value.commands.run('bold')`。组件实例上还有 `select('B2:C4')` 选中并滚动到区域（也可以是 `'B:B'`、`'3:3'`）、`scrollTo('H200')`、`edit('B2')` 打开编辑框、`editNote('B2')` 打开批注输入框、`editLink('B2')` 打开链接输入框、`focus()`、`showSheet(sheet)` 切换工作表和 `toCSV(options?)`。
 
 ## 复制与粘贴
 
@@ -343,14 +345,16 @@ const cells = [
 
 打开链接之前会触发 `link-open` 事件，参数里有 `link`、`linkTarget` 的结果 `target` 和单元格 `cell`；调用 `event.preventDefault()` 后表格不再自己打开，可以改用应用的路由，或者先让用户确认：
 
-`````ts
+```ts
 function onLinkOpen(event: SheetLinkOpenEvent) {
   if (event.target.kind === 'web' && event.target.href.startsWith(location.origin)) {
     event.preventDefault()
     router.push(event.target.href.slice(location.origin.length))
   }
 }
-````javascript:` 这类可以运行脚本的地址不会被打开，写进 `link` 也只当作普通文字。
+```
+
+`javascript:` 这类可以运行脚本的地址不会被打开，写进 `link` 也只当作普通文字。
 
 在右键菜单里选“插入链接”（已有链接时是“编辑链接”），或者按 `Ctrl` / `⌘` + `K`，单元格下方会出现输入框，可以修改显示的文本和链接地址。按 `Enter` 或点“保存”保存，按 `Esc` 或点“取消”放弃；地址清空后保存就会删除链接。“删除链接”去掉选区里所有的链接，单元格的值保留。在单元格里直接输入 `https://` 或 `mailto:` 开头的地址时，它会自动成为链接；之后重新输入时，这样得来的链接跟着变：输入的还是地址就换成新地址，不是地址就去掉。用输入框或代码设置的链接，重新输入值时保留。组件实例的 `editLink(cell?)` 选中单元格并打开输入框，可以接在自己的按钮上。
 
@@ -394,7 +398,7 @@ const book = {
   },
   sheets: [{ name: '任务', cells: [[{ value: '进行中', type: 'status' }]] }],
 }
-`````
+```
 
 选中带列表或日历的单元格时，右侧会出现一个展开按钮；也可以按 `Alt` + `↓` 展开。输入的文字和选项一致时（不区分大小写）记为该选项。读不懂的值照常写入，比如日期单元格里的“明天”、不在选项里的文字，这样的单元格左上角会有一个红色小三角，鼠标悬停时显示原因，读屏也会读出。在手机上展开列表或日历时不会弹出键盘。
 

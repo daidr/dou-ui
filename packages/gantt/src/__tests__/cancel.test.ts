@@ -41,6 +41,7 @@ describe('cancelling a change', () => {
     const tr = gantt.value!.transact((t) => t.updateTask('b', { end: '2026-11-08' }))
     await nextTick()
     expect(tr.cancelled).toBe(true)
+    expect(tr.changed).toBe(false)
     expect(tasks.value[1]!.end).toBe('2026-11-06')
     expect(cancels).toEqual([tr])
     expect(seen).toEqual([])

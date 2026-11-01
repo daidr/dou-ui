@@ -25,6 +25,8 @@ const props = defineProps<{
   /** What the cell shows; `null` for a formula's cell, whose text isn't edited here. */
   text: string | null
   editing: boolean
+  /** At the grid's foot rather than under the cell, so a finger can still reach the cells around it. */
+  docked?: boolean
   /** Whether the link can be changed: the grid is editable and the cell isn't locked. */
   editable: boolean
   /** Whether the cell has a link of its own to take off, not only a formula's. */
@@ -134,8 +136,8 @@ function onOpen(event: MouseEvent) {
     <div
       ref="box"
       class="dou-dropdown dou-floating dou-sheet__link"
-      :class="{ 'is-editing': editing }"
-      :style="[style, { zIndex }]"
+      :class="{ 'is-editing': editing, 'is-docked': docked }"
+      :style="docked ? undefined : [style, { zIndex }]"
       :data-placement="placement"
       :role="editing ? 'dialog' : undefined"
       :aria-label="editing ? messages.label : undefined"

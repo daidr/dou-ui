@@ -246,7 +246,7 @@ describe('protected sheets in the grid', () => {
 
   it('lets code fill a protected form with `protection: false`', () => {
     const { grid, cells, cancels } = setup()
-    expect(grid.value!.transact((tr) => tr.setValue('A1', '买家'))).toBe(null)
+    expect(grid.value!.transact((tr) => tr.setValue('A1', '买家')).cancelled).toBe(true)
     expect(cancels).toHaveLength(1)
     grid.value!.transact((tr) => tr.setValue('A1', '买家'), { protection: false })
     expect(cells()[0]![0]).toEqual({ value: '买家', style: 'head' })
@@ -298,7 +298,9 @@ describe('cancelling a change', () => {
     })
     const book: SheetWorkbook = { sheets: [{ name: '表', cells: [['原值']] }] }
     const { grid, cancels, notice, cells, wrapper } = setup({ extensions: [guard, later] }, book)
-    expect(grid.value!.transact((tr) => tr.setValue('A1', '新值'))).toBe(null)
+    const tr = grid.value!.transact((t) => t.setValue('A1', '新值'))
+    expect(tr.cancelled).toBe(true)
+    expect(tr.changed).toBe(false)
     await nextTick()
     expect(cells()[0]![0]).toBe('原值')
     expect(cancels[0]!.cancelled).toBe(true)
@@ -309,7 +311,7 @@ describe('cancelling a change', () => {
     expect(updates).not.toHaveBeenCalled()
     expect(grid.value!.canUndo).toBe(false)
     // other changes go ahead
-    expect(grid.value!.transact((tr) => tr.setValue('B1', 1))).not.toBe(null)
+    expect(grid.value!.transact((t) => t.setValue('B1', 1)).changed).toBe(true)
     expect(after).toHaveBeenCalledTimes(1)
     wrapper.unmount()
   })

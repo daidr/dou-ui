@@ -98,8 +98,9 @@ export class GanttTransaction {
     return { tasks: this.tasks, links: this.links }
   }
 
+  /** Whether the change makes any change: it has steps and wasn't cancelled. */
   get changed() {
-    return this.steps.length > 0
+    return this.steps.length > 0 && !this.stopped
   }
 
   private stopped: { reason?: string } | null = null

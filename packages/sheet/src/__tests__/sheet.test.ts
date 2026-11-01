@@ -159,7 +159,7 @@ describe('DouSheet', () => {
     await key('Enter')
     await key('Delete')
     expect(cells()[1]![0]).toBe('显示器')
-    expect(grid.value!.transact((tr) => tr.setValue('A1', 'x'))).toBeNull()
+    expect(grid.value!.transact((tr) => tr.setValue('A1', 'x')).changed).toBe(false)
   })
 
   it('applies transactions and selects by name', async () => {

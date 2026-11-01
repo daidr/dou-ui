@@ -1635,6 +1635,22 @@ function transact(
   return tr
 }
 
+/**
+ * `transact` for code: gives the transaction whatever came of it, so code
+ * reads `tr.changed` and `tr.cancelled` as with the other editors.
+ */
+function transactFor(run: (tr: SheetTransaction) => void, meta?: SheetTransactionMeta) {
+  let made: SheetTransaction | undefined
+  transact((tr) => {
+    made = tr
+    run(tr)
+  }, meta)
+  // a read-only grid makes no change
+  return (
+    made ?? new SheetTransaction(doc.value, sheetIndex.value).setMeta({ action: 'api', ...meta })
+  )
+}
+
 function travel(direction: 'undo' | 'redo') {
   if (props.readonly) return false
   const handler = customHistory()
@@ -4289,6 +4305,9 @@ function typedLink(old: SheetCell | undefined, value: SheetValue | undefined) {
   return typeof value === 'string' && isTypedLink(value) ? value : undefined
 }
 
+/** Whether the last press was a finger: the link card then sits at the grid's foot, off the cells. */
+const touching = ref(false)
+
 /** The cell whose link card Escape put away, until another cell is active. */
 const linkDismissed = ref<string | null>(null)
 const pointKey = (point: { row: number; col: number }) =>
@@ -5065,6 +5084,7 @@ function startDrag(event: PointerEvent, init: Partial<Drag> & Pick<Drag, 'mode' 
 }
 
 function onPointerDown(event: PointerEvent) {
+  touching.value = event.pointerType === 'touch'
   const el = viewport.value
   if (!el || (event.button !== 0 && event.button !== 2)) return
   lastPointer = event.pointerType
@@ -5860,7 +5880,7 @@ const context: SheetContext = {
   cellType: (point) => typeAt(point.row, point.col),
   cellRect: visibleRect,
   rangeRect,
-  transact: (run, meta) => transact(run, meta),
+  transact: transactFor,
   undo: () => travel('undo'),
   redo: () => travel('redo'),
   canUndo,
@@ -6023,7 +6043,7 @@ defineExpose<SheetExpose>({
   exportFile: exportFile as SheetExpose['exportFile'],
   saveFile: saveFile as SheetExpose['saveFile'],
   importFile,
-  transact: (run, meta) => transact(run, meta),
+  transact: transactFor,
   undo: () => travel('undo'),
   redo: () => travel('redo'),
   get canUndo() {
@@ -6636,6 +6656,7 @@ defineExpose<SheetExpose>({
           :link="linkCard.link"
           :text="linkCard.editing ? linkText(linkCard) : null"
           :editing="linkCard.editing"
+          :docked="touching && !linkCard.editing"
           :editable="linkEditable(linkCard)"
           :removable="!!cellOf(sheet.cells[linkCard.row]?.[linkCard.col])?.link"
           :messages="messages.link"

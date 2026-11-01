@@ -45,6 +45,7 @@ describe('cancelling a change', () => {
     const tr = editor.transact((t) => t.removeNode('start'))
     await nextTick()
     expect(tr.cancelled).toBe(true)
+    expect(tr.changed).toBe(false)
     expect(doc.value.nodes).toHaveLength(2)
     expect(cancels).toEqual([tr])
     expect(seen).toEqual([])

@@ -98,7 +98,7 @@ ctx.transact((tr) => tr.updateData(node.id, { rotation }))
 
 ## 取消修改
 
-在 `transaction` 里调用 `tr.cancel(reason?)` 取消这次修改：它的步骤都不会生效，也不进撤销记录，后面的扩展不再收到它，也不触发 `transaction` 事件。编辑器下方会短暂显示 `reason`，读屏也会读出；不写时显示“这次修改没有生效”。编辑器触发 `transaction-cancel` 事件，`tr.cancelReason` 是取消的原因；`transact` 照常返回这次的事务，`tr.cancelled` 为 `true`。比如不让删除开始节点：
+在 `transaction` 里调用 `tr.cancel(reason?)` 取消这次修改：它的步骤都不会生效，也不进撤销记录，后面的扩展不再收到它，也不触发 `transaction` 事件。编辑器下方会短暂显示 `reason`，读屏也会读出；不写时显示“这次修改没有生效”。编辑器触发 `transaction-cancel` 事件，`tr.cancelReason` 是取消的原因。`transact` 返回这次的事务：被取消时 `tr.cancelled` 为 `true`，`tr.changed` 为 `false`。比如不让删除开始节点：
 
 ```ts
 const keepStart = defineFlowExtension({

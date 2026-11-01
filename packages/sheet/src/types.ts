@@ -198,10 +198,6 @@ export interface SheetMenuContext {
 }
 
 /**
- * The `paste` event, before anything is written. `clip` can be changed or
- * replaced, and `preventDefault()` stops the paste.
- */
-/**
  * Before a link is followed, from its card, the menu, Ctrl / ⌘ + click or the
  * `link.open` command. `preventDefault()` keeps the grid from opening a web
  * address in a new tab or going to the cells, e.g. to use the app's router.
@@ -215,6 +211,10 @@ export interface SheetLinkOpenEvent {
   preventDefault: () => void
 }
 
+/**
+ * The `paste` event, before anything is written. `clip` can be changed or
+ * replaced, and `preventDefault()` stops the paste.
+ */
 export interface SheetPasteEvent {
   clip: SheetClip
   /** Where the clip goes: the first range when one cell fills several. */
@@ -349,13 +349,11 @@ export interface SheetExpose {
   /**
    * Makes a change: `run` adds steps to the transaction, which is applied
    * and recorded for undo as one. Cells without a sheet (`'A5'`) are on
-   * the sheet shown. Returns it, or `null` when nothing changed, the grid
-   * is read-only or the change was cancelled (`cancel` tells why).
+   * the sheet shown. Returns it: `tr.changed` is `false` when nothing
+   * changed, the grid is read-only or the change was cancelled, and
+   * `tr.cancelled` says it was (`transactionCancel` tells why).
    */
-  transact: (
-    run: (tr: SheetTransaction) => void,
-    meta?: SheetTransactionMeta,
-  ) => SheetTransaction | null
+  transact: (run: (tr: SheetTransaction) => void, meta?: SheetTransactionMeta) => SheetTransaction
   undo: () => boolean
   redo: () => boolean
   readonly canUndo: boolean

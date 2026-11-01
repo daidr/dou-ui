@@ -639,16 +639,8 @@
     padding: 8px 10px;
     font-size: var(--dou-font-size-sm);
     line-height: 20px;
-    /* it covers the cells under it only where it has something to press */
-    pointer-events: none;
-
-    a,
-    button {
-      pointer-events: auto;
-    }
 
     &.is-editing {
-      pointer-events: auto;
       padding: 4px;
     }
   }
@@ -716,6 +708,19 @@
       .dou-button {
         --dou-button-height: 40px;
       }
+    }
+
+    /* for a finger, at the grid's foot, off the cells it may tap next */
+    &.is-docked {
+      position: absolute;
+      right: 12px;
+      bottom: 12px;
+      left: 12px;
+      z-index: 5;
+      /* centered without a transform, which the entering motion uses */
+      width: fit-content;
+      max-width: none;
+      margin-inline: auto;
     }
   }
   .dou-sheet__link-icon {

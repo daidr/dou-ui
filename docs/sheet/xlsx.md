@@ -62,7 +62,7 @@ const blob = await exportWorkbook(book, xlsxExporter, { colWidth: 120 })
 | `formulas` | 写入公式和计算结果；`false` 时只写结果，适合用了扩展函数、其他软件算不出来的公式。导出选区时总是只写结果 | `true`                             |
 | `label`    | 导出菜单里的名字（只在 `xlsx()` 里）                                                                     | 由表格文案 `file.csv` 得出，见下文 |
 
-导出菜单里的名字默认由表格的文案 `file.csv` 得出，把其中的 “CSV” 换成 “XLSX”、`.csv` 换成 `.xlsx`，如 `CSV 文件 (.csv)` 得出 `XLSX 文件 (.xlsx)`。改过 `file.csv`、里面不再有 “CSV” 时，名字是 `XLSX (.xlsx)`，这时用 `label` 指定。
+导出菜单里的名字默认由表格的文案 `file.csv` 得出，把其中的“CSV”换成“XLSX”、`.csv` 换成 `.xlsx`，如 `CSV 文件 (.csv)` 得出 `XLSX 文件 (.xlsx)`。改过 `file.csv`、里面不再有“CSV”时，名字是 `XLSX (.xlsx)`，这时用 `label` 指定。
 
 ## 写进文件的内容
 

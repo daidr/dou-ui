@@ -30,6 +30,8 @@ const props = defineProps<{
   view: number
   /** Whether to show the level buttons by the headers. */
   levels: boolean
+  /** The room before the outline along the axis, the other outline's corner, which a finger may reach into. */
+  before: number
   /** Labels of the buttons. */
   label: (group: SheetGroupLines) => string
   levelLabel: (level: number) => string
@@ -173,16 +175,33 @@ function buttonStyle(m: Mark) {
   return `${place(m.button! - BUTTON / 2, m.lane - BUTTON / 2, BUTTON, BUTTON)};${hits.value.get(m.key)}`
 }
 
-/** A level button: side by side with the others across the lanes, free along the axis. */
+/** Where a mark's button shows along the outline, or `null` when it is scrolled away. */
+function shownAt(m: Mark) {
+  if (m.button == null) return null
+  if (m.frozenButton) return props.head + m.button
+  const at = props.head + m.button - props.scroll
+  return at >= props.head + frozenSize.value ? at : null
+}
+
+/**
+ * A level button: side by side with the others across the lanes. Along the
+ * axis it reaches into the corner before it and, for what it can't get
+ * there, further toward the lines, short of the group buttons in its lane.
+ * The outline doesn't clip, so the reach can leave the levels' band.
+ */
 function levelStyle(level: number) {
-  const last = level === levelList.value.length
-  const box = place(
-    props.head / 2 - BUTTON / 2,
-    (level - 1) * LANE + (LANE - BUTTON) / 2,
-    BUTTON,
-    BUTTON,
-  )
-  return `${box};${reach(REACH, REACH, level === 1 ? REACH : LANE / 2, last ? REACH : LANE / 2)}`
+  const middle = props.head / 2
+  const box = place(middle - BUTTON / 2, (level - 1) * LANE + (LANE - BUTTON) / 2, BUTTON, BUTTON)
+  const lane = (level - 1) * LANE + LANE / 2
+  let room = Infinity
+  for (const m of marks.value) {
+    const at = m.lane === lane ? shownAt(m) : null
+    if (at != null) room = Math.min(room, (at - middle) / 2)
+  }
+  const before = Math.min(REACH, middle + props.before)
+  const after = Math.min(REACH * 2 - before, room)
+  // across, the lane alone: past it are the sheet's edge, the other levels and the headers
+  return `${box};${reach(before, after, LANE / 2, LANE / 2)}`
 }
 
 const levelList = computed(() =>

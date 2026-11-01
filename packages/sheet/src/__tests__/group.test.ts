@@ -233,6 +233,8 @@ describe('DouSheet groups', () => {
     // level 1 folds every group, level 2 shows them all
     const levels = wrapper.findAll('.dou-sheet__outline-button.is-level')
     expect(levels.map((b) => b.text())).toEqual(['1', '2'])
+    // a finger reaches past the headers, halfway to the group button in the lane
+    expect(levels[0]!.attributes('style')).toContain('--dou-sheet-hit: -8px -2px -8px -2px')
     await levels[1]!.trigger('click')
     expect(book.value.sheets[0]!.groups!.map((g) => !!g.collapsed)).toEqual([false, false])
     expect(grid.value!.exportSVG()).toContain('深圳')

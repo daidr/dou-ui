@@ -113,7 +113,6 @@
 
   .dou-sheet__outline {
     position: absolute;
-    overflow: hidden;
     background-color: var(--dou-sheet-header-bg);
 
     &.is-row {
@@ -138,8 +137,10 @@
     background-color: var(--dou-sheet-header-bg);
   }
 
+  /* above the lines, so a finger's reach past the headers still lands on a level */
   .dou-sheet__outline-levels {
     position: absolute;
+    z-index: 1;
   }
 
   .dou-sheet__outline-layer {

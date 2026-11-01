@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { blocksToHTML } from '../../core/convert'
 import { findBlockById } from '../../core/blocks'
-import type { Block, PartialBlock } from '../../core/model'
+import type { Block, EditorDocument, PartialBlock } from '../../core/model'
 import DouEditor from '../../editor.vue'
 import type { EditorExpose } from '../../editor'
 import { editorKit } from '../../extensions/editor-kit'
@@ -28,7 +28,7 @@ const START: PartialBlock[] = [
 ]
 
 async function open(blocks = START, readonly = false) {
-  const value = ref<Block[] | PartialBlock[]>(blocks)
+  const value = ref<EditorDocument<PartialBlock>>({ version: 1, blocks })
   const editor = ref<EditorExpose>()
   const extensions = [editorKit({ codeBlock: codeEditorBlock() })]
   const wrapper = mount(
@@ -36,8 +36,8 @@ async function open(blocks = START, readonly = false) {
       () => () =>
         h(DouEditor, {
           ref: editor,
-          modelValue: value.value as PartialBlock[],
-          'onUpdate:modelValue': (next: Block[]) => (value.value = next),
+          modelValue: value.value,
+          'onUpdate:modelValue': (next: EditorDocument) => (value.value = next),
           extensions,
           readonly,
         }),
@@ -91,7 +91,7 @@ describe('codeEditorBlock', () => {
     input().dispatchEvent(new Event('select'))
     await type(' && echo 2')
     expect(code()).toBe('echo 1 && echo 2')
-    const block = (value.value as Block[]).find((b) => b.id === 'c')!
+    const block = (value.value.blocks as Block[]).find((b) => b.id === 'c')!
     expect(block.content).toEqual([{ type: 'text', text: 'echo 1 && echo 2' }])
     // the document's cursor is in the block too
     const info = findBlockById(view.state.doc, 'c')!

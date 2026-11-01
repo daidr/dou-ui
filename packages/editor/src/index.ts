@@ -96,6 +96,7 @@ export type {
   Block,
   BlockProps,
   BreakContent,
+  EditorDocument,
   InlineContent,
   InlineNodeContent,
   PartialBlock,
@@ -111,6 +112,8 @@ export { diffBlocks, diffText, inlineText } from './core/diff'
 export type { BlockVersionChange, BlocksDiff, TextPart } from './core/diff'
 export { searchDoc } from './core/search'
 export type { EditorMatch, EditorSearchQuery } from './core/search'
+export { checkDocument, emptyDocument, migrateDocument } from './document'
+export type { CheckDocumentOptions, DocumentProblem } from './document'
 export type { BuiltinContentType, ContentType, MarkType } from './core/schema'
 export { contentDOM, createSchema, isSafeHref, textBlock } from './core/schema'
 export {

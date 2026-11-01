@@ -14,6 +14,7 @@ import type { FlowDocument, FlowExtension, FlowSelection, FlowViewport } from '.
 import { resolveFlowExtensions } from '../core/extension'
 
 const sample = (): FlowDocument => ({
+  version: 1,
   nodes: [
     { id: 'a', x: 0, y: 0, data: { label: '收集素材', outputs: [{ id: 'out' }] } },
     { id: 'b', x: 288, y: 120, data: { label: '写初稿', inputs: [{ id: 'in' }] } },

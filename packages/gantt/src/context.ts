@@ -2,14 +2,18 @@ import { inject, type ComputedRef, type InjectionKey, type Ref } from 'vue'
 import type { GanttLink, GanttTask } from './core/model'
 import type { GanttCriticalPath } from './core/schedule'
 import type { GanttScale } from './core/scale'
+import type { GanttDocument } from './core/transaction'
 import type { GanttRow } from './core/tree'
 import type { GanttExpose } from './types'
 import type { GanttMessages } from './locale'
 
 /** The surrounding Gantt chart, as `useGantt()` and extensions see it. */
 export interface GanttContext {
-  tasks: Ref<GanttTask[]>
-  links: Ref<GanttLink[]>
+  /** The whole document as it is now; change it with `transact`. */
+  doc: ComputedRef<GanttDocument>
+  /** The document's tasks and links, as a shortcut. */
+  tasks: ComputedRef<GanttTask[]>
+  links: ComputedRef<GanttLink[]>
   selection: Ref<string[]>
   /** The task the keyboard is on. */
   active: Ref<string | null>

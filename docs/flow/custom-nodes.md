@@ -1,6 +1,6 @@
 # 自定义节点
 
-用 `defineNodeType` 声明节点类型，再通过 `node-types` 传给编辑器。节点的外框、选中态和焦点框由编辑器画，组件只负责里面的内容。
+用 `defineNodeType` 声明节点类型，再通过 `nodeTypes` 传给编辑器。节点的外框、选中态和焦点框由编辑器画，组件只负责里面的内容。
 
 <DocDemo src="flow/custom-node" column />
 

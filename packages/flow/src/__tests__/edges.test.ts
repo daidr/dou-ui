@@ -108,6 +108,7 @@ afterEach(() => {
 })
 
 const sample = (): FlowDocument => ({
+  version: 1,
   nodes: [
     { id: 'a', x: 0, y: 0, data: { label: '读取笔记', outputs: [{ id: 'out' }] } },
     { id: 'b', x: 400, y: 200, data: { label: '发布', inputs: [{ id: 'in' }] } },

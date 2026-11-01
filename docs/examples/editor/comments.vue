@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { DouEditor, type PartialBlock } from '@dou-ui/editor'
+import { DouEditor, type EditorDocument, type PartialBlock } from '@dou-ui/editor'
 import type { CommentThread } from 'dou-ui'
 import { computed, onMounted, ref, useTemplateRef, watch } from 'vue'
 
@@ -7,20 +7,23 @@ const me = { id: 'dai', name: '戴兜' }
 const qing = { id: 'qing', name: '阿青' }
 const minutes = (n: number) => new Date(Date.now() - n * 60 * 1000).toISOString()
 
-const blocks = ref<PartialBlock[]>([
-  { type: 'heading', props: { level: 2 }, content: '上海门店开业方案' },
-  {
-    content: [
-      { type: 'text', text: '新店计划在' },
-      { type: 'text', text: '十二月第一个周末', comments: ['date'] },
-      { type: 'text', text: '开业，开业当天' },
-      { type: 'text', text: '全场八折', comments: ['price'] },
-      { type: 'text', text: '，前一百位顾客赠送帆布袋。' },
-    ],
-  },
-  { type: 'checkItem', content: '确认装修验收时间' },
-  { type: 'checkItem', content: '招募四名店员' },
-])
+const doc = ref<EditorDocument<PartialBlock>>({
+  version: 1,
+  blocks: [
+    { type: 'heading', props: { level: 2 }, content: '上海门店开业方案' },
+    {
+      content: [
+        { type: 'text', text: '新店计划在' },
+        { type: 'text', text: '十二月第一个周末', comments: ['date'] },
+        { type: 'text', text: '开业，开业当天' },
+        { type: 'text', text: '全场八折', comments: ['price'] },
+        { type: 'text', text: '，前一百位顾客赠送帆布袋。' },
+      ],
+    },
+    { type: 'checkItem', content: '确认装修验收时间' },
+    { type: 'checkItem', content: '招募四名店员' },
+  ],
+})
 
 const threads = ref<CommentThread[]>([
   {
@@ -61,7 +64,7 @@ const open = computed(() => threads.value.filter((thread) => !thread.resolved))
   <div class="comments-demo">
     <DouEditor
       ref="editor"
-      v-model="blocks"
+      v-model="doc"
       v-model:comments="threads"
       v-model:active-comment="active"
       :author="me"

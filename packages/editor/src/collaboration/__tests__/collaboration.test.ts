@@ -10,7 +10,7 @@ import { findBlockById } from '../../core/blocks'
 import { liftBlocks, sinkBlocks, splitBlock } from '../../core/commands'
 import { createEditorView, getBlocks } from '../../core/editor'
 import { resolveEditorExtensions } from '../../core/extension'
-import type { Block, PartialBlock } from '../../core/model'
+import type { Block, EditorDocument, PartialBlock } from '../../core/model'
 import { applyEditorTransaction, EditorTransaction } from '../../core/transaction'
 import DouEditor from '../../editor.vue'
 import { editorKit } from '../../extensions/editor-kit'
@@ -76,7 +76,7 @@ const START: PartialBlock[] = [
 /** Two clients on the same document, connected. */
 function pair(blocks: PartialBlock[] = START) {
   const source = new Y.Doc()
-  fillMap(source.getMap('document'), blocks)
+  fillMap(source.getMap('document'), { version: 1, blocks })
   const docA = new Y.Doc()
   const docB = new Y.Doc()
   Y.applyUpdate(docA, Y.encodeStateAsUpdate(source))
@@ -349,7 +349,7 @@ describe('collaboration', () => {
   it('shows the others’ cursors with their names', async () => {
     const docA = new Y.Doc()
     const docB = new Y.Doc()
-    fillMap(docA.getMap('document'), [{ id: 'a', content: 'Hello' }])
+    fillMap(docA.getMap('document'), { version: 1, blocks: [{ id: 'a', content: 'Hello' }] })
     connect(docA, docB)
     const awarenessA = new Awareness(docA)
     const awarenessB = new Awareness(docB)
@@ -367,20 +367,22 @@ describe('collaboration', () => {
 
   it('mirrors the shared document through v-model and ignores outside changes', async () => {
     const doc = new Y.Doc()
-    fillMap(doc.getMap('document'), [{ id: 'a', content: 'Shared' }])
+    fillMap(doc.getMap('document'), { version: 1, blocks: [{ id: 'a', content: 'Shared' }] })
     const wrapper = mount(DouEditor, {
       attachTo: document.body,
       props: {
         extensions: [editorKit(), collaboration({ map: doc.getMap('document') })],
-        modelValue: [{ id: 'x', content: 'Ignored' }],
+        modelValue: { version: 1, blocks: [{ id: 'x', content: 'Ignored' }] },
       },
     })
     await nextTick()
     expect(wrapper.element.textContent).toContain('Shared')
     expect(wrapper.element.textContent).not.toContain('Ignored')
-    const emitted = wrapper.emitted('update:modelValue')!.at(-1)![0] as Block[]
+    const emitted = (wrapper.emitted('update:modelValue')!.at(-1)![0] as EditorDocument).blocks
     expect(emitted[0]!.id).toBe('a')
-    await wrapper.setProps({ modelValue: [{ id: 'y', content: 'Also ignored' }] })
+    await wrapper.setProps({
+      modelValue: { version: 1, blocks: [{ id: 'y', content: 'Also ignored' }] },
+    })
     expect(wrapper.element.textContent).toContain('Shared')
     wrapper.unmount()
   })

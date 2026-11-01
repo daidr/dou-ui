@@ -42,7 +42,7 @@ import { isRemote } from './core/plugins'
 import { selectionOf, sameSelection } from './core/selection'
 import { selectBlocks } from './core/block-selection'
 import { applyEditorTransaction, EditorTransaction } from './core/transaction'
-import type { Block, PartialBlock } from './core/model'
+import type { Block, EditorDocument, PartialBlock } from './core/model'
 import { resolveEditorExtensions } from './core/extension'
 import {
   previewMatch,
@@ -56,6 +56,7 @@ import { writeHTML } from './core/output'
 import { parseHTML } from './core/prepare'
 import { componentMounter, vueNodeView } from './define-block'
 import { editorKit } from './extensions/editor-kit'
+import { readBlocks } from './document'
 import {
   editorKey,
   type EditorEmits,
@@ -211,16 +212,17 @@ const slash = shallowRef<SlashState | null>(null)
 const slashMenu = useTemplateRef<InstanceType<typeof SlashMenu>>('slashMenu')
 const bubble = useTemplateRef<InstanceType<typeof BubbleToolbar>>('bubble')
 
-// The blocks last sent through `v-model`: when the same array comes back,
+// The document last sent through `v-model`: when the same object comes back,
 // it is not loaded again (that would move the cursor).
-let emitted: Block[] | undefined
+let emitted: EditorDocument | undefined
 
 // the result of the last change, for `transact` to hand back
 let lastResult: EditorTransactionResult | null = null
 
 function onChange(current: EditorView, tr: Transaction, before: EditorState) {
   const blocks = getBlocks(current)
-  emitted = blocks
+  const doc: EditorDocument = { version: 1, blocks }
+  emitted = doc
   const history = tr.getMeta('history$') as { redo: boolean } | undefined
   const origin =
     (tr.getMeta(originKey) as EditorOrigin | undefined) ??
@@ -235,8 +237,8 @@ function onChange(current: EditorView, tr: Transaction, before: EditorState) {
   if (origin !== undefined) meta.origin = origin
   lastResult = { blocks, changes: diffBlocks(before.doc, current.state.doc), meta }
   emit('transaction', lastResult)
-  emit('update:modelValue', blocks)
-  emit('change', blocks)
+  emit('update:modelValue', doc)
+  emit('change', doc)
 }
 
 let selection: EditorSelection = { block: null, blocks: [] }
@@ -299,7 +301,7 @@ onMounted(() => {
     kit,
     nodeViews: componentViews,
     // with collaboration the document comes from the shared document
-    blocks: kit.externalDocument ? [] : props.modelValue,
+    blocks: kit.externalDocument ? [] : readBlocks(props.modelValue),
     editable: editable.value,
     placeholder: {
       text: () => props.placeholder ?? messages.value.placeholder,
@@ -324,7 +326,7 @@ onMounted(() => {
       }),
       commentPlugin,
       comparePlugin({
-        before: () => props.compare,
+        before: () => props.compare?.blocks ?? null,
         label: () => messages.value.removedBlock,
       }),
       openLinks,
@@ -357,10 +359,11 @@ onMounted(() => {
   instance.dom.addEventListener('blur', onBlur)
   if (props.autofocus) instance.focus()
   // blocks given without ids got them now: hand those back, so events' ids can be looked up
-  if (!kit.externalDocument && props.modelValue && lacksId(props.modelValue)) {
-    const blocks = getBlocks(instance)
-    emitted = blocks
-    emit('update:modelValue', blocks)
+  const given = kit.externalDocument ? undefined : readBlocks(props.modelValue)
+  if (given && lacksId(given)) {
+    const doc: EditorDocument = { version: 1, blocks: getBlocks(instance) }
+    emitted = doc
+    emit('update:modelValue', doc)
   }
 })
 
@@ -391,8 +394,8 @@ watch(
   () => props.modelValue,
   (value) => {
     const current = view.value
-    if (!current || !value || kit.externalDocument || toRaw(value) === emitted) return
-    replaceBlocks(current, value)
+    if (!current || value === undefined || kit.externalDocument || toRaw(value) === emitted) return
+    replaceBlocks(current, readBlocks(value) ?? [])
   },
 )
 
@@ -453,9 +456,9 @@ function announce(text: string) {
   void nextTick(() => (spoken.value = text))
 }
 
-function restore(blocks: PartialBlock[]) {
+function restore(doc: EditorDocument<PartialBlock>) {
   // like the other methods it works while `readonly`, and it is the change comparing allows
-  if (!view.value || !restoreBlocks(view.value, blocks)) return false
+  if (!view.value || !restoreBlocks(view.value, readBlocks(doc) ?? [])) return false
   announce(messages.value.restored)
   return true
 }

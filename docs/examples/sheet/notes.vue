@@ -6,6 +6,7 @@ const head = (value) => ({ value, style: 'head' })
 const money = (value, note) => ({ value, format: '¥#,##0', note })
 
 const book = ref({
+  version: 1,
   styles: { head: { bold: true, fill: 'neutral' } },
   sheets: [
     {

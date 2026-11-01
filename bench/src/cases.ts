@@ -38,6 +38,7 @@ import {
   DouGantt,
   computeCriticalPath,
   computeSchedule,
+  type GanttDocument,
   type GanttExpose,
   type GanttLink,
   type GanttTask,
@@ -82,7 +83,12 @@ import {
   type FormSectionNode,
 } from '@dou-ui/form-builder'
 import '@dou-ui/form-builder/style.css'
-import { DouEditor, type EditorExpose, type PartialBlock } from '@dou-ui/editor'
+import {
+  DouEditor,
+  type EditorDocument,
+  type EditorExpose,
+  type PartialBlock,
+} from '@dou-ui/editor'
 import '@dou-ui/editor/style.css'
 
 export interface Case {
@@ -251,16 +257,14 @@ function chartCase(n: number, series: 'line' | 'bar' | 'scatter' = 'line', zoom 
 
 function gantt(n: number, props: Record<string, unknown> = {}) {
   const { tasks, links } = plan(n)
-  const state = { tasks: ref(tasks), links: ref(links) }
+  const state = { doc: ref<GanttDocument>({ version: 1, tasks, links }) }
   const chart = ref<GanttExpose>()
   ;(window as any).gantt = { chart, state }
   return () =>
     h(DouGantt, {
       ref: chart,
-      tasks: state.tasks.value,
-      'onUpdate:tasks': (value: GanttTask[]) => (state.tasks.value = value),
-      links: state.links.value,
-      'onUpdate:links': (value: GanttLink[]) => (state.links.value = value),
+      modelValue: state.doc.value,
+      'onUpdate:modelValue': (value: GanttDocument) => (state.doc.value = value),
       style: 'height: 600px',
       ...props,
     })
@@ -833,7 +837,7 @@ export const cases: Record<string, Case> = {
     render: (n) => gantt(n),
     act: () => {
       const { state } = (window as any).gantt
-      const doc = { tasks: state.tasks.value, links: state.links.value }
+      const doc = state.doc.value
       computeSchedule(
         {
           ...doc,
@@ -849,7 +853,7 @@ export const cases: Record<string, Case> = {
     render: (n) => gantt(n),
     act: () => {
       const { state } = (window as any).gantt
-      computeCriticalPath({ tasks: state.tasks.value, links: state.links.value })
+      computeCriticalPath(state.doc.value)
     },
   },
   // A flow of n nodes in a grid and about 1.6 edges per node, most of it off screen.
@@ -1571,7 +1575,7 @@ function formulaSheet(n: number) {
     r ? `=C${r}+B${r + 1}` : '=B1',
     r ? null : '=SUM(C:C)',
   ])
-  const book = ref<SheetWorkbook>({ sheets: [{ name: '表 1', cells, rowCount: n }] })
+  const book = ref<SheetWorkbook>({ version: 1, sheets: [{ name: '表 1', cells, rowCount: n }] })
   const grid = ref<SheetExpose>()
   ;(window as any).sheet = grid
   return () =>
@@ -1587,7 +1591,7 @@ function sheet(n: number, typed = false, conditional = false) {
   const cells = Array.from({ length: n }, (_, r) =>
     Array.from({ length: 20 }, (__, c) => (c === 0 ? `第 ${r + 1} 行` : (r * 7 + c * 13) % 1000)),
   )
-  const book = ref<SheetWorkbook>({ sheets: [{ name: '表 1', cells }] })
+  const book = ref<SheetWorkbook>({ version: 1, sheets: [{ name: '表 1', cells }] })
   if (typed) {
     const choices = ['未开始', { value: '进行中', tone: 'primary' as const }, '已完成']
     book.value.types = { status: { type: 'select', options: choices } }
@@ -1646,7 +1650,7 @@ function flowDocument(n: number): FlowDocument {
         target: { node: `n${i + perRow + 1}`, port: 'in' },
       })
   }
-  return { nodes, edges }
+  return { version: 1, nodes, edges }
 }
 
 function flowEditor(n: number, zoom = 1) {
@@ -1886,14 +1890,14 @@ function editorBlocks(n: number): PartialBlock[] {
 function blockEditor(n: number) {
   const blocks = editorBlocks(n)
   ;(window as any).editorIds = blocks.map((block) => block.id)
-  const value = shallowRef<PartialBlock[]>(blocks)
+  const value = shallowRef<EditorDocument<PartialBlock>>({ version: 1, blocks })
   const editor = ref<EditorExpose>()
   ;(window as any).blockEditor = editor
   return () =>
     h(DouEditor, {
       ref: editor,
       modelValue: value.value,
-      'onUpdate:modelValue': (next: PartialBlock[]) => (value.value = next),
+      'onUpdate:modelValue': (next: EditorDocument<PartialBlock>) => (value.value = next),
     })
 }
 

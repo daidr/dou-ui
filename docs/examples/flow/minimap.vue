@@ -9,6 +9,7 @@ const stages = ['读取', '清洗', '去重', '统计', '导出']
 const viewport = ref({ x: 40, y: 40, zoom: 1 })
 
 const doc = ref<FlowDocument>({
+  version: 1,
   nodes: channels.flatMap((channel, row) =>
     stages.map((stage, column) => ({
       id: `${row}-${column}`,

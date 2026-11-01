@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { DouEditor, editorKit, type Block } from '@dou-ui/editor'
+import { DouEditor, editorKit, type EditorDocument } from '@dou-ui/editor'
 import { markdownToBlocks } from '@dou-ui/editor/markdown'
 import { onMounted, ref } from 'vue'
 
@@ -22,11 +22,11 @@ const markdown = ref(`## 读书笔记
 </details>
 `)
 
-const blocks = ref<Block[]>([])
+const doc = ref<EditorDocument>({ version: 1, blocks: [] })
 
 // 读取 Markdown 需要浏览器的 DOMParser，所以在挂载后进行
 function load() {
-  blocks.value = markdownToBlocks(markdown.value, extensions)
+  doc.value = { version: 1, blocks: markdownToBlocks(markdown.value, extensions) }
 }
 onMounted(load)
 </script>
@@ -34,5 +34,5 @@ onMounted(load)
 <template>
   <DouTextarea v-model="markdown" :rows="8" />
   <DouButton style="align-self: flex-start" @click="load">导入</DouButton>
-  <DouEditor v-model="blocks" :extensions="extensions" aria-label="读书笔记" />
+  <DouEditor v-model="doc" :extensions="extensions" aria-label="读书笔记" />
 </template>

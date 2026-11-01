@@ -24,13 +24,13 @@
 
 ## 密码
 
-`type="password"` 加上 `show-password`，末尾多一个眼睛按钮，切换明文与密文。按钮是 `aria-pressed` 的开关，读屏标签随状态在“显示密码”和“隐藏密码”之间切换。
+`type="password"` 加上 `showPassword`，末尾多一个眼睛按钮，切换明文与密文。按钮是 `aria-pressed` 的开关，读屏标签随状态在“显示密码”和“隐藏密码”之间切换。
 
 <DocDemo src="input/password" />
 
 ## 字数统计
 
-`show-count` 在末尾显示已输入的字数；同时设了原生 `maxlength` 时显示为“已输入 / 上限”。一个 emoji 算一个字。
+`showCount` 在末尾显示已输入的字数；同时设了原生 `maxlength` 时显示为“已输入 / 上限”。一个 emoji 算一个字。
 
 <DocDemo src="input/word-count" />
 
@@ -72,7 +72,7 @@
 | `prefix` | 文字前的内容，通常是图标   |
 | `suffix` | 文字后的内容，如单位或图标 |
 
-### 实例方法
+### Exposes
 
 | 名称     | 说明         | 类型                       |
 | -------- | ------------ | -------------------------- |

@@ -36,7 +36,7 @@
 
 ## 带输入框
 
-`show-input` 在右侧放一个 [InputNumber](./input-number)，两边同步：拖动时输入框跟着变，输入确认后滑块跳过去，超出范围或不在步长上的值会被修正。只用于单值滑块。
+`showInput` 在右侧放一个 [InputNumber](./input-number)，两边同步：拖动时输入框跟着变，输入确认后滑块跳过去，超出范围或不在步长上的值会被修正。只用于单值滑块。
 
 <DocDemo src="slider/with-input" column />
 
@@ -86,7 +86,7 @@
 | `update:modelValue` | 值变化，拖动过程中持续触发         | `(value: number \| [number, number])` |
 | `change`            | 提交了新的值：松开、键盘或点击滑轨 | `(value: number \| [number, number])` |
 
-### 实例方法
+### Exposes
 
 | 名称    | 说明           | 类型         |
 | ------- | -------------- | ------------ |

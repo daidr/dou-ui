@@ -26,11 +26,11 @@
 
 <DocDemo src="table/sort" column />
 
-数据在服务端排序时加上 `manual-sort`：表格不再改动 `data` 的顺序，只更新 `sort`。
+数据在服务端排序时加上 `manualSort`：表格不再改动 `data` 的顺序，只更新 `sort`。
 
 ## 选择
 
-`selectable` 在最前面加一列多选框，选中行的 key（由 `row-key` 决定，默认取 `id`）绑定在 `v-model:selected`。传一个函数可以决定哪些行能被选择。表头的框选择全部可选行，部分选中时显示为横线。
+`selectable` 在最前面加一列多选框，选中行的 key（由 `rowKey` 决定，默认取 `id`）绑定在 `v-model:selected`。传一个函数可以决定哪些行能被选择。表头的框选择全部可选行，部分选中时显示为横线。
 
 <DocDemo src="table/selection" column />
 
@@ -42,7 +42,7 @@
 
 ## 固定表头、加载与空状态
 
-`max-height` 限制高度，超出后表体滚动、表头固定。`loading` 把行压暗并在上面显示加载动画。没有数据时显示紧凑的 [空状态](./empty)，文字用 `empty-text` 或 `empty` 插槽替换。
+`maxHeight` 限制高度，超出后表体滚动、表头固定。`loading` 把行压暗并在上面显示加载动画。没有数据时显示紧凑的 [空状态](./empty)，文字用 `emptyText` 或 `empty` 插槽替换。
 
 <DocDemo src="table/fixed-header" column />
 
@@ -66,7 +66,7 @@
 
 ## 树形数据
 
-行里有 `children` 数组时，表格变成一棵树：第一列出现展开按钮，子行逐级缩进。展开的行同样用 `v-model:expanded` 绑定；排序在每一层的兄弟行之间进行。子行属性名可用 `children-key` 修改，缩进用 `indent`。
+行里有 `children` 数组时，表格变成一棵树：第一列出现展开按钮，子行逐级缩进。展开的行同样用 `v-model:expanded` 绑定；排序在每一层的兄弟行之间进行。子行属性名可用 `childrenKey` 修改，缩进用 `indent`。
 
 <DocDemo src="table/tree" column />
 
@@ -78,43 +78,43 @@
 
 ## 合计行
 
-`summary` 接收所有行，返回按列 `key` 排好的值，显示在表格底部；有 `max-height` 时合计行固定在底部。
+`summary` 接收所有行，返回按列 `key` 排好的值，显示在表格底部；有 `maxHeight` 时合计行固定在底部。
 
 <DocDemo src="table/summary" column />
 
 ## 虚拟滚动
 
-上千行时打开 `virtual`，只渲染看得见的那些行，需要 `max-height`。行高按渲染后的实际高度计算，所以单元格可以换行，也可以有展开行。下面是一万行。
+上千行时打开 `virtual`，只渲染看得见的那些行，需要 `maxHeight`。行高按渲染后的实际高度计算，所以单元格可以换行，也可以有展开行。下面是一万行。
 
 <DocDemo src="table/virtual" column />
 
-传入 `row-height` 时，每一行都是这个高度，内容只显示一行，超出部分省略，也不显示展开行。行高固定时滚动条始终准确，适合数据密集、每行内容长度相近的表格。
+传入 `rowHeight` 时，每一行都是这个高度，内容只显示一行，超出部分省略，也不显示展开行。行高固定时滚动条始终准确，适合数据密集、每行内容长度相近的表格。
 
 ## 多级表头
 
-列的 `children` 把几列归到一个表头下，可以嵌套多层。分组只有表头：它的 `key`、`title`、`align` 和 `fixed` 生效，其余由下面的列决定；分组设了 `fixed` 时，下面的列一起固定。有分组时表头每一格都画上竖线，一眼能看出哪些列属于同一组；`max-height` 下每一层表头都会固定。
+列的 `children` 把几列归到一个表头下，可以嵌套多层。分组只有表头：它的 `key`、`title`、`align` 和 `fixed` 生效，其余由下面的列决定；分组设了 `fixed` 时，下面的列一起固定。有分组时表头每一格都画上竖线，一眼能看出哪些列属于同一组；`maxHeight` 下每一层表头都会固定。
 
 <DocDemo src="table/grouped-header" column />
 
 ## 合并单元格
 
-`span-method` 对每个单元格调用一次，参数是 `{ row, column, rowIndex, columnIndex }`，返回它占几行几列：`[rowspan, colspan]` 或 `{ rowspan, colspan }`；被别的格子盖住的格子返回 `[0, 0]`，不返回则为一格。`columnIndex` 只数显示数据的列，不含分组、多选和展开列。合并单元格用于静态的报表，不支持虚拟滚动，也不建议和展开行一起用。
+`spanMethod` 对每个单元格调用一次，参数是 `{ row, column, rowIndex, columnIndex }`，返回它占几行几列：`[rowspan, colspan]` 或 `{ rowspan, colspan }`；被别的格子盖住的格子返回 `[0, 0]`，不返回则为一格。`columnIndex` 只数显示数据的列，不含分组、多选和展开列。合并单元格用于静态的报表，不支持虚拟滚动，也不建议和展开行一起用。
 
 <DocDemo src="table/span" column />
 
 ## 筛选
 
-给列加上 `filters`，表头会出现一个漏斗按钮，点开是一组选项。默认可以多选，勾好后按“筛选”生效；`filter-multiple` 为 `false` 时只能选一项，点一下立即生效。选中的值按列 `key` 放在 `v-model:filters` 里，漏斗变成墨色表示这一列正在筛选。
+给列加上 `filters`，表头会出现一个漏斗按钮，点开是一组选项。默认可以多选，勾好后按“筛选”生效；`filterMultiple` 为 `false` 时只能选一项，点一下立即生效。选中的值按列 `key` 放在 `v-model:filters` 里，漏斗变成墨色表示这一列正在筛选。
 
 一行要在每个正在筛选的列上都通过才显示；在一列上，通过任意一个选中的值即可。默认比较单元格的值，`filter-method(value, row)` 可以自己判断。树形数据里，子行通过时它的上级也会保留。
 
 <DocDemo src="table/filter" column />
 
-在服务器上筛选时加 `manual-filter`，表格不再自己过滤 `data`，只报告 `filters`。
+在服务器上筛选时加 `manualFilter`，表格不再自己过滤 `data`，只报告 `filters`。
 
 ## 当前行与行事件
 
-`highlight-current` 让点击的行成为当前行，绑定在 `v-model:current` 上；当前行用选中行的底色，起始边多一道深色竖线，适合主从表这类“选中一行看详情”的场景。`row-class`、`row-style` 给行加类名和样式，可以是值，也可以是 `(row, index) => …` 函数。
+`highlightCurrent` 让点击的行成为当前行，绑定在 `v-model:current` 上；当前行用选中行的底色，起始边多一道深色竖线，适合主从表这类“选中一行看详情”的场景。`rowClass`、`rowStyle` 给行加类名和样式，可以是值，也可以是 `(row, index) => …` 函数。
 
 除了 `rowClick`，还有 `rowDblclick`、`rowContextmenu`（配合 ContextMenu 做右键菜单）和 `cellClick`（多了列）。
 
@@ -122,7 +122,7 @@
 
 ## 树形懒加载
 
-子行要从接口取时，在行上标 `hasChildren: true`，并给表格一个 `load(row)`，返回子行的 Promise。第一次展开时调用，期间按钮变成加载圈；取回的子行会缓存，之后再展开不再调用。失败时触发 `loadError`，行保持收起，可以再点一次重试。属性名可用 `has-children-key` 修改。
+子行要从接口取时，在行上标 `hasChildren: true`，并给表格一个 `load(row)`，返回子行的 Promise。第一次展开时调用，期间按钮变成加载圈；取回的子行会缓存，之后再展开不再调用。失败时触发 `loadError`，行保持收起，可以再点一次重试。属性名可用 `hasChildrenKey` 修改。
 
 <DocDemo src="table/tree-lazy" column />
 
@@ -136,7 +136,7 @@
 
 ## 列的显示与顺序
 
-`v-model:column-keys` 是要显示的顶层列的 `key`，按数组顺序排列；不传时显示 `columns` 中的全部列。分组表头作为一个整体显示或隐藏。
+`v-model:columnKeys` 是要显示的顶层列的 `key`，按数组顺序排列；不传时显示 `columns` 中的全部列。分组表头作为一个整体显示或隐藏。
 
 表格不内置列设置面板，用 Popover、Checkbox 和 Sortable 就能拼出一个，下面的例子可以勾选和拖动列：
 
@@ -259,12 +259,12 @@
 
 ### CSS 变量
 
-| 变量                         | 说明                                                      |
-| ---------------------------- | --------------------------------------------------------- |
-| `--dou-table-cell-height`    | 行高                                                      |
-| `--dou-table-cell-padding-x` | 单元格水平内边距                                          |
-| `--dou-table-head-bg`        | 表头底色                                                  |
-| `--dou-table-row-bg`         | 行底色，可以在 `row-style` 里给单独一行设置，固定列跟着变 |
-| `--dou-table-row-hover`      | 悬停行底色                                                |
-| `--dou-table-row-selected`   | 选中行底色                                                |
-| `--dou-table-fixed-shadow`   | 固定列交界处的阴影颜色                                    |
+| 变量                         | 说明                                                     |
+| ---------------------------- | -------------------------------------------------------- |
+| `--dou-table-cell-height`    | 行高                                                     |
+| `--dou-table-cell-padding-x` | 单元格水平内边距                                         |
+| `--dou-table-head-bg`        | 表头底色                                                 |
+| `--dou-table-row-bg`         | 行底色，可以在 `rowStyle` 里给单独一行设置，固定列跟着变 |
+| `--dou-table-row-hover`      | 悬停行底色                                               |
+| `--dou-table-row-selected`   | 选中行底色                                               |
+| `--dou-table-fixed-shadow`   | 固定列交界处的阴影颜色                                   |

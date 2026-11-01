@@ -50,6 +50,7 @@ const countRow = (label, shift) => [
 ]
 
 const book = ref({
+  version: 1,
   styles: {
     head: { bold: true, fill: 'neutral', align: 'center' },
     side: { fill: 'neutral', align: 'center' },

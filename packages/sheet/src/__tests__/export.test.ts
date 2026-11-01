@@ -166,6 +166,7 @@ describe('drawSheet', () => {
 })
 
 const book = (): SheetWorkbook => ({
+  version: 1,
   styles: { head: { bold: true } },
   sheets: [
     {

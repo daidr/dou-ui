@@ -243,3 +243,52 @@ builder.moveTo({ parent: 'contact', index: 3 }, ['a'])
 ```vue
 <DouFormBuilder v-model="form" :messages="{ types: { input: '文本' } }" />
 ```
+
+## API
+
+### FormBuilder Props
+
+| 名称                | 说明                                                                             | 类型                                                 | 默认值     |
+| ------------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------- | ---------- |
+| `v-model`           | 表单描述，每次修改得到一份新的对象，见[结构](./structure)                        | `FormDocument`                                       | —          |
+| `v-model:selection` | 选中的节点 id，最后一个是最后选中的                                              | `string[]`                                           | —          |
+| `v-model:mode`      | 设计（`design`）还是预览（`preview`），见[预览](#预览)                           | `'design' \| 'preview'`                              | `'design'` |
+| `fields`            | 内置之外的字段类型，和交给渲染器的是同一份，见[字段类型](./fields)               | `FormFieldType[]`                                    | —          |
+| `functions`         | 表达式能调用的函数，和渲染器的一样：预览会执行它们，属性面板补全和检查它们的名字 | `Record<string, FormFunction>`                       | —          |
+| `sources`           | 选项来源，和渲染器的一样，预览时用                                               | `Record<string, FormOptionsLoader>`                  | —          |
+| `extensions`        | 扩展：字段类型、快捷键、按钮、菜单项和属性面板，见[扩展](#扩展)                  | `(FormBuilderExtension \| FormBuilderExtension[])[]` | —          |
+| `messages`          | 覆盖设计器的文案，按分组合并，见[文字](#文字)                                    | `FormBuilderMessagesOverride`                        | —          |
+
+### FormBuilder Events
+
+| 名称     | 说明                                                                       | 参数                           |
+| -------- | -------------------------------------------------------------------------- | ------------------------------ |
+| `change` | 每次修改后触发，包括撤销和重做，参数是这次的事务，`steps` 是它做了哪些修改 | `(tr: FormBuilderTransaction)` |
+
+### FormBuilder Slots
+
+| 名称      | 说明                                                                                                                                                |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `default` | 替换整个布局，自己摆放 `DouFormBuilderPalette`、`DouFormBuilderCanvas`、`DouFormBuilderInspector`、`DouFormBuilderOutline`、`DouFormBuilderPreview` |
+| `toolbar` | 默认布局里撤销、重做按钮后面的按钮                                                                                                                  |
+
+### FormBuilder Exposes
+
+组件实例和 `useFormBuilder()` 是同一个对象。
+
+| 名称                            | 说明                                                                                       | 类型                                            |
+| ------------------------------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------- |
+| `document`                      | 当前的表单描述                                                                             | `FormDocument`                                  |
+| `selection`                     | 选中的节点 id                                                                              | `readonly string[]`                             |
+| `fields`                        | 全部字段类型，内置的和传入的                                                               | `ReadonlyMap<string, FormFieldType>`            |
+| `mode` / `setMode`              | 当前模式，切换模式                                                                         | `FormBuilderMode` / `(mode) => void`            |
+| `canUndo` / `canRedo`           | 能否撤销、重做                                                                             | `boolean`                                       |
+| `undo` / `redo`                 | 撤销、重做                                                                                 | `() => void`                                    |
+| `add`                           | 新建一个节点并选中，返回它的 id（建不了时为 `undefined`），见[在代码里修改](#在代码里修改) | `(type: string, place?) => string \| undefined` |
+| `remove` / `duplicate` / `wrap` | 删除、复制、放进新分组，不传 `ids` 时作用于选中的节点                                      | `(ids?: string[]) => void`                      |
+| `moveTo` / `moveBy`             | 移到某个容器的某个位置；在同一个容器里上移或下移                                           | —                                               |
+| `addPage`                       | 给标签页或分步加一页                                                                       | `(id?: string) => void`                         |
+| `replace`                       | 换掉整张表单，记为一步撤销                                                                 | `(document: FormDocument) => void`              |
+| `select` / `selectParent`       | 选中节点；选中最后选中的节点所在的容器                                                     | —                                               |
+| `transaction` / `dispatch`      | 开一个事务、提交事务，整个事务是一步撤销                                                   | —                                               |
+| `shownPage`                     | 画布上标签页或分步当前显示的那一页                                                         | `(container) => FormPageNode \| undefined`      |

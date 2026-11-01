@@ -6,7 +6,7 @@
 
 ## 基础用法
 
-`events` 是一组 `{ id, start, title, tone? }`，`start` 写成 `YYYY-MM-DD`。`end` 写最后一天，让一件事跨几天，跨天的标签首尾相连。每天最多列 `max-events`（默认 3）项，其余折成“还有 N 项”。点日子触发 `select` 并更新 `v-model`，点日程触发 `event-click`。
+`events` 是一组 `{ id, start, title, tone? }`，`start` 写成 `YYYY-MM-DD`。`end` 写最后一天，让一件事跨几天，跨天的标签首尾相连。每天最多列 `maxEvents`（默认 3）项，其余折成“还有 N 项”。点日子触发 `select` 并更新 `v-model`，点日程触发 `eventClick`。
 
 <DocDemo src="calendar-view/basic" column />
 
@@ -14,7 +14,7 @@
 
 `view` 切换月、周、日视图和[列表视图](#列表视图)，配合 `v-model:view` 使用；传入 `views` 时在导航旁显示切换按钮。周视图和日视图沿纵向时间轴排布：`start` 带时间（`YYYY-MM-DD HH:mm`）的日程按时段放置，`end` 是结束的时刻，不填时按一小时算；时间重叠的日程并排显示，过了零点的日程在每一天的列里各画一段。`start` 只写日期的是全天日程，放在顶部的“全天”一行。今天的列里有一条当前时间线。
 
-`hours` 设置时间轴覆盖的时段，`scroll-time` 是打开时滚动到的时间。点击时间轴上的空白处触发 `time-click`，参数是按 `snap`（默认 15 分钟）向下取整的 `YYYY-MM-DD HH:mm`，可以直接作为新日程的 `start`。
+`hours` 设置时间轴覆盖的时段，`scrollTime` 是打开时滚动到的时间。点击时间轴上的空白处触发 `timeClick`，参数是按 `snap`（默认 15 分钟）向下取整的 `YYYY-MM-DD HH:mm`，可以直接作为新日程的 `start`。
 
 <DocDemo src="calendar-view/week" column />
 
@@ -79,7 +79,7 @@ const events = computed(() => expandRepeats(series.value, range.value.start, ran
 - 在时间轴的空白处拖出一段时间，或者在月视图、“全天”一行里拖过几天，触发 `create`，参数 `{ start, end }` 的写法和日程一样，可以直接展开成一项新日程，也可以先弹窗让用户填标题。组件不会自己添加日程。
 - 选中日程后按 <DouKbd>Delete</DouKbd> 或 <DouKbd>Backspace</DouKbd>，或者在右键菜单里选“删除日程”，删除这一项。删除后焦点移到同一天的另一项日程，没有时回到这一天。
 
-时间轴上的拖动按 `snap` 分钟对齐，默认 15 分钟。拖动时日程跟着指针移动，松开后才写回；在一天之内的日程只能放在 `hours` 覆盖的时段里，拖到时间轴的上下边缘会自动滚动，拖动中按 <DouKbd>Esc</DouKbd> 取消。没有拖动的点击仍然触发 `event-click`、`time-click` 和 `select`。触屏上按住日程片刻再拖动，直接滑动是滚动页面；在空白处按住片刻再拖动则是新建。
+时间轴上的拖动按 `snap` 分钟对齐，默认 15 分钟。拖动时日程跟着指针移动，松开后才写回；在一天之内的日程只能放在 `hours` 覆盖的时段里，拖到时间轴的上下边缘会自动滚动，拖动中按 <DouKbd>Esc</DouKbd> 取消。没有拖动的点击仍然触发 `eventClick`、`timeClick` 和 `select`。触屏上按住日程片刻再拖动，直接滑动是滚动页面；在空白处按住片刻再拖动则是新建。
 
 <DocDemo src="calendar-view/editing" column />
 
@@ -93,9 +93,9 @@ const events = computed(() => expandRepeats(series.value, range.value.start, ran
 
 ### 锁定与限制
 
-`locked: true` 的日程不能拖动、调整或删除。`disabled-date` 返回 `true` 的日子不能放日程，也不能在上面新建。
+`locked: true` 的日程不能拖动、调整或删除。`disabledDate` 返回 `true` 的日子不能放日程，也不能在上面新建。
 
-`can-move` 在写入之前检查，拖动、新建和键盘操作都会经过它。第一个参数 `{ kind, event, start, end }` 里，`kind` 是 `move`、`resize` 或 `create`，新建时 `event` 是 `null`；`start`、`end` 是将要写入的值，`end` 总会给出，原来没写 `end` 的日程按默认的一小时算。返回 `true` 允许，返回字符串则拒绝并作为提示，其他返回值按“不能移到这里”拒绝。第二个参数是当前的日程列表，可以用来检查是否和别的日程重叠。拖动时被拒绝的日程显示红色边框和提示，松开后不会写入。上面的示例只允许在 8:00 到 20:00 之间排日程，“全员大会”是锁定的。
+`canMove` 在写入之前检查，拖动、新建和键盘操作都会经过它。第一个参数 `{ kind, event, start, end }` 里，`kind` 是 `move`、`resize` 或 `create`，新建时 `event` 是 `null`；`start`、`end` 是将要写入的值，`end` 总会给出，原来没写 `end` 的日程按默认的一小时算。返回 `true` 允许，返回字符串则拒绝并作为提示，其他返回值按“不能移到这里”拒绝。第二个参数是当前的日程列表，可以用来检查是否和别的日程重叠。拖动时被拒绝的日程显示红色边框和提示，松开后不会写入。上面的示例只允许在 8:00 到 20:00 之间排日程，“全员大会”是锁定的。
 
 ```ts
 const canMove = ({ start }: CalendarMove) => start >= today || '不能排在今天之前'
@@ -117,7 +117,7 @@ const noOverlap = ({ event, start, end }: CalendarMove, events: CalendarEvent[])
 
 在日程、日子或时间轴空白处点右键，按菜单键（<DouKbd>Shift</DouKbd> + <DouKbd>F10</DouKbd>），或者触屏上按住片刻后松手，会打开菜单。设置 `editable` 时日程的菜单里有一项内置的“删除日程”，`:menu="false"` 不显示它。
 
-`context-menu` 返回自己的菜单项，排在内置项前面。参数 `target.kind` 是 `event`（带 `event`）、`day`（月视图或“全天”一行里的日子，带 `date`）或 `time`（时间轴上的空白处，带按 `snap` 向下取整的 `start`）。不设置 `editable` 也可以有自己的菜单项。菜单为空时保留浏览器自己的菜单。`event-contextmenu` 在日程的菜单打开前触发，右键、触屏长按松手和菜单键都会触发；调用 `nativeEvent.preventDefault()` 就不打开。后两种情况没有浏览器的右键事件，`nativeEvent` 是一个代替的 `MouseEvent`，坐标是菜单打开的位置。
+`contextMenu` 返回自己的菜单项，排在内置项前面。参数 `target.kind` 是 `event`（带 `event`）、`day`（月视图或“全天”一行里的日子，带 `date`）或 `time`（时间轴上的空白处，带按 `snap` 向下取整的 `start`）。不设置 `editable` 也可以有自己的菜单项。菜单为空时保留浏览器自己的菜单。`eventContextmenu` 在日程的菜单打开前触发，右键、触屏长按松手和菜单键都会触发；调用 `nativeEvent.preventDefault()` 就不打开。后两种情况没有浏览器的右键事件，`nativeEvent` 是一个代替的 `MouseEvent`，坐标是菜单打开的位置。
 
 ```ts
 import type { CalendarMenuTarget, ContextMenuItem } from 'dou-ui'

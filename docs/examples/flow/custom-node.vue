@@ -11,6 +11,7 @@ const promptNode = defineNodeType({
 })
 
 const doc = ref({
+  version: 1,
   nodes: [
     {
       id: 'prompt',

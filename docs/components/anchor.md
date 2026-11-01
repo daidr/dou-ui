@@ -16,7 +16,7 @@
 
 ## 点击跳转
 
-点击链接会平滑滚动到对应小节，并把滚动停在 `offset` 下方，而不是被吸顶栏挡住；滚动途中高亮直接停在点中的那一项，不会一路闪过中间的小节。地址栏的 `#hash` 会随之更新（`update-hash` 为 `false` 时不更新），按住 `Ctrl` / `⌘` 点击仍按浏览器默认行为处理。
+点击链接会平滑滚动到对应小节，并把滚动停在 `offset` 下方，而不是被吸顶栏挡住；滚动途中高亮直接停在点中的那一项，不会一路闪过中间的小节。地址栏的 `#hash` 会随之更新（`updateHash` 为 `false` 时不更新），按住 `Ctrl` / `⌘` 点击仍按浏览器默认行为处理。
 
 ## 键盘与读屏
 
@@ -43,6 +43,6 @@
 | `change`            | 当前小节变化 | `(href: string)`                        |
 | `click`             | 点击链接     | `(event: MouseEvent, item: AnchorItem)` |
 
-### Anchor Slots 与 Expose
+### Anchor Slots 与 Exposes
 
 插槽 `item` 替换每个链接的文字，参数为 `{ item, level, active }`。暴露 `scrollTo(href)` 与 `update()`（内容变化后重新计算当前小节）。

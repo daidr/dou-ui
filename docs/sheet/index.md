@@ -139,7 +139,7 @@ sheet.value.transact((tr) => {
 
 单元格用名字（`'A5'`）或从 0 开始的坐标（`{ row, col }`）指定，没写工作表时指当前显示的那张。要写到别的表，在名字前加 `表名!`，表名有空格时用单引号括起来；坐标则写成 `{ sheet, row, col }`，`sheet` 是工作表的序号、`id` 或名字。区域可以写 `'A1:C4'`、整列 `'B:D'`、整行 `'2:3'`。
 
-每次修改，不论来自输入、撤销还是 `transact`，都会更新 `v-model` 并触发 `transaction` 事件；被保护或扩展取消的修改不会生效，触发的是 `transaction-cancel` 事件。事件参数里的 `steps` 是这次修改的步骤，`inverse` 是撤销它的步骤，可以用来同步到服务端；另一端用 `applySheetSteps(doc, steps)` 应用，在服务端从不含组件的 `@dou-ui/sheet/core` 引入它（见[不含组件的入口](./extensions#不含组件的入口)）。`meta.action` 说明修改的来源：
+每次修改，不论来自输入、撤销还是 `transact`，都会更新 `v-model` 并触发 `transaction` 事件；被保护或扩展取消的修改不会生效，触发的是 `transactionCancel` 事件。事件参数里的 `steps` 是这次修改的步骤，`inverse` 是撤销它的步骤，可以用来同步到服务端；另一端用 `applySheetSteps(doc, steps)` 应用，在服务端从不含组件的 `@dou-ui/sheet/core` 引入它（见[不含组件的入口](./extensions#不含组件的入口)）。`meta.action` 说明修改的来源：
 
 | `action`                 | 来源                                                               |
 | ------------------------ | ------------------------------------------------------------------ |
@@ -389,7 +389,7 @@ const cells = [
 
 选中带链接的单元格时，下方显示链接地址，点地址打开链接：网址在新标签页打开，单元格引用会切到那个工作表并选中那片区域。按住 `Ctrl` / `⌘` 点单元格也会打开链接。指向的工作表不存在时，表格下方会提示找不到。
 
-打开链接之前会触发 `link-open` 事件，参数里有 `link`、`linkTarget` 的结果 `target` 和单元格 `cell`；调用 `event.preventDefault()` 后表格不再自己打开，可以改用应用的路由，或者先让用户确认：
+打开链接之前会触发 `linkOpen` 事件，参数里有 `link`、`linkTarget` 的结果 `target` 和单元格 `cell`；调用 `event.preventDefault()` 后表格不再自己打开，可以改用应用的路由，或者先让用户确认：
 
 ```ts
 function onLinkOpen(event: SheetLinkOpenEvent) {
@@ -432,6 +432,7 @@ function onLinkOpen(event: SheetLinkOpenEvent) {
 
 ```ts
 const book = {
+  version: 1,
   types: {
     status: {
       type: 'select',
@@ -595,7 +596,7 @@ const fixedProtection = defineSheetExtension({
 sheet.value.transact((tr) => tr.setValue('A1', '买家'), { protection: false })
 ```
 
-`checkProtection(tr)` 检查一次修改是否违反保护，返回第一个不允许的地方 `{ reason, sheet, row, col }`，可以在扩展里使用；在 `transaction-cancel` 事件里调用它，可以分清修改是被保护还是被扩展取消的，以及卡在哪个单元格。`isLocked(cell, book)` 判断 `cells` 里的一个单元格是否锁定，`protectionOf(sheet)` 返回工作表的保护选项，没有保护时是 `null`，保护为 `true` 时是 `{}`。
+`checkProtection(tr)` 检查一次修改是否违反保护，返回第一个不允许的地方 `{ reason, sheet, row, col }`，可以在扩展里使用；在 `transactionCancel` 事件里调用它，可以分清修改是被保护还是被扩展取消的，以及卡在哪个单元格。`isLocked(cell, book)` 判断 `cells` 里的一个单元格是否锁定，`protectionOf(sheet)` 返回工作表的保护选项，没有保护时是 `null`，保护为 `true` 时是 `{}`。
 
 ## 工具栏
 
@@ -652,7 +653,7 @@ sheet.value.transact((tr) => {
 
 ## 多个工作表
 
-`modelValue.sheets` 里的每一项是一个工作表，`v-model:active-sheet` 是显示的工作表的序号。把 `DouSheetTabs` 放进 `footer` 插槽，表格下方会出现工作表标签：
+`modelValue.sheets` 里的每一项是一个工作表，`v-model:activeSheet` 是显示的工作表的序号。把 `DouSheetTabs` 放进 `footer` 插槽，表格下方会出现工作表标签：
 
 - 点标签切换工作表，`+` 在当前工作表后面新建一个。
 - 双击标签或按 `F2` 重命名，名字不能为空，也不能和别的工作表重名。
@@ -694,7 +695,7 @@ sheet.value.showSheet('十一月')
 
 <DocDemo src="sheet/csv" column />
 
-下载的文件名默认取导出的工作表名。工具栏的 `file-name` 可以改它：传字符串时，后面会自动加上导出方式的扩展名；传函数 `(exporter, scope) => string` 时，返回完整的文件名。
+下载的文件名默认取导出的工作表名。工具栏的 `fileName` 可以改它：传字符串时，后面会自动加上导出方式的扩展名；传函数 `(exporter, scope) => string` 时，返回完整的文件名。
 
 ```vue-html
 <DouSheetToolbar :tools="['import', 'export']" file-name="预算-2026-11" />
@@ -753,7 +754,7 @@ async function onImport(event: SheetImportEvent) {
 }
 ```
 
-导入或保存文件失败时（没有能读这个文件的导入方式、导入方式出错、`saveFile` 或工具栏导出时图片太大），表格上方会显示一条简短的提示，同时触发 `file-error` 事件。事件里有 `action`（`'import'` 或 `'export'`）、`file`、`importer` 或 `exporter`、`error`，以及表格要显示的提示文字 `message`（跟随当前语言）。想换成自己的提示，比如用 [`toast`](../components/toast)，就在事件里调用 `preventDefault()`，表格就不再显示自带的提示，读屏仍会播报。`error` 是给开发者看的英文错误，不要直接显示给用户；导入器抛出的 [`SheetFileError`](./extensions#导出器与导入器) 还带有 `code` 和给用户看的 `reason`，表格的提示用的就是 `reason`。用代码调用时，`importFile` 遇到导入方式出错，或 `saveFile` 导出失败，返回的 Promise 也会 reject。`exportFile` 只返回文件、不下载，它失败时不显示提示，也不触发 `file-error`，由调用方自己 `catch`。
+导入或保存文件失败时（没有能读这个文件的导入方式、导入方式出错、`saveFile` 或工具栏导出时图片太大），表格上方会显示一条简短的提示，同时触发 `fileError` 事件。事件里有 `action`（`'import'` 或 `'export'`）、`file`、`importer` 或 `exporter`、`error`，以及表格要显示的提示文字 `message`（跟随当前语言）。想换成自己的提示，比如用 [`toast`](../components/toast)，就在事件里调用 `preventDefault()`，表格就不再显示自带的提示，读屏仍会播报。`error` 是给开发者看的英文错误，不要直接显示给用户；导入器抛出的 [`SheetFileError`](./extensions#导出器与导入器) 还带有 `code` 和给用户看的 `reason`，表格的提示用的就是 `reason`。用代码调用时，`importFile` 遇到导入方式出错，或 `saveFile` 导出失败，返回的 Promise 也会 reject。`exportFile` 只返回文件、不下载，它失败时不显示提示，也不触发 `fileError`，由调用方自己 `catch`。
 
 ```ts
 import type { SheetFileErrorEvent } from '@dou-ui/sheet'
@@ -765,7 +766,7 @@ function onFileError(event: SheetFileErrorEvent) {
 }
 ```
 
-设置 `file-drop` 后，把文件拖到表格上会读入它。拖动经过时，会高亮将要放入的单元格；松开后，第一张工作表的内容从这一格开始放入。一次拖入多个文件时只读第一个，开发环境下会给出提示。
+设置 `fileDrop` 后，把文件拖到表格上会读入它。拖动经过时，会高亮将要放入的单元格；松开后，第一张工作表的内容从这一格开始放入。一次拖入多个文件时只读第一个，开发环境下会给出提示。
 
 ## CSV
 
@@ -843,12 +844,89 @@ downloadBlob(await grid.value.exportPNG(), '门店.png')
 
 ## 外观
 
-| 属性         | 默认值 | 说明                              |
-| ------------ | ------ | --------------------------------- |
-| `row-height` | `28`   | 默认行高                          |
-| `col-width`  | `96`   | 默认列宽                          |
-| `headers`    | `true` | 显示列标和行号                    |
-| `outline`    | `true` | 显示分组的大纲栏，见[分组](#分组) |
-| `gridlines`  | `true` | 显示单元格之间的细线              |
+`rowHeight`、`colWidth` 设置默认的行高和列宽，`headers`、`outline`、`gridlines` 分别控制列标和行号、分组的大纲栏、单元格之间的细线，见 [API](#sheet-props)。表格默认高 480px，用 `style` 或 CSS 改。
 
-表格默认高 480px，用 `style` 或 CSS 改。
+## API
+
+### Sheet Props
+
+| 名称                  | 说明                                                                              | 类型                                     | 默认值  |
+| --------------------- | --------------------------------------------------------------------------------- | ---------------------------------------- | ------- |
+| `v-model`             | 工作簿，见[文档数据](./data)                                                      | `SheetWorkbook`                          | —       |
+| `v-model:selection`   | 选区，见[选择](#选择)                                                             | `SheetSelection`                         | —       |
+| `v-model:activeSheet` | 显示的工作表的序号，见[多个工作表](#多个工作表)                                   | `number`                                 | `0`     |
+| `readonly`            | 只读：可以选择和复制，不能修改                                                    | `boolean`                                | `false` |
+| `rowHeight`           | 默认行高（px）                                                                    | `number`                                 | `28`    |
+| `colWidth`            | 默认列宽（px）                                                                    | `number`                                 | `96`    |
+| `headers`             | 显示列标和行号                                                                    | `boolean`                                | `true`  |
+| `outline`             | 显示分组的大纲栏，见[分组](#分组)                                                 | `boolean`                                | `true`  |
+| `gridlines`           | 显示单元格之间的细线                                                              | `boolean`                                | `true`  |
+| `historyDepth`        | 最多能撤销多少步                                                                  | `number`                                 | `100`   |
+| `menu`                | 改右键菜单：拿到默认的菜单项和打开的位置，返回要显示的菜单项，见[行和列](#行和列) | `(items, context) => SheetMenuItem[]`    | —       |
+| `extensions`          | 扩展，见[扩展](./extensions)                                                      | `(SheetExtension \| SheetExtension[])[]` | `[]`    |
+| `fileDrop`            | 把文件拖到表格上时用导入器读取，放在松手的单元格，见[导入与导出](#导入与导出)     | `boolean`                                | `false` |
+| `ariaLabel`           | 表格的无障碍名称                                                                  | `string`                                 | —       |
+| `messages`            | 覆盖表格的文案，只需写要改的部分                                                  | `Partial<SheetMessages>`                 | —       |
+
+### Sheet Events
+
+| 名称          | 说明                                                                                             | 参数                           |
+| ------------- | ------------------------------------------------------------------------------------------------ | ------------------------------ |
+| `transaction` | 每次修改后触发，包括撤销和重做，`tr.meta.action` 是修改的来源，见[用代码修改](#用代码修改)       | `(tr: SheetTransaction)`       |
+| `paste`       | 粘贴之前触发，可以改 `clip`，或者 `preventDefault()` 取消，见[复制与粘贴](#复制与粘贴)           | `(event: SheetPasteEvent)`     |
+| `import`      | 读完文件、写入之前触发，可以改 `book`，或者 `preventDefault()` 取消，见[导入与导出](#导入与导出) | `(event: SheetImportEvent)`    |
+| `fileError`   | 导入或导出失败，表格上也会显示一条简短的提示；`preventDefault()` 不显示提示                      | `(event: SheetFileErrorEvent)` |
+
+### Sheet Slots
+
+| 名称     | 说明                                                                     |
+| -------- | ------------------------------------------------------------------------ |
+| `header` | 表格上方，放工具栏或编辑栏；里面的组件可以用 `useSheet()` 拿到表格的状态 |
+| `footer` | 表格下方，放工作表标签                                                   |
+
+### Sheet Exposes
+
+| 名称                      | 说明                                                                               | 类型                                                           |
+| ------------------------- | ---------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| `transact`                | 在一个事务里修改，算作一步撤销；没有修改或只读时返回 `null`                        | `(run: (tr) => void, meta?) => SheetTransaction \| null`       |
+| `undo` / `redo`           | 撤销、重做                                                                         | `() => boolean`                                                |
+| `canUndo` / `canRedo`     | 能否撤销、重做                                                                     | `boolean`                                                      |
+| `commands`                | 内置和扩展加入的命令，可以执行或读取状态，见[命令](./extensions#命令)              | `SheetCommands`                                                |
+| `select`                  | 选中一个区域并滚动到那里，如 `'A1:C4'`                                             | `(target: string \| SheetRange \| SheetSelection) => void`     |
+| `scrollTo`                | 把单元格滚动到可见处                                                               | `(cell: SheetCellTarget) => void`                              |
+| `showSheet`               | 按序号、`id` 或名字显示一个工作表，没有这个工作表时返回 `false`                    | `(sheet: SheetRef) => boolean`                                 |
+| `edit`                    | 打开单元格的编辑框，默认当前单元格                                                 | `(cell?: SheetCellTarget) => void`                             |
+| `editNote`                | 选中单元格并打开批注框，默认当前单元格                                             | `(cell?: SheetCellTarget) => void`                             |
+| `focus`                   | 让表格获得焦点                                                                     | `() => void`                                                   |
+| `copy` / `cut`            | 复制、剪切选区到系统剪贴板                                                         | `() => Promise<void>`                                          |
+| `paste`                   | 在选区粘贴系统剪贴板的内容，也可以传入要粘贴的内容                                 | `(clip?: SheetClip) => Promise<void>`                          |
+| `findInvalid`             | 不符合数据验证的单元格，默认所有工作表，见[数据验证](#数据验证)                    | `(sheet?: SheetRef) => SheetInvalidCell[]`                     |
+| `toCSV`                   | 当前工作表（或 `sheet`）转成 CSV 文本                                              | `(options?) => string`                                         |
+| `exportSVG` / `exportPNG` | 当前工作表（或 `sheet`）导出成 SVG 文本或 PNG，见[导出图片与打印](#导出图片与打印) | —                                                              |
+| `print`                   | 打开浏览器的打印对话框                                                             | `(options?: SheetPrintOptions) => void`                        |
+| `exportFile`              | 用导出器（名字或导出器本身）生成文件，见[导入与导出](#导入与导出)                  | `(exporter, options?) => Promise<Blob>`                        |
+| `saveFile`                | 和 `exportFile` 一样导出，并保存到下载目录                                         | `(exporter, options?) => Promise<void>`                        |
+| `importFile`              | 读取文件写进工作簿，算作一步撤销；什么都没写入时返回 `null`                        | `(file: Blob, options?) => Promise<SheetImportResult \| null>` |
+
+### SheetToolbar Props
+
+| 名称       | 说明                                                                               | 类型                                    | 默认值                       |
+| ---------- | ---------------------------------------------------------------------------------- | --------------------------------------- | ---------------------------- |
+| `tools`    | 显示哪些工具、按什么顺序：内置工具、扩展按钮的 `key` 或任何命令名，`'\|'` 是分隔线 | `(SheetToolbarTool \| string)[]`        | 全部内置工具，再加扩展的按钮 |
+| `formats`  | 数字格式菜单里的选项，替换默认的那些                                               | `SheetFormatOption[]`                   | —                            |
+| `fileName` | 导出菜单保存的文件名：不含扩展名的名字，或返回完整文件名的函数                     | `string \| (exporter, scope) => string` | 导出的工作表名               |
+
+### SheetToolbar Slots
+
+| 名称    | 说明                 |
+| ------- | -------------------- |
+| `start` | 工具前面放的其他控件 |
+| `end`   | 工具后面放的其他控件 |
+
+### SheetTabs Props
+
+| 名称      | 说明                 | 类型      | 默认值 |
+| --------- | -------------------- | --------- | ------ |
+| `addable` | 显示新建工作表的按钮 | `boolean` | `true` |
+
+`DouSheetFormulaBar` 没有属性，见[公式](./formulas#编辑栏)。

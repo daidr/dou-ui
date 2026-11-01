@@ -27,6 +27,7 @@ const variableNode = defineNodeType({
 
 const editor = ref()
 const doc = ref({
+  version: 1,
   nodes: [
     { id: 'get', type: 'variable', x: 0, y: 0, data: { mode: 'get', name: 'count' } },
     {

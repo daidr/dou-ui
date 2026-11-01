@@ -11,6 +11,7 @@ const types = [
 ]
 
 const doc = ref<FlowDocument>({
+  version: 1,
   nodes: [
     {
       id: 'photo',

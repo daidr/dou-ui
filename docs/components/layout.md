@@ -12,7 +12,7 @@
 
 ## 可收起的侧栏
 
-`collapsible` 在侧栏底部放一个收起 / 展开按钮，状态用 `v-model:collapsed` 绑定；收起后宽度变为 `collapsed-width`（默认 64px）。默认插槽拿得到 `collapsed`，直接传给 [Menu](./menu) 的 `collapsed`，菜单就缩成一列图标。`footer` 插槽固定在内容下方，适合放账户信息。
+`collapsible` 在侧栏底部放一个收起 / 展开按钮，状态用 `v-model:collapsed` 绑定；收起后宽度变为 `collapsedWidth`（默认 64px）。默认插槽拿得到 `collapsed`，直接传给 [Menu](./menu) 的 `collapsed`，菜单就缩成一列图标。`footer` 插槽固定在内容下方，适合放账户信息。
 
 <DocDemo src="layout/collapsible-aside" column style="padding: 0; overflow: hidden" />
 

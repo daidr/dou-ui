@@ -6,6 +6,7 @@ import { ref } from 'vue'
 const money = '¥#,##0'
 
 const book = ref<SheetWorkbook>({
+  version: 1,
   styles: { head: { bold: true, fill: 'neutral' } },
   sheets: [
     {

@@ -194,13 +194,13 @@ app.use(DouChart).use(DouChartAxis).use(DouChartLine).use(DouChartBar)
 
 每一块默认依次使用色板里的彩色，跳过第 1 个中性灰。`color` 可以给每一块指定颜色：字段名或函数，返回任意 CSS 颜色，或者 `danger` 这样的语气色名称；返回 `neutral` 时使用色板的中性灰，适合“其他”。色板只有 7 种彩色，块数更多时颜色会重复，建议把较小的几块合并成“其他”，开发环境下会在控制台提示。
 
-`inner-radius` 是中间空洞占半径的比例，设置后画成环形图。默认插槽的内容显示在空洞中间，可以放合计或说明。
+`innerRadius` 是中间空洞占半径的比例，设置后画成环形图。默认插槽的内容显示在空洞中间，可以放合计或说明。
 
 <DocDemo src="chart/donut" />
 
 ### 角度
 
-`start-angle` 和 `end-angle` 是饼图起止的角度，单位是度，0 是 12 点钟方向，顺时针为正，默认是 `0` 到 `360`。从 `-90` 到 `90` 画成半环，饼图按半环的大小排布，空洞里的内容放在平边上方。`end-angle` 要大于 `start-angle`，两者相差最多 360 度。
+`startAngle` 和 `endAngle` 是饼图起止的角度，单位是度，0 是 12 点钟方向，顺时针为正，默认是 `0` 到 `360`。从 `-90` 到 `90` 画成半环，饼图按半环的大小排布，空洞里的内容放在平边上方。`endAngle` 要大于 `startAngle`，两者相差最多 360 度。
 
 <DocDemo src="chart/pie-half" />
 
@@ -226,7 +226,7 @@ app.use(DouChart).use(DouChartAxis).use(DouChartLine).use(DouChartBar)
 
 <DocDemo src="chart/sunburst" />
 
-`inner-radius` 是中间空洞占半径的比例，默认 `0.3`，默认插槽的内容显示在空洞中间。悬停在一个节点上时，不在它所在分支上的节点会变淡。
+`innerRadius` 是中间空洞占半径的比例，默认 `0.3`，默认插槽的内容显示在空洞中间。悬停在一个节点上时，不在它所在分支上的节点会变淡。
 
 矩形树图和旭日图没有图例，各自单独画在一个图表里。用方向键可以按顺序查看每个节点，读屏会读出第一层每个节点的名称、值和占比，数据表列出每个节点的路径、值和占比。点击节点时，`select` 事件的 `x` 是这个节点的名称；同名的节点可以用 `title`（完整路径）或 `items[0].row`（节点自己的行）区分。
 
@@ -234,7 +234,7 @@ app.use(DouChart).use(DouChartAxis).use(DouChartLine).use(DouChartBar)
 
 `DouChartGauge` 在一段弧形的轨道上显示一个值，中间写出这个值和 `name`。`min` 和 `max` 是轨道两端的值，默认是 `0` 和 `100`，超出范围的值画到轨道的端点为止，中间仍然写出原值；`value` 不是数字时，中间显示“–”，轨道留空。`min` 可以大于 `max`，这时值越小，弧线越长。`format` 决定值的写法，比如加上百分号。
 
-`color` 是值的弧线的颜色，可以写成值的函数，按阈值返回不同的语气色。轨道默认从 `-120` 度到 `120` 度，`start-angle` 和 `end-angle` 可以改成半圆等其他形状，`inner-radius` 决定弧线的粗细。
+`color` 是值的弧线的颜色，可以写成值的函数，按阈值返回不同的语气色。轨道默认从 `-120` 度到 `120` 度，`startAngle` 和 `endAngle` 可以改成半圆等其他形状，`innerRadius` 决定弧线的粗细。
 
 <DocDemo src="chart/gauge" />
 
@@ -406,7 +406,7 @@ defineChartSeries({
 
 几个图表的 `DouChartTooltip` 设置相同的 `group`，指针移到其中一个上时，其余的图表也在同一个横轴位置显示提示框，方便对照不同指标的同一天。位置按数据本身的值对应：类目轴按类目名，时间轴和数值轴按相同的值，某个图表没有这个位置时不显示。只有指针或键盘所在的图表会读出数值。示例见[联动](#联动)。
 
-散点图的提示框标题默认是系列名称，`label` 可以改用每个点自己的名称，比如气泡图里的城市；`size-name` 是气泡大小这一项显示的名称。
+散点图的提示框标题默认是系列名称，`label` 可以改用每个点自己的名称，比如气泡图里的城市；`sizeName` 是气泡大小这一项显示的名称。
 
 ## 图例
 
@@ -420,7 +420,7 @@ defineChartSeries({
 
 ### 位置
 
-`legend-placement` 把图例放在图表下方（`'bottom'`，默认）、上方（`'top'`）或右侧（`'right'`）。图例在上下方时最多显示三行，在右侧时最多占图表宽度的 30%，放不下的部分在图例里滚动。右侧过长的名称末尾省略，鼠标移上去或用键盘聚焦时显示完整的名称。
+`legendPlacement` 把图例放在图表下方（`'bottom'`，默认）、上方（`'top'`）或右侧（`'right'`）。图例在上下方时最多显示三行，在右侧时最多占图表宽度的 30%，放不下的部分在图例里滚动。右侧过长的名称末尾省略，鼠标移上去或用键盘聚焦时显示完整的名称。
 
 图表宽度小于 480px 时（比如手机上），右侧的图例会改放到下方，避免把绘图区挤得太窄；下方的图例按行排列，名称不会被省略。
 
@@ -438,7 +438,7 @@ defineChartSeries({
 
 ### 联动
 
-几个图表的 `v-model:x` 绑定同一个值，缩放和平移就会一起变化；`DouChartTooltip` 设置相同的 `group`，提示框也会跟着同一个位置。上下排列的图表给数值轴设置相同的 `label-width`，绘图区的左边就能对齐，同一天落在同一条竖线上。
+几个图表的 `v-model:x` 绑定同一个值，缩放和平移就会一起变化；`DouChartTooltip` 设置相同的 `group`，提示框也会跟着同一个位置。上下排列的图表给数值轴设置相同的 `labelWidth`，绘图区的左边就能对齐，同一天落在同一条竖线上。
 
 <DocDemo src="chart/zoom-linked" />
 
@@ -464,7 +464,7 @@ defineChartSeries({
 
 ## 缺失的数据
 
-值为 `null`、`undefined` 或不是数字时，折线在这里断开。只有一个孤立的点时会画出它的圆点，避免这个点看不见。`connect-nulls` 会跳过缺失的值把线连起来。
+值为 `null`、`undefined` 或不是数字时，折线在这里断开。只有一个孤立的点时会画出它的圆点，避免这个点看不见。`connectNulls` 会跳过缺失的值把线连起来。
 
 <DocDemo src="chart/gaps" />
 
@@ -549,7 +549,7 @@ SVG 和画布用同一套绘制代码，两者画出的图形一致。导出的�
 
 在服务端渲染时，图表画成一张 SVG 放在页面里，刻度文字、图例和标注都在其中，脚本加载之前就能看到图表。SVG 的颜色用的是主题的 CSS 变量，跟随亮暗主题。
 
-服务端不知道图表的宽度，所以按 `ssr-width`（默认 `640`）画出，再等比缩放到图表的区域里；`height` 是 CSS 长度时按 `320` 计算。浏览器接管页面后，图表按实际宽度画在画布上，然后去掉这张 SVG，不再播放入场动画。环形图中间插槽的内容在浏览器接管之后显示。
+服务端不知道图表的宽度，所以按 `ssrWidth`（默认 `640`）画出，再等比缩放到图表的区域里；`height` 是 CSS 长度时按 `320` 计算。浏览器接管页面后，图表按实际宽度画在画布上，然后去掉这张 SVG，不再播放入场动画。环形图中间插槽的内容在浏览器接管之后显示。
 
 ## 图案填充
 
@@ -575,21 +575,21 @@ SVG 和画布用同一套绘制代码，两者画出的图形一致。导出的�
 
 ### Chart Props
 
-| 名称               | 说明                                                     | 类型                                        | 默认值             |
-| ------------------ | -------------------------------------------------------- | ------------------------------------------- | ------------------ |
-| `data`             | 数据：行数组，或按列给的对象                             | `object[] \| Record<string, ArrayLike>`     | `[]`               |
-| `x`                | 横轴的值：字段名，或从行取值的函数                       | `string \| (row, index: number) => unknown` | 行的序号           |
-| `height`           | 高度，数字按 px 计算                                     | `number \| string`                          | `320`              |
-| `aria-label`       | 读屏读出的名称，替换自动生成的概要                       | `string`                                    | —                  |
-| `legend`           | 显示或隐藏图例                                           | `boolean`                                   | 多于一个系列时显示 |
-| `legend-placement` | 图例的位置；宽度小于 480px 时 `'right'` 改放到下方       | `'top' \| 'bottom' \| 'right'`              | `'bottom'`         |
-| `palette`          | 这个图表自己的配色：CSS 颜色或语气色名称，按顺序循环使用 | `string[]`                                  | 主题的 8 种颜色    |
-| `patterns`         | 给柱状图、面积图和饼图的每一块加上不同的图案             | `boolean`                                   | `false`            |
-| `v-model:table`    | 在图表的位置显示数据表                                   | `boolean`                                   | `false`            |
-| `horizontal`       | x 轴放在左侧，数值放在底部                               | `boolean`                                   | `false`            |
-| `messages`         | 替换语言包里的文字                                       | `Partial<ChartMessages>`                    | —                  |
-| `loading`          | 显示加载状态                                             | `boolean`                                   | `false`            |
-| `ssr-width`        | 服务端渲染时按这个宽度画出（px）                         | `number`                                    | `640`              |
+| 名称              | 说明                                                     | 类型                                        | 默认值             |
+| ----------------- | -------------------------------------------------------- | ------------------------------------------- | ------------------ |
+| `data`            | 数据：行数组，或按列给的对象                             | `object[] \| Record<string, ArrayLike>`     | `[]`               |
+| `x`               | 横轴的值：字段名，或从行取值的函数                       | `string \| (row, index: number) => unknown` | 行的序号           |
+| `height`          | 高度，数字按 px 计算                                     | `number \| string`                          | `320`              |
+| `aria-label`      | 读屏读出的名称，替换自动生成的概要                       | `string`                                    | —                  |
+| `legend`          | 显示或隐藏图例                                           | `boolean`                                   | 多于一个系列时显示 |
+| `legendPlacement` | 图例的位置；宽度小于 480px 时 `'right'` 改放到下方       | `'top' \| 'bottom' \| 'right'`              | `'bottom'`         |
+| `palette`         | 这个图表自己的配色：CSS 颜色或语气色名称，按顺序循环使用 | `string[]`                                  | 主题的 8 种颜色    |
+| `patterns`        | 给柱状图、面积图和饼图的每一块加上不同的图案             | `boolean`                                   | `false`            |
+| `v-model:table`   | 在图表的位置显示数据表                                   | `boolean`                                   | `false`            |
+| `horizontal`      | x 轴放在左侧，数值放在底部                               | `boolean`                                   | `false`            |
+| `messages`        | 替换语言包里的文字                                       | `Partial<ChartMessages>`                    | —                  |
+| `loading`         | 显示加载状态                                             | `boolean`                                   | `false`            |
+| `ssrWidth`        | 服务端渲染时按这个宽度画出（px）                         | `number`                                    | `640`              |
 
 ### Chart Events
 
@@ -629,11 +629,11 @@ SVG 和画布用同一套绘制代码，两者画出的图形一致。导出的�
 | `smooth`         | 画成平滑曲线                                                 | `boolean`                                                           | `false`                  |
 | `dots`           | 显示数据点                                                   | `boolean \| 'auto'`                                                 | `'auto'`，面积图 `false` |
 | `dashed`         | 画成虚线                                                     | `boolean`                                                           | `false`                  |
-| `line-width`     | 线宽，单位 px                                                | `number`                                                            | `2`                      |
-| `connect-nulls`  | 跨过缺失的值连线                                             | `boolean`                                                           | `false`                  |
+| `lineWidth`      | 线宽，单位 px                                                | `number`                                                            | `2`                      |
+| `connectNulls`   | 跨过缺失的值连线                                             | `boolean`                                                           | `false`                  |
 | `step`           | 画成阶梯线                                                   | `boolean \| 'before' \| 'after' \| 'middle'`                        | `false`                  |
 | `labels`         | 数据标签：`true` 按数值轴的格式写，或返回文字的函数          | `boolean \| (label: ChartDataLabel) => string \| null \| undefined` | `false`                  |
-| `label-position` | 标签写在每个点上方，或只写在最后一个点旁边                   | `'point' \| 'end'`                                                  | `'point'`                |
+| `labelPosition`  | 标签写在每个点上方，或只写在最后一个点旁边                   | `'point' \| 'end'`                                                  | `'point'`                |
 | `v-model:hidden` | 隐藏系列，保留它的颜色和图例                                 | `boolean`                                                           | `false`                  |
 | `stack`          | 堆叠分组，名称相同的叠在一起                                 | `string \| boolean`                                                 | —                        |
 | `pattern`        | 仅面积图：填充上的图案，`none` 表示不加                      | `ChartPattern \| 'none'`                                            | 图表的 `patterns`        |
@@ -643,14 +643,14 @@ SVG 和画布用同一套绘制代码，两者画出的图形一致。导出的�
 
 `y`、`name`、`data`、`x`、`tone`、`axis`、`v-model:hidden` 和折线图相同。
 
-| 名称             | 说明                                                                                          | 类型                                                                | 默认值                              |
-| ---------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- | ----------------------------------- |
-| `color`          | 颜色：一个 CSS 颜色，或按行给每根柱子上色的函数（CSS 颜色或语气色，`undefined` 用系列的颜色） | `string \| (row, index: number) => string \| undefined`             | 色板的下一个色                      |
-| `stack`          | 堆叠分组，名称相同的叠在一起                                                                  | `string \| boolean`                                                 | —                                   |
-| `radius`         | 柱子末端的圆角，单位 px                                                                       | `number`                                                            | `2`                                 |
-| `labels`         | 数据标签，写法和折线图相同                                                                    | `boolean \| (label: ChartDataLabel) => string \| null \| undefined` | `false`                             |
-| `label-position` | 标签写在柱子末端外面，或柱子里面                                                              | `'outside' \| 'inside'`                                             | 堆叠时 `'inside'`，否则 `'outside'` |
-| `pattern`        | 柱子上的图案，`none` 表示不加                                                                 | `ChartPattern \| 'none'`                                            | 图表的 `patterns`                   |
+| 名称            | 说明                                                                                          | 类型                                                                | 默认值                              |
+| --------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- | ----------------------------------- |
+| `color`         | 颜色：一个 CSS 颜色，或按行给每根柱子上色的函数（CSS 颜色或语气色，`undefined` 用系列的颜色） | `string \| (row, index: number) => string \| undefined`             | 色板的下一个色                      |
+| `stack`         | 堆叠分组，名称相同的叠在一起                                                                  | `string \| boolean`                                                 | —                                   |
+| `radius`        | 柱子末端的圆角，单位 px                                                                       | `number`                                                            | `2`                                 |
+| `labels`        | 数据标签，写法和折线图相同                                                                    | `boolean \| (label: ChartDataLabel) => string \| null \| undefined` | `false`                             |
+| `labelPosition` | 标签写在柱子末端外面，或柱子里面                                                              | `'outside' \| 'inside'`                                             | 堆叠时 `'inside'`，否则 `'outside'` |
+| `pattern`       | 柱子上的图案，`none` 表示不加                                                                 | `ChartPattern \| 'none'`                                            | 图表的 `patterns`                   |
 
 ### Boxplot Props
 
@@ -666,42 +666,42 @@ SVG 和画布用同一套绘制代码，两者画出的图形一致。导出的�
 
 `name`、`data`、`tone`、`axis`、`v-model:hidden` 和折线图相同。
 
-| 名称             | 说明                                                         | 类型                                                                | 默认值         |
-| ---------------- | ------------------------------------------------------------ | ------------------------------------------------------------------- | -------------- |
-| `value`          | 每一行的值：字段名，或从行取值的函数                         | `string \| (row, index: number) => unknown`                         | —              |
-| `bins`           | 大概的区间个数                                               | `number`                                                            | 按行数决定     |
-| `step`           | 区间的宽度，设置后不读 `bins`                                | `number`                                                            | —              |
-| `color`          | 柱子的颜色                                                   | `string`                                                            | 色板的下一个色 |
-| `radius`         | 柱子顶端的圆角，单位 px                                      | `number`                                                            | `2`            |
-| `labels`         | 数据标签，写法和折线图相同                                   | `boolean \| (label: ChartDataLabel) => string \| null \| undefined` | `false`        |
-| `label-position` | 标签写在柱子顶端外面，或柱子里面                             | `'outside' \| 'inside'`                                             | `'outside'`    |
-| `pattern`        | 柱子上的图案；设为 `none` 时即使图表开启了 `patterns` 也不加 | `ChartPattern \| 'none'`                                            | 按系列顺序分配 |
+| 名称            | 说明                                                         | 类型                                                                | 默认值         |
+| --------------- | ------------------------------------------------------------ | ------------------------------------------------------------------- | -------------- |
+| `value`         | 每一行的值：字段名，或从行取值的函数                         | `string \| (row, index: number) => unknown`                         | —              |
+| `bins`          | 大概的区间个数                                               | `number`                                                            | 按行数决定     |
+| `step`          | 区间的宽度，设置后不读 `bins`                                | `number`                                                            | —              |
+| `color`         | 柱子的颜色                                                   | `string`                                                            | 色板的下一个色 |
+| `radius`        | 柱子顶端的圆角，单位 px                                      | `number`                                                            | `2`            |
+| `labels`        | 数据标签，写法和折线图相同                                   | `boolean \| (label: ChartDataLabel) => string \| null \| undefined` | `false`        |
+| `labelPosition` | 标签写在柱子顶端外面，或柱子里面                             | `'outside' \| 'inside'`                                             | `'outside'`    |
+| `pattern`       | 柱子上的图案；设为 `none` 时即使图表开启了 `patterns` 也不加 | `ChartPattern \| 'none'`                                            | 按系列顺序分配 |
 
 ### Waterfall Props
 
 `name`、`data`、`x`、`tone`、`axis`、`v-model:hidden` 和折线图相同。
 
-| 名称             | 说明                                            | 类型                                                                | 默认值                     |
-| ---------------- | ----------------------------------------------- | ------------------------------------------------------------------- | -------------------------- |
-| `y`              | 每一步的变化量：字段名，或从行取值的函数        | `string \| (row, index: number) => unknown`                         | —                          |
-| `total`          | 是否是合计行：字段名，或从行取值的函数          | `string \| (row, index: number) => unknown`                         | —                          |
-| `color`          | 颜色：一个 CSS 颜色，或按行给每根柱子上色的函数 | `string \| (row, index: number) => string \| undefined`             | 增加用成功色，减少用危险色 |
-| `radius`         | 柱子的圆角，单位 px                             | `number`                                                            | `2`                        |
-| `connectors`     | 是否用虚线连接相邻的柱子                        | `boolean`                                                           | `true`                     |
-| `labels`         | 数据标签，写法和折线图相同，变化量带正负号      | `boolean \| (label: ChartDataLabel) => string \| null \| undefined` | `false`                    |
-| `label-position` | 标签写在柱子末端外面，或柱子里面                | `'outside' \| 'inside'`                                             | `'outside'`                |
+| 名称            | 说明                                            | 类型                                                                | 默认值                     |
+| --------------- | ----------------------------------------------- | ------------------------------------------------------------------- | -------------------------- |
+| `y`             | 每一步的变化量：字段名，或从行取值的函数        | `string \| (row, index: number) => unknown`                         | —                          |
+| `total`         | 是否是合计行：字段名，或从行取值的函数          | `string \| (row, index: number) => unknown`                         | —                          |
+| `color`         | 颜色：一个 CSS 颜色，或按行给每根柱子上色的函数 | `string \| (row, index: number) => string \| undefined`             | 增加用成功色，减少用危险色 |
+| `radius`        | 柱子的圆角，单位 px                             | `number`                                                            | `2`                        |
+| `connectors`    | 是否用虚线连接相邻的柱子                        | `boolean`                                                           | `true`                     |
+| `labels`        | 数据标签，写法和折线图相同，变化量带正负号      | `boolean \| (label: ChartDataLabel) => string \| null \| undefined` | `false`                    |
+| `labelPosition` | 标签写在柱子末端外面，或柱子里面                | `'outside' \| 'inside'`                                             | `'outside'`                |
 
 ### Scatter Props
 
 `y`、`name`、`data`、`x`、`tone`、`axis`、`v-model:hidden` 和折线图相同。
 
-| 名称        | 说明                                                   | 类型                                                    | 默认值             |
-| ----------- | ------------------------------------------------------ | ------------------------------------------------------- | ------------------ |
-| `color`     | 颜色，写法和柱状图相同；点多于 2000 个时都用系列的颜色 | `string \| (row, index: number) => string \| undefined` | 色板的下一个色     |
-| `size`      | 每个点的大小：字段名，或从行取值的函数                 | `string \| (row, index: number) => unknown`             | —                  |
-| `size-name` | 提示框里大小这一项的名称                               | `string`                                                | `size` 的字段名    |
-| `label`     | 每个点的名称，用作提示框的标题                         | `string \| (row, index: number) => unknown`             | 系列名称           |
-| `radius`    | 圆点半径，单位 px；有 `size` 时是最大气泡的半径        | `number`                                                | `3.5`，气泡为 `24` |
+| 名称       | 说明                                                   | 类型                                                    | 默认值             |
+| ---------- | ------------------------------------------------------ | ------------------------------------------------------- | ------------------ |
+| `color`    | 颜色，写法和柱状图相同；点多于 2000 个时都用系列的颜色 | `string \| (row, index: number) => string \| undefined` | 色板的下一个色     |
+| `size`     | 每个点的大小：字段名，或从行取值的函数                 | `string \| (row, index: number) => unknown`             | —                  |
+| `sizeName` | 提示框里大小这一项的名称                               | `string`                                                | `size` 的字段名    |
+| `label`    | 每个点的名称，用作提示框的标题                         | `string \| (row, index: number) => unknown`             | 系列名称           |
+| `radius`   | 圆点半径，单位 px；有 `size` 时是最大气泡的半径        | `number`                                                | `3.5`，气泡为 `24` |
 
 ### Heatmap Props
 
@@ -721,11 +721,11 @@ SVG 和画布用同一套绘制代码，两者画出的图形一致。导出的�
 
 `y`、`name`、`data`、`x`、`tone`、`v-model:hidden` 和折线图相同。
 
-| 名称         | 说明                  | 类型      | 默认值                  |
-| ------------ | --------------------- | --------- | ----------------------- |
-| `color`      | 颜色，任意 CSS 颜色   | `string`  | 色板的下一个色          |
-| `dots`       | 在顶点画圆点          | `boolean` | 轴不超过 12 条时 `true` |
-| `line-width` | 轮廓线的宽度，单位 px | `number`  | `2`                     |
+| 名称        | 说明                  | 类型      | 默认值                  |
+| ----------- | --------------------- | --------- | ----------------------- |
+| `color`     | 颜色，任意 CSS 颜色   | `string`  | 色板的下一个色          |
+| `dots`      | 在顶点画圆点          | `boolean` | 轴不超过 12 条时 `true` |
+| `lineWidth` | 轮廓线的宽度，单位 px | `number`  | `2`                     |
 
 ### Funnel Props
 
@@ -745,12 +745,12 @@ SVG 和画布用同一套绘制代码，两者画出的图形一致。导出的�
 | `data`           | 饼图自己的数据，写法同图表的 `data`                                       | `object[] \| Record<string, ArrayLike>`                             | 图表的 `data` |
 | `name`           | 饼图的名称，读屏时读在最前面                                              | `string`                                                            | —             |
 | `color`          | 每一块的颜色：CSS 颜色或语气色名称                                        | `string \| (row, index: number) => string`                          | 色板的彩色    |
-| `inner-radius`   | 中间空洞占半径的比例，`0` 是饼图                                          | `number`                                                            | `0`           |
-| `start-angle`    | 起始角度，单位是度，0 是 12 点钟方向，顺时针为正                          | `number`                                                            | `0`           |
-| `end-angle`      | 结束角度，单位是度                                                        | `number`                                                            | `360`         |
+| `innerRadius`    | 中间空洞占半径的比例，`0` 是饼图                                          | `number`                                                            | `0`           |
+| `startAngle`     | 起始角度，单位是度，0 是 12 点钟方向，顺时针为正                          | `number`                                                            | `0`           |
+| `endAngle`       | 结束角度，单位是度                                                        | `number`                                                            | `360`         |
 | `rose`           | 画成玫瑰图：每一块角度相同，用半径表示值                                  | `boolean`                                                           | `false`       |
 | `labels`         | 每一块的标签：`true` 在外面写名称和占比（在里面写占比），或返回文字的函数 | `boolean \| (label: ChartDataLabel) => string \| null \| undefined` | `false`       |
-| `label-position` | 标签写在饼图外面（用线连到块上），或每一块里面                            | `'outside' \| 'inside'`                                             | `'outside'`   |
+| `labelPosition`  | 标签写在饼图外面（用线连到块上），或每一块里面                            | `'outside' \| 'inside'`                                             | `'outside'`   |
 | `v-model:hidden` | 隐藏的各块的名称                                                          | `string[]`                                                          | `[]`          |
 
 ### Pie Slots
@@ -761,16 +761,16 @@ SVG 和画布用同一套绘制代码，两者画出的图形一致。导出的�
 
 ### Treemap / Sunburst Props
 
-| 名称           | 说明                                                                                          | 类型                                                                | 默认值        |
-| -------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- | ------------- |
-| `data`         | 第一层的行，每一行可以有子行                                                                  | `object[]`                                                          | 图表的 `data` |
-| `label`        | 每个节点的名称                                                                                | `string \| (row, index: number) => unknown`                         | `'name'`      |
-| `value`        | 每个叶子节点的值                                                                              | `string \| (row, index: number) => unknown`                         | `'value'`     |
-| `children`     | 每个节点的子行                                                                                | `string \| (row, index: number) => unknown`                         | `'children'`  |
-| `name`         | 整体的名称，读屏时读在最前面                                                                  | `string`                                                            | —             |
-| `color`        | 每个节点的颜色：行里的字段名，或行和层级的函数，得到 CSS 颜色或语气色；没有值时用父节点的颜色 | `string \| (row, depth: number) => string \| undefined`             | 色板的彩色    |
-| `labels`       | 是否在放得下的节点里写出名称；也可以是函数，参数是 `ChartDataLabel`，返回要写的文字           | `boolean \| (label: ChartDataLabel) => string \| null \| undefined` | `true`        |
-| `inner-radius` | 仅旭日图：中间空洞占半径的比例                                                                | `number`                                                            | `0.3`         |
+| 名称          | 说明                                                                                          | 类型                                                                | 默认值        |
+| ------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- | ------------- |
+| `data`        | 第一层的行，每一行可以有子行                                                                  | `object[]`                                                          | 图表的 `data` |
+| `label`       | 每个节点的名称                                                                                | `string \| (row, index: number) => unknown`                         | `'name'`      |
+| `value`       | 每个叶子节点的值                                                                              | `string \| (row, index: number) => unknown`                         | `'value'`     |
+| `children`    | 每个节点的子行                                                                                | `string \| (row, index: number) => unknown`                         | `'children'`  |
+| `name`        | 整体的名称，读屏时读在最前面                                                                  | `string`                                                            | —             |
+| `color`       | 每个节点的颜色：行里的字段名，或行和层级的函数，得到 CSS 颜色或语气色；没有值时用父节点的颜色 | `string \| (row, depth: number) => string \| undefined`             | 色板的彩色    |
+| `labels`      | 是否在放得下的节点里写出名称；也可以是函数，参数是 `ChartDataLabel`，返回要写的文字           | `boolean \| (label: ChartDataLabel) => string \| null \| undefined` | `true`        |
+| `innerRadius` | 仅旭日图：中间空洞占半径的比例                                                                | `number`                                                            | `0.3`         |
 
 ### Sunburst Slots
 
@@ -780,17 +780,17 @@ SVG 和画布用同一套绘制代码，两者画出的图形一致。导出的�
 
 ### Gauge Props
 
-| 名称           | 说明                                           | 类型                                  | 默认值       |
-| -------------- | ---------------------------------------------- | ------------------------------------- | ------------ |
-| `value`        | 显示的值                                       | `number`                              | —            |
-| `min`          | 轨道起点的值                                   | `number`                              | `0`          |
-| `max`          | 轨道终点的值                                   | `number`                              | `100`        |
-| `name`         | 值的名称，写在值的下方，读屏时读出             | `string`                              | —            |
-| `color`        | 值的弧线的颜色：CSS 颜色或语气色，或者值的函数 | `string \| (value: number) => string` | 色板的彩色   |
-| `format`       | 值的写法                                       | `(value: number) => string`           | 按语言格式化 |
-| `inner-radius` | 中间空洞占半径的比例，决定弧线的粗细           | `number`                              | `0.8`        |
-| `start-angle`  | 轨道的起始角度，单位是度，0 是 12 点钟方向     | `number`                              | `-120`       |
-| `end-angle`    | 轨道的结束角度                                 | `number`                              | `120`        |
+| 名称          | 说明                                           | 类型                                  | 默认值       |
+| ------------- | ---------------------------------------------- | ------------------------------------- | ------------ |
+| `value`       | 显示的值                                       | `number`                              | —            |
+| `min`         | 轨道起点的值                                   | `number`                              | `0`          |
+| `max`         | 轨道终点的值                                   | `number`                              | `100`        |
+| `name`        | 值的名称，写在值的下方，读屏时读出             | `string`                              | —            |
+| `color`       | 值的弧线的颜色：CSS 颜色或语气色，或者值的函数 | `string \| (value: number) => string` | 色板的彩色   |
+| `format`      | 值的写法                                       | `(value: number) => string`           | 按语言格式化 |
+| `innerRadius` | 中间空洞占半径的比例，决定弧线的粗细           | `number`                              | `0.8`        |
+| `startAngle`  | 轨道的起始角度，单位是度，0 是 12 点钟方向     | `number`                              | `-120`       |
+| `endAngle`    | 轨道的结束角度                                 | `number`                              | `120`        |
 
 ### Gauge Slots
 
@@ -893,23 +893,23 @@ SVG 和画布用同一套绘制代码，两者画出的图形一致。导出的�
 
 ### Axis Props
 
-| 名称          | 说明                                                                 | 类型                                                  | 默认值                      |
-| ------------- | -------------------------------------------------------------------- | ----------------------------------------------------- | --------------------------- |
-| `for`         | 哪条轴                                                               | `'x' \| 'y' \| 'y2'`                                  | —                           |
-| `type`        | 刻度类型                                                             | `'linear' \| 'log' \| 'time' \| 'category'`           | x 轴按数据判断，数值轴线性  |
-| `min`         | 起点                                                                 | `number \| string \| Date`                            | 数据的最小值                |
-| `max`         | 终点                                                                 | `number \| string \| Date`                            | 数据的最大值                |
-| `zero`        | 数值轴包含 0                                                         | `boolean`                                             | 有面积图、柱状图时为 `true` |
-| `percent`     | 这条数值轴上的堆叠按占比画，叠满 100%，刻度显示百分比                | `boolean`                                             | `false`                     |
-| `nice`        | 两端取到整齐的刻度值                                                 | `boolean`                                             | 数值轴 `true`，x 轴 `false` |
-| `ticks`       | 大约的刻度数量（标签放不下时自动减少），或具体的刻度值               | `number \| (number \| string \| Date)[]`              | 按尺寸计算                  |
-| `format`      | 格式化刻度文字                                                       | `(value: number \| Date \| string) => string`         | —                           |
-| `grid`        | 显示网格线                                                           | `boolean`                                             | `y` 为 `true`               |
-| `title`       | 标题                                                                 | `string`                                              | —                           |
-| `hidden`      | 隐藏坐标轴，保留它的范围                                             | `boolean`                                             | `false`                     |
-| `label-width` | 竖排刻度文字占的宽度（px），上下排列的图表设成一样的值可以对齐绘图区 | `number`                                              | 按文字测量                  |
-| `reverse`     | 反向：数值轴从上往下增大，x 轴从右往左（横向图从下往上）             | `boolean`                                             | `false`                     |
-| `sort`        | 类目 x 轴的顺序：按合计值升序、降序，或比较类目名称的函数            | `'asc' \| 'desc' \| (a: string, b: string) => number` | 数据中的顺序                |
+| 名称         | 说明                                                                 | 类型                                                  | 默认值                      |
+| ------------ | -------------------------------------------------------------------- | ----------------------------------------------------- | --------------------------- |
+| `for`        | 哪条轴                                                               | `'x' \| 'y' \| 'y2'`                                  | —                           |
+| `type`       | 刻度类型                                                             | `'linear' \| 'log' \| 'time' \| 'category'`           | x 轴按数据判断，数值轴线性  |
+| `min`        | 起点                                                                 | `number \| string \| Date`                            | 数据的最小值                |
+| `max`        | 终点                                                                 | `number \| string \| Date`                            | 数据的最大值                |
+| `zero`       | 数值轴包含 0                                                         | `boolean`                                             | 有面积图、柱状图时为 `true` |
+| `percent`    | 这条数值轴上的堆叠按占比画，叠满 100%，刻度显示百分比                | `boolean`                                             | `false`                     |
+| `nice`       | 两端取到整齐的刻度值                                                 | `boolean`                                             | 数值轴 `true`，x 轴 `false` |
+| `ticks`      | 大约的刻度数量（标签放不下时自动减少），或具体的刻度值               | `number \| (number \| string \| Date)[]`              | 按尺寸计算                  |
+| `format`     | 格式化刻度文字                                                       | `(value: number \| Date \| string) => string`         | —                           |
+| `grid`       | 显示网格线                                                           | `boolean`                                             | `y` 为 `true`               |
+| `title`      | 标题                                                                 | `string`                                              | —                           |
+| `hidden`     | 隐藏坐标轴，保留它的范围                                             | `boolean`                                             | `false`                     |
+| `labelWidth` | 竖排刻度文字占的宽度（px），上下排列的图表设成一样的值可以对齐绘图区 | `number`                                              | 按文字测量                  |
+| `reverse`    | 反向：数值轴从上往下增大，x 轴从右往左（横向图从下往上）             | `boolean`                                             | `false`                     |
+| `sort`       | 类目 x 轴的顺序：按合计值升序、降序，或比较类目名称的函数            | `'asc' \| 'desc' \| (a: string, b: string) => number` | 数据中的顺序                |
 
 ### CSS 变量
 

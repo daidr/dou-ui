@@ -10,7 +10,7 @@ const cells = Array.from({ length: rows }, (_, r) =>
 )
 
 // a shallow ref: the sheet replaces rows instead of changing them, so deep tracking isn't needed
-const book = shallowRef({ sheets: [{ name: '大表', freeze: { cols: 1 }, cells }] })
+const book = shallowRef({ version: 1, sheets: [{ name: '大表', freeze: { cols: 1 }, cells }] })
 </script>
 
 <template>

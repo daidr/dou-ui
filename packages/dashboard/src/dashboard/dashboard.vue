@@ -22,6 +22,7 @@ import {
   toRaw,
   watch,
 } from 'vue'
+import { emptyDocument } from '../core/document'
 import { DashboardHistory } from '../core/history'
 import {
   applySteps,
@@ -82,7 +83,7 @@ const props = withDefaults(defineProps<Omit<DashboardProps, 'modelValue' | 'filt
   compact: 'vertical',
 })
 const emit = defineEmits<Omit<DashboardEmits, 'update:modelValue' | 'update:filters'>>()
-const model = defineModel<DashboardDocument>({ default: () => ({ version: 1, widgets: [] }) })
+const model = defineModel<DashboardDocument>({ default: emptyDocument })
 const filters = defineModel<DashboardFilters>('filters', { default: () => ({}) })
 const messages = useDashboardMessages(() => props.messages)
 

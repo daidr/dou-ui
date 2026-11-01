@@ -12,7 +12,7 @@
 
 ## 注册端口类型
 
-`port-types` 为类型设置外观和额外的连接规则：
+`portTypes` 为类型设置外观和额外的连接规则：
 
 ```ts
 const portTypes = {
@@ -68,7 +68,7 @@ const variableNode = defineNodeType({
 
 ## 自定义规则
 
-`can-connect` 在其他规则都通过后调用。返回 `false` 拒绝这条连线；返回一段文字也是拒绝，这段文字会在松开时读给读屏用户，说明为什么不能连：
+`canConnect` 在其他规则都通过后调用。返回 `false` 拒绝这条连线；返回一段文字也是拒绝，这段文字会在松开时读给读屏用户，说明为什么不能连：
 
 ```vue
 <DouFlowEditor
@@ -80,7 +80,7 @@ const variableNode = defineNodeType({
 />
 ```
 
-拖动连线时，编辑器会对每个端口调用一次 `can-connect`，用来决定哪些端口高亮，所以里面不要做耗时的计算。
+拖动连线时，编辑器会对每个端口调用一次 `canConnect`，用来决定哪些端口高亮，所以里面不要做耗时的计算。
 
 ## 连不上的时候
 

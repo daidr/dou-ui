@@ -40,6 +40,7 @@ const head = (value: string) => ({ value, style: 'head' })
 const money = (value: number) => ({ value, format: '¥#,##0' })
 
 const start: SheetWorkbook = {
+  version: 1,
   styles: { head: { bold: true, fill: 'neutral' } },
   sheets: [
     {
@@ -80,7 +81,7 @@ function createClient(name: string, selection: SheetSelection): Client {
     doc,
     awareness: new Awareness(doc),
     // 协同时工作簿从共享文档读取，这里的初始值不会用到
-    book: ref<SheetWorkbook>({ sheets: [{ name: '十月', cells: [] }] }),
+    book: ref<SheetWorkbook>({ version: 1, sheets: [{ name: '十月', cells: [] }] }),
     selection: ref(selection),
     extensions: [],
   }

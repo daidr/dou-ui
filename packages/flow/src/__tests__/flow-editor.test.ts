@@ -11,6 +11,7 @@ import {
 import type { FlowDocument, FlowMessages, FlowSelection } from '../index'
 
 const sample = (): FlowDocument => ({
+  version: 1,
   nodes: [
     { id: 'a', x: 0, y: 0, data: { label: '收集素材', outputs: [{ id: 'out' }] } },
     { id: 'b', x: 288, y: 0, data: { label: '写初稿', inputs: [{ id: 'in' }] } },
@@ -137,7 +138,11 @@ describe('DouFlowEditor', () => {
       type: 'field',
       component: defineComponent(() => () => h('input', { class: 'field' })),
     })
-    const doc = ref<FlowDocument>({ nodes: [{ id: 'f', type: 'field', x: 0, y: 0 }], edges: [] })
+    const doc = ref<FlowDocument>({
+      version: 1,
+      nodes: [{ id: 'f', type: 'field', x: 0, y: 0 }],
+      edges: [],
+    })
     const wrapper = mount(DouFlowEditor, {
       props: {
         modelValue: doc.value,
@@ -169,6 +174,7 @@ describe('DouFlowEditor', () => {
       }),
     })
     const doc = ref<FlowDocument>({
+      version: 1,
       nodes: [{ id: 'n', type: 'note', x: 0, y: 0, data: { text: 'a' } }],
       edges: [],
     })
@@ -249,6 +255,7 @@ describe('DouFlowEditor', () => {
       component: defineComponent(() => () => h('div')),
     })
     const doc = ref<FlowDocument>({
+      version: 1,
       nodes: [
         { id: 'v', type: 'variable', x: 0, y: 0, data: { type: 'number' } },
         { id: 'n', x: 300, y: 0, data: { inputs: [{ id: 'in', dataType: 'number' }] } },

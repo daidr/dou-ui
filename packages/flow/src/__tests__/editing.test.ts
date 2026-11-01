@@ -27,6 +27,7 @@ const summary = defineNodeType({
 })
 
 const sample = (): FlowDocument => ({
+  version: 1,
   nodes: [
     {
       id: 'a',

@@ -10,14 +10,14 @@ import { DouEditor } from '@dou-ui/editor'
 import type { CommentThread } from 'dou-ui'
 import { ref } from 'vue'
 
-const blocks = ref([])
+const doc = ref({ version: 1, blocks: [] })
 const threads = ref<CommentThread[]>([])
 const active = ref<string | null>(null)
 </script>
 
 <template>
   <DouEditor
-    v-model="blocks"
+    v-model="doc"
     v-model:comments="threads"
     v-model:active-comment="active"
     :author="{ id: 'dai', name: '戴兜' }"
@@ -58,15 +58,15 @@ const active = ref<string | null>(null)
 
 ## 和侧栏联动
 
-`v-model:active-comment` 是当前打开的讨论。点击正文里高亮的文字会更新它；在侧栏里设置它，正文里会打开这条讨论。上面的示例用它做了一个评论列表，被评论的文字通过 `getCommentAnchors()` 读取。
+`v-model:activeComment` 是当前打开的讨论。点击正文里高亮的文字会更新它；在侧栏里设置它，正文里会打开这条讨论。上面的示例用它做了一个评论列表，被评论的文字通过 `getCommentAnchors()` 读取。
 
 ## 保存到服务器
 
-每次修改评论都会触发 `comment-action` 事件，参数是这次修改（`CommentAction`，见 [CommentThread](/components/comment-thread#数据格式)），比如“回复了某条讨论”。可以直接发给服务器，也可以用来通知被回复的人。
+每次修改评论都会触发 `commentAction` 事件，参数是这次修改（`CommentAction`，见 [CommentThread](/components/comment-thread#数据格式)），比如“回复了某条讨论”。可以直接发给服务器，也可以用来通知被回复的人。
 
 ```vue
 <DouEditor
-  v-model="blocks"
+  v-model="doc"
   v-model:comments="threads"
   :author="me"
   @comment-action="(action) => api.post('/comments', action)"
@@ -98,24 +98,24 @@ collaboration({
 
 ## API
 
-### Props
+### Editor Props
 
 | 名称            | 说明                                                                                                       | 类型              | 默认值 |
 | --------------- | ---------------------------------------------------------------------------------------------------------- | ----------------- | ------ |
 | `comments`      | 所有讨论，支持 `v-model:comments`；不传时没有评论功能（用 `collaboration({ comments })` 共享讨论时不用传） | `CommentThread[]` | —      |
 | `author`        | 当前用户；不传时只能查看讨论                                                                               | `CommentAuthor`   | —      |
-| `activeComment` | 打开的讨论，支持 `v-model:active-comment`                                                                  | `string \| null`  | —      |
+| `activeComment` | 打开的讨论，支持 `v-model:activeComment`                                                                   | `string \| null`  | —      |
 | `commentable`   | 能否发起和回复讨论，`readonly` 时同样有效                                                                  | `boolean`         | `true` |
 
-### Events
+### Editor Events
 
 | 名称                   | 说明               | 类型                                 |
 | ---------------------- | ------------------ | ------------------------------------ |
 | `update:comments`      | 讨论变化           | `(threads: CommentThread[]) => void` |
 | `update:activeComment` | 打开的讨论变化     | `(id: string \| null) => void`       |
-| `comment-action`       | 在这里做的一次修改 | `(action: CommentAction) => void`    |
+| `commentAction`        | 在这里做的一次修改 | `(action: CommentAction) => void`    |
 
-### 实例方法
+### Editor Exposes
 
 | 名称                | 说明                                                                                                                                | 类型                                          |
 | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |

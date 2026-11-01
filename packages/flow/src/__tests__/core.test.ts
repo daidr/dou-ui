@@ -9,6 +9,7 @@ import type { FlowDocument } from '../core/model'
 import { applyFlowSteps, compactFlowSteps, FlowTransaction } from '../core/transaction'
 
 const doc = (): FlowDocument => ({
+  version: 1,
   nodes: [
     { id: 'a', x: 0, y: 0, data: { label: 'A' } },
     { id: 'b', x: 200, y: 0, data: { label: 'B' } },
@@ -173,6 +174,7 @@ describe('bezierPath', () => {
 })
 
 const graph = (): FlowDocument => ({
+  version: 1,
   nodes: [
     { id: 'a', x: 0, y: 0 },
     { id: 'b', x: 200, y: 0 },
@@ -265,6 +267,7 @@ describe('connection rules', () => {
 describe('flowOrder', () => {
   it('follows the edges, then goes left to right', () => {
     const order = flowOrder({
+      version: 1,
       nodes: [
         { id: 'tool', x: 300, y: -100 },
         { id: 'start', x: 0, y: 100 },
@@ -281,6 +284,7 @@ describe('flowOrder', () => {
 
   it('puts nodes on a cycle last', () => {
     const order = flowOrder({
+      version: 1,
       nodes: [
         { id: 'a', x: 0, y: 0 },
         { id: 'b', x: 200, y: 0 },

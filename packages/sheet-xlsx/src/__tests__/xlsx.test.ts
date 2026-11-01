@@ -68,7 +68,10 @@ describe('zip', () => {
 
 describe('writeXlsx', () => {
   it('writes the parts a workbook needs', async () => {
-    const { files, text } = await parts({ sheets: [{ name: '门店', cells: [['上海']] }] })
+    const { files, text } = await parts({
+      version: 1,
+      sheets: [{ name: '门店', cells: [['上海']] }],
+    })
     expect([...files.keys()][0]).toBe('[Content_Types].xml')
     expect(
       [
@@ -85,6 +88,7 @@ describe('writeXlsx', () => {
 
   it('writes numbers, text, booleans and shares repeated text', async () => {
     const { sheet, text } = await parts({
+      version: 1,
       sheets: [
         {
           name: 'S',
@@ -108,7 +112,7 @@ describe('writeXlsx', () => {
 
   it('names a cell only after a gap, as cells in a row follow on otherwise', async () => {
     const xml = (
-      await parts({ sheets: [{ name: 'S', cells: [[null, 1, 2, null, 4, '']] }] })
+      await parts({ version: 1, sheets: [{ name: 'S', cells: [[null, 1, 2, null, 4, '']] }] })
     ).sheet()
     expect(xml).toContain(
       '<row r="1"><c r="B1"><v>1</v></c><c><v>2</v></c><c r="E1"><v>4</v></c></row>',
@@ -116,12 +120,16 @@ describe('writeXlsx', () => {
   })
 
   it('escapes text and drops characters XML cannot hold', async () => {
-    const { text } = await parts({ sheets: [{ name: 'S', cells: [['a<b & "c"\u0001']] }] })
+    const { text } = await parts({
+      version: 1,
+      sheets: [{ name: 'S', cells: [['a<b & "c"\u0001']] }],
+    })
     expect(text('xl/sharedStrings.xml')).toContain('<t>a&lt;b &amp; &quot;c&quot;</t>')
   })
 
   it('writes formulas with their results, or only the results', async () => {
     const book: SheetWorkbook = {
+      version: 1,
       sheets: [{ name: 'S', cells: [[2, 3, '=A1*B1', '=A1>1', '="a"&"b"', '=1/0', '=SUM(']] }],
     }
     const kept = (await parts(book)).sheet()
@@ -138,12 +146,13 @@ describe('writeXlsx', () => {
   })
 
   it('writes a formula that depends on itself as an error the file knows', async () => {
-    const xml = (await parts({ sheets: [{ name: 'S', cells: [['=A1']] }] })).sheet()
+    const xml = (await parts({ version: 1, sheets: [{ name: 'S', cells: [['=A1']] }] })).sheet()
     expect(xml).toContain('<v>#VALUE!</v>')
   })
 
   it('writes dates and times as day numbers with a format', async () => {
     const { sheet, text } = await parts({
+      version: 1,
       sheets: [
         {
           name: 'S',
@@ -162,6 +171,7 @@ describe('writeXlsx', () => {
 
   it('writes named styles with tones in light theme colors', async () => {
     const { sheet, text } = await parts({
+      version: 1,
       styles: { head: { bold: true, fill: 'primary', align: 'center' }, red: { color: '#c00' } },
       sheets: [
         {
@@ -186,6 +196,7 @@ describe('writeXlsx', () => {
   it('writes merges, freeze, sizes and hidden lines', async () => {
     const xml = (
       await parts({
+        version: 1,
         sheets: [
           {
             name: 'S',
@@ -210,7 +221,10 @@ describe('writeXlsx', () => {
 
   it('takes the grid sizes from options', async () => {
     const xml = (
-      await parts({ sheets: [{ name: 'S', cells: [['a']] }] }, { colWidth: 124, rowHeight: 32 })
+      await parts(
+        { version: 1, sheets: [{ name: 'S', cells: [['a']] }] },
+        { colWidth: 124, rowHeight: 32 },
+      )
     ).sheet()
     expect(xml).toContain('defaultRowHeight="24" defaultColWidth="17.71484375"')
   })
@@ -218,6 +232,7 @@ describe('writeXlsx', () => {
   it('writes groups as outline levels, folded ones hidden', async () => {
     const xml = (
       await parts({
+        version: 1,
         sheets: [
           {
             name: 'S',
@@ -237,6 +252,7 @@ describe('writeXlsx', () => {
 
   it('writes notes as comments with their boxes', async () => {
     const { text, files } = await parts({
+      version: 1,
       sheets: [{ name: 'S', cells: [[null, { value: 1, note: '负责人：戴兜' }]] }],
     })
     expect(text('xl/comments1.xml')).toContain(
@@ -252,6 +268,7 @@ describe('writeXlsx', () => {
   it('writes validations', async () => {
     const xml = (
       await parts({
+        version: 1,
         sheets: [
           {
             name: 'S',
@@ -287,6 +304,7 @@ describe('writeXlsx', () => {
   it('writes cells of a list type as list validations', async () => {
     const xml = (
       await parts({
+        version: 1,
         types: {
           status: { type: 'select', options: ['进行中', { value: '完成', tone: 'success' }] },
         },
@@ -303,6 +321,7 @@ describe('writeXlsx', () => {
 
   it('writes conditional formats', async () => {
     const { sheet, text } = await parts({
+      version: 1,
       styles: { warn: { fill: 'warning' } },
       sheets: [
         {
@@ -341,6 +360,7 @@ describe('writeXlsx', () => {
 
   it('writes the filter and what it keeps', async () => {
     const { sheet, text } = await parts({
+      version: 1,
       sheets: [
         {
           name: '销售',
@@ -371,6 +391,7 @@ describe('writeXlsx', () => {
   it('hides the rows the filter hides, as other programs do not filter on opening', async () => {
     const xml = (
       await parts({
+        version: 1,
         sheets: [
           {
             name: 'S',
@@ -395,6 +416,7 @@ describe('writeXlsx', () => {
 
   it('writes the selected cells from A1, as values', async () => {
     const book: SheetWorkbook = {
+      version: 1,
       sheets: [
         {
           name: 'S',
@@ -420,6 +442,7 @@ describe('writeXlsx', () => {
 
   it('writes every sheet, with names other programs take', async () => {
     const { text, files } = await parts({
+      version: 1,
       sheets: [
         { name: '计划/2026', cells: [[1]] },
         { name: 'x'.repeat(40), cells: [[2]] },
@@ -436,6 +459,7 @@ describe('writeXlsx', () => {
 
   it('changes the formulas that refer to a sheet whose name changed', async () => {
     const { sheet } = await parts({
+      version: 1,
       sheets: [
         {
           name: '一季度/二季度',
@@ -459,6 +483,7 @@ describe('writeXlsx', () => {
 
   it('quotes sheet names that read as cells', async () => {
     const { text } = await parts({
+      version: 1,
       sheets: [
         { name: 'AB12', cells: [['a']], filter: { range: 'A1:A3' } },
         { name: 'R1C1', cells: [['a']], filter: { range: 'A1:A3' } },
@@ -471,6 +496,7 @@ describe('writeXlsx', () => {
 
   it('quotes references to sheets whose names read as cells', async () => {
     const { sheet } = await parts({
+      version: 1,
       sheets: [
         { name: 'R1', cells: [[2]] },
         { name: 'S', cells: [['=R1!A1*2', '=SUM(R1!$A$1:A2)']] },
@@ -481,14 +507,17 @@ describe('writeXlsx', () => {
   })
 
   it('refuses a workbook without sheets', async () => {
-    await expect(writeXlsx(createFileSource({ sheets: [] }))).rejects.toThrow(
+    await expect(writeXlsx(createFileSource({ version: 1, sheets: [] }))).rejects.toThrow(
       '[@dou-ui/sheet-xlsx] a workbook needs at least one sheet',
     )
   })
 
   it('writes dates formulas come to as dates', async () => {
     const xml = (
-      await parts({ sheets: [{ name: 'S', cells: [['2026-03-02', '=A1+1', '=DATE(2026,3,4)']] }] })
+      await parts({
+        version: 1,
+        sheets: [{ name: 'S', cells: [['2026-03-02', '=A1+1', '=DATE(2026,3,4)']] }],
+      })
     ).sheet()
     expect(xml).toMatch(
       /<c s="(\d+)"><f>A1\+1<\/f><v>46084<\/v><\/c><c s="\1"><f>DATE\(2026,3,4\)<\/f><v>46085<\/v>/,
@@ -497,7 +526,7 @@ describe('writeXlsx', () => {
 
   it('writes numbers the file cannot hold as #NUM!', async () => {
     const xml = (
-      await parts({ sheets: [{ name: 'S', cells: [[Number.NaN, Infinity, '=B1']] }] })
+      await parts({ version: 1, sheets: [{ name: 'S', cells: [[Number.NaN, Infinity, '=B1']] }] })
     ).sheet()
     expect(xml).toContain(
       '<row r="1"><c t="e"><v>#NUM!</v></c><c t="e"><v>#NUM!</v></c><c t="e"><f>B1</f><v>#NUM!</v></c></row>',
@@ -505,7 +534,7 @@ describe('writeXlsx', () => {
   })
 
   it('keeps text that reads as a formula text when edited elsewhere', async () => {
-    const { sheet, text } = await parts({ sheets: [{ name: 'S', cells: [["'=1+1"]] }] })
+    const { sheet, text } = await parts({ version: 1, sheets: [{ name: 'S', cells: [["'=1+1"]] }] })
     expect(sheet()).toMatch(/<c s="[1-9]\d*" t="s">/)
     expect(text('xl/styles.xml')).toContain('quotePrefix="1"')
   })
@@ -513,6 +542,7 @@ describe('writeXlsx', () => {
   it('leaves out lists whose values hold a comma or a quote', async () => {
     const xml = (
       await parts({
+        version: 1,
         types: { area: { type: 'select', options: ['上海,浦东', '上海,静安'] } },
         sheets: [
           {
@@ -531,10 +561,14 @@ describe('writeXlsx', () => {
   })
 
   it('takes the grid sizes from the source', async () => {
-    const blob = await exportWorkbook({ sheets: [{ name: 'S', cells: [['a']] }] }, xlsxExporter, {
-      colWidth: 200,
-      rowHeight: 40,
-    })
+    const blob = await exportWorkbook(
+      { version: 1, sheets: [{ name: 'S', cells: [['a']] }] },
+      xlsxExporter,
+      {
+        colWidth: 200,
+        rowHeight: 40,
+      },
+    )
     const files = await unzip(new Uint8Array(await blob.arrayBuffer()))
     expect(decoder.decode(files.get('xl/worksheets/sheet1.xml'))).toContain(
       'defaultRowHeight="30" defaultColWidth="28.5703125"',
@@ -545,7 +579,7 @@ describe('writeXlsx', () => {
     const controller = new AbortController()
     controller.abort()
     const source = createFileSource(
-      { sheets: [{ name: 'S', cells: [[1]] }] },
+      { version: 1, sheets: [{ name: 'S', cells: [[1]] }] },
       { signal: controller.signal },
     )
     await expect(writeXlsx(source)).rejects.toThrow(/abort/i)
@@ -557,7 +591,10 @@ describe('xlsx()', () => {
     const extension = xlsx({ formulas: false })
     const exporter = extension.exporters![0]!
     expect(exporter.name).toBe('xlsx')
-    const blob = await exportWorkbook({ sheets: [{ name: 'S', cells: [[1, '=A1+1']] }] }, exporter)
+    const blob = await exportWorkbook(
+      { version: 1, sheets: [{ name: 'S', cells: [[1, '=A1+1']] }] },
+      exporter,
+    )
     expect(blob.type).toBe('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     const files = await unzip(new Uint8Array(await blob.arrayBuffer()))
     expect(decoder.decode(files.get('xl/worksheets/sheet1.xml'))).not.toContain('<f>')

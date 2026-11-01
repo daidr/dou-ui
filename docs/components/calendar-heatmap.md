@@ -34,7 +34,7 @@
 | `levels`     | 数值大于 0 时分几档                | `number`                            | `4`            |
 | `thresholds` | 每档的最小值，从小到大             | `number[]`                          | —              |
 | `colors`     | 自定义颜色，从空白格到最深一档     | `string[]`                          | —              |
-| `week-start` | 每周第一天，`0` 为周日，`1` 为周一 | `0 \| 1`                            | 语言包设置     |
+| `weekStart`  | 每周第一天，`0` 为周日，`1` 为周一 | `0 \| 1`                            | 语言包设置     |
 | `legend`     | 显示“少 … 多”图例                  | `boolean`                           | `true`         |
 
 ### CalendarHeatmap Events

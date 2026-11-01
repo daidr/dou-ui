@@ -1,6 +1,6 @@
 # 历史版本
 
-`DouEditor` 不保存版本列表：一个版本就是某一刻的文档数据（`getBlocks()` 或 `v-model` 的值），存在哪里、怎么命名由应用决定。编辑器提供三件事：对比两个版本、在差异之间跳转、恢复到某个版本。
+`DouEditor` 不保存版本列表：一个版本就是某一刻的文档数据（`v-model` 的值），存在哪里、怎么命名由应用决定。编辑器提供三件事：对比两个版本、在差异之间跳转、恢复到某个版本。
 
 <DocDemo src="editor/versions" column />
 
@@ -9,14 +9,14 @@
 不协同时，`v-model` 的值就是当前文档，直接存下来：
 
 ```ts
-const versions = ref<{ id: string; name: string; createdAt: string; blocks: Block[] }[]>([])
+const versions = ref<{ id: string; name: string; createdAt: string; doc: EditorDocument }[]>([])
 
 function saveVersion(name: string) {
   versions.value.push({
     id: crypto.randomUUID(),
     name,
     createdAt: new Date().toISOString(),
-    blocks: structuredClone(toRaw(blocks.value)),
+    doc: structuredClone(toRaw(doc.value)),
   })
 }
 ```
@@ -26,7 +26,7 @@ function saveVersion(name: string) {
 ```ts
 import { readMap } from '@dou-ui/editor/collaboration'
 
-const blocks = readMap(ydoc.getMap('doc'))
+const doc = readMap(ydoc.getMap('doc')) // { version: 1, blocks }
 ```
 
 `readMap` 的第二个参数是编辑器用的扩展，默认 `[editorKit()]`；用了自定义块时要传入同样的扩展。
@@ -36,7 +36,7 @@ const blocks = readMap(ydoc.getMap('doc'))
 把旧版本传给 `compare`，编辑器变成只读，在当前文档上标出和旧版本的差异：
 
 ```vue
-<DouEditor v-model="blocks" :compare="version.blocks" />
+<DouEditor v-model="doc" :compare="version.doc" />
 ```
 
 - 新增的块左侧有一条绿色竖线。类型或属性变了的块（比如段落改成标题、换了对齐方式），改过的表格、附件和嵌入，以及文字没变、只改了格式（颜色、链接）的块，左侧是黄色竖线。
@@ -52,7 +52,7 @@ const blocks = readMap(ydoc.getMap('doc'))
 ```ts
 import { diffBlocks } from '@dou-ui/editor'
 
-const { added, removed, updated, changes } = diffBlocks(version.blocks, blocks.value)
+const { added, removed, updated, changes } = diffBlocks(version.doc.blocks, doc.value.blocks)
 // 版本列表里显示“新增 2 段，删除 1 段，修改 3 段”：added.length 等
 ```
 
@@ -60,14 +60,14 @@ const { added, removed, updated, changes } = diffBlocks(version.blocks, blocks.v
 
 ## 恢复
 
-`restore(blocks)` 把文档换成某个版本的内容，算一次修改，可以撤销。只替换有差异的部分；协同编辑时只把这些块写进共享文档，每个人都会同步看到恢复后的内容，别人正在编辑的其他块不受影响。恢复后读屏会读出“已恢复到这个版本”。文档没有差异时返回 `false`。和其他实例方法一样，`readonly` 时也可以恢复；对比时（传了 `compare`）文档不能修改，`restore` 是唯一能用的修改。恢复会触发 `transaction` 事件，`meta.origin` 为 `'restore'`。
+`restore(doc)` 把文档换成某个版本的内容，算一次修改，可以撤销。只替换有差异的部分；协同编辑时只把这些块写进共享文档，每个人都会同步看到恢复后的内容，别人正在编辑的其他块不受影响。恢复后读屏会读出“已恢复到这个版本”。文档没有差异时返回 `false`。和其他实例方法一样，`readonly` 时也可以恢复；对比时（传了 `compare`）文档不能修改，`restore` 是唯一能用的修改。恢复会触发 `transaction` 事件，`meta.origin` 为 `'restore'`。
 
 恢复前编辑器不会自动保存版本。想让用户能回到恢复前的样子，在调用前先存一份：
 
 ```ts
 function restore(version: Version) {
   saveVersion('恢复前')
-  editor.value?.restore(version.blocks)
+  editor.value?.restore(version.doc)
 }
 ```
 
@@ -75,17 +75,17 @@ function restore(version: Version) {
 
 ## API
 
-### Props
+### Editor Props
 
 | 名称      | 说明                                               | 类型              | 默认值 |
 | --------- | -------------------------------------------------- | ----------------- | ------ |
-| `compare` | 要对比的旧版本；传入时编辑器只读，并标出和它的差异 | `Block[] \| null` | —      |
+| `compare` | 要对比的旧版本；传入时编辑器只读，并标出和它的差异 | `EditorDocument \| null` | —      |
 
-### 实例方法
+### Editor Exposes
 
 | 名称             | 说明                                                 | 类型                                  |
 | ---------------- | ---------------------------------------------------- | ------------------------------------- |
-| `restore`        | 换成某个版本的内容，可以撤销；没有差异时返回 `false` | `(blocks: PartialBlock[]) => boolean` |
+| `restore`        | 换成某个版本的内容，可以撤销；没有差异时返回 `false` | `(doc: EditorDocument<PartialBlock>) => boolean` |
 | `nextChange`     | 对比时滚动到下一处差异，没有更多时返回 `false`       | `() => boolean`                       |
 | `previousChange` | 对比时滚动到上一处差异                               | `() => boolean`                       |
 
@@ -96,7 +96,7 @@ function restore(version: Version) {
 | `diffBlocks` | 两个版本之间新增、删除、修改的块                                                              | `(before: Block[], after: Block[]) => BlocksDiff`         |
 | `diffText`   | 逐字对比两段文字                                                                              | `(before: string, after: string) => TextPart[]`           |
 | `inlineText` | 块的文字内容转成字符串：换行是 `\n`，提及等行内节点各占一个 `￼`，和 `diffText` 的位置一一对应 | `(content: InlineContent[]) => string`                    |
-| `readMap`    | 从共享文档读出当前内容，从 `@dou-ui/editor/collaboration` 引入                                | `(map: Y.Map, extensions?: EditorExtension[]) => Block[]` |
+| `readMap`    | 从共享文档读出当前内容，从 `@dou-ui/editor/collaboration` 引入                                | `(map: Y.Map, extensions?: EditorExtension[]) => EditorDocument` |
 
 ```ts
 type BlockVersionChange =

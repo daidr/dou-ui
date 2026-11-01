@@ -51,6 +51,8 @@ export type {
   PortSide,
   Rect,
 } from './core/model'
+export { checkDocument, migrateDocument } from './document'
+export type { CheckDocumentOptions, DocumentProblem } from './document'
 export { applyFlowSteps, compactFlowSteps, FlowTransaction } from './core/transaction'
 export type { FlowStep, FlowTransactionMeta } from './core/transaction'
 export { FlowHistory } from './core/history'

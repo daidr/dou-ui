@@ -26,7 +26,7 @@ export interface SheetProps {
   modelValue: SheetWorkbook
   /** What is selected; bind with `v-model:selection`. */
   selection?: SheetSelection
-  /** The index of the sheet shown; bind with `v-model:active-sheet`. Defaults to 0. */
+  /** The index of the sheet shown; bind with `v-model:activeSheet`. Defaults to 0. */
   activeSheet?: number
   /**
    * Show the cells without letting people change them in the grid;

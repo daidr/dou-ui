@@ -5,6 +5,7 @@ import { Awareness } from 'y-protocols/awareness'
 import * as Y from 'yjs'
 import { collaboration, fillMaps } from '..'
 import { DouGantt, type GanttExpose, type GanttLink, type GanttTask } from '../../index'
+import { bind, planRef } from '../../__tests__/plan-ref'
 
 const START = (): GanttTask[] => [
   { id: 'p', title: '发布' },
@@ -30,7 +31,8 @@ function client(
   const doc = options.doc ?? new Y.Doc()
   const awareness = options.awareness ? new Awareness(doc) : undefined
   if (awareness) awarenesses.push(awareness)
-  const state = { tasks: ref(tasks), links: ref(links), selection: ref<string[]>([]) }
+  const { doc: plan, ...parts } = planRef(tasks, links)
+  const state = { ...parts, selection: ref<string[]>([]) }
   const chart = ref<GanttExpose>()
   const extensions = [
     collaboration({
@@ -45,10 +47,7 @@ function client(
       () => () =>
         h(DouGantt, {
           ref: chart,
-          tasks: state.tasks.value,
-          'onUpdate:tasks': (value: GanttTask[]) => (state.tasks.value = value),
-          links: state.links.value,
-          'onUpdate:links': (value: GanttLink[]) => (state.links.value = value),
+          ...bind(plan),
           selection: state.selection.value,
           'onUpdate:selection': (value: string[]) => (state.selection.value = value),
           // written inline, so it is a new list on every render
@@ -210,10 +209,7 @@ describe('collaboration', () => {
     const doc = new Y.Doc()
     fillMaps(
       { tasks: doc.getMap('tasks'), links: doc.getMap('links') },
-      {
-        tasks: START(),
-        links: LINKS(),
-      },
+      { version: 1, tasks: START(), links: LINKS() },
     )
     const one = client([], [], { doc, awareness: true })
     const other = new Y.Doc()
@@ -244,6 +240,7 @@ describe('collaboration', () => {
     fillMaps(
       { tasks, links },
       {
+        version: 1,
         tasks: [
           { id: 'x', title: '带图标', data: { icon } },
           { id: 'y', title: '普通', data: { tags: ['a'], owner: { name: '戴兜' } } },

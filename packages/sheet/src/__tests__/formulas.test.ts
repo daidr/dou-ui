@@ -8,6 +8,7 @@ import type { SheetExpose } from '../types'
 describe('useSheetFormulas', () => {
   it('reads results reactively, catching up with each transaction', async () => {
     const book = ref<SheetWorkbook>({
+      version: 1,
       sheets: [{ name: '表', cells: [[1, 2, '=A1+B1']] }],
     })
     const grid = ref<SheetExpose>()
@@ -36,7 +37,7 @@ describe('useSheetFormulas', () => {
     expect(load).not.toHaveBeenCalled()
 
     // a workbook replaced from outside is loaded again
-    book.value = { sheets: [{ name: '表', cells: [[5, 5, '=A1*B1']] }] }
+    book.value = { version: 1, sheets: [{ name: '表', cells: [[5, 5, '=A1*B1']] }] }
     await nextTick()
     expect(total.value).toBe(25)
     wrapper.unmount()

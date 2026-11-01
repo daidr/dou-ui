@@ -4,7 +4,7 @@
 
 ## 基础用法
 
-默认插槽放公告内容，`title` 放在内容前加粗显示。`tone` 决定图标和底色，`show-icon` 设为 `false` 可以不显示图标。
+默认插槽放公告内容，`title` 放在内容前加粗显示。`tone` 决定图标和底色，`showIcon` 设为 `false` 可以不显示图标。
 
 <DocDemo src="banner/basic" column />
 

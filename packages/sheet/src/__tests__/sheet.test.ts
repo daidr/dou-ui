@@ -14,6 +14,7 @@ import type { SheetTransaction } from '../core/transaction'
 import type { SheetExpose, SheetMenuContext, SheetMenuItem, SheetPasteEvent } from '../types'
 
 const sample = (): SheetWorkbook => ({
+  version: 1,
   styles: { head: { bold: true, fill: 'neutral' } },
   sheets: [
     {
@@ -361,6 +362,7 @@ describe('DouSheet', () => {
 })
 
 const typed = (): SheetWorkbook => ({
+  version: 1,
   types: {
     status: { type: 'select', options: ['未开始', { value: '进行中', tone: 'primary' }, '已完成'] },
   },

@@ -5,7 +5,7 @@ export type PaginationSize = Size
 export interface PaginationProps {
   /** The current page, from 1, bound with `v-model:page`. */
   page?: number
-  /** Items per page, bound with `v-model:page-size`. */
+  /** Items per page, bound with `v-model:pageSize`. */
   pageSize?: number
   /** The number of items. */
   total: number

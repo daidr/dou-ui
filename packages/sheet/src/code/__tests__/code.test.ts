@@ -6,6 +6,7 @@ import { DouSheet, type SheetWorkbook } from '../../index'
 import { DouSheetCodeFormulaBar, sheetFormula } from '../index'
 
 const book = (): SheetWorkbook => ({
+  version: 1,
   sheets: [{ name: '表 1', cells: [[1, 2, 3], [4, 5, '=A1*2'], [null]] }],
 })
 

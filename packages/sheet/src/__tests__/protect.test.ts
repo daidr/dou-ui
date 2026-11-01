@@ -17,6 +17,7 @@ import type { SheetExpose } from '../types'
 
 /** A form: headings locked, the blanks to fill in unlocked. */
 const form = (): SheetWorkbook => ({
+  version: 1,
   styles: { blank: { locked: false }, head: { bold: true } },
   sheets: [
     {
@@ -303,7 +304,7 @@ describe('cancelling a change', () => {
       priority: 50,
       transaction: after,
     })
-    const book: SheetWorkbook = { sheets: [{ name: '表', cells: [['原值']] }] }
+    const book: SheetWorkbook = { version: 1, sheets: [{ name: '表', cells: [['原值']] }] }
     const { grid, cancels, notice, cells, wrapper } = setup({ extensions: [guard, later] }, book)
     const tr = grid.value!.transact((t) => t.setValue('A1', '新值'))
     expect(tr.cancelled).toBe(true)

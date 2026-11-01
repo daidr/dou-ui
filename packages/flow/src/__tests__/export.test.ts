@@ -86,6 +86,7 @@ describe('text layout', () => {
 })
 
 const doc = (): FlowDocument => ({
+  version: 1,
   nodes: [
     {
       id: 'a',
@@ -158,6 +159,7 @@ describe('exportSVG', () => {
   it('cuts text that doesn’t fit with an ellipsis', async () => {
     const { editor } = setup(
       {
+        version: 1,
         nodes: [
           {
             id: 's',
@@ -201,6 +203,7 @@ describe('exportSVG', () => {
     const plain = defineNodeType({ type: 'plain' })
     const { editor } = setup(
       {
+        version: 1,
         nodes: [
           { id: 's', type: 'stamp', x: 0, y: 0, width: 80, height: 80, data: { label: '已审' } },
           { id: 'p', type: 'plain', x: 120, y: 0, width: 80, height: 40, data: { label: '备注' } },
@@ -219,6 +222,7 @@ describe('exportSVG', () => {
 
   it('draws a folded group without what is inside', async () => {
     const { editor } = setup({
+      version: 1,
       nodes: [
         {
           id: 'g',
@@ -252,6 +256,7 @@ describe('exportSVG', () => {
   it('draws whiteboard nodes: turned, inked and with images', async () => {
     const { editor } = setup(
       {
+        version: 1,
         nodes: [
           {
             id: 'r',

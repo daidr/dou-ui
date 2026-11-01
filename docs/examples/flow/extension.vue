@@ -50,6 +50,7 @@ const link = (from: string, to: string) => ({
 })
 
 const doc = ref<FlowDocument>({
+  version: 1,
   nodes: [
     node('a', 0, 72, '收到订单'),
     node('b', 240, 0, '检查库存', true),

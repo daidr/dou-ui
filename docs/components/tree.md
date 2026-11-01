@@ -8,7 +8,7 @@
 
 <DocDemo src="tree/basic" column />
 
-点击箭头展开或收起，点击行选中。希望点击整行就展开时加上 `expand-on-click`；`selectable` 为 `false` 时点击行直接展开。`default-expand-all` 在首次渲染时展开全部（只在没有绑定 `expanded` 时生效）。
+点击箭头展开或收起，点击行选中。希望点击整行就展开时加上 `expandOnClick`；`selectable` 为 `false` 时点击行直接展开。`defaultExpandAll` 在首次渲染时展开全部（只在没有绑定 `expanded` 时生效）。
 
 ## 层级引导线
 
@@ -24,7 +24,7 @@
 
 ## 勾选
 
-`checkable` 在每行前加一个复选框，勾选结果用 `v-model:checked` 绑定。默认会级联：勾选分支会勾选它下面的所有节点（禁用的节点保持原状），分支的子节点全部勾选时它自己也算勾选，部分勾选时显示为短横。`check-strictly` 关闭级联，每个节点各自独立。
+`checkable` 在每行前加一个复选框，勾选结果用 `v-model:checked` 绑定。默认会级联：勾选分支会勾选它下面的所有节点（禁用的节点保持原状），分支的子节点全部勾选时它自己也算勾选，部分勾选时显示为短横。`checkStrictly` 关闭级联，每个节点各自独立。
 
 <DocDemo src="tree/checkable" column />
 
@@ -32,13 +32,13 @@
 
 ## 筛选
 
-`filter` 传入文字后，只显示标签包含它的节点和它们的祖先，并自动展开祖先，不改动 `expanded`。匹配的部分加粗并带一条淡下划线。需要其他匹配规则时传 `filter-method`。
+`filter` 传入文字后，只显示标签包含它的节点和它们的祖先，并自动展开祖先，不改动 `expanded`。匹配的部分加粗并带一条淡下划线。需要其他匹配规则时传 `filterMethod`。
 
 <DocDemo src="tree/filter" column />
 
 ## 懒加载
 
-传入 `load` 后，没有 `children` 的节点被视为“还没加载”，第一次展开时调用 `load(node)` 取回子节点，期间箭头换成加载指示。已知没有子节点的传 `isLeaf: true`。加载失败时分支收起并触发 `load-error`，下次展开会重新加载。
+传入 `load` 后，没有 `children` 的节点被视为“还没加载”，第一次展开时调用 `load(node)` 取回子节点，期间箭头换成加载指示。已知没有子节点的传 `isLeaf: true`。加载失败时分支收起并触发 `loadError`，下次展开会重新加载。
 
 <DocDemo src="tree/lazy" column />
 
@@ -48,7 +48,7 @@
 
 `draggable` 让节点可以拖到另一个节点之前、之后或里面（成为它的最后一个子节点）。拖动时目标行显示一条横线或高亮，停在收起的分支上一会儿会自动展开。松开后新的树通过 `update:data` 传出，所以 `data` 要用 `v-model:data` 绑定；同时触发 `drop`，参数为 `{ node, target, position }`。
 
-`allow-drag` 决定节点能否被拿起，`allow-drop` 决定能否放到某个位置。标了 `isLeaf` 的节点和还没加载的懒加载分支不接受放入，节点也不能放进自己的子孙里。设置了 `filter` 时拖拽暂停。下面的“更新日志”不能拖动。
+`allowDrag` 决定节点能否被拿起，`allowDrop` 决定能否放到某个位置。标了 `isLeaf` 的节点和还没加载的懒加载分支不接受放入，节点也不能放进自己的子孙里。设置了 `filter` 时拖拽暂停。下面的“更新日志”不能拖动。
 
 <DocDemo src="tree/draggable" column />
 
@@ -56,7 +56,7 @@
 
 ## 大量节点
 
-传入 `height` 后只渲染视口附近的行，基于 [VirtualList](./virtual-list)。也可以只传 `max-height`：树随内容变高，到这个高度后在内部滚动，行数超过 100 时同样只渲染看得见的行。下面是 200 个分组、各 50 个条目，共一万多个节点。
+传入 `height` 后只渲染视口附近的行，基于 [VirtualList](./virtual-list)。也可以只传 `maxHeight`：树随内容变高，到这个高度后在内部滚动，行数超过 100 时同样只渲染看得见的行。下面是 200 个分组、各 50 个条目，共一万多个节点。
 
 <DocDemo src="tree/large-tree" column />
 
@@ -142,7 +142,7 @@
 | `select`          | 用户选中了节点     | `(node: TreeNodeData)`                    |
 | `check`           | 用户勾选或取消勾选 | `(node: TreeNodeData, checked: boolean)`  |
 | `expand`          | 用户展开或收起分支 | `(node: TreeNodeData, expanded: boolean)` |
-| `load-error`      | `load` 失败        | `(node: TreeNodeData, error: unknown)`    |
+| `loadError`       | `load` 失败        | `(node: TreeNodeData, error: unknown)`    |
 
 ### Slots
 

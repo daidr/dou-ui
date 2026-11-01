@@ -14,7 +14,7 @@ import {
 import type { CommentAnchor, CommentRange } from './core/comments'
 import type { EditorExtension, ResolvedEditorExtensions } from './core/extension'
 import type { BlockChanges } from './core/changes'
-import type { Block, PartialBlock } from './core/model'
+import type { Block, EditorDocument, PartialBlock } from './core/model'
 import type { EditorSearchQuery } from './core/search'
 import type {
   BlockEdge,
@@ -27,11 +27,11 @@ import type { EditorMessages, EditorMessagesOverride } from './locale'
 
 export interface EditorProps {
   /**
-   * The document as a list of blocks, bound with `v-model`. With
-   * collaboration the shared document is the source of truth: leave
-   * `v-model` out and read changes from the `change` event.
+   * The document, bound with `v-model`. With collaboration the shared
+   * document is the source of truth: leave `v-model` out and read changes
+   * from the `change` event.
    */
-  modelValue?: PartialBlock[]
+  modelValue?: EditorDocument<PartialBlock>
   /**
    * Blocks, marks, shortcuts and menu entries. Defaults to `[editorKit()]`;
    * read once, when the editor mounts.
@@ -67,7 +67,7 @@ export interface EditorProps {
   comments?: CommentThread[]
   /** Who is commenting. Without it comments can be read but not written. */
   author?: CommentAuthor
-  /** The id of the thread shown beside its text, bound with `v-model:active-comment`. */
+  /** The id of the thread shown beside its text, bound with `v-model:activeComment`. */
   activeComment?: string | null
   /** Whether threads can be started and answered; also while `readonly`. Defaults to `true`. */
   commentable?: boolean
@@ -77,7 +77,7 @@ export interface EditorProps {
    * blocks added and removed, and in each changed block the text added
    * and removed.
    */
-  compare?: Block[] | null
+  compare?: EditorDocument | null
   /**
    * The block with the cursor and the selected blocks, bound with
    * `v-model:selection`. Setting it puts the cursor at the end of `block`,
@@ -120,9 +120,9 @@ export interface EditorSelection {
 }
 
 export interface EditorEmits {
-  'update:modelValue': [blocks: Block[]]
+  'update:modelValue': [document: EditorDocument]
   /** The document changed: typing, formatting, moving blocks. */
-  change: [blocks: Block[]]
+  change: [document: EditorDocument]
   /** Every change to the document, with what it touched; `update:modelValue` follows. */
   transaction: [result: EditorTransactionResult]
   /** The cursor moved to another block, or other blocks were selected. */
@@ -211,14 +211,14 @@ export interface EditorExpose {
   /** Where each thread is anchored; `null` for a thread whose text was deleted. */
   getCommentAnchors: () => Record<string, CommentAnchor | null>
   /**
-   * Replace the document with `blocks`, e.g. an older version, as one
+   * Replace the document with `doc`, e.g. an older version, as one
    * change undo takes back. With collaboration only the blocks that differ
    * are written, and everyone sees it. The `transaction` event has origin
    * `'restore'`. Like the other methods it works while `readonly`; it is
    * the one change allowed while comparing. Returns `false` when nothing
    * differs.
    */
-  restore: (blocks: PartialBlock[]) => boolean
+  restore: (doc: EditorDocument<PartialBlock>) => boolean
   /** With `compare`: scroll to the next change after the one last shown; `false` when there is none. */
   nextChange: () => boolean
   /** With `compare`: scroll to the change before the one last shown. */

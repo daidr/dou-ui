@@ -11,6 +11,7 @@ import {
 } from '../core/transaction'
 
 const doc = (): GanttDocument => ({
+  version: 1,
   tasks: [
     { id: 'p', title: '发布' },
     { id: 'a', parent: 'p', title: '设计', start: '2026-03-02', end: '2026-03-06' },
@@ -106,7 +107,11 @@ const childOrder = (state: GanttDocument, parent?: string) =>
 
 describe('moveTask', () => {
   it('moves among siblings, giving keys to siblings that had none', () => {
-    const tr = new GanttTransaction({ tasks: nested(), links: [] }).moveTask('b', 'p', 0)
+    const tr = new GanttTransaction({ version: 1, tasks: nested(), links: [] }).moveTask(
+      'b',
+      'p',
+      0,
+    )
     expect(childOrder(tr.doc, 'p')).toEqual(['b', 'a'])
     // now they have keys: the next move only rewrites one task
     const next = new GanttTransaction(tr.doc).moveTask('a', 'p', 0)
@@ -115,7 +120,7 @@ describe('moveTask', () => {
   })
 
   it('moves under another parent and out to the top', () => {
-    let state: GanttDocument = { tasks: nested(), links: [] }
+    let state: GanttDocument = { version: 1, tasks: nested(), links: [] }
     state = new GanttTransaction(state).moveTask('c', 'a').doc
     expect(childOrder(state, 'a')).toEqual(['c'])
     state = new GanttTransaction(state).moveTask('a', undefined, 1).doc
@@ -125,6 +130,7 @@ describe('moveTask', () => {
 
   it('refuses a move into itself and drops links to the new parents', () => {
     const state: GanttDocument = {
+      version: 1,
       tasks: nested(),
       links: [
         { id: 'l1', from: 'c', to: 'a' },

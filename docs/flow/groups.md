@@ -22,6 +22,7 @@
 
 ```ts
 const doc: FlowDocument = {
+  version: 1,
   nodes: [
     { id: 'collect', type: 'group', x: 0, y: 0, width: 216, height: 196, data: { label: '收集' } },
     { id: 'calendar', parent: 'collect', x: 24, y: 56, data: { label: '本周日程' } },

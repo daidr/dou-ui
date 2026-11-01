@@ -147,7 +147,7 @@ describe('conditional formats', () => {
   })
 })
 
-const book = (): SheetWorkbook => ({ sheets: [{ name: '表', cells: [[1], [2], [3]] }] })
+const book = (): SheetWorkbook => ({ version: 1, sheets: [{ name: '表', cells: [[1], [2], [3]] }] })
 
 describe('reading a range again', () => {
   it('keeps what a rule read while the range’s rows stay the same', () => {
@@ -210,6 +210,7 @@ describe('conditional formats in transactions', () => {
 describe('DouSheet with conditional formats', () => {
   it('draws looks, and redraws a row when a rule looks past it', async () => {
     const doc = ref<SheetWorkbook>({
+      version: 1,
       sheets: [
         {
           name: '表',
@@ -287,6 +288,7 @@ describe('the conditional format dialog', () => {
     const wrapper = mount(DouSheet, {
       props: {
         modelValue: {
+          version: 1,
           sheets: [
             {
               name: 'S',

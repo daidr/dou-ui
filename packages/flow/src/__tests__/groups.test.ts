@@ -63,6 +63,7 @@ afterEach(() => {
 })
 
 const sample = (): FlowDocument => ({
+  version: 1,
   nodes: [
     { id: 'g', type: 'group', x: 0, y: 0, width: 520, height: 200, data: { label: '整理' } },
     {

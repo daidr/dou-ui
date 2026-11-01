@@ -16,7 +16,7 @@ bun add yjs
 
 ```vue
 <script setup lang="ts">
-import { DouGantt, type GanttLink, type GanttTask } from '@dou-ui/gantt'
+import { DouGantt, type GanttDocument } from '@dou-ui/gantt'
 import { collaboration } from '@dou-ui/gantt/collaboration'
 import { ref } from 'vue'
 import { WebsocketProvider } from 'y-websocket'
@@ -25,8 +25,7 @@ import * as Y from 'yjs'
 const doc = new Y.Doc()
 const provider = new WebsocketProvider('wss://example.com', 'shop-opening', doc)
 
-const tasks = ref<GanttTask[]>([])
-const links = ref<GanttLink[]>([])
+const plan = ref<GanttDocument>({ version: 1, tasks: [], links: [] })
 const extensions = [
   collaboration({
     tasks: doc.getMap('tasks'),
@@ -38,7 +37,7 @@ const extensions = [
 </script>
 
 <template>
-  <DouGantt v-model:tasks="tasks" v-model:links="links" :extensions="extensions" />
+  <DouGantt v-model="plan" :extensions="extensions" />
 </template>
 ```
 
@@ -63,7 +62,7 @@ const extensions = [
 ```ts
 import { fillMaps } from '@dou-ui/gantt/collaboration'
 
-fillMaps({ tasks: doc.getMap('tasks'), links: doc.getMap('links') }, { tasks, links })
+fillMaps({ tasks: doc.getMap('tasks'), links: doc.getMap('links') }, plan)
 ```
 
 这一步通常在创建共享文档时在服务器上做一次。任务和依赖按 id 保存，即使两端同时写入同一份排期，也不会出现重复的任务。
@@ -112,10 +111,10 @@ interface CollaborationUser {
 
 ### 函数和常量
 
-| 名称                  | 说明                           | 类型                                                                     |
-| --------------------- | ------------------------------ | ------------------------------------------------------------------------ |
-| `fillMaps`            | 把任务和依赖写入共享文档       | `({ tasks, links }, { tasks: GanttTask[], links: GanttLink[] }) => void` |
-| `collaborationColors` | 不传 `user.color` 时使用的颜色 | `string[]`                                                               |
+| 名称                  | 说明                           | 类型                                              |
+| --------------------- | ------------------------------ | ------------------------------------------------- |
+| `fillMaps`            | 把任务和依赖写入共享文档       | `({ tasks, links }, plan: GanttDocument) => void` |
+| `collaborationColors` | 不传 `user.color` 时使用的颜色 | `string[]`                                        |
 
 ### CSS 变量
 

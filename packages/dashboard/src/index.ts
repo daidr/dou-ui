@@ -23,7 +23,7 @@ export type {
   DashboardProps,
 } from './dashboard/types'
 export type { DashboardDocument, DashboardPlace, DashboardWidget } from './core/types'
-export { checkDocument, isDashboardPlace, migrateDocument } from './core/document'
+export { checkDocument, emptyDocument, isDashboardPlace, migrateDocument } from './core/document'
 export type { CheckDocumentOptions, DocumentProblem } from './core/document'
 export { applySteps, DashboardTransaction, replaceWidgets, sameValue } from './core/transaction'
 export type {

@@ -7,6 +7,7 @@ import { SheetFormulaEngine } from '../formula/engine'
 import type { SheetExpose } from '../types'
 
 const book = (): SheetWorkbook => ({
+  version: 1,
   sheets: [
     {
       name: '门店',
@@ -88,6 +89,7 @@ describe('HYPERLINK', () => {
     expect(engine.link(0, 'B1')).toBe('#汇总!B1')
     // without a name, the address shows
     const other = new SheetFormulaEngine({
+      version: 1,
       sheets: [{ name: 'a', cells: [['=HYPERLINK("https://ui.daidr.me")', '=A1']] }],
     })
     expect(other.result(0, 'A1')).toBe('https://ui.daidr.me')
@@ -98,12 +100,16 @@ describe('HYPERLINK', () => {
 
   it('follows the cell it reads its address from', () => {
     const engine = new SheetFormulaEngine({
+      version: 1,
       sheets: [{ name: 'a', cells: [['https://a.example', '=HYPERLINK(A1, "去")']] }],
     })
     expect(engine.link(0, 'B1')).toBe('https://a.example')
     engine.update({
       before: engine.doc,
-      doc: { sheets: [{ name: 'a', cells: [['https://b.example', '=HYPERLINK(A1, "去")']] }] },
+      doc: {
+        version: 1,
+        sheets: [{ name: 'a', cells: [['https://b.example', '=HYPERLINK(A1, "去")']] }],
+      },
       steps: [{ type: 'setCell', sheet: 'a', row: 0, col: 0, cell: 'https://b.example' }],
     })
     expect(engine.link(0, 'B1')).toBe('https://b.example')

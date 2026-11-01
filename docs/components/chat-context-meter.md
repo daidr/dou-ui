@@ -4,7 +4,7 @@
 
 ## 基础用法
 
-`used` 是已用的 token 数，`total` 是上限。超过 80% 时圆环变成警告色，超过 95% 时变成危险色，阈值可以用 `warn-at` 和 `danger-at` 调整。具体数字在悬停提示里，`show-label` 会在圆环旁显示百分比。
+`used` 是已用的 token 数，`total` 是上限。超过 80% 时圆环变成警告色，超过 95% 时变成危险色，阈值可以用 `warnAt` 和 `dangerAt` 调整。具体数字在悬停提示里，`showLabel` 会在圆环旁显示百分比。
 
 <DocDemo src="chat-context-meter/basic" />
 

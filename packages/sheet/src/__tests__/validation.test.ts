@@ -72,7 +72,10 @@ describe('validation rules', () => {
   })
 
   it('moves with rows, and its list reference with the cells it reads', () => {
-    const tr = new SheetTransaction({ sheets: [{ name: '表', cells: [[1], [2], [3]] }] })
+    const tr = new SheetTransaction({
+      version: 1,
+      sheets: [{ name: '表', cells: [[1], [2], [3]] }],
+    })
       .addValidation({ range: 'A2:A3', list: '=$C$1:$C$3' })
       .addValidation({ range: 'B2', formula: '=B2>A2' })
       .insertRows(0, 1)
@@ -102,7 +105,7 @@ describe('rules over several ranges', () => {
     ])
     expect(c.ruleAt(0, 1)).toBeUndefined()
 
-    const tr = new SheetTransaction({ sheets: [{ name: '表', cells: [[1, 2, 3]] }] })
+    const tr = new SheetTransaction({ version: 1, sheets: [{ name: '表', cells: [[1, 2, 3]] }] })
       .addValidation({ range: ['A1:A9', 'C1:C9'], when: { op: 'ge', value: 0 } })
       .insertCols(1, 1)
     expect(tr.doc.sheets[0]!.validations![0]!.range).toEqual(['A1:A9', 'D1:D9'])
@@ -116,6 +119,7 @@ describe('rules over several ranges', () => {
 
 function setup() {
   const doc = ref<SheetWorkbook>({
+    version: 1,
     sheets: [
       {
         name: '表',

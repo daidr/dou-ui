@@ -40,7 +40,7 @@ app.use(DouGridLayout)
 
 传入的布局如果有重叠、超出列数或者上方有空隙，组件会先整理好再显示，但不会因此更新 `v-model`。
 
-列宽随网格的宽度变化，行高由 `row-height` 决定（默认 80px），格子之间的间距由 `gap` 决定（默认 16px，也可以写成 `[横向, 纵向]`）。位置完全由样式算出，服务端渲染时也能直接显示正确的布局。
+列宽随网格的宽度变化，行高由 `rowHeight` 决定（默认 80px），格子之间的间距由 `gap` 决定（默认 16px，也可以写成 `[横向, 纵向]`）。位置完全由样式算出，服务端渲染时也能直接显示正确的布局。
 
 ## 拖动把手
 
@@ -118,7 +118,7 @@ grid.value.focusItem(id)
 | 拿起后按 Esc，或移走焦点 | 取消，回到原处                             |
 | 用鼠标或手指拖动时按 Esc | 取消这次拖动                               |
 
-每一步都会通过读屏播报格子的位置和大小。格子的读屏名称默认是它的 `id`，用 `item-label` 换成更好懂的名字，比如标题。
+每一步都会通过读屏播报格子的位置和大小。格子的读屏名称默认是它的 `id`，用 `itemLabel` 换成更好懂的名字，比如标题。
 
 ## 不用组件
 
@@ -150,17 +150,17 @@ const narrow = deriveLayout(next, 12, { columns: 6 })
 
 | 名称          | 说明                                             | 类型                               | 默认值                         |
 | ------------- | ------------------------------------------------ | ---------------------------------- | ------------------------------ |
-| `model-value` | 最宽时各项的位置和大小，支持 `v-model`           | `GridItem[]`                       | `[]`                           |
+| `modelValue`  | 最宽时各项的位置和大小，支持 `v-model`           | `GridItem[]`                       | `[]`                           |
 | `layouts`     | 较窄断点上单独保存的位置，支持 `v-model:layouts` | `GridLayouts`                      | `{}`                           |
 | `columns`     | 列数，一个数字或每个断点一个                     | `number \| Record<string, number>` | `{ lg: 12, md: 6, sm: 1 }`     |
 | `breakpoints` | 每个断点生效的最小宽度（网格自身的宽度，px）     | `Record<string, number>`           | `{ lg: 1024, md: 640, sm: 0 }` |
-| `row-height`  | 行高（px）                                       | `number`                           | `80`                           |
+| `rowHeight`   | 行高（px）                                       | `number`                           | `80`                           |
 | `gap`         | 间距（px）                                       | `number \| [number, number]`       | `16`                           |
 | `compact`     | 自动往上靠，或者自由摆放                         | `'vertical' \| false`              | `'vertical'`                   |
 | `editable`    | 能否拖动和缩放                                   | `boolean`                          | `false`                        |
 | `handle`      | 只从 `DouGridLayoutHandle` 开始拖动              | `boolean`                          | `false`                        |
 | `resize`      | 哪些边可以拖动改大小，`false` 时不能改           | `boolean \| GridResizeHandle[]`    | `['e', 's', 'se']`             |
-| `item-label`  | 格子的读屏名称                                   | `(item: GridItem) => string`       | 格子的 `id`                    |
+| `itemLabel`   | 格子的读屏名称                                   | `(item: GridItem) => string`       | 格子的 `id`                    |
 | `label`       | 网格的读屏名称                                   | `string`                           | 编辑时为 `'网格布局'`          |
 | `messages`    | 替换语言包里的文字                               | `DashboardMessagesOverride`        | —                              |
 
@@ -194,7 +194,7 @@ const narrow = deriveLayout(next, 12, { columns: 6 })
 | `item`        | 格子的内容                 | `{ item, dragging, resizing }` |
 | `placeholder` | 拖动时标出落点的框里的内容 | `{ item }`                     |
 
-### GridLayout Methods
+### GridLayout Exposes
 
 | 名称           | 说明                                             | 类型                                                                |
 | -------------- | ------------------------------------------------ | ------------------------------------------------------------------- |

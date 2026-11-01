@@ -9,6 +9,7 @@ const money = (value) => ({ value, format: '¥#,##0' })
 const status = (value) => ({ value, type: 'status' })
 
 const book = ref({
+  version: 1,
   styles: { head: { bold: true, fill: 'neutral' }, title: { bold: true, align: 'center' } },
   types: {
     status: {

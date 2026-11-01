@@ -24,7 +24,7 @@
 
 ## 整页水印
 
-`fullscreen` 让水印固定覆盖整个视口，不随页面滚动。通常放在应用根组件里，配合 `z-index` 盖在浮层之上。
+`fullscreen` 让水印固定覆盖整个视口，不随页面滚动。通常放在应用根组件里，配合 `zIndex` 盖在浮层之上。
 
 <DocDemo src="watermark/fullscreen" />
 

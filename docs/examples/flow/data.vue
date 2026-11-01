@@ -3,6 +3,7 @@ import { DouFlowEditor } from '@dou-ui/flow'
 import { computed, ref } from 'vue'
 
 const doc = ref({
+  version: 1,
   nodes: [
     { id: 'a', x: 0, y: 0, data: { label: '收集素材', outputs: [{ id: 'out' }] } },
     { id: 'b', x: 288, y: 0, data: { label: '写初稿', inputs: [{ id: 'in' }] } },

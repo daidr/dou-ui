@@ -66,6 +66,9 @@ describe('diffBlocks', () => {
   })
 })
 
+/** The blocks as the document `v-model`, `compare` and `restore` take. */
+const doc = <B extends PartialBlock>(blocks: B[]) => ({ version: 1 as const, blocks })
+
 function mountEditor(props: Record<string, unknown>) {
   const wrapper = mount(DouEditor, { props, attachTo: document.body })
   wrappers.push(wrapper)
@@ -75,7 +78,7 @@ function mountEditor(props: Record<string, unknown>) {
 
 describe('compare', () => {
   it('shows what changed since an older version, read-only', async () => {
-    const { wrapper, exposed } = mountEditor({ modelValue: v2(), compare: v1() })
+    const { wrapper, exposed } = mountEditor({ modelValue: doc(v2()), compare: doc(v1()) })
     await nextTick()
     const root = wrapper.element
     expect(root.classList.contains('is-comparing')).toBe(true)
@@ -131,8 +134,8 @@ describe('compare with files and embeds', () => {
     const diff = diffBlocks(filesBefore(), filesAfter())
     expect([diff.added, diff.removed, diff.updated]).toEqual([['h', 'k'], ['g'], ['a', 'f']])
     const { wrapper, exposed } = mountEditor({
-      modelValue: filesAfter(),
-      compare: filesBefore(),
+      modelValue: doc(filesAfter()),
+      compare: doc(filesBefore()),
       extensions: [editorKit(), attachment(), embed()],
     })
     await nextTick()
@@ -147,7 +150,7 @@ describe('compare with files and embeds', () => {
     // a removed file reads as its name
     expect(root.querySelector('.dou-editor__diff-removed-block')!.textContent).toBe('预算.xlsx')
 
-    expect(exposed.restore(filesBefore())).toBe(true)
+    expect(exposed.restore(doc(filesBefore()))).toBe(true)
     await wrapper.setProps({ compare: null })
     expect(diffBlocks(filesBefore(), exposed.getBlocks()).changes).toEqual([])
     expect(exposed.getBlocks().map((b) => [b.id, b.type])).toEqual([
@@ -161,27 +164,27 @@ describe('compare with files and embeds', () => {
 
 describe('restore', () => {
   it('replaces the document as one change undo takes back', async () => {
-    const { exposed } = mountEditor({ modelValue: v2() })
+    const { exposed } = mountEditor({ modelValue: doc(v2()) })
     await nextTick()
-    expect(exposed.restore(v1())).toBe(true)
+    expect(exposed.restore(doc(v1()))).toBe(true)
     expect(exposed.getBlocks().map((b) => b.id)).toEqual(['a', 'b', 'c'])
     expect(exposed.getBlocks()[0]!.content).toEqual([
       { type: 'text', text: '上海站的活动定在周六' },
     ])
-    expect(exposed.restore(v1())).toBe(false)
+    expect(exposed.restore(doc(v1()))).toBe(false)
     expect(exposed.run(historyCommands(exposed.view.state).undo)).toBe(true)
     expect(exposed.getBlocks().map((b) => b.id)).toEqual(['a', 'c', 'd'])
   })
 
   it('reads out the restore, the one change allowed while comparing', async () => {
-    const { wrapper, exposed } = mountEditor({ modelValue: v2(), compare: v1() })
+    const { wrapper, exposed } = mountEditor({ modelValue: doc(v2()), compare: doc(v1()) })
     await nextTick()
     expect(exposed.nextChange()).toBe(true)
     await nextTick()
     await nextTick()
     const live = wrapper.find('.dou-editor__live')
     expect(live.text()).toBe('修改 上海站的活动改到周日')
-    expect(exposed.restore(v1())).toBe(true)
+    expect(exposed.restore(doc(v1()))).toBe(true)
     await nextTick()
     await nextTick()
     expect(live.text()).toBe('已恢复到这个版本')
@@ -191,7 +194,7 @@ describe('restore', () => {
     expect(exposed.getBlocks().map((b) => b.id)).toEqual(['a', 'b', 'c'])
     // like them, restore works from code on a read-only editor, as a change with its origin
     await wrapper.setProps({ readonly: true, compare: null })
-    expect(exposed.restore(v2())).toBe(true)
+    expect(exposed.restore(doc(v2()))).toBe(true)
     const event = wrapper.emitted('transaction')!.at(-1)![0] as { meta: { origin?: string } }
     expect(event.meta.origin).toBe('restore')
   })
@@ -199,15 +202,15 @@ describe('restore', () => {
   it('writes only what differs into a shared document, and reads it back without an editor', async () => {
     const ydoc = new Y.Doc()
     const map = ydoc.getMap('doc')
-    fillMap(map, v2() as PartialBlock[])
-    expect(readMap(map).map((b) => b.id)).toEqual(['a', 'c', 'd'])
+    fillMap(map, doc(v2()))
+    expect(readMap(map).blocks.map((b) => b.id)).toEqual(['a', 'c', 'd'])
     const { exposed } = mountEditor({ extensions: [editorKit(), collaboration({ map })] })
     await nextTick()
     const untouched = map.get('c')
-    expect(exposed.restore(v1())).toBe(true)
+    expect(exposed.restore(doc(v1()))).toBe(true)
     await nextTick()
-    expect(readMap(map).map((b) => b.id)).toEqual(['a', 'b', 'c'])
-    expect(readMap(map)[0]!.content).toEqual([{ type: 'text', text: '上海站的活动定在周六' }])
+    expect(readMap(map).blocks.map((b) => b.id)).toEqual(['a', 'b', 'c'])
+    expect(readMap(map).blocks[0]!.content).toEqual([{ type: 'text', text: '上海站的活动定在周六' }])
     // a block that is the same in both is left as it is
     expect(map.get('c')).toBe(untouched)
   })

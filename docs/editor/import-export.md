@@ -4,7 +4,7 @@
 
 ## 导出
 
-`blocksToHTML` 把块写成 HTML，`blocksToMarkdown` 把块写成 Markdown。两者都接收块和编辑器使用的扩展，不需要浏览器环境，可以在服务端运行。
+`blocksToHTML` 把块写成 HTML，`blocksToMarkdown` 把块写成 Markdown。两者都接收块（`v-model` 文档里的 `blocks`）和编辑器使用的扩展，不需要浏览器环境，可以在服务端运行。
 
 ```ts
 import { blocksToHTML, editorKit } from '@dou-ui/editor'
@@ -12,8 +12,8 @@ import { blocksToMarkdown } from '@dou-ui/editor/markdown'
 
 const extensions = [editorKit()]
 
-const html = blocksToHTML(blocks, extensions)
-const markdown = blocksToMarkdown(blocks, extensions)
+const html = blocksToHTML(doc.value.blocks, extensions)
+const markdown = blocksToMarkdown(doc.value.blocks, extensions)
 ```
 
 <DocDemo src="editor/export" column />
@@ -28,7 +28,7 @@ HTML 只包含语义标签，不带编辑器的类名，可以直接用于邮件
 import { htmlToBlocks } from '@dou-ui/editor'
 import { markdownToBlocks } from '@dou-ui/editor/markdown'
 
-const blocks = markdownToBlocks(text, extensions)
+doc.value = { version: 1, blocks: markdownToBlocks(text, extensions) }
 ```
 
 <DocDemo src="editor/import" column />

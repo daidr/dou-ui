@@ -17,6 +17,7 @@ const run = (kind, id = kind === 'input' ? 'run' : 'then') => ({
 })
 
 const doc = ref({
+  version: 1,
   nodes: [
     { id: 'start', x: 0, y: 0, data: { label: '每周一 9:00', outputs: [run('output')] } },
     {

@@ -188,7 +188,7 @@ downloadBlob(await dashboard.value.exportPNG({ pixelRatio: 2 }), '仪表盘.png'
 | ------------- | ------------------------------------------------------------ | -------------------------------------------------------------------------- |
 | `exportError` | 从菜单或 `saveWidget` 导出失败时；默认在格子内容上方显示原因 | `{ widget, exporter, error, message, defaultPrevented, preventDefault() }` |
 
-### Dashboard Methods
+### Dashboard Exposes
 
 | 名称                                   | 说明                                                                           |
 | -------------------------------------- | ------------------------------------------------------------------------------ |

@@ -5,6 +5,7 @@ import { ref } from 'vue'
 const table = (id, label = '表格') => ({ id, label, dataType: 'table' })
 
 const doc = ref({
+  version: 1,
   nodes: [
     { id: 'read', x: 0, y: 40, data: { label: '读取账单', outputs: [table('rows')] } },
     {

@@ -10,7 +10,7 @@
 <DouBackTop />
 ```
 
-这一页就有一个：向下滚动 300px 后它会出现在右下角。默认滚动 400px 后出现（`visibility-height`），距离右边和底部各 24px（`right`、`bottom`）。
+这一页就有一个：向下滚动 300px 后它会出现在右下角。默认滚动 400px 后出现（`visibilityHeight`），距离右边和底部各 24px（`right`、`bottom`）。
 
 ## 自定义内容
 

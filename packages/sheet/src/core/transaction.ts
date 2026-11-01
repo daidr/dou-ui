@@ -122,6 +122,7 @@ export type SheetAction =
   | 'style'
   | 'freeze'
   | 'sheet'
+  | 'import'
   | 'undo'
   | 'redo'
   | 'api'

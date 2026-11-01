@@ -1,7 +1,6 @@
 <script setup>
-import { DownloadIcon, UploadIcon } from '@dou-ui/icons'
-import { DouSheet, DouSheetTabs, readCSV } from '@dou-ui/sheet'
-import { ref, useTemplateRef } from 'vue'
+import { DouSheet, DouSheetTabs, DouSheetToolbar } from '@dou-ui/sheet'
+import { ref } from 'vue'
 
 const book = ref({
   sheets: [
@@ -16,47 +15,14 @@ const book = ref({
     },
   ],
 })
-const active = ref(0)
-const grid = useTemplateRef('grid')
-const file = useTemplateRef('file')
-
-async function importFile(event) {
-  const picked = event.target.files?.[0]
-  event.target.value = ''
-  if (!picked) return
-  const cells = readCSV(await picked.text())
-  let name = picked.name.replace(/\.(csv|tsv|txt)$/i, '')
-  grid.value.transact((tr) => {
-    name = tr.uniqueName(name)
-    tr.addSheet({ name, cells })
-  })
-  grid.value.showSheet(name)
-}
-
-function exportFile() {
-  const text = grid.value.toCSV({ bom: true })
-  const url = URL.createObjectURL(new Blob([text], { type: 'text/csv' }))
-  const link = document.createElement('a')
-  link.href = url
-  link.download = `${book.value.sheets[active.value].name}.csv`
-  link.click()
-  setTimeout(() => URL.revokeObjectURL(url), 1000)
-}
 </script>
 
 <template>
-  <div style="display: flex; gap: 8px; margin-bottom: 12px">
-    <DouButton variant="outline" @click="file.click()">
-      <template #leading><UploadIcon /></template>
-      导入 CSV
-    </DouButton>
-    <DouButton variant="outline" @click="exportFile">
-      <template #leading><DownloadIcon /></template>
-      导出 CSV
-    </DouButton>
-    <input ref="file" type="file" accept=".csv,.tsv,.txt,text/csv" hidden @change="importFile" />
-  </div>
-  <DouSheet ref="grid" v-model="book" v-model:active-sheet="active" style="height: 240px">
+  <!-- 工具栏的导入按钮读入 CSV，导出菜单下载 CSV 或图片；也可以把 CSV 文件拖到表格上 -->
+  <DouSheet v-model="book" file-drop style="height: 260px">
+    <template #header>
+      <DouSheetToolbar :tools="['undo', 'redo', '|', 'bold', 'italic', '|', 'import', 'export']" />
+    </template>
     <template #footer>
       <DouSheetTabs />
     </template>

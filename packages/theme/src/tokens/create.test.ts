@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { contrastRatio, createTheme, createTone, dark, light, parseColor } from '../index'
+import {
+  contrastRatio,
+  createTheme,
+  createTone,
+  dark,
+  light,
+  mixColors,
+  parseColor,
+} from '../index'
 
 describe('createTheme', () => {
   it('keeps text readable in both themes for any brand color', () => {
@@ -54,5 +62,13 @@ describe('createTheme', () => {
     expect(parseColor('#fff')).toEqual([1, 1, 1])
     expect(parseColor('rgb(255 0 0)')).toEqual([1, 0, 0])
     expect(() => parseColor('red')).toThrow('unsupported color')
+  })
+})
+
+describe('mixColors', () => {
+  it('mixes in OKLab, keeping the ends', () => {
+    expect(mixColors('#3f56b5', '#ffffff', 0)).toBe('#ffffff')
+    expect(mixColors('#3f56b5', '#ffffff', 1)).toBe('#3f56b5')
+    expect(mixColors('#000000', '#ffffff', 0.5)).toBe('#636363')
   })
 })

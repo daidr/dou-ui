@@ -27,8 +27,9 @@ DouUI 的组件建立在一组组合式函数上。下面这些已经导出，�
 | `useIntersection`                                 | 元素是否出现在视口或滚动容器中                         | [下文](#useintersection)                                           |
 | `holdPointer`                                     | 触摸拖动开始后不再滚动页面，按下的元素被移除也不中断   | [下文](#holdpointer)                                               |
 | `svgToPNG` / `fitPixelRatio`                      | 把 SVG 画成 PNG，超出画布上限时抛出 `RangeError`       | [下文](#svgtopng)                                                  |
+| `downloadBlob`                                    | 把 `Blob` 存成下载的文件                               | [下文](#downloadblob)                                              |
 
-除 `holdPointer`、`svgToPNG`、`fitPixelRatio` 外，这些函数都要在 `setup` 中调用，组件卸载时自动清理监听。
+除 `holdPointer`、`svgToPNG`、`fitPixelRatio`、`downloadBlob` 外，这些函数都要在 `setup` 中调用，组件卸载时自动清理监听。
 
 ## 自己写一个浮层
 
@@ -182,3 +183,13 @@ const blob = await svgToPNG(svg, { width: 800, height: 600, pixelRatio: 2 })
 浏览器对画布的尺寸有限制：每边 16384 像素（`CANVAS_MAX_SIDE`）；总像素数在 iPhone 和 iPad 上约 1677 万，其他设备上是 16384 × 16384，`canvasMaxArea()` 返回当前设备的值。超出时 `svgToPNG` 会自动降低 `pixelRatio`，降到 1 仍然放不下时抛出 `RangeError`，不会生成一张模糊的图。宽高或 `pixelRatio` 不是正数时也抛出 `RangeError`。SVG 无法解析时抛出的错误会说明是 SVG 没能画成图片，原始错误在 `cause` 里。
 
 `fitPixelRatio(width, height, pixelRatio?, source?)` 只做这一步计算，返回实际使用的倍数，适合在准备耗时的绘制之前先检查一次。两个函数都可以传 `scope` 和 `hint`：`scope` 加在错误信息前面，例如 `[@dou-ui/chart]`，`hint` 接在超限的错误后面，说明可以怎么办。白板、甘特图、图表、仪表盘和电子表格的 `exportPNG()` 都基于它们实现，超出上限时的行为一致。
+
+## downloadBlob
+
+```ts
+import { downloadBlob } from 'dou-ui'
+
+downloadBlob(new Blob([csv], { type: 'text/csv' }), '门店.csv')
+```
+
+`downloadBlob(blob, fileName)` 让浏览器把 `blob` 下载成名为 `fileName` 的文件，下载开始后会释放临时地址。它只在调用时用到 `document`，所以可以放心地在服务端渲染的组件里引入。

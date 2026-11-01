@@ -1,6 +1,6 @@
 # 扩展
 
-扩展把单元格类型、命令、快捷键、右键菜单项、工具栏按钮、浮在表格上的组件和修改钩子打包在一起，用 `extensions` 传给表格，适合把一组相关的定制放在一处，在多个表格之间复用。
+扩展把单元格类型、命令、快捷键、右键菜单项、工具栏按钮、导入导出方式、浮在表格上的组件和修改钩子打包在一起，用 `extensions` 传给表格，适合把一组相关的定制放在一处，在多个表格之间复用。
 
 下面的例子用了两个扩展：一个加了“进度”单元格类型，画成进度条，输入 `60` 或 `60%` 都记为 0.6，右键菜单里多一项“标为完成”，作用于选中的所有进度单元格；另一个定义了“填入今天”命令，工具栏按钮、右键菜单（手机上长按）和 `Ctrl` / `⌘` + `;` 都运行它。
 
@@ -46,6 +46,8 @@ const extensions = [progress]
 | `keymap`      | 表格有焦点、没有在编辑单元格时的快捷键，写法和 `useHotkey` 一样；值是处理函数或命令名。处理函数（或命令）返回 `false` 表示没处理，交给下一个 | `(ctx) => Record<string, ((event) => boolean \| void) \| string>` |
 | `contextMenu` | 右键菜单的项，排在内置项前面；`menu` 属性收到的菜单项里也包括它们                                                                            | `(ctx, menu: SheetMenuContext) => SheetMenuItem[]`                |
 | `toolbar`     | `DouSheetToolbar` 上的按钮，默认排在内置按钮后面，见下文                                                                                     | `(ctx) => SheetToolbarItem[]`                                     |
+| `exporters`   | 导出方式，出现在工具栏的导出菜单里，`exportFile` 可以按名字使用；和内置的 `csv`、`png`、`svg` 同名时替换内置的，见下文                       | `SheetExporter[]`                                                 |
+| `importers`   | 导入方式，用于工具栏的导入按钮、`importFile` 和拖入的文件；比内置的 CSV 先询问                                                               | `SheetImporter[]`                                                 |
 | `overlays`    | 浮在表格上方的组件，不随表格滚动，可以用 `cellRect` 对准单元格                                                                               | `Component[]`                                                     |
 | `history`     | 替换表格自带的撤销记录，多个扩展都有时用优先级最高的，见下文                                                                                 | `(ctx) => SheetHistoryHandler`                                    |
 | `setup`       | 表格挂载后调用，可以返回一个函数，在卸载时调用                                                                                               | `(ctx) => void \| (() => void)`                                   |
@@ -80,6 +82,7 @@ interface SheetHistoryHandler {
 | `panel`  | 编辑时显示在单元格下方的面板，比如日历；发出 `pick` 事件写入值并结束编辑                                                                                    | `Component`                                     |
 | `toggle` | 有它时，空格、`F2`、双击和点 `data-sheet-toggle` 元素会切换值，不打开编辑框。空格切换选区里所有同类单元格：值相同时一起切换，不同时都变成空单元格切换后的值 | `(value, setup) => SheetValue`                  |
 | `align`  | 单元格样式没有指定对齐时的对齐方式                                                                                                                          | `'left' \| 'center' \| 'right'`                 |
+| `plain`  | 写进文件、给其他表格软件打开时用的值，比如评分写成数字；默认是值本身。导出方式通过 `source.plain` 读取                                                      | `(value, setup) => SheetValue`                  |
 
 `setup` 是这个单元格的类型设置：工作簿 `types` 里对应的那一项，例如 `{ type: 'select', options: [...] }`；直接写类型名时是 `{ type: 'progress' }`。
 
@@ -198,6 +201,95 @@ commands.get('today.insert') // { name, label, icon, shortcut, toggle }
 
 右键菜单项同样可以只写 `{ key, command }`，`label`、`icon`、`shortcut`、`disabled` 和 `run` 不写时从命令来。`menu` 属性收到的菜单项已经补全，`label` 一定有值。
 
+## 导出器与导入器
+
+导出器把工作簿写成一种文件，导入器把一种文件读成工作簿。它们只读写数据，不依赖表格组件，所以也可以在脚本、Worker 或服务端使用。
+
+```ts
+import { defineSheetExporter, defineSheetExtension } from '@dou-ui/sheet'
+
+const json = defineSheetExporter({
+  name: 'json',
+  label: 'JSON (.json)',
+  extension: 'json',
+  mime: 'application/json',
+  scopes: ['workbook', 'sheet'],
+  export: (source) => JSON.stringify(source.sheets.map((s) => s.data)),
+})
+
+const extensions = [defineSheetExtension({ name: 'json', exporters: [json] })]
+```
+
+想让 `exportFile('json', { options })` 检查选项的类型，就把选项补进 `SheetExporterOptions`：
+
+```ts
+declare module '@dou-ui/sheet' {
+  interface SheetExporterOptions {
+    json: { indent?: number }
+  }
+}
+```
+
+| 导出器字段  | 说明                                                                                                                         | 类型                                                              |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `name`      | 名字，`exportFile(name)` 用它；两个扩展不能重名                                                                              | `string`                                                          |
+| `label`     | 导出菜单里的名字                                                                                                             | `string \| ((messages) => string)`                                |
+| `icon`      | 图标                                                                                                                         | `Component`                                                       |
+| `extension` | 文件扩展名，不带点，下载时用                                                                                                 | `string`                                                          |
+| `mime`      | 文件类型，返回字符串时用它包成 `Blob`                                                                                        | `string`                                                          |
+| `scopes`    | 能导出什么，第一个是默认的范围；有多种时工具栏的导出菜单让用户选；默认三种都可以                                             | `('workbook' \| 'sheet' \| 'selection')[]`                        |
+| `needs`     | `'view'` 表示要按表格画出来的样子导出（列宽、行高、页面主题的颜色），会拿到 `source.view`，只能在表格组件里用；默认 `'data'` | `'data' \| 'view'`                                                |
+| `export`    | 写出文件，`options` 是 `exportFile` 传入的 `options`                                                                         | `(source, options?) => Blob \| string \| Promise<Blob \| string>` |
+
+`source` 是导出时的工作簿和读取单元格的方法，单元格都用工作表序号、行、列（从 0 开始）指定：
+
+| 名称                        | 说明                                                                                                                                      |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `book`                      | 存储的工作簿                                                                                                                              |
+| `scope`                     | 这次导出的范围                                                                                                                            |
+| `sheets`                    | 要写的工作表，每项是 `{ index, data, bounds }`，`bounds` 是要写的单元格，空表为 `null`                                                    |
+| `value(sheet, row, col)`    | 存储的值，公式单元格是公式本身                                                                                                            |
+| `result(sheet, row, col)`   | 计算结果，错误是 `SheetError`                                                                                                             |
+| `text(sheet, row, col)`     | 单元格显示的文字，和表格里一致                                                                                                            |
+| `plain(sheet, row, col)`    | 写给其他表格软件的值：单元格类型的 `plain`，或计算结果（错误写成 `#DIV/0!` 这样的代码）                                                   |
+| `style(sheet, row, col)`    | 单元格的样子：命名样式，叠加条件格式给的样式；`tone`、`fill` 已换成浅色主题下的具体颜色，放在 `color`、`background` 里。普通单元格为 `{}` |
+| `format(sheet, row, col)`   | 数字格式                                                                                                                                  |
+| `cellType(sheet, row, col)` | 单元格类型，普通单元格为 `undefined`                                                                                                      |
+| `locale`、`messages`        | 语言和文案                                                                                                                                |
+| `signal`                    | `exportFile` 传入的 `signal`，取消时中止                                                                                                  |
+| `view`                      | 只有 `needs: 'view'` 的导出器在表格里导出时才有：`view.drawing(options?)` 返回导出的单元格按表格画出来的布局和颜色                        |
+
+导入器读文件，返回 `{ book, warnings? }`。`warnings` 列出没能带过来的内容，会在 `import` 事件里交给使用者：
+
+```ts
+import { defineSheetImporter } from '@dou-ui/sheet'
+
+const json = defineSheetImporter({
+  name: 'json',
+  label: 'JSON',
+  accept: ['.json', 'application/json'],
+  async import(file) {
+    return { book: { sheets: JSON.parse(await file.text()) } }
+  },
+})
+```
+
+| 导入器字段 | 说明                                                                                                                  | 类型                                                                           |
+| ---------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `name`     | 名字，`importFile(file, { importer })` 用它                                                                           | `string`                                                                       |
+| `label`    | 这种文件叫什么，比如“CSV 文件”：文件没有名字时用在表格的提示里，也在 `useSheet().importers` 里交给你自己做的导入菜单  | `string \| ((messages) => string)`                                             |
+| `accept`   | 能读的文件，写法和文件选择框的 `accept` 一样：扩展名如 `.csv`，或类型如 `text/csv`                                    | `string[]`                                                                     |
+| `sniff`    | 按文件开头的字节判断能不能读，用于文件名看不出来的情况                                                                | `(head: Uint8Array) => boolean`                                                |
+| `import`   | 读文件；`context` 里有 `messages`、`locale` 和 `signal`（导入被取消或表格卸载时中止）；出错时抛出错误，表格会提示原因 | `(file, context, options?) => SheetImportResult \| Promise<SheetImportResult>` |
+
+不经过组件时，`exportWorkbook(book, exporter, options?)` 写出 `Blob`，会计算公式，`needs: 'view'` 的导出器在这里会报错；`options` 里的 `extensions` 提供工作簿用到的单元格类型和函数，`scope`、`sheet`（序号、`id` 或名字，默认第一张）、`range`、`signal` 和组件的 `exportFile` 一样，`options` 交给导出器。`readWorkbook(file, importer, options?)` 只读出 `{ book, warnings }`，不写进任何表格。内置的 CSV 导出器和导入器是 `csvExporter`、`csvImporter`，也可以这样用：
+
+```ts
+import { csvExporter, exportWorkbook } from '@dou-ui/sheet'
+
+const blob = await exportWorkbook(book, csvExporter, { scope: 'sheet', sheet: 1 })
+```
+
 ## 快捷键
 
 扩展的快捷键先于表格自己的按键处理，多个扩展按 `priority` 从高到低依次询问。值可以是处理函数，也可以是命令名。处理函数（或命令）没有返回 `false` 时，按键就算处理过了，表格会阻止它的默认行为；命令不能执行时按键交给下一个。正在编辑单元格时不会触发。
@@ -206,29 +298,31 @@ commands.get('today.insert') // { name, label, icon, shortcut, toggle }
 
 在扩展的钩子、浮层组件、单元格类型的组件和表格的 `header`、`footer` 插槽里，`useSheet()` 返回当前表格的状态和操作：
 
-| 名称                                                    | 说明                                                                                          |
-| ------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `doc`、`sheet`、`sheetIndex`                            | 工作簿、当前显示的工作表和它的序号                                                            |
-| `selection`、`active`                                   | 选区和键盘所在的单元格                                                                        |
-| `readonly`、`messages`                                  | 只读状态、当前语言的文案                                                                      |
-| `focused`                                               | 表格或单元格编辑框是否有键盘焦点                                                              |
-| `value(point)`、`result(point)`                         | 当前工作表里一个单元格的值（公式单元格是公式本身），和它的计算结果                            |
-| `forEachSelected(callback)`                             | 依次处理选中的每个单元格，合并单元格只算一次（左上角）                                        |
-| `cellType(point)`                                       | 单元格的类型 `{ name, definition, setup }`，`definition` 是类型本身；普通单元格为 `undefined` |
-| `cellRect(point)`                                       | 单元格（或它所在的合并单元格）现在画在哪，看不见时为 `null`                                   |
-| `rangeRect(bounds)`                                     | 区域在视图里露出的部分画在哪，`cut` 标出被视图或冻结窗格挡住的边；完全看不见时为 `null`       |
-| `transact`、`undo`、`redo`、`canUndo`、`canRedo`        | 修改与撤销，同组件实例                                                                        |
-| `select`、`scrollTo`、`edit`、`focus`                   | 选择、滚动、编辑和聚焦，同组件实例                                                            |
-| `showSheet`、`toCSV`、`exportSVG`、`exportPNG`、`print` | 切换工作表、导出 CSV 和图片、打印，同组件实例                                                 |
-| `styleAt(point)`、`formatAt(point)`                     | 单元格的样式（没有时为 `{}`）和数字格式，合并单元格取左上角                                   |
-| `styleSelection(patch)`                                 | 修改选区的样式，规则同 `tr.styleCells`，`null` 去掉样式；返回是否有改动                       |
-| `formatSelection(format)`                               | 设置选区的数字格式，也可以传函数逐格计算，同 `tr.formatCells`                                 |
-| `clearFormatting()`                                     | 去掉选区的样式和数字格式                                                                      |
-| `merged`、`canMerge`、`merge()`、`unmerge()`            | 选区是否碰到合并单元格、能否合并；合并（会提示清空了几格）、取消合并                          |
-| `announce(text)`                                        | 让读屏软件播报一段文字                                                                        |
-| `commands`                                              | 执行和查询命令，见[命令](#命令)                                                               |
-| `toolbarItems`                                          | 扩展加到工具栏上的按钮，按优先级排列；自己做工具栏时用                                        |
-| `editor`                                                | 正在编辑的单元格，供表格外的输入框使用，见下文                                                |
+| 名称                                                    | 说明                                                                                                                                                                                               |
+| ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `doc`、`sheet`、`sheetIndex`                            | 工作簿、当前显示的工作表和它的序号                                                                                                                                                                 |
+| `selection`、`active`                                   | 选区和键盘所在的单元格                                                                                                                                                                             |
+| `readonly`、`messages`                                  | 只读状态、当前语言的文案                                                                                                                                                                           |
+| `focused`                                               | 表格或单元格编辑框是否有键盘焦点                                                                                                                                                                   |
+| `value(point)`、`result(point)`                         | 当前工作表里一个单元格的值（公式单元格是公式本身），和它的计算结果                                                                                                                                 |
+| `forEachSelected(callback)`                             | 依次处理选中的每个单元格，合并单元格只算一次（左上角）                                                                                                                                             |
+| `cellType(point)`                                       | 单元格的类型 `{ name, definition, setup }`，`definition` 是类型本身；普通单元格为 `undefined`                                                                                                      |
+| `cellRect(point)`                                       | 单元格（或它所在的合并单元格）现在画在哪，看不见时为 `null`                                                                                                                                        |
+| `rangeRect(bounds)`                                     | 区域在视图里露出的部分画在哪，`cut` 标出被视图或冻结窗格挡住的边；完全看不见时为 `null`                                                                                                            |
+| `transact`、`undo`、`redo`、`canUndo`、`canRedo`        | 修改与撤销，同组件实例                                                                                                                                                                             |
+| `select`、`scrollTo`、`edit`、`focus`                   | 选择、滚动、编辑和聚焦，同组件实例                                                                                                                                                                 |
+| `showSheet`、`toCSV`、`exportSVG`、`exportPNG`、`print` | 切换工作表、导出 CSV 和图片、打印，同组件实例                                                                                                                                                      |
+| `styleAt(point)`、`formatAt(point)`                     | 单元格的样式（没有时为 `{}`）和数字格式，合并单元格取左上角                                                                                                                                        |
+| `styleSelection(patch)`                                 | 修改选区的样式，规则同 `tr.styleCells`，`null` 去掉样式；返回是否有改动                                                                                                                            |
+| `formatSelection(format)`                               | 设置选区的数字格式，也可以传函数逐格计算，同 `tr.formatCells`                                                                                                                                      |
+| `clearFormatting()`                                     | 去掉选区的样式和数字格式                                                                                                                                                                           |
+| `merged`、`canMerge`、`merge()`、`unmerge()`            | 选区是否碰到合并单元格、能否合并；合并（会提示清空了几格）、取消合并                                                                                                                               |
+| `announce(text)`                                        | 让读屏软件播报一段文字                                                                                                                                                                             |
+| `commands`                                              | 执行和查询命令，见[命令](#命令)                                                                                                                                                                    |
+| `exportFile`、`saveFile`、`importFile`                  | 导出、导出并下载、导入文件，同组件实例，见[导入与导出](./#导入与导出)                                                                                                                              |
+| `exporters`、`importers`、`importAccept`                | 所有导出器、导入器，以及文件选择框能用的 `accept`；自己做导入导出按钮时用。每项是 `{ name, label, icon, extension, mime, scopes }`（导入器是 `{ name, label, accept }`），`label` 已按当前语言给出 |
+| `toolbarItems`                                          | 扩展加到工具栏上的按钮，按优先级排列；自己做工具栏时用                                                                                                                                             |
+| `editor`                                                | 正在编辑的单元格，供表格外的输入框使用，见下文                                                                                                                                                     |
 
 `editor` 让表格外的输入框和单元格一起编辑，`DouSheetFormulaBar` 就是用它做的：
 

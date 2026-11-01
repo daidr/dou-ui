@@ -170,14 +170,20 @@ function toHex(rgb: Rgb): string {
     .join('')}`
 }
 
-function toOklch(rgb: Rgb): Oklch {
+function toOklab(rgb: Rgb): [number, number, number] {
   const [r, g, b] = rgb.map(linear) as Rgb
   const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b)
   const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b)
   const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b)
-  const L = 0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s
-  const A = 1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s
-  const B = 0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s
+  return [
+    0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s,
+    1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s,
+    0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s,
+  ]
+}
+
+function toOklch(rgb: Rgb): Oklch {
+  const [L, A, B] = toOklab(rgb)
   return [L, Math.hypot(A, B), Math.atan2(B, A)]
 }
 
@@ -201,4 +207,16 @@ function oklabToRgb(L: number, A: number, B: number): Rgb {
     gamma(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s),
     gamma(-0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s),
   ]
+}
+
+/**
+ * `amount` (0–1) of `color` mixed into `base` in OKLab, as CSS
+ * `color-mix(in oklab, color amount, base)` does, as `#rrggbb`.
+ */
+export function mixColors(color: string, base: string, amount: number): string {
+  const a = toOklab(parseColor(color))
+  const b = toOklab(parseColor(base))
+  const t = Math.min(1, Math.max(0, amount))
+  const [L, A, B] = a.map((v, i) => v * t + b[i]! * (1 - t)) as [number, number, number]
+  return toHex(oklabToRgb(L, A, B))
 }

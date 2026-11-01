@@ -9,7 +9,7 @@ export type {
 export { light } from './tokens/light'
 export { dark } from './tokens/dark'
 export { defineTheme } from './tokens/define'
-export { contrastRatio, createTheme, createTone, parseColor } from './tokens/create'
+export { contrastRatio, createTheme, createTone, mixColors, parseColor } from './tokens/create'
 export type { CreateThemeOptions, ThemeColors } from './tokens/create'
 export { CSS_VAR_PREFIX, cssVarName, flattenTokens, themeToCss } from './tokens/css'
 export { breakpoints } from './breakpoints'

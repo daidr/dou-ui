@@ -2,6 +2,7 @@ import type { Component } from 'vue'
 import type { SheetContext } from '../context'
 import type { SheetMenuContext, SheetMenuItem, SheetToolbarItem } from '../types'
 import type { SheetCommand } from './commands'
+import type { SheetExporter, SheetImporter } from './file'
 import type { SheetFunction } from '../formula/functions'
 import type { SheetCellType } from './cell-type'
 import type { SheetTransaction } from './transaction'
@@ -46,6 +47,16 @@ export interface SheetExtension {
    */
   commands?: Record<string, SheetCommand>
   /**
+   * Ways to write files, offered in the toolbar's export menu and by
+   * `exportFile`. One with a built-in name (`csv`, `png`, `svg`) replaces it.
+   */
+  exporters?: SheetExporter[]
+  /**
+   * Ways to read files, for the toolbar's import button, `importFile` and
+   * dropped files. They are asked before the built-in CSV one.
+   */
+  importers?: SheetImporter[]
+  /**
    * Keys, written as in `useHotkey` (e.g. `mod+b`, `alt+arrowdown`), while the
    * grid has focus and no cell is being edited: a handler, or the name of a
    * command to run. They come before the grid's own.
@@ -86,6 +97,8 @@ export interface ResolvedSheetExtensions {
   cellTypes: SheetCellType[]
   functions: SheetFunction[]
   commands: { extension: string; commands: Record<string, SheetCommand> }[]
+  exporters: { extension: string; exporter: SheetExporter }[]
+  importers: { extension: string; importer: SheetImporter }[]
   keymaps: NonNullable<SheetExtension['keymap']>[]
   toolbars: NonNullable<SheetExtension['toolbar']>[]
   menus: NonNullable<SheetExtension['contextMenu']>[]
@@ -135,6 +148,12 @@ export function resolveSheetExtensions(list: ExtensionList = []): ResolvedSheetE
     functions: extensions.flatMap((e) => e.functions ?? []).reverse(),
     commands: extensions.flatMap((e) =>
       e.commands ? [{ extension: e.name, commands: e.commands }] : [],
+    ),
+    exporters: extensions.flatMap((e) =>
+      (e.exporters ?? []).map((exporter) => ({ extension: e.name, exporter })),
+    ),
+    importers: extensions.flatMap((e) =>
+      (e.importers ?? []).map((importer) => ({ extension: e.name, importer })),
     ),
     keymaps: pick('keymap'),
     toolbars: pick('toolbar'),
